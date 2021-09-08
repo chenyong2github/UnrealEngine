@@ -6,16 +6,11 @@
 
 #include "CoreUObject/Public/AssetRegistry/AssetData.h"
 
-FLevelSnapshotsEditorInput::FLevelSnapshotsEditorInput(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
-	: BuilderPtr(InBuilder)
-{
-}
-
 TSharedRef<SWidget> FLevelSnapshotsEditorInput::GetOrCreateWidget()
 {
 	if (!EditorInputWidget.IsValid())
 	{
-		SAssignNew(EditorInputWidget, SLevelSnapshotsEditorInput, SharedThis(this), BuilderPtr.Pin().ToSharedRef());
+		SAssignNew(EditorInputWidget, SLevelSnapshotsEditorInput, SharedThis(this), ViewBuildData);
 	}
 
 	return EditorInputWidget.ToSharedRef();

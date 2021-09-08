@@ -149,7 +149,8 @@ void ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(
 	ULevelSnapshot* Snapshot,
 	UObject* SnapshotRootObject,
 	UObject* WorldRootObject,
-	TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> Callback)
+	TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> HandleCustomSubobjectPair,
+	TFunction<void(UObject* UnmatchedSnapshotSubobject)> HandleUnmatchedSnapshotSubobject)
 {
-	FCustomObjectSerializationWrapper::ForEachMatchingCustomSubobjectPair(Snapshot->GetSerializedData(), SnapshotRootObject, WorldRootObject, Callback);
+	FCustomObjectSerializationWrapper::ForEachMatchingCustomSubobjectPair(Snapshot->GetSerializedData(), SnapshotRootObject, WorldRootObject, HandleCustomSubobjectPair, HandleUnmatchedSnapshotSubobject);
 }

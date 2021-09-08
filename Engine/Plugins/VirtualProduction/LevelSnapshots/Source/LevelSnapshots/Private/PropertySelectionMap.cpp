@@ -2,7 +2,9 @@
 
 #include "PropertySelectionMap.h"
 
+#include "CustomSubobjectRestorationInfo.h"
 #include "LevelSnapshotsLog.h"
+#include "Data/RestorableObjectSelection.h"
 
 #include "GameFramework/Actor.h"
 #include "UObject/UObjectHash.h"
@@ -29,39 +31,151 @@ void FPropertySelectionMap::RemoveNewActorToDespawn(AActor* WorldActor)
 
 bool FPropertySelectionMap::AddObjectProperties(UObject* WorldObject, const FPropertySelection& SelectedProperties)
 {
-	if (!SelectedProperties.IsEmpty() && ensure(WorldObject))
-	{
-		SelectedWorldObjectsToSelectedProperties.FindOrAdd(WorldObject) = SelectedProperties;
+	if (ensure(WorldObject)
+		// Expliticly warn about empty sets for subobjects. See documentation of MarkSubobjectForRestoringReferencesButSkipProperties.
+		&& ensureMsgf(!SelectedProperties.IsEmpty(), TEXT("Maybe you meant to call MarkSubobjectForRestoringReferencesButSkipProperties?"))
+		&& ensureMsgf(!SubobjectsMarkedForReferencesRestorationOnly.Contains(WorldObject), TEXT("Object was already added via MarkSubobjectForRestoringReferencesButSkipProperties because it had no changed properties. Now we're told that is does have selected properties...")))
+	{		
+		EditorWorldObjectToSelectedProperties.FindOrAdd(WorldObject) = SelectedProperties;
 		return true;
 	}
 	return false;
 }
 
-void FPropertySelectionMap::RemoveObjectPropertiesFromMap(UObject* WorldObject)
+void FPropertySelectionMap::MarkSubobjectForRestoringReferencesButSkipProperties(UObject* WorldSubbject)
 {
-	SelectedWorldObjectsToSelectedProperties.Remove(WorldObject);
+	if (ensure(WorldSubbject)
+		&& ensureMsgf(!EditorWorldObjectToSelectedProperties.Contains(WorldSubbject), TEXT("Object was already added via AddObjectProperties with changed properties. Now we're told that is has no changed properties..."))
+		&& ensureMsgf(!WorldSubbject->IsA<UActorComponent>(), TEXT("Components have special case handling and should not be added.")))
+	{
+		SubobjectsMarkedForReferencesRestorationOnly.Add(WorldSubbject);
+	}
 }
 
-const FPropertySelection* FPropertySelectionMap::GetSelectedProperties(UObject* WorldObject) const
+bool FPropertySelectionMap::IsSubobjectMarkedForReferenceRestorationOnly(const FSoftObjectPath& WorldSubobjectPath) const
 {
-	return GetSelectedProperties(FSoftObjectPath(WorldObject));
+	return SubobjectsMarkedForReferencesRestorationOnly.Contains(WorldSubobjectPath);
+}
+
+void FPropertySelectionMap::RemoveObjectPropertiesFromMap(UObject* WorldObject)
+{
+	EditorWorldObjectToSelectedProperties.Remove(WorldObject);
+}
+
+void FPropertySelectionMap::AddComponentSelection(AActor* EditorWorldActor, const FAddedAndRemovedComponentInfo& ComponentSelection)
+{
+	const bool bIsEmpty = ComponentSelection.SnapshotComponentsToAdd.Num() == 0 && ComponentSelection.EditorWorldComponentsToRemove.Num() == 0;
+	if (ensure(EditorWorldActor && !bIsEmpty))
+	{
+		EditorActorToComponentSelection.Add(EditorWorldActor, ComponentSelection);
+	}
+}
+
+void FPropertySelectionMap::RemoveComponentSelection(AActor* EditorWorldActor)
+{
+	EditorActorToComponentSelection.Remove(EditorWorldActor);
+}
+
+void FPropertySelectionMap::AddCustomEditorSubobjectToRecreate(UObject* EditorWorldOwner, UObject* SnapshotSubobject)
+{
+	EditorWorldObjectToCustomSubobjectSelection.FindOrAdd(EditorWorldOwner).CustomSnapshotSubobjectsToRestore.Add(SnapshotSubobject);
+}
+
+void FPropertySelectionMap::RemoveCustomEditorSubobjectToRecreate(UObject* EditorWorldOwner, UObject* SnapshotSubobject)
+{
+	if (FCustomSubobjectRestorationInfo* RestorationInfo = EditorWorldObjectToCustomSubobjectSelection.Find(EditorWorldOwner))
+	{
+		if (RestorationInfo->CustomSnapshotSubobjectsToRestore.Num() == 1)
+		{
+			EditorWorldObjectToCustomSubobjectSelection.Remove(EditorWorldOwner);
+		}
+		else
+		{
+			RestorationInfo->CustomSnapshotSubobjectsToRestore.Remove(SnapshotSubobject);
+		}
+	}
 }
 
 const FPropertySelection* FPropertySelectionMap::GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const
 {
-	return SelectedWorldObjectsToSelectedProperties.Find(WorldObjectPath); 
+	return EditorWorldObjectToSelectedProperties.Find(WorldObjectPath); 
+}
+
+FRestorableObjectSelection FPropertySelectionMap::GetObjectSelection(const FSoftObjectPath& EditorWorldObject) const
+{
+	return FRestorableObjectSelection(EditorWorldObject, *this);
 }
 
 TArray<FSoftObjectPath> FPropertySelectionMap::GetKeys() const
 {
 	TArray<FSoftObjectPath> Result;
-	SelectedWorldObjectsToSelectedProperties.GenerateKeyArray(Result);
+	EditorWorldObjectToSelectedProperties.GenerateKeyArray(Result);
+
+	TArray<FSoftObjectPath> ComponentPaths;
+	EditorActorToComponentSelection.GenerateKeyArray(ComponentPaths);
+	LIKELY(ComponentPaths.Num() < Result.Num());
+	for (const FSoftObjectPath& Path : ComponentPaths)
+	{
+		Result.Add(Path);
+	}
+	
 	return Result;
+}
+
+bool FPropertySelectionMap::HasChanges(AActor* EditorWorldActor) const
+{
+	const FRestorableObjectSelection Selection = GetObjectSelection(EditorWorldActor);
+	
+	const FPropertySelection* PropertySelection = Selection.GetPropertySelection();
+	const bool bHasSelectedProperties = PropertySelection && !PropertySelection->IsEmpty();
+	
+	const FAddedAndRemovedComponentInfo* ComponentSelection = Selection.GetComponentSelection();
+	const bool bHasAddedOrRemovedComps = ComponentSelection
+		&& (Selection.GetComponentSelection()->SnapshotComponentsToAdd.Num() != 0 || Selection.GetComponentSelection()->EditorWorldComponentsToRemove.Num() != 0);
+	
+	const FCustomSubobjectRestorationInfo* CustomSubobjectInfo = Selection.GetCustomSubobjectSelection();
+	const bool bHasCustomSubobjects = CustomSubobjectInfo != nullptr;
+	if (bHasSelectedProperties || bHasAddedOrRemovedComps || bHasCustomSubobjects)
+	{
+		return true;
+	}
+		
+	for (UActorComponent* Component : TInlineComponentArray<UActorComponent*>(EditorWorldActor))
+	{
+		if (HasChanges(Component))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FPropertySelectionMap::HasChanges(UActorComponent* EditorWorldComponent) const
+{
+	const FRestorableObjectSelection Selection = GetObjectSelection(EditorWorldComponent);
+	const FPropertySelection* PropertySelection = Selection.GetPropertySelection();
+	const FCustomSubobjectRestorationInfo* CustomSubobjectInfo = Selection.GetCustomSubobjectSelection();
+	return (PropertySelection && !PropertySelection->IsEmpty()) || CustomSubobjectInfo;
+}
+
+bool FPropertySelectionMap::HasChanges(UObject* EditorWorldObject) const
+{
+	if (AActor* Actor = Cast<AActor>(EditorWorldObject))
+	{
+		return HasChanges(Actor);
+	}
+	
+	const FRestorableObjectSelection Selection = GetObjectSelection(EditorWorldObject);
+	const FPropertySelection* PropertySelection = Selection.GetPropertySelection();
+	const FCustomSubobjectRestorationInfo* CustomSubobjectInfo = Selection.GetCustomSubobjectSelection();
+	return (PropertySelection && !PropertySelection->IsEmpty()) || CustomSubobjectInfo;
 }
 
 void FPropertySelectionMap::Empty(bool bCanShrink)
 {
-	SelectedWorldObjectsToSelectedProperties.Empty(bCanShrink ? SelectedWorldObjectsToSelectedProperties.Num() : 0);
+	EditorWorldObjectToSelectedProperties.Empty(bCanShrink ? EditorWorldObjectToSelectedProperties.Num() : 0);
+	EditorActorToComponentSelection.Empty(bCanShrink ? EditorActorToComponentSelection.Num() : 0);
 	DeletedActorsToRespawn.Empty(bCanShrink ? DeletedActorsToRespawn.Num() : 0);
 	NewActorsToDespawn.Empty(bCanShrink ? NewActorsToDespawn.Num() : 0);
 }
@@ -75,7 +189,7 @@ TArray<UObject*> FPropertySelectionMap::GetDirectSubobjectsWithProperties(UObjec
 
 	for (int32 i = Subobjects.Num() - 1; i > 0; --i)
 	{
-		const bool bHasSelectedProperties = GetSelectedProperties(Subobjects[i]) != nullptr;
+		const bool bHasSelectedProperties = GetObjectSelection(Subobjects[i]).GetPropertySelection() != nullptr;
 		if (!bHasSelectedProperties)
 		{
 			Subobjects.RemoveAt(i);

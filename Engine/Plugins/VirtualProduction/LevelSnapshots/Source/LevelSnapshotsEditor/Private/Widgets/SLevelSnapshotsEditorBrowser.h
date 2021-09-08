@@ -2,12 +2,13 @@
 
 #pragma once
 
+#include "Views/SnapshotEditorViewData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 struct FAssetData;
 class UWorld;
-struct FLevelSnapshotsEditorViewBuilder;
+struct FSnapshotEditorViewData;
 
 class SLevelSnapshotsEditorBrowser : public SCompoundWidget
 {
@@ -20,7 +21,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
+	void Construct(const FArguments& InArgs, const FSnapshotEditorViewData& InViewBuildData);
 	void SelectAsset(const FAssetData& InAssetData) const;
 
 private:
@@ -30,5 +31,5 @@ private:
 
 	TAttribute<FSoftObjectPath> OwningWorldPathAttribute;
 
-	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
+	FSnapshotEditorViewData ViewBuildData;
 };

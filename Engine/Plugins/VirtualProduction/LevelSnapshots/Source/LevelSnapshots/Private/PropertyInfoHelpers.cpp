@@ -4,6 +4,9 @@
 
 #include "UObject/UnrealType.h"
 
+float FPropertyInfoHelpers::FloatComparisonPrecision = 1e-03f;
+double FPropertyInfoHelpers::DoubleComparisonPrecision = 1e-03;
+
 FProperty* FPropertyInfoHelpers::GetParentProperty(const FProperty* Property)
 {
 	return Property->GetOwner<FProperty>();
@@ -80,6 +83,12 @@ bool FPropertyInfoHelpers::IsPropertySubObject(const FProperty* Property)
 	return bIsComponentSubObject;
 }
 
+void FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(float FloatPrecision, double DoublePrecision)
+{
+	FloatComparisonPrecision = FloatPrecision;
+	DoubleComparisonPrecision = DoublePrecision;
+}
+
 bool FPropertyInfoHelpers::AreNumericPropertiesNearlyEqual(const FNumericProperty* NumericProperty, const void* ValuePtrA, const void* ValuePtrB)
 {
 	check(NumericProperty);
@@ -88,14 +97,14 @@ bool FPropertyInfoHelpers::AreNumericPropertiesNearlyEqual(const FNumericPropert
 	{
 		const float ValueA = FloatProperty->GetFloatingPointPropertyValue(ValuePtrA); 
 		const float ValueB = FloatProperty->GetFloatingPointPropertyValue(ValuePtrB);
-		return FMath::IsNearlyEqual(ValueA, ValueB, KINDA_SMALL_NUMBER);
+		return FMath::IsNearlyEqual(ValueA, ValueB, FloatComparisonPrecision);
 	}
 	
 	if (const FDoubleProperty* DoubleProperty = CastField<FDoubleProperty>(NumericProperty))
 	{
 		const double ValueA = DoubleProperty->GetFloatingPointPropertyValue(ValuePtrA);
 		const double ValueB = DoubleProperty->GetFloatingPointPropertyValue(ValuePtrB);
-		return FMath::IsNearlyEqual(ValueA, ValueB, static_cast<double>(KINDA_SMALL_NUMBER));
+		return FMath::IsNearlyEqual(ValueA, ValueB, DoubleComparisonPrecision);
 	}
 	
 	// Not a float or double? Then some kind of integer (byte, int8, int16, int32, int64, uint8, uint16 ...). Enums are bytes.

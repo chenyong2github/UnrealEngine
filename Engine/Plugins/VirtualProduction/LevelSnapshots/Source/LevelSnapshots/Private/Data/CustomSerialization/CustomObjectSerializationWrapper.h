@@ -52,8 +52,6 @@ class FCustomObjectSerializationWrapper
 {
 public:
 	
-	using FHandleCustomSubobjectPair = TFunction<void(UObject* SnapshotSubobject, UObject* EditorSubobject)>;
-	
 	static void TakeSnapshotForActor(
 		AActor* EditorActor,
 		FCustomSerializationData& ActorSerializationData,
@@ -98,6 +96,10 @@ public:
 		UPackage* LocalisationSnapshotPackage
 		);
 
-	static void ForEachMatchingCustomSubobjectPair(const FWorldSnapshotData& WorldData, UObject* SnapshotObject, UObject* WorldObject, FHandleCustomSubobjectPair Callback);
+	
+	using FHandleCustomSubobjectPair = TFunction<void(UObject* SnapshotSubobject, UObject* EditorSubobject)>;
+	using FHandleUnmatchedCustomSnapshotSubobject = TFunction<void(UObject* UnmatchedSnapshotSubobject)>;
+	
+	static void ForEachMatchingCustomSubobjectPair(const FWorldSnapshotData& WorldData, UObject* SnapshotObject, UObject* WorldObject, FHandleCustomSubobjectPair HandleCustomSubobjectPair, FHandleUnmatchedCustomSnapshotSubobject HandleUnmachtedCustomSnapshotSubobject);
 };
 	

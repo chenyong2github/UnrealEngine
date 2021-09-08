@@ -7,6 +7,9 @@
 #include "TakeWorldObjectSnapshotArchive.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Serialization/NameAsStringProxyArchive.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "Util/SnapshotObjectUtil.h"
 
 class FSnapshotSubobjectMetaDataManager
 	:
@@ -46,18 +49,19 @@ public:
 		if (Writer.IsBound() && ensure(SerializationDataGetter_ReadWrite.IsBound()))
 		{
 			FMemoryWriter MemoryWriter(SerializationDataGetter_ReadWrite.Execute()->Subobjects[OwningDataSubobjectIndex].SubobjectAnnotationData, true);
-			
-			Writer.Execute(MemoryWriter);
+			FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
+			Writer.Execute(RootArchive);
 		}
 	}
 	
 	virtual void ReadObjectAnnotation(const FObjectAnnotator& Reader) const override
 	{
-		if (Reader.IsBound())
+		if (Reader.IsBound() && ensure(SerializationDataGetter_ReadOnly.IsBound()))
 		{
 			FMemoryReader MemoryReader(SerializationDataGetter_ReadOnly.Execute()->Subobjects[OwningDataSubobjectIndex].SubobjectAnnotationData, true);
-			WorldData.GetSnapshotVersionInfo().ApplyToArchive(MemoryReader);
-			Reader.Execute(MemoryReader);
+			FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, true);
+			WorldData.GetSnapshotVersionInfo().ApplyToArchive(RootArchive);
+			Reader.Execute(RootArchive);
 		}
 	}
 };
@@ -96,8 +100,9 @@ void FCustomSerializationDataReader::ReadObjectAnnotation(const FObjectAnnotator
 	if (Reader.IsBound())
 	{
 		FMemoryReader MemoryReader(SerializationDataGetter_ReadOnly.Execute()->RootAnnotationData, true);
-		WorldData_ReadOnly.GetSnapshotVersionInfo().ApplyToArchive(MemoryReader);
-		Reader.Execute(MemoryReader);
+		FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, true);
+		WorldData_ReadOnly.GetSnapshotVersionInfo().ApplyToArchive(RootArchive);
+		Reader.Execute(RootArchive);
 	}
 }
 
@@ -151,7 +156,8 @@ void FCustomSerializationDataWriter::WriteObjectAnnotation(const FObjectAnnotato
 	if (Writer.IsBound())
 	{
 		FMemoryWriter MemoryWriter(SerializationDataGetter_ReadWrite.Execute()->RootAnnotationData, true);
-		Writer.Execute(MemoryWriter);
+		FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
+		Writer.Execute(RootArchive);
 	}
 }
 
@@ -184,7 +190,7 @@ int32 FCustomSerializationDataWriter::AddSubobjectSnapshot(UObject* Subobject)
 	}
 
 	FCustomSubbjectSerializationData SubobjectData;
-	SubobjectData.ObjectPathIndex = WorldData_ReadWrite.AddObjectDependency(Subobject);
+	SubobjectData.ObjectPathIndex = SnapshotUtil::Object::AddObjectDependency(WorldData_ReadWrite, Subobject, false);
 	const int32 SubobjectIndex = SerializationData->Subobjects.Emplace(
 		MoveTemp(SubobjectData) // Not profiled
 		);

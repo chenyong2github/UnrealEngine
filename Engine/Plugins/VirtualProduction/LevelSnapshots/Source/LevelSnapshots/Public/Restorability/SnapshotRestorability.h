@@ -17,9 +17,15 @@ public:
 
 	/* Is this actor captured by the snapshot system? */
 	static bool IsActorDesirableForCapture(const AActor* Actor);
-	/* Is this actor captured by the snapshot system? */
+	/* Is this component captured by the snapshot system? */
 	static bool IsComponentDesirableForCapture(const UActorComponent* Component);
-	
+	/* Is this subobject class captured by the snapshot system?*/
+	static bool IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass);
+	/** Is this subobject captured by the snapshot system? */
+	static bool IsSubobjectDesirableForCapture(const UObject* Subobject);
+
+	/** Can the property be captured? */
+	static bool IsPropertyDesirableForCapture(const FProperty* Property);
 	/* Is this property never captured by the snapshot system? */
 	static bool IsPropertyBlacklistedForCapture(const FProperty* Property);
 	/* Is this property always captured by the snapshot system? */

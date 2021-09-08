@@ -2,15 +2,15 @@
 
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
-#include "ILevelSnapshotsEditorView.h"
 #include "LevelSnapshot.h"
-#include "LevelSnapshotsEditorData.h"
+#include "Data/LevelSnapshotsEditorData.h"
+#include "Views/SnapshotEditorViewData.h"
 
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "LevelSnapshotsLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "ContentBrowserModule.h"
 #include "Editor/EditorStyle/Public/EditorStyleSet.h"
+#include "IContentBrowserSingleton.h"
+#include "LevelSnapshotsLog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/Public/Framework/MultiBox/MultiBoxBuilder.h"
@@ -18,10 +18,10 @@
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
-void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
+void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const FSnapshotEditorViewData& InViewBuildData)
 {
 	OwningWorldPathAttribute = InArgs._OwningWorldPath;
-	BuilderPtr = InBuilder;
+	ViewBuildData = InViewBuildData;
 
 	check(OwningWorldPathAttribute.IsSet());
 
@@ -63,13 +63,12 @@ void SLevelSnapshotsEditorBrowser::SelectAsset(const FAssetData& InAssetData) co
 	SelectSnapshot.EnterProgressFrame(60.f);
 	SelectSnapshot.MakeDialog();
 	
-	TSharedPtr<FLevelSnapshotsEditorViewBuilder> Builder = BuilderPtr.Pin();
 	ULevelSnapshot* Snapshot = Cast<ULevelSnapshot>(InAssetData.GetAsset());
 
 	SelectSnapshot.EnterProgressFrame(40.f);
-	if (ensure(Builder) && ensure(Snapshot))
+	if (ensure(Snapshot))
 	{
-		Builder->EditorDataPtr->SetActiveSnapshot(Snapshot);
+		ViewBuildData.EditorDataPtr->SetActiveSnapshot(Snapshot);
 	}
 }
 

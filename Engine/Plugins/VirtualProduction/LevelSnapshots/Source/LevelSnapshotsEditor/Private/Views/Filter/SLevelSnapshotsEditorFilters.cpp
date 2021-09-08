@@ -6,9 +6,9 @@
 #include "Data/FilteredResults.h"
 #include "Data/Filters/LevelSnapshotsFilterPreset.h"
 #include "Data/LevelSnapshotsEditorData.h"
-#include "LevelSnapshotsEditorFilters.h"
+#include "Views/Filter/LevelSnapshotsEditorFilters.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "TempInterfaces/ILevelSnapshotsEditorView.h"
+#include "Views/SnapshotEditorViewData.h"
 #include "Widgets/Filter/SFavoriteFilterList.h"
 #include "Widgets/SLevelSnapshotsEditorFilterRow.h"
 #include "Widgets/Filter/SSaveAndLoadFilters.h"
@@ -23,8 +23,6 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
@@ -119,7 +117,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 	
 	
 	FiltersModelPtr = InFilters;
-	EditorDataPtr = InFilters->GetBuilder()->EditorDataPtr;
+	EditorDataPtr = InFilters->GetViewBuildData().EditorDataPtr;
 
 	// Create a property view
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -209,7 +207,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
             .AutoHeight()
             .HAlign(HAlign_Fill)
             [
-				SAssignNew(FavoriteList, SFavoriteFilterList, InFilters->GetBuilder()->EditorDataPtr->GetFavoriteFilters(), GetEditorData())
+				SAssignNew(FavoriteList, SFavoriteFilterList, InFilters->GetViewBuildData().EditorDataPtr->GetFavoriteFilters(), GetEditorData())
             ]
 
             // Rows 

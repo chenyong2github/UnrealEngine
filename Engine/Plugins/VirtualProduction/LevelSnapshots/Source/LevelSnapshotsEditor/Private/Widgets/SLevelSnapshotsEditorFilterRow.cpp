@@ -5,8 +5,8 @@
 #include "Data/Filters/ConjunctionFilter.h"
 #include "Data/DragDrop/FavoriteFilterDragDrop.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "SLevelSnapshotsEditorFilterList.h"
-#include "SHoverableFilterActions.h"
+#include "Widgets/SLevelSnapshotsEditorFilterList.h"
+#include "Widgets/Filter/SHoverableFilterActions.h"
 
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"

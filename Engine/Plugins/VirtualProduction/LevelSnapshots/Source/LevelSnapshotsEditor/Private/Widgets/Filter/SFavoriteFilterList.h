@@ -5,7 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "FavoriteFilterContainer.h"
+#include "Data/FavoriteFilterContainer.h"
 
 class FLevelSnapshotsEditorFilters;
 class UFavoriteFilterContainer;

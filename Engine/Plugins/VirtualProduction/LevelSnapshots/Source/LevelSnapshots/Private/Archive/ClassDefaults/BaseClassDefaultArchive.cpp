@@ -9,6 +9,7 @@
 #include "GameFramework/Actor.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "Util/PropertyUtil.h"
+#include "Util/SnapshotObjectUtil.h"
 
 bool FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
@@ -20,7 +21,7 @@ bool FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) c
 
 UObject* FBaseClassDefaultArchive::ResolveObjectDependency(int32 ObjectIndex) const
 {
-	return GetSharedData().ResolveObjectDependencyForClassDefaultObject(ObjectIndex);
+	return SnapshotUtil::Object::ResolveObjectDependencyForClassDefaultObject(GetSharedData(), ObjectIndex);
 }
 
 FBaseClassDefaultArchive::FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore)

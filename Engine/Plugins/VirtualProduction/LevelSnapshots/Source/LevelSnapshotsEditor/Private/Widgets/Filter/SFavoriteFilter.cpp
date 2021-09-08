@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SFavoriteFilter.h"
+#include "Widgets/Filter/SFavoriteFilter.h"
 
-#include "FavoriteFilterDragDrop.h"
+#include "Data/DragDrop/FavoriteFilterDragDrop.h"
 
 #include "EditorStyleSet.h"
 #include "Widgets/Layout/SBorder.h"

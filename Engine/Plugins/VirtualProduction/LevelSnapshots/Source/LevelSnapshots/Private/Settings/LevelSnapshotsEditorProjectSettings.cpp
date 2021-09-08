@@ -2,6 +2,7 @@
 
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
 
+#include "PropertyInfoHelpers.h"
 #include "Application/SlateApplicationBase.h"
 #include "HAL/PlatformApplicationMisc.h"
 
@@ -33,4 +34,21 @@ void ULevelSnapshotsEditorProjectSettings::SetLastCreationWindowSize(const FVect
 {
 	PreferredCreationFormWindowWidth = InLastSize.X;
 	PreferredCreationFormWindowHeight = InLastSize.Y;
+}
+
+void ULevelSnapshotsEditorProjectSettings::PostInitProperties()
+{
+	UObject::PostInitProperties();
+	FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
+}
+
+void ULevelSnapshotsEditorProjectSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULevelSnapshotsEditorProjectSettings, FloatComparisonPrecision)
+		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULevelSnapshotsEditorProjectSettings, DoubleComparisonPrecision))
+	{
+		FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
+	}
+	
+	UObject::PostEditChangeProperty(PropertyChangedEvent);
 }

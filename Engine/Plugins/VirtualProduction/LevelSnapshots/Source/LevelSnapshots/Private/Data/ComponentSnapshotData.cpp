@@ -11,11 +11,6 @@
 
 TOptional<FComponentSnapshotData> FComponentSnapshotData::SnapshotComponent(UActorComponent* OriginalComponent, FWorldSnapshotData& WorldData)
 {
-	if (OriginalComponent->CreationMethod == EComponentCreationMethod::Instance)
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Components added via the Component section of the Actor's details panel are not supported (%s). Skipping..."), *OriginalComponent->GetPathName());
-		return {};
-	}
 	if (OriginalComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Components created dynamically in the construction script are not supported (%s). Skipping..."), *OriginalComponent->GetPathName());
@@ -26,19 +21,8 @@ TOptional<FComponentSnapshotData> FComponentSnapshotData::SnapshotComponent(UAct
 	return Result;
 }
 
-bool FComponentSnapshotData::IsRestoreSupportedForSavedComponent() const
-{
-	return CreationMethod != EComponentCreationMethod::Instance && CreationMethod != EComponentCreationMethod::UserConstructionScript;
-}
-
 void FComponentSnapshotData::DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage)
 {
-	// TODO: Handle CreationMethod == Instance and UserConstructionScript here by re-creating the component if it does not exist
-	if (ComponentToDeserializeInto->CreationMethod == EComponentCreationMethod::Instance)
-	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Components added via the Component section of the Actor's details panel are not supported (%s). Skipping..."), *ComponentToDeserializeInto->GetPathName());
-		return;
-	}
 	if (ComponentToDeserializeInto->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Components created dynamically in the construction script are not supported (%s). Skipping..."), *ComponentToDeserializeInto->GetPathName());

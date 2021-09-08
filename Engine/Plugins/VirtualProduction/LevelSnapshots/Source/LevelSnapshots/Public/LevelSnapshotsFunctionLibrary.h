@@ -40,12 +40,19 @@ public:
 		);
 
 	/**
-	 * Recursively gets all subobjects which should be serialized using custom callbacks from an external module.
+	 * Recursively gets all subobjects which should be serialized using an ICustomObjectSnapshotSerializer implementation from an external module.
 	 *
 	 * @param Snapshot The snapshot in which to look
 	 * @param SnapshotRootObject Snapshot version of the object to look in. Either an actor, component, or a custom serialized subobject.
 	 * @param WorldRootObject Editor version of the object to look in. Either an actor, component, or a custom serialized subobject.
-	 * @param Callback Whatever you want to do with this information
+	 * @param HandleCustomSubobjectPair Called when two custom subobjects are matched
+	 * @param HandleUnmatchedSnapshotSubobject Called when a custom snapshot subobject exists but no corresponding editor subobject exists
 	 */
-	static void ForEachMatchingCustomSubobjectPair(ULevelSnapshot* Snapshot, UObject* SnapshotRootObject, UObject* WorldRootObject, TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> Callback);
+	static void ForEachMatchingCustomSubobjectPair(
+		ULevelSnapshot* Snapshot, 
+		UObject* SnapshotRootObject,
+		UObject* WorldRootObject,
+		TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> HandleCustomSubobjectPair,
+		TFunction<void(UObject* UnmatchedSnapshotSubobject)> HandleUnmatchedSnapshotSubobject
+		);
 };

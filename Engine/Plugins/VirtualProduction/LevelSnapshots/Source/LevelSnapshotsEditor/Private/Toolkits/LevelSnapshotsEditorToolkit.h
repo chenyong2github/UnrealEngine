@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Views/SnapshotEditorViewData.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class FLevelSnapshotsEditorInput;
@@ -13,7 +15,7 @@ class SCheckBox;
 class SDockTab;
 class ULevelSnapshotsEditorData;
 
-struct FLevelSnapshotsEditorViewBuilder;
+struct FSnapshotEditorViewData;
 
 class ULevelSnapshot;
 
@@ -61,13 +63,11 @@ private:
 	
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData;
 	
-	TSharedPtr<FLevelSnapshotsEditorViewBuilder> ViewBuilder;
+	FSnapshotEditorViewData ViewBuildData;
 
 	TSharedPtr<FLevelSnapshotsEditorInput> EditorInput;
 	TSharedPtr<FLevelSnapshotsEditorFilters> EditorFilters;
 	TSharedPtr<FLevelSnapshotsEditorResults> EditorResults;
-
-	TSharedPtr<FLevelSnapshotsEditorContext> EditorContext;
 
 	TSharedPtr<SCheckBox> SettingsButtonPtr;
 };

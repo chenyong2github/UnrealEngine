@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Views/SnapshotEditorViewData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -11,7 +12,7 @@ class SLevelSnapshotsEditorContextPicker;
 class SVerticalBox;
 class UWorld;
 
-struct FLevelSnapshotsEditorViewBuilder;
+struct FSnapshotEditorViewData;
 
 class SLevelSnapshotsEditorInput : public SCompoundWidget
 {
@@ -24,18 +25,16 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
+	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const FSnapshotEditorViewData& InViewBuildData);
 
 	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const;
 
 private:
+	
 	void OverrideWorld(FSoftObjectPath InNewContextPath);
 
 	FDelegateHandle OnMapOpenedDelegateHandle;
-	
-	TWeakPtr<FLevelSnapshotsEditorInput> EditorInputPtr;
-
-	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
+	FSnapshotEditorViewData ViewBuildData;
 
 	TSharedPtr<SVerticalBox> EditorInputOuterVerticalBox;
 	TSharedPtr<SLevelSnapshotsEditorContextPicker> EditorContextPickerPtr;

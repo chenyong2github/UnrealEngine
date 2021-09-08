@@ -45,6 +45,7 @@ public class LevelSnapshots : ModuleRules
                 "Engine",
                 "Slate",
                 "SlateCore",
+                "Landscape",
                 "LevelSnapshotFilters"
             }
             );

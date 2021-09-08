@@ -19,6 +19,9 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 	using Super::GetPropertyFromStack;
 	using Super::GetPropertyFromRoot;
 	using Super::GetNumProperties;
+
+	FLevelSnapshotPropertyChain() = default;
+	FLevelSnapshotPropertyChain(const FProperty* RootProperty);
 	
 	FLevelSnapshotPropertyChain MakeAppended(const FProperty* Property) const;
 	void AppendInline(const FProperty* Property);
@@ -38,6 +41,11 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 /* Holds all properties that should be restored for an object. */
 struct LEVELSNAPSHOTS_API FPropertySelection
 {
+	FPropertySelection() = default;
+	FPropertySelection(const FProperty* SingleProperty);
+	/* Note: all properties must be root properties (i.e. not within structs or collections). Check yourself, this is not checked. */
+	FPropertySelection(const TSet<const FProperty*>& Properties);
+	
 	/** 
 	 * Checks whether the given property should be serialized. It should be serialized if:
 	 * - IsPropertySelected() returns true on the property
@@ -61,8 +69,8 @@ struct LEVELSNAPSHOTS_API FPropertySelection
 
 	bool IsEmpty() const;
 
-	void SetHasCustomSerializedSubobjects(bool bValue) { bHasCustomSerializedSubobjects = bValue; };
-	bool HasCustomSerializedSubobjects() const { return bHasCustomSerializedSubobjects;}
+	void SetHasCustomSerializedSubobjects(bool bValue) { bHasCustomSerializedSubobjects = bValue; }
+	bool HasCustomSerializedSubobjects() const { return bHasCustomSerializedSubobjects; }
 
 	void AddProperty(const FLevelSnapshotPropertyChain& SelectedProperty);
 	void RemoveProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty);

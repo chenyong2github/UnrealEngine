@@ -3,17 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PropertySelection.h"
+#include "Data/AddedAndRemovedComponentInfo.h"
+#include "Data/CustomSubobjectRestorationInfo.h"
+#include "Data/PropertySelection.h"
+#include "Data/RestorableObjectSelection.h"
 #include "PropertySelectionMap.generated.h"
 
 class AActor;
+struct FPropertySelectionMap;
 
 /* Binds an object to its selected properties */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FPropertySelectionMap
 {
 	GENERATED_BODY()
+	friend FRestorableObjectSelection;
 
+	/*************** Common features ***************/
+	
 	/* Respawn the actor from the data in the snapshot. */
 	void AddDeletedActorToRespawn(const FSoftObjectPath& Original);
 	void RemoveDeletedActorToRespawn(const FSoftObjectPath& Original);
@@ -22,15 +29,49 @@ struct LEVELSNAPSHOTS_API FPropertySelectionMap
 	void AddNewActorToDespawn(AActor* WorldActor);
 	void RemoveNewActorToDespawn(AActor* WorldActor);
 
-	/* Binds properties to an object which are supposed to be rolled back. */
+	/**
+	 * Binds properties to an object which are supposed to be rolled back.
+	 */
 	bool AddObjectProperties(UObject* WorldObject, const FPropertySelection& SelectedProperties);
 	void RemoveObjectPropertiesFromMap(UObject* WorldObject);
+
 	
-	const FPropertySelection* GetSelectedProperties(UObject* WorldObject) const;
+	/*************** Basic subobject support ***************/
+	
+	/**
+	 * Tracks a subobject so we only restore references pointing to it but not serialize its properties.
+	 *
+	 * When applying a snapshot to world and resolving subobjects, it is unclear whether a resolved references is either
+	 *		1. a reference to a preexisting, valid subobject: for it we use only restored selected properties.
+	 *		2. a reference to an old, deleted subobject which still exists in memory: for it we restore all properties.
+	 * 
+	 * See SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld for more info.
+	 */
+	void MarkSubobjectForRestoringReferencesButSkipProperties(UObject* WorldSubbject);
+	bool IsSubobjectMarkedForReferenceRestorationOnly(const FSoftObjectPath& WorldSubobjectPath) const;
+
+
+	void AddComponentSelection(AActor* EditorWorldActor, const FAddedAndRemovedComponentInfo& ComponentSelection);
+	void RemoveComponentSelection(AActor* EditorWorldActor);
+
+	/*************** Custom subobject support ***************/
+
+	/** Recreate a Custom subobject that exists in snapshot world but is missing from editor world. Used for subobjects discovered via ICustomObjectSnapshotSerializer */
+	void AddCustomEditorSubobjectToRecreate(UObject* EditorWorldOwner, UObject* SnapshotSubobject);
+	void RemoveCustomEditorSubobjectToRecreate(UObject* EditorWorldOwner, UObject* SnapshotSubobject);
+
+	/*************** Queries ***************/
+
+	/** Will become DEPRECATED: Use GetObjectSelection(WorldObjectPath).GetObjectSelection()->GetPropertySelection() instead. */
 	const FPropertySelection* GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const;
+	FRestorableObjectSelection GetObjectSelection(const FSoftObjectPath& EditorWorldObject) const;
 	TArray<FSoftObjectPath> GetKeys() const;
+
+	bool HasChanges(AActor* EditorWorldActor) const;
+	bool HasChanges(UActorComponent* EditorWorldComponent) const;
+	bool HasChanges(UObject* EditorWorldObject) const;
 	
-	int32 GetKeyCount() const { return SelectedWorldObjectsToSelectedProperties.Num(); }
+	int32 GetKeyCount() const { return EditorWorldObjectToSelectedProperties.Num(); }
 	const TSet<FSoftObjectPath>& GetDeletedActorsToRespawn() const { return DeletedActorsToRespawn; }
 	const TSet<TWeakObjectPtr<AActor>>& GetNewActorsToDespawn() const { return NewActorsToDespawn; }
 
@@ -41,18 +82,33 @@ struct LEVELSNAPSHOTS_API FPropertySelectionMap
 	
 private:
 	
-	/* Maps a world actor to the properties that should be restored to values in a snapshot.
-	 * The properties are located in the actor itself or any other subcontainer (structs, components, or subobjects)
+	/**
+	 * Maps an editor world actor to the properties that should be restored to values in a snapshot.
+	 * The properties are located in the actor itself. Subobjects have a separate key.
 	 */
-	TMap<FSoftObjectPath, FPropertySelection> SelectedWorldObjectsToSelectedProperties;
+	TMap<FSoftObjectPath, FPropertySelection> EditorWorldObjectToSelectedProperties;
 
-	/* These actors were removed since the snapshot was taken. Re-create them.
+	/**
+	 * Maps an editor world actor to the components that should be added or removed.
+	 */
+	TMap<FSoftObjectPath, FAddedAndRemovedComponentInfo> EditorActorToComponentSelection;
+
+	/**
+	 * Maps an editor world object to the custom subobjects discovered by ICustomObjectSnapshotSerializer which need restoring.
+	 */
+	TMap<FSoftObjectPath, FCustomSubobjectRestorationInfo> EditorWorldObjectToCustomSubobjectSelection;
+	
+	/**
+	 * Contains objects which we do not serialize into: only replace references to them.
+	 */
+	TSet<FSoftObjectPath> SubobjectsMarkedForReferencesRestorationOnly;
+
+	/**
+	 * These actors were removed since the snapshot was taken. Re-create them.
 	 * This contains the original objects paths stored in the snapshot.
 	 */
-	UPROPERTY()
 	TSet<FSoftObjectPath> DeletedActorsToRespawn;
 
-	/* These actors were added since the snapshot was taken. Remove them. */
-	UPROPERTY()
+	/** These actors were added since the snapshot was taken. Remove them. */
 	TSet<TWeakObjectPtr<AActor>> NewActorsToDespawn;
 };

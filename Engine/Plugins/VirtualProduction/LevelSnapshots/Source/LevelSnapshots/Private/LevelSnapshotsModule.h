@@ -27,15 +27,21 @@ public:
 	//~ Begin ILevelSnapshotsModule Interface
 	virtual void RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) override;
 	virtual void UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) override;
+	virtual void AddBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) override;
+	virtual void RemoveBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) override;
 	virtual void RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) override;
 	virtual void UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer) override;
 	virtual void RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses = true);
 	virtual void UnregisterCustomObjectSerializer(UClass* Class) override;
+	virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) override;
+	virtual void UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener) override;
 	virtual void AddWhitelistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void AddBlacklistedProperties(const TSet<const FProperty*>& Properties) override;
 	virtual void RemoveBlacklistedProperties(const TSet<const FProperty*>& Properties) override;
 	//~ Begin ILevelSnapshotsModule Interface
+
+	bool IsSubobjectClassBlacklisted(const UClass* Class) const;
 	
 	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& GetOverrides() const;
 	bool IsPropertyWhitelisted(const FProperty* Property) const;
@@ -51,6 +57,18 @@ public:
 	virtual void RemoveCanTakeSnapshotDelegate(FName DelegateName) override;
 	virtual bool CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const override;
 
+	void OnPreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params);
+	void OnPostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params);
+
+	void OnPreApplySnapshotToActor(const FApplySnapshotToActorParams& Params);
+	void OnPostApplySnapshotToActor(const FApplySnapshotToActorParams& Params);
+	
+	void OnPreRecreateComponent(const FPreRecreateComponentParams& Params);
+	void OnPostRecreateComponent(UActorComponent* RecreatedComponent);
+
+	void OnPreRemoveComponent(UActorComponent* ComponentToRemove);
+	void OnPostRemoveComponent(const FPostRemoveComponentParams& Params);
+	
 private:
 
 	struct FCustomSerializer
@@ -61,10 +79,16 @@ private:
 	
 	/* Allows external modules to override what objects and properties are considered by the snapshot system. */
 	TArray<TSharedRef<ISnapshotRestorabilityOverrider>> Overrides;
+
+	/** Subobject classes we do not capture nor restore */
+	TSet<UClass*> BlacklistedSubobjectClasses;
+	
 	/**/
 	TMap<FSoftClassPath, TArray<TSharedRef<IPropertyComparer>>> PropertyComparers;
 	/**/
 	TMap<FSoftClassPath, FCustomSerializer> CustomSerializers;
+	/**/
+	TArray<TSharedRef<IRestorationListener>> RestorationListeners;
 
 	/* Allows these properties even when the default behaviour would exclude them. */
 	TSet<const FProperty*> WhitelistedProperties;
@@ -72,5 +96,5 @@ private:
 	TSet<const FProperty*> BlacklistedProperties;
 
 	/** Map of named delegates for confirming that a level snapshot is possible. */
-	TMap<FName,FCanTakeSnapshot> CanTakeSnapshotDelegates;
+	TMap<FName, FCanTakeSnapshot> CanTakeSnapshotDelegates;
 };

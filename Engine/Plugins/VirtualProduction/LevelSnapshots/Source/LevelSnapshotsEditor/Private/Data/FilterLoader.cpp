@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FilterLoader.h"
+#include "Data/FilterLoader.h"
 
-#include "LevelSnapshotsFilterPreset.h"
+#include "Data/Filters/LevelSnapshotsFilterPreset.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorDirectories.h"

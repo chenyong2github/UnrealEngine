@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SFilterSearchMenu.h"
+#include "Widgets/Filter/SFilterSearchMenu.h"
 
-#include "FavoriteFilterContainer.h"
+#include "Data/FavoriteFilterContainer.h"
 #include "LevelSnapshotFilters.h"
+
 #include "Algo/Transform.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-
 #include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"

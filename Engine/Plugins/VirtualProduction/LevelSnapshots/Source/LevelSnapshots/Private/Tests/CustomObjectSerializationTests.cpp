@@ -1,14 +1,45 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "CustomSubobjectRestorationInfo.h"
 #include "LevelSnapshotsModule.h"
 #include "PropertySelectionMap.h"
 #include "Serialization/ICustomObjectSnapshotSerializer.h"
 #include "Serialization/ObjectSnapshotSerializationData.h"
 #include "SnapshotTestActor.h"
 #include "SnapshotTestRunner.h"
+#include "Engine/StaticMeshActor.h"
 
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
+
+namespace
+{
+	void BlacklistSubobjectProperties()
+	{
+		FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+		TSet<const FProperty*> BlacklistedProperties;
+		
+		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, EditableInstancedSubobject_DefaultSubobject)));
+		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, InstancedOnlySubobject_DefaultSubobject)));
+		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, NakedSubobject_DefaultSubobject)));
+		BlacklistedProperties.Add(USubobject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USubobject, NestedChild)));
+
+		Module.AddBlacklistedProperties(BlacklistedProperties);
+	}
+
+	void UnblacklistSubobjectProperties()
+	{
+		FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+		TSet<const FProperty*> BlacklistedProperties;
+		
+		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, EditableInstancedSubobject_DefaultSubobject)));
+		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, InstancedOnlySubobject_DefaultSubobject)));
+		BlacklistedProperties.Add(ASnapshotTestActor::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, NakedSubobject_DefaultSubobject)));
+		BlacklistedProperties.Add(USubobject::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USubobject, NestedChild)));
+
+		Module.RemoveBlacklistedProperties(BlacklistedProperties);
+	}
+}
 
 /**
  * Tests all interface functions are called at the correct time.
@@ -42,7 +73,7 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 			CallOrder.Add(EFunctionCall::OnTakeSnapshot);
 			
 			Test.TestTrue(TEXT("Correct editor object passed in"), EditorObject == TestActor);
-			const int32 Index = DataStorage.AddSubobjectSnapshot(TestActor->InstancedSubobject);
+			const int32 Index = DataStorage.AddSubobjectSnapshot(TestActor->InstancedOnlySubobject_DefaultSubobject);
 			DataStorage.GetSubobjectMetaData(Index)->WriteObjectAnnotation(FObjectAnnotator::CreateLambda([](FArchive& Archive)
 			{
 				int32 TestSubobjectInfo = 42;
@@ -62,7 +93,7 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 
 			if (ASnapshotTestActor* SnapshotActor = Cast<ASnapshotTestActor>(SnapshotObject))
 			{
-				return SnapshotActor->InstancedSubobject;
+				return SnapshotActor->InstancedOnlySubobject_DefaultSubobject;
 			}
 			
 			Test.AddError(TEXT("Expected SnapshotObject to be an instance of ASnapshotTestActor"));
@@ -74,7 +105,7 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 			CallOrder.Add(EFunctionCall::FindOrRecreateSubobjectInEditorWorld);
 			
 			Test.TestTrue(TEXT("Correct editor object passed in"), EditorObject == TestActor);
-			return TestActor->InstancedSubobject;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject;	
 		}
 		
 		virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
@@ -97,7 +128,7 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 			}));
 			Test.TestEqual(TEXT("Saved custom actor data is correct"), TestActorInfo, 21);
 			
-			return TestActor->InstancedSubobject;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject;	
 		}
 
 		
@@ -128,9 +159,11 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 	TSharedRef<FStub> Stub = MakeShared<FStub>(*this);
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
+	BlacklistSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
+		UnblacklistSubobjectProperties();
 	};
 	
 	FSnapshotTestRunner()
@@ -138,8 +171,8 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 		{
 			Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
 
-			Stub->TestActor->InstancedSubobject->FloatProperty = 42.f;
-			Stub->TestActor->InstancedSubobject->IntProperty = 21;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->IntProperty = 21;
 			Stub->TestActor->IntProperty = 42;
 			Stub->TestActor->TestComponent->IntProperty = 42;
 		})
@@ -147,8 +180,8 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 	
 		.ModifyWorld([&](UWorld* World)
 		{
-			Stub->TestActor->InstancedSubobject->FloatProperty = 420.f;
-			Stub->TestActor->InstancedSubobject->IntProperty = 210;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 420.f;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->IntProperty = 210;
 			Stub->TestActor->IntProperty = 420;
 			Stub->TestActor->TestComponent->IntProperty = 420;
 		})
@@ -172,13 +205,152 @@ bool FRestoreActorCustomSubobject::RunTest(const FString& Parameters)
 			TestTrue(TEXT("PreApplySnapshotProperties called before PostApplySnapshotPropertiesIndex"), PreApplySnapshotPropertiesIndex < OnPostSerializeEditorSubobjectIndex);
 
 			// Custom subobject restored
-			TestEqual(TEXT("FloatProperty restored"), Stub->TestActor->InstancedSubobject->FloatProperty, 42.f);
-			TestEqual(TEXT("IntProperty restored"), Stub->TestActor->InstancedSubobject->IntProperty, 21);
+			TestEqual(TEXT("FloatProperty restored"), Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty, 42.f);
+			TestEqual(TEXT("IntProperty restored"), Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->IntProperty, 21);
 			// Normal values are still restored
 			TestEqual(TEXT("Actor property still restored"), Stub->TestActor->IntProperty, 42);
 			TestEqual(TEXT("Component property still restored"), Stub->TestActor->TestComponent->IntProperty, 42);
 		});
 	
+	return true;
+}
+
+/**
+ * Makes sure that we can write
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSaveAndLoadObjectAnnotation, "VirtualProduction.LevelSnapshots.Snapshot.CustomObjectSerialization.SaveAndLoadObjectAnnotation", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+bool FSaveAndLoadObjectAnnotation::RunTest(const FString& Parameters)
+{
+	class FStub : public ICustomObjectSnapshotSerializer
+	{
+		FSaveAndLoadObjectAnnotation& Test;
+	public:
+
+		FStub(FSaveAndLoadObjectAnnotation& Test)
+			: Test(Test)
+		{}
+		
+		virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) override
+		{
+			ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
+			
+			const int32 Index = DataStorage.AddSubobjectSnapshot(Actor->NonReflectedSubobject);
+			DataStorage.WriteObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
+			{
+				Archive << Actor->NonReflectedName;
+				Archive << Actor->NonReflectedObjectProperty;
+				Archive << Actor->NonReflectedSoftPtr;
+			}));
+			DataStorage.GetSubobjectMetaData(Index)->WriteObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
+			{
+				Archive << Actor->NonReflectedSubobject->NonReflectedName;
+				Archive << Actor->NonReflectedSubobject->NonReflectedObjectProperty;
+				Archive << Actor->NonReflectedSubobject->NonReflectedSoftPtr;
+			}));
+		}
+
+		virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
+		{
+			ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(SnapshotObject);
+			Actor->AllocateNonReflectedSubobject();
+			return Actor->NonReflectedSubobject;
+		}
+		
+		virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
+		{
+			ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
+			Actor->AllocateNonReflectedSubobject();
+			return Actor->NonReflectedSubobject;
+		}
+		
+		virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
+		{
+			
+			ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(EditorObject);
+			return Actor->NonReflectedSubobject;
+		}
+
+		virtual void PostApplySnapshotProperties(UObject* OriginalObject, const ICustomSnapshotSerializationData& DataStorage) override
+		{
+			ASnapshotTestActor* Actor = Cast<ASnapshotTestActor>(OriginalObject);
+			
+			DataStorage.ReadObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
+			{
+				Archive << Actor->NonReflectedName;
+				Archive << Actor->NonReflectedObjectProperty;
+				Archive << Actor->NonReflectedSoftPtr;
+			}));
+
+			DataStorage.GetSubobjectMetaData(0)->ReadObjectAnnotation(FObjectAnnotator::CreateLambda([Actor](FArchive& Archive)
+			{
+				Archive << Actor->NonReflectedSubobject->NonReflectedName;
+				Archive << Actor->NonReflectedSubobject->NonReflectedObjectProperty;
+				Archive << Actor->NonReflectedSubobject->NonReflectedSoftPtr;
+			}));
+		}
+	};
+
+	// Handle registering and unregistering of custom serializer
+	TSharedRef<FStub> Stub = MakeShared<FStub>(*this);
+	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
+	BlacklistSubobjectProperties();
+	ON_SCOPE_EXIT
+	{
+		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
+		UnblacklistSubobjectProperties();
+	};
+
+	ASnapshotTestActor* TestActor = nullptr;
+	AStaticMeshActor* FirstReferencedActor = nullptr;
+	AStaticMeshActor* SecondReferencedActor = nullptr;
+	
+	FSnapshotTestRunner()
+		.ModifyWorld([&](UWorld* World)
+		{
+			TestActor = World->SpawnActor<ASnapshotTestActor>();
+			TestActor->AllocateNonReflectedSubobject();
+			FirstReferencedActor = World->SpawnActor<AStaticMeshActor>();
+			SecondReferencedActor = World->SpawnActor<AStaticMeshActor>();
+			
+			TestActor->IntProperty = 1;
+			TestActor->NonReflectedName = FName("TestNonReflectedName_OnActor");
+			TestActor->NonReflectedObjectProperty = FirstReferencedActor;
+			TestActor->NonReflectedSoftPtr = FirstReferencedActor;
+			
+			TestActor->NonReflectedSubobject->NonReflectedName = FName("TestNonReflectedName_OnSubobject");
+			TestActor->NonReflectedSubobject->NonReflectedObjectProperty = SecondReferencedActor;
+			TestActor->NonReflectedSubobject->NonReflectedSoftPtr = SecondReferencedActor;
+		})
+		.TakeSnapshot()
+	
+		.ModifyWorld([&](UWorld* World)
+		{
+			// This makes the actor show up as changed - otherwise nothing will get serialized because all other properties are not reflected
+			TestActor->IntProperty = 2;
+
+			TestActor->NonReflectedName = FName(NAME_None);
+			TestActor->NonReflectedObjectProperty = nullptr;
+			TestActor->NonReflectedSoftPtr = nullptr;
+			
+			TestActor->NonReflectedSubobject->NonReflectedName = FName(NAME_None);
+			TestActor->NonReflectedSubobject->NonReflectedObjectProperty = nullptr;
+			TestActor->NonReflectedSubobject->NonReflectedSoftPtr = nullptr;
+		})
+		.ApplySnapshot()
+
+		.RunTest([&]()
+		{
+			TestEqual(TEXT("TestActor->NonReflectedName"), TestActor->NonReflectedName, FName("TestNonReflectedName_OnActor"));
+			TestTrue(TEXT("TestActor->NonReflectedObjectProperty"), TestActor->NonReflectedObjectProperty == FirstReferencedActor);
+			TestTrue(TEXT("TestActor->NonReflectedSoftPtr"), TestActor->NonReflectedSoftPtr == FirstReferencedActor);
+			
+			TestEqual(TEXT("TestActor->NonReflectedSubobject->NonReflectedName"), TestActor->NonReflectedSubobject->NonReflectedName, FName("TestNonReflectedName_OnSubobject"));
+			TestTrue(TEXT("TestActor->NonReflectedSubobject->NonReflectedObjectProperty"), TestActor->NonReflectedSubobject->NonReflectedObjectProperty == SecondReferencedActor);
+			TestTrue(TEXT("TestActor->NonReflectedSubobject->NonReflectedSoftPtr"), TestActor->NonReflectedSubobject->NonReflectedSoftPtr == SecondReferencedActor);
+			
+		});
+
 	return true;
 }
 
@@ -194,14 +366,14 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 		
 		virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) override
 		{
-			DataStorage.AddSubobjectSnapshot(TestActor->InstancedSubobject);
+			DataStorage.AddSubobjectSnapshot(TestActor->InstancedOnlySubobject_DefaultSubobject);
 		}
 
 		virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
 			if (ASnapshotTestActor* SnapshotActor = Cast<ASnapshotTestActor>(SnapshotObject))
 			{
-				return SnapshotActor->InstancedSubobject;
+				return SnapshotActor->InstancedOnlySubobject_DefaultSubobject;
 			}
 
 			checkNoEntry();
@@ -210,12 +382,12 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 		
 		virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
-			return TestActor->InstancedSubobject;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject;	
 		}
 		
 		virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
-			return TestActor->InstancedSubobject;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject;	
 		}
 
 		ASnapshotTestActor* TestActor;
@@ -227,7 +399,7 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 		
 		virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) override
 		{
-			DataStorage.AddSubobjectSnapshot(TestActor->InstancedSubobject->NestedChild);
+			DataStorage.AddSubobjectSnapshot(TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild);
 		}
 
 		virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
@@ -243,12 +415,12 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 		
 		virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
-			return TestActor->InstancedSubobject->NestedChild;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild;	
 		}
 		
 		virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
-			return TestActor->InstancedSubobject->NestedChild;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild;	
 		}
 
 		ASnapshotTestActor* TestActor;
@@ -260,10 +432,12 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), ActorSerializer);
 	Module.RegisterCustomObjectSerializer(USubobject::StaticClass(), SubobjectSerializer);
+	BlacklistSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
 		Module.UnregisterCustomObjectSerializer(USubobject::StaticClass());
+		UnblacklistSubobjectProperties();
 	};
 
 	ASnapshotTestActor* TestActor = nullptr;
@@ -276,22 +450,22 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 			ActorSerializer->TestActor = TestActor;
 			SubobjectSerializer->TestActor = TestActor;
 			
-			TestActor->InstancedSubobject->FloatProperty = 42.f;
-			TestActor->InstancedSubobject->NestedChild->FloatProperty = 21.f;
+			TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
+			TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild->FloatProperty = 21.f;
 		})
 		.TakeSnapshot()
 	
 		.ModifyWorld([&](UWorld* World)
 		{
-			TestActor->InstancedSubobject->FloatProperty = 420.f;
-			TestActor->InstancedSubobject->NestedChild->FloatProperty = 210.f;
+			TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 420.f;
+			TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild->FloatProperty = 210.f;
 		})
 		.ApplySnapshot()
 
 		.RunTest([&]()
 		{
-			TestEqual(TEXT("Subobject property restored"), TestActor->InstancedSubobject->FloatProperty, 42.f);
-			TestEqual(TEXT("Nested subobject property restored"), TestActor->InstancedSubobject->NestedChild->FloatProperty, 21.f);
+			TestEqual(TEXT("Subobject property restored"), TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty, 42.f);
+			TestEqual(TEXT("Nested subobject property restored"), TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild->FloatProperty, 21.f);
 		});
 
 
@@ -303,19 +477,19 @@ bool FRestoreNestedCustomSubobject::RunTest(const FString& Parameters)
 			ActorSerializer->TestActor = TestActor;
 			SubobjectSerializer->TestActor = TestActor;
 			
-			TestActor->InstancedSubobject->NestedChild->FloatProperty = 21.f;
+			TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild->FloatProperty = 21.f;
 		})
 		.TakeSnapshot()
 	
 		.ModifyWorld([&](UWorld* World)
 		{
-			TestActor->InstancedSubobject->NestedChild->FloatProperty = 210.f;
+			TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild->FloatProperty = 210.f;
 		})
 		.ApplySnapshot()
 
 		.RunTest([&]()
 		{
-			TestEqual(TEXT("Nested subobject property restored when outer had no changed properties"), TestActor->InstancedSubobject->NestedChild->FloatProperty, 21.f);
+			TestEqual(TEXT("Nested subobject property restored when outer had no changed properties"), TestActor->InstancedOnlySubobject_DefaultSubobject->NestedChild->FloatProperty, 21.f);
 		});
 	
 	return true;
@@ -345,28 +519,28 @@ bool FNonEditableObjectPropertyNotRestoredByDefault::RunTest(const FString& Para
 			ChangedPropertiesActor = World->SpawnActor<ASnapshotTestActor>();
 			NulledActor = World->SpawnActor<ASnapshotTestActor>();
 
-			ChangedPropertiesActor->InstancedSubobject->FloatProperty = 42.f;
-			ChangedPropertiesActor->NakedSubobject->FloatProperty = 21.f;
+			ChangedPropertiesActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
+			ChangedPropertiesActor->NakedSubobject_DefaultSubobject->FloatProperty = 21.f;
 		})
 		.TakeSnapshot()
 	
 		.ModifyWorld([&](UWorld* World)
 		{
-			ChangedPropertiesActor->InstancedSubobject->FloatProperty = 420.f;
-			ChangedPropertiesActor->NakedSubobject->FloatProperty = 210.f;
+			ChangedPropertiesActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 420.f;
+			ChangedPropertiesActor->NakedSubobject_DefaultSubobject->FloatProperty = 210.f;
 
-			NulledActor->InstancedSubobject = nullptr;
-			NulledActor->NakedSubobject = nullptr;
+			NulledActor->InstancedOnlySubobject_DefaultSubobject = nullptr;
+			NulledActor->NakedSubobject_DefaultSubobject = nullptr;
 		})
 		.ApplySnapshot()
 
 		.RunTest([&]()
 		{
-			TestEqual(TEXT("Unsupported instanced property not restored"), ChangedPropertiesActor->InstancedSubobject->FloatProperty, 420.f);
-			TestEqual(TEXT("Unsupported naked property not restored"), ChangedPropertiesActor->NakedSubobject->FloatProperty, 210.f);
+			TestEqual(TEXT("Unsupported instanced property not restored"), ChangedPropertiesActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty, 420.f);
+			TestEqual(TEXT("Unsupported naked property not restored"), ChangedPropertiesActor->NakedSubobject_DefaultSubobject->FloatProperty, 210.f);
 			
-			TestTrue(TEXT("Unsupported instanced property stays null"), NulledActor->InstancedSubobject == nullptr);
-			TestTrue(TEXT("Unsupported naked property stays null"), NulledActor->NakedSubobject == nullptr);
+			TestTrue(TEXT("Unsupported instanced property stays null"), NulledActor->InstancedOnlySubobject_DefaultSubobject == nullptr);
+			TestTrue(TEXT("Unsupported naked property stays null"), NulledActor->NakedSubobject_DefaultSubobject == nullptr);
 		});
 
 	return true;
@@ -384,14 +558,14 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 		
 		virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) override
 		{
-			DataStorage.AddSubobjectSnapshot(TestActor->InstancedSubobject);
+			DataStorage.AddSubobjectSnapshot(TestActor->InstancedOnlySubobject_DefaultSubobject);
 		}
 
 		virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
 			if (ASnapshotTestActor* SnapshotActor = Cast<ASnapshotTestActor>(SnapshotObject))
 			{
-				return SnapshotActor->InstancedSubobject;
+				return SnapshotActor->InstancedOnlySubobject_DefaultSubobject;
 			}
 
 			checkNoEntry();
@@ -400,12 +574,12 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 		
 		virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
-			return TestActor->InstancedSubobject;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject;	
 		}
 		
 		virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
 		{
-			return TestActor->InstancedSubobject;	
+			return TestActor->InstancedOnlySubobject_DefaultSubobject;	
 		}
 
 		ASnapshotTestActor* TestActor;
@@ -415,9 +589,11 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 	TSharedRef<FStub> Stub = MakeShared<FStub>();
 	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
+	BlacklistSubobjectProperties();
 	ON_SCOPE_EXIT
 	{
 		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
+		UnblacklistSubobjectProperties();
 	};
 
 
@@ -429,13 +605,13 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 		{
 			Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
 			
-			Stub->TestActor->InstancedSubobject->FloatProperty = 42.f;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
 		})
 		.TakeSnapshot()
 	
 		.ModifyWorld([&](UWorld* World)
 		{
-			Stub->TestActor->InstancedSubobject->FloatProperty = 420.f;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 420.f;
 		})
 
 		.FilterProperties(Stub->TestActor, [&](const FPropertySelectionMap& PropertySelectionMap)
@@ -444,14 +620,14 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 			UClass* SubobjectClass = USubobject::StaticClass();
 			const FProperty* ChangedSubobjectProperty = SubobjectClass->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USubobject, FloatProperty));
 
-			const FPropertySelection* SelectedSubobjectProperties = PropertySelectionMap.GetSelectedProperties(Stub->TestActor->InstancedSubobject);
+			const FPropertySelection* SelectedSubobjectProperties = PropertySelectionMap.GetObjectSelection(Stub->TestActor->InstancedOnlySubobject_DefaultSubobject).GetPropertySelection();
 			const bool bSubobjectHasExpectedNumChangedProperties = SelectedSubobjectProperties && SelectedSubobjectProperties->GetSelectedLeafProperties().Num() == 1;
 			TestTrue(TEXT("Subobject has changed properties"), bSubobjectHasExpectedNumChangedProperties);
 			TestTrue(TEXT("Changed property on subobject contained"), bSubobjectHasExpectedNumChangedProperties && SelectedSubobjectProperties->IsPropertySelected(nullptr, ChangedSubobjectProperty));
 
 
 			// Actor properties
-			const FPropertySelection* SelectedActorProperties = PropertySelectionMap.GetSelectedProperties(Stub->TestActor);
+			const FPropertySelection* SelectedActorProperties = PropertySelectionMap.GetObjectSelection(Stub->TestActor).GetPropertySelection();
 			TestTrue(TEXT("Unchanged actor in selection map when subobject was changed"), SelectedActorProperties != nullptr);
 		});
 
@@ -470,13 +646,13 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 		.FilterProperties(Stub->TestActor, [&](const FPropertySelectionMap& PropertySelectionMap)
 		{
 			// Custom subobject properties
-			const FPropertySelection* SelectedSubobjectProperties = PropertySelectionMap.GetSelectedProperties(Stub->TestActor->InstancedSubobject);
-			TestTrue(TEXT("Unchanged subobject not in selection map"), SelectedSubobjectProperties == nullptr);
+			const FPropertySelection* SelectedSubobjectProperties = PropertySelectionMap.GetObjectSelection(Stub->TestActor->InstancedOnlySubobject_DefaultSubobject).GetPropertySelection();
+			TestTrue(TEXT("Unchanged subobject not in selection map"), SelectedSubobjectProperties == nullptr || SelectedSubobjectProperties->IsEmpty());
 
 
 			// Actor properties
-			const FPropertySelection* SelectedActorProperties = PropertySelectionMap.GetSelectedProperties(Stub->TestActor);
-			TestTrue(TEXT("Unchanged actor not in selection map when subobject was not changed"), SelectedActorProperties == nullptr);
+			const FPropertySelection* SelectedActorProperties = PropertySelectionMap.GetObjectSelection(Stub->TestActor).GetPropertySelection();
+			TestTrue(TEXT("Unchanged actor not in selection map when subobject was not changed"), SelectedActorProperties == nullptr || SelectedActorProperties->IsEmpty());
 		});
 
 
@@ -491,7 +667,7 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 		{
 			Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
 			
-			Stub->TestActor->InstancedSubobject->FloatProperty = 42.f;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 42.f;
 			Stub->TestActor->IntProperty = 42;
 			Stub->TestActor->TestComponent->IntProperty = 42;
 		})
@@ -499,7 +675,7 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 	
 		.ModifyWorld([&](UWorld* World)
 		{
-			Stub->TestActor->InstancedSubobject->FloatProperty = 420.f;
+			Stub->TestActor->InstancedOnlySubobject_DefaultSubobject->FloatProperty = 420.f;
 			Stub->TestActor->IntProperty = 420;
 			Stub->TestActor->TestComponent->IntProperty = 420;
 		})
@@ -510,7 +686,7 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 			UClass* SubobjectClass = USubobject::StaticClass();
 			const FProperty* ChangedSubobjectProperty = SubobjectClass->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USubobject, FloatProperty));
 
-			const FPropertySelection* SelectedSubobjectProperties = PropertySelectionMap.GetSelectedProperties(Stub->TestActor->InstancedSubobject);
+			const FPropertySelection* SelectedSubobjectProperties = PropertySelectionMap.GetObjectSelection(Stub->TestActor->InstancedOnlySubobject_DefaultSubobject).GetPropertySelection();
 			const bool bSubobjectHasExpectedNumChangedProperties = SelectedSubobjectProperties && SelectedSubobjectProperties->GetSelectedLeafProperties().Num() == 1;
 			TestTrue(TEXT("Subobject has changed properties"), bSubobjectHasExpectedNumChangedProperties);
 			TestTrue(TEXT("Changed property on subobject contained"), bSubobjectHasExpectedNumChangedProperties && SelectedSubobjectProperties->IsPropertySelected(nullptr, ChangedSubobjectProperty));
@@ -520,7 +696,7 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 			UClass* TestActorClass = ASnapshotTestActor::StaticClass();
 			const FProperty* ChangedActorProperty = TestActorClass->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ASnapshotTestActor, IntProperty));
 			
-			const FPropertySelection* SelectedActorProperties = PropertySelectionMap.GetSelectedProperties(Stub->TestActor);
+			const FPropertySelection* SelectedActorProperties = PropertySelectionMap.GetObjectSelection(Stub->TestActor).GetPropertySelection();
 			const bool bActorHasExpectedNumChangedProperties = SelectedActorProperties && SelectedActorProperties->GetSelectedLeafProperties().Num();
 			TestTrue(TEXT("Actor has changed properties"), bActorHasExpectedNumChangedProperties);
 			TestTrue(TEXT("Changed property on actor contained"), bActorHasExpectedNumChangedProperties && SelectedActorProperties->IsPropertySelected(nullptr, ChangedActorProperty));
@@ -530,10 +706,117 @@ bool FFilterForPropertiesOnSubobjects::RunTest(const FString& Parameters)
 			UClass* TestComponentClass = USnapshotTestComponent::StaticClass();
 			const FProperty* ChangedComponentProperty = TestComponentClass->FindPropertyByName(GET_MEMBER_NAME_CHECKED(USnapshotTestComponent, IntProperty));
 			
-			const FPropertySelection* SelectedComponentProperties = PropertySelectionMap.GetSelectedProperties(Stub->TestActor->TestComponent);
+			const FPropertySelection* SelectedComponentProperties = PropertySelectionMap.GetObjectSelection(Stub->TestActor->TestComponent).GetPropertySelection();
 			const bool bComponentHasExpectedNumChangedProperties = SelectedComponentProperties && SelectedComponentProperties->GetSelectedLeafProperties().Num();
 			TestTrue(TEXT("Component has changed properties"), bComponentHasExpectedNumChangedProperties);
 			TestTrue(TEXT("Changed property on component contained"), bComponentHasExpectedNumChangedProperties && SelectedComponentProperties->IsPropertySelected(nullptr, ChangedComponentProperty));
+		});
+	
+	return true;
+}
+
+/**
+ * Checks that restoring subobjects which are missing from the editor world are in fact restored.
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRestoreSubobjectsMissingFromEditorWorld, "VirtualProduction.LevelSnapshots.Snapshot.CustomObjectSerialization.RestoreSubobjectsMissingFromEditorWorld", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+bool FRestoreSubobjectsMissingFromEditorWorld::RunTest(const FString& Parameters)
+{
+	class FStub : public ICustomObjectSnapshotSerializer
+	{
+	public:
+		
+		virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) override
+		{
+			if (TestActor->NonReflectedSubobject)
+			{
+				DataStorage.AddSubobjectSnapshot(TestActor->NonReflectedSubobject);
+			}
+		}
+
+		virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
+		{
+			if (ASnapshotTestActor* SnapshotActor = Cast<ASnapshotTestActor>(SnapshotObject))
+			{
+				SnapshotActor->AllocateNonReflectedSubobject();
+				return SnapshotActor->NonReflectedSubobject;
+			}
+
+			checkNoEntry();
+			return nullptr;
+		}
+		
+		virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
+		{
+			if (ASnapshotTestActor* EditorActor = Cast<ASnapshotTestActor>(EditorObject))
+			{
+				EditorActor->AllocateNonReflectedSubobject();
+				return EditorActor->NonReflectedSubobject;
+			}
+
+			checkNoEntry();
+			return nullptr;	
+		}
+		
+		virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) override
+		{
+			if (ASnapshotTestActor* EditorActor = Cast<ASnapshotTestActor>(EditorObject))
+			{
+				return EditorActor->NonReflectedSubobject;
+			}
+
+			checkNoEntry();
+			return nullptr;
+		}
+
+		ASnapshotTestActor* TestActor;
+	};
+	
+	// Handle registering and unregistering of custom serializer
+	TSharedRef<FStub> Stub = MakeShared<FStub>();
+	FLevelSnapshotsModule& Module = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+	Module.RegisterCustomObjectSerializer(ASnapshotTestActor::StaticClass(), Stub);
+	BlacklistSubobjectProperties();
+	ON_SCOPE_EXIT
+	{
+		Module.UnregisterCustomObjectSerializer(ASnapshotTestActor::StaticClass());
+		UnblacklistSubobjectProperties();
+	};
+
+	
+	FSnapshotTestRunner()
+		.ModifyWorld([&](UWorld* World)
+		{
+			Stub->TestActor = World->SpawnActor<ASnapshotTestActor>();
+			Stub->TestActor->AllocateNonReflectedSubobject();
+			Stub->TestActor->NonReflectedSubobject->FloatProperty = 42.f;
+			Stub->TestActor->NonReflectedSubobject->IntProperty = 21;
+		})
+		.TakeSnapshot()
+
+		.ModifyWorld([&](UWorld* World)
+		{
+			Stub->TestActor->DestroyNonReflectedSubobject();
+		})
+		.FilterProperties(Stub->TestActor, [&](const FPropertySelectionMap& SelectionMap)
+		{
+			const FRestorableObjectSelection ObjectSelection = SelectionMap.GetObjectSelection(Stub->TestActor);
+			TestTrue(TEXT("No changed actor properties"), ObjectSelection.GetPropertySelection() && ObjectSelection.GetPropertySelection()->GetSelectedProperties().Num() == 0 && ObjectSelection.GetPropertySelection()->HasCustomSerializedSubobjects());
+			TestTrue(TEXT("No component selection"), ObjectSelection.GetComponentSelection() == nullptr);
+			TestTrue(TEXT("Needs to restore custom subobject"), ObjectSelection.GetCustomSubobjectSelection() && ObjectSelection.GetCustomSubobjectSelection()->CustomSnapshotSubobjectsToRestore.Num() == 1);
+		})
+		.ApplySnapshot()
+
+		.RunTest([&]()
+		{
+			if (IsValid(Stub->TestActor->NonReflectedSubobject))
+			{
+				TestEqual(TEXT("Custom float restored"), Stub->TestActor->NonReflectedSubobject->FloatProperty, 42.f);
+				TestEqual(TEXT("Custom float restored"), Stub->TestActor->NonReflectedSubobject->IntProperty, 21);
+			}
+			else
+			{
+				AddError(TEXT("Custom subobject was not restored"));
+			}
 		});
 	
 	return true;

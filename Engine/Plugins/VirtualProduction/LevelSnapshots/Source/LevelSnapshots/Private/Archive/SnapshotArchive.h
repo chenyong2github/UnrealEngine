@@ -20,6 +20,7 @@ class FSnapshotArchive : public FArchiveUObject
 public:
 
 	static void ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage);
+	static void ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, const FString& InLocalisationNamespace);
 
 	//~ Begin FArchive Interface
 	virtual FString GetArchiveName() const override;
@@ -37,8 +38,6 @@ protected:
 	
 	/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
 	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const;
-
-	bool IsPropertyReferenceToSubobject(const FProperty* InProperty) const;
 	
 	FWorldSnapshotData& GetSharedData() const { return SharedData;}
 	UObject* GetSerializedObject() const { return SerializedObject; }
