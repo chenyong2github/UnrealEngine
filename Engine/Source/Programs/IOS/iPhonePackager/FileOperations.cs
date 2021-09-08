@@ -23,6 +23,103 @@ using DotNETUtilities;
 
 namespace iPhonePackager
 {
+	/**
+	 * Stream proxy class which can read from a seekable stream (eg a file stream) 
+	 * and prevents the original stream (file) from being closed.
+	 */
+	public class ProxyReadStream : Stream
+	{
+		public long InternalPosition;
+		public Stream ParentStream;
+
+		public ProxyReadStream(Stream InParentStream)
+		{
+			ParentStream = InParentStream;
+			InternalPosition = 0;
+
+			if (!ParentStream.CanSeek || !ParentStream.CanRead)
+			{
+				throw new NotSupportedException();
+			}
+		}
+
+		public override bool CanRead
+		{
+			get { return true; }
+		}
+
+		public override bool CanSeek
+		{
+			get { return true; }
+		}
+
+		public override bool CanWrite
+		{
+			get { return false; }
+		}
+
+		public override long Length
+		{
+			get { return ParentStream.Length; }
+		}
+
+		public override long Position
+		{
+			get { return InternalPosition; }
+			set	{ InternalPosition = value; }
+		}
+
+		public override long Seek(long offset, SeekOrigin origin)
+		{
+			switch (origin)
+			{
+			case SeekOrigin.Begin:
+				InternalPosition = offset;
+				break;
+			case SeekOrigin.Current:
+				InternalPosition += offset;
+				break;
+			case SeekOrigin.End:
+				InternalPosition = Length + offset;
+				break;
+			}
+			return Position;
+		}
+
+		public override void SetLength(long value)
+		{
+			throw new NotSupportedException();
+		}
+
+		public override void Flush()
+		{
+			ParentStream.Flush();
+		}
+
+		public override int Read(byte[] buffer, int offset, int count)
+		{
+			ParentStream.Position = InternalPosition;
+			int Result = ParentStream.Read(buffer, offset, count);
+			InternalPosition += Result;
+			return Result;
+		}
+
+		public override void Write(byte[] buffer, int offset, int count)
+		{
+			throw new NotSupportedException();
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			// Do not dispose parent
+		}
+
+		public override void Close()
+		{
+			// Do not close parent
+		}
+	}
+
 	public partial class FileOperations
 	{
 		private const int DefaultRetryCount = 5;
@@ -506,6 +603,7 @@ namespace iPhonePackager
 			public abstract Stream OpenRead(string RelativeFilename);
 			public abstract void CloseFile(Stream InStream);
 			public abstract void WriteAllBytes(string RelativeFilename, byte[] Data);
+			public abstract void WriteStream(string RelativeFilename, Stream Data);
 			public abstract void Close();
 
 			public abstract IEnumerable<string> GetAllPayloadFiles();
@@ -551,12 +649,18 @@ namespace iPhonePackager
 
 			public override void CloseFile(Stream InStream)
 			{
-
 			}
 
 			public override void WriteAllBytes(string RelativeFilename, byte[] Data)
 			{
 				File.WriteAllBytes(GetNativePath(RelativeFilename), Data);
+			}
+
+			public override void WriteStream(string RelativeFilename, Stream Data)
+			{
+				Stream FileStream = File.OpenWrite(GetNativePath(RelativeFilename));
+				Data.CopyTo(FileStream);
+				FileStream.Close();
 			}
 
 			public override void Close()
@@ -588,8 +692,7 @@ namespace iPhonePackager
 			protected string InternalRootPath;
 
 			// Pending writes, in case someone tries to read a file they've previously modified without saving the Zip.
-			protected Dictionary<string, byte[]> PendingWrites = new Dictionary<string, byte[]>();
-
+			protected Dictionary<string, Stream> PendingWrites = new Dictionary<string, Stream>();
 
 			/// Name of executable file name, so we can set correct attributes when zipping
 			public String ExecutableFileName;
@@ -661,11 +764,21 @@ namespace iPhonePackager
 				string FullPath = InternalRootPath + RelativeFilename;
 
 				Stream ReadStream;
-
-				byte[] PreviousData;
-				if (PendingWrites.TryGetValue(FullPath, out PreviousData))
+				Stream PreviousStream;
+				if (PendingWrites.TryGetValue(FullPath, out PreviousStream))
 				{
-					ReadStream = new MemoryStream(PreviousData);
+					if (!PreviousStream.CanSeek)
+					{
+						// If data is not seekable, take a MemoryStream copy of the existing data
+						// This could fail if the stream data is greater than 2 GB.
+						MemoryStream MemStream = new MemoryStream();
+						PreviousStream.CopyTo(MemStream);
+						PreviousStream = MemStream;
+						PendingWrites[FullPath] = PreviousStream;
+					}
+
+					// Return a proxy of the stored stream that we can read from without closing the underlying stream
+					ReadStream = new ProxyReadStream(PreviousStream);
 				}
 				else
 				{
@@ -705,6 +818,11 @@ namespace iPhonePackager
 			}
 
 			public override void WriteAllBytes(string RelativeFilename, byte[] Data)
+			{
+				WriteStream(RelativeFilename, new MemoryStream(Data));
+			}
+
+			public override void WriteStream(string RelativeFilename, Stream Data)
 			{
 				string FullPath = InternalRootPath + RelativeFilename;
 
@@ -748,13 +866,13 @@ namespace iPhonePackager
 				}
 			}
 
-			void CommitWrite(string FullPath, byte[] Data)
+			void CommitWrite(string FullPath, Stream StreamData)
 			{
 				// Create the directory if needed
 				EnsureDirectoriesExist(FullPath);
 
 				// Add the data
-				Zip.UpdateEntry(FullPath, Data);
+				Zip.UpdateEntry(FullPath, StreamData);
 			}
 
 			public override void Close()
@@ -762,6 +880,11 @@ namespace iPhonePackager
 				// Flush out the pending writes
 				foreach (var KVP in PendingWrites)
 				{
+					if (KVP.Value.CanSeek)
+					{
+						// Move back to the start of the file, in case we've used a StreamReadProxy to read
+						KVP.Value.Seek(0, SeekOrigin.Begin);
+					}
 					CommitWrite(KVP.Key, KVP.Value);
 				}
 				PendingWrites.Clear();

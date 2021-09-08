@@ -141,6 +141,8 @@ public:
 	virtual bool Sweep(const TSpatialVisitorData<TPayloadType>& Instance, FQueryFastData& CurData) = 0;
 
 	virtual const void* GetQueryData() const { return nullptr; }
+
+	virtual const void* GetSimData() const { return nullptr; }
 };
 
 /**
@@ -400,6 +402,11 @@ public:
 		return Visitor.GetQueryData();
 	}
 
+	FORCEINLINE const void* GetSimData() const
+	{
+		return Visitor.GetSimData();
+	}
+
 private:
 	ISpatialVisitor<TPayloadType, T>& Visitor;
 };
@@ -570,18 +577,26 @@ FChaosArchive& operator<< (FChaosArchive& Ar, TArrayAsMap<TKey, TValue>& Map)
 
 
 template <typename TPayload>
-typename TEnableIf<!TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData)
+typename TEnableIf<!TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData, const void* SimData)
 {
-	return Payload.PrePreFilter(QueryData);
+	if (QueryData)
+	{
+		return Payload.PrePreQueryFilter(QueryData);
+	}
+	if (SimData)
+	{
+		return Payload.PrePreSimFilter(SimData);
+}
+	return false;
 }
 
 template <typename TPayload>
-typename TEnableIf<TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData)
+typename TEnableIf<TIsPointer<TPayload>::Value, bool>::Type PrePreFilterHelper(const TPayload& Payload, const void* QueryData, const void* SimData)
 {
 	return false;
 }
 
-FORCEINLINE bool PrePreFilterHelper(const int32 Payload, const void* QueryData)
+FORCEINLINE bool PrePreFilterHelper(const int32 Payload, const void* QueryData, const void* SimData)
 {
 	return false;
 }

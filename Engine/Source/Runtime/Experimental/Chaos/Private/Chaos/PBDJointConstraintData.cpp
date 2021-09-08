@@ -18,6 +18,11 @@ namespace Chaos
 		Solver->RegisterObject(KinematicEndPoint);
 	}
 
+	FSingleParticlePhysicsProxy* FJointConstraint::GetKinematicEndPoint() const
+	{
+		return KinematicEndPoint;
+	}
+
 	void FJointConstraint::SetLinearPositionDriveEnabled(TVector<bool,3> Enabled)
 	{
 		SetLinearPositionDriveXEnabled(Enabled.X);

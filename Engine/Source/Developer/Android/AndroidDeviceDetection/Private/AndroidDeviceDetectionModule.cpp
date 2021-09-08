@@ -837,7 +837,9 @@ public:
 			DeviceSpecs.AndroidProperties.VulkanVersion = DeviceInfo->VulkanVersion;
 			DeviceSpecs.AndroidProperties.Hardware = DeviceInfo->Hardware;
 			DeviceSpecs.AndroidProperties.DeviceBuildNumber = DeviceInfo->BuildNumber;
-			DeviceSpecs.AndroidProperties.TotalPhysicalGB = FString::Printf(TEXT("%d"),(((uint64)DeviceInfo->TotalPhysicalKB + 1024 * 1024 - 1) / 1024 / 1024));
+			// this is used in the same way as PlatformMemoryBucket..
+			// to establish the nearest GB Android has a different rounding algo (hence 384 used here). See GenericPlatformMemory::GetMemorySizeBucket.
+			DeviceSpecs.AndroidProperties.TotalPhysicalGB = FString::Printf(TEXT("%d"),(((uint64)DeviceInfo->TotalPhysicalKB + 384 * 1024 - 1) / 1024 / 1024));
 			
 			DeviceSpecs.AndroidProperties.UsingHoudini = false;
 			DeviceSpecs.AndroidProperties.VulkanAvailable = !(DeviceInfo->VulkanVersion.IsEmpty() || DeviceInfo->VulkanVersion.Contains(TEXT("0.0.0")));
@@ -855,8 +857,12 @@ public:
 				DeviceSpecs.AndroidProperties.GLES31RHIState.SupportsMultipleRenderTargets = true;
 			}
 
-			// OpenGL ES 2.0
-			UE_CLOG(!bOpenGL3x, LogCore, Fatal, TEXT("OpenGL ES 3 Required."));
+			// OpenGL ES 2.0 devices are no longer supported.
+			if (!bOpenGL3x)
+			{
+				UE_LOG(LogCore, Warning, TEXT("Cannot export device info, a minimum of OpenGL ES 3 is required."));
+				return;
+			}
 		} // FScopeLock ExportLock released
 
 		// create a JSon object from the above structure

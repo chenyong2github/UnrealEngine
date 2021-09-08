@@ -13,6 +13,7 @@ public class TargetPlatform : ModuleRules
 		PrivateDependencyModuleNames.Add("EditorStyle");
 		PrivateDependencyModuleNames.Add("DeveloperToolSettings");
 		PrivateDependencyModuleNames.Add("Projects");
+		PrivateDependencyModuleNames.Add("RenderCore");
 		PublicDependencyModuleNames.Add("DeveloperSettings");
 		PublicDependencyModuleNames.Add("AudioPlatformConfiguration");
 		PublicDependencyModuleNames.Add("DesktopPlatform");

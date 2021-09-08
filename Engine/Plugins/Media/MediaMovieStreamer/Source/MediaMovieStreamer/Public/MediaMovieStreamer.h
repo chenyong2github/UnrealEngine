@@ -10,6 +10,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMediaMovieStreamer, Log, All);
 class IMediaModule;
 class IMediaTimeSource;
 class UMediaPlayer;
+class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
 
@@ -23,11 +24,35 @@ public:
 	~FMediaMovieStreamer();
 
 	/**
+	 * If you do not want FMediaMovieStreamer to play automatically,
+	 * but want to control the media yourself, then call this with true.
+	 * 
+	 * This also means that FMediaMovieStreamer will no longer clean up the assets when it is done.
+	 * You will have to call SetMediaPlayer, SetMediaSoundComponent, etc
+	 * with nullptr when you are done so FMediaMovieStreamer will no longer keep its hold on them.
+	 *
+	 * @param bIsMediaControlledExternally True if you want to control the media.
+	 */
+	MEDIAMOVIESTREAMER_API void SetIsMediaControlledExternally(bool bInIsMediaControlledExternally);
+
+	/**
 	 * Sets which media player should be playing.
 	 *
 	 * @param InMediaPlayer
 	 */
 	MEDIAMOVIESTREAMER_API void SetMediaPlayer(UMediaPlayer* InMediaPlayer);
+
+	/**
+	 * Sets what media sound component we are using.
+	 *
+	 * @param InMediaSoundComponent Media sound component that is being used.
+	 */
+	MEDIAMOVIESTREAMER_API void SetMediaSoundComponent(UMediaSoundComponent* InMediaSoundComponent);
+
+	/**
+	 * Returns the current MediaSoundComponent
+	 */
+	MEDIAMOVIESTREAMER_API UMediaSoundComponent* GetMediaSoundComponent() { return MediaSoundComponent.Get(); }
 
 	/**
 	 * Sets what to play.
@@ -75,6 +100,8 @@ private:
 
 	/** Holds the player we are using. */
 	TWeakObjectPtr<UMediaPlayer> MediaPlayer;
+	/** Holds the media sound component we are using. */
+	TWeakObjectPtr<UMediaSoundComponent> MediaSoundComponent;
 	/** Holds the media source we are using. */
 	TWeakObjectPtr<UMediaSource> MediaSource;
 	/** Holds the media texture we are using. */
@@ -85,6 +112,9 @@ private:
 
 	/** True if the media is still playing. */
 	bool bIsPlaying;
+
+	/** True if somethiing else is controlling the media. */
+	bool bIsMediaControlledExternally;
 
 	/** Stores the previous time source so we can restore it when we are done. */
 	TSharedPtr<IMediaTimeSource, ESPMode::ThreadSafe> PreviousTimeSource;

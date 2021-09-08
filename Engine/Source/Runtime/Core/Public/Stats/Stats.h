@@ -132,7 +132,7 @@ struct TStatId
 };
 
 #if USE_LIGHTWEIGHT_STATS_FOR_HITCH_DETECTION && USE_HITCH_DETECTION
-extern CORE_API bool GHitchDetected;
+extern CORE_API TSAN_ATOMIC(bool) GHitchDetected;
 
 class FLightweightStatScope
 {
@@ -244,7 +244,7 @@ FORCEINLINE void StatsMasterEnableSubtract(int32 Value = 1)
 
 
 #elif USE_LIGHTWEIGHT_STATS_FOR_HITCH_DETECTION && USE_HITCH_DETECTION
-extern CORE_API bool GHitchDetected;
+extern CORE_API TSAN_ATOMIC(bool) GHitchDetected;
 
 class FLightweightStatScope
 {

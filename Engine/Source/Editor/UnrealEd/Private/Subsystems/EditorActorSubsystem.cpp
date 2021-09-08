@@ -32,7 +32,7 @@ namespace InternalActorUtilitiesSubsystemLibrary
 	bool IsEditorLevelActor(T* Actor)
 	{
 		bool bResult = false;
-		if (Actor && !Actor->IsPendingKill())
+		if (Actor && IsValidChecked(Actor))
 		{
 			UWorld* World = Actor->GetWorld();
 			if (World && World->WorldType == EWorldType::Editor)
@@ -611,7 +611,7 @@ TArray<class AActor*> UEditorActorSubsystem::ConvertActors(const TArray<class AA
 	ActorToConvert.Reserve(Actors.Num());
 	for (AActor* Actor : Actors)
 	{
-		if (Actor == nullptr || Actor->IsPendingKill())
+		if (Actor == nullptr || !IsValidChecked(Actor))
 		{
 			continue;
 		}

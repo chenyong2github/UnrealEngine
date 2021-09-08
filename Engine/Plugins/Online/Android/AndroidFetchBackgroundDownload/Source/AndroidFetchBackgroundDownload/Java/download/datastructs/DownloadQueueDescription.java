@@ -38,19 +38,6 @@ public class DownloadQueueDescription
 		MaxConcurrentDownloads = data.getInt(DownloadWorkerParameterKeys.DOWNLOAD_MAX_CONCURRENT_REQUESTS_KEY, DEFAULT_MAX_CONCURRENT_DOWNLOADS);
 	}
 
-	//Saves changes to our DownloadDescriptions list for future worker calls
-	public void ResaveDownloadDescriptionListToDisk(@NonNull Data data, @Nullable Logger Log)
-	{
-		if (DownloadDescriptions.size() > 0)
-		{
-			String DownloadDescriptionListFileName = GetDownloadDescriptionListFileName(data, Log);
-			if (DownloadDescriptionListFileName != null)
-			{
-				DownloadDescription.WriteDownloadDescriptionListToFile(DownloadDescriptionListFileName, DownloadDescriptions);
-			}
-		}
-	}
-
 	public static String GetDownloadDescriptionListFileName(@NonNull Data data, @Nullable Logger Log)
 	{
 		//Parse DownloadDescriptions 
@@ -62,7 +49,7 @@ public class DownloadQueueDescription
 				Log.error(DownloadWorkerParameterKeys.NOTIFICATION_CHANNEL_ID_KEY + " key returned null list! No downloads to process in WorkerParameters!");
 			}
 		}
-		
+
 		return DownloadDescriptionListString;
 	}
 

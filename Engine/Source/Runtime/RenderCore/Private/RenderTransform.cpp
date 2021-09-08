@@ -2,7 +2,7 @@
 
 #include "RenderTransform.h"
 
-FRenderTransform FRenderTransform::Identity = FRenderTransform(FMatrix44f::Identity);
+FRenderTransform FRenderTransform::Identity(FVector3f(1.0f, 0.0f, 0.0f), FVector3f(0.0f, 1.0f, 0.0f), FVector3f(0.0f, 0.0f, 1.0f), FVector3f(0.0f, 0.0f, 0.0f));
 
 FRenderBounds FRenderBounds::TransformBy(const FMatrix44f& M) const
 {

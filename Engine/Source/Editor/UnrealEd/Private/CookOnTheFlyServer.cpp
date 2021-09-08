@@ -583,6 +583,7 @@ TStatId UCookOnTheFlyServer::GetStatId() const
 
 bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyOptions)
 {
+#if WITH_COTF
 	check(IsCookOnTheFlyMode());
 	//GetDerivedDataCacheRef().WaitForQuiescence(false);
 
@@ -639,6 +640,9 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 
 	const bool bInitialized = CookOnTheFlyRequestManager->Initialize();
 	return bInitialized;
+#else
+	return false;
+#endif
 }
 
 const ITargetPlatform* UCookOnTheFlyServer::AddCookOnTheFlyPlatform(const FName& PlatformName)
@@ -6641,20 +6645,35 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 		TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
 		for (FName ShaderFormat : ShaderFormats)
 		{
-			// *stablepc.csv or *stablepc.csv.compressed
-			const FString Filename = FString::Printf(TEXT("*%s_%s.stablepc.csv"), *LibraryName, *ShaderFormat.ToString());
-			const FString StablePCPath = FPaths::ProjectDir() / TEXT("Build") / TargetPlatform->IniPlatformName() / TEXT("PipelineCaches") / Filename;
-			const FString StablePCPathCompressed = StablePCPath + TEXT(".compressed");
+			const FString StablePCDir = FPaths::ProjectDir() / TEXT("Build") / TargetPlatform->IniPlatformName() / TEXT("PipelineCaches");
+			// look for the new binary format for stable pipeline cache - spc
+			const FString StablePCBinary = StablePCDir / FString::Printf(TEXT("*%s_%s.spc"), *LibraryName, *ShaderFormat.ToString());
 
+			bool bBinaryStablePipelineCacheFilesFound = [&StablePCBinary]()
+			{
 			TArray<FString> ExpandedFiles;
-			IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCPath), *FPaths::GetCleanFilename(StablePCPath), true, false, false);
-			IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCPathCompressed), *FPaths::GetCleanFilename(StablePCPathCompressed), true, false, false);
+				IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCBinary), *FPaths::GetCleanFilename(StablePCBinary), true, false, false);
+				return ExpandedFiles.Num() > 0;
+			}();
+
+			// for now, also look for the older *stablepc.csv or *stablepc.csv.compressed
+			const FString StablePCTextual = StablePCDir / FString::Printf(TEXT("*%s_%s.stablepc.csv"), *LibraryName, *ShaderFormat.ToString());
+			const FString StablePCTextualCompressed = StablePCTextual + TEXT(".compressed");
+
+			bool bTextualStablePipelineCacheFilesFound = [&StablePCTextual, &StablePCTextualCompressed]()
+			{
+				TArray<FString> ExpandedFiles;
+				IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCTextual), *FPaths::GetCleanFilename(StablePCTextual), true, false, false);
+				IFileManager::Get().FindFilesRecursive(ExpandedFiles, *FPaths::GetPath(StablePCTextualCompressed), *FPaths::GetCleanFilename(StablePCTextualCompressed), true, false, false);
+				return ExpandedFiles.Num() > 0;
+			}();
+
 			// because of the compute shaders that are cached directly from stable shader keys files, we need to run this also if we have stable keys (which is pretty much always)
 			static const IConsoleVariable* CVarIncludeComputePSOsDuringCook = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShaderPipelineCacheTools.IncludeComputePSODuringCook"));
 			const bool bIncludeComputePSOsDuringCook = CVarIncludeComputePSOsDuringCook && CVarIncludeComputePSOsDuringCook->GetInt() >= 1;
-			if (!ExpandedFiles.Num() && !bIncludeComputePSOsDuringCook)
+			if (!bBinaryStablePipelineCacheFilesFound && !bTextualStablePipelineCacheFilesFound && !bIncludeComputePSOsDuringCook)
 			{
-				UE_LOG(LogCook, Display, TEXT("---- NOT Running UShaderPipelineCacheToolsCommandlet for platform %s  shader format %s, no files found at %s, and either no stable keys or not including compute PSOs during the cook"), *TargetPlatformName, *ShaderFormat.ToString(), *StablePCPath);
+				UE_LOG(LogCook, Display, TEXT("---- NOT Running UShaderPipelineCacheToolsCommandlet for platform %s  shader format %s, no files found at %s, and either no stable keys or not including compute PSOs during the cook"), *TargetPlatformName, *ShaderFormat.ToString(), *StablePCDir);
 			}
 			else
 			{
@@ -6674,9 +6693,18 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 
 
 				FString Args(TEXT("build "));
+				if (bBinaryStablePipelineCacheFilesFound)
+				{
 				Args += TEXT("\"");
-				Args += StablePCPath;
+					Args += StablePCBinary;
+					Args += TEXT("\" ");
+				}
+				if (bTextualStablePipelineCacheFilesFound)
+				{
+					Args += TEXT("\"");
+					Args += StablePCTextual;
 				Args += TEXT("\"");
+				}
 
 				int32 NumMatched = 0;
 				for (int32 Index = 0; Index < SCLCSVPaths->Num(); Index++)
@@ -6693,7 +6721,7 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 				}
 				if (!NumMatched)
 				{
-					UE_LOG(LogCook, Warning, TEXT("Shader format %s for platform %s had this file %s, but no stable keys files."), *ShaderFormat.ToString(), *TargetPlatformName, *StablePCPath);
+					UE_LOG(LogCook, Warning, TEXT("Shader format %s for platform %s had stable pipeline cache files, but no stable keys files."), *ShaderFormat.ToString(), *TargetPlatformName);
 					for (int32 Index = 0; Index < SCLCSVPaths->Num(); Index++)
 					{
 						UE_LOG(LogCook, Warning, TEXT("    stable keys file: %s"), *((*SCLCSVPaths)[Index]));

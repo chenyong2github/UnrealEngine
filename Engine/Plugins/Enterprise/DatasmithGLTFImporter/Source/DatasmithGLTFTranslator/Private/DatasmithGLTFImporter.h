@@ -92,11 +92,11 @@ private:
 	mutable TArray<GLTF::FLogMessage>           LogMessages;
 	TUniquePtr<GLTF::FFileReader>               GLTFReader;
 	TUniquePtr<GLTF::FAsset>                    GLTFAsset;
-	TUniquePtr<GLTF::FMeshFactory>				MeshFactory;
 	TUniquePtr<GLTF::FMaterialFactory>          MaterialFactory;
 	TUniquePtr<FDatasmithGLTFAnimationImporter> AnimationImporter;
 
-	const UDatasmithGLTFImportOptions* ImportOptions;
+	bool                               bGenerateLightmapUVs = false;
+	float                              ImportScale = 100.f;
 	TSet<int32>                        ImportedMeshes;
 
 	TMap<IDatasmithMeshElement*, int32> MeshElementToGLTFMeshIndex; // track where Datasmith element originated from to extract data later

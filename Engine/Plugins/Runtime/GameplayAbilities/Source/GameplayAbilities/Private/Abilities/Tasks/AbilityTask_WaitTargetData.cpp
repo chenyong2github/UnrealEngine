@@ -42,7 +42,7 @@ void UAbilityTask_WaitTargetData::Activate()
 			RegisterTargetDataCallbacks();
 
 
-			if (IsPendingKill())
+			if (!IsValid(this))
 			{
 				return;
 			}
@@ -102,7 +102,7 @@ bool UAbilityTask_WaitTargetData::BeginSpawningActor(UGameplayAbility* OwningAbi
 
 void UAbilityTask_WaitTargetData::FinishSpawningActor(UGameplayAbility* OwningAbility, AGameplayAbilityTargetActor* SpawnedActor)
 {
-	if (SpawnedActor && !SpawnedActor->IsPendingKill())
+	if (IsValid(SpawnedActor))
 	{
 		check(TargetActor == SpawnedActor);
 
@@ -172,7 +172,7 @@ void UAbilityTask_WaitTargetData::FinalizeTargetActor(AGameplayAbilityTargetActo
 
 void UAbilityTask_WaitTargetData::RegisterTargetDataCallbacks()
 {
-	if (!ensure(IsPendingKill() == false))
+	if (!ensure(IsValid(this)))
 	{
 		return;
 	}

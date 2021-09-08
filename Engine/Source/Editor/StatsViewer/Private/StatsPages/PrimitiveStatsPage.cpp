@@ -193,7 +193,7 @@ struct PrimitiveStatsGenerator
 			// Only list primitives in visible levels
 			&&	IsInVisibleLevel( InPrimitiveComponent, World ) 
 			// Don't list pending kill components.
-			&&	!InPrimitiveComponent->IsPendingKill() )
+			&&	IsValid(InPrimitiveComponent) )
 		{
 			// Retrieve relevant lights.
 			TArray<const ULightComponent*> RelevantLights;

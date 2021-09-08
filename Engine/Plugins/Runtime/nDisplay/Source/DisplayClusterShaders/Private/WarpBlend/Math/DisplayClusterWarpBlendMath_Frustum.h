@@ -225,7 +225,17 @@ private:
 			break;
 		}
 
-		Local2World = FRotationMatrix::MakeFromXZ(ViewDir, FVector(0.f, 0.f, 1.f));
+		FVector const NewX = ViewDir.GetSafeNormal();
+		// make sure we don't ever pick the same as NewX
+		if(FMath::Abs(NewX.Z) < (1.f - KINDA_SMALL_NUMBER))
+		{
+			Local2World = FRotationMatrix::MakeFromXZ(NewX, FVector(0.f, 0.f, 1.f));
+		}
+		else
+		{
+			Local2World = FRotationMatrix::MakeFromXY(NewX, FVector(0.f, 1.f, 0.f));
+		}
+
 		Local2World.SetOrigin(EyeOrigin); // Finally set view origin to eye location
 
 		World2Local = Local2World.Inverse();

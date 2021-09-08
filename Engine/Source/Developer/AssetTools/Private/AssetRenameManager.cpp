@@ -659,7 +659,7 @@ void FAssetRenameManager::FindCDOReferences(const TArrayView<FAssetRenameDataWit
 		UObject* CDO = Cls->ClassDefaultObject;
 		bool bWorkingOnGameMapsSettings = (CDO == GetDefault<UGameMapsSettings>());
 
-		if (!CDO || !CDO->HasAllFlags(RF_ClassDefaultObject) || CDO->IsPendingKill() || Cls->ClassGeneratedBy != nullptr)
+		if (!CDO || !CDO->HasAllFlags(RF_ClassDefaultObject) || !IsValidChecked(CDO) || Cls->ClassGeneratedBy != nullptr)
 		{
 			continue;
 		}
@@ -1236,7 +1236,7 @@ void FAssetRenameManager::RenameReferencingSoftObjectPaths(const TArray<UPackage
 
 		for (UObject* Object : ObjectsInPackage)
 		{
-			if (Object->IsPendingKill())
+			if (!IsValid(Object))
 			{
 				continue;
 			}
@@ -1306,7 +1306,7 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 
 		for (UObject* Object : ObjectsInPackage)
 		{
-			if (Object->IsPendingKill())
+			if (!IsValid(Object))
 			{
 				continue;
 			}

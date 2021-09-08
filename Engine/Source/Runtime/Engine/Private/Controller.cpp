@@ -290,7 +290,7 @@ void AController::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if ( !IsPendingKill() )
+	if ( IsValid(this) )
 	{
 		GetWorld()->AddController( this );
 

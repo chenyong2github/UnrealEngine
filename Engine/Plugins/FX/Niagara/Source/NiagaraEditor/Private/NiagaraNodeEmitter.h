@@ -92,6 +92,6 @@ private:
 	ENiagaraScriptUsage ScriptType;
 
 	FName CachedUniqueName;
-	UNiagaraGraph* CachedGraph;
-	UNiagaraScriptSourceBase* CachedScriptSource;
+	TWeakObjectPtr<UNiagaraGraph> CachedGraphWeakPtr;
+	TWeakObjectPtr<UNiagaraScriptSourceBase> CachedScriptSourceWeakPtr;
 };

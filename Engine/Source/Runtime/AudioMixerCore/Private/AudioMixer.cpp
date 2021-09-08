@@ -10,6 +10,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeTryLock.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 // Defines the "Audio" category in the CSV profiler.
 // This should only be defined here. Modules who wish to use this category should contain the line
@@ -59,6 +60,29 @@ FAutoConsoleVariableRef CVarDisableDeviceSwap(
 	TEXT("0: Not Enabled, 1: Enabled"),
 	ECVF_Default);
 
+static int32 bUseThreadedDeviceSwapCVar = 1;
+FAutoConsoleVariableRef CVarUseThreadedDeviceSwap(
+	TEXT("au.UseThreadedDeviceSwap"),
+	bUseThreadedDeviceSwapCVar,
+	TEXT("Lets Device Swap go wide.")
+	TEXT("0 off, 1 on"),
+	ECVF_Default);
+
+static int32 bUseAudioDeviceInfoCacheCVar = 1;
+FAutoConsoleVariableRef CVarUseAudioDeviceInfoCache(
+	TEXT("au.UseCachedDeviceInfoCache"),
+	bUseAudioDeviceInfoCacheCVar,
+	TEXT("Uses a Cache of the DeviceCache instead of asking the OS")
+	TEXT("0 off, 1 on"),
+	ECVF_Default);
+	
+static int32 bRecycleThreadsCVar = 1;
+FAutoConsoleVariableRef CVarRecycleThreads(
+	TEXT("au.RecycleThreads"),
+	bRecycleThreadsCVar,
+	TEXT("Keeps threads to reuse instead of create/destroying them")
+	TEXT("0 off, 1 on"),
+	ECVF_Default);
 
 static int32 OverrunTimeoutCVar = 1000;
 FAutoConsoleVariableRef CVarOverrunTimeout(
@@ -161,6 +185,8 @@ namespace Audio
 
 	void FOutputBuffer::Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const int32 InNumBuffers, const EAudioMixerStreamDataFormat::Type InDataFormat)
 	{
+		SCOPED_NAMED_EVENT(FOutputBuffer_Init, FColor::Blue);
+
 		RenderBuffer.Reset();
 		RenderBuffer.AddUninitialized(InNumSamples);
 
@@ -283,7 +309,6 @@ namespace Audio
 
 	IAudioMixerPlatformInterface::IAudioMixerPlatformInterface()
 		: bWarnedBufferUnderrun(false)
-		, AudioRenderThread(nullptr)
 		, AudioRenderEvent(nullptr)
 		, bIsInDeviceSwap(false)
 		, AudioFadeEvent(nullptr)
@@ -424,33 +449,51 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::StartRunningNullDevice()
 	{
-		UE_LOG(LogAudioMixer, Display, TEXT("StartRunningNullDevice() called"));
+		UE_LOG(LogAudioMixer, Verbose, TEXT("StartRunningNullDevice() called"));
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_StartRunningNullDevice, FColor::Blue);
+		
+		auto ThrowAwayBuffer = [this]() { this->ReadNextBuffer(); };
+		float SafeSampleRate = OpenStreamParams.SampleRate > 0.f ? OpenStreamParams.SampleRate : 48000.f;
+		float BufferDuration = ((float)OpenStreamParams.NumFrames) / SafeSampleRate;
 
+		AudioRenderEvent->Trigger();
 		if (!NullDeviceCallback.IsValid())
 		{
+			// Create the thread and tell it not to pause.
+			CreateNullDeviceThread(ThrowAwayBuffer, BufferDuration, false);
+			check(NullDeviceCallback.IsValid());
+		}
+		else
+		{
+			// Reuse existing thread if we have one.
+			NullDeviceCallback->Resume(ThrowAwayBuffer, BufferDuration);
+		}
 
-			check(OpenStreamParams.NumFrames * AudioStreamInfo.DeviceInfo.NumChannels == OutputBuffer.GetNumSamples());
-
-			AudioRenderEvent->Trigger();
-
-			float BufferDuration = ((float) OpenStreamParams.NumFrames) / OpenStreamParams.SampleRate;
-			NullDeviceCallback.Reset(new FMixerNullCallback( BufferDuration, [this]()
-			{
-				this->ReadNextBuffer();
-			}));
 			bIsUsingNullDevice = true;
 		}
-	}
 
 	void IAudioMixerPlatformInterface::StopRunningNullDevice()
 	{
-		UE_LOG(LogAudioMixer, Display, TEXT("StopRunningNullDevice() called"));
+		UE_LOG(LogAudioMixer, Verbose, TEXT("StopRunningNullDevice() called"));
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_StopRunningNullDevice, FColor::Blue);
 
 		if (NullDeviceCallback.IsValid())
 		{
+			if(IAudioMixer::ShouldRecycleThreads())
+			{
+				NullDeviceCallback->Pause();
+			}
+			else
+			{
 			NullDeviceCallback.Reset();
+			}
 			bIsUsingNullDevice = false;
 		}
+	}
+
+	void IAudioMixerPlatformInterface::CreateNullDeviceThread(const TFunction<void()> InCallback, float InBufferDuration, bool bShouldPauseOnStart)
+	{
+		NullDeviceCallback.Reset(new FMixerNullCallback(InBufferDuration, InCallback, TPri_TimeCritical, bShouldPauseOnStart));
 	}
 
 	void IAudioMixerPlatformInterface::ApplyMasterAttenuation(TArrayView<const uint8>& OutPoppedAudio)
@@ -552,6 +595,8 @@ namespace Audio
 
 	void IAudioMixerPlatformInterface::BeginGeneratingAudio()
 	{
+		SCOPED_NAMED_EVENT(IAudioMixerPlatformInterface_BeginGeneratingAudio, FColor::Blue);
+		
 		checkf(!bIsGeneratingAudio, TEXT("BeginGeneratingAudio() is being run with StreamState = %i and bIsGeneratingAudio = %i"), AudioStreamInfo.StreamState, !!bIsGeneratingAudio);
 
 		bIsGeneratingAudio = true;
@@ -578,13 +623,15 @@ namespace Audio
 		AudioFadeEvent = FPlatformProcess::GetSynchEventFromPool();
 		check(AudioFadeEvent != nullptr);
 
-		check(AudioRenderThread == nullptr);
-		AudioRenderThread = FRunnableThread::Create(this, *FString::Printf(TEXT("AudioMixerRenderThread(%d)"), AudioMixerTaskCounter.Increment()), 0, (EThreadPriority)SetRenderThreadPriorityCVar, FPlatformAffinity::GetAudioThreadMask());
-		check(AudioRenderThread != nullptr);
+		check(!AudioRenderThread.IsValid());
+		AudioRenderThread.Reset(FRunnableThread::Create(this, *FString::Printf(TEXT("AudioMixerRenderThread(%d)"), AudioMixerTaskCounter.Increment()), 0, (EThreadPriority)SetRenderThreadPriorityCVar, FPlatformAffinity::GetAudioThreadMask()));
+		check(AudioRenderThread.IsValid());
 	}
 
 	void IAudioMixerPlatformInterface::StopGeneratingAudio()
 	{
+		SCOPED_NAMED_EVENT(IAudioMixerPlatformInterface_StopGeneratingAudio, FColor::Blue);
+
 		// Stop the FRunnable thread
 
 		if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped)
@@ -598,9 +645,12 @@ namespace Audio
 			AudioRenderEvent->Trigger();
 		}
 
-		if (AudioRenderThread != nullptr)
+		if (AudioRenderThread.IsValid())
 		{
+			{
+				SCOPED_NAMED_EVENT(IAudioMixerPlatformInterface_StopGeneratingAudio_KillRenderThread, FColor::Blue);
 			AudioRenderThread->Kill();
+			}
 
 			// WaitForCompletion will complete right away when single threaded, and AudioStreamInfo.StreamState will never be set to stopped
 			if (FPlatformProcess::SupportsMultithreading())
@@ -612,8 +662,7 @@ namespace Audio
 				AudioStreamInfo.StreamState = EAudioOutputStreamState::Stopped;
 			}
 
-			delete AudioRenderThread;
-			AudioRenderThread = nullptr;
+			AudioRenderThread.Reset();
 		}
 
 		if (AudioRenderEvent != nullptr)
@@ -679,6 +728,8 @@ namespace Audio
 				// if we reached this block, we timed out, and should attempt to
 				// bail on our current device.
 				bMoveAudioStreamToNewAudioDevice = true;
+
+				UE_LOG(LogAudioMixer, Warning, TEXT("AudioMixerPlatformInterface. Timeout waiting for h/w. (Trying new device)."));
 			}
 		}
 
@@ -812,5 +863,24 @@ namespace Audio
 	bool IAudioMixer::ShouldLogDeviceSwaps()
 	{
 		return EnableDetailedWindowsDeviceLoggingCVar != 0;
+	}
+
+	bool IAudioMixer::ShouldUseThreadedDeviceSwap()
+	{
+		return bUseThreadedDeviceSwapCVar != 0;
+	}
+
+	bool IAudioMixer::ShouldUseDeviceInfoCache()
+	{		
+#if PLATFORM_WINDOWS // PLATFORM_HOLOLENS uses old path.
+		return bUseAudioDeviceInfoCacheCVar != 0;
+#else //PLATFORM_WINDOWS
+		return false;
+#endif //PLATFORM_WINDOWS
+	}
+	
+	bool IAudioMixer::ShouldRecycleThreads()
+	{
+		return bRecycleThreadsCVar != 0;
 	}
 }

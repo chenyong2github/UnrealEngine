@@ -351,6 +351,7 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 	DeviceID = InDeviceID;
 
 	DeviceCreatedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.AddRaw(this, &FAudioDevice::OnDeviceCreated);
+	DeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddRaw(this, &FAudioDevice::OnDeviceDestroyed);
 
 	bool bDeferStartupPrecache = false;
 
@@ -572,6 +573,15 @@ void FAudioDevice::OnDeviceCreated(Audio::FDeviceId InDeviceID)
 	}
 }
 
+void FAudioDevice::OnDeviceDestroyed(Audio::FDeviceId InDeviceID)
+{
+	if (InDeviceID == DeviceID)
+	{
+		Deinitialize();
+		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
+	}
+}
+
 void FAudioDevice::OnPreGarbageCollect()
 {
 	if (FlushAudioRenderThreadOnGCCVar)
@@ -696,6 +706,11 @@ TRange<float> FAudioDevice::GetGlobalPitchRange() const
 
 void FAudioDevice::Teardown()
 {
+#if !UE_BUILD_SHIPPING
+	const bool bDidRemoveDelegate = FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	checkf(!bDidRemoveDelegate, TEXT("DelegateHandle not removed. Should be removed during FAudioDevice::OnDeviceDestroyed(...)"));
+#endif
+
 	ShutdownDefaultAudioBuses();
 
 	// Make sure we process any pending game thread tasks before tearing down the audio device.
@@ -775,7 +790,10 @@ void FAudioDevice::Teardown()
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.RemoveAll(this);
+}
 
+void FAudioDevice::Deinitialize()
+{
 	SubsystemCollection.Deinitialize();
 	SubsystemCollectionRoot.Reset();
 }
@@ -4842,10 +4860,10 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 	ActiveSound->bIsPlayingAudio = true;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (!ensureMsgf(ActiveSound->Sound->GetFName() != NAME_None, TEXT("AddNewActiveSound with DESTROYED sound %s. AudioComponent=%s. IsPendingKill=%d. BeginDestroy=%d"),
+	if (!ensureMsgf(ActiveSound->Sound->GetFName() != NAME_None, TEXT("AddNewActiveSound with DESTROYED sound %s. AudioComponent=%s. IsValid=%d. BeginDestroy=%d"),
 		*ActiveSound->Sound->GetPathName(),
 		*ActiveSound->GetAudioComponentName(),
-		(int32)ActiveSound->Sound->IsPendingKill(),
+		(int32)IsValid(ActiveSound->Sound),
 		(int32)ActiveSound->Sound->HasAnyFlags(RF_BeginDestroyed)))
 	{
 		static FName InvalidSoundName(TEXT("DESTROYED_Sound"));
@@ -5916,7 +5934,7 @@ UAudioComponent* FAudioDevice::CreateComponent(USoundBase* Sound, const FCreateC
 	if (Sound && Params.AudioDevice && GEngine && GEngine->UseSound())
 	{
 		// Avoid creating component if we're trying to play a sound on an already destroyed actor.
-		if (Params.Actor == nullptr || !Params.Actor->IsPendingKill())
+		if (Params.Actor == nullptr || IsValid(Params.Actor))
 		{
 			// Listener position could change before long sounds finish
 			const FSoundAttenuationSettings* AttenuationSettingsToApply = (Params.AttenuationSettings ? &Params.AttenuationSettings->Attenuation : Sound->GetAttenuationSettingsToApply());

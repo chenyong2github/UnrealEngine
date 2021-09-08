@@ -9,7 +9,7 @@ namespace DataprepFilterLibraryImpl
 	template<typename T>
 	T* CastIfValid(UObject* Target)
 	{
-		return Target->IsPendingKill() ? nullptr : Cast<T>(Target);
+		return !IsValid(Target) ? nullptr : Cast<T>(Target);
 	}
 
 }

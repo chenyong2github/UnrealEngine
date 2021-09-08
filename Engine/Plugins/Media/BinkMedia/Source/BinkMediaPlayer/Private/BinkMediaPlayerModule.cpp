@@ -4,6 +4,8 @@
 #include "BinkMediaPlayerPCH.h"
 #include "BinkFunctionLibrary.h"
 
+DEFINE_LOG_CATEGORY(LogBink);
+
 TSharedPtr<FBinkMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 
 #if BINKPLUGIN_UE4_EDITOR
@@ -120,8 +122,8 @@ extern void BinkFreeGpu(void* ptr, UINTa Amt);
 #endif
 
 #ifdef BINK_NDA_CPU_ALLOC
-extern void* BinkNDAAllocCpu(UINTa Amt, U32 Align);
-extern void BinkNDAFreeCpu(void* ptr, UINTa Amt);
+extern void* BinkAllocCpu(UINTa Amt, U32 Align);
+extern void BinkFreeCpu(void* ptr);
 #else
 static void *BinkAllocCpu(UINTa Amt, U32 Align) { return FMemory::Malloc(Amt, Align); }
 static void BinkFreeCpu(void * ptr) { FMemory::Free(ptr); }

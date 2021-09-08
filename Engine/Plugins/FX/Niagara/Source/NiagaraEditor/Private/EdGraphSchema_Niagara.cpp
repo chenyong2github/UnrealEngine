@@ -528,21 +528,13 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 	// Add Convert Nodes
 	{
 		FNiagaraTypeDefinition PinType = FNiagaraTypeDefinition::GetGenericNumericDef();
-		bool bAddMakes = true;
-		bool bAddBreaks = true;
+
 		if (FromPin)
 		{
 			PinType = PinToTypeDefinition(FromPin);
-			if (FromPin->Direction == EGPD_Input)
-			{
-				bAddBreaks = false;
 			}
-			else
-			{
-				bAddMakes = false;
-			}
-		}
 
+		/** Make & Break */
 		if (PinType.GetScriptStruct())
 		{
 			FText MakeCat = LOCTEXT("NiagaraMake", "Make");
@@ -566,65 +558,77 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 				}
 			};
 
-			if (PinType == FNiagaraTypeDefinition::GetGenericNumericDef())
+			// we don't allow make on the following types
+			TSet<FNiagaraTypeDefinition> NoMakeAllowed;
+			NoMakeAllowed.Add(FNiagaraTypeDefinition::GetGenericNumericDef());
+			NoMakeAllowed.Add(FNiagaraTypeDefinition::GetParameterMapDef());
+			
+			// Dynamic Makes from type registry. Should include the pin type as well.
+			for (const FNiagaraTypeDefinition& CandidateType : FNiagaraTypeRegistry::GetRegisteredTypes())
 			{
-				if (bAddMakes)
+				bool bAddMake = false;
+				
+				if(!CandidateType.IsValid() || CandidateType.IsUObject() || NoMakeAllowed.Contains(CandidateType))
 				{
-					for (const FNiagaraTypeDefinition& Type : FNiagaraTypeRegistry::GetRegisteredTypes())
-					{
-						if (Type.IsInternalType())
-						{
 							continue;
 						}
 
-						// Objects and data interfaces can't be made.
-						if (Type.IsUObject() == false)
+				// if we have a "from pin", we generally only want applicable make types
+				if(FromPin)
 						{
-							MakeBreakType(Type, true);
-						}
-					}
-				}
-
-				if (bAddBreaks)
-				{
-					for (const FNiagaraTypeDefinition& Type : FNiagaraTypeRegistry::GetRegisteredTypes())
+					// if our "from pin" is an output pin, we require at least one input pin type of the candidate type to be the same or assignable
+					if(FromPin->Direction == EGPD_Output)
 					{
-						if (Type.IsInternalType())
+						// we are checking here if the candidate type has a property that is the same as our pin
+						for (TFieldIterator<FProperty> CandidatePropertyIt(CandidateType.GetStruct(), EFieldIteratorFlags::IncludeSuper); CandidatePropertyIt; ++CandidatePropertyIt)
 						{
-							continue;
-						}
-
-						//Don't break scalars. Allow makes for now as a convenient method of getting internal script constants when dealing with numeric pins.
-						// Object and data interfaces can't be broken.
-						if (!FNiagaraTypeDefinition::IsScalarDefinition(Type) && !Type.IsUObject())
-						{
-							MakeBreakType(Type, false);
+							FNiagaraTypeDefinition CandidatePropertyType = GetTypeDefForProperty(*CandidatePropertyIt);
+							if(FNiagaraTypeDefinition::TypesAreAssignable(PinType, CandidatePropertyType))
+							{
+								bAddMake = true;
+								break;
 						}
 					}
 				}
-			}
+					else
+				{
+						// if our "from pin" is an input pin, we generally only allow that exact type for making, with some exceptions like NiagaraGenerics
+						if(PinType == CandidateType)
+					{
+							bAddMake = true;
+						}
+
+						if(PinType == FNiagaraTypeDefinition::GetGenericNumericDef() && FNiagaraTypeDefinition::IsValidNumericInput(CandidateType))
+						{
+							bAddMake = true;
+						}
+					}
+				}
+				// if we don't, just generally allow make types. We are stricter about break types however
 			else
 			{
-				//If we have a valid type then add it as a convenience at the top level.
-				FText TypedMakeBreakFmt = LOCTEXT("NiagaraTypedMakeBreakFmt", "{0} {1}");
-				FText DisplayName = PinType.GetStruct()->GetDisplayNameText();
-				if (PinType.GetEnum())
-				{
-					DisplayName = FText::FromString(PinType.GetEnum()->GetName());
+					bAddMake = true;
 				}
-				FText Desc = FText::Format(TypedMakeBreakFmt, bAddMakes ? MakeCat : BreakCat, DisplayName);
+
+				if(bAddMake)
+				{
+					MakeBreakType(CandidateType, true);
+				}
+				}
 				
-				UNiagaraNodeConvert* ConvertNode = NewObject<UNiagaraNodeConvert>(OwnerOfTemporaries);
-				AddNewNodeMenuAction(NewActions, ConvertNode, Desc, ENiagaraMenuSections::General, {}, FText::GetEmpty(), FText::GetEmpty());
-				if (bAddMakes)
+			// Break for the current "from pin"
+			{
+				// Don't break scalars. Allow makes for now as a convenient method of getting internal script constants when dealing with numeric pins.
+				// Object and data interfaces can't be broken.
+				if (FromPin && !PinType.IsInternalType() && !PinType.IsUObject() && !FNiagaraTypeDefinition::IsScalarDefinition(PinType) && PinType != FNiagaraTypeDefinition::GetGenericNumericDef() && PinType != FNiagaraTypeDefinition::GetParameterMapDef())
 				{
-					ConvertNode->InitAsMake(PinType);
+					if(FromPin->Direction == EGPD_Output)
+				{
+						MakeBreakType(PinType, false);
 				}
-				else
-				{
-					ConvertNode->InitAsBreak(PinType);
 				}
 			}
+
 
 			//Always add generic convert as an option.
 			FText Desc = LOCTEXT("NiagaraConvert", "Convert");
@@ -1710,9 +1714,13 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const FProp
 		const FEnumProperty* EnumProp = CastField<FEnumProperty>(Property);
 		return FNiagaraTypeDefinition(EnumProp->GetEnum());
 	}
-	else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
+	else if (const FStructProperty* StructProp = CastField<const FStructProperty>(Property))
 	{
 		return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct));
+	}
+	else if(Property->IsA(FUInt16Property::StaticClass()))
+	{
+		return FNiagaraTypeDefinition::GetHalfDef();
 	}
 
 	check(0);

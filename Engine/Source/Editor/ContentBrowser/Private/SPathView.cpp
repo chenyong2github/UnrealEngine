@@ -1392,11 +1392,18 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 			bIsRootInvariantFolder = !RootInvariantFolder.FindChar(TEXT('/'), SecondSlashIndex);
 		}
 
-		It->GetItem().GetItemName().ToString(SortInfo.FolderName);
+		SortInfo.FolderName = It->GetItem().GetDisplayName().ToString();
 
 		SortInfo.bIsClassesFolder = false;
 		if (bIsRootInvariantFolder)
 		{
+			FNameBuilder ItemNameBuilder(It->GetItem().GetItemName());
+			const FStringView ItemNameView(ItemNameBuilder);
+			if (ItemNameView.StartsWith(ClassesPrefix))
+			{
+				SortInfo.bIsClassesFolder = true;
+			}
+
 			if (SortInfo.FolderName.StartsWith(ClassesPrefix))
 			{
 				SortInfo.bIsClassesFolder = true;
@@ -1838,6 +1845,8 @@ void SPathView::HandleSettingChanged(FName PropertyName)
 		(PropertyName == "DisplayEngineFolder") ||
 		(PropertyName == "DisplayPluginFolders") ||
 		(PropertyName == "DisplayL10NFolder") ||
+		(PropertyName == GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, bDisplayContentFolderSuffix)) ||
+		(PropertyName == GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, bDisplayFriendlyNameForPluginFolders)) ||
 		(PropertyName == NAME_None))	// @todo: Needed if PostEditChange was called manually, for now
 	{
 		const bool bHadSelectedPath = TreeViewPtr->GetNumItemsSelected() > 0;

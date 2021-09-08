@@ -311,9 +311,8 @@ namespace SizeMapInternals
 		{
 			// Only look at objects which are valid
 			const bool bIsValidObject =
-				Object != nullptr &&	// Object should not be null
-				!Object->HasAnyFlags(RF_Transient) &&	// Should not be transient
-				!Object->IsPendingKill(); // Should not be pending kill
+				IsValid(Object) &&	// Object should be valid
+				!Object->HasAnyFlags(RF_Transient);	// Should not be transient
 			if (bIsValidObject)
 			{
 				// Skip objects that we've already processed

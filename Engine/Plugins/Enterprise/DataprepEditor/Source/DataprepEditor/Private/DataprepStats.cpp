@@ -103,7 +103,7 @@ private:
 		{
 			for (AActor* Actor : Level->Actors)
 			{
-				const bool bIsValidActor = Actor && !Actor->IsPendingKill();
+				const bool bIsValidActor = IsValid(Actor);
 
 				if (bIsValidActor)
 				{
@@ -262,7 +262,7 @@ private:
 
 		// If we should skip the actor. Skip if the actor has no outer or if we are only showing selected actors and the actor isn't selected
 		// Dont' care about components without a resource.
-		if (InComponent->GetWorld() == World && !InComponent->IsPendingKill())
+		if (InComponent->GetWorld() == World && IsValidChecked(InComponent))
 		{
 			if( StaticMeshComponent )
 			{

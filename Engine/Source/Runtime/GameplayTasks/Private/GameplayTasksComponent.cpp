@@ -169,7 +169,7 @@ bool UGameplayTasksComponent::ReplicateSubobjects(UActorChannel* Channel, class 
 	{
 		for (UGameplayTask* SimulatedTask : GetSimulatedTasks())
 		{
-			if (SimulatedTask && !SimulatedTask->IsPendingKill())
+			if (IsValid(SimulatedTask))
 			{
 				WroteSomething |= Channel->ReplicateSubobject(SimulatedTask, *Bunch, *RepFlags);
 			}
@@ -376,9 +376,9 @@ void UGameplayTasksComponent::ProcessTaskEvents()
 			UE_VLOG(this, LogGameplayTasks, Verbose, TEXT("UGameplayTasksComponent::ProcessTaskEvents: %s event %s")
 				, *TaskEvents[EventIndex].RelatedTask.GetName(), GetGameplayTaskEventName(TaskEvents[EventIndex].Event));
 
-			if (TaskEvents[EventIndex].RelatedTask.IsPendingKill())
+			if (!IsValid(&TaskEvents[EventIndex].RelatedTask))
 			{
-				UE_VLOG(this, LogGameplayTasks, Verbose, TEXT("%s is PendingKill"), *TaskEvents[EventIndex].RelatedTask.GetName());
+				UE_VLOG(this, LogGameplayTasks, Verbose, TEXT("%s is invalid"), *TaskEvents[EventIndex].RelatedTask.GetName());
 				// we should ignore it, but just in case run the removal code.
 				RemoveTaskFromPriorityQueue(TaskEvents[EventIndex].RelatedTask);
 				continue;
@@ -496,9 +496,8 @@ void UGameplayTasksComponent::UpdateTaskActivations()
 		for (int32 Idx = 0; Idx < ActivationList.Num(); Idx++)
 		{
 			// check if task wasn't already finished as a result of activating previous elements of this list
-			if (ActivationList[Idx] != nullptr
-				&& ActivationList[Idx]->IsFinished() == false
-				&& ActivationList[Idx]->IsPendingKill() == false)
+			if (IsValid(ActivationList[Idx])
+				&& ActivationList[Idx]->IsFinished() == false)
 			{
 				ActivationList[Idx]->ActivateInTaskQueue();
 			}
@@ -610,7 +609,7 @@ void UGameplayTasksComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) co
 	static const FString PriorityQueueName = TEXT("Priority Queue");
 	static const FString OtherTasksName = TEXT("Other tasks");
 
-	if (IsPendingKill())
+	if (!IsValid(this))
 	{
 		return;
 	}

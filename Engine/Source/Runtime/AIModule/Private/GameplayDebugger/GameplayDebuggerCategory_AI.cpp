@@ -138,7 +138,7 @@ void FGameplayDebuggerCategory_AI::CollectData(APlayerController* OwnerPC, AActo
 	DataPack.bHasController = (MyController != nullptr);
 	if (MyController)
 	{
-		if (MyController->IsPendingKill() == false)
+		if (IsValid(MyController))
 		{
 			DataPack.ControllerName = MyController->GetName();
 		}
@@ -152,7 +152,7 @@ void FGameplayDebuggerCategory_AI::CollectData(APlayerController* OwnerPC, AActo
 		DataPack.ControllerName = TEXT("No Controller");
 	}
 
-	if (MyPawn && !MyPawn->IsPendingKill())
+	if (MyPawn && IsValidChecked(MyPawn))
 	{
 		UCharacterMovementComponent* CharMovementComp = MyChar ? MyChar->GetCharacterMovement() : nullptr;
 		if (CharMovementComp)

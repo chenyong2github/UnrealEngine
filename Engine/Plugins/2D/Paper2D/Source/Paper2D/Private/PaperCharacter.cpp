@@ -33,7 +33,7 @@ void APaperCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		if (Sprite)
 		{

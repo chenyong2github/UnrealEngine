@@ -223,7 +223,7 @@ FString FReferenceChainSearch::GetObjectFlags(UObject* InObject)
 			Flags += TEXT("(native) ");
 		}
 
-	if (InObject->IsPendingKill())
+	if (InObject->HasAnyInternalFlags(EInternalObjectFlags::PendingKill))
 	{
 		Flags += TEXT("(PendingKill) ");
 	}

@@ -220,7 +220,7 @@ void AGameplayCueNotify_Actor::HandleGameplayCue(AActor* MyTarget, EGameplayCueE
 		}
 	}
 
-	if (MyTarget && !MyTarget->IsPendingKill())
+	if (IsValid(MyTarget))
 	{
 		K2_HandleGameplayCue(MyTarget, EventType, Parameters);
 
@@ -340,7 +340,7 @@ void AGameplayCueNotify_Actor::GameplayCueFinishedCallback()
 
 bool AGameplayCueNotify_Actor::GameplayCuePendingRemove()
 {
-	return GetLifeSpan() > 0.f || FinishTimerHandle.IsValid() || IsPendingKill();
+	return GetLifeSpan() > 0.f || FinishTimerHandle.IsValid() || !IsValid(this);
 }
 
 bool AGameplayCueNotify_Actor::Recycle()

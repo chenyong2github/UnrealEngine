@@ -143,7 +143,7 @@ void FMaterialInfo::UpdateMaterial(const TSharedPtr< IDatasmithUEPbrMaterialElem
 		IDatasmithMaterialExpressionTexture* BaseTextureExpression =
 			DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
 		BaseTextureExpression->SetTexturePathName(GSStringToUE(APIGuidToString(Texture->Fingerprint)));
-		BaseTextureExpression->SetName(GSStringToUE(Texture->TextureLabel));
+		BaseTextureExpression->SetName(TEXT("Diffuse_Map"));
 		BaseTextureExpression->ConnectExpression(DSMaterial->GetBaseColor());
 
 		if (PIVOT_0_5_0_5 != 0 || InvXSize != 1.0 || InvYSize != 1.0 || bMirrorX || bMirrorY || Rotation != 0.0)

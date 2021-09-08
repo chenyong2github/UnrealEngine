@@ -501,6 +501,13 @@ public:
 	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const = 0;
 
 	/**
+	 * Gets a list of modules that may contain the GetAllTargetedShaderFormats. This is optional -
+	 * if any required shader format isn't found in this list, then it will use the old path
+	 * of loading all shader format modules to gather all available shader formats
+	 */
+	virtual void GetShaderFormatModuleHints(TArray<FName>& OutModuleNames) const = 0;
+
+	/**
 	 * Gets the format to use for a particular texture.
 	 *
 	 * @param Texture The texture to get the format for.
@@ -515,6 +522,13 @@ public:
 	 * @param OutFormats will contain all the texture formats which are possible for this platform
 	 */
 	virtual void GetAllTextureFormats( TArray<FName>& OutFormats ) const = 0;
+
+	/**
+	 * Gets a list of modules that may contain the GetAllTextureFormats. This is optional -
+	 * if any required texture format isn't found in this list, then it will use the old path
+	 * of loading all texture format modules to gather all available texture formats
+	 */
+	virtual void GetTextureFormatModuleHints(TArray<FName>& OutModuleNames) const = 0;
 
 	/**
 	 * Platforms that support multiple texture compression variants 
@@ -558,6 +572,13 @@ public:
 	* @param output array of all the formats
 	*/
 	virtual void GetAllWaveFormats( TArray<FName>& OutFormats ) const = 0;
+
+	/**
+	 * Gets a list of modules that may contain the GetAllWaveFormats. This is optional -
+	 * if any required audio format isn't found in this list, then it will use the old path
+	 * of loading all audio format modules to gather all available audio formats
+	 */
+	virtual void GetWaveFormatModuleHints(TArray<FName>& OutModuleNames) const = 0;
 
 	/**
 	 * Checks whether if this platform wants AV data (defaults to !IsServerOnly(), which is the standard reason why we don't want AV data)

@@ -3072,6 +3072,9 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 		}
 		else
 		{
+			// Need to immediately kill the current proxy (instead of waiting until the async tree build is finished) as the underlying lightmap data (from MapBuildRegistry) can be going away
+			MarkRenderStateDirty();
+
 			BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/true);
 		}
 	}
@@ -3573,7 +3576,7 @@ static void RebuildFoliageTrees(const TArray<FString>& Args)
 	for (TObjectIterator<UHierarchicalInstancedStaticMeshComponent> It; It; ++It)
 	{
 		UHierarchicalInstancedStaticMeshComponent* Comp = *It;
-		if (Comp && !Comp->IsTemplate() && !Comp->IsPendingKill())
+		if (IsValid(Comp) && !Comp->IsTemplate())
 		{
 			Comp->BuildTreeIfOutdated(/*Async*/false, /*ForceUpdate*/true);
 			Comp->MarkRenderStateDirty();

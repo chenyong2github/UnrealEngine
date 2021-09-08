@@ -9,7 +9,7 @@
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
-	#include "eos_common.h"
+#include "eos_common.h"
 #endif
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSocketSubsystemEOS, Log, All);

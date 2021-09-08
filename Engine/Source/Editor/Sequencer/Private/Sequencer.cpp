@@ -2641,8 +2641,6 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	{
 		if ( DataChangeType != EMovieSceneDataChangeType::TrackValueChanged )
 		{
-			// All changes types except for track value changes require refreshing the outliner tree.
-			SetPlaybackStatus( EMovieScenePlayerStatus::Stopped );
 			bNeedTreeRefresh = true;
 		}
 		else if ( NodeTree->UpdateFiltersOnTrackValueChanged() )

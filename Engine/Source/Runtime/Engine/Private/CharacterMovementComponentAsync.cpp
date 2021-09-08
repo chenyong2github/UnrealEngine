@@ -1800,7 +1800,7 @@ void FCharacterMovementComponentAsyncInput::FindFloor(const FVector& CapsuleLoca
 					|| MovementBaseUtility::IsDynamicBase(MovementBase);*/
 			}
 
-			//const bool IsActorBasePendingKill = BaseActor && BaseActor->IsPendingKill();
+			//const bool IsActorBasePendingKill = BaseActor && !IsValid(BaseActor);
 
 			if (false)//!bForceNextFloorCheck && !IsActorBasePendingKill && MovementBase)
 			{
@@ -2624,7 +2624,7 @@ bool FUpdatedComponentAsyncInput::MoveComponent(const FVector& Delta, const FQua
 			{
 				if (Actor)
 				{
-					ensureMsgf(IsRegistered(), TEXT("%s MovedComponent %s not initialized deleteme %d"), *Actor->GetName(), *GetName(), Actor->IsPendingKill());
+					ensureMsgf(IsRegistered(), TEXT("%s MovedComponent %s not initialized deleteme %d"), *Actor->GetName(), *GetName(), !IsValid(Actor));
 				}
 				else
 				{ //-V523
@@ -2848,7 +2848,7 @@ bool FUpdatedComponentAsyncInput::MoveComponent(const FVector& Delta, const FQua
 
 	// Handle blocking hit notifications. Avoid if pending kill (which could happen after overlaps).
 	const bool bAllowHitDispatch = !BlockingHit.bStartPenetrating || !(MoveFlags & MOVECOMP_DisableBlockingOverlapDispatch);
-	if (BlockingHit.bBlockingHit && bAllowHitDispatch/* && !IsPendingKill()*/)
+	if (BlockingHit.bBlockingHit && bAllowHitDispatch/* && IsValid(this)*/)
 	{
 		check(bFilledHitResult);
 		/*if (IsDeferringMovementUpdates()) // TODO DeferredMovementUpdates

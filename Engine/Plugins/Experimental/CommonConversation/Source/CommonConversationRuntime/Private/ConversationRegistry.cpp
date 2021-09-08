@@ -164,7 +164,7 @@ void UConversationRegistry::Deinitialize()
 	if (GEngine->GetEngineSubsystem<UGameFeaturesSubsystem>()) 
 	{
 		UGameFeaturesSubsystem::Get().RemoveObserver(this);
-}
+	}
 }
 
 void UConversationRegistry::GameFeatureStateModified()
@@ -311,7 +311,7 @@ TSharedPtr<FConversationsHandle> UConversationRegistry::LoadConversationsFor(con
 	}
 	else
 	{
-		UE_LOG(LogCommonConversationRuntime, Warning, TEXT("LoadConversationsFor %s - NO CONVERSATIONS FOUND"),
+		UE_LOG(LogCommonConversationRuntime, Verbose, TEXT("LoadConversationsFor %s - NO CONVERSATIONS FOUND"),
 			*FString::JoinBy(ConversationEntryTags, TEXT(", "), [](const FGameplayTag& Tag) { return FString::Printf(TEXT("'%s'"), *Tag.ToString()); })
 		);
 	}

@@ -136,7 +136,7 @@ PACKAGE_SCOPE:
 
 	FString EpicAccountIdStr;
 	FString ProductUserIdStr;
-	uint8 RawBytes[EOS_ID_BYTE_SIZE];
+	uint8 RawBytes[EOS_ID_BYTE_SIZE] = { 0 };
 private:
 	FUniqueNetIdEOS()
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS

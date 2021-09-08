@@ -131,6 +131,7 @@ void FDomainDatabase::RebuildFromScratch()
 	TempDomain.Reset();
 	GameDomain.Reset();
 	DomainsDefinedByPlugins.Reset();
+	SpecificAssetPackageDomains.Reset();
 
 	// Create the built-in domains
 	//@TODO: Would be good to get the path roots directly from FLongPackagePathsSingleton but it's private
@@ -176,6 +177,18 @@ void FDomainDatabase::RebuildFromScratch()
 				}
 			}
 
+			for(FName PackageName : PathRule.SpecificAssets)
+			{
+				if(FPackageName::IsValidLongPackageName(PackageName.ToString()))
+				{
+					Domain->SpecificAssetPackages.Add(PackageName);
+				}
+				else
+				{
+					UE_LOG(LogAssetReferenceRestrictions, Error, TEXT("Invalid specific asset path '%s' for domain '%s'"), *PackageName.ToString(), *PathRule.DomainName);
+				}
+			}
+
 			Domain->DomainsVisibleFromHere.Add(EngineDomain);
 
 			if (PathRule.ReferenceMode == EARPDomainAllowedToReferenceMode::AllDomains)
@@ -213,6 +226,15 @@ void FDomainDatabase::RebuildFromScratch()
 			FStringView TrimmedRootPath(FStringView(DomainRootPath).Mid(1));
 
 			PathMap->AddDomain(Domain, TrimmedRootPath);
+		}
+
+		for (FName PackageName : Domain->SpecificAssetPackages)
+		{
+			if (TSharedPtr<FDomainData>* ExistingDomain = SpecificAssetPackageDomains.Find(PackageName))
+			{
+				UE_LOG(LogAssetReferenceRestrictions, Warning, TEXT("Overriding existing specific domain '%s' of package '%s' with new doman '%s'"), *(*ExistingDomain)->UserFacingDomainName.ToString(), *PackageName.ToString(), *Domain->UserFacingDomainName.ToString());
+			}
+			SpecificAssetPackageDomains.Add(PackageName, Domain);
 		}
 	}
 
@@ -408,7 +430,12 @@ void FDomainDatabase::DebugPrintAllDomains()
 
 TSharedPtr<FDomainData> FDomainDatabase::FindDomainFromAssetData(const FAssetData& AssetData) const
 {
-	TSharedPtr<FDomainData> DomainResult = PathMap->FindDomainFromPath(AssetData.PackagePath.ToString());
+	TSharedPtr<FDomainData> DomainResult = SpecificAssetPackageDomains.FindRef(AssetData.PackageName);
+	
+	if(!DomainResult.IsValid())
+	{
+		DomainResult = PathMap->FindDomainFromPath(AssetData.PackagePath.ToString());
+	}
 
 #if UE_ASSET_DOMAIN_FILTERING_DEBUG_LOGGING
 	UE_LOG(LogAssetReferenceRestrictions, Verbose, TEXT("Asset %s belongs to domain %s"),

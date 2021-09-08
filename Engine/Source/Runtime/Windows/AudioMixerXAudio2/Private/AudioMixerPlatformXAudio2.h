@@ -11,6 +11,8 @@
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
+#include "Async/Future.h"
+
 #if PLATFORM_WINDOWS
 #pragma comment(lib,"xaudio2_9redist.lib")
 #endif
@@ -88,6 +90,7 @@ namespace Audio
 		virtual FString GetDefaultDeviceName() override;
 		virtual FAudioPlatformSettings GetPlatformSettings() const override;
 		virtual void OnHardwareUpdate() override;
+		virtual IAudioPlatformDeviceInfoCache* GetDeviceInfoCache() const override;
 		//~ End IAudioMixerPlatformInterface
 
 		//~ Begin IAudioMixerDeviceChangedListener
@@ -95,14 +98,25 @@ namespace Audio
 		virtual void UnregisterDeviceChangedListener() override;
 		virtual void OnDefaultCaptureDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
 		virtual void OnDefaultRenderDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
-		virtual void OnDeviceAdded(const FString& DeviceId) override;
-		virtual void OnDeviceRemoved(const FString& DeviceId) override;
-		virtual void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState) override;
+		virtual void OnDeviceAdded(const FString& DeviceId, bool bIsRenderDevice) override;
+		virtual void OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice) override;
+		virtual void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState, bool bIsRenderDevice) override;
+		virtual void OnSessionDisconnect(Audio::IAudioMixerDeviceChangedListener::EDisconnectReason InReason) override;
 		virtual FString GetDeviceId() const override;
 		//~ End IAudioMixerDeviceChangedListener
 
 	private:
 
+		struct FXAudio2AsyncCreateResult
+		{
+			IXAudio2* XAudio2System = nullptr;
+			IXAudio2MasteringVoice* OutputAudioStreamMasteringVoice = nullptr;
+			IXAudio2SourceVoice* OutputAudioStreamSourceVoice = nullptr;
+			FAudioPlatformDeviceInfo DeviceInfo;
+		};
+		TFuture<FXAudio2AsyncCreateResult> ActiveDeviceSwap;
+		bool CheckThreadedDeviceSwap();
+	
 		bool AllowDeviceSwap();
 
 		// Used to teardown and reinitialize XAudio2.
@@ -139,6 +153,8 @@ namespace Audio
 		float TimeSinceNullDeviceWasLastChecked;
 
 		bool FirstBufferSubmitted{false};
+
+		TUniquePtr<IAudioPlatformDeviceInfoCache> DeviceInfoCache;
 
 		uint32 bIsInitialized : 1;
 		uint32 bIsDeviceOpen : 1;

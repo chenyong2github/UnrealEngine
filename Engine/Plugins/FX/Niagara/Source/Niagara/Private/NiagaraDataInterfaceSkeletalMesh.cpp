@@ -1390,7 +1390,7 @@ public:
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxySkeletalMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxySkeletalMesh*>(Context.DataInterface);
 		FNiagaraDataInterfaceProxySkeletalMeshData* InstanceData = InterfaceProxy->SystemInstancesToData.Find(Context.SystemInstanceID);
-		if (InstanceData && InstanceData->StaticBuffers)
+		if (InstanceData && InstanceData->StaticBuffers && InstanceData->StaticBuffers->GetBufferPositionSRV())
 		{
 			FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers = InstanceData->StaticBuffers;
 
@@ -1669,7 +1669,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		if (ASkeletalMeshActor* SkelMeshActor = Cast<ASkeletalMeshActor>(Actor))
 		{
 			USkeletalMeshComponent* Comp = SkelMeshActor->GetSkeletalMeshComponent();
-			if (Comp && !Comp->IsPendingKill())
+			if (IsValid(Comp))
 			{
 				return Comp;
 			}
@@ -1681,7 +1681,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 			for (UActorComponent* ActorComp : Actor->GetComponents())
 			{
 				USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(ActorComp);
-				if (Comp && !Comp->IsPendingKill() && Comp->SkeletalMesh != nullptr)
+				if (IsValid(Comp) && Comp->SkeletalMesh != nullptr)
 				{
 					return Comp;
 				}
@@ -1713,7 +1713,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		{
 			if (USkeletalMeshComponent* UserSkelMeshComp = Cast<USkeletalMeshComponent>(UserParamObject))
 			{
-				if (!UserSkelMeshComp->IsPendingKill())
+				if (IsValid(UserSkelMeshComp))
 				{
 					FoundSkelComp = UserSkelMeshComp;
 				}
@@ -1736,7 +1736,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 			// The binding exists, but no object is bound. Not warning here in case the user knows what they're doing.
 		}
 	}
-	else if (bTrySource && SourceComponent && !SourceComponent->IsPendingKill())
+	else if (bTrySource && IsValid(SourceComponent))
 	{
 		FoundSkelComp = SourceComponent;
 	}
@@ -1750,7 +1750,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 		{
 			USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(Curr);
-			if (ParentComp && !ParentComp->IsPendingKill())
+			if (IsValid(ParentComp))
 			{
 				FoundSkelComp = ParentComp;
 				break;
@@ -1761,7 +1761,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		{
 			// Next, try to find one in our outer chain
 			USkeletalMeshComponent* OuterComp = AttachComponent->GetTypedOuter<USkeletalMeshComponent>();
-			if (OuterComp && !OuterComp->IsPendingKill())
+			if (IsValid(OuterComp))
 			{
 				FoundSkelComp = OuterComp;
 			}

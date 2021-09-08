@@ -198,6 +198,7 @@ public:
 				return true;
 			}
 			const void* GetQueryData() const { return nullptr; }
+			const void* GetSimData() const { return nullptr; }
 			TArray<TPayloadType>& CollectedResults;
 		};
 
@@ -420,10 +421,11 @@ private:
 		TVector<T, d> TmpPosition;
 		T TOI;
 		const void* QueryData = Visitor.GetQueryData();
+		const void* SimData = Visitor.GetSimData();
 
 		for (const auto& Elem : MGlobalPayloads)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 			{
 				continue;
 			}
@@ -444,7 +446,7 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 			{
 				continue;
 			}
@@ -486,7 +488,7 @@ private:
 
 				for (const auto& Elem : Elems)
 				{
-					if (PrePreFilterHelper(Elem.Payload, QueryData))
+					if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 					{
 						continue;
 					}
@@ -589,9 +591,10 @@ private:
 	{
 		T TOI = 0;
 		const void* QueryData = Visitor.GetQueryData();
+		const void* SimData = Visitor.GetSimData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 			{
 				continue;
 			}
@@ -613,7 +616,7 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 			{
 				continue;
 			}
@@ -772,7 +775,7 @@ private:
 				const auto& Elems = MElements(CellIntersection.CellIdx);
 				for (const auto& Elem : Elems)
 				{
-					if (PrePreFilterHelper(Elem.Payload, QueryData))
+					if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 					{
 						continue;
 					}
@@ -829,9 +832,10 @@ private:
 	bool OverlapImp(const TAABB<T, d>& QueryBounds, SQVisitor& Visitor) const
 	{
 		const void* QueryData = Visitor.GetQueryData();
+		const void* SimData = Visitor.GetSimData();
 		for (const auto& Elem : MGlobalPayloads)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 			{
 				continue;
 			}
@@ -849,7 +853,7 @@ private:
 
 		for (const auto& Elem : MDirtyElements)
 		{
-			if (PrePreFilterHelper(Elem.Payload, QueryData))
+			if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 			{
 				continue;
 			}
@@ -885,7 +889,7 @@ private:
 					const auto& Elems = MElements(X, Y, Z);
 					for (const auto& Elem : Elems)
 					{
-						if (PrePreFilterHelper(Elem.Payload, QueryData))
+						if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 						{
 							continue;
 						}

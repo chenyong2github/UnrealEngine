@@ -351,12 +351,12 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 		// If culling parameter actions that match existing parameters in the graph, collect all IDs for parameters visited in the graph.
 		if(bCullParameterActionsAlreadyInGraph)
 		{ 
-		const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& VariableToScriptVariableMap = Graph->GetAllMetaData();
-		for (auto It = VariableToScriptVariableMap.CreateConstIterator(); It; ++It)
-		{
-			ExistingGraphParameterIds.Add(It.Value()->Metadata.GetVariableGuid());
+			const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& VariableToScriptVariableMap = Graph->GetAllMetaData();
+			for (auto It = VariableToScriptVariableMap.CreateConstIterator(); It; ++It)
+			{
+				ExistingGraphParameterIds.Add(It.Value()->Metadata.GetVariableGuid());
+			}
 		}
-	}
 	}
 
 

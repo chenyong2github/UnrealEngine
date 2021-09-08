@@ -270,7 +270,7 @@ namespace Chaos
 			int32 MaxPlane = 0;
 			for (int32 Idx = 0; Idx < NumPlanes; ++Idx)
 			{
-				FVec3 PlaneNormal = (Planes[Idx].Normal() * Scale).GetUnsafeNormal();
+				FVec3 PlaneNormal = (Planes[Idx].Normal() / Scale).GetUnsafeNormal();
 				FVec3 PlanePos = Planes[Idx].X() * Scale;
 				FReal PlaneDistance = FVec3::DotProduct(X - PlanePos, PlaneNormal);
 				if (PlaneDistance > MaxPhi)

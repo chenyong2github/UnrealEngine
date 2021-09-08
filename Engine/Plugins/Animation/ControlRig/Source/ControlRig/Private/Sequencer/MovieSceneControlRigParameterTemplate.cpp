@@ -579,7 +579,7 @@ void FControlRigBindingHelper::UnBindFromSequencerInstance(UControlRig* ControlR
 
 	if (!ControlRig->IsValidLowLevel() ||
 	    ControlRig->HasAnyFlags(RF_BeginDestroyed) ||
-		ControlRig->IsPendingKill())
+		!IsValid(ControlRig))
 	{
 		return;
 	}
@@ -593,7 +593,7 @@ void FControlRigBindingHelper::UnBindFromSequencerInstance(UControlRig* ControlR
 	{
 		if (!SkeletalMeshComponent->IsValidLowLevel() ||
 			SkeletalMeshComponent->HasAnyFlags(RF_BeginDestroyed) ||
-			SkeletalMeshComponent->IsPendingKill())
+			!IsValid(SkeletalMeshComponent))
 		{
 			return;
 		}
@@ -603,7 +603,7 @@ void FControlRigBindingHelper::UnBindFromSequencerInstance(UControlRig* ControlR
 		{
 			if (!AnimInstance->IsValidLowLevel() ||
                 AnimInstance->HasAnyFlags(RF_BeginDestroyed) ||
-                AnimInstance->IsPendingKill())
+                !IsValid(AnimInstance))
 			{
 				return;
 			}

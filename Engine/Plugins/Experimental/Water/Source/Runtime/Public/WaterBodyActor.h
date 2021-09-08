@@ -68,11 +68,11 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void PostRegisterAllComponents() override;
-
+	
 	/** Returns the type of body */
 	UFUNCTION(BlueprintCallable, Category=Water)
 	virtual EWaterBodyType GetWaterBodyType() const { return WaterBodyType; }
-
+	
 	/** Returns water spline component */
 	UFUNCTION(BlueprintCallable, Category=Water)
 	UWaterSplineComponent* GetWaterSpline() const { return SplineComp; }
@@ -97,6 +97,8 @@ protected:
 	/** Initializes the water body by creating the respective component for this water body type. */
 	virtual void InitializeBody();
 
+	virtual void DeprecateData();
+
 	/** The spline data attached to this water type. */
 	UPROPERTY(Category = Water, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UWaterSplineComponent* SplineComp;
@@ -110,7 +112,7 @@ protected:
 	/** Unique Id for accessing (wave, ... ) data in GPU buffers */
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional, BlueprintReadOnly, Category = Water, meta = (AllowPrivateAccess = "true"))
 	int32 WaterBodyIndex = INDEX_NONE;
-
+	
 	UPROPERTY(Category = Water, EditDefaultsOnly, meta = (AllowPrivateAccess = "true"))
 	EWaterBodyType WaterBodyType;
 
@@ -165,7 +167,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
 	virtual UMaterialInstanceDynamic* GetRiverToOceanTransitionMaterialInstance() final { return WaterBodyComponent->GetRiverToOceanTransitionMaterialInstance(); }
 
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
+	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
 	void SetWaterMaterial(UMaterialInterface* InMaterial) { WaterBodyComponent->SetWaterMaterial(InMaterial); }
 
 	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
@@ -203,13 +205,13 @@ public:
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	float FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const { return WaterBodyComponent->FindInputKeyClosestToWorldLocation(WorldLocation); }
-	
+
 	UFUNCTION(BlueprintCallable, Category = WaterBody, meta = (DeprecatedFunction))
 	virtual float GetWaterVelocityAtSplineInputKey(float InKey) const { return WaterBodyComponent->GetWaterVelocityAtSplineInputKey(InKey); }
-
+	
 	UFUNCTION(BlueprintCallable, Category = WaterBody, meta = (DeprecatedFunction))
 	virtual FVector GetWaterVelocityVectorAtSplineInputKey(float InKey) const { return WaterBodyComponent->GetWaterVelocityVectorAtSplineInputKey(InKey); }
-
+	
 	UFUNCTION(BlueprintCallable, Category = WaterBody, meta = (DeprecatedFunction))
 	virtual float GetAudioIntensityAtSplineInputKey(float InKey) const { return WaterBodyComponent->GetAudioIntensityAtSplineInputKey(InKey); }
 
@@ -325,7 +327,7 @@ protected:
 
 	UPROPERTY()
 	bool bAffectsLandscape_DEPRECATED;
-
+	
 	UPROPERTY()
 	bool bGenerateCollisions_DEPRECATED = true;
 

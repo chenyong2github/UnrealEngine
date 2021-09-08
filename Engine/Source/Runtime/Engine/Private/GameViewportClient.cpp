@@ -1793,7 +1793,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 							DebugCanvasObject->Canvas = DebugCanvas;
 
 							// A side effect of PostRender is that the playercontroller could be destroyed
-							if (!PlayerController->IsPendingKill())
+							if (IsValid(PlayerController))
 							{
 								PlayerController->MyHUD->SetCanvas(NULL, NULL);
 							}
@@ -3888,7 +3888,7 @@ bool UGameViewportClient::HandleGetAllLocationCommand(const TCHAR* Cmd, FOutputD
 		int32 cnt = 0;
 		for (TObjectIterator<AActor> It; It; ++It)
 		{
-			if ((bShowPendingKills || !It->IsPendingKill()) && It->IsA(Class))
+			if ((bShowPendingKills || IsValid(*It)) && It->IsA(Class))
 			{
 				FVector ActorLocation = It->GetActorLocation();
 				Ar.Logf(TEXT("%i) %s (%f, %f, %f)"), cnt++, *It->GetFullName(), ActorLocation.X, ActorLocation.Y, ActorLocation.Z);
@@ -3916,7 +3916,7 @@ bool UGameViewportClient::HandleGetAllRotationCommand(const TCHAR* Cmd, FOutputD
 		int32 cnt = 0;
 		for (TObjectIterator<AActor> It; It; ++It)
 		{
-			if ((bShowPendingKills || !It->IsPendingKill()) && It->IsA(Class))
+			if ((bShowPendingKills || IsValid(*It)) && It->IsA(Class))
 			{
 				FRotator ActorRotation = It->GetActorRotation();
 				Ar.Logf(TEXT("%i) %s (%f, %f, %f)"), cnt++, *It->GetFullName(), ActorRotation.Yaw, ActorRotation.Pitch, ActorRotation.Roll);

@@ -412,7 +412,7 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 		const TManagedArray<FTransform>& Transforms = GetTransformArray();
 
 		const int32 NumBoxes = BoundingBoxes.Num();
-	
+
 		int32 NumElements = HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
 		if (RestCollection->EnableNanite && HackGeometryCollectionPtr->HasAttribute("BoundingBox", FGeometryCollection::TransformGroup) && NumElements)
 		{
@@ -867,13 +867,13 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 			{
 				if (!HideArray || !(*HideArray)[Idx])
 				{ 
-					InstanceTransforms.Add(FTransform(GlobalMatrices[Idx]));
+				InstanceTransforms.Add(FTransform(GlobalMatrices[Idx]));
 #if WITH_EDITOR
 					int32 InstanceIndex = EmbeddedBoneMaps[ExemplarIndex].Add(Idx);
 					EmbeddedInstanceIndex[Idx] = InstanceIndex;
 #endif
-				}
 			}
+		}
 		}
 
 		if (EmbeddedGeometryComponents[ExemplarIndex])
@@ -1081,22 +1081,23 @@ void UGeometryCollectionComponent::RegisterForEvents()
 {
 	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals)
 	{
+#if INCLUDE_CHAOS
 		Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
 		if (Solver)
+	{
+		if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
 		{
-			if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
-			{
-				EventDispatcher->RegisterForCollisionEvents(this, this);
+			EventDispatcher->RegisterForCollisionEvents(this, this);
 
 				Solver->EnqueueCommandImmediate([Solver]()
 					{
 						Solver->SetGenerateCollisionData(true);
 					});
-			}
+		}
 
-			if (bNotifyBreaks)
-			{
-				EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
+		if (bNotifyBreaks)
+		{
+			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
 
 				Solver->EnqueueCommandImmediate([Solver]()
 					{
@@ -1117,6 +1118,7 @@ void UGeometryCollectionComponent::RegisterForEvents()
 			}
 		}
 	}
+#endif
 }
 
 void UGeometryCollectionComponent::UpdateRBCollisionEventRegistration()
@@ -1434,7 +1436,7 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		const TManagedArray<TArray<FVector2D>>& UVs = Collection->UVs;
 		const TManagedArray<FLinearColor>& Color = Collection->Color;
 		const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
-		
+
 		const int32 NumGeom = Collection->NumElements(FGeometryCollection::GeometryGroup);
 		const TManagedArray<int32>& TransformIndex = Collection->TransformIndex;
 		const TManagedArray<int32>& FaceStart = Collection->FaceStart;
@@ -1568,7 +1570,7 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 
 		// store the index buffer and render sections for the base unfractured mesh
 		const TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
-		
+
 		const int32 NumFaces = Collection->NumElements(FGeometryCollection::FacesGroup);
 		TArray<FIntVector> BaseMeshIndices;
 		TArray<int32> BaseMeshOriginalFaceIndices;
@@ -2407,30 +2409,30 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			FGeometryCollectionProximityUtility ProximityUtility(GeometryCollectionPtr.Get());
 			ProximityUtility.UpdateProximity();
 
-			const TManagedArray<int32>& TransformIndex = GeometryCollectionPtr->TransformIndex;
-			const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollectionPtr->TransformToGeometryIndex;
-			const TManagedArray<TSet<int32>>& Proximity = GeometryCollectionPtr->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+				const TManagedArray<int32>& TransformIndex = GeometryCollectionPtr->TransformIndex;
+				const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollectionPtr->TransformToGeometryIndex;
+				const TManagedArray<TSet<int32>>& Proximity = GeometryCollectionPtr->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 
-			const TArray<int32> SelectedBones = GetSelectedBones();
+				const TArray<int32> SelectedBones = GetSelectedBones();
 
-			TArray<int32> NewSelection;
-			for (int32 Bone : SelectedBones)
-			{
-				NewSelection.AddUnique(Bone);
-				int32 GeometryIdx = TransformToGeometryIndex[Bone];
-				if (GeometryIdx != INDEX_NONE)
+				TArray<int32> NewSelection;
+				for (int32 Bone : SelectedBones)
 				{
-					const TSet<int32>& Neighbors = Proximity[GeometryIdx];
-					for (int32 NeighborGeometryIndex : Neighbors)
+					NewSelection.AddUnique(Bone);
+					int32 GeometryIdx = TransformToGeometryIndex[Bone];
+					if (GeometryIdx != INDEX_NONE)
 					{
-						NewSelection.AddUnique(TransformIndex[NeighborGeometryIndex]);
+						const TSet<int32>& Neighbors = Proximity[GeometryIdx];
+						for (int32 NeighborGeometryIndex : Neighbors)
+						{
+							NewSelection.AddUnique(TransformIndex[NeighborGeometryIndex]);
+						}
 					}
 				}
-			}
 
-			ResetBoneSelection();
-			AppendSelectedBones(NewSelection);
-		}
+				ResetBoneSelection();
+				AppendSelectedBones(NewSelection);
+			}
 		break;
 
 		case GeometryCollection::ESelectionMode::Parent:
@@ -2503,27 +2505,27 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		case GeometryCollection::ESelectionMode::Level:
 		{
 			if (GeometryCollectionPtr->HasAttribute("Level", FTransformCollection::TransformGroup))
-			{
+		{
 				const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
 
-				const TArray<int32> SelectedBones = GetSelectedBones();
+			const TArray<int32> SelectedBones = GetSelectedBones();
 
-				TArray<int32> NewSelection;
-				for (int32 Bone : SelectedBones)
-				{
+			TArray<int32> NewSelection;
+			for (int32 Bone : SelectedBones)
+			{
 					int32 Level = Levels[Bone];
 					for (int32 TransformIdx = 0; TransformIdx < GeometryCollectionPtr->NumElements(FTransformCollection::TransformGroup); ++TransformIdx)
 					{
 						if (Levels[TransformIdx] == Level)
-						{
+				{
 							NewSelection.AddUnique(TransformIdx);
 						}
-					}
 				}
+			}
 
-				ResetBoneSelection();
-				AppendSelectedBones(NewSelection);
-			}	
+			ResetBoneSelection();
+			AppendSelectedBones(NewSelection);
+		}
 		}
 		break;
 
@@ -2842,9 +2844,9 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 			}
 			else
 			{ 
-				GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);		
-			}
+			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
 		}
+	}
 	}
 	
 #if WITH_EDITOR
@@ -3000,7 +3002,7 @@ void UGeometryCollectionComponent::ClearEmbeddedGeometry()
 
 	for (UActorComponent* TargetComponent : TargetComponents)
 	{
-		if ((TargetComponent->GetOuter() == this) || (TargetComponent->GetOuter()->IsPendingKill()))
+		if ((TargetComponent->GetOuter() == this) || !IsValidChecked(TargetComponent->GetOuter()))
 		{
 			if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(TargetComponent))
 			{

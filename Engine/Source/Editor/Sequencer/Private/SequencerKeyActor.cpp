@@ -18,6 +18,11 @@
 ASequencerKeyActor::ASequencerKeyActor()
 	: Super()
 {
+	if (UNLIKELY(IsRunningDedicatedServer()) || HasAnyFlags(RF_ClassDefaultObject))   // @todo vreditor: Hack to avoid loading mesh assets in the cooker on Linux
+	{
+		return;
+	}
+
 	UStaticMesh* KeyEditorMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/VREditor/TransformGizmo/SM_Sequencer_Key"));
 	check(KeyEditorMesh != nullptr);
 	UMaterial* KeyEditorMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/VREditor/TransformGizmo/Main"));

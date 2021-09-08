@@ -1,0 +1,223 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+	
+
+Buffer<float4> SplinePositionsLUT_{ParameterHLSLSymbol};
+Buffer<float4> SplineScalesLUT_{ParameterHLSLSymbol};
+Buffer<float4> SplineRotationsLUT_{ParameterHLSLSymbol};
+
+float4x4 SplineTransform_{ParameterHLSLSymbol};
+float4x4 SplineTransformRotationMat_{ParameterHLSLSymbol};
+float4x4 SplineTransformInverseTranspose_{ParameterHLSLSymbol};
+float4 SplineTransformRotation_{ParameterHLSLSymbol};
+float3 DefaultUpVector_{ParameterHLSLSymbol};
+float SplineLength_{ParameterHLSLSymbol};
+float SplineDistanceStep_{ParameterHLSLSymbol};
+float InvSplineDistanceStep_{ParameterHLSLSymbol};
+int MaxIndex_{ParameterHLSLSymbol};
+
+void FindNeighborKeys_{ParameterHLSLSymbol}(float InDistance, out int PrevKey, out int NextKey, out float Alpha)
+{
+	const float Key = InDistance * {InvSplineDistanceStep};
+	PrevKey = clamp(int(floor(Key)), 0, {MaxIndex});
+	NextKey = clamp(int(ceil(Key)), 0, {MaxIndex});
+	Alpha = frac(Key);
+}
+
+float3 EvaluatePosition_{ParameterHLSLSymbol}(float InDistance)
+{
+	if ({MaxIndex} < 0)
+	{
+		return float3(0,0,0);
+	}
+	
+	int PrevKey, NextKey;
+	float Alpha;
+	FindNeighborKeys_{ParameterHLSLSymbol}(InDistance, PrevKey, NextKey, Alpha);
+	
+	if (NextKey == PrevKey)
+	{
+		return {SplinePositionsLUT}[PrevKey].xyz;
+	}
+	return lerp({SplinePositionsLUT}[PrevKey].xyz, {SplinePositionsLUT}[NextKey].xyz, Alpha).xyz;
+}
+
+float3 EvaluateScale_{ParameterHLSLSymbol}(float InDistance)
+{
+	if ({MaxIndex} < 0)
+	{
+		return float3(1,1,1);
+	}
+	
+	int PrevKey, NextKey;
+	float Alpha;
+	FindNeighborKeys_{ParameterHLSLSymbol}(InDistance, PrevKey, NextKey, Alpha);
+	
+	if (NextKey == PrevKey)
+	{
+		return {SplineScalesLUT}[PrevKey].xyz;
+	}
+	return lerp({SplineScalesLUT}[PrevKey].xyz, {SplineScalesLUT}[NextKey].xyz, Alpha).xyz;
+}
+	
+float4 EvaluateRotation_{ParameterHLSLSymbol}(float InDistance)
+{
+	if ({MaxIndex} < 0)
+	{
+		return float4(0,0,0,1);
+	}
+	
+	int PrevKey, NextKey;
+	float Alpha;
+	FindNeighborKeys_{ParameterHLSLSymbol}(InDistance, PrevKey, NextKey, Alpha);
+
+	if (NextKey == PrevKey)
+	{
+		return {SplineRotationsLUT}[PrevKey];
+	}
+	return NiagaraQuatSLerp({SplineRotationsLUT}[PrevKey], {SplineRotationsLUT}[NextKey], Alpha);
+}
+	
+float4 GetRotationAtDistanceAlongSpline_{ParameterHLSLSymbol}(float InDistance)
+{
+	float4 Quat = EvaluateRotation_{ParameterHLSLSymbol}(InDistance);
+	return Quat;
+}
+	
+float3 EvaluateDerivativePosition_{ParameterHLSLSymbol}(float InDistance)
+{
+	if ({MaxIndex} < 0)
+	{
+		return float3(0,0,0);
+	}
+	
+	int PrevKey, NextKey;
+	float Alpha;
+	FindNeighborKeys_{ParameterHLSLSymbol}(InDistance, PrevKey, NextKey, Alpha);
+
+	if (NextKey == PrevKey)
+	{
+		if (NextKey < {MaxIndex})
+		{
+			NextKey++;
+		}
+		else if (PrevKey > 0)
+		{
+			PrevKey--;
+		}
+		else
+		{
+			return float3(0,0,0);
+		}
+	}
+	return {SplinePositionsLUT}[NextKey] - {SplinePositionsLUT}[PrevKey];
+}
+
+float3 EvaluateFindNearestPosition_{ParameterHLSLSymbol}(float3 InPosition)
+{
+	if ({MaxIndex} < 0)
+	{
+		return 0.0f;
+	}
+	
+	float MinDistance = dot(InPosition, {SplinePositionsLUT}[0]);
+	float KeyToNearest = 0.0f;
+	for (int Index = 1; Index <= {MaxIndex}; Index++)
+	{
+		const float Distance = dot(InPosition, {SplinePositionsLUT}[Index]);
+		if (Distance < MinDistance)
+		{
+			MinDistance = Distance;
+			KeyToNearest = Index * {SplineDistanceStep};
+		}
+	}
+	return KeyToNearest;
+}
+
+void SampleSplinePositionByUnitDistance_{ParameterHLSLSymbol}(float U, out float3 Position)
+{
+	Position = EvaluatePosition_{ParameterHLSLSymbol}(U * {SplineLength});
+}
+
+void SampleSplinePositionByUnitDistanceWS_{ParameterHLSLSymbol}(float U, out float3 Position)
+{
+	Position = EvaluatePosition_{ParameterHLSLSymbol}(U * {SplineLength});
+	Position = mul(float4(Position, 1.0f), {SplineTransform}).xyz;
+}
+
+void SampleSplineRotationByUnitDistance_{ParameterHLSLSymbol}(float U, out float4 Rotation)
+{
+	Rotation = GetRotationAtDistanceAlongSpline_{ParameterHLSLSymbol}(U * {SplineLength});
+}		
+
+void SampleSplineRotationByUnitDistanceWS_{ParameterHLSLSymbol}(float U, out float4 Rotation)
+{
+	Rotation = GetRotationAtDistanceAlongSpline_{ParameterHLSLSymbol}(U * {SplineLength});
+	Rotation = NiagaraQuatMul({SplineTransformRotation}, Rotation);
+}
+
+void SampleSplineDirectionByUnitDistance_{ParameterHLSLSymbol}(float U, out float3 Direction)
+{
+	Direction = normalize(EvaluateDerivativePosition_{ParameterHLSLSymbol}(U * {SplineLength}));
+}
+
+void SampleSplineDirectionByUnitDistanceWS_{ParameterHLSLSymbol}(float U, out float3 Direction)
+{
+	Direction = normalize(EvaluateDerivativePosition_{ParameterHLSLSymbol}(U * {SplineLength}));
+	Direction = mul(float4(Direction, 1.0f), {SplineTransformRotationMat}).xyz;
+}
+
+void SampleSplineUpVectorByUnitDistance_{ParameterHLSLSymbol}(float U, out float3 UpVector)
+{
+	float4 Rotation = GetRotationAtDistanceAlongSpline_{ParameterHLSLSymbol}(U * {SplineLength});
+	UpVector = NiagaraQuatRotateVector(Rotation, float3(0,0,1));
+}
+
+void SampleSplineUpVectorByUnitDistanceWS_{ParameterHLSLSymbol}(float U, out float3 UpVector)
+{
+	float4 Rotation = GetRotationAtDistanceAlongSpline_{ParameterHLSLSymbol}(U * {SplineLength});
+	UpVector = NiagaraQuatRotateVector(Rotation, float3(0,0,1));
+	UpVector = mul(float4(UpVector, 1.0f), {SplineTransformRotationMat}).xyz;
+}
+
+void SampleSplineRightVectorByUnitDistance_{ParameterHLSLSymbol}(float U, out float3 RightVector)
+{
+	float4 Rotation = GetRotationAtDistanceAlongSpline_{ParameterHLSLSymbol}(U * {SplineLength});
+	RightVector = NiagaraQuatRotateVector(Rotation, float3(0,1,0));
+}
+
+void SampleSplineRightVectorByUnitDistanceWS_{ParameterHLSLSymbol}(float U, out float3 RightVector)
+{
+	float4 Rotation = GetRotationAtDistanceAlongSpline_{ParameterHLSLSymbol}(U * {SplineLength});
+	RightVector = NiagaraQuatRotateVector(Rotation, float3(0,1,0));
+	RightVector = mul(float4(RightVector, 1.0f), {SplineTransformRotationMat}).xyz;
+}
+
+void SampleSplineTangentByUnitDistance_{ParameterHLSLSymbol}(float U, out float3 Tangent)
+{
+	Tangent = EvaluateDerivativePosition_{ParameterHLSLSymbol}(U * {SplineLength});
+}
+
+void SampleSplineTangentByUnitDistanceWS_{ParameterHLSLSymbol}(float U, out float3 Tangent)
+{
+	Tangent = EvaluateDerivativePosition_{ParameterHLSLSymbol}(U * {SplineLength});
+	Tangent = mul(Tangent, {SplineTransformRotation});
+}
+
+void GetSplineLocalToWorld_{ParameterHLSLSymbol}(out float4x4 Transform)
+{
+	Transform = {SplineTransform};
+}
+
+void GetSplineLocalToWorldInverseTransposed_{ParameterHLSLSymbol}(out float4x4 Transform)
+{
+	Transform = {SplineTransformInverseTranspose};
+}
+
+void FindClosestUnitDistanceFromPositionWS_{ParameterHLSLSymbol}(float3 PositionWS, out float U)
+{
+	U = EvaluateFindNearestPosition_{ParameterHLSLSymbol}(U * {SplineLength});
+}
+
+
+
+

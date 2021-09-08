@@ -1425,7 +1425,7 @@ void UMaterialExpression::ConnectToPreviewMaterial(UMaterial* InMaterial, int32 
 void UMaterialExpression::ValidateState()
 {
 	// Disabled for now until issues can be tracked down
-	//check(!IsPendingKill());
+	//check(IsValid(this));
 }
 
 #if WITH_EDITOR
@@ -16245,7 +16245,7 @@ void UMaterialExpressionNamedRerouteUsage::PostCopyNode(const TArray<UMaterialEx
 bool UMaterialExpressionNamedRerouteUsage::IsDeclarationValid() const
 {
 	// Deleted expressions are marked as pending kill (see FMaterialEditor::DeleteNodes)
-	return Declaration && !Declaration->IsPendingKill();
+	return IsValid(Declaration);
 }
 
 bool UMaterialExpressionNamedRerouteUsage::GetRerouteInput(FExpressionInput& OutInput) const

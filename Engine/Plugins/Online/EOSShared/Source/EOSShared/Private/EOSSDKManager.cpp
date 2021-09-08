@@ -10,6 +10,8 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/NetworkVersion.h"
+#include "Misc/Paths.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Stats/Stats.h"
 
 #include "CoreGlobals.h"
@@ -81,6 +83,24 @@ namespace
 		}
 	}
 #endif // !NO_LOGGING
+
+#if EOSSDK_RUNTIME_LOAD_REQUIRED
+	static void* GetSdkDllHandle()
+	{
+		void* Result = nullptr;
+
+		const FString ProjectBinaryPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory(), TEXT(EOSSDK_RUNTIME_LIBRARY_NAME));
+		Result = FPlatformProcess::GetDllHandle(*ProjectBinaryPath);
+
+		if (!Result)
+		{
+			const FString EngineBinaryPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory(), TEXT(EOSSDK_RUNTIME_LIBRARY_NAME));
+			Result = FPlatformProcess::GetDllHandle(*EngineBinaryPath);
+		}
+
+		return Result;
+	}
+#endif
 }
 
 
@@ -98,8 +118,9 @@ static FDelayedAutoRegisterHelper GKickoffDll(EDelayedRegisterRunPhase::EOS_DLL_
 {
 	Async(EAsyncExecution::Thread, []
 	{
+		LLM_SCOPE(ELLMTag::RealTimeCommunications);
 		SCOPED_BOOT_TIMING("Preloading EOS module");
-		FPlatformProcess::GetDllHandle(TEXT(EOSSDK_RUNTIME_LIBRARY_NAME));
+		GetSdkDllHandle();
 	});
 });
 
@@ -108,8 +129,8 @@ static FDelayedAutoRegisterHelper GKickoffDll(EDelayedRegisterRunPhase::EOS_DLL_
 FEOSSDKManager::FEOSSDKManager()
 {
 #if EOSSDK_RUNTIME_LOAD_REQUIRED
-	SDKHandle = FPlatformProcess::GetDllHandle(TEXT(EOSSDK_RUNTIME_LIBRARY_NAME));
-
+	LLM_SCOPE(ELLMTag::RealTimeCommunications);
+	SDKHandle = GetSdkDllHandle();
 	if (SDKHandle == nullptr)
 	{
 		UE_LOG(LogEOSSDK, Warning, TEXT("Unable to load EOSSDK dynamic library"));
@@ -201,7 +222,7 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const EOS_Platform_Options&
 		const EOS_HPlatform PlatformHandle = EOS_Platform_Create(&PlatformOptions);
 		if (PlatformHandle)
 		{
-			PlatformHandles.Emplace(PlatformHandle);
+			ActivePlatforms.Emplace(PlatformHandle);
 			SharedPlatform = MakeShared<FEOSPlatformHandle, ESPMode::ThreadSafe>(*this, PlatformHandle);
 
 			if (!TickerHandle.IsValid())
@@ -224,14 +245,18 @@ IEOSPlatformHandlePtr FEOSSDKManager::CreatePlatform(const EOS_Platform_Options&
 
 bool FEOSSDKManager::Tick(float)
 {
+	ReleaseReleasedPlatforms();
+
 	//LLM_SCOPE(ELLMTag::EOSSDK); // TODO
-	for (EOS_HPlatform PlatformHandle : PlatformHandles)
+	for (EOS_HPlatform PlatformHandle : ActivePlatforms)
 	{
+		LLM_SCOPE(ELLMTag::RealTimeCommunications);
 		QUICK_SCOPE_CYCLE_COUNTER(FEOSSDKManager_Tick);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EOSSDK);
 		EOS_Platform_Tick(PlatformHandle);
 	}
 
-	return true;
+	return ActivePlatforms.Num() > 0;
 }
 
 void FEOSSDKManager::OnLogVerbosityChanged(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity)
@@ -262,43 +287,46 @@ FString FEOSSDKManager::GetProductVersion() const
 
 void FEOSSDKManager::ReleasePlatform(EOS_HPlatform PlatformHandle)
 {
-	// Only release the platform if it was actually present in PlatformHandles, as Shutdown may have already released it.
-	if (PlatformHandles.Remove(PlatformHandle))
+	if (ensure(ActivePlatforms.Contains(PlatformHandle)
+		&& !ReleasedPlatforms.Contains(PlatformHandle)))
 	{
-		EOS_Platform_Release(PlatformHandle);
+		ReleasedPlatforms.Emplace(PlatformHandle);
+	}
+}
 
-		if (ensure(TickerHandle.IsValid()) &&
-			PlatformHandles.Num() == 0)
+void FEOSSDKManager::ReleaseReleasedPlatforms()
+{
+	for (EOS_HPlatform PlatformHandle : ReleasedPlatforms)
+	{
+		if (ensure(ActivePlatforms.Contains(PlatformHandle)))
+		{
+		EOS_Platform_Release(PlatformHandle);
+			ActivePlatforms.Remove(PlatformHandle);
+		}
+	}
+	ReleasedPlatforms.Empty();
+
+	if (TickerHandle.IsValid() &&
+		ActivePlatforms.Num() == 0)
 		{
 			FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 			TickerHandle.Reset();
 		}
 	}
-	else
-	{
-		UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::ReleasePlatform PlatformHandle does not exist."));
-	}
-}
 
 void FEOSSDKManager::Shutdown()
 {
 	if (IsInitialized())
 	{
-		if (PlatformHandles.Num() > 0)
-		{
-			UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::Shutdown Releasing %d remaining platforms"), PlatformHandles.Num());
-			for (EOS_HPlatform PlatformHandle : PlatformHandles)
-			{
-				EOS_Platform_Release(PlatformHandle);
-			}
-			PlatformHandles.Empty();
+		// Release already released platforms
+		ReleaseReleasedPlatforms();
 
-			if (ensure(TickerHandle.IsValid()))
+		if (ActivePlatforms.Num() > 0)
 			{
-				FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
-				TickerHandle.Reset();
+			UE_LOG(LogEOSSDK, Warning, TEXT("FEOSSDKManager::Shutdown Releasing %d remaining platforms"), ActivePlatforms.Num());
+			ReleasedPlatforms.Append(ActivePlatforms);
+			ReleaseReleasedPlatforms();
 			}
-		}
 
 #if !NO_LOGGING
 		FCoreDelegates::OnLogVerbosityChanged.RemoveAll(this);
@@ -313,6 +341,8 @@ void FEOSSDKManager::Shutdown()
 
 EOS_EResult FEOSSDKManager::EOSInitialize(EOS_InitializeOptions& Options)
 {
+	OnPreInitializeSDK.Broadcast(Options);
+
 	return EOS_Initialize(&Options);
 }
 
@@ -323,7 +353,9 @@ FEOSPlatformHandle::~FEOSPlatformHandle()
 
 void FEOSPlatformHandle::Tick()
 {
+	LLM_SCOPE(ELLMTag::RealTimeCommunications);
 	QUICK_SCOPE_CYCLE_COUNTER(FEOSPlatformHandle_Tick);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EOSSDK);
 	EOS_Platform_Tick(PlatformHandle);
 }
 

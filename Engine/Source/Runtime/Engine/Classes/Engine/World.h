@@ -1093,6 +1093,9 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<APhysicsVolume>								DefaultPhysicsVolume;
 
+	// Flag for allowing physics state creation deferall during load 
+	bool bAllowDeferredPhysicsStateCreation;
+
 public:
 
 	/** View locations rendered in the previous frame, if any. */
@@ -2480,6 +2483,9 @@ public:
 	/** Get the count of all PhysicsVolumes in the world that are not a DefaultPhysicsVolume. */
 	int32 GetNonDefaultPhysicsVolumeCount() const;
 
+	void SetAllowDeferredPhysicsStateCreation(bool bAllow);
+	bool GetAllowDeferredPhysicsStateCreation() const;
+
 	/**
 	 * Returns the current (or specified) level's level scripting actor
 	 *
@@ -3152,6 +3158,9 @@ private:
 
 	/** Utility function to handle Exec/Console Command for setting the speed of a replay */
 	bool HandleDemoSpeedCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
+
+	/** Utility function to handle Exec/Console Command for requesting a replay checkpoint */
+	bool HandleDemoCheckpointCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
 
 public:
 

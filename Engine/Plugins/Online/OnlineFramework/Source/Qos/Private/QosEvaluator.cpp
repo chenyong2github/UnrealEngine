@@ -90,10 +90,12 @@ void UQosEvaluator::FindDatacenters(const FQosParams& InParams, const TArray<FQo
 
 void UQosEvaluator::CalculatePingAverages(int32 TimeToDiscount)
 {
+	UE_LOG(LogQos, Verbose, TEXT("ping average detail per datacenter:"));
 	for (FDatacenterQosInstance& Datacenter : Datacenters)
 	{
 		int32 TotalPingInMs = 0;
 		int32 NumResults = 0;
+		int32 NumUnreachable = 0;
 		for (int32 PingIdx = 0; PingIdx < Datacenter.PingResults.Num(); PingIdx++)
 		{
 			if (Datacenter.PingResults[PingIdx] != UNREACHABLE_PING)
@@ -103,7 +105,7 @@ void UQosEvaluator::CalculatePingAverages(int32 TimeToDiscount)
 			}
 			else
 			{
-				UE_LOG(LogQos, Log, TEXT("Datacenter[%s]: qos unreachable"), *Datacenter.Definition.Id);
+				NumUnreachable++;
 			}
 		}
 
@@ -115,7 +117,7 @@ void UQosEvaluator::CalculatePingAverages(int32 TimeToDiscount)
 			Datacenter.AvgPingMs = FMath::Max<int32>(RawAvgPing - TimeToDiscount, 1);
 		}
 
-		UE_LOG(LogQos, Verbose, TEXT("Datacenter[%s] Avg: %d Num: %d; Adjusted: %d"), *Datacenter.Definition.Id, RawAvgPing, NumResults, Datacenter.AvgPingMs);
+		UE_LOG(LogQos, Verbose, TEXT("\t%s (%s): %d/%d queries succeeded, average ping: %dms (adj: %dms)"), *Datacenter.Definition.Id, *Datacenter.Definition.RegionId, NumResults, NumResults + NumUnreachable, Datacenter.AvgPingMs, RawAvgPing);
 
 		if (QosStats.IsValid())
 		{
@@ -184,6 +186,10 @@ void UQosEvaluator::OnEchoManyCompleted(FIcmpEchoManyCompleteResult FinalResult,
 
 			UE_LOG(LogQos, VeryVerbose, TEXT("Got %d/%d ping results (%d reachable) for datacenter (%s, %s); status=%d"),
 				Region.PingResults.Num(), NumTestsPerRegion, Region.NumResponses, *Region.Definition.Id, *Region.Definition.RegionId, Region.Result);
+		}
+		else
+		{
+			UE_LOG(LogQos, Verbose, TEXT("could not find matching datacenter for result (%s) from %s:%d!"), LexToString(Result.Status), *Target.Address, Target.Port);
 		}
 	}
 

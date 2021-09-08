@@ -15,14 +15,18 @@ public:
 		class UTexture* InTexture,
 		const FLinearColor& InTint = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f),
 		ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile,
-		ESlateBrushImageType::Type InImageType = ESlateBrushImageType::FullColor);
+		ESlateBrushImageType::Type InImageType = ESlateBrushImageType::FullColor,
+		ESlateBrushDrawType::Type InDrawType = ESlateBrushDrawType::Image,
+		const FMargin& InMargin = FMargin(0.0f));
 
 	static TSharedRef<FDeferredCleanupSlateBrush> CreateBrush(
 		class UObject* InResource,
 		const FVector2D& InImageSize,
 		const FLinearColor& InTint = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f),
 		ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile,
-		ESlateBrushImageType::Type InImageType = ESlateBrushImageType::FullColor);
+		ESlateBrushImageType::Type InImageType = ESlateBrushImageType::FullColor,
+		ESlateBrushDrawType::Type InDrawType = ESlateBrushDrawType::Image,
+		const FMargin& InMargin = FMargin(0.0f));
 
 	virtual const FSlateBrush* GetSlateBrush() const override { return &InternalBrush; }
 

@@ -14,25 +14,20 @@
 
 #include "DataprepGeometrySelectionTransforms.generated.h"
 
-
-UCLASS(Category = SelectionTransform, Meta = (DisplayName = "Select Overlapping Actors", ToolTip = "Return all actors overlapping the selected actors"))
+UCLASS(Category = SelectionTransform, Meta = (DisplayName = "Select In Volume", ToolTip = "Return all actors overlapping the selected actors"))
 class UDataprepOverlappingActorsSelectionTransform : public UDataprepSelectionTransform
 {
 	GENERATED_BODY()
 
 protected:
 	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
-};
 
-// The purpose of this class is to hide the field bOutputCanIncludeInput, since it does not make sense for this operation
-class FDataprepOverlappingActorsSelectionTransformDetails : public IDetailCustomization
-{
-public:
-	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDataprepOverlappingActorsSelectionTransformDetails>(); };
+private:
+	// Accuracy of the distance field approximation
+	UPROPERTY(EditAnywhere, Category = SelectionTransform, meta = (Units = cm, UIMin = "0.1", UIMax = "100", ClampMin = "0"))
+	float JacketingAccuracy = 3.0f;
 
-	/** Called when details should be customized */
-	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override
-	{
-		DetailBuilder.HideProperty( DetailBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( UDataprepSelectionTransform, bOutputCanIncludeInput ), UDataprepSelectionTransform::StaticClass() ) );
-	}
+	// If checked, select fully inside + overlapping actors. Else, select only actors that are fully inside.
+	UPROPERTY(EditAnywhere, Category = SelectionTransform)
+	bool bSelectOverlapping = false;
 };

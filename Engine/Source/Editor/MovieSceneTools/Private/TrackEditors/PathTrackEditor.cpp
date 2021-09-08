@@ -111,7 +111,7 @@ TSharedRef<ISequencerSection> F3DPathTrackEditor::MakeSectionInterface( UMovieSc
 
 void F3DPathTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
-	if (ObjectClass && ObjectClass->IsChildOf(AActor::StaticClass()))
+	if (ObjectClass != nullptr && (ObjectClass->IsChildOf(AActor::StaticClass()) || ObjectClass->IsChildOf(USceneComponent::StaticClass())))
 	{
 		UMovieSceneSection* DummySection = nullptr;
 
@@ -144,7 +144,7 @@ bool F3DPathTrackEditor::IsActorPickable(const AActor* const ParentActor, FGuid 
 	if (ParentActor->IsListedInSceneOutliner() &&
 		!FActorEditorUtils::IsABuilderBrush(ParentActor) &&
 		!ParentActor->IsA( AWorldSettings::StaticClass() ) &&
-		!ParentActor->IsPendingKill())
+		IsValid(ParentActor))
 	{			
 		for (UActorComponent* Component : ParentActor->GetComponents())
 		{

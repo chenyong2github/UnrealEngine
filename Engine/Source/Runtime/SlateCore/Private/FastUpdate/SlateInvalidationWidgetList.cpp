@@ -542,13 +542,14 @@ void FSlateInvalidationWidgetList::Internal_RebuildWidgetListTree(SWidget& Widge
 }
 
 
-bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const InvalidationWidgetType& InvalidationWidget, IProcessChildOrderInvalidationCallback& Callback)
+bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(FSlateInvalidationWidgetIndex WidgetIndex, IProcessChildOrderInvalidationCallback& Callback)
 {
 	SCOPE_CYCLE_COUNTER(STAT_WidgetList_ProcessChildOrderInvalidation);
 
 	bool bIsInvalidationWidgetStillValid = true;
 	TGuardValue<IProcessChildOrderInvalidationCallback*> TmpGuard(CurrentInvalidationCallback, &Callback);
 
+	const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
 	SWidget* WidgetPtr = InvalidationWidget.GetWidget();
 	check(WidgetPtr);
 	{
@@ -686,6 +687,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 				FSlateInvalidationWidgetIndex PreviousWidgetIndex = WidgetPtr->GetProxyHandle().GetWidgetIndex();
 				FSlateInvalidationWidgetIndex PreviousLeafMostChildIndex = InvalidationWidget.LeafMostChildIndex;
 				Internal_RebuildWidgetListTree(*WidgetPtr, StartChildIndex);
+				// The WidgetInvalidation is now invalid.
 
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_CHILDORDERCHECK
 				const InvalidationWidgetType& NewInvalidationWidget = (*this)[PreviousWidgetIndex];

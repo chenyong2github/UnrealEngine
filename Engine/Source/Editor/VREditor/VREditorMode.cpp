@@ -470,7 +470,8 @@ void UVREditorMode::Exit(const bool bShouldDisableStereo)
 
 	GEditor->OnEditorClose().RemoveAll( this );
 
-	if (GEditor->bIsSimulatingInEditor)
+	const bool bIsInPIEOrSimulate = (GEditor->PlayWorld != nullptr) || (GEditor->bIsSimulatingInEditor);
+	if (bIsInPIEOrSimulate)
 	{
 		GEditor->RequestEndPlayMap();
 	}

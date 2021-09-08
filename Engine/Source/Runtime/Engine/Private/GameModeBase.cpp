@@ -345,7 +345,7 @@ void AGameModeBase::ResetLevel()
 	for (FActorIterator It(GetWorld()); It; ++It)
 	{
 		AActor* A = *It;
-		if (A && !A->IsPendingKill() && A != this && !A->IsA<AController>() && ShouldReset(A))
+		if (IsValid(A) && A != this && !A->IsA<AController>() && ShouldReset(A))
 		{
 			A->Reset();
 		}
@@ -511,7 +511,7 @@ void AGameModeBase::GetSeamlessTravelActorList(bool bToTransition, TArray<AActor
 
 void AGameModeBase::SwapPlayerControllers(APlayerController* OldPC, APlayerController* NewPC)
 {
-	if (OldPC != nullptr && !OldPC->IsPendingKill() && NewPC != nullptr && !NewPC->IsPendingKill() && OldPC->Player != nullptr)
+	if (IsValid(OldPC) && IsValid(NewPC) && OldPC->Player != nullptr)
 	{
 		// move the Player to the new PC
 		UPlayer* Player = OldPC->Player;

@@ -416,7 +416,7 @@ void AController::TickActor( float DeltaSeconds, ELevelTick TickType, FActorTick
 		return;
 	}
 
-	if( !IsPendingKill() )
+	if( IsValid(this) )
 	{
 		Tick(DeltaSeconds);	// perform any tick functions unique to an actor subclass
 	}
@@ -1066,8 +1066,8 @@ void UWorld::SendAllEndOfFrameUpdates()
 	{
 		if (Component)
 		{
-			check(Component->IsPendingKill() || Component->GetMarkedForPreEndOfFrameSync());
-			if (!Component->IsPendingKill())
+			check(!IsValid(Component) || Component->GetMarkedForPreEndOfFrameSync());
+			if (IsValid(Component))
 			{
 				Component->OnPreEndOfFrameSync();
 			}
@@ -1128,11 +1128,11 @@ void UWorld::SendAllEndOfFrameUpdates()
 			UActorComponent* NextComponent = LocalComponentsThatNeedEndOfFrameUpdate[Index];
 			if (NextComponent)
 			{
-				if (NextComponent->IsRegistered() && !NextComponent->IsTemplate() && !NextComponent->IsPendingKill())
+				if (NextComponent->IsRegistered() && !NextComponent->IsTemplate() && IsValid(NextComponent))
 				{
 					NextComponent->DoDeferredRenderUpdates_Concurrent();
 				}
-				check(NextComponent->IsPendingKill() || NextComponent->GetMarkedForEndOfFrameUpdateState() == EComponentMarkedForEndOfFrameUpdateState::Marked);
+				check(!IsValid(NextComponent) || NextComponent->GetMarkedForEndOfFrameUpdateState() == EComponentMarkedForEndOfFrameUpdateState::Marked);
 				FMarkComponentEndOfFrameUpdateState::Set(NextComponent, INDEX_NONE, EComponentMarkedForEndOfFrameUpdateState::Unmarked);
 			}
 #if WITH_EDITOR
@@ -1158,12 +1158,12 @@ void UWorld::SendAllEndOfFrameUpdates()
 			{
 				if (Component)
 				{
-					if (Component->IsRegistered() && !Component->IsTemplate() && !Component->IsPendingKill())
+					if (Component->IsRegistered() && !Component->IsTemplate() && IsValid(Component))
 					{
 						DeferredUpdates.Add(Component);
 					}
 
-					check(Component->IsPendingKill() || Component->GetMarkedForEndOfFrameUpdateState() == EComponentMarkedForEndOfFrameUpdateState::MarkedForGameThread);
+					check(!IsValid(Component) || Component->GetMarkedForEndOfFrameUpdateState() == EComponentMarkedForEndOfFrameUpdateState::MarkedForGameThread);
 					FMarkComponentEndOfFrameUpdateState::Set(Component, INDEX_NONE, EComponentMarkedForEndOfFrameUpdateState::Unmarked);
 				}
 			}

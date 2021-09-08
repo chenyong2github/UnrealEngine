@@ -454,7 +454,7 @@ FReply STableViewBase::OnMouseButtonUp( const FGeometry& MyGeometry, const FPoin
 
 FReply STableViewBase::OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {	
-	if( MouseEvent.IsMouseButtonDown( EKeys::RightMouseButton ) && !MouseEvent.IsTouchEvent())
+	if( bEnableRightClickScrolling && MouseEvent.IsMouseButtonDown( EKeys::RightMouseButton ) && !MouseEvent.IsTouchEvent() )
 	{
 		// We only care about deltas along the scroll axis
 		FTableViewDimensions CursorDeltaDimensions(Orientation, MouseEvent.GetCursorDelta());
@@ -842,6 +842,16 @@ EVisibility STableViewBase::GetScrollbarVisibility() const
 	return ScrollBar ? ScrollBar->ShouldBeVisible() : EVisibility::Collapsed;
 }
 
+bool STableViewBase::IsScrollbarNeeded() const
+{
+	if (ScrollBar)
+	{
+		return ScrollBar->IsNeeded();
+	}
+
+	return false;
+}
+
 void STableViewBase::SetFixedLineScrollOffset(TOptional<double> InFixedLineScrollOffset)
 {
 	if (FixedLineScrollOffset != InFixedLineScrollOffset)
@@ -854,6 +864,11 @@ void STableViewBase::SetFixedLineScrollOffset(TOptional<double> InFixedLineScrol
 void STableViewBase::SetIsScrollAnimationEnabled(bool bInEnableScrollAnimation)
 {
 	bEnableAnimatedScrolling = bInEnableScrollAnimation;
+}
+
+void STableViewBase::SetIsRightClickScrollingEnabled(const bool bInEnableRightClickScrolling)
+{
+	bEnableRightClickScrolling = bInEnableRightClickScrolling;
 }
 
 void STableViewBase::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)

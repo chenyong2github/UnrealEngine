@@ -216,7 +216,7 @@ void FFoliageActor::Refresh(bool Async, bool Force)
 {
 	for (int32 i = 0; i < Info->Instances.Num(); ++i)
 	{
-		if (ActorInstances[i] == nullptr || ActorInstances[i]->IsPendingKill())
+		if (!IsValid(ActorInstances[i]))
 		{
 			ActorInstances[i] = Spawn(Info->Instances[i]);
 		}

@@ -1057,13 +1057,16 @@ void FAutomationTestExecutionInfo::AddEvent(const FAutomationEvent& Event, int S
 		break;
 	}
 
-	int32 EntryIndex = 0;
+	int32 EntryIndex = -1;
 	if (FAutomationTestFramework::Get().GetCaptureStack())
 	{
 		SAFE_GETSTACK(Stack, StackOffset + 1, 1);
+		if (Stack.Num())
+		{
 		EntryIndex = Entries.Add(FAutomationExecutionEntry(Event, Stack[0].Filename, Stack[0].LineNumber));
 	}
-	else
+	}
+	if (EntryIndex == -1)
 	{
 		EntryIndex = Entries.Add(FAutomationExecutionEntry(Event));
 	}

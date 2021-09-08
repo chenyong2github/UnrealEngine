@@ -92,8 +92,8 @@ public: // UStruct -> JSON
 	/**
 	 * Templated version; Converts from a UStruct to a json string containing an object, using exportText
 	 *
-	 * @param Struct The UStruct instance to copy out of
-	 * @param JsonObject Json Object to be filled in with data from the ustruct
+	 * @param InStruct The UStruct instance to copy out of
+	 * @param OutJsonString Json Object to be filled in with data from the ustruct
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
 	 * @param Indent How many tabs to add to the json serializer
@@ -139,7 +139,7 @@ public: // UStruct -> JSON
 	 *
 	 * @param StructDefinition UStruct definition that is looked over for properties
 	 * @param Struct The UStruct instance to copy out of
-	 * @param JsonAttributes Map of attributes to copy in to
+	 * @param OutJsonAttributes Map of attributes to copy in to
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
 	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
@@ -168,13 +168,14 @@ public: // JSON -> UStruct
 	 *
 	 * @param JsonObject Json Object to copy data out of
 	 * @param StructDefinition UStruct definition that is looked over for properties
-	 * @param Struct The UStruct instance to copy in to
+	 * @param OutStruct The UStruct instance to copy in to
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
+	 * @param bStrictMode Whether to strictly check the json attributes
 	 *
 	 * @return False if any properties matched but failed to deserialize
 	 */
-	static bool JsonObjectToUStruct(const TSharedRef<FJsonObject>& JsonObject, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0);
+	static bool JsonObjectToUStruct(const TSharedRef<FJsonObject>& JsonObject, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0, const bool bStrictMode = false);
 
 	/**
 	 * Templated version of JsonObjectToUStruct
@@ -183,13 +184,14 @@ public: // JSON -> UStruct
 	 * @param OutStruct The UStruct instance to copy in to
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
+	 * @param bStrictMode Whether to strictly check the json attributes
 	 *
 	 * @return False if any properties matched but failed to deserialize
 	 */
 	template<typename OutStructType>
-	static bool JsonObjectToUStruct(const TSharedRef<FJsonObject>& JsonObject, OutStructType* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0)
+	static bool JsonObjectToUStruct(const TSharedRef<FJsonObject>& JsonObject, OutStructType* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0, const bool bStrictMode = false)
 	{
-		return JsonObjectToUStruct(JsonObject, OutStructType::StaticStruct(), OutStruct, CheckFlags, SkipFlags);
+		return JsonObjectToUStruct(JsonObject, OutStructType::StaticStruct(), OutStruct, CheckFlags, SkipFlags, bStrictMode);
 	}
 
 	/**
@@ -200,10 +202,11 @@ public: // JSON -> UStruct
 	 * @param OutStruct The UStruct instance to copy in to
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
+	 * @param bStrictMode Whether to strictly check the json attributes
 	 *
 	 * @return False if any properties matched but failed to deserialize
 	 */
-	static bool JsonAttributesToUStruct(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0);
+	static bool JsonAttributesToUStruct(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0, const bool bStrictMode = false);
 
 	/**
 	 * Converts a single JsonValue to the corresponding FProperty (this may recurse if the property is a UStruct for instance).
@@ -213,10 +216,11 @@ public: // JSON -> UStruct
 	 * @param OutValue Pointer to the property instance to be modified.
 	 * @param CheckFlags Only convert sub-properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip sub-properties that match any of these flags
+	 * @param bStrictMode Whether to strictly check the json attributes
 	 *
 	 * @return False if the property failed to serialize
 	 */
-	static bool JsonValueToUProperty(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, int64 CheckFlags = 0, int64 SkipFlags = 0);
+	static bool JsonValueToUProperty(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, int64 CheckFlags = 0, int64 SkipFlags = 0, const bool bStrictMode = false);
 
 	/**
 	 * Converts from a json string containing an object to a UStruct
@@ -225,11 +229,12 @@ public: // JSON -> UStruct
 	 * @param OutStruct The UStruct instance to copy in to
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
+	 * @param bStrictMode Whether to strictly check the json attributes
 	 *
 	 * @return False if any properties matched but failed to deserialize
 	 */
 	template<typename OutStructType>
-	static bool JsonObjectStringToUStruct(const FString& JsonString, OutStructType* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0)
+	static bool JsonObjectStringToUStruct(const FString& JsonString, OutStructType* OutStruct, int64 CheckFlags = 0, int64 SkipFlags = 0, const bool bStrictMode = false)
 	{
 		TSharedPtr<FJsonObject> JsonObject;
 		TSharedRef<TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(JsonString);
@@ -238,7 +243,7 @@ public: // JSON -> UStruct
 			UE_LOG(LogJson, Warning, TEXT("JsonObjectStringToUStruct - Unable to parse json=[%s]"), *JsonString);
 			return false;
 		}
-		if (!FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), OutStruct, CheckFlags, SkipFlags))
+		if (!FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), OutStruct, CheckFlags, SkipFlags, bStrictMode))
 		{
 			UE_LOG(LogJson, Warning, TEXT("JsonObjectStringToUStruct - Unable to deserialize. json=[%s]"), *JsonString);
 			return false;
@@ -253,11 +258,12 @@ public: // JSON -> UStruct
 	* @param OutStructArray The UStruct array to copy in to
 	* @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	* @param SkipFlags Skip properties that match any of these flags.
+	* @param bStrictMode Whether to strictly check the json attributes
 	*
 	* @return False if any properties matched but failed to deserialize.
 	*/
 	template<typename OutStructType>
-	static bool JsonArrayStringToUStruct(const FString& JsonString, TArray<OutStructType>* OutStructArray, int64 CheckFlags = 0, int64 SkipFlags = 0)
+	static bool JsonArrayStringToUStruct(const FString& JsonString, TArray<OutStructType>* OutStructArray, int64 CheckFlags = 0, int64 SkipFlags = 0, const bool bStrictMode = false)
 	{
 		TArray<TSharedPtr<FJsonValue> > JsonArray;
 		TSharedRef<TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(JsonString);
@@ -266,7 +272,7 @@ public: // JSON -> UStruct
 			UE_LOG(LogJson, Warning, TEXT("JsonArrayStringToUStruct - Unable to parse. json=[%s]"), *JsonString);
 			return false;
 		}
-		if (!JsonArrayToUStruct(JsonArray, OutStructArray, CheckFlags, SkipFlags))
+		if (!JsonArrayToUStruct(JsonArray, OutStructArray, CheckFlags, SkipFlags, bStrictMode))
 		{
 			UE_LOG(LogJson, Warning, TEXT("JsonArrayStringToUStruct - Error parsing one of the elements. json=[%s]"), *JsonString);
 			return false;
@@ -281,11 +287,12 @@ public: // JSON -> UStruct
 	* @param OutStructArray The UStruct array to copy in to
 	* @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	* @param SkipFlags Skip properties that match any of these flags.
+	* @param bStrictMode Whether to strictly check the json attributes
 	*
 	* @return False if any of the matching elements are not an object, or if one of the matching elements could not be converted to the specified UStruct type.
 	*/
 	template<typename OutStructType>
-	static bool JsonArrayToUStruct(const TArray<TSharedPtr<FJsonValue>>& JsonArray, TArray<OutStructType>* OutStructArray, int64 CheckFlags = 0, int64 SkipFlags = 0)
+	static bool JsonArrayToUStruct(const TArray<TSharedPtr<FJsonValue>>& JsonArray, TArray<OutStructType>* OutStructArray, int64 CheckFlags = 0, int64 SkipFlags = 0, const bool bStrictMode = false)
 	{
 		OutStructArray->SetNum(JsonArray.Num());
 		for (int32 i = 0; i < JsonArray.Num(); ++i)
@@ -296,7 +303,7 @@ public: // JSON -> UStruct
 				UE_LOG(LogJson, Warning, TEXT("JsonArrayToUStruct - Array element [%i] was not an object."), i);
 				return false;
 			}
-			if (!FJsonObjectConverter::JsonObjectToUStruct(Value->AsObject().ToSharedRef(), OutStructType::StaticStruct(), &(*OutStructArray)[i], CheckFlags, SkipFlags))
+			if (!FJsonObjectConverter::JsonObjectToUStruct(Value->AsObject().ToSharedRef(), OutStructType::StaticStruct(), &(*OutStructArray)[i], CheckFlags, SkipFlags, bStrictMode))
 			{
 				UE_LOG(LogJson, Warning, TEXT("JsonArrayToUStruct - Unable to convert element [%i]."), i);
 				return false;

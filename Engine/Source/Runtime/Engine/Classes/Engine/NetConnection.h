@@ -331,9 +331,16 @@ public:
 
 	virtual bool IsReplayReady() const { return false; }
 
+	bool IsForceInitialDirty() const { return bForceInitialDirty; }
+	void SetForceInitialDirty(bool bValue)
+	{
+		bForceInitialDirty = bValue;
+	}
+
 private:
 	uint32 bInternalAck : 1;	// Internally ack all packets, for 100% reliable connections.
 	uint32 bReplay : 1;			// Flag to indicate a replay connection, independent of reliability
+	uint32 bForceInitialDirty : 1;	// Force all properties dirty on initial replication
 
 public:
 	struct FURL			URL;				// URL of the other side.
@@ -1186,7 +1193,7 @@ public:
 	 * Sets the PlayerOnlinePlatformName member.
 	 * Called by the engine during the login process with the NMT_Login message parameter.
 	 */
-	void SetPlayerOnlinePlatformName(const FName InPlayerOnlinePlatformName);
+	ENGINE_API void SetPlayerOnlinePlatformName(const FName InPlayerOnlinePlatformName);
 
 	/** Returns the online platform name for the player on this connection. Only valid for client connections on servers. */
 	ENGINE_API FName GetPlayerOnlinePlatformName() const { return PlayerOnlinePlatformName; }
@@ -1318,7 +1325,7 @@ public:
 	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
 
 	/** Sends the NMT_Challenge message */
-	void SendChallengeControlMessage();
+	ENGINE_API void SendChallengeControlMessage();
 
 	/** Sends the NMT_Challenge message based on encryption response */
 	void SendChallengeControlMessage(const FEncryptionKeyResponse& Response);

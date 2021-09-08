@@ -481,6 +481,20 @@ bool UContentBrowserAssetDataSource::CreateAssetFilter(FAssetFilterInputParams& 
 				}
 				InternalPathFilter.bRecursivePaths = InFilter.bRecursivePaths;
 				CreateCompiledFilter(InternalPathFilter, CompiledInternalPathFilter);
+
+				// Remove paths that do not pass item attribute filter (Engine, Plugins, Developer, Localized, etc..)
+				if (InFilter.ItemAttributeFilter != EContentBrowserItemAttributeFilter::IncludeAll)
+				{
+					for (auto It = CompiledInternalPathFilter.PackagePaths.CreateIterator(); It; ++It)
+					{
+						FNameBuilder PathStr(*It);
+						FStringView Path(PathStr);
+						if (!ContentBrowserDataUtils::PathPassesAttributeFilter(Path, 0, InFilter.ItemAttributeFilter))
+						{
+							It.RemoveCurrent();
+						}
+					}
+				}
 			}
 
 			if (CompiledInclusiveFilter.PackagePaths.Num() > 0)
@@ -2073,26 +2087,26 @@ void UContentBrowserAssetDataSource::OnBeginCreateAsset(const FName InDefaultAss
 	}
 	else
 	{
-	FAssetData NewAssetData(*(InPackagePath.ToString() / InDefaultAssetName.ToString()), InPackagePath, InDefaultAssetName, ClassToUse->GetFName());
+		FAssetData NewAssetData(*(InPackagePath.ToString() / InDefaultAssetName.ToString()), InPackagePath, InDefaultAssetName, ClassToUse->GetFName());
 
-	FName VirtualizedPath;
-	TryConvertInternalPathToVirtual(NewAssetData.ObjectPath, VirtualizedPath);
+		FName VirtualizedPath;
+		TryConvertInternalPathToVirtual(NewAssetData.ObjectPath, VirtualizedPath);
 
-	FContentBrowserItemData NewItemData(
-		this, 
-		EContentBrowserItemFlags::Type_File | EContentBrowserItemFlags::Category_Asset | EContentBrowserItemFlags::Temporary_Creation,
-		VirtualizedPath, 
-		NewAssetData.AssetName,
-		FText::AsCultureInvariant(NewAssetData.AssetName.ToString()),
-		MakeShared<FContentBrowserAssetFileItemDataPayload_Creation>(MoveTemp(NewAssetData), InAssetClass, InFactory)
-		);
+		FContentBrowserItemData NewItemData(
+			this, 
+			EContentBrowserItemFlags::Type_File | EContentBrowserItemFlags::Category_Asset | EContentBrowserItemFlags::Temporary_Creation,
+			VirtualizedPath, 
+			NewAssetData.AssetName,
+			FText::AsCultureInvariant(NewAssetData.AssetName.ToString()),
+			MakeShared<FContentBrowserAssetFileItemDataPayload_Creation>(MoveTemp(NewAssetData), InAssetClass, InFactory)
+			);
 
-	InOnBeginItemCreation.Execute(FContentBrowserItemDataTemporaryContext(
-		MoveTemp(NewItemData), 
-		FContentBrowserItemDataTemporaryContext::FOnValidateItem::CreateUObject(this, &UContentBrowserAssetDataSource::OnValidateItemName),
-		FContentBrowserItemDataTemporaryContext::FOnFinalizeItem::CreateUObject(this, &UContentBrowserAssetDataSource::OnFinalizeCreateAsset)
-		));
-}
+		InOnBeginItemCreation.Execute(FContentBrowserItemDataTemporaryContext(
+			MoveTemp(NewItemData), 
+			FContentBrowserItemDataTemporaryContext::FOnValidateItem::CreateUObject(this, &UContentBrowserAssetDataSource::OnValidateItemName),
+			FContentBrowserItemDataTemporaryContext::FOnFinalizeItem::CreateUObject(this, &UContentBrowserAssetDataSource::OnFinalizeCreateAsset)
+			));
+	}
 }
 
 bool UContentBrowserAssetDataSource::OnValidateItemName(const FContentBrowserItemData& InItem, const FString& InProposedName, FText* OutErrorMsg)

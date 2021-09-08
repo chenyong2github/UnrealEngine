@@ -402,6 +402,7 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			if (MeshCount < EntitiesGeometry->Meshes.Num())
 			{
 				Mesh = EntitiesGeometry->Meshes[MeshCount]; // Reuse existing DatasmithMeshElement
+				Mesh->SlotIdForMaterialID.Reset();
 			}
 			else
 			{
@@ -419,6 +420,7 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			for (int32 SlotId = 0;SlotId < ExtractedMeshPtr->MaterialIDForSlotId.Num(); ++SlotId)
 			{
 				FMaterialIDType MeshMaterialID = ExtractedMeshPtr->MaterialIDForSlotId[SlotId];
+				Mesh->SlotIdForMaterialID.FindOrAdd(MeshMaterialID, SlotId);
 				// Default or (somehow)missing materials are also assigned to mesh(as a default material)
 				if (FMaterialOccurrence* Material = Context.Materials.RegisterGeometry(MeshMaterialID, EntitiesGeometry.Get()))
 				{

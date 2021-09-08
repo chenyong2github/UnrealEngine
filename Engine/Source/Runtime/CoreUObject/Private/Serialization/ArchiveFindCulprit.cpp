@@ -43,7 +43,7 @@ FArchive& FArchiveFindCulprit::operator<<( UObject*& Obj )
 		Count++;
 	}
 
-	if (PretendSaving && Obj && !Obj->IsPendingKill())
+	if (PretendSaving && IsValid(Obj))
 	{
 		if ((!Obj->HasAnyFlags(RF_Transient) || Obj->HasAnyFlags(RF_Public)) && !Obj->HasAnyMarks(OBJECTMARK_TagExp))
 		{

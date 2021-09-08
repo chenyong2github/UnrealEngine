@@ -291,6 +291,13 @@ protected:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = NavigationSystem, meta = (ClampMin = "-1.0", UIMin = "-1.0"))
 	float DirtyAreaWarningSizeThreshold;
 
+	/** -1.0f by default, if set to a positive value, all calls to GetNavigationData will be timed and compared to it. 
+	*	Over the limit calls will be logged as warnings. 
+	*	In seconds. Non-shipping build only.
+	*/
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = NavigationSystem, meta = (ClampMin = "-1.0", UIMin = "-1.0"))
+	float GatheringNavModifiersWarningLimitTime;
+
 	/** List of agents types supported by this navigation system */
 	UPROPERTY(config, EditAnywhere, Category = Agents)
 	TArray<FNavDataConfig> SupportedAgents;

@@ -137,7 +137,7 @@ void UControlRigComponent::OnUnregister()
 			{
 				if (Pair.Key->IsValidLowLevel() &&
 					!Pair.Key->HasAnyFlags(RF_BeginDestroyed) &&
-					!Pair.Key->IsPendingKill())
+					IsValid(Pair.Key))
 				{
 					Pair.Value.Apply(Pair.Key);
 				}
@@ -1501,7 +1501,7 @@ void UControlRigComponent::TransferOutputs()
 			{
 				if (SkeletalMeshComponent->IsValidLowLevel() &&
 					!SkeletalMeshComponent->HasAnyFlags(RF_BeginDestroyed) &&
-					!SkeletalMeshComponent->IsPendingKill())
+					IsValid(SkeletalMeshComponent))
 				{
 					SkeletalMeshComponent->TickAnimation(0.f, false);
 					SkeletalMeshComponent->UpdateLODStatus();

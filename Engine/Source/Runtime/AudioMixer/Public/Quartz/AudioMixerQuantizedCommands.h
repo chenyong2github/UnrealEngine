@@ -32,6 +32,8 @@ namespace Audio
 
 		int32 SourceID{ -1 };
 
+		bool bIsCanceled = false;
+
 	}; // class FQuantizedPlayCommand 
 
 

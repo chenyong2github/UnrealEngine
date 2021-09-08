@@ -800,7 +800,7 @@ void FDataprepEditor::CleanPreviewWorld()
 
 		for( AActor* Actor : LevelActors )
 		{
-			if (Actor && !Actor->IsPendingKill() && !DefaultActorsInPreviewWorld.Contains(Actor))
+			if (IsValid(Actor) && !DefaultActorsInPreviewWorld.Contains(Actor))
 			{
 				PreviewWorld->EditorDestroyActor(Actor, true);
 

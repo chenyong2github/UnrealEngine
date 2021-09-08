@@ -135,7 +135,7 @@ FBoxSphereBounds ULakeCollisionComponent::CalcBounds(const FTransform& LocalToWo
 
 void ULakeCollisionComponent::CreateLakeBodySetupIfNeeded()
 {
-	if (CachedBodySetup == nullptr || CachedBodySetup->IsPendingKill())
+	if (!IsValid(CachedBodySetup))
 	{
 		CachedBodySetup = NewObject<UBodySetup>(this, TEXT("BodySetup")); // a name needs to be provided to ensure determinism
 		CachedBodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;

@@ -8,7 +8,7 @@
 #include "BazelExecutorSettings.h"
 #include "Messages.h"
 
-IMPLEMENT_MODULE(FBazelExecutorModule, EditorConfig);
+IMPLEMENT_MODULE(FBazelExecutorModule, BazelExecutor);
 
 #define LOCTEXT_NAMESPACE "BazelExecutorModule"
 

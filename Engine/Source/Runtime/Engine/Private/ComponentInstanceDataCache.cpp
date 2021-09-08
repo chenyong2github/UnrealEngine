@@ -626,7 +626,7 @@ void FComponentInstanceDataCache::ApplyToActor(AActor* Actor, const ECacheApplyP
 			check(Actor->GetRootComponent());
 
 			USceneComponent* SceneComponent = InstanceTransformPair.Key;
-			if (SceneComponent && (SceneComponent->GetAttachParent() == nullptr || SceneComponent->GetAttachParent()->IsPendingKill()))
+			if (SceneComponent && !IsValid(SceneComponent))
 			{
 				SceneComponent->AttachToComponent(Actor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 				SceneComponent->SetRelativeTransform(InstanceTransformPair.Value);

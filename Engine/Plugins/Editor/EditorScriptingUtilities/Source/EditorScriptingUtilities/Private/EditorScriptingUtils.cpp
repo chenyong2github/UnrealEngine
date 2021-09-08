@@ -406,7 +406,7 @@ namespace EditorScriptingUtils
 
 	bool IsAContentBrowserAsset(UObject* Object, FString& OutFailureReason)
 	{
-		if (Object == nullptr || Object->IsPendingKill())
+		if (!IsValid(Object))
 		{
 			OutFailureReason = TEXT("The Asset is not valid.");
 			return false;
@@ -527,7 +527,7 @@ namespace EditorScriptingUtils
 		}
 
 		UObject* FoundObject = AssetData.GetAsset();
-		if (!FoundObject || FoundObject->IsPendingKill())
+		if (!IsValid(FoundObject))
 		{
 			OutFailureReason = FString::Printf(TEXT("The asset '%s' exists but was not able to be loaded."), *AssetData.ObjectPath.ToString());
 		}

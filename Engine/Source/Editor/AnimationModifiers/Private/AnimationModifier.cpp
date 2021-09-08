@@ -318,7 +318,7 @@ void UAnimationModifier::ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubC
 		for (TObjectIterator<UAnimationModifier> It; It; ++It)
 		{
 			// Check if valid, of the required class, not pending kill and not a modifier back-up for reverting
-			if (*It && It->GetClass() == ModifierClass && !It->IsPendingKill() && It->GetFName() != RevertModifierObjectName)
+			if (*It && It->GetClass() == ModifierClass && IsValidChecked(*It) && It->GetFName() != RevertModifierObjectName)
 			{
 				if (bForceApply || !It->IsLatestRevisionApplied())
 				{

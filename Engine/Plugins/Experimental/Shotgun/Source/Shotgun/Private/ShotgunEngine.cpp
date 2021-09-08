@@ -60,7 +60,7 @@ void UShotgunEngine::SetSelection(const TArray<FAssetData>* InSelectedAssets, co
 			TArray<UObject*> ActorAssets = GetReferencedAssets(Actor);
 			for (UObject* Asset : ActorAssets)
 			{
-				if (Asset && Asset->IsAsset() && !Asset->IsPendingKill())
+				if (IsValid(Asset) && Asset->IsAsset())
 				{
 					FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*Asset->GetPathName()));
 					AllReferencedAssets.AddUnique(MoveTemp(AssetData));

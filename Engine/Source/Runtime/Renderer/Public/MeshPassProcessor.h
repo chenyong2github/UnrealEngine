@@ -161,11 +161,20 @@ struct FMinimalBoundShaderStateInput
 
 	FBoundShaderStateInput AsBoundShaderState() const
 	{
-		return FBoundShaderStateInput(VertexDeclarationRHI
-			, VertexShaderResource ? static_cast<FRHIVertexShader*>(VertexShaderResource->GetShader(VertexShaderIndex)) : nullptr
-			, PixelShaderResource ? static_cast<FRHIPixelShader*>(PixelShaderResource->GetShader(PixelShaderIndex)) : nullptr
+		if (!CachedVertexShader)
+		{
+			CachedPixelShader = PixelShaderResource ? static_cast<FRHIPixelShader*>(PixelShaderResource->GetShader(PixelShaderIndex)) : nullptr;
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			, GeometryShaderResource ? static_cast<FRHIGeometryShader*>(GeometryShaderResource->GetShader(GeometryShaderIndex)) : nullptr
+			CachedGeometryShader = GeometryShaderResource ? static_cast<FRHIGeometryShader*>(GeometryShaderResource->GetShader(GeometryShaderIndex)) : nullptr;
+#endif
+			CachedVertexShader = VertexShaderResource ? static_cast<FRHIVertexShader*>(VertexShaderResource->GetShader(VertexShaderIndex)) : nullptr;
+		}
+
+		return FBoundShaderStateInput(VertexDeclarationRHI
+			, CachedVertexShader
+			, CachedPixelShader
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+			, CachedGeometryShader
 #endif
 		);
 	}
@@ -185,20 +194,31 @@ struct FMinimalBoundShaderStateInput
 		{
 			return true;
 		}
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		if (GeometryShaderResource && !GeometryShaderResource->HasShader(GeometryShaderIndex))
 		{
 			return true;
 		}
+#endif
 		return false;
 	}
 
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
+	mutable FRHIVertexShader* CachedVertexShader = nullptr;
+	mutable FRHIPixelShader* CachedPixelShader = nullptr;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	mutable FRHIGeometryShader* CachedGeometryShader = nullptr;
+#endif
 	TRefCountPtr<FShaderMapResource> VertexShaderResource;
 	TRefCountPtr<FShaderMapResource> PixelShaderResource;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	TRefCountPtr<FShaderMapResource> GeometryShaderResource;
+#endif
 	int32 VertexShaderIndex = INDEX_NONE;
 	int32 PixelShaderIndex = INDEX_NONE;
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	int32 GeometryShaderIndex = INDEX_NONE;
+#endif
 };
 
 

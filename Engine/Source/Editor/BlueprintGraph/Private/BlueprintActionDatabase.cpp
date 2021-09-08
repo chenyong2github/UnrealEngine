@@ -1589,7 +1589,7 @@ void FBlueprintActionDatabase::RefreshAssetActions(UObject* const AssetObject)
 	// Will clear up any unloaded asset actions associated with this object, if any
 	ClearUnloadedAssetActions(*AssetObject->GetPathName());
 
-	if (AssetObject->IsPendingKill())
+	if (!IsValid(AssetObject))
 	{
 		ClearAssetActions(AssetObject);
 	}

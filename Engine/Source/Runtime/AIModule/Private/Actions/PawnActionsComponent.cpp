@@ -603,7 +603,7 @@ void UPawnActionsComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) cons
 {
 	static const FString Category = TEXT("PawnActions");
 
-	if (IsPendingKill())
+	if (!IsValid(this))
 	{
 		return;
 	}

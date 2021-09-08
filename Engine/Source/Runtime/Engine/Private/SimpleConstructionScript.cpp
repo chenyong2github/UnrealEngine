@@ -627,7 +627,7 @@ void USimpleConstructionScript::RegisterInstancedComponent(UActorComponent* Inst
 		}
 	}
 
-	if (InstancedComponent != nullptr && !InstancedComponent->IsRegistered() && InstancedComponent->bAutoRegister && !InstancedComponent->IsPendingKill())
+	if (IsValid(InstancedComponent) && !InstancedComponent->IsRegistered() && InstancedComponent->bAutoRegister)
 	{
 		InstancedComponent->RegisterComponent();
 	}

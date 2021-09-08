@@ -230,3 +230,16 @@ namespace Chaos
 	};
 
 } // namespace Chaos
+
+// Support ISPC enable/disable in non-shipping builds
+constexpr bool bChaos_CalculateBounds_ISPC_Enable = false;  // Disabled by default
+#if !INTEL_ISPC
+const bool bChaos_PreSimulationTransforms_ISPC_Enabled = false;
+const bool bChaos_CalculateBounds_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_PreSimulationTransforms_ISPC_Enabled = true;
+const bool bChaos_CalculateBounds_ISPC_Enabled = bChaos_CalculateBounds_ISPC_Enable;
+#else
+extern bool bChaos_PreSimulationTransforms_ISPC_Enabled;
+extern bool bChaos_CalculateBounds_ISPC_Enabled;
+#endif

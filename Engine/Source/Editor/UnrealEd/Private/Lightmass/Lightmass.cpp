@@ -808,7 +808,7 @@ void FLightmassExporter::WriteVisibilityData( int32 Channel )
 	int32 NumVisVolumes = 0;
 	for( TObjectIterator<APrecomputedVisibilityVolume> It; It; ++It )
 	{
-		if (World->ContainsActor(*It) && !It->IsPendingKill())
+		if (World->ContainsActor(*It) && IsValid(*It))
 		{
 			NumVisVolumes++;
 		}
@@ -826,7 +826,7 @@ void FLightmassExporter::WriteVisibilityData( int32 Channel )
 	for( TObjectIterator<APrecomputedVisibilityVolume> It; It; ++It )
 	{
 		APrecomputedVisibilityVolume* Volume = *It;
-		if (World->ContainsActor(Volume) && !Volume->IsPendingKill())
+		if (World->ContainsActor(Volume) && IsValid(Volume))
 		{
 			FBox LMBox = Volume->GetComponentsBoundingBox(true);
 			Swarm.WriteChannel(Channel, &LMBox, sizeof(LMBox));
@@ -842,7 +842,7 @@ void FLightmassExporter::WriteVisibilityData( int32 Channel )
 	int32 NumOverrideVisVolumes = 0;
 	for( TObjectIterator<APrecomputedVisibilityOverrideVolume> It; It; ++It )
 	{
-		if (World->ContainsActor(*It) && !It->IsPendingKill())
+		if (World->ContainsActor(*It) && IsValid(*It))
 		{
 			NumOverrideVisVolumes++;
 		}
@@ -852,7 +852,7 @@ void FLightmassExporter::WriteVisibilityData( int32 Channel )
 	for( TObjectIterator<APrecomputedVisibilityOverrideVolume> It; It; ++It )
 	{
 		APrecomputedVisibilityOverrideVolume* Volume = *It;
-		if (World->ContainsActor(Volume) && !Volume->IsPendingKill())
+		if (World->ContainsActor(Volume) && IsValid(Volume))
 		{
 			FBox LMBox = Volume->GetComponentsBoundingBox(true);
 			Swarm.WriteChannel(Channel, &LMBox, sizeof(LMBox));

@@ -395,7 +395,7 @@ bool					GPrintLogCategory = true;
 bool					GPrintLogVerbosity = true;
 
 #if USE_HITCH_DETECTION
-bool				GHitchDetected = false;
+TSAN_ATOMIC(bool)				GHitchDetected(false);
 #endif
 
 /** Whether stats should emit named events for e.g. PIX.													*/

@@ -29,11 +29,7 @@ void FNiagaraSystemInstanceController::Initialize(UWorld& World, UNiagaraSystem&
 
 void FNiagaraSystemInstanceController::Release()
 {
-	// Before we can destroy the instance, we need to deactivate it.
-	if (auto SystemInst = SystemInstance.Get())
-	{
-		SystemInst->Deactivate(true);
-	}
+	checkf(!SystemInstance.IsValid() || SystemInstance->IsComplete(), TEXT("NiagraSystemInstance must be complete when releasing the controller.  System(%s) Component(%s)"), *GetNameSafe(SystemInstance->GetSystem()), *GetFullNameSafe(SystemInstance->GetAttachComponent()));
 
 	// Rather than setting the ptr to null here, we allow it to transition ownership to the system's deferred deletion queue. This allows us to safely
 	// get rid of the system interface should we be doing this in response to a callback invoked during the system interface's lifetime completion cycle.

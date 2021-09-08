@@ -108,6 +108,7 @@ FMediaPlayerFacade::FMediaPlayerFacade()
 	, bHaveActiveAudio(false)
 	, VideoSampleAvailability(-1)
 	, AudioSampleAvailability(-1)
+	, bAreEventsSafeForAnyThread(false)
 {
 	BlockOnRangeDisabled = false;
 
@@ -1436,6 +1437,11 @@ FTimespan FMediaPlayerFacade::GetLastAudioRenderedSampleTime() const
 	return LastAudioRenderedSampleTime.TimeStamp.Time;
 }
 
+void FMediaPlayerFacade::SetAreEventsSafeForAnyThread(bool bInAreEventsSafeForAnyThread)
+{
+	bAreEventsSafeForAnyThread = bInAreEventsSafeForAnyThread;
+}
+
 /* FMediaPlayerFacade implementation
 *****************************************************************************/
 
@@ -1728,7 +1734,7 @@ bool FMediaPlayerFacade::GetVideoTrackFormat(int32 TrackIndex, int32 FormatIndex
 }
 
 
-void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
+void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowed)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MediaUtils_FacadeProcessEvent);
 
@@ -1786,7 +1792,14 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
 		}
 	}
 
+	if (bIsBroadcastAllowed)
+	{
 	MediaEvent.Broadcast(Event);
+}
+	else
+	{
+		QueuedEventBroadcasts.Enqueue(Event);
+	}
 }
 
 
@@ -1834,6 +1847,7 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 
 		Player->TickInput(DeltaTime, Timecode);
 
+		bool bIsBroadcastAllowed = bAreEventsSafeForAnyThread || IsInGameThread();
 		if (Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2))
 		{
 			//
@@ -1843,9 +1857,16 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 			// process deferred events
 			// NOTE: if there is no player anymore we execute the remaining queued events in TickFetch (backwards compatibility - should move here once V1 support removed)
 			EMediaEvent Event;
+			if (bIsBroadcastAllowed)
+			{
+				while (QueuedEventBroadcasts.Dequeue(Event))
+				{
+					MediaEvent.Broadcast(Event);
+				}
+			}
 			while (QueuedEvents.Dequeue(Event))
 			{
-				ProcessEvent(Event);
+				ProcessEvent(Event, bIsBroadcastAllowed);
 			}
 
 			// Handling events may have killed the player. Did it?
@@ -1908,7 +1929,7 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 					{
 						bEventCancelsBlock = true;
 					}
-					ProcessEvent(Event);
+					ProcessEvent(Event, bIsBroadcastAllowed);
 				}
 
 				// We might have lost the player during event handling or an event breaks the block...
@@ -1958,11 +1979,21 @@ void FMediaPlayerFacade::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 
 	if (!Player.IsValid())
 	{
-		// process deferred events
+		// Send out deferred broadcasts.
 		EMediaEvent Event;
+		bool bIsBroadcastAllowed = bAreEventsSafeForAnyThread || IsInGameThread();
+		if (bIsBroadcastAllowed)
+		{
+			while (QueuedEventBroadcasts.Dequeue(Event))
+			{
+				MediaEvent.Broadcast(Event);
+			}
+		}
+
+		// process deferred events
 		while (QueuedEvents.Dequeue(Event))
 		{
-			ProcessEvent(Event);
+			ProcessEvent(Event, bIsBroadcastAllowed);
 		}
 		return;
 	}
@@ -1981,7 +2012,7 @@ void FMediaPlayerFacade::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 			EMediaEvent Event;
 			while (QueuedEvents.Dequeue(Event))
 			{
-				ProcessEvent(Event);
+				ProcessEvent(Event, true);
 			}
 		}
 

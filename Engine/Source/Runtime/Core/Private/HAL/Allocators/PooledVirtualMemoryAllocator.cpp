@@ -54,6 +54,8 @@ void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHi
 	{
 		int32 SizeClass = GetAllocationSizeClass(Size);
 
+		LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
+
 		// [RCL] TODO: find a way to convert to lock-free
 		FScopeLock Lock(&ClassesLocks[SizeClass]);
 

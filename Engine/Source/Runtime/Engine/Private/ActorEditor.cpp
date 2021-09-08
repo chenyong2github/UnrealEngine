@@ -499,7 +499,7 @@ bool AActor::InternalPostEditUndo()
 	}
 
 	// Restore OwnedComponents array
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		ResetOwnedComponents();
 

@@ -685,7 +685,7 @@ void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject
 
 			// This function is called on child->parent hierarchies in postload. We dont want to overwrite child data
 			// with parent data so skip if the node data has already been set up by a previous call.	
-			if(bForce || Node->NodeData == nullptr)
+			if(bForce || Node->NodeData == nullptr || IAnimClassInterface::GetActualAnimClass(&Node->NodeData->GetAnimClassInterface()) != this)
 			{
 				Node->SetNodeData(AnimNodeData[AnimNodeIndex]);
 			}

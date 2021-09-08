@@ -2835,7 +2835,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						AActor* Actor = *It;
 
 						// If Actor is part of the world we are loading's package, but not in Actor list, clear it
-						if( Actor->GetOutermost() == WorldPackage && !Context.World()->ContainsActor(Actor) && !Actor->IsPendingKill()
+						if( Actor->GetOutermost() == WorldPackage && !Context.World()->ContainsActor(Actor) && IsValidChecked(Actor)
 							&& !Actor->HasAnyFlags(RF_ArchetypeObject) )
 						{
 							UE_LOG(LogEditorServer, Log,  TEXT("Destroying orphan Actor: %s"), *Actor->GetName() );					

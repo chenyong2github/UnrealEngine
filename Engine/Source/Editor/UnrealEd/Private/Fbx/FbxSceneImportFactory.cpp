@@ -762,7 +762,7 @@ UObject *FFbxAttributeInfo::GetContentObject()
 	ContentObject = FindObjectSafe<UObject>(ANY_PACKAGE, *AssetName);
 	if (ContentObject != nullptr)
 	{
-		if (ContentObject->HasAnyFlags(RF_Transient) || ContentObject->IsPendingKill())
+		if (ContentObject->HasAnyFlags(RF_Transient) || !IsValid(ContentObject))
 		{
 			ContentObject = nullptr;
 		}

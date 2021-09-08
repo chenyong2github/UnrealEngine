@@ -1524,6 +1524,19 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, float TimeLimit)
 
 #if UE_WITH_GC
 
+
+static bool GWarningTimeOutHasBeenDisplayedGC = false;
+
+static bool GEnableTimeoutOnPendingDestroyedObjectGC = true;
+#if UE_BUILD_SHIPPING
+static FAutoConsoleVariableRef CVarGCEnableTimeoutOnPendingDestroyedObjectInShipping(
+	TEXT("gc.EnableTimeoutOnPendingDestroyedObjectInShipping"),
+	GEnableTimeoutOnPendingDestroyedObjectGC,
+	TEXT("Enable time out when there are pending destroyed object (default is true, always true in non shipping build"),
+	ECVF_Default
+);
+#endif
+
 static int32 GAdditionalFinishDestroyTimeGC = 40;
 static FAutoConsoleVariableRef CVarAdditionalFinishDestroyTimeGC(
 	TEXT("gc.AdditionalFinishDestroyTimeGC"),
@@ -1723,6 +1736,8 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 						if (LastLoopObjectsPendingDestructionCount == GGCObjectsPendingDestructionCount && bPollTimeLimit &&
 							((FPlatformTime::Seconds() - GCStartTime) > MaxTimeForFinishDestroy))
 						{
+							if (GEnableTimeoutOnPendingDestroyedObjectGC)
+							{
 							UE_LOG(LogGarbage, Warning, TEXT("Spent more than %.2fs on routing FinishDestroy to objects (objects in queue: %d)"), MaxTimeForFinishDestroy, GGCObjectsPendingDestructionCount);
 							UObject* LastObjectNotReadyForFinishDestroy = nullptr;
 							for (int32 ObjectIndex = 0; ObjectIndex < GGCObjectsPendingDestructionCount; ++ObjectIndex)
@@ -1761,6 +1776,13 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 							}
 #endif
 						}
+							else if (!GWarningTimeOutHasBeenDisplayedGC)
+							{
+								UE_LOG(LogGarbage, Warning, TEXT("Spent more than %.2fs on routing FinishDestroy to objects (objects in queue: %d) - Skipping FATAL - GC Time out is disabled"), MaxTimeForFinishDestroy, GGCObjectsPendingDestructionCount);
+								GWarningTimeOutHasBeenDisplayedGC = true;
+							}
+					}
+
 					}
 					// Sleep before the next pass to give the render thread some time to release fences.
 					FPlatformProcess::Sleep( 0 );
@@ -1785,6 +1807,7 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 				// Destroy has been routed to all objects so it's safe to delete objects now.
 				GObjFinishDestroyHasBeenRoutedToAllObjects = true;
 				GObjCurrentPurgeObjectIndexNeedsReset = true;
+				GWarningTimeOutHasBeenDisplayedGC = false;
 			}
 		}
 	}		

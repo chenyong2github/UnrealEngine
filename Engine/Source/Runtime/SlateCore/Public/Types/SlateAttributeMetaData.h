@@ -64,6 +64,10 @@ public:
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
 	static void UpdateChildrenOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, bool bRecursive);
+	/**
+	 * Apply any delayed invalidation previously delayed with EInvalidationPermission::DelayInvalidation.
+	 */
+	static void ApplyDelayedInvalidation(SWidget& OwningWidget);
 
 public:
 	bool IsBound(const FSlateAttributeBase& Attribute) const

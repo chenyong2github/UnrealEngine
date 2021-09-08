@@ -270,7 +270,6 @@ bool UQosRegionManager::IsQosEvaluationInProgress() const
 
 void UQosRegionManager::OnQosEvaluationComplete(EQosCompletionResult Result, const TArray<FDatacenterQosInstance>& DatacenterInstances)
 {
-	UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::OnQosEvaluationComplete] eval has completed"));
 	// toss the evaluator
 	if (Evaluator != nullptr)
 	{
@@ -333,6 +332,9 @@ void UQosRegionManager::OnQosEvaluationComplete(EQosCompletionResult Result, con
 			TrySetDefaultRegion();
 		}
 	}
+	TArray<FString> BestSubregions;
+	GetSubregionPreferences(GetBestRegion(), BestSubregions);
+	UE_LOG(LogQos, Log, TEXT("[UQosRegionManager::OnQosEvaluationComplete] ping eval has completed - our best region is '%s' and our best subregion is '%s'"), *GetBestRegion(), BestSubregions.Num() ? *BestSubregions[0] : TEXT("NONE"));
 
 	OnQosEvalCompleteDelegate.Broadcast();
 	OnQosEvalCompleteDelegate.Clear();

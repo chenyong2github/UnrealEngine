@@ -315,14 +315,14 @@ bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage)
 	{
 		if (Obj->GetClass()->HasAnyClassFlags(CLASS_Deprecated) && !Obj->HasAnyFlags(RF_ClassDefaultObject))
 		{
-			if (!InObj->IsPendingKill() && InObj->GetOutermost() == InSavingPackage)
+			if (IsValid(InObj) && InObj->GetOutermost() == InSavingPackage)
 			{
 				UE_LOG(LogSavePackage, Warning, TEXT("%s has a deprecated outer %s, so it will not be saved"), *InObj->GetFullName(), *Obj->GetFullName());
 			}
 			return true; 
 		}
 
-		if(Obj->IsPendingKill())
+		if(!IsValid(Obj))
 		{
 			return true;
 		}

@@ -373,7 +373,7 @@ void FEdModeLandscape::Enter()
 		{
 			if (ULandscapeInfo* LandscapeInfo = It.Value())
 			{
-				if (ALandscape* Landscape = !LandscapeInfo->IsPendingKill() ? LandscapeInfo->LandscapeActor.Get() : nullptr)
+				if (ALandscape* Landscape = IsValid(LandscapeInfo) ? LandscapeInfo->LandscapeActor.Get() : nullptr)
 				{
 					Landscape->RegisterLandscapeEdMode(this);
 				}
@@ -582,7 +582,7 @@ void FEdModeLandscape::Exit()
 		{
 			if (ULandscapeInfo* LandscapeInfo = It.Value())
 			{
-				if (ALandscape* Landscape = !LandscapeInfo->IsPendingKill() ? LandscapeInfo->LandscapeActor.Get() : nullptr)
+				if (ALandscape* Landscape = IsValid(LandscapeInfo) ? LandscapeInfo->LandscapeActor.Get() : nullptr)
 				{
 					Landscape->UnregisterLandscapeEdMode();
 				}
@@ -2034,7 +2034,7 @@ int32 FEdModeLandscape::UpdateLandscapeList()
 		for (auto It = LandscapeInfoMap.Map.CreateIterator(); It; ++It)
 		{
 			ULandscapeInfo* LandscapeInfo = It.Value();
-			if (LandscapeInfo && !LandscapeInfo->IsPendingKill())
+			if (IsValid(LandscapeInfo))
 			{
 				if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
 				{

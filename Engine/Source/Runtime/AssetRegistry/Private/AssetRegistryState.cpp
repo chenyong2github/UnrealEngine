@@ -328,28 +328,34 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 
 	for (const TPair<FName, FAssetData*>& Pair : AssetDataMap)
 	{
+		if (Pair.Value == nullptr)
+		{
+			// don't do anything 
+			continue;
+		}
+
+
 		FAssetData* ExistingData = nullptr;
 
-		if (InInitializationMode == EInitializationMode::OnlyUpdateExisting)
+		if (InInitializationMode != EInitializationMode::Rebuild) // minor optimization to avoid lookup in rebuild mode
 		{
 			ExistingData = CachedAssetsByObjectPath.FindRef(Pair.Key);
-			if (!ExistingData)
+		}
+		if ((InInitializationMode == EInitializationMode::OnlyUpdateExisting) && 
+			(ExistingData == nullptr) )
 			{
 				continue;
 			}
-		}
 
-		if (Pair.Value)
-		{
 			// Filter asset registry tags now
 			const FAssetData& AssetData = *Pair.Value;
 
 			FAssetDataTagMap LocalTagsAndValues;
 			FAssetRegistryState::FilterTags(AssetData.TagsAndValues, LocalTagsAndValues, Options.CookFilterlistTagsByClass.Find(AssetData.AssetClass), Options);
 
-			if (InInitializationMode == EInitializationMode::OnlyUpdateExisting)
-			{
-				// Only modify tags
+		
+		// in append or onlyupdateexisting we may have some existing data
+		// in rebuild mode existing data should never be found
 				if (ExistingData)
 				{
 					// Bundle tags might have changed even if other tags haven't
@@ -363,7 +369,6 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 						UpdateAssetData(ExistingData, TempData);
 					}
 				}
-			}
 			else
 			{
 				FAssetData* NewData = new FAssetData(AssetData.PackageName, AssetData.PackagePath, AssetData.AssetName,
@@ -373,7 +378,6 @@ void FAssetRegistryState::InitializeFromExisting(const TMap<FName, FAssetData*>&
 				AddAssetData(NewData);
 			}
 		}
-	}
 
 	TSet<FAssetIdentifier> ScriptPackages;
 

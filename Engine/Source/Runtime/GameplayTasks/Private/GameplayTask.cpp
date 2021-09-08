@@ -146,7 +146,7 @@ void UGameplayTask::TaskOwnerEnded()
 	if (TaskState != EGameplayTaskState::Finished)
 	{
 		bOwnerFinished = true;
-		if (IsPendingKill() == false)
+		if (IsValid(this))
 		{
 			OnDestroy(true);
 		}
@@ -166,7 +166,7 @@ void UGameplayTask::EndTask()
 
 	if (TaskState != EGameplayTaskState::Finished)
 	{
-		if (IsPendingKill() == false)
+		if (IsValid(this))
 		{
 			OnDestroy(false);
 		}
@@ -201,7 +201,7 @@ void UGameplayTask::ExternalCancel()
 
 void UGameplayTask::OnDestroy(bool bInOwnerFinished)
 {
-	ensure(TaskState != EGameplayTaskState::Finished && !IsPendingKill());
+	ensure(TaskState != EGameplayTaskState::Finished && IsValid(this));
 	TaskState = EGameplayTaskState::Finished;
 
 	if (UGameplayTasksComponent* TasksPtr = TasksComponent.Get())

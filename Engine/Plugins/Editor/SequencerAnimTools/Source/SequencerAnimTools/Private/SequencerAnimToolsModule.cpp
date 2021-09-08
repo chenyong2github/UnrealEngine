@@ -11,7 +11,7 @@
 
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "MotionTrailTool.h"
-#include "EditPivotTool.h"
+#include "SequencerAnimEditPivotTool.h"
 #include "Tools/MotionTrailOptions.h"
 
 #define LOCTEXT_NAMESPACE "FSequencerAnimToolsModule"

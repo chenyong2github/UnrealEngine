@@ -706,7 +706,7 @@ int32 FComponentEditorUtils::DeleteComponents(const TArray<UActorComponent*>& Co
 						ParentComponent->GetChildrenComponents(false, Siblings);
 						for (int32 i = 0; i < Siblings.Num() && ComponentToDelete != Siblings[i]; ++i)
 						{
-							if (Siblings[i] && !Siblings[i]->IsPendingKill())
+							if (IsValid(Siblings[i]))
 							{
 								OutComponentToSelect = Siblings[i];
 							}

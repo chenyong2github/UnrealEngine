@@ -227,7 +227,7 @@ void AActor::RerunConstructionScripts()
 	FEditorScriptExecutionGuard ScriptGuard;
 	// don't allow (re)running construction scripts on dying actors and Actors that seamless traveled 
 	// were constructed in the previous level and should not have construction scripts rerun
-	bool bAllowReconstruction = !bActorSeamlessTraveled && !IsPendingKill() && !HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
+	bool bAllowReconstruction = !bActorSeamlessTraveled && IsValidChecked(this) && !HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
 	if (bAllowReconstruction)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AActor::RerunConstructionScripts);
@@ -540,7 +540,7 @@ void AActor::RerunConstructionScripts()
 		for(FAttachedActorInfo& Info : AttachedActorInfos)
 		{
 			// If this actor is no longer attached to anything, reattach
-			if (!Info.AttachedActor->IsPendingKill() && Info.AttachedActor->GetAttachParentActor() == nullptr)
+			if (IsValid(Info.AttachedActor) && Info.AttachedActor->GetAttachParentActor() == nullptr)
 			{
 				USceneComponent* ChildRoot = Info.AttachedActor->GetRootComponent();
 				if (ChildRoot && ChildRoot->GetAttachParent() != RootComponent)
@@ -679,7 +679,7 @@ namespace
 
 bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationConversionCache* TransformRotationCache, const FComponentInstanceDataCache* InstanceDataCache, bool bIsDefaultTransform)
 {
-	check(!IsPendingKill());
+	check(IsValid(this));
 	check(!HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed));
 
 #if WITH_EDITOR
@@ -782,7 +782,7 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 			for (UActorComponent* ActorComponent : PostSCSComponents)
 			{
 				// Limit registration to components that are known to have been created during SCS execution
-				if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && !ActorComponent->IsPendingKill() && GetWorld()->bIsWorldInitialized
+				if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && IsValidChecked(ActorComponent) && GetWorld()->bIsWorldInitialized
 					&& (ActorComponent->CreationMethod == EComponentCreationMethod::SimpleConstructionScript || !PreSCSComponents.Contains(ActorComponent)))
 				{
 					USimpleConstructionScript::RegisterInstancedComponent(ActorComponent);

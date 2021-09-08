@@ -127,7 +127,7 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
 	{
 		const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection();
-		if (RestCollection && !RestCollection->IsPendingKill())
+		if (IsValid(RestCollection))
 		{
 
 			// Generate a context for each selected node

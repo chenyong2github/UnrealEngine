@@ -127,7 +127,7 @@ void APawn::PostInitializeComponents()
 
 	Super::PostInitializeComponents();
 	
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		UWorld* World = GetWorld();
 

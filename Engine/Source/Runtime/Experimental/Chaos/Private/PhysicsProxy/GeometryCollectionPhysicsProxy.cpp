@@ -389,7 +389,16 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 	// Initialise GT/External particles
 	const int32 NumTransforms = DynamicCollection.Transform.Num();
 
-	if(ensure(NumTransforms == DynamicCollection.Implicits.Num() && NumTransforms == GTParticles.Num())) // Implicits are in the transform group so this invariant should always hold
+	// Attach the external particles to the gamethread collection
+	if (GameThreadCollection.HasAttribute(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup))
+	{
+		GameThreadCollection.RemoveAttribute(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup);
+	}
+		
+	GameThreadCollection.AddExternalAttribute<TUniquePtr<Chaos::FGeometryParticle>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
+	
+
+	if(ensure(NumTransforms == GameThreadCollection.Implicits.Num() && NumTransforms == GTParticles.Num())) // Implicits are in the transform group so this invariant should always hold
 	{
 		for(int32 Index = 0; Index < NumTransforms; ++Index)
 		{
@@ -1345,7 +1354,9 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 	{
 		if (FClusterHandle* Handle = SolverParticleHandles[i])
 		{
+			Chaos::FUniqueIdx UniqueIdx = Handle->UniqueIdx();
 			Evolution->DestroyParticle(Handle);
+			Evolution->ReleaseUniqueIdx(UniqueIdx);
 		}
 	}
 

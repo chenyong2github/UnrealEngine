@@ -167,7 +167,7 @@ namespace ObjectTools
 			{
 				if( ObjectPackage != GetTransientPackage()
 					&& (ObjectPackage->HasAnyPackageFlags(PKG_PlayInEditor) == false)
-					&& !Obj->IsPendingKill() 
+					&& IsValidChecked(Obj) 
 					&& !Obj->IsA<AActor>())
 				{
 					bIsSupported = true;
@@ -507,6 +507,16 @@ namespace ObjectTools
 		TSet<UPackage*> PackagesUserRefusedToFullyLoad;
 		TArray<UPackage*> OutermostPackagesToSave;
 
+		// If any objects are cooked, show just one dialog now so user is not flooded with a large number of dialogs
+		for (UObject* Object : SelectedObjects)
+		{
+			if (Object && Object->RootPackageHasAnyFlags(PKG_FilterEditorOnly))
+			{
+				FMessageDialog::Open( EAppMsgType::Ok, FText::Format(NSLOCTEXT("UnrealEd", "CannotDuplicateCooked", "Cannot duplicate object: '{0}'\nPackage is cooked or missing editor data"), FText::FromString(Object->GetName())) );
+				return;
+			}
+		}
+
 		for( int32 ObjectIndex = 0 ; ObjectIndex < SelectedObjects.Num() ; ++ObjectIndex )
 		{
 			UObject* Object = SelectedObjects[ObjectIndex];
@@ -578,6 +588,10 @@ namespace ObjectTools
 		if ( !NewPackageName.Len() )
 		{
 			ErrorMessage += TEXT("Invalid package name supplied\n");
+		}
+		else if (Object->RootPackageHasAnyFlags(PKG_FilterEditorOnly))
+		{
+			ErrorMessage += TEXT("Package is cooked or missing editor data\n");
 		}
 		else
 		{
@@ -3001,7 +3015,7 @@ namespace ObjectTools
 				UActorComponent* CurComponent = *ComponentItr;
 
 				// Skip if already pending GC
-				if (!CurComponent->IsPendingKill())
+				if (IsValid(CurComponent))
 				{
 					// Deselect if active
 					USelection* SelectedComponents = GEditor->GetSelectedComponents();
@@ -3031,7 +3045,7 @@ namespace ObjectTools
 				AActor* CurActor = *ActorItr;
 
 				// Skip if already pending GC
-				if ( !CurActor->IsPendingKill() )
+				if ( IsValid(CurActor) )
 				{
 					// Deselect if active
 					USelection* SelectedActors = GEditor->GetSelectedActors();
@@ -4532,6 +4546,10 @@ namespace ThumbnailTools
 
 		if( RenderInfo != NULL && RenderInfo->Renderer != NULL )
 		{
+			// Make sure we suppress any message dialogs that might result from constructing
+			// or initializing any of the renderable objects.
+			TGuardValue<bool> Unattended(GIsRunningUnattendedScript, true);
+
 			const float ZoomFactor = 1.0f;
 
 			uint32 DrawWidth = InImageWidth;

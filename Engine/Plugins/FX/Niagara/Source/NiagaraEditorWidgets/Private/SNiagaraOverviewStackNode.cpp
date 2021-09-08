@@ -439,14 +439,14 @@ void SNiagaraOverviewStackNode::FillTopContentBar()
 						SNew(SBox)
 						.VAlign(VAlign_Center)
 						.HAlign(HAlign_Center)
-							.MinDesiredHeight(ThumbnailSize)
+						.MinDesiredHeight(ThumbnailSize)
 						.MinDesiredWidth(ThumbnailSize)
-							.MaxDesiredHeight(ThumbnailSize)
+						.MaxDesiredHeight(ThumbnailSize)
 						.MaxDesiredWidth(ThumbnailSize)
-							.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
-							[
-								CreateThumbnailWidget(Entry, Widgets[WidgetIndex], TooltipWidgets[WidgetIndex])
-							]
+						.Visibility(this, &SNiagaraOverviewStackNode::GetEnabledCheckBoxVisibility)
+						[
+							CreateThumbnailWidget(Entry, Widgets[WidgetIndex], TooltipWidgets[WidgetIndex])
+						]
 					);
 				}
 
@@ -454,9 +454,9 @@ void SNiagaraOverviewStackNode::FillTopContentBar()
 				if(Widgets.Num() > 0 && StackEntryIndex < PreviewStackEntries.Num() - 1)
 				{
 					ToolBarBuilder.AddSeparator();
+				}
 			}
 		}
-	}
 
 		TopContentBar->AddSlot()
 		.AutoWidth()

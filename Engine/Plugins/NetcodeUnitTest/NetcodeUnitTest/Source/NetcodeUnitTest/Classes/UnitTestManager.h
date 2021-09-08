@@ -273,7 +273,7 @@ public:
 	virtual bool IsTickable() const override
 	{
 		// @todo #JohnBLowPri: Find out how the CDO is getting registered for ticking - this is odd
-		return !IsPendingKill() && !GIsServer && !HasAnyFlags(RF_ClassDefaultObject);
+		return IsValid(this) && !GIsServer && !HasAnyFlags(RF_ClassDefaultObject);
 	}
 
 	virtual bool IsTickableWhenPaused() const override

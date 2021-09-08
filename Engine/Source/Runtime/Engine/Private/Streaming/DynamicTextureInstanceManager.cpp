@@ -133,7 +133,7 @@ void FDynamicRenderAssetInstanceManager::OnPreGarbageCollect(FRemovedRenderAsset
 		// If the component is not registered anymore, remove it. If it gets registered again it will be reinserted in the pending list.
 		// This allows to remove all unregistered components at once without having to handle each of them in FDynamicRenderAssetInstanceManager::Remove().
 		// The goal here is to bypass the possibly slow search in PendingComponents.
-		if (!Primitive->IsRegistered() || Primitive->IsPendingKill() || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
+		if (!Primitive->IsRegistered() || !IsValid(Primitive) || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
 		{
 			PendingComponents.RemoveAtSwap(Index);
 			Primitive->bIgnoreStreamingManagerUpdate = false;
@@ -155,7 +155,7 @@ void FDynamicRenderAssetInstanceManager::OnPreGarbageCollect(FRemovedRenderAsset
 
 bool FDynamicRenderAssetInstanceManager::CanManage(const UPrimitiveComponent* Component) const
 {
-	return Component && !Component->IsPendingKill() && !Component->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
+	return IsValid(Component) && !Component->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed);
 }
 
 void FDynamicRenderAssetInstanceManager::Refresh(float Percentage)

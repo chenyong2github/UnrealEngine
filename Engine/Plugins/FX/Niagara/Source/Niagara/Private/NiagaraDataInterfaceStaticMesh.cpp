@@ -1667,7 +1667,7 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<UScen
 		if (AStaticMeshActor* MeshActor = Cast<AStaticMeshActor>(Actor))
 		{
 			UStaticMeshComponent* Comp = MeshActor->GetStaticMeshComponent();
-			if (Comp && !Comp->IsPendingKill())
+			if (::IsValid(Comp))
 			{
 				return Comp;
 			}
@@ -1679,7 +1679,7 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<UScen
 			for (UActorComponent* ActorComp : Actor->GetComponents())
 			{
 				UStaticMeshComponent* Comp = Cast<UStaticMeshComponent>(ActorComp);
-				if (Comp && !Comp->IsPendingKill() && Comp->GetStaticMesh() != nullptr)
+				if (::IsValid(Comp) && Comp->GetStaticMesh() != nullptr)
 				{
 					return Comp;
 				}
@@ -1704,7 +1704,7 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<UScen
 	const bool bTryAttachParent = SourceMode == ENDIStaticMesh_SourceMode::Default || SourceMode == ENDIStaticMesh_SourceMode::AttachParent;
 	const bool bTryDefaultMesh = SourceMode == ENDIStaticMesh_SourceMode::Default || SourceMode == ENDIStaticMesh_SourceMode::DefaultMeshOnly;
 
-	if (bTrySource && SourceComponent && !SourceComponent->IsPendingKill())
+	if (bTrySource && ::IsValid(SourceComponent))
 	{
 		FoundMeshComponent = SourceComponent;
 	}
@@ -1720,7 +1720,7 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<UScen
 			for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 			{
 				UStaticMeshComponent* ParentComp = Cast<UStaticMeshComponent>(Curr);
-				if (ParentComp && !ParentComp->IsPendingKill())
+				if (::IsValid(ParentComp))
 				{
 					FoundMeshComponent = ParentComp;
 					break;
@@ -1731,7 +1731,7 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<UScen
 			{
 				// Next, try to find one in our outer chain
 				UStaticMeshComponent* OuterComp = AttachComponent->GetTypedOuter<UStaticMeshComponent>();
-				if (OuterComp && !OuterComp->IsPendingKill())
+				if (::IsValid(OuterComp))
 				{
 					FoundMeshComponent = OuterComp;
 				}

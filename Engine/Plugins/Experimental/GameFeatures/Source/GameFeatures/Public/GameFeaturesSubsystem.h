@@ -112,6 +112,7 @@ public:
 public:
 	/** Loads the specified game feature data and its bundles */
 	static TSharedPtr<FStreamableHandle> LoadGameFeatureData(const FString& GameFeatureToLoad);
+	static void UnloadGameFeatureData(const UGameFeatureData* GameFeatureToUnload);
 
 	void AddObserver(UObject* Observer);
 	void RemoveObserver(UObject* Observer);

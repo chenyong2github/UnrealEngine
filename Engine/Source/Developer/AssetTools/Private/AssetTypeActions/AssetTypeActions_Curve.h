@@ -19,4 +19,14 @@ public:
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
 	virtual bool IsImportedAsset() const override { return true; }
 	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
+	virtual bool HasActions(const TArray<UObject*>& InObjects) const override { return true; }
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
+	virtual void PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision) const override;
+
+private:
+	// Exports the specified curve assets in the JSON file format
+	void ExecuteExportAsJSON(const TArray<TWeakObjectPtr<UObject>> Objects) const;
+
+	// Imports data from JSON files into the specified curve assets
+	void ExecuteImportFromJSON(const TArray<TWeakObjectPtr<UObject>> Objects) const;
 };

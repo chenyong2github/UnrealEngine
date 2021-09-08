@@ -49,6 +49,14 @@ namespace Audio
 		// Access source manager through owning clock (via clock manager)
 		check(OwningClockPtr && OwningClockPtr->GetSourceManager());
 
+		// This was canceled before the active sound hit the source manager.
+		// Calling CancelCustom() make sure we stop the associated sound.
+		if (bIsCanceled)
+		{
+			CancelCustom();
+			return;
+		}
+
 		// access source manager through owning clock (via clock manager)
 		// Owning Clock Ptr may be nullptr if this command was canceled.
 		if (OwningClockPtr)
@@ -70,10 +78,19 @@ namespace Audio
 
 	void FQuantizedPlayCommand::CancelCustom()
 	{
-		if (OwningClockPtr && OwningClockPtr->GetSourceManager())
+		bIsCanceled = true;
+
+		if (OwningClockPtr)
 		{
-			// release hold on pending source
-			OnFinalCallbackCustom(0);
+			FMixerSourceManager* SourceManager = OwningClockPtr->GetSourceManager();
+			FMixerDevice* MixerDevice = OwningClockPtr->GetMixerDevice();
+
+			if (MixerDevice && SourceManager && MixerDevice->IsAudioRenderingThread())
+			{
+				// if we don't UnPause first, this function will be called by FMixerSourceManager::StopInternal()
+				SourceManager->UnPauseSoundForQuantizationCommand(SourceID); // (avoid infinite recursion)
+				SourceManager->Stop(SourceID);
+			}
 		}
 	}
 

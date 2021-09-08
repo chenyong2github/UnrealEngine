@@ -187,7 +187,7 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 
 	// Mode of peak detection used on input key signal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (EditCondition = "!bBypass"))
-	ESubmixEffectDynamicsPeakMode PeakMode = ESubmixEffectDynamicsPeakMode::RootMeanSquared;
+	ESubmixEffectDynamicsPeakMode PeakMode = ESubmixEffectDynamicsPeakMode::Peak;
 
 	// Mode of peak detection if key signal is multi-channel
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Dynamics, meta = (EditCondition = "!bBypass"))

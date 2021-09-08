@@ -37,7 +37,4 @@ class IFontFaceInterface
 
 	/** Get the data buffer containing the data for the current font face. */
 	virtual FFontFaceDataConstRef GetFontFaceData() const = 0;
-
-	/** Get the filename of the font to use when cooked. This file will be generated during cook. */
-	virtual FString GetCookedFilename() const = 0;
 };

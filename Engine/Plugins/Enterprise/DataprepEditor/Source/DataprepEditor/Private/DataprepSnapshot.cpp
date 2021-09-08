@@ -496,9 +496,8 @@ public:
 			{
 				AActor* TestParentAsActor = Cast<AActor>(TestParent);
 
-				const bool bIsValidActor = TestParentAsActor &&
+				const bool bIsValidActor = IsValid(TestParentAsActor) &&
 					TestParentAsActor->GetWorld() == World &&
-					!TestParentAsActor->IsPendingKill() &&
 					TestParentAsActor->IsEditable() &&
 					!TestParentAsActor->IsTemplate() &&
 					!FActorEditorUtils::IsABuilderBrush(TestParentAsActor) &&

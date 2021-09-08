@@ -49,7 +49,7 @@ protected:
 		bool							bNeedsCull = false;
 
 		const FNiagaraRendererLayout*	RendererLayout = nullptr;
-		ENiagaraMeshVFLayout::Type		SortVariable;
+		ENiagaraMeshVFLayout::Type		SortVariable = ENiagaraMeshVFLayout::Type(INDEX_NONE);
 
 		FRHIShaderResourceView*			ParticleFloatSRV = nullptr;
 		FRHIShaderResourceView*			ParticleHalfSRV = nullptr;

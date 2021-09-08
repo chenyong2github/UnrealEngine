@@ -167,7 +167,7 @@ struct ENGINE_API FCollisionNotifyInfo
 		bCallEvent1(false)
 	{}
 
-	/** Check that is is valid to call a notification for this entry. Looks at the IsPendingKill() flags on both Actors. */
+	/** Check that is is valid to call a notification for this entry. Looks at the IsValid() flags on both Actors. */
 	bool IsValidForNotify() const;
 };
 

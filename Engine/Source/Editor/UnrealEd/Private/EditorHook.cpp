@@ -33,7 +33,7 @@ void UUnrealEdEngine::UpdateFloatingPropertyWindows(bool bForceRefresh, bool bNo
 			TArray<UObject*> SelectedActors;
 			SelectionSet->ForEachSelectedObject<AActor>([&SelectedActors](AActor* InActor)
 			{
-				if (!InActor->IsPendingKill())
+				if (IsValidChecked(InActor))
 				{
 					SelectedActors.Add(InActor);
 				}

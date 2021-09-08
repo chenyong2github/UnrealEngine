@@ -1668,6 +1668,7 @@ ERepLayoutResult FRepLayout::CompareProperties(
 	const FReplicationFlags& RepFlags) const
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropCompareTime, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(CompareProperties, !RepFlags.bReplay);
 
 	if (IsEmpty())
 	{
@@ -1694,7 +1695,7 @@ ERepLayoutResult FRepLayout::CompareProperties(
 
 	FComparePropertiesSharedParams SharedParams{
 		/*bIsInitial=*/ !!RepFlags.bNetInitial,
-		/*bForceFail=*/ false,
+		/*bForceFail=*/ !!RepFlags.bNetInitial && !!RepFlags.bForceInitialDirty,
 		Flags,
 		Parents,
 		Cmds,
@@ -1833,6 +1834,7 @@ bool FRepLayout::ReplicateProperties(
 	const FReplicationFlags& RepFlags) const
 {
 	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropTime, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(ReplicateProperties, !RepFlags.bReplay);
 
 	check(ObjectClass == Owner);
 
@@ -2794,6 +2796,7 @@ void FRepLayout::SendProperties(
 	const FRepSerializationSharedInfo& SharedInfo) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropSendTime);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(SendProperties);
 
 	if (IsEmpty())
 	{
@@ -5075,15 +5078,25 @@ static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TD
 				{
 					if (FObjectPropertyBase* ObjProperty = CastFieldChecked<FObjectPropertyBase>(Cmd.Property))
 					{
-						if (ObjProperty->PropertyClass && (ObjProperty->PropertyClass->IsChildOf(AActor::StaticClass()) || ObjProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass())))
+						UObject* ObjValue = ObjProperty->GetObjectPropertyValue(StackParams.Source + Cmd);
+
+						const bool bIsActor = ObjProperty->PropertyClass && ObjProperty->PropertyClass->IsChildOf(AActor::StaticClass());
+						const bool bIsActorComponent = ObjProperty->PropertyClass && ObjProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass());
+
+						const bool bNetStartupActor = bIsActor && ObjValue && Cast<AActor>(ObjValue)->IsNetStartupActor();
+						const bool bIsReplicatedActor = bIsActor && ObjValue && Cast<AActor>(ObjValue)->GetIsReplicated();
+
+						// This is similar to AActor::IsNameStableForNetworking but we want to ignore forced net addressable objects for now
+						const bool bStableForNetworking = bNetStartupActor || (ObjValue && (ObjValue->HasAnyFlags(RF_WasLoaded | RF_DefaultSubObject) || ObjValue->IsNative() || ObjValue->IsDefaultSubobject()));
+
+						if (bIsReplicatedActor || bIsActorComponent)
 						{
-							// skip actor and component references
+							// skip replicated actor and component references
 							continue;
 						}
 
-						if (UObject* ObjValue = ObjProperty->GetObjectPropertyValue(StackParams.Source + Cmd))
+						if (ObjValue)
 						{
-							const bool bStableForNetworking = (ObjValue->HasAnyFlags(RF_WasLoaded | RF_DefaultSubObject) || ObjValue->IsNative() || ObjValue->IsDefaultSubobject());
 							if (!bStableForNetworking)
 							{
 								// skip object references without a stable name

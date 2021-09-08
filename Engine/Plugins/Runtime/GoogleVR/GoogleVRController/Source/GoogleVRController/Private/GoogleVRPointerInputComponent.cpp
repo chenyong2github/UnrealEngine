@@ -106,7 +106,7 @@ void UGoogleVRPointerInputComponent::TickComponent(float DeltaTime, ELevelTick T
 
 	// Since it isn't possible for us to store the Pointer as a weak reference,
 	// we explicitly check to see if it is marked to be killed and null it out.
-	if (Pointer != nullptr && Pointer.GetObject()->IsPendingKill())
+	if (Pointer != nullptr && !IsValid(Pointer.GetObject()))
 	{
 		Pointer = nullptr;
 	}

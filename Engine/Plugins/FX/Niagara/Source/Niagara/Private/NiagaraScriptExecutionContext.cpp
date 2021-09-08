@@ -138,12 +138,23 @@ bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScr
 	{
 #if STATS
 		CreateStatScopeData();
-#endif
+#endif	
 
 		FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
-		ExecData.WaitOnOptimizeCompletion();
 
-		check(ExecData.ByteCode.HasByteCode() || ExecData.OptimizedByteCode.HasByteCode());
+		// If we have an optimization task it must be ready at this point
+		// However we will need to lock and test again as multiple threads may be coming in here
+		if (ExecData.OptimizationTask.State.IsValid())
+		{
+			FScopeLock Lock(&ExecData.OptimizationTask.Lock);
+			if (ExecData.OptimizationTask.State.IsValid())
+			{
+				ExecData.ApplyFinishedOptimization(Script->GetVMExecutableDataCompilationId(), ExecData.OptimizationTask.State);
+				ExecData.OptimizationTask.State.Reset();
+			}
+		}
+
+		check((ExecData.ByteCode.HasByteCode() && !ExecData.ByteCode.IsCompressed()) || (ExecData.OptimizedByteCode.HasByteCode() && !ExecData.OptimizedByteCode.IsCompressed()));
 
 		VectorVM::FVectorVMExecArgs ExecArgs;
 		ExecArgs.ByteCode = ExecData.ByteCode.GetDataPtr();
@@ -246,8 +257,8 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 					{
 						if (void* InstData = ParentSystemInstance->FindDataInterfaceInstanceData(Interface))
 						{
-						UserPtrTable[UserPtrIdx] = InstData;
-					}
+							UserPtrTable[UserPtrIdx] = InstData;
+						}
 						else
 						{
 							UE_LOG(LogNiagara, Warning, TEXT("Failed to resolve User Pointer for UserPtrTable[%d] looking for DI: %s for system: %s"),

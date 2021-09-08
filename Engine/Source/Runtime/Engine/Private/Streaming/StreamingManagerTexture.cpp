@@ -214,7 +214,7 @@ void FRenderAssetStreamingManager::OnPreGarbageCollect()
 		}
 
 		FLevelRenderAssetManager& LevelManager = *LevelRenderAssetManagers[Index];
-		if (LevelManager.GetLevel()->IsPendingKill())
+		if (!IsValid(LevelManager.GetLevel()))
 		{
 			LevelManager.Remove(&RemovedRenderAssets);
 
@@ -746,7 +746,7 @@ void FRenderAssetStreamingManager::RemoveLevel( ULevel* Level )
 
 	// In editor we remove levels when visibility changes, while in game we want to kept the static data as long as possible.
 	// FLevelRenderAssetManager::IncrementalUpdate will remove dynamic components and mark textures/meshes timestamps.
-	if (GIsEditor || Level->IsPendingKill() || Level->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
+	if (GIsEditor || !IsValid(Level) || Level->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
 	{
 		for (int32 Index = 0; Index < LevelRenderAssetManagers.Num(); ++Index)
 		{
@@ -922,13 +922,13 @@ void FRenderAssetStreamingManager::NotifyPrimitiveDetached( const UPrimitiveComp
 		// Here we assume that level can not be changed in game, to allow an optimized path.
 		// If there is not level, then we assume it could be in any level.
 		ULevel* Level = !GIsEditor ? Primitive->GetComponentLevel() : nullptr;
-		if (Level && (Level->IsPendingKill() || Level->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed)))
+		if (Level && (!IsValid(Level) || Level->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed)))
 		{
 			// Do a batch remove to prevent handling each component individually.
 			RemoveLevel(Level);
 		}
 		// Unless in editor, we don't want to remove reference in static level data when toggling visibility.
-		else if (GIsEditor || Primitive->IsPendingKill() || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
+		else if (GIsEditor || !IsValid(Primitive) || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
 		{
 			for (FLevelRenderAssetManager* LevelManager : LevelRenderAssetManagers)
 			{
@@ -1178,13 +1178,13 @@ void FRenderAssetStreamingManager::UpdateStreamingRenderAssets(int32 StageIndex,
 		// enough work.  Can be adjusted by CVarStreamingParallelRenderAssetsNumWorkgroups.
 		int32 Num = EndIndex - StartIndex;
 		int32 NumThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads() * GParallelRenderAssetsNumWorkgroups, Num - 1);
-		// make sure it never goes negative, as a divide by zero could happen below
-		NumThreadTasks = FMath::Max<int32>(NumThreadTasks, 0);
+		// make sure it never goes to zero, as a divide by zero could happen below
+		NumThreadTasks = FMath::Max<int32>(NumThreadTasks, 1);
 		TArray<FPacket> Packets;
 		Packets.Reset(NumThreadTasks); // Go ahead and reserve space up front
 		int32 Start = StartIndex;
 		int32 NumRemaining = Num;
-		int32 NumItemsPerGroup = Num / (NumThreadTasks + 1);
+		int32 NumItemsPerGroup = (Num / NumThreadTasks) + 1;
 		for (int32 i = 0; i < NumThreadTasks; ++i)
 		{
 			int32 NumAssetsToProcess = FMath::Min<int32>(NumRemaining, NumItemsPerGroup);

@@ -40,6 +40,7 @@ private:
 	static const FString IndividualURLRetryCountKey;
 	static const FString RequestPriorityKey;
 	static const FString GroupIDKey;
+	static const FString bHasCompletedKey;
 
 private:
 	volatile int32 bIsPaused;

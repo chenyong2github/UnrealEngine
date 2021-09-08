@@ -363,7 +363,7 @@ void FMaterialEditorUtilities::InitExpressions(UMaterial* Material)
 	for ( int32 ChildIdx = 0; ChildIdx < ChildObjects.Num(); ++ChildIdx )
 	{
 		UMaterialExpression* MaterialExpression = Cast<UMaterialExpression>(ChildObjects[ChildIdx]);
-		if( MaterialExpression != NULL && !MaterialExpression->IsPendingKill() )
+		if( IsValid(MaterialExpression) )
 		{
 			// Comment expressions are stored in a separate list.
 			if ( MaterialExpression->IsA( UMaterialExpressionComment::StaticClass() ) )

@@ -98,7 +98,7 @@ namespace UE::AssetRegistry
 		Soft = NotHard,
 
 		Game = 0x004,			// Return only dependencies with EDependencyProperty::Game
-		NotGame = 0x008,		// Return only dependencies without EDependencyProperty::Hard
+		NotGame = 0x008,		// Return only dependencies without EDependencyProperty::Game
 		EditorOnly = NotGame,
 
 		Build = 0x010,			// Return only dependencies with EDependencyProperty::Build

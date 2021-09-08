@@ -209,6 +209,7 @@ namespace EntityInterpolation
 		{
 			bool bBoolValue = false;
 			bSuccess = InterpolateValue(BoolProperty, OuterProperty, InRangeMappingBuffers, InProtocolValue, bBoolValue, InArrayIndex);
+			bBoolValue = static_cast<uint8>(bBoolValue) > 0;
 			WritePropertyValue(InCborWriter, InProperty, bBoolValue, !bIsInArray);
 		}
 		else if (FNumericProperty* NumericProperty = CastField<FNumericProperty>(InProperty))

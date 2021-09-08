@@ -18,6 +18,11 @@
 #include "SketchUpAPI/model/layer.h"
 #include "SketchUpAPI/model/model.h"
 #include "SketchUpAPI/model/component_instance.h"
+
+#if !defined(SKP_SDK_2019) && !defined(SKP_SDK_2020)
+#include "SketchUpAPI/model/layer_folder.h"
+#endif
+
 #include "DatasmithSketchUpSDKCeases.h"
 
 #include "IDatasmithSceneElements.h"
@@ -778,6 +783,22 @@ void FComponentInstance::InvalidateOccurrencesProperties(FExportContext& Context
 	bool bNewLayerVisible = true;
 	SULayerGetVisibility(LayerRef, &bNewLayerVisible);
 
+	// Search for invisible ancestor folder (parent invisibility overrides child's visibility) 
+	// LayerFolder introduced in SketchUp 2021
+#if !defined(SKP_SDK_2019) && !defined(SKP_SDK_2020)
+	SULayerFolderRef LayerFolderRef = SU_INVALID;
+	SULayerGetParentLayerFolder(LayerRef, &LayerFolderRef);
+	while (SUIsValid(LayerFolderRef))
+	{
+		bool bLayerFolderVisible = true;
+		SULayerFolderGetVisibility(LayerFolderRef, &bLayerFolderVisible);
+		bNewLayerVisible = bNewLayerVisible && bLayerFolderVisible;
+
+		SULayerFolderRef ParentLayerFolderRef = SU_INVALID;
+		SULayerFolderGetParentLayerFolder(LayerFolderRef, &ParentLayerFolderRef);
+		LayerFolderRef = ParentLayerFolderRef;
+	}
+#endif
 
 	if (bHidden != bNewHidden || bLayerVisible != bNewLayerVisible)
 	{
@@ -848,11 +869,8 @@ void FComponentInstance::UpdateOccurrenceVisibility(FExportContext& Context, FNo
 {
 	Node.EffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(GetComponentInstanceRef(), Node.ParentNode->EffectiveLayerRef);
 
-	bool bEffectiveLayerVisible = true;
-	SULayerGetVisibility(Node.EffectiveLayerRef, &bEffectiveLayerVisible);
-
 	// Parent node, component instance and layer - all should be visible to have node visible
-	Node.SetVisibility(Node.ParentNode->bVisible && !bHidden && bEffectiveLayerVisible);
+	Node.SetVisibility(Node.ParentNode->bVisible && !bHidden && bLayerVisible);
 
 	if (Node.bVisible)
 	{

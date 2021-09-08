@@ -178,7 +178,7 @@ void ANavigationData::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	if (IsPendingKill() == true)
+	if (!IsValid(this))
 	{
 		return;
 	}
@@ -389,7 +389,7 @@ void ANavigationData::OnUnregistered()
 void ANavigationData::InstantiateAndRegisterRenderingComponent()
 {
 #if !UE_BUILD_SHIPPING
-	if (!IsPendingKill() && (RenderingComp == NULL || RenderingComp->IsPendingKill()))
+	if (IsValid(this) && !IsValid(RenderingComp))
 	{
 		const bool bRootIsRenderComp = (RenderingComp == RootComponent);
 		if (RenderingComp)

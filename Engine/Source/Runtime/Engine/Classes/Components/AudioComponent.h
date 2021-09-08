@@ -139,7 +139,7 @@ struct UE_DEPRECATED(5.0, "FAudioComponentParam has been deprecated, use FAudioP
  *	Convenience class to get audio parameters set on an active sound's playback
  */
 UCLASS(BlueprintType)
-class UInitialActiveSoundParams : public UObject
+class ENGINE_API UInitialActiveSoundParams : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -490,6 +490,13 @@ public:
 		, EAudioFaderCurve InFadeCurve = EAudioFaderCurve::Linear
 	);
 
+private:
+
+	static uint64 AudioComponentIDCounter;
+	static TMap<uint64, UAudioComponent*> AudioIDToComponentMap;
+	static FCriticalSection AudioIDToComponentMapLock;
+
+public:
 	/** Stop an audio component's sound, issue any delegates if needed */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void Stop();
@@ -809,8 +816,4 @@ protected:
 #endif
 
 	FRandomStream RandomStream;
-
-	static uint64 AudioComponentIDCounter;
-	static TMap<uint64, UAudioComponent*> AudioIDToComponentMap;
-	static FCriticalSection AudioIDToComponentMapLock;
 };

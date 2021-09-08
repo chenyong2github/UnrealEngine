@@ -237,7 +237,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bCanShowClasses = InArgs._CanShowClasses;
 
 	bCanShowFolders = InArgs._CanShowFolders;
-
+	
 	bCanShowReadOnlyFolders = InArgs._CanShowReadOnlyFolders;
 
 	bFilterRecursivelyWithBackendFilter = InArgs._FilterRecursivelyWithBackendFilter;
@@ -4074,6 +4074,8 @@ void SAssetView::HandleSettingChanged(FName PropertyName)
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, DisplayEmptyFolders)) ||
 		(PropertyName == "DisplayDevelopersFolder") ||
 		(PropertyName == "DisplayEngineFolder") ||
+		(PropertyName == GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, bDisplayContentFolderSuffix)) ||
+		(PropertyName == GET_MEMBER_NAME_CHECKED(UContentBrowserSettings, bDisplayFriendlyNameForPluginFolders)) ||
 		(PropertyName == NAME_None))	// @todo: Needed if PostEditChange was called manually, for now
 	{
 		RequestSlowFullListRefresh();

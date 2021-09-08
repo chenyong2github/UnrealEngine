@@ -176,12 +176,14 @@ public:
 	 * \c ClothPhysicalMeshData member.
 	 */
 	UE_DEPRECATED(5.0, "Cached data are now all rebuilt by calling InvalidateCachedData")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual void BuildSelfCollisionData() override
 	{
 #if WITH_EDITORONLY_DATA
 		InvalidateFlaggedCachedData(EClothingCachedDataFlagsCommon::SelfCollisionData);
 #endif // WITH_EDITORONLY_DATA
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Return a const cloth config pointer of the desired cloth config type, or nullptr if there isn't any suitable. */
 	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>

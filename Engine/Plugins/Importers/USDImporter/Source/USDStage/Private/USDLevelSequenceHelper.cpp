@@ -1301,7 +1301,7 @@ void FUsdLevelSequenceHelperImpl::BlockMonitoringChangesForThisTransaction()
 
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
 {
-	if ( !MainLevelSequence || !IsMonitoringChanges() || !Object || Object->IsPendingKill() || !UsdStage || BlockedTransactionGuids.Contains( Event.GetTransactionId() ) )
+	if ( !MainLevelSequence || !IsMonitoringChanges() || !IsValid(Object) || !UsdStage || BlockedTransactionGuids.Contains( Event.GetTransactionId() ) )
 	{
 		return;
 	}

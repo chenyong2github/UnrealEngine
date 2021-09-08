@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Movement.cpp: Character movement implementation
@@ -238,10 +237,15 @@ namespace CharacterMovementCVars
 		TEXT("p.AsyncCharacterMovement"),
 		AsyncCharacterMovement, TEXT("1 enables asynchronous simulation of character movement on physics thread. Toggling this at runtime is not recommended."));
 
-	int32 BasedMovementMode = 0;
+	int32 BasedMovementMode = 2;
 	FAutoConsoleVariableRef CVarBasedMovementMode(
 		TEXT("p.BasedMovementMode"),
 		BasedMovementMode, TEXT("0 means always on regular tick (default); 1 means only if not deferring updates; 2 means update and save based movement both on regular ticks and post physics when on a physics base."));
+
+	static int32 UseTargetVelocityOnImpact = 1;
+	FAutoConsoleVariableRef CVarUseTargetVelocityOnImpact(
+		TEXT("p.UseTargetVelocityOnImpact"),
+		UseTargetVelocityOnImpact, TEXT("When disabled, we recalculate velocity after impact by comparing our position before we moved to our position after we moved. This doesn't work correctly when colliding with physics objects, so setting this to 1 fixes this one the hit object is moving."));
 
 #if !UE_BUILD_SHIPPING
 
@@ -4484,7 +4488,14 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 				FVector Delta = ComputeSlideVector(Adjusted, 1.f - Hit.Time, OldHitNormal, Hit);
 
 				// Compute velocity after deflection (only gravity component for RootMotion)
-				if (subTimeTickRemaining > KINDA_SMALL_NUMBER && !bJustTeleported)
+				const UPrimitiveComponent* HitComponent = Hit.GetComponent();
+				if (CharacterMovementCVars::UseTargetVelocityOnImpact && !Velocity.IsNearlyZero() && MovementBaseUtility::IsSimulatedBase(HitComponent))
+				{
+					const FVector ContactVelocity = MovementBaseUtility::GetMovementBaseVelocity(HitComponent, NAME_None) + MovementBaseUtility::GetMovementBaseTangentialVelocity(HitComponent, NAME_None, Hit.ImpactPoint);
+					const FVector NewVelocity = Velocity - Hit.ImpactNormal * FVector::DotProduct(Velocity - ContactVelocity, Hit.ImpactNormal);
+					Velocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
+				}
+				else if (subTimeTickRemaining > KINDA_SMALL_NUMBER && !bJustTeleported)
 				{
 					const FVector NewVelocity = (Delta / subTimeTickRemaining);
 					Velocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
@@ -6368,7 +6379,7 @@ void UCharacterMovementComponent::FindFloor(const FVector& CapsuleLocation, FFin
 				|| MovementBaseUtility::IsDynamicBase(MovementBase);
 			}
 
-			const bool IsActorBasePendingKill = BaseActor && BaseActor->IsPendingKill();
+			const bool IsActorBasePendingKill = BaseActor && !IsValid(BaseActor);
 
 			if ( !bForceNextFloorCheck && !IsActorBasePendingKill && MovementBase )
 			{

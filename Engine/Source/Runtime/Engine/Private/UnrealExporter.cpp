@@ -531,7 +531,7 @@ FExportObjectInnerContext::FExportObjectInnerContext(const TArray<UObject*>& Obj
 		if (!ObjsToIgnore.Contains(InnerObj))
 		{
 			UObject* OuterObj = InnerObj->GetOuter();
-			if (OuterObj && !OuterObj->IsPendingKill())
+			if (IsValid(OuterObj))
 			{
 				InnerList* Inners = ObjectToInnerMap.Find(OuterObj);
 				if (Inners)

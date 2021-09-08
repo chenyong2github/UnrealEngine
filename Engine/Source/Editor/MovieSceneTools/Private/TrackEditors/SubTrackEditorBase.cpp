@@ -273,6 +273,7 @@ FSubSectionEditorUtil::FSubSectionEditorUtil(UMovieSceneSubSection& InSection)
     : SectionObject(InSection)
     , InitialStartOffsetDuringResize(0)
     , InitialStartTimeDuringResize(0)
+	, PreviousTimeScale(1.f)
 {
 }
 
@@ -380,6 +381,20 @@ FFrameNumber FSubSectionEditorUtil::SlipSection(FFrameNumber SlipTime)
 
     return SlipTime;
 }
+
+void FSubSectionEditorUtil::BeginDilateSection()
+{
+    FMovieSceneSectionParameters& SectionParameters = SectionObject.Parameters;
+	PreviousTimeScale = SectionParameters.TimeScale;
+}
+
+void FSubSectionEditorUtil::DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor)
+{
+    FMovieSceneSectionParameters& SectionParameters = SectionObject.Parameters;
+	SectionParameters.TimeScale = PreviousTimeScale / DilationFactor;
+	SectionObject.SetRange(NewRange);
+}
+
 
 bool FSubTrackEditorUtil::CanAddSubSequence(const UMovieSceneSequence* CurrentSequence, const UMovieSceneSequence& SubSequence)
 {

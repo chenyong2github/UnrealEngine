@@ -70,7 +70,7 @@ FVisualLogEntry::FVisualLogEntry(const FVisualLogEntry& Entry)
 
 FVisualLogEntry::FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UObject> >* Children)
 {
-	if (InActor && InActor->IsPendingKill() == false)
+	if (IsValid(InActor))
 	{
 		TimeStamp = InActor->GetWorld()->TimeSeconds;
 		Location = InActor->GetActorLocation();

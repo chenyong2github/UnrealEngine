@@ -36,7 +36,10 @@ void UCommonActivatableWidget::NativeDestruct()
 	}
 	Super::NativeDestruct();
 
+	if (DefaultBackActionHandle.IsValid())
+	{
 	DefaultBackActionHandle.Unregister();
+}
 }
 
 UWidget* UCommonActivatableWidget::GetDesiredFocusTarget() const

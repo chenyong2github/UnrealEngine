@@ -601,6 +601,10 @@ namespace DatasmithRuntime
 
 		// Creation of collision meshes can only happen on game thread
 		AsyncTask(ENamedThreads::GameThread, [BodySetup] {
+#ifdef LIVEUPDATE_TIME_LOGGING
+			double LocalStartTime = FPlatformTime::Seconds();
+			Timer __Timer(LocalStartTime, "BuildCollision");
+#endif
 			BodySetup->CreatePhysicsMeshes();
 		});
 	}

@@ -57,6 +57,7 @@ void ShowLogMessages(const TArray<GLTF::FLogMessage>& Errors)
 void FDatasmithGLTFTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	OutCapabilities.bIsEnabled = true;
+	OutCapabilities.bParallelLoadStaticMeshSupported = true;
 
 	TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
     Formats.Emplace(TEXT("gltf"), TEXT("GL Transmission Format"));
@@ -188,7 +189,7 @@ void FDatasmithGLTFTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDa
 
 TStrongObjectPtr<UDatasmithGLTFImportOptions>& FDatasmithGLTFTranslator::GetOrCreateGLTFImportOptions()
 {
-	if (!ImportOptions.IsValid())
+	if (!ImportOptions.IsValid() && IsInGameThread())
 	{
 		ImportOptions = Datasmith::MakeOptions<UDatasmithGLTFImportOptions>();
 	}

@@ -68,6 +68,10 @@ public:
 	bool TryGetOwnerInformation(UNiagaraDataInterface* InDataInterface, FGuid& OutOwningEmitterHandleId, UNiagaraNodeFunctionCall*& OutOwningFunctionCallNode);
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraPlaceholderDataInterfaceManager");
+	}
 
 private:
 	FPlaceholderDataInterfaceInfo* GetPlaceholderDataInterfaceInfo(const FGuid& OwningEmitterHandleId, UNiagaraNodeFunctionCall& OwningFunctionCall, const FNiagaraParameterHandle& InputHandle);

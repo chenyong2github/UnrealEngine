@@ -5708,7 +5708,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			ActorInstance->GetComponents(PostInstanceComponents);
 			for (UActorComponent* ActorComponent : PostInstanceComponents)
 			{
-				if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && !ActorComponent->IsPendingKill() && !PreInstanceComponents.Contains(ActorComponent))
+				if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && IsValid(ActorComponent) && !PreInstanceComponents.Contains(ActorComponent))
 				{
 					ActorComponent->RegisterComponent();
 				}
@@ -5718,7 +5718,7 @@ UActorComponent* SSCSEditor::AddNewComponent( UClass* NewComponentClass, UObject
 			ActorInstance->RerunConstructionScripts();
 
 			// If the running the construction script destroyed the new node, don't create an entry for it
-			if (!NewInstanceComponent->IsPendingKill())
+			if (IsValid(NewInstanceComponent))
 			{
 				AddNewNodeForInstancedComponent(MoveTemp(AddTransaction), NewInstanceComponent, ParentNodePtr, Asset, Params.bSetFocusToNewItem);
 				NewComponent = NewInstanceComponent;
@@ -6608,7 +6608,7 @@ FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNode(USCS_Node* InSCSNode, FSCSEdit
 FSCSEditorTreeNodePtrType SSCSEditor::AddTreeNodeFromComponent(UActorComponent* InActorComponent, FSCSEditorTreeNodePtrType InParentTreeNode)
 {
 	check(InActorComponent != NULL);
-	ensure(!InActorComponent->IsPendingKill());
+	ensure(IsValid(InActorComponent));
 
 	FSCSEditorTreeNodePtrType NewNodePtr = InParentTreeNode->FindChild(InActorComponent);
 	if (!NewNodePtr.IsValid())

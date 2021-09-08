@@ -189,7 +189,9 @@ public:
 	{
 		return Object.GetUniqueID();
 	}
-
+#if !UE_BUILD_SHIPPING	
+	void SetGatheringNavModifiersTimeLimitWarning(const float Threshold);
+#endif // !UE_BUILD_SHIPPING	
 protected:
 	friend struct FNavigationOctreeController;
 	friend struct FNavigationOctreeSemantics;
@@ -200,6 +202,9 @@ protected:
 	ENavDataGatheringMode DefaultGeometryGatheringMode;
 	uint32 bGatherGeometry : 1;
 	uint32 NodesMemory;
+#if !UE_BUILD_SHIPPING	
+	float GatheringNavModifiersTimeLimitWarning;
+#endif // !UE_BUILD_SHIPPING	
 private:
 	SIZE_T OctreeSizeBytes = 0;
 };

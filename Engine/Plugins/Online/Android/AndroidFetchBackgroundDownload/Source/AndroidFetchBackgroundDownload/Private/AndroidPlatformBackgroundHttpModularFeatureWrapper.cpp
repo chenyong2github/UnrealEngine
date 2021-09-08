@@ -56,10 +56,5 @@ FString FAndroidPlatformBackgroundHttpModularFeatureWrapper::GetDebugModuleName(
 
 bool FAndroidPlatformBackgroundHttpModularFeatureWrapper::AreRequirementsSupported()
 {
-#if USE_ANDROID_JNI
-	return true;
-#else
-	//Missing required defines
-	return false;
-#endif
+	return FAndroidFetchPlatformBackgroundHttp::CheckRequirementsSupported();
 }

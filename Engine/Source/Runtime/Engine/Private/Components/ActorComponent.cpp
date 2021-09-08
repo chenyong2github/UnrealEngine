@@ -109,7 +109,7 @@ void FRegisterComponentContext::Process()
 		{
 			FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
 			UPrimitiveComponent* Component = AddPrimitiveBatches[Index];
-			if (!Component->IsPendingKill())
+			if (IsValid(Component))
 			{
 				if (Component->IsRenderStateCreated() || !bAppCanEverRender)
 				{
@@ -323,7 +323,7 @@ void UActorComponent::PostInitProperties()
 		if (!FPlatformProperties::RequiresCookedData() && CreationMethod == EComponentCreationMethod::Native && HasAllFlags(RF_NeedLoad|RF_DefaultSubObject))
 		{
 			UObject* MyArchetype = GetArchetype();
-			if (!MyArchetype->IsPendingKill() && MyArchetype != GetClass()->ClassDefaultObject)
+			if (IsValid(MyArchetype) && MyArchetype != GetClass()->ClassDefaultObject)
 			{
 				OwnerPrivate->AddOwnedComponent(this);
 			}
@@ -788,7 +788,7 @@ void UActorComponent::PreEditChange(FProperty* PropertyThatWillChange)
 	{
 		// The component or its outer could be pending kill when calling PreEditChange when applying a transaction.
 		// Don't do do a full recreate in this situation, and instead simply detach.
-		if( !IsPendingKill() )
+		if( IsValid(this) )
 		{
 			// One way this check can fail is that component subclass does not call Super::PostEditChangeProperty
 			checkf(!EditReregisterContexts.Find(this),
@@ -821,7 +821,7 @@ void UActorComponent::PostEditUndo()
 {
 	// Objects marked pending kill don't call PostEditChange() from UObject::PostEditUndo(),
 	// so they can leave an EditReregisterContexts entry around if they are deleted by an undo action.
-	if( IsPendingKill() )
+	if( !IsValid(this) )
 	{
 		// For the redo case, ensure that we're no longer in the OwnedComponents array.
 		if (AActor* OwningActor = GetOwner())
@@ -896,7 +896,7 @@ void UActorComponent::PostEditUndo()
 
 bool UActorComponent::IsSelectedInEditor() const
 {
-	return !IsPendingKill() && GIsComponentSelectedInEditor && GIsComponentSelectedInEditor(this);
+	return IsValidChecked(this) && GIsComponentSelectedInEditor && GIsComponentSelectedInEditor(this);
 }
 
 void UActorComponent::ConsolidatedPostEditChange(const FPropertyChangedEvent& PropertyChangedEvent)
@@ -933,7 +933,7 @@ void UActorComponent::ConsolidatedPostEditChange(const FPropertyChangedEvent& Pr
 
 	// The component or its outer could be pending kill when calling PostEditChange when applying a transaction.
 	// Don't do do a full recreate in this situation, and instead simply detach.
-	if( IsPendingKill() )
+	if( !IsValid(this) )
 	{
 		// @todo james should this call UnregisterComponent instead to remove itself from the RegisteredComponents array on the owner?
 		ExecuteUnregisterEvents();
@@ -965,7 +965,7 @@ void UActorComponent::OnRegister()
 	checkf(!IsUnreachable(), TEXT("%s"), *GetDetailedInfo());
 	checkf(!GetOuter()->IsTemplate(), TEXT("'%s' (%s)"), *GetOuter()->GetFullName(), *GetDetailedInfo());
 	checkf(!IsTemplate(), TEXT("'%s' (%s)"), *GetOuter()->GetFullName(), *GetDetailedInfo() );
-	checkf(!IsPendingKill(), TEXT("OnRegister: %s to %s"), *GetDetailedInfo(), GetOwner() ? *GetOwner()->GetFullName() : TEXT("*** No Owner ***") );
+	checkf(IsValid(this), TEXT("OnRegister: %s to %s"), *GetDetailedInfo(), GetOwner() ? *GetOwner()->GetFullName() : TEXT("*** No Owner ***") );
 #endif
 	checkf(WorldPrivate, TEXT("OnRegister: %s to %s"), *GetDetailedInfo(), GetOwner() ? *GetOwner()->GetFullName() : TEXT("*** No Owner ***") );
 	checkf(!bRegistered, TEXT("OnRegister: %s to %s"), *GetDetailedInfo(), GetOwner() ? *GetOwner()->GetFullName() : TEXT("*** No Owner ***") );
@@ -1201,9 +1201,9 @@ void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld, FRegisterCompo
 
 	checkf(!IsUnreachable(), TEXT("%s"), *GetFullName());
 
-	if(IsPendingKill())
+	if(!IsValid(this))
 	{
-		UE_LOG(LogActorComponent, Log, TEXT("RegisterComponentWithWorld: (%s) Trying to register component with IsPendingKill() == true. Aborting."), *GetPathName());
+		UE_LOG(LogActorComponent, Log, TEXT("RegisterComponentWithWorld: (%s) Trying to register component with IsValid() == false. Aborting."), *GetPathName());
 		return;
 	}
 
@@ -1238,7 +1238,7 @@ void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld, FRegisterCompo
 	{
 		checkf(!MyOwner->IsUnreachable(), TEXT("%s"), *GetFullName());
 		// can happen with undo because the owner will be restored "next"
-		//checkf(!MyOwner->IsPendingKill(), TEXT("%s"), *GetFullName());
+		//checkf(IsValid(MyOwner), TEXT("%s"), *GetFullName());
 
 		if(InWorld != MyOwner->GetWorld())
 		{
@@ -1511,7 +1511,27 @@ void UActorComponent::CreatePhysicsState(bool bAllowDeferral)
 	if (!bPhysicsStateCreated && WorldPrivate->GetPhysicsScene() && ShouldCreatePhysicsState())
 	{
 		UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(this);
-		if (GEnableDeferredPhysicsCreation && bAllowDeferral && Primitive && Primitive->GetBodySetup() && !Primitive->GetGenerateOverlapEvents())
+
+		bool ShouldDefer = false;
+		if (UWorld* World = GetWorld())
+		{
+			if (World->GetAllowDeferredPhysicsStateCreation())
+			{
+				if (GEnableDeferredPhysicsCreation && bAllowDeferral && Primitive && !Primitive->GetGenerateOverlapEvents())
+				{
+					if (UBodySetup* Setup = Primitive->GetBodySetup())
+					{
+						if (!Setup->bCreatedPhysicsMeshes)
+						{
+							ShouldDefer = true;
+						}
+					}
+				}
+			}
+
+		}
+
+		if (ShouldDefer)
 		{
 #if WITH_CHAOS
 			WorldPrivate->GetPhysicsScene()->DeferPhysicsStateCreation(Primitive);
@@ -1690,7 +1710,7 @@ void UActorComponent::DoDeferredRenderUpdates_Concurrent()
 
 	checkf(!IsUnreachable(), TEXT("%s"), *GetFullName());
 	checkf(!IsTemplate(), TEXT("%s"), *GetFullName());
-	checkf(!IsPendingKill(), TEXT("%s"), *GetFullName());
+	checkf(IsValid(this), TEXT("%s"), *GetFullName());
 
 	FScopeCycleCounterUObject ContextScope(this);
 	FScopeCycleCounterUObject AdditionalScope(STATS ? AdditionalStatObject() : nullptr);

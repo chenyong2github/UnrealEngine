@@ -1272,7 +1272,14 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	FNiagaraSystemSimulationTickContext Context(this, SystemInstances, MainDataSet, DeltaSeconds, SpawnNum, MyCompletionGraphEvent.IsValid());
 	if ( Context.IsRunningAsync() )
 	{
-		auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationTickConcurrentTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
+		FGraphEventArray Prereqs;
+		auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+		if (ScriptTask.IsValid())
+		{
+			Prereqs.Add(ScriptTask);
+		}
+		
+		auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationTickConcurrentTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
 		ConcurrentTickGraphEvent = ConcurrentTickTask->GetCompletionEvent();
 		for (FNiagaraSystemInstance* Instance : Context.Instances)
 		{
@@ -1297,6 +1304,11 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	}
 	else
 	{
+		auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+		if (ScriptTask.IsValid())
+		{
+			ScriptTask->Wait(ENamedThreads::GameThread);
+		}
 		Tick_Concurrent(Context);
 	}
 }
@@ -1444,7 +1456,14 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), !bIsSolo);
 		if ( Context.IsRunningAsync() )
 		{
-			auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationSpawnConcurrentTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
+			FGraphEventArray Prereqs;
+			auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+			if (ScriptTask.IsValid())
+			{
+				Prereqs.Add(ScriptTask);
+			}
+
+			auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationSpawnConcurrentTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
 			ConcurrentTickGraphEvent = ConcurrentTickTask->GetCompletionEvent();
 			for (FNiagaraSystemInstance* Instance : Context.Instances)
 			{
@@ -1464,6 +1483,12 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 		}
 		else
 		{
+			auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+			if (ScriptTask.IsValid())
+			{
+				ScriptTask->Wait(ENamedThreads::GameThread);
+			}
+
 			Spawn_Concurrent(Context);
 		}
 	}

@@ -14,6 +14,14 @@
 #include "IO/IoDispatcher.h"
 #include "HAL/IConsoleManager.h"
 
+#define DO_TRACK_ASYNC_LOAD_REQUESTS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+
+#if DO_TRACK_ASYNC_LOAD_REQUESTS
+#include "Containers/StackTracker.h"
+#include "Misc/OutputDeviceFile.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#endif
+
 volatile int32 GIsLoaderCreated;
 TUniquePtr<IAsyncPackageLoader> GPackageLoader;
 bool GAsyncLoadingAllowed = true;
@@ -698,6 +706,207 @@ bool IsAsyncLoadingSuspendedInternal()
 	return GetAsyncPackageLoader().IsAsyncLoadingSuspended();
 }
 
+#if DO_TRACK_ASYNC_LOAD_REQUESTS
+static TAutoConsoleVariable<int32> CVarTrackAsyncLoadRequests_Enable(
+	TEXT("TrackAsyncLoadRequests.Enable"),
+	0,
+	TEXT("If > 0 then remove aliases from the counting process. This essentialy merges addresses that have the same human readable string. It is slower.")
+);
+
+static TAutoConsoleVariable<int32> CVarTrackAsyncLoadRequests_Dedupe(
+	TEXT("TrackAsyncLoadRequests.Dedupe"),
+	0,
+	TEXT("If > 0 then deduplicate requests to async load the same package in the report.")
+);
+
+static TAutoConsoleVariable<int32> CVarTrackAsyncLoadRequests_RemoveAliases(
+	TEXT("TrackAsyncLoadRequests.RemoveAliases"),
+	1,
+	TEXT("If > 0 then remove aliases from the counting process. This essentialy merges addresses that have the same human readable string. It is slower.")
+);
+
+static TAutoConsoleVariable<int32> CVarTrackAsyncLoadRequests_StackIgnore(
+	TEXT("TrackAsyncLoadRequests.StackIgnore"),
+	5,
+	TEXT("Number of items to discard from the top of a stack frame."));
+
+static TAutoConsoleVariable<int32> CVarTrackAsyncLoadRequests_StackLen(
+	TEXT("TrackAsyncLoadRequests.StackLen"),
+	12,
+	TEXT("Maximum number of stack frame items to keep. This improves aggregation because calls that originate from multiple places but end up in the same place will be accounted together."));
+
+static TAutoConsoleVariable<int32> CVarTrackAsyncLoadRequests_Threshhold(
+	TEXT("TrackAsyncLoadRequests.Threshhold"),
+	0,
+	TEXT("Minimum number of hits to include in the report."));
+
+static TAutoConsoleVariable<int32> CVarTrackAsyncLoadRequests_DumpAfterCsvProfiling(
+	TEXT("TrackAsyncLoadRequests.DumpAfterCsvProfiling"),
+	1,
+	TEXT("If > 0, dumps tracked async load requests to a file when csv profiling ends."));
+
+
+struct FTrackAsyncLoadRequests
+{
+	FStackTracker StackTracker;
+	FCriticalSection CritSec;
+
+	struct FUserData
+	{
+		struct FLoadRequest
+		{
+			FString RequestName;
+			int32 Priority;
+
+			FLoadRequest(FString InName, int32 InPriority)
+				: RequestName(MoveTemp(InName))
+				, Priority(InPriority)
+			{
+			}
+		};
+		TArray<FLoadRequest> Requests;
+	};
+
+	static FTrackAsyncLoadRequests& Get()
+	{
+		static FTrackAsyncLoadRequests Instance;
+		return Instance;
+	}
+
+	FTrackAsyncLoadRequests()
+		: StackTracker(&UpdateStack, &ReportStack, &DeleteUserData, true)
+	{
+#if CSV_PROFILER
+		FCsvProfiler::Get()->OnCSVProfileEnd().AddRaw(this, &FTrackAsyncLoadRequests::DumpRequestsAfterCsvProfiling);
+#endif
+	}
+
+	static void UpdateStack(const FStackTracker::FCallStack& CallStack, void* InUserData)
+	{
+		FUserData* NewUserData = (FUserData*)InUserData;
+		FUserData* OldUserData = (FUserData*)CallStack.UserData;
+
+		OldUserData->Requests.Append(NewUserData->Requests);
+	}
+
+	static void ReportStack(const FStackTracker::FCallStack& CallStack, uint64 TotalStackCount, FOutputDevice& Ar)
+	{
+		FUserData* UserData = (FUserData*)CallStack.UserData;
+		bool bOldSuppress = Ar.GetSuppressEventTag();
+		Ar.SetSuppressEventTag(true);
+
+		if (CVarTrackAsyncLoadRequests_Dedupe->GetInt() > 0)
+		{
+			Ar.Logf(TEXT("Requested package names (Deduped):"));
+			Ar.Logf(TEXT("===================="));
+			TSet<FString> Seen;
+			for (auto& Request : UserData->Requests)
+			{
+				if (!Seen.Contains(Request.RequestName))
+				{
+					Ar.Logf(TEXT("%d %s"), Request.Priority, *Request.RequestName);
+					Seen.Add(Request.RequestName);
+				}
+			}
+		}
+		else
+		{
+			Ar.Logf(TEXT("Requested package names:"));
+			Ar.Logf(TEXT("===================="));
+			for (const auto& Request : UserData->Requests)
+			{
+				Ar.Logf(TEXT("%d %s"), Request.Priority, *Request.RequestName);
+			}
+		}
+		Ar.Logf(TEXT("===================="));
+		Ar.SetSuppressEventTag(bOldSuppress);
+	}
+	
+	static void DeleteUserData(void* InUserData)
+	{
+		FUserData* UserData = (FUserData*)InUserData;
+		delete UserData;
+	}
+
+	void TrackRequest(const FString& InName, const TCHAR* InPackageToLoadFrom, int32 InPriority)
+	{
+		if (CVarTrackAsyncLoadRequests_Enable->GetInt() == 0)
+		{
+			return;
+		}
+
+		FUserData* UserData = new FUserData;
+		UserData->Requests.Emplace(InPackageToLoadFrom ? FString(InPackageToLoadFrom) : InName, InPriority);
+
+		FScopeLock Lock(&CritSec);
+		StackTracker.CaptureStackTrace(CVarTrackAsyncLoadRequests_StackIgnore->GetInt(), (void*)UserData, CVarTrackAsyncLoadRequests_StackLen->GetInt(), CVarTrackAsyncLoadRequests_Dedupe->GetBool());
+	}
+
+	void Reset()
+	{
+		FScopeLock Lock(&CritSec);
+		StackTracker.ResetTracking();
+	}
+
+	void DumpRequests(bool bReset)
+	{
+		FScopeLock Lock(&CritSec);
+		StackTracker.DumpStackTraces(CVarTrackAsyncLoadRequests_Threshhold->GetInt(), *GLog);
+		if (bReset)
+		{
+			StackTracker.ResetTracking();
+		}
+	}
+
+	void DumpRequestsToFile(bool bReset)
+	{
+		FString Filename = FPaths::ProfilingDir() / FString::Printf(TEXT("AsyncLoadRequests_%s.log"), *FDateTime::Now().ToString());
+		FOutputDeviceFile Out(*Filename, true);
+		Out.SetSuppressEventTag(true);
+
+		UE_LOG(LogStreaming, Display, TEXT("Dumping async load requests & callstacks to %s"), *Filename);
+
+		FScopeLock Lock(&CritSec);
+		StackTracker.DumpStackTraces(CVarTrackAsyncLoadRequests_Threshhold->GetInt(), Out);
+		if (bReset)
+		{
+			StackTracker.ResetTracking();
+		}
+	}
+
+#if CSV_PROFILER
+	void DumpRequestsAfterCsvProfiling()
+	{
+		if (CVarTrackAsyncLoadRequests_DumpAfterCsvProfiling->GetInt() > 0)
+		{
+			DumpRequestsToFile(false);
+		}
+	}
+#endif
+};
+
+static FAutoConsoleCommand TrackAsyncLoadRequests_Reset
+(
+	TEXT("TrackAsyncLoadRequests.Reset"),
+	TEXT("Reset tracked async load requests"),
+	FConsoleCommandDelegate::CreateLambda([]() { FTrackAsyncLoadRequests::Get().Reset(); })
+);
+
+static FAutoConsoleCommand TrackAsyncLoadRequests_Dump
+(
+	TEXT("TrackAsyncLoadRequests.Dump"),
+	TEXT("Dump tracked async load requests and reset tracking"),
+	FConsoleCommandDelegate::CreateLambda([]() { FTrackAsyncLoadRequests::Get().DumpRequests(true); })
+);
+
+static FAutoConsoleCommand TrackAsyncLoadRequests_DumpToFile
+(
+	TEXT("TrackAsyncLoadRequests.DumpToFile"),
+	TEXT("Dump tracked async load requests and reset tracking"),
+	FConsoleCommandDelegate::CreateLambda([]() { FTrackAsyncLoadRequests::Get().DumpRequestsToFile(true); })
+);
+#endif
+
 static FPackagePath GetLoadPackageAsyncPackagePath(FStringView InPackageNameOrFilePath)
 {
 	FPackagePath PackagePath;
@@ -745,6 +954,9 @@ int32 LoadPackageAsync(const FPackagePath& InPackagePath, FName InPackageNameToC
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	UE_CLOG(!GAsyncLoadingAllowed && !IsInAsyncLoadingThread(), LogStreaming, Fatal, TEXT("Requesting async load of \"%s\" when async loading is not allowed (after shutdown). Please fix higher level code."), *InPackagePath.GetDebugName());
+#if DO_TRACK_ASYNC_LOAD_REQUESTS
+	FTrackAsyncLoadRequests::Get().TrackRequest(InPackagePath.GetDebugName(), nullptr, InPackagePriority);
+#endif
 	return GetAsyncPackageLoader().LoadPackage(InPackagePath, InPackageNameToCreate, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
 }
 

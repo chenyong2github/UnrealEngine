@@ -33,7 +33,7 @@ bool FFunctionCaller::IsBoundToBlueprint() const
 
 bool FFunctionCaller::IsValidFunction(UK2Node_FunctionEntry* Function)
 {
-	if (!Function || Function->IsPendingKill() || Function->GetGraph()->IsPendingKill())
+	if (!IsValid(Function) || !IsValid(Function->GetGraph()))
 	{
 		return false;
 	}

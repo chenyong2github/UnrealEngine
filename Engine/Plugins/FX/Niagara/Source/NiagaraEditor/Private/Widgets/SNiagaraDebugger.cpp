@@ -210,8 +210,7 @@ namespace NiagaraPerformanceTab
 						.OnClicked(FOnClicked::CreateLambda(
 							[&]()
 							{
-								ExecConsoleCommand.ExecuteIfBound(TEXT("fx.ParallelSystemInstanceTick 1"), true);
-								ExecConsoleCommand.ExecuteIfBound(TEXT("fx.ParallelSystemSimTick 1"), true);
+								ExecConsoleCommand.ExecuteIfBound(TEXT("fx.Niagara.SystemSimulation.AllowASync 1"), true);
 								return FReply::Handled();
 							}
 						))
@@ -226,8 +225,7 @@ namespace NiagaraPerformanceTab
 						.OnClicked(FOnClicked::CreateLambda(
 							[&]()
 							{
-								ExecConsoleCommand.ExecuteIfBound(TEXT("fx.ParallelSystemInstanceTick 0"), true);
-								ExecConsoleCommand.ExecuteIfBound(TEXT("fx.ParallelSystemSimTick 0"), true);
+								ExecConsoleCommand.ExecuteIfBound(TEXT("fx.Niagara.SystemSimulation.AllowASync 0"), true);
 								return FReply::Handled();
 							}
 						))

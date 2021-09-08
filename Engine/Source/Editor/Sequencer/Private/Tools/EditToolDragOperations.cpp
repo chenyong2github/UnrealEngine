@@ -1120,16 +1120,32 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 		return false;
 	}
 
-	// If sections are all on different rows, don't set row indices for anything because it leads to odd behavior.
+	// If sections are all on different rows or from different tracks, don't set row indices for anything because it leads to odd behavior.
 	bool bSectionsAreOnDifferentRows = false;
 	int32 FirstRowIndex = Sections[0].Get()->GetRowIndex();
+	UMovieSceneTrack* FirstTrack = nullptr;
 
 	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
 	{
 		UMovieSceneSection* Section = WeakSection.Get();
+		if (Section)
+		{
+			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
 		if (FirstRowIndex != Section->GetRowIndex())
 		{
 			bSectionsAreOnDifferentRows = true;
+		}
+			if (FirstTrack)
+			{
+				if (FirstTrack != Track)
+				{
+					bSectionsAreOnDifferentRows = true;
+				}
+			}
+			else
+			{
+				FirstTrack = Track;
+			}
 		}
 	}
 
@@ -1344,7 +1360,7 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 		// Expand track node if it wasn't already expanded. This ensures that multi row tracks will show multiple rows if regenerated
 		for (TSharedRef<FSequencerTrackNode> TrackNode : TrackNodes)
 		{
-			if (!TrackNode->IsExpanded())
+			if (!TrackNode->IsExpanded() && TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::None)
 			{
 				TArray<TSharedRef<ISequencerSection> > TrackNodeSections = TrackNode->GetSections();
 				if (TrackNodeSections.Num() && TrackNodeSections[0]->GetSectionObject())

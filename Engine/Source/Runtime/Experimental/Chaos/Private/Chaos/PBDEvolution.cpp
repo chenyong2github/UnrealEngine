@@ -14,6 +14,9 @@
 #include "Chaos/PerParticlePBDUpdateFromDeltaPosition.h"
 #include "ChaosStats.h"
 #include "HAL/IConsoleManager.h"
+#if INTEL_ISPC
+#include "PBDEvolution.ispc.generated.h"
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Advance Time"), STAT_ChaosPBDVAdvanceTime, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Velocity Damping State Update"), STAT_ChaosPBDVelocityDampUpdateState, STATGROUP_Chaos);
@@ -35,6 +38,11 @@ TAutoConsoleVariable<bool> CVarChaosPBDEvolutionFastPositionBasedFriction(TEXT("
 TAutoConsoleVariable<bool> CVarChaosPBDEvolutionUseSmoothTimeStep(TEXT("p.Chaos.PBDEvolution.UseSmoothTimeStep"), true, TEXT(""), ECVF_Cheat);
 TAutoConsoleVariable<int32> CVarChaosPBDEvolutionMinParallelBatchSize(TEXT("p.Chaos.PBDEvolution.MinParallelBatchSize"), 300, TEXT(""), ECVF_Cheat);
 TAutoConsoleVariable<bool> CVarChaosPBDEvolutionWriteCCDContacts(TEXT("p.Chaos.PBDEvolution.WriteCCDContacts"), false, TEXT("Write CCD collision contacts and normals potentially causing the CCD collision threads to lock, allowing for debugging of these contacts."), ECVF_Cheat);
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_PostIterationUpdates_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosPostIterationUpdatesISPCEnabled(TEXT("p.Chaos.PostIterationUpdates.ISPC"), bChaos_PostIterationUpdates_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in PBD Post iteration updates"));
+#endif
 
 using namespace Chaos;
 
@@ -438,6 +446,24 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt, const bool bSmoothDt)
 			SCOPE_CYCLE_COUNTER(STAT_ChaosPBDPostIterationUpdates);
 
 			// Particle update, V = (P - X) / Dt; X = P;
+			if (bChaos_PostIterationUpdates_ISPC_Enabled)
+			{
+#if INTEL_ISPC
+				MParticlesActiveView.RangeFor(
+					[Dt](FPBDParticles& Particles, int32 Offset, int32 Range)
+					{
+						ispc::PostIterationUpdates(
+							(ispc::FVector*)Particles.GetV().GetData(),
+							(ispc::FVector*)Particles.XArray().GetData(),
+							(const ispc::FVector*)Particles.GetP().GetData(),
+							Dt,
+							Offset,
+							Range);
+					});
+#endif
+			}
+			else
+			{
 			MParticlesActiveView.ParallelFor(
 				[Dt](FPBDParticles& Particles, int32 Index)
 				{
@@ -445,6 +471,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt, const bool bSmoothDt)
 					Particles.X(Index) = Particles.P(Index);
 				}, MinParallelBatchSize);
 		}
+	}
 	}
 
 	// The following is not currently been used by the cloth solver implementation at the moment

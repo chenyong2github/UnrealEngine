@@ -1057,7 +1057,7 @@ namespace BlueprintSearchMetaDataHelpers
 				{
 					{
 						// Make sure we don't collect search data for nodes that are going away soon
-						if (Node->GetOuter()->IsPendingKill())
+						if (!IsValid(Node->GetOuter()))
 						{
 							continue;
 						}
@@ -2885,7 +2885,7 @@ void FFindInBlueprintSearchManager::CleanCache()
 		if (!SearchData.IsValid()
 			|| SearchData.IsMarkedForDeletion()
 			|| SearchData.Blueprint.IsStale()
-			|| (SearchData.Blueprint.IsValid(bEvenIfPendingKill) && SearchData.Blueprint->IsPendingKill()))
+			|| (SearchData.Blueprint.IsValid(bEvenIfPendingKill) && !IsValid(SearchData.Blueprint.Get(bEvenIfPendingKill))))
 		{
 			// Also remove it from the list of loaded assets that require indexing
 			PendingAssets.Remove(SearchData.AssetPath);

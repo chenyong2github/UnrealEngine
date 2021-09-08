@@ -354,6 +354,38 @@ FColor UKismetRenderingLibrary::ReadRenderTargetPixel(UObject* WorldContextObjec
 	}
 }
 
+bool UKismetRenderingLibrary::ReadRenderTarget(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, TArray<FColor>& OutSamples, bool bNormalize)
+{
+	if (WorldContextObject != nullptr && TextureRenderTarget != nullptr)
+	{
+		const int32 NumSamples = TextureRenderTarget->SizeX * TextureRenderTarget->SizeY;
+
+		OutSamples.Reset(NumSamples);
+
+		TArray<FLinearColor> LinearSamples;
+		LinearSamples.Reserve(NumSamples);
+
+		switch (ReadRenderTargetHelper(OutSamples, LinearSamples, WorldContextObject, TextureRenderTarget, 0, 0, TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, bNormalize))
+		{
+		case PF_B8G8R8A8:
+			check(OutSamples.Num() == NumSamples && LinearSamples.Num() == 0);
+			return true;
+		case PF_FloatRGBA:
+			check(OutSamples.Num() == 0 && LinearSamples.Num() == NumSamples);
+			for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+			{
+				OutSamples.Add(LinearSamples[SampleIndex].ToFColor(true));
+			}
+			return true;
+		case PF_Unknown:
+		default:
+			return false;
+		}
+	}
+
+	return false;
+}
+
 FLinearColor UKismetRenderingLibrary::ReadRenderTargetRawPixel(UObject * WorldContextObject, UTextureRenderTarget2D * TextureRenderTarget, int32 X, int32 Y, bool bNormalize)
 {
 	TArray<FColor> Samples;
@@ -413,6 +445,37 @@ FLinearColor UKismetRenderingLibrary::ReadRenderTargetRawUV(UObject * WorldConte
 	int32 YPos = V * (float)TextureRenderTarget->SizeY;
 
 	return ReadRenderTargetRawPixel(WorldContextObject, TextureRenderTarget, XPos, YPos, bNormalize);
+}
+
+bool UKismetRenderingLibrary::ReadRenderTargetRaw(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, TArray<FLinearColor>& OutLinearSamples, bool bNormalize)
+{
+	if (WorldContextObject != nullptr && TextureRenderTarget != nullptr)
+	{
+		const int32 NumSamples = TextureRenderTarget->SizeX * TextureRenderTarget->SizeY;
+
+		OutLinearSamples.Reset(NumSamples);
+		TArray<FColor> Samples;
+		Samples.Reserve(NumSamples);
+
+		switch (ReadRenderTargetHelper(Samples, OutLinearSamples, WorldContextObject, TextureRenderTarget, 0, 0, TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, bNormalize))
+		{
+		case PF_B8G8R8A8:
+			check(Samples.Num() == NumSamples && OutLinearSamples.Num() == 0);
+			for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+			{
+				OutLinearSamples.Add(FLinearColor(float(Samples[SampleIndex].R), float(Samples[SampleIndex].G), float(Samples[SampleIndex].B), float(Samples[SampleIndex].A)));
+			}
+			return true;
+		case PF_FloatRGBA:
+			check(Samples.Num() == 0 && OutLinearSamples.Num() == NumSamples);
+			return true;
+		case PF_Unknown:
+		default:
+			return false;
+		}
+	}
+
+	return false;
 }
 
 ENGINE_API TArray<FLinearColor> UKismetRenderingLibrary::ReadRenderTargetRawUVArea(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, FBox2D Area, bool bNormalize /*= true*/)

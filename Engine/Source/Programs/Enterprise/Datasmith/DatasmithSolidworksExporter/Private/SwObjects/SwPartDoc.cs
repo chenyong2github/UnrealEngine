@@ -74,7 +74,7 @@ namespace SolidworksDatasmith.SwObjects
 			}
 		}
 
-		public void Load(bool fast = false)
+		public void Load(bool bInIsDirectLinkUpdate)
 		{
 			SwSingleton.FireProgressEvent("Extracting Part Data");
 
@@ -88,7 +88,7 @@ namespace SolidworksDatasmith.SwObjects
 				doc2.Name = Name;
 				doc2.PathName = PathName;
 				doc2.LoadBodies();
-				areSame = IsSame(doc2);
+				areSame = bInIsDirectLinkUpdate && IsSame(doc2);
 			}
 
 			if (!areSame)
@@ -106,7 +106,7 @@ namespace SolidworksDatasmith.SwObjects
 
 				try
 				{
-				SwSingleton.CurrentScene.CollectMaterials(Doc as ModelDoc2);
+					SwSingleton.CurrentScene.CollectMaterials(Doc as ModelDoc2);
 				}
 				catch(Exception){}
 
@@ -114,11 +114,14 @@ namespace SolidworksDatasmith.SwObjects
 				cmd.PathName = PathName;
 				cmd.Name = Name;
 				cmd.StripGeom = ExtractSourceGeometry();
+
 				SwSingleton.CurrentScene.Processor.AddCommand(cmd);
 
-				if (!fast)
+				if (!bInIsDirectLinkUpdate)
+				{
 					SwSingleton.CurrentScene.SendModelDocMetadataToProcessor(Doc as ModelDoc2, cmd.Name, MetadataCommand.MetadataType.MeshActor);
 			}
+		}
 		}
 
 		private void onAddItem(object sender, SwEventArgs args)
@@ -153,18 +156,39 @@ namespace SolidworksDatasmith.SwObjects
 
 		public bool IsSame(SwPartDoc doc2)
 		{
-			if (Bodies.Count != doc2.Bodies.Count) return false;
+			if (Bodies.Count != doc2.Bodies.Count)
+			{
+				return false;
+			}
+
 			for (int i = 0; i < Bodies.Count; i++)
 			{
-				if (Bodies[i].Faces.Count != doc2.Bodies[i].Faces.Count) return false;
+				if (Bodies[i].Faces.Count != doc2.Bodies[i].Faces.Count)
+				{
+					return false;
+				}
+
 				for (int j = 0; j < Bodies[i].Faces.Count; j++)
 				{
+					try
+					{
 					Face2 face1 = Bodies[i].Faces[j].Face;
 					Face2 face2 = doc2.Bodies[i].Faces[j].Face;
-					uint id1 = SwSingleton.CurrentScene.GetFaceID(face1);
-					uint id2 = SwSingleton.CurrentScene.GetFaceID(face2);
-					if (id1 != id2) return false;
-					if (!Utility.IsSame(face1.GetArea(), face2.GetArea())) return false;
+						uint id1 = SwScene.GetFaceID(face1);
+						uint id2 = SwScene.GetFaceID(face2);
+						if (id1 != id2)
+						{
+							return false;
+						}
+						if (!Utility.IsSame(face1.GetArea(), face2.GetArea()))
+						{
+							return false;
+						}
+					}
+					catch (Exception)
+					{
+						return false; // Original body object has become invalid, therefore consider it different
+					}
 				}
 			}
 			return true;

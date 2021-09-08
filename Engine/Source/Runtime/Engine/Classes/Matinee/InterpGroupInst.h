@@ -41,7 +41,7 @@ class UInterpGroupInst : public UObject
 
 	/** 
 	 *	Return the AActor that this GroupInstance is working on.
-	 *	Should use this instead of just referencing GroupActor, as it check IsPendingKill() for you.
+	 *	Should use this instead of just referencing GroupActor, as it check IsValid() for you.
 	 */
 	virtual AActor* GetGroupActor() const;
 

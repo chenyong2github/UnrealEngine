@@ -87,5 +87,5 @@ SCompoundWidget::SCompoundWidget()
 
 void SCompoundWidget::SetVisibility( TAttribute<EVisibility> InVisibility )
 {
-	SWidget::SetVisibility( InVisibility );
+	SWidget::SetVisibility(MoveTemp(InVisibility));
 }

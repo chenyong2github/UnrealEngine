@@ -200,7 +200,12 @@ void AActor::OnRep_ReplicatedMovement()
 		if (LocalRepMovement.bRepPhysics)
 		{
 			// Sync physics state
-			checkSlow(RootComponent->IsSimulatingPhysics());
+#if DO_GUARD_SLOW
+			if (!RootComponent->IsSimulatingPhysics())
+			{
+				UE_LOG(LogNet, Warning, TEXT("IsSimulatingPhysics() returned false during physics replication for %s"), *GetName());
+			}
+#endif
 			// If we are welded we just want the parent's update to move us.
 			UPrimitiveComponent* RootPrimComp = Cast<UPrimitiveComponent>(RootComponent);
 			if (!RootPrimComp || !RootPrimComp->IsWelded())
@@ -460,7 +465,7 @@ void AActor::GetSubobjectsWithStableNamesForNetworking(TArray<UObject*> &ObjList
 	// For experimenting with replicating ALL stably named components initially
 	for (UActorComponent* Component : OwnedComponents)
 	{
-		if (Component && !Component->IsPendingKill() && Component->IsNameStableForNetworking())
+		if (IsValid(Component) && Component->IsNameStableForNetworking())
 		{
 			ObjList.Add(Component);
 			Component->GetSubobjectsWithStableNamesForNetworking(ObjList);

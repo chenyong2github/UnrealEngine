@@ -374,6 +374,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	, bWholeWorldNavigable(false)
 	, bSkipAgentHeightCheckWhenPickingNavData(false)
 	, DirtyAreaWarningSizeThreshold(-1.0f)
+	, GatheringNavModifiersWarningLimitTime(-1.0f)
 	, OperationMode(FNavigationSystemRunMode::InvalidMode)
 	, bAbortAsyncQueriesRequested(false)
 	, NavBuildingLockFlags(0)
@@ -583,7 +584,7 @@ void UNavigationSystemV1::DoInitialSetup()
 
 void UNavigationSystemV1::UpdateAbstractNavData()
 {
-	if (AbstractNavData != nullptr && !AbstractNavData->IsPendingKill())
+	if (IsValid(AbstractNavData))
 	{
 		return;
 	}
@@ -594,7 +595,7 @@ void UNavigationSystemV1::UpdateAbstractNavData()
 	for (TActorIterator<AAbstractNavData> It(NavWorld); It; ++It)
 	{
 		AAbstractNavData* Nav = (*It);
-		if (Nav && !Nav->IsPendingKill())
+		if (IsValid(Nav))
 		{
 			AbstractNavData = Nav;
 			break;
@@ -705,6 +706,9 @@ void UNavigationSystemV1::ConstructNavOctree()
 	DefaultOctreeController.Reset();
 	DefaultOctreeController.NavOctree = MakeShareable(new FNavigationOctree(FVector(0, 0, 0), 64000));
 	DefaultOctreeController.NavOctree->SetDataGatheringMode(DataGatheringMode);
+#if !UE_BUILD_SHIPPING	
+	DefaultOctreeController.NavOctree->SetGatheringNavModifiersTimeLimitWarning(GatheringNavModifiersWarningLimitTime);
+#endif // !UE_BUILD_SHIPPING	
 }
 
 bool UNavigationSystemV1::ConditionalPopulateNavOctree()
@@ -856,7 +860,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 		for (TActorIterator<ANavigationData> It(World); It; ++It)
 		{
 			ANavigationData* Nav = (*It);
-			if (Nav != NULL && Nav->IsPendingKill() == false && Nav != GetAbstractNavData())
+			if (IsValid(Nav) && Nav != GetAbstractNavData())
 			{
 				UnregisterNavData(Nav);
 				Nav->CleanUpAndMarkPendingKill();
@@ -1000,7 +1004,7 @@ void UNavigationSystemV1::RegisterNavigationDataInstances()
 	for (TActorIterator<ANavigationData> It(World); It; ++It)
 	{
 		ANavigationData* Nav = (*It);
-		if (Nav != NULL && Nav->IsPendingKill() == false && Nav->IsRegistered() == false)
+		if (IsValid(Nav) && Nav->IsRegistered() == false)
 		{
 			RequestRegistrationDeferred(*Nav);
 			bProcessRegistration = true;
@@ -1817,7 +1821,7 @@ ANavigationData* UNavigationSystemV1::GetNavDataForAgentName(const FName AgentNa
 
 	for (ANavigationData* NavData : NavDataSet)
 	{
-		if (NavData && !NavData->IsPendingKill() && NavData->GetConfig().Name == AgentName)
+		if (IsValid(NavData) && NavData->GetConfig().Name == AgentName)
 		{
 			Result = NavData;
 			break;
@@ -1876,7 +1880,7 @@ ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSyste
 {
 	checkSlow(IsInGameThread() == true);
 
-	if (MainNavData == nullptr || MainNavData->IsPendingKill())
+	if (!IsValid(MainNavData))
 	{
 		MainNavData = nullptr;
 
@@ -1884,7 +1888,7 @@ ANavigationData* UNavigationSystemV1::GetDefaultNavDataInstance(FNavigationSyste
 		for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
 		{
 			ANavigationData* NavData = NavDataSet[NavDataIndex];
-			if (NavData && !NavData->IsPendingKill() && NavData->CanBeMainNavData()
+			if (IsValid(NavData) && NavData->CanBeMainNavData()
 				&& (DefaultAgentName == NAME_None || NavData->GetConfig().Name == DefaultAgentName))
 			{
 				MainNavData = NavData;
@@ -1969,7 +1973,7 @@ bool UNavigationSystemV1::IsThereAnywhereToBuildNavigation() const
 	for (TActorIterator<ANavMeshBoundsVolume> It(GetWorld()); It; ++It)
 	{
 		ANavMeshBoundsVolume const* const V = (*It);
-		if (V != NULL && !V->IsPendingKill())
+		if (IsValid(V))
 		{
 			bCreateNavigation = true;
 			break;
@@ -2195,7 +2199,7 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 	{
 		return RegistrationError;
 	}
-	else if (NavData->IsPendingKill() == true)
+	else if (!IsValid(NavData))
 	{
 		return RegistrationFailed_DataPendingKill;
 	}
@@ -3297,7 +3301,7 @@ void UNavigationSystemV1::GatherNavigationBounds()
 	for (TActorIterator<ANavMeshBoundsVolume> It(GetWorld()); It; ++It)
 	{
 		ANavMeshBoundsVolume* V = (*It);
-		if (V != nullptr && !V->IsPendingKill())
+		if (IsValid(V))
 		{
 			FNavigationBounds NavBounds;
 			NavBounds.UniqueID = V->GetUniqueID();
@@ -3878,7 +3882,7 @@ void UNavigationSystemV1::AddLevelToOctree(ULevel& Level)
 	{
 		AActor* Actor = Level.Actors[ActorIndex];
 
-		const bool bLegalActor = Actor && !Actor->IsPendingKill();
+		const bool bLegalActor = IsValid(Actor);
 		if (bLegalActor)
 		{
 			UpdateActorAndComponentsInNavOctree(*Actor);

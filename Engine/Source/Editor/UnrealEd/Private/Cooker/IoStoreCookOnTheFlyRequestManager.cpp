@@ -12,6 +12,8 @@
 #include "UObject/SavePackage.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+#if WITH_COTF
+
 DEFINE_LOG_CATEGORY_STATIC(LogCookOnTheFlyTracker, Log, All);
 
 class FCookOnTheFlyPackageTracker
@@ -775,3 +777,5 @@ TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(IC
 }
 
 }}
+
+#endif

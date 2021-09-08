@@ -84,6 +84,11 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return EInstallBundleResult::OK;
 	}
 
+	virtual TOptional<FInstallBundleCacheStats> GetCacheStats(FInstallBundleSourceOrCache SourceOrCache, bool bDumpToLog = false) override
+	{
+		return TOptional<FInstallBundleCacheStats>();
+	}
+
 	virtual void RequestRemoveContentOnNextInit(TArrayView<const FName> RemoveNames, TArrayView<const FName> KeepNames = TArrayView<const FName>()) override
 	{
 	}

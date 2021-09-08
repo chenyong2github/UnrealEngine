@@ -504,9 +504,9 @@ bool UMinimalClient::PostSendRPC(FString RPCName, UObject* Target/*=nullptr*/)
 				LogAppend += TEXT(", AreActorsInitialized() returned FALSE");
 			}
 
-			if (TargetActor->IsPendingKill())
+			if (!IsValid(TargetActor))
 			{
-				LogAppend += TEXT(", IsPendingKill() returned TRUE");
+				LogAppend += TEXT(", IsValid() returned FALSE");
 			}
 
 			UFunction* TargetFunc = RPCName.StartsWith(TEXT("UnitTestServer_")) ?

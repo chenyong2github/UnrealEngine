@@ -586,7 +586,6 @@ void FThreadManager::ForEachThread(TFunction<void(uint32, class FRunnableThread*
 FThreadManager& FThreadManager::Get()
 {
 	static FThreadManager Singleton;
-	FThreadManager::bIsInitialized = true;
 	return Singleton;
 }
 
@@ -604,9 +603,6 @@ TArray<FRunnableThread*> FThreadManager::GetForkableThreads()
 
 	return ForkableThreads;
 }
-
-bool FThreadManager::bIsInitialized = false;
-
 
 /*-----------------------------------------------------------------------------
 	FEvent, FScopedEvent

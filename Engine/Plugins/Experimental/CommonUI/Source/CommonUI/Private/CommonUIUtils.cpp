@@ -11,19 +11,18 @@
 
 namespace CommonUIUtils
 {
-	static int32 Mobile_PreviewUISizes = 0;
-	static FAutoConsoleVariableRef Mobile_PreviewFontSizeCVar(TEXT("Mobile.PreviewUISizes"), Mobile_PreviewUISizes, TEXT("Preview the mobile UI sizes."));
+	static TAutoConsoleVariable<int32> EnableMobileUITextScaling(
+		TEXT("Mobile.EnableUITextScaling"),
+		0,
+		TEXT("Enables Mobile UI Text Scaling"),
+		ECVF_Default);
 
 	bool ShouldDisplayMobileUISizes()
 	{
-#if WITH_EDITOR
-		return (Mobile_PreviewUISizes == 1);
-#endif
-
 #if PLATFORM_ANDROID || PLATFORM_IOS
 		return true;
 #endif
-		return false;
+		return EnableMobileUITextScaling->GetInt() == 1;
 	}
 
 	FString PrintAllOwningUserWidgets(const UWidget* Widget)

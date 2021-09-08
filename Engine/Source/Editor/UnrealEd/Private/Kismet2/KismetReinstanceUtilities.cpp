@@ -277,7 +277,7 @@ struct FArchetypeReinstanceHelper
 			for (int32 Idx = 0; Idx < ArchetypeInstances.Num(); ++Idx)
 			{
 				UObject* ArchetypeInstance = ArchetypeInstances[Idx];
-				if (ArchetypeInstance != nullptr && !ArchetypeInstance->IsPendingKill() && ArchetypeInstance->HasAllFlags(RF_ArchetypeObject | SubArchetypeFlags))
+				if (IsValid(ArchetypeInstance) && ArchetypeInstance->HasAllFlags(RF_ArchetypeObject | SubArchetypeFlags))
 				{
 					OutArchetypeObjects.Add(ArchetypeInstance);
 
@@ -698,7 +698,7 @@ TSharedPtr<FReinstanceFinalizer> FBlueprintCompileReinstancer::ReinstanceFast()
 		UE_LOG(LogBlueprint, Log, TEXT("  Fast path is refreshing (not replacing) %s"), *Obj->GetFullName());
 
 		const bool bIsChildActorTemplate = (bIsActor ? CastChecked<AActor>(Obj)->GetOuter()->IsA<UChildActorComponent>() : false);
-		if ((!Obj->IsTemplate() || bIsComponent || bIsChildActorTemplate) && !Obj->IsPendingKill())
+		if ((!Obj->IsTemplate() || bIsComponent || bIsChildActorTemplate) && IsValid(Obj))
 		{
 			if (bIsActor && Obj->IsSelected())
 			{
@@ -1350,7 +1350,7 @@ private:
 
 void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewInstanceMap, TSet<UObject*>* ObjectsThatShouldUseOldStuff, const TArray<UObject*>& ObjectsToReplace, const TMap<FSoftObjectPath, UObject*>& ReinstancedObjectsWeakReferenceMap)
 {
-	if (NewActor->IsPendingKill())
+	if (!IsValid(NewActor))
 	{
 		return;
 	}
@@ -1466,7 +1466,7 @@ void FActorReplacementHelper::ApplyAttachments(const TMap<UObject*, UObject*>& O
 		{
 			AttachmentData.TargetParentComponent = AttachmentData.TargetAttachParent->GetRootComponent();
 		}
-		else if(!AttachmentData.TargetParentComponent->IsPendingKill())
+		else if(IsValid(AttachmentData.TargetParentComponent))
 		{
 			NewRootComponent->AttachToComponent(AttachmentData.TargetParentComponent, FAttachmentTransformRules::KeepWorldTransform, AttachmentData.TargetAttachSocket);
 		}
@@ -1489,7 +1489,7 @@ void FActorReplacementHelper::AttachChildActors(USceneComponent* RootComponent, 
 
 		// If this actor is no longer attached to anything, reattach
 		check(Info.AttachedActor);
-		if (!Info.AttachedActor->IsPendingKill() && Info.AttachedActor->GetAttachParentActor() == nullptr)
+		if (IsValid(Info.AttachedActor) && Info.AttachedActor->GetAttachParentActor() == nullptr)
 		{
 			USceneComponent* ChildRoot = Info.AttachedActor->GetRootComponent();
 			if (ChildRoot && ChildRoot->GetAttachParent() != RootComponent)
@@ -1762,7 +1762,7 @@ void FBlueprintCompileReinstancer::MoveDependentSkelToReinst(UClass* OwnerClass,
 		UObject* OldCDO = OwnerClass->ClassDefaultObject;
 		const FName ReinstanceName = MakeUniqueObjectName(GetTransientPackage(), OwnerClass->GetClass(), *(FString(TEXT("REINST_")) + *OwnerClass->GetName()));
 
-		checkf(!OwnerClass->IsPendingKill(), TEXT("%s is PendingKill - will not duplicate successfully"), *(OwnerClass->GetName()));
+		checkf(IsValid(OwnerClass), TEXT("%s is invalid - will not duplicate successfully"), *(OwnerClass->GetName()));
 		UClass* ReinstClass = CastChecked<UClass>(StaticDuplicateObject(CurClass, GetTransientPackage(), ReinstanceName, ~RF_Transactional));
 		
 		ReinstClass->RemoveFromRoot();
@@ -1826,7 +1826,7 @@ UClass* FBlueprintCompileReinstancer::MoveCDOToNewClass(UClass* OwnerClass, cons
 	UObject* OldCDO = OwnerClass->ClassDefaultObject;
 	const FName ReinstanceName = MakeUniqueObjectName(GetTransientPackage(), OwnerClass->GetClass(), *(FString(TEXT("REINST_")) + *OwnerClass->GetName()));
 
-	checkf(!OwnerClass->IsPendingKill(), TEXT("%s is PendingKill - will not duplicate successfully"), *(OwnerClass->GetName()));
+	checkf(IsValid(OwnerClass), TEXT("%s is invalid - will not duplicate successfully"), *(OwnerClass->GetName()));
 	UClass* CopyOfOwnerClass = CastChecked<UClass>(StaticDuplicateObject(OwnerClass, GetTransientPackage(), ReinstanceName, ~RF_Transactional));
 
 	CopyOfOwnerClass->RemoveFromRoot();
@@ -2348,7 +2348,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 
 					// Skip archetype instances, EXCEPT for component templates and child actor templates
 					const bool bIsChildActorTemplate = OldActor && OldActor->GetOuter()->IsA<UChildActorComponent>();
-					if ((OldObject->IsPendingKill() && !bIsScriptComponent) || // @todo: why do we need to replace PendingKill script components?
+					if ((!IsValid(OldObject) && !bIsScriptComponent) || // @todo: why do we need to replace PendingKill script components?
 						(!bIsComponent && !bIsChildActorTemplate && OldObject->IsTemplate() && !bIsScriptComponent) ||
 						(InstancesThatShouldUseOldClass && InstancesThatShouldUseOldClass->Contains(OldObject)))
 					{
@@ -2401,7 +2401,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 				for (int32 OldObjIndex = 0; OldObjIndex < ObjectsToReplace.Num(); ++OldObjIndex)
 				{
 					UObject* OldObject = ObjectsToReplace[OldObjIndex];
-					if(OldObject->IsPendingKill() || 
+					if(!IsValid(OldObject) || 
 						(InstancesThatShouldUseOldClass && InstancesThatShouldUseOldClass->Contains(OldObject)))
 					{
 						continue;
@@ -2421,7 +2421,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 
 					// Skip archetype instances, EXCEPT for child actor templates
 					const bool bIsChildActorTemplate = OldActor && OldActor->GetOuter()->IsA<UChildActorComponent>();
-					if (OldObject->IsPendingKill() || 
+					if (!IsValid(OldObject) || 
 						(!bIsChildActorTemplate && OldObject->IsTemplate()) ||
 						(InstancesThatShouldUseOldClass && InstancesThatShouldUseOldClass->Contains(OldObject)))
 					{

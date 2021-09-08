@@ -74,18 +74,25 @@ ENUM_CLASS_FLAGS(EPropertyLocalizationGathererResultFlags);
 class COREUOBJECT_API FPropertyLocalizationDataGatherer
 {
 public:
-	typedef TFunction<void(const UObject* const, FPropertyLocalizationDataGatherer&, const EPropertyLocalizationGathererTextFlags)> FLocalizationDataGatheringCallback;
-	typedef TMap<const UClass*, FLocalizationDataGatheringCallback> FLocalizationDataGatheringCallbackMap;
+	typedef TFunction<void(const UObject* /*Object*/, FPropertyLocalizationDataGatherer& /*PropertyLocalizationDataGatherer*/, const EPropertyLocalizationGathererTextFlags /*GatherTextFlags*/)> FLocalizationDataObjectGatheringCallback;
+	typedef TMap<const UClass*, FLocalizationDataObjectGatheringCallback> FLocalizationDataObjectGatheringCallbackMap;
+
+	typedef TFunction<void(const FString& /*PathToParent*/, const UScriptStruct* /*Struct*/, const void* /*StructData*/, const void* /*DefaultStructData*/, FPropertyLocalizationDataGatherer& /*PropertyLocalizationDataGatherer*/, const EPropertyLocalizationGathererTextFlags /*GatherTextFlags*/)> FLocalizationDataStructGatheringCallback;
+	typedef TMap<const UScriptStruct*, FLocalizationDataStructGatheringCallback> FLocalizationDataStructGatheringCallbackMap;
 
 	struct FGatherableFieldsForType
 	{
 		TArray<const FProperty*> Properties;
 		TArray<const UFunction*> Functions;
-		const FLocalizationDataGatheringCallback* CustomCallback = nullptr;
+		const FLocalizationDataObjectGatheringCallback* CustomObjectCallback = nullptr;
+		const FLocalizationDataStructGatheringCallback* CustomStructCallback = nullptr;
 
-		bool HasFields() const
+		bool IsEmpty() const
 		{
-			return Properties.Num() > 0 || Functions.Num() > 0;
+			return Properties.Num() == 0
+				&& Functions.Num() == 0
+				&& !CustomObjectCallback
+				&& !CustomStructCallback;
 		}
 	};
 
@@ -98,7 +105,11 @@ public:
 	void GatherLocalizationDataFromObjectWithCallbacks(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromObjectFields(const FString& PathToParent, const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	
+	void GatherLocalizationDataFromStructWithCallbacks(const FString& PathToParent, const UScriptStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	void GatherLocalizationDataFromStruct(const FString& PathToParent, const UScriptStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	void GatherLocalizationDataFromStructFields(const FString& PathToParent, const UStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	
 	void GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const FProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 
 	void GatherTextInstance(const FText& Text, const FString& Description, const bool bIsEditorOnly);
@@ -114,7 +125,8 @@ public:
 
 	static bool ExtractTextIdentity(const FText& Text, FString& OutNamespace, FString& OutKey, const bool bCleanNamespace);
 
-	static FLocalizationDataGatheringCallbackMap& GetTypeSpecificLocalizationDataGatheringCallbacks();
+	static FLocalizationDataObjectGatheringCallbackMap& GetTypeSpecificLocalizationDataObjectGatheringCallbacks();
+	static FLocalizationDataStructGatheringCallbackMap& GetTypeSpecificLocalizationDataStructGatheringCallbacks();
 
 	FORCEINLINE TArray<FGatherableTextData>& GetGatherableTextDataArray() const
 	{
@@ -176,8 +188,13 @@ private:
 /** Struct to automatically register a callback when it's constructed */
 struct FAutoRegisterLocalizationDataGatheringCallback
 {
-	FORCEINLINE FAutoRegisterLocalizationDataGatheringCallback(const UClass* InClass, const FPropertyLocalizationDataGatherer::FLocalizationDataGatheringCallback& InCallback)
+	FORCEINLINE FAutoRegisterLocalizationDataGatheringCallback(const UClass* InClass, const FPropertyLocalizationDataGatherer::FLocalizationDataObjectGatheringCallback& InCallback)
 	{
-		FPropertyLocalizationDataGatherer::GetTypeSpecificLocalizationDataGatheringCallbacks().Add(InClass, InCallback);
+		FPropertyLocalizationDataGatherer::GetTypeSpecificLocalizationDataObjectGatheringCallbacks().Add(InClass, InCallback);
+	}
+
+	FORCEINLINE FAutoRegisterLocalizationDataGatheringCallback(const UScriptStruct* InStruct, const FPropertyLocalizationDataGatherer::FLocalizationDataStructGatheringCallback& InCallback)
+	{
+		FPropertyLocalizationDataGatherer::GetTypeSpecificLocalizationDataStructGatheringCallbacks().Add(InStruct, InCallback);
 	}
 };

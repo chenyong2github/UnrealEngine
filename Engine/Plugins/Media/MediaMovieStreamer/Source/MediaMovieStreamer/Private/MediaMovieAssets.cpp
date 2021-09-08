@@ -8,6 +8,7 @@
 
 UMediaMovieAssets::UMediaMovieAssets()
 	: MediaPlayer(nullptr)
+	, MediaSoundComponent(nullptr)
 	, MediaSource(nullptr)
 	, MediaTexture(nullptr)
 	, MovieStreamer(nullptr)
@@ -34,6 +35,11 @@ void UMediaMovieAssets::SetMediaPlayer(UMediaPlayer* InMediaPlayer, FMediaMovieS
 	{
 		MediaPlayer->OnEndReached.AddUniqueDynamic(this, &UMediaMovieAssets::OnMediaEnd);
 	}
+}
+
+void UMediaMovieAssets::SetMediaSoundComponent(UMediaSoundComponent* InMediaSoundComponent)
+{
+	MediaSoundComponent = InMediaSoundComponent;
 }
 
 void UMediaMovieAssets::SetMediaSource(UMediaSource* InMediaSource)

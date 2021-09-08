@@ -191,6 +191,12 @@ TSharedPtr<FStreamableHandle> UGameFeaturesSubsystem::LoadGameFeatureData(const 
 	return nullptr;
 }
 
+void UGameFeaturesSubsystem::UnloadGameFeatureData(const UGameFeatureData* GameFeatureToUnload)
+{
+	UAssetManager& LocalAssetManager = UAssetManager::Get();
+	LocalAssetManager.UnloadPrimaryAsset(GameFeatureToUnload->GetPrimaryAssetId());
+}
+
 void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName)
 {
 	check(GameFeatureToAdd);
@@ -245,8 +251,8 @@ void UGameFeaturesSubsystem::AddObserver(UObject* Observer)
 	check(Observer);
 	if (ensureAlwaysMsgf(Cast<IGameFeatureStateChangeObserver>(Observer) != nullptr, TEXT("Observers must implement the IGameFeatureStateChangeObserver interface.")))
 	{
-	Observers.Add(Observer);
-}
+		Observers.Add(Observer);
+	}
 }
 
 void UGameFeaturesSubsystem::RemoveObserver(UObject* Observer)
@@ -586,7 +592,7 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginUR
 		if (StateMachine->GetDestinationState() <= EGameFeaturePluginState::Loaded)
 		{
 			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-		{
+				{
 					CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
 					return false;
 				}));
@@ -599,10 +605,10 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginUR
 	else
 	{
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-		{
-			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
-			return false;
-		}));
+			{
+				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
+				return false;
+			}));
 	}
 }
 
@@ -611,7 +617,7 @@ void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, b
 	ChangeGameFeatureTargetState(PluginURL,
 		bKeepRegistered ? EGameFeatureTargetState::Registered : EGameFeatureTargetState::Installed,
 		FGameFeaturePluginUnloadComplete());
-	}
+}
 
 void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate, bool bKeepRegistered)
 {
@@ -635,10 +641,10 @@ void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, c
 	else
 	{
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-		{
-			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
-			return false;
-		}));
+			{
+				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
+				return false;
+			}));
 	}
 }
 

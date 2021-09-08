@@ -1163,7 +1163,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 	{
 		if (World != nullptr)
 		{
-			if (World->IsPendingKill())
+			if (!IsValid(World))
 			{
 				// We're trying to reload a level that has very recently been marked for garbage collection, it might not have been cleaned up yet
 				// So continue attempting to reload the package if possible

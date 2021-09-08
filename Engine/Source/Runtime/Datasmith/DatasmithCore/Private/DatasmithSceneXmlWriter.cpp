@@ -733,7 +733,7 @@ void FDatasmithSceneXmlWriterImpl::WriteHierarchicalInstancedMeshElement(const T
 	Indent--;
 
 	WriteIndent(Archive, Indent);
-	XmlString = TEXT("</Instances>\n");
+	XmlString = TEXT("</Instances>") LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
 
 	Indent--;

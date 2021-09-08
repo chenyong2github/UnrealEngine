@@ -52,7 +52,10 @@ TSharedRef<SWidget> FTemplateSequenceCustomization::GetBoundActorClassMenuConten
 
 	FClassViewerInitializationOptions Options;
 	Options.Mode = EClassViewerMode::ClassPicker;
+	Options.DisplayMode = EClassViewerDisplayMode::TreeView;
+	Options.bShowObjectRootClass = true;
 	Options.bIsActorsOnly = true;
+	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::Dynamic;
 
 	TSharedRef<SWidget> ClassPicker = ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateRaw(this, &FTemplateSequenceCustomization::OnBoundActorClassPicked));
 

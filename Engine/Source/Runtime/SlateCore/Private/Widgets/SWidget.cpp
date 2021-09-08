@@ -194,6 +194,7 @@ SWidget::SWidget()
 	, bNeedsPrepass(true)
 	, bHasRegisteredSlateAttribute(false)
 	, bEnabledAttributesUpdate(true)
+	, bHasPendingAttributesInvalidation(false)
 	, bIsDeclarativeSyntaxConstructionCompleted(false)
 	, bIsHoveredAttributeSet(false)
 	, bHasCustomPrepass(false)
@@ -218,6 +219,9 @@ SWidget::SWidget()
 	, RenderOpacity(1.0f)
 #if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
 	, UniqueIdentifier(++SlateTraceMetaData::UniqueIdGenerator)
+#endif
+#if STATS
+	, AllocSize(0)
 #endif
 #if ENABLE_STATNAMEDEVENTS
 	, StatIDStringStorage(nullptr)
@@ -787,7 +791,7 @@ void SWidget::UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementsHandle& Ca
 		ensureMsgf(MyProxy.Visibility.IsVisibleDirectly() == GetVisibility().IsVisible()
 			, TEXT("The visibility of the widget '%s' changed during Paint")
 			, *FReflectionMetaData::GetWidgetPath(this));
-		if ((IsVolatile() && !IsVolatileIndirectly()) || (Advanced_IsInvalidationRoot() && !Advanced_IsWindow()))
+		if (IsVolatile() && !IsVolatileIndirectly())
 		{
 			ensureMsgf(HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint)
 				, TEXT("The votality of the widget '%s' changed during Paint")
@@ -1406,17 +1410,32 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 
 	if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 	{
+		if (bHasPendingAttributesInvalidation)
+		{
+			FSlateAttributeMetaData::ApplyDelayedInvalidation(*MutableThis);
+		}
+
 		SCOPE_CYCLE_COUNTER(STAT_SlateExecuteActiveTimers);
 		MutableThis->ExecuteActiveTimers(Args.GetCurrentTime(), Args.GetDeltaTime());
 	}
 
 	if (HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick))
 	{
+		if (bHasPendingAttributesInvalidation)
+		{
+			FSlateAttributeMetaData::ApplyDelayedInvalidation(*MutableThis);
+		}
+
 		INC_DWORD_STAT(STAT_SlateNumTickedWidgets);
 
 		SCOPE_CYCLE_COUNTER(STAT_SlateTickWidgets);
 		SCOPE_CYCLE_SWIDGET(this);
 		MutableThis->Tick(DesktopSpaceGeometry, Args.GetCurrentTime(), Args.GetDeltaTime());
+	}
+
+	if (bHasPendingAttributesInvalidation)
+	{
+		FSlateAttributeMetaData::ApplyDelayedInvalidation(*MutableThis);
 	}
 
 	// the rule our parent has set for us
@@ -1463,9 +1482,10 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	UpdatedArgs.SetInheritedHittestability(bOutgoingHittestability);
 
 #if WITH_SLATE_DEBUGGING
-	if (FastPathProxyHandle.IsValid(this) && PersistentState.CachedElementHandle.IsValid())
+	if (FastPathProxyHandle.IsValid(this) && PersistentState.CachedElementHandle.HasCachedElements())
 	{
-		ensure(FastPathProxyHandle.GetProxy().Visibility.IsVisible());
+		ensureMsgf(FastPathProxyHandle.GetProxy().Visibility.IsVisible()
+			, TEXT("The widget '%s' is collapsed or not visible. It should not have Cached Element."), *FReflectionMetaData::GetWidgetDebugInfo(this));
 	}
 #endif
 

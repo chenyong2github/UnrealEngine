@@ -215,12 +215,14 @@ protected:
 	UPROPERTY()
 	FString FunctionDisplayName;
 
+	/* Marking those properties explicitly as editoronly_data will make localization not pick these up. */
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TMap<FGuid, TObjectPtr<UNiagaraMessageData>> MessageKeyToMessageMap;
 	
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TArray<FNiagaraStackMessage> StackMessages;
-
+#endif
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TMap<FGuid, FName> BoundPinNames;
 

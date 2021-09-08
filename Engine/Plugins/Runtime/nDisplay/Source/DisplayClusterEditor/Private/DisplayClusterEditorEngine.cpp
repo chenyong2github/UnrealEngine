@@ -57,7 +57,7 @@ ADisplayClusterRootActor* UDisplayClusterEditorEngine::FindDisplayClusterRootAct
 	{
 		for (AActor* const Actor : InWorld->PersistentLevel->Actors)
 		{
-			if (Actor && !Actor->IsPendingKill())
+			if (IsValid(Actor))
 			{
 				ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Actor);
 				if (RootActor)

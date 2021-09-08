@@ -1345,8 +1345,8 @@ public:
 	void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
 
 #if WITH_EDITOR
-	/** Get whether this mesh use LOD streaming. Do not use bSupportLODStreaming directly. Call this method instead. */
-	bool GetSupportsLODStreaming(const class ITargetPlatform* TargetPlatform) const;
+	/** Get whether this mesh should use LOD streaming for the given platform. Do not use bSupportLODStreaming directly. Call this method instead. */
+	bool GetEnableLODStreaming(const class ITargetPlatform* TargetPlatform) const;
 
 	/** Get the maximum number of LODs that can be streamed. Do not use MaxNumStreamedLODs directly. Call this method instead. */
 	int32 GetMaxNumStreamedLODs(const class ITargetPlatform* TargetPlatform) const;

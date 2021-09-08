@@ -192,6 +192,17 @@ void UMaterialInstanceDynamic::SetTextureParameterValueByInfo(const FMaterialPar
 	SetTextureParameterValueInternal(ParameterInfo, Value);
 }
 
+void UMaterialInstanceDynamic::SetRuntimeVirtualTextureParameterValue(FName ParameterName, class URuntimeVirtualTexture* Value)
+{
+	FMaterialParameterInfo ParameterInfo(ParameterName);
+	SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value);
+}
+
+void UMaterialInstanceDynamic::SetRuntimeVirtualTextureParameterValueByInfo(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture* Value)
+{
+	SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value);
+}
+
 UTexture* UMaterialInstanceDynamic::K2_GetTextureParameterValue(FName ParameterName)
 {
 	UTexture* Result = NULL;

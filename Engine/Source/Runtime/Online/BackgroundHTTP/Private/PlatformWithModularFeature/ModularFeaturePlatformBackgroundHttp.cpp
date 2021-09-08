@@ -133,10 +133,13 @@ void FModularFeaturePlatformBackgroundHttp::CacheModularFeature()
 			}
 			else
 			{
-				UE_LOG(LogBackgroundHttpModularFeature, Error, TEXT("Module %s exists but is not available for ModularFeatureName: %s! Make sure it correctly registers itself as a modular feature when loaded!"), *ModuleName, *(GetModularFeatureName().ToString()));
+				UE_LOG(LogBackgroundHttpModularFeature, Display, TEXT("Module %s exists but is not available/registered for ModularFeatureName: %s"), *ModuleName, *(GetModularFeatureName().ToString()));
 			}
 		}
 		
-		ensureAlwaysMsgf((CachedModularFeature != nullptr), TEXT("Unable to load expected BackgroundHttp ModularFeature module %s for ModularFeatureName: %s ! BackgroundHttp will fallback to generic implementation!"), *ModuleName, *(GetModularFeatureName().ToString()));
+		if (nullptr == CachedModularFeature)
+		{
+			UE_LOG(LogBackgroundHttpModularFeature, Display, TEXT("Using Generic Implementation as ModularFeature: %s is not registered or available"), *(GetModularFeatureName().ToString()));
+		}
 	}
 }

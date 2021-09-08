@@ -389,6 +389,97 @@ inline uniform FVector4 VectorTransformVector(const uniform FVector4 &VecP, cons
 	return Result;
 }
 
+inline FVector4 VectorTransformVector(const FVector4 &VecP, const FMatrix &M)
+{
+	FVector4 VTempX, VTempY, VTempZ, VTempW;
+
+	// Splat x,y,z and w
+	VTempX = VectorReplicate(VecP, 0);
+	VTempY = VectorReplicate(VecP, 1);
+	VTempZ = VectorReplicate(VecP, 2);
+	VTempW = VectorReplicate(VecP, 3);
+
+	// Mul by the matrix
+	VTempX = VectorMultiply(VTempX, SetVector4(M.M[0], M.M[1], M.M[2], M.M[3]));
+	VTempY = VectorMultiply(VTempY, SetVector4(M.M[4], M.M[5], M.M[6], M.M[7]));
+	VTempZ = VectorMultiply(VTempZ, SetVector4(M.M[8], M.M[9], M.M[10], M.M[11]));
+	VTempW = VectorMultiply(VTempW, SetVector4(M.M[12], M.M[13], M.M[14], M.M[15]));
+
+	// Add them all together
+	VTempX = VectorAdd(VTempX, VTempY);
+	VTempZ = VectorAdd(VTempZ, VTempW);
+	VTempX = VectorAdd(VTempX, VTempZ);
+
+	return VTempX;
+}
+
+// Calculate homogeneous transform. W component assumed to be 1.0
+inline FVector MatrixTransformPosition(const FVector &P, const FMatrix &M)
+{
+	FVector VTempX, VTempY, VTempZ;
+
+	// Splat x,y,z
+	VTempX = SetVector(P.V[0], P.V[0], P.V[0]);
+	VTempY = SetVector(P.V[1], P.V[1], P.V[1]);
+	VTempZ = SetVector(P.V[2], P.V[2], P.V[2]);
+
+	// Mul by the matrix
+	VTempX = VTempX * SetVector(M.M[0], M.M[1], M.M[2]);
+	VTempY = VTempY * SetVector(M.M[4], M.M[5], M.M[6]);
+	VTempZ = VTempZ * SetVector(M.M[8], M.M[9], M.M[10]);
+	const FVector VTempW = SetVector(M.M[12], M.M[13], M.M[14]);
+
+	// Add them all together
+	VTempX = VTempX + VTempY;
+	VTempZ = VTempZ + VTempW;
+	VTempX = VTempX + VTempZ;
+
+	return VTempX;
+}
+
+// Calculate homogeneous transform. W component assumed to be 1.0
+inline FVector MatrixTransformPosition(const FVector &P, const uniform FMatrix &M)
+{
+	FVector VTempX, VTempY, VTempZ;
+
+	// Splat x,y,z
+	VTempX = SetVector(P.V[0], P.V[0], P.V[0]);
+	VTempY = SetVector(P.V[1], P.V[1], P.V[1]);
+	VTempZ = SetVector(P.V[2], P.V[2], P.V[2]);
+
+	// Mul by the matrix
+	VTempX = VTempX * SetVector(M.M[0], M.M[1], M.M[2]);
+	VTempY = VTempY * SetVector(M.M[4], M.M[5], M.M[6]);
+	VTempZ = VTempZ * SetVector(M.M[8], M.M[9], M.M[10]);
+	const uniform FVector VTempW = SetVector(M.M[12], M.M[13], M.M[14]);
+
+	// Add them all together
+	VTempX = VTempX + VTempY;
+	VTempZ = VTempZ + VTempW;
+	VTempX = VTempX + VTempZ;
+
+	return VTempX;
+}
+
+// Calculate homogeneous transform. W component assumed to be 0.0
+inline FVector MatrixTransformVector(const FVector &P, const FMatrix &M)
+{
+	FVector VTempX, VTempY, VTempZ;
+
+	// Splat x,y,z
+	VTempX = SetVector(P.V[0], P.V[0], P.V[0]);
+	VTempY = SetVector(P.V[1], P.V[1], P.V[1]);
+	VTempZ = SetVector(P.V[2], P.V[2], P.V[2]);
+
+	// Mul by the matrix
+	VTempX = VTempX * SetVector(M.M[0], M.M[1], M.M[2]);
+	VTempY = VTempY * SetVector(M.M[4], M.M[5], M.M[6]);
+	VTempZ = VTempZ * SetVector(M.M[8], M.M[9], M.M[10]);
+
+	// Add them all together
+	return VTempX + VTempY + VTempZ;
+}
+
 inline uniform FVector MatrixInverseTransformVector(const uniform FMatrix &M, const uniform FVector &V)
 {
 	const uniform FMatrix InvSelf = VectorMatrixInverse(M); // FMatrix::InverseFast();

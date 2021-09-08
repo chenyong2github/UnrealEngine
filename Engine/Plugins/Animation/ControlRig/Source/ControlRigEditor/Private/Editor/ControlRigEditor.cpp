@@ -2346,6 +2346,11 @@ void FControlRigEditor::PostUndo(bool bSuccess)
 
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
+		if (RigBlueprint->Status == BS_Dirty)
+		{
+			Compile();
+		}
+
 		USkeletalMesh* PreviewMesh = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMesh();
 		if (PreviewMesh != RigBlueprint->GetPreviewMesh())
 		{
@@ -2380,6 +2385,11 @@ void FControlRigEditor::PostRedo(bool bSuccess)
 
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
+		if (RigBlueprint->Status == BS_Dirty)
+		{
+			Compile();
+		}
+
 		USkeletalMesh* PreviewMesh = GetPersonaToolkit()->GetPreviewScene()->GetPreviewMesh();
 		if (PreviewMesh != RigBlueprint->GetPreviewMesh())
 		{

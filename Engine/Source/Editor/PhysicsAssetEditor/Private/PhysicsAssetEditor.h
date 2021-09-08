@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "UObject/GCObject.h"
 #include "Textures/SlateIcon.h"
 #include "Editor/UnrealEdTypes.h"
@@ -207,6 +208,11 @@ private:
 	bool CanEditConstraintProperties() const;
 	bool HasSelectedConstraintAndIsNotSimulation() const;
 	void OnChangeDefaultMesh(USkeletalMesh* OldPreviewMesh, USkeletalMesh* NewPreviewMesh);
+	void OnCopyBodies();
+	bool IsCopyBodies() const;
+	bool CanCopyBodies() const;
+	void OnPasteBodies();
+	bool CanPasteBodies() const;
 	void OnCopyProperties();
 	bool IsCopyProperties() const;
 	bool CanCopyProperties() const;
@@ -336,6 +342,9 @@ private:
 
 	/** Invalidate convex meshes and recreate the physics state. Performed on property changes (etc) */
 	void RecreatePhysicsState();
+
+	/** show a notification message **/
+	void ShowNotificationMessage(const FText& Message, const SNotificationItem::ECompletionState CompletionState);
 
 private:
 	/** Physics asset properties tab */

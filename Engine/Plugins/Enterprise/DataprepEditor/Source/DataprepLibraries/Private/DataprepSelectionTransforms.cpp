@@ -74,7 +74,7 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 
 	for (UObject* Object : InObjects)
 	{
-		if (!ensure(Object) || Object->IsPendingKill())
+		if (!ensure(Object) || !IsValid(Object))
 		{
 			continue;
 		}
@@ -181,7 +181,7 @@ void UDataprepReferencedSelectionTransform::OnExecution_Implementation(const TAr
 
 	for (UObject* Object : InObjects)
 	{
-		if (!ensure(Object) || Object->IsPendingKill())
+		if (!ensure(Object) || !IsValidChecked(Object))
 		{
 			continue;
 		}
@@ -278,7 +278,7 @@ void UDataprepHierarchySelectionTransform::OnExecution_Implementation(const TArr
 
 	for (UObject* Object : InObjects)
 	{
-		if (!ensure(Object) || Object->IsPendingKill())
+		if (!ensure(Object) || !IsValid(Object))
 		{
 			continue;
 		}
@@ -333,7 +333,7 @@ void UDataprepHierarchySelectionTransform::OnExecution_Implementation(const TArr
 
 		for (UObject* Object : InObjects)
 		{
-			if (!ensure(Object) || Object->IsPendingKill())
+			if (!ensure(Object) || !IsValid(Object))
 			{
 				continue;
 			}
@@ -356,7 +356,7 @@ void UDataprepActorComponentsSelectionTransform::OnExecution_Implementation(cons
 
 	for (UObject* Object : InObjects)
 	{
-		if (!ensure(Object) || Object->IsPendingKill())
+		if (!ensure(Object) || ! IsValidChecked(Object))
 		{
 			continue;
 		}
@@ -387,7 +387,7 @@ void UDataprepOwningActorSelectionTransform::OnExecution_Implementation(const TA
 
 	for (UObject* Object : InObjects)
 	{
-		if (!ensure(Object) || Object->IsPendingKill())
+		if (!ensure(Object) || !IsValidChecked(Object))
 		{
 			continue;
 		}

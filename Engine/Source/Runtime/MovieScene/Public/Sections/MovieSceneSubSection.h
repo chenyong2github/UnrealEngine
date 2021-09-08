@@ -94,18 +94,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void SetSequence(UMovieSceneSequence* Sequence);
 
-	/** Prime this section as the one and only recording section */
-	void SetAsRecording(bool bRecord);
-
-	/** Get the section we are recording to */
-	static UMovieSceneSubSection* GetRecordingSection();
-
-	/** Get the actor we are targeting for recording */
-	static AActor* GetActorToRecord();
-
-	/** Check if we are primed for recording */
-	static bool IsSetAsRecording();
-
 	virtual void PostLoad() override;
 
 #if WITH_EDITOR
@@ -115,36 +103,6 @@ public:
 	/** Delegate to fire when our sequence is changed in the property editor */
 	FOnSequenceChanged& OnSequenceChanged() { return OnSequenceChangedDelegate; }
 #endif
-
-	/** Get the name of the sequence we are going to try to record to */
-	const FString& GetTargetSequenceName() const
-	{
-		return TargetSequenceName;
-	}
-
-	/** Set the name of the sequence we are going to try to record to */
-	void SetTargetSequenceName(const FString& Name)
-	{
-		TargetSequenceName = Name;
-	}
-
-	/** Get the path of the sequence we are going to try to record to */
-	const FString& GetTargetPathToRecordTo() const
-	{
-		return TargetPathToRecordTo.Path;
-	}
-
-	/** Set the path of the sequence we are going to try to record to */
-	void SetTargetPathToRecordTo(const FString& Path)
-	{
-		TargetPathToRecordTo.Path = Path;
-	}
-
-	/** Set the target actor to record */
-	void SetActorToRecord(AActor* InActorToRecord)
-	{
-		ActorToRecord = InActorToRecord;
-	}
 
 	FFrameNumber MapTimeToSectionFrame(FFrameTime InPosition) const;
 
@@ -196,21 +154,6 @@ protected:
 	/** Movie scene being played by this section */
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	TObjectPtr<UMovieSceneSequence> SubSequence;
-
-	/** Target actor to record */
-	UPROPERTY(EditAnywhere, Category="Sequence Recording")
-	TLazyObjectPtr<AActor> ActorToRecord;
-
-	/** Target name of sequence to try to record to (will record automatically to another if this already exists) */
-	UPROPERTY(EditAnywhere, Category="Sequence Recording")
-	FString TargetSequenceName;
-
-	/** Target path of sequence to record to */
-	UPROPERTY(EditAnywhere, Category="Sequence Recording", meta=(ContentDir))
-	FDirectoryPath TargetPathToRecordTo;
-
-	/** Keep track of our constructed recordings */
-	static TWeakObjectPtr<UMovieSceneSubSection> TheRecordingSection;
 
 #if WITH_EDITOR
 	/** Delegate to fire when our sequence is changed in the property editor */

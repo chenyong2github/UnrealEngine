@@ -19,7 +19,7 @@ UDisplayClusterSceneComponentSyncParent::UDisplayClusterSceneComponentSyncParent
 bool UDisplayClusterSceneComponentSyncParent::IsDirty() const
 {
 	USceneComponent* const pParent = GetAttachParent();
-	if (pParent && !pParent->IsPendingKill())
+	if (IsValid(pParent))
 	{
 		const bool bIsDirty = (LastSyncLoc != pParent->GetRelativeLocation() || LastSyncRot != pParent->GetRelativeRotation() || LastSyncScale != pParent->GetRelativeScale3D());
 		UE_LOG(LogDisplayClusterGame, Verbose, TEXT("SYNC_PARENT: %s dirty state is %s"), *GetSyncId(), *DisplayClusterHelpers::str::BoolToStr(bIsDirty));
@@ -32,7 +32,7 @@ bool UDisplayClusterSceneComponentSyncParent::IsDirty() const
 void UDisplayClusterSceneComponentSyncParent::ClearDirty()
 {
 	USceneComponent* const pParent = GetAttachParent();
-	if (pParent && !pParent->IsPendingKill())
+	if (IsValid(pParent))
 	{
 		LastSyncLoc   = pParent->GetRelativeLocation();
 		LastSyncRot   = pParent->GetRelativeRotation();

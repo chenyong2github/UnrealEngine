@@ -1697,7 +1697,7 @@ void FNiagaraSystemToolkit::UpdateExistingEmitters()
 	{
 		UNiagaraSystem* LoadedSystem = *SystemIterator;
 		if (LoadedSystem != System &&
-			LoadedSystem->IsPendingKill() == false && 
+			IsValid(LoadedSystem) && 
 			LoadedSystem->HasAnyFlags(RF_ClassDefaultObject) == false)
 		{
 			bool bUsesMergedEmitterDirectly = false;

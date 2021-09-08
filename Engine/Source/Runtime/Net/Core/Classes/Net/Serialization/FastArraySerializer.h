@@ -746,7 +746,7 @@ bool FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::Cond
 
 		if (UNLIKELY(OldIDToKeyMap.Num() != ArraySerializer.CachedNumItemsToConsiderForWriting))
 		{
-			UE_LOG(LogNetFastTArray, Warning, TEXT("OldMap size (%d) does not match item count (%d)"), OldIDToKeyMap.Num(), ArraySerializer.CachedNumItemsToConsiderForWriting);
+			UE_LOG(LogNetFastTArray, Warning, TEXT("OldMap size (%d) does not match item count (%d) for struct (%s), missing a MarkArrayDirty on element add/remove?"), OldIDToKeyMap.Num(), ArraySerializer.CachedNumItemsToConsiderForWriting, *Struct->GetOwnerStruct()->GetName());
 		}
 
 		if (Parms.OldState)

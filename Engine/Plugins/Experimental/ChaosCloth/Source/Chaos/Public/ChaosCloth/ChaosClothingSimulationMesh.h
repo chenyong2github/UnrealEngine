@@ -72,3 +72,13 @@ namespace Chaos
 		const USkeletalMeshComponent* SkeletalMeshComponent;
 	};
 } // namespace Chaos
+
+// Support ISPC enable/disable in non-shipping builds
+constexpr bool bChaos_SkinPhysicsMesh_ISPC_Enable = false;  // Disabled by default
+#if !INTEL_ISPC
+const bool bChaos_SkinPhysicsMesh_ISPC_Enabled = false;
+#elif UE_BUILD_SHIPPING
+const bool bChaos_SkinPhysicsMesh_ISPC_Enabled = bChaos_SkinPhysicsMesh_ISPC_Enable;
+#else
+extern bool bChaos_SkinPhysicsMesh_ISPC_Enabled;
+#endif

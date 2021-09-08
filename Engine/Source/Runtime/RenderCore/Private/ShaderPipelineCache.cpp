@@ -694,11 +694,10 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			GraphicsInitializer.StencilTargetStoreAction = PSO.GraphicsDesc.StencilStore;
 			
 			GraphicsInitializer.PrimitiveType = PSO.GraphicsDesc.PrimitiveType;
-			GraphicsInitializer.bFromPSOFileCache = true;
 			
 			// This indicates we do not want a fatal error if this compilation fails
 			// (ie, if this entry in the file cache is bad)
-			GraphicsInitializer.bFromPSOFileCache = 1;
+			GraphicsInitializer.bFromPSOFileCache = true;
 			
 			// Use SetGraphicsPipelineState to call down into PipelineStateCache and also handle the fallback case used by OpenGL.
 			SetGraphicsPipelineState(RHICmdList, GraphicsInitializer, 0, EApplyRendertargetOption::DoNothing, false);
@@ -713,7 +712,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 				FComputeShaderRHIRef ComputeInitializer = FShaderCodeLibrary::CreateComputeShader(Platform, PSO.ComputeDesc.ComputeShader);
 				if (ComputeInitializer.IsValid())
 				{
-					FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer);
+					FComputePipelineState* ComputeResult = PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeInitializer, true);
 					bOk = ComputeResult != nullptr;
 				}
 			}

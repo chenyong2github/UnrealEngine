@@ -3834,6 +3834,8 @@ struct FReplicationFlags
 			uint32 bSkipRoleSwap:1;
 			/** True if we should only compare role properties in CompareProperties */
 			uint32 bRolesOnly:1;
+			/** True if we should force all properties dirty on initial replication. */
+			uint32 bForceInitialDirty:1;
 		};
 
 		uint32	Value;

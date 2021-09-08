@@ -61,8 +61,8 @@ namespace AutomationScripts
 					AppendOrder = Convert.ToInt32(Number);
 				}
 
-				if (OrderType == OrderFileType.Cooker && AppendOrder == -1)
-				{
+				if(OrderType == OrderFileType.Cooker && AppendOrder == -1)
+	            {
 					// make sure to sort CookerOpenOrder.log at the end since its produce by the cooking stage
 					AppendOrder = Int32.MaxValue;
 				}
@@ -208,7 +208,7 @@ namespace AutomationScripts
 			{
 				CmdLine.AppendFormat(" -secondaryOrder={0}", CommandUtils.MakePathSafeToUseWithCommandLine(string.Join(",", SecondaryPakOrderFileLocations.Select(u => u.File.FullName).ToArray())));
 			}
-			if (!String.IsNullOrEmpty(PatchSourceContentPath))
+			if (!String.IsNullOrEmpty(PatchSourceContentPath)) 
 			{
 				CmdLine.AppendFormat(" -generatepatch={0} -tempfiles={1}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath), CommandUtils.MakePathSafeToUseWithCommandLine(CommandUtils.CombinePaths(CommandUtils.CmdEnv.LocalRoot, "TempFiles" + Path.GetFileNameWithoutExtension(OutputLocation.FullName))));
 			}
@@ -227,7 +227,7 @@ namespace AutomationScripts
 					CmdLine.AppendFormat(" -sign");
 				}
 			}
-
+			
 			CmdLine.Append(PlatformOptions);
 
 			return CmdLine.ToString();
@@ -246,7 +246,7 @@ namespace AutomationScripts
 		{
 			StringBuilder CmdLine = new StringBuilder();
 			CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
-			CmdLine.AppendFormat("-ContainerName={0}", ContainerName);
+			CmdLine.AppendFormat(" -ContainerName={0}", ContainerName);
 			if (!bIsDLC && !String.IsNullOrEmpty(PatchSourceContentPath))
 			{
 				CmdLine.AppendFormat(" -PatchSource={0}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath));
@@ -520,7 +520,7 @@ namespace AutomationScripts
 					if (RelativePath != null)
 					{
 						DirectoryReference InputDir = DirectoryReference.Combine(ProjectContentRoot, RelativePath);
-						if (Directory.Exists(InputDir.FullName) == false)
+						if (Directory.Exists(InputDir.FullName)==false)
 						{
 							CommandUtils.LogWarning("Unable to find directory \"{0}\" for staging, retrieved from \"/Script/UnrealEd.ProjectPackagingSettings\" \"{1}\"", InputDir.FullName, ConfigKeyName);
 							continue;
@@ -916,7 +916,7 @@ namespace AutomationScripts
 
 						SC.RestrictedFolderNames = ToRestoreRestrictedFolder;
 					}
-
+					
 					// Stage platform extension config files
 					foreach (string PlatformExtensionToStage in PlatformExtensionsToStage)
 					{
@@ -1054,7 +1054,7 @@ namespace AutomationScripts
 					if (DirectoryReference.Exists(CookOutputDir))
 					{
 						List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(CookOutputDir, "*", SearchOption.AllDirectories).ToList();
-
+						
 						// When cooking directly to I/O store contaier files look for the package store manifest
 						if (Params.IoStore || Params.ZenStore)
 						{
@@ -1840,7 +1840,7 @@ namespace AutomationScripts
 				ConfigFiles.Add(new ConfigFile(ProjectConfigFileReference));
 				bFoundConfig = true;
 			}
-
+		
 			if (!bFoundConfig)
 			{
 				return null;
@@ -1848,7 +1848,7 @@ namespace AutomationScripts
 			ConfigHierarchy PakRulesConfig = new ConfigHierarchy(ConfigFiles);*/
 
 
-
+			
 			ConfigHierarchy PakRulesConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.PakFileRules, DirectoryReference.FromFile(Params.RawProjectPath), SC.StageTargetPlatform.IniPlatformType, SC.CustomConfig);
 
 			bool bChunkedBuild = SC.PlatformUsesChunkManifests && DoesChunkPakManifestExist(Params, SC);
@@ -1875,7 +1875,7 @@ namespace AutomationScripts
 					continue;
 				}
 
-				if (!bChunkedBuild && bOnlyChunkedBuilds)
+				if(!bChunkedBuild && bOnlyChunkedBuilds)
 				{
 					continue;
 				}
@@ -2010,7 +2010,7 @@ namespace AutomationScripts
 			// Search in order, return on first match
 			foreach (var PakRules in RulesList)
 			{
-				bool bMatched = !PakRules.bDisabled &&
+				bool bMatched = !PakRules.bDisabled && 
 					((!PakRules.bUseExactFilePathMatch && PakRules.Filter != null && PakRules.Filter.Matches(StagingFile.Key)) ||
 					(PakRules.bUseExactFilePathMatch && PakRules.ExactFileMatches != null && PakRules.ExactFileMatches.Contains(StagingFile.Value)));
 
@@ -2201,7 +2201,7 @@ namespace AutomationScripts
 					string SubFolder = Pair.Key.Name.Replace('/', Path.DirectorySeparatorChar);
 					FileReference NewIniFilename = FileReference.Combine(SC.ProjectRoot, "Saved", "Temp", SC.PlatformDir, SubFolder);
 					InternalUtils.SafeCreateDirectory(NewIniFilename.Directory.FullName, true);
-					InternalUtils.SafeCopyFile(Src.FullName, NewIniFilename.FullName, IniKeyBlacklist: SC.IniKeyBlacklist, IniSectionBlacklist: SC.IniSectionBlacklist);
+					InternalUtils.SafeCopyFile(Src.FullName, NewIniFilename.FullName, IniKeyBlacklist:SC.IniKeyBlacklist, IniSectionBlacklist:SC.IniSectionBlacklist);
 					Src = NewIniFilename;
 				}
 
@@ -2281,11 +2281,11 @@ namespace AutomationScripts
 			{
 				return String.Empty;
 			}
-			else if (bShouldGeneratePatch)
+			else if(bShouldGeneratePatch)
 			{
 				return "_P";
 			}
-			else if (bHasIterateSharedCookedBuild)
+			else if(bHasIterateSharedCookedBuild)
 			{
 				// shared cooked builds will produce a patch
 				// then be combined with the shared cooked build
@@ -2329,7 +2329,7 @@ namespace AutomationScripts
 			PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bForceUseProjectCompressionFormatIgnoreHardwareOverride", out bForceUseProjectCompressionFormatIgnoreHardwareOverride);
 
 			string HardwareCompressionFormat = null;
-			if (!bForceUseProjectCompressionFormatIgnoreHardwareOverride)
+			if ( ! bForceUseProjectCompressionFormatIgnoreHardwareOverride )
 			{
 				DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo DDPI = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(SC.StageTargetPlatform.IniPlatformType);
 				if (DDPI != null)
@@ -2342,7 +2342,7 @@ namespace AutomationScripts
 			string CompressionFormats;
 			if (!string.IsNullOrEmpty(HardwareCompressionFormat))
 			{
-				LogInformation("Overriding to HardwareCompressionFormat = {0}", HardwareCompressionFormat);
+				LogInformation("Overriding to HardwareCompressionFormat = {0}",HardwareCompressionFormat);
 				CompressionFormats = HardwareCompressionFormat;
 			}
 			else
@@ -2447,7 +2447,7 @@ namespace AutomationScripts
 			{
 				foreach (CreatePakParams PakParams in PakParamsList)
 				{
-					if (ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
+					if(ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
 					{
 						continue;
 					}
@@ -2553,7 +2553,7 @@ namespace AutomationScripts
 
 					// Priority missing is fine, we default to 0
 					int Priority = 0;
-					if (Fields.TryGetValue("Priority", out string PriorityString))
+					if( Fields.TryGetValue("Priority", out string PriorityString)) 
 					{
 						if (!int.TryParse(PriorityString, out Priority))
 						{
@@ -2565,14 +2565,14 @@ namespace AutomationScripts
 				}
 			}
 
-			if (OrderFileSpecs.Count == 0)
+			if(OrderFileSpecs.Count == 0)
 			{
 				// Default filespecs
 				OrderFileSpecs.AddRange(new OrderFileSpec[] {
-				new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game, Required=false, Priority = 0 },
-				new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker, Required=false, Priority = 0 },
-				new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor, Required=false, Priority = 0 }
-			});
+					new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game, Required=false, Priority = 0 },
+					new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker, Required=false, Priority = 0 },
+					new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor, Required=false, Priority = 0 }
+				});
 			}
 
 			// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
@@ -2631,12 +2631,12 @@ namespace AutomationScripts
 				OrderFiles.RemoveAll(x => x.OrderType == OrderFile.OrderFileType.Editor);
 			}
 
-			// Check second order 
-			bool bUseSecondaryOrder = false;
-			PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakUsesSecondaryOrder", out bUseSecondaryOrder);
+	        // Check second order 
+	        bool bUseSecondaryOrder = false;
+	        PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPakUsesSecondaryOrder", out bUseSecondaryOrder);
 
-			if (!bUseSecondaryOrder)
-			{
+			if(!bUseSecondaryOrder)
+	        {
 				OrderFiles.RemoveAll(x => (x.OrderType == OrderFile.OrderFileType.Cooker && x.AppendOrder == Int32.MaxValue));
 
 				// chekc if theres a merging cookopenorder file
@@ -2644,7 +2644,7 @@ namespace AutomationScripts
 			}
 
 			LogInformation("Using {0} pak order files:", OrderFiles.Count);
-			foreach (OrderFile File in OrderFiles)
+			foreach( OrderFile File in OrderFiles )
 			{
 				LogInformation("    {0} Priority {1}", File.File.ToString(), File.Priority);
 			}
@@ -2782,7 +2782,7 @@ namespace AutomationScripts
 						}
 
 						ConfigHierarchy PlatformEngineConfig;
-						if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))
+						if (Params.EngineConfigs.TryGetValue(SC.StageTargetPlatform.PlatformType, out PlatformEngineConfig))					
 						{
 							// if the runtime will want to reduce memory usage, we have to disable the pak index freezing
 							bool bUnloadPakEntries = false;
@@ -2802,7 +2802,7 @@ namespace AutomationScripts
 						if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform, SC.CustomConfig))
 						{
 							bool bAllowBulkDataInIoStore = true;
-							if (!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
+							if(!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
 							{
 								bAllowBulkDataInIoStore = true; // Default is to allow it in the IoStore
 							}
@@ -2830,10 +2830,10 @@ namespace AutomationScripts
 								{
 									IoStoreResponseFile.Add(Entry.Key, Entry.Value);
 								}
-								else if (Path.GetExtension(Entry.Key).Contains(".ubulk") ||
+								else if(Path.GetExtension(Entry.Key).Contains(".ubulk") ||
 										Path.GetExtension(Entry.Key).Contains(".uptnl"))
 								{
-									if (bAllowBulkDataInIoStore)
+									if(bAllowBulkDataInIoStore)
 									{
 										IoStoreResponseFile.Add(Entry.Key, Entry.Value);
 									}
@@ -2907,7 +2907,7 @@ namespace AutomationScripts
 			// Actually execute UnrealPak
 			if (Commands.Count > 0)
 			{
-				RunUnrealPakInParallel(Commands, LogNames, AdditionalCompressionOptionsOnCommandLine);
+				RunUnrealPakInParallel( Commands, LogNames, AdditionalCompressionOptionsOnCommandLine);
 			}
 
 			if (IoStoreCommands.Count > 0)
@@ -3174,7 +3174,7 @@ namespace AutomationScripts
 			{
 				CommandletParams += String.Format(" -Order={0}", MakePathSafeToUseWithCommandLine(string.Join(",", OrderFiles.Select(u => u.File.FullName).ToArray())));
 				CommandletParams += String.Format(" -OrderPriority={0}", MakePathSafeToUseWithCommandLine(string.Join(",", OrderFiles.Select(u => u.Priority).ToArray())));
-			}
+			} 
 			if (!string.IsNullOrWhiteSpace(AdditionalArgs))
 			{
 				CommandletParams += AdditionalArgs;
@@ -3193,14 +3193,14 @@ namespace AutomationScripts
 
 		private static void RunUnrealPakInParallel(List<string> Commands, List<string> LogNames, string AdditionalCompressionOptionsOnCommandLine)
 		{
-			LogInformation("Executing {0} UnrealPak command{1}...", Commands.Count, (Commands.Count > 1) ? "s" : "");
+			LogInformation("Executing {0} UnrealPak command{1}...", Commands.Count, (Commands.Count > 1)? "s" : "");
 
 			// Spawn tasks for each command
 			IProcessResult[] Results = new IProcessResult[Commands.Count];
-			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+			using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 			{
 				string UnrealPakExe = GetUnrealPakLocation().FullName;
-				for (int Idx = 0; Idx < Commands.Count; Idx++)
+				for(int Idx = 0; Idx < Commands.Count; Idx++)
 				{
 					string LogFile = LogUtils.GetUniqueLogName(CombinePaths(CmdEnv.LogFolder, String.Format("UnrealPak-{0}", LogNames[Idx])));
 					string Arguments = Commands[Idx] = String.Format("{0} -multiprocess -abslog={1} {2}", Commands[Idx], MakePathSafeToUseWithCommandLine(LogFile), AdditionalCompressionOptionsOnCommandLine);
@@ -3210,7 +3210,7 @@ namespace AutomationScripts
 				}
 
 				bool bComplete = false;
-				while (!bComplete)
+				while(!bComplete)
 				{
 					bComplete = Queue.Wait(10 * 1000);
 					LogInformation("Waiting for child processes to complete ({0}/{1})", Results.Count(x => x != null), Results.Length);
@@ -3219,26 +3219,26 @@ namespace AutomationScripts
 
 			// Output all the results
 			int NumFailed = 0;
-			for (int Idx = 0; Idx < Results.Length; Idx++)
+			for(int Idx = 0; Idx < Results.Length; Idx++)
 			{
 				LogInformation("Output from: {0}", Commands[Idx]);
-				using (new LogIndentScope("  "))
+				using(new LogIndentScope("  "))
 				{
-					foreach (string Line in Results[Idx].Output.TrimEnd().Split('\n'))
+					foreach(string Line in Results[Idx].Output.TrimEnd().Split('\n'))
 					{
 						LogInformation(Line);
 					}
 				}
 				LogInformation("UnrealPak terminated with exit code {0}", Results[Idx].ExitCode);
 
-				if (Results[Idx].ExitCode > 0)
+				if(Results[Idx].ExitCode > 0)
 				{
 					NumFailed++;
 				}
 			}
-
+				
 			// Abort if any instance failed
-			if (NumFailed > 0)
+			if(NumFailed > 0)
 			{
 				throw new AutomationException("UnrealPak failed");
 			}
@@ -3484,16 +3484,16 @@ namespace AutomationScripts
 
 					string OriginalFilename = StagingFile.Key;
 					string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
-					if (Path.GetExtension(NoExtension) == ".m")
+					if(Path.GetExtension(NoExtension) == ".m")
 					{
-					// Hack around .m.ubulk files having a double extension
-					NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
+						// Hack around .m.ubulk files having a double extension
+						NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
 					}
 					string OriginalReplaceSlashes = OriginalFilename.Replace('/', '\\');
 					string NoExtensionReplaceSlashes = NoExtension.Replace('/', '\\');
 
-				// First read manifest
-				List<ChunkDefinition> Chunks;
+					// First read manifest
+					List<ChunkDefinition> Chunks;
 					if (FileNameToChunks.TryGetValue(OriginalFilename, out Chunks))
 					{
 						PakList.UnionWith(Chunks);
@@ -3511,24 +3511,24 @@ namespace AutomationScripts
 						PakList.UnionWith(Chunks);
 					}
 
-				// Now run through the pak rules which may override things
-				ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks);
+					// Now run through the pak rules which may override things
+					ApplyPakFileRules(PakRulesList, StagingFile, PakList, ChunkNameToDefinition, out bExcludeFromPaks);
 
 					if (bExcludeFromPaks)
 					{
 						return;
 					}
 
-				// Actually add to chunk
-				foreach (ChunkDefinition Chunk in PakList)
+					// Actually add to chunk
+					foreach (ChunkDefinition Chunk in PakList)
 					{
 						ChunkDefinition TargetChunk = Chunk;
 
 						string OrigExt = Path.GetExtension(OriginalFilename);
 						if (OrigExt.Equals(OptionalBulkDataFileExtension))
 						{
-						// any optional files encountered we want to put in a separate pak file
-						string OptionalChunkName = Chunk.ChunkName + "optional";
+							// any optional files encountered we want to put in a separate pak file
+							string OptionalChunkName = Chunk.ChunkName + "optional";
 							if (!OptionalChunks.ContainsKey(OptionalChunkName))
 							{
 								ChunkDefinition OptionalChunk = new ChunkDefinition(OptionalChunkName);
@@ -3544,15 +3544,15 @@ namespace AutomationScripts
 
 						if (bForceOneChunkPerFile)
 						{
-						// Files are only allowed to be in a single chunk
-						break;
+							// Files are only allowed to be in a single chunk
+							break;
 						}
 					}
 
 					if (!bAddedToChunk)
 					{
-					//LogInformation("No chunk assigned found for {0}. Using default chunk.", StagingFile.Key);
-					DefaultChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
+						//LogInformation("No chunk assigned found for {0}. Using default chunk.", StagingFile.Key);
+						DefaultChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
 					}
 				});
 
@@ -3571,7 +3571,7 @@ namespace AutomationScripts
 
 				EarlyChunk.bCompressed = true;
 
-				ConcurrentDictionary<string, string> EarlyPakFile = EarlyChunk.ResponseFile;
+				ConcurrentDictionary<string,string> EarlyPakFile = EarlyChunk.ResponseFile;
 
 				// find the list of files to put in the early downloader pak file
 				List<string> FilesInEarlyPakFile = new List<string>();
@@ -3589,7 +3589,7 @@ namespace AutomationScripts
 					FilesToFilter.Add(ResponseFile.Key);
 				}
 
-				foreach (string FilteredFile in EarlyPakFileFilter.ApplyTo(FilesToFilter))
+				foreach ( string FilteredFile in EarlyPakFileFilter.ApplyTo(FilesToFilter) )
 				{
 					EarlyPakFile.TryAdd(FilteredFile, StagingManifestResponseFile[FilteredFile]);
 				}
@@ -3635,7 +3635,7 @@ namespace AutomationScripts
 				if (Chunk.ResponseFile.Count > 0)
 				{
 					string EncryptionKeyToUse = Params.SkipEncryption ? "" : Chunk.EncryptionKeyGuid;
-					PakInputs.Add(new CreatePakParams(Chunk.ChunkName,
+					PakInputs.Add(new CreatePakParams(Chunk.ChunkName, 
 						Chunk.ResponseFile.ToDictionary(entry => entry.Key, entry => entry.Value),
 						Params.Compressed || Chunk.bCompressed, EncryptionKeyToUse));
 				}
@@ -4365,7 +4365,7 @@ namespace AutomationScripts
 					Params.Client,
 					Params.Manifests,
 					Params.SeparateDebugInfo,
-					Params.HasDLCName
+					Params.HasDLCName ? Params.DLCFile.Directory : null
 					);
 				LogDeploymentContext(SC);
 

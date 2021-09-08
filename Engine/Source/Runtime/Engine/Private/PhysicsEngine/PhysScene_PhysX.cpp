@@ -960,7 +960,7 @@ void GatherClothingStats(const UWorld* World)
 bool FPhysScene_PhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
 {
 	// If null, or pending kill, do nothing
-	if (InSkelComp != nullptr && !InSkelComp->IsPendingKill())
+	if (IsValid(InSkelComp))
 	{
 		// If we are already flagged, just need to update info
 		if (InSkelComp->bDeferredKinematicUpdate)
@@ -1383,7 +1383,7 @@ void FPhysScene_PhysX::SyncComponentsToBodies_AssumesLocked()
 			}
 
 			// Check if we didn't fall out of the world
-			if (Owner != NULL && !Owner->IsPendingKill())
+			if (IsValid(Owner))
 			{
 				Owner->CheckStillInWorld();
 			}

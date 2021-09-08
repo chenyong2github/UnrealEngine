@@ -2194,7 +2194,7 @@ void UUnrealEdEngine::edactSelectDeleted( UWorld* InWorld )
 		AActor* Actor = *It;
 		if( !Actor->IsSelected() && !Actor->IsHiddenEd() )
 		{
-			if( Actor->IsPendingKill() )
+			if( !IsValid(Actor) )
 			{
 				bSelectionChanged = true;
 				SelectActor( Actor, 1, 0 );

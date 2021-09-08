@@ -222,6 +222,7 @@ protected:
 	// ~Begin FSelfRegisteringExec Interface
 	bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 	// ~End FSelfRegisteringExec Interface
+	TArray<IVoiceChatUser*> UsersCreatedByConsoleCommand;
 
 	IEOSSDKManager& SDKManager;
 	IEOSPlatformHandlePtr ExternalPlatformHandle;

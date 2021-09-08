@@ -39,15 +39,6 @@ struct FInstallBundleCacheFlushResult
 	TMap<FName, TArray<EInstallBundleSourceType>> BundlesToEvict;
 };
 
-struct FInstallBundleCacheStats
-{
-	FName CacheName;
-	uint64 MaxSize = 0;
-	uint64 UsedSize = 0;
-	uint64 ReservedSize = 0;
-	uint64 FreeSize = 0;
-};
-
 class INSTALLBUNDLEMANAGER_API FInstallBundleCache : public TSharedFromThis<FInstallBundleCache>
 {
 public:

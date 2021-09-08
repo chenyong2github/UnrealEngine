@@ -841,6 +841,22 @@ bool PassesInlineFilters(FDetailItemNode& Node)
 					}
 				}
 			}
+			else if (FPropertyNode* GrandparentNode = ParentNode->GetParentNode())
+			{
+				// VisibleAnywhere EditInline properties have to be special-cased as they don't have a proper detail node created, and instead
+				// their children are inlined one level higher than they'd normally be. On top of this, object property nodes have an extra property node
+				// in them before the child properties, so the grandparent node must be queried instead of the parent.
+				if (FObjectPropertyNode* GrandparentAsObjectNode = GrandparentNode->AsObjectNode())
+				{
+					if (FProperty* GrandparentProperty = GrandparentAsObjectNode->GetStoredProperty())
+					{
+						if (GrandparentProperty->HasMetaData("EditInline"))
+						{
+							return FPropertyEditorWhitelist::Get().DoesPropertyPassFilter(GrandparentProperty->GetOwnerClass(), GrandparentProperty->GetFName());
+						}
+					}
+				}
+			}
 		}
 	}
 	return true;

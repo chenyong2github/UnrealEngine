@@ -675,11 +675,6 @@ void FOpenXRARSystem::AddOrUpdatePlane_GameThread(FOpenXRPlaneUpdate* CurrentPla
 		check(FoundTrackedGeometryGroup);
 
 		bIsAdd = true;
-
-		if (SessionConfig != nullptr)
-		{
-			AARActor::RequestSpawnARActor(CurrentPlaneUpdate->Id, SessionConfig->GetPlaneComponentClass());
-		}
 	}
 
 	UARTrackedGeometry* NewUpdatedGeometry = FoundTrackedGeometryGroup->TrackedGeometry;

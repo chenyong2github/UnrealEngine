@@ -59,7 +59,7 @@ void APainCausingVolume::PainTimer()
 
 		for (AActor* const A : TouchingActors)
 		{
-			if (A && A->CanBeDamaged() && !A->IsPendingKill())
+			if (IsValid(A) && A->CanBeDamaged())
 			{
 				// @todo physicsVolume This won't work for other actor. Need to fix it properly
 				APawn* PawnA = Cast<APawn>(A);

@@ -70,6 +70,7 @@ FReplayHelper::FReplayHelper()
 	, bRecordMapChanges(false)
 	, CheckpointSaveMaxMSPerFrame(0)
 	, NumLevelsAddedThisFrame(0)
+	, bPendingCheckpointRequest(false)
 {
 }
 
@@ -555,7 +556,7 @@ void FReplayHelper::SaveCheckpoint(UNetConnection* Connection)
 						AActor* Actor = NetworkObjectInfo->Actor;
 
 						// check to see if it should replicate at all
-						bool bCheckpointActor = Actor && !Actor->IsPendingKill() && ((Actor->GetRemoteRole() != ROLE_None || Actor->GetTearOff()) && (Actor == Connection->PlayerController || Cast<APlayerController>(Actor) == nullptr));
+						bool bCheckpointActor = IsValid(Actor) && ((Actor->GetRemoteRole() != ROLE_None || Actor->GetTearOff()) && (Actor == Connection->PlayerController || Cast<APlayerController>(Actor) == nullptr));
 						
 						// now look for an open channel
 						bCheckpointActor = bCheckpointActor && ActorChannelMap.Contains(NetworkObjectInfo->Actor);
@@ -644,6 +645,8 @@ void FReplayHelper::SaveCheckpoint(UNetConnection* Connection)
 	CheckpointSaveContext.TotalCheckpointActors = CheckpointSaveContext.PendingCheckpointActors.Num();
 
 	LastCheckpointTime = DemoCurrentTime;
+
+	bPendingCheckpointRequest = false;
 
 	if (bDeltaCheckpoint)
 	{
@@ -1814,13 +1817,8 @@ bool FReplayHelper::ShouldSaveCheckpoint() const
 {
 	const double CHECKPOINT_DELAY = CVarCheckpointUploadDelayInSeconds.GetValueOnAnyThread();
 
-	if (DemoCurrentTime - LastCheckpointTime > CHECKPOINT_DELAY)
-	{
-		return true;
+	return (bPendingCheckpointRequest || ((DemoCurrentTime - LastCheckpointTime) > CHECKPOINT_DELAY));
 	}
-
-	return false;
-}
 
 float FReplayHelper::GetCheckpointSaveMaxMSPerFrame() const
 {
@@ -1962,4 +1960,8 @@ const TCHAR* LexToString(EReplayHeaderFlags Flag)
 		check(false);
 		return TEXT("Unknown");
 	}
+}
+void FReplayHelper::RequestCheckpoint()
+{
+	bPendingCheckpointRequest = true;
 }

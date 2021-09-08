@@ -26,6 +26,9 @@ struct FDomainData final : public TSharedFromThis<FDomainData>
 	// The list of root paths, always of the format /Mount/ or /Mount/Path/To/ with both leading and trailing /
 	TArray<FString> DomainRootPaths;
 
+	// A list of specific packages that are part of this domain
+	TArray<FName> SpecificAssetPackages;
+
 	// The domains that are visible from here (if bCanSeeEverything is true, then literally everything is visible from here)
 	TSet<TSharedPtr<FDomainData>> DomainsVisibleFromHere;
 
@@ -37,7 +40,7 @@ struct FDomainData final : public TSharedFromThis<FDomainData>
 
 	bool IsValid() const
 	{
-		return DomainRootPaths.Num() > 0;
+		return DomainRootPaths.Num() > 0 || SpecificAssetPackages.Num() > 0;
 	}
 
 	void Reset()
@@ -82,6 +85,9 @@ private:
 
 	// Map from path to domain
 	TSharedPtr<FDomainPathNode> PathMap;
+
+	// Specific packages that are forced into certain domains
+	TMap<FName, TSharedPtr<FDomainData>> SpecificAssetPackageDomains;
 
 	// The engine content domain
 	TSharedPtr<FDomainData> EngineDomain;

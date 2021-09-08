@@ -176,7 +176,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 	int32 Iterations = 0;
 	FHitResult Hit(1.f);
 	
-	while (bSimulationEnabled && RemainingTime >= MIN_TICK_TIME && (Iterations < MaxSimulationIterations) && !ActorOwner->IsPendingKill() && !HasStoppedSimulation())
+	while (bSimulationEnabled && RemainingTime >= MIN_TICK_TIME && (Iterations < MaxSimulationIterations) && IsValid(ActorOwner) && !HasStoppedSimulation())
 	{
 		LoopCount++;
 		Iterations++;
@@ -220,7 +220,7 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 		}
 		
 		// If we hit a trigger that destroyed us, abort.
-		if( ActorOwner->IsPendingKill() || HasStoppedSimulation() )
+		if( !IsValid(ActorOwner) || HasStoppedSimulation() )
 		{
 			return;
 		}
@@ -524,14 +524,14 @@ void UProjectileMovementComponent::StopSimulating(const FHitResult& HitResult)
 UProjectileMovementComponent::EHandleBlockingHitResult UProjectileMovementComponent::HandleBlockingHit(const FHitResult& Hit, float TimeTick, const FVector& MoveDelta, float& SubTickTimeRemaining)
 {
 	AActor* ActorOwner = UpdatedComponent ? UpdatedComponent->GetOwner() : NULL;
-	if (!CheckStillInWorld() || !ActorOwner || ActorOwner->IsPendingKill())
+	if (!CheckStillInWorld() || !IsValid(ActorOwner))
 	{
 		return EHandleBlockingHitResult::Abort;
 	}
 	
 	HandleImpact(Hit, TimeTick, MoveDelta);
 	
-	if (ActorOwner->IsPendingKill() || HasStoppedSimulation())
+	if (!IsValid(ActorOwner) || HasStoppedSimulation())
 	{
 		return EHandleBlockingHitResult::Abort;
 	}

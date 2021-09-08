@@ -8,6 +8,8 @@
 #include "BackgroundHttpManagerImpl.h"
 #include "Interfaces/IBackgroundHttpRequest.h"
 
+#include "Internationalization/PolyglotTextData.h"
+
 #include "AndroidPlatformBackgroundHttpRequest.h"
 
 #include "Android/AndroidPlatform.h"
@@ -15,6 +17,9 @@
 #include "Android/AndroidJavaEnv.h"
 #include "Android/AndroidJNI.h"
 #include "Android/AndroidApplication.h"
+
+//Forward Declarations
+struct FPolyglotTextData;
 
 /**
  * Manages Background Http request that are currently being processed if we are on an Android Platform
@@ -43,6 +48,16 @@ public :
 	void ResumeRequest(FBackgroundHttpRequestPtr Request);
 	void CancelRequest(FBackgroundHttpRequestPtr Request);
 
+public:
+	static bool HandleRequirementsCheck();
+	
+	// Returns true if the ConfigRules settings allow us to use this feature or false if it should be disabled based on those settings.
+	// Also cleans up work if appropriate based on settings.
+	static bool HandleConfigRulesSettings();
+
+	//Used to identify/schedule BackgroundHTTP work through our UEDownloadWorker
+	static const FString BackgroundHTTPWorkID;
+
 protected:
 	void UpdateRequestProgress();
 
@@ -53,10 +68,16 @@ protected:
 	const FString GetBaseFileNameForDownloadDescriptionListWithAppendedInt(int IntToAppend) const;
 
 	//Handlers for our download progressing in the underlying java implementation so that we can bubble it up to UE code.
+	void Java_OnWorkerStop(FString WorkID, jobject UnderlyingWorker);
 	void Java_OnDownloadProgress(jobject UnderlyingWorker, FString RequestID, int64_t BytesWrittenSinceLastCall, int64_t TotalBytesWritten);
 	void Java_OnDownloadComplete(jobject UnderlyingWorker, FString RequestID, FString CompleteLocation, bool bWasSuccess);
 	void Java_OnAllDownloadsComplete(jobject UnderlyingWorker, bool bDidAllRequestsSucceed);
 	void Java_OnTick(JNIEnv* Env, jobject UnderlyingWorker);
+
+	//Helper function that completes any un-completed requests in the underlying java tracking layer so that they will
+	//complete on the next Tick. Mostly used to help when the underlying java error hits a failure. Ensures when any
+	//request isn't actually completed when called
+	void ForceCompleteAllUnderlyingJavaActiveRequestsWithError();
 
 	//Helper function to determine if a background http request was completed in the underlying layer
 	//but is still in our ActiveRequests lists as its pending being a complete being sent on our game thread tick
@@ -71,6 +92,7 @@ protected:
 	bool IsValidRequestToEnqueue(FBackgroundHttpRequestPtr Request);
 	bool IsValidRequestToEnqueue(FAndroidBackgroundHttpRequestPtr Request);
 
+	FDelegateHandle Java_OnWorkerStopHandle;
 	FDelegateHandle Java_OnDownloadProgressHandle;
 	FDelegateHandle Java_OnDownloadCompleteHandle;
 	FDelegateHandle Java_OnAllDownloadsCompleteHandle;
@@ -98,6 +120,48 @@ protected:
 	//Rechecks any _GT lists to try and move them to _Java lists if its safe to do so
 	void HandleRequestsWaitingOnJavaThreadsafety();
 
+protected:
+	//Used to determine the state of AndroidBackgroundHTTP in our configrules
+	enum class EAndroidBackgroundDownloadConfigRulesSetting : uint8
+	{
+		Unknown,				//Either the value was not set, or was set to something besides these expected values
+		Enabled,				//Enabled in config rules
+		Disabled,				//Disabled in our config rules.
+		Count					//Count of enum values
+	};
+
+	static const FString LexToString(EAndroidBackgroundDownloadConfigRulesSetting Setting);
+	static EAndroidBackgroundDownloadConfigRulesSetting LexParseString(const FString* Setting);
+
+	static EAndroidBackgroundDownloadConfigRulesSetting GetAndroidBackgroundDownloadConfigRulesSetting();
+
+	//Key in ConfigRules to use to load the value of the EAndroidBackgroundDownloadConfigRulesSetting
+	static const FString AndroidBackgroundDownloadConfigRulesSettingKey;
+
+protected:
+	//Since our manager could be loaded before UObjects, we have to manually parse some default PolyglotTextData from special .ini entries
+	//This struct hold that data and handles some simple parsing for us
+	struct FAndroidBackgroundHTTPManagerDefaultLocalizedText
+	{
+		FAndroidBackgroundHTTPManagerDefaultLocalizedText();
+
+		FPolyglotTextData DefaultNotificationText_Title;
+		FPolyglotTextData DefaultNotificationText_Content;
+		FPolyglotTextData DefaultNotificationText_Complete;
+		FPolyglotTextData DefaultNotificationText_Cancel;
+
+		void InitFromIniSettings(const FString& ConfigFileName);
+
+private:
+		//Fills out a FPolyglotTextData with data from the supplied text entry parsed from the config.ini
+		void ParsePolyglotTextItem(FPolyglotTextData& TextDataOut, const FString& LocTextKey, TArray<FString>& TextEntryList);
+		
+		//Helper that Checks for valid Polyglot text, and if it fails sets up a PolyglotText item that will pass IsValid() but represents a failed parse.
+		void ForceValidPolyglotText(FPolyglotTextData& TextDataOut, const FString& DebugPolyglotTextName);
+	};
+
+	FAndroidBackgroundHTTPManagerDefaultLocalizedText AndroidBackgroundHTTPManagerDefaultLocalizedText;
+
 private:
 	//struct holding all our Java class, method, and field information in one location.
 	//Must call initialize on this before it is useful. Future calls to Initialize will not recalculate information
@@ -121,9 +185,14 @@ private:
 			, CreateArrayStaticMethod(0)
 			, WriteDownloadDescriptionListToFileMethod(0)
 		{}
-};
+	};
 
 	static FJavaClassInfo JavaInfo;
+
+protected:
+	//We only want to respond to certain broadcast java-side work if we have scheduled BGWork
+	//otherwise it could be stale work from a previous executables run that would look like an error state (Requests we haven't queued yet, etc)
+	static volatile int32 bHasManagerScheduledBGWork;
 };
 
 //WARNING: These values MUST stay in sync with their values in DownloadWorkerParameterKeys.java!
@@ -136,7 +205,7 @@ public:
 	static const FString NOTIFICATION_CHANNEL_ID_KEY;
 	static const FString NOTIFICATION_CHANNEL_NAME_KEY;
 	static const FString NOTIFICATION_CHANNEL_IMPORTANCE_KEY;
-
+	
 	static const FString NOTIFICATION_ID_KEY;
 	static const int NOTIFICATION_DEFAULT_ID_KEY;
 
@@ -158,17 +227,16 @@ public:
 class FAndroidBackgroundDownloadDelegates
 {
 public:
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnWorkerStart, FString /*WorkID*/, jobject /*UnderlyingWorker*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnWorkerStop, FString /*WorkID*/, jobject /*UnderlyingWorker*/);
 	DECLARE_MULTICAST_DELEGATE_FourParams(FAndroidBackgroundDownload_OnProgress, jobject /*UnderlyingWorker*/, FString /*RequestID*/, int64_t /*BytesWrittenSinceLastCall*/, int64_t /*TotalBytesWritten*/);
 	DECLARE_MULTICAST_DELEGATE_FourParams(FAndroidBackgroundDownload_OnComplete, jobject /*UnderlyingWorker*/, FString /*RequestID*/, FString /*CompleteLocation*/, bool /*bWasSuccess*/);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnAllComplete, jobject /*UnderlyingWorker*/, bool /*bDidAllRequestsSucceed*/);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnTickWorkerThread, JNIEnv*, jobject /*UnderlyingWorker*/);
 
-	//We use this bool to check if we need to actually route work done on the BG java side to UE, if we haven't scheduled any BGWork
-	//then we don't need to try and respond to results as its from a previous worker that we didn't schedule yet, and thus have no
-	//matching BG Download Requests. We should associate with those downloads once we request BG work if they are requested and still active
-	static volatile int32 bHasManagerScheduledBGWork;
-
 	//Delegates called by JNI functions to bubble up underlying java work to the manager
+	static FAndroidBackgroundDownload_OnWorkerStart AndroidBackgroundDownload_OnWorkerStart;
+	static FAndroidBackgroundDownload_OnWorkerStop AndroidBackgroundDownload_OnWorkerStop;
 	static FAndroidBackgroundDownload_OnProgress AndroidBackgroundDownload_OnProgress;
 	static FAndroidBackgroundDownload_OnComplete AndroidBackgroundDownload_OnComplete;
 	static FAndroidBackgroundDownload_OnAllComplete AndroidBackgroundDownload_OnAllComplete;

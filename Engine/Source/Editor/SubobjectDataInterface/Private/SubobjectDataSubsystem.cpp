@@ -1044,7 +1044,7 @@ FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubob
 				ActorInstance->GetComponents(PostInstanceComponents);
 				for (UActorComponent* ActorComponent : PostInstanceComponents)
 				{
-					if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && !ActorComponent->IsPendingKill() && !PreInstanceComponents.Contains(ActorComponent))
+					if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && IsValidChecked(ActorComponent) && !PreInstanceComponents.Contains(ActorComponent))
 					{
 						ActorComponent->RegisterComponent();
 					}
@@ -1054,7 +1054,7 @@ FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubob
 				ActorInstance->RerunConstructionScripts();
 
 				// If the running the construction script destroyed the new node, don't create an entry for it
-				if (!NewInstanceComponent->IsPendingKill())
+				if (IsValidChecked(NewInstanceComponent))
 				{
 					// Create a new subobject data set with this component
 					NewDataHandle = FactoryCreateSubobjectDataWithParent(NewInstanceComponent, ParentObjData->GetHandle());

@@ -1099,7 +1099,7 @@ protected:
 	};
 	
 	/** Event called after ServerReplicateActors to dispatch the replication stats from this frame */
-	virtual void PostServerReplicateStats(const FFrameReplicationStats& Stats) {};
+	virtual void PostServerReplicateStats(const FFrameReplicationStats& Stats);
 
 private:
 

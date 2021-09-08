@@ -503,6 +503,20 @@ void FObjectReplicator::InitWithObject( UObject* InObject, UNetConnection * InCo
 	// Make a copy of the net properties
 	uint8* Source = bUseDefaultState ? (uint8*)GetObject()->GetArchetype() : (uint8*)InObject;
 
+	if ((Source == nullptr) && bUseDefaultState)
+	{
+		if (ObjectClass != nullptr)
+		{
+			UE_LOG(LogRep, Error, TEXT("FObjectReplicator::InitWithObject: Invalid object archetype, initializing shadow state to class default state: %s"), *GetFullNameSafe(InObject));
+			Source = (uint8*)ObjectClass->GetDefaultObject();
+		}
+		else
+		{
+			UE_LOG(LogRep, Error, TEXT("FObjectReplicator::InitWithObject: Invalid object archetype and class, initializing shadow state to current object state: %s"), *GetFullNameSafe(InObject));
+			Source = (uint8*)InObject;
+		}
+	}
+
 	InitRecentProperties( Source );
 
 	Connection->Driver->AllOwnedReplicators.Add(this);
@@ -1111,7 +1125,7 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 				bGuidsChanged = true;
 				bForceUpdateUnmapped = true;
 			}
-			else if (Object == nullptr || Object->IsPendingKill())
+			else if (!IsValid(Object))
 			{
 				// replicated function destroyed Object
 				return true;
@@ -2111,7 +2125,7 @@ void FObjectReplicator::CallRepNotifies(bool bSkipIfChannelHasQueuedBunches)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RepNotifies);
 	UObject* Object = GetObject();
 
-	if (!Object || Object->IsPendingKill())
+	if (!IsValid(Object))
 	{
 		return;
 	}
@@ -2129,7 +2143,7 @@ void FObjectReplicator::CallRepNotifies(bool bSkipIfChannelHasQueuedBunches)
 	FReceivingRepState* ReceivingRepState = RepState->GetReceivingRepState();
 	RepLayout->CallRepNotifies(ReceivingRepState, Object);
 
-	if (!Object->IsPendingKill())
+	if (IsValid(Object))
 	{
 		Object->PostRepNotifies();
 	}
@@ -2139,7 +2153,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 {
 	UObject* Object = GetObject();
 	
-	if (!Object || Object->IsPendingKill())
+	if (!IsValid(Object))
 	{
 		bOutHasMoreUnmapped = false;
 		return;

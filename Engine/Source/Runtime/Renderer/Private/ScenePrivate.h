@@ -3067,7 +3067,7 @@ public:
 	virtual void Release() override;
 	virtual UWorld* GetWorld() const override { return World; }
 
-	/** Finds the closest reflection capture to a point in space. */
+	/** Finds the closest reflection capture to a point in space, accounting influence radius */
 	const FReflectionCaptureProxy* FindClosestReflectionCapture(FVector Position) const;
 
 	const class FPlanarReflectionSceneProxy* FindClosestPlanarReflection(const FBoxSphereBounds& Bounds) const;

@@ -231,9 +231,9 @@ bool AActor::CheckActorComponents() const
 		{
 			continue;
 		}
-		if (Inner->IsPendingKill())
+		if (!IsValidChecked(Inner))
 		{
-			UE_LOG(LogCheckComponents, Warning, TEXT("Component is pending kill. Me = %s, Component = %s"), *this->GetFullName(), *Inner->GetFullName());
+			UE_LOG(LogCheckComponents, Warning, TEXT("Component is invalid. Me = %s, Component = %s"), *this->GetFullName(), *Inner->GetFullName());
 		}
 		if (Inner->IsTemplate() && !IsTemplate())
 		{
@@ -253,9 +253,9 @@ bool AActor::CheckActorComponents() const
 			UE_LOG(LogCheckComponents, Error, TEXT("SerializedComponent does not have me as an outer. Me = %s, Component = %s"), *this->GetFullName(), *Inner->GetFullName());
 			bResult = false;
 		}
-		if (Inner->IsPendingKill())
+		if (!IsValidChecked(Inner))
 		{
-			UE_LOG(LogCheckComponents, Warning, TEXT("SerializedComponent is pending kill. Me = %s, Component = %s"), *this->GetFullName(), *Inner->GetFullName());
+			UE_LOG(LogCheckComponents, Warning, TEXT("SerializedComponent is invalid. Me = %s, Component = %s"), *this->GetFullName(), *Inner->GetFullName());
 		}
 		if (Inner->IsTemplate() && !IsTemplate())
 		{
@@ -877,10 +877,10 @@ void AActor::PostLoad()
 		// Propagate the hidden at editor startup flag to the transient hidden flag
 		bHiddenEdTemporary = bHiddenEd;
 
-		// Check/warning when loading actors in editor. Should never load IsPendingKill() Actors!
-		if ( IsPendingKill() )
+		// Check/warning when loading actors in editor. Should never load invalid Actors!
+		if ( !IsValidChecked(this) )
 		{
-			UE_LOG(LogActor, Log,  TEXT("Loaded Actor (%s) with IsPendingKill() == true"), *GetName() );
+			UE_LOG(LogActor, Log,  TEXT("Loaded Actor (%s) with IsValid() == false"), *GetName() );
 		}
 	}
 
@@ -1280,7 +1280,7 @@ void AActor::TickActor( float DeltaSeconds, ELevelTick TickType, FActorTickFunct
 
 	// Non-player update.
 	// If an Actor has been Destroyed or its level has been unloaded don't execute any queued ticks
-	if (!IsPendingKill() && GetWorld())
+	if (IsValidChecked(this) && GetWorld())
 	{
 		Tick(DeltaSeconds);	// perform any tick functions unique to an actor subclass
 	}
@@ -1384,7 +1384,7 @@ void AActor::CallPreReplication(UNetDriver* NetDriver)
 	for (UActorComponent* Component : ReplicatedComponents)
 	{
 		// Only call on components that aren't pending kill
-		if (Component && !Component->IsPendingKill())
+		if (IsValid(Component))
 		{
 			Component->PreReplication(*NetDriver->FindOrCreateRepChangedPropertyTracker(Component).Get());
 		}
@@ -1564,7 +1564,7 @@ FBox AActor::CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding, bool
 
 bool AActor::CheckStillInWorld()
 {
-	if (IsPendingKill())
+	if (!IsValidChecked(this))
 	{
 		return false;
 	}
@@ -1828,7 +1828,7 @@ static void MarkOwnerRelevantComponentsDirty(AActor* TheActor)
 	for (int32 i = 0; i < TheActor->Children.Num(); i++)
 	{
 		AActor* Child = TheActor->Children[i];
-		if (Child != nullptr && !Child->IsPendingKill())
+		if (IsValid(Child))
 		{
 			MarkOwnerRelevantComponentsDirty(Child);
 		}
@@ -1855,7 +1855,7 @@ float AActor::GetLastRenderTime() const
 
 void AActor::SetOwner(AActor* NewOwner)
 {
-	if (Owner != NewOwner && !IsPendingKill())
+	if (Owner != NewOwner && IsValidChecked(this))
 	{
 		if (NewOwner != nullptr && NewOwner->IsOwnedBy(this))
 		{
@@ -2235,13 +2235,15 @@ bool AActor::IsRelevancyOwnerFor(const AActor* ReplicatedActor, const AActor* Ac
 
 void AActor::ForceNetUpdate()
 {
+	UNetDriver* NetDriver = GetNetDriver();
+
 	if (GetLocalRole() == ROLE_Authority)
 	{
 		// ForceNetUpdate on the game net driver only if we are the authority...
-		UNetDriver* NetDriver = GetNetDriver();
 		if (NetDriver && NetDriver->GetNetMode() < ENetMode::NM_Client) // ... and not a client
 		{
 			NetDriver->ForceNetUpdate(this);
+
 			if (NetDormancy > DORM_Awake)
 			{
 				FlushNetDormancy(); 
@@ -2249,14 +2251,20 @@ void AActor::ForceNetUpdate()
 		}
 	}
 	
-	// Even if not authority, still need to ForceNetUpdate on the demo net driver
+	// Even if not authority, other drivers (like the demo net driver) may need to ForceNetUpdate
 	if (UWorld* MyWorld = GetWorld())
 	{
-		if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
+		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
 		{
-			DemoNetDriver->ForceNetUpdate(this);
+			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+			{
+				if (Driver.NetDriver != nullptr && Driver.NetDriver != NetDriver && Driver.NetDriver->ShouldReplicateActor(this))
+				{
+					Driver.NetDriver->ForceNetUpdate(this);
+				}
 		}
 	}
+}
 }
 
 bool AActor::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
@@ -2280,19 +2288,24 @@ void AActor::SetNetDormancy(ENetDormancy NewDormancy)
 		return;
 	}
 
-	UWorld* MyWorld = GetWorld();
-	if (MyWorld)
-	{
-		UNetDriver* NetDriver = GEngine->FindNamedNetDriver(MyWorld, NetDriverName);
-		if (NetDriver)
-		{
 			ENetDormancy OldDormancy = NetDormancy;
 			NetDormancy = NewDormancy;
+	const bool bDormancyChanged = (OldDormancy != NewDormancy);
 
+	if (UWorld* MyWorld = GetWorld())
+	{
+		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
+		{
 			// Tell driver about change
-			if (OldDormancy != NewDormancy)
+			if (bDormancyChanged)
 			{
-				NetDriver->NotifyActorDormancyChange(this, OldDormancy);
+				for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+				{
+					if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
+					{
+						Driver.NetDriver->NotifyActorDormancyChange(this, OldDormancy);
+					}
+			}
 			}
 
 			// If not dormant, flush actor from NetDriver's dormant list
@@ -2301,13 +2314,11 @@ void AActor::SetNetDormancy(ENetDormancy NewDormancy)
 				// Since we are coming out of dormancy, make sure we are on the network actor list
 				MyWorld->AddNetworkActor(this);
 
-				NetDriver->FlushActorDormancy(this);
-
-				if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
+				for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 				{
-					if (DemoNetDriver != NetDriver)
+					if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
 					{
-						DemoNetDriver->FlushActorDormancy(this);
+						Driver.NetDriver->FlushActorDormancy(this);
 					}
 				}
 			}
@@ -2339,22 +2350,18 @@ void AActor::FlushNetDormancy()
 		return;
 	}
 
-	UWorld* const MyWorld = GetWorld();
-	if (MyWorld)
+	if (UWorld* const MyWorld = GetWorld())
 	{
 		// Add to network actors list if needed
 		MyWorld->AddNetworkActor(this);
 	
-		UNetDriver* const NetDriver = GetNetDriver();
-		if (NetDriver)
+		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
 		{
-			NetDriver->FlushActorDormancy(this);
-
-			if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
+			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 			{
-				if (DemoNetDriver != NetDriver)
+				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
 				{
-					DemoNetDriver->FlushActorDormancy(this, bWasDormInitial);
+					Driver.NetDriver->FlushActorDormancy(this, bWasDormInitial);
 				}
 			}
 		}
@@ -2373,19 +2380,16 @@ void AActor::ForcePropertyCompare()
 		return;
 	}
 
-	const UWorld* MyWorld = GetWorld();
-
-	UNetDriver* NetDriver = GetNetDriver();
-
-	if ( NetDriver )
+	if (const UWorld* MyWorld = GetWorld())
 	{
-		NetDriver->ForcePropertyCompare( this );
-
-		if (UDemoNetDriver* DemoNetDriver = MyWorld->GetDemoNetDriver())
+		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
 		{
-			if (DemoNetDriver != NetDriver)
+			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 			{
-				DemoNetDriver->ForcePropertyCompare(this);
+				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
+				{
+					Driver.NetDriver->ForcePropertyCompare(this);
+				}
 			}
 		}
 	}
@@ -2515,9 +2519,10 @@ void AActor::TearOff()
 		bTearOff = true;
 		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, bTearOff, this);
 		
-		FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld());
-		if (Context != nullptr)
+		if (UWorld* MyWorld = GetWorld())
 		{
+			if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
+			{
 			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 			{
 				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
@@ -2527,6 +2532,7 @@ void AActor::TearOff()
 			}
 		}
 	}
+}
 }
 
 void AActor::TornOff() {}
@@ -2685,7 +2691,7 @@ extern bool IsPrimCompValidAndAlive(UPrimitiveComponent* PrimComp);
 /** Used to determine if it is ok to call a notification on this object */
 bool IsActorValidToNotify(AActor* Actor)
 {
-	return (Actor != nullptr) && !Actor->IsPendingKill() && !Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists);
+	return IsValid(Actor) && !Actor->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists);
 }
 
 void AActor::InternalDispatchBlockingHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp, bool bSelfMoved, FHitResult const& Hit)
@@ -2709,7 +2715,7 @@ void AActor::InternalDispatchBlockingHit(UPrimitiveComponent* MyComp, UPrimitive
 		}
 
 		// If component is still alive, call delegate on component
-		if(!MyComp->IsPendingKill())
+		if(IsValidChecked(MyComp))
 		{
 			MyComp->OnComponentHit.Broadcast(MyComp, OtherActor, OtherComp, FVector(0,0,0), Hit);
 		}
@@ -2733,9 +2739,9 @@ void AActor::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay
 	DisplayDebugManager.SetDrawColor(FColor(255, 0, 0));
 
 	FString T = GetHumanReadableName();
-	if( IsPendingKill() )
+	if( !IsValidChecked(this) )
 	{
-		T = FString::Printf(TEXT("%s DELETED (IsPendingKill() == true)"), *T);
+		T = FString::Printf(TEXT("%s DELETED (IsValid() == false)"), *T);
 	}
 	if( T != "" )
 	{
@@ -2785,8 +2791,7 @@ void AActor::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay
 		bool bFoundAnyOverlaps = false;
 		for (AActor* const TestActor : TouchingActors)
 		{
-			if (TestActor &&
-				!TestActor->IsPendingKill())
+			if (IsValid(TestActor))
 			{
 				T = T + TestActor->GetName() + " ";
 				bFoundAnyOverlaps = true;
@@ -3203,7 +3208,7 @@ void AActor::PostEditImport()
 
 bool AActor::IsSelectedInEditor() const
 {
-	return !IsPendingKill() && GIsActorSelectedInEditor && GIsActorSelectedInEditor(this);
+	return IsValidChecked(this) && GIsActorSelectedInEditor && GIsActorSelectedInEditor(this);
 }
 
 bool AActor::SupportsExternalPackaging() const
@@ -3213,7 +3218,7 @@ bool AActor::SupportsExternalPackaging() const
 		return false;
 	}
 
-	if (IsPendingKill())
+	if (!IsValidChecked(this))
 	{
 		return false;
 	}
@@ -3390,7 +3395,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 #endif
 
 	// See if anything has deleted us
-	if( IsPendingKill() && !bNoFail )
+	if( !IsValidChecked(this) && !bNoFail )
 	{
 		return;
 	}
@@ -3534,10 +3539,10 @@ void AActor::PostActorConstruction()
 			}
 		}
 
-		if (!IsPendingKill())
+		if (IsValidChecked(this))
 		{
 			PostInitializeComponents();
-			if (!IsPendingKill())
+			if (IsValidChecked(this))
 			{
 				if (!bActorInitialized)
 				{
@@ -3723,7 +3728,7 @@ EActorUpdateOverlapsMethod AActor::GetUpdateOverlapsMethodDuringLevelStreaming()
 
 void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 {
-	UWorld* World = (!HasActorBegunPlay() && !IsPendingKill() ? GetWorld() : nullptr);
+	UWorld* World = (!HasActorBegunPlay() && IsValidChecked(this) ? GetWorld() : nullptr);
 
 	if (World)
 	{
@@ -3744,7 +3749,7 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 			World->DestroyActor(this, true); 
 		}
 		
-		if (!IsPendingKill())
+		if (IsValidChecked(this))
 		{
 			// Initialize overlap state
 			UpdateInitialOverlaps(bFromLevelStreaming);
@@ -4410,7 +4415,7 @@ int32 AActor::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 	// If we are on a client and function is 'skip on client', absorb it
 	FunctionCallspace::Type Callspace = (LocalRole < ROLE_Authority) && Function->HasAllFunctionFlags(FUNC_BlueprintAuthorityOnly) ? FunctionCallspace::Absorbed : FunctionCallspace::Local;
 	
-	if (IsPendingKill())
+	if (!IsValidChecked(this))
 	{
 		// Never call remote on a pending kill actor. 
 		// We can call it local or absorb it depending on authority/role check above.
@@ -4575,9 +4580,10 @@ bool AActor::CallRemoteFunction( UFunction* Function, void* Parameters, FOutParm
 {
 	bool bProcessed = false;
 
-	FWorldContext* const Context = GEngine->GetWorldContextFromWorld(GetWorld());
-	if (Context != nullptr)
+	if (UWorld* MyWorld = GetWorld())
 	{
+		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
+		{
 		for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 		{
 			if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateFunction(this, Function))
@@ -4586,6 +4592,7 @@ bool AActor::CallRemoteFunction( UFunction* Function, void* Parameters, FOutParm
 				bProcessed = true;
 			}
 		}
+	}
 	}
 
 	return bProcessed;
@@ -4880,7 +4887,7 @@ static USceneComponent* GetUnregisteredParent(UActorComponent* Component)
 			!SceneComponent->GetAttachParent()->IsRegistered())
 	{
 		SceneComponent = SceneComponent->GetAttachParent();
-		if (SceneComponent->bAutoRegister && !SceneComponent->IsPendingKill())
+		if (SceneComponent->bAutoRegister && IsValidChecked(SceneComponent))
 		{
 			// We found unregistered parent that should be registered
 			// But keep looking up the tree
@@ -4934,7 +4941,7 @@ bool AActor::IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegis
 	for (int32 CompIdx = 0; CompIdx < Components.Num() && NumRegisteredComponentsThisRun < NumComponentsToRegister; CompIdx++)
 	{
 		UActorComponent* Component = Components[CompIdx];
-		if (!Component->IsRegistered() && Component->bAutoRegister && !Component->IsPendingKill())
+		if (!Component->IsRegistered() && Component->bAutoRegister && IsValidChecked(Component))
 		{
 			// Ensure that all parent are registered first
 			USceneComponent* UnregisteredParentComponent = GetUnregisteredParent(Component);
@@ -5206,7 +5213,7 @@ void AActor::SetLifeSpan( float InLifespan )
 	// Store the new value
 	InitialLifeSpan = InLifespan;
 	// Initialize a timer for the actors lifespan if there is one. Otherwise clear any existing timer
-	if ((GetLocalRole() == ROLE_Authority || GetTearOff()) && !IsPendingKill())
+	if ((GetLocalRole() == ROLE_Authority || GetTearOff()) && IsValidChecked(this))
 	{
 		if( InLifespan > 0.0f)
 		{
@@ -5235,7 +5242,7 @@ void AActor::PostInitializeComponents()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_Actor_PostInitComponents);
 
-	if( !IsPendingKill() )
+	if(IsValidChecked(this) )
 	{
 		bActorInitialized = true;
 		
@@ -5465,16 +5472,17 @@ void AActor::PostRename(UObject* OldOuter, const FName OldName)
 {
 	Super::PostRename(OldOuter, OldName);
 
-	if (UWorld* World = GetWorld())
+	if (UWorld* MyWorld = GetWorld())
 	{
-		if (UNetDriver* NetDriver = World->GetNetDriver())
+		if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(MyWorld))
 		{
-			NetDriver->NotifyActorRenamed(this, OldName);
+			for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+			{
+				if (Driver.NetDriver != nullptr && Driver.NetDriver->ShouldReplicateActor(this))
+				{
+					Driver.NetDriver->NotifyActorRenamed(this, OldName);
+				}
 		}
-
-		if (UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver())
-		{
-			DemoNetDriver->NotifyActorRenamed(this, OldName);
 		}
 	}
 }
@@ -5491,7 +5499,7 @@ bool AActor::IsHLODRelevant() const
 		return false;
 	}
 
-	if (IsPendingKill())
+	if (!IsValidChecked(this))
 	{
 		return false;
 	}

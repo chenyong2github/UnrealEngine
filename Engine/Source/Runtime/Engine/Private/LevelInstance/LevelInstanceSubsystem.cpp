@@ -298,7 +298,7 @@ void ULevelInstanceSubsystem::ForEachActorInLevel(ULevel* Level, TFunctionRef<bo
 {
 	for (AActor* LevelActor : Level->Actors)
 	{
-		if (LevelActor && !LevelActor->IsPendingKill())
+		if (IsValid(LevelActor))
 		{
 			if (!Operation(LevelActor))
 			{

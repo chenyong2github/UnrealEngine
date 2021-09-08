@@ -658,7 +658,7 @@ void FPhysScene_ImmediatePhysX::SyncComponentsToBodies_AssumesLocked(uint32 Scen
 				OwnerComponent->MoveComponent(MoveBy, NewRotation, false, NULL, MOVECOMP_SkipPhysicsMove);
 			}
 
-			if (Owner != NULL && !Owner->IsPendingKill())
+			if (IsValid(Owner))
 			{
 				Owner->CheckStillInWorld();
 			}

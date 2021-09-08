@@ -13,11 +13,15 @@
 #include "eos_common.h"
 #include "eos_version.h"
 
+#if defined(DISABLE_EOSVOICECHAT_ENGINE)
+#define WITH_EOS_RTC 0
+#else
 #define WITH_EOS_RTC WITH_EOS_SDK && (EOS_MAJOR_VERSION >= 1 && EOS_MINOR_VERSION >= 13)
+#endif
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEOSSDK, Log, All);
 
-inline FString LexToString(const EOS_EResult EosResult)
+inline FString LexToString(EOS_EResult EosResult)
 {
 	return ANSI_TO_TCHAR(EOS_EResult_ToString(EosResult));
 }

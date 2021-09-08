@@ -298,12 +298,15 @@ public:
 	void SetAllowDismissal(bool bInAllowDismissal) { bAllowDismissal = bInAllowDismissal; }
 	
 private:
+
+	/* Marking those FTexts explicitly as editoronly_data will make localization not pick these up. */	
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FText MessageText;
 
 	UPROPERTY()
 	FText ShortDescription;
-
+#endif
 	UPROPERTY()
 	ENiagaraMessageSeverity MessageSeverity;
 

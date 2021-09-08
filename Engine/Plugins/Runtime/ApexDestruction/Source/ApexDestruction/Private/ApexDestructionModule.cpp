@@ -47,7 +47,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UDestructibleComponent* DestructibleComponent = Cast<UDestructibleComponent>(FPhysxUserData::Get<UPrimitiveComponent>(visibilityEvent.destructible->userData));
 		check(DestructibleComponent);
 
-		if (DestructibleComponent->IsPendingKill())	//don't notify if object is being destroyed
+		if (!IsValid(DestructibleComponent))	//don't notify if object is being destroyed
 		{
 			return;
 		}
@@ -291,7 +291,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UDestructibleComponent* DestructibleComponent = Cast<UDestructibleComponent>(FPhysxUserData::Get<UPrimitiveComponent>(damageEvent.destructible->userData));
 	check(DestructibleComponent);
 
-	if (DestructibleComponent->IsPendingKill())	//don't notify if object is being destroyed
+	if (!IsValid(DestructibleComponent))	//don't notify if object is being destroyed
 	{
 		return;
 	}

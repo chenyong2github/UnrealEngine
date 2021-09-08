@@ -313,3 +313,7 @@ void UReplayNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, E
 		}
 	}
 }
+void UReplayNetConnection::RequestCheckpoint()
+{
+	ReplayHelper.RequestCheckpoint();
+}

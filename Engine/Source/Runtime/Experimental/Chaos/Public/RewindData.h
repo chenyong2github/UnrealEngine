@@ -32,13 +32,13 @@ struct FFrameAndPhase
 		PostCallbacks,
 
 		NumPhases
-};
+	};
 
 	int32 Frame : 30;
 	uint32 Phase : 2;
 
 	bool operator<(const FFrameAndPhase& Other) const
-{
+	{
 		return Frame < Other.Frame || (Frame == Other.Frame && Phase < Other.Phase);
 	}
 
@@ -101,7 +101,7 @@ public:
 		Other.NumValid = 0;
 		Other.Next = 0;
 	}
-	
+
 	TParticlePropertyBuffer(const TParticlePropertyBuffer<T, PropName>& Other) = delete;
 
 	~TParticlePropertyBuffer()
@@ -138,27 +138,27 @@ public:
 	{
 			Pool.RemoveElement(Interval.Ref);
 	}
-	
+
 		Buffer.Empty();
 		NumValid = 0;
 	}
-	
+
 	void Reset()
 	{
 		NumValid = 0;
 	}
-	
+
 	void ClearEntryAndFuture(const FFrameAndPhase FrameAndPhase)
 	{
 		//Move next backwards until FrameAndPhase and anything more future than it is gone
 		while(NumValid)
 		{
 			const int32 PotentialNext = Next - 1 >= 0 ? Next - 1 : Buffer.Num() - 1;
-	
+
 			if(Buffer[PotentialNext].FrameAndPhase < FrameAndPhase)
 	{
 				break;
-	}
+			}
 
 			Next = PotentialNext;
 			--NumValid;
@@ -169,12 +169,12 @@ public:
 	{
 		return FindIdx(FrameAndPhase) == INDEX_NONE;
 	}
-	
+
 	template <typename THandle>
 	bool IsInSync(const THandle& Handle, const FFrameAndPhase FrameAndPhase, const FDirtyPropertiesPool& Pool) const
 	{
 		if (const T* Val = Read(FrameAndPhase, Pool))
-	{
+		{
 			T HeadVal;
 			HeadVal.CopyFrom(Handle);
 			return *Val == HeadVal;
@@ -196,7 +196,7 @@ private:
 
 			const FPropertyInterval& Interval = Buffer[Cur];
 			if(Interval.FrameAndPhase < FrameAndPhase)
-{
+			{
 				//no reason to keep searching, frame is bigger than everything before this
 				break;
 			}
@@ -204,15 +204,15 @@ private:
 	{
 				Result = Cur;
 			}
-	}
+		}
 
 		if(bNoEntryIsHead || Result == INDEX_NONE)
-	{
+		{
 			//in this mode we consider the entire interval as one entry
 			return Result;
-	}
+		}
 		else
-	{
+		{
 			//in this mode each interval just represents the frame the property was dirtied on
 			//so in that case we have to check for equality
 			return Buffer[Result].FrameAndPhase == FrameAndPhase ? Result : INDEX_NONE;
@@ -236,16 +236,16 @@ private:
 			if (bEnsureMonotonic)
 			{
 				ensure(LatestFrameAndPhase < FrameAndPhase);	//Must write in monotonic growing order so that x_{n+1} > x_n
-		}
-		else
-		{
+			}
+			else
+			{
 				ensure(LatestFrameAndPhase <= FrameAndPhase);	//Must write in growing order so that x_{n+1} >= x_n
 				if (LatestFrameAndPhase == FrameAndPhase)
 	{
 					//Already wrote once for this FrameAndPhase so skip
 					return nullptr;
-		}
-	}
+				}
+			}
 
 			ValidateOrder();
 	}
@@ -281,7 +281,7 @@ private:
 		int32 Val = Next;
 		FFrameAndPhase PrevVal;
 		for(int32 Count = 0; Count < NumValid; ++Count)
-		{
+	{
 			--Val;
 			if (Val < 0) { Val = Buffer.Num() - 1; }
 			if (Count == 0)
@@ -534,7 +534,7 @@ public:
 		const auto Data = State ? State->DynamicsMisc.Read(FrameAndPhase, Manager) : nullptr;
 		return Data ? Data->AngularEtherDrag() : Particle.CastToRigidParticle()->AngularEtherDrag();
 	}
-
+	
 	template <typename TParticle>
 	static FReal MaxLinearSpeedSq(const FGeometryParticleStateBase* State, const TParticle& Particle, const FDirtyPropertiesPool& Manager, const FFrameAndPhase FrameAndPhase)
 	{
@@ -562,7 +562,7 @@ public:
 		const auto Data = State ? State->DynamicsMisc.Read(FrameAndPhase, Manager) : nullptr;
 		return Data ? Data->GravityEnabled() : Particle.CastToRigidParticle()->GravityEnabled();
 	}
-
+	
 	template <typename TParticle>
 	static bool CCDEnabled(const FGeometryParticleStateBase* State, const TParticle& Particle, const FDirtyPropertiesPool& Manager, const FFrameAndPhase FrameAndPhase)
 	{
@@ -685,7 +685,7 @@ public:
 
 	void SyncSimWritablePropsFromSim(FDirtyPropData Manager,const TPBDRigidParticleHandle<FReal,3>& Rigid);
 	void SyncDirtyDynamics(FDirtyPropData& DestManager,const FDirtyChaosProperties& Dirty,const FConstDirtyPropData& SrcManager);
-	
+
 private:
 
 	TParticlePropertyBuffer<FParticlePositionRotation,EChaosProperty::XR> ParticlePositionRotation;
@@ -874,7 +874,7 @@ private:
 	const FDirtyPropertiesPool& Pool;
 	const FGeometryParticleStateBase* State = nullptr;
 	const FFrameAndPhase FrameAndPhase;
-	};
+};
 
 extern CHAOS_API int32 EnableResimCache;
 
@@ -1025,7 +1025,7 @@ private:
 	};
 
 	void CHAOS_API AdvanceFrameImp(IResimCacheBase* ResimCache);
-
+	
 	struct FFrameManagerInfo
 	{
 		TUniquePtr<IResimCacheBase> ExternalResimCache;
@@ -1041,7 +1041,7 @@ private:
 	{
 	private:
 		FGeometryParticleStateBase History;
-		TGeometryParticleHandle<FReal,3>* PTParticle;
+		TGeometryParticleHandle<FReal, 3>* PTParticle;
 		FDirtyPropertiesPool* PropertiesPool;
 	public:
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
@@ -1050,7 +1050,7 @@ private:
 		int32 DirtyDynamics = INDEX_NONE;
 		bool bResimAsSlave = true;	//Indicates the particle will always resim in the exact same way from game thread data
 
-		FDirtyParticleInfo(FDirtyPropertiesPool& InPropertiesPool, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
+		FDirtyParticleInfo(FDirtyPropertiesPool& InPropertiesPool, TGeometryParticleHandle<FReal, 3>& InPTParticle, const FUniqueIdx UniqueIdx, const int32 CurFrame, const int32 NumFrames)
 		: History(NumFrames)
 		, PTParticle(&InPTParticle)
 		, PropertiesPool(&InPropertiesPool)
@@ -1077,7 +1077,7 @@ private:
 		{
 			return PTParticle;
 		}
-
+		
 		FDirtyParticleInfo(const FDirtyParticleInfo& Other) = delete;
 
 		FGeometryParticleStateBase& AddFrame(const int32 Frame)
@@ -1085,7 +1085,7 @@ private:
 			LastDirtyFrame = Frame;
 			return History;
 		}
-		
+
 		void ClearPhaseAndFuture(const FFrameAndPhase FrameAndPhase)
 		{
 			History.ClearEntryAndFuture(FrameAndPhase);

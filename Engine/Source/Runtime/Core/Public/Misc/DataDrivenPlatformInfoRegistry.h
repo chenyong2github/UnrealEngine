@@ -80,7 +80,6 @@ struct FPlatformIconPaths
 	FString XLargePath;
 };
 
-#endif
 
 /** Information for feature level menu item added by this platform */
 struct FPreviewPlatformMenuItem
@@ -96,6 +95,9 @@ struct FPreviewPlatformMenuItem
 	FText IconText;
 	FName DeviceProfileName;
 };
+
+#endif
+
 
 // Information about a platform loaded from disk
 struct FDataDrivenPlatformInfo
@@ -142,9 +144,6 @@ struct FDataDrivenPlatformInfo
 	bool bCanChangeGamepadType = true;
 	bool bSupportsTouch = false;
 
-	// PreviewPlatform menu items added in this DDPI ini
-	TArray<struct FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
-	
 	// the compression format that this platform wants; overrides game unless bForceUseProjectCompressionFormat
 	FString HardwareCompressionFormat;
 
@@ -304,6 +303,11 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 
 	static FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
 
+	/**
+	 * Retrieve the full list of all known preview platforms from all DDPIs
+	*/
+	static const TArray<struct FPreviewPlatformMenuItem>& GetAllPreviewPlatformMenuItems();
+
 private:
 	/**
 	 * Get a modifiable DDPI object, for Turnkey to update it's info
@@ -312,7 +316,7 @@ private:
 	static FDataDrivenPlatformInfo& GetMutablePlatformInfo(FName PlatformName);
 	static TMap<FName, FDataDrivenPlatformInfo>& GetMutablePlatformInfos();
 
-
 #endif
+
 };
 

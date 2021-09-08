@@ -118,9 +118,9 @@ bool GeometryParticleSleeping(const FConcrete& Concrete)
 	}
 }
 
-//Used to filter out at the acceleration structure layer
+//Used to filter out at the acceleration structure layer using Query data
 //Returns true when there is no way a later PreFilter will succeed. Avoid virtuals etc..
-FORCEINLINE_DEBUGGABLE bool PrePreFilterImp(const FCollisionFilterData& QueryFilterData, const FCollisionFilterData& UnionFilterData)
+FORCEINLINE_DEBUGGABLE bool PrePreQueryFilterImp(const FCollisionFilterData& QueryFilterData, const FCollisionFilterData& UnionFilterData)
 {
 	//HACK: need to replace all these hard-coded values with proper enums, bad modules are not setup for it right now
 	//ECollisionQuery QueryType = (ECollisionQuery)QueryFilter.Word0;
@@ -140,6 +140,42 @@ FORCEINLINE_DEBUGGABLE bool PrePreFilterImp(const FCollisionFilterData& QueryFil
 	}
 
 	return false;
+}
+
+FORCEINLINE_DEBUGGABLE uint32 GetChaosCollisionChannelAndExtraFilter(uint32 Word3, uint8& OutMaskFilter)
+{
+	enum { NumExtraFilterBits = 6 };
+	enum { NumCollisionChannelBits = 5 };
+
+	uint32 ChannelMask = (Word3 << NumExtraFilterBits) >> (32 - NumCollisionChannelBits);
+	OutMaskFilter = Word3 >> (32 - NumExtraFilterBits);
+	return (uint32)ChannelMask;
+}
+
+//Used to filter out at the acceleration structure layer using Simdata
+//Returns true when there is no way a later PreFilter will succeed. Avoid virtuals etc..
+FORCEINLINE_DEBUGGABLE bool PrePreSimFilterImp(const FCollisionFilterData& SimFilterData, const FCollisionFilterData& OtherSimFilterData)
+{
+	//HACK: need to replace all these hard-coded values with proper enums, bad modules are not setup for it right now
+	//since we're taking the union of shapes we can only support trace channel
+	//const ECollisionChannel QuerierChannel = GetCollisionChannel(QueryFilter.Word3);
+	uint8  QuerierMaskFilter;
+	const uint32 QuerierChannel = GetChaosCollisionChannelAndExtraFilter(SimFilterData.Word3, QuerierMaskFilter);
+	uint8  OtherMaskFilter;
+	const uint32 OtherChannel = GetChaosCollisionChannelAndExtraFilter(OtherSimFilterData.Word3, OtherMaskFilter);
+
+	if ((QuerierMaskFilter & OtherMaskFilter) != 0)
+	{
+		return true;
+	}
+
+	//uint32 const QuerierBit = ECC_TO_BITFIELD(QuerierChannel);
+	const uint32 QuerierBit = (1 << (QuerierChannel));
+	const uint32 OtherBit = (1 << (OtherChannel));
+
+	// check if they can collide ( same logic as DoCollide in CollisionResolution.cpp )
+	const bool CanCollide = (QuerierBit & OtherSimFilterData.Word1) && (OtherBit & SimFilterData.Word1);
+	return !CanCollide;
 }
 
 /** Wrapper that holds both physics thread data and GT data. It's possible that the physics handle is null if we're doing operations entirely on external threads*/
@@ -175,13 +211,27 @@ public:
 		return CachedUniqueIdx;
 	}
 
-	bool PrePreFilter(const void* QueryData) const
+	bool PrePreQueryFilter(const void* QueryData) const
 	{
 		if(bCanPrePreFilter)
 		{
 			if (const FCollisionFilterData* QueryFilterData = static_cast<const FCollisionFilterData*>(QueryData))
 			{
-				return PrePreFilterImp(*QueryFilterData, UnionFilterData);
+				return PrePreQueryFilterImp(*QueryFilterData, UnionQueryFilterData);
+			}
+		}
+		
+		return false;
+			}
+
+
+	bool PrePreSimFilter(const void* SimData) const
+	{
+		if (bCanPrePreFilter)
+		{
+			if (const FCollisionFilterData* SimFilterData = static_cast<const FCollisionFilterData*>(SimData))
+			{
+				return PrePreSimFilterImp(*SimFilterData, UnionSimFilterData);
 			}
 		}
 		
@@ -190,18 +240,37 @@ public:
 
 	void UpdateFrom(const FAccelerationStructureHandle& InOther)
 	{
-		UnionFilterData.Word0 = InOther.UnionFilterData.Word0;
-		UnionFilterData.Word1 = InOther.UnionFilterData.Word1;
-		UnionFilterData.Word2 = InOther.UnionFilterData.Word2;
-		UnionFilterData.Word3 = InOther.UnionFilterData.Word3;
+		UnionQueryFilterData.Word0 = InOther.UnionQueryFilterData.Word0;
+		UnionQueryFilterData.Word1 = InOther.UnionQueryFilterData.Word1;
+		UnionQueryFilterData.Word2 = InOther.UnionQueryFilterData.Word2;
+		UnionQueryFilterData.Word3 = InOther.UnionQueryFilterData.Word3;
+
+		UnionSimFilterData.Word0 = InOther.UnionSimFilterData.Word0;
+		UnionSimFilterData.Word1 = InOther.UnionSimFilterData.Word1;
+		UnionSimFilterData.Word2 = InOther.UnionSimFilterData.Word2;
+		UnionSimFilterData.Word3 = InOther.UnionSimFilterData.Word3;
 	}
+
+public:
+	/**
+	* compute the aggregated query collision filter from all associated shapes
+	**/
+	template <typename TParticle>
+	static void ComputeParticleQueryFilterDataFromShapes(const TParticle& Particle, FCollisionFilterData& OutQueryFilterData);
+
+	/**
+	* compute the aggregated sim collision filter from all associated shapes
+	**/
+	template <typename TParticle>
+	static void ComputeParticleSimFilterDataFromShapes(const TParticle& Particle, FCollisionFilterData& OutSimFilterData);
 
 private:
 	FGeometryParticle* ExternalGeometryParticle;
 	FGeometryParticleHandle* GeometryParticleHandle;
 
 	FUniqueIdx CachedUniqueIdx;
-	FCollisionFilterData UnionFilterData;
+	FCollisionFilterData UnionQueryFilterData;
+	FCollisionFilterData UnionSimFilterData;
 	bool bCanPrePreFilter;
 
 	template <typename TParticle>
@@ -1498,6 +1567,8 @@ public:
 		return false;
 	}
 
+	const FShapesArray& ShapesArray() const { return MHandle->ShapesArray(); }
+
 	static constexpr EParticleType StaticType()
 	{
 		return EParticleType::Unknown;
@@ -2623,19 +2694,39 @@ FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandl
 }
 
 template <typename TParticle>
-FORCEINLINE_DEBUGGABLE void FAccelerationStructureHandle::UpdatePrePreFilter(const TParticle& Particle)
+/* static */ void FAccelerationStructureHandle::ComputeParticleQueryFilterDataFromShapes(const TParticle& Particle, FCollisionFilterData& OutQueryFilterData)
 {
 	const auto& Shapes = Particle.ShapesArray();
 	for (const auto& Shape : Shapes)
 	{
-		UnionFilterData.Word0 |= Shape->GetQueryData().Word0;
-		UnionFilterData.Word1 |= Shape->GetQueryData().Word1;
-		UnionFilterData.Word2 |= Shape->GetQueryData().Word2;
-		UnionFilterData.Word3 |= Shape->GetQueryData().Word3;
+		const FCollisionFilterData& ShapeQueryData = Shape->GetQueryData();
+		OutQueryFilterData.Word0 |= ShapeQueryData.Word0;
+		OutQueryFilterData.Word1 |= ShapeQueryData.Word1;
+		OutQueryFilterData.Word2 |= ShapeQueryData.Word2;
+		OutQueryFilterData.Word3 |= ShapeQueryData.Word3;
+	}
 	}
 	
-	bCanPrePreFilter = true;
+template <typename TParticle>
+/* static */ void FAccelerationStructureHandle::ComputeParticleSimFilterDataFromShapes(const TParticle& Particle, FCollisionFilterData& OutSimFilterData)
+{
+	const auto& Shapes = Particle.ShapesArray();
+	for (const auto& Shape : Shapes)
+	{
+		const FCollisionFilterData& ShapeSimData = Shape->GetSimData();
+		OutSimFilterData.Word0 |= ShapeSimData.Word0;
+		OutSimFilterData.Word1 |= ShapeSimData.Word1;
+		OutSimFilterData.Word2 |= ShapeSimData.Word2;
+		OutSimFilterData.Word3 |= ShapeSimData.Word3;
+	}
+}
 
+template <typename TParticle>
+FORCEINLINE_DEBUGGABLE void FAccelerationStructureHandle::UpdatePrePreFilter(const TParticle& Particle)
+{
+	ComputeParticleQueryFilterDataFromShapes(Particle, UnionQueryFilterData);
+	ComputeParticleSimFilterDataFromShapes(Particle, UnionSimFilterData);
+	bCanPrePreFilter = true;
 }
 
 

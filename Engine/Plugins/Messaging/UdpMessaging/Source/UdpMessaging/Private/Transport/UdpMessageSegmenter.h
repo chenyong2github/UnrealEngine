@@ -100,7 +100,7 @@ public:
 	 */
 	const TBitArray<>& GetAcknowledgedSegments() const
 	{
-		return AcknowlededSegments;
+		return AcknowledgeSegments;
 	}
 
 	/**
@@ -110,7 +110,7 @@ public:
 	 */
 	uint32 GetAcknowledgedSegmentsCount() const
 	{
-		return AcknowlededSegmentsCount;
+		return AcknowledgeSegmentsCount;
 	}
 
 	/**
@@ -143,7 +143,7 @@ public:
 	 */
 	bool AreAcknowledgementsComplete() const
 	{
-		return (AcknowlededSegmentsCount == AcknowlededSegments.Num());
+		return (AcknowledgeSegmentsCount == AcknowledgeSegments.Num());
 	}
 
 	/**
@@ -170,11 +170,25 @@ public:
 	EMessageFlags GetMessageFlags() const;
 
 	/**
+	* Marks the given segment id as sent.
+	*
+	* @param Segment id.
+	*/
+	void MarkAsSent(uint32 SegmentId);
+
+	/**
 	* Marks the specified segments as sent
 	*
 	* @param Segments The acknowledged segments.
 	*/
 	void MarkAsSent(const TArray<uint32>& Segments);
+
+	/**
+	* Marks the given segment id as acknowledged.
+	*
+	* @param Segment id.
+	*/
+	void MarkAsAcknowledged(uint32 SegmentId);
 
 	/**
 	* Marks the specified segments as acknowledged.
@@ -187,6 +201,12 @@ public:
 	 * Marks the entire message for retransmission. This does not reset acknowledgements as we only need an acknowledgment for a segement once
 	 */
 	void MarkForRetransmission();
+
+	/**
+	 * Marks a given segment id for retransmission
+	 */
+	void MarkForRetransmission(uint32 SegmentId);
+
 	/**
 	 * Marks the specified segments for retransmission.
 	 *
@@ -230,13 +250,13 @@ private:
 	TBitArray<> PendingSendSegments;
 
 	/** Holds an array of bits where true indicates a segment has been acknowledged. Will always zero-length for an unreliable segment. */
-	TBitArray<> AcknowlededSegments;
+	TBitArray<> AcknowledgeSegments;
 
 	/** Holds the number of segments that haven't been sent yet. */
 	uint32 PendingSendSegmentsCount;
 
 	/** Holds the number of segments that haven't been acknowledged yet. Will always be zero for an unreliable message */
-	uint32 AcknowlededSegmentsCount;
+	uint32 AcknowledgeSegmentsCount;
 
 	/** Holds the segment size. */
 	uint16 SegmentSize;

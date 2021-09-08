@@ -394,11 +394,11 @@ bool FJsonObjectConverter::GetTextFromObject(const TSharedRef<FJsonObject>& Obj,
 
 namespace
 {
-	bool JsonValueToFPropertyWithContainer(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags);
-	bool JsonAttributesToUStructWithContainer(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags);
+	bool JsonValueToFPropertyWithContainer(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode);
+	bool JsonAttributesToUStructWithContainer(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode);
 
 	/** Convert JSON to property, assuming either the property is not an array or the value is an individual array element */
-	bool ConvertScalarJsonValueToFPropertyWithContainer(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags)
+	bool ConvertScalarJsonValueToFPropertyWithContainer(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode)
 	{
 	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
@@ -489,7 +489,7 @@ namespace
 				const TSharedPtr<FJsonValue>& ArrayValueItem = ArrayValue[i];
 				if (ArrayValueItem.IsValid() && !ArrayValueItem->IsNull())
 				{
-					if (!JsonValueToFPropertyWithContainer(ArrayValueItem, ArrayProperty->Inner, Helper.GetRawPtr(i), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags))
+					if (!JsonValueToFPropertyWithContainer(ArrayValueItem, ArrayProperty->Inner, Helper.GetRawPtr(i), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags, bStrictMode))
 					{
 						UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Unable to deserialize array element [%d] for property %s"), i, *Property->GetNameCPP());
 						return false;
@@ -525,8 +525,8 @@ namespace
 
 					TSharedPtr<FJsonValueString> TempKeyValue = MakeShared<FJsonValueString>(Entry.Key);
 
-					const bool bKeySuccess = JsonValueToFPropertyWithContainer(TempKeyValue, MapProperty->KeyProp, Helper.GetKeyPtr(NewIndex), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags);
-					const bool bValueSuccess = JsonValueToFPropertyWithContainer(Entry.Value, MapProperty->ValueProp, Helper.GetValuePtr(NewIndex), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags);
+					const bool bKeySuccess = JsonValueToFPropertyWithContainer(TempKeyValue, MapProperty->KeyProp, Helper.GetKeyPtr(NewIndex), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags, bStrictMode);
+					const bool bValueSuccess = JsonValueToFPropertyWithContainer(Entry.Value, MapProperty->ValueProp, Helper.GetValuePtr(NewIndex), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags, bStrictMode);
 
 					if (!(bKeySuccess && bValueSuccess))
 					{
@@ -560,7 +560,7 @@ namespace
 				if (ArrayValueItem.IsValid() && !ArrayValueItem->IsNull())
 				{
 					int32 NewIndex = Helper.AddDefaultValue_Invalid_NeedsRehash();
-					if (!JsonValueToFPropertyWithContainer(ArrayValueItem, SetProperty->ElementProp, Helper.GetElementPtr(NewIndex), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags))
+					if (!JsonValueToFPropertyWithContainer(ArrayValueItem, SetProperty->ElementProp, Helper.GetElementPtr(NewIndex), ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags, bStrictMode))
 					{
 						UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Unable to deserialize set element [%d] for property %s"), i, *Property->GetNameCPP());
 						return false;
@@ -610,7 +610,7 @@ namespace
 		{
 			TSharedPtr<FJsonObject> Obj = JsonValue->AsObject();
 			check(Obj.IsValid()); // should not fail if Type == EJson::Object
-			if (!JsonAttributesToUStructWithContainer(Obj->Values, StructProperty->Struct, OutValue, ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags))
+			if (!JsonAttributesToUStructWithContainer(Obj->Values, StructProperty->Struct, OutValue, ContainerStruct, Container, CheckFlags & (~CPF_ParmFlags), SkipFlags, bStrictMode))
 			{
 				UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - FJsonObjectConverter::JsonObjectToUStruct failed for property %s"), *Property->GetNameCPP());
 				return false;
@@ -675,14 +675,22 @@ namespace
 			if (!TheCppStructOps->ImportTextItem(ImportTextPtr, OutValue, PPF_None, nullptr, (FOutputDevice*)GWarn))
 			{
 				// Fall back to trying the tagged property approach if custom ImportTextItem couldn't get it done
-				Property->ImportText(ImportTextPtr, OutValue, PPF_None, nullptr);
+				if (Property->ImportText(ImportTextPtr, OutValue, PPF_None, nullptr) == nullptr)
+				{
+					UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - FJsonObjectConverter::JsonObjectToUStruct failed for property %s"), *Property->GetNameCPP());
+					return false;
+				}
 			}
 		}
 		else if (JsonValue->Type == EJson::String)
 		{
 			FString ImportTextString = JsonValue->AsString();
 			const TCHAR* ImportTextPtr = *ImportTextString;
-			Property->ImportText(ImportTextPtr, OutValue, PPF_None, nullptr);
+			if (Property->ImportText(ImportTextPtr, OutValue, PPF_None, nullptr) == nullptr)
+			{
+				UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - FJsonObjectConverter::JsonObjectToUStruct failed for property %s"), *Property->GetNameCPP());
+				return false;
+			}
 		}
 		else
 		{
@@ -721,7 +729,7 @@ namespace
 				ObjectProperty->SetObjectPropertyValue(OutValue, createdObj);
 
 				check(Obj.IsValid()); // should not fail if Type == EJson::Object
-				if (!JsonAttributesToUStructWithContainer(Obj->Values, PropertyClass, createdObj, PropertyClass, createdObj, CheckFlags & (~CPF_ParmFlags), SkipFlags))
+				if (!JsonAttributesToUStructWithContainer(Obj->Values, PropertyClass, createdObj, PropertyClass, createdObj, CheckFlags & (~CPF_ParmFlags), SkipFlags, bStrictMode))
 				{
 					UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - FJsonObjectConverter::JsonObjectToUStruct failed for property %s"), *Property->GetNameCPP());
 					return false;
@@ -730,7 +738,7 @@ namespace
 			else if (JsonValue->Type == EJson::String)
 			{
 				// Default to expect a string for everything else
-				if (Property->ImportText(*JsonValue->AsString(), OutValue, 0, NULL) == NULL)
+				if (Property->ImportText(*JsonValue->AsString(), OutValue, 0, nullptr) == nullptr)
 				{
 					UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Unable import property type %s from string value for property %s"), *Property->GetClass()->GetName(), *Property->GetNameCPP());
 					return false;
@@ -740,7 +748,7 @@ namespace
 	else
 	{
 		// Default to expect a string for everything else
-		if (Property->ImportText(*JsonValue->AsString(), OutValue, 0, NULL) == NULL)
+		if (Property->ImportText(*JsonValue->AsString(), OutValue, 0, nullptr) == nullptr)
 		{
 			UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Unable import property type %s from string value for property %s"), *Property->GetClass()->GetName(), *Property->GetNameCPP());
 			return false;
@@ -751,7 +759,7 @@ namespace
 	}
 
 
-	bool JsonValueToFPropertyWithContainer(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags)
+	bool JsonValueToFPropertyWithContainer(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode)
 	{
 		if (!JsonValue.IsValid())
 		{
@@ -759,8 +767,8 @@ namespace
 			return false;
 		}
 
-		bool bArrayOrSetProperty = Property->IsA<FArrayProperty>() || Property->IsA<FSetProperty>();
-		bool bJsonArray = JsonValue->Type == EJson::Array;
+		const bool bArrayOrSetProperty = Property->IsA<FArrayProperty>() || Property->IsA<FSetProperty>();
+		const bool bJsonArray = JsonValue->Type == EJson::Array;
 
 		if (!bJsonArray)
 		{
@@ -772,31 +780,44 @@ namespace
 
 			if (Property->ArrayDim != 1)
 			{
+				if (bStrictMode)
+				{
+					UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Property %s is not an array but has %d elements"), *Property->GetName(), Property->ArrayDim);
+					return false;
+				}
+				
 				UE_LOG(LogJson, Warning, TEXT("Ignoring excess properties when deserializing %s"), *Property->GetName());
 			}
 
-			return ConvertScalarJsonValueToFPropertyWithContainer(JsonValue, Property, OutValue, ContainerStruct, Container, CheckFlags, SkipFlags);
+			return ConvertScalarJsonValueToFPropertyWithContainer(JsonValue, Property, OutValue, ContainerStruct, Container, CheckFlags, SkipFlags, bStrictMode);
 		}
 
 		// In practice, the ArrayDim == 1 check ought to be redundant, since nested arrays of FPropertys are not supported
 		if (bArrayOrSetProperty && Property->ArrayDim == 1)
 		{
 			// Read into TArray
-			return ConvertScalarJsonValueToFPropertyWithContainer(JsonValue, Property, OutValue, ContainerStruct, Container, CheckFlags, SkipFlags);
+			return ConvertScalarJsonValueToFPropertyWithContainer(JsonValue, Property, OutValue, ContainerStruct, Container, CheckFlags, SkipFlags, bStrictMode);
 		}
 
 		// We're deserializing a JSON array
 		const auto& ArrayValue = JsonValue->AsArray();
+
+		if (bStrictMode && (Property->ArrayDim != ArrayValue.Num()))
+		{
+			UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - Json array for property %s doesn't have the same number of elements (has %d elements, but needs %d)"), *Property->GetName(), ArrayValue.Num(), Property->ArrayDim);
+			return false;
+		}
+		
 		if (Property->ArrayDim < ArrayValue.Num())
 		{
 			UE_LOG(LogJson, Warning, TEXT("Ignoring excess properties when deserializing %s"), *Property->GetName());
 		}
 
 		// Read into native array
-		int ItemsToRead = FMath::Clamp(ArrayValue.Num(), 0, Property->ArrayDim);
+		const int32 ItemsToRead = FMath::Clamp(ArrayValue.Num(), 0, Property->ArrayDim);
 		for (int Index = 0; Index != ItemsToRead; ++Index)
 		{
-			if (!ConvertScalarJsonValueToFPropertyWithContainer(ArrayValue[Index], Property, (char*)OutValue + Index * Property->ElementSize, ContainerStruct, Container, CheckFlags, SkipFlags))
+			if (!ConvertScalarJsonValueToFPropertyWithContainer(ArrayValue[Index], Property, static_cast<char*>(OutValue) + Index * Property->ElementSize, ContainerStruct, Container, CheckFlags, SkipFlags, bStrictMode))
 			{
 				return false;
 			}
@@ -804,7 +825,7 @@ namespace
 		return true;
 	}
 
-	bool JsonAttributesToUStructWithContainer(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags)
+	bool JsonAttributesToUStructWithContainer(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, const UStruct* ContainerStruct, void* Container, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode)
 	{
 		if (StructDefinition == FJsonObjectWrapper::StaticStruct())
 		{
@@ -840,6 +861,12 @@ namespace
 			const TSharedPtr<FJsonValue>* JsonValue = JsonAttributes.Find(Property->GetName());
 			if (!JsonValue)
 			{
+				if (bStrictMode)
+				{
+					UE_LOG(LogJson, Error, TEXT("JsonObjectToUStruct - Unable to parse %s.%s from JSON"), *StructDefinition->GetName(), *Property->GetName());
+					return false;
+				}
+				
 				// we allow values to not be found since this mirrors the typical UObject mantra that all the fields are optional when deserializing
 				continue;
 			}
@@ -847,7 +874,7 @@ namespace
 			if (JsonValue->IsValid() && !(*JsonValue)->IsNull())
 			{
 				void* Value = Property->ContainerPtrToValuePtr<uint8>(OutStruct);
-				if (!JsonValueToFPropertyWithContainer(*JsonValue, Property, Value, ContainerStruct, Container, CheckFlags, SkipFlags))
+				if (!JsonValueToFPropertyWithContainer(*JsonValue, Property, Value, ContainerStruct, Container, CheckFlags, SkipFlags, bStrictMode))
 				{
 					UE_LOG(LogJson, Error, TEXT("JsonObjectToUStruct - Unable to parse %s.%s from JSON"), *StructDefinition->GetName(), *Property->GetName());
 					return false;
@@ -856,6 +883,8 @@ namespace
 
 			if (--NumUnclaimedProperties <= 0)
 			{
+				// Should we log a warning/error if we still have properties in the JSON data that aren't in the struct definition in strict mode?
+				
 				// If we found all properties that were in the JsonAttributes map, there is no reason to keep looking for more.
 				break;
 			}
@@ -865,19 +894,19 @@ namespace
 	}
 }
 
-bool FJsonObjectConverter::JsonValueToUProperty(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, int64 CheckFlags, int64 SkipFlags)
+bool FJsonObjectConverter::JsonValueToUProperty(const TSharedPtr<FJsonValue>& JsonValue, FProperty* Property, void* OutValue, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode)
 {
-	return JsonValueToFPropertyWithContainer(JsonValue, Property, OutValue, nullptr, nullptr, CheckFlags, SkipFlags);
+	return JsonValueToFPropertyWithContainer(JsonValue, Property, OutValue, nullptr, nullptr, CheckFlags, SkipFlags, bStrictMode);
 }
 
-bool FJsonObjectConverter::JsonObjectToUStruct(const TSharedRef<FJsonObject>& JsonObject, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags, int64 SkipFlags)
+bool FJsonObjectConverter::JsonObjectToUStruct(const TSharedRef<FJsonObject>& JsonObject, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode)
 {
-	return JsonAttributesToUStruct(JsonObject->Values, StructDefinition, OutStruct, CheckFlags, SkipFlags);
+	return JsonAttributesToUStruct(JsonObject->Values, StructDefinition, OutStruct, CheckFlags, SkipFlags, bStrictMode);
 }
 
-bool FJsonObjectConverter::JsonAttributesToUStruct(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags, int64 SkipFlags)
+bool FJsonObjectConverter::JsonAttributesToUStruct(const TMap< FString, TSharedPtr<FJsonValue> >& JsonAttributes, const UStruct* StructDefinition, void* OutStruct, int64 CheckFlags, int64 SkipFlags, const bool bStrictMode)
 {
-	return JsonAttributesToUStructWithContainer(JsonAttributes, StructDefinition, OutStruct, StructDefinition, OutStruct, CheckFlags, SkipFlags);
+	return JsonAttributesToUStructWithContainer(JsonAttributes, StructDefinition, OutStruct, StructDefinition, OutStruct, CheckFlags, SkipFlags, bStrictMode);
 }
 
 //static 

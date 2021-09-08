@@ -228,7 +228,7 @@ void UNiagaraMeshRendererProperties::PostInitProperties()
 		InitBindings();
 
 #if WITH_EDITOR
-		if (GIsEditor)
+		if (GEditor)
 		{
 			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddUObject(this, &UNiagaraMeshRendererProperties::OnAssetReimported);
 		}
@@ -619,7 +619,7 @@ void UNiagaraMeshRendererProperties::GetRendererWidgets(const FNiagaraEmitterIns
 			ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget();
 		}
 		
-		OutWidgets.Add(ThumbnailWidget);
+		OutWidgets.Add(ThumbnailWidget);		
 	}
 
 	if (Meshes.Num() == 0)
@@ -687,7 +687,10 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 			}
 		}
 
+		if ( GEditor )
+		{
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.RemoveAll(this);
+	}
 	}
 #endif
 }

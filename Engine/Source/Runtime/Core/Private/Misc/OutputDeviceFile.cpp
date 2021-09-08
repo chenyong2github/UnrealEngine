@@ -26,10 +26,18 @@
 #include "Math/Color.h"
 #include "Templates/Atomic.h"
 #include "HAL/ConsoleManager.h"
+#include "Misc/Fork.h"
+#include "Stats/Stats.h"
+
+#include <atomic>
 
 /** Used by tools which include only core to disable log file creation. */
 #ifndef ALLOW_LOG_FILE
 	#define ALLOW_LOG_FILE 1
+#endif
+
+#ifndef OUTPUTDEVICE_DEFAULT_ASYNC_WRITER_THREAD_NAME_OPTION
+	#define OUTPUTDEVICE_DEFAULT_ASYNC_WRITER_THREAD_NAME_OPTION FAsyncWriter::EThreadNameOption::FileName
 #endif
 
 typedef uint8 UTF8BOMType[3];
@@ -41,6 +49,7 @@ static FAutoConsoleVariableRef CVarLogFlushInterval(
 	GLogFlushIntervalSec,
 	TEXT("Logging interval in seconds"),
 	ECVF_Default );
+
 
 #if UE_BUILD_SHIPPING
 static float GLogFlushIntervalSec_Shipping = 0.0f;
@@ -73,6 +82,7 @@ void FAsyncWriter::FlushArchiveAndResetTimer()
 /** [WRITER THREAD] Serialize the contents of the ring buffer to disk */
 void FAsyncWriter::SerializeBufferToArchive()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAsyncWriter_SerializeBufferToArchive);
 	// Unix and PS4 use FPlatformMallocCrash during a crash, which means this function is not allowed to perform any allocations
 	// or else it will deadlock when flushing logs during crash handling. Ideally scoped named events would be disabled while crashing.
 	// GIsCriticalError is not always true when crashing (i.e. the case of a GPF) so there is no way to know to skip this behavior only when crashing
@@ -133,6 +143,12 @@ void FAsyncWriter::FlushBuffer()
 	{
 		SerializeBufferToArchive();
 	}
+	else if (RunCritical.TryLock())
+	{
+		// The thread object is there, but hasn't started yet (could be a forkable thread pre-fork).
+		SerializeBufferToArchive();
+		RunCritical.Unlock();
+	}
 	while (SerializeRequestCounter.GetValue() != 0)
 	{
 		FPlatformProcess::SleepNoStats(0);
@@ -141,7 +157,7 @@ void FAsyncWriter::FlushBuffer()
 	check(SerializeRequestCounter.GetValue() == 0);
 }
 
-FAsyncWriter::FAsyncWriter(FArchive& InAr)
+FAsyncWriter::FAsyncWriter(FArchive& InAr, FAsyncWriter::EThreadNameOption NameOption)
 	: Thread(nullptr)
 	, Ar(InAr)
 	, BufferStartPos(0)
@@ -156,10 +172,26 @@ FAsyncWriter::FAsyncWriter(FArchive& InAr)
 		GLogFlushIntervalSec = CommandLineInterval;
 	}
 
-	if (FPlatformProcess::SupportsMultithreading())
+	const bool bDisableForkedOutputThread = FParse::Param(FCommandLine::Get(), TEXT("DisableForkedOutputThread"));
+
+	if (!bDisableForkedOutputThread)
 	{
-		FString WriterName = FString::Printf(TEXT("FAsyncWriter_%s"), *FPaths::GetBaseFilename(Ar.GetArchiveName()));
-		FPlatformAtomics::InterlockedExchangePtr((void**)&Thread, FRunnableThread::Create(this, *WriterName, 0, TPri_BelowNormal));
+		if (FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::SupportsMultithreadingPostFork())
+		{
+			FString WriterName;
+			
+			if (NameOption == EThreadNameOption::FileName)
+			{
+				WriterName = FString::Printf(TEXT("FAsyncWriter_%s"), *FPaths::GetBaseFilename(Ar.GetArchiveName()));
+	}
+			else if (NameOption == EThreadNameOption::Sequential)
+			{
+				static std::atomic<uint64> AsyncWriterCount(0);
+				WriterName = FString::Printf(TEXT("FAsyncWriter_%llu"), ++AsyncWriterCount);
+}
+
+			FPlatformAtomics::InterlockedExchangePtr((void**)&Thread, FForkProcessHelper::CreateForkableThread(this, *WriterName, 0, TPri_BelowNormal));
+		}
 	}
 }
 
@@ -248,6 +280,8 @@ bool FAsyncWriter::Init()
 	
 uint32 FAsyncWriter::Run()
 {
+	FScopeLock RunLock(&RunCritical);
+
 	while (StopTaskCounter.GetValue() == 0)
 	{
 		if (SerializeRequestCounter.GetValue() > 0)
@@ -269,6 +303,20 @@ uint32 FAsyncWriter::Run()
 void FAsyncWriter::Stop()
 {
 	StopTaskCounter.Increment();
+}
+
+void FAsyncWriter::Tick()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAsyncWriter_Tick);
+
+	if (SerializeRequestCounter.GetValue() > 0)
+	{
+		SerializeBufferToArchive();
+	}
+	else if ((FPlatformTime::Seconds() - LastArchiveFlushTime) > GetLogFlushIntervalSec())
+	{
+		FlushArchiveAndResetTimer();
+	}
 }
 
 
@@ -453,8 +501,10 @@ bool FOutputDeviceFile::CreateWriter(uint32 MaxAttempts)
 
 	if (Ar)
 	{
+		const FAsyncWriter::EThreadNameOption NameOption = OUTPUTDEVICE_DEFAULT_ASYNC_WRITER_THREAD_NAME_OPTION;
+
 		WriterArchive = Ar;
-		AsyncWriter = new FAsyncWriter(*WriterArchive);
+		AsyncWriter = new FAsyncWriter(*WriterArchive, NameOption);
 		WriteByteOrderMarkToArchive(EByteOrderMark::UTF8);
 		if (OnFileOpenedFn)
 		{

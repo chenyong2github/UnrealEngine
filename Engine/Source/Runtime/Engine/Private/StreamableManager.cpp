@@ -8,6 +8,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Tickable.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Algo/Transform.h"
+#include "atomic"
 
 DEFINE_LOG_CATEGORY_STATIC(LogStreamableManager, Log, All);
 
@@ -19,6 +21,10 @@ static FAutoConsoleVariableRef CVarStreamableDelegateDelayFrames(
 	TEXT("Number of frames to delay StreamableManager delegates "),
 	ECVF_Default
 );
+
+const FString FStreamableHandle::HandleDebugName_Preloading = FString(TEXT("Preloading"));
+const FString FStreamableHandle::HandleDebugName_AssetList = FString(TEXT("LoadAssetList"));
+const FString FStreamableHandle::HandleDebugName_CombinedHandle = FString(TEXT("CreateCombinedHandle"));
 
 /** Helper class that defers streamable manager delegates until the next frame */
 class FStreamableDelegateDelayHelper : public FTickableGameObject
@@ -293,6 +299,17 @@ private:
 
 static FStreamableDelegateDelayHelper* StreamableDelegateDelayHelper = nullptr;
 
+
+TStreamableHandleContextDataTypeID FStreamableHandleContextDataBase::AllocateClassTypeId()
+{
+	static std::atomic<TStreamableHandleContextDataTypeID> TypeNum{0};
+	TStreamableHandleContextDataTypeID Result = TypeNum++;
+
+	checkf(Result != TStreamableHandleContextDataTypeIDInvalid, TEXT("Overflow in TypeNum: too many TStreamableHandleContextData subclasses. Change the TStreamableHandleContextDataTypeID typedef if more subclasses are needed."));
+	return Result;
+}
+
+
 bool FStreamableHandle::BindCompleteDelegate(FStreamableDelegate NewDelegate)
 {
 	if (!IsLoadingInProgress())
@@ -392,11 +409,44 @@ bool FStreamableHandle::HasLoadCompletedOrStalled() const
 	return true;
 }
 
-void FStreamableHandle::GetRequestedAssets(TArray<FSoftObjectPath>& AssetList) const
+bool FStreamableHandle::IsHandleNameEmptyOrDefault() const
+{
+	// empty or "None"
+	if (DebugName.IsEmpty() || DebugName.Equals(FName(NAME_None).ToString()))
+	{
+		return true;
+	}
+
+	// a default value...
+	if (DebugName == HandleDebugName_AssetList || DebugName == HandleDebugName_CombinedHandle)
+	{
+		return true;
+	}
+	// a default generated debug name
+	else if (DebugName.StartsWith(HandleDebugName_Preloading))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void FStreamableHandle::SetDebugNameIfEmptyOrDefault(const FString& NewName)
+{
+	if (IsHandleNameEmptyOrDefault())
+	{
+		DebugName = NewName;
+	}
+}
+
+void FStreamableHandle::GetRequestedAssets(TArray<FSoftObjectPath>& AssetList, bool bIncludeChildren /*= true*/) const
 {
 	AssetList = RequestedAssets;
 
 	// Check child handles
+
+	if (bIncludeChildren)
+	{
 	for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
 	{
 		TArray<FSoftObjectPath> ChildAssetList;
@@ -408,6 +458,7 @@ void FStreamableHandle::GetRequestedAssets(TArray<FSoftObjectPath>& AssetList) c
 			AssetList.AddUnique(ChildRef);
 		}
 	}
+}
 }
 
 UObject* FStreamableHandle::GetLoadedAsset() const
@@ -639,6 +690,21 @@ void FStreamableHandle::StartStalledHandle()
 	OwningManager->StartHandleRequests(AsShared());
 }
 
+bool FStreamableHandle::HasCompleteDelegate() const
+{
+	return CompleteDelegate.IsBound();
+}
+
+bool FStreamableHandle::HasCancelDelegate() const
+{
+	return CancelDelegate.IsBound();
+}
+
+bool FStreamableHandle::HasUpdateDelegate() const
+{
+	return UpdateDelegate.IsBound();
+}
+
 FStreamableHandle::~FStreamableHandle()
 {
 	check(IsInGameThread() || IsInGarbageCollectorThread());
@@ -837,6 +903,90 @@ void FStreamableHandle::ExecuteDelegate(const FStreamableDelegate& Delegate, TSh
 			StreamableDelegateDelayHelper->AddDelegate(Delegate, CancelDelegate, AssociatedHandle);
 		}
 	}
+}
+
+TSharedPtr<FStreamableHandle> FStreamableHandle::FindMatchingHandle(TFunction<bool(const FStreamableHandle&)> Predicate) const
+{
+	if (Predicate(*this))
+	{
+		return ConstCastSharedPtr<FStreamableHandle, const FStreamableHandle, ESPMode::ThreadSafe>(AsShared());
+	}
+
+	for (const TSharedPtr<FStreamableHandle>& ChildHandle : ChildHandles)
+	{
+		if (TSharedPtr<FStreamableHandle> MatchingHandleFromChildren = ChildHandle ? ChildHandle->FindMatchingHandle(Predicate) : nullptr)
+		{
+			return MatchingHandleFromChildren;
+		}
+	}
+
+	return nullptr;
+}
+
+TSharedPtr<FStreamableHandle> FStreamableHandle::CreateCombinedHandle(const TConstArrayView<TSharedPtr<FStreamableHandle>>& OtherHandles)
+{
+	static const EStreamableManagerCombinedHandleOptions MergeOptions 
+	= EStreamableManagerCombinedHandleOptions::MergeDebugNames | EStreamableManagerCombinedHandleOptions::SkipNulls | EStreamableManagerCombinedHandleOptions::RedirectParents;
+
+	TSharedPtr<FStreamableHandle> ThisAsShared{AsShared()};
+
+	if (FStreamableManager* Manager = GetOwningManager())
+	{
+		TArray<TSharedPtr<FStreamableHandle>> HandlesToUse{OtherHandles};
+		HandlesToUse.AddUnique(ThisAsShared);
+
+		return Manager->CreateCombinedHandle(HandlesToUse, HandleDebugName_CombinedHandle, MergeOptions);		
+	}
+
+	return nullptr;
+}
+
+TSharedPtr<FStreamableHandle> FStreamableHandle::GetOutermostHandle()
+{
+	if (ParentHandles.Num())
+	{
+		// have at least one parent handle.
+
+		if (ParentHandles.Num() == 1)
+		{
+			// can just return the outermost of our one parent
+			return ParentHandles[0].Pin()->GetOutermostHandle();
+		}
+
+		TArray<TWeakPtr<FStreamableHandle>> IterationArray;
+		IterationArray = ParentHandles;
+		TArray<TWeakPtr<FStreamableHandle>> NextItrArray;
+		bool bFoundParents = true;
+
+		while (bFoundParents)
+		{
+			for (const TWeakPtr<FStreamableHandle>& WeakHandle : IterationArray)
+			{
+				TSharedPtr<FStreamableHandle> Handle = WeakHandle.Pin();
+				if (Handle.IsValid())
+				{
+					// Append does the right thing with the allocation already, no need to handle it ourselves
+					NextItrArray.Append(Handle->ParentHandles);
+				}
+			}
+
+			// we didn't find parents if none of our handles we just checked had parent handles
+			bFoundParents = NextItrArray.Num() > 0;
+
+			if (!bFoundParents)
+			{
+				// we can't be in the loop if this array is empty...
+				// possible this can actually be more than one handle at this point - that's okay!
+				return IterationArray[0].Pin();
+			}
+
+			IterationArray = NextItrArray;
+			NextItrArray.Reset();
+		}
+	}
+	
+	// weren't able to resolve the maximum outermost (likely due to no parent)
+	return AsShared();
 }
 
 /** Internal object, one of these per object paths managed by this system */
@@ -1524,7 +1674,7 @@ void FStreamableManager::Unload(const FSoftObjectPath& Target)
 	}
 }
 
-TSharedPtr<FStreamableHandle> FStreamableManager::CreateCombinedHandle(const TArray<TSharedPtr<FStreamableHandle> >& ChildHandles, const FString& DebugName)
+TSharedPtr<FStreamableHandle> FStreamableManager::CreateCombinedHandle(const TConstArrayView<TSharedPtr<FStreamableHandle> >& ChildHandles, const FString& DebugName, EStreamableManagerCombinedHandleOptions Options)
 {
 	if (!ensure(ChildHandles.Num() > 0))
 	{
@@ -1536,17 +1686,88 @@ TSharedPtr<FStreamableHandle> FStreamableManager::CreateCombinedHandle(const TAr
 	NewRequest->bIsCombinedHandle = true;
 	NewRequest->DebugName = DebugName;
 
+	static const auto RemapHandleParentRelationship = [](TSharedPtr<FStreamableHandle>& IndividualHandle, TSharedRef<FStreamableHandle>& MergedHandle)
+	{
+		// break backlinking, inject new forelinking (such that our old parent handles now reference the new MergedHandle - our old parent's ChildHandles array will contain MergedHandle, and MergedHandle is our new Parent)...
+		for (int32 Index = 0, Num = IndividualHandle->ParentHandles.Num(); Index < Num; ++Index)
+		{
+			TSharedPtr<FStreamableHandle> Parent = IndividualHandle->ParentHandles[Index].Pin();
+
+			// even though we should run this check (via invoking this lambda) prior to adding MergedHandle to our ParentHandles, it is still possible if the array is not unique
+			if (Parent == MergedHandle)
+			{
+				continue;
+			}
+
+			if (Parent.IsValid())
+			{
+				const int32 FoundIndex = Parent->ChildHandles.Find(IndividualHandle);
+				if (ensure(Parent->ChildHandles.IsValidIndex(FoundIndex)))
+				{
+					// stomp the old link with the new merged handle
+					Parent->ChildHandles[FoundIndex] = MergedHandle;
+				}
+				else
+				{
+					// should be impossible, but at least we can add the merged handle for tracking purposes...
+					Parent->ChildHandles.Add(MergedHandle);
+				}
+				
+				MergedHandle->ParentHandles.Add(Parent);
+			}
+
+			// no longer need the parent handle reference in this handle's parents. The merged handle is within our parent handles, and has us in its ChildHandles.
+			IndividualHandle->ParentHandles.RemoveAtSwap(Index);
+			Index--;
+			Num--;
+		}
+	};
+
+	TStringBuilder<256> DebugNameBuilder;
+
+	if (EnumHasAllFlags(Options, EStreamableManagerCombinedHandleOptions::MergeDebugNames))
+	{
+		DebugNameBuilder.Appendf(TEXT("%s: Merged("), *DebugName);
+	}
+
+	bool bFormattingFirstPass = true;
 	for (TSharedPtr<FStreamableHandle> ChildHandle : ChildHandles)
 	{
 		if (!ensure(ChildHandle.IsValid()))
 		{
+			if (EnumHasAllFlags(Options, EStreamableManagerCombinedHandleOptions::SkipNulls))
+			{
+				continue;
+			}
+			else
+			{
 			return nullptr;
+		}
 		}
 
 		ensure(ChildHandle->OwningManager == this);
 
+		if (EnumHasAllFlags(Options, EStreamableManagerCombinedHandleOptions::MergeDebugNames))
+		{
+			if (bFormattingFirstPass)
+			{
+				DebugNameBuilder.Appendf(TEXT("%s"), *ChildHandle->DebugName);
+				bFormattingFirstPass = false;
+			}
+			else
+			{
+				DebugNameBuilder.Appendf(TEXT(", %s"), *ChildHandle->DebugName);
+			}
+		}
+
+		if (EnumHasAllFlags(Options, EStreamableManagerCombinedHandleOptions::RedirectParents))
+		{
+			RemapHandleParentRelationship(ChildHandle, NewRequest);
+		}
+
 		ChildHandle->ParentHandles.Add(NewRequest);
 		NewRequest->ChildHandles.Add(ChildHandle);
+
 		if (ChildHandle->bLoadCompleted)
 		{
 			++NewRequest->CompletedChildCount;
@@ -1555,6 +1776,13 @@ TSharedPtr<FStreamableHandle> FStreamableManager::CreateCombinedHandle(const TAr
 		{
 			++NewRequest->CanceledChildCount;
 		}
+	}
+
+	if (EnumHasAllFlags(Options, EStreamableManagerCombinedHandleOptions::MergeDebugNames))
+	{
+		DebugNameBuilder += TEXT(")");
+
+		NewRequest->DebugName = *DebugNameBuilder;
 	}
 
 	// Add to pending list so these handles don't free when not referenced
@@ -1653,4 +1881,3 @@ FSoftObjectPath FStreamableManager::HandleLoadedRedirector(UObjectRedirector* Lo
 	
 	return NewPath;
 }
-

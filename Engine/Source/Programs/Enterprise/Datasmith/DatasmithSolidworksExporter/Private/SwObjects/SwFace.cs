@@ -1,7 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using SolidWorks.Interop.sldworks;
@@ -23,8 +21,8 @@ namespace SolidworksDatasmith.SwObjects
 		{
 			Parent = parent;
 			Face = face;
-			if (SwSingleton.CurrentScene.GetFaceID(face) <= 0)
-				SwSingleton.CurrentScene.SetFaceID(face, SwSingleton.CurrentScene.NewFaceID);
+			if (SwScene.GetFaceID(face) <= 0)
+				SwScene.SetFaceID(face, SwSingleton.CurrentScene.NewFaceID);
 		}
 
 		public TriangleStrip ExtractGeometry()
@@ -44,7 +42,7 @@ namespace SolidworksDatasmith.SwObjects
 			SwMaterial mat = null;
 			var scene = SwSingleton.CurrentScene;
 
-			uint id = scene.GetFaceID(Face);
+			uint id = SwScene.GetFaceID(Face);
 			if (id != 0)
 				mat = scene.MaterialMapper.GetUserMaterial(Materials.MaterialMapper.EntityType.MU_FACE, id);
 
@@ -52,10 +50,10 @@ namespace SolidworksDatasmith.SwObjects
 			Body2 body = Face.GetBody();
 
 			if (mat == null && feature != null)
-				mat = scene.MaterialMapper.GetUserMaterial(Materials.MaterialMapper.EntityType.MU_FEATURE, scene.GetFeaturePath(feature, Doc.Doc as IModelDoc2));
+				mat = scene.MaterialMapper.GetUserMaterial(Materials.MaterialMapper.EntityType.MU_FEATURE, SwScene.GetFeaturePath(feature, Doc.Doc as IModelDoc2));
 
 			if (mat == null && body != null)
-				mat = scene.MaterialMapper.GetUserMaterial(Materials.MaterialMapper.EntityType.MU_BODY, scene.GetBodyPath(body, Doc.Doc as IModelDoc2));
+				mat = scene.MaterialMapper.GetUserMaterial(Materials.MaterialMapper.EntityType.MU_BODY, SwScene.GetBodyPath(body, Doc.Doc as IModelDoc2));
 
 			if (mat == null && Doc.Doc != null)
 			{

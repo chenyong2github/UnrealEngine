@@ -92,7 +92,7 @@ void UCanvasRenderTarget2D::RepaintCanvas()
 		});
 	}
 
-	if (!IsPendingKill() && OnCanvasRenderTargetUpdate.IsBound())
+	if (IsValid(this) && OnCanvasRenderTargetUpdate.IsBound())
 	{
 		OnCanvasRenderTargetUpdate.Broadcast(Canvas, GetSurfaceWidth(), GetSurfaceHeight());
 	}

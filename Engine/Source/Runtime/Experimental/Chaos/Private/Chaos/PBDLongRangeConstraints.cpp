@@ -16,7 +16,6 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPBDLongRangeConstraints_Apply);
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
-
 	const int32 MinParallelSize = GetMinParallelBatchSize();
 
 	if (!Stiffness.HasWeightMap())

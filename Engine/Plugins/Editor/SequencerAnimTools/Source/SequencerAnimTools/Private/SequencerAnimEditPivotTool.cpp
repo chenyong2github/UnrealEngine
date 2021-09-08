@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EditPivotTool.h"
+#include "SequencerAnimEditPivotTool.h"
 #include "LevelEditorSequencerIntegration.h"
 #include "ISequencer.h"
 #include "Sequencer/SequencerTrailHierarchy.h"

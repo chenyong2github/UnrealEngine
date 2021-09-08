@@ -928,7 +928,7 @@ FVector UGameplayStatics::GetActorArrayAverageLocation(const TArray<AActor*>& Ac
 	{
 		AActor* A = Actors[ActorIdx];
 		// Check actor is non-null, not deleted, and has a root component
-		if (A && !A->IsPendingKill() && A->GetRootComponent())
+		if (IsValid(A) && A->GetRootComponent())
 		{
 			LocationSum += A->GetActorLocation();
 			ActorCount++;
@@ -952,7 +952,7 @@ void UGameplayStatics::GetActorArrayBounds(const TArray<AActor*>& Actors, bool b
 	{
 		AActor* A = Actors[ActorIdx];
 		// Check actor is non-null, not deleted
-		if(A && !A->IsPendingKill())
+		if(IsValid(A))
 		{
 			ActorBounds += A->GetComponentsBoundingBox(!bOnlyCollidingComponents);
 		}
@@ -1064,7 +1064,7 @@ void UGameplayStatics::GetAllActorsOfClassWithTag(const UObject* WorldContextObj
 		for (TActorIterator<AActor> It(World, ActorClass); It; ++It)
 		{
 			AActor* Actor = *It;
-			if (Actor && !Actor->IsPendingKill() && Actor->ActorHasTag(Tag))
+			if (IsValid(Actor) && Actor->ActorHasTag(Tag))
 			{
 				OutActors.Add(Actor);
 			}

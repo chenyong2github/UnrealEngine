@@ -129,7 +129,7 @@ bool FDebugToolExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar 
 			// pick the first valid object
 			for (FThreadSafeObjectIterator It(SearchClass); It && FoundObj == NULL; ++It)
 			{
-				if (!It->IsPendingKill() && !It->IsTemplate())
+				if (IsValid(*It) && !It->IsTemplate())
 				{
 					FoundObj = *It;
 				}
@@ -234,7 +234,7 @@ bool FDebugToolExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar 
 			float   MinDist = FLT_MAX;
 			for( TActorIterator<AActor> It(InWorld, Class); It; ++It )
 			{
-				if ( !It->IsPendingKill() )
+				if ( IsValid(*It) )
 				{
 					float const Dist = (PlayerController && It->GetRootComponent()) ? FVector::Dist(It->GetActorLocation(), PlayerLocation) : 0.f;
 					if (Dist < MinDist)

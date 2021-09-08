@@ -311,7 +311,7 @@ void ALevelInstance::PostEditUndoInternal()
 	{
 		LoadLevelInstance();
 	}
-	else if (IsPendingKill())
+	else if (!IsValidChecked(this))
 	{
 		// Temp restore the ID so that we can unload
 		TGuardValue<FLevelInstanceID> LevelInstanceIDGuard(LevelInstanceID, CachedLevelInstanceID);

@@ -52,8 +52,14 @@ void UAudioDeviceNotificationSubsystem::OnDefaultRenderDeviceChanged(const Audio
 	});
 }
 
-void UAudioDeviceNotificationSubsystem::OnDeviceAdded(const FString& DeviceId)
+void UAudioDeviceNotificationSubsystem::OnDeviceAdded(const FString& DeviceId, bool bIsRenderDevice)
 {
+	// We currently ignore changes in non-render devices
+	if (!bIsRenderDevice)
+{
+		return;
+	}
+
 	TWeakObjectPtr<UAudioDeviceNotificationSubsystem> WeakThis(this);
 	AsyncTask(ENamedThreads::GameThread, [WeakThis, DeviceId]()
 	{
@@ -65,8 +71,14 @@ void UAudioDeviceNotificationSubsystem::OnDeviceAdded(const FString& DeviceId)
 	});
 }
 
-void UAudioDeviceNotificationSubsystem::OnDeviceRemoved(const FString& DeviceId)
+void UAudioDeviceNotificationSubsystem::OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice)
 {
+	// We currently ignore changes in non-render devices
+	if (!bIsRenderDevice)
+{
+		return;
+	}
+	
 	TWeakObjectPtr<UAudioDeviceNotificationSubsystem> WeakThis(this);
 	AsyncTask(ENamedThreads::GameThread, [WeakThis, DeviceId]()
 	{
@@ -78,8 +90,14 @@ void UAudioDeviceNotificationSubsystem::OnDeviceRemoved(const FString& DeviceId)
 	});
 }
 
-void UAudioDeviceNotificationSubsystem::OnDeviceStateChanged(const FString& DeviceId, const Audio::EAudioDeviceState InState)
+void UAudioDeviceNotificationSubsystem::OnDeviceStateChanged(const FString& DeviceId, const Audio::EAudioDeviceState InState, bool bIsRenderDevice)
 {
+	// We currently ignore changes in non-render devices
+	if (!bIsRenderDevice)
+	{
+		return;
+	}
+	
 	TWeakObjectPtr<UAudioDeviceNotificationSubsystem> WeakThis(this);
 	AsyncTask(ENamedThreads::GameThread, [WeakThis, DeviceId, InState]()
 	{

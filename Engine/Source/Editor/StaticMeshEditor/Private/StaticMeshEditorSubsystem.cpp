@@ -237,7 +237,7 @@ namespace InternalEditorMeshLibrary
 	{
 		for (int32 Index = ActorsToTest.Num() - 1; Index >= 0; --Index)
 		{
-			if (ActorsToTest[Index] == nullptr || ActorsToTest[Index]->IsPendingKill())
+			if (!IsValid(ActorsToTest[Index]))
 			{
 				ActorsToTest.RemoveAtSwap(Index);
 			}
@@ -1910,7 +1910,7 @@ void UStaticMeshEditorSubsystem::ReplaceMeshComponentsMaterialsOnActors(const TA
 
 	for (AActor* Actor : Actors)
 	{
-		if (Actor && !Actor->IsPendingKill())
+		if (Actor && IsValidChecked(Actor))
 		{
 			Actor->GetComponents(ComponentArray);
 			ChangeCounter += InternalEditorMeshLibrary::ReplaceMaterials(ComponentArray, MaterialToBeReplaced, NewMaterial);
@@ -1965,7 +1965,7 @@ void UStaticMeshEditorSubsystem::ReplaceMeshComponentsMeshesOnActors(const TArra
 
 	for (AActor* Actor : Actors)
 	{
-		if (Actor && !Actor->IsPendingKill())
+		if (Actor && IsValidChecked(Actor))
 		{
 			Actor->GetComponents(ComponentArray);
 			ChangeCounter += InternalEditorMeshLibrary::ReplaceMeshes(ComponentArray, MeshToBeReplaced, NewMesh);

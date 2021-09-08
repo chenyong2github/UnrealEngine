@@ -103,7 +103,7 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 	}
 
 	UObject* ElementOwner = DirtyElement.Owner.Get();
-	if (ElementOwner == nullptr || ElementOwner->IsPendingKill() || DirtyElement.NavInterface == nullptr)
+	if (!IsValid(ElementOwner) || DirtyElement.NavInterface == nullptr)
 	{
 		return;
 	}

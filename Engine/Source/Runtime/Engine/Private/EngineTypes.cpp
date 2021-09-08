@@ -465,7 +465,7 @@ const UObject* FActorInstanceHandle::GetActorAsUObject() const
 
 bool FActorInstanceHandle::IsActorValid() const
 {
-	return Actor.IsValid() && !Actor->IsPendingKill();
+	return Actor.IsValid();
 }
 
 FActorInstanceHandle& FActorInstanceHandle::operator=(AActor* OtherActor)

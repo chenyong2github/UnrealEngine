@@ -103,6 +103,8 @@ private:
 
 	void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider);
 
+	void RequestCheckpoint();
+
 private:
 	// Hooks used to determine when levels are streamed in, streamed out, or if there's a map change.
 	void OnLevelAddedToWorld(ULevel* Level, UWorld* World);
@@ -382,6 +384,8 @@ private:
 	// Levels that are currently pending for fast forward.
 	// Using raw pointers, because we manually keep when levels are added and removed.
 	TSet<class ULevel*> LevelsPendingFastForward;
+
+	bool bPendingCheckpointRequest;
 
 	static FString GetLevelPackageName(const ULevel& InLevel);
 

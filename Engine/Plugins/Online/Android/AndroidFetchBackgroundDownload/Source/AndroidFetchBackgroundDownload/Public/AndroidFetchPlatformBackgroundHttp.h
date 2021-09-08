@@ -48,4 +48,11 @@ public:
 	 * @return response object
 	 */
 	static FBackgroundHttpResponsePtr ConstructBackgroundResponse(int32 ResponseCode, const FString& TempFilePath);
+
+	/**
+	 * Allows our underlying Android Background HTTP implementation to check for requirements before we utilize this modular feature
+	 *
+	 * @return true if our requirements check succeeded
+	 */
+	static bool CheckRequirementsSupported();
 };

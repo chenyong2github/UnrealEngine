@@ -214,11 +214,11 @@ void USkyAtmosphereComponent::CheckForErrors()
 				USkyAtmosphereComponent* Component = *ComponentIt;
 
 				if (Component != this
-					&& !Component->IsPendingKill()
+					&& IsValid(Component)
 					&& Component->GetVisibleFlag()
 					&& Component->GetOwner()
 					&& ThisWorld->ContainsActor(Component->GetOwner())
-					&& !Component->GetOwner()->IsPendingKill())
+					&& IsValid(Component->GetOwner()))
 				{
 					bMultipleFound = true;
 					break;

@@ -170,7 +170,7 @@ bool UGameplayAbility::IsActive() const
 	}
 
 	// NonInstanced and Instanced-Per-Execution abilities are by definition active unless they are pending kill
-	return !IsPendingKill();
+	return IsValid(this);
 }
 
 bool UGameplayAbility::IsSupportedForNetworking() const
@@ -1274,7 +1274,7 @@ void UGameplayAbility::ConfirmTaskByInstanceName(FName InstanceName, bool bEndTa
 	for (int32 i = NamedTasks.Num() - 1; i >= 0; --i)
 	{
 		UGameplayTask* CurrentTask = NamedTasks[i];
-		if (CurrentTask && CurrentTask->IsPendingKill() == false)
+		if (IsValid(CurrentTask))
 		{
 			CurrentTask->ExternalConfirm(bEndTask);
 		}
@@ -1305,7 +1305,7 @@ void UGameplayAbility::EndOrCancelTasksByInstanceName()
 		for (int32 i = NamedTasks.Num() - 1; i >= 0; --i)
 		{
 			UGameplayTask* CurrentTask = NamedTasks[i];
-			if (CurrentTask && CurrentTask->IsPendingKill() == false)
+			if (IsValid(CurrentTask))
 			{
 				CurrentTask->EndTask();
 			}
@@ -1333,7 +1333,7 @@ void UGameplayAbility::EndOrCancelTasksByInstanceName()
 		for (int32 i = NamedTasks.Num() - 1; i >= 0; --i)
 		{
 			UGameplayTask* CurrentTask = NamedTasks[i];
-			if (CurrentTask && CurrentTask->IsPendingKill() == false)
+			if (IsValid(CurrentTask))
 			{
 				CurrentTask->ExternalCancel();
 			}
@@ -1888,7 +1888,7 @@ float UGameplayAbility::GetCooldownTimeRemaining() const
 void UGameplayAbility::SetRemoteInstanceHasEnded()
 {
 	// This could potentially happen in shutdown corner cases
-	if (IsPendingKill() || CurrentActorInfo == nullptr)
+	if (!IsValid(this) || CurrentActorInfo == nullptr)
 	{
 		return;
 	}
@@ -1902,7 +1902,7 @@ void UGameplayAbility::SetRemoteInstanceHasEnded()
 	RemoteInstanceEnded = true;
 	for (UGameplayTask* Task : ActiveTasks)
 	{
-		if (Task && Task->IsPendingKill() == false && Task->IsWaitingOnRemotePlayerdata())
+		if (IsValid(Task) && Task->IsWaitingOnRemotePlayerdata())
 		{
 			// We have a task that is waiting for player input, but the remote player has ended the ability, so he will not send it.
 			// Kill the ability to avoid getting stuck active.
@@ -1917,7 +1917,7 @@ void UGameplayAbility::SetRemoteInstanceHasEnded()
 void UGameplayAbility::NotifyAvatarDestroyed()
 {
 	// This could potentially happen in shutdown corner cases
-	if (IsPendingKill() || CurrentActorInfo == nullptr)
+	if (!IsValid(this) || CurrentActorInfo == nullptr)
 	{
 		return;
 	}
@@ -1931,7 +1931,7 @@ void UGameplayAbility::NotifyAvatarDestroyed()
 	RemoteInstanceEnded = true;
 	for (UGameplayTask* Task : ActiveTasks)
 	{
-		if (Task && Task->IsPendingKill() == false && Task->IsWaitingOnAvatar())
+		if (IsValid(Task) && Task->IsWaitingOnAvatar())
 		{
 			// We have a task waiting on some Avatar state but the avatar is destroyed, so force end the ability to avoid getting stuck on.
 			

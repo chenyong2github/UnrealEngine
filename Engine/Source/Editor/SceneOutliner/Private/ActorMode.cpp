@@ -292,7 +292,7 @@ bool FActorMode::IsActorDisplayable(const SSceneOutliner* SceneOutliner, const A
 		!Actor->IsTemplate() &&																	// Should never happen, but we never want CDOs displayed
 		!FActorEditorUtils::IsABuilderBrush(Actor) &&											// Don't show the builder brush
 		!Actor->IsA(AWorldSettings::StaticClass()) &&											// Don't show the WorldSettings actor, even though it is technically editable
-		!Actor->IsPendingKill() &&																// We don't want to show actors that are about to go away
+		IsValidChecked(Actor) &&																// We don't want to show actors that are about to go away
 		FLevelUtils::IsLevelVisible(Actor->GetLevel());											// Only show Actors whose level is visible
 }
 

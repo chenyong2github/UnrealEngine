@@ -73,7 +73,7 @@ void UAbilityTask_NetworkSyncPoint::Activate()
 
 void UAbilityTask_NetworkSyncPoint::SyncFinished()
 {
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		if (ShouldBroadcastAbilityTaskDelegates())
 		{

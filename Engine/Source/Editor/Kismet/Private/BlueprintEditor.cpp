@@ -9376,7 +9376,7 @@ void FBlueprintEditor::OnEditTabClosed(TSharedRef<SDockTab> Tab)
 // Tries to open the specified graph and bring it's document to the front
 TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Graph, bool bSetFocus)
 {
-	if (!Graph || Graph->IsPendingKill())
+	if (!IsValid(Graph))
 	{
 		return TSharedPtr<SGraphEditor>();
 	}
@@ -9386,6 +9386,8 @@ TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Gr
 
 	// This will either reuse an existing tab or spawn a new one
 	TSharedPtr<SDockTab> TabWithGraph = OpenDocument(Graph, FDocumentTracker::OpenNewDocument);
+	if (TabWithGraph.IsValid())
+	{
 
 	// We know that the contents of the opened tabs will be a graph editor.
 	TSharedRef<SGraphEditor> NewGraphEditor = StaticCastSharedRef<SGraphEditor>(TabWithGraph->GetContent());
@@ -9397,6 +9399,11 @@ TSharedPtr<SGraphEditor> FBlueprintEditor::OpenGraphAndBringToFront(UEdGraph* Gr
 	}
 
 	return NewGraphEditor;
+}
+	else
+	{
+		return TSharedPtr<SGraphEditor>();
+	}
 }
 
 TSharedPtr<SDockTab> FBlueprintEditor::OpenDocument(const UObject* DocumentID, FDocumentTracker::EOpenDocumentCause Cause)
@@ -9846,7 +9853,7 @@ UEdGraph* FBlueprintEditor::GetFocusedGraph() const
 	{
 		if (UEdGraph* Graph = FocusedGraphEdPtr.Pin()->GetCurrentGraph())
 		{
-			if (!Graph->IsPendingKill())
+			if (IsValid(Graph))
 			{
 				return Graph;
 			}

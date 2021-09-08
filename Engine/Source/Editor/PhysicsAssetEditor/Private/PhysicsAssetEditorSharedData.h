@@ -163,8 +163,10 @@ public:
 	void MakeNewBody(int32 NewBoneIndex, bool bAutoSelect = true);
 	void MakeNewConstraints(int32 ParentBodyIndex, const TArray<int32>& ChildBodyIndices);
 	void MakeNewConstraint(int32 ParentBodyIndex, int32 ChildBodyIndex);
-	void CopyBody();
-	void CopyConstraint();
+	void CopySelectedBodiesAndConstraintsToClipboard(int32& OutNumCopiedBodies, int32& OutNumCopiedConstraints);
+	void PasteBodiesAndConstraintsFromClipboard(int32& OutNumPastedBodies, int32& OutNumPastedConstraints);
+	void CopyBodyProperties();
+	void CopyConstraintProperties();
 	void PasteBodyProperties();
 	bool WeldSelectedBodies(bool bWeld = true);
 	void Mirror();
@@ -258,6 +260,9 @@ private:
 
 	/** Checks and parses clipboard data */
 	static bool ParseClipboard(UPhysicsAsset*& OutAsset, FString& OutObjectType, UObject*& OutObject);
+
+	/** Gneerate a new unique name for a constraint */
+	FString MakeUniqueNewConstraintName();
 
 public:
 	/** Callback for handling selection changes */

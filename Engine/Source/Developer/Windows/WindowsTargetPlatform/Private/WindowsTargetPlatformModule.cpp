@@ -11,6 +11,9 @@
 #define LOCTEXT_NAMESPACE "FWindowsTargetPlatformModule"
 
 
+/** Holds the target platform singleton. */
+static ITargetPlatform* Singleton = nullptr;
+
 
 /**
  * Implements the Windows target platform module.
@@ -18,6 +21,14 @@
 class FWindowsTargetPlatformModule
 	: public ITargetPlatformModule
 {
+public:
+
+	/** Destructor. */
+	~FWindowsTargetPlatformModule( )
+	{
+		Singleton = nullptr;
+	}
+
 public:
 
 	// this is an example of a hotfix, declared here for no particular reason. Once we have other examples, it can be deleted.
@@ -37,13 +48,13 @@ public:
 	virtual void GetTargetPlatforms(TArray<ITargetPlatform*>& TargetPlatforms) override
 	{
 		// Game TP
-		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, false>());
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<FWindowsPlatformProperties<false, false, false>>());
 		// Editor TP
-		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<true, false, false>());
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<FWindowsPlatformProperties<true, false, false>>());
 		// Server TP
-		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, true, false>());
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<FWindowsPlatformProperties<false, true, false>>());
 		// Client TP
-		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<false, false, true>());
+		TargetPlatforms.Add(new TGenericWindowsTargetPlatform<FWindowsPlatformProperties<false, false, true>>());
 	}
 
 public:
@@ -69,7 +80,6 @@ public:
 	}
 	
 };
-
 
 
 #undef LOCTEXT_NAMESPACE

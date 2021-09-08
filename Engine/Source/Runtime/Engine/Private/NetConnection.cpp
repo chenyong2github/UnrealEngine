@@ -213,6 +213,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	InternalAck			( false )
 ,	bInternalAck		( false )
 ,	bReplay				( false )
+,	bForceInitialDirty	( false )
 ,	RemoteAddr			( nullptr )
 ,	MaxPacketHandlerBits ( 0 )
 ,	State				( USOCK_Invalid )
@@ -3783,7 +3784,7 @@ void UNetConnection::Tick(float DeltaSeconds)
 				UActorChannel* CurChannel = ActorChannelArray[ActorChannelIdx];
 				
 				bool bRemoveChannel = false;
-				if ( CurChannel && !CurChannel->IsPendingKill() )
+				if ( IsValid(CurChannel) )
 				{
 					check( CurChannel->ChIndex == -1 );
 					if ( CurChannel->ProcessQueuedBunches() )

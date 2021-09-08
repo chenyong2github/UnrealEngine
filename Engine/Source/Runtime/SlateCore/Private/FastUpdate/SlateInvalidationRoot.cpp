@@ -273,9 +273,9 @@ void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWi
 
 	if (bProcessingAttributeUpdate)
 	{
-		if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::AttributeRegistration | EInvalidateWidgetReason::ChildOrder | EInvalidateWidgetReason::Visibility))
+		if (ensureMsgf(FSlateAttributeBase::IsInvalidateWidgetReasonSupported(InvalidateReason)
+			, TEXT("An invalid invalidation occurred while processing the widget attributes. That may result in an infinit loop.")))
 		{
-			ensureMsgf(false, TEXT("An invalid invalidation occurred while processing the widget attributes. That may result in an infinit loop."));
 			return;
 		}
 	}
@@ -631,9 +631,18 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 				// Process ChildOrder && AttributeRegistration invalidation.
 
 				const FSlateInvalidationWidgetIndex WidgetIndex = WidgetsNeedingPreUpdate->HeapPop();
-				FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[WidgetIndex];
+				SWidget* WidgetPtr = nullptr;
+				EInvalidateWidgetReason CurrentInvalidateReason = EInvalidateWidgetReason::None;
+				{
+					// After an ChildOrder, the index may not have changed but the internal array may have grow.
+					//Growing may invalidate the array address.
+					const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[WidgetIndex];
+					WidgetPtr = InvalidationWidget.GetWidget();
+					CurrentInvalidateReason = InvalidationWidget.CurrentInvalidateReason;
+				}
+
 				// It could have been destroyed
-				if (SWidget* WidgetPtr = InvalidationWidget.GetWidget())
+				if (WidgetPtr)
 				{
 #if WITH_SLATE_DEBUGGING
 					if (GSlateInvalidationRootDumpPreInvalidationList)
@@ -643,11 +652,11 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 #endif
 
 					bool bIsInvalidationWidgetValid = true;
-					if (EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder))
+					if (EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder))
 					{
 // Uncomment to see to be able to compare the list before and after when debugging
 #if 0
-						FMemMark Mark(FMemStack::Get());
+						FMemMark MarkForTest(FMemStack::Get());
 						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPreUpdate;
 						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPrepassUpdate;
 						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPostUpdate;
@@ -672,14 +681,15 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 #endif
 
 						TGuardValue<bool> ProcessChildOrderInvalidationGuardValue(bProcessingChildOrderInvalidation, true);
-						bIsInvalidationWidgetValid = FastWidgetPathList->ProcessChildOrderInvalidation(InvalidationWidget, ChildOrderInvalidationCallback);
+						bIsInvalidationWidgetValid = FastWidgetPathList->ProcessChildOrderInvalidation(WidgetIndex, ChildOrderInvalidationCallback);
 
 						// We need to keep it to run the layout calculation in FWidgetProxy::ProcessPostInvalidation
 						//EnumRemoveFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder);
 					}
 
-					if (bIsInvalidationWidgetValid && EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration))
+					if (bIsInvalidationWidgetValid && EnumHasAnyFlags(CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration))
 					{
+						FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[WidgetIndex];
 						FastWidgetPathList->ProcessAttributeRegistrationInvalidation(InvalidationWidget);
 						EnumRemoveFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration);
 					}

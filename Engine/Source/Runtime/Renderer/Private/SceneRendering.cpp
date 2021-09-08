@@ -3860,18 +3860,18 @@ void FSceneRenderer::CleanUp(FRHICommandListImmediate& RHICmdList)
 
 	if (!GSceneRenderCleanUpState.bWaitForTasksComplete)
 	{
-		switch (GSceneRenderCleanUpState.CompletionMode)
-		{
-		case ESceneRenderCleanUpMode::Deferred:
+	switch (GSceneRenderCleanUpState.CompletionMode)
+	{
+	case ESceneRenderCleanUpMode::Deferred:
 			ReleaseSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer);
-			break;
-		case ESceneRenderCleanUpMode::DeferredAndAsync:
-			GSceneRenderCleanUpState.Task->Wait(ENamedThreads::GetRenderThread_Local());
+		break;
+	case ESceneRenderCleanUpMode::DeferredAndAsync:
+		GSceneRenderCleanUpState.Task->Wait(ENamedThreads::GetRenderThread_Local());
 			break;
 		}
 	}
 
-	DeleteSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer, GSceneRenderCleanUpState.MemStackMark);
+		DeleteSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer, GSceneRenderCleanUpState.MemStackMark);
 	GSceneRenderCleanUpState = {};
 }
 

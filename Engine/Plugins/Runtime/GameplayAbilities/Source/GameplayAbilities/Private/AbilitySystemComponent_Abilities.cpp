@@ -568,7 +568,7 @@ void UAbilitySystemComponent::CheckForClearedAbilities()
 	{
 		UGameplayAbility* Ability = AllReplicatedInstancedAbilities[i];
 
-		if (!Ability || Ability->IsPendingKill())
+		if (!IsValid(Ability))
 		{
 			AllReplicatedInstancedAbilities.RemoveAt(i);
 			i--;

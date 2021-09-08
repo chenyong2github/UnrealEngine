@@ -961,7 +961,7 @@ void ULandscapeSplinesComponent::RebuildAllSplines(bool bUpdateCollision)
 
 void ULandscapeSplinesComponent::RequestSplineLayerUpdate()
 {
-	if (!IsPendingKill())
+	if (IsValidChecked(this))
 	{
 		ILandscapeSplineInterface* SplineOwner = GetSplineOwner();
 		SplineOwner->GetLandscapeInfo()->RequestSplineLayerUpdate();

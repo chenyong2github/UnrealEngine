@@ -395,7 +395,7 @@ void FStackTraceManager::TraceAndDump(FString TraceName)
 	{
 		UE_LOG(LogUnitTest, Log, TEXT("Dumping once-off stack trace for TraceName '%s':"), *TraceName);
 
-		FStackTracker TempTracker(NULL, NULL, true);
+		FStackTracker TempTracker(nullptr, nullptr, nullptr, true);
 
 		TempTracker.CaptureStackTrace(TRACE_IGNORE_DEPTH);
 		TempTracker.DumpStackTraces(0, *GLog);

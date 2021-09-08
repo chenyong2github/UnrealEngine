@@ -177,7 +177,7 @@ bool UBspConversionTool::AtLeastOneValidConversionTarget() const
  */
 bool UBspConversionTool::IsValidConversionTarget(const ABrush* Brush) const
 {
-	return Brush && !Brush->IsPendingKill()
+	return IsValid(Brush)
 		&& (!Brush->IsVolumeBrush() || Settings->bIncludeVolumes)
 		&& (Brush->BrushType == EBrushType::Brush_Add || Brush->BrushType == EBrushType::Brush_Subtract);
 }

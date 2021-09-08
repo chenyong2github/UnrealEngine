@@ -232,7 +232,7 @@ void UConversationInstance::ServerAdvanceConversation(const FAdvanceConversation
 			{
 				if (const UConversationTaskNode* TaskNode = BranchPoint.ClientChoice.TryToResolveChoiceNode<UConversationTaskNode>(Context))
 				{
-					EConversationRequirementResult Result = TaskNode->CheckRequirements(Context);
+					EConversationRequirementResult Result = TaskNode->bIgnoreRequrementsWhileAdvancingCoversations ? EConversationRequirementResult::Passed : TaskNode->CheckRequirements(Context);
 					if (Result == EConversationRequirementResult::Passed)
 					{
 						ValidDestinations.Add(BranchPoint);
@@ -383,7 +383,22 @@ void UConversationInstance::ServerRefreshConversationChoices()
 	}
 }
 
-#endif
+void UConversationInstance::ServerRefreshTaskChoiceData(const FConversationNodeHandle& Handle)
+{
+	FConversationContext Context = FConversationContext::CreateServerContext(this, nullptr);
+
+	// Technically we only need to do a gather for a single choice here from the current active subset, but gathering all for now (only choice data relevant to Handle will actually be sent)
+	UpdateNextChoices(Context);
+	
+	for (const FConversationParticipantEntry& KVP : GetParticipantListCopy())
+	{
+		if (UConversationParticipantComponent* ParticipantComponent = KVP.GetParticipantComponent())
+		{
+			ParticipantComponent->SendClientRefreshedTaskChoiceData(Handle, Context);
+		}
+	}
+}
+#endif // #if WITH_SERVER_CODE
 
 void UConversationInstance::ResetConversationProgress()
 {

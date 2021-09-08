@@ -133,6 +133,9 @@ void USequenceCameraShakeCameraStandIn::Initialize(UTemplateSequence* TemplateSe
 
 void USequenceCameraShakeCameraStandIn::Reset(const FMinimalViewInfo& ViewInfo)
 {
+	// Save the weighted blendables we want to apply to the camera.
+	TArray<FWeightedBlendable> WBBackup(MoveTemp(PostProcessSettings.WeightedBlendables.Array));
+
 	// We reset all the other properties to the current view's values because a lot of them, like 
 	// FieldOfView, don't have any "zero" value that makes sense. We'll figure out the delta in the
 	// update code.
@@ -144,6 +147,16 @@ void USequenceCameraShakeCameraStandIn::Reset(const FMinimalViewInfo& ViewInfo)
 
 	// We've set the FieldOfView we have to update the CurrentFocalLength accordingly.
 	CurrentFocalLength = (Filmback.SensorWidth / 2.f) / FMath::Tan(FMath::DegreesToRadians(FieldOfView / 2.f));
+
+	// Restore weighted blendables.
+	if (PostProcessSettings.WeightedBlendables.Array.Num() == 0)
+	{
+		PostProcessSettings.WeightedBlendables.Array = MoveTemp(WBBackup);
+	}
+	else
+	{
+		PostProcessSettings.WeightedBlendables.Array.Append(WBBackup);
+	}
 
 	RecalcDerivedData();
 }

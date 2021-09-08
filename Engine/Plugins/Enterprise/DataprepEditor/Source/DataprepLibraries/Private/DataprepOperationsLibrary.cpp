@@ -691,7 +691,7 @@ void UDataprepOperationsLibrary::SetSubOuputFolder(const TArray<UObject*>& Selec
 	for (UObject* Object : SelectedObjects)
 	{
 		const bool bValidObject = Object->HasAnyFlags(RF_Public)
-		&& !Object->IsPendingKill()
+		&& IsValid(Object)
 		&& Object->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass());
 
 		if (bValidObject)
@@ -724,7 +724,7 @@ void UDataprepOperationsLibrary::AddToLayer(const TArray<UObject*>& SelectedObje
 	{
 		if (AActor* Actor = Cast< AActor >(Object))
 		{
-			if (Actor && !Actor->IsPendingKill())
+			if (IsValid(Actor))
 			{
 				Actor->Layers.AddUnique(LayerName);
 			}

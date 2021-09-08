@@ -50,7 +50,6 @@ class FReportDialog : public DG::Palette,
 	virtual void PanelCloseRequested(const DG::PanelCloseRequestEvent& /* ev */, bool* /* accepted */) override
 	{
 		Hide();
-        FTaskCalledFromEventLoop::CallFunctorFromEventLoop([]() { FReportWindow::Delete(); });
 	}
 
 	virtual void PanelResized(const DG::PanelResizeEvent& ev) override
@@ -106,19 +105,19 @@ class FReportDialog : public DG::Palette,
 	void Update()
 	{
         if (FTraceListener::Get().HasUpdate())
-		{
+        {
             GS::UniString Traces = FTraceListener::Get().GetTraces();
-			DG::CharRange Selection(MessagesTextEdit.GetSelection());
-
+            DG::CharRange Selection(MessagesTextEdit.GetSelection());
+            
             MessagesTextEdit.SetText(Traces);
-
-			// On empty selection, we set selection to the end, otherwise we restore previous one
-			if (Selection.GetLength() == 0)
-			{
+            
+            // On empty selection, we set selection to the end, otherwise we restore previous one
+            if (Selection.GetLength() == 0)
+            {
                 Selection.SetWithLength(Traces.GetLength(), 0);
-			}
-			MessagesTextEdit.SetSelection(Selection);
-		}
+            }
+            MessagesTextEdit.SetSelection(Selection);
+        }
 	}
 };
 
@@ -161,10 +160,10 @@ void FReportWindow::Create()
 void FReportWindow::Delete()
 {
 	if (ReportDialog != nullptr)
-{
-	delete ReportDialog;
-	ReportDialog = nullptr;
-}
+	{
+        delete ReportDialog;
+        ReportDialog = nullptr;
+	}
 }
 
 static FTraceListener* TraceListener;
@@ -192,7 +191,7 @@ GS::UniString FTraceListener::GetTraces()
 }
 
 void FTraceListener::Clear()
-	{
+{
     GS::Guard< GS::Lock > lck(FTraceListener::Get().AccessControl);
     Traces.clear();
     bHasUpdate = false;
@@ -203,10 +202,10 @@ FTraceListener::FTraceListener()
 {
 	Traces.reserve(100 * 1024);
 	AddTraceListener(this);
-	}
+}
 
 FTraceListener::~FTraceListener()
-	{
+{
     RemoveTraceListener(this);
 }
 
@@ -219,16 +218,16 @@ void FTraceListener::NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg)
 #endif
 
 	if (InTraceLevel <= MessageLevel)
-	{
-			GS::Guard< GS::Lock > lck(AccessControl);
-
-			if (InTraceLevel != kP2DB_Report)
-			{
-				Traces.append("* ");
-			}
-			Traces.append(InMsg);
+    {
+        GS::Guard< GS::Lock > lck(AccessControl);
+        
+        if (InTraceLevel != kP2DB_Report)
+        {
+            Traces.append("* ");
+        }
+        Traces.append(InMsg);
         bHasUpdate = true;
-		}
+    }
 }
 
 END_NAMESPACE_UE_AC

@@ -176,7 +176,7 @@ int64 UChannel::Close(EChannelCloseReason Reason)
 
 void UChannel::ConditionalCleanUp( const bool bForDestroy, EChannelCloseReason CloseReason )
 {
-	if ( !IsPendingKill() && !bPooled)
+	if (IsValidChecked(this) && !bPooled)
 	{
 		// CleanUp can return false to signify that we shouldn't mark pending kill quite yet
 		// We'll need to call cleanup again later on
@@ -1896,8 +1896,7 @@ void UControlChannel::ReceiveDestructionInfo(FInBunch& Bunch)
 				}
 				else if (Dormant && (CloseReason == EChannelCloseReason::Dormancy) && !TheActor->GetTearOff())
 				{
-					TheActor->NetDormancy = DORM_DormantAll;
-
+					Connection->Driver->ClientSetActorDormant(TheActor);
 					Connection->Driver->NotifyActorFullyDormantForConnection(TheActor, Connection);
 				}
 				else if (!TheActor->bNetTemporary && TheActor->GetWorld() != nullptr && !IsEngineExitRequested() && Connection->Driver->ShouldClientDestroyActor(TheActor))
@@ -1982,10 +1981,13 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 				{
 					if (!bIsServer)
 					{
-						Actor->NetDormancy = DORM_DormantAll;
+						Connection->Driver->ClientSetActorDormant(Actor);
+					}
+					else
+					{
+						ensureMsgf(Actor->NetDormancy > DORM_Awake, TEXT("Dormancy should have been canceled if game code changed NetDormancy: %s [%s]"), *GetFullNameSafe(Actor), *UEnum::GetValueAsString<ENetDormancy>(Actor->NetDormancy));
 					}
 
-					ensureMsgf(Actor->NetDormancy > DORM_Awake, TEXT("Dormancy should have been canceled if game code changed NetDormancy: %s [%s]"), *GetFullNameSafe(Actor), *UEnum::GetValueAsString(TEXT("/Script/Engine.ENetDormancy"), Actor->NetDormancy));
 					Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 				}
 
@@ -2172,8 +2174,7 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 			}
 			else if (Dormant && (CloseReason == EChannelCloseReason::Dormancy) && !Actor->GetTearOff())	
 			{
-				Actor->NetDormancy = DORM_DormantAll;
-
+				Connection->Driver->ClientSetActorDormant(Actor);
 				Connection->Driver->NotifyActorFullyDormantForConnection(Actor, Connection);
 				bWasDormant = true;
 			}
@@ -2362,30 +2363,27 @@ void UActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch)
 
 	Actor->OnActorChannelOpen(InBunch, Connection);
 
-	// Do not update client dormancy or the replay driver if this is a destruction info, those should be handled already in UNetDriver::NotifyActorDestroyed
+	// Do not update client dormancy or other net drivers if this is a destruction info, those should be handled already in UNetDriver::NotifyActorDestroyed
 	if (NetDriver && !NetDriver->IsServer() && !InBunch.bClose)
 	{
 		if (Actor->NetDormancy > DORM_Awake)
 		{
+			ENetDormancy OldDormancy = Actor->NetDormancy;
+
 			Actor->NetDormancy = DORM_Awake;
 
-			UDemoNetDriver* const DemoNetDriver = World ? World->GetDemoNetDriver() : nullptr;
-
-			// if recording on client, make sure the actor is marked active
-			if (World && World->IsRecordingClientReplay() && DemoNetDriver)
+			if (Context != nullptr)
 			{
-				DemoNetDriver->GetNetworkObjectList().FindOrAdd(Actor, DemoNetDriver);
-				DemoNetDriver->FlushActorDormancy(Actor);
-
-				UNetConnection* DemoClientConnection = (DemoNetDriver->ClientConnections.Num() > 0) ? ToRawPtr(DemoNetDriver->ClientConnections[0]) : nullptr;
-				if (DemoClientConnection)
+				for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 				{
-					DemoNetDriver->GetNetworkObjectList().MarkActive(Actor, DemoClientConnection, DemoNetDriver);
-					DemoNetDriver->GetNetworkObjectList().ClearRecentlyDormantConnection(Actor, DemoClientConnection, DemoNetDriver);
+					if (Driver.NetDriver != nullptr && Driver.NetDriver != NetDriver && Driver.NetDriver->ShouldReplicateActor(InActor))
+					{
+						Driver.NetDriver->NotifyActorClientDormancyChanged(InActor, OldDormancy);
 				}
 			}
 		}
 	}
+}
 }
 
 int64 UActorChannel::SetChannelActorForDestroy( FActorDestructionInfo *DestructInfo )
@@ -2734,14 +2732,13 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 		bSpawnedNewActor = Connection->PackageMap->SerializeNewActor(Bunch, this, NewChannelActor);
 
 		// We are unsynchronized. Instead of crashing, let's try to recover.
-		if (NewChannelActor == NULL || NewChannelActor->IsPendingKill())
+		if (!IsValid(NewChannelActor))
 		{
 			// got a redundant destruction info, possible when streaming
 			if (!bSpawnedNewActor && Bunch.bReliable && Bunch.bClose && Bunch.AtEnd())
 			{
 				// Do not log during replay, since this is a valid case
-				UDemoNetDriver* DemoNetDriver = Cast<UDemoNetDriver>(Connection->Driver);
-				if (DemoNetDriver == nullptr)
+				if (!Connection->IsReplay())
 				{
 					UE_LOG(LogNet, Verbose, TEXT("UActorChannel::ProcessBunch: SerializeNewActor received close bunch for destroyed actor. Actor: %s, Channel: %i"), *GetFullNameSafe(NewChannelActor), ChIndex);
 				}
@@ -2842,9 +2839,9 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			continue;
 		}
 
-		if ( !RepObj || RepObj->IsPendingKill() )
+		if ( !IsValid(RepObj) )
 		{
-			if ( !Actor || Actor->IsPendingKill() )
+			if ( !IsValid(Actor) )
 			{
 				// If we couldn't find the actor, that's pretty bad, we need to stop processing on this channel
 				UE_LOG( LogNet, Warning, TEXT( "UActorChannel::ProcessBunch: ReadContentBlockPayload failed to find/create ACTOR. RepObj: %s, Channel: %i" ), RepObj ? *RepObj->GetFullName() : TEXT( "NULL" ), ChIndex );
@@ -2883,7 +2880,7 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 		// Check to see if the actor was destroyed
 		// If so, don't continue processing packets on this channel, or we'll trigger an error otherwise
 		// note that this is a legitimate occurrence, particularly on client to server RPCs
-		if ( !Actor || Actor->IsPendingKill() )
+		if ( !IsValid(Actor) )
 		{
 			UE_LOG( LogNet, VeryVerbose, TEXT( "UActorChannel::ProcessBunch: Actor was destroyed during Replicator.ReceivedBunch processing" ) );
 			// If we lose the actor on this channel, we can no longer process bunches, so consider this channel broken
@@ -3155,6 +3152,7 @@ int64 UActorChannel::ReplicateActor()
 	RepFlags.bRepPhysics	= Actor->GetReplicatedMovement().bRepPhysics;
 	RepFlags.bReplay		= bReplay;
 	//RepFlags.bNetInitial	= RepFlags.bNetInitial;
+	RepFlags.bForceInitialDirty = Connection->IsForceInitialDirty();
 
 	UE_LOG(LogNetTraffic, Log, TEXT("Replicate %s, bNetInitial: %d, bNetOwner: %d"), *Actor->GetName(), RepFlags.bNetInitial, RepFlags.bNetOwner);
 
@@ -4221,7 +4219,7 @@ bool UActorChannel::ReplicateSubobject(UObject *Obj, FOutBunch &Bunch, const FRe
 {
 	SCOPE_CYCLE_UOBJECT(ActorChannelRepSubObj, Obj);
 
-	if (!Obj || Obj->IsPendingKill())
+	if (!IsValid(Obj))
 	{
 		return false;
 	}

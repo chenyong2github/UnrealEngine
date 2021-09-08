@@ -13,7 +13,7 @@
 /**
  * The string fetcher is a specialized type of fetcher for the string
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, Meta = (DisplayName = "String"))
 class DATAPREPCORE_API UDataprepStringFetcher : public UDataprepFetcher
 {
 	GENERATED_BODY()

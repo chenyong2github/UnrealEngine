@@ -16,7 +16,7 @@ UStaticMeshThumbnailRenderer::UStaticMeshThumbnailRenderer(const FObjectInitiali
 void UStaticMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object);
-	if (StaticMesh != nullptr && !StaticMesh->IsPendingKill())
+	if (IsValid(StaticMesh))
 	{
 		if (ThumbnailScene == nullptr || ensure(ThumbnailScene->GetWorld() != nullptr) == false)
 		{

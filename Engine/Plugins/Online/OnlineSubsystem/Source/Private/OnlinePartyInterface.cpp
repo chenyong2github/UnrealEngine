@@ -329,6 +329,34 @@ const TCHAR* ToString(const EPartyInvitationRemovedReason Value)
 	return TEXT("Unknown"); // Same as EMemberExitedReason::Unknown, which is ok because it is only used when we do not have enough information
 }
 
+const TCHAR* ToString(const EPartyRequestToJoinRemovedReason Value)
+{
+	switch (Value)
+	{
+	case EPartyRequestToJoinRemovedReason::Unknown:
+	{
+		return TEXT("Unknown");
+	}
+	case EPartyRequestToJoinRemovedReason::Cancelled:
+	{
+		return TEXT("Cancelled");
+	}
+	case EPartyRequestToJoinRemovedReason::Expired:
+	{
+		return TEXT("Expired");
+	}
+	case EPartyRequestToJoinRemovedReason::Dismissed:
+	{
+		return TEXT("Dismissed");
+	}
+	case EPartyRequestToJoinRemovedReason::Accepted:
+	{
+		return TEXT("Accepted");
+	}
+	}
+	return TEXT("Unknown");
+}
+
 const TCHAR* ToString(const ECreatePartyCompletionResult Value)
 {
 	switch (Value)

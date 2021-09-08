@@ -220,21 +220,19 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 	check(Schema);
 
 	FNiagaraTypeDefinition TypeDef;
-	if (FromPin)
-	{
-		TypeDef = Schema->PinToTypeDefinition(FromPin);
-	}
 	EEdGraphPinDirection Dir = FromPin ? (EEdGraphPinDirection)FromPin->Direction : EGPD_Output;
 	EEdGraphPinDirection OppositeDir = FromPin && (EEdGraphPinDirection)FromPin->Direction == EGPD_Input ? EGPD_Output : EGPD_Input;
 
 	if (AutowireSwizzle.IsEmpty())
 	{
+		// we only allow breaking on output pins
 		if (AutowireBreakType.GetStruct() != nullptr)
 		{			
 			TypeDef = AutowireBreakType;
 			Dir = EGPD_Output;
 			OppositeDir = EGPD_Input;
 		}
+		// but we allow making from output puts and for input pins
 		else if(AutowireMakeType.GetStruct() != nullptr)
 		{
 			TypeDef = AutowireMakeType;
@@ -251,16 +249,27 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 		const UScriptStruct* Struct = TypeDef.GetScriptStruct();
 		if (Struct)
 		{
+			bool bConnectionMade = false;
 			UEdGraphPin* ConnectPin = RequestNewTypedPin(OppositeDir, TypeDef);
 			check(ConnectPin);
+			
 			if(FromPin)
 			{
-				if (Dir == EGPD_Input)
+				// FromPin and ConnectPin could have the same direction in case we have a make type and we are dragging off from i.e. float to make vector
+				// if so, we won't connect that pin and instead will try to connect with the other pins below
+				bool bCanConnect = GetSchema()->CanCreateConnection(FromPin, ConnectPin).Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW;
+				
+				// if our from pin is an input pin, we make sure to break prior connections first 
+				if (bCanConnect && FromPin->Direction == EGPD_Input && ConnectPin->Direction == EGPD_Output)
 				{
 					FromPin->BreakAllPinLinks();
 				}
 
+				if(bCanConnect)
+				{
 				ConnectPin->MakeLinkTo(FromPin);
+					bConnectionMade = true;
+			}
 			}
 
 			TArray<FName> SrcPath;
@@ -276,6 +285,18 @@ void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)
 
 				if (Dir == EGPD_Input)
 				{
+					if(FromPin && FromPin->Direction == EGPD_Output && bConnectionMade == false)
+					{
+						FNiagaraTypeDefinition FromPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(FromPin);
+						FNiagaraTypeDefinition InputPinType = UEdGraphSchema_Niagara::PinToTypeDefinition(NewPin);
+
+						if(FNiagaraTypeDefinition::TypesAreAssignable(FromPinType, InputPinType) && GetSchema()->CanCreateConnection(FromPin, NewPin).Response != ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
+						{
+							FromPin->MakeLinkTo(NewPin);
+							bConnectionMade = true;
+						}
+					}
+					
 					if (FNiagaraTypeDefinition::IsScalarDefinition(PropType))
 					{
 						SrcPath.Add(TEXT("Value"));

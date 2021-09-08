@@ -13,12 +13,12 @@ class APlayerController;
 class FGameplayDebuggerCategory_Navmesh : public FGameplayDebuggerCategory
 {
 public:
-	FGameplayDebuggerCategory_Navmesh();
+	AIMODULE_API FGameplayDebuggerCategory_Navmesh();
 
-	virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
-	virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
-	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy(const UPrimitiveComponent* InComponent, FDebugDrawDelegateHelper*& OutDelegateHelper) override;
-	virtual void OnDataPackReplicated(int32 DataPackId) override;
+	AIMODULE_API virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
+	AIMODULE_API virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
+	AIMODULE_API virtual FDebugRenderSceneProxy* CreateDebugSceneProxy(const UPrimitiveComponent* InComponent, FDebugDrawDelegateHelper*& OutDelegateHelper) override;
+	AIMODULE_API virtual void OnDataPackReplicated(int32 DataPackId) override;
 
 	static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
 
@@ -32,13 +32,19 @@ protected:
 		void Serialize(FArchive& Ar);
 
 		FString NavDataName;
+		FString NavBuildLockStatusDesc;
+		FString SupportedAgents;
 		int32 NumDirtyAreas = 0;
+		int32 NumSuspendedDirtyAreas = 0;
 		uint16 NumRunningTasks = 0;
 		uint16 NumRemainingTasks = 0;
 		bool bCanChangeReference = false;
 		bool bCanCycleNavigationData = false;
 		bool bIsUsingPlayerActor = false;
 		bool bReferenceTooFarFromNavData = false;
+		bool bIsNavBuildLocked = false;
+		bool bIsNavOctreeLocked = false;
+		bool bIsNavDataRebuildingSuspended = false;
 	};
 
 	FNavMeshSceneProxyData NavmeshRenderData;

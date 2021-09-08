@@ -253,7 +253,7 @@ public:
 		for( int32 i=0; i<Num(); ++i )
 		{
 			UObject* SelectedObject = GetSelectedObject(i);
-			if( SelectedObject && SelectedObject->IsA(ClassToCount) && !(bIgnorePendingKill && SelectedObject->IsPendingKill()) )
+			if( SelectedObject && SelectedObject->IsA(ClassToCount) && !(bIgnorePendingKill && !IsValidChecked(SelectedObject)) )
 			{
 				++Count;
 			}

@@ -1962,7 +1962,7 @@ void ARecastNavMesh::OnNavMeshGenerationFinished()
 {
 	UWorld* World = GetWorld();
 
-	if (World != nullptr && World->IsPendingKill() == false)
+	if (IsValid(World))
 	{
 #if WITH_EDITOR	
 		// For navmeshes that support streaming create navigation data holders in each streaming level

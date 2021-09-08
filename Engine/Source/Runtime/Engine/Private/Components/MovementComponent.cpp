@@ -56,7 +56,7 @@ void UMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComponen
 		if (bAutoRegisterPhysicsVolumeUpdates)
 		{
 			UpdatedComponent->SetShouldUpdatePhysicsVolume(false);
-			if (!UpdatedComponent->IsPendingKill())
+			if (IsValid(UpdatedComponent))
 			{
 				UpdatedComponent->SetPhysicsVolume(NULL, true);
 			}
@@ -204,7 +204,7 @@ void UMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// Don't hang on to stale references to a destroyed UpdatedComponent.
-	if (UpdatedComponent != NULL && UpdatedComponent->IsPendingKill())
+	if (UpdatedComponent != NULL && !IsValid(UpdatedComponent))
 	{
 		SetUpdatedComponent(NULL);
 	}

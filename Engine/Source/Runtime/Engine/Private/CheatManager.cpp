@@ -316,7 +316,7 @@ void UCheatManager::DestroyAll(TSubclassOf<AActor> aClass)
 	for (TActorIterator<AActor> It(GetWorld(),aClass); It; ++It)
 	{
 		AActor* A = *It;
-		if (!A->IsPendingKill())
+		if (IsValidChecked(A))
 		{
 			APawn* Pawn = Cast<APawn>(A);
 			if (Pawn != NULL)
@@ -343,8 +343,7 @@ void UCheatManager::DestroyAllPawnsExceptTarget()
 		for (TActorIterator<APawn> It(GetWorld(), APawn::StaticClass()); It; ++It)
 		{
 			APawn* Pawn = *It;
-			checkSlow(Pawn);
-			if (!Pawn->IsPendingKill())
+			if (IsValidChecked(Pawn))
 			{
 				if ((Pawn != HitPawnTarget) && Cast<APlayerController>(Pawn->Controller) == NULL)
 				{
@@ -524,7 +523,7 @@ void UCheatManager::ViewActor( FName ActorName)
 	for (FActorIterator It(GetWorld()); It; ++It)
 	{
 		AActor* A = *It;
-		if (A && !A ->IsPendingKill())
+		if (IsValid(A))
 		{
 			if ( A->GetFName() == ActorName )
 			{
@@ -544,7 +543,7 @@ void UCheatManager::ViewClass( TSubclassOf<AActor> DesiredClass )
 	for (TActorIterator<AActor> It(GetWorld(), DesiredClass); It; ++It)
 	{
 		AActor* TestActor = *It;
-		if (!TestActor->IsPendingKill())
+		if (IsValidChecked(TestActor))
 		{
 			AActor* Other = TestActor;
 			if (bFound || (First == NULL))

@@ -1227,7 +1227,7 @@ bool ULidarPointCloud::GetPhysicsTriMeshData(FTriMeshCollisionData* CollisionDat
 
 UBodySetup* ULidarPointCloud::GetBodySetup()
 {
-	return BodySetup && !BodySetup->IsPendingKill() ? BodySetup : nullptr;
+	return IsValid(BodySetup) ? BodySetup : nullptr;
 }
 
 void ULidarPointCloud::AlignClouds(TArray<ULidarPointCloud*> PointCloudsToAlign)

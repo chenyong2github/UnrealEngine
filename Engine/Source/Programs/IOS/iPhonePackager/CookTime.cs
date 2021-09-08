@@ -320,16 +320,17 @@ namespace iPhonePackager
 						Program.Architecture,
 						RelativeFilename);
 
-					byte[] FileContents = File.ReadAllBytes(AbsoluteFilename);
+					Stream FileContents = File.OpenRead(AbsoluteFilename);
 					if (FileContents.Length == 0)
 					{
 						// Zero-length files added by Ionic cause installation/upgrade to fail on device with error 0xE8000050
 						// We store a single byte in the files as a workaround for now
-						FileContents = new byte[1];
-						FileContents[0] = 0;
+						byte[] DummyContents = new byte[1];
+						DummyContents[0] = 0;
+						FileContents = new MemoryStream(DummyContents);
 					}
 
-					FileSystem.WriteAllBytes(RelativeFilename, FileContents);
+					FileSystem.WriteStream(RelativeFilename, FileContents);
 
 					if ((FileContents.Length >= 1024 * 1024) || (Config.bVerbose))
 					{

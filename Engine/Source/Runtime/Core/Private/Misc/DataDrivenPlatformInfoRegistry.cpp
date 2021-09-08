@@ -6,23 +6,19 @@
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
+#include "Misc/CommandLine.h"
 
 
 namespace 
 {
 	TMap<FName, FDataDrivenPlatformInfo> DataDrivenPlatforms;
+	TMap<FName, FName> GlobalPlatformNameAliases;
 	TArray<FName> SortedPlatformNames;
 	TArray<const FDataDrivenPlatformInfo*> SortedPlatformInfos;
-}
-
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
-// NO AUTO-KICK-OFF - let the editor request it as needed
-// delay the kick off of running UAT so we can check IsRunningCommandlet()
-// FDelayedAutoRegisterHelper GPlatformInfoInit(EDelayedRegisterRunPhase::TaskGraphSystemReady, []()
-// {
-// 	FDataDrivenPlatformInfoRegistry::UpdateSdkStatus();
-// });
+	TArray<struct FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
 #endif
+}
 
 static const TArray<FString>& GetDataDrivenIniFilenames()
 {
@@ -126,8 +122,21 @@ static void DDPIIniRedirect(FString& StringData)
 	StringData = FoundValue;
 }
 
+// used to quickly check for commandline override
+static FString GCommandLinePrefix;
 static FString DDPITryRedirect(const FConfigFile& IniFile, const TCHAR* Key, bool* OutHadBang=nullptr)
 {
+	// check for commandline param
+	if (GCommandLinePrefix.Len() > 0)
+	{
+		FString CmdLineValue;
+		if (FParse::Value(FCommandLine::Get(), *(GCommandLinePrefix + Key + TEXT("=")), CmdLineValue))
+		{
+			UE_LOG(LogTemp, Display, TEXT("--> Overriding DDPI setting %s for to %s (via prefix %s)"), Key, *CmdLineValue, *GCommandLinePrefix);
+			return CmdLineValue;
+		}
+	}
+
 	FString StringData;
 	bool bWasFound = false;
 	if ((bWasFound = IniFile.GetString(TEXT("DataDrivenPlatformInfo"), Key, StringData)) == false)
@@ -219,7 +228,8 @@ static FString GetSectionString(const FConfigSection& Section, FName Key)
 	return Section.FindRef(Key).GetValue();
 }
 
-static void ParsePreviewPlatforms(const FConfigFile& IniFile, FDataDrivenPlatformInfo& Info)
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+static void ParsePreviewPlatforms(const FConfigFile& IniFile)
 {
 	// walk over the file looking for PreviewPlatform sections
 	for (auto Section : IniFile)
@@ -262,13 +272,21 @@ static void ParsePreviewPlatforms(const FConfigFile& IniFile, FDataDrivenPlatfor
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuText")), Item.MenuText);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuTooltip")), Item.MenuTooltip);
 			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("IconText")), Item.IconText);
-			Info.PreviewPlatformMenuItems.Add(Item);
+			PreviewPlatformMenuItems.Add(Item);
 		}
 	}
 }
+#endif
 
 static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformInfo& Info, FName PlatformName)
 {
+	// look if this platform has any overrides on the commandline
+	FString CmdLinePrefix = FString::Printf(TEXT("ddpi:%s:"), *PlatformName.ToString());
+	if (FCString::Strifind(FCommandLine::Get(), *CmdLinePrefix) != nullptr)
+	{
+		GCommandLinePrefix = CmdLinePrefix;
+	}
+
 	DDPIGetBool(IniFile, TEXT("bIsConfidential"), Info.bIsConfidential);
 	DDPIGetBool(IniFile, TEXT("bIsFakePlatform"), Info.bIsFakePlatform);
 	DDPIGetString(IniFile, TEXT("TargetSettingsIniSectionName"), Info.TargetSettingsIniSectionName);
@@ -332,14 +350,14 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	}
 	Info.UBTPlatformString = Info.UBTPlatformName.ToString();
 		
+	GCommandLinePrefix = TEXT("");
 	
 	// now that we have all targetplatforms in a single TP module per platform, just look for it (or a ShaderFormat for other tools that may want this)
 	// we could look for Platform*, but then platforms that are a substring of another one could return a false positive (Windows* would find Windows31TargetPlatform)
 	Info.bHasCompiledTargetSupport = FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(PlatformName, FDataDrivenPlatformInfoRegistry::EPlatformNameType::TargetPlatform);
 
+	ParsePreviewPlatforms(IniFile);
 #endif
-
-	ParsePreviewPlatforms(IniFile, Info);
 }
 
 /**
@@ -371,11 +389,22 @@ const TMap<FName, FDataDrivenPlatformInfo>& FDataDrivenPlatformInfoRegistry::Get
 				// cache info
 				FDataDrivenPlatformInfo& Info = DataDrivenPlatforms.FindOrAdd(PlatformName, FDataDrivenPlatformInfo());
 				LoadDDPIIniSettings(IniFile, Info, PlatformName);
+				Info.IniPlatformName = PlatformName;
 
 				// get the parent to build list later
 				FString IniParent;
 				IniFile.GetString(TEXT("DataDrivenPlatformInfo"), TEXT("IniParent"), IniParent);
 				IniParents.Add(PlatformString, IniParent);
+
+				// get platform name aliases
+				FString PlatformNameAliasesStr;
+				IniFile.GetString(TEXT("DataDrivenPlatformInfo"), TEXT("PlatformNameAliases"), PlatformNameAliasesStr);
+				TArray<FString> PlatformNameAliases;
+				PlatformNameAliasesStr.ParseIntoArrayWS(PlatformNameAliases, TEXT(","));
+				for (const FString& PlatformNameAlias : PlatformNameAliases)
+				{
+					GlobalPlatformNameAliases.Add(*PlatformNameAlias, PlatformName);
+				}
 			}
 		}
 
@@ -465,9 +494,9 @@ const FDataDrivenPlatformInfo& FDataDrivenPlatformInfoRegistry::GetPlatformInfo(
 {
 	const FDataDrivenPlatformInfo* Info = GetAllPlatformInfos().Find(PlatformName);
 	static FDataDrivenPlatformInfo Empty;
-	if (Info == nullptr && PlatformName == "Win64")
+	if (Info == nullptr && GlobalPlatformNameAliases.Contains(PlatformName))
 	{
-		Info = GetAllPlatformInfos().Find("Windows");
+		Info = GetAllPlatformInfos().Find(GlobalPlatformNameAliases.FindChecked(PlatformName));
 	}
 	return Info ? *Info : Empty;
 }
@@ -542,6 +571,11 @@ bool FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(FName Platfo
 	}
 
 	return false;
+}
+
+const TArray<struct FPreviewPlatformMenuItem>& FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems()
+{
+	return PreviewPlatformMenuItems;
 }
 
 #endif

@@ -51,6 +51,7 @@ bool UTemplateSequenceFactoryNew::ConfigureProperties()
 	Options.Mode = EClassViewerMode::ClassPicker;
 	Options.DisplayMode = EClassViewerDisplayMode::TreeView;
 	Options.bShowObjectRootClass = true;
+	Options.bIsActorsOnly = true;
 	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::Dynamic;
 
 	const FText TitleText = LOCTEXT("CreateTemplateSequenceOptions", "Pick Root Object Binding Class");
@@ -98,6 +99,8 @@ void UTemplateSequenceFactoryNew::InitializeSpawnable(UMovieSceneSequence* InTem
 		FNotificationInfo Info(Result.GetError());
 		Info.ExpireDuration = 3.0f;
 		FSlateNotificationManager::Get().AddNotification(Info);
+
+		return;
 	}
 
 	// Create the spawnable.

@@ -335,21 +335,6 @@ void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("SequencerSections", LOCTEXT("SectionsMenu", "Sections"));
 	{
-		if (CanPrimeForRecording())
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("PrimeForRecording", "Primed For Recording"),
-				LOCTEXT("PrimeForRecordingTooltip", "Prime this track for recording a new sequence."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda([=] { return Shared->TogglePrimeForRecording(); }),
-					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda([=] { return Shared->IsPrimedForRecording() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
-
 		if (CanSelectAllKeys())
 		{
 			MenuBuilder.AddMenuEntry(
@@ -676,49 +661,6 @@ void FSectionContextMenu::CopyAllKeys()
 	SelectAllKeys();
 	Sequencer->CopySelectedKeys();
 }
-
-void FSectionContextMenu::TogglePrimeForRecording() const
-{
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
-	{
-		UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(WeakSection.Get());
-		if (SubSection)
-		{
-			SubSection->SetAsRecording(SubSection != UMovieSceneSubSection::GetRecordingSection());
-			break;
-		}
-	}
-}
-
-
-bool FSectionContextMenu::IsPrimedForRecording() const
-{
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
-	{
-		UMovieSceneSubSection* SubSection = Cast<UMovieSceneSubSection>(WeakSection.Get());
-		if (SubSection)
-		{
-			return SubSection == UMovieSceneSubSection::GetRecordingSection();
-		}
-	}
-
-	return false;
-}
-
-bool FSectionContextMenu::CanPrimeForRecording() const
-{
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
-	{
-		UMovieSceneSubSection* SubSection = ExactCast<UMovieSceneSubSection>(WeakSection.Get());
-		if (SubSection)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 
 void FSectionContextMenu::SetSectionToKey()
 {

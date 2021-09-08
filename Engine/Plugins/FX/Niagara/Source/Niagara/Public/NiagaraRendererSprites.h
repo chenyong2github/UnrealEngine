@@ -47,7 +47,7 @@ private:
 		bool								bNeedsCull = false;
 
 		const FNiagaraRendererLayout*		RendererLayout = nullptr;
-		ENiagaraSpriteVFLayout::Type		SortVariable;
+		ENiagaraSpriteVFLayout::Type		SortVariable = ENiagaraSpriteVFLayout::Type(INDEX_NONE);
 
 		FRHIShaderResourceView*				ParticleFloatSRV = nullptr;
 		FRHIShaderResourceView*				ParticleHalfSRV = nullptr;

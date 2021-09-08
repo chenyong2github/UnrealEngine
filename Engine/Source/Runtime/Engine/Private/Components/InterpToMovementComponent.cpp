@@ -63,7 +63,7 @@ void UInterpToMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	{
 		return;
 	}
-	if((bStopped == true ) || ( ActorOwner->IsPendingKill() ) )
+	if((bStopped == true ) || ( !IsValid(ActorOwner) ) )
 	{
 		return;
 	}
@@ -85,7 +85,7 @@ void UInterpToMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	{
 		WaitPos = UpdatedComponent->GetComponentLocation(); //-V595
 	}
-	while (RemainingTime >= MIN_TICK_TIME && (Iterations < MaxSimulationIterations) && !ActorOwner->IsPendingKill() && UpdatedComponent && IsActive())
+	while (RemainingTime >= MIN_TICK_TIME && (Iterations < MaxSimulationIterations) && IsValid(ActorOwner) && UpdatedComponent && IsActive())
 	{
 		Iterations++;
 
@@ -116,7 +116,7 @@ void UInterpToMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 		}
 		//DrawDebugPoint(GetWorld(), UpdatedComponent->GetComponentLocation(), 16, FColor::White,true,5.0f);
 		// If we hit a trigger that destroyed us, abort.
-		if (ActorOwner->IsPendingKill() || !UpdatedComponent || !IsActive())
+		if (!IsValid(ActorOwner) || !UpdatedComponent || !IsActive())
 		{
 			return;
 		}
@@ -299,13 +299,13 @@ void UInterpToMovementComponent::StopSimulating(const FHitResult& HitResult)
 bool UInterpToMovementComponent::HandleHitWall(const FHitResult& Hit, float Time, const FVector& MoveDelta)
 {
 	AActor* ActorOwner = UpdatedComponent ? UpdatedComponent->GetOwner() : NULL;
-	if (!CheckStillInWorld() || !ActorOwner || ActorOwner->IsPendingKill())
+	if (!CheckStillInWorld() || !IsValid(ActorOwner))
 	{
 		return true;
 	}
 	HandleImpact(Hit, Time, MoveDelta);
 
-	if (ActorOwner->IsPendingKill() || !UpdatedComponent)
+	if (!IsValid(ActorOwner) || !UpdatedComponent)
 	{
 		return true;
 	}

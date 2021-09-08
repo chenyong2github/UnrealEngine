@@ -917,7 +917,7 @@ bool FS3DerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& 
 	if (FindBundleEntry(CacheKey, Bundle, BundleEntry))
 	{
 		TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*Bundle->LocalFile));
-		if (!Reader->IsError())
+		if (Reader.IsValid() && !Reader->IsError())
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("S3DerivedDataBackend: Cache hit on %s"), CacheKey);
 			OutData.SetNum(BundleEntry->Length);

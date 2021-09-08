@@ -56,22 +56,21 @@ namespace Chaos
 	template <typename FunctionType>
 	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCells(const TAABB<FReal, 3>& AABB, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
 	{
-		int32 XsampleCount = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv) + 1;
-		int32 YsampleCount = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv) + 1;
+		int32 CellStartX = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv);
+		int32 CellStartY = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv);
 
-		FReal CurrentX = AABB.Min().X;
-		for (int32 XsampleIndex = 0; XsampleIndex < XsampleCount; XsampleIndex++)
+		int32 CellEndX = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv);
+		int32 CellEndY = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv);
+
+		for (int32 X = CellStartX; X <= CellEndX; X++)
 		{
-			FReal CurrentY = AABB.Min().Y;
-			for (int32 YsampleIndex = 0; YsampleIndex < YsampleCount; YsampleIndex++)
+			for (int32 Y = CellStartY; Y <= CellEndY; Y++)
 			{
-				if (!Function(HashCoordinates(CurrentX, CurrentY, DirtyElementGridCellSizeInv)))
+				if (!Function(HashCell(X, Y)))
 				{
 					return false; // early out requested by the lambda
 				}
-				CurrentY += DirtyElementGridCellSize;
 			}
-			CurrentX += DirtyElementGridCellSize;
 		}
 		return true;
 	}

@@ -226,7 +226,7 @@ bool UPackageMapClient::SerializeObject( FArchive& Ar, UClass* Class, UObject*& 
 		// If pending kill, just serialize as NULL.
 		// TWeakObjectPtrs of PendingKill objects will behave strangely with TSets and TMaps
 		//	PendingKill objects will collide with each other and with NULL objects in those data structures.
-		if (Object && Object->IsPendingKill())
+		if (Object && !IsValid(Object))
 		{
 			UObject* NullObj = NULL;
 			return SerializeObject( Ar, Class, NullObj, OutNetGUID);
@@ -1053,9 +1053,9 @@ FNetworkGUID UPackageMapClient::InternalLoadObject( FArchive & Ar, UObject *& Ob
 				return NetGUID;
 			}
 
-			if (Object->IsPendingKill())
+			if (!IsValid(Object))
 			{
-				UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Received reference to pending kill object from client: PathName: %s, ObjOuter: %s "), *PathName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
+				UE_LOG( LogNetPackageMap, Warning, TEXT( "UPackageMapClient::InternalLoadObject: Received reference to invalid object from client: PathName: %s, ObjOuter: %s "), *PathName, ObjOuter != NULL ? *ObjOuter->GetPathName() : TEXT( "NULL" ) );
 				Object = NULL;
 				return NetGUID;
 			}
@@ -2803,9 +2803,8 @@ void FNetGUIDCache::RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const
  */
 void FNetGUIDCache::RegisterNetGUID_Server( const FNetworkGUID& NetGUID, UObject* Object )
 {
-	check( Object != NULL );
+	check( IsValid(Object) );
 	check( IsNetGUIDAuthority() );				// Only the server should call this
-	check( !Object->IsPendingKill() );
 	check( !NetGUID.IsDefault() );
 	check( !ObjectLookup.Contains( NetGUID ) );	// Server should never add twice
 
@@ -2828,7 +2827,7 @@ void FNetGUIDCache::RegisterNetGUID_Server( const FNetworkGUID& NetGUID, UObject
 void FNetGUIDCache::RegisterNetGUID_Client( const FNetworkGUID& NetGUID, const UObject* Object )
 {
 	check( !IsNetGUIDAuthority() );			// Only clients should be here
-	check( !Object || !Object->IsPendingKill() );
+	check( !Object || IsValid(Object) );
 	check( !NetGUID.IsDefault() );
 	check( NetGUID.IsDynamic() );	// Clients should only assign dynamic guids through here (static guids go through RegisterNetGUIDFromPath_Client)
 

@@ -1269,7 +1269,7 @@ bool FFrontendFilter_InUseByLoadedLevels::PassesFilter(FAssetFilterType InItem) 
 			const bool bRejectObject =
 				Asset->GetOuter() == NULL || // Skip objects with null outers
 				Asset->HasAnyFlags(RF_Transient) || // Skip transient objects (these shouldn't show up in the CB anyway)
-				Asset->IsPendingKill() || // Objects that will be garbage collected 
+				!IsValid(Asset) || // Objects that will be garbage collected 
 				bUnreferenced || // Unreferenced objects 
 				bIndirectlyReferencedObject; // Indirectly referenced objects
 

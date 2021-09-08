@@ -48,10 +48,10 @@ namespace Chaos
 		// If we created particle to serve as kinematic endpoint, track so we can release later. This will add particle to solver.
 		void SetKinematicEndPoint(FSingleParticlePhysicsProxy* InParticle, FPBDRigidsSolver* Solver);
 
+		FSingleParticlePhysicsProxy* GetKinematicEndPoint() const;
 		CONSTRAINT_JOINT_PROPERPETY_IMPL2(FTransformPair, JointTransforms, JointSettings, ConnectorTransforms);
 		//void SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointTransforms);
 		//const FTransformPair GetJointTransforms() const;
-
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL2(bool, CollisionEnabled, JointSettings, bCollisionEnabled);
 		//void SetCollisionEnabled(bool InValue);

@@ -85,6 +85,13 @@ void FGameplayDebuggerCategory_Navmesh::FRepData::Serialize(FArchive& Ar)
 	Ar << NumRemainingTasks;
 	Ar << NavDataName;
 
+	Ar << NavBuildLockStatusDesc;
+	Ar << SupportedAgents;
+	Ar << NumSuspendedDirtyAreas;
+	Ar << bIsNavBuildLocked;
+	Ar << bIsNavOctreeLocked;
+	Ar << bIsNavDataRebuildingSuspended;
+
 	uint8 Flags =
 		((bCanChangeReference			? 1 : 0) << 0) |
 		((bCanCycleNavigationData		? 1 : 0) << 1) |
@@ -114,6 +121,32 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 			DataPack.NumDirtyAreas = NavSys->GetNumDirtyAreas();
 			DataPack.NumRunningTasks = NavSys->GetNumRunningBuildTasks();
 			DataPack.NumRemainingTasks = NavSys->GetNumRemainingBuildTasks();
+			DataPack.bIsNavOctreeLocked = NavSys->IsNavigationOctreeLocked();
+			DataPack.bIsNavBuildLocked = NavSys->IsNavigationBuildingLocked();
+			DataPack.NavBuildLockStatusDesc = FString("Unknown");
+			if (NavSys->IsNavigationBuildingLocked(ENavigationBuildLock::InitialLock))
+			{
+				DataPack.NavBuildLockStatusDesc = FString("Initial Lock");
+			}
+			else if (NavSys->IsNavigationBuildingLocked(ENavigationBuildLock::Custom))
+			{
+				DataPack.NavBuildLockStatusDesc = FString("Custom Lock");
+			}
+			else if (NavSys->IsNavigationBuildingLocked(ENavigationBuildLock::NoUpdateInEditor))
+			{
+				DataPack.NavBuildLockStatusDesc = FString("NoUpdateInEditor Lock");
+			}
+			else if (NavSys->IsNavigationBuildingLocked(ENavigationBuildLock::NoUpdateInPIE))
+			{
+				DataPack.NavBuildLockStatusDesc = FString("NoUpdateInPIE Lock");
+			}
+			for (const FNavDataConfig& NavigationData : NavSys->GetSupportedAgents())
+			{
+				if (NavigationData.IsValid())
+				{
+					DataPack.SupportedAgents = FString::Printf(TEXT("%s%s%s"), *DataPack.SupportedAgents, DataPack.SupportedAgents.IsEmpty() ? TEXT("") : TEXT(" | "), *NavigationData.Name.ToString());
+				}
+			}
 
 			NumNavData = NavSys->NavDataSet.Num();
 			
@@ -140,6 +173,8 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 			if (NavSys->NavDataSet.IsValidIndex(NavDataIndexToDisplay))
 			{
 				NavData = NavSys->NavDataSet[NavDataIndexToDisplay];
+				DataPack.bIsNavDataRebuildingSuspended = NavData->IsRebuildingSuspended();
+				DataPack.NumSuspendedDirtyAreas = NavData->GetNumSuspendedDirtyAreas();
 			}
 			
 			if (ActorReferenceMode == EActorReferenceMode::DebugActor)
@@ -236,6 +271,26 @@ void FGameplayDebuggerCategory_Navmesh::DrawData(APlayerController* OwnerPC, FGa
 {
 	CanvasContext.Printf(TEXT("Num dirty areas: {%s}%d"), DataPack.NumDirtyAreas > 0 ? TEXT("red") : TEXT("green"), DataPack.NumDirtyAreas);
 	CanvasContext.Printf(TEXT("Tile jobs running/remaining: %d / %d"), DataPack.NumRunningTasks, DataPack.NumRemainingTasks);
+
+	if (DataPack.bIsNavBuildLocked)
+	{
+		CanvasContext.Printf(TEXT("Navigation Update is locked! Reason = '%s'. Navigation changes to the map are discarded."), *DataPack.NavBuildLockStatusDesc);
+	}
+	
+	if (DataPack.bIsNavOctreeLocked)
+	{
+		CanvasContext.Printf(TEXT("Navigation Octree is locked! Changes to the map are not getting stored."));
+	}
+
+	if (DataPack.bIsNavDataRebuildingSuspended)
+	{
+		CanvasContext.Printf(TEXT("Navigation Data Generation is suspended! New dirty areas are queued (NumSuspendedDirtyAreas=%d)"), DataPack.NumSuspendedDirtyAreas);
+	}	
+
+	if (!DataPack.SupportedAgents.IsEmpty())
+	{
+		CanvasContext.Printf(TEXT("Supported Agents: %s"), *DataPack.SupportedAgents);
+	}
 
 	if (!DataPack.NavDataName.IsEmpty())
 	{

@@ -248,10 +248,16 @@ int32 FNiagaraRendererMeshes::GetLODIndex(int32 MeshIndex) const
 
 void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const
 {
-
 	// Anything to render?
 	ParticleMeshRenderData.DynamicDataMesh = static_cast<FNiagaraDynamicDataMesh*>(InDynamicData);
 	if (!ParticleMeshRenderData.DynamicDataMesh || !SceneProxy->GetBatcher())
+	{
+		return;
+	}
+
+	// Early out if we have no data or instances, this must be done before we read the material
+	FNiagaraDataBuffer* CurrentParticleData = ParticleMeshRenderData.DynamicDataMesh->GetParticleDataToRender(bGpuLowLatencyTranslucency);
+	if (!CurrentParticleData || (SourceMode == ENiagaraRendererSourceDataMode::Particles && CurrentParticleData->GetNumInstances() == 0) || !Meshes.Num())
 	{
 		return;
 	}
@@ -271,10 +277,7 @@ void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderDa
 
 	// Anything to render?
 	ParticleMeshRenderData.SourceParticleData = ParticleMeshRenderData.DynamicDataMesh->GetParticleDataToRender(bAllTranslucentMaterials && bGpuLowLatencyTranslucency && !SceneProxy->CastsVolumetricTranslucentShadow());
-	if ((ParticleMeshRenderData.SourceParticleData == nullptr) ||
-		(SourceMode == ENiagaraRendererSourceDataMode::Particles && ParticleMeshRenderData.SourceParticleData->GetNumInstances() == 0) ||
-		(Meshes.Num() == 0)
-	)
+	if ( !ParticleMeshRenderData.SourceParticleData || (SourceMode == ENiagaraRendererSourceDataMode::Particles && ParticleMeshRenderData.SourceParticleData->GetNumInstances() == 0) )
 	{
 		ParticleMeshRenderData.SourceParticleData = nullptr;
 		return;

@@ -16,7 +16,7 @@ UGeometryCacheThumbnailRenderer::UGeometryCacheThumbnailRenderer(const FObjectIn
 void UGeometryCacheThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UGeometryCache* GeometryCache = Cast<UGeometryCache>(Object);
-	if (GeometryCache != nullptr && !GeometryCache->IsPendingKill())
+	if (IsValid(GeometryCache))
 	{
 		if (ThumbnailScene == nullptr)
 		{

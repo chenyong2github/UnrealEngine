@@ -171,6 +171,26 @@ FOpenXRHandTracking::~FOpenXRHandTracking()
 
 bool FOpenXRHandTracking::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions)
 {
+	TArray<XrApiLayerProperties> Properties;
+	uint32_t Count = 0;
+	XR_ENSURE(xrEnumerateApiLayerProperties(0, &Count, nullptr));
+	Properties.SetNum(Count);
+	for (auto& Prop : Properties)
+	{
+		Prop = XrApiLayerProperties{ XR_TYPE_API_LAYER_PROPERTIES };
+	}
+	XR_ENSURE(xrEnumerateApiLayerProperties(Count, &Count, Properties.GetData()));
+
+	// Some API layers can crash the loader when enabled, if they're present we shouldn't enable the extension
+	for (const XrApiLayerProperties& Layer : Properties)
+	{
+		if (FCStringAnsi::Strstr(Layer.layerName, "XR_APILAYER_VIVE_hand_tracking") &&
+			Layer.layerVersion <= 1)
+		{
+			return false;
+		}
+	}
+
 	OutExtensions.Add("XR_EXT_hand_tracking");
 	return true;
 }

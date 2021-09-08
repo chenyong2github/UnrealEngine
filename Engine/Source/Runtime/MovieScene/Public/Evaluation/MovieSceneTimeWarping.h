@@ -276,5 +276,5 @@ inline TRange<FFrameTime> FMovieSceneTimeWarping::TransformRangeConstrained(cons
 /** Convert a FMovieSceneTimeWarping into a string */
 inline FString LexToString(const FMovieSceneTimeWarping& InWarping)
 {
-	return *FString::Printf(TEXT("[ %+i ⟳ %+i]"), InWarping.Start.Value, InWarping.End.Value);
+	return *FString::Printf(TEXT("[ %+i ⟳ %+i ]"), InWarping.Start.Value, InWarping.End.Value);
 }

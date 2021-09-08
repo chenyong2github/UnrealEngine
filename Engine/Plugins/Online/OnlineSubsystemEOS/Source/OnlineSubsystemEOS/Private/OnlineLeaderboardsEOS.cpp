@@ -287,7 +287,7 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 				if (Result == EOS_EResult::EOS_Success)
 				{
 					FString Nickname = UTF8_TO_TCHAR(Record->UserDisplayName);
-					if (Nickname.IsEmpty())
+					if(Nickname.IsEmpty())
 					{
 						Nickname = TEXT("Unknown Player");
 					}

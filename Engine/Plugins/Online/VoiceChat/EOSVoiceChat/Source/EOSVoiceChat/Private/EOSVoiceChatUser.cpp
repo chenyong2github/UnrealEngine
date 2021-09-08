@@ -871,7 +871,7 @@ FString FEOSVoiceChatUser::InsecureGetJoinToken(const FString& ChannelName, EVoi
 	FEOSVoiceChatChannelCredentials ChannelCredentials;
 	GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("InsecureClientBaseUrl"), ChannelCredentials.ClientBaseUrl, GEngineIni);
 
-	ChannelCredentials.ParticipantToken = TEXT("0:EOSVoiceChatTest:`UserName:`RoomName:sss");
+	ChannelCredentials.ParticipantToken = TEXT("0:EOSVoiceChatTest:`RoomName:`UserName:sss");
 	ChannelCredentials.ParticipantToken.ReplaceInline(TEXT("`UserName"), *GetLoggedInPlayerName());
 	ChannelCredentials.ParticipantToken.ReplaceInline(TEXT("`RoomName"), *ChannelName);
 
@@ -967,21 +967,22 @@ bool FEOSVoiceChatUser::RemoveLobbyRoom(const FString& LobbyId)
 {
 	if (!GetLobbyInterface())
 	{
-		EOSVOICECHATUSER_LOG(Error, TEXT("AddLobbyRoom Lobby interface invalid."));
+		EOSVOICECHATUSER_LOG(Error, TEXT("RemoveLobbyRoom Lobby interface invalid."));
 		return false;
 	}
 
-	if (FString* ChannelName = LoginSession.LobbyIdToChannelName.Find(LobbyId))
+	if (const FString* ChannelName = LoginSession.LobbyIdToChannelName.Find(LobbyId))
 	{
 		FChannelSession* ChannelSession = LoginSession.ChannelSessions.Find(*ChannelName);
 		if (ensure(ChannelSession))
 		{
 			ChannelSession->JoinState = EChannelJoinState::NotJoined;
 			UnbindChannelCallbacks(*ChannelSession);
-			OnVoiceChatChannelExitedDelegate.Broadcast(*ChannelName, FVoiceChatResult::CreateSuccess());
+			OnVoiceChatChannelExitedDelegate.Broadcast(ChannelSession->ChannelName, FVoiceChatResult::CreateSuccess());
 
-			RemoveChannelSession(*ChannelName);
-			LoginSession.LobbyIdToChannelName.Remove(LobbyId);
+			LoginSession.LobbyIdToChannelName.Remove(ChannelSession->LobbyId);
+			RemoveChannelSession(ChannelSession->ChannelName);
+			return true;
 		}
 	}
 	else
@@ -1437,11 +1438,16 @@ void FEOSVoiceChatUser::LogoutInternal(const FOnVoiceChatLogoutCompleteDelegate&
 		// We have to actually leave all the channels, because there is no concept of "connected" or "logged in" in RTC, so no API calls we can call to "leave everything" like in vivox
 		TSet<FString> JoinedChannelNames;
 		TSet<FString> LeavingChannelNames;
+		TSet<FString> LobbyIds;
 		{
-			for (TPair<FString, FChannelSession>& Pair : LoginSession.ChannelSessions)
+			for (const TPair<FString, FChannelSession>& Pair : LoginSession.ChannelSessions)
 			{
-				FChannelSession& ChannelSession = Pair.Value;
-				if (ChannelSession.JoinState >= EChannelJoinState::Joining)
+				const FChannelSession& ChannelSession = Pair.Value;
+				if (ChannelSession.IsLobbySession())
+				{
+					LobbyIds.Add(ChannelSession.LobbyId);
+				}
+				else if (ChannelSession.JoinState >= EChannelJoinState::Joining)
 				{
 					JoinedChannelNames.Add(ChannelSession.ChannelName);
 				}
@@ -1450,6 +1456,11 @@ void FEOSVoiceChatUser::LogoutInternal(const FOnVoiceChatLogoutCompleteDelegate&
 					LeavingChannelNames.Add(ChannelSession.ChannelName);
 				}
 			}
+		}
+
+		for (const FString& LobbyId : LobbyIds)
+		{
+			RemoveLobbyRoom(LobbyId);
 		}
 
 		FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
@@ -2280,7 +2291,7 @@ bool FEOSVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& A
 						EOS_EXEC_LOG(TEXT("        Join Status: %s"), LexToString(ChannelSession.JoinState));
 						EOS_EXEC_LOG(TEXT("        bIsNotListeningDisabled: %s"), *LexToString(ChannelSession.bIsNotListening));
 						EOS_EXEC_LOG(TEXT("        bAudioEnabled: Desired:%s Actual:%s"), *LexToString(ChannelSession.DesiredSendingState.bAudioEnabled), *LexToString(ChannelSession.ActiveSendingState.bAudioEnabled));
-						EOS_EXEC_LOG(TEXT("        bIsLobby=%s"), *LexToString(ChannelSession.IsLobbySession()));
+						EOS_EXEC_LOG(TEXT("        bIsLobby: %s"), *LexToString(ChannelSession.IsLobbySession()));
 						if (ChannelSession.IsLobbySession())
 						{
 							EOS_EXEC_LOG(TEXT("          LobbyId: %s"), *ChannelSession.LobbyId);

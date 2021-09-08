@@ -1184,6 +1184,8 @@ void UAudioComponent::SetSubmixSend(USoundSubmixBase* Submix, float SendLevel)
 {
 	if (FAudioDevice* AudioDevice = GetAudioDevice())
 	{
+		const uint64 MyAudioComponentID = AudioComponentID;
+
 		FSoundSubmixSendInfo SendInfo;
 		SendInfo.SoundSubmix = Submix;
 		SendInfo.SendLevel = SendLevel;
@@ -1200,6 +1202,7 @@ void UAudioComponent::SetBusSendEffectInternal(USoundSourceBus* InSourceBus, UAu
 {
 	if (FAudioDevice* AudioDevice = GetAudioDevice())
 	{
+
 		FSoundSourceBusSendInfo SourceBusSendInfo;
 		SourceBusSendInfo.SoundSourceBus = InSourceBus;
 		SourceBusSendInfo.AudioBus = InAudioBus;
@@ -1272,7 +1275,7 @@ void UAudioComponent::SetOutputToBusOnly(bool bInOutputToBusOnly)
 			}
 			ActiveSound.bEnableMainSubmixOutputOverride = !bInOutputToBusOnly;
 			ActiveSound.bEnableSubmixSendRoutingOverride = !bInOutputToBusOnly;
-		}, GET_STATID(STAT_AudioSetOutputToBusOnly));
+		});
 	}
 }
 

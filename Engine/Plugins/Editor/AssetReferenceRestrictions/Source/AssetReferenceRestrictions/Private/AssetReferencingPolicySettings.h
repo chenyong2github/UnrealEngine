@@ -144,6 +144,10 @@ struct FARPDomainDefinitionByContentRoot
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(ContentDir))
 	TArray<FDirectoryPath> ContentRoots;
 
+	// A list of specific assets considered to be part of this domain
+	UPROPERTY(EditAnywhere, Category=Settings, meta=(LongPackageName))
+	TArray<FName> SpecificAssets;
+
 	// What content is this domain allowed to access?
 	UPROPERTY(EditAnywhere, Category = Settings)
 	EARPDomainAllowedToReferenceMode ReferenceMode = EARPDomainAllowedToReferenceMode::AdditionalDomains;
@@ -157,7 +161,7 @@ struct FARPDomainDefinitionByContentRoot
 	{
 		if (DomainName.IsEmpty()) { return false; }
 
-		if (ContentRoots.Num() == 0) { return false; }
+		if (ContentRoots.Num() == 0 && SpecificAssets.Num() == 0) { return false; }
 
 		if (DomainDisplayName.IsEmpty()) { return false; }
 

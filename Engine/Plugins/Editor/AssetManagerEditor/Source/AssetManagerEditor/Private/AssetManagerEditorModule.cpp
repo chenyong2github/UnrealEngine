@@ -774,7 +774,7 @@ TArray<FName> FAssetManagerEditorModule::GetLevelEditorSelectedAssetPackages()
 
 	for (UObject* EditedAsset : ReferencedAssets)
 	{
-		if (EditedAsset && EditedAsset->IsAsset() && !EditedAsset->IsPendingKill())
+		if (IsValid(EditedAsset) && EditedAsset->IsAsset())
 		{
 			OutAssetPackages.AddUnique(EditedAsset->GetOutermost()->GetFName());
 		}
@@ -925,7 +925,7 @@ TSharedRef<FExtender> FAssetManagerEditorModule::OnExtendAssetEditor(const TShar
 	TArray<FName> PackageNames;
 	for (UObject* EditedAsset : ContextSensitiveObjects)
 	{
-		if (EditedAsset && EditedAsset->IsAsset() && !EditedAsset->IsPendingKill())
+		if (IsValid(EditedAsset) && EditedAsset->IsAsset())
 		{
 			PackageNames.AddUnique(EditedAsset->GetOutermost()->GetFName());
 		}
@@ -967,7 +967,7 @@ void FAssetManagerEditorModule::ExtendAssetEditorMenu()
 		{
 			for (const UObject* EditedAsset : *MenuContext->Toolkit.Pin()->GetObjectsCurrentlyBeingEdited())
 			{
-				if (EditedAsset && EditedAsset->IsAsset() && !EditedAsset->IsPendingKill())
+				if (IsValid(EditedAsset) && EditedAsset->IsAsset())
 				{
 					FAssetManagerEditorModule::CreateAssetContextMenu(InSection);
 					break;

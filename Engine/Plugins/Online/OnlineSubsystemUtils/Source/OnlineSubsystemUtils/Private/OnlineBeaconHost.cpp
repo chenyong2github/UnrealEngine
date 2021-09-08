@@ -6,10 +6,16 @@
 #include "GameFramework/OnlineReplStructs.h"
 #include "Engine/World.h"
 #include "OnlineBeaconHostObject.h"
+#include "OnlineError.h"
 #include "Engine/PackageMapClient.h"
+#include "Kismet/GameplayStatics.h"
 #include "Misc/NetworkVersion.h"
 #include "Net/DataChannel.h"
 #include "OnlineBeaconClient.h"
+
+const FText Error_UnableToParsePacket = NSLOCTEXT("NetworkErrors", "UnableToParsePacket", "Unable to parse expected packet structure: {0}.");
+const FText Error_ControlFlow = NSLOCTEXT("NetworkErrors", "ControlFlowError", "Control flow error: {0}.");
+const FText Error_Authentication = NSLOCTEXT("NetworkErrors", "AuthenticationFailure", "Failed to verify user authentication.");
 
 AOnlineBeaconHost::AOnlineBeaconHost(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
@@ -19,8 +25,45 @@ AOnlineBeaconHost::AOnlineBeaconHost(const FObjectInitializer& ObjectInitializer
 
 void AOnlineBeaconHost::OnNetCleanup(UNetConnection* Connection)
 {
-	UE_LOG(LogBeacon, Error, TEXT("Cleaning up a beacon host!"));
-	ensure(0);
+	// minor hack here. AOnlineBeaconHost is considered the connection's OwningActor until we spawn a client actor,
+	// so if we get this call it means the connection has disconnected before fully joining 
+	UE_LOG(LogBeacon, Log, TEXT("%s: Cleaning up in-progress connection due to closure."), *GetDebugName(Connection));
+	OnConnectionClosed(Connection);
+}
+
+void AOnlineBeaconHost::OnConnectionClosed(UNetConnection* Connection)
+{
+	AOnlineBeaconClient* ClientActor = GetClientActor(Connection);
+	if (ClientActor)
+	{
+		AOnlineBeaconHostObject* BeaconHostObject = GetHost(ClientActor->GetBeaconType());
+		UE_LOG(LogBeacon, Verbose, TEXT("%s: Connection closed. BeaconType: %s, BeaconActor: %s, HostObject: %s"),
+			*GetDebugName(Connection), *ClientActor->GetBeaconType(), *ClientActor->GetName(), *GetNameSafe(BeaconHostObject));
+
+		if (BeaconHostObject)
+		{
+			BeaconHostObject->NotifyClientDisconnected(ClientActor);
+		}
+
+		RemoveClientActor(ClientActor);
+}
+
+	ConnectionState.Remove(Connection);
+}
+
+bool AOnlineBeaconHost::GetConnectionDataForUniqueNetId(const FUniqueNetId& UniqueNetId, UNetConnection*& OutConnection, FConnectionState*& OutConnectionState)
+{
+	for (TMap<UNetConnection*, FConnectionState>::ElementType& ConnectionStatePair : ConnectionState)
+	{
+		if (ConnectionStatePair.Key->PlayerId == UniqueNetId)
+		{
+			OutConnection = ConnectionStatePair.Key;
+			OutConnectionState = &ConnectionStatePair.Value;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool AOnlineBeaconHost::InitHost()
@@ -52,7 +95,7 @@ bool AOnlineBeaconHost::InitHost()
 			else
 			{
 				// error initializing the network stack...
-				UE_LOG(LogBeacon, Log, TEXT("AOnlineBeaconHost::InitHost failed"));
+				UE_LOG(LogBeacon, Log, TEXT("%s: AOnlineBeaconHost::InitHost failed"), *GetName());
 				OnFailure();
 			}
 		}
@@ -75,89 +118,216 @@ void AOnlineBeaconHost::HandleNetworkFailure(UWorld* World, class UNetDriver* In
 
 void AOnlineBeaconHost::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch)
 {
-	if (NetDriver->ServerConnection == nullptr)
+	if (NetDriver->ServerConnection == nullptr && Connection)
 	{
-		bool bCloseConnection = false;
-
 		// We are the server.
-#if !(UE_BUILD_SHIPPING && WITH_EDITOR)
-		UE_LOG(LogBeacon, Verbose, TEXT("%s[%s] Host received: %s"), *GetName(), Connection ? *Connection->GetName() : TEXT("Invalid"), FNetControlMessageInfo::GetName(MessageType));
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		UE_LOG(LogBeacon, Verbose, TEXT("%s: Host received: %s"), *GetDebugName(Connection), FNetControlMessageInfo::GetName(MessageType));
 #endif
+		if (!HandleControlMessage(Connection, MessageType, Bunch))
+		{
+			CloseHandshakeConnection(Connection);
+		}
+	}
+}
+
+bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch)
+{
+	FConnectionState* ConnState = ConnectionState.Find(Connection);
+	if (ConnState == nullptr)
+	{
+		// only setup state for the hello message
+		if (MessageType != NMT_Hello || Connection->OwningActor != nullptr)
+		{
+			SendFailurePacket(Connection, FText::Format(Error_ControlFlow, FText::FromString(TEXT("NMT_Hello"))));
+			return false;
+		}
+
+		// make one
+		ConnState = &ConnectionState.Add(Connection, FConnectionState());
+		Connection->OwningActor = this; // make sure we get OnNetCleanup if this guy dies
+	}
+	check(ConnState != nullptr);
+
 		switch (MessageType)
 		{
 		case NMT_Hello:
 			{
-				UE_LOG(LogBeacon, Log, TEXT("Beacon Hello"));
-				uint8 IsLittleEndian;
+			if (ConnState->bHasSentHello)
+			{
+				SendFailurePacket(Connection, FText::Format(Error_ControlFlow, FText::FromString(TEXT("NMT_Hello"))));
+				return false;
+			}
+			ConnState->bHasSentHello = true;
 
+			UE_LOG(LogBeacon, Log, TEXT("%s: Beacon Hello"), *GetDebugName(Connection));
+
+			uint8 IsLittleEndian = 0;
 				uint32 RemoteNetworkVersion = 0;
-				uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
 				FString EncryptionToken;
+			if (!FNetControlMessage<NMT_Hello>::Receive(Bunch, IsLittleEndian, RemoteNetworkVersion, EncryptionToken))
+			{
+				SendFailurePacket(Connection, FText::Format(Error_UnableToParsePacket, FText::FromString(TEXT("NMT_Hello"))));
+				return false;
+			}
 
-				if (FNetControlMessage<NMT_Hello>::Receive(Bunch, IsLittleEndian, RemoteNetworkVersion, EncryptionToken))
-				{
+			// check for net compatibility (in this case sent NMT_Upgrade)
+			uint32 LocalNetworkVersion = FNetworkVersion::GetLocalNetworkVersion();
 					if (!FNetworkVersion::IsNetworkCompatible(LocalNetworkVersion, RemoteNetworkVersion))
 					{
-						UE_LOG(LogBeacon, Error, TEXT("Client not network compatible %s (Local=%d, Remote=%d)"), *Connection->GetName(), LocalNetworkVersion, RemoteNetworkVersion);
+				UE_LOG(LogBeacon, Error, TEXT("%s: Client not network compatible (Local=%d, Remote=%d)"), *GetDebugName(Connection), LocalNetworkVersion, RemoteNetworkVersion);
 						FNetControlMessage<NMT_Upgrade>::Send(Connection, LocalNetworkVersion);
-						bCloseConnection = true;
+				return false;
 					}
-					else
-					{
+
+			// if the client didn't specify an encryption token we're done with Hello
 						if (EncryptionToken.IsEmpty())
 						{
-							SendWelcomeControlMessage(Connection);
+				OnHelloSequenceComplete(Connection);
 						}
 						else
 						{
-							if (FNetDelegates::OnReceivedNetworkEncryptionToken.IsBound())
+				// make sure the delegate is bound then route it there
+				if (!FNetDelegates::OnReceivedNetworkEncryptionToken.IsBound())
 							{
-								TWeakObjectPtr<UNetConnection> WeakConnection = Connection;
-								FNetDelegates::OnReceivedNetworkEncryptionToken.Execute(EncryptionToken, FOnEncryptionKeyResponse::CreateUObject(this, &AOnlineBeaconHost::SendWelcomeControlMessage, WeakConnection));
-							}
-							else
-							{
-								FString FailureMsg(TEXT("Encryption failure"));
-								UE_LOG(LogBeacon, Warning, TEXT("%s: No delegate available to handle encryption token, disconnecting."), *Connection->GetName());
-								FNetControlMessage<NMT_Failure>::Send(Connection, FailureMsg);
-								bCloseConnection = true;
-							}
-						}
-					}
+					static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconEncryptionNotBoundError", "Encryption failure");
+					SendFailurePacket(Connection, ErrorTxt);
+					return false;
 				}
 
-				break;
+								TWeakObjectPtr<UNetConnection> WeakConnection = Connection;
+				FNetDelegates::OnReceivedNetworkEncryptionToken.Execute(EncryptionToken, FOnEncryptionKeyResponse::CreateUObject(this, &AOnlineBeaconHost::OnEncryptionResponse, WeakConnection));
+							}
+		}
+		break;
+	case NMT_Login:
+							{
+			if (!ConnState->bHasSentChallenge || ConnState->bHasSentLogin)
+			{
+				SendFailurePacket(Connection, FText::Format(Error_ControlFlow, FText::FromString(TEXT("NMT_Login"))));
+				return false;
+							}
+			ConnState->bHasSentLogin = true;
+
+			// parse the packet
+			FUniqueNetIdRepl UniqueIdRepl;
+			FString OnlinePlatformName;
+
+			// Expand the maximum string serialization size to accommodate an authentication token.
+			Bunch.ArMaxSerializeSize += MaxAuthTokenSize;
+			bool bReceived = FNetControlMessage<NMT_Login>::Receive(Bunch, Connection->ClientResponse, Connection->RequestURL, UniqueIdRepl, OnlinePlatformName);
+			Bunch.ArMaxSerializeSize -= MaxAuthTokenSize;
+
+			if (!bReceived)
+			{
+				SendFailurePacket(Connection, FText::Format(Error_UnableToParsePacket, FText::FromString(TEXT("NMT_Login"))));
+				return false;
+						}
+
+			if (!UniqueIdRepl.IsValid())
+			{
+				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconLoginInvalidIdError", "Login Failure. Invalid ID.");
+				SendFailurePacket(Connection, ErrorTxt);
+				return false;
+					}
+
+			// Only the options/portal for the URL should be used during join
+			FString OptionsURL;
+			const int32 OptionsStart = Connection->RequestURL.Find(TEXT("?"));
+			if (OptionsStart != INDEX_NONE)
+			{
+				OptionsURL = Connection->RequestURL.RightChop(OptionsStart);
+				}
+
+			UE_LOG(LogBeacon, Log, TEXT("%s: Login request: %s userId: %s platform: %s"),
+				*GetDebugName(Connection), *OptionsURL, *UniqueIdRepl.ToDebugString(), *OnlinePlatformName);
+
+			// keep track of net id for player associated with remote connection
+			Connection->PlayerId = UniqueIdRepl;
+
+			// keep track of the online platform the player associated with this connection is using.
+			Connection->SetPlayerOnlinePlatformName(FName(*OnlinePlatformName));
+
+			// Try to kick off verification for this player.
+			if (!StartVerifyAuthentication(*UniqueIdRepl, UGameplayStatics::ParseOption(OptionsURL, TEXT("AuthTicket"))))
+			{
+				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconLoginInvalidAuthHandlerError", "Login Failure. Unable to process authentication.");
+				SendFailurePacket(Connection, ErrorTxt);
+				return false;
 			}
+		}
+				break;
 		case NMT_Netspeed:
 			{
-				int32 Rate;
-
-				if (FNetControlMessage<NMT_Netspeed>::Receive(Bunch, Rate))
-				{
-					Connection->CurrentNetSpeed = FMath::Clamp(Rate, 1800, NetDriver->MaxClientRate);
-					UE_LOG(LogBeacon, Log, TEXT("Client netspeed is %i"), Connection->CurrentNetSpeed);
-				}
-
-				break;
+			if (!ConnState->bHasSentWelcome || ConnState->bHasSetNetspeed)
+			{
+				SendFailurePacket(Connection, FText::Format(Error_ControlFlow, FText::FromString(TEXT("NMT_Netspeed"))));
+				return false;
 			}
+			ConnState->bHasSetNetspeed = true;
+
+				int32 Rate;
+			if (!FNetControlMessage<NMT_Netspeed>::Receive(Bunch, Rate))
+				{
+				SendFailurePacket(Connection, FText::Format(Error_UnableToParsePacket, FText::FromString(TEXT("NMT_Netspeed"))));
+				return false;
+			}
+					Connection->CurrentNetSpeed = FMath::Clamp(Rate, 1800, NetDriver->MaxClientRate);
+			UE_LOG(LogBeacon, Log, TEXT("%s: Client netspeed is %i"), *GetDebugName(Connection), Connection->CurrentNetSpeed);
+				}
+				break;
 		case NMT_BeaconJoin:
 			{
-				FString ErrorMsg;
+			if (!ConnState->bHasSetNetspeed || ConnState->bHasJoined || (bAuthRequired && !ConnState->bHasAuthenticated))
+			{
+				SendFailurePacket(Connection, FText::Format(Error_ControlFlow, FText::FromString(TEXT("NMT_BeaconJoin"))));
+				return false;
+			}
+			ConnState->bHasJoined = true;
+
 				FString BeaconType;
 				FUniqueNetIdRepl UniqueId;
+			if (!FNetControlMessage<NMT_BeaconJoin>::Receive(Bunch, BeaconType, UniqueId))
+			{
+				SendFailurePacket(Connection, FText::Format(Error_UnableToParsePacket, FText::FromString(TEXT("NMT_BeaconJoin"))));
+				return false;
+			}
 
-				if (FNetControlMessage<NMT_BeaconJoin>::Receive(Bunch, BeaconType, UniqueId))
+			// validate the player ID
+			if (bAuthRequired)
 				{
-					UE_LOG(LogBeacon, Log, TEXT("Beacon Join %s %s"), *BeaconType, *UniqueId.ToDebugString());
+				// this should have already been set on the connection when we validated them, so it must match
+				if (!UniqueId.IsValid() || UniqueId != Connection->PlayerId)
+				{
+					static const FText AuthErrorText = NSLOCTEXT("NetworkErrors", "BeaconAuthError", "Unable to authenticate for beacon. {0} is not valid for connection owned by {1}");
+					SendFailurePacket(Connection, FText::Format(AuthErrorText, FText::FromString(UniqueId.ToDebugString()), FText::FromString(Connection->PlayerId.ToDebugString())));
+					return false;
+				}
+				UE_LOG(LogBeacon, Log, TEXT("%s: Beacon Join %s %s"), *GetDebugName(Connection), *BeaconType, *UniqueId.ToDebugString());
+			}
+			else
+			{
+				UE_LOG(LogBeacon, Log, TEXT("%s: Beacon Join %s %s (unauthenticated)"), *GetDebugName(Connection), *BeaconType, *UniqueId.ToDebugString());
+			}
 
-					if (Connection->GetClientWorldPackageName() == NAME_None)
+			// set the connection's client world package
+			if (Connection->GetClientWorldPackageName() != NAME_None)
 					{
+				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconSpawnClientWorldPackageNameError", "Join failure, existing ClientWorldPackageName.");
+				SendFailurePacket(Connection, ErrorTxt);
+				return false;
+			}
 						AOnlineBeaconClient* ClientActor = GetClientActor(Connection);
-						if (ClientActor == nullptr)
+			if (ClientActor != nullptr)
 						{
+				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconSpawnExistingActorError", "Join failure, existing beacon actor.");
+				SendFailurePacket(Connection, ErrorTxt);
+				return false;
+			}
 							UWorld* World = GetWorld();
 							Connection->SetClientWorldPackageName(World->GetOutermost()->GetFName());
 
+			// spawn the beacon actor for this client
 							AOnlineBeaconClient* NewClientActor = nullptr;
 							FOnBeaconSpawned* OnBeaconSpawnedDelegate = OnBeaconSpawnedMapping.Find(BeaconType);
 							if (OnBeaconSpawnedDelegate && OnBeaconSpawnedDelegate->IsBound())
@@ -165,138 +335,118 @@ void AOnlineBeaconHost::NotifyControlMessage(UNetConnection* Connection, uint8 M
 								NewClientActor = OnBeaconSpawnedDelegate->Execute(Connection);
 							}
 
-							if (NewClientActor && BeaconType == NewClientActor->GetBeaconType())
+			// make sure it spawned correctly
+			if (NewClientActor == nullptr || BeaconType != NewClientActor->GetBeaconType())
 							{
+				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconSpawnFailureError", "Join failure, Couldn't spawn client beacon actor.");
+				SendFailurePacket(Connection, ErrorTxt);
+				return false;
+			}
+
+			Connection->SetClientLoginState(EClientLoginState::ReceivedJoin);
 								NewClientActor->SetConnectionState(EBeaconConnectionState::Pending);
 
 								FNetworkGUID NetGUID = Connection->Driver->GuidCache->AssignNewNetGUID_Server(NewClientActor);
 								NewClientActor->SetNetConnection(Connection);
 								Connection->PlayerId = UniqueId;
-								Connection->OwningActor = NewClientActor;
-								Connection->SetClientLoginState(EClientLoginState::ReceivedJoin);
 								NewClientActor->SetRole(ROLE_Authority);
 								NewClientActor->SetReplicates(false);
 								check(NetDriverName == NetDriver->NetDriverName);
 								NewClientActor->SetNetDriverName(NetDriverName);
 								ClientActors.Add(NewClientActor);
+
 								FNetControlMessage<NMT_BeaconAssignGUID>::Send(Connection, NetGUID);
 							}
-							else
+		break;
+	case NMT_BeaconNetGUIDAck:
+		{
+			if (!ConnState->bHasJoined || ConnState->bHasCompletedAck)
 							{
-								ErrorMsg = NSLOCTEXT("NetworkErrors", "BeaconSpawnFailureError", "Join failure, Couldn't spawn beacon.").ToString();
+				SendFailurePacket(Connection, FText::Format(Error_ControlFlow, FText::FromString(TEXT("NMT_BeaconNetGUIDAck"))));
+				return false;
 							}
-						}
-						else
+			ConnState->bHasCompletedAck = true;
+
+			FString BeaconType;
+			if (!FNetControlMessage<NMT_BeaconNetGUIDAck>::Receive(Bunch, BeaconType))
 						{
-							ErrorMsg = NSLOCTEXT("NetworkErrors", "BeaconSpawnExistingActorError", "Join failure, existing beacon actor.").ToString();
+				SendFailurePacket(Connection, FText::Format(Error_UnableToParsePacket, FText::FromString(TEXT("NMT_BeaconNetGUIDAck"))));
+				return false;
 						}
-					}
-					else
+
+			AOnlineBeaconClient* ClientActor = GetClientActor(Connection);
+			if (ClientActor == nullptr || BeaconType != ClientActor->GetBeaconType())
 					{
-						ErrorMsg = NSLOCTEXT("NetworkErrors", "BeaconSpawnClientWorldPackageNameError", "Join failure, existing ClientWorldPackageName.").ToString();
+				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconSpawnNetGUIDAckError2", "Join failure, no actor at NetGUIDAck.");
+				SendFailurePacket(Connection, ErrorTxt);
+				return false;
 					}
 
-					if (!ErrorMsg.IsEmpty())
+			FOnBeaconConnected* OnBeaconConnectedDelegate = OnBeaconConnectedMapping.Find(BeaconType);
+			if (OnBeaconConnectedDelegate == nullptr)
 					{
-						UE_LOG(LogBeacon, Log, TEXT("%s: %s"), *Connection->GetName(), *ErrorMsg);
-						FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
-						bCloseConnection = true;
-					}
+				static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconSpawnNetGUIDAckError1", "Join failure, no host object at NetGUIDAck.");
+				SendFailurePacket(Connection, ErrorTxt);
+				return false;
 				}
 
-				break;
-			}
-		case NMT_BeaconNetGUIDAck:
-			{
-				FString ErrorMsg;
-				FString BeaconType;
+			// once we change the owning actor we can't clean up state anymore, but at this point we don't need to
+			ConnectionState.Remove(Connection);
+			Connection->OwningActor = ClientActor;
 
-				if (FNetControlMessage<NMT_BeaconNetGUIDAck>::Receive(Bunch, BeaconType))
-				{
-					AOnlineBeaconClient* ClientActor = GetClientActor(Connection);
-					if (ClientActor && BeaconType == ClientActor->GetBeaconType())
-					{
-						FOnBeaconConnected* OnBeaconConnectedDelegate = OnBeaconConnectedMapping.Find(BeaconType);
-						if (OnBeaconConnectedDelegate)
-						{
 							ClientActor->SetReplicates(true);
 							ClientActor->SetAutonomousProxy(true);
 							ClientActor->SetConnectionState(EBeaconConnectionState::Open);
 							// Send an RPC to the client to open the actor channel and guarantee RPCs will work
 							ClientActor->ClientOnConnected();
-							UE_LOG(LogBeacon, Log, TEXT("Handshake complete for %s!"), *ClientActor->GetName());
+			UE_LOG(LogBeacon, Log, TEXT("%s: Handshake complete."), *GetDebugName(Connection));
 
 							OnBeaconConnectedDelegate->ExecuteIfBound(ClientActor, Connection);
 						}
-						else
+		break;
+	default:
 						{
-							// Failed to connect.
-							ErrorMsg = NSLOCTEXT("NetworkErrors", "BeaconSpawnNetGUIDAckError1", "Join failure, no host object at NetGUIDAck.").ToString();
+			static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconSpawnUnexpectedError", "Join failure, unexpected control message.");
+			SendFailurePacket(Connection, ErrorTxt);
+			return false;
 						}
 					}
-					else
-					{
-						// Failed to connect.
-						ErrorMsg = NSLOCTEXT("NetworkErrors", "BeaconSpawnNetGUIDAckError2", "Join failure, no actor at NetGUIDAck.").ToString();
+
+	// if we made it here, leave the connection open
+	return true;
 					}
 
-					if (!ErrorMsg.IsEmpty())
-					{
-						UE_LOG(LogBeacon, Log, TEXT("%s: %s"), *Connection->GetName(), *ErrorMsg);
-						FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
-						bCloseConnection = true;
-					}
-				}
-
-				break;
-			}
-		case NMT_BeaconWelcome:
-		case NMT_BeaconAssignGUID:
-		default:
+void AOnlineBeaconHost::SendFailurePacket(UNetConnection* Connection, const FText& ErrorText)
 			{
-				FString ErrorMsg = NSLOCTEXT("NetworkErrors", "BeaconSpawnUnexpectedError", "Join failure, unexpected control message.").ToString();
-				UE_LOG(LogBeacon, Log, TEXT("%s: %s"), *Connection->GetName(), *ErrorMsg);
+	FString ErrorMsg = ErrorText.ToString();
+	UE_LOG(LogBeacon, Log, TEXT("%s: Send failure: %s"), *GetDebugName(Connection), *ErrorMsg);
 				FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
-				bCloseConnection = true;
-			}
-			break;
 		}
 
-		if (bCloseConnection)
+void AOnlineBeaconHost::CloseHandshakeConnection(UNetConnection* Connection)
 		{		
-			UE_LOG(LogBeacon, Verbose, TEXT("Closing connection %s: %s"), *Connection->GetName(), *Connection->PlayerId.ToDebugString());
-			AOnlineBeaconClient* ClientActor = GetClientActor(Connection);
-			if (ClientActor)
+	if (Connection && Connection->GetConnectionState() != USOCK_Closed)
 			{
-				UE_LOG(LogBeacon, Verbose, TEXT("- BeaconActor: %s %s"), *ClientActor->GetName(), *ClientActor->GetBeaconType());
-				AOnlineBeaconHostObject* BeaconHostObject = GetHost(ClientActor->GetBeaconType());
-				if (BeaconHostObject)
-				{
-					UE_LOG(LogBeacon, Verbose, TEXT("- HostObject: %s"), *BeaconHostObject->GetName());
-					BeaconHostObject->NotifyClientDisconnected(ClientActor);
-				}
-
-				RemoveClientActor(ClientActor);
-			}
-
+		UE_LOG(LogBeacon, Verbose, TEXT("%s: Closing connection: %s"), *GetDebugName(Connection), *Connection->PlayerId.ToDebugString());
+		OnConnectionClosed(Connection);
+		Connection->OwningActor = nullptr; // don't notify us again
 			Connection->FlushNet(true);
 			Connection->Close();
 			UE_LOG(LogBeacon, Verbose, TEXT("--------------------------------"));
 		}
 	}
-}
 
 void AOnlineBeaconHost::DisconnectClient(AOnlineBeaconClient* ClientActor)
 {
-	if (ClientActor && ClientActor->GetConnectionState() != EBeaconConnectionState::Closed && !ClientActor->IsPendingKill())
+	if (IsValid(ClientActor) && ClientActor->GetConnectionState() != EBeaconConnectionState::Closed)
 	{
 		ClientActor->SetConnectionState(EBeaconConnectionState::Closed);
 
 		UNetConnection* Connection = ClientActor->GetNetConnection();
 
-		UE_LOG(LogBeacon, Log, TEXT("DisconnectClient for %s. UNetConnection %s UNetDriver %s State %d"), 
+		UE_LOG(LogBeacon, Log, TEXT("%s: DisconnectClient for %s. UNetDriver %s State %d"),
+			*GetDebugName(Connection),
 			*GetNameSafe(ClientActor), 
-			*GetNameSafe(Connection), 
 			Connection ? *GetNameSafe(Connection->Driver) : TEXT("null"),
 			Connection ? Connection->GetConnectionState() : -1);
 
@@ -334,28 +484,91 @@ void AOnlineBeaconHost::RemoveClientActor(AOnlineBeaconClient* ClientActor)
 	}
 }
 
-void AOnlineBeaconHost::SendWelcomeControlMessage(UNetConnection* Connection)
+bool AOnlineBeaconHost::StartVerifyAuthentication(const FUniqueNetId& PlayerId, const FString& AuthenticationToken)
 {
-	if (Connection)
+	return false;
+}
+
+void AOnlineBeaconHost::OnAuthenticationVerificationComplete(const class FUniqueNetId& PlayerId, const FOnlineError& Error)
 	{
-		if (Connection->GetConnectionState() != USOCK_Invalid && Connection->GetConnectionState() != USOCK_Closed && Connection->Driver)
+	UNetConnection* Connection = nullptr;
+	FConnectionState* ConnState = nullptr;
+	if (GetConnectionDataForUniqueNetId(PlayerId, Connection, ConnState))
 		{
-			Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
+		if (ConnState->bHasSentLogin && !ConnState->bHasSentWelcome)
+		{
+			// Gating login on valid authentication. Do not fail open so that users are known to have access.
+			if (Error.WasSuccessful())
+			{
+				// Mark user as authenticated.
+				ConnState->bHasAuthenticated = true;
+
+				// send the welcome packet
+				UE_LOG(LogBeacon, Verbose, TEXT("%s: User authenticated: %s"), *GetDebugName(Connection), *PlayerId.ToString());
+				ConnState->bHasSentWelcome = true;
 			FNetControlMessage<NMT_BeaconWelcome>::Send(Connection);
 			Connection->FlushNet();
 		}
 		else
 		{
-			UE_LOG(LogBeacon, Log, TEXT("OnlineBeaconHost::SendWelcomeControlMessage: connection in invalid state. %s"), *Connection->Describe());
+				// Auth failure.
+				UE_LOG(LogBeacon, Log, TEXT("%s: Failed to authenticate user: %s error: %s"), *GetDebugName(Connection), *PlayerId.ToString(), *Error.ToLogString());
+				SendFailurePacket(Connection, Error_Authentication);
+				CloseHandshakeConnection(Connection);
+			}
 		}
+		}
+	}
+
+FString AOnlineBeaconHost::GetDebugName(UNetConnection* Connection)
+{
+	return FString::Printf(TEXT("%s[%s]"), *GetName(), *GetNameSafe(Connection));
+}
+
+void AOnlineBeaconHost::OnHelloSequenceComplete(UNetConnection* Connection)
+{
+	if (Connection == nullptr)
+	{
+		UE_LOG(LogBeacon, Log, TEXT("%s: OnlineBeaconHost::OnHelloSequenceComplete: Connection is null."), *GetDebugName());
+		return;
+	}
+	if (Connection->GetConnectionState() == USOCK_Invalid || Connection->GetConnectionState() == USOCK_Closed || Connection->Driver == nullptr)
+	{
+		UE_LOG(LogBeacon, Log, TEXT("%s: OnlineBeaconHost::OnHelloSequenceComplete: connection in invalid state. %s"), *GetDebugName(Connection), *Connection->Describe());
+		return;
+	}
+	FConnectionState* ConnState = ConnectionState.Find(Connection);
+	if (ConnState == nullptr)
+	{
+		UE_LOG(LogBeacon, Log, TEXT("%s: OnlineBeaconHost::OnHelloSequenceComplete: unable to find connection state."), *GetDebugName(Connection));
+		return;
+	}
+	if (ConnState->bHasSentWelcome)
+	{
+		UE_LOG(LogBeacon, Log, TEXT("%s: OnlineBeaconHost::OnHelloSequenceComplete: sequence error, user already sent welcome."), *GetDebugName(Connection));
+		return;
+	}
+
+	if (bAuthRequired)
+	{
+		// ask the client to send login
+		UE_LOG(LogBeacon, Verbose, TEXT("%s: Sending challenge."), *GetDebugName(Connection));
+		ConnState->bHasSentChallenge = true;
+		Connection->SetClientLoginState(EClientLoginState::LoggingIn);
+		Connection->SendChallengeControlMessage();
 	}
 	else
 	{
-		UE_LOG(LogBeacon, Log, TEXT("OnlineBeaconHost::SendWelcomeControlMessage: Connection is null."));
+		// send the welcome method (no challenge)
+		UE_LOG(LogBeacon, Verbose, TEXT("%s: Connection welcomed."), *GetDebugName(Connection));
+		Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
+		ConnState->bHasSentWelcome = true;
+		FNetControlMessage<NMT_BeaconWelcome>::Send(Connection);
 	}
+	Connection->FlushNet();
 }
 
-void AOnlineBeaconHost::SendWelcomeControlMessage(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection)
+void AOnlineBeaconHost::OnEncryptionResponse(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection)
 {
 	UNetConnection* Connection = WeakConnection.Get();
 	if (Connection)
@@ -365,12 +578,12 @@ void AOnlineBeaconHost::SendWelcomeControlMessage(const FEncryptionKeyResponse& 
 			if (Response.Response == EEncryptionResponse::Success)
 			{
 				Connection->EnableEncryptionServer(Response.EncryptionData);
-				SendWelcomeControlMessage(Connection);
+				OnHelloSequenceComplete(Connection);
 			}
 			else
 			{
 				FString ResponseStr(LexToString(Response.Response));
-				UE_LOG(LogBeacon, Warning, TEXT("OnlineBeaconHost::SendWelcomeControlMessage: encryption failure [%s] %s"), *ResponseStr, *Response.ErrorMsg);
+				UE_LOG(LogBeacon, Warning, TEXT("%s: OnlineBeaconHost::OnEncryptionResponse: encryption failure [%s] %s"), *GetDebugName(Connection), *ResponseStr, *Response.ErrorMsg);
 				FNetControlMessage<NMT_Failure>::Send(Connection, ResponseStr);
 				Connection->FlushNet();
 				// Can't close the connection here since it will leave the failure message in the send buffer and just close the socket. 
@@ -379,12 +592,12 @@ void AOnlineBeaconHost::SendWelcomeControlMessage(const FEncryptionKeyResponse& 
 		}
 		else
 		{
-			UE_LOG(LogBeacon, Warning, TEXT("OnlineBeaconHost::SendWelcomeControlMessage: connection in invalid state. %s"), *Connection->Describe());
+			UE_LOG(LogBeacon, Warning, TEXT("%s: OnlineBeaconHost::OnEncryptionResponse: connection in invalid state. %s"), *GetDebugName(Connection), *Connection->Describe());
 		}
 	}
 	else
 	{
-		UE_LOG(LogBeacon, Warning, TEXT("OnlineBeaconHost::SendWelcomeControlMessage: Connection is null."));
+		UE_LOG(LogBeacon, Warning, TEXT("%s: OnlineBeaconHost::OnEncryptionResponse: Connection is null."), *GetDebugName());
 	}
 }
 
@@ -399,7 +612,7 @@ void AOnlineBeaconHost::RegisterHost(AOnlineBeaconHostObject* NewHostObject)
 	}
 	else
 	{
-		UE_LOG(LogBeacon, Warning, TEXT("Beacon host type %s already exists"), *BeaconType);
+		UE_LOG(LogBeacon, Warning, TEXT("%s: Beacon host type %s already exists"), *GetName(), *BeaconType);
 	}
 }
 

@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "ISceneValidator.h"
 
-#include "Array.h"
-#include "Map.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "DatasmithTypes.h"
+#include "IDatasmithSceneElements.h"
 
-BEGIN_NAMESPACE_UE_AC
+namespace Validator {
 
 class FNamePtr
 {
@@ -31,18 +33,10 @@ inline uint32 GetTypeHash(const FNamePtr& A)
 	return FCrc::Strihash_DEPRECATED(FCString::Strlen(A.Name), A.Name);
 }
 
-class FSceneValidator
+class FSceneValidator : public ISceneValidator
 {
   public:
-	enum TInfoLevel
-	{
-		kBug,
-		kError,
-		kWarning,
-		kVerbose,
-		kInfoLevelMax
-	};
-	static const utf8_t* LevelName(TInfoLevel Level);
+	static const TCHAR* LevelName(TInfoLevel Level);
 
 	FSceneValidator(const TSharedRef< IDatasmithScene >& InScene);
 
@@ -52,13 +46,19 @@ class FSceneValidator
 
 	FString GetElementsDescription(const IDatasmithElement& InElement);
 
-	void CheckElementsName();
+    virtual void CheckTexturesFiles() override;
 
-	void CheckActorsName(const IDatasmithActorElement& InActor);
+    virtual void CheckMeshFiles() override;
 
-	void CheckDependances();
+    virtual void CheckElementsName() override;
 
-	void CheckActorsDependances(const IDatasmithActorElement& InActor);
+    virtual void CheckActorsName(const IDatasmithActorElement& InActor) override;
+
+    virtual void CheckDependances() override;
+
+    virtual void CheckActorsDependances(const IDatasmithActorElement& InActor) override;
+
+    virtual FString GetReports(TInfoLevel Level) override;
 
 	typedef TMap< FNamePtr, const IDatasmithElement* > MapNameToElement;
 
@@ -89,8 +89,6 @@ class FSceneValidator
 
 	void AddMessageImpl(TInfoLevel Level, const FString& Message);
 
-	void PrintReports(TInfoLevel Level);
-
 	class FMessage
 	{
 	  public:
@@ -109,4 +107,4 @@ class FSceneValidator
 	uint32_t MessagesCounts[kInfoLevelMax] = {};
 };
 
-END_NAMESPACE_UE_AC
+} // namespace Validator

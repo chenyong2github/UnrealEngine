@@ -665,6 +665,7 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, Category=Character, meta=(DisplayName="CanJump"))
 	bool CanJumpInternal() const;
 	virtual bool CanJumpInternal_Implementation() const;
+	bool JumpIsAllowedInternal() const;
 
 public:
 

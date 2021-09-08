@@ -204,11 +204,6 @@ public:
 	void SetShowSelectedNodesOnly(bool Visible);
 	FOnShowSelectedNodesOnlyChanged& GetOnShowSelectedNodesOnlyChanged() { return OnShowSelectedNodesOnlyChangedEvent; }
 
-	/** Gets whether to jump to the start of the sequence when we start a recording or not. */
-	bool ShouldRewindOnRecord() const;
-	/** Sets whether to jump to the start of the sequence when we start a recording. */
-	void SetRewindOnRecord(bool bInRewindOnRecord);
-
 	/** Get zoom in/out position (mouse position or current time). */
 	ESequencerZoomPosition GetZoomPosition() const;
 	/** Set zoom in/out position (mouse position or current time). */
@@ -454,10 +449,6 @@ protected:
 	/** Only show selected nodes in the tree view. */
 	UPROPERTY( config, EditAnywhere, Category=General )
 	bool bShowSelectedNodesOnly;
-
-	/** Defines whether to jump back to the start of the sequence when a recording is started */
-	UPROPERTY(config, EditAnywhere, Category=General)
-	bool bRewindOnRecord;
 
 	/** Whether to zoom in on the current position or the current time in the timeline. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )

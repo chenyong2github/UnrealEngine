@@ -152,6 +152,7 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 		}
 
 		Options.LocalUserId = UserId;
+		Options.TargetUserId = UserId;
 
 		FReadStatsCallback* CallbackObj = new FReadStatsCallback();
 		CallbackObj->CallbackLambda = [this, StatsQueryContext](const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data)
@@ -178,6 +179,8 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 						EOS_Stats_Stat* ReadStat = nullptr;
 						if (EOS_Stats_CopyStatByName(EOSSubsystem->StatsHandle, &Options, &ReadStat) == EOS_EResult::EOS_Success)
 						{
+							UE_LOG_ONLINE_STATS(VeryVerbose, TEXT("Found value for stat %s"), *StatName);
+
 							UserStats->Stats.Add(StatName, FOnlineStatValue(ReadStat->Value));
 
 							EOS_Stats_Stat_Release(ReadStat);
@@ -185,6 +188,7 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 						else
 						{
 							// Put an empty stat in
+							UE_LOG_ONLINE_STATS(VeryVerbose, TEXT("Value not found for stat %s, adding empty value"), *StatName);
 							UserStats->Stats.Add(StatName, FOnlineStatValue());
 						}
 					}
@@ -196,14 +200,12 @@ void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray
 			}
 			if (StatsQueryContext->NumPlayerReads <= 0)
 			{
-				AppendStats(StatsCache, StatsQueryContext->StatsCache);
-
 				TArray<TSharedRef<const FOnlineStatsUserStats>> OutArray;
-				for (const TPair<FUniqueNetIdRef, TSharedRef<FOnlineStatsUserStats>>& StatsUser : StatsQueryContext->StatsCache)
+				for (const TPair<FUniqueNetIdRef, TSharedRef<FOnlineStatsUserStats>>& StatsUser : StatsCache)
 				{
 					OutArray.Add(StatsUser.Value);
 				}
-				StatsQueryContext->Delegate.ExecuteIfBound(FOnlineError(StatsQueryContext->StatsCache.Num() > 0), OutArray);
+				StatsQueryContext->Delegate.ExecuteIfBound(FOnlineError(StatsCache.Num() > 0), OutArray);
 			}
 		};
 		EOS_Stats_QueryStats(EOSSubsystem->StatsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());

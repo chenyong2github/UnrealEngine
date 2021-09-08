@@ -16,6 +16,8 @@
 #include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "DynamicMeshBuilder.h"
 
+#include "HAL/IConsoleManager.h"
+
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
@@ -39,7 +41,6 @@
 
 #if CHAOS_DEBUG_DRAW
 #include "Chaos/DebugDrawQueue.h"
-#include "HAL/IConsoleManager.h"
 #endif  // #if CHAOS_DEBUG_DRAW
 
 #if !UE_BUILD_SHIPPING
@@ -52,8 +53,9 @@
 #include "ChaosClothingSimulation.ispc.generated.h"
 #endif
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
+#if INTEL_ISPC && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)  // Include only used for the Ispc command
 #include "Chaos/PBDCollisionConstraints.h"
+#include "Chaos/PBDEvolution.h"
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/PBDAxialSpringConstraints.h"
 #include "Chaos/PerParticleDampVelocity.h"
@@ -61,8 +63,9 @@
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDLongRangeConstraints.h"
 #include "Chaos/VelocityField.h"
-#include "HAL/IConsoleManager.h"
+#endif
 
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
 bool bChaos_GetSimData_ISPC_Enabled = true;
 FAutoConsoleVariableRef CVarChaosGetSimDataISPCEnabled(TEXT("p.Chaos.GetSimData.ISPC"), bChaos_GetSimData_ISPC_Enabled, TEXT("Whether to use ISPC optimizations when getting simulation data"));
 #endif
@@ -98,8 +101,6 @@ namespace ChaosClothingSimulationCVar
 #endif  // #if CHAOS_DEBUG_DRAW
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#include "HAL/IConsoleManager.h"
-
 namespace ChaosClothingSimulationConsole
 {
 	class FCommand final
@@ -186,6 +187,10 @@ namespace ChaosClothingSimulationConsole
 				bChaos_PerParticleCollision_ISPC_Enabled =
 				bChaos_VelocityField_ISPC_Enabled =
 				bChaos_GetSimData_ISPC_Enabled =
+				bChaos_SkinPhysicsMesh_ISPC_Enabled =
+				bChaos_PreSimulationTransforms_ISPC_Enabled =
+				bChaos_CalculateBounds_ISPC_Enabled =
+				bChaos_PostIterationUpdates_ISPC_Enabled =
 					bEnableISPC;
 				return;
 			}

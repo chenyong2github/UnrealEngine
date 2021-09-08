@@ -15,8 +15,6 @@
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 
-TWeakObjectPtr<UMovieSceneSubSection> UMovieSceneSubSection::TheRecordingSection;
-
 float DeprecatedMagicNumber = TNumericLimits<float>::Lowest();
 
 /* UMovieSceneSubSection structors
@@ -195,63 +193,8 @@ void UMovieSceneSubSection::SetSequence(UMovieSceneSequence* Sequence)
 
 UMovieSceneSequence* UMovieSceneSubSection::GetSequence() const
 {
-	// when recording we need to act as if we have no sequence
-	// the sequence is patched at the end of recording
-	if(GetRecordingSection() == this)
-	{
-		return nullptr;
-	}
-	else
-	{
 		return SubSequence;
 	}
-}
-
-UMovieSceneSubSection* UMovieSceneSubSection::GetRecordingSection()
-{
-	// check if the section is still valid and part of a track (i.e. it has not been deleted or GCed)
-	if(TheRecordingSection.IsValid())
-	{
-		UMovieSceneTrack* TrackOuter = Cast<UMovieSceneTrack>(TheRecordingSection->GetOuter());
-		if(TrackOuter)
-		{
-			if(TrackOuter->HasSection(*TheRecordingSection.Get()))
-			{
-				return TheRecordingSection.Get();
-			}
-		}
-	}
-
-	return nullptr;
-}
-
-void UMovieSceneSubSection::SetAsRecording(bool bRecord)
-{
-	if(bRecord)
-	{
-		TheRecordingSection = this;
-	}
-	else
-	{
-		TheRecordingSection = nullptr;
-	}
-}
-
-bool UMovieSceneSubSection::IsSetAsRecording()
-{
-	return GetRecordingSection() != nullptr;
-}
-
-AActor* UMovieSceneSubSection::GetActorToRecord()
-{
-	UMovieSceneSubSection* RecordingSection = GetRecordingSection();
-	if(RecordingSection)
-	{
-		return RecordingSection->ActorToRecord.Get();
-	}
-
-	return nullptr;
-}
 
 #if WITH_EDITOR
 void UMovieSceneSubSection::PreEditChange(FProperty* PropertyAboutToChange)

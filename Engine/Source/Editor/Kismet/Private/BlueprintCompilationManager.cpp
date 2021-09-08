@@ -776,7 +776,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 		CurrentlyCompilingBPs.RemoveAll(
 			[](FCompilerData& Data)
 			{ 
-				if(Data.BP->IsPendingKill())
+				if(!IsValid(Data.BP))
 				{
 					check(!Data.BP->bBeingCompiled);
 					check(Data.BP->CurrentMessageLog == nullptr);
@@ -2031,7 +2031,7 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 			
 			for(UClass* ClassToReinstance : ClassesToReinstanceList)
 			{
-				if(!ClassToReinstance->IsPendingKill())
+				if(IsValid(ClassToReinstance))
 				{
 					ClassesToReinstance.Add(ClassToReinstance);
 				}
@@ -2046,7 +2046,7 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 			
 			for(UClass* ClassToReparent : ClassesToReparentList)
 			{
-				if(!ClassToReparent->IsPendingKill())
+				if(IsValid(ClassToReparent))
 				{
 					ClassesToReparent.Add(ClassToReparent);
 				}

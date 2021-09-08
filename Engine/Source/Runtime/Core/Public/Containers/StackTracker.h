@@ -32,21 +32,18 @@ public:
 	typedef void (*StackTrackerUpdateFn)( const FCallStack& CallStack, void* UserData);
 	/** Used to optionally report information based on the current stack */
 	typedef void (*StackTrackerReportFn)( const FCallStack& CallStack, uint64 TotalStackCount, FOutputDevice& Ar );
+	/** Used to delete a provided userdata pointer e.g. call the correct destructor */
+	typedef void (*StackTrackerDeleteUserDataFn)(void*);
+
+	static void DefaultDeleteUserDataFn(void* UserData);
 
 	/** Constructor, initializing all member variables */
-	FStackTracker(StackTrackerUpdateFn InUpdateFn = NULL, StackTrackerReportFn InReportFn = NULL, bool bInIsEnabled = false)
-		:	bAvoidCapturing(false)
-		,	bIsEnabled(bInIsEnabled)
-		,	StartFrameCounter(0)
-		,	StopFrameCounter(0)
-		,   UpdateFn(InUpdateFn)
-		,   ReportFn(InReportFn)
-	{ }
+	CORE_API FStackTracker(StackTrackerUpdateFn InUpdateFn = nullptr, StackTrackerReportFn InReportFn = nullptr, StackTrackerDeleteUserDataFn InDeleteUserDataFn = nullptr, bool bInIsEnabled = false);
 
 	/**
 	 * Captures the current stack and updates stack tracking information.
 	 * optionally stores a user data pointer that the tracker will take ownership of and delete upon reset
-	 * you must allocate the memory with FMemory::Malloc()
+	 * you must allocate the memory with FMemory::Malloc() or provide a custom delete function
 	 * EntriesToIgnore are removed from the top of then stack, then we keep at most StackLen of the remaining entries.
 	 */
 	CORE_API void CaptureStackTrace(int32 EntriesToIgnore = 2, void* UserData = nullptr, int32 StackLen = MAX_int32, bool bLookupStringsForAliasRemoval = false);
@@ -86,6 +83,8 @@ private:
 	StackTrackerUpdateFn UpdateFn;
 	/** Used to optionally report information based on the current stack */
 	StackTrackerReportFn ReportFn;
+	/** Used to delete a provided userdata pointer e.g. call the correct destructor */
+	StackTrackerDeleteUserDataFn DeleteUserDataFn;
 };
 
 

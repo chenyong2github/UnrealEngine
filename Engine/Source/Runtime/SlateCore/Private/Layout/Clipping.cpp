@@ -85,7 +85,7 @@ void FSlateClippingZone::InitializeFromArbitraryPoints(const FVector2D& InTopLef
 	// Since this is a rectangle check to edges.  If their points are equal they are aligned to the same axis and thus the whole rect is aligned
 	if (FMath::IsNearlyEqual(InTopLeft.X, InBottomLeft.X, Tolerance))
 	{
-		if (FMath::IsNearlyEqual(InBottomLeft.Y, InBottomLeft.Y, Tolerance))
+		if (FMath::IsNearlyEqual(InBottomLeft.Y, InBottomRight.Y, Tolerance))
 		{
 			bIsAxisAligned = true;
 		}

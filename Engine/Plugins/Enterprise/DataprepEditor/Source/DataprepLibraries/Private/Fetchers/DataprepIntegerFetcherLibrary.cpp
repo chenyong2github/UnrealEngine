@@ -17,7 +17,7 @@ int32 UDataprepTriangleCountFetcher::Fetch_Implementation(const UObject* Object,
 {
 	bOutFetchSucceded = false;
 
-	if ( Object && !Object->IsPendingKill() )
+	if ( IsValid(Object) )
 	{
 		auto GetStaticMeshTriangleCount = [](const UStaticMesh* StaticMesh) -> int
 		{
@@ -83,7 +83,7 @@ int32 UDataprepVertexCountFetcher::Fetch_Implementation(const UObject* Object, b
 {
 	bOutFetchSucceded = false;
 
-	if ( Object && !Object->IsPendingKill() )
+	if ( IsValid(Object) )
 	{
 		auto GetStaticMeshVertexCount = []( const UStaticMesh* StaticMesh ) -> int
 		{
