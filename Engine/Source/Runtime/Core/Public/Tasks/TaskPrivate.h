@@ -536,6 +536,7 @@ namespace UE { namespace Tasks
 				StartPipeExecution();
 
 				TaskBody();
+				TaskBody.Reset();
 
 				FinishPipeExecution();
 				TaskTrace::Finished(GetTraceId());
