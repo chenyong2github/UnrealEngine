@@ -165,24 +165,19 @@ void FParameterizeMeshOp::CopyNewUVsToMesh(
 	const TArray<int32>& VertexRemapArray,
 	bool bReverseOrientation)
 {
-	// Add the UVs to the FDynamicMesh
-	const bool bHasAttributes = Mesh.HasAttributes();
-
-	if (bHasAttributes)
+	if (!Mesh.HasAttributes())
 	{
-		FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
-		Attributes->GetUVLayer(UVLayer)->ClearElements(); // delete existing UVs
-	}
-	else
-	{
-		// Add attrs for UVS
 		Mesh.EnableAttributes();
 	}
-
 	FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(UVLayer);
+	if (UVOverlay == nullptr)
+	{
+		Mesh.Attributes()->SetNumUVLayers(UVLayer+1);
+		UVOverlay = Mesh.Attributes()->GetUVLayer(UVLayer);
+	}
 
-	// This mesh shouldn't already have UVs.
-
+	// delete any existing UVs
+	UVOverlay->ClearElements();
 	checkSlow(UVOverlay->ElementCount() == 0);
 
 	// Add the UVs to the overlay
