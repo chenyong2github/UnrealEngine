@@ -122,7 +122,8 @@ public:
 		Current += sizeof(uint16) * Header->seek_table_entry_count;
 
 		// We must be on the first frame.
-		ensure( (*((uint16*)Current)) == BLOCK_HEADER_MAGIC);
+		uint16 CurrentFrameValue = *(uint16*)Current;
+		ensure(BLOCK_HEADER_MAGIC == CurrentFrameValue);
 
 		int32 ChunkLimitBytes = InMaxInitialChunkSize;
 		for (;;)
