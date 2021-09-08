@@ -300,7 +300,7 @@ bool FRestoreInstancedComponent::RunTest(const FString& Parameters)
 				return Component->GetFName() == "InstancedAddedToActor";
 			});
 			TestTrue(TEXT("Instanced component was removed from actor"), RemovedComponent == nullptr);
-			TestTrue(TEXT("Removed component is marked from destroy"), InstancedAddedToActor->IsPendingKill());
+			TestTrue(TEXT("Removed component is marked from destroy"), !IsValid(InstancedAddedToActor));
 
 			// Component was added back
 			UActorComponent* const* PossibleRecreatedComponent = Actor->GetInstanceComponents().FindByPredicate([&](UActorComponent* Component)
