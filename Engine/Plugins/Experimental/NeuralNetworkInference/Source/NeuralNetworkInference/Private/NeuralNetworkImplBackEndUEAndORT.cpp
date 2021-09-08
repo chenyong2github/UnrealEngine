@@ -210,12 +210,9 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 
 #ifdef PLATFORM_WIN64
 			// Check if resource allocator is properly initialized
-			if (InOutImplBackEndUEAndORT->DmlGPUAllocator.IsValid())
+			if (InOutImplBackEndUEAndORT->DmlGPUAllocator.IsValid() && !InOutImplBackEndUEAndORT->DmlGPUAllocator->IsValid())
 			{
-				if (!InOutImplBackEndUEAndORT->DmlGPUAllocator->IsValid())
-				{
-					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load() DirectML GPU resource allocator has failed to initialize"));
-				}
+				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Load() DirectML GPU resource allocator has failed to initialize."));
 			}
 #endif
 		}
@@ -247,13 +244,11 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 
 void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 {
-#ifdef PLATFORM_WIN64
 #ifdef WITH_UE_AND_ORT_SUPPORT
-	
+#ifdef PLATFORM_WIN64
 	DmlGPUAllocator.Reset(nullptr);
-
-#endif
-#endif
+#endif //PLATFORM_WIN64
+#endif //WITH_UE_AND_ORT_SUPPORT
 }
 
 void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
@@ -355,7 +350,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 		// @todo for Nebojša.Dragosavac & Ginés.Hidalgo: Handle the default DX11 nicely
 		if (RHIName != TEXT("D3D12"))
 		{
-			//UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::ConfigureMembers(): Only DX12 (\"D3D12\")) rendering is compatible with UEAndORT-based NNI. Instead, \"%s\" was used."), *RHIName);
+			//UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::ConfigureMembers(): Only DX12 (\"D3D12\") rendering is compatible with UEAndORT-based NNI. Instead, \"%s\" was used."), *RHIName);
 			//return false;
 
 			// Temporary workaround to avoid breaking NNI
@@ -366,6 +361,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 			}
 			return true;
 		}
+UE_LOG(LogNeuralNetworkInference, Display, TEXT("Testing the experimental DX12 (\"D3D12\") back end."));
 
 		// Get adapter's D3D12 device that we would like to share with DirectML execution provider
 		// NOTE: For now we're only using first device that has Dadapter 0 and device 0

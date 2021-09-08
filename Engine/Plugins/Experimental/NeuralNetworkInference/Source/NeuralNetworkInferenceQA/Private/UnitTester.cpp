@@ -56,6 +56,7 @@ bool FUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& 
 	else
 	{
 		UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("----- UnitTesting() finished with warnings/errors! --------------------------------------------------------------------------------------------------"));
+		ensureMsgf(false, TEXT("UnitTesting() failed. See above log for more details."));
 	}
 
 	return bDidGlobalTestPassed;
