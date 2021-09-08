@@ -68,6 +68,11 @@ TUniquePtr<FSparseMatrixD> ConstructCotangentLaplacian(const FDynamicMesh3& Dyna
 	const bool bClampWeights = false,
 	TArray<int32>* BoundaryVerts = NULL);
 
+TUniquePtr<FSparseMatrixD> ConstructIDTCotangentLaplacian(const FDynamicMesh3& DynamicMesh,
+	FVertexLinearization& VertexMap,
+	const bool bClampWeights = false,
+	TArray<int32>* BoundaryVerts = NULL);
+
 TUniquePtr<FSparseMatrixD> ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh,
 	FVertexLinearization& VertexMap,
 	FSparseMatrixD& AreaMatrix,

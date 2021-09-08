@@ -9,6 +9,7 @@
 #include "Solvers/MeshLinearization.h"
 #include "Solvers/MeshLaplacian.h"
 #include "Solvers/PrecomputedMeshWeightData.h"
+#include "Spatial/IntrinsicTriangulationMesh.h"
 
 
 namespace UE
@@ -167,8 +168,31 @@ namespace UE
 			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary,
 			const bool bClampWeights);
 
-
-
+		/**
+		* Construct a sparse matrix representation using a pre-multiplied cotangent-weighted Laplacian, using an intrinsic Delaunay mesh internally 
+		* NB: there is no reason to expect this to be a symmetric matrix.
+		*
+		* This computes the laplacian scaled by the average area A_ave:  ie.  LScaled =   A_ave/(2A_i) ( Cot alpha_ij + Cot beta_ij )
+		*
+		* The mesh itself is assumed to have N interior vertices, and M boundary vertices.
+		*
+		* @param DynamicMesh        The triangle mesh
+		* @param VertexMap          Additional arrays used to map between vertexID and offset in a linear array (i.e. the row).
+		*                           The vertices are ordered so that last M ( = VertexMap.NumBoundaryVerts() )  correspond to those on the boundary.
+		* @param LaplacianInterior  On return, scaled laplacian operator that acts on the interior vertices: sparse  N x N matrix
+		* @param LaplacianBoundary  On return, scaled portion of the operator that acts on the boundary vertices: sparse  N x M matrix
+		* @param bClampAreas        Indicates if (A_ave / A_i) should be clamped to (0.5, 5) range.
+		*                           in practice this is desirable when creating the biharmonic operator, but not the mean curvature flow operator
+		*
+		*   LaplacianInterior * Vector_InteriorVerts + LaplacianBoundary * Vector_BoundaryVerts = Full Laplacian applied to interior vertices.
+		*/
+		template<typename RealType>
+		void ConstructIDTCotangentLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior,
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary,
+			const bool bClampWeights);
+		
+		
 		enum class ECotangentWeightMode
 		{
 			/** Standard cotangent weights */
@@ -196,6 +220,16 @@ namespace UE
 			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianMatrix,
 			ECotangentWeightMode WeightMode = ECotangentWeightMode::ClampedMagnitude,
 			ECotangentAreaMode AreaMode = ECotangentAreaMode::NoArea );
+		/**
+		* Use intrinsic Delaunay mesh to construct sparse Cotangent Laplacian matrix.
+		* This variant combines the N interior and M boundary vertices into a single (N+M) matrix and does not do any special treatment of boundaries,
+		* they just get standard Cotan weights.  
+		*/
+		template<typename RealType>
+		void ConstructFullIDTCotangentLaplacian(const FDynamicMesh3& Mesh, const FVertexLinearization& VertexMap,
+			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianMatrix,
+			ECotangentWeightMode WeightMode = ECotangentWeightMode::ClampedMagnitude,
+			ECotangentAreaMode AreaMode = ECotangentAreaMode::NoArea);
 
 	}
 }
@@ -659,7 +693,144 @@ void UE::MeshDeformation::ConstructCotangentLaplacian(const FDynamicMesh3& Dynam
 	}
 }
 
+template<typename RealType>
+void UE::MeshDeformation::ConstructIDTCotangentLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior,
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary,
+	const bool bClampWeights)
+{
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
 
+	// create intrinsic mesh with delaunay triangulation
+	UE::Geometry::FIntrinsicEdgeFlipMesh IntrinsicMesh(DynamicMesh);
+
+	TSet<int32> Uncorrected; // some edges can't be flipped.
+	const int32 NumFlips = UE::Geometry::FlipToDelaunay(IntrinsicMesh, Uncorrected);
+
+	// pre-allocate space when possible
+	int32 NumMatrixEntries = ComputeNumMatrixElements(IntrinsicMesh, ToMeshV);
+	LaplacianInterior.ReserveEntriesFunc(NumMatrixEntries);
+
+	// cache the cotan weight for each edge (i.e. 1/2 ( cot(a_ij) + cot(b_ij)  for edge(i,j) ) 
+	TArray<double> EdgeCotanWeights;
+	{
+		const int32 MaxEID = IntrinsicMesh.MaxEdgeID();
+		EdgeCotanWeights.AddZeroed(MaxEID);
+		for (int32 EdgeId = 0; EdgeId < MaxEID; ++EdgeId)
+		{
+			if (!IntrinsicMesh.IsEdge(EdgeId))
+			{
+				continue;
+			}
+			EdgeCotanWeights[EdgeId] = IntrinsicMesh.EdgeCotanWeight(EdgeId);
+		}
+	}
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+	//                             skipping the boundary verts for later use.
+	for (int32 i = 0; i < NumInteriorVerts; ++i)
+	{
+		const int32 IVertId = ToMeshV[i]; // I - the row
+
+		// Compute the Voronoi area for this vertex.
+		// 1/8 Sum ( cot(a) + cot(b) )*length^2
+		// see for example http://www.geometry.caltech.edu/pubs/DMSB_III.pdf
+		double WeightArea = 0.0; 
+		bool bUseUniform = false;
+		{
+			for (int32 EdgeId : IntrinsicMesh.VtxEdgesItr(IVertId))
+			{
+				const double EdgeLength = IntrinsicMesh.GetEdgeLength(EdgeId);
+				const double CTWeight = EdgeCotanWeights[EdgeId];
+				const double CTWeightLSqr = CTWeight * EdgeLength * EdgeLength;
+				
+				if (Uncorrected.Contains(EdgeId) || CTWeightLSqr < 1.e-1)
+				{
+					bUseUniform = true; 
+				}
+
+				WeightArea += CTWeightLSqr;
+			}
+			WeightArea *= 0.25;
+			WeightArea = FMath::Max(WeightArea, 1.e-5);
+		}		
+
+		double WeightII = 0.; // accumulate to equal and opposite the sum of the neighbor weights
+
+		if (bUseUniform)
+		{ 
+			// use uniform stencil for this vertex
+			for (int32 EdgeId : IntrinsicMesh.VtxEdgesItr(IVertId))
+			{
+				// note: both sides of the edge exist since this isn't a boundary vert
+				const FIndex2i EdgeV = IntrinsicMesh.GetEdgeV(EdgeId);
+				// the other vert in the edge - identifies the matrix column
+				const int32 JVertId = (EdgeV[0] == IVertId) ? EdgeV[1] : EdgeV[0];  // J - the column
+				const int32 j = ToIndex[JVertId];
+
+				double  WeightIJ = 1.;
+				WeightII += WeightIJ;
+
+				if (j < NumInteriorVerts)
+				{
+					LaplacianInterior.AddEntryFunc(i, j, (RealType)(WeightIJ));
+				}
+				else
+				{
+					int32 jBoundary = j - NumInteriorVerts;
+					LaplacianBoundary.AddEntryFunc(i, jBoundary, (RealType)(WeightIJ));
+				}
+			}
+			LaplacianInterior.AddEntryFunc(i, i, (RealType)(-WeightII));
+		}
+		else
+		{ 
+
+			// for each connecting edge
+			for (int32 EdgeId : IntrinsicMesh.VtxEdgesItr(IVertId))
+			{
+				// note: both sides of the edge exist since this isn't a boundary vert
+				const FIndex2i EdgeV = IntrinsicMesh.GetEdgeV(EdgeId);
+
+				if (EdgeV.A == EdgeV.B)
+				{
+					continue; // the weights cancle. 
+				}
+
+				double WeightIJ = EdgeCotanWeights[EdgeId];
+				if (bClampWeights)
+				{
+					WeightIJ = FMathd::Clamp(WeightIJ, -1.e5 * WeightArea, 1.e5 * WeightArea);
+				}
+
+				double Weight = (WeightIJ / WeightArea);
+				WeightII += Weight;
+
+				// the other vert in the edge - identifies the matrix column
+				const int32 JVertId = (EdgeV[0] == IVertId) ? EdgeV[1] : EdgeV[0];  // J - the column
+				const int32 j = ToIndex[JVertId];
+				
+				if (j < NumInteriorVerts)
+				{
+					LaplacianInterior.AddEntryFunc(i, j, (RealType)(Weight));
+				}
+				else
+				{
+					int32 jBoundary = j - NumInteriorVerts;
+					LaplacianBoundary.AddEntryFunc(i, jBoundary, (RealType)(Weight));
+				}
+
+			}
+
+			LaplacianInterior.AddEntryFunc(i, i, (RealType)(-WeightII));
+		}
+	}
+
+}
 
 
 
@@ -739,5 +910,102 @@ void UE::MeshDeformation::ConstructFullCotangentLaplacian(const FDynamicMesh3& M
 			LaplacianMatrix.AddEntryFunc(i, j, (RealType)(WeightIJ / WeightArea));
 		}
 		LaplacianMatrix.AddEntryFunc(i, i, (RealType)(-WeightII / WeightArea));
+	}
+}
+
+
+template<typename RealType>
+void UE::MeshDeformation::ConstructFullIDTCotangentLaplacian(const FDynamicMesh3& Mesh, const FVertexLinearization& VertexMap,
+	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianMatrix,
+	ECotangentWeightMode WeightMode,
+	ECotangentAreaMode AreaMode)
+{
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	// create intrinsic mesh with delaunay triangulation
+	UE::Geometry::FIntrinsicTriangulation IntrinsicMesh(Mesh);
+	TSet<int32> Uncorrected;
+	const int32 NumFlips = UE::Geometry::FlipToDelaunay(IntrinsicMesh, Uncorrected);
+
+	// pre-allocate space when possible
+	int32 NumMatrixEntries = ComputeNumMatrixElements(IntrinsicMesh, ToMeshV);
+	LaplacianMatrix.ReserveEntriesFunc(NumMatrixEntries);
+
+	// cache the cotan weight for each edge (i.e. 1/2 ( cot(a_ij) + cot(b_ij)  for edge(i,j) ) 
+	TArray<double> EdgeCotanWeights;
+	{
+		const int32 MaxEID = IntrinsicMesh.MaxEdgeID();
+		EdgeCotanWeights.AddUninitialized(MaxEID);
+		
+		for (int32 e = 0; e < MaxEID; ++e)
+		{
+			if (!IntrinsicMesh.IsEdge(e))
+			{
+				continue;
+			}
+			EdgeCotanWeights[e] = IntrinsicMesh.EdgeCotanWeight(e);
+		}
+	}
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+	for (int32 i = 0; i < NumVerts; ++i)
+	{
+		const int32 IVertId = ToMeshV[i]; // I - the row
+		
+		bool bUseUniform = false;
+		double WeightArea = 1.0;
+		if (AreaMode == ECotangentAreaMode::VoronoiArea)
+		{
+			// 1/8 Sum ( cot(a) + cot(b) )*length^2
+			// see for example http://www.geometry.caltech.edu/pubs/DMSB_III.pdf
+			WeightArea = 0.0;
+			for (int32 EdgeId : IntrinsicMesh.VtxEdgesItr(IVertId))
+			{
+				const double EdgeLength = IntrinsicMesh.GetEdgeLength(EdgeId);
+				const double CTWeight = EdgeCotanWeights[EdgeId];
+				const double CTWeightLSqr = CTWeight * EdgeLength * EdgeLength;
+
+				if (Uncorrected.Contains(EdgeId) || CTWeightLSqr < 1.e-1)
+				{
+					bUseUniform = true;
+				}
+
+				WeightArea += CTWeightLSqr;
+			}
+			WeightArea *= 0.25;  
+		}
+		if (bUseUniform)
+		{
+			WeightArea = 1.0;
+		}
+
+		double WeightII = 0.; // accumulate to equal and opposite the sum of the neighbor weights
+
+		for (int32 EdgeId : IntrinsicMesh.VtxEdgesItr(IVertId))
+		{
+			const FIndex2i EdgeV = IntrinsicMesh.GetEdgeV(EdgeId);
+			if (EdgeV.A == EdgeV.B)
+			{
+				continue; // weights will cancle.
+			}
+			// the other vert in the edge - identifies the matrix column
+			const int32 JVertId = (EdgeV[0] == IVertId) ? EdgeV[1] : EdgeV[0];  // J - the column
+
+			double WeightIJ = (bUseUniform) ? 1. : EdgeCotanWeights[EdgeId];
+
+			if (WeightMode == ECotangentWeightMode::ClampedMagnitude)
+			{
+				WeightIJ = FMathd::Clamp(WeightIJ, -1.e5 * WeightArea, 1.e5 * WeightArea);
+			}
+
+			double Weight = WeightIJ / WeightArea;
+			WeightII += Weight;
+
+			const int32 j = ToIndex[JVertId];
+			LaplacianMatrix.AddEntryFunc(i, j, (RealType)(Weight));
+		}
+		LaplacianMatrix.AddEntryFunc(i, i, (RealType)(-WeightII));
 	}
 }
