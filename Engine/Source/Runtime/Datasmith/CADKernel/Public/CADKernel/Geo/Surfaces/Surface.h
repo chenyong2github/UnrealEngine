@@ -81,7 +81,7 @@ namespace CADKernel
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
-			// Surface's type is serialize because it is used to instantiate the correct entity on deserialization (@see Deserialize(FCADKernelArchive& Archive)) 
+			// Surface's type is serialize because it is used to instantiate the correct entity on deserialization (@see Deserialize(FCADKernelArchive& Archive))
 			if (Ar.IsSaving())
 			{
 				ESurface SurfaceType = GetSurfaceType();
@@ -144,17 +144,17 @@ namespace CADKernel
 		}
 
 		/**
-		 * Return the minimum tolerance in the parametric space of the surface along the specified axis 
+		 * Return the minimum tolerance in the parametric space of the surface along the specified axis
 		 * With Tolerance3D = FSysteme.GeometricalTolerance
 		 * @see FBoundary::ComputeMinimalTolerance
 		 */
-		const double& GetIsoTolerance(EIso Iso) const
+		double GetIsoTolerance(EIso Iso) const
 		{
 			ensureCADKernel(MinToleranceIso.IsValid());
 			return ((FSurfacicTolerance) MinToleranceIso)[Iso];
 		}
 
-		const double Get3DTolerance()
+		double Get3DTolerance() const
 		{
 			return Tolerance3D;
 		}
