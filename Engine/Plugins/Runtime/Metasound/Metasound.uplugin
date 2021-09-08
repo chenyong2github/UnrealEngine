@@ -41,6 +41,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "MetasoundEngineTest",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "MetasoundEditor",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PostDefault"
