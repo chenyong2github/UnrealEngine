@@ -243,9 +243,6 @@ FSceneViewState::FSceneViewState()
 	bUpdateLastExposure = false;
 
 #if RHI_RAYTRACING
-	PathTracingSampleIndex = 0;
-	PathTracingFrameIndex = 0;
-
 	GatherPointsBuffer = nullptr;
 	GatherPointsResolution = FIntVector(0, 0, 0);
 #endif

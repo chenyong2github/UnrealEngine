@@ -9,6 +9,7 @@ PathTracingSolidGlass.ush: Microfacet Refractive BSDF for solid glass
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 #include "PathTracingGlossy.ush"
+#include "PathTracingEnergyConservation.ush"
 
 FMaterialSample RoughGlass_SampleMaterial(
 	float3 RayDirection,
@@ -22,7 +23,7 @@ FMaterialSample RoughGlass_SampleMaterial(
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
 	float Ior = Payload.Ior;
-	float Eta = bIsEntering ? Ior : 1.0 / Ior;
+	float Eta = bIsEntering ? Ior : rcp(Ior);
 
 	float2 Alpha;
 	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
@@ -36,6 +37,9 @@ FMaterialSample RoughGlass_SampleMaterial(
 		return NullMaterialSample();
 	}
 
+	// correct for energy loss by scaling the whole BSDF
+	const float E = GGXEnergyLookup(Payload.Roughness, NoV, Eta);
+
 	float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
 	float3 N = float3(0, 0, 1);
 	float NoH = saturate(H.z);
@@ -48,14 +52,14 @@ FMaterialSample RoughGlass_SampleMaterial(
 		const float2 GGXResult = GGXEvalRefraction(L, V, H, Alpha, Eta);
 
 		// transform to world space
-		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, -1.0, Payload.Roughness);
+		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x / E, F * GGXResult.y, -1.0, Payload.Roughness);
 	}
 	else
 	{
 		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
 
 		// transform to world space
-		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, 1.0, Payload.Roughness);
+		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x / E, F * GGXResult.y, 1.0, Payload.Roughness);
 	}
 }
 
@@ -73,7 +77,7 @@ FMaterialEval RoughGlass_EvalMaterial(
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
 	float Ior = Payload.Ior;
-	float Eta = bIsEntering ? Ior : 1.0 / Ior;
+	float Eta = bIsEntering ? Ior : rcp(Ior);
 
 	float2 Alpha;
 	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
@@ -89,6 +93,10 @@ FMaterialEval RoughGlass_EvalMaterial(
 	}
 
 	float NoV = saturate(V.z);
+
+	// correct for energy loss by scaling the whole BSDF
+	const float E = GGXEnergyLookup(Payload.Roughness, NoV, Eta);
+
 	if (L.z > 0)
 	{
 		// reflection side
@@ -97,23 +105,22 @@ FMaterialEval RoughGlass_EvalMaterial(
 		const float F = FresnelReflectance(VoH, Eta);
 
 		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-		return CreateMaterialEval(GGXResult.x, F * GGXResult.y);
+		return CreateMaterialEval(GGXResult.x / E, F * GGXResult.y);
 	}
 	else if (L.z < 0)
 	{
 		// refraction side
 		float NoL = saturate(-L.z);
 		float3 Ht = -(Eta * L + V);
-		Ht = (Eta < 1.0f) ? -Ht : Ht;
-		float3 Htn = normalize(Ht);
+		Ht = normalize((Eta < 1.0f) ? -Ht : Ht);
 
-		float VoH = dot(V, Htn);
+		float VoH = dot(V, Ht);
 		float F = 1.0f - FresnelReflectance(VoH, Eta);
 		if (F > 0)
 		{
-			const float2 GGXResult = GGXEvalRefraction(L, V, Htn, Alpha, Eta);
+			const float2 GGXResult = GGXEvalRefraction(L, V, Ht, Alpha, Eta);
 
-			return CreateMaterialEval(GGXResult.x, F * GGXResult.y);
+			return CreateMaterialEval(GGXResult.x / E, F * GGXResult.y);
 		}
 	}
 	return NullMaterialEval();

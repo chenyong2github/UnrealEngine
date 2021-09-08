@@ -5,6 +5,7 @@
 #define RANDSEQ_UNROLL_SOBOL PATH_TRACER_USE_COMPACTION // unrolling sobol sampler is best when we can guarantee high occupancy
 
 #define USE_PATH_TRACING_LIGHT_GRID	1
+#define USE_PATH_TRACING_ENERGY_CONSERVATION 1
 
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
@@ -280,7 +281,7 @@ void ApplyRayBias(inout RayDesc Ray, float HitT, float3 Normal, bool ShadowTermi
 #endif
 }
 
-bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3 PathThroughput, inout RandomSequence RandSequence, uint2 PixelCoord, bool SimplifySSS)
+bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3 PathThroughput, inout RandomSequence RandSequence, float3 RayDirection, uint2 PixelCoord, bool SimplifySSS)
 {
 	if (!Payload.IsSubsurfaceMaterial())
 	{
@@ -305,12 +306,32 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 	SSSRadius = max(SSSRadius, 0.1); // 1mm minimum to make sure random walk can move forward and to keep SigmaT finite
 
 	// decide randomly to evaluate the SSS part of the material, or keep shading the current part
-	float SSSProb = LobeSelectionProb(SSSColor, Payload.DiffuseColor + Payload.SpecularColor);
+	// This also computes the energy conservation to take out the portion of lighting reflected away by the specular layer
+	const float NoV = saturate(dot(Payload.WorldNormal, -RayDirection));
+	float3 SpecE = 0;
+	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+	{
+		// dual spec
+		const float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
+		const FBxDFEnergyTerms Spec0 = ComputeGGXSpecEnergyTerms(DualRoughnessData.x, NoV, Payload.SpecularColor);
+		const FBxDFEnergyTerms Spec1 = ComputeGGXSpecEnergyTerms(DualRoughnessData.y, NoV, Payload.SpecularColor);
+		SpecE = lerp(Spec0.E, Spec1.E, DualRoughnessData.z);
+	}
+	else
+	{
+		// single spec
+		SpecE = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor).E;
+	}
+
+	const float3 SSSLobeAlbedo = (1 - SpecE) * SSSColor;
+	const float3 DiffLobeAlbedo = (1 - SpecE) * Payload.DiffuseColor;
+	const float3 SpecLobeAlbedo = SpecE;
+	float SSSProb = LobeSelectionProb(SSSLobeAlbedo, DiffLobeAlbedo + SpecLobeAlbedo);
 	float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
 	if (RandSample.x < SSSProb)
 	{
-		// do random walk
-		PathThroughput *= 1 / SSSProb;
+		// do random walk (and adjust throughput to remove energy reflected away by the specular lobe)
+		PathThroughput *= (1 - SpecE) / SSSProb;
 		RandSample.x /= SSSProb;
 	}
 	else
@@ -675,7 +696,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	}
 
 	// Processing the random walk will (stochastically) move the shading point elsewhere on the surface of the object
-	if (!ProcessSubsurfaceRandomWalk(Payload, PathState.PathThroughput, PathState.RandSequence, PathState.PixelIndex, bSimplifySSS))
+	if (!ProcessSubsurfaceRandomWalk(Payload, PathState.PathThroughput, PathState.RandSequence, PathState.Ray.Direction, PathState.PixelIndex, bSimplifySSS))
 	{
 		// random walk did not terminate at a valid point
 		return false;

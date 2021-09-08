@@ -15,6 +15,7 @@
 
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
+#include "PathTracingEnergyConservation.ush"
 
 float3 CalcThinTransmission(float NoL, float NoV, FPathTracingPayload Payload)
 {
@@ -37,7 +38,7 @@ float3 CalcThinTransmission(float NoL, float NoV, FPathTracingPayload Payload)
 	return Transmission;
 }
 
-float CalcClearCoatSelectionPdf(FPathTracingPayload Payload)
+float CalcClearCoatSelectionPdf(float CoatEnergy)
 {
 #if EVAL_TOP_LAYER == 0
 	// never select coating if top is disabled
@@ -46,10 +47,8 @@ float CalcClearCoatSelectionPdf(FPathTracingPayload Payload)
 	// always select coating if bottom is disabled
 	return 1.0; 
 #endif
-	// probability of choosing the coat
-	// TODO: this could be improved if we had a directional albedo tabulation
-	float Pdf = Payload.GetClearCoat() * CLEAR_COAT_F0;
-	return Pdf;
+	// probability of choosing the coat (proportional to its directional albedo)
+	return CoatEnergy;
 }
 
 float ClearCoatFresnel(float VoH) {
@@ -70,8 +69,6 @@ FMaterialEval ClearCoat_EvalMaterial(
 	float3 L_World = OutgoingDirection;
 	float3 N_World = Payload.WorldNormal;
 
-	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
-
 	float2 Alpha = 0;
 	float3x3 Basis = GetGGXBasis(Payload.GetClearCoatRoughness(), Payload.WorldNormal, Alpha);
 
@@ -85,11 +82,15 @@ FMaterialEval ClearCoat_EvalMaterial(
 	float NoH = saturate(H.z);
 	float VoH = saturate(dot(V, H));
 
+	const FBxDFEnergyTerms Coat = ComputeGGXSpecEnergyTerms(Payload.GetClearCoatRoughness(), NoV, CLEAR_COAT_F0);
+
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-	const float F = Payload.GetClearCoat() * ClearCoatFresnel(VoH);
-	const float3 SpecWeight = F * GGXResult.x;
+	const float F = ClearCoatFresnel(VoH);
+	const float3 SpecWeight = F * GGXResult.x * Coat.W;
 	const float SpecPdf = GGXResult.y;
+
+	const float CoatSelectionPdf = CalcClearCoatSelectionPdf(Coat.E.x);
 
 	AddLobeWithMIS(Result.Weight, Result.Pdf, SpecWeight, SpecPdf, CoatSelectionPdf);
 	
@@ -113,14 +114,8 @@ FMaterialEval ClearCoat_EvalMaterial(
 	// Calculate transmission through substrate
 	float3 Transmission = CalcThinTransmission(NoL, NoV, Payload);
 
-	// Apply fresnel through exit interface
-	// TODO: This should actually use a measure of the directional albedo along V and L
-	// TODO: The original implementation tried to refract V and L, but doing this correctly would require a stochastic eval method
-	// NOTE: implementation in ClearCoatBxDF uses VoH for these which again makes the coating math dependent on the (stochastic) choice of H
-	float CC_F1 = ClearCoatFresnel(NoV);
-	float CC_F2 = ClearCoatFresnel(NoL);
-
-	BottomEval.Weight *= lerp(1.0, Transmission * (1 - CC_F1) * (1 - CC_F2), Payload.GetClearCoat());
+	BottomEval.Weight *= lerp(1.0, Transmission, Payload.GetClearCoat());
+	BottomEval.Weight *= 1.0 - Coat.E; // remove energy reflected by clearcoat to maintain energy preservation
 
 	AddLobeWithMIS(Result.Weight, Result.Pdf, BottomEval.Weight, BottomEval.Pdf, 1.0 - CoatSelectionPdf);
 
@@ -136,7 +131,10 @@ FMaterialSample ClearCoat_SampleMaterial(
 	float3 N_World = Payload.WorldNormal;
 	float3 V_World = -RayDirection;
 
-	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
+	const float NoV = saturate(dot(N_World, V_World));
+	const FBxDFEnergyTerms Coat = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, CLEAR_COAT_F0);
+
+	const float CoatSelectionPdf = CalcClearCoatSelectionPdf(Coat.E.x);
 
 	// choose between coat and bottom layer
 	float3 OutDirection = 0;
@@ -146,9 +144,8 @@ FMaterialSample ClearCoat_SampleMaterial(
 		RandSample.x /= CoatSelectionPdf;
 
 		// No anisotropy, just pick an arbitrary basis
-		float Roughness = max(Payload.GetClearCoatRoughness(), GGX_MIN_ROUGHNESS);
-		float2 Alpha = Roughness * Roughness;
-		float3x3 Basis = GetTangentBasis(N_World);
+		float2 Alpha = 0;
+		float3x3 Basis = GetGGXBasis(Payload.GetClearCoatRoughness(), Payload.WorldNormal, Alpha);
 
 		float3 V = -mul(Basis, RayDirection);
 
@@ -163,7 +160,7 @@ FMaterialSample ClearCoat_SampleMaterial(
 		}
 		// reflect and transform
 		OutDirection = mul(L, Basis);
-		OutRoughness = Roughness;
+		OutRoughness = Payload.GetClearCoatRoughness();
 	}
 	else
 	{

@@ -87,7 +87,7 @@ class FLumenSceneData;
 class FVirtualShadowMapArrayCacheManager;
 class FComputeGraphScheduler;
 struct FHairStrandsInstance;
-struct FPathTracingConfig;
+struct FPathTracingState;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -1020,20 +1020,8 @@ public:
 	virtual uint32 GetPathTracingSampleIndex() const override;
 	virtual uint32 GetPathTracingSampleCount() const override;
 
-	// Reference path tracing cached results
-	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
-	TRefCountPtr<IPooledRenderTarget> PathTracingAlbedoRT;
-	TRefCountPtr<IPooledRenderTarget> PathTracingNormalRT;
-	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceDenoisedRT;
-	// Keeps track of the internal path tracer options relevant to detecting when to restart the path tracer accumulation
-	TPimplPtr<FPathTracingConfig> PathTracingLastConfig;
-
-	// Current sample index to be rendered by the path tracer - this gets incremented each time the path tracer accumulates a frame of samples
-	uint32 PathTracingSampleIndex;
-
-	// Path tracer frame index, not reset on invalidation unlike PathTracingSampleIndex to avoid
-	// the "screen door" effect and reduce temporal aliasing
-	uint32_t PathTracingFrameIndex;
+	// Keeps track of the internal path tracer state
+	TPimplPtr<FPathTracingState> PathTracingState;
 
 	// IES light profiles
 	FIESLightProfileResource IESLightProfileResources;
