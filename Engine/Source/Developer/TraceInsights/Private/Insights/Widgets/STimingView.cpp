@@ -4669,6 +4669,11 @@ void STimingView::FindNextEvent()
 	{
 		SelectedEvent = BestMatchEvent;
 		BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
+		if (SelectedEvent->GetTrack()->GetLocation() == ETimingTrackLocation::Scrollable)
+		{
+			BringScrollableTrackIntoView(*SelectedEvent->GetTrack());
+		}
+
 		OnSelectedTimingEventChanged();
 	}
 }
@@ -4711,6 +4716,11 @@ void STimingView::FindPrevEvent()
 	{
 		SelectedEvent = BestMatchEvent;
 		BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
+		if (SelectedEvent->GetTrack()->GetLocation() == ETimingTrackLocation::Scrollable)
+		{
+			BringScrollableTrackIntoView(*SelectedEvent->GetTrack());
+		}
+
 		OnSelectedTimingEventChanged();
 	}
 }
