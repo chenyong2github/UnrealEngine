@@ -26,6 +26,17 @@ static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 
 IMPLEMENT_MODULE( FOpenXRHMDModule, OpenXRHMD )
 
+FOpenXRHMDModule::FOpenXRHMDModule()
+	: LoaderHandle(nullptr)
+	, Instance(XR_NULL_HANDLE)
+	, System(XR_NULL_SYSTEM_ID)
+	, RenderBridge(nullptr)
+{ }
+
+FOpenXRHMDModule::~FOpenXRHMDModule()
+{
+}
+
 TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDModule::CreateTrackingSystem()
 {
 	if (!RenderBridge)
