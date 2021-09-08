@@ -446,7 +446,7 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 	// If this assert goes off, your trying to load a module during the shutdown phase that was already
 	// cleaned up.  The easiest way to fix this is to change your code to query for an already-loaded
 	// module instead of trying to load it directly.
-	checkf((!ModuleInfo->bWasUnloadedAtShutdown), TEXT("Attempted to load module '%s' that was already unloaded at shutdown.  FModuleManager::LoadModule() was called to load a module that was previously loaded, and was unloaded at shutdown time.  If this assert goes off, your trying to load a module during the shutdown phase that was already cleaned up.  The easiest way to fix this is to change your code to query for an already-loaded module instead of trying to load it directly."), *InModuleName.ToString());
+	checkf((!ModuleInfo->bWasUnloadedAtShutdown), TEXT("Attempted to load module '%s' that was already unloaded at shutdown.  FModuleManager::LoadModule() was called to load a module that was previously loaded, and was unloaded at shutdown time.  If this assert goes off, you're trying to load a module during the shutdown phase that was already cleaned up.  The easiest way to fix this is to change your code to query for an already-loaded module instead of trying to load it directly."), *InModuleName.ToString());
 
 	// Check if we're statically linked with the module.  Those modules register with the module manager using a static variable,
 	// so hopefully we already know about the name of the module and how to initialize it.
