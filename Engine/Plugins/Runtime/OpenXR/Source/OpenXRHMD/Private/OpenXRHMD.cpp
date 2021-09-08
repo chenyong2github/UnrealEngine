@@ -977,6 +977,7 @@ FVector2D FOpenXRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
 	}
 	XrExtent2Df Bounds;
 	XR_ENSURE(xrGetReferenceSpaceBoundsRect(Session, Space, &Bounds));
+	Swap(Bounds.width, Bounds.height); // Convert to UE coordinate system
 	return ToFVector2D(Bounds, WorldToMetersScale);
 }
 
@@ -1098,15 +1099,15 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 	}
 
 	const XrSpaceLocation& Location = PipelineState.DeviceLocations[DeviceId];
-	if (Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT &&
-		Location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
+	if (Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)
 	{
 		CurrentOrientation = ToFQuat(Location.pose.orientation);
-		CurrentPosition = ToFVector(Location.pose.position, GetWorldToMetersScale());
-		return true;
 	}
-
-	return false;
+	if (Location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
+	{
+		CurrentPosition = ToFVector(Location.pose.position, GetWorldToMetersScale());
+	}
+	return true;
 }
 
 bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec)
