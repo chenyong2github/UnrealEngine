@@ -288,7 +288,8 @@ void FVulkanUnorderedAccessView::UpdateView()
 		else if (FRHITextureCube* TexCube = SourceTexture->GetTextureCube())
 		{
 			FVulkanTextureCube* VTexCube = ResourceCast(TexCube);
-			TextureView.Create(*Device, VTexCube->Surface.Image, VK_IMAGE_VIEW_TYPE_CUBE, VTexCube->Surface.GetPartialAspectMask(), Format, UEToVkTextureFormat(Format, false), MipLevel, 1, 0, 1, true);
+			// RWTextureCube is defined as RWTexture2DArray in shader source, avoid validation errors by creating the appropriate VK_IMAGE_VIEW_TYPE_2D_ARRAY view (instead of VK_IMAGE_VIEW_TYPE_CUBE)
+			TextureView.Create(*Device, VTexCube->Surface.Image, VK_IMAGE_VIEW_TYPE_2D_ARRAY, VTexCube->Surface.GetPartialAspectMask(), Format, UEToVkTextureFormat(Format, false), MipLevel, 1, 0, VTexCube->Surface.GetNumberOfArrayLevels(), true);
 		}
 		else if (FRHITexture3D* Tex3D = SourceTexture->GetTexture3D())
 		{
