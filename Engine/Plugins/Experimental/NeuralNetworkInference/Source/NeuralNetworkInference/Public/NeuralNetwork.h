@@ -87,12 +87,6 @@ public:
 	bool Load(TArray<uint8>& InModelReadFromFileInBytes);
 
 	/**
-	 * It loads the desired network graph definition and weights internally saved on this UNeuralNetwork instance.
-	 * @return Whether the network was successfully loaded.
-	 */
-	bool Load();
-
-	/**
 	 * It returns whether a network is currently loaded.
 	 */
 	bool IsLoaded() const;
@@ -234,6 +228,12 @@ private:
 	 */
 	struct FImplBackEndUEOnly;
 	TSharedPtr<FImplBackEndUEOnly> ImplBackEndUEOnly;
+
+	/**
+	 * It loads the desired network graph definition and weights internally saved on this UNeuralNetwork instance.
+	 * @return Whether the network was successfully loaded.
+	 */
+	bool Load();
 
 public:
 #if WITH_EDITOR
