@@ -35,6 +35,11 @@ FRigUnit_SlideChain_Execute()
 
 FRigUnit_SlideChainPerItem_Execute()
 {
+	FRigUnit_SlideChainItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, SlideAmount, bPropagateToChildren, WorkData, ExecuteContext, Context);
+}
+
+FRigUnit_SlideChainItemArray_Execute()
+{
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{

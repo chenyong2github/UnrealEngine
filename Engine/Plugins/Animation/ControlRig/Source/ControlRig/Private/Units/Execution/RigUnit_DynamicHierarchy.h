@@ -97,7 +97,7 @@ struct CONTROLRIG_API FRigUnit_SwitchParent : public FRigUnit_DynamicHierarchyBa
 /**
 * Returns the item's parent's weights
 */
-USTRUCT(meta=(DisplayName="Get Parent Weights", Keywords="Chain,Parents,Hierarchy", Varying))
+USTRUCT(meta=(DisplayName="Get Parent Weights", Keywords="Chain,Parents,Hierarchy", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_HierarchyGetParentWeights : public FRigUnit_DynamicHierarchyBase
 {
 	GENERATED_BODY()
@@ -118,6 +118,32 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParentWeights : public FRigUnit_Dynam
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Parents;
+};
+
+/**
+* Returns the item's parent's weights
+*/
+USTRUCT(meta=(DisplayName="Get Parent Weights", Keywords="Chain,Parents,Hierarchy", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyGetParentWeightsArray : public FRigUnit_DynamicHierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyGetParentWeightsArray()
+	{
+		Child = FRigElementKey(NAME_None, ERigElementType::Control);
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+
+	UPROPERTY(meta = (Output))
+	TArray<FRigElementWeight> Weights;
+
+	UPROPERTY(meta = (Output))
+	TArray<FRigElementKey> Parents;
 };
 
 /**

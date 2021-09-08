@@ -69,7 +69,7 @@ struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 /**
 * GetTransformArray is used to retrieve an array of transforms from the hierarchy.
 */
-USTRUCT(meta=(DisplayName="Get Transform Array", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetBoneTransform,GetControlTransform,GetInitialTransform,GetSpaceTransform,GetTransform", NodeColor="0.462745, 1,0, 0.329412",Varying))
+USTRUCT(meta=(DisplayName="Get Transform Array", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetBoneTransform,GetControlTransform,GetInitialTransform,GetSpaceTransform,GetTransform", NodeColor="0.462745, 1,0, 0.329412",Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_GetTransformArray : public FRigUnit
 {
 	GENERATED_BODY()
@@ -90,6 +90,53 @@ struct CONTROLRIG_API FRigUnit_GetTransformArray : public FRigUnit
 	*/
 	UPROPERTY(meta = (Input))
 	FRigElementKeyCollection Items;
+
+	/**
+	* Defines if the transforms should be retrieved in local or global space
+	*/ 
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode Space;
+
+	/**
+	* Defines if the transforms should be retrieved as current (false) or initial (true).
+	* Initial transforms for bones and other elements in the hierarchy represent the reference pose's value.
+	*/ 
+	UPROPERTY(meta = (Input))
+	bool bInitial;
+
+	// The current transform of the given item - or identity in case it wasn't found.
+	UPROPERTY(meta=(Output))
+	TArray<FTransform> Transforms;
+
+	// Used to cache the internally
+	UPROPERTY()
+	TArray<FCachedRigElement> CachedIndex;
+};
+
+/**
+* GetTransformArray is used to retrieve an array of transforms from the hierarchy.
+*/
+USTRUCT(meta=(DisplayName="Get Transform Array", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="GetBoneTransform,GetControlTransform,GetInitialTransform,GetSpaceTransform,GetTransform", NodeColor="0.462745, 1,0, 0.329412",Varying))
+struct CONTROLRIG_API FRigUnit_GetTransformItemArray : public FRigUnit
+{
+	GENERATED_BODY()
+
+	FRigUnit_GetTransformItemArray()
+		: Items()
+		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, bInitial(false)
+		, Transforms()
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	* The items to retrieve the transforms for
+	*/
+	UPROPERTY(meta = (Input))
+	TArray<FRigElementKey> Items;
 
 	/**
 	* Defines if the transforms should be retrieved in local or global space

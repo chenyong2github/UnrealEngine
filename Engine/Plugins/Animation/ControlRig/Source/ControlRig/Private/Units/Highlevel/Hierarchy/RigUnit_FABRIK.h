@@ -101,7 +101,7 @@ struct CONTROLRIG_API FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
  * the Forward and Backward Reaching Inverse Kinematics algorithm.
  * For now this node supports single effector chains only.
  */
-USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK"))
+USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK", Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -123,6 +123,70 @@ struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMuta
 	 */
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKeyCollection Items;
+
+	/**
+	 * The transform of the effector in global space
+	 */
+	UPROPERTY(meta = (Input))
+	FTransform EffectorTransform;
+
+	/**
+	 * The precision to use for the fabrik solver
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	float Precision;
+
+	/**
+	 * The weight of the solver - how much the IK should be applied.
+	 */
+	UPROPERTY(meta = (Input))
+	float Weight;
+
+	/**
+	 * If set to true all of the global transforms of the children
+	 * of this bone will be recalculated based on their local transforms.
+	 * Note: This is computationally more expensive than turning it off.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	bool bPropagateToChildren;
+
+	/**
+	 * The maximum number of iterations. Values between 4 and 16 are common.
+	 */
+	UPROPERTY(meta = (Input))
+	int32 MaxIterations;
+
+	UPROPERTY(transient)
+	FRigUnit_FABRIK_WorkData WorkData;
+};
+
+/**
+ * The FABRIK solver can solve N-Bone chains using 
+ * the Forward and Backward Reaching Inverse Kinematics algorithm.
+ * For now this node supports single effector chains only.
+ */
+USTRUCT(meta=(DisplayName="Basic FABRIK", Category="Hierarchy", Keywords="N-Bone,IK"))
+struct CONTROLRIG_API FRigUnit_FABRIKItemArray : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_FABRIKItemArray()
+	{
+		Precision = 1.f;
+		Weight = 1.f;
+		bPropagateToChildren = true;
+		MaxIterations = 10;
+		EffectorTransform = FTransform::Identity;
+	}
+
+	/**
+	 * The chain to use
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	TArray<FRigElementKey> Items;
 
 	/**
 	 * The transform of the effector in global space

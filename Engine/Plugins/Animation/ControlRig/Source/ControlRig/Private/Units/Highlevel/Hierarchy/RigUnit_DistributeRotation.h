@@ -128,7 +128,7 @@ struct CONTROLRIG_API FRigUnit_DistributeRotation : public FRigUnit_HighlevelBas
  * Each rotation is expressed by a quaternion and a ratio, where the ratio is between 0.0 and 1.0
  * Note: This node adds rotation in local space of each item!
  */
-USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones"))
+USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones", Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_DistributeRotationForCollection : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -147,6 +147,53 @@ struct CONTROLRIG_API FRigUnit_DistributeRotationForCollection : public FRigUnit
 	 */
 	UPROPERTY(meta = (Input))
 	FRigElementKeyCollection Items;
+
+	/** 
+	 * The list of rotations to be applied
+	 */
+	UPROPERTY(meta = (Input))
+	TArray<FRigUnit_DistributeRotation_Rotation> Rotations;
+
+	/**
+	 * The easing to use between to rotations.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	EControlRigAnimEasingType RotationEaseType;
+
+	/**
+	 * The weight of the solver - how much the rotation should be applied
+	 */	
+	UPROPERTY(meta = (Input))
+	float Weight;
+
+	UPROPERTY(transient)
+	FRigUnit_DistributeRotation_WorkData WorkData;
+};
+
+/**
+ * Distributes rotations provided across a collection of items.
+ * Each rotation is expressed by a quaternion and a ratio, where the ratio is between 0.0 and 1.0
+ * Note: This node adds rotation in local space of each item!
+ */
+USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones"))
+struct CONTROLRIG_API FRigUnit_DistributeRotationForItemArray : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_DistributeRotationForItemArray()
+	{
+		RotationEaseType = EControlRigAnimEasingType::Linear;
+		Weight = 1.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/** 
+	 * The items to use to distribute the rotation
+	 */
+	UPROPERTY(meta = (Input))
+	TArray<FRigElementKey> Items;
 
 	/** 
 	 * The list of rotations to be applied

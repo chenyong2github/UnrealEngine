@@ -53,7 +53,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParent : public FRigUnit_HierarchyBas
 /**
  * Returns the item's parents
  */
-USTRUCT(meta=(DisplayName="Get Parents", Keywords="Chain,Parents,Hierarchy", Varying))
+USTRUCT(meta=(DisplayName="Get Parents", Keywords="Chain,Parents,Hierarchy", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_HierarchyGetParents : public FRigUnit_HierarchyBase
 {
 	GENERATED_BODY()
@@ -90,6 +90,48 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParents : public FRigUnit_HierarchyBa
 	UPROPERTY()
 	FRigElementKeyCollection CachedParents;
 };
+
+/**
+ * Returns the item's parents
+ */
+USTRUCT(meta=(DisplayName="Get Parents", Keywords="Chain,Parents,Hierarchy", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyGetParentsItemArray : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyGetParentsItemArray()
+	{
+		Child = FRigElementKey(NAME_None, ERigElementType::Bone);
+		CachedChild = FCachedRigElement();
+		CachedParents = FRigElementKeyCollection();
+		bIncludeChild = false;
+		bReverse = false;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+
+	UPROPERTY(meta = (Input))
+	bool bIncludeChild;
+
+	UPROPERTY(meta = (Input))
+	bool bReverse;
+
+	UPROPERTY(meta = (Output))
+	TArray<FRigElementKey> Parents;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedChild;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FRigElementKeyCollection CachedParents;
+};
+
 
 /**
  * Returns the item's children
@@ -135,7 +177,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetChildren : public FRigUnit_HierarchyB
 /**
  * Returns the item's siblings
  */
-USTRUCT(meta=(DisplayName="Get Siblings", Keywords="Chain,Siblings,Hierarchy", Varying))
+USTRUCT(meta=(DisplayName="Get Siblings", Keywords="Chain,Siblings,Hierarchy", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_HierarchyGetSiblings : public FRigUnit_HierarchyBase
 {
 	GENERATED_BODY()
@@ -170,9 +212,46 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetSiblings : public FRigUnit_HierarchyB
 };
 
 /**
+ * Returns the item's siblings
+ */
+USTRUCT(meta=(DisplayName="Get Siblings", Keywords="Chain,Siblings,Hierarchy", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyGetSiblingsItemArray : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyGetSiblingsItemArray()
+	{
+		Item = FRigElementKey(NAME_None, ERigElementType::Bone);
+		CachedItem = FCachedRigElement();
+		CachedSiblings = FRigElementKeyCollection();
+		bIncludeItem = false;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	FRigElementKey Item;
+
+	UPROPERTY(meta = (Input))
+	bool bIncludeItem;
+
+	UPROPERTY(meta = (Output))
+	TArray<FRigElementKey> Siblings;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FCachedRigElement CachedItem;
+
+	// Used to cache the internally
+	UPROPERTY()
+	FRigElementKeyCollection CachedSiblings;
+};
+
+/**
  * Returns the hierarchy's pose
  */
-USTRUCT(meta=(DisplayName="Get Pose Cache", Keywords="Hierarchy,Pose,State", Varying))
+USTRUCT(meta=(DisplayName="Get Pose Cache", Keywords="Hierarchy,Pose,State", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_HierarchyGetPose : public FRigUnit_HierarchyBase
 {
 	GENERATED_BODY()
@@ -203,9 +282,42 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetPose : public FRigUnit_HierarchyBase
 };
 
 /**
+ * Returns the hierarchy's pose
+ */
+USTRUCT(meta=(DisplayName="Get Pose Cache", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyGetPoseItemArray : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyGetPoseItemArray()
+	{
+		Initial = false;
+		ElementType = ERigElementType::All;
+		Pose = FRigPose();
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	bool Initial;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType ElementType;
+
+	// An optional collection to filter against
+	UPROPERTY(meta = (Input))
+	TArray<FRigElementKey> ItemsToGet;
+
+	UPROPERTY(meta = (Output))
+	FRigPose Pose;
+};
+
+
+/**
  * Sets the hierarchy's pose
  */
-USTRUCT(meta=(DisplayName="Apply Pose Cache", Keywords="Hierarchy,Pose,State", Varying))
+USTRUCT(meta=(DisplayName="Apply Pose Cache", Keywords="Hierarchy,Pose,State", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_HierarchySetPose : public FRigUnit_HierarchyBaseMutable
 {
 	GENERATED_BODY()
@@ -240,6 +352,42 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPose : public FRigUnit_HierarchyBaseM
 };
 
 /**
+ * Sets the hierarchy's pose
+ */
+USTRUCT(meta=(DisplayName="Apply Pose Cache", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchySetPoseItemArray : public FRigUnit_HierarchyBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchySetPoseItemArray()
+	{
+		Pose = FRigPose();
+		ElementType = ERigElementType::All;
+		Space = EBoneGetterSetterMode::LocalSpace;
+		Weight = 1.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType ElementType;
+
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode Space;
+
+	// An optional collection to filter against
+	UPROPERTY(meta = (Input))
+	TArray<FRigElementKey> ItemsToSet;
+
+	UPROPERTY(meta = (Input))
+	float Weight;
+};
+
+/**
 * Returns true if the hierarchy pose is empty (has no items)
 */
 USTRUCT(meta=(DisplayName="Is Pose Cache Empty", Keywords="Hierarchy,Pose,State", Varying))
@@ -266,7 +414,7 @@ struct CONTROLRIG_API FRigUnit_PoseIsEmpty : public FRigUnit_HierarchyBase
 /**
 * Returns the items in the hierarchy pose
 */
-USTRUCT(meta=(DisplayName="Get Pose Cache Items", Keywords="Hierarchy,Pose,State", Varying))
+USTRUCT(meta=(DisplayName="Get Pose Cache Items", Keywords="Hierarchy,Pose,State", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_PoseGetItems : public FRigUnit_HierarchyBase
 {
 	GENERATED_BODY()
@@ -289,6 +437,33 @@ struct CONTROLRIG_API FRigUnit_PoseGetItems : public FRigUnit_HierarchyBase
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Items;
+};
+
+/**
+* Returns the items in the hierarchy pose
+*/
+USTRUCT(meta=(DisplayName="Get Pose Cache Items", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_PoseGetItemsItemArray : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseGetItemsItemArray()
+	{
+		Pose = FRigPose();
+		ElementType = ERigElementType::All;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType ElementType;
+
+	UPROPERTY(meta = (Output))
+	TArray<FRigElementKey> Items;
 };
 
 /**

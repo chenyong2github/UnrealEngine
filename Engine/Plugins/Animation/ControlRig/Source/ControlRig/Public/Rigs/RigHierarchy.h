@@ -1973,6 +1973,19 @@ public:
 	) const;
 
 	/**
+	 * Returns the current / initial pose of the hierarchy
+	 * @param bInitial If set to true the initial pose will be returned
+	 * @param InElementType The types of elements to get
+	 * @param InItems An optional list of items to get
+	 * @return The pose of the hierarchy
+	 */
+	FRigPose GetPose(
+		bool bInitial,
+		ERigElementType InElementType,
+		const TArrayView<const FRigElementKey>& InItems 
+	) const;
+
+	/**
 	 * Sets the current / initial pose of the hierarchy
 	 * @param InPose The pose to set on the hierarchy
 	 * @param InTransformType The transform type to set
@@ -1998,6 +2011,22 @@ public:
 		ERigTransformType::Type InTransformType,
 		ERigElementType InElementType,
 		const FRigElementKeyCollection& InItems,
+		float InWeight
+	);
+
+	/**
+	 * Sets the current / initial pose of the hierarchy
+	 * @param InPose The pose to set on the hierarchy
+	 * @param InTransformType The transform type to set
+	 * @param InElementType The types of elements to set
+	 * @param InItems An optional list of items to set
+	 * @param InWeight A weight to define how much the pose needs to be mixed in
+	 */
+	void SetPose(
+		const FRigPose& InPose,
+		ERigTransformType::Type InTransformType,
+		ERigElementType InElementType,
+		const TArrayView<const FRigElementKey>& InItems, 
 		float InWeight
 	);
 

@@ -98,6 +98,11 @@ FRigUnit_SwitchParent_Execute()
 
 FRigUnit_HierarchyGetParentWeights_Execute()
 {
+	FRigUnit_HierarchyGetParentWeightsArray::StaticExecute(RigVMExecuteContext, Child, Weights, Parents.Keys, Context);
+}
+
+FRigUnit_HierarchyGetParentWeightsArray_Execute()
+{
 	if((Context.State != EControlRigState::Update) || (Context.Hierarchy == nullptr))
 	{
 		return;
@@ -109,7 +114,9 @@ FRigUnit_HierarchyGetParentWeights_Execute()
 		UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Item %s does not exist."), *Child.ToString())
 		return;
 	}
+	
 	Weights = Context.Hierarchy->GetParentWeightArray(ChildElement, false);
+	Parents = Context.Hierarchy->GetParents(ChildElement->GetKey(), false);
 }
 
 FRigUnit_HierarchySetParentWeights_Execute()

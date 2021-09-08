@@ -10,8 +10,11 @@
 
 FRigUnit_CollectionChain_Execute()
 {
-    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	FRigUnit_CollectionChainArray::StaticExecute(RigVMExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+}
 
+FRigUnit_CollectionChainArray_Execute()
+{
 	if (Context.State == EControlRigState::Init)
 	{
 		CachedHierarchyHash = INDEX_NONE;
@@ -46,10 +49,15 @@ FRigUnit_CollectionChain_Execute()
 		}
 	}
 
-	Collection = CachedCollection;
+	Items = CachedCollection.Keys;
 }
 
 FRigUnit_CollectionNameSearch_Execute()
+{
+	FRigUnit_CollectionNameSearchArray::StaticExecute(RigVMExecuteContext, PartialName, TypeToSearch, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+}
+
+FRigUnit_CollectionNameSearchArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -68,10 +76,15 @@ FRigUnit_CollectionNameSearch_Execute()
 		CachedCollection = FRigElementKeyCollection::MakeFromName(Context.Hierarchy, PartialName, (uint8)TypeToSearch);
 	}
 
-	Collection = CachedCollection;
+	Items = CachedCollection.Keys;
 }
 
 FRigUnit_CollectionChildren_Execute()
+{
+	FRigUnit_CollectionChildrenArray::StaticExecute(RigVMExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+}
+
+FRigUnit_CollectionChildrenArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -99,7 +112,7 @@ FRigUnit_CollectionChildren_Execute()
 		}
 	}
 
-	Collection = CachedCollection;
+	Items = CachedCollection.Keys;
 }
 
 #if WITH_EDITOR
@@ -143,6 +156,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_CollectionChildren)
 
 FRigUnit_CollectionReplaceItems_Execute()
 {
+	FRigUnit_CollectionReplaceItemsArray::StaticExecute(RigVMExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys, CachedCollection, CachedHierarchyHash, Context);
+}
+
+FRigUnit_CollectionReplaceItemsArray_Execute()
+{
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	if (Context.State == EControlRigState::Init)
@@ -184,7 +202,7 @@ FRigUnit_CollectionReplaceItems_Execute()
 		}
 	}
 
-	Collection = CachedCollection;
+	Result = CachedCollection.Keys;
 }
 
 FRigUnit_CollectionItems_Execute()
@@ -214,6 +232,11 @@ FRigUnit_CollectionGetItems_Execute()
 
 FRigUnit_CollectionGetParentIndices_Execute()
 {
+	FRigUnit_CollectionGetParentIndicesItemArray::StaticExecute(RigVMExecuteContext, Collection.Keys, ParentIndices, Context);
+}
+
+FRigUnit_CollectionGetParentIndicesItemArray_Execute()
+{
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	if(Context.Hierarchy == nullptr)
@@ -222,19 +245,19 @@ FRigUnit_CollectionGetParentIndices_Execute()
 		return;
 	}
 	
-	ParentIndices.SetNumUninitialized(Collection.Num());
+	ParentIndices.SetNumUninitialized(Items.Num());
 
-	for(int32 Index=0;Index<Collection.Num();Index++)
+	for(int32 Index=0;Index<Items.Num();Index++)
 	{
 		ParentIndices[Index] = INDEX_NONE;
 
-		const int32 ItemIndex = Context.Hierarchy->GetIndex(Collection[Index]);
+		const int32 ItemIndex = Context.Hierarchy->GetIndex(Items[Index]);
 		if(ItemIndex == INDEX_NONE)
 		{
 			continue;;
 		}
 
-		switch(Collection[Index].Type)
+		switch(Items[Index].Type)
 		{
 			case ERigElementType::Curve:
 			{
@@ -270,7 +293,7 @@ FRigUnit_CollectionGetParentIndices_Execute()
 
 			while(ParentIndices[Index] == INDEX_NONE && ParentIndex != INDEX_NONE)
 			{
-				ParentIndices[Index] = Collection.GetKeys().Find(Context.Hierarchy->GetKey(ParentIndex));
+				ParentIndices[Index] = Items.Find(Context.Hierarchy->GetKey(ParentIndex));
 				ParentIndex = Context.Hierarchy->GetFirstParent(ParentIndex);
 			}
 		}
