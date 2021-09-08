@@ -74,6 +74,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	MeshBoolean.bPutResultInInputSpace = false;
 	MeshBoolean.bSimplifyAlongNewEdges = bTryCollapseExtraEdges;
+	MeshBoolean.WindingThreshold = WindingThreshold;
 	MeshBoolean.Progress = Progress;
 	bool bSuccess = MeshBoolean.Compute();
 	ResultTransform = MeshBoolean.ResultTransform;
