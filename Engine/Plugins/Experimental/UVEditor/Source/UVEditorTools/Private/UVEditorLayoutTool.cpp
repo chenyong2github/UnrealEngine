@@ -119,10 +119,6 @@ void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UUVEditorLayoutTool::OnTick(float DeltaTime)
 {
-	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
-	{
-		Target->AppliedPreview->Tick(DeltaTime);
-	}
 }
 
 

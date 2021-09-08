@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ParameterizationOps/ParameterizeMeshOp.h"
+#include "Properties/ParameterizeMeshProperties.h"
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -433,6 +434,47 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 
 	NewResultInfo.SetSuccess(bOK, Progress);
 	SetResultInfo(NewResultInfo);
+}
+
+
+
+TUniquePtr<FDynamicMeshOperator> UParameterizeMeshOperatorFactory::MakeNewOperator()
+{
+	TUniquePtr<FParameterizeMeshOp> Op = MakeUnique<FParameterizeMeshOp>();
+
+	Op->InputMesh = OriginalMesh;
+
+	switch (Settings->Method)
+	{
+	case EParameterizeMeshUVMethod::PatchBuilder:
+		Op->Method = EParamOpBackend::PatchBuilder;
+		Op->InitialPatchCount = PatchBuilderProperties->InitialPatches;
+		Op->PatchCurvatureAlignmentWeight = PatchBuilderProperties->CurvatureAlignment;
+		Op->PatchMergingMetricThresh = PatchBuilderProperties->MergingThreshold;
+		Op->PatchMergingAngleThresh = PatchBuilderProperties->MaxAngleDeviation;
+		Op->ExpMapNormalSmoothingSteps = PatchBuilderProperties->SmoothingSteps;
+		Op->ExpMapNormalSmoothingAlpha = PatchBuilderProperties->SmoothingAlpha;
+		Op->bEnablePacking = PatchBuilderProperties->bAutoPack;
+		Op->Width = PatchBuilderProperties->TextureResolution;
+		Op->Height = PatchBuilderProperties->TextureResolution;
+		break;
+	case EParameterizeMeshUVMethod::UVAtlas:
+		Op->Method = EParamOpBackend::UVAtlas;		
+		Op->Stretch = UVAtlasProperties->ChartStretch;
+		Op->NumCharts = UVAtlasProperties->NumCharts;
+		break;
+	case EParameterizeMeshUVMethod::XAtlas:
+		Op->Method = EParamOpBackend::XAtlas;
+		Op->XAtlasMaxIterations = XAtlasProperties->MaxIterations;
+		break;
+	}
+
+	Op->UVLayer = GetSelectedUVChannel();	
+
+	UE::Geometry::FTransform3d Transform(TargetTransform);
+	Op->SetTransform(Transform);
+
+	return Op;
 }
 
 
