@@ -144,7 +144,7 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	if (UVLayoutView)
 	{
-		UVLayoutView->Settings->SaveProperties(this, TEXT("RecomputeUVsTool"));
+		UVLayoutView->Settings->SaveProperties(this, TEXT("ParameterizeMeshTool"));
 		UVLayoutView->Disconnect();
 	}
 
