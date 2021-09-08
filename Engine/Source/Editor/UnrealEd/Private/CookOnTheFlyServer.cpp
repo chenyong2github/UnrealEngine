@@ -4481,8 +4481,8 @@ void FSaveCookedPackageContext::FinishPlatform()
 		check(AssetPackageData);
 
 		FCbObject TargetDomainDependencies;
-		UE_SCOPED_HIERARCHICAL_COOKTIMER(TargetDomainDependencies);
-		TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, TargetPlatform, nullptr /* ErrorMessage */);
+			UE_SCOPED_HIERARCHICAL_COOKTIMER(TargetDomainDependencies);
+			TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, TargetPlatform, nullptr /* ErrorMessage */);
 
 		ICookedPackageWriter::FCommitPackageInfo Info;
 		Info.bSucceeded = bSuccessful;
@@ -4490,7 +4490,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Info.PackageGuid = AssetPackageData->PackageGuid;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		Info.TargetDomainDependencies = TargetDomainDependencies;
+		Info.Attachments.Add({ "Dependencies", TargetDomainDependencies });
 
 		PackageWriter->CommitPackage(Info);
 	}

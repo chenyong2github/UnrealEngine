@@ -161,17 +161,18 @@ void FLooseCookedPackageWriter::GetCookedPackages(TArray<FCookedPackageInfo>& Ou
 			if (bExistsOnDisk)
 			{
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-				OutCookedPackages.Add(FCookedPackageInfo{ PackageName, PackageData->CookedHash,PackageData->PackageGuid,
-					PackageData->DiskSize, FIoHash() /** TargetDomainDependencies are not implemented by FLooseCookedPackageWriter */ });
+				OutCookedPackages.Add(FCookedPackageInfo{ PackageName, PackageData->CookedHash,
+					PackageData->PackageGuid, PackageData->DiskSize });
+				// Oplog attachments are not implemented by FLooseCookedPackageWriter
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 			}
 		}
 	}
 }
 
-FCbObject FLooseCookedPackageWriter::GetTargetDomainDependencies(FName PackageName)
+FCbObject FLooseCookedPackageWriter::GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey)
 {
-	/** TargetDomainDependencies are not implemented by FLooseCookedPackageWriter */
+	/** Oplog attachments are not implemented by FLooseCookedPackageWriter */
 	return FCbObject();
 }
 

@@ -183,16 +183,16 @@ FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* Ta
 bool TryFetchKeyAndDependencies(ICookedPackageWriter* PackageWriter, FName PackageName, const ITargetPlatform* TargetPlatform,
 	FIoHash* OutHash, TArray<FName>* OutBuildDependencies, TArray<FName>* OutRuntimeOnlyDependencies, FString* OutErrorMessage)
 {
-	FCbObject DependenciesObj = PackageWriter->GetTargetDomainDependencies(PackageName);
+	FCbObject DependenciesObj = PackageWriter->GetOplogAttachment(PackageName, "Dependencies");
 	FIoHash StoredKey = DependenciesObj["targetdomainkey"].AsHash();
 	if (StoredKey.IsZero())
-	{
-		if (OutErrorMessage)
 		{
+			if (OutErrorMessage)
+			{
 			*OutErrorMessage = TEXT("Dependencies not in oplog.");
+			}
+			return false;
 		}
-		return false;
-	}
 
 	TArray<FName> BuildDependencies;
 	if (OutBuildDependencies)
@@ -200,7 +200,7 @@ bool TryFetchKeyAndDependencies(ICookedPackageWriter* PackageWriter, FName Packa
 		OutBuildDependencies->Reset();
 	}
 	else
-	{
+		{
 		OutBuildDependencies = &BuildDependencies;
 	}
 
@@ -229,13 +229,13 @@ bool TryFetchKeyAndDependencies(ICookedPackageWriter* PackageWriter, FName Packa
 
 	if (OutRuntimeOnlyDependencies)
 	{
-		for (FCbFieldView DepObj : DependenciesObj["runtimeonlydependencies"])
+	for (FCbFieldView DepObj : DependenciesObj["runtimeonlydependencies"])
+	{
+		if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
 		{
-			if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
-			{
 				OutRuntimeOnlyDependencies->Add(FName(*DependencyName));
-			}
 		}
+	}
 	}
 
 	return true;

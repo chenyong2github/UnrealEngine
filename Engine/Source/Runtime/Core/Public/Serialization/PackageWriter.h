@@ -53,11 +53,16 @@ public:
 	  */
 	virtual void BeginPackage(const FBeginPackageInfo& Info) = 0;
 
+	struct FCommitAttachmentInfo
+	{
+		FUtf8StringView Key;
+		FCbObject Value;
+	};
 	struct FCommitPackageInfo
 	{
 		FName PackageName;
 		FGuid PackageGuid;
-		FCbObject TargetDomainDependencies;
+		TArray<FCommitAttachmentInfo> Attachments;
 		bool bSucceeded = false;
 	};
 
@@ -183,7 +188,6 @@ public:
 		FMD5Hash Hash;
 		FGuid PackageGuid;
 		int64 DiskSize = -1;
-		FIoHash TargetDomainDependencies;
 	};
 
 	/**
@@ -192,10 +196,10 @@ public:
 	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) = 0;
 
 	/**
-	 * Returns the TargetDomainDependencies that were previously commited for the given PackageName.
+	 * Returns an Attachment that was previously commited for the given PackageName.
 	 * Returns an empty object if not found.
 	 */
-	virtual FCbObject GetTargetDomainDependencies(FName PackageName) = 0;
+	virtual FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) = 0;
 
 	/**
 	 * Remove the given cooked package(s) from storage; they have been modified since the last cook.

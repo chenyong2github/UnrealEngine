@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "Serialization/AsyncLoading2.h"
-#include "IO/IoDispatcher.h"
 #include "Containers/Map.h"
+#include "Containers/StringView.h"
+#include "IO/IoDispatcher.h"
+#include "IO/PackageStore.h"
+#include "PackageStoreManifest.h"
+#include "PackageStoreWriter.h"
+#include "Serialization/AsyncLoading2.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/PackageWriter.h"
-#include "IO/PackageStore.h"
-#include "PackageStoreWriter.h"
-#include "PackageStoreManifest.h"
 
 namespace UE {
 	class FZenStoreHttpClient;
@@ -56,7 +57,7 @@ public:
 	IOSTOREUTILITIES_API void WriteIoStorePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const FPackageStoreEntryResource& PackageStoreEntry, const TArray<FFileRegion>& FileRegions);
 
 	IOSTOREUTILITIES_API virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) override;
-	IOSTOREUTILITIES_API virtual FCbObject GetTargetDomainDependencies(FName PackageName) override;
+	IOSTOREUTILITIES_API virtual FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages() override;
 
@@ -103,6 +104,18 @@ private:
 		double TotalRequestTime = 0.0;
 	};
 
+	struct FOplogCookInfo
+	{
+		struct FAttachment
+		{
+			const UTF8CHAR* Key;
+			FIoHash Hash;
+		};
+
+		ICookedPackageWriter::FCookedPackageInfo CookInfo;
+		TArray<FAttachment> Attachments;
+	};
+
 	FRWLock								PackagesLock;
 	TMap<FName,FPendingPackageState>	PendingPackages;
 	TUniquePtr<UE::FZenStoreHttpClient>	HttpClient;
@@ -115,7 +128,7 @@ private:
 	FPackageStoreManifest				PackageStoreManifest;
 	TUniquePtr<FPackageStoreOptimizer>	PackageStoreOptimizer;
 	TArray<FPackageStoreEntryResource>	PackageStoreEntries;
-	TArray<FCookedPackageInfo>			CookedPackagesInfo;
+	TArray<FOplogCookInfo>				CookedPackagesInfo;
 	TMap<FName, int32>					PackageNameToIndex;
 
 	TUniquePtr<FZenFileSystemManifest>	ZenFileSystemManifest;
@@ -131,4 +144,8 @@ private:
 	FZenStats							ZenStats;
 
 	bool								bInitialized;
+
+	static void StaticInit();
+	static bool IsReservedOplogKey(FUtf8StringView Key);
+	static TArray<const UTF8CHAR*>		ReservedOplogKeys;
 };
