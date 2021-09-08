@@ -5,6 +5,7 @@
 #include "IoDispatcher.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/Optional.h"
+#include "ProfilingDebugging/TagTrace.h"
 
 class FIoRequestImpl
 {
@@ -12,6 +13,9 @@ public:
 	FIoRequestImpl* NextRequest = nullptr;
 	void* BackendData = nullptr;
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
+#if USE_MEMORY_TRACE_TAGS
+	int32 InheritedTraceTag;
+#endif
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
 	int32 Priority = 0;
@@ -20,6 +24,9 @@ public:
 		: Dispatcher(InDispatcher)
 	{
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
+#if USE_MEMORY_TRACE_TAGS
+		InheritedTraceTag = MemoryTrace_GetActiveTag();
+#endif
 	}
 
 	bool IsCancelled() const
