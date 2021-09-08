@@ -140,6 +140,11 @@ public:
 		// If non-zero, controls layout(num_views = N) in; in GL_OVR_multiview2.
 		uint32_t ovr_multiview_view_count = 0;
 
+		// UE Change Begin: Fixup layout locations to include padding for arrays
+		// Fixup layout locations to account for padding between array indicies
+		bool fixup_layout_locations = false;
+		// UE Change End: Fixup layout locations to include padding for arrays
+
 		enum Precision
 		{
 			DontCare,
@@ -940,6 +945,10 @@ protected:
 	uint32_t get_declared_member_location(const SPIRVariable &var, uint32_t mbr_idx, bool strip_array) const;
 	std::unordered_set<LocationComponentPair, InternalHasher> masked_output_locations;
 	std::unordered_set<uint32_t> masked_output_builtins;
+
+	// UE Change Begin: Fixup layout locations to include padding for arrays
+	void fixup_layout_locations();
+	// UE Change End: Fixup layout locations to include padding for arrays
 
 private:
 	void init();

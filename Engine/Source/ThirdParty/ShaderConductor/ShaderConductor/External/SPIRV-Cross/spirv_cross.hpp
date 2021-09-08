@@ -417,7 +417,9 @@ public:
 	// Combined image samplers originating from this set are always considered active variables.
 	// Arrays of separate samplers are not supported, but arrays of separate images are supported.
 	// Array of images + sampler -> Array of combined image samplers.
-	void build_combined_image_samplers();
+	// UE Change Begin: For opengl based platforms we merge all samplers to a single sampler per texture
+	void build_combined_image_samplers(bool single_sampler_per_texture);
+	// UE Change End: For opengl based platforms we merge all samplers to a single sampler per texture
 
 	// Gets a remapping for the combined image samplers.
 	const SmallVector<CombinedImageSampler> &get_combined_image_samplers() const
@@ -831,15 +833,21 @@ protected:
 
 	struct CombinedImageSamplerHandler : OpcodeHandler
 	{
-		CombinedImageSamplerHandler(Compiler &compiler_)
+		// UE Change Begin: For opengl based platforms we merge all samplers to a single sampler per texture
+		CombinedImageSamplerHandler(Compiler &compiler_, bool single_sampler_per_texture_)
 		    : compiler(compiler_)
+		    , single_sampler_per_texture(single_sampler_per_texture_)
 		{
 		}
+		// UE Change End: For opengl based platforms we merge all samplers to a single sampler per texture
 		bool handle(spv::Op opcode, const uint32_t *args, uint32_t length) override;
 		bool begin_function_scope(const uint32_t *args, uint32_t length) override;
 		bool end_function_scope(const uint32_t *args, uint32_t length) override;
 
 		Compiler &compiler;
+		// UE Change Begin: For opengl based platforms we merge all samplers to a single sampler per texture
+		bool single_sampler_per_texture;
+		// UE Change End: For opengl based platforms we merge all samplers to a single sampler per texture
 
 		// Each function in the call stack needs its own remapping for parameters so we can deduce which global variable each texture/sampler the parameter is statically bound to.
 		std::stack<std::unordered_map<uint32_t, uint32_t>> parameter_remapping;

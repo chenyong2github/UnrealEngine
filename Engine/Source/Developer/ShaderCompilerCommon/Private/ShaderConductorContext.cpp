@@ -92,15 +92,17 @@ namespace CrossCompiler
 		const ShaderConductor::Compiler::ResultDesc& InBinaryDesc,
 		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
 		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
+		const ShaderConductor::Compiler::Options& InOptions,
 		ShaderConductor::Compiler::ResultDesc& OutResultDesc)
 	{
-		OutResultDesc = ShaderConductor::Compiler::ConvertBinary(InBinaryDesc, InSourceDesc, /*Options:*/ {}, InTargetDesc);
+		OutResultDesc = ShaderConductor::Compiler::ConvertBinary(InBinaryDesc, InSourceDesc, InOptions, InTargetDesc);
 	}
 
 	static bool ScConvertBinaryWrapper(
 		const ShaderConductor::Compiler::ResultDesc& InBinaryDesc,
 		const ShaderConductor::Compiler::SourceDesc& InSourceDesc,
 		const ShaderConductor::Compiler::TargetDesc& InTargetDesc,
+		const ShaderConductor::Compiler::Options& InOptions,
 		ShaderConductor::Compiler::ResultDesc& OutResultDesc,
 		bool& bOutException)
 	{
@@ -109,7 +111,7 @@ namespace CrossCompiler
 		__try
 #endif
 		{
-			InnerScCompileWrapper(InBinaryDesc, InSourceDesc, InTargetDesc, OutResultDesc);
+			InnerScCompileWrapper(InBinaryDesc, InSourceDesc, InTargetDesc, InOptions, OutResultDesc);
 			return true;
 		}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
@@ -401,6 +403,7 @@ namespace CrossCompiler
 		OutOptions.enableDebugInfo = InOptions.bEnableDebugInfo;
 		OutOptions.disableOptimizations = InOptions.bDisableOptimizations;
 		OutOptions.enableFMAPass = InOptions.bEnableFMAPass;
+
 		if (OutOptions.enable16bitTypes)
 		{
 			// 16-bit types only supports with SM 6.2+
@@ -702,7 +705,7 @@ namespace CrossCompiler
 		bool bSucceeded = false;
 		bool bException = false;
 		ShaderConductor::Compiler::ResultDesc ResultDesc;
-		ScConvertBinaryWrapper(ScBinaryDesc, ScSourceDesc, ScTargetDesc, ResultDesc, bException);
+		ScConvertBinaryWrapper(ScBinaryDesc, ScSourceDesc, ScTargetDesc, ScOptions, ResultDesc, bException);
 
 		if (!ResultDesc.hasError && !bException && ResultDesc.target.Size() > 0)
 		{

@@ -9,6 +9,8 @@
 #include "ShaderFormatOpenGL.h"
 #include "HlslccHeaderWriter.h"
 #include "SpirvReflectCommon.h"
+#include <algorithm>
+#include <regex>
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -1228,6 +1230,7 @@ static const ANSICHAR* GetFrequencyPrefix(EShaderFrequency Frequency)
 struct PackedUBMemberInfo
 {
 	std::string Name;
+	std::string SanitizedName;
 	std::string TypeQualifier;
 	uint32_t SrcOffset;
 	uint32_t DestOffset;
@@ -1253,8 +1256,8 @@ void WritePackedUBHeader(CrossCompiler::FHlslccHeaderWriter& CCHeaderWriter, con
 		
 		for (const PackedUBMemberInfo& MemberInfo : UBMemberInfo[Pair.Key])
 		{
-			CCHeaderWriter.WritePackedUBField(UBName, UTF8_TO_TCHAR(MemberInfo.Name.c_str()), MemberInfo.SrcOffset, MemberInfo.DestSizeInFloats * sizeof(float));
-			CCHeaderWriter.WritePackedUBCopy(Pair.Key, MemberInfo.SrcOffset / sizeof(float), Pair.Key, TEXT('h'), MemberInfo.DestOffset / sizeof(float), MemberInfo.DestSizeInFloats, true);
+			CCHeaderWriter.WritePackedUBField(UBName, UTF8_TO_TCHAR(MemberInfo.SanitizedName.c_str()), MemberInfo.SrcOffset, MemberInfo.DestSizeInFloats * sizeof(float));
+			CCHeaderWriter.WritePackedUBCopy(Pair.Key, MemberInfo.SrcOffset / sizeof(float), Pair.Key, MemberInfo.TypeQualifier[0], MemberInfo.DestOffset / sizeof(float), MemberInfo.DestSizeInFloats, true);
 		}
 	}
 }
@@ -1298,7 +1301,8 @@ void AddMemberToPackedUB(const std::string & FrequencyPrefix,
 
 	GetSpvVarQualifier(Member, TypeQualifier);
 
-	FString MemberName = UTF8_TO_TCHAR(Member.name);
+	std::string SanitizedName = Member.name;
+	std::replace(SanitizedName.begin(), SanitizedName.end(), '.', '_');
 
 	uint32& Offset = Offsets.FindOrAdd(TypeQualifier);
 	
@@ -1315,10 +1319,11 @@ void AddMemberToPackedUB(const std::string & FrequencyPrefix,
 	}
 
 	std::string OffsetString = std::to_string(Offset);
-	Name += Member.name;
+	Name += SanitizedName;
 
 	PackedUBMemberInfo& MemberInfo = MemberInfos.AddDefaulted_GetRef();
 	MemberInfo.Name = Member.name;
+	MemberInfo.SanitizedName = SanitizedName;
 	MemberInfo.TypeQualifier = TCHAR_TO_UTF8(*TypeQualifier);
 	MemberInfo.SrcOffset = Member.offset;
 	MemberInfo.DestOffset = Offset * 4 * sizeof(float);
@@ -1329,11 +1334,11 @@ void AddMemberToPackedUB(const std::string & FrequencyPrefix,
 	{
 		if (bGlobals)
 		{
-			ArrayName = UBName + Member.name;
+			ArrayName = UBName + SanitizedName;
 		}
 		else
 		{
-			ArrayName = Member.name;
+			ArrayName = SanitizedName;
 		}
 
 		Name += "(Offset)";
@@ -1444,6 +1449,34 @@ void AddMemberToPackedUB(const std::string & FrequencyPrefix,
 	Offset += Align(MbrSize, 4) / 4;
 }
 
+void GetPackedUniformString(std::string& OutputString, const std::string& UniformPrefix, const FString & Key, uint32_t Index)
+{
+	if (Key == TEXT("u"))
+	{
+		OutputString = "uniform uvec4 ";
+		OutputString += UniformPrefix;
+		OutputString += "_u[";
+		OutputString += std::to_string(Index);
+		OutputString += "];\n";
+	}
+	else if (Key == TEXT("i"))
+	{
+		OutputString = "uniform ivec4 ";
+		OutputString += UniformPrefix;
+		OutputString += "_i[";
+		OutputString += std::to_string(Index);
+		OutputString += "];\n";
+	}
+	else if (Key == TEXT("h"))
+	{
+		OutputString = "uniform highp vec4 ";
+		OutputString += UniformPrefix;
+		OutputString += "_h[";
+		OutputString += std::to_string(Index);
+		OutputString += "];\n";
+	}
+}
+
 static bool CompileToGlslWithShaderConductor(
 	const FShaderCompilerInput&	Input,
 	FShaderCompilerOutput&		Output,
@@ -1502,7 +1535,8 @@ static bool CompileToGlslWithShaderConductor(
 		"\t#extension GL_EXT_shader_framebuffer_fetch : enable\n"
 		"\t#define FBF_STORAGE_QUALIFIER inout\n"
 		"#endif\n"
-		"#extension GL_EXT_texture_buffer : enable\n";
+		"#extension GL_EXT_texture_buffer : enable\n"
+		"// end extensions";
 
 	// GLSL framebuffer macro definitions. Used to patch GLSL output source.
 	const ANSICHAR* GlslFrameBufferDefines =
@@ -1526,6 +1560,9 @@ static bool CompileToGlslWithShaderConductor(
 		"#define _Globals_ARM_shader_framebuffer_fetch_depth_stencil 1u\n"
 		"#else\n"
 		"#define _Globals_ARM_shader_framebuffer_fetch_depth_stencil 0u\n"
+		"#endif\n"
+		"#ifndef HLSLCC_DX11ClipSpace\n"
+		"#define HLSLCC_DX11ClipSpace 1\n"
 		"#endif\n"
 		;
 	
@@ -1578,6 +1615,7 @@ static bool CompileToGlslWithShaderConductor(
 
 	// Compile HLSL source to SPIR-V binary
 	TArray<uint32> SpirvData;
+	
 	if (!bCompilationFailed && !CompilerContext.CompileHlslToSpirv(Options, SpirvData))
 	{
 		// Flush compile errors
@@ -1601,6 +1639,7 @@ static bool CompileToGlslWithShaderConductor(
 		CrossCompiler::FHlslccHeaderWriter CCHeaderWriter;
 		TArray<FString> Textures;
 		TArray<FString> Samplers;
+		TArray<std::string> UAVs;
 		uint32 UAVIndices = 0xffffffff;
 		uint32 BufferIndices = 0xffffffff;
 		uint32 TextureIndices = 0xffffffff;
@@ -1626,6 +1665,8 @@ static bool CompileToGlslWithShaderConductor(
 
 			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+
+			UAVs.Add(Binding->name);
 		}
 
 		for (auto const& Binding : ReflectionBindings.SBufferUAVs)
@@ -1642,6 +1683,8 @@ static bool CompileToGlslWithShaderConductor(
 
 			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+
+			UAVs.Add(Binding->name);
 		}
 
 		for (auto const& Binding : ReflectionBindings.TextureUAVs)
@@ -1659,6 +1702,8 @@ static bool CompileToGlslWithShaderConductor(
 
 			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
 			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+
+			UAVs.Add(Binding->name);
 		}
 
 		for (auto const& Binding : ReflectionBindings.TBufferSRVs)
@@ -1752,18 +1797,40 @@ static bool CompileToGlslWithShaderConductor(
 					for (uint32 i = 0; i < Binding->block.member_count; i++)
 					{
 						SpvReflectBlockVariable& member = Binding->block.members[i];
-						//CCHeaderWriter.WritePackedUBField(UTF8_TO_TCHAR(member.name), member.absolute_offset, member.size);
 
 						std::string UBName = "_" + std::string(Binding->name) + "_";
 						
-						AddMemberToPackedUB(FrequencyPrefix,
-							member,
-							UBName,
-							PackedUBIndex,
-							PackedUBOffsets[PackedUBIndex],
-							PackedUBMemberInfos[PackedUBIndex],
-							PackedUBRemap[PackedUBIndex],
-							PackedUBArrays[PackedUBIndex]);
+						if (member.type_description->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
+						{
+							for (uint32 n = 0; n < member.member_count; n++)
+							{
+								// Clone struct member and rename it for struct
+								SpvReflectBlockVariable StructMember = member.members[n];
+								
+								std::string StructMemberName = std::string(member.name) + "." + std::string(StructMember.name);
+								StructMember.name = StructMemberName.c_str();
+
+								AddMemberToPackedUB(FrequencyPrefix,
+									StructMember,
+									UBName,
+									PackedUBIndex,
+									PackedUBOffsets[PackedUBIndex],
+									PackedUBMemberInfos[PackedUBIndex],
+									PackedUBRemap[PackedUBIndex],
+									PackedUBArrays[PackedUBIndex]);
+							}
+						}
+						else
+						{
+							AddMemberToPackedUB(FrequencyPrefix,
+								member,
+								UBName,
+								PackedUBIndex,
+								PackedUBOffsets[PackedUBIndex],
+								PackedUBMemberInfos[PackedUBIndex],
+								PackedUBRemap[PackedUBIndex],
+								PackedUBArrays[PackedUBIndex]);
+						}
 					}
 
 					PackedUBIndex++;
@@ -2071,6 +2138,8 @@ static bool CompileToGlslWithShaderConductor(
 		switch (Version)
 		{
 		case GLSL_150_ES3_1:	// ES3.1 Emulation
+			TargetDesc.CompileFlags.SetDefine(TEXT("force_flattened_io_blocks"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("emit_uniform_buffer_as_plain_uniforms"), 1);
 			TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Glsl;
 			TargetDesc.Version = 430;
 			break;
@@ -2231,7 +2300,16 @@ static bool CompileToGlslWithShaderConductor(
 				{
 					bool bIsLayout = true;
 
-					std::string GlobalsSearchString = "layout(std140) uniform type_Globals";
+					std::string GlobalsSearchString = "layout\\(.*\\) uniform type_Globals$";
+
+					std::smatch RegexMatch;
+					std::regex_search(GlslSource, RegexMatch, std::regex(GlobalsSearchString));
+					
+					for (auto Match : RegexMatch)
+					{
+						GlobalsSearchString = Match;
+						break;
+					}
 
 					size_t GlobalPos = GlslSource.find(GlobalsSearchString);
 
@@ -2247,7 +2325,7 @@ static bool CompileToGlslWithShaderConductor(
 						std::string GlobalsEndSearchString;
 						if (bIsLayout)
 						{
-							GlobalsEndSearchString = "_Globals;";
+							GlobalsEndSearchString = "} _Globals;";
 						}
 						else
 						{
@@ -2289,30 +2367,7 @@ static bool CompileToGlslWithShaderConductor(
 								if (Pair.Value > 0)
 								{
 									std::string NewUniforms;
-									if (Pair.Key == TEXT("u"))
-									{
-										NewUniforms = "uniform uvec4 ";
-										NewUniforms += FrequencyPrefix;
-										NewUniforms += "u_u[";
-										NewUniforms += std::to_string(Pair.Value);
-										NewUniforms += "];\n";
-									}
-									else if (Pair.Key == TEXT("i"))
-									{
-										NewUniforms = "uniform ivec4 ";
-										NewUniforms += FrequencyPrefix;
-										NewUniforms += "u_i[";
-										NewUniforms += std::to_string(Pair.Value);
-										NewUniforms += "];\n";
-									}
-									else if (Pair.Key == TEXT("h"))
-									{
-										NewUniforms = "uniform highp vec4 ";
-										NewUniforms += FrequencyPrefix;
-										NewUniforms += "u_h[";
-										NewUniforms += std::to_string(Pair.Value);
-										NewUniforms += "];\n";
-									}
+									GetPackedUniformString(NewUniforms, FrequencyPrefix+std::string("u"), Pair.Key, Pair.Value);
 									GlslSource.insert(GlobalPos, NewUniforms);
 								}
 							}
@@ -2339,7 +2394,16 @@ static bool CompileToGlslWithShaderConductor(
 				for (const auto& PackedUBNamePair : PackedUBNames)
 				{
 					bool bIsLayout = true;
-					std::string UBSearchString = "layout(std140) uniform type_" + PackedUBNamePair.Value;
+					std::string UBSearchString = "layout\\(.*\\) uniform type_" + PackedUBNamePair.Value + "$";
+
+					std::smatch RegexMatch;
+					std::regex_search(GlslSource, RegexMatch, std::regex(UBSearchString));
+
+					for (auto Match : RegexMatch)
+					{
+						UBSearchString = Match;
+						break;
+					}
 
 					size_t UBPos = GlslSource.find(UBSearchString);
 
@@ -2378,6 +2442,7 @@ static bool CompileToGlslWithShaderConductor(
 								while (UBVarPos != std::string::npos)
 								{
 									GlslSource.erase(UBVarPos, PackedUBNamePair.Value.length() + 1);
+									GlslSource.replace(UBVarPos, MemberInfo.Name.size(), MemberInfo.SanitizedName);
 
 									for (std::string const& SearchString : PackedUBArrays[PackedUBNamePair.Key])
 									{
@@ -2401,30 +2466,7 @@ static bool CompileToGlslWithShaderConductor(
 								{
 									std::string NewUniforms;
 									std::string UniformPrefix = FrequencyPrefix + std::string("c") + std::to_string(PackedUBNamePair.Key);
-									if (Pair.Key == TEXT("u"))
-									{
-										NewUniforms = "uniform uvec4 ";
-										NewUniforms += UniformPrefix;
-										NewUniforms += "_u[";
-										NewUniforms += std::to_string(Pair.Value);
-										NewUniforms += "];\n";
-									}
-									else if (Pair.Key == TEXT("i"))
-									{
-										NewUniforms = "uniform ivec4 ";
-										NewUniforms += UniformPrefix;
-										NewUniforms += "_i[";
-										NewUniforms += std::to_string(Pair.Value);
-										NewUniforms += "];\n";
-									}
-									else if (Pair.Key == TEXT("h"))
-									{
-										NewUniforms = "uniform highp vec4 ";
-										NewUniforms += UniformPrefix;
-										NewUniforms += "_h[";
-										NewUniforms += std::to_string(Pair.Value);
-										NewUniforms += "];\n";
-									}
+									GetPackedUniformString(NewUniforms, UniformPrefix, Pair.Key, Pair.Value);
 									GlslSource.insert(UBPos, NewUniforms);
 								}
 							}
@@ -2499,6 +2541,39 @@ static bool CompileToGlslWithShaderConductor(
 					const uint32 SamplerCount = FMath::Max(1, UsedSamplers.Num());
 					CCHeaderWriter.WriteSRV(*Texture, TextureIndex, SamplerCount, UsedSamplers);
 					TextureIndex += SamplerCount;
+				}
+
+				// UAVS, rename as ci0 format
+				uint32_t UAVIndex = 0;
+				for (const std::string& UAV : UAVs)
+				{
+					std::string NewUAVName = FrequencyPrefix + std::string("i") + std::to_string(UAVIndex);
+
+					// Find instances of UAVs
+					std::string RegexExpression = "(?:^|\\W|\\S)" + UAV + "(?:$|\\W)";
+
+					std::cmatch RegexMatch;
+					std::vector<std::string> RegexMatches;
+
+					const char * TempString = GlslSource.c_str();
+					while (std::regex_search(TempString, RegexMatch, std::regex(RegexExpression)))
+					{
+						RegexMatches.push_back(RegexMatch.str());
+						UE_LOG(LogOpenGLShaderCompiler, Warning, TEXT("\t\tFound Regex Result %s"), UTF8_TO_TCHAR(RegexMatch.str().c_str()));
+						TempString = RegexMatch.suffix().first;
+					}
+
+					UE_LOG(LogOpenGLShaderCompiler, Warning, TEXT("Looking for UAV %s"), UTF8_TO_TCHAR(UAV.c_str()));
+
+					for(const auto & Match : RegexMatches)
+					{
+						size_t MatchOffset = Match.find_first_of(UAV);
+						size_t MatchPos = GlslSource.find(Match);
+
+						GlslSource.replace(MatchPos + MatchOffset, UAV.size(), NewUAVName);
+					}
+
+					UAVIndex++;
 				}
 
 				for (const auto & pair : UniformVarNames)

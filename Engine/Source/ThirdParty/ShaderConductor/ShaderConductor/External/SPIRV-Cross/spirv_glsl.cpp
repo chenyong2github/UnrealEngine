@@ -623,6 +623,46 @@ void CompilerGLSL::ray_tracing_khr_fixup_locations()
 	});
 }
 
+// UE Change Begin: Fixup layout locations to include padding for arrays
+void CompilerGLSL::fixup_layout_locations()
+{
+	auto remap = [&](uint32_t storage_type) { 
+		uint32_t location = 0;
+
+		ir.for_each_typed_id<SPIRVariable>([&](uint32_t, SPIRVariable &var) {
+			auto &type = this->get<SPIRType>(var.basetype);
+			bool is_block = has_decoration(type.self, DecorationBlock);
+			auto &flags = get_decoration_bitset(var.self);
+			if (flags.get(DecorationLocation) && can_use_io_location(var.storage, is_block))
+			{
+				if (is_hidden_variable(var))
+					return;
+
+				bool can_remap = var.storage == storage_type;
+
+				if (!can_remap)
+					return;
+
+				set_decoration(var.self, DecorationLocation, location);
+
+				uint32_t offset = type.array.size() > 0 ? to_array_size_literal(type) : 1;
+				location += offset;
+			}
+		});
+	};
+
+	auto &execution = get_entry_point();
+
+	// Remap locations on Fragment Input
+	if (execution.model == ExecutionModelFragment)
+		remap(StorageClassInput);
+
+	// Remap locations on VS Output
+	if (execution.model == ExecutionModelVertex)
+		remap(StorageClassOutput);
+}
+// UE Change End: Fixup layout locations to include padding for arrays
+
 string CompilerGLSL::compile()
 {
 	ir.fixup_reserved_names();
@@ -649,6 +689,12 @@ string CompilerGLSL::compile()
 	build_function_control_flow_graphs_and_analyze();
 	find_static_extensions();
 	fixup_image_load_store_access();
+
+	// UE Change Begin: Fixup layout locations to include padding for arrays
+	if (options.fixup_layout_locations)
+		fixup_layout_locations();
+	// UE Change End: Fixup layout locations to include padding for arrays
+
 	update_active_builtins();
 	analyze_image_and_sampler_usage();
 	analyze_interlocked_resource_usage();

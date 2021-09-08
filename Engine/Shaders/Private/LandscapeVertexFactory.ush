@@ -149,7 +149,8 @@ struct FVertexFactoryInput
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
 #else
 	float4 PackedPosition: ATTRIBUTE0; 
-	float4 LODHeights[2]: ATTRIBUTE1;  
+	float4 LODHeights0 : ATTRIBUTE1;  
+	float4 LODHeights1 : ATTRIBUTE2;
 #endif
 };
 
@@ -614,15 +615,16 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	LodValue = bClampLodForHole ? HoleVertexLod : LodValue;
 
 	// Get range of heights for all LODs
-	float MinHeight = DecodePackedHeight(float2(Input.LODHeights[0].x, Input.LODHeights[0].y));
+	float MinHeight = DecodePackedHeight(float2(Input.LODHeights0.x, Input.LODHeights0.y));
 	float HeightDelta = Input.PackedPosition.w * 255.0 * 256.0 * TERRAIN_ZSCALE;
 
 	// Select the height values from the vertex input corresponding to the current and next LOD
 	uint LODHeightIndex = min((uint)LodValue + 2, (uint)7);
 	uint LODHeightIndexNextLod = min((uint)LodValue + 3, (uint)7);
-
-	float InputHeight = Input.LODHeights[LODHeightIndex >> 2][LODHeightIndex & 3];
-	float InputHeightNextLOD = Input.LODHeights[LODHeightIndexNextLod >> 2][LODHeightIndexNextLod & 3];
+	
+	float4 LODHeight = LODHeightIndex >> 2 ? Input.LODHeights1 : Input.LODHeights0;
+	float InputHeight = LODHeight[LODHeightIndex & 3];
+	float InputHeightNextLOD = LODHeight[LODHeightIndexNextLod & 3];
 
 	float Height = MinHeight + InputHeight * HeightDelta;
 	float HeightNextLOD = MinHeight + InputHeightNextLOD * HeightDelta;
