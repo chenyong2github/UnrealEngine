@@ -2120,18 +2120,27 @@ EDesignPreviewSizeMode FWidgetBlueprintEditorUtils::ConvertThumbnailSizeModeToDe
 
 TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTarget(UUserWidget* WidgetInstance, UTextureRenderTarget2D* RenderTarget2D)
 {
-	return DrawSWidgetInRenderTargetInternal(WidgetInstance, RenderTarget2D, FVector2D(256.f,256.f), false, TOptional<FVector2D>(), EThumbnailPreviewSizeMode::MatchDesignerMode);
+	return DrawSWidgetInRenderTargetInternal(WidgetInstance, nullptr, RenderTarget2D, FVector2D(256.f,256.f), false, TOptional<FVector2D>(), EThumbnailPreviewSizeMode::MatchDesignerMode);
+}
+
+TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(UUserWidget* WidgetInstance, FRenderTarget* RenderTarget2D, FVector2D ThumbnailSize, TOptional<FVector2D> ThumbnailCustomSize, EThumbnailPreviewSizeMode ThumbnailSizeMode)
+{
+	return DrawSWidgetInRenderTargetInternal(WidgetInstance, RenderTarget2D, nullptr,ThumbnailSize, true, ThumbnailCustomSize, ThumbnailSizeMode);
 }
 
 TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(UUserWidget* WidgetInstance, UTextureRenderTarget2D* RenderTarget2D, FVector2D ThumbnailSize, TOptional<FVector2D> ThumbnailCustomSize, EThumbnailPreviewSizeMode ThumbnailSizeMode)
 {
-	return DrawSWidgetInRenderTargetInternal(WidgetInstance, RenderTarget2D, ThumbnailSize, true, ThumbnailCustomSize, ThumbnailSizeMode);
+	return DrawSWidgetInRenderTargetInternal(WidgetInstance, nullptr, RenderTarget2D,ThumbnailSize, true, ThumbnailCustomSize, ThumbnailSizeMode);
 }
 
-TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>  FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetInternal(UUserWidget* WidgetInstance, UTextureRenderTarget2D* RenderTarget2D, FVector2D ThumbnailSize, bool bIsForThumbnail, TOptional<FVector2D> ThumbnailCustomSize,EThumbnailPreviewSizeMode ThumbnailSizeMode)
+TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>  FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetInternal(UUserWidget* WidgetInstance, FRenderTarget* RenderTarget2D, UTextureRenderTarget2D* TextureRenderTarget,FVector2D ThumbnailSize, bool bIsForThumbnail, TOptional<FVector2D> ThumbnailCustomSize, EThumbnailPreviewSizeMode ThumbnailSizeMode)
 {
+	if (TextureRenderTarget == nullptr && RenderTarget2D == nullptr)
+	{
+		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>(); 
+	}
 	//Create Window
-	FVector2D Offset(0.f,0.f);
+	FVector2D Offset(0.f, 0.f);
 	FVector2D ScaledSize(0.f, 0.f);
 	TSharedPtr<SWidget> WindowContent = WidgetInstance->TakeWidget();
 
@@ -2140,7 +2149,7 @@ TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>  FWidgetBluep
 		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>();
 	}
 
-	TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow).Size(ThumbnailSize);
+	TSharedRef<SVirtualWindow> Window = SNew(SVirtualWindow);
 	TUniquePtr<FHittestGrid> HitTestGrid = MakeUnique<FHittestGrid>();
 	Window->SetContent(WindowContent.ToSharedRef());
 	Window->Resize(ThumbnailSize);
@@ -2149,35 +2158,25 @@ TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>  FWidgetBluep
 	FGeometry WindowGeometry = FGeometry::MakeRoot(ThumbnailSize, FSlateLayoutTransform(1.0f));
 	Window->SlatePrepass(1.0f);
 	FVector2D DesiredSizeWindow = Window->GetDesiredSize();
-
-
+	
 	if (DesiredSizeWindow.X < SMALL_NUMBER || DesiredSizeWindow.Y < SMALL_NUMBER)
 	{
 		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>();
 	}
 
-	FVector2D UnscaledSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(DesiredSizeWindow, WidgetInstance, ThumbnailCustomSize,ThumbnailSizeMode);
+	FVector2D UnscaledSize = FWidgetBlueprintEditorUtils::GetWidgetPreviewUnScaledCustomSize(DesiredSizeWindow, WidgetInstance, ThumbnailCustomSize, ThumbnailSizeMode);
 	if (UnscaledSize.X < SMALL_NUMBER || UnscaledSize.Y < SMALL_NUMBER)
 	{
 		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>();
 	}
 
-	float Scale;
+	float Scale = 1.f;
 	// Change some configuration if it is for thumbnail creation
-	if (bIsForThumbnail) 
+	if (bIsForThumbnail)
 	{
 		TTuple<float, FVector2D> ScaleAndOffset = FWidgetBlueprintEditorUtils::GetThumbnailImageScaleAndOffset(UnscaledSize, ThumbnailSize);
 		Scale = ScaleAndOffset.Get<0>();
 		Offset = ScaleAndOffset.Get<1>();
-	}
-	else
-	{
-		RenderTarget2D->Filter = TF_Bilinear;
-		RenderTarget2D->ClearColor = FLinearColor::Transparent;
-		RenderTarget2D->SRGB = true;
-		RenderTarget2D->RenderTargetFormat = RTF_RGBA8;
-		Scale = 1.f;
-		Offset = FVector2D(0.f, 0.f);
 	}
 
 	ScaledSize = UnscaledSize * Scale;
@@ -2185,18 +2184,38 @@ TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>  FWidgetBluep
 	{
 		return TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties>();
 	}
-	const EPixelFormat RequestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
-	RenderTarget2D->InitCustomFormat(ScaledSize.X, ScaledSize.Y, RequestedFormat, false);
 
 	// Create Renderer Target and WidgetRenderer
-	bool bApplyGammaCorrection = false;
+	bool bApplyGammaCorrection = RenderTarget2D? true : false;
 	FWidgetRenderer* WidgetRenderer = new FWidgetRenderer(bApplyGammaCorrection);
-	const bool bIsLinearSpace = !bApplyGammaCorrection;
+
 	if (!bIsForThumbnail)
 	{
 		WidgetRenderer->SetIsPrepassNeeded(false);
 	}
-	WidgetRenderer->DrawWindow(RenderTarget2D, *HitTestGrid, Window, Scale, ScaledSize, 0.1f);
+
+	if (TextureRenderTarget)
+	{
+		TextureRenderTarget->Filter = TF_Bilinear;
+		TextureRenderTarget->ClearColor = FLinearColor::Transparent;
+		TextureRenderTarget->SRGB = true;
+		TextureRenderTarget->RenderTargetFormat = RTF_RGBA8;
+
+		uint32 ScaledSizeX = static_cast<uint32>(ScaledSize.X);
+		uint32 ScaledSizeY = static_cast<uint32>(ScaledSize.Y);
+
+		const bool bForceLinearGamma = false;
+		const EPixelFormat RequestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
+		TextureRenderTarget->InitCustomFormat(ScaledSizeX, ScaledSizeY, RequestedFormat, bForceLinearGamma);
+		WidgetRenderer->DrawWindow(TextureRenderTarget, *HitTestGrid, Window, Scale, ScaledSize, 0.1f);
+	}
+	else
+	{
+		ensure(RenderTarget2D != nullptr);
+		WidgetRenderer->SetShouldClearTarget(false);
+		WidgetRenderer->ViewOffset = Offset;
+		WidgetRenderer->DrawWindow(RenderTarget2D, *HitTestGrid, Window, Scale, ScaledSize, 0.1f);
+	}
 
 	if (WidgetRenderer)
 	{
