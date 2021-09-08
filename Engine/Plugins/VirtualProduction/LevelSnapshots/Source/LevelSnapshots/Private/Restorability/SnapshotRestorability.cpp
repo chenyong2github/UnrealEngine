@@ -2,11 +2,16 @@
 
 #include "Restorability/SnapshotRestorability.h"
 
+#include "Landscape.h"
+#include "LandscapeGizmoActor.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
+#include "AI/NavigationSystemConfig.h"
+#include "Algo/AllOf.h"
 
 #include "Components/ActorComponent.h"
 #include "Components/BillboardComponent.h"
+#include "Engine/BrushBuilder.h"
 #include "Engine/LevelScriptActor.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/DefaultPhysicsVolume.h"
@@ -23,36 +28,28 @@ namespace
 		const TSet<UClass*> UnsupportedClasses = 
 		{
 			ALevelScriptActor::StaticClass(),		// The level blueprint. Filtered out to avoid external map errors when saving a snapshot.
-            ADefaultPhysicsVolume::StaticClass()	// Does not show up in world outliner; always spawned with world.
+            ADefaultPhysicsVolume::StaticClass(),	// Does not show up in world outliner; always spawned with world.
+
+			// Until proper landscape support is implemented, let's completely ignore landscapes to avoid capturing incomplete data
+			ALandscapeProxy::StaticClass(),
+			ALandscapeGizmoActor::StaticClass()
         };
 
-		for (UClass* Class : UnsupportedClasses)
-		{
-			if (Actor->IsA(Class))
-			{
-				return false;
-			}
-		}
-	
-		return true;
+		return Algo::AllOf(UnsupportedClasses, [Actor](UClass *Class) { return !Actor->IsA(Class); });
 	}
 
 	bool DoesActorHaveSupportedClassForRemoving(const AActor* Actor)
 	{
 		const TSet<UClass*> UnsupportedClasses = 
 		{
-			AWorldSettings::StaticClass()			// Every sublevel creates a world settings. We do not want to be respawning them
-		};
+			AWorldSettings::StaticClass(),			// Every sublevel creates a world settings. We do not want to be respawning them
 
-		for (UClass* Class : UnsupportedClasses)
-		{
-			if (Actor->IsA(Class))
-			{
-				return false;
-			}
-		}
-	
-		return true;
+			// Until proper landscape support is implemented, let's completely ignore landscapes to avoid capturing incomplete data
+			ALandscapeProxy::StaticClass(),
+			ALandscapeGizmoActor::StaticClass()
+		};
+		
+		return Algo::AllOf(UnsupportedClasses, [Actor](UClass *Class) { return !Actor->IsA(Class); });
 	}
 
 	bool DoesComponentHaveSupportedClassForCapture(const UActorComponent* Component)
@@ -61,22 +58,30 @@ namespace
 		{
 			UBillboardComponent::StaticClass(),		// Attached to all editor actors > It always has a different name so we will never be able to match it.
         };
+		
+		return Algo::AllOf(UnsupportedClasses, [Component](UClass *Class) { return !Component->IsA(Class); });
+	}
 
-		for (UClass* Class : UnsupportedClasses)
+	bool DoesSubobjecttHaveSupportedClassForCapture(const UObject* Subobject)
+	{
+		const TSet<UClass*> UnsupportedClasses = 
 		{
-			if (Component->IsA(Class))
-			{
-				return false;
-			}
-		}
-	
-		return true;
+			UBrushBuilder::StaticClass(),				// Does not have state. Referenced by AVolumes, ABrushes, e.g. APostProcessVolume or ALightmassImportanceVolume
+			UNavigationSystemConfig::StaticClass()		
+		};
+		
+		return Algo::AllOf(UnsupportedClasses, [Subobject](UClass *Class) { return !Subobject->IsA(Class); });
 	}
 }
 
 bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsActorDesirableForCapture);
+
+	if (!IsValid(Actor))
+	{
+		return false;
+	}
 	
 	bool bSomebodyAllowed = false;
 	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
@@ -95,11 +100,8 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 		return true;
 	}
 
-
-
 	
-	return IsValid(Actor)
-            && DoesActorHaveSupportedClass(Actor)
+	return DoesActorHaveSupportedClass(Actor)
             && !Actor->IsTemplate()								// Should never happen, but we never want CDOs
             && !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds		
 #if WITH_EDITOR
@@ -113,6 +115,11 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponent* Component)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsComponentDesirableForCapture);
+
+	if (!IsValid(Component))
+	{
+		return false;
+	}
 	
 	bool bSomebodyAllowed = false;
 	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
@@ -125,17 +132,48 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 			return false;
 		}
 	}
+	
+	return bSomebodyAllowed
+		// Components created in construction script are not supported
+		|| (Component->CreationMethod != EComponentCreationMethod::UserConstructionScript
+			&& DoesComponentHaveSupportedClassForCapture(Component));
+}
 
-	if (bSomebodyAllowed)
+bool FSnapshotRestorability::IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(IsSubobjectClassDesirableForCapture);
+	return DoesSubobjecttHaveSupportedClassForCapture(SubobjectClass) && !FLevelSnapshotsModule::GetInternalModuleInstance().IsSubobjectClassBlacklisted(SubobjectClass);
+}
+
+bool FSnapshotRestorability::IsSubobjectDesirableForCapture(const UObject* Subobject)
+{
+	checkf(!Subobject->IsA<UClass>(), TEXT("Do you have a typo on your code?"));
+	
+	if (const UActorComponent* Component = Cast<UActorComponent>(Subobject))
 	{
-		return true;
+		return IsComponentDesirableForCapture(Component);	
 	}
-	
 
+	return Subobject ? IsSubobjectClassDesirableForCapture(Subobject->GetClass()) : false;
+}
+
+bool FSnapshotRestorability::IsPropertyDesirableForCapture(const FProperty* Property)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyDesirableForCapture);
 	
-	// We only support native components or the ones added through the component list in Blueprints for now
-	return IsValid(Component) && DoesComponentHaveSupportedClassForCapture(Component)
-		&& (Component->CreationMethod == EComponentCreationMethod::Native || Component->CreationMethod == EComponentCreationMethod::SimpleConstructionScript);
+	const bool bIsWhitelisted = IsPropertyWhitelistedForCapture(Property);
+	const bool bIsBlacklisted = IsPropertyBlacklistedForCapture(Property);
+
+	// To avoid saving every single subobject, only save the editable ones.
+	const uint64 EditablePropertyFlag = CPF_Edit;
+	const bool bIsObjectProperty = CastField<FObjectPropertyBase>(Property) != nullptr;
+
+	// TODO: Technically, we should only save editable/visible properties. However, we not know whether this will cause any trouble for existing snapshots or has unintended side-effects.
+	const bool bIsAllowed = !bIsBlacklisted
+		&& (bIsWhitelisted
+			|| !bIsObjectProperty															// Legacy / safety reasons: allow all non-object properties
+			|| (bIsObjectProperty && Property->HasAnyPropertyFlags(EditablePropertyFlag))); // Implementing object support now... rather save less than too many subobjects
+	return bIsAllowed;
 }
 
 bool FSnapshotRestorability::IsPropertyBlacklistedForCapture(const FProperty* Property)
@@ -159,9 +197,6 @@ bool FSnapshotRestorability::IsRestorableProperty(const FProperty* LeafProperty)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsRestorableProperty);
 	
-	// Subobjects are currently not supported
-	const uint64 InstancedFlags = CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance;
-	
 	// Deprecated and transient properties should not cause us to consider the property different because we do not save these properties.
 	const uint64 UnsavedProperties = CPF_Deprecated | CPF_Transient;
 	// Property is not editable in details panels
@@ -175,7 +210,7 @@ bool FSnapshotRestorability::IsRestorableProperty(const FProperty* LeafProperty)
 	const bool bIsWhitelisted = Module.IsPropertyWhitelisted(LeafProperty);
 	const bool bIsBlacklisted = Module.IsPropertyBlacklisted(LeafProperty);
 	const bool bPassesDefaultChecks =
-		!LeafProperty->HasAnyPropertyFlags(UnsavedProperties | InstancedFlags | UneditableFlags)
+		!LeafProperty->HasAnyPropertyFlags(UnsavedProperties | UneditableFlags)
         && LeafProperty->HasAllPropertyFlags(RequiredFlags);
 	
 	return bIsWhitelisted || (!bIsBlacklisted && bPassesDefaultChecks);

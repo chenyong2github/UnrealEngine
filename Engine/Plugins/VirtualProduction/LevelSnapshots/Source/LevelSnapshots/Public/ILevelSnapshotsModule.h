@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IRestorationListener.h"
 
 #include "Restorability/IPropertyComparer.h"
 #include "Restorability/ISnapshotRestorabilityOverrider.h"
@@ -41,6 +42,7 @@ public:
 	/** Called after a snapshot is taken */
 	FPostTakeSnapshotEvent& OnPostTakeSnapshot() { return PostTakeSnapshot; }
 
+	
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FCanTakeSnapshot, const FPreTakeSnapshotEventData&);
 	/** Add a named delegate that determines if we can take a snapshot. */
 	virtual void AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate) = 0;
@@ -51,7 +53,12 @@ public:
 	/** Queries the attached snapshot delegate and determines if we can take a snapshot.*/
 	virtual bool CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const = 0;
 
-	/** */
+
+	/** Snapshots will no longer capture nor restore subobjects of this class. Subclasses are implicitly blacklisted. */
+	virtual void AddBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
+	virtual void RemoveBlacklistedSubobjectClasses(const TSet<UClass*>& Classes) = 0;
+	
+	
 	/* Registers callbacks that override which actors, components, and properties are restored by default. */
 	virtual void RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider) = 0;
 	/* Unregisters an overrider previously registered. */
@@ -73,6 +80,11 @@ public:
 	 */
 	virtual void RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses = true) = 0;
 	virtual void UnregisterCustomObjectSerializer(UClass* Class) = 0;
+
+	
+	/** Registers an object that will receive callbacks when a snapshot is applied. */
+	virtual void RegisterRestorationListener(TSharedRef<IRestorationListener> Listener) = 0;
+	virtual void UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener) = 0;
 	
 	
 	/**
@@ -82,7 +94,8 @@ public:
 	virtual void AddWhitelistedProperties(const TSet<const FProperty*>& Properties) = 0;
 	virtual void RemoveWhitelistedProperties(const TSet<const FProperty*>& Properties) = 0;
 
-	/** Stops snapshots from capturing / restoring these properties.
+	/**
+	 * Stops snapshots from capturing / restoring these properties.
 	 * Important: Only add add native properties; Blueprint properties may be invalidated (and left dangeling) when recompiled.
 	 */
 	virtual void AddBlacklistedProperties(const TSet<const FProperty*>& Properties) = 0;

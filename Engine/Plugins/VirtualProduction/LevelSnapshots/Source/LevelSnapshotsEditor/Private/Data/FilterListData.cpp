@@ -24,7 +24,7 @@ void FFilterListData::UpdateFilteredList(UWorld* World, ULevelSnapshot* FromSnap
     RelatedSnapshot = FromSnapshot;
 
 	// We expect the number of filtered actors & components to stay roughly the same: retain existing memory
-	ModifiedActorsSelectedProperties_AllowedByFilter.Empty(false);
+	ModifiedEditorObjectsSelectedProperties_AllowedByFilter.Empty(false);
 	ModifiedWorldActors_AllowedByFilter.Empty(ModifiedWorldActors_AllowedByFilter.Num());
 	RemovedOriginalActorPaths_AllowedByFilter.Empty(RemovedOriginalActorPaths_AllowedByFilter.Num());
 	AddedWorldActors_AllowedByFilter.Empty(AddedWorldActors_AllowedByFilter.Num());
@@ -39,8 +39,8 @@ void FFilterListData::UpdateFilteredList(UWorld* World, ULevelSnapshot* FromSnap
 
 void FFilterListData::ApplyFilterToFindSelectedProperties(AActor* WorldActor, ULevelSnapshotFilter* FilterToApply)
 {
-	const FPropertySelection* AllowedSelectedProperties = ModifiedActorsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
-	const FPropertySelection* DisallowedSelectedProperties = ModifiedActorsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
+	const FPropertySelection* AllowedSelectedProperties = ModifiedEditorObjectsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
+	const FPropertySelection* DisallowedSelectedProperties = ModifiedEditorObjectsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
 	
 	if (!ensure(WorldActor && FilterToApply) || AllowedSelectedProperties || DisallowedSelectedProperties)
 	{
@@ -62,11 +62,11 @@ void FFilterListData::ApplyFilterToFindSelectedProperties(AActor* WorldActor, UL
 	
 	if (bIsAllowedByFilters)
 	{
-		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot, ModifiedActorsSelectedProperties_AllowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
+		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot, ModifiedEditorObjectsSelectedProperties_AllowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
 	}
 	else
 	{
-		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot, ModifiedActorsSelectedProperties_DisallowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
+		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot, ModifiedEditorObjectsSelectedProperties_DisallowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
 	}
 }
 

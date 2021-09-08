@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NegatableFilterDetailsCustomization.h"
+#include "Customizations/NegatableFilterDetailsCustomization.h"
 
-#include "NegatableFilter.h"
+#include "Data/Filters/NegatableFilter.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"

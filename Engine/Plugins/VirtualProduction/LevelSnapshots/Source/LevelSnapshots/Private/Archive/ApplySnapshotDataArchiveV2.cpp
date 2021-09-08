@@ -15,7 +15,9 @@
 #include "Serialization/ObjectWriter.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
+#include "RestorationEvents/ApplySnapshotPropertiesScope.h"
 #include "Util/PropertyUtil.h"
+#include "Util/SnapshotObjectUtil.h"
 
 namespace
 {
@@ -141,6 +143,12 @@ namespace
 
 void FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects, const FPropertySelection& InSelectionSet)
 {
+	if (InSelectionSet.IsEmpty())
+	{
+		return;
+	}
+	
+	const FApplySnapshotPropertiesScope NotifySnapshotListeners({ InOriginalObject, InSelectionMapForResolvingSubobjects, &InSelectionSet, true });
 #if WITH_EDITOR
 	InOriginalObject->PreEditChange(nullptr);
 	ON_SCOPE_EXIT
@@ -162,6 +170,7 @@ void FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(FObjectSnapsh
 
 void FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects)
 {
+	const FApplySnapshotPropertiesScope NotifySnapshotListeners({ InOriginalObject, InSelectionMapForResolvingSubobjects, {}, true });
 #if WITH_EDITOR
 	InOriginalObject->PreEditChange(nullptr);
 	ON_SCOPE_EXIT
@@ -184,7 +193,7 @@ bool FApplySnapshotDataArchiveV2::ShouldSkipProperty(const FProperty* InProperty
 	
 	if (!bShouldSkipProperty && !ShouldSerializeAllProperties())
 	{
-		const bool bIsAllowed = SelectionSet.GetValue()->ShouldSerializeProperty(GetSerializedPropertyChain(), InProperty) || CastField<FObjectPropertyBase>(InProperty);  
+		const bool bIsAllowed = SelectionSet.GetValue()->ShouldSerializeProperty(GetSerializedPropertyChain(), InProperty);  
 		bShouldSkipProperty = !bIsAllowed;
 	}
 	
@@ -201,7 +210,7 @@ void FApplySnapshotDataArchiveV2::PushSerializedProperty(FProperty* InProperty, 
 
 UObject* FApplySnapshotDataArchiveV2::ResolveObjectDependency(int32 ObjectIndex) const
 {
-	return GetSharedData().ResolveObjectDependencyForEditorWorld(ObjectIndex, SelectionMapForResolvingSubobjects);
+	return SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld(GetSharedData(), ObjectIndex, GetLocalizationNamespace(), SelectionMapForResolvingSubobjects);
 }
 
 FApplySnapshotDataArchiveV2::FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects, TOptional<const FPropertySelection*> InSelectionSet)

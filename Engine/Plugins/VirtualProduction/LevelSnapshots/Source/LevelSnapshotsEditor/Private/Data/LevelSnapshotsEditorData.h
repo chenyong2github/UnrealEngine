@@ -7,8 +7,8 @@
 #include "UObject/StrongObjectPtr.h"
 
 #include "LevelSnapshot.h"
-#include "LevelSnapshotsFilterPreset.h"
-#include "NegatableFilter.h"
+#include "Data/Filters/LevelSnapshotsFilterPreset.h"
+#include "Data/Filters/NegatableFilter.h"
 #include "LevelSnapshotsEditorData.generated.h"
 
 class UFavoriteFilterContainer;

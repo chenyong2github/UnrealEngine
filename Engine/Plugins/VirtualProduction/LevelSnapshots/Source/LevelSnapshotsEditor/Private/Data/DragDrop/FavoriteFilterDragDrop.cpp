@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FavoriteFilterDragDrop.h"
+#include "Data/DragDrop/FavoriteFilterDragDrop.h"
+
+#include "Data/LevelSnapshotsEditorData.h"
+#include "Widgets/SLevelSnapshotsEditorFilterRow.h"
 
 #include "EditorStyleSet.h"
-#include "LevelSnapshotsEditorData.h"
-#include "NegatableFilter.h"
-#include "SLevelSnapshotsEditorFilterRow.h"
-
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"

@@ -2,13 +2,12 @@
 
 #include "Views/Input/SLevelSnapshotsEditorInput.h"
 
-#include "Editor.h"
-#include "ILevelSnapshotsEditorView.h"
+#include "Data/LevelSnapshotsEditorData.h"
 #include "Views/Input/LevelSnapshotsEditorInput.h"
-#include "LevelSnapshotsEditorData.h"
+#include "Views/SnapshotEditorViewData.h"
 #include "Widgets/SLevelSnapshotsEditorBrowser.h"
 
-#include "LevelSnapshot.h"
+#include "Editor.h"
 #include "Engine/World.h"
 #include "Widgets/SBoxPanel.h"
 
@@ -21,19 +20,16 @@ SLevelSnapshotsEditorInput::~SLevelSnapshotsEditorInput()
 	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
 }
 
-void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
+void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const FSnapshotEditorViewData& InViewBuildData)
 {
-	EditorInputPtr = InEditorInput;
-	BuilderPtr = InBuilder;
+	ViewBuildData = InViewBuildData;
+	check(ViewBuildData.EditorDataPtr.IsValid());
 
-	check(BuilderPtr.Pin()->EditorDataPtr.IsValid());
 
 	OnMapOpenedDelegateHandle = FEditorDelegates::OnMapOpened.AddLambda([this] (const FString& InFileName, const bool bAsTemplate)
 	{
-		check(BuilderPtr.IsValid());
-		check(BuilderPtr.Pin()->EditorDataPtr.IsValid());
-	
-		OverrideWorld(BuilderPtr.Pin()->EditorDataPtr->GetEditorWorld());
+		check(ViewBuildData.EditorDataPtr.IsValid());
+		OverrideWorld(ViewBuildData.EditorDataPtr->GetEditorWorld());
 	});
 
 	ChildSlot
@@ -42,8 +38,8 @@ void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TShar
 
 		+ SVerticalBox::Slot()
 		[
-			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, InBuilder)
-			.OwningWorldPath(BuilderPtr.Pin()->EditorDataPtr->GetEditorWorld())
+			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, InViewBuildData)
+			.OwningWorldPath(ViewBuildData.EditorDataPtr->GetEditorWorld())
 		]
 	];
 }
@@ -56,7 +52,7 @@ void SLevelSnapshotsEditorInput::OpenLevelSnapshotsDialogWithAssetSelected(const
 void SLevelSnapshotsEditorInput::OverrideWorld(FSoftObjectPath InNewContextPath)
 {
 	// Replace the Browser widget with new world context if world and builder pointer valid
-	if (!ensure(InNewContextPath.IsValid()) || !ensure(BuilderPtr.IsValid()))
+	if (!ensure(InNewContextPath.IsValid()))
 	{
 		UE_LOG(LogLevelSnapshots, Error,
 			TEXT("SLevelSnapshotsEditorInput::OverrideWorld: Unable to rebuild Snapshot Browser; InNewContext or BuilderPtr are invalid."));
@@ -70,7 +66,7 @@ void SLevelSnapshotsEditorInput::OverrideWorld(FSoftObjectPath InNewContextPath)
 		
 		EditorInputOuterVerticalBox->AddSlot()
 		[
-			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, BuilderPtr.Pin().ToSharedRef())
+			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, ViewBuildData)
 			.OwningWorldPath(InNewContextPath)
 		];
 	}

@@ -2,25 +2,24 @@
 
 #pragma once
 
-#include "ILevelSnapshotsEditorResults.h"
+#include "Views/SnapshotEditorViewData.h"
+#include "Templates/SharedPointer.h"
 
 class SLevelSnapshotsEditorResults;
 
-class FLevelSnapshotsEditorResults : public ILevelSnapshotsEditorResults
+class FLevelSnapshotsEditorResults : public TSharedFromThis<FLevelSnapshotsEditorResults>
 {
 public:
-	FLevelSnapshotsEditorResults(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
+	
+	FLevelSnapshotsEditorResults(const FSnapshotEditorViewData& ViewBuildData)
+		: ViewBuildData(ViewBuildData)
+	{}
 
-	//~ Begin ILevelSnapshotsEditorView Interface
-	virtual TSharedRef<SWidget> GetOrCreateWidget() override;
-	virtual TSharedRef<FLevelSnapshotsEditorViewBuilder> GetBuilder() const override { return BuilderPtr.Pin().ToSharedRef(); }
-	//~ End ILevelSnapshotsEditorView Interface
-
-	void BuildSelectionSetFromSelectedPropertiesInEachActorGroup() const;
-	void RefreshResults() const;
+	TSharedRef<SWidget> GetOrCreateWidget();
+	const FSnapshotEditorViewData& GetBuilder() const { return ViewBuildData; }
 
 private:
+	
 	TSharedPtr<SLevelSnapshotsEditorResults> EditorResultsWidget;
-
-	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
+	FSnapshotEditorViewData ViewBuildData;
 };

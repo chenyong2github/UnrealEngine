@@ -3,15 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/LevelSnapshotsEditorData.h"
 
-#include "LevelSnapshotsEditorData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Templates/SubclassOf.h"
 
 class FLevelSnapshotsEditorFilters;
 
-/* Display in the favorite filter list.
+/**
+ * Display in the favorite filter list.
  */
 class SFavoriteFilter : public SCompoundWidget
 {

@@ -4,34 +4,77 @@
 
 #include "BlacklistRestorabilityOverrider.h"
 #include "LevelSnapshotsEditorProjectSettings.h"
+#include "LevelSnapshotsLog.h"
 #include "Restorability/PropertyComparisonParams.h"
 #include "Restorability/StaticMeshCollisionPropertyComparer.h"
 
-#include "EngineUtils.h"
-#include "LevelSnapshotsLog.h"
 #include "Algo/AllOf.h"
+#include "Components/ActorComponent.h"
+#include "EngineUtils.h"
+#include "Algo/Transform.h"
+#include "Engine/Brush.h"
+#include "GameFramework/Actor.h"
+#include "Materials/MaterialInstance.h"
 #include "Modules/ModuleManager.h"
 
 namespace
 {
 	void AddSoftObjectPathSupport(FLevelSnapshotsModule& Module)
 	{
-		// By default FSnapshotRestorability::IsRestorableProperty requires properties to have the CPF_Edit specifier
+		// FSnapshotRestorability::IsRestorableProperty requires properties to have the CPF_Edit specifier
 		// FSoftObjectPath does not have this so we need to whitelist its properties
 
-		UStruct* SoftObjectPath = FindObject<UStruct>(nullptr, TEXT("/Script/CoreUObject.SoftObjectPath"));
-		if (!ensureMsgf(SoftObjectPath, TEXT("Investigate why this class could not be found")))
+		UStruct* SoftObjectClassPath = FindObject<UStruct>(nullptr, TEXT("/Script/CoreUObject.SoftObjectPath"));
+		if (!ensureMsgf(SoftObjectClassPath, TEXT("Investigate why this class could not be found")))
 		{
 			return;
 		}
 
-		TSet<const FProperty*> Properties;
-		for (TFieldIterator<FProperty> FieldIt(SoftObjectPath); FieldIt; ++FieldIt)
-		{
-			Properties.Add(*FieldIt);
-		}
+		TSet<const FProperty*> WhitelistedProperties;
+		Algo::Transform(TFieldRange<const FProperty>(SoftObjectClassPath), WhitelistedProperties, [](const FProperty* Prop) { return Prop;} );
+		Module.AddWhitelistedProperties(WhitelistedProperties);
+	}
 
-		Module.AddWhitelistedProperties(Properties);
+	void AddAttachParentSupport(FLevelSnapshotsModule& Module)
+	{
+		// These properties are not visible by default because they're not CPF_Edit
+		const FProperty* AttachParent = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachParent"));
+		const FProperty* AttachSocketName = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachSocketName"));
+		if (ensure(AttachParent && AttachSocketName))
+		{
+			Module.AddWhitelistedProperties({ AttachParent, AttachSocketName });
+		}
+	}
+
+	void DisableIrrelevantBrushSubobjects(FLevelSnapshotsModule& Module)
+	{
+		// ABrush::BrushBuilder is CPF_Edit but no user ever cares about it. We don't want it to make volumes to show up as changed.
+		const FProperty* BrushBuilder = ABrush::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ABrush, BrushBuilder));
+		if (ensure(BrushBuilder))
+		{
+			Module.AddBlacklistedProperties({ BrushBuilder });
+		}
+	}
+
+	void DisableIrrelevantWorldSettings(FLevelSnapshotsModule& Module)
+	{
+		// AWorldSettings::NavigationSystemConfig is CPF_Edit but no user ever cares about it.
+		const FProperty* NavigationSystemConfig = AWorldSettings::StaticClass()->FindPropertyByName(FName("NavigationSystemConfig"));
+		if (ensure(NavigationSystemConfig))
+		{
+			Module.AddBlacklistedProperties({ NavigationSystemConfig });
+		}
+	}
+
+	void DisableIrrelevantMaterialInstanceProperties(FLevelSnapshotsModule& Module)
+	{
+		// This property causes diffs sometimes for unexplained reasons when creating in construction script... does not seem to be important
+		const FProperty* BasePropertyOverrides = UMaterialInstance::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialInstance, BasePropertyOverrides));
+		if (ensure(BasePropertyOverrides))
+		{
+			Module.AddBlacklistedProperties({ BasePropertyOverrides });
+		}
+		
 	}
 }
 
@@ -47,6 +90,7 @@ FLevelSnapshotsModule& FLevelSnapshotsModule::GetInternalModuleInstance()
 
 void FLevelSnapshotsModule::StartupModule()
 {
+	// Hook up project settings blacklist
 	const TSharedRef<FBlacklistRestorabilityOverrider> Blacklist = MakeShared<FBlacklistRestorabilityOverrider>(
 		FBlacklistRestorabilityOverrider::FGetBlacklist::CreateLambda([]() -> const FRestorationBlacklist&
 		{
@@ -55,15 +99,24 @@ void FLevelSnapshotsModule::StartupModule()
 		})
 	);
 	RegisterRestorabilityOverrider(Blacklist);
-	
-	AddSoftObjectPathSupport(*this);
 
+	// Enable / disable troublesome properties
+	AddSoftObjectPathSupport(*this);
+	AddAttachParentSupport(*this);
+	DisableIrrelevantBrushSubobjects(*this);
+	DisableIrrelevantWorldSettings(*this);
+	DisableIrrelevantMaterialInstanceProperties(*this);
+
+	// Interact with special engine features
 	FStaticMeshCollisionPropertyComparer::Register(*this);
 }
 
 void FLevelSnapshotsModule::ShutdownModule()
 {
 	Overrides.Reset();
+	PropertyComparers.Reset();
+	CustomSerializers.Reset();
+	RestorationListeners.Reset();
 }
 
 void FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)
@@ -84,6 +137,31 @@ void FLevelSnapshotsModule::RegisterRestorabilityOverrider(TSharedRef<ISnapshotR
 void FLevelSnapshotsModule::UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
 {
 	Overrides.RemoveSwap(Overrider);
+}
+
+void FLevelSnapshotsModule::AddBlacklistedSubobjectClasses(const TSet<UClass*>& Classes)
+{
+	for (UClass* Class : Classes)
+	{
+		check(Class);
+
+		if (!Class
+			|| !ensureAlwaysMsgf(!Class->IsChildOf(AActor::StaticClass()), TEXT("Invalid function input: Actors can never be subobjects. Check your code."))
+			|| !ensureAlwaysMsgf(!Class->IsChildOf(UActorComponent::StaticClass()), TEXT("Invalid function input: Disallow components using RegisterRestorabilityOverrider and implementing ISnapshotRestorabilityOverrider::IsComponentDesirableForCapture instead.")))
+		{
+			continue;
+		}
+
+		BlacklistedSubobjectClasses.Add(Class);
+	}
+}
+
+void FLevelSnapshotsModule::RemoveBlacklistedSubobjectClasses(const TSet<UClass*>& Classes)
+{
+	for (UClass* Class : Classes)
+	{
+		BlacklistedSubobjectClasses.Remove(Class);
+	}
 }
 
 void FLevelSnapshotsModule::RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer)
@@ -133,6 +211,96 @@ void FLevelSnapshotsModule::UnregisterCustomObjectSerializer(UClass* Class)
 	CustomSerializers.Remove(Class);
 }
 
+void FLevelSnapshotsModule::RegisterRestorationListener(TSharedRef<IRestorationListener> Listener)
+{
+	RestorationListeners.AddUnique(Listener);
+}
+
+void FLevelSnapshotsModule::UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener)
+{
+	RestorationListeners.RemoveSingle(Listener);
+}
+
+void FLevelSnapshotsModule::OnPreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PreApplySnapshotProperties(Params);
+	}
+}
+
+void FLevelSnapshotsModule::OnPostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PostApplySnapshotProperties(Params);
+	}
+}
+
+void FLevelSnapshotsModule::OnPreApplySnapshotToActor(const FApplySnapshotToActorParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PreApplySnapshotToActor(Params);
+	}
+}
+
+void FLevelSnapshotsModule::OnPostApplySnapshotToActor(const FApplySnapshotToActorParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PostApplySnapshotToActor(Params);
+	}
+}
+
+void FLevelSnapshotsModule::OnPreRecreateComponent(const FPreRecreateComponentParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PreRecreateComponent(Params);
+	}
+}
+
+void FLevelSnapshotsModule::OnPostRecreateComponent(UActorComponent* RecreatedComponent)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+	
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PostRecreateComponent(RecreatedComponent);
+	}
+}
+
+void FLevelSnapshotsModule::OnPreRemoveComponent(UActorComponent* ComponentToRemove)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PreRemoveComponent(ComponentToRemove);
+	}
+}
+
+void FLevelSnapshotsModule::OnPostRemoveComponent(const FPostRemoveComponentParams& Params)
+{
+	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
+
+	for (const TSharedRef<IRestorationListener>& Listener : RestorationListeners)
+	{
+		Listener->PostRemoveComponent(Params);
+	}
+}
+
 void FLevelSnapshotsModule::AddWhitelistedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
@@ -163,6 +331,22 @@ void FLevelSnapshotsModule::RemoveBlacklistedProperties(const TSet<const FProper
 	{
 		BlacklistedProperties.Remove(Property);
 	}
+}
+
+bool FLevelSnapshotsModule::IsSubobjectClassBlacklisted(const UClass* Class) const
+{
+	if (Class->IsChildOf(UActorComponent::StaticClass()))
+	{
+		return false;
+	}
+
+	bool bFoundBlacklistedClass = false;
+	for (const UClass* CurrentClass = Class; !bFoundBlacklistedClass && CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
+	{
+		bFoundBlacklistedClass = BlacklistedSubobjectClasses.Contains(CurrentClass);
+	}
+
+	return bFoundBlacklistedClass;
 }
 
 bool FLevelSnapshotsModule::CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const

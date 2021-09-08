@@ -7,7 +7,6 @@
 #include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorModule.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "Misc/LevelSnapshotsEditorContext.h"
 #include "Views/Filter/LevelSnapshotsEditorFilters.h"
 #include "Views/Filter/SLevelSnapshotsEditorFilters.h"
 #include "Views/Results/LevelSnapshotsEditorResults.h"
@@ -53,16 +52,13 @@ void FLevelSnapshotsEditorToolkit::Initialize(ULevelSnapshotsEditorData* InEdito
 
 	EditorData.Get()->ClearActiveSnapshot();
 
-	EditorContext = MakeShared<FLevelSnapshotsEditorContext>();
-	ViewBuilder = MakeShared<FLevelSnapshotsEditorViewBuilder>();
-	ViewBuilder->EditorContextPtr = EditorContext;
-	ViewBuilder->EditorDataPtr = InEditorData;
+	ViewBuildData.EditorDataPtr = InEditorData;
 
 	
 	// Initialize views
-	EditorInput		= MakeShared<FLevelSnapshotsEditorInput>(ViewBuilder.ToSharedRef());
-	EditorFilters	= MakeShared<FLevelSnapshotsEditorFilters>(ViewBuilder.ToSharedRef());
-	EditorResults	= MakeShared<FLevelSnapshotsEditorResults>(ViewBuilder.ToSharedRef());
+	EditorInput		= MakeShared<FLevelSnapshotsEditorInput>(ViewBuildData);
+	EditorFilters	= MakeShared<FLevelSnapshotsEditorFilters>(ViewBuildData);
+	EditorResults	= MakeShared<FLevelSnapshotsEditorResults>(ViewBuildData);
 
 
 	// Create our content

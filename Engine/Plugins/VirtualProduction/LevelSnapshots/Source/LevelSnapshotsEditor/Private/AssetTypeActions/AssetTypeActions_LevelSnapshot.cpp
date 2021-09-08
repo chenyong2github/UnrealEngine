@@ -3,8 +3,8 @@
 #include "AssetTypeActions_LevelSnapshot.h"
 
 #include "LevelSnapshot.h"
-#include "LevelSnapshotsEditor/Private/LevelSnapshotsEditorModule.h"
-#include "LevelSnapshotsEditorData.h"
+#include "LevelSnapshotsEditorModule.h"
+#include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorFunctionLibrary.h"
 #include "LevelSnapshotsEditorStyle.h"
 

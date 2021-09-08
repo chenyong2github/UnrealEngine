@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SCreateNewFilterWidget.h"
+#include "Widgets/Filter/SCreateNewFilterWidget.h"
 
-#include "ConjunctionFilter.h"
+#include "Data/Filters/ConjunctionFilter.h"
+#include "Data/FavoriteFilterContainer.h"
+#include "Widgets/Filter/SFilterSearchMenu.h"
+
 #include "EditorStyleSet.h"
-
-#include "FavoriteFilterContainer.h"
-#include "SFilterSearchMenu.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 

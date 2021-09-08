@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "LevelSnapshotsEditorData.h"
+#include "Data/LevelSnapshotsEditorData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 

@@ -7,19 +7,32 @@
 #include "SnapshotVersion.h"
 #include "WorldSnapshotData.h"
 
-#include "Components/ActorComponent.h"
-#include "GameFramework/Actor.h"
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
-#include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "UObject/ObjectMacros.h"
+#include "Util/SnapshotObjectUtil.h"
 
 void FSnapshotArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, UPackage* InLocalisationSnapshotPackage)
 {
+	ApplyToSnapshotWorldObject(
+		InObjectData,
+		InSharedData,
+		InObjectToRestore,
+#if USE_STABLE_LOCALIZATION_KEYS
+		TextNamespaceUtil::EnsurePackageNamespace(InLocalisationSnapshotPackage)
+#else
+		FString()
+#endif
+		);
+}
+
+void FSnapshotArchive::ApplyToSnapshotWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, const FString& InLocalisationNamespace)
+{
 	FSnapshotArchive Archive(InObjectData, InSharedData, true, InObjectToRestore);
 #if USE_STABLE_LOCALIZATION_KEYS
-	Archive.SetLocalizationNamespace(TextNamespaceUtil::EnsurePackageNamespace(InLocalisationSnapshotPackage));
+	Archive.SetLocalizationNamespace(InLocalisationNamespace);
 #endif
+
 	InObjectToRestore->Serialize(Archive);
 }
 
@@ -46,10 +59,8 @@ void FSnapshotArchive::Seek(int64 InPos)
 
 bool FSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
-	const bool bIsPropertyUnsupported = InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags)|| IsPropertyReferenceToSubobject(InProperty);
-	const bool bIsBlacklisted = FSnapshotRestorability::IsPropertyBlacklistedForCapture(InProperty);
-	const bool bIsWhitelisted = FSnapshotRestorability::IsPropertyWhitelistedForCapture(InProperty);
-	return bIsPropertyUnsupported || bIsBlacklisted || (!bIsPropertyUnsupported && bIsWhitelisted);
+	const bool bIsPropertyUnsupported = InProperty->HasAnyPropertyFlags(ExcludedPropertyFlags);
+	return bIsPropertyUnsupported || !FSnapshotRestorability::IsPropertyDesirableForCapture(InProperty);
 }
 
 FArchive& FSnapshotArchive::operator<<(FName& Value)
@@ -100,7 +111,7 @@ FArchive& FSnapshotArchive::operator<<(UObject*& Value)
 	}
 	else
 	{
-		int32 ReferenceIndex = SharedData.AddObjectDependency(Value);
+		int32 ReferenceIndex = SnapshotUtil::Object::AddObjectDependency(SharedData, Value);
 		*this << ReferenceIndex;
 	}
 	
@@ -140,26 +151,7 @@ void FSnapshotArchive::Serialize(void* Data, int64 Length)
 
 UObject* FSnapshotArchive::ResolveObjectDependency(int32 ObjectIndex) const
 {
-	return SharedData.ResolveObjectDependencyForSnapshotWorld(ObjectIndex);
-}
-
-bool FSnapshotArchive::IsPropertyReferenceToSubobject(const FProperty* InProperty) const
-{
-	const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty);
-	if (!ObjectProperty)
-	{
-		return false;
-	}
-
-	const bool bIsMarkedAsSubobject = InProperty->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance);
-	const bool bIsComponentPtr = ObjectProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass());
-	if (bIsMarkedAsSubobject || bIsComponentPtr)
-	{
-		return true;
-	}
-
-	// TODO: Walk GetSerializedPropertyChain to get the value ptr of ObjectProperty. Then check whether contained object IsIn(GetSerializedObject()). Extra complicated because sometimes values may be in arrays, set, and tmaps.
-	return false;
+	return SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(SharedData, ObjectIndex, GetLocalizationNamespace());
 }
 
 FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject)

@@ -11,8 +11,10 @@ class UObject;
 
 class LEVELSNAPSHOTS_API FPropertyInfoHelpers
 {
+	static float FloatComparisonPrecision;
+	static double DoubleComparisonPrecision;
 public:
-
+	
 	static FProperty* GetParentProperty(const FProperty* Property);
 
 	/* Returns true if the property is a struct, map, array, set, etc */
@@ -35,6 +37,7 @@ public:
 	/* A quick property flag check. Assumes the property flags are properly set/deserialized */
 	static bool IsPropertySubObject(const FProperty* Property);
 
+	static void UpdateDecimalComparisionPrecision(float FloatPrecision, double DoublePrecision);
 	static bool AreNumericPropertiesNearlyEqual(const FNumericProperty* Property, const void* ValuePtrA, const void* ValuePtrB);
 	
 };

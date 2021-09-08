@@ -9,7 +9,7 @@ class UActorComponent;
 struct FPropertyContext;
 
 /**
- * Exposes callbacks for deciding whether an actor, component, or property is exposed to the snapshot system.
+ * Exposes callbacks for deciding whether an actor or component is exposed to the snapshot system.
  * 
  * Supported actors, components, or properties are:
  *	- Captured and saved when a snapshot is taken
@@ -17,7 +17,7 @@ struct FPropertyContext;
  *	- Show up in the results view
  *	- Restored when a snapshot is applied
  *
- * To see which actors, components, and properties are supported by default, see FSnapshotRestorability.
+ * To see which actors, components, and subobjects are supported by default, see FSnapshotRestorability.
  */
 class LEVELSNAPSHOTS_API ISnapshotRestorabilityOverrider
 {
@@ -27,7 +27,7 @@ public:
 	{
 		/* The object in question is included but only if nobody else returned Disallow.  */
 		Allow,
-        /* The object is included if some other override returns Allow. If nobody returns Allow, the object is not included. */
+        /* Let other overrides decide. If every override return DoNotCare, default snapshot behaviour is applied. */
         DoNotCare,
         /* The object in question is never suitable and is not included. Other overriders cannot override this. */
         Disallow

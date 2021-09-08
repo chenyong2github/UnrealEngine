@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Data/SnapshotVersion.h"
+
+#include "SnapshotCustomVersion.h"
+
 #include "Misc/EngineVersion.h"
 #include "Serialization/CustomVersion.h"
 
@@ -25,7 +28,7 @@ void FSnapshotCustomVersionInfo::Initialize(const FCustomVersion& InVersion)
 	Version = InVersion.Version;
 }
 
-void FSnapshotVersionInfo::Initialize()
+void FSnapshotVersionInfo::Initialize(bool bWithoutSnapshotVersion)
 {
 	FileVersion.Initialize();
 	EngineVersion.Initialize(FEngineVersion::Current());
@@ -35,7 +38,10 @@ void FSnapshotVersionInfo::Initialize()
 	for (const FCustomVersion& EngineCustomVersion : AllCurrentVersions.GetAllVersions())
 	{
 		FSnapshotCustomVersionInfo& CustomVersion = CustomVersions.AddDefaulted_GetRef();
-		CustomVersion.Initialize(EngineCustomVersion);
+		if (!bWithoutSnapshotVersion || (bWithoutSnapshotVersion && CustomVersion.Key != FSnapshotCustomVersion::GUID))
+		{
+			CustomVersion.Initialize(EngineCustomVersion);
+		}
 	}
 }
 
@@ -59,4 +65,17 @@ void FSnapshotVersionInfo::ApplyToArchive(FArchive& Archive) const
 		}
 		Archive.SetCustomVersions(EngineCustomVersions);
 	}
+}
+
+int32 FSnapshotVersionInfo::GetSnapshotCustomVersion() const
+{
+	for (const FSnapshotCustomVersionInfo& CustomVersion : CustomVersions)
+	{
+		if (CustomVersion.Key == FSnapshotCustomVersion::GUID)
+		{
+			return CustomVersion.Version;
+		}
+	}
+
+	return INDEX_NONE;
 }

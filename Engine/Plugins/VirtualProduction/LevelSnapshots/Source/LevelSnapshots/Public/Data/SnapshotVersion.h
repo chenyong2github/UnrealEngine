@@ -82,10 +82,13 @@ struct LEVELSNAPSHOTS_API FSnapshotVersionInfo
 	GENERATED_BODY()
 
 	/** Initialize this version info from the compiled in data */
-	void Initialize();
+	void Initialize(bool bWithoutSnapshotVersion = false);
 	bool IsInitialized() const;
 
 	void ApplyToArchive(FArchive& Archive) const;
+	
+	/** @return The saved version for this plugin or -1 if none is available. */
+	int32 GetSnapshotCustomVersion() const;
 	
 	/** File version info */
 	UPROPERTY()

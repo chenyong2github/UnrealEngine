@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "PropertySelectionMap.h"
 #include "SnapshotTestRunner.h"
 #include "SnapshotTestActor.h"
 
@@ -9,6 +10,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
+#include "Util/EquivalenceUtil.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRestoreSimpleProperties, "VirtualProduction.LevelSnapshots.Snapshot.RestoreSimpleProperties", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
 bool FRestoreSimpleProperties::RunTest(const FString& Parameters)
@@ -138,6 +140,17 @@ bool FRestoreReferenceProperties::RunTest(const FString& Parameters)
 	return true;
 }
 
+/**
+ * Things like changing array / set / map element order, such as { A, null } to { null, A }, is detected and restored correctly.
+ * Differs from FReorderSubobjectCollections because different code runs for subobjects.
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FReorderReferenceCollections, "VirtualProduction.LevelSnapshots.Snapshot.ReorderReferenceCollections", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+bool FReorderReferenceCollections::RunTest(const FString& Parameters)
+{
+	// TODO: 
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInstancedStaticMesh, "VirtualProduction.LevelSnapshots.Snapshot.InstancedStaticMesh", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
 bool FInstancedStaticMesh::RunTest(const FString& Parameters)
 {
@@ -209,3 +222,88 @@ bool FSkipTransientAndDeprecatedProperties::RunTest(const FString& Parameters)
 	return true;
 }
 
+/**
+ *
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUnchangedActorHasNoDiff, "VirtualProduction.LevelSnapshots.Snapshot.UnchangedActorHasNoDiff", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+bool FUnchangedActorHasNoDiff::RunTest(const FString& Parameters)
+{
+	ASnapshotTestActor* Actor = nullptr;
+	FSnapshotTestRunner()
+		.ModifyWorld([&](UWorld* World)
+		{
+			Actor = World->SpawnActor<ASnapshotTestActor>();
+			Actor->AllocateSubobjects();
+		})
+		.TakeSnapshot()
+		.FilterProperties(Actor, [&](const FPropertySelectionMap& PropertySelection)
+		{
+			TestEqual(TEXT("Actor stays unchanged"), PropertySelection.GetKeyCount(), 0);
+		});
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FActorAttachParentRestores, "VirtualProduction.LevelSnapshots.Snapshot.ActorAttachParentRestores", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+bool FActorAttachParentRestores::RunTest(const FString& Parameters)
+{
+	ASnapshotTestActor* ParentOne = nullptr;
+	ASnapshotTestActor* ParentTwo = nullptr;
+	ASnapshotTestActor* Child = nullptr;
+	
+	FSnapshotTestRunner()
+		.ModifyWorld([&](UWorld* World)
+		{
+			ParentOne = World->SpawnActor<ASnapshotTestActor>();
+			ParentTwo = World->SpawnActor<ASnapshotTestActor>();
+			Child = World->SpawnActor<ASnapshotTestActor>();
+
+			Child->AttachToActor(ParentOne, FAttachmentTransformRules::KeepRelativeTransform);
+		})
+		.TakeSnapshot()
+
+		.ModifyWorld([&](UWorld* World)
+		{
+			Child->AttachToActor(ParentTwo, FAttachmentTransformRules::KeepRelativeTransform);
+		})
+		.FilterProperties(Child, [&](const FPropertySelectionMap& PropertySelection)
+		{
+			const FPropertySelection* ComponentSelection = PropertySelection.GetObjectSelection(Child->GetRootComponent()).GetPropertySelection();
+
+			const bool bRootComponentSelected = ComponentSelection != nullptr;
+			TestTrue(TEXT("Root Component has changed properties"), bRootComponentSelected);
+			TestEqual(TEXT("No other objects changed"), PropertySelection.GetKeyCount(), 1);
+			if (bRootComponentSelected)
+			{
+				TestEqual(TEXT("No other properties changed"), ComponentSelection->GetSelectedProperties().Num(), 1);
+
+				const FProperty* AttachParentProperty = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachParent"));
+				ensureMsgf(AttachParentProperty, TEXT("Did property name change?"));
+				TestTrue(TEXT("AttachParent changed"), ComponentSelection->IsPropertySelected(nullptr, AttachParentProperty));
+			}
+		})
+
+		.AccessSnapshot([&](ULevelSnapshot* Snapshot)
+		{
+			TOptional<AActor*> SnapshotChild = Snapshot->GetDeserializedActor(Child);
+			TOptional<AActor*> SnapshotParentOne = Snapshot->GetDeserializedActor(ParentOne);
+
+			const bool bParentsWereDeserialized = SnapshotChild && SnapshotParentOne;
+			TestTrue(TEXT("Parents were deserialized"), bParentsWereDeserialized);
+			if (bParentsWereDeserialized)
+			{
+				const bool bHasOriginalChanged = SnapshotUtil::HasOriginalChangedPropertiesSinceSnapshotWasTaken(Snapshot->GetSerializedData(), *SnapshotChild, Child);
+				TestTrue(TEXT("HasOriginalChangedPropertiesSinceSnapshotWasTaken == true"), bHasOriginalChanged);
+				
+				TestTrue(TEXT("Snapshot has correct attach parent"), SnapshotChild.GetValue()->GetAttachParentActor() == SnapshotParentOne);
+			}
+		})
+
+		.ApplySnapshot()
+		.RunTest([&]()
+		{
+			TestTrue(TEXT("Attach parent restored correctly"), Child->GetAttachParentActor() == ParentOne);
+		});
+
+	return true;
+}

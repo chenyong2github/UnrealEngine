@@ -17,8 +17,6 @@ class FSnapshotArchive;
 struct FPropertySelectionMap;
 struct FActorSnapshotData;
 
-// TODO: Move all functions into static helper functions in private part of module. Helps separation of concerns.
-
 /* Holds saved world data and handles all logic related to writing to the existing world. */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FWorldSnapshotData
@@ -39,43 +37,15 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	void ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath, const FActorSnapshotData& SavedData)> HandleOriginalActorPath) const;
 	bool HasMatchingSavedActor(const FSoftObjectPath& OriginalObjectPath) const;
 
-	/* Given a path to a world actor, gets the equivalent allocated actor. */
+	/** Allocates a snapshot actor for the given editor world actor but does not serialize any data into it. */
+	TOptional<AActor*> GetPreallocatedActor(const FSoftObjectPath& OriginalObjectPath);
+	/** Same as GetPreallocatedActor, only that all data will be serialized into it. */
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath, UPackage* LocalisationSnapshotPackage);
 	/* Gets the state of the CDO from when the snapshot was taken. CDO is saved when a snapshot is taken so CDO changes can be detected. */
 	TOptional<FObjectSnapshotData*> GetSerializedClassDefaults(UClass* Class);  
-
-	/**
-	 * Checks whether two pointers point to "equivalent" objects.
-	 */
-	bool AreReferencesEquivalent(UObject* SnapshotPropertyValue, UObject* OriginalPropertyValue, AActor* SnapshotActor, AActor* OriginalActor) const;
 	
 public: /* Serialisation functions */
 	
-	
-	/* Adds an object dependency without serializing the object's content. Intended for external objects, e.g. to UMaterial in the content browser. */
-	int32 AddObjectDependency(UObject* ReferenceFromOriginalObject);
-
-	/* Resolves an object dependency for use in the snapshot world. If the object is a subobject, it gets fully serialized. */
-	UObject* ResolveObjectDependencyForSnapshotWorld(int32 ObjectPathIndex);
-	
-	/* Resolves an object dependency for use in the editor world. If the object is a subobject, it is serialized.
-	 * Steps for serializing subobject:
-	 *  - If an equivalent object with the saved name and class exists, use that and serialize the properties in SelectionMap into it.
-	 *  - Otherwise allocate a new object and serialize all properties into it
-	 *  - Replaces all references to the trashed object with the new one
-	 */
-	UObject* ResolveObjectDependencyForEditorWorld(int32 ObjectPathIndex, const FPropertySelectionMap& SelectionMap);
-
-	/* Resolves an object depedency when restoring a class default object. Simply resolves without further checks. */
-	UObject* ResolveObjectDependencyForClassDefaultObject(int32 ObjectPathIndex);
-	
-	
-	/**
-	 * Adds a subobject dependency. Intended for internal objects which need to store serialized data, e.g. components and other subobjects. Implicitly calls AddObjectDependency.
-	 * @return A valid index in SerializedObjectReferences and the corresponding subobject data.
-	 */
-	int32 AddSubobjectDependency(UObject* ReferenceFromOriginalObject);
-
 	/**
 	 * Adds a subobject to SerializedObjectReferences and CustomSubobjectSerializationData.
 	 * @return A valid index in SerializedObjectReferences and the corresponding subobject data.
@@ -101,8 +71,6 @@ public: /* Serialisation functions */
 	//~ End TStructOpsTypeTraits Interface
 	
 public:
-
-	UObject* ResolveExternalReference(const FSoftObjectPath& ObjectPath);
 	
 	void ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize);
 	void ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
@@ -149,7 +117,7 @@ public:
 	 * Example: UStaticMesh /Game/Australia/StaticMeshes/MegaScans/Nature_Rock_vbhtdixga/vbhtdixga_LOD0.vbhtdixga_LOD0
 	 * 
 	 * Internal references, e.g. to subobjects and to other actors in the world, are a bit tricky.
-	 * For internal references, we need to do some translation using TranslateOriginalToSnapshotPath:
+	 * For internal references, we need to do some translation:
 	 * Example original: UStaticMeshActor::StaticMeshComponent /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent
 	 * Example translated: UStaticMeshActor::StaticMeshComponent /Engine/Transient.World_21:PersistentLevel.StaticMeshActor_42.StaticMeshComponent
 	 */

@@ -1,0 +1,27 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Misc/Guid.h"
+
+struct LEVELSNAPSHOTS_API FSnapshotCustomVersion
+{
+	enum Type
+	{
+		/** Before any version changes were made in the plugin */
+		BeforeCustomVersionWasAdded = 0,
+
+		/** When subobject support was added. Specifically, USceneComponent::AttachParent were not captured. */
+		SubobjectSupport = 1,
+
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	const static FGuid GUID;
+
+private:
+	FSnapshotCustomVersion() = delete;
+};

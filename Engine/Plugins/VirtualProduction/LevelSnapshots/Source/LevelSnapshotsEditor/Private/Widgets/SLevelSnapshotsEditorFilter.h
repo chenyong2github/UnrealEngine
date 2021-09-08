@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 
-#include "LevelSnapshotsEditorData.h"
-#include "NegatableFilter.h"
+#include "Data/LevelSnapshotsEditorData.h"
+#include "Data/Filters/NegatableFilter.h"
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"

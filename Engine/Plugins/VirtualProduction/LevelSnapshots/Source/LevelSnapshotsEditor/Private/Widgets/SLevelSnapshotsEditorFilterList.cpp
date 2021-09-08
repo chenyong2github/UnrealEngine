@@ -2,12 +2,12 @@
 
 #include "Widgets/SLevelSnapshotsEditorFilterList.h"
 
-#include "ConjunctionFilter.h"
+#include "Data/Filters/ConjunctionFilter.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "SCreateNewFilterWidget.h"
-#include "SLevelSnapshotsEditorFilter.h"
-#include "Components/HorizontalBox.h"
+#include "Widgets/Filter/SCreateNewFilterWidget.h"
+#include "Widgets/SLevelSnapshotsEditorFilter.h"
 
+#include "Components/HorizontalBox.h"
 #include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"

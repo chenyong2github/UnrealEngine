@@ -7,6 +7,7 @@
 USubobject::USubobject()
 {
 	NestedChild = CreateDefaultSubobject<USubSubobject>(TEXT("NestedChild"));
+	UneditableNestedChild = CreateDefaultSubobject<USubSubobject>(TEXT("UneditableNestedChild"));;
 }
 
 USnapshotTestComponent::USnapshotTestComponent()
@@ -46,6 +47,20 @@ ASnapshotTestActor::ASnapshotTestActor()
 	PointLightComponent->SetupAttachment(InstancedMeshComponent);
 
 	TestComponent = CreateDefaultSubobject<USnapshotTestComponent>(TEXT("TestComponent"));
+}
+
+bool ASnapshotTestActor::HasAnyValidHardObjectReference() const
+{
+	const bool bHasSingleReference = !ObjectReference || !WeakObjectPtr.IsValid();
+
+	const bool bAnyCollectionHasReference = ObjectArray.Num() != 0
+		|| ObjectSet.Num() != 0
+		|| WeakObjectPtrArray.Num() != 0
+		|| WeakObjectPtrSet.Num() != 0
+		|| ObjectMap.Num() != 0
+		|| WeakObjectPtrMap.Num() != 0;
+
+	return !bHasSingleReference && !bAnyCollectionHasReference;
 }
 
 bool ASnapshotTestActor::HasObjectReference(UObject* Object, bool bOnlyCheckCollections, FName MapKey) const
@@ -121,11 +136,45 @@ void ASnapshotTestActor::ClearObjectReferences()
 	WeakObjectPtrMap.Reset();
 }
 
+void ASnapshotTestActor::AllocateSubobjects()
+{
+	EditOnlySubobject_OptionalSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditOnlySubobject"));
+
+	EditableInstancedSubobjectArray_OptionalSubobject.Add(NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditableInstancedSubobjectArray_1")));
+	EditableInstancedSubobjectArray_OptionalSubobject.Add(NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditableInstancedSubobjectArray_2")));
+
+	EditableInstancedSubobjectMap_OptionalSubobject.Add("First", NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditableInstancedSubobjectMap_1")));
+	EditableInstancedSubobjectMap_OptionalSubobject.Add("Second", NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditableInstancedSubobjectMap_2")));
+	
+	EditOnlySubobjectArray_OptionalSubobject.Add(NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditOnlySubobjectArray_1")));
+	EditOnlySubobjectArray_OptionalSubobject.Add(NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditOnlySubobjectArray_2")));
+	
+	EditOnlySubobjectMap_OptionalSubobject.Add("First", NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditOnlySubobjectMap_1")));
+	EditOnlySubobjectMap_OptionalSubobject.Add("Second", NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditOnlySubobjectMap_2")));
+}
+
+void ASnapshotTestActor::AllocateNonReflectedSubobject()
+{
+	if (!NonReflectedSubobject)
+	{
+		NonReflectedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("NonReflectedSubobject"));
+	}
+}
+
+void ASnapshotTestActor::DestroyNonReflectedSubobject()
+{
+	if (NonReflectedSubobject)
+	{
+		NonReflectedSubobject->MarkPendingKill();
+		NonReflectedSubobject = nullptr;
+	}
+}
+
 void ASnapshotTestActor::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	EditableInstancedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditableInstancedSubobject"));
-	InstancedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("InstancedSubobject"));
-	NakedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("NakedSubobject"));;
+	EditableInstancedSubobject_DefaultSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditableInstancedSubobject"));
+	InstancedOnlySubobject_DefaultSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("InstancedSubobject"));
+	NakedSubobject_DefaultSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("NakedSubobject"));
 }

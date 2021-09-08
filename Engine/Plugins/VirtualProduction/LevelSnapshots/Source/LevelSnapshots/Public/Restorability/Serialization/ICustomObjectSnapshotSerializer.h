@@ -28,17 +28,23 @@ public:
 	 * Note that all uproperties will still be restored normally as with all other objects.
 	 *
 	 * @param EditorObject The object being snapshotted. Same as DataStorage->GetSerializedObject().
-	 * @param DataStorage Use it for tracking additional data
+	 * @param DataStorage Data to save for EditorObject: serialize extra data about EditorObject and add subobjects.  
 	 */
 	virtual void OnTakeSnapshot(UObject* EditorObject, ICustomSnapshotSerializationData& DataStorage) = 0;
+
+
 	
     /**
      * Called when creating objects for the temporary snapshot world. This is called for every subobject added using ISnapshotObjectSerializer::AddSubobjectDependency.
      * 
      * This function must either find the subobject in SnapshotObject or recreate it. If the object is recreated, you must fix up any property references yourself.
      * After this function is called, properties will be serialized into this function's return value. After this, OnPostSerializeSnapshotSubobject is called.
+     *
+     * @param SnapshotObject The outer of the subobject
+     * @param ObjectData The data saved for the subobject. It's the data associated with the index returned by AddSubobjectSnapshot.
+     * @param DataStorage The data saved for the outer
      * 
-     * This function may return null, in which case the subobject is ignored.
+     * @result The found or recreated subobject. If null, the subobject is skipped.
      */
 	virtual UObject* FindOrRecreateSubobjectInSnapshotWorld(UObject* SnapshotObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) = 0;
 	
@@ -47,27 +53,43 @@ public:
 	 * 
 	 * This function must either find the subobject in EditorObject or recreate it. If the object is recreated, you must fix up any property references yourself.
 	 * After this function is called, properties will be serialized into this function's return value. After this, OnPostSerializeEditorSubobject is called.
+	 *
+	 * @param SnapshotObject The outer of the subobject
+	 * @param ObjectData The data saved for the subobject. It's the data associated with the index returned by AddSubobjectSnapshot.
+	 * @param DataStorage The data saved for the outer
 	 * 
-	 * This function may return null, in which case the subobject is ignored.
+     * @result The found or recreated subobject. If null, the subobject is skipped.
 	 */
 	virtual UObject* FindOrRecreateSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) = 0;
 
 	/**
 	 * Similar to FindOrRecreateSubobjectInEditorWorld, only that the subobject is not recreated if not present. Called when diffing against the world.
+	 *
+	 * @param SnapshotObject The outer of the subobject
+	 * @param ObjectData The data saved for the subobject. It's the data associated with the index returned by AddSubobjectSnapshot.
+	 * @param DataStorage The data saved for the outer
+	 * 
+	 * @result The subobject in the editor world. If you return null, the subobject will be recreated.
 	 */
 	virtual UObject* FindSubobjectInEditorWorld(UObject* EditorObject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) = 0;
+
+
 	
 	/** Optional. Called after GetOrRecreateSubobjectInSnapshotWorld when all properties have been serialized into the subobject. You can do any post processing here. */
 	virtual void OnPostSerializeSnapshotSubobject(UObject* Subobject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) {}
 
 	/** Optional. Called after GetOrRecreateSubobjectInEditorWorld when all properties have been serialized into the subobject. You can do any post processing here. */
 	virtual void OnPostSerializeEditorSubobject(UObject* Subobject, const ISnapshotSubobjectMetaData& ObjectData, const ICustomSnapshotSerializationData& DataStorage) {}
+
+
 	
-	/** Optional. Called before properties are applied to the object. */
-	virtual void PreApplySnapshotProperties(UObject* EditorObject, const ICustomSnapshotSerializationData& DataStorage) {}
+	/** Optional. Called before properties are applied to an object for which this interface was registered. Called on both snapshot and editor world versions. */
+	virtual void PreApplySnapshotProperties(UObject* Object, const ICustomSnapshotSerializationData& DataStorage) {}
 	
-	/** Optional. Called after properties are applied to the object. */
-	virtual void PostApplySnapshotProperties(UObject* EditorObject, const ICustomSnapshotSerializationData& DataStorage) {}
+	/** Optional. Called after properties are applied to an object for which this interface was registered. Called on both snapshot and editor world versions. */
+	virtual void PostApplySnapshotProperties(UObject* Object, const ICustomSnapshotSerializationData& DataStorage) {}
+
+
 	
 	virtual ~ICustomObjectSnapshotSerializer() = default;
 };

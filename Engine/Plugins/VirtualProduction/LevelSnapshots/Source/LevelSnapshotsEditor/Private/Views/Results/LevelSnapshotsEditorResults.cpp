@@ -6,19 +6,13 @@
 
 #include "Views/Results/SLevelSnapshotsEditorResults.h"
 
-FLevelSnapshotsEditorResults::FLevelSnapshotsEditorResults(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
-	: BuilderPtr(InBuilder)
-{
-}
-
 TSharedRef<SWidget> FLevelSnapshotsEditorResults::GetOrCreateWidget()
 {
 	if (!EditorResultsWidget.IsValid())
 	{
-		TSharedPtr<FLevelSnapshotsEditorViewBuilder> PinnedBuilder = BuilderPtr.Pin();
-		if (ensure(PinnedBuilder && PinnedBuilder->EditorDataPtr.IsValid()))
+		if (ensure(ViewBuildData.EditorDataPtr.IsValid()))
 		{
-			SAssignNew(EditorResultsWidget, SLevelSnapshotsEditorResults, BuilderPtr.Pin()->EditorDataPtr.Get());
+			SAssignNew(EditorResultsWidget, SLevelSnapshotsEditorResults, ViewBuildData.EditorDataPtr.Get());
 		}
 		else
 		{
@@ -27,14 +21,4 @@ TSharedRef<SWidget> FLevelSnapshotsEditorResults::GetOrCreateWidget()
 	}
 
 	return EditorResultsWidget.ToSharedRef();
-}
-
-void FLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEachActorGroup() const
-{
-	EditorResultsWidget->BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
-}
-
-void FLevelSnapshotsEditorResults::RefreshResults() const
-{
-	EditorResultsWidget->RefreshResults();
 }

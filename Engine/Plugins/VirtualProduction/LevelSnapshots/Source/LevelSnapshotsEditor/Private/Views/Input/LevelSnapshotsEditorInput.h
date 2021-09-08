@@ -2,26 +2,28 @@
 
 #pragma once
 
-#include "ILevelSnapshotsEditorInput.h"
+#include "Views/SnapshotEditorViewData.h"
+#include "Templates/SharedPointer.h"
 
 class SLevelSnapshotsEditorInput;
 
 struct FAssetData;
 
-class FLevelSnapshotsEditorInput : public ILevelSnapshotsEditorInput
+class FLevelSnapshotsEditorInput : public TSharedFromThis<FLevelSnapshotsEditorInput>
 {
 public:
-	FLevelSnapshotsEditorInput(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
+	
+	FLevelSnapshotsEditorInput(const FSnapshotEditorViewData& ViewBuildData)
+		: ViewBuildData(ViewBuildData)
+	{}
 
-	//~ Begin ILevelSnapshotsEditorView Interface
-	virtual TSharedRef<SWidget> GetOrCreateWidget() override;
-	virtual TSharedRef<FLevelSnapshotsEditorViewBuilder> GetBuilder() const override { return BuilderPtr.Pin().ToSharedRef(); }
-	//~ End ILevelSnapshotsEditorView Interface
+	TSharedRef<SWidget> GetOrCreateWidget();
+	const FSnapshotEditorViewData& GetBuilder() const { return ViewBuildData; }
 
 	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const;
 
 private:
+	
 	TSharedPtr<SLevelSnapshotsEditorInput> EditorInputWidget;
-
-	TWeakPtr<FLevelSnapshotsEditorViewBuilder> BuilderPtr;
+	FSnapshotEditorViewData ViewBuildData;
 };

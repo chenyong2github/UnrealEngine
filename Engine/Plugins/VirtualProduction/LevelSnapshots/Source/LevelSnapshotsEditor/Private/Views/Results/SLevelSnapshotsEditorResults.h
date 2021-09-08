@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/STreeView.h"
 
-#include "FilterListData.h"
+#include "Data/FilterListData.h"
 #include "Data/LevelSnapshotsEditorData.h"
 #include "PropertySelection.h"
 

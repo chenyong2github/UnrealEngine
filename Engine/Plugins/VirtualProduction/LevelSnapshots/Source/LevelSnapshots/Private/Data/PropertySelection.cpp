@@ -22,6 +22,11 @@ namespace
 	}
 }
 
+FLevelSnapshotPropertyChain::FLevelSnapshotPropertyChain(const FProperty* RootProperty)
+{
+	AppendInline(RootProperty);
+}
+
 FLevelSnapshotPropertyChain FLevelSnapshotPropertyChain::MakeAppended(const FProperty* Property) const
 {
 	FLevelSnapshotPropertyChain Result = *this;
@@ -93,6 +98,19 @@ bool FLevelSnapshotPropertyChain::operator==(const FLevelSnapshotPropertyChain& 
 	}
 	
 	return true;
+}
+
+FPropertySelection::FPropertySelection(const FProperty* SingleProperty)
+{
+	AddProperty({ SingleProperty });
+}
+
+FPropertySelection::FPropertySelection(const TSet<const FProperty*>& Properties)
+{
+	for (const FProperty* Property : Properties)
+	{
+		AddProperty({ Property  });
+	}
 }
 
 bool FPropertySelection::ShouldSerializeProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const

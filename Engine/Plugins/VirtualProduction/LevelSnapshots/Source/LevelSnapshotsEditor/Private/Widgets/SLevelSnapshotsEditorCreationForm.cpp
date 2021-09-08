@@ -2,17 +2,14 @@
 
 #include "SLevelSnapshotsEditorCreationForm.h"
 
+#include "Data/LevelSnapshotsEditorData.h"
+#include "LevelSnapshotsEditorStyle.h"
 #include "Settings/LevelSnapshotsEditorProjectSettings.h"
 #include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
-#include "LevelSnapshotsEditorData.h"
-#include "LevelSnapshotsEditorStyle.h"
 
-#include "Editor.h"
 #include "EditorStyleSet.h"
-#include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDetailsView.h"
-#include "ISettingsSection.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Images/SImage.h"
@@ -25,7 +22,8 @@
 
 TSharedRef<SWindow> SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
 	const FCloseCreationFormDelegate& CallOnClose, 
-	ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
+	ULevelSnapshotsEditorProjectSettings* InProjectSettings,
+	ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
 {
 	check(InProjectSettings);
 	check(InDataManagementSettings);

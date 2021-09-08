@@ -330,9 +330,11 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 					ParentRowType == FLevelSnapshotsEditorResultsRow::StructGroup || 
 					ParentRowType == FLevelSnapshotsEditorResultsRow::StructInSetOrArray ||
 					ParentRowType == FLevelSnapshotsEditorResultsRow::StructInMap);
-			
 			const bool bIsPropertyFilteredOut = !bIsParentRowContainer && !PropertiesThatPassFilter.Contains(PropertyField);
-			if (bIsPropertyFilteredOut) { return; }
+			if (bIsPropertyFilteredOut)
+			{
+				return;
+			}
 			
 			bool bFoundCounterpart = false;
 			TSharedPtr<FPropertyHandleHierarchy> PinnedCounterpartHierarchy;
@@ -516,7 +518,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 					}
 				}
 
-				if (NewProperty->DoesRowRepresentGroup() && !NewProperty->GetChildRows().Num() && !InputHandle->IsCustomized())
+				if (NewProperty->DoesRowRepresentGroup() && NewProperty->GetChildRows().Num() == 0 && !PropertiesThatPassFilter.Contains(PropertyField))
 				{
 					// No valid children, destroy group
 					NewProperty.Reset();
@@ -914,28 +916,33 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 		}
 	}
 
-	// SubObjects
-
+	// Custom subbjects handled by external ICustomObjectSnapshotSerializer implementation
+	TMap<UObject*, UObject*> WorldToSnapshotCustomSubobjects;
+	
 	ULevelSnapshot* ActiveSnapshot = ResultsViewPtr.IsValid() && ResultsViewPtr.Pin()->GetEditorDataPtr() && ResultsViewPtr.Pin()->GetEditorDataPtr()->GetActiveSnapshot().IsSet() ? 
 		ResultsViewPtr.Pin()->GetEditorDataPtr()->GetActiveSnapshot().GetValue() : nullptr;
-	TMap<UObject*, UObject*> WorldToSnapshotSubobjects;
 
-	TFunction<void(UObject*, UObject*)> MatchingSubobjectLambda = [&WorldToSnapshotSubobjects, ActiveSnapshot, &MatchingSubobjectLambda](UObject* SnapshotSubobject, UObject* EditorWorldSubobject)
+	const TFunction<void(UObject* UnmatchedSnapshotSubobject)> HandleUnmatchedCustomSnapshotSubobject = [](UObject* UnmatchedCustomSnapshotSubobject)
+	{
+		// TODO: UnmatchedCustomSnapshotSubobject has no counterpart in the editor world. Display a row for it.
+		// If the row is checked when the snapshot is applied, call FPropertySelectionMap::AddCustomEditorSubobjectToRecreate
+	};
+
+	const TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> HandleMatchedCustomSubobjectPair = [&WorldToSnapshotCustomSubobjects, ActiveSnapshot, &HandleMatchedCustomSubobjectPair, &HandleUnmatchedCustomSnapshotSubobject](UObject* SnapshotSubobject, UObject* EditorWorldSubobject)
 	{
 		check(EditorWorldSubobject);
 		check(SnapshotSubobject);
 		
-		WorldToSnapshotSubobjects.Add(EditorWorldSubobject, SnapshotSubobject);
-			
-		ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(ActiveSnapshot, SnapshotSubobject, EditorWorldSubobject, MatchingSubobjectLambda);
+		WorldToSnapshotCustomSubobjects.Add(EditorWorldSubobject, SnapshotSubobject);
+		ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(ActiveSnapshot, SnapshotSubobject, EditorWorldSubobject, HandleMatchedCustomSubobjectPair, HandleUnmatchedCustomSnapshotSubobject);
 	};
 
 	if (ActiveSnapshot)
 	{
-		ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(ActiveSnapshot, SnapshotActorLocal, WorldActorLocal, MatchingSubobjectLambda);
+		ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(ActiveSnapshot, SnapshotActorLocal, WorldActorLocal, HandleMatchedCustomSubobjectPair, [](UObject*){});
 	}
 
-	for (const TPair<UObject*, UObject*> SubObjectPair : WorldToSnapshotSubobjects)
+	for (const TPair<UObject*, UObject*> SubObjectPair : WorldToSnapshotCustomSubobjects)
 	{
 		if (SubObjectPair.Key && SubObjectPair.Value)
 		{
@@ -2356,7 +2363,7 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 		}
 	};
 
-	FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
+	FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedEditorObjectsSelectedProperties_AllowedByFilter();
 
 	// Modified actors
 	for (const FLevelSnapshotsEditorResultsRowPtr& Group : TreeViewModifiedActorGroupObjects)
@@ -2639,34 +2646,18 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 
 bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLevelSnapshotsEditorResultsRowPtr ModifiedActorsHeader, ULevelSnapshotFilter* UserFilters)
 {
-
-	
 	check(ModifiedActorsHeader);
 	
 	const TSet<TWeakObjectPtr<AActor>>& ActorsToConsider = FilterListData.GetModifiedActors_AllowedByFilter();
-
 	TSet<FSoftObjectPath> EvaluatedObjects;
 
 	for (const TWeakObjectPtr<AActor>& WeakWorldActor : ActorsToConsider)
 	{
-		if (!ensure(WeakWorldActor.IsValid()))
+		AActor* WorldActor = WeakWorldActor.IsValid() ? WeakWorldActor.Get() : nullptr;
+		if (!ensure(WorldActor) || !FSnapshotRestorability::IsActorDesirableForCapture(WorldActor))
 		{
 			continue;
 		}
-
-		AActor* WorldActor = WeakWorldActor.Get();
-
-		if (!ensure(WorldActor))
-		{
-			continue;
-		}
-
-		if (!FSnapshotRestorability::IsActorDesirableForCapture(WorldActor))
-		{
-			continue;
-		}
-
-		const int32 KeyCountBeforeFilter = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter().GetKeyCount();
 
 		// Get remaining properties after filter
 		if (UserFilters)
@@ -2674,14 +2665,8 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 			FilterListData.ApplyFilterToFindSelectedProperties(WorldActor, UserFilters);
 		}
 
-		const FPropertySelectionMap& ModifiedSelectedActors = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
-		const int32 KeyCountAfterFilter = ModifiedSelectedActors.GetKeyCount();
-		const int32 KeyCountDifference = KeyCountAfterFilter - KeyCountBeforeFilter;
-
-		// If keys have been added, then this actor or its children have properties that pass the filter
-		const bool bDoesActorHavePropertiesAfterFilter = KeyCountDifference > 0;
-
-		if (!bDoesActorHavePropertiesAfterFilter)
+		const FPropertySelectionMap& ModifiedSelectedActors = FilterListData.GetModifiedEditorObjectsSelectedProperties_AllowedByFilter();
+		if (!ModifiedSelectedActors.HasChanges(WorldActor))
 		{
 			continue;
 		}
@@ -2890,7 +2875,7 @@ void SLevelSnapshotsEditorResults::OnGetRowChildren(FLevelSnapshotsEditorResults
 		{
 			if (Row->GetIsTreeViewItemExpanded())
 			{
-				FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedActorsSelectedProperties_AllowedByFilter();
+				FPropertySelectionMap PropertySelectionMap = FilterListData.GetModifiedEditorObjectsSelectedProperties_AllowedByFilter();
 				Row->GenerateActorGroupChildren(PropertySelectionMap);
 
 				OutChildren = Row->GetChildRows();

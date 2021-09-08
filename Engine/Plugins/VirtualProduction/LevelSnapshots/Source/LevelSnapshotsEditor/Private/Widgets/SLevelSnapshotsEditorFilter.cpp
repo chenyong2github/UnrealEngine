@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SLevelSnapshotsEditorFilter.h"
+#include "Widgets/SLevelSnapshotsEditorFilter.h"
 
+#include "Data/Filters/NegatableFilter.h"
+#include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "LevelSnapshotsEditorFilters.h"
-#include "SLevelSnapshotsFilterCheckBox.h"
+#include "Widgets/Filter/SLevelSnapshotsFilterCheckBox.h"
+#include "Widgets/Filter/SHoverableFilterActions.h"
 
 #include "EditorStyleSet.h"
-#include "ILevelSnapshotsEditorView.h"
-#include "LevelSnapshotsEditorData.h"
-#include "NegatableFilter.h"
-#include "SHoverableFilterActions.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SOverlay.h"

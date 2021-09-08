@@ -39,8 +39,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	float FloatProperty;
 
-	UPROPERTY(Instanced)
+	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
 	USubSubobject* NestedChild;
+
+	UPROPERTY(Instanced)
+	USubSubobject* UneditableNestedChild;
+
+	FName NonReflectedName;
+	UObject* NonReflectedObjectProperty;
+	TSoftObjectPtr<UObject> NonReflectedSoftPtr;
 };
 
 UCLASS()
@@ -69,12 +76,18 @@ public:
 
 	ASnapshotTestActor();
 
+	bool HasAnyValidHardObjectReference() const;
 	bool HasObjectReference(UObject* Object, bool bOnlyCheckCollections = false, FName MapKey = NAME_Name) const;
 	
 	void SetObjectReference(UObject* Object, FName MapKey = NAME_Name);
 	void AddObjectReference(UObject* Object, FName MapKey = NAME_Name);
 	void ClearObjectReferences();
 
+	void AllocateSubobjects();
+
+	void AllocateNonReflectedSubobject();
+	void DestroyNonReflectedSubobject();
+	
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;
 	//~ End UObject Interface
@@ -202,11 +215,33 @@ public:
 	/******************** Subobject references  ********************/
 
 	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
-	USubobject* EditableInstancedSubobject;
+	USubobject* EditableInstancedSubobject_DefaultSubobject;
 
 	UPROPERTY(Instanced)
-	USubobject* InstancedSubobject;
+	USubobject* InstancedOnlySubobject_DefaultSubobject;
 
 	UPROPERTY()
-	USubobject* NakedSubobject;
+	USubobject* NakedSubobject_DefaultSubobject;
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	USubobject* EditOnlySubobject_OptionalSubobject;
+	
+	
+	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
+	TArray<USubobject*> EditableInstancedSubobjectArray_OptionalSubobject;
+
+	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
+	TMap<FName, USubobject*> EditableInstancedSubobjectMap_OptionalSubobject;
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	TArray<USubobject*> EditOnlySubobjectArray_OptionalSubobject;
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	TMap<FName, USubobject*> EditOnlySubobjectMap_OptionalSubobject;
+	
+	USubobject* NonReflectedSubobject;
+
+	FName NonReflectedName;
+	UObject* NonReflectedObjectProperty;
+	TSoftObjectPtr<UObject> NonReflectedSoftPtr;
 };
