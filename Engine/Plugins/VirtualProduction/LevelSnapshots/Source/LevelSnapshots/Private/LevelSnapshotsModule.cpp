@@ -48,12 +48,14 @@ namespace
 
 	void DisableIrrelevantBrushSubobjects(FLevelSnapshotsModule& Module)
 	{
+#if WITH_EDITORONLY_DATA
 		// ABrush::BrushBuilder is CPF_Edit but no user ever cares about it. We don't want it to make volumes to show up as changed.
 		const FProperty* BrushBuilder = ABrush::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(ABrush, BrushBuilder));
 		if (ensure(BrushBuilder))
 		{
 			Module.AddBlacklistedProperties({ BrushBuilder });
 		}
+#endif
 	}
 
 	void DisableIrrelevantWorldSettings(FLevelSnapshotsModule& Module)
