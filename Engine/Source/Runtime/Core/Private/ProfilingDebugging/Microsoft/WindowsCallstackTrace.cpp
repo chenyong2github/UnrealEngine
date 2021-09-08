@@ -25,6 +25,10 @@
 
 #include <atomic>
 
+#ifndef UE_CALLSTACK_TRACE_FULL_CALLSTACKS
+	#define UE_CALLSTACK_TRACE_FULL_CALLSTACKS 0
+#endif
+
 // 0=off, 1=stats, 2=validation, 3=truth_compare
 #define BACKTRACE_DBGLVL 0
 
@@ -196,6 +200,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 FBacktracer* FBacktracer::Instance = nullptr;
+static bool GFullBacktraces = UE_CALLSTACK_TRACE_FULL_CALLSTACKS;
 
 ////////////////////////////////////////////////////////////////////////////////
 FBacktracer::FBacktracer(FMalloc* InMalloc)
@@ -240,11 +245,14 @@ void FBacktracer::AddModule(UPTRINT ModuleBase, const TCHAR* Name)
 	const auto* NtHeader = (IMAGE_NT_HEADERS*)(ModuleBase + DosHeader->e_lfanew);
 	const IMAGE_FILE_HEADER* FileHeader = &(NtHeader->FileHeader);
 
-	int32 NameLen = FCString::Strlen(Name);
-	if (!(NameLen > 4 && FCString::Strcmp(Name + NameLen - 4, TEXT(".exe")) == 0) && // we want always load an .exe file
-		(FCString::Strfind(Name, TEXT("Binaries")) == nullptr || FCString::Strfind(Name, TEXT("ThirdParty")) != nullptr))
+	if(!GFullBacktraces)
 	{
-		return;
+		int32 NameLen = FCString::Strlen(Name);
+		if (!(NameLen > 4 && FCString::Strcmp(Name + NameLen - 4, TEXT(".exe")) == 0) && // we want always load an .exe file
+			(FCString::Strfind(Name, TEXT("Binaries")) == nullptr || FCString::Strfind(Name, TEXT("ThirdParty")) != nullptr))
+		{
+			return;
+		}
 	}
 
 	uint32 NumSections = FileHeader->NumberOfSections;
@@ -712,6 +720,12 @@ void Backtracer_Create(FMalloc* Malloc)
 	// Allocate, construct and intentionally leak backtracer
 	void* Alloc = Malloc->Malloc(sizeof(FBacktracer), alignof(FBacktracer));
 	new (Alloc) FBacktracer(Malloc);
+
+	const TCHAR* CmdLine = ::GetCommandLineW();
+	if (const TCHAR* TraceArg = FCString::Stristr(CmdLine, TEXT("-tracefullcallstacks")))
+	{
+		GFullBacktraces = true;
+	}
 
 	Modules_Create(Malloc);
 	Modules_Subscribe(

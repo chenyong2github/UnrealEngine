@@ -16,7 +16,7 @@
 
 UE_TRACE_CHANNEL_EXTERN(MemAllocChannel);
 
-UE_TRACE_EVENT_BEGIN(Memory, TagSpec)
+UE_TRACE_EVENT_BEGIN(Memory, TagSpec, Important|NoSync)
 	UE_TRACE_EVENT_FIELD(int32, Tag)
 	UE_TRACE_EVENT_FIELD(int32, Parent)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Display)
@@ -177,7 +177,7 @@ void FTagTrace::AnnounceGenericTags()
 	#define TRACE_TAG_SPEC(Enum,Str,Stat,Group,ParentTag)\
 	{\
 		const uint32 DisplayLen = FCStringAnsi::Strlen(Str);\
-		UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel)\
+		UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel, DisplayLen * sizeof(ANSICHAR))\
 			<< TagSpec.Tag((int32) ELLMTag::Enum)\
 			<< TagSpec.Parent((int32) ParentTag)\
 			<< TagSpec.Display(Str, DisplayLen);\
@@ -240,7 +240,7 @@ int32 FTagTrace::AnnounceFNameTag(const FName& Name)
 int32 FTagTrace::AnnounceCustomTag(int32 Tag, int32 ParentTag, const ANSICHAR* Display)
 {		
 	const uint32 DisplayLen = FCStringAnsi::Strlen(Display);
-	UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel)
+	UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel, DisplayLen * sizeof(ANSICHAR))
 		<< TagSpec.Tag(Tag)
 		<< TagSpec.Parent(ParentTag)
 		<< TagSpec.Display(Display, DisplayLen);

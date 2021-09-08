@@ -826,6 +826,7 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructFooter()
 		[
 			SNew(STextBlock)
 			.Text(this, &SMemAllocTableTreeView::GetSymbolResolutionStatus)
+			.ToolTipText(this, &SMemAllocTableTreeView::GetSymbolResolutionTooltip)
 		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -855,6 +856,15 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 	{
 		return LOCTEXT("SymbolsResolutionNotPossible", "Symbol resolution was not possible.");
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::GetSymbolResolutionTooltip() const
+{
+	auto ModuleProvider = Session->ReadProvider<IModuleProvider>(FName("ModuleProvider"));
+
+	return FText::Format(LOCTEXT("SymbolResolutionEnvVarHelp", "Symbol paths can be provided with the environment variable {0}."), FText::FromString(TEXT("UE_INSIGHTS_SYMBOL_PATH")));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

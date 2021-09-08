@@ -174,7 +174,7 @@ uint32 FTagTracker::GetCurrentTag(uint32 InThreadId, uint8 InTracker) const
 const TCHAR* FTagTracker::GetTagString(uint32 InTag) const
 {
 	const TagEntry* Entry = TagMap.Find(InTag);
-	return Entry ? Entry->Display : nullptr;
+	return Entry ? Entry->Display : TEXT("");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
