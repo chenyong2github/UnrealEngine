@@ -114,7 +114,7 @@ class FChunkCacheWorker : public FRunnable
 	/** Thread to run the worker FRunnable on */
 	FRunnableThread* Thread;
 	/** Archive reader */
-	FArchive* Reader;
+	TUniquePtr<FArchive> Reader;
 	/** Cached and verified chunks. */
 	FChunkBuffer CachedChunks[MaxCachedChunks];
 	/** Queue of chunks to cache */
@@ -174,7 +174,7 @@ class FChunkCacheWorker : public FRunnable
 
 public:
 
-	FChunkCacheWorker(FArchive* InReader, const TCHAR* Filename);
+	FChunkCacheWorker(TUniquePtr<FArchive> InReader, const TCHAR* Filename);
 	virtual ~FChunkCacheWorker();
 
 	//~ Begin FRunnable Interface.

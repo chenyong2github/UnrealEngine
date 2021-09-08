@@ -5310,20 +5310,28 @@ bool FPakFile::PassedSignatureChecks() const
 	return Decryptor.IsValid() && Decryptor->IsValid();
 }
 
-FArchive* FPakFile::CreatePakReader(const TCHAR* Filename)
-{
-	FArchive* ReaderArchive = IFileManager::Get().CreateFileReader(Filename);
-	return SetupSignedPakReader(ReaderArchive, Filename);
-}
 
-FArchive* FPakFile::CreatePakReader(IFileHandle& InHandle, const TCHAR* Filename)
+FArchive* FPakFile::CreatePakReader(IPlatformFile* LowerLevel, const TCHAR* Filename)
 {
-	FArchive* ReaderArchive = new FArchiveFileReaderGeneric(&InHandle, Filename, InHandle.Size());
-	return SetupSignedPakReader(ReaderArchive, Filename);
-}
+	auto MakeArchive = [&]() -> FArchive* { 
+		if (LowerLevel)
+		{
+			if( IFileHandle* Handle = LowerLevel->OpenRead(Filename) )
+			{
+				return new FArchiveFileReaderGeneric(Handle, Filename, Handle->Size());
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
+		else
+		{
+			return IFileManager::Get().CreateFileReader(Filename); 
+		}
+	};
 
-FArchive* FPakFile::SetupSignedPakReader(FArchive* ReaderArchive, const TCHAR* Filename)
-{
+	bool bNeedsDecryptor = false;
 	if (FPlatformProperties::RequiresCookedData())
 	{
 		bool bShouldCheckSignature = bSigned || FParse::Param(FCommandLine::Get(), TEXT("signedpak")) || FParse::Param(FCommandLine::Get(), TEXT("signed"));
@@ -5332,23 +5340,41 @@ FArchive* FPakFile::SetupSignedPakReader(FArchive* ReaderArchive, const TCHAR* F
 #endif
 		if (bShouldCheckSignature)
 		{
-			if (!Decryptor)
-			{
-				Decryptor = MakeUnique<FChunkCacheWorker>(ReaderArchive, Filename);
-			}
+			bNeedsDecryptor = true;
+		}			
+	}
 
-			if (Decryptor->IsValid())
-			{
-				ReaderArchive = new FSignedArchiveReader(ReaderArchive, Decryptor.Get());
-			}
-			else
-			{
-				delete ReaderArchive;
-				return nullptr;
-			}
+	if(bNeedsDecryptor && !Decryptor.IsValid())
+	{
+		TUniquePtr<FArchive> DecryptorReader{ MakeArchive() };
+		if (DecryptorReader.IsValid())
+		{
+			Decryptor = MakeUnique<FChunkCacheWorker>(MoveTemp(DecryptorReader), Filename);
+		}
+
+		if (!Decryptor.IsValid())
+		{
+			return nullptr;
 		}
 	}
-	return ReaderArchive;
+
+	// Now we either have a Decryptor or we don't need it
+	check(!bNeedsDecryptor || Decryptor.IsValid());
+
+	TUniquePtr<FArchive> Archive{ MakeArchive() };
+	if (!Archive.IsValid())
+	{
+		return nullptr;
+	}
+
+	if (Decryptor.IsValid())
+	{
+		return new FSignedArchiveReader(Archive.Release(), Decryptor.Get());
+	}
+	else
+	{
+		return Archive.Release();
+	}
 }
 
 void FPakFile::Initialize(FArchive& Reader, bool bLoadIndex)
@@ -6861,20 +6887,7 @@ bool FPakFile::RecreatePakReaders(IPlatformFile* LowerLevel)
 	// Create a new PakReader *per* instance that was already mapped
 	for (const FArchiveAndLastAccessTime& Reader : Readers)
 	{
-		FArchive* PakReader = nullptr;
-		if (LowerLevel != nullptr)
-		{
-			IFileHandle* PakHandle = LowerLevel->OpenRead(*GetFilename());
-			if (PakHandle)
-			{
-				PakReader = CreatePakReader(*PakHandle, *GetFilename());
-			}
-		}
-		else
-		{
-			PakReader = CreatePakReader(*GetFilename());
-		}
-
+		FArchive* PakReader = CreatePakReader(LowerLevel, *GetFilename());
 		if (!PakReader)
 		{
 			UE_LOG(LogPakFile, Warning, TEXT("Unable to re-create pak \"%s\" handle"), *GetFilename());
@@ -6905,18 +6918,7 @@ FSharedPakReader FPakFile::GetSharedReader(IPlatformFile* LowerLevel)
 		else
 		{
 			// Create a new FArchive reader and pass it to the new handle.
-			if (LowerLevel != nullptr)
-			{
-				IFileHandle* PakHandle = LowerLevel->OpenRead(*GetFilename());
-				if (PakHandle)
-				{
-					PakReader = CreatePakReader(*PakHandle, *GetFilename());
-				}
-			}
-			else
-			{
-				PakReader = CreatePakReader(*GetFilename());
-			}
+			PakReader = CreatePakReader(LowerLevel, *GetFilename());
 
 			if (!PakReader)
 			{
@@ -6947,6 +6949,11 @@ void FPakFile::ReleaseOldReaders(double MaxAgeSeconds)
 			Readers.RemoveAt(0, i + 1);
 			break;
 		}
+	}
+
+	if( Readers.Num() == 0 )
+	{
+		Decryptor.Reset();
 	}
 }
 
