@@ -23,7 +23,7 @@ public:
 	URigVMRerouteNode();
 
 	// Override of node title
-	virtual FString GetNodeTitle() const override { return RerouteName; }
+	virtual FString GetNodeTitle() const override;
 
 	// Returns true if this node should be shown as a full node,
 	// or false if this node should be shown as a small circle.
