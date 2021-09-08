@@ -113,12 +113,11 @@ TArray<FSoftObjectPath> FPropertySelectionMap::GetKeys() const
 
 	TArray<FSoftObjectPath> ComponentPaths;
 	EditorActorToComponentSelection.GenerateKeyArray(ComponentPaths);
-	LIKELY(ComponentPaths.Num() < Result.Num());
 	for (const FSoftObjectPath& Path : ComponentPaths)
 	{
 		Result.Add(Path);
 	}
-	
+
 	return Result;
 }
 
