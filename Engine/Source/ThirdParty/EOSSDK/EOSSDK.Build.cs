@@ -75,11 +75,6 @@ public class EOSSDK : ModuleRules
 				return "EOSSDK";
             }
 
-			if(Target.Platform == UnrealTargetPlatform.Stadia)
-			{
-				return "EOSSDK-Linux-Shipping";
-			}
-
 			return String.Format("EOSSDK-{0}-Shipping", Target.Platform.ToString());
 		}
 	}
