@@ -553,7 +553,7 @@ namespace HordeServer.Compute.Impl
 					}
 					catch (Exception Ex)
 					{
-						Logger.LogError(Ex, "Unable to parse condition '{Condition}': {Message}", Ex.Message);
+						Logger.LogError(Ex, "Unable to parse condition '{Condition}': {Message}", Info.Requirements.Condition.ToString(), Ex.Message);
 					}
 				}
 
