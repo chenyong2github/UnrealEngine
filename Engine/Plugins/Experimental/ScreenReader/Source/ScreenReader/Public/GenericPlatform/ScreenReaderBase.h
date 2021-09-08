@@ -67,18 +67,18 @@ public:
 	/** Unregisteres all screen reader users. No users can receive or respond to accessible events or accessible input upon calling this function. */
 	void UnregisterAllUsers();
 	/** 
-	* Returns the screen reader user associated with the passed in Id. It is up to the user
-	* to ensure that the Id is valid and mapped to a valid screen reader user.
+	* Returns the screen reader user associated with the passed in Id. An assertion will trigger if the User Id is not registered. 
+	* It is up to the user to ensure that the Id is valid and mapped to a valid screen reader user.
 	* @param InUserId The Id of the screen reader user to be retrieved.
 	* @return The screen reader user associated with the passed in Id
 	*/
-	TSharedRef<FScreenReaderUser> GetUser(int32 InUserId) const;
+	TSharedRef<FScreenReaderUser> GetUserChecked(int32 InUserId) const;
 	/**
 	* Returns a screen reader user associated with the passed in Id if the Id is registered. Otherwise, a nullptr is returned.
 	* @param InUserId The user Id of the screen reader to be retrieved.
-	* @return The screen reader user associated with the Id if the user is registered. Else false.
+	* @return The screen reader user associated with the Id if the user is registered. Else nullptr.
 	*/
-	TSharedPtr<FScreenReaderUser> GetUserChecked(int32 InUserId) const;
+	TSharedPtr<FScreenReaderUser> GetUser(int32 InUserId) const;
 
 protected:
 	/**

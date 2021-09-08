@@ -32,7 +32,13 @@ public:
 	FScreenReaderReply ClearAllAnnouncements();
 	FScreenReaderReply RequestSpeakWidget(const TSharedRef<IAccessibleWidget>& InWidget);
 
-	
+	float GetSpeechVolume() const;
+	FScreenReaderReply SetSpeechVolume(float InVolume);
+	float GetSpeechRate() const;
+	FScreenReaderReply SetSpeechRate(float InRate);
+	FScreenReaderReply MuteSpeech();
+	FScreenReaderReply UnmuteSpeech();
+	bool IsSpeechMuted() const;
 private:
 	/**
 	* A callback that is bound to the text to speech delegate. The delegate fires when a string
