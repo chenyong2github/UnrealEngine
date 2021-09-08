@@ -448,43 +448,55 @@ ICompressionFormat * CreateOodleDataCompressionFormat()
 		bool bUseCompressionFormatOodle = 
 			( FCString::Strifind(FCommandLine::Get(), TEXT("-compressionformats=oodle")) != NULL ) ||
 			( FCString::Strifind(FCommandLine::Get(), TEXT("-compressionformat=oodle")) != NULL );
+
 		if ( bUseCompressionFormatOodle )			
 		{
 			UE_LOG(OodleDataCompression, Display, TEXT("Oodle v%s format for pak/iostore with method=%s, level=%d=%s"), TEXT(OodleVersion), **MethodMap.FindKey(UsedCompressor), (int)UsedLevel, **LevelMap.FindKey(UsedLevel) );
-		}
 		
-		// OodleCompressDLL to use an earlier *encoder* to maintain identical bit streams
-		// mainly for shipped games to avoid patches
-		// do not specify this if you want to use the latest Engine version of Oodle for encoding
+			// OodleCompressDLL to use an earlier *encoder* to maintain identical bit streams
+			// mainly for shipped games to avoid patches
+			// do not specify this if you want to use the latest Engine version of Oodle for encoding
 
-		// NOTE : we get OodleCompressDLL from Engine.ini not from command line
-		//	because this is a function of the platform we are running *on* not the platform we are packaging *for*
-		// the ProjectPackaging settings we get on the command line from Game.ini come from the *target* platform
-		FString OodleDLL = "";
-		if ( GConfig && GConfig->GetString(TEXT("OodleDataCompressionFormat"), TEXT("OodleCompressDLL"), OodleDLL, GEngineIni) && ! OodleDLL.IsEmpty() )
-		{
-			UE_LOG(OodleDataCompression, Display, TEXT("OodleCompressDLL=%s"), *OodleDLL);
-				
-			// just load from default locations :
-			//  the DLL you want here should be added in RuntimeDependencies.Add in a build.cs
-			//  to ensure it is in the binaries directory of the process
-			void * 	OodleDLLHandle = FPlatformProcess::GetDllHandle(*OodleDLL);
+			// NOTE : we get OodleCompressDLL from Engine.ini for the platform we are running *on* not the platform we are packaging *for*
+			// the ProjectPackaging settings we get on the command line from Game.ini come from the *target* platform
+			FString OodleDLL = "";
 
-			if ( OodleDLLHandle == nullptr )
+			// check command line first : 
+			FParse::Value(FCommandLine::Get(), TEXT("OodleCompressDLL="), OodleDLL);
+
+			if ( OodleDLL.IsEmpty() && GConfig )
 			{
-				UE_LOG(OodleDataCompression, Warning, TEXT("OodleCompressDLL %s requested but could not be loaded"), *OodleDLL);
+				// @todo Oodle : possibly remove this? unnecessary if it's always been put on command line
+				// UnrealPak and other "programs" do not read the project config hierarchy
+				// CopyBuildToStagingDirectory.Automation.cs reads this config value and passes it on the command line
+				GConfig->GetString(TEXT("OodleDataCompressionFormat"), TEXT("OodleCompressDLL"), OodleDLL, GEngineIni);
 			}
-			else
+		
+			if ( ! OodleDLL.IsEmpty() )
 			{
-				// GetDllExport is GetProcAddress or dlsym on Mac
-				//  LinuxPlatformProcess::GetDllExport seems to be missing ?
-				//OodleCompressFuncPtr = GetProcAddress( (HMODULE)OodleDLLHandle, "OodleLZ_Compress" );
-				OodleCompressFuncPtr = FPlatformProcess::GetDllExport( OodleDLLHandle, TEXT("OodleLZ_Compress") );
-				if ( OodleCompressFuncPtr == nullptr )
+				UE_LOG(OodleDataCompression, Display, TEXT("OodleCompressDLL=%s"), *OodleDLL);
+				
+				// just load from default locations :
+				//  the DLL you want here should be added in RuntimeDependencies.Add in a build.cs
+				//  to ensure it is in the binaries directory of the process
+				void * 	OodleDLLHandle = FPlatformProcess::GetDllHandle(*OodleDLL);
+
+				if ( OodleDLLHandle == nullptr )
 				{
-					UE_LOG(OodleDataCompression, Warning, TEXT("OodleCompressDLL %s loaded but no OodleLZ_Compress !?"), *OodleDLL);
+					UE_LOG(OodleDataCompression, Warning, TEXT("OodleCompressDLL %s requested but could not be loaded"), *OodleDLL);
 				}
-				OodleSetAllocatorsFuncPtr = FPlatformProcess::GetDllExport( OodleDLLHandle, TEXT("OodlePlugins_SetAllocators") );
+				else
+				{
+					// GetDllExport is GetProcAddress or dlsym on Mac
+					//  LinuxPlatformProcess::GetDllExport seems to be missing ?
+					//OodleCompressFuncPtr = GetProcAddress( (HMODULE)OodleDLLHandle, "OodleLZ_Compress" );
+					OodleCompressFuncPtr = FPlatformProcess::GetDllExport( OodleDLLHandle, TEXT("OodleLZ_Compress") );
+					if ( OodleCompressFuncPtr == nullptr )
+					{
+						UE_LOG(OodleDataCompression, Warning, TEXT("OodleCompressDLL %s loaded but no OodleLZ_Compress !?"), *OodleDLL);
+					}
+					OodleSetAllocatorsFuncPtr = FPlatformProcess::GetDllExport( OodleDLLHandle, TEXT("OodlePlugins_SetAllocators") );
+				}
 			}
 		}
 	}
