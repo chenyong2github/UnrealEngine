@@ -4505,7 +4505,8 @@ void FSaveCookedPackageContext::FinishPlatform()
 		Info.PackageGuid = AssetPackageData->PackageGuid;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Info.Attachments.Add({ "Dependencies", TargetDomainDependencies });
-		Info.Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
+		// TODO: Reenable BuildDefinitionList once FCbPackage support for empty FCbObjects is in
+		//Info.Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
 
 		PackageWriter->CommitPackage(Info);
 	}
