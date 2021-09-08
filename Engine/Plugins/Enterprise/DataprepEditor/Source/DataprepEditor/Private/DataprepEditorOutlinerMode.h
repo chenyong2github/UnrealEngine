@@ -71,6 +71,16 @@ private:
 		{
 			return;
 		}
+		
+		if (!DataprepEditorPtr.IsValid())
+		{
+			return;
+		}
+
+		if (InChangedActor->GetWorld() != DataprepEditorPtr.Pin()->GetWorld())
+		{
+			return;
+		}
 
 		if (SceneOutliner && IsActorDisplayable(InChangedActor))
 		{
