@@ -32,6 +32,11 @@ THIRD_PARTY_INCLUDES_END
 typedef HRESULT(STDAPICALLTYPE *GetDpiForMonitorProc)(HMONITOR Monitor, int32 DPIType, uint32 *DPIX, uint32 *DPIY);
 APPLICATIONCORE_API GetDpiForMonitorProc GetDpiForMonitor;
 
+void FWindowsPlatformApplicationMisc::PreInit()
+{
+	FApp::SetHasFocusFunction(&FWindowsPlatformApplicationMisc::IsThisApplicationForeground);
+}
+
 void FWindowsPlatformApplicationMisc::LoadStartupModules()
 {
 #if !UE_SERVER
@@ -134,15 +139,14 @@ void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 	WinPumpMessages();
 
 	// Determine if application has focus
-	bool bHasFocus = FApp::UseVRFocus() ? FApp::HasVRFocus() : FWindowsPlatformApplicationMisc::IsThisApplicationForeground();
+	bool bHasFocus = FApp::HasFocus();
 	static bool bHadFocus = false;
 
 #if WITH_EDITOR
 	// If editor thread doesn't have the focus, don't suck up too much CPU time.
 	if( GIsEditor )
 	{
-		bool bBenchmarking = FApp::IsBenchmarking();
-		if( !bHasFocus && !bBenchmarking )
+		if( !bHasFocus )
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(EditorIsInBackgroundSleep);
 			// Sleep for a bit to not eat up all CPU time.

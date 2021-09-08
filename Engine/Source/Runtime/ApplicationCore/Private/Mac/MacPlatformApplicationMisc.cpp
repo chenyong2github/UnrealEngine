@@ -277,6 +277,7 @@ void FMacPlatformApplicationMisc::PreInit()
 
 	FMacApplication::UpdateScreensArray();
 	MessageBoxExtCallback = MessageBoxExtImpl;
+	FApp::SetHasFocusFunction(&FMacPlatformApplicationMisc::IsThisApplicationForeground);
 }
 
 void FMacPlatformApplicationMisc::PostInit()

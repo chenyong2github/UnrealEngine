@@ -41,6 +41,7 @@ float FApp::VolumeMultiplier = 1.0f;
 float FApp::UnfocusedVolumeMultiplier = 0.0f;
 bool FApp::bUseVRFocus = false;
 bool FApp::bHasVRFocus = false;
+bool (*FApp::HasFocusFunction)() = nullptr;
 
 
 /* FApp static interface
@@ -292,6 +293,35 @@ void FApp::SetHasVRFocus(bool bInHasVRFocus)
 {
 	UE_CLOG(bHasVRFocus != bInHasVRFocus, LogApp, Verbose, TEXT("HasVRFocus has changed to %d"), int(bInHasVRFocus));
 	bHasVRFocus = bInHasVRFocus;
+}
+
+void FApp::SetHasFocusFunction(bool (*InHasFocusFunction)())
+{
+	HasFocusFunction = InHasFocusFunction;
+}
+
+bool FApp::HasFocus()
+{
+	if (FApp::IsBenchmarking())
+	{
+		return true;
+	}
+
+	if (FApp::UseVRFocus())
+	{
+		return FApp::HasVRFocus();
+	}
+
+	// by default we assume we have focus, it's a worse thing to encounter a bug where focus is locked off, vs. locked on
+	bool bHasFocus = true;
+
+	// desktop platforms are more or less why we have this abstraction, to dip into ApplicationCore's Platform implementation
+#if PLATFORM_DESKTOP
+	check(HasFocusFunction);
+#endif
+
+	// call the HasFocusFunction, if we have one. otherwise fall back to the default
+	return HasFocusFunction ? HasFocusFunction() : bHasFocus;
 }
 
 void FApp::PrintStartupLogMessages()

@@ -6,6 +6,7 @@
 
 struct APPLICATIONCORE_API FWindowsPlatformApplicationMisc : public FGenericPlatformApplicationMisc
 {
+	static void PreInit();
 	static void LoadStartupModules();
 	static class FOutputDeviceConsole* CreateConsoleOutputDevice();
 	static class FOutputDeviceError* GetErrorOutputDevice();

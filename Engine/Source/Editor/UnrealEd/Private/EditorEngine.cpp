@@ -1510,7 +1510,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	}
 
 	// Find out if the editor has focus. Audio should only play if the editor has focus.
-	const bool bHasFocus = FPlatformApplicationMisc::IsThisApplicationForeground();
+	const bool bHasFocus = FApp::HasFocus();
 
 	if (bHasFocus || GetDefault<ULevelEditorMiscSettings>()->bAllowBackgroundAudio)
 	{
@@ -6083,9 +6083,9 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 
 	const bool bRunningCommandlet = IsRunningCommandlet();
 
-	const bool bIsForeground = FPlatformApplicationMisc::IsThisApplicationForeground();
+	const bool bHasFocus = FApp::HasFocus();
 
-	if( !bIsForeground && !bRunningCommandlet )
+	if( !bHasFocus && !bRunningCommandlet )
 	{
 		const UEditorPerformanceSettings* Settings = GetDefault<UEditorPerformanceSettings>();
 		bShouldThrottle = Settings->bThrottleCPUWhenNotForeground;
