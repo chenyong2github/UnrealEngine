@@ -70,6 +70,7 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 {
 	Super::OnClickPress(PressPos);
 
+	DestroyPreviewElements();
 	LastBrushStamp.Radius = 100.0f * LastBrushStampWorldToPixelScale;
 
 	UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>();
@@ -178,6 +179,7 @@ void UPlacementModePlaceSingleTool::OnClickRelease(const FInputDeviceRay& Releas
 
 	ShutdownBrushStampIndicator();
 	PlacementInfo.Reset();
+	PlacedElements.Empty();
 }
 
 void UPlacementModePlaceSingleTool::OnBeginHover(const FInputDeviceRay& DevicePos)
@@ -304,7 +306,21 @@ void UPlacementModePlaceSingleTool::UpdatePreviewElements(const FInputDeviceRay&
 
 void UPlacementModePlaceSingleTool::DestroyPreviewElements()
 {
-	NotifyMovementEnded(PreviewElements);
+	if (IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
+	{
+		if (UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet())
+		{
+			for (const FTypedElementHandle& PreviewElement : PreviewElements)
+			{
+				if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(PreviewElement))
+				{
+					WorldInterfaceElement.NotifyMovementEnded();
+					WorldInterfaceElement.DeleteElement(WorldInterfaceElement.GetOwnerWorld(), SelectionSet, FTypedElementDeletionOptions());
+				}
+			}
+		}
+	}
+
 	PreviewElements.Empty();
 }
 
@@ -339,7 +355,6 @@ void UPlacementModePlaceSingleTool::ExitTweakState(bool bClearSelectionSet)
 	}
 
 	bIsTweaking = false;
-	PlacedElements.Empty();
 }
 
 void UPlacementModePlaceSingleTool::UpdateElementTransforms(TArrayView<const FTypedElementHandle> InElements, const FTransform& InTransform, bool bLocalTransform)
@@ -358,9 +373,9 @@ void UPlacementModePlaceSingleTool::UpdateElementTransforms(TArrayView<const FTy
 void UPlacementModePlaceSingleTool::NotifyMovementStarted(TArrayView<const FTypedElementHandle> InElements)
 {
 	// Notify Movement started
-	for (const FTypedElementHandle& PreviewElement : PreviewElements)
+	for (const FTypedElementHandle& ElementToNotify : InElements)
 	{
-		if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(PreviewElement))
+		if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(ElementToNotify))
 		{
 			WorldInterfaceElement.NotifyMovementStarted();
 		}
@@ -369,24 +384,11 @@ void UPlacementModePlaceSingleTool::NotifyMovementStarted(TArrayView<const FType
 
 void UPlacementModePlaceSingleTool::NotifyMovementEnded(TArrayView<const FTypedElementHandle> InElements)
 {
-	IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>();
-	if (!AssetEditorContext)
+	for (const FTypedElementHandle& ElementToNotify : InElements)
 	{
-		return;
-	}
-
-	UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
-	if (!SelectionSet)
-	{
-		return;
-	}
-
-	for (const FTypedElementHandle& PreviewElement : PreviewElements)
-	{
-		if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(PreviewElement))
+		if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(ElementToNotify))
 		{
 			WorldInterfaceElement.NotifyMovementEnded();
-			WorldInterfaceElement.DeleteElement(WorldInterfaceElement.GetOwnerWorld(), SelectionSet, FTypedElementDeletionOptions());
 		}
 	}
 }
