@@ -23,7 +23,9 @@ enum class ELaplacianWeightScheme
 	/**  */
 	Cotangent,
 	/**  */
-	ClampedCotangent
+	ClampedCotangent,
+	/** Cotan for Intrinsic Delaunay triangulation*/
+	IDTCotanget,
 };
 
 

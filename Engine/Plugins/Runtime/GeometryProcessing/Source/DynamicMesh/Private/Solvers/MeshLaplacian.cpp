@@ -27,6 +27,9 @@ FString LaplacianSchemeName(const ELaplacianWeightScheme Scheme)
 	case ELaplacianWeightScheme::Valence:
 		LaplacianName = FString(TEXT("Valence Laplacian"));
 		break;
+	case ELaplacianWeightScheme::IDTCotanget:
+		LaplacianName = FString(TEXT("Intrinsic Delaunay Triangulation Contangent Laplacian"));
+		break;
 	default:
 		check(0 && "Unknown Laplacian Weight Scheme Enum");
 	}
@@ -59,6 +62,9 @@ bool bIsSymmetricLaplacian(const ELaplacianWeightScheme Scheme)
 		break;
 	case ELaplacianWeightScheme::Valence:
 		bSymmetric = true;
+		break;
+	case ELaplacianWeightScheme::IDTCotanget:
+		bSymmetric = false;
 		break;
 	default:
 		check(0);
