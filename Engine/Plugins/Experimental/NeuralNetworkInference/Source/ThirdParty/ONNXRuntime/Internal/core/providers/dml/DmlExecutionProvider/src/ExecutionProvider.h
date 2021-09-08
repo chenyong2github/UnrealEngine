@@ -225,6 +225,10 @@ namespace Dml
         ComPtr<ExecutionProviderImpl> m_impl;
     };
 
+#ifdef WITH_UE
+	class OrtDMLGPUResourceAllocatorWrapper;
+#endif
+
     class ExecutionProvider : public onnxruntime::IExecutionProvider
     {
     public:
@@ -235,7 +239,10 @@ namespace Dml
             IDMLDevice* dmlDevice,
             ID3D12CommandQueue* commandQueue,
             bool enableMetacommands = true
-        );
+#ifdef WITH_UE
+			, OrtDMLGPUResourceAllocator** resourceAllocator = nullptr
+#endif			
+			);
         
         std::unique_ptr<onnxruntime::IDataTransfer> GetDataTransfer() const final override
         {
@@ -293,6 +300,10 @@ namespace Dml
 
     private:
         ComPtr<ExecutionProviderImpl> m_impl;
+
+#ifdef WITH_UE
+		std::unique_ptr< OrtDMLGPUResourceAllocatorWrapper > m_resourceAlloc;
+#endif
     };
 
 } // namespace Dml

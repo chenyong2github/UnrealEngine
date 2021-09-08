@@ -10,6 +10,13 @@ NNI_THIRD_PARTY_INCLUDES_START
 #undef TEXT
 #ifdef WITH_UE_AND_ORT_SUPPORT
 	#include "onnxruntime/core/session/onnxruntime_cxx_api.h"
+	#ifdef PLATFORM_WIN64
+		struct OrtDMLProviderOptions;
+		namespace Ort
+		{
+			class DMLGPUResourceAllocator;
+		}
+	#endif
 #endif //WITH_UE_AND_ORT_SUPPORT
 NNI_THIRD_PARTY_INCLUDES_END
 
@@ -31,6 +38,10 @@ public:
 	TUniquePtr<Ort::SessionOptions> SessionOptions;
 	/** Tensor-related variables */
 	TUniquePtr<Ort::MemoryInfo> AllocatorInfo; /* Memory allocator information */
+#ifdef PLATFORM_WIN64
+	TUniquePtr<OrtDMLProviderOptions> DmlProviderOptions; /* DirectML execution provider options */
+	TUniquePtr<Ort::DMLGPUResourceAllocator> DmlGPUAllocator; /* DirectML GPU allocator */
+#endif
 	TArray<Ort::Value> InputOrtTensors; /* Actual ONNXRuntime tensors */
 	TArray<const char*> InputTensorNames; /* Tensor names */
 	TArray<Ort::Value> OutputOrtTensors; /* Actual ONNXRuntime tensors */
@@ -39,6 +50,8 @@ public:
 
 	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 	
+	void ClearResources();
+
 	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
 #ifdef WITH_UE_AND_ORT_SUPPORT

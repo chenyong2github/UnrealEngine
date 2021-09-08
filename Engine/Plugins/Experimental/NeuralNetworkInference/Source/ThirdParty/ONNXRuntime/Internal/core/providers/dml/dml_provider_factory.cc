@@ -27,8 +27,16 @@ namespace onnxruntime {
 
 struct DMLProviderFactory : IExecutionProviderFactory {
   DMLProviderFactory(IDMLDevice* dml_device,
-                     ID3D12CommandQueue* cmd_queue) : dml_device_(dml_device),
-                                                      cmd_queue_(cmd_queue) {}
+                     ID3D12CommandQueue* cmd_queue
+#ifdef WITH_UE
+                     , OrtDMLGPUResourceAllocator** resource_allocator = nullptr) 
+#endif
+					 : dml_device_(dml_device),
+                       cmd_queue_(cmd_queue)
+#ifdef WITH_UE
+                     , resource_allocator_(resource_allocator)
+#endif
+					 {}
   ~DMLProviderFactory() override {}
 
   std::unique_ptr<IExecutionProvider> CreateProvider() override;
@@ -39,12 +47,20 @@ struct DMLProviderFactory : IExecutionProviderFactory {
  private:
   ComPtr<IDMLDevice> dml_device_{};
   ComPtr<ID3D12CommandQueue> cmd_queue_{};
+#ifdef WITH_UE
+  OrtDMLGPUResourceAllocator** resource_allocator_{};
+#endif
   AllocatorRoundingMode rounding_mode_ = AllocatorRoundingMode::Enabled;
   bool metacommands_enabled_ = true;
 };
 
 std::unique_ptr<IExecutionProvider> DMLProviderFactory::CreateProvider() {
-  auto provider = Dml::CreateExecutionProvider(dml_device_.Get(), cmd_queue_.Get(), metacommands_enabled_);
+  auto provider = Dml::CreateExecutionProvider(dml_device_.Get(), cmd_queue_.Get(), metacommands_enabled_
+#ifdef WITH_UE
+  , resource_allocator_
+#endif
+  );
+  
   Dml::SetDefaultRoundingMode(provider.get(), rounding_mode_);
   return provider;
 }
@@ -58,7 +74,12 @@ void DMLProviderFactory::SetMetacommandsEnabled(bool metacommands_enabled) {
 }
 
 std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(IDMLDevice* dml_device,
-                                                                              ID3D12CommandQueue* cmd_queue) {
+                                                                              ID3D12CommandQueue* cmd_queue
+#ifdef WITH_UE
+                                                                              , OrtDMLGPUResourceAllocator** resource_allocator = nullptr
+#endif																			  
+																			  ) {
+
   // Validate that the D3D12 devices match between DML and the command queue. This specifically asks for IUnknown in
   // order to be able to compare the pointers for COM object identity.
   ComPtr<IUnknown> d3d12_device_0;
@@ -80,7 +101,11 @@ std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(ID
   env.GetTelemetryProvider().LogExecutionProviderEvent(&aux1);
 #endif
 
-  return std::make_shared<onnxruntime::DMLProviderFactory>(dml_device, cmd_queue);
+  return std::make_shared<onnxruntime::DMLProviderFactory>(dml_device, cmd_queue
+#ifdef WITH_UE
+, resource_allocator
+#endif
+  );
 }
 
 void DmlConfigureProviderFactoryDefaultRoundingMode(IExecutionProviderFactory* factory, AllocatorRoundingMode rounding_mode) {
@@ -149,6 +174,14 @@ std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(in
   return CreateExecutionProviderFactory_DML(dml_device.Get(), cmd_queue.Get());
 }
 
+#ifdef WITH_UE
+std::shared_ptr<IExecutionProviderFactory> CreateExecutionProviderFactory_DML(OrtDMLProviderOptions* provider_options) {
+  return CreateExecutionProviderFactory_DML(provider_options->dml_device, 
+                                            provider_options->cmd_queue, 
+                                            provider_options->resource_allocator);
+}
+#endif
+
 }  // namespace onnxruntime
 
 ORT_API_STATUS_IMPL(OrtSessionOptionsAppendExecutionProvider_DML, _In_ OrtSessionOptions* options, int device_id) {
@@ -166,5 +199,16 @@ API_IMPL_BEGIN
 API_IMPL_END
   return nullptr;
 }
+
+
+#ifdef WITH_UE
+ORT_API_STATUS_IMPL(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options,
+    _In_ OrtDMLProviderOptions* provider_options) {
+API_IMPL_BEGIN
+    options->provider_factories.push_back(onnxruntime::CreateExecutionProviderFactory_DML(provider_options));
+API_IMPL_END
+    return nullptr;
+}
+#endif
 
 #endif // PLATFORM_WIN64

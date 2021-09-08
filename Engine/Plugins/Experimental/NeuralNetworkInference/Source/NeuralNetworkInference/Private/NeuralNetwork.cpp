@@ -203,6 +203,11 @@ const FNeuralTensor& UNeuralNetwork::GetInputTensor(const int32 InTensorIndex) c
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
+		if (ImplBackEndUEAndORT)
+		{
+			ImplBackEndUEAndORT->ClearResources();
+		}
+
 		return ImplBackEndUEAndORT->InputTensors[InTensorIndex];
 	}
 
