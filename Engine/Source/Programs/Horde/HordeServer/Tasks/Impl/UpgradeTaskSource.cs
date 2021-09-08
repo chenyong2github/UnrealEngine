@@ -47,7 +47,7 @@ namespace HordeServer.Tasks.Impl
 					Task.LogId = LogFile.Id.ToString();
 
 					byte[] Payload;
-					if (Agent.Version == "5.0.0-17448746")
+					if (Agent.Version == "5.0.0-17425336" || Agent.Version == "5.0.0-17448746")
 					{
 						Any Any = new Any();
 						Any.TypeUrl = "type.googleapis.com/Horde.UpgradeTask";
