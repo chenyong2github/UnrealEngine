@@ -719,39 +719,44 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	// - Instances that were spawned and we need to ensure the async tick is complete
 	if (SimulationsWithPostActorWork.Num() > 0)
 	{
-		for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i )
+		// Ensure completion of all systems
+		for ( auto& Simulation : SimulationsWithPostActorWork )
 		{
-			if (!SimulationsWithPostActorWork[i]->IsValid())
+			if ( Simulation->IsValid() )
 			{
-				SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
-				--i;
-			}
-			else
-			{
-				SimulationsWithPostActorWork[i]->WaitForInstancesTickComplete();
+				Simulation->WaitForInstancesTickComplete();
 			}
 		}
 
-		for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i)
+		// Update tick groups
+		for (auto& Simulation : SimulationsWithPostActorWork)
 		{
-			if (!SimulationsWithPostActorWork[i]->IsValid())
+			if (Simulation->IsValid())
 			{
-				SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
-				--i;
-			}
-			else
-			{
-				SimulationsWithPostActorWork[i]->UpdateTickGroups_GameThread();
+				Simulation->UpdateTickGroups_GameThread();
 			}
 		}
 
-		for (const auto& Simulation : SimulationsWithPostActorWork)
+		// Execute spawning
+		TArray<TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> LocalSimulationsWithPostActorWork;
+		Swap(SimulationsWithPostActorWork, LocalSimulationsWithPostActorWork);
+		for (auto& Simulation : LocalSimulationsWithPostActorWork)
 		{
 			if (Simulation->IsValid())
 			{
 				Simulation->Spawn_GameThread(DeltaSeconds, true);
 			}
 		}
+
+		// Wait for any spawning that may be required to complete in PostActorTick
+		for (auto& Simulation : SimulationsWithPostActorWork)
+		{
+			if (Simulation->IsValid())
+			{
+				Simulation->WaitForInstancesTickComplete();
+			}
+		}
+		SimulationsWithPostActorWork.Reset();
 	}
 
 	// Clear cached player view location list, it should never be used outside of the world tick

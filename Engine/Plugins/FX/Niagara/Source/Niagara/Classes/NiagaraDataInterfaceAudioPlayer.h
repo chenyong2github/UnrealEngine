@@ -110,6 +110,7 @@ public:
 
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
+	virtual bool PostSimulateCanOverlapFrames() const { return false; }
 	//UNiagaraDataInterface Interface
 
 	virtual void PlayOneShotAudio(FVectorVMExternalFunctionContext& Context);

@@ -1285,7 +1285,14 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		}
 		else
 		{
-			WorldManager->MarkSimulationsForEndOfFrameWait(this);
+			if ( System->AllDIsPostSimulateCanOverlapFrames() )
+			{
+				WorldManager->MarkSimulationsForEndOfFrameWait(this);
+			}
+			else
+			{
+				WorldManager->MarkSimulationForPostActorWork(this);
+			}
 		}
 	}
 	else
@@ -1433,9 +1440,8 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 			InitParameterDataSetBindings(SpawningInstances[0]);
 		}
 
-		// Can we spawn async?
-		const bool bCanRunAsync = !bIsSolo && (!bPostActorTick || !GNiagaraSystemSimulationTickTaskShouldWait);
-		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), bCanRunAsync);
+		// Execute spawning we only force solo onto the GameThread
+		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), !bIsSolo);
 		if ( Context.IsRunningAsync() )
 		{
 			auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationSpawnConcurrentTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
@@ -1446,8 +1452,15 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 			}
 			ConcurrentTickTask->Unlock();
 
-			// Note we always mark for EOF wait as the execution could be ongoing beyond PostActorTick
-			WorldManager->MarkSimulationsForEndOfFrameWait(this);
+			// Some simulations require us to complete inside PostActorTick and can not overlap to EOF updates / next frame, ensure we wait for them in the right location
+			if ( System->AllDIsPostSimulateCanOverlapFrames() && !GNiagaraSystemSimulationTickTaskShouldWait)
+			{
+				WorldManager->MarkSimulationForPostActorWork(this);
+			}
+			else
+			{
+				WorldManager->MarkSimulationsForEndOfFrameWait(this);
+			}
 		}
 		else
 		{

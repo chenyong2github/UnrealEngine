@@ -87,6 +87,9 @@ public:
 	
 	virtual bool HasPreSimulateTick() const override{ return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
+	virtual bool PostSimulateCanOverlapFrames() const { return false; }
+
+private:
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 

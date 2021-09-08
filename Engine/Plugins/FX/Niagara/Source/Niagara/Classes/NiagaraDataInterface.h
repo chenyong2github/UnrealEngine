@@ -368,6 +368,12 @@ public:
 	virtual bool HasPreSimulateTick() const { return false; }
 	virtual bool HasPostSimulateTick() const { return false; }
 
+	/**
+	When set to true the simulation may not complete in the same frame it started, allowing maximum overlap with the GameThread.
+	You must override and set to false if you require the data interface to complete before PostActorTick completes.
+	*/
+	virtual bool PostSimulateCanOverlapFrames() const { return true; }
+
 	virtual bool RequiresDistanceFieldData() const { return false; }
 	virtual bool RequiresDepthBuffer() const { return false; }
 	virtual bool RequiresEarlyViewData() const { return false; }
