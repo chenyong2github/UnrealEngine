@@ -226,6 +226,11 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		return;
 	}
 
+	if(UControlRigGraphSchema* ControlRigSchema = (UControlRigGraphSchema*)GetControlRigGraphSchema())
+	{
+		ControlRigSchema->HandleModifiedEvent(InNotifType, InGraph, InSubject);
+	}
+
 	// increment the node topology version for any interaction
 	// with a node.
 	{

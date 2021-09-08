@@ -228,6 +228,8 @@ public:
 	static TArray<UEdGraphNode*> GetNodesToMoveForNode(UEdGraphNode* InNode);
 	FVector2D GetNodePositionAtStartOfInteraction(UEdGraphNode* InNode) const;
 
+	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+
 private:
 
 	const UEdGraphPin* LastPinForCompatibleCheck = nullptr;
