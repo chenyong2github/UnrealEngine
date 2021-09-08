@@ -60,6 +60,7 @@ private:
 	FVector2D GetLowDetailDesiredSize() const;
 
 	EVisibility GetTitleVisibility() const;
+	EVisibility GetArrayPlusButtonVisibility(URigVMPin* InModelPin) const;
 
 	FText GetPinLabel(TWeakPtr<SGraphPin> GraphPin) const;
 
