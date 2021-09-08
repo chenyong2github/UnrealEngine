@@ -808,8 +808,7 @@ private:
 		return 0;
 	}
 
-	FArchive* CreatePakReader(const TCHAR* Filename);
-	FArchive* CreatePakReader(IFileHandle& InHandle, const TCHAR* Filename);
+	FArchive* CreatePakReader(IPlatformFile* LowerLevel, const TCHAR* Filename);
 	FArchive* SetupSignedPakReader(FArchive* Reader, const TCHAR* Filename);
 
 
@@ -1402,7 +1401,7 @@ public:
 		}
 		else
 		{
-			TUniquePtr<FArchive> Reader {CreatePakReader(*GetFilename())};
+			TUniquePtr<FArchive> Reader {CreatePakReader(nullptr, *GetFilename())};
 			Reader->Seek(PakEntry.Offset);
 			FPakEntry SerializedEntry;
 			SerializedEntry.Serialize(*Reader, GetInfo().Version);

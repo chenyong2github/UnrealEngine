@@ -30,9 +30,9 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("FSignedArchiveReader.NumSerializes"), STAT_
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("FSignedArchiveReader.NumChunkRequests"), STAT_SignedArchiveReader_NumChunkRequests, STATGROUP_PakFile);
 
 
-FChunkCacheWorker::FChunkCacheWorker(FArchive* InReader, const TCHAR* Filename)
+FChunkCacheWorker::FChunkCacheWorker(TUniquePtr<FArchive> InReader, const TCHAR* Filename)
 	: Thread(nullptr)
-	, Reader(InReader)
+	, Reader(MoveTemp(InReader))
 	, QueuedRequestsEvent(nullptr)
 {
 	Signatures = FPakPlatformFile::GetPakSignatureFile(Filename);
