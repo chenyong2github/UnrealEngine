@@ -562,6 +562,12 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bH
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	bool bIsContainer = false;
+	if(InParentPin)
+	{
+		bIsContainer = InParentPin->IsArray();
+	}
+
 	const TArray<URigVMPin*> ModelPins = InParentPin == nullptr ? InputOutputPins : InParentPin->GetSubPins();
 	for (URigVMPin* ModelPin : ModelPins)
 	{
@@ -586,7 +592,7 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bH
 		}
 	}
 	}
-		if (Pair.OutputPin == nullptr)
+		if (Pair.OutputPin == nullptr && !bIsContainer)
 	{
 			Pair.OutputPin = CreatePin(EGPD_Output, GetPinTypeForModelPin(ModelPin), FName(*ModelPin->GetPinPath()));
 			if (Pair.OutputPin != nullptr)
@@ -614,7 +620,14 @@ void UControlRigGraphNode::CreateInputOutputPins(URigVMPin* InParentPin, bool bH
 		}
 	}
 
-		CreateInputOutputPins(ModelPin, bHidden);
+		if(bIsContainer)
+		{
+			CreateInputPins(ModelPin);
+		}
+		else
+		{
+			CreateInputOutputPins(ModelPin, bHidden);
+		}
 	}
 }
 
