@@ -215,8 +215,11 @@ private:
 	TSharedRef<SWidget> OnCreateWidgetForAction(struct FCreateWidgetForActionData* const InCreateData);
 	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
 
+	bool IsValid() const { return BaseSystemWeakPtr.IsValid() && ObjectCustomizingWeakPtr.IsValid(); }
+
 	TSharedPtr<IPropertyHandle> PropertyHandle;
-	class UNiagaraSystem* BaseSystem;
+	TWeakObjectPtr<UObject> ObjectCustomizingWeakPtr;
+	TWeakObjectPtr<class UNiagaraSystem> BaseSystemWeakPtr;
 	struct FNiagaraUserParameterBinding* TargetUserParameterBinding;
 
 };
