@@ -1364,7 +1364,7 @@ void DeclResultIdMapper::createGlobalsCBuffer(const VarDecl *var) {
   // UE Change Begin: Always apply RelaxedGLSLStd140 layout rules to global
   // constants
   if (spirvOptions.ue5Layout)
-    globals->setLayoutRule(SpirvLayoutRule::RelaxedGLSLStd140);
+    globals->setLayoutRule(SpirvLayoutRule::GLSLStd140);
   // UE Change End: Always apply RelaxedGLSLStd140 layout rules to global
   // constants
 

@@ -1312,7 +1312,7 @@ bool IsDxcEnabledForPlatform(EShaderPlatform Platform)
 
 bool IsUsingEmulatedUniformBuffers(EShaderPlatform Platform)
 {
-	if (IsAndroidOpenGLESPlatform(Platform))
+	if (IsOpenGLPlatform(Platform))
 	{
 		// Currently DXC only supports emulated uniform buffers on GLES
 		static const auto CForceDXCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
