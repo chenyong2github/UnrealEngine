@@ -608,9 +608,11 @@ void FDatasmithSceneXmlReader::ParsePostProcessVolume(FXmlNode* InNode, const TS
 
 void FDatasmithSceneXmlReader::ParseColor(FXmlNode* InNode, FLinearColor& OutColor) const
 {
-	OutColor.R = ValueFromString<float>(InNode->GetAttribute(TEXT("R")));
-	OutColor.G = ValueFromString<float>(InNode->GetAttribute(TEXT("G")));
-	OutColor.B = ValueFromString<float>(InNode->GetAttribute(TEXT("B")));
+	OutColor = FLinearColor(
+		ValueFromString<float>(InNode->GetAttribute(TEXT("R"))),
+		ValueFromString<float>(InNode->GetAttribute(TEXT("G"))),
+		ValueFromString<float>(InNode->GetAttribute(TEXT("B")))
+	);
 }
 
 void FDatasmithSceneXmlReader::ParseComp(FXmlNode* InNode, TSharedPtr< IDatasmithCompositeTexture >& OutCompTexture, bool bInIsNormal) const

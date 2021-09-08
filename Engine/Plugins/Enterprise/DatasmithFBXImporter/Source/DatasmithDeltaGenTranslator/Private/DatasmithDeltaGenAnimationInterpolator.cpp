@@ -339,7 +339,7 @@ namespace DeltaGen
 
 		// Solve cubic polynomial with Gerolano Cardano's formula
 		double Coefs[4] = { CoefConst, CoefT1, CoefT2, CoefT3 };
-		double Solutions[3];
+		double Solutions[3] = {-1., -1., -1.};
 		int32 NumSolutions = SolveCubic(Coefs, Solutions);
 
 		// The target solution, if it exists, is the only real one within [0, 1]

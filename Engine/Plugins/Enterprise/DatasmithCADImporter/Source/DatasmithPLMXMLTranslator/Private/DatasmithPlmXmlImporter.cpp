@@ -183,7 +183,7 @@ namespace PlmXml
 
 	struct FProductInstance
 	{
-		const FXmlNode* Node;
+		const FXmlNode* Node = nullptr;
 
 		operator bool() const
 		{
@@ -193,7 +193,7 @@ namespace PlmXml
 
 	struct FProductRevisionView
 	{
-		const FXmlNode* Node;
+		const FXmlNode* Node = nullptr;
 		
 		operator bool() const
 		{
@@ -203,7 +203,7 @@ namespace PlmXml
 
 	struct FRepresentation
 	{
-		const FXmlNode* Node;
+		const FXmlNode* Node = nullptr;
 
 		operator bool() const
 		{

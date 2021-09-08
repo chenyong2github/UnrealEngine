@@ -32,7 +32,7 @@ namespace CADKernel
 	class FThinZoneFinder;
 	class FBezierSurface;
 	class FSegmentCurve;
-	
+
 	class CADKERNEL_API FTopologicalFace : public FTopologicalEntity, public FMetadataDictionary
 	{
 		friend class FEntity;
@@ -57,7 +57,7 @@ namespace CADKernel
 		 * Temporary discretization of the surface used to compute the mesh of the edge
 		 */
 		FCoordinateGrid CrossingCoordinates;
-		
+
 		/**
 		 * Min delta U at the crossing u coordinate to respect meshing criteria
 		 */
@@ -69,8 +69,8 @@ namespace CADKernel
 		FCoordinateGrid CrossingPointDeltaMaxs;
 
 		/**
-		 * Build a non-trimmed trimmed surface 
-		 * This constructor has to be completed with one of the three "AddBoundaries" methods to be finalized. 
+		 * Build a non-trimmed trimmed surface
+		 * This constructor has to be completed with one of the three "AddBoundaries" methods to be finalized.
 		 */
 		FTopologicalFace(const TSharedPtr<FSurface>& InCarrierSurface)
 			: FTopologicalEntity()
@@ -128,7 +128,7 @@ namespace CADKernel
 			return CarrierSurface->GetIsoTolerances();
 		}
 
-		const double& GetIsoTolerance(EIso Iso) const
+		double GetIsoTolerance(EIso Iso) const
 		{
 			return CarrierSurface->GetIsoTolerance(Iso);
 		}
@@ -147,7 +147,7 @@ namespace CADKernel
 			return 1;
 		}
 
-		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override		
+		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override
 		{
 			if (!HasMarker1())
 			{
@@ -196,11 +196,11 @@ namespace CADKernel
 
 		/**
 		 * Trimmed the face with its natural limit curves (Iso UMin,  ...). This function is called to trim untrimmed topological face.
-		 * This function should not be called if the topological face already has a loop. 
+		 * This function should not be called if the topological face already has a loop.
 		 */
 		void ApplyNaturalLoops();
 
-		int32 LoopCount() const 
+		int32 LoopCount() const
 		{
 			return Loops.Num();
 		}
@@ -211,8 +211,8 @@ namespace CADKernel
 		}
 
 		/**
-		 * Get a sampling of each loop of the face 
-		 * @param OutLoopSamplings an array of 2d points 
+		 * Get a sampling of each loop of the face
+		 * @param OutLoopSamplings an array of 2d points
 		 * @param OutAABBs an array of 2d axis aligned bounding box of each boundary
 		 */
 		const void Get2DLoopSampling(TArray<TArray<FPoint2D>>& OutLoopSamplings) const;
@@ -282,7 +282,7 @@ namespace CADKernel
 			ensureCADKernel(Mesh.IsValid());
 			return Mesh.ToSharedRef();
 		}
-		
+
 		void InitDeltaUs();
 
 		void ChooseFinalDeltaUs();
@@ -430,7 +430,7 @@ namespace CADKernel
 		}
 
 		void ComputeSurfaceSideProperties();
-		
+
 		/**
 		 * Defines if the surface is either EQuadType::QUAD, either EQuadType::TRIANGULAR or EQuadType::OTHER
 		 */
@@ -461,12 +461,12 @@ namespace CADKernel
 			return NumOfMeshedSide;
 		}
 
-		void AddMeshedLength(double Length) 
+		void AddMeshedLength(double Length)
 		{
 			LengthOfMeshedSide += Length;
 		}
 
-		double MeshedSideRatio() const 
+		double MeshedSideRatio() const
 		{
 			return LengthOfMeshedSide / LoopLength;
 		}
@@ -481,7 +481,7 @@ namespace CADKernel
 			return StartSideIndices;
 		}
 
-		int32 GetSideIndex(TSharedPtr<FTopologicalEdge> Edge) const 
+		int32 GetSideIndex(TSharedPtr<FTopologicalEdge> Edge) const
 		{
 			int32 EdgeIndex = Loops[0]->GetEdgeIndex(Edge);
 			if (EdgeIndex < 0)

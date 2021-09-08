@@ -61,7 +61,7 @@ inline FDatasmithElementImpl< InterfaceType >::FDatasmithElementImpl(const TCHAR
 	: Type(InType)
 	, Subtype(InSubType)
 {
-	SetName(InName);
+	FDatasmithElementImpl< InterfaceType >::SetName(InName);
 	Store.RegisterParameter(Type,    "Type");
 	Store.RegisterParameter(Subtype, "Subtype");
 	Store.RegisterParameter(Name,    "Name");
@@ -1549,8 +1549,8 @@ public:
 
 	virtual void Reset() override;
 
-	virtual const TCHAR* GetHost() const;
-	virtual void SetHost(const TCHAR* InHostname);
+	virtual const TCHAR* GetHost() const override;
+	virtual void SetHost(const TCHAR* InHostname) override;
 
 	virtual const TCHAR* GetExporterVersion() const override { return *(FString&)ExporterVersion; }
 	virtual void SetExporterVersion(const TCHAR* InVersion) override { ExporterVersion = InVersion; }
