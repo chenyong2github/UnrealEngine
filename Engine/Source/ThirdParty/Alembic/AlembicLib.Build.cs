@@ -15,7 +15,6 @@ public class AlembicLib : ModuleRules
 
 			string LibDir = ModuleDirectory + "/AlembicDeploy/";
 			string Platform;
-			bool bAllowDynamicLibs = true;
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				Platform = "x64";
@@ -24,37 +23,39 @@ public class AlembicLib : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				Platform = "Mac";
-				bAllowDynamicLibs = false;
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
-			{ 
+			{
 				Platform = "Linux";
-				bAllowDynamicLibs = false;
 			}
 			else
 			{
 				// unsupported
 				return;
 			}
-			LibDir = LibDir + "/" + Platform + "/lib/";
+			LibDir += Platform + "/lib/";
 
-			string LibPostFix = bDebug && bAllowDynamicLibs ? "d" : "";
+			string Hdf5LibPostFix = bDebug ? "_debug" : "";
+			string AlembicLibPostFix = bDebug ? "d" : "";
 			string LibExtension = (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux) ? ".a" : ".lib";
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PublicDefinitions.Add("H5_BUILT_AS_DYNAMIC_LIB");
 
+				// The Windows lib post-fix for HDF5 is different from Mac and Linux.
+				Hdf5LibPostFix = bDebug ? "_D" : "";
+
 				List<string> ReqLibraryNames = new List<string>();
 				ReqLibraryNames.AddRange
 				(
 					new string[] {
-						(bDebug && bAllowDynamicLibs) ? "hdf5_" : "hdf5",
-						"Alembic"
+						"hdf5" + Hdf5LibPostFix,
+						"Alembic" + AlembicLibPostFix
 				});
 				foreach (string LibraryName in ReqLibraryNames)
 				{
-					PublicAdditionalLibraries.Add(LibDir + LibraryName + LibPostFix + LibExtension);
+					PublicAdditionalLibraries.Add(LibDir + LibraryName + LibExtension);
 				}
 
 				if (Target.bDebugBuildsActuallyUseDebugCRT && bDebug)
@@ -73,13 +74,12 @@ public class AlembicLib : ModuleRules
 				ReqLibraryNames.AddRange
 				(
 					new string[] {
-					(bDebug && bAllowDynamicLibs) ? "libhdf5_" : "libhdf5",
-					"libAlembic"
-				  });
-
+						"libhdf5" + Hdf5LibPostFix,
+						"libAlembic" + AlembicLibPostFix
+				});
 				foreach (string LibraryName in ReqLibraryNames)
 				{
-					PublicAdditionalLibraries.Add(LibDir + LibraryName + LibPostFix + LibExtension);
+					PublicAdditionalLibraries.Add(LibDir + LibraryName + LibExtension);
 				}
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
@@ -88,10 +88,9 @@ public class AlembicLib : ModuleRules
 				ReqLibraryNames.AddRange
 				(
 					new string[] {
-					"libhdf5-static",
-					"libAlembic"
-				  });
-
+						"libhdf5-static",
+						"libAlembic"
+				});
 				foreach (string LibraryName in ReqLibraryNames)
 				{
 					PublicAdditionalLibraries.Add(LibDir + Target.Architecture + "/" + LibraryName + LibExtension);
