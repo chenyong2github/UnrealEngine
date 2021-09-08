@@ -225,7 +225,8 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 					]
 				];
 		}
-		else if (FunctionInput->GetDynamicInputNode()->FunctionScript->IsVersioningEnabled())
+		// the function script could be wiped (deleted scratch pad script or missing asset)
+		else if (FunctionInput->GetDynamicInputNode()->FunctionScript && FunctionInput->GetDynamicInputNode()->FunctionScript->IsVersioningEnabled())
 		{
 			return SNew(SHorizontalBox)
                 + SHorizontalBox::Slot()
