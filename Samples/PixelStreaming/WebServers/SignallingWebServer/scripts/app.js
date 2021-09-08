@@ -223,21 +223,25 @@ function showTextOverlay(text) {
 	setOverlay('textDisplayState', textOverlay);
 }
 
+function playVideoStream() {
+	if (webRtcPlayerObj && webRtcPlayerObj.video) {
+		webRtcPlayerObj.video.play();
+		requestInitialSettings();
+		requestQualityControl();
+		showFreezeFrameOverlay();
+		hideOverlay();
+	} else {
+		console.error("Could not player video stream because webRtcPlayerObj.video was not valid.")
+	}
+}
+
 function showPlayOverlay() {
 	var img = document.createElement('img');
 	img.id = 'playButton';
 	img.src = '/images/Play.png';
 	img.alt = 'Start Streaming';
 	setOverlay('clickableState', img, event => {
-		if (webRtcPlayerObj) {
-			webRtcPlayerObj.video.play();
-		}
-
-		requestInitialSettings();
-		requestQualityControl();
-
-		showFreezeFrameOverlay();
-		hideOverlay();
+		playVideoStream();
 	});
 	shouldShowPlayOverlay = false;
 }
@@ -346,7 +350,7 @@ const ToClientMessageType = {
 var VideoEncoderQP = "N/A";
 
 function setupWebRtcPlayer(htmlElement, config) {
-	webRtcPlayerObj = new webRtcPlayer({ peerConnectionOptions: config.peerConnectionOptions });
+	webRtcPlayerObj = new webRtcPlayer(config);
 	htmlElement.appendChild(webRtcPlayerObj.video);
 	htmlElement.appendChild(freezeFrameOverlay);
 
@@ -370,6 +374,8 @@ function setupWebRtcPlayer(htmlElement, config) {
 			if (shouldShowPlayOverlay) {
 				showPlayOverlay();
 				resizePlayerStyle();
+			} else {
+				playVideoStream();
 			}
 		}
 	};

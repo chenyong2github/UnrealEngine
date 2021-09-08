@@ -17,14 +17,14 @@
 }(this, function (adapter) {
 
     function webRtcPlayer(parOptions) {
-    	parOptions = parOptions || {};
+    	parOptions = typeof parOptions !== 'undefined' ? parOptions : {};
     	
         var self = this;
 
         //**********************
         //Config setup
         //**********************
-		this.cfg = parOptions.peerConnectionOptions || {};
+		this.cfg = typeof parOptions.peerConnectionOptions !== 'undefined' ? parOptions.peerConnectionOptions : {};
 		this.cfg.sdpSemantics = 'unified-plan';
         // this.cfg.rtcAudioJitterBufferMaxPackets = 10;
         // this.cfg.rtcAudioJitterBufferFastAccelerate = true;
@@ -50,6 +50,10 @@
 
         // See https://www.w3.org/TR/webrtc/#dom-rtcdatachannelinit for values (this is needed for Firefox to be consistent with Chrome.)
         this.dataChannelOptions = {ordered: true};
+
+        // This is useful if the video/audio needs to autoplay (without user input) as browsers do not allow autoplay non-muted of sound sources without user interaction.
+        this.startVideoMuted = typeof parOptions.startVideoMuted !== 'undefined' ? parOptions.startVideoMuted : false;
+        this.autoPlayAudio = typeof parOptions.autoPlayAudio !== 'undefined' ? parOptions.autoPlayAudio : true;
 
         // To enable mic in browser use SSL/localhost and have ?useMic in the query string.
         const urlParams = new URLSearchParams(window.location.search);
@@ -126,7 +130,7 @@
             video.id = "streamingVideo";
             video.playsInline = true;
             video.disablepictureinpicture = true;
-            video.muted = false;
+            video.muted = self.startVideoMuted;;
 			
             video.addEventListener('loadedmetadata', function(e){
                 if(self.onVideoInitialised){
@@ -206,9 +210,22 @@
             {
                 // create a new audio element
                 let audioElem = document.createElement("Audio");
-                audioElem.autoplay = true;
                 audioElem.srcObject = audioMediaStream;
-                audioElem.play();
+
+                // there is no way to autoplay audio (even muted), so we defer audio until first click
+                if(!self.autoPlayAudio) {
+
+                    let clickToPlayAudio = function() {
+                        audioElem.play();
+                        self.video.removeEventListener("click", clickToPlayAudio);
+                    };
+
+                    self.video.addEventListener("click", clickToPlayAudio);
+                }
+                // we assume the user has clicked somewhere on the page and autoplaying audio will work
+                else {
+                    audioElem.play();
+                }
                 console.log('Created new audio element to play seperate audio stream.');
             }
 
@@ -299,7 +316,7 @@
                 //console.log('Printing Stats');
 
                 let newStat = {};
-                console.log('----------------------------- Stats start -----------------------------');
+                
                 stats.forEach(stat => {
 //                    console.log(JSON.stringify(stat, undefined, 4));
                     if (stat.type == 'inbound-rtp' 
