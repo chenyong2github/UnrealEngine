@@ -139,6 +139,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	virtual bool IsMutable() const;
 
+	// Returns true if this node has an unknown type pin
+	bool HasUnknownTypePin() const;
+
 	virtual bool ContributesToResult() const { return IsMutable(); }
 
 	// Returns true if this Node is the beginning of a scope

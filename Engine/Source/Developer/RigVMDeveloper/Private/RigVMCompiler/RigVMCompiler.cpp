@@ -642,6 +642,10 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
+	if(!ValidateNode(UnitNode))
+	{
+		return;
+	}
 
 	if (WorkData.bSetupMemory)
 	{
@@ -694,6 +698,10 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
+	if(!ValidateNode(UnitNode))
+	{
+		return INDEX_NONE;
+	}
 
 	int32 InstructionIndex = INDEX_NONE;
 
@@ -748,6 +756,11 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 	}
 
 	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
+	if(!ValidateNode(UnitNode))
+	{
+		return;
+	}
+
 	const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
 
 	const FRigVMVarExprAST* CompletedExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopCompletedPinName);
@@ -1109,6 +1122,11 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 	}
 
 	URigVMIfNode* IfNode = Cast<URigVMIfNode>(InExpr->GetNode());
+	if(!ValidateNode(IfNode))
+	{
+		return;
+	}
+
 	const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
 
 	const FRigVMVarExprAST* ConditionExpr = InExpr->ChildAt<FRigVMVarExprAST>(0);
@@ -1186,6 +1204,11 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InExpr->GetNode());
+	if(!ValidateNode(SelectNode))
+	{
+		return;
+	}
+
 	const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
 
 	int32 NumCases = SelectNode->FindPin(URigVMSelectNode::ValueName)->GetArraySize();
@@ -1351,7 +1374,10 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 void URigVMCompiler::TraverseArray(const FRigVMArrayExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(InExpr->GetNode());
-	check(ArrayNode);
+	if(!ValidateNode(ArrayNode))
+	{
+		return;
+	}
 	
 	if (WorkData.bSetupMemory)
 	{
@@ -2773,6 +2799,20 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	}
 
 	return Operand;
+}
+
+bool URigVMCompiler::ValidateNode(URigVMNode* InNode)
+{
+	check(InNode);
+
+	if(InNode->HasUnknownTypePin())
+	{
+		static const FString UnknownTypeMessage = TEXT("Node @@ has unresolved pins of unknown type.");
+		Settings.Report(EMessageSeverity::Error, InNode, UnknownTypeMessage);
+		return false;
+	}
+
+	return true;
 }
 
 void URigVMCompiler::ReportInfo(const FString& InMessage)

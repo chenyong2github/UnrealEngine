@@ -7,6 +7,7 @@
 #include "RigVMModel/Nodes/RigVMPrototypeNode.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVMUnknownType.h"
 #include "UObject/Package.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Misc/PackageName.h"
@@ -527,9 +528,21 @@ bool URigVMPin::IsStringType() const
 
 bool URigVMPin::IsExecuteContext() const
 {
-	if (UScriptStruct* ScriptStruct = GetScriptStruct())
+	if (const UScriptStruct* ScriptStruct = GetScriptStruct())
 	{
 		if (ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool URigVMPin::IsUnknownType() const
+{
+	if (const UScriptStruct* ScriptStruct = GetScriptStruct())
+	{
+		if (ScriptStruct->IsChildOf(FRigVMUnknownType::StaticStruct()))
 		{
 			return true;
 		}
@@ -1318,6 +1331,22 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 #endif
 		{
 			bCPPTypesDiffer = false;
+		}
+
+		if (bCPPTypesDiffer)
+		{
+			if(InSourcePin->IsArray() == InTargetPin->IsArray())
+			{
+				if(InSourcePin->IsUnknownType() && !InTargetPin->IsExecuteContext())
+				{
+					
+					return true;
+				}
+				else if(InTargetPin->IsUnknownType() && !InSourcePin->IsExecuteContext())
+				{
+					return true;
+				}
+			}
 		}
 
 		if (bCPPTypesDiffer)

@@ -7,6 +7,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVMUnknownType.h"
 #include "RigVMCore/RigVMByteCode.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMDeveloperModule.h"
@@ -6675,6 +6676,23 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		ActionStack->BeginAction(Action);
 	}
 
+	// resolve types on the pins if needed
+	if(InputPin->GetCPPTypeObject() != OutputPin->GetCPPTypeObject())
+	{
+		if(InputPin->GetCPPTypeObject() == FRigVMUnknownType::StaticStruct())
+		{
+			Notify(ERigVMGraphNotifType::InteractionBracketOpened, nullptr);
+			ResolveUnknownTypePin(InputPin, OutputPin, bSetupUndoRedo);
+			Notify(ERigVMGraphNotifType::InteractionBracketClosed, nullptr);
+		}
+		else if(OutputPin->GetCPPTypeObject() == FRigVMUnknownType::StaticStruct())
+		{
+			Notify(ERigVMGraphNotifType::InteractionBracketOpened, nullptr);
+			ResolveUnknownTypePin(OutputPin, InputPin, bSetupUndoRedo);
+			Notify(ERigVMGraphNotifType::InteractionBracketClosed, nullptr);
+		}
+	}
+
 	if (OutputPin->IsExecuteContext())
 	{
 		BreakAllLinks(OutputPin, false, bSetupUndoRedo);
@@ -6711,9 +6729,9 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	UpdateRerouteNodeAfterChangingLinks(OutputPin, bSetupUndoRedo);
 	UpdateRerouteNodeAfterChangingLinks(InputPin, bSetupUndoRedo);
 
-	TArray<URigVMNode*> NodesVisited;
-	PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(InputPin->GetNode()), bSetupUndoRedo, NodesVisited);
-	PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(OutputPin->GetNode()), bSetupUndoRedo, NodesVisited);
+	//TArray<URigVMNode*> NodesVisited;
+	//PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(InputPin->GetNode()), bSetupUndoRedo, NodesVisited);
+	//PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(OutputPin->GetNode()), bSetupUndoRedo, NodesVisited);
 
 	if (bSetupUndoRedo)
 	{
@@ -9642,6 +9660,11 @@ bool URigVMController::CanAddFunctionRefForDefinition(URigVMLibraryNode* InFunct
 
 void URigVMController::AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const FString& InDefaultValue, bool bAutoExpandArrays, bool bNotify)
 {
+	if(!ShouldStructBeUnfolded(InStruct))
+	{
+		return;
+	}
+	
 	TArray<FString> MemberNameValuePairs = URigVMPin::SplitDefaultValue(InDefaultValue);
 	TMap<FName, FString> MemberValues;
 	for (const FString& MemberNameValuePair : MemberNameValuePairs)
@@ -9900,6 +9923,10 @@ bool URigVMController::ShouldStructBeUnfolded(const UStruct* Struct)
 		return false;
 	}
 	if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+	{
+		return false;
+	}
+	if(Struct->IsChildOf(FRigVMUnknownType::StaticStruct()))
 	{
 		return false;
 	}
@@ -11085,6 +11112,7 @@ void URigVMController::PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefau
 	}
 }
 
+/*
 void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo)
 {
 	TArray<URigVMNode*> NodesVisited;
@@ -11199,8 +11227,79 @@ void URigVMController::PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNo
 		PotentiallyResolvePrototypeNode(Cast<URigVMPrototypeNode>(LinkedNode), bSetupUndoRedo, NodesVisited);
 	}
 }
+*/
 
-bool URigVMController::ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo)
+void URigVMController::ResolveUnknownTypePin(URigVMPin* InPinToResolve, const URigVMPin* InTemplatePin,
+	bool bSetupUndoRedo, bool bTraverseNode, bool bTraverseParentPins, bool bTraverseLinks)
+{
+	check(InPinToResolve);
+	check(InTemplatePin);
+	check(InPinToResolve->IsUnknownType());
+	check(!InTemplatePin->IsUnknownType());
+
+	if(bTraverseParentPins)
+	{
+		URigVMPin* RootPin = InPinToResolve->GetRootPin();
+		if(RootPin != InPinToResolve && RootPin->IsUnknownType())
+		{
+			ResolveUnknownTypePin(RootPin, InTemplatePin, bSetupUndoRedo, bTraverseNode, false, bTraverseLinks);
+			return;
+		}
+	}
+
+	if(InPinToResolve->IsArray())
+	{
+		for(URigVMPin* SubPin : InPinToResolve->GetSubPins())
+		{
+			if(SubPin->IsUnknownType())
+			{
+				ResolveUnknownTypePin(SubPin, InTemplatePin, bSetupUndoRedo, false, false, bTraverseLinks);
+			}
+		}
+	}
+
+	FString ResolvedCPPType = InTemplatePin->IsArray() ? InTemplatePin->GetArrayElementCppType() : InTemplatePin->GetCPPType();
+	if(InPinToResolve->IsArray())
+	{
+		ResolvedCPPType = FString::Printf(TEXT("TArray<%s>"), *ResolvedCPPType);
+	}
+
+	if(!ChangePinType(InPinToResolve, ResolvedCPPType, InTemplatePin->GetCPPTypeObject(), bSetupUndoRedo, false, false, false))
+	{
+		return;
+	}
+
+	if(bTraverseNode)
+	{
+		if(const URigVMNode* Node = InPinToResolve->GetNode())
+		{
+			for(URigVMPin* Pin : Node->GetPins())
+			{
+				if(Pin->IsUnknownType())
+				{
+					ResolveUnknownTypePin(Pin, InTemplatePin, bSetupUndoRedo, false, bTraverseParentPins, bTraverseLinks);
+				}
+			}
+		}
+	}
+
+	if(bTraverseLinks)
+	{
+		// we don't need to recurse since unknown type pins don't have sub pins
+		TArray<URigVMPin*> LinkedPins = InPinToResolve->GetLinkedSourcePins(false); 
+		LinkedPins.Append(InPinToResolve->GetLinkedTargetPins(false));
+
+		for(URigVMPin* LinkedPin : LinkedPins)
+		{
+			if(LinkedPin->IsUnknownType())
+			{
+				ResolveUnknownTypePin(LinkedPin, InTemplatePin, bSetupUndoRedo);
+			}
+		}
+	}
+}
+
+bool URigVMController::ChangePinType(const FString& InPinPath, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins, bool bBreakLinks, bool bRemoveSubPins)
 {
 	if (!IsValidGraph())
 	{
@@ -11212,13 +11311,13 @@ bool URigVMController::ChangePinType(const FString& InPinPath, const FString& In
 
 	if (URigVMPin* Pin = Graph->FindPin(InPinPath))
 	{
-		return ChangePinType(Pin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo);
+		return ChangePinType(Pin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
 	}
 
 	return false;
 }
 
-bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins)
+bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bSetupUndoRedo, bool bSetupOrphanPins, bool bBreakLinks, bool bRemoveSubPins)
 {
 	if (InCPPType == TEXT("None") || InCPPType.IsEmpty())
 	{
@@ -11231,19 +11330,25 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		return false;
 	}
 
-	if (FRigVMPropertyDescription::RequiresCPPTypeObject(InCPPType) && !CPPTypeObject)
+	return ChangePinType(InPin, InCPPType, CPPTypeObject, bSetupUndoRedo, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
+}
+
+bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins, bool bBreakLinks, bool bRemoveSubPins)
+{
+	if (InCPPType == TEXT("None") || InCPPType.IsEmpty())
 	{
 		return false;
 	}
 
-	if (CPPTypeObject)
+	FName CPPTypeObjectPath(NAME_None);
+	if(InCPPTypeObject)
 	{
-		// for now we don't allow UObjects
-		if (!CPPTypeObject->IsA<UEnum>() &&
-			!CPPTypeObject->IsA<UStruct>())
-		{
-			return false;
-		}
+		CPPTypeObjectPath = *InCPPTypeObject->GetPathName();
+	}
+
+	if (FRigVMPropertyDescription::RequiresCPPTypeObject(InCPPType) && !InCPPTypeObject)
+	{
+		return false;
 	}
 
 	FRigVMBaseAction Action;
@@ -11257,14 +11362,14 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 
 	if (bSetupUndoRedo)
 	{
-		if(!bSetupOrphanPins)
+		if(!bSetupOrphanPins && bBreakLinks)
 		{
 			BreakAllLinks(InPin, true, true);
 			BreakAllLinks(InPin, false, true);
 			BreakAllLinksRecursive(InPin, true, false, true);
 			BreakAllLinksRecursive(InPin, false, false, true);
 		}
-		ActionStack->AddAction(FRigVMChangePinTypeAction(InPin, InCPPType, InCPPTypeObjectPath));
+		ActionStack->AddAction(FRigVMChangePinTypeAction(InPin, InCPPType, CPPTypeObjectPath, bSetupOrphanPins, bBreakLinks, bRemoveSubPins));
 	}
 	
 	if(bSetupOrphanPins)
@@ -11289,17 +11394,20 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		}
 	}
 
-	TArray<URigVMPin*> Pins = InPin->SubPins;
-	for (URigVMPin* Pin : Pins)
+	if(bRemoveSubPins || !InPin->IsArray())
 	{
-		RemovePin(Pin, false, true);
+		TArray<URigVMPin*> Pins = InPin->SubPins;
+		for (URigVMPin* Pin : Pins)
+		{
+			RemovePin(Pin, false, true);
+		}
+		
+		InPin->SubPins.Reset();
 	}
 	
-	InPin->SubPins.Reset();
-	
 	InPin->CPPType = InCPPType;
-	InPin->CPPTypeObjectPath = InCPPTypeObjectPath;
-	InPin->CPPTypeObject = CPPTypeObject;
+	InPin->CPPTypeObjectPath = CPPTypeObjectPath;
+	InPin->CPPTypeObject = InCPPTypeObject;
 	InPin->DefaultValue = FString();
 
 	if (InPin->IsStruct())
@@ -11311,6 +11419,18 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 
 	Notify(ERigVMGraphNotifType::PinTypeChanged, InPin);
 	Notify(ERigVMGraphNotifType::PinDefaultValueChanged, InPin);
+
+	// in cases were we are just changing the type we have to let the
+	// clients know that the links are still there
+	if(!bSetupOrphanPins && !bBreakLinks && !bRemoveSubPins)
+	{
+		const TArray<URigVMLink*> CurrentLinks = InPin->GetLinks();
+		for(URigVMLink* CurrentLink : CurrentLinks)
+		{
+			Notify(ERigVMGraphNotifType::LinkRemoved, CurrentLink);
+			Notify(ERigVMGraphNotifType::LinkAdded, CurrentLink);
+		}
+	}
 
 	if (bSetupUndoRedo)
 	{

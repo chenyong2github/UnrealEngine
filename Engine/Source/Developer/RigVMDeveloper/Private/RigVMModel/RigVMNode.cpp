@@ -292,6 +292,18 @@ bool URigVMNode::IsMutable() const
 	return false;
 }
 
+bool URigVMNode::HasUnknownTypePin() const
+{
+	for (const URigVMPin* Pin : GetPins())
+	{
+		if (Pin->IsUnknownType())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool URigVMNode::IsEvent() const
 {
 	return IsMutable() && !HasInputPin(true /* include io */) && !GetEventName().IsNone();

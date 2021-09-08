@@ -1170,8 +1170,8 @@ struct FRigVMChangePinTypeAction : public FRigVMBaseAction
 
 public:
 
-	FRigVMChangePinTypeAction() {}
-	FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath);
+	FRigVMChangePinTypeAction();
+	FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins);
 	virtual ~FRigVMChangePinTypeAction() {};
 	virtual bool Undo(URigVMController* InController) override;
 	virtual bool Redo(URigVMController* InController) override;
@@ -1190,6 +1190,15 @@ public:
 
 	UPROPERTY()
 	FName NewCPPTypeObjectPath;
+
+	UPROPERTY()
+	bool bSetupOrphanPins;
+
+	UPROPERTY()
+	bool bBreakLinks;
+
+	UPROPERTY()
+	bool bRemoveSubPins;
 };
 
 /**
