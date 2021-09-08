@@ -24,7 +24,6 @@ public class SourceControl : ModuleRules
 				"AssetRegistry",
 				"Slate",
 				"EditorStyle",
-				"ToolWidgets",
 			}
 		);
 
