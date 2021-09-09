@@ -411,6 +411,7 @@ namespace CADLibrary
 					ensure(CT_CURRENT_ATTRIB_IO::SetStrField(ITH_NAME_VALUE, MarkedBodies[Entry.Key]) == IO_OK);
 				}
 			}
+			CT_FILTER_IO::DeleteAllFilters();
 		}
 		// sew disconnected faces back together
 		// to be sure that there is no topology modification, this function has to be called body by body.
