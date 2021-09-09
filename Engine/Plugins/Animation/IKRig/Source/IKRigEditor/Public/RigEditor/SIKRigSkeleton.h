@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
+#include "SIKRigRetargetChainList.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
@@ -12,6 +13,7 @@
 
 #include "SIKRigSkeleton.generated.h"
 
+struct FIKRigSkeletonChain;
 class FIKRigEditorController;
 class SIKRigSkeleton;
 class FIKRigEditorToolkit;
@@ -106,7 +108,7 @@ public:
 	/** Restore the expansion infos map from the saved snapshot after tree reconstruction */
 	void RestoreSparseItemInfos(TSharedPtr<FIKRigTreeElement> ItemPtr)
 	{
-		for (const auto& Pair : OldSparseItemInfos)
+		for (const TTuple<TSharedPtr<FIKRigTreeElement>, FSparseItemInfo>& Pair : OldSparseItemInfos)
 		{
 			if (Pair.Key->Key == ItemPtr->Key)
 			{
@@ -184,11 +186,26 @@ private:
 	void HandleRemoveBoneSettings();
 	bool CanRemoveBoneSettings();
 	/** END per-bone settings */
+	
+	/** exclude/include bones */
+	void HandleExcludeBone();
+	bool CanExcludeBone();
+	void HandleIncludeBone();
+	bool CanIncludeBone();
+	/** END exclude/include bones */
+
+	/** retarget chains */
+	void HandleNewRetargetChain();
+	bool CanAddNewRetargetChain();
+	void HandleSetRetargetRoot();
+	bool CanSetRetargetRoot();
+	/** END retarget chains */
 
 	/** selection state queries */
 	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems);
 	void GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const;
 	void SetSelectedGoalsFromViewport(const TArray<FName>& GoalNames);
+	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);
 	/** END selection state queries */
 
 	/** skeleton import */
@@ -230,4 +247,5 @@ private:
 	friend SIKRigSkeletonItem;
 	friend FIKRigEditorController;
 	friend SIKRigSolverStack;
+	friend SIKRigRetargetChainList;
 };

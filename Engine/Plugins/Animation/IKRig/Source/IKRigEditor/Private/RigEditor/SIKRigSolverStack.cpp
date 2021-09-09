@@ -175,9 +175,15 @@ void SIKRigSolverStack::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 
 bool SIKRigSolverStack::IsAddSolverEnabled() const
 {
-	if (UIKRigController* Controller = EditorController.Pin()->AssetController)
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
 	{
-		if (Controller->GetSkeleton().BoneNames.Num() > 0)
+		return false; 
+	}
+	
+	if (UIKRigController* AssetController = Controller->AssetController)
+	{
+		if (AssetController->GetSkeleton().BoneNames.Num() > 0)
 		{
 			return true;
 		}
@@ -188,24 +194,36 @@ bool SIKRigSolverStack::IsAddSolverEnabled() const
 
 void SIKRigSolverStack::AddNewSolver(UClass* Class)
 {
-	if (UIKRigController* Controller = EditorController.Pin()->AssetController)
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
+	if (UIKRigController* AssetController = Controller->AssetController)
 	{
 		// add the solver
-		const int32 NewSolverIndex = Controller->AddSolver(Class);
+		const int32 NewSolverIndex = AssetController->AddSolver(Class);
 	}
 
 	RefreshStackView();
-	EditorController.Pin()->SkeletonView->RefreshTreeView(); // update solver indices in effector items
+	Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
 }
 
 void SIKRigSolverStack::RefreshStackView()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
 	ListViewItems.Reset();
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
-	const int32 NumSolvers = Controller->GetNumSolvers();
+	UIKRigController* AssetController = Controller->AssetController;
+	const int32 NumSolvers = AssetController->GetNumSolvers();
 	for (int32 i=0; i<NumSolvers; ++i)
 	{
-		UIKRigSolver* Solver = Controller->GetSolver(i);
+		UIKRigSolver* Solver = AssetController->GetSolver(i);
 		const FText DisplayName = Solver ? FText::FromString(Solver->GetName()) : FText::FromString("Unknown Solver");
 		TSharedPtr<FSolverStackElement> SolverItem = FSolverStackElement::Make(DisplayName, i);
 		ListViewItems.Add(SolverItem);
@@ -252,8 +270,14 @@ FReply SIKRigSolverStack::OnDragDetected(
 
 void SIKRigSolverStack::OnItemClicked(TSharedPtr<FSolverStackElement> InItem)
 {
-	EditorController.Pin()->ShowDetailsForSolver(InItem.Get()->IndexInStack);
-	EditorController.Pin()->SkeletonView->RefreshTreeView(); // update filter showing which bones are affected
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
+	Controller->ShowDetailsForSolver(InItem.Get()->IndexInStack);
+	Controller->SkeletonView->RefreshTreeView(); // update filter showing which bones are affected
 }
 
 TOptional<EItemDropZone> SIKRigSolverStack::OnCanAcceptDrop(
@@ -282,14 +306,20 @@ FReply SIKRigSolverStack::OnAcceptDrop(
 	{
 		return FReply::Unhandled();
 	}
+	
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Handled();
+	}
 
 	const FSolverStackElement& DraggedElement = *DragDropOp.Get()->Element.Pin().Get();
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
-	const bool bWasReparented = Controller->MoveSolverInStack(DraggedElement.IndexInStack, TargetItem.Get()->IndexInStack);
+	UIKRigController* AssetController = Controller->AssetController;
+	const bool bWasReparented = AssetController->MoveSolverInStack(DraggedElement.IndexInStack, TargetItem.Get()->IndexInStack);
 	if (bWasReparented)
 	{
 		RefreshStackView();
-		EditorController.Pin()->SkeletonView->RefreshTreeView(); // update solver indices in effector items
+		Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
 	}
 	
 	return FReply::Handled();
@@ -298,6 +328,12 @@ FReply SIKRigSolverStack::OnAcceptDrop(
 FReply SIKRigSolverStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	const FKey Key = InKeyEvent.GetKey();
+	
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Handled();
+	}
 
 	// handle deleting selected solver
 	if (Key == EKeys::Delete)
@@ -308,12 +344,12 @@ FReply SIKRigSolverStack::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent
 			return FReply::Unhandled();
 		}
 
-		UIKRigController* Controller = EditorController.Pin()->AssetController;
-		UIKRigSolver* SolverToRemove = Controller->GetSolver(SelectedItems[0]->IndexInStack);
-		Controller->RemoveSolver(SolverToRemove);
+		UIKRigController* AssetController = Controller->AssetController;
+		UIKRigSolver* SolverToRemove = AssetController->GetSolver(SelectedItems[0]->IndexInStack);
+		AssetController->RemoveSolver(SolverToRemove);
 
 		RefreshStackView();
-		EditorController.Pin()->SkeletonView->RefreshTreeView(); // update solver indices in effector items
+		Controller->SkeletonView->RefreshTreeView(); // update solver indices in effector items
 		
 		return FReply::Handled();
 	}

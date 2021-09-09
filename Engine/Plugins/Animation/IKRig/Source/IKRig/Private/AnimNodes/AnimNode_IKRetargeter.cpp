@@ -37,7 +37,7 @@ void FAnimNode_IKRetargeter::Evaluate_AnyThread(FPoseContext& Output)
 	}
 
 	// run the retargeter
-	CurrentlyUsedRetargeter->RunRetargeter(SourceMeshComponentSpaceBoneTransforms, bEnableIK);
+	CurrentlyUsedRetargeter->RunRetargeter(SourceMeshComponentSpaceBoneTransforms);
 
 	// copy pose back
 	FCSPose<FCompactPose> ComponentPose;
@@ -59,6 +59,11 @@ void FAnimNode_IKRetargeter::PreUpdate(const UAnimInstance* InAnimInstance)
 	{
 		CopyBoneTransformsFromSource(InAnimInstance->GetSkelMeshComponent());
 	}
+}
+
+UIKRetargeter* FAnimNode_IKRetargeter::GetCurrentlyUsedRetargeter() const
+{
+	return CurrentlyUsedRetargeter.Get();
 }
 
 void FAnimNode_IKRetargeter::EnsureInitialized(const UAnimInstance* InAnimInstance)
@@ -87,35 +92,13 @@ void FAnimNode_IKRetargeter::EnsureInitialized(const UAnimInstance* InAnimInstan
 		bIsInitialized = false;
 		return; // can't do anything if we don't have a source mesh
 	}
-	
-	// are all the parts already loaded?
-	const bool bPartsLoaded =
-	   CurrentlyUsedSourceMeshComponent.IsValid()
-    && CurrentlyUsedSourceMesh.IsValid()
-    && CurrentlyUsedTargetMesh.IsValid()
-	&& CurrentlyUsedRetargeter
-	&& CurrentlyUsedSourceIKRig.IsValid()
-	&& CurrentlyUsedTargetIKRig.IsValid();
-	if (!bPartsLoaded)
-	{
-		InitializeRetargetData(InAnimInstance); // nothing loaded yet, initialize
-		return;
-	}
 
-	// so parts have been loaded, but have any of the parts changed since we last initialized?
-	USkeletalMeshComponent* SourceMeshComp = SourceMeshComponent.Get();
-	USkeletalMesh* TargetMesh = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh;
-	USkeletalMesh* SourceMesh = SourceMeshComp->SkeletalMesh;
-	const bool bSameParts =
-	   CurrentlyUsedSourceMeshComponent == SourceMeshComp 
-    && CurrentlyUsedTargetMesh == TargetMesh 
-    && CurrentlyUsedSourceMesh == SourceMesh 
-	&& CurrentlyUsedSourceIKRig == IKRetargeterAsset->SourceIKRigAsset
-	&& CurrentlyUsedTargetIKRig == IKRetargeterAsset->TargetIKRigAsset;
-	if (!bSameParts)
+	// has the source asset been updated? this can happen in the editor when changing source asset
+	if (!CurrentlyUsedRetargeter
+		|| (CurrentlyUsedRetargeter->AssetVersion != IKRetargeterAsset->AssetVersion))
 	{
-		InitializeRetargetData(InAnimInstance); // parts have changed, re-initialize
-		return;
+		InitializeRetargetData(InAnimInstance);
+		return;	
 	}
 }
 
@@ -123,6 +106,13 @@ void FAnimNode_IKRetargeter::InitializeRetargetData(const UAnimInstance* InAnimI
 {
 	// assume we fail until we don't
 	bIsInitialized = false;
+	
+	// don't try to reinitialize with same asset version
+	if (LastVersionTried == IKRetargeterAsset->AssetVersion)
+	{
+		return;
+	}
+	LastVersionTried = IKRetargeterAsset->AssetVersion;
 
 	// store all the components that were used to initialize
 	// if in future updates, any of this are mismatched, we have to re-initialize
@@ -130,6 +120,7 @@ void FAnimNode_IKRetargeter::InitializeRetargetData(const UAnimInstance* InAnimI
 	CurrentlyUsedSourceMesh = SourceMeshComponent->SkeletalMesh;
 	CurrentlyUsedTargetMesh = InAnimInstance->GetSkelMeshComponent()->SkeletalMesh;
 	CurrentlyUsedRetargeter = DuplicateObject(IKRetargeterAsset, const_cast<UAnimInstance*>(InAnimInstance));
+	CurrentlyUsedRetargeter->AssetVersion = IKRetargeterAsset->AssetVersion;
 	CurrentlyUsedSourceIKRig = CurrentlyUsedRetargeter->SourceIKRigAsset;
 	CurrentlyUsedTargetIKRig = CurrentlyUsedRetargeter->TargetIKRigAsset;
 

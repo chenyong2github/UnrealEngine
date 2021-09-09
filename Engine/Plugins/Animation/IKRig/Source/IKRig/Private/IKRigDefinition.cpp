@@ -83,4 +83,14 @@ FTransform UIKRigDefinition::GetGoalInitialTransform(UIKRigEffectorGoal* Goal) c
 	return Skeleton.RefPoseGlobal[BoneIndex];
 }
 
+void UIKRigDefinition::SortRetargetChains()
+{
+	RetargetDefinition.BoneChains.Sort([this](const FBoneChain& A, const FBoneChain& B)
+	{
+		const int32 IndexA = this->Skeleton.GetBoneIndexFromName(A.StartBone);
+		const int32 IndexB = this->Skeleton.GetBoneIndexFromName(B.StartBone);
+		return IndexA < IndexB;
+	});
+}
+
 #undef LOCTEXT_NAMESPACE

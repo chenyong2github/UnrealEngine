@@ -28,8 +28,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float PullChainAlpha = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector")
-	bool bPinRotation = true;
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	float PinRotation = 1.0f;
 
 	UPROPERTY(Transient)
 	int32 IndexInSolver = -1;
@@ -38,7 +38,7 @@ public:
 	{
 		StrengthAlpha = Other->StrengthAlpha;
 		PullChainAlpha = Other->PullChainAlpha;
-		bPinRotation = Other->bPinRotation;
+		PinRotation = Other->PinRotation;
 	}
 };
 

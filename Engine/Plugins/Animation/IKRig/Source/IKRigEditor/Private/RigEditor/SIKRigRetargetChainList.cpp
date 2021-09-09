@@ -1,0 +1,372 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "RigEditor/SIKRigRetargetChainList.h"
+
+#include "RigEditor/IKRigEditorStyle.h"
+#include "RigEditor/IKRigToolkit.h"
+#include "RigEditor/IKRigEditorController.h"
+
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IPersonaToolkit.h"
+#include "SKismetInspector.h"
+#include "Dialogs/Dialogs.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "SEditorHeaderButton.h"
+
+#define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
+
+static const FName ColumnId_ChainNameLabel( "Chain Name" );
+static const FName ColumnId_ChainRootLabel( "Root Bone" );
+static const FName ColumnId_ChainTipLabel( "Tip Bone" );
+static const FName ColumnId_IKGoalLabel( "IK Goal" );
+
+TSharedRef<ITableRow> FRetargetChainElement::MakeListRowWidget(
+	const TSharedRef<STableViewBase>& InOwnerTable,
+	TSharedRef<FRetargetChainElement> InChainElement,
+	TSharedPtr<SIKRigRetargetChainList> InChainList)
+{
+	return SNew(SIKRigRetargetChainRow, InOwnerTable, InChainElement, InChainList);
+}
+
+void SIKRigRetargetChainRow::Construct(
+	const FArguments& InArgs,
+	const TSharedRef<STableViewBase>& InOwnerTableView,
+	TSharedRef<FRetargetChainElement> InChainElement,
+	TSharedPtr<SIKRigRetargetChainList> InChainList)
+{
+	ChainElement = InChainElement;
+	ChainList = InChainList;
+
+	// generate list of goals
+	// NOTE: cannot just use literal "None" because Combobox considers that a "null" entry and will discard it from the list.
+	GoalOptions.Add(MakeShareable(new FString("None")));
+	for (UIKRigEffectorGoal* Goal : InChainList->EditorController.Pin()->AssetController->GetAsset()->Goals)
+	{
+		GoalOptions.Add(MakeShareable(new FString(Goal->GoalName.ToString())));
+	}
+
+	SMultiColumnTableRow< TSharedPtr<FRetargetChainElement> >::Construct( FSuperRowType::FArguments(), InOwnerTableView );
+}
+
+TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	if (ColumnName == ColumnId_ChainNameLabel)
+	{
+		TSharedRef<SWidget> ChainWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(SEditableTextBox)
+			.Text(FText::FromName(ChainElement.Pin()->Chain->ChainName))
+			.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+			.OnTextCommitted(this, &SIKRigRetargetChainRow::OnRenameChain)
+		];
+		return ChainWidget;
+	}
+
+	if (ColumnName == ColumnId_ChainRootLabel)
+	{
+		TSharedRef<SWidget> RootWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(SComboBox<FName>)
+			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetSkeleton().BoneNames)
+			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeBoneComboEntryWidget)
+			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged)
+			[
+				SNew(STextBlock)
+				.Text(this, &SIKRigRetargetChainRow::GetStartBoneName)
+			]
+		];
+		return RootWidget;
+	}
+
+	if (ColumnName == ColumnId_ChainTipLabel)
+	{
+		TSharedRef<SWidget> TipWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(SComboBox<FName>)
+			.OptionsSource(&ChainList.Pin()->EditorController.Pin()->AssetController->GetSkeleton().BoneNames)
+			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeBoneComboEntryWidget)
+			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged)
+			[
+				SNew(STextBlock)
+				.Text(this, &SIKRigRetargetChainRow::GetEndBoneName)
+			]
+		];
+		return TipWidget;
+	}
+	else
+	{
+		// ColumnId_IKGoalLabel
+		
+		TSharedRef<SWidget> GoalWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(SComboBox<TSharedPtr<FString>>)
+			.OptionsSource(&GoalOptions)
+			.OnGenerateWidget(this, &SIKRigRetargetChainRow::MakeGoalComboEntryWidget)
+			.OnSelectionChanged(this, &SIKRigRetargetChainRow::OnGoalComboSelectionChanged)
+			[
+				SNew(STextBlock)
+				.Text(this, &SIKRigRetargetChainRow::GetGoalName)
+			]
+		];
+		return GoalWidget;
+	}
+}
+
+TSharedRef<SWidget> SIKRigRetargetChainRow::MakeBoneComboEntryWidget(FName InItem) const
+{
+	return SNew(STextBlock).Text(FText::FromName(InItem));
+}
+
+TSharedRef<SWidget> SIKRigRetargetChainRow::MakeGoalComboEntryWidget(TSharedPtr<FString> InItem) const
+{
+	return SNew(STextBlock).Text(FText::FromString(*InItem.Get()));
+}
+
+void SIKRigRetargetChainRow::OnStartBoneComboSelectionChanged(FName InName, ESelectInfo::Type SelectInfo)
+{
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
+	Controller->AssetController->SetRetargetChainStartBone(ChainElement.Pin()->Chain->ChainName, InName);
+	ChainList.Pin()->RefreshView();
+}
+
+FText SIKRigRetargetChainRow::GetStartBoneName() const
+{
+	return FText::FromName(ChainElement.Pin()->Chain->StartBone);
+}
+
+void SIKRigRetargetChainRow::OnEndBoneComboSelectionChanged(FName InName, ESelectInfo::Type SelectInfo)
+{
+	const TSharedPtr<FIKRigEditorController> Controller = ChainList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
+	Controller->AssetController->SetRetargetChainEndBone(ChainElement.Pin()->Chain->ChainName, InName);
+	ChainList.Pin()->RefreshView();
+}
+
+void SIKRigRetargetChainRow::OnGoalComboSelectionChanged(TSharedPtr<FString> InGoalName, ESelectInfo::Type SelectInfo)
+{
+	ChainElement.Pin()->Chain->IKGoalName = FName(*InGoalName.Get());
+	ChainList.Pin()->RefreshView();
+}
+
+FText SIKRigRetargetChainRow::GetEndBoneName() const
+{
+	return FText::FromName(ChainElement.Pin()->Chain->EndBone);
+}
+
+FText SIKRigRetargetChainRow::GetGoalName() const
+{
+	return FText::FromName(ChainElement.Pin()->Chain->IKGoalName);
+}
+
+void SIKRigRetargetChainRow::OnRenameChain(const FText& InText, ETextCommit::Type) const
+{
+	ChainElement.Pin()->Chain->ChainName = FName(*InText.ToString());
+	ChainList.Pin()->RefreshView();
+}
+
+SIKRigRetargetChainList::~SIKRigRetargetChainList()
+{
+	
+}
+
+void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController)
+{
+	EditorController = InEditorController;
+	EditorController.Pin()->RetargetingView = SharedThis(this);
+	
+	CommandList = MakeShared<FUICommandList>();
+
+	ChildSlot
+    [
+        SNew(SVerticalBox)
+        +SVerticalBox::Slot()
+        .AutoHeight()
+        .VAlign(VAlign_Top)
+        [
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(3.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("RetargetRootLabel", "Retarget Root:"))
+				.TextStyle(FEditorStyle::Get(), "NormalText")
+			]
+				
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(3.0f, 0.0f)
+			[
+				SAssignNew(RetargetRootTextBox, SEditableTextBox)
+				.Text(FText::FromName(InEditorController->AssetController->GetRetargetRoot()))
+				.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+				.IsReadOnly(true)
+			]
+        ]
+
+        +SVerticalBox::Slot()
+		[
+			SAssignNew(ListView, SRetargetChainListViewType )
+			.SelectionMode(ESelectionMode::Single)
+			.IsEnabled(this, &SIKRigRetargetChainList::IsAddChainEnabled)
+			.ListItemsSource( &ListViewItems )
+			.OnGenerateRow( this, &SIKRigRetargetChainList::MakeListRowWidget )
+			.OnMouseButtonClick(this, &SIKRigRetargetChainList::OnItemClicked)
+			.ItemHeight( 22.0f )
+			.HeaderRow
+			(
+				SNew( SHeaderRow )
+				+ SHeaderRow::Column( ColumnId_ChainNameLabel )
+				.DefaultLabel( LOCTEXT( "ChainNameColumnLabel", "Chain Name" ) )
+
+				+ SHeaderRow::Column( ColumnId_ChainRootLabel )
+				.DefaultLabel( LOCTEXT( "ChainRootColumnLabel", "Root Bone" ) )
+
+				+ SHeaderRow::Column( ColumnId_ChainTipLabel )
+				.DefaultLabel( LOCTEXT( "ChainTipColumnLabel", "Tip Bone" ) )
+
+				+ SHeaderRow::Column( ColumnId_IKGoalLabel )
+				.DefaultLabel( LOCTEXT( "IKGoalColumnLabel", "IK Goal" ) )
+			)
+		]
+    ];
+
+	RefreshView();
+}
+
+bool SIKRigRetargetChainList::IsAddChainEnabled() const
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+	
+	if (UIKRigController* AssetController = Controller->AssetController)
+	{
+		if (AssetController->GetSkeleton().BoneNames.Num() > 0)
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+void SIKRigRetargetChainList::RefreshView()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	// refresh retarget root
+	RetargetRootTextBox.Get()->SetText(FText::FromName(Controller->AssetController->GetRetargetRoot()));
+
+	// refresh list of chains
+	ListViewItems.Reset();
+	UIKRigController* AssetController = Controller->AssetController;
+	const int32 NumChains = AssetController->GetNumRetargetChains();
+	for (int32 i=0; i<NumChains; ++i)
+	{
+		FBoneChain* Chain = AssetController->GetRetargetChain(i);
+		const FText DisplayName = FText::FromName(Chain->ChainName);
+		TSharedPtr<FRetargetChainElement> ChainItem = FRetargetChainElement::Make(Chain);
+		ListViewItems.Add(ChainItem);
+	}
+
+	// select first item if none others selected
+	if (ListViewItems.Num() > 0 && ListView->GetNumItemsSelected() == 0)
+	{
+		ListView->SetSelection(ListViewItems[0]);
+	}
+
+	ListView->RequestListRefresh();
+}
+
+TSharedRef<ITableRow> SIKRigRetargetChainList::MakeListRowWidget(
+	TSharedPtr<FRetargetChainElement> InElement,
+    const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return InElement->MakeListRowWidget(
+		OwnerTable,
+		InElement.ToSharedRef(),
+		SharedThis(this));
+}
+
+void SIKRigRetargetChainList::OnItemClicked(TSharedPtr<FRetargetChainElement> InItem)
+{
+	// TODO highlight chain in skeleton view
+}
+
+FReply SIKRigRetargetChainList::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+
+	// handle deleting selected chain
+	if (Key == EKeys::Delete)
+	{
+		TArray<TSharedPtr<FRetargetChainElement>> SelectedItems = ListView->GetSelectedItems();
+		if (SelectedItems.IsEmpty())
+		{
+			return FReply::Unhandled();
+		}
+		
+		const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+		if (!Controller.IsValid())
+		{
+			return FReply::Unhandled();
+		}
+
+		UIKRigController* AssetController = Controller->AssetController;
+		const FName ChainToRemove = SelectedItems[0]->Chain->ChainName;
+		AssetController->RemoveRetargetChain(ChainToRemove);
+
+		RefreshView();
+		
+		return FReply::Handled();
+	}
+	
+	return FReply::Unhandled();
+}
+
+#undef LOCTEXT_NAMESPACE

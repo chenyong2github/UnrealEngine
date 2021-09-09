@@ -5,17 +5,20 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
-#include "IKRetargeterFactory.generated.h"
+#include "IKRetargetFactory.generated.h"
 
 
-UCLASS(BlueprintType, hidecategories=Object)
-class UIKRetargeterFactory : public UFactory
+UCLASS(hidecategories=Object, MinimalAPI)
+class UIKRetargetFactory : public UFactory
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
+	TObjectPtr<class UIKRigDefinition>	SourceIKRig;
+
 public:
 
-	UIKRetargeterFactory();
+	UIKRetargetFactory();
 
 	// UFactory Interface
 	virtual FText GetDisplayName() const override;
@@ -25,4 +28,10 @@ public:
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	virtual bool ConfigureProperties() override;
 	virtual bool ShouldShowInNewMenu() const override;
+
+private:
+	
+	void OnTargetIKRigSelected(const FAssetData& SelectedAsset);
+
+	TSharedPtr<SWindow> PickerWindow;
 };

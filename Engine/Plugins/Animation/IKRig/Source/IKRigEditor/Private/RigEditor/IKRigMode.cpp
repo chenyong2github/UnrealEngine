@@ -9,10 +9,9 @@
 #include "PersonaTabs.h"
 #include "RigEditor/IKRigSkeletonTabSummoner.h"
 #include "RigEditor/IKRigSolverStackTabSummoner.h"
+#include "RigEditor/IKRigRetargetChainTabSummoner.h"
 
 #define LOCTEXT_NAMESPACE "IKRigMode"
-
-static const FName IKRigSolverStackName("IKRigSolverStack");
 
 FIKRigMode::FIKRigMode(
 	TSharedRef<FWorkflowCentricApplication> InHostingApp,  
@@ -37,9 +36,10 @@ FIKRigMode::FIKRigMode(
 	// register custom tabs
 	TabFactories.RegisterFactory(MakeShared<FIKRigSkeletonTabSummoner>(IKRigEditor));
 	TabFactories.RegisterFactory(MakeShared<FIKRigSolverStackTabSummoner>(IKRigEditor));
+	TabFactories.RegisterFactory(MakeShared<FIKRigRetargetChainTabSummoner>(IKRigEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.118")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.120")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -64,7 +64,7 @@ FIKRigMode::FIKRigMode(
 					(
 					    FTabManager::NewStack()
 					    ->SetSizeCoefficient(0.4f)
-					    ->AddTab(IKRigSolverStackName, ETabState::OpenedTab)
+					    ->AddTab(FIKRigSolverStackTabSummoner::TabID, ETabState::OpenedTab)
 					)
 				)
 				->Split
@@ -76,11 +76,24 @@ FIKRigMode::FIKRigMode(
 				)
 				->Split
 				(
-					FTabManager::NewStack()
-                    ->SetSizeCoefficient(0.6f)
-                    ->AddTab(FPersonaTabs::DetailsID, ETabState::OpenedTab)
-                    ->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
-                    ->SetForegroundTab(FPersonaTabs::DetailsID)
+					FTabManager::NewSplitter()
+					->SetSizeCoefficient(0.2f)
+                    ->SetOrientation(Orient_Vertical)
+                    ->Split
+                    (
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.6f)
+						->AddTab(FPersonaTabs::DetailsID, ETabState::OpenedTab)
+						->AddTab(FPersonaTabs::AdvancedPreviewSceneSettingsID, ETabState::OpenedTab)
+						->SetForegroundTab(FPersonaTabs::DetailsID)
+                    )
+                    ->Split
+                    (
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.6f)
+						->AddTab(FIKRigRetargetChainTabSummoner::TabID, ETabState::OpenedTab)
+						->SetForegroundTab(FIKRigRetargetChainTabSummoner::TabID)
+                    )
 				)
 			)
 		);

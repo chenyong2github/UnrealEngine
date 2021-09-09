@@ -12,6 +12,13 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 	bInitialized = false;
 	InitializedWithIKRigAssetVersion = -1;
 
+	// bail out if we've already tried initializing with this exact version of the rig asset
+	if (LastVersionTried == InRigAsset->GetAssetVersion())
+	{
+		return; // don't keep spamming
+	}
+	LastVersionTried = InRigAsset->GetAssetVersion();
+
 	if (!InRigAsset)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset."));
@@ -20,34 +27,28 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 
 	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no skeleton."));
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no skeleton: %s"), *InRigAsset->GetName());
 		return;
 	}
 
 	if (InRigAsset->Solvers.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no solvers."));
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no solvers: %s"), *InRigAsset->GetName());
 		return;
 	}
 
 	if (InRigAsset->Goals.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no goals."));
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no goals: %s"), *InRigAsset->GetName());
 		return;
 	}
-
-	// bail out if we've already tried initializing with this exact version of the rig asset
-	if (LastVersionTried == InRigAsset->GetAssetVersion())
-	{
-		return; // don't keep spamming
-	}
-	LastVersionTried = InRigAsset->GetAssetVersion();
 
 	// copy skeleton data from IKRigDefinition
 	// we use the serialized bone names and parent indices (from when asset was initialized)
 	// but we use the CURRENT ref pose from the currently running skeletal mesh (RefSkeleton)
 	Skeleton.BoneNames = InRigAsset->Skeleton.BoneNames;
 	Skeleton.ParentIndices = InRigAsset->Skeleton.ParentIndices;
+	Skeleton.ExcludedBones = InRigAsset->Skeleton.ExcludedBones;
 	const bool bSkeletonIsCompatible = Skeleton.CopyPosesFromRefSkeleton(RefSkeleton);
 	if (!bSkeletonIsCompatible)
 	{

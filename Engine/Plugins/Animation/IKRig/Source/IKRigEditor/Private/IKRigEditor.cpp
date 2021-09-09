@@ -10,6 +10,8 @@
 #include "IKRigDefinition.h"
 #include "RigEditor/AssetTypeActions_IKRigDefinition.h"
 #include "RetargetEditor/AssetTypeActions_IKRetargeter.h"
+#include "RetargetEditor/IKRetargetCommands.h"
+#include "RetargetEditor/IKRetargetEditMode.h"
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
 #include "RigEditor/IKRigSkeletonCommands.h"
@@ -22,27 +24,31 @@ DEFINE_LOG_CATEGORY_STATIC(LogIKRigEditor, Log, All);
 
 void FIKRigEditor::StartupModule()
 {
+	// register commands
 	FIKRigCommands::Register();
 	FIKRigSkeletonCommands::Register();
+	FIKRetargetCommands::Register();
 	
-	// register IKRigDefinition asset type
+	// register custom asset type actions
 	IKRigDefinitionAssetAction = MakeShareable(new FAssetTypeActions_IKRigDefinition);
 	FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get().RegisterAssetTypeActions(IKRigDefinitionAssetAction.ToSharedRef());
-
-	// register IKRetargeter asset type
+	//
 	IKRetargeterAssetAction = MakeShareable(new FAssetTypeActions_IKRetargeter);
 	FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get().RegisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
 
-	// register custom editor mode
+	// register custom editor modes
 	FEditorModeRegistry::Get().RegisterMode<FIKRigEditMode>(FIKRigEditMode::ModeName, LOCTEXT("IKRigEditMode", "IKRig"), FSlateIcon(), false);
+	FEditorModeRegistry::Get().RegisterMode<FIKRetargetEditMode>(FIKRetargetEditMode::ModeName, LOCTEXT("IKRetargetEditMode", "IKRetarget"), FSlateIcon(), false);
 }
 
 void FIKRigEditor::ShutdownModule()
 {
 	FIKRigCommands::Unregister();
 	FIKRigSkeletonCommands::Unregister();
+	FIKRetargetCommands::Unregister();
 	
 	FEditorModeRegistry::Get().UnregisterMode(FIKRigEditMode::ModeName);
+	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetEditMode::ModeName);
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.UnregisterCustomPropertyTypeLayout("IKRigEffector");

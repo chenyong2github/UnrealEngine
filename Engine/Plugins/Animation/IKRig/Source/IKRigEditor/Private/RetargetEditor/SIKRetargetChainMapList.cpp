@@ -1,0 +1,325 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "RetargetEditor/SIKRetargetChainMapList.h"
+
+
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IPersonaToolkit.h"
+#include "SKismetInspector.h"
+#include "Dialogs/Dialogs.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "SEditorHeaderButton.h"
+#include "Retargeter/IKRetargeter.h"
+#include "RigEditor/IKRigEditorStyle.h"
+
+#define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
+
+static const FName ColumnId_TargetChainLabel( "Target Bone Chain" );
+static const FName ColumnId_SourceChainLabel( "Source Bone Chain" );
+
+TSharedRef<ITableRow> FRetargetChainMapElement::MakeListRowWidget(
+	const TSharedRef<STableViewBase>& InOwnerTable,
+	TSharedRef<FRetargetChainMapElement> InChainElement,
+	TSharedPtr<SIKRetargetChainMapList> InChainList)
+{
+	return SNew(SIKRetargetChainMapRow, InOwnerTable, InChainElement, InChainList);
+}
+
+void SIKRetargetChainMapRow::Construct(
+	const FArguments& InArgs,
+	const TSharedRef<STableViewBase>& InOwnerTableView,
+	TSharedRef<FRetargetChainMapElement> InChainElement,
+	TSharedPtr<SIKRetargetChainMapList> InChainList)
+{
+	ChainMapElement = InChainElement;
+	ChainMapList = InChainList;
+
+	// generate list of source chains
+	// NOTE: cannot just use FName because "None" is considered a null entry and removed from ComboBox.
+	SourceChainOptions.Reset();
+	SourceChainOptions.Add(MakeShareable(new FString(TEXT("None"))));
+	UIKRigDefinition* SourceIKRig = ChainMapList.Pin()->EditorController.Pin()->Asset->SourceIKRigAsset;
+	if (SourceIKRig)
+	{
+		for (const FBoneChain& BoneChain : SourceIKRig->RetargetDefinition.BoneChains)
+		{
+			SourceChainOptions.Add(MakeShareable(new FString(BoneChain.ChainName.ToString())));
+		}
+	}
+
+	SMultiColumnTableRow< FRetargetChainMapElementPtr >::Construct( FSuperRowType::FArguments(), InOwnerTableView );
+}
+
+TSharedRef< SWidget > SIKRetargetChainMapRow::GenerateWidgetForColumn( const FName& ColumnName )
+{
+	if (ColumnName == ColumnId_TargetChainLabel)
+	{
+		TSharedRef<SWidget> NewWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(STextBlock)
+			.Text(FText::FromName(ChainMapElement.Pin()->TargetChainName))
+			.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
+		];
+		return NewWidget;
+	}
+	else
+	{
+		TSharedRef<SWidget> NewWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(3.0f, 1.0f)
+		[
+			SNew(SComboBox<TSharedPtr<FString>>)
+			.OptionsSource(&SourceChainOptions)
+			.OnGenerateWidget_Lambda([](TSharedPtr<FString> InItem)
+			{
+				return SNew(STextBlock).Text(FText::FromString(*InItem.Get()));
+			})
+			.OnSelectionChanged(this, &SIKRetargetChainMapRow::OnSourceChainComboSelectionChanged)
+			[
+				SNew(STextBlock)
+				.Text(this, &SIKRetargetChainMapRow::GetSourceChainName)
+			]
+		];
+		return NewWidget;
+	}
+}
+
+void SIKRetargetChainMapRow::OnSourceChainComboSelectionChanged(TSharedPtr<FString> InName, ESelectInfo::Type SelectInfo)
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = ChainMapList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
+	const FName TargetChainName = ChainMapElement.Pin()->TargetChainName;
+	FRetargetChainMap& ChainMap = *Controller->Asset->GetChainMap(TargetChainName);
+	ChainMap.SourceChain = FName(*InName.Get());
+	Controller->Asset->Modify();
+}
+
+FText SIKRetargetChainMapRow::GetSourceChainName() const
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = ChainMapList.Pin()->EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FText::FromName(NAME_None); 
+	}
+	
+	const FName TargetChainName = ChainMapElement.Pin()->TargetChainName;
+	const FRetargetChainMap& Mapping = *Controller->Asset->GetChainMap(TargetChainName);
+	return FText::FromName(Mapping.SourceChain);
+}
+
+SIKRetargetChainMapList::~SIKRetargetChainMapList()
+{
+	
+}
+
+void SIKRetargetChainMapList::Construct(
+	const FArguments& InArgs,
+	TSharedRef<FIKRetargetEditorController> InEditorController)
+{
+	EditorController = InEditorController;
+	EditorController.Pin()->ChainsView = SharedThis(this);
+
+	ChildSlot
+    [
+        SNew(SVerticalBox)
+        
+        +SVerticalBox::Slot()
+        .AutoHeight()
+        .VAlign(VAlign_Top)
+        [
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("TargetRootLabel", "Target Root: "))
+				.TextStyle(FEditorStyle::Get(), "NormalText")
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(this, &SIKRetargetChainMapList::GetSourceRootBone)
+				.IsEnabled(false)
+			]
+        ]
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SourceRootLabel", "Source Root: "))
+				.TextStyle(FEditorStyle::Get(), "NormalText")
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(this, &SIKRetargetChainMapList::GetTargetRootBone)
+				.IsEnabled(false)
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		[
+			SNew(SEditorHeaderButton)
+			.Visibility(this, &SIKRetargetChainMapList::IsAutoMapButtonVisible)
+			.Icon(FAppStyle::Get().GetBrush("Icons.Refresh"))
+			.Text(LOCTEXT("AutoMapButtonLabel", "Auto-Map Chains"))
+			.ToolTipText(LOCTEXT("AutoMapButtonToolTip", "Automatically assign source chains based on fuzzy string match"))
+			.OnClicked(this, &SIKRetargetChainMapList::OnAutoMapButtonClicked)
+		]
+		
+        +SVerticalBox::Slot()
+        [
+			SAssignNew(ListView, SRetargetChainMapListViewType )
+			.SelectionMode(ESelectionMode::Multi)
+			.IsEnabled(this, &SIKRetargetChainMapList::IsChainMapEnabled)
+			.ListItemsSource( &ListViewItems )
+			.OnGenerateRow( this, &SIKRetargetChainMapList::MakeListRowWidget )
+			.OnMouseButtonClick(this, &SIKRetargetChainMapList::OnItemClicked)
+			.ItemHeight( 22.0f )
+			.HeaderRow
+			(
+				SNew( SHeaderRow )
+				+ SHeaderRow::Column( ColumnId_TargetChainLabel )
+				.DefaultLabel( LOCTEXT( "TargetColumnLabel", "Target Chain" ) )
+				.FixedWidth(150.f)
+
+				+ SHeaderRow::Column( ColumnId_SourceChainLabel )
+				.DefaultLabel( LOCTEXT( "SourceColumnLabel", "Source Chain" ) )
+			)
+        ]
+    ];
+
+	RefreshView();
+}
+
+FText SIKRetargetChainMapList::GetSourceRootBone() const
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FText::FromName(NAME_None); 
+	}
+	
+	return FText::FromName(Controller->Asset->GetSourceRootBone());
+}
+
+FText SIKRetargetChainMapList::GetTargetRootBone() const
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FText::FromName(NAME_None); 
+	}
+	
+	return FText::FromName(Controller->Asset->GetTargetRootBone());
+}
+
+bool SIKRetargetChainMapList::IsChainMapEnabled() const
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false; 
+	}
+	
+	if (Controller->Asset->TargetIKRigAsset)
+	{
+		return Controller->Asset->TargetIKRigAsset->RetargetDefinition.BoneChains.Num() > 0;
+	}
+
+	return false;
+}
+
+void SIKRetargetChainMapList::RefreshView()
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
+	// get latest chain mapping
+	Controller->Asset->CleanChainMapping();
+	
+	// refresh list of chains
+	ListViewItems.Reset();
+	const TArray<FRetargetChainMap>& ChainMappings = Controller->Asset->ChainMapping;
+	for (const FRetargetChainMap& ChainMap : ChainMappings)
+	{
+		TSharedPtr<FRetargetChainMapElement> ChainItem = FRetargetChainMapElement::Make(ChainMap.TargetChain);
+		ListViewItems.Add(ChainItem);
+	}
+
+	ListView->RequestListRefresh();
+}
+
+TSharedRef<ITableRow> SIKRetargetChainMapList::MakeListRowWidget(
+	TSharedPtr<FRetargetChainMapElement> InElement,
+    const TSharedRef<STableViewBase>& OwnerTable)
+{
+	return InElement->MakeListRowWidget(
+		OwnerTable,
+		InElement.ToSharedRef(),
+		SharedThis(this));
+}
+
+void SIKRetargetChainMapList::OnItemClicked(TSharedPtr<FRetargetChainMapElement> InItem)
+{
+	// TODO highlight chain in skeleton view
+}
+
+EVisibility SIKRetargetChainMapList::IsAutoMapButtonVisible() const
+{
+	return IsChainMapEnabled() ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+FReply SIKRetargetChainMapList::OnAutoMapButtonClicked() const
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
+	Controller->Asset->CleanChainMapping();
+	Controller->Asset->AutoMapChains();
+	return FReply::Handled();
+}
+
+#undef LOCTEXT_NAMESPACE

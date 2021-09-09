@@ -7,16 +7,30 @@ FRigUnit_PBIK_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
+	if (Context.State == EControlRigState::Init)
+	{
+		BoneSettingToSolverBoneIndex.Reset();
+		Solver.Reset();
+		SolverBoneToElementIndex.Reset();
+		EffectorSolverIndices.Reset();
+		bNeedsInit = true;
+		return;
+	}
+
+	// only updates from here on...
+	if (Context.State != EControlRigState::Update)
+	{
+		return;
+	}
+
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
 
-	if (Context.State == EControlRigState::Init)
+	if (bNeedsInit)
 	{
-		BoneSettingToSolverBoneIndex.Reset();
-		
 		// check how many effectors are assigned to a bone
 		int NumEffectors = 0;
 		for (const FPBIKEffector& Effector : Effectors)
@@ -34,13 +48,9 @@ FRigUnit_PBIK_Execute()
 		{
 			return; // not setup yet
 		}
-
-		// reset all internal data
-		Solver.Reset();
 		
 		// create solver bone index to elements index map
 		TArray<FRigBoneElement*> BoneElements = Hierarchy->GetBones(true);
-		SolverBoneToElementIndex.Reset();
 		for (int B = 0; B < BoneElements.Num(); ++B)
 		{
 			SolverBoneToElementIndex.Add(BoneElements[B]->GetIndex());
@@ -51,8 +61,20 @@ FRigUnit_PBIK_Execute()
 		{
 			FName Name = BoneElements[B]->GetName();
 
+			// get the first parent that is not excluded
+			int32 ParentElementIndex = INDEX_NONE;
+			FRigBaseElement* ParentElement = Hierarchy->GetFirstParent(BoneElements[B]);
+			while (ParentElement)
+			{
+				if (!ExcludedBones.Contains(ParentElement->GetKey().Name))
+				{
+					ParentElementIndex = ParentElement->GetIndex();
+					break;
+				}
+				ParentElement = Hierarchy->GetFirstParent(ParentElement);
+			}
+
 			// get the parent bone solver index
-			const int ParentElementIndex = Hierarchy->GetFirstParent(BoneElements[B]->GetIndex());
 			int ParentIndex = -1;
 			for (int P=0; P<SolverBoneToElementIndex.Num(); ++P)
 			{
@@ -71,7 +93,6 @@ FRigUnit_PBIK_Execute()
 		}
 		
 		// create effectors
-		EffectorSolverIndices.Reset();
 		for (const FPBIKEffector& Effector : Effectors)
 		{
 			int32 IndexInSolver = Solver.AddEffector(Effector.Bone);
@@ -80,8 +101,7 @@ FRigUnit_PBIK_Execute()
 		
 		// initialize
 		Solver.Initialize();
-
-		return; // don't update during init
+		bNeedsInit = false;
 	}
 
 	if (!Solver.IsReadyToSimulate())
@@ -145,7 +165,7 @@ FRigUnit_PBIK_Execute()
 			Effector.OffsetAlpha,
 			Effector.StrengthAlpha,
 			Effector.PullChainAlpha,
-			Effector.bPinRotation);
+			Effector.PinRotation);
 	}
 
 	// solve

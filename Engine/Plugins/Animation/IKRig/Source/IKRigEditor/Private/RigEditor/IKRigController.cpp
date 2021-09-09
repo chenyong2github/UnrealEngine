@@ -154,6 +154,107 @@ bool UIKRigController::DoesBoneHaveSettings(const FName& BoneName) const
 	return false;
 }
 
+bool UIKRigController::AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const
+{
+	if (IKRigAsset->RetargetDefinition.GetBoneChainByName(ChainName))
+	{
+		return false; // bone chain already exists with that name
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("AddRetargetChain_Label", "Add Retarget Chain"));
+	IKRigAsset->Modify();
+	
+	IKRigAsset->RetargetDefinition.BoneChains.Emplace(ChainName, StartBone, EndBone);
+	IKRigAsset->SortRetargetChains();
+	return true;
+}
+
+bool UIKRigController::RemoveRetargetChain(const FName& ChainName) const
+{
+	FScopedTransaction Transaction(LOCTEXT("RemoveRetargetChain_Label", "Remove Retarget Chain"));
+	IKRigAsset->Modify();
+	
+	auto Pred = [ChainName](const FBoneChain& Element)
+	{
+		if (Element.ChainName == ChainName)
+		{
+			return true;
+		}
+
+		return false;
+	};
+	
+	if (IKRigAsset->RetargetDefinition.BoneChains.RemoveAll(Pred) > 0)
+	{
+		IKRigAsset->SortRetargetChains();
+		return true;
+	}
+	
+	return false;
+}
+
+bool UIKRigController::SetRetargetChainStartBone(const FName& ChainName, const FName& StartBoneName) const
+{
+	if (FBoneChain* BoneChain = IKRigAsset->RetargetDefinition.GetBoneChainByName(ChainName))
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetRetargetChainStartBone_Label", "Set Retarget Chain Start Bone"));
+		IKRigAsset->Modify();
+	
+		BoneChain->StartBone = StartBoneName;
+		IKRigAsset->SortRetargetChains();
+		return true;
+	}
+
+	return false; // no bone chain with that name
+}
+
+bool UIKRigController::SetRetargetChainEndBone(const FName& ChainName, const FName& EndBoneName) const
+{
+	if (FBoneChain* BoneChain = IKRigAsset->RetargetDefinition.GetBoneChainByName(ChainName))
+	{
+		FScopedTransaction Transaction(LOCTEXT("SetRetargetChainEndBone_Label", "Set Retarget Chain End Bone"));
+		IKRigAsset->Modify();
+		
+		BoneChain->EndBone = EndBoneName;
+		return true;
+	}
+
+	return false; // no bone chain with that name
+}
+
+FBoneChain* UIKRigController::GetRetargetChain(int32 Index) const
+{
+	if (ensure(IKRigAsset) && IKRigAsset->RetargetDefinition.BoneChains.IsValidIndex(Index))
+	{
+		return &IKRigAsset->RetargetDefinition.BoneChains[Index];
+	}
+	
+	return nullptr;
+}
+
+int32 UIKRigController::GetNumRetargetChains() const
+{
+	check(IKRigAsset)
+	return IKRigAsset->RetargetDefinition.BoneChains.Num();
+}
+
+void UIKRigController::SetRetargetRoot(const FName& RootBoneName)
+{
+	check(IKRigAsset)
+
+	FScopedTransaction Transaction(LOCTEXT("SetRetargetRootBone_Label", "Set Retarget Root Bone"));
+	IKRigAsset->Modify();
+	
+	IKRigAsset->RetargetDefinition.RootBone = RootBoneName;
+}
+
+FName UIKRigController::GetRetargetRoot()
+{
+	check(IKRigAsset)
+
+	return IKRigAsset->RetargetDefinition.RootBone;
+}
+
 void UIKRigController::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	// since static member, we just add only for default object
@@ -190,7 +291,8 @@ void UIKRigController::SetSourceSkeletalMesh(USkeletalMesh* SkeletalMesh, bool b
 	if (SkeletalMesh)
 	{
 		SetSkeleton(SkeletalMesh->GetRefSkeleton());		
-	}else
+	}
+	else
 	{
 		IKRigAsset->Skeleton.Reset();
 	}
@@ -201,12 +303,38 @@ void UIKRigController::SetSkeleton(const FReferenceSkeleton& InSkeleton) const
 	FScopedTransaction Transaction(LOCTEXT("SetSkeleton_Label", "Set Skeleton"));
 	IKRigAsset->Modify();
 
-	IKRigAsset->Skeleton.Initialize(InSkeleton);
+	IKRigAsset->Skeleton.Initialize(InSkeleton, IKRigAsset->Skeleton.ExcludedBones);
 }
 
 FIKRigSkeleton& UIKRigController::GetSkeleton() const
 {
 	return IKRigAsset->Skeleton;
+}
+
+void UIKRigController::SetBoneExcluded(const FName& BoneName, const bool bExclude) const
+{
+	const bool bIsExcluded = IKRigAsset->Skeleton.ExcludedBones.Contains(BoneName);
+	if (bIsExcluded == bExclude)
+	{
+		return; // already in the requested state of exclusion
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("SetBoneExcluded_Label", "Set Bone Excluded"));
+	IKRigAsset->Modify();
+
+	if (bExclude)
+	{
+		IKRigAsset->Skeleton.ExcludedBones.Add(BoneName);
+	}
+	else
+	{
+		IKRigAsset->Skeleton.ExcludedBones.Remove(BoneName);
+	}
+}
+
+bool UIKRigController::GetBoneExcluded(const FName& BoneName) const
+{
+	return IKRigAsset->Skeleton.ExcludedBones.Contains(BoneName);
 }
 
 USkeletalMesh* UIKRigController::GetSourceSkeletalMesh() const
