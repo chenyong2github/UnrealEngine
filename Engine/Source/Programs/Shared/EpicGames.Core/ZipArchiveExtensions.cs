@@ -25,14 +25,22 @@ namespace EpicGames.Core
 		public static ZipArchiveEntry CreateEntryFromFile_CrossPlatform(this ZipArchive Destination, string SourceFileName, string EntryName, CompressionLevel CompressionLevel)
 		{
 			ZipArchiveEntry Entry = ZipFileExtensions.CreateEntryFromFile(Destination, SourceFileName, EntryName, CompressionLevel);
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+			int Result = -1;
+
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
-				int Result = FileUtils.GetFileMode_Mac(SourceFileName);
-				if(Result >= 0)
-				{
-					Entry.ExternalAttributes = (int)Result << 16;
-				}
+				Result = FileUtils.GetFileMode_Linux(SourceFileName);
 			}
+			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+			{
+				Result = FileUtils.GetFileMode_Mac(SourceFileName);
+			}
+
+			if(Result >= 0)
+			{
+				Entry.ExternalAttributes = (int)Result << 16;
+			}
+
 			return Entry;
 		}
 
@@ -50,7 +58,16 @@ namespace EpicGames.Core
 		public static void ExtractToFile_CrossPlatform(this ZipArchiveEntry Entry, string TargetFileName, bool Overwrite)
 		{
 			ZipFileExtensions.ExtractToFile(Entry, TargetFileName, Overwrite);
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+			{
+				int MadeByPlatform = Convert.ToInt32(VersionMadeByPlatformField.GetValue(Entry)!);
+				if (MadeByPlatform == 3 || MadeByPlatform == 19) // Unix or OSX
+				{
+					FileUtils.SetFileMode_Linux(TargetFileName, (ushort)(Entry.ExternalAttributes >> 16));
+				}
+			}
+			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 			{
 				int MadeByPlatform = Convert.ToInt32(VersionMadeByPlatformField.GetValue(Entry)!);
 				if (MadeByPlatform == 3 || MadeByPlatform == 19) // Unix or OSX
