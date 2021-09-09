@@ -34,6 +34,16 @@ public:
 	TSharedPtr< FUICommandInfo > AddBoneSettings;
 	/** remove bone setting from bone */
 	TSharedPtr< FUICommandInfo > RemoveBoneSettings;
+	
+	/** remove bone from solve */
+	TSharedPtr< FUICommandInfo > ExcludeBone;
+	/** add bone to solve */
+	TSharedPtr< FUICommandInfo > IncludeBone;
+
+	/** create retarget chain */
+	TSharedPtr< FUICommandInfo > NewRetargetChain;
+	/** set the root of the retargeting */
+	TSharedPtr< FUICommandInfo > SetRetargetRoot;
 
 	/** initialize commands */
 	virtual void RegisterCommands() override;

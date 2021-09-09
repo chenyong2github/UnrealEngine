@@ -13,6 +13,7 @@ class UIKRigSolver;
 class UIKRigDefinition;
 class UIKRigEffectorGoal;
 class USkeletalMesh;
+struct FBoneChain;
 
 UCLASS(config = Engine, hidecategories = UObject, BlueprintType)
 class IKRIGEDITOR_API UIKRigController : public UObject
@@ -31,6 +32,8 @@ public:
 	USkeletalMesh* GetSourceSkeletalMesh() const;
 	void SetSkeleton(const FReferenceSkeleton& InSkeleton) const;
 	FIKRigSkeleton& GetSkeleton() const;
+	void SetBoneExcluded(const FName& BoneName, const bool bExclude) const;
+	bool GetBoneExcluded(const FName& BoneName) const;
 	//** END skeleton */
 
 	//** solvers */
@@ -76,6 +79,17 @@ public:
 	bool DoesBoneHaveSettings(const FName& BoneName) const;
 	//** END bone settings */
 
+	//** retargeting and retarget chains */
+	bool AddRetargetChain(const FName& ChainName, const FName& StartBone, const FName& EndBone) const;
+	bool RemoveRetargetChain(const FName& ChainName) const;
+	bool SetRetargetChainStartBone(const FName& ChainName, const FName& StartBoneName) const;
+	bool SetRetargetChainEndBone(const FName& ChainName, const FName& EndBoneName) const;
+	FBoneChain* GetRetargetChain(int32 Index) const;
+	int32 GetNumRetargetChains() const;
+	void SetRetargetRoot(const FName& RootBoneName);
+	FName GetRetargetRoot();
+	//** END retarget chains */
+	
 	// BEGIN UObject
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// END UObject

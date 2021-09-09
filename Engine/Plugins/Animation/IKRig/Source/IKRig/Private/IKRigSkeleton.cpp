@@ -2,7 +2,9 @@
 
 #include "IKRigSkeleton.h"
 
-void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton)
+#include "IKRigDefinition.h"
+
+void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton, const TArray<FName>& InExcludedBones)
 {
 	// reset all containers
 	Reset();
@@ -23,6 +25,7 @@ void FIKRigSkeleton::Reset()
 {
 	BoneNames.Reset();
 	ParentIndices.Reset();
+	ExcludedBones.Reset();
 	CurrentPoseGlobal.Reset();
 	CurrentPoseLocal.Reset();
 	RefPoseGlobal.Reset();
@@ -41,14 +44,40 @@ int32 FIKRigSkeleton::GetBoneIndexFromName(const FName InName) const
 	return INDEX_NONE;
 }
 
+FName FIKRigSkeleton::GetBoneNameFromIndex(const int32 BoneIndex) const
+{
+	if (BoneNames.IsValidIndex(BoneIndex))
+	{
+		return BoneNames[BoneIndex];
+	}
+
+	return NAME_None;
+}
+
 int32 FIKRigSkeleton::GetParentIndex(const int32 BoneIndex) const
 {
-	if (BoneIndex < 0 || BoneIndex>ParentIndices.Num() || BoneIndex == INDEX_NONE)
+	if (!BoneNames.IsValidIndex(BoneIndex))
 	{
 		return INDEX_NONE;
 	}
 
 	return ParentIndices[BoneIndex];
+}
+
+int32 FIKRigSkeleton::GetParentIndexThatIsNotExcluded(const int32 BoneIndex) const
+{
+	// find first parent that is NOT excluded
+	int32 ParentIndex = GetParentIndex(BoneIndex);
+	while(ParentIndex != INDEX_NONE)
+	{
+		if (!IsBoneExcluded(ParentIndex))
+		{
+			break;
+		}
+		ParentIndex = GetParentIndex(ParentIndex);
+	}
+	
+	return ParentIndex;
 }
 
 bool FIKRigSkeleton::CopyPosesFromRefSkeleton(const FReferenceSkeleton& RefSkeleton)
@@ -185,10 +214,68 @@ bool FIKRigSkeleton::IsBoneInDirectLineage(const FName& Child, const FName& Pote
 	return false;
 }
 
+bool FIKRigSkeleton::IsBoneExcluded(const int32 BoneIndex) const
+{
+	if (ensure(BoneNames.IsValidIndex(BoneIndex)))
+	{
+		return ExcludedBones.Contains(BoneNames[BoneIndex]);	
+	}
+	
+	return false;
+}
+
 void FIKRigSkeleton::NormalizeRotations(TArray<FTransform>& Transforms)
 {
 	for (FTransform& Transform : Transforms)
 	{
 		Transform.NormalizeRotation();
 	}
+}
+
+void FIKRigSkeleton::GetChainsInList(const TArray<int32>& SelectedBones, TArray<FIKRigSkeletonChain>& OutChains) const
+{	
+	// no bones provided, return empty list
+	if (SelectedBones.IsEmpty())
+	{
+		return;
+	}
+
+	// get parents of all the selected bones
+	TSet<int32> SelectedParentIndices;
+	for (const int32 SelectedBone : SelectedBones)
+	{
+		SelectedParentIndices.Add(GetParentIndex(SelectedBone));
+	}
+	
+	// find all selected leaf nodes and make each one a chain
+    for (const int32 SelectedBone : SelectedBones)
+    {
+    	// is this a leaf node in the selection?
+    	if (SelectedParentIndices.Contains(SelectedBone))
+    	{
+    		continue;
+    	}
+
+    	// convert leaf nodes to chains
+    	int32 ChainStart;
+    	const int32 ChainEnd = SelectedBone;
+    	int32 ParentIndex = SelectedBone;
+    	while (true)
+    	{
+    		ChainStart = ParentIndex;
+    		ParentIndex = GetParentIndex(ParentIndex);
+    		if (ParentIndex == INDEX_NONE)
+    		{
+    			break;
+    		}
+    		if (!SelectedBones.Contains(ParentIndex))
+    		{
+    			break;
+    		}
+    	}
+
+    	const FName StartBoneName = GetBoneNameFromIndex(ChainStart);
+    	const FName EndBoneName = GetBoneNameFromIndex(ChainEnd);
+    	OutChains.Emplace(StartBoneName, EndBoneName);	
+    }
 }

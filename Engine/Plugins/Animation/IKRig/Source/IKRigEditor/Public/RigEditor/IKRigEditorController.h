@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IKRigSolver.h"
+#include "SIKRigRetargetChainList.h"
 #include "Templates/SubclassOf.h"
 
 #include "IKRigEditorController.generated.h"
@@ -46,6 +47,8 @@ public:
 	bool IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex);
 	/** determine if the element is connected to ANY solver */
 	bool IsElementConnectedToAnySolver(TSharedRef<FIKRigTreeElement> TreeElement);
+	/** determine if the element is an excluded bone*/
+	bool IsElementExcludedBone(TSharedRef<FIKRigTreeElement> TreeElement);
 	
 	/** todo show BONE transform in details view */
 	void ShowDetailsForBone(const FName BoneName);
@@ -59,6 +62,9 @@ public:
 	void ShowDetailsForSolver(const int32 SolverIndex);
 	/** show nothing in details view */
 	void ShowEmptyDetails();
+
+	/** create a new retarget chain */
+	void AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone);
 	
 	/** all modifications to the data model should go through this controller */
 	UIKRigController* AssetController;
@@ -78,6 +84,9 @@ public:
 	
 	/** the solver stack view */
 	TSharedPtr<SIKRigSolverStack> SolverStackView;
+
+	/** the solver stack view */
+	TSharedPtr<SIKRigRetargetChainList> RetargetingView;
 
 	/** the persona toolkit */
 	TWeakPtr<FIKRigEditorToolkit> EditorToolkit;

@@ -53,32 +53,43 @@ void SIKRigSkeletonItem::Construct(
 
 	// is this element affected by the selected solver?
 	bool bIsConnectedToSelectedSolver;
-	const int32 SelectedSolver = EditorController.Pin()->GetSelectedSolverIndex();
+	const int32 SelectedSolver = InEditorController->GetSelectedSolverIndex();
 	if (SelectedSolver == INDEX_NONE)
 	{
-		bIsConnectedToSelectedSolver = EditorController.Pin()->IsElementConnectedToAnySolver(InRigTreeElement);
-	}else
-	{
-		bIsConnectedToSelectedSolver = EditorController.Pin()->IsElementConnectedToSolver(InRigTreeElement, SelectedSolver);
+		bIsConnectedToSelectedSolver = InEditorController->IsElementConnectedToAnySolver(InRigTreeElement);
 	}
-	
+	else
+	{
+		bIsConnectedToSelectedSolver = InEditorController->IsElementConnectedToSolver(InRigTreeElement, SelectedSolver);
+	}
+
 	// determine text style
-	FSlateFontInfo TextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.NormalFont").Font;
-	// highlight elements connected to the selected solver
+	FTextBlockStyle NormalText = FIKRigEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("IKRig.Tree.NormalText");
+	FTextBlockStyle ItalicText = FIKRigEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("IKRig.Tree.ItalicText");
+	FSlateFontInfo TextFont;
+	FSlateColor TextColor;
 	if (bIsConnectedToSelectedSolver)
 	{
-		TextStyle = FIKRigEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("IKRig.Tree.AffectedBoneText").Font;
+		// elements connected to the selected solver are green
+		TextFont = ItalicText.Font;
+		TextColor = NormalText.ColorAndOpacity;
 	}
-		
+	else
+	{
+		TextFont = NormalText.Font;
+		TextColor = FLinearColor(0.2f, 0.2f, 0.2f, 0.5f);
+	}
+
 	// determine which icon to use for tree element
 	const FSlateBrush* Brush = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
 	switch(InRigTreeElement->ElementType)
 	{
 		case IKRigTreeElementType::BONE:
-			if (bIsConnectedToSelectedSolver)
+			if (!InEditorController->IsElementExcludedBone(InRigTreeElement))
 			{
 				Brush = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
-			}else
+			}
+			else
 			{
 				Brush = FAppStyle::Get().GetBrush("SkeletonTree.BoneNonWeighted");
 			}
@@ -125,9 +136,24 @@ void SIKRigSkeletonItem::Construct(
         [
 			SNew(STextBlock)
 			.Text(this, &SIKRigSkeletonItem::GetName)
-			.Font(TextStyle)
+			.Font(TextFont)
+			.ColorAndOpacity(TextColor)
         ];
-	}else
+
+		if (InEditorController->AssetController->GetRetargetRoot() == InRigTreeElement->Key)
+		{	
+			HorizontalBox->AddSlot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("RetargetRootLabel", " (Retarget Root)"))
+				.Font(ItalicText.Font)
+				.ColorAndOpacity(FLinearColor(0.9f, 0.9f, 0.9f, 0.5f))
+			];
+		}
+	}
+	else
 	{
 		TSharedPtr< SInlineEditableTextBlock > InlineWidget;
 		HorizontalBox->AddSlot()
@@ -151,16 +177,22 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 	{
 		return; // make sure user actually intends to commit a name change
 	}
+
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
 	
 	const FName OldName = WeakRigTreeElement.Pin()->Key;
 	const FName PotentialNewName = FName(InText.ToString());
-	const FName NewName = EditorController.Pin()->AssetController->RenameGoal(OldName, PotentialNewName);
+	const FName NewName = Controller->AssetController->RenameGoal(OldName, PotentialNewName);
 	if (NewName != NAME_None)
 	{
 		WeakRigTreeElement.Pin()->Key = NewName;
 	}
 
-	EditorController.Pin()->SkeletonView->RefreshTreeView();
+	Controller->SkeletonView->RefreshTreeView();
 }
 
 FText SIKRigSkeletonItem::GetName() const
@@ -224,7 +256,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
                         .Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
                         .Text(LOCTEXT("ImportSkeletonLabel", "Import Skeleton"))
                         .ToolTipText(LOCTEXT("ImportSkeletonToolTip", "Import a skeletal mesh to apply IK to."))
-                        .OnClicked(FOnClicked::CreateSP(this, &SIKRigSkeleton::OnImportSkeletonClicked))
+                        .OnClicked(this, &SIKRigSkeleton::OnImportSkeletonClicked)
                     ]
                 ]
             ]
@@ -264,13 +296,39 @@ void SIKRigSkeleton::SetSelectedGoalsFromViewport(const TArray<FName>& GoalNames
 		return;
 	}
 	
-	for (const auto& Item : AllElements)
+	for (const TSharedPtr<FIKRigTreeElement>& Item : AllElements)
 	{
 		if (GoalNames.Contains(Item->Key))
 		{
 			TreeView->SetSelection(Item, ESelectInfo::Direct);
 		}
 	}
+}
+
+void SIKRigSkeleton::GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains)
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+
+	// get selected bones
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBoneItems;
+	GetSelectedBones(SelectedBoneItems);
+
+	FIKRigSkeleton& Skeleton = Controller->AssetController->GetSkeleton();
+
+	// get selected bone indices
+	TArray<int32> SelectedBones;
+	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBoneItems)
+	{
+		const FName BoneName = BoneItem.Get()->Key;
+		const int32 BoneIndex = Skeleton.GetBoneIndexFromName(BoneName);
+		SelectedBones.Add(BoneIndex);
+	}
+	
+	return Skeleton.GetChainsInList(SelectedBones, OutChains);
 }
 
 void SIKRigSkeleton::BindCommands()
@@ -304,6 +362,22 @@ void SIKRigSkeleton::BindCommands()
 	CommandList->MapAction(Commands.RemoveBoneSettings,
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleRemoveBoneSettings),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanRemoveBoneSettings));
+
+	CommandList->MapAction(Commands.ExcludeBone,
+		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleExcludeBone),
+		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanExcludeBone));
+
+	CommandList->MapAction(Commands.IncludeBone,
+		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleIncludeBone),
+		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanIncludeBone));
+
+	CommandList->MapAction(Commands.NewRetargetChain,
+		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleNewRetargetChain),
+		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanAddNewRetargetChain));
+
+	CommandList->MapAction(Commands.SetRetargetRoot,
+		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetRetargetRoot),
+		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetRetargetRoot));
 }
 
 void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
@@ -314,11 +388,6 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	if (SelectedItems.IsEmpty())
 	{
 		return;
-	}
-
-	if (SelectedItems.Num() > 1)
-	{
-		return; // TODO create limb definitions from multiple selected bones
 	}
 
 	MenuBuilder.BeginSection("AddRemoveGoals", LOCTEXT("AddRemoveGoalOperations", "Goals"));
@@ -334,53 +403,69 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.BeginSection("BoneSettings", LOCTEXT("BoneSettingsOperations", "Bone Settings"));
 	MenuBuilder.AddMenuEntry(Actions.AddBoneSettings);
 	MenuBuilder.AddMenuEntry(Actions.RemoveBoneSettings);
+	MenuBuilder.AddMenuEntry(Actions.SetRootBoneOnSolvers);
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("RootBone", LOCTEXT("RootBoneOperations", "Root Bone"));
-	MenuBuilder.AddMenuEntry(Actions.SetRootBoneOnSolvers);
+	MenuBuilder.BeginSection("IncludeExclude", LOCTEXT("IncludeExcludeOperations", "Exclude Bones"));
+	MenuBuilder.AddMenuEntry(Actions.ExcludeBone);
+	MenuBuilder.AddMenuEntry(Actions.IncludeBone);
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Retargeting", LOCTEXT("RetargetingOperations", "Retargeting"));
+	MenuBuilder.AddMenuEntry(Actions.NewRetargetChain);
+	MenuBuilder.AddMenuEntry(Actions.SetRetargetRoot);
 	MenuBuilder.EndSection();
 }
 
 void SIKRigSkeleton::HandleNewGoal()
 {
-	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView.Get()->GetSelectedItems();
-	if (SelectedItems.IsEmpty())
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
 	{
-		return; // have to select something
-	}
-
-	TSharedPtr<FIKRigTreeElement> SelectedItem = SelectedItems[0];
-	if (SelectedItem->ElementType != IKRigTreeElementType::BONE)
-	{
-		return; // can only add goals to bones
-	}
-
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
-
-	// build default name for the new goal
-	const FName BoneName = SelectedItem->Key;
-	const FName NewGoalName = FName(BoneName.ToString() + "_Goal");
-
-	// create a new goal
-	UIKRigEffectorGoal* NewGoal = Controller->AddNewGoal(NewGoalName, BoneName);
-
-	if (NewGoal)
-	{
-		// get selected solvers
-		TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-		EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
-		// connect the new goal to all the selected solvers
-		for (const TSharedPtr<FSolverStackElement>& SolverElement : SelectedSolvers)
-		{
-			Controller->ConnectGoalToSolver(*NewGoal, SolverElement->IndexInStack);	
-		}
+		return; 
 	}
 	
-	// create new goal tree element and update view
-	RefreshTreeView();
+	// create goal for each selected bone
+	FName LastCreatedGoalName = NAME_None;
+	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView.Get()->GetSelectedItems();
+	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
+	{
+		if (Item->ElementType != IKRigTreeElementType::BONE)
+		{
+			continue; // can only add goals to bones
+		}
 
-	// show goal in details view
-	EditorController.Pin()->ShowDetailsForGoal(NewGoalName);
+		UIKRigController* AssetController = Controller->AssetController;
+
+		// build default name for the new goal
+		const FName BoneName = Item->Key;
+		const FName NewGoalName = FName(BoneName.ToString() + "_Goal");
+
+		// create a new goal
+		UIKRigEffectorGoal* NewGoal = AssetController->AddNewGoal(NewGoalName, BoneName);
+		if (NewGoal)
+		{
+			// get selected solvers
+			TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
+			Controller->GetSelectedSolvers(SelectedSolvers);
+			// connect the new goal to all the selected solvers
+			for (const TSharedPtr<FSolverStackElement>& SolverElement : SelectedSolvers)
+			{
+				AssetController->ConnectGoalToSolver(*NewGoal, SolverElement->IndexInStack);	
+			}
+
+			LastCreatedGoalName = NewGoalName;
+		}
+	}
+
+	// were any goals created?
+	if (LastCreatedGoalName != NAME_None)
+	{
+		// show last created goal in details view
+		Controller->ShowDetailsForGoal(LastCreatedGoalName);
+		// update all views
+		Controller->RefreshAllViews();
+	}
 }
 
 bool SIKRigSkeleton::CanAddNewGoal()
@@ -393,7 +478,7 @@ bool SIKRigSkeleton::CanAddNewGoal()
 	}
 
 	// can only add goals to selected bones
-	for (const auto&Item : SelectedItems)
+	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
 	{
 		if (Item->ElementType != IKRigTreeElementType::BONE)
 		{
@@ -406,22 +491,30 @@ bool SIKRigSkeleton::CanAddNewGoal()
 
 void SIKRigSkeleton::HandleDeleteItem()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 	TSharedPtr<FIKRigTreeElement> ParentOfDeletedGoal;
-	for (const auto&Item : SelectedItems)
+	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
 	{
 		if (Item->ElementType == IKRigTreeElementType::GOAL)
 		{
-			EditorController.Pin()->AssetController->RemoveGoal(Item->Key);
+			Controller->AssetController->RemoveGoal(Item->Key);
 			
-		}else if (Item->ElementType == IKRigTreeElementType::EFFECTOR)
+		}
+		else if (Item->ElementType == IKRigTreeElementType::EFFECTOR)
 		{
-			EditorController.Pin()->AssetController->DisconnectGoalFromSolver(Item->EffectorGoalName, Item->EffectorSolverIndex);
+			Controller->AssetController->DisconnectGoalFromSolver(Item->EffectorGoalName, Item->EffectorSolverIndex);
 		}
 	}
 
-	EditorController.Pin()->ShowEmptyDetails();
-	RefreshTreeView();
+	Controller->ShowEmptyDetails();
+	// update all views
+	Controller->RefreshAllViews();
 }
 bool SIKRigSkeleton::CanDeleteItem() const
 {
@@ -433,7 +526,7 @@ bool SIKRigSkeleton::CanDeleteItem() const
 	}
 
 	// are all selected items goals or effectors?
-	for (const auto&Item : SelectedItems)
+	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
 	{
 		const bool bIsGoal = Item->ElementType == IKRigTreeElementType::GOAL;
 		const bool bIsEffector = Item->ElementType == IKRigTreeElementType::EFFECTOR;
@@ -474,26 +567,33 @@ bool SIKRigSkeleton::CanDisconnectGoalFromSolvers() const
 
 void SIKRigSkeleton::ConnectSelectedGoalsToSelectedSolvers(bool bConnect)
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+	
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedGoals;
 	GetSelectedGoals(SelectedGoals);
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
+	Controller->GetSelectedSolvers(SelectedSolvers);
 
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
+	UIKRigController* AssetController = Controller->AssetController;
 	for (const TSharedPtr<FIKRigTreeElement>& GoalElement : SelectedGoals)
 	{
 		const FName GoalName = GoalElement->Key;
-		const int32 GoalIndex = Controller->GetGoalIndex(GoalName);
+		const int32 GoalIndex = AssetController->GetGoalIndex(GoalName);
 		check(GoalIndex != INDEX_NONE);
-		const UIKRigEffectorGoal& EffectorGoal = *Controller->GetGoal(GoalIndex);
+		const UIKRigEffectorGoal& EffectorGoal = *AssetController->GetGoal(GoalIndex);
 		for (const TSharedPtr<FSolverStackElement>& SolverElement : SelectedSolvers)
 		{
 			if (bConnect)
 			{
-				Controller->ConnectGoalToSolver(EffectorGoal, SolverElement->IndexInStack);	
-			}else
+				AssetController->ConnectGoalToSolver(EffectorGoal, SolverElement->IndexInStack);	
+			}
+			else
 			{
-				Controller->DisconnectGoalFromSolver(EffectorGoal.GoalName, SolverElement->IndexInStack);	
+				AssetController->DisconnectGoalFromSolver(EffectorGoal.GoalName, SolverElement->IndexInStack);	
 			}
 		}
 	}
@@ -504,17 +604,23 @@ void SIKRigSkeleton::ConnectSelectedGoalsToSelectedSolvers(bool bConnect)
 
 int32 SIKRigSkeleton::GetNumSelectedGoalToSolverConnections(bool bCountOnlyConnected) const
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return 0;
+	}
+	
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedGoals;
 	GetSelectedGoals(SelectedGoals);
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
+	Controller->GetSelectedSolvers(SelectedSolvers);
 
 	int32 NumMatched = 0;
 	for (const TSharedPtr<FIKRigTreeElement>& Goal : SelectedGoals)
 	{
 		for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 		{
-			const bool bIsConnected = EditorController.Pin()->AssetController->IsGoalConnectedToSolver(Goal->Key, Solver->IndexInStack);
+			const bool bIsConnected = Controller->AssetController->IsGoalConnectedToSolver(Goal->Key, Solver->IndexInStack);
 			if (bIsConnected == bCountOnlyConnected)
 			{
 				++NumMatched;
@@ -527,24 +633,30 @@ int32 SIKRigSkeleton::GetNumSelectedGoalToSolverConnections(bool bCountOnlyConne
 
 void SIKRigSkeleton::HandleSetRootBoneOnSolvers()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+
     // get name of selected root bone
     TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
 	const FName RootBoneName = SelectedBones[0]->Key;
 
 	// apply to all selected solvers (ignored on solvers that don't accept a root bone)
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
+	UIKRigController* AssetController = Controller->AssetController;
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
+	Controller->GetSelectedSolvers(SelectedSolvers);
 	int32 SolverToShow = 0;
-	for (const auto& Solver : SelectedSolvers)
+	for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 	{
-		Controller->SetRootBone(RootBoneName, Solver->IndexInStack);
+		AssetController->SetRootBone(RootBoneName, Solver->IndexInStack);
 		SolverToShow = Solver->IndexInStack;
 	}
 
 	// show solver that had it's root bone updated
-	EditorController.Pin()->ShowDetailsForSolver(SolverToShow);
+	Controller->ShowDetailsForSolver(SolverToShow);
 	
 	// show new icon when bone has settings applied
 	RefreshTreeView();
@@ -552,6 +664,12 @@ void SIKRigSkeleton::HandleSetRootBoneOnSolvers()
 
 bool SIKRigSkeleton::CanSetRootBoneOnSolvers()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+	
 	// must have at least 1 bone selected
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
@@ -561,12 +679,12 @@ bool SIKRigSkeleton::CanSetRootBoneOnSolvers()
 	}
 
 	// must have at least 1 solver selected that accepts root bones
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
+	UIKRigController* AssetController = Controller->AssetController;
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
-	for (const auto& Solver : SelectedSolvers)
+	Controller->GetSelectedSolvers(SelectedSolvers);
+	for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 	{
-		if (Controller->GetSolver(Solver->IndexInStack)->CanSetRootBone())
+		if (AssetController->GetSolver(Solver->IndexInStack)->CanSetRootBone())
 		{
 			return true;
 		}
@@ -577,27 +695,33 @@ bool SIKRigSkeleton::CanSetRootBoneOnSolvers()
 
 void SIKRigSkeleton::HandleAddBoneSettings()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
 	// get selected bones
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
 	
 	// add settings for bone on all selected solvers (ignored if already present)
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
+	UIKRigController* AssetController = Controller->AssetController;
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
+	Controller->GetSelectedSolvers(SelectedSolvers);
 	FName BoneNameForSettings;
 	int32 SolverIndex = INDEX_NONE;
 	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
 	{
 		for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 		{
-			Controller->AddBoneSetting(BoneItem->Key, Solver->IndexInStack);
+			AssetController->AddBoneSetting(BoneItem->Key, Solver->IndexInStack);
 			BoneNameForSettings = BoneItem->Key;
 			SolverIndex = Solver->IndexInStack;
         }
 	}
 
-	EditorController.Pin()->ShowDetailsForBoneSettings(BoneNameForSettings, SolverIndex);
+	Controller->ShowDetailsForBoneSettings(BoneNameForSettings, SolverIndex);
 
 	// show new icon when bone has settings applied
 	RefreshTreeView();
@@ -605,6 +729,12 @@ void SIKRigSkeleton::HandleAddBoneSettings()
 
 bool SIKRigSkeleton::CanAddBoneSettings()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+	
     // must have at least 1 bone selected
     TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
@@ -614,14 +744,14 @@ bool SIKRigSkeleton::CanAddBoneSettings()
 	}
 
 	// must have at least 1 solver selected that does not already have a bone setting for the selected bones
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
+	UIKRigController* AssetController = Controller->AssetController;
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
+	Controller->GetSelectedSolvers(SelectedSolvers);
 	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
 	{
 		for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 		{
-			if (Controller->CanAddBoneSetting(BoneItem->Key, Solver->IndexInStack))
+			if (AssetController->CanAddBoneSetting(BoneItem->Key, Solver->IndexInStack))
 			{
 				return true;
 			}
@@ -633,32 +763,44 @@ bool SIKRigSkeleton::CanAddBoneSettings()
 
 void SIKRigSkeleton::HandleRemoveBoneSettings()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
 	// get selected bones
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
 	
 	// add settings for bone on all selected solvers (ignored if already present)
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
+	UIKRigController* AssetController = Controller->AssetController;
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
+	Controller->GetSelectedSolvers(SelectedSolvers);
 	FName BoneToShowInDetailsView;
 	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
 	{
 		for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 		{
-			Controller->RemoveBoneSetting(BoneItem->Key, Solver->IndexInStack);
+			AssetController->RemoveBoneSetting(BoneItem->Key, Solver->IndexInStack);
 			BoneToShowInDetailsView = BoneItem->Key;
 		}
 	}
 
-	EditorController.Pin()->ShowDetailsForBone(BoneToShowInDetailsView);
-
+	Controller->ShowDetailsForBone(BoneToShowInDetailsView);
+	
 	// show new icon when bone has settings applied
 	RefreshTreeView();
 }
 
 bool SIKRigSkeleton::CanRemoveBoneSettings()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+	
     // must have at least 1 bone selected
     TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
 	GetSelectedBones(SelectedBones);
@@ -668,14 +810,14 @@ bool SIKRigSkeleton::CanRemoveBoneSettings()
 	}
 
 	// must have at least 1 solver selected that has a bone setting for 1 of the selected bones
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
+	UIKRigController* AssetController = Controller->AssetController;
 	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-	EditorController.Pin()->GetSelectedSolvers(SelectedSolvers);
+	Controller->GetSelectedSolvers(SelectedSolvers);
 	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
 	{
 		for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 		{
-			if (Controller->CanRemoveBoneSetting(BoneItem->Key, Solver->IndexInStack))
+			if (AssetController->CanRemoveBoneSetting(BoneItem->Key, Solver->IndexInStack))
 			{
 				return true;
 			}
@@ -685,10 +827,151 @@ bool SIKRigSkeleton::CanRemoveBoneSettings()
 	return false;
 }
 
+void SIKRigSkeleton::HandleExcludeBone()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	// exclude selected bones
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
+	{
+		Controller->AssetController->SetBoneExcluded(BoneItem->Key, true);
+	}
+
+	// show greyed out bone name after being excluded
+	RefreshTreeView();
+}
+
+bool SIKRigSkeleton::CanExcludeBone()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+	
+	// must have at least 1 bone selected that is INCLUDED
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
+	{
+		if (!Controller->AssetController->GetBoneExcluded(BoneItem->Key))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void SIKRigSkeleton::HandleIncludeBone()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	// exclude selected bones
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
+	{
+		Controller->AssetController->SetBoneExcluded(BoneItem->Key, false);
+	}
+
+	// show normal bone name after being included
+	RefreshTreeView();
+}
+
+bool SIKRigSkeleton::CanIncludeBone()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+	
+	// must have at least 1 bone selected that is EXCLUDED
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	for (const TSharedPtr<FIKRigTreeElement>& BoneItem : SelectedBones)
+	{
+		if (Controller->AssetController->GetBoneExcluded(BoneItem->Key))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void SIKRigSkeleton::HandleNewRetargetChain()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	TArray<FIKRigSkeletonChain> BoneChains;
+	GetSelectedBoneChains(BoneChains);
+	for (const FIKRigSkeletonChain& BoneChain : BoneChains)
+	{
+		Controller->AddNewRetargetChain(BoneChain.StartBone, BoneChain.StartBone, BoneChain.EndBone);
+	}
+	
+	Controller->RefreshAllViews();
+}
+
+bool SIKRigSkeleton::CanAddNewRetargetChain()
+{
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	return !SelectedBones.IsEmpty();
+}
+
+void SIKRigSkeleton::HandleSetRetargetRoot()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	// get selected bones
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+
+	// must have at least 1 bone selected
+	if (SelectedBones.IsEmpty())
+	{
+		return;
+	}
+
+	// set the first selected bone as the retarget root
+	Controller->AssetController->SetRetargetRoot(SelectedBones[0]->Key);
+
+	// show root bone after being set
+	Controller->RefreshAllViews();
+}
+
+bool SIKRigSkeleton::CanSetRetargetRoot()
+{
+	TArray<TSharedPtr<FIKRigTreeElement>> SelectedBones;
+	GetSelectedBones(SelectedBones);
+	return !SelectedBones.IsEmpty();
+}
+
 void SIKRigSkeleton::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems)
 {
 	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
-	for (const auto& Item : SelectedItems)
+	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
 	{
 		if (Item->ElementType == IKRigTreeElementType::BONE)
 		{
@@ -701,7 +984,7 @@ void SIKRigSkeleton::GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& Out
 {
 	OutSelectedGoals.Reset();
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
-	for (const auto& Item : SelectedItems)
+	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
 	{
 		if (Item->ElementType == IKRigTreeElementType::GOAL)
 		{
@@ -724,6 +1007,12 @@ void SIKRigSkeleton::HandleRenameElement() const
 
 FReply SIKRigSkeleton::OnImportSkeletonClicked()
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
 	FIKRigSkeletonImportSettings Settings;
 	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FIKRigSkeletonImportSettings::StaticStruct(), (uint8*)&Settings));
 	TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
@@ -734,7 +1023,7 @@ FReply SIKRigSkeleton::OnImportSkeletonClicked()
 	if (Settings.Mesh != nullptr)
 	{
 		ImportSkeleton(FAssetData(Settings.Mesh));
-		EditorController.Pin()->PromptToAddSolverAtStartup();
+		Controller->PromptToAddSolverAtStartup();
 	}
 	
 	return FReply::Handled();
@@ -742,9 +1031,15 @@ FReply SIKRigSkeleton::OnImportSkeletonClicked()
 
 EVisibility SIKRigSkeleton::IsImportButtonVisible() const
 {
-	if (UIKRigController* Controller = EditorController.Pin()->AssetController)
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
 	{
-		if (Controller->GetSkeleton().BoneNames.Num() > 0)
+		return EVisibility::Hidden;
+	}
+	
+	if (UIKRigController* AssetController = Controller->AssetController)
+	{
+		if (AssetController->GetSkeleton().BoneNames.Num() > 0)
 		{
 			return EVisibility::Collapsed;
 		}
@@ -755,6 +1050,12 @@ EVisibility SIKRigSkeleton::IsImportButtonVisible() const
 
 void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
 	// save expansion state
 	TreeView->SaveAndClearSparseItemInfos();
 
@@ -763,8 +1064,8 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 	AllElements.Reset();
 
 	// validate we have a skeleton to load
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
-	FIKRigSkeleton& Skeleton = Controller->GetSkeleton();
+	UIKRigController* AssetController = Controller->AssetController;
+	FIKRigSkeleton& Skeleton = AssetController->GetSkeleton();
 	if (Skeleton.BoneNames.IsEmpty())
 	{
 		TreeView->RequestTreeRefresh();
@@ -786,7 +1087,8 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 		{
 			// store root element
 			RootElements.Add(AllElements[BoneIndex]);
-		}else
+		}
+		else
 		{
 			// store pointer to child on parent
 			AllElements[ParentIndex]->Children.Add(AllElements[BoneIndex]);
@@ -796,9 +1098,9 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 	}
 
 	// create all bone settings elements
-	for (int32 SolverIndex=0; SolverIndex<Controller->GetNumSolvers(); ++SolverIndex)
+	for (int32 SolverIndex=0; SolverIndex<AssetController->GetNumSolvers(); ++SolverIndex)
 	{
-		UIKRigSolver* Solver = Controller->GetSolver(SolverIndex);
+		UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
 		if (!Solver->UsesBoneSettings())
 		{
 			continue;
@@ -820,7 +1122,7 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
     }
 	
 	// create all goal and effector elements
-	TArray<UIKRigEffectorGoal*> Goals = Controller->GetAllGoals();
+	TArray<UIKRigEffectorGoal*> Goals = AssetController->GetAllGoals();
 	for (const UIKRigEffectorGoal* Goal : Goals)
 	{
 		// make new element for goal
@@ -834,12 +1136,12 @@ void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 		GoalItem->Parent = AllElements[BoneIndex];
 
 		// add all effectors connected to this goal
-		for (int32 SolverIndex=0; SolverIndex<Controller->GetNumSolvers(); ++SolverIndex)
+		for (int32 SolverIndex=0; SolverIndex<AssetController->GetNumSolvers(); ++SolverIndex)
 		{
-			if (UObject* Effector = Controller->GetEffectorForGoal(Goal->GoalName, SolverIndex))
+			if (UObject* Effector = AssetController->GetEffectorForGoal(Goal->GoalName, SolverIndex))
 			{
 				// make new element for effector
-				const UIKRigSolver* Solver = Controller->GetSolver(SolverIndex);
+				const UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
 				const FName DisplayName = FName("Effector for: " + Solver->GetName());
 				TSharedPtr<FIKRigTreeElement> EffectorItem = MakeShared<FIKRigTreeElement>(DisplayName, IKRigTreeElementType::EFFECTOR);
 				EffectorItem->EffectorSolverIndex = SolverIndex;
@@ -885,17 +1187,23 @@ void SIKRigSkeleton::HandleGetChildrenForTree(
 
 void SIKRigSkeleton::OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
 	// gate any selection changes NOT made by user clicking mouse
 	if (SelectInfo == ESelectInfo::OnMouseClick)
 	{
 		TArray<TSharedPtr<FIKRigTreeElement>> SelectedGoals;
 		GetSelectedGoals(SelectedGoals);
 		TArray<FName> SelectedGoalNames;
-		for (const auto& Goal : SelectedGoals)
+		for (const TSharedPtr<FIKRigTreeElement>& Goal : SelectedGoals)
 		{
 			SelectedGoalNames.Add(Goal->Key);
 		}
-		EditorController.Pin()->HandleGoalsSelectedInTreeView(SelectedGoalNames);
+		Controller->HandleGoalsSelectedInTreeView(SelectedGoalNames);
 	}
 }
 
@@ -909,19 +1217,28 @@ TSharedPtr<SWidget> SIKRigSkeleton::CreateContextMenu()
 
 void SIKRigSkeleton::OnItemClicked(TSharedPtr<FIKRigTreeElement> InItem)
 {
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
 	// update details view
 	if (InItem->ElementType == IKRigTreeElementType::BONE)
 	{
-		EditorController.Pin()->ShowDetailsForBone(InItem->Key);
-	}else if (InItem->ElementType == IKRigTreeElementType::GOAL)
+		Controller->ShowDetailsForBone(InItem->Key);
+	}
+	else if (InItem->ElementType == IKRigTreeElementType::GOAL)
 	{
-		EditorController.Pin()->ShowDetailsForGoal(InItem->Key);
-	}else if (InItem->ElementType == IKRigTreeElementType::EFFECTOR)
+		Controller->ShowDetailsForGoal(InItem->Key);
+	}
+	else if (InItem->ElementType == IKRigTreeElementType::EFFECTOR)
 	{
-		EditorController.Pin()->ShowDetailsForEffector(InItem->EffectorGoalName, InItem->EffectorSolverIndex);
-	}else if (InItem->ElementType == IKRigTreeElementType::BONE_SETTINGS)
+		Controller->ShowDetailsForEffector(InItem->EffectorGoalName, InItem->EffectorSolverIndex);
+	}
+	else if (InItem->ElementType == IKRigTreeElementType::BONE_SETTINGS)
 	{
-		EditorController.Pin()->ShowDetailsForBoneSettings(InItem->BoneSettingBoneName, InItem->BoneSettingsSolverIndex);
+		Controller->ShowDetailsForBoneSettings(InItem->BoneSettingBoneName, InItem->BoneSettingsSolverIndex);
 	}
 
 	// to rename an item, you have to select it first, then click on it again within a time limit (slow double click)
@@ -989,13 +1306,19 @@ void SIKRigSkeleton::ImportSkeleton(const FAssetData& InAssetData)
 		return;
 	}
 	
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
 	// load the skeletal mesh in the viewport
-	TSharedRef<IPersonaToolkit> Persona = EditorController.Pin()->EditorToolkit.Pin()->GetPersonaToolkit();
+	TSharedRef<IPersonaToolkit> Persona = Controller->EditorToolkit.Pin()->GetPersonaToolkit();
 	Persona->SetPreviewMesh(Mesh, true);
 	Persona->GetPreviewScene()->FocusViews();
 
 	// import the skeleton data into the IKRig asset
-	EditorController.Pin()->AssetController->SetSourceSkeletalMesh(Mesh, true);
+	Controller->AssetController->SetSourceSkeletalMesh(Mesh, true);
 
 	// update the bone hierarchy view
 	RefreshTreeView(true);
@@ -1053,10 +1376,16 @@ FReply SIKRigSkeleton::OnAcceptDrop(
 	{
 		return FReply::Unhandled();
 	}
+	
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Handled();
+	}
 
 	const FIKRigTreeElement& DraggedElement = *DragDropOp.Get()->Element.Pin().Get();
-	UIKRigController* Controller = EditorController.Pin()->AssetController;
-	const bool bWasReparented = Controller->SetGoalBone(DraggedElement.Key, TargetItem.Get()->Key);
+	UIKRigController* AssetController = Controller->AssetController;
+	const bool bWasReparented = AssetController->SetGoalBone(DraggedElement.Key, TargetItem.Get()->Key);
 	if (bWasReparented)
 	{
 		RefreshTreeView();
@@ -1069,28 +1398,31 @@ FReply SIKRigSkeleton::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 {
 	const FKey Key = InKeyEvent.GetKey();
 
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Handled();
+	}
+
 	// handle deleting selected goals
 	if (Key == EKeys::Delete)
 	{
 		TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
-		for (const auto& SelectedItem : SelectedItems)
+		for (const TSharedPtr<FIKRigTreeElement>& SelectedItem : SelectedItems)
 		{
 			if (SelectedItem->ElementType == IKRigTreeElementType::GOAL)
 			{
-				UIKRigController* Controller = EditorController.Pin()->AssetController;
-				Controller->RemoveGoal(SelectedItem->Key);
+				Controller->AssetController->RemoveGoal(SelectedItem->Key);
 			}
 
 			if (SelectedItem->ElementType == IKRigTreeElementType::EFFECTOR)
 			{
-				UIKRigController* Controller = EditorController.Pin()->AssetController;
-				Controller->DisconnectGoalFromSolver(SelectedItem->EffectorGoalName, SelectedItem->EffectorSolverIndex);
+				Controller->AssetController->DisconnectGoalFromSolver(SelectedItem->EffectorGoalName, SelectedItem->EffectorSolverIndex);
 			}
 			
 			if (SelectedItem->ElementType == IKRigTreeElementType::BONE_SETTINGS)
 			{
-				UIKRigController* Controller = EditorController.Pin()->AssetController;
-				Controller->RemoveBoneSetting(SelectedItem->BoneSettingBoneName, SelectedItem->BoneSettingsSolverIndex);
+				Controller->AssetController->RemoveBoneSetting(SelectedItem->BoneSettingBoneName, SelectedItem->BoneSettingsSolverIndex);
 			}
 		}
 

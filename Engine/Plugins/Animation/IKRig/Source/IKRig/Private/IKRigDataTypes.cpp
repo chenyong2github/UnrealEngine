@@ -24,7 +24,8 @@ void FIKRigGoalContainer::SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal)
         Goal->Rotation = InEffectorGoal->CurrentTransform.Rotator();
         Goal->PositionAlpha = InEffectorGoal->PositionAlpha;
         Goal->RotationAlpha = InEffectorGoal->RotationAlpha;
-	}else
+	}
+	else
 	{
 		Goals.Emplace(InEffectorGoal->GoalName, InEffectorGoal);
 	}

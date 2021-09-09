@@ -19,9 +19,11 @@ struct FPBIKDebug
 {
 	GENERATED_BODY()
 
+	/** The scale of the debug drawing. */
 	UPROPERTY()
 	float DrawScale = 1.0f;
 
+	/** If true, turns on debug drawing for the node. */
 	UPROPERTY()
 	bool bDrawDebug = false;
 
@@ -52,23 +54,39 @@ struct FPBIKEffector
 
 	FPBIKEffector()	: Bone(NAME_None) {}
 
+	/** The bone that this effector will pull on. */
 	UPROPERTY(meta = (Constant, CustomWidget = "BoneName"))
 	FName Bone;
 
+	/** The target location and rotation for this effector. The solver will try to get the specified bone to reach this location.*/
 	UPROPERTY()
 	FTransform Transform;
 
+	/** Range 0-1 (default is 1.0). This blends the effector translation and rotation between its transform and the transform of the bone from the input pose.
+	 * At 0.0, the effector will be placed at the location of the bone in the input pose (effectively pinning the skeleton to the input pose).
+	 * At 1.0, the effector will be placed at the supplied location.*/
 	UPROPERTY()
 	float OffsetAlpha = 1.0f;
 
+	/** Range 0-1 (default is 1.0). The strength of the effector when pulling the bone towards it's target location.
+	 * At 0.0, the effector does not pull at all, but the bones between the effector and the root will still slightly resist motion from other effectors.
+	 * This can thus act as a "stabilizer" of sorts for parts of the body that you do not want to behave in a pure FK fashion.
+	 */
 	UPROPERTY()
 	float StrengthAlpha = 1.0f;
-	
+
+	/** Range 0-1 (default is 1.0). When enabled (greater than 0.0), the solver internally partitions the skeleton into 'chains' which extend from the effector to the nearest fork in the skeleton.
+	 *These chains are pre-rotated and translated, as a whole, towards the effector targets.
+	 *This can improve the results for sparse bone chains, and significantly improve convergence on dense bone chains.
+	 *But it may cause undesirable results in highly constrained bone chains (like robot arms).
+	 */
 	UPROPERTY()
 	float PullChainAlpha = 1.0f;
 
+	/** Range 0-1 (default is 1.0).
+	 *Blends the effector bone rotation between the rotation of the effector transform (1.0) and the rotation of the input bone (0.0).*/
 	UPROPERTY()
-	bool bPinRotation = true;
+	float PinRotation = 1.0f;
 };
 
 USTRUCT(meta=(DisplayName="Full Body IK", Category="Hierarchy", Keywords="Position Based, PBIK, IK, Full Body, Multi, Effector, N-Chain, FB"))
@@ -79,25 +97,39 @@ struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
-	FRigUnit_PBIK()
-		: Root(NAME_None)
+	FRigUnit_PBIK() :
+		Root(NAME_None),
+		bNeedsInit(true)
 	{
 	}
 
+	/**This is usually the top-most skinned bone; often the "Pelvis" or "Hips", but can be set to any bone.
+	 *Bones above the root will be ignored by the solver.
+	 *Bones that are located *between* the Root and the effectors will be included in the solve.*/
 	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
 	FName Root;
 
+	/** An array of effectors. These specify target transforms for different parts of the skeleton. */
 	UPROPERTY(meta = (Input))
 	TArray<FPBIKEffector> Effectors;
+	
 	UPROPERTY(transient)
 	TArray<int32> EffectorSolverIndices;
 
+	/** Per-bone settings to control the resulting pose. Includes limits and preferred angles. */
 	UPROPERTY(meta = (Input))
 	TArray<FPBIKBoneSetting> BoneSettings;
 
+	/** These bones will be excluded from the solver. They will not bend and will not contribute to the constraint set.
+	 * Use the ExcludedBones array instead of setting Rotation Stiffness to very high values or Rotation Limits with zero range. */
+	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	TArray<FName> ExcludedBones;
+
+	/** Global solver settings. */
 	UPROPERTY(meta = (Input))
 	FPBIKSolverSettings Settings;
 
+	/** Debug drawing options. */
 	UPROPERTY(meta = (Input))
 	FPBIKDebug Debug;
 
@@ -109,4 +141,7 @@ struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 
 	UPROPERTY(transient)
 	FPBIKSolver Solver;
+
+	UPROPERTY(transient)
+	bool bNeedsInit;
 };

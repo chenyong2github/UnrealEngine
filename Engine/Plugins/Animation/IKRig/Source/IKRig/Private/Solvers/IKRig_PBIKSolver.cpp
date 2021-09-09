@@ -34,7 +34,7 @@ void UIKRigPBIKSolver::Initialize(const FIKRigSkeleton& InSkeleton)
 		const FName& Name = InSkeleton.BoneNames[BoneIndex];
 
 		// get the parent bone solver index
-		const int32 ParentIndex = InSkeleton.GetParentIndex(BoneIndex);
+		const int32 ParentIndex = InSkeleton.GetParentIndexThatIsNotExcluded(BoneIndex);
 		const FTransform OrigTransform = InSkeleton.RefPoseGlobal[BoneIndex];
 		const FVector InOrigPosition = OrigTransform.GetLocation();
 		const FQuat InOrigRotation = OrigTransform.GetRotation();
@@ -98,7 +98,7 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 			OffsetAlpha,
 			Effector->StrengthAlpha,
 			Effector->PullChainAlpha,
-			Effector->bPinRotation);
+			Effector->PinRotation);
 	}
 
 	// update settings

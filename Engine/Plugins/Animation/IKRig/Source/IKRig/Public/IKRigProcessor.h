@@ -106,5 +106,5 @@ private:
 	/** which version of the IKRig asset was this instance last initialized with?
 	 * this allows the IKRig asset to undergo modifications at runtime via the editor*/
 	int32 InitializedWithIKRigAssetVersion = -1;
-	int32 LastVersionTried = -1;
+	int32 LastVersionTried = -2;
 };

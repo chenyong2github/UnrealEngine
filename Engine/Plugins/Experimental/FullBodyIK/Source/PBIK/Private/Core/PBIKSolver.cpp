@@ -12,7 +12,7 @@ namespace PBIK
 	{
 		check(InBone);
 		Bone = InBone;
-		SetGoal(Bone->Position, Bone->Rotation, 1.0f, 1.0f, 1.0f, false);
+		SetGoal(Bone->Position, Bone->Rotation, 1.0f, 1.0f, 1.0f, 0.0f);
 	}
 
 	void FEffector::SetGoal(
@@ -21,7 +21,7 @@ namespace PBIK
 		float InTransformAlpha,
 		float InStrengthAlpha,
 		float InPullChainAlpha,
-		bool bInPinRotation)
+		float InPinRotation)
 	{
 		PositionOrig = Bone->Position;
 		RotationOrig = Bone->Rotation;
@@ -32,7 +32,7 @@ namespace PBIK
 		TransformAlpha = InTransformAlpha;
 		StrengthAlpha = InStrengthAlpha;
 		PullChainAlpha = InPullChainAlpha;
-		bPinRotation = bInPinRotation;
+		PinRotation = InPinRotation;
 	}
 
 	void FEffector::UpdateFromInputs(const FBone& SolverRoot)
@@ -312,7 +312,7 @@ void FPBIKSolver::ApplyPreferredAngles()
 void FPBIKSolver::UpdateBodies(const FPBIKSolverSettings& Settings)
 {
 	// this creates a better pose from which to start the constraint solving
-	if (Settings.bPrePullRoot)
+	if (Settings.bPrePullRoot && !Settings.bPinRoot)
 	{
 		// pull ALL bodies towards the effectors
 		PullRootTowardsEffectors();
@@ -389,9 +389,11 @@ void FPBIKSolver::UpdateBonesFromBodies()
 		
 		Bone->Position = Bone->Parent->Position + Bone->Parent->Rotation * Bone->LocalPositionOrig;
 
-		if (Effector.bPinRotation)
+		if (Effector.PinRotation > SMALL_NUMBER)
 		{
-			Bone->Rotation = Effector.Rotation; // optionally pin rotation to that of effector
+			// optionally pin rotation to that of effector
+			const float RotAmount = FMath::Clamp(0.0f, 1.0f, Effector.PinRotation);
+			Bone->Rotation = FQuat::FastLerp(Bone->Rotation, Effector.Rotation, RotAmount).GetNormalized();
 		}else
 		{
 			Bone->Rotation = Bone->Parent->Rotation * Bone->LocalRotationOrig;
@@ -773,8 +775,8 @@ void FPBIKSolver::SetEffectorGoal(
 	const float OffsetAlpha,
 	const float StrengthAlpha,
 	const float PullChainAlpha,
-	const bool bPinRotation)
+	const float PinRotation)
 {
 	check(Index >= 0 && Index < Effectors.Num());
-	Effectors[Index].SetGoal(InPosition, InRotation, OffsetAlpha, StrengthAlpha, PullChainAlpha, bPinRotation);
+	Effectors[Index].SetGoal(InPosition, InRotation, OffsetAlpha, StrengthAlpha, PullChainAlpha, PinRotation);
 }

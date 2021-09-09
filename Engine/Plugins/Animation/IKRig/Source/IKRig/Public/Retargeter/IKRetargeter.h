@@ -9,23 +9,24 @@
 
 #include "IKRetargeter.generated.h"
 
+struct FIKRetargetPose;
+
 USTRUCT(Blueprintable)
-struct IKRIG_API FIKRetargetChainSettings
+struct IKRIG_API FRetargetChainMap
 {
 	GENERATED_BODY()
 
-	/** Range -1 to 1. Default 0. Rotates chain away or towards the midline (positive values will raise arms upwards). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0"))
-	float AbductionOffset = 0.0f;
+	FRetargetChainMap(){}
+	
+	FRetargetChainMap(const FName& TargetChain) : TargetChain(TargetChain){}
+	
+	/** The name of the chain on the Source IK Rig asset to copy animation from. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets)
+	FName SourceChain = NAME_None;
 
-	/** Range -1 to 1. Default 0. Rotates chain forward (+) and backward (-) relative to facing direction. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0"))
-	float SwingOffset = 0.0f;
-
-	/** Range -1 to 1. Default 0. Rotates the chain along an axis from the start to the end of the chain.
-	*  At -1 the chain is rotated laterally 90 degrees. At +1 the chain is rotated medially 90 degrees. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0"))
-	float TwistOffset = 0.0f;
+	/** The name of the chain on the Target IK Rig asset to copy animation from. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets)
+	FName TargetChain = NAME_None;
 
 	/** Range -1 to 2. Default 0. Brings IK effector closer (-) or further (+) from origin of chain.
 	*  At -1 the end is on top of the origin. At +2 the end is fully extended twice the length of the chain. */
@@ -34,54 +35,81 @@ struct IKRIG_API FIKRetargetChainSettings
 
 	/** Range 0 to 1. Default 0. Allow the chain to stretch by translating to reach the IK goal locations.
 	*  At 0 the chain will not stretch at all. At 1 the chain will be allowed to stretch double it's full length to reach IK. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Stretch, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float StretchTolerance = 0.0f;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Stretch, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	//float StretchTolerance = 0.0f;
 
 	/** Range 0 to 1. Default is 1.0. Blend IK effector at the end of this chain towards the original position
 	 *  on the source skeleton (0.0) or the position on the retargeted target skeleton (1.0). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	float IkToSourceOrTarget = 1.0f;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	//float IkToSourceOrTarget = 1.0f;
 	
 	/** When true, the source IK position is calculated relative to a source bone and applied relative to a target bone. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode)
-	bool bIkRelativeToSourceBone = false;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode)
+	//bool bIkRelativeToSourceBone = false;
 	
 	/** A bone in the SOURCE skeleton that the IK location is relative to. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
-	FName IkRelativeSourceBone;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
+	//FName IkRelativeSourceBone;
 	
 	/** A bone in the TARGET skeleton that the IK location is relative to.
 	 * This is usually the same bone as the source skeleton, but may have a different name in the target skeleton. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
-	FName IkRelativeTargetBone;	
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
+	//FName IkRelativeTargetBone;	
 };
 
 struct FRetargetSkeleton
 {
 	TArray<FName> BoneNames;
+	
 	TArray<int32> ParentIndices;
+	
+	TArray<FTransform> RetargetLocalPose;
+	
 	TArray<FTransform> RetargetGlobalPose;
+	
 	FString SkeletalMeshName;
 
-	void InitializeHierarchy(const USkeletalMesh* SkeletalMesh, const TArray<FTransform>& InLocalRetargetPose);
+	void Initialize(
+		USkeletalMesh* SkeletalMesh, 
+		FIKRetargetPose* RetargetPose);
+
 	int32 FindBoneIndexByName(const FName InName) const;
+
 	int32 GetParentIndex(const int32 BoneIndex) const;
+
+	void UpdateGlobalTransformsBelowBone(
+		const int32 StartBoneIndex,
+		TArray<FTransform>& InOutLocalPose,
+		TArray<FTransform>& InOutGlobalPose) const;
+
+	void UpdateLocalTransformsBelowBone(
+		const int32 StartBoneIndex,
+		TArray<FTransform>& InOutLocalPose,
+		TArray<FTransform>& InOutGlobalPose) const;
+	
+	void UpdateGlobalTransformOfSingleBone(
+		const int32 BoneIndex,
+		const TArray<FTransform>& InLocalPose,
+		TArray<FTransform>& OutGlobalPose) const;
+	
+	void UpdateLocalTransformOfSingleBone(
+		const int32 BoneIndex,
+		TArray<FTransform>& OutLocalPose,
+		TArray<FTransform>& InGlobalPose) const;
 };
 
 struct FTargetSkeleton : public FRetargetSkeleton
 {
 	TArray<FTransform> OutputGlobalPose;
-	TArray<FTransform> RetargetLocalPose;
-	FString SkeletalMeshName;
-	TArray<bool> IsBoneFK;
+	TArray<bool> IsBoneRetargeted;
 
-	void Initialize(const USkeletalMesh* SkeletalMesh, const TArray<FTransform>& InTargetRetargetLocalPose);
-	void SetBoneControlledByFKChain(const int32 BoneIndex, const bool IsFK);
-	void UpdateGlobalTransformsBelowBone(const int32 StartBoneIndex);
-	void UpdateGlobalTransformsAllNonFKBones();
+	void Initialize(
+		USkeletalMesh* SkeletalMesh, 
+		FIKRetargetPose* RetargetPose);
 
-private:
-	void UpdateGlobalTransformOfSingleBone(const int32 BoneIndex);
+	void SetBoneIsRetargeted(const int32 BoneIndex, const bool IsRetargeted);
+
+	void UpdateGlobalTransformsAllNonRetargetedBones(TArray<FTransform>& InOutGlobalPose);
 };
 
 struct FEncodedRoot
@@ -122,7 +150,7 @@ struct FRootDecoder
         const float StrideScale) const;
 };
 
-struct FChainEncoderFK
+struct FChainFK
 {
 	TArray<FTransform> InitialBoneTransforms;
 
@@ -133,30 +161,56 @@ struct FChainEncoderFK
 	bool Initialize(
 		const TArray<int32>& BoneIndices,
 		const TArray<FTransform> &InitialGlobalPose);
-	
-	bool CalculateBoneParameters();
 
+private:
+	
+	bool CalculateBoneParameters();	
+};
+
+struct FChainEncoderFK : public FChainFK
+{
 	void EncodePose(
 		const TArray<int32>& SourceBoneIndices,
 		const TArray<FTransform> &InputGlobalPose);
+};
 
+struct FChainDecoderFK : public FChainFK
+{
+	void InitializeIntermediateParentIndices(
+		const int32 RetargetRootBoneIndex,
+		const int32 ChainRootBoneIndex,
+		const FTargetSkeleton& TargetSkeleton);
+	
 	void DecodePose(
 		const TArray<int32>& TargetBoneIndices,
 		const FChainEncoderFK& SourceChain,
+		const FTargetSkeleton& TargetSkeleton,
 		TArray<FTransform> &InOutGlobalPose);
+
+private:
 
 	FTransform GetTransformAtParam(
 		const TArray<FTransform>& Transforms,
 		const TArray<float>& InParams,
 		const float Param) const;
+	
+	void UpdateIntermediateParents(
+		const FTargetSkeleton& TargetSkeleton,
+		TArray<FTransform> &InOutGlobalPose);
+
+	TArray<int32> IntermediateParentIndices;
 };
 
 struct FEncodedIKChain
 {
 	FVector EndDirectionNormalized;
+	
 	FQuat EndRotation;
+	
 	FQuat EndRotationOrig;
+	
 	float HeightFromGroundNormalized;
+	
 	FVector PoleVectorDirection;
 };
 
@@ -240,7 +294,7 @@ struct FRetargetChainPairFK : FRetargetChainPair
 {
 	FChainEncoderFK FKEncoder;
 
-	FChainEncoderFK FKDecoder;
+	FChainDecoderFK FKDecoder;
 	
 	virtual bool Initialize(
         const FBoneChain& SourceBoneChain,
@@ -266,6 +320,25 @@ struct FRetargetChainPairIK : FRetargetChainPair
         const FTargetSkeleton& TargetSkeleton) override;
 };
 
+USTRUCT()
+struct IKRIG_API FIKRetargetPose
+{
+	GENERATED_BODY()
+	
+	FIKRetargetPose(){}
+	
+	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	FVector RootTranslationOffset;
+	
+	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	FQuat RootRotationOffset;
+	
+	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	TMap<FName, FQuat> BoneRotationOffsets;
+
+	void AddRotationDeltaToBone(FName BoneName, FQuat RotationDelta);
+};
+
 UCLASS(Blueprintable)
 class IKRIG_API UIKRetargeter : public UObject
 {
@@ -273,26 +346,101 @@ class IKRIG_API UIKRetargeter : public UObject
 	
 public:
 
-	UPROPERTY(EditAnywhere, Category = Rigs)
+	/** The rig to copy animation FROM.*/
+	UPROPERTY(VisibleAnywhere, Category = Rigs)
 	UIKRigDefinition *SourceIKRigAsset;
-
+	
+	/** The rig to copy animation TO.*/
 	UPROPERTY(EditAnywhere, Category = Rigs)
 	UIKRigDefinition *TargetIKRigAsset;
 
-	UPROPERTY(EditAnywhere, Category = Mapping)
-	TMap<FName, FName> ChainMapping;
+	/** Mapping of chains to copy animation between source and target rigs.*/
+	UPROPERTY()
+	TArray<FRetargetChainMap> ChainMapping;
+
+	/** The set of retarget poses available as options for retargeting.*/
+	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	FName CurrentRetargetPose = NAME_None;
+	static const FName DefaultPoseName;
+	
+	/** The set of retarget poses available as options for retargeting.*/
+	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	TMap<FName, FIKRetargetPose> RetargetPoses;
+
+	/** When false, translational motion of skeleton root is not copied. Useful for debugging.*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bRetargetRoot = true;
+	
+	/** When false, limbs are not copied via FK. Useful for debugging limb issues suspected to be caused by FK pose.*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bRetargetFK = true;
+	
+	/** When false, IK is not applied as part of retargeter. Useful for debugging limb issues suspected to be caused by IK.*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bRetargetIK = true;
+
+	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (UIMin = "-500.0", UIMax = "500.0"))
+	float TargetActorOffset = 150.0f;
+
+	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (UIMin = "0.01", UIMax = "2.0"))
+	float TargetActorScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
+	float BoneGizmoSize = 8.0f;
+	
+	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
+	float BoneGizmoThickness = 1.0f;
 
 	FRetargetSkeleton SourceSkeleton;
 	
 	FTargetSkeleton TargetSkeleton;
 	
-	bool bIsLoadedAndValid;
+	bool bIsLoadedAndValid = false;
+
+	UPROPERTY()
+	bool bEditReferencePoseMode = false;
+
+	UPROPERTY()
+	int32 AssetVersion = 0;
 
 	UIKRetargeter();
 	
 	void Initialize(USkeletalMesh *SourceSkeleton, USkeletalMesh *TargetSkeleton, UObject* Outer);
 	
-	void RunRetargeter(const TArray<FTransform>& InSourceGlobalPose, bool bEnableIK);
+	void RunRetargeter(const TArray<FTransform>& InSourceGlobalPose);
+
+	FTransform GetTargetBoneRetargetPoseGlobalTransform(const FName& ChainName) const;
+
+	void GetTargetBoneStartAndEnd(const FName& TargetBoneName, FVector& OutStart, FVector& OutEnd) const;
+
+	FRetargetChainMap* GetChainMap(const FName& TargetChainName);
+
+#if WITH_EDITOR
+	// UObject
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
+	// END UObject
+
+	FName GetSourceRootBone();
+	FName GetTargetRootBone();
+
+	void GetTargetChainNames(TArray<FName>& OutNames) const;
+	void GetSourceChainNames(TArray<FName>& OutNames) const;
+
+	void CleanChainMapping();
+	void CleanPoseList();
+	void AutoMapChains();
+
+	USkeleton* GetSourceSkeletonAsset() const;
+
+	void AddRetargetPose(FName NewPoseName);
+	void RemoveRetargetPose(FName PoseToRemove);
+	void ResetRetargetPose(FName PoseToReset);
+	void SetCurrentRetargetPose(FName CurrentPose);
+	void AddRotationOffsetToRetargetPoseBone(FName BoneName, FQuat RotationOffset);
+	
+#endif
 
 private:
 
@@ -312,17 +460,10 @@ private:
 	bool InitializeBoneChainPairs();
 	
 	bool InitializeIKRig(UObject* Outer, const FReferenceSkeleton& InRefSkeleton);
-
-	void RunRootRetarget(
-		const TArray<FTransform>& InGlobalTransforms,
-		TArray<FTransform>& OutGlobalTransforms);
 	
-	void RunFKRetarget(
-		const TArray<FTransform>& InGlobalTransforms,
-		TArray<FTransform>& OutGlobalTransforms,
-		const bool bPreIK);
+	void RunRootRetarget(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);
+	
+	void RunFKRetarget(const TArray<FTransform>& InGlobalTransforms, TArray<FTransform>& OutGlobalTransforms);
 
-	void RunIKRetarget(
-		const TArray<FTransform>& InGlobalPose,
-		TArray<FTransform>& OutGlobalPose);
+	void RunIKRetarget(const TArray<FTransform>& InGlobalPose, TArray<FTransform>& OutGlobalPose);
 };

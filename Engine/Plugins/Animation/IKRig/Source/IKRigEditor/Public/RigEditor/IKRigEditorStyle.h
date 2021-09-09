@@ -22,22 +22,25 @@ public:
 		const FVector2D Icon24x24(24.0f, 24.0f);
 		const FVector2D Icon32x32(32.0f, 32.0f);
 		const FVector2D Icon40x40(40.0f, 40.0f);
-		
-		Set("IKRig.Tree.Bone", new IMAGE_BRUSH("Slate/Bone_16x", Icon16x16));
-		Set("IKRig.Tree.BoneWithSettings", new IMAGE_BRUSH("Slate/BoneWithSettings_16x", Icon16x16));
-		Set("IKRig.Tree.Goal", new IMAGE_BRUSH("Slate/Goal_16x", Icon16x16));
-		Set("IKRig.Tree.Effector", new IMAGE_BRUSH("Slate/Effector_16x", Icon16x16));
-		
-		Set("IKRig.TabIcon", new IMAGE_BRUSH("Slate/Tab_16x", Icon16x16));
-		
-		Set("IKRig.Solver", new IMAGE_BRUSH("Slate/Solver_16x", Icon16x16));
-		Set("IKRig.DragSolver", new IMAGE_BRUSH("Slate/DragSolver", FVector2D(6, 15)));
 
-		Set("IKRig.Reset", new IMAGE_BRUSH("Slate/Reset", Icon40x40));
-		Set("IKRig.Reset.Small", new IMAGE_BRUSH("Slate/Reset", Icon20x20));
+#define IKRIG_IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+		Set("IKRig.Tree.Bone", new IKRIG_IMAGE_BRUSH("Slate/Bone_16x", Icon16x16));
+		Set("IKRig.Tree.BoneWithSettings", new IKRIG_IMAGE_BRUSH("Slate/BoneWithSettings_16x", Icon16x16));
+		Set("IKRig.Tree.Goal", new IKRIG_IMAGE_BRUSH("Slate/Goal_16x", Icon16x16));
+		Set("IKRig.Tree.Effector", new IKRIG_IMAGE_BRUSH("Slate/Effector_16x", Icon16x16));
+		
+		Set("IKRig.TabIcon", new IKRIG_IMAGE_BRUSH("Slate/Tab_16x", Icon16x16));
+		
+		Set("IKRig.Solver", new IKRIG_IMAGE_BRUSH("Slate/Solver_16x", Icon16x16));
+		Set("IKRig.DragSolver", new IKRIG_IMAGE_BRUSH("Slate/DragSolver", FVector2D(6, 15)));
+
+		Set("IKRig.Reset", new IKRIG_IMAGE_BRUSH("Slate/Reset", Icon40x40));
+		Set("IKRig.Reset.Small", new IKRIG_IMAGE_BRUSH("Slate/Reset", Icon20x20));
+#undef IKRIG_IMAGE_BRUSH
 		
 		FTextBlockStyle NormalText = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("SkeletonTree.NormalFont");
-		Set( "IKRig.Tree.AffectedBoneText", FTextBlockStyle(NormalText).SetColorAndOpacity( FLinearColor::Green ));
+		Set( "IKRig.Tree.NormalText", FTextBlockStyle(NormalText));
+		Set( "IKRig.Tree.ItalicText", FTextBlockStyle(NormalText).SetFont(DEFAULT_FONT("Italic", 10)));
 		
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
@@ -53,5 +56,3 @@ public:
 		FSlateStyleRegistry::UnRegisterSlateStyle(*this);
 	}
 };
-
-#undef IMAGE_BRUSH

@@ -88,8 +88,8 @@ FVector FJointConstraint::GetPositionCorrection(FVector& OutBodyToA, FVector& Ou
 
 void FJointConstraint::ApplyRotationCorrection(FQuat DeltaQ) const
 {
-	A->ApplyRotationDelta(DeltaQ);
-	B->ApplyRotationDelta(DeltaQ * -1.0f);
+	A->ApplyRotationDelta(DeltaQ * (1.0f - A->J.RotationStiffness));
+	B->ApplyRotationDelta(DeltaQ * -1.0f * (1.0f - B->J.RotationStiffness));
 }
 
 void FJointConstraint::UpdateJointLimits()

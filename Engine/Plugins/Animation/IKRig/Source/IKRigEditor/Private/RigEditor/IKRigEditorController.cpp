@@ -26,6 +26,7 @@ void FIKRigEditorController::RefreshAllViews() const
 	SolverStackView->RefreshStackView();
 	SkeletonView->RefreshTreeView();
 	DetailsView->ForceRefresh();
+	RetargetingView->RefreshView();
 }
 
 bool FIKRigEditorController::IsGoalSelected(const FName& GoalName)
@@ -47,7 +48,8 @@ void FIKRigEditorController::HandleGoalSelectedInViewport(const FName& GoalName,
 		{
 			SelectedGoals.Add(GoalName);
 		}
-	}else
+	}
+	else
 	{
 		if (GoalName != NAME_None)
 		{
@@ -55,7 +57,8 @@ void FIKRigEditorController::HandleGoalSelectedInViewport(const FName& GoalName,
 			if (bAlreadySelected)
 			{
 				SelectedGoals.Remove(GoalName);	
-			}else
+			}
+			else
 			{
 				SelectedGoals.Add(GoalName);
 			}
@@ -164,6 +167,17 @@ bool FIKRigEditorController::IsElementConnectedToAnySolver(TSharedRef<FIKRigTree
 	return false;
 }
 
+bool FIKRigEditorController::IsElementExcludedBone(TSharedRef<FIKRigTreeElement> TreeElement)
+{
+	if (TreeElement->ElementType != IKRigTreeElementType::BONE)
+	{
+		return false;
+	}
+	
+	// is this bone excluded?
+	return AssetController->GetBoneExcluded(TreeElement->Key);
+}
+
 void FIKRigEditorController::ShowDetailsForBone(const FName BoneName)
 {
 	ShowEmptyDetails();
@@ -205,6 +219,28 @@ void FIKRigEditorController::ShowDetailsForSolver(const int32 SolverIndex)
 void FIKRigEditorController::ShowEmptyDetails()
 {
 	DetailsView->SetObject(nullptr);
+}
+
+void FIKRigEditorController::AddNewRetargetChain(const FName ChainName, const FName StartBone, const FName EndBone)
+{
+	FIKRigRetargetChainSettings Settings(ChainName, StartBone, EndBone);
+	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FIKRigRetargetChainSettings::StaticStruct(), (uint8*)&Settings));
+	TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
+	KismetInspector->ShowSingleStruct(StructToDisplay);
+
+	SGenericDialogWidget::FArguments DialogArguments;
+	DialogArguments.OnOkPressed_Lambda([&Settings, this] ()
+	{
+		// add the retarget chain
+		AssetController->AddRetargetChain(Settings.ChainName, Settings.StartBone, Settings.EndBone);
+		RefreshAllViews();
+	});
+
+	SGenericDialogWidget::OpenDialog(
+		LOCTEXT("SIKRigRetargetChains", "Add New Retarget Chain"),
+		KismetInspector,
+		DialogArguments,
+		true);
 }
 
 #undef LOCTEXT_NAMESPACE

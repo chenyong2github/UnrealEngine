@@ -57,27 +57,27 @@ public:
 USTRUCT(Blueprintable)
 struct IKRIG_API FBoneChain
 {
-	FBoneChain()
-		: bUseIK(false)
-	{
-	}
-
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName ChainName;
+	FBoneChain() = default;
+	
+	FBoneChain(FName InName, FName InStartBone, FName InEndBone)
+	: ChainName(InName),
+	StartBone(InStartBone),
+	EndBone(InEndBone),
+	IKGoalName(NAME_None){}
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName StartBone;
+	FName ChainName = NAME_None;
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
-	FName EndBone;
+	FName StartBone = NAME_None;
 
-	UPROPERTY(EditAnywhere, Category = IK)
-	bool bUseIK;
+	UPROPERTY(EditAnywhere, Category = BoneChain)
+	FName EndBone = NAME_None;
 	
 	UPROPERTY(EditAnywhere, Category = IK)
-	FName IKGoalName;
+	FName IKGoalName = NAME_None;
 
 	/*
 	UPROPERTY(EditAnywhere, Category = IK)
@@ -157,6 +157,8 @@ private:
 
 	void ResetGoalTransforms() const;
 	FTransform GetGoalInitialTransform(UIKRigEffectorGoal* Goal) const;
+
+	void SortRetargetChains();
 	
 	friend class UIKRigController;
 };
