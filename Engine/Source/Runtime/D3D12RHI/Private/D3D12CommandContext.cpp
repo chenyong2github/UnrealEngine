@@ -650,6 +650,8 @@ void FD3D12CommandContextBase::RHIEndFrame()
 	{
 		Device = ParentAdapter->GetDevice(GPUIndex);
 		Device->GetCommandListManager().ReleaseResourceBarrierCommandListAllocator();
+		Device->GetAsyncCommandListManager().ReleaseResourceBarrierCommandListAllocator();
+		Device->GetCopyCommandListManager().ReleaseResourceBarrierCommandListAllocator();
 	}
 
 	UpdateMemoryStats();
