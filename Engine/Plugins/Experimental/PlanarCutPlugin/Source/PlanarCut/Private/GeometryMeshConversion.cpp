@@ -1179,10 +1179,11 @@ float FCellMeshes::OctaveNoise(const FVector& V, const FNoiseSettings& Settings)
 {
 	int32 Octaves = Settings.Octaves;
 	float NoiseValue = 0;
-	float OctaveScale = 1;
-	for (int32 Octave = 0; Octave < Octaves; Octave++, OctaveScale *= 2)
+	float FreqScale = 1;
+	float AmpScale = 1;
+	for (int32 Octave = 0; Octave < Octaves; Octave++, FreqScale *= Settings.Lacunarity, AmpScale *= Settings.Persistence)
 	{
-		NoiseValue += FMath::PerlinNoise3D(V * OctaveScale) / OctaveScale;
+		NoiseValue += FMath::PerlinNoise3D(V * FreqScale) * AmpScale;
 	}
 	return NoiseValue;
 }

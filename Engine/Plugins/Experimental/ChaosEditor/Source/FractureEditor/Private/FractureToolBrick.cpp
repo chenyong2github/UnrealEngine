@@ -40,7 +40,7 @@ FSlateIcon UFractureToolBrick::GetToolIcon() const
 
 void UFractureToolBrick::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Brick", "Brick", "Brick Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Brick", "Brick", "Brick Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Brick = UICommandInfo;
 }
 
@@ -136,7 +136,7 @@ namespace FractureToolBrickLocals
 			Dimensions = SafeDimensions;
 			NumBricks = SafeNumBricks;
 
-			UE_LOG(LogFractureTool, Warning, TEXT("Brick Voronoi Fracture: Current brick dimensions of %f x %f x %f would result in %d bricks. "
+			UE_LOG(LogFractureTool, Warning, TEXT("Brick Fracture: Current brick dimensions of %f x %f x %f would result in %d bricks. "
 				"Reduced brick dimensions to %f x %f x %f resulting in %d bricks to stay within maximum number of %d bricks."),
 				BrickSettings->BrickLength, BrickSettings->BrickDepth, BrickSettings->BrickHeight, InputNumBricks,
 				Dimensions.X, Dimensions.Y, Dimensions.Z, NumBricks, NumBricksLimit);
@@ -407,10 +407,7 @@ int32 UFractureToolBrick::ExecuteFracture(const FFractureToolContext& FractureCo
 		FNoiseSettings NoiseSettings;
 		if (CutterSettings->Amplitude > 0.0f)
 		{
-			NoiseSettings.Amplitude = CutterSettings->Amplitude;
-			NoiseSettings.Frequency = CutterSettings->Frequency;
-			NoiseSettings.Octaves = CutterSettings->OctaveNumber;
-			NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
+			CutterSettings->TransferNoiseSettings(NoiseSettings);
 			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 

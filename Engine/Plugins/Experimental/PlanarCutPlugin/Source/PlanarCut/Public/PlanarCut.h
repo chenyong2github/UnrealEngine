@@ -14,6 +14,8 @@ struct PLANARCUT_API FNoiseSettings
 	float Frequency = .1;
 	int32 Octaves = 4;
 	float PointSpacing = 1;
+	float Lacunarity = 2;
+	float Persistence = .5;
 };
 
 // auxiliary structure for FPlanarCells to carry material info

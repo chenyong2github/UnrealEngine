@@ -30,7 +30,7 @@ FText UFractureToolSlice::GetDisplayText() const
 
 FText UFractureToolSlice::GetTooltipText() const 
 { 
-	return FText(NSLOCTEXT("Fracture", "FractureToolSliceTooltip", "The Slice Voronoi fracture method enables you to define the number of X, Y, and Z slices, along with providing random angle and offset variation.  Click the Fracture Button to commit the fracture to the geometry collection.")); 
+	return FText(NSLOCTEXT("Fracture", "FractureToolSliceTooltip", "The Slice fracture method enables you to define the number of X, Y, and Z slices, along with providing random angle and offset variation.  Click the Fracture Button to commit the fracture to the geometry collection.")); 
 }
 
 FSlateIcon UFractureToolSlice::GetToolIcon() const 
@@ -40,7 +40,7 @@ FSlateIcon UFractureToolSlice::GetToolIcon() const
 
 void UFractureToolSlice::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Slice", "Slice", "Slice Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Slice", "Slice", "Slice Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Slice = UICommandInfo;
 }
 
@@ -176,10 +176,7 @@ int32 UFractureToolSlice::ExecuteFracture(const FFractureToolContext& FractureCo
 		FNoiseSettings NoiseSettings;
 		if (CutterSettings->Amplitude > 0.0f)
 		{
-			NoiseSettings.Amplitude = CutterSettings->Amplitude;
-			NoiseSettings.Frequency = CutterSettings->Frequency;
-			NoiseSettings.Octaves = CutterSettings->OctaveNumber;
-			NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
+			CutterSettings->TransferNoiseSettings(NoiseSettings);
 			InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
