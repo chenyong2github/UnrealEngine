@@ -285,7 +285,7 @@ const FSlateBrush* SScrollBar::GetDragThumbImage() const
 	{
 		return DraggedThumbImage;
 	}
-	else if (DragThumb->IsDirectlyHovered())
+	else if (IsHovered())
 	{
 		return HoveredThumbImage;
 	}
