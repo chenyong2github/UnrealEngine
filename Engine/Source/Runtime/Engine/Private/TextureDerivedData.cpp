@@ -894,7 +894,7 @@ void FTexturePlatformData::CancelCache()
 
 bool FTexturePlatformData::IsUsingNewDerivedData()
 {
-	static const bool bUseNewDerivedData = FParse::Param(FCommandLine::Get(), TEXT("DDC2AsyncTextureBuilds"));
+	static const bool bUseNewDerivedData = FParse::Param(FCommandLine::Get(), TEXT("DDC2AsyncTextureBuilds")) || FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
 	return bUseNewDerivedData;
 }
 
@@ -1056,6 +1056,7 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, UTexture* Text
 			void* MipData = Mip.BulkData.Realloc(int64(MipBuffer.GetSize()));
 			FMemory::Memcpy(MipData, MipBuffer.GetData(), MipBuffer.GetSize());
 			Mip.BulkData.Unlock();
+			Mip.SetPagedToDerivedData(false);
 		}))
 	{
 		return false;

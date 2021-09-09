@@ -158,22 +158,11 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	Writer.EndObject();
 }
 
-static void WriteOutputSettings(FCbWriter& Writer, int32 NumInlineMips, const FString& KeySuffix)
+static void WriteOutputSettings(FCbWriter& Writer, int32 NumInlineMips)
 {
 	Writer.BeginObject();
 
 	Writer.AddInteger("NumInlineMips", NumInlineMips);
-	
-	FString MipDerivedDataKey;
-	FTexture2DMipMap DummyMip;
-	DummyMip.SizeX = 0;
-	DummyMip.SizeY = 0;
-	GetTextureDerivedMipKey(0, DummyMip, KeySuffix, MipDerivedDataKey);
-	int32 PrefixEndIndex = MipDerivedDataKey.Find(TEXT("_MIP0_"), ESearchCase::CaseSensitive);
-	check(PrefixEndIndex != -1);
-	MipDerivedDataKey.LeftInline(PrefixEndIndex);
-	check(!MipDerivedDataKey.IsEmpty());
-	Writer.AddString("MipKeyPrefix",*MipDerivedDataKey);
 
 	Writer.EndObject();
 }
@@ -237,7 +226,7 @@ bool TryFindTextureBuildFunction(FStringBuilderBase& OutFunctionName, const FTex
 	return UE::DerivedData::GetBuild().GetFunctionRegistry().FindFunctionVersion(FunctionName).IsValid();
 }
 
-FCbObject SaveTextureBuildSettings(const FString& KeySuffix, const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips)
+FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips)
 {
 	const ITextureFormat* TextureFormat = nullptr;
 	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
@@ -265,7 +254,7 @@ FCbObject SaveTextureBuildSettings(const FString& KeySuffix, const UTexture& Tex
 	WriteBuildSettings(Writer, BuildSettings, TextureFormat);
 
 	Writer.SetName("Output");
-	WriteOutputSettings(Writer, NumInlineMips, KeySuffix);
+	WriteOutputSettings(Writer, NumInlineMips);
 
 	Writer.SetName("Source");
 	WriteSource(Writer, Texture, LayerIndex);
