@@ -1,14 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Runtime.InteropServices;
-using System.IO;
-using System.Drawing;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swmotionstudy;
 using SolidworksDatasmith.Geometry;
 
 namespace SolidworksDatasmith.SwObjects
@@ -16,20 +9,18 @@ namespace SolidworksDatasmith.SwObjects
 	public class SwAnimationIntermediateChannel
 	{
 		private Dictionary<int, SwAnimationIntermediateKeyframe> id2key = new Dictionary<int, SwAnimationIntermediateKeyframe>();
+		public List<SwAnimationIntermediateKeyframe> keyframes = new List<SwAnimationIntermediateKeyframe>();
 		public Component2 Target;
 		public int interpolation;
-		public List<SwAnimationIntermediateKeyframe> keyframes;
 
-		public SwAnimationIntermediateChannel()
-		{
-		}
-
-		public SwAnimationIntermediateKeyframe newKeyframe(int step, double time = -1.0)
+		public SwAnimationIntermediateKeyframe NewKeyframe(int Step, MathTransform LocalTransform, double Time = -1.0)
 		{
 			SwAnimationIntermediateKeyframe key = new SwAnimationIntermediateKeyframe();
-			key.Step = step;
-			key.Time = time;
+			key.Step = Step;
+			key.Time = Time;
 			key.Owner = this;
+			key.LocalMatrix = new Matrix4(MathUtil.ConvertFromSolidworksTransform(LocalTransform));
+			
 			keyframes.Add(key);
 			id2key.Add(key.Step, key);
 			return key;

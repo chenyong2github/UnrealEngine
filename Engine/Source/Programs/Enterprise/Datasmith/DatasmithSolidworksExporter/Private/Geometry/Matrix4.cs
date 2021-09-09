@@ -65,6 +65,12 @@ namespace SolidworksDatasmith.Geometry
             return m._m;
         }
 
+		public float this[int Index]
+		{
+			get => _m[Index];
+			set => _m[Index] = value;
+		}
+
         public static Matrix4 Identity
         {
             get

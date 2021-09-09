@@ -16,7 +16,7 @@ class FDatasmithFacadeMeshElement;
 class FDatasmithFacadeMetaData;
 class FDatasmithFacadeTexture;
 class FDatasmithFacadeLevelVariantSets;
-
+class FDatasmithFacadeLevelSequence;
 
 class DATASMITHFACADE_API FDatasmithFacadeScene
 {
@@ -141,6 +141,20 @@ public:
 
 	void RemoveLevelVariantSets(
 		FDatasmithFacadeLevelVariantSets* InLevelVariantSetsPtr
+	);
+
+	void AddLevelSequence(
+		FDatasmithFacadeLevelSequence* InLevelSequence
+	);
+
+	int32 GetLevelSequencesCount() const;
+
+	FDatasmithFacadeLevelSequence* GetNewLevelSequence(
+		int32 LevelSequenceIndex
+	);
+
+	void RemoveLevelSequence(
+		FDatasmithFacadeLevelSequence* InLevelSequence
 	);
 
 	void AddMetaData(

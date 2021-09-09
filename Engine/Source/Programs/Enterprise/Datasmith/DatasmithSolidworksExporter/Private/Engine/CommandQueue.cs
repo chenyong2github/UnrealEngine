@@ -23,7 +23,8 @@ namespace SolidworksDatasmith.Engine
 		CONFIGURATION_DATA,
         LIVEUPDATE,
         DELETE_COMPONENT,
-        UPDATE_CAMERA
+        UPDATE_CAMERA,
+		ANIMATION
     }
 
     [ComVisible(false)]
@@ -137,6 +138,17 @@ namespace SolidworksDatasmith.Engine
 		{
 			Type = CommandType.CONFIGURATION_DATA;
 		}
+	};
+
+	[ComVisible(false)]
+	public class AnimationCommand : Command
+	{
+		public SwObjects.SwAnimation Animation = null;
+
+        public AnimationCommand()
+        {
+            Type = CommandType.ANIMATION;
+        }
 	};
 
 	[ComVisible(false)]

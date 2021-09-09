@@ -1,14 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Runtime.InteropServices;
-using System.IO;
-using System.Drawing;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swmotionstudy;
 using SolidworksDatasmith.Geometry;
 
 namespace SolidworksDatasmith.SwObjects
@@ -21,6 +13,7 @@ namespace SolidworksDatasmith.SwObjects
 		public MathTransform RelativeTm;
 		public SwAnimationIntermediateChannel Owner;
 		public bool IsPadding;
+		public Matrix4 LocalMatrix;
 
 		public SwAnimationIntermediateKeyframe()
 		{

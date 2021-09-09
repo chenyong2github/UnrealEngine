@@ -326,7 +326,7 @@ namespace SolidworksDatasmith
 
 			sFileName = ParseFilename(sFileName);
 
-			SwSingleton.CurrentScene.EvaluateScene();
+			SwSingleton.CurrentScene.EvaluateScene(false, false);
 
 			ExportCommand cmd = new ExportCommand();
 			cmd.Path = Path.GetDirectoryName(sFileName);
@@ -499,7 +499,7 @@ namespace SolidworksDatasmith
 		#region UI Callbacks
 		public void DirectLinkUpdate()
 		{
-			SwSingleton.CurrentScene.DirectLinkUpdate();
+			SwSingleton.CurrentScene.DirectLinkUpdate(true);
 		}
 
 		public int DirectLinkUpdateStatus()
@@ -519,8 +519,8 @@ namespace SolidworksDatasmith
 			if (SwSingleton.CurrentScene.bDirectLinkAutoSync)
 			{
 				// Run update on auto sync enable, in case we got changes
-				SwSingleton.CurrentScene.DirectLinkUpdate();
-		}
+				SwSingleton.CurrentScene.DirectLinkUpdate(false);
+			}
 		}
 
 		public int EnableDisableLinkStatus()
@@ -762,7 +762,7 @@ namespace SolidworksDatasmith
 			{
 				if (SwSingleton.CurrentScene.bIsDirty && SwSingleton.CurrentScene.bDirectLinkAutoSync)
 				{
-					SwSingleton.CurrentScene.DirectLinkUpdate();
+					SwSingleton.CurrentScene.DirectLinkUpdate(false);
 				}
 			}
 			return 0;

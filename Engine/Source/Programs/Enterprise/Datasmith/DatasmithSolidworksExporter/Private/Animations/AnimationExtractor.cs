@@ -1,130 +1,157 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Runtime.InteropServices;
-using System.IO;
-using System.Drawing;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swmotionstudy;
-using SolidworksDatasmith.Geometry;
 
-using SolidworksDatasmith.SwObjects;
-
-namespace SolidworksDatasmith.Animations
+namespace SolidworksDatasmith.SwObjects
 {
-    class AnimationExtractor
+    public class AnimationExtractor
     {
-        void ExtractAnimations(IModelDoc2 doc, Component2 root)
+        public static List<SwAnimation> ExtractAnimations(IAssemblyDoc Doc, Component2 Root)
         {
-            var ext = doc.Extension;
-            var manager = ext.GetMotionStudyManager() as IMotionStudyManager;
-            if (manager != null)
+            ModelDocExtension Ext = (Doc as IModelDoc2).Extension;
+			IMotionStudyManager MSManager = (Ext.GetMotionStudyManager() as IMotionStudyManager);
+
+			if (MSManager == null)
+			{
+				return null;
+			}
+
+			int StudyCount = MSManager.GetMotionStudyCount();
+			if (StudyCount == 0)
+			{
+				return null;
+			}
+
+			List<SwAnimation> Animations = new List<SwAnimation>();
+
+            bool bWasInPresentationMode = Doc.EnablePresentation;
+            
+            if (!bWasInPresentationMode)
             {
-                int num = manager.GetMotionStudyCount();
-                if (num > 0)
-                {
-                    string[] names = manager.GetMotionStudyNames();
-                    for (int i = 0; i < num; i++)
-                    {
-                        var study = manager.GetMotionStudy(names[i]);
-                        if (study != null)
-                            ExtractAnimation(study, names[i], root);
-                    }
-                }
+                // Enter presentation mode in order to get valid PresentationTransform 
+                // for components
+                Doc.EnablePresentation = true;
             }
+            
+			string[] StudyNames = MSManager.GetMotionStudyNames();
+			for (int Idx = 0; Idx < StudyCount; Idx++)
+			{
+				MotionStudy Study = MSManager.GetMotionStudy(StudyNames[Idx]);
+				if (Study != null)
+				{
+					SwAnimation Anim = ExtractAnimation(Study, Root);
+					if (Anim != null)
+					{
+						Animations.Add(Anim);
+					}
+				}
+			}
+			
+			if (!bWasInPresentationMode)
+			{
+                Doc.EnablePresentation = false; // Return back to normal mode
+            }
+            
+			return Animations;
         }
 
-        void ExtractAnimation(IMotionStudy study, string name, Component2 root)
+        static SwAnimation ExtractAnimation(IMotionStudy Study, Component2 Root)
         {
-            bool success = study.Activate();
+            bool Success = Study.Activate();
 
-	        //if (result)
-	        {
-                var duration = study.GetDuration();
-		        if (duration > 0.0)
-		        {
-                    SwAnimation anim = new SwAnimation();
-                    anim.Name = name;
-                    double initialTime = study.GetTime();
+            double Duration = Study.GetDuration();
 
-                    //swMotionStudyTypeAssembly   1 or 0x1 = Animation; D - cubed solver is used to do presentation animation only; no simulation is performed, so no results or plots are available; gravity, contact, springs, and forces cannot be used; mass and inertia values have no effect on the animation
-                    //swMotionStudyTypeCosmosMotion   4 or 0x4 = Motion Analysis; ADAMS(MSC.Software) solver is used to return accurate results; you must load the SOLIDWORKS Motion add -in with a SOLIDWORKS premium license to use this option
-                    //swMotionStudyTypeLegacyCosmosMotion 8 or 0x8 = Legacy COSMOSMotion; in SOLIDWORKS 2007 and earlier, motion analysis was provided through the COSMOSMotion add -in; this option is available if either the COSMOSMotion add -in is loaded or you open an older model that was created using that add-in; models with legacy COSMOSMotion data can be opened but not edited
-                    //swMotionStudyTypeNewCosmosMotion    16 or 0x10
-                    //swMotionStudyTypePhysicalSimulation
-                    int supportedTypes;
-                    study.GetSupportedStudyTypes(out supportedTypes);
-                    var properties = study.GetProperties((int)swMotionStudyType_e.swMotionStudyTypeAssembly);
+			if (Duration <= 0.0)
+			{
+				return null;
+			}
 
-                    int fps = properties.GetFrameRate();
-                    double step = 1.0 / (double)fps;
-                    int st = 0;
-                    uint allSteps = (uint)(duration / step);
+			SwAnimation Anim = new SwAnimation();
+			Anim.Name = Study.Name;
 
-                    var rootTm = root.GetTotalTransform(true);
-			        
-			        for (double t = 0.0; t<duration; t += step)
-			        {
-                        study.SetTime(t);
-                        ExtractAnimationData(st++, t, root, anim, rootTm);
-                    }
-                    study.SetTime(duration);
-                    ExtractAnimationData(st++, duration, root, anim, rootTm);
+			double InitialTime = Study.GetTime();
 
-                    study.SetTime(initialTime);
-                    study.Stop();
+			/*
+			 * swMotionStudyTypeAssembly			1 or 0x1 = Animation; D - cubed solver is used to do presentation animation only; no simulation is performed, so no results or plots are available; gravity, contact, springs, and forces cannot be used; mass and inertia values have no effect on the animation
+			 * swMotionStudyTypeCosmosMotion		4 or 0x4 = Motion Analysis; ADAMS(MSC.Software) solver is used to return accurate results; you must load the SOLIDWORKS Motion add -in with a SOLIDWORKS premium license to use this option
+			 * swMotionStudyTypeLegacyCosmosMotion	8 or 0x8 = Legacy COSMOSMotion; in SOLIDWORKS 2007 and earlier, motion analysis was provided through the COSMOSMotion add -in; this option is available if either the COSMOSMotion add -in is loaded or you open an older model that was created using that add-in; models with legacy COSMOSMotion data can be opened but not edited
+			 * swMotionStudyTypeNewCosmosMotion		16 or 0x10
+			 * swMotionStudyTypePhysicalSimulation
+			 */
+			MotionStudyProperties StudyProps = Study.GetProperties((int)swMotionStudyType_e.swMotionStudyTypeAssembly);
 
-                    // make transform matrices local and create actual gltf channels
-                    anim.BakeAnimationFromIntermediateChannels(false);
-		        }
-	        }
+			Anim.FPS = StudyProps.GetFrameRate();
+			double Step = 1.0 / Anim.FPS;
+			int StepIndex = 0;
+			uint AllSteps = (uint)(Duration / Step);
+
+			MathTransform RootTransform = Root.GetTotalTransform(true);
+
+			for (double CurTime = 0.0; CurTime < Duration; CurTime += Step)
+			{
+			    Study.SetTime(CurTime);
+			    ExtractAnimationData(StepIndex++, CurTime, Root, Anim, RootTransform);
+			}
+
+			Study.SetTime(Duration);
+			ExtractAnimationData(StepIndex, Duration, Root, Anim, RootTransform);
+
+			Study.SetTime(InitialTime);
+			Study.Stop();
+
+			return Anim;
         }
 
-        void ExtractAnimationData(int step, double t, Component2 component, SwAnimation anim, MathTransform rootTm)
+        static void ExtractAnimationData(int StepIndex, double Time, Component2 Component, SwAnimation Anim, MathTransform RootTransform)
         {
-            if (component == null)
+            if (Component == null)
+			{
                 return;
-            if (!component.IsRoot())
-            {
-                var parent = component.GetParent();
-                MathTransform tm = component.GetTotalTransform(true);
-                if (tm == null)
-                    tm = component.Transform2;
-                if (tm != null)
-                {
-                    MathTransform global;
-                    if (parent != null)
-                    {
-                        global = rootTm.IMultiply(tm);
-                        tm = global;
-                    }
-                }
+			}
 
-                if (tm != null)
+            if (!Component.IsRoot())
+            {
+                MathTransform ComponentTransform = Component.GetTotalTransform(true);
+
+                if (ComponentTransform == null)
+				{
+                    ComponentTransform = Component.Transform2;
+				}
+
+                if (ComponentTransform != null)
                 {
-                    var channel = anim.getIntermediateChannel(component);
-                    if (channel == null)
+					MathTransform ComponentWorldTransform = RootTransform.IMultiply(ComponentTransform);
+					MathTransform ParentWorldTransform = RootTransform;
+
+					Component2 Parent = Component.GetParent();
+
+					if (Parent != null)
+					{
+						ParentWorldTransform = RootTransform.IMultiply(Parent.GetTotalTransform(true));
+					}
+
+					MathTransform ParentWorldTransformInverse = ParentWorldTransform.Inverse();
+					MathTransform ComponentLocalTransform = ComponentWorldTransform.IMultiply(ParentWorldTransformInverse);
+
+                    SwAnimationIntermediateChannel Channel = Anim.getIntermediateChannel(Component);
+                    if (Channel == null)
                     {
-                        channel = anim.newIntermediateChannel(component);
+                        Channel = Anim.NewIntermediateChannel(Component);
                     }
-                    var key = channel.newKeyframe(step, t);
-                    key.GlobalTm = tm;
+                    SwAnimationIntermediateKeyframe Key = Channel.NewKeyframe(StepIndex, ComponentLocalTransform, Time);
                 }
             }
 
-            if (component.IGetChildrenCount() > 0)
+            if (Component.IGetChildrenCount() > 0)
             {
-                Component2[] children = component.GetChildren();
-                foreach (var child in children)
+                object[] Children = (object[])Component.GetChildren();
+                foreach (Component2 Child in Children)
                 {
-                    ExtractAnimationData(step, t, child, anim, rootTm);
+                    ExtractAnimationData(StepIndex, Time, Child, Anim, RootTransform);
                 }
             }
         }
-
-
     }
 }
