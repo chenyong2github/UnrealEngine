@@ -95,7 +95,7 @@ float4 GetForwardDynamicShadowFactors(float2 ScreenUV)
 	{
 		Value = OpaqueBasePass.ForwardScreenSpaceShadowMaskTexture.Load(int3(IntScreenUV, 0));
 	}
-	return Square(Value);
+	return DecodeLightAttenuation(Value);
 }
 
 float GetIndirectOcclusion(float2 ScreenUV, FGBufferData GBufferData)
