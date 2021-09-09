@@ -13,6 +13,6 @@ class UTexture;
 struct FTextureBuildSettings;
 
 bool TryFindTextureBuildFunction(FStringBuilderBase& OutFunctionName, const FTextureBuildSettings& BuildSettings);
-FCbObject SaveTextureBuildSettings(const FString& KeySuffix, const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips);
+FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips);
 
 #endif // WITH_EDITOR

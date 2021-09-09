@@ -123,11 +123,8 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 	}
 }
 
-bool FTexture2DMipDataProvider_DDC::SerializeMipInfo(const FTextureUpdateContext& Context, FArchive& Ar, int32 MipIndex, const FTextureMipInfo& OutMipInfo)
+bool FTexture2DMipDataProvider_DDC::SerializeMipInfo(const FTextureUpdateContext& Context, FArchive& Ar, int32 MipIndex, int32 MipSize, const FTextureMipInfo& OutMipInfo)
 {
-	int32 MipSize = 0;
-	Ar << MipSize;
-
 	const uint32 DepthOrArraySize = FMath::Max<uint32>(OutMipInfo.ArraySize, OutMipInfo.SizeZ);
 	if (MipSize == OutMipInfo.DataSize)
 	{
@@ -187,7 +184,10 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 
 						// The result must be read from a memory reader!
 						FMemoryReader Ar(DerivedMipData, true);
-						if (SerializeMipInfo(Context, Ar, MipIndex, MipInfo))
+						int32 MipSize = 0;
+						Ar << MipSize;
+						check(MipSize == (DerivedMipData.Num() - sizeof(int32)));
+						if (SerializeMipInfo(Context, Ar, MipIndex, MipSize, MipInfo))
 						{
 							bSuccess = true;
 						}
@@ -210,7 +210,7 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 				{
 					// The result must be read from a memory reader!
 					FMemoryReaderView Ar(DDCBuffers[MipIndex], true);
-					if (SerializeMipInfo(Context, Ar, MipIndex, MipInfos[MipIndex]))
+					if (SerializeMipInfo(Context, Ar, MipIndex, DDCBuffers[MipIndex].GetSize(), MipInfos[MipIndex]))
 					{
 						bSuccess = true;
 					}

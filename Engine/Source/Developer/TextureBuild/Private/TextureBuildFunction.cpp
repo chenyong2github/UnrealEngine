@@ -15,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "PixelFormat.h"
 #include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/FileRegions.h"
 #include "Serialization/MemoryWriter.h"
 #include "TextureCompressorModule.h"
@@ -26,7 +27,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildFunction, Log, All);
 // MUST have a corresponding change to this version. Individual texture formats have a version to
 // change that is specific to the format. A merge conflict affecting the version MUST be resolved
 // by generating a new version.
-static const FGuid TextureDerivedDataVersion(TEXT("392f5367-8112-4305-8cef-ae7897844779"));
+static const FGuid TextureDerivedDataVersion(TEXT("4af5c0e4-46cf-466b-a6f7-7b2b3dec8b10"));
 
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
@@ -151,10 +152,9 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	return BuildSettings;
 }
 
-static void ReadOutputSettingsFromCompactBinary(const FCbObjectView& Object, int32& NumInlineMips, FString& MipKeyPrefix)
+static void ReadOutputSettingsFromCompactBinary(const FCbObjectView& Object, int32& NumInlineMips)
 {
 	NumInlineMips = Object["NumInlineMips"].AsInt32();
-	MipKeyPrefix = FUTF8ToTCHAR(Object["MipKeyPrefix"].AsString());
 }
 
 static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFormat)
@@ -326,8 +326,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	}
 
 	int32 NumInlineMips;
-	FString MipKeyPrefix;
-	ReadOutputSettingsFromCompactBinary(Settings["Output"].AsObjectView(), NumInlineMips, MipKeyPrefix);
+	ReadOutputSettingsFromCompactBinary(Settings["Output"].AsObjectView(), NumInlineMips);
 
 	TArray<FImage> SourceMips;
 	if (!TryReadTextureSourceFromCompactBinary(Settings["Source"], Context, SourceMips))
@@ -365,108 +364,82 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	const bool bForceAllMipsToBeInlined = BuildSettings.bCubemap || (BuildSettings.bVolume && !BuildSettings.bStreamable) || (BuildSettings.bTextureArray && !BuildSettings.bStreamable);
 	const int32 FirstInlineMip = bForceAllMipsToBeInlined ? 0 : FMath::Max(0, MipCount - FMath::Max(NumInlineMips, (int32)NumMipsInTail));
 
-	// Write out texture platform data and non-streaming mip tail as a single payload
-	// This is meant to match the behavior in SerializePlatformData in TextureDerivedData.cpp.
-	// TODO: The texture header/footer information here should not be serialized from the worker but could be left to the editor to fill in.
-	//		 Doing it here causes more code duplication than I would like.
 	{
-		bool bHasOptData = (NumMipsInTail != 0) || (ExtData != 0);
-		TArray<FSharedBuffer> OrderedBuffers;
+		FCbWriter DescriptionWriter;
+		DescriptionWriter.BeginObject();
 
-		TArray<uint8> TextureHeaderArray;
-		FMemoryWriter TextureHeaderWriter(TextureHeaderArray, /*bIsPersistent=*/ true);
-		TextureHeaderWriter << CompressedMips[0].SizeX;
-		TextureHeaderWriter << CompressedMips[0].SizeY;
-
+		DescriptionWriter.BeginArray("Size"_ASV);
+		DescriptionWriter.AddInteger(CompressedMips[0].SizeX);
+		DescriptionWriter.AddInteger(CompressedMips[0].SizeY);
 		const int32 NumSlices = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? CompressedMips[0].SizeZ : BuildSettings.bCubemap ? 6 : 1;
-		static constexpr uint32 BitMask_CubeMap = 1u << 31u;
-		static constexpr uint32 BitMask_HasOptData = 1u << 30u;
-		static constexpr uint32 BitMask_NumSlices = BitMask_HasOptData - 1u;
-		uint32 PackedData = (NumSlices & BitMask_NumSlices) | (BuildSettings.bCubemap ? BitMask_CubeMap : 0) | (bHasOptData ? BitMask_HasOptData : 0);
-		TextureHeaderWriter << PackedData;
+		DescriptionWriter.AddInteger(NumSlices);
+		DescriptionWriter.EndArray();
 
-		FString PixelFormatString(GetPixelFormatString((EPixelFormat)CompressedMips[0].PixelFormat));
-		TextureHeaderWriter << PixelFormatString;
+		DescriptionWriter.AddString("PixelFormat"_ASV, GetPixelFormatString((EPixelFormat)CompressedMips[0].PixelFormat));
+		DescriptionWriter.AddBool("bCubeMap"_ASV, BuildSettings.bCubemap);
+		DescriptionWriter.AddInteger("ExtData"_ASV, ExtData);
+		DescriptionWriter.AddInteger("NumMips"_ASV, MipCount);
+		DescriptionWriter.AddInteger("NumStreamingMips"_ASV, FirstInlineMip);
+		DescriptionWriter.AddInteger("NumMipsInTail"_ASV, NumMipsInTail);
 
-		if (bHasOptData)
-		{
-			TextureHeaderWriter << ExtData;
-			TextureHeaderWriter << NumMipsInTail;
-		}
-
-		TextureHeaderWriter << MipCount;
-
-		OrderedBuffers.Add(FSharedBuffer::MakeView(TextureHeaderArray.GetData(), TextureHeaderArray.Num()));
-
-		int64 CurrentOffset = TextureHeaderArray.Num();
+		DescriptionWriter.BeginArray("Mips"_ASV);
+		int64 MipPayloadOffset = 0;
 		for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 		{
-			bool bIsInlineMip = MipIndex >= FirstInlineMip;
 			FCompressedImage2D& CompressedMip = CompressedMips[MipIndex];
 
-			TArray<uint8> MipHeader;
-			FMemoryWriter MipHeaderWriter(MipHeader, /*bIsPersistent=*/ true);
-			bool bCooked = false;
-			MipHeaderWriter << bCooked;
+			DescriptionWriter.BeginObject();
+			
+			DescriptionWriter.BeginArray("Size"_ASV);
+			DescriptionWriter.AddInteger(CompressedMip.SizeX);
+			DescriptionWriter.AddInteger(CompressedMip.SizeY);
+			DescriptionWriter.AddInteger(CompressedMip.SizeZ);
+			DescriptionWriter.EndArray();
 
-			uint32 BulkDataFlags = 0;
-			MipHeaderWriter << BulkDataFlags;
+			const bool bIsInlineMip = MipIndex >= FirstInlineMip;
 
-			int32 BulkDataElementCount = bIsInlineMip ? CompressedMip.RawData.Num() : 0;
-			MipHeaderWriter << BulkDataElementCount;
+			EFileRegionType FileRegion = FFileRegion::SelectType(EPixelFormat(CompressedMip.PixelFormat));
+			DescriptionWriter.AddInteger("FileRegion"_ASV, static_cast<int32>(FileRegion));
+			if (bIsInlineMip)
+			{
+				DescriptionWriter.AddInteger("PayloadOffset"_ASV, MipPayloadOffset);
+			}
+			DescriptionWriter.AddInteger("NumBytes"_ASV, CompressedMip.RawData.Num());
 
-			int32 BulkDataBytesOnDisk = bIsInlineMip ? CompressedMip.RawData.Num() : 0;
-			MipHeaderWriter << BulkDataBytesOnDisk;
-
-			int64 BulkDataOffset = CurrentOffset + MipHeader.Num() + sizeof(int64);
-			MipHeaderWriter << BulkDataOffset;
-
-			CurrentOffset += MipHeader.Num();
-			OrderedBuffers.Add(MakeSharedBufferFromArray(MoveTemp(MipHeader)));
+			DescriptionWriter.EndObject();
 
 			if (bIsInlineMip)
 			{
-				OrderedBuffers.Add(FSharedBuffer::MakeView(CompressedMip.RawData.GetData(), CompressedMip.RawData.Num()));
-				CurrentOffset += CompressedMip.RawData.Num();
+				MipPayloadOffset += CompressedMip.RawData.Num();
 			}
-
-			TArray<uint8> MipFooter;
-			FMemoryWriter MipFooterWriter(MipFooter, /*bIsPersistent=*/ true);
-
-			MipFooterWriter << CompressedMip.SizeX;
-			MipFooterWriter << CompressedMip.SizeY;
-			MipFooterWriter << CompressedMip.SizeZ;
-
-			EFileRegionType FileRegion = FFileRegion::SelectType(EPixelFormat(CompressedMip.PixelFormat));
-			MipFooterWriter << FileRegion;
-
-			bool bExistsInDerivedData = !bIsInlineMip;
-			MipFooterWriter << bExistsInDerivedData;
-
-			CurrentOffset += MipFooter.Num();
-			OrderedBuffers.Add(MakeSharedBufferFromArray(MoveTemp(MipFooter)));
 		}
+		DescriptionWriter.EndArray();
 
-		// Bool serialized as 32-bit int is the footer
-		uint32 IsVirtual = 0;
-		OrderedBuffers.Add(FSharedBuffer::MakeView(&IsVirtual, sizeof(IsVirtual)));
-
-		FCompositeBuffer CompositeResult(OrderedBuffers);
-		Context.AddPayload(UE::DerivedData::FPayloadId::FromName(TEXT("Texture"_SV)), CompositeResult);
+		DescriptionWriter.EndObject();
+		FCbObject DescriptionObject = DescriptionWriter.Save().AsObject();
+		Context.AddPayload(UE::DerivedData::FPayloadId::FromName("Description"_ASV), DescriptionObject);
 	}
 
-	// Write out streaming mips as payloads.
-	const int32 WritableMipCount = MipCount - ((NumMipsInTail > 0) ? ((int32)NumMipsInTail - 1) : 0);
-	for (int32 MipIndex = 0; MipIndex < WritableMipCount; ++MipIndex)
+	// Streaming mips
+	for (int32 MipIndex = 0; MipIndex < FirstInlineMip; ++MipIndex)
 	{
-		if (MipIndex < FirstInlineMip)
-		{
-			FCompressedImage2D& CompressedMip = CompressedMips[MipIndex];
-			TStringBuilder<32> PayloadName;
-			PayloadName << "Mip" << MipIndex;
+		TAnsiStringBuilder<16> MipName;
+		MipName << "Mip"_ASV << MipIndex;
 
-			FSharedBuffer MipData = MakeSharedBufferFromArray(MoveTemp(CompressedMip.RawData));
-			Context.AddPayload(UE::DerivedData::FPayloadId::FromName(*PayloadName), MipData);
-		}
+		FSharedBuffer MipData = MakeSharedBufferFromArray(MoveTemp(CompressedMips[MipIndex].RawData));
+		Context.AddPayload(UE::DerivedData::FPayloadId::FromName(MipName), MipData);
+	}
+
+	// Mip tail
+	TArray<FSharedBuffer> MipTailComponents;
+	for (int32 MipIndex = FirstInlineMip; MipIndex < MipCount; ++MipIndex)
+	{
+		FSharedBuffer MipData = MakeSharedBufferFromArray(MoveTemp(CompressedMips[MipIndex].RawData));
+		MipTailComponents.Add(MipData);
+	}
+	FCompositeBuffer MipTail(MipTailComponents);
+	if (MipTail.GetSize() > 0)
+	{
+		Context.AddPayload(UE::DerivedData::FPayloadId::FromName("MipTail"_ASV), MipTail);
 	}
 }

@@ -124,8 +124,6 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	FTextureSourceData TextureData;
 	/** Source mip images of the composite texture (e.g. normal map for compute roughness). Not necessarily in RGBA32F, usually only top mip as other mips need to be generated first */
 	FTextureSourceData CompositeTextureData;
-	/** DDC2 build function name to use to build this texture (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
-	FString BuildFunctionName;
 	/** Texture cache flags. */
 	ETextureCacheFlags CacheFlags;
 	/** Have many bytes were loaded from DDC or built (for telemetry) */
@@ -140,8 +138,6 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 
 	/** Build the texture. This function is safe to call from any thread. */
 	void BuildTexture(bool bReplaceExistingDDC = false);
-
-	void ConsumeBuildFunctionOutput(const UE::DerivedData::FBuildOutput& BuildOutput, const FString& TexturePath, bool bReplaceExistingDDC);
 public:
 
 	/** Initialization constructor. */
