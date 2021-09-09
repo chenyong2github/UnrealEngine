@@ -12,6 +12,7 @@
 #include "PersonaAssetEditorToolkit.h"
 #include "SIKRigSkeleton.h"
 
+class IAnimationSequenceBrowser;
 class UIKRigSkeletalMeshComponent;
 class FSolverStackElement;
 class SIKRigSolverStack;
@@ -76,6 +77,11 @@ public:
 	virtual void PostUndo( bool bSuccess );
 	virtual void PostRedo( bool bSuccess );
 	/** END FSelfRegisteringEditorUndoClient interface */
+
+	/** animation asset browser */
+	void HandleOpenNewAsset(UObject* InNewAsset);
+	void HandleAnimationSequenceBrowserCreated(const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser);
+	/* END animation asset browser */
 
 	TSharedRef<FIKRigEditorController> GetController() const {return EditorController;};
 

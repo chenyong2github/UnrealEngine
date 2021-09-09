@@ -20,8 +20,22 @@ void FIKRigGoalContainer::SetIKGoal(const UIKRigEffectorGoal* InEffectorGoal)
 {
 	if (FIKRigGoal* Goal = Goals.Find(InEffectorGoal->GoalName))
 	{
-		Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation();
-        Goal->Rotation = InEffectorGoal->CurrentTransform.Rotator();
+		if (InEffectorGoal->PreviewMode == EIKRigGoalPreviewMode::Absolute)
+		{
+			Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation();
+			Goal->Rotation = InEffectorGoal->CurrentTransform.Rotator();
+			Goal->PositionSpace = EIKRigGoalSpace::Component;
+			Goal->RotationSpace = EIKRigGoalSpace::Component;
+		}
+		else
+		{
+			Goal->Position = InEffectorGoal->CurrentTransform.GetTranslation() - InEffectorGoal->InitialTransform.GetTranslation();
+			const FQuat RelativeRotation = InEffectorGoal->CurrentTransform.GetRotation() * InEffectorGoal->InitialTransform.GetRotation().Inverse();
+			Goal->Rotation = RelativeRotation.Rotator();
+			Goal->PositionSpace = EIKRigGoalSpace::Additive;
+			Goal->RotationSpace = EIKRigGoalSpace::Additive;
+		}
+		
         Goal->PositionAlpha = InEffectorGoal->PositionAlpha;
         Goal->RotationAlpha = InEffectorGoal->RotationAlpha;
 	}

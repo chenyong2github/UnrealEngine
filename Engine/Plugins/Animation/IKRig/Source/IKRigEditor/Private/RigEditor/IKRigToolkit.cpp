@@ -50,7 +50,7 @@ void FIKRigEditorToolkit::InitAssetEditor(
 	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewSceneCreated);
 	
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs);
+	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs, IKRigAsset->GetSkeletonAsset());
 	
 	// when/if preview mesh is changed, we need to reinitialize the anim instance
     PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FIKRigEditorToolkit::HandlePreviewMeshChanged));
@@ -125,8 +125,12 @@ void FIKRigEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
 	ToolbarBuilder.BeginSection("Reset");
 	{
-		ToolbarBuilder.AddToolBarButton(FIKRigCommands::Get().Reset,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FIKRigEditorStyle::Get().GetStyleSetName(), "IKRig.Reset"));
+		ToolbarBuilder.AddToolBarButton(
+			FIKRigCommands::Get().Reset,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Refresh"));
 	}
 	ToolbarBuilder.EndSection();
 }
@@ -183,6 +187,20 @@ void FIKRigEditorToolkit::PostRedo(bool bSuccess)
 	EditorController->RefreshAllViews();
 }
 
+void FIKRigEditorToolkit::HandleOpenNewAsset(UObject* InNewAsset)
+{
+	if (UAnimationAsset* NewAnimationAsset = Cast<UAnimationAsset>(InNewAsset))
+	{
+		EditorController->AnimInstance->SetAnimationAsset(NewAnimationAsset);
+	}
+}
+
+void FIKRigEditorToolkit::HandleAnimationSequenceBrowserCreated(
+	const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser)
+{
+	EditorController->SequenceBrowser = InSequenceBrowser;
+}
+
 void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 {
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
@@ -203,9 +221,9 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 	// apply mesh to the preview scene
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorController->SkelMeshComponent);
-	InPersonaPreviewScene->AddComponent(EditorController->SkelMeshComponent, FTransform::Identity);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
 	InPersonaPreviewScene->SetPreviewMesh(Mesh);
+	InPersonaPreviewScene->AddComponent(EditorController->SkelMeshComponent, FTransform::Identity);
 }
 
 void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh)

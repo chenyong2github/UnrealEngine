@@ -32,6 +32,7 @@ FIKRigMode::FIKRigMode(
 	TabFactories.RegisterFactory(PersonaModule.CreatePersonaViewportTabFactory(InHostingApp, ViewportArgs));
 	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InHostingApp, InPreviewScene));
 	TabFactories.RegisterFactory(PersonaModule.CreateDetailsTabFactory(InHostingApp, FOnDetailsCreated::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleDetailsCreated)));
+	TabFactories.RegisterFactory(PersonaModule.CreateAnimationAssetBrowserTabFactory(InHostingApp, IKRigEditor->GetPersonaToolkit(), FOnOpenNewAsset::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleOpenNewAsset), FOnAnimationSequenceBrowserCreated::CreateSP(&IKRigEditor.Get(), &FIKRigEditorToolkit::HandleAnimationSequenceBrowserCreated), true));
 
 	// register custom tabs
 	TabFactories.RegisterFactory(MakeShared<FIKRigSkeletonTabSummoner>(IKRigEditor));
@@ -39,7 +40,7 @@ FIKRigMode::FIKRigMode(
 	TabFactories.RegisterFactory(MakeShared<FIKRigRetargetChainTabSummoner>(IKRigEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.120")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRigEditor_Layout_v1.122")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -91,6 +92,7 @@ FIKRigMode::FIKRigMode(
                     (
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.6f)
+						->AddTab(FPersonaTabs::AssetBrowserID, ETabState::OpenedTab)
 						->AddTab(FIKRigRetargetChainTabSummoner::TabID, ETabState::OpenedTab)
 						->SetForegroundTab(FIKRigRetargetChainTabSummoner::TabID)
                     )

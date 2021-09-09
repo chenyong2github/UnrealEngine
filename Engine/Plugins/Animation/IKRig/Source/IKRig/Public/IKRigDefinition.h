@@ -10,6 +10,13 @@
 
 class UIKRigSolver;
 
+UENUM(BlueprintType)
+enum class EIKRigGoalPreviewMode : uint8
+{
+	Additive		UMETA(DisplayName = "Additive"),
+	Absolute		UMETA(DisplayName = "Absolute"),
+};
+
 UCLASS()
 class IKRIG_API UIKRigEffectorGoal : public UObject
 {
@@ -21,27 +28,43 @@ public:
 	
 	UIKRigEffectorGoal(const FName& InGoalName, const FName& InBoneName) :  GoalName(InGoalName), BoneName(InBoneName){}
 
+	/** The name used to refer to this goal from outside systems.
+	 *This is the name to use when referring to this Goal from Blueprint, Anim Graph, Control Rig or IK Retargeter.*/
 	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
 	FName GoalName;
-	
+
+	/**The name of the bone that this Goal is located at.*/
 	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
 	FName BoneName;
 
+	/**Range 0-1, default is 1. Blend between the Goal position between the input bone pose (0.0) and the current goal transform (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float PositionAlpha = 1.0f;
 
+	/**Range 0-1, default is 1. Blend between the Goal rotation between the input bone pose (0.0) and the current goal transform (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha = 1.0f;
 
+	/**Effects how this Goal transform is previewed in the IK Rig editor.
+	 *"Additive" interprets the Goal transform as being relative to the input pose. Useful for previewing animations.
+	 *"Absolute" pins the Goal transform to the Gizmo in the viewport.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Goal Settings")
+	EIKRigGoalPreviewMode PreviewMode;
+
+	/**The current transform of this Goal, in the Global Space of the character.*/
 	UPROPERTY(EditAnywhere, Transient, Category = "Goal Settings")
 	FTransform CurrentTransform;
-	
+
+	/**The initial transform of this Goal, as defined by the initial transform of the Goal's bone in the reference pose.*/
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Goal Settings")
 	FTransform InitialTransform;
 
+	/**The size of the Goal gizmo drawing in the editor viewport.*/
 	UPROPERTY(EditAnywhere, Category = "Goal Gizmo", meta = (ClampMin = "0.1", ClampMax = "1000.0", UIMin = "0.1", UIMax = "100.0"))
 	float GizmoSize = 7.0f;
 
+	/**The thickness of the Goal gizmo drawing in the editor viewport.*/
 	UPROPERTY(EditAnywhere, Category = "Goal Gizmo",  meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "5.0"))
 	float GizmoThickness = 0.7f;
 
@@ -141,6 +164,8 @@ public:
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 	/** END IInterface_PreviewMeshProvider interface */
+
+	USkeleton* GetSkeletonAsset() const;
 
 private:
 	

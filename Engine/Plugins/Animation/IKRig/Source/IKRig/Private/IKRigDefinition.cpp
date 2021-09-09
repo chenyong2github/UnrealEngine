@@ -93,4 +93,14 @@ void UIKRigDefinition::SortRetargetChains()
 	});
 }
 
+USkeleton* UIKRigDefinition::GetSkeletonAsset() const
+{
+	if (PreviewSkeletalMesh.IsNull())
+	{
+		return nullptr;
+	}
+
+	return PreviewSkeletalMesh->GetSkeleton();
+}
+
 #undef LOCTEXT_NAMESPACE

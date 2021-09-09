@@ -208,12 +208,6 @@ private:
 	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);
 	/** END selection state queries */
 
-	/** skeleton import */
-	FReply OnImportSkeletonClicked();
-	void ImportSkeleton(const FAssetData& InAssetData);
-	EVisibility IsImportButtonVisible() const;
-	/** END skeleton import */
-
 	/** centralized editor controls (facilitate cross-communication between multiple UI elements)*/
 	TWeakPtr<FIKRigEditorController> EditorController;
 	
