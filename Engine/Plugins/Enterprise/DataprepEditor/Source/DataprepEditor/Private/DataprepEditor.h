@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DataprepActionAsset.h"
+#include "DataprepEditorUtils.h"
 #include "DataprepAssetInterface.h"
 #include "DataprepGraph/DataprepGraph.h"
 #include "DataprepStats.h"
@@ -19,6 +20,8 @@
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/GCObject.h"
 #include "UObject/SoftObjectPath.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class UDataprepParameterizableObject;
 
@@ -50,6 +53,25 @@ namespace AssetPreviewWidget
 {
 	class SAssetsPreviewWidget;
 }
+
+class SDataprepScenePreviewView : public SBorder
+{
+public:
+
+	FDataprepEditorUtils::FOnKeyDown& OnKeyDown() { return OnKeyDownDelegate; }
+
+	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
+	{
+		if( OnKeyDownDelegate.IsBound() )
+		{
+			return OnKeyDownDelegate.Execute( MyGeometry, InKeyEvent );
+		}
+		return FReply::Unhandled();
+	}
+
+private:
+	FDataprepEditorUtils::FOnKeyDown OnKeyDownDelegate;
+};
 
 /** Tuple linking an asset package path, a unique identifier and the UClass of the asset*/
 typedef TTuple< FString, UClass*, EObjectFlags > FSnapshotDataEntry;
@@ -264,7 +286,7 @@ private:
 	TWeakPtr<SDockTab> DetailsTabPtr;
 	TSharedPtr<class SDataprepEditorViewport> SceneViewportView;
 	TSharedPtr<AssetPreviewWidget::SAssetsPreviewWidget> AssetPreviewView;
-	TSharedPtr<SWidget> ScenePreviewView;
+	TSharedPtr<SDataprepScenePreviewView> ScenePreviewView;
 	TSharedPtr<SGraphNodeDetailsWidget> DetailsView;
 	TSharedPtr<class SDataprepAssetView > DataprepAssetView;
 	TSharedPtr<SDataprepGraphEditor> GraphEditor;
