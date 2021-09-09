@@ -127,14 +127,7 @@ ENeuralDeviceType UNeuralNetwork::GetDeviceType() const
 
 void UNeuralNetwork::SetDeviceType(const ENeuralDeviceType InDeviceType)
 {
-	if (DeviceType != InDeviceType)
-	{
-		DeviceType = InDeviceType;
-		if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
-		{
-			Load();
-		}
-	}
+	SetXDeviceType(DeviceType, InDeviceType);
 }
 
 ENeuralDeviceType UNeuralNetwork::GetInputDeviceType() const
@@ -144,7 +137,7 @@ ENeuralDeviceType UNeuralNetwork::GetInputDeviceType() const
 
 void UNeuralNetwork::SetInputDeviceType(const ENeuralDeviceType InInputDeviceType)
 {
-	InputDeviceType = InInputDeviceType;
+	SetXDeviceType(InputDeviceType, InInputDeviceType);
 }
 
 ENeuralDeviceType UNeuralNetwork::GetOutputDeviceType() const
@@ -154,7 +147,7 @@ ENeuralDeviceType UNeuralNetwork::GetOutputDeviceType() const
 
 void UNeuralNetwork::SetOutputDeviceType(const ENeuralDeviceType InOutputDeviceType)
 {
-	OutputDeviceType = InOutputDeviceType;
+	SetXDeviceType(OutputDeviceType, InOutputDeviceType);
 }
 
 ENeuralNetworkSynchronousMode UNeuralNetwork::GetSynchronousMode() const
@@ -387,6 +380,18 @@ void UNeuralNetwork::Run()
 
 /* UNeuralNetwork private functions
  *****************************************************************************/
+
+void UNeuralNetwork::SetXDeviceType(ENeuralDeviceType& OutDeviceType, const ENeuralDeviceType InDeviceType)
+{
+	if (OutDeviceType != InDeviceType)
+	{
+		OutDeviceType = InDeviceType;
+		if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+		{
+			Load();
+		}
+	}
+}
 
 bool UNeuralNetwork::Load()
 {

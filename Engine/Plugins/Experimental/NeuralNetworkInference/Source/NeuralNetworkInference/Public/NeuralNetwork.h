@@ -230,6 +230,11 @@ private:
 	TSharedPtr<FImplBackEndUEOnly> ImplBackEndUEOnly;
 
 	/**
+	 * Auxiliary function for Set(Input/Output)DeviceType.
+	 */
+	void SetXDeviceType(ENeuralDeviceType& OutDeviceType, const ENeuralDeviceType InDeviceType);
+
+	/**
 	 * It loads the desired network graph definition and weights internally saved on this UNeuralNetwork instance.
 	 * @return Whether the network was successfully loaded.
 	 */
