@@ -1,14 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Runtime.InteropServices;
-using System.IO;
-using System.Drawing;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swmotionstudy;
 using SolidworksDatasmith.Geometry;
 
 namespace SolidworksDatasmith.SwObjects
@@ -24,24 +18,24 @@ namespace SolidworksDatasmith.SwObjects
 			PATH_SCALE
 		}
 
-		private Dictionary<Component2, SwAnimationIntermediateChannel> node2IntermediateChannel = new Dictionary<Component2, SwAnimationIntermediateChannel>();
-
+		private Dictionary<string, SwAnimationIntermediateChannel> node2IntermediateChannel = new Dictionary<string, SwAnimationIntermediateChannel>();
 		public List<SwAnimationChannel> Channels = new List<SwAnimationChannel>();
 		public List<SwAnimationIntermediateChannel> IntermediateChannels = new List<SwAnimationIntermediateChannel>();
+		public int FPS {  get; set; } = 0;
 
-		public SwAnimationIntermediateChannel newIntermediateChannel(Component2 target)
+		public SwAnimationIntermediateChannel NewIntermediateChannel(Component2 target)
 		{
 			SwAnimationIntermediateChannel channel = new SwAnimationIntermediateChannel();
 			channel.Target = target;
 			IntermediateChannels.Add(channel);
-			node2IntermediateChannel.Add(target, channel);
+			node2IntermediateChannel.Add(target.Name2, channel);
 			return channel;
 		}
 
 		public SwAnimationIntermediateChannel getIntermediateChannel(Component2 target)
 		{
 			SwAnimationIntermediateChannel channel = null;
-			if (!node2IntermediateChannel.TryGetValue(target, out channel))
+			if (!node2IntermediateChannel.TryGetValue(target.Name2, out channel))
 				return null;
 			return channel;
 		}
@@ -82,6 +76,42 @@ namespace SolidworksDatasmith.SwObjects
 			}
 
 			return xform;
+		}
+
+		public FDatasmithFacadeLevelSequence Export()
+		{
+			FDatasmithFacadeLevelSequence LevelSeq = new FDatasmithFacadeLevelSequence(Name);
+
+			LevelSeq.SetFrameRate(FPS);
+
+			foreach (var NodePair in node2IntermediateChannel)
+			{
+				SwAnimationIntermediateChannel Chan = NodePair.Value;
+				Component2 Component = Chan.Target;
+				FDatasmithFacadeTransformAnimation Anim = new FDatasmithFacadeTransformAnimation(Component.Name2);
+
+				foreach (var Keyframe in Chan.keyframes)
+				{
+					Matrix4 LocalMatrix = Keyframe.LocalMatrix;
+
+					// Get euler angles in degrees
+					float X = Utility.Rad2Deg * (float)Math.Atan2(LocalMatrix[6], LocalMatrix[10]);
+					float Y = Utility.Rad2Deg * (float)Math.Atan2(-LocalMatrix[2], Math.Sqrt(LocalMatrix[6] * LocalMatrix[6] + LocalMatrix[10] * LocalMatrix[10]));
+					float Z = Utility.Rad2Deg * (float)Math.Atan2(LocalMatrix[1], LocalMatrix[0]);
+
+					float Scale = LocalMatrix[15];
+
+					Vec3 Translation = new Vec3(LocalMatrix[12], LocalMatrix[13], LocalMatrix[14]);
+
+					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Rotation, Keyframe.Step, X, -Y, -Z);
+					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Scale, Keyframe.Step, Scale, Scale, Scale);
+					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Translation, Keyframe.Step, Translation.x, -Translation.y, Translation.z);
+				}
+
+				LevelSeq.AddAnimation(Anim);
+			}
+
+			return LevelSeq;
 		}
 
 		// inject keyframes to pad

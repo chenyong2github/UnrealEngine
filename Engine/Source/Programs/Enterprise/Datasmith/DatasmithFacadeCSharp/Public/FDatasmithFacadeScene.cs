@@ -233,6 +233,25 @@ public class FDatasmithFacadeScene : global::System.IDisposable {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_RemoveLevelVariantSets(swigCPtr, FDatasmithFacadeLevelVariantSets.getCPtr(InLevelVariantSetsPtr));
   }
 
+  public void AddLevelSequence(FDatasmithFacadeLevelSequence InLevelSequence) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_AddLevelSequence(swigCPtr, FDatasmithFacadeLevelSequence.getCPtr(InLevelSequence));
+  }
+
+  public int GetLevelSequencesCount() {
+    int ret = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetLevelSequencesCount(swigCPtr);
+    return ret;
+  }
+
+  public FDatasmithFacadeLevelSequence GetLevelSequence(int LevelSequenceIndex) {
+    global::System.IntPtr cPtr = DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetLevelSequence(swigCPtr, LevelSequenceIndex);
+    FDatasmithFacadeLevelSequence ret = (cPtr == global::System.IntPtr.Zero) ? null : new FDatasmithFacadeLevelSequence(cPtr, false);
+    return ret;
+  }
+
+  public void RemoveLevelSequence(FDatasmithFacadeLevelSequence InLevelSequence) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_RemoveLevelSequence(swigCPtr, FDatasmithFacadeLevelSequence.getCPtr(InLevelSequence));
+  }
+
   public void AddMetaData(FDatasmithFacadeMetaData InMetaDataPtr) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_AddMetaData(swigCPtr, FDatasmithFacadeMetaData.getCPtr(InMetaDataPtr));
   }

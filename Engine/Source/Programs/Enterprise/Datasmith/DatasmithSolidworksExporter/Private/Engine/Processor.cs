@@ -499,6 +499,28 @@ namespace SolidworksDatasmith.Engine
                                     processor.DatasmithScene.AddActor(dsCamera);
                             }
                             break;
+                        case CommandType.ANIMATION:
+                        {
+							var cmd = command as AnimationCommand;
+							SwSingleton.FireProgressEvent($"Exporting animation \"{cmd.Animation.Name}\"...");
+							FDatasmithFacadeLevelSequence LevelSeq = cmd.Animation.Export();
+
+							// Check if we already have a sequence with the same name and remove it if we do
+							int SequencesSetsCount = processor.DatasmithScene.GetLevelSequencesCount();
+							for (int Index = 0; Index < SequencesSetsCount; ++Index)
+							{
+								FDatasmithFacadeLevelSequence ExistingSeq = processor.DatasmithScene.GetLevelSequence(Index);
+
+								if (ExistingSeq.GetName() == LevelSeq.GetName())
+								{
+									processor.DatasmithScene.RemoveLevelSequence(ExistingSeq);
+									break;
+								}
+							}
+
+							processor.DatasmithScene.AddLevelSequence(LevelSeq);
+						}
+						break;
                     }
                 }
                 else
@@ -950,7 +972,8 @@ namespace SolidworksDatasmith.Engine
 			{
 				FDatasmithFacadeVariantSet VSet = LevelVariantSets.GetVariantSet(VariantSetIndex);
 
-				if (VSet.GetName() == ConfigurationsSetName){
+				if (VSet.GetName() == ConfigurationsSetName)
+				{
 					VariantSet = VSet;
 					break;
 				}

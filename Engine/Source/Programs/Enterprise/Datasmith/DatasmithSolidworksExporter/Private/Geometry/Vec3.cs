@@ -61,10 +61,9 @@ namespace SolidworksDatasmith.Geometry
 
         public Vec3(MathVector swVec)
         {
-            double[] data = swVec.ArrayData();
-            x = (float)data[0];
-            y = (float)data[1];
-            z = (float)data[2];
+            x = (float)swVec.ArrayData[0];
+            y = (float)swVec.ArrayData[1];
+            z = (float)swVec.ArrayData[2];
         }
 
         public override bool Equals(object obj)

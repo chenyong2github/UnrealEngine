@@ -10,6 +10,7 @@
 #include "DatasmithFacadeMetaData.h"
 #include "DatasmithFacadeTexture.h"
 #include "DatasmithFacadeVariant.h"
+#include "DatasmithFacadeAnimation.h"
 
 // Datasmith SDK.
 #include "DatasmithExporterManager.h"
@@ -220,6 +221,40 @@ void FDatasmithFacadeScene::RemoveTexture(
 )
 {
 	SceneRef->RemoveTexture(InTexturePtr->GetDatasmithTextureElement());
+}
+
+void FDatasmithFacadeScene::AddLevelSequence(
+	FDatasmithFacadeLevelSequence* InLevelSequence
+)
+{
+	if (InLevelSequence)
+	{
+		SceneRef->AddLevelSequence(InLevelSequence->GetDatasmithLevelSequence());
+	}
+}
+
+int32 FDatasmithFacadeScene::GetLevelSequencesCount() const
+{
+	return SceneRef->GetLevelSequencesCount();
+}
+
+FDatasmithFacadeLevelSequence* FDatasmithFacadeScene::GetNewLevelSequence(
+	int32 LevelSequenceIndex
+)
+{
+	if (TSharedPtr<IDatasmithLevelSequenceElement> LevelSequenceElement = SceneRef->GetLevelSequence(LevelSequenceIndex))
+	{
+		return new FDatasmithFacadeLevelSequence(LevelSequenceElement.ToSharedRef());
+	}
+
+	return nullptr;
+}
+
+void FDatasmithFacadeScene::RemoveLevelSequence(
+	FDatasmithFacadeLevelSequence* InLevelSequence
+)
+{
+	SceneRef->RemoveLevelSequence(InLevelSequence->GetDatasmithLevelSequence());
 }
 
 void FDatasmithFacadeScene::AddLevelVariantSets(

@@ -274,20 +274,20 @@ namespace SolidworksDatasmith.SwObjects
 		}
 
 		// builds component tree and relative datasmith objects
-		public void EvaluateScene(bool fast = false)
+		public void EvaluateScene(bool bDirectLinkUpdate, bool bManualDirectLinkUpdate)
 		{
 			if (_doc != null)
 			{
 				if (_doc is AssemblyDoc)
 				{
-					EvaluateScene(_doc as AssemblyDoc, fast);
+					EvaluateScene(_doc as AssemblyDoc, bDirectLinkUpdate, bManualDirectLinkUpdate);
 				}
 				else if (_doc is PartDoc)
 				{
-					EvaluateScene(_doc as PartDoc, fast);
+					EvaluateScene(_doc as PartDoc, bDirectLinkUpdate);
 				}
 			}
-			if (!fast)
+			if (!bDirectLinkUpdate)
 			{
 				bool exportcurrentviewonly = false; //Waiting for Epic decision on this subject
 				if (exportcurrentviewonly == false)
@@ -1056,16 +1056,34 @@ namespace SolidworksDatasmith.SwObjects
 			Processor.AddCommand(cmd);
 		}
 
-		private void EvaluateScene(AssemblyDoc doc, bool fast = false)
+		private void EvaluateScene(AssemblyDoc doc, bool bDirectLinkUpdate, bool bManualDirectLinkUpdate)
 		{
 			var config = ((doc as ModelDoc2).GetActiveConfiguration() as Configuration);
 			var root = config.GetRootComponent3(true);
-			EvaluateSceneRecurse(root, null, fast);
-			if (!fast)
+			EvaluateSceneRecurse(root, null, bDirectLinkUpdate);
+
+			if (!bDirectLinkUpdate)
+			{
 				CollectConfigurationData(doc);
+			}
+
+			if (!bDirectLinkUpdate || bManualDirectLinkUpdate)
+			{
+				// Handle animations
+				List<SwAnimation> Anims = AnimationExtractor.ExtractAnimations(doc, root);
+				if (Anims != null)
+				{
+					foreach (SwAnimation Anim in Anims)
+					{
+						var Cmd = new AnimationCommand();
+						Cmd.Animation = Anim;
+						Processor.AddCommand(Cmd);
+					}
+				}
+			}
 		}
 
-		private void EvaluateScene(PartDoc doc, bool fast = false)
+		private void EvaluateScene(PartDoc doc, bool bDirectLinkUpdate)
 		{
 			foreach (var pp in Parts)
 			{
@@ -1076,12 +1094,15 @@ namespace SolidworksDatasmith.SwObjects
 				cmd.PartName = part.Name;
 				cmd.PartPath = part.PathName;
 				Processor.AddCommand(cmd);
-				if (!fast)
+
+				if (!bDirectLinkUpdate)
+				{
 					SendModelDocMetadataToProcessor(doc as ModelDoc2, part.Name, MetadataCommand.MetadataType.Actor);
+				}
 			}
 		}
 
-		public void DirectLinkUpdate()
+		public void DirectLinkUpdate(bool bManualUpdate)
 		{
 			foreach (var pp in Parts)
 			{
@@ -1089,7 +1110,7 @@ namespace SolidworksDatasmith.SwObjects
 			}
 
 			CollectMaterials();
-			EvaluateScene(true);
+			EvaluateScene(true, bManualUpdate);
 			var cmd = new LiveUpdateCommand();
 			Processor.AddCommand(cmd);
 			bIsDirty = false;

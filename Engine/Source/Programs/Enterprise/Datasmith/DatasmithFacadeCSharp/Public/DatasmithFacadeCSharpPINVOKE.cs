@@ -1358,6 +1358,150 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorMesh_ResetMaterialOverrides")]
   public static extern void FDatasmithFacadeActorMesh_ResetMaterialOverrides(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeBaseAnimation_IsSubType")]
+  public static extern bool FDatasmithFacadeBaseAnimation_IsSubType(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeBaseAnimation_SetCompletionMode")]
+  public static extern void FDatasmithFacadeBaseAnimation_SetCompletionMode(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeBaseAnimation_GetCompletionMode")]
+  public static extern int FDatasmithFacadeBaseAnimation_GetCompletionMode(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeBaseAnimation")]
+  public static extern void delete_FDatasmithFacadeBaseAnimation(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeTransformAnimation")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeTransformAnimation([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_AddFrame")]
+  public static extern void FDatasmithFacadeTransformAnimation_AddFrame(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2, int jarg3, float jarg4, float jarg5, float jarg6);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_GetFramesCount")]
+  public static extern int FDatasmithFacadeTransformAnimation_GetFramesCount(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_SetCurveInterpMode")]
+  public static extern void FDatasmithFacadeTransformAnimation_SetCurveInterpMode(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2, int jarg3);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_GetCurveInterpMode")]
+  public static extern int FDatasmithFacadeTransformAnimation_GetCurveInterpMode(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_GetFrame")]
+  public static extern void FDatasmithFacadeTransformAnimation_GetFrame(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2, int jarg3, out int jarg4, out float jarg5, out float jarg6, out float jarg7);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_RemoveFrame")]
+  public static extern void FDatasmithFacadeTransformAnimation_RemoveFrame(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2, int jarg3);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_GetEnabledTransformChannels")]
+  public static extern int FDatasmithFacadeTransformAnimation_GetEnabledTransformChannels(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_SetEnabledTransformChannels")]
+  public static extern void FDatasmithFacadeTransformAnimation_SetEnabledTransformChannels(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeTransformAnimation")]
+  public static extern void delete_FDatasmithFacadeTransformAnimation(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeVisibilityAnimation")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeVisibilityAnimation([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_AddFrame")]
+  public static extern void FDatasmithFacadeVisibilityAnimation_AddFrame(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2, bool jarg3);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_GetFramesCount")]
+  public static extern int FDatasmithFacadeVisibilityAnimation_GetFramesCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_SetCurveInterpMode")]
+  public static extern void FDatasmithFacadeVisibilityAnimation_SetCurveInterpMode(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_GetCurveInterpMode")]
+  public static extern int FDatasmithFacadeVisibilityAnimation_GetCurveInterpMode(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_GetFrame")]
+  public static extern void FDatasmithFacadeVisibilityAnimation_GetFrame(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2, out int jarg3, out bool jarg4);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_RemoveFrame")]
+  public static extern void FDatasmithFacadeVisibilityAnimation_RemoveFrame(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_SetPropagateToChildren")]
+  public static extern void FDatasmithFacadeVisibilityAnimation_SetPropagateToChildren(global::System.Runtime.InteropServices.HandleRef jarg1, bool jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_GetPropagateToChildren")]
+  public static extern bool FDatasmithFacadeVisibilityAnimation_GetPropagateToChildren(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeVisibilityAnimation")]
+  public static extern void delete_FDatasmithFacadeVisibilityAnimation(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeSubsequenceAnimation")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeSubsequenceAnimation([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_GetStartTime")]
+  public static extern int FDatasmithFacadeSubsequenceAnimation_GetStartTime(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_SetStartTime")]
+  public static extern void FDatasmithFacadeSubsequenceAnimation_SetStartTime(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_GetDuration")]
+  public static extern int FDatasmithFacadeSubsequenceAnimation_GetDuration(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_SetDuration")]
+  public static extern void FDatasmithFacadeSubsequenceAnimation_SetDuration(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_GetTimeScale")]
+  public static extern float FDatasmithFacadeSubsequenceAnimation_GetTimeScale(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_SetTimeScale")]
+  public static extern void FDatasmithFacadeSubsequenceAnimation_SetTimeScale(global::System.Runtime.InteropServices.HandleRef jarg1, float jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_GetNewSubsequence")]
+  public static extern global::System.IntPtr FDatasmithFacadeSubsequenceAnimation_GetNewSubsequence(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_SetSubsequence")]
+  public static extern void FDatasmithFacadeSubsequenceAnimation_SetSubsequence(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeSubsequenceAnimation")]
+  public static extern void delete_FDatasmithFacadeSubsequenceAnimation(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeLevelSequence")]
+  public static extern global::System.IntPtr new_FDatasmithFacadeLevelSequence([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_GetFile")]
+  public static extern global::System.IntPtr FDatasmithFacadeLevelSequence_GetFile(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_SetFile")]
+  public static extern void FDatasmithFacadeLevelSequence_SetFile(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_InternalGetFileHash")]
+  public static extern void FDatasmithFacadeLevelSequence_InternalGetFileHash(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)] System.Text.StringBuilder jarg2, ulong jarg3);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_SetFileHash")]
+  public static extern void FDatasmithFacadeLevelSequence_SetFileHash(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_GetFrameRate")]
+  public static extern float FDatasmithFacadeLevelSequence_GetFrameRate(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_SetFrameRate")]
+  public static extern void FDatasmithFacadeLevelSequence_SetFrameRate(global::System.Runtime.InteropServices.HandleRef jarg1, float jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_AddAnimation")]
+  public static extern void FDatasmithFacadeLevelSequence_AddAnimation(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_GetAnimationsCount")]
+  public static extern int FDatasmithFacadeLevelSequence_GetAnimationsCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_GetTransformAnimation")]
+  public static extern global::System.IntPtr FDatasmithFacadeLevelSequence_GetTransformAnimation(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_GetVisibilityAnimation")]
+  public static extern global::System.IntPtr FDatasmithFacadeLevelSequence_GetVisibilityAnimation(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_GetSubsequenceAnimation")]
+  public static extern global::System.IntPtr FDatasmithFacadeLevelSequence_GetSubsequenceAnimation(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_RemoveAnimation")]
+  public static extern void FDatasmithFacadeLevelSequence_RemoveAnimation(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeLevelSequence")]
+  public static extern void delete_FDatasmithFacadeLevelSequence(global::System.Runtime.InteropServices.HandleRef jarg1);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_new_FDatasmithFacadeScene")]
   public static extern global::System.IntPtr new_FDatasmithFacadeScene([global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg3, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg4);
 
@@ -1435,6 +1579,18 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_RemoveLevelVariantSets")]
   public static extern void FDatasmithFacadeScene_RemoveLevelVariantSets(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_AddLevelSequence")]
+  public static extern void FDatasmithFacadeScene_AddLevelSequence(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_GetLevelSequencesCount")]
+  public static extern int FDatasmithFacadeScene_GetLevelSequencesCount(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_GetLevelSequence")]
+  public static extern global::System.IntPtr FDatasmithFacadeScene_GetLevelSequence(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_RemoveLevelSequence")]
+  public static extern void FDatasmithFacadeScene_RemoveLevelSequence(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_AddMetaData")]
   public static extern void FDatasmithFacadeScene_AddMetaData(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
@@ -1915,6 +2071,21 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeActorMesh_SWIGUpcast")]
   public static extern global::System.IntPtr FDatasmithFacadeActorMesh_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeBaseAnimation_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeBaseAnimation_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeTransformAnimation_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeTransformAnimation_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeVisibilityAnimation_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeVisibilityAnimation_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeSubsequenceAnimation_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeSubsequenceAnimation_SWIGUpcast(global::System.IntPtr jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeLevelSequence_SWIGUpcast")]
+  public static extern global::System.IntPtr FDatasmithFacadeLevelSequence_SWIGUpcast(global::System.IntPtr jarg1);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadePropertyCapture_SWIGUpcast")]
   public static extern global::System.IntPtr FDatasmithFacadePropertyCapture_SWIGUpcast(global::System.IntPtr jarg1);

@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using SolidWorks.Interop.sldworks;
+using System;
 using System.Runtime.InteropServices;
 
 namespace SolidworksDatasmith.Geometry
@@ -10,7 +11,7 @@ namespace SolidworksDatasmith.Geometry
     {
         private static MathUtility _util = null;
 
-        public static MathUtility Utility
+        public static MathUtility SWUtility
         {
             get
             {
@@ -25,22 +26,22 @@ namespace SolidworksDatasmith.Geometry
 
         public static MathVector CreateVector(double x, double y, double z)
         {
-            return (MathVector)Utility.CreateVector(new[] { x, y, z }); ;
+            return (MathVector)SWUtility.CreateVector(new[] { x, y, z }); ;
         }
 
         public static MathVector CreateVector(float x, float y, float z)
         {
-            return (MathVector)Utility.CreateVector(new[] { x, y, z }); ;
+            return (MathVector)SWUtility.CreateVector(new[] { x, y, z }); ;
         }
 
         public static MathPoint CreatePoint(double x, double y, double z)
         {
-            return (MathPoint)Utility.CreatePoint(new[] { x, y, z }); ;
+            return (MathPoint)SWUtility.CreatePoint(new[] { x, y, z }); ;
         }
 
         public static MathPoint CreatePoint(float x, float y, float z)
         {
-            return (MathPoint)Utility.CreatePoint(new[] { x, y, z }); ;
+            return (MathPoint)SWUtility.CreatePoint(new[] { x, y, z }); ;
         }
 
         // a solidworks matrix indices work as follows:
@@ -57,12 +58,12 @@ namespace SolidworksDatasmith.Geometry
             0.0, 0.0, 0.0, 0.0
         };
 
-        // datasmith matrix:
-        // 0 4 8  12 (tx)
-        // 1 5 9  13 (ty)
-        // 2 6 10 14 (tz)
-        // 3(0.0) 7(0.0) 11(0.0) 15(1.0)
-        public static float[] ConvertFromSolidworksTransform(MathTransform tm)
+		// datasmith matrix:
+		// 0 4 8  12 (tx)
+		// 1 5 9  13 (ty)
+		// 2 6 10 14 (tz)
+		// 3(0.0) 7(0.0) 11(0.0) 15(1.0)
+		public static float[] ConvertFromSolidworksTransform(MathTransform tm)
         {
             float[] t = new float[16];
             double[] tt = null;
@@ -88,12 +89,14 @@ namespace SolidworksDatasmith.Geometry
 
         public static MathTransform CreateTransform()
         {
-            return (MathTransform)Utility.CreateTransform(tIdenity);
+            return (MathTransform)SWUtility.CreateTransform(tIdenity);
         }
 
         public static MathTransform CreateTransformRotateAxis(Vec3 axis, float rotation)
         {
-            return (MathTransform)Utility.CreateTransformRotateAxis(Utility.CreatePoint(new double[] { 0.0, 0.0, 0.0 }), Utility.CreateVector(new double[] { (double)axis.x, (double)axis.y, (double)axis.z }), (double)rotation);
+            return (MathTransform)SWUtility.CreateTransformRotateAxis(
+				SWUtility.CreatePoint(new double[] { 0.0, 0.0, 0.0 }), 
+				SWUtility.CreateVector(new double[] { (double)axis.x, (double)axis.y, (double)axis.z }), (double)rotation);
         }
-    }
+	}
 }
