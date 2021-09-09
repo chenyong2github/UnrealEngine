@@ -2,6 +2,7 @@
 
 #include "AndroidPlatformBackgroundHttpManager.h"
 
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeRWLock.h"
 
 #include "UEWorkManagerNativeWrapper.h"
