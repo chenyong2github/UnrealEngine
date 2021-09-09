@@ -16,7 +16,7 @@ private:
 	 */
 	static bool ModelLoadAccuracyAndSpeedTests(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory, const TArray<FString>& InModelNames,
 		const TArray<float>& InInputArrayValues, const TArray<TArray<double>>& InCPUGroundTruths, const TArray<TArray<double>>& InGPUGroundTruths,
-		const TArray<int32>& InCPURepetitionsForUEAndORT, const TArray<int32>& InGPURepetitionsForUEAndORT, const TArray<int32>& InCPURepetitionsForUEOnly, const TArray<int32>& InGPURepetitionsForUEOnly);
+		const TArray<int32>& InCPURepetitionsForUEAndORT, const TArray<int32>& InGPURepetitionsForUEAndORTBackEnd, const TArray<int32>& InCPURepetitionsForUEOnly, const TArray<int32>& InGPURepetitionsForUEOnly);
 	/**
 	 * Other auxiliary functions for GlobalTest().
 	 */
@@ -25,9 +25,13 @@ private:
 	static FString GetUAssetModelFilePath(const FString& InModelName, const FString& InModelZooRelativeDirectory);
 	static UNeuralNetwork* NetworkUassetLoadTest(const FString& InUAssetPath);
 	static UNeuralNetwork* NetworkONNXOrORTLoadTest(const FString& InModelFilePath);
-	static bool ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const TArray<float>& InInputArrayValues, const TArray<double>& InCPUGroundTruths,
-		const TArray<double>& InGPUGroundTruths);
+	static bool ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENeuralBackEnd InBackEnd, const TArray<float>& InInputArrayValues, const TArray<double>& InCPUGroundTruths, const TArray<double>& InGPUGroundTruths);
 	static bool ModelSpeedTest(const FString& InUAssetPath, const ENeuralDeviceType InDeviceType, const ENeuralBackEnd InBackEnd, const int32 InRepetitions);
 	static double GetAveragedL1Norm(const TArray<float>& InArray);
 	static double GetAveragedL1NormDiff(const TArray<float>& InArray1, const TArray<float>& InArray2);
+	/**
+	 * Verbose string auxiliary functions.
+	 */
+	static FString GetDeviceTypeString(const ENeuralDeviceType InDeviceType);
+	static FString GetBackEndString(const ENeuralBackEnd InBackEnd);
 };
