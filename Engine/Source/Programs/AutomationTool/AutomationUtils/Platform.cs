@@ -199,6 +199,24 @@ namespace AutomationTool
 			return null;
 		}
 
+		public virtual DeviceInfo GetDeviceByName( string DeviceName )
+		{
+			DeviceInfo[] Devices = GetDevices();
+			if (Devices == null)
+			{
+				return null;
+			}
+			// look by Id first
+			DeviceInfo Device = Array.Find(Devices, x => string.Compare(x.Id, DeviceName, true) == 0);
+			// if that fails, use Name
+			if (Device == null)
+			{
+				Device = Array.Find(Devices, x => string.Compare(x.Name, DeviceName, true) == 0);
+			}
+			return Device;
+
+		}
+
 		public virtual bool InstallSDK(BuildCommand BuildCommand, ITurnkeyContext TurnkeyContext, DeviceInfo Device, bool bUnattended)
 		{
 			string Command, Params;

@@ -383,19 +383,7 @@ namespace Turnkey
 
 		private static DeviceInfo GetDeviceByPlatformAndName(UnrealTargetPlatform Platform, string DeviceName)
 		{
-			DeviceInfo[] Devices = AutomationTool.Platform.GetPlatform(Platform).GetDevices();
-			if (Devices == null)
-			{
-				return null;
-			}
-			// look by Id first
-			DeviceInfo Device = Array.Find(Devices, x => string.Compare(x.Id, DeviceName, true) == 0);
-			// if that fails, use Name
-			if (Device == null)
-			{
-				Device = Array.Find(Devices, x => string.Compare(x.Name, DeviceName, true) == 0);
-			}
-			return Device;
+			return AutomationTool.Platform.GetPlatform(Platform).GetDeviceByName(DeviceName);
 		}
 
 		public static List<DeviceInfo> GetDevicesFromCommandLineOrUser(string[] CommandOptions, UnrealTargetPlatform Platform)
