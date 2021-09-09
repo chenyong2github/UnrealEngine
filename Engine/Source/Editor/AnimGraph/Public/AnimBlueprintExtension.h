@@ -35,11 +35,18 @@ public:
 	/** Request an anim blueprint extension for an anim blueprint. It is illegal to perform this operation once compilation has commenced, use GetExtension instead. */
 	static UAnimBlueprintExtension* RequestExtension(UAnimBlueprint* InAnimBlueprint, TSubclassOf<UAnimBlueprintExtension> InExtensionType);
 
-	/** Get an already-requested extension for an anim blueprint. */
+	/** Get an already-requested extension for an anim blueprint. Will assert if the extension is not found. */
 	template<typename ExtensionType>
-    static ExtensionType* GetExtension(UAnimBlueprint* InAnimBlueprint)
+	static ExtensionType* GetExtension(UAnimBlueprint* InAnimBlueprint)
 	{
 		return CastChecked<ExtensionType>(GetExtension(InAnimBlueprint, ExtensionType::StaticClass()));
+	}
+
+	/** Get an already-requested extension for an anim blueprint. @return nullptr if the extension is not found. */
+	template<typename ExtensionType>
+	static ExtensionType* FindExtension(UAnimBlueprint* InAnimBlueprint)
+	{
+		return Cast<ExtensionType>(GetExtension(InAnimBlueprint, ExtensionType::StaticClass()));
 	}
 	
 	/** Get an already-requested an anim blueprint extension for an anim blueprint. */

@@ -11,6 +11,7 @@
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
 #include "KismetCompiler.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_LinkedAnimGraph"
 
@@ -132,6 +133,19 @@ bool UAnimGraphNode_LinkedAnimGraph::IsActionFilteredOut(class FBlueprintActionF
 		}
 	}
 	return bIsFilteredOut;
+}
+
+void UAnimGraphNode_LinkedAnimGraph::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	
+	if(Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimGraphNodeTaggingAdded)
+	{
+		// Transfer old tag to new system
+		SetTagInternal(Node.Tag_DEPRECATED);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

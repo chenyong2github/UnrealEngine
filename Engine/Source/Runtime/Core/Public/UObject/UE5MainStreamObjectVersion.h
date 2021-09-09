@@ -175,6 +175,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add bVisibleInRayTracing flag to Skeletal Mesh Sections
 		SkelMeshSectionVisibleInRayTracingFlagAdded,
 
+		// Add generic tagging of all anim graph nodes in anim blueprints
+		AnimGraphNodeTaggingAdded,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

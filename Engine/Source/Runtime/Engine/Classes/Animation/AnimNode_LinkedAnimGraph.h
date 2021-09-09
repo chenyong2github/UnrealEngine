@@ -41,10 +41,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	TSubclassOf<UAnimInstance> InstanceClass;
 
-	/** Optional tag used to identify this linked instance */
-	UPROPERTY(EditAnywhere, Category = Settings)
-	FName Tag;
-
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FName Tag_DEPRECATED;
+#endif
+	
 	// The root node of the dynamically-linked graph
 	FAnimNode_Base* LinkedRoot;
 

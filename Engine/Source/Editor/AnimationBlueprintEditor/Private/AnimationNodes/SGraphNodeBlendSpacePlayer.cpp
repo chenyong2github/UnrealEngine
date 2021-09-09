@@ -31,8 +31,8 @@ void SGraphNodeBlendSpacePlayer::CreateBelowPinControls(TSharedPtr<SVerticalBox>
 {
 	SAnimationGraphNode::CreateBelowPinControls(MainBox);
 
-	// Insert above the error reporting bar
-	MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - 1))
+	// Insert above the error reporting bar (but above the tag/functions)
+	MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - DebugGridSlotReverseIndex))
 	.AutoHeight()
 	.VAlign(VAlign_Fill)
 	.Padding(0.0f)

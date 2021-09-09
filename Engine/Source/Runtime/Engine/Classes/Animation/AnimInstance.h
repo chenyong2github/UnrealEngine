@@ -815,7 +815,8 @@ public:
 	void GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const;
 
 	/** Runs through all nodes, attempting to find all linked instances that match the name/tag */
-	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking")
+	UE_DEPRECATED(5.0, "Tags are unique so this function is no longer supported. Please use GetLinkedAnimGraphInstanceByTag instead")
+	UFUNCTION(BlueprintPure, Category = "Animation Blueprint Linking", meta=(DeprecatedFunction, DeprecationMessage="Tags are unique so this function is no longer supported. Please use GetLinkedAnimGraphInstanceByTag instead"))
 	void GetLinkedAnimGraphInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutLinkedInstances) const;
 
 	UE_DEPRECATED(4.24, "Function renamed, please use LinkAnimGraphByTag")

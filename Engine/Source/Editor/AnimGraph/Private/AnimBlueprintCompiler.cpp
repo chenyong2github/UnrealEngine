@@ -1917,11 +1917,10 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 	NewAnimBlueprintClass->NodeTypeMap.Empty();
 	
 	// First index & setup the node data
-	int32 NodeIndex = 0;
-	for(FAnimNodeData& NodeData : NewAnimBlueprintClass->AnimNodeData)
+	for(const TPair<int32, FProperty*>& IndexPropertyPair : AllocatedPropertiesByIndex)
 	{
-		const int32 NodePropertyIndex = AllocatedAnimNodeIndices.Num() - 1 - NodeIndex;
-		FStructProperty* NodeStructProperty = CastFieldChecked<FStructProperty>(AllocatedPropertiesByIndex.FindChecked(NodePropertyIndex));
+		int32 NodeIndex = AllocatedPropertiesByIndex.Num() - 1 - IndexPropertyPair.Key;
+		FStructProperty* NodeStructProperty = CastFieldChecked<FStructProperty>(IndexPropertyPair.Value);
 		const UScriptStruct* Struct = NodeStructProperty->Struct;
 		const FAnimNodeStructData AnimNodeStructData = NewAnimBlueprintClass->NodeTypeMap.Add(Struct, FAnimNodeStructData(Struct));
 		const int32 NumProperties = AnimNodeStructData.GetNumProperties();
@@ -1933,9 +1932,10 @@ void FAnimBlueprintCompilerContext::ProcessFoldedPropertyRecords()
 			NewAnimBlueprintClass->NodeTypeMap.Add(SuperStruct, FAnimNodeStructData(SuperStruct));
 			SuperStruct = Cast<UScriptStruct>(SuperStruct->GetSuperStruct());
 		}
-		
+
+		FAnimNodeData& NodeData = NewAnimBlueprintClass->AnimNodeData[NodeIndex];
 		NodeData.AnimClassInterface = NewAnimBlueprintClass;
-		NodeData.NodeIndex = NodeIndex++;
+		NodeData.NodeIndex = NodeIndex;
 		check(NumProperties >= 0);
 		NodeData.Entries.SetNum(NumProperties);
 		for(uint32& Entry : NodeData.Entries)
