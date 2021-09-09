@@ -63,9 +63,12 @@ public:
 };
 
 UCLASS(BlueprintType)
-class UMovieSceneScriptingBoolChannel : public UMovieSceneScriptingChannel, public TMovieSceneScriptingChannel<FMovieSceneBoolChannel, UMovieSceneScriptingBoolKey, bool>
+class UMovieSceneScriptingBoolChannel : public UMovieSceneScriptingChannel
 {
 	GENERATED_BODY()
+
+	using Impl = TMovieSceneScriptingChannel<FMovieSceneBoolChannel, UMovieSceneScriptingBoolKey, bool>;
+
 public:
 	/**
 	* Add a key to this channel. This initializes a new key and returns a reference to it.
@@ -78,7 +81,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta=(DisplayName = "Add Key (Bool)"))
 	UMovieSceneScriptingBoolKey* AddKey(const FFrameNumber& InTime, bool NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
-		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, NewValue, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
+		return Impl::AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, NewValue, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
 	}
 
 	/**
@@ -87,7 +90,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta=(DisplayName = "Remove Key (Bool)"))
 	virtual void RemoveKey(UMovieSceneScriptingKey* Key)
 	{
-		RemoveKeyFromChannel(ChannelHandle, Key);
+		Impl::RemoveKeyFromChannel(ChannelHandle, Key);
 	}
 
 	/**
@@ -98,7 +101,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Keys (Bool)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
-		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
+		return Impl::GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**
@@ -118,7 +121,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Evaluate Keys (Bool)"))
 	TArray<bool> EvaluateKeys(FSequencerScriptingRange Range, FFrameRate FrameRate) const
 	{
-		return EvaluateKeysInChannel(ChannelHandle, OwningSequence, Range, FrameRate);
+		return Impl::EvaluateKeysInChannel(ChannelHandle, OwningSequence, Range, FrameRate);
 	}
 
 	/**
@@ -129,7 +132,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Compute Effective Range (Bool)"))
 	FSequencerScriptingRange ComputeEffectiveRange() const
 	{
-		return ComputeEffectiveRangeInChannel(ChannelHandle, OwningSequence);
+		return Impl::ComputeEffectiveRangeInChannel(ChannelHandle, OwningSequence);
 	}
 
 	/**
@@ -139,7 +142,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Default (Bool)"))
 	void SetDefault(bool InDefaultValue)
 	{
-		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
+		Impl::SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
 	}
 
 	/**
@@ -149,7 +152,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Default (Bool)"))
 	bool GetDefault() const
 	{
-		TOptional<bool> DefaultValue = GetDefaultFromChannel(ChannelHandle);
+		TOptional<bool> DefaultValue = Impl::GetDefaultFromChannel(ChannelHandle);
 		return DefaultValue.IsSet() ? DefaultValue.GetValue() : false;
 	}
 
@@ -159,7 +162,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Default (Bool)"))
 	void RemoveDefault()
 	{
-		RemoveDefaultFromChannel(ChannelHandle);
+		Impl::RemoveDefaultFromChannel(ChannelHandle);
 	}
 
 	/**
@@ -168,7 +171,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Has Default (Bool)"))
 	bool HasDefault() const
 	{
-		return GetDefaultFromChannel(ChannelHandle).IsSet();
+		return Impl::GetDefaultFromChannel(ChannelHandle).IsSet();
 	}
 public:
 	TWeakObjectPtr<UMovieSceneSequence> OwningSequence;

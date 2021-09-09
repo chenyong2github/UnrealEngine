@@ -157,11 +157,41 @@ public:
 	* Transforms containing 9 float channels to represent Translation/Rotation/Scale), and a section may have mixed
 	* channel types.
 	*
+	* For backwards compatibility reasons, all double channels will be wrapped inside float scripting channels.
+	* Use GetAllChannels to get proper double channels.
+	*
+	* @param Section       The section to use.
+	* @return An array containing any key channels that match the type specified
+	*/
+	UE_DEPRECATED(5.0, "Please use GetAllChannels instead")
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Section", meta=(ScriptMethod, DevelopmentOnly))
+	static TArray<UMovieSceneScriptingChannel*> GetChannels(UMovieSceneSection* Section);
+
+	/**
+	* Find all channels that belong to the specified UMovieSceneSection. Some sections have many channels (such as
+	* Transforms containing 9 double channels to represent Translation/Rotation/Scale), and a section may have mixed
+	* channel types.
+	*
 	* @param Section       The section to use.
 	* @return An array containing any key channels that match the type specified
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Section", meta=(ScriptMethod, DevelopmentOnly))
-	static TArray<UMovieSceneScriptingChannel*> GetChannels(UMovieSceneSection* Section);
+	static TArray<UMovieSceneScriptingChannel*> GetAllChannels(UMovieSceneSection* Section);
+
+	/**
+	* Find all channels that belong to the specified UMovieSceneSection that match the specific type. This will filter out any children who do not inherit
+	* from the specified type for you.
+	*
+	* For backwards compatibility reasons, all double channels will be wrapped inside float scripting channels.
+	* Use GetAllChannels to get proper double channels.
+	*
+	* @param Section        The section to use.
+	* @param ChannelType	The class type to look for.
+	* @return An array containing any key channels that match the type specified
+	*/
+	UE_DEPRECATED(5.0, "Please use GetChannelsByType instead")
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Section", meta = (ScriptMethod, DeterminesOutputType="TrackType", DevelopmentOnly))
+	static TArray<UMovieSceneScriptingChannel*> FindChannelsByType(UMovieSceneSection* Section, TSubclassOf<UMovieSceneScriptingChannel> ChannelType);
 
 	/**
 	* Find all channels that belong to the specified UMovieSceneSection that match the specific type. This will filter out any children who do not inherit
@@ -172,7 +202,7 @@ public:
 	* @return An array containing any key channels that match the type specified
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Section", meta = (ScriptMethod, DeterminesOutputType="TrackType", DevelopmentOnly))
-	static TArray<UMovieSceneScriptingChannel*> FindChannelsByType(UMovieSceneSection* Section, TSubclassOf<UMovieSceneScriptingChannel> ChannelType);
+	static TArray<UMovieSceneScriptingChannel*> GetChannelsByType(UMovieSceneSection* Section, TSubclassOf<UMovieSceneScriptingChannel> ChannelType);
 
 	/**
 	 * Get the frame in the space of its parent sequence

@@ -55,7 +55,7 @@ public:
 template<typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType>
 struct TMovieSceneScriptingChannel
 {
-	ScriptingKeyType* AddKeyInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, 
+	static ScriptingKeyType* AddKeyInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, 
 		TWeakObjectPtr<UMovieSceneSection> Section, const FFrameNumber InTime, ScriptingKeyValueType& NewValue, float SubFrame, ESequenceTimeUnit TimeUnit, EMovieSceneKeyInterpolation Interpolation)
 	{
 		ChannelType* Channel = ChannelHandle.Get();
@@ -92,7 +92,7 @@ struct TMovieSceneScriptingChannel
 		return nullptr;
 	}
 
-	void RemoveKeyFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, UMovieSceneScriptingKey* Key)
+	static void RemoveKeyFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, UMovieSceneScriptingKey* Key)
 	{
 		if (!Key)
 		{
@@ -118,7 +118,7 @@ struct TMovieSceneScriptingChannel
 		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove key."), ELogVerbosity::Error);
 	}
 
-	TArray<UMovieSceneScriptingKey*> GetKeysInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, TWeakObjectPtr<UMovieSceneSection> Section) const
+	static TArray<UMovieSceneScriptingKey*> GetKeysInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, TWeakObjectPtr<UMovieSceneSection> Section)
 	{
 		TArray<UMovieSceneScriptingKey*> OutScriptingKeys;
 		ChannelType* Channel = ChannelHandle.Get();
@@ -146,7 +146,7 @@ struct TMovieSceneScriptingChannel
 		return OutScriptingKeys;
 	}
 
-	TArray<ScriptingKeyValueType> EvaluateKeysInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, FSequencerScriptingRange ScriptingRange, FFrameRate FrameRate) const
+	static TArray<ScriptingKeyValueType> EvaluateKeysInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, FSequencerScriptingRange ScriptingRange, FFrameRate FrameRate)
 	{
 		TArray<ScriptingKeyValueType> OutValues;
 		ChannelType* Channel = ChannelHandle.Get();
@@ -179,7 +179,7 @@ struct TMovieSceneScriptingChannel
 		return OutValues;
 	}
 
-	FSequencerScriptingRange ComputeEffectiveRangeInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence) const
+	static FSequencerScriptingRange ComputeEffectiveRangeInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence)
 	{
 		FSequencerScriptingRange ScriptingRange;
 		ChannelType* Channel = ChannelHandle.Get();
@@ -195,7 +195,7 @@ struct TMovieSceneScriptingChannel
 		return ScriptingRange;
 	}
 
-	void SetDefaultInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, TWeakObjectPtr<UMovieSceneSection> Section, ScriptingKeyValueType& InDefaultValue)
+	static void SetDefaultInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, TWeakObjectPtr<UMovieSceneSection> Section, ScriptingKeyValueType& InDefaultValue)
 	{
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
@@ -216,7 +216,7 @@ struct TMovieSceneScriptingChannel
 		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set default value."), ELogVerbosity::Error);
 	}
 
-	void RemoveDefaultFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle)
+	static void RemoveDefaultFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle)
 	{
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
@@ -228,7 +228,7 @@ struct TMovieSceneScriptingChannel
 		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to remove default value."), ELogVerbosity::Error);
 	}
 
-	TOptional<ScriptingKeyValueType> GetDefaultFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle) const
+	static TOptional<ScriptingKeyValueType> GetDefaultFromChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle)
 	{
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
