@@ -18,6 +18,21 @@ template<typename ElementType> class TSimpleRingBuffer;
 DECLARE_LOG_CATEGORY_EXTERN(LogBlueprintDebug, Log, All);
 
 //////////////////////////////////////////////////////////////////////////
+// EBlueprintBreakpointReloadMethod
+
+/** Indicates how to restore breakpoints when a Blueprint asset is reloaded. */
+UENUM()
+enum class EBlueprintBreakpointReloadMethod
+{
+	/** Restore all breakpoints and keep their saved enabled/disabled state. */
+	RestoreAll,
+	/** Restore all breakpoints and disable on reload. */
+	RestoreAllAndDisable,
+	/** Discard all breakpoints on reload. */
+	DiscardAll
+};
+
+//////////////////////////////////////////////////////////////////////////
 // FKismetTraceSample
 
 struct FKismetTraceSample
@@ -266,6 +281,9 @@ public:
 
 	/** Queries whether a blueprint has breakpoints in it */
 	static bool BlueprintHasBreakpoints(const UBlueprint* Blueprint);
+
+	/** Handles breakpoint validation/restoration after loading the given Blueprint */
+	static void RestoreBreakpointsOnLoad(const UBlueprint* Blueprint);
 	
 	// Blueprint utils 
 

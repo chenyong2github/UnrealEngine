@@ -135,6 +135,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Workflow, meta=(EditCondition="bEnableTypePromotion"))
 	TSet<FName> TypePromotionPinBlacklist;
 
+	/** How to handle previously-set breakpoints on reload. */
+	UPROPERTY(config, EditAnywhere, Category = Workflow)
+	EBlueprintBreakpointReloadMethod BreakpointReloadMethod;
+
 // Experimental
 public:
 	/** Whether to enable namespace filtering features in the Blueprint editor */

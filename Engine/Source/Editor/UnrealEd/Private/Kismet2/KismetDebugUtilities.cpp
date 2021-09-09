@@ -1187,6 +1187,47 @@ FBlueprintBreakpoint* FKismetDebugUtilities::FindBreakpointForNode(const UEdGrap
 	);
 }
 
+void FKismetDebugUtilities::RestoreBreakpointsOnLoad(const UBlueprint* Blueprint)
+{
+	if (!Blueprint)
+	{
+		return;
+	}
+
+	// Remove stale breakpoints
+	RemoveBreakpointsByPredicate(
+		Blueprint,
+		[Blueprint](const FBlueprintBreakpoint& Breakpoint)
+		{
+			const UEdGraphNode* const Location = Breakpoint.GetLocation();
+			return !Location || !Location->IsIn(Blueprint);
+		}
+	);
+
+	// Restore breakpoints based on preferred method
+	const UBlueprintEditorSettings* BlueprintEditorSettings = GetDefault<UBlueprintEditorSettings>();
+	switch (BlueprintEditorSettings->BreakpointReloadMethod)
+	{
+	case EBlueprintBreakpointReloadMethod::RestoreAllAndDisable:
+		ForeachBreakpoint(
+			Blueprint,
+			[](FBlueprintBreakpoint& Breakpoint)
+			{
+				SetBreakpointEnabled(Breakpoint, false);
+			}
+		);
+		break;
+
+	case EBlueprintBreakpointReloadMethod::DiscardAll:
+		ClearBreakpoints(Blueprint);
+		break;
+
+	case EBlueprintBreakpointReloadMethod::RestoreAll:
+	default:
+		break;
+	}
+}
+
 bool FKismetDebugUtilities::HasDebuggingData(const UBlueprint* Blueprint)
 {
 	return Cast<UBlueprintGeneratedClass>(*Blueprint->GeneratedClass)->GetDebugData().IsValid();

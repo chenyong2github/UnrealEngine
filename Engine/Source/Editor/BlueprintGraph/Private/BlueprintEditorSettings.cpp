@@ -34,6 +34,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bDoubleClickNavigatesToParent(true)
 	, bEnableTypePromotion(true)
 	, TypePromotionPinBlacklist { UEdGraphSchema_K2::PC_String, UEdGraphSchema_K2::PC_Text }
+	, BreakpointReloadMethod(EBlueprintBreakpointReloadMethod::RestoreAll)
 	// Experimental
 	, bEnableNamespaceFilteringFeatures(false)
 	, bEnableNamespaceImportingFeatures(false)
