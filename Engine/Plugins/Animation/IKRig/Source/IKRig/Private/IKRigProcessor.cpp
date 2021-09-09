@@ -8,9 +8,16 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 {
 	// we instantiate UObjects here which MUST be done on game thread...
 	check(IsInGameThread());
+	check(InRigAsset);
 	
 	bInitialized = false;
 	InitializedWithIKRigAssetVersion = -1;
+
+	if (!InRigAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset."));
+		return;
+	}
 
 	// bail out if we've already tried initializing with this exact version of the rig asset
 	if (LastVersionTried == InRigAsset->GetAssetVersion())
@@ -18,12 +25,6 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 		return; // don't keep spamming
 	}
 	LastVersionTried = InRigAsset->GetAssetVersion();
-
-	if (!InRigAsset)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset."));
-		return;
-	}
 
 	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
 	{

@@ -328,10 +328,10 @@ struct IKRIG_API FIKRetargetPose
 	FIKRetargetPose(){}
 	
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
-	FVector RootTranslationOffset;
+	FVector RootTranslationOffset = FVector::ZeroVector;
 	
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
-	FQuat RootRotationOffset;
+	FQuat RootRotationOffset = FQuat::Identity;
 	
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
 	TMap<FName, FQuat> BoneRotationOffsets;
