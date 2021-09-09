@@ -376,7 +376,10 @@ protected:
 	int32 SelectionTimestamp = 0;
 	TUniquePtr<FPolygonSelectionMechanicSelectionChange> ActiveChange;
 
-	FGroupTopologySelection PreDragPersistentSelection; // Used for box selection
+	// Used for box selection
+	FGroupTopologySelection PreDragPersistentSelection;
+	FGroupTopologySelector::FSelectionSettings PreDragTopoSelectorSettings;
+
 	FVector3d LastClickedHitPosition;
 	FVector3d LastClickedHitNormal;
 
