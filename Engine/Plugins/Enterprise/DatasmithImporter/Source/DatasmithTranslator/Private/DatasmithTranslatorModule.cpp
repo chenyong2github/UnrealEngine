@@ -7,6 +7,7 @@
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 #include "MasterMaterials/DatasmithRevitMaterialSelector.h"
 #include "MasterMaterials/DatasmithSketchupMaterialSelector.h"
+#include "MasterMaterials/DatasmithStdMaterialSelector.h"
 
 void IDatasmithTranslatorModule::StartupModule()
 {
@@ -17,6 +18,7 @@ void IDatasmithTranslatorModule::StartupModule()
 	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), MakeShared< FDatasmithRevitMaterialSelector >());
 	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("SketchUp"), MakeShared< FDatasmithSketchUpMaterialSelector >());
 	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("CityEngine"), MakeShared< FDatasmithCityEngineMaterialSelector >());
+	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("StdMaterial"), MakeShared< FDatasmithStdMaterialSelector >());
 }
 
 void IDatasmithTranslatorModule::ShutdownModule()
@@ -25,6 +27,7 @@ void IDatasmithTranslatorModule::ShutdownModule()
 	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("Revit"));
 	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("SketchUp"));
 	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("CityEngine"));
+	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("StdMaterial"));
 
 	FDatasmithMasterMaterialManager::Destroy();
 }
