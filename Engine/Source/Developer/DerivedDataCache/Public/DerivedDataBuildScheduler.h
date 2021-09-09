@@ -27,6 +27,8 @@ class IBuildScheduler
 {
 public:
 	virtual ~IBuildScheduler() = default;
+
+	/** Begin processing of the job by this scheduler. Always paired with IBuildJobSchedule::EndJob. */
 	virtual TUniquePtr<IBuildJobSchedule> BeginJob(IBuildJob& Job, IRequestOwner& Owner) = 0;
 };
 
@@ -49,7 +51,7 @@ struct FBuildSchedulerParams
 	uint64 TotalRequiredMemory = 0;
 };
 
-/** Scheduling interface / context for an IBuildJob */
+/** Scheduling interface and context for a build job. */
 class IBuildJobSchedule
 {
 public:
@@ -58,24 +60,25 @@ public:
 	virtual FBuildSchedulerParams& EditParameters() = 0;
 
 	/** Calls StepExecution() now or later. */
-	virtual void DispatchCacheQuery() = 0;
+	virtual void ScheduleCacheQuery() = 0;
 	/** Calls StepExecution() now or later. */
-	virtual void DispatchCacheStore() = 0;
+	virtual void ScheduleCacheStore() = 0;
 	/** Calls StepExecution() now or later. */
-	virtual void DispatchResolveKey() = 0;
+	virtual void ScheduleResolveKey() = 0;
 	/** Calls StepExecution() now or later. */
-	virtual void DispatchResolveInputMeta() = 0;
+	virtual void ScheduleResolveInputMeta() = 0;
 	/**
 	 * Calls StepExecution() or SkipExecuteRemote() now or later.
 	 *
 	 * SkipExecuteRemote() won't be called unless MissingRemoteInputsSize is non-zero.
 	 */
-	virtual void DispatchResolveInputData() = 0;
+	virtual void ScheduleResolveInputData() = 0;
 	/** Calls StepExecution() or SkipExecuteRemote() now or later. */
-	virtual void DispatchExecuteRemote() = 0;
+	virtual void ScheduleExecuteRemote() = 0;
 	/** Calls StepExecution() now or later. */
-	virtual void DispatchExecuteLocal()	= 0;
+	virtual void ScheduleExecuteLocal()	= 0;
 
+	/** End processing of the job by this scheduler. Always paired with IBuildScheduler::BeginJob. */
 	virtual void EndJob() = 0;
 };
 

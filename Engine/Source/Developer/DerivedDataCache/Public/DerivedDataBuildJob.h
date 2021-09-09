@@ -10,13 +10,9 @@ template <typename FuncType> class TUniqueFunction;
 
 namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { class IBuild; }
-namespace UE::DerivedData { class IBuildScheduler; }
 namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { struct FBuildJobCompleteParams; }
-namespace UE::DerivedData { struct FBuildActionKey; }
-namespace UE::DerivedData { struct FBuildKey; }
 namespace UE::DerivedData { struct FCacheKey; }
-namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
 namespace UE::DerivedData { enum class EBuildStatus : uint32; }
 
 namespace UE::DerivedData
