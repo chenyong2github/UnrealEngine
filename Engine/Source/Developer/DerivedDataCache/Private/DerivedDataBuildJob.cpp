@@ -111,7 +111,7 @@ public:
 	inline ICache& GetCache() const final { return Cache; }
 	inline IBuild& GetBuild() const final { return BuildSystem; }
 
-	void Schedule() final;
+	void StepExecution() final;
 
 private:
 	FBuildJob(const FBuildJobCreateParams& Params, FStringView Name, FStringView FunctionName, FOnBuildJobComplete&& OnComplete);
@@ -210,7 +210,7 @@ private:
 	/** Available in [CacheQuery, CacheStoreWait). Context used by IBuildFunction. */
 	TRefCountPtr<FBuildJobContext> Context;
 
-	FBuildSchedulerParams SchedulerParams;
+	TUniquePtr<IBuildJobSchedule> Schedule;
 
 	/** Lock to synchronize writes to State, NextState, bInAdvanceToState. */
 	FRWLock Lock;
@@ -330,7 +330,7 @@ FBuildJob::~FBuildJob()
 		LexToString(State), *Name, *FunctionName);
 }
 
-void FBuildJob::Schedule()
+void FBuildJob::StepExecution()
 {
 	switch (State)
 	{
@@ -354,12 +354,13 @@ void FBuildJob::Schedule()
 
 void FBuildJob::BeginJob()
 {
-	Scheduler.BeginJob(this);
+	check(!Schedule);
+	Schedule = Scheduler.BeginJob(*this, Owner);
 }
 
 void FBuildJob::EndJob()
 {
-	Scheduler.EndJob(this);
+	Schedule->EndJob();
 	delete this;
 }
 
@@ -396,6 +397,10 @@ void FBuildJob::CreateContext()
 	{
 		const FCacheKey CacheKey{FCacheBucket(FunctionName), Action.Get().GetKey().Hash};
 		Context = new FBuildJobContext(*this, CacheKey, *Function, OutputBuilder, BuildPolicy);
+		Action.Get().IterateConstants([this](FStringView Key, FCbObject&& Value)
+		{
+			Context->AddConstant(Key, MoveTemp(Value));
+		});
 		Function->Configure(*Context);
 		BuildPolicy = Context->GetBuildPolicy();
 		EnumAddFlags(BuildStatus, ShouldExportBuild() ? EBuildStatus::BuildTryExport : EBuildStatus::None);
@@ -403,20 +408,21 @@ void FBuildJob::CreateContext()
 	}
 
 	// Populate the scheduler params with the information that is available now.
+	FBuildSchedulerParams& SchedulerParams = Schedule->EditParameters();
 	SchedulerParams.Key = Action.Get().GetKey();
-	Action.Get().IterateConstants([this](FStringView Key, FCbObject&& Value)
+	Action.Get().IterateConstants([&SchedulerParams](FStringView Key, FCbObject&& Value)
 	{
 		const uint64 ValueSize = Value.GetSize();
 		SchedulerParams.TotalInputsSize += ValueSize;
 		SchedulerParams.ResolvedInputsSize += ValueSize;
 	});
-	Action.Get().IterateInputs([this](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+	Action.Get().IterateInputs([&SchedulerParams](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 	{
 		SchedulerParams.TotalInputsSize += RawSize;
 	});
 	if (Inputs)
 	{
-		Inputs.Get().IterateInputs([this](FStringView Key, const FCompressedBuffer& Buffer)
+		Inputs.Get().IterateInputs([&SchedulerParams](FStringView Key, const FCompressedBuffer& Buffer)
 		{
 			SchedulerParams.ResolvedInputsSize += Buffer.GetRawSize();
 		});
@@ -577,12 +583,13 @@ void FBuildJob::EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params)
 
 void FBuildJob::EnterResolveInputData()
 {
+	FBuildSchedulerParams& SchedulerParams = Schedule->EditParameters();
 	SchedulerParams.MissingLocalInputsSize = 0;
 	SchedulerParams.MissingRemoteInputsSize = 0;
 	if (State == EBuildJobState::ResolveInputData)
 	{
 		MissingInputs.Reset();
-		Action.Get().IterateInputs([this](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+		Action.Get().IterateInputs([this, &SchedulerParams](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
 			if (!Inputs || Inputs.Get().FindInput(Key).IsNull())
 			{
@@ -603,7 +610,7 @@ void FBuildJob::EnterResolveInputData()
 	}
 	else
 	{
-		Action.Get().IterateInputs([this](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+		Action.Get().IterateInputs([this, &SchedulerParams](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
 			if (MissingInputs.FindByKey(Key))
 			{
@@ -643,6 +650,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 {
 	if (Params.Status == EStatus::Ok)
 	{
+		FBuildSchedulerParams& SchedulerParams = Schedule->EditParameters();
 		FBuildInputsBuilder Builder = BuildSystem.CreateInputs(Name);
 		for (const FBuildInputDataByKey& Input : Params.Inputs)
 		{
@@ -766,10 +774,7 @@ void FBuildJob::EnterExecuteLocal()
 				TEXT("and remote execution was not available."_SV));
 		}
 	}
-	Action.Get().IterateConstants([this](FStringView Key, FCbObject&& Value)
-	{
-		Context->AddConstant(Key, MoveTemp(Value));
-	});
+
 	Action.Get().IterateInputs([this](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 	{
 		const FCompressedBuffer& Buffer = Inputs.Get().FindInput(Key);
@@ -786,7 +791,7 @@ void FBuildJob::EnterExecuteLocal()
 	});
 	Action.Reset();
 	Inputs.Reset();
-	SchedulerParams.ResolvedInputsSize = 0;
+	Schedule->EditParameters().ResolvedInputsSize = 0;
 }
 
 void FBuildJob::BeginExecuteLocal()
@@ -863,6 +868,7 @@ void FBuildJob::SetInputs(FBuildInputs&& InInputs)
 		return;
 	}
 	Inputs = MoveTemp(InInputs);
+	FBuildSchedulerParams& SchedulerParams = Schedule->EditParameters();
 	SchedulerParams.MissingLocalInputsSize = 0;
 	SchedulerParams.MissingRemoteInputsSize = 0;
 	return AdvanceToState(ExecuteState);
@@ -883,11 +889,6 @@ void FBuildJob::SetOutputNoCheck(FBuildOutput&& InOutput, EBuildJobState NewStat
 {
 	checkf(Output.IsNull(), TEXT("Job already has an output for build of '%s' by %s."), *Name, *FunctionName);
 	Output = MoveTemp(InOutput);
-
-	if (!Owner.IsCanceled())
-	{
-		Scheduler.SetJobOutput(this, SchedulerParams, Output.Get());
-	}
 
 	if (OnComplete)
 	{
@@ -998,7 +999,7 @@ void FBuildJob::ExecuteTransition(EBuildJobState OldState, EBuildJobState NewSta
 		{
 			Context->ResetInputs();
 		}
-		SchedulerParams.ResolvedInputsSize = 0;
+		Schedule->EditParameters().ResolvedInputsSize = 0;
 	}
 	if (OldState <= EBuildJobState::ExecuteLocalWait && EBuildJobState::ExecuteLocalWait < NewState && !Output)
 	{
@@ -1038,15 +1039,15 @@ void FBuildJob::ExecuteState(EBuildJobState NewState)
 {
 	switch (NewState)
 	{
-	case EBuildJobState::ResolveKey:                 return Scheduler.DispatchResolveKey(this, Owner);
-	case EBuildJobState::ResolveInputMeta:           return Scheduler.DispatchResolveInputMeta(this, Owner);
-	case EBuildJobState::CacheQuery:                 return Scheduler.DispatchCacheQuery(this, Owner, SchedulerParams);
-	case EBuildJobState::ExecuteRemote:              return Scheduler.DispatchExecuteRemote(this, Owner, SchedulerParams);
-	case EBuildJobState::ResolveRemoteInputData:     return Scheduler.DispatchResolveInputData(this, Owner, SchedulerParams);
-	case EBuildJobState::ExecuteRemoteRetry:         return Scheduler.DispatchExecuteRemote(this, Owner, SchedulerParams);
-	case EBuildJobState::ResolveInputData:           return Scheduler.DispatchResolveInputData(this, Owner, SchedulerParams);
-	case EBuildJobState::ExecuteLocal:               return Scheduler.DispatchExecuteLocal(this, Owner, SchedulerParams);
-	case EBuildJobState::CacheStore:                 return Scheduler.DispatchCacheStore(this, Owner, SchedulerParams);
+	case EBuildJobState::ResolveKey:                 return Schedule->DispatchResolveKey();
+	case EBuildJobState::ResolveInputMeta:           return Schedule->DispatchResolveInputMeta();
+	case EBuildJobState::CacheQuery:                 return Schedule->DispatchCacheQuery();
+	case EBuildJobState::ExecuteRemote:              return Schedule->DispatchExecuteRemote();
+	case EBuildJobState::ResolveRemoteInputData:     return Schedule->DispatchResolveInputData();
+	case EBuildJobState::ExecuteRemoteRetry:         return Schedule->DispatchExecuteRemote();
+	case EBuildJobState::ResolveInputData:           return Schedule->DispatchResolveInputData();
+	case EBuildJobState::ExecuteLocal:               return Schedule->DispatchExecuteLocal();
+	case EBuildJobState::CacheStore:                 return Schedule->DispatchCacheStore();
 	}
 }
 
