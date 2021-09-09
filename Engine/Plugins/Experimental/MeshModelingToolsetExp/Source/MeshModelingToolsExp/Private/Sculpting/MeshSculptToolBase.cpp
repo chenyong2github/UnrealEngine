@@ -328,7 +328,7 @@ void UMeshSculptToolBase::SetActivePrimaryBrushType(int32 Identifier)
 	PrimaryBrushOp = (*Factory)->Build();
 	PrimaryBrushOp->Falloff = PrimaryFalloff;
 
-	UE_TRANSITIONAL_OBJECT_PTR(UMeshSculptBrushOpProps)* FoundProps = BrushOpPropSets.Find(Identifier);
+	TObjectPtr<UMeshSculptBrushOpProps>* FoundProps = BrushOpPropSets.Find(Identifier);
 	if (FoundProps != nullptr)
 	{
 		SetToolPropertySourceEnabled(*FoundProps, bBrushOpPropsVisible);
@@ -360,7 +360,7 @@ void UMeshSculptToolBase::SetActiveSecondaryBrushType(int32 Identifier)
 	SecondaryFalloff->FalloffFunc = UE::SculptFalloffs::MakeStandardSmoothFalloff();
 	SecondaryBrushOp->Falloff = SecondaryFalloff;
 
-	UE_TRANSITIONAL_OBJECT_PTR(UMeshSculptBrushOpProps)* FoundProps = SecondaryBrushOpPropSets.Find(Identifier);
+	TObjectPtr<UMeshSculptBrushOpProps>* FoundProps = SecondaryBrushOpPropSets.Find(Identifier);
 	if (FoundProps != nullptr)
 	{
 		SetToolPropertySourceEnabled(*FoundProps, bBrushOpPropsVisible);

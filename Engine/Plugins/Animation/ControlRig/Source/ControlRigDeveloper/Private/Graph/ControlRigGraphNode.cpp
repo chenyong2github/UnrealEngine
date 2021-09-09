@@ -978,7 +978,7 @@ FName UControlRigGraphNode::GetModelNodeName() const
 
 URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath) const
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(URigVMPin) const* CachedModelPinPtr = CachedModelPins.Find(InPinPath))
+	if (TObjectPtr<URigVMPin> const* CachedModelPinPtr = CachedModelPins.Find(InPinPath))
 	{
 		URigVMPin* CachedModelPin = *CachedModelPinPtr;
 		if (!CachedModelPin->HasAnyFlags(RF_Transient) && CachedModelPin->GetNode())

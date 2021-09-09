@@ -1091,7 +1091,7 @@ void UClothingAssetCommon::PropagateSharedConfigs(bool bMigrateSharedConfigToCon
 		for (const auto& ClothSharedConfigItem : ClothSharedConfigs)
 		{
 			// Set share config
-			if (UE_TRANSITIONAL_OBJECT_PTR(UClothConfigBase)* const ClothConfigBase = ClothConfigs.Find(ClothSharedConfigItem.Key))
+			if (TObjectPtr<UClothConfigBase>* const ClothConfigBase = ClothConfigs.Find(ClothSharedConfigItem.Key))
 			{
 				// Reset this shared config
 				*ClothConfigBase = ClothSharedConfigItem.Value;

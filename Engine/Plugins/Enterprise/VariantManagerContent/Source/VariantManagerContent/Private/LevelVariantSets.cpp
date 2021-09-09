@@ -305,7 +305,7 @@ UObject* ULevelVariantSets::GetDirectorInstance(UObject* WorldContext)
 	}
 
 	ULevelVariantSetsFunctionDirector* TargetDirector = nullptr;
-	if ( UE_TRANSITIONAL_OBJECT_PTR(ULevelVariantSetsFunctionDirector*)* ExistingDirector = DirectorOuter->DirectorInstances.Find( DirectorClass ) )
+	if ( TObjectPtr<ULevelVariantSetsFunctionDirector>* ExistingDirector = DirectorOuter->DirectorInstances.Find( DirectorClass ) )
 	{
 		TargetDirector = *ExistingDirector;
 	}
@@ -344,7 +344,7 @@ UVariantSet* ULevelVariantSets::GetVariantSet(int32 VariantSetIndex)
 
 UVariantSet* ULevelVariantSets::GetVariantSetByName(FString VariantSetName)
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UVariantSet)* VarSetPtr = VariantSets.FindByPredicate([VariantSetName](const UVariantSet* VarSet)
+	TObjectPtr<UVariantSet>* VarSetPtr = VariantSets.FindByPredicate([VariantSetName](const UVariantSet* VarSet)
 	{
 		return VarSet->GetDisplayText().ToString() == VariantSetName;
 	});

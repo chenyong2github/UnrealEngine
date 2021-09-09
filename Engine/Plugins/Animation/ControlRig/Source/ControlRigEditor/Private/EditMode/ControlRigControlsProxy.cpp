@@ -656,7 +656,7 @@ void UControlRigBoolControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHan
 
 UControlRigControlsProxy* UControlRigDetailPanelControlProxies::FindProxy(const FName& Name) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UControlRigControlsProxy) const* Proxy = AllProxies.Find(Name);
+	TObjectPtr<UControlRigControlsProxy> const* Proxy = AllProxies.Find(Name);
 	if (Proxy &&  Proxy[0])
 	{
 		return Proxy[0];

@@ -118,7 +118,7 @@ void UAIPerceptionComponent::ConfigureSense(UAISenseConfig& Config)
 {
 	// first check if we're reconfiguring a sense
 	bool bIsNewConfig = true;
-	for (UE_TRANSITIONAL_OBJECT_PTR(UAISenseConfig)& SenseConfig : SensesConfig)
+	for (TObjectPtr<UAISenseConfig>& SenseConfig : SensesConfig)
 	{
 		if (SenseConfig != nullptr && SenseConfig->GetClass() == Config.GetClass())
 		{

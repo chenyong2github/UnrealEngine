@@ -73,7 +73,7 @@ void UNiagaraParameterDefinitions::PostEditChangeProperty(struct FPropertyChange
 void UNiagaraParameterDefinitions::AddParameter(const FNiagaraVariable& NewVariable)
 {
 	Modify();
-	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)& NewScriptVariable = ScriptVariables.Add_GetRef(NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
+	TObjectPtr<UNiagaraScriptVariable>& NewScriptVariable = ScriptVariables.Add_GetRef(NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
 	NewScriptVariable->Init(NewVariable, FNiagaraVariableMetaData());
 	NewScriptVariable->SetIsStaticSwitch(false);
 	NewScriptVariable->SetIsSubscribedToParameterDefinitions(true);
@@ -98,7 +98,7 @@ void UNiagaraParameterDefinitions::RemoveParameter(const FNiagaraVariable& Varia
 
 void UNiagaraParameterDefinitions::RenameParameter(const FNiagaraVariable& VariableToRename, const FName NewName)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* ScriptVariablePtr = ScriptVariables.FindByPredicate([&VariableToRename](const UNiagaraScriptVariable* ScriptVariable) { return ScriptVariable->Variable == VariableToRename; }))
+	if (TObjectPtr<UNiagaraScriptVariable>* ScriptVariablePtr = ScriptVariables.FindByPredicate([&VariableToRename](const UNiagaraScriptVariable* ScriptVariable) { return ScriptVariable->Variable == VariableToRename; }))
 	{
 		const FNiagaraVariable OldVariable = VariableToRename;
 		Modify();
@@ -141,7 +141,7 @@ TSet<FGuid> UNiagaraParameterDefinitions::GetParameterIds() const
 
 UNiagaraScriptVariable* UNiagaraParameterDefinitions::GetScriptVariable(const FNiagaraVariable& Var)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable) const* ScriptVarPtr = ScriptVariables.FindByPredicate([Var](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Variable == Var; }))
+	if (TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ScriptVariables.FindByPredicate([Var](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Variable == Var; }))
 	{
 		return *ScriptVarPtr;
 	}
@@ -150,7 +150,7 @@ UNiagaraScriptVariable* UNiagaraParameterDefinitions::GetScriptVariable(const FN
 
 UNiagaraScriptVariable* UNiagaraParameterDefinitions::GetScriptVariable(const FGuid& ScriptVarId)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable) const* ScriptVarPtr = ScriptVariables.FindByPredicate([ScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == ScriptVarId; }))
+	if (TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ScriptVariables.FindByPredicate([ScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == ScriptVarId; }))
 	{
 		return *ScriptVarPtr;
 	}
@@ -213,7 +213,7 @@ void UNiagaraParameterDefinitions::SynchronizeWithSubscribedParameterDefinitions
 				const FName& ExternalScriptVarName = ExternalScriptVar->Variable.GetName();
 				for (const FGuid& InternalScriptVarId : BindingNameSubscription.InternalScriptVarIds)
 				{
-					if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable) const* ScriptVarPtr = ScriptVariables.FindByPredicate([&InternalScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == InternalScriptVarId; }))
+					if (TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ScriptVariables.FindByPredicate([&InternalScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == InternalScriptVarId; }))
 					{
 						UNiagaraScriptVariable* ScriptVar = *ScriptVarPtr;
 						if (ScriptVar->GetChangeId() != ExternalScriptVarChangeId)

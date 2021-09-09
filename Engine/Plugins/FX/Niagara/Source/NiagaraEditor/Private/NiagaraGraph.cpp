@@ -147,7 +147,7 @@ void UNiagaraGraph::PostLoad()
 	for (auto It = VariableToScriptVariable.CreateIterator(); It; ++It)
 	{
 		FNiagaraVariable Var = It.Key();
-		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)& ScriptVar = It.Value();
+		TObjectPtr<UNiagaraScriptVariable>& ScriptVar = It.Value();
 
 		if (ScriptVar == nullptr)
 		{
@@ -318,7 +318,7 @@ void UNiagaraGraph::PostLoad()
 
 		for (auto& VariableToScriptVariableItem : VariableToScriptVariable)
 		{
-			UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)& MetaData = VariableToScriptVariableItem.Value;
+			TObjectPtr<UNiagaraScriptVariable>& MetaData = VariableToScriptVariableItem.Value;
 
 			// Migrate advanced display.
 			if (MetaData->Metadata.PropertyMetaData.Contains("AdvancedDisplay"))
@@ -1325,7 +1325,7 @@ UNiagaraScriptVariable* UNiagaraGraph::GetScriptVariable(FNiagaraVariable Parame
 	{
 		RefreshParameterReferences();
 	}
-	if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* FoundScriptVariable = VariableToScriptVariable.Find(Parameter))
+	if (TObjectPtr<UNiagaraScriptVariable>* FoundScriptVariable = VariableToScriptVariable.Find(Parameter))
 	{
 		return *FoundScriptVariable;
 	}
@@ -1368,7 +1368,7 @@ UNiagaraScriptVariable* UNiagaraGraph::AddParameter(const FNiagaraVariable& Para
 		ParameterToReferencesMap.Add(Parameter, NewReferenceCollection);
 	}
 
-	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* FoundScriptVariable = VariableToScriptVariable.Find(Parameter);
+	TObjectPtr<UNiagaraScriptVariable>* FoundScriptVariable = VariableToScriptVariable.Find(Parameter);
 	if (!FoundScriptVariable)
 	{
 		Modify();
@@ -1389,7 +1389,7 @@ UNiagaraScriptVariable* UNiagaraGraph::AddParameter(const FNiagaraVariable& Para
 
 UNiagaraScriptVariable* UNiagaraGraph::AddParameter(const UNiagaraScriptVariable* InScriptVar)
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* FoundScriptVariable = VariableToScriptVariable.Find(InScriptVar->Variable);
+	TObjectPtr<UNiagaraScriptVariable>* FoundScriptVariable = VariableToScriptVariable.Find(InScriptVar->Variable);
 	if (!FoundScriptVariable)
 	{
 		Modify();
@@ -1558,8 +1558,8 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 	FNiagaraVariable NewParameter = Parameter;
 	NewParameter.SetName(NewName);
 
-	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* FoundOldScriptVariablePtr = VariableToScriptVariable.Find(Parameter);
-	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* FoundNewScriptVariablePtr = VariableToScriptVariable.Find(NewParameter);
+	TObjectPtr<UNiagaraScriptVariable>* FoundOldScriptVariablePtr = VariableToScriptVariable.Find(Parameter);
+	TObjectPtr<UNiagaraScriptVariable>* FoundNewScriptVariablePtr = VariableToScriptVariable.Find(NewParameter);
 
 	bool bMerged = false;
 	const bool bOldScriptVariableIsStaticSwitch = FoundOldScriptVariablePtr ? (*FoundOldScriptVariablePtr)->GetIsStaticSwitch() : false;
@@ -1634,7 +1634,7 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 	FNiagaraVariable NewParameter = Parameter;
 	NewParameter.SetName(NewName);
 
-	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* OldScriptVariablePtr = VariableToScriptVariable.Find(Parameter);
+	TObjectPtr<UNiagaraScriptVariable>* OldScriptVariablePtr = VariableToScriptVariable.Find(Parameter);
 	UNiagaraScriptVariable* OldScriptVariable = OldScriptVariablePtr ? *OldScriptVariablePtr : nullptr;
 	FNiagaraVariableMetaData OldMetaData;
 	OldMetaData.CreateNewGuid();
@@ -1649,7 +1649,7 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 		OldMetaData = OldScriptVariable->Metadata;
 	}
 		
-	UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* NewScriptVariablePtr = VariableToScriptVariable.Find(NewParameter);
+	TObjectPtr<UNiagaraScriptVariable>* NewScriptVariablePtr = VariableToScriptVariable.Find(NewParameter);
 
 	// Swap metadata to the new parameter; put the new parameter into VariableToScriptVariable
 	if (OldScriptVariable != nullptr)
@@ -1783,7 +1783,7 @@ bool UNiagaraGraph::SynchronizeScriptVariable(const UNiagaraScriptVariable* Sour
 		const FGuid& SourceScriptVarId = SourceScriptVar->Metadata.GetVariableGuid();
 		TArray<TObjectPtr<UNiagaraScriptVariable>> ScriptVariables;
 		VariableToScriptVariable.GenerateValueArray(ScriptVariables);
-		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* ScriptVarPtr = ScriptVariables.FindByPredicate([&SourceScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == SourceScriptVarId; });
+		TObjectPtr<UNiagaraScriptVariable>* ScriptVarPtr = ScriptVariables.FindByPredicate([&SourceScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == SourceScriptVarId; });
 		if(ScriptVarPtr == nullptr)
 		{
 			// Failed to find a DestScriptVar with an Id matching that of SourceScriptVar.
@@ -2679,7 +2679,7 @@ void UNiagaraGraph::MarkGraphRequiresSynchronization(FString Reason)
 
 TOptional<FNiagaraVariableMetaData> UNiagaraGraph::GetMetaData(const FNiagaraVariable& InVar) const
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* MetaData = VariableToScriptVariable.Find(InVar))
+	if (TObjectPtr<UNiagaraScriptVariable>* MetaData = VariableToScriptVariable.Find(InVar))
 	{
 		if (*MetaData)
 		{
@@ -2691,7 +2691,7 @@ TOptional<FNiagaraVariableMetaData> UNiagaraGraph::GetMetaData(const FNiagaraVar
 
 void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InMetaData)
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* FoundMetaData = VariableToScriptVariable.Find(InVar))
+	if (TObjectPtr<UNiagaraScriptVariable>* FoundMetaData = VariableToScriptVariable.Find(InVar))
 	{
 		if (*FoundMetaData)
 		{
@@ -2708,7 +2708,7 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 	else 
 	{
 		Modify();
-		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
+		TObjectPtr<UNiagaraScriptVariable>& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
 		NewScriptVariable->Init(InVar, InMetaData);
 		NewScriptVariable->SetIsStaticSwitch(FindStaticSwitchInputs().Contains(InVar));
 	}

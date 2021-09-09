@@ -28,7 +28,7 @@ void UPlatformMediaSource::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	const ITargetPlatform* TargetPlatform = ObjectSaveContext.GetTargetPlatform();
 	if (TargetPlatform)
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(UMediaSource)* PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
+		TObjectPtr<UMediaSource>* PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
 		MediaSource = (PlatformMediaSource != nullptr) ? *PlatformMediaSource : nullptr;
 	}
 #endif
@@ -200,7 +200,7 @@ UMediaSource* UPlatformMediaSource::GetMediaSource() const
 {
 #if WITH_EDITORONLY_DATA
 	const FString RunningPlatformName(FPlatformProperties::IniPlatformName());
-	UE_TRANSITIONAL_OBJECT_PTR(UMediaSource) const* PlatformMediaSource = PlatformMediaSources.Find(RunningPlatformName);
+	TObjectPtr<UMediaSource> const* PlatformMediaSource = PlatformMediaSources.Find(RunningPlatformName);
 
 	if (PlatformMediaSource == nullptr)
 	{

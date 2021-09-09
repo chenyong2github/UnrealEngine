@@ -761,7 +761,7 @@ void FLocalizationTargetDetailCustomization::RebuildTargetsList()
 
 		for (const FGuid& OtherTargetDependencyGuid : OtherTarget->Settings.TargetDependencies)
 		{
-			UE_TRANSITIONAL_OBJECT_PTR(ULocalizationTarget)* const OtherTargetDependency = TargetSet->TargetObjects.FindByPredicate([OtherTargetDependencyGuid](ULocalizationTarget* SomeLocalizationTarget)->bool{return SomeLocalizationTarget->Settings.Guid == OtherTargetDependencyGuid;});
+			TObjectPtr<ULocalizationTarget>* const OtherTargetDependency = TargetSet->TargetObjects.FindByPredicate([OtherTargetDependencyGuid](ULocalizationTarget* SomeLocalizationTarget)->bool{return SomeLocalizationTarget->Settings.Guid == OtherTargetDependencyGuid;});
 			if (OtherTargetDependency && DoesTargetDependOnUs(*OtherTargetDependency))
 			{
 				return true;

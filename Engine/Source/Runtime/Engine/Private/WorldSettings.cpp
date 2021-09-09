@@ -780,7 +780,7 @@ class UBookmarkBase* AWorldSettings::GetOrAddBookmark(const uint32 BookmarkIndex
 {
 	if (BookmarkArray.IsValidIndex(BookmarkIndex))
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(UBookmarkBase)& Bookmark = BookmarkArray[BookmarkIndex];
+		TObjectPtr<UBookmarkBase>& Bookmark = BookmarkArray[BookmarkIndex];
 
 		if (Bookmark == nullptr || (bRecreateOnClassMismatch && Bookmark->GetClass() != GetDefaultBookmarkClass()))
 		{
@@ -830,7 +830,7 @@ void AWorldSettings::ClearBookmark(const uint32 BookmarkIndex)
 {
 	if (BookmarkArray.IsValidIndex(BookmarkIndex))
 	{
-		if (UE_TRANSITIONAL_OBJECT_PTR(UBookmarkBase)& Bookmark = BookmarkArray[BookmarkIndex])
+		if (TObjectPtr<UBookmarkBase>& Bookmark = BookmarkArray[BookmarkIndex])
 		{
 			Modify();
 			Bookmark->OnCleared();
@@ -842,7 +842,7 @@ void AWorldSettings::ClearBookmark(const uint32 BookmarkIndex)
 void AWorldSettings::ClearAllBookmarks()
 {
 	Modify();
-	for (UE_TRANSITIONAL_OBJECT_PTR(UBookmarkBase)& Bookmark : BookmarkArray)
+	for (TObjectPtr<UBookmarkBase>& Bookmark : BookmarkArray)
 	{
 		if (Bookmark)
 		{
@@ -891,7 +891,7 @@ void AWorldSettings::SanitizeBookmarkClasses()
 		bool bFoundInvalidBookmarks = false;
 		for (int32 i = 0; i < BookmarkArray.Num(); ++i)
 		{
-			if (UE_TRANSITIONAL_OBJECT_PTR(UBookmarkBase)& Bookmark = BookmarkArray[i])
+			if (TObjectPtr<UBookmarkBase>& Bookmark = BookmarkArray[i])
 			{
 				if (Bookmark->GetClass() != ExpectedClass)
 				{

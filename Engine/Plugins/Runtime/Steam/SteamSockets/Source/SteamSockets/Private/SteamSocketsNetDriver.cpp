@@ -435,7 +435,7 @@ void USteamSocketsNetDriver::ResetSocketInfo(const FSteamSocket* RemovedSocket)
 
 UNetConnection* USteamSocketsNetDriver::FindClientConnectionForHandle(SteamSocketHandles SocketHandle)
 {
-	for (UE_TRANSITIONAL_OBJECT_PTR(UNetConnection)& ClientConnection : ClientConnections)
+	for (TObjectPtr<UNetConnection>& ClientConnection : ClientConnections)
 	{
 		USteamSocketsNetConnection* SteamConnection = static_cast<USteamSocketsNetConnection*>(ClientConnection);
 		if (SteamConnection && SteamConnection->GetRawSocket() != nullptr)

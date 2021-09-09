@@ -300,7 +300,7 @@ bool FNiagaraMessageJobCompileEvent::RecursiveGetScriptNamesAndAssetPathsFromCon
 
 	if (NodeGuid.IsValid())
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(UEdGraphNode) const* EventNodePtr = InGraphToSearch->Nodes.FindByPredicate([NodeGuid](UEdGraphNode* Node) { return Node->NodeGuid == NodeGuid; });
+		TObjectPtr<UEdGraphNode> const* EventNodePtr = InGraphToSearch->Nodes.FindByPredicate([NodeGuid](UEdGraphNode* Node) { return Node->NodeGuid == NodeGuid; });
 		if (EventNodePtr != nullptr)
 		{
 			OutContextNodeObjectKeys.AddUnique(FObjectKey(*EventNodePtr));

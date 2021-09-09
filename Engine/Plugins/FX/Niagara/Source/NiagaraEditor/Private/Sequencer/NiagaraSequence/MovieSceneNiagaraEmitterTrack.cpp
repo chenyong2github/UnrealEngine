@@ -253,7 +253,7 @@ void UMovieSceneNiagaraEmitterTrack::CreateSections(const FFrameRate& InFrameRes
 					UMovieSceneNiagaraEmitterSectionBase* EmitterSection = nullptr;
 					bool bSectionCreated = false;
 
-					UE_TRANSITIONAL_OBJECT_PTR(UMovieSceneSection)* SharedEmitterSection = Sections.FindByPredicate([=](UMovieSceneSection* Section) {	return Section->IsA(SectionClass); });
+					TObjectPtr<UMovieSceneSection>* SharedEmitterSection = Sections.FindByPredicate([=](UMovieSceneSection* Section) {	return Section->IsA(SectionClass); });
 					if (SharedEmitterSection != nullptr)
 					{
 						EmitterSection = CastChecked<UMovieSceneNiagaraEmitterSectionBase>(*SharedEmitterSection);

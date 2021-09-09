@@ -1102,7 +1102,7 @@ void UVREditorUISystem::ShowEditorUIPanel(AVREditorFloatingUI* Panel, UVREditorI
 			else if (PanelID.ToString().Contains(ActorPreviewPrefix))
 			{
 				// if we are closing a preview panel, make sure to unpin it also
-				UE_TRANSITIONAL_OBJECT_PTR(AActor)* PreviewedActorPtr = PreviewWindowInfo.Find(PanelID);
+				TObjectPtr<AActor>* PreviewedActorPtr = PreviewWindowInfo.Find(PanelID);
 				if (PreviewedActorPtr != nullptr)
 				{
 					AActor* PreviewedActor = *PreviewedActorPtr;
@@ -1832,7 +1832,7 @@ AVREditorFloatingUI* UVREditorUISystem::GetPanel(const VREditorPanelID& InPanelI
 	AVREditorFloatingUI* Result = nullptr;
 	if (FloatingUIs.Num() > 0)
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(AVREditorFloatingUI) const * FoundPanel = FloatingUIs.Find(InPanelID);
+		TObjectPtr<AVREditorFloatingUI> const * FoundPanel = FloatingUIs.Find(InPanelID);
 		if (FoundPanel != nullptr)
 		{
 			Result = *FoundPanel;

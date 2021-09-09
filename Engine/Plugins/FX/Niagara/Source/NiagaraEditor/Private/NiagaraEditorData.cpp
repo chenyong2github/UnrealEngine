@@ -126,7 +126,7 @@ TOptional<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> UNiagaraEdit
 	if (DestScriptVar == nullptr)
 	{
 		const FGuid& SourceScriptVarId = SourceScriptVar->Metadata.GetVariableGuid();
-		UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable)* ScriptVarPtr = EditorOnlyScriptVars.FindByPredicate([&SourceScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == SourceScriptVarId; });
+		TObjectPtr<UNiagaraScriptVariable>* ScriptVarPtr = EditorOnlyScriptVars.FindByPredicate([&SourceScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == SourceScriptVarId; });
 		if (ScriptVarPtr == nullptr)
 		{
 			// Failed to find a DestScriptVar with an Id matching that of SourceScriptVar.

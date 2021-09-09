@@ -259,7 +259,7 @@ void FNiagaraPlatformSet::GetOverridenDeviceProfiles(int32 QualityLevel, TArray<
 	int32 QLMask = CreateQualityLevelMask(QualityLevel);
 	for (const FNiagaraDeviceProfileStateEntry& Entry : DeviceProfileStates)
 	{
-		if (UE_TRANSITIONAL_OBJECT_PTR(UObject)* DeviceProfile = UDeviceProfileManager::Get().Profiles.FindByPredicate([&](UObject* CheckProfile) {return CheckProfile->GetFName() == Entry.ProfileName;}))
+		if (TObjectPtr<UObject>* DeviceProfile = UDeviceProfileManager::Get().Profiles.FindByPredicate([&](UObject* CheckProfile) {return CheckProfile->GetFName() == Entry.ProfileName;}))
 		{
 			UDeviceProfile* Profile = CastChecked<UDeviceProfile>(*DeviceProfile);
 			//If this platform cannot change at runtime then we store all EQs in the state so that the device is still overridden if someone changes it's EQ CVar.
