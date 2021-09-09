@@ -63,6 +63,9 @@ public:
 	{
 		TArray<int32> CookedEntryIndices;
 		TArray<FPackageId> FailedPackages;
+		int32 TotalCooked = 0;
+		int32 TotalFailed = 0;
+		int32 TotalTracked = 0;
 	};
 
 	TArrayView<const int32> GetCookedEntryIndices() const
@@ -172,6 +175,9 @@ public:
 		}
 
 		FCompletedPackages CompletedPackages;
+		CompletedPackages.TotalCooked = CookedEntries.Num();
+		CompletedPackages.TotalFailed = FailedPackages.Num();
+		CompletedPackages.TotalTracked = Packages.Num();
 
 		if (CookedEntries.Num() > NumCookedPackages || FailedPackages.Num() > NumFailedPackages)
 		{
@@ -186,7 +192,7 @@ public:
 			}
 		}
 
-		return MoveTemp(CompletedPackages);
+		return CompletedPackages;
 	}
 
 	void AddCompletedPackages(TArrayView<const FPackageStoreEntryResource> Entries)
@@ -592,9 +598,6 @@ private:
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::OnPackageCooked);
 
-		FPlatformContext& Context = GetContext(EventArgs.PlatformName);
-		FScopeLock _(&Context.CriticalSection);
-
 		if (EventArgs.AdditionalFiles.Num())
 		{
 			TArray<FString> Filenames;
@@ -614,12 +617,16 @@ private:
 				*Ar << ChunkIds;
 			}
 
-			ConnectionServer->BroadcastMessage(Message, Context.PlatformName);
+			ConnectionServer->BroadcastMessage(Message, EventArgs.PlatformName);
 		}
-
+		
 		FCookOnTheFlyPackageTracker::FCompletedPackages NewCompletedPackages;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::MarkAsCooked);
+			
+			FPlatformContext& Context = GetContext(EventArgs.PlatformName);
+			FScopeLock _(&Context.CriticalSection);
+
 			NewCompletedPackages = Context.PackageTracker.MarkAsCompleted(EventArgs.PackageName, EventArgs.EntryIndex, EventArgs.Entries);
 		}
 
@@ -628,8 +635,8 @@ private:
 			TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::SendCookedPackagesMessage);
 
 			FPackageStoreData PackageStoreData;
-			PackageStoreData.TotalCookedPackages = Context.PackageTracker.GetCookedEntryIndices().Num();
-			PackageStoreData.TotalFailedPackages = Context.PackageTracker.GetFailedPackages().Num();
+			PackageStoreData.TotalCookedPackages = NewCompletedPackages.TotalCooked;
+			PackageStoreData.TotalFailedPackages = NewCompletedPackages.TotalFailed;
 			PackageStoreData.FailedPackages = MoveTemp(NewCompletedPackages.FailedPackages);
 
 			for (int32 EntryIndex : NewCompletedPackages.CookedEntryIndices)
@@ -642,13 +649,13 @@ private:
 				LexToString(ECookOnTheFlyMessage::PackagesCooked),
 				PackageStoreData.CookedPackages.Num(),
 				PackageStoreData.FailedPackages.Num(),
-				Context.PackageTracker.TotalTracked(),
+				NewCompletedPackages.TotalTracked,
 				PackageStoreData.TotalCookedPackages,
 				PackageStoreData.TotalFailedPackages);
 
 			FCookOnTheFlyMessage Message(ECookOnTheFlyMessage::PackagesCooked);
 			Message.SetBodyTo<FPackagesCookedMessage>(FPackagesCookedMessage { MoveTemp(PackageStoreData) });
-			ConnectionServer->BroadcastMessage(Message, Context.PlatformName);
+			ConnectionServer->BroadcastMessage(Message, EventArgs.PlatformName);
 		}
 	}
 
