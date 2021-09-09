@@ -14,13 +14,13 @@ namespace DatasmithSketchUpUtils
 			return FVector(float(V.x), float(-V.y), float(V.z));
 		}
 
-		static FORCEINLINE FVector ConvertPosition(double X, double Y, double Z)
+		static FORCEINLINE FVector3f ConvertPosition(double X, double Y, double Z)
 		{
 			const float UnitScaleSketchupToUnreal = 2.54; // centimeters per inch
-			return FVector(float(X * UnitScaleSketchupToUnreal), float(-Y * UnitScaleSketchupToUnreal), float(Z * UnitScaleSketchupToUnreal));
+			return FVector3f(float(X * UnitScaleSketchupToUnreal), float(-Y * UnitScaleSketchupToUnreal), float(Z * UnitScaleSketchupToUnreal));
 		}
 
-		static FORCEINLINE FVector ConvertPosition(const SUPoint3D& V)
+		static FORCEINLINE FVector3f ConvertPosition(const SUPoint3D& V)
 		{
 			return ConvertPosition(V.x, V.y, V.z);
 		}
