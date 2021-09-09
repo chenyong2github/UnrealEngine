@@ -27,10 +27,6 @@ public class SDL2 : ModuleRules
 				// Debug version should be built with -fPIC and usable in all targets
 				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Unix", Target.Architecture, "libSDL2_fPIC_Debug.a"));
 			}
-			else if (Target.LinkType == TargetLinkType.Monolithic)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Unix", Target.Architecture, "libSDL2.a"));
-			}
 			else
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Unix", Target.Architecture, "libSDL2_fPIC.a"));
