@@ -817,13 +817,14 @@ bool UNiagaraMeshRendererProperties::ChangeRequiresMeshListRebuild(const FProper
 	}
 
 	// If any of these are changed, we have to rebuild the mesh list
-	static const TArray<FName, TInlineAllocator<4>> RebuildMeshPropertyNames
+	static const TArray<FName, TInlineAllocator<6>> RebuildMeshPropertyNames
 	{
 		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, bEnableMeshFlipbook),
 		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, FirstFlipbookFrame),
 		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, FlipbookSuffixFormat),
 		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, FlipbookSuffixNumDigits),
 		GET_MEMBER_NAME_CHECKED(UNiagaraMeshRendererProperties, NumFlipbookFrames),
+		GET_MEMBER_NAME_CHECKED(FNiagaraMeshRendererMeshProperties, Mesh),
 	};
 	return RebuildMeshPropertyNames.Contains(Property->GetFName());
 }
