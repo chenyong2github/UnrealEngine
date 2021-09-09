@@ -2363,56 +2363,165 @@ bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& Compi
 			return false;
 		}
 	}
+	return true;
+}
 
-	// Now iterate over all dependencies and verify that they are met. If not, emit an error.
-	for (auto& AsyncTask : CompileRequest.DDCTasks)
+void UNiagaraSystem::EvaluateCompileResultDependencies() const
+{
+	struct FScriptCompileResultValidationInfo
 	{
-		const FEmitterCompiledScriptPair& CompilePair = AsyncTask->GetScriptPair();
-		bool bValid = CompilePair.CompileResults.IsValid()
-			&& CompilePair.CompileResults->LastCompileStatus != ENiagaraScriptCompileStatus::NCS_Error;
+		UNiagaraEmitter* Emitter = nullptr;
+		FNiagaraVMExecutableData* CompileResults = nullptr;
+		int32 ParentIndex = INDEX_NONE;
+		bool bCompileResultStatusDirty = false;
 
-		if (CompilePair.CompileResults.IsValid() && CompilePair.CompileResults->ExternalDependencies.Num() != 0)
+		void ReEvaluateCompileStatus()
 		{
-			for (const FNiagaraCompileDependency& Dependency : CompilePair.CompileResults->ExternalDependencies)
+			// Early out for invalid existing compile statuses.
+			if (CompileResults->LastCompileStatus == ENiagaraScriptCompileStatus::NCS_BeingCreated)
 			{
-				FNiagaraVariable TestVar = Dependency.DependentVariable;
-				ensure(TestVar.GetName() != NAME_None);
-				if (CompilePair.Emitter)
-				{
-					FName NewName = GetEmitterVariableAliasName(TestVar, CompilePair.Emitter);
-					TestVar.SetName(NewName);
-				}
+				ensureMsgf(false, TEXT("Encountered \"Being Created\" Compile Status when evaluating compile dependencies after compile! Compilation should be complete!"));
+				return;
+			}
+			else if (CompileResults->LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Dirty)
+			{
+				ensureMsgf(false, TEXT("Encountered \"Dirty\" Compile Status when evaluating compile dependencies after compile! Compilation should be complete!"));
+				return;
+			}
 
-				bool bDependencyMet = false;
-				int32 TestIdx = CompilePair.ParentIndex;
-				while (TestIdx != INDEX_NONE && bDependencyMet == false)
+			// Tally warnings and errors.
+			int32 NumErrors = 0;
+			int32 NumWarnings = 0;
+
+			for (const FNiagaraCompileEvent& Event : CompileResults->LastCompileEvents)
+			{
+				if (Event.Severity == FNiagaraCompileEventSeverity::Error)
 				{
-					if (CompileRequest.DDCTasks.IsValidIndex(TestIdx))
-					{
-						const FEmitterCompiledScriptPair& TestPair = CompileRequest.DDCTasks[TestIdx]->GetScriptPair();
-						if (TestPair.CompileResults.IsValid() && TestPair.CompileResults->AttributesWritten.Num() > 0)
-						{
-							if (TestPair.CompileResults->AttributesWritten.Contains(TestVar))
-							{
-								bDependencyMet = true;
-								break;
-							}
-						}
-						TestIdx = TestPair.ParentIndex;
-					}
+					NumErrors++;
 				}
-				if (!bDependencyMet)
+				else if (Event.Severity == FNiagaraCompileEventSeverity::Warning)
 				{
-					FNiagaraCompileEvent LinkerErrorEvent(
-						FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, FString(), false, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids);
-					CompilePair.CompileResults->LastCompileEvents.Add(LinkerErrorEvent);
-					CompilePair.CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
+					NumWarnings++;
 				}
+			}
+
+			// Set last compile status based on error and warning count.
+			if (NumErrors > 0)
+			{
+				CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Error;
+			}
+			else if (NumWarnings > 0)
+			{
+				CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings;
+			}
+			else
+			{
+				CompileResults->LastCompileStatus = ENiagaraScriptCompileStatus::NCS_UpToDate;
+			}
+		};
+	};
+
+	TArray<FScriptCompileResultValidationInfo> ScriptCompilesToValidate;
+	int32 ParentIdx = INDEX_NONE; 
+
+	// Add a compiled script pair to be evaluated for external dependencies to ScriptCompilesToValidate and clear all of its compile events that are from script dependencies.
+	auto AddCompiledScriptForValidation = [&ScriptCompilesToValidate](UNiagaraScript* InScript, int32 ParentIdx, UNiagaraEmitter* InEmitter = nullptr)->int32
+	{
+		FScriptCompileResultValidationInfo ValidationInfo = FScriptCompileResultValidationInfo();
+		ValidationInfo.CompileResults = &InScript->GetVMExecutableData();
+		TArray<FNiagaraCompileEvent>& CompileEvents = ValidationInfo.CompileResults->LastCompileEvents;
+		for (int32 Idx = CompileEvents.Num() - 1; Idx > -1; --Idx)
+		{
+			const FNiagaraCompileEvent& Event = CompileEvents[Idx];
+			if (Event.Source == FNiagaraCompileEventSource::ScriptDependency)
+			{
+				CompileEvents.RemoveAt(Idx);
+				ValidationInfo.bCompileResultStatusDirty = true;
+			}
+		}
+
+		ValidationInfo.Emitter = InEmitter;
+		ValidationInfo.ParentIndex = ParentIdx;
+		return ScriptCompilesToValidate.Add(ValidationInfo);
+	};
+
+	// Gather per-emitter scripts to evaluate dependencies.
+	for (int32 i = 0; i < EmitterHandles.Num(); i++)
+	{
+		FNiagaraEmitterHandle Handle = EmitterHandles[i];
+		if (Handle.GetInstance() && Handle.GetIsEnabled())
+		{
+			TArray<UNiagaraScript*> EmitterScripts;
+			bool bOnlyGetCompilableScripts = true;
+			bool bOnlyGetEnabledScripts = true;
+			Handle.GetInstance()->GetScripts(EmitterScripts, bOnlyGetCompilableScripts, bOnlyGetEnabledScripts);
+			check(EmitterScripts.Num() > 0);
+			for (UNiagaraScript* EmitterScript : EmitterScripts)
+			{
+				ParentIdx = AddCompiledScriptForValidation(EmitterScript, ParentIdx, Handle.GetInstance());
 			}
 		}
 	}
-	
-	return true;
+
+	// Gather system scripts to evaluate dependencies.
+	ParentIdx = AddCompiledScriptForValidation(SystemSpawnScript, INDEX_NONE);
+	AddCompiledScriptForValidation(SystemUpdateScript, ParentIdx);
+
+	// Fixup the ParentIndex for emitter scripts that can have dependencies resolved by system scripts.
+	for (FScriptCompileResultValidationInfo& ValidationInfo : ScriptCompilesToValidate)
+	{
+		if (ValidationInfo.Emitter != nullptr && ValidationInfo.ParentIndex == INDEX_NONE)
+		{
+			ValidationInfo.ParentIndex = ParentIdx;
+		}
+	}
+
+	// Iterate over all ScriptCompilesToValidate and add compile events for dependencies that are not met.
+	for (FScriptCompileResultValidationInfo& ValidationInfo : ScriptCompilesToValidate)
+	{
+		for (const FNiagaraCompileDependency& Dependency : ValidationInfo.CompileResults->ExternalDependencies)
+		{
+			FNiagaraVariableBase TestVar = Dependency.DependentVariable;
+			ensure(TestVar.GetName() != NAME_None);
+			if (ValidationInfo.Emitter)
+			{
+				FName NewName = GetEmitterVariableAliasName(TestVar, ValidationInfo.Emitter);
+				TestVar.SetName(NewName);
+			}
+
+			bool bDependencyMet = false;
+			int32 TestIdx = ValidationInfo.ParentIndex;
+			while (TestIdx != INDEX_NONE && bDependencyMet == false)
+			{
+				if (ScriptCompilesToValidate.IsValidIndex(TestIdx))
+				{
+					const FScriptCompileResultValidationInfo& TestInfo = ScriptCompilesToValidate[TestIdx];
+					if (TestInfo.CompileResults->AttributesWritten.Num() > 0)
+					{
+						if (TestInfo.CompileResults->AttributesWritten.Contains(TestVar))
+						{
+							bDependencyMet = true;
+							break;
+						}
+					}
+					TestIdx = TestInfo.ParentIndex;
+				}
+			}
+			if (!bDependencyMet)
+			{
+				FNiagaraCompileEvent LinkerErrorEvent(
+					FNiagaraCompileEventSeverity::Error, Dependency.LinkerErrorMessage, FString(), false, Dependency.NodeGuid, Dependency.PinGuid, Dependency.StackGuids, FNiagaraCompileEventSource::ScriptDependency);
+				ValidationInfo.CompileResults->LastCompileEvents.Add(LinkerErrorEvent);
+				ValidationInfo.bCompileResultStatusDirty = true;
+			}
+		}
+
+		// If the compile events of the compile results have changed, re-evaluate the compile status as it could have changed.
+		if (ValidationInfo.bCompileResultStatusDirty)
+		{
+			ValidationInfo.ReEvaluateCompileStatus();
+		}
+	}
 }
 
 void UNiagaraSystem::PreProcessWaitingDDCTasks(bool bProcessForWait)
@@ -2538,6 +2647,9 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 				AsyncTask->ComputedPrecompileData.Reset();
 			}
 		}
+
+		// Once compile results have been set, check dependencies found during compile and evaluate whether dependency compile events should be added.
+		EvaluateCompileResultDependencies();
 
 		if (bDoPost)
 		{
@@ -2812,13 +2924,11 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 					TArray<UNiagaraScript*> EmitterScripts;
 					Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
 					check(EmitterScripts.Num() > 0);
-					int32 Parent = INDEX_NONE;
 					for (UNiagaraScript* EmitterScript : EmitterScripts)
 					{
 						FEmitterCompiledScriptPair Pair;
 						Pair.Emitter = Handle.GetInstance();
 						Pair.CompiledScript = EmitterScript;
-						Pair.ParentIndex = Parent;
 
 						FNiagaraVMExecutableDataId NewID;
 						// we need to compute the vmID here to check later in the ddc task before doing the precompile if anything has changed in the meantime
@@ -2836,7 +2946,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 							AsyncTask->CurrentState = ENiagaraCompilationState::Finished;
 						}
 						AsyncTask->UniqueEmitterName = Handle.GetInstance()->GetUniqueEmitterName();
-						Parent = ActiveCompilation.DDCTasks.Add(AsyncTask);
+						ActiveCompilation.DDCTasks.Add(AsyncTask);
 					}
 				}
 			}
@@ -2844,7 +2954,6 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 			bAnyCompiled = bAnyUnsynchronized || bForce;
 
 			// Now add the system scripts for compilation...
-			int32 Parent = INDEX_NONE;
 			{
 				FEmitterCompiledScriptPair Pair;
 				Pair.CompiledScript = SystemSpawnScript;
@@ -2864,13 +2973,12 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				{
 					AsyncTask->CurrentState = ENiagaraCompilationState::Finished;
 				}
-				Parent = ActiveCompilation.DDCTasks.Add(AsyncTask);
+				ActiveCompilation.DDCTasks.Add(AsyncTask);
 			}
 
 			{
 				FEmitterCompiledScriptPair Pair;
 				Pair.CompiledScript = SystemUpdateScript;
-				Pair.ParentIndex = Parent;
 				
 				FNiagaraVMExecutableDataId NewID;
 				// we need to compute the vmID here to check later in the ddc task before doing the precompile if anything has changed in the meantime
@@ -2887,17 +2995,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				{
 					AsyncTask->CurrentState = ENiagaraCompilationState::Finished;
 				}
-				Parent = ActiveCompilation.DDCTasks.Add(AsyncTask);
-			}
-
-			// Need to set the EmitterParent on the emitter spawn scripts
-			for (auto & AsyncTask: ActiveCompilation.DDCTasks)
-			{
-				FEmitterCompiledScriptPair& Pair = AsyncTask->ScriptPair;
-				if (Pair.Emitter != nullptr && Pair.ParentIndex == INDEX_NONE)
-				{
-					Pair.ParentIndex = Parent;
-				}
+				ActiveCompilation.DDCTasks.Add(AsyncTask);
 			}
 		}
 
