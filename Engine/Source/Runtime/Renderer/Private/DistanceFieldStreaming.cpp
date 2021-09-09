@@ -406,7 +406,7 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 			check(ReadRequest.Request.Status().IsCompleted());
 		}
 
-		delete ReadRequest.ReadOutputDataPtr;
+		FMemory::Free(ReadRequest.ReadOutputDataPtr);
 	}
 
 	FIoBatch Batch;
