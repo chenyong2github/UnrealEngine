@@ -3,8 +3,23 @@
 #include "Memory/CompositeBuffer.h"
 
 #include "Misc/AutomationTest.h"
+#include <type_traits>
 
 #if WITH_DEV_AUTOMATION_TESTS
+
+static_assert(std::is_constructible_v<FCompositeBuffer>);
+static_assert(std::is_constructible_v<FCompositeBuffer, FSharedBuffer&&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, FCompositeBuffer&&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, TArray<FSharedBuffer>&&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, TArray<const FSharedBuffer>&&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, const FSharedBuffer&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, const FCompositeBuffer&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, const TArray<FSharedBuffer>&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, const TArray<const FSharedBuffer>&>);
+static_assert(std::is_constructible_v<FCompositeBuffer, const FSharedBuffer&, const FCompositeBuffer&, const TArray<FSharedBuffer>&, const TArray<const FSharedBuffer>&>);
+
+static_assert(!std::is_constructible_v<FCompositeBuffer, FMemoryView>);
+static_assert(!std::is_constructible_v<FCompositeBuffer, const uint8[4]>);
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCompositeBufferTest, "System.Core.Memory.CompositeBuffer", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FCompositeBufferTest::RunTest(const FString& Parameters)
