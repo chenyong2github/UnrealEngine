@@ -446,6 +446,9 @@ namespace CADLibrary
 
 	bool FCoreTechInterfaceImpl::SetCoreTechTessellationState(const FImportParameters& ImportParams)
 	{
+		bScaleUVMap = ImportParams.bScaleUVMap;
+		ScaleFactor = ImportParams.ScaleFactor;
+
 		CT_DOUBLE CurrentUnit = 0.001;
 
 		// convert max edge length to model units
@@ -470,11 +473,59 @@ namespace CADLibrary
 		return Result;
 	}
 
+	int32 GetColorName(CT_OBJECT_ID ObjectID)
+	{
+		FColor Color;
+		if (CT_OBJECT_IO::SearchAttribute(ObjectID, CT_ATTRIB_COLORID) == IO_OK)
+		{
+			CT_UINT32 ColorId = 0;
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_COLORID_VALUE, ColorId) == IO_OK && ColorId > 0)
+			{
+				CT_COLOR CtColor = { 200, 200, 200 };
+				if (ColorId > 0)
+				{
+					if (CT_MATERIAL_IO::AskIndexedColor((CT_OBJECT_ID)ColorId, CtColor) != IO_OK)
+					{
+						return false;
+					}
+					Color.R = CtColor[0];
+					Color.G = CtColor[1];
+					Color.B = CtColor[2];
+				}
+
+				uint8 Alpha = 255;
+				if (CT_OBJECT_IO::SearchAttribute(ObjectID, CT_ATTRIB_TRANSPARENCY) == IO_OK)
+				{
+					CT_DOUBLE dbl_value = 0.;
+					if (CT_CURRENT_ATTRIB_IO::AskDblField(0, dbl_value) == IO_OK && dbl_value >= 0.0 && dbl_value <= 1.0)
+					{
+						Alpha = (uint8)int((1. - dbl_value) * 255.);
+					}
+				}
+				Color.A = Alpha;
+				return BuildColorName(Color);
+			}
+		}
+		return 0;
+	}
+
 	void FCoreTechInterfaceImpl::GetTessellation(uint64 ObjectId, FBodyMesh& OutBodyMesh, bool bIsBody)
 	{
+		TFunction<void(CT_OBJECT_ID, int32, FTessellationData&)> ProcessFace;
+		ProcessFace = [&](CT_OBJECT_ID FaceID, int32 Index, FTessellationData& Tessellation)
+		{
+			int32 ColorName = GetColorName(FaceID);
+			Tessellation.ColorName = ColorName;
+
+			if (bScaleUVMap && Tessellation.TexCoordArray.Num() > 0)
+			{
+				CoreTechFileReaderUtils::ScaleUV(FaceID, Tessellation.TexCoordArray, (float) ScaleFactor);
+			}
+		};
+
 		if (bIsBody)
 		{
-			CoreTechFileReaderUtils::GetBodyTessellation(ObjectId, OutBodyMesh);
+			CoreTechFileReaderUtils::GetBodyTessellation(ObjectId, OutBodyMesh, ProcessFace);
 		}
 		else
 		{
@@ -488,7 +539,7 @@ namespace CADLibrary
 
 			while (CT_OBJECT_ID BodyId = ObjectList.IteratorIter())
 			{
-				CoreTechFileReaderUtils::GetBodyTessellation(BodyId, OutBodyMesh);
+				CoreTechFileReaderUtils::GetBodyTessellation(BodyId, OutBodyMesh, ProcessFace);
 			}
 		}
 	}
