@@ -66,9 +66,12 @@ public:
 };
 
 UCLASS(BlueprintType)
-class UMovieSceneScriptingObjectPathChannel : public UMovieSceneScriptingChannel, public TMovieSceneScriptingChannel<FMovieSceneObjectPathChannel, UMovieSceneScriptingObjectPathKey, FMovieSceneObjectPathChannelKeyValue>
+class UMovieSceneScriptingObjectPathChannel : public UMovieSceneScriptingChannel
 {
 	GENERATED_BODY()
+
+	using Impl = TMovieSceneScriptingChannel<FMovieSceneObjectPathChannel, UMovieSceneScriptingObjectPathKey, FMovieSceneObjectPathChannelKeyValue>;
+
 public:
 	/**
 	 * Add a key to this channel. This initializes a new key and returns a reference to it.
@@ -82,7 +85,7 @@ public:
 	UMovieSceneScriptingObjectPathKey* AddKey(const FFrameNumber InTime, UObject* NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
 		FMovieSceneObjectPathChannelKeyValue ReferenceKey = FMovieSceneObjectPathChannelKeyValue(NewValue);
-		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection,InTime, ReferenceKey, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
+		return Impl::AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection,InTime, ReferenceKey, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
 	}
 
 	/**
@@ -91,7 +94,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Remove Key (Object Path)"))
 	virtual void RemoveKey(UMovieSceneScriptingKey* Key)
 	{
-		RemoveKeyFromChannel(ChannelHandle, Key);
+		Impl::RemoveKeyFromChannel(ChannelHandle, Key);
 	}
 
 	/**
@@ -102,7 +105,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Get Keys (Object Path)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
-		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
+		return Impl::GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**

@@ -62,9 +62,12 @@ public:
 };
 
 UCLASS(BlueprintType)
-class UMovieSceneScriptingIntegerChannel : public UMovieSceneScriptingChannel, public TMovieSceneScriptingChannel<FMovieSceneIntegerChannel, UMovieSceneScriptingIntegerKey, int32>
+class UMovieSceneScriptingIntegerChannel : public UMovieSceneScriptingChannel
 {
 	GENERATED_BODY()
+
+	using Impl = TMovieSceneScriptingChannel<FMovieSceneIntegerChannel, UMovieSceneScriptingIntegerKey, int32>;
+
 public:
 	/**
 	* Add a key to this channel. This initializes a new key and returns a reference to it.
@@ -77,7 +80,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Add Key (Integer)"))
 	UMovieSceneScriptingIntegerKey* AddKey(const FFrameNumber& InTime, int32 NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
-		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, NewValue, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
+		return Impl::AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, NewValue, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
 	}
 
 	/**
@@ -86,7 +89,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Key (Integer)"))
 	virtual void RemoveKey(UMovieSceneScriptingKey* Key)
 	{
-		RemoveKeyFromChannel(ChannelHandle, Key);
+		Impl::RemoveKeyFromChannel(ChannelHandle, Key);
 	}
 
 	/**
@@ -97,7 +100,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Keys (Integer)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
-		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
+		return Impl::GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**
@@ -107,7 +110,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Default (Integer)"))
 	void SetDefault(int32 InDefaultValue)
 	{
-		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
+		Impl::SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
 	}
 
 	/**
@@ -117,7 +120,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Default (Integer)"))
 	int32 GetDefault() const
 	{
-		TOptional<int32> DefaultValue = GetDefaultFromChannel(ChannelHandle);
+		TOptional<int32> DefaultValue = Impl::GetDefaultFromChannel(ChannelHandle);
 		return DefaultValue.IsSet() ? DefaultValue.GetValue() : 0;
 	}
 
@@ -127,7 +130,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Default (Integer)"))
 	void RemoveDefault()
 	{
-		RemoveDefaultFromChannel(ChannelHandle);
+		Impl::RemoveDefaultFromChannel(ChannelHandle);
 	}
 
 	/**
@@ -136,7 +139,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Has Default (Integer)"))
 	bool HasDefault() const
 	{
-		return GetDefaultFromChannel(ChannelHandle).IsSet();
+		return Impl::GetDefaultFromChannel(ChannelHandle).IsSet();
 	}
 public:
 	TWeakObjectPtr<UMovieSceneSequence> OwningSequence;

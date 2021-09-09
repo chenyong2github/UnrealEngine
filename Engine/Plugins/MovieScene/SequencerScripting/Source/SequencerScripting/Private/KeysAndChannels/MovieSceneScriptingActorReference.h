@@ -65,9 +65,12 @@ public:
 };
 
 UCLASS(BlueprintType)
-class UMovieSceneScriptingActorReferenceChannel : public UMovieSceneScriptingChannel, public TMovieSceneScriptingChannel<FMovieSceneActorReferenceData, UMovieSceneScriptingActorReferenceKey, FMovieSceneActorReferenceKey>
+class UMovieSceneScriptingActorReferenceChannel : public UMovieSceneScriptingChannel
 {
 	GENERATED_BODY()
+
+	using Impl = TMovieSceneScriptingChannel<FMovieSceneActorReferenceData, UMovieSceneScriptingActorReferenceKey, FMovieSceneActorReferenceKey>;
+
 public:
 	/**
 	* Add a key to this channel. This initializes a new key and returns a reference to it.
@@ -81,7 +84,7 @@ public:
 	UMovieSceneScriptingActorReferenceKey* AddKey(const FFrameNumber InTime, FMovieSceneObjectBindingID NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
 		FMovieSceneActorReferenceKey ReferenceKey = FMovieSceneActorReferenceKey(NewValue);
-		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, ReferenceKey, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
+		return Impl::AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, ReferenceKey, SubFrame, TimeUnit, EMovieSceneKeyInterpolation::Auto);
 	}
 
 	/**
@@ -90,7 +93,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Key (Actor Reference)"))
 	virtual void RemoveKey(UMovieSceneScriptingKey* Key)
 	{
-		RemoveKeyFromChannel(ChannelHandle, Key);
+		Impl::RemoveKeyFromChannel(ChannelHandle, Key);
 	}
 
 	/**
@@ -101,7 +104,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Keys (Actor Reference)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
-		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
+		return Impl::GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
 	}
 
 	/**
@@ -112,7 +115,7 @@ public:
 	void SetDefault(FMovieSceneObjectBindingID InDefaultValue)
 	{
 		FMovieSceneActorReferenceKey ReferenceKey = FMovieSceneActorReferenceKey(InDefaultValue);
-		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, ReferenceKey);
+		Impl::SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, ReferenceKey);
 	}
 
 	/**
