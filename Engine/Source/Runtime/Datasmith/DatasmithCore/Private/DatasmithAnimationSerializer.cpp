@@ -46,22 +46,22 @@ namespace DatasmithAnimationJsonSerializerImpl
 
 		// Serialize the frame transform only if the values have changed since the previous frame or represent a change with the following frame
 		if (EnumHasAnyFlags(EnabledComponents, ETransformChannelComponents::X) &&
-			(!FMath::IsNearlyEqual(FrameInfo.X, PreviousFrame.X, KINDA_SMALL_NUMBER) ||
-			(NextFrame.IsValid() && !FMath::IsNearlyEqual(FrameInfo.X, NextFrame.X, KINDA_SMALL_NUMBER))))
+			(!FMath::IsNearlyEqual(FrameInfo.X, PreviousFrame.X, DOUBLE_KINDA_SMALL_NUMBER) ||
+			(NextFrame.IsValid() && !FMath::IsNearlyEqual(FrameInfo.X, NextFrame.X, DOUBLE_KINDA_SMALL_NUMBER))))
 		{
 			Frame->SetNumberField(DSANIM_TRANSFORM_X, FrameInfo.X);
 			PreviousFrame.X = FrameInfo.X;
 		}
 		if (EnumHasAnyFlags(EnabledComponents, ETransformChannelComponents::Y) &&
-			(!FMath::IsNearlyEqual(FrameInfo.Y, PreviousFrame.Y, KINDA_SMALL_NUMBER) ||
-			(NextFrame.IsValid() && !FMath::IsNearlyEqual(FrameInfo.Y, NextFrame.Y, KINDA_SMALL_NUMBER))))
+			(!FMath::IsNearlyEqual(FrameInfo.Y, PreviousFrame.Y, DOUBLE_KINDA_SMALL_NUMBER) ||
+			(NextFrame.IsValid() && !FMath::IsNearlyEqual(FrameInfo.Y, NextFrame.Y, DOUBLE_KINDA_SMALL_NUMBER))))
 		{
 			Frame->SetNumberField(DSANIM_TRANSFORM_Y, FrameInfo.Y);
 			PreviousFrame.Y = FrameInfo.Y;
 		}
 		if (EnumHasAnyFlags(EnabledComponents, ETransformChannelComponents::Z) &&
-			(!FMath::IsNearlyEqual(FrameInfo.Z, PreviousFrame.Z, KINDA_SMALL_NUMBER) ||
-			(NextFrame.IsValid() && !FMath::IsNearlyEqual(FrameInfo.Z, NextFrame.Z, KINDA_SMALL_NUMBER))))
+			(!FMath::IsNearlyEqual(FrameInfo.Z, PreviousFrame.Z, DOUBLE_KINDA_SMALL_NUMBER) ||
+			(NextFrame.IsValid() && !FMath::IsNearlyEqual(FrameInfo.Z, NextFrame.Z, DOUBLE_KINDA_SMALL_NUMBER))))
 		{
 			Frame->SetNumberField(DSANIM_TRANSFORM_Z, FrameInfo.Z);
 			PreviousFrame.Z = FrameInfo.Z;

@@ -4,18 +4,18 @@
 #include "DatasmithDefinitions.h"
 #include "Math/UnrealMathUtility.h"
 
-FDatasmithTransformFrameInfo FDatasmithTransformFrameInfo::InvalidFrameInfo(MIN_int32, 0.f, 0.f, 0.f);
+FDatasmithTransformFrameInfo FDatasmithTransformFrameInfo::InvalidFrameInfo(MIN_int32, 0., 0., 0.);
 
 bool FDatasmithTransformFrameInfo::IsValid() const
-{ 
+{
 	return FrameNumber != MIN_int32;
 }
 
 bool FDatasmithTransformFrameInfo::operator==(const FDatasmithTransformFrameInfo& Other) const
 {
-	return FMath::IsNearlyEqual(X, Other.X, KINDA_SMALL_NUMBER) &&
-		   FMath::IsNearlyEqual(Y, Other.Y, KINDA_SMALL_NUMBER) &&
-		   FMath::IsNearlyEqual(Z, Other.Z, KINDA_SMALL_NUMBER);
+	return FMath::IsNearlyEqual(X, Other.X, DOUBLE_KINDA_SMALL_NUMBER) &&
+	       FMath::IsNearlyEqual(Y, Other.Y, DOUBLE_KINDA_SMALL_NUMBER) &&
+	       FMath::IsNearlyEqual(Z, Other.Z, DOUBLE_KINDA_SMALL_NUMBER);
 }
 
 FDatasmithVisibilityFrameInfo FDatasmithVisibilityFrameInfo::InvalidFrameInfo(MIN_int32, false);
