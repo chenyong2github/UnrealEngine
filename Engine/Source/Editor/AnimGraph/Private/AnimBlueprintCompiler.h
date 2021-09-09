@@ -47,6 +47,7 @@ class FAnimBlueprintCompilerContext : public FKismetCompilerContext
 	friend class FAnimBlueprintCompilationBracketContext;
 	friend class FAnimBlueprintPostExpansionStepContext;
 	friend class FAnimBlueprintCopyTermDefaultsContext;
+	friend class UK2Node_AnimNodeReference;
 
 protected:
 	typedef FKismetCompilerContext Super;

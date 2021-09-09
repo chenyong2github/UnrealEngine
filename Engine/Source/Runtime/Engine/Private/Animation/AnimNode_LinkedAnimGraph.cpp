@@ -31,7 +31,9 @@ static float GetBlendDuration(const IAnimClassInterface* PriorAnimBPClass, const
 
 FAnimNode_LinkedAnimGraph::FAnimNode_LinkedAnimGraph()
 	: InstanceClass(nullptr)
-	, Tag(NAME_None)
+#if WITH_EDITORONLY_DATA
+	, Tag_DEPRECATED(NAME_None)
+#endif
 	, LinkedRoot(nullptr)
 	, NodeIndex(INDEX_NONE)
 	, CachedLinkedNodeIndex(INDEX_NONE)

@@ -3024,7 +3024,9 @@ void USkeletalMeshComponent::GetLinkedAnimGraphInstancesByTag(FName InTag, TArra
 {
 	if(AnimScriptInstance)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		AnimScriptInstance->GetLinkedAnimGraphInstancesByTag(InTag, OutLinkedInstances);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 

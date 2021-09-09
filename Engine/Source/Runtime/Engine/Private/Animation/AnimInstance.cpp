@@ -31,6 +31,7 @@
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Animation/AnimSubsystem.h"
+#include "Animation/AnimSubsystem_Tag.h"
 
 /** Anim stats */
 
@@ -2707,14 +2708,11 @@ UAnimInstance* UAnimInstance::GetLinkedAnimGraphInstanceByTag(FName InTag) const
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const TArray<FStructProperty*>& LinkedAnimGraphNodeProperties = AnimBlueprintClass->GetLinkedAnimGraphNodeProperties();
-		for(const FStructProperty* LinkedAnimGraphNodeProperty : LinkedAnimGraphNodeProperties)
+		const FAnimSubsystem_Tag& TagSubsystem = AnimBlueprintClass->GetSubsystem<FAnimSubsystem_Tag>();
+		const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = TagSubsystem.FindNodeByTag<FAnimNode_LinkedAnimGraph>(InTag, this);
+		if(LinkedAnimGraph)
 		{
-			const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedAnimGraphNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
-			if(LinkedAnimGraph && LinkedAnimGraph->Tag == InTag)
-			{
-				return LinkedAnimGraph->GetTargetInstance<UAnimInstance>();
-			}
+			return LinkedAnimGraph->GetTargetInstance<UAnimInstance>();
 		}
 	}
 
@@ -2723,17 +2721,9 @@ UAnimInstance* UAnimInstance::GetLinkedAnimGraphInstanceByTag(FName InTag) const
 
 void UAnimInstance::GetLinkedAnimGraphInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutLinkedInstances) const
 {
-	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	if(UAnimInstance* Instance = GetLinkedAnimGraphInstanceByTag(InTag))
 	{
-		const TArray<FStructProperty*>& LinkedAnimGraphNodeProperties = AnimBlueprintClass->GetLinkedAnimGraphNodeProperties();
-		for (const FStructProperty* LinkedAnimGraphNodeProperty : LinkedAnimGraphNodeProperties)
-		{
-			const FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedAnimGraphNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
-			if(LinkedAnimGraph && LinkedAnimGraph->Tag == InTag)
-			{
-				OutLinkedInstances.Add(LinkedAnimGraph->GetTargetInstance<UAnimInstance>());
-			}
-		}
+		OutLinkedInstances.Add(Instance);
 	}
 }
 
@@ -2741,14 +2731,11 @@ void UAnimInstance::LinkAnimGraphByTag(FName InTag, TSubclassOf<UAnimInstance> I
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
-		const TArray<FStructProperty*>& LinkedAnimGraphNodeProperties = AnimBlueprintClass->GetLinkedAnimGraphNodeProperties();
-		for (const FStructProperty* LinkedAnimGraphNodeProperty : LinkedAnimGraphNodeProperties)
+		const FAnimSubsystem_Tag& TagSubsystem = AnimBlueprintClass->GetSubsystem<FAnimSubsystem_Tag>();
+		FAnimNode_LinkedAnimGraph* LinkedAnimGraph = TagSubsystem.FindNodeByTag<FAnimNode_LinkedAnimGraph>(InTag, this);
+		if(LinkedAnimGraph)
 		{
-			FAnimNode_LinkedAnimGraph* LinkedAnimGraph = LinkedAnimGraphNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(this);
-			if(LinkedAnimGraph && LinkedAnimGraph->Tag == InTag)
-			{
-				LinkedAnimGraph->SetAnimClass(InClass, this);
-			}
+			LinkedAnimGraph->SetAnimClass(InClass, this);
 		}
 	}
 }

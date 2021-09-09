@@ -17,6 +17,9 @@ public:
 	SLATE_BEGIN_ARGS(SGraphNodeSequencePlayer){}
 	SLATE_END_ARGS()
 
+	// Reverse index of the debug slider widget
+	static const int32 DebugSliderSlotReverseIndex = 2;
+
 	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode);
 
 	// SNodePanel::SNode interface

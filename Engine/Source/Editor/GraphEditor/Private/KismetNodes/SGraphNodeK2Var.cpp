@@ -33,6 +33,25 @@ FSlateColor SGraphNodeK2Var::GetVariableColor() const
 	return GraphNode->GetNodeTitleColor();
 }
 
+TSharedRef<SWidget> SGraphNodeK2Var::UpdateTitleWidget(FText InTitleText, TSharedPtr<SWidget> InTitleWidget, EHorizontalAlignment& InOutTitleHAlign, FMargin& InOutTitleMargin) const
+{
+	TSharedPtr<SWidget> TitleWidget = InTitleWidget;
+	
+	if (InTitleText.IsEmpty())
+	{
+		TitleWidget = SNullWidget::NullWidget;
+	}
+
+	if(!TitleWidget.IsValid())
+	{
+		TitleWidget = SNew(STextBlock)
+		.TextStyle( FEditorStyle::Get(), "Graph.Node.NodeTitle" )
+		.Text(InTitleText);
+	}
+
+	return TitleWidget.ToSharedRef();
+}
+
 void SGraphNodeK2Var::UpdateGraphNode()
 {
 	InputPins.Empty();
@@ -163,18 +182,8 @@ void SGraphNodeK2Var::UpdateGraphNode()
 			ContentAreaMargin.Top += 16;
 		}
 	}
-	
-	if (TitleText.IsEmpty())
-	{
-		TitleWidget = SNullWidget::NullWidget;
-	}
 
-	if(!TitleWidget.IsValid())
-	{
-		TitleWidget = SNew(STextBlock)
-						.TextStyle( FEditorStyle::Get(), "Graph.Node.NodeTitle" )
-						.Text(TitleText);
-	}
+	TitleWidget = UpdateTitleWidget(TitleText, TitleWidget, TitleHAlign, TitleMargin);
 
 	SetupErrorReporting();
 

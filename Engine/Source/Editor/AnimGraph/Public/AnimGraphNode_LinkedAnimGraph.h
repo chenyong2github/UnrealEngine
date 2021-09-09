@@ -19,7 +19,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_LinkedAnimGraph Node;
-
+	
+	// Begin UObject
+	virtual void Serialize(FArchive& Ar) override;
+	
 	// Begin UEdGraphNode
 	virtual void PostPasteNode() override;
 

@@ -21,6 +21,7 @@
 #include "AnimBlueprintExtension_Base.h"
 #include "AnimBlueprintExtension_Attributes.h"
 #include "AnimBlueprintExtension_PropertyAccess.h"
+#include "AnimBlueprintExtension_Tag.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "AnimBlueprintCompilationContext.h"
 #include "AnimBlueprintExtension.h"
@@ -101,6 +102,11 @@ void UAnimGraphNode_Base::PostEditChangeProperty(FPropertyChangedEvent& Property
 	{
 		GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
 		GetSchema()->ReconstructNode(*this);
+	}
+	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, Tag))
+	{
+		GetAnimBlueprint()->RequestRefreshExtensions();
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetAnimBlueprint());
 	}
 	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -512,6 +518,13 @@ void UAnimGraphNode_Base::ProcessDuringCompilation(IAnimBlueprintCompilationCont
 	GetFNode()->BecomeRelevantFunction.SetFromFunction(BecomeRelevantFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode()));
 	GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode())); 
 
+	// Insert tag, if any
+	if(Tag != NAME_None)
+	{
+		UAnimBlueprintExtension_Tag* TagExtension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_Tag>(GetAnimBlueprint());
+		TagExtension->AddTaggedNode(this, InCompilationContext);
+	}
+	
 	// Call the override point
 	OnProcessDuringCompilation(InCompilationContext, OutCompiledData);
 }
@@ -628,6 +641,11 @@ void UAnimGraphNode_Base::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair
 		OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_Name, FText::FromName(BindingPair.Key)));
 		OutTaggedMetaData.Add(FSearchTagDataPair(LOCTEXT("Binding", "Binding"), BindingPair.Value.PathAsText));
 	}
+
+	if(Tag != NAME_None)
+	{
+		OutTaggedMetaData.Add(FSearchTagDataPair(LOCTEXT("Tag", "Tag"), FText::FromName(Tag)));
+	}
 }
 
 bool UAnimGraphNode_Base::IsPinExposedAndLinked(const FString& InPinName, const EEdGraphPinDirection InDirection) const
@@ -655,6 +673,17 @@ bool UAnimGraphNode_Base::IsPinBindable(const UEdGraphPin* InPin) const
 	}
 
 	return false;
+}
+
+void UAnimGraphNode_Base::SetTag(FName InTag)
+{
+	FName OldTag = Tag;
+	Tag = InTag;
+	if(Tag != OldTag)
+	{
+		GetAnimBlueprint()->RequestRefreshExtensions();
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetAnimBlueprint());
+	}
 }
 
 FProperty* UAnimGraphNode_Base::GetPinProperty(const UEdGraphPin* InPin) const

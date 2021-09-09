@@ -25,4 +25,7 @@ public:
 
 protected:
 	FSlateColor GetVariableColor() const;
+
+	// Allow derived classes to override title widget
+	virtual TSharedRef<SWidget> UpdateTitleWidget(FText InTitleText, TSharedPtr<SWidget> InTitleWidget, EHorizontalAlignment& InOutTitleHAlign, FMargin& InOutTitleMargin) const;
 };

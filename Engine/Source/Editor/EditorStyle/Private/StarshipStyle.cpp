@@ -5855,6 +5855,18 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("AnimGraph.Attribute.RootMotionDelta.Color", FStyleColors::AccentGreen);
 		Set("AnimGraph.Attribute.InertialBlending.Icon", new IMAGE_BRUSH_SVG("Starship/AnimationBlueprintEditor/AnimationGraphInertialBlending", Icon16x16));
 		Set("AnimGraph.Attribute.InertialBlending.Color", FStyleColors::AccentOrange);
+
+		Set("AnimGraph.AnimNodeReference.Subtitle", FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", 8))
+			.SetColorAndOpacity(FLinearColor(218.0f/255.0f,218.0f/255.0f,96.0f/255.0f, 0.5f))
+		);
+
+		FTextBlockStyle TagTextStyle = FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Italic", 9))
+			.SetColorAndOpacity(FLinearColor(218.0f/255.0f,218.0f/255.0f,96.0f/255.0f, 0.5f));
+		
+		Set("AnimGraph.Node.Tag", FInlineEditableTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
+			.SetTextStyle(TagTextStyle));
 	}
 	
 	// Property Access 

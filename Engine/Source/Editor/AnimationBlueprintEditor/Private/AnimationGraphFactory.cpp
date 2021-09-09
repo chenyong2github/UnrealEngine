@@ -37,6 +37,8 @@
 #include "KismetPins/SGraphPinExec.h"
 #include "AnimGraphNode_BlendSpaceGraph.h"
 #include "AnimationNodes/SGraphNodeBlendSpaceGraph.h"
+#include "K2Node_AnimNodeReference.h"
+#include "AnimationNodes/SAnimNodeReference.h"
 
 TSharedPtr<class SGraphNode> FAnimationGraphNodeFactory::CreateNode(class UEdGraphNode* InNode) const 
 {
@@ -91,7 +93,11 @@ TSharedPtr<class SGraphNode> FAnimationGraphNodeFactory::CreateNode(class UEdGra
 	{
 		return SNew(SGraphNodeAnimStateEntry, EntryNode);
 	}
-
+	else if (UK2Node_AnimNodeReference* AnimNodeReference = Cast<UK2Node_AnimNodeReference>(InNode))
+	{
+		return SNew(SAnimNodeReference, AnimNodeReference);
+	}
+	
 	return nullptr;
 }
 

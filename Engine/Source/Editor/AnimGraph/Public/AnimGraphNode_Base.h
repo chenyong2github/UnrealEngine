@@ -220,7 +220,13 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// Function called when the node is updated
 	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, AllowFunctionLibraries, PrototypeFunction="/Script/AnimGraphRuntime.AnimExecutionContextLibrary.Prototype_ThreadSafeAnimUpdateCall"), DisplayName="On Update")
 	FMemberReference UpdateFunction;
-	
+
+private:
+	// Optional reference tag name. If this is set then this node can be referenced from elsewhere in this animation blueprint using an anim node reference
+	UPROPERTY(EditAnywhere, Category = Tag)
+	FName Tag;
+
+public:
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
@@ -453,6 +459,12 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	
 	// Check whether the named pin is bindable
 	bool IsPinBindable(const UEdGraphPin* InPin) const;
+
+	// Get the tag for this node, if any
+	FName GetTag() const { return Tag; }
+
+	// Set the tag for this node
+	void SetTag(FName InTag);
 	
 protected:
 	friend class FAnimBlueprintCompilerContext;
@@ -461,6 +473,9 @@ protected:
 	friend class UAnimBlueprintExtension_Base;
 	friend class SAnimationGraphNode;
 
+	// Set the tag for this node but without regenerating any BP data for tagging
+	void SetTagInternal(FName InTag) { Tag = InTag; }
+	
 	// Gets the animation FNode type represented by this ed graph node
 	UScriptStruct* GetFNodeType() const;
 

@@ -89,12 +89,7 @@ FText UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitle(ENodeTitleType::Type Titl
 	}
 	else if(TitleType == ENodeTitleType::ListView)
 	{
-		if(Node.Tag != NAME_None)
-		{
-			Args.Add(TEXT("Tag"), FText::FromName(Node.Tag));
-			return FText::Format(LOCTEXT("TitleListFormatTagged", "{TargetClass} ({Tag})"), Args);
-		}
-		else if(TargetClass)
+		if(TargetClass)
 		{
 			return FText::Format(LOCTEXT("TitleListFormat", "{TargetClass}"), Args);
 		}
@@ -105,12 +100,7 @@ FText UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitle(ENodeTitleType::Type Titl
 	}
 	else
 	{
-		if(Node.Tag != NAME_None)
-		{
-			Args.Add(TEXT("Tag"), FText::FromName(Node.Tag));
-			return FText::Format(LOCTEXT("TitleFormatTagged", "{TargetClass} ({Tag})\n{NodeType} "), Args);
-		}
-		else if(TargetClass)
+		if(TargetClass)
 		{
 			return FText::Format(LOCTEXT("TitleFormat", "{TargetClass}\n{NodeType}"), Args);
 		}
@@ -139,28 +129,6 @@ void UAnimGraphNode_LinkedAnimGraphBase::ValidateAnimNodeDuringCompilation(USkel
 	AnimBP->GetAllGraphs(Graphs);
 
 	const FAnimNode_LinkedAnimGraph& Node = *GetLinkedAnimGraphNode();
-
-	// Check for duplicate tags in this anim blueprint
-	for(UEdGraph* Graph : Graphs)
-	{
-		TArray<UAnimGraphNode_LinkedAnimGraphBase*> LinkedAnimGraphNodes;
-		Graph->GetNodesOfClass(LinkedAnimGraphNodes);
-
-		for(UAnimGraphNode_LinkedAnimGraphBase* LinkedAnimGraphNode : LinkedAnimGraphNodes)
-		{
-			if(LinkedAnimGraphNode == OriginalNode)
-			{
-				continue;
-			}
-
-			FAnimNode_LinkedAnimGraph& InnerNode = *LinkedAnimGraphNode->GetLinkedAnimGraphNode();
-
-			if(InnerNode.Tag != NAME_None && InnerNode.Tag == Node.Tag)
-			{
-				MessageLog.Error(*FText::Format(LOCTEXT("DuplicateTagErrorFormat", "Node @@ and node @@ both have the same tag '{0}'."), FText::FromName(Node.Tag)).ToString(), this, LinkedAnimGraphNode);
-			}
-		}
-	}
 
 	// Check we don't try to spawn our own blueprint
 	if(GetTargetClass() == AnimBP->GetAnimBlueprintGeneratedClass())

@@ -114,6 +114,11 @@ TSharedRef<SWidget> SGraphNodeBlendSpaceGraph::CreateNodeBody()
 	
 	UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(GraphNode);
 
+	auto UseLowDetailNode = [this]()
+	{
+		return GetCurrentLOD() <= EGraphRenderingLOD::LowDetail;
+	};
+	
 	return SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		.AutoHeight()
@@ -123,13 +128,13 @@ TSharedRef<SWidget> SGraphNodeBlendSpaceGraph::CreateNodeBody()
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SAnimationGraphNode::CreateNodeFunctionsWidget(BlendSpaceNode, MakeAttributeSP(this, &SGraphNodeBlendSpaceGraph::UseLowDetailNodeTitles))
+			SAnimationGraphNode::CreateNodeFunctionsWidget(BlendSpaceNode, MakeAttributeLambda(UseLowDetailNode))
 		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
 			SNew(SLevelOfDetailBranchNode)
-			.UseLowDetailSlot(this, &SGraphNodeBlendSpaceGraph::UseLowDetailNodeTitles)
+			.UseLowDetailSlot_Lambda(UseLowDetailNode)
 			.LowDetail()
 			[
 				SNew(SSpacer)
@@ -149,6 +154,13 @@ TSharedRef<SWidget> SGraphNodeBlendSpaceGraph::CreateNodeBody()
 					return NAME_None;
 				}))
 			]
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Right)
+		.Padding(8.0f, 4.0f, 8.0f, 8.0f)
+		[
+			SAnimationGraphNode::CreateNodeTagWidget(BlendSpaceNode, MakeAttributeLambda(UseLowDetailNode))
 		];
 }
 

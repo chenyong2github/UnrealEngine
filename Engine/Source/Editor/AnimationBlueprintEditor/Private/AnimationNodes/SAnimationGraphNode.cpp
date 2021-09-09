@@ -24,6 +24,7 @@
 #include "IPropertyRowGenerator.h"
 #include "IDetailTreeNode.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphNode"
 
@@ -280,17 +281,29 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 {
 	if (UAnimGraphNode_Base* AnimNode = CastChecked<UAnimGraphNode_Base>(GraphNode, ECastCheckedType::NullAllowed))
 	{
-		TSharedRef<SWidget> NodeFunctionsWidget = CreateNodeFunctionsWidget(AnimNode, MakeAttributeSP(this, &SAnimationGraphNode::UseLowDetailNodeTitles));
-		
+		auto UseLowDetailNode = [this]()
+		{
+			return GetCurrentLOD() <= EGraphRenderingLOD::LowDetail;
+		};
+
 		// Insert above the error reporting bar
-		MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - 1))
+		MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - TagAndFunctionsSlotReverseIndex))
 		.AutoHeight()
 		.Padding(4.0f)
 		[
-			SNew(SBox)
+			SNew(SVerticalBox)
 			.IsEnabled_Lambda([this](){ return IsNodeEditable(); })
+			+SVerticalBox::Slot()
+			.AutoHeight()
 			[
-				NodeFunctionsWidget
+				CreateNodeFunctionsWidget(AnimNode, MakeAttributeLambda(UseLowDetailNode))
+			]
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(4.0f, 0.0f, 4.0f, 4.0f)
+			.HAlign(HAlign_Right)
+			[
+				CreateNodeTagWidget(AnimNode, MakeAttributeLambda(UseLowDetailNode))
 			]
 		];
 	}
@@ -308,6 +321,8 @@ public:
 
 	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 	{
+		UseLowDetail = InArgs._UseLowDetail;
+		
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyRowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(FPropertyRowGeneratorArgs());
 		PropertyRowGenerator->RegisterInstancedCustomPropertyTypeLayout(FMemberReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintMemberReferenceDetails::MakeInstance));
@@ -431,6 +446,26 @@ TSharedRef<SWidget> SAnimationGraphNode::CreateNodeFunctionsWidget(UAnimGraphNod
 {
 	return SNew(SAnimNodeFunctionsWidget, InAnimNode)
 		.UseLowDetail(InUseLowDetail);
+}
+
+TSharedRef<SWidget> SAnimationGraphNode::CreateNodeTagWidget(UAnimGraphNode_Base* InAnimNode, TAttribute<bool> InUseLowDetail)
+{
+	return SNew(SLevelOfDetailBranchNode)
+		.Visibility_Lambda([InAnimNode](){ return InAnimNode->Tag != NAME_None ? EVisibility::Visible : EVisibility::Collapsed; })
+		.UseLowDetailSlot(InUseLowDetail)
+		.LowDetail()
+		[
+			SNew(SSpacer)
+			.Size(FVector2D(24.0f, 24.f))
+		]
+		.HighDetail()
+		[
+			SNew(SInlineEditableTextBlock)
+			.ToolTipText_Lambda([InAnimNode](){ return FText::Format(LOCTEXT("TagFormat_Tooltip", "Tag: {0}\nThis node can be referenced elsewhere in this Anim Blueprint using this tag"), FText::FromName(InAnimNode->GetTag())); })
+			.Style(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("AnimGraph.Node.Tag"))
+			.Text_Lambda([InAnimNode](){ return FText::FromName(InAnimNode->GetTag()); })
+			.OnTextCommitted_Lambda([InAnimNode](const FText& InText, ETextCommit::Type InCommitType){ InAnimNode->SetTag(*InText.ToString()); })
+		];
 }
 
 void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNode_Base* InAnimGraphNode, TSharedRef<SGraphNode> InGraphNodeWidget, TFunctionRef<TSharedPtr<SGraphPin>(UEdGraphPin*)> InFindWidgetForPin)

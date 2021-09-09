@@ -18,6 +18,9 @@ public:
 	SLATE_BEGIN_ARGS(SGraphNodeBlendSpacePlayer){}
 	SLATE_END_ARGS()
 
+	// Reverse index of the debug grid widget
+	static const int32 DebugGridSlotReverseIndex = 2;
+	
 	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode);
 
 	// SGraphNode interface

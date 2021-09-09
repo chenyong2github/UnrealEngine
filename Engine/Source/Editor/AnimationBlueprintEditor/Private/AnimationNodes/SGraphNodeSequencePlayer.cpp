@@ -77,15 +77,20 @@ void SGraphNodeSequencePlayer::UpdateGraphNode()
 void SGraphNodeSequencePlayer::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox)
 {
 	SAnimationGraphNode::CreateBelowPinControls(MainBox);
+
+	auto UseLowDetailNode = [this]()
+	{
+		return GetCurrentLOD() <= EGraphRenderingLOD::LowDetail;
+	};
 	
-	// Insert above the error reporting bar
-	MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - 1))
+	// Insert above the error reporting bar (but above the tag/functions)
+	MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - DebugSliderSlotReverseIndex))
 	.AutoHeight()
 	.VAlign( VAlign_Fill )
 	.Padding(FMargin(4))
 	[
 		SNew(SLevelOfDetailBranchNode)
-		.UseLowDetailSlot(this, &SGraphNodeSequencePlayer::UseLowDetailNodeTitles)
+		.UseLowDetailSlot_Lambda(UseLowDetailNode)
 		.LowDetail()
 		[
 			SNew(SSpacer)

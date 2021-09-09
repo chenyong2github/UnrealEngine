@@ -20,6 +20,12 @@ public:
 	SLATE_BEGIN_ARGS(SAnimationGraphNode) {}
 	SLATE_END_ARGS()
 
+	// Reverse index of the error reporting bar slot
+	static const int32 ErrorReportingSlotReverseIndex = 0;
+
+	// Reverse index of the tag/functions slot
+	static const int32 TagAndFunctionsSlotReverseIndex = 1;
+	
 	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode);
 
 	// Tweak any created pin widgets so they respond to bindings
@@ -27,6 +33,9 @@ public:
 
 	// Create below-widget controls for editing anim node functions
 	static TSharedRef<SWidget> CreateNodeFunctionsWidget(UAnimGraphNode_Base* InAnimNode, TAttribute<bool> InUseLowDetail);
+
+	// Create below-widget controls for editing anim node tags
+	static TSharedRef<SWidget> CreateNodeTagWidget(UAnimGraphNode_Base* InAnimNode, TAttribute<bool> InUseLowDetail);
 	
 protected:
 	// SWidget interface
