@@ -98,6 +98,7 @@ void EmitSceneDepthPS(
 {
 #if VELOCITY_EXPORT
 	FNaniteView NaniteView = GetNaniteView(0);
+	ResolvedView = ResolveView();
 #endif
 
 	uint2 PixelPos = (uint2)SvPosition.xy;
@@ -186,7 +187,10 @@ void EmitSceneDepthStencilPS
 	uint2 PixelPos = (uint2)SvPosition.xy;
 	UlongType VisPixel = VisBuffer64[PixelPos];
 
+#if VELOCITY_EXPORT
 	FNaniteView NaniteView = GetNaniteView(0);
+	ResolvedView = ResolveView();
+#endif
 
 	uint DepthInt = 0;
 	uint VisibleClusterIndex = 0;

@@ -74,6 +74,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 
 #if VELOCITY_EXPORT
 	FNaniteView NaniteView = GetNaniteView(0);
+	ResolvedView = ResolveView();
 #endif
 
 	uint DepthInt = 0;
