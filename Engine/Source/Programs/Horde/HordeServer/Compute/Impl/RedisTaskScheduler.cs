@@ -55,7 +55,7 @@ namespace HordeServer.Compute.Impl
 	/// <summary>
 	/// Interface for a queue of compute operations, each of which may have different requirements for the executing machines.
 	/// </summary>
-	interface ITaskScheduler<T>
+	interface ITaskScheduler<T> where T : class
 	{
 		/// <summary>
 		/// Adds a task to the queue
@@ -78,6 +78,19 @@ namespace HordeServer.Compute.Impl
 		/// <param name="Token">Cancellation token for the operation. Will return a null entry rather than throwing an exception.</param>
 		/// <returns>Information about the task to be executed</returns>
 		Task<TaskSchedulerEntry<T>?> DequeueAsync(IAgent Agent, CancellationToken Token = default);
+
+		/// <summary>
+		/// Dequeue any item from the given queue
+		/// </summary>
+		/// <param name="RequirementsHash">Hash of the requirements object</param>
+		/// <returns>Information about the task to be executed</returns>
+		Task<T?> DequeueAsync(IoHash RequirementsHash);
+
+		/// <summary>
+		/// Gets hashes of all the inactive task queues
+		/// </summary>
+		/// <returns></returns>
+		Task<List<IoHash>> GetInactiveQueuesAsync();
 	}
 
 	/// <summary>
