@@ -364,7 +364,7 @@ public:
  * the internal FDynamicMesh3 (which uses normal C++ memory management, so no garbage collection involved)
  * So the Pool does not re-use mesh memory, only the UObject containers.
  */
-UCLASS(Transient)
+UCLASS(BlueprintType, Transient)
 class GEOMETRYFRAMEWORK_API UDynamicMeshPool : public UObject
 {
 	GENERATED_BODY()

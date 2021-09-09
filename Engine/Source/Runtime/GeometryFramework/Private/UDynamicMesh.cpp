@@ -523,7 +523,7 @@ void UDynamicMesh::ImportCustomProperties(const TCHAR* SourceText, FFeedbackCont
 		}
 
 		// if we got here we failed. Rather than produce an empty mesh, we generate a small cube
-		UE_LOG(LogTemp, Warning, TEXT("UDynamicMesh text-based property serialization incomplete, generating box as placeholder. Try increasing geometry.DynamicMesh.TextBasedDupeTriThreshold, or geometry.DynamicMesh.DupeStashTimeout."))
+		UE_LOG(LogGeometry, Warning, TEXT("UDynamicMesh text-based property serialization incomplete, generating box as placeholder. Try increasing geometry.DynamicMesh.TextBasedDupeTriThreshold, or geometry.DynamicMesh.DupeStashTimeout."))
 		FMinimalBoxMeshGenerator BoxGen;
 		BoxGen.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(), 50.0 * FVector3d::One());
 		FDynamicMesh3 GenMesh(&BoxGen.Generate());
@@ -559,7 +559,7 @@ UDynamicMesh* UDynamicMeshPool::RequestMesh()
 	// This will allow them to be garbage-collected (eventually)
 	if (!ensure(AllCreatedMeshes.Num() < CVarDynamicMeshPoolMaxPoolSizeThreshold.GetValueOnGameThread()))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UDynamicMeshPool Threshold of %d Allocated Meshes exceeded! Releasing references to all current meshes and forcing a garbage collection."), CVarDynamicMeshPoolMaxPoolSizeThreshold.GetValueOnGameThread());
+		UE_LOG(LogGeometry, Warning, TEXT("UDynamicMeshPool Threshold of %d Allocated Meshes exceeded! Releasing references to all current meshes and forcing a garbage collection."), CVarDynamicMeshPoolMaxPoolSizeThreshold.GetValueOnGameThread());
 		AllCreatedMeshes.Reset();
 		GEngine->ForceGarbageCollection(true);
 	}
@@ -572,7 +572,7 @@ UDynamicMesh* UDynamicMeshPool::RequestMesh()
 
 void UDynamicMeshPool::ReturnMesh(UDynamicMesh* Mesh)
 {
-	if (ensure(Mesh))
+	if ( ensure(Mesh) && ensure(AllCreatedMeshes.Contains(Mesh)) )
 	{
 		Mesh->Reset();
 		if (ensure(CachedMeshes.Contains(Mesh) == false))

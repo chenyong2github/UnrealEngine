@@ -22,8 +22,64 @@ ADynamicMeshActor::ADynamicMeshActor(const FObjectInitializer& ObjectInitializer
 }
 
 
+UDynamicMeshPool* ADynamicMeshActor::GetComputeMeshPool()
+{
+	if (DynamicMeshPool == nullptr && bEnableComputeMeshPool)
+	{
+		DynamicMeshPool = NewObject<UDynamicMeshPool>();
+	}
+	return DynamicMeshPool;
+}
 
 
+UDynamicMesh* ADynamicMeshActor::AllocateComputeMesh()
+{
+	if (bEnableComputeMeshPool)
+	{
+		UDynamicMeshPool* UsePool = GetComputeMeshPool();
+		if (UsePool)
+		{
+			return UsePool->RequestMesh();
+		}
+	}
+
+	// if we could not return a pool mesh, allocate a new mesh that isn't owned by the pool
+	return NewObject<UDynamicMesh>(this);
+}
+
+
+bool ADynamicMeshActor::ReleaseComputeMesh(UDynamicMesh* Mesh)
+{
+	if (bEnableComputeMeshPool && Mesh)
+	{
+		UDynamicMeshPool* UsePool = GetComputeMeshPool();
+		if (UsePool != nullptr)
+		{
+			UsePool->ReturnMesh(Mesh);
+			return true;
+		}
+	}
+	return false;
+}
+
+
+void ADynamicMeshActor::ReleaseAllComputeMeshes()
+{
+	UDynamicMeshPool* UsePool = GetComputeMeshPool();
+	if (UsePool)
+	{
+		UsePool->ReturnAllMeshes();
+	}
+}
+
+void ADynamicMeshActor::FreeAllComputeMeshes()
+{
+	UDynamicMeshPool* UsePool = GetComputeMeshPool();
+	if (UsePool)
+	{
+		UsePool->FreeAllMeshes();
+	}
+}
 
 
 
