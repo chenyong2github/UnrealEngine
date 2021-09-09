@@ -266,6 +266,11 @@ bool UOptimusNodeGraph::DuplicateNodes(
 		}
 	}
 
+	if (!ensure(SourceGraph != nullptr))
+	{
+		return false;
+	}
+
 	// Figure out the non-clashing names to use, to avoid collisions during actual execution.
 	TSet<FName> ExistingObjects;
 	for (const UOptimusNode* Node: Nodes)
