@@ -349,9 +349,9 @@ namespace HordeServer
 		public FleetManagerType FleetManager { get; set; } = FleetManagerType.None;
 
 		/// <summary>
-		/// Whether to run scheduled jobs. Not wanted for development.
+		/// Whether to run scheduled jobs.
 		/// </summary>
-		public bool DisableSchedules { get; set; } = true;
+		public bool DisableSchedules { get; set; }
 
 		/// <summary>
 		/// Timezone for evaluating schedules
