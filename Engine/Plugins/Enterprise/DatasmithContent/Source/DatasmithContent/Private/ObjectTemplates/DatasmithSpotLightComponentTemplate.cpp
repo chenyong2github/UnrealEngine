@@ -6,7 +6,7 @@
 
 UDatasmithSpotLightComponentTemplate::UDatasmithSpotLightComponentTemplate()
 {
-	Load( USpotLightComponent::StaticClass()->GetDefaultObject() );
+	UDatasmithSpotLightComponentTemplate::Load( USpotLightComponent::StaticClass()->GetDefaultObject() );
 }
 
 UObject* UDatasmithSpotLightComponentTemplate::UpdateObject( UObject* Destination, bool bForce )

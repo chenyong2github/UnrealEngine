@@ -4,7 +4,7 @@
 
 UDatasmithSkyLightComponentTemplate::UDatasmithSkyLightComponentTemplate()
 {
-	Load( USkyLightComponent::StaticClass()->GetDefaultObject() );
+	UDatasmithSkyLightComponentTemplate::Load( USkyLightComponent::StaticClass()->GetDefaultObject() );
 }
 
 UObject* UDatasmithSkyLightComponentTemplate::UpdateObject( UObject* Destination, bool bForce )

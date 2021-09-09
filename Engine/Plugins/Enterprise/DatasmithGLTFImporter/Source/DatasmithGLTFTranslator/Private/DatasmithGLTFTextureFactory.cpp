@@ -78,13 +78,13 @@ namespace DatasmithGLTFImporterImpl
 	}
 }
 FDatasmithGLTFTextureFactory::FDatasmithGLTFTextureFactory()
-    : CurrentScene(nullptr)
+	: CurrentScene(nullptr)
 {
 }
 
 FDatasmithGLTFTextureFactory::~FDatasmithGLTFTextureFactory()
 {
-	CleanUp();
+	FDatasmithGLTFTextureFactory::CleanUp();
 }
 
 GLTF::ITextureElement* FDatasmithGLTFTextureFactory::CreateTexture(const GLTF::FTexture& GltfTexture, UObject* ParentPackage, EObjectFlags Flags,

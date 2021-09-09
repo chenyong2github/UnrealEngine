@@ -7,7 +7,7 @@
 UDatasmithAreaLightActorTemplate::UDatasmithAreaLightActorTemplate()
 	: UDatasmithObjectTemplate(true)
 {
-	Load( ADatasmithAreaLightActor::StaticClass()->GetDefaultObject() );
+	UDatasmithAreaLightActorTemplate::Load( ADatasmithAreaLightActor::StaticClass()->GetDefaultObject() );
 }
 
 UObject* UDatasmithAreaLightActorTemplate::UpdateObject( UObject* Destination, bool bForce )
