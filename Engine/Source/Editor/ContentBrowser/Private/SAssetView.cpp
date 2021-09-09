@@ -2419,35 +2419,32 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("View", LOCTEXT("ViewHeading", "View"));
-		auto CreateShowFoldersSubMenu = [this](UToolMenu* SubMenu)
-		{
-			FToolMenuSection& ShowEmptyFoldersSection = SubMenu->AddSection("ShowEmptyFolders");
-			ShowEmptyFoldersSection.AddMenuEntry(
-				"ShowEmptyFolders",
-				LOCTEXT("ShowEmptyFoldersOption", "Show Empty Folders"),
-				LOCTEXT("ShowEmptyFoldersOptionToolTip", "Show empty folders in the view as well as assets?"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateSP( this, &SAssetView::ToggleShowEmptyFolders ),
-					FCanExecuteAction::CreateSP( this, &SAssetView::IsToggleShowEmptyFoldersAllowed ),
-					FIsActionChecked::CreateSP( this, &SAssetView::IsShowingEmptyFolders )
-				),
-				EUserInterfaceActionType::ToggleButton
-			);
-		};
 
-		Section.AddEntry(FToolMenuEntry::InitSubMenu(
+		Section.AddMenuEntry(
 			"ShowFolders",
 			LOCTEXT("ShowFoldersOption", "Show Folders"),
 			LOCTEXT("ShowFoldersOptionToolTip", "Show folders in the view as well as assets?"),
-			FNewToolMenuDelegate::CreateLambda(CreateShowFoldersSubMenu),
+			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SAssetView::ToggleShowFolders ),
 				FCanExecuteAction::CreateSP( this, &SAssetView::IsToggleShowFoldersAllowed ),
 				FIsActionChecked::CreateSP( this, &SAssetView::IsShowingFolders )
 			),
 			EUserInterfaceActionType::ToggleButton
-		));
+		);
+
+		Section.AddMenuEntry(
+			"ShowEmptyFolders",
+			LOCTEXT("ShowEmptyFoldersOption", "Show Empty Folders"),
+			LOCTEXT("ShowEmptyFoldersOptionToolTip", "Show empty folders in the view as well as assets?"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetView::ToggleShowEmptyFolders),
+				FCanExecuteAction::CreateSP(this, &SAssetView::IsToggleShowEmptyFoldersAllowed),
+				FIsActionChecked::CreateSP(this, &SAssetView::IsShowingEmptyFolders)
+			),
+			EUserInterfaceActionType::ToggleButton
+		);
 
 		Section.AddMenuEntry(
 			"ShowFavorite",
