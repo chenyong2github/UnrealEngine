@@ -97,6 +97,16 @@ void UFractureTransformGizmoSettings::Shutdown()
 	}
 }
 
+void UFractureCutterSettings::TransferNoiseSettings(FNoiseSettings& NoiseSettingsOut)
+{
+	NoiseSettingsOut.Amplitude = Amplitude;
+	NoiseSettingsOut.Frequency = Frequency;
+	NoiseSettingsOut.Lacunarity = Lacunarity;
+	NoiseSettingsOut.Persistence = Persistence;
+	NoiseSettingsOut.Octaves = OctaveNumber;
+	NoiseSettingsOut.PointSpacing = SurfaceResolution;
+}
+
 UFractureToolCutterBase::UFractureToolCutterBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
@@ -304,10 +314,7 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 		FNoiseSettings NoiseSettings;
 		if (CutterSettings->Amplitude > 0.0f)
 		{
-			NoiseSettings.Amplitude = CutterSettings->Amplitude;
-			NoiseSettings.Frequency = CutterSettings->Frequency;
-			NoiseSettings.Octaves = CutterSettings->OctaveNumber;
-			NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
+			CutterSettings->TransferNoiseSettings(NoiseSettings);
 			VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 
@@ -322,9 +329,13 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 
 FBox UFractureToolVoronoiCutterBase::GetVoronoiBounds(const FFractureToolContext& FractureContext, const TArray<FVector>& Sites) const
 {
-	FBox VoronoiBounds(Sites);
-	VoronoiBounds += FractureContext.GetWorldBounds();
-	return VoronoiBounds.ExpandBy(CutterSettings->Amplitude + CutterSettings->Grout + KINDA_SMALL_NUMBER);
+	FBox VoronoiBounds = FractureContext.GetWorldBounds(); 
+	if (Sites.Num() > 0)
+	{
+		VoronoiBounds += FBox(Sites);
+	}
+	
+	return VoronoiBounds.ExpandBy(CutterSettings->GetMaxVertexMovement() + KINDA_SMALL_NUMBER);
 }
 
 #undef LOCTEXT_NAMESPACE

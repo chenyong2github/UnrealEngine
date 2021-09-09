@@ -51,7 +51,7 @@ FSlateIcon UFractureToolPlaneCut::GetToolIcon() const
 
 void UFractureToolPlaneCut::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Planar", "Planar", "Planar Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Planar", "Planar", "Planar Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Planar = UICommandInfo;
 }
 
@@ -163,10 +163,7 @@ int32 UFractureToolPlaneCut::ExecuteFracture(const FFractureToolContext& Fractur
 		FNoiseSettings NoiseSettings;
 		if (CutterSettings->Amplitude > 0.0f)
 		{
-			NoiseSettings.Amplitude = CutterSettings->Amplitude;
-			NoiseSettings.Frequency = CutterSettings->Frequency;
-			NoiseSettings.Octaves = CutterSettings->OctaveNumber;
-			NoiseSettings.PointSpacing = CutterSettings->SurfaceResolution;
+			CutterSettings->TransferNoiseSettings(NoiseSettings);
 			InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
 		}
 

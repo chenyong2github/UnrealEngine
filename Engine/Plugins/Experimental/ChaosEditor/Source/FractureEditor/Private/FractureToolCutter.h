@@ -11,6 +11,8 @@
 
 class FFractureToolContext;
 
+struct FNoiseSettings;
+
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureCutterSettings : public UFractureToolSettings
@@ -28,9 +30,13 @@ public:
 		, bDrawDiagram(true)
 		, Amplitude(0.0f)
 		, Frequency(0.1f)
+		, Lacunarity(2.0f)
+		, Persistence(0.5f)
 		, OctaveNumber(4)
 		, SurfaceResolution(10)
 	{}
+
+	void TransferNoiseSettings(FNoiseSettings& NoiseSettingsOut);
 
 	/** Random number generator seed for repeatability */
 	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Random Seed", UIMin = "-1", UIMax = "1000", ClampMin = "-1"))
@@ -68,13 +74,33 @@ public:
 	UPROPERTY(EditAnywhere, Category = Noise)
 	float Frequency;
 
+	/** Lacunarity of the Perlin noise.  Controls how the frequency scales per octave. */
+	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1.0", UIMax = "4.0"))
+	float Lacunarity;
+
+	/** Persistence of the Perlin noise.  Controls how the amplitude scales per octave. */
+	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "0.01", UIMax = "1.0"))
+	float Persistence;
+
 	/** Number of fractal layers of Perlin noise to apply.  Smaller values (1 or 2) will create noise that looks like gentle rolling hills, while larger values (> 4) will tend to look more like craggy mountains */
-	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "1"))
+	UPROPERTY(EditAnywhere, Category = Noise, meta = (ClampMin = "1", UIMax = "8"))
 	int32 OctaveNumber;
 
 	/** Spacing between vertices on cut surfaces, where noise is added.  Larger spacing between vertices will create more efficient meshes with fewer triangles, but less resolution to see the shape of the added noise  */
 	UPROPERTY(EditAnywhere, Category = Noise, meta = (DisplayName = "Point Spacing", UIMin = "1", ClampMin = "0.1"))
 	float SurfaceResolution;
+
+	/// Get the maximum distance a vertex could be moved by a combination of grout and noise
+	float GetMaxVertexMovement()
+	{
+		float MaxDisp = Grout;
+		float AmplitudeScaled = Amplitude;
+		for (int32 OctaveIdx = 0; OctaveIdx < OctaveNumber; OctaveIdx++, AmplitudeScaled *= Persistence)
+		{
+			MaxDisp += FMath::Abs(AmplitudeScaled);
+		}
+		return MaxDisp;
+	}
 };
 
 /** Settings related to the collision properties of the fractured mesh pieces */
