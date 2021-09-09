@@ -433,7 +433,6 @@ protected:
 	//
 	// Physics APIs
 	//
-
 public:
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
@@ -442,11 +441,20 @@ public:
 	virtual UBodySetup* GetBodySetup() override;
 	virtual void SetBodySetup(UBodySetup* NewSetup);
 
+	/**
+	 * Force an update of the Collision/Physics data for this Component.
+	 * @param bOnlyIfPending only update if a collision update is pending, ie the underlying DynamicMesh changed and bDeferCollisionUpdates is enabled
+	 */
+	virtual void UpdateCollision(bool bOnlyIfPending);
+
 	/** Type of Collision Geometry to use for this Mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Collision")
 	TEnumAsByte<enum ECollisionTraceFlag> CollisionType = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
 
-	/** If true, current mesh will be used as Complex Collision source mesh. Independent of the CollisionType setting. */
+	/** 
+	 * If true, current mesh will be used as Complex Collision source mesh. 
+	 * This is independent of the CollisionType setting, ie, even if Complex collision is enabled, if this is false, then the Complex Collision mesh will be empty
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Collision");
 	bool bEnableComplexCollision = false;
 
@@ -462,7 +470,6 @@ protected:
 	virtual void RebuildPhysicsData();
 
 	bool bCollisionUpdatePending = false;
-	virtual void UpdateCollision(bool bOnlyIfPending);
 
 protected:
 
