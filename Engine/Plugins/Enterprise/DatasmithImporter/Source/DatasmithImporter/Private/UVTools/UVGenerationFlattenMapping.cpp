@@ -43,7 +43,7 @@ public:
 		int32 Group;
 		int32 PolygonID;
 	};
-	
+
 	static TArray<FaceStruct> GetFacesFrom(FMeshDescription& InMesh, const TArray<int32>& OverlappingCorners={});
 	static void CalculateUVs(TArray<FaceStruct>& FlattenFaces, int32 VertexNum, float AngleThreshold, float AreaWeight);
 
@@ -695,7 +695,7 @@ void FUVGenerationFlattenMappingInternal::CreateGroupUVIslands(TSet<FaceStruct*>
 			}
 		}
 
-		if (MostDifferentAngle < SlopeProjectionLimit)
+		if (MostUniqueFace && MostDifferentAngle < SlopeProjectionLimit)
 		{
 			NewProjectVec = MostUniqueFace->Normal;
 			NextProjectionFaces.Empty();
@@ -829,7 +829,7 @@ void FUVGenerationFlattenMappingInternal::CreateGroupUVIslands(TSet<FaceStruct*>
 				TMap<int32, int32>& EdgeProjectionGroup = EdgeProjectionGroupList[PrefAngleIdx];
 
 				int32 UnconnectedVert = 0;
-				
+
 				const int32* Value = EdgeProjectionGroup.Find(Face->V0);
 				if (Value == nullptr || *Value < 2)
 				{
@@ -1190,14 +1190,14 @@ void UUVGenerationFlattenMapping::GenerateFlattenMappingUVs(UStaticMesh* InStati
 	{
 		return;
 	}
-	
+
 	InStaticMesh->Modify();
 	FScopedSlowTask SlowTask(InStaticMesh->GetNumSourceModels(), FText::FromString(InStaticMesh->GetName()));
 
 	for (int32 LodIndex = 0; LodIndex < InStaticMesh->GetNumSourceModels(); ++LodIndex)
 	{
 		SlowTask.EnterProgressFrame(1);
-		
+
 		if (!InStaticMesh->IsMeshDescriptionValid(LodIndex))
 		{
 			continue;
@@ -1233,7 +1233,7 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 
 	// Get the Internal Face Array
 	TArray< FUVGenerationFlattenMappingInternal::FaceStruct > FlattenFaces = FUVGenerationFlattenMappingInternal::GetFacesFrom(InMesh, OverlappingCorners);
-	
+
 	FUVGenerationFlattenMappingInternal::CalculateUVs(FlattenFaces, InMesh.Vertices().Num(), AngleThreshold, FLATTEN_AREA_WEIGHT);
 
 	// Write unwrapped UVs back to mesh description
