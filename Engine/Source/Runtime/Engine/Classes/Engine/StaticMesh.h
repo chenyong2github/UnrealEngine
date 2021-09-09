@@ -1383,6 +1383,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category="StaticMesh")
 	ENGINE_API UStaticMeshDescription* GetStaticMeshDescription(int32 LODIndex);
 
+	struct FBuildMeshDescriptionsLODParams
+	{
+		/**
+		 * If true, Tangents will be stored at 16 bit vs 8 bit precision.
+		 */
+		bool bUseHighPrecisionTangentBasis = false;
+
+		/**
+		 * If true, UVs will be stored at full floating point precision.
+		 */
+		bool bUseFullPrecisionUVs = false;
+	};
+
 	 /** Structure that defines parameters passed into the build mesh description function */
 	struct FBuildMeshDescriptionsParams
 	{
@@ -1427,6 +1440,11 @@ public:
 		 * Ored with the value of bAllowCpuAccess on the static mesh. Set to false by default.
 		 */
 		bool bAllowCpuAccess;
+
+		/**
+		 * Extra optional LOD params. Overrides any previous settings from source model build settings.
+		 */
+		TArray<FBuildMeshDescriptionsLODParams> PerLODOverrides;
 	};
 
 	/**
