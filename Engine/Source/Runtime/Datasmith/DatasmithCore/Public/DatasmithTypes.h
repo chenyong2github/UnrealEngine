@@ -82,7 +82,7 @@ public:
 	int MirrorY;
 };
 
-/** 
+/**
  * FDatasmithTransformFrameInfo holds the data for the transform values of a frame
  * The transform values must be relative to the parent
  * The rotation is represented as Euler angles in degrees
@@ -105,7 +105,7 @@ struct DATASMITHCORE_API FDatasmithTransformFrameInfo
 		Z = EulerAngles.Z;
 	}
 
-	FDatasmithTransformFrameInfo(int32 InFrameNumber, float InX, float InY, float InZ)
+	FDatasmithTransformFrameInfo(int32 InFrameNumber, double InX, double InY, double InZ)
 		: FrameNumber(InFrameNumber)
 		, X(InX)
 		, Y(InY)
@@ -119,9 +119,9 @@ struct DATASMITHCORE_API FDatasmithTransformFrameInfo
 
 	// For translation and scale, X, Y, Z are the transform values of the respective components
 	// For rotation, they represent rotation around the X, Y, Z axis (roll, pitch, yaw respectively) in degrees
-	float X;
-	float Y;
-	float Z;
+	double X;
+	double Y;
+	double Z;
 
 	static FDatasmithTransformFrameInfo InvalidFrameInfo;
 };
