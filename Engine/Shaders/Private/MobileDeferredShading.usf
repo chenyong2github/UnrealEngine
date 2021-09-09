@@ -282,6 +282,7 @@ void MobileDirectLightPS(
 
 #if ENABLE_DISTANCE_FIELD
 	Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition)).x;
+	Shadow = DecodeLightAttenuation(Shadow);
 #endif
 
 	FMobileShadingModelContext ShadingModelContext = (FMobileShadingModelContext)0;

@@ -820,6 +820,7 @@ void Main(
 	if (ShadowPositionZ == 0)
 	{
 		Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition)).x;
+		Shadow = DecodeLightAttenuation(Shadow);
 	}
 #endif
 

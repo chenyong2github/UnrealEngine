@@ -999,6 +999,18 @@ MaterialFloat4 EncodeLightAttenuation(MaterialFloat4 InColor)
 	return sqrt(InColor);
 }
 
+/** Converts value stored in the light attenuation buffer into a linear light attenuation value. */
+MaterialFloat DecodeLightAttenuation(MaterialFloat InColor)
+{
+	return Square(InColor);
+}
+
+/** Converts value stored in the light attenuation buffer into a linear light attenuation value. */
+MaterialFloat4 DecodeLightAttenuation(MaterialFloat4 InColor)
+{
+	return Square(InColor);
+}
+
 // Like RGBM but this can be interpolated.
 MaterialFloat4 RGBTEncode(MaterialFloat3 Color)
 {
@@ -1102,7 +1114,7 @@ float2 CalcScreenUVFromOffsetFraction(float4 ScreenPosition, float2 OffsetFracti
 
 float4 GetPerPixelLightAttenuation(float2 UV)
 {
-	return Square(Texture2DSampleLevel(LightAttenuationTexture, LightAttenuationTextureSampler, UV, 0));
+	return DecodeLightAttenuation(Texture2DSampleLevel(LightAttenuationTexture, LightAttenuationTextureSampler, UV, 0));
 }
 
 // also see ConvertToDeviceZ()
