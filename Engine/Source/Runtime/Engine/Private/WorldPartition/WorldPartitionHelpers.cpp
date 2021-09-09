@@ -32,10 +32,9 @@ void FWorldPartitionHelpers::ForEachActorDesc(UWorldPartition* WorldPartition, T
 	}
 }
 
-void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate)
+namespace WorldPartitionHelpers
 {
-	// Recursive loading of references 
-	TFunction<void(const FGuid&, TMap<FGuid, FWorldPartitionReference>&)> LoadReferences = [WorldPartition, &LoadReferences](const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
+	void LoadReferences(UWorldPartition* WorldPartition, const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
 	{
 		if (InOutActorReferences.Contains(ActorGuid))
 		{
@@ -45,37 +44,19 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 		if (const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid))
 		{
 			InOutActorReferences.Emplace(ActorGuid);
-			
+
 			for (FGuid ReferenceGuid : ActorDesc->GetReferences())
 			{
-				LoadReferences(ReferenceGuid, InOutActorReferences);
+				LoadReferences(WorldPartition, ReferenceGuid, InOutActorReferences);
 			}
 
 			InOutActorReferences[ActorGuid] = FWorldPartitionReference(WorldPartition, ActorGuid);
 		}
-	};
+	}
 
-	TMap<FGuid, FWorldPartitionReference> ActorReferences;
-	TArray<FGuid> ActorsToProcess;
-
-	auto DoCollectGarbage = [&ActorReferences]()
+	bool ForEachActorWithLoadingBody(const FGuid& ActorGuid, UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate, bool bGCPerActor, TMap<FGuid, FWorldPartitionReference>& ActorReferences)
 	{
-		ActorReferences.Empty();
-
-		const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
-		CollectGarbage(RF_NoFlags, true);
-		const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
-
-		UE_LOG(LogWorldPartition, Log, TEXT("GC Performed - Available Physical: %.2fGB, Available Virtual: %.2fGB"),
-			(int64)MemStatsAfter.AvailablePhysical / (1024.0 * 1024.0 * 1024.0),
-			(int64)MemStatsAfter.AvailableVirtual / (1024.0 * 1024.0 * 1024.0)
-		);
-	};
-
-	ForEachActorDesc(WorldPartition, ActorClass, [&](const FWorldPartitionActorDesc* ActorDesc)
-	{
-		const FGuid& ActorGuid = ActorDesc->GetGuid();
-		LoadReferences(ActorGuid, ActorReferences);
+		WorldPartitionHelpers::LoadReferences(WorldPartition, ActorGuid, ActorReferences);
 
 		FWorldPartitionReference ActorReference(WorldPartition, ActorGuid);
 		if (!Predicate(ActorReference.Get()))
@@ -83,14 +64,42 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 			return false;
 		}
 
-		if (HasExceededMaxMemory())
+		if (bGCPerActor || FWorldPartitionHelpers::HasExceededMaxMemory())
 		{
-			DoCollectGarbage();
+			ActorReferences.Empty();
+			FWorldPartitionHelpers::DoCollectGarbage();
 		}
 
 		return true;
+	}
+}
+
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate, bool bGCPerActor)
+{
+	TMap<FGuid, FWorldPartitionReference> ActorReferences;
+		
+	ForEachActorDesc(WorldPartition, ActorClass, [&](const FWorldPartitionActorDesc* ActorDesc)
+	{
+		return WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorDesc->GetGuid(), WorldPartition, Predicate, bGCPerActor, ActorReferences);
 	});
 
+	ActorReferences.Empty();
+	DoCollectGarbage();
+}
+
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, const TArray<FGuid>& ActorGuids, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate, bool bGCPerActor)
+{
+	TMap<FGuid, FWorldPartitionReference> ActorReferences;
+
+	for(const FGuid& ActorGuid : ActorGuids)
+	{
+		if (!WorldPartitionHelpers::ForEachActorWithLoadingBody(ActorGuid, WorldPartition, Predicate, bGCPerActor, ActorReferences))
+		{
+			break;
+		}
+	}
+
+	ActorReferences.Empty();
 	DoCollectGarbage();
 }
 
