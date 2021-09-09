@@ -8,6 +8,9 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "RenderGraphBuilder.h"
+#include "RenderingThread.h"
+#include "RHI.h"
 
 
 
@@ -342,8 +345,49 @@ int64 UNeuralNetwork::GetOutputTensorNumber() const
 	}
 
 	// Unknown
-	checkf(false, TEXT("UNeuralNetwork::GetOutputTensorNumber(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetOutputTensorNumber(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	return -1;
+}
+
+void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InOutputTensorIndexes)
+{
+	// Sanity check
+	if (!bIsLoaded)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::OutputTensorToCPU(): Call UNeuralNetwork::Load() to load a model first."));
+		return;
+	}
+
+	// In RHI
+	ENQUEUE_RENDER_COMMAND(UNeuralNetwork_OutputTensorToCPU_RenderThread)(
+		[this, &InOutputTensorIndexes](FRHICommandListImmediate& RHICmdList)
+		{
+			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("UNeuralNetwork::OutputTensorToCPU()"));
+			// Run for each output tensor
+			if (InOutputTensorIndexes.IsEmpty())
+			{
+				// Refresh tensor(s) w.r.t. GraphBuilder + Move memory from GPU to CPU
+				for (uint32 OutputTensorIndex = 0; OutputTensorIndex < GetOutputTensorNumber(); ++OutputTensorIndex)
+				{
+					FNeuralTensor OutputTensor = GetOutputTensor(OutputTensorIndex);
+					OutputTensor.UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
+					OutputTensor.ToCPU_RenderThread(&GraphBuilder);
+				}
+			}
+			// Run for the desired output tensors
+			else
+			{
+				for (const int32 OutputTensorIndex : InOutputTensorIndexes)
+				{
+					FNeuralTensor OutputTensor = GetOutputTensor(OutputTensorIndex);
+					OutputTensor.UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
+					OutputTensor.ToCPU_RenderThread(&GraphBuilder);
+				}
+			}
+			// Execute Render Graph
+			GraphBuilder.Execute();
+		}
+	);
 }
 
 void UNeuralNetwork::Run()
