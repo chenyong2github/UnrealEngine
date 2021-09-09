@@ -40,12 +40,19 @@ namespace UnrealBuildTool
 		public bool bDescriptorReferencedExplicitly;
 
 		/// <summary>
+		/// Chain of references to this plugin
+		/// </summary>
+		public string ReferenceChain;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Info">The static plugin information</param>
-		public UEBuildPlugin(PluginInfo Info)
+		/// <param name="ReferenceChain">Chain of references to this plugin</param>
+		public UEBuildPlugin(PluginInfo Info, string ReferenceChain)
 		{
 			this.Info = Info;
+			this.ReferenceChain = ReferenceChain;
 		}
 
 		/// <summary>
