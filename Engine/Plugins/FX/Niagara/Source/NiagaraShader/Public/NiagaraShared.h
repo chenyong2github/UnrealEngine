@@ -43,6 +43,13 @@ enum class FNiagaraCompileEventSeverity : uint8
 	Error = 2
 };
 
+UENUM()
+enum class FNiagaraCompileEventSource : uint8
+{
+	Unset = 0, // No specific source of compile event.
+	ScriptDependency = 1 // Compile event is from a dependency to other scripts.
+};
+
 /** Records necessary information to give UI cues for errors/logs/warnings during compile.*/
 USTRUCT()
 struct FNiagaraCompileEvent
@@ -60,8 +67,25 @@ public:
 		StackGuids.Empty();
 	}
  
-	FNiagaraCompileEvent(FNiagaraCompileEventSeverity InSeverity, const FString& InMessage, FString InShortDescription = FString(), bool bInDismissable = true,FGuid InNodeGuid = FGuid(), FGuid InPinGuid = FGuid(), const TArray<FGuid>& InCallstackGuids = TArray<FGuid>())
-		: Severity(InSeverity), Message(InMessage), ShortDescription(InShortDescription), bDismissable(bInDismissable), NodeGuid(InNodeGuid), PinGuid(InPinGuid), StackGuids(InCallstackGuids) {}
+	FNiagaraCompileEvent(
+		FNiagaraCompileEventSeverity InSeverity,
+		const FString& InMessage,
+		FString InShortDescription = FString(),
+		bool bInDismissable = true,
+		FGuid InNodeGuid = FGuid(),
+		FGuid InPinGuid = FGuid(),
+		const TArray<FGuid>& InCallstackGuids = TArray<FGuid>(),
+		FNiagaraCompileEventSource InSource = FNiagaraCompileEventSource::Unset
+	)
+		: Severity(InSeverity)
+		, Message(InMessage)
+		, ShortDescription(InShortDescription)
+		, bDismissable(bInDismissable)
+		, NodeGuid(InNodeGuid)
+		, PinGuid(InPinGuid)
+		, StackGuids(InCallstackGuids)
+		, Source(InSource) 
+	{}
  
 	/** Whether or not this is an error, warning, or info*/
 	UPROPERTY()
@@ -84,6 +108,10 @@ public:
 	/** The compile stack frame of node id's*/
 	UPROPERTY()
 	TArray<FGuid> StackGuids;
+	/** The source of the compile event for partial invalidation purposes. */
+	UPROPERTY()
+	FNiagaraCompileEventSource Source;
+
 };
 
 //
