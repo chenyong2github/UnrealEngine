@@ -16,7 +16,7 @@ class UMediaCapture;
 class UCompositingElementTransform;
 class UTextureRenderTarget2D;
 
-UCLASS(noteditinlinenew, hidedropdown, Abstract)
+UCLASS(Abstract)
 class COMPOSURE_API UColorConverterOutputPass : public UCompositingElementOutput, public ICompEditorImagePreviewInterface
 {
 	GENERATED_BODY()
