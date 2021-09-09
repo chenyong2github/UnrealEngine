@@ -87,6 +87,13 @@
     <Compile Include="..\Private\DatasmithRevitMaterial.cs">
       <Link>DatasmithRevitExporter\DatasmithRevitMaterial.cs</Link>
     </Compile>
+    <Compile Include="..\Private\DatasmithRevitMetadataManager.cs">
+      <Link>DatasmithRevitExporter\DatasmithRevitMetdataManager.cs</Link>
+    </Compile>
+    <Compile Include="..\Private\DatasmithRevitSettingsDialog.cs">
+      <Link>DatasmithRevitExporter\DatasmithRevitSettingsDialog.cs</Link>
+	  <SubType>Form</SubType>
+    </Compile>
     <Compile Include="..\..\..\..\..\..\Binaries\Win64\DatasmithFacadeCSharp\Public\*.cs">
       <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
     </Compile>

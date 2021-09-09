@@ -418,4 +418,15 @@ namespace DatasmithRevitExporter
 			return Result.Succeeded;
 		}
 	}
+
+	[Transaction(TransactionMode.Manual)]
+	public class DatasmithShowSettingsRevitCommand : IExternalCommand
+	{
+		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		{
+			DatasmithRevitSettingsDialog ExportOptions = new DatasmithRevitSettingsDialog(InCommandData.Application.ActiveUIDocument.Document);
+			ExportOptions.ShowDialog();
+			return Result.Succeeded;
+		}
+	}
 }

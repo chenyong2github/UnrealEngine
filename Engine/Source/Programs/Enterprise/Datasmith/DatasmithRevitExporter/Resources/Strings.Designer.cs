@@ -88,6 +88,15 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Settings.
+        /// </summary>
+        public static string ButtonSettings {
+            get {
+                return ResourceManager.GetString("ButtonSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Synchronize.
         /// </summary>
         public static string ButtonSync {
@@ -228,6 +237,69 @@ namespace DatasmithRevitResources {
         public static string RibbonSection_FileExport {
             get {
                 return ResourceManager.GetString("RibbonSection_FileExport", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Add Groups.
+        /// </summary>
+        public static string SettingsDialog_AddGroupsDialogTitle {
+            get {
+                return ResourceManager.GetString("SettingsDialog_AddGroupsDialogTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Add Group....
+        /// </summary>
+        public static string SettingsDialog_ButtonAddGroups {
+            get {
+                return ResourceManager.GetString("SettingsDialog_ButtonAddGroups", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Remove Selected.
+        /// </summary>
+        public static string SettingsDialog_ButtonRemoveGroups {
+            get {
+                return ResourceManager.GetString("SettingsDialog_ButtonRemoveGroups", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Metadata Export Filter.
+        /// </summary>
+        public static string SettingsDialog_DialogTitle {
+            get {
+                return ResourceManager.GetString("SettingsDialog_DialogTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Match Built-in Paramter Group.
+        /// </summary>
+        public static string SettingsDialog_LabelMatchGroups {
+            get {
+                return ResourceManager.GetString("SettingsDialog_LabelMatchGroups", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Match Parameter Names.
+        /// </summary>
+        public static string SettingsDialog_LabelMatchParamNames {
+            get {
+                return ResourceManager.GetString("SettingsDialog_LabelMatchParamNames", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Specify parameters (medata) export filter that will be used during DirectLink synchronization. Only parameters that match the filter will be exported as metadata..
+        /// </summary>
+        public static string SettingsDialog_LabelMetadataDescription {
+            get {
+                return ResourceManager.GetString("SettingsDialog_LabelMetadataDescription", resourceCulture);
             }
         }
     }

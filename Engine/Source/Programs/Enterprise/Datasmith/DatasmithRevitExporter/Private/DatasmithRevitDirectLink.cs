@@ -677,7 +677,7 @@ namespace DatasmithRevitExporter
 					ElementData.ElementMetaData.SetLabel(Actor.GetLabel());
 					ElementData.ElementMetaData.SetAssociatedElement(Actor);
 
-					FDocumentData.AddActorMetadata(RevitElement, ElementData.ElementMetaData);
+					FMetadataManager.AddActorMetadata(RevitElement, ElementData.ElementMetaData, true);
 
 					++CurrentBatchSize;
 
