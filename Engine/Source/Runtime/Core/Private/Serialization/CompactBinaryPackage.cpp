@@ -10,86 +10,76 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static bool TryLoad_ArchiveFieldIntoAttachment(FCbAttachment& TargetAttachment, FCbField&& Field, FArchive& Ar, FCbBufferAllocator Allocator)
+static bool TryLoadAttachmentFromArchive(FCbAttachment& OutAttachment, FCbField&& Field, FArchive& Ar, FCbBufferAllocator Allocator)
 {
-	if (const FCbObjectView ObjectView = Field.AsObjectView(); !Field.HasError())
+	if (const FCbObjectView Object = Field.AsObjectView(); !Field.HasError())
 	{
-		// Is a null object or object not prefixed with a precomputed hash value
-		TargetAttachment = FCbAttachment(FCbObject(ObjectView, MoveTemp(Field)), ObjectView.GetHash());
+		// Empty Object
+		if (!Object)
+		{
+			OutAttachment = FCbAttachment(FCbObject(), FCbObject().GetHash());
+			return true;
+		}
 	}
-	else if (const FIoHash ObjectAttachmentHash = Field.AsObjectAttachment(); !Field.HasError())
+	else if (const FIoHash ObjectHash = Field.AsObjectAttachment(); !Field.HasError())
 	{
-		// Is an object
+		// Object
 		Field = LoadCompactBinary(Ar, Allocator);
-		if (!Field.IsObject())
+		if (Field.IsObject())
 		{
-			return false;
+			OutAttachment = FCbAttachment(MoveTemp(Field).AsObject(), ObjectHash);
+			return true;
 		}
-		TargetAttachment = FCbAttachment(MoveTemp(Field).AsObject(), ObjectAttachmentHash);
 	}
-	else if (const FIoHash BinaryAttachmentHash = Field.AsBinaryAttachment(); !Field.HasError())
+	else if (const FIoHash BinaryHash = Field.AsBinaryAttachment(); !Field.HasError())
 	{
-		// Is an uncompressed binary blob
+		// Raw Binary
 		Field = LoadCompactBinary(Ar, Allocator);
-		FSharedBuffer Buffer = Field.AsBinary();
-		if (Field.HasError())
+		if (FSharedBuffer Buffer = Field.AsBinary(); !Field.HasError())
 		{
-			return false;
+			OutAttachment = FCbAttachment(FCompositeBuffer(MoveTemp(Buffer)), BinaryHash);
+			return true;
 		}
-		TargetAttachment = FCbAttachment(FCompositeBuffer(Buffer), BinaryAttachmentHash);
 	}
-	else if (FSharedBuffer Buffer = Field.AsBinary(); !Field.HasError())
+	else if (Field.IsBinary())
 	{
-		if (Buffer.GetSize() > 0)
+		FSharedBuffer Buffer = MoveTemp(Field).AsBinary();
+		if (Buffer.GetSize() == 0)
 		{
-			// Is a compressed binary blob
-			TargetAttachment = FCbAttachment(FCompressedBuffer::FromCompressed(MoveTemp(Buffer)));
+			// Empty Raw Binary
+			OutAttachment = FCbAttachment(FCompositeBuffer(MoveTemp(Buffer)));
+			return true;
 		}
-		else
+		else if (FCompressedBuffer CompressedBuffer{FCompressedBuffer::FromCompressed(MoveTemp(Buffer))})
 		{
-			// Is an uncompressed empty binary blob
-			TargetAttachment = FCbAttachment(FCompositeBuffer(Buffer), FIoHash::HashBuffer(nullptr, 0));
+			// Compressed Binary
+			OutAttachment = FCbAttachment(MoveTemp(CompressedBuffer));
+			return true;
 		}
 	}
-	else
-	{
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
-FCbAttachment::FCbAttachment(const FCbObject& InValue, const FIoHash* const InHash)
+FCbAttachment::FObjectValue::FObjectValue(FCbObject&& InObject, const FIoHash* const InHash)
 {
 	FMemoryView View;
-	if (!InValue.IsOwned() || !InValue.TryGetView(View))
+	if (!InObject.IsOwned() || !InObject.TryGetView(View))
 	{
-		FCbObject ClonedValue = FCbObject::Clone(InValue);
-
-		if (InHash)
-		{
-			checkSlow(*InHash == ClonedValue.GetHash());
-			Value.Emplace<FObjectValue>(MoveTemp(ClonedValue), *InHash);
-		}
-		else
-		{
-			FIoHash ClonedValueHash = ClonedValue.GetHash();
-			Value.Emplace<FObjectValue>(MoveTemp(ClonedValue), ClonedValueHash);
-		}
+		Object = FCbObject::Clone(InObject);
 	}
 	else
 	{
-		if (InHash)
-		{
-			Value.Emplace<FObjectValue>(InValue, *InHash);
-			checkSlow(*InHash == InValue.GetHash());
-		}
-		else
-		{
-			Value.Emplace<FObjectValue>(InValue, InValue.GetHash());
-		}
+		Object = MoveTemp(InObject);
 	}
-
+	if (InHash)
+	{
+		checkSlow(*InHash == Object.GetHash());
+		Hash = *InHash;
+	}
+	else
+	{
+		Hash = Object.GetHash();
+	}
 }
 
 FIoHash FCbAttachment::GetHash() const
@@ -114,63 +104,63 @@ FIoHash FCbAttachment::GetHash() const
 
 bool FCbAttachment::TryLoad(FCbFieldIterator& Fields)
 {
-	if (const FCbObjectView ObjectView = Fields.AsObjectView(); !Fields.HasError())
+	if (const FCbObjectView Object = Fields.AsObjectView(); !Fields.HasError())
 	{
-		// Is a null object or object not prefixed with a precomputed hash value
-		Value.Emplace<FObjectValue>(FCbObject(ObjectView, Fields.GetOuterBuffer()), ObjectView.GetHash());
-		++Fields;
-	}
-	else if (const FIoHash ObjectAttachmentHash = Fields.AsObjectAttachment(); !Fields.HasError())
-	{
-		// Is an object
-		++Fields;
-		const FCbObjectView InnerObjectView = Fields.AsObjectView();
-		if (Fields.HasError())
+		// Empty Object
+		if (!Object)
 		{
-			return false;
-		}
-		Value.Emplace<FObjectValue>(FCbObject(InnerObjectView, Fields.GetOuterBuffer()), ObjectAttachmentHash);
-		++Fields;
-	}
-	else if (const FIoHash BinaryAttachmentHash = Fields.AsBinaryAttachment(); !Fields.HasError())
-	{
-		// Is an uncompressed binary blob
-		++Fields;
-		FMemoryView BinaryView = Fields.AsBinaryView();
-		if (Fields.HasError())
-		{
-			return false;
-		}
-		Value.Emplace<FBinaryValue>(FSharedBuffer::MakeView(BinaryView, Fields.GetOuterBuffer()), BinaryAttachmentHash);
-		++Fields;
-	}
-	else if (FMemoryView BinaryView = Fields.AsBinaryView(); !Fields.HasError())
-	{
-		if (BinaryView.GetSize() > 0)
-		{
-			// Is a compressed binary blob
-			Value.Emplace<FCompressedBuffer>(FCompressedBuffer::FromCompressed(FSharedBuffer::MakeView(BinaryView, Fields.GetOuterBuffer())).MakeOwned());
+			Value.Emplace<FObjectValue>(FCbObject(), nullptr);
 			++Fields;
-		}
-		else
-		{
-			// Is an uncompressed empty binary blob
-			Value.Emplace<FBinaryValue>(FSharedBuffer::MakeView(BinaryView, Fields.GetOuterBuffer()), FIoHash::HashBuffer(nullptr, 0));
-			++Fields;
+			return true;
 		}
 	}
-	else
+	else if (const FIoHash ObjectHash = Fields.AsObjectAttachment(); !Fields.HasError())
 	{
-		return false;
+		// Object
+		++Fields;
+		if (Fields.IsObject())
+		{
+			Value.Emplace<FObjectValue>(Fields.AsObject(), &ObjectHash);
+			++Fields;
+			return true;
+		}
 	}
-
-	return true;
+	else if (const FIoHash BinaryHash = Fields.AsBinaryAttachment(); !Fields.HasError())
+	{
+		// Raw Binary
+		++Fields;
+		if (FSharedBuffer Buffer = Fields.AsBinary(); !Fields.HasError())
+		{
+			Value.Emplace<FBinaryValue>(MoveTemp(Buffer), BinaryHash);
+			++Fields;
+			return true;
+		}
+	}
+	else if (Fields.IsBinary())
+	{
+		FSharedBuffer Buffer = Fields.AsBinary();
+		if (Buffer.GetSize() == 0)
+		{
+			// Empty Raw Binary
+			Value.Emplace<FBinaryValue>(MoveTemp(Buffer));
+			++Fields;
+			return true;
+		}
+		else if (FCompressedBuffer CompressedBuffer{FCompressedBuffer::FromCompressed(MoveTemp(Buffer))})
+		{
+			// Compressed Binary
+			Value.Emplace<FCompressedBuffer>(MoveTemp(CompressedBuffer));
+			++Fields;
+			return true;
+		}
+	}
+	return false;
 }
 
 bool FCbAttachment::TryLoad(FArchive& Ar, FCbBufferAllocator Allocator)
 {
 	FCbField Field = LoadCompactBinary(Ar, Allocator);
-	return TryLoad_ArchiveFieldIntoAttachment(*this, MoveTemp(Field), Ar, Allocator);
+	return TryLoadAttachmentFromArchive(*this, MoveTemp(Field), Ar, Allocator);
 }
 
 void FCbAttachment::Save(FCbWriter& Writer) const
@@ -303,25 +293,23 @@ void FCbPackage::GatherAttachments(const FCbObject& Value, FAttachmentResolver R
 bool FCbPackage::TryLoad(FCbFieldIterator& Fields)
 {
 	*this = FCbPackage();
-
 	while (Fields)
 	{
 		if (Fields.IsNull())
 		{
 			++Fields;
-			break;
+			return true;
 		}
 		else if (FIoHash Hash = Fields.AsHash(); !Fields.HasError() && !Fields.IsAttachment())
 		{
 			++Fields;
-			FCbObjectView ObjectView = Fields.AsObjectView();
-			if (Fields.HasError() || Hash != ObjectView.GetHash())
+			Object = Fields.AsObject();
+			Object.MakeOwned();
+			ObjectHash = Hash;
+			if (Fields.HasError())
 			{
 				return false;
 			}
-			Object = FCbObject(ObjectView, Fields.GetOuterBuffer());
-			Object.MakeOwned();
-			ObjectHash = Hash;
 			++Fields;
 		}
 		else
@@ -334,7 +322,7 @@ bool FCbPackage::TryLoad(FCbFieldIterator& Fields)
 			AddAttachment(Attachment);
 		}
 	}
-	return true;
+	return false;
 }
 
 bool FCbPackage::TryLoad(FArchive& Ar, FCbBufferAllocator Allocator)
@@ -356,18 +344,17 @@ bool FCbPackage::TryLoad(FArchive& Ar, FCbBufferAllocator Allocator)
 		else if (FIoHash Hash = Field.AsHash(); !Field.HasError() && !Field.IsAttachment())
 		{
 			Field = LoadCompactBinary(Ar, Allocator);
-			FCbObjectView ObjectView = Field.AsObjectView();
-			if (Field.HasError() || Hash != ObjectView.GetHash())
+			Object = MoveTemp(Field).AsObject();
+			ObjectHash = Hash;
+			if (Field.HasError())
 			{
 				return false;
 			}
-			Object = FCbObject(ObjectView, Field.GetOuterBuffer());
-			ObjectHash = Hash;
 		}
 		else
 		{
 			FCbAttachment Attachment;
-			if (!TryLoad_ArchiveFieldIntoAttachment(Attachment, MoveTemp(Field), Ar, Allocator))
+			if (!TryLoadAttachmentFromArchive(Attachment, MoveTemp(Field), Ar, Allocator))
 			{
 				return false;
 			}
