@@ -234,7 +234,7 @@ AActor* UVariant::GetActor(int32 ActorIndex)
 
 UVariantObjectBinding* UVariant::GetBindingByName(const FString& ActorName)
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UVariantObjectBinding)* FoundBindingPtr = ObjectBindings.FindByPredicate([&ActorName](const UVariantObjectBinding* Binding)
+	TObjectPtr<UVariantObjectBinding>* FoundBindingPtr = ObjectBindings.FindByPredicate([&ActorName](const UVariantObjectBinding* Binding)
 	{
 		UObject* ThisActor = Binding->GetObject();
 		return ThisActor && ThisActor->GetName() == ActorName;

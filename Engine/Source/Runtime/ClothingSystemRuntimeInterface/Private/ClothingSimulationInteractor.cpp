@@ -24,7 +24,7 @@ void UClothingSimulationInteractor::DestroyClothingInteractors()
 
 UClothingInteractor* UClothingSimulationInteractor::GetClothingInteractor(const FString& ClothingAssetName) const
 {
-	if (UE_TRANSITIONAL_OBJECT_PTR(UClothingInteractor* const)* const ClothingInteractor = ClothingInteractors.Find(FName(ClothingAssetName)))
+	if (const TObjectPtr<UClothingInteractor>* ClothingInteractor = ClothingInteractors.Find(FName(ClothingAssetName)))
 	{
 		return *ClothingInteractor;
 	}

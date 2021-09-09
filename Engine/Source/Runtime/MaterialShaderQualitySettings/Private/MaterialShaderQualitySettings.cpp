@@ -40,7 +40,7 @@ const FName& UMaterialShaderQualitySettings::GetPreviewPlatform()
 
 void UMaterialShaderQualitySettings::SetPreviewPlatform(FName PlatformName)
 {
-	 UE_TRANSITIONAL_OBJECT_PTR(UShaderPlatformQualitySettings)* FoundPlatform = ForwardSettingMap.Find(PlatformName);
+	 TObjectPtr<UShaderPlatformQualitySettings>* FoundPlatform = ForwardSettingMap.Find(PlatformName);
 	 PreviewPlatformSettings = FoundPlatform == nullptr ? nullptr : *FoundPlatform;
 	 PreviewPlatformName = PlatformName;
 }

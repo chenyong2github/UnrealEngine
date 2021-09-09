@@ -373,7 +373,7 @@ UWorld* UUserWidget::GetWorld() const
 
 UUMGSequencePlayer* UUserWidget::GetSequencePlayer(const UWidgetAnimation* InAnimation) const
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UUMGSequencePlayer) const* FoundPlayer = ActiveSequencePlayers.FindByPredicate(
+	TObjectPtr<UUMGSequencePlayer> const* FoundPlayer = ActiveSequencePlayers.FindByPredicate(
 		[&](const UUMGSequencePlayer* Player)
 	{
 		return Player->GetAnimation() == InAnimation;
@@ -669,7 +669,7 @@ bool UUserWidget::IsAnimationPlayingForward(const UWidgetAnimation* InAnimation)
 {
 	if (InAnimation)
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(UUMGSequencePlayer)* FoundPlayer = ActiveSequencePlayers.FindByPredicate([&](const UUMGSequencePlayer* Player) { return Player->GetAnimation() == InAnimation; });
+		TObjectPtr<UUMGSequencePlayer>* FoundPlayer = ActiveSequencePlayers.FindByPredicate([&](const UUMGSequencePlayer* Player) { return Player->GetAnimation() == InAnimation; });
 
 		if (FoundPlayer)
 		{

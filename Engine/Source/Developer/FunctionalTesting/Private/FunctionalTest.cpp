@@ -388,7 +388,7 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 
 	OnTestFinished.Broadcast();
 
-	UE_TRANSITIONAL_OBJECT_PTR(AActor)* ActorToDestroy = AutoDestroyActors.GetData();
+	TObjectPtr<AActor>* ActorToDestroy = AutoDestroyActors.GetData();
 
 	for (int32 ActorIndex = 0; ActorIndex < AutoDestroyActors.Num(); ++ActorIndex, ++ActorToDestroy)
 	{

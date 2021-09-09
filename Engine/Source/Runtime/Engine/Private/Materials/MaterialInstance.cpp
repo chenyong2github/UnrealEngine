@@ -600,7 +600,7 @@ UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer
 	ShadingModels = MSM_Unlit;
 
 	PhysMaterial = nullptr;
-	for (UE_TRANSITIONAL_OBJECT_PTR(UPhysicalMaterial)& PhysMat : PhysicalMaterialMap)
+	for (TObjectPtr<UPhysicalMaterial>& PhysMat : PhysicalMaterialMap)
 	{
 		PhysMat = nullptr;
 	}

@@ -58,7 +58,7 @@ namespace Mat
 		// get under clear coat output
 		UMaterialExpressionClearCoatNormalCustomOutput* UnderClearCoat = nullptr;
 		{
-			UE_TRANSITIONAL_OBJECT_PTR(UMaterialExpression)* Found = Material.Expressions.FindByPredicate(
+			TObjectPtr<UMaterialExpression>* Found = Material.Expressions.FindByPredicate(
 			    [](const UMaterialExpression* Expr) { return Expr->IsA<UMaterialExpressionClearCoatNormalCustomOutput>(); });
 			if (Found)
 				UnderClearCoat = Cast<UMaterialExpressionClearCoatNormalCustomOutput>(*Found);
@@ -149,7 +149,7 @@ namespace Mat
 	{
 		FString               Name;
 
-		UE_TRANSITIONAL_OBJECT_PTR(UMaterialExpression)* Found = Material.Expressions.FindByPredicate(
+		TObjectPtr<UMaterialExpression>* Found = Material.Expressions.FindByPredicate(
 			[&Name](UMaterialExpression* Expression)  //
 		{
 			if (UMaterialExpressionScalarParameter* ScalarParameter = Cast<UMaterialExpressionScalarParameter>(Expression))
@@ -166,7 +166,7 @@ namespace Mat
 			return Name.Find(TEXT("Tiling Factor")) != INDEX_NONE;
 		});
 
-		UE_TRANSITIONAL_OBJECT_PTR(UMaterialExpression)* FoundU = Material.Expressions.FindByPredicate(
+		TObjectPtr<UMaterialExpression>* FoundU = Material.Expressions.FindByPredicate(
 		    [&Name](UMaterialExpression* Expression)  //
 		    {
 			    if (UMaterialExpressionScalarParameter* ScalarParameter = Cast<UMaterialExpressionScalarParameter>(Expression))
@@ -183,7 +183,7 @@ namespace Mat
 			    return Name.Find(TEXT("U Tiling")) != INDEX_NONE;
 		    });
 
-		UE_TRANSITIONAL_OBJECT_PTR(UMaterialExpression)* FoundV = Material.Expressions.FindByPredicate(
+		TObjectPtr<UMaterialExpression>* FoundV = Material.Expressions.FindByPredicate(
 			[&Name](UMaterialExpression* Expression)  //
 		{
 			if (UMaterialExpressionScalarParameter* ScalarParameter = Cast<UMaterialExpressionScalarParameter>(Expression))

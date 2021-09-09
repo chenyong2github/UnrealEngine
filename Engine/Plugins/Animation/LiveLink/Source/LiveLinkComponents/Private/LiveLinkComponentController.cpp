@@ -98,7 +98,7 @@ void ULiveLinkComponentController::SetControllerClassForRole(TSubclassOf<ULiveLi
 {
 	if (ControllerMap.Contains(RoleClass))
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase)& CurrentController = ControllerMap.FindOrAdd(RoleClass);
+		TObjectPtr<ULiveLinkControllerBase>& CurrentController = ControllerMap.FindOrAdd(RoleClass);
 		if (CurrentController == nullptr || CurrentController->GetClass() != DesiredControllerClass)
 		{
 			//Controller is about to change, cleanup current one before 
@@ -291,7 +291,7 @@ bool ULiveLinkComponentController::IsControllerMapOutdated() const
 	//Check if all map matches class hierarchy
 	for (const TSubclassOf<ULiveLinkRole>& RoleClass : SelectedRoleHierarchy)
 	{
-		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase) const* FoundController = ControllerMap.Find(RoleClass);
+		TObjectPtr<ULiveLinkControllerBase> const* FoundController = ControllerMap.Find(RoleClass);
 
 		//If ControllerMap doesn't have an entry for one of the role class hierarchy, we need to update
 		if (FoundController == nullptr)

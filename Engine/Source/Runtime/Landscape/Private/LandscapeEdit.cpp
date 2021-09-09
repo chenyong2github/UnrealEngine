@@ -733,7 +733,7 @@ void ULandscapeComponent::FixupWeightmaps()
 
 				UTexture2D* WeightmapTexture = WeightmapTextures[Allocation.WeightmapTextureIndex];
 
-				UE_TRANSITIONAL_OBJECT_PTR(ULandscapeWeightmapUsage)* TempUsage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
+				TObjectPtr<ULandscapeWeightmapUsage>* TempUsage = Proxy->WeightmapUsageMap.Find(WeightmapTexture);
 
 				if (TempUsage == nullptr)
 				{

@@ -1522,7 +1522,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 		for (const FNiagaraVariable& Var : Vars)
 		{
 			UNiagaraScriptVariable* ScriptVar;
-			if (UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable) const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var))
+			if (TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var))
 			{
 				ScriptVar = *ScriptVarPtr;
 			}
@@ -1674,7 +1674,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 					}
 
 					// -Lookup the script variable.
-					UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable) const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var);
+					TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var);
 					UNiagaraScriptVariable* ScriptVar;
 					if (ScriptVarPtr != nullptr)
 					{
@@ -2616,7 +2616,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraScriptToolkitParameterPanelViewModel:
 			{
 				// This variable has not been registered, prepare the FNiagaraParameterPanelItem.
 				// -First lookup the script variable.
-				UE_TRANSITIONAL_OBJECT_PTR(UNiagaraScriptVariable) const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var);
+				TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var);
 				UNiagaraScriptVariable* ScriptVar = ScriptVarPtr != nullptr ? *ScriptVarPtr : nullptr;
 				if (!ScriptVar)
 				{

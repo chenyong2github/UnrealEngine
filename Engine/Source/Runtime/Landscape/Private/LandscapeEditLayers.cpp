@@ -1910,7 +1910,7 @@ void ALandscapeProxy::InitializeProxyLayersWeightmapUsage()
 					{
 						FWeightmapLayerAllocationInfo& Allocation = LayerData->WeightmapData.LayerAllocations[LayerIdx];
 						UTexture2D* WeightmapTexture = LayerData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
-						UE_TRANSITIONAL_OBJECT_PTR(ULandscapeWeightmapUsage)* TempUsage = WeightmapUsageMap.Find(WeightmapTexture);
+						TObjectPtr<ULandscapeWeightmapUsage>* TempUsage = WeightmapUsageMap.Find(WeightmapTexture);
 
 						if (TempUsage == nullptr)
 						{
@@ -5583,7 +5583,7 @@ void ALandscapeProxy::DeleteLayer(const FGuid& InLayerGuid)
 			for (const FWeightmapLayerAllocationInfo& Allocation : LayerComponentData->WeightmapData.LayerAllocations)
 			{
 				UTexture2D* WeightmapTexture = LayerComponentData->WeightmapData.Textures[Allocation.WeightmapTextureIndex];
-				UE_TRANSITIONAL_OBJECT_PTR(ULandscapeWeightmapUsage)* Usage = WeightmapUsageMap.Find(WeightmapTexture);
+				TObjectPtr<ULandscapeWeightmapUsage>* Usage = WeightmapUsageMap.Find(WeightmapTexture);
 
 				if (Usage != nullptr && (*Usage) != nullptr)
 				{

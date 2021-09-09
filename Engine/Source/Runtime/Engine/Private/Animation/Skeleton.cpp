@@ -2491,7 +2491,7 @@ UBlendProfile* USkeleton::CreateNewBlendProfile(const FName& InProfileName)
 
 UBlendProfile* USkeleton::GetBlendProfile(const FName& InProfileName)
 {
-	UE_TRANSITIONAL_OBJECT_PTR(UBlendProfile)* FoundProfile = BlendProfiles.FindByPredicate([InProfileName](const UBlendProfile* Profile)
+	TObjectPtr<UBlendProfile>* FoundProfile = BlendProfiles.FindByPredicate([InProfileName](const UBlendProfile* Profile)
 	{
 		return Profile->GetName() == InProfileName.ToString();
 	});
