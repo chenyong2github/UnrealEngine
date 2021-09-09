@@ -1039,15 +1039,15 @@ void FBuildJob::ExecuteState(EBuildJobState NewState)
 {
 	switch (NewState)
 	{
-	case EBuildJobState::ResolveKey:                 return Schedule->DispatchResolveKey();
-	case EBuildJobState::ResolveInputMeta:           return Schedule->DispatchResolveInputMeta();
-	case EBuildJobState::CacheQuery:                 return Schedule->DispatchCacheQuery();
-	case EBuildJobState::ExecuteRemote:              return Schedule->DispatchExecuteRemote();
-	case EBuildJobState::ResolveRemoteInputData:     return Schedule->DispatchResolveInputData();
-	case EBuildJobState::ExecuteRemoteRetry:         return Schedule->DispatchExecuteRemote();
-	case EBuildJobState::ResolveInputData:           return Schedule->DispatchResolveInputData();
-	case EBuildJobState::ExecuteLocal:               return Schedule->DispatchExecuteLocal();
-	case EBuildJobState::CacheStore:                 return Schedule->DispatchCacheStore();
+	case EBuildJobState::ResolveKey:                 return Schedule->ScheduleResolveKey();
+	case EBuildJobState::ResolveInputMeta:           return Schedule->ScheduleResolveInputMeta();
+	case EBuildJobState::CacheQuery:                 return Schedule->ScheduleCacheQuery();
+	case EBuildJobState::ExecuteRemote:              return Schedule->ScheduleExecuteRemote();
+	case EBuildJobState::ResolveRemoteInputData:     return Schedule->ScheduleResolveInputData();
+	case EBuildJobState::ExecuteRemoteRetry:         return Schedule->ScheduleExecuteRemote();
+	case EBuildJobState::ResolveInputData:           return Schedule->ScheduleResolveInputData();
+	case EBuildJobState::ExecuteLocal:               return Schedule->ScheduleExecuteLocal();
+	case EBuildJobState::CacheStore:                 return Schedule->ScheduleCacheStore();
 	}
 }
 
