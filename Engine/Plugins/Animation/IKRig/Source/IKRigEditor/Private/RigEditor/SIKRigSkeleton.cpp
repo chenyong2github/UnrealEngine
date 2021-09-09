@@ -229,38 +229,7 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
 	ChildSlot
     [
         SNew(SVerticalBox)
-        +SVerticalBox::Slot()
-        .AutoHeight()
-        .VAlign(VAlign_Top)
-        .Padding(0.0f)
-        [
-            SNew(SBorder)
-            .Padding(0.0f)
-            .BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-            .BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
-            [
-                SNew(SVerticalBox)
-                + SVerticalBox::Slot()
-                .AutoHeight()
-                .VAlign(VAlign_Top)
-                [
-                    SNew(SHorizontalBox)
-                    .Visibility(this, &SIKRigSkeleton::IsImportButtonVisible)
-                    + SHorizontalBox::Slot()
-                    .VAlign(VAlign_Center)
-                    .HAlign(HAlign_Left)
-                    .FillWidth(1.f)
-                    .Padding(3.0f, 1.0f)
-                    [
-						SNew(SEditorHeaderButton)
-                        .Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
-                        .Text(LOCTEXT("ImportSkeletonLabel", "Import Skeleton"))
-                        .ToolTipText(LOCTEXT("ImportSkeletonToolTip", "Import a skeletal mesh to apply IK to."))
-                        .OnClicked(this, &SIKRigSkeleton::OnImportSkeletonClicked)
-                    ]
-                ]
-            ]
-        ]
+
         +SVerticalBox::Slot()
         .Padding(0.0f, 0.0f)
         [
@@ -423,6 +392,12 @@ void SIKRigSkeleton::HandleNewGoal()
 	if (!Controller.IsValid())
 	{
 		return; 
+	}
+
+	// add a default solver if there isn't one already
+	if (Controller->AssetController->GetNumSolvers() == 0)
+	{
+		Controller->PromptToAddSolver();	
 	}
 	
 	// create goal for each selected bone
@@ -1005,49 +980,6 @@ void SIKRigSkeleton::HandleRenameElement() const
 	SelectedGoals[0]->RequestRename();
 }
 
-FReply SIKRigSkeleton::OnImportSkeletonClicked()
-{
-	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return FReply::Unhandled();
-	}
-	
-	FIKRigSkeletonImportSettings Settings;
-	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FIKRigSkeletonImportSettings::StaticStruct(), (uint8*)&Settings));
-	TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
-	KismetInspector->ShowSingleStruct(StructToDisplay);
-
-	SGenericDialogWidget::OpenDialog(LOCTEXT("IKRigSkeletonImport", "Import Skeleton"), KismetInspector, SGenericDialogWidget::FArguments(), true);
-
-	if (Settings.Mesh != nullptr)
-	{
-		ImportSkeleton(FAssetData(Settings.Mesh));
-		Controller->PromptToAddSolverAtStartup();
-	}
-	
-	return FReply::Handled();
-}
-
-EVisibility SIKRigSkeleton::IsImportButtonVisible() const
-{
-	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return EVisibility::Hidden;
-	}
-	
-	if (UIKRigController* AssetController = Controller->AssetController)
-	{
-		if (AssetController->GetSkeleton().BoneNames.Num() > 0)
-		{
-			return EVisibility::Collapsed;
-		}
-	}
-	
-	return EVisibility::Visible;
-}
-
 void SIKRigSkeleton::RefreshTreeView(bool IsInitialSetup)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
@@ -1296,32 +1228,6 @@ void SIKRigSkeleton::SetExpansionRecursive(
     		SetExpansionRecursive(InElement->Children[ChildIndex], bTowardsParent, bShouldBeExpanded);
     	}
     }
-}
-
-void SIKRigSkeleton::ImportSkeleton(const FAssetData& InAssetData)
-{
-	USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset());
-	if (!Mesh)
-	{
-		return;
-	}
-	
-	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return;
-	}
-	
-	// load the skeletal mesh in the viewport
-	TSharedRef<IPersonaToolkit> Persona = Controller->EditorToolkit.Pin()->GetPersonaToolkit();
-	Persona->SetPreviewMesh(Mesh, true);
-	Persona->GetPreviewScene()->FocusViews();
-
-	// import the skeleton data into the IKRig asset
-	Controller->AssetController->SetSourceSkeletalMesh(Mesh, true);
-
-	// update the bone hierarchy view
-	RefreshTreeView(true);
 }
 
 FReply SIKRigSkeleton::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)

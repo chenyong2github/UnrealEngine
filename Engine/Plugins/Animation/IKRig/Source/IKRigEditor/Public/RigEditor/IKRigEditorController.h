@@ -21,7 +21,7 @@ class UDebugSkelMeshComponent;
 class FIKRigEditorController
 {
 public:
-
+	
 	/** get array of the names of currently selected goals */
 	const TArray<FName>& GetSelectedGoals() const {return SelectedGoals;};
 	/** return true if a goal with the given name is selected */
@@ -42,7 +42,7 @@ public:
 	/** get index of the first selected solver, return INDEX_None if nothing selected */
 	int32 GetSelectedSolverIndex();
 	/** right after importing a skeleton, we ask user what solver they want to use */
-	void PromptToAddSolverAtStartup() const;
+	void PromptToAddSolver() const;
 	/** determine if the element is connected to the selected solver */
 	bool IsElementConnectedToSolver(TSharedRef<FIKRigTreeElement> TreeElement, int32 SolverIndex);
 	/** determine if the element is connected to ANY solver */
@@ -76,6 +76,9 @@ public:
 	UPROPERTY(transient, NonTransactional)
 	TObjectPtr<class UIKRigAnimInstance> AnimInstance;
 
+	/** Sequence Browser **/
+	TWeakPtr<class IAnimationSequenceBrowser> SequenceBrowser;
+
 	/** asset properties tab */
 	TSharedPtr<class IDetailsView> DetailsView;
 
@@ -100,7 +103,7 @@ private:
 	TArray<FName> SelectedGoals;	
 };
 
-/** only used for pop-up window to selected a solver to add after importing a skeleton */
+/** only used for pop-up window to selected a first solver to add*/
 USTRUCT()
 struct FIKRigAddFirstSolverSettings
 {

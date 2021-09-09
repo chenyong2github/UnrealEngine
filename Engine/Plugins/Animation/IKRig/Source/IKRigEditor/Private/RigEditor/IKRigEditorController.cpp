@@ -2,6 +2,7 @@
 
 #include "RigEditor/IKRigEditorController.h"
 
+#include "IPersonaToolkit.h"
 #include "SKismetInspector.h"
 #include "Dialogs/Dialogs.h"
 
@@ -91,7 +92,7 @@ int32 FIKRigEditorController::GetSelectedSolverIndex()
 	return SelectedSolvers[0]->IndexInStack;
 }
 
-void FIKRigEditorController::PromptToAddSolverAtStartup() const
+void FIKRigEditorController::PromptToAddSolver() const
 {
 	if (AssetController->GetNumSolvers() > 0)
 	{

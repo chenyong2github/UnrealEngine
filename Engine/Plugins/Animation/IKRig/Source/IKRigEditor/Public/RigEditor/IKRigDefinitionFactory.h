@@ -12,6 +12,9 @@ class UIKRigDefinitionFactory : public UFactory
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
+	TObjectPtr<class USkeletalMesh>	SkeletalMesh;
+
 public:
 
 	UIKRigDefinitionFactory();
@@ -31,4 +34,10 @@ public:
 	virtual bool ConfigureProperties() override;
 	virtual bool ShouldShowInNewMenu() const override;
 	// END UFactory interface
+
+private:
+	
+	void OnSkeletalMeshSelected(const FAssetData& SelectedAsset);
+
+	TSharedPtr<SWindow> PickerWindow;
 };
