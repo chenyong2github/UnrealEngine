@@ -161,7 +161,7 @@ static bool CaptureNeedsSceneColor(ESceneCaptureSource CaptureSource)
 	return CaptureSource != SCS_FinalColorLDR && CaptureSource != SCS_FinalColorHDR && CaptureSource != SCS_FinalToneCurveHDR;
 }
 
-static TFunction<void(FRHICommandList& RHICmdList)> CopyCaptureToTargetSetViewportFn;
+static TFunction<void(FRHICommandList& RHICmdList)> CopyCaptureToTargetSetViewportFn = [](FRHICommandList& RHICmdList) {};
 
 void CopySceneCaptureComponentToTarget(
 	FRDGBuilder& GraphBuilder,
