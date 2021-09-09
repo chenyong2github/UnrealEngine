@@ -736,11 +736,7 @@ namespace HordeServer
 		public static void Configure(IApplicationBuilder App, IWebHostEnvironment Env, Microsoft.Extensions.Hosting.IHostApplicationLifetime Lifetime, IOptions<ServerSettings> Settings)
 		{
 			App.UseForwardedHeaders();
-
-			if (Env.IsDevelopment())
-			{
-				App.UseDeveloperExceptionPage();
-			}
+			App.UseExceptionHandler("/api/v1/error");
 
 			if (Settings.Value.CorsEnabled)
 			{
