@@ -250,6 +250,16 @@ void FMovieSceneEntitySystemRunner::GameThread_ProcessQueue()
 			MarkForUpdate(Request.InstanceHandle);
 		}
 	}
+	else
+	{
+		// Look for the next batch of updates, and mark the respective sequence instances as currently updating.
+		const int32 PredicateOrder = DissectedUpdates[0].Order;
+		for (int32 Index = 0; Index < DissectedUpdates.Num() && DissectedUpdates[Index].Order == PredicateOrder; ++Index)
+		{
+			const FDissectedUpdate& Update = DissectedUpdates[Index];
+			MarkForUpdate(Update.InstanceHandle);
+		}
+	}
 
 	// Let sequence instances do any pre-evaluation work.
 	for (FInstanceHandle UpdatedInstanceHandle : CurrentInstances)
