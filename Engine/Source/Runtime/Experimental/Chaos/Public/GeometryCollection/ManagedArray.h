@@ -330,7 +330,7 @@ public:
 	*/
 	FORCEINLINE ElementType* GetData()
 	{
-		return &Array.operator[](0);
+		return Array.GetData();
 	}
 
 	/**
@@ -340,7 +340,7 @@ public:
 	*/
 	FORCEINLINE const ElementType * GetData() const
 	{
-		return &Array.operator[](0);
+		return Array.GetData();
 	}
 
 	/**
