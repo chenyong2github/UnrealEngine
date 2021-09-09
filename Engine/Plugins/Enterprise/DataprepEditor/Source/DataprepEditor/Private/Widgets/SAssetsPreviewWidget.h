@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "DataprepEditorUtils.h"
+
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/SCompoundWidget.h"
@@ -75,6 +77,7 @@ namespace AssetPreviewWidget
 
 		FOnSelectionChanged& OnSelectionChanged() { return OnSelectionChangedDelegate; }
 		FOnContextMenu& OnContextMenu() { return OnContextMenuDelegate; }
+		FDataprepEditorUtils::FOnKeyDown& OnKeyDown() { return OnKeyDownDelegate; }
 
 		FText OnGetHighlightText() const;
 
@@ -102,6 +105,15 @@ namespace AssetPreviewWidget
 		TSet<UObject*> GetSelectedAssets() const;
 
 		void SetSelectedAssets(TSet<UObject*> InSelectionSet, ESelectInfo::Type SelectionInfo);
+
+		virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
+		{
+			if( OnKeyDownDelegate.IsBound() )
+			{
+				return OnKeyDownDelegate.Execute( MyGeometry, InKeyEvent );
+			}
+			return FReply::Unhandled();
+		}
 
 	private:
 
@@ -165,6 +177,7 @@ namespace AssetPreviewWidget
 
 		FOnSelectionChanged OnSelectionChangedDelegate;
 		FOnContextMenu OnContextMenuDelegate;
+		FDataprepEditorUtils::FOnKeyDown OnKeyDownDelegate;
 
 		FName SortingColumn;
 		EColumnSortMode::Type SortingMode;

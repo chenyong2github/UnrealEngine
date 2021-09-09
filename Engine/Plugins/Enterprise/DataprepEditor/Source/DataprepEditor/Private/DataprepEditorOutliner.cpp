@@ -401,7 +401,7 @@ void FDataprepEditor::CreateScenePreviewTab()
 		SceneOutliner->AddColumn(DefaultColumn.Key, DefaultColumn.Value);
 	}
 
-	SAssignNew(ScenePreviewView, SBorder)
+	SAssignNew(ScenePreviewView, SDataprepScenePreviewView)
 		.Padding(2.f)
 		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 		[

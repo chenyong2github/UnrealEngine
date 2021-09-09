@@ -1047,6 +1047,9 @@ void FDataprepEditor::CreateTabs()
 
 	// Create Details Panel
 	CreateDetailsViews();
+
+	AssetPreviewView->OnKeyDown().BindSP( SceneViewportView.Get(), &SDataprepEditorViewport::OnKeyDown );
+	ScenePreviewView->OnKeyDown().BindRaw( SceneViewportView.Get(), &SDataprepEditorViewport::OnKeyDown );
 }
 
 TSharedRef<SDockTab> FDataprepEditor::SpawnTabScenePreview(const FSpawnTabArgs & Args)
