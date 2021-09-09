@@ -92,7 +92,8 @@ void FMovieSceneTrackEditor::AnimatablePropertyChanged( FOnKeyProperty OnKeyProp
 		FKeyPropertyResult KeyPropertyResult = OnKeyProperty.Execute( KeyTime );
 
 		// When shift is down, enable adding keys/sections one after the other
-		if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+		const bool bInProperSlateThread = (IsInGameThread() || IsInSlateThread() || IsInAsyncLoadingThread());
+		if (bInProperSlateThread && FSlateApplication::Get().GetModifierKeys().IsShiftDown())
 		{
 			for (TWeakObjectPtr<UMovieSceneSection> NewSection : KeyPropertyResult.SectionsCreated)
 			{
