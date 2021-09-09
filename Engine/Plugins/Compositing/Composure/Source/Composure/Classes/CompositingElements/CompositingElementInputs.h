@@ -12,7 +12,7 @@
 
 class UMaterialInterface;
 
-UCLASS(noteditinlinenew, hidedropdown, Abstract)
+UCLASS(Abstract)
 class COMPOSURE_API UCompositingMediaInput : public UCompositingElementInput
 {
 	GENERATED_BODY()
