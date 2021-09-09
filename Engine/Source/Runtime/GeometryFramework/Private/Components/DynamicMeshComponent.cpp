@@ -203,11 +203,17 @@ void UDynamicMeshComponent::UpdateAutoCalculatedTangents()
 	{
 		GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& Mesh)
 		{
-			const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
-			const FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
-			AutoCalculatedTangents.SetMesh(&Mesh);
-			AutoCalculatedTangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, FComputeTangentsOptions());
-			AutoCalculatedTangents.SetMesh(nullptr);
+			if (Mesh.HasAttributes())
+			{
+				const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
+				const FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
+				if (UVOverlay && NormalOverlay)
+				{
+					AutoCalculatedTangents.SetMesh(&Mesh);
+					AutoCalculatedTangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, FComputeTangentsOptions());
+					AutoCalculatedTangents.SetMesh(nullptr);
+				}
+			}
 		});
 
 		bAutoCalculatedTangentsValid = true;

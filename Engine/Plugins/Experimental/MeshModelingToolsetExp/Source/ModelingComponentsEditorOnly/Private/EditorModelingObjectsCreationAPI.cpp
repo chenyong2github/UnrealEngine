@@ -235,6 +235,16 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActo
 		NewComponent->SetMaterial(k, ComponentMaterials[k]);
 	}
 
+	// configure collision
+	if (CreateMeshParams.bEnableCollision)
+	{
+		NewComponent->CollisionType = CreateMeshParams.CollisionMode;
+		// enable complex collision so that raycasts can hit this object
+		NewComponent->bEnableComplexCollision = true;
+		// force collision update
+		NewComponent->UpdateCollision(false);
+	}
+
 	NewActor->PostEditChange();
 
 	// emit result
