@@ -14,6 +14,7 @@
 #	include <semaphore.h>
 #	include <sched.h>
 #	include <signal.h>
+#	include <cstdarg>
 #	include <sys/mman.h>
 #	include <unistd.h>
 #endif
