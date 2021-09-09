@@ -356,7 +356,7 @@ public:
         bool bPrintPythonCommand = false);
 
 	// Returns a unique name
-	static FName GetUniqueName(const FName& InName, TFunction<bool(const FName&)> IsNameAvailableFunction);
+	static FName GetUniqueName(const FName& InName, TFunction<bool(const FName&)> IsNameAvailableFunction, bool bAllowPeriod, bool bAllowSpace);
 
 	// Turns a series of nodes into a Collapse node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -856,7 +856,14 @@ private:
 	void RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo);
 
 	static int32 GetMaxNameLength() { return 100; }
-	static void SanitizeName(FString& InOutName);
+	FString GetGraphOuterName() const;
+	static FString GetSanitizedName(const FString& InName, bool bAllowPeriod, bool bAllowSpace);
+	static FString GetSanitizedGraphName(const FString& InName);
+	static FString GetSanitizedNodeName(const FString& InName);
+	static FString GetSanitizedVariableName(const FString& InName);
+	static FString GetSanitizedPinName(const FString& InName);
+	static FString GetSanitizedPinPath(const FString& InName);
+	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
 	
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
