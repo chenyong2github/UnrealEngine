@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/FileManager.h"
 #include "Misc/AES.h"
 #include "Misc/IEngineCrypto.h"
 #include "Misc/CoreDelegates.h"
@@ -25,6 +26,68 @@ struct FNamedAESKey
 
 struct FKeyChain
 {
+	FKeyChain() = default;
+
+	FKeyChain(const FKeyChain& Other)
+		: SigningKey(Other.SigningKey)
+		, EncryptionKeys(Other.EncryptionKeys)
+	{
+		if (Other.MasterEncryptionKey)
+		{
+			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+		}
+	}
+	
+	FKeyChain(FKeyChain&& Other)
+		: SigningKey(Other.SigningKey)
+		, EncryptionKeys(MoveTemp(Other.EncryptionKeys))
+	{
+		if (Other.MasterEncryptionKey)
+		{
+			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+		}
+		
+		Other.SigningKey = InvalidRSAKeyHandle;
+		Other.MasterEncryptionKey = nullptr;
+	}
+
+	FKeyChain& operator=(const FKeyChain& Other)
+	{
+		SigningKey = Other.SigningKey;
+		EncryptionKeys = Other.EncryptionKeys;
+		
+		if (Other.MasterEncryptionKey)
+		{
+			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+		}
+		else
+		{
+			MasterEncryptionKey = nullptr;
+		}
+
+		return *this;
+	}
+
+	FKeyChain& operator=(FKeyChain&& Other)
+	{
+		SigningKey = Other.SigningKey;
+		EncryptionKeys = MoveTemp(Other.EncryptionKeys);
+		
+		if (Other.MasterEncryptionKey)
+		{
+			MasterEncryptionKey = EncryptionKeys.Find(Other.MasterEncryptionKey->Guid);
+		}
+		else
+		{
+			MasterEncryptionKey = nullptr;
+		}
+
+		Other.SigningKey = InvalidRSAKeyHandle;
+		Other.MasterEncryptionKey = nullptr;
+
+		return *this;
+	}
+
 	FRSAKeyHandle SigningKey = InvalidRSAKeyHandle;
 	TMap<FGuid, FNamedAESKey> EncryptionKeys;
 	const FNamedAESKey* MasterEncryptionKey = nullptr;
