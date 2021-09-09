@@ -246,6 +246,11 @@ private:
 	 */
 	bool Load();
 
+	/**
+	 * Mutable version of GetOutputTensor(const int32 InTensorIndex) const.
+	 */
+	FNeuralTensor& GetOutputTensorMutable(const int32 InTensorIndex = 0);
+
 public:
 #if WITH_EDITOR
 	/**

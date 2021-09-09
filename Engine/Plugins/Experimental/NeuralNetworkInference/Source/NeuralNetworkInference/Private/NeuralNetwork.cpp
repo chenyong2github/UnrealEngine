@@ -300,27 +300,32 @@ int64 UNeuralNetwork::GetInputTensorNumber() const
 	return -1;
 }
 
+#define GET_OUTPUT_TENSOR_CODE(InTensorIndex, UEOnly_GetTensorsFunction) \
+	/* Sanity check */ \
+	checkf(bIsLoaded, TEXT("Call UNeuralNetwork::Load() to load a model first.")); \
+	/* UEAndORT */ \
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT) \
+	{ \
+		return ImplBackEndUEAndORT->OutputTensors[InTensorIndex]; \
+	} \
+	/* UEOnly */ \
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly) \
+	{ \
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager; \
+		return TensorManager.UEOnly_GetTensorsFunction()[TensorManager.GetOutputIndexes()[InTensorIndex]]; \
+	} \
+	/* Unknown */ \
+	checkf(false, TEXT("UNeuralNetwork::GetOutputTensor(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform); \
+	return ImplBackEndUEAndORT->OutputTensors[InTensorIndex]
+
 const FNeuralTensor& UNeuralNetwork::GetOutputTensor(const int32 InTensorIndex) const
 {
-	// Sanity check
-	checkf(bIsLoaded, TEXT("Call UNeuralNetwork::Load() to load a model first."));
+	GET_OUTPUT_TENSOR_CODE(InTensorIndex, GetTensors);
+}
 
-	// UEAndORT
-	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
-	{
-		return ImplBackEndUEAndORT->OutputTensors[InTensorIndex];
-	}
-
-	// UEOnly
-	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
-	{
-		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
-		return TensorManager.GetTensors()[TensorManager.GetOutputIndexes()[InTensorIndex]];
-	}
-
-	// Unknown
-	checkf(false, TEXT("UNeuralNetwork::GetOutputTensor(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
-	return ImplBackEndUEAndORT->OutputTensors[InTensorIndex];
+FNeuralTensor& UNeuralNetwork::GetOutputTensorMutable(const int32 InTensorIndex)
+{
+	GET_OUTPUT_TENSOR_CODE(InTensorIndex, GetTensorsMutable);
 }
 
 int64 UNeuralNetwork::GetOutputTensorNumber() const
@@ -369,7 +374,7 @@ void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InOutputTensorIndex
 				// Refresh tensor(s) w.r.t. GraphBuilder + Move memory from GPU to CPU
 				for (uint32 OutputTensorIndex = 0; OutputTensorIndex < GetOutputTensorNumber(); ++OutputTensorIndex)
 				{
-					FNeuralTensor OutputTensor = GetOutputTensor(OutputTensorIndex);
+					FNeuralTensor& OutputTensor = GetOutputTensorMutable(OutputTensorIndex);
 					OutputTensor.UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
 					OutputTensor.ToCPU_RenderThread(&GraphBuilder);
 				}
@@ -379,7 +384,7 @@ void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InOutputTensorIndex
 			{
 				for (const int32 OutputTensorIndex : InOutputTensorIndexes)
 				{
-					FNeuralTensor OutputTensor = GetOutputTensor(OutputTensorIndex);
+					FNeuralTensor& OutputTensor = GetOutputTensorMutable(OutputTensorIndex);
 					OutputTensor.UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
 					OutputTensor.ToCPU_RenderThread(&GraphBuilder);
 				}
@@ -388,6 +393,8 @@ void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InOutputTensorIndex
 			GraphBuilder.Execute();
 		}
 	);
+
+	FNeuralNetworkInferenceUtils::WaitUntilRHIFinished();
 }
 
 void UNeuralNetwork::Run()
