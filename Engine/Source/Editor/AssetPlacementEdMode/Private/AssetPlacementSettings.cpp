@@ -1,9 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetPlacementSettings.h"
-#include "PlacementPaletteAsset.h"
+
+#include "Editor.h"
 #include "PackageTools.h"
+#include "PlacementPaletteAsset.h"
 #include "PlacementPaletteItem.h"
+#include "Factories/AssetFactoryInterface.h"
+#include "Subsystems/PlacementSubsystem.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementAssetDataInterface.h"
 
 bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 {
@@ -43,27 +50,52 @@ bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 
 void UAssetPlacementSettings::SetPaletteAsset(UPlacementPaletteAsset* InPaletteAsset)
 {
-	if (!InPaletteAsset)
-	{
-		ActivePalette = UserPalette;
-	}
-	else
-	{
-		ActivePalette = InPaletteAsset;
-	}
-
+	ActivePalette = InPaletteAsset;
 	LastActivePalettePath = FSoftObjectPath(InPaletteAsset);
 }
 
-void UAssetPlacementSettings::AddItemToActivePalette(const FPaletteItem& InPaletteItem)
+FPaletteItem UAssetPlacementSettings::AddItemToActivePalette(const FAssetData& InAssetData)
 {
-	ActivePalette->Modify();
-	ActivePalette->PaletteItems.Add(InPaletteItem);
+	FPaletteItem NewPaletteItem;
+	if (!InAssetData.IsValid())
+	{
+		return NewPaletteItem;
+	}
+
+	if (InAssetData.GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_NotPlaceable))
+	{
+		return NewPaletteItem;
+	}
+
+	if (!GetActivePaletteItems().FindByPredicate([InAssetData](const FPaletteItem& ItemIter) { return (ItemIter.AssetPath == InAssetData.ToSoftObjectPath()); }))
+	{
+		if (UPlacementSubsystem* PlacementSubystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
+		{
+			if (TScriptInterface<IAssetFactoryInterface> AssetFactory = PlacementSubystem->FindAssetFactoryFromAssetData(InAssetData))
+			{
+				NewPaletteItem.ItemGuid = FGuid::NewGuid();
+				NewPaletteItem.AssetPath = InAssetData.ToSoftObjectPath();
+				NewPaletteItem.AssetFactoryInterface = AssetFactory;
+				FPlacementOptions PlacementOptions;
+				PlacementOptions.InstancedPlacementGridGuid = GetActivePaletteGuid();
+				NewPaletteItem.SettingsObject = AssetFactory->FactorySettingsObjectForPlacement(InAssetData, PlacementOptions);
+				GetMutableActivePalette()->Modify();
+				if (NewPaletteItem.SettingsObject)
+				{
+					// Set the outer of the new object to the current palette
+					NewPaletteItem.SettingsObject->Rename(nullptr, GetMutableActivePalette());
+				}
+				GetMutableActivePalette()->PaletteItems.Add(NewPaletteItem);
+			}
+		}
+	}
+
+	return NewPaletteItem;
 }
 
 TArrayView<const FPaletteItem> UAssetPlacementSettings::GetActivePaletteItems() const
 {
-	return ActivePalette ? MakeArrayView(ActivePalette->PaletteItems) : TArrayView<const FPaletteItem>();
+	return MakeArrayView(GetActivePalette()->PaletteItems);
 }
 
 FSoftObjectPath UAssetPlacementSettings::GetActivePalettePath() const
@@ -73,25 +105,24 @@ FSoftObjectPath UAssetPlacementSettings::GetActivePalettePath() const
 
 const FGuid UAssetPlacementSettings::GetActivePaletteGuid() const
 {
-	if (ActivePalette)
-	{
-		return ActivePalette->GridGuid;
-	}
-
-	return FGuid();
+	return GetActivePalette()->GridGuid;
 }
 
 void UAssetPlacementSettings::ClearActivePaletteItems()
 {
-	ActivePalette->Modify();
-	ActivePalette->PaletteItems.Empty();
+	GetMutableActivePalette()->Modify();
+	GetMutableActivePalette()->PaletteItems.Empty();
 }
 
 void UAssetPlacementSettings::LoadSettings()
 {
 	LoadConfig();
 
-	UserPalette = NewObject<UPlacementPaletteAsset>(this);
+	if (!UserPalette)
+	{
+		UserPalette = NewObject<UPlacementPaletteAsset>(this);
+	}
+
 	if (!UserGridGuid.IsValid())
 	{
 		FGuid::Parse(FPlatformMisc::GetLoginId(), UserGridGuid);
@@ -100,27 +131,65 @@ void UAssetPlacementSettings::LoadSettings()
 	UserPalette->GridGuid = UserGridGuid;
 
 	ActivePalette = Cast<UPlacementPaletteAsset>(LastActivePalettePath.TryLoad());
-	if (!ActivePalette)
-	{
-		ActivePalette = UserPalette;
-	}
-}
-
-void UAssetPlacementSettings::SaveActivePalette()
-{
-	if (ActivePalette != UserPalette)
-	{
-		UPackageTools::SavePackagesForObjects(TArray<UObject*>({ ActivePalette }));
-	}
-	else
-	{
-		UserPalette->SaveConfig();
-	}
 }
 
 void UAssetPlacementSettings::SaveSettings()
 {
-	UPackageTools::SavePackagesForObjects(TArray<UObject*>({ActivePalette}));
-	UserPalette->SaveConfig();
 	SaveConfig();
+}
+
+void UAssetPlacementSettings::SaveActivePalette()
+{
+	if (ActivePalette)
+	{
+		UPackageTools::SavePackagesForObjects(TArray<UObject*>({ ActivePalette }));
+	}
+}
+
+bool UAssetPlacementSettings::DoesActivePaletteSupportElement(const FTypedElementHandle& InElementToCheck) const
+{	
+	if (TTypedElement<ITypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementAssetDataInterface>(InElementToCheck))
+	{
+		TArray<FAssetData> ReferencedAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
+		for (const FPaletteItem& Item : GetActivePaletteItems())
+		{
+			if (ReferencedAssetDatas.FindByPredicate([&Item](const FAssetData& ReferencedAssetData) { return (ReferencedAssetData.ToSoftObjectPath() == Item.AssetPath); }))
+			{
+				return true;
+			}
+
+			// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
+			// Not all actors do this reliably, so additionally check the supplied factory for a match. 
+			if (!Item.AssetFactoryInterface)
+			{
+				continue;
+			}
+
+			FAssetData FoundAssetDataFromFactory = Item.AssetFactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
+			if (FoundAssetDataFromFactory.ToSoftObjectPath() == Item.AssetPath)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+const UPlacementPaletteAsset* UAssetPlacementSettings::GetActivePalette() const
+{
+	if (ActivePalette)
+	{
+		return ActivePalette;
+	}
+	return UserPalette;
+}
+
+UPlacementPaletteAsset* UAssetPlacementSettings::GetMutableActivePalette()
+{
+	if (ActivePalette)
+	{
+		return ActivePalette;
+	}
+	return UserPalette;
 }

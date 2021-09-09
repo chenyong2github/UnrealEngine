@@ -10,6 +10,7 @@
 #include "PlacementSubsystem.generated.h"
 
 class IAssetFactoryInterface;
+class UEditorFactorySettingsObject;
 
 USTRUCT()
 struct EDITORFRAMEWORK_API FAssetPlacementInfo
@@ -43,6 +44,9 @@ struct EDITORFRAMEWORK_API FAssetPlacementInfo
 	 */
 	UPROPERTY()
 	FGuid ItemGuid;
+
+	UPROPERTY()
+	TObjectPtr<UEditorFactorySettingsObject> SettingsObject = nullptr;
 };
 
 USTRUCT()
@@ -100,11 +104,6 @@ public:
 	 * @returns true if the current PlaceAssets call is creating preview elements.
 	 */
 	bool IsCreatingPreviewElements() const;
-
-	/**
-	 * Returns the guid which the placement system should use to tie instanced placement to the current user for partitions.
-	 */
-	static FGuid GetUserGridGuid();
 
 private:
 	void RegisterPlacementFactories();

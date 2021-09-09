@@ -121,7 +121,7 @@ bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelectio
 
 	// And we need to have a valid palette item.
 	FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor);
-	return GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesActivePaletteSupportElement(ActorHandle);
+	return SettingsObjectAsPlacementSettings->DoesActivePaletteSupportElement(ActorHandle);
 }
 
 void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)

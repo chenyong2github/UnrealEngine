@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "FoliageType.h"
+#include "PlacementPaletteItem.h"
 
 #include "AssetPlacementSettings.generated.h"
 
@@ -122,7 +123,7 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 
 	void SetPaletteAsset(UPlacementPaletteAsset* InPaletteAsset);
-	void AddItemToActivePalette(const FPaletteItem& InPaletteItem);
+	FPaletteItem AddItemToActivePalette(const FAssetData& InAssetData);
 	TArrayView<const FPaletteItem> GetActivePaletteItems() const;
 	const FGuid GetActivePaletteGuid() const;
 	void ClearActivePaletteItems();
@@ -131,7 +132,16 @@ public:
 	void LoadSettings();
 	void SaveSettings();
 
+	/**
+	 * Verifies if the given element handle is supported by the current mode settings' palette.
+	 *
+	 * @returns true if the element can be placed by the mode.
+	 */
+	bool DoesActivePaletteSupportElement(const FTypedElementHandle& InElementToCheck) const;
+
 protected:
+	const UPlacementPaletteAsset* GetActivePalette() const;
+	UPlacementPaletteAsset* GetMutableActivePalette();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPlacementPaletteAsset> ActivePalette;

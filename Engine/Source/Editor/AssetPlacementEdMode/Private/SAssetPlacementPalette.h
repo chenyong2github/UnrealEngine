@@ -44,6 +44,7 @@ public:
 	};
 
 	SLATE_BEGIN_ARGS(SAssetPlacementPalette) {}
+		SLATE_ARGUMENT(TWeakPtr<IDetailsView>, ItemDetailsView)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -100,7 +101,6 @@ private:
 	void SetupContentBrowserMirroring(bool bInMirrorContentBrowser);
 	void OnSetPaletteAsset(const FAssetData& InAssetData);
 	void SetPaletteItems(TArrayView<const FPaletteItem> InPaletteItems);
-	void SetToLocalUserPalette();
 	FString GetPalettePath() const;
 
 	/** Sets the view mode of the palette */
@@ -129,6 +129,9 @@ private:	// CONTEXT MENU
 
 	/** @return the SWidget containing the context menu */
 	TSharedPtr<SWidget> ConstructPlacementTypeContextMenu();
+
+	/** Called when the selected set of items changes */
+	void OnPaletteSelectionChanged(FPlacementPaletteItemModelPtr Item, ESelectInfo::Type SelectInfo);
 
 	/** Handler for 'Show in CB' command  */
 	void OnShowPlacementTypeInCB();
@@ -193,7 +196,7 @@ private:
 	TSharedPtr<SPlacementTypeTreeView> TreeViewWidget;
 
 	/** Placement mesh details widget  */
-	TSharedPtr<IDetailsView> DetailsWidget;
+	TWeakPtr<IDetailsView> ItemDetailsWidget;
 
 	/** Placement items search box widget */
 	TSharedPtr<SSearchBox> SearchBoxPtr;

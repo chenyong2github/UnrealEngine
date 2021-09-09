@@ -17,6 +17,13 @@
 
 #include "Subsystems/PlacementSubsystem.h"
 
+void UEditorStaticMeshFactoryPlacementSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	StaticMeshComponentDescriptor.ComputeHash();
+}
+
 TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions)
 {
 	// If we're disallowing instanced placement, or creating preview elements, don't use the ISM placement.
@@ -28,30 +35,18 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 	TArray<FTypedElementHandle> PlacedInstanceHandles;
 	if (InPlacementInfo.PreferredLevel.IsValid())
 	{
-		UObject* AssetToPlaceAsObject = InPlacementInfo.AssetToPlace.GetAsset();
-		FISMComponentDescriptor ComponentDescriptor;
-		if (UStaticMesh* StaticMeshObject = Cast<UStaticMesh>(AssetToPlaceAsObject))
+		if (!InPlacementInfo.SettingsObject)
 		{
-			// If this is a Nanite mesh, prefer to use ISM over HISM, as HISM duplicates many features/bookkeeping that Nanite already handles for us.
-			if (StaticMeshObject->HasValidNaniteData())
-			{
-				ComponentDescriptor.InitFrom(UInstancedStaticMeshComponent::StaticClass()->GetDefaultObject<UInstancedStaticMeshComponent>());
-			}
-			ComponentDescriptor.StaticMesh = StaticMeshObject;
-		}
-		else if (AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(AssetToPlaceAsObject))
-		{
-			if (UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent())
-			{
-				ComponentDescriptor.StaticMesh = StaticMeshComponent->GetStaticMesh();
-			}
+			return TArray<FTypedElementHandle>();
 		}
 
+		FISMComponentDescriptor ComponentDescriptor = CastChecked<UEditorStaticMeshFactoryPlacementSettings>(InPlacementInfo.SettingsObject)->StaticMeshComponentDescriptor;
 		if (!ComponentDescriptor.StaticMesh)
 		{
 			return TArray<FTypedElementHandle>();
 		}
 
+		// Make sure the component descriptor's hash matches its current settings before we place.
 		ComponentDescriptor.ComputeHash();
 
 		if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(InPlacementInfo.PreferredLevel->GetWorld()))
@@ -131,6 +126,42 @@ FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedE
 	}
 
 	return Super::GetAssetDataFromElementHandle(InHandle);
+}
+
+UEditorFactorySettingsObject* UEditorStaticMeshFactory::FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions)
+{
+	if (!ShouldPlaceInstancedStaticMeshes(InPlacementOptions))
+	{
+		return Super::FactorySettingsObjectForPlacement(InAssetData, InPlacementOptions);
+	}
+
+	UEditorStaticMeshFactoryPlacementSettings* PlacementSettingsObject = NewObject<UEditorStaticMeshFactoryPlacementSettings>(this);
+	if (PlacementSettingsObject)
+	{
+		UObject* AssetToPlaceAsObject = InAssetData.GetAsset();
+		FISMComponentDescriptor& ComponentDescriptor = PlacementSettingsObject->StaticMeshComponentDescriptor;
+		if (UStaticMesh* StaticMeshObject = Cast<UStaticMesh>(AssetToPlaceAsObject))
+		{
+			// If this is a Nanite mesh, prefer to use ISM over HISM, as HISM duplicates many features/bookkeeping that Nanite already handles for us.
+			if (StaticMeshObject->HasValidNaniteData())
+			{
+				ComponentDescriptor.InitFrom(UInstancedStaticMeshComponent::StaticClass()->GetDefaultObject<UInstancedStaticMeshComponent>());
+			}
+			ComponentDescriptor.StaticMesh = StaticMeshObject;
+		}
+		else if (AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(AssetToPlaceAsObject))
+		{
+			if (UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent())
+			{
+				ComponentDescriptor.StaticMesh = StaticMeshComponent->GetStaticMesh();
+			}
+		}
+
+		// Go ahead and compute the descriptor now, in case we do not go through a place cycle or edit any properties
+		ComponentDescriptor.ComputeHash();
+	}
+
+	return PlacementSettingsObject;
 }
 
 bool UEditorStaticMeshFactory::ShouldPlaceInstancedStaticMeshes(const FPlacementOptions& InPlacementOptions) const

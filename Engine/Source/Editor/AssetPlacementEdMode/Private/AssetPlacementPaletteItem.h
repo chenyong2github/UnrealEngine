@@ -24,13 +24,10 @@ namespace PlacementPaletteConstants
 
 struct FPaletteItemUIInfo
 {
-	FPaletteItemUIInfo(const FAssetData& InAssetData)
-		: AssetData(InAssetData)
-	{
-		check(AssetData.IsValid());
-	}
+	FPaletteItemUIInfo(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem);
 
 	const FAssetData AssetData;
+	TWeakObjectPtr<UEditorFactorySettingsObject> SettingsObject;
 };
 
 typedef TSharedPtr<FPaletteItemUIInfo> FAssetPlacementUIInfoPtr;
@@ -43,7 +40,7 @@ namespace AssetPlacementPaletteTreeColumns
 class FAssetPlacementPaletteItemModel : public TSharedFromThis<FAssetPlacementPaletteItemModel>
 {
 public:
-	FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, TSharedRef<class SAssetPlacementPalette> InParentPalette, TSharedPtr<class FAssetThumbnailPool> InThumbnailPool);
+	FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem, TSharedRef<class SAssetPlacementPalette> InParentPalette, TSharedPtr<class FAssetThumbnailPool> InThumbnailPool);
 
 	FAssetPlacementUIInfoPtr GetTypeUIInfo() const;
 
