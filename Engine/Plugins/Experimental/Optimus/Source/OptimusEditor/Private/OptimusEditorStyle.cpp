@@ -28,11 +28,11 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 			.SetShadowOffset(FVector2D::ZeroVector)
 			.SetShadowColorAndOpacity(FLinearColor::Black)
 			.SetHighlightColor(FLinearColor(0.02f, 0.3f, 0.0f))
-			.SetHighlightShape(BOX_BRUSH("UI/TextBlockHighlightShape", FMargin(3.f / 8.f)));
+			.SetHighlightShape(BOX_BRUSH("Images/TextBlockHighlightShape", FMargin(3.f / 8.f)));
 
 		const FVector2D Icon8x8(8.0f, 8.0f);
 		const FTextBlockStyle ErrorText = FTextBlockStyle(NormalText)
-			.SetUnderlineBrush(IMAGE_BRUSH("White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
+			.SetUnderlineBrush(IMAGE_BRUSH("Images/White", Icon8x8, FLinearColor::Red, ESlateBrushTileType::Both))
 			.SetColorAndOpacity(FLinearColor::Red);
 			// ;
 		
@@ -48,7 +48,7 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 
 		Set("SyntaxHighlight.HLSL.Error", ErrorText); 
 		
-		Set("TextEditor.Border", new BOX_BRUSH("UI/TextEditorBorder", FMargin(4.0f/16.0f), FLinearColor(0.02f,0.02f,0.02f,1)));
+		Set("TextEditor.Border", new BOX_BRUSH("Images/TextEditorBorder", FMargin(4.0f/16.0f), FLinearColor(0.02f,0.02f,0.02f,1)));
 
 		const FEditableTextBoxStyle EditableTextBoxStyle = FEditableTextBoxStyle()
 			.SetBackgroundImageNormal( FSlateNoResource() )
