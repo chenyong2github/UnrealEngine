@@ -598,6 +598,9 @@ void UPolygonSelectionMechanic::OnDragRectangleStarted()
 	BeginChange();
 
 	PreDragPersistentSelection = PersistentSelection;
+	PreDragTopoSelectorSettings = GetTopoSelectorSettings(false);
+	PreDragTopoSelectorSettings.bIgnoreOcclusion = Properties->bMarqueeIgnoreOcclusion; // uses a separate setting for marquee
+	
 	PersistentSelection.Clear();
 }
 
@@ -605,10 +608,7 @@ void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& C
 {
 	FGroupTopologySelection RectangleSelection;
 
-	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings(false);
-	TopoSelectorSettings.bIgnoreOcclusion = Properties->bMarqueeIgnoreOcclusion; // uses a separate setting for marquee
-	
-	TopoSelector->FindSelectedElement(TopoSelectorSettings, CurrentRectangle, TargetTransform,
+	TopoSelector->FindSelectedElement(PreDragTopoSelectorSettings, CurrentRectangle, TargetTransform,
 		RectangleSelection);
 
 	if (ShouldAddToSelectionFunc())
