@@ -58,7 +58,6 @@ public:
 	{
 		// Index zero is invalid
 		PackageEntries.Add();
-		CookOnTheFlyServerConnection.OnMessage().AddRaw(this, &FCookOnTheFlyPackageStore::OnCookOnTheFlyMessage);
 	}
 
 	~FCookOnTheFlyPackageStore()
@@ -71,6 +70,8 @@ private:
 		using namespace UE::Cook;
 		using namespace UE::PackageStore::Messaging;
 
+		CookOnTheFlyServerConnection.OnMessage().AddRaw(this, &FCookOnTheFlyPackageStore::OnCookOnTheFlyMessage);
+
 		FCookOnTheFlyRequest Request(ECookOnTheFlyMessage::GetCookedPackages);
 		FCookOnTheFlyResponse Response = CookOnTheFlyServerConnection.SendRequest(Request).Get();
 
@@ -82,13 +83,20 @@ private:
 			UE_LOG(LogCookOnTheFly, Log, TEXT("Got '%d' cooked and '%d' failed packages from server"),
 				PackageStoreData.CookedPackages.Num(), PackageStoreData.FailedPackages.Num());
 
-			AddPackages(MoveTemp(PackageStoreData.CookedPackages), MoveTemp(PackageStoreData.FailedPackages));
+			AddPackages(
+				MoveTemp(PackageStoreData.CookedPackages),
+				MoveTemp(PackageStoreData.FailedPackages),
+				PackageStoreData.TotalCookedPackages,
+				PackageStoreData.TotalFailedPackages);
 
 			LastServerActivtyTime = FPlatformTime::Seconds();
+
+			bInitialized = true;
 		}
 		else
 		{
 			UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send '%s' request"), LexToString(Request.GetHeader().MessageType));
+			bInitialized = false;
 		}
 	}
 
@@ -188,7 +196,7 @@ private:
 		return false;
 	}
 
-	void AddPackages(TArray<FPackageStoreEntryResource> Entries, TArray<FPackageId> FailedPackageIds)
+	void AddPackages(TArray<FPackageStoreEntryResource> Entries, TArray<FPackageId> FailedPackageIds, int32 ServerTotalCookedPackages, int32 ServerTotalFailedPackages)
 	{
 		FScopeLock _(&CriticalSection);
 		
@@ -218,6 +226,11 @@ private:
 					*PackageEntries[EntryInfo.EntryIndex].PackageName.ToString(), PackageStats.Cooked.Load(), PackageStats.Failed.Load());
 			}
 		}
+		
+		UE_CLOG(bInitialized && (ServerTotalCookedPackages != PackageStats.Cooked.Load() || ServerTotalFailedPackages != PackageStats.Failed.Load()),
+			LogCookOnTheFly, Warning, TEXT("Client/Server package mismatch, Cooked='%d/%d', Failed='%d/%d' (Client/Server)"),
+			PackageStats.Cooked.Load(), ServerTotalCookedPackages, PackageStats.Failed.Load(), ServerTotalFailedPackages);
+
 	}
 
 	void OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message)
@@ -238,11 +251,11 @@ private:
 					PackageStoreData.TotalCookedPackages,
 					PackageStoreData.TotalFailedPackages);
 
-				AddPackages(MoveTemp(PackageStoreData.CookedPackages), MoveTemp(PackageStoreData.FailedPackages));
-
-				UE_CLOG(PackageStoreData.TotalCookedPackages != PackageStats.Cooked.Load() || PackageStoreData.TotalFailedPackages != PackageStats.Failed.Load(),
-					LogCookOnTheFly, Warning, TEXT("Client/Server package mismatch, Cooked='%d/%d', Failed='%d/%d' (Client/Server)"),
-					PackageStats.Cooked.Load(), PackageStoreData.TotalCookedPackages, PackageStats.Failed.Load(), PackageStoreData.TotalFailedPackages);
+				AddPackages(
+					MoveTemp(PackageStoreData.CookedPackages),
+					MoveTemp(PackageStoreData.FailedPackages),
+					PackageStoreData.TotalCookedPackages,
+					PackageStoreData.TotalFailedPackages);
 
 				EntriesAddedCallback();
 
@@ -305,6 +318,7 @@ private:
 	TMap<FPackageId, FEntryInfo> PackageIdToEntryInfo;
 	TChunkedArray<FPackageStoreEntryResource> PackageEntries;
 	FPackageStats PackageStats;
+	TAtomic<bool> bInitialized {false};
 
 	const double MaxInactivityTime = 20;
 	const double TimeBetweenWarning = 10;
