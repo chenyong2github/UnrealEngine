@@ -15,7 +15,7 @@ namespace DatasmithRhino.DirectLink
 		public DatasmithRhinoExportContext ExportContext { get; private set; } = null;
 		public DatasmithRhinoChangeListener ChangeListener { get; private set; } = new DatasmithRhinoChangeListener();
 		public bool bInitialized { get; private set; } = false;
-		public bool bLiveLinkActive { get; private set; } = false;
+		public bool bAutoSyncActive { get; private set; } = false;
 		// Slate UI is not available on Mac, we can't use the Connection UI and must provide this feature ourselves.
 		private string InternalCacheDirectory = Path.GetTempPath();
 		public string CacheDirectory
@@ -132,12 +132,12 @@ namespace DatasmithRhino.DirectLink
 
 		public Rhino.Commands.Result SetLiveLink(bool bActive)
 		{
-			if (bActive && !bLiveLinkActive)
+			if (bActive && !bAutoSyncActive)
 			{
 				if (ExportContext.RhinoDocument != null)
 				{
 					RhinoApp.Idle += OnRhinoIdle;
-					bLiveLinkActive = true;
+					bAutoSyncActive = true;
 
 					return Synchronize(ExportContext.RhinoDocument);
 				}
@@ -146,10 +146,10 @@ namespace DatasmithRhino.DirectLink
 					return Rhino.Commands.Result.Failure;
 				}
 			}
-			else if(!bActive && bLiveLinkActive)
+			else if(!bActive && bAutoSyncActive)
 			{
 				RhinoApp.Idle -= OnRhinoIdle;
-				bLiveLinkActive = false;
+				bAutoSyncActive = false;
 			}
 
 			return Rhino.Commands.Result.Success;

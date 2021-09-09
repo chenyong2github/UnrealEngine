@@ -129,6 +129,12 @@
   <data name="CultureInfo" xml:space="preserve">
     <value>en-US</value>
   </data>
+  <data name="DatasmithAutoSyncStatusDisabled" xml:space="preserve">
+    <value>disabled</value>
+  </data>
+  <data name="DatasmithAutoSyncStatusEnabled" xml:space="preserve">
+    <value>enabled</value>
+  </data>
   <data name="DatasmithDirectLinkConnectionsCommand" xml:space="preserve">
     <value>DatasmithDirectLinkConnections</value>
   </data>
@@ -161,6 +167,12 @@
   </data>
   <data name="DatasmithMessagesTitle" xml:space="preserve">
     <value>Datasmith Messages</value>
+  </data>
+  <data name="DatasmithToggleAutoSyncCommand" xml:space="preserve">
+    <value>DatasmithToggleAutoSync</value>
+  </data>
+  <data name="DatasmithToggleAutoSyncMessageStatus" xml:space="preserve">
+    <value>Direct Link Auto Sync {0}.</value>
   </data>
   <data name="ExportingActors" xml:space="preserve">
     <value>Exporting Actors</value>
