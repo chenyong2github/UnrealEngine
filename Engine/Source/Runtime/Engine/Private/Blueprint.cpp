@@ -706,15 +706,8 @@ void UBlueprint::PostLoad()
 	FBlueprintEditorUtils::PurgeNullGraphs(this);
 
 #if WITH_EDITOR
-	// Remove stale breakpoints
-	FKismetDebugUtilities::RemoveBreakpointsByPredicate(
-		this,
-		[this](const FBlueprintBreakpoint& Breakpoint)
-		{
-			const UEdGraphNode* const Location = Breakpoint.GetLocation();
-			return !Location || !Location->IsIn(this);
-		}
-	);
+	// Restore breakpoints for this Blueprint
+	FKismetDebugUtilities::RestoreBreakpointsOnLoad(this);
 # endif
 	Breakpoints_DEPRECATED.Empty();
 
