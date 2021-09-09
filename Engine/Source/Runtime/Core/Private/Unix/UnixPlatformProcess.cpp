@@ -1125,7 +1125,7 @@ FProcState::~FProcState()
 	else if (IsRunning())
 	{
 		// warn about leaking a thread ;/
-		UE_LOG(LogHAL, Warning, TEXT("Process (pid=%d) is still running - we will reap it in a waiter thread, but the thread handle is going to be leaked."),
+		UE_LOG(LogHAL, Verbose, TEXT("Process (pid=%d) is still running - we will reap it in a waiter thread, but the thread handle is going to be leaked."),
 				 GetProcessId()
 			);
 
