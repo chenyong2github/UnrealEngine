@@ -885,6 +885,10 @@ public:
 			{
 				for (uint32 SubresourceIndex = it.StartSubresource(); SubresourceIndex < it.EndSubresource(); SubresourceIndex++)
 				{
+					// IsTransitionNeeded can change the after state if it's read-only and the current state already contains other read-only bits. We don't want to propagate
+					// those bits to other subresources, so we'll save the original value.
+					D3D12_RESOURCE_STATES ActualAfter = after;
+
 					before = ResourceState.GetSubresourceState(SubresourceIndex);
 					if (before == D3D12_RESOURCE_STATE_TBD)
 					{
@@ -892,10 +896,16 @@ public:
 						hCommandList.AddPendingResourceBarrier(pResource, after, SubresourceIndex);
 						ResourceState.SetSubresourceState(SubresourceIndex, after);
 					}
-					else if (IsTransitionNeeded(before, after))
+					else if (IsTransitionNeeded(before, ActualAfter))
 					{
-						hCommandList.AddTransitionBarrier(pResource, before, after, SubresourceIndex);
-						ResourceState.SetSubresourceState(SubresourceIndex, after);
+						hCommandList.AddTransitionBarrier(pResource, before, ActualAfter, SubresourceIndex);
+						ResourceState.SetSubresourceState(SubresourceIndex, ActualAfter);
+						// If IsTransitionNeeded() changed the destination state, this subresource will be in a different state compared to the previous subresources,
+						// so bWholeResourceWasTransitionedToSameState cannot be true.
+						if (ActualAfter != after)
+						{
+							bWholeResourceWasTransitionedToSameState = false;
+						}
 					}
 					else
 					{
