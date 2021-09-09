@@ -126,6 +126,9 @@
   <data name="ButtonMessages" xml:space="preserve">
     <value>Messages</value>
   </data>
+  <data name="ButtonSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
   <data name="ButtonSync" xml:space="preserve">
     <value>Synchronize</value>
   </data>
@@ -173,5 +176,26 @@
   </data>
   <data name="RibbonSection_FileExport" xml:space="preserve">
     <value>File Export</value>
+  </data>
+  <data name="SettingsDialog_AddGroupsDialogTitle" xml:space="preserve">
+    <value>Add Groups</value>
+  </data>
+  <data name="SettingsDialog_ButtonAddGroups" xml:space="preserve">
+    <value>Add Group...</value>
+  </data>
+  <data name="SettingsDialog_ButtonRemoveGroups" xml:space="preserve">
+    <value>Remove Selected</value>
+  </data>
+  <data name="SettingsDialog_DialogTitle" xml:space="preserve">
+    <value>Metadata Export Filter</value>
+  </data>
+  <data name="SettingsDialog_LabelMatchGroups" xml:space="preserve">
+    <value>Match Built-in Paramter Group</value>
+  </data>
+  <data name="SettingsDialog_LabelMatchParamNames" xml:space="preserve">
+    <value>Match Parameter Names</value>
+  </data>
+  <data name="SettingsDialog_LabelMetadataDescription" xml:space="preserve">
+    <value>Specify parameters (medata) export filter that will be used during DirectLink synchronization. Only parameters that match the filter will be exported as metadata.</value>
   </data>
 </root>
