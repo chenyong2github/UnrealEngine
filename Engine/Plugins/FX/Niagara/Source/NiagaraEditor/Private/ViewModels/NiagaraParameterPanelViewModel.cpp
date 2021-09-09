@@ -77,7 +77,12 @@ TArray<UNiagaraGraph*> FNiagaraSystemToolkitParameterPanelUtilities::GetAllGraph
 		const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
 		for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
 		{
-			UNiagaraGraph* Graph = static_cast<UNiagaraScriptSource*>(EmitterHandleViewModel->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph;
+			FNiagaraEmitterHandle* EmitterHandle = EmitterHandleViewModel->GetEmitterHandle();
+			if (EmitterHandle == nullptr)
+			{
+				continue;
+			}
+			UNiagaraGraph* Graph = Cast<UNiagaraScriptSource>(EmitterHandle->GetInstance()->GraphSource)->NodeGraph;
 			if (Graph)
 			{
 				OutGraphs.Add(Graph);
@@ -86,7 +91,11 @@ TArray<UNiagaraGraph*> FNiagaraSystemToolkitParameterPanelUtilities::GetAllGraph
 	}
 	else
 	{
-		OutGraphs.Add(Cast<UNiagaraScriptSource>(SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetInstance()->GraphSource)->NodeGraph);
+		FNiagaraEmitterHandle* EmitterHandle = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle();
+		if (EmitterHandle != nullptr)
+		{
+			OutGraphs.Add(Cast<UNiagaraScriptSource>(EmitterHandle->GetInstance()->GraphSource)->NodeGraph);
+		}
 	}
 	return OutGraphs;
 }
@@ -853,7 +862,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 	if (SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
 		UserParameterStoreChangedHandle = System.GetExposedParameters().AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::Refresh));
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::RefreshNextTick));
 	}
 
 	// Bind OnChanged() bindings for compilation and external parameter modifications.
