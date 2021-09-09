@@ -65,6 +65,7 @@ public:
 		NodeGuid = FGuid();
 		PinGuid = FGuid();
 		StackGuids.Empty();
+		Source = FNiagaraCompileEventSource::Unset;
 	}
  
 	FNiagaraCompileEvent(
