@@ -4,9 +4,13 @@
 
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildKey.h"
+#include "DerivedDataRequest.h"
+#include "Templates/RefCounting.h"
+#include "Templates/UniquePtr.h"
 
-namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildSchedulerParams; }
+namespace UE::DerivedData { class IBuildJobSchedule; }
+namespace UE::DerivedData { class IRequestOwner; }
 
 namespace UE::DerivedData
 {
@@ -23,46 +27,7 @@ class IBuildScheduler
 {
 public:
 	virtual ~IBuildScheduler() = default;
-
-	/** Begin processing of the job by this scheduler. Always paired with EndJob. */
-	virtual void BeginJob(IBuildJob* Job) {}
-
-	/** End processing of the job by this scheduler. Always paired with BeginJob. */
-	virtual void EndJob(IBuildJob* Job) {}
-
-	/** Dispatch the job immediately if it is queued. May be called multiple times and/or concurrently. */
-	virtual void CancelJob(IBuildJob* Job) {}
-
-	/** Update the priority of the job if it is queued. May be called multiple times and/or concurrently. */
-	virtual void UpdateJobPriority(IBuildJob* Job) {}
-
-	/** Dispatch by calling Schedule or SetOutput, either now or later. */
-	virtual void DispatchCacheQuery(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
-
-	/** Dispatch by calling Schedule, either now or later. */
-	virtual void DispatchCacheStore(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
-
-	/** Dispatch by calling Schedule, either now or later. */
-	virtual void DispatchResolveKey(IBuildJob* Job, IRequestOwner& Owner) { Job->Schedule(); }
-
-	/** Dispatch by calling Schedule, either now or later. */
-	virtual void DispatchResolveInputMeta(IBuildJob* Job, IRequestOwner& Owner) { Job->Schedule(); }
-
-	/**
-	 * Dispatch by calling Schedule, SetOutput, or SkipExecuteRemote, either now or later.
-	 *
-	 * SkipExecuteRemote is only valid to call when MissingRemoteInputsSize is non-zero.
-	 */
-	virtual void DispatchResolveInputData(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
-
-	/** Dispatch by calling Schedule, SetOutput, or SkipExecuteRemote, either now or later. */
-	virtual void DispatchExecuteRemote(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
-
-	/** Dispatch by calling Schedule or SetOutput, either now or later. */
-	virtual void DispatchExecuteLocal(IBuildJob* Job, IRequestOwner& Owner, const FBuildSchedulerParams& Params) { Job->Schedule(); }
-
-	/** Set the output of the job. Always called once between BeginJob and EndJob unless canceled. */
-	virtual void SetJobOutput(IBuildJob* Job, const FBuildSchedulerParams& Params, const FBuildOutput& Output) {}
+	virtual TUniquePtr<IBuildJobSchedule> BeginJob(IBuildJob& Job, IRequestOwner& Owner) = 0;
 };
 
 /** Parameters that describe a build job to the build scheduler. */
@@ -82,6 +47,36 @@ struct FBuildSchedulerParams
 
 	/** Estimate of the peak memory required to execute the build, including constants and inputs. */
 	uint64 TotalRequiredMemory = 0;
+};
+
+/** Scheduling interface / context for an IBuildJob */
+class IBuildJobSchedule
+{
+public:
+	virtual ~IBuildJobSchedule() = default;
+
+	virtual FBuildSchedulerParams& EditParameters() = 0;
+
+	/** Calls StepExecution() now or later. */
+	virtual void DispatchCacheQuery() = 0;
+	/** Calls StepExecution() now or later. */
+	virtual void DispatchCacheStore() = 0;
+	/** Calls StepExecution() now or later. */
+	virtual void DispatchResolveKey() = 0;
+	/** Calls StepExecution() now or later. */
+	virtual void DispatchResolveInputMeta() = 0;
+	/**
+	 * Calls StepExecution() or SkipExecuteRemote() now or later.
+	 *
+	 * SkipExecuteRemote() won't be called unless MissingRemoteInputsSize is non-zero.
+	 */
+	virtual void DispatchResolveInputData() = 0;
+	/** Calls StepExecution() or SkipExecuteRemote() now or later. */
+	virtual void DispatchExecuteRemote() = 0;
+	/** Calls StepExecution() now or later. */
+	virtual void DispatchExecuteLocal()	= 0;
+
+	virtual void EndJob() = 0;
 };
 
 } // UE::DerivedData

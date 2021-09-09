@@ -48,7 +48,7 @@ public:
 	virtual IBuild& GetBuild() const = 0;
 
 	/** Called by the scheduler to continue this job on the calling thread. */
-	virtual void Schedule() = 0;
+	virtual void StepExecution() = 0;
 
 	/** Called by the scheduler to skip remote execution and fall back to local execution if permitted. */
 	virtual void SkipExecuteRemote() = 0;

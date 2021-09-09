@@ -1892,6 +1892,8 @@ void UTexture::SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSett
 
 int64 UTexture::GetBuildRequiredMemory() const
 {
+	// If you improve this estimate, please update EstimateTextureBuildMemoryUsage() as well
+
 	// Compute the memory it should take to uncompress the bulkdata in memory
 	int64 MemoryEstimate = 0;
 
