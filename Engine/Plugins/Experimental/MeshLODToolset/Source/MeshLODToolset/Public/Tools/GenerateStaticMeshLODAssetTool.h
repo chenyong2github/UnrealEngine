@@ -136,6 +136,9 @@ public:
 	FGenerateStaticMeshLODProcess_SimplifySettings Simplification;
 
 	UPROPERTY(EditAnywhere, Category = "Generator Configuration", meta = (ExpandByDefault))
+	FGenerateStaticMeshLODProcess_NormalsSettings Normals;
+
+	UPROPERTY(EditAnywhere, Category = "Generator Configuration", meta = (ExpandByDefault))
 	FGenerateStaticMeshLODProcess_TextureSettings TextureBaking;
 
 	UPROPERTY(EditAnywhere, Category = "Generator Configuration")

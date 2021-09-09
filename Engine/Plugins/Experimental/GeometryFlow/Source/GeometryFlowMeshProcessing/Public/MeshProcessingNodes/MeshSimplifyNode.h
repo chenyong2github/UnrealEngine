@@ -98,17 +98,10 @@ public:
 		{
 			Simplifier.SetEdgeFlipTolerance(1.e-5);
 
-			// eliminate any bowties that might have formed on UV seams.
-			if (FDynamicMeshAttributeSet* Attributes = TargetMesh->Attributes())
+			// eliminate any bowties in attribute layers
+			if (TargetMesh->Attributes())
 			{
-				// @todo parallelize over NumUVLayers?
-				int NumUVLayers = Attributes->NumUVLayers();
-				for (int i = 0; i < NumUVLayers; ++i)
-				{
-					Attributes->GetUVLayer(i)->SplitBowties();
-				}
-				Attributes->PrimaryNormals()->SplitBowties();
-
+				TargetMesh->Attributes()->SplitAllBowties();
 			}
 		}
 

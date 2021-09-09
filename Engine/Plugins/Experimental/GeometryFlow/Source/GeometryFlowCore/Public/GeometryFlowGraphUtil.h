@@ -4,6 +4,7 @@
 
 #include "GeometryFlowGraph.h"
 #include "GeometryFlowCoreNodes.h"
+#include "BaseNodes/SwitchNode.h"
 
 namespace UE
 {
@@ -21,6 +22,18 @@ void UpdateSourceNodeValue(FGraph& Graph, FGraph::FHandle NodeHandle, const type
 	});
 }
 
+
+/**
+ * Update the integer index that controls which Input to a TSwitchNode will be provided as it's Output.
+ */
+template<typename SwitchNodeType>
+void UpdateSwitchNodeInputIndex(FGraph& Graph, FGraph::FHandle NodeHandle, int32 NewSwitchIndex)
+{
+	Graph.ApplyToNodeOfType<SwitchNodeType>(NodeHandle, [&](SwitchNodeType& Node)
+	{
+		Node.UpdateSwitchInputIndex(NewSwitchIndex);
+	});
+}
 
 
 
