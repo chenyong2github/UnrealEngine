@@ -278,6 +278,12 @@ FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FIn
 		return ElementHandles;
 	}
 
+	UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>();
+	if (!PlacementModeSubsystem || !PlacementModeSubsystem->GetModeSettingsObject())
+	{
+		return ElementHandles;
+	}
+
 	FCollisionQueryParams QueryParams(TEXT("PlacementBrushTool"), SCENE_QUERY_STAT_ONLY(EdMode_PlacementTrace), true);
 	QueryParams.bReturnFaceIndex = false;
 	TArray<FHitResult> Hits;
@@ -295,7 +301,7 @@ FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FIn
 		if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(Hit.GetComponent()))
 		{
 			FTypedElementHandle StaticMeshObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(ISMComponent->GetStaticMesh());
-			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesActivePaletteSupportElement(StaticMeshObjectHandle))
+			if (!PlacementModeSubsystem->GetModeSettingsObject()->DoesActivePaletteSupportElement(StaticMeshObjectHandle))
 			{
 				continue;
 			}
@@ -313,7 +319,7 @@ FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FIn
 		else
 		{
 			FTypedElementHandle PrimarySelectionHandle = SelectionSet->GetSelectionElement(UEngineElementsLibrary::AcquireEditorComponentElementHandle(Hit.GetComponent()), ETypedElementSelectionMethod::Primary);
-			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesActivePaletteSupportElement(PrimarySelectionHandle))
+			if (!PlacementModeSubsystem->GetModeSettingsObject()->DoesActivePaletteSupportElement(PrimarySelectionHandle))
 			{
 				continue;
 			}

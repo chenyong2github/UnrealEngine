@@ -12,7 +12,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "EditorStyleSet.h"
 #include "AssetThumbnail.h"
-#include "PropertyEditorModule.h"
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -39,6 +38,7 @@
 #include "PlacementPaletteAsset.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PlacementPaletteItem.h"
+#include "Factories/AssetFactoryInterface.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
 
@@ -47,6 +47,7 @@
 ////////////////////////////////////////////////
 void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 {
+	ItemDetailsWidget = InArgs._ItemDetailsView;
 	bItemsNeedRebuild = false;
 	bIsRebuildTimerRegistered = false;
 	bIsRefreshTimerRegistered = false;
@@ -251,16 +252,19 @@ void SAssetPlacementPalette::RefreshActivePaletteViewWidget()
 void SAssetPlacementPalette::AddPlacementType(const FAssetData& AssetData)
 {
 	// Try to add the item to the mode's palette
-	FPaletteItem PlacementInfo = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->CreatePaletteItem(AssetData);
-	if (!PlacementInfo.AssetPath.IsValid())
+	if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
 	{
-		return;
+		FPaletteItem PlacementInfo = PlacementModeSubsystem->GetMutableModeSettingsObject()->AddItemToActivePalette(AssetData);
+		if (!PlacementInfo.AssetPath.IsValid())
+		{
+			return;
+		}
+
+		// Try to load the asset async so it's ready to place
+		UAssetManager::GetStreamableManager().RequestAsyncLoad(AssetData.ToSoftObjectPath());
+
+		PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(AssetData, PlacementInfo, SharedThis(this), ThumbnailPool));
 	}
-
-	// Try to load the asset async so it's ready to place.
-	UAssetManager::GetStreamableManager().RequestAsyncLoad(AssetData.ToSoftObjectPath());
-
-	PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(AssetData, SharedThis(this), ThumbnailPool));
 }
 
 void SAssetPlacementPalette::ClearPalette()
@@ -268,6 +272,11 @@ void SAssetPlacementPalette::ClearPalette()
 	if (UPlacementModeSubsystem* ModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
 	{
 		ModeSubsystem->GetMutableModeSettingsObject()->ClearActivePaletteItems();
+	}
+
+	if (TSharedPtr<IDetailsView> PinnedItemDetails = ItemDetailsWidget.Pin())
+	{
+		PinnedItemDetails->SetObject(nullptr);
 	}
 
 	PaletteItems.Empty();
@@ -298,6 +307,8 @@ TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
 		.ListItemsSource(&FilteredItems)
 		.OnGenerateTile(this, &SAssetPlacementPalette::GenerateTile)
 		.OnContextMenuOpening(this, &SAssetPlacementPalette::ConstructPlacementTypeContextMenu)
+		.SelectionMode(ESelectionMode::Multi)
+		.OnSelectionChanged(this, &SAssetPlacementPalette::OnPaletteSelectionChanged)
 		.ItemHeight(this, &SAssetPlacementPalette::GetScaledThumbnailSize)
 		.ItemWidth(this, &SAssetPlacementPalette::GetScaledThumbnailSize)
 		.ItemAlignment(EListItemAlignment::LeftAligned);
@@ -307,6 +318,8 @@ TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
 		.TreeItemsSource(&FilteredItems)
 		.OnGenerateRow(this, &SAssetPlacementPalette::TreeViewGenerateRow)
 		.OnGetChildren(this, &SAssetPlacementPalette::TreeViewGetChildren)
+		.SelectionMode(ESelectionMode::Multi)
+		.OnSelectionChanged(this, &SAssetPlacementPalette::OnPaletteSelectionChanged)
 		.OnContextMenuOpening(this, &SAssetPlacementPalette::ConstructPlacementTypeContextMenu)
 		.HeaderRow
 		(
@@ -403,7 +416,7 @@ void SAssetPlacementPalette::OnContentBrowserMirrorButtonClicked(ECheckBoxState 
 
 	if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
 	{
-		PlacementModeSubsystem->SetUseContentBrowserAsPalette(bIsMirroringContentBrowser);
+		PlacementModeSubsystem->GetMutableModeSettingsObject()->bUseContentBrowserSelection = bIsMirroringContentBrowser;
 	}
 }
 
@@ -468,6 +481,10 @@ void SAssetPlacementPalette::SetPaletteItems(TArrayView<const FPaletteItem> InPa
 {
 	PaletteItems.Empty();
 	FilteredItems.Empty();
+	if (TSharedPtr<IDetailsView> PinnedDetailsView = ItemDetailsWidget.Pin())
+	{
+		PinnedDetailsView->SetObject(nullptr);
+	}
 
 	FAssetRegistryModule& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FSoftObjectPath> AssetsToLoad;
@@ -476,7 +493,7 @@ void SAssetPlacementPalette::SetPaletteItems(TArrayView<const FPaletteItem> InPa
 		FAssetData AssetData = AssetRegistry.Get().GetAssetByObjectPath(PaletteItem.AssetPath.GetAssetPathName());
 		if (AssetData.IsValid())
 		{
-			PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(AssetData, SharedThis(this), ThumbnailPool));
+			PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(AssetData, PaletteItem, SharedThis(this), ThumbnailPool));
 			AssetsToLoad.Emplace(PaletteItem.AssetPath);
 		}
 	}
@@ -682,6 +699,41 @@ TSharedPtr<SWidget> SAssetPlacementPalette::ConstructPlacementTypeContextMenu()
 		);
 	}
 	return MenuBuilder.MakeWidget();
+}
+
+void SAssetPlacementPalette::OnPaletteSelectionChanged(FPlacementPaletteItemModelPtr Item, ESelectInfo::Type SelectInfo)
+{
+	if (SelectInfo == ESelectInfo::Direct)
+	{
+		return;
+	}
+
+	// Sync selection to the widgets which are not active
+	switch (ActiveViewMode)
+	{
+		case EViewMode::Thumbnail:
+			TreeViewWidget->SetItemSelection(Item, TileViewWidget->IsItemSelected(Item), ESelectInfo::Direct);
+		break;
+
+		case EViewMode::Tree:
+			TileViewWidget->SetItemSelection(Item, TreeViewWidget->IsItemSelected(Item), ESelectInfo::Direct);
+		break;
+	}
+
+	if (TSharedPtr<IDetailsView> PinnedItemDetails = ItemDetailsWidget.Pin())
+	{
+		TArray<UObject*> DetailsObjects;
+		for (const FPlacementPaletteItemModelPtr& SelectedItem : GetActiveViewWidget()->GetSelectedItems())
+		{
+			if (UEditorFactorySettingsObject* SelectedItemSettingsObject = SelectedItem->GetTypeUIInfo()->SettingsObject.Get())
+			{
+				DetailsObjects.Add(SelectedItemSettingsObject);
+			}
+		}
+
+		constexpr bool bForceRefresh = true;
+		PinnedItemDetails->SetObjects(DetailsObjects, true);
+	}
 }
 
 void SAssetPlacementPalette::OnShowPlacementTypeInCB()

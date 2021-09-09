@@ -8,11 +8,23 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Toolkits/AssetEditorModeUILayer.h"
+#include "PropertyEditorModule.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementEdModeToolkit"
 
 FAssetPlacementEdModeToolkit::FAssetPlacementEdModeToolkit()
 {
+	// Create the details view for the details view tab, so that it can be shared across our custom tabs
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
+		DetailsViewArgs.bHideSelectionTip = true;
+
+		PaletteItemDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	}
 }
 
 void FAssetPlacementEdModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const
@@ -39,20 +51,9 @@ void FAssetPlacementEdModeToolkit::InvokeUI()
 	{
 		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
 		AssetPaletteTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::BottomLeftTabID);
-	}
-}
 
-TSharedPtr<SWidget> FAssetPlacementEdModeToolkit::GetInlineContent() const
-{
-	return 	SNew(SScrollBox)
-		+ SScrollBox::Slot()
-		[
-			DetailsView.ToSharedRef()
-		]
-		+ SScrollBox::Slot()
-		[
-			ModeDetailsView.ToSharedRef()
-		];
+		PaletteItemDetailsViewTab = ModeUILayerPtr->GetTabManager()->TryInvokeTab(FAssetEditorModeUILayer::BottomRightTabID);
+	}
 }
 
 void FAssetPlacementEdModeToolkit::RequestModeUITabs()
@@ -61,11 +62,17 @@ void FAssetPlacementEdModeToolkit::RequestModeUITabs()
 	if (ModeUILayer.IsValid())
 	{
 		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-		TSharedRef<FWorkspaceItem> MenuGroup = ModeUILayerPtr->GetModeMenuCategory().ToSharedRef();
 		AssetPaletteInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FAssetPlacementEdModeToolkit::CreateAssetPalette);
-		AssetPaletteInfo.TabLabel = LOCTEXT("AssetPaletteTab", "Asset Palette");
-		AssetPaletteInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
+		AssetPaletteInfo.TabLabel = LOCTEXT("AssetPaletteTab", "Palette");
+		AssetPaletteInfo.TabTooltip = LOCTEXT("AssetPaletteTabTooltipText", "Open the asset palette tab, which contains placement mode's palette settings.");
+		AssetPaletteInfo.TabIcon = GetEditorModeIcon();
 		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::BottomLeftTabID, AssetPaletteInfo);
+
+		PaletteItemDetailsViewInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FAssetPlacementEdModeToolkit::CreatePaletteItemDetailsView);
+		PaletteItemDetailsViewInfo.TabLabel = LOCTEXT("PaletteItemDetailsTab", "Palette Details");
+		PaletteItemDetailsViewInfo.TabTooltip = LOCTEXT("PaletteItemDetailsTabTooltipText", "Open the asset palette details tab, which allows customization of individual items in the active palette.");
+		PaletteItemDetailsViewInfo.TabIcon = GetEditorModeIcon();
+		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::BottomRightTabID, PaletteItemDetailsViewInfo);
 	}
 }
 
@@ -73,22 +80,50 @@ void FAssetPlacementEdModeToolkit::RequestModeUITabs()
 
 TSharedRef<SDockTab> FAssetPlacementEdModeToolkit::CreateAssetPalette(const FSpawnTabArgs& Args)
 {
-	TSharedPtr<SDockTab> CreatedTab = SNew(SDockTab)
+	return SNew(SDockTab)
 		[
 			SNew(SScrollBox)
 			+ SScrollBox::Slot()
 			[
 				SNew(SAssetPlacementPalette)
+				.ItemDetailsView(PaletteItemDetailsView)
 			]
 		];
+}
 
-	const FSlateBrush* TabIcon = GetEditorModeIcon().GetSmallIcon();
-	if (CreatedTab)
+TSharedRef<SDockTab> FAssetPlacementEdModeToolkit::CreatePaletteItemDetailsView(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+	[
+		SNew(SScrollBox)
+		+SScrollBox::Slot()
+		[
+			SNew(SOverlay)
+			+SOverlay::Slot()
+			[
+				PaletteItemDetailsView.ToSharedRef()
+			]
+
+			+SOverlay::Slot()
+			.Padding(0.0f, 4.0f, 0.0f, 0.0f)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("PaletteDetailsViewHintText", "Select an item from the palette to edit settings."))
+				.Visibility(this, &FAssetPlacementEdModeToolkit::GetDetailsViewHintTextVisibility)
+				.TextStyle(FAppStyle::Get(), "HintText")
+			]
+		]
+	];
+}
+
+EVisibility FAssetPlacementEdModeToolkit::GetDetailsViewHintTextVisibility() const
+{
+	if (PaletteItemDetailsView && (PaletteItemDetailsView->GetSelectedObjects().Num() == 0))
 	{
-		CreatedTab->SetTabIcon(TabIcon);
+		return EVisibility::HitTestInvisible;
 	}
-	AssetPaletteTab = CreatedTab;
-	return CreatedTab.ToSharedRef();
+	return EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

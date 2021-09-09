@@ -20,8 +20,15 @@
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
 
-FAssetPlacementPaletteItemModel::FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, TSharedRef<SAssetPlacementPalette> InParentPalette, TSharedPtr<FAssetThumbnailPool> InThumbnailPool)
-	: TypeInfo(MakeShared<FPaletteItemUIInfo>(InAssetData))
+FPaletteItemUIInfo::FPaletteItemUIInfo(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem)
+	: AssetData(InAssetData)
+	, SettingsObject(InPaletteItem.SettingsObject.Get())
+{
+	check(AssetData.IsValid());
+}
+
+FAssetPlacementPaletteItemModel::FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, const FPaletteItem& InPaletteItem, TSharedRef<SAssetPlacementPalette> InParentPalette, TSharedPtr<FAssetThumbnailPool> InThumbnailPool)
+	: TypeInfo(MakeShared<FPaletteItemUIInfo>(InAssetData, InPaletteItem))
 	, AssetPalette(InParentPalette)
 {
 	check(TypeInfo);
@@ -214,7 +221,7 @@ void SAssetPlacementPaletteItemTile::Construct(const FArguments& InArgs, TShared
 
 	STableRow<FAssetPlacementUIInfoPtr>::Construct(
 		STableRow<FAssetPlacementUIInfoPtr>::FArguments()
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 		.Padding(1.f)
 		.Content()
 		[

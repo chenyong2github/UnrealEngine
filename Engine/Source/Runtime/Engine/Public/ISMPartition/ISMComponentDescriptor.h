@@ -52,121 +52,121 @@ public:
 	UPROPERTY()
 	mutable uint32 Hash = 0;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass;
 	
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Component Settings")
 	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TEnumAsByte<EComponentMobility::Type> Mobility;
 		
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType;
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	ELightmapType LightmapType;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	FLightingChannels LightingChannels;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 RayTracingGroupId;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	ERayTracingGroupCullingPriority RayTracingGroupCullingPriority;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	TEnumAsByte<EHasCustomNavigableGeometry::Type> bHasCustomNavigableGeometry;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	ERendererStencilMask CustomDepthStencilWriteMask;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	FBodyInstance BodyInstance;
 		
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 InstanceStartCullDistance;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 InstanceEndCullDistance;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 VirtualTextureCullMips;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 TranslucencySortPriority;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 OverriddenLightMapRes;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 CustomDepthStencilValue;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	EHLODBatchingPolicy HLODBatchingPolicy;
 	
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bCastShadow : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bCastDynamicShadow : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bCastStaticShadow : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bCastContactShadow : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bCastShadowAsTwoSided : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bAffectDynamicIndirectLighting : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bAffectDistanceFieldLighting : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bReceivesDecals : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bOverrideLightMapRes : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bUseAsOccluder : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bEnableDensityScaling : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bEnableDiscardOnLoad : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bRenderCustomDepth : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bIncludeInHLOD : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bVisibleInRayTracing : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bHiddenInGame : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bIsEditorOnly : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bVisible : 1;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	uint8 bConsiderForActorPlacementWhenHidden : 1;
 #endif
 };

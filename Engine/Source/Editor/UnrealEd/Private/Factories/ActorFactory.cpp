@@ -382,6 +382,12 @@ void UActorFactory::EndPlacement(TArrayView<const FTypedElementHandle> InPlacedE
 {
 }
 
+UEditorFactorySettingsObject* UActorFactory::FactorySettingsObjectForPlacement(const FAssetData& InAssetData, const FPlacementOptions& InPlacementOptions)
+{
+	UActorFactoryPlacementSettings* FactorySettingsObject = NewObject<UActorFactoryPlacementSettings>(this);
+	return FactorySettingsObject;
+}
+
 AActor* UActorFactory::CreateActor( UObject* Asset, ULevel* InLevel, const FTransform& SpawnTransform, EObjectFlags InObjectFlags, const FName Name)
 {
 	FActorSpawnParameters SpawnParams;

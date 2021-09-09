@@ -67,40 +67,43 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 				FVector Start, End;
 				GetRandomVectorInBrush(Start, End);
 				FHitResult AdjustedHitResult;
-				FindHitResultWithStartAndEndTraceVectors(AdjustedHitResult, Start, End);
-				FVector SpawnLocation = AdjustedHitResult.ImpactPoint;
-				FVector SpawnNormal = AdjustedHitResult.ImpactNormal;
-
-				bool bValidInstance = true;
-				auto TempInstances = PotentialInstanceHash.GetInstancesOverlappingBox(FBox::BuildAABB(BrushLocation, FVector(BrushProperties->BrushRadius)));
-				for (int32 InstanceIndex : TempInstances)
+				if (FindHitResultWithStartAndEndTraceVectors(AdjustedHitResult, Start, End))
 				{
-					if ((PotentialInstanceLocations[InstanceIndex] - BrushLocation).SizeSquared() < FMath::Square(BrushProperties->BrushRadius))
+					FVector SpawnLocation = AdjustedHitResult.ImpactPoint;
+					FVector SpawnNormal = AdjustedHitResult.ImpactNormal;
+
+					bool bValidInstance = true;
+					auto TempInstances = PotentialInstanceHash.GetInstancesOverlappingBox(FBox::BuildAABB(BrushLocation, FVector(BrushProperties->BrushRadius)));
+					for (int32 InstanceIndex : TempInstances)
 					{
-						bValidInstance = false;
-						break;
+						if ((PotentialInstanceLocations[InstanceIndex] - BrushLocation).SizeSquared() < FMath::Square(BrushProperties->BrushRadius))
+						{
+							bValidInstance = false;
+							break;
+						}
 					}
+
+					if (!bValidInstance)
+					{
+						continue;
+					}
+
+					int32 PotentialIdx = PotentialInstanceLocations.Add(SpawnLocation);
+					PotentialInstanceHash.InsertInstance(SpawnLocation, PotentialIdx);
+
+					int32 ItemIndex = FMath::RandHelper(PaletteItems.Num());
+					const FPaletteItem& ItemToPlace = PaletteItems[ItemIndex];
+
+					FAssetPlacementInfo NewInfo;
+					NewInfo.AssetToPlace = ItemToPlace.AssetPath.TryLoad();
+					NewInfo.FactoryOverride = ItemToPlace.AssetFactoryInterface;
+					NewInfo.ItemGuid = ItemToPlace.ItemGuid;
+					NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+					NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
+					NewInfo.SettingsObject = ItemToPlace.SettingsObject;
+
+					DesiredInfoSpawnLocations.Emplace(NewInfo);
 				}
-
-				if (!bValidInstance)
-				{
-					continue;
-				}
-
-				int32 PotentialIdx = PotentialInstanceLocations.Add(SpawnLocation);
-				PotentialInstanceHash.InsertInstance(SpawnLocation, PotentialIdx);
-
-				int32 ItemIndex = FMath::RandHelper(PaletteItems.Num());
-				const FPaletteItem& ItemToPlace = PaletteItems[ItemIndex];
-
-				FAssetPlacementInfo NewInfo;
-				NewInfo.AssetToPlace = ItemToPlace.AssetPath.TryLoad();
-				NewInfo.FactoryOverride = ItemToPlace.AssetFactoryInterface;
-				NewInfo.ItemGuid = ItemToPlace.ItemGuid;
-				NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
-				NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
-
-				DesiredInfoSpawnLocations.Emplace(NewInfo);
 			}
 
 			UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();

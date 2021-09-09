@@ -22,11 +22,15 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual void InvokeUI() override;
 protected:
-	virtual TSharedPtr<SWidget> GetInlineContent() const override;
 	virtual void RequestModeUITabs() override;
 	TSharedRef<SDockTab> CreateAssetPalette(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> CreatePaletteItemDetailsView(const FSpawnTabArgs& Args);
+	EVisibility GetDetailsViewHintTextVisibility() const;
 
 private:
 	TWeakPtr<SDockTab> AssetPaletteTab;
+	TWeakPtr<SDockTab> PaletteItemDetailsViewTab;
 	FMinorTabConfig AssetPaletteInfo;
+	FMinorTabConfig PaletteItemDetailsViewInfo;
+	TSharedPtr<IDetailsView> PaletteItemDetailsView;
 };

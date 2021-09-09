@@ -96,13 +96,6 @@ bool UPlacementSubsystem::IsCreatingPreviewElements() const
 	return bIsCreatingPreviewElements;
 }
 
-FGuid UPlacementSubsystem::GetUserGridGuid()
-{
-	FGuid UserGridGuid;
-	FGuid::Parse(FPlatformMisc::GetLoginId(), UserGridGuid);
-	return UserGridGuid;
-}
-
 void UPlacementSubsystem::RegisterPlacementFactories()
 {
 	for (TObjectIterator<UClass> ObjectIt; ObjectIt; ++ObjectIt)

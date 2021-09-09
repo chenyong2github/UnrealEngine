@@ -251,6 +251,7 @@ void UPlacementModePlaceSingleTool::GeneratePlacementData(const FInputDeviceRay&
 			PlacementInfo->ItemGuid = ItemToPlace.ItemGuid;
 			PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
 			PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+			PlacementInfo->SettingsObject = ItemToPlace.SettingsObject;
 		}
 	}
 }
