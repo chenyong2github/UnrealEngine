@@ -118,7 +118,36 @@ public:
 
 
 
+/**
+* FSimpleInPlaceProcessMeshBaseNode provides a standard pattern for a simple "In-Place" mesh
+* processing operation, eg something like recomputing normals where it would not make
+* sense to cache the output and there are no configuration settings. The subclass only
+* has to implement the ApplyNodeToMesh() function.
+*/
+class FSimpleInPlaceProcessMeshBaseNode : public FProcessMeshBaseNode
+{
+public:
+	FSimpleInPlaceProcessMeshBaseNode()
+	{
+		// we can mutate input mesh
+		ConfigureInputFlags(InParamMesh(), FNodeInputFlags::Transformable());
+	}
 
+	virtual void ProcessMesh( const FNamedDataMap& DatasIn, const FDynamicMesh3& MeshIn, FDynamicMesh3& MeshOut) override
+	{
+		MeshOut = MeshIn;
+		ApplyNodeToMesh(MeshOut);
+	}
+
+	virtual void ProcessMeshInPlace( const FNamedDataMap& DatasIn, FDynamicMesh3& MeshInOut) override
+	{
+		ApplyNodeToMesh(MeshInOut);
+	}
+
+	// subclasses only have to implement this
+	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut) = 0;
+
+};
 
 
 

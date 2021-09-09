@@ -536,7 +536,7 @@ int UGenerateStaticMeshLODProcess::SelectTextureToBake(const TArray<FTextureInfo
 bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 {
 	Generator = MakeUnique<FGenerateMeshLODGraph>();
-	Generator->BuildGraph();
+	Generator->BuildGraph( & this->SourceMesh );
 
 	// initialize source textures that need to be baked
 	SourceTextureToDerivedTexIndex.Reset();
@@ -606,6 +606,10 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 	CurrentSettings_Simplify.TargetPercentage = Generator->GetCurrentSimplifySettings().TargetFraction * 100.0f;
 	CurrentSettings_Simplify.Tolerance = Generator->GetCurrentSimplifySettings().GeometricTolerance;
 
+	CurrentSettings_Normals.Method = static_cast<EGenerateStaticMeshLODProcess_NormalsMethod>(
+		FGenerateStaticMeshLODProcess_NormalsSettings::MapMethodType((int32)Generator->GetCurrentNormalsSettings().NormalsType, false));
+	CurrentSettings_Normals.Angle = Generator->GetCurrentNormalsSettings().AngleThresholdDeg;
+
 	CurrentSettings_Texture.BakeResolution = (EGenerateStaticMeshLODBakeResolution)Generator->GetCurrentBakeCacheSettings().Dimensions.GetWidth();
 	CurrentSettings_Texture.BakeThickness = Generator->GetCurrentBakeCacheSettings().Thickness;
 
@@ -635,6 +639,11 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 
 void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODProcessSettings& NewCombinedSettings)
 {
+	if (NewCombinedSettings.MeshGenerator != CurrentSettings.MeshGenerator)
+	{
+		Generator->UpdateCoreMeshGeneratorMode(static_cast<FGenerateMeshLODGraph::ECoreMeshGeneratorMode>(NewCombinedSettings.MeshGenerator));
+	}
+
 	bool bSharedVoxelResolutionChanged = (NewCombinedSettings.SolidifyVoxelResolution != CurrentSettings.SolidifyVoxelResolution);
 	if ( bSharedVoxelResolutionChanged
 		|| (NewCombinedSettings.WindingThreshold != CurrentSettings.WindingThreshold))
@@ -713,6 +722,50 @@ void UGenerateStaticMeshLODProcess::UpdateSimplifySettings(const FGenerateStatic
 	}
 
 	CurrentSettings_Simplify = NewCombinedSettings;
+}
+
+
+
+int32 FGenerateStaticMeshLODProcess_NormalsSettings::MapMethodType(int32 From, bool bProcessToGraph)
+{
+	if (bProcessToGraph)
+	{
+		switch (static_cast<EGenerateStaticMeshLODProcess_NormalsMethod>(From))
+		{
+			default:
+			case EGenerateStaticMeshLODProcess_NormalsMethod::FromAngleThreshold: return (int32)UE::GeometryFlow::EComputeNormalsType::FromFaceAngleThreshold;
+			case EGenerateStaticMeshLODProcess_NormalsMethod::PerVertex: return (int32)UE::GeometryFlow::EComputeNormalsType::PerVertex;
+			case EGenerateStaticMeshLODProcess_NormalsMethod::PerTriangle: return (int32)UE::GeometryFlow::EComputeNormalsType::PerTriangle;
+		}
+	}
+	else
+	{
+		switch (static_cast<UE::GeometryFlow::EComputeNormalsType>(From))
+		{
+			default:
+			case UE::GeometryFlow::EComputeNormalsType::FromFaceAngleThreshold: return (int32)EGenerateStaticMeshLODProcess_NormalsMethod::FromAngleThreshold;
+			case UE::GeometryFlow::EComputeNormalsType::PerVertex: return (int32)EGenerateStaticMeshLODProcess_NormalsMethod::PerVertex;
+			case UE::GeometryFlow::EComputeNormalsType::PerTriangle: return (int32)EGenerateStaticMeshLODProcess_NormalsMethod::PerTriangle;
+		}
+	}
+}
+
+
+void UGenerateStaticMeshLODProcess::UpdateNormalsSettings(const FGenerateStaticMeshLODProcess_NormalsSettings& NewCombinedSettings)
+{
+	if (NewCombinedSettings.Method != CurrentSettings_Normals.Method || 
+		NewCombinedSettings.Angle != CurrentSettings_Normals.Angle )
+	{
+		UE::GeometryFlow::FMeshNormalsSettings NewNormalsSettings = Generator->GetCurrentNormalsSettings();
+
+		NewNormalsSettings.NormalsType = static_cast<UE::GeometryFlow::EComputeNormalsType>(
+			FGenerateStaticMeshLODProcess_NormalsSettings::MapMethodType((int32)NewCombinedSettings.Method, true));
+		NewNormalsSettings.AngleThresholdDeg = NewCombinedSettings.Angle;
+
+		Generator->UpdateNormalsSettings(NewNormalsSettings);
+	}
+
+	CurrentSettings_Normals = NewCombinedSettings;
 }
 
 

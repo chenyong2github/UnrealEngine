@@ -6,6 +6,7 @@
 #include "GeometryFlowGraph.h"
 #include "GeometryFlowGraphUtil.h"
 #include "BaseNodes/TransferNode.h"
+#include "BaseNodes/SwitchNode.h"
 
 #include "MeshProcessingNodes/MeshThickenNode.h"
 #include "MeshProcessingNodes/MeshSolidifyNode.h"
@@ -35,6 +36,9 @@ using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 
+typedef UE::GeometryFlow::TSwitchNode<FDynamicMesh3, 3, (int)EMeshProcessingDataTypes::DynamicMesh> FMeshGeneratorSwitchNode;
+
+
 void FGenerateMeshLODGraph::SetSourceMesh(const FDynamicMesh3& SourceMeshIn)
 {
 	UpdateSourceNodeValue<FDynamicMeshSourceNode>(*Graph, MeshSourceNode, SourceMeshIn);
@@ -45,6 +49,12 @@ void FGenerateMeshLODGraph::UpdatePreFilterSettings(const FMeshLODGraphPreFilter
 {
 	UpdateSourceNodeValue<FNameSourceNode>(*Graph, FilterGroupsLayerNameNode, PreFilterSettings.FilterGroupLayerName);
 	CurrentPreFilterSettings = PreFilterSettings;
+}
+
+void FGenerateMeshLODGraph::UpdateCoreMeshGeneratorMode(ECoreMeshGeneratorMode NewMode)
+{
+	UpdateSwitchNodeInputIndex<FMeshGeneratorSwitchNode>(*Graph, MeshGeneratorSwitchNode, static_cast<int32>(NewMode) );
+	CurrentCoreMeshGeneratorMode = NewMode;
 }
 
 
@@ -60,10 +70,22 @@ void FGenerateMeshLODGraph::UpdateMorphologySettings(const FVoxClosureSettings& 
 	CurrentMorphologySettings = MorphologySettings;
 }
 
+void FGenerateMeshLODGraph::UpdateMeshCleaningSettings(const FMeshMakeCleanGeometrySettings& CleaningSettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, CleanMeshSettingsNode, CleaningSettings);
+	CurrentCleanMeshSettings = CleaningSettings;
+}
+
 void FGenerateMeshLODGraph::UpdateSimplifySettings(const FMeshSimplifySettings& SimplifySettings)
 {
 	UpdateSettingsSourceNodeValue(*Graph, SimplifySettingsNode, SimplifySettings);
 	CurrentSimplifySettings = SimplifySettings;
+}
+
+void FGenerateMeshLODGraph::UpdateNormalsSettings(const FMeshNormalsSettings& NormalsSettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, NormalsSettingsNode, NormalsSettings);
+	CurrentNormalsSettings = NormalsSettings;
 }
 
 void FGenerateMeshLODGraph::UpdateAutoUVSettings(const UE::GeometryFlow::FMeshAutoGenerateUVsSettings& AutoUVSettings)
@@ -248,10 +270,38 @@ void FGenerateMeshLODGraph::EvaluateResult(
 
 
 
-
-
-void FGenerateMeshLODGraph::BuildGraph()
+static bool IsSingleMaterialMesh(const FDynamicMesh3& Mesh, int32& UniqueMaterialID)
 {
+	if (Mesh.HasAttributes() == false) return true;
+	if (Mesh.Attributes()->HasMaterialID() == false) return true;
+
+	const FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
+	UniqueMaterialID = 0;
+	bool bConstantInitialized = false;
+	for (int32 TriangleID : Mesh.TriangleIndicesItr())
+	{
+		int32 MaterialID = MaterialIDs->GetValue(TriangleID);
+		if (bConstantInitialized && MaterialID != UniqueMaterialID)
+		{
+			return false;
+		}
+		if (!bConstantInitialized)
+		{
+			bConstantInitialized = true;
+			UniqueMaterialID = MaterialID;
+		}
+	}
+	return true;
+}
+
+
+
+void FGenerateMeshLODGraph::BuildGraph(const FDynamicMesh3* SourceMeshHint)
+{
+	// precompute hints (async?)
+	int32 UniqueMaterialID = 0;
+	bool bIsSingleMaterialMesh = (SourceMeshHint != nullptr) ? IsSingleMaterialMesh(*SourceMeshHint, UniqueMaterialID) : false;
+
 	Graph = MakeUnique<FGraph>();
 
 	MeshSourceNode = Graph->AddNodeOfType<FDynamicMeshSourceNode>(TEXT("SourceMesh"));
@@ -291,14 +341,38 @@ void FGenerateMeshLODGraph::BuildGraph()
 	MorphologySettingsNode = Graph->AddNodeOfType<FVoxClosureSettingsSourceNode>(TEXT("ClosureSettings"));
 	Graph->InferConnection(MorphologySettingsNode, MorphologyNode);
 
-	// todo: if we only have one material ID we can skip this...
-	FGraph::FHandle MatIDTransferNode = Graph->AddNodeOfType<FTransferMeshMaterialIDsNode>(TEXT("TransferMaterialIDs"));
-	Graph->AddConnection(MeshSourceNode, FDynamicMeshSourceNode::OutParamValue(), MatIDTransferNode, FTransferMeshMaterialIDsNode::InParamMaterialSourceMesh());
-	Graph->InferConnection(MorphologyNode, MatIDTransferNode);
+	CleanMeshNode = Graph->AddNodeOfType<FMeshMakeCleanGeometryNode>(TEXT("Cleaner"));
+	Graph->InferConnection(ThickenNode, CleanMeshNode);
+	CleanMeshSettingsNode = Graph->AddNodeOfType<FMeshMakeCleanGeometrySettingsSourceNode>(TEXT("CleanerSettings"));
+	Graph->InferConnection(CleanMeshSettingsNode, CleanMeshNode);
 
-	// need to compute valid normals before Simplify, Morphology node does not necessarily do it
-	FGraph::FHandle PerVertexNormalsNode = Graph->AddNodeOfType<FComputeMeshPerVertexOverlayNormalsNode>(TEXT("PerVertexNormals"));
-	Graph->InferConnection(MatIDTransferNode, PerVertexNormalsNode);
+	// integer param that controls which mesh generator will be used
+	MeshGeneratorSwitchNode = Graph->AddNodeOfType<FMeshGeneratorSwitchNode>(TEXT("MeshGeneratorSwitch"));
+	Graph->AddConnection(SolidifyNode, FSolidifyMeshNode::OutParamResultMesh(), MeshGeneratorSwitchNode, FMeshGeneratorSwitchNode::InParamValue(0));
+	Graph->AddConnection(MorphologyNode, FVoxClosureMeshNode::OutParamResultMesh(), MeshGeneratorSwitchNode, FMeshGeneratorSwitchNode::InParamValue(1));
+	Graph->AddConnection(CleanMeshNode, FMeshMakeCleanGeometryNode::OutParamResultMesh(), MeshGeneratorSwitchNode, FMeshGeneratorSwitchNode::InParamValue(2));
+	
+	// helper to separate next block from changes above
+	FGraph::FHandle FinalMeshOutputNode = MeshGeneratorSwitchNode;
+
+	// skip MaterialID projection/transfer if the input mesh only had one material
+	FGraph::FHandle SimplifyPhaseInputNode = FinalMeshOutputNode;
+	if (bIsSingleMaterialMesh == false)
+	{
+		FGraph::FHandle MatIDTransferNode = Graph->AddNodeOfType<FTransferMeshMaterialIDsNode>(TEXT("TransferMaterialIDs"));
+		Graph->AddConnection(MeshSourceNode, FDynamicMeshSourceNode::OutParamValue(), MatIDTransferNode, FTransferMeshMaterialIDsNode::InParamMaterialSourceMesh());
+		Graph->InferConnection(FinalMeshOutputNode, MatIDTransferNode);
+		SimplifyPhaseInputNode = MatIDTransferNode;
+	}
+	else
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("AutoLOD: applying single-material optimizations"));
+	}
+
+	// need to compute valid normals before Simplify
+	//FGraph::FHandle PerVertexNormalsNode = Graph->AddNodeOfType<FComputeMeshPerVertexOverlayNormalsNode>(TEXT("PerVertexOverlayNormals"));
+	FGraph::FHandle PerVertexNormalsNode = Graph->AddNodeOfType<FComputeMeshPerVertexNormalsNode>(TEXT("PerVertexNormals"));
+	Graph->InferConnection(SimplifyPhaseInputNode, PerVertexNormalsNode);
 
 	SimplifyNode = Graph->AddNodeOfType<FSimplifyMeshNode>(TEXT("Simplify"));
 	Graph->InferConnection(PerVertexNormalsNode, SimplifyNode);
@@ -396,6 +470,8 @@ void FGenerateMeshLODGraph::BuildGraph()
 	// parameters
 	//
 
+	CurrentCoreMeshGeneratorMode = ECoreMeshGeneratorMode::SolidifyAndClose;
+	UpdateSwitchNodeInputIndex<FMeshGeneratorSwitchNode>(*Graph, MeshGeneratorSwitchNode, static_cast<int32>(CurrentCoreMeshGeneratorMode) );
 
 	FIndexSets IgnoreGroupsForDelete;
 	IgnoreGroupsForDelete.AppendSet({ 0 });
@@ -414,6 +490,11 @@ void FGenerateMeshLODGraph::BuildGraph()
 	MorphologySettings.Distance = 5.0;
 	UpdateMorphologySettings(MorphologySettings);
 
+	FMeshMakeCleanGeometrySettings CleanerSettings;
+	CleanerSettings.bClearMaterialIDs = bIsSingleMaterialMesh;
+	CleanerSettings.bOutputOverlayVertexNormals = false;
+	UpdateMeshCleaningSettings(CleanerSettings);
+
 	// TODO: can use simpler settings if there is only one material...
 	FMeshSimplifySettings SimplifySettings;
 	SimplifySettings.bDiscardAttributes = false;
@@ -428,8 +509,8 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	FMeshNormalsSettings NormalsSettings;
 	NormalsSettings.NormalsType = EComputeNormalsType::FromFaceAngleThreshold;
-	NormalsSettings.AngleThresholdDeg = 45.0;
-	UpdateSettingsSourceNodeValue(*Graph, NormalsSettingsNode, NormalsSettings);
+	NormalsSettings.AngleThresholdDeg = 60.0;
+	UpdateNormalsSettings(NormalsSettings);
 
 	FMeshAutoGenerateUVsSettings AutoUVSettings;
 	AutoUVSettings.Method = EAutoUVMethod::PatchBuilder;
@@ -458,7 +539,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 
 	FMeshMakeBakingCacheSettings BakeCacheSettings;
-	BakeCacheSettings.Dimensions = FImageDimensions(512, 512);
+	BakeCacheSettings.Dimensions = FImageDimensions(1024, 1024);
 	BakeCacheSettings.Thickness = 5.0;
 	UpdateBakeCacheSettings(BakeCacheSettings);
 
@@ -473,6 +554,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	UpdateCollisionGroupLayerName(CollisionGroupLayerName);
 
 	FGenerateSimpleCollisionSettings GenSimpleCollisionSettings;
+	GenSimpleCollisionSettings.Type = UE::GeometryFlow::ESimpleCollisionGeometryType::AlignedBoxes;
 	UpdateGenerateSimpleCollisionSettings(GenSimpleCollisionSettings);
 
 	TArray<float> Weights;

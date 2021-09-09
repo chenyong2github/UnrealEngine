@@ -36,6 +36,7 @@ enum class EMeshProcessingDataTypes
 	NormalsSettings = (int)EDataTypes::BaseMeshProcessingTypes + 120,
 	TangentsSettings = (int)EDataTypes::BaseMeshProcessingTypes + 121,
 
+	MakeCleanGeometrySettings = (int)EDataTypes::BaseMeshProcessingTypes + 130,
 
 	RecalculateUVsSettings = (int)EDataTypes::BaseMeshProcessingTypes + 150,
 	RepackUVsSettings = (int)EDataTypes::BaseMeshProcessingTypes + 151,

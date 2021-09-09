@@ -12,7 +12,9 @@
 
 #include "MeshProcessingNodes/MeshSolidifyNode.h"
 #include "MeshProcessingNodes/MeshVoxMorphologyNode.h"
+#include "MeshProcessingNodes/MeshMakeCleanGeometryNode.h"
 #include "MeshProcessingNodes/MeshSimplifyNode.h"
+#include "MeshProcessingNodes/MeshNormalsNodes.h"
 #include "MeshProcessingNodes/MeshThickenNode.h"
 #include "MeshProcessingNodes/MeshDeleteTrianglesNode.h"
 #include "MeshProcessingNodes/MeshAutoGenerateUVsNode.h"
@@ -26,11 +28,14 @@ struct FMeshLODGraphPreFilterSettings
 	FName FilterGroupLayerName = FName( "PreFilterGroups" );
 };
 
-
 class FGenerateMeshLODGraph
 {
 public:
-	void BuildGraph();
+	/**
+	 * Initialize the LOD generation graph. 
+	 * @param SourceMesh if the SourceMesh is known, some optimizations can be made in the graph, but this is optional
+	 */
+	void BuildGraph(const FDynamicMesh3* SourceMeshHint = nullptr);
 
 	int32 AppendTextureBakeNode(const UE::Geometry::TImageBuilder<FVector4f>& SourceImage, const FString& Identifier);
 
@@ -38,8 +43,19 @@ public:
 
 	void SetSourceMesh(const FDynamicMesh3& SourceMesh);
 
+
 	void UpdatePreFilterSettings(const FMeshLODGraphPreFilterSettings& PreFilterSettings);
 	const FMeshLODGraphPreFilterSettings& GetCurrentPreFilterSettings() const { return CurrentPreFilterSettings; }
+
+
+	enum class ECoreMeshGeneratorMode
+	{
+		Solidify = 0,
+		SolidifyAndClose = 1,
+		SimplifyOnly = 2
+	};
+	void UpdateCoreMeshGeneratorMode(ECoreMeshGeneratorMode NewMode);
+	ECoreMeshGeneratorMode GetCurrentCoreMeshGeneratorMode() const { return CurrentCoreMeshGeneratorMode; }
 
 	void UpdateSolidifySettings(const UE::GeometryFlow::FMeshSolidifySettings& SolidifySettings);
 	const UE::GeometryFlow::FMeshSolidifySettings& GetCurrentSolidifySettings() const { return CurrentSolidifySettings; }
@@ -47,8 +63,14 @@ public:
 	void UpdateMorphologySettings(const UE::GeometryFlow::FVoxClosureSettings& MorphologySettings);
 	const UE::GeometryFlow::FVoxClosureSettings& GetCurrentMorphologySettings() const { return CurrentMorphologySettings; }
 
+	void UpdateMeshCleaningSettings(const UE::GeometryFlow::FMeshMakeCleanGeometrySettings& CleaningSettings);
+	const UE::GeometryFlow::FMeshMakeCleanGeometrySettings& GetCurrentMeshCleaningSettings() const { return CurrentCleanMeshSettings; }
+
 	void UpdateSimplifySettings(const UE::GeometryFlow::FMeshSimplifySettings& SimplifySettings);
 	const UE::GeometryFlow::FMeshSimplifySettings& GetCurrentSimplifySettings() const { return CurrentSimplifySettings; }
+
+	void UpdateNormalsSettings(const UE::GeometryFlow::FMeshNormalsSettings& NormalsSettings);
+	const UE::GeometryFlow::FMeshNormalsSettings& GetCurrentNormalsSettings() const { return CurrentNormalsSettings; }
 
 	void UpdateAutoUVSettings(const UE::GeometryFlow::FMeshAutoGenerateUVsSettings& AutoUVSettings);
 	const UE::GeometryFlow::FMeshAutoGenerateUVsSettings& GetCurrentAutoUVSettings() const { return CurrentAutoUVSettings; }
@@ -88,6 +110,9 @@ protected:
 	UE::GeometryFlow::FGraph::FHandle FilterTrianglesNode;
 	FMeshLODGraphPreFilterSettings CurrentPreFilterSettings;
 
+	UE::GeometryFlow::FGraph::FHandle MeshGeneratorSwitchNode;
+	ECoreMeshGeneratorMode CurrentCoreMeshGeneratorMode = ECoreMeshGeneratorMode::SolidifyAndClose;
+
 	UE::GeometryFlow::FGraph::FHandle SolidifyNode;
 	UE::GeometryFlow::FGraph::FHandle SolidifySettingsNode;
 	UE::GeometryFlow::FMeshSolidifySettings CurrentSolidifySettings;
@@ -96,12 +121,17 @@ protected:
 	UE::GeometryFlow::FGraph::FHandle MorphologySettingsNode;
 	UE::GeometryFlow::FVoxClosureSettings CurrentMorphologySettings;
 
+	UE::GeometryFlow::FGraph::FHandle CleanMeshNode;
+	UE::GeometryFlow::FGraph::FHandle CleanMeshSettingsNode;
+	UE::GeometryFlow::FMeshMakeCleanGeometrySettings CurrentCleanMeshSettings;
+
 	UE::GeometryFlow::FGraph::FHandle SimplifyNode;
 	UE::GeometryFlow::FGraph::FHandle SimplifySettingsNode;
 	UE::GeometryFlow::FMeshSimplifySettings CurrentSimplifySettings;
 
 	UE::GeometryFlow::FGraph::FHandle NormalsNode;
 	UE::GeometryFlow::FGraph::FHandle NormalsSettingsNode;
+	UE::GeometryFlow::FMeshNormalsSettings CurrentNormalsSettings;
 
 	UE::GeometryFlow::FGraph::FHandle AutoUVNode;
 	UE::GeometryFlow::FGraph::FHandle AutoUVSettingsNode;

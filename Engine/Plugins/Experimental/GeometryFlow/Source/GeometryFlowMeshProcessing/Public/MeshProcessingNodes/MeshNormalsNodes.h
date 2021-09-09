@@ -80,6 +80,11 @@ public:
 			MeshInOut.EnableAttributes();
 		}
 		FDynamicMeshNormalOverlay* Normals = MeshInOut.Attributes()->PrimaryNormals();
+		if (Normals == nullptr)
+		{
+			MeshInOut.Attributes()->SetNumNormalLayers(1);
+			Normals = MeshInOut.Attributes()->PrimaryNormals();
+		}
 
 		if (Settings.NormalsType == EComputeNormalsType::PerTriangle)
 		{
@@ -120,43 +125,38 @@ public:
 /**
  * Recompute per-vertex normals in Normals Overlay for input mesh. Can apply in-place.
  */
-class FComputeMeshPerVertexOverlayNormalsNode : public FProcessMeshBaseNode
+class FComputeMeshPerVertexOverlayNormalsNode : public FSimpleInPlaceProcessMeshBaseNode
 {
 public:
-	FComputeMeshPerVertexOverlayNormalsNode()
-	{
-		// we can mutate input mesh
-		ConfigureInputFlags(InParamMesh(), FNodeInputFlags::Transformable());
-	}
-
-	virtual void ProcessMesh(
-		const FNamedDataMap& DatasIn,
-		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
-	{
-		MeshOut = MeshIn;
-		if (MeshOut.HasAttributes() == false)
-		{
-			MeshOut.EnableAttributes();
-		}
-		FDynamicMeshNormalOverlay* Normals = MeshOut.Attributes()->PrimaryNormals();
-		FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, false);
-	}
-
-	virtual void ProcessMeshInPlace(
-		const FNamedDataMap& DatasIn,
-		FDynamicMesh3& MeshInOut) override
+	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut)
 	{
 		if (MeshInOut.HasAttributes() == false)
 		{
 			MeshInOut.EnableAttributes();
 		}
 		FDynamicMeshNormalOverlay* Normals = MeshInOut.Attributes()->PrimaryNormals();
+		if (Normals == nullptr)
+		{
+			MeshInOut.Attributes()->SetNumNormalLayers(1);
+			Normals = MeshInOut.Attributes()->PrimaryNormals();
+		}
 		FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, false);
 	}
-
 };
 
+
+
+/**
+ * Recompute per-vertex normals stored directly on the mesh. Can apply in-place.
+ */
+class FComputeMeshPerVertexNormalsNode : public FSimpleInPlaceProcessMeshBaseNode
+{
+public:
+	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut)
+	{
+		FMeshNormals::QuickComputeVertexNormals(MeshInOut, false);
+	}
+};
 
 
 

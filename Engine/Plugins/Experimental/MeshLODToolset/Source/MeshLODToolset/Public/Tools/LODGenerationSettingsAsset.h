@@ -37,6 +37,9 @@ public:
 	FGenerateStaticMeshLODProcess_SimplifySettings Simplification;
 
 	UPROPERTY(EditAnywhere, Category=Settings)
+	FGenerateStaticMeshLODProcess_NormalsSettings Normals;
+
+	UPROPERTY(EditAnywhere, Category=Settings)
 	FGenerateStaticMeshLODProcess_TextureSettings TextureBaking;
 
 	UPROPERTY(EditAnywhere, Category=Settings)

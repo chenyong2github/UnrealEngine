@@ -76,6 +76,7 @@ namespace GenerateStaticMeshLODAssetLocals
 		FGenerateStaticMeshLODProcess_PreprocessSettings GeneratorSettings_Preprocess;
 		FGenerateStaticMeshLODProcessSettings GeneratorSettings_MeshGeneration;
 		FGenerateStaticMeshLODProcess_SimplifySettings GeneratorSettings_Simplify;
+		FGenerateStaticMeshLODProcess_NormalsSettings GeneratorSettings_Normals;
 		FGenerateStaticMeshLODProcess_TextureSettings GeneratorSettings_Texture;
 		FGenerateStaticMeshLODProcess_UVSettings GeneratorSettings_UV;
 		FGenerateStaticMeshLODProcess_CollisionSettings GeneratorSettings_Collision;
@@ -105,6 +106,7 @@ namespace GenerateStaticMeshLODAssetLocals
 				GenerateProcess->UpdatePreprocessSettings(GeneratorSettings_Preprocess);
 				GenerateProcess->UpdateSettings(GeneratorSettings_MeshGeneration);
 				GenerateProcess->UpdateSimplifySettings(GeneratorSettings_Simplify);
+				GenerateProcess->UpdateNormalsSettings(GeneratorSettings_Normals);
 				GenerateProcess->UpdateTextureSettings(GeneratorSettings_Texture);
 				GenerateProcess->UpdateUVSettings(GeneratorSettings_UV);
 				GenerateProcess->UpdateCollisionSettings(GeneratorSettings_Collision);
@@ -165,6 +167,7 @@ namespace GenerateStaticMeshLODAssetLocals
 			Op->GeneratorSettings_Preprocess = AutoLODTool->BasicProperties->Preprocessing;
 			Op->GeneratorSettings_MeshGeneration = AutoLODTool->BasicProperties->MeshGeneration;
 			Op->GeneratorSettings_Simplify = AutoLODTool->BasicProperties->Simplification;
+			Op->GeneratorSettings_Normals = AutoLODTool->BasicProperties->Normals;
 			Op->GeneratorSettings_Texture = AutoLODTool->BasicProperties->TextureBaking;
 			Op->GeneratorSettings_UV = AutoLODTool->BasicProperties->UVGeneration;
 			Op->GeneratorSettings_Collision.CollisionGroupLayerName = AutoLODTool->BasicProperties->CollisionGroupLayerName;
@@ -316,6 +319,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	BasicProperties->Preprocessing = GenerateProcess->GetCurrentPreprocessSettings();
 	BasicProperties->MeshGeneration = GenerateProcess->GetCurrentSettings();
 	BasicProperties->Simplification = GenerateProcess->GetCurrentSimplifySettings();
+	BasicProperties->Normals = GenerateProcess->GetCurrentNormalsSettings();
 	BasicProperties->TextureBaking = GenerateProcess->GetCurrentTextureSettings();
 	BasicProperties->UVGeneration = GenerateProcess->GetCurrentUVSettings();
 	BasicProperties->SimpleCollision = GenerateProcess->GetCurrentCollisionSettings();
@@ -545,6 +549,7 @@ void UGenerateStaticMeshLODAssetTool::RequestPresetAction(EGenerateLODAssetToolP
 		CurrentPreset->Preprocessing = BasicProperties->Preprocessing;
 		CurrentPreset->MeshGeneration = BasicProperties->MeshGeneration;
 		CurrentPreset->Simplification = BasicProperties->Simplification;
+		CurrentPreset->Normals = BasicProperties->Normals;
 		CurrentPreset->TextureBaking = BasicProperties->TextureBaking;
 		CurrentPreset->UVGeneration = BasicProperties->UVGeneration;
 		CurrentPreset->SimpleCollision = BasicProperties->SimpleCollision;
@@ -564,6 +569,7 @@ void UGenerateStaticMeshLODAssetTool::OnPresetSelectionChanged()
 		BasicProperties->Preprocessing = ApplyPreset->Preprocessing;
 		BasicProperties->MeshGeneration = ApplyPreset->MeshGeneration;
 		BasicProperties->Simplification = ApplyPreset->Simplification;
+		BasicProperties->Normals = ApplyPreset->Normals;
 		BasicProperties->TextureBaking = ApplyPreset->TextureBaking;
 		BasicProperties->UVGeneration = ApplyPreset->UVGeneration;
 		BasicProperties->SimpleCollision = ApplyPreset->SimpleCollision;
