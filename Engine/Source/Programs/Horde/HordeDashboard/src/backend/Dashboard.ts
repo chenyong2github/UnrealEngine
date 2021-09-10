@@ -195,7 +195,7 @@ export class Dashboard {
         }
 
         if (update) {
-            this.setUpdated();
+            this.setDarkThemeUpdated();
         }
 
     }
@@ -354,6 +354,15 @@ export class Dashboard {
     @action
     private setUpdated() {
         this.updated++;
+    }
+
+    /** Separate observable for dark theme as is a hook at very top component */
+    @observable
+    darkThemeUpdated: number = 0;
+
+    @action
+    private setDarkThemeUpdated() {
+        this.darkThemeUpdated++;
     }
 
     get available(): boolean {
