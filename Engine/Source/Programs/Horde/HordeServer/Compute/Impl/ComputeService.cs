@@ -40,6 +40,7 @@ namespace HordeServer.Compute.Impl
 {
 	using ChannelId = StringId<IComputeChannel>;
 	using NamespaceId = StringId<INamespace>;
+	using Condition = HordeServer.Utilities.Condition;
 
 	/// <summary>
 	/// Information about a particular task
@@ -123,13 +124,21 @@ namespace HordeServer.Compute.Impl
 	/// </summary>
 	class ComputeService : IComputeService, IDisposable
 	{
+		class QueueInfo
+		{
+			public Requirements? Requirements;
+			public Condition? Condition;
+		}
+
 		public MessageDescriptor Descriptor => ComputeTaskMessage.Descriptor;
 
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
-		ITaskScheduler<ComputeTaskInfo> TaskScheduler;
+		IObjectCollection ObjectCollection;
+		ITaskScheduler<IoHash, ComputeTaskInfo> TaskScheduler;
 		RedisMessageQueue<ComputeTaskStatus> MessageQueue;
 		BackgroundTick ExpireTasksTicker;
+		IMemoryCache RequirementsCache;
 		ILogger Logger;
 
 		/// <summary>
@@ -140,9 +149,11 @@ namespace HordeServer.Compute.Impl
 		/// <param name="Logger">The logger instance</param>
 		public ComputeService(IDatabase Redis, IObjectCollection ObjectCollection, ILogger<ComputeService> Logger)
 		{
-			this.TaskScheduler = new RedisTaskScheduler<ComputeTaskInfo>(Redis, ObjectCollection, DefaultNamespaceId, "compute/tasks/", Logger);
+			this.ObjectCollection = ObjectCollection;
+			this.TaskScheduler = new RedisTaskScheduler<IoHash, ComputeTaskInfo>(Redis, "compute/tasks/", Logger);
 			this.MessageQueue = new RedisMessageQueue<ComputeTaskStatus>(Redis, "compute/messages/");
 			this.ExpireTasksTicker = new BackgroundTick(ExpireTasksAsync, TimeSpan.FromMinutes(2.0), Logger);
+			this.RequirementsCache = new MemoryCache(new MemoryCacheOptions());
 			this.Logger = Logger;
 		}
 
@@ -176,6 +187,7 @@ namespace HordeServer.Compute.Impl
 		{
 			MessageQueue.Dispose();
 			ExpireTasksTicker.Dispose();
+			RequirementsCache.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -186,7 +198,7 @@ namespace HordeServer.Compute.Impl
 			{
 				ComputeTaskInfo TaskInfo = new ComputeTaskInfo(TaskHash, ChannelId);
 				Logger.LogDebug("Adding task {TaskHash} to queue {RequirementsHash}", TaskInfo.TaskHash.Hash, RequirementsHash);
-				Tasks.Add(TaskScheduler.EnqueueAsync(TaskInfo, RequirementsHash));
+				Tasks.Add(TaskScheduler.EnqueueAsync(RequirementsHash, TaskInfo));
 			}
 			await Task.WhenAll(Tasks);
 		}
@@ -201,16 +213,18 @@ namespace HordeServer.Compute.Impl
 				return null;
 			}
 
-			TaskSchedulerEntry<ComputeTaskInfo>? Entry = await TaskScheduler.DequeueAsync(Agent, CancellationToken);
-			if(Entry != null)
+			(IoHash, ComputeTaskInfo)? Entry = await TaskScheduler.DequeueAsync(RequirementsHash => CheckRequirements(Agent, RequirementsHash), CancellationToken);
+			if (Entry != null)
 			{
-				ComputeTaskMessage ComputeTask = new ComputeTaskMessage();
-				ComputeTask.ChannelId = Entry.Item.ChannelId.ToString();
-				ComputeTask.NamespaceId = DefaultNamespaceId.ToString();
-				ComputeTask.RequirementsHash = Entry.RequirementsHash;
-				ComputeTask.TaskHash = Entry.Item.TaskHash;
+				(IoHash RequirementsHash, ComputeTaskInfo TaskInfo) = Entry.Value;
 
-				string LeaseName = $"Remote action ({Entry.Item.TaskHash})";
+				ComputeTaskMessage ComputeTask = new ComputeTaskMessage();
+				ComputeTask.ChannelId = TaskInfo.ChannelId.ToString();
+				ComputeTask.NamespaceId = DefaultNamespaceId.ToString();
+				ComputeTask.RequirementsHash = new CbObjectAttachment(RequirementsHash);
+				ComputeTask.TaskHash = TaskInfo.TaskHash;
+
+				string LeaseName = $"Remote action ({TaskInfo.TaskHash})";
 				byte[] Payload = Any.Pack(ComputeTask).ToByteArray();
 
 				AgentLease Lease = new AgentLease(ObjectId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, Payload, new AgentRequirements(), null);
@@ -225,7 +239,7 @@ namespace HordeServer.Compute.Impl
 		{
 			ComputeTaskMessage Message = Payload.Unpack<ComputeTaskMessage>();
 			ComputeTaskInfo TaskInfo = new ComputeTaskInfo(Message.TaskHash, new ChannelId(Message.ChannelId));
-			return TaskScheduler.EnqueueAsync(TaskInfo, Message.RequirementsHash);
+			return TaskScheduler.EnqueueAsync((CbObjectAttachment)Message.RequirementsHash, TaskInfo);
 		}
 
 		/// <inheritdoc/>
@@ -264,6 +278,103 @@ namespace HordeServer.Compute.Impl
 
 			Logger.LogInformation("Compute lease finished (lease: {LeaseId}, task: {TaskHash}, agent: {AgentId}, channel: {ChannelId}, result: {ResultHash})", LeaseId, (CbObjectAttachment)ComputeTask.TaskHash, Agent.Id, ComputeTask.ChannelId, Status.ResultHash?.Hash ?? IoHash.Zero);
 			return MessageQueue.PostAsync(ComputeTask.ChannelId, Status);
+		}
+
+		/// <summary>
+		/// Checks that an agent matches the necessary criteria to execute a task
+		/// </summary>
+		/// <param name="Agent"></param>
+		/// <param name="RequirementsHash"></param>
+		/// <returns></returns>
+		async ValueTask<bool> CheckRequirements(IAgent Agent, IoHash RequirementsHash)
+		{
+			QueueInfo QueueInfo = await GetQueueInfoAsync(RequirementsHash);
+			if (QueueInfo.Requirements == null)
+			{
+				return false;
+			}
+
+			if (!QueueInfo.Requirements.Condition.IsEmpty)
+			{
+				if (QueueInfo.Condition == null)
+				{
+					return false;
+				}
+				else if (!QueueInfo.Condition.Evaluate(x => GetAgentProperty(Agent, x)))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Gets a named property for an agent
+		/// </summary>
+		/// <param name="Agent">The agent instance</param>
+		/// <param name="Name">Name of the property to read</param>
+		/// <returns>The property value, or an empty string if it does not eixst</returns>
+		static Scalar GetAgentProperty(IAgent Agent, string Name)
+		{
+			if (Name.Equals("Name", StringComparison.OrdinalIgnoreCase))
+			{
+				return Agent.Id.ToString();
+			}
+
+			HashSet<string>? Properties = Agent.Capabilities.PrimaryDevice.Properties;
+			if (Properties != null)
+			{
+				foreach (string Property in Properties)
+				{
+					if (Property.Length > Name.Length && Property[Name.Length] == '=' && Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase))
+					{
+						return Property.Substring(Name.Length + 1);
+					}
+				}
+			}
+			return new Scalar("");
+		}
+
+		/// <summary>
+		/// Gets the requirements object from the CAS
+		/// </summary>
+		/// <param name="RequirementsHash"></param>
+		/// <returns></returns>
+		async ValueTask<QueueInfo> GetQueueInfoAsync(IoHash RequirementsHash)
+		{
+			QueueInfo? Info;
+			if (!RequirementsCache.TryGetValue(RequirementsHash, out Info))
+			{
+				Info = new QueueInfo();
+				Info.Requirements = await ObjectCollection.GetAsync<Requirements>(DefaultNamespaceId, RequirementsHash);
+
+				if (Info.Requirements != null && !Info.Requirements.Condition.IsEmpty)
+				{
+					try
+					{
+						Info.Condition = Condition.Parse(Info.Requirements.Condition.ToString());
+					}
+					catch (Exception Ex)
+					{
+						Logger.LogError(Ex, "Unable to parse condition '{Condition}': {Message}", Info.Requirements.Condition.ToString(), Ex.Message);
+					}
+				}
+
+				using (ICacheEntry Entry = RequirementsCache.CreateEntry(RequirementsHash))
+				{
+					if (Info.Requirements == null)
+					{
+						Entry.SetAbsoluteExpiration(TimeSpan.FromSeconds(10.0));
+					}
+					else
+					{
+						Entry.SetSlidingExpiration(TimeSpan.FromMinutes(10.0));
+					}
+					Entry.SetValue(Info);
+				}
+			}
+			return Info!;
 		}
 	}
 
