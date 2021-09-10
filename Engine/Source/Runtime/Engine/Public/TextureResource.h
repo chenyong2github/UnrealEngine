@@ -62,8 +62,6 @@ struct FTexture2DMipMap
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner, int32 MipIndex);
 
 #if WITH_EDITORONLY_DATA
-	void SerializeWithConditionalBulkData(FArchive& Ar, UObject* Owner, int32 MipIndex);
-
 	/** The file region type appropriate for this mip's pixel format. */
 	EFileRegionType FileRegionType = EFileRegionType::None;
 
@@ -80,8 +78,6 @@ struct FTexture2DMipMap
 	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC);
 
 #endif // #if WITH_EDITORONLY_DATA
-private:
-	void SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipIndex, bool bBulkDataConditionalOnKey);
 };
 
 /** 

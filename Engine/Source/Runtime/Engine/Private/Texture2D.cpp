@@ -138,21 +138,13 @@ extern bool TrackTextureEvent( FStreamingRenderAsset* StreamingTexture, UStreama
 	FTexture2DMipMap
 -----------------------------------------------------------------------------*/
 
-void FTexture2DMipMap::SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipIdx, bool bIgnoreBulkDataForStreamingMips)
+void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 {
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
 
 #if WITH_EDITORONLY_DATA
-	if (bIgnoreBulkDataForStreamingMips && IsPagedToDerivedData())
-	{
-		FByteBulkData EmptyData;
-		EmptyData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
-	}
-	else
-	{
-		BulkData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
-	}
+	BulkData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
 #else
 	BulkData.Serialize(Ar, Owner, MipIdx, false);
 #endif
@@ -170,17 +162,7 @@ void FTexture2DMipMap::SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipId
 #endif // #if WITH_EDITORONLY_DATA
 }
 
-void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
-{
-	SerializeCommon(Ar, Owner, MipIdx, false);
-}
-
 #if WITH_EDITORONLY_DATA
-void FTexture2DMipMap::SerializeWithConditionalBulkData(FArchive& Ar, UObject* Owner, int32 MipIdx)
-{
-	SerializeCommon(Ar, Owner, MipIdx, true);
-}
-
 uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
 {
 	int32 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
