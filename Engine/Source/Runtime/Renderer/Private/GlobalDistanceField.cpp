@@ -893,7 +893,7 @@ static void TrimOverlappingAxis(int32 TrimAxis, float CellSize, const FVolumeUpd
 	}
 }
 
-static void AllocateClipmapTexture(FRHICommandListImmediate& RHICmdList, int32 ClipmapIndex, FGlobalDFCacheType CacheType, TRefCountPtr<IPooledRenderTarget>& Texture)
+static void AllocateClipmapTexture(FRHICommandListImmediate& RHICmdList, int32 ClipmapIndex, FGlobalDFCacheType CacheType, TRefCountPtr<IPooledRenderTarget>& Texture, FStaticShaderPlatform ShaderPlatform)
 {
 	const TCHAR* TextureName = CacheType == GDF_MostlyStatic ? TEXT("MostlyStaticGlobalDistanceField0") : TEXT("GlobalDistanceField0");
 
@@ -910,6 +910,13 @@ static void AllocateClipmapTexture(FRHICommandListImmediate& RHICmdList, int32 C
 		TextureName = CacheType == GDF_MostlyStatic ? TEXT("MostlyStaticGlobalDistanceField3") : TEXT("GlobalDistanceField3");
 	}
 
+	ETextureCreateFlags TexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV;
+
+	if (!IsVulkanPlatform(ShaderPlatform))
+	{
+		TexCreateFlags |= TexCreate_ReduceMemoryWithTilingMode;
+	}
+
 	FPooledRenderTargetDesc VolumeDesc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
 		GAOGlobalDFResolution,
 		GAOGlobalDFResolution,
@@ -917,9 +924,9 @@ static void AllocateClipmapTexture(FRHICommandListImmediate& RHICmdList, int32 C
 		PF_R16F,
 		FClearValueBinding::None,
 		TexCreate_None,
-		// TexCreate_ReduceMemoryWithTilingMode used because 128^3 texture comes out 4x bigger on PS4 with recommended volume texture tiling modes
-		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode,
+		TexCreateFlags,
 		false));
+
 	VolumeDesc.AutoWritable = false;
 
 	GRenderTargetPool.FindFreeElement(
@@ -1026,7 +1033,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 					if (!RenderTarget || RenderTarget->GetDesc().Extent.X != GAOGlobalDFResolution)
 					{
-						AllocateClipmapTexture(RHICmdList, ClipmapIndex, (FGlobalDFCacheType)CacheType, RenderTarget);
+						AllocateClipmapTexture(RHICmdList, ClipmapIndex, (FGlobalDFCacheType)CacheType, RenderTarget, Scene->GetShaderPlatform());
 						bReallocated = true;
 					}
 				}
@@ -1266,7 +1273,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 					? &GlobalDistanceFieldInfo.MostlyStaticClipmaps[ClipmapIndex]
 					: &GlobalDistanceFieldInfo.Clipmaps[ClipmapIndex]);
 
-				AllocateClipmapTexture(RHICmdList, ClipmapIndex, (FGlobalDFCacheType)CacheType, Clipmap.RenderTarget);
+				AllocateClipmapTexture(RHICmdList, ClipmapIndex, (FGlobalDFCacheType)CacheType, Clipmap.RenderTarget, Scene->GetShaderPlatform());
 				Clipmap.ScrollOffset = FVector::ZeroVector;
 
 				const float Extent = ComputeClipmapExtent(ClipmapIndex, Scene);

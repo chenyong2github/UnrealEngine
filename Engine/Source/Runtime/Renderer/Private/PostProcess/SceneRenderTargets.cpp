@@ -1622,7 +1622,12 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 			const int32 TranslucencyLightingVolumeDim = GetTranslucencyLightingVolumeDim();
 
 			// TODO: We can skip the and TLV allocations when rendering in forward shading mode
-			ETextureCreateFlags TranslucencyTargetFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_ReduceMemoryWithTilingMode;
+			ETextureCreateFlags TranslucencyTargetFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable;
+				
+			if (!IsVulkanPlatform(ShaderPlatform))
+			{
+				TranslucencyTargetFlags |= TexCreate_ReduceMemoryWithTilingMode;
+			}
 
 			if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
 			{

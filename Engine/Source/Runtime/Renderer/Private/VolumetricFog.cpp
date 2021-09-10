@@ -1161,7 +1161,13 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 		View.VolumetricFogResources.IntegratedLightScatteringTexture = nullptr;
 		TRDGUniformBufferRef<FFogUniformParameters> FogUniformBuffer = CreateFogUniformBuffer(GraphBuilder, View);
 
-		const ETextureCreateFlags Flags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode;
+		ETextureCreateFlags Flags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV;
+
+		if (!IsVulkanPlatform(ShaderPlatform))
+		{
+			Flags |= TexCreate_ReduceMemoryWithTilingMode;
+		}
+		
 		FRDGTextureDesc VolumeDesc(FRDGTextureDesc::Create3D(VolumetricFogGridSize, PF_FloatRGBA, FClearValueBinding::Black, Flags));
 		FRDGTextureDesc VolumeDescFastVRAM = VolumeDesc;
 		VolumeDescFastVRAM.Flags |= GFastVRamConfig.VolumetricFog;
