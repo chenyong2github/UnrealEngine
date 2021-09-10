@@ -194,6 +194,11 @@ export class Dashboard {
             localStorage?.removeItem("horde_darktheme");
         }
 
+        this.setStatusColor(DashboardPreference.ColorWarning, undefined);
+        this.setStatusColor(DashboardPreference.ColorError, undefined);
+        this.setStatusColor(DashboardPreference.ColorRunning, undefined);
+        this.setStatusColor(DashboardPreference.ColorSuccess, undefined);
+
         if (update) {
             this.setDarkThemeUpdated();
         }
