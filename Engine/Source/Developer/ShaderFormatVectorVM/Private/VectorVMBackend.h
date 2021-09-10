@@ -78,6 +78,7 @@ bool vm_flatten_branches_to_selects(exec_list *instructions, _mesa_glsl_parse_st
 void vm_to_single_op(exec_list *ir, _mesa_glsl_parse_state *state);
 void vm_merge_ops(exec_list *ir, _mesa_glsl_parse_state *state);
 void vm_scalarize_ops(exec_list* ir, _mesa_glsl_parse_state* state);
+bool vm_extract_scalar_ops(exec_list* ir, _mesa_glsl_parse_state* state);
 void vm_propagate_non_expressions_visitor(exec_list* ir, _mesa_glsl_parse_state* state);
 void vm_gen_bytecode(exec_list *ir, _mesa_glsl_parse_state *state, FVectorVMCompilationOutput& InCompOutput);
 
