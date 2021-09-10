@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SLevelSnapshotsEditorCreationForm.h"
+#include "Widgets/SLevelSnapshotsEditorCreationForm.h"
 
 #include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorStyle.h"
@@ -8,6 +8,7 @@
 #include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
 
 #include "EditorStyleSet.h"
+#include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
@@ -267,8 +268,10 @@ FText SLevelSnapshotsEditorCreationForm::GetNameOverrideText() const
 		return FText::FromString(DataManagementSettingsObjectPtr.Get()->GetNameOverride());
 	}
 
-	return 	ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(FText::FromString(
-		DataManagementSettingsObjectPtr.Get()->GetNameOverride()), World->GetName());
+	return 	ULevelSnapshotsEditorDataManagementSettings::ParseLevelSnapshotsTokensInText(
+		FText::FromString(DataManagementSettingsObjectPtr.Get()->GetNameOverride()),
+		World->GetName()
+		);
 }
 
 void SLevelSnapshotsEditorCreationForm::SetNameOverrideText(const FText& InNewText, ETextCommit::Type InCommitType)

@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Views/SnapshotEditorViewData.h"
 #include "Templates/SharedPointer.h"
 
+class SWidget;
 class SLevelSnapshotsEditorInput;
 
 struct FAssetData;

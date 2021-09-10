@@ -3,6 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ComponentInstanceDataCache.h"
+
+class AActor;
+class UActorComponent;
 
 struct FPropertySelection;
 struct FPropertySelectionMap;

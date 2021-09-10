@@ -4,7 +4,7 @@
 
 #include "LevelSnapshotsModule.h"
 
-FApplySnapshotToActorScope::FApplySnapshotToActorScope(FApplySnapshotToActorParams Params)
+FApplySnapshotToActorScope::FApplySnapshotToActorScope(const FApplySnapshotToActorParams& Params)
 	:
 	Params(Params)
 {

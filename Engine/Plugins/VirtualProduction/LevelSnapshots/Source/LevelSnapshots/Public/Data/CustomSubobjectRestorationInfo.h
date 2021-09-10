@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-
-class UActorComponent;
+#include "UObject/Object.h"
 
 /* Holds all properties that should be restored for an object. */
 struct LEVELSNAPSHOTS_API FCustomSubobjectRestorationInfo

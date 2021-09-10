@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 
 class AActor;
+class UActorComponent;
 class UObject;
+
 struct FWorldSnapshotData;
 
 namespace SnapshotUtil

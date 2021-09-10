@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ComponentInstanceDataCache.h"
+#include "Templates/UnrealTemplate.h"
 
+class AActor;
 struct FSubobjectSnapshotData;
 
 /**

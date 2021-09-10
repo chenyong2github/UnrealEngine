@@ -14,14 +14,14 @@
 #include "SAssetDropTarget.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
 namespace
 {
-	constexpr const auto ComboButtonStyle = TEXT("RoundButton");
-	constexpr const auto FontStyle = TEXT("GenericFilters.TextStyle");
-
 	void SaveAs(TWeakObjectPtr<UFilterLoader> FilterLoader)
 	{
 		FilterLoader->SaveAs();

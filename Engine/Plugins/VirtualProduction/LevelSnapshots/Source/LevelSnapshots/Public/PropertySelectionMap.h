@@ -7,9 +7,10 @@
 #include "Data/CustomSubobjectRestorationInfo.h"
 #include "Data/PropertySelection.h"
 #include "Data/RestorableObjectSelection.h"
+#include "GameFramework/Actor.h"
 #include "PropertySelectionMap.generated.h"
 
-class AActor;
+class UActorComponent;
 struct FPropertySelectionMap;
 
 /* Binds an object to its selected properties */
