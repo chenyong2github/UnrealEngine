@@ -348,7 +348,7 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		ImageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 	}
 
-#if VULKAN_SUPPORTS_EXTERNAL_MEMORY
+#if VULKAN_SUPPORTS_EXTERNAL_MEMORY && PLATFORM_DESKTOP
 	if (UEFlags & TexCreate_External)
 	{
 		VkExternalMemoryImageCreateInfoKHR& ExternalMemImageCreateInfo = OutImageCreateInfo.ExternalMemImageCreateInfo;
@@ -361,7 +361,7 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		ExternalMemImageCreateInfo.pNext = ImageCreateInfo.pNext;
     	ImageCreateInfo.pNext = &ExternalMemImageCreateInfo;
 	}
-#endif // VULKAN_SUPPORTS_EXTERNAL_MEMORY
+#endif // VULKAN_SUPPORTS_EXTERNAL_MEMORY && PLATFORM_DESKTOP
 
 	//#todo-rco: If using CONCURRENT, make sure to NOT do so on render targets as that kills DCC compression
 	ImageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
