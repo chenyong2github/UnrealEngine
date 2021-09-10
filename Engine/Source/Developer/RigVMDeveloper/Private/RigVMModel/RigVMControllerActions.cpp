@@ -138,6 +138,7 @@ void URigVMActionStack::PostTransacted(const FTransactionObjectEvent& Transactio
 			}
 			if (!Undo(Controller))
 			{
+				ModifiedEvent.Broadcast(ERigVMGraphNotifType::InteractionBracketCanceled, nullptr, nullptr);
 				return;
 			}
 		}
@@ -149,6 +150,7 @@ void URigVMActionStack::PostTransacted(const FTransactionObjectEvent& Transactio
 			}
 			if (!Redo(Controller))
 			{
+				ModifiedEvent.Broadcast(ERigVMGraphNotifType::InteractionBracketCanceled, nullptr, nullptr);
 				return;
 			}
 		}

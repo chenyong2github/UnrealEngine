@@ -135,6 +135,11 @@ class URigVMActionStack : public UObject
 {
 	GENERATED_BODY()
 
+	virtual ~URigVMActionStack()
+	{
+		ensure(CurrentActions.IsEmpty());
+	}
+
 public:
 
 	// Begins an action and opens a bracket / scope.

@@ -344,170 +344,170 @@ void UControlRigBlueprint::PostLoad()
 {
 	Super::PostLoad();
 
-	IncrementVMRecompileBracket();
-
-	TArray<UControlRigBlueprint*> ReferencedBlueprints = GetReferencedControlRigBlueprints();
-
-	// PostLoad all referenced BPs so that their function graphs are fully loaded 
-	// and ready to be inlined into this BP during compilation
-	for (UControlRigBlueprint* BP : ReferencedBlueprints)
 	{
-		if (BP->HasAllFlags(RF_NeedPostLoad))
-		{
-			BP->ConditionalPostLoad();
-		}
-	}
-	
-	// temporarily disable default value validation during load time, serialized values should always be accepted
-	TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
+		FControlRigBlueprintVMCompileScope CompileScope(this);
+		TArray<UControlRigBlueprint*> ReferencedBlueprints = GetReferencedControlRigBlueprints();
 
-	// correct the offset transforms
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlOffsetTransform)
-	{
-		HierarchyContainer_DEPRECATED.ControlHierarchy.PostLoad();
-		if (HierarchyContainer_DEPRECATED.ControlHierarchy.Num() > 0)
+		// PostLoad all referenced BPs so that their function graphs are fully loaded 
+		// and ready to be inlined into this BP during compilation
+		for (UControlRigBlueprint* BP : ReferencedBlueprints)
 		{
-			bDirtyDuringLoad = true;
-		}
-
-		for (FRigControl& Control : HierarchyContainer_DEPRECATED.ControlHierarchy)
-		{
-			const FTransform PreviousOffsetTransform = Control.GetTransformFromValue(ERigControlValueType::Initial);
-			Control.OffsetTransform = PreviousOffsetTransform;
-			Control.InitialValue = Control.Value;
-
-			if (Control.ControlType == ERigControlType::Transform)
+			if (BP->HasAllFlags(RF_NeedPostLoad))
 			{
-				Control.InitialValue = FRigControlValue::Make<FTransform>(FTransform::Identity);
-			}
-			else if (Control.ControlType == ERigControlType::TransformNoScale)
-			{
-				Control.InitialValue = FRigControlValue::Make<FTransformNoScale>(FTransformNoScale::Identity);
-			}
-			else if (Control.ControlType == ERigControlType::EulerTransform)
-			{
-				Control.InitialValue = FRigControlValue::Make<FEulerTransform>(FEulerTransform::Identity);
+				BP->ConditionalPostLoad();
 			}
 		}
-	}
-
-	// convert the hierarchy from V1 to V2
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RigHierarchyV2)
-	{
-		Modify();
 		
-		TGuardValue<bool> SuspendNotifGuard(Hierarchy->GetSuspendNotificationsFlag(), true);
+		// temporarily disable default value validation during load time, serialized values should always be accepted
+		TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
+
+		// correct the offset transforms
+		if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlOffsetTransform)
+		{
+			HierarchyContainer_DEPRECATED.ControlHierarchy.PostLoad();
+			if (HierarchyContainer_DEPRECATED.ControlHierarchy.Num() > 0)
+			{
+				bDirtyDuringLoad = true;
+			}
+
+			for (FRigControl& Control : HierarchyContainer_DEPRECATED.ControlHierarchy)
+			{
+				const FTransform PreviousOffsetTransform = Control.GetTransformFromValue(ERigControlValueType::Initial);
+				Control.OffsetTransform = PreviousOffsetTransform;
+				Control.InitialValue = Control.Value;
+
+				if (Control.ControlType == ERigControlType::Transform)
+				{
+					Control.InitialValue = FRigControlValue::Make<FTransform>(FTransform::Identity);
+				}
+				else if (Control.ControlType == ERigControlType::TransformNoScale)
+				{
+					Control.InitialValue = FRigControlValue::Make<FTransformNoScale>(FTransformNoScale::Identity);
+				}
+				else if (Control.ControlType == ERigControlType::EulerTransform)
+				{
+					Control.InitialValue = FRigControlValue::Make<FEulerTransform>(FEulerTransform::Identity);
+				}
+			}
+		}
+
+		// convert the hierarchy from V1 to V2
+		if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RigHierarchyV2)
+		{
+			Modify();
+			
+			TGuardValue<bool> SuspendNotifGuard(Hierarchy->GetSuspendNotificationsFlag(), true);
+			
+			Hierarchy->Reset();
+			GetHierarchyController()->ImportFromHierarchyContainer(HierarchyContainer_DEPRECATED, false);
+		}
+
+		PropagateHierarchyFromBPToInstances();
 		
-		Hierarchy->Reset();
-		GetHierarchyController()->ImportFromHierarchyContainer(HierarchyContainer_DEPRECATED, false);
-	}
-
-	PropagateHierarchyFromBPToInstances();
-	
-	// remove all non-controlrig-graphs
-	TArray<UEdGraph*> NewUberGraphPages;
-	for (UEdGraph* Graph : UbergraphPages)
-	{
-		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
-		if (RigGraph)
+		// remove all non-controlrig-graphs
+		TArray<UEdGraph*> NewUberGraphPages;
+		for (UEdGraph* Graph : UbergraphPages)
 		{
-			NewUberGraphPages.Add(RigGraph);
+			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			if (RigGraph)
+			{
+				NewUberGraphPages.Add(RigGraph);
+			}
+			else
+			{
+				Graph->MarkPendingKill();
+				Graph->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
+			}
 		}
-		else
-		{
-			Graph->MarkPendingKill();
-			Graph->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-		}
-	}
-	UbergraphPages = NewUberGraphPages;
+		UbergraphPages = NewUberGraphPages;
 
-	InitializeModelIfRequired(false /* recompile vm */);
+		InitializeModelIfRequired(false /* recompile vm */);
 
-	PatchVariableNodesOnLoad();
+		PatchVariableNodesOnLoad();
 
 #if WITH_EDITOR
 
-	TArray<URigVMGraph*> GraphsToDetach;
-	GraphsToDetach.Add(GetModel());
-	GraphsToDetach.Add(GetLocalFunctionLibrary());
+		TArray<URigVMGraph*> GraphsToDetach;
+		GraphsToDetach.Add(GetModel());
+		GraphsToDetach.Add(GetLocalFunctionLibrary());
 
-	if (ensure(IsInGameThread()))
-	{
+		if (ensure(IsInGameThread()))
+		{
+			for (URigVMGraph* GraphToDetach : GraphsToDetach)
+			{
+				URigVMController* Controller = GetOrCreateController(GraphToDetach);
+				Controller->DetachLinksFromPinObjects();
+				TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
+				for (URigVMNode* Node : Nodes)
+				{
+					Controller->RepopulatePinsOnNode(Node, true, false, true);
+				}
+			}
+			SetupPinRedirectorsForBackwardsCompatibility();
+		}
+
 		for (URigVMGraph* GraphToDetach : GraphsToDetach)
 		{
 			URigVMController* Controller = GetOrCreateController(GraphToDetach);
-			Controller->DetachLinksFromPinObjects();
-			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
-			for (URigVMNode* Node : Nodes)
+			Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
+		}
+
+		// perform backwards compat value upgrades
+		TArray<URigVMGraph*> GraphsToValidate = GetAllModels();
+		for (int32 GraphIndex = 0; GraphIndex < GraphsToValidate.Num(); GraphIndex++)
+		{
+			URigVMGraph* GraphToValidate = GraphsToValidate[GraphIndex];
+			if(GraphToValidate == nullptr)
 			{
-				Controller->RepopulatePinsOnNode(Node, true, false, true);
+				continue;
 			}
-		}
-		SetupPinRedirectorsForBackwardsCompatibility();
-	}
 
-	for (URigVMGraph* GraphToDetach : GraphsToDetach)
-	{
-		URigVMController* Controller = GetOrCreateController(GraphToDetach);
-		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
-	}
-
-	// perform backwards compat value upgrades
-	TArray<URigVMGraph*> GraphsToValidate = GetAllModels();
-	for (int32 GraphIndex = 0; GraphIndex < GraphsToValidate.Num(); GraphIndex++)
-	{
-		URigVMGraph* GraphToValidate = GraphsToValidate[GraphIndex];
-		if(GraphToValidate == nullptr)
-		{
-			continue;
-		}
-
-		for(URigVMNode* Node : GraphToValidate->GetNodes())
-		{
-			URigVMController* Controller = GetOrCreateController(GraphToValidate);
-			Controller->RemoveUnusedOrphanedPins(Node, false);
-		}
-			
-		for(URigVMNode* Node : GraphToValidate->GetNodes())
-		{
-			TArray<URigVMPin*> Pins = Node->GetAllPinsRecursively();
-			for(URigVMPin* Pin : Pins)
+			for(URigVMNode* Node : GraphToValidate->GetNodes())
 			{
-				if(Pin->GetCPPTypeObject() == StaticEnum<ERigElementType>())
+				URigVMController* Controller = GetOrCreateController(GraphToValidate);
+				Controller->RemoveUnusedOrphanedPins(Node, false);
+			}
+				
+			for(URigVMNode* Node : GraphToValidate->GetNodes())
+			{
+				TArray<URigVMPin*> Pins = Node->GetAllPinsRecursively();
+				for(URigVMPin* Pin : Pins)
 				{
-					if(Pin->GetDefaultValue() == TEXT("Space"))
+					if(Pin->GetCPPTypeObject() == StaticEnum<ERigElementType>())
 					{
-						if(URigVMController* Controller = GetController(GraphToValidate))
+						if(Pin->GetDefaultValue() == TEXT("Space"))
 						{
-							Controller->SuspendNotifications(true);
-							Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("Null"), false, false, false);
-							Controller->SuspendNotifications(false);
+							if(URigVMController* Controller = GetController(GraphToValidate))
+							{
+								Controller->SuspendNotifications(true);
+								Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("Null"), false, false, false);
+								Controller->SuspendNotifications(false);
+							}
+						}
+					}
+				}
+
+				if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+				{
+					if(URigVMLibraryNode* DependencyNode = FunctionReferenceNode->GetReferencedNode())
+					{
+						if(UControlRigBlueprint* DependencyBlueprint = DependencyNode->GetTypedOuter<UControlRigBlueprint>())
+						{
+							if(DependencyBlueprint != this)
+							{
+								DependencyBlueprint->GetLocalFunctionLibrary()->UpdateReferencesForReferenceNode(FunctionReferenceNode);
+							}
 						}
 					}
 				}
 			}
+		}	
 
-			if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
-			{
-				if(URigVMLibraryNode* DependencyNode = FunctionReferenceNode->GetReferencedNode())
-				{
-					if(UControlRigBlueprint* DependencyBlueprint = DependencyNode->GetTypedOuter<UControlRigBlueprint>())
-					{
-						if(DependencyBlueprint != this)
-						{
-							DependencyBlueprint->GetLocalFunctionLibrary()->UpdateReferencesForReferenceNode(FunctionReferenceNode);
-						}
-					}
-				}
-			}
-		}
-	}	
+		CompileLog.Messages.Reset();
+		CompileLog.NumErrors = CompileLog.NumWarnings = 0;
+#endif
+	}
 
-	CompileLog.Messages.Reset();
-	CompileLog.NumErrors = CompileLog.NumWarnings = 0;
-
-	
-	DecrementVMRecompileBracket();
 	RecompileVM();
 	RequestControlRigInit();
 
@@ -515,8 +515,6 @@ void UControlRigBlueprint::PostLoad()
 	OnChanged().RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &UControlRigBlueprint::OnPreVariableChange);
 	OnChanged().AddUObject(this, &UControlRigBlueprint::OnPostVariableChange);
-
-#endif
 
 	if (UPackage* Package = GetOutermost())
 	{
@@ -604,7 +602,6 @@ void UControlRigBlueprint::RecompileVM()
 		}
 
 		bVMRecompilationRequired = false;
-		VMRecompilationBracket = 0;
 		VMCompiledEvent.Broadcast(this, CDO->VM);
 
 #if WITH_EDITOR
@@ -1289,6 +1286,29 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 			}
 		}
 		return FRigVMController_BulkEditResult();
+	});
+
+	Controller->RequestNewExternalVariableDelegate.BindLambda([WeakThis](FRigVMGraphVariableDescription InVariable, bool bInIsPublic, bool bInIsReadOnly) -> FName
+	{
+		if (WeakThis.IsValid())
+		{
+			for (FBPVariableDescription& ExistingVariable : WeakThis->NewVariables)
+			{
+				if (ExistingVariable.VarName == InVariable.Name)
+				{
+					return FName();
+				}
+			}
+
+			FRigVMExternalVariable ExternalVariable = InVariable.ToExternalVariable();
+			return WeakThis->AddMemberVariable(InVariable.Name,
+				ExternalVariable.TypeObject ? ExternalVariable.TypeObject->GetPathName() : ExternalVariable.TypeName.ToString(),
+				bInIsPublic,
+				bInIsReadOnly,
+				InVariable.DefaultValue);
+		}
+		
+		return FName();
 	});
 	
 #endif

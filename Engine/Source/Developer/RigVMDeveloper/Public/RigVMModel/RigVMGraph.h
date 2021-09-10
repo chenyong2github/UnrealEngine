@@ -165,6 +165,7 @@ private:
 	bool IsNameAvailable(const FString& InName);
 
 	friend class URigVMController;
+	friend class FRigVMControllerCompileBracketScope;
 	friend class URigVMCompiler;
 	friend struct FRigVMControllerObjectFactory;
 };

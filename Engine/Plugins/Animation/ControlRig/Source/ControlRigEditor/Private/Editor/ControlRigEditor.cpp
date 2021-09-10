@@ -4842,40 +4842,42 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 					continue;
 				}
 
-				RigBlueprint->IncrementVMRecompileBracket();
-				for (UEdGraphNode* Node : RigGraph->Nodes)
 				{
-					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+					FControlRigBlueprintVMCompileScope CompileScope(RigBlueprint);
+					for (UEdGraphNode* Node : RigGraph->Nodes)
 					{
-						if (URigVMNode* ModelNode = RigNode->GetModelNode())
+						if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 						{
-							TArray<URigVMPin*> ModelPins = ModelNode->GetAllPinsRecursively();
-							for (URigVMPin * ModelPin : ModelPins)
+							if (URigVMNode* ModelNode = RigNode->GetModelNode())
 							{
-								if ((ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("BoneName") && ElementType == ERigElementType::Bone) ||
-                                    (ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("ControlName") && ElementType == ERigElementType::Control) ||
-                                    (ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("SpaceName") && ElementType == ERigElementType::Null) ||
-                                    (ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("CurveName") && ElementType == ERigElementType::Curve))
+								TArray<URigVMPin*> ModelPins = ModelNode->GetAllPinsRecursively();
+								for (URigVMPin * ModelPin : ModelPins)
 								{
-									if (ModelPin->GetDefaultValue() == OldNameStr)
+									if ((ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("BoneName") && ElementType == ERigElementType::Bone) ||
+										(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("ControlName") && ElementType == ERigElementType::Control) ||
+										(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("SpaceName") && ElementType == ERigElementType::Null) ||
+										(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("CurveName") && ElementType == ERigElementType::Curve))
 									{
-										Controller->SetPinDefaultValue(ModelPin->GetPinPath(), NewNameStr, false);
-									}
-								}
-								else if (ModelPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
-								{
-									if (URigVMPin* TypePin = ModelPin->FindSubPin(TEXT("Type")))
-									{
-										const FString TypeStr = TypePin->GetDefaultValue();
-										const int64 TypeValue = RigElementTypeEnum->GetValueByNameString(TypeStr);
-										if (TypeValue == (int64)ElementType)
+										if (ModelPin->GetDefaultValue() == OldNameStr)
 										{
-											if (URigVMPin* NamePin = ModelPin->FindSubPin(TEXT("Name")))
+											Controller->SetPinDefaultValue(ModelPin->GetPinPath(), NewNameStr, false);
+										}
+									}
+									else if (ModelPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
+									{
+										if (URigVMPin* TypePin = ModelPin->FindSubPin(TEXT("Type")))
+										{
+											const FString TypeStr = TypePin->GetDefaultValue();
+											const int64 TypeValue = RigElementTypeEnum->GetValueByNameString(TypeStr);
+											if (TypeValue == (int64)ElementType)
 											{
-												FString NameStr = NamePin->GetDefaultValue();
-												if (NameStr == OldNameStr)
+												if (URigVMPin* NamePin = ModelPin->FindSubPin(TEXT("Name")))
 												{
-													Controller->SetPinDefaultValue(NamePin->GetPinPath(), NewNameStr);
+													FString NameStr = NamePin->GetDefaultValue();
+													if (NameStr == OldNameStr)
+													{
+														Controller->SetPinDefaultValue(NamePin->GetPinPath(), NewNameStr);
+													}
 												}
 											}
 										}
@@ -4885,7 +4887,6 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 						}
 					}
 				}
-				RigBlueprint->DecrementVMRecompileBracket();
 			}
 				
 			OnHierarchyChanged();

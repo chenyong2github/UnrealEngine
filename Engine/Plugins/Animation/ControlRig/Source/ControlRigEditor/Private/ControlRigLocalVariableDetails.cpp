@@ -10,6 +10,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "ControlRigBlueprintGeneratedClass.h"
+#include "ControlRigBlueprint.h"
 #include "RigVMCore/RigVM.h"
 
 #define LOCTEXT_NAMESPACE "LocalVariableDetails"
@@ -130,10 +131,9 @@ FEdGraphPinType FRigVMLocalVariableDetails::OnGetPinInfo() const
 void FRigVMLocalVariableDetails::HandlePinInfoChanged(const FEdGraphPinType& PinType)
 {
 	VariableDescription.ChangeType(PinType);
-	BlueprintBeingCustomized->IncrementVMRecompileBracket();
+	FControlRigBlueprintVMCompileScope CompileScope(BlueprintBeingCustomized);
 	TypeHandle->SetValue(VariableDescription.CPPType);
 	TypeObjectHandle->SetValue(VariableDescription.CPPTypeObject);	
-	BlueprintBeingCustomized->DecrementVMRecompileBracket();
 }
 
 ECheckBoxState FRigVMLocalVariableDetails::HandleBoolDefaultValueIsChecked() const
