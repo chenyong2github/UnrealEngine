@@ -386,7 +386,7 @@ namespace HordeAgent.Commands
 
 				JsonRequirements JsonRequirements = JsonComputeTask.Requirements;
 				Requirements Requirements = new Requirements(JsonRequirements.Condition ?? String.Empty);
-				Requirements.Resources = JsonRequirements.Resources.ToDictionary(x => (Utf8String)x.Key, x => x.Value);
+				Requirements.Resources = JsonRequirements.Resources.ToDictionary(x => x.Key, x => x.Value);
 				Requirements.Exclusive = JsonRequirements.Exclusive;
 				IoHash RequirementsHash = AddCbObject(Blobs, Requirements);
 

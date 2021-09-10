@@ -41,7 +41,6 @@ namespace HordeServer.Compute.Impl
 {
 	using ChannelId = StringId<IComputeChannel>;
 	using NamespaceId = StringId<INamespace>;
-	using Condition = HordeServer.Utilities.Condition;
 
 	/// <summary>
 	/// Information about a particular task
@@ -125,12 +124,6 @@ namespace HordeServer.Compute.Impl
 	/// </summary>
 	class ComputeService : IComputeService, IDisposable
 	{
-		class QueueInfo
-		{
-			public Requirements? Requirements;
-			public Condition? Condition;
-		}
-
 		public MessageDescriptor Descriptor => ComputeTaskMessage.Descriptor;
 
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
@@ -299,21 +292,16 @@ namespace HordeServer.Compute.Impl
 		/// <returns></returns>
 		async ValueTask<bool> CheckRequirements(IoHash RequirementsHash, Lazy<Task<List<string>>> LazyProperties)
 		{
-			QueueInfo QueueInfo = await GetQueueInfoAsync(RequirementsHash);
-			if (QueueInfo.Requirements == null)
+			Requirements? Requirements = await GetCachedRequirementsAsync(RequirementsHash);
+			if (Requirements == null)
 			{
 				return false;
 			}
 
-			if (!QueueInfo.Requirements.Condition.IsEmpty)
+			if (Requirements.Condition != null)
 			{
-				if (QueueInfo.Condition == null)
-				{
-					return false;
-				}
-
 				List<string> Properties = await LazyProperties.Value;
-				if (!QueueInfo.Condition.Evaluate(x => FindAgentProperty(x, Properties)))
+				if (!Requirements.Condition.Evaluate(x => FindAgentProperty(x, Properties)))
 				{
 					return false;
 				}
@@ -376,29 +364,15 @@ namespace HordeServer.Compute.Impl
 		/// </summary>
 		/// <param name="RequirementsHash"></param>
 		/// <returns></returns>
-		async ValueTask<QueueInfo> GetQueueInfoAsync(IoHash RequirementsHash)
+		async ValueTask<Requirements?> GetCachedRequirementsAsync(IoHash RequirementsHash)
 		{
-			QueueInfo? Info;
-			if (!RequirementsCache.TryGetValue(RequirementsHash, out Info))
+			Requirements? Requirements;
+			if (!RequirementsCache.TryGetValue(RequirementsHash, out Requirements))
 			{
-				Info = new QueueInfo();
-				Info.Requirements = await ObjectCollection.GetAsync<Requirements>(DefaultNamespaceId, RequirementsHash);
-
-				if (Info.Requirements != null && !Info.Requirements.Condition.IsEmpty)
-				{
-					try
-					{
-						Info.Condition = Condition.Parse(Info.Requirements.Condition.ToString());
-					}
-					catch (Exception Ex)
-					{
-						Logger.LogError(Ex, "Unable to parse condition '{Condition}': {Message}", Info.Requirements.Condition.ToString(), Ex.Message);
-					}
-				}
-
+				Requirements = await ObjectCollection.GetAsync<Requirements>(DefaultNamespaceId, RequirementsHash);
 				using (ICacheEntry Entry = RequirementsCache.CreateEntry(RequirementsHash))
 				{
-					if (Info.Requirements == null)
+					if (Requirements == null)
 					{
 						Entry.SetAbsoluteExpiration(TimeSpan.FromSeconds(10.0));
 					}
@@ -406,10 +380,10 @@ namespace HordeServer.Compute.Impl
 					{
 						Entry.SetSlidingExpiration(TimeSpan.FromMinutes(10.0));
 					}
-					Entry.SetValue(Info);
+					Entry.SetValue(Requirements);
 				}
 			}
-			return Info!;
+			return Requirements;
 		}
 	}
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Common;
 using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
@@ -17,13 +18,13 @@ namespace EpicGames.Horde.Compute
 		/// Condition string to be evaluated against the machine spec, eg. cpu-cores >= 10 && ram.mb >= 200 && pool == 'worker'
 		/// </summary>
 		[CbField("c")]
-		public Utf8String Condition { get; set; }
+		public Condition? Condition { get; set; }
 
 		/// <summary>
 		/// Resources used by the process
 		/// </summary>
 		[CbField("r")]
-		public Dictionary<Utf8String, int> Resources { get; set; } = new Dictionary<Utf8String, int>();
+		public Dictionary<string, int> Resources { get; set; } = new Dictionary<string, int>();
 
 		/// <summary>
 		/// Whether we require exclusive access to the device
@@ -42,7 +43,7 @@ namespace EpicGames.Horde.Compute
 		/// Construct a requirements object with a condition
 		/// </summary>
 		/// <param name="Condition"></param>
-		public Requirements(Utf8String Condition)
+		public Requirements(Condition? Condition)
 		{
 			this.Condition = Condition;
 		}
