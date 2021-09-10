@@ -1535,10 +1535,6 @@ enum class EPlatformDataSerializationFlags : uint8
 	None = 0,
 	Cooked = 1<<0,
 	Streamable = 1<<1,
-
-#if WITH_EDITORONLY_DATA
-	IgnoreBulkDataForStreamingMips = 1<<2, // These are transient, so this can be changed if more runtime flags are needed above
-#endif // WITH_EDITORONLY_DATA
 };
 ENUM_CLASS_FLAGS(EPlatformDataSerializationFlags);
 
@@ -1706,21 +1702,9 @@ static void SerializePlatformData(
 		}
 	}
 
-#if WITH_EDITORONLY_DATA
-	if ((Flags & EPlatformDataSerializationFlags::IgnoreBulkDataForStreamingMips) == EPlatformDataSerializationFlags::IgnoreBulkDataForStreamingMips)
+	for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 	{
-		for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-		{
-			PlatformData->Mips[FirstMipToSerialize + MipIndex].SerializeWithConditionalBulkData(Ar, Texture, MipIndex);
-		}
-	}
-	else
-#endif // WITH_EDITORONLY_DATA
-	{
-		for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-		{
-			PlatformData->Mips[FirstMipToSerialize + MipIndex].Serialize(Ar, Texture, MipIndex);
-		}
+		PlatformData->Mips[FirstMipToSerialize + MipIndex].Serialize(Ar, Texture, MipIndex);
 	}
 
 	Ar << bIsVirtual;
@@ -1762,11 +1746,6 @@ void FTexturePlatformData::Serialize(FArchive& Ar, UTexture* Owner)
 }
 
 #if WITH_EDITORONLY_DATA
-void FTexturePlatformData::SerializeWithConditionalBulkData(FArchive& Ar, UTexture* Owner)
-{
-	SerializePlatformData(Ar, this, Owner, EPlatformDataSerializationFlags::IgnoreBulkDataForStreamingMips);
-}
-
 FString FTexturePlatformData::GetDerivedDataMipKeyString(int32 MipIndex, const FTexture2DMipMap& Mip) const
 {
 	const FString& KeyString = DerivedDataKey.Get<FString>();

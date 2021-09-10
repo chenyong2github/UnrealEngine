@@ -674,8 +674,6 @@ public:
 	void Serialize(FArchive& Ar, class UTexture* Owner);
 
 #if WITH_EDITORONLY_DATA
-	void SerializeWithConditionalBulkData(FArchive& Ar, class UTexture* Owner);
-
 	FString GetDerivedDataMipKeyString(int32 MipIndex, const FTexture2DMipMap& Mip) const;
 	UE::DerivedData::FCachePayloadKeyProxy GetDerivedDataMipKeyProxy(int32 MipIndex, const FTexture2DMipMap& Mip) const;
 #endif // WITH_EDITORONLY_DATA
