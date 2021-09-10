@@ -77,7 +77,7 @@ namespace HordeServer.Controllers
 			}
 
 			AgentSoftwareChannelName? Channel = String.IsNullOrEmpty(Request.Channel) ? (AgentSoftwareChannelName?)null : new AgentSoftwareChannelName(Request.Channel);
-			IAgent Agent = await AgentService.CreateAgentAsync(Request.Name, Request.Enabled, Request.Ephemeral, Channel, Request.Pools?.ConvertAll(x => new PoolId(x)));
+			IAgent Agent = await AgentService.CreateAgentAsync(Request.Name, Request.Enabled, Channel, Request.Pools?.ConvertAll(x => new PoolId(x)));
 
 			return new CreateAgentResponse(Agent.Id.ToString());
 		}

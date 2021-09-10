@@ -91,13 +91,11 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public AgentDocument(AgentId Id, bool bEnabled, bool bEphemeral, AgentSoftwareChannelName? Channel, List<PoolId> Pools)
+			public AgentDocument(AgentId Id, bool bEnabled, AgentSoftwareChannelName? Channel, List<PoolId> Pools)
 			{
 				this.Id = Id;
 				this.Acl = new Acl();
 				this.Enabled = bEnabled;
-				this.Ephemeral = bEphemeral;
-				this.Deleted = bEphemeral;
 				this.Channel = Channel;
 				this.Pools = Pools;
 			}
@@ -122,9 +120,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent> AddAsync(AgentId Id, bool bEnabled, bool bEphemeral, AgentSoftwareChannelName? Channel, List<PoolId>? Pools)
+		public async Task<IAgent> AddAsync(AgentId Id, bool bEnabled, AgentSoftwareChannelName? Channel, List<PoolId>? Pools)
 		{
-			AgentDocument Agent = new AgentDocument(Id, bEnabled, bEphemeral, Channel, Pools ?? new List<PoolId>());
+			AgentDocument Agent = new AgentDocument(Id, bEnabled, Channel, Pools ?? new List<PoolId>());
 			await Agents.InsertOneAsync(Agent);
 			return Agent;
 		}

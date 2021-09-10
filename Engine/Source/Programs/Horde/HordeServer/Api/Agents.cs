@@ -473,7 +473,6 @@ namespace HordeServer.Api
 			this.Name = Agent.Id.ToString();
 			this.Enabled = Agent.Enabled;
 			this.SessionId = Agent.SessionId?.ToString();
-			this.Ephemeral = Agent.Ephemeral;
 			this.Online = Agent.IsSessionValid(DateTime.UtcNow);
 			this.Deleted = Agent.Deleted;
 			this.PendingConform = Agent.RequestConform;
