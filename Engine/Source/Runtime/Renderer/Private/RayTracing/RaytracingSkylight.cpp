@@ -7,7 +7,7 @@
 #include "DeferredShadingRenderer.h"
 #include "SceneTextureParameters.h"
 
-static int32 GRayTracingSkyLight = -1;
+static int32 GRayTracingSkyLight = 0;
 
 #if RHI_RAYTRACING
 
@@ -122,11 +122,6 @@ int32 GetSkyLightSamplesPerPixel(const FSkyLightSceneProxy* SkyLightSceneProxy)
 	return GRayTracingSkyLightSamplesPerPixel >= 0 ? GRayTracingSkyLightSamplesPerPixel : FMath::Max(SkyLightSceneProxy->SamplesPerPixel, 2);
 }
 
-static bool IsRayTracingSkyLightAllowed()
-{
-	return ShouldRenderRayTracingEffect(GRayTracingSkyLight != 0);
-}
-
 bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy)
 {
 	if (SkyLightSceneProxy == nullptr)
@@ -134,14 +129,10 @@ bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProx
 		return false;
 	}
 
-	// SkyLightSceneProxy has a separate r.raytracing.skylight Cvar and does not check r.raytracing.shadows when CastRayTracedShadow == ECastRayTracedShadow::UseProjectSetting
-	bool bRayTracingSkyEnabled = GRayTracingSkyLight  < 0 
-		? SkyLightSceneProxy->CastRayTracedShadow == ECastRayTracedShadow::Enabled
-		: GRayTracingSkyLight != 0;
+	bool bRayTracingSkyEnabled = (GRayTracingSkyLight  > 0 && SkyLightSceneProxy->CastRayTracedShadow == ECastRayTracedShadow::UseProjectSetting)
+								||  SkyLightSceneProxy->CastRayTracedShadow == ECastRayTracedShadow::Enabled;
 
-	bRayTracingSkyEnabled = bRayTracingSkyEnabled && (GetSkyLightSamplesPerPixel(SkyLightSceneProxy) > 0);
-
-	return IsRayTracingSkyLightAllowed() && bRayTracingSkyEnabled;
+	return bRayTracingSkyEnabled && (GetSkyLightSamplesPerPixel(SkyLightSceneProxy) > 0);
 }
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, "SkyLight");
@@ -261,9 +252,9 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingSkyLightRGS, "/Engine/Private/Raytracing/RaytracingSkylightRGS.usf", "SkyLightRGS", SF_RayGen);
 
-void FDeferredShadingSceneRenderer::PrepareRayTracingSkyLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PrepareRayTracingSkyLight(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (!IsRayTracingSkyLightAllowed())
+	if (!ShouldRenderRayTracingSkyLight(Scene.SkyLight))
 	{
 		return;
 	}
