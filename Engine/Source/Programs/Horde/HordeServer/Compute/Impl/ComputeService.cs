@@ -35,6 +35,7 @@ using EpicGames.Horde.Compute;
 using Microsoft.Extensions.Hosting;
 using System.Threading.Channels;
 using EpicGames.Redis;
+using HordeServer.Collections;
 
 namespace HordeServer.Compute.Impl
 {
@@ -135,10 +136,12 @@ namespace HordeServer.Compute.Impl
 		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
 		IObjectCollection ObjectCollection;
+		IPoolCollection PoolCollection;
 		ITaskScheduler<IoHash, ComputeTaskInfo> TaskScheduler;
 		RedisMessageQueue<ComputeTaskStatus> MessageQueue;
 		BackgroundTick ExpireTasksTicker;
 		IMemoryCache RequirementsCache;
+		LazyCachedValue<Task<List<IPool>>> CachedPools;
 		ILogger Logger;
 
 		/// <summary>
@@ -146,14 +149,17 @@ namespace HordeServer.Compute.Impl
 		/// </summary>
 		/// <param name="Redis">Redis instance</param>
 		/// <param name="ObjectCollection"></param>
+		/// <param name="PoolCollection">Collection of pool documents</param>
 		/// <param name="Logger">The logger instance</param>
-		public ComputeService(IDatabase Redis, IObjectCollection ObjectCollection, ILogger<ComputeService> Logger)
+		public ComputeService(IDatabase Redis, IObjectCollection ObjectCollection, IPoolCollection PoolCollection, ILogger<ComputeService> Logger)
 		{
 			this.ObjectCollection = ObjectCollection;
+			this.PoolCollection = PoolCollection;
 			this.TaskScheduler = new RedisTaskScheduler<IoHash, ComputeTaskInfo>(Redis, "compute/tasks/", Logger);
 			this.MessageQueue = new RedisMessageQueue<ComputeTaskStatus>(Redis, "compute/messages/");
 			this.ExpireTasksTicker = new BackgroundTick(ExpireTasksAsync, TimeSpan.FromMinutes(2.0), Logger);
 			this.RequirementsCache = new MemoryCache(new MemoryCacheOptions());
+			this.CachedPools = new LazyCachedValue<Task<List<IPool>>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			this.Logger = Logger;
 		}
 
@@ -206,14 +212,19 @@ namespace HordeServer.Compute.Impl
 		/// <inheritdoc/>
 		public async Task<AgentLease?> TryAssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
-			if (!Agent.Enabled || Agent.Id.ToString().StartsWith("REMOTE-EXEC-", StringComparison.OrdinalIgnoreCase))
+			// If the agent is disabled, just block until we cancel
+			if (!Agent.Enabled)
 			{
 				using CancellationTask Task = new CancellationTask(CancellationToken);
 				await Task.Task;
 				return null;
 			}
 
-			(IoHash, ComputeTaskInfo)? Entry = await TaskScheduler.DequeueAsync(RequirementsHash => CheckRequirements(Agent, RequirementsHash), CancellationToken);
+			// Get all the current agent properties
+			Lazy<Task<List<string>>> Properties = new Lazy<Task<List<string>>>(() => GetAgentProperties(Agent));
+
+			// Find a task to execute
+			(IoHash, ComputeTaskInfo)? Entry = await TaskScheduler.DequeueAsync(RequirementsHash => CheckRequirements(RequirementsHash, Properties), CancellationToken);
 			if (Entry != null)
 			{
 				(IoHash RequirementsHash, ComputeTaskInfo TaskInfo) = Entry.Value;
@@ -283,10 +294,10 @@ namespace HordeServer.Compute.Impl
 		/// <summary>
 		/// Checks that an agent matches the necessary criteria to execute a task
 		/// </summary>
-		/// <param name="Agent"></param>
 		/// <param name="RequirementsHash"></param>
+		/// <param name="LazyProperties">Properties for this agentthat the agent is in</param>
 		/// <returns></returns>
-		async ValueTask<bool> CheckRequirements(IAgent Agent, IoHash RequirementsHash)
+		async ValueTask<bool> CheckRequirements(IoHash RequirementsHash, Lazy<Task<List<string>>> LazyProperties)
 		{
 			QueueInfo QueueInfo = await GetQueueInfoAsync(RequirementsHash);
 			if (QueueInfo.Requirements == null)
@@ -300,7 +311,9 @@ namespace HordeServer.Compute.Impl
 				{
 					return false;
 				}
-				else if (!QueueInfo.Condition.Evaluate(x => GetAgentProperty(Agent, x)))
+
+				List<string> Properties = await LazyProperties.Value;
+				if (!QueueInfo.Condition.Evaluate(x => FindAgentProperty(x, Properties)))
 				{
 					return false;
 				}
@@ -310,30 +323,52 @@ namespace HordeServer.Compute.Impl
 		}
 
 		/// <summary>
+		/// Finds property values from a sorted list of Name=Value pairs
+		/// </summary>
+		/// <param name="Name">Name of the property to find</param>
+		/// <param name="Properties">The full list of properties</param>
+		/// <returns>Property values</returns>
+		static IEnumerable<string> FindAgentProperty(string Name, List<string> Properties)
+		{
+			int Index = Properties.BinarySearch(Name, StringComparer.OrdinalIgnoreCase);
+			if (Index < 0)
+			{
+				Index = ~Index;
+				while (Index < Properties.Count)
+				{
+					string Property = Properties[Index];
+					if (Property.Length <= Name.Length || !Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase) || Property[Name.Length] != '=')
+					{
+						break;
+					}
+					yield return Property.Substring(Name.Length + 1);
+				}
+			}
+		}
+
+		/// <summary>
 		/// Gets a named property for an agent
 		/// </summary>
 		/// <param name="Agent">The agent instance</param>
-		/// <param name="Name">Name of the property to read</param>
 		/// <returns>The property value, or an empty string if it does not eixst</returns>
-		static Scalar GetAgentProperty(IAgent Agent, string Name)
+		async Task<List<string>> GetAgentProperties(IAgent Agent)
 		{
-			if (Name.Equals("Name", StringComparison.OrdinalIgnoreCase))
+			List<string> Properties = new List<string>();
+			Properties.Add($"Name={Agent.Id}");
+
+			foreach (IPool Pool in Agent.GetPools(await CachedPools.GetCached()))
 			{
-				return Agent.Id.ToString();
+				Properties.Add($"Pool={Pool.Id}");
 			}
 
-			HashSet<string>? Properties = Agent.Capabilities.PrimaryDevice.Properties;
-			if (Properties != null)
+			HashSet<string>? DeviceProperties = Agent.Capabilities.PrimaryDevice.Properties;
+			if (DeviceProperties != null)
 			{
-				foreach (string Property in Properties)
-				{
-					if (Property.Length > Name.Length && Property[Name.Length] == '=' && Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase))
-					{
-						return Property.Substring(Name.Length + 1);
-					}
-				}
+				Properties.AddRange(DeviceProperties);
 			}
-			return new Scalar("");
+
+			Properties.Sort(StringComparer.OrdinalIgnoreCase);
+			return Properties;
 		}
 
 		/// <summary>
