@@ -4,7 +4,9 @@
 
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
-#include "SubobjectSnapshotData.h"
+#include "Data/SubobjectSnapshotData.h"
+
+#include "Components/ActorComponent.h"
 
 FRecreateComponentScope::FRecreateComponentScope(
 	const FSubobjectSnapshotData& SubobjectSnapshotData,

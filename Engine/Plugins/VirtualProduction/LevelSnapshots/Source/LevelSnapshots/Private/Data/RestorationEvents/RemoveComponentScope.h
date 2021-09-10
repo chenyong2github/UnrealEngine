@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "IRestorationListener.h"
+#include "Templates/UnrealTemplate.h"
+
+class UActorComponent;
 
 /**
  * Convenience type that calls FLevelSnaphshotsModule::OnPreRemoveComponent and FLevelSnaphshotsModule::OnPostRemoveComponent.

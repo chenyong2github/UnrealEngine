@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Views/SnapshotEditorViewData.h"
 #include "Templates/SharedPointer.h"
 
 class SLevelSnapshotsEditorResults;
+class SWidget;
 
 class FLevelSnapshotsEditorResults : public TSharedFromThis<FLevelSnapshotsEditorResults>
 {

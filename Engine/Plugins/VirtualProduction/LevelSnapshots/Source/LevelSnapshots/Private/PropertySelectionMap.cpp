@@ -2,7 +2,6 @@
 
 #include "PropertySelectionMap.h"
 
-#include "CustomSubobjectRestorationInfo.h"
 #include "LevelSnapshotsLog.h"
 #include "Data/RestorableObjectSelection.h"
 

@@ -3,7 +3,6 @@
 #include "Views/Results/LevelSnapshotsEditorResults.h"
 
 #include "Widgets/SNullWidget.h"
-
 #include "Views/Results/SLevelSnapshotsEditorResults.h"
 
 TSharedRef<SWidget> FLevelSnapshotsEditorResults::GetOrCreateWidget()

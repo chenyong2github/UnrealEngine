@@ -7,15 +7,15 @@
 #include "WorldSnapshotData.h"
 
 #include "Components/ActorComponent.h"
+#include "CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "EngineUtils.h"
+#include "GameFramework/Actor.h"
 #include "LevelSnapshotsModule.h"
 #include "PropertyComparisonParams.h"
 #include "PropertyInfoHelpers.h"
 #include "SnapshotCustomVersion.h"
 #include "SnapshotRestorability.h"
-#include "CustomSerialization/CustomObjectSerializationWrapper.h"
-#include "GameFramework/Actor.h"
-#include "Misc/ScopeExit.h"
+#include "UObject/UnrealType.h"
 
 namespace
 {

@@ -16,6 +16,6 @@ class FApplySnapshotPropertiesScope : public FNoncopyable
 	const FApplySnapshotPropertiesParams Params;
 public:
 
-	FApplySnapshotPropertiesScope(FApplySnapshotPropertiesParams Params);
+	FApplySnapshotPropertiesScope(const FApplySnapshotPropertiesParams& InParams);
 	~FApplySnapshotPropertiesScope();
 };

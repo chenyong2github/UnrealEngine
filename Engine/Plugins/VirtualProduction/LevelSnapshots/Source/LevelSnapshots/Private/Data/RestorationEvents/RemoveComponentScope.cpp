@@ -3,6 +3,7 @@
 #include "Data/RestorationEvents/RemoveComponentScope.h"
 
 #include "LevelSnapshotsModule.h"
+#include "Components/ActorComponent.h"
 
 FRemoveComponentScope::FRemoveComponentScope(UActorComponent* RemovedComponent)
 	:

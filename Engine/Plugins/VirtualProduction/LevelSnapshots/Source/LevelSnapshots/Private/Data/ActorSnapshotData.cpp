@@ -1,35 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ActorSnapshotData.h"
+#include "Data/ActorSnapshotData.h"
 
-#include "ApplySnapshotDataArchiveV2.h"
+#include "Archive/ApplySnapshotDataArchiveV2.h"
+#include "Archive/TakeWorldObjectSnapshotArchive.h"
+#include "Data/WorldSnapshotData.h"
+#include "Data/SnapshotCustomVersion.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
-#include "CustomSerialization/CustomSerializationDataManager.h"
 #include "LevelSnapshotsLog.h"
+#include "LevelSnapshotsModule.h"
 #include "PropertySelectionMap.h"
-#include "SnapshotCustomVersion.h"
-#include "SnapshotRestorability.h"
-#include "TakeWorldObjectSnapshotArchive.h"
-#include "WorldSnapshotData.h"
+#include "Restorability/SnapshotRestorability.h"
 #include "Util/SnapshotObjectUtil.h"
 #include "Util/SnapshotUtil.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#if USE_STABLE_LOCALIZATION_KEYS
-#include "Internationalization/TextPackageNamespaceUtil.h"
-#endif
-#if WITH_EDITOR
-#include "LevelEditor.h"
-#include "UnrealEdGlobals.h"
-#include "Editor/UnrealEdEngine.h"
-#endif
+#include "Modules/ModuleManager.h"
 #include "RestorationEvents/ApplySnapshotToActorScope.h"
 #include "RestorationEvents/RecreateComponentScope.h"
 #include "RestorationEvents/RemoveComponentScope.h"
 #include "Templates/NonNullPointer.h"
 #include "UObject/Package.h"
 #include "UObject/Script.h"
+
+#if USE_STABLE_LOCALIZATION_KEYS
+#include "Internationalization/TextPackageNamespaceUtil.h"
+#endif
+
+#if WITH_EDITOR
+#include "Editor/UnrealEdEngine.h"
+#include "LevelEditor.h"
+#endif
 
 namespace
 {	

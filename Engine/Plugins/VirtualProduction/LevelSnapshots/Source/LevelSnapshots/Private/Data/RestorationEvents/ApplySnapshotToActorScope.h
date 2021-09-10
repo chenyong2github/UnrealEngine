@@ -16,6 +16,6 @@ class FApplySnapshotToActorScope : public FNoncopyable
 	const FApplySnapshotToActorParams Params;
 public:
 
-	FApplySnapshotToActorScope(FApplySnapshotToActorParams Params);
+	FApplySnapshotToActorScope(const FApplySnapshotToActorParams& Params);
 	~FApplySnapshotToActorScope();
 };
