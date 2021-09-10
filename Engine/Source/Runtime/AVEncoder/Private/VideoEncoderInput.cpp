@@ -8,6 +8,8 @@
 #include "Misc/Paths.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
+#include "Misc/Guid.h"
+
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 #include "VulkanRHIBridge.h"
 #endif
@@ -15,6 +17,17 @@
 #if PLATFORM_WINDOWS
 #include "MicrosoftCommon.h"
 #endif
+
+FString GetGUID()
+{
+	static FGuid id;
+	if (!id.IsValid())
+	{
+		id = FGuid::NewGuid();
+	}
+
+	return id.ToString();
+}
 
 namespace AVEncoder
 {
@@ -906,7 +919,7 @@ void FVideoEncoderInputFrame::SetTexture(ID3D12Resource* InTexture, FReleaseD3D1
 		//
 		// NOTE: ID3D12Device::CreateSharedHandle gives as an NT Handle, and so we need to call CloseHandle on it
 		//
-		else if ((Result = OwnerDevice->CreateSharedHandle(InTexture, NULL, GENERIC_ALL, *FString::Printf(TEXT("FVideoEncoderInputFrame_%d"), _VideoEncoderInputFrameCnt.Increment()), &D3D11.SharedHandle)) != S_OK)
+		else if ((Result = OwnerDevice->CreateSharedHandle(InTexture, NULL, GENERIC_ALL, *FString::Printf(TEXT("%s_FVideoEncoderInputFrame_%d"), *GetGUID(), _VideoEncoderInputFrameCnt.Increment()), &D3D11.SharedHandle)) != S_OK)
 		{
 			UE_LOG(LogVideoEncoder, Error, TEXT("ID3D12Device::CreateSharedHandle() failed 0x%X - %s."), Result, *GetComErrorDescription(Result));
 		}
