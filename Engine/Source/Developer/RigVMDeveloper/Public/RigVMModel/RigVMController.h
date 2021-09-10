@@ -57,11 +57,26 @@ struct FRigVMController_BulkEditResult
 	{}
 };
 
+class RIGVMDEVELOPER_API FRigVMControllerCompileBracketScope
+{
+public:
+   
+	FRigVMControllerCompileBracketScope(URigVMController *InController);
+
+	~FRigVMControllerCompileBracketScope();
+
+private:
+
+	URigVMGraph* Graph;
+	bool bSuspendNotifications;
+};
+
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_ShouldStructUnfoldDelegate, const UStruct*)
 DECLARE_DELEGATE_RetVal_OneParam(TArray<FRigVMExternalVariable>, FRigVMController_GetExternalVariablesDelegate, URigVMGraph*)
 DECLARE_DELEGATE_RetVal(const FRigVMByteCode*, FRigVMController_GetByteCodeDelegate)
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_IsFunctionAvailableDelegate, URigVMLibraryNode*)
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_RequestLocalizeFunctionDelegate, URigVMLibraryNode*)
+DECLARE_DELEGATE_RetVal_ThreeParams(FName, FRigVMController_RequestNewExternalVariableDelegate, FRigVMGraphVariableDescription, bool, bool);
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_IsDependencyCyclicDelegate, UObject*, UObject*)
 DECLARE_DELEGATE_RetVal_TwoParams(FRigVMController_BulkEditResult, FRigVMController_RequestBulkEditDialogDelegate, URigVMLibraryNode*, ERigVMControllerBulkEditType)
 DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftObjectPtr<URigVMFunctionReferenceNode>, ERigVMControllerBulkEditType, ERigVMControllerBulkEditProgress, int32, int32)
@@ -680,6 +695,9 @@ public:
 
 	// A delegate to localize a function on demand
 	FRigVMController_RequestLocalizeFunctionDelegate RequestLocalizeFunctionDelegate;
+
+	// A delegate to create a new blueprint member variable
+	FRigVMController_RequestNewExternalVariableDelegate RequestNewExternalVariableDelegate;
 	
 	// A delegate to validate if we are allowed to introduce a dependency between two objects
 	FRigVMController_IsDependencyCyclicDelegate IsDependencyCyclicDelegate;
@@ -928,6 +946,7 @@ private:
 	friend struct FRigVMAddRerouteNodeAction;
 	friend struct FRigVMChangePinTypeAction;
 	friend class FRigVMParserAST;
+	friend class FRigVMControllerCompileBracketScope;
 };
 
 class FRigVMControllerGraphGuard

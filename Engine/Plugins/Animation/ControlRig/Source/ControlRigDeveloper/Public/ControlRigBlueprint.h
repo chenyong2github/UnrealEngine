@@ -688,3 +688,24 @@ private:
 	friend class UControlRigComponent;
 	friend struct FControlRigGraphSchemaAction_PromoteToVariable;
 };
+
+class CONTROLRIGDEVELOPER_API FControlRigBlueprintVMCompileScope
+{
+public:
+   
+	FControlRigBlueprintVMCompileScope(UControlRigBlueprint *InBlueprint)
+	: Blueprint(InBlueprint)
+	{
+		check(Blueprint);
+		Blueprint->IncrementVMRecompileBracket();
+	}
+
+	~FControlRigBlueprintVMCompileScope()
+	{
+		Blueprint->DecrementVMRecompileBracket();
+	}
+   
+private:
+
+	UControlRigBlueprint* Blueprint;
+};
