@@ -259,6 +259,7 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, MobileCustomDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomDepth))
 	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
 	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
+	, MobileScreenShadowMask(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileScreenShadowMask))
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
 	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
 	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
@@ -2011,6 +2012,7 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	MobileCustomDepth.SafeRelease();
 	MobileCustomStencil.SafeRelease();
 	CustomStencilSRV.SafeRelease();
+	MobileScreenShadowMask.SafeRelease();
 	VirtualTextureFeedback.SafeRelease();
 	VirtualTextureFeedbackUAV.SafeRelease();
 

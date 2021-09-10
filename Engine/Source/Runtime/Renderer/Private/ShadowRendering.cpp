@@ -354,6 +354,9 @@ IMPLEMENT_ONEPASS_POINT_SHADOW_PROJECTION_PIXEL_SHADER(3, true, false);
 IMPLEMENT_ONEPASS_POINT_SHADOW_PROJECTION_PIXEL_SHADER(4, true, false);
 IMPLEMENT_ONEPASS_POINT_SHADOW_PROJECTION_PIXEL_SHADER(5, true, false);
 
+IMPLEMENT_SHADER_TYPE(, TScreenSpaceModulatedShadowVS, TEXT("/Engine/Private/ShadowProjectionVertexShader.usf"), TEXT("MainVS_ScreenSpaceModulatedShadow"), SF_Vertex)
+IMPLEMENT_SHADER_TYPE(, TScreenSpaceModulatedShadowPS, TEXT("/Engine/Private/ShadowProjectionPixelShader.usf"), TEXT("MainPS_ScreenSpaceModulatedShadow"), SF_Pixel);
+
 // Implements a pixel shader for directional light PCSS.
 #define IMPLEMENT_SHADOW_PROJECTION_PIXEL_SHADER(Quality,UseFadePlane) \
 	typedef TDirectionalPercentageCloserShadowProjectionPS<Quality, UseFadePlane> TDirectionalPercentageCloserShadowProjectionPS##Quality##UseFadePlane; \
@@ -1943,7 +1946,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	}
 }
 
-void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList)
+void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows)
 	{
@@ -1959,6 +1962,8 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 	TRefCountPtr<FRHIUniformBuffer> SceneTexturesUniformBuffer = CreateMobileSceneTextureUniformBuffer(RHICmdList, EMobileSceneTextureSetupMode::SceneColor);
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, SceneTexturesUniformBuffer);
 
+	bool bMobileMSAA = NumMSAASamples > 1 && SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
+
 	// render shadowmaps for relevant lights.
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
 	{
@@ -1968,16 +1973,91 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 
 		if(LightSceneInfo->ShouldRenderLightViewIndependent() && LightSceneProxy && LightSceneProxy->CastsModulatedShadows())
 		{
-
 			const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
-
 			if (VisibleLightInfo.ShadowsToProject.Num() > 0)
 			{
+				FRHITexture* ScreenShadowMaskTexture = nullptr;
+				// Shadow projections collection phase
+				{
+					const FIntPoint SceneTextureExtent = SceneContext.GetBufferSizeXY();
+					FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneTextureExtent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+					Desc.NumSamples = FSceneRenderTargets::GetNumSceneColorMSAASamples(FeatureLevel);
+					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneContext.MobileScreenShadowMask, TEXT("MobileScreenShadowMask"), ERenderTargetTransience::NonTransient);
+					ScreenShadowMaskTexture = SceneContext.MobileScreenShadowMask->GetRenderTargetItem().TargetableTexture;
+
+					FRHIRenderPassInfo ShadowProjectionsCollectionRenderPassInfo(
+						ScreenShadowMaskTexture,
+						ERenderTargetActions::Clear_Store,
+						nullptr,
+						SceneContext.GetSceneDepthSurface(),
+						bKeepDepthContent && !bMobileMSAA ? EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil : EDepthStencilTargetActions::LoadDepthStencil_DontStoreDepthStencil,
+						nullptr,
+						FExclusiveDepthStencil::DepthRead_StencilWrite
+					);
+
+					ShadowProjectionsCollectionRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
+					RHICmdList.BeginRenderPass(ShadowProjectionsCollectionRenderPassInfo, TEXT("ShadowProjectionsCollection"));
+				}
+
 				TransitionShadowsToReadable(RHICmdList, VisibleLightInfo.ShadowsToProject);
 
 				const bool bProjectingForForwardShading = false;
 				const bool bMobileModulatedProjections = true;
 				RenderShadowProjections(RHICmdList, LightSceneProxy, nullptr, VisibleLightInfo.ShadowsToProject, bProjectingForForwardShading, bMobileModulatedProjections);
+
+				// Screen space modulated shadow sample phase
+				{
+					RHICmdList.EndRenderPass();
+
+					FRHITexture* SceneColor = SceneContext.GetSceneColorSurface();
+					FRHITexture* SceneColorResolve = nullptr;
+
+					if (bMobileMSAA)
+					{
+						SceneColorResolve = SceneContext.GetSceneColorTexture();
+						RHICmdList.Transition(FRHITransitionInfo(SceneColorResolve, ERHIAccess::Unknown, ERHIAccess::RTV | ERHIAccess::ResolveDst));
+					}
+
+					FRHIRenderPassInfo ScreenSpaceModulatedShadowRenderPassInfo(
+						SceneColor,
+						SceneColorResolve ? ERenderTargetActions::Load_Resolve : ERenderTargetActions::Load_Store,
+						SceneColorResolve,
+						SceneContext.GetSceneDepthSurface(),
+						bKeepDepthContent && !bMobileMSAA ? EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil : EDepthStencilTargetActions::LoadDepthStencil_DontStoreDepthStencil,
+						nullptr,
+						FExclusiveDepthStencil::DepthRead_StencilWrite
+					);
+					RHICmdList.BeginRenderPass(ScreenSpaceModulatedShadowRenderPassInfo, TEXT("ScreenSpaceModulatedShadow"));
+
+					RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+					// Get shaders.
+					FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+					TShaderMapRef<TScreenSpaceModulatedShadowVS> VertexShader(GlobalShaderMap);
+					TShaderMapRef<TScreenSpaceModulatedShadowPS> PixelShader(GlobalShaderMap);
+
+					// Set the graphic pipeline state.
+					FGraphicsPipelineStateInitializer GraphicsPSOInit;
+					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();
+					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector2();
+					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+					VertexShader->SetParameters(RHICmdList, View);
+					PixelShader->SetParameters(RHICmdList, View, ScreenShadowMaskTexture, LightSceneProxy->GetModulatedShadowColor());
+
+					// Draw screen quad.
+					RHICmdList.SetStreamSource(0, GScreenSpaceVertexBuffer.VertexBufferRHI, 0);
+					RHICmdList.DrawIndexedPrimitive(GTwoTrianglesIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);
+
+					RHICmdList.EndRenderPass();
+				}
 			}
 		}
 	}

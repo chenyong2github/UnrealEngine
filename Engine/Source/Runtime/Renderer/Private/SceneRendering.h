@@ -2015,7 +2015,7 @@ protected:
 	void RenderMobileDebugView(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews);
 
 	/** Render modulated shadow projections in to the scene, loops over any unrendered shadows until all are processed.*/
-	void RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList);
+	void RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
 	/** Resolves scene depth in case hardware does not support reading depth in the shader */
 	void ConditionalResolveSceneDepth(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);

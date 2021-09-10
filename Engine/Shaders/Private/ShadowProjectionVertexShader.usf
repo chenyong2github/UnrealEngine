@@ -28,3 +28,11 @@ void Main(
 		OutPosition = float4(InPosition.xyz, 1);
 	#endif
 }
+
+void MainVS_ScreenSpaceModulatedShadow(
+	in float4 InPosition : ATTRIBUTE0,
+	out float4 OutPosition : SV_POSITION
+	)
+{
+	OutPosition = float4(InPosition.xy, 0, 1);
+}

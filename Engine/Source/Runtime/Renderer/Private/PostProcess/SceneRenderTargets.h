@@ -501,6 +501,10 @@ public:
 	TRefCountPtr<IPooledRenderTarget> MobileCustomStencil;
 	// used by the CustomDepth material feature for stencil
 	TRefCountPtr<FRHIShaderResourceView> CustomStencilSRV;
+
+	// used by the Modulated Shadow
+	TRefCountPtr<IPooledRenderTarget> MobileScreenShadowMask;
+
 	// optional in case this RHI requires a color render target (adjust up if necessary)
 	TRefCountPtr<IPooledRenderTarget> OptionalShadowDepthColor[4];
 
