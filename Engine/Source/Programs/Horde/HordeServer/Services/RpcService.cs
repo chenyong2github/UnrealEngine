@@ -314,8 +314,7 @@ namespace HordeServer.Services
 				}
 
 				const bool bEnabled = true;
-				const bool bEphemeral = false;
-				Agent = await AgentService.CreateAgentAsync(Request.Name, bEnabled, bEphemeral, null, null);
+				Agent = await AgentService.CreateAgentAsync(Request.Name, bEnabled, null, null);
 			}
 
 			// Make sure we're allowed to create sessions on this agent

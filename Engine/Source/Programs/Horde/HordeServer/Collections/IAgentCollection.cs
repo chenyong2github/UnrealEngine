@@ -31,10 +31,9 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Id">Id for the new agent</param>
 		/// <param name="bEnabled">Whether the agent is enabled or not</param>
-		/// <param name="bEphemeral">Whether the agent should be deleted automatically once offline</param>
 		/// <param name="Channel">Channel to use for software run by this agent</param>
 		/// <param name="Pools">Pools for the agent</param>
-		Task<IAgent> AddAsync(AgentId Id, bool bEnabled, bool bEphemeral, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null);
+		Task<IAgent> AddAsync(AgentId Id, bool bEnabled, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null);
 
 		/// <summary>
 		/// Deletes an agent

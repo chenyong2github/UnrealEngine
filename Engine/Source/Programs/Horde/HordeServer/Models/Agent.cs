@@ -451,16 +451,6 @@ namespace HordeServer.Models
 		/// Whether the agent is enabled
 		/// </summary>
 		public bool Enabled { get; }
-		
-		/// <summary>
-		/// Arbitrary comment for the agent (useful for disable reasons etc)
-		/// </summary>
-		public string? Comment { get; }
-
-		/// <summary>
-		/// Whether the agent is ephemeral
-		/// </summary>
-		public bool Ephemeral { get; }
 
 		/// <summary>
 		/// Whether the agent should be included on the dashboard. This is set to true for ephemeral agents once they are no longer online, or agents that are explicitly deleted.
@@ -471,6 +461,11 @@ namespace HordeServer.Models
 		/// Version of the software running on this agent
 		/// </summary>
 		public string? Version { get; }
+
+		/// <summary>
+		/// Arbitrary comment for the agent (useful for disable reasons etc)
+		/// </summary>
+		public string? Comment { get; }
 
 		/// <summary>
 		/// Channel for the software running on this agent. Uses <see cref="AgentSoftwareService.DefaultChannelName"/> if not specified

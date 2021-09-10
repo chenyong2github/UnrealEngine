@@ -159,13 +159,12 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="Name">Name of the agent</param>
 		/// <param name="bEnabled">Whether the agent is currently enabled</param>
-		/// <param name="bEphemeral">Whether this agent is ephemeral</param>
 		/// <param name="Channel">Override for the desired software version</param>
 		/// <param name="Pools">Pools for this agent</param>
 		/// <returns>Unique id for the agent</returns>
-		public Task<IAgent> CreateAgentAsync(string Name, bool bEnabled, bool bEphemeral, AgentSoftwareChannelName? Channel, List<PoolId>? Pools)
+		public Task<IAgent> CreateAgentAsync(string Name, bool bEnabled, AgentSoftwareChannelName? Channel, List<PoolId>? Pools)
 		{
-			return Agents.AddAsync(new AgentId(Name), bEnabled, bEphemeral, Channel, Pools);
+			return Agents.AddAsync(new AgentId(Name), bEnabled, Channel, Pools);
 		}
 
 		/// <summary>
