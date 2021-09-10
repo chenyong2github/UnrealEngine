@@ -12,69 +12,11 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Utilities
 {
-	/// <summary>
-	/// Represents a scalar value for use by a condition expression
-	/// </summary>
-	readonly struct Scalar
-	{
-		public bool IsInteger => !IsString;
-		public bool IsString => String != null;
-
-		public readonly ulong Integer;
-		public readonly string? String;
-
-		public Scalar(ulong Integer)
-		{
-			this.Integer = Integer;
-			this.String = null;
-		}
-
-		public Scalar(string String)
-		{
-			this.Integer = 0;
-			this.String = String;
-		}
-
-		public ulong AsInteger()
-		{
-			if (!IsInteger)
-			{
-				throw new ConditionException("Value is not an integer");
-			}
-			return Integer;
-		}
-		
-		public string AsString()
-		{
-			if (!IsString)
-			{
-				throw new ConditionException("Value is not a string");
-			}
-			return String!;
-		}
-
-		public static implicit operator Scalar(bool Value)
-		{
-			return new Scalar(Value ? 1UL : 0UL);
-		}
-
-		public static implicit operator Scalar(ulong Integer)
-		{
-			return new Scalar(Integer);
-		}
-
-		public static implicit operator Scalar(string String)
-		{
-			return new Scalar(String);
-		}
-	}
-
 	enum TokenType : byte
 	{
 		End,
 		Identifier,
-		Number,
-		String,
+		Scalar,
 		Not,
 		Eq,
 		Neq,
@@ -97,8 +39,7 @@ namespace HordeServer.Utilities
 
 		public StringView Token => new StringView(Input, Offset, Length);
 		public TokenType Type { get; private set; }
-		public ulong IntegerValue { get; private set; }
-		public string? StringValue { get; private set; }
+		public string? Scalar { get; private set; }
 
 		public TokenReader(string Input)
 		{
@@ -106,12 +47,11 @@ namespace HordeServer.Utilities
 			MoveNext();
 		}
 
-		private void SetCurrent(int Length, TokenType Type, ulong IntegerValue = 0, string? StringValue = null)
+		private void SetCurrent(int Length, TokenType Type, string? Scalar = null)
 		{
 			this.Length = Length;
 			this.Type = Type;
-			this.IntegerValue = IntegerValue;
-			this.StringValue = StringValue;
+			this.Scalar = Scalar;
 		}
 
 		public void MoveNext()
@@ -181,11 +121,11 @@ namespace HordeServer.Utilities
 					case '\"':
 					case '\'':
 						Utf8String String = ParseString(Input, Offset, out int StringLength);
-						SetCurrent(StringLength, TokenType.String, StringValue: String.ToString());
+						SetCurrent(StringLength, TokenType.Scalar, Scalar: String.ToString());
 						return;
 					case char Char when IsNumber(Char):
 						ulong Integer = ParseNumber(Input, Offset, out int IntegerLength);
-						SetCurrent(IntegerLength, TokenType.Number, IntegerValue: Integer);
+						SetCurrent(IntegerLength, TokenType.Scalar, Scalar: Integer.ToString(CultureInfo.InvariantCulture));
 						return;
 					case char Char when IsIdentifier(Char):
 						int EndIdx = Offset + 1;
@@ -230,7 +170,6 @@ namespace HordeServer.Utilities
 					break;
 				}
 			}
-
 
 			char[] Copy = new char[EndIdx - (Idx + 1) - NumEscapeChars];
 
@@ -344,7 +283,6 @@ namespace HordeServer.Utilities
 
 		List<Token> Tokens = new List<Token>();
 		List<string> Strings = new List<string>();
-		List<ulong> Integers = new List<ulong>();
 
 		private Condition(string Text)
 		{
@@ -361,68 +299,88 @@ namespace HordeServer.Utilities
 			return new Condition(Text);
 		}
 
-		public bool Evaluate(Func<string, Scalar> ResolveIdentifier)
+		public bool Evaluate(Func<string, IEnumerable<string>> GetPropertyValues)
 		{
 			int Idx = 0;
-			Scalar Scalar = Evaluate(ref Idx, ResolveIdentifier);
-			return Scalar.AsInteger() != 0;
+			return EvaluateCondition(ref Idx, GetPropertyValues);
 		}
 
-		Scalar Evaluate(ref int Idx, Func<string, Scalar> ResolveIdentifier)
+		bool EvaluateCondition(ref int Idx, Func<string, IEnumerable<string>> GetPropertyValues)
 		{
-			Scalar Lhs;
-			Scalar Rhs;
+			bool LhsBool;
+			bool RhsBool;
+			IEnumerable<string> LhsScalar;
+			IEnumerable<string> RhsScalar;
 
 			Token Token = Tokens[Idx++];
 			switch (Token.Type)
 			{
-				case TokenType.Identifier:
-					return ResolveIdentifier(Strings[Token.Index]);
-				case TokenType.Number:
-					return Integers[Token.Index];
-				case TokenType.String:
-					return Strings[Token.Index].ToString();
 				case TokenType.Not:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					return Lhs.AsInteger() == 0UL;
+					return !EvaluateCondition(ref Idx, GetPropertyValues);
 				case TokenType.Eq:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return (Lhs.IsString || Rhs.IsString) ? String.Equals(Lhs.AsString(), Rhs.AsString(), StringComparison.OrdinalIgnoreCase) : (Lhs.AsInteger() == Rhs.AsInteger());
+					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					return LhsScalar.Any(x => RhsScalar.Contains(x, StringComparer.OrdinalIgnoreCase));
 				case TokenType.Neq:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return (Lhs.IsString || Rhs.IsString) ? !String.Equals(Lhs.AsString(), Rhs.AsString(), StringComparison.OrdinalIgnoreCase) : (Lhs.AsInteger() != Rhs.AsInteger());
+					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					return !LhsScalar.Any(x => RhsScalar.Contains(x, StringComparer.OrdinalIgnoreCase));
 				case TokenType.LogicalOr:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return (Lhs.AsInteger() != 0) || (Rhs.AsInteger() != 0);
+					LhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
+					RhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
+					return LhsBool || RhsBool;
 				case TokenType.LogicalAnd:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return (Lhs.AsInteger() != 0) && (Rhs.AsInteger() != 0);
+					LhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
+					RhsBool = EvaluateCondition(ref Idx, GetPropertyValues);
+					return LhsBool && RhsBool;
 				case TokenType.Lt:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return Lhs.AsInteger() < Rhs.AsInteger();
+					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x < y));
 				case TokenType.Lte:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return Lhs.AsInteger() <= Rhs.AsInteger();
+					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x <= y));
 				case TokenType.Gt:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return Lhs.AsInteger() > Rhs.AsInteger();
+					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x > y));
 				case TokenType.Gte:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return Lhs.AsInteger() >= Rhs.AsInteger();
+					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					return AsIntegers(LhsScalar).Any(x => AsIntegers(RhsScalar).Any(y => x >= y));
 				case TokenType.Regex:
-					Lhs = Evaluate(ref Idx, ResolveIdentifier);
-					Rhs = Evaluate(ref Idx, ResolveIdentifier);
-					return Regex.IsMatch(Lhs.AsString(), Rhs.AsString());
+					LhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					RhsScalar = EvaluateScalar(ref Idx, GetPropertyValues);
+					return LhsScalar.Any(x => RhsScalar.Any(y => Regex.IsMatch(x, y, RegexOptions.IgnoreCase)));
 				default:
 					throw new ConditionException("Invalid token type");
+			}
+		}
+
+		IEnumerable<string> EvaluateScalar(ref int Idx, Func<string, IEnumerable<string>> GetPropertyValues)
+		{
+			Token Token = Tokens[Idx++];
+			switch (Token.Type)
+			{
+				case TokenType.Identifier:
+					return GetPropertyValues(Strings[Token.Index]);
+				case TokenType.Scalar:
+					return new string[] { Strings[Token.Index] };
+				default:
+					throw new ConditionException("Invalid token type");
+			}
+		}
+
+		static IEnumerable<long> AsIntegers(IEnumerable<string> Scalars)
+		{
+			foreach (string Scalar in Scalars)
+			{
+				long Value;
+				if (long.TryParse(Scalar, out Value))
+				{
+					yield return Value;
+				}
 			}
 		}
 
@@ -442,7 +400,7 @@ namespace HordeServer.Utilities
 		void ParseAnd(TokenReader Reader)
 		{
 			int StartCount = Tokens.Count;
-			ParseComparison(Reader);
+			ParseBoolean(Reader);
 
 			if (Reader.Type == TokenType.LogicalAnd)
 			{
@@ -452,10 +410,34 @@ namespace HordeServer.Utilities
 			}
 		}
 
+		void ParseBoolean(TokenReader Reader)
+		{
+			while (Reader.Type == TokenType.Not)
+			{
+				Tokens.Add(new Token(Reader.Type, 0));
+				Reader.MoveNext();
+			}
+
+			if (Reader.Type == TokenType.Lparen)
+			{
+				Reader.MoveNext();
+				ParseOr(Reader);
+				if (Reader.Type != TokenType.Rparen)
+				{
+					throw new ConditionException($"Missing ')' at offset {Reader.Offset}");
+				}
+				Reader.MoveNext();
+			}
+			else
+			{
+				ParseComparison(Reader);
+			}
+		}
+
 		void ParseComparison(TokenReader Reader)
 		{
 			int StartCount = Tokens.Count;
-			ParseUnary(Reader);
+			ParseScalar(Reader);
 
 			if (Reader.Type == TokenType.Lt 
 				|| Reader.Type == TokenType.Lte 
@@ -467,18 +449,8 @@ namespace HordeServer.Utilities
 			{
 				Tokens.Insert(StartCount, new Token(Reader.Type, 0));
 				Reader.MoveNext();
-				ParseUnary(Reader);
+				ParseScalar(Reader);
 			}
-		}
-
-		void ParseUnary(TokenReader Reader)
-		{
-			while (Reader.Type == TokenType.Not)
-			{
-				Tokens.Add(new Token(Reader.Type, 0));
-				Reader.MoveNext();
-			}
-			ParseScalar(Reader);
 		}
 
 		void ParseScalar(TokenReader Reader)
@@ -489,26 +461,10 @@ namespace HordeServer.Utilities
 				Tokens.Add(new Token(TokenType.Identifier, Strings.Count - 1));
 				Reader.MoveNext();
 			}
-			else if (Reader.Type == TokenType.Number)
+			else if (Reader.Type == TokenType.Scalar)
 			{
-				Integers.Add(Reader.IntegerValue);
-				Tokens.Add(new Token(TokenType.Number, Integers.Count - 1));
-				Reader.MoveNext();
-			}
-			else if (Reader.Type == TokenType.String)
-			{
-				Strings.Add(Reader.StringValue!);
-				Tokens.Add(new Token(TokenType.String, Strings.Count - 1));
-				Reader.MoveNext();
-			}
-			else if (Reader.Type == TokenType.Lparen)
-			{
-				Reader.MoveNext();
-				ParseOr(Reader);
-				if (Reader.Type != TokenType.Rparen)
-				{
-					throw new ConditionException($"Missing ')' at offset {Reader.Offset}");
-				}
+				Strings.Add(Reader.Scalar!);
+				Tokens.Add(new Token(TokenType.Scalar, Strings.Count - 1));
 				Reader.MoveNext();
 			}
 			else
