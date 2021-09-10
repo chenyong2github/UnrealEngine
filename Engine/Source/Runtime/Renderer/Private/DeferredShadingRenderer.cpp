@@ -1376,7 +1376,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 				PrepareSingleLayerWaterRayTracingReflections(View, *Scene, RayGenShaders);
 				PrepareRayTracingShadows(View, RayGenShaders);
 				PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
-				PrepareRayTracingSkyLight(View, RayGenShaders);
+				PrepareRayTracingSkyLight(View, *Scene, RayGenShaders);
 				PrepareRayTracingGlobalIllumination(View, RayGenShaders);
 				PrepareRayTracingTranslucency(View, RayGenShaders);
 

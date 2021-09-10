@@ -277,6 +277,7 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	BlendDestinationAverageBrightness = 1.0f;
 	bCastVolumetricShadow = true;
 	CastRaytracedShadow = ECastRayTracedShadow::UseProjectSetting;
+	bCastRaytracedShadow_DEPRECATED = false;
 	bAffectReflection = true;
 	bAffectGlobalIllumination = true;
 	SamplesPerPixel = 4;
@@ -576,6 +577,11 @@ bool USkyLightComponent::CanEditChange(const FProperty* InProperty) const
 		{
 			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 			return Mobility == EComponentMobility::Movable && CastShadows && CVar->GetValueOnGameThread() != 0;
+		}
+
+		if (FCString::Strcmp(*PropertyName, TEXT("CastRaytracedShadow")) == 0)
+		{
+			return IsRayTracingEnabled();
 		}
 	}
 
@@ -1102,7 +1108,6 @@ void USkyLightComponent::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RayTracedShadowsType))
 	{
-		// Skylight is not driven by r.raytracing.shadows but if it was enabled before, it should be enabled now independently of the project setting
 		CastRaytracedShadow = bCastRaytracedShadow_DEPRECATED == 0 ? ECastRayTracedShadow::Disabled : ECastRayTracedShadow::Enabled;
 	}
 }

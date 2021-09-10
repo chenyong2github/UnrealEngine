@@ -412,6 +412,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bEnableRayTracingShadows : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
+		ConsoleVariable = "r.RayTracing.Skylight", DisplayName = "Ray Traced Skylight",
+		ToolTip = "Controls whether Ray Traced Skylight is used by default. Skylights can still override and force Ray Traced Skylight on or off. Requires Hardware Ray Tracing to be enabled."))
+		uint32 bEnableRayTracingSkylight : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = HardwareRayTracing, meta = (
 		ConsoleVariable = "r.RayTracing.UseTextureLod", DisplayName = "Texture LOD",
 		ToolTip = "Enable automatic texture mip level selection in ray tracing material shaders. Unchecked: highest resolution mip level is used for all texture (default). Checked: texture LOD is approximated based on total ray length, output resolution and texel density at hit point (ray cone method).",
 		ConfigRestartRequired = true))
