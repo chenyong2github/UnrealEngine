@@ -597,6 +597,14 @@ FSequencer::~FSequencer()
 
 void FSequencer::Close()
 {
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC != nullptr)
+		{
+			LevelVC->ViewModifiers.RemoveAll(this);
+		}
+	}
+
 	if (OldMaxTickRate.IsSet())
 	{
 		GEngine->SetMaxFPS(OldMaxTickRate.GetValue());
