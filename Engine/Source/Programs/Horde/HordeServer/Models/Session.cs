@@ -37,9 +37,9 @@ namespace HordeServer.Models
 		public DateTime? FinishTime { get; }
 
 		/// <summary>
-		/// Capabilities of this agent at the time the session started
+		/// Properties of this agent at the time the session started
 		/// </summary>
-		public AgentCapabilities? Capabilities { get; }
+		public IReadOnlyList<string>? Properties { get; }
 
 		/// <summary>
 		/// Version of the agent software

@@ -246,9 +246,9 @@ namespace HordeServer.Api
 		public DateTime? FinishTime { get; set; }
 
 		/// <summary>
-		/// Capabilities of this agent
+		/// Properties of this agent
 		/// </summary>
-		public GetAgentCapabilitiesResponse? Capabilities { get; set; }
+		public List<string>? Properties { get; set; }
 
 		/// <summary>
 		/// Version of the software running during this session
@@ -272,7 +272,7 @@ namespace HordeServer.Api
 			this.Id = Session.Id.ToString();
 			this.StartTime = Session.StartTime;
 			this.FinishTime = Session.FinishTime;
-			this.Capabilities = (Session.Capabilities != null)? new GetAgentCapabilitiesResponse(Session.Capabilities) : null;
+			this.Properties = (Session.Properties != null) ? new List<string>(Session.Properties) : null;
 			this.Version = Session.Version?.ToString();
 		}
 	}
@@ -417,6 +417,16 @@ namespace HordeServer.Api
 		public string? Channel { get; set; }
 
 		/// <summary>
+		/// Properties for the agent
+		/// </summary>
+		public List<string> Properties { get; set; }
+
+		/// <summary>
+		/// Resources for the agent
+		/// </summary>
+		public Dictionary<string, int> Resources { get; set; }
+
+		/// <summary>
 		/// Last update time of this agent
 		/// </summary>
 		public DateTime? UpdateTime { get; set; }
@@ -434,7 +444,7 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Capabilities of this agent
 		/// </summary>
-		public GetAgentCapabilitiesResponse? Capabilities { get; }
+		public object? Capabilities { get; }
 
 		/// <summary>
 		/// Array of active leases.
@@ -458,6 +468,8 @@ namespace HordeServer.Api
 		{
 			this.Id = null!;
 			this.Name = null!;
+			Properties = new List<string>();
+			Resources = new Dictionary<string, int>();
 			this.Leases = new List<GetAgentLeaseResponse>();
 		}
 
@@ -465,13 +477,14 @@ namespace HordeServer.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="Agent">The agent to construct from</param>
-		/// <param name="Pools">List of pools for this agent</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetAgentResponse(IAgent Agent, IEnumerable<PoolId> Pools, bool bIncludeAcl)
+		public GetAgentResponse(IAgent Agent, bool bIncludeAcl)
 		{
 			this.Id = Agent.Id.ToString();
 			this.Name = Agent.Id.ToString();
 			this.Enabled = Agent.Enabled;
+			this.Properties = new List<string>(Agent.Properties);
+			this.Resources = new Dictionary<string, int>(Agent.Resources);
 			this.SessionId = Agent.SessionId?.ToString();
 			this.Online = Agent.IsSessionValid(DateTime.UtcNow);
 			this.Deleted = Agent.Deleted;
@@ -489,9 +502,9 @@ namespace HordeServer.Api
 			this.Version = Agent.Version?.ToString();
 			this.Channel = Agent.Channel?.ToString();
 			this.UpdateTime = Agent.UpdateTime;
-			this.Pools = Pools.Select(x => x.ToString()).ToList();
+			this.Pools = Agent.GetPools().Select(x => x.ToString()).ToList();
 			this.Workspaces = Agent.Workspaces.ConvertAll(x => new GetAgentWorkspaceResponse(x));
-			this.Capabilities = new GetAgentCapabilitiesResponse(Agent.Capabilities);
+			this.Capabilities = new { Devices = new[] { new { Properties = Agent.Properties, Resources = Agent.Resources } } };
 			this.Leases = Agent.Leases.ConvertAll(x => new GetAgentLeaseResponse(x));
 			this.Acl = (bIncludeAcl && Agent.Acl != null) ? new GetAclResponse(Agent.Acl) : null;
 			this.Comment = Agent.Comment;

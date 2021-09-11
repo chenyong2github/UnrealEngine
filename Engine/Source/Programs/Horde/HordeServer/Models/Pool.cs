@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Horde.Common;
 using HordeServer.Api;
 using HordeServer.Utilities;
 using MongoDB.Bson;
@@ -30,14 +31,14 @@ namespace HordeServer.Models
 		public string Name { get; }
 
 		/// <summary>
+		/// Condition for agents to automatically be included in this pool
+		/// </summary>
+		public Condition? Condition { get; }
+
+		/// <summary>
 		/// List of workspaces currently assigned to this pool
 		/// </summary>
 		public IReadOnlyList<AgentWorkspace> Workspaces { get; }
-
-		/// <summary>
-		/// Requirements for agents to be included in this pool
-		/// </summary>
-		public AgentRequirements? Requirements { get; }
 
 		/// <summary>
 		/// Arbitrary properties related to this pool

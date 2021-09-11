@@ -484,7 +484,7 @@ namespace HordeServer.Tasks.Impl
 				ActionTask.LogId = LogFile.Id.ToString();
 
 				byte[] Payload = Any.Pack(ActionTask).ToByteArray();
-				AgentLease Lease = new AgentLease(Operation.Id, LeaseName, null, null, LogFile.Id, LeaseState.Pending, Payload, new AgentRequirements(), null);
+				AgentLease Lease = new AgentLease(Operation.Id, LeaseName, null, null, LogFile.Id, LeaseState.Pending, Payload, null);
 
 				// Try to set the lease on the subscription. If it fails, the subscriber has already been allocated
 				Operation.ResultTaskSource = new TaskCompletionSource<ActionExecuteResult>();

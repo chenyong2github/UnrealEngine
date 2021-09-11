@@ -603,8 +603,7 @@ namespace HordeServer.Services
 				IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
 				if (Pool == null)
 				{
-					AgentRequirements Requirements = new AgentRequirements(new List<DeviceRequirements>() { new DeviceRequirements(null, new HashSet<string>(){ "OSFamily=Windows"}, null) }, null, null, false);
-					await PoolService.CreatePoolAsync(Request.DefaultPoolName, Requirements: Requirements, Properties: new Dictionary<string, string>() { ["Color"] = "0" });
+					await PoolService.CreatePoolAsync(Request.DefaultPoolName, Condition: "OSFamily == 'Windows'", Properties: new Dictionary<string, string>() { ["Color"] = "0" });
 				}
 			}
 

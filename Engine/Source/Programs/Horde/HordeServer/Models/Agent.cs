@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Google.Protobuf.WellKnownTypes;
+using EpicGames.Core;
 using HordeServer.Api;
 using HordeCommon;
 using HordeCommon.Rpc.Tasks;
@@ -19,6 +20,8 @@ using Serilog;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using HordeServer.Collections;
+using EpicGames.Horde.Compute;
+using EpicGames.Horde.Common;
 
 namespace HordeServer.Models
 {
@@ -175,52 +178,6 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
-	/// Information about a device allocated for a lease
-	/// </summary>
-	public class AgentLeaseDevice
-	{
-		/// <summary>
-		/// Index of the device in the agent's device list
-		/// </summary>
-		[BsonRequired]
-		public int Index { get; set; }
-
-		/// <summary>
-		/// Handle of the device in the lease, ie. the logical name in the context of the work being done, not the physical device name.
-		/// </summary>
-		[BsonRequired]
-		public string? Handle { get; set; }
-
-		/// <summary>
-		/// Resources claimed by the lease. If null, the whole device is claimed, and nothing else can be allocated to it.
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public Dictionary<string, int>? Resources { get; set; }
-
-		/// <summary>
-		/// Private constructor for serialization
-		/// </summary>
-		[BsonConstructor]
-		private AgentLeaseDevice()
-		{
-			Handle = null!;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Index"></param>
-		/// <param name="Handle"></param>
-		/// <param name="Resources"></param>
-		public AgentLeaseDevice(int Index, string? Handle, Dictionary<string, int>? Resources)
-		{
-			this.Index = Index;
-			this.Handle = Handle;
-			this.Resources = Resources;
-		}
-	}
-
-	/// <summary>
 	/// Document describing an active lease
 	/// </summary>
 	public class AgentLease
@@ -273,20 +230,14 @@ namespace HordeServer.Models
 		public bool Active { get; set; }
 
 		/// <summary>
-		/// Requirements for this lease
+		/// Resources used by this lease
 		/// </summary>
-		public AgentRequirements Requirements { get; set; }
+		public IReadOnlyDictionary<string, int>? Resources { get; set; }
 
 		/// <summary>
 		/// For leases in the pending state, encodes an "any" protobuf containing the payload for the agent to execute the lease.
 		/// </summary>
 		public byte[]? Payload { get; set; }
-
-		/// <summary>
-		/// List of devices allocated to this lease
-		/// </summary>
-		[BsonIgnoreIfNull]
-		public List<AgentLeaseDevice>? Devices { get; set; }
 
 		/// <summary>
 		/// Private constructor
@@ -295,8 +246,6 @@ namespace HordeServer.Models
 		private AgentLease()
 		{
 			Name = String.Empty;
-			Requirements = null!;
-			Devices = null!;
 		}
 
 		/// <summary>
@@ -309,9 +258,8 @@ namespace HordeServer.Models
 		/// <param name="LogId">Unique id for the log</param>
 		/// <param name="State">State for the lease</param>
 		/// <param name="Payload">Encoded "any" protobuf describing the contents of the payload</param>
-		/// <param name="Requirements">Requirements for this lease</param>
-		/// <param name="Devices">Device mapping for this lease</param>
-		public AgentLease(ObjectId Id, string Name, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, LeaseState State, byte[]? Payload, AgentRequirements Requirements, List<AgentLeaseDevice>? Devices)
+		/// <param name="Resources">Resources required for this lease</param>
+		public AgentLease(ObjectId Id, string Name, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, LeaseState State, byte[]? Payload, IReadOnlyDictionary<string, int>? Resources)
 		{
 			this.Id = Id;
 			this.Name = Name;
@@ -320,8 +268,7 @@ namespace HordeServer.Models
 			this.LogId = LogId;
 			this.State = State;
 			this.Payload = Payload;
-			this.Requirements = Requirements;
-			this.Devices = Devices;
+			this.Resources = Resources;
 			StartTime = DateTime.UtcNow;
 		}
 
@@ -423,6 +370,17 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
+	/// Well-known property names for agents
+	/// </summary>
+	static class KnownPropertyNames
+	{
+		/// <summary>
+		/// Pools that this agent belongs to
+		/// </summary>
+		public const string Pool = "Pool";
+	}
+
+	/// <summary>
 	/// Mirrors an Agent document in the database
 	/// </summary>
 	public interface IAgent
@@ -468,6 +426,16 @@ namespace HordeServer.Models
 		public string? Comment { get; }
 
 		/// <summary>
+		/// List of properties for this agent
+		/// </summary>
+		public IReadOnlyList<string> Properties { get; }
+
+		/// <summary>
+		/// List of resources available to the agent
+		/// </summary>
+		public IReadOnlyDictionary<string, int> Resources { get; }
+
+		/// <summary>
 		/// Channel for the software running on this agent. Uses <see cref="AgentSoftwareService.DefaultChannelName"/> if not specified
 		/// </summary>
 		public AgentSoftwareChannelName? Channel { get; }
@@ -481,6 +449,11 @@ namespace HordeServer.Models
 		/// Time that which the last upgrade was attempted
 		/// </summary>
 		public DateTime? LastUpgradeTime { get; }
+
+		/// <summary>
+		/// Dynamically applied pools
+		/// </summary>
+		public IReadOnlyList<PoolId> DynamicPools { get; }
 
 		/// <summary>
 		/// List of manually assigned pools for agent
@@ -518,11 +491,6 @@ namespace HordeServer.Models
 		public int? ConformAttemptCount { get; }
 
 		/// <summary>
-		/// Capabilities of this agent
-		/// </summary>
-		public AgentCapabilities Capabilities { get; }
-
-		/// <summary>
 		/// Array of active leases.
 		/// </summary>
 		public IReadOnlyList<AgentLease> Leases { get; }
@@ -558,216 +526,146 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
-		/// Gets a list of pools for the given agent. Includes all automatically assigned pools based on agent capabilities.
+		/// Tests whether an agent is in the given pool
 		/// </summary>
-		/// <param name="Agent">The agent instance</param>
-		/// <param name="Pools">List of all available pools</param>
-		/// <returns>List of pools</returns>
-		public static IEnumerable<IPool> GetPools(this IAgent Agent, IEnumerable<IPool> Pools)
+		/// <param name="Agent"></param>
+		/// <param name="PoolId"></param>
+		/// <returns></returns>
+		public static bool IsInPool(this IAgent Agent, PoolId PoolId)
 		{
-			return Pools.Where(x => Agent.InPool(x));
+			return Agent.DynamicPools.Contains(PoolId) || Agent.ExplicitPools.Contains(PoolId);
 		}
 
 		/// <summary>
-		/// Checks whether an agent is in the given pool
+		/// Get all the pools for each agent
 		/// </summary>
-		/// <param name="Agent">The agent to check</param>
-		/// <param name="Pool">The pool to test against</param>
-		/// <returns>True if the agent is in the pool</returns>
-		public static bool InPool(this IAgent Agent, IPool Pool)
+		/// <param name="Agent">The agent to query</param>
+		/// <returns></returns>
+		public static IEnumerable<PoolId> GetPools(this IAgent Agent)
 		{
-			if (Agent.ExplicitPools.Contains(Pool.Id))
+			foreach (PoolId PoolId in Agent.DynamicPools)
 			{
-				return true;
+				yield return PoolId;
 			}
-			else if (Pool.Requirements != null && AgentExtensions.TryCreateLease(Agent.Capabilities, Pool.Requirements, Enumerable.Empty<AgentLease>(), out _))
+			foreach (PoolId PoolId in Agent.ExplicitPools)
 			{
-				return true;
+				yield return PoolId;
 			}
-			return false;
+		}
+
+		/// <summary>
+		/// Tests whether an agent has a particular property
+		/// </summary>
+		/// <param name="Agent"></param>
+		/// <param name="Property"></param>
+		/// <returns></returns>
+		public static bool HasProperty(this IAgent Agent, string Property)
+		{
+			return Agent.Properties.BinarySearch(Property, StringComparer.OrdinalIgnoreCase) >= 0;
+		}
+
+		/// <summary>
+		/// Finds property values from a sorted list of Name=Value pairs
+		/// </summary>
+		/// <param name="Agent">The agent to query</param>
+		/// <param name="Name">Name of the property to find</param>
+		/// <returns>Property values</returns>
+		public static IEnumerable<string> GetPropertyValues(this IAgent Agent, string Name)
+		{
+			if (Name.Equals(KnownPropertyNames.Pool, StringComparison.OrdinalIgnoreCase))
+			{
+				foreach (PoolId PoolId in Agent.GetPools())
+				{
+					yield return PoolId.ToString();
+				}
+			}
+			else
+			{
+				int Index = Agent.Properties.BinarySearch(Name, StringComparer.OrdinalIgnoreCase);
+				if (Index < 0)
+				{
+					Index = ~Index;
+					while (Index < Agent.Properties.Count)
+					{
+						string Property = Agent.Properties[Index];
+						if (Property.Length <= Name.Length || !Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase) || Property[Name.Length] != '=')
+						{
+							break;
+						}
+						yield return Property.Substring(Name.Length + 1);
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Evaluates a condition against an agent
+		/// </summary>
+		/// <param name="Agent">The agent to evaluate</param>
+		/// <param name="Condition">The condition to evaluate</param>
+		/// <returns>True if the agent satisfies the condition</returns>
+		public static bool SatisfiesCondition(this IAgent Agent, Condition Condition)
+		{
+			return Condition.Evaluate(x => Agent.GetPropertyValues(x));
 		}
 
 		/// <summary>
 		/// Determine whether it's possible to add a lease for the given resources
 		/// </summary>
 		/// <param name="Agent">The agent to create a lease for</param>
-		/// <param name="Pool">The pool required</param>
-		/// <param name="Requirements">Requirements for this lease</param>
-		/// <param name="LeasedDevices">On success, recieves the list of leased devices</param>
+		/// <param name="Requirements">Requirements for the lease</param>
 		/// <returns>True if the new lease can be granted</returns>
-		public static bool TryCreateLease(this IAgent Agent, IPool Pool, AgentRequirements? Requirements, out List<AgentLeaseDevice>? LeasedDevices)
+		public static bool MeetsRequirements(this IAgent Agent, Requirements Requirements)
 		{
-			if (!Agent.Enabled || Agent.Status != AgentStatus.Ok || !Agent.InPool(Pool))
+			return MeetsRequirements(Agent, Requirements.Condition, Requirements.Resources, Requirements.Exclusive);
+		}
+
+		/// <summary>
+		/// Determine whether it's possible to add a lease for the given resources
+		/// </summary>
+		/// <param name="Agent">The agent to create a lease for</param>
+		/// <param name="Exclusive">Whether t</param>
+		/// <param name="Condition">Condition to satisfy</param>
+		/// <param name="Resources">Resources required to execute</param>
+		/// <returns>True if the new lease can be granted</returns>
+		public static bool MeetsRequirements(this IAgent Agent, Condition? Condition, Dictionary<string, int>? Resources, bool Exclusive)
+		{
+			if (!Agent.Enabled || Agent.Status != AgentStatus.Ok)
 			{
-				LeasedDevices = null!;
 				return false;
 			}
-			return TryCreateLease(Agent.Capabilities, Requirements, Agent.Leases, out LeasedDevices);
-		}
-
-		/// <summary>
-		/// Attempts to match the requirements for a particular agent, and return the list of leased devices that fulfils the requirements
-		/// </summary>
-		/// <param name="Capabilities">Capabilities of the gent</param>
-		/// <param name="Requirements">Requirements for the lease</param>
-		/// <param name="Leases">List of current leases</param>
-		/// <param name="LeasedDevices">Receives the list of device leases</param>
-		/// <returns>True if successful</returns>
-		public static bool TryCreateLease(AgentCapabilities Capabilities, AgentRequirements? Requirements, IEnumerable<AgentLease> Leases, out List<AgentLeaseDevice>? LeasedDevices)
-		{
-			List<AgentLeaseDevice>? Result = null;
-			if (Requirements != null)
+			if (Exclusive && Agent.Leases.Any())
 			{
-				if (!Requirements.Shared && Leases.Any())
-				{
-					LeasedDevices = null;
-					return false;
-				}
-
-				if (Requirements.Properties != null)
-				{
-					foreach (string Property in Requirements.Properties)
-					{
-						if (Capabilities.Properties == null || !Capabilities.Properties.Contains(Property))
-						{
-							LeasedDevices = null!;
-							return false;
-						}
-					}
-				}
-
-				if (Requirements.Devices != null)
-				{
-					if (!TryCreateDeviceLeases(Capabilities.Devices, Requirements.Devices, 0, 0, Leases.SelectMany(x => x.Devices), out Result))
-					{
-						LeasedDevices = null!;
-						return false;
-					}
-				}
+				return false;
 			}
-
-			LeasedDevices = Result;
-			return true;
-		}
-
-		/// <summary>
-		/// Try to match up the required devices for a lease to the available devices on an agent. This is done through a recursive search with backtracking for completeness,
-		/// due to not knowing which devices in the lease will correspond to each device in the agent, but it should be quick in practice due to agents having a small number 
-		/// of homogenous devices.
-		/// </summary>
-		/// <param name="CapableDevices">Device capabilities for the agent</param>
-		/// <param name="RequiredDevices">Device requirements for the lease</param>
-		/// <param name="RequiredDeviceIdx">Current index of the device in the lease requirements</param>
-		/// <param name="LeasedDeviceMask">Bitmask for devices that have currently been allocated. This is limited to 32, which is unlikely to be a problem in practice.</param>
-		/// <param name="CurrentLeasedDevices">The current set of leased devices</param>
-		/// <param name="LeasedDevices">On success, receives a list of the leased devices, mapping each requested device to a device in the agent device array.</param>
-		/// <returns>True if the leases were allocated</returns>
-		private static bool TryCreateDeviceLeases(List<DeviceCapabilities> CapableDevices, List<DeviceRequirements> RequiredDevices, int RequiredDeviceIdx, uint LeasedDeviceMask, IEnumerable<AgentLeaseDevice> CurrentLeasedDevices, [MaybeNullWhen(false)] out List<AgentLeaseDevice> LeasedDevices)
-		{
-			// If we've assigned all the required devices now, we can create the list of assigned devices
-			if (RequiredDeviceIdx == RequiredDevices.Count)
+			if (Condition != null && !Agent.SatisfiesCondition(Condition))
 			{
-				LeasedDevices = new List<AgentLeaseDevice>(RequiredDevices.Count);
-				foreach (DeviceRequirements Device in RequiredDevices)
-				{
-					LeasedDevices.Add(new AgentLeaseDevice(-1, Device.Handle, Device.Resources));
-				}
-				return true;
+				return false;
 			}
-
-			// Otherwise try to assign the next device
-			DeviceRequirements RequiredDevice = RequiredDevices[RequiredDeviceIdx];
-			for (int DeviceIdx = 0; DeviceIdx < CapableDevices.Count; DeviceIdx++)
+			if (Resources != null)
 			{
-				uint DeviceFlag = 1U << DeviceIdx;
-				if ((LeasedDeviceMask & DeviceFlag) == 0 && MatchDevice(CapableDevices[DeviceIdx], RequiredDevice, CurrentLeasedDevices.Where(x => x.Index == DeviceIdx)))
+				foreach ((string Name, int Count) in Resources)
 				{
-					List<AgentLeaseDevice>? Result;
-					if (TryCreateDeviceLeases(CapableDevices, RequiredDevices, RequiredDeviceIdx + 1, LeasedDeviceMask | DeviceFlag, CurrentLeasedDevices, out Result))
-					{
-						LeasedDevices = Result;
-						LeasedDevices[RequiredDeviceIdx].Index = DeviceIdx;
-						return true;
-					}
-				}
-			}
-
-			// Otherwise failed
-			LeasedDevices = null!;
-			return false;
-		}
-
-		/// <summary>
-		/// Determines if an agent device has the given requirements
-		/// </summary>
-		/// <param name="Capabilities">The device capabilities</param>
-		/// <param name="Requirements">Requirements for the lease</param>
-		/// <param name="Leases">Current leases for the device</param>
-		/// <returns>True if the device can satisfy the given requirements</returns>
-		private static bool MatchDevice(DeviceCapabilities Capabilities, DeviceRequirements Requirements, IEnumerable<AgentLeaseDevice> Leases)
-		{
-			// Check the device has all the required properties
-			if (Requirements.Properties != null)
-			{
-				foreach (string Property in Requirements.Properties)
-				{
-					if (Capabilities.Properties == null || !Capabilities.Properties.Contains(Property))
-					{
-						return false;
-					}
-				}
-			}
-
-			// Check the device has all the required resources
-			if (Requirements.Resources == null)
-			{
-				// Requires exclusive access to the device
-				if (Leases.Any())
-				{
-					return false;
-				}
-			}
-			else
-			{
-				// Requires shared access to the device. Check the device can be shared.
-				if (Capabilities.Resources == null)
-				{
-					return false;
-				}
-
-				// Check there are enough available of each resource type
-				foreach (KeyValuePair<string, int> Resource in Requirements.Resources)
-				{
-					// Make sure the device has enough of the named resource to start with
 					int RemainingCount;
-					if (!Capabilities.Resources.TryGetValue(Resource.Key, out RemainingCount) || RemainingCount < Resource.Value)
+					if (!Agent.Resources.TryGetValue(Name, out RemainingCount))
 					{
 						return false;
 					}
-
-					// Check each existing lease of this device
-					foreach (AgentLeaseDevice Lease in Leases)
+					foreach (AgentLease Lease in Agent.Leases)
 					{
-						// If the lease has an exclusive reservation, we can't use it
-						if (Lease.Resources == null)
+						if (Lease.Resources != null)
 						{
-							return false;
+							int LeaseCount;
+							Lease.Resources.TryGetValue(Name, out LeaseCount);
+							RemainingCount -= LeaseCount;
 						}
-
-						// Update the remaining count for this resource
-						int UsedCount;
-						if (Lease.Resources.TryGetValue(Resource.Key, out UsedCount))
-						{
-							RemainingCount -= UsedCount;
-							if (RemainingCount < Resource.Value)
-							{
-								return false;
-							}
-						}
+					}
+					if (RemainingCount < Count)
+					{
+						return false;
 					}
 				}
 			}
-
 			return true;
 		}
 
@@ -804,18 +702,11 @@ namespace HordeServer.Models
 		/// <returns></returns>
 		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent Agent, PerforceCluster Cluster)
 		{
-			if (Agent.Capabilities.Devices.Count > 0)
+			foreach (AutoSdkWorkspace AutoSdk in Cluster.AutoSdk)
 			{
-				DeviceCapabilities PrimaryDevice = Agent.Capabilities.Devices[0];
-				if (PrimaryDevice.Properties != null)
+				if (AutoSdk.Stream != null && AutoSdk.Properties.All(x => Agent.Properties.Contains(x)))
 				{
-					foreach (AutoSdkWorkspace AutoSdk in Cluster.AutoSdk)
-					{
-						if (AutoSdk.Stream != null && AutoSdk.Properties.All(x => PrimaryDevice.Properties.Contains(x)))
-						{
-							return new AgentWorkspace(Cluster.Name, AutoSdk.UserName, AutoSdk.Name ?? "AutoSDK", AutoSdk.Stream!, null, true);
-						}
-					}
+					return new AgentWorkspace(Cluster.Name, AutoSdk.UserName, AutoSdk.Name ?? "AutoSDK", AutoSdk.Stream!, null, true);
 				}
 			}
 			return null;

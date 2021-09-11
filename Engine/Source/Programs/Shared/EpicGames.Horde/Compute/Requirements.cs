@@ -47,5 +47,23 @@ namespace EpicGames.Horde.Compute
 		{
 			this.Condition = Condition;
 		}
+
+		public override string ToString()
+		{
+			List<string> List = new List<string>();
+			if (Condition != null)
+			{
+				List.Add($"\"{Condition}\"");
+			}
+			foreach ((string Name, int Count) in Resources)
+			{
+				List.Add($"{Name}: {Count}");
+			}
+			if (Exclusive)
+			{
+				List.Add("Exclusive");
+			}
+			return String.Join(", ", List);
+		}
 	}
 }

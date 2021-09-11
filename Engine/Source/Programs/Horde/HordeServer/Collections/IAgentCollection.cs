@@ -107,10 +107,12 @@ namespace HordeServer.Collections
 		/// <param name="SessionId">New session id</param>
 		/// <param name="SessionExpiresAt">Expiry time for the new session</param>
 		/// <param name="Status">Status of the agent</param>
-		/// <param name="Capabilities">Capabilities for the agent</param>
+		/// <param name="Properties">Properties for the current session</param>
+		/// <param name="Resources">Resources for the agent</param>
+		/// <param name="DynamicPools">New list of dynamic pools for the agent</param>
 		/// <param name="Version">Current version of the agent software</param>
 		/// <returns>New agent state</returns>
-		Task<IAgent?> TryStartSessionAsync(IAgent Agent, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, AgentCapabilities Capabilities, string? Version);
+		Task<IAgent?> TryStartSessionAsync(IAgent Agent, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, IReadOnlyList<PoolId> DynamicPools, string? Version);
 
 		/// <summary>
 		/// Attempt to update the agent state
@@ -118,10 +120,12 @@ namespace HordeServer.Collections
 		/// <param name="Agent">Agent instance</param>
 		/// <param name="Status">New status of the agent</param>
 		/// <param name="SessionExpiresAt">New expiry time for the current session</param>
-		/// <param name="Capabilities">Capabilities for the agent</param>
+		/// <param name="Properties">Properties for the current session</param>
+		/// <param name="Resources">Resources for the agent</param>
+		/// <param name="DynamicPools">New list of dynamic pools for the agent</param>
 		/// <param name="Leases">New set of leases</param>
 		/// <returns>True if the document was updated, false if another writer updated the document first</returns>
-		Task<IAgent?> TryUpdateSessionAsync(IAgent Agent, AgentStatus? Status, DateTime? SessionExpiresAt, AgentCapabilities? Capabilities, List<AgentLease>? Leases);
+		Task<IAgent?> TryUpdateSessionAsync(IAgent Agent, AgentStatus? Status, DateTime? SessionExpiresAt, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IReadOnlyList<PoolId>? DynamicPools, List<AgentLease>? Leases);
 
 		/// <summary>
 		/// Terminates the current session

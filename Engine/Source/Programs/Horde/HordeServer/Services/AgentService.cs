@@ -114,6 +114,11 @@ namespace HordeServer.Services
 		Dictionary<AgentId, AgentEventListener> Listeners = new Dictionary<AgentId, AgentEventListener>();
 
 		/// <summary>
+		/// Lazily updated list of current pools
+		/// </summary>
+		AsyncCachedValue<List<IPool>> PoolsList;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Agents">Collection of agent documents</param>
@@ -121,12 +126,13 @@ namespace HordeServer.Services
 		/// <param name="Sessions">Collection of session documents</param>
 		/// <param name="AclService">The ACL service</param>
 		/// <param name="DowntimeService">The downtime service</param>
+		/// <param name="PoolCollection">Pool collection</param>
 		/// <param name="DogStatsd">The DogStatsd metric client</param>
 		/// <param name="TaskSources">The list of task sources</param>
 		/// <param name="ApplicationLifetime"></param>
 		/// <param name="Logger">Log output writer</param>
 		/// <param name="Clock">Clock</param>
-		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, ILogger<AgentService> Logger, IClock Clock)
+		public AgentService(IAgentCollection Agents, ILeaseCollection Leases, ISessionCollection Sessions, AclService AclService, IDowntimeService DowntimeService, IPoolCollection PoolCollection, IDogStatsd DogStatsd, IEnumerable<ITaskSource> TaskSources, IHostApplicationLifetime ApplicationLifetime, ILogger<AgentService> Logger, IClock Clock)
 			: base(TimeSpan.FromSeconds(30.0), Logger)
 		{
 			this.Agents = Agents;
@@ -134,6 +140,7 @@ namespace HordeServer.Services
 			this.Sessions = Sessions;
 			this.AclService = AclService;
 			this.DowntimeService = DowntimeService;
+			this.PoolsList = new AsyncCachedValue<List<IPool>>(() => PoolCollection.GetAsync(), TimeSpan.FromSeconds(30.0));
 			this.DogStatsd = DogStatsd;
 			this.TaskSources = TaskSources.ToArray();
 			this.ApplicationLifetime = ApplicationLifetime;
@@ -259,15 +266,32 @@ namespace HordeServer.Services
 			}
 		}
 
+		async ValueTask<List<PoolId>> GetDynamicPoolsAsync(IAgent Agent)
+		{
+			List<PoolId> NewDynamicPools = new List<PoolId>();
+
+			List<IPool> Pools = await PoolsList.GetAsync();
+			foreach (IPool Pool in Pools)
+			{
+				if (Pool.Condition != null && Agent.SatisfiesCondition(Pool.Condition))
+				{
+					NewDynamicPools.Add(Pool.Id);
+				}
+			}
+
+			return NewDynamicPools;
+		}
+
 		/// <summary>
 		/// Creates a new agent session
 		/// </summary>
 		/// <param name="Agent">The agent to create a session for</param>
 		/// <param name="Status">Current status of the agent</param>
-		/// <param name="Capabilities">Capabilities of the agent software</param>
+		/// <param name="Properties">Properties for the agent</param>
+		/// <param name="Resources">Resources which the agent has</param>
 		/// <param name="Version">Version of the software that's running</param>
 		/// <returns>New agent state</returns>
-		public async Task<IAgent> CreateSessionAsync(IAgent Agent, AgentStatus Status, AgentCapabilities Capabilities, string? Version)
+		public async Task<IAgent> CreateSessionAsync(IAgent Agent, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, string? Version)
 		{
 			for (; ; )
 			{
@@ -290,11 +314,14 @@ namespace HordeServer.Services
 					}
 
 					// Create a new session document
-					ISession NewSession = await Sessions.AddAsync(ObjectId.GenerateNewId(), Agent.Id, Clock.UtcNow, Capabilities, Version);
+					ISession NewSession = await Sessions.AddAsync(ObjectId.GenerateNewId(), Agent.Id, Clock.UtcNow, Properties, Resources, Version);
 					DateTime SessionExpiresAt = UtcNow + SessionExpiryTime;
 
+					// Get the new dynamic pools for the agent
+					List<PoolId> DynamicPools = await GetDynamicPoolsAsync(Agent);
+
 					// Reset the agent to use the new session
-					NewAgent = await Agents.TryStartSessionAsync(Agent, NewSession.Id, SessionExpiresAt, Status, Capabilities, Version);
+					NewAgent = await Agents.TryStartSessionAsync(Agent, NewSession.Id, SessionExpiresAt, Status, Properties, Resources, DynamicPools, Version);
 					if(NewAgent != null)
 					{
 						Agent = NewAgent;
@@ -477,10 +504,11 @@ namespace HordeServer.Services
 		/// <param name="InAgent">The current agent state</param>
 		/// <param name="SessionId">Id of the session</param>
 		/// <param name="Status">New status for the agent</param>
-		/// <param name="Capabilities">New agent capabilities</param>
+		/// <param name="Properties">New agent properties</param>
+		/// <param name="Resources">New agent resources</param>
 		/// <param name="NewLeases">New list of leases for this session</param>
 		/// <returns>Updated agent state</returns>
-		public async Task<IAgent?> UpdateSessionAsync(IAgent InAgent, ObjectId SessionId, AgentStatus Status, AgentCapabilities? Capabilities, IList<HordeCommon.Rpc.Messages.Lease> NewLeases)
+		public async Task<IAgent?> UpdateSessionAsync(IAgent InAgent, ObjectId SessionId, AgentStatus Status, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IList<HordeCommon.Rpc.Messages.Lease> NewLeases)
 		{
 			AgentEventListener? Listener = null;
 			try
@@ -593,8 +621,11 @@ namespace HordeServer.Services
 						}
 					}
 
+					// Get the new dynamic pools for the agent
+					List<PoolId> DynamicPools = await GetDynamicPoolsAsync(Agent);
+
 					// Update the agent, and try to create new lease documents if we succeed
-					IAgent? NewAgent = await Agents.TryUpdateSessionAsync(Agent, Status, SessionExpiresAt, Capabilities, bUpdateLeases ? Leases : null);
+					IAgent? NewAgent = await Agents.TryUpdateSessionAsync(Agent, Status, SessionExpiresAt, Properties, Resources, DynamicPools, bUpdateLeases ? Leases : null);
 					if (NewAgent != null)
 					{
 						break;
@@ -768,7 +799,7 @@ namespace HordeServer.Services
 				}
 
 				// Update the session document
-				await Sessions.UpdateAsync(SessionId, FinishTime, Agent.Capabilities);
+				await Sessions.UpdateAsync(SessionId, FinishTime, Agent.Properties, Agent.Resources);
 				return true;
 			}
 			return false;

@@ -32,20 +32,30 @@ namespace HordeServer.Collections.Impl
 
 			public DateTime StartTime { get; set; }
 			public DateTime? FinishTime { get; set; }
-			public AgentCapabilities? Capabilities { get; set; }
+			public List<string>? Properties { get; set; }
+			public Dictionary<string, int>? Resources { get; set; }
 			public string? Version { get; set; }
+
+			IReadOnlyList<string>? ISession.Properties => Properties;
 
 			[BsonConstructor]
 			private SessionDocument()
 			{
 			}
 
-			public SessionDocument(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, string? Version)
+			public SessionDocument(ObjectId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
 			{
 				this.Id = Id;
 				this.AgentId = AgentId;
 				this.StartTime = StartTime;
-				this.Capabilities = Capabilities;
+				if (Properties != null)
+				{
+					this.Properties = new List<string>(Properties);
+				}
+				if (Resources != null)
+				{
+					this.Resources = new Dictionary<string, int>(Resources);
+				}
 				this.Version = Version;
 			}
 		}
@@ -72,9 +82,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, AgentCapabilities? Capabilities, string? Version)
+		public async Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
 		{
-			SessionDocument NewSession = new SessionDocument(Id, AgentId, StartTime, Capabilities, Version);
+			SessionDocument NewSession = new SessionDocument(Id, AgentId, StartTime, Properties, Resources, Version);
 			await Sessions.InsertOneAsync(NewSession);
 			return NewSession;
 		}
@@ -112,11 +122,12 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task UpdateAsync(ObjectId SessionId, DateTime FinishTime, AgentCapabilities Capabilities)
+		public Task UpdateAsync(ObjectId SessionId, DateTime FinishTime, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources)
 		{
 			UpdateDefinition<SessionDocument> Update = Builders<SessionDocument>.Update
 				.Set(x => x.FinishTime, FinishTime)
-				.Set(x => x.Capabilities, Capabilities);
+				.Set(x => (IEnumerable<string>?)x.Properties, Properties)
+				.Set(x => (IEnumerable<KeyValuePair<string, int>>?)x.Resources, Resources);
 
 			return Sessions.FindOneAndUpdateAsync(x => x.Id == SessionId, Update);
 		}

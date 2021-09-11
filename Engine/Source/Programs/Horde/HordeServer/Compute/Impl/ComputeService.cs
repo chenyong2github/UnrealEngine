@@ -213,11 +213,8 @@ namespace HordeServer.Compute.Impl
 				return null;
 			}
 
-			// Get all the current agent properties
-			Lazy<Task<List<string>>> Properties = new Lazy<Task<List<string>>>(() => GetAgentProperties(Agent));
-
 			// Find a task to execute
-			(IoHash, ComputeTaskInfo)? Entry = await TaskScheduler.DequeueAsync(RequirementsHash => CheckRequirements(RequirementsHash, Properties), CancellationToken);
+			(IoHash, ComputeTaskInfo)? Entry = await TaskScheduler.DequeueAsync(RequirementsHash => CheckRequirements(Agent, RequirementsHash), CancellationToken);
 			if (Entry != null)
 			{
 				(IoHash RequirementsHash, ComputeTaskInfo TaskInfo) = Entry.Value;
@@ -231,7 +228,7 @@ namespace HordeServer.Compute.Impl
 				string LeaseName = $"Remote action ({TaskInfo.TaskHash})";
 				byte[] Payload = Any.Pack(ComputeTask).ToByteArray();
 
-				AgentLease Lease = new AgentLease(ObjectId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, Payload, new AgentRequirements(), null);
+				AgentLease Lease = new AgentLease(ObjectId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, Payload, null);
 				Logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", Lease.Id, ComputeTask.ChannelId, (CbObjectAttachment)ComputeTask.TaskHash, (CbObjectAttachment)ComputeTask.RequirementsHash);
 				return Lease;
 			}
@@ -287,76 +284,17 @@ namespace HordeServer.Compute.Impl
 		/// <summary>
 		/// Checks that an agent matches the necessary criteria to execute a task
 		/// </summary>
+		/// <param name="Agent"></param>
 		/// <param name="RequirementsHash"></param>
-		/// <param name="LazyProperties">Properties for this agentthat the agent is in</param>
 		/// <returns></returns>
-		async ValueTask<bool> CheckRequirements(IoHash RequirementsHash, Lazy<Task<List<string>>> LazyProperties)
+		async ValueTask<bool> CheckRequirements(IAgent Agent, IoHash RequirementsHash)
 		{
 			Requirements? Requirements = await GetCachedRequirementsAsync(RequirementsHash);
 			if (Requirements == null)
 			{
 				return false;
 			}
-
-			if (Requirements.Condition != null)
-			{
-				List<string> Properties = await LazyProperties.Value;
-				if (!Requirements.Condition.Evaluate(x => FindAgentProperty(x, Properties)))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-		/// <summary>
-		/// Finds property values from a sorted list of Name=Value pairs
-		/// </summary>
-		/// <param name="Name">Name of the property to find</param>
-		/// <param name="Properties">The full list of properties</param>
-		/// <returns>Property values</returns>
-		static IEnumerable<string> FindAgentProperty(string Name, List<string> Properties)
-		{
-			int Index = Properties.BinarySearch(Name, StringComparer.OrdinalIgnoreCase);
-			if (Index < 0)
-			{
-				Index = ~Index;
-				while (Index < Properties.Count)
-				{
-					string Property = Properties[Index];
-					if (Property.Length <= Name.Length || !Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase) || Property[Name.Length] != '=')
-					{
-						break;
-					}
-					yield return Property.Substring(Name.Length + 1);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Gets a named property for an agent
-		/// </summary>
-		/// <param name="Agent">The agent instance</param>
-		/// <returns>The property value, or an empty string if it does not eixst</returns>
-		async Task<List<string>> GetAgentProperties(IAgent Agent)
-		{
-			List<string> Properties = new List<string>();
-			Properties.Add($"Name={Agent.Id}");
-
-			foreach (IPool Pool in Agent.GetPools(await CachedPools.GetCached()))
-			{
-				Properties.Add($"Pool={Pool.Id}");
-			}
-
-			HashSet<string>? DeviceProperties = Agent.Capabilities.PrimaryDevice.Properties;
-			if (DeviceProperties != null)
-			{
-				Properties.AddRange(DeviceProperties);
-			}
-
-			Properties.Sort(StringComparer.OrdinalIgnoreCase);
-			return Properties;
+			return Agent.MeetsRequirements(Requirements);
 		}
 
 		/// <summary>
