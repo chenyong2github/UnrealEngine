@@ -375,9 +375,24 @@ namespace HordeServer.Models
 	static class KnownPropertyNames
 	{
 		/// <summary>
+		/// The operating system (Linux, MacOS, Windows)
+		/// </summary>
+		public const string OSFamily = "OSFamily";
+
+		/// <summary>
 		/// Pools that this agent belongs to
 		/// </summary>
 		public const string Pool = "Pool";
+
+		/// <summary>
+		/// Number of logical cores
+		/// </summary>
+		public const string LogicalCores = "LogicalCores";
+
+		/// <summary>
+		/// Amount of RAM, in GB
+		/// </summary>
+		public const string RAM = "RAM";
 	}
 
 	/// <summary>
