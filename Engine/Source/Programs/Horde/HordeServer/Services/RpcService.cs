@@ -290,6 +290,21 @@ namespace HordeServer.Services
 			}
 		}
 
+		static void CopyPropertyToResource(string Name, List<string> Properties, Dictionary<string, int> Resources)
+		{
+			foreach (string Property in Properties)
+			{
+				if (Property.Length > Name.Length && Property.StartsWith(Name, StringComparison.OrdinalIgnoreCase) && Property[Name.Length] == '=')
+				{
+					int Value;
+					if (int.TryParse(Property.AsSpan(Name.Length + 1), out Value))
+					{
+						Resources[Name] = Value;
+					}
+				}
+			}
+		}
+
 		static void GetCapabilities(RpcAgentCapabilities? Capabilities, out List<string> Properties, out Dictionary<string, int> Resources)
 		{
 			Properties = new List<string>();
@@ -301,10 +316,8 @@ namespace HordeServer.Services
 				if (Device.Properties != null)
 				{
 					Properties = new List<string>(Device.Properties);
-				}
-				if (Device.Resources != null)
-				{
-					Resources = new Dictionary<string, int>(Device.Resources);
+					CopyPropertyToResource(KnownPropertyNames.LogicalCores, Properties, Resources);
+					CopyPropertyToResource(KnownPropertyNames.RAM, Properties, Resources);
 				}
 			}
 		}
