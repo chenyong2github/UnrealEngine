@@ -433,7 +433,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			return await JobTaskSource.GetStatus();
+			return JobTaskSource.GetStatus();
 		}
 
 		/// <summary>
@@ -880,7 +880,7 @@ namespace HordeServer.Controllers
 			else if (ChangeType == "shrink")
 			{
 				Agents = await AgentCollection.FindAsync();
-				Agents = Agents.FindAll(a => a.InPool(Pool)).ToList();
+				Agents = Agents.FindAll(a => a.IsInPool(Pool.Id)).ToList();
 				await FleetManager.ShrinkPool(Pool, Agents, Count.Value);
 				Message = $"Shrank pool {Pool.Name} by {Count}";
 			}

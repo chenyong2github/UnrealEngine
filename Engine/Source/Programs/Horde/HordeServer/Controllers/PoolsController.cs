@@ -60,7 +60,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Requirements, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.Properties);
+			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.Properties);
 			return new CreatePoolResponse(NewPool.Id.ToString());
 		}
 
@@ -139,7 +139,7 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Requirements, Update.EnableAutoscaling, Update.MinAgents, Update.NumReserveAgents, Update.Properties);
+			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Condition, Update.EnableAutoscaling, Update.MinAgents, Update.NumReserveAgents, Update.Properties);
 			return new OkResult();
 		}
 

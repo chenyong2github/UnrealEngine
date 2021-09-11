@@ -31,6 +31,8 @@ namespace HordeServer.Services
 	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
 	using IStream = HordeServer.Models.IStream;
 	using StreamId = StringId<IStream>;
+	using RpcAgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
+	using RpcDeviceCapabilities = HordeCommon.Rpc.Messages.DeviceCapabilities;
 
 	/// <summary>
 	/// Implements the Horde gRPC service for bots updating their status and dequeing work
@@ -288,6 +290,25 @@ namespace HordeServer.Services
 			}
 		}
 
+		static void GetCapabilities(RpcAgentCapabilities? Capabilities, out List<string> Properties, out Dictionary<string, int> Resources)
+		{
+			Properties = new List<string>();
+			Resources = new Dictionary<string, int>();
+
+			if (Capabilities != null && Capabilities.Devices.Count > 0)
+			{
+				RpcDeviceCapabilities Device = Capabilities.Devices[0];
+				if (Device.Properties != null)
+				{
+					Properties = new List<string>(Device.Properties);
+				}
+				if (Device.Resources != null)
+				{
+					Resources = new Dictionary<string, int>(Device.Resources);
+				}
+			}
+		}
+
 		/// <summary>
 		/// Creates a new session
 		/// </summary>
@@ -323,8 +344,11 @@ namespace HordeServer.Services
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create session for {AgentId}", Request.Name);
 			}
 
+			// Get the known properties for this agent
+			GetCapabilities(Request.Capabilities, out List<string> Properties, out Dictionary<string, int> Resources);
+
 			// Create a new session
-			Agent = await AgentService.CreateSessionAsync(Agent, Request.Status, new AgentCapabilities(Request.Capabilities), Request.Version);
+			Agent = await AgentService.CreateSessionAsync(Agent, Request.Status, Properties, Resources, Request.Version);
 			if (Agent == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Agent {AgentId} not found", Request.Name);
@@ -375,17 +399,18 @@ namespace HordeServer.Services
 					}
 
 					// Get the new capabilities of this agent
-					AgentCapabilities? Capabilities = null;
+					List<string>? Properties = null;
+					Dictionary<string, int>? Resources = null;
 					if (Request.Capabilities != null)
 					{
-						Capabilities = new AgentCapabilities(Request.Capabilities);
+						GetCapabilities(Request.Capabilities, out Properties, out Resources);
 					}
 
 					// Capture the current agent update index. This allows us to detect if anything has changed.
 					uint UpdateIndex = Agent.UpdateIndex;
 
 					// Update the agent session and return to the caller if anything changes
-					Agent = await AgentService.UpdateSessionAsync(Agent, Request.SessionId.ToObjectId(), Request.Status, Capabilities, Request.Leases);
+					Agent = await AgentService.UpdateSessionAsync(Agent, Request.SessionId.ToObjectId(), Request.Status, Properties, Resources, Request.Leases);
 					if (Agent != null && Agent.UpdateIndex == UpdateIndex && (Agent.Leases.Count > 0 || Agent.Status != AgentStatus.Stopping))
 					{
 						Agent = await AgentService.WaitForLeaseAsync(Agent, NextRequestTask);

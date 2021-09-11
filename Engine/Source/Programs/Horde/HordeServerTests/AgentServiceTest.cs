@@ -43,7 +43,7 @@ namespace HordeServerTests
 	        TestSetup TestSetup = await GetTestSetup();
 	        AgentService AgentService = TestSetup.AgentService;
 
-	        IAgent Agent = await AgentService.CreateSessionAsync(TestSetup.Fixture!.Agent1, AgentStatus.Ok, new AgentCapabilities(),
+	        IAgent Agent = await AgentService.CreateSessionAsync(TestSetup.Fixture!.Agent1, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(),
 		        "test");
 	        
 	        Assert.IsTrue(AgentService.AuthorizeSession(Agent, GetUser(Agent)));

@@ -348,11 +348,6 @@ namespace HordeServer.Api
 		public string? Workspace { get; set; }
 
 		/// <summary>
-		/// Pool of agents to use to execute this work
-		/// </summary>
-		public GetAgentRequirementsResponse? Requirements { get; set; }
-
-		/// <summary>
 		/// Path to the temporary storage dir
 		/// </summary>
 		public string? TempStorageDir { get; set; }

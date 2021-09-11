@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Common;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Google.Protobuf.WellKnownTypes;
@@ -27,6 +28,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using HordeServer.Services;
+using EpicGames.Horde.Compute;
 
 namespace HordeServer.Tasks.Impl
 {
@@ -59,14 +61,9 @@ namespace HordeServer.Tasks.Impl
 			public int BatchIdx;
 
 			/// <summary>
-			/// Requirements for the agent to execute this item
-			/// </summary>
-			public AgentRequirements Requirements;
-
-			/// <summary>
 			/// The pool of machines to allocate from
 			/// </summary>
-			public IPool Pool;
+			public PoolId PoolId;
 
 			/// <summary>
 			/// The type of workspace that this item should run in
@@ -100,16 +97,14 @@ namespace HordeServer.Tasks.Impl
 			/// <param name="Stream">The stream containing this job</param>
 			/// <param name="Job">The job instance</param>
 			/// <param name="BatchIdx">The batch index to execute</param>
-			/// <param name="Pool">Unique id of the pool of machines to allocate from</param>
-			/// <param name="Requirements">Requirements for the agent to execute this batch</param>
+			/// <param name="PoolId">Unique id of the pool of machines to allocate from</param>
 			/// <param name="Workspace">The workspace that this job should run in</param>
-			public QueueItem(IStream Stream, IJob Job, int BatchIdx, IPool Pool, AgentRequirements Requirements, AgentWorkspace Workspace)
+			public QueueItem(IStream Stream, IJob Job, int BatchIdx, PoolId PoolId, AgentWorkspace Workspace)
 			{
 				this.Stream = Stream;
 				this.Job = Job;
 				this.BatchIdx = BatchIdx;
-				this.Pool = Pool;
-				this.Requirements = Requirements;
+				this.PoolId = PoolId;
 				this.Workspace = Workspace;
 			}
 		}
@@ -329,11 +324,6 @@ namespace HordeServer.Tasks.Impl
 		public MessageDescriptor Descriptor => ExecuteJobTask.Descriptor;
 
 		/// <summary>
-		/// The next server index that should be used to determine what Perforce server an agent should use.
-		/// </summary>
-		public uint NextServerIndex { get; set; } = 0;
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService">The database service instance</param>
@@ -372,21 +362,20 @@ namespace HordeServer.Tasks.Impl
 		/// Gets an object containing the stats of the queue for diagnostic purposes.
 		/// </summary>
 		/// <returns>Status object</returns>
-		public async Task<object> GetStatus()
+		public object GetStatus()
 		{
-			List<IPool> AllPools = await PoolCollection.GetAsync();
 			lock (LockObject)
 			{
 				List<object> OutputItems = new List<object>();
 				foreach (QueueItem QueueItem in Queue)
 				{
-					OutputItems.Add(new { JobId = QueueItem.Job.Id.ToString(), BatchId = QueueItem.Batch.Id.ToString(), PoolId = QueueItem.Pool.Id.ToString(), Workspace = QueueItem.Workspace, Requirements = QueueItem.Requirements });
+					OutputItems.Add(new { JobId = QueueItem.Job.Id.ToString(), BatchId = QueueItem.Batch.Id.ToString(), PoolId = QueueItem.PoolId.ToString(), Workspace = QueueItem.Workspace });
 				}
 
 				List<object> OutputWaiters = new List<object>();
 				foreach (QueueWaiter Waiter in Waiters)
 				{
-					OutputWaiters.Add(new { Id = Waiter.Agent.Id.ToString(), Pools = Waiter.Agent.GetPools(AllPools).Select(x => x.Id.ToString()).ToList(), Workspaces = Waiter.Agent.Workspaces, Capabilities = Waiter.Agent.Capabilities });
+					OutputWaiters.Add(new { Id = Waiter.Agent.Id.ToString(), Pools = Waiter.Agent.GetPools().Select(x => x.ToString()).ToList(), Workspaces = Waiter.Agent.Workspaces });
 				}
 
 				return new { Items = OutputItems, Waiters = OutputWaiters };
@@ -436,7 +425,7 @@ namespace HordeServer.Tasks.Impl
 			HashSet<PoolId> OnlinePools = new HashSet<PoolId>(Agents.Where(x => x.IsSessionValid(UtcNow)).SelectMany(x => x.ExplicitPools));
 			foreach (IPool Pool in Pools)
 			{
-				if (Pool.Requirements != null && !OnlinePools.Contains(Pool.Id) && Agents.Any(x => x.IsSessionValid(UtcNow) && x.InPool(Pool)))
+				if (Pool.Condition != null && !OnlinePools.Contains(Pool.Id) && Agents.Any(x => x.IsSessionValid(UtcNow) && x.SatisfiesCondition(Pool.Condition)))
 				{
 					OnlinePools.Add(Pool.Id);
 				}
@@ -446,7 +435,7 @@ namespace HordeServer.Tasks.Impl
 			HashSet<PoolId> ValidPools = new HashSet<PoolId>(OnlinePools.Union(Agents.Where(x => !x.IsSessionValid(UtcNow)).SelectMany(x => x.ExplicitPools)));
 			foreach (IPool Pool in Pools)
 			{
-				if (Pool.Requirements != null && !ValidPools.Contains(Pool.Id) && Agents.Any(x => !x.IsSessionValid(UtcNow) && x.InPool(Pool)))
+				if (Pool.Condition != null && !ValidPools.Contains(Pool.Id) && Agents.Any(x => !x.IsSessionValid(UtcNow) && x.SatisfiesCondition(Pool.Condition)))
 				{
 					ValidPools.Add(Pool.Id);
 				}
@@ -523,9 +512,7 @@ namespace HordeServer.Tasks.Impl
 						}
 						else
 						{
-							AgentRequirements Requirements = new AgentRequirements();
-
-							QueueItem NewQueueItem = new QueueItem(Stream, NewJob, BatchIdx, Pool, Requirements, Workspace);
+							QueueItem NewQueueItem = new QueueItem(Stream, NewJob, BatchIdx, AgentType.Pool, Workspace);
 							NewQueue.Add(NewQueueItem);
 							NewBatchIdToQueueItem[(NewJob.Id, Batch.Id)] = NewQueueItem;
 						}
@@ -645,19 +632,15 @@ namespace HordeServer.Tasks.Impl
 		/// <returns></returns>
 		bool TryAssignItemToWaiter(QueueItem Item, QueueWaiter Waiter)
 		{
-			if (Item.AssignTask == null && Item.Batch.SessionId == null)
+			if (Item.AssignTask == null && Item.Batch.SessionId == null && Waiter.Agent.IsInPool(Item.PoolId))
 			{
-				List<AgentLeaseDevice>? LeasedDevices;
-				if (Waiter.Agent.TryCreateLease(Item.Pool, Item.Requirements, out LeasedDevices))
-				{
-					Task StartTask = new Task<Task>(() => TryCreateLeaseAsync(Item, Waiter, LeasedDevices));
-					Task ExecuteTask = StartTask.ContinueWith(Task => Task, TaskScheduler.Default);
+				Task StartTask = new Task<Task>(() => TryCreateLeaseAsync(Item, Waiter));
+				Task ExecuteTask = StartTask.ContinueWith(Task => Task, TaskScheduler.Default);
 
-					if (Interlocked.CompareExchange(ref Item.AssignTask, ExecuteTask, null) == null)
-					{
-						StartTask.Start(TaskScheduler.Default);
-						return true;
-					}
+				if (Interlocked.CompareExchange(ref Item.AssignTask, ExecuteTask, null) == null)
+				{
+					StartTask.Start(TaskScheduler.Default);
+					return true;
 				}
 			}
 			return false;
@@ -694,7 +677,7 @@ namespace HordeServer.Tasks.Impl
 								else
 								{
 									RemoveQueueItem(ExistingItem);
-									InsertQueueItem(Stream, Job, BatchIdx, ExistingItem.Pool, ExistingItem.Requirements, ExistingItem.Workspace);
+									InsertQueueItem(Stream, Job, BatchIdx, ExistingItem.PoolId, ExistingItem.Workspace);
 								}
 							}
 							continue;
@@ -710,14 +693,7 @@ namespace HordeServer.Tasks.Impl
 							AgentWorkspace? Workspace;
 							if (Stream.TryGetAgentWorkspace(AgentType, out Workspace))
 							{
-								AgentRequirements AgentRequirements = new AgentRequirements();
-
-								// Get the pool for this agent type
-								IPool? Pool;
-								if (CachedPoolIdToInstance.TryGetValue(AgentType.Pool, out Pool))
-								{
-									InsertQueueItem(Stream, Job, BatchIdx, Pool, AgentRequirements, Workspace);
-								}
+								InsertQueueItem(Stream, Job, BatchIdx, AgentType.Pool, Workspace);
 							}
 						}
 					}
@@ -743,14 +719,6 @@ namespace HordeServer.Tasks.Impl
 			}
 		}
 
-		/// <summary>
-		/// Gets the index that should be used to choose the Perforce server an agent should use for a lease.
-		/// </summary>
-		public uint GetPerforceServerIndex()
-		{
-			return NextServerIndex++;
-		}
-
 		/// <inheritdoc/>
 		public Task<ITaskListener?> SubscribeAsync(IAgent Agent)
 		{
@@ -767,9 +735,8 @@ namespace HordeServer.Tasks.Impl
 		/// </summary>
 		/// <param name="Item">The item to create a lease for</param>
 		/// <param name="Waiter">The agent waiting for work</param>
-		/// <param name="LeasedDevices">The devices to include in the lease</param>
 		/// <returns>New work to execute</returns>
-		private async Task<AgentLease?> TryCreateLeaseAsync(QueueItem Item, QueueWaiter Waiter, List<AgentLeaseDevice>? LeasedDevices)
+		private async Task<AgentLease?> TryCreateLeaseAsync(QueueItem Item, QueueWaiter Waiter)
 		{
 			IJob Job = Item.Job;
 			IJobStepBatch Batch = Job.Batches[Item.BatchIdx];
@@ -784,7 +751,7 @@ namespace HordeServer.Tasks.Impl
 
 			// Try to update the job with this agent id
 			ObjectId LogId = (await LogFileService.CreateLogFileAsync(Job.Id, Agent.SessionId, LogType.Json)).Id;
-			if (await Jobs.TryAssignLeaseAsync(Item.Job, Item.BatchIdx, Item.Pool.Id, Agent.Id, Agent.SessionId!.Value, LeaseId, LogId))
+			if (await Jobs.TryAssignLeaseAsync(Item.Job, Item.BatchIdx, Item.PoolId, Agent.Id, Agent.SessionId!.Value, LeaseId, LogId))
 			{
 				// Get the lease name
 				StringBuilder LeaseName = new StringBuilder($"{Item.Stream.Name} - ");
@@ -808,7 +775,7 @@ namespace HordeServer.Tasks.Impl
 					byte[] Payload = Any.Pack(Task).ToByteArray();
 
 					// Create the lease and try to set it on the waiter. If this fails, the waiter has already moved on, and the lease can be cancelled.
-					AgentLease Lease = new AgentLease(LeaseId, LeaseName.ToString(), Job.StreamId, Item.Pool.Id, LogId, LeaseState.Pending, Payload, Item.Requirements, LeasedDevices);
+					AgentLease Lease = new AgentLease(LeaseId, LeaseName.ToString(), Job.StreamId, Item.PoolId, LogId, LeaseState.Pending, Payload, null);
 					if (Waiter.LeaseSource.TrySetResult(new NewLeaseInfo(Lease)))
 					{
 						Logger.LogDebug("Assigned lease {LeaseId} to agent {AgentId}", LeaseId, Agent.Id);
@@ -1103,15 +1070,14 @@ namespace HordeServer.Tasks.Impl
 		/// <param name="Stream">The stream containing the job</param>
 		/// <param name="Job"></param>
 		/// <param name="BatchIdx"></param>
-		/// <param name="Pool">The pool to use</param>
-		/// <param name="Requirements">The agent requirements for this item</param>
+		/// <param name="PoolId">The pool to use</param>
 		/// <param name="Workspace">The workspace for this item to run in</param>
 		/// <returns></returns>
-		void InsertQueueItem(IStream Stream, IJob Job, int BatchIdx, IPool Pool, AgentRequirements Requirements, AgentWorkspace Workspace)
+		void InsertQueueItem(IStream Stream, IJob Job, int BatchIdx, PoolId PoolId, AgentWorkspace Workspace)
 		{
-			Logger.LogDebug("Adding queued job {JobId}, batch {BatchId} [Pool: {Pool}, Workspace: {Workspace}]", Job.Id, Job.Batches[BatchIdx].Id, Pool.Id, Workspace.Identifier);
+			Logger.LogDebug("Adding queued job {JobId}, batch {BatchId} [Pool: {Pool}, Workspace: {Workspace}]", Job.Id, Job.Batches[BatchIdx].Id, PoolId, Workspace.Identifier);
 
-			QueueItem NewItem = new QueueItem(Stream, Job, BatchIdx, Pool, Requirements, Workspace);
+			QueueItem NewItem = new QueueItem(Stream, Job, BatchIdx, PoolId, Workspace);
 			BatchIdToQueueItem[NewItem.Id] = NewItem;
 			Queue.Add(NewItem);
 

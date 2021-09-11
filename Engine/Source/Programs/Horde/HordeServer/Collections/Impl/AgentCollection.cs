@@ -26,6 +26,29 @@ namespace HordeServer.Collections.Impl
 	public class AgentCollection : IAgentCollection
 	{
 		/// <summary>
+		/// Legacy information about a device attached to an agent
+		/// </summary>
+		class DeviceCapabilities
+		{
+			[BsonIgnoreIfNull]
+			public HashSet<string>? Properties { get; set; }
+
+			[BsonIgnoreIfNull]
+			public Dictionary<string, int>? Resources { get; set; }
+		}
+
+		/// <summary>
+		/// Legacy capabilities of an agent
+		/// </summary>
+		class AgentCapabilities
+		{
+			public List<DeviceCapabilities> Devices { get; set; } = new List<DeviceCapabilities>();
+
+			[BsonIgnoreIfNull]
+			public HashSet<string>? Properties { get; set; }
+		}
+
+		/// <summary>
 		/// Concrete implementation of an agent document
 		/// </summary>
 		class AgentDocument : IAgent
@@ -51,6 +74,9 @@ namespace HordeServer.Collections.Impl
 			[BsonElement("Version2")]
 			public string? Version { get; set; }
 
+			public List<string>? Properties { get; set; }
+			public Dictionary<string, int>? Resources { get; set; }
+
 			[BsonIgnoreIfNull]
 			public AgentSoftwareChannelName? Channel { get; set; }
 
@@ -60,6 +86,7 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public DateTime? LastUpgradeTime { get; set; }
 
+			public List<PoolId> DynamicPools { get; set; } = new List<PoolId>();
 			public List<PoolId> Pools { get; set; } = new List<PoolId>();
 			public bool RequestConform { get; set; }
 
@@ -82,9 +109,12 @@ namespace HordeServer.Collections.Impl
 			public uint UpdateIndex { get; set; }
 			public string? Comment { get; set; }
 
+			IReadOnlyList<PoolId> IAgent.DynamicPools => DynamicPools;
 			IReadOnlyList<PoolId> IAgent.ExplicitPools => Pools;
 			IReadOnlyList<AgentWorkspace> IAgent.Workspaces => Workspaces;
 			IReadOnlyList<AgentLease> IAgent.Leases => Leases ?? EmptyLeases;
+			IReadOnlyList<string> IAgent.Properties => Properties ?? Capabilities.Devices.FirstOrDefault()?.Properties.ToList() ?? new List<string>();
+			IReadOnlyDictionary<string, int> IAgent.Resources => Resources ?? Capabilities.Devices.FirstOrDefault()?.Resources ?? new Dictionary<string, int>();
 
 			[BsonConstructor]
 			private AgentDocument()
@@ -321,7 +351,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryUpdateSessionAsync(IAgent AgentInterface, AgentStatus? Status, DateTime? SessionExpiresAt, AgentCapabilities? Capabilities, List<AgentLease>? Leases)
+		public async Task<IAgent?> TryUpdateSessionAsync(IAgent AgentInterface, AgentStatus? Status, DateTime? SessionExpiresAt, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IReadOnlyList<PoolId>? DynamicPools, List<AgentLease>? Leases)
 		{
 			AgentDocument Agent = (AgentDocument)AgentInterface;
 
@@ -339,10 +369,20 @@ namespace HordeServer.Collections.Impl
 				Agent.SessionExpiresAt = SessionExpiresAt.Value;
 				Updates.Add(UpdateBuilder.Set(x => x.SessionExpiresAt, Agent.SessionExpiresAt));
 			}
-			if (Capabilities != null)
+			if (Properties != null)
 			{
-				Agent.Capabilities = Capabilities;
-				Updates.Add(UpdateBuilder.Set(x => x.Capabilities, Agent.Capabilities));
+				Agent.Properties = Properties.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+				Updates.Add(UpdateBuilder.Set(x => x.Properties, Agent.Properties));
+			}
+			if (Resources != null)
+			{
+				Agent.Resources = new Dictionary<string, int>(Resources);
+				Updates.Add(UpdateBuilder.Set(x => x.Resources, Agent.Resources));
+			}
+			if (DynamicPools != null && !DynamicPools.SequenceEqual(Agent.DynamicPools))
+			{
+				Agent.DynamicPools = new List<PoolId>(DynamicPools);
+				Updates.Add(UpdateBuilder.Set(x => x.DynamicPools, Agent.DynamicPools));
 			}
 			if (Leases != null)
 			{
@@ -411,9 +451,12 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryStartSessionAsync(IAgent AgentInterface, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, AgentCapabilities Capabilities, string? Version)
+		public async Task<IAgent?> TryStartSessionAsync(IAgent AgentInterface, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, IReadOnlyList<PoolId> DynamicPools, string? Version)
 		{
 			AgentDocument Agent = (AgentDocument)AgentInterface;
+			List<string> NewProperties = Properties.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+			Dictionary<string, int> NewResources = new Dictionary<string, int>(Resources);
+			List<PoolId> NewDynamicPools = new List<PoolId>(DynamicPools);
 
 			// Reset the agent to use the new session
 			UpdateDefinitionBuilder<AgentDocument> UpdateBuilder = Builders<AgentDocument>.Update;
@@ -424,7 +467,9 @@ namespace HordeServer.Collections.Impl
 			Updates.Add(UpdateBuilder.Set(x => x.Status, Status));
 			Updates.Add(UpdateBuilder.Unset(x => x.Leases));
 			Updates.Add(UpdateBuilder.Unset(x => x.Deleted));
-			Updates.Add(UpdateBuilder.Set(x => x.Capabilities, Capabilities));
+			Updates.Add(UpdateBuilder.Set(x => x.Properties, NewProperties));
+			Updates.Add(UpdateBuilder.Set(x => x.Resources, NewResources));
+			Updates.Add(UpdateBuilder.Set(x => x.DynamicPools, NewDynamicPools));
 			Updates.Add(UpdateBuilder.Set(x => x.Version, Version));
 			Updates.Add(UpdateBuilder.Unset(x => x.RequestRestart));
 			Updates.Add(UpdateBuilder.Unset(x => x.RequestShutdown));
@@ -441,7 +486,9 @@ namespace HordeServer.Collections.Impl
 			Agent.Status = Status;
 			Agent.Leases = null;
 			Agent.Deleted = false;
-			Agent.Capabilities = Capabilities;
+			Agent.Properties = NewProperties;
+			Agent.Resources = NewResources;
+			Agent.DynamicPools = NewDynamicPools;
 			Agent.Version = Version;
 
 			return Agent;

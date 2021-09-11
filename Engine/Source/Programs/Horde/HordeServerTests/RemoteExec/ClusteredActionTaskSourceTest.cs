@@ -28,9 +28,12 @@ namespace HordeServerTests.RemoteExec
 		public bool Ephemeral { get; set; }
 		public bool Deleted { get; set; }
 		public string? Version { get; set; }
+		public IReadOnlyList<string> Properties { get; set; } = new List<string>();
+		public IReadOnlyDictionary<string, int> Resources { get; set; } = new Dictionary<string, int>();
 		public StringId<AgentSoftwareChannels>? Channel { get; set; }
 		public string? LastUpgradeVersion { get; set; }
 		public DateTime? LastUpgradeTime { get; set; }
+		public IReadOnlyList<StringId<IPool>> DynamicPools { get; set; } = new List<StringId<IPool>>();
 		public IReadOnlyList<StringId<IPool>> ExplicitPools { get; set; } = new List<StringId<IPool>>();
 		public bool RequestConform { get; set; }
 		public bool RequestRestart { get; set; }
@@ -38,7 +41,6 @@ namespace HordeServerTests.RemoteExec
 		public IReadOnlyList<AgentWorkspace> Workspaces { get; set; } = new List<AgentWorkspace>();
 		public DateTime LastConformTime { get; set; }
 		public int? ConformAttemptCount { get; set; }
-		public AgentCapabilities Capabilities { get; set; } = new AgentCapabilities();
 		public IReadOnlyList<AgentLease> Leases { get; set; } = new List<AgentLease>();
 		public Acl? Acl { get; set; }
 		public DateTime UpdateTime { get; set; }

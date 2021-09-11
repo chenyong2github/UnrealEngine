@@ -98,14 +98,12 @@ namespace HordeServer.Controllers
 		{
 			GlobalPermissionsCache PermissionsCache = new GlobalPermissionsCache();
 			List<IAgent> Agents = await AgentService.FindAgentsAsync(Pool?.ToObjectId(), ModifiedAfter?.UtcDateTime, Index, Count);
-			List<IPool> Pools = await PoolService.GetPoolsAsync();
 
 			List<object> Responses = new List<object>();
 			foreach (IAgent Agent in Agents)
 			{
 				bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, PermissionsCache);
-				List<PoolId> PoolIds = Agent.GetPools(Pools).Select(x => x.Id).ToList();
-				Responses.Add(new GetAgentResponse(Agent, PoolIds, bIncludeAcl).ApplyFilter(Filter));
+				Responses.Add(new GetAgentResponse(Agent, bIncludeAcl).ApplyFilter(Filter));
 			}
 
 			return Responses;
@@ -132,8 +130,7 @@ namespace HordeServer.Controllers
 
 			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
 			bool bIncludeAcl = await AgentService.AuthorizeAsync(Agent, AclAction.ViewPermissions, User, Cache);
-			List<PoolId> PoolIds = Agent.GetPools(Pools).Select(x => x.Id).ToList();
-			return new GetAgentResponse(Agent, PoolIds, bIncludeAcl).ApplyFilter(Filter);
+			return new GetAgentResponse(Agent, bIncludeAcl).ApplyFilter(Filter);
 		}
 
 		/// <summary>

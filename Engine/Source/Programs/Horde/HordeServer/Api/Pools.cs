@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Horde.Common;
 using HordeServer.Models;
 using System;
 using System.Collections.Generic;
@@ -21,9 +22,9 @@ namespace HordeServer.Api
 		public string Name { get; set; } = null!;
 
 		/// <summary>
-		/// Agent requirements to automatically include in this pool
+		/// Condition to satisfy for agents to be included in this pool
 		/// </summary>
-		public AgentRequirements? Requirements { get; set; }
+		public Condition? Condition { get; set; }
 
 		/// <summary>
 		/// Whether to enable autoscaling for this pool
@@ -87,7 +88,7 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Requirements for this pool
 		/// </summary>
-		public AgentRequirements? Requirements { get; set; }
+		public Condition? Condition { get; set; }
 
 		/// <summary>
 		/// Whether to enable autoscaling for this pool
@@ -148,9 +149,9 @@ namespace HordeServer.Api
 		public string Name { get; set; }
 
 		/// <summary>
-		/// Requirements for agents to be auto-added to the pool
+		/// Condition for agents to be auto-added to the pool
 		/// </summary>
-		public AgentRequirements? Requirements { get; set; }
+		public Condition? Condition { get; set; }
 
 		/// <summary>
 		/// Whether to enable autoscaling for this pool
@@ -196,7 +197,7 @@ namespace HordeServer.Api
 		{
 			this.Id = Pool.Id.ToString();
 			this.Name = Pool.Name;
-			this.Requirements = Pool.Requirements;
+			this.Condition = Pool.Condition;
 			this.EnableAutoscaling = Pool.EnableAutoscaling;
 			this.MinAgents = Pool.MinAgents;
 			this.NumReserveAgents = Pool.NumReserveAgents;

@@ -86,7 +86,7 @@ namespace HordeServer.Services.Impl
 			for (int Idx = 0; Idx < SortedAgents.Count && Count > 0; Idx++)
 			{
 				IAgent Agent = SortedAgents[Idx];
-				if (Agent.Capabilities.PrimaryDevice.HasProperty(AwsTagProperty))
+				if (Agent.HasProperty(AwsTagProperty))
 				{
 					for (IAgent? NewAgent = Agent; NewAgent != null; NewAgent = await AgentCollection.GetAsync(Agent.Id))
 					{

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Horde.Common;
 using HordeCommon;
 using HordeServer.Api;
 using HordeServer.Collections;
@@ -61,15 +62,15 @@ namespace HordeServer.Services
 		/// Creates a new pool
 		/// </summary>
 		/// <param name="Name">Name of the new pool</param>
-		/// <param name="Requirements">Requirements for agents to add to this pool</param>
+		/// <param name="Condition">Condition for agents to be automatically included in this pool</param>
 		/// <param name="EnableAutoscaling">Whether to enable autoscaling for this pool</param>
 		/// <param name="MinAgents">Minimum number of agents in the pool</param>
 		/// <param name="NumReserveAgents">Minimum number of idle agents to maintain</param>
 		/// <param name="Properties">Properties for the new pool</param>
 		/// <returns>The new pool document</returns>
-		public Task<IPool> CreatePoolAsync(string Name, AgentRequirements? Requirements = null, bool? EnableAutoscaling = null, int? MinAgents = null, int? NumReserveAgents = null, Dictionary<string, string>? Properties = null)
+		public Task<IPool> CreatePoolAsync(string Name, Condition? Condition = null, bool? EnableAutoscaling = null, int? MinAgents = null, int? NumReserveAgents = null, Dictionary<string, string>? Properties = null)
 		{
-			return Pools.AddAsync(PoolId.Sanitize(Name), Name, Requirements, EnableAutoscaling, MinAgents, NumReserveAgents, Properties);
+			return Pools.AddAsync(PoolId.Sanitize(Name), Name, Condition, EnableAutoscaling, MinAgents, NumReserveAgents, Properties);
 		}
 
 		/// <summary>
@@ -87,17 +88,17 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="Pool">The pool to update</param>
 		/// <param name="NewName">The new name for the pool</param>
-		/// <param name="NewRequirements">New requirements for the pool</param>
+		/// <param name="NewCondition">New requirements for the pool</param>
 		/// <param name="NewEnableAutoscaling">Whether to enable autoscaling</param>
 		/// <param name="NewMinAgents">Minimum number of agents in the pool</param>
 		/// <param name="NewNumReserveAgents">Minimum number of idle agents to maintain</param>
 		/// <param name="NewProperties">Properties on the pool to update. Any properties with a value of null will be removed.</param>
 		/// <returns>Async task object</returns>
-		public async Task<IPool?> UpdatePoolAsync(IPool? Pool, string? NewName = null, AgentRequirements? NewRequirements = null, bool? NewEnableAutoscaling = null, int? NewMinAgents = null, int? NewNumReserveAgents = null, Dictionary<string, string?>? NewProperties = null)
+		public async Task<IPool?> UpdatePoolAsync(IPool? Pool, string? NewName = null, Condition? NewCondition = null, bool? NewEnableAutoscaling = null, int? NewMinAgents = null, int? NewNumReserveAgents = null, Dictionary<string, string?>? NewProperties = null)
 		{
 			for (; Pool != null; Pool = await Pools.GetAsync(Pool.Id))
 			{
-				IPool? NewPool = await Pools.TryUpdateAsync(Pool, NewName, NewRequirements, NewEnableAutoscaling, NewMinAgents, NewNumReserveAgents, null, NewProperties, null, null);
+				IPool? NewPool = await Pools.TryUpdateAsync(Pool, NewName, NewCondition, NewEnableAutoscaling, NewMinAgents, NewNumReserveAgents, null, NewProperties, null, null);
 				if (NewPool != null)
 				{
 					return NewPool;
@@ -136,7 +137,14 @@ namespace HordeServer.Services
 			HashSet<AgentWorkspace> Workspaces = new HashSet<AgentWorkspace>();
 
 			Dictionary<PoolId, IPool> PoolMapping = await GetPoolLookupAsync(ValidAtTime);
-			Workspaces.UnionWith(Agent.GetPools(PoolMapping.Values).SelectMany(x => x.Workspaces));
+			foreach (PoolId PoolId in Agent.GetPools())
+			{
+				IPool? Pool;
+				if (PoolMapping.TryGetValue(PoolId, out Pool))
+				{
+					Workspaces.UnionWith(Pool.Workspaces);
+				}
+			}
 
 			Globals Globals = await DatabaseService.GetGlobalsAsync();
 			Workspaces.UnionWith(Agent.GetAutoSdkWorkspaces(Globals, Workspaces.ToList()));

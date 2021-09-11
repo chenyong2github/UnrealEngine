@@ -166,15 +166,15 @@ namespace HordeServer.Services
 
 			// Get all the pools
 			List<IPool> Pools = await PoolCollection.GetAsync();
-			Dictionary<IPool, PoolData> PoolToData = Pools.ToDictionary(x => x, x => new PoolData(x));
+			Dictionary<PoolId, PoolData> PoolToData = Pools.ToDictionary(x => x.Id, x => new PoolData(x));
 
 			// Find pool utilization over the query period
 			foreach (AgentData AgentData in AgentIdToData.Values)
 			{
-				foreach (IPool Pool in AgentData.Agent.GetPools(Pools))
+				foreach (PoolId PoolId in AgentData.Agent.GetPools())
 				{
 					PoolData? PoolData;
-					if (PoolToData.TryGetValue(Pool, out PoolData))
+					if (PoolToData.TryGetValue(PoolId, out PoolData))
 					{
 						PoolData.Add(AgentData);
 					}

@@ -87,7 +87,7 @@ namespace HordeServer.Services
 			List<ILease> Leases = await LeaseCollection.FindLeasesAsync(MinTime: MinTime);
 
 			// Find all the agents
-			Dictionary<AgentId, List<IPool>> AgentToPools = Agents.ToDictionary(x => x.Id, x => x.GetPools(Pools).ToList());
+			Dictionary<AgentId, List<PoolId>> AgentToPoolIds = Agents.ToDictionary(x => x.Id, x => x.GetPools().ToList());
 
 			// Generate all the telemetry data
 			DateTime BucketMinTime = MinTime;
@@ -98,28 +98,28 @@ namespace HordeServer.Services
 
 				NewUtilizationTelemetry Telemetry = new NewUtilizationTelemetry(BucketMinTime, BucketMaxTime);
 				Telemetry.NumAgents = Agents.Count;
-				foreach (IPool Pool in AgentToPools.Values.SelectMany(x => x))
+				foreach (PoolId PoolId in AgentToPoolIds.Values.SelectMany(x => x))
 				{
-					Telemetry.FindOrAddPool(Pool.Id).NumAgents++;
+					Telemetry.FindOrAddPool(PoolId).NumAgents++;
 				}
 				foreach (ILease Lease in Leases)
 				{
 					if (Lease.StartTime < BucketMaxTime && Lease.FinishTime >= BucketMinTime)
 					{
-						List<IPool>? LeasePools;
-						if (AgentToPools.TryGetValue(Lease.AgentId, out LeasePools))
+						List<PoolId>? LeasePools;
+						if (AgentToPoolIds.TryGetValue(Lease.AgentId, out LeasePools))
 						{
 							DateTime FinishTime = Lease.FinishTime ?? BucketMaxTime;
 							double Time = new TimeSpan(Math.Min(FinishTime.Ticks, BucketMaxTime.Ticks) - Math.Max(Lease.StartTime.Ticks, BucketMinTime.Ticks)).TotalHours;
 
-							foreach (IPool Pool in LeasePools)
+							foreach (PoolId PoolId in LeasePools)
 							{
-								NewPoolUtilizationTelemetry PoolTelemetry = Telemetry.FindOrAddPool(Pool.Id);
+								NewPoolUtilizationTelemetry PoolTelemetry = Telemetry.FindOrAddPool(PoolId);
 								if (Lease.PoolId == null || Lease.StreamId == null)
 								{
 									PoolTelemetry.AdminTime += Time;
 								}
-								else if (Pool.Id == Lease.PoolId)
+								else if (PoolId == Lease.PoolId)
 								{
 									PoolTelemetry.FindOrAddStream(Lease.StreamId.Value).Time += Time;
 								}
