@@ -31,7 +31,15 @@ FAttrBasedQuadricErrord TMeshSimplification<FAttrBasedQuadricErrord>::ComputeFac
 
 	if (NormalOverlay != nullptr)
 	{
-		NormalOverlay->GetTriElements(tid, n0, n1, n2);
+		if (NormalOverlay->IsSetTriangle(tid))
+		{
+			NormalOverlay->GetTriElements(tid, n0, n1, n2);
+		}
+		else
+		{
+			FVector3f FaceNormal = (FVector3f)Mesh->GetTriNormal(tid);
+			n0 = n1 = n2 = FaceNormal;
+		}
 	}
 	else
 	{
