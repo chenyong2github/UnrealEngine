@@ -727,21 +727,20 @@ void FGPUSortManager::UpdateSortBuffersPool()
 
 void FGPUSortManager::OnPreRender(FRDGBuilder& GraphBuilder)
 {
-	LLM_SCOPE(ELLMTag::GPUSort);
-
-	FinalizeSortBatches();
-	UpdateSortBuffersPool();
-
-	// Sort batches so that the next batch to handle is at the end of the array.
-	SortBatches.Sort([](const FSortBatch& A, const FSortBatch& B) { return (uint32)A.ProcessingOrder > (uint32)B.ProcessingOrder; });
-
 	AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FGPUSortManager::OnPreRender"),
 		[this](FRHICommandListImmediate& RHICmdList)
 		{
+			LLM_SCOPE(ELLMTag::GPUSort);
+			FinalizeSortBatches();
+			UpdateSortBuffersPool();
+
 			if (SortBatches.Num())
 			{
+				// Sort batches so that the next batch to handle is at the end of the array.
+				SortBatches.Sort([](const FSortBatch& A, const FSortBatch& B) { return (uint32)A.ProcessingOrder > (uint32)B.ProcessingOrder; });
+
 				SCOPED_GPU_STAT(RHICmdList, GPUKeyGenAndSort);
 				while (SortBatches.Num() && SortBatches.Last().ProcessingOrder == ESortBatchProcessingOrder::KeyGenAndSortAfterPreRender)
 				{
