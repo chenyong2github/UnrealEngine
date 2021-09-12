@@ -29,15 +29,15 @@ namespace Geometry
 
 enum class EOcclusionTriangleSampling
 {
-	Centroids,
-	Vertices,
-	VerticesAndCentroids
+	Centroids = 0,
+	Vertices = 1,
+	VerticesAndCentroids = 2
 };
 
 enum class EOcclusionCalculationMode
 {
-	FastWindingNumber,
-	SimpleOcclusionTest
+	FastWindingNumber = 0,
+	SimpleOcclusionTest = 1
 };
 
 

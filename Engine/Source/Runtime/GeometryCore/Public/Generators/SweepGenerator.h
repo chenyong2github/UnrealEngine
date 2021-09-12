@@ -626,6 +626,7 @@ public:
 };
 
 
+
 /**
  * Sweep a 2D Profile Polygon along a 3D Path.
  * 
@@ -644,6 +645,9 @@ public:
 	bool bCapped = false;
 	bool bLoop = false;
 	ECapType CapType = ECapType::FlatTriangulation;
+
+	double StartScale = 1.0;
+	double EndScale = 1.0;
 
 	// When true, the generator attempts to scale UV's in a way that preserves scaling across different mesh
 	// results, aiming for 1.0 in UV space to be equal to UnitUVInWorldCoordinates in world space. This in
@@ -668,15 +672,18 @@ public:
 		}
 		int PathNum = Path.Num();
 		
+		bool bApplyScaling = (StartScale != 1.0 || EndScale != 1.0) && (bLoop == false);
+		bool bNeedArcLength = (bApplyScaling || bUVScaleRelativeWorld);
+		double TotalPathArcLength = (bNeedArcLength) ? UE::Geometry::CurveUtil::ArcLength<double, FVector3d>(Path, bLoop) : 1.0;
+
 		FAxisAlignedBox2f Bounds = (FAxisAlignedBox2f)CrossSection.Bounds();
 		double BoundsMaxDimInv = 1.0 / FMathd::Max(Bounds.MaxDim(), .001);
 		FVector2f SectionScale(1, 1), CapScale(BoundsMaxDimInv, BoundsMaxDimInv);
 		if (bUVScaleRelativeWorld)
 		{
 			double Perimeter = CrossSection.Perimeter();
-			double PathLen = UE::Geometry::CurveUtil::ArcLength<double, FVector3d>(Path, bLoop);
 			SectionScale.X = Perimeter / UnitUVInWorldCoordinates;
-			SectionScale.Y = PathLen / UnitUVInWorldCoordinates;
+			SectionScale.Y = TotalPathArcLength / UnitUVInWorldCoordinates;
 			CapScale.X = CapScale.Y = 1.0f / UnitUVInWorldCoordinates;
 		}
 		ConstructMeshTopology(CrossSection, {}, {}, {}, true, Path, PathNum + (bLoop ? 1 : 0), bLoop, Caps, SectionScale, CapScale, Bounds.Center());
@@ -688,6 +695,7 @@ public:
 			XNormals[Idx] = CrossSection.GetNormal_FaceAvg(Idx);
 		}
 
+		double AccumArcLength = 0;
 		FFrame3d CrossSectionFrame = InitialFrame;
 		for (int PathIdx = 0; PathIdx < PathNum; ++PathIdx)
 		{
@@ -699,9 +707,20 @@ public:
 			for (int SubIdx = 0; SubIdx < XNum; SubIdx++)
 			{
 				FVector2d XP = CrossSection[SubIdx];
+				if (bApplyScaling)
+				{
+					double T = FMathd::Clamp((AccumArcLength / TotalPathArcLength), 0.0, 1.0);
+					XP *= FMathd::Lerp(StartScale, EndScale, T);
+				}
+
 				FVector2d XN = XNormals[SubIdx];
 				Vertices[SubIdx + PathIdx * XNum] = C + X * XP.X + Y * XP.Y;
 				Normals[SubIdx + PathIdx * XNum] = (FVector3f)(X * XN.X + Y * XN.Y);
+			}
+
+			if (PathIdx < PathNum - 1)
+			{
+				AccumArcLength += Distance(C, Path[PathIdx + 1]);
 			}
 		}
 		if (bCapped && !bLoop)

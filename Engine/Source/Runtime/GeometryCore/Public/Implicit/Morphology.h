@@ -64,8 +64,20 @@ public:
 	void SetCellSizesAndDistance(FAxisAlignedBox3d Bounds, double DistanceIn, int TargetInputVoxelCount, int TargetOutputVoxelCount)
 	{
 		Distance = DistanceIn;
+		SetGridCellSize(Bounds, DistanceIn, TargetInputVoxelCount);
+		SetMeshCellSize(Bounds, DistanceIn, TargetOutputVoxelCount);
+	}
+
+	// Set input grid cell size to hit the target voxel counts along the max dimension of the bounds
+	void SetGridCellSize(FAxisAlignedBox3d Bounds, double DistanceIn, int TargetInputVoxelCount)
+	{
 		GridCellSize = (Bounds.MaxDim() + Distance * 2.0) / double(TargetInputVoxelCount);
-		MeshCellSize = (Bounds.MaxDim() + Distance * 2.0) / double(TargetOutputVoxelCount);
+	}
+
+	// Set output meshing cell size to hit the target voxel counts along the max dimension of the bounds
+	void SetMeshCellSize(FAxisAlignedBox3d Bounds, double DistanceIn, int TargetInputVoxelCount)
+	{
+		MeshCellSize = (Bounds.MaxDim() + Distance * 2.0) / double(TargetInputVoxelCount);
 	}
 
 	/** if this function returns true, we should abort calculation */
