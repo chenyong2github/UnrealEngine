@@ -1842,8 +1842,10 @@ void UControlRigBlueprint::ReplaceDeprecatedNodes()
 	Super::ReplaceDeprecatedNodes();
 }
 
-void UControlRigBlueprint::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 {
+	Super::PostDuplicate(bDuplicateForPIE);
+	
 	if(HierarchyController)
 	{
 		HierarchyController->OnModified().RemoveAll(this);
