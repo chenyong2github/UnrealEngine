@@ -57,6 +57,7 @@
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "SRigSpacePickerWidget.h"
+#include "ControlRigSpaceChannelEditors.h"
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -2057,7 +2058,7 @@ void FControlRigEditMode::ToggleGizmoTransformEdit()
 
 void FControlRigEditMode::OpenSpacePickerWidget()
 {
-	UControlRig* RuntimeRig = GetControlRig(false);
+	UControlRig* RuntimeRig = GetControlRig(false); //helge space picker only works on runtime rig?
 	if (RuntimeRig == nullptr)
 	{
 		return;
@@ -2078,13 +2079,38 @@ void FControlRigEditMode::OpenSpacePickerWidget()
 	{
 		return RuntimeRig->GetControlCustomization(InControlKey);
 	})
-	.OnActiveSpaceChanged_Lambda([this, SelectedControls](URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const FRigElementKey& InSpaceKey)
+	.OnActiveSpaceChanged_Lambda([this, SelectedControls, RuntimeRig](URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const FRigElementKey& InSpaceKey)
 	{
 		check(SelectedControls.Contains(InControlKey));
-		
-		const FTransform Transform = InHierarchy->GetGlobalTransform(InControlKey);
-		InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
-		InHierarchy->SetGlobalTransform(InControlKey, Transform);
+		if (IsInLevelEditor())
+		{
+			if (WeakSequencer.IsValid())
+			{
+
+				if (const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
+				{
+					ISequencer* Sequencer = WeakSequencer.Pin().Get();
+					if (Sequencer)
+					{
+						FScopedTransaction Transaction(LOCTEXT("KeyControlRigSpace", "Key Control Rig Space"));
+						FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(RuntimeRig, InControlKey.Name, Sequencer, true /*bCreateIfNeeded*/);
+						if (SpaceChannelAndSection.SpaceChannel)
+						{
+							const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+							const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+							FFrameNumber CurrentTime = FrameTime.GetFrame();
+							FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(RuntimeRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey, CurrentTime, InHierarchy, InControlKey, InSpaceKey);
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			const FTransform Transform = InHierarchy->GetGlobalTransform(InControlKey);
+			InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
+			InHierarchy->SetGlobalTransform(InControlKey, Transform);
+		}
 		
 	})
 	.OnSpaceListChanged_Lambda([this, SelectedControls, RuntimeRig](URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList)

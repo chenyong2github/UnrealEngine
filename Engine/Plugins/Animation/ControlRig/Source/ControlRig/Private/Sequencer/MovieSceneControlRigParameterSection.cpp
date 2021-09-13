@@ -891,6 +891,42 @@ bool UMovieSceneControlRigParameterSection::HasTransformParameter(FName InParame
 	return false;
 }
 
+bool UMovieSceneControlRigParameterSection::HasSpaceChannel(FName InParameterName) const
+{
+	for (const FSpaceControlNameAndChannel& SpaceChannel : SpaceChannels)
+	{
+		if (SpaceChannel.ControlName == InParameterName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+FSpaceControlNameAndChannel* UMovieSceneControlRigParameterSection::GetSpaceChannel(FName InParameterName) 
+{
+	for (FSpaceControlNameAndChannel& SpaceChannel : SpaceChannels)
+	{
+		if (SpaceChannel.ControlName == InParameterName)
+		{
+			return &SpaceChannel;
+		}
+	}
+	return nullptr;
+}
+
+FName UMovieSceneControlRigParameterSection::FindControlNameFromSpaceChannel(const FMovieSceneControlRigSpaceChannel* InSpaceChannel) const
+{
+	for (const FSpaceControlNameAndChannel& SpaceChannel : SpaceChannels)
+	{
+		if (&(SpaceChannel.SpaceCurve) == InSpaceChannel)
+		{
+			return SpaceChannel.ControlName;
+		}
+	}
+	return NAME_None;
+}
+
 void UMovieSceneControlRigParameterSection::AddScalarParameter(FName InParameterName, TOptional<float> DefaultValue, bool bReconstructChannel)
 {
 	FMovieSceneFloatChannel* ExistingChannel = nullptr;
@@ -1110,16 +1146,51 @@ void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParame
 	}
 }
 
+void UMovieSceneControlRigParameterSection::AddSpaceChannel(FName InControlName, bool bReconstructChannel)
+{
+	if (!HasSpaceChannel(InControlName))
+	{
+		SpaceChannels.Add(FSpaceControlNameAndChannel(InControlName));
+	}
+	if (bReconstructChannel)
+	{
+		ReconstructChannelProxy();
+	}
+}
+
+TArray<FSpaceControlNameAndChannel>& UMovieSceneControlRigParameterSection::GetSpaceChannels()
+{
+	return SpaceChannels;
+}
+const TArray< FSpaceControlNameAndChannel>& UMovieSceneControlRigParameterSection::GetSpaceChannels() const
+{
+	return SpaceChannels;
+}
+
 
 void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 {
 	FMovieSceneChannelProxyData Channels;
 	ControlChannelMap.Empty();
 	// Need to create the channels in sorted orders
-	if (ControlRig)
+	if (ControlRig )
 	{
 		TArray<FRigControlElement*> SortedControls;
 		ControlRig->GetControlsInOrder(SortedControls);
+		bool bIsInUndo = false;
+#if WITH_EDITORONLY_DATA
+		bIsInUndo = GIsTransacting;
+		if (bIsInUndo) //if undo reset spaces @helge to do need to reset to some default not parent since rig may be set up to something else
+		{
+			if (URigHierarchy* RigHierarchy = ControlRig->GetHierarchy())
+			{
+				for (FRigControlElement* ControlElement : SortedControls)
+				{
+					RigHierarchy->SwitchToDefaultParent(ControlElement->GetKey());
+				}
+			}
+		}	
+#endif
 		if (ControlsMask.Num() != SortedControls.Num())
 		{
 			TArray<bool> OnArray;
@@ -1133,10 +1204,12 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 		int32 BoolChannelIndex = 0;
 		int32 EnumChannelIndex = 0;
 		int32 IntegerChannelIndex = 0;
+		int32 SpaceChannelIndeX = 0;
 		const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
 		const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
 		const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
-			
+		const FName SpaceName = FName(TEXT("Space"));
+
 		for (FRigControlElement* ControlElement : SortedControls)
 		{
 			if (!ControlElement->Settings.bAnimatable)
@@ -1412,22 +1485,48 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 					{
 						if (ControlElement->Settings.ControlType == ERigControlType::Scale)
 						{
-							if (BlendType == EMovieSceneBlendType::Additive)
+							//only set defaults when not loading or undo
+							if (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects) == false && bIsInUndo == false)
 							{
-								Vector.XCurve.SetDefault(0.0f);
-								Vector.YCurve.SetDefault(0.0f);
-								Vector.ZCurve.SetDefault(0.0f);
-							}
-							else
-							{
-								Vector.XCurve.SetDefault(1.0f);
-								Vector.YCurve.SetDefault(1.0f);
-								Vector.ZCurve.SetDefault(1.0f);
+								if (BlendType == EMovieSceneBlendType::Additive)
+								{
+									Vector.XCurve.SetDefault(0.0f);
+									Vector.YCurve.SetDefault(0.0f);
+									Vector.ZCurve.SetDefault(0.0f);
+								}
+								else
+								{
+									Vector.XCurve.SetDefault(1.0f);
+									Vector.YCurve.SetDefault(1.0f);
+									Vector.ZCurve.SetDefault(1.0f);
+								}
 							}
 						}
 						ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
 						bool bEnabled = ControlsMask[ControlIndex++];
 						FText Group = FText::FromName(ControlElement->GetDisplayName());
+						if (FSpaceControlNameAndChannel* SpaceChannel = GetSpaceChannel(Vector.ParameterName))
+						{
+
+							FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(Vector.ParameterName);
+							if (pChannelIndex)
+							{
+								pChannelIndex->bDoesHaveSpace = true;
+							}
+
+							FString TotalName = Vector.ParameterName.ToString(); //need ControlName.Space for selection to work.
+							FString SpaceString = SpaceName.ToString();
+							TotalName += ("." + SpaceString);
+							FMovieSceneChannelMetaData SpaceMetaData(FName(*TotalName), Group, Group, bEnabled);
+							SpaceMetaData.DisplayText = FText::FromName(SpaceName);
+							SpaceChannelIndeX += 1;
+							SpaceMetaData.SortOrder = TotalIndex++;
+							// Prevent single channels from collapsing to the track node
+							SpaceMetaData.bCanCollapseToTrack = false;
+							Channels.Add(SpaceChannel->SpaceCurve, SpaceMetaData);
+						}
+						
+
 						FParameterVectorChannelEditorData EditorData(ControlRig, Vector.ParameterName, bEnabled, Group, TotalIndex, 3);
 						Channels.Add(Vector.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
 						Channels.Add(Vector.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
@@ -1452,6 +1551,29 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 						bool bEnabled = ControlsMask[ControlIndex++];
 						FText Group = FText::FromName(ControlElement->GetDisplayName());
 
+						if (FSpaceControlNameAndChannel* SpaceChannel = GetSpaceChannel(Transform.ParameterName))
+						{
+
+							FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(Transform.ParameterName);
+							if (pChannelIndex)
+							{
+								pChannelIndex->bDoesHaveSpace = true;
+							}
+
+							FString TotalName = Transform.ParameterName.ToString(); //need ControlName.Space for selection to work.
+							FString SpaceString = SpaceName.ToString();
+							TotalName += ("." + SpaceString);
+							FMovieSceneChannelMetaData SpaceMetaData(FName(*TotalName), Group, Group, bEnabled);
+							SpaceMetaData.DisplayText = FText::FromName(SpaceName);
+							SpaceChannelIndeX += 1;
+							SpaceMetaData.SortOrder = TotalIndex++;
+							// Prevent single channels from collapsing to the track node
+							SpaceMetaData.bCanCollapseToTrack = false;
+							//TMovieSceneExternalValue<FMovieSceneControlRigSpaceBaseKey> ExternalData;
+							Channels.Add(SpaceChannel->SpaceCurve, SpaceMetaData);
+						}
+					
+
 						FParameterTransformChannelEditorData EditorData(ControlRig, Transform.ParameterName, bEnabled, TransformMask.GetChannels(), Group, 
 							TotalIndex);
 
@@ -1466,17 +1588,21 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 						if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
 							ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 						{
-							if (BlendType == EMovieSceneBlendType::Additive)
+							//only set defaults when not loading or undo
+							if (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects) == false && bIsInUndo == false)
 							{
-								Transform.Scale[0].SetDefault(0.0f);
-								Transform.Scale[1].SetDefault(0.0f);
-								Transform.Scale[2].SetDefault(0.0f);
-							}
-							else
-							{
-								Transform.Scale[0].SetDefault(1.0f);
-								Transform.Scale[1].SetDefault(1.0f);
-								Transform.Scale[2].SetDefault(1.0f);
+								if (BlendType == EMovieSceneBlendType::Additive)
+								{
+									Transform.Scale[0].SetDefault(0.0f);
+									Transform.Scale[1].SetDefault(0.0f);
+									Transform.Scale[2].SetDefault(0.0f);
+								}
+								else
+								{
+									Transform.Scale[0].SetDefault(1.0f);
+									Transform.Scale[1].SetDefault(1.0f);
+									Transform.Scale[2].SetDefault(1.0f);
+								}
 							}
 							Channels.Add(Transform.Scale[0], EditorData.MetaData[6], EditorData.ExternalValues[6]);
 							Channels.Add(Transform.Scale[1], EditorData.MetaData[7], EditorData.ExternalValues[7]);
@@ -1593,6 +1719,21 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 					if (ControlElement->GetName() == Vector.ParameterName)
 					{
 						ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
+						bool bDoSpaceChannel = true;
+						if (bDoSpaceChannel)
+						{
+							if (FSpaceControlNameAndChannel* SpaceChannel = GetSpaceChannel(Vector.ParameterName))
+							{
+								FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(Vector.ParameterName);
+								if (pChannelIndex)
+								{
+									pChannelIndex->bDoesHaveSpace = true;
+								}
+								SpaceChannelIndeX += 1;
+								Channels.Add(SpaceChannel->SpaceCurve);
+							}
+						}
+
 						Channels.Add(Vector.XCurve);
 						Channels.Add(Vector.YCurve);
 						Channels.Add(Vector.ZCurve);
@@ -1623,6 +1764,23 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 					if (ControlElement->GetName() == Transform.ParameterName)
 					{
 						ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex,FloatChannelIndex));
+						
+						bool bDoSpaceChannel = true;
+						if (bDoSpaceChannel)
+						{
+							if (FSpaceControlNameAndChannel* SpaceChannel = GetSpaceChannel(Transform.ParameterName))
+							{
+
+								FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(Transform.ParameterName);
+								if (pChannelIndex)
+								{
+									pChannelIndex->bDoesHaveSpace = true;
+								}
+								SpaceChannelIndeX += 1;
+								Channels.Add(SpaceChannel->SpaceCurve);
+							}
+						}	
+						
 						Channels.Add(Transform.Translation[0]);
 						Channels.Add(Transform.Translation[1]);
 						Channels.Add(Transform.Translation[2]);

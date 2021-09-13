@@ -14,6 +14,7 @@
 #include "Compilation/MovieSceneTemplateInterrogation.h"
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
+#include "Sequencer/MovieSceneControlRigSpaceChannel.h"
 
 
 #include "MovieSceneControlRigParameterSection.generated.h"
@@ -87,6 +88,21 @@ struct CONTROLRIG_API FIntegerParameterNameAndCurve
 	FMovieSceneIntegerChannel ParameterCurve;
 };
 
+USTRUCT()
+struct CONTROLRIG_API FSpaceControlNameAndChannel
+{
+	GENERATED_USTRUCT_BODY()
+
+	FSpaceControlNameAndChannel(){}
+	FSpaceControlNameAndChannel(FName InControlName) : ControlName(InControlName) {};
+
+	UPROPERTY()
+	FName ControlName;
+
+	UPROPERTY()
+	FMovieSceneControlRigSpaceChannel SpaceCurve;
+};
+
 /**
 *  Data that's queried during an interrogtion
 */
@@ -133,6 +149,8 @@ struct CONTROLRIG_API FChannelMapInfo
 	int32 ParentControlIndex = 0;
 	UPROPERTY()
 	FName ChannelTypeName; 
+	UPROPERTY()
+	bool bDoesHaveSpace = false;
 
 
 };
@@ -159,6 +177,9 @@ public:
 	TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves();
 	const TArray<FIntegerParameterNameAndCurve>& GetIntegerParameterNamesAndCurves() const;
 
+	TArray<FSpaceControlNameAndChannel>& GetSpaceChannels();
+	const TArray< FSpaceControlNameAndChannel>& GetSpaceChannels() const;
+	FName FindControlNameFromSpaceChannel(const FMovieSceneControlRigSpaceChannel* SpaceChannel) const;
 private:
 
 	/** Control Rig that controls us*/
@@ -195,6 +216,10 @@ protected:
 	/*Integer Curves*/
 	UPROPERTY()
 	TArray<FIntegerParameterNameAndCurve> IntegerParameterNamesAndCurves;
+
+	/** Space Channels*/
+	UPROPERTY()
+	TArray<FSpaceControlNameAndChannel>  SpaceChannels;
 
 public:
 
@@ -301,6 +326,12 @@ public:
 	/**  Whether or not this section his scalar*/
 	bool HasTransformParameter(FName InParameterName) const;
 
+	/**  Whether or not this section his space*/
+	bool HasSpaceChannel(FName InParameterName) const;
+
+	/** Get The Space Channel for the Control*/
+	FSpaceControlNameAndChannel* GetSpaceChannel(FName InParameterName);
+
 	/** Adds specified scalar parameter. */
 	void AddScalarParameter(FName InParameterName,  TOptional<float> DefaultValue, bool bReconstructChannel);
 
@@ -324,6 +355,9 @@ public:
 
 	/** Adds a a key for a specific color parameter*/
 	void AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue, bool bReconstructChannel);
+
+	/** Add Space Parameter for a specified Control, no Default since that is Parent space*/
+	void AddSpaceChannel(FName InControlName, bool bReconstructChannel);
 
 	/** Clear Everything Out*/
 	void ClearAllParameters();

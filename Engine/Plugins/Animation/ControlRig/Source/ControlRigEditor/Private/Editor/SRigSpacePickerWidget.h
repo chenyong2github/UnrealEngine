@@ -9,6 +9,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Rigs/RigSpaceHierarchy.h"
 #include "IStructureDetailsView.h"
+#include "Misc/FrameNumber.h"
 #include "SRigSpacePickerWidget.generated.h"
 
 USTRUCT()
@@ -19,22 +20,26 @@ struct CONTROLRIGEDITOR_API FRigSpacePickerBakeSettings
 	FRigSpacePickerBakeSettings()
 	{
 		TargetSpace = FRigElementKey();
-		StartFrame = 1.f;
-		EndFrame = 100.f;
-		bKeyEveryFrame = true;
+		StartFrame = 0;
+		EndFrame = 100;
+		bReduceKeys = false;
+		Tolerance = 0.001f;
 	}
 
 	UPROPERTY()
 	FRigElementKey TargetSpace;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	float StartFrame;
+	FFrameNumber StartFrame;
+
+	UPROPERTY(EditAnywhere, Category = "Settings") // meta = (ShowOnlyInnerProperties)?
+	FFrameNumber EndFrame;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	float EndFrame;
+	bool bReduceKeys;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bKeyEveryFrame;
+	float Tolerance;
 };
 
 DECLARE_DELEGATE_RetVal_TwoParams(FRigElementKey, FRigSpacePickerGetActiveSpace, URigHierarchy*, const FRigElementKey&);
@@ -177,6 +182,8 @@ private:
 	static FRigElementKey InValidKey;
 };
 
+class ISequencer;
+
 /** Widget allowing baking controls from one space to another */
 class CONTROLRIGEDITOR_API SRigSpacePickerBakeWidget : public SCompoundWidget
 {
@@ -185,9 +192,11 @@ public:
 	SLATE_BEGIN_ARGS(SRigSpacePickerBakeWidget)
 	: _Hierarchy(nullptr)
 	, _Controls()
+	, _Sequencer(nullptr)
 	{}
 	SLATE_ARGUMENT(URigHierarchy*, Hierarchy)
 	SLATE_ARGUMENT(TArray<FRigElementKey>, Controls)
+	SLATE_ARGUMENT(ISequencer*, Sequencer)
 	SLATE_EVENT(FRigSpacePickerGetControlCustomization, GetControlCustomization)
 	SLATE_ARGUMENT(FRigSpacePickerBakeSettings, Settings)
 	SLATE_EVENT(SRigSpacePickerOnBake, OnBake)
@@ -202,7 +211,10 @@ public:
 
 private:
 
-	FRigSpacePickerBakeSettings Settings;
+	//FRigSpacePickerBakeSettings Settings;
+	TSharedPtr<TStructOnScope<FRigSpacePickerBakeSettings>> Settings;
+
+	ISequencer* Sequencer;
 	FRigControlElementCustomization Customization;
 	
 	TWeakPtr<SWindow> DialogWindow;

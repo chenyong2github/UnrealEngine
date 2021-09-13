@@ -1,0 +1,77 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Class.h"
+
+#include "MovieSceneKeyStruct.h"
+#include "SequencerChannelTraits.h"
+#include "Channels/MovieSceneChannelHandle.h"
+
+#include "Sequencer/MovieSceneControlRigSpaceChannel.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
+#include "SRigSpacePickerWidget.h"
+#include "Containers/SortedMap.h"
+
+struct FKeyHandle;
+struct FKeyDrawParams;
+class UControlrig;
+class ISequencer;
+class UMovieSceneSection;
+class URigHierarchy;
+struct FRigElementKey;
+class SWidget;
+class ISequencer;
+class FMenuBuilder;
+
+
+struct FSpaceChannelAndSection
+{
+	FSpaceChannelAndSection() : SectionToKey(nullptr), SpaceChannel(nullptr) {};
+	UMovieSceneSection* SectionToKey;
+	FMovieSceneControlRigSpaceChannel* SpaceChannel;
+};
+
+/*
+* Class that contains helper functions for various space switching activities
+*/
+struct FControlRigSpaceChannelHelpers
+{
+	static FKeyHandle SequencerKeyControlRigSpaceChannel(UControlRig* ControlRig, ISequencer* Sequencer, FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey, FFrameNumber Time, URigHierarchy* RigHierarchy, const FRigElementKey& ControlKey, const FRigElementKey& SpaceKey);
+	static FSpaceChannelAndSection FindSpaceChannelAndSectionForControl(UControlRig* ControlRig, FName ControlName, ISequencer* Sequencer, bool bCreateIfNeeded);
+	static void SequencerBakeControlInSpace(UControlRig* ControlRig, ISequencer* Sequencer, FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey,
+		TArray<FFrameNumber> Frames, URigHierarchy* RigHierarchy, const FRigElementKey& ControlKey, FRigSpacePickerBakeSettings InSettings);
+	static void GetFramesInThisSpaceAfterThisTime(UControlRig* ControlRig, FName ControlName, FMovieSceneControlRigSpaceBaseKey CurrentValue,
+		FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey,
+		FFrameNumber Time, TSortedMap<FFrameNumber,FFrameNumber>& OutMoreFrames);
+};
+
+//template specialization
+FKeyHandle AddOrUpdateKey(FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey, FFrameNumber Time, ISequencer& Sequencer, const FGuid& ObjectBindingID, FTrackInstancePropertyBindings* PropertyBindings);
+
+/** Key editor overrides */
+bool CanCreateKeyEditor(const FMovieSceneControlRigSpaceChannel*       Channel);
+TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>&        Channel, UMovieSceneSection* Section, const FGuid& InObjectBindingID, TWeakPtr<FTrackInstancePropertyBindings> PropertyBindings, TWeakPtr<ISequencer> Sequencer);
+
+
+//UMovieSceneKeyStructType* IstanceGeneratedStruct(FMovieSceneControlRigSpaceChannel* Channel, FSequencerKeyStructGenerator* Generator);
+
+//void PostConstructKeystance(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>& ChannelHandle, FKeyHandle InHandle, FStructOnScope* Struct);
+
+/** Key drawing overrides */
+//void DrawKeys(FMovieSceneControlRigSpaceChannel*    Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams);
+
+/** Context menu overrides */
+//void ExtendSectionMenu(FMenuBuilder& OuterMenuBuilder, TArray<TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>>&& Channels, TArrayView<UMovieSceneSection* const> Sections, TWeakPtr<ISequencer> InSequencer);
+//void ExtendKeyMenu(FMenuBuilder& OuterMenuBuilder, TArray<TExtendKeyMenuParams<FMovieSceneControlRigSpaceChannel>>&& Channels, TWeakPtr<ISequencer> InSequencer);
+
+/** Curve editor models */
+//inline bool SupportsCurveEditorModels(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>& DoubleChannel) { return true; }
+//TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel>& DoubleChannel, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer);
+
+

@@ -19,6 +19,7 @@
 #include "SkeletalMeshRestoreState.h"
 #include "Rigs/FKControlRig.h"
 #include "UObject/UObjectAnnotation.h"
+#include "Rigs/RigHierarchy.h"
 
 //#include "Particles/ParticleSystemComponent.h"
 
@@ -84,6 +85,16 @@ struct FIntegerParameterStringAndValue
 	int32 Value;
 };
 
+struct FControlSpaceAndValue
+{
+	FControlSpaceAndValue(FName InControlName, const FMovieSceneControlRigSpaceBaseKey& InValue)
+	{
+		ControlName = InControlName;
+		Value = InValue;
+	}
+	FName ControlName;
+	FMovieSceneControlRigSpaceBaseKey Value;
+};
 /**
  * Structure representing the animated value of a vector2D parameter.
  */
@@ -355,6 +366,8 @@ struct FEvaluatedControlRigParameterSectionValues
 	TArray<FBoolParameterStringAndValue, TInlineAllocator<2>> BoolValues;
 	/** Array of evaluated integer values */
 	TArray<FIntegerParameterStringAndValue, TInlineAllocator<2>> IntegerValues;
+	/** Array of evaluated Spaces */
+	TArray<FControlSpaceAndValue, TInlineAllocator<2>> SpaceValues;
 	/** Array of evaluated vector2d values */
 	TArray<FVector2DParameterStringAndValue, TInlineAllocator<2>> Vector2DValues;
 	/** Array of evaluated vector values */
@@ -648,6 +661,30 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 					{
 						//Restore control rig first
 						const bool bSetupUndo = false;
+						if (URigHierarchy* RigHierarchy = ControlRig->GetHierarchy())
+						{
+							FRigElementKey ControlKey;
+							ControlKey.Type = ERigElementType::Control;
+							for (FControlSpaceAndValue& SpaceNameAndValue : SpaceValues)
+							{
+								ControlKey.Name = SpaceNameAndValue.ControlName;
+								switch (SpaceNameAndValue.Value.SpaceType)
+								{
+								case EMovieSceneControlRigSpaceType::Parent:
+									RigHierarchy->SwitchToDefaultParent(ControlKey);
+									break;
+								case EMovieSceneControlRigSpaceType::World:
+									RigHierarchy->SwitchToWorldSpace(ControlKey);
+									break;
+								case EMovieSceneControlRigSpaceType::ControlRig:
+								{
+									RigHierarchy->SwitchToParent(ControlKey, SpaceNameAndValue.Value.ControlRigElement);
+								}
+								break;
+								}
+							}
+						}
+
 						for (TNameAndValue<float>& Value : ScalarValues)
 						{
 							if (ControlRig->FindControl(Value.Name))
@@ -734,6 +771,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 			}
 
 			FMovieSceneSequenceID SequenceID;
+			TArray< FControlSpaceAndValue> SpaceValues;
 			TArray< TNameAndValue<float> > ScalarValues;
 			TArray< TNameAndValue<bool> > BoolValues;
 			TArray< TNameAndValue<int32> > IntegerValues;
@@ -784,6 +822,14 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 					case ERigControlType::Scale:
 					case ERigControlType::Rotator:
 					{
+						URigHierarchy* RigHierarchy = ControlRig->GetHierarchy();
+						FMovieSceneControlRigSpaceBaseKey SpaceValue;
+						//@helge how can we get the correct current space here? this is for restoring it.
+						//for now just using parent space
+						//FRigElementKey DefaultParent = RigHierarchy->GetFirstParent(ControlElement->GetKey());
+						SpaceValue.ControlRigElement = ControlElement->GetKey();
+						SpaceValue.SpaceType = EMovieSceneControlRigSpaceType::Parent;
+						Token.SpaceValues.Add(FControlSpaceAndValue(ControlElement->GetName(), SpaceValue));
 						const FVector3f Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
 						Token.VectorValues.Add(TNameAndValue<FVector>{ ControlElement->GetName(), Val });
 						//mz todo specify rotator special so we can do quat interps
@@ -791,9 +837,14 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 					}
 					case ERigControlType::Transform:
 					{
-						const FTransform Val = 
-							ControlRig->GetHierarchy()
-							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
+						FMovieSceneControlRigSpaceBaseKey SpaceValue;
+						//@helge how can we get the correct current space here? this is for restoring it.
+						//for now just using parent space
+						//FRigElementKey DefaultParent = RigHierarchy->GetFirstParent(ControlElement->GetKey());
+						SpaceValue.ControlRigElement = ControlElement->GetKey();
+						SpaceValue.SpaceType = EMovieSceneControlRigSpaceType::Parent;
+						Token.SpaceValues.Add(FControlSpaceAndValue(ControlElement->GetName(), SpaceValue));
+						const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
 						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
 						break;
 					}
@@ -856,6 +907,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 	}
 
 	FMovieSceneSequenceID SequenceID;
+	TArray< FControlSpaceAndValue> SpaceValues;
 	TArray< TNameAndValue<bool> > BoolValues;
 	TArray< TNameAndValue<int32> > IntegerValues;
 	TArray< TNameAndValue<float> > ScalarValues;
@@ -953,6 +1005,7 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 	{
 		BoolValues = Values.BoolValues;
 		IntegerValues = Values.IntegerValues;
+		SpaceValues = Values.SpaceValues;
 	}
 	FControlRigParameterExecutionToken(FControlRigParameterExecutionToken&&) = default;
 	FControlRigParameterExecutionToken& operator=(FControlRigParameterExecutionToken&&) = default;
@@ -1033,6 +1086,43 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 			{
 				const bool bSetupUndo = false;
 				ControlRig->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
+				for (const FControlSpaceAndValue& SpaceNameAndValue : SpaceValues)
+				{
+					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(SpaceNameAndValue.ControlName))
+					{
+						if (URigHierarchy* RigHierarchy = ControlRig->GetHierarchy())
+						{
+							if (FRigControlElement* RigControl = ControlRig->FindControl(SpaceNameAndValue.ControlName))
+							{
+								const FRigElementKey ControlKey = RigControl->GetKey();
+
+								switch (SpaceNameAndValue.Value.SpaceType)
+								{
+									case EMovieSceneControlRigSpaceType::Parent:
+										RigHierarchy->SwitchToDefaultParent(ControlKey);
+										break;
+									case EMovieSceneControlRigSpaceType::World:
+										RigHierarchy->SwitchToWorldSpace(ControlKey);
+										break;
+									case EMovieSceneControlRigSpaceType::ControlRig:
+										{
+											RigHierarchy->SwitchToParent(ControlKey, SpaceNameAndValue.Value.ControlRigElement);	
+										}
+										break;
+								}
+							}
+						}
+						/*
+						FRigControlElement* RigControl = ControlRig->FindControl(SpaceNameAndValue.ParameterName);
+						if (RigControl && RigControl->Settings.ControlType == ERigControlType::Bool)
+						{
+							ControlRig->SetControlValue<bool>(SpaceNameAndValue.SpaceNameAndValue, SpaceNameAndValue.Value, true, EControlRigSetKey::Never, bSetupUndo);
+						}
+						*/
+					}
+				}
+
+
 				for (const FBoolParameterStringAndValue& BoolNameAndValue : BoolValues)
 				{
 					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
@@ -1067,12 +1157,14 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 	TArray<FBoolParameterStringAndValue, TInlineAllocator<2>> BoolValues;
 	/** Array of evaluated integer values */
 	TArray<FIntegerParameterStringAndValue, TInlineAllocator<2>> IntegerValues;
+	/** Array of Space Values*/
+	TArray<FControlSpaceAndValue, TInlineAllocator<2>> SpaceValues;
 
 };
 
 
 FMovieSceneControlRigParameterTemplate::FMovieSceneControlRigParameterTemplate(const UMovieSceneControlRigParameterSection& Section, const UMovieSceneControlRigParameterTrack& Track)
-	: FMovieSceneParameterSectionTemplate(Section) , Enums(Section.GetEnumParameterNamesAndCurves()), Integers(Section.GetIntegerParameterNamesAndCurves())
+	: FMovieSceneParameterSectionTemplate(Section) , Enums(Section.GetEnumParameterNamesAndCurves()), Integers(Section.GetIntegerParameterNamesAndCurves()), Spaces(Section.GetSpaceChannels())
 
 {
 
@@ -1512,6 +1604,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 		// Reserve the value arrays to avoid re-allocation
 		Values.ScalarValues.Reserve(Scalars.Num());
 		Values.BoolValues.Reserve(Bools.Num());
+		Values.SpaceValues.Reserve(Spaces.Num());
 		Values.IntegerValues.Reserve(Integers.Num() + Enums.Num()); // Both enums and integers output to the integer value array
 		Values.Vector2DValues.Reserve(Vector2Ds.Num());
 		Values.VectorValues.Reserve(Vectors.Num());
@@ -1536,6 +1629,15 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 			}
 
 			Values.ScalarValues.Emplace(Scalar.ParameterName, Value);
+		}
+
+		for (int32 Index = 0; Index < Spaces.Num(); ++Index)
+		{
+			FMovieSceneControlRigSpaceBaseKey Value;
+			const FSpaceControlNameAndChannel& Space = Spaces[Index];
+			Space.SpaceCurve.Evaluate(Time, Value);
+			
+			Values.SpaceValues.Emplace(Space.ControlName, Value);
 		}
 
 		for (int32 Index = 0; Index < Bools.Num(); ++Index)

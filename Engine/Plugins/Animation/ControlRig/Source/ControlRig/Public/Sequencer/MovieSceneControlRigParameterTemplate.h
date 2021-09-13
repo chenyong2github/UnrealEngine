@@ -32,8 +32,11 @@ protected:
 	/** The bool parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FEnumParameterNameAndCurve> Enums;
+	/** The enum parameter names and their associated curves. */
 	UPROPERTY()
 	TArray<FIntegerParameterNameAndCurve> Integers;
-
+	/** Controls and their space keys*/
+	UPROPERTY()
+	TArray<FSpaceControlNameAndChannel> Spaces;
 };
 
