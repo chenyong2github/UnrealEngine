@@ -33,19 +33,48 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 	int32 TextureResolution = 64;
 	FMaterialRenderContext MaterialContext(&MaterialRenderProxy, Material, nullptr);
 	const FUniformExpressionSet& UniformExpressions = Material.GetUniformExpressions();
+	EMaterialTextureParameterType TextureTypes[] = { EMaterialTextureParameterType::Standard2D, EMaterialTextureParameterType::Virtual };
 	if (ViewModeParam != INDEX_NONE && ViewModeParamName == NAME_None) // If displaying texture per texture indices
 	{
-		AnalysisIndex = ViewModeParam;
-
-		for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(EMaterialTextureParameterType::Standard2D); ++ParameterIndex)
+		for (EMaterialTextureParameterType TextureType : TextureTypes)
 		{
-			const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
-			if (Parameter.TextureIndex == ViewModeParam)
+			for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(TextureType); ++ParameterIndex)
+			{
+				const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(TextureType, ParameterIndex);
+				if (Parameter.TextureIndex == ViewModeParam)
+				{
+					const UTexture* Texture = nullptr;
+					UniformExpressions.GetTextureValue(TextureType, ParameterIndex, MaterialContext, Material, Texture);
+					if (Texture && Texture->GetResource())
+					{
+						AnalysisIndex = ViewModeParam;
+
+						if (Texture->IsStreamable())
+						{
+							TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
+						}
+						else
+						{
+							TextureResolution = FMath::Max(Texture->GetResource()->GetSizeX(), Texture->GetResource()->GetSizeY());
+						}
+					}
+				}
+			}
+		}
+	}
+	else if (ViewModeParam != INDEX_NONE) // Otherwise show only texture matching the given name
+	{
+		for (EMaterialTextureParameterType TextureType : TextureTypes)
+		{
+			for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(TextureType); ++ParameterIndex)
 			{
 				const UTexture* Texture = nullptr;
-				UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
-				if (Texture && Texture->GetResource())
+				UniformExpressions.GetTextureValue(TextureType, ParameterIndex, MaterialContext, Material, Texture);
+				if (Texture && Texture->GetResource() && Texture->GetFName() == ViewModeParamName)
 				{
+					const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(TextureType, ParameterIndex);
+					AnalysisIndex = Parameter.TextureIndex;
+
 					if (Texture->IsStreamable())
 					{
 						TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
@@ -54,28 +83,6 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 					{
 						TextureResolution = FMath::Max(Texture->GetResource()->GetSizeX(), Texture->GetResource()->GetSizeY());
 					}
-				}
-			}
-		}
-	}
-	else if (ViewModeParam != INDEX_NONE) // Otherwise show only texture matching the given name
-	{
-		AnalysisIndex = 1024; // Make sure not to find anything by default.
-		for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(EMaterialTextureParameterType::Standard2D); ++ParameterIndex)
-		{
-			const UTexture* Texture = nullptr;
-			UniformExpressions.GetTextureValue(EMaterialTextureParameterType::Standard2D, ParameterIndex, MaterialContext, Material, Texture);
-			if (Texture && Texture->GetResource() && Texture->GetFName() == ViewModeParamName)
-			{
-				if (Texture->IsStreamable())
-				{
-					const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(EMaterialTextureParameterType::Standard2D, ParameterIndex);
-					AnalysisIndex = Parameter.TextureIndex;
-					TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
-				}
-				else
-				{
-					TextureResolution = FMath::Max(Texture->GetResource()->GetSizeX(), Texture->GetResource()->GetSizeY());
 				}
 			}
 		}
