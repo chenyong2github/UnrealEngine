@@ -2138,6 +2138,16 @@ namespace Metasound
 			if (FMetasoundFrontendNode* Node = NodePtr.Get())
 			{
 				Node->Name = InName;
+
+				for (FMetasoundFrontendVertex& Vertex : Node->Interface.Inputs)
+				{
+					Vertex.Name = InName;
+				}
+
+				for (FMetasoundFrontendVertex& Vertex : Node->Interface.Outputs)
+				{
+					Vertex.Name = InName;
+				}
 			}
 
 			// TODO: can we remove the const cast by constructing output nodes with a non-const access to class outputs?
@@ -2429,6 +2439,16 @@ namespace Metasound
 			if (FMetasoundFrontendNode* Node = NodePtr.Get())
 			{
 				Node->Name = InName;
+
+				for (FMetasoundFrontendVertex& Vertex : Node->Interface.Inputs)
+				{
+					Vertex.Name = InName;
+				}
+
+				for (FMetasoundFrontendVertex& Vertex : Node->Interface.Outputs)
+				{
+					Vertex.Name = InName;
+				}
 			}
 
 			if (FMetasoundFrontendClassInput* ClassInput = ConstCastAccessPtr<FClassInputAccessPtr>(OwningGraphClassInputPtr).Get())
