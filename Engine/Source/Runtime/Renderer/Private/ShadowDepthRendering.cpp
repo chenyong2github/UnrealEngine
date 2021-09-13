@@ -1111,9 +1111,6 @@ void FProjectedShadowInfo::BeginRenderView(FRDGBuilder& GraphBuilder, FScene* Sc
 			}
 		}
 	}
-
-	// This needs to be done for both mobile and deferred
-	Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ShadowDepthView);
 }
 
 static bool IsShadowDepthPassWaitForTasksEnabled()
@@ -1681,6 +1678,49 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
+
+	// Ensure all shadow view dynamic primitives are uploaded before shadow-culling batching pass.
+	// TODO: automate this such that:
+	//  1. we only process views that need it (have dynamic primitives)
+	//  2. it is integrated in the GPU-scene (it already collects the dynamic primives and know about them...)
+	//  3. BUT: we need to touch the views to update the GPUScene buffer references in the FViewInfo
+	//          so need to refactor that into its own binding point, probably. Or something.
+	for (FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.ShadowMapAtlases)
+	{
+		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+		}
+	}
+	for (FSortedShadowMapAtlas& ShadowMap : SortedShadowsForShadowDepthPass.ShadowMapCubemaps)
+	{
+		check(ShadowMap.Shadows.Num() == 1);
+		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMap.Shadows[0];
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+	}
+	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.PreshadowCache.Shadows)
+	{
+		if (!ProjectedShadowInfo->bDepthsCached)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+		}
+	}
+	for (const FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases)
+	{
+		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+		}
+	}
+	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowMapShadows)
+	{
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+	}
+
+	// Begin new deferred culling bacthing scope to catch shadow render passes, as there can use dynamic primitives that have not been uploaded before 
+	// the previous batching scope. Also flushes the culling views registered during the setup (in InitViewsAfterPrepass) that are referenced in the shadow view
+	// culling.
+	InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
 
 	// Perform setup work on all GPUs in case any cached shadows are being updated this
 	// frame. We revert to the AllViewsGPUMask for uncached shadows.

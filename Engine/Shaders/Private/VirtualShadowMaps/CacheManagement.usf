@@ -44,8 +44,6 @@ void VirtualSmInvalidateInstancePagesCS(
 	uint GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
-	bool bIsVisible = false;
-	bool bWasOccluded = false;
 #if INPUT_KIND == INPUT_KIND_LARGE_RANGES
 	// Large instance count ranges use one group per range instead, and use a group-stride loop
 	FInstanceSceneDataRange InstanceSceneDataRange = InstanceSceneRanges[GroupId];
@@ -69,7 +67,8 @@ void VirtualSmInvalidateInstancePagesCS(
 		FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 
 		// TODO: Clean up hardcoded flag field test.
-		bool bCastShadows = (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & 1U) != 0U;
+		bool bCastShadows = InstanceSceneData.ValidInstance 
+			&& (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & 1U) != 0U;
 #if ENABLE_DEBUG_MODE
 		uint PageInvalidationCount = 0U;
 #endif

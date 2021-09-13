@@ -21,6 +21,11 @@ static FAutoConsoleVariableRef CVarAllowBatchedBuildRenderingCommands(
 	TEXT("Whether to allow batching BuildRenderingCommands for GPU instance culling"),
 	ECVF_RenderThreadSafe);
 
+FInstanceCullingManager::FInstanceCullingManager(bool bInIsEnabled, FRDGBuilder& GraphBuilder)
+	: bIsEnabled(bInIsEnabled)
+{
+	CullingIntermediate.DummyUniformBuffer = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+}
 
 FInstanceCullingManager::~FInstanceCullingManager()
 {
@@ -55,27 +60,24 @@ int32 FInstanceCullingManager::RegisterView(const Nanite::FPackedViewParams& Par
 	return CullingViews.Num() - 1;
 }
 
-void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
+void FInstanceCullingManager::FlushRegisteredViews(FRDGBuilder& GraphBuilder)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FInstanceCullingManager::CullInstances);
-	RDG_EVENT_SCOPE(GraphBuilder, "CullInstances");
-
-
-	CullingIntermediate.CullingViews = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.CullingViews"), CullingViews);
-	CullingIntermediate.NumViews = CullingViews.Num();
-
-	CullingIntermediate.DummyUniformBuffer = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
+	if (CullingIntermediate.NumViews != CullingViews.Num())
+	{
+		CullingIntermediate.CullingViews = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.CullingViews"), CullingViews);
+		CullingIntermediate.NumViews = CullingViews.Num();
+	}
 }
-
 
 bool FInstanceCullingManager::AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene)
 {
 	return GPUScene.IsEnabled() && !!GAllowBatchedBuildRenderingCommands && !FRDGBuilder::IsImmediateMode();
 }
 
-
 void FInstanceCullingManager::BeginDeferredCulling(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
 {
+	FlushRegisteredViews(GraphBuilder);
+
 	// Cannot defer pass execution in immediate mode.
 	if (!AllowBatchedBuildRenderingCommands(GPUScene))
 	{
@@ -83,7 +85,7 @@ void FInstanceCullingManager::BeginDeferredCulling(FRDGBuilder& GraphBuilder, FG
 	}
 
 	// If there are no instances, there can be no work to perform later.
-	if (GPUScene.GetNumInstances() == 0 || CullingIntermediate.NumViews == 0)
+	if (GPUScene.GetNumInstances() == 0 || CullingViews.Num() == 0)
 	{
 		return;
 	}

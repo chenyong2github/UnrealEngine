@@ -77,6 +77,7 @@ class FInstanceCullingDeferredContext;
 class FInstanceCullingManager
 {
 public:
+	FInstanceCullingManager(bool bInIsEnabled, FRDGBuilder& GraphBuilder);
 	~FInstanceCullingManager();
 
 	bool IsEnabled() const { return bIsEnabled; }
@@ -88,17 +89,11 @@ public:
 	int32 RegisterView(const FViewInfo& ViewInfo);
 
 	/**
-	 * Run:
-	 *   AFTER views have been initialized and registered (including shadow views), 
-	 *   AFTER after GPUScene is updated, but
-	 *   BEFORE rendering commands are submitted.
+	 * Upload all registered views if the number has changed (grown). This must be done before calls to FInstanceCullingContext::BuildRenderingCommands that references
+	 * the views.
 	 */
-	void CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene);
+	void FlushRegisteredViews(FRDGBuilder& GraphBuilder);
 
-	FInstanceCullingManager(bool bInIsEnabled)
-	: bIsEnabled(bInIsEnabled)
-	{
-	}
 	const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> GetDummyInstanceCullingUniformBuffer() const { return CullingIntermediate.DummyUniformBuffer; }
 	
 	static bool AllowBatchedBuildRenderingCommands(const FGPUScene& GPUScene);
@@ -108,6 +103,9 @@ public:
 	 * Add a deferred, batched, gpu culling pass. Each batch represents a BuildRenderingCommands call from a mesh pass.
 	 * Batches are collected as we walk through the main render setup and call BuildRenderingCommands, and are processed when RDG Execute or Drain is called.
 	 * This implicitly ends the deferred context, so if Drain is used, it should be paired with a new call to BeginDeferredCulling.
+	 * Can be called multiple times, and will collect subsequent BuildRenderingCommands. Care must be taken that the views referenced in the build rendering commands
+	 * have been registered before BeginDeferredCulling.
+	 * Calls FlushRegisteredViews that uploads the registered views to the GPU.
 	 */
 	void BeginDeferredCulling(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene);
 

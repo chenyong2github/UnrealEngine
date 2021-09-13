@@ -308,7 +308,7 @@ public:
 
 	// Single Previous frame HZB which is shared among all batched contexts, thus only one is allowed (but the same can be used in multiple passes). (Needs atlas or bindless to expand(.
 	FRDGTextureRef PrevHZB = nullptr;
-
+	int32 NumCullingViews = 0;
 
 	bool bProcessed = false;
 
@@ -391,6 +391,13 @@ void FInstanceCullingContext::BuildRenderingCommands(
 				DeferredContext->TotalBatches[Mode] += LoadBalancers[Mode]->GetBatches().Max();
 				DeferredContext->TotalItems[Mode] += LoadBalancers[Mode]->GetItems().Max();
 			}
+#if DO_CHECK
+			for (int32 ViewId : ViewIds)
+			{
+				checkf(ViewId < DeferredContext->NumCullingViews, TEXT("Attempting to defer a culling context that references a view that has not been uploaded yet."));
+			}
+#endif 
+
 			DeferredContext->TotalIndirectArgs += IndirectArgs.Num();
 			DeferredContext->TotalViewIds += ViewIds.Num();
 			DeferredContext->InstanceIdBufferSize += InstanceIdBufferSize;
@@ -450,6 +457,12 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	PassParametersTmp.NumCullingViews = 0;
 	if (bCullInstances)
 	{
+#if DO_CHECK
+		for (int32 ViewId : ViewIds)
+		{
+			checkf(ViewId < InstanceCullingManager->CullingIntermediate.NumViews, TEXT("Attempting to process a culling context that references a view that has not been uploaded yet."));
+		}
+#endif 
 		PassParametersTmp.InViews = GraphBuilder.CreateSRV(InstanceCullingManager->CullingIntermediate.CullingViews);
 		PassParametersTmp.NumCullingViews = InstanceCullingManager->CullingIntermediate.NumViews;
 	}
@@ -618,7 +631,6 @@ void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstance
 		PassParameters[Mode]->NumViewIds = ViewIds.Num();
 		PassParameters[Mode]->LoadBalancerParameters.NumBatches = LoadBalancers[Mode]->GetBatches().Num();
 		PassParameters[Mode]->LoadBalancerParameters.NumItems = LoadBalancers[Mode]->GetItems().Num();
-		PassParameters[Mode]->NumCullingViews = InstanceCullingManager->GetCullingViews().Num();
 
 		const bool bOcclusionCullInstances = PrevHZB != nullptr && FInstanceCullingContext::IsOcclusionCullingEnabled();
 		if (bOcclusionCullInstances)
@@ -693,14 +705,6 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters PassParametersTmp;
 
-	// Defer upload of views as these may be added during setup of passes.
-	FRDGBufferRef ViewsRDG = CreateStructuredBuffer(GraphBuilder, 
-		TEXT("InstanceCulling.Views"), InstanceCullingManager->CullingViews.GetTypeSize(), 
-		INST_CULL_CALLBACK(DeferredContext->InstanceCullingManager->CullingViews.Num()),
-		INST_CULL_CALLBACK(DeferredContext->InstanceCullingManager->CullingViews.GetData()),
-		INST_CULL_CALLBACK(GetArrayDataSize(DeferredContext->InstanceCullingManager->CullingViews))
-	);
-
 	FRDGBufferRef DrawCommandDescsRDG = CreateStructuredBuffer(INST_CULL_CREATE_STRUCT_BUFF_ARGS(DrawCommandDescs));
 	FRDGBufferRef ViewIdsRDG = CreateStructuredBuffer(INST_CULL_CREATE_STRUCT_BUFF_ARGS(ViewIds));
 	FRDGBufferRef BatchInfosRDG = CreateStructuredBuffer(INST_CULL_CREATE_STRUCT_BUFF_ARGS(BatchInfos));
@@ -752,10 +756,11 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 	PassParametersTmp.InstanceIdOffsetBuffer = GraphBuilder.CreateSRV(InstanceIdOffsetBuffer, PF_R32_UINT);
 	if (bCullInstances)
 	{
-		PassParametersTmp.InViews = GraphBuilder.CreateSRV(ViewsRDG);
-		// Note: not the final number
+		PassParametersTmp.InViews = GraphBuilder.CreateSRV(InstanceCullingManager->CullingIntermediate.CullingViews);
 		PassParametersTmp.NumCullingViews = InstanceCullingManager->CullingIntermediate.NumViews;
 	}
+	// Record the number of culling views to be able to check that no views referencing out-of bounds views are queued up
+	DeferredContext->NumCullingViews = InstanceCullingManager->CullingIntermediate.NumViews;
 
 	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
 	{
