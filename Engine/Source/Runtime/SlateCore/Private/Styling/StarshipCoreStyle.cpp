@@ -1112,10 +1112,9 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		.SetNormalPadding(ButtonMargins)
 		.SetPressedPadding(PressedButtonMargins);
 
-
 	const FButtonStyle PrimaryButtonLabelAndIcon = FButtonStyle(PrimaryButton)
-		.SetNormalPadding(FMargin(4.f, 1.f, 4.f, 1.f))
-		.SetPressedPadding(FMargin(4.f, 2.0f, 4.f, 0.0f));
+		.SetNormalPadding(FMargin(4.f, 1.5f, 4.f, 1.5f))
+		.SetPressedPadding(FMargin(4.f, 2.5f, 4.f, 0.5f));
 
 	const FButtonStyle Button = FButtonStyle()
 		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::Input, InputFocusThickness))
