@@ -62,13 +62,9 @@ void FSequencerTrailHierarchy::Initialize()
 		VisibilityManager.Selected.Add(Guid);
 	});
 	
-	OnSelectionChangedHandle = Sequencer->GetSelectionChangedObjectGuids().AddLambda([this](TArray<FGuid> NewSelection) {
-		
-		//if using old trails don't add new ones.
-		if (CVarUseOldSequencerMotionTrails->GetBool() == true)
-		{
-			return;
-		}		
+	OnSelectionChangedHandle = Sequencer->GetSelectionChangedObjectGuids().AddLambda([this](TArray<FGuid> NewSelection)
+	{
+	
 		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 		check(Sequencer);
 		TSet<FGuid> OldSelected = VisibilityManager.Selected;
@@ -451,11 +447,6 @@ void FSequencerTrailHierarchy::OnBindingVisibilityStateChanged(UObject* BoundObj
 
 void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& SequencerBindings, TFunctionRef<void(UObject*, FTrail*, FGuid)> OnUpdated)
 {
-	//if using old trails don't add new ones.
-	if (CVarUseOldSequencerMotionTrails->GetBool() == true)
-	{
-		return;
-	}
 	const FDateTime StartTime = FDateTime::Now();
 
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
@@ -468,6 +459,11 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 			for (TWeakObjectPtr<> BoundObject : Sequencer->FindBoundObjects(BindingGuid, Sequencer->GetFocusedTemplateID()))
 			{
 				if (!BoundObject.IsValid())
+				{
+					continue;
+				}
+				//if using old trails don't add new ones.
+				if (CVarUseOldSequencerMotionTrails->GetBool() == true)
 				{
 					continue;
 				}
@@ -499,6 +495,10 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 			for (TWeakObjectPtr<> BoundObject : Sequencer->FindBoundObjects(BindingGuid, Sequencer->GetFocusedTemplateID()))
 			{
 				if (!BoundObject.IsValid())
+				{
+					continue;
+				}
+				if (CVarUseOldSequencerMotionTrails->GetBool() == true)
 				{
 					continue;
 				}
