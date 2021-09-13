@@ -420,9 +420,9 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("FCbObjectView(Name)::TryGetView()"), NamedField.AsObjectView().TryGetView(View));
 
 		// GetBuffer
-		TestTrue(TEXT("FCbObjectView(Clone)::GetBuffer()"), Object.GetBuffer().Flatten().GetView() == Object.GetOuterBuffer().GetView());
-		TestTrue(TEXT("FCbObjectView(NoType)::GetBuffer()"), FCbField::MakeView(Field).AsObject().GetBuffer().Flatten().GetView().EqualBytes(Object.GetOuterBuffer().GetView()));
-		TestTrue(TEXT("FCbObjectView(Name)::GetBuffer()"), FCbField::MakeView(NamedField).AsObject().GetBuffer().Flatten().GetView().EqualBytes(Object.GetOuterBuffer().GetView()));
+		TestTrue(TEXT("FCbObjectView(Clone)::GetBuffer()"), Object.GetBuffer().ToShared().GetView() == Object.GetOuterBuffer().GetView());
+		TestTrue(TEXT("FCbObjectView(NoType)::GetBuffer()"), FCbField::MakeView(Field).AsObject().GetBuffer().ToShared().GetView().EqualBytes(Object.GetOuterBuffer().GetView()));
+		TestTrue(TEXT("FCbObjectView(Name)::GetBuffer()"), FCbField::MakeView(NamedField).AsObject().GetBuffer().ToShared().GetView().EqualBytes(Object.GetOuterBuffer().GetView()));
 	}
 
 	// Test FCbFieldView(None) as Object
@@ -464,9 +464,9 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbObjectView()::CopyTo()"), ObjectClone.GetOuterBuffer().GetView().EqualBytes(MakeMemoryView(CopyBytes)));
 
 		// GetBuffer
-		TestTrue(TEXT("FCbField(ObjectWithName)::GetBuffer()"), FCbField(FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().Flatten().GetView().EqualBytes(MakeMemoryView(Buffer)));
+		TestTrue(TEXT("FCbField(ObjectWithName)::GetBuffer()"), FCbField(FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().ToShared().GetView().EqualBytes(MakeMemoryView(Buffer)));
 		TestTrue(TEXT("FCbField(ObjectWithNameNoType)::GetBuffer()"),
-			FCbField(FCbFieldView(Buffer + 1, ECbFieldType(ObjectType)), FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().Flatten().GetView().EqualBytes(MakeMemoryView(Buffer)));
+			FCbField(FCbFieldView(Buffer + 1, ECbFieldType(ObjectType)), FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().ToShared().GetView().EqualBytes(MakeMemoryView(Buffer)));
 
 		// Access Missing Field
 		TestFalse(TEXT("FCbObject()[Missing]"), ObjectClone["M"_ASV].HasValue());
@@ -615,9 +615,9 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("FCbArrayView(Name)::TryGetView()"), NamedField.AsArrayView().TryGetView(View));
 
 		// GetBuffer
-		TestTrue(TEXT("FCbArrayView(Clone)::GetBuffer()"), Array.GetBuffer().Flatten().GetView() == Array.GetOuterBuffer().GetView());
-		TestTrue(TEXT("FCbArrayView(NoType)::GetBuffer()"), FCbField::MakeView(Field).AsArray().GetBuffer().Flatten().GetView().EqualBytes(Array.GetOuterBuffer().GetView()));
-		TestTrue(TEXT("FCbArrayView(Name)::GetBuffer()"), FCbField::MakeView(NamedField).AsArray().GetBuffer().Flatten().GetView().EqualBytes(Array.GetOuterBuffer().GetView()));
+		TestTrue(TEXT("FCbArrayView(Clone)::GetBuffer()"), Array.GetBuffer().ToShared().GetView() == Array.GetOuterBuffer().GetView());
+		TestTrue(TEXT("FCbArrayView(NoType)::GetBuffer()"), FCbField::MakeView(Field).AsArray().GetBuffer().ToShared().GetView().EqualBytes(Array.GetOuterBuffer().GetView()));
+		TestTrue(TEXT("FCbArrayView(Name)::GetBuffer()"), FCbField::MakeView(NamedField).AsArray().GetBuffer().ToShared().GetView().EqualBytes(Array.GetOuterBuffer().GetView()));
 	}
 
 	// Test FCbFieldView(None) as Array
@@ -658,9 +658,9 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbArrayView()::CopyTo()"), ArrayClone.GetOuterBuffer().GetView().EqualBytes(MakeMemoryView(CopyBytes)));
 
 		// GetBuffer
-		TestTrue(TEXT("FCbField(ArrayWithName)::GetBuffer()"), FCbField(FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().Flatten().GetView().EqualBytes(MakeMemoryView(Buffer)));
+		TestTrue(TEXT("FCbField(ArrayWithName)::GetBuffer()"), FCbField(FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().ToShared().GetView().EqualBytes(MakeMemoryView(Buffer)));
 		TestTrue(TEXT("FCbField(ArrayWithNameNoType)::GetBuffer()"),
-			FCbField(FCbFieldView(Buffer + 1, ECbFieldType(ArrayType)), FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().Flatten().GetView().EqualBytes(MakeMemoryView(Buffer)));
+			FCbField(FCbFieldView(Buffer + 1, ECbFieldType(ArrayType)), FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().ToShared().GetView().EqualBytes(MakeMemoryView(Buffer)));
 	}
 
 	// Test FCbArrayView as FCbFieldViewIterator

@@ -775,7 +775,7 @@ FSharedBuffer FCompressedBuffer::Decompress() const
 		{
 			if (Header.Method == EMethod::None)
 			{
-				return Decoder->Decompress(Header, CompressedData).Flatten();
+				return Decoder->Decompress(Header, CompressedData).ToShared();
 			}
 			FUniqueBuffer RawData = FUniqueBuffer::Alloc(Header.TotalRawSize);
 			if (Decoder->TryDecompressTo(Header, CompressedData, RawData))

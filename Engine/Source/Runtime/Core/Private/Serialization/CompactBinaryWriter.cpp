@@ -377,7 +377,7 @@ void FCbWriter::AddBinary(const FSharedBuffer& Buffer)
 
 void FCbWriter::AddBinary(const FCompositeBuffer& Buffer)
 {
-	AddBinary(Buffer.Flatten());
+	AddBinary(Buffer.ToShared());
 }
 
 void FCbWriter::AddString(const FUtf8StringView Value)

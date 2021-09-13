@@ -14,7 +14,7 @@ template <typename FuncType> class TFunctionRef;
  * FCompositeBuffer is a non-contiguous buffer composed of zero or more immutable shared buffers.
  *
  * A composite buffer is most efficient when its segments are consumed as they are, but it can be
- * flattened into a contiguous buffer, when necessary, by calling Flatten(). Ownership of segment
+ * flattened into a contiguous buffer when necessary, by calling ToShared(). Ownership of segment
  * buffers is not changed on construction, but if ownership of segments is required then that can
  * be guaranteed by calling MakeOwned().
  */
@@ -76,8 +76,8 @@ public:
 	[[nodiscard]] CORE_API FCompositeBuffer MakeOwned() &&;
 
 	/** Returns the concatenation of the segments into a contiguous buffer. */
-	[[nodiscard]] CORE_API FSharedBuffer Flatten() const &;
-	[[nodiscard]] CORE_API FSharedBuffer Flatten() &&;
+	[[nodiscard]] CORE_API FSharedBuffer ToShared() const &;
+	[[nodiscard]] CORE_API FSharedBuffer ToShared() &&;
 
 	/** Returns the middle part of the buffer by taking the size starting at the offset. */
 	[[nodiscard]] CORE_API FCompositeBuffer Mid(uint64 Offset, uint64 Size = MAX_uint64) const;

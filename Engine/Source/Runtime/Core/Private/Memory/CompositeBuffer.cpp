@@ -35,7 +35,7 @@ FCompositeBuffer FCompositeBuffer::MakeOwned() &&
 	return MoveTemp(*this);
 }
 
-FSharedBuffer FCompositeBuffer::Flatten() const &
+FSharedBuffer FCompositeBuffer::ToShared() const &
 {
 	switch (Segments.Num())
 	{
@@ -50,9 +50,9 @@ FSharedBuffer FCompositeBuffer::Flatten() const &
 	}
 }
 
-FSharedBuffer FCompositeBuffer::Flatten() &&
+FSharedBuffer FCompositeBuffer::ToShared() &&
 {
-	return Segments.Num() == 1 ? MoveTemp(Segments[0]) : AsConst(*this).Flatten();
+	return Segments.Num() == 1 ? MoveTemp(Segments[0]) : AsConst(*this).ToShared();
 }
 
 FCompositeBuffer FCompositeBuffer::Mid(uint64 Offset, uint64 Size) const
