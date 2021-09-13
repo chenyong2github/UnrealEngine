@@ -31,7 +31,7 @@ void InitializeVirtualTextureFeedback(in out FVirtualTextureFeedbackParams Param
 {
 #if (NUM_VIRTUALTEXTURE_SAMPLES + LIGHTMAP_VT_ENABLED) > 1
 	const uint NumVTSamplesInShader = NUM_VIRTUALTEXTURE_SAMPLES + LIGHTMAP_VT_ENABLED;
-	const uint2 PixelPos = SvPosition / VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
+	const uint2 PixelPos = SvPosition >> View.VirtualTextureFeedbackShift;
 	const uint FeedbackPos = PixelPos.y * View.VirtualTextureFeedbackStride + PixelPos.x;
 	Params.RequestId = (View.VirtualTextureFeedbackSampleOffset + FeedbackPos) % NumVTSamplesInShader;
 	Params.Request = 0xFFFFFFFF;
@@ -53,14 +53,14 @@ void StoreVirtualTextureFeedback(in out FVirtualTextureFeedbackParams Params, ui
 /** This should be called at the end of the pixel shader to write out the gathered VT feedback info to the OutputBuffer. */
 void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, float4 SvPosition, float Opacity, uint FrameNumber, RWBuffer<uint> OutputBuffer)
 {
-	uint2 PixelTilePos = (uint2)SvPosition.xy % VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
-	uint PixelTileIndex = PixelTilePos.y * VIRTUAL_TEXTURE_FEEDBACK_FACTOR + PixelTilePos.x;
+	uint2 PixelTilePos = (uint2)SvPosition.xy & View.VirtualTextureFeedbackMask;
+	uint PixelTileIndex = (PixelTilePos.y << View.VirtualTextureFeedbackShift) + PixelTilePos.x;
 
 	// This code will only run every few pixels...
 	[branch] if (PixelTileIndex == View.VirtualTextureFeedbackJitterOffset)
 	{
 		// TODO use append buffer ?
-		uint2 PixelPos = (uint2)SvPosition.xy / VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
+		uint2 PixelPos = (uint2)SvPosition.xy >> View.VirtualTextureFeedbackShift;
 		uint FeedbackPos = PixelPos.y * View.VirtualTextureFeedbackStride + PixelPos.x;
 
 		// When using DBuffer, feedback buffer is blending using decal opacity for opaque objects
@@ -73,24 +73,25 @@ void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, flo
 		// Use a value of 0.25f so we have up to 4 layers of VT transparancy
 		const float Alpha = 0.25f;  
 #else
-		// Opacity values smaller/larger than the reciprocal of the downscale factor get clamped so at least one pixel will resolve
-		const float VTDownscaleEpsilon = 1.0f / VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
-		float MaxAlpha = 1.0f - VTDownscaleEpsilon;
 
+#if (IS_DECAL && !IS_DBUFFER_DECAL)
 		// Even fully opaque gbuffer decals may not completely overwrite data from base pass, so don't allow VT feedback to become fully opaque.
 		// TODO - it may be possible to allow fully opaque decals with certain blend-mode/state combinations, if we can guarantee they overwrite all gbuffer channels
-		// Another similar case is when reading the DBuffer directly (so without a blend alpha available) we don't wan't to allow the base pass to be fully opaque for VT feedback.
-#if (IS_DECAL && !IS_DBUFFER_DECAL) || (USE_DBUFFER && MATERIAL_DECAL_READ_MASK && !MATERIALDECALRESPONSEMASK)
-		MaxAlpha = 0.5f;
+		const float MaxAlpha = 0.5f;
+#elif (USE_DBUFFER && MATERIAL_DECAL_READ_MASK && !MATERIALDECALRESPONSEMASK)
+		// When reading the DBuffer directly (so without a blend alpha available) we don't wan't to allow the base pass to be fully opaque for VT feedback.
+		const float MaxAlpha = 0.5f;
+#else
+		const float MaxAlpha = 1.0f;
+#endif
+		const float MinAlpha = 0.02f;
+		const float Alpha =  clamp(Opacity, MinAlpha, MaxAlpha);
 #endif
 
-		const float Alpha =  clamp(Opacity, VTDownscaleEpsilon, MaxAlpha);                  
-#endif
-
-        const float AlphaThreshold = frac( PseudoRandom(PixelPos) + // Random  value in 0-1 on 128 x 128 pixel grid
-											SvPosition.w + // Add in depth so we pick different thresholds on different depths 
-											(FrameNumber / (float)VIRTUAL_TEXTURE_FEEDBACK_FACTOR) // Add in framenumber for extra jitter so the pseudorandom pattern changes over time
-											);  
+        const float AlphaThreshold = frac( 
+			PseudoRandom(PixelPos + FrameNumber) + // Random  value in 0-1 on feedback tile. Add in framenumber for extra jitter so the pseudorandom pattern changes over time.
+			SvPosition.w // Add in depth so we pick different thresholds on different depths
+			);  
 											
         // Threshold is uniform pseudo random this conditional has a higher probability to succeed for higher apha values
         // that means more opaque surfaces get more pixels in the feedback buffer which is what we want
