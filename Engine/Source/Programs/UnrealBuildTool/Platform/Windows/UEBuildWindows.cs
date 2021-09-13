@@ -1144,7 +1144,7 @@ namespace UnrealBuildTool
 										{
 											continue;
 										}
-										else if (Compiler == WindowsCompiler.VisualStudio2019 && (Version < Version2019 || Version >= Version2022))
+										else if (Compiler == WindowsCompiler.VisualStudio2019 && Version < Version2019)
 										{
 											continue;
 										}
