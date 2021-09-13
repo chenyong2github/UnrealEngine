@@ -95,7 +95,7 @@ public:
 	EDatasmithFacadeCurveInterpMode GetCurveInterpMode(EDatasmithFacadeAnimationTransformType TransformType) const;
 
 	/** Return the frame of the given transform type at the given index or an invalid frame if the index was out of bounds */
-	void GetFrame(EDatasmithFacadeAnimationTransformType TransformType, int32 Index, int32& OutFrameNumber, float& OutX, float& OutY, float& OutZ) const;
+	void GetFrame(EDatasmithFacadeAnimationTransformType TransformType, int32 Index, int32& OutFrameNumber, double& OutX, double& OutY, double& OutZ) const;
 
 	/** Remove the frame of the given transform type at the given index from the animation */
 	void RemoveFrame(EDatasmithFacadeAnimationTransformType TransformType, int32 Index);

@@ -86,7 +86,7 @@ public class DatasmithFacadeCSharpTarget : TargetRules
 			PreBuildSteps.Add(string.Format("\"{0}\" \"{1}\"", Path.Combine(PythonDir, "Mac", "bin", "python"), Path.Combine(ProjectPath, "FacadeHeaderHelper.py")));
 		}
 		else
-        {
+		{
 			PreBuildSteps.Add(string.Format("\"{0}\" \"{1}\"", Path.Combine(PythonDir, "Win64", "python.exe"), Path.Combine(ProjectPath, "FacadeHeaderHelper.py")));
 		}
 	}
