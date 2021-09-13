@@ -945,14 +945,12 @@ namespace Metasound
 				{
 					if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
 					{
-						// TODO: fix how identifying the parameter to update is determined. It should not be done
-						// with a "DisplayName" but rather the vertex Guid.
-						if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent)
+						FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
+						NodeHandle->IterateConstInputs([ComponentInterface = PreviewComponent](FConstInputHandle Input)
 						{
-							FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
-							FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-							ParamInterface->SetTriggerParameter(*VertexKey);
-						}
+							FVertexName VertexName = Input->GetName();
+							ComponentInterface->SetTriggerParameter(VertexName);
+						});
 					}
 				}
 			}
@@ -1298,14 +1296,12 @@ namespace Metasound
 				{
 					for (int32 i = IndexToDelete + 1; i < Handles.Num(); ++i)
 					{
-						const FName NameToSelect(*(Handles[i]->GetDisplayName().ToString()));
-						return FNameNodeIDPair { NameToSelect, Handles[i]->GetID() };
+						return FNameNodeIDPair { Handles[i]->GetNodeName(), Handles[i]->GetID() };
 					}
 
 					for (int32 i = IndexToDelete - 1; i >= 0; --i)
 					{
-						FName NameToSelect = (*(Handles[i]->GetDisplayName().ToString()));
-						return FNameNodeIDPair { NameToSelect, Handles[i]->GetID() };
+						return FNameNodeIDPair { Handles[i]->GetNodeName(), Handles[i]->GetID() };
 					}
 				}
 
@@ -1614,7 +1610,11 @@ namespace Metasound
 						{
 							FMetasoundFrontendClass MetaSoundClass;
 							FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(PastedRegistryKey, MetaSoundClass);
-							const FString FriendlyClassName = MetaSoundClass.Metadata.GetDisplayName().ToString();
+							FString FriendlyClassName = MetaSoundClass.Metadata.GetDisplayName().ToString();
+							if (FriendlyClassName.IsEmpty())
+							{
+								FriendlyClassName = MetaSoundClass.Metadata.GetClassName().ToString();
+							}
 							UE_LOG(LogMetaSound, Warning, TEXT("Failed to paste node with class '%s'.  Class would introduce cyclic asset dependency."), *FriendlyClassName);
 							bNotifyReferenceLoop = true;
 							NodesToRemove.Add(GraphNode);
@@ -1822,12 +1822,8 @@ namespace Metasound
 					Frontend::FNodeHandle NodeHandle = MetasoundAction->GetNodeHandle();
 					if (InNodeID == NodeHandle->GetID())
 					{
-						TArray<Frontend::FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputs();
-						if (ensure(OutputHandles.Num() == 1))
-						{
-							const FName ActionName = *OutputHandles[0]->GetDisplayName().ToString();
-							MetasoundInterfaceMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
-						}
+						const FName ActionName = NodeHandle->GetNodeName();
+						MetasoundInterfaceMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
 						break;
 					}
 				}
@@ -1855,12 +1851,8 @@ namespace Metasound
 					Frontend::FNodeHandle NodeHandle = MetasoundAction->GetNodeHandle();
 					if (InNodeID == NodeHandle->GetID())
 					{
-						TArray<Frontend::FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputs();
-						if (ensure(OutputHandles.Num() == 1))
-						{
-							const FName ActionName = *OutputHandles[0]->GetDisplayName().ToString();
-							MetasoundInterfaceMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
-						}
+						const FName ActionName = NodeHandle->GetNodeName();
+						MetasoundInterfaceMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
 						break;
 					}
 				}
@@ -1877,9 +1869,9 @@ namespace Metasound
 			MetasoundAsset->GetRootGraphHandle()->IterateConstNodes([this, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
 			{
 				const FText Tooltip = Input->GetDescription();
-				const FText InputName = Input->GetDisplayName();
 				UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
 
+				const FText InputName = Input->GetDisplayName();
 				TSharedPtr<FMetasoundGraphNodeSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphNodeSchemaAction>(FText::GetEmpty(), InputName, Tooltip, 1, ENodeSection::Inputs);
 				NewFuncAction->Graph = &Graph;
 				ActionList->AddAction(NewFuncAction);
@@ -1900,9 +1892,9 @@ namespace Metasound
 			MetasoundAsset->GetRootGraphHandle()->IterateConstNodes([this, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Output)
 			{
 				const FText Tooltip = Output->GetDescription();
-				const FText OutputName = Output->GetDisplayName();
 				UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
 
+				const FText OutputName = Output->GetDisplayName();
 				TSharedPtr<FMetasoundGraphNodeSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphNodeSchemaAction>(FText::GetEmpty(), OutputName, Tooltip, 1, ENodeSection::Outputs);
 				NewFuncAction->Graph = &Graph;
 				NewFuncAction->NodeID = Output->GetID();
@@ -1935,6 +1927,11 @@ namespace Metasound
 
 		bool FEditor::HandleActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const
 		{
+			if (FMetasoundGraphNodeSchemaAction* Action = static_cast<FMetasoundGraphNodeSchemaAction*>(InAction))
+			{
+				return InName == Action->GetNodeHandle()->GetNodeName();
+			}
+
 			return false;
 		}
 
@@ -2076,7 +2073,7 @@ namespace Metasound
 					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(*Metasound, DataTypeName, FText::GetEmpty());
 					if (ensure(NodeHandle->IsValid()))
 					{
-						NameToSelect = *NodeHandle->GetDisplayName().ToString();
+						NameToSelect = NodeHandle->GetNodeName();
 
 						TObjectPtr<UMetasoundEditorGraphInput> Input = Graph.FindOrAddInput(NodeHandle);
 						if (ensure(Input))
@@ -2101,7 +2098,7 @@ namespace Metasound
 					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(*Metasound, DataTypeName, FText::GetEmpty());
 					if (ensure(NodeHandle->IsValid()))
 					{
-						NameToSelect = *NodeHandle->GetDisplayName().ToString();
+						NameToSelect = NodeHandle->GetNodeName();
 
 						TObjectPtr<UMetasoundEditorGraphOutput> Output = Graph.FindOrAddOutput(NodeHandle);
 						if (ensure(Output))

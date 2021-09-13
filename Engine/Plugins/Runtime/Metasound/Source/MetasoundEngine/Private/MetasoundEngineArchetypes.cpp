@@ -75,39 +75,39 @@ namespace Metasound
 
 			}
 
-			const FString& GetOnPlayInputName()
+			const FVertexName& GetOnPlayInputName()
 			{
-				static const FString TriggerInputName = TEXT("On Play");
+				static const FVertexName TriggerInputName = TEXT("On Play");
 				return TriggerInputName;
 			}
 
-			const FString& GetAudioOutputName()
+			const FVertexName& GetAudioOutputName()
 			{
-				static const FString AudioOutputName = TEXT("Generated Audio");
+				static const FVertexName AudioOutputName = TEXT("Generated Audio");
 				return AudioOutputName;
 			}
 
-			const FString& GetIsFinishedOutputName()
+			const FVertexName& GetIsFinishedOutputName()
 			{
-				static const FString OnFinishedOutputName = TEXT("On Finished");
+				static const FVertexName OnFinishedOutputName = TEXT("On Finished");
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceIDVariableName()
+			const FVertexName& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				static const FVertexName AudioDeviceIDVarName = TEXT("AudioDeviceID");
 				return AudioDeviceIDVarName;
 			}
 
-			const FString& GetSoundUniqueIdName()
+			const FVertexName& GetSoundUniqueIdName()
 			{
-				static const FString SoundUniqueIdVarName = TEXT("SoundUniqueId");
+				static const FVertexName SoundUniqueIdVarName = TEXT("SoundUniqueId");
 				return SoundUniqueIdVarName;
 			}
 
-			const FString& GetIsPreviewSoundName()
+			const FVertexName& GetIsPreviewSoundName()
 			{
-				static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
+				static const FVertexName SoundIsPreviewSoundName = TEXT("IsPreviewSound");
 				return SoundIsPreviewSoundName;
 			}
 
@@ -151,8 +151,7 @@ namespace Metasound
 				// Environment 
 				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
 				Archetype.Interface.Environment.Add(AudioDeviceID);
 
@@ -168,45 +167,45 @@ namespace Metasound
 				return FMetasoundFrontendVersion{ VersionName, FMetasoundFrontendVersionNumber{1, 0} };
 			}
 
-			const FString& GetOnPlayInputName()
+			const FVertexName& GetOnPlayInputName()
 			{
-				static const FString TriggerInputName = TEXT("On Play");
+				static const FVertexName TriggerInputName = TEXT("On Play");
 				return TriggerInputName;
 			}
 
-			const FString& GetAudioOutputName()
+			const FVertexName& GetAudioOutputName()
 			{
-				static const FString AudioOutputName = TEXT("Generated Audio");
+				static const FVertexName AudioOutputName = TEXT("Generated Audio");
 				return AudioOutputName;
 			}
 
-			const FString& GetIsFinishedOutputName()
+			const FVertexName& GetIsFinishedOutputName()
 			{
-				static const FString OnFinishedOutputName = TEXT("On Finished");
+				static const FVertexName OnFinishedOutputName = TEXT("On Finished");
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceIDVariableName()
+			const FVertexName& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				static const FVertexName AudioDeviceIDVarName = TEXT("AudioDeviceID");
 				return AudioDeviceIDVarName;
 			}
 
-			const FString& GetSoundUniqueIdName()
+			const FVertexName& GetSoundUniqueIdName()
 			{
-				static const FString SoundUniqueIdVarName = TEXT("SoundUniqueId");
+				static const FVertexName SoundUniqueIdVarName = TEXT("SoundUniqueId");
 				return SoundUniqueIdVarName;
 			}
 
-			const FString& GetIsPreviewSoundName()
+			const FVertexName& GetIsPreviewSoundName()
 			{
-				static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
+				static const FVertexName SoundIsPreviewSoundName = TEXT("IsPreviewSound");
 				return SoundIsPreviewSoundName;
 			}
 
-			const FString& GetGraphName()
+			const FVertexName& GetGraphName()
 			{
-				static const FString SoundGraphName = TEXT("GraphName");
+				static const FVertexName SoundGraphName = TEXT("GraphName");
 				return SoundGraphName;
 			}
 
@@ -249,8 +248,7 @@ namespace Metasound
 				// Environment
 				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
 				Archetype.Interface.Environment.Add(AudioDeviceID);
 
@@ -266,51 +264,51 @@ namespace Metasound
 				return FMetasoundFrontendVersion{ VersionName, FMetasoundFrontendVersionNumber{1, 1} };
 			}
 
-			const FString& GetOnPlayInputName()
+			const FVertexName& GetOnPlayInputName()
 			{
-				static const FString TriggerInputName = TEXT("On Play");
+				static const FVertexName TriggerInputName = TEXT("On Play");
 				return TriggerInputName;
 			}
 
-			const FString& GetAudioOutputName()
+			const FVertexName& GetAudioOutputName()
 			{
-				static const FString AudioOutputName = TEXT("Audio:0");
+				static const FVertexName AudioOutputName = TEXT("Audio:0");
 				return AudioOutputName;
 			}
 
-			const FString& GetIsFinishedOutputName()
+			const FVertexName& GetIsFinishedOutputName()
 			{
-				static const FString OnFinishedOutputName = TEXT("On Finished");
+				static const FVertexName OnFinishedOutputName = TEXT("On Finished");
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceIDVariableName()
+			const FVertexName& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				static const FVertexName AudioDeviceIDVarName = TEXT("AudioDeviceID");
 				return AudioDeviceIDVarName;
 			}
 
-			const FString& GetSoundUniqueIdName()
+			const FVertexName& GetSoundUniqueIdName()
 			{
-				static const FString SoundUniqueIdVarName = TEXT("SoundUniqueId");
+				static const FVertexName SoundUniqueIdVarName = TEXT("SoundUniqueId");
 				return SoundUniqueIdVarName;
 			}
 
-			const FString& GetIsPreviewSoundName()
+			const FVertexName& GetIsPreviewSoundName()
 			{
-				static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
+				static const FVertexName SoundIsPreviewSoundName = TEXT("IsPreviewSound");
 				return SoundIsPreviewSoundName;
 			}
 
-			const FString& GetGraphName()
+			const FVertexName& GetGraphName()
 			{
-				static const FString SoundGraphName = TEXT("GraphName");
+				static const FVertexName SoundGraphName = TEXT("GraphName");
 				return SoundGraphName;
 			}
 
-			const FString& GetInstanceIDName()
+			const FVertexName& GetInstanceIDName()
 			{
-				static const FString& Name = FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName();
+				static const FVertexName& Name = FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName();
 				return Name;
 			}
 
@@ -359,8 +357,7 @@ namespace Metasound
 				// Environment
 				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
 				Archetype.Interface.Environment.Add(AudioDeviceID);
 
@@ -438,57 +435,57 @@ namespace Metasound
 				return FMetasoundFrontendVersion{ VersionName, FMetasoundFrontendVersionNumber{1, 1} };
 			}
 
-			const FString& GetOnPlayInputName()
+			const FVertexName& GetOnPlayInputName()
 			{
-				static const FString TriggerInputName = TEXT("On Play");
+				static const FVertexName TriggerInputName = TEXT("On Play");
 				return TriggerInputName;
 			}
 
-			const FString& GetLeftAudioOutputName()
+			const FVertexName& GetLeftAudioOutputName()
 			{
-				static const FString AudioOutputName = TEXT("Audio:0");
+				static const FVertexName AudioOutputName = TEXT("Audio:0");
 				return AudioOutputName;
 			}
 
-			const FString& GetRightAudioOutputName()
+			const FVertexName& GetRightAudioOutputName()
 			{
-				static const FString AudioOutputName = TEXT("Audio:1");
+				static const FVertexName AudioOutputName = TEXT("Audio:1");
 				return AudioOutputName;
 			}
 
-			const FString& GetIsFinishedOutputName()
+			const FVertexName& GetIsFinishedOutputName()
 			{
-				static const FString OnFinishedOutputName = TEXT("On Finished");
+				static const FVertexName OnFinishedOutputName = TEXT("On Finished");
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceIDVariableName()
+			const FVertexName& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				static const FVertexName AudioDeviceIDVarName = TEXT("AudioDeviceID");
 				return AudioDeviceIDVarName;
 			}
 
-			const FString& GetSoundUniqueIdName()
+			const FVertexName& GetSoundUniqueIdName()
 			{
-				static const FString SoundUniqueIdVarName = TEXT("SoundUniqueId");
+				static const FVertexName SoundUniqueIdVarName = TEXT("SoundUniqueId");
 				return SoundUniqueIdVarName;
 			}
 
-			const FString& GetIsPreviewSoundName()
+			const FVertexName& GetIsPreviewSoundName()
 			{
-				static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
+				static const FVertexName SoundIsPreviewSoundName = TEXT("IsPreviewSound");
 				return SoundIsPreviewSoundName;
 			}
 
-			const FString& GetGraphName()
+			const FVertexName& GetGraphName()
 			{
-				static const FString SoundGraphName = TEXT("GraphName");
+				static const FVertexName SoundGraphName = TEXT("GraphName");
 				return SoundGraphName;
 			}
 
-			const FString& GetInstanceIDName()
+			const FVertexName& GetInstanceIDName()
 			{
-				static const FString& Name = FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName();
+				static const FVertexName& Name = FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName();
 				return Name;
 			}
 
@@ -552,8 +549,7 @@ namespace Metasound
 				// Environment
 				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
-				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
-				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 				Archetype.Interface.Environment.Add(AudioDeviceID);
 
 				return Archetype;
@@ -647,43 +643,43 @@ namespace Metasound
 			namespace CurrentMonoVersion = MetasoundSourceMonoV1_1;
 			namespace CurrentStereoVersion = MetasoundSourceStereoV1_1;
 
-			const FString& GetOnPlayInputName()
+			const FVertexName& GetOnPlayInputName()
 			{
 				check(CurrentMonoVersion::GetOnPlayInputName() == CurrentStereoVersion::GetOnPlayInputName());
 				return CurrentMonoVersion::GetOnPlayInputName();
 			}
 
-			const FString& GetIsFinishedOutputName()
+			const FVertexName& GetIsFinishedOutputName()
 			{
 				check(CurrentMonoVersion::GetIsFinishedOutputName() == CurrentStereoVersion::GetIsFinishedOutputName());
 				return CurrentMonoVersion::GetIsFinishedOutputName();
 			}
 
-			const FString& GetAudioDeviceIDVariableName()
+			const FVertexName& GetAudioDeviceIDVariableName()
 			{
 				check(CurrentMonoVersion::GetAudioDeviceIDVariableName() == CurrentStereoVersion::GetAudioDeviceIDVariableName());
 				return CurrentMonoVersion::GetAudioDeviceIDVariableName();
 			}
 
-			const FString& GetSoundUniqueIdName()
+			const FVertexName& GetSoundUniqueIdName()
 			{
 				check(CurrentMonoVersion::GetSoundUniqueIdName() == CurrentStereoVersion::GetSoundUniqueIdName());
 				return CurrentMonoVersion::GetSoundUniqueIdName();
 			}
 
-			const FString& GetIsPreviewSoundName()
+			const FVertexName& GetIsPreviewSoundName()
 			{
 				check(CurrentMonoVersion::GetIsPreviewSoundName() == CurrentStereoVersion::GetIsPreviewSoundName());
 				return CurrentMonoVersion::GetIsPreviewSoundName();
 			}
 
-			const FString& GetInstanceIDName()
+			const FVertexName& GetInstanceIDName()
 			{
 				check(CurrentMonoVersion::GetInstanceIDName() == CurrentStereoVersion::GetInstanceIDName());
 				return CurrentMonoVersion::GetInstanceIDName();
 			}
 
-			const FString& GetGraphName()
+			const FVertexName& GetGraphName()
 			{
 				check(CurrentMonoVersion::GetGraphName() == CurrentStereoVersion::GetGraphName());
 				return CurrentMonoVersion::GetGraphName();
@@ -699,7 +695,7 @@ namespace Metasound
 				return Current::GetVersion();
 			}
 
-			const FString& GetAudioOutputName()
+			const FVertexName& GetAudioOutputName()
 			{
 				return Current::GetAudioOutputName();
 			}
@@ -714,12 +710,12 @@ namespace Metasound
 				return Current::GetVersion();
 			}
 
-			const FString& GetLeftAudioOutputName()
+			const FVertexName& GetLeftAudioOutputName()
 			{
 				return Current::GetLeftAudioOutputName();
 			}
 
-			const FString& GetRightAudioOutputName()
+			const FVertexName& GetRightAudioOutputName()
 			{
 				return Current::GetRightAudioOutputName();
 			}

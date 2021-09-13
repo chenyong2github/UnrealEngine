@@ -21,6 +21,7 @@
 #include "MetasoundLog.h"
 #include "MetasoundParameterTransmitter.h"
 #include "MetasoundTrace.h"
+#include "MetasoundVertex.h"
 #include "StructSerializer.h"
 #include "UObject/MetaData.h"
 
@@ -446,7 +447,7 @@ TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() cons
 	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(*Doc);
 	if (FrontendGraph.IsValid())
 	{
-		TSet<FVertexKey> VerticesToSkip = GetNonTransmittableInputVertices(*Doc);
+		TSet<FVertexName> VerticesToSkip = GetNonTransmittableInputVertices(*Doc);
 		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment, VerticesToSkip);
 		if (!bSuccessfullyInjectedReceiveNodes)
 		{
@@ -527,7 +528,7 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 	return bCausesLoop;
 }
 
-Metasound::FSendAddress FMetasoundAssetBase::CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const
+Metasound::FSendAddress FMetasoundAssetBase::CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const
 
 {
 	using namespace Metasound;
@@ -535,7 +536,7 @@ Metasound::FSendAddress FMetasoundAssetBase::CreateSendAddress(uint64 InInstance
 	FSendAddress Address;
 
 	Address.Subsystem = GetSubsystemNameForSendScope(ETransmissionScope::Global);
-	Address.ChannelName = FName(FString::Printf(TEXT("%d:%s:%s"), InInstanceID, *InVertexName, *InDataTypeName.ToString()));
+	Address.ChannelName = FName(FString::Printf(TEXT("%d:%s:%s"), InInstanceID, *InVertexName.ToString(), *InDataTypeName.ToString()));
 
 	return Address;
 }
@@ -563,8 +564,8 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 
 	FConstGraphHandle RootGraph = GetRootGraphHandle();
 
-	TArray<FString> SendVertices = GetTransmittableInputVertexNames();
-	for (const FString& VertexName : SendVertices)
+	const TArray<FVertexName> SendVertices = GetTransmittableInputVertexNames();
+	for (const FVertexName& VertexName : SendVertices)
 	{
 		FConstNodeHandle InputNode = RootGraph->GetInputNodeWithName(VertexName);
 		for (FConstInputHandle InputHandle : InputNode->GetConstInputs())
@@ -573,9 +574,8 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 
 			// TODO: incorporate VertexID into address. But need to ensure that VertexID
 			// will be maintained after injecting Receive nodes. 
-			Info.SendInfo.Address = FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(InInstanceID, InputHandle->GetName(), InputHandle->GetDataType());
-			Info.SendInfo.ParameterName = FName(InputHandle->GetDisplayName().ToString()); // TODO: display name hack. Need to have naming consistent in editor for inputs
-			//Info.SendInfo.ParameterName = FName(*InputHandle->GetName()); // TODO: this is the expected parameter name.
+			Info.SendInfo.Address = FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(InInstanceID, VertexName, InputHandle->GetDataType());
+			Info.SendInfo.ParameterName = VertexName;
 			Info.SendInfo.TypeName = InputHandle->GetDataType();
 			Info.VertexName = VertexName;
 
@@ -586,14 +586,14 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 	return SendInfos;
 }
 
-TSet<Metasound::FVertexKey> FMetasoundAssetBase::GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const
+TSet<Metasound::FVertexName> FMetasoundAssetBase::GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
 	check(IsInGameThread() || IsInAudioThread());
 
-	TSet<FVertexKey> NonTransmittableInputVertices;
+	TSet<FVertexName> NonTransmittableInputVertices;
 
 	auto GetVertexKey = [](const FMetasoundFrontendClassVertex& InVertex) { return InVertex.Name; };
 
@@ -623,7 +623,7 @@ TSet<Metasound::FVertexKey> FMetasoundAssetBase::GetNonTransmittableInputVertice
 	return NonTransmittableInputVertices;
 }
 
-TArray<FString> FMetasoundAssetBase::GetTransmittableInputVertexNames() const
+TArray<Metasound::FVertexName> FMetasoundAssetBase::GetTransmittableInputVertexNames() const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -641,19 +641,19 @@ TArray<FString> FMetasoundAssetBase::GetTransmittableInputVertexNames() const
 	}
 
 	// Unused inputs are all input vertices that are not in the archetype.
-	TArray<FString> ArchetypeInputVertexNames;
+	TArray<FVertexName> ArchetypeInputVertexNames;
 	for (const FMetasoundFrontendClassVertex& Vertex : Archetype.Interface.Inputs)
 	{
 		ArchetypeInputVertexNames.Add(Vertex.Name);
 	}
 
 	Frontend::FConstGraphHandle RootGraph = Document->GetRootGraph();
-	TArray<FString> GraphInputVertexNames = RootGraph->GetInputVertexNames();
+	TArray<FVertexName> GraphInputVertexNames = RootGraph->GetInputVertexNames();
 
 	// Filter graph inputs by archetype inputs.
-	GraphInputVertexNames = GraphInputVertexNames.FilterByPredicate([&](const FString& InName) { return !ArchetypeInputVertexNames.Contains(InName); });
+	GraphInputVertexNames = GraphInputVertexNames.FilterByPredicate([&](const FVertexName& InName) { return !ArchetypeInputVertexNames.Contains(InName); });
 
-	auto IsDataTypeTransmittable = [&](const FString& InVertexName)
+	auto IsDataTypeTransmittable = [&](const FVertexName& InVertexName)
 	{
 		using namespace Metasound::Frontend;
 
@@ -686,7 +686,7 @@ Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(
 	FMetasoundFrontendClassInput Description;
 	FGuid VertexID = FGuid::NewGuid();
 
-	Description.Name = InSendInfo.Address.ChannelName.ToString();
+	Description.Name = InSendInfo.Address.ChannelName;
 	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
 	Description.Metadata.Description = FText::GetEmpty();
 	Description.VertexID = VertexID;

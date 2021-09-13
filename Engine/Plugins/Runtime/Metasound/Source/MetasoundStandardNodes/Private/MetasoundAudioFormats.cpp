@@ -9,6 +9,7 @@
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundLiteral.h"
 #include "MetasoundOutputNode.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_AudioFormats"
 
@@ -87,8 +88,8 @@ namespace Metasound
 	// Special vertex keys for stereo input/output nodes.
 	namespace StereoAudioFormatVertexKeys
 	{
-		static const FVertexKey LeftChannelVertexKey = "Left";
-		static const FVertexKey RightChannelVertexKey = "Right";
+		static const FVertexName LeftChannelVertexKey = "Left";
+		static const FVertexName RightChannelVertexKey = "Right";
 	}
 
 	// Specialization of TOutputNode<FStereoAudio> to support direct connection
@@ -100,7 +101,7 @@ namespace Metasound
 		class FOutputOperator : public IOperator
 		{
 		public:
-			FOutputOperator(const FVertexKey& InOutputName, TDataReadReference<FAudioBuffer> InLeft, TDataReadReference<FAudioBuffer> InRight, TDataReadReference<FStereoAudioFormat> InStereo)
+			FOutputOperator(const FVertexName& InOutputName, TDataReadReference<FAudioBuffer> InLeft, TDataReadReference<FAudioBuffer> InRight, TDataReadReference<FStereoAudioFormat> InStereo)
 			: OutputName(InOutputName)
 			, Left(InLeft)
 			, Right(InRight)
@@ -136,7 +137,7 @@ namespace Metasound
 
 		private:
 
-			FVertexKey OutputName;
+			FVertexName OutputName;
 			TDataReadReference<FAudioBuffer> Left;
 			TDataReadReference<FAudioBuffer> Right;
 			TDataReadReference<FStereoAudioFormat> Stereo;
@@ -145,7 +146,7 @@ namespace Metasound
 		class FOutputOperatorFactory : public IOperatorFactory
 		{
 		public:
-			FOutputOperatorFactory(const FVertexKey& InOutputName)
+			FOutputOperatorFactory(const FVertexName& InOutputName)
 			: OutputName(InOutputName)
 			{
 			}
@@ -162,10 +163,10 @@ namespace Metasound
 			}
 
 		private:
-			FVertexKey OutputName;
+			FVertexName OutputName;
 		};
 
-		static FVertexInterface GetVertexInterface(const FVertexKey& InVertexName)
+		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
 			return FVertexInterface(
 				FInputVertexInterface(
@@ -178,7 +179,7 @@ namespace Metasound
 			);
 		}
 
-		static FNodeClassMetadata GetNodeClassMetadata(const FVertexKey& InOutputName)
+		static FNodeClassMetadata GetNodeClassMetadata(const FVertexName& InOutputName)
 		{
 			FNodeClassMetadata Info;
 
@@ -196,7 +197,7 @@ namespace Metasound
 
 
 	public:
-		TOutputNode(const FString& InInstanceName, const FGuid& InInstanceID, const FVertexKey& InVertexName)
+		TOutputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName)
 		:	FNode(InInstanceName, InInstanceID, GetNodeClassMetadata(InVertexName))
 		,	VertexInterface(GetVertexInterface(InVertexName))
 		,	Factory(MakeShared<FOutputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
@@ -239,7 +240,7 @@ namespace Metasound
 		{
 		public:
 
-			FInputOperator(const FVertexKey& InInputName, TDataReadReference<FAudioBuffer> InLeft, TDataReadReference<FAudioBuffer> InRight, TDataReadReference<FStereoAudioFormat> InStereo)
+			FInputOperator(const FVertexName& InInputName, TDataReadReference<FAudioBuffer> InLeft, TDataReadReference<FAudioBuffer> InRight, TDataReadReference<FStereoAudioFormat> InStereo)
 			: InputName(InInputName)
 			, Left(InLeft)
 			, Right(InRight)
@@ -276,7 +277,7 @@ namespace Metasound
 
 		private:
 
-			FVertexKey InputName;
+			FVertexName InputName;
 			TDataReadReference<FAudioBuffer> Left;
 			TDataReadReference<FAudioBuffer> Right;
 			TDataReadReference<FStereoAudioFormat> Stereo;
@@ -285,7 +286,7 @@ namespace Metasound
 		class FInputOperatorFactory : public IOperatorFactory
 		{
 		public:
-			FInputOperatorFactory(const FVertexKey& InInputName)
+			FInputOperatorFactory(const FVertexName& InInputName)
 			: InputName(InInputName)
 			{
 			}
@@ -301,10 +302,10 @@ namespace Metasound
 			}
 
 		private:
-			FVertexKey InputName;
+			FVertexName InputName;
 		};
 
-		static FVertexInterface GetVertexInterface(const FVertexKey& InVertexName)
+		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
 			return FVertexInterface(
 				FInputVertexInterface(
@@ -317,7 +318,7 @@ namespace Metasound
 			);
 		}
 
-		static FNodeClassMetadata GetNodeClassMetadata(const FVertexKey& InInputName)
+		static FNodeClassMetadata GetNodeClassMetadata(const FVertexName& InInputName)
 		{
 			FNodeClassMetadata Info;
 
@@ -337,7 +338,7 @@ namespace Metasound
 	public:
 		static constexpr bool bCanRegister = true;
 
-		TInputNode(const FString& InInstanceName, const FGuid& InInstanceID, const FVertexKey& InVertexName, FLiteral&& InLiteral)
+		TInputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName, FLiteral&& InLiteral)
 		:	FNode(InInstanceName, InInstanceID, GetNodeClassMetadata(InVertexName))
 		,	VertexInterface(GetVertexInterface(InVertexName))
 		,	Factory(MakeShared<FInputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
@@ -379,7 +380,7 @@ namespace Metasound
 		class FOutputOperator : public IOperator
 		{
 		public:
-			FOutputOperator(const FVertexKey& InOutputName, TDataReadReference<FAudioBuffer> InCenter, TDataReadReference<FMonoAudioFormat> InMono)
+			FOutputOperator(const FVertexName& InOutputName, TDataReadReference<FAudioBuffer> InCenter, TDataReadReference<FMonoAudioFormat> InMono)
 			: OutputName(InOutputName)
 			, Center(InCenter)
 			, Mono(InMono)
@@ -413,7 +414,7 @@ namespace Metasound
 
 		private:
 
-			FVertexKey OutputName;
+			FVertexName OutputName;
 			TDataReadReference<FAudioBuffer> Center;
 			TDataReadReference<FMonoAudioFormat> Mono;
 		};
@@ -421,7 +422,7 @@ namespace Metasound
 		class FOutputOperatorFactory : public IOperatorFactory
 		{
 		public:
-			FOutputOperatorFactory(const FVertexKey& InOutputName)
+			FOutputOperatorFactory(const FVertexName& InOutputName)
 			: OutputName(InOutputName)
 			{
 			}
@@ -436,10 +437,10 @@ namespace Metasound
 			}
 
 		private:
-			FVertexKey OutputName;
+			FVertexName OutputName;
 		};
 
-		static FVertexInterface GetVertexInterface(const FVertexKey& InVertexName)
+		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
 			return FVertexInterface(
 				FInputVertexInterface(
@@ -451,7 +452,7 @@ namespace Metasound
 			);
 		}
 
-		static FNodeClassMetadata GetNodeClassMetadata(const FVertexKey& InOutputName)
+		static FNodeClassMetadata GetNodeClassMetadata(const FVertexName& InOutputName)
 		{
 			FNodeClassMetadata Info;
 
@@ -469,7 +470,7 @@ namespace Metasound
 
 
 	public:
-		TOutputNode(const FString& InInstanceName, const FGuid& InInstanceID, const FVertexKey& InVertexName)
+		TOutputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName)
 		:	FNode(InInstanceName, InInstanceID, GetNodeClassMetadata(InVertexName))
 		,	VertexInterface(GetVertexInterface(InVertexName))
 		,	Factory(MakeShared<FOutputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
@@ -512,7 +513,7 @@ namespace Metasound
 		{
 		public:
 
-			FInputOperator(const FVertexKey& InInputName, TDataReadReference<FAudioBuffer> InCenter, TDataReadReference<FMonoAudioFormat> InMono)
+			FInputOperator(const FVertexName& InInputName, TDataReadReference<FAudioBuffer> InCenter, TDataReadReference<FMonoAudioFormat> InMono)
 			: InputName(InInputName)
 			, Center(InCenter)
 			, Mono(InMono)
@@ -547,7 +548,7 @@ namespace Metasound
 
 		private:
 
-			FVertexKey InputName;
+			FVertexName InputName;
 			TDataReadReference<FAudioBuffer> Center;
 			TDataReadReference<FMonoAudioFormat> Mono;
 		};
@@ -555,7 +556,7 @@ namespace Metasound
 		class FInputOperatorFactory : public IOperatorFactory
 		{
 		public:
-			FInputOperatorFactory(const FVertexKey& InInputName)
+			FInputOperatorFactory(const FVertexName& InInputName)
 			: InputName(InInputName)
 			{
 			}
@@ -569,10 +570,10 @@ namespace Metasound
 			}
 
 		private:
-			FVertexKey InputName;
+			FVertexName InputName;
 		};
 
-		static FVertexInterface GetVertexInterface(const FVertexKey& InVertexName)
+		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
 			return FVertexInterface(
 				FInputVertexInterface(
@@ -584,7 +585,7 @@ namespace Metasound
 			);
 		}
 
-		static FNodeClassMetadata GetNodeClassMetadata(const FVertexKey& InInputName)
+		static FNodeClassMetadata GetNodeClassMetadata(const FVertexName& InInputName)
 		{
 			FNodeClassMetadata Info;
 
@@ -604,7 +605,7 @@ namespace Metasound
 	public:
 		static constexpr bool bCanRegister = true;
 
-		TInputNode(const FString& InInstanceName, const FGuid& InInstanceID, const FVertexKey& InVertexName, FLiteral&& InLiteral)
+		TInputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName, FLiteral&& InLiteral)
 		:	FNode(InInstanceName, InInstanceID, GetNodeClassMetadata(InVertexName))
 		,	VertexInterface(GetVertexInterface(InVertexName))
 		,	Factory(MakeShared<FInputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))

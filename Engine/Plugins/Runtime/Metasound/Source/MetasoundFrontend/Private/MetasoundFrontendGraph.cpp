@@ -22,11 +22,8 @@ namespace Metasound
 		{
 			FNodeInitData InitData;
 
-			InitData.InstanceName.Append(InNode.Name);
-			InitData.InstanceName.AppendChar('_');
-			InitData.InstanceName.Append(InNode.ID.ToString());
-
-			InitData.InstanceID = InNode.ID;
+			InitData.InstanceName = *FString::Format(TEXT("{0}_{1}"), { *InNode.Name.ToString(), *InNode.GetID().ToString() });
+			InitData.InstanceID = InNode.GetID();
 
 			return InitData;
 		}
@@ -37,7 +34,7 @@ namespace Metasound
 	{
 	}
 
-	void FFrontendGraph::AddInputNode(FGuid InDependencyId, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode)
+	void FFrontendGraph::AddInputNode(FGuid InDependencyId, int32 InIndex, const FVertexName& InVertexName, TSharedPtr<const INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -46,12 +43,12 @@ namespace Metasound
 
 			// Input nodes need an extra Index value to keep track of their position in the graph's inputs.
 			InputNodes.Add(InIndex, InNode.Get());
-			AddInputDataDestination(*InNode, InVertexKey);
+			AddInputDataDestination(*InNode, InVertexName);
 			AddNode(InDependencyId, InNode);
 		}
 	}
 
-	void FFrontendGraph::AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode)
+	void FFrontendGraph::AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexName& InVertexName, TSharedPtr<const INode> InNode)
 	{
 		if (InNode.IsValid())
 		{
@@ -60,7 +57,7 @@ namespace Metasound
 
 			// Output nodes need an extra Index value to keep track of their position in the graph's inputs.
 			OutputNodes.Add(InIndex, InNode.Get());
-			AddOutputDataSource(*InNode, InVertexKey);
+			AddOutputDataSource(*InNode, InVertexName);
 			AddNode(InNodeID, InNode);
 		}
 	}
@@ -182,7 +179,7 @@ namespace Metasound
 					FInputNodeConstructorParams InitParams =
 					{
 						InNode.Name,
-						InNode.ID,
+						InNode.GetID(),
 						InputVertex.Name,
 						MoveTemp(Literal)
 					};
@@ -191,13 +188,13 @@ namespace Metasound
 				}
 				else
 				{
-					UE_LOG(LogMetaSound, Error, TEXT("Cannot create input node [NodeID:%s]. [Vertex:%s] cannot be constructed with the provided literal type."), *InNode.ID.ToString(), *InputVertex.Name);
+					UE_LOG(LogMetaSound, Error, TEXT("Cannot create input node [NodeID:%s]. [Vertex:%s] cannot be constructed with the provided literal type."), *InNode.GetID().ToString(), *InputVertex.Name.ToString());
 				}
 			}
 		}
 		else
 		{
-			UE_LOG(LogMetaSound, Error, TEXT("Cannot create input node [NodeID:%s]. No default literal set for input node."), *InNode.ID.ToString());
+			UE_LOG(LogMetaSound, Error, TEXT("Cannot create input node [NodeID:%s]. No default literal set for input node."), *InNode.GetID().ToString());
 		}
 
 		return TUniquePtr<INode>(nullptr);
@@ -217,7 +214,7 @@ namespace Metasound
 			FOutputNodeConstructorParams InitParams =
 			{
 				InNode.Name,
-				InNode.ID,
+				InNode.GetID(),
 				OutputVertex.Name
 			};
 
@@ -226,7 +223,7 @@ namespace Metasound
 				TArray<FDefaultLiteralData> DefaultLiteralData = GetInputDefaultLiteralData(InNode, InitData);
 				for (FDefaultLiteralData& Data : DefaultLiteralData)
 				{
-					InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.ID, Data.DestinationVertexID }, MoveTemp(Data));
+					InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.GetID(), Data.DestinationVertexID }, MoveTemp(Data));
 				}
 			}
 
@@ -245,7 +242,7 @@ namespace Metasound
 			TArray<FDefaultLiteralData> DefaultLiteralData = GetInputDefaultLiteralData(InNode, InitData);
 			for (FDefaultLiteralData& Data : DefaultLiteralData)
 			{
-				InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.ID, Data.DestinationVertexID }, MoveTemp(Data));
+				InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.GetID(), Data.DestinationVertexID }, MoveTemp(Data));
 			}
 		}
 
@@ -268,7 +265,7 @@ namespace Metasound
 
 			auto IsMatchingInput = [&](const FMetasoundFrontendClassInput& GraphInput)
 			{
-				return (InInputNode.ID == GraphInput.NodeID);
+				return (InInputNode.GetID() == GraphInput.NodeID);
 			};
 
 			OutClassInputIndex = InOwningGraph.Interface.Inputs.IndexOfByPredicate(IsMatchingInput);
@@ -291,7 +288,7 @@ namespace Metasound
 
 			auto IsMatchingOutput = [&](const FMetasoundFrontendClassOutput& GraphOutput)
 			{
-				return (InOutputNode.ID == GraphOutput.NodeID);
+				return (InOutputNode.GetID() == GraphOutput.NodeID);
 			};
 
 			OutClassOutputIndex = InOwningGraph.Interface.Outputs.IndexOfByPredicate(IsMatchingOutput);
@@ -374,12 +371,12 @@ namespace Metasound
 						if ((nullptr != ClassInput) && (INDEX_NONE != InputIndex))
 						{
 							TSharedPtr<const INode> InputNode(CreateInputNode(Node, *NodeClass, *ClassInput).Release());
-							InGraphContext.Graph->AddInputNode(Node.ID, InputIndex, ClassInput->Name, InputNode);
+							InGraphContext.Graph->AddInputNode(Node.GetID(), InputIndex, ClassInput->Name, InputNode);
 						}
 						else
 						{
 							const FString GraphClassIDString = InGraphContext.GraphClass.ID.ToString();
-							UE_LOG(LogMetaSound, Error, TEXT("Failed to match input node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *GraphClassIDString);
+							UE_LOG(LogMetaSound, Error, TEXT("Failed to match input node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.GetID().ToString(), *Node.Name.ToString(), *GraphClassIDString);
 						}
 					}
 					break;
@@ -391,12 +388,12 @@ namespace Metasound
 						if ((nullptr != ClassOutput) && (INDEX_NONE != OutputIndex))
 						{
 							TSharedPtr<const INode> OutputNode(CreateOutputNode(Node, *NodeClass, InGraphContext).Release());
-							InGraphContext.Graph->AddOutputNode(Node.ID, OutputIndex, ClassOutput->Name, OutputNode);
+							InGraphContext.Graph->AddOutputNode(Node.GetID(), OutputIndex, ClassOutput->Name, OutputNode);
 						}
 						else
 						{
 							const FString GraphClassIDString = InGraphContext.GraphClass.ID.ToString();
-							UE_LOG(LogMetaSound, Error, TEXT("Failed to match output node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.ID.ToString(), *Node.Name, *GraphClassIDString);
+							UE_LOG(LogMetaSound, Error, TEXT("Failed to match output node [NodeID:%s, NodeName:%s] to owning graph [ClassID:%s] output."), *Node.GetID().ToString(), *Node.Name.ToString(), *GraphClassIDString);
 						}
 					}
 					break;
@@ -414,11 +411,11 @@ namespace Metasound
 
 						if (SubgraphPtr.IsValid())
 						{
-							InGraphContext.Graph->AddNode(Node.ID, SubgraphPtr);
+							InGraphContext.Graph->AddNode(Node.GetID(), SubgraphPtr);
 						}
 						else
 						{
-							UE_LOG(LogMetaSound, Error, TEXT("Failed to find subgraph for node [NodeID:%s, NodeName:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.Name, *Node.ClassID.ToString());
+							UE_LOG(LogMetaSound, Error, TEXT("Failed to find subgraph for node [NodeID:%s, NodeName:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.Name.ToString(), *Node.ClassID.ToString());
 						}
 					}
 					break;
@@ -427,7 +424,7 @@ namespace Metasound
 					default:
 					{
 						TSharedPtr<const INode> ExternalNode(CreateExternalNode(Node, *NodeClass, InGraphContext).Release());
-						InGraphContext.Graph->AddNode(Node.ID, ExternalNode);
+						InGraphContext.Graph->AddNode(Node.GetID(), ExternalNode);
 					}
 					break;
 				}
@@ -451,21 +448,21 @@ namespace Metasound
 		// Add nodes to NodeID/VertexID map
 		for (const FMetasoundFrontendNode& Node : InGraphContext.GraphClass.Graph.Nodes)
 		{
-			const INode* CoreNode = InGraphContext.Graph->FindNode(Node.ID);
+			const INode* CoreNode = InGraphContext.Graph->FindNode(Node.GetID());
 			if (nullptr == CoreNode)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Could not find referenced node [Name:%s, NodeID:%s]"), *Node.Name, *Node.ID.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Could not find referenced node [Name:%s, NodeID:%s]"), *Node.Name.ToString(), *Node.GetID().ToString());
 				continue;
 			}
 
 			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Inputs)
 			{
-				NodeDestinationsByID.Add(FNodeIDVertexID(Node.ID, Vertex.VertexID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
+				NodeDestinationsByID.Add(FNodeIDVertexID(Node.GetID(), Vertex.VertexID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 			}
 
 			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Outputs)
 			{
-				NodeSourcesByID.Add(FNodeIDVertexID(Node.ID, Vertex.VertexID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
+				NodeSourcesByID.Add(FNodeIDVertexID(Node.GetID(), Vertex.VertexID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 			}
 		};
 
@@ -505,10 +502,10 @@ namespace Metasound
 			}
 
 			const INode* FromNode = SourceNodeAndVertex->Node;
-			const FVertexKey FromVertexKey = SourceNodeAndVertex->Vertex->Name;
+			const FVertexName FromVertexKey = SourceNodeAndVertex->Vertex->Name;
 
 			const INode* ToNode = DestinationNodeAndVertex->Node;
-			const FVertexKey ToVertexKey = DestinationNodeAndVertex->Vertex->Name;
+			const FVertexName ToVertexKey = DestinationNodeAndVertex->Vertex->Name;
 
 			bool bSuccess = InGraphContext.Graph->AddDataEdge(*FromNode, FromVertexKey,  *ToNode, ToVertexKey);
 
@@ -548,19 +545,19 @@ namespace Metasound
 			{
 				continue;
 			}
-			const FVertexKey& FromVertexKey = LiteralNodeNames::GetOutputDataName();
+			const FVertexName& FromVertexName = LiteralNodeNames::GetOutputDataName();
 
 			const INode* ToNode = InGraphContext.Graph->FindNode(LiteralData.DestinationNodeID);
 			if (!ensure(ToNode))
 			{
 				continue;
 			}
-			const FVertexKey& ToVertexKey = LiteralData.DestinationVertexKey;
+			const FVertexName& ToVertexName = LiteralData.DestinationVertexKey;
 
-			bool bSuccess = InGraphContext.Graph->AddDataEdge(*FromNode, FromVertexKey, *ToNode, ToVertexKey);
+			bool bSuccess = InGraphContext.Graph->AddDataEdge(*FromNode, FromVertexName, *ToNode, ToVertexName);
 			if (!bSuccess)
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("Failed to connect default variable edge: from '%s' to '%s'"), *FromVertexKey, *ToVertexKey);
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to connect default variable edge: from '%s' to '%s'"), *FromVertexName.ToString(), *ToVertexName.ToString());
 			}
 		}
 
@@ -579,17 +576,17 @@ namespace Metasound
 			FName TypeName;
 
 			FGuid VertexID = Literal.VertexID;
-			FVertexKey DestinationVertexKey;
+			FVertexName DestinationVertexName;
 			auto RemoveAndBuildParams = [&](const FMetasoundFrontendVertex& Vertex)
 			{
 				if (Vertex.VertexID == VertexID)
 				{
 					InitParams.Literal = Literal.Value.ToLiteral(Vertex.TypeName);
 					InitParams.InstanceID = FGuid::NewGuid();
-					InitParams.NodeName = InInitData.InstanceName + Vertex.Name + InitParams.InstanceID.ToString();
+					InitParams.NodeName = "Literal";
 					TypeName = Vertex.TypeName;
 
-					DestinationVertexKey = Vertex.Name;
+					DestinationVertexName = Vertex.Name;
 
 					return true;
 				}
@@ -602,9 +599,9 @@ namespace Metasound
 			{
 				DefaultLiteralData.Emplace(FDefaultLiteralData
 				{
-					InNode.ID,
+					InNode.GetID(),
 					VertexID,
-					DestinationVertexKey,
+					DestinationVertexName,
 					TypeName,
 					MoveTemp(InitParams)
 				});

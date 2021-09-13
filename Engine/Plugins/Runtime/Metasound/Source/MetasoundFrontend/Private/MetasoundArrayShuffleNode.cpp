@@ -9,69 +9,69 @@ namespace Metasound
 {
 	namespace ArrayNodeShuffleVertexNames
 	{
-		const FString& GetInputTriggerNextName()
+		const FVertexName& GetInputTriggerNextName()
 		{
-			static const FString Name = TEXT("Next");
+			static const FVertexName Name = TEXT("Next");
 			return Name;
 		}
 
-		const FString& GetInputTriggerShuffleName()
+		const FVertexName& GetInputTriggerShuffleName()
 		{
-			static const FString Name = TEXT("Shuffle");
+			static const FVertexName Name = TEXT("Shuffle");
 			return Name;
 		}
 
-		const FString& GetInputTriggerResetName()
+		const FVertexName& GetInputTriggerResetName()
 		{
-			static const FString Name = TEXT("Reset Seed");
+			static const FVertexName Name = TEXT("Reset Seed");
 			return Name;
 		}
 
-		const FString& GetInputShuffleArrayName()
+		const FVertexName& GetInputShuffleArrayName()
 		{
-			static const FString Name = TEXT("In Array");
+			static const FVertexName Name = TEXT("In Array");
 			return Name;
 		}
 
-		const FString& GetInputSeedName()
+		const FVertexName& GetInputSeedName()
 		{
-			static const FString Name = TEXT("Seed");
+			static const FVertexName Name = TEXT("Seed");
 			return Name;
 		}
 
-		const FString& GetInputAutoShuffleName()
+		const FVertexName& GetInputAutoShuffleName()
 		{
-			static const FString Name = TEXT("Auto Shuffle");
+			static const FVertexName Name = TEXT("Auto Shuffle");
 			return Name;
 		}
 
-		const FString& GetInputEnableSharedStateName()
+		const FVertexName& GetInputEnableSharedStateName()
 		{
-			static const FString Name = TEXT("Enable Shared State");
+			static const FVertexName Name = TEXT("Enable Shared State");
 			return Name;
 		}
 
-		const FString& GetOutputTriggerOnNextName()
+		const FVertexName& GetOutputTriggerOnNextName()
 		{
-			static const FString Name = TEXT("On Next");
+			static const FVertexName Name = TEXT("On Next");
 			return Name;
 		}
 
-		const FString& GetOutputTriggerOnShuffleName()
+		const FVertexName& GetOutputTriggerOnShuffleName()
 		{
-			static const FString Name = TEXT("On Shuffle");
+			static const FVertexName Name = TEXT("On Shuffle");
 			return Name;
 		}
 
-		const FString& GetOutputTriggerOnResetName()
+		const FVertexName& GetOutputTriggerOnResetName()
 		{
-			static const FString Name = TEXT("On Reset Seed");
+			static const FVertexName Name = TEXT("On Reset Seed");
 			return Name;
 		}
 
-		const FString& GetOutputValueName()
+		const FVertexName& GetOutputValueName()
 		{
-			static const FString Name = TEXT("Value");
+			static const FVertexName Name = TEXT("Value");
 			return Name;
 		}
 	}
@@ -171,31 +171,30 @@ namespace Metasound
 
 	namespace ArrayNodeGetGlobalArrayKeyVertexNames
 	{
-		const FString& GetInputNamespaceName()
+		const FVertexName& GetInputNamespaceName()
 		{
-			static const FString Name = TEXT("Namespace");
-			return Name;		
-		}
-
-		const FString& GetInputArraySizeName()
-		{
-			static const FString Name = TEXT("Array Size");
+			static const FVertexName Name = TEXT("Namespace");
 			return Name;
 		}
 
-		const FString& GetInputSeedName()
+		const FVertexName& GetInputArraySizeName()
 		{
-			static const FString Name = TEXT("Seed");
+			static const FVertexName Name = TEXT("Array Size");
 			return Name;
 		}
 
-		const FString& GetOutputArrayKeyName()
+		const FVertexName& GetInputSeedName()
 		{
-			static const FString Name = TEXT("Global Array Key");
+			static const FVertexName Name = TEXT("Seed");
+			return Name;
+		}
+
+		const FVertexName& GetOutputArrayKeyName()
+		{
+			static const FVertexName Name = TEXT("Global Array Key");
 			return Name;
 		}
 	}
-
 }
 
 #undef LOCTEXT_NAMESPACE

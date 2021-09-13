@@ -32,70 +32,70 @@ namespace Metasound
 	namespace ArrayNodeVertexNames
 	{
 		/* Input Vertx Names */
-		const FString& GetInputArrayName()
+		const FVertexName& GetInputArrayName()
 		{
-			static const FString Name = TEXT("Array");
+			static const FVertexName Name = TEXT("Array");
 			return Name;
 		}
 
-		const FString& GetInputLeftArrayName()
+		const FVertexName& GetInputLeftArrayName()
 		{
-			static const FString Name = TEXT("Left Array");
+			static const FVertexName Name = TEXT("Left Array");
 			return Name;
 		}
 
-		const FString& GetInputRightArrayName()
+		const FVertexName& GetInputRightArrayName()
 		{
-			static const FString Name = TEXT("Right Array");
+			static const FVertexName Name = TEXT("Right Array");
 			return Name;
 		}
 
-		const FString& GetInputTriggerName()
+		const FVertexName& GetInputTriggerName()
 		{
-			static const FString Name = TEXT("Trigger");
+			static const FVertexName Name = TEXT("Trigger");
 			return Name;
 		}
 
-		const FString& GetInputIndexName()
+		const FVertexName& GetInputIndexName()
 		{
-			static const FString Name = TEXT("Index");
+			static const FVertexName Name = TEXT("Index");
 			return Name;
 		}
 
-		const FString& GetInputStartIndexName()
+		const FVertexName& GetInputStartIndexName()
 		{
-			static const FString Name = TEXT("Start Index");
+			static const FVertexName Name = TEXT("Start Index");
 			return Name;
 		}
 
-		const FString& GetInputEndIndexName()
+		const FVertexName& GetInputEndIndexName()
 		{
-			static const FString Name = TEXT("End Index");
+			static const FVertexName Name = TEXT("End Index");
 			return Name;
 		}
 
-		const FString& GetInputValueName()
+		const FVertexName& GetInputValueName()
 		{
-			static const FString Name = TEXT("Value");
+			static const FVertexName Name = TEXT("Value");
 			return Name;
 		}
 
 		/* Output Vertex Names */
-		const FString& GetOutputNumName()
+		const FVertexName& GetOutputNumName()
 		{
-			static const FString Name = TEXT("Num");
+			static const FVertexName Name = TEXT("Num");
 			return Name;
 		}
 
-		const FString& GetOutputValueName()
+		const FVertexName& GetOutputValueName()
 		{
-			static const FString Name = TEXT("Element");
+			static const FVertexName Name = TEXT("Element");
 			return Name;
 		}
 
-		const FString& GetOutputArrayName()
+		const FVertexName& GetOutputArrayName()
 		{
-			static const FString Name = TEXT("Array");
+			static const FVertexName Name = TEXT("Array");
 			return Name;
 		}
 	}

@@ -9,6 +9,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundRouter.h"
+#include "MetasoundVertex.h"
 
 #include <type_traits>
 
@@ -21,15 +22,15 @@ namespace Metasound
 	class TSendNode : public FNode
 	{
 	public:
-		static const FString& GetAddressInputName()
+		static const FVertexName& GetAddressInputName()
 		{
-			static const FString InputName = TEXT("Address");
+			static const FVertexName InputName = TEXT("Address");
 			return InputName;
 		}
 
-		static const FString& GetSendInputName()
+		static const FVertexName& GetSendInputName()
 		{
-			static const FString& SendInput = GetMetasoundDataTypeString<TDataType>();
+			static const FVertexName& SendInput = GetMetasoundDataTypeName<TDataType>();
 			return SendInput;
 		}
 
@@ -49,7 +50,7 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
-				const FString& InputName = GetSendInputName();
+				const FVertexName& InputName = GetSendInputName();
 				FNodeClassMetadata Info;
 
 				Info.ClassName = { "Send", GetMetasoundDataTypeName<TDataType>(), FName() };
@@ -144,7 +145,7 @@ namespace Metasound
 						return MakeUnique<TSendOperator>(InParams.InputDataReferences.GetDataReadReference<TDataType>(GetSendInputName()),
 							InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(GetAddressInputName()),
 							InParams.OperatorSettings
-							);
+						);
 					}
 					else
 					{

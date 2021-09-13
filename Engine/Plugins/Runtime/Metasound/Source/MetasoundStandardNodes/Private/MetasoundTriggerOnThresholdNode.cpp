@@ -220,7 +220,7 @@ namespace Metasound
 	{
 	}
 
-	FTriggerOnThresholdNode::FTriggerOnThresholdNode(const FString& InName, const FGuid& InInstanceID, float InDefaultThreshold)
+	FTriggerOnThresholdNode::FTriggerOnThresholdNode(const FVertexName& InName, const FGuid& InInstanceID, float InDefaultThreshold)
 		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FTriggerOnThresholdOperator>())
 		, DefaultThreshold(InDefaultThreshold)
 	{

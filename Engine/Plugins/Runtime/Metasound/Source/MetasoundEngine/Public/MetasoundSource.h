@@ -196,5 +196,5 @@ private:
 	Metasound::FMetasoundEnvironment CreateEnvironment() const;
 	Metasound::FMetasoundEnvironment CreateEnvironment(const FSoundGeneratorInitParams& InParams) const;
 	Metasound::FMetasoundEnvironment CreateEnvironment(const Audio::FParameterTransmitterInitParams& InParams) const;
-	const TArray<Metasound::FVertexKey>& GetAudioOutputVertexKeys() const;
+	const TArray<Metasound::FVertexName>& GetAudioOutputVertexKeys() const;
 };

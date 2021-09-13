@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,24 +10,26 @@
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundVariable.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphCore"
+
 
 namespace Metasound
 {
 	namespace VariableNodeVertexNames
 	{
 		/** Input vertex name for data */
-		METASOUNDGRAPHCORE_API const FString& GetInputDataName();
+		METASOUNDGRAPHCORE_API const FVertexName& GetInputDataName();
 
 		/** Output vertex name for data */
-		METASOUNDGRAPHCORE_API const FString& GetOutputDataName();
+		METASOUNDGRAPHCORE_API const FVertexName& GetOutputDataName();
 
 		/** Input vertex name for variables */
-		METASOUNDGRAPHCORE_API const FString& GetInputVariableName();
+		METASOUNDGRAPHCORE_API const FVertexName& GetInputVariableName();
 		
 		/** Output vertex name for variables */
-		METASOUNDGRAPHCORE_API const FString& GetOutputVariableName();
+		METASOUNDGRAPHCORE_API const FVertexName& GetOutputVariableName();
 	}
 
 	/** Init Variable nodes initialize variable values. The output of a InitVariableNode
@@ -125,8 +126,8 @@ namespace Metasound
 
 	public:
 
-		TInitVariableNode(const FString& InNodeDescription, const FGuid& InInstanceID, FLiteral&& InLiteral)
-		: FNode(InNodeDescription, InInstanceID, GetNodeMetadata())
+		TInitVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID, FLiteral&& InLiteral)
+		: FNode(InNodeName, InInstanceID, GetNodeMetadata())
 		, Interface(DeclareVertexInterface())
 		, Factory(MakeShared<FFactory>(MoveTemp(InLiteral)))
 		{
@@ -193,8 +194,8 @@ namespace Metasound
 		};
 
 	public:
-		TSetVariableNode(const FString& InNodeDescription, const FGuid& InInstanceID)
-		: FNodeFacade(InNodeDescription, InInstanceID, TFacadeOperatorClass<FOperator>())
+		TSetVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
+		: FNodeFacade(InNodeName, InInstanceID, TFacadeOperatorClass<FOperator>())
 		{
 		}
 
@@ -316,8 +317,8 @@ namespace Metasound
 
 	public:
 
-		TGetDelayedVariableNode(const FString& InNodeDescription, const FGuid& InInstanceID)
-		: FNodeFacade(InNodeDescription, InInstanceID, TFacadeOperatorClass<FOperator>())
+		TGetDelayedVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
+		: FNodeFacade(InNodeName, InInstanceID, TFacadeOperatorClass<FOperator>())
 		{
 		}
 
@@ -417,8 +418,8 @@ namespace Metasound
 		};
 	public:
 
-		TGetVariableNode(const FString& InNodeDescription, const FGuid& InInstanceID)
-		: FNodeFacade(InNodeDescription, InInstanceID, TFacadeOperatorClass<FOperator>())
+		TGetVariableNode(const FVertexName& InNodeName, const FGuid& InInstanceID)
+		: FNodeFacade(InNodeName, InInstanceID, TFacadeOperatorClass<FOperator>())
 		{
 		}
 

@@ -71,11 +71,8 @@ void SMetasoundGraphNode::ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral&
 
 	if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
 	{
-		// TODO: fix how identifying the parameter to update is determined. It should not be done
-		// with a "DisplayName" but rather the vertex Guid.
 		Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
-		Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-		PreviewComponent->SetTriggerParameter(*VertexKey);
+		PreviewComponent->SetTriggerParameter(NodeHandle->GetNodeName());
 	}
 }
 

@@ -19,7 +19,7 @@ namespace Metasound
 				{
 					return VertexA.TypeName.FastLess(VertexB.TypeName);
 				}
-				return VertexA.Name < VertexB.Name;
+				return VertexA.Name.FastLess(VertexB.Name);
 			}
 
 			bool IsLessThanEnvironmentVariable(const FMetasoundFrontendEnvironmentVariable& EnvironmentA, const FMetasoundFrontendEnvironmentVariable& EnvironmentB)
@@ -29,7 +29,7 @@ namespace Metasound
 				{
 					return EnvironmentA.TypeName.FastLess(EnvironmentB.TypeName);
 				}
-				return EnvironmentA.Name < EnvironmentB.Name;
+				return EnvironmentA.Name.FastLess(EnvironmentB.Name);
 			}
 
 			bool IsEquivalentEnvironmentVariable(const FMetasoundFrontendEnvironmentVariable& EnvironmentA, const FMetasoundFrontendEnvironmentVariable& EnvironmentB)

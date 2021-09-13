@@ -1,18 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "MetasoundTrigger.h"
-#include "MetasoundFacade.h"
-#include "MetasoundExecutableOperator.h"
+
 #include "Internationalization/Text.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundStandardNodesNames.h"
-#include "MetasoundVertex.h"
 #include "MetasoundStandardNodesCategories.h"
+#include "MetasoundStandardNodesNames.h"
+#include "MetasoundTrigger.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_TriggerAny"
 
 #define REGISTER_TRIGGER_ANY_NODE(Number) \
 	using FTriggerAnyNode_##Number = TTriggerAnyNode<Number>; \
 	METASOUND_REGISTER_NODE(FTriggerAnyNode_##Number) \
+
 
 namespace Metasound
 {
@@ -41,9 +43,9 @@ namespace Metasound
 
 	namespace TriggerAnyVertexNames
 	{
-		METASOUNDSTANDARDNODES_API const FString GetInputTriggerName(uint32 InIndex)
+		METASOUNDSTANDARDNODES_API const FVertexName GetInputTriggerName(uint32 InIndex)
 		{
-			return FString::Format(TEXT("In {0}"), { InIndex });
+			return *FString::Format(TEXT("In {0}"), { InIndex });
 		}
 
 		METASOUNDSTANDARDNODES_API const FText GetInputTriggerDescription(uint32 InIndex)
@@ -51,9 +53,9 @@ namespace Metasound
 			return FText::Format(LOCTEXT("TriggerAnyInputTriggerDesc", "Trigger {0} input. The output trigger is hit when any of the input triggers are hit."), InIndex);
 		}
 
-		METASOUNDSTANDARDNODES_API const FString& GetOutputTriggerName()
+		METASOUNDSTANDARDNODES_API const FVertexName& GetOutputTriggerName()
 		{
-			static const FString Name = TEXT("Out");
+			static const FVertexName Name = TEXT("Out");
 			return Name;
 		}
 

@@ -13,10 +13,9 @@
 
 namespace Metasound
 {
-	/** Key type for an FInputDataVertexColletion or 
-	 * FOutputDataVertexCollection.
+	/** Name of a given vertex.  Only unique for a given node interface.
 	 */
-	using FVertexKey = FString;
+	using FVertexName = FName;
 
 	// Forward declarations
 	class FInputDataVertex;
@@ -51,7 +50,7 @@ namespace Metasound
 		 * @InDataTypeName - Name of data type.
 		 * @InMetadata - Metadata pertaining to given vertex.
 		 */
-		FDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
+		FDataVertexModel(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
 		:	VertexName(InVertexName)
 		,	DataTypeName(InDataTypeName)
 		,	VertexMetadata(InMetadata)
@@ -61,7 +60,7 @@ namespace Metasound
 		virtual ~FDataVertexModel() = default;
 
 		/** Name of vertex. */
-		const FString VertexName;
+		const FVertexName VertexName;
 
 		/** Type name of data. */
 		const FName DataTypeName;
@@ -125,27 +124,27 @@ namespace Metasound
 
 	public:
 
-		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription)
+		FInputDataVertexModel(const FVertexName& InVertexName, const FName& InDataTypeName, const FText& InDescription)
 			: FDataVertexModel(InVertexName, InDataTypeName, { InDescription })
 			, LiteralFactory(MakeUnique<TLiteralFactory<FLiteral::FNone>>(FLiteral::FNone{}))
 		{
 		}
 
-		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
+		FInputDataVertexModel(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
 			: FDataVertexModel(InVertexName, InDataTypeName, InMetadata)
 			, LiteralFactory(MakeUnique<TLiteralFactory<FLiteral::FNone>>(FLiteral::FNone{}))
 		{
 		}
 
 		template<typename LiteralValueType>
-		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FText& InDescription, const LiteralValueType& InLiteralValue)
+		FInputDataVertexModel(const FVertexName& InVertexName, const FName& InDataTypeName, const FText& InDescription, const LiteralValueType& InLiteralValue)
 			: FDataVertexModel(InVertexName, InDataTypeName, { InDescription })
 			, LiteralFactory(MakeUnique<TLiteralFactory<LiteralValueType>>(InLiteralValue))
 		{
 		}
 
 		template<typename LiteralValueType>
-		FInputDataVertexModel(const FString& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, const LiteralValueType& InLiteralValue)
+		FInputDataVertexModel(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, const LiteralValueType& InLiteralValue)
 			: FDataVertexModel(InVertexName, InDataTypeName, InMetadata)
 			, LiteralFactory(MakeUnique<TLiteralFactory<LiteralValueType>>(InLiteralValue))
 		{
@@ -224,7 +223,7 @@ namespace Metasound
 		 * @InDescription - Human readable vertex description.
 		 */
 		template<typename... ModelArgTypes>
-		TBaseVertexModel(const FString& InVertexName, const FText& InDescription, ModelArgTypes&&... ModelArgs)
+		TBaseVertexModel(const FVertexName& InVertexName, const FText& InDescription, ModelArgTypes&&... ModelArgs)
 		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, Forward<ModelArgTypes>(ModelArgs)...)
 		{
 		}
@@ -235,7 +234,7 @@ namespace Metasound
 		 * @InVertexMetadata - Vertex metadata, used primarily for debugging or live edit.
 		 */
 		template<typename... ModelArgTypes>
-		TBaseVertexModel(const FString& InVertexName, const FDataVertexMetadata& InMetadata, ModelArgTypes&&... ModelArgs)
+		TBaseVertexModel(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ModelArgTypes&&... ModelArgs)
 		:	VertexModelType(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, Forward<ModelArgTypes>(ModelArgs)...)
 		{
 		}
@@ -281,7 +280,7 @@ namespace Metasound
 		 * @InVertexName - Name of vertex.
 		 * @InDescription - Human readable vertex description.
 		 */
-		TInputDataVertexModel(const FString& InVertexName, const FText& InDescription)
+		TInputDataVertexModel(const FVertexName& InVertexName, const FText& InDescription)
 		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InDescription)
 		{
 		}
@@ -293,7 +292,7 @@ namespace Metasound
 		 * @InDefaultValue - Default Value of vertex
 		 */
 		template<typename LiteralValueType>
-		TInputDataVertexModel(const FString& InVertexName, const FText& InDescription, const LiteralValueType& InDefaultValue)
+		TInputDataVertexModel(const FVertexName& InVertexName, const FText& InDescription, const LiteralValueType& InDefaultValue)
 		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InDescription, InDefaultValue)
 		{
 		}
@@ -305,7 +304,7 @@ namespace Metasound
 		 * @InDefaultValue - Default Value of vertex
 		 */
 		template<typename LiteralValueType>
-		TInputDataVertexModel(const FString& InVertexName, const FDataVertexMetadata& InMetadata)
+		TInputDataVertexModel(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata)
 		:	TBaseVertexModel<DataType, FInputDataVertexModel>(InVertexName, InMetadata)
 		{
 		}
@@ -367,7 +366,7 @@ namespace Metasound
 			FInputDataVertex& operator=(const FInputDataVertex& InOther);
 
 			/** Name of vertex. */
-			const FString& GetVertexName() const;
+			const FVertexName& GetVertexName() const;
 
 			/** Type name of data reference. */
 			const FName& GetDataTypeName() const;
@@ -461,7 +460,7 @@ namespace Metasound
 			FOutputDataVertex& operator=(const FOutputDataVertex& InOther);
 
 			/** Name of vertex. */
-			const FString& GetVertexName() const;
+			FVertexName GetVertexName() const;
 
 			/** Type name of data reference. */
 			const FName& GetDataTypeName() const;
@@ -508,7 +507,7 @@ namespace Metasound
 		 * @InVertexName - Name of vertex.
 		 * @InDescription - Human readable vertex description.
 		 */
-		FEnvironmentVertexModel(const FString& InVertexName, const FText& InDescription)
+		FEnvironmentVertexModel(FVertexName InVertexName, const FText& InDescription)
 		:	VertexName(InVertexName)
 		,	Description(InDescription)
 		{
@@ -517,7 +516,7 @@ namespace Metasound
 		virtual ~FEnvironmentVertexModel() = default;
 
 		/** Name of vertex. */
-		const FString VertexName;
+		const FVertexName VertexName;
 
 		/** Description of the vertex. */
 		const FText Description;
@@ -622,7 +621,7 @@ namespace Metasound
 			FEnvironmentVertex& operator=(const FEnvironmentVertex& InOther);
 
 			/** Name of vertex. */
-			const FString& GetVertexName() const;
+			const FVertexName& GetVertexName() const;
 
 			/** Description of the vertex. */
 			const FText& GetDescription() const;
@@ -644,27 +643,8 @@ namespace Metasound
 			TUniquePtr<FEnvironmentVertexModel> VertexModel;
 	};
 
-
-	/** Create an FVertexKey from an FOutDataVertex. */
-	FORCEINLINE FVertexKey MakeDataVertexKey(const FInputDataVertex& InVertex)
-	{
-		return InVertex.GetVertexName();
-	}
-
-	/** Create an FVertexKey from an FOutputDataVertex. */
-	FORCEINLINE FVertexKey MakeDataVertexKey(const FOutputDataVertex& InVertex)
-	{
-		return InVertex.GetVertexName();
-	}
-
-	/** Create an FVertexKey from an FEnvironmentVertex. */
-	FORCEINLINE FVertexKey MakeEnvironmentVertexKey(const FEnvironmentVertex& InVertex)
-	{
-		return InVertex.GetVertexName();
-	}
-
 	/** TVertexInterfaceGroups encapsulates multiple related data vertices. It 
-	 * requires that each vertex in the group have a unique FVertexKey.
+	 * requires that each vertex in the group have a unique FVertexName.
 	 */
 	template<typename VertexType>
 	class TVertexInterfaceGroup
@@ -676,8 +656,8 @@ namespace Metasound
 
 			static_assert(bIsSupportedVertexType, "VertexType must be derived from FInputDataVertex, FOutputDataVertex, or FEnvironmentVertex");
 
-			using FContainerType = TSortedMap<FVertexKey, VertexType>;
-			using FOrderContainerType = TArray<FVertexKey>;
+			using FContainerType = TSortedMap<FVertexName, VertexType, FDefaultAllocator, FNameFastLess>;
+			using FOrderContainerType = TArray<FVertexName>;
 
 			// Required for end of recursion.
 			static void CopyInputs(FContainerType& InStorage, FOrderContainerType& InOrder)
@@ -696,9 +676,8 @@ namespace Metasound
 				// Create vertex out of vertex model
 				VertexType Vertex(InInput);
 
-				const FVertexKey VertexKey = MakeDataVertexKey(Vertex);
-				InStorage.Add(VertexKey, Vertex);
-				InKeyOrder.Add(VertexKey);
+				InStorage.Add(Vertex.GetVertexName(), Vertex);
+				InKeyOrder.Add(Vertex.GetVertexName());
 				CopyInputs(InStorage, InKeyOrder, InRemainingInputs...);
 			}
 
@@ -726,13 +705,12 @@ namespace Metasound
 			/** Add a vertex to the group. */
 			void Add(const VertexType& InVertex)
 			{
-				const FVertexKey VertexKey = MakeDataVertexKey(InVertex);
-				Vertices.Add(VertexKey, InVertex);
-				OrderedKeys.Add(VertexKey);
+				Vertices.Add(InVertex.GetVertexName(), InVertex);
+				OrderedKeys.Add(InVertex.GetVertexName());
 			}
 
 			/** Remove a vertex by key. */
-			bool Remove(const FVertexKey& InKey)
+			bool Remove(const FVertexName& InKey)
 			{
 				int32 NumRemoved = Vertices.Remove(InKey);
 				OrderedKeys.Remove(InKey);
@@ -740,12 +718,17 @@ namespace Metasound
 			}
 
 			/** Returns true if the group contains a vertex with a matching key. */
-			bool Contains(const FVertexKey& InKey) const
+			bool Contains(const FVertexName& InKey) const
 			{
 				return Vertices.Contains(InKey);
 			}
 
-			int32 GetOrderIndex(const FVertexKey& InKey) const
+			const VertexType* Find(const FVertexName& InKey) const
+			{
+				return Vertices.Find(InKey);
+			}
+
+			int32 GetOrderIndex(const FVertexName& InKey) const
 			{
 				int32 OutIndex = INDEX_NONE;
 				OrderedKeys.Find(InKey, OutIndex);
@@ -753,9 +736,9 @@ namespace Metasound
 			}
 
 			/** Return the vertex for a given vertex key. */
-			const VertexType& operator[](const FVertexKey& InKey) const
+			const VertexType& operator[](const FVertexName& InName) const
 			{
-				return Vertices[InKey];
+				return Vertices[InName];
 			}
 
 			/** Iterator for ranged for loops. */
@@ -827,10 +810,10 @@ namespace Metasound
 			FInputVertexInterface& GetInputInterface();
 
 			/** Return an input vertex. */
-			const FInputDataVertex& GetInputVertex(const FVertexKey& InKey) const;
+			const FInputDataVertex& GetInputVertex(const FVertexName& InKey) const;
 
 			/** Returns true if an input vertex with the given key exists. */
-			bool ContainsInputVertex(const FVertexKey& InKey) const;
+			bool ContainsInputVertex(const FVertexName& InKey) const;
 
 			/** Return the output interface. */
 			const FOutputVertexInterface& GetOutputInterface() const;
@@ -839,10 +822,10 @@ namespace Metasound
 			FOutputVertexInterface& GetOutputInterface();
 
 			/** Return an output vertex. */
-			const FOutputDataVertex& GetOutputVertex(const FVertexKey& InKey) const;
+			const FOutputDataVertex& GetOutputVertex(const FVertexName& InName) const;
 
-			/** Returns true if an output vertex with the given key exists. */
-			bool ContainsOutputVertex(const FVertexKey& InKey) const;
+			/** Returns true if an output vertex with the given name exists. */
+			bool ContainsOutputVertex(const FVertexName& InName) const;
 
 			/** Return the output interface. */
 			const FEnvironmentVertexInterface& GetEnvironmentInterface() const;
@@ -851,10 +834,10 @@ namespace Metasound
 			FEnvironmentVertexInterface& GetEnvironmentInterface();
 
 			/** Return an output vertex. */
-			const FEnvironmentVertex& GetEnvironmentVertex(const FVertexKey& InKey) const;
+			const FEnvironmentVertex& GetEnvironmentVertex(const FVertexName& InKey) const;
 
 			/** Returns true if an output vertex with the given key exists. */
-			bool ContainsEnvironmentVertex(const FVertexKey& InKey) const;
+			bool ContainsEnvironmentVertex(const FVertexName& InKey) const;
 
 			/** Test for equality between two interfaces. */
 			friend bool METASOUNDGRAPHCORE_API operator==(const FVertexInterface& InLHS, const FVertexInterface& InRHS);
@@ -875,7 +858,7 @@ namespace Metasound
 	 */
 	struct FNodeInitData
 	{
-		FString InstanceName;
+		FVertexName InstanceName;
 		FGuid InstanceID;
 	};
 }

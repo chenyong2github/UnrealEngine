@@ -14,6 +14,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundWaveInfo"
 
@@ -164,7 +165,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// (1: from FString)
-		FWaveInfoNode(const FString& InInstanceName, const FGuid& InInstanceID)
+		FWaveInfoNode(const Metasound::FVertexName& InInstanceName, const FGuid& InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass < FWaveInfoNodeOperator >())
 		{ }
 

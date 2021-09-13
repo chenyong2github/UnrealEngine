@@ -6,7 +6,7 @@
 
 namespace Metasound
 {
-	FNode::FNode(const FString& InInstanceName, const FGuid& InInstanceID, const FNodeClassMetadata& InInfo)
+	FNode::FNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FNodeClassMetadata& InInfo)
 	: InstanceName(InInstanceName)
 	, InstanceID(InInstanceID)
 	, Info(InInfo)
@@ -14,7 +14,7 @@ namespace Metasound
 	}
 
 	/** Return the name of this specific instance of the node class. */
-	const FString& FNode::GetInstanceName() const
+	const FVertexName& FNode::GetInstanceName() const
 	{
 		return InstanceName;
 	}

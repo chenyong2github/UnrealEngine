@@ -48,20 +48,20 @@ namespace Metasound
 
 			const FInputVertexInterface& InputInterface = InNodeMetadata.DefaultInterface.GetInputInterface();
 			FMetasoundFrontendInterfaceStyle InputStyle;
-			for (auto& InputTuple : InputInterface)
+			for (const TPair<FVertexName, FInputDataVertex>& InputTuple : InputInterface)
 			{
 				FMetasoundFrontendClassInput ClassInput;
 
-				ClassInput.Name = InputTuple.Value.GetVertexName();
-				ClassInput.TypeName = InputTuple.Value.GetDataTypeName();
+				const FInputDataVertex& InputVertex = InputTuple.Value;
+				ClassInput.Name = InputVertex.GetVertexName();
+				ClassInput.TypeName = InputVertex.GetDataTypeName();
 				ClassInput.VertexID = FGuid::NewGuid();
-				ClassInput.Metadata.DisplayName = FText::FromString(InputTuple.Value.GetVertexName());
 
-				const FDataVertexMetadata& VertexMetadata = InputTuple.Value.GetMetadata();
+				const FDataVertexMetadata& VertexMetadata = InputVertex.GetMetadata();
 				ClassInput.Metadata.Description = VertexMetadata.Description;
 				ClassInput.Metadata.bIsAdvancedDisplay = VertexMetadata.bIsAdvancedDisplay;
 
-				FLiteral DefaultLiteral = InputTuple.Value.GetDefaultLiteral();
+				FLiteral DefaultLiteral = InputVertex.GetDefaultLiteral();
 				if (DefaultLiteral.GetType() != ELiteralType::Invalid)
 				{
 					ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
@@ -81,14 +81,13 @@ namespace Metasound
 
 			const FOutputVertexInterface& OutputInterface = InNodeMetadata.DefaultInterface.GetOutputInterface();
 			FMetasoundFrontendInterfaceStyle OutputStyle;
-			for (auto& OutputTuple : OutputInterface)
+			for (const TPair<FVertexName, FOutputDataVertex>& OutputTuple : OutputInterface)
 			{
 				FMetasoundFrontendClassOutput ClassOutput;
 
 				ClassOutput.Name = OutputTuple.Value.GetVertexName();
 				ClassOutput.TypeName = OutputTuple.Value.GetDataTypeName();
 				ClassOutput.VertexID = FGuid::NewGuid();
-				ClassOutput.Metadata.DisplayName = FText::FromString(OutputTuple.Value.GetVertexName());
 
 				const FDataVertexMetadata& VertexMetadata = OutputTuple.Value.GetMetadata();
 				ClassOutput.Metadata.Description = VertexMetadata.Description;
@@ -111,7 +110,6 @@ namespace Metasound
 				FMetasoundFrontendClassEnvironmentVariable EnvVar;
 
 				EnvVar.Name = EnvTuple.Value.GetVertexName();
-				EnvVar.Metadata.DisplayName = FText::FromString(EnvTuple.Value.GetVertexName());
 				EnvVar.Metadata.Description = EnvTuple.Value.GetDescription();
 				EnvVar.bIsRequired = true;
 

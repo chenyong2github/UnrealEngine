@@ -226,18 +226,18 @@ namespace Metasound
 		}
 
 #pragma region Name Gen
-		static const FString GetAudioInputName(uint32 InputIndex, uint32 ChannelIndex)
+		static const FVertexName GetAudioInputName(uint32 InputIndex, uint32 ChannelIndex)
 		{
 			if (NumChannels == 1)
 			{
-				return FString::Printf(TEXT("In %i"), InputIndex);
+				return *FString::Printf(TEXT("In %i"), InputIndex);
 			}
 			else if (NumChannels == 2)
 			{
-				return FString::Printf(TEXT("In %i %s"), InputIndex, (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
+				return *FString::Printf(TEXT("In %i %s"), InputIndex, (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
 			}
 
-			return FString::Printf(TEXT("In %i, %i"), InputIndex, ChannelIndex);
+			return *FString::Printf(TEXT("In %i, %i"), InputIndex, ChannelIndex);
 		}
 
 		static const FText GetAudioInputDescription(uint32 InputIndex, uint32 ChannelIndex)
@@ -245,9 +245,9 @@ namespace Metasound
 			return FText::Format(LOCTEXT("AudioMixerAudioInputDescription", "Audio Input #: {0}, Channel: {1}"), InputIndex, ChannelIndex);
 		}
 
-		static const FString GetGainInputName(uint32 InputIndex)
+		static const FVertexName GetGainInputName(uint32 InputIndex)
 		{
-			return FString::Printf(TEXT("Gain %i"), InputIndex);
+			return *FString::Printf(TEXT("Gain %i"), InputIndex);
 		}
 
 		static const FText GetGainInputDescription(uint32 InputIndex)
@@ -255,7 +255,7 @@ namespace Metasound
 			return FText::Format(LOCTEXT("AudioMixerGainInputDescription", "Gain Input #: {0}"), InputIndex);
 		}
 
-		static const FString GetAudioOutputName(uint32 ChannelIndex)
+		static const FVertexName GetAudioOutputName(uint32 ChannelIndex)
 		{
 			if (NumChannels == 1)
 			{
@@ -263,10 +263,10 @@ namespace Metasound
 			}
 			else if (NumChannels == 2)
 			{
-				return FString::Printf(TEXT("Out %s"), (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
+				return *FString::Printf(TEXT("Out %s"), (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
 			}
 
-			return FString::Printf(TEXT("Out %i"), ChannelIndex);
+			return *FString::Printf(TEXT("Out %i"), ChannelIndex);
 		}
 
 		static const FText GetAudioOutputDescription(uint32 ChannelIndex)

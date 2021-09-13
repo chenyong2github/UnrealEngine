@@ -8,35 +8,33 @@
 
 namespace Metasound
 {
-	bool FDataReferenceCollection::ContainsDataReadReference(const FString& InName, const FName& InTypeName) const
+	bool FDataReferenceCollection::ContainsDataReadReference(const FVertexName& InName, const FName& InTypeName) const
 	{
-		if (DataReadRefMap.Contains(InName))
+		if (const FDataRefWrapper* Wrapper = DataReadRefMap.Find(InName))
 		{
-			const FDataRefWrapper& Wrapper = DataReadRefMap[InName];
-			if (Wrapper.IsValid())
+			if (const IDataReference* Ref = Wrapper->GetDataReference())
 			{
-				return InTypeName == Wrapper.GetDataReference()->GetDataTypeName();
+				return InTypeName == Ref->GetDataTypeName();
 			}
 		}
 
 		return false;
 	}
 
-	bool FDataReferenceCollection::ContainsDataWriteReference(const FString& InName, const FName& InTypeName) const
+	bool FDataReferenceCollection::ContainsDataWriteReference(const FVertexName& InName, const FName& InTypeName) const
 	{
-		if (DataWriteRefMap.Contains(InName))
+		if (const FDataRefWrapper* Wrapper = DataWriteRefMap.Find(InName))
 		{
-			const FDataRefWrapper& Wrapper = DataWriteRefMap[InName];
-			if (Wrapper.IsValid())
+			if (const IDataReference* Ref = Wrapper->GetDataReference())
 			{
-				return InTypeName == Wrapper.GetDataReference()->GetDataTypeName();
+				return InTypeName == Ref->GetDataTypeName();
 			}
 		}
 
 		return false;
 	}
 
-	bool FDataReferenceCollection::AddDataReadReferenceFrom(const FString& InName, const FDataReferenceCollection& OtherCollection, const FString& OtherName, const FName& OtherTypeName)
+	bool FDataReferenceCollection::AddDataReadReferenceFrom(const FVertexName& InName, const FDataReferenceCollection& OtherCollection, const FVertexName& OtherName, const FName& OtherTypeName)
 	{
 		if (OtherCollection.ContainsDataReadReference(OtherName, OtherTypeName))
 		{
@@ -54,7 +52,7 @@ namespace Metasound
 		return false;
 	}
 
-	bool FDataReferenceCollection::AddDataWriteReferenceFrom(const FString& InName, const FDataReferenceCollection& OtherCollection, const FString& OtherName, const FName& OtherTypeName)
+	bool FDataReferenceCollection::AddDataWriteReferenceFrom(const FVertexName& InName, const FDataReferenceCollection& OtherCollection, const FVertexName& OtherName, const FName& OtherTypeName)
 	{
 		if (OtherCollection.ContainsDataWriteReference(OtherName, OtherTypeName))
 		{
@@ -66,17 +64,17 @@ namespace Metasound
 		return false;
 	}
 
-	const IDataReference* FDataReferenceCollection::GetDataReference(const FDataReferenceMap& InMap, const FString& InName) const
+	const IDataReference* FDataReferenceCollection::GetDataReference(const FDataReferenceMap& InMap, const FVertexName& InName) const
 	{
-		if (InMap.Contains(InName))
+		if (const FDataRefWrapper* RefWrapper = InMap.Find(InName))
 		{
-			return InMap[InName].GetDataReference();
+			return RefWrapper->GetDataReference();
 		}
 
 		return nullptr;
 	}
 
-	void FDataReferenceCollection::AddDataReference(FDataReferenceMap& InMap, const FString& InName, FDataRefWrapper&& InDataRef)
+	void FDataReferenceCollection::AddDataReference(FDataReferenceMap& InMap, const FVertexName& InName, FDataRefWrapper&& InDataRef)
 	{
 		InMap.Add(InName, InDataRef);
 	}

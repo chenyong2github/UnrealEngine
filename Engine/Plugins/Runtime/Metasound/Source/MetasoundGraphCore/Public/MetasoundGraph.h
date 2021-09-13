@@ -21,7 +21,7 @@ namespace Metasound
 			virtual ~FGraph() = default;
 
 			/** Return the name of this specific instance of the node class. */
-			const FString& GetInstanceName() const override;
+			const FVertexName& GetInstanceName() const override;
 
 			/** Return the ID of this specific instance of the node class. */
 			const FGuid& GetInstanceID() const override;
@@ -70,13 +70,13 @@ namespace Metasound
 			 *
 			 * @return True if the edge was successfully added. False otherwise.
 			 */
-			bool AddDataEdge(const INode& FromNode, const FVertexKey& FromVertexKey, const INode& ToNode, const FVertexKey& ToVertexKey);
+			bool AddDataEdge(const INode& FromNode, const FVertexName& FromVertexKey, const INode& ToNode, const FVertexName& ToVertexKey);
 
 			/** Remove the given data edge. 
 			 *
 			 * @return True on success, false on failure.
 			 */
-			bool RemoveDataEdge(const INode& FromNode, const FVertexKey& FromVertexKey, const INode& ToNode, const FVertexKey& ToVertexKey);
+			bool RemoveDataEdge(const INode& FromNode, const FVertexName& FromVertexKey, const INode& ToNode, const FVertexName& ToVertexKey);
 
 			/** Removes all edges for which that predicate returns true.
 			 *
@@ -93,12 +93,12 @@ namespace Metasound
 			 * outside this graph should be routed internally.
 			 *
 			 * @param InNode - Node which receives the data.
-			 * @param InVertexKey - Key for input vertex on InNode.
+			 * @param InVertexName - Key for input vertex on InNode.
 			 *
 			 * @return True if the destination was successfully added. False 
 			 * otherwise.
 			 */
-			bool AddInputDataDestination(const INode& InNode, const FVertexKey& InVertexKey);
+			bool AddInputDataDestination(const INode& InNode, const FVertexName& InVertexName);
 
 
 			/** Add an input data destination to describe how data provided 
@@ -110,12 +110,12 @@ namespace Metasound
 			 * owned this graph and exposed externally.
 			 *
 			 * @param InNode - Node which produces the data.
-			 * @param InVertexKey - Key for output vertex on InNode.
+			 * @param InVertexName - Key for output vertex on InNode.
 			 *
 			 * @return True if the source was successfully added. False 
 			 * otherwise.
 			 */
-			bool AddOutputDataSource(const INode& InNode, const FVertexKey& InVertexKey);
+			bool AddOutputDataSource(const INode& InNode, const FVertexName& InVertexName);
 
 			/** Add an output data source which describes routing of data which is 
 			 * owned this graph and exposed externally.
@@ -136,7 +136,7 @@ namespace Metasound
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
 			};
 
-			FString InstanceName;
+			FVertexName InstanceName;
 			FGuid InstanceID;
 
 			FNodeClassMetadata Metadata;

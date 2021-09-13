@@ -15,27 +15,27 @@ namespace Metasound
 {
 	namespace BPMToSecondsVertexNames
 	{
-		const FString& GetInputBPMTempoName()
+		const FVertexName& GetInputBPMTempoName()
 		{
-			static FString Name = TEXT("BPM");
+			static FVertexName Name = TEXT("BPM");
 			return Name;
 		}
 
-		const FString& GetInputBeatMultiplierName()
+		const FVertexName& GetInputBeatMultiplierName()
 		{
-			static FString Name = TEXT("Beat Multiplier");
+			static FVertexName Name = TEXT("Beat Multiplier");
 			return Name;
 		}
 
-		const FString& GetInputDivisionsOfWholeNoteName()
+		const FVertexName& GetInputDivisionsOfWholeNoteName()
 		{
-			static FString Name = TEXT("Divisions of Whole Note");
+			static FVertexName Name = TEXT("Divisions of Whole Note");
 			return Name;
 		}
 
-		const FString& GetOutputTimeSecondsName()
+		const FVertexName& GetOutputTimeSecondsName()
 		{
-			static FString Name = TEXT("Seconds");
+			static FVertexName Name = TEXT("Seconds");
 			return Name;
 		}
 	}

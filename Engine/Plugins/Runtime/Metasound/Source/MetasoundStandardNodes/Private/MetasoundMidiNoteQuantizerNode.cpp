@@ -219,7 +219,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// (1: from FString)
-		FMidiNoteQuantizerNode(const FString & InInstanceName, const FGuid & InInstanceID)
+		FMidiNoteQuantizerNode(const FVertexName& InInstanceName, const FGuid & InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass <FMidiNoteQuantizerOperator>())
 		{ }
 

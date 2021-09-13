@@ -12,10 +12,12 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendNodesCategories.h"
+#include "MetasoundVertex.h"
 
 #include <type_traits>
 
 #define LOCTEXT_NAMESPACE "MetasoundFrontend"
+
 
 namespace Metasound
 {
@@ -26,15 +28,15 @@ namespace Metasound
 		static_assert(std::is_convertible<FromDataType, ToDataType>::value, "Tried to create an auto converter node between two types we can't static_cast between.");
 
 	public:
-		static const FString& GetInputName()
+		static const FVertexName& GetInputName()
 		{
-			static const FString InputName = GetMetasoundDataTypeString<FromDataType>();
+			static const FVertexName InputName = GetMetasoundDataTypeName<FromDataType>();
 			return InputName;
 		}
 
-		static const FString& GetOutputName()
+		static const FVertexName& GetOutputName()
 		{
-			static const FString OutputName = GetMetasoundDataTypeString<ToDataType>();
+			static const FVertexName OutputName = GetMetasoundDataTypeName<ToDataType>();
 			return OutputName;
 		}
 
@@ -54,9 +56,6 @@ namespace Metasound
 		{
 			auto InitNodeInfo = []() -> FNodeClassMetadata
 			{
-				const FString& InputDisplayName = GetInputName();
-				const FString& OutputDisplayName = GetOutputName();
-
 				FNodeDisplayStyle DisplayStyle;
 				DisplayStyle.bShowName = false;
 				DisplayStyle.bShowInputNames = false;
@@ -141,7 +140,7 @@ namespace Metasound
 				{
 					TDataWriteReference<ToDataType> WriteReference = TDataWriteReferenceFactory<ToDataType>::CreateAny(InParams.OperatorSettings);
 
-					const FString& InputName = GetInputName();
+					const FVertexName& InputName = GetInputName();
 					const bool bContainsRef = InParams.InputDataReferences.ContainsDataReadReference<FromDataType>(InputName);
 					if (bContainsRef)
 					{
@@ -201,5 +200,5 @@ namespace Metasound
 			FVertexInterface Interface;
 			FOperatorFactorySharedRef Factory;
 	};
-}
+} // namespace Metasound
 #undef LOCTEXT_NAMESPACE

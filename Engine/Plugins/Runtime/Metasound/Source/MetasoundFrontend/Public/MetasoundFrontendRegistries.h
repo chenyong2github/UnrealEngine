@@ -10,6 +10,7 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundRouter.h"
+#include "MetasoundVertex.h"
 #include "Templates/Function.h"
 
 
@@ -19,23 +20,23 @@ namespace Metasound
 	struct FDefaultNamedVertexNodeConstructorParams
 	{
 		// the instance name and name of the specific connection that should be used.
-		FString NodeName;
+		FVertexName NodeName;
 		FGuid InstanceID;
-		FString VertexName;
+		FVertexName VertexName;
 	};
 
 	struct FDefaultNamedVertexWithLiteralNodeConstructorParams
 	{
 		// the instance name and name of the specific connection that should be used.
-		FString NodeName;
+		FVertexName NodeName;
 		FGuid InstanceID;
-		FString VertexName;
+		FVertexName VertexName;
 		FLiteral InitParam = FLiteral::CreateInvalid();
 	};
 
 	struct FDefaultLiteralNodeConstructorParams
 	{
-		FString NodeName;
+		FVertexName NodeName;
 		FGuid InstanceID;
 		FLiteral Literal = FLiteral::CreateInvalid();
 	};
@@ -183,10 +184,10 @@ namespace Metasound
 		struct METASOUNDFRONTEND_API FConverterNodeInfo
 		{
 			// If this node has multiple input pins, we use this to designate which pin should be used.
-			FVertexKey PreferredConverterInputPin;
+			FVertexName PreferredConverterInputPin;
 
 			// If this node has multiple output pins, we use this to designate which pin should be used.
-			FVertexKey PreferredConverterOutputPin;
+			FVertexName PreferredConverterOutputPin;
 
 			// The key for this node in the node registry.
 			FNodeRegistryKey NodeKey;

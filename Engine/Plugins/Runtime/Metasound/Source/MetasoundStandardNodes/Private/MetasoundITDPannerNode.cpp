@@ -14,6 +14,7 @@
 #include "DSP/Dsp.h"
 #include "MetasoundFacade.h"
 #include "MetasoundStandardNodesCategories.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_ITDPannerNode"
 
@@ -21,9 +22,9 @@ namespace Metasound
 {
 	namespace ITDPannerVertexNames
 	{
-		const FString& GetInputAudioName()
+		const FVertexName& GetInputAudioName()
 		{
-			static FString Name = TEXT("In");
+			static FVertexName Name = TEXT("In");
 			return Name;
 		}
 
@@ -33,9 +34,9 @@ namespace Metasound
 			return Desc;
 		}
 
-		const FString& GetInputPanAngleName()
+		const FVertexName& GetInputPanAngleName()
 		{
-			static FString Name = TEXT("Angle");
+			static FVertexName Name = TEXT("Angle");
 			return Name;
 		}
 
@@ -45,9 +46,9 @@ namespace Metasound
 			return Desc;
 		}
 
-		const FString& GetInputDistanceFactorName()
+		const FVertexName& GetInputDistanceFactorName()
 		{
-			static FString Name = TEXT("Distance Factor");
+			static FVertexName Name = TEXT("Distance Factor");
 			return Name;
 		}
 
@@ -57,9 +58,9 @@ namespace Metasound
 			return Desc;
 		}
 
-		const FString& GetInputHeadWidthName()
+		const FVertexName& GetInputHeadWidthName()
 		{
-			static FString Name = TEXT("Head Width");
+			static FVertexName Name = TEXT("Head Width");
 			return Name;
 		}
 
@@ -69,9 +70,9 @@ namespace Metasound
 			return Desc;
 		}
 
-		const FString& GetOutputAudioLeftName()
+		const FVertexName& GetOutputAudioLeftName()
 		{
-			static FString Name = TEXT("Out Left");
+			static FVertexName Name = TEXT("Out Left");
 			return Name;
 		}
 
@@ -81,9 +82,9 @@ namespace Metasound
 			return Desc;
 		}
 
-		const FString& GetOutputAudioRightName()
+		const FVertexName& GetOutputAudioRightName()
 		{
-			static FString Name = TEXT("Out Right");
+			static FVertexName Name = TEXT("Out Right");
 			return Name;
 		}
 

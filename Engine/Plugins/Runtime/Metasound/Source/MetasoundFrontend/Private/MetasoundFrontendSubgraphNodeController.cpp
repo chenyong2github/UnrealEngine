@@ -17,7 +17,7 @@ namespace Metasound
 				// Reverse iterate to allow removal of elements from SetA within loop.
 				for (int32 SetAIndex = (SetA.Num() - 1); SetAIndex >= 0; SetAIndex--) 
 				{
-					const FString& SetAName = SetA[SetAIndex]->Name;
+					const FVertexName& SetAName = SetA[SetAIndex]->Name;
 					int32 SetBIndex = SetB.IndexOfByPredicate([&](const SetBType* InVertex) { return InVertex->Name == SetAName; });
 					if (INDEX_NONE != SetBIndex)
 					{
@@ -84,7 +84,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 					}
 				}
 			}
@@ -104,7 +104,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 					}
 				}
 			}
@@ -152,7 +152,7 @@ namespace Metasound
 			return Super::GetOutputControllerParams();
 		}
 
-		TArray<FBaseNodeController::FInputControllerParams> FSubgraphNodeController::GetInputControllerParamsWithVertexName(const FString& InName) const
+		TArray<FBaseNodeController::FInputControllerParams> FSubgraphNodeController::GetInputControllerParamsWithVertexName(const FVertexName& InName) const
 		{
 			// TODO: Trigger ConformNodeInterfaceToClassInterface() on an
 			// event callback rather than on every call to this function.
@@ -161,7 +161,7 @@ namespace Metasound
 			return Super::GetInputControllerParamsWithVertexName(InName);
 		}
 
-		TArray<FBaseNodeController::FOutputControllerParams> FSubgraphNodeController::GetOutputControllerParamsWithVertexName(const FString& InName) const
+		TArray<FBaseNodeController::FOutputControllerParams> FSubgraphNodeController::GetOutputControllerParamsWithVertexName(const FVertexName& InName) const
 		{
 			TArray<FBaseNodeController::FOutputControllerParams> Outputs;
 

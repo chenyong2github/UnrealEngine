@@ -345,12 +345,10 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	FMetasoundFrontendLiteral DefaultValue;
 	FGraphBuilder::GetPinLiteral(*FromPin, DefaultValue);
 
-	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, InputHandle->GetDataType(), FText::GetEmpty(), &DefaultValue);
+	const FName InputName = InputHandle->GetName();
+	FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(ParentMetasound, InputHandle->GetDataType(), FText::GetEmpty(), &DefaultValue, &InputName);
 	if (ensure(NodeHandle->IsValid()))
 	{
-		const FText& InputName = InputHandle->GetDisplayName();
-		const FText NewNodeName = FGraphBuilder::GenerateUniqueInputDisplayName(ParentMetasound, &InputName);
-		NodeHandle->SetDisplayName(NewNodeName);
 		UMetasoundEditorGraphInput* Input = MetasoundGraph->FindOrAddInput(NodeHandle);
 		if (ensure(Input))
 		{
@@ -443,6 +441,7 @@ FMetasoundGraphSchemaAction_PromoteToOutput::FMetasoundGraphSchemaAction_Promote
 
 UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToOutput::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D InLocation, bool bSelectNewNode /* = true */)
 {
+	using namespace Metasound;
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
@@ -457,12 +456,11 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToOutput::PerformAction(UEdGrap
 	UObject& ParentMetasound = MetasoundGraph->GetMetasoundChecked();
 	ParentMetasound.Modify();
 
-	FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(ParentMetasound, OutputHandle->GetDataType(), FText::GetEmpty());
+	const FVertexName OutputName = OutputHandle->GetName();
+	const FVertexName NewNodeName = FGraphBuilder::GenerateUniqueNameByClassType(ParentMetasound, EMetasoundFrontendClassType::Output, OutputName);
+	FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(ParentMetasound, OutputHandle->GetDataType(), FText::GetEmpty(), &NewNodeName);
 	if (ensure(NodeHandle->IsValid()))
 	{
-		const FText& OutputName = OutputHandle->GetDisplayName();
-		const FText NewNodeName = FGraphBuilder::GenerateUniqueOutputDisplayName(ParentMetasound, &OutputName);
-		NodeHandle->SetDisplayName(NewNodeName);
 		UMetasoundEditorGraphOutput* Output = MetasoundGraph->FindOrAddOutput(NodeHandle);
 		if (ensure(Output))
 		{
@@ -936,50 +934,43 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 	switch (ClassType)
 	{
 		case EMetasoundFrontendClassType::Input:
-		{
-			TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputsWithVertexName(Pin->GetName());
-			if (ensure(OutputHandles.Num() > 0))
-			{
-				return OutputHandles[0]->GetDisplayName();
-			}
-			else
-			{
-				return Super::GetPinDisplayName(Pin);
-			}
-		}
-
 		case EMetasoundFrontendClassType::Output:
 		{
-			TArray<FInputHandle> InputHandles = NodeHandle->GetInputsWithVertexName(Pin->GetName());
-			if (ensure(InputHandles.Num() > 0))
-			{
-				return InputHandles[0]->GetDisplayName();
-			}
-			else
-			{
-				return Super::GetPinDisplayName(Pin);
-			}
+			return NodeHandle->GetDisplayName();
 		}
 
 		case EMetasoundFrontendClassType::External:
 		{
-			const FString PinName = Pin->GetName();
 			if (Pin->Direction == EGPD_Input)
 			{
-				TArray<FInputHandle> InputHandles = NodeHandle->GetInputsWithVertexName(PinName);
-				if (ensure(InputHandles.Num() > 0))
+				TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputsWithVertexName(Pin->GetFName());
+				if (ensure(!InputHandles.IsEmpty()))
 				{
-					return InputHandles[0]->GetDisplayName();
+					const FText& DisplayName = InputHandles[0]->GetDisplayName();
+					if (!DisplayName.IsEmptyOrWhitespace())
+					{
+						return DisplayName;
+					}
+
+					return FText::FromName(InputHandles[0]->GetName());
 				}
 			}
 			else
 			{
-				TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputsWithVertexName(PinName);
-				if (ensure(OutputHandles.Num() > 0))
+				TArray<FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputsWithVertexName(Pin->GetFName());
+				if (ensure(!OutputHandles.IsEmpty()))
 				{
-					return OutputHandles[0]->GetDisplayName();
+					const FText& DisplayName = OutputHandles[0]->GetDisplayName();
+					if (!DisplayName.IsEmptyOrWhitespace())
+					{
+						return DisplayName;
+					}
+
+					return FText::FromName(OutputHandles[0]->GetName());
 				}
 			}
+
+			return Super::GetPinDisplayName(Pin);
 		}
 
 		case EMetasoundFrontendClassType::Variable:

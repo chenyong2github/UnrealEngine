@@ -192,7 +192,7 @@ namespace Metasound
 
 				FNodeHandle NewInputNode = InGraph->AddInputVertex(NewVertex);
 				// Copy prior node locations
-				if (Locations.Num() > 0)
+				if (!Locations.IsEmpty())
 				{
 					// TODO: copy entire style.
 					FMetasoundFrontendNodeStyle Style = NewInputNode->GetNodeStyle();
@@ -475,22 +475,22 @@ namespace Metasound
 			const FMetasoundFrontendVersion& RefArchetypeVersion = ReferencedDocument->GetArchetypeVersion();
 			FMatchRootGraphToArchetype(RefArchetypeVersion).Transform(InDocument);
 
-			using FDefaultKey = TPair<FString, FName>;
+			using FDefaultKey = TPair<FVertexName, FName>;
 			struct FDefaultInputValue
 			{
 				FGuid VertexID;
-				FString VertexName;
+				FVertexName VertexName;
 				FMetasoundFrontendLiteral Literal;
 			};
 			struct FDefaultOutputValue
 			{
 				FGuid VertexID;
-				FString VertexName;
+				FVertexName VertexName;
 			};
 			TMap<FDefaultKey, FDefaultInputValue> InitInputDefaults;
 			TMap<FDefaultKey, FDefaultOutputValue> InitOutputDefaults;
 
-			// 1. Prep by caching existing output guids, input literal values, clearing graph & ensuring ref archetype is supported
+			// 1. Prep by caching existing output guids, input literal values, & clearing graph
 			RootGraphHandle->IterateConstNodes([&](FConstNodeHandle InputNode)
 			{
 				FGuid InputID = InputNode->GetID();
@@ -500,8 +500,9 @@ namespace Metasound
 					{
 						const FGuid InputVertexID = RootGraphHandle->GetVertexIDForInputVertex(InputNode->GetNodeName());
 						FMetasoundFrontendLiteral Literal = RootGraphHandle->GetDefaultInput(InputVertexID);
-						FDefaultKey Key(InputNode->GetDisplayName().ToString(), Input->GetDataType());
-						FDefaultInputValue Value = { MoveTemp(InputID), InputNode->GetNodeName(), MoveTemp(Literal), };
+
+						FDefaultKey Key(InputNode->GetNodeName(), Input->GetDataType());
+						FDefaultInputValue Value = { MoveTemp(InputID), InputNode->GetNodeName(), MoveTemp(Literal) };
 						InitInputDefaults.Emplace(MoveTemp(Key), MoveTemp(Value));
 					});
 				}
@@ -514,7 +515,7 @@ namespace Metasound
 				{
 					OutputNode->IterateConstOutputs([&](FConstOutputHandle Output)
 					{
-						FDefaultKey Key(OutputNode->GetDisplayName().ToString(), Output->GetDataType());
+						FDefaultKey Key(OutputNode->GetNodeName(), Output->GetDataType());
 						FDefaultOutputValue Value = { MoveTemp(OutputID), OutputNode->GetNodeName() };
 						InitOutputDefaults.Emplace(MoveTemp(Key), MoveTemp(Value));
 					});
@@ -533,13 +534,12 @@ namespace Metasound
 			const FVector2D ReferenceNodeLocation = InputNodeLocation + FVector2D(DisplayStyle::NodeLayout::DefaultOffsetX.X, ReferenceNodeYOffset);
 			FVector2D OutputNodeLocation = InputNodeLocation + (2 * DisplayStyle::NodeLayout::DefaultOffsetX);
 
-			TMap<FString, FString> PresetInputToReferenceInputMap;
-			TMap<FString, FString> PresetOutputToReferenceOutputMap;
+			TMap<FVertexName, FVertexName> PresetInputToReferenceInputMap;
+			TMap<FVertexName, FVertexName> PresetOutputToReferenceOutputMap;
 
 			// 2. Generate preset's inputs & outputs
 			for (const FConstNodeHandle& RefGraphInputNode : ReferencedInputs)
 			{
-				const FText& DisplayName = RefGraphInputNode->GetDisplayName();
 				const FText& Description = RefGraphInputNode->GetDescription();
 
 				// Should only ever be one
@@ -547,9 +547,11 @@ namespace Metasound
 				RefGraphInputNode->IterateConstInputs([&](FConstInputHandle RefGraphInputHandle)
 				{
 					using namespace Metasound::Frontend;
+
 					FNodeHandle NodeHandle = INodeController::GetInvalidHandle();
 					const FName DataTypeName = RefGraphInputHandle->GetDataType();
-					const FDefaultKey Key(DisplayName.ToString(), DataTypeName);
+
+					const FDefaultKey Key(RefGraphInputNode->GetNodeName(), DataTypeName);
 					if (const FDefaultInputValue* InputValue = InitInputDefaults.Find(Key))
 					{
 						FMetasoundFrontendClassInput ClassInput;
@@ -557,14 +559,15 @@ namespace Metasound
 						ClassInput.TypeName = DataTypeName;
 						ClassInput.Metadata.Description = Description;
 						ClassInput.VertexID = InputValue->VertexID;
+						ClassInput.DefaultLiteral = InputValue->Literal;
 
-						NodeHandle = RootGraphHandle->AddInputNode(ClassInput, &InputValue->Literal, &DisplayName);
+						NodeHandle = RootGraphHandle->AddInputVertex(ClassInput);
 					}
 					else
 					{
 						FGuid InputID = ReferencedGraphHandle->GetVertexIDForInputVertex(RefGraphInputHandle->GetName());
 						const FMetasoundFrontendLiteral DefaultLiteral = ReferencedGraphHandle->GetDefaultInput(InputID);
-						NodeHandle = RootGraphHandle->AddInputNode(DataTypeName, Description, &DefaultLiteral, &DisplayName);
+						NodeHandle = RootGraphHandle->AddInputVertex(RefGraphInputNode->GetNodeName(), DataTypeName, Description, &DefaultLiteral);
 					}
 
 					if (ensure(NodeHandle->IsValid()))
@@ -581,7 +584,6 @@ namespace Metasound
 
 			for (const FConstNodeHandle& RefGraphOutputNode : ReferencedOutputs)
 			{
-				const FText& DisplayName = RefGraphOutputNode->GetDisplayName();
 				const FText& Description = RefGraphOutputNode->GetDescription();
 
 				// Should only ever be one
@@ -592,7 +594,9 @@ namespace Metasound
 
 					FNodeHandle NodeHandle = INodeController::GetInvalidHandle();
 					const FName DataTypeName = RefGraphOutputHandle->GetDataType();
-					const FDefaultKey Key(DisplayName.ToString(), DataTypeName);
+					
+					const FVertexName OutputName = RefGraphOutputHandle->GetName();
+					const FDefaultKey Key(OutputName, DataTypeName);
 					if (FDefaultOutputValue* OutputValue = InitOutputDefaults.Find(Key))
 					{
 						FMetasoundFrontendClassOutput ClassOutput;
@@ -601,11 +605,11 @@ namespace Metasound
 						ClassOutput.Metadata.Description = Description;
 						ClassOutput.VertexID = OutputValue->VertexID;
 
-						NodeHandle = RootGraphHandle->AddOutputNode(ClassOutput, &DisplayName);
+						NodeHandle = RootGraphHandle->AddOutputVertex(ClassOutput);
 					}
 					else
 					{
-						NodeHandle = RootGraphHandle->AddOutputNode(DataTypeName, Description, &DisplayName);
+						NodeHandle = RootGraphHandle->AddOutputVertex(OutputName, DataTypeName, Description);
 					}
 
 					if (ensure(NodeHandle->IsValid()))
@@ -635,14 +639,13 @@ namespace Metasound
 			// 4. Connect preset's respective inputs & outputs to generated referencing node.
 			RootGraphHandle->IterateNodes([&](FNodeHandle InputNode)
 			{
-				const FString& Name = InputNode->GetNodeName();
+				const FVertexName& Name = InputNode->GetNodeName();
 
 				// Should only ever be one
 				ensure(InputNode->GetNumOutputs() == 1);
 				InputNode->IterateOutputs([&](FOutputHandle OutputHandle)
 				{
-					const FString& InputName = PresetInputToReferenceInputMap.FindChecked(Name);
-					const TArray<FInputHandle> ReferenceInputs = ReferencedNodeHandle->GetInputsWithVertexName(InputName);
+					const TArray<FInputHandle> ReferenceInputs = ReferencedNodeHandle->GetInputs();
 					if (ensure(ReferenceInputs.Num() == 1))
 					{
 						ensure(ReferenceInputs[0]->Connect(*OutputHandle));
@@ -653,13 +656,13 @@ namespace Metasound
 
 			RootGraphHandle->IterateNodes([&](FNodeHandle OutputNode)
 			{
-				const FString& Name = OutputNode->GetNodeName();
+				const FVertexName& Name = OutputNode->GetNodeName();
 
 				// Should only ever be one
 				ensure(OutputNode->GetNumInputs() == 1);
 				OutputNode->IterateInputs([&](FInputHandle InputHandle)
 				{
-					const FString& OutputName = PresetOutputToReferenceOutputMap.FindChecked(Name);
+					const FVertexName& OutputName = PresetOutputToReferenceOutputMap.FindChecked(Name);
 					const TArray<FOutputHandle> ReferenceInputs = ReferencedNodeHandle->GetOutputsWithVertexName(OutputName);
 					if (ensure(ReferenceInputs.Num() == 1))
 					{
@@ -927,6 +930,48 @@ namespace Metasound
 			}
 		};
 
+		/** Versions document from 1.6 to 1.7. */
+		class FVersionDocument_1_7 : public FVersionDocumentTransform
+		{
+		public:
+			FVersionDocument_1_7() = default;
+
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return { 1, 7 };
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				auto RenameTransform = [](FNodeHandle NodeHandle)
+				{
+					// Required nodes are all (at the point of this transform) providing
+					// unique names and customized display names (ex. 'Audio' for both mono &
+					// L/R output, On Play, & 'On Finished'), so do not replace them by nulling
+					// out the guid as a name and using the converted FName of the FText DisplayName.
+					if (!NodeHandle->IsRequired())
+					{
+						const FName NewNodeName = *NodeHandle->GetDisplayName().ToString();
+						NodeHandle->IterateInputs([&](FInputHandle InputHandle)
+						{
+							InputHandle->SetName(NewNodeName);
+						});
+
+						NodeHandle->IterateOutputs([&](FOutputHandle OutputHandle)
+						{
+							OutputHandle->SetName(NewNodeName);
+						});
+
+						NodeHandle->SetDisplayName(FText());
+						NodeHandle->SetNodeName(NewNodeName);
+					}
+				};
+
+				InDocument->GetRootGraph()->IterateNodes(RenameTransform, EMetasoundFrontendClassType::Input);
+				InDocument->GetRootGraph()->IterateNodes(RenameTransform, EMetasoundFrontendClassType::Output);
+			}
+		};
+
 		FVersionDocument::FVersionDocument(FName InName, const FString& InPath)
 			: Name(InName)
 			, Path(InPath)
@@ -951,6 +996,7 @@ namespace Metasound
 			bWasUpdated |= FVersionDocument_1_4().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_5(Name).Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_6().Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_7().Transform(InDocument);
 
 			if (bWasUpdated)
 			{

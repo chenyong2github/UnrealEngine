@@ -7,27 +7,27 @@ namespace Metasound
 {
 	namespace VariableNodeVertexNames
 	{
-		const FString& GetInputDataName()
+		const FVertexName& GetInputDataName()
 		{
-			static const FString Name = TEXT("Value");
+			static const FVertexName Name = TEXT("Value");
 			return Name;
 		}
 
-		const FString& GetOutputDataName()
+		const FVertexName& GetOutputDataName()
 		{
-			static const FString Name = TEXT("Value");
+			static const FVertexName Name = TEXT("Value");
 			return Name;
 		}
 
-		const FString& GetInputVariableName()
+		const FVertexName& GetInputVariableName()
 		{
-			static const FString Name = TEXT("Variable");
+			static const FVertexName Name = TEXT("Variable");
 			return Name;
 		}
 
-		const FString& GetOutputVariableName()
+		const FVertexName& GetOutputVariableName()
 		{
-			static const FString Name = TEXT("Variable");
+			static const FVertexName Name = TEXT("Variable");
 			return Name;
 		}
 	}

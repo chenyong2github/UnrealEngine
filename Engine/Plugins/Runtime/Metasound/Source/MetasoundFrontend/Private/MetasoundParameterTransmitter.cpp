@@ -7,14 +7,15 @@
 
 namespace Metasound
 {
-	FString FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName()
+	const FVertexName& FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName()
 	{
-		return TEXT("TransmitterInstanceID");
+		static const FVertexName VarName = "TransmitterInstanceID";
+		return VarName;
 	}
 
-	FSendAddress FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexKey& InVertexKey, const FName& InTypeName)
+	FSendAddress FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexName& InVertexName, const FName& InTypeName)
 	{
-		const FString IDVarName = GetInstanceIDEnvironmentVariableName();
+		const FVertexName IDVarName = GetInstanceIDEnvironmentVariableName();
 		uint64 InstanceID = -1;
 
 		if (ensure(InEnvironment.Contains<uint64>(IDVarName)))
@@ -22,15 +23,15 @@ namespace Metasound
 			InstanceID = InEnvironment.GetValue<uint64>(IDVarName);
 		}
 
-		return CreateSendAddressFromInstanceID(InstanceID, InVertexKey, InTypeName);
+		return CreateSendAddressFromInstanceID(InstanceID, InVertexName, InTypeName);
 	}
 
-	FSendAddress FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexKey& InVertexKey, const FName& InTypeName)
+	FSendAddress FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexName& InVertexName, const FName& InTypeName)
 	{
 		FSendAddress Address;
 
 		Address.Subsystem = GetSubsystemNameForSendScope(ETransmissionScope::Global);
-		Address.ChannelName = FName(FString::Format(TEXT("{0}:{1}:{2}"), { InInstanceID, InVertexKey, InTypeName.ToString() }));
+		Address.ChannelName = *FString::Format(TEXT("{0}:{1}:{2}"), { InInstanceID, InVertexName.ToString(), InTypeName.ToString() });
 
 		return Address;
 	}

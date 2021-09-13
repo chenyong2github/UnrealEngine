@@ -194,7 +194,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// (1: from FString)
-		FMusicalScaleToNoteArrayNode(const FString & InInstanceName, const FGuid & InInstanceID)
+		FMusicalScaleToNoteArrayNode(const FVertexName& InInstanceName, const FGuid & InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass <FMusicalScaleToNoteArrayOperator>())
 		{ }
 

@@ -74,7 +74,7 @@ namespace Metasound
 		FMetasoundFrontendClass GenerateClassDescription()
 		{
 			FNodeInitData InitData;
-			InitData.InstanceName = FString(TEXT("GenerateClassDescriptionForNode"));
+			InitData.InstanceName = TEXT("GenerateClassDescriptionForNode");
 
 			return GenerateClassDescription<NodeType>(InitData);
 		}

@@ -35,14 +35,14 @@ namespace Metasound
 			// Inherit constructors from base class
 			using Super::Super;
 
-			FVertexAccessPtr GetInputWithName(const FString& InName);
+			FVertexAccessPtr GetInputWithName(const FVertexName& InName);
 			FVertexAccessPtr GetInputWithVertexID(const FGuid& InID);
-			FVertexAccessPtr GetOutputWithName(const FString& InName);
+			FVertexAccessPtr GetOutputWithName(const FVertexName& InName);
 			FVertexAccessPtr GetOutputWithVertexID(const FGuid& InID);
 
-			FConstVertexAccessPtr GetInputWithName(const FString& InName) const;
+			FConstVertexAccessPtr GetInputWithName(const FVertexName& InName) const;
 			FConstVertexAccessPtr GetInputWithVertexID(const FGuid& InID) const;
-			FConstVertexAccessPtr GetOutputWithName(const FString& InName) const;
+			FConstVertexAccessPtr GetOutputWithName(const FVertexName& InName) const;
 			FConstVertexAccessPtr GetOutputWithVertexID(const FGuid& InID) const;
 		};
 
@@ -54,9 +54,9 @@ namespace Metasound
 			// Inherit constructors from base class
 			using Super::Super;
 
-			FConstVertexAccessPtr GetInputWithName(const FString& InName) const;
+			FConstVertexAccessPtr GetInputWithName(const FVertexName& InName) const;
 			FConstVertexAccessPtr GetInputWithVertexID(const FGuid& InID) const;
-			FConstVertexAccessPtr GetOutputWithName(const FString& InName) const;
+			FConstVertexAccessPtr GetOutputWithName(const FVertexName& InName) const;
 			FConstVertexAccessPtr GetOutputWithVertexID(const FGuid& InID) const;
 		};
 
@@ -71,10 +71,10 @@ namespace Metasound
 			// Inherit constructors from base class
 			using Super::Super;
 
-			FClassInputAccessPtr GetInputWithName(const FString& InName);
-			FClassOutputAccessPtr GetOutputWithName(const FString& InName);
-			FConstClassInputAccessPtr GetInputWithName(const FString& InName) const;
-			FConstClassOutputAccessPtr GetOutputWithName(const FString& InName) const;
+			FClassInputAccessPtr GetInputWithName(const FVertexName& InName);
+			FClassOutputAccessPtr GetOutputWithName(const FVertexName& InName);
+			FConstClassInputAccessPtr GetInputWithName(const FVertexName& InName) const;
+			FConstClassOutputAccessPtr GetOutputWithName(const FVertexName& InName) const;
 		};
 
 		class METASOUNDFRONTEND_API FConstClassAccessPtr : public TAccessPtr<const FMetasoundFrontendClass>
@@ -85,8 +85,8 @@ namespace Metasound
 			// Inherit constructors from base class
 			using Super::Super;
 
-			FConstClassInputAccessPtr GetInputWithName(const FString& InName) const;
-			FConstClassOutputAccessPtr GetOutputWithName(const FString& InName) const;
+			FConstClassInputAccessPtr GetInputWithName(const FVertexName& InName) const;
+			FConstClassOutputAccessPtr GetOutputWithName(const FVertexName& InName) const;
 		};
 
 		class METASOUNDFRONTEND_API FGraphClassAccessPtr : public TAccessPtr<FMetasoundFrontendGraphClass>
@@ -97,17 +97,17 @@ namespace Metasound
 			// Inherit constructors from base class
 			using Super::Super;
 
-			FClassInputAccessPtr GetInputWithName(const FString& InName);
+			FClassInputAccessPtr GetInputWithName(const FVertexName& InName);
 			FClassInputAccessPtr GetInputWithNodeID(const FGuid& InNodeID);
-			FClassOutputAccessPtr GetOutputWithName(const FString& InName);
+			FClassOutputAccessPtr GetOutputWithName(const FVertexName& InName);
 			FClassOutputAccessPtr GetOutputWithNodeID(const FGuid& InNodeID);
 
 			FNodeAccessPtr GetNodeWithNodeID(const FGuid& InNodeID);
 			FGraphAccessPtr GetGraph();
 
-			FConstClassInputAccessPtr GetInputWithName(const FString& InName) const;
+			FConstClassInputAccessPtr GetInputWithName(const FVertexName& InName) const;
 			FConstClassInputAccessPtr GetInputWithNodeID(const FGuid& InNodeID) const;
-			FConstClassOutputAccessPtr GetOutputWithName(const FString& InName) const;
+			FConstClassOutputAccessPtr GetOutputWithName(const FVertexName& InName) const;
 			FConstClassOutputAccessPtr GetOutputWithNodeID(const FGuid& InNodeID) const;
 
 			FConstNodeAccessPtr GetNodeWithNodeID(const FGuid& InNodeID) const;
@@ -121,9 +121,9 @@ namespace Metasound
 			// Inherit constructors from base class
 			using Super::Super;
 
-			FConstClassInputAccessPtr GetInputWithName(const FString& InName) const;
+			FConstClassInputAccessPtr GetInputWithName(const FVertexName& InName) const;
 			FConstClassInputAccessPtr GetInputWithNodeID(const FGuid& InNodeID) const;
-			FConstClassOutputAccessPtr GetOutputWithName(const FString& InName) const;
+			FConstClassOutputAccessPtr GetOutputWithName(const FVertexName& InName) const;
 			FConstClassOutputAccessPtr GetOutputWithNodeID(const FGuid& InNodeID) const;
 			FConstNodeAccessPtr GetNodeWithNodeID(const FGuid& InNodeID) const;
 			FConstGraphAccessPtr GetGraph() const;

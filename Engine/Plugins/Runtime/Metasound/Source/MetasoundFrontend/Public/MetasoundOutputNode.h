@@ -7,6 +7,7 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundNode.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphCore"
 
@@ -40,7 +41,7 @@ namespace Metasound
 			public:
 				using FDataReadReference = TDataReadReference<DataType>;
 
-				FOutputOperator(const FString& InDataReferenceName, FDataReadReference InDataReference)
+				FOutputOperator(const FVertexName& InDataReferenceName, FDataReadReference InDataReference)
 				{
 					Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
 				}
@@ -69,7 +70,7 @@ namespace Metasound
 		class FOutputOperatorFactory : public IOperatorFactory
 		{
 			public:
-				FOutputOperatorFactory(const FString& InDataReferenceName)
+				FOutputOperatorFactory(const FVertexName& InDataReferenceName)
 				:	DataReferenceName(InDataReferenceName)
 				{
 				}
@@ -95,22 +96,24 @@ namespace Metasound
 				}
 
 			private:
-				FString DataReferenceName;
+				FVertexName DataReferenceName;
 		};
 
-		static FVertexInterface GetVertexInterface(const FString& InVertexName)
+		static FVertexInterface GetVertexInterface(const FVertexName& InVertexName)
 		{
+			static const FText VertexDescription = LOCTEXT("Metasound_OutputVertexDescription", "Output from the parent Metasound graph.");
+
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<DataType>(InVertexName, LOCTEXT("Metasound_OutputVertexDescription", "Output from the parent Metasound graph."))
+					TInputDataVertexModel<DataType>(InVertexName, VertexDescription)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<DataType>(InVertexName, LOCTEXT("Metasound_OutputVertexDescription", "Output from the parent Metasound graph."))
+					TOutputDataVertexModel<DataType>(InVertexName, VertexDescription)
 				)
 			);
 		}
 
-		static FNodeClassMetadata GetNodeInfo(const FString& InVertexName)
+		static FNodeClassMetadata GetNodeInfo(const FVertexName& InVertexName)
 		{
 			FNodeClassMetadata Info;
 
@@ -129,7 +132,7 @@ namespace Metasound
 
 
 		public:
-			TOutputNode(const FString& InInstanceName, const FGuid& InInstanceID, const FString& InVertexName)
+			TOutputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName)
 			:	FNode(InInstanceName, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexInterface(GetVertexInterface(InVertexName))
 			,	Factory(MakeShared<FOutputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))

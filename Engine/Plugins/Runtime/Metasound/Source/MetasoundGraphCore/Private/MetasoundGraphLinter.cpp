@@ -19,52 +19,31 @@ namespace Metasound
 		// run validation on input destination
 		bool IsInputDestinationValid(const FInputDataDestination& InDest)
 		{
-			if (InDest.Node == nullptr)
+			if (InDest.Node)
 			{
-				return false;
+				const FInputVertexInterface& Interface = InDest.Node->GetVertexInterface().GetInputInterface();
+				if (const FInputDataVertex* Vertex = Interface.Find(InDest.Vertex.GetVertexName()))
+				{
+					return *Vertex == InDest.Vertex;
+				}
 			}
 
-
-			const FInputVertexInterface& InputInterface = InDest.Node->GetVertexInterface().GetInputInterface();
-
-			FVertexKey VertexKey = MakeDataVertexKey(InDest.Vertex);
-
-			if (!InputInterface.Contains(VertexKey))
-			{
-				return false;
-			}
-
-			if (InputInterface[VertexKey] != InDest.Vertex)
-			{
-				return false;
-			}
-
-			return true;
+			return false;
 		}
 		
 		// run validation on output source
 		bool IsOutputSourceValid(const FOutputDataSource& InSource)
 		{
-			if (InSource.Node == nullptr)
+			if (InSource.Node)
 			{
-				return false;
+				const FOutputVertexInterface& Interface = InSource.Node->GetVertexInterface().GetOutputInterface();
+				if (const FOutputDataVertex* Vertex = Interface.Find(InSource.Vertex.GetVertexName()))
+				{
+					return *Vertex == InSource.Vertex;
+				}
 			}
 
-			const FOutputVertexInterface& OutputInterface = InSource.Node->GetVertexInterface().GetOutputInterface();
-
-			FVertexKey VertexKey = MakeDataVertexKey(InSource.Vertex);
-
-			if (!OutputInterface.Contains(VertexKey))
-			{
-				return false;
-			}
-
-			if (OutputInterface[VertexKey] != InSource.Vertex)
-			{
-				return false;
-			}
-
-			return true;
+			return false;
 		};
 
 		const FDataEdge* GetEdgePointer(const FDataEdge& InEdge) 

@@ -61,8 +61,8 @@ namespace Metasound
 			TArray<FBaseNodeController::FInputControllerParams> GetInputControllerParams() const override;
 			TArray<FBaseNodeController::FOutputControllerParams> GetOutputControllerParams() const override;
 
-			TArray<FBaseNodeController::FInputControllerParams> GetInputControllerParamsWithVertexName(const FString& InName) const override;
-			TArray<FBaseNodeController::FOutputControllerParams> GetOutputControllerParamsWithVertexName(const FString& InName) const override;
+			TArray<FBaseNodeController::FInputControllerParams> GetInputControllerParamsWithVertexName(const FVertexName& InName) const override;
+			TArray<FBaseNodeController::FOutputControllerParams> GetOutputControllerParamsWithVertexName(const FVertexName& InName) const override;
 
 			bool FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const override;
 			bool FindOutputControllerParamsWithID(FGuid InVertexID, FOutputControllerParams& OutParams) const override;

@@ -6,27 +6,27 @@ namespace Metasound
 {
 	namespace ReceiveNodeInfo
 	{
-		const FString& GetAddressInputName()
+		const FVertexName& GetAddressInputName()
 		{
-			static const FString InputName(TEXT("Address"));
+			static const FVertexName InputName(TEXT("Address"));
 			return InputName;
 		}
 
-		const FString& GetDefaultDataInputName()
+		const FVertexName& GetDefaultDataInputName()
 		{
-			static const FString DefaultDataName(TEXT("Default"));
+			static const FVertexName DefaultDataName(TEXT("Default"));
 			return DefaultDataName;
 		}
 
-		const FString& GetOutputName()
+		const FVertexName& GetOutputName()
 		{
-			static const FString OutputName(TEXT("Out"));
+			static const FVertexName OutputName(TEXT("Out"));
 			return OutputName;
 		}
 
 		FNodeClassName GetClassNameForDataType(const FName& InDataTypeName)
 		{
-			return FNodeClassName{ "Receive", InDataTypeName, FName() };
+			return FNodeClassName { "Receive", InDataTypeName, FName() };
 		}
 
 		int32 GetCurrentMajorVersion() { return 1; }

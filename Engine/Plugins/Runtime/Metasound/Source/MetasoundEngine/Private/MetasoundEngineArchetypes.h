@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundVertex.h"
 
 namespace Metasound
 {
@@ -19,81 +20,81 @@ namespace Metasound
 		namespace MetasoundSourceMonoV1_0
 		{
 			FMetasoundFrontendVersion GetVersion();
-			const FString& GetOnPlayInputName();
-			const FString& GetAudioOutputName();
-			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceIDVariableName();
-			const FString& GetSoundUniqueIdName();
-			const FString& GetIsPreviewSoundName();
+			const FVertexName& GetOnPlayInputName();
+			const FVertexName& GetAudioOutputName();
+			const FVertexName& GetIsFinishedOutputName();
+			const FVertexName& GetAudioDeviceIDVariableName();
+			const FVertexName& GetSoundUniqueIdName();
+			const FVertexName& GetIsPreviewSoundName();
 		}
 
 		// V1.0 of a Metasound Stereo Source. Uses FStereoAudioFormat as output.
 		namespace MetasoundSourceStereoV1_0
 		{
 			FMetasoundFrontendVersion GetVersion();
-			const FString& GetOnPlayInputName();
-			const FString& GetAudioOutputName();
-			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceIDVariableName();
-			const FString& GetSoundUniqueIdName();
-			const FString& GetIsPreviewSoundName();
-			const FString& GetGraphName();
+			const FVertexName& GetOnPlayInputName();
+			const FVertexName& GetAudioOutputName();
+			const FVertexName& GetIsFinishedOutputName();
+			const FVertexName& GetAudioDeviceIDVariableName();
+			const FVertexName& GetSoundUniqueIdName();
+			const FVertexName& GetIsPreviewSoundName();
+			const FVertexName& GetGraphName();
 		}
 
 		// V1.1 of a Metasound Mono source. Uses FAudioBuffer as output.
 		namespace MetasoundSourceMonoV1_1
 		{
 			FMetasoundFrontendVersion GetVersion();
-			const FString& GetOnPlayInputName();
-			const FString& GetAudioOutputName();
-			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceIDVariableName();
-			const FString& GetSoundUniqueIdName();
-			const FString& GetIsPreviewSoundName();
-			const FString& GetInstanceIDName();
-			const FString& GetGraphName();
+			const FVertexName& GetOnPlayInputName();
+			const FVertexName& GetAudioOutputName();
+			const FVertexName& GetIsFinishedOutputName();
+			const FVertexName& GetAudioDeviceIDVariableName();
+			const FVertexName& GetSoundUniqueIdName();
+			const FVertexName& GetIsPreviewSoundName();
+			const FVertexName& GetInstanceIDName();
+			const FVertexName& GetGraphName();
 		}
 
 		// V1.1 of a Metasound Stereo source. Uses two FAudioBuffers as outputs.
 		namespace MetasoundSourceStereoV1_1
 		{
 			FMetasoundFrontendVersion GetVersion();
-			const FString& GetOnPlayInputName();
-			const FString& GetLeftAudioOutputName();
-			const FString& GetRightAudioOutputName();
-			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceIDVariableName();
-			const FString& GetSoundUniqueIdName();
-			const FString& GetIsPreviewSoundName();
-			const FString& GetInstanceIDName();
-			const FString& GetGraphName();
+			const FVertexName& GetOnPlayInputName();
+			const FVertexName& GetLeftAudioOutputName();
+			const FVertexName& GetRightAudioOutputName();
+			const FVertexName& GetIsFinishedOutputName();
+			const FVertexName& GetAudioDeviceIDVariableName();
+			const FVertexName& GetSoundUniqueIdName();
+			const FVertexName& GetIsPreviewSoundName();
+			const FVertexName& GetInstanceIDName();
+			const FVertexName& GetGraphName();
 		}
 
 		// Current version of Metasound Source.
 		namespace MetasoundSource
 		{
-			const FString& GetOnPlayInputName();
-			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceIDVariableName();
-			const FString& GetSoundUniqueIdName();
-			const FString& GetIsPreviewSoundName();
-			const FString& GetInstanceIDName();
-			const FString& GetGraphName();
+			const FVertexName& GetOnPlayInputName();
+			const FVertexName& GetIsFinishedOutputName();
+			const FVertexName& GetAudioDeviceIDVariableName();
+			const FVertexName& GetSoundUniqueIdName();
+			const FVertexName& GetIsPreviewSoundName();
+			const FVertexName& GetInstanceIDName();
+			const FVertexName& GetGraphName();
 		}
 
 		// Current version of MetasoundSourceMono
 		namespace MetasoundSourceMono
 		{
 			FMetasoundFrontendVersion GetVersion();
-			const FString& GetAudioOutputName();
+			const FVertexName& GetAudioOutputName();
 		}
 
 		// Current version of MetasoundSourceStereo
 		namespace MetasoundSourceStereo
 		{
 			FMetasoundFrontendVersion GetVersion();
-			const FString& GetLeftAudioOutputName();
-			const FString& GetRightAudioOutputName();
+			const FVertexName& GetLeftAudioOutputName();
+			const FVertexName& GetRightAudioOutputName();
 		}
 
 		// Register all MetasoundEngine archetypes.

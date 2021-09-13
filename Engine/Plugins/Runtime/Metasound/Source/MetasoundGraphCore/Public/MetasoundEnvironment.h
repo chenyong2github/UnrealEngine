@@ -81,7 +81,7 @@ namespace Metasound
 		virtual ~IMetasoundEnvironmentVariable() = default;
 
 		/** The name of this environment variable. */
-		virtual const FString& GetName() const = 0;
+		virtual const FName& GetName() const = 0;
 
 		/** The type id of this environment variable. */
 		virtual FMetasoundEnvironmentVariableTypeId GetTypeId() const = 0;
@@ -108,7 +108,7 @@ namespace Metasound
 		 * @param ...Args - Parameter pack to be forwarded to underlying types constructor.
 		 */
 		template<typename... ArgTypes>
-		TMetasoundEnvironmentVariable(const FString& InName, ArgTypes&&... Args)
+		TMetasoundEnvironmentVariable(const FName& InName, ArgTypes&&... Args)
 		:	Name(InName)
 		,	Value(Forward<ArgTypes>(Args)...)
 		{
@@ -127,7 +127,7 @@ namespace Metasound
 		}
 
 		/** Get the name of this environment variable. */
-		const FString& GetName() const override
+		const FName& GetName() const override
 		{
 			return Name;
 		}
@@ -145,7 +145,7 @@ namespace Metasound
 		}
 
 	private:
-		FString Name;
+		FName Name;
 		Type Value;
 	};
 
@@ -197,7 +197,7 @@ namespace Metasound
 		 * @tparam VarType - Type of the underlying data stored in the environment variable. 
 		 */
 		template<typename VarType>
-		bool IsType(const FString& InVariableName) const
+		bool IsType(const FName& InVariableName) const
 		{
 			return IsEnvironmentVariableOfType<VarType>(*Variables[InVariableName]);
 		}
@@ -209,7 +209,7 @@ namespace Metasound
 		 * @tparam VarType - Type of the underlying data stored in the environment variable. 
 		 */
 		template<typename VarType>
-		bool Contains(const FString& InVariableName) const
+		bool Contains(const FName& InVariableName) const
 		{
 			if (Variables.Contains(InVariableName))
 			{
@@ -226,7 +226,7 @@ namespace Metasound
 		 * @return copy of the underlying data.
 		 */
 		template<typename VarType>
-		VarType GetValue(const FString& InVariableName) const
+		VarType GetValue(const FName& InVariableName) const
 		{
 			if (ensure(Contains<VarType>(InVariableName)))
 			{
@@ -245,14 +245,13 @@ namespace Metasound
 		 * @return const ref to the underlying data.
 		 */
 		template<typename VarType>
-		void SetValue(const FString& InVariableName, const VarType& InValue)
+		void SetValue(const FName& InVariableName, const VarType& InValue)
 		{
 			Variables.Add(InVariableName, MakeUnique<TMetasoundEnvironmentVariable<VarType>>(InVariableName, InValue));
 		}
 
-
 	private:
-		TSortedMap<FString, TUniquePtr<IMetasoundEnvironmentVariable>> Variables;
+		TSortedMap<FName, TUniquePtr<IMetasoundEnvironmentVariable>, FDefaultAllocator, FNameFastLess> Variables;
 	};
 }
 

@@ -233,7 +233,7 @@ namespace Metasound
 		return MakeUnique<FSwitchOperator>(InParams.OperatorSettings, Selector, Crossfade, PreviewBuffers);
 	}
 
-	FSwitchNode::FSwitchNode(const FString& InName, const FGuid& InInstanceID)
+	FSwitchNode::FSwitchNode(const FVertexName& InName, const FGuid& InInstanceID)
 		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FSwitchOperator>())
 	{
 	}
@@ -446,7 +446,7 @@ namespace Metasound
 		return MakeUnique<FGateOperator>(InParams.OperatorSettings, Selector, Crossfade, Input);
 	}
 
-	FGateNode::FGateNode(const FString& InName, const FGuid& InInstanceID)
+	FGateNode::FGateNode(const FVertexName& InName, const FGuid& InInstanceID)
 		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FGateOperator>())
 	{
 	}
