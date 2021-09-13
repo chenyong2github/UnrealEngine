@@ -27,7 +27,7 @@ public:
 };
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_SceneUtils"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_SceneUtilityFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

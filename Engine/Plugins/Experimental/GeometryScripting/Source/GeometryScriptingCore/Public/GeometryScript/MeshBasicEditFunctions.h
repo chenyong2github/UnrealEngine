@@ -11,7 +11,7 @@ class UDynamicMesh;
 
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_MeshEdits"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshBasicEditFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

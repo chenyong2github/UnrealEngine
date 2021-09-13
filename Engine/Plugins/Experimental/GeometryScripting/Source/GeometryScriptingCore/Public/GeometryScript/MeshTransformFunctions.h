@@ -10,7 +10,7 @@
 class UDynamicMesh;
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_MeshTransforms"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshTransformFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

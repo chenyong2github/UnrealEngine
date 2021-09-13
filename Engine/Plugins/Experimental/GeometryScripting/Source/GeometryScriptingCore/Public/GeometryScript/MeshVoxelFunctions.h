@@ -104,7 +104,7 @@ public:
 
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_MeshVoxelProcessing"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshVoxelFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

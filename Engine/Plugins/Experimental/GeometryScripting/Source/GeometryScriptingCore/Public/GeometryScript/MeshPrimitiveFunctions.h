@@ -31,7 +31,7 @@ public:
 };
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_Primitives"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshPrimitiveFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

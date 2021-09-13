@@ -42,7 +42,7 @@ public:
 };
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_Normals"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshNormalsFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
