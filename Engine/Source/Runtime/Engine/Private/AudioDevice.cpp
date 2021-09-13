@@ -4904,7 +4904,7 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 	if (ActiveSound->GetAudioComponentID() > 0)
 	{
 		TArray<FActiveSound*>& ActiveSoundArray = AudioComponentIDToActiveSoundMap.FindOrAdd(ActiveSound->GetAudioComponentID());
-		ActiveSoundArray.Add(ActiveSound);
+		ActiveSoundArray.AddUnique(ActiveSound);
 	}
 }
 
@@ -4980,22 +4980,18 @@ void FAudioDevice::AddVirtualLoop(const FAudioVirtualLoop& InVirtualLoop)
 	{
 		if (TArray<FActiveSound*>* ExistingSounds = AudioComponentIDToActiveSoundMap.Find(ComponentID))
 		{
-			if (!CanHaveMultipleActiveSounds(ComponentID))
+			// Only components playing a single looped sound at a time can virtualize.
+			for (int32 i = ExistingSounds->Num() - 1; i >= 0; --i)
 			{
-				// if we can't have more than one sound, we should have only one element (or less) here
-				ensure(ExistingSounds->Num() <= 1);
-				for (int32 i = ExistingSounds->Num() - 1; i >= 0; --i)
+				const FActiveSound* ExistingSound = (*ExistingSounds)[i];
+				if (ensure(ExistingSound))
 				{
-					const FActiveSound* ExistingSound = (*ExistingSounds)[i];
-					if (ensure(ExistingSound))
-					{
-						UE_LOG(LogAudio, Warning, TEXT("Attempting to add Sound '%s' to ComponentID when map already contains ID for Sound '%s'. "
-						"Associated AudioComponent can only play a single sound instance at one time."),
-							ActiveSound.Sound ? *ActiveSound.Sound->GetName() : TEXT("N/A"),
-							ExistingSound->Sound ? *ExistingSound->Sound->GetName() : TEXT("N/A")
-						);
-						ExistingSounds->RemoveAtSwap(i, 1, false /* bAllowShrinking */);
-					}
+					UE_LOG(LogAudio, Warning, TEXT("Attempting to add Sound '%s' to ComponentID when map already contains ID for Sound '%s'. "
+					"Associated AudioComponent can only play a single sound instance at one time. This may indicate a leak of FActiveSounds."),
+						ActiveSound.Sound ? *ActiveSound.Sound->GetName() : TEXT("N/A"),
+						ExistingSound->Sound ? *ExistingSound->Sound->GetName() : TEXT("N/A")
+					);
+					ExistingSounds->RemoveAtSwap(i, 1, false /* bAllowShrinking */);
 				}
 			}
 			ExistingSounds->AddUnique(&ActiveSound);
@@ -5327,7 +5323,11 @@ void FAudioDevice::SetCanHaveMultipleActiveSounds(uint64 InAudioComponentID, boo
 		return;
 	}
 
-	AudioComponentIDToCanHaveMultipleActiveSoundsMap.FindOrAdd(InAudioComponentID, InCanHaveMultipleActiveSounds) = InCanHaveMultipleActiveSounds;
+	bool& bCanHaveMultipleActiveSounds = AudioComponentIDToCanHaveMultipleActiveSoundsMap.FindOrAdd(InAudioComponentID, InCanHaveMultipleActiveSounds);
+
+	// This must be or'ed with existing value as disabling multiple active sounds while playing can potentially cause ActiveSound
+	// instances to get lost while virtualizing.
+	bCanHaveMultipleActiveSounds |= InCanHaveMultipleActiveSounds;
 }
 
 void FAudioDevice::RemoveActiveSound(FActiveSound* ActiveSound)
