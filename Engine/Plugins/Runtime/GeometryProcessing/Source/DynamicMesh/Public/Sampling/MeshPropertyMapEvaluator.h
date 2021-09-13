@@ -51,6 +51,7 @@ protected:
 	using FDetailNormalTexture = IMeshBakerDetailSampler::FBakeDetailTexture;
 	using FDetailNormalTextureMap = TMap<const void*, FDetailNormalTexture>;
 	FDetailNormalTextureMap DetailNormalTextures;
+	bool bHasDetailNormalTextures = false;
 	FAxisAlignedBox3d Bounds;
 	FVector3f DefaultValue = FVector3f::Zero();
 

@@ -110,10 +110,10 @@ public:
 	virtual void SetNormalMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
 
 	/** Retrieve a color map and UV layer index from a given mesh in the detail set */
-	virtual FBakeDetailTexture GetColorMap(const void* Mesh) const = 0;
+	virtual const FBakeDetailTexture* GetColorMap(const void* Mesh) const = 0;
 
 	/** Retrieve a normal map and UV layer index from a given mesh in the detail set */
-	virtual FBakeDetailTexture GetNormalMap(const void* Mesh) const = 0;
+	virtual const FBakeDetailTexture* GetNormalMap(const void* Mesh) const = 0;
 
 	/** @return true if identity correspondence is supported */
 	virtual bool SupportsIdentityCorrespondence() const = 0;
@@ -204,6 +204,31 @@ public:
 	 * @return the material ID for the given triangle.
 	 */
 	virtual int32 GetMaterialID(const void* Mesh, const int TriId) const = 0;
+
+	/**
+	 * @param Mesh pointer to mesh to query
+	 * @return true if this mesh has normals
+	 */
+	virtual bool HasNormals(const void* Mesh) const = 0;
+
+	/**
+	 * @param Mesh pointer to mesh to query
+	 * @param UVLayer the UV layer to check for existence
+	 * @return true if this mesh has UVs on the given layer
+	 */
+	virtual bool HasUVs(const void* Mesh, int UVLayer = 0) const = 0;
+
+	/**
+	 * @param Mesh pointer to mesh to query
+	 * @return true if this mesh has tangents
+	 */
+	virtual bool HasTangents(const void* Mesh) const = 0;
+
+	/**
+	 * @param Mesh pointer to mesh to query
+	 * @return true if this mesh has vertex colors on the given layer
+	 */
+	virtual bool HasColors(const void* Mesh) const = 0;
 
 	/**
 	 * Compute interpolated Position value inside triangle using barycentric coordinates
@@ -314,14 +339,14 @@ public:
 		DetailNormalMap = Map;
 	}
 
-	virtual FBakeDetailTexture GetColorMap(const void* Mesh) const override
+	virtual const FBakeDetailTexture* GetColorMap(const void* Mesh) const override
 	{
-		return DetailColorMap;
+		return &DetailColorMap;
 	}
 	
-	virtual FBakeDetailTexture GetNormalMap(const void* Mesh) const override
+	virtual const FBakeDetailTexture* GetNormalMap(const void* Mesh) const override
 	{
-		return DetailNormalMap;
+		return &DetailNormalMap;
 	}
 
 	virtual bool SupportsIdentityCorrespondence() const override
@@ -362,14 +387,8 @@ public:
 		FVector3d& TriBaryCoords,
 		const IMeshSpatial::FQueryOptions& Options = IMeshSpatial::FQueryOptions()) const override
 	{
-		const bool bHit = DetailSpatial->FindNearestHitTriangle(Ray, NearestT, TriId, Options);
-		if (bHit)
-		{
-			const FIntrRay3Triangle3d IntrQuery = TMeshQueries<FDynamicMesh3>::TriangleIntersection(*DetailMesh, TriId, Ray);
-			TriBaryCoords = IntrQuery.TriangleBaryCoords;
-			return DetailMesh;
-		}
-		return nullptr;
+		const bool bHit = DetailSpatial->FindNearestHitTriangle(Ray, NearestT, TriId, TriBaryCoords, Options);
+		return bHit ? DetailMesh : nullptr;
 	}
 
 	virtual bool TestAnyHitTriangle(
@@ -407,6 +426,29 @@ public:
 		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
 		const FDynamicMeshMaterialAttribute* MaterialIDOverlay = DynamicMesh->Attributes()->GetMaterialID();
 		return MaterialIDOverlay ? MaterialIDOverlay->GetValue(TriId) : IndexConstants::InvalidID;
+	}
+
+	virtual bool HasNormals(const void* Mesh) const override
+	{
+		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
+		return DynamicMesh && DynamicMesh->HasAttributes() && DynamicMesh->Attributes()->PrimaryNormals();
+	}
+
+	virtual bool HasUVs(const void* Mesh, const int UVLayer = 0) const override
+	{
+		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
+		return DynamicMesh && DynamicMesh->HasAttributes() && DynamicMesh->Attributes()->GetUVLayer(UVLayer);
+	}
+
+	virtual bool HasTangents(const void* Mesh) const override
+	{
+		return DetailTangents != nullptr;
+	}
+
+	virtual bool HasColors(const void* Mesh) const override
+	{
+		const FDynamicMesh3* DynamicMesh = static_cast<const FDynamicMesh3*>(Mesh);
+		return DynamicMesh && DynamicMesh->HasAttributes() && DynamicMesh->Attributes()->PrimaryColors();
 	}
 
 	virtual FVector3d TriBaryInterpolatePoint(

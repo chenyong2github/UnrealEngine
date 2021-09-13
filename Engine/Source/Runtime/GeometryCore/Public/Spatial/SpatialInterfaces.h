@@ -75,7 +75,7 @@ public:
 	/**
 	 * @param Query point
 	 * @param NearestDistSqrOut returned nearest squared distance, if triangle is found
-	 * @param MaxDistance maximum search distance
+	 * @param Options Query options (ex. max distance)
 	 * @return ID of triangle nearest to Point within MaxDistance, or InvalidID if not found
 	 */
 	virtual int FindNearestTriangle(const FVector3d& Point, double& NearestDistSqrOut, const FQueryOptions& Options = FQueryOptions()) const = 0;
@@ -88,7 +88,7 @@ public:
 
 	/**
 	 * @param Ray query ray
-	 * @param MaxDistance maximum hit distance
+	 * @param Options Query options (ex. max distance)
 	 * @return ID of triangle intersected by ray within MaxDistance, or InvalidID if not found
 	 */
 	virtual int FindNearestHitTriangle(const FRay3d& Ray, const FQueryOptions& Options = FQueryOptions()) const
@@ -104,10 +104,25 @@ public:
 	 * @param Ray query ray
 	 * @param NearestT returned-by-reference parameter of the nearest hit
 	 * @param TID returned-by-reference ID of triangle intersected by ray within MaxDistance, or InvalidID if not found
-	 * @param MaxDistance maximum hit distance
+	 * @param Options Query options (ex. max distance)
 	 * @return true if hit, false if no hit found
 	 */
-	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, const FQueryOptions& Options = FQueryOptions()) const = 0;
+	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, const FQueryOptions& Options = FQueryOptions()) const
+	{
+		FVector3d BaryCoords;
+		return FindNearestHitTriangle(Ray, NearestT, TID, BaryCoords, Options);
+	}
+
+	/**
+	 * Find nearest triangle from the given ray
+	 * @param Ray query ray
+	 * @param NearestT returned-by-reference parameter of the nearest hit
+	 * @param TID returned-by-reference ID of triangle intersected by ray within MaxDistance, or InvalidID if not found
+	 * @param BaryCoords returned-by-reference Barycentric coordinates of the triangle intersected by ray within MaxDistance, or FVector3d::Zero if not found.
+	 * @param Options Query options (ex. max distance)
+	 * @return true if hit, false if no hit found
+	 */
+	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, FVector3d& BaryCoords, const FQueryOptions& Options = FQueryOptions()) const = 0;
 
 
 };

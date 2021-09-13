@@ -11,24 +11,25 @@ void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCont
 {
 	// Cache data from the baker
 	DetailSampler = Baker.GetDetailSampler();
-	auto GetNormalMaps = [this](const void* Mesh)
+	auto GetDetailNormalMaps = [this](const void* Mesh)
 	{
-		const FDetailNormalTexture NormalMap = DetailSampler->GetNormalMap(Mesh);
-		DetailNormalTextures.Add(Mesh, NormalMap);
+		const FDetailNormalTexture* NormalMap = DetailSampler->GetNormalMap(Mesh);
+		if (NormalMap)
+		{
+			// Require valid normal map, UV layer and tangents to enable normal map transfer.
+			const bool bEnableNormalMapTransfer = DetailSampler->HasUVs(Mesh, NormalMap->Get<1>()) && DetailSampler->HasTangents(Mesh);
+			if (bEnableNormalMapTransfer)
+			{
+				DetailNormalTextures.Add(Mesh, *NormalMap);
+				bHasDetailNormalTextures = true;
+			}
+		}
 	};
-	DetailSampler->ProcessMeshes(GetNormalMaps);
-	bool bHasDetailNormalMap = false;
-	for (const auto& Map : DetailNormalTextures)
-	{
-		const TImageBuilder<FVector4f>* NormalMap;
-		int NormalUVLayer;
-		Tie(NormalMap, NormalUVLayer) = Map.Value;
-		bHasDetailNormalMap = bHasDetailNormalMap || NormalMap != nullptr;
-	}
+	DetailSampler->ProcessMeshes(GetDetailNormalMaps);
 	
 	BaseMeshTangents = Baker.GetTargetMeshTangents();
 
-	Context.Evaluate = bHasDetailNormalMap ? &EvaluateSample<true> : &EvaluateSample<false>;
+	Context.Evaluate = bHasDetailNormalTextures ? &EvaluateSample<true> : &EvaluateSample<false>;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
@@ -84,9 +85,13 @@ FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& S
 	
 	if constexpr (bUseDetailNormalMap)
 	{
-		const TImageBuilder<FVector4f>* DetailNormalMap;
-		int DetailNormalUVLayer;
-		Tie(DetailNormalMap, DetailNormalUVLayer) = DetailNormalTextures[DetailMesh];
+		const TImageBuilder<FVector4f>* DetailNormalMap = nullptr;
+		int DetailNormalUVLayer = 0;
+		const FDetailNormalTexture* DetailNormalTexture = DetailNormalTextures.Find(DetailMesh);
+		if (DetailNormalTexture)
+		{
+			Tie(DetailNormalMap, DetailNormalUVLayer) = *DetailNormalTexture;
+		}
 
 		if (DetailNormalMap)
 		{

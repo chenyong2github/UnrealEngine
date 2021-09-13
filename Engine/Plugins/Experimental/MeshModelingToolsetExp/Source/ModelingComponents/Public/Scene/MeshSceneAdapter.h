@@ -105,6 +105,8 @@ struct MODELINGCOMPONENTS_API FMeshSceneRayHit
 	int32 HitComponentElementIndex = -1;
 	// Triangle Index/ID on mesh of hit Component
 	int32 HitMeshTriIndex = -1;
+	// Triangle barycentric coordinates of the hit location.
+	FVector3d HitMeshBaryCoords = FVector3d::Zero();
 
 	// SpatialWrapper for the mesh geometry that was hit, if available. This is a pointer to data owned by the FMeshSceneAdapter that was queried
 	IMeshSpatialWrapper* HitMeshSpatialWrapper = nullptr;
@@ -147,6 +149,27 @@ public:
 
 	/** Append the geometry represented by this wrapper to the accumulated AppendTo mesh, under the given world transform */
 	virtual void AppendMesh(FDynamicMesh3& AppendTo, const FTransformSequence3d& TransformSeq) = 0;
+
+	/** @return true if the given index is a valid triangle */
+	virtual bool IsTriangle(int32 TriId) const = 0;
+
+	/** @return vertex indices of the given triangle */
+	virtual FIndex3i GetTriangle(int32 TriId) const = 0;
+
+	/** @return true if the mesh has normals */
+	virtual bool HasNormals() const = 0;
+
+	/** @return true if the mesh has UVs */
+	virtual bool HasUVs(int UVLayer = 0) const = 0;
+
+	/** Compute the barycentric interpolated normal for the given tri */
+	virtual FVector3d TriBaryInterpolatePoint(int32 TriId, const FVector3d& BaryCoords) const = 0;
+
+	/** Compute the barycentric interpolated normal for the given tri */
+	virtual bool TriBaryInterpolateNormal(int32 TriId, const FVector3d& BaryCoords, FVector3f& NormalOut) const = 0;
+
+	/** Compute the barycentric interpolated UV for the given tri */
+	virtual bool TriBaryInterpolateUV(int32 TriId, const FVector3d& BaryCoords, int UVLayer, FVector2f& UVOut) const = 0;
 };
 
 
@@ -346,6 +369,11 @@ public:
 		TFunctionRef<bool(int32 MeshIndex, AActor* SourceActor, const FActorChildMesh* ChildMeshInfo, const FVector3d& WorldPos)> PerVertexFunc,
 		bool bForceSingleThreaded = false
 	);
+
+	/**
+	 * Run a custom query across all scene actor child meshes.
+	 */
+	virtual void ProcessActorChildMeshes(TFunctionRef<void(const FActorAdapter* ActorAdapter, const FActorChildMesh* ChildMesh)> ProcessFunc);
 
 protected:
 	// top-level list of ActorAdapters, which represent each Actor and set of Components

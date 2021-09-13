@@ -38,6 +38,7 @@ protected:
 	using FDetailNormalTexture = IMeshBakerDetailSampler::FBakeDetailTexture;
 	using FDetailNormalTextureMap = TMap<const void*, FDetailNormalTexture>;
 	FDetailNormalTextureMap DetailNormalTextures;
+	bool bHasDetailNormalTextures = false;
 	const TMeshTangents<double>* BaseMeshTangents = nullptr;
 
 	FVector3f DefaultNormal = FVector3f::UnitZ();
