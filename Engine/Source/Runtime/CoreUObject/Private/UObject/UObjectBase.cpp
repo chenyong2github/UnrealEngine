@@ -716,7 +716,7 @@ void UClassCompiledInDefer(FFieldCompiledInInfo* ClassInfo, const TCHAR* Name, S
 {
 	FClassDeferredRegistry& Registry = FClassDeferredRegistry::Get();
 	FClassRegistrationInfo& Info = Registry.MakeDeprecatedInfo(ClassInfo->ClassPackage(), Name);
-	Registry.AddRegistration(nullptr, nullptr, ClassInfo->ClassPackage(), Name, Info, CONSTUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, ClassSize, Crc), ClassInfo);
+	Registry.AddRegistration(nullptr, nullptr, ClassInfo->ClassPackage(), Name, Info, CONSTRUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, ClassSize, Crc), ClassInfo);
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -761,6 +761,32 @@ void RegisterCompiledInInfo(UPackage* (*InOuterRegister)(), const TCHAR* InPacka
 	check(InOuterRegister);
 	FPackageDeferredRegistry::Get().AddRegistration(reinterpret_cast<class UPackage* (*)()>(InOuterRegister), nullptr, TEXT(""), InPackageName, InInfo, InVersionInfo, nullptr);
 #endif
+}
+
+// Multiple registrations
+void RegisterCompiledInInfo(const TCHAR* PackageName, const FClassRegisterCompiledInInfo* ClassInfo, size_t NumClassInfo, const FStructRegisterCompiledInInfo* StructInfo, size_t NumStructInfo, const FEnumRegisterCompiledInInfo* EnumInfo, size_t NumEnumInfo)
+{
+	for (size_t Index = 0; Index < NumClassInfo; ++Index)
+	{
+		const FClassRegisterCompiledInInfo& Info = ClassInfo[Index];
+		RegisterCompiledInInfo(Info.OuterRegister, Info.InnerRegister, PackageName, Info.Name, *Info.Info, Info.VersionInfo);
+	}
+
+	for (size_t Index = 0; Index < NumStructInfo; ++Index)
+	{
+		const FStructRegisterCompiledInInfo& Info = StructInfo[Index];
+		RegisterCompiledInInfo(Info.OuterRegister, PackageName, Info.Name, *Info.Info, Info.VersionInfo);
+		if (Info.CreateCppStructOps != nullptr)
+		{
+			UScriptStruct::DeferCppStructOps(FName(Info.Name), (UScriptStruct::ICppStructOps*)Info.CreateCppStructOps());
+		}
+	}
+
+	for (size_t Index = 0; Index < NumEnumInfo; ++Index)
+	{
+		const FEnumRegisterCompiledInInfo& Info = EnumInfo[Index];
+		RegisterCompiledInInfo(Info.OuterRegister, PackageName, Info.Name, *Info.Info, Info.VersionInfo);
+	}
 }
 
 /** Register all loaded classes */
@@ -1216,7 +1242,7 @@ const TCHAR* DebugFullName(UObject* Object)
 UScriptStruct* FindExistingStructIfHotReloadOrDynamic(UObject* Outer, const TCHAR* StructName, SIZE_T Size, uint32 Crc, bool bIsDynamic)
 {
 #if WITH_RELOAD
-	UScriptStruct* Result = FStructDeferredRegistry::Get().FindMatchingObject(*Outer->GetName(), StructName, CONSTUCT_RELOAD_VERSION_INFO(FStructReloadVersionInfo, Size, Crc));
+	UScriptStruct* Result = FStructDeferredRegistry::Get().FindMatchingObject(*Outer->GetName(), StructName, CONSTRUCT_RELOAD_VERSION_INFO(FStructReloadVersionInfo, Size, Crc));
 #else
 	UScriptStruct* Result = nullptr;
 #endif
@@ -1230,7 +1256,7 @@ UScriptStruct* FindExistingStructIfHotReloadOrDynamic(UObject* Outer, const TCHA
 UEnum* FindExistingEnumIfHotReloadOrDynamic(UObject* Outer, const TCHAR* EnumName, SIZE_T Size, uint32 Crc, bool bIsDynamic)
 {
 #if WITH_RELOAD
-	UEnum* Result = FEnumDeferredRegistry::Get().FindMatchingObject(*Outer->GetName(), EnumName, CONSTUCT_RELOAD_VERSION_INFO(FEnumReloadVersionInfo, Crc));
+	UEnum* Result = FEnumDeferredRegistry::Get().FindMatchingObject(*Outer->GetName(), EnumName, CONSTRUCT_RELOAD_VERSION_INFO(FEnumReloadVersionInfo, Crc));
 #else
 	UEnum* Result = nullptr;
 #endif

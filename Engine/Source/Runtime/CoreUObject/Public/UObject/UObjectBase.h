@@ -293,6 +293,18 @@ struct FClassReloadVersionInfo
 using FClassRegistrationInfo = TRegistrationInfo<UClass, FClassReloadVersionInfo>;
 
 /**
+ * Composite class register compiled in info
+ */
+struct FClassRegisterCompiledInInfo
+{
+	class UClass* (*OuterRegister)();
+	class UClass* (*InnerRegister)();
+	const TCHAR* Name;
+	FClassRegistrationInfo* Info;
+	FClassReloadVersionInfo VersionInfo;
+};
+
+/**
  * Adds a class registration and version information. The InInfo parameter must be static.
  */
 COREUOBJECT_API void RegisterCompiledInInfo(class UClass* (*InOuterRegister)(), class UClass* (*InInnerRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FClassRegistrationInfo& InInfo, const FClassReloadVersionInfo& InVersionInfo);
@@ -317,6 +329,18 @@ struct FStructReloadVersionInfo
  * Registration information for structures
  */
 using FStructRegistrationInfo = TRegistrationInfo<UScriptStruct, FStructReloadVersionInfo>;
+
+/**
+ * Composite structures register compiled in info
+ */
+struct FStructRegisterCompiledInInfo
+{
+	class UScriptStruct* (*OuterRegister)();
+	void* (*CreateCppStructOps)();
+	const TCHAR* Name;
+	FStructRegistrationInfo* Info;
+	FStructReloadVersionInfo VersionInfo;
+};
 
 /**
  * Adds a struct registration and version information. The InInfo parameter must be static.
@@ -355,6 +379,17 @@ struct FEnumReloadVersionInfo
 using FEnumRegistrationInfo = TRegistrationInfo<UEnum, FEnumReloadVersionInfo>;
 
 /**
+ * Composite enumeration register compiled in info
+ */
+struct FEnumRegisterCompiledInInfo
+{
+	class UEnum* (*OuterRegister)();
+	const TCHAR* Name;
+	FEnumRegistrationInfo* Info;
+	FEnumReloadVersionInfo VersionInfo;
+};
+
+/**
  * Adds a static enum registration and version information. The InInfo parameter must be static.
  */
 COREUOBJECT_API void RegisterCompiledInInfo(class UEnum* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FEnumRegistrationInfo& InInfo, const FEnumReloadVersionInfo& InVersionInfo);
@@ -389,6 +424,12 @@ using FPackageRegistrationInfo = TRegistrationInfo<UPackage, FPackageReloadVersi
  * Adds a static package registration and version information. The InInfo parameter must be static.
  */
 COREUOBJECT_API void RegisterCompiledInInfo(UPackage* (*InOuterRegister)(), const TCHAR* InPackageName, FPackageRegistrationInfo& InInfo, const FPackageReloadVersionInfo& InVersionInfo);
+
+
+/**
+ * Register compiled in information for multiple classes, structures, and enumerations
+ */
+COREUOBJECT_API void RegisterCompiledInInfo(const TCHAR* PackageName, const FClassRegisterCompiledInInfo* ClassInfo, size_t NumClassInfo, const FStructRegisterCompiledInInfo* StructInfo, size_t NumStructInfo, const FEnumRegisterCompiledInInfo* EnumInfo, size_t NumEnumInfo);
 
 /**
  * Base class for deferred native class registration
