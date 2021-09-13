@@ -71,7 +71,7 @@ bool ExtractFormatArguments(FPyWrapperText* InSelf, PyObject* InObj, const int32
 #if PY_MAJOR_VERSION < 3
 	const bool bIsStringType = PyUnicode_Check(InObj) || PyString_Check(InObj);
 #else	// PY_MAJOR_VERSION < 3
-	const bool bIsStringType = PyUnicode_Check(InObj);
+	const bool bIsStringType = PyUnicode_Check(InObj) != 0;
 #endif	// PY_MAJOR_VERSION < 3
 	if (!bIsStringType && PyUtil::HasLength(InObj))
 	{

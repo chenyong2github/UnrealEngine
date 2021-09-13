@@ -110,7 +110,7 @@ PyObject* GetBlueprintGeneratedTypes(PyObject* InSelf, PyObject* InArgs)
 #if PY_MAJOR_VERSION < 3
 				const bool bIsStringType = PyUnicode_Check(PyArg) || PyString_Check(PyArg);
 #else	// PY_MAJOR_VERSION < 3
-				const bool bIsStringType = PyUnicode_Check(PyArg);
+				const bool bIsStringType = PyUnicode_Check(PyArg) != 0;
 #endif	// PY_MAJOR_VERSION < 3
 				if (!bIsStringType && PyUtil::HasLength(PyArg))
 				{
