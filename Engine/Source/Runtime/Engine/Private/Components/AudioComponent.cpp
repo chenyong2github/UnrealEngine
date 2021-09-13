@@ -431,25 +431,28 @@ void UAudioComponent::PlayQuantized(
 	PlayInternal(Data);
 }
 
-void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestData, USoundBase* InSound)
+void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestData, USoundBase* InSoundOverride)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AudioComp_Play);
 
 	UWorld* World = GetWorld();
+	USoundBase* SoundToPlay = InSoundOverride ? InSoundOverride : Sound.Get();
+	if (SoundToPlay)
+	{
+		UE_LOG(LogAudio, Verbose, TEXT("%g: Playing AudioComponent : '%s' with Sound: '%s'"), World ? World->GetAudioTimeSeconds() : 0.0f, *GetFullName(), *SoundToPlay->GetName());
+	}
 
-	UE_LOG(LogAudio, Verbose, TEXT("%g: Playing AudioComponent : '%s' with Sound: '%s'"), World ? World->GetAudioTimeSeconds() : 0.0f, *GetFullName(), Sound ? *Sound->GetName() : TEXT("nullptr"));
-
-	// Reset our fading out flag in case this is a reused audio component and we are replaying after previously fading out
+	// Reset fading out flag in case this is a reused audio component and replaying after previously fading out.
 	bIsFadingOut = false;
 
-	const bool bIsSoundLooping = InSound && InSound->IsLooping();
-
+	// Stop sound if active & not set to play multiple instances, irrespective of whether or not a valid sound is set to play.
+	const bool bIsSoundLooping = SoundToPlay && SoundToPlay->IsLooping();
 	if (IsActive())
 	{
-		//Only stop if this component is limited to one active sound
+		// Stop if this component is limited to one active sound that is not looping.
 		if (!bCanPlayMultipleInstances || bIsSoundLooping)
 		{
-			// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
+			// Prevent sound from being auto-destroyed since its just being restarted.
 			bool bCurrentAutoDestroy = bAutoDestroy;
 			bAutoDestroy = false;
 			Stop();
@@ -457,192 +460,193 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 		}
 	}
 
-	if (Sound && (World == nullptr || World->bAllowAudioPlayback))
+	if (!SoundToPlay)
 	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
+		UE_LOG(LogAudio, Verbose, TEXT("%g: AudioComponent '%s' failed to play sound: No sound to play specified.'"), World ? World->GetAudioTimeSeconds() : 0.0f, *GetFullName());
+		return;
+	}
+
+	if (World && !World->bAllowAudioPlayback)
+	{
+		return;
+	}
+
+	FAudioDevice* AudioDevice = GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return;
+	}
+
+	// Store the time that this audio component played
+	if (World)
+	{
+		TimeAudioComponentPlayed = World->GetAudioTimeSeconds();
+	}
+	else
+	{
+		TimeAudioComponentPlayed = 0.0f;
+	}
+	FadeInTimeDuration = InPlayRequestData.FadeInDuration;
+
+	// Auto attach if requested
+	const bool bWasAutoAttached = bDidAutoAttach;
+	bDidAutoAttach = false;
+	if (bAutoManageAttachment && World->IsGameWorld())
+	{
+		USceneComponent* NewParent = AutoAttachParent.Get();
+		if (NewParent)
 		{
-			// Store the time that this audio component played
-			if (World)
+			const bool bAlreadyAttached = GetAttachParent() && (GetAttachParent() == NewParent) && (GetAttachSocketName() == AutoAttachSocketName) && GetAttachParent()->GetAttachChildren().Contains(this);
+			if (!bAlreadyAttached)
 			{
-				TimeAudioComponentPlayed = World->GetAudioTimeSeconds();
-			}
-			else
-			{
-				TimeAudioComponentPlayed = 0.0f;
-			}
-			FadeInTimeDuration = InPlayRequestData.FadeInDuration;
-
-			// Auto attach if requested
-			const bool bWasAutoAttached = bDidAutoAttach;
-			bDidAutoAttach = false;
-			if (bAutoManageAttachment && World->IsGameWorld())
-			{
-				USceneComponent* NewParent = AutoAttachParent.Get();
-				if (NewParent)
-				{
-					const bool bAlreadyAttached = GetAttachParent() && (GetAttachParent() == NewParent) && (GetAttachSocketName() == AutoAttachSocketName) && GetAttachParent()->GetAttachChildren().Contains(this);
-					if (!bAlreadyAttached)
-					{
-						bDidAutoAttach = bWasAutoAttached;
-						CancelAutoAttachment(true, World);
-						SavedAutoAttachRelativeLocation = GetRelativeLocation();
-						SavedAutoAttachRelativeRotation = GetRelativeRotation();
-						SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
-						AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
-					}
-
-					bDidAutoAttach = true;
-				}
-				else
-				{
-					CancelAutoAttachment(true, World);
-				}
+				bDidAutoAttach = bWasAutoAttached;
+				CancelAutoAttachment(true, World);
+				SavedAutoAttachRelativeLocation = GetRelativeLocation();
+				SavedAutoAttachRelativeRotation = GetRelativeRotation();
+				SavedAutoAttachRelativeScale3D = GetRelativeScale3D();
+				AttachToComponent(NewParent, FAttachmentTransformRules(AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule, false), AutoAttachSocketName);
 			}
 
-			// Create / configure new ActiveSound
-			const FSoundAttenuationSettings* AttenuationSettingsToApply = bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr;
-
-			float MaxDistance = 0.0f;
-			float FocusFactor = 1.0f;
-			FVector Location = GetComponentTransform().GetLocation();
-
-			AudioDevice->GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
-
-			FActiveSound NewActiveSound;
-			NewActiveSound.SetAudioComponent(*this);
-			NewActiveSound.SetWorld(GetWorld());
-
-			//If the InSound pointer is non-null, use its data. Otherwise, use the base Sound
-			if (InSound == nullptr)
-			{
-				NewActiveSound.SetSound(Sound);
-			}
-			else
-			{
-				NewActiveSound.SetSound(InSound);
-			}
-
-			NewActiveSound.SetSourceEffectChain(SourceEffectChain);
-			NewActiveSound.SetSoundClass(SoundClassOverride);
-			NewActiveSound.ConcurrencySet = ConcurrencySet;
-
-			const float Volume = (VolumeModulationMax + ((VolumeModulationMin - VolumeModulationMax) * RandomStream.FRand())) * VolumeMultiplier;
-			NewActiveSound.SetVolume(Volume);
-
-			// The priority used for the active sound is the audio component's priority scaled with the sound's priority
-			if (bOverridePriority)
-			{
-				NewActiveSound.Priority = Priority;
-			}
-			else
-			{
-				NewActiveSound.Priority = Sound->Priority;
-			}
-
-			const float Pitch = (PitchModulationMax + ((PitchModulationMin - PitchModulationMax) * RandomStream.FRand())) * PitchMultiplier;
-			NewActiveSound.SetPitch(Pitch);
-
-			NewActiveSound.bEnableLowPassFilter = bEnableLowPassFilter;
-			NewActiveSound.LowPassFilterFrequency = LowPassFilterFrequency;
-			NewActiveSound.RequestedStartTime = FMath::Max(0.f, InPlayRequestData.StartTime);
-
-			if (bOverrideSubtitlePriority)
-			{
-				NewActiveSound.SubtitlePriority = SubtitlePriority;
-			}
-			else
-			{
-				NewActiveSound.SubtitlePriority = Sound->GetSubtitlePriority();
-			}
-
-			NewActiveSound.bShouldRemainActiveIfDropped = bShouldRemainActiveIfDropped;
-			NewActiveSound.bHandleSubtitles = (!bSuppressSubtitles || OnQueueSubtitles.IsBound());
-			NewActiveSound.bIgnoreForFlushing = bIgnoreForFlushing;
-
-			NewActiveSound.bIsUISound = bIsUISound;
-			NewActiveSound.bIsMusic = bIsMusic;
-			NewActiveSound.bAlwaysPlay = bAlwaysPlay;
-			NewActiveSound.bReverb = bReverb;
-			NewActiveSound.bCenterChannelOnly = bCenterChannelOnly;
-			NewActiveSound.bIsPreviewSound = bIsPreviewSound;
-			NewActiveSound.bLocationDefined = !bPreviewComponent;
-			NewActiveSound.bIsPaused = bIsPaused;
-
-			if (NewActiveSound.bLocationDefined)
-			{
-				NewActiveSound.Transform = GetComponentTransform();
-			}
-
-			NewActiveSound.bAllowSpatialization = bAllowSpatialization;
-			NewActiveSound.bHasAttenuationSettings = (AttenuationSettingsToApply != nullptr);
-			if (NewActiveSound.bHasAttenuationSettings)
-			{
-				NewActiveSound.AttenuationSettings = *AttenuationSettingsToApply;
-				NewActiveSound.FocusData.PriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(AudioDevice->GetGlobalFocusSettings(), FocusFactor);
-			}
-
-			NewActiveSound.EnvelopeFollowerAttackTime = FMath::Max(EnvelopeFollowerAttackTime, 0);
-			NewActiveSound.EnvelopeFollowerReleaseTime = FMath::Max(EnvelopeFollowerReleaseTime, 0);
-
-			NewActiveSound.bUpdatePlayPercentage = OnAudioPlaybackPercentNative.IsBound() || OnAudioPlaybackPercent.IsBound();
-			NewActiveSound.bUpdateSingleEnvelopeValue = OnAudioSingleEnvelopeValue.IsBound() || OnAudioSingleEnvelopeValueNative.IsBound();
-			NewActiveSound.bUpdateMultiEnvelopeValue = OnAudioMultiEnvelopeValue.IsBound() || OnAudioMultiEnvelopeValueNative.IsBound();
-
-			NewActiveSound.ModulationRouting = ModulationRouting;
-
-			// Setup audio component cooked analysis data playback data set
-			if (AudioDevice->IsBakedAnalaysisQueryingEnabled())
-			{
-				TArray<USoundWave*> SoundWavesWithCookedData;
-				NewActiveSound.bUpdatePlaybackTime = Sound->GetSoundWavesWithCookedAnalysisData(SoundWavesWithCookedData);
-
-				// Reset the audio component's soundwave playback times
-				SoundWavePlaybackTimes.Reset();
-				for (USoundWave* SoundWave : SoundWavesWithCookedData)
-				{
-					SoundWavePlaybackTimes.Add(SoundWave->GetUniqueID(), FSoundWavePlaybackTimeData(SoundWave));
-				}
-			}
-
-
-			// Pass quantization data to the active sound
-			NewActiveSound.QuantizedRequestData = InPlayRequestData.QuantizedRequestData;
-
-			NewActiveSound.MaxDistance = MaxDistance;
-
-			Audio::FVolumeFader& Fader = NewActiveSound.ComponentVolumeFader;
-			Fader.SetVolume(0.0f); // Init to 0.0f to fade as default is 1.0f
-			Fader.StartFade(InPlayRequestData.FadeVolumeLevel, InPlayRequestData.FadeInDuration, static_cast<Audio::EFaderCurve>(InPlayRequestData.FadeCurve));
-
-			// Bump ActiveCount... this is used to determine if an audio component is still active after a sound reports back as completed
-			++ActiveCount;
-
-			// Pass along whether or not component is setup to support multiple active sounds.
-			// This is to ensure virtualization will function accordingly. Disable the feature
-			// if the sound is looping as a safety mechanism to avoid stuck loops.
-			if (bIsSoundLooping)
-			{
-				if (bCanPlayMultipleInstances)
-				{
-					UE_LOG(LogAudio, Warning, TEXT("'Can Play Multiple Instances' disabled: Sound '%s' set to looping"), *InSound->GetName());
-				}
-
-				AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, false);
-			}
-			else
-			{
-				AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, bCanPlayMultipleInstances);
-			}
-
-			AudioDevice->AddNewActiveSound(NewActiveSound, &InstanceParameters);
-
-			// In editor, the audio thread is not run separate from the game thread, and can result in calling PlaybackComplete prior
-			// to bIsActive being set. Therefore, we assign to the current state of ActiveCount as opposed to just setting to true.
-			SetActiveFlag(ActiveCount > 0);
-
-			BroadcastPlayState();
+			bDidAutoAttach = true;
+		}
+		else
+		{
+			CancelAutoAttachment(true, World);
 		}
 	}
+
+	// Create / configure new ActiveSound
+	const FSoundAttenuationSettings* AttenuationSettingsToApply = bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr;
+
+	float MaxDistance = 0.0f;
+	float FocusFactor = 1.0f;
+	FVector Location = GetComponentTransform().GetLocation();
+
+	AudioDevice->GetMaxDistanceAndFocusFactor(SoundToPlay, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
+
+	FActiveSound NewActiveSound;
+	NewActiveSound.SetAudioComponent(*this);
+	NewActiveSound.SetWorld(GetWorld());
+	NewActiveSound.SetSound(SoundToPlay);
+	NewActiveSound.SetSourceEffectChain(SourceEffectChain);
+	NewActiveSound.SetSoundClass(SoundClassOverride);
+	NewActiveSound.ConcurrencySet = ConcurrencySet;
+
+	const float Volume = (VolumeModulationMax + ((VolumeModulationMin - VolumeModulationMax) * RandomStream.FRand())) * VolumeMultiplier;
+	NewActiveSound.SetVolume(Volume);
+
+	// The priority used for the active sound is the audio component's priority scaled with the sound's priority
+	if (bOverridePriority)
+	{
+		NewActiveSound.Priority = Priority;
+	}
+	else
+	{
+		NewActiveSound.Priority = SoundToPlay->Priority;
+	}
+
+	const float Pitch = (PitchModulationMax + ((PitchModulationMin - PitchModulationMax) * RandomStream.FRand())) * PitchMultiplier;
+	NewActiveSound.SetPitch(Pitch);
+
+	NewActiveSound.bEnableLowPassFilter = bEnableLowPassFilter;
+	NewActiveSound.LowPassFilterFrequency = LowPassFilterFrequency;
+	NewActiveSound.RequestedStartTime = FMath::Max(0.f, InPlayRequestData.StartTime);
+
+	if (bOverrideSubtitlePriority)
+	{
+		NewActiveSound.SubtitlePriority = SubtitlePriority;
+	}
+	else
+	{
+		NewActiveSound.SubtitlePriority = SoundToPlay->GetSubtitlePriority();
+	}
+
+	NewActiveSound.bShouldRemainActiveIfDropped = bShouldRemainActiveIfDropped;
+	NewActiveSound.bHandleSubtitles = (!bSuppressSubtitles || OnQueueSubtitles.IsBound());
+	NewActiveSound.bIgnoreForFlushing = bIgnoreForFlushing;
+
+	NewActiveSound.bIsUISound = bIsUISound;
+	NewActiveSound.bIsMusic = bIsMusic;
+	NewActiveSound.bAlwaysPlay = bAlwaysPlay;
+	NewActiveSound.bReverb = bReverb;
+	NewActiveSound.bCenterChannelOnly = bCenterChannelOnly;
+	NewActiveSound.bIsPreviewSound = bIsPreviewSound;
+	NewActiveSound.bLocationDefined = !bPreviewComponent;
+	NewActiveSound.bIsPaused = bIsPaused;
+
+	if (NewActiveSound.bLocationDefined)
+	{
+		NewActiveSound.Transform = GetComponentTransform();
+	}
+
+	NewActiveSound.bAllowSpatialization = bAllowSpatialization;
+	NewActiveSound.bHasAttenuationSettings = (AttenuationSettingsToApply != nullptr);
+	if (NewActiveSound.bHasAttenuationSettings)
+	{
+		NewActiveSound.AttenuationSettings = *AttenuationSettingsToApply;
+		NewActiveSound.FocusData.PriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(AudioDevice->GetGlobalFocusSettings(), FocusFactor);
+	}
+
+	NewActiveSound.EnvelopeFollowerAttackTime = FMath::Max(EnvelopeFollowerAttackTime, 0);
+	NewActiveSound.EnvelopeFollowerReleaseTime = FMath::Max(EnvelopeFollowerReleaseTime, 0);
+
+	NewActiveSound.bUpdatePlayPercentage = OnAudioPlaybackPercentNative.IsBound() || OnAudioPlaybackPercent.IsBound();
+	NewActiveSound.bUpdateSingleEnvelopeValue = OnAudioSingleEnvelopeValue.IsBound() || OnAudioSingleEnvelopeValueNative.IsBound();
+	NewActiveSound.bUpdateMultiEnvelopeValue = OnAudioMultiEnvelopeValue.IsBound() || OnAudioMultiEnvelopeValueNative.IsBound();
+
+	NewActiveSound.ModulationRouting = ModulationRouting;
+
+	// Setup audio component cooked analysis data playback data set
+	if (AudioDevice->IsBakedAnalaysisQueryingEnabled())
+	{
+		TArray<USoundWave*> SoundWavesWithCookedData;
+		NewActiveSound.bUpdatePlaybackTime = Sound->GetSoundWavesWithCookedAnalysisData(SoundWavesWithCookedData);
+
+		// Reset the audio component's soundwave playback times
+		SoundWavePlaybackTimes.Reset();
+		for (USoundWave* SoundWave : SoundWavesWithCookedData)
+		{
+			SoundWavePlaybackTimes.Add(SoundWave->GetUniqueID(), FSoundWavePlaybackTimeData(SoundWave));
+		}
+	}
+
+
+	// Pass quantization data to the active sound
+	NewActiveSound.QuantizedRequestData = InPlayRequestData.QuantizedRequestData;
+
+	NewActiveSound.MaxDistance = MaxDistance;
+
+	Audio::FVolumeFader& Fader = NewActiveSound.ComponentVolumeFader;
+	Fader.SetVolume(0.0f); // Init to 0.0f to fade as default is 1.0f
+	Fader.StartFade(InPlayRequestData.FadeVolumeLevel, InPlayRequestData.FadeInDuration, static_cast<Audio::EFaderCurve>(InPlayRequestData.FadeCurve));
+
+	// Bump ActiveCount... this is used to determine if an audio component is still active after a sound reports back as completed
+	++ActiveCount;
+
+	// Pass along whether or not component is setup to support multiple active sounds.
+	// This is to ensure virtualization will function accordingly. Disable the feature
+	// if the sound is looping as a safety mechanism to avoid stuck loops.
+	if (bIsSoundLooping)
+	{
+		if (bCanPlayMultipleInstances)
+		{
+			UE_LOG(LogAudio, Warning, TEXT("'Can Play Multiple Instances' disabled: Sound '%s' set to looping"), *SoundToPlay->GetName());
+		}
+
+		AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, false);
+	}
+	else
+	{
+		AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, bCanPlayMultipleInstances);
+	}
+
+	AudioDevice->AddNewActiveSound(NewActiveSound, &InstanceParameters);
+
+	// In editor, the audio thread is not run separate from the game thread, and can result in calling PlaybackComplete prior
+	// to bIsActive being set. Therefore, we assign to the current state of ActiveCount as opposed to just setting to true.
+	SetActiveFlag(ActiveCount > 0);
+
+	BroadcastPlayState();
 }
 
 FAudioDevice* UAudioComponent::GetAudioDevice() const
@@ -764,6 +768,12 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 
 		Fader.StartFade(AdjustVolumeLevel, AdjustVolumeDuration, static_cast<Audio::EFaderCurve>(FadeCurve));
 	}, GET_STATID(STAT_AudioAdjustVolume));
+}
+
+void UAudioComponent::ResetParameters()
+{
+	InstanceParameters.Reset();
+	ISoundGeneratorParameterInterface::ResetParameters();
 }
 
 void UAudioComponent::Stop()
@@ -925,6 +935,11 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	else if (bAutoManageAttachment)
 	{
 		CancelAutoAttachment(true, MyWorld);
+	}
+
+	if (bIsPreviewSound)
+	{
+		ResetParameters();
 	}
 
 	BroadcastPlayState();
