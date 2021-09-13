@@ -97,6 +97,7 @@ private:
 	FGeometry GetResizeHandleGeometry(const FGeometry& AllottedGeometry) const;
 	EActiveTimerReturnType UpdateAnimation(double CurrentTime, float DeltaTime);
 	void OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
+	void OnActiveTabChanged(TSharedPtr<SDockTab> NewlyActivated, TSharedPtr<SDockTab> PreviouslyActive);
 
 private:
 	FGeometry InitialResizeGeometry;
