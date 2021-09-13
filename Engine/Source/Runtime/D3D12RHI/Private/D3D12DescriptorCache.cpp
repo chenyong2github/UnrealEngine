@@ -295,6 +295,19 @@ void FD3D12DescriptorCache::SetVertexBuffers(FD3D12VertexBufferCache& Cache)
 
 	CmdContext->CommandListHandle.UpdateResidency(Cache.ResidencyHandles, Count);
 	CmdContext->CommandListHandle->IASetVertexBuffers(0, Count, Cache.CurrentVertexBufferViews);
+
+	for (uint32 i = 0; i < Count; ++i)
+	{
+		if (Cache.CurrentVertexBufferResources[i])
+		{
+			FD3D12Resource* Resource = Cache.CurrentVertexBufferResources[i]->GetResource();
+			if (Resource->RequiresResourceStateTracking())
+			{
+				check(Resource->GetSubresourceCount() == 1);
+				FD3D12DynamicRHI::TransitionResource(CmdContext->CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+			}
+		}
+	}
 }
 
 template <EShaderFrequency ShaderStage>
