@@ -6,6 +6,7 @@
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Misc/ScopeLock.h"
 #include "Chaos/Defines.h"
 
 namespace Chaos
