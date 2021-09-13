@@ -15,8 +15,11 @@
 UENUM(BlueprintType)
 enum class EContentBrowserPathType : uint8
 {
+	/** No path type set */
 	None,
+	/** Internal path compatible with asset registry and engine calls (eg,. "/PluginA/MyFile") */
 	Internal,
+	/** Virtual path for enumerating Content Browser data (eg, "/All/Plugins/PluginA/MyFile") */
 	Virtual
 };
 
