@@ -11,7 +11,7 @@ static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
 	GVirtualTextureFeedbackFactor,
 	TEXT("The size of the VT feedback buffer is calculated by dividing the render resolution by this factor.")
 	TEXT("The value set here is rounded up to the nearest power of two before use."),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly /*Read-only as shaders are compiled with this value*/
+	ECVF_RenderThreadSafe
 );
 
 int32 GetVirtualTextureFeedbackScale()
@@ -22,7 +22,7 @@ int32 GetVirtualTextureFeedbackScale()
 
 FIntPoint GetVirtualTextureFeedbackBufferSize(FIntPoint InSceneTextureExtent)
 {
-	return FIntPoint::DivideAndRoundUp(InSceneTextureExtent, FMath::Max(GetVirtualTextureFeedbackScale(), 1));
+	return FIntPoint::DivideAndRoundUp(InSceneTextureExtent, GetVirtualTextureFeedbackScale());
 }
 
 uint32 SampleVirtualTextureFeedbackSequence(uint32 InFrameIndex)
