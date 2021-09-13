@@ -289,6 +289,63 @@ public:
 		return Mesh.TriangleCount();
 	}
 
+	virtual bool IsTriangle(int32 TriId) const override
+	{
+		return Mesh.IsTriangle(TriId);
+	}
+
+	virtual FIndex3i GetTriangle(int32 TriId) const override
+	{
+		return Mesh.GetTriangle(TriId);
+	}
+
+	virtual bool HasNormals() const override
+	{
+		return Mesh.HasAttributes() && Mesh.Attributes()->PrimaryNormals();
+	}
+
+	virtual bool HasUVs(const int UVLayer = 0) const override
+	{
+		return Mesh.HasAttributes() && Mesh.Attributes()->GetUVLayer(UVLayer);
+	}
+
+	virtual FVector3d TriBaryInterpolatePoint(int32 TriId, const FVector3d& BaryCoords) const override
+	{
+		return Mesh.GetTriBaryPoint(TriId, BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
+	}
+
+	virtual bool TriBaryInterpolateNormal(int32 TriId, const FVector3d& BaryCoords, FVector3f& NormalOut) const override
+	{
+		if (Mesh.HasAttributes())
+		{
+			const FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
+			if (NormalOverlay)
+			{
+				FVector3d Normal;
+				NormalOverlay->GetTriBaryInterpolate(TriId, &BaryCoords.X, &Normal.X);
+				NormalOut = FVector3f(Normal);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	virtual bool TriBaryInterpolateUV(const int32 TriId, const FVector3d& BaryCoords, const int UVLayer, FVector2f& UVOut) const override
+	{
+		if (Mesh.HasAttributes())
+		{
+			const FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->GetUVLayer(UVLayer);
+			if (UVOverlay)
+			{
+				FVector2d UV;
+				UVOverlay->GetTriBaryInterpolate(TriId, &BaryCoords.X, &UV.X);
+				UVOut = FVector2f(UV);
+				return true;
+			}
+		}
+		return false;
+	}
+
 	virtual FAxisAlignedBox3d GetWorldBounds(TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
 	{
 		FAxisAlignedBox3d Bounds = bHasBakedTransform ?
@@ -364,8 +421,8 @@ public:
 			UseRay = FRay3d(LocalOrigin, LocalDir);
 		}
 
-		double RayHitT; int32 HitTID;
-		if (AABBTree->FindNearestHitTriangle(UseRay, RayHitT, HitTID))
+		double RayHitT; int32 HitTID; FVector3d HitBaryCoords;
+		if (AABBTree->FindNearestHitTriangle(UseRay, RayHitT, HitTID, HitBaryCoords))
 		{
 			WorldHitResultOut.HitMeshTriIndex = HitTID;
 			WorldHitResultOut.HitMeshSpatialWrapper = this;
@@ -378,6 +435,7 @@ public:
 				FVector3d WorldPos = LocalToWorldTransform.TransformPosition(UseRay.PointAt(RayHitT));
 				WorldHitResultOut.RayDistance = WorldRay.Project(WorldPos);
 			}
+			WorldHitResultOut.HitMeshBaryCoords = HitBaryCoords;
 			return true;
 		}
 		return false;
@@ -620,6 +678,62 @@ public:
 		return Adapter->TriangleCount();
 	}
 
+	virtual bool IsTriangle(int32 TriId) const override
+	{
+		return SourceMesh ? Adapter->IsTriangle(TriId) : false;
+	}
+
+	virtual FIndex3i GetTriangle(int32 TriId) const override
+	{
+		return SourceMesh ? Adapter->GetTriangle(TriId) : FIndex3i::Invalid();
+	}
+
+	virtual bool HasNormals() const override
+	{
+		return SourceMesh ? Adapter->HasNormals() : false;
+	}
+
+	virtual bool HasUVs(const int UVLayer = 0) const override
+	{
+		return SourceMesh ? Adapter->HasUVs() : false;
+	}
+
+	virtual FVector3d TriBaryInterpolatePoint(int32 TriId, const FVector3d& BaryCoords) const override
+	{
+		if (SourceMesh)
+		{
+			FVector3d P0, P1, P2;
+			Adapter->GetTriVertices(TriId, P0, P1, P2);
+			return BaryCoords[0] * P0 + BaryCoords[1] * P1 + BaryCoords[2] * P2;
+		}
+		return FVector3d::Zero();
+	}
+
+	virtual bool TriBaryInterpolateNormal(int32 TriId, const FVector3d& BaryCoords, FVector3f& NormalOut) const override
+	{
+		if (SourceMesh && Adapter->HasNormals())
+		{
+			FIndex3i VertIds = Adapter->GetTriangle(TriId);
+			
+			FVector3f N0, N1, N2;
+			Adapter->GetTriNormals(TriId, N0, N1, N2);
+			NormalOut = (float) BaryCoords[0] * N0 + (float) BaryCoords[1] * N1 + (float) BaryCoords[2] * N2;
+			return true;
+		}
+		return false;
+	}
+
+	virtual bool TriBaryInterpolateUV(const int32 TriId, const FVector3d& BaryCoords, const int UVLayer, FVector2f& UVOut) const override
+	{
+		if (SourceMesh && Adapter->HasUVs())
+		{
+			FVector2f UV0, UV1, UV2;
+			Adapter->GetTriUVs(TriId, UVLayer, UV0, UV1, UV2);
+			UVOut = (float) BaryCoords[0] * UV0 + (float) BaryCoords[1] * UV1 + (float) BaryCoords[2] * UV2;
+			return true;
+		}
+		return false;
+	}
 
 	virtual FAxisAlignedBox3d GetWorldBounds(TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) override
 	{
@@ -644,13 +758,14 @@ public:
 		FVector3d LocalDir = Normalized(LocalToWorldTransform.InverseTransformPosition(WorldRay.PointAt(1.0)) - LocalOrigin);
 		FRay3d LocalRay(LocalOrigin, LocalDir);
 
-		double LocalHitT; int32 HitTID;
-		if (AABBTree->FindNearestHitTriangle(LocalRay, LocalHitT, HitTID))
+		double LocalHitT; int32 HitTID; FVector3d HitBaryCoords;
+		if (AABBTree->FindNearestHitTriangle(LocalRay, LocalHitT, HitTID, HitBaryCoords))
 		{
 			WorldHitResultOut.HitMeshTriIndex = HitTID;
 			WorldHitResultOut.HitMeshSpatialWrapper = this;
 			FVector3d WorldPos = LocalToWorldTransform.TransformPosition(LocalRay.PointAt(LocalHitT));
 			WorldHitResultOut.RayDistance = WorldRay.Project(WorldPos);
+			WorldHitResultOut.HitMeshBaryCoords = HitBaryCoords;
 			return true;
 		}
 		return false;
@@ -1963,3 +2078,21 @@ void FMeshSceneAdapter::ParallelMeshVertexEnumeration(
 
 
 }
+
+void FMeshSceneAdapter::ProcessActorChildMeshes(TFunctionRef<void(const FActorAdapter* ActorAdapter, const FActorChildMesh* ChildMesh)> ProcessFunc)
+{
+	for (const TUniquePtr<FActorAdapter>& Actor : SceneActors)
+	{
+		if (Actor)
+		{
+			for (const TUniquePtr<FActorChildMesh>& ChildMesh : Actor->ChildMeshes)
+			{
+				if (ChildMesh)
+				{
+					ProcessFunc(Actor.Get(), ChildMesh.Get());
+				}
+			}
+		}
+	}
+}
+

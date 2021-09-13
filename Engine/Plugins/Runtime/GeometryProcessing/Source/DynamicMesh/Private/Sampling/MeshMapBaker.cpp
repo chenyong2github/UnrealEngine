@@ -323,7 +323,7 @@ void FMeshMapBaker::Bake()
 
 						FMeshMapEvaluator::FCorrespondenceSample Sample;
 						DetailCorrespondenceSampler.SampleUV(UVTriangleID, UVPosition, Sample);
-						if (DetailSampler->IsTriangle(Sample.DetailMesh, Sample.DetailTriID))
+						if (Sample.DetailMesh && DetailSampler->IsTriangle(Sample.DetailMesh, Sample.DetailTriID))
 						{
 							BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords);
 						}

@@ -45,13 +45,22 @@ FVector4f FMeshResampleImageEvaluator::ImageSampleFunction(const FCorrespondence
 {
 	const void* DetailMesh = SampleData.DetailMesh;
 	const int32 DetailTriID = SampleData.DetailTriID;
-	const TImageBuilder<FVector4f>* TextureImage;
-	int DetailUVLayer;
-	Tie(TextureImage, DetailUVLayer) = DetailSampler->GetColorMap(DetailMesh);
+	const TImageBuilder<FVector4f>* TextureImage = nullptr;
+	int DetailUVLayer = 0;
+	const IMeshBakerDetailSampler::FBakeDetailTexture* ColorMap = DetailSampler->GetColorMap(DetailMesh);
+	if (ColorMap)
+	{
+		Tie(TextureImage, DetailUVLayer) = *ColorMap;
+	}
 
-	FVector2f DetailUV;
-	DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, SampleData.DetailBaryCoords, DetailUVLayer, DetailUV);
-	return TextureImage->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
+	FVector4f Color(0, 0, 0, 1);
+	if (TextureImage)
+	{
+		FVector2f DetailUV;
+		DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, SampleData.DetailBaryCoords, DetailUVLayer, DetailUV);
+		Color = TextureImage->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
+	}
+	return Color;
 }
 
 //

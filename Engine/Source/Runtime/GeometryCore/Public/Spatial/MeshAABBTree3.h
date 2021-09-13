@@ -362,15 +362,23 @@ public:
 	{
 		double NearestT;
 		int TID;
-		FindNearestHitTriangle(Ray, NearestT, TID, Options);
+		FVector3d BaryCoords;
+		FindNearestHitTriangle(Ray, NearestT, TID, BaryCoords, Options);
 		return TID;
 	}
 
+	virtual bool FindNearestHitTriangle(const FRay3d& Ray, double& NearestT, int& TID, const FQueryOptions& Options = FQueryOptions()) const override
+	{
+		FVector3d BaryCoords;
+		return FindNearestHitTriangle(Ray, NearestT, TID, BaryCoords, Options);
+	}
+
 	virtual bool FindNearestHitTriangle(
-		const FRay3d& Ray, double& NearestT, int& TID, 
+		const FRay3d& Ray, double& NearestT, int& TID, FVector3d& BaryCoords,
 		const FQueryOptions& Options = FQueryOptions()) const override
 	{
 		TID = IndexConstants::InvalidID;
+		BaryCoords = FVector3d::Zero();
 
 		// Note: using TNumericLimits<float>::Max() here because we need to use <= to compare Box hit
 		//   to NearestT, and Box hit returns TNumericLimits<double>::Max() on no-hit. So, if we set
@@ -382,13 +390,13 @@ public:
 			return false;
 		}
 
-		FindHitTriangle(RootIndex, Ray, NearestT, TID, Options);
+		FindHitTriangle(RootIndex, Ray, NearestT, TID, BaryCoords, Options);
 		return TID != IndexConstants::InvalidID;
 	}
 
 protected:
 	void FindHitTriangle(
-		int IBox, const FRay3d& Ray, double& NearestT, int& TID,
+		int IBox, const FRay3d& Ray, double& NearestT, int& TID, FVector3d& BaryCoords,
 		const FQueryOptions& Options = FQueryOptions()) const
 	{
 		int idx = BoxToIndex[IBox];
@@ -412,6 +420,7 @@ protected:
 					{
 						NearestT = Query.RayParameter;
 						TID = ti;
+						BaryCoords = Query.TriangleBaryCoords;
 					}
 				}
 			}
@@ -427,7 +436,7 @@ protected:
 				double fChild1T = box_ray_intersect_t(iChild1, Ray);
 				if (fChild1T <= NearestT + e)
 				{
-					FindHitTriangle(iChild1, Ray, NearestT, TID, Options);
+					FindHitTriangle(iChild1, Ray, NearestT, TID, BaryCoords, Options);
 				}
 			}
 			else
@@ -441,10 +450,10 @@ protected:
 				{
 					if (fChild1T <= NearestT + e)
 					{
-						FindHitTriangle(iChild1, Ray, NearestT, TID, Options);
+						FindHitTriangle(iChild1, Ray, NearestT, TID, BaryCoords, Options);
 						if (fChild2T <= NearestT + e)
 						{
-							FindHitTriangle(iChild2, Ray, NearestT, TID, Options);
+							FindHitTriangle(iChild2, Ray, NearestT, TID, BaryCoords, Options);
 						}
 					}
 				}
@@ -452,10 +461,10 @@ protected:
 				{
 					if (fChild2T <= NearestT + e)
 					{
-						FindHitTriangle(iChild2, Ray, NearestT, TID, Options);
+						FindHitTriangle(iChild2, Ray, NearestT, TID, BaryCoords, Options);
 						if (fChild1T <= NearestT + e)
 						{
-							FindHitTriangle(iChild1, Ray, NearestT, TID, Options);
+							FindHitTriangle(iChild1, Ray, NearestT, TID, BaryCoords, Options);
 						}
 					}
 				}

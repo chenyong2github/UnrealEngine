@@ -70,7 +70,6 @@ const void* UE::Geometry::GetDetailMeshTrianglePoint_Raycast(
 	{
 		DetailTriangleOut = HitTID;
 		DetailTriBaryCoords = HitBaryCoords;
-		return HitMesh;
 	}
 	else
 	{
@@ -79,24 +78,19 @@ const void* UE::Geometry::GetDetailMeshTrianglePoint_Raycast(
 		OnSurfQueryOptions.MaxDistance = Thickness;
 		double NearDistSqr = 0;
 		int32 NearestTriID = IndexConstants::InvalidID;
-		const void* NearestMesh = nullptr;
+		
 		// if we are using absolute nearest point as a fallback, then ignore max distance
-		if (bFailToNearestPoint)
-		{
-			NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, DetailTriBaryCoords);
-		}
-		else
-		{
-			NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, DetailTriBaryCoords, OnSurfQueryOptions);
-		}
-		if (NearestMesh && DetailSampler->IsTriangle(NearestMesh, NearestTriID))
+		HitMesh = bFailToNearestPoint ? 
+			DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, HitBaryCoords) :
+			DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, HitBaryCoords, OnSurfQueryOptions);
+		if (HitMesh && DetailSampler->IsTriangle(HitMesh, NearestTriID))
 		{
 			DetailTriangleOut = NearestTriID;
-			return NearestMesh;
+			DetailTriBaryCoords = HitBaryCoords;
 		}
 	}
 
-	return nullptr;
+	return HitMesh;
 }
 
 
@@ -111,10 +105,12 @@ const void* UE::Geometry::GetDetailMeshTrianglePoint_Nearest(
 {
 	double NearDistSqr = 0;
 	int32 NearestTriID = IndexConstants::InvalidID;
-	const void* NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, DetailTriBaryCoords);
+	FVector3d NearestBaryCoords = FVector3d::Zero();
+	const void* NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, NearestBaryCoords);
 	if (NearestMesh && DetailSampler->IsTriangle(NearestMesh, NearestTriID))
 	{
 		DetailTriangleOut = NearestTriID;
+		DetailTriBaryCoords = NearestBaryCoords;
 		return NearestMesh;
 	}
 

@@ -25,6 +25,8 @@ protected:
 	const FMeshDescription* Mesh;
 	TVertexAttributesConstRef<FVector3f> VertexPositions;
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals;
+	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs;
+	TArrayView<const FVertexInstanceID> TriangleVertexInstanceIndices;
 
 	FVector3d BuildScale = FVector3d::One();
 	bool bScaleNormals = false;
@@ -35,6 +37,8 @@ public:
 		FStaticMeshConstAttributes Attributes(*MeshIn);
 		VertexPositions = Attributes.GetVertexPositions();
 		VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+		TriangleVertexInstanceIndices = Attributes.GetTriangleVertexInstanceIndices().GetRawArray();
 		// @todo: can we hold TArrayViews of the attribute arrays here? Do we guarantee not to mutate the mesh description for the duration of this object?
 	}
 
@@ -125,11 +129,55 @@ public:
 	{
 		return HasNormals() ? VertexInstanceNormals.GetNumElements() : 0;
 	}
+
+	/** Get Normal by VertexInstanceID */
 	FVector3f GetNormal(int32 IDValue) const
 	{
 		const FVector& InstanceNormal = VertexInstanceNormals[FVertexInstanceID(IDValue)];
 		return (!bScaleNormals) ? FVector3f(InstanceNormal) :
 			UE::Geometry::Normalized(FVector3f(InstanceNormal.X/BuildScale.X, InstanceNormal.Y/BuildScale.Y, InstanceNormal.Z/BuildScale.Z));
+	}
+
+	/** Get Normals for a given Triangle */
+	template<typename VectorType>
+	void GetTriNormals(int32 TriId, VectorType& N0, VectorType& N1, VectorType& N2)
+	{
+		N0 = GetNormal(TriangleVertexInstanceIndices[TriId*3]);
+		N1 = GetNormal(TriangleVertexInstanceIndices[TriId*3+1]);
+		N2 = GetNormal(TriangleVertexInstanceIndices[TriId*3+2]);
+	}
+
+	inline bool HasUVs() const
+	{
+		return VertexInstanceUVs.IsValid();
+	}
+	inline bool IsUV(const int32 UVId) const
+	{
+		return HasUVs() && UVId >= 0 && UVId < UVCount();
+	}
+	inline int32 MaxUVID() const
+	{
+		return HasUVs() ? VertexInstanceUVs.GetNumElements() : 0;
+	}
+	inline int32 UVCount() const
+	{
+		return HasUVs() ? VertexInstanceUVs.GetNumElements() : 0;
+	}
+
+	/** Get UV by VertexInstanceID for a given UVLayer */
+	FVector2f GetUV(const int32 IDValue, const int32 UVLayer) const
+	{
+		const FVector2D& InstanceUV = VertexInstanceUVs.Get(FVertexInstanceID(IDValue), UVLayer);
+		return FVector2f(InstanceUV);
+	}
+
+	/** Get UVs for a given UVLayer and Triangle */
+	template<typename VectorType>
+	void GetTriUVs(const int32 TriId, const int32 UVLayer, VectorType& UV0, VectorType& UV1, VectorType& UV2)
+	{
+		UV0 = GetUV(TriangleVertexInstanceIndices[TriId*3], UVLayer);
+		UV1 = GetUV(TriangleVertexInstanceIndices[TriId*3+1], UVLayer);
+		UV2 = GetUV(TriangleVertexInstanceIndices[TriId*3+2], UVLayer);
 	}
 };
 
