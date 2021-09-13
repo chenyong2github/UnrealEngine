@@ -56,7 +56,7 @@ FMaterialEval SubsurfaceProfile_EvalMaterial(
 	const float VoH = saturate(dot(V, H));
 
 	// Diffuse Lobe
-	AddLobeWithMIS(Result.Weight, Result.Pdf, Payload.DiffuseColor * (1 - SpecE), NoL / PI, LobeProb.x);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, Payload.DiffuseColor * (1 - SpecE) * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeProb.x);
 
 	// Specular lobes
 	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Alpha0);
@@ -144,6 +144,8 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 
 	// With a valid direction in hand -- now evaluate the BxDF (taking advantage of already computed terms)
 
+	const float3 L_World = normalize(mul(L, Basis));
+
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
 
@@ -151,7 +153,7 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 	float OutPdf = 0;
 
 	// Diffuse Lobe
-	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor * (1 - SpecE), NoL / PI, LobeProb.x);
+	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor * (1 - SpecE) * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeProb.x);
 
 	// Specular lobe
 	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Alpha0);
@@ -161,5 +163,5 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 	AddLobeWithMIS(OutWeight, OutPdf, (    DualRoughnessData.z) * F * GGXResult1.x * Spec1.W, GGXResult1.y, LobeProb.z);
 
 	// transform to world space
-	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0, OutRoughness);
+	return CreateMaterialSample(L_World, OutWeight, OutPdf, 1.0, OutRoughness);
 }
