@@ -245,6 +245,23 @@ void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDa
 	UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode::Particles);
 }
 
+#if WITH_EDITORONLY_DATA
+bool UNiagaraComponentRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
+{
+	if ( InTargetBindingName == GET_MEMBER_NAME_CHECKED(UNiagaraComponentRendererProperties, RendererEnabledBinding) )
+	{
+		if (
+			InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
+			InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespace) ||
+			InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+#endif
+
 void UNiagaraComponentRendererProperties::UpdateSetterFunctions()
 {
 	SetterFunctionMapping.Empty();

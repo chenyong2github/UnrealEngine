@@ -299,9 +299,11 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 	FNiagaraDataSetReaderInt32<int32> VisTagAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, Properties->RendererVisibilityTagBinding.GetDataSetBindableVariable().GetName());
 	FNiagaraDataSetReaderInt32<int32> UniqueIDAccessor = FNiagaraDataSetAccessor<int32>::CreateReader(Data, FName("UniqueID"));
 
-	auto IsParticleEnabled = [&EnabledAccessor, &VisTagAccessor, Properties](int32 ParticleIndex)
+	const bool bIsRendererEnabled = IsRendererEnabled(Properties, Emitter);
+
+	auto IsParticleEnabled = [&bIsRendererEnabled, &EnabledAccessor, &VisTagAccessor, Properties](int32 ParticleIndex)
 	{
-		if (EnabledAccessor.GetSafe(ParticleIndex, true))
+		if (bIsRendererEnabled && EnabledAccessor.GetSafe(ParticleIndex, true))
 		{
 			if (VisTagAccessor.IsValid())
 			{
