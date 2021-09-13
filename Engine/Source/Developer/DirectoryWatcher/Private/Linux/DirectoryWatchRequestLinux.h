@@ -6,33 +6,9 @@
 #include "IDirectoryWatcher.h"
 #include <sys/inotify.h>
 
-#define EVENT_SIZE  ( sizeof (struct inotify_event) )
-#define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
-
 class FDirectoryWatchRequestLinux
 {
 public:
-
-	/**
-	 * Template class to support FString to TValueType maps with a case sensitive key
-	 */
-	template<typename TValueType>
-	struct FCaseSensitiveLookupKeyFuncs : BaseKeyFuncs<TValueType, FString>
-	{
-		static FORCEINLINE const FString& GetSetKey(const TPair<FString, TValueType>& Element)
-		{
-			return Element.Key;
-		}
-		static FORCEINLINE bool Matches(const FString& A, const FString& B)
-		{
-			return A.Equals(B, ESearchCase::CaseSensitive);
-		}
-		static FORCEINLINE uint32 GetKeyHash(const FString& Key)
-		{
-			return FCrc::StrCrc32<TCHAR>(*Key);
-		}
-	};
-
 
 	FDirectoryWatchRequestLinux();
 	virtual ~FDirectoryWatchRequestLinux();
@@ -48,41 +24,52 @@ public:
 	bool HasDelegates() const;
 	/** Prepares the request for deletion */
 	void EndWatchRequest();
-	/** Triggers all pending file change notifications */
-	void ProcessPendingNotifications();
+
+	/** Call ProcessPendingNotifications on each delegate */
+	static void ProcessNotifications(TMap<FString, FDirectoryWatchRequestLinux*>& RequestMap);
+
+	/** Dump inotify stats */
+	static void DumpStats(TMap<FString, FDirectoryWatchRequestLinux*>& RequestMap);
 
 private:
 
+	/** Triggers all pending file change notifications */
+	void ProcessPendingNotifications();
+
 	/** Adds watches for all files (and subdirectories) in a directory. */
-	void WatchDirectoryTree(const FString & RootAbsolutePath);
+	void WatchDirectoryTree(const FString& RootAbsolutePath);
 
-	/** Removes all watches from a */
-	void UnwatchDirectoryTree(const FString & RootAbsolutePath);
+	/** Removes all watches for path */
+	void UnwatchDirectoryTree(const FString& RootAbsolutePath);
 
-	FString Directory;
+	void Shutdown();
+	void ProcessChanges(TArray<TPair<FFileChangeData, bool>>& FileChanges);
 
-	bool bRunning;
-	bool bEndWatchRequestInvoked;
+	static void SetINotifyErrorMsg(const FString &ErrorMsg);
+	static void DumpINotifyErrorDetails(TMap<FString, FDirectoryWatchRequestLinux*>& RequestMap);
+
+private:
 
 	/** Whether or not watch subtree. */
 	bool bWatchSubtree;
 
+	/** EndWatchRequest called? */
+	bool bEndWatchRequestInvoked;
+
+	/** INotify file descriptor */
 	int FileDescriptor;
 
-	/** Mapping from watch descriptors to their path names */
+	/** Absolute path to our root watch directory */
+	FString WatchDirectory;
+
+	/** Mapping from watch descriptors to watched directory names */
 	TMap<int32, FString> WatchDescriptorsToPaths;
 
-	/** Mapping from paths to watch descriptors */
-	TMap<FString, int32, FDefaultSetAllocator, FCaseSensitiveLookupKeyFuncs<int32>> PathsToWatchDescriptors;
-
-	int NotifyFilter;
+	/** Set of hashed directory names we're watching */
+	TSet<uint32> PathNameHashSet;
 
 	/** A delegate with its corresponding IDirectoryWatcher::WatchOptions flags */
 	typedef TPair<IDirectoryWatcher::FDirectoryChanged, uint32> FWatchDelegate;
 	TArray<FWatchDelegate> Delegates;
-	/** Each FFileChangeData tracks whether it is a directory or not */
-	TArray<TPair<FFileChangeData, bool>> FileChanges;
-
-	void Shutdown();
-	void ProcessChanges();
 };
+

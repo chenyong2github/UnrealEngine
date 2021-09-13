@@ -47,7 +47,7 @@ int32 DirectoryWatcherTest(const TCHAR* CommandLine)
 	UE_LOG(LogTestPAL, Display, TEXT("Running directory watcher test."));
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	FString TestDir = FString::Printf(TEXT("%sDirectoryWatcherTest%d"), FPlatformProcess::UserTempDir(), FPlatformProcess::GetCurrentProcessId());
+	FString TestDir = FString::Printf(TEXT("%s/DirectoryWatcherTest%d"), FPlatformProcess::UserTempDir(), FPlatformProcess::GetCurrentProcessId());
 
 	if (PlatformFile.CreateDirectory(*TestDir) && PlatformFile.CreateDirectory(*(TestDir + TEXT("/subtest"))))
 	{
@@ -57,8 +57,14 @@ int32 DirectoryWatcherTest(const TCHAR* CommandLine)
 		IDirectoryWatcher* DirectoryWatcher = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher")).Get();
 		if (DirectoryWatcher)
 		{
+			/** Whether to include notifications for changes to actual directories (such as directories being created or removed). */
+			//   IDirectoryWatcher::WatchOptions::IgnoreChangesInSubtree
+			/** Whether changes in subdirectories need to be reported. */
+			//   IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges
+			uint32 Flags = 0;
+
 			auto Callback = IDirectoryWatcher::FDirectoryChanged::CreateRaw(&Detector, &FChangeDetector::OnDirectoryChanged);
-			DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(TestDir, Callback, DirectoryChangedHandle);
+			DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(TestDir, Callback, DirectoryChangedHandle, Flags);
 			UE_LOG(LogTestPAL, Display, TEXT("Registered callback for changes in '%s'"), *TestDir);
 		}
 		else
@@ -180,6 +186,7 @@ int32 DirectoryWatcherTest(const TCHAR* CommandLine)
 			DirectoryWatcher->Tick(1.0f);
 		}
 
+		DirectoryWatcher->DumpStats();
 
 		// clean up
 		verify(DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(TestDir, DirectoryChangedHandle));

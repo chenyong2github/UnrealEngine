@@ -38,9 +38,11 @@ FDirectoryWatcherLinux::~FDirectoryWatcherLinux()
 	ensure(NumRequests == 0);
 }
 
-bool FDirectoryWatcherLinux::RegisterDirectoryChangedCallback_Handle(const FString& Directory, const FDirectoryChanged& InDelegate, FDelegateHandle& OutHandle, uint32 Flags)
+bool FDirectoryWatcherLinux::RegisterDirectoryChangedCallback_Handle(const FString& InDirectory, const FDirectoryChanged& InDelegate, FDelegateHandle& OutHandle, uint32 Flags)
 {
-	FDirectoryWatchRequestLinux** RequestPtr = RequestMap.Find(Directory);
+	// Make sure the path is absolute. Without this, we were missing and duplicating some directories.
+	FString WatchDirectory = FPaths::ConvertRelativePathToFull(InDirectory);
+	FDirectoryWatchRequestLinux** RequestPtr = RequestMap.Find(WatchDirectory);
 	FDirectoryWatchRequestLinux* Request = NULL;
 
 	if (RequestPtr)
@@ -56,15 +58,15 @@ bool FDirectoryWatcherLinux::RegisterDirectoryChangedCallback_Handle(const FStri
 		NumRequests++;
 
 		// Begin reading directory changes
-		if (!Request->Init(Directory, Flags))
+		if (!Request->Init(WatchDirectory, Flags))
 		{
-			UE_LOG(LogDirectoryWatcher, Warning, TEXT("Failed to begin reading directory changes for %s."), *Directory);
+			UE_LOG(LogDirectoryWatcher, Warning, TEXT("Failed to begin reading directory changes for %s."), *WatchDirectory);
 			delete Request;
 			NumRequests--;
 			return false;
 		}
 
-		RequestMap.Add(Directory, Request);
+		RequestMap.Add(WatchDirectory, Request);
 	}
 
 	OutHandle = Request->AddDelegate(InDelegate, Flags);
@@ -73,9 +75,11 @@ bool FDirectoryWatcherLinux::RegisterDirectoryChangedCallback_Handle(const FStri
 }
 
 
-bool FDirectoryWatcherLinux::UnregisterDirectoryChangedCallback_Handle(const FString& Directory, FDelegateHandle InHandle)
+bool FDirectoryWatcherLinux::UnregisterDirectoryChangedCallback_Handle(const FString& InDirectory, FDelegateHandle InHandle)
 {
-	FDirectoryWatchRequestLinux** RequestPtr = RequestMap.Find(Directory);
+	// Make sure the path is absolute
+	FString WatchDirectory = FPaths::ConvertRelativePathToFull(InDirectory);
+	FDirectoryWatchRequestLinux** RequestPtr = RequestMap.Find(WatchDirectory);
 
 	if (RequestPtr)
 	{
@@ -89,7 +93,7 @@ bool FDirectoryWatcherLinux::UnregisterDirectoryChangedCallback_Handle(const FSt
 			if (!Request->HasDelegates())
 			{
 				// Remove from the active map and add to the pending delete list
-				RequestMap.Remove(Directory);
+				RequestMap.Remove(WatchDirectory);
 				RequestsPendingDelete.AddUnique(Request);
 
 				// Signal to end the watch which will mark this request for deletion
@@ -115,9 +119,12 @@ void FDirectoryWatcherLinux::Tick(float DeltaSeconds)
 		RequestsPendingDelete.RemoveAt(RequestIdx);
 	}
 
-	// Trigger any file change notification delegates
-	for (TMap<FString, FDirectoryWatchRequestLinux*>::TConstIterator RequestIt(RequestMap); RequestIt; ++RequestIt)
-	{
-		RequestIt.Value()->ProcessPendingNotifications();
-	}
+	FDirectoryWatchRequestLinux::ProcessNotifications(RequestMap);
 }
+
+bool FDirectoryWatcherLinux::DumpStats()
+{
+	FDirectoryWatchRequestLinux::DumpStats(RequestMap);
+	return true;
+}
+

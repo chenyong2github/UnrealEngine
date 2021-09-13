@@ -66,6 +66,11 @@ void FDirectoryWatcherProxy::Tick(float DeltaSeconds)
 	ProcessPendingChanges();
 }
 
+bool FDirectoryWatcherProxy::DumpStats()
+{
+	return Inner->DumpStats();
+}
+
 void FDirectoryWatcherProxy::RegisterExternalChanges(TArrayView<const FFileChangeData> FileChanges)
 {
 	if (IsInGameThread())
