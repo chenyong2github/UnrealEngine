@@ -370,6 +370,61 @@ void FNeuralTensor::ToCPU_RenderThread(FRDGBuilder* InOutGraphBuilder)
 	});
 }
 
+bool FNeuralTensor::InitPooledBuffer(void** NativeResource)
+{
+	if (!bEnableGPU)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::InitPooledBuffer():bEnableGPU is false"));
+		return false;
+	}
+
+	// Make sure that we wait for Graph builder to finish
+	std::atomic<bool> bIsGraphBuilderDone(false);
+
+	ENQUEUE_RENDER_COMMAND(FNeuralTensor_InitPooledBuffer)(
+		[this, &NativeResource, &bIsGraphBuilderDone] (FRHICommandListImmediate& RHICmdList)
+		{
+			FRDGBuilder Builder(RHICmdList);
+
+			FRDGBufferDesc BufferDesc;
+			BufferDesc.BytesPerElement = FDataType::GetSize(DataType);
+			BufferDesc.NumElements = Num();
+			BufferDesc.Usage = BUF_UnorderedAccess | BUF_ShaderResource;
+			BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
+
+			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, *GetName());
+			
+			// Recreate PooledBuffer for future runs
+			PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
+			*PooledBuffer = Builder.ConvertToExternalBuffer(BufferRef);
+
+			// @todo: For now we're not initializing SRV and UAV, since those are not used by DirectML execution provider
+			BufferSRVRef.Reset();
+			BufferUAVRef.Reset();
+
+			Builder.Execute();
+
+#ifdef PLATFORM_WIN64
+			if (NativeResource)
+			{
+				FRHIBuffer* Buffer = (*PooledBuffer)->GetRHI();
+
+				NativeResource[0] = FNeuralNetworkInferenceUtilsGPU::GetD3D12Resource(Buffer);
+			}
+#endif
+
+			bIsGraphBuilderDone = true;
+		}
+	);
+
+	while (!bIsGraphBuilderDone)
+	{
+		FPlatformProcess::Sleep(0.1e-3);
+	}
+
+	return true;
+}
+
 TRefCountPtr<class FRDGPooledBuffer>& FNeuralTensor::GetPooledBuffer() const
 {
 	// Sanity checks

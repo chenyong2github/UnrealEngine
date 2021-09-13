@@ -196,6 +196,12 @@ public:
 	void UpdateSRVAndOrUAV_RenderThread(FRDGBuilder* InOutGraphBuilder);
 	void ToCPU_RenderThread(FRDGBuilder* InOutGraphBuilder);
 
+	/**
+	 * Allocate data for GPU pooled buffer.
+	 * NativeResource is a pointer to ID3D12Resource obtained from PooledBuffer and that one can be shared by DirectML execution provider
+	 */
+	bool InitPooledBuffer(void** NativeResource = nullptr);
+
 	TRefCountPtr<class FRDGPooledBuffer>& GetPooledBuffer() const;
 	const FRDGBufferSRVRef GetBufferSRVRef() const;
 	FRDGBufferUAVRef GetBufferUAVRef();
