@@ -380,12 +380,12 @@ bool FStreamer::IsQualityController(FPlayerId PlayerId) const
 	return this->PlayerSessions.IsQualityController(PlayerId);
 }
 
-FPixelStreamingAudioSink* FStreamer::GetAudioSink(FPlayerId PlayerId) const
+IPixelStreamingAudioSink* FStreamer::GetAudioSink(FPlayerId PlayerId) const
 {
 	return this->PlayerSessions.GetAudioSink(PlayerId);
 }
 
-FPixelStreamingAudioSink* FStreamer::GetUnlistenedAudioSink() const
+IPixelStreamingAudioSink* FStreamer::GetUnlistenedAudioSink() const
 {
 	return this->PlayerSessions.GetUnlistenedAudioSink();
 }

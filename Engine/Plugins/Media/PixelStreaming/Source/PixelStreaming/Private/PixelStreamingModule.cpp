@@ -428,7 +428,7 @@ TStatId FPixelStreamingModule::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FPixelStreamingModule, STATGROUP_Tickables);
 }
 
-FPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId PlayerId)
+IPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId PlayerId)
 {
 	if(!this->Streamer.IsValid())
 	{
@@ -438,7 +438,7 @@ FPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId Play
 	return this->Streamer->GetAudioSink(PlayerId);
 }
 
-FPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
+IPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
 {
 	if(!this->Streamer.IsValid())
 	{

@@ -35,8 +35,8 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 
         // Begin IPixelStreamingSessions
 		virtual int GetNumPlayers() const override;
-		virtual FPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const override;
-		virtual FPixelStreamingAudioSink* GetUnlistenedAudioSink() const override;
+		virtual IPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const override;
+		virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() const override;
 		virtual bool IsQualityController(FPlayerId PlayerId) const override;
 		virtual void SetQualityController(FPlayerId PlayerId) override;
 		virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const override;
@@ -50,8 +50,8 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		FPlayerSession* GetPlayerSession_Internal(FPlayerId PlayerId) const;
 
 		void OnRemoteIceCandidate_Internal(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
-		FPixelStreamingAudioSink* GetUnlistenedAudioSink_Internal() const;
-		FPixelStreamingAudioSink* GetAudioSink_Internal(FPlayerId PlayerId) const;
+		IPixelStreamingAudioSink* GetUnlistenedAudioSink_Internal() const;
+		IPixelStreamingAudioSink* GetAudioSink_Internal(FPlayerId PlayerId) const;
 		void SendLatestQP_Internal(FPlayerId PlayerId, int LatestQP) const;
 		int GetNumPlayers_Internal() const;
 		void SendFreezeFrame_Internal(const TArray64<uint8>& JpegBytes);

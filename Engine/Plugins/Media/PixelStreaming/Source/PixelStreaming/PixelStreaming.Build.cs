@@ -82,7 +82,6 @@ namespace UnrealBuildTool.Rules
 				"CoreUObject",
 				"Engine",
 				"InputCore",
-				"InputDevice",
 				"Json",
 				"RenderCore",
 				"RHI",
@@ -93,8 +92,14 @@ namespace UnrealBuildTool.Rules
 				"WebSockets",
 				"Sockets",
 				"MediaUtils",
-				"AVEncoder",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"AVEncoder"
+			});
+
+			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
+			PublicDependencyModuleNames.AddRange(new string[]
+			{
+				"InputDevice"
 			});
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");

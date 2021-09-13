@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingAudioComponent.h"
-#include "PixelStreamingAudioSink.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingPrivate.h"
 #include "CoreMinimal.h"
@@ -119,7 +118,7 @@ bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 
     this->PlayerToHear = PlayerToListenTo;
 
-    FPixelStreamingAudioSink* CandidateSink = this->WillListenToAnyPlayer() ? 
+    IPixelStreamingAudioSink* CandidateSink = this->WillListenToAnyPlayer() ? 
         PixelStreamingModule.GetUnlistenedAudioSink() : PixelStreamingModule.GetPeerAudioSink( FPlayerId(this->PlayerToHear) );
     
     if(CandidateSink == nullptr)

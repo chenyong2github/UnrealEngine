@@ -69,14 +69,14 @@ int FThreadSafePlayerSessions::GetNumPlayers() const
     SUBMIT_TASK_WITH_RETURN(int, GetNumPlayers_Internal);
 }
 
-FPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink(FPlayerId PlayerId) const
+IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink(FPlayerId PlayerId) const
 {
-    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(FPixelStreamingAudioSink*, GetAudioSink_Internal, PlayerId)
+    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(IPixelStreamingAudioSink*, GetAudioSink_Internal, PlayerId)
 }
 
-FPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink() const
+IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink() const
 {
-    SUBMIT_TASK_WITH_RETURN(FPixelStreamingAudioSink*, GetUnlistenedAudioSink_Internal)
+    SUBMIT_TASK_WITH_RETURN(IPixelStreamingAudioSink*, GetUnlistenedAudioSink_Internal)
 }
 
 bool FThreadSafePlayerSessions::IsQualityController(FPlayerId PlayerId) const
@@ -181,7 +181,7 @@ void FThreadSafePlayerSessions::OnRemoteIceCandidate_Internal(FPlayerId PlayerId
 	}
 }
 
-FPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink_Internal() const
+IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink_Internal() const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -191,13 +191,14 @@ FPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink_Inte
 		FPixelStreamingAudioSink& AudioSink = Session->GetAudioSink();
 		if(!AudioSink.HasAudioConsumers())
 		{
-			return &Session->GetAudioSink();
+            FPixelStreamingAudioSink* AudioSinkPtr = &AudioSink;
+			return static_cast<IPixelStreamingAudioSink*>(AudioSinkPtr);
 		}
 	}
 	return nullptr;
 }
 
-FPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink_Internal(FPlayerId PlayerId) const
+IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink_Internal(FPlayerId PlayerId) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -205,7 +206,8 @@ FPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink_Internal(FPlay
 
     if(PlayerSession)
     {
-        return &PlayerSession->GetAudioSink();
+        FPixelStreamingAudioSink* AudioSink = &PlayerSession->GetAudioSink();
+        return static_cast<IPixelStreamingAudioSink*>(AudioSink);
     }
     return nullptr;
 }

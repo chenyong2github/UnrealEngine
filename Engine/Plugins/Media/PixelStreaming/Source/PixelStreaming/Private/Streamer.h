@@ -39,8 +39,8 @@ public:
 
 	// Begin IPixelStreamingSessions interface.
 	virtual int GetNumPlayers() const override;
-	virtual FPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const override;
-	virtual FPixelStreamingAudioSink* GetUnlistenedAudioSink() const override;
+	virtual IPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const override;
+	virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() const override;
 	virtual bool IsQualityController(FPlayerId PlayerId) const override;
 	virtual void SetQualityController(FPlayerId PlayerId) override;
 	virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const override;

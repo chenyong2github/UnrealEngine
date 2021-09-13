@@ -6,10 +6,9 @@
 #include "PlayerId.h"
 #include "Components/SynthComponent.h"
 #include "IPixelStreamingAudioConsumer.h"
+#include "IPixelStreamingAudioSink.h"
 #include "PixelStreamingAudioComponent.generated.h"
 
-
-class FPixelStreamingAudioSink;
 
 /**
  * Allows in-engine playback of incoming WebRTC audio from a particular Pixel Streaming player/peer using their mic in the browser.
@@ -61,7 +60,7 @@ class PIXELSTREAMING_API UPixelStreamingAudioComponent : public USynthComponent,
         TArray<int16_t> Buffer;
         bool bIsListeningToPeer;
         bool bComponentWantsAudio;
-        FPixelStreamingAudioSink* AudioSink;
+        IPixelStreamingAudioSink* AudioSink;
         FCriticalSection CriticalSection;
         uint32 SampleRate;
 

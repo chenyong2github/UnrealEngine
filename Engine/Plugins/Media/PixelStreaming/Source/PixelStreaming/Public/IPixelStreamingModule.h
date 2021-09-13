@@ -8,11 +8,9 @@
 #include "IInputDeviceModule.h"
 #include "Templates/SharedPointer.h"
 #include "PlayerId.h"
+#include "IPixelStreamingAudioSink.h"
 
 class UTexture2D;
-class IMediaPlayer;
-class IMediaEventSink;
-class FPixelStreamingAudioSink;
 class UPixelStreamerInputComponent;
 
 /**
@@ -86,12 +84,12 @@ public:
 	/**
 	 * Get the audio sink associated with a specific peer/player.
 	 */
-	virtual FPixelStreamingAudioSink* GetPeerAudioSink(FPlayerId PlayerId) = 0;
+	virtual IPixelStreamingAudioSink* GetPeerAudioSink(FPlayerId PlayerId) = 0;
 
 	/**
 	 * Get an audio sink that has no peers/players listening to it.
 	 */
-	virtual FPixelStreamingAudioSink* GetUnlistenedAudioSink() = 0;
+	virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() = 0;
 
 	/**
 	 * Tell the input device about a new pixel streaming input component.

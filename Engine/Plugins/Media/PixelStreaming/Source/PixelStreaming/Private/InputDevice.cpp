@@ -16,6 +16,7 @@
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
 #include "Framework/Application/SlateUser.h"
+#include "EditorPixelStreamingSettings.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(PixelStreamerInputDevice, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(PixelStreamerInputDevice);
