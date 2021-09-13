@@ -61,6 +61,7 @@ void STabDrawer::Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab,
 	}
 
 	FSlateApplication::Get().OnFocusChanging().AddSP(this, &STabDrawer::OnGlobalFocusChanging);
+	FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &STabDrawer::OnActiveTabChanged));
 
 	bIsResizeHandleHovered = false;
 	bIsResizing = false;
@@ -538,10 +539,12 @@ void STabDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 			}
 			else if (NewFocusedWidgetPath.IsValid())
 			{
-				// New focus is on something else, try to check if it's a menu
+				// New focus is on something else, try to check if it's a menu or child window
 				TSharedRef<SWindow> NewWindow = NewFocusedWidgetPath.GetWindow();
 				TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(ThisWidget);
 
+				// See if this is a child window (like a color picker being opened from details), and if so, don't dismiss
+				// Rely on OnActiveTabChanged below to lose focus if the child window actually contains tabs
 				if (!NewWindow->IsDescendantOf(MyWindow))
 				{
 					if (TSharedPtr<SWidget> MenuHost = FSlateApplication::Get().GetMenuHostWidget())
@@ -571,5 +574,14 @@ void STabDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 		{
 			OnDrawerFocusLost.ExecuteIfBound(ThisWidget);
 		}
+	}
+}
+
+void STabDrawer::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
+{
+	// This tab lost the active status to some other tab; treat this like focus was lost
+	if (PreviouslyActive == ForTab && NewlyActivated.IsValid())
+	{
+		OnDrawerFocusLost.ExecuteIfBound(SharedThis(this));
 	}
 }
