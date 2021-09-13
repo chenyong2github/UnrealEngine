@@ -31,7 +31,7 @@ void SExpanderArrow::Construct( const FArguments& InArgs, const TSharedPtr<class
 		[
 			SNew(SImage)
 			.Image( this, &SExpanderArrow::GetExpanderImage )
-			.ColorAndOpacity( FSlateColor::UseForeground() )
+			.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
 		]
 	];
 }
