@@ -2472,7 +2472,11 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 	if (GeometryForRemoval.Num() > 0)
 	{
 		GeometryForRemoval.Sort();
-		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval);
+		FManagedArrayCollection::FProcessingParameters ProcessingParams;
+#if !UE_BUILD_DEBUG
+		ProcessingParams.bDoValidation = false;
+#endif
+		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval, ProcessingParams);
 	}
 
 	return FirstCreatedIndex - GeometryForRemoval.Num();
@@ -2659,6 +2663,10 @@ int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials&
 	if (GeometryForRemoval.Num() > 0)
 	{
 		GeometryForRemoval.Sort();
+		FManagedArrayCollection::FProcessingParameters ProcessingParams;
+#if !UE_BUILD_DEBUG
+		ProcessingParams.bDoValidation = false;
+#endif
 		Collection->RemoveElements(FGeometryCollection::GeometryGroup, GeometryForRemoval);
 	}
 
@@ -2805,7 +2813,11 @@ bool FDynamicMeshCollection::UpdateAllCollections(FGeometryCollection& Collectio
 		NewFaceCounts[GeomIdx] = MeshData.AugMesh.TriangleCount();
 		NewVertexCounts[GeomIdx] = MeshData.AugMesh.VertexCount();
 	}
-	GeometryCollectionAlgo::ResizeGeometries(&Collection, NewFaceCounts, NewVertexCounts);
+	bool bDoValidation = false;
+#if UE_BUILD_DEBUG
+	bDoValidation = true;
+#endif
+	GeometryCollectionAlgo::ResizeGeometries(&Collection, NewFaceCounts, NewVertexCounts, bDoValidation);
 
 	for (int MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
 	{

@@ -191,7 +191,7 @@ namespace GeometryCollectionAlgo
 	 */
 	void
 	CHAOS_API
-	ResizeGeometries(FGeometryCollection* GeometryCollection, const TArray<int32>& FaceCounts, const TArray<int32>& VertexCounts);
+	ResizeGeometries(FGeometryCollection* GeometryCollection, const TArray<int32>& FaceCounts, const TArray<int32>& VertexCounts, bool bDoValidation = true);
 
 	void
 	CHAOS_API
