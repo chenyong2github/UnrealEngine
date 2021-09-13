@@ -398,8 +398,6 @@ namespace Metasound
 
 			const FVertexName& GetNodeName() const override;
 
-			// This only exists to allow for transform fix-ups to easily cleanup input/output
-			// node names & should not be used for standard edit or runtime callsites.
 			void SetNodeName(const FVertexName& InName) override { checkNoEntry(); }
 
 			/** Returns the readable display name of the given node (Used only within MetaSound
