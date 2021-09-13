@@ -456,8 +456,7 @@ void FDistanceFieldAsyncQueue::ProcessPendingTasks()
 	for (auto It = PendingTasks.CreateIterator(); It; ++It)
 	{
 		FAsyncDistanceFieldTask* Task = *It;
-		if (Task->GenerateSource == nullptr || 
-			Task->GenerateSource->IsCompiling() == false)
+		if ((Task->GenerateSource == nullptr || !Task->GenerateSource->IsCompiling()) && (Task->StaticMesh == nullptr || !Task->StaticMesh ->IsCompiling()))
 		{
 			StartBackgroundTask(Task);
 			It.RemoveCurrent();
@@ -482,7 +481,8 @@ void FDistanceFieldAsyncQueue::AddTask(FAsyncDistanceFieldTask* Task)
 	}
 	
 	const bool bUseAsyncBuild = GUseAsyncDistanceFieldBuildQueue || !IsInGameThread();
-	const bool bIsCompiling = Task->GenerateSource->IsCompiling();
+	const bool bIsCompiling = (Task->GenerateSource && Task->GenerateSource->IsCompiling()) || (Task->StaticMesh && Task->StaticMesh->IsCompiling());
+
 	{
 		// Array protection when called from multiple threads
 		FScopeLock Lock(&CriticalSection);
