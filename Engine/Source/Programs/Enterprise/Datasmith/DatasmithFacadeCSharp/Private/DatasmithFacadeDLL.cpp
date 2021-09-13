@@ -11,7 +11,7 @@
 
 
 #if PLATFORM_WINDOWS
-// Begin Datasmith platform include gard.
+// Begin Datasmith platform include guard.
 #include "Windows/AllowWindowsPlatformTypes.h"
 
 BOOL WINAPI DllMain(

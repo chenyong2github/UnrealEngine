@@ -75,7 +75,7 @@ EDatasmithFacadeCurveInterpMode FDatasmithFacadeTransformAnimation::GetCurveInte
 	return static_cast<EDatasmithFacadeCurveInterpMode>(GetDatasmithTransformAnimation()->GetCurveInterpMode(static_cast<EDatasmithTransformType>(TransformType)));
 }
 
-void FDatasmithFacadeTransformAnimation::GetFrame(EDatasmithFacadeAnimationTransformType TransformType, int32 Index, int32& OutFrameNumber, float& OutX, float& OutY, float& OutZ) const
+void FDatasmithFacadeTransformAnimation::GetFrame(EDatasmithFacadeAnimationTransformType TransformType, int32 Index, int32& OutFrameNumber, double& OutX, double& OutY, double& OutZ) const
 {
 	const FDatasmithTransformFrameInfo& FrameInfo = GetDatasmithTransformAnimation()->GetFrame(static_cast<EDatasmithTransformType>(TransformType), Index);
 	OutFrameNumber = FrameInfo.FrameNumber;
@@ -172,7 +172,7 @@ FDatasmithFacadeSubsequenceAnimation::FDatasmithFacadeSubsequenceAnimation(
 {
 }
 
-TSharedRef<IDatasmithSubsequenceAnimationElement> FDatasmithFacadeSubsequenceAnimation::GetDatasmithSubsequenceAnimation() const 
+TSharedRef<IDatasmithSubsequenceAnimationElement> FDatasmithFacadeSubsequenceAnimation::GetDatasmithSubsequenceAnimation() const
 {
 	return StaticCastSharedRef<IDatasmithSubsequenceAnimationElement>(InternalDatasmithElement);
 }
@@ -299,9 +299,9 @@ FDatasmithFacadeTransformAnimation* FDatasmithFacadeLevelSequence::GetNewTransfo
 	return nullptr;
 }
 
-FDatasmithFacadeVisibilityAnimation* FDatasmithFacadeLevelSequence::GetNewVisibilityAnimation(int32 InIndex) 
+FDatasmithFacadeVisibilityAnimation* FDatasmithFacadeLevelSequence::GetNewVisibilityAnimation(int32 InIndex)
 {
-	if (TSharedPtr<IDatasmithVisibilityAnimationElement> AnimElement = StaticCastSharedPtr<IDatasmithVisibilityAnimationElement>(GetDatasmithLevelSequence()->GetAnimation(InIndex))) 
+	if (TSharedPtr<IDatasmithVisibilityAnimationElement> AnimElement = StaticCastSharedPtr<IDatasmithVisibilityAnimationElement>(GetDatasmithLevelSequence()->GetAnimation(InIndex)))
 	{
 		return new FDatasmithFacadeVisibilityAnimation(AnimElement.ToSharedRef());
 	}
@@ -309,9 +309,9 @@ FDatasmithFacadeVisibilityAnimation* FDatasmithFacadeLevelSequence::GetNewVisibi
 	return nullptr;
 }
 
-FDatasmithFacadeSubsequenceAnimation* FDatasmithFacadeLevelSequence::GetNewSubsequenceAnimation(int32 InIndex) 
+FDatasmithFacadeSubsequenceAnimation* FDatasmithFacadeLevelSequence::GetNewSubsequenceAnimation(int32 InIndex)
 {
-	if (TSharedPtr<IDatasmithSubsequenceAnimationElement> AnimElement = StaticCastSharedPtr<IDatasmithSubsequenceAnimationElement>(GetDatasmithLevelSequence()->GetAnimation(InIndex))) 
+	if (TSharedPtr<IDatasmithSubsequenceAnimationElement> AnimElement = StaticCastSharedPtr<IDatasmithSubsequenceAnimationElement>(GetDatasmithLevelSequence()->GetAnimation(InIndex)))
 	{
 		return new FDatasmithFacadeSubsequenceAnimation(AnimElement.ToSharedRef());
 	}
