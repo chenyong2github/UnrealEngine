@@ -58,7 +58,7 @@ public:
 
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_MeshSimplification"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshSimplifyFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

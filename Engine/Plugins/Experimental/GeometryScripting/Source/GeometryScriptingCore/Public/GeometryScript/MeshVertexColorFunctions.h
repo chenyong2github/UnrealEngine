@@ -11,7 +11,7 @@ class UDynamicMesh;
 
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_VertexColors"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshVertexColorFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

@@ -114,7 +114,7 @@ public:
 
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_MeshRepair"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshRepairFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

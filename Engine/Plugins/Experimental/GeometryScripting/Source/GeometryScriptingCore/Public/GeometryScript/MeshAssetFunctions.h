@@ -46,7 +46,7 @@ public:
 
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_AssetUtils"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_StaticMeshFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()

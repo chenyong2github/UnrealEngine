@@ -83,7 +83,7 @@ public:
 
 
 
-UCLASS()
+UCLASS(meta = (ScriptName = "GeometryScript_MeshDeformers"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshDeformFunctions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
