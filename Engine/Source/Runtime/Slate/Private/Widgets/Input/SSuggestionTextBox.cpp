@@ -29,6 +29,8 @@ void SSuggestionTextBox::Construct( const FArguments& InArgs )
 	OnTextChanged = InArgs._OnTextChanged;
 	OnTextCommitted = InArgs._OnTextCommitted;
 
+	FSlateApplication::Get().OnFocusChanging().AddSP(this, &SSuggestionTextBox::OnGlobalFocusChanging);
+
 	ChildSlot
 	[
 		SAssignNew(MenuAnchor, SMenuAnchor)
@@ -58,7 +60,7 @@ void SSuggestionTextBox::Construct( const FArguments& InArgs )
 					.BorderImage(InArgs._BackgroundImage)
 					.Padding(FMargin(2))
 					[
-						SNew(SVerticalBox)
+						SAssignNew(VerticalBox, SVerticalBox)
 						
 						+ SVerticalBox::Slot()
 							.AutoHeight()
@@ -387,5 +389,19 @@ void SSuggestionTextBox::HandleTextBoxTextCommitted( const FText& InText, ETextC
 	if ((CommitInfo == ETextCommit::OnEnter) || (CommitInfo == ETextCommit::OnCleared))
 	{
 		ClearSuggestions();
+	}
+}
+
+
+void SSuggestionTextBox::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget)
+{
+	if (TextBox.IsValid() && OldFocusedWidgetPath.ContainsWidget(TextBox.Get()) && FocusEvent.GetCause() == EFocusCause::Mouse)
+	{
+		// If the textbox has lost focus and the SuggestionList has not gained it, then we assume the user clicked somewhere else in the app and clear the SuggestionList.
+		if (VerticalBox.IsValid() && !NewFocusedWidgetPath.ContainsWidget(VerticalBox.Get()))
+		{
+			ClearSuggestions();
+			OnTextCommitted.ExecuteIfBound(TextBox->GetText(), ETextCommit::Type::OnUserMovedFocus);
+		}
 	}
 }
