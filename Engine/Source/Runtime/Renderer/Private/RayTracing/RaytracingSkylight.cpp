@@ -9,6 +9,13 @@
 
 static int32 GRayTracingSkyLight = 0;
 
+static FAutoConsoleVariableRef CVarRayTracingSkyLight(
+	TEXT("r.RayTracing.SkyLight"),
+	GRayTracingSkyLight,
+	TEXT("Enables ray tracing SkyLight (default = 0)"),
+	ECVF_RenderThreadSafe | ECVF_Scalability
+);
+
 #if RHI_RAYTRACING
 
 #include "RayTracingSkyLight.h"
@@ -32,12 +39,6 @@ static int32 GRayTracingSkyLight = 0;
 #include "PostProcess/SceneFilterRendering.h"
 #include "HairStrands/HairStrandsRendering.h"
 
-static FAutoConsoleVariableRef CVarRayTracingSkyLight(
-	TEXT("r.RayTracing.SkyLight"),
-	GRayTracingSkyLight,
-	TEXT("Enables ray tracing SkyLight (default = 0)"),
-	ECVF_RenderThreadSafe | ECVF_Scalability
-);
 
 static int32 GRayTracingSkyLightSamplesPerPixel = -1;
 static FAutoConsoleVariableRef CVarRayTracingSkyLightSamplesPerPixel(
