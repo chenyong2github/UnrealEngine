@@ -64,19 +64,18 @@ IMPLEMENT_MODULE( FCoreUObjectModule, CoreUObject );
 // if we are not using compiled in natives, we still need this as a base class for intrinsics
 #if !USE_COMPILED_IN_NATIVES
 COREUOBJECT_API class UClass* Z_Construct_UClass_UObject();
-extern FClassRegistrationInfo& Z_Registration_Info_UClass_UObject();
+extern FClassRegistrationInfo Z_Registration_Info_UClass_UObject;
 UClass* Z_Construct_UClass_UObject()
 {
-	static UClass* OuterClass = Z_Registration_Info_UClass_UObject().OuterSingleton;
-	if (!OuterClass)
+	if (!Z_Registration_Info_UClass_UObject.OuterSingleton)
 	{
-		OuterClass = UObject::StaticClass();
-		UObjectForceRegistration(OuterClass);
-		UObjectBase::EmitBaseReferences(OuterClass);
-		OuterClass->StaticLink();
+		Z_Registration_Info_UClass_UObject.OuterSingleton = UObject::StaticClass();
+		UObjectForceRegistration(Z_Registration_Info_UClass_UObject.OuterSingleton);
+		UObjectBase::EmitBaseReferences(Z_Registration_Info_UClass_UObject.OuterSingleton);
+		Z_Registration_Info_UClass_UObject.OuterSingleton->StaticLink();
 	}
-	check(OuterClass->GetClass());
-	return OuterClass;
+	check(Z_Registration_Info_UClass_UObject.OuterSingleton->GetClass());
+	return Z_Registration_Info_UClass_UObject.OuterSingleton;
 }
 IMPLEMENT_CLASS(UObject, 0);
 #endif

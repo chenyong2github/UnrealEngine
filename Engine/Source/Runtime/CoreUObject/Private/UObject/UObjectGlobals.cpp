@@ -4803,7 +4803,7 @@ namespace UECodeGen_Private
 	}
 #endif
 
-	void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params, UFunction** SingletonPtr)
+	FORCEINLINE void ConstructUFunctionInternal(UFunction*& OutFunction, const FFunctionParams& Params, UFunction** SingletonPtr)
 	{
 		UObject*   (*OuterFunc)() = Params.OuterFunc;
 		UFunction* (*SuperFunc)() = Params.SuperFunc;
@@ -4866,6 +4866,16 @@ namespace UECodeGen_Private
 
 		NewFunction->Bind();
 		NewFunction->StaticLink();
+	}
+
+	void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params)
+	{
+		ConstructUFunctionInternal(OutFunction, Params, nullptr);
+	}
+
+	void ConstructUFunction(UFunction** SingletonPtr, const FFunctionParams& Params)
+	{
+		ConstructUFunctionInternal(*SingletonPtr, Params, SingletonPtr);
 	}
 
 	void ConstructUEnum(UEnum*& OutEnum, const FEnumParams& Params)

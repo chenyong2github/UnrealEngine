@@ -1568,9 +1568,9 @@ namespace UM
 #define DECLARE_FSTRUCTUREDARCHIVE_SERIALIZER( TClass, API ) virtual API void Serialize(FStructuredArchive::FRecord Record) override;
 
 #if WITH_RELOAD
-#define CONSTUCT_RELOAD_VERSION_INFO(VersionInfo, ...) VersionInfo { __VA_ARGS__ }
+#define CONSTRUCT_RELOAD_VERSION_INFO(VersionInfo, ...) VersionInfo { __VA_ARGS__ }
 #else
-#define CONSTUCT_RELOAD_VERSION_INFO(VersionInfo, ...) VersionInfo()
+#define CONSTRUCT_RELOAD_VERSION_INFO(VersionInfo, ...) VersionInfo()
 #endif
 
 /*-----------------------------------------------------------------------------
@@ -1744,25 +1744,19 @@ public: \
 #define DECLARE_WITHIN_UPACKAGE() \
 	DECLARE_WITHIN_INTERNAL( UPackage, true )
 
-// Register a class at startup time.
-#define IMPLEMENT_CLASS(TClass, TClassCrc) \
-	FClassRegistrationInfo& Z_Registration_Info_UClass_##TClass() \
-	{ \
-		static FClassRegistrationInfo info; \
-		return info; \
-	} \
-	/* Do not change the AutoInitialize_ without changing LC_SymbolPatterns */ \
-	static FRegisterCompiledInInfo AutoInitialize_##TClass(&Z_Construct_UClass_##TClass, TClass::StaticClass, TClass::StaticPackage(), TEXT(#TClass), Z_Registration_Info_UClass_##TClass(), CONSTUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, sizeof(TClass), TClassCrc)); \
+// Implement the GetPrivateStaticClass and the registration info but do not auto register the class.  
+// This is primarily used by UnrealHeaderTool
+#define IMPLEMENT_CLASS_NO_AUTO_REGISTRATION(TClass) \
+	FClassRegistrationInfo Z_Registration_Info_UClass_##TClass; \
 	UClass* TClass::GetPrivateStaticClass() \
 	{ \
-		static UClass*& PrivateStaticClass = Z_Registration_Info_UClass_##TClass().InnerSingleton; \
-		if (!PrivateStaticClass) \
+		if (!Z_Registration_Info_UClass_##TClass.InnerSingleton) \
 		{ \
 			/* this could be handled with templates, but we want it external to avoid code bloat */ \
 			GetPrivateStaticClassBody( \
 				StaticPackage(), \
 				(TCHAR*)TEXT(#TClass) + 1 + ((StaticClassFlags & CLASS_Deprecated) ? 11 : 0), \
-				PrivateStaticClass, \
+				Z_Registration_Info_UClass_##TClass.InnerSingleton, \
 				StaticRegisterNatives##TClass, \
 				sizeof(TClass), \
 				alignof(TClass), \
@@ -1776,13 +1770,19 @@ public: \
 				&TClass::WithinClass::StaticClass \
 			); \
 		} \
-		return PrivateStaticClass; \
+		return Z_Registration_Info_UClass_##TClass.InnerSingleton; \
 	}
+
+// Register a class at startup time.
+#define IMPLEMENT_CLASS(TClass, TClassCrc) \
+	IMPLEMENT_CLASS_NO_AUTO_REGISTRATION(TClass) \
+	/* Do not change the AutoInitialize_ without changing LC_SymbolPatterns */ \
+	static FRegisterCompiledInInfo AutoInitialize_##TClass(&Z_Construct_UClass_##TClass, TClass::StaticClass, TClass::StaticPackage(), TEXT(#TClass), Z_Registration_Info_UClass_##TClass, CONSTRUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, sizeof(TClass), TClassCrc));
 
 // Used for intrinsics, this sets up the boiler plate, plus an initialization singleton, which can create properties and GC tokens
 #define IMPLEMENT_INTRINSIC_CLASS(TClass, TRequiredAPI, TSuperClass, TSuperRequiredAPI, TPackage, InitCode) \
 	TRequiredAPI UClass* Z_Construct_UClass_##TClass(); \
-	extern FClassRegistrationInfo& Z_Registration_Info_UClass_##TClass(); \
+	extern FClassRegistrationInfo Z_Registration_Info_UClass_##TClass; \
 	struct Z_Construct_UClass_##TClass##_Statics \
 	{ \
 		static UClass* Construct() \
@@ -1799,13 +1799,12 @@ public: \
 	}; \
 	UClass* Z_Construct_UClass_##TClass() \
 	{ \
-		static UClass* Class = Z_Registration_Info_UClass_##TClass().OuterSingleton; \
-		if (!Class) \
+		if (!Z_Registration_Info_UClass_##TClass.OuterSingleton) \
 		{ \
-			Class = Z_Construct_UClass_##TClass##_Statics::Construct();\
+			Z_Registration_Info_UClass_##TClass.OuterSingleton = Z_Construct_UClass_##TClass##_Statics::Construct();\
 		} \
-		check(Class->GetClass()); \
-		return Class; \
+		check(Z_Registration_Info_UClass_##TClass.OuterSingleton->GetClass()); \
+		return Z_Registration_Info_UClass_##TClass.OuterSingleton; \
 	} \
 	IMPLEMENT_CLASS(TClass, 0)
 

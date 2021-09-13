@@ -3044,7 +3044,9 @@ namespace UECodeGen_Private
 #endif
 	};
 
-	COREUOBJECT_API void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params, UFunction** SingletonPtr = nullptr);
+	UE_DEPRECATED(5.0, "ConstructUFunction deprecated.  Please use the version of ConstructUFunction which retains the singleton pointer.")
+	COREUOBJECT_API void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params);
+	COREUOBJECT_API void ConstructUFunction(UFunction** SingletonPtr, const FFunctionParams& Params);
 	COREUOBJECT_API void ConstructUEnum(UEnum*& OutEnum, const FEnumParams& Params);
 	COREUOBJECT_API void ConstructUScriptStruct(UScriptStruct*& OutStruct, const FStructParams& Params);
 	COREUOBJECT_API void ConstructUPackage(UPackage*& OutPackage, const FPackageParams& Params);
