@@ -99,8 +99,9 @@ struct FPathTracingPayload : FMinimalPayload
 {
 	FRayCone RayCone;
 	float3 Radiance;
-	float3 WorldGeoNormal;
-	float3 WorldNormal;
+	float3 WorldGeoNormal;           // normal of the actual triangle (faceted)
+	float3 WorldNormal;              // normal output of the material (includes normal/bump)
+	float3 WorldSmoothNormal;        // smooth normal before normal/bump is applied
 	float3 BaseColor;
 	float3 DiffuseColor;
 	float3 SpecularColor;
@@ -218,9 +219,11 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 	Output.PackedData[7] |= (Input.PrimitiveLightingChannelMask & 0x7) << 29; // 3 bits
                                                                        // total 32 bits
 
-	Output.PackedData[8] = f32tof16(Input.WorldTangent.x);
-	Output.PackedData[8] |= f32tof16(Input.WorldTangent.y) << 16;
-	Output.PackedData[9] = f32tof16(Input.WorldTangent.z);
+	uint SmoothNormal = PayloadEncodeUnitVector(Input.WorldSmoothNormal);
+	uint TangentVec   = PayloadEncodeUnitVector(Input.WorldTangent);
+	Output.PackedData[8] = SmoothNormal;                     // pack all 24 bits
+	Output.PackedData[8] |= (TangentVec << 8) & 0xFF000000u; // pack upper 8 bits
+	Output.PackedData[9] = TangentVec & 0xFFFFu;             // pack lower 16 bits
 
 	Output.PackedData[9] |= f32tof16(Input.CustomVector.x) << 16;
 	Output.PackedData[10] = f32tof16(Input.CustomVector.y);
@@ -259,9 +262,8 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, Ra
 	Output.Flags = Input.GetFlags();
 	Output.PrimitiveLightingChannelMask = Input.GetPrimitiveLightingChannelMask();
 
-	Output.WorldTangent.x = f16tof32(Input.PackedData[8]);
-	Output.WorldTangent.y = f16tof32(Input.PackedData[8] >> 16);
-	Output.WorldTangent.z = f16tof32(Input.PackedData[9]);
+	Output.WorldSmoothNormal = PayloadDecodeUnitVector(Input.PackedData[8] & 0x00FFFFFFu);
+	Output.WorldTangent = PayloadDecodeUnitVector((Input.PackedData[8] & 0xFF000000u) >> 8 | (Input.PackedData[9] & 0xFFFFu));
 
 	Output.CustomVector.x = f16tof32(Input.PackedData[9] >> 16);
 	Output.CustomVector.y = f16tof32(Input.PackedData[10]);

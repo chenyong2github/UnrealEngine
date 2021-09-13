@@ -126,7 +126,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	// it doesn't reflect the sign flip from the object transform, so apply it here
 	float GeoNormalSign = MaterialParameters.TwoSidedSign * GetPrimitive_DeterminantSign(MaterialParameters.PrimitiveId);
 	Payload.WorldGeoNormal = GeoNormalSign * GeoNormal;
-	Payload.WorldNormal = normalize(MaterialParameters.WorldNormal);
+	Payload.WorldNormal = MaterialParameters.WorldNormal;
+	Payload.WorldSmoothNormal = MaterialParameters.TwoSidedSign * TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
 	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
 	Payload.BaseColor = BaseColor;
 	Payload.Specular = Specular;

@@ -682,6 +682,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 	// fix dark edges in reflections from shading normals
 	Payload.WorldNormal = AdjustShadingNormal(Payload.WorldNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
+	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
 
 	// As soon as the path is blurry enough, we can get away with diffuse sampling only
 	const bool bSimplifySSS = PathState.PathRoughness >= 0.15;

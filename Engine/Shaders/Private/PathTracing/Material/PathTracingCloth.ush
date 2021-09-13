@@ -52,7 +52,7 @@ FMaterialEval Cloth_EvalMaterial(
 	const float3 FCloth = F_Schlick(FuzzColor, VoH);
 	const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * Cloth * DCloth * Vis_Cloth(NoV, NoL)) * FCloth * Fuzz.W : 0.0;
 
-	AddLobeWithMIS(Result.Weight, Result.Pdf, DiffWeight + ClothWeight, NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, (DiffWeight + ClothWeight) * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
@@ -134,6 +134,8 @@ FMaterialSample Cloth_SampleMaterial(
 
 	// With a valid direction in hand -- now evaluate the BxDF (taking advantage of already computed terms)
 
+	const float3 L_World = normalize(mul(L, Basis));
+
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
 	const float NoH = saturate(H.z);
@@ -145,7 +147,7 @@ FMaterialSample Cloth_SampleMaterial(
 
 	float3 OutWeight = 0;
 	float OutPdf = 0;
-	AddLobeWithMIS(OutWeight, OutPdf, DiffWeight + ClothWeight, NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(OutWeight, OutPdf, (DiffWeight + ClothWeight) * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 
@@ -156,5 +158,5 @@ FMaterialSample Cloth_SampleMaterial(
 	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1 - LobeSelectionPdf);
 
 	// transform to world space
-	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0, OutRoughness);
+	return CreateMaterialSample(L_World, OutWeight, OutPdf, 1.0, OutRoughness);
 }
