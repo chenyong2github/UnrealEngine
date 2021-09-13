@@ -9,7 +9,7 @@
 	"CreatedByURL": "http://epicgames.com",
 	"EnabledByDefault": false,
 	"CanContainContent": false,
-	"IsBetaVersion": true,
+	"IsBetaVersion": false,
 	"SupportedTargetPlatforms": [
 		"Win64"
 	],
