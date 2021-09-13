@@ -1016,24 +1016,26 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel DefaultWarningLevel
 		{
-			get => DefaultWarningLevelPrivate ?? (bWarningsAsErrors ? WarningLevel.Error : WarningLevel.Warning);
+			get => (DefaultWarningLevelPrivate == WarningLevel.Default)? (bWarningsAsErrors ? WarningLevel.Error : WarningLevel.Warning) : DefaultWarningLevelPrivate;
 			set => DefaultWarningLevelPrivate = value;
 		}
 
+		/// <inheritdoc cref="DefaultWarningLevel"/>
 		[XmlConfigFile(Category = "BuildConfiguration", Name = nameof(DefaultWarningLevel))]
-		private WarningLevel? DefaultWarningLevelPrivate;
+		private WarningLevel DefaultWarningLevelPrivate;
 
 		/// <summary>
 		/// Level to report deprecation warnings as errors
 		/// </summary>
 		public WarningLevel DeprecationWarningLevel
 		{
-			get => DeprecationWarningLevelPrivate ?? DefaultWarningLevel;
+			get => (DeprecationWarningLevelPrivate == WarningLevel.Default)? DefaultWarningLevel : DeprecationWarningLevelPrivate;
 			set => DeprecationWarningLevelPrivate = value;
 		}
 
+		/// <inheritdoc cref="DeprecationWarningLevel"/>
 		[XmlConfigFile(Category = "BuildConfiguration", Name = nameof(DeprecationWarningLevel))]
-		private WarningLevel? DeprecationWarningLevelPrivate;
+		private WarningLevel DeprecationWarningLevelPrivate;
 
 		/// <summary>
 		/// Forces shadow variable warnings to be treated as errors on platforms that support it.

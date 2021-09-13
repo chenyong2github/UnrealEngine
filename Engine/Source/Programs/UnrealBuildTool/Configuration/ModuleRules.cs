@@ -18,6 +18,11 @@ namespace UnrealBuildTool
 	public enum WarningLevel
 	{
 		/// <summary>
+		/// Use the default behavior
+		/// </summary>
+		Default,
+
+		/// <summary>
 		/// Do not display diagnostics
 		/// </summary>
 		Off,
@@ -735,10 +740,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel ShadowVariableWarningLevel
 		{
-			get { return ShadowVariableWarningLevelPrivate ?? ((DefaultBuildSettings >= BuildSettingsVersion.V2) ? WarningLevel.Error : Target.ShadowVariableWarningLevel); }
+			get { return (ShadowVariableWarningLevelPrivate == WarningLevel.Default)? ((DefaultBuildSettings >= BuildSettingsVersion.V2) ? WarningLevel.Error : Target.ShadowVariableWarningLevel) : ShadowVariableWarningLevelPrivate; }
 			set { ShadowVariableWarningLevelPrivate = value; }
 		}
-		private WarningLevel? ShadowVariableWarningLevelPrivate;
+
+		/// <inheritdoc cref="ShadowVariableWarningLevelPrivate"/>
+		private WarningLevel ShadowVariableWarningLevelPrivate;
 
 		/// <summary>
 		/// Enable warnings for shadowed variables
@@ -755,10 +762,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		public WarningLevel UnsafeTypeCastWarningLevel
 		{
-			get { return UnsafeTypeCastWarningLevelPrivate ?? Target.UnsafeTypeCastWarningLevel; }
+			get { return (UnsafeTypeCastWarningLevelPrivate == WarningLevel.Default)? Target.UnsafeTypeCastWarningLevel : UnsafeTypeCastWarningLevelPrivate; }
 			set { UnsafeTypeCastWarningLevelPrivate = value; }
 		}
-		private WarningLevel? UnsafeTypeCastWarningLevelPrivate;
+
+		/// <inheritdoc cref="UnsafeTypeCastWarningLevel"/>
+		private WarningLevel UnsafeTypeCastWarningLevelPrivate;
 
 		/// <summary>
 		/// Enable warnings for using undefined identifiers in #if expressions
