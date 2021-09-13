@@ -300,7 +300,7 @@ FCbPackage FCacheRecord::Save() const
 		Writer.AddHash("RawHash"_ASV, Payload.GetRawHash());
 		Writer.AddInteger("RawSize"_ASV, Payload.GetRawSize());
 		const FCompositeBuffer CompressedBuffer = Payload.GetData().GetCompressed();
-		FCbAttachment AttachedCompressed(CompressedBuffer.Flatten());
+		FCbAttachment AttachedCompressed(CompressedBuffer.ToShared());
 		Writer.AddAttachment("CompressedHash"_ASV, AttachedCompressed);
 		Package.AddAttachment(AttachedCompressed);
 		Writer.EndObject();

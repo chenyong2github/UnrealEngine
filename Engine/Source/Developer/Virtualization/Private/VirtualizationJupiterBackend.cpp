@@ -1417,7 +1417,7 @@ private:
 		// with the existing chunked code. The chunking code is most likely going to be removed before 
 		// this backend goes to production so it is not worth fixing up to work with FCompressedBuffer 
 		// properly.
-		FSharedBuffer FlattenedPayload = CompressedPayload.GetCompressed().Flatten();
+		FSharedBuffer FlattenedPayload = CompressedPayload.GetCompressed().ToShared();
 
 		const int64 NumChunks = FMath::DivideAndRoundUp(FlattenedPayload.GetSize(), ChunkSize);
 		if (NumChunks > MAX_int32)

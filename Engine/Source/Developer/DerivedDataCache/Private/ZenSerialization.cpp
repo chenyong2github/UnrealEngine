@@ -16,7 +16,7 @@ void SaveCbAttachment(const FCbAttachment& Attachment, FCbWriter& Writer)
 	if (Attachment.IsObject())
 	{
 		FCbObject Object = Attachment.AsObject();
-		Writer.AddBinary(Object.GetBuffer().Flatten());
+		Writer.AddBinary(Object.GetBuffer().ToShared());
 		if (Object)
 		{
 			Writer.AddObjectAttachment(Attachment.GetHash());

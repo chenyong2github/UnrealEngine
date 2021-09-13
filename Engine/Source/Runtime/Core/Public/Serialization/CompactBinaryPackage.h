@@ -415,7 +415,7 @@ FSharedBuffer FCbAttachment::AsBinary() const
 {
 	if (const FBinaryValue* BinaryValue = Value.TryGet<FBinaryValue>())
 	{
-		return BinaryValue->Buffer.Flatten();
+		return BinaryValue->Buffer.ToShared();
 	}
 	return FSharedBuffer();
 }
