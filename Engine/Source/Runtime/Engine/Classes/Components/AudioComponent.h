@@ -491,6 +491,8 @@ public:
 		, EAudioFaderCurve InFadeCurve = EAudioFaderCurve::Linear
 	);
 
+	virtual void ResetParameters() override;
+
 private:
 
 	static uint64 AudioComponentIDCounter;
@@ -809,7 +811,7 @@ private:
 protected:
 
 	/** Utility function called by Play and FadeIn to start a sound playing. */
-	void PlayInternal(const PlayInternalRequestData& InPlayRequestData, USoundBase * InSound = nullptr);
+	void PlayInternal(const PlayInternalRequestData& InPlayRequestData, USoundBase * InSoundOverride = nullptr);
 
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
