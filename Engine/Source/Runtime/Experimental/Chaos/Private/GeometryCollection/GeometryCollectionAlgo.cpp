@@ -817,7 +817,7 @@ namespace GeometryCollectionAlgo
 		GeometryCollection->ReorderElements(FGeometryCollection::FacesGroup, ShiftedOrder);
 	}
 
-	void ResizeGeometries(FGeometryCollection* GeometryCollection, const TArray<int32>& FaceCounts, const TArray<int32>& VertexCounts)
+	void ResizeGeometries(FGeometryCollection* GeometryCollection, const TArray<int32>& FaceCounts, const TArray<int32>& VertexCounts, bool bDoValidation)
 	{
 		check(GeometryCollection);
 		int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
@@ -954,24 +954,29 @@ namespace GeometryCollectionAlgo
 			}
 		}
 
+		FManagedArrayCollection::FProcessingParameters ProcessingParams;
+		ProcessingParams.bDoValidation = bDoValidation;
+
 		// remove trailing elements if needed
 		if (NewNumVertices < OldNumVertices)
 		{
 			TArray<int32> ToDelete;
 			AddRange(ToDelete, NewNumVertices, OldNumVertices);
-			GeometryCollection->RemoveElements(FGeometryCollection::VerticesGroup, ToDelete);
+			GeometryCollection->RemoveElements(FGeometryCollection::VerticesGroup, ToDelete, ProcessingParams);
 		}
 		if (NewNumFaces < OldNumFaces)
 		{
 			TArray<int32> ToDelete;
 			AddRange(ToDelete, NewNumFaces, OldNumFaces);
-			GeometryCollection->RemoveElements(FGeometryCollection::FacesGroup, ToDelete);
+			GeometryCollection->RemoveElements(FGeometryCollection::FacesGroup, ToDelete, ProcessingParams);
 		}
 
-		// TODO: can remove these ensure()s after this has been tested some more
-		ensure(GeometryCollection->HasContiguousFaces());
-		ensure(GeometryCollection->HasContiguousVertices());
-		ensure(GeometryCollectionAlgo::HasValidGeometryReferences(GeometryCollection));
+		if (bDoValidation)
+		{
+			ensure(GeometryCollection->HasContiguousFaces());
+			ensure(GeometryCollection->HasContiguousVertices());
+			ensure(GeometryCollectionAlgo::HasValidGeometryReferences(GeometryCollection));
+		}
 	}
 
 	DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionClean, Verbose, All);
