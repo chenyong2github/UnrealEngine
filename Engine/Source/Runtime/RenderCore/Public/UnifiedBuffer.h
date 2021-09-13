@@ -67,7 +67,6 @@ public:
 
 	uint32 	NumScatters = 0;
 	uint32 	MaxScatters = 0;
-	uint32	NumScattersAllocated = 0;
 	uint32	NumBytesPerElement = 0;
 
 	bool	bFloat4Buffer = false;
