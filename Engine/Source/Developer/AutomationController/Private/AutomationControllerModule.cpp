@@ -60,6 +60,7 @@ void FAutomationControllerModule::StartupModule()
 	FMessageLogInitializationOptions InitOptions;
 	InitOptions.bShowFilters = true;
 	InitOptions.bShowPages = true;
+	InitOptions.bScrollToBottom = true;
 	MessageLogModule.RegisterLogListing("AutomationTestingLog", LOCTEXT("AutomationTesting", "Automation Testing Log"), InitOptions);
 #endif
 }
