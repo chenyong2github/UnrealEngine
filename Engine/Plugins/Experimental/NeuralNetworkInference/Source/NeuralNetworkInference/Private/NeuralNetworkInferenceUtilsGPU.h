@@ -6,6 +6,10 @@
 #include "RenderGraphBuilder.h"
 #include "RHI.h"
 
+#ifdef PLATFORM_WIN64
+struct ID3D12Resource;
+#endif
+
 class FNeuralNetworkInferenceUtilsGPU
 {
 public:
@@ -20,4 +24,11 @@ public:
 	 */
 	static bool GPUSanityChecks(const FRDGBuilder* const InGraphBuilder);
 	static bool GPUSanityChecks(const FRDGBuilder* const InGraphBuilder, const bool bInIsLoaded);
+
+
+#ifdef PLATFORM_WIN64
+	static bool IsD3D12RHI();
+
+	static ID3D12Resource* GetD3D12Resource(FRHIBuffer* Buffer);
+#endif
 };
