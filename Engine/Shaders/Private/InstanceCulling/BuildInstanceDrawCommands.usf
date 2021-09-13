@@ -202,15 +202,17 @@ bool ShouldRenderInstance(FInstanceSceneData InstanceData, FDrawCommandDesc Desc
 bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 {
 #if CULL_INSTANCES
+	// Should not draw invalid instances, 
+	if (!InstanceData.ValidInstance)
+	{
+		return false;
+	}
+
 
 	// TODO: The test for dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent) <= 0.0f is just a workaround since the FDynamicMeshBuilder::GetMesh
 	//       seems to just set empty bounds (and FLineBatcherSceneProxy pretends everything is at the origin). In the future these should compute reasonable bounds and 
 	//       this should be removed.
-	// NOTE: Flagging invalid as visible. This is a workaround that prevents instances that are uploaded after this kernel runs from being culled. 
-	// When the culling tests are moved into the later kernel we should switch this back to discarding. Batching moved them back up the pipeline so here we are.
-	// This happens for dynamic instances (e.g., procedural mesh) since they are uploaded with the view after the deferred/batched culling. To solve this we could
-	// use similarly batched & deferred upload of all dynamic primitives / instances (also more efficient).
-	if (!InstanceData.ValidInstance || dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent) <= 0.0f)
+	if (dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent) <= 0.0f)
 	{
 		return true;
 	}
