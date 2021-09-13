@@ -364,14 +364,14 @@ void UNiagaraDataInterfaceActorComponent::VMGetTransform(FVectorVMExternalFuncti
 	VectorVM::FUserPtrHandler<FInstanceData_GameThread> InstanceData(Context);
 	FNDIOutputParam<bool>		OutValid(Context);
 	FNDIOutputParam<FVector3f>	OutPosition(Context);
-	FNDIOutputParam<FQuat>		OutRotation(Context);
+	FNDIOutputParam<FQuat4f>	OutRotation(Context);
 	FNDIOutputParam<FVector3f>	OutScale(Context);
 
 	for (int32 i=0; i < Context.GetNumInstances(); ++i)
 	{
 		OutValid.SetAndAdvance(InstanceData->bCachedValid);
 		OutPosition.SetAndAdvance(InstanceData->CachedTransform.GetLocation());
-		OutRotation.SetAndAdvance(InstanceData->CachedTransform.GetRotation());
+		OutRotation.SetAndAdvance(FQuat4f(InstanceData->CachedTransform.GetRotation()));
 		OutScale.SetAndAdvance(InstanceData->CachedTransform.GetScale3D());
 	}
 }
