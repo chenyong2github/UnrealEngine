@@ -1842,6 +1842,20 @@ void UControlRigBlueprint::ReplaceDeprecatedNodes()
 	Super::ReplaceDeprecatedNodes();
 }
 
+void UControlRigBlueprint::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	if(HierarchyController)
+	{
+		HierarchyController->OnModified().RemoveAll(this);
+	}
+	
+	HierarchyController = NewObject<URigHierarchyController>(this);
+	HierarchyController->SetHierarchy(Hierarchy);
+	HierarchyController->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
+
+	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+}
+
 FRigVMGraphModifiedEvent& UControlRigBlueprint::OnModified()
 {
 	return ModifiedEvent;
