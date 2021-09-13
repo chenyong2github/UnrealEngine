@@ -16,6 +16,7 @@
 #include "Widgets/Views/STableRow.h"
 
 class SMenuAnchor;
+class SVerticalBox;
 
 template< typename ObjectType > class TAttribute;
 
@@ -220,6 +221,9 @@ private:
 	// Callback committing the text box input.
 	void HandleTextBoxTextCommitted( const FText& InText, ETextCommit::Type CommitInfo );
 
+	// Called when global focus changes so we can detect when to close the SuggestionList.
+	void OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
+
 private:
 
 	// Holds a flag to prevent recursive calls in UI callbacks.
@@ -242,6 +246,9 @@ private:
 
 	// The styling of the suggestion text.
 	const FTextBlockStyle* SuggestionTextStyle;
+
+	// The VerticalBox containing the SuggestionList.
+	TSharedPtr<SVerticalBox> VerticalBox;
 
 private:
 
