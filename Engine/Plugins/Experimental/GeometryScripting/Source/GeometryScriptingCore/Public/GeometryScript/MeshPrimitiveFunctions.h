@@ -38,7 +38,7 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshPrimitiveFunctions : 
 public:
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendBox( 
 		UDynamicMesh* TargetMesh, 
@@ -51,7 +51,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendSphereLatLong( 
 		UDynamicMesh* TargetMesh, 
@@ -63,7 +63,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendSphereBox( 
 		UDynamicMesh* TargetMesh, 
@@ -76,7 +76,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendCapsule( 
 		UDynamicMesh* TargetMesh, 
@@ -89,7 +89,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendCylinder( 
 		UDynamicMesh* TargetMesh, 
@@ -103,7 +103,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendCone( 
 		UDynamicMesh* TargetMesh, 
@@ -118,7 +118,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendTorus( 
 		UDynamicMesh* TargetMesh, 
@@ -135,7 +135,7 @@ public:
 	 * Polygon should be oriented counter-clockwise to produce a correctly-oriented shape, otherwise it will be inside-out
 	 * Polygon endpoint is not repeated.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendSimpleRevolvePolygon( 
 		UDynamicMesh* TargetMesh, 
@@ -147,7 +147,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendSimpleSweptPolygon( 
 		UDynamicMesh* TargetMesh, 
@@ -163,7 +163,7 @@ public:
 
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendRectangle( 
 		UDynamicMesh* TargetMesh, 
@@ -174,7 +174,7 @@ public:
 		int32 StepsHeight = 0,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendRoundRectangle( 
 		UDynamicMesh* TargetMesh, 
@@ -187,7 +187,7 @@ public:
 		int32 StepsRound = 4,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendDisc( 
 		UDynamicMesh* TargetMesh, 

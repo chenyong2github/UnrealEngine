@@ -17,7 +17,7 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshBasicEditFunctions : 
 	GENERATED_BODY()
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DiscardMeshAttributes( 
 		UDynamicMesh* TargetMesh, 
@@ -25,7 +25,7 @@ public:
 
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SetVertexPosition( 
 		UDynamicMesh* TargetMesh, 
@@ -35,7 +35,7 @@ public:
 		bool bDeferChangeNotifications = false );
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddVertexToMesh( 
 		UDynamicMesh* TargetMesh, 
@@ -43,7 +43,7 @@ public:
 		int& NewVertexIndex,
 		bool bDeferChangeNotifications = false );
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddVerticesToMesh( 
 		UDynamicMesh* TargetMesh, 
@@ -51,7 +51,7 @@ public:
 		TArray<int>& NewIndices,
 		bool bDeferChangeNotifications = false );
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteVertexFromMesh( 
 		UDynamicMesh* TargetMesh, 
@@ -61,7 +61,7 @@ public:
 
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddTriangleToMesh( 
 		UDynamicMesh* TargetMesh, 
@@ -72,7 +72,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr );
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AddTrianglesToMesh( 
 		UDynamicMesh* TargetMesh, 
@@ -82,7 +82,7 @@ public:
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr );
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	DeleteTriangleFromMesh( 
 		UDynamicMesh* TargetMesh, 
@@ -93,7 +93,7 @@ public:
 
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendMesh( 
 		UDynamicMesh* TargetMesh, 
@@ -102,7 +102,7 @@ public:
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	AppendMeshRepeated( 
 		UDynamicMesh* TargetMesh, 

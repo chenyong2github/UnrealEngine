@@ -64,14 +64,14 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshSimplifyFunctions : p
 	GENERATED_BODY()
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToPlanar(  
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPlanarSimplifyOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToTriangleCount(  
 		UDynamicMesh* TargetMesh, 
@@ -79,7 +79,7 @@ public:
 		FGeometryScriptSimplifyMeshOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToVertexCount(  
 		UDynamicMesh* TargetMesh, 
@@ -87,7 +87,7 @@ public:
 		FGeometryScriptSimplifyMeshOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification")
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplySimplifyToTolerance(  
 		UDynamicMesh* TargetMesh, 
