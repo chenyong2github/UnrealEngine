@@ -2,10 +2,13 @@
 
 #include "Archive/ApplySnapshotDataArchiveV2.h"
 
-#include "LevelSnapshotsLog.h"
+#include "Archive/ClassDefaults/ApplyClassDefaulDataArchive.h"
 #include "Data/PropertySelection.h"
-#include "WorldSnapshotData.h"
-#include "ClassDefaults/ApplyClassDefaulDataArchive.h"
+#include "Data/RestorationEvents/ApplySnapshotPropertiesScope.h"
+#include "Data/Util/PropertyUtil.h"
+#include "Data/Util/SnapshotObjectUtil.h"
+#include "Data/WorldSnapshotData.h"
+#include "LevelSnapshotsLog.h"
 
 #include "Components/ActorComponent.h"
 #include "Engine/World.h"
@@ -15,9 +18,6 @@
 #include "Serialization/ObjectWriter.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
-#include "RestorationEvents/ApplySnapshotPropertiesScope.h"
-#include "Util/PropertyUtil.h"
-#include "Util/SnapshotObjectUtil.h"
 
 namespace
 {
