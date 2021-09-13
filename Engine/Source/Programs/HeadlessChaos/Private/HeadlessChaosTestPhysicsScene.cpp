@@ -491,7 +491,7 @@ namespace ChaosTest {
 			EXPECT_EQ(CollisionData.QueryData.Word0, 0); // ensure query filter is defaulted to 0 (no query allowed at all)
 
 			// Verify query is filtered out with default collision data on shape
-			bool bFiltered = PrePreFilterImp(QueryFilter, CollisionData.QueryData);
+			bool bFiltered = PrePreQueryFilterImp(QueryFilter, CollisionData.QueryData);
 			EXPECT_EQ(bFiltered, true);
 		}
 
@@ -517,7 +517,7 @@ namespace ChaosTest {
 			Shape->SetCollisionData(NewCollisionData);
 
 			// Filter with new data, ensuring we pass and are not filtered out.
-			bool bFiltered = PrePreFilterImp(QueryFilter, NewCollisionData.QueryData);
+			bool bFiltered = PrePreQueryFilterImp(QueryFilter, NewCollisionData.QueryData);
 			EXPECT_EQ(bFiltered, false);
 		}
 
