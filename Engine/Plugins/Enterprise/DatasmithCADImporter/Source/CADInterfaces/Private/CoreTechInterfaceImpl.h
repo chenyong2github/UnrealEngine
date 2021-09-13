@@ -71,22 +71,21 @@ namespace CADLibrary
 		virtual bool Repair(uint64 MainObjectID, EStitchingTechnique StitchingTechnique, double SewingToleranceFactor) override;
 		virtual bool SetCoreTechTessellationState(const FImportParameters& ImportParams) override;
 
-		virtual ECoreTechParsingResult LoadFile(
-			const FFileDescription& InFileDescription,
-			const FImportParameters& InImportParameters,
-			const FString& InCachePath,
-			FArchiveSceneGraph& OutSceneGraphArchive,
-			TArray<FString>& OutWarningMessages,
-			TArray<FBodyMesh>& OutBodyMeshes) override;
+		//virtual ECADParsingResult LoadFile(
+		//	const FFileDescription& InFileDescription,
+		//	const FImportParameters& InImportParameters,
+		//	const FString& InCachePath,
+		//	FArchiveSceneGraph& OutSceneGraphArchive,
+		//	TArray<FString>& OutWarningMessages,
+		//	TArray<FBodyMesh>& OutBodyMeshes) override;
 
-		virtual ECoreTechParsingResult LoadFile(const FFileDescription& InFileDescription, FLoadingContext& Context) override
-		{
-			Context.SceneGraphArchive = MakeShared<FArchiveSceneGraph>();
-			Context.WarningMessages = MakeShared<TArray<FString>>();
-			Context.BodyMeshes = MakeShared<TArray<FBodyMesh>>();
-
-			return LoadFile(InFileDescription, Context.ImportParameters, Context.CachePath, *Context.SceneGraphArchive, *Context.WarningMessages, *Context.BodyMeshes);
-		}
+		//virtual ECADParsingResult LoadFile(const FFileDescription& InFileDescription, FLoadingContext& Context) override
+		//{
+		//	Context.SceneGraphArchive = MakeShared<FArchiveSceneGraph>();
+		//	Context.WarningMessages = MakeShared<TArray<FString>>();
+		//	Context.BodyMeshes = MakeShared<TArray<FBodyMesh>>();
+		//	return LoadFile(InFileDescription, Context.ImportParameters, Context.CachePath, *Context.SceneGraphArchive, *Context.WarningMessages, *Context.BodyMeshes);
+		//}
 
 		virtual void GetTessellation(uint64 BodyId, FBodyMesh& OutBodyMesh, bool bIsBody) override;
 

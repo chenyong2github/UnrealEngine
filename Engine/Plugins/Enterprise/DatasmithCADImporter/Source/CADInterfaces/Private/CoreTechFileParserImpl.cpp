@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTechFileReader.h"
+#include "CoreTechFileParser.h"
 
 #include "CoreTechTypes.h"
 
@@ -38,9 +38,9 @@
 #include "Internationalization/Text.h"
 #include "Templates/TypeHash.h"
 
-namespace CADLibrary 
+namespace CADLibrary
 {
-	namespace CoreTechFileReaderUtils
+	namespace CoreTechFileParserUtils
 	{
 		FString AsFString(CT_STR CtName);
 		uint32 GetSceneFileHash(const uint32 InSGHash, const FImportParameters& ImportParam);
@@ -54,33 +54,33 @@ namespace CADLibrary
 		int32 GetIntegerParameterDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName);
 	}
 
-	FArchiveMaterial& FCoreTechFileReader::FindOrAddMaterial(CT_MATERIAL_ID MaterialId)
+	FArchiveMaterial& FCoreTechFileParser::FindOrAddMaterial(CT_MATERIAL_ID MaterialId)
 	{
-		if (FArchiveMaterial* NewMaterial = Context.SceneGraphArchive.MaterialHIdToMaterial.Find(MaterialId))
+		if (FArchiveMaterial* NewMaterial = CADFileData.FindMaterial(MaterialId))
 		{
 			return *NewMaterial;
 		}
 
-		FArchiveMaterial& NewMaterial = Context.SceneGraphArchive.MaterialHIdToMaterial.Emplace(MaterialId, MaterialId);
-		CoreTechFileReaderUtils::GetMaterial(MaterialId, NewMaterial.Material);
+		FArchiveMaterial& NewMaterial = CADFileData.AddMaterial(MaterialId);
+		CoreTechFileParserUtils::GetMaterial(MaterialId, NewMaterial.Material);
 		NewMaterial.UEMaterialName = BuildMaterialName(NewMaterial.Material);
 		return NewMaterial;
 	}
 
-	FArchiveColor& FCoreTechFileReader::FindOrAddColor(uint32 ColorHId)
+	FArchiveColor& FCoreTechFileParser::FindOrAddColor(uint32 ColorHId)
 	{
-		if (FArchiveColor* Color = Context.SceneGraphArchive.ColorHIdToColor.Find(ColorHId))
+		if (FArchiveColor* Color = CADFileData.FindColor(ColorHId))
 		{
 			return *Color;
 		}
 
-		FArchiveColor& NewColor = Context.SceneGraphArchive.ColorHIdToColor.Add(ColorHId, ColorHId);
-		CoreTechFileReaderUtils::GetColor(ColorHId, NewColor.Color);
+		FArchiveColor& NewColor = CADFileData.AddColor(ColorHId);
+		CoreTechFileParserUtils::GetColor(ColorHId, NewColor.Color);
 		NewColor.UEMaterialName = BuildColorName(NewColor.Color);
 		return NewColor;
 	}
 
-	uint32 FCoreTechFileReader::GetObjectMaterial(ICADArchiveObject& Object)
+	uint32 FCoreTechFileParser::GetObjectMaterial(ICADArchiveObject& Object)
 	{
 		if (FString* Material = Object.MetaData.Find(TEXT("MaterialName")))
 		{
@@ -93,7 +93,7 @@ namespace CADLibrary
 		return 0;
 	}
 
-	void FCoreTechFileReader::SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDataId& InBodyMaterial, FBodyMesh& BodyMesh, int32 FaceIndex)
+	void FCoreTechFileParser::SetFaceMainMaterial(FObjectDisplayDataId& InFaceMaterial, FObjectDisplayDataId& InBodyMaterial, FBodyMesh& BodyMesh, int32 FaceIndex)
 	{
 		uint32 FaceMaterialHash = 0;
 		uint32 BodyMaterialHash = 0;
@@ -127,14 +127,14 @@ namespace CADLibrary
 			FaceTessellations.ColorName = Color.UEMaterialName;
 			BodyMesh.ColorSet.Add(Color.UEMaterialName);
 		}
-		else if(InBodyMaterial.DefaultMaterialName)
+		else if (InBodyMaterial.DefaultMaterialName)
 		{
 			FaceTessellations.ColorName = InBodyMaterial.DefaultMaterialName;
 			BodyMesh.ColorSet.Add(InBodyMaterial.DefaultMaterialName);
 		}
 	}
 
-	uint32 FCoreTechFileReader::GetMaterialNum()
+	uint32 FCoreTechFileParser::GetMaterialNum()
 	{
 		CT_UINT32 IColor = 1;
 		while (true)
@@ -165,128 +165,61 @@ namespace CADLibrary
 		return IColor + IMaterial - 2;
 	}
 
-	void FCoreTechFileReader::ReadMaterials()
+	void FCoreTechFileParser::ReadMaterials()
 	{
 		CT_UINT32 MaterialId = 1;
 		while (true)
 		{
 			FCADMaterial Material;
-			bool bReturn = CoreTechFileReaderUtils::GetMaterial(MaterialId, Material);
+			bool bReturn = CoreTechFileParserUtils::GetMaterial(MaterialId, Material);
 			if (!bReturn)
 			{
 				break;
 			}
 
-			FArchiveMaterial& MaterialObject = Context.SceneGraphArchive.MaterialHIdToMaterial.Emplace(MaterialId, MaterialId);
+			FArchiveMaterial& MaterialObject = CADFileData.AddMaterial(MaterialId);
 			MaterialObject.UEMaterialName = BuildMaterialName(Material);
-			MaterialObject.Material = Material; 
+			MaterialObject.Material = Material;
 
 			MaterialId++;
 		}
 	}
 
-	FCoreTechFileReader::FCoreTechFileReader(const FContext& InContext, const FString& EnginePluginsPath)
-		: Context(InContext)
+	FCoreTechFileParser::FCoreTechFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath)
+		: CADFileData(InCADData)
 	{
 	}
 
-	bool FCoreTechFileReader::FindFile(FFileDescription& File)
+	ECADParsingResult FCoreTechFileParser::Process()
 	{
-		FString FileName = File.Name;
-
-		FString FilePath = FPaths::GetPath(File.Path);
-		FString RootFilePath = File.MainCadFilePath;
-
-		// Basic case: FilePath is, or is in a sub-folder of, RootFilePath
-		if (FilePath.StartsWith(RootFilePath))
-		{
-			return IFileManager::Get().FileExists(*File.Path);
-		}
-
-		// Advance case: end of FilePath is in a upper-folder of RootFilePath
-		// e.g.
-		// FilePath = D:\\data temp\\Unstructured project\\Folder2\\Added_Object.SLDPRT
-		//                                                 ----------------------------
-		// RootFilePath = D:\\data\\CAD Files\\SolidWorks\\p033 - Unstructured project\\Folder1
-		//                ------------------------------------------------------------
-		// NewPath = D:\\data\\CAD Files\\SolidWorks\\p033 - Unstructured project\\Folder2\\Added_Object.SLDPRT
-		TArray<FString> RootPaths;
-		RootPaths.Reserve(30);
-		do
-		{
-			RootFilePath = FPaths::GetPath(RootFilePath);
-			RootPaths.Emplace(RootFilePath);
-		} while (!FPaths::IsDrive(RootFilePath) && !RootFilePath.IsEmpty());
-
-		TArray<FString> FilePaths;
-		FilePaths.Reserve(30);
-		FilePaths.Emplace(FileName);
-		while (!FPaths::IsDrive(FilePath) && !FilePath.IsEmpty())
-		{
-			FString FolderName = FPaths::GetCleanFilename(FilePath);
-			FilePath = FPaths::GetPath(FilePath);
-			FilePaths.Emplace(FPaths::Combine(FolderName, FilePaths.Last()));
-		};
-
-		for(int32 IndexFolderPath = 0; IndexFolderPath < RootPaths.Num(); IndexFolderPath++)
-		{
-			for (int32 IndexFilePath = 0; IndexFilePath < FilePaths.Num(); IndexFilePath++)
-			{
-				FString NewFilePath = FPaths::Combine(RootPaths[IndexFolderPath], FilePaths[IndexFilePath]);
-				if(IFileManager::Get().FileExists(*NewFilePath))
-				{
-					File.Path = NewFilePath;
-					return true;
-				};
-			}
-		}
-
-		// Last case: the FilePath is elsewhere and the file exist
-		// A Warning is launch because the file could be expected to not be loaded
-		if(IFileManager::Get().FileExists(*File.Path))
-		{
-			Context.WarningMessages.Add(FString::Printf(TEXT("File %s has been loaded but seems to be localize in an external folder: %s."), *FileName, *FPaths::GetPath(FileDescription.Path)));
-			return true;
-		}
-
-		return false;
-	}
-
-
-	ECoreTechParsingResult FCoreTechFileReader::ProcessFile(const FFileDescription& InFileDescription)
-	{
-		FileDescription = InFileDescription;
-
 		CT_IO_ERROR Result = IO_OK;
 		CT_OBJECT_ID MainId = 0;
 
 		CT_KERNEL_IO::UnloadModel();
 
-		Context.SceneGraphArchive.FullPath = FileDescription.Path;
-		Context.SceneGraphArchive.CADFileName = FileDescription.Name;
-
-		// the parallelization of monolithic Jt file is set in SetCoreTechImportOption. Then it's processed as the other exploded formats
+		// the parallelization of monolithic JT file is set in SetCoreTechImportOption. Then it's processed as the other exploded formats
 		CT_FLAGS CTImportOption = SetCoreTechImportOption();
 
 		FString LoadOption;
 		CT_UINT32 NumberOfIds = 1;
 
-		if (!FileDescription.Configuration.IsEmpty())
+		// Set specific import option according to format
+		if (CADFileData.HasConfiguration())
 		{
-			if (FileDescription.Extension == "jt")
+			if (CADFileData.FileExtension() == TEXT("jt"))
 			{
-				LoadOption = FileDescription.Configuration;
+				LoadOption = CADFileData.GetConfiguration();
 			}
 			else
 			{
-				NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.Path);
+				NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*CADFileData.FilePath());
 				if (NumberOfIds > 1)
 				{
-					CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.Path);
+					CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*CADFileData.FilePath());
 					for (CT_UINT32 i = 0; i < NumberOfIds; i++)
 					{
-						CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.Path, i);
-						if (FileDescription.Configuration == CoreTechFileReaderUtils::AsFString(ConfValue))
+						CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*CADFileData.FilePath(), i);
+						if (CADFileData.GetConfiguration() == CoreTechFileParserUtils::AsFString(ConfValue))
 						{
 							ActiveConfig = i;
 							break;
@@ -299,58 +232,53 @@ namespace CADLibrary
 			}
 		}
 
-		CTKIO_ChangeUnit(Context.ImportParameters.MetricUnit);
-		Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTImportOption, 0, *LoadOption);
+		CTKIO_ChangeUnit(CADFileData.MetricUnit());
+		Result = CT_KERNEL_IO::LoadFile(*CADFileData.FilePath(), MainId, CTImportOption, 0, *LoadOption);
 		if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 		{
 			CT_KERNEL_IO::UnloadModel();
 			CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
 			CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
-			CTKIO_ChangeUnit(Context.ImportParameters.MetricUnit);
-			Result = CT_KERNEL_IO::LoadFile(*FileDescription.Path, MainId, CTReImportOption, 0, *LoadOption);
+			CTKIO_ChangeUnit(CADFileData.MetricUnit());
+			Result = CT_KERNEL_IO::LoadFile(*CADFileData.FilePath(), MainId, CTReImportOption, 0, *LoadOption);
 		}
 
 		// the file is loaded but it's empty, so no data is generate
 		if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 		{
 			CT_KERNEL_IO::UnloadModel();
-			Context.WarningMessages.Emplace(FString::Printf(TEXT("File %s has been loaded but no assembly has been detected."), *FileDescription.Name));
-			return ECoreTechParsingResult::ProcessOk;
+			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s has been loaded but no assembly has been detected."), *CADFileData.FileName()));
+			return ECADParsingResult::ProcessOk;
 		}
 
 		if (Result != IO_OK && Result != IO_OK_MISSING_LICENSES)
 		{
 			CT_KERNEL_IO::UnloadModel();
-			return ECoreTechParsingResult::ProcessFailed;
+			return ECADParsingResult::ProcessFailed;
 		}
 
-		if (!Context.CachePath.IsEmpty())
+		if (CADFileData.IsCacheDefined())
 		{
-			uint32 FileHash = FileDescription.GetFileHash();
-			FString CTFileName = FString::Printf(TEXT("UEx%08x"), FileHash);
-			FString CTFilePath = FPaths::Combine(Context.CachePath, TEXT("cad"), CTFileName + TEXT(".ct"));
-			if(CTFilePath != FileDescription.Path)
+			FString CacheFilePath = CADFileData.GetCADCachePath();
+			if (CacheFilePath != CADFileData.FilePath())
 			{
 				CT_LIST_IO ObjectList;
 				ObjectList.PushBack(MainId);
 
-				CT_IO_ERROR SaveResult = CT_KERNEL_IO::SaveFile(ObjectList, *CTFilePath, L"Ct");
+				CT_IO_ERROR SaveResult = CT_KERNEL_IO::SaveFile(ObjectList, *CacheFilePath, L"Ct");
 			}
 		}
 
-		CoreTechFileReaderUtils::AddFaceIdAttribut(MainId);
+		CoreTechFileParserUtils::AddFaceIdAttribut(MainId);
 
-		if (Context.ImportParameters.StitchingTechnique != StitchingNone && Context.ImportParameters.bDisableCADKernelTessellation)
+		if (CADFileData.GetStitchingTechnique() != StitchingNone && !CADFileData.IsCADKernelTessellation())
 		{
-			CADLibrary::CTKIO_Repair(MainId, Context.ImportParameters.StitchingTechnique, 10.);
+			CADLibrary::CTKIO_Repair(MainId, CADFileData.GetStitchingTechnique(), 10.);
 		}
 
-		CTKIO_SetCoreTechTessellationState(Context.ImportParameters);
+		CTKIO_SetCoreTechTessellationState(CADFileData.GetImportParameters());
 
-		Context.SceneGraphArchive.FullPath = FileDescription.Path;
-		Context.SceneGraphArchive.CADFileName = FileDescription.Name;
-
-		const CT_OBJECT_TYPE TypeSet[] = { CT_INSTANCE_TYPE, CT_ASSEMBLY_TYPE, CT_PART_TYPE, CT_COMPONENT_TYPE, CT_BODY_TYPE, CT_UNLOADED_COMPONENT_TYPE, CT_UNLOADED_ASSEMBLY_TYPE, CT_UNLOADED_PART_TYPE};
+		const CT_OBJECT_TYPE TypeSet[] = { CT_INSTANCE_TYPE, CT_ASSEMBLY_TYPE, CT_PART_TYPE, CT_COMPONENT_TYPE, CT_BODY_TYPE, CT_UNLOADED_COMPONENT_TYPE, CT_UNLOADED_ASSEMBLY_TYPE, CT_UNLOADED_PART_TYPE };
 		enum EObjectTypeIndex : uint8	{ CT_INSTANCE_INDEX = 0, CT_ASSEMBLY_INDEX, CT_PART_INDEX, CT_COMPONENT_INDEX, CT_BODY_INDEX, CT_UNLOADED_COMPONENT_INDEX, CT_UNLOADED_ASSEMBLY_INDEX, CT_UNLOADED_PART_INDEX };
 
 		uint32 NbElements[8], NbTotal = 10;
@@ -360,21 +288,22 @@ namespace CADLibrary
 			NbTotal += NbElements[index];
 		}
 
-		Context.BodyMeshes.Reserve(NbElements[CT_BODY_INDEX]);
+		CADFileData.ReserveBodyMeshes(NbElements[CT_BODY_INDEX]);
 
-		Context.SceneGraphArchive.BodySet.Reserve(NbElements[CT_BODY_INDEX]);
-		Context.SceneGraphArchive.ComponentSet.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
-		Context.SceneGraphArchive.UnloadedComponentSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
-		Context.SceneGraphArchive.ExternalRefSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
-		Context.SceneGraphArchive.Instances.Reserve(NbElements[CT_INSTANCE_INDEX]);
+		FArchiveSceneGraph& SceneGraphArchive = CADFileData.GetSceneGraphArchive();
+		SceneGraphArchive.BodySet.Reserve(NbElements[CT_BODY_INDEX]);
+		SceneGraphArchive.ComponentSet.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
+		SceneGraphArchive.UnloadedComponentSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
+		SceneGraphArchive.ExternalRefSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
+		SceneGraphArchive.Instances.Reserve(NbElements[CT_INSTANCE_INDEX]);
 
-		Context.SceneGraphArchive.CADIdToBodyIndex.Reserve(NbElements[CT_BODY_INDEX]);
-		Context.SceneGraphArchive.CADIdToComponentIndex.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
-		Context.SceneGraphArchive.CADIdToUnloadedComponentIndex.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
-		Context.SceneGraphArchive.CADIdToInstanceIndex.Reserve(NbElements[CT_INSTANCE_INDEX]);
+		SceneGraphArchive.CADIdToBodyIndex.Reserve(NbElements[CT_BODY_INDEX]);
+		SceneGraphArchive.CADIdToComponentIndex.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
+		SceneGraphArchive.CADIdToUnloadedComponentIndex.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
+		SceneGraphArchive.CADIdToInstanceIndex.Reserve(NbElements[CT_INSTANCE_INDEX]);
 
 		uint32 MaterialNum = GetMaterialNum();
-		Context.SceneGraphArchive.MaterialHIdToMaterial.Reserve(MaterialNum);
+		SceneGraphArchive.MaterialHIdToMaterial.Reserve(MaterialNum);
 
 		ReadMaterials();
 
@@ -386,35 +315,36 @@ namespace CADLibrary
 		CT_STR KernelIO_Version = CT_KERNEL_IO::AskVersion();
 		if (!KernelIO_Version.IsEmpty())
 		{
-			Context.SceneGraphArchive.ComponentSet[0].MetaData.Add(TEXT("KernelIOVersion"), CoreTechFileReaderUtils::AsFString(KernelIO_Version));
+			SceneGraphArchive.ComponentSet[0].MetaData.Add(TEXT("KernelIOVersion"), CoreTechFileParserUtils::AsFString(KernelIO_Version));
 		}
 
 		CT_KERNEL_IO::UnloadModel();
 
 		if (!bReadNodeSucceed)
 		{
-			return ECoreTechParsingResult::ProcessFailed;
+			return ECADParsingResult::ProcessFailed;
 		}
 
-		return ECoreTechParsingResult::ProcessOk;
+		return ECADParsingResult::ProcessOk;
 	}
 
-	CT_FLAGS FCoreTechFileReader::SetCoreTechImportOption()
+	CT_FLAGS FCoreTechFileParser::SetCoreTechImportOption()
 	{
 		// Set import option
 		CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
-		const FString& MainFileExt = FileDescription.Extension;
 
-		// Parallelisation of monolitic Jt file,
-		// For Jt file, first step the file is read with "Structure only option"
+		const FString& MainFileExt = CADFileData.FileExtension();
+
+		// Parallelization of monolithic JT file,
+		// For JT file, first step the file is read with "Structure only option"
 		// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
 		if (MainFileExt == TEXT("jt"))
 		{
-			if (FileDescription.Configuration.IsEmpty())
+			if (!CADFileData.HasConfiguration())
 			{
-				FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
+				FFileStatData FileStatData = IFileManager::Get().GetStatData(*CADFileData.FilePath());
 
-				if (FileStatData.FileSize > 2e6 /* 2 Mb */ && !Context.CachePath.IsEmpty()) // First step 
+				if (FileStatData.FileSize > 2e6 /* 2 Mb */ && CADFileData.IsCacheDefined()) // First step 
 				{
 						Flags |= CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;
 				}
@@ -442,7 +372,7 @@ namespace CADLibrary
 		}
 
 		// 3dxml file is zipped files, it's full managed by Kernel_io. We cannot read it in sequential mode
-		if (MainFileExt != TEXT("3dxml") && Context.ImportParameters.bEnableSequentialImport)
+		if (MainFileExt != TEXT("3dxml") && CADFileData.IsSequentialImport())
 		{
 			Flags &= ~CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
 		}
@@ -450,7 +380,7 @@ namespace CADLibrary
 		return Flags;
 	}
 
-	bool FCoreTechFileReader::ReadNode(CT_OBJECT_ID NodeId, uint32 DefaultMaterialHash)
+	bool FCoreTechFileParser::ReadNode(CT_OBJECT_ID NodeId, uint32 DefaultMaterialHash)
 	{
 		CT_OBJECT_TYPE Type;
 		CT_OBJECT_IO::AskType(NodeId, Type);
@@ -495,30 +425,30 @@ namespace CADLibrary
 		return true;
 	}
 
-	bool FCoreTechFileReader::ReadComponent(CT_OBJECT_ID ComponentId, uint32 DefaultMaterialHash)
+	bool FCoreTechFileParser::ReadComponent(CT_OBJECT_ID ComponentId, uint32 DefaultMaterialHash)
 	{
-		if (int32* Index = Context.SceneGraphArchive.CADIdToComponentIndex.Find(ComponentId))
+		if (CADFileData.HasComponentOfId(ComponentId))
 		{
 			return true;
 		}
 
-		int32 Index = Context.SceneGraphArchive.ComponentSet.Emplace(ComponentId);
-		Context.SceneGraphArchive.CADIdToComponentIndex.Add(ComponentId, Index);
-		ReadNodeMetaData(ComponentId, Context.SceneGraphArchive.ComponentSet[Index].MetaData);
+		int32 Index = CADFileData.AddComponent(ComponentId);
+		FArchiveComponent& Component = CADFileData.GetComponentAt(Index);
+		ReadNodeMetaData(ComponentId, Component.MetaData);
 
-		if (uint32 MaterialHash = GetObjectMaterial(Context.SceneGraphArchive.ComponentSet[Index]))
+		if (uint32 MaterialHash = GetObjectMaterial(Component))
 		{
 			DefaultMaterialHash = MaterialHash;
 		}
 
 		TArray<CT_OBJECT_ID> Instances, Bodies;
-		CoreTechFileReaderUtils::GetInstancesAndBodies(ComponentId, Instances, Bodies);
+		CoreTechFileParserUtils::GetInstancesAndBodies(ComponentId, Instances, Bodies);
 
 		for (CT_OBJECT_ID InstanceId : Instances)
 		{
 			if (ReadInstance(InstanceId, DefaultMaterialHash))
 			{
-				Context.SceneGraphArchive.ComponentSet[Index].Children.Add(InstanceId);
+				Component.Children.Add(InstanceId);
 			}
 		}
 
@@ -527,18 +457,18 @@ namespace CADLibrary
 			CT_FLAGS BodyProperties;
 			CT_BODY_IO::AskProperties(BodyId, BodyProperties);
 
-			if (Context.ImportParameters.bDisableCADKernelTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
+			if (!CADFileData.IsCADKernelTessellation() || !(BodyProperties & CT_BODY_PROP_EXACT))
 			{
 				if (ReadKioBody(BodyId, ComponentId, DefaultMaterialHash, false))
 				{
-					Context.SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
+					Component.Children.Add(BodyId);
 				}
 			}
 			else
 			{
 				if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, false))
 				{
-					Context.SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
+					Component.Children.Add(BodyId);
 				}
 			}
 		}
@@ -546,17 +476,15 @@ namespace CADLibrary
 		return true;
 	}
 
-	bool FCoreTechFileReader::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 DefaultMaterialHash)
+	bool FCoreTechFileParser::ReadInstance(CT_OBJECT_ID InstanceNodeId, uint32 DefaultMaterialHash)
 	{
-		if (int32* Index = Context.SceneGraphArchive.CADIdToInstanceIndex.Find(InstanceNodeId))
+		if (CADFileData.HasInstanceOfId(InstanceNodeId))
 		{
 			return true;
 		}
 
-		int32 InstanceIndex = Context.SceneGraphArchive.Instances.Num();
-		FArchiveInstance& Instance = Context.SceneGraphArchive.Instances.Emplace_GetRef(InstanceNodeId);
-		Context.SceneGraphArchive.CADIdToInstanceIndex.Add(InstanceNodeId, InstanceIndex);
-
+		int32 InstanceIndex = CADFileData.AddInstance(InstanceNodeId);
+		FArchiveInstance& Instance = CADFileData.GetInstanceAt(InstanceIndex);
 		ReadNodeMetaData(InstanceNodeId, Instance.MetaData);
 
 		if (uint32 MaterialHash = GetObjectMaterial(Instance))
@@ -565,14 +493,14 @@ namespace CADLibrary
 		}
 
 		// Ask the transformation of the instance
-		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, (double*) Instance.TransformMatrix.M) == IO_OK)
+		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, (double*)Instance.TransformMatrix.M) == IO_OK)
 		{
 			if (Instance.TransformMatrix.ContainsNaN())
-				{
-					Instance.TransformMatrix.SetIdentity();
+			{
+				Instance.TransformMatrix.SetIdentity();
 			}
 		}
-	
+
 		// Ask the reference
 		CT_OBJECT_ID ReferenceNodeId;
 		CT_IO_ERROR CTReturn = CT_INSTANCE_IO::AskChild(InstanceNodeId, ReferenceNodeId);
@@ -587,9 +515,9 @@ namespace CADLibrary
 		if (type == CT_UNLOADED_PART_TYPE || type == CT_UNLOADED_COMPONENT_TYPE || type == CT_UNLOADED_ASSEMBLY_TYPE)
 		{
 			Instance.bIsExternalRef = true;
-			if (int32* Index = Context.SceneGraphArchive.CADIdToUnloadedComponentIndex.Find(ReferenceNodeId))
+			if (int32* Index = CADFileData.FindUnloadedComponentOfId(ReferenceNodeId))
 			{
-				Instance.ExternalRef = Context.SceneGraphArchive.ExternalRefSet[*Index];
+				Instance.ExternalRef = CADFileData.GetExternalReferences(*Index);
 				return true;
 			}
 
@@ -603,22 +531,22 @@ namespace CADLibrary
 			CT_STR ComponentFile, FileType;
 			CT_UINT3264 InternalId;
 			CT_COMPONENT_IO::AskExternalDefinition(ReferenceNodeId, ComponentFile, FileType, InternalId);
-			FString ExternalRefFullPath = CoreTechFileReaderUtils::AsFString(ComponentFile);
+			FString ExternalRefFullPath = CoreTechFileParserUtils::AsFString(ComponentFile);
 
 			if (ExternalRefFullPath.IsEmpty())
 			{
-				ExternalRefFullPath = FileDescription.Path;
+				ExternalRefFullPath = CADFileData.FilePath();
 			}
 
 			FString Configuration;
-			if (FileDescription.Extension == TEXT("jt"))
+			if (CADFileData.FileExtension() == TEXT("jt"))
 			{
-				// Parallelization of monolithic Jt file,
+				// Parallelization of monolithic JT file,
 				// is the external reference is the current file ? 
 				// Yes => this is an unloaded part that will be imported with CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT Option
 				// No => the external reference is realy external... 
 				FString ExternalName = FPaths::GetCleanFilename(ExternalRefFullPath);
-				if (ExternalName == FileDescription.Name)
+				if (ExternalName == CADFileData.FileName())
 				{
 					Configuration = FString::Printf(TEXT("%d"), InternalId);
 				}
@@ -629,27 +557,24 @@ namespace CADLibrary
 				Configuration = Instance.MetaData.FindRef(ConfigName);
 			}
 
-			int32 UnloadedComponentIndex = Context.SceneGraphArchive.UnloadedComponentSet.Num();
-			FArchiveUnloadedComponent& UnloadedComponent = Context.SceneGraphArchive.UnloadedComponentSet.Emplace_GetRef(UnloadedComponentIndex);
-
-			FFileDescription& NewFileDescription = Context.SceneGraphArchive.ExternalRefSet.Emplace_GetRef(*ExternalRefFullPath, *Configuration, *FileDescription.MainCadFilePath);
-			Instance.ExternalRef = NewFileDescription;
-
-			Context.SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ReferenceNodeId, UnloadedComponentIndex);
-
+			int32 UnloadedComponentIndex = CADFileData.AddUnloadedComponent(ReferenceNodeId);
+			FArchiveUnloadedComponent& UnloadedComponent = CADFileData.GetUnloadedComponentAt(UnloadedComponentIndex);
 			ReadNodeMetaData(ReferenceNodeId, UnloadedComponent.MetaData);
+
+			FFileDescription& NewFileDescription = CADFileData.AddExternalRef(*ExternalRefFullPath, *Configuration, *CADFileData.GetCADFileDescription().MainCadFilePath);
+			Instance.ExternalRef = NewFileDescription;
 
 			return true;
 		}
-		
+
 		Instance.bIsExternalRef = false;
 
 		return ReadComponent(ReferenceNodeId, DefaultMaterialHash);
 	}
 
-	bool FCoreTechFileReader::ReadKioBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
+	bool FCoreTechFileParser::ReadKioBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
 	{
-		if (int32* Index = Context.SceneGraphArchive.CADIdToBodyIndex.Find(BodyId))
+		if (CADFileData.HasBodyOfId(BodyId))
 		{
 			return true;
 		}
@@ -668,21 +593,19 @@ namespace CADLibrary
 			}
 		}
 
-		int32 BodyIndex = Context.SceneGraphArchive.BodySet.Num();
-		FArchiveBody& Body = Context.SceneGraphArchive.BodySet.Emplace_GetRef(BodyId);
-		Context.SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, BodyIndex);
+		int32 BodyIndex = CADFileData.AddBody(BodyId);
+		FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
 
 		ReadNodeMetaData(BodyId, Body.MetaData);
 
-		int32 BodyMeshIndex = Context.BodyMeshes.Num();
-		FBodyMesh& BodyMesh = Context.BodyMeshes.Emplace_GetRef(BodyId);
+		FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(BodyId);
 
 		if (uint32 MaterialHash = GetObjectMaterial(Body))
 		{
 			DefaultMaterialHash = MaterialHash;
 		}
 
-		Body.MeshActorName = CoreTechFileReaderUtils::GetStaticMeshUuid(*Context.SceneGraphArchive.ArchiveFileName, BodyId);
+		Body.MeshActorName = CoreTechFileParserUtils::GetStaticMeshUuid(*CADFileData.GetSceneGraphFileName(), BodyId);
 		BodyMesh.MeshActorName = Body.MeshActorName;
 
 		CT_FLAGS BodyProperties;
@@ -690,33 +613,33 @@ namespace CADLibrary
 
 		// Save Body in CT file for re-tessellation before getBody because GetBody can call repair and modify the body (delete and build a new one with a new Id)
 		// CT file is saved only for Exact body i.e. not tessellated body
-		if (!Context.CachePath.IsEmpty() && (BodyProperties & CT_BODY_PROP_EXACT))
+		if (CADFileData.IsCacheDefined() && (BodyProperties & CT_BODY_PROP_EXACT))
 		{
 			CT_LIST_IO ObjectList;
 			ObjectList.PushBack(BodyId);
 			FString BodyFile = FString::Printf(TEXT("UEx%08x"), Body.MeshActorName);
-			CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(Context.CachePath, TEXT("body"), BodyFile + TEXT(".ct")), L"Ct");
+			CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CADFileData.GetCADCachePath(), TEXT("body"), BodyFile + TEXT(".ct")), L"Ct");
 		}
 
 		FObjectDisplayDataId BodyMaterial;
 		BodyMaterial.DefaultMaterialName = DefaultMaterialHash;
-		CoreTechFileReaderUtils::GetCTObjectDisplayDataIds(BodyId, BodyMaterial);
+		CoreTechFileParserUtils::GetCTObjectDisplayDataIds(BodyId, BodyMaterial);
 
 		TFunction<void(CT_OBJECT_ID, int32, FTessellationData&)> ProcessFace;
 
 		ProcessFace = [&](CT_OBJECT_ID FaceID, int32 Index, FTessellationData& Tessellation)
 		{
 			FObjectDisplayDataId FaceMaterial;
-			CoreTechFileReaderUtils::GetCTObjectDisplayDataIds(FaceID, FaceMaterial);
+			CoreTechFileParserUtils::GetCTObjectDisplayDataIds(FaceID, FaceMaterial);
 			SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
 
-			if (Context.ImportParameters.bScaleUVMap && Tessellation.TexCoordArray.Num() > 0)
+			if (CADFileData.NeedUVMapScaling() && Tessellation.TexCoordArray.Num() > 0)
 			{
-				CoreTechFileReaderUtils::ScaleUV(FaceID, Tessellation.TexCoordArray, (float)Context.ImportParameters.ScaleFactor);
+				CoreTechFileParserUtils::ScaleUV(FaceID, Tessellation.TexCoordArray, (float) CADFileData.GetScaleFactor());
 			}
 		};
 
-		CoreTechFileReaderUtils::GetBodyTessellation(BodyId, BodyMesh, ProcessFace);
+		CoreTechFileParserUtils::GetBodyTessellation(BodyId, BodyMesh, ProcessFace);
 
 		Body.ColorFaceSet = BodyMesh.ColorSet;
 		Body.MaterialFaceSet = BodyMesh.MaterialSet;
@@ -727,7 +650,7 @@ namespace CADLibrary
 #ifdef CORETECHBRIDGE_DEBUG
 	static int32 BodyIndex = 0;
 #endif
-	bool FCoreTechFileReader::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
+	bool FCoreTechFileParser::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
 	{
 		// Is this body a constructive geometry ?
 		CT_LIST_IO FaceList;
@@ -743,23 +666,22 @@ namespace CADLibrary
 			}
 		}
 
-		int32 Index = Context.SceneGraphArchive.BodySet.Emplace(BodyId);
-		Context.SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, Index);
-		ReadNodeMetaData(BodyId, Context.SceneGraphArchive.BodySet[Index].MetaData);
+		int32 Index = CADFileData.AddBody(BodyId);
+		FArchiveBody& ArchiveBody = CADFileData.GetBodyAt(Index);
+		ReadNodeMetaData(BodyId, ArchiveBody.MetaData);
 
-		int32 BodyMeshIndex = Context.BodyMeshes.Emplace(BodyId);
+		FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(BodyId);
 
-		if (uint32 MaterialHash = GetObjectMaterial(Context.SceneGraphArchive.BodySet[Index]))
+		if (uint32 MaterialHash = GetObjectMaterial(ArchiveBody))
 		{
 			DefaultMaterialHash = MaterialHash;
 		}
 
-		FBodyMesh& BodyMesh = Context.BodyMeshes[BodyMeshIndex];
-		Context.SceneGraphArchive.BodySet[Index].MeshActorName = CoreTechFileReaderUtils::GetStaticMeshUuid(*Context.SceneGraphArchive.ArchiveFileName, BodyId);
-		BodyMesh.MeshActorName = Context.SceneGraphArchive.BodySet[Index].MeshActorName;
+		ArchiveBody.MeshActorName = CoreTechFileParserUtils::GetStaticMeshUuid(*CADFileData.GetSceneGraphFileName(), BodyId);
+		BodyMesh.MeshActorName = ArchiveBody.MeshActorName;
 
 		{
-			TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / Context.ImportParameters.MetricUnit);
+			TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / CADFileData.GetMetricUnit());
 
 			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession->GetModel();
 
@@ -770,20 +692,20 @@ namespace CADLibrary
 
 #ifdef CORETECHBRIDGE_DEBUG
 			FString FolderName = FPaths::GetCleanFilename(FileDescription.MainCadFilePath);
-			CADKernelSession->SaveDatabase(*FPaths::Combine(Context.CachePath, TEXT("CADKernel"), FolderName, FString::Printf(TEXT("%06d_"), BodyIndex++) + FileDescription.Name + TEXT(".ugeom")));
+			CADKernelSession->SaveDatabase(*FPaths::Combine(CADFileData.CachePath, TEXT("CADKernel"), FolderName, FString::Printf(TEXT("%06d_"), BodyIndex++) + FileDescription.Name + TEXT(".ugeom")));
 #endif
 
 			// Save Body in CADKernelArchive file for re-tessellation
-			if (!Context.CachePath.IsEmpty())
+			if (CADFileData.IsCacheDefined())
 			{
-				FString BodyFile = FString::Printf(TEXT("UEx%08x"), Context.SceneGraphArchive.BodySet[Index].MeshActorName);
-				CADKernelSession->SaveDatabase(*FPaths::Combine(Context.CachePath, TEXT("body"), BodyFile + TEXT(".ugeom")), CADKernelBody);
+				FString BodyFilePath = CADFileData.GetBodyCachePath(ArchiveBody.MeshActorName);
+				CADKernelSession->SaveDatabase(*BodyFilePath);
 			}
 
-			// Tesselate the body
+			// Tessellate the body
 			TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
 
-			FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, Context.ImportParameters);
+			FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, CADFileData.GetImportParameters());
 
 			CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
 			Mesher.MeshEntity(CADKernelModel);
@@ -799,19 +721,19 @@ namespace CADLibrary
 			CADKernelSession->Clear();
 		}
 
-		Context.SceneGraphArchive.BodySet[Index].ColorFaceSet = BodyMesh.ColorSet;
-		Context.SceneGraphArchive.BodySet[Index].MaterialFaceSet = BodyMesh.MaterialSet;
+		ArchiveBody.ColorFaceSet = BodyMesh.ColorSet;
+		ArchiveBody.MaterialFaceSet = BodyMesh.MaterialSet;
 		return true;
 	}
 
-	void FCoreTechFileReader::GetAttributeValue(CT_ATTRIB_TYPE AttributType, int IthField, FString& Value)
+	void FCoreTechFileParser::GetAttributeValue(CT_ATTRIB_TYPE AttributType, int IthField, FString& Value)
 	{
 		CT_STR               FieldName;
 		CT_ATTRIB_FIELD_TYPE FieldType;
 
 		Value = "";
 
-		if (CT_ATTRIB_DEFINITION_IO::AskFieldDefinition(AttributType, IthField, FieldType, FieldName) != IO_OK) 
+		if (CT_ATTRIB_DEFINITION_IO::AskFieldDefinition(AttributType, IthField, FieldType, FieldName) != IO_OK)
 		{
 			return;
 		}
@@ -824,7 +746,7 @@ namespace CADLibrary
 			case CT_ATTRIB_FIELD_INTEGER:
 			{
 				int IValue;
-				if (CT_CURRENT_ATTRIB_IO::AskIntField(IthField, IValue) != IO_OK) 
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(IthField, IValue) != IO_OK)
 				{
 					break;
 				}
@@ -848,7 +770,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				Value = CoreTechFileReaderUtils::AsFString(StrValue);
+				Value = CoreTechFileParserUtils::AsFString(StrValue);
 				break;
 			}
 			case CT_ATTRIB_FIELD_POINTER:
@@ -858,7 +780,7 @@ namespace CADLibrary
 		}
 	}
 
-	void FCoreTechFileReader::GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName, FString& OutMetaDataValue)
+	void FCoreTechFileParser::GetStringMetaDataValue(CT_OBJECT_ID NodeId, const TCHAR* InMetaDataName, FString& OutMetaDataValue)
 	{
 		CT_STR FieldName;
 		CT_UINT32 IthAttrib = 0;
@@ -868,23 +790,23 @@ namespace CADLibrary
 			{
 				continue;
 			}
-			if (!FCString::Strcmp(InMetaDataName, *CoreTechFileReaderUtils::AsFString(FieldName)))
+			if (!FCString::Strcmp(InMetaDataName, *CoreTechFileParserUtils::AsFString(FieldName)))
 			{
 				CT_STR FieldStrValue;
 				CT_CURRENT_ATTRIB_IO::AskStrField(ITH_STRING_METADATA_VALUE, FieldStrValue);
-				OutMetaDataValue = CoreTechFileReaderUtils::AsFString(FieldStrValue);
+				OutMetaDataValue = CoreTechFileParserUtils::AsFString(FieldStrValue);
 				return;
 			}
 		}
 	}
 
-	void FCoreTechFileReader::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData)
+	void FCoreTechFileParser::ReadNodeMetaData(CT_OBJECT_ID NodeId, TMap<FString, FString>& OutMetaData)
 	{
 		if (CT_COMPONENT_IO::IsA(NodeId, CT_COMPONENT_TYPE))
 		{
 			CT_STR FileName, FileType;
 			CT_COMPONENT_IO::AskExternalDefinition(NodeId, FileName, FileType);
-			OutMetaData.Add(TEXT("ExternalDefinition"), CoreTechFileReaderUtils::AsFString(FileName));
+			OutMetaData.Add(TEXT("ExternalDefinition"), CoreTechFileParserUtils::AsFString(FileName));
 		}
 
 		CT_SHOW_ATTRIBUTE IsShow = CT_UNKNOWN;
@@ -931,42 +853,42 @@ namespace CADLibrary
 			case CT_ATTRIB_NAME:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("CTName"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("CTName"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
 			case CT_ATTRIB_ORIGINAL_NAME:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("Name"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("Name"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
 			case CT_ATTRIB_ORIGINAL_FILENAME:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_FILENAME_VALUE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("FileName"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("FileName"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
 			case CT_ATTRIB_UUID:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_UUID_VALUE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("UUID"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("UUID"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
 			case CT_ATTRIB_INPUT_FORMAT_AND_EMETTOR:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_INPUT_FORMAT_AND_EMETTOR, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("Input_Format_and_Emitter"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("Input_Format_and_Emitter"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
 			case CT_ATTRIB_CONFIGURATION_NAME:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_NAME_VALUE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("ConfigurationName"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("ConfigurationName"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
@@ -1011,7 +933,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				if (FArchiveMaterial* Material = Context.SceneGraphArchive.MaterialHIdToMaterial.Find(FieldIntValue))
+				if (FArchiveMaterial* Material = CADFileData.FindMaterial(FieldIntValue))
 				{
 					OutMetaData.Add(TEXT("MaterialName"), FString::FromInt(Material->UEMaterialName));
 				}
@@ -1088,7 +1010,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), FString::FromInt(FieldIntValue));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), FString::FromInt(FieldIntValue));
 				break;
 
 			case CT_ATTRIB_DOUBLE_METADATA:
@@ -1100,7 +1022,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 				break;
 
 			case CT_ATTRIB_STRING_METADATA:
@@ -1112,7 +1034,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				break;
 
 			case CT_ATTRIB_ORIGINAL_UNITS:
@@ -1141,27 +1063,27 @@ namespace CADLibrary
 			case CT_ATTRIB_PRODUCT:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_REVISION, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("ProductRevision"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("ProductRevision"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_DEFINITION, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("ProductDefinition"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("ProductDefinition"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_NOMENCLATURE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("ProductNomenclature"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("ProductNomenclature"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_SOURCE, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("ProductSource"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("ProductSource"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_PRODUCT_DESCRIPTION, FieldStrValue) != IO_OK)
 				{
-					OutMetaData.Add(TEXT("ProductDescription"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("ProductDescription"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
@@ -1200,7 +1122,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), FString::FromInt(FieldIntValue));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), FString::FromInt(FieldIntValue));
 				break;
 
 			case CT_ATTRIB_DOUBLE_PARAMETER:
@@ -1212,7 +1134,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 				break;
 
 			case CT_ATTRIB_STRING_PARAMETER:
@@ -1224,7 +1146,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				break;
 
 			case CT_ATTRIB_PARAMETER_ARRAY:
@@ -1236,27 +1158,27 @@ namespace CADLibrary
 			case CT_ATTRIB_SAVE_OPTION:
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_AUTHOR, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("SaveOptionAuthor"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("SaveOptionAuthor"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_ORGANIZATION, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("SaveOptionOrganization"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("SaveOptionOrganization"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_FILE_DESCRIPTION, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("SaveOptionFileDescription"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("SaveOptionFileDescription"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_AUTHORISATION, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("SaveOptionAuthorisation"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("SaveOptionAuthorisation"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 
 				if (CT_CURRENT_ATTRIB_IO::AskStrField(ITH_SAVE_OPTION_PREPROCESSOR, FieldStrValue) == IO_OK)
 				{
-					OutMetaData.Add(TEXT("SaveOptionPreprocessor"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+					OutMetaData.Add(TEXT("SaveOptionPreprocessor"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				}
 				break;
 
@@ -1270,7 +1192,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(TEXT("OriginalIdStr"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+				OutMetaData.Add(TEXT("OriginalIdStr"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				break;
 
 			case CT_ATTRIB_COLOR_RGB_DOUBLE:
@@ -1308,7 +1230,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), FString::FromInt(FieldIntValue));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), FString::FromInt(FieldIntValue));
 				break;
 
 			case CT_ATTRIB_DOUBLE_VALIDATION_ATTRIBUTE:
@@ -1320,7 +1242,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), FString::Printf(TEXT("%lf"), FieldDoubleValue0));
 				break;
 
 			case CT_ATTRIB_STRING_VALIDATION_ATTRIBUTE:
@@ -1332,7 +1254,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(CoreTechFileReaderUtils::AsFString(FieldName), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+				OutMetaData.Add(CoreTechFileParserUtils::AsFString(FieldName), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				break;
 
 			case CT_ATTRIB_BOUNDING_BOX:
@@ -1354,7 +1276,7 @@ namespace CADLibrary
 				{
 					break;
 				}
-				OutMetaData.Add(TEXT("GroupName"), CoreTechFileReaderUtils::AsFString(FieldStrValue));
+				OutMetaData.Add(TEXT("GroupName"), CoreTechFileParserUtils::AsFString(FieldStrValue));
 				break;
 
 			case CT_ATTRIB_ANALYZE_ID:
@@ -1381,7 +1303,7 @@ namespace CADLibrary
 		}
 	}
 
-	namespace CoreTechFileReaderUtils
+	namespace CoreTechFileParserUtils
 	{
 		template<typename ValueType>
 		void FillArrayOfVector(int32 ElementCount, void* InCTValueArray, FVector* OutValueArray)
@@ -1459,7 +1381,7 @@ namespace CADLibrary
 			{
 				for (int32 IndexJ = 0; IndexJ < NbIsoCurves; IndexJ++)
 				{
-					CT_SURFACE_IO::Evaluate(SurfaceID, U, V, NodeMatrix[IndexI*NbIsoCurves + IndexJ]);
+					CT_SURFACE_IO::Evaluate(SurfaceID, U, V, NodeMatrix[IndexI * NbIsoCurves + IndexJ]);
 					V += DeltaV;
 				}
 				U += DeltaU;
@@ -1573,7 +1495,7 @@ namespace CADLibrary
 				return 0;
 			}
 
-			Tessellation.PatchId = CoreTechFileReaderUtils::GetIntegerParameterDataValue(FaceID, TEXT("DatasmithFaceId"));
+			Tessellation.PatchId = CoreTechFileParserUtils::GetIntegerParameterDataValue(FaceID, TEXT("DatasmithFaceId"));
 
 			Tessellation.VertexIndices.SetNum(IndexCount);
 
@@ -1685,19 +1607,19 @@ namespace CADLibrary
 
 		uint32 GetSceneFileHash(const uint32 InSGHash, const FImportParameters& ImportParam)
 		{
-			uint32 FileHash = HashCombine(InSGHash, GetTypeHash(ImportParam.StitchingTechnique));
+			uint32 FileHash = HashCombine(InSGHash, ::GetTypeHash(ImportParam.StitchingTechnique));
 			return FileHash;
 		}
 
 		uint32 GetGeomFileHash(const uint32 InSGHash, const FImportParameters& ImportParam)
 		{
 			uint32 FileHash = InSGHash;
-			FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.ChordTolerance));
-			FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.MaxEdgeLength));
-			FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.MaxNormalAngle));
-			FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.MetricUnit));
-			FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.ScaleFactor));
-			FileHash = HashCombine(FileHash, GetTypeHash(ImportParam.StitchingTechnique));
+			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.ChordTolerance));
+			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.MaxEdgeLength));
+			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.MaxNormalAngle));
+			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.MetricUnit));
+			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.ScaleFactor));
+			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.StitchingTechnique));
 			return FileHash;
 		}
 
@@ -1763,12 +1685,12 @@ namespace CADLibrary
 
 		uint32 GetStaticMeshUuid(const TCHAR* OutSgFile, const int32 BodyId)
 		{
-			uint32 BodyUUID = GetTypeHash(OutSgFile);
-			BodyUUID = HashCombine(BodyUUID, GetTypeHash(BodyId));
+			uint32 BodyUUID = ::GetTypeHash(OutSgFile);
+			BodyUUID = HashCombine(BodyUUID, ::GetTypeHash(BodyId));
 			return BodyUUID;
 		}
 
-		// For each face, adds an integer parameter representing the id of the face to avoid re-identation of faces in sub CT file
+		// For each face, adds an integer parameter representing the id of the face to avoid re-indentation of faces in sub CT file
 		// Used by Re-tessellation Rule to Skip Deleted Surfaces
 		void AddFaceIdAttribut(CT_OBJECT_ID NodeId)
 		{

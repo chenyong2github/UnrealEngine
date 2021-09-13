@@ -3,6 +3,7 @@
 #include "DatasmithCADTranslator.h"
 
 #include "CADInterfacesModule.h"
+#include "CADFileReader.h"
 #include "CADKernelSurfaceExtension.h"
 #include "CoreTechSurfaceHelper.h"
 #include "DatasmithCADTranslatorModule.h"
@@ -92,11 +93,11 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	ImportParameters.ChordTolerance = TesselationOptions.ChordTolerance;
 	ImportParameters.MaxEdgeLength = TesselationOptions.MaxEdgeLength;
 	ImportParameters.MaxNormalAngle = TesselationOptions.NormalTolerance;
-	ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique) TesselationOptions.StitchingTechnique;
+	ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique)TesselationOptions.StitchingTechnique;
 
 	CADLibrary::FFileDescription FileDescription(*FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()),
 		TEXT(""),
-		*FPaths::GetPath(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile())) );
+		*FPaths::GetPath(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile())));
 
 	// Do not change the model unit when translator is called by the Datasmith runtime plugin.
 #if WITH_EDITOR
@@ -174,16 +175,17 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		return true;
 	}
 
-	CADLibrary::FCoreTechFileParser FileParser(ImportParameters, *FPaths::EnginePluginsDir());
-	if (FileParser.ProcessFile(FileDescription) != CADLibrary::ECoreTechParsingResult::ProcessOk)
+	CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescription, *FPaths::EnginePluginsDir());
+	if (FileReader.ProcessFile() != CADLibrary::ECADParsingResult::ProcessOk)
 	{
 		return false;
 	}
 
-	FDatasmithSceneBaseGraphBuilder SceneGraphBuilder(&FileParser.GetSceneGraphArchive(), DatasmithScene, GetSource(), ImportParameters);
+	CADLibrary::FCADFileData& CADFileData = FileReader.GetCADFileData();
+	FDatasmithSceneBaseGraphBuilder SceneGraphBuilder(&CADFileData.GetSceneGraphArchive(), DatasmithScene, GetSource(), ImportParameters);
 	SceneGraphBuilder.Build();
 
-	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(FileParser.GetBodyMeshes(), ImportParameters);
+	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileData.GetBodyMeshes(), ImportParameters);
 
 	return true;
 }
@@ -207,7 +209,7 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-		if(ImportParameters.bDisableCADKernelTessellation)
+		if (ImportParameters.bDisableCADKernelTessellation)
 		{
 			CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 		}

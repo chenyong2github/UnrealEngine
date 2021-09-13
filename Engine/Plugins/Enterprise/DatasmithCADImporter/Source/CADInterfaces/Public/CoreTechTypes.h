@@ -3,26 +3,11 @@
 
 
 #include "CADOptions.h"
-#include "Containers/Array.h"
-#include "Math/Vector.h"
-#include "Math/Vector2D.h"
 
 namespace CADLibrary
 {
-	enum class ECoreTechParsingResult : uint8
-	{
-		Unknown,
-		Running,
-		UnTreated,
-		ProcessOk,
-		ProcessFailed,
-		FileNotFound,
-	};
-
-	class FBodyMesh;
-	struct FFileDescription;
-	class FArchiveSceneGraph;
 	class ICoreTechInterface;
+	class FBodyMesh;
 
 	// Helper struct used to pass Nurbs surface definition to CoreTech
 	struct FNurbsSurface
@@ -56,29 +41,6 @@ namespace CADLibrary
 		TArray<double> KnotValues;
 		TArray<uint32> KnotMultiplicity;
 		TArray<double> ControlPoints;
-	};
-
-	// Helper struct used to pass the result of ICoreTechInterface::LoadFile across dll boundaries
-	// when the ICoreTechInterface object has been created through the DatasmithCADRuntime dll 
-	struct FLoadingContext
-	{
-		FLoadingContext(const FImportParameters& InImportParameters, const FString& InCachePath)
-			: ImportParameters(InImportParameters)
-			, CachePath(InCachePath)
-		{
-		}
-
-		FLoadingContext(const FLoadingContext& Other)
-			: ImportParameters(Other.ImportParameters)
-			, CachePath(Other.CachePath)
-		{
-		}
-
-		const FImportParameters& ImportParameters;
-		const FString& CachePath;
-		TSharedPtr<FArchiveSceneGraph> SceneGraphArchive;
-		TSharedPtr<TArray<FString>> WarningMessages;
-		TSharedPtr<TArray<FBodyMesh>> BodyMeshes;
 	};
 
 	class ICoreTechInterface
@@ -137,16 +99,6 @@ namespace CADLibrary
 		virtual void GetTessellation(uint64 BodyId, FBodyMesh& OutBodyMesh, bool bIsBody) = 0;
 
 		virtual void GetTessellation(uint64 BodyId, TSharedPtr<FBodyMesh>& OutBodyMesh, bool bIsBody) = 0;
-
-		virtual ECoreTechParsingResult LoadFile(
-			const FFileDescription& InFileDescription,
-			const FImportParameters& InImportParameters,
-			const FString& InCachePath,
-			FArchiveSceneGraph& OutSceneGraphArchive,
-			TArray<FString>& OutWarningMessages,
-			TArray<FBodyMesh>& OutBodyMeshes) = 0;
-
-		virtual ECoreTechParsingResult LoadFile(const FFileDescription& InFileDescription, FLoadingContext& LoadingContext) = 0;
 
 		virtual bool CreateNurbsSurface(const FNurbsSurface& Surface, uint64& ObjectID) = 0;
 
@@ -216,8 +168,6 @@ namespace CADLibrary
 	);
 
 	CADINTERFACES_API void CTKIO_GetTessellation(uint64 ObjectId, FBodyMesh& OutBodyMesh, bool bIsBody = true);
-
-	CADINTERFACES_API ECoreTechParsingResult CTKIO_LoadFile(const FFileDescription& InFileDescription, const FImportParameters& InImportParameters, const FString& InCachePath, FArchiveSceneGraph& OutSceneGraphArchive, TArray<FString>& OutWarningMessages, TArray<FBodyMesh>& OutBodyMeshes);
 
 	CADINTERFACES_API bool CTKIO_CreateNurbsSurface(const FNurbsSurface& NurbsDefinition, uint64& ObjectID);
 

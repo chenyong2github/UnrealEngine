@@ -101,31 +101,32 @@ namespace CADLibrary
 		}
 	}
 
-	ECoreTechParsingResult CTKIO_LoadFile(const FFileDescription& InFileDescription, const FImportParameters& InImportParameters, const FString& InCachePath, FArchiveSceneGraph& OutSceneGraphArchive, TArray<FString>& OutWarningMessages, TArray<FBodyMesh>& OutBodyMeshes)
-	{
-		if ( CoreTechInterface.IsValid())
-		{
-			if (!CoreTechInterface->IsExternal())
-			{
-				return CoreTechInterface->LoadFile(InFileDescription, InImportParameters, InCachePath, OutSceneGraphArchive, OutWarningMessages, OutBodyMeshes);
-			}
+	//ECADParsingResult CTKIO_LoadFile(const FFileDescription& InFileDescription, const FImportParameters& InImportParameters, const FString& InCachePath, FArchiveSceneGraph& OutSceneGraphArchive, TArray<FString>& OutWarningMessages, TArray<FBodyMesh>& OutBodyMeshes)
+	//{
+	//	if ( CoreTechInterface.IsValid())
+	//	{
+	//		if (!CoreTechInterface->IsExternal())
+	//		{
+	//			//return CoreTechInterface->LoadFile(InFileDescription, InImportParameters, InCachePath, OutSceneGraphArchive, OutWarningMessages, OutBodyMeshes);
+	//			return ECADParsingResult::ProcessFailed;
+	//		}
 
-			// Allocated data is crossing dll boundaries. The data must be copied.
-			FLoadingContext Context(InImportParameters, InCachePath);
+	//		// Allocated data is crossing dll boundaries. The data must be copied.
+	//		FLoadingContext Context(InImportParameters, InCachePath);
 
-			const ECoreTechParsingResult Result = CoreTechInterface->LoadFile(InFileDescription, Context);
-			if (Result == ECoreTechParsingResult::ProcessOk)
-			{
-				OutSceneGraphArchive = *Context.SceneGraphArchive;
-				OutWarningMessages = *Context.WarningMessages;
-				OutBodyMeshes = *Context.BodyMeshes;
-			}
+	//		const ECADParsingResult Result = ECADParsingResult::ProcessFailed;  //CoreTechInterface->LoadFile(InFileDescription, Context);
+	//		if (Result == ECADParsingResult::ProcessOk)
+	//		{
+	//			OutSceneGraphArchive = *Context.SceneGraphArchive;
+	//			OutWarningMessages = *Context.WarningMessages;
+	//			OutBodyMeshes = *Context.BodyMeshes;
+	//		}
 
-			return Result;
-		}
+	//		return Result;
+	//	}
 
-		return  ECoreTechParsingResult::ProcessFailed;
-	}
+	//	return ECADParsingResult::ProcessFailed;
+	//}
 
 	bool CTKIO_CreateNurbsSurface(const FNurbsSurface& Surface, uint64& ObjectID)
 	{
