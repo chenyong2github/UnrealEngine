@@ -8,6 +8,9 @@
 #include "SRigHierarchyTreeView.h"
 #include "ControlRigEditorStyle.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ISequencer.h"
+#include "Widgets/Input/NumericTypeInterface.h"
+#include "FrameNumberDetailsCustomization.h"
 
 #define LOCTEXT_NAMESPACE "SRigSpacePickerWidget"
 
@@ -971,9 +974,13 @@ void SRigSpacePickerBakeWidget::Construct(const FArguments& InArgs)
 {
 	check(InArgs._Hierarchy);
 	check(InArgs._Controls.Num() > 0);
+	check(InArgs._Sequencer);
 	check(InArgs._OnBake.IsBound());
 	
-	Settings = InArgs._Settings;
+	Settings = MakeShared<TStructOnScope<FRigSpacePickerBakeSettings>>();
+	Settings->InitializeAs<FRigSpacePickerBakeSettings>();
+	*Settings = InArgs._Settings;
+	Sequencer = InArgs._Sequencer;
 
 	FStructureDetailsViewArgs StructureViewArgs;
 	StructureViewArgs.bShowObjects = true;
@@ -986,9 +993,13 @@ void SRigSpacePickerBakeWidget::Construct(const FArguments& InArgs)
 	ViewArgs.bHideSelectionTip = false;
 	ViewArgs.bShowObjectLabel = false;
 
-	TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FRigSpacePickerBakeSettings::StaticStruct(), (uint8*)&Settings));
-	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	DetailsView = EditModule.CreateStructureDetailView(ViewArgs, StructureViewArgs, StructToDisplay, LOCTEXT("Struct", "Struct View"));
+	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+
+	DetailsView = PropertyEditor.CreateStructureDetailView(ViewArgs, StructureViewArgs, TSharedPtr<FStructOnScope>());
+	TSharedPtr<INumericTypeInterface<double>> NumericTypeInterface = Sequencer->GetNumericTypeInterface();
+	DetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber",
+		FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() {return MakeShared<FFrameNumberDetailsCustomization>(NumericTypeInterface); }));
+	DetailsView->SetStructureData(Settings);
 
 	ChildSlot
 	[
@@ -1021,13 +1032,13 @@ void SRigSpacePickerBakeWidget::Construct(const FArguments& InArgs)
 				})
 				.GetActiveSpace_Lambda([this](URigHierarchy*, const FRigElementKey&)
 				{
-					return Settings.TargetSpace;
+					return Settings->Get()->TargetSpace;
 				})
 				.OnActiveSpaceChanged_Lambda([this] (URigHierarchy*, const FRigElementKey&, const FRigElementKey InSpaceKey)
 				{
-					if(Settings.TargetSpace != InSpaceKey)
+					if(Settings->Get()->TargetSpace != InSpaceKey)
 					{
-						Settings.TargetSpace = InSpaceKey;	
+						Settings->Get()->TargetSpace = InSpaceKey;
 						SpacePickerWidget->RefreshContents();
 					}
 				})
@@ -1064,11 +1075,14 @@ void SRigSpacePickerBakeWidget::Construct(const FArguments& InArgs)
 					.Text(LOCTEXT("OK", "OK"))
 					.OnClicked_Lambda([this, InArgs]()
 					{
-						return InArgs._OnBake.Execute(SpacePickerWidget->GetHierarchy(), SpacePickerWidget->GetControls(), Settings);
+						FReply Reply =  InArgs._OnBake.Execute(SpacePickerWidget->GetHierarchy(), SpacePickerWidget->GetControls(),*(Settings->Get()));
+						CloseDialog();
+						return Reply;
+
 					})
 					.IsEnabled_Lambda([this]()
 					{
-						return Settings.TargetSpace.IsValid();
+						return Settings->Get()->TargetSpace.IsValid();
 					})
 				]
 
@@ -1100,7 +1114,7 @@ FReply SRigSpacePickerBakeWidget::OpenDialog(bool bModal)
 	const FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
 
 	TSharedRef<SRigSpaceDialogWindow> Window = SNew(SRigSpaceDialogWindow)
-	.Title( LOCTEXT("SRigSpacePickerBakeWidgetTitle", "Bake Controls to new space") )
+	.Title( LOCTEXT("SRigSpacePickerBakeWidgetTitle", "Bake Controls To Specified Space") )
 	.CreateTitleBar(true)
 	.Type(EWindowType::Normal)
 	.SizingRule( ESizingRule::Autosized )

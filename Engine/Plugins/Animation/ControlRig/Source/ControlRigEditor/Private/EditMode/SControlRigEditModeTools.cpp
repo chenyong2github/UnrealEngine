@@ -32,6 +32,8 @@
 #include "EditorModeManager.h"
 #include "InteractiveToolManager.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "ControlRigSpaceChannelEditors.h"
+#include "IKeyArea.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
@@ -621,9 +623,31 @@ const FRigControlElementCustomization* SControlRigEditModeTools::HandleGetContro
 void SControlRigEditModeTools::HandleActiveSpaceChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey,
 	const FRigElementKey& InSpaceKey)
 {
-	// todo: when the user picks a new space
-	// for now we'll just do it directly in the hierarchy
-	InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
+
+	if (WeakSequencer.IsValid())
+	{
+		if (UControlRig* ControlRig = SequencerRig.Get())
+		{
+			if (const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
+			{
+				ISequencer* Sequencer = WeakSequencer.Pin().Get();
+				if (Sequencer)
+				{
+					FScopedTransaction Transaction(LOCTEXT("KeyControlRigSpace", "Key Control Rig Space"));
+					ControlRig->Modify();
+
+					FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, InControlKey.Name, Sequencer, true /*bCreateIfNeeded*/);
+					if (SpaceChannelAndSection.SpaceChannel)
+					{
+						const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+						const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+						FFrameNumber CurrentTime = FrameTime.GetFrame();
+						FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey, CurrentTime, InHierarchy, InControlKey, InSpaceKey);
+					}
+				}
+			}
+		}
+	}
 }
 
 void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey,
@@ -631,16 +655,16 @@ void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy
 {
 	if (UControlRig* ControlRig = SequencerRig.Get())
 	{
-		if(const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
+		if (const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
 		{
-			FRigControlElementCustomization ControlCustomization = *ControlRig->GetControlCustomization(InControlKey);	
+			FRigControlElementCustomization ControlCustomization = *ControlRig->GetControlCustomization(InControlKey);
 			ControlCustomization.AvailableSpaces = InSpaceList;
 			ControlCustomization.RemovedSpaces.Reset();
 
 			// remember  the elements which are in the asset's available list but removed by the user
-			for(const FRigElementKey& AvailableSpace : ControlElement->Settings.Customization.AvailableSpaces)
+			for (const FRigElementKey& AvailableSpace : ControlElement->Settings.Customization.AvailableSpaces)
 			{
-				if(!ControlCustomization.AvailableSpaces.Contains(AvailableSpace))
+				if (!ControlCustomization.AvailableSpaces.Contains(AvailableSpace))
 				{
 					ControlCustomization.RemovedSpaces.Add(AvailableSpace);
 				}
@@ -654,33 +678,103 @@ void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy
 
 FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 {
-	if(SpacePickerWidget->GetHierarchy() == nullptr)
+	if (SpacePickerWidget->GetHierarchy() == nullptr)
 	{
 		return FReply::Unhandled();
 	}
-	if(SpacePickerWidget->GetControls().Num() == 0)
+	if (SpacePickerWidget->GetControls().Num() == 0)
 	{
 		return FReply::Unhandled();
 	}
+	if (!SequencerRig.Get())
+	{
+		return FReply::Unhandled();
+	}
+	ISequencer* Sequencer = WeakSequencer.Pin().Get();
+	if (Sequencer == nullptr || Sequencer->GetFocusedMovieSceneSequence() == nullptr || Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene() == nullptr)
+	{
+		return FReply::Unhandled();
+	}
+	UControlRig* ControlRig = SequencerRig.Get();
 
 	FRigSpacePickerBakeSettings Settings;
-	// todoo pick the default target space... parent?
-	Settings.TargetSpace = URigHierarchy::GetDefaultParentSocketKey();
-	// todoooo determine the range
+	//Find default target space, just use first control and find space at current sequencer time
+	//Then Find range
+	TArray<FRigElementKey> ControlKeys = SpacePickerWidget->GetControls();
 
-	TSharedRef<SRigSpacePickerBakeWidget> BakeWidget =
-		SNew(SRigSpacePickerBakeWidget)
-		.Settings(Settings)
-		.Hierarchy(SpacePickerWidget->GetHierarchy())
-		.Controls(SpacePickerWidget->GetControls())
-		.GetControlCustomization(this, &SControlRigEditModeTools::HandleGetControlElementCustomization)
-		.OnBake_Lambda([](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings InSettings)
+	FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlKeys[0].Name, Sequencer, true /*bCreateIfNeeded*/);
+	if (SpaceChannelAndSection.SpaceChannel != nullptr)
+	{
+		const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+		FFrameNumber CurrentTime = FrameTime.GetFrame();
+		FMovieSceneControlRigSpaceBaseKey Value;
+		using namespace UE::MovieScene;
+		URigHierarchy* RigHierarchy = SpacePickerWidget->GetHierarchy();
+		EvaluateChannel(SpaceChannelAndSection.SpaceChannel, CurrentTime, Value);
+		switch (Value.SpaceType)
 		{
-			// todoo react to the bake
-			return FReply::Handled();
-		});
+		case EMovieSceneControlRigSpaceType::World:
+			Settings.TargetSpace = RigHierarchy->GetWorldSpaceSocketKey();
+			break;
+		case EMovieSceneControlRigSpaceType::Parent:
+			Settings.TargetSpace = RigHierarchy->GetFirstParent(ControlKeys[0]);
+			break;
+		case EMovieSceneControlRigSpaceType::ControlRig:
+			Settings.TargetSpace = Value.ControlRigElement;
+			break;
+		default:
+			Settings.TargetSpace = URigHierarchy::GetDefaultParentSocketKey();
+		}
+		TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
+		TArray<FFrameNumber> Keys;
+		TArray < FKeyHandle> KeyHandles;
 
-	return BakeWidget->OpenDialog(true);
+		Settings.StartFrame = Range.GetLowerBoundValue();
+		Settings.EndFrame = Range.GetUpperBoundValue();
+		if (Keys.Num() > 0)
+		{
+			int32 Index = Algo::LowerBound(Keys, CurrentTime);
+			if (Index >= 0 && Index < (Keys.Num() - 1))
+			{
+				Settings.StartFrame = Keys[Index];
+				Settings.EndFrame = Keys[Index + 1];
+
+			}
+		}
+
+		TSharedRef<SRigSpacePickerBakeWidget> BakeWidget =
+			SNew(SRigSpacePickerBakeWidget)
+			.Settings(Settings)
+			.Hierarchy(SpacePickerWidget->GetHierarchy())
+			.Controls(SpacePickerWidget->GetControls())
+			.Sequencer(Sequencer)
+			.GetControlCustomization(this, &SControlRigEditModeTools::HandleGetControlElementCustomization)
+			.OnBake_Lambda([Sequencer, ControlRig,TickResolution](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings InSettings)
+				{
+					TArray<FFrameNumber> Frames;
+					
+					const FFrameRate& FrameRate = Sequencer->GetFocusedDisplayRate();
+					FFrameNumber FrameRateInFrameNumber = TickResolution.AsFrameNumber(FrameRate.AsInterval());
+					for (FFrameNumber& Frame = InSettings.StartFrame; Frame <= InSettings.EndFrame; Frame += FrameRateInFrameNumber)
+					{
+						Frames.Add(Frame);
+					}
+					FScopedTransaction Transaction(LOCTEXT("BakeControlToSpace", "Bake Control In Space"));
+					for (const FRigElementKey& ControlKey : InControls)
+					{
+						FSpaceChannelAndSection SpaceChannelAndSection = FControlRigSpaceChannelHelpers::FindSpaceChannelAndSectionForControl(ControlRig, ControlKey.Name, Sequencer, false /*bCreateIfNeeded*/);
+
+						FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(ControlRig, Sequencer, SpaceChannelAndSection.SpaceChannel, SpaceChannelAndSection.SectionToKey,
+							Frames, InHierarchy, ControlKey, InSettings);
+					}
+					return FReply::Handled();
+				});
+
+		return BakeWidget->OpenDialog(true);
+	}
+	return FReply::Unhandled();
+
 }
 
 EVisibility SControlRigEditModeTools::GetRigOptionExpanderVisibility() const

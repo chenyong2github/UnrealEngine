@@ -2639,11 +2639,11 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	}
 	else
 	{
-		if ( DataChangeType != EMovieSceneDataChangeType::TrackValueChanged )
+		if (DataChangeType != EMovieSceneDataChangeType::TrackValueChanged)
 		{
 			bNeedTreeRefresh = true;
 		}
-		else if ( NodeTree->UpdateFiltersOnTrackValueChanged() )
+		else if (NodeTree->UpdateFiltersOnTrackValueChanged())
 		{
 			bNeedTreeRefresh = true;
 		}

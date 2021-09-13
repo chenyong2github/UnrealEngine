@@ -120,9 +120,14 @@
 #include "EditMode/SControlRigTweenWidget.h"
 #include "EditMode/SControlRigSnapper.h"
 #include "Dialogs/CustomDialog.h"
+#include "Sequencer/MovieSceneControlRigSpaceChannel.h"
+#include "SequencerChannelInterface.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Tools/SMotionTrailOptions.h"
+
+
+#include "ControlRigSpaceChannelEditors.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -256,6 +261,7 @@ void FControlRigEditorModule::StartupModule()
 	
 	// Register sequencer track editor
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+	SequencerModule.RegisterChannelInterface<FMovieSceneControlRigSpaceChannel>();
 	ControlRigParameterTrackCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FControlRigParameterTrackEditor::CreateTrackEditor));
 
 	//Register Animation Toolbar Extender
