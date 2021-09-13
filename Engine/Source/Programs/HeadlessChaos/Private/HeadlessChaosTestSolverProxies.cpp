@@ -126,7 +126,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr, -1);
 
 		// Make a particle
 		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
