@@ -3,7 +3,6 @@
 
 #include "CADData.h"
 #include "CADSceneGraph.h"
-#include "CoreTechFileParser.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
 #include "DatasmithUtils.h"
@@ -11,7 +10,7 @@
 #include "MeshDescriptionHelper.h"
 #include "Misc/FileHelper.h"
 
-namespace
+namespace DatasmithSceneGraphBuilderImpl
 {
 	void GetMainMaterial(const TMap<FString, FString>& InNodeMetaDataMap, ActorData& OutNodeData, bool bMaterialPropagationIsTopDown)
 	{
@@ -32,7 +31,7 @@ namespace
 		}
 	}
 
-	void AddTransformToActor(CADLibrary::FArchiveInstance& Instance, TSharedPtr< IDatasmithActorElement > Actor, const CADLibrary::FImportParameters& ImportParameters)
+	void AddTransformToActor(const CADLibrary::FArchiveInstance& Instance, TSharedPtr< IDatasmithActorElement > Actor, const CADLibrary::FImportParameters& ImportParameters)
 	{
 		if (!Actor.IsValid())
 		{
@@ -137,7 +136,7 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 	}
 
 	FCadId RootId = 1;
-	int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
+	const int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
 	if (!Index)
 	{
 		return;
@@ -157,7 +156,7 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 	AddMetaData(ActorElement, InstanceNodeMetaDataMap, Component.MetaData);
 
 	ActorData ComponentData(*ActorUUID, ParentData);
-	GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
 
 	AddChildren(ActorElement, Component, ComponentData);
 
@@ -202,7 +201,7 @@ FDatasmithSceneBaseGraphBuilder::FDatasmithSceneBaseGraphBuilder(CADLibrary::FAr
 bool FDatasmithSceneBaseGraphBuilder::Build()
 {
 	FCadId RootId = 1;
-	int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
+	const int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
 	if (!Index)
 	{
 		return false;
@@ -217,7 +216,7 @@ bool FDatasmithSceneBaseGraphBuilder::Build()
 	// application_name is something like "Catia V5"
 	DatasmithScene->SetVendor(TEXT("CoreTechnologie"));
 
-	if (FString* ProductVersion = Component.MetaData.Find(TEXT("KernelIOVersion")))
+	if (const FString* ProductVersion = Component.MetaData.Find(TEXT("KernelIOVersion")))
 	{
 		DatasmithScene->SetProductVersion(**ProductVersion);
 	}
@@ -320,7 +319,7 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 					AncestorSceneGraphHash.Add(InstanceSceneGraphHash);
 
 					FCadId RootId = 1;
-					int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
+					const int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
 					if (Index)
 					{
 						Reference = &(SceneGraph->ComponentSet[*Index]);
@@ -332,15 +331,16 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 		if(!Reference)
 		{
 			SceneGraph = InstanceSceneGraph;
-			int32* Index = SceneGraph->CADIdToUnloadedComponentIndex.Find(Instance.ReferenceNodeId);
+			const int32* Index = SceneGraph->CADIdToUnloadedComponentIndex.Find(Instance.ReferenceNodeId);
 			if (Index)
 			{
 				Reference = &(SceneGraph->UnloadedComponentSet[*Index]);
 			}
 		}
 	}
-	else {
-		int32* Index = SceneGraph->CADIdToComponentIndex.Find(Instance.ReferenceNodeId);
+	else 
+	{
+		const int32* Index = SceneGraph->CADIdToComponentIndex.Find(Instance.ReferenceNodeId);
 		if (Index)
 		{
 			Reference = &(SceneGraph->ComponentSet[*Index]);
@@ -356,7 +356,7 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 	FString ActorLabel;
 	GetNodeUUIDAndName(Instance.MetaData, Reference->MetaData, InstanceIndex, ParentData.Uuid, ActorUUID, ActorLabel);
 
-	TSharedPtr< IDatasmithActorElement > Actor = CreateActor(*ActorUUID, *ActorLabel);
+	TSharedPtr<IDatasmithActorElement> Actor = CreateActor(*ActorUUID, *ActorLabel);
 	if (!Actor.IsValid())
 	{
 		return TSharedPtr< IDatasmithActorElement >();
@@ -365,12 +365,12 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 
 	ActorData InstanceData(*ActorUUID, ParentData);
 
-	GetMainMaterial(Instance.MetaData, InstanceData, bMaterialPropagationIsTopDown);
-	GetMainMaterial(Reference->MetaData, InstanceData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Instance.MetaData, InstanceData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Reference->MetaData, InstanceData, bMaterialPropagationIsTopDown);
 
 	AddChildren(Actor, *Reference, InstanceData);
 
-	AddTransformToActor(Instance, Actor, ImportParameters);
+	DatasmithSceneGraphBuilderImpl::AddTransformToActor(Instance, Actor, ImportParameters);
 
 	if (SceneGraph != InstanceSceneGraph)
 	{
@@ -388,25 +388,25 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::CreateAct
 		Actor->SetLabel(InLabel);
 		return Actor;
 	}
-	return TSharedPtr< IDatasmithActorElement >();
+	return TSharedPtr<IDatasmithActorElement>();
 }
 
 void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
-	TMap<FString, FString>& InInstanceNodeMetaDataMap,
-	TMap<FString, FString>& InReferenceNodeMetaDataMap,
+	const TMap<FString, FString>& InInstanceNodeMetaDataMap,
+	const TMap<FString, FString>& InReferenceNodeMetaDataMap,
 	int32 InComponentIndex,
 	const TCHAR* InParentUEUUID,
 	FString& OutUEUUID,
 	FString& OutName
 )
 {
-	FString* InstanceKernelIOName = InInstanceNodeMetaDataMap.Find(TEXT("CTName"));
-	FString* InstanceCADName = InInstanceNodeMetaDataMap.Find(TEXT("Name"));
-	FString* InstanceUUID = InInstanceNodeMetaDataMap.Find(TEXT("UUID"));
+	const FString* InstanceKernelIOName = InInstanceNodeMetaDataMap.Find(TEXT("CTName"));
+	const FString* InstanceCADName = InInstanceNodeMetaDataMap.Find(TEXT("Name"));
+	const FString* InstanceUUID = InInstanceNodeMetaDataMap.Find(TEXT("UUID"));
 
-	FString* ReferenceKernelIOName = InReferenceNodeMetaDataMap.Find(TEXT("CTName"));
-	FString* ReferenceCADName = InReferenceNodeMetaDataMap.Find(TEXT("Name"));
-	FString* ReferenceUUID = InReferenceNodeMetaDataMap.Find(TEXT("UUID"));
+	const FString* ReferenceKernelIOName = InReferenceNodeMetaDataMap.Find(TEXT("CTName"));
+	const FString* ReferenceCADName = InReferenceNodeMetaDataMap.Find(TEXT("Name"));
+	const FString* ReferenceUUID = InReferenceNodeMetaDataMap.Find(TEXT("UUID"));
 
 	// Outname Name
 	// IName and RName are KernelIO build Name. Original names (CAD system name) are preferred
@@ -430,7 +430,7 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	{
 		OutName = "NoName";
 	}
-	CleanName(OutName);
+	DatasmithSceneGraphBuilderImpl::CleanName(OutName);
 
 	FCADUUID UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
 
@@ -463,7 +463,7 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	OutUEUUID = FString::Printf(TEXT("0x%08x"), UEUUID);
 }
 
-TSharedPtr< IDatasmithActorElement > FDatasmithSceneBaseGraphBuilder::BuildComponent(CADLibrary::FArchiveComponent& Component, const ActorData& ParentData)
+TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildComponent(CADLibrary::FArchiveComponent& Component, const ActorData& ParentData)
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 
@@ -481,14 +481,14 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneBaseGraphBuilder::BuildCompo
 	AddMetaData(Actor, InstanceNodeMetaDataMap, Component.MetaData);
 
 	ActorData ComponentData(*ActorUUID, ParentData);
-	GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
+	DatasmithSceneGraphBuilderImpl::GetMainMaterial(Component.MetaData, ComponentData, bMaterialPropagationIsTopDown);
 
 	AddChildren(Actor, Component, ComponentData);
 
 	return Actor;
 }
 
-TSharedPtr< IDatasmithActorElement > FDatasmithSceneBaseGraphBuilder::BuildBody(int32 BodyIndex, const ActorData& ParentData)
+TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(int32 BodyIndex, const ActorData& ParentData)
 {
 	TMap<FString, FString> InstanceNodeMetaDataMap;
 
@@ -507,14 +507,14 @@ TSharedPtr< IDatasmithActorElement > FDatasmithSceneBaseGraphBuilder::BuildBody(
 		Body.ColorFaceSet.Add(MaterialUuid);
 	}
 
-	TSharedPtr< IDatasmithMeshElement > MeshElement = FindOrAddMeshElement(Body, BodyLabel);
+	TSharedPtr<IDatasmithMeshElement> MeshElement = FindOrAddMeshElement(Body, BodyLabel);
 	if (!MeshElement.IsValid())
 	{
 		return TSharedPtr< IDatasmithActorElement >();
 	}
 
 
-	TSharedPtr< IDatasmithMeshActorElement > ActorElement = FDatasmithSceneFactory::CreateMeshActor(*BodyUUID);
+	TSharedPtr<IDatasmithMeshActorElement> ActorElement = FDatasmithSceneFactory::CreateMeshActor(*BodyUUID);
 	if (!ActorElement.IsValid())
 	{
 		return TSharedPtr< IDatasmithActorElement >();
@@ -756,7 +756,7 @@ bool FDatasmithSceneBaseGraphBuilder::DoesActorHaveChildrenOrIsAStaticMesh(const
 }
 
 
-void FDatasmithSceneBaseGraphBuilder::AddChildren(TSharedPtr< IDatasmithActorElement > Actor, CADLibrary::FArchiveComponent& Component, const ActorData& ParentData)
+void FDatasmithSceneBaseGraphBuilder::AddChildren(TSharedPtr< IDatasmithActorElement > Actor, const CADLibrary::FArchiveComponent& Component, const ActorData& ParentData)
 {
 	for (const int32 ChildId : Component.Children)
 	{

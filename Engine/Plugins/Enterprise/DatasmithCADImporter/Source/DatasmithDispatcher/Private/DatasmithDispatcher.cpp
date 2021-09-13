@@ -2,6 +2,8 @@
 
 #include "DatasmithDispatcher.h"
 
+#include "CADFileData.h"
+#include "CADFileReader.h"
 #include "DatasmithDispatcherConfig.h"
 #include "DatasmithDispatcherLog.h"
 #include "DatasmithDispatcherTask.h"
@@ -93,8 +95,8 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 		FileDescription = Task.FileDescription;
 
 		if (TaskState == ETaskState::ProcessOk
-		 || TaskState == ETaskState::ProcessFailed
-		 || TaskState == ETaskState::FileNotFound)
+			|| TaskState == ETaskState::ProcessFailed
+			|| TaskState == ETaskState::FileNotFound)
 		{
 			CompletedTaskCount++;
 		}
@@ -246,24 +248,24 @@ void FDatasmithDispatcher::ProcessLocal()
 	{
 		CADLibrary::FFileDescription& FileDescription = Task->FileDescription;
 
-		CADLibrary::FCoreTechFileParser FileParser(ImportParameters, *FPaths::EnginePluginsDir(), ProcessCacheFolder);
-		ETaskState ProcessResult = FileParser.ProcessFile(FileDescription);
+		CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescription, *FPaths::EnginePluginsDir(), ProcessCacheFolder);
+		ETaskState ProcessResult = FileReader.ProcessFile();
 
 		ETaskState TaskState = ProcessResult;
 		SetTaskState(Task->Index, TaskState);
 
 		if (TaskState == ETaskState::ProcessOk)
 		{
-			TArray<CADLibrary::FFileDescription>& ExternalRefSet = FileParser.GetExternalRefSet();
+			const CADLibrary::FCADFileData& CADFileData = FileReader.GetCADFileData();
+			const TArray<CADLibrary::FFileDescription>& ExternalRefSet = CADFileData.GetExternalRefSet();
 			if (ExternalRefSet.Num() > 0)
 			{
-				for (CADLibrary::FFileDescription& ExternalFile : ExternalRefSet)
+				for (const CADLibrary::FFileDescription& ExternalFile : ExternalRefSet)
 				{
-					ExternalFile.MainCadFilePath = FileDescription.MainCadFilePath;
 					AddTask(ExternalFile);
 				}
 			}
-			LinkCTFileToUnrealCacheFile(FileParser.GetCADFileDescription(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFileName());
+			LinkCTFileToUnrealCacheFile(CADFileData.GetCADFileDescription(), CADFileData.GetSceneGraphFileName(), CADFileData.GetMeshFileName());
 		}
 	}
 }

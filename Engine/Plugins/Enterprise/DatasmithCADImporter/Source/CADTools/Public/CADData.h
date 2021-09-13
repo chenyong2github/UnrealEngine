@@ -18,6 +18,38 @@ using FCADUUID = uint32;  // Universal unique identifier that be used for the un
 namespace CADLibrary
 {
 
+enum class ECADFormat
+{
+	ACIS,
+	CATIA,
+	CATIA_CGR,
+	CATIA_3DXML,
+	CATIAV4,
+	CREO,
+	DWG,
+	DGN,
+	IGES,
+	INVENTOR,
+	JT,
+	NX,
+	PARASOLID,
+	SOLIDWORKS,
+	STEP,
+	OTHER
+};
+
+CADTOOLS_API ECADFormat FileFormat(const FString& Extension);
+
+enum class ECADParsingResult : uint8
+{
+	Unknown,
+	Running,
+	UnTreated,
+	ProcessOk,
+	ProcessFailed,
+	FileNotFound,
+};
+
 // TODO: Remove from hear and replace by DatasmithUtils::GetCleanFilenameAndExtension... But need to remove DatasmithCore dependancies 
 CADTOOLS_API void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilename, FString& OutExtension);
 
@@ -76,7 +108,12 @@ struct CADTOOLS_API FFileDescription
 
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FFileDescription& File);
 
-	uint32 GetFileHash();
+	uint32 GetFileHash() const;
+
+	ECADFormat GetFormat()
+	{
+		return FileFormat(Extension);
+	}
 
 	FString Path;
 	FString OriginalPath;

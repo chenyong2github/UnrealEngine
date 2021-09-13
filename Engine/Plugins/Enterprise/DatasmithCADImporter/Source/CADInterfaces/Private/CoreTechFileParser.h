@@ -6,6 +6,8 @@
 #ifdef USE_KERNEL_IO_SDK
 
 #include "CADData.h"
+#include "CADFileData.h"
+#include "CADFileParser.h"
 #include "CADOptions.h"
 #include "CADSceneGraph.h"
 #include "CoreTechTypes.h"
@@ -39,7 +41,7 @@ namespace CADKernel
 
 namespace CADLibrary
 {
-	namespace CoreTechFileReaderUtils
+	namespace CoreTechFileParserUtils
 	{
 		void ScaleUV(CT_OBJECT_ID FaceID, TArray<FVector2D>& TexCoordArray, float Scale);
 		uint32 GetFaceTessellation(CT_OBJECT_ID FaceID, FTessellationData& Tessellation);
@@ -54,45 +56,17 @@ namespace CADLibrary
 	}
 
 
-	class CADINTERFACES_API FCoreTechFileReader
+	class CADINTERFACES_API FCoreTechFileParser : public ICADFileParser
 	{
 	public:
-		struct FContext
-		{
-			FContext(const FImportParameters& InImportParameters, const FString& InCachePath, FArchiveSceneGraph& InSceneGraphArchive, TArray<FString>& InWarningMessages, TArray<FBodyMesh>& InBodyMeshes)
-				: ImportParameters(InImportParameters)
-				, SceneGraphArchive(InSceneGraphArchive)
-				, WarningMessages(InWarningMessages)
-				, BodyMeshes(InBodyMeshes)
-				, CachePath(InCachePath)
-			{
-			}
-
-			FContext(const FContext& Other)
-				: ImportParameters(Other.ImportParameters)
-				, SceneGraphArchive(Other.SceneGraphArchive)
-				, WarningMessages(Other.WarningMessages)
-				, BodyMeshes(Other.BodyMeshes)
-				, CachePath(Other.CachePath)
-			{
-			}
-
-			const FImportParameters& ImportParameters;
-			FArchiveSceneGraph& SceneGraphArchive;
-			TArray<FString>& WarningMessages;
-			TArray<FBodyMesh>& BodyMeshes;
-
-			FString CachePath;
-		};
 
 		/**
-		 * @param ImportParams Parameters that setting import data like mesh SAG...
+		 * @param 
 		 * @param EnginePluginsPath Full Path of EnginePlugins. Mandatory to set KernelIO to import DWG, or DGN files
-		 * @param InCachePath Full path of the cache in which the data will be saved
 		 */
-		FCoreTechFileReader(const FContext& InContext, const FString& EnginePluginsPath = TEXT(""));
+		FCoreTechFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath = TEXT(""));
 
-		ECoreTechParsingResult ProcessFile(const CADLibrary::FFileDescription& InCTFileDescription);
+		virtual ECADParsingResult Process() override;
 
 	private:
 		bool ReadNode(CT_OBJECT_ID NodeId, uint32 ParentMaterialHash);
@@ -101,8 +75,6 @@ namespace CADLibrary
 
 		bool ReadKioBody(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, bool bNeedRepair);
 		bool ReadBody(CT_OBJECT_ID NodeId, CT_OBJECT_ID ParentId, uint32 ParentMaterialHash, bool bNeedRepair);
-
-		bool FindFile(FFileDescription& FileDescription);
 
 		uint32 GetMaterialNum();
 		void ReadMaterials();
@@ -118,13 +90,8 @@ namespace CADLibrary
 		CT_FLAGS SetCoreTechImportOption();
 		void GetAttributeValue(CT_ATTRIB_TYPE attrib_type, int ith_field, FString& value);
 
-		void DefineMeshCriteria(TSharedRef<CADKernel::FModelMesh>& MeshModel);
-
-	protected:
-		CADLibrary::FFileDescription FileDescription;
-
-		FContext Context;
+		FCADFileData& CADFileData;
 	};
-} // ns CADLibrary
+} // CADLibrary
 
 #endif // USE_KERNEL_IO_SDK

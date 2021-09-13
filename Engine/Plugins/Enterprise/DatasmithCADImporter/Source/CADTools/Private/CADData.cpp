@@ -157,7 +157,7 @@ void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilenam
 	}
 }
 
-uint32 FFileDescription::GetFileHash()
+uint32 FFileDescription::GetFileHash() const
 {
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*OriginalPath);
 
@@ -169,6 +169,70 @@ uint32 FFileDescription::GetFileHash()
 	FileHash = HashCombine(FileHash, GetTypeHash(ModificationTime));
 
 	return FileHash;
+}
+
+ECADFormat FileFormat(const FString& Extension)
+{
+	if (Extension == TEXT("sldprt") || Extension == TEXT("sldasm"))
+	{
+		return ECADFormat::SOLIDWORKS;
+	}
+	else if (Extension == TEXT("catpart") || Extension == TEXT("catproduct"))
+	{
+		return ECADFormat::CATIA;
+	}
+	else if (Extension == TEXT("cgr"))
+	{
+		return ECADFormat::CATIA_CGR;
+	}
+	else if (Extension == TEXT("x_t") || Extension == TEXT("x_b"))
+	{
+		return ECADFormat::PARASOLID;
+	}
+	else if (Extension == TEXT("iges") || Extension == TEXT("igs"))
+	{
+		return ECADFormat::IGES;
+	}
+	else if (Extension == TEXT("step") || Extension == TEXT("stp"))
+	{
+		return ECADFormat::STEP;
+	}
+	else if (Extension == TEXT("jt"))
+	{
+		return ECADFormat::JT;
+	}
+	else if (Extension == TEXT("prt.*") || Extension == TEXT("asm.*"))
+	{
+		return ECADFormat::CREO;
+	}
+	else if (Extension == TEXT("prt"))
+	{
+		return ECADFormat::NX;
+	}
+	else if (Extension == TEXT("step") || Extension == TEXT("stp"))
+	{
+		return ECADFormat::STEP;
+	}
+	else if (Extension == TEXT("sat"))
+	{
+		return ECADFormat::ACIS;
+	}
+	else if (Extension == TEXT("model"))
+	{
+		return ECADFormat::CATIAV4;
+	}
+	else if (Extension == TEXT("3dxml"))
+	{
+		return ECADFormat::CATIA_3DXML;
+	}
+	else if (Extension == TEXT("ipt") || Extension == TEXT("iam"))
+	{
+		return ECADFormat::INVENTOR;
+	}
+	else
+	{
+		return ECADFormat::OTHER;
+	}
 }
 
 }
