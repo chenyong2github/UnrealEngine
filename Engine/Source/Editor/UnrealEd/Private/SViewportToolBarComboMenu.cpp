@@ -44,6 +44,7 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 			.ToolTipText(InArgs._MenuButtonToolTip)
 			.OnClicked(this, &SViewportToolBarComboMenu::OnMenuClicked)
 			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
 			[
 				SNew(STextBlock)
 				.TextStyle(&LabelStyle)
