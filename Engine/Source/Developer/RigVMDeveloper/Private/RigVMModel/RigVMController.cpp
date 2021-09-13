@@ -2662,6 +2662,10 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 					
 					if (SourcePin && TargetPin)
 					{
+						BreakAllLinksRecursive(TargetPin, true, true, bSetupUndoRedo);
+						BreakAllLinks(TargetPin, true, bSetupUndoRedo);
+						BreakAllLinksRecursive(TargetPin, true, false, bSetupUndoRedo);
+
 						Graph->Links.Add(CreatedLink);
 						SourcePin->Links.Add(CreatedLink);
 						TargetPin->Links.Add(CreatedLink);
