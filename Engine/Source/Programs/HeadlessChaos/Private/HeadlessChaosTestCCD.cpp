@@ -279,6 +279,15 @@ namespace ChaosTest
 		Dynamic->SetCCDEnabled(true);
 		Dynamic->SetGravityEnabled(false);
 
+		// IMPORTANT : this is required to make sure the particles internal representation will reflect the sim data
+		Evolution.DirtyParticle(*ContainerFaces[0]);
+		Evolution.DirtyParticle(*ContainerFaces[1]);
+		Evolution.DirtyParticle(*ContainerFaces[2]);
+		Evolution.DirtyParticle(*ContainerFaces[3]);
+		Evolution.DirtyParticle(*ContainerFaces[4]);
+		Evolution.DirtyParticle(*ContainerFaces[5]);
+		Evolution.DirtyParticle(*Dynamic);
+
 		Dynamic->V() = InitialVelocity;
 		///////////////////////////////////
 		// Test 1: bouncing from two opposite walls

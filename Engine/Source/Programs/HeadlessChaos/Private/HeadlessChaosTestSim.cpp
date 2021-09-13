@@ -88,6 +88,9 @@ namespace ChaosTest {
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
+		// IMPORTANT : this is required to make sure the particles internal representation will reflect the sim data
+		Evolution.DirtyParticle(*Static);
+		Evolution.DirtyParticle(*Dynamic);
 
 		const FReal Dt = 1 / 60.f;
 		for (int i = 0; i < 200; ++i)
@@ -121,6 +124,9 @@ namespace ChaosTest {
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
+		// IMPORTANT : this is required to make sure the particles internal representation will reflect the sim data
+		Evolution.DirtyParticle(*Static);
+		Evolution.DirtyParticle(*Dynamic);
 
 		const FReal Dt = 1 / 60.f;
 		for (int i = 0; i < 100; ++i)
@@ -210,6 +216,11 @@ namespace ChaosTest {
 		Dynamic2->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic1,Dynamic2 });
+
+		// IMPORTANT : this is required to make sure the particles internal representation will reflect the sim data
+		Evolution.DirtyParticle(*Static);
+		Evolution.DirtyParticle(*Dynamic1);
+		Evolution.DirtyParticle(*Dynamic2);
 
 		bool Dynamic1WentToSleep = false;
 		bool Dynamic1HasWokeAgain = false;
@@ -353,6 +364,10 @@ namespace ChaosTest {
 
 		Evolution.SetPhysicsMaterial(Dynamic1, MakeSerializable(PhysicsMaterial));
 		Evolution.SetPhysicsMaterial(Dynamic2, MakeSerializable(PhysicsMaterial));
+
+		// IMPORTANT : this is required to make sure the particles internal representation will reflect the sim data
+		Evolution.DirtyParticle(*Dynamic1);
+		Evolution.DirtyParticle(*Dynamic2);
 
 		const auto& SleepData = Evolution.GetParticles().GetDynamicParticles().GetSleepData();
 		EXPECT_EQ(SleepData.Num(), 0);
