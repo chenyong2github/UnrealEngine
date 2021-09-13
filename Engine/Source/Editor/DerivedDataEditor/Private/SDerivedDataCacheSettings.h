@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
 
@@ -28,11 +30,14 @@ private:
 
 	void OnSetting1TextCommited(const FText& InText, ETextCommit::Type InCommitType) const;
 	void OnSetting2TextCommited(const FText& InText, ETextCommit::Type InCommitType) const;
+	void OnNotifcationsEnabledCheckboxChanged(ECheckBoxState NewCheckboxState);
 
 	EVisibility GetThrobberVisibility() const;
 	bool IsDerivedDataCacheEnabled() const;
 	bool IsAcceptSettingsEnabled() const;
+	ECheckBoxState AreNotificationsEnabled() const;
 	
 	FReply OnAcceptSettings();	
 	FReply OnDisableDerivedDataCache();
+
 };

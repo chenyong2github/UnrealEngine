@@ -3,19 +3,21 @@
 #include "SDerivedDataCacheSettings.h"
 #include "DerivedDataInformation.h"
 #include "DerivedDataCacheInterface.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SExpandableArea.h"
-#include "Widgets/Images/SThrobber.h"
+#include "DerivedDataEditorModule.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "SPrimaryButton.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SThrobber.h"
+#include "Editor/EditorPerformanceSettings.h"
+
+#include "Modules/ModuleManager.h"
 #include "Logging/MessageLog.h"
 #include "MessageLogModule.h"
-#include "Modules/ModuleManager.h"
-
 
 #define LOCTEXT_NAMESPACE "DerivedDataEditor"
 
@@ -53,7 +55,7 @@ void SDerivedDataCacheSettingsDialog::Construct(const FArguments& InArgs)
 						+SVerticalBox::Slot()
 						.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
 						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Right)
+						.HAlign(HAlign_Left)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("Setting1Label", "Setting1"))
@@ -62,12 +64,21 @@ void SDerivedDataCacheSettingsDialog::Construct(const FArguments& InArgs)
 						+SVerticalBox::Slot()
 						.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
 						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Right)
+						.HAlign(HAlign_Left)
 						[
 							SNew(STextBlock)
 							.Text(LOCTEXT("Setting2Label", "Setting2"))
 							.ToolTipText( LOCTEXT("Setting2Label_Tooltip", "Setting2") )
-						]		
+						]	
+						+SVerticalBox::Slot()
+						.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
+						.HAlign(HAlign_Left)
+						[
+							SNew(SCheckBox)
+							.ForegroundColor(FSlateColor::UseForeground())
+							.IsChecked(this, &SDerivedDataCacheSettingsDialog::AreNotificationsEnabled)
+							.OnCheckStateChanged(this, &SDerivedDataCacheSettingsDialog::OnNotifcationsEnabledCheckboxChanged)
+						]
 					]
 					+SHorizontalBox::Slot()
 					.FillWidth(2.0f)
@@ -75,6 +86,7 @@ void SDerivedDataCacheSettingsDialog::Construct(const FArguments& InArgs)
 						SNew(SVerticalBox)
 						+SVerticalBox::Slot()
 						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
 						.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
 						[
 							SNew(SEditableTextBox)
@@ -86,14 +98,25 @@ void SDerivedDataCacheSettingsDialog::Construct(const FArguments& InArgs)
 						+SVerticalBox::Slot()
 						.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
 						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
 						[
 							SNew(SEditableTextBox)
 							.Text(this, &SDerivedDataCacheSettingsDialog::GetSetting2Text)
 							.ToolTipText( LOCTEXT("Setting2Label_Tooltip", "Setting2") )
 							.OnTextCommitted(this, &SDerivedDataCacheSettingsDialog::OnSetting2TextCommited)
 							.OnTextChanged(this, &SDerivedDataCacheSettingsDialog::OnSetting2TextCommited, ETextCommit::Default)
-						]		
-					]	
+						]
+						+ SVerticalBox::Slot()
+						.Padding(FMargin(0.0f, 0.0f, 0.0f, 10.0f))
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Left)
+						[
+							SNew(STextBlock)
+							.TextStyle(FAppStyle::Get(), "DialogButtonText")
+							.Text(LOCTEXT("EnableDDCNotifications", "Enable Notifications"))
+						]
+					]
+					
 				]
 
 				//+ SVerticalBox::Slot()
@@ -146,7 +169,10 @@ void SDerivedDataCacheSettingsDialog::Construct(const FArguments& InArgs)
 						.AutoWidth()
 						.Padding(FMargin(5.0f, 0.0f))
 						[
-							SNew(SPrimaryButton)
+							SNew(SButton)
+							.VAlign(VAlign_Center)
+							.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+  							.TextStyle( FAppStyle::Get(), "DialogButtonText" )
 							.Text(LOCTEXT("AcceptSettings", "Accept Settings"))
 							.OnClicked( this, &SDerivedDataCacheSettingsDialog::OnAcceptSettings )
 							.IsEnabled( this, &SDerivedDataCacheSettingsDialog::IsAcceptSettingsEnabled )
@@ -237,8 +263,20 @@ FReply SDerivedDataCacheSettingsDialog::OnAcceptSettings()
 
 FReply SDerivedDataCacheSettingsDialog::OnDisableDerivedDataCache()
 {
+
 	return FReply::Handled();
 }
 
+ECheckBoxState SDerivedDataCacheSettingsDialog::AreNotificationsEnabled() const
+{	
+	return GetDefault<UEditorPerformanceSettings>()->bEnableSharedDDCPerformanceNotifications ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SDerivedDataCacheSettingsDialog::OnNotifcationsEnabledCheckboxChanged(ECheckBoxState NewCheckboxState)
+{
+	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
+	Settings->bEnableSharedDDCPerformanceNotifications = NewCheckboxState == ECheckBoxState::Checked;
+	Settings->PostEditChange();
+}
 
 #undef LOCTEXT_NAMESPACE

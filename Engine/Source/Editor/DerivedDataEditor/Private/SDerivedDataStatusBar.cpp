@@ -96,7 +96,7 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 			FDerivedDataStatusBarMenuCommands::Get().ChangeSettings,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.CacheSettings")
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Settings")
 		);
 	}
 
@@ -107,7 +107,7 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 			FDerivedDataStatusBarMenuCommands::Get().ViewCacheStatistics,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.CacheStatistics")
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Statistics")
 		);
 
 		Section.AddMenuEntry(
@@ -123,17 +123,6 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 
 void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 {	
-	/*FDerivedDataCacheInterface::FOnDDCNotification& DDCNotificationEvent = GetDerivedDataCacheRef().GetDDCNotificationEvent();
-
-	if (bSubscribe)
-	{
-		DDCNotificationEvent.AddRaw(this, &FDDCNotifications::OnDDCNotificationEvent);
-	}
-	else
-	{
-		DDCNotificationEvent.RemoveAll(this);
-	}*/
-
 	BusyPulseSequence = FCurveSequence(0.f, 1.0f, ECurveEaseFunction::QuadInOut);
 	FadeGetSequence = FCurveSequence(0.f, 0.5f, ECurveEaseFunction::Linear);
 	FadePutSequence = FCurveSequence(0.f, 0.5f, ECurveEaseFunction::Linear);
@@ -160,7 +149,18 @@ void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Top)
 				[
 					SNew(SImage)
-					.Image_Lambda([this] {  return FDerivedDataInformation::GetHasRemoteCache() ? FAppStyle::Get().GetBrush("DerivedData.RemoteStorage.Connected") : FAppStyle::Get().GetBrush("DerivedData.RemoteStorage.Unavailable"); })			
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image_Lambda([this] { return GetRemoteCacheStateBackgroundIcon();  })
+					.ToolTipText_Lambda([this] { return GetRemoteCacheToolTipText(); })
+				]
+
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Top)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image_Lambda([this] { return GetRemoteCacheStateBadgeIcon();  })
 					.ToolTipText_Lambda([this] { return GetRemoteCacheToolTipText(); })
 				]
 
@@ -170,8 +170,8 @@ void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 				.Padding(0, 0, 4, 4)
 				[
 					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("DerivedData.Uploading"))
-					.ColorAndOpacity_Lambda([this] { return bPutActive ? FLinearColor::White.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadePutSequence.GetLerp(), 1))) : FLinearColor(0,0,0,0); })
+					.Image(FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Uploading"))
+					.ColorAndOpacity_Lambda([this] { return FDerivedDataInformation::IsUploading() ? FLinearColor::White.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadePutSequence.GetLerp(), 1))) : FLinearColor(0,0,0,0); })
 					.ToolTipText_Lambda([this] { return GetRemoteCacheToolTipText(); })
 				]
 
@@ -181,10 +181,10 @@ void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 				.Padding(4, 4, 0, 0)
 				[
 					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("DerivedData.Downloading"))
-					.ColorAndOpacity_Lambda([this] { return bGetActive ? FLinearColor::White.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadeGetSequence.GetLerp(), 1))) : FLinearColor(0, 0, 0, 0); })
+					.Image(FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Downloading"))
+					.ColorAndOpacity_Lambda([this] { return FDerivedDataInformation::IsDownloading() ? FLinearColor::White.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(FadeGetSequence.GetLerp(), 1))) : FLinearColor(0, 0, 0, 0); })
 					.ToolTipText_Lambda([this] { return GetRemoteCacheToolTipText(); })
-				]
+				]				
 			]
 
 			+ SHorizontalBox::Slot()
@@ -200,26 +200,18 @@ void SDerivedDataStatusBarWidget::Construct(const FArguments& InArgs)
 		.OnGetMenuContent(FOnGetContent::CreateRaw(this, &SDerivedDataStatusBarWidget::CreateStatusBarMenu))
 	];
 
-	LastDDCGetTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(true, false);
-	LastDDCPutTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(false, false);
 	RegisterActiveTimer(0.5f, FWidgetActiveTimerDelegate::CreateSP(this, &SDerivedDataStatusBarWidget::UpdateBusyIndicator));
 	RegisterActiveTimer(5.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SDerivedDataStatusBarWidget::UpdateWarnings));
 }
 
 EActiveTimerReturnType SDerivedDataStatusBarWidget::UpdateBusyIndicator(double InCurrentTime, float InDeltaTime)
-{
-	const double OldLastDDCGetTime = LastDDCGetTime;
-	const double OldLastDDCPutTime = LastDDCPutTime;
+{	
+	FDerivedDataInformation::UpdateRemoteCacheState();
 
-	LastDDCGetTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(true, false);
-	LastDDCPutTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(false, false);
-
-	bGetActive = OldLastDDCGetTime != LastDDCGetTime;
-	bPutActive = OldLastDDCPutTime != LastDDCPutTime;
 	bBusy = GetDerivedDataCache()->AnyAsyncRequestsRemaining();
 
-	FadeGetSequence.PlayRelative(this->AsShared(), bGetActive);
-	FadePutSequence.PlayRelative(this->AsShared(), bPutActive);
+	FadeGetSequence.PlayRelative(this->AsShared(), FDerivedDataInformation::IsDownloading());
+	FadePutSequence.PlayRelative(this->AsShared(), FDerivedDataInformation::IsUploading());
 
 	if (bBusy)
 	{
@@ -307,7 +299,7 @@ EActiveTimerReturnType SDerivedDataStatusBarWidget::UpdateWarnings(double InCurr
 	return EActiveTimerReturnType::Stop;
 }
 
-FText SDerivedDataStatusBarWidget::GetTitleToolTipText()
+FText SDerivedDataStatusBarWidget::GetTitleToolTipText() const
 {
 	FTextBuilder DescBuilder;
 
@@ -317,12 +309,12 @@ FText SDerivedDataStatusBarWidget::GetTitleToolTipText()
 	return DescBuilder.ToText();
 }
 
-FText SDerivedDataStatusBarWidget::GetTitleText()
+FText SDerivedDataStatusBarWidget::GetTitleText() const
 {
 	return LOCTEXT("DerivedDataToolBarName", "Derived Data");
 }
 
-FText SDerivedDataStatusBarWidget::GetRemoteCacheToolTipText()
+FText SDerivedDataStatusBarWidget::GetRemoteCacheToolTipText() const
 {
 	FTextBuilder DescBuilder;
 
@@ -331,10 +323,72 @@ FText SDerivedDataStatusBarWidget::GetRemoteCacheToolTipText()
 	const double DownloadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(true, false), EUnit::Bytes, EUnit::Megabytes);
 	const double UploadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(false, false), EUnit::Bytes, EUnit::Megabytes);
 
-	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheDownloaded", "Downloaded\t: {0} MB"), UploadedBytesMB);
-	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheUploaded",	"Uploaded\t: {0} MB"), DownloadedBytesMB);
+	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheDownloaded", "Downloaded\t: {0} MB"), DownloadedBytesMB);
+	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheUploaded",	"Uploaded\t: {0} MB"), UploadedBytesMB);
 	
 	return DescBuilder.ToText();
+}
+
+const FSlateBrush* SDerivedDataStatusBarWidget::GetRemoteCacheStateBackgroundIcon() const
+{
+	switch ( FDerivedDataInformation::GetRemoteCacheState())
+	{
+		case ERemoteCacheState::Idle :
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.IdleBG");
+			break;
+		}
+
+		case ERemoteCacheState::Busy :
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.BusyBG");
+			break;
+		}	
+
+		case ERemoteCacheState::Unavailable:
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.UnavailableBG");
+			break;
+		}
+
+		default:
+		case ERemoteCacheState::Warning:
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.WarningBG");
+			break;
+		}
+	}
+}
+
+const FSlateBrush* SDerivedDataStatusBarWidget::GetRemoteCacheStateBadgeIcon() const
+{
+	switch ( FDerivedDataInformation::GetRemoteCacheState())
+	{
+		case ERemoteCacheState::Idle :
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Idle");
+			break;
+		}
+
+		case ERemoteCacheState::Busy :
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Busy");
+			break;
+		}	
+
+		case ERemoteCacheState::Unavailable:
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Unavailable");
+			break;
+		}
+
+		default:
+		case ERemoteCacheState::Warning:
+		{
+			return FAppStyle::Get().GetBrush("DerivedData.RemoteCache.Warning");
+			break;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -9,6 +9,12 @@
 
 #define LOCTEXT_NAMESPACE "DerivedDataEditor"
 
+double FDerivedDataInformation::LastGetTime = 0;
+double FDerivedDataInformation::LastPutTime = 0;
+bool FDerivedDataInformation::bIsDownloading = false;
+bool FDerivedDataInformation::bIsUploading = false;
+ERemoteCacheState FDerivedDataInformation::RemoteCacheState= ERemoteCacheState::Unavailable;
+
 double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -150,5 +156,36 @@ bool FDerivedDataInformation::GetHasRemoteCache()
 
 	return false;
 }
+
+void FDerivedDataInformation::UpdateRemoteCacheState()
+{
+	RemoteCacheState = ERemoteCacheState::Unavailable;
+
+	if ( GetHasRemoteCache() )
+	{
+		const double OldLastGetTime = LastGetTime;
+		const double OldLastPutTime = LastPutTime;
+
+		LastGetTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(true, false);
+		LastPutTime = FDerivedDataInformation::GetCacheActivityTimeSeconds(false, false);
+
+		if (OldLastGetTime != 0.0 && OldLastPutTime != 0.0)
+		{
+			bIsDownloading = OldLastGetTime != LastGetTime;
+			bIsUploading = OldLastPutTime != LastPutTime;
+		}
+
+		if (bIsUploading || bIsDownloading)
+		{
+			RemoteCacheState = ERemoteCacheState::Busy;
+		}
+		else
+		{
+			RemoteCacheState = ERemoteCacheState::Idle;
+		}
+	}
+
+}
+
 
 #undef LOCTEXT_NAMESPACE

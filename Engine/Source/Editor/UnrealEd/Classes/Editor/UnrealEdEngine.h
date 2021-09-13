@@ -10,7 +10,6 @@
 #include "Editor/EditorEngine.h"
 #include "IPackageAutoSaver.h"
 #include "ISourceControlProvider.h"
-#include "IDDCNotifications.h"
 #include "ComponentVisualizer.h"
 #include "ComponentVisualizerManager.h"
 #include "UnrealEdEngine.generated.h"
@@ -892,12 +891,6 @@ public:
 		return *PackageAutoSaver;
 	}
 
-	/** @return The DDC notifications instance used by the editor */
-	IDDCNotifications& GetDDCNotifications() const
-	{
-		return *DDCNotifications;
-	}
-
 	/**
 	 * Exec command handlers
 	 */
@@ -946,9 +939,6 @@ protected:
 
 	/** The package auto-saver instance used by the editor */
 	TUniquePtr<IPackageAutoSaver> PackageAutoSaver;
-
-	/** The DDC notifications instance used by the editor */
-	TUniquePtr<IDDCNotifications> DDCNotifications;
 
 	/**
 	 * The list of visualizers to draw when selection changes

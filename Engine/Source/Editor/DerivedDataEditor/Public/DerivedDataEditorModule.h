@@ -5,10 +5,13 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "IDerivedDataCacheNotifications.h"
 
 class SDockTab;
 class SWindow;
+class SWidget;
 class SDerivedDataCacheSettingsDialog;
+class FSpawnTabArgs;
 
 /**
  * The module holding all of the UI related pieces for DerivedData
@@ -28,6 +31,7 @@ public:
 	virtual void ShutdownModule() override;
 
 	TSharedRef<SWidget>	CreateStatusBarWidget();
+	IDerivedDataCacheNotifications& GetCacheNotifcations() { return *DerivedDataCacheNotifications; }
 
 	void ShowResourceUsageTab();
 	void ShowCacheStatisticsTab();
@@ -48,6 +52,7 @@ private:
 
 	TSharedPtr<SWindow>	SettingsWindow;
 	TSharedPtr<SDerivedDataCacheSettingsDialog> SettingsDialog;
+	TUniquePtr<IDerivedDataCacheNotifications>	DerivedDataCacheNotifications;
 };
 
 
