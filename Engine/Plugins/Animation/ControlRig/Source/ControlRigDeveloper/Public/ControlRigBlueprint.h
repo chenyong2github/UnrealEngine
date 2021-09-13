@@ -223,7 +223,7 @@ public:
 	virtual bool IsPostLoadThreadSafe() const override { return false; }
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual void ReplaceDeprecatedNodes() override;
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 
 	virtual bool SupportsGlobalVariables() const override { return true; }
 	virtual bool SupportsLocalVariables() const override { return true; }
