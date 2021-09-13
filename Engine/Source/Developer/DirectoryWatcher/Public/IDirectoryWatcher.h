@@ -72,5 +72,13 @@ public:
 	virtual void Tick(float DeltaSeconds)
 	{
 	}
+
+	/**
+	 * Allows for subclasses to dump notify statistics (returns true if implemented)
+	 */
+	virtual bool DumpStats()
+	{
+		return false;
+	}
 };
 
