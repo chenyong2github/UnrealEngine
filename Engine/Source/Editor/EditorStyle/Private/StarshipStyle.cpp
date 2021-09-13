@@ -1140,16 +1140,24 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Derived Data
 	{
-		Set("DerivedData.CacheSettings", new CORE_IMAGE_BRUSH_SVG("Starship/Common/settings", Icon16x16, FStyleColors::Foreground));
-		Set("DerivedData.CacheStatistics", new IMAGE_BRUSH_SVG("Starship/Common/Statistics", Icon16x16, FLinearColor::White));
-		Set("DerivedData.ResourceUsage", new CORE_IMAGE_BRUSH_SVG("Starship/Common/layout-spreadsheet", Icon16x16, FLinearColor::White));
+		Set("DerivedData.Cache.Settings", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_Cache_Settings", Icon16x16));
+		Set("DerivedData.Cache.Statistics", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_Cache_Statistics", Icon16x16));
+		Set("DerivedData.ResourceUsage", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_Resource_Usage", Icon16x16));
 		
-		Set("DerivedData.Uploading", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-up", Icon16x16, FStyleColors::AccentGreen));
-		Set("DerivedData.Downloading", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-down", Icon16x16, FStyleColors::AccentGreen));
-	
-		Set("DerivedData.RemoteStorage.Connected", new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16, FStyleColors::AccentGreen));
-		Set("DerivedData.RemoteStorage.Disconnected", new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16, FStyleColors::AccentYellow));
-		Set("DerivedData.RemoteStorage.Unavailable", new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16, FStyleColors::AccentGray));
+		Set("DerivedData.RemoteCache.Uploading", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_Upload", Icon16x16, EStyleColor::AccentGreen));
+		Set("DerivedData.RemoteCache.Downloading", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_Download", Icon16x16, EStyleColor::AccentBlue));
+
+		Set("DerivedData.RemoteCache.BusyBG", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_UpDownBG", Icon16x16));
+		Set("DerivedData.RemoteCache.Busy", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_UpDown", Icon16x16));
+
+		Set("DerivedData.RemoteCache.IdleBG", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_IdleBG", Icon16x16));
+		Set("DerivedData.RemoteCache.Idle", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_Idle", Icon16x16, EStyleColor::Success));
+
+		Set("DerivedData.RemoteCache.WarningBG", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_WarningBG", Icon16x16));
+		Set("DerivedData.RemoteCache.Warning", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_Warning", Icon16x16, EStyleColor::Warning));
+
+		Set("DerivedData.RemoteCache.UnavailableBG", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_Unavailable", Icon16x16));
+		Set("DerivedData.RemoteCache.Unavailable", new IMAGE_BRUSH_SVG("Starship/DerivedData/DD_RemoteCache_Unavailable", Icon16x16));
 	}
 
 	// Scene Outliner

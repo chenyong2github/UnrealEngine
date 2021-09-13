@@ -12,6 +12,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Styling/StyleColors.h"
 #include "Math/UnitConversion.h"
+#include "Math/BasicMathExpressionEvaluator.h"
+#include "Misc/ExpressionParser.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/FastDecimalFormat.h"
 
@@ -558,7 +560,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(FStyleColors::Foreground)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-		.Justification(ETextJustify::Right)
+		.Justification(ETextJustify::Center)
 		.Text(LOCTEXT("Speed", "Speed"))
 	];
 
@@ -568,7 +570,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(FStyleColors::Foreground)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-		.Justification(ETextJustify::Right)
+		.Justification(ETextJustify::Center)
 		.Text(LOCTEXT("HitPercentage", "Hit%"))
 	];
 
@@ -578,7 +580,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(FStyleColors::Foreground)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-		.Justification(ETextJustify::Right)
+		.Justification(ETextJustify::Center)
 		.Text(LOCTEXT("Read", "Read"))
 	];
 
@@ -588,17 +590,9 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 		.Margin(FMargin(ColumnMargin, RowMargin, 0.0f, TitleMargin))
 		.ColorAndOpacity(FStyleColors::Foreground)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-		.Justification(ETextJustify::Right)
+		.Justification(ETextJustify::Center)
 		.Text(LOCTEXT("Write", "Write"))
 		];
-
-	Panel->AddSlot(5, Row)
-	[
-		SNew(SImage)
-		.Image(FAppStyle::Get().GetBrush("Icons.Edit"))
-		.ColorAndOpacity(FStyleColors::Foreground)
-		
-	];
 
 	Row++;
 
@@ -678,14 +672,6 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 				.Margin(FMargin(ColumnMargin, RowMargin))
 				.Justification(ETextJustify::Right)
 				.Text(FText::FromString(SingleDecimalFormat(TotalPutMB) + TEXT(" MB")))
-			];
-
-			Panel->AddSlot(5, Row)
-			.HAlign(HAlign_Center)
-			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("Icons.Check"))
-				.Visibility(Backend->IsWritable() ? EVisibility::Visible : EVisibility::Hidden)
 			];
 
 			Row++;

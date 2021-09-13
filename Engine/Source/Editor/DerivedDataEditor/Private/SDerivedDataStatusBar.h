@@ -7,6 +7,9 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Animation/CurveSequence.h"
+#include "Framework/Commands/Commands.h"
+
+class FUICommandList;
 
 class FDerivedDataStatusBarMenuCommands : public TCommands<FDerivedDataStatusBarMenuCommands>
 {
@@ -43,9 +46,11 @@ class SDerivedDataStatusBarWidget : public SCompoundWidget
 
 private:
 
-	static FText				GetTitleToolTipText();
-	static FText				GetRemoteCacheToolTipText();
-	static FText				GetTitleText();
+	FText						GetTitleToolTipText() const;
+	FText						GetRemoteCacheToolTipText() const;
+	FText						GetTitleText() const;
+	const FSlateBrush*			GetRemoteCacheStateBackgroundIcon() const;
+	const FSlateBrush*			GetRemoteCacheStateBadgeIcon() const;
 	TSharedRef<SWidget>			CreateStatusBarMenu();
 	EActiveTimerReturnType		UpdateBusyIndicator(double InCurrentTime, float InDeltaTime);
 	EActiveTimerReturnType		UpdateWarnings(double InCurrentTime, float InDeltaTime);

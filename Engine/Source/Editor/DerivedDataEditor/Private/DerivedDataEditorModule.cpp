@@ -5,10 +5,12 @@
 #include "SDerivedDataStatusBar.h"
 #include "SDerivedDataDialogs.h"
 #include "SDerivedDataCacheSettings.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "DerivedDataCacheNotifications.h"
 #include "Modules/ModuleManager.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
-
+#include "EditorStyleSet.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
@@ -32,7 +34,7 @@ void FDerivedDataEditorModule::StartupModule()
 		.SetGroup(WorkspaceMenu::GetMenuStructure().GetToolsCategory())
 		.SetIcon(ResourceUsageIcon);
 
-	const FSlateIcon CacheStatisticsIcon(FEditorStyle::GetStyleSetName(), "DerivedData.CacheStatistics");
+	const FSlateIcon CacheStatisticsIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Statistics");
 
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(DerivedDataCacheStatisticsTabName, FOnSpawnTab::CreateRaw(this, &FDerivedDataEditorModule::CreateCacheStatisticsTab))
 		.SetDisplayName(LOCTEXT("DerivedDataCacheStatisticsTabTitle", "Cache Statistics"))
@@ -51,6 +53,8 @@ void FDerivedDataEditorModule::StartupModule()
 #endif // WITH_RELOAD
 
 	FDerivedDataStatusBarMenuCommands::Register();
+
+	DerivedDataCacheNotifications.Reset(new FDerivedDataCacheNotifications);
 }
 
 void FDerivedDataEditorModule::ShutdownModule()
