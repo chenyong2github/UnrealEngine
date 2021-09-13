@@ -262,6 +262,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 				.ToggleButtonToolTip(Command->GetDescription())
 				.MenuButtonToolTip(LOCTEXT("LocationGridSnap_ToolTip", "Set the Position Grid Snap value"))
 				.Icon(Command->GetIcon())
+				.MinDesiredButtonWidth(24.0f)
 				.ParentToolBar(SharedThis(this)),
 			PositionSnapName, 
 			false, 
@@ -390,6 +391,7 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 				.ToggleButtonToolTip(Command->GetDescription())
 				.MenuButtonToolTip(LOCTEXT("ScaleGridSnap_ToolTip", "Set scaling options"))
 				.Icon(Command->GetIcon())
+				.MinDesiredButtonWidth(24.0f)
 				.ParentToolBar(SharedThis(this)),
 			ScaleSnapName,
 			false, 
