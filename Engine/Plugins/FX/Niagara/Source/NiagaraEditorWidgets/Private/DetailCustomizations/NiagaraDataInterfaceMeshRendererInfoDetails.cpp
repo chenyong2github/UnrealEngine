@@ -129,6 +129,11 @@ void FNiagaraDataInterfaceMeshRendererInfoDetails::GenerateRendererList()
 					}
 				}
 			}
+
+			if(MeshRendererWidget.IsValid())
+			{
+				MeshRendererWidget->RefreshOptions();
+			}
 		}
 	}
 }
