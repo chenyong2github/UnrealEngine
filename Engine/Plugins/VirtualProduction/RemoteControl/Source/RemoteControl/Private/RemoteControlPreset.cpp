@@ -934,6 +934,7 @@ URemoteControlBinding* URemoteControlPreset::FindOrAddBinding(const TSoftObjectP
 void URemoteControlPreset::OnEntityModified(const FGuid& EntityId)
 {
 	PerFrameUpdatedEntities.Add(EntityId);
+	PerFrameModifiedProperties.Add(EntityId);
 }
 
 void URemoteControlPreset::InitializeEntitiesMetadata()
