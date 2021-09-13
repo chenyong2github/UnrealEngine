@@ -1,20 +1,21 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EquivalenceUtil.h"
+#include "Data/Util/EquivalenceUtil.h"
 
-#include "ApplySnapshotDataArchiveV2.h"
+#include "Archive/ApplySnapshotDataArchiveV2.h"
+#include "Data/WorldSnapshotData.h"
+#include "Data/SnapshotCustomVersion.h"
+#include "Data/CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "LevelSnapshotsLog.h"
-#include "WorldSnapshotData.h"
+#include "LevelSnapshotsModule.h"
+#include "PropertyInfoHelpers.h"
+#include "Restorability/PropertyComparisonParams.h"
+#include "Restorability/SnapshotRestorability.h"
 
 #include "Components/ActorComponent.h"
-#include "CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
-#include "LevelSnapshotsModule.h"
-#include "PropertyComparisonParams.h"
-#include "PropertyInfoHelpers.h"
-#include "SnapshotCustomVersion.h"
-#include "SnapshotRestorability.h"
+#include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
 
 namespace
