@@ -606,7 +606,10 @@ namespace UnrealBuildTool
 				// Create a list of plugins for this assembly. We need to override the parent plugin, if it exists, due to overriding the
 				// setting for bClassifyAsGameModuleForUHT below.
 				List<PluginInfo> ForeignPlugins = new List<PluginInfo>();
-				ForeignPlugins.Add(new PluginInfo(PluginFileName, PluginType.External));
+				if (Parent == null || !Parent.EnumeratePlugins().Any(x => x.File == PluginFileName && x.Type == PluginType.Engine))
+				{
+					ForeignPlugins.Add(new PluginInfo(PluginFileName, PluginType.External));
+				}
 
 				// Create a new scope for the plugin. It should not reference anything else.
 				RulesScope Scope = new RulesScope("Plugin", Parent.Scope);
