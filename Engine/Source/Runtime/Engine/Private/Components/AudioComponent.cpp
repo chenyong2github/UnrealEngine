@@ -442,17 +442,19 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 	// Reset our fading out flag in case this is a reused audio component and we are replaying after previously fading out
 	bIsFadingOut = false;
 
+	const bool bIsSoundLooping = InSound && InSound->IsLooping();
+
 	if (IsActive())
 	{
-		// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
-		bool bCurrentAutoDestroy = bAutoDestroy;
-		bAutoDestroy = false;
 		//Only stop if this component is limited to one active sound
-		if (!bCanPlayMultipleInstances)
+		if (!bCanPlayMultipleInstances || bIsSoundLooping)
 		{
+			// If this is an auto destroy component we need to prevent it from being auto-destroyed since we're really just restarting it
+			bool bCurrentAutoDestroy = bAutoDestroy;
+			bAutoDestroy = false;
 			Stop();
+			bAutoDestroy = bCurrentAutoDestroy;
 		}
-		bAutoDestroy = bCurrentAutoDestroy;
 	}
 
 	if (Sound && (World == nullptr || World->bAllowAudioPlayback))
@@ -615,8 +617,22 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 			// Bump ActiveCount... this is used to determine if an audio component is still active after a sound reports back as completed
 			++ActiveCount;
 
-			// Pass along whether or not component is setup to support multiple active sounds. This is to ensure virtualization will function accordingly.
-			AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, bCanPlayMultipleInstances);
+			// Pass along whether or not component is setup to support multiple active sounds.
+			// This is to ensure virtualization will function accordingly. Disable the feature
+			// if the sound is looping as a safety mechanism to avoid stuck loops.
+			if (bIsSoundLooping)
+			{
+				if (bCanPlayMultipleInstances)
+				{
+					UE_LOG(LogAudio, Warning, TEXT("'Can Play Multiple Instances' disabled: Sound '%s' set to looping"), *InSound->GetName());
+				}
+
+				AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, false);
+			}
+			else
+			{
+				AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, bCanPlayMultipleInstances);
+			}
 
 			AudioDevice->AddNewActiveSound(NewActiveSound, &InstanceParameters);
 

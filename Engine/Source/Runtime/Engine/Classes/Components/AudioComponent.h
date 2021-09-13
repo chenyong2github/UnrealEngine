@@ -218,7 +218,8 @@ class ENGINE_API UAudioComponent : public USceneComponent, public ISoundGenerato
 	uint8 bSuppressSubtitles:1;
 
 	/** If true, the Audio Component will play multiple sound instances at once. Switching sounds or calling play while already playing
-	  * will not stop already active instances. */
+	  * will not stop already active instances. Virtualization for all played sounds will be disabled. Disabling while sound(s) are playing
+	  * will not take effect until the AudioComponent is stopped and restarted. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (DisplayName = "Play Multiple Instances", DisplayAfter = "Priority"))
 	uint8 bCanPlayMultipleInstances:1;
 
