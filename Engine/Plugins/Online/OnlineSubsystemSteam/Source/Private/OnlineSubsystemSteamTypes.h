@@ -208,13 +208,6 @@ public:
 		return (const CSteamID*)&UniqueNetId;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, const FUniqueNetIdSteam& UserId)
-	{
-		// FArchive operator<< wants non const references
-		uint64 NetId = UserId.UniqueNetId;
-		return Ar << NetId;
-	}
-
 private:
 	/** Hidden on purpose */
 	FUniqueNetIdSteam() :

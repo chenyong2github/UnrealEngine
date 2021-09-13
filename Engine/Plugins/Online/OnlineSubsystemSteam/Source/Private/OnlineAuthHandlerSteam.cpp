@@ -68,7 +68,12 @@ struct FSteamAuthUserData : public FSteamAuthInfoData
 	virtual void SerializeData(FArchive& Ar) override
 	{
 		FSteamAuthInfoData::SerializeData(Ar);
-		Ar << AuthKey << *SteamId;
+		if (Ar.IsLoading())
+		{
+			// Create a new one to avoid changing the hash of a pre-existing NetId, which would break any FUniqueNetIdSet/TUniqueNetIdMap containing the pre-existing NetId.
+			SteamId = FUniqueNetIdSteam::Create();
+		}
+		Ar << AuthKey << ConstCastSharedRef<FUniqueNetIdSteam>(SteamId)->UniqueNetId;
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FSteamAuthUserData& AuthData)

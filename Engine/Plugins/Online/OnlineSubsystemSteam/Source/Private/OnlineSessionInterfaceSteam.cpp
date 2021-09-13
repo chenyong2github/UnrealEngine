@@ -1582,7 +1582,7 @@ void FOnlineSessionSteam::TickPendingInvites(float DeltaTime)
 void FOnlineSessionSteam::AppendSessionToPacket(FNboSerializeToBufferSteam& Packet, FOnlineSession* Session)
 {
 	/** Owner of the session */
-	Packet << *StaticCastSharedPtr<const FUniqueNetIdSteam>(Session->OwningUserId)
+	Packet << StaticCastSharedPtr<const FUniqueNetIdSteam>(Session->OwningUserId)->UniqueNetId
 		<< Session->OwningUserName
 		<< Session->NumOpenPrivateConnections
 		<< Session->NumOpenPublicConnections;
@@ -1680,15 +1680,13 @@ void FOnlineSessionSteam::ReadSessionFromPacket(FNboSerializeFromBufferSteam& Pa
 	UE_LOG_ONLINE_SESSION(Verbose, TEXT("Reading session information from server"));
 #endif
 
-	/** Owner of the session */
-	// Create new NetId to avoid modifying shared resource
-	FUniqueNetIdSteamRef OwningUserId = FUniqueNetIdSteam::Create();
-	Packet >> *ConstCastSharedRef<FUniqueNetIdSteam>(OwningUserId)
+	uint64 OwningUserId;
+	Packet >> OwningUserId
 		>> Session->OwningUserName
 		>> Session->NumOpenPrivateConnections
 		>> Session->NumOpenPublicConnections;
 
-	Session->OwningUserId = OwningUserId;
+	Session->OwningUserId = FUniqueNetIdSteam::Create(OwningUserId);
 
 	// Allocate and read the connection data
 	FOnlineSessionInfoSteam* SteamSessionInfo = new FOnlineSessionInfoSteam(ESteamSession::LANSession);
