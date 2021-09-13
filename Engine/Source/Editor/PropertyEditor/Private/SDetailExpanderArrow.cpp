@@ -27,7 +27,7 @@ void SDetailExpanderArrow::Construct(const FArguments& InArgs, TSharedRef<SDetai
 			[
 				SNew(SImage)
 				.Image(this, &SDetailExpanderArrow::GetExpanderImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 			]
 		]
 	];
