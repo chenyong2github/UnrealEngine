@@ -130,10 +130,10 @@ namespace Metasound
 	class INodeBase
 	{
 		public:
-			virtual ~INodeBase() {}
+			virtual ~INodeBase() = default;
 
 			/** Return the name of this specific instance of the node class. */
-			virtual const FString& GetInstanceName() const = 0;
+			virtual const FName& GetInstanceName() const = 0;
 
 			/** Return the ID of this node instance. */
 			virtual const FGuid& GetInstanceID() const = 0;
@@ -250,7 +250,7 @@ namespace Metasound
 	};
 
 	/** Key type for an FOutputDataSource or FInputDataDestination. */
-	typedef TTuple<const INode*, FVertexKey> FNodeDataVertexKey;
+	typedef TTuple<const INode*, FVertexName> FNodeDataVertexKey;
 
 	/** FOutputDataSourceCollection contains multiple FOutputDataSources mapped 
 	 * by FNodeDataVertexKeys.

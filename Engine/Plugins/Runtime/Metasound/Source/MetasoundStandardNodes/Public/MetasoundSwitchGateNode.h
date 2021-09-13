@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,6 +10,8 @@
 #include "MetasoundFacade.h"
 #include "MetasoundNode.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundVertex.h"
+
 
 namespace Metasound
 {
@@ -27,7 +28,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FSwitchNode : public FNodeFacade
 	{
 	public:
-		FSwitchNode(const FString& InName, const FGuid& InInstanceID);
+		FSwitchNode(const FVertexName& InName, const FGuid& InInstanceID);
 		FSwitchNode(const FNodeInitData& InInitData);
 	};
 
@@ -39,7 +40,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FGateNode : public FNodeFacade
 	{
 	public:
-		FGateNode(const FString& InName, const FGuid& InInstanceID);
+		FGateNode(const FVertexName& InName, const FGuid& InInstanceID);
 		FGateNode(const FNodeInitData& InInitData);
 	};
 }

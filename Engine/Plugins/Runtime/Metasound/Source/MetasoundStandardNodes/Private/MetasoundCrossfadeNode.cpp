@@ -3,15 +3,16 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundAudioBuffer.h"
 #include "CoreMinimal.h"
-#include "MetasoundFacade.h"
+#include "DSP/BufferVectorOperations.h"
+#include "Internationalization/Text.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundParamHelper.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
-#include "Internationalization/Text.h"
-#include "MetasoundParamHelper.h"
-#include "DSP/BufferVectorOperations.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_CrossfadeNode"
 
@@ -24,9 +25,9 @@ namespace Metasound
 {
 	namespace CrossfadeVertexNames
 	{
-		const FString GetInputCrossfadeValueName()
+		const FVertexName GetInputCrossfadeValueName()
 		{
-			static const FString CrossfadeName = TEXT("Crossfade Value");
+			static const FVertexName CrossfadeName = TEXT("Crossfade Value");
 			return CrossfadeName;
 		}
 
@@ -36,9 +37,9 @@ namespace Metasound
 			return Desc;
 		}
 
-		const FString GetInputName(uint32 InIndex)
+		const FVertexName GetInputName(uint32 InIndex)
 		{
-			return FString::Format(TEXT("In {0}"), { InIndex });
+			return *FString::Format(TEXT("In {0}"), { InIndex });
 		}
 
 		const FText GetInputDescription(uint32 InIndex)
@@ -46,9 +47,9 @@ namespace Metasound
 			return FText::Format(LOCTEXT("CrossfadeInputDesc", "Cross fade {0} input."), InIndex);
 		}
 
-		const FString& GetOutputName()
+		const FVertexName& GetOutputName()
 		{
-			static const FString Name = TEXT("Out");
+			static const FVertexName Name = TEXT("Out");
 			return Name;
 		}
 

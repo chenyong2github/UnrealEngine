@@ -10,6 +10,7 @@
 #include "MetasoundFrontendDocumentAccessPtr.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
+#include "MetasoundVertex.h"
 
 class IMetaSoundAssetManager;
 
@@ -172,10 +173,10 @@ namespace Metasound
 			virtual const FName& GetDataType() const = 0;
 			
 			/** Returns the name associated with this output. */
-			virtual const FString& GetName() const = 0;
+			virtual const FVertexName& GetName() const = 0;
 			
 			/** Returns the human readable name associated with this output. */
-			virtual const FText& GetDisplayName() const = 0;
+			virtual FText GetDisplayName() const = 0;
 			
 			/** Returns the tooltip associated with this output. */
 			virtual const FText& GetTooltip() const = 0;
@@ -191,6 +192,9 @@ namespace Metasound
 			
 			/** Returns a FConstNodeHandle to the node which owns this output. */
 			virtual FConstNodeHandle GetOwningNode() const = 0;
+
+			/** This should only be used as a means of fixing up vertex names for document model versioning transform(s). */
+			virtual void SetName(const FVertexName& InName) = 0;
 
 			/** Return true if the input is connect to an output. */
 			virtual bool IsConnected() const = 0;
@@ -246,10 +250,10 @@ namespace Metasound
 			virtual const FName& GetDataType() const = 0;
 
 			/** Returns the data type name associated with this input. */
-			virtual const FString& GetName() const = 0;
+			virtual const FVertexName& GetName() const = 0;
 
 			/** Returns the data type name associated with this input. */
-			virtual const FText& GetDisplayName() const = 0;
+			virtual FText GetDisplayName() const = 0;
 
 			/** Returns the value for the given input instance if set. */
 			virtual const FMetasoundFrontendLiteral* GetLiteral() const = 0;
@@ -282,6 +286,9 @@ namespace Metasound
 			/** Returns the currently connected output. If this input is not
 			 * connected, the returned handle will be invalid. */
 			virtual FConstOutputHandle GetConnectedOutput() const = 0;
+
+			/** This should only be used as a means of fixing up vertex names for document model versioning transform(s). */
+			virtual void SetName(const FVertexName& InName) = 0;
 
 			/** Returns information describing connectability between this input and the supplied output. */
 			virtual FConnectability CanConnectTo(const IOutputController& InController) const = 0;
@@ -327,10 +334,12 @@ namespace Metasound
 			virtual TArray<FConstInputHandle> GetConstInputs() const = 0;
 
 			/** Returns the display name of the given node (what to distinguish and label in visual arrays, such as context menus). */
-			virtual const FText& GetDisplayName() const = 0;
+			virtual FText GetDisplayName() const = 0;
 
 			/** Sets the description of the node. */
 			virtual void SetDescription(const FText& InDescription) = 0;
+
+			virtual void SetNodeName(const FVertexName& InName) = 0;
 
 			/** Sets the display name of the node. */
 			virtual void SetDisplayName(const FText& InDisplayName) = 0;
@@ -352,8 +361,8 @@ namespace Metasound
 			/** Returns number of node outputs. */
 			virtual int32 GetNumOutputs() const = 0;
 
-			virtual TArray<FInputHandle> GetInputsWithVertexName(const FString& InName) = 0;
-			virtual TArray<FConstInputHandle> GetConstInputsWithVertexName(const FString& InName) const = 0;
+			virtual TArray<FInputHandle> GetInputsWithVertexName(const FVertexName& InName) = 0;
+			virtual TArray<FConstInputHandle> GetConstInputsWithVertexName(const FVertexName& InName) const = 0;
 
 			/** Returns all node outputs. */
 			virtual TArray<FOutputHandle> GetOutputs() = 0;
@@ -361,8 +370,8 @@ namespace Metasound
 			/** Returns all node outputs. */
 			virtual TArray<FConstOutputHandle> GetConstOutputs() const = 0;
 
-			virtual TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) = 0;
-			virtual TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const = 0;
+			virtual TArray<FOutputHandle> GetOutputsWithVertexName(const FVertexName& InName) = 0;
+			virtual TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FVertexName& InName) const = 0;
 
 			/** Returns true if node is required to satisfy the document archetype. */
 			virtual bool IsRequired() const = 0;
@@ -456,7 +465,7 @@ namespace Metasound
 			virtual FConstGraphHandle AsGraph() const = 0;
 
 			/** Returns the name of this node. */
-			virtual const FString& GetNodeName() const = 0;
+			virtual const FVertexName& GetNodeName() const = 0;
 
 			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const = 0;
 			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) = 0;
@@ -499,10 +508,10 @@ namespace Metasound
 			virtual void SetGraphMetadata(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
 
 			/** Return the display name of the graph. */
-			virtual const FText& GetDisplayName() const = 0;
+			virtual FText GetDisplayName() const = 0;
 
-			virtual TArray<FString> GetInputVertexNames() const = 0;
-			virtual TArray<FString> GetOutputVertexNames() const = 0;
+			virtual TArray<FVertexName> GetInputVertexNames() const = 0;
+			virtual TArray<FVertexName> GetOutputVertexNames() const = 0;
 
 			/** Returns all nodes in the graph. */
 			virtual TArray<FNodeHandle> GetNodes() = 0;
@@ -538,24 +547,24 @@ namespace Metasound
 			virtual void ClearGraph() = 0;
 
 			/** Iterate over all input nodes with the given function. If ClassType is specified, only iterate over given type. */
-			virtual void IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) = 0;
+			virtual void IterateNodes(TFunctionRef<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) = 0;
 
 			/** Iterate over all nodes with the given function. If ClassType is specified, only iterate over given type. */
-			virtual void IterateConstNodes(TUniqueFunction<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) const = 0;
+			virtual void IterateConstNodes(TFunctionRef<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) const = 0;
 
 			/** Returns true if an output vertex with the given Name exists.
 			 *
 			 * @param InName - Name of vertex.
 			 * @return True if the vertex exists, false otherwise. 
 			 */
-			virtual bool ContainsOutputVertexWithName(const FString& InName) const = 0;
+			virtual bool ContainsOutputVertexWithName(const FVertexName& InName) const = 0;
 
 			/** Returns true if an input vertex with the given Name exists.
 			 *
 			 * @param InName - Name of vertex.
 			 * @return True if the vertex exists, false otherwise. 
 			 */
-			virtual bool ContainsInputVertexWithName(const FString& InName) const = 0;
+			virtual bool ContainsInputVertexWithName(const FVertexName& InName) const = 0;
 
 			/** Returns a handle to an existing output node for the given graph output name.
 			 * If no output exists with the given name, an invalid node handle is returned. 
@@ -563,7 +572,7 @@ namespace Metasound
 			 * @param InName - Name of graph output.. 
 			 * @return The node handle for the output node. If the output does not exist, an invalid handle is returned.
 			 */
-			virtual FNodeHandle GetOutputNodeWithName(const FString& InName) = 0;
+			virtual FNodeHandle GetOutputNodeWithName(const FVertexName& InName) = 0;
 
 			/** Returns a handle to an existing output node for the given graph output name.
 			 * If no output exists with the given name, an invalid node handle is returned. 
@@ -571,7 +580,7 @@ namespace Metasound
 			 * @param InName - Name of graph output.
 			 * @return The node handle for the output node. If the node does not exist, an invalid handle is returned.
 			 */
-			virtual FConstNodeHandle GetOutputNodeWithName(const FString& InName) const = 0;
+			virtual FConstNodeHandle GetOutputNodeWithName(const FVertexName& InName) const = 0;
 
 			/** Returns a handle to an existing input node for the given graph input name.
 			 * If no input exists with the given name, an invalid node handle is returned. 
@@ -579,7 +588,7 @@ namespace Metasound
 			 * @param InName - Name of graph input. 
 			 * @return The node handle for the input node. If the node does not exist, an invalid handle is returned.
 			 */
-			virtual FNodeHandle GetInputNodeWithName(const FString& InName) = 0;
+			virtual FNodeHandle GetInputNodeWithName(const FVertexName & InName) = 0;
 
 			/** Returns a handle to an existing input node for the given graph input name.
 			 * If no input exists with the given name, an invalid node handle is returned. 
@@ -587,10 +596,10 @@ namespace Metasound
 			 * @param InName - Name of graph input. 
 			 * @return The node handle for the input node. If the node does not exist, an invalid handle is returned.
 			 */
-			virtual FConstNodeHandle GetInputNodeWithName(const FString& InName) const = 0;
+			virtual FConstNodeHandle GetInputNodeWithName(const FVertexName& InName) const = 0;
 
-			virtual FConstClassInputAccessPtr FindClassInputWithName(const FString& InName) const = 0;
-			virtual FConstClassOutputAccessPtr FindClassOutputWithName(const FString& InName) const = 0;
+			virtual FConstClassInputAccessPtr FindClassInputWithName(const FVertexName& InName) const = 0;
+			virtual FConstClassOutputAccessPtr FindClassOutputWithName(const FVertexName& InName) const = 0;
 
 			/** Add a new input node using the input description. 
 			 *
@@ -598,9 +607,10 @@ namespace Metasound
 			 * @return On success, a valid input node handle. On failure, an invalid node handle.
 			 */
 			virtual FNodeHandle AddInputVertex(const FMetasoundFrontendClassInput& InDescription) = 0;
+			virtual FNodeHandle AddInputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue) = 0;
 
 			/** Remove the input with the given name. Returns true if successfully removed, false otherwise. */
-			virtual bool RemoveInputVertex(const FString& InputName) = 0;
+			virtual bool RemoveInputVertex(const FVertexName& InputName) = 0;
 
 			/** Add a new output node using the output description. 
 			 *
@@ -608,9 +618,10 @@ namespace Metasound
 			 * @return On success, a valid output node handle. On failure, an invalid node handle.
 			 */
 			virtual FNodeHandle AddOutputVertex(const FMetasoundFrontendClassOutput& InDescription) = 0;
+			virtual FNodeHandle AddOutputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip) = 0;
 
 			/** Remove the output with the given name. Returns true if successfully removed, false otherwise. */
-			virtual bool RemoveOutputVertex(const FString& OutputName) = 0;
+			virtual bool RemoveOutputVertex(const FVertexName& OutputName) = 0;
 
 			/** Returns the preferred literal argument type for a given input.
 			 * Returns ELiteralType::Invalid if the input couldn't be found, 
@@ -619,7 +630,7 @@ namespace Metasound
 			 * @param InInputName - Name of graph input.
 			 * @return The preferred literal argument type. 
 			 */
-			virtual ELiteralType GetPreferredLiteralTypeForInputVertex(const FString& InInputName) const = 0;
+			virtual ELiteralType GetPreferredLiteralTypeForInputVertex(const FVertexName& InInputName) const = 0;
 
 			/** Return the UObject class corresponding an input. Meaningful for inputs whose preferred 
 			 * literal type is UObject or UObjectArray.
@@ -628,10 +639,10 @@ namespace Metasound
 			 *
 			 * @return The UClass* for the literal argument input. nullptr on error or if UObject argument is not supported.
 			 */
-			virtual UClass* GetSupportedClassForInputVertex(const FString& InInputName) = 0;
+			virtual UClass* GetSupportedClassForInputVertex(const FVertexName& InInputName) = 0;
 
-			virtual FGuid GetVertexIDForInputVertex(const FString& InInputName) const = 0;
-			virtual FGuid GetVertexIDForOutputVertex(const FString& InOutputName) const = 0;
+			virtual FGuid GetVertexIDForInputVertex(const FVertexName& InInputName) const = 0;
+			virtual FGuid GetVertexIDForOutputVertex(const FVertexName& InOutputName) const = 0;
 
 			virtual FMetasoundFrontendLiteral GetDefaultInput(const FGuid& InVertexID) const = 0;
 			virtual bool SetDefaultInput(const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral) = 0;
@@ -647,22 +658,22 @@ namespace Metasound
 			virtual bool SetDefaultInputToDefaultLiteralOfType(const FGuid& InVertexID) = 0;
 
 			/** Set the display name for the input with the given name. */
-			virtual void SetInputDisplayName(const FString& InName, const FText& InDisplayName) = 0;
+			virtual void SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName) = 0;
 
 			/** Set the display name for the output with the given name. */
-			virtual void SetOutputDisplayName(const FString& InName, const FText& InDisplayName) = 0;
+			virtual void SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName) = 0;
 
 			/** Get the description for the input with the given name. */
-			virtual const FText& GetInputDescription(const FString& InName) const = 0;
+			virtual const FText& GetInputDescription(const FVertexName& InName) const = 0;
 
 			/** Get the description for the output with the given name. */
-			virtual const FText& GetOutputDescription(const FString& InName) const = 0;
+			virtual const FText& GetOutputDescription(const FVertexName& InName) const = 0;
 
 			/** Set the description for the input with the given name. */
-			virtual void SetInputDescription(const FString& InName, const FText& InDescription) = 0;
+			virtual void SetInputDescription(const FVertexName& InName, const FText& InDescription) = 0;
 
 			/** Set the description for the output with the given name. */
-			virtual void SetOutputDescription(const FString& InName, const FText& InDescription) = 0;
+			virtual void SetOutputDescription(const FVertexName& InName, const FText& InDescription) = 0;
 
 			/**
 			  * Updates the ChangeID for the class interface, which signals AutoUpdate to
@@ -675,7 +686,7 @@ namespace Metasound
 			 *
 			 * @return True on success, false on failure.
 			 */
-			virtual bool ClearLiteralForInput(const FString& InInputName, FGuid InVertexID) = 0;
+			virtual bool ClearLiteralForInput(const FVertexName& InInputName, FGuid InVertexID) = 0;
 
 			/** Add a new node to this graph from the node registry.
 			 *
@@ -734,18 +745,6 @@ namespace Metasound
 
 			/** Returns a handle to the document owning this graph. */
 			virtual FConstDocumentHandle GetOwningDocument() const = 0;
-
-			/** Creates an input node */
-			virtual FNodeHandle AddInputNode(const FMetasoundFrontendClassInput& InClassInput, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) = 0;
-
-			/** Creates an input node */
-			virtual FNodeHandle AddInputNode(const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName) = 0;
-
-			/** Creates an output node */
-			virtual FNodeHandle AddOutputNode(const FMetasoundFrontendClassOutput& InClassOutput, const FText* InDisplayName) = 0;
-
-			/** Creates an output node */
-			virtual FNodeHandle AddOutputNode(const FName InTypeName, const FText& InToolTip, const FText* InDisplayName) = 0;
 		};
 
 		/* An IDocumentController provides methods for querying and manipulating a Metasound document. */

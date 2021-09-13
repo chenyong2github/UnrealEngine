@@ -63,13 +63,13 @@ namespace Metasound
 		};
 
 		/** Returns the MetaSound environment variable name which contains the instance ID. */
-		static FString GetInstanceIDEnvironmentVariableName();
+		static const FVertexName& GetInstanceIDEnvironmentVariableName();
 
 		/** Creates a unique send address using the given MetaSound environment. */
-		static FSendAddress CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexKey& InVertexkey, const FName& InTypeName);
+		static FSendAddress CreateSendAddressFromEnvironment(const FMetasoundEnvironment& InEnvironment, const FVertexName& InVertexName, const FName& InTypeName);
 		
 		/** Creates a unique send address using the given InstanceID. */
-		static FSendAddress CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexKey& InVertexKey, const FName& InTypeName);
+		static FSendAddress CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexName& InVertexName, const FName& InTypeName);
 
 		FMetaSoundParameterTransmitter(const FMetaSoundParameterTransmitter::FInitParams& InInitParams);
 		virtual ~FMetaSoundParameterTransmitter() = default;

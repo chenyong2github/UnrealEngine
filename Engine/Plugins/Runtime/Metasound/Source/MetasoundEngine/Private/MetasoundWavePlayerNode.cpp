@@ -11,8 +11,10 @@
 #include "MetasoundWave.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundEngineNodesNames.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundWaveNode"
+
 
 namespace Metasound
 {
@@ -75,7 +77,7 @@ namespace Metasound
 		static FVertexInterface DeclareVertexInterface();
 		static const FNodeClassMetadata& GetNodeInfo();
 
-		FWavePlayerNode(const FString& InName, const FGuid& InInstanceID);
+		FWavePlayerNode(const FVertexName& InName, const FGuid& InInstanceID);
 		FWavePlayerNode(const FNodeInitData& InInitData);
 		virtual ~FWavePlayerNode() = default;
 
@@ -771,7 +773,7 @@ namespace Metasound
 		return Info;
 	}
 
-	FWavePlayerNode::FWavePlayerNode(const FString& InName, const FGuid& InInstanceID)
+	FWavePlayerNode::FWavePlayerNode(const FVertexName& InName, const FGuid& InInstanceID)
 		:	FNode(InName, InInstanceID, GetNodeInfo())
 		,	Factory(MakeOperatorFactoryRef<FWavePlayerNode::FOperatorFactory>())
 		,	Interface(DeclareVertexInterface())

@@ -902,7 +902,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// 1.) from FString
-		FLadderFilterNode(const FString& InInstanceName, const FGuid& InInstanceID)
+		FLadderFilterNode(const FVertexName& InInstanceName, const FGuid& InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FLadderFilterOperator>())
 		{ }
 
@@ -917,7 +917,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// 1.) from FString
-		FStateVariableFilterNode(const FString& InInstanceName, const FGuid& InInstanceID)
+		FStateVariableFilterNode(const FVertexName& InInstanceName, const FGuid& InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FStateVariableFilterOperator>())
 		{ }
 
@@ -932,7 +932,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// 1.) from FString
-		FOnePoleLowPassFilterNode(const FString& InInstanceName, const FGuid& InInstanceID)
+		FOnePoleLowPassFilterNode(const FVertexName& InInstanceName, const FGuid& InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FOnePoleLowPassFilterOperator>())
 		{ }
 
@@ -947,7 +947,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// 1.) from FString
-		FOnePoleHighPassFilterNode(const FString& InInstanceName, const FGuid& InInstanceID)
+		FOnePoleHighPassFilterNode(const FVertexName& InInstanceName, const FGuid& InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FOnePoleHighPassFilterOperator>())
 		{ }
 
@@ -962,7 +962,7 @@ namespace Metasound
 	public:
 		// public node api needs to define two conversion constructors:
 		// 1.) from FString
-		FBiquadFilterNode(const FString& InInstanceName, const FGuid& InInstanceID)
+		FBiquadFilterNode(const FVertexName& InInstanceName, const FGuid& InInstanceID)
 			: FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FBiquadFilterOperator>())
 		{ }
 

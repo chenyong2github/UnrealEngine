@@ -81,7 +81,8 @@ namespace Metasound
 				UObject& InMetaSound,
 				const FName InTypeName,
 				const FText& InToolTip,
-				const FMetasoundFrontendLiteral* InDefaultValue = nullptr);
+				const FMetasoundFrontendLiteral* InDefaultValue = nullptr,
+				const FName* InNameBase = nullptr);
 
 			// Adds a corresponding UMetasoundEditorGraphExternalNode for the provided node handle.
 			static UMetasoundEditorGraphExternalNode* AddExternalNode(UObject& InMetaSound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
@@ -97,7 +98,7 @@ namespace Metasound
 			static UMetasoundEditorGraphOutputNode* AddOutputNode(UObject& InMetaSound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
 			// Generates analogous FNodeHandle for the given internal node data. Does not bind nor create EdGraph representation of given node.
-			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetaSound, const FName InTypeName, const FText& InToolTip);
+			static Frontend::FNodeHandle AddOutputNodeHandle(UObject& InMetaSound, const FName InTypeName, const FText& InToolTip, const FName* InNameBase = nullptr);
 
 			// Attempts to connect Frontend node counterparts together for provided pins.  Returns true if succeeded,
 			// and breaks pin link and returns false if failed.  If bConnectEdPins is set, will attempt to connect
@@ -110,14 +111,8 @@ namespace Metasound
 			// applicable post disconnection.
 			static void DisconnectPin(UEdGraphPin& InPin, bool bAddLiteralInputs = true);
 
-			// Generates a unique input display name for the given MetaSound object
-			static FText GenerateUniqueInputDisplayName(const UObject& InMetaSound, const FText* InBaseName = nullptr);
-
 			// Generates a unique output name for the given MetaSound object
-			static FText GenerateUniqueOutputDisplayName(const UObject& InMetaSound, const FText* InBaseName = nullptr);
-
-			// Generates a unique name by retrieving the provided MetaSound's associated GraphHandle and filtering by the provided function.
-			static FText GenerateUniqueNameByFilter(const UObject& InMetaSound, const FText& InBaseText, TFunctionRef<bool(const Frontend::FConstGraphHandle&, const FText&)> InNameIsValidFilter);
+			static FName GenerateUniqueNameByClassType(const UObject& InMetaSound, EMetasoundFrontendClassType InClassType, const FName& InBaseName);
 
 			static TArray<FString> GetDataTypeNameCategories(const FName& InDataTypeName);
 

@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Async/Async.h"
 #include "CoreMinimal.h"
 #include "DSP/Dsp.h"
-#include "MetasoundOperatorInterface.h"
-#include "MetasoundExecutableOperator.h"
 #include "MetasoundAudioFormats.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFrontendController.h"
+#include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
+#include "MetasoundVertex.h"
 #include "Sound/SoundGenerator.h"
-#include "MetasoundFrontendController.h"
-#include "Async/Async.h"
 #include "Tickable.h"
+
 
 namespace Metasound
 {
@@ -22,9 +24,9 @@ namespace Metasound
 		TUniquePtr<IGraph> Graph;
 		FMetasoundEnvironment Environment;
 		FString MetaSoundName;
-		TArray<FString> AudioOutputNames;
-		FString OnPlayInputName;
-		FString IsFinishedOutputName;
+		TArray<FVertexName> AudioOutputNames;
+		FVertexName OnPlayInputName;
+		FVertexName IsFinishedOutputName;
 
 		void Release();
 	};

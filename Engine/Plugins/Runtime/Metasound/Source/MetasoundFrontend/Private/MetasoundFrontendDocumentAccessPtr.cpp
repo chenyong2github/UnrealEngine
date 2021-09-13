@@ -236,14 +236,18 @@ namespace Metasound
 			/** A callable object for testing whether a vertex contains a matching name. */
 			struct FIsVertexWithName
 			{
-				FIsVertexWithName(const FString& InName)
+				FIsVertexWithName(const FVertexName& InName)
 				: Name(InName)
 				{
 				}
 
-				bool operator() (const FMetasoundFrontendVertex& InVertex) const { return InVertex.Name == Name; }
+				bool operator() (const FMetasoundFrontendVertex& InVertex) const
+				{
+					return InVertex.Name == Name;
+				}
+
 			private:
-				FString Name;
+				FVertexName Name;
 			};
 
 			/** A callable object for testing whether a vertex contains a matching ID. */
@@ -254,7 +258,11 @@ namespace Metasound
 				{
 				}
 
-				bool operator() (const FMetasoundFrontendVertex& InVertex) const { return InVertex.VertexID == ID; }
+				bool operator() (const FMetasoundFrontendVertex& InVertex) const
+				{
+					return InVertex.VertexID == ID;
+				}
+
 			private:
 				FGuid ID;
 			};
@@ -280,7 +288,11 @@ namespace Metasound
 				{
 				}
 
-				bool operator() (const FMetasoundFrontendClassOutput& InClassOutput) const { return InClassOutput.NodeID == NodeID; }
+				bool operator() (const FMetasoundFrontendClassOutput& InClassOutput) const
+				{
+					return InClassOutput.NodeID == NodeID;
+				}
+
 			private:
 				FGuid NodeID;
 			};
@@ -293,7 +305,11 @@ namespace Metasound
 				{
 				}
 
-				bool operator() (const FMetasoundFrontendNode& InNode) const { return InNode.ID == NodeID; }
+				bool operator() (const FMetasoundFrontendNode& InNode) const
+				{
+					return InNode.GetID() == NodeID;
+				}
+
 			private:
 				FGuid NodeID;
 			};
@@ -306,7 +322,11 @@ namespace Metasound
 				{
 				}
 
-				bool operator() (const FMetasoundFrontendClass& InClass) const { return InClass.ID == ClassID; }
+				bool operator() (const FMetasoundFrontendClass& InClass) const
+				{
+					return InClass.ID == ClassID;
+				}
+
 			private:
 				FGuid ClassID;
 			};
@@ -338,7 +358,7 @@ namespace Metasound
 				}
 
 				bool operator()(const FMetasoundFrontendClass& InClass) const
-				{ 
+				{
 					return NodeRegistryKey::IsEqual(NodeInfo, InClass.Metadata);
 				};
 			private:
@@ -355,7 +375,7 @@ namespace Metasound
 				}
 
 				bool operator()(const FMetasoundFrontendClass& InClass) const
-				{ 
+				{
 					return NodeRegistryKey::IsEqual(RegistryKey, NodeRegistryKey::CreateKey(InClass.Metadata));
 				};
 			private:
@@ -363,7 +383,7 @@ namespace Metasound
 			};
 		}
 
-		FVertexAccessPtr FNodeAccessPtr::GetInputWithName(const FString& InName)
+		FVertexAccessPtr FNodeAccessPtr::GetInputWithName(const FVertexName& InName)
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -383,7 +403,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FVertexAccessPtr>(Finder);
 		}
 
-		FVertexAccessPtr FNodeAccessPtr::GetOutputWithName(const FString& InName)
+		FVertexAccessPtr FNodeAccessPtr::GetOutputWithName(const FVertexName& InName)
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -403,7 +423,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FVertexAccessPtr>(Finder);
 		}
 
-		FConstVertexAccessPtr FNodeAccessPtr::GetInputWithName(const FString& InName) const
+		FConstVertexAccessPtr FNodeAccessPtr::GetInputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -423,7 +443,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstVertexAccessPtr>(Finder);
 		}
 
-		FConstVertexAccessPtr FNodeAccessPtr::GetOutputWithName(const FString& InName) const
+		FConstVertexAccessPtr FNodeAccessPtr::GetOutputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -443,7 +463,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstVertexAccessPtr>(Finder);
 		}
 
-		FConstVertexAccessPtr FConstNodeAccessPtr::GetInputWithName(const FString& InName) const
+		FConstVertexAccessPtr FConstNodeAccessPtr::GetInputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -463,7 +483,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstVertexAccessPtr>(Finder);
 		}
 
-		FConstVertexAccessPtr FConstNodeAccessPtr::GetOutputWithName(const FString& InName) const
+		FConstVertexAccessPtr FConstNodeAccessPtr::GetOutputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -484,7 +504,7 @@ namespace Metasound
 		}
 
 		// FConstClassAccessPtr
-		FClassInputAccessPtr FClassAccessPtr::GetInputWithName(const FString& InName)
+		FClassInputAccessPtr FClassAccessPtr::GetInputWithName(const FVertexName& InName)
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -494,17 +514,17 @@ namespace Metasound
 			return GetMemberAccessPtr<FClassInputAccessPtr>(Finder);
 		}
 
-		FClassOutputAccessPtr FClassAccessPtr::GetOutputWithName(const FString& InName)
+		FClassOutputAccessPtr FClassAccessPtr::GetOutputWithName(const FVertexName& InName)
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
 			using FFinder= TFindInArray<FMetasoundFrontendClass, FMetasoundFrontendClassOutput, FGetClassOutputArray, FIsVertexWithName>;
-			FFinder Finder{FGetClassOutputArray(), FIsVertexWithName(InName)};
+			FFinder Finder { FGetClassOutputArray(), FIsVertexWithName(InName) };
 
 			return GetMemberAccessPtr<FClassOutputAccessPtr>(Finder);
 		}
 
-		FConstClassInputAccessPtr FClassAccessPtr::GetInputWithName(const FString& InName) const
+		FConstClassInputAccessPtr FClassAccessPtr::GetInputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -514,7 +534,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstClassInputAccessPtr>(Finder);
 		}
 
-		FConstClassOutputAccessPtr FClassAccessPtr::GetOutputWithName(const FString& InName) const
+		FConstClassOutputAccessPtr FClassAccessPtr::GetOutputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -525,7 +545,7 @@ namespace Metasound
 		}
 
 		// FConstClassAccessPtr
-		FConstClassInputAccessPtr FConstClassAccessPtr::GetInputWithName(const FString& InName) const
+		FConstClassInputAccessPtr FConstClassAccessPtr::GetInputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -535,7 +555,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstClassInputAccessPtr>(Finder);
 		}
 
-		FConstClassOutputAccessPtr FConstClassAccessPtr::GetOutputWithName(const FString& InName) const
+		FConstClassOutputAccessPtr FConstClassAccessPtr::GetOutputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -546,7 +566,7 @@ namespace Metasound
 		}
 
 		// FGraphClassAccessPtr
-		FClassInputAccessPtr FGraphClassAccessPtr::GetInputWithName(const FString& InName)
+		FClassInputAccessPtr FGraphClassAccessPtr::GetInputWithName(const FVertexName& InName)
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -566,7 +586,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FClassInputAccessPtr>(Finder);
 		}
 
-		FClassOutputAccessPtr FGraphClassAccessPtr::GetOutputWithName(const FString& InName)
+		FClassOutputAccessPtr FGraphClassAccessPtr::GetOutputWithName(const FVertexName& InName)
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -607,7 +627,7 @@ namespace Metasound
 		}
 
 
-		FConstClassInputAccessPtr FGraphClassAccessPtr::GetInputWithName(const FString& InName) const
+		FConstClassInputAccessPtr FGraphClassAccessPtr::GetInputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -628,7 +648,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstClassInputAccessPtr>(Finder);
 		}
 
-		FConstClassOutputAccessPtr FGraphClassAccessPtr::GetOutputWithName(const FString& InName) const
+		FConstClassOutputAccessPtr FGraphClassAccessPtr::GetOutputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -669,7 +689,7 @@ namespace Metasound
 		}
 
 		// FConstGraphClassAccessPtr
-		FConstClassInputAccessPtr FConstGraphClassAccessPtr::GetInputWithName(const FString& InName) const
+		FConstClassInputAccessPtr FConstGraphClassAccessPtr::GetInputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 
@@ -690,7 +710,7 @@ namespace Metasound
 			return GetMemberAccessPtr<FConstClassInputAccessPtr>(Finder);
 		}
 
-		FConstClassOutputAccessPtr FConstGraphClassAccessPtr::GetOutputWithName(const FString& InName) const
+		FConstClassOutputAccessPtr FConstGraphClassAccessPtr::GetOutputWithName(const FVertexName& InName) const
 		{
 			using namespace MetasoundFrontendDocumentAccessPtrPrivate;
 

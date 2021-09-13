@@ -192,7 +192,7 @@ namespace Metasound
 		return Info;
 	}
 
-	FNoiseNode::FNoiseNode(const FString& InName, const FGuid& InInstanceID, int32 InDefaultSeed)
+	FNoiseNode::FNoiseNode(const FVertexName& InName, const FGuid& InInstanceID, int32 InDefaultSeed)
 		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FNoiseOperator>())
 		, DefaultSeed(InDefaultSeed)
 	{}

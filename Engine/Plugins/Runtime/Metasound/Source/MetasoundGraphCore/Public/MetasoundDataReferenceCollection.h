@@ -67,7 +67,7 @@ namespace Metasound
 		};
 
 
-		using FDataReferenceMap = TMap<FString, FDataRefWrapper>;
+		using FDataReferenceMap = TMap<FVertexName, FDataRefWrapper>;
 
 		public:
 
@@ -77,7 +77,7 @@ namespace Metasound
 			 * @InDataReference - Readable data reference. 
 			 */
 			template<typename DataType>
-			void AddDataReadReference(const FString& InName, const TDataReadReference<DataType>& InDataReference)
+			void AddDataReadReference(const FVertexName& InName, const TDataReadReference<DataType>& InDataReference)
 			{
 				FDataRefWrapper Wrapper(InDataReference);
 
@@ -90,7 +90,7 @@ namespace Metasound
 			 * @InDataReference - Writable data reference. 
 			 */
 			template<typename DataType>
-			void AddDataReadReference(const FString& InName, const TDataWriteReference<DataType>& InDataReference)
+			void AddDataReadReference(const FVertexName& InName, const TDataWriteReference<DataType>& InDataReference)
 			{
 				TDataReadReference<DataType> Readable(InDataReference);
 
@@ -103,7 +103,7 @@ namespace Metasound
 			 * @InDataReference - Writable data reference. 
 			 */
 			template<typename DataType>
-			void AddDataWriteReference(const FString& InName, const TDataWriteReference<DataType>& InDataReference)
+			void AddDataWriteReference(const FVertexName& InName, const TDataWriteReference<DataType>& InDataReference)
 			{
 				FDataRefWrapper Wrapper(InDataReference);
 
@@ -119,7 +119,7 @@ namespace Metasound
 			 *
 			 * @return True if the data was successfully added. False otherwise. 
 			 */
-			bool AddDataReadReferenceFrom(const FString& InLocalName, const FDataReferenceCollection& InOtherCollection, const FString& InOtherName, const FName& InOtherTypeName);
+			bool AddDataReadReferenceFrom(const FVertexName& InLocalName, const FDataReferenceCollection& InOtherCollection, const FVertexName& InOtherName, const FName& InOtherTypeName);
 
 			/** Add a writable data reference from another collection.
 			 *
@@ -130,7 +130,7 @@ namespace Metasound
 			 *
 			 * @return True if the data was successfully added. False otherwise. 
 			 */
-			bool AddDataWriteReferenceFrom(const FString& InLocalName, const FDataReferenceCollection& InOtherCollection, const FString& InOtherName, const FName& InOtherTypeName);
+			bool AddDataWriteReferenceFrom(const FVertexName& InLocalName, const FDataReferenceCollection& InOtherCollection, const FVertexName& InOtherName, const FName& InOtherTypeName);
 
 			/** Query whether a readable data reference is within the collection. 
 			 *
@@ -139,7 +139,7 @@ namespace Metasound
 			 *
 			 * @return True if the data exists in the collection. False otherwise. 
 			 */
-			bool ContainsDataReadReference(const FString& InName, const FName& InTypeName) const;
+			bool ContainsDataReadReference(const FVertexName& InName, const FName& InTypeName) const;
 
 			/** Query whether a writable data reference is within the collection. 
 			 *
@@ -148,7 +148,7 @@ namespace Metasound
 			 *
 			 * @return True if the data exists in the collection. False otherwise. 
 			 */
-			bool ContainsDataWriteReference(const FString& InName, const FName& InTypeName) const;
+			bool ContainsDataWriteReference(const FVertexName& InName, const FName& InTypeName) const;
 
 
 			/** Query whether a readable data reference is within the collection. 
@@ -158,7 +158,7 @@ namespace Metasound
 			 * @return True if the data exists in the collection. False otherwise. 
 			 */
 			template<typename DataType>
-			bool ContainsDataReadReference(const FString& InName) const
+			bool ContainsDataReadReference(const FVertexName& InName) const
 			{
 				return Contains<DataType>(DataReadRefMap, InName);
 			}
@@ -170,7 +170,7 @@ namespace Metasound
 			 * @return True if the data exists in the collection. False otherwise. 
 			 */
 			template<typename DataType>
-			bool ContainsDataWriteReference(const FString& InName) const
+			bool ContainsDataWriteReference(const FVertexName& InName) const
 			{
 				return Contains<DataType>(DataWriteRefMap, InName);
 			}
@@ -182,7 +182,7 @@ namespace Metasound
 			 * @return A readable data reference.
 			 */
 			template<typename DataType>
-			TDataReadReference<DataType> GetDataReadReference(const FString& InName) const
+			TDataReadReference<DataType> GetDataReadReference(const FVertexName& InName) const
 			{
 				typedef TDataReadReference<DataType> FDataRefType;
 
@@ -204,7 +204,7 @@ namespace Metasound
 			 * @return A readable data reference.
 			 */
 			template<typename DataType, typename... ConstructorArgTypes>
-			TDataReadReference<DataType> GetDataReadReferenceOrConstruct(const FString& InName, ConstructorArgTypes&&... ConstructorArgs) const
+			TDataReadReference<DataType> GetDataReadReferenceOrConstruct(FVertexName InName, ConstructorArgTypes&&... ConstructorArgs) const
 			{
 				typedef TDataReadReference<DataType> FDataRefType;
 
@@ -228,7 +228,7 @@ namespace Metasound
 			 * @return A readable data reference.
 			 */
 			template<typename DataType>
-			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, const FString& InName, const FOperatorSettings& InSettings) const
+			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, FVertexName InName, const FOperatorSettings& InSettings) const
 			{
 				using FDataFactory = TDataReadReferenceLiteralFactory<DataType>;
 
@@ -256,7 +256,7 @@ namespace Metasound
 			 * @return A readable data reference.
 			 */
 			template<typename DataType>
-			TDataWriteReference<DataType> GetDataWriteReference(const FString& InName) const
+			TDataWriteReference<DataType> GetDataWriteReference(const FVertexName& InName) const
 			{
 				typedef TDataWriteReference<DataType> FDataRefType;
 
@@ -278,7 +278,7 @@ namespace Metasound
 			 * @return A readable data reference.
 			 */
 			template<typename DataType, typename... ConstructorArgTypes>
-			TDataWriteReference<DataType> GetDataWriteReferenceOrConstruct(const FString& InName, ConstructorArgTypes&&... ConstructorArgs) const
+			TDataWriteReference<DataType> GetDataWriteReferenceOrConstruct(const FVertexName& InName, ConstructorArgTypes&&... ConstructorArgs) const
 			{
 				typedef TDataWriteReference<DataType> FDataRefType;
 
@@ -295,7 +295,7 @@ namespace Metasound
 		private:
 
 			template<typename DataType>
-			bool Contains(const FDataReferenceMap& InMap, const FString& InName) const
+			bool Contains(const FDataReferenceMap& InMap, const FVertexName& InName) const
 			{
 				if (InMap.Contains(InName))
 				{
@@ -310,9 +310,9 @@ namespace Metasound
 				return false;
 			}
 
-			const IDataReference* GetDataReference(const FDataReferenceMap& InMap, const FString& InName) const;
+			const IDataReference* GetDataReference(const FDataReferenceMap& InMap, const FVertexName& InName) const;
 
-			void AddDataReference(FDataReferenceMap& InMap, const FString& InName, FDataRefWrapper&& InDataReference);
+			void AddDataReference(FDataReferenceMap& InMap, const FVertexName& InName, FDataRefWrapper&& InDataReference);
 
 			FDataReferenceMap DataReadRefMap;
 			FDataReferenceMap DataWriteRefMap;

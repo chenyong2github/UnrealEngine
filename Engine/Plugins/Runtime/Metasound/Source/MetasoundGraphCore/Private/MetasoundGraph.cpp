@@ -12,7 +12,7 @@ namespace Metasound
 	{
 	}
 
-	const FString& FGraph::GetInstanceName() const
+	const FVertexName& FGraph::GetInstanceName() const
 	{
 		return InstanceName;
 	}
@@ -27,14 +27,14 @@ namespace Metasound
 		return Metadata;
 	}
 
-	bool FGraph::AddInputDataDestination(const INode& InNode, const FVertexKey& InVertexKey)
+	bool FGraph::AddInputDataDestination(const INode& InNode, const FVertexName& InVertexName)
 	{
-		if (!InNode.GetVertexInterface().ContainsInputVertex(InVertexKey))
+		if (!InNode.GetVertexInterface().ContainsInputVertex(InVertexName))
 		{
 			return false;
 		}
 
-		FInputDataDestination Destination(InNode, InNode.GetVertexInterface().GetInputVertex(InVertexKey));
+		FInputDataDestination Destination(InNode, InNode.GetVertexInterface().GetInputVertex(InVertexName));
 
 		AddInputDataDestination(Destination);
 		
@@ -52,14 +52,14 @@ namespace Metasound
 		return InputDestinations;
 	}
 
-	bool FGraph::AddOutputDataSource(const INode& InNode, const FVertexKey& InVertexKey)
+	bool FGraph::AddOutputDataSource(const INode& InNode, const FVertexName& InVertexName)
 	{
-		if (!InNode.GetVertexInterface().ContainsOutputVertex(InVertexKey))
+		if (!InNode.GetVertexInterface().ContainsOutputVertex(InVertexName))
 		{
 			return false;
 		}
 
-		FOutputDataSource Source(InNode, InNode.GetVertexInterface().GetOutputVertex(InVertexKey));
+		FOutputDataSource Source(InNode, InNode.GetVertexInterface().GetOutputVertex(InVertexName));
 
 		AddOutputDataSource(Source);
 
@@ -82,7 +82,7 @@ namespace Metasound
 		Edges.Add(InEdge);
 	}
 
-	bool FGraph::AddDataEdge(const INode& FromNode, const FVertexKey& FromKey, const INode& ToNode, const FVertexKey& ToKey)
+	bool FGraph::AddDataEdge(const INode& FromNode, const FVertexName& FromKey, const INode& ToNode, const FVertexName& ToKey)
 	{
 		const FVertexInterface& FromVertexInterface = FromNode.GetVertexInterface();
 		const FVertexInterface& ToVertexInterface = ToNode.GetVertexInterface();

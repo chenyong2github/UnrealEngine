@@ -7,6 +7,7 @@
 #include "MetasoundAccessPtr.h"
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundVertex.h"
 #include "Misc/Guid.h"
 
 #include "MetasoundFrontendDocument.generated.h"
@@ -219,14 +220,14 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 
 	// Name of the vertex. Unique amongst other vertices on the same interface.
 	UPROPERTY(VisibleAnywhere, Category = CustomView)
-	FString Name;
+	FName Name;
 
 	// Data type name of the vertex.
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	FName TypeName;
 
 	// ID of vertex
-	UPROPERTY()	
+	UPROPERTY()
 	FGuid VertexID;
 
 	// Returns true if vertices have equal name & type.
@@ -324,17 +325,19 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNode
 	// Construct node to satisfy class. 
 	FMetasoundFrontendNode(const FMetasoundFrontendClass& InClass);
 
+private:
 	// Unique ID of this node.
 	UPROPERTY()
 	FGuid ID = Metasound::FrontendInvalidID;
 
+public:
 	// ID of FMetasoundFrontendClass corresponding to this node.
 	UPROPERTY()
 	FGuid ClassID = Metasound::FrontendInvalidID;
 
-	// Name of node instance. 
+	// Name of node instance.
 	UPROPERTY()
-	FString Name;
+	FName Name;
 
 	// Interface of node instance.
 	UPROPERTY()
@@ -347,6 +350,16 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNode
 	// Style info related to a node.
 	UPROPERTY()
 	FMetasoundFrontendNodeStyle Style;
+
+	const FGuid& GetID() const
+	{
+		return ID;
+	}
+
+	void UpdateID()
+	{
+		ID = FGuid::NewGuid();
+	}
 };
 
 
@@ -588,7 +601,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendEnvironmentVariable
 
 	// Name of environment variable.
 	UPROPERTY()
-	FString Name;
+	FName Name;
 
 	// Type of environment variable.
 	UPROPERTY()

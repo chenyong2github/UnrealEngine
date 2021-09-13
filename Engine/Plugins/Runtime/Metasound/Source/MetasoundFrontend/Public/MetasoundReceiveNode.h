@@ -20,9 +20,9 @@ namespace Metasound
 {
 	namespace ReceiveNodeInfo
 	{
-		METASOUNDFRONTEND_API const FString& GetAddressInputName();
-		METASOUNDFRONTEND_API const FString& GetDefaultDataInputName();
-		METASOUNDFRONTEND_API const FString& GetOutputName();
+		METASOUNDFRONTEND_API const FVertexName& GetAddressInputName();
+		METASOUNDFRONTEND_API const FVertexName& GetDefaultDataInputName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputName();
 		METASOUNDFRONTEND_API FNodeClassName GetClassNameForDataType(const FName& InDataTypeName);
 		METASOUNDFRONTEND_API int32 GetCurrentMajorVersion();
 		METASOUNDFRONTEND_API int32 GetCurrentMinorVersion();

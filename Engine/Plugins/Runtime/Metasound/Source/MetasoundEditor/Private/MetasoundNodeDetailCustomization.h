@@ -114,6 +114,7 @@ namespace Metasound
 			FText VariableLabel;
 
 			TWeakObjectPtr<VariableType> GraphVariable;
+			TSharedPtr<SEditableTextBox> NameEditableTextBox;
 			TSharedPtr<SEditableTextBox> DisplayNameEditableTextBox;
 			bool bIsNameInvalid = false;
 
@@ -131,7 +132,7 @@ namespace Metasound
 			}
 			// End of IDetailCustomization interface
 
-			void OnDisplayNameChanged(const FText& InNewName)
+			void OnNameChanged(const FText& InNewName)
 			{
 				using namespace Frontend;
 
@@ -158,6 +159,18 @@ namespace Metasound
 				if (GraphVariable.IsValid())
 				{
 					return GraphVariable->GetConstNodeHandle()->GetDisplayName();
+				}
+
+				return FText::GetEmpty();
+			}
+
+			FText GetName() const
+			{
+				using namespace Frontend;
+
+				if (GraphVariable.IsValid())
+				{
+					return FText::FromName(GraphVariable->GetConstNodeHandle()->GetNodeName());
 				}
 
 				return FText::GetEmpty();
@@ -213,6 +226,19 @@ namespace Metasound
 				if (!bIsNameInvalid && GraphVariable.IsValid())
 				{
 					GraphVariable->SetDisplayName(InNewName);
+				}
+
+				DisplayNameEditableTextBox->SetError(FText::GetEmpty());
+				bIsNameInvalid = false;
+			}
+
+			void OnNameCommitted(const FText& InNewName, ETextCommit::Type InTextCommit)
+			{
+				using namespace Frontend;
+
+				if (!bIsNameInvalid && GraphVariable.IsValid())
+				{
+					GraphVariable->SetNodeName(*InNewName.ToString());
 				}
 
 				DisplayNameEditableTextBox->SetError(FText::GetEmpty());

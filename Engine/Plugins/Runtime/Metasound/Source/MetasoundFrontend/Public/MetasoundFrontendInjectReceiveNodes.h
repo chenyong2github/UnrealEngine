@@ -15,13 +15,13 @@ namespace Metasound
 		 * in the Metasound Environment to create a unique address.
 		 *
 		 * @param InEnv - The current environment of the graph hosting the receive node.
-		 * @param InVertexKey - The input vertex key of the graph input which will have a 
+		 * @param InVertexName - The input vertex key of the graph input which will have a 
 		 *                      receive node injected. 
 		 * @param InTypeName - The data type of the receive node. 
 		 *
 		 * @return FSendAddress The resulting transmission address for the receive node. 
 		 */
-		using FReceiveNodeAddressFunction = TFunction<FSendAddress(const FMetasoundEnvironment& InEnv, const FVertexKey& InVertexKey, const FName& InTypeName)>;
+		using FReceiveNodeAddressFunction = TFunction<FSendAddress(const FMetasoundEnvironment& InEnv, const FVertexName& InVertexName, const FName& InTypeName)>;
 
 		/** Injects a receive node between an graph input and the connected internal nodes.
 		 *
@@ -41,7 +41,7 @@ namespace Metasound
 		 *
 		 * @return True on success, false on failure. 
 		 */
-		METASOUNDFRONTEND_API bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressPolicy, const TSet<FVertexKey>& InInputVerticesToSkip);
+		METASOUNDFRONTEND_API bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressPolicy, const TSet<FVertexName>& InInputVerticesToSkip);
 	}
 }
 

@@ -11,6 +11,7 @@
 #include "MetasoundGraph.h"
 #include "MetasoundLog.h"
 #include "MetasoundParameterTransmitter.h"
+#include "MetasoundVertex.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -197,7 +198,7 @@ public:
 	struct FSendInfoAndVertexName
 	{
 		Metasound::FMetaSoundParameterTransmitter::FSendInfo SendInfo;
-		FString VertexName;
+		Metasound::FVertexName VertexName;
 	};
 
 	// Builds the Metasound Document returned by `GetDocument() const`.
@@ -230,8 +231,8 @@ protected:
 private:
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 
-	TSet<Metasound::FVertexKey> GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const;
-	TArray<FString> GetTransmittableInputVertexNames() const;
-	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const;
+	TSet<Metasound::FVertexName> GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const;
+	TArray<Metasound::FVertexName> GetTransmittableInputVertexNames() const;
+	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
 };

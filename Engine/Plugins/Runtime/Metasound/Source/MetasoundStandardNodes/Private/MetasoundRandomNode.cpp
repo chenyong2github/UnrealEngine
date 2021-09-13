@@ -11,51 +11,51 @@ namespace Metasound
 {
 	namespace RandomNodeNames
 	{
-		const FString& GetInputNextTriggerName()
+		const FVertexName& GetInputNextTriggerName()
 		{
-			static const FString Name = TEXT("Next");
+			static const FVertexName Name = TEXT("Next");
 			return Name;
 		}
 
-		const FString& GetInputResetTriggerName()
+		const FVertexName& GetInputResetTriggerName()
 		{
-			static const FString Name = TEXT("Reset");
+			static const FVertexName Name = TEXT("Reset");
 			return Name;
 		}
 
-		const FString& GetInputSeedName()
+		const FVertexName& GetInputSeedName()
 		{
-			static const FString Name = TEXT("Seed");
+			static const FVertexName Name = TEXT("Seed");
 			return Name;
 		}
 
-		const FString& GetInputMinName()
+		const FVertexName& GetInputMinName()
 		{
-			static const FString Name = TEXT("Min");
+			static const FVertexName Name = TEXT("Min");
 			return Name;
 		}
 
-		const FString& GetInputMaxName()
+		const FVertexName& GetInputMaxName()
 		{
-			static const FString Name = TEXT("Max");
+			static const FVertexName Name = TEXT("Max");
 			return Name;
 		}
 
-		const FString& GetOutputOnNextTriggerName()
+		const FVertexName& GetOutputOnNextTriggerName()
 		{
-			static const FString Name = TEXT("On Next");
+			static const FVertexName Name = TEXT("On Next");
 			return Name;
 		}
 
-		const FString& GetOutputOnResetTriggerName()
+		const FVertexName& GetOutputOnResetTriggerName()
 		{
-			static const FString Name = TEXT("On Reset");
+			static const FVertexName Name = TEXT("On Reset");
 			return Name;
 		}
 
-		const FString& GetOutputValueName()
+		const FVertexName& GetOutputValueName()
 		{
-			static const FString Name = TEXT("Value");
+			static const FVertexName Name = TEXT("Value");
 			return Name;
 		}
 

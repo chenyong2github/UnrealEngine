@@ -10,16 +10,18 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundStandardNodesNames.h"
+#include "MetasoundVertex.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_WaveWriterNode"
 
+
 namespace Metasound
-{	
+{
 	// Incremental wave writer class.
 	class FWaveWriter
-	{		
+	{
 		// Local definition so we don't depend on platform includes.
 		enum EFormatType { IEEE_FLOAT = 0x3 }; // WAVE_FORMAT_IEEE_FLOAT
 		struct FWaveFormatEx
@@ -305,13 +307,15 @@ namespace Metasound
 	constexpr const TCHAR* FWaveWriterOperator::EnabledPinName;
 	constexpr const TCHAR* FWaveWriterOperator::FilenamePrefixPinName;
 
-	FWaveWriterNode::FWaveWriterNode(const FString& InName, const FGuid& InInstanceID)
-		: FNodeFacade{ InName, InInstanceID, TFacadeOperatorClass<FWaveWriterOperator>() }
-	{}
+	FWaveWriterNode::FWaveWriterNode(const FVertexName& InName, const FGuid& InInstanceID)
+		: FNodeFacade(InName, InInstanceID, TFacadeOperatorClass<FWaveWriterOperator>())
+	{
+	}
 
 	FWaveWriterNode::FWaveWriterNode(const FNodeInitData& InInitData)
-		: FWaveWriterNode{ InInitData.InstanceName, InInitData.InstanceID }
-	{}
+		: FWaveWriterNode(InInitData.InstanceName, InInitData.InstanceID)
+	{
+	}
 
 	METASOUND_REGISTER_NODE(FWaveWriterNode)
 }

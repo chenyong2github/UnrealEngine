@@ -38,27 +38,27 @@ namespace Metasound
 	//Getters for the name of each parameter used in Print Log
 	namespace PrintLogVertexNames
 	{
-		const FString& GetInputTriggerName()
+		const FVertexName& GetInputTriggerName()
 		{
-			static const FString Name = TEXT("Trigger");
+			static const FVertexName Name = TEXT("Trigger");
 			return Name;
 		}
 
-		const FString& GetLabelPrintLogName()
+		const FVertexName& GetLabelPrintLogName()
 		{
-			static const FString Name = TEXT("Label");
+			static const FVertexName Name = TEXT("Label");
 			return Name;
 		}
 
-		const FString& GetToLogPrintLogName()
+		const FVertexName& GetToLogPrintLogName()
 		{
-			static const FString Name = TEXT("Value To Log");
+			static const FVertexName Name = TEXT("Value To Log");
 			return Name;
 		}
 
-		const FString& GetOutputPrintLogName()
+		const FVertexName& GetOutputPrintLogName()
 		{
-			static const FString Name = TEXT("Was Successful");
+			static const FVertexName Name = TEXT("Was Successful");
 			return Name;
 		}
 	}

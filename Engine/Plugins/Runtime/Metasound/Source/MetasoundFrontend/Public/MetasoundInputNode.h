@@ -20,7 +20,7 @@ namespace Metasound
 		public:
 			using FDataWriteReference = TDataWriteReference<DataType>;
 
-			TInputOperator(const FVertexKey& InDataReferenceName, FDataWriteReference InDataReference)
+			TInputOperator(const FVertexName& InDataReferenceName, FDataWriteReference InDataReference)
 				: DataReferenceName(InDataReferenceName)
 				// Executable DataTypes require a copy of the output to operate on whereas non-executable
 				// types do not. Avoid copy by assigning to reference for non-executable types.
@@ -89,7 +89,7 @@ namespace Metasound
 			}
 
 		protected:
-			FVertexKey DataReferenceName;
+			FVertexName DataReferenceName;
 
 			FDataWriteReference InputValue;
 			FDataWriteReference OutputValue;
@@ -107,7 +107,7 @@ namespace Metasound
 		using FDataReadReference = TDataReadReference<DataType>;
 		using Super = TInputOperator<DataType>;
 
-		TPassThroughOperator(const FVertexKey& InDataReferenceName, FDataReadReference InDataReference)
+		TPassThroughOperator(const FVertexName& InDataReferenceName, FDataReadReference InDataReference)
 		: TInputOperator<DataType>(InDataReferenceName, WriteCast(InDataReference)) // Write cast is safe because `GetExecuteFunction() and GetInputs() are overridden, ensuring that data is not written.
 		, DataReferenceName(InDataReferenceName)
 		{
@@ -178,7 +178,7 @@ namespace Metasound
 		}
 
 	private:
-		FVertexKey DataReferenceName;
+		FVertexName DataReferenceName;
 	};
 
 
@@ -261,7 +261,7 @@ namespace Metasound
 			// If true, this node can be instantiated by the FrontEnd.
 			static constexpr bool bCanRegister = FCreateDataReferenceWithLiteral<DataType>::bCanCreateWithLiteral;
 
-			static FVertexInterface DeclareVertexInterface(const FVertexKey& InVertexName)
+			static FVertexInterface DeclareVertexInterface(const FVertexName& InVertexName)
 			{
 				return FVertexInterface(
 					FInputVertexInterface(
@@ -273,7 +273,7 @@ namespace Metasound
 				);
 			}
 
-			static FNodeClassMetadata GetNodeInfo(const FVertexKey& InVertexName)
+			static FNodeClassMetadata GetNodeInfo(const FVertexName& InVertexName)
 			{
 				FNodeClassMetadata Info;
 
@@ -310,8 +310,8 @@ namespace Metasound
 			/* Construct a TInputNode using the TInputOperatorFactory<> and forwarding 
 			 * Args to the TInputOperatorFactory constructor.*/
 			template<typename... ArgTypes>
-			TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FVertexKey& InVertexName, ArgTypes&&... Args)
-			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
+			TInputNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FVertexName& InVertexName, ArgTypes&&... Args)
+			:	FNode(InInstanceName, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
 			,	Factory(CreateOperatorFactoryWithArgs(Forward<ArgTypes>(Args)...))
@@ -320,15 +320,15 @@ namespace Metasound
 
 			/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
 			 * InParam to the TInputOperatorLiteralFactory constructor.*/
-			explicit TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FVertexKey& InVertexName, FLiteral&& InParam)
-			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
+			explicit TInputNode(const FVertexName& InNodeName, const FGuid& InInstanceID, const FVertexName& InVertexName, FLiteral&& InParam)
+			:	FNode(InNodeName, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
 			, 	Factory(CreateOperatorFactoryWithLiteral(MoveTemp(InParam)))
 			{
 			}
 
-			const FVertexKey& GetVertexName() const
+			const FVertexName& GetVertexName() const
 			{
 				return VertexName;
 			}
@@ -354,7 +354,7 @@ namespace Metasound
 			}
 
 		private:
-			FVertexKey VertexName;
+			FVertexName VertexName;
 
 			FVertexInterface Interface;
 			FOperatorFactorySharedRef Factory;
@@ -367,7 +367,7 @@ namespace Metasound
 		using FInputNodeType = TInputNode<DataType>;
 
 		const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InParams.Node);
-		const FVertexKey& VertexKey = InputNode.GetVertexName();
+		const FVertexName& VertexKey = InputNode.GetVertexName();
 
 		if (InParams.InputDataReferences.ContainsDataWriteReference<DataType>(VertexKey))
 		{

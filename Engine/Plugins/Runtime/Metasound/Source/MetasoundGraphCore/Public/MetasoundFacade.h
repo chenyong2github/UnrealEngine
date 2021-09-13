@@ -118,7 +118,7 @@ namespace Metasound
 			 * 						  IOperator which is created by this node.
 			 */
 			template<typename OperatorType>
-			FNodeFacade(const FString& InInstanceName, const FGuid& InInstanceID, TFacadeOperatorClass<OperatorType> OperatorClass)
+			FNodeFacade(const FVertexName& InInstanceName, const FGuid& InInstanceID, TFacadeOperatorClass<OperatorType> OperatorClass)
 			:	FNode(InInstanceName, InInstanceID, OperatorType::GetNodeInfo())
 			, 	Factory(MakeShared<FFactory, ESPMode::ThreadSafe>(&OperatorType::CreateOperator))
 			{

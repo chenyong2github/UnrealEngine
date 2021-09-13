@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -13,10 +12,12 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
+#include "MetasoundVertex.h"
 
 #include <type_traits>
 
 #define LOCTEXT_NAMESPACE "MetasoundFrontend"
+
 
 namespace Metasound
 {
@@ -43,19 +44,19 @@ namespace Metasound
 	namespace ArrayNodeVertexNames
 	{
 		/* Input Vertex Names */
-		METASOUNDFRONTEND_API const FString& GetInputArrayName();
-		METASOUNDFRONTEND_API const FString& GetInputLeftArrayName();
-		METASOUNDFRONTEND_API const FString& GetInputRightArrayName();
-		METASOUNDFRONTEND_API const FString& GetInputTriggerName();
-		METASOUNDFRONTEND_API const FString& GetInputStartIndexName();
-		METASOUNDFRONTEND_API const FString& GetInputEndIndexName();
-		METASOUNDFRONTEND_API const FString& GetInputIndexName();
-		METASOUNDFRONTEND_API const FString& GetInputValueName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputArrayName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputLeftArrayName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputRightArrayName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputTriggerName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputStartIndexName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputEndIndexName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputIndexName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputValueName();
 
 		/* Output Vertex Names */
-		METASOUNDFRONTEND_API const FString& GetOutputNumName();
-		METASOUNDFRONTEND_API const FString& GetOutputValueName();
-		METASOUNDFRONTEND_API const FString& GetOutputArrayName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputNumName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputValueName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputArrayName();
 	};
 
 	/** TArrayNumOperator gets the number of elements in an Array. The operator
@@ -714,6 +715,5 @@ namespace Metasound
 
 		virtual ~TArraySubsetNode() = default;
 	};
-}
-
+} // namespace Metasound
 #undef LOCTEXT_NAMESPACE

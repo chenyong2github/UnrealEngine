@@ -534,8 +534,7 @@ bool UMetasoundEditorGraphExternalNode::RefreshPinMetadata()
 			// incurred look-up cost on subsequent tooltip update.
 			auto RemoveValidEntry = [&](const FMetasoundFrontendClassInput& Entry)
 			{
-				const FString PinNameString = Pin->PinName.ToString();
-				if (Entry.Name == PinNameString)
+				if (Entry.Name == Pin->GetFName())
 				{
 					Metasound::Editor::FGraphBuilder::RefreshPinMetadata(*Pin, Entry.Metadata);
 					return true;
@@ -552,8 +551,7 @@ bool UMetasoundEditorGraphExternalNode::RefreshPinMetadata()
 			// incurred look-up cost on subsequent tooltip update.
 			auto RemoveValidEntry = [&](const FMetasoundFrontendClassOutput& Entry)
 			{
-				const FString PinNameString = Pin->PinName.ToString();
-				if (Entry.Name == PinNameString)
+				if (Entry.Name == Pin->GetFName())
 				{
 					Metasound::Editor::FGraphBuilder::RefreshPinMetadata(*Pin, Entry.Metadata);
 					return true;

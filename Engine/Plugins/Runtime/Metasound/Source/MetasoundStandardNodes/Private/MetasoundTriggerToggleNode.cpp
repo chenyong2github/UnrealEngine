@@ -14,6 +14,7 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundStandardNodesCategories.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_Toggle"
 
@@ -21,11 +22,11 @@ namespace Metasound
 {
 	namespace TriggerToggle
 	{
-		const FString GetInputOnTriggerName() { return TEXT("On"); }
-		const FString GetInputOffTriggerName() { return TEXT("Off"); }
-		const FString GetInputInitName() { return TEXT("Init"); }
-		const FString GetOutputTriggerName() { return TEXT("Out"); }
-		const FString GetOutputValueName() { return TEXT("Value"); }
+		const FVertexName GetInputOnTriggerName() { return TEXT("On"); }
+		const FVertexName GetInputOffTriggerName() { return TEXT("Off"); }
+		const FVertexName GetInputInitName() { return TEXT("Init"); }
+		const FVertexName GetOutputTriggerName() { return TEXT("Out"); }
+		const FVertexName GetOutputValueName() { return TEXT("Value"); }
 	}
 
 	class FTriggerToggleOperator : public TExecutableOperator<FTriggerToggleOperator>

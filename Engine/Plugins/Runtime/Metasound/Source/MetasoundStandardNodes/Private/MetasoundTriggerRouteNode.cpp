@@ -25,9 +25,9 @@ namespace Metasound
 {
 	namespace TriggerRouteVertexNames
 	{
-		const FString GetInputTriggerName(uint32 InIndex)
+		const FVertexName GetInputTriggerName(uint32 InIndex)
 		{
-			return FString::Format(TEXT("Set {0}"), { InIndex });
+			return *FString::Format(TEXT("Set {0}"), { InIndex });
 		}
 
 		const FText GetInputTriggerDescription(uint32 InIndex)
@@ -39,9 +39,9 @@ namespace Metasound
 			return FText::Format(LOCTEXT("TriggerRouteInputTriggerDesc", "The input trigger {0} to cause the corresponding input value to route to the output value."), InIndex);
 		}
 
-		const FString GetInputValueName(uint32 InIndex)
+		const FVertexName GetInputValueName(uint32 InIndex)
 		{
-			return FString::Format(TEXT("Value {0}"), { InIndex });
+			return *FString::Format(TEXT("Value {0}"), { InIndex });
 		}
 
 		const FText GetInputValueDescription(uint32 InIndex)
@@ -49,9 +49,9 @@ namespace Metasound
 			return FText::Format(LOCTEXT("TriggerRouteValueDesc", "The input value ({0}) to route to the output when triggered by Set {0}."), InIndex);
 		}
 
-		const FString& GetOutputTriggerName()
+		const FVertexName& GetOutputTriggerName()
 		{
-			static const FString Name = TEXT("On Set");
+			static const FVertexName Name = TEXT("On Set");
 			return Name;
 		}
 
@@ -61,9 +61,9 @@ namespace Metasound
 			return Desc;
 		}
 
-		const FString& GetOutputValueName()
+		const FVertexName& GetOutputValueName()
 		{
-			static const FString Name = TEXT("Value");
+			static const FVertexName Name = TEXT("Value");
 			return Name;
 		}
 

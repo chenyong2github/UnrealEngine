@@ -65,7 +65,10 @@ namespace Metasound
 			static const FText NodeTooltipText = LOCTEXT("Node_Tooltip", "Tooltip");
 
 			static const FText InputNameText = LOCTEXT("Input_Name", "Input Name");
+			static const FText InputDisplayNameText = LOCTEXT("InputDisplay_Name", "Input Display Name");
+
 			static const FText OutputNameText = LOCTEXT("Output_Name", "Output Name");
+			static const FText OutputDisplayNameText = LOCTEXT("OutputDisplay_Name", "Output Display Name");
 
 			static const FName DataTypeNameIdentifier = "DataTypeName";
 			static const FName ProxyGeneratorClassNameIdentifier = "GeneratorClass";
@@ -596,9 +599,15 @@ namespace Metasound
 
 			const bool bIsRequired = IsRequired();
 			const bool bIsGraphEditable = IsGraphEditable();
+			NameEditableTextBox = SNew(SEditableTextBox)
+				.Text(this, &FMetasoundInputDetailCustomization::GetName)
+				.OnTextChanged(this, &FMetasoundInputDetailCustomization::OnNameChanged)
+				.OnTextCommitted(this, &FMetasoundInputDetailCustomization::OnNameCommitted)
+				.IsReadOnly(bIsRequired || !bIsGraphEditable)
+				.Font(IDetailLayoutBuilder::GetDetailFont());
+
 			DisplayNameEditableTextBox = SNew(SEditableTextBox)
 				.Text(this, &FMetasoundInputDetailCustomization::GetDisplayName)
-				.OnTextChanged(this, &FMetasoundInputDetailCustomization::OnDisplayNameChanged)
 				.OnTextCommitted(this, &FMetasoundInputDetailCustomization::OnDisplayNameCommitted)
 				.IsReadOnly(bIsRequired || !bIsGraphEditable)
 				.Font(IDetailLayoutBuilder::GetDetailFont());
@@ -610,22 +619,27 @@ namespace Metasound
 				SNew(STextBlock)
 				.Font(IDetailLayoutBuilder::GetDetailFontBold())
 				.Text(VariableCustomizationPrivate::InputNameText)
-				.ToolTipText(TAttribute<FText>::Create([GraphVariable = this->GraphVariable]()
-				{
-					if (GraphVariable.IsValid())
-					{
-						FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
-						FMetasoundFrontendNodeStyle NodeStyle = NodeHandle->GetNodeStyle();
-						return NodeHandle->GetDescription();
-					}
-
-					return FText::GetEmpty();
-				}))
+				.ToolTipText(LOCTEXT("InputName_Description", "Name used by external systems to identify input. Used as DisplayName within MetaSound Graph Editor if no DisplayName is provided."))
 			]
 			.ValueContent()
 			[
-				DisplayNameEditableTextBox.ToSharedRef()
+				NameEditableTextBox.ToSharedRef()
 			];
+
+			// TODO: Enable and use proper FText property editor
+// 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::InputDisplayNameText)
+// 			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
+// 			.NameContent()
+// 			[
+// 				SNew(STextBlock)
+// 				.Font(IDetailLayoutBuilder::GetDetailFontBold())
+// 				.Text(VariableCustomizationPrivate::InputDisplayNameText)
+// 				.ToolTipText(LOCTEXT("InputDisplayName_Description", "Optional, localized name used within the MetaSounds editor(s) to describe the given input."))
+// 			]
+// 			.ValueContent()
+// 			[
+// 				DisplayNameEditableTextBox.ToSharedRef()
+// 			];
 
 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::NodeTooltipText)
 			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
@@ -648,21 +662,6 @@ namespace Metasound
 			];
 
 			AddDataTypeSelector(DetailLayout, VariableCustomizationPrivate::DataTypeNameText, GraphVariable, !bIsRequired && bIsGraphEditable);
-
-// 			CategoryBuilder.AddCustomRow(LOCTEXT("InputPrivate", "Private"))
-// 			.Visibility(TAttribute<EVisibility>(EVisibility::Hidden))
-// 			.NameContent()
-// 			[
-// 				SNew(STextBlock)
-// 				.Text(LOCTEXT("InputPrivate", "Private"))
-// 				.Font(IDetailLayoutBuilder::GetDetailFont())
-// 			]
-// 			.ValueContent()
-// 			[
-// 				SNew(SCheckBox)
-// 				.IsChecked(this, &FMetasoundInputDetailCustomization::OnGetPrivateCheckboxState)
-// 				.OnCheckStateChanged(this, &FMetasoundInputDetailCustomization::OnPrivateChanged)
-// 			];
 
 			FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
 			const TArray<FOutputHandle>& Outputs = NodeHandle->GetOutputs();
@@ -878,9 +877,16 @@ namespace Metasound
 
 			const bool bIsRequired = IsRequired();
 			const bool bIsGraphEditable = IsGraphEditable();
+
+			NameEditableTextBox = SNew(SEditableTextBox)
+				.Text(this, &FMetasoundOutputDetailCustomization::GetName)
+				.OnTextChanged(this, &FMetasoundOutputDetailCustomization::OnNameChanged)
+				.OnTextCommitted(this, &FMetasoundOutputDetailCustomization::OnNameCommitted)
+				.IsReadOnly(bIsRequired || !bIsGraphEditable)
+				.Font(IDetailLayoutBuilder::GetDetailFont());
+
 			DisplayNameEditableTextBox = SNew(SEditableTextBox)
 				.Text(this, &FMetasoundOutputDetailCustomization::GetDisplayName)
-				.OnTextChanged(this, &FMetasoundOutputDetailCustomization::OnDisplayNameChanged)
 				.OnTextCommitted(this, &FMetasoundOutputDetailCustomization::OnDisplayNameCommitted)
 				.IsReadOnly(bIsRequired || !bIsGraphEditable)
 				.Font(IDetailLayoutBuilder::GetDetailFont());
@@ -892,21 +898,27 @@ namespace Metasound
 				SNew(STextBlock)
 				.Font(IDetailLayoutBuilder::GetDetailFontBold())
 				.Text(VariableCustomizationPrivate::OutputNameText)
-				.ToolTipText(TAttribute<FText>::Create([GraphVariable = this->GraphVariable]()
-				{
-					if (GraphVariable.IsValid())
-					{
-						FNodeHandle NodeHandle = GraphVariable->GetNodeHandle();
-						return NodeHandle->GetDescription();
-					}
-
-					return FText::GetEmpty();
-				}))
+				.ToolTipText(LOCTEXT("OutputName_Description", "Name used by external systems to identify output. Used as DisplayName within MetaSound Graph Editor if no DisplayName is provided."))
 			]
 			.ValueContent()
 			[
-				DisplayNameEditableTextBox.ToSharedRef()
+				NameEditableTextBox.ToSharedRef()
 			];
+
+			// TODO: Enable and use proper FText property editor
+// 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::OutputDisplayNameText)
+// 			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
+// 			.NameContent()
+// 			[
+// 				SNew(STextBlock)
+// 				.Font(IDetailLayoutBuilder::GetDetailFontBold())
+// 				.Text(VariableCustomizationPrivate::OutputDisplayNameText)
+// 				.ToolTipText(LOCTEXT("OutputDisplayName_Description", "Optional, localized name used within the MetaSounds editor(s) to describe the given output."))
+// 			]
+// 			.ValueContent()
+// 			[
+// 				DisplayNameEditableTextBox.ToSharedRef()
+// 			];
 
 			CategoryBuilder.AddCustomRow(VariableCustomizationPrivate::NodeTooltipText)
 			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)

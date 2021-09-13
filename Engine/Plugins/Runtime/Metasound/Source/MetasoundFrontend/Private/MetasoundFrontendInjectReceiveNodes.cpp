@@ -45,9 +45,9 @@ namespace Metasound
 			class FAddressNode : public FNodeFacade
 			{
 			public:
-				FAddressNode(const FGuid& InID, const FVertexKey& InVertexKey, const FName& InTypeName, FReceiveNodeAddressFunction InAddressFunction)
-				: FNodeFacade(FString::Format(TEXT("ReceiveAddressInject_{0}"), { InVertexKey }), InID, TFacadeOperatorClass<FAddressOperator>())
-				, VertexKey(InVertexKey)
+				FAddressNode(const FGuid& InID, const FVertexName& InVertexName, const FName& InTypeName, FReceiveNodeAddressFunction InAddressFunction)
+				: FNodeFacade(*FString::Format(TEXT("ReceiveAddressInject_{0}"), { InVertexName.ToString() }), InID, TFacadeOperatorClass<FAddressOperator>())
+				, VertexKey(InVertexName)
 				, TypeName(InTypeName)
 				, AddressFunction(InAddressFunction)
 				{
@@ -59,7 +59,7 @@ namespace Metasound
 				}
 
 			private:
-				FVertexKey VertexKey;
+				FVertexName VertexKey;
 				FName TypeName;
 				FReceiveNodeAddressFunction AddressFunction;
 			};
@@ -113,11 +113,11 @@ namespace Metasound
 				return Metadata;
 			}
 
-			TUniquePtr<INode> CreateReceiveNodeForDataType(const FGuid& InID, const FVertexKey& InVertexKey, const FName& InDataType)
+			TUniquePtr<INode> CreateReceiveNodeForDataType(const FGuid& InID, const FVertexName& InVertexName, const FName& InDataType)
 			{
 				FNodeInitData ReceiveNodeInitData 
 				{ 
-					FString::Format(TEXT("ReceiveInject_{0}"), { InVertexKey }),
+					*FString::Format(TEXT("ReceiveInject_{0}"), { InVertexName.ToString() }),
 					InID
 				};
 				return IDataTypeRegistry::Get().CreateReceiveNode(InDataType, ReceiveNodeInitData);
@@ -130,7 +130,7 @@ namespace Metasound
 			// should never contain null nodes for input destination.
 			check(InputDestination.Node != nullptr);
 
-			const FVertexKey& VertexKey = InputDestination.Vertex.GetVertexName();
+			const FVertexName& VertexKey = InputDestination.Vertex.GetVertexName();
 			const FName& DataType = InputDestination.Vertex.GetDataTypeName();
 
 			// Create a receive node.
@@ -139,7 +139,7 @@ namespace Metasound
 
 			if (!ReceiveNode.IsValid())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create receive node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey, *InputDestination.Vertex.GetMetadata().Description.ToString(), *DataType.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create receive node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.GetMetadata().Description.ToString(), *DataType.ToString());
 				return false;
 			}
 
@@ -149,7 +149,7 @@ namespace Metasound
 
 			if (!AddressNode.IsValid())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create address node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey, *InputDestination.Vertex.GetMetadata().Description.ToString(), *DataType.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create address node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.GetMetadata().Description.ToString(), *DataType.ToString());
 				return false;
 			}
 
@@ -185,7 +185,7 @@ namespace Metasound
 			return true;
 		}
 
-		bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressFunction, const TSet<FVertexKey>& InInputVerticesToSkip)
+		bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressFunction, const TSet<FVertexName>& InInputVerticesToSkip)
 		{
 			using namespace Metasound::Frontend;
 			bool bSuccess = true;
@@ -202,7 +202,7 @@ namespace Metasound
 					continue;
 				}
 
-				const FVertexKey& VertexKey = InputDestination.Vertex.GetVertexName();
+				const FVertexName& VertexKey = InputDestination.Vertex.GetVertexName();
 				if (InInputVerticesToSkip.Contains(VertexKey))
 				{
 					// Skip this key as requested by caller.

@@ -33,7 +33,7 @@ SMetasoundEnumPin::FindEnumInterfaceFromPin(UEdGraphPin* InPin)
 {
 	auto MetasoundEditorNode = Cast<UMetasoundEditorGraphNode>(InPin->GetOwningNode());
 	Metasound::Frontend::FNodeHandle NodeHandle = MetasoundEditorNode->GetNodeHandle();
-	auto Inputs = NodeHandle->GetInputsWithVertexName(InPin->GetName());
+	auto Inputs = NodeHandle->GetInputsWithVertexName(InPin->GetFName());
 	if (Inputs.Num() > 0)
 	{
 		FName DataType = Inputs[0]->GetDataType();

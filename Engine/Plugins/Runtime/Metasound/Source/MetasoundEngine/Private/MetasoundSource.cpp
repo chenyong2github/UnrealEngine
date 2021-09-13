@@ -34,7 +34,7 @@
 
 namespace MetaSoundSourcePrivate
 {
-	using FFormatOutputVertexKeyMap = TMap<EMetasoundSourceAudioFormat, TArray<Metasound::FVertexKey>>;
+	using FFormatOutputVertexKeyMap = TMap<EMetasoundSourceAudioFormat, TArray<Metasound::FVertexName>>;
 
 	const FFormatOutputVertexKeyMap& GetFormatOutputVertexKeys()
 	{
@@ -436,7 +436,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		return ISoundGeneratorPtr(nullptr);
 	}
 
-	FMetasoundGeneratorInitParams InitParams = 
+	FMetasoundGeneratorInitParams InitParams =
 	{
 		InSettings,
 		MoveTemp(MetasoundGraph),
@@ -462,8 +462,7 @@ bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter) cons
 		using namespace Metasound;
 		using namespace Metasound::Frontend;
 
-		// TODO: Fix this.  NodeHandles should use FNames, not display names (this is broken in other languages)
-		if (Param->ParamName == *NodeHandle->GetDisplayName().ToString())
+		if (Param->ParamName == NodeHandle->GetNodeName())
 		{
 			TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
 			if (InputHandles.IsEmpty())
@@ -684,11 +683,11 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment(const Audio
 	return Environment;
 }
 
-const TArray<Metasound::FVertexKey>& UMetaSoundSource::GetAudioOutputVertexKeys() const
+const TArray<Metasound::FVertexName>& UMetaSoundSource::GetAudioOutputVertexKeys() const
 {
 	using namespace MetaSoundSourcePrivate;
 
-	if (const TArray<Metasound::FVertexKey>* ArrayKeys = GetFormatOutputVertexKeys().Find(OutputFormat))
+	if (const TArray<Metasound::FVertexName>* ArrayKeys = GetFormatOutputVertexKeys().Find(OutputFormat))
 	{
 		return *ArrayKeys;
 	}
@@ -696,7 +695,7 @@ const TArray<Metasound::FVertexKey>& UMetaSoundSource::GetAudioOutputVertexKeys(
 	{
 		// Unhandled audio format. Need to update audio output format vertex key map.
 		checkNoEntry();
-		static const TArray<Metasound::FVertexKey> Empty;
+		static const TArray<Metasound::FVertexName> Empty;
 		return Empty;
 	}
 }

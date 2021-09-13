@@ -11,6 +11,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundTime.h"
+#include "MetasoundVertex.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_RandomNode"
 
@@ -19,16 +20,16 @@ namespace Metasound
 	namespace RandomNodeNames
 	{
 		/** Input vertex names. */
-		const FString& GetInputNextTriggerName();
-		const FString& GetInputResetTriggerName();
-		const FString& GetInputSeedName();
-		const FString& GetInputMinName();
-		const FString& GetInputMaxName();
+		const FVertexName& GetInputNextTriggerName();
+		const FVertexName& GetInputResetTriggerName();
+		const FVertexName& GetInputSeedName();
+		const FVertexName& GetInputMinName();
+		const FVertexName& GetInputMaxName();
 
 		/** Output vertex names. */
-		const FString& GetOutputOnNextTriggerName();
-		const FString& GetOutputOnResetTriggerName();
-		const FString& GetOutputValueName();
+		const FVertexName& GetOutputOnNextTriggerName();
+		const FVertexName& GetOutputOnResetTriggerName();
+		const FVertexName& GetOutputValueName();
 
 		/** Descriptions. */
 		static FText GetNextTriggerDescription();

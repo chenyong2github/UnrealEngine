@@ -127,8 +127,8 @@ namespace Metasound
 
 		/* Construct a TLiteralNode using the TLiteralOperatorLiteralFactory<> and moving
 		 * InParam to the TLiteralOperatorLiteralFactory constructor.*/
-		explicit TLiteralNode(const FString& InNodeDescription, const FGuid& InInstanceID, FLiteral&& InParam)
-		:	FNode(InNodeDescription, InInstanceID, GetNodeInfo())
+		explicit TLiteralNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, FLiteral&& InParam)
+		:	FNode(InInstanceName, InInstanceID, GetNodeInfo())
 		,	Interface(DeclareVertexInterface())
 		, 	Factory(MakeOperatorFactoryRef<TLiteralOperatorLiteralFactory<DataType>>(MoveTemp(InParam)))
 		{

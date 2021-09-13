@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
+#include "MetasoundArrayNodes.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundExecutableOperator.h"
@@ -13,7 +14,7 @@
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundTrigger.h"
-#include "MetasoundArrayNodes.h"
+#include "MetasoundVertex.h"
 #include "Misc/ScopeLock.h"
 
 #include <type_traits>
@@ -27,18 +28,18 @@ namespace Metasound
 	namespace ArrayNodeShuffleVertexNames
 	{
 		/** Input Vertex Names */
-		METASOUNDFRONTEND_API const FString& GetInputTriggerNextName();
-		METASOUNDFRONTEND_API const FString& GetInputTriggerShuffleName();
-		METASOUNDFRONTEND_API const FString& GetInputTriggerResetName();
-		METASOUNDFRONTEND_API const FString& GetInputShuffleArrayName();
-		METASOUNDFRONTEND_API const FString& GetInputSeedName();
-		METASOUNDFRONTEND_API const FString& GetInputAutoShuffleName();
-		METASOUNDFRONTEND_API const FString& GetInputEnableSharedStateName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputTriggerNextName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputTriggerShuffleName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputTriggerResetName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputShuffleArrayName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputSeedName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputAutoShuffleName();
+		METASOUNDFRONTEND_API const FVertexName& GetInputEnableSharedStateName();
 
-		METASOUNDFRONTEND_API const FString& GetOutputTriggerOnNextName();
-		METASOUNDFRONTEND_API const FString& GetOutputTriggerOnShuffleName();
-		METASOUNDFRONTEND_API const FString& GetOutputTriggerOnResetName();
-		METASOUNDFRONTEND_API const FString& GetOutputValueName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputTriggerOnNextName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputTriggerOnShuffleName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputTriggerOnResetName();
+		METASOUNDFRONTEND_API const FVertexName& GetOutputValueName();
 	}
 
 	class METASOUNDFRONTEND_API FArrayIndexShuffler

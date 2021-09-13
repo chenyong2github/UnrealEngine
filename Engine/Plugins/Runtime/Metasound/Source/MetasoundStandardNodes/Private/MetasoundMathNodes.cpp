@@ -17,6 +17,8 @@
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
+#include "MetasoundVertex.h"
+
 
 #define LOCTEXT_NAMESPACE "MetasoundMathOpNode"
 
@@ -50,9 +52,9 @@ namespace Metasound
 {
 	namespace MathOpNames
 	{
-		static const FString PrimaryOperandName = TEXT("PrimaryOperand");
+		static const FVertexName PrimaryOperandName = TEXT("PrimaryOperand");
 
-		static const FString AdditionalOperandsName = TEXT("AdditionalOperands");
+		static const FVertexName AdditionalOperandsName = TEXT("AdditionalOperands");
 
 		static const TArray<FText> AddKeywords = { LOCTEXT("AddMathKeyword", "+") };
 		static const TArray<FText> SubtractKeywords = { LOCTEXT("SubtractMathKeyword", "-") };
@@ -241,7 +243,7 @@ namespace Metasound
 				const FInputVertexInterface& InputInterface = MathOpNode.GetVertexInterface().GetInputInterface();
 
 				FLiteral DefaultValue = FLiteral::CreateInvalid();
-				const FString& PrimaryOperandName = MathOpNames::PrimaryOperandName;
+				const FVertexName& PrimaryOperandName = MathOpNames::PrimaryOperandName;
 				if (InputInterface.Contains(PrimaryOperandName))
 				{
 					DefaultValue = InputInterface[PrimaryOperandName].GetDefaultLiteral();
@@ -249,7 +251,7 @@ namespace Metasound
 				TDataClassReadRef PrimaryOperand = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<TDataClass>(MathOpNames::PrimaryOperandName, TMathOpClass::GetDefault(InParams.OperatorSettings, DefaultValue));
 
 				// TODO: Support dynamic number of inputs
-				const FString& OpName = MathOpNames::AdditionalOperandsName;
+				const FVertexName& OpName = MathOpNames::AdditionalOperandsName;
 				if (InputInterface.Contains(OpName))
 				{
 					DefaultValue = InputInterface[OpName].GetDefaultLiteral();

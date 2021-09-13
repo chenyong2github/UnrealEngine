@@ -43,7 +43,7 @@ namespace Metasound
 		return *this;
 	}
 
-	const FString& FInputDataVertex::GetVertexName() const
+	const FVertexName& FInputDataVertex::GetVertexName() const
 	{
 		return VertexModel->VertexName;
 	}
@@ -96,7 +96,7 @@ namespace Metasound
 		}
 		else
 		{
-			return InLHS.GetVertexName() < InRHS.GetVertexName();
+			return InLHS.GetVertexName().FastLess(InRHS.GetVertexName());
 		}
 	}
 
@@ -137,7 +137,7 @@ namespace Metasound
 		return *this;
 	}
 
-	const FString& FOutputDataVertex::GetVertexName() const
+	FVertexName FOutputDataVertex::GetVertexName() const
 	{
 		return VertexModel->VertexName;
 	}
@@ -186,7 +186,7 @@ namespace Metasound
 		}
 		else
 		{
-			return InLHS.GetVertexName() < InRHS.GetVertexName();
+			return InLHS.GetVertexName().FastLess(InRHS.GetVertexName());
 		}
 	}
 
@@ -226,7 +226,7 @@ namespace Metasound
 		return *this;
 	}
 
-	const FString& FEnvironmentVertex::GetVertexName() const
+	const FVertexName& FEnvironmentVertex::GetVertexName() const
 	{
 		return VertexModel->VertexName;
 	}
@@ -258,7 +258,7 @@ namespace Metasound
 			return false;
 		}
 
-		return InLHS.GetVertexName() < InRHS.GetVertexName();
+		return InLHS.GetVertexName().FastLess(InRHS.GetVertexName());
 	}
 
 	FVertexInterface::FVertexInterface(const FInputVertexInterface& InInputs, const FOutputVertexInterface& InOutputs)
@@ -284,12 +284,12 @@ namespace Metasound
 		return InputInterface;
 	}
 
-	const FInputDataVertex& FVertexInterface::GetInputVertex(const FVertexKey& InKey) const
+	const FInputDataVertex& FVertexInterface::GetInputVertex(const FVertexName& InKey) const
 	{
 		return InputInterface[InKey];
 	}
 
-	bool FVertexInterface::ContainsInputVertex(const FVertexKey& InKey) const
+	bool FVertexInterface::ContainsInputVertex(const FVertexName& InKey) const
 	{
 		return InputInterface.Contains(InKey);
 	}
@@ -304,14 +304,14 @@ namespace Metasound
 		return OutputInterface;
 	}
 
-	const FOutputDataVertex& FVertexInterface::GetOutputVertex(const FVertexKey& InKey) const
+	const FOutputDataVertex& FVertexInterface::GetOutputVertex(const FVertexName& InName) const
 	{
-		return OutputInterface[InKey];
+		return OutputInterface[InName];
 	}
 
-	bool FVertexInterface::ContainsOutputVertex(const FVertexKey& InKey) const
+	bool FVertexInterface::ContainsOutputVertex(const FVertexName& InName) const
 	{
-		return OutputInterface.Contains(InKey);
+		return OutputInterface.Contains(InName);
 	}
 
 	const FEnvironmentVertexInterface& FVertexInterface::GetEnvironmentInterface() const
@@ -324,12 +324,12 @@ namespace Metasound
 		return EnvironmentInterface;
 	}
 
-	const FEnvironmentVertex& FVertexInterface::GetEnvironmentVertex(const FVertexKey& InKey) const
+	const FEnvironmentVertex& FVertexInterface::GetEnvironmentVertex(const FVertexName& InKey) const
 	{
 		return EnvironmentInterface[InKey];
 	}
 
-	bool FVertexInterface::ContainsEnvironmentVertex(const FVertexKey& InKey) const
+	bool FVertexInterface::ContainsEnvironmentVertex(const FVertexName& InKey) const
 	{
 		return EnvironmentInterface.Contains(InKey);
 	}

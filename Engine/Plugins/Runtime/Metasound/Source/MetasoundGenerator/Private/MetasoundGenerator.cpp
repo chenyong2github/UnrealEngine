@@ -72,11 +72,11 @@ namespace Metasound
 			FDataReferenceCollection Outputs = GraphOperator->GetOutputs();
 
 			// Get output audio buffers.
-			for (const FString& AudioOutputName : InitParams.AudioOutputNames)
+			for (const FVertexName& AudioOutputName : InitParams.AudioOutputNames)
 			{
 				if (!Outputs.ContainsDataReadReference<FAudioBuffer>(AudioOutputName))
 				{
-					UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] does not contain audio output [%s] in output"), *InitParams.MetaSoundName, *AudioOutputName);
+					UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] does not contain audio output [%s] in output"), *InitParams.MetaSoundName, *AudioOutputName.ToString());
 				}
 				OutputBuffers.Add(Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(AudioOutputName, InitParams.OperatorSettings));
 			}

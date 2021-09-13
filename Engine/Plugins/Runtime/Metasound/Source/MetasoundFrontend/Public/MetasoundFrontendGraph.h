@@ -30,19 +30,19 @@ namespace Metasound
 			 *
 			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InIndex - The positional index for the input.
-			 * @param InVertexKey - The key for the graph input vertex.
+			 * @param InVertexName - The key for the graph input vertex.
 			 * @param InNode - A shared pointer to an input node. 
 			 */
-			void AddInputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode);
+			void AddInputNode(FGuid InNodeID, int32 InIndex, const FVertexName& InVertexName, TSharedPtr<const INode> InNode);
 
 			/** Add an output node to this graph.
 			 *
 			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
 			 * @param InIndex - The positional index for the output.
-			 * @param InVertexKey - The key for the graph output vertex.
+			 * @param InVertexName - The key for the graph output vertex.
 			 * @param InNode - A shared pointer to an output node. 
 			 */
-			void AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexKey& InVertexKey, TSharedPtr<const INode> InNode);
+			void AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexName& InVertexName, TSharedPtr<const INode> InNode);
 
 			/** Store a node on this graph. 
 			 *
@@ -119,7 +119,7 @@ namespace Metasound
 		{
 			FGuid DestinationNodeID;
 			FGuid DestinationVertexID;
-			FVertexKey DestinationVertexKey;
+			FVertexName DestinationVertexKey;
 			FName TypeName;
 			FLiteralNodeConstructorParams InitParams;
 		};

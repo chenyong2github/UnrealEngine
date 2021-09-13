@@ -21,6 +21,7 @@
 #include "MetasoundJsonBackend.h"
 #include "MetasoundOperatorBuilder.h"
 #include "MetasoundTrace.h"
+#include "MetasoundVertex.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
 #include "Serialization/MemoryReader.h"
@@ -119,13 +120,13 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FName>();
 		}
 
-		const FString& FBaseOutputController::GetName() const
+		const FVertexName& FBaseOutputController::GetName() const
 		{
 			if (const FMetasoundFrontendVertex* Vertex = NodeVertexPtr.Get())
 			{
 				return Vertex->Name;
 			}
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FString>();
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FVertexName>();
 		}
 
 		FGuid FBaseOutputController::GetOwningNodeID() const
@@ -241,11 +242,16 @@ namespace Metasound
 			return TArray<FMetasoundFrontendEdge>();
 		}
 
-		const FText& FBaseOutputController::GetDisplayName() const
+		FText FBaseOutputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassOutput* Output = ClassOutputPtr.Get())
 			{
-				return Output->Metadata.DisplayName;
+				if (!Output->Metadata.DisplayName.IsEmptyOrWhitespace())
+				{
+					return Output->Metadata.DisplayName;
+				}
+
+				return FText::FromName(GetName());
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
@@ -308,7 +314,7 @@ namespace Metasound
 			return FBaseOutputController::IsValid() && (nullptr != OwningGraphClassInputPtr.Get());
 		}
 
-		const FText& FInputNodeOutputController::GetDisplayName() const
+		FText FInputNodeOutputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
@@ -347,6 +353,14 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
 		}
 
+		void FInputNodeOutputController::SetName(const FVertexName& InName)
+		{
+			if (FMetasoundFrontendVertex* Vertex = ConstCastAccessPtr<FVertexAccessPtr>(NodeVertexPtr).Get())
+			{
+				Vertex->Name = InName;
+			}
+		}
+
 		FDocumentAccess FInputNodeOutputController::ShareAccess() 
 		{
 			FDocumentAccess Access = FBaseOutputController::ShareAccess();
@@ -379,11 +393,16 @@ namespace Metasound
 			return FBaseOutputController::IsValid() && (nullptr != OwningGraphClassOutputPtr.Get());
 		}
 
-		const FText& FOutputNodeOutputController::GetDisplayName() const
+		FText FOutputNodeOutputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningOutput->Metadata.DisplayName;
+				if (!OwningOutput->Metadata.DisplayName.IsEmptyOrWhitespace())
+				{
+					return OwningOutput->Metadata.DisplayName;
+				}
+
+				return FText::FromName(GetName());
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
@@ -407,6 +426,14 @@ namespace Metasound
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
+		}
+
+		void FOutputNodeOutputController::SetName(const FVertexName& InName)
+		{
+			if (FMetasoundFrontendVertex* Vertex = ConstCastAccessPtr<FVertexAccessPtr>(NodeVertexPtr).Get())
+			{
+				Vertex->Name = InName;
+			}
 		}
 
 		FConnectability FOutputNodeOutputController::CanConnectTo(const IInputController& InController) const 
@@ -459,21 +486,26 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FName>();
 		}
 
-		const FString& FBaseInputController::GetName() const
+		const FVertexName& FBaseInputController::GetName() const
 		{
 			if (const FMetasoundFrontendVertex* Vertex = NodeVertexPtr.Get())
 			{
 				return Vertex->Name;
 			}
 			
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FString>();
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FVertexName>();
 		}
 
-		const FText& FBaseInputController::GetDisplayName() const
+		FText FBaseInputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
 			{
-				return ClassInput->Metadata.DisplayName;
+				if (!ClassInput->Metadata.DisplayName.IsEmptyOrWhitespace())
+				{
+					return ClassInput->Metadata.DisplayName;
+				}
+
+				return FText::FromName(GetName());
 			}
 			
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
@@ -661,13 +693,13 @@ namespace Metasound
 
 			if (ConverterInputs.Num() < 1)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred input vertex [Vertex: %s]"), *ConverterNode->GetNodeName(), *InConverterInfo.PreferredConverterInputPin);
+				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred input vertex [Vertex: %s]"), *ConverterNode->GetNodeName().ToString(), *InConverterInfo.PreferredConverterInputPin.ToString());
 				return false;
 			}
 
 			if (ConverterOutputs.Num() < 1)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred output vertex [Vertex: %s]"), *ConverterNode->GetNodeName(), *InConverterInfo.PreferredConverterOutputPin);
+				UE_LOG(LogMetaSound, Warning, TEXT("Converter node [Name: %s] does not support preferred output vertex [Vertex: %s]"), *ConverterNode->GetNodeName().ToString(), *InConverterInfo.PreferredConverterOutputPin.ToString());
 				return false;
 			}
 
@@ -797,7 +829,7 @@ namespace Metasound
 			return FBaseInputController::IsValid() && (nullptr != OwningGraphClassOutputPtr.Get());
 		}
 
-		const FText& FOutputNodeInputController::GetDisplayName() const
+		FText FOutputNodeInputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
@@ -837,6 +869,14 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
 		}
 
+		void FOutputNodeInputController::SetName(const FVertexName& InName)
+		{
+			if (FMetasoundFrontendVertex* Vertex = ConstCastAccessPtr<FVertexAccessPtr>(NodeVertexPtr).Get())
+			{
+				Vertex->Name = InName;
+			}
+		}
+
 		FDocumentAccess FOutputNodeInputController::ShareAccess() 
 		{
 			FDocumentAccess Access = FBaseInputController::ShareAccess();
@@ -870,11 +910,16 @@ namespace Metasound
 			return FBaseInputController::IsValid() && (nullptr != OwningGraphClassInputPtr.Get());
 		}
 
-		const FText& FInputNodeInputController::GetDisplayName() const
+		FText FInputNodeInputController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningInput->Metadata.DisplayName;
+				if (!OwningInput->Metadata.DisplayName.IsEmptyOrWhitespace())
+				{
+					return OwningInput->Metadata.DisplayName;
+				}
+
+				return FText::FromName(GetName());
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
@@ -898,6 +943,14 @@ namespace Metasound
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendVertexMetadata>();
+		}
+
+		void FInputNodeInputController::SetName(const FVertexName& InName)
+		{
+			if (FMetasoundFrontendVertex* Vertex = ConstCastAccessPtr<FVertexAccessPtr>(NodeVertexPtr).Get())
+			{
+				Vertex->Name = InName;
+			}
 		}
 
 		FConnectability FInputNodeInputController::CanConnectTo(const IOutputController& InController) const 
@@ -961,7 +1014,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 			{
-				return Node->ID;
+				return Node->GetID();
 			}
 			return Metasound::FrontendInvalidID;
 		}
@@ -1114,13 +1167,13 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		const FString& FBaseNodeController::GetNodeName() const
+		const FVertexName& FBaseNodeController::GetNodeName() const
 		{
 			if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 			{
 				return Node->Name;
 			}
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FString>();
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FVertexName>();
 		}
 
 		bool FBaseNodeController::CanAddInput(const FString& InVertexName) const
@@ -1279,11 +1332,17 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		const FText& FBaseNodeController::GetDisplayName() const
+		FText FBaseNodeController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClass* Class = ClassPtr.Get())
 			{
-				return Class->Metadata.GetDisplayName();
+				const FText& DisplayName = Class->Metadata.GetDisplayName();
+				if (!DisplayName.IsEmptyOrWhitespace())
+				{
+					return Class->Metadata.GetDisplayName();
+				}
+
+				return FText::FromString(GetNodeName().ToString());
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
@@ -1338,7 +1397,7 @@ namespace Metasound
 			}
 		}
 
-		TArray<FInputHandle> FBaseNodeController::GetInputsWithVertexName(const FString& InName) 
+		TArray<FInputHandle> FBaseNodeController::GetInputsWithVertexName(const FVertexName& InName)
 		{
 			TArray<FInputHandle> Inputs;
 
@@ -1356,7 +1415,7 @@ namespace Metasound
 			return Inputs;
 		}
 
-		TArray<FConstInputHandle> FBaseNodeController::GetConstInputsWithVertexName(const FString& InName) const 
+		TArray<FConstInputHandle> FBaseNodeController::GetConstInputsWithVertexName(const FVertexName& InName) const
 		{
 			TArray<FConstInputHandle> Inputs;
 
@@ -1375,7 +1434,7 @@ namespace Metasound
 			return Inputs;
 		}
 
-		TArray<FOutputHandle> FBaseNodeController::GetOutputsWithVertexName(const FString& InName)
+		TArray<FOutputHandle> FBaseNodeController::GetOutputsWithVertexName(const FVertexName& InName)
 		{
 			TArray<FOutputHandle> Outputs;
 
@@ -1393,7 +1452,7 @@ namespace Metasound
 			return Outputs;
 		}
 
-		TArray<FConstOutputHandle> FBaseNodeController::GetConstOutputsWithVertexName(const FString& InName) const
+		TArray<FConstOutputHandle> FBaseNodeController::GetConstOutputsWithVertexName(const FVertexName& InName) const
 		{
 			TArray<FConstOutputHandle> Outputs;
 
@@ -1497,7 +1556,7 @@ namespace Metasound
 			{
 				for (const FMetasoundFrontendVertex& NodeOutputVertex : Node->Interface.Outputs)
 				{
-					const FString& VertexName = NodeOutputVertex.Name;
+					const FVertexName& VertexName = NodeOutputVertex.Name;
 
 					FConstVertexAccessPtr NodeVertexPtr = NodePtr.GetOutputWithName(VertexName);
 					FConstClassOutputAccessPtr ClassOutputPtr = ClassPtr.GetOutputWithName(VertexName);
@@ -1509,7 +1568,7 @@ namespace Metasound
 			return Outputs;
 		}
 
-		TArray<FBaseNodeController::FInputControllerParams> FBaseNodeController::GetInputControllerParamsWithVertexName(const FString& InName) const
+		TArray<FBaseNodeController::FInputControllerParams> FBaseNodeController::GetInputControllerParamsWithVertexName(const FVertexName& InName) const
 		{
 			TArray<FBaseNodeController::FInputControllerParams> Inputs;
 
@@ -1525,7 +1584,7 @@ namespace Metasound
 			return Inputs;
 		}
 
-		TArray<FBaseNodeController::FOutputControllerParams> FBaseNodeController::GetOutputControllerParamsWithVertexName(const FString& InName) const
+		TArray<FBaseNodeController::FOutputControllerParams> FBaseNodeController::GetOutputControllerParamsWithVertexName(const FVertexName& InName) const
 		{
 			TArray<FBaseNodeController::FOutputControllerParams> Outputs;
 
@@ -1651,7 +1710,7 @@ namespace Metasound
 
 			FMetasoundFrontendNodeStyle Style = GetNodeStyle();
 
-			using FConnectionKey = TPair<FString, FName>;
+			using FConnectionKey = TPair<FVertexName, FName>;
 
 			struct FInputConnectionInfo
 			{
@@ -1940,7 +1999,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 					}
 				}
 			}
@@ -1960,7 +2019,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 					}
 				}
 			}
@@ -2026,7 +2085,7 @@ namespace Metasound
 						}
 						else
 						{
-							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 						}
 					}
 					else
@@ -2049,11 +2108,16 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		const FText& FOutputNodeController::GetDisplayName() const
+		FText FOutputNodeController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningOutput->Metadata.DisplayName;
+				if (!OwningOutput->Metadata.DisplayName.IsEmptyOrWhitespace())
+				{
+					return OwningOutput->Metadata.DisplayName;
+				}
+
+				return FText::FromName(GetNodeName());
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
@@ -2065,6 +2129,21 @@ namespace Metasound
 			if (FMetasoundFrontendClassOutput* ClassOutput = ConstCastAccessPtr<FClassOutputAccessPtr>(OwningGraphClassOutputPtr).Get())
 			{
 				ClassOutput->Metadata.Description = InDescription;
+				OwningGraph->UpdateInterfaceChangeID();
+			}
+		}
+
+		void FOutputNodeController::SetNodeName(const FVertexName& InName)
+		{
+			if (FMetasoundFrontendNode* Node = NodePtr.Get())
+			{
+				Node->Name = InName;
+			}
+
+			// TODO: can we remove the const cast by constructing output nodes with a non-const access to class outputs?
+			if (FMetasoundFrontendClassOutput* ClassOutput = ConstCastAccessPtr<FClassOutputAccessPtr>(OwningGraphClassOutputPtr).Get())
+			{
+				ClassOutput->Name = InName;
 				OwningGraph->UpdateInterfaceChangeID();
 			}
 		}
@@ -2093,7 +2172,7 @@ namespace Metasound
 						}
 						else
 						{
-							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 						}
 					}
 					else
@@ -2123,7 +2202,7 @@ namespace Metasound
 			if (bIsNodeOnRootGraph)
 			{
 				// If the node is on the root graph, test if it is in the archetypes
-				// required inputs or outputs. 
+				// required inputs or outputs.
 				FMetasoundFrontendArchetype Archetype;
 
 				FArchetypeRegistryKey ArchetypeKey = GetArchetypeRegistryKey(OwningDocument->GetArchetypeVersion());
@@ -2133,7 +2212,7 @@ namespace Metasound
 				{
 					if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 					{
-						const FString& Name = Node->Name;
+						const FVertexName& Name = Node->Name;
 						auto IsVertexWithSameName = [&Name](const FMetasoundFrontendClassVertex& InVertex)
 						{
 							return InVertex.Name == Name;
@@ -2211,7 +2290,7 @@ namespace Metasound
 						}
 						else
 						{
-							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 						}
 					}
 					else
@@ -2238,7 +2317,7 @@ namespace Metasound
 						}
 						else
 						{
-							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+							UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->GetID().ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
 						}
 					}
 					else
@@ -2276,11 +2355,16 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		const FText& FInputNodeController::GetDisplayName() const
+		FText FInputNodeController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningInput->Metadata.DisplayName;
+				if (!OwningInput->Metadata.DisplayName.IsEmptyOrWhitespace())
+				{
+					return OwningInput->Metadata.DisplayName;
+				}
+
+				return FText::FromName(GetNodeName());
 			}
 
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
@@ -2313,7 +2397,7 @@ namespace Metasound
 				{
 					if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 					{
-						const FString& Name = Node->Name;
+						const FVertexName& Name = Node->Name;
 						auto IsVertexWithSameName = [&Name](const FMetasoundFrontendClassVertex& InVertex)
 						{
 							return InVertex.Name == Name;
@@ -2337,6 +2421,19 @@ namespace Metasound
 			{
 				ClassInput->Metadata.Description = InDescription;
 				OwningGraph->UpdateInterfaceChangeID();
+			}
+		}
+
+		void FInputNodeController::SetNodeName(const FVertexName& InName)
+		{
+			if (FMetasoundFrontendNode* Node = NodePtr.Get())
+			{
+				Node->Name = InName;
+			}
+
+			if (FMetasoundFrontendClassInput* ClassInput = ConstCastAccessPtr<FClassInputAccessPtr>(OwningGraphClassInputPtr).Get())
+			{
+				ClassInput->Name = InName;
 			}
 		}
 
@@ -2427,7 +2524,7 @@ namespace Metasound
 			return Metasound::FrontendInvalidID;
 		}
 
-		const FText& FGraphController::GetDisplayName() const 
+		FText FGraphController::GetDisplayName() const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -2437,9 +2534,9 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		TArray<FString> FGraphController::GetInputVertexNames() const 
+		TArray<FVertexName> FGraphController::GetInputVertexNames() const
 		{
-			TArray<FString> Names;
+			TArray<FVertexName> Names;
 
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -2452,9 +2549,9 @@ namespace Metasound
 			return Names;
 		}
 
-		TArray<FString> FGraphController::GetOutputVertexNames() const
+		TArray<FVertexName> FGraphController::GetOutputVertexNames() const
 		{
-			TArray<FString> Names;
+			TArray<FVertexName> Names;
 
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -2467,17 +2564,17 @@ namespace Metasound
 			return Names;
 		}
 
-		FConstClassInputAccessPtr FGraphController::FindClassInputWithName(const FString& InName) const
+		FConstClassInputAccessPtr FGraphController::FindClassInputWithName(const FVertexName& InName) const
 		{
 			return GraphClassPtr.GetInputWithName(InName);
 		}
 
-		FConstClassOutputAccessPtr FGraphController::FindClassOutputWithName(const FString& InName) const
+		FConstClassOutputAccessPtr FGraphController::FindClassOutputWithName(const FVertexName& InName) const
 		{
 			return GraphClassPtr.GetOutputWithName(InName);
 		}
 
-		FGuid FGraphController::GetVertexIDForInputVertex(const FString& InInputName) const
+		FGuid FGraphController::GetVertexIDForInputVertex(const FVertexName& InInputName) const
 		{
 			if (const FMetasoundFrontendClassInput* Input = FindClassInputWithName(InInputName).Get())
 			{
@@ -2486,7 +2583,7 @@ namespace Metasound
 			return Metasound::FrontendInvalidID;
 		}
 
-		FGuid FGraphController::GetVertexIDForOutputVertex(const FString& InOutputName) const
+		FGuid FGraphController::GetVertexIDForOutputVertex(const FVertexName& InOutputName) const
 		{
 			if (const FMetasoundFrontendClassOutput* Output = FindClassOutputWithName(InOutputName).Get())
 			{
@@ -2509,7 +2606,7 @@ namespace Metasound
 		{
 			auto IsNodeWithSameID = [&](const FMetasoundFrontendClass& NodeClas, const FMetasoundFrontendNode& Node) 
 			{ 
-				return Node.ID == InNodeID; 
+				return Node.GetID() == InNodeID;
 			};
 			return GetNodeByPredicate(IsNodeWithSameID);
 		}
@@ -2518,7 +2615,7 @@ namespace Metasound
 		{
 			auto IsNodeWithSameID = [&](const FMetasoundFrontendClass& NodeClas, const FMetasoundFrontendNode& Node) 
 			{ 
-				return Node.ID == InNodeID; 
+				return Node.GetID() == InNodeID;
 			};
 			return GetNodeByPredicate(IsNodeWithSameID);
 		}
@@ -2571,7 +2668,7 @@ namespace Metasound
 			}
 		}
 
-		void FGraphController::IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType)
+		void FGraphController::IterateNodes(TFunctionRef<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType)
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -2582,20 +2679,20 @@ namespace Metasound
 					{
 						if (InClassType == EMetasoundFrontendClassType::Invalid || NodeClass->Metadata.GetType() == InClassType)
 						{
-							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 							FNodeHandle NodeHandle = GetNodeHandle(FGraphController::FNodeAndClass{ NodePtr, NodeClassPtr });
 							InFunction(NodeHandle);
 						}
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
 		}
 
-		void FGraphController::IterateConstNodes(TUniqueFunction<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType) const
+		void FGraphController::IterateConstNodes(TFunctionRef<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType) const
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -2606,14 +2703,14 @@ namespace Metasound
 					{
 						if (InClassType == EMetasoundFrontendClassType::Invalid || NodeClass->Metadata.GetType() == InClassType)
 						{
-							FConstNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+							FConstNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 							FConstNodeHandle NodeHandle = GetNodeHandle(FGraphController::FConstNodeAndClass{ NodePtr, NodeClassPtr });
 							InFunction(NodeHandle);
 						}
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -2637,7 +2734,7 @@ namespace Metasound
 			return GetNodesByPredicate(IsInputNode);
 		}
 
-		bool FGraphController::ContainsOutputVertexWithName(const FString& InName) const
+		bool FGraphController::ContainsOutputVertexWithName(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -2650,11 +2747,11 @@ namespace Metasound
 			return false;
 		}
 
-		bool FGraphController::ContainsInputVertexWithName(const FString& InName) const
+		bool FGraphController::ContainsInputVertexWithName(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				auto IsInputVertexWithSameName = [&](const FMetasoundFrontendClassInput& ClassInput) 
+				auto IsInputVertexWithSameName = [&](const FMetasoundFrontendClassInput& ClassInput)
 				{ 
 					return ClassInput.Name == InName;
 				};
@@ -2663,34 +2760,34 @@ namespace Metasound
 			return false;
 		}
 
-		FConstNodeHandle FGraphController::GetOutputNodeWithName(const FString& InName) const
+		FConstNodeHandle FGraphController::GetOutputNodeWithName(const FVertexName& InName) const
 		{
-			auto IsOutputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node) 
-			{ 
+			auto IsOutputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node)
+			{
 				return (NodeClass.Metadata.GetType() == EMetasoundFrontendClassType::Output) && (Node.Name == InName);
 			};
 			return GetNodeByPredicate(IsOutputNodeWithSameName);
 		}
 
-		FConstNodeHandle FGraphController::GetInputNodeWithName(const FString& InName) const
+		FConstNodeHandle FGraphController::GetInputNodeWithName(const FVertexName& InName) const
 		{
-			auto IsInputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node) 
-			{ 
+			auto IsInputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node)
+			{
 				return (NodeClass.Metadata.GetType() == EMetasoundFrontendClassType::Input) && (Node.Name == InName);
 			};
 			return GetNodeByPredicate(IsInputNodeWithSameName);
 		}
 
-		FNodeHandle FGraphController::GetOutputNodeWithName(const FString& InName)
+		FNodeHandle FGraphController::GetOutputNodeWithName(const FVertexName& InName)
 		{
-			auto IsOutputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node) 
-			{ 
+			auto IsOutputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node)
+			{
 				return (NodeClass.Metadata.GetType() == EMetasoundFrontendClassType::Output) && (Node.Name == InName);
 			};
 			return GetNodeByPredicate(IsOutputNodeWithSameName);
 		}
 
-		FNodeHandle FGraphController::GetInputNodeWithName(const FString& InName)
+		FNodeHandle FGraphController::GetInputNodeWithName(const FVertexName& InName)
 		{
 			auto IsInputNodeWithSameName = [&](const FMetasoundFrontendClass& NodeClass, const FMetasoundFrontendNode& Node)
 			{
@@ -2715,12 +2812,14 @@ namespace Metasound
 							FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*InputClass);
 
 							Node.Name = InClassInput.Name;
-							Node.ID = FGuid::NewGuid();
+							Node.UpdateID();
+
+							const FVertexName NewName = InClassInput.Name;
 
 							auto IsVertexWithTypeName = [&](FMetasoundFrontendVertex& Vertex) { return Vertex.TypeName == InClassInput.TypeName; };
 							if (FMetasoundFrontendVertex* InputVertex = Node.Interface.Inputs.FindByPredicate(IsVertexWithTypeName))
-							{ 
-								InputVertex->Name = InClassInput.Name;
+							{
+								InputVertex->Name = NewName;
 							}
 							else
 							{
@@ -2729,109 +2828,68 @@ namespace Metasound
 
 							if (Node.Interface.Outputs.Num() == 1)
 							{
-								Node.Interface.Outputs[0].Name = InClassInput.Name;
+								Node.Interface.Outputs[0].Name = NewName;
 							}
 							else if (FMetasoundFrontendVertex* OutputVertex = Node.Interface.Outputs.FindByPredicate(IsVertexWithTypeName))
-							{ 
-								OutputVertex->Name = InClassInput.Name;
+							{
+								OutputVertex->Name = NewName;
 							}
 
 							FMetasoundFrontendClassInput& NewInput = GraphClass->Interface.Inputs.Add_GetRef(InClassInput);
-							NewInput.NodeID = Node.ID;
+							NewInput.NodeID = Node.GetID();
 
 							GraphClass->Interface.UpdateChangeID();
 
-							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
-							return GetNodeHandle(FGraphController::FNodeAndClass{NodePtr, InputClassPtr});
+							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
+							return GetNodeHandle(FGraphController::FNodeAndClass { NodePtr, InputClassPtr });
 						}
 					}
-					else 
+					else
 					{
 						UE_LOG(LogMetaSound, Display, TEXT("Failed to add input. No input node registered for data type [TypeName:%s]"), *InClassInput.TypeName.ToString());
 					}
 				}
 				else
 				{
-					UE_LOG(LogMetaSound, Display, TEXT("Failed to add input. Input with same name \"%s\" exists in class [ClassID:%s]"), *InClassInput.Name, *GraphClass->ID.ToString());
+					UE_LOG(LogMetaSound, Display, TEXT("Failed to add input. Input with same name \"%s\" exists in class [ClassID:%s]"), *InClassInput.Name.ToString(), *GraphClass->ID.ToString());
 				}
 			}
 			return FInvalidNodeController::GetInvalid();
 		}
 
-		FNodeHandle FGraphController::AddInputNode(const FMetasoundFrontendClassInput& InClassInput, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName)
-		{
-			FNodeHandle NodeHandle = AddInputVertex(InClassInput);
-			if (ensure(NodeHandle->IsValid()))
-			{
-				if (InDisplayName)
-				{
-					SetInputDisplayName(InClassInput.Name, *InDisplayName);
-				}
-
-				if (InDefaultValue)
-				{
-					SetDefaultInput(InClassInput.VertexID, *InDefaultValue);
-				}
-				else
-				{
-					SetDefaultInputToDefaultLiteralOfType(InClassInput.VertexID);
-				}
-			}
-
-			return NodeHandle;
-		}
-
-		FNodeHandle FGraphController::AddInputNode(const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue, const FText* InDisplayName)
+		FNodeHandle FGraphController::AddInputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip, const FMetasoundFrontendLiteral* InDefaultValue)
 		{
 			const FGuid VertexID = FGuid::NewGuid();
 
 			FMetasoundFrontendClassInput Description;
 
-			Description.Name = VertexID.ToString();
+			Description.Name = InName;
 			Description.TypeName = InTypeName;
 			Description.Metadata.Description = InToolTip;
 			Description.VertexID = VertexID;
 
-			return AddInputNode(Description, InDefaultValue, InDisplayName);
-		}
-
-		FNodeHandle FGraphController::AddOutputNode(const FMetasoundFrontendClassOutput& InClassOutput, const FText* InDisplayName)
-		{
-			FNodeHandle NewOutput = AddOutputVertex(InClassOutput);
-			if (ensure(NewOutput->IsValid()))
+			if (InDefaultValue)
 			{
-				if (InDisplayName)
-				{
-					SetOutputDisplayName(InClassOutput.Name, *InDisplayName);
-				}
+				Description.DefaultLiteral = *InDefaultValue;
+			}
+			else
+			{
+				Metasound::FLiteral Literal = IDataTypeRegistry::Get().CreateDefaultLiteral(InTypeName);
+				Description.DefaultLiteral.SetFromLiteral(Literal);
 			}
 
-			return NewOutput;
+			return AddInputVertex(Description);
 		}
 
-		FNodeHandle FGraphController::AddOutputNode(const FName InTypeName, const FText& InToolTip, const FText* InDisplayName)
-		{
-			const FGuid VertexID = FGuid::NewGuid();
-
-			FMetasoundFrontendClassOutput Description;
-
-			Description.Name = VertexID.ToString();
-			Description.TypeName = InTypeName;
-			Description.Metadata.Description = InToolTip;
-			Description.VertexID = VertexID;
-
-			return AddOutputNode(Description, InDisplayName);
-		}
-
-
-		bool FGraphController::RemoveInputVertex(const FString& InName)
+		bool FGraphController::RemoveInputVertex(const FVertexName& InName)
 		{
 			auto IsInputNodeWithSameName = [&](const FMetasoundFrontendClass& InClass, const FMetasoundFrontendNode& InNode)
 			{
-				return (InClass.Metadata.GetType() == EMetasoundFrontendClassType::Input) && (InNode.Name == InName);
+				return InClass.Metadata.GetType() == EMetasoundFrontendClassType::Input && InNode.Name == InName;
 			};
+			const TArray<FGraphController::FNodeAndClass> NodeAndClassPairs = GetNodesAndClassesByPredicate(IsInputNodeWithSameName);
 
-			for (const FNodeAndClass& NodeAndClass : GetNodesAndClassesByPredicate(IsInputNodeWithSameName))
+			for (const FNodeAndClass& NodeAndClass : NodeAndClassPairs)
 			{
 				if (const FMetasoundFrontendNode* Node = NodeAndClass.Node.Get())
 				{
@@ -2840,6 +2898,20 @@ namespace Metasound
 			}
 
 			return false;
+		}
+
+		FNodeHandle FGraphController::AddOutputVertex(const FVertexName& InName, const FName InTypeName, const FText& InToolTip)
+		{
+			const FGuid VertexID = FGuid::NewGuid();
+
+			FMetasoundFrontendClassOutput Description;
+
+			Description.Name = InName;
+			Description.TypeName = InTypeName;
+			Description.Metadata.Description = InToolTip;
+			Description.VertexID = VertexID;
+
+			return AddOutputVertex(Description);
 		}
 
 		FNodeHandle FGraphController::AddOutputVertex(const FMetasoundFrontendClassOutput& InClassOutput)
@@ -2855,25 +2927,26 @@ namespace Metasound
 						FConstClassAccessPtr OutputClassPtr = OwningDocument->FindOrAddClass(Key);
 						if (const FMetasoundFrontendClass* OutputClass = OutputClassPtr.Get())
 						{
-							FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*OutputClass);
-
+							FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Add_GetRef(*OutputClass);
 							Node.Name = InClassOutput.Name;
-							Node.ID = FGuid::NewGuid();
+							Node.UpdateID();
+
+							const FVertexName NewName = InClassOutput.Name;
 
 							// TODO: have something that checks if input node has valid interface.
 							auto IsVertexWithTypeName = [&](FMetasoundFrontendVertex& Vertex) { return Vertex.TypeName == InClassOutput.TypeName; };
 							if (Node.Interface.Inputs.Num() == 1)
 							{
-								Node.Interface.Inputs[0].Name = InClassOutput.Name;
+								Node.Interface.Inputs[0].Name = NewName;
 							}
 							else if (FMetasoundFrontendVertex* InputVertex = Node.Interface.Inputs.FindByPredicate(IsVertexWithTypeName))
 							{ 
-								InputVertex->Name = InClassOutput.Name;
+								InputVertex->Name = NewName;
 							}
 
 							if (FMetasoundFrontendVertex* OutputVertex = Node.Interface.Outputs.FindByPredicate(IsVertexWithTypeName))
 							{ 
-								OutputVertex->Name = InClassOutput.Name;
+								OutputVertex->Name = NewName;
 							}
 							else
 							{
@@ -2881,11 +2954,11 @@ namespace Metasound
 							}
 
 							FMetasoundFrontendClassOutput& NewOutput = GraphClass->Interface.Outputs.Add_GetRef(InClassOutput);
-							NewOutput.NodeID = Node.ID;
+							NewOutput.NodeID = Node.GetID();
 
 							GraphClass->Interface.UpdateChangeID();
 
-							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 							return GetNodeHandle(FGraphController::FNodeAndClass { NodePtr, OutputClassPtr });
 						}
 					}
@@ -2896,21 +2969,23 @@ namespace Metasound
 				}
 				else
 				{
-					UE_LOG(LogMetaSound, Display, TEXT("Failed to add output. Output with same name \"%s\" exists in class [ClassID:%s]"), *InClassOutput.Name, *GraphClass->ID.ToString());
+					UE_LOG(LogMetaSound, Display, TEXT("Failed to add output. Output with same name \"%s\" exists in class [ClassID:%s]"), *InClassOutput.Name.ToString(), *GraphClass->ID.ToString());
 				}
 			}
 
 			return FInvalidNodeController::GetInvalid();
 		}
 
-		bool FGraphController::RemoveOutputVertex(const FString& InName)
+		bool FGraphController::RemoveOutputVertex(const FVertexName& InName)
 		{
 			auto IsOutputNodeWithSameName = [&](const FMetasoundFrontendClass& InClass, const FMetasoundFrontendNode& InNode)
 			{
-				return (InClass.Metadata.GetType() == EMetasoundFrontendClassType::Output) && (InNode.Name == InName);
+				return InClass.Metadata.GetType() == EMetasoundFrontendClassType::Output
+					&& InNode.Name == InName;
 			};
+			const TArray<FGraphController::FNodeAndClass> NodeAndClassPairs = GetNodesAndClassesByPredicate(IsOutputNodeWithSameName);
 
-			for (const FNodeAndClass& NodeAndClass : GetNodesAndClassesByPredicate(IsOutputNodeWithSameName))
+			for (const FNodeAndClass& NodeAndClass : NodeAndClassPairs)
 			{
 				if (const FMetasoundFrontendNode* Node = NodeAndClass.Node.Get())
 				{
@@ -2923,7 +2998,7 @@ namespace Metasound
 
 		// This can be used to determine what kind of property editor we should use for the data type of a given input.
 		// Will return Invalid if the input couldn't be found, or if the input doesn't support any kind of literals.
-		ELiteralType FGraphController::GetPreferredLiteralTypeForInputVertex(const FString& InInputName) const
+		ELiteralType FGraphController::GetPreferredLiteralTypeForInputVertex(const FVertexName& InInputName) const
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
@@ -2933,7 +3008,7 @@ namespace Metasound
 		}
 
 		// For inputs whose preferred literal type is UObject or UObjectArray, this can be used to determine the UObject corresponding to that input's datatype.
-		UClass* FGraphController::GetSupportedClassForInputVertex(const FString& InInputName)
+		UClass* FGraphController::GetSupportedClassForInputVertex(const FVertexName& InInputName)
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
@@ -2981,7 +3056,7 @@ namespace Metasound
 			return false;
 		}
 
-		const FText& FGraphController::GetInputDescription(const FString& InName) const
+		const FText& FGraphController::GetInputDescription(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
 			{
@@ -2991,7 +3066,7 @@ namespace Metasound
 			return FText::GetEmpty();
 		}
 
-		const FText& FGraphController::GetOutputDescription(const FString& InName) const
+		const FText& FGraphController::GetOutputDescription(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
@@ -3001,7 +3076,7 @@ namespace Metasound
 			return FText::GetEmpty();
 		}
 
-		void FGraphController::SetInputDisplayName(const FString& InName, const FText& InDisplayName)
+		void FGraphController::SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
 			{
@@ -3009,7 +3084,7 @@ namespace Metasound
 			}
 		}
 
-		void FGraphController::SetOutputDisplayName(const FString& InName, const FText& InDisplayName)
+		void FGraphController::SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName)
 		{
 			if (FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
@@ -3017,7 +3092,7 @@ namespace Metasound
 			}
 		}
 
-		void FGraphController::SetInputDescription(const FString& InName, const FText& InDescription)
+		void FGraphController::SetInputDescription(const FVertexName& InName, const FText& InDescription)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
 			{
@@ -3025,7 +3100,7 @@ namespace Metasound
 			}
 		}
 
-		void FGraphController::SetOutputDescription(const FString& InName, const FText& InDescription)
+		void FGraphController::SetOutputDescription(const FVertexName& InName, const FText& InDescription)
 		{
 			if (FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
@@ -3035,7 +3110,7 @@ namespace Metasound
 
 		// This can be used to clear the current literal for a given input.
 		// @returns false if the input name couldn't be found.
-		bool FGraphController::ClearLiteralForInput(const FString& InInputName, FGuid InVertexID)
+		bool FGraphController::ClearLiteralForInput(const FVertexName& InInputName, FGuid InVertexID)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
@@ -3100,7 +3175,7 @@ namespace Metasound
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
 				FGuid NodeID = InNode.GetID();
-				auto IsNodeWithSameID = [&](const FMetasoundFrontendNode& InDesc) { return InDesc.ID == NodeID; };
+				auto IsNodeWithSameID = [&](const FMetasoundFrontendNode& InDesc) { return InDesc.GetID() == NodeID; };
 				if (const FMetasoundFrontendNode* Desc = GraphClass->Graph.Nodes.FindByPredicate(IsNodeWithSameID))
 				{
 					switch(InNode.GetClassMetadata().GetType())
@@ -3220,9 +3295,9 @@ namespace Metasound
 				{
 					FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*NodeClass);
 
-					Node.ID = FGuid::NewGuid();
+					Node.UpdateID();
 
-					FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+					FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 					return GetNodeHandle(FGraphController::FNodeAndClass{NodePtr, InExistingDependency});
 				}
 			}
@@ -3234,12 +3309,12 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				auto IsEdgeForThisNode = [&](const FMetasoundFrontendEdge& ConDesc) { return (ConDesc.FromNodeID == InDesc.ID) || (ConDesc.ToNodeID == InDesc.ID); };
+				auto IsEdgeForThisNode = [&](const FMetasoundFrontendEdge& ConDesc) { return (ConDesc.FromNodeID == InDesc.GetID()) || (ConDesc.ToNodeID == InDesc.GetID()); };
 
 				// Remove any reference connections
 				int32 NumRemoved = GraphClass->Graph.Edges.RemoveAll(IsEdgeForThisNode);
 
-				auto IsNodeWithID = [&](const FMetasoundFrontendNode& Desc) { return InDesc.ID == Desc.ID; };
+				auto IsNodeWithID = [&](const FMetasoundFrontendNode& Desc) { return InDesc.GetID() == Desc.GetID(); };
 
 				NumRemoved += GraphClass->Graph.Nodes.RemoveAll(IsNodeWithID);
 
@@ -3254,7 +3329,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				auto IsInputWithSameNodeID = [&](const FMetasoundFrontendClassInput& ClassInput) { return ClassInput.NodeID == InNode.ID; };
+				auto IsInputWithSameNodeID = [&](const FMetasoundFrontendClassInput& ClassInput) { return ClassInput.NodeID == InNode.GetID(); };
 
 				int32 NumInputsRemoved = GraphClass->Interface.Inputs.RemoveAll(IsInputWithSameNodeID);
 
@@ -3275,7 +3350,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-				auto IsOutputWithSameNodeID = [&](const FMetasoundFrontendClassOutput& ClassOutput) { return ClassOutput.NodeID == InNode.ID; };
+				auto IsOutputWithSameNodeID = [&](const FMetasoundFrontendClassOutput& ClassOutput) { return ClassOutput.NodeID == InNode.GetID(); };
 
 				int32 NumOutputsRemoved = GraphClass->Interface.Outputs.RemoveAll(IsOutputWithSameNodeID);
 
@@ -3316,7 +3391,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -3332,7 +3407,7 @@ namespace Metasound
 			{
 				for (FMetasoundFrontendNode& Node : GraphClass->Graph.Nodes)
 				{
-					FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+					FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 					FConstClassAccessPtr NodeClassPtr = OwningDocument->FindClassWithID(Node.ClassID);
 
 					const bool bIsValidNodePtr = (nullptr != NodePtr.Get());
@@ -3344,7 +3419,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -3360,7 +3435,7 @@ namespace Metasound
 			{
 				for (const FMetasoundFrontendNode& Node : GraphClass->Graph.Nodes)
 				{
-					FConstNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+					FConstNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 					FConstClassAccessPtr NodeClassPtr = OwningDocument->FindClassWithID(Node.ClassID);
 
 					const bool bIsValidNodePtr = (nullptr != NodePtr.Get());
@@ -3372,7 +3447,7 @@ namespace Metasound
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -3393,13 +3468,13 @@ namespace Metasound
 					{
 						if (InPredicate(*NodeClass, Node))
 						{
-							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+							FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 							NodesAndClasses.Add(FGraphController::FNodeAndClass{ NodePtr, NodeClassPtr });
 						}
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -3420,13 +3495,13 @@ namespace Metasound
 					{
 						if (InPredicate(*NodeClass, Node))
 						{
-							FConstNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.ID);
+							FConstNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
 							NodesAndClasses.Add(FGraphController::FConstNodeAndClass{ NodePtr, NodeClassPtr });
 						}
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.ID.ToString(), *Node.ClassID.ToString());
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find class for node [NodeID:%s, ClassID:%s]"), *Node.GetID().ToString(), *Node.ClassID.ToString());
 					}
 				}
 			}
@@ -3512,7 +3587,7 @@ namespace Metasound
 				{
 					case EMetasoundFrontendClassType::Input:
 						{
-							FClassInputAccessPtr OwningGraphClassInputPtr = FindInputDescriptionWithNodeID(Node->ID);
+							FClassInputAccessPtr OwningGraphClassInputPtr = FindInputDescriptionWithNodeID(Node->GetID());
 							if (nullptr != OwningGraphClassInputPtr.Get())
 							{
 								FInputNodeController::FInitParams InitParams
@@ -3543,7 +3618,7 @@ namespace Metasound
 
 					case EMetasoundFrontendClassType::Output:
 						{
-							FClassOutputAccessPtr OwningGraphClassOutputPtr = FindOutputDescriptionWithNodeID(Node->ID);
+							FClassOutputAccessPtr OwningGraphClassOutputPtr = FindOutputDescriptionWithNodeID(Node->GetID());
 							if (nullptr != OwningGraphClassOutputPtr.Get())
 							{
 								FOutputNodeController::FInitParams InitParams
@@ -3620,7 +3695,7 @@ namespace Metasound
 				{
 					case EMetasoundFrontendClassType::Input:
 						{
-							FConstClassInputAccessPtr OwningGraphClassInputPtr = FindInputDescriptionWithNodeID(Node->ID);
+							FConstClassInputAccessPtr OwningGraphClassInputPtr = FindInputDescriptionWithNodeID(Node->GetID());
 							if (nullptr != OwningGraphClassInputPtr.Get())
 							{
 								FInputNodeController::FInitParams InitParams
@@ -3638,7 +3713,7 @@ namespace Metasound
 
 					case EMetasoundFrontendClassType::Output:
 						{
-							FConstClassOutputAccessPtr OwningGraphClassOutputPtr = FindOutputDescriptionWithNodeID(Node->ID);
+							FConstClassOutputAccessPtr OwningGraphClassOutputPtr = FindOutputDescriptionWithNodeID(Node->GetID());
 							if (nullptr != OwningGraphClassOutputPtr.Get())
 							{
 								FOutputNodeController::FInitParams InitParams
@@ -3676,7 +3751,7 @@ namespace Metasound
 			return FInvalidNodeController::GetInvalid();
 		}
 
-		FMetasoundFrontendClassInput* FGraphController::FindInputDescriptionWithName(const FString& InName)
+		FMetasoundFrontendClassInput* FGraphController::FindInputDescriptionWithName(const FVertexName& InName)
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -3692,7 +3767,7 @@ namespace Metasound
 			return nullptr;
 		}
 
-		const FMetasoundFrontendClassInput* FGraphController::FindInputDescriptionWithName(const FString& InName) const
+		const FMetasoundFrontendClassInput* FGraphController::FindInputDescriptionWithName(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -3701,7 +3776,7 @@ namespace Metasound
 			return nullptr;
 		}
 
-		FMetasoundFrontendClassOutput* FGraphController::FindOutputDescriptionWithName(const FString& InName)
+		FMetasoundFrontendClassOutput* FGraphController::FindOutputDescriptionWithName(const FVertexName& InName)
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -3717,7 +3792,7 @@ namespace Metasound
 			return nullptr;
 		}
 
-		const FMetasoundFrontendClassOutput* FGraphController::FindOutputDescriptionWithName(const FString& InName) const
+		const FMetasoundFrontendClassOutput* FGraphController::FindOutputDescriptionWithName(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
@@ -3903,7 +3978,7 @@ namespace Metasound
 					else
 					{
 						bSuccess = false;
-						UE_LOG(LogMetaSound, Error, TEXT("Failed to copy subgraph. Subgraph document is missing dependency info for node [Node:%s, NodeID:%s]"), *Node.Name, *Node.ID.ToString());
+						UE_LOG(LogMetaSound, Error, TEXT("Failed to copy subgraph. Subgraph document is missing dependency info for node [Node:%s, NodeID:%s]"), *Node.Name.ToString(), *Node.GetID().ToString());
 					}
 				}
 

@@ -11,20 +11,22 @@
 #include "MetasoundFacade.h"
 #include "MetasoundNode.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundVertex.h"
+
 
 namespace Metasound
 {
 	class METASOUNDSTANDARDNODES_API FOscilatorNodeBase : public FNode
 	{
 	protected:
-		FOscilatorNodeBase(const FString& InInstanceName, const FGuid& InInstanceID, const FNodeClassMetadata& InInfo, const TSharedRef<IOperatorFactory, ESPMode::ThreadSafe>& InFactory, float InDefaultFrequency, float InDefaultGlideTime, bool bInDefaultEnablement);
+		FOscilatorNodeBase(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FNodeClassMetadata& InInfo, const TSharedRef<IOperatorFactory, ESPMode::ThreadSafe>& InFactory, float InDefaultFrequency, float InDefaultGlideTime, bool bInDefaultEnablement);
 
-		float GetDefaultPhaseOffset() const 
+		float GetDefaultPhaseOffset() const
 		{
 			return DefaultPhaseOffset; 
 		}
 
-		float GetDefaultFrequency() const 
+		float GetDefaultFrequency() const
 		{
 			return DefaultFrequency;
 		}
@@ -34,7 +36,7 @@ namespace Metasound
 			return DefaultGlideFactor;
 		}
 
-		bool GetDefaultEnablement() const 
+		bool GetDefaultEnablement() const
 		{
 			return bDefaultEnablement;
 		}
@@ -76,8 +78,8 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FSineOscilatorNode : public FOscilatorNodeBase
 	{
 	public:
-		class FFactory;		
-		FSineOscilatorNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
+		class FFactory;
+		FSineOscilatorNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
 		FSineOscilatorNode(const FNodeInitData& InInitData);
 	};
 		
@@ -85,7 +87,7 @@ namespace Metasound
 	{
 	public:
 		class FFactory;
-		FSawOscilatorNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
+		FSawOscilatorNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
 		FSawOscilatorNode(const FNodeInitData& InInitData);
 	};
 
@@ -93,7 +95,7 @@ namespace Metasound
 	{
 	public:
 		class FFactory;
-		FTriangleOscilatorNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
+		FTriangleOscilatorNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
 		FTriangleOscilatorNode(const FNodeInitData& InInitData);
 	};
 
@@ -101,7 +103,7 @@ namespace Metasound
 	{
 	public:
 		class FFactory;
-		FSquareOscilatorNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
+		FSquareOscilatorNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, float InDefautlGlideTime, bool bInDefaultEnablement);
 		FSquareOscilatorNode(const FNodeInitData& InInitData);
 	};
 

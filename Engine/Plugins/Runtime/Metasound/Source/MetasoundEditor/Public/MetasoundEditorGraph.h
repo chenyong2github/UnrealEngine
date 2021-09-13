@@ -43,7 +43,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphVariable : public UObject
 	GENERATED_BODY()
 
 protected:
-	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FText& InNodeDisplayName, FName InDataType)
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType)
 	{
 		return Metasound::Frontend::INodeController::GetInvalidHandle();
 	}
@@ -70,6 +70,7 @@ public:
 	void SetDataType(FName InNewType);
 	void SetDescription(const FText& InDescription);
 	void SetDisplayName(const FText& InNewName);
+	void SetNodeName(const FName& InNewName);
 
 	virtual EMetasoundFrontendClassType GetClassType() const { return EMetasoundFrontendClassType::Invalid; }
 	virtual void OnDataTypeChanged() { }
@@ -82,7 +83,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInputLiteral : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
+	virtual void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const
 	{
 	}
 
@@ -109,7 +110,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInput : public UMetasoundEditorGr
 	GENERATED_BODY()
 
 protected:
-	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FText& InNodeDisplayName, FName InDataType) override;
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Input; }
 	virtual const FText& GetVariableLabel() const override;
 public:
@@ -117,7 +118,7 @@ public:
 	UMetasoundEditorGraphInputLiteral* Literal;
 
 	void UpdateDocumentInput(bool bPostTransaction = true);
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const;
+	void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const;
 
 	void OnDataTypeChanged() override;
 	void OnLiteralChanged(bool bPostTransaction = true);
@@ -133,7 +134,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphOutput : public UMetasoundEditorG
 	GENERATED_BODY()
 
 protected:
-	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FText& InNodeDisplayName, FName InDataType) override;
+	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Output; }
 	virtual const FText& GetVariableLabel() const override;
 };
@@ -181,9 +182,11 @@ private:
 
 public:
 	UMetasoundEditorGraphInput* FindInput(FGuid InNodeID) const;
+	UMetasoundEditorGraphInput* FindInput(FName InName) const;
 	UMetasoundEditorGraphInput* FindOrAddInput(Metasound::Frontend::FNodeHandle InNodeHandle);
 
 	UMetasoundEditorGraphOutput* FindOutput(FGuid InNodeID) const;
+	UMetasoundEditorGraphOutput* FindOutput(FName InName) const;
 	UMetasoundEditorGraphOutput* FindOrAddOutput(Metasound::Frontend::FNodeHandle InNodeHandle);
 
 	UMetasoundEditorGraphVariable* FindVariable(FGuid InNodeID) const;

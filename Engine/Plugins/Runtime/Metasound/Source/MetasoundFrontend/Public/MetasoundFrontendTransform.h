@@ -5,6 +5,7 @@
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundVertex.h"
 
 
 namespace Metasound
@@ -123,7 +124,7 @@ namespace Metasound
 		public:
 			static FMetasoundFrontendVersionNumber GetMaxVersion()
 			{
-				return FMetasoundFrontendVersionNumber { 1, 6 };
+				return FMetasoundFrontendVersionNumber { 1, 7 };
 			}
 
 			FVersionDocument(FName InName, const FString& InPath);

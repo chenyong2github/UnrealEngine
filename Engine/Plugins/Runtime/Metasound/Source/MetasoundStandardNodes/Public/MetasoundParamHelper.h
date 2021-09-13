@@ -50,6 +50,6 @@ Where NUMBER is a number (or whatever) to slot into the format specifier you def
 #define METASOUND_GET_PARAM_TT(NAME) NAME##Tooltip
 #define METASOUND_GET_PARAM_NAME_AND_TT(NAME) NAME##Name, NAME##Tooltip
 
-#define METASOUND_GET_VARIABLE_PARAM_NAME(NAME, INDEX) FString::Format(NAME##Name, {INDEX})
+#define METASOUND_GET_VARIABLE_PARAM_NAME(NAME, INDEX) *FString::Format(NAME##Name, {INDEX})
 #define METASOUND_GET_VARIABLE_TT(NAME, INDEX)  FText::Format(NAME##Tooltip, INDEX)
-#define METASOUND_GET_VARIABLE_PARAM_NAME_AND_TT(NAME, INDEX)  FString::Format(NAME##Name, {INDEX}), FText::Format(NAME##Tooltip, INDEX)
+#define METASOUND_GET_VARIABLE_PARAM_NAME_AND_TT(NAME, INDEX)  *FString::Format(NAME##Name, {INDEX}), FText::Format(NAME##Tooltip, INDEX)
