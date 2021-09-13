@@ -169,17 +169,16 @@ bool FAdaptiveStreamingPlayer::CanDecodeSubtitle(const FString& MimeType, const 
 
 bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight)
 {
-	FScopeLock Lock(&PeriodCriticalSection);
-
 	TArray<FStreamCodecInformation> VideoCodecInfos;
 	TSharedPtrTS<ITimelineMediaAsset> Asset;
 
+	// Locate the period for the specified time.
+	ActivePeriodCriticalSection.Lock();
 	if (ActivePeriods.Num() == 0)
 	{
+		ActivePeriodCriticalSection.Unlock();
 		return false;
 	}
-
-	// Locate the period for the specified time.
 	for(int32 i=0; i<ActivePeriods.Num(); ++i)
 	{
 		if (AtTime >= ActivePeriods[i].TimeRange.Start && AtTime < (ActivePeriods[i].TimeRange.End.IsValid() ? ActivePeriods[i].TimeRange.End : FTimeValue::GetPositiveInfinity()))
@@ -187,6 +186,7 @@ bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& O
 			Asset = ActivePeriods[i].Period;
 		}
 	}
+	ActivePeriodCriticalSection.Unlock();
 	if (Asset.IsValid())
 	{
 		if (Asset->GetNumberOfAdaptationSets(EStreamType::Video) > 0)
@@ -585,7 +585,7 @@ void FAdaptiveStreamingPlayer::HandleSubtitleDecoder()
 
 		if (CurrentPos.IsValid() && RenderClock->IsRunning())
 		{
-			PeriodCriticalSection.Lock();
+			ActivePeriodCriticalSection.Lock();
 			FTimeValue LocalPos;
 			for(int32 i=0, iMax=ActivePeriods.Num(); i<iMax; ++i)
 			{
@@ -595,7 +595,7 @@ void FAdaptiveStreamingPlayer::HandleSubtitleDecoder()
 					break;
 				}
 			}
-			PeriodCriticalSection.Unlock();
+			ActivePeriodCriticalSection.Unlock();
 			SubtitleDecoder.Decoder->UpdatePlaybackPosition(CurrentPos, LocalPos);
 		}
 	}
