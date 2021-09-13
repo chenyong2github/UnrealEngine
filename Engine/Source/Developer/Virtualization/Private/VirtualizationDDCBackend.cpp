@@ -68,6 +68,8 @@ bool FDDCBackend::Initialize(const FString& ConfigEntry)
 		QueryPolicy |= UE::DerivedData::ECachePolicy::QueryRemote;
 	}
 
+	Bucket = UE::DerivedData::FCacheBucket(BucketName);
+
 	return true;	
 }
 
@@ -84,7 +86,7 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
 	
 	UE::DerivedData::FCacheKey Key;
-	Key.Bucket = UE::DerivedData::FCacheBucket(BucketName);
+	Key.Bucket = Bucket;
 	Key.Hash = Id.GetIdentifier();
 
 	UE::DerivedData::FPayload DDCPayload = ToDDCPayload(Id, Payload);
@@ -126,7 +128,7 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
 
 	UE::DerivedData::FCacheKey Key;
-	Key.Bucket = UE::DerivedData::FCacheBucket(BucketName);
+	Key.Bucket = Bucket; 
 	Key.Hash = Id.GetIdentifier();
 
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);
@@ -166,7 +168,7 @@ bool FDDCBackend::DoesExist(const FPayloadId& Id) const
 	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
 
 	UE::DerivedData::FCacheKey Key;
-	Key.Bucket = UE::DerivedData::FCacheBucket(BucketName);
+	Key.Bucket = Bucket;
 	Key.Hash = Id.GetIdentifier();
 
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Blocking);

@@ -3,6 +3,7 @@
 #pragma once 
 
 #include "Virtualization/IVirtualizationBackend.h"
+#include "DerivedDataCacheKey.h"
 
 namespace UE::DerivedData { enum class ECachePolicy : uint8; }
 
@@ -46,6 +47,9 @@ protected:
 
 	/** The bucket being used to group together the virtualized payloads in storage */
 	FString BucketName;
+
+	/** */
+	UE::DerivedData::FCacheBucket Bucket;
 
 	/** The policy to use when uploading or downloading data from the cache */
 	UE::DerivedData::ECachePolicy TransferPolicy;
