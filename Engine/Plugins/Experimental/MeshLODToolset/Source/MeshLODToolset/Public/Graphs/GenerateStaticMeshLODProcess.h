@@ -577,6 +577,9 @@ protected:
 	FGenerateStaticMeshLODProcess_UVSettings CurrentSettings_UV;
 	FGenerateStaticMeshLODProcess_CollisionSettings CurrentSettings_Collision;
 	
+	// This value will be stored in Asset Metadata for each generated Asset Texture, Material/MIC, and StaticMesh,
+	// under the key StaticMeshLOD.GenerationGUID.
+	FString DerivedAssetGUIDKey;
 
 	bool WriteDerivedTexture(UTexture2D* SourceTexture, UTexture2D* DerivedTexture, bool bCreatingNewStaticMeshAsset);
 	bool WriteDerivedTexture(UTexture2D* DerivedTexture, FString BaseTexName, bool bCreatingNewStaticMeshAsset);
