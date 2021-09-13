@@ -684,12 +684,16 @@ void FPythonScriptPlugin::InitializePython()
 		Py_SetPythonHome(PyHomePath.GetData());
 		Py_InitializeEx(0); // 0 so Python doesn't override any signal handling
 
+#if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION < 7
+		// NOTE: Since 3.7, those functions are called by Py_InitializeEx()
+		// 
 		// Ensure Python supports multiple threads via the GIL, as UE GC runs over multiple threads, 
 		// which may invoke FPyReferenceCollector::AddReferencedObjects on a background thread...
 		if (!PyEval_ThreadsInitialized())
 		{
 			PyEval_InitThreads();
 		}
+#endif // PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION < 7
 
 #if PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
 		// We call _setmode here to restore the previous state

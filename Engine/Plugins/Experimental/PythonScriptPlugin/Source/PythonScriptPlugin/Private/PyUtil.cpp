@@ -1469,13 +1469,13 @@ bool FetchPythonError(FString& OutError)
 
 	PyErr_Clear();
 
-	// Raise the excepthook (if set)
-	// We set this to None after enabling our stderr redirection
+	// Raise the excepthook if it was changed.
 	{
-		PyObject* PyExceptHook = PySys_GetObject(PyCStrCast("excepthook"));
-		if (PyExceptHook && PyExceptHook != Py_None)
+		PyObject* PyDefaultExceptHook = PySys_GetObject(PyCStrCast("__excepthook__"));
+		PyObject* PyCurrentExceptHook = PySys_GetObject(PyCStrCast("excepthook"));
+		if (PyCurrentExceptHook && PyDefaultExceptHook && PyCurrentExceptHook != PyDefaultExceptHook)
 		{
-			FPyObjectPtr PyExceptHookResult = FPyObjectPtr::StealReference(PyObject_CallFunctionObjArgs(PyExceptHook, PyExceptionType.Get(), PyExceptionValue.Get(), PyExceptionTraceback.Get(), nullptr));
+			FPyObjectPtr PyExceptHookResult = FPyObjectPtr::StealReference(PyObject_CallFunctionObjArgs(PyCurrentExceptHook, PyExceptionType.Get(), PyExceptionValue.Get(), PyExceptionTraceback.Get(), nullptr));
 		}
 	}
 
