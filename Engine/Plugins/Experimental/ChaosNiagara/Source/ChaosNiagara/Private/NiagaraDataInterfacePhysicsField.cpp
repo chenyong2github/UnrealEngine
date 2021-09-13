@@ -527,11 +527,11 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMExtern
 	VectorVM::FUserPtrHandler<FNDIPhysicsFieldData> InstData(Context);
 
 	// Inputs 
-	FNDIInputParam<FVector> SamplePositionParam(Context);
+	FNDIInputParam<FVector3f> SamplePositionParam(Context);
 	FNDIInputParam<EFieldVectorType> VectorTargetParam(Context);
 
 	// Outputs...
-	FNDIOutputParam<FVector> OutVectorFieldParam(Context);
+	FNDIOutputParam<FVector3f> OutVectorFieldParam(Context);
 
 	if (InstData)
 	{
