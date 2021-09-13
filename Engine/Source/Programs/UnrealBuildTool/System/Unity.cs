@@ -366,6 +366,7 @@ namespace UnrealBuildTool
 			HashSet<FileItem> CandidateAdaptiveFiles = new HashSet<FileItem>();
 			CandidateAdaptiveFiles.UnionWith(CPPFiles);
 			CandidateAdaptiveFiles.UnionWith(HeaderFiles);
+			CandidateAdaptiveFiles.ExceptWith(AdaptiveFiles);
 
 			foreach (FileItem File in CandidateAdaptiveFiles)
 			{
