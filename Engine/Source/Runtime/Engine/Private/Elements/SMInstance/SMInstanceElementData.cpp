@@ -10,7 +10,7 @@ UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(FSMInstanceElementData);
 namespace SMInstanceElementDataUtil
 {
 
-static int32 GEnableSMInstanceElements = 0;
+static int32 GEnableSMInstanceElements = 1;
 static FAutoConsoleVariableRef CVarEnableSMInstanceElements(
 	TEXT("TypedElements.EnableSMInstanceElements"),
 	GEnableSMInstanceElements,
