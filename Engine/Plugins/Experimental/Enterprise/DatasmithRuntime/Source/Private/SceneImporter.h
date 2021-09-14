@@ -393,49 +393,49 @@ namespace DatasmithRuntime
 		}
 
 		FActionTask()
-			: AssetId(DirectLink::InvalidId)
+			: ElementId(DirectLink::InvalidId)
 		{
 		}
 
 		FActionTask(FActionTaskFunction&& Function, const FReferencer& InReferencer)
-			: AssetId(DirectLink::InvalidId)
+			: ElementId(DirectLink::InvalidId)
 			, Referencer(InReferencer)
 			, ActionFunc(MoveTemp(Function))
 		{
 		}
 
 		FActionTask(const FActionTaskFunction& Function, const FReferencer& InReferencer)
-			: AssetId(DirectLink::InvalidId)
+			: ElementId(DirectLink::InvalidId)
 			, Referencer(InReferencer)
 			, ActionFunc(Function)
 		{
 		}
 
-		FActionTask(FActionTaskFunction&& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
-			: AssetId(InAssetId)
+		FActionTask(FActionTaskFunction&& Function, FSceneGraphId InElementId, const FReferencer& InReferencer)
+			: ElementId(InElementId)
 			, Referencer(InReferencer)
 			, ActionFunc(MoveTemp(Function))
 		{
 		}
 
-		FActionTask(const FActionTaskFunction& Function, FSceneGraphId InAssetId, const FReferencer& InReferencer)
-			: AssetId(InAssetId)
+		FActionTask(const FActionTaskFunction& Function, FSceneGraphId InElementId, const FReferencer& InReferencer)
+			: ElementId(InElementId)
 			, Referencer(InReferencer)
 			, ActionFunc(Function)
 		{
 		}
 
-		FSceneGraphId GetAssetId() const { return AssetId; }
+		FSceneGraphId GetElementId() const { return ElementId; }
 
 		const FReferencer& GetReferencer() const { return Referencer; }
 
-		EActionResult::Type Execute(FAssetData& AssetData)
+		EActionResult::Type Execute(FBaseData& ElementData)
 		{
-			return AssetData.HasState(EAssetState::Completed) ? ActionFunc(AssetData.GetObject<>(), Referencer) : EActionResult::Retry;
+			return ElementData.HasState(EAssetState::Completed) ? ActionFunc(ElementData.GetObject<>(), Referencer) : EActionResult::Retry;
 		}
 
 	private:
-		FSceneGraphId AssetId;
+		FSceneGraphId ElementId;
 		FReferencer Referencer;
 		FActionTaskFunction ActionFunc;
 	};
@@ -627,9 +627,11 @@ namespace DatasmithRuntime
 		void AddToQueue(int32 WhichQueue, FActionTask&& ActionTask)
 		{
 			++QueuedTaskCount;
-			if (ActionTask.GetAssetId() != DirectLink::InvalidId)
+			const FSceneGraphId ElementId = ActionTask.GetElementId();
+			if (ElementId != DirectLink::InvalidId)
 			{
-				AssetDataList[ActionTask.GetAssetId()].Referencers.AddUnique(ActionTask.GetReferencer());
+				TArray<FReferencer>& Referencers = AssetDataList.Contains(ElementId) ? AssetDataList[ElementId].Referencers : ActorDataList[ElementId].Referencers;
+				Referencers.AddUnique(ActionTask.GetReferencer());
 			}
 			ActionQueues[WhichQueue].Enqueue(MoveTemp(ActionTask));
 		}
@@ -648,7 +650,7 @@ namespace DatasmithRuntime
 					break;
 				}
 
-				ensure(DirectLink::InvalidId == ActionTask.GetAssetId());
+				ensure(DirectLink::InvalidId == ActionTask.GetElementId());
 				ActionTask.Execute(FAssetData::EmptyAsset);
 			}
 		}

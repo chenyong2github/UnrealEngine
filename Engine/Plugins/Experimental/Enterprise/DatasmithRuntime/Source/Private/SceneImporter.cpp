@@ -514,7 +514,7 @@ namespace DatasmithRuntime
 					break;
 				}
 
-				ensure(DirectLink::InvalidId == ActionTask.GetAssetId());
+				ensure(DirectLink::InvalidId == ActionTask.GetElementId());
 				ActionTask.Execute(FAssetData::EmptyAsset);
 			}
 		}
@@ -551,14 +551,15 @@ namespace DatasmithRuntime
 					break;
 				}
 
-				const FSceneGraphId AssetId = ActionTask.GetAssetId();
-				if (DirectLink::InvalidId == AssetId)
+				const FSceneGraphId ElementId = ActionTask.GetElementId();
+				if (DirectLink::InvalidId == ElementId)
 				{
 					ActionTask.Execute(FAssetData::EmptyAsset);
 				}
 				else
 				{
-					if (ActionTask.Execute(AssetDataList[AssetId]) == EActionResult::Retry)
+					FBaseData& ElementData = AssetDataList.Contains(ElementId) ? (FBaseData&)AssetDataList[ElementId] : (FBaseData&)ActorDataList[ElementId];
+					if (ActionTask.Execute(ElementData) == EActionResult::Retry)
 					{
 						ActionQueues[EQueueTask::NonAsyncQueue].Enqueue(MoveTemp(ActionTask));
 						continue;
@@ -1310,7 +1311,28 @@ namespace DatasmithRuntime
 				}
 				else if (ActorDataList.Contains(AssociatedId))
 				{
-					ActorDataList[AssociatedId].MetadataId = MetadataElement->GetNodeId();
+					FActorData& ActorData = ActorDataList[AssociatedId];
+
+					ActorData.MetadataId = MetadataElement->GetNodeId();
+
+					// Record task to assign metadata if the actor has already been created.
+					// This happens for 'simple' actor, i.e. container of child actors.
+					if (ActorData.HasState(EAssetState::Completed))
+					{
+						FActionTaskFunction ApplyMetadataFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
+						{
+							if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+							{
+								this->ApplyMetadata(Referencer.GetId(), SceneComponent);
+								return EActionResult::Succeeded;
+							}
+
+							return EActionResult::Failed;
+						};
+
+						AddToQueue(EQueueTask::NonAsyncQueue, { ApplyMetadataFunc, ActorData.ElementId, { EDataType::Metadata, ActorData.MetadataId, 0 } });
+						TasksToComplete |= EWorkerTask::ComponentFinalize;
+					}
 				}
 
 				Elements.Add(MetadataElement->GetNodeId(), MetadataElement);
