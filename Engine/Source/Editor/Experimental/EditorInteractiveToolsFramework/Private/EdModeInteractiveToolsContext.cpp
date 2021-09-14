@@ -117,13 +117,13 @@ static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitR
 class FEdModeToolsContextQueriesImpl : public IToolsContextQueriesAPI
 {
 public:
-	UEdModeInteractiveToolsContext* ToolsContext;
+	UEditorInteractiveToolsContext* ToolsContext;
 	FEditorModeTools* EditorModeManager;
 
 	FViewCameraState CachedViewState;
 	FEditorViewportClient* CachedViewportClient;
 
-	FEdModeToolsContextQueriesImpl(UEdModeInteractiveToolsContext* Context, FEditorModeTools* InEditorModeManager)
+	FEdModeToolsContextQueriesImpl(UEditorInteractiveToolsContext* Context, FEditorModeTools* InEditorModeManager)
 	{
 		ToolsContext = Context;
 		EditorModeManager = InEditorModeManager;
@@ -430,7 +430,7 @@ public:
 class FEdModeToolsContextTransactionImpl : public IToolsContextTransactionsAPI
 {
 public:
-	FEdModeToolsContextTransactionImpl(UEdModeInteractiveToolsContext* Context, FEditorModeTools* InEditorModeManager)
+	FEdModeToolsContextTransactionImpl(UEditorInteractiveToolsContext* Context, FEditorModeTools* InEditorModeManager)
 		: ToolsContext(Context)
 		, EditorModeManager(InEditorModeManager)
 	{
@@ -507,14 +507,14 @@ public:
 	}
 
 protected:
-	UEdModeInteractiveToolsContext* ToolsContext;
+	UEditorInteractiveToolsContext* ToolsContext;
 	FEditorModeTools* EditorModeManager;
 };
 
 
 
 
-UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
+UEditorInteractiveToolsContext::UEditorInteractiveToolsContext()
 {
 	QueriesAPI = nullptr;
 	TransactionAPI = nullptr;
@@ -522,7 +522,7 @@ UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 
 
 
-void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPIIn, IToolsContextTransactionsAPI* TransactionsAPIIn)
+void UEditorInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPIIn, IToolsContextTransactionsAPI* TransactionsAPIIn)
 {
 	UInteractiveToolsContext::Initialize(QueriesAPIIn, TransactionsAPIIn);
 
@@ -544,8 +544,8 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 		}
 	});
 
-	ToolManager->OnToolEnded.AddUObject(this, &UEdModeInteractiveToolsContext::OnToolEnded);
-	ToolManager->OnToolPostBuild.AddUObject(this, &UEdModeInteractiveToolsContext::OnToolPostBuild);
+	ToolManager->OnToolEnded.AddUObject(this, &UEditorInteractiveToolsContext::OnToolEnded);
+	ToolManager->OnToolPostBuild.AddUObject(this, &UEditorInteractiveToolsContext::OnToolPostBuild);
 
 	// if viewport clients change we will discard our overrides as we aren't sure what happened
 	ViewportClientListChangedHandle = GEditor->OnViewportClientListChanged().AddLambda([this]()
@@ -559,7 +559,7 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 	GizmoViewContext = ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
 }
 
-void UEdModeInteractiveToolsContext::Shutdown()
+void UEditorInteractiveToolsContext::Shutdown()
 {
 	if (ToolManager)
 	{
@@ -581,13 +581,7 @@ void UEdModeInteractiveToolsContext::Shutdown()
 	}
 }
 
-void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn)
-{
-	check(EditorModeIn);
-	InitializeContextWithEditorModeManager(EditorModeIn->GetModeManager());
-}
-
-void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager)
+void UEditorInteractiveToolsContext::InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager, UInputRouter* UseInputRouter)
 {
 	check(InEditorModeManager);
 	EditorModeManager = InEditorModeManager;
@@ -603,28 +597,40 @@ void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEdi
 		return NewGizmoManager;
 	});
 
+	if (UseInputRouter != nullptr)
+	{
+		SetCreateInputRouterFunc([this, UseInputRouter](const FContextInitInfo& ContextInfo)
+		{
+			return UseInputRouter;
+		});
+		SetShutdownInputRouterFunc([this](UInputRouter*) {});
+	}
+
 	Initialize(QueriesAPI, TransactionAPI);
 
-	// enable auto invalidation in Editor, because invalidating for all hover and capture events is unpleasant
-	this->InputRouter->bAutoInvalidateOnHover = true;
-	this->InputRouter->bAutoInvalidateOnCapture = true;
+	if (UseInputRouter != nullptr)
+	{
+		// enable auto invalidation in Editor, because invalidating for all hover and capture events is unpleasant
+		this->InputRouter->bAutoInvalidateOnHover = true;
+		this->InputRouter->bAutoInvalidateOnCapture = true;
+	}
 
 	// set up standard materials
 	StandardVertexColorMaterial = GEngine->VertexColorMaterial;
 
 	if (UTypedElementSelectionSet* TypedElementSelectionSet = EditorModeManager->GetEditorSelectionSet())
 	{
-		TypedElementSelectionSet->OnChanged().AddUObject(this, &UEdModeInteractiveToolsContext::OnEditorSelectionSetChanged);
+		TypedElementSelectionSet->OnChanged().AddUObject(this, &UEditorInteractiveToolsContext::OnEditorSelectionSetChanged);
 	}
 	else
 	{
 		FLevelEditorModule& LevelEditor = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditor.OnLevelEditorCreated().AddUObject(this, &UEdModeInteractiveToolsContext::OnLevelEditorCreated);
+		LevelEditor.OnLevelEditorCreated().AddUObject(this, &UEditorInteractiveToolsContext::OnLevelEditorCreated);
 	}
 }
 
 
-void UEdModeInteractiveToolsContext::ShutdownContext()
+void UEditorInteractiveToolsContext::ShutdownContext()
 {
 	Shutdown();
 
@@ -645,25 +651,25 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 }
 
 
-void UEdModeInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
+void UEditorInteractiveToolsContext::TerminateActiveToolsOnPIEStart()
 {
 	DeactivateAllActiveTools(EToolShutdownType::Accept);
 }
-void UEdModeInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
+void UEditorInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
 {
 	DeactivateAllActiveTools(EToolShutdownType::Accept);
 }
-void UEdModeInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
+void UEditorInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
 {
 	DeactivateAllActiveTools(EToolShutdownType::Cancel);
 }
 
-void UEdModeInteractiveToolsContext::PostInvalidation()
+void UEditorInteractiveToolsContext::PostInvalidation()
 {
 	InvalidationTimestamp++;
 }
 
-UWorld* UEdModeInteractiveToolsContext::GetWorld() const
+UWorld* UEditorInteractiveToolsContext::GetWorld() const
 {
 	if (EditorModeManager)
 	{
@@ -673,7 +679,7 @@ UWorld* UEdModeInteractiveToolsContext::GetWorld() const
 	return nullptr;
 }
 
-void UEdModeInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
+void UEditorInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	// invalidate this viewport if it's timestamp is not current
 	const int32* FoundTimestamp = InvalidationMap.Find(ViewportClient);
@@ -809,7 +815,7 @@ public:
 };
 
 
-void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+void UEditorInteractiveToolsContext::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	// skip HitProxy rendering passes if desired
 	if (PDI->IsHitTesting() && bEnableRenderingDuringHitProxyPass == false)
@@ -847,7 +853,7 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	GizmoManager->Render(&RenderContext);
 }
 
-void UEdModeInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas)
+void UEditorInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas)
 {
 	FEditorViewportClient* EditorViewportClient = static_cast<FEditorViewportClient*>(Viewport->GetClient());
 	const FViewportClient* Focused = EditorModeManager->GetFocusedViewportClient();
@@ -867,7 +873,7 @@ void UEdModeInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient,FVi
 }
 
 
-bool UEdModeInteractiveToolsContext::ProcessEditDelete()
+bool UEditorInteractiveToolsContext::ProcessEditDelete()
 {
 	if (ToolManager->HasAnyActiveTool() == false)
 	{
@@ -910,7 +916,209 @@ bool UEdModeInteractiveToolsContext::ProcessEditDelete()
 
 
 
-bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
+FRay UEditorInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY)
+{
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		ViewportClient->Viewport,
+		ViewportClient->GetScene(),
+		ViewportClient->EngineShowFlags).SetRealtimeUpdate(ViewportClient->IsRealtime()));		// why SetRealtimeUpdate here??
+	// this View is deleted by the FSceneViewFamilyContext destructor
+	FSceneView* View = ViewportClient->CalcSceneView(&ViewFamily);
+	FViewportCursorLocation MouseViewportRay(View, ViewportClient, MouseX, MouseY);
+
+	FVector RayOrigin = MouseViewportRay.GetOrigin();
+	FVector RayDirection = MouseViewportRay.GetDirection();
+
+	// in Ortho views, the RayOrigin appears to be completely arbitrary, in some views it is on the view plane,
+	// others it moves back/forth with the OrthoZoom. Translate by a large amount here in hopes of getting
+	// ray origin "outside" the scene (which is a disaster for numerical precision !! ... )
+	if (ViewportClient->IsOrtho())
+	{
+		RayOrigin -= 0.1 * HALF_WORLD_MAX * RayDirection;
+	}
+
+	return FRay(RayOrigin, RayDirection, true);
+}
+
+
+bool UEditorInteractiveToolsContext::CanStartTool(const FString ToolTypeIdentifier) const
+{
+	return UInteractiveToolsContext::CanStartTool(EToolSide::Mouse, ToolTypeIdentifier);
+}
+
+bool UEditorInteractiveToolsContext::HasActiveTool() const
+{
+	return UInteractiveToolsContext::HasActiveTool(EToolSide::Mouse);
+}
+
+FString UEditorInteractiveToolsContext::GetActiveToolName() const
+{
+	return UInteractiveToolsContext::GetActiveToolName(EToolSide::Mouse);
+}
+
+bool UEditorInteractiveToolsContext::ActiveToolHasAccept() const
+{
+	return  UInteractiveToolsContext::ActiveToolHasAccept(EToolSide::Mouse);
+}
+
+bool UEditorInteractiveToolsContext::CanAcceptActiveTool() const
+{
+	return UInteractiveToolsContext::CanAcceptActiveTool(EToolSide::Mouse);
+}
+
+bool UEditorInteractiveToolsContext::CanCancelActiveTool() const
+{
+	return UInteractiveToolsContext::CanCancelActiveTool(EToolSide::Mouse);
+}
+
+bool UEditorInteractiveToolsContext::CanCompleteActiveTool() const
+{
+	return UInteractiveToolsContext::CanCompleteActiveTool(EToolSide::Mouse);
+}
+
+void UEditorInteractiveToolsContext::StartTool(const FString ToolTypeIdentifier)
+{
+	FString LocalIdentifier(ToolTypeIdentifier);
+	PendingToolToStart = LocalIdentifier;
+	PostInvalidation();
+}
+
+void UEditorInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
+{
+	PendingToolShutdownType = ShutdownType;
+	PostInvalidation();
+}
+
+
+
+void UEditorInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
+{
+	UInteractiveToolsContext::DeactivateActiveTool(WhichSide, ShutdownType);
+	RestoreEditorState();
+}
+
+void UEditorInteractiveToolsContext::DeactivateAllActiveTools(EToolShutdownType ShutdownType)
+{
+	UInteractiveToolsContext::DeactivateAllActiveTools(ShutdownType);
+	RestoreEditorState();
+}
+
+void UEditorInteractiveToolsContext::SetEditorStateForTool()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
+	{
+		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+		{
+			if (ViewportWindow.IsValid())
+			{
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				Viewport.EnableOverrideEngineShowFlags([](FEngineShowFlags& Flags)
+				{
+					Flags.SetTemporalAA(false);
+					Flags.SetMotionBlur(false);
+					// disable this as depending on fixed exposure settings the entire scene may turn black
+					//Flags.SetEyeAdaptation(false);
+				});
+			}
+		}
+	}
+}
+
+void UEditorInteractiveToolsContext::RestoreEditorState()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor  = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
+	{
+		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+		{
+			if (ViewportWindow.IsValid())
+			{
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				Viewport.DisableOverrideEngineShowFlags();
+			}
+		}
+	}
+}
+
+void UEditorInteractiveToolsContext::OnToolEnded(UInteractiveToolManager* InToolManager, UInteractiveTool* InEndedTool)
+{
+	RestoreEditorState();
+}
+
+void UEditorInteractiveToolsContext::OnToolPostBuild(UInteractiveToolManager* InToolManager, EToolSide InSide, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& ToolState)
+{
+	// todo: Add any shared tool targets for the mode toolkit
+}
+
+void UEditorInteractiveToolsContext::SetEnableRenderingDuringHitProxyPass(bool bEnabled)
+{
+	bEnableRenderingDuringHitProxyPass = bEnabled;
+}
+
+void UEditorInteractiveToolsContext::OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor)
+{
+	if (UTypedElementSelectionSet* TypedElementSelectionSet = EditorModeManager->GetEditorSelectionSet())
+	{
+		TypedElementSelectionSet->OnChanged().AddUObject(this, &UEdModeInteractiveToolsContext::OnEditorSelectionSetChanged);
+	}
+}
+
+void UEditorInteractiveToolsContext::OnEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet)
+{
+	if (UEditorInteractiveGizmoManager* EditorGizmoManager = Cast<UEditorInteractiveGizmoManager>(GizmoManager))
+	{
+		EditorGizmoManager->HandleEditorSelectionSetChanged(InSelectionSet);
+	}
+}
+
+
+
+
+void UModeManagerInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
+{
+	UEditorInteractiveToolsContext::Tick(ViewportClient, DeltaTime);
+	for (TObjectPtr<UEdModeInteractiveToolsContext> EdModeContext : EdModeToolsContexts)
+	{
+		EdModeContext->Tick(ViewportClient, DeltaTime);
+	}
+}
+
+void UModeManagerInteractiveToolsContext::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+{
+	UEditorInteractiveToolsContext::Render(View, Viewport, PDI);
+	for (TObjectPtr<UEdModeInteractiveToolsContext> EdModeContext : EdModeToolsContexts)
+	{
+		EdModeContext->Render(View, Viewport, PDI);
+	}
+}
+
+void UModeManagerInteractiveToolsContext::DrawHUD(FViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
+{
+	UEditorInteractiveToolsContext::DrawHUD(ViewportClient, Viewport, View, Canvas);
+	for (TObjectPtr<UEdModeInteractiveToolsContext> EdModeContext : EdModeToolsContexts)
+	{
+		EdModeContext->DrawHUD(ViewportClient, Viewport, View, Canvas);
+	}
+}
+
+
+bool UModeManagerInteractiveToolsContext::ProcessEditDelete()
+{
+	bool bHandled = UEditorInteractiveToolsContext::ProcessEditDelete();
+	for (TObjectPtr<UEdModeInteractiveToolsContext> EdModeContext : EdModeToolsContexts)
+	{
+		bHandled |= EdModeContext->ProcessEditDelete();
+	}
+	return bHandled;
+}
+
+
+bool UModeManagerInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
 #ifdef ENABLE_DEBUG_PRINTING
 	if (Event == IE_Pressed) { UE_LOG(LogTemp, Warning, TEXT("PRESSED EVENT")); }
@@ -1020,7 +1228,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	return false;
 }
 
-bool UEdModeInteractiveToolsContext::MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
+bool UModeManagerInteractiveToolsContext::MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
 #ifdef ENABLE_DEBUG_PRINTING
 	UE_LOG(LogTemp, Warning, TEXT("MOUSE ENTER"));
@@ -1033,7 +1241,7 @@ bool UEdModeInteractiveToolsContext::MouseEnter(FEditorViewportClient* ViewportC
 }
 
 
-bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
+bool UModeManagerInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
 #ifdef ENABLE_DEBUG_PRINTING
 	UE_LOG(LogTemp, Warning, TEXT("HOVER %p"), ViewportClient);
@@ -1065,7 +1273,7 @@ bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportCl
 }
 
 
-bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport)
+bool UModeManagerInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport)
 {
 #ifdef ENABLE_DEBUG_PRINTING
 	UE_LOG(LogTemp, Warning, TEXT("MOUSE LEAVE"));
@@ -1076,13 +1284,13 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 
 
 
-bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+bool UModeManagerInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	bIsTrackingMouse = InputRouter->HasActiveMouseCapture();
 	return bIsTrackingMouse;
 }
 
-bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
+bool UModeManagerInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
 {
 	FVector2D OldPosition = CurrentMouseState.Mouse.Position2D;
 	CurrentMouseState.Mouse.Position2D = FVector2D(InMouseX, InMouseY);
@@ -1107,7 +1315,7 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 	return false;
 }
 
-bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+bool UModeManagerInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	if (bIsTrackingMouse)
 	{
@@ -1122,167 +1330,53 @@ bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewpo
 	return false;
 }
 
-FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY)
-{
-	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
-		ViewportClient->Viewport,
-		ViewportClient->GetScene(),
-		ViewportClient->EngineShowFlags).SetRealtimeUpdate(ViewportClient->IsRealtime()));		// why SetRealtimeUpdate here??
-	// this View is deleted by the FSceneViewFamilyContext destructor
-	FSceneView* View = ViewportClient->CalcSceneView(&ViewFamily);
-	FViewportCursorLocation MouseViewportRay(View, ViewportClient, MouseX, MouseY);
-
-	FVector RayOrigin = MouseViewportRay.GetOrigin();
-	FVector RayDirection = MouseViewportRay.GetDirection();
-
-	// in Ortho views, the RayOrigin appears to be completely arbitrary, in some views it is on the view plane,
-	// others it moves back/forth with the OrthoZoom. Translate by a large amount here in hopes of getting
-	// ray origin "outside" the scene (which is a disaster for numerical precision !! ... )
-	if (ViewportClient->IsOrtho())
-	{
-		RayOrigin -= 0.1 * HALF_WORLD_MAX * RayDirection;
-	}
-
-	return FRay(RayOrigin, RayDirection, true);
-}
-
-FRay UEdModeInteractiveToolsContext::GetLastWorldRay() const
+FRay UModeManagerInteractiveToolsContext::GetLastWorldRay() const
 {
 	return CurrentMouseState.Mouse.WorldRay;
 }
 
-bool UEdModeInteractiveToolsContext::CanStartTool(const FString ToolTypeIdentifier) const
-{
-	return UInteractiveToolsContext::CanStartTool(EToolSide::Mouse, ToolTypeIdentifier);
-}
 
-bool UEdModeInteractiveToolsContext::HasActiveTool() const
+UEdModeInteractiveToolsContext* UModeManagerInteractiveToolsContext::CreateNewChildEdModeToolsContext()
 {
-	return UInteractiveToolsContext::HasActiveTool(EToolSide::Mouse);
-}
+	UEdModeInteractiveToolsContext* NewModeToolsContext = 
+		NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), UEdModeInteractiveToolsContext::StaticClass(), NAME_None, RF_Transient);
+	NewModeToolsContext->InitializeContextFromModeManagerContext(this);
 
-FString UEdModeInteractiveToolsContext::GetActiveToolName() const
-{
-	return UInteractiveToolsContext::GetActiveToolName(EToolSide::Mouse);
-}
+	EdModeToolsContexts.Add(NewModeToolsContext);
 
-bool UEdModeInteractiveToolsContext::ActiveToolHasAccept() const
-{
-	return  UInteractiveToolsContext::ActiveToolHasAccept(EToolSide::Mouse);
-}
-
-bool UEdModeInteractiveToolsContext::CanAcceptActiveTool() const
-{
-	return UInteractiveToolsContext::CanAcceptActiveTool(EToolSide::Mouse);
-}
-
-bool UEdModeInteractiveToolsContext::CanCancelActiveTool() const
-{
-	return UInteractiveToolsContext::CanCancelActiveTool(EToolSide::Mouse);
-}
-
-bool UEdModeInteractiveToolsContext::CanCompleteActiveTool() const
-{
-	return UInteractiveToolsContext::CanCompleteActiveTool(EToolSide::Mouse);
-}
-
-void UEdModeInteractiveToolsContext::StartTool(const FString ToolTypeIdentifier)
-{
-	FString LocalIdentifier(ToolTypeIdentifier);
-	PendingToolToStart = LocalIdentifier;
-	PostInvalidation();
-}
-
-void UEdModeInteractiveToolsContext::EndTool(EToolShutdownType ShutdownType)
-{
-	PendingToolShutdownType = ShutdownType;
-	PostInvalidation();
+	return NewModeToolsContext;
 }
 
 
-
-void UEdModeInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType)
+bool UModeManagerInteractiveToolsContext::OnChildEdModeToolsContextShutdown(UEdModeInteractiveToolsContext* ChildToolsContext)
 {
-	UInteractiveToolsContext::DeactivateActiveTool(WhichSide, ShutdownType);
-	RestoreEditorState();
-}
-
-void UEdModeInteractiveToolsContext::DeactivateAllActiveTools(EToolShutdownType ShutdownType)
-{
-	UInteractiveToolsContext::DeactivateAllActiveTools(ShutdownType);
-	RestoreEditorState();
-}
-
-void UEdModeInteractiveToolsContext::SetEditorStateForTool()
-{
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
-	if (LevelEditor.IsValid())
+	for (int32 k = 0; k < EdModeToolsContexts.Num(); ++k)
 	{
-		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
-		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+		if (EdModeToolsContexts[k] == ChildToolsContext)
 		{
-			if (ViewportWindow.IsValid())
-			{
-				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
-				Viewport.EnableOverrideEngineShowFlags([](FEngineShowFlags& Flags)
-				{
-					Flags.SetTemporalAA(false);
-					Flags.SetMotionBlur(false);
-					// disable this as depending on fixed exposure settings the entire scene may turn black
-					//Flags.SetEyeAdaptation(false);
-				});
-			}
+			EdModeToolsContexts.RemoveAt(k);
+			return true;
 		}
 	}
+	ensureMsgf(false, TEXT("Child ToolsContext was not found! It may have already been removed"));
+	return false;
 }
 
-void UEdModeInteractiveToolsContext::RestoreEditorState()
+
+void UEdModeInteractiveToolsContext::InitializeContextFromModeManagerContext(UModeManagerInteractiveToolsContext* ModeManagerToolsContext)
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	TSharedPtr<ILevelEditor> LevelEditor  = LevelEditorModule.GetFirstLevelEditor();
-	if (LevelEditor.IsValid())
-	{
-		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
-		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
-		{
-			if (ViewportWindow.IsValid())
-			{
-				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
-				Viewport.DisableOverrideEngineShowFlags();
-			}
-		}
-	}
+	check(ModeManagerToolsContext != nullptr);
+	check(ModeManagerToolsContext->InputRouter != nullptr);
+	FEditorModeTools* ModeManager = ModeManagerToolsContext->GetParentEditorModeManager();
+	check(ModeManager != nullptr);
+
+	ParentModeManagerToolsContext = ModeManagerToolsContext;
+
+	InitializeContextWithEditorModeManager(ModeManager, ModeManagerToolsContext->InputRouter);
 }
 
-void UEdModeInteractiveToolsContext::OnToolEnded(UInteractiveToolManager* InToolManager, UInteractiveTool* InEndedTool)
+
+FRay UEdModeInteractiveToolsContext::GetLastWorldRay() const
 {
-	RestoreEditorState();
+	return ParentModeManagerToolsContext->GetLastWorldRay();
 }
-
-void UEdModeInteractiveToolsContext::OnToolPostBuild(UInteractiveToolManager* InToolManager, EToolSide InSide, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& ToolState)
-{
-	// todo: Add any shared tool targets for the mode toolkit
-}
-
-void UEdModeInteractiveToolsContext::SetEnableRenderingDuringHitProxyPass(bool bEnabled)
-{
-	bEnableRenderingDuringHitProxyPass = bEnabled;
-}
-
-void UEdModeInteractiveToolsContext::OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor)
-{
-	if (UTypedElementSelectionSet* TypedElementSelectionSet = EditorModeManager->GetEditorSelectionSet())
-	{
-		TypedElementSelectionSet->OnChanged().AddUObject(this, &UEdModeInteractiveToolsContext::OnEditorSelectionSetChanged);
-	}
-}
-
-void UEdModeInteractiveToolsContext::OnEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet)
-{
-	if (UEditorInteractiveGizmoManager* EditorGizmoManager = Cast<UEditorInteractiveGizmoManager>(GizmoManager))
-	{
-		EditorGizmoManager->HandleEditorSelectionSetChanged(InSelectionSet);
-	}
-}
-

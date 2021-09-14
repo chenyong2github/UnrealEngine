@@ -22,75 +22,85 @@ class FViewportClient;
 class ILevelEditor;
 class USelection;
 class UTypedElementSelectionSet;
+class UEdModeInteractiveToolsContext;
 
 /**
- * EdModeInteractiveToolsContext is an extension/adapter of an InteractiveToolsContext which 
+ * UEditorInteractiveToolsContext is an extension/adapter of an InteractiveToolsContext designed 
+ * for use in the UE Editor. Currently this implementation assumes that it is created by a
+ * Mode Manager (FEditorModeTools), and that the Mode Manager will call various API functions
+ * like Render() and Tick() when necessary. 
+ * 
+ * 
  * allows it to be easily embedded inside an FEdMode. A set of functions are provided which can be
  * called from the FEdMode functions of the same name. These will handle the data type
  * conversions and forwarding calls necessary to operate the ToolsContext
  */
 UCLASS(Transient)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEdModeInteractiveToolsContext final : public UInteractiveToolsContext
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorInteractiveToolsContext : public UInteractiveToolsContext
 {
 	GENERATED_BODY()
 
 public:
-	UEdModeInteractiveToolsContext();
+	UEditorInteractiveToolsContext();
 
-	UE_DEPRECATED(5.0, "You should no longer create your own EdModeInteractiveToolsContext; use the one in the FEditorModeTools::GetInteractiveToolsContext instead.")
-	void InitializeContextFromEdMode(FEdMode* EditorModeIn);
-	void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager);
-	void ShutdownContext();
+	/**
+	 * Initialize a new ToolsContext for an EdMode owned by the given InEditorModeManager
+	 * @param 
+	 */
+	void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager, UInputRouter* UseInputRouter = nullptr);
 
-	// default behavior is to accept active tool
-	void TerminateActiveToolsOnPIEStart();
-
-	// default behavior is to accept active tool
-	void TerminateActiveToolsOnSaveWorld();
+	/** Shutdown ToolsContext and clean up any connections/etc */
+	virtual void ShutdownContext();
 
 	// default behavior is to accept active tool
-	void TerminateActiveToolsOnWorldTearDown();
+	virtual void TerminateActiveToolsOnPIEStart();
+
+	// default behavior is to accept active tool
+	virtual void TerminateActiveToolsOnSaveWorld();
+
+	// default behavior is to accept active tool
+	virtual void TerminateActiveToolsOnWorldTearDown();
+
+	FEditorModeTools* GetParentEditorModeManager() const { return EditorModeManager; }
 
 	IToolsContextQueriesAPI* GetQueriesAPI() const { return QueriesAPI; }
 	IToolsContextTransactionsAPI* GetTransactionAPI() const { return TransactionAPI; }
 
-	void PostInvalidation();
+	/** Call this to notify the Editor that the viewports this ToolsContext is related to may need a repaint, ie during interactive tool usage */
+	virtual void PostInvalidation();
 
 	// UObject Interface
 	virtual UWorld* GetWorld() const override;
 
-	void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
-	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	void DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas);
+	// call functions of the same name on the ToolManager and GizmoManager
+	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
+	virtual void DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas);
 
-	bool ProcessEditDelete();
-
-	bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-
-	bool MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
-	bool MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport);
-	bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
-
-	bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
-	bool CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY);
-	bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
-
+	/** @return true if selected actors/components can be deleted */
+	virtual bool ProcessEditDelete();
 
 	//
 	// Utility functions useful for hooking up to UICommand/etc
 	//
 
-	bool CanStartTool(const FString ToolTypeIdentifier) const;
-	bool HasActiveTool() const;
-	FString GetActiveToolName() const;
-	bool ActiveToolHasAccept() const;
-	bool CanAcceptActiveTool() const;
-	bool CanCancelActiveTool() const;
-	bool CanCompleteActiveTool() const;
-	void StartTool(const FString ToolTypeIdentifier);
-	void EndTool(EToolShutdownType ShutdownType);
+	virtual bool CanStartTool(const FString ToolTypeIdentifier) const;
+	virtual bool HasActiveTool() const;
+	virtual FString GetActiveToolName() const;
+	virtual bool ActiveToolHasAccept() const;
+	virtual bool CanAcceptActiveTool() const;
+	virtual bool CanCancelActiveTool() const;
+	virtual bool CanCompleteActiveTool() const;
+	virtual void StartTool(const FString ToolTypeIdentifier);
+	virtual void EndTool(EToolShutdownType ShutdownType);
 
-	FRay GetLastWorldRay() const;
+
+	/** @return Ray into 3D scene at last mouse event */
+	virtual FRay GetLastWorldRay() const
+	{
+		check(false);
+		return FRay();
+	}
 
 	//
 	// Configuration functions
@@ -110,13 +120,13 @@ public:
 	 * event since global selection set is not initialized before the tools context.
 	 * @param InSelectionSet - typed element selection set which invoked this selection changed call
 	 */
-	void OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor);
+	virtual void OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor);
 
 	/**
 	 * Handle Editor selection changes
 	 * @param InSelectionSet - typed element selection set which invoked this selection changed call
 	 */
-	void OnEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet);
+	virtual void OnEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet);
 
 protected:
 	// we hide these 
@@ -153,9 +163,6 @@ protected:
 	// current invalidation timestamp, incremented by invalidation calls
 	int32 InvalidationTimestamp = 0;
 
-	/** Input event instance used to keep track of various button states, etc, that we cannot directly query on-demand */
-	FInputDeviceState CurrentMouseState;
-
 	// An object in which we save the current scene view information that gizmos can use on the game thread
 	// to figure out how big the gizmo is for hit testing. Lives in the context store, but we keep a pointer here
 	// to avoid having to look for it.
@@ -178,8 +185,101 @@ protected:
 
 private:
 	FEditorModeTools* EditorModeManager = nullptr;
-	bool bIsTrackingMouse;
 
 	// currently defaulting to enabled as FEdModes generally assume this, and in most cases hitproxy pass is not expensive.
 	bool bEnableRenderingDuringHitProxyPass = true;
+};
+
+
+/**
+ * UModeManagerInteractiveToolsContext extends UEditorInteractiveToolsContext with various functions for handling 
+ * device (mouse) input. These functions are currently called by the EdMode Manager (FEditorModeTools).
+ */
+UCLASS(Transient)
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UModeManagerInteractiveToolsContext : public UEditorInteractiveToolsContext
+{
+	GENERATED_BODY()
+
+	//
+	// UEditorInteractiveToolsContext API implementations that also forward calls to any child EdMode ToolsContexts
+	//
+public:
+	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
+	virtual void DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas) override;
+
+	virtual bool ProcessEditDelete() override;
+
+	//
+	// Input handling, these functions forward ViewportClient events to the UInputRouter
+	//
+public:
+	bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
+
+	bool MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
+	bool MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport);
+	bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);
+
+	bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+	bool CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY);
+	bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+
+	/** @return Ray into 3D scene at last mouse event */
+	virtual FRay GetLastWorldRay() const override;
+
+protected:
+
+	/** Input event instance used to keep track of various button states, etc, that we cannot directly query on-demand */
+	FInputDeviceState CurrentMouseState;
+
+private:
+	bool bIsTrackingMouse;
+
+
+
+
+protected:
+	UPROPERTY()
+	TArray<TObjectPtr<UEdModeInteractiveToolsContext>> EdModeToolsContexts;
+
+public:
+	/** 
+	* Create and initialize a new EdMode-level ToolsContext derived from the ModeManager ToolsContext.
+	* The EdMode ToolsContext does not have it's own InputRouter, it shares the InputRouter with the ModeManager ToolsContext.
+	* The ModeManager ToolsContext keeps track of these derived ToolsContext's and automatically Tick()'s them/etc.
+	* When the child ToolsContext is shut down, OnChildEdModeToolsContextShutdown() must be called to clean up
+	* @return new ToolsContext
+	*/
+	UEdModeInteractiveToolsContext* CreateNewChildEdModeToolsContext();
+
+	/**
+	 * Call to release a child EdMode ToolsContext created using the above function
+	 * @return true if child was found and removed
+	 */
+	bool OnChildEdModeToolsContextShutdown(UEdModeInteractiveToolsContext* ChildToolsContext);
+
+};
+
+
+/**
+ * UEdModeInteractiveToolsContext is an UEditorInteractiveToolsContext intended for use/lifetime in the context of a UEdMode.
+ * This ITC subclass is dependent on a UModeManagerInteractiveToolsContext to provide an InputRouter.
+ */
+UCLASS(Transient)
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UEdModeInteractiveToolsContext : public UEditorInteractiveToolsContext
+{
+	GENERATED_BODY()
+public:
+	/**
+	 * Initialize a new EdModeToolsContext that is derived from a ModeManagerToolsContext.
+	 * This new ToolsContext will not have it's own InputRouter, it will share the InputRouter with the ModeManagerToolsContext
+	 */
+	void InitializeContextFromModeManagerContext(UModeManagerInteractiveToolsContext* ModeManagerToolsContext);
+
+	/** @return Ray into 3D scene at last mouse event */
+	virtual FRay GetLastWorldRay() const override;
+
+protected:
+	UPROPERTY()
+	TObjectPtr<UModeManagerInteractiveToolsContext> ParentModeManagerToolsContext = nullptr;
 };

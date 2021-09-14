@@ -206,7 +206,7 @@ void UMotionTrailEditorMode::RefreshNonDefaultToolset()
 
 void UMotionTrailEditorMode::ActivateDefaultTool()
 {
-	ToolsContext->StartTool(UMotionTrailEditorMode::DefaultToolName);
+	GetInteractiveToolsContext()->StartTool(UMotionTrailEditorMode::DefaultToolName);
 }
 
 bool UMotionTrailEditorMode::IsCompatibleWith(FEditorModeID OtherModeID) const

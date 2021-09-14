@@ -194,13 +194,13 @@ void UModelingToolsEditorMode::ActorSelectionChangeNotify()
 bool UModelingToolsEditorMode::CanAutoSave() const
 {
 	// prevent autosave if any tool is active
-	return ToolsContext->ToolManager->HasAnyActiveTool() == false;
+	return GetToolManager()->HasAnyActiveTool() == false;
 }
 
 bool UModelingToolsEditorMode::ShouldDrawWidget() const
 { 
 	// allow standard xform gizmo if we don't have an active tool
-	if (ToolsContext != nullptr && ToolsContext->ToolManager->HasAnyActiveTool())
+	if (GetInteractiveToolsContext() != nullptr && GetToolManager()->HasAnyActiveTool())
 	{
 		return false;
 	}
@@ -306,24 +306,24 @@ void UModelingToolsEditorMode::Enter()
 	UEdMode::Enter();
 
 	// Register builders for tool targets that the mode uses.
-	ToolsContext->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(ToolsContext->TargetManager));
-	ToolsContext->TargetManager->AddTargetFactory(NewObject<UVolumeDynamicMeshToolTargetFactory>(ToolsContext->TargetManager));
-	ToolsContext->TargetManager->AddTargetFactory(NewObject<UVolumeMeshDescriptionToolTargetFactory>(ToolsContext->TargetManager));
-	ToolsContext->TargetManager->AddTargetFactory(NewObject<UDynamicMeshComponentToolTargetFactory>(ToolsContext->TargetManager));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeDynamicMeshToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeMeshDescriptionToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UDynamicMeshComponentToolTargetFactory>(GetToolManager()));
 
 	// register stylus event handler
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();
 
 	// register gizmo helper
-	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(ToolsContext.Get());
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
 	// register selection manager
-	UE::Geometry::RegisterPersistentMeshSelectionManager(ToolsContext.Get());
+	UE::Geometry::RegisterPersistentMeshSelectionManager(GetInteractiveToolsContext());
 
 	// disable HitProxy rendering, it is not used in Modeling Mode and adds overhead to Render() calls
-	ToolsContext.Get()->SetEnableRenderingDuringHitProxyPass(false);
+	GetInteractiveToolsContext()->SetEnableRenderingDuringHitProxyPass(false);
 
 	// register object creation api
-	UEditorModelingObjectsCreationAPI* ModelCreationAPI = UEditorModelingObjectsCreationAPI::Register(ToolsContext.Get());
+	UEditorModelingObjectsCreationAPI* ModelCreationAPI = UEditorModelingObjectsCreationAPI::Register(GetInteractiveToolsContext());
 	if (ModelCreationAPI)
 	{
 		ModelCreationAPI->GetNewAssetPathNameCallback.BindLambda([](const FString& BaseName, const UWorld* TargetWorld, FString SuggestedFolder)
@@ -619,7 +619,7 @@ void UModelingToolsEditorMode::Enter()
 	if (Extensions.Num() > 0)
 	{
 		FExtensionToolQueryInfo ExtensionQueryInfo;
-		ExtensionQueryInfo.ToolsContext = ToolsContext.Get();
+		ExtensionQueryInfo.ToolsContext = GetInteractiveToolsContext();
 		ExtensionQueryInfo.AssetAPI = nullptr;
 
 		UE_LOG(LogTemp, Log, TEXT("ModelingMode: Found %d Tool Extension Modules"), Extensions.Num());
@@ -641,7 +641,7 @@ void UModelingToolsEditorMode::Enter()
 	}
 
 
-	ToolsContext->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("DynaSculptTool"));
+	GetToolManager()->SelectActiveToolType(EToolSide::Left, TEXT("DynaSculptTool"));
 
 	// Register modeling mode hotkeys. Note that we use the toolkit command list because we would like the hotkeys
 	// to work even when the viewport is not focused, provided that nothing else captures the key presses.
@@ -666,7 +666,7 @@ void UModelingToolsEditorMode::Enter()
 	}
 
 	// Log tool starting
-	ToolsContext->ToolManager->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+	GetToolManager()->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 	{
 		if (FEngineAnalytics::IsAvailable())
 		{
@@ -679,7 +679,7 @@ void UModelingToolsEditorMode::Enter()
 	});
 
 	// Log tool ending
-	ToolsContext->ToolManager->OnToolEnded.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+	GetToolManager()->OnToolEnded.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 	{
 		if (FEngineAnalytics::IsAvailable())
 		{
@@ -718,7 +718,7 @@ void UModelingToolsEditorMode::Exit()
 	// clear any active selection
 	UE::Geometry::ClearActiveToolSelection(GetToolManager());
 	// deregister selection manager
-	UE::Geometry::DeregisterPersistentMeshSelectionManager(ToolsContext.Get());
+	UE::Geometry::DeregisterPersistentMeshSelectionManager(GetInteractiveToolsContext());
 
 	// stop listening to selection changes. On Editor Shutdown, some of these values become null, which will result in an ensure/crash
 	if (UObjectInitialized() && GetModeManager() && GetModeManager()->GetSelectedActors() && GetModeManager()->GetSelectedActors()->GetElementSelectionSet() )
@@ -747,7 +747,7 @@ void UModelingToolsEditorMode::Exit()
 	
 	// TODO: cannot deregister currently because if another mode is also registering, its Enter()
 	// will be called before our Exit()
-	UEditorModelingObjectsCreationAPI* ObjectCreationAPI = UEditorModelingObjectsCreationAPI::Find(ToolsContext.Get());
+	UEditorModelingObjectsCreationAPI* ObjectCreationAPI = UEditorModelingObjectsCreationAPI::Find(GetInteractiveToolsContext());
 	if (ObjectCreationAPI)
 	{
 		ObjectCreationAPI->GetNewAssetPathNameCallback.Unbind();
@@ -762,7 +762,7 @@ void UModelingToolsEditorMode::Exit()
 	ConfigureRealTimeViewportsOverride(false);
 
 	// re-enable HitProxy rendering
-	ToolsContext.Get()->SetEnableRenderingDuringHitProxyPass(true);
+	GetInteractiveToolsContext()->SetEnableRenderingDuringHitProxyPass(true);
 
 	// Call base Exit method to ensure proper cleanup
 	UEdMode::Exit();
@@ -806,29 +806,29 @@ void UModelingToolsEditorMode::BindCommands()
 		ToolManagerCommands.AcceptActiveTool,
 		FExecuteAction::CreateLambda([this]() { 
 			UE::Geometry::ClearActiveToolSelection(GetToolManager());
-			ToolsContext->EndTool(EToolShutdownType::Accept); 
+			GetInteractiveToolsContext()->EndTool(EToolShutdownType::Accept); 
 		}),
-		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanAcceptActiveTool(); }),
+		FCanExecuteAction::CreateLambda([this]() { return GetInteractiveToolsContext()->CanAcceptActiveTool(); }),
 		FGetActionCheckState(),
-		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->ActiveToolHasAccept(); }),
+		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->ActiveToolHasAccept(); }),
 		EUIActionRepeatMode::RepeatDisabled
 		);
 
 	CommandList->MapAction(
 		ToolManagerCommands.CancelActiveTool,
-		FExecuteAction::CreateLambda([this]() { ToolsContext->EndTool(EToolShutdownType::Cancel); }),
-		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanCancelActiveTool(); }),
+		FExecuteAction::CreateLambda([this]() { GetInteractiveToolsContext()->EndTool(EToolShutdownType::Cancel); }),
+		FCanExecuteAction::CreateLambda([this]() { return GetInteractiveToolsContext()->CanCancelActiveTool(); }),
 		FGetActionCheckState(),
-		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->ActiveToolHasAccept(); }),
+		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->ActiveToolHasAccept(); }),
 		EUIActionRepeatMode::RepeatDisabled
 		);
 
 	CommandList->MapAction(
 		ToolManagerCommands.CompleteActiveTool,
-		FExecuteAction::CreateLambda([this]() { ToolsContext->EndTool(EToolShutdownType::Completed); }),
-		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanCompleteActiveTool(); }),
+		FExecuteAction::CreateLambda([this]() { GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); }),
+		FCanExecuteAction::CreateLambda([this]() { return GetInteractiveToolsContext()->CanCompleteActiveTool(); }),
 		FGetActionCheckState(),
-		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->CanCompleteActiveTool(); }),
+		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->CanCompleteActiveTool(); }),
 		EUIActionRepeatMode::RepeatDisabled
 		);
 
@@ -837,7 +837,7 @@ void UModelingToolsEditorMode::BindCommands()
 		ToolManagerCommands.AcceptOrCompleteActiveTool,
 		FExecuteAction::CreateLambda([this]() { AcceptActiveToolActionOrTool(); }),
 		FCanExecuteAction::CreateLambda([this]() {
-				return ToolsContext->CanAcceptActiveTool() || ToolsContext->CanCompleteActiveTool();
+				return GetInteractiveToolsContext()->CanAcceptActiveTool() || GetInteractiveToolsContext()->CanCompleteActiveTool();
 			}),
 		FGetActionCheckState(),
 		FIsActionButtonVisible(),
@@ -847,7 +847,7 @@ void UModelingToolsEditorMode::BindCommands()
 		ToolManagerCommands.CancelOrCompleteActiveTool,
 		FExecuteAction::CreateLambda([this]() { CancelActiveToolActionOrTool(); }),
 		FCanExecuteAction::CreateLambda([this]() {
-				return ToolsContext->CanCompleteActiveTool() || ToolsContext->CanCancelActiveTool();
+				return GetInteractiveToolsContext()->CanCompleteActiveTool() || GetInteractiveToolsContext()->CanCancelActiveTool();
 			}),
 		FGetActionCheckState(),
 		FIsActionButtonVisible(),
@@ -875,8 +875,8 @@ void UModelingToolsEditorMode::AcceptActiveToolActionOrTool()
 	// clear existing selection
 	UE::Geometry::ClearActiveToolSelection(GetToolManager());
 
-	const EToolShutdownType ShutdownType = ToolsContext->CanAcceptActiveTool() ? EToolShutdownType::Accept : EToolShutdownType::Completed;
-	ToolsContext->EndTool(ShutdownType);
+	const EToolShutdownType ShutdownType = GetInteractiveToolsContext()->CanAcceptActiveTool() ? EToolShutdownType::Accept : EToolShutdownType::Completed;
+	GetInteractiveToolsContext()->EndTool(ShutdownType);
 }
 
 
@@ -897,8 +897,8 @@ void UModelingToolsEditorMode::CancelActiveToolActionOrTool()
 		}
 	}
 
-	const EToolShutdownType ShutdownType = ToolsContext->CanCancelActiveTool() ? EToolShutdownType::Cancel : EToolShutdownType::Completed;
-	ToolsContext->EndTool(ShutdownType);
+	const EToolShutdownType ShutdownType = GetInteractiveToolsContext()->CanCancelActiveTool() ? EToolShutdownType::Cancel : EToolShutdownType::Completed;
+	GetInteractiveToolsContext()->EndTool(ShutdownType);
 }
 
 void UModelingToolsEditorMode::ModelingModeShortcutRequested(EModelingModeActionCommands Command)
@@ -912,7 +912,7 @@ void UModelingToolsEditorMode::ModelingModeShortcutRequested(EModelingModeAction
 
 void UModelingToolsEditorMode::FocusCameraAtCursorHotkey()
 {
-	FRay Ray = ToolsContext->GetLastWorldRay();
+	FRay Ray = GetInteractiveToolsContext()->GetLastWorldRay();
 
 	double NearestHitDist = (double)HALF_WORLD_MAX;
 	FVector HitPoint = FVector::ZeroVector;

@@ -61,7 +61,7 @@ void UFractureEditorMode::Enter()
 
 	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &UFractureEditorMode::HandlePackageReloaded);
 
-	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(ToolsContext.Get());
+	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
 	
 	// Get initial geometry component selection from currently selected actors when we enter the mode
 	USelection* SelectedActors = GEditor->GetSelectedActors();

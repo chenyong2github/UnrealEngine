@@ -439,8 +439,8 @@ void UMeshPaintMode::CheckSelectionForTexturePaintCompat(const TArray<UMeshCompo
 		&& GetToolManager()->GetActiveTool(EToolSide::Mouse)
 		&& GetToolManager()->GetActiveTool(EToolSide::Mouse)->IsA<UMeshTexturePaintingTool>())
 	{
-		ToolsContext->EndTool(EToolShutdownType::Accept);
-		ToolsContext->StartTool(TextureSelectToolName);
+		GetInteractiveToolsContext()->EndTool(EToolShutdownType::Accept);
+		GetInteractiveToolsContext()->StartTool(TextureSelectToolName);
 	}
 }
 
@@ -899,15 +899,15 @@ void UMeshPaintMode::ActivateDefaultTool()
 	FName PaletteName = Toolkit->GetCurrentPalette();
 	if (PaletteName == UMeshPaintMode::MeshPaintMode_Color)
 	{
-		ToolsContext->StartTool(VertexSelectToolName);
+		GetInteractiveToolsContext()->StartTool(VertexSelectToolName);
 	}
 	if (PaletteName == UMeshPaintMode::MeshPaintMode_Weights)
 	{
-		ToolsContext->StartTool(VertexSelectToolName);
+		GetInteractiveToolsContext()->StartTool(VertexSelectToolName);
 	}
 	if (PaletteName == UMeshPaintMode::MeshPaintMode_Texture)
 	{
-		ToolsContext->StartTool(TextureSelectToolName);
+		GetInteractiveToolsContext()->StartTool(TextureSelectToolName);
 	}
 }
 
@@ -935,7 +935,7 @@ void UMeshPaintMode::UpdateOnPaletteChange(FName NewPaletteName)
 	// change to new tool if it is different
 	if (SwitchToTool.IsEmpty() == false && SwitchToTool != ActiveTool)
 	{
-		ToolsContext->StartTool(SwitchToTool);
+		GetInteractiveToolsContext()->StartTool(SwitchToTool);
 	}
 }
 

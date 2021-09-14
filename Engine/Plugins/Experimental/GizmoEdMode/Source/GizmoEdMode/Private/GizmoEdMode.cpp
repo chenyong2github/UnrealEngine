@@ -49,7 +49,7 @@ void UGizmoEdMode::RecreateGizmo()
 	{
 		if (Factory->CanBuildGizmoForSelection(GetModeManager()))
 		{
-			InteractiveGizmos = Factory->BuildGizmoForSelection(GetModeManager(), ToolsContext->GizmoManager);
+			InteractiveGizmos = Factory->BuildGizmoForSelection(GetModeManager(), GetInteractiveToolsContext()->GizmoManager);
 			LastFactory = &(*Factory);
 			return;
 		}
@@ -62,7 +62,7 @@ void UGizmoEdMode::DestroyGizmo()
 
 	for (UInteractiveGizmo *Gizmo : InteractiveGizmos)
 	{
-		ToolsContext->GizmoManager->DestroyGizmo(Gizmo);
+		GetInteractiveToolsContext()->GizmoManager->DestroyGizmo(Gizmo);
 	}
 
 	InteractiveGizmos.Empty();
