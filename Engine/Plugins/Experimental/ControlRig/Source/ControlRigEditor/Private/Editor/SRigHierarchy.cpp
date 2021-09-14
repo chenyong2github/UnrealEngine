@@ -1444,7 +1444,7 @@ void SRigHierarchy::HandleDeleteItem()
 				}
 				default:
 				{
-					return;
+					break;
 				}
 			}
 
