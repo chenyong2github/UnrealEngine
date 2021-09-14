@@ -259,7 +259,7 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			Value.SpaceType = EMovieSceneControlRigSpaceType::Parent;
 
 		}
-		else if (SpaceKey.Type == ERigElementType::Control)
+		else  //support all types
 		{
 			Value.SpaceType = EMovieSceneControlRigSpaceType::ControlRig;
 			Value.ControlRigElement = SpaceKey;
