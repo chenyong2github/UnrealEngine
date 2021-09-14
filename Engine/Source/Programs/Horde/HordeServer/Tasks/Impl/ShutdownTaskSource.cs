@@ -43,7 +43,7 @@ namespace HordeServer.Tasks.Impl
 
 			byte[] Payload = Any.Pack(Task).ToByteArray();
 
-			AgentLease? Lease = new AgentLease(ObjectId.GenerateNewId(), "Shutdown", null, null, Log.Id, LeaseState.Pending, Payload, null);
+			AgentLease? Lease = new AgentLease(ObjectId.GenerateNewId(), "Shutdown", null, null, Log.Id, LeaseState.Pending, null, true, Payload);
 			return TaskSubscription.FromResult(Lease);
 		}
 	}

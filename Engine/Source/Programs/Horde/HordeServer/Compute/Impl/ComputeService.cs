@@ -219,18 +219,22 @@ namespace HordeServer.Compute.Impl
 			{
 				(IoHash RequirementsHash, ComputeTaskInfo TaskInfo) = Entry.Value;
 
-				ComputeTaskMessage ComputeTask = new ComputeTaskMessage();
-				ComputeTask.ChannelId = TaskInfo.ChannelId.ToString();
-				ComputeTask.NamespaceId = DefaultNamespaceId.ToString();
-				ComputeTask.RequirementsHash = new CbObjectAttachment(RequirementsHash);
-				ComputeTask.TaskHash = TaskInfo.TaskHash;
+				Requirements? Requirements = await GetCachedRequirementsAsync(RequirementsHash);
+				if (Requirements != null)
+				{
+					ComputeTaskMessage ComputeTask = new ComputeTaskMessage();
+					ComputeTask.ChannelId = TaskInfo.ChannelId.ToString();
+					ComputeTask.NamespaceId = DefaultNamespaceId.ToString();
+					ComputeTask.RequirementsHash = new CbObjectAttachment(RequirementsHash);
+					ComputeTask.TaskHash = TaskInfo.TaskHash;
 
-				string LeaseName = $"Remote action ({TaskInfo.TaskHash})";
-				byte[] Payload = Any.Pack(ComputeTask).ToByteArray();
+					string LeaseName = $"Remote action ({TaskInfo.TaskHash})";
+					byte[] Payload = Any.Pack(ComputeTask).ToByteArray();
 
-				AgentLease Lease = new AgentLease(ObjectId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, Payload, null);
-				Logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", Lease.Id, ComputeTask.ChannelId, (CbObjectAttachment)ComputeTask.TaskHash, (CbObjectAttachment)ComputeTask.RequirementsHash);
-				return Lease;
+					AgentLease Lease = new AgentLease(ObjectId.GenerateNewId(), LeaseName, null, null, null, LeaseState.Pending, null, Requirements.Exclusive, Payload);
+					Logger.LogDebug("Created lease {LeaseId} for channel {ChannelId} task {TaskHash} req {RequirementsHash}", Lease.Id, ComputeTask.ChannelId, (CbObjectAttachment)ComputeTask.TaskHash, (CbObjectAttachment)ComputeTask.RequirementsHash);
+					return Lease;
+				}
 			}
 			return null;
 		}
