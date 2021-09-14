@@ -101,7 +101,7 @@ namespace HordeServer.Compute.Impl
 		/// <inheritdoc/>
 		public ObjectId? LeaseId
 		{
-			get => (LeaseIdBytes == null)? (ObjectId?)null : new ObjectId(LeaseIdBytes);
+			get => (LeaseIdBytes == null || LeaseIdBytes.Length == 0)? (ObjectId?)null : new ObjectId(LeaseIdBytes);
 			set => LeaseIdBytes = value?.ToByteArray();
 		}
 
