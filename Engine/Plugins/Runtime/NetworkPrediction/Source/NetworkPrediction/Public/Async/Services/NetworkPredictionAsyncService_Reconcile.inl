@@ -12,7 +12,7 @@ class IAsyncReconcileService
 {
 public:
 	virtual ~IAsyncReconcileService() = default;
-	virtual int32 Reconcile(const int32 LastCompletedStep, int32 LocalFrameOffset) = 0;
+	virtual int32 Reconcile(const int32 LastCompletedStep, const int32 EarliestFrame, int32 LocalFrameOffset) = 0;
 };
 
 template<typename AsyncModelDef>
@@ -28,7 +28,7 @@ public:
 		DataStore = InDataStore;
 	}
 
-	int32 Reconcile(const int32 LastCompletedStep, int32 LocalFrameOffset) final override
+	int32 Reconcile(const int32 LastCompletedStep, const int32 EarliestFrame, int32 LocalFrameOffset) final override
 	{
 		if (!DataStore->NetRecvQueue.Dequeue(DataStore->NetRecvData))
 		{
@@ -44,7 +44,7 @@ public:
 			const typename TAsyncNetRecvData<AsyncModelDef>::FInstance& RecvData = DataStore->NetRecvData.NetRecvInstances[idx];
 			RecvData.Frame += LocalFrameOffset; // Convert server-frame to local frame
 
-			if (RecvData.Frame >= 0)
+			if (RecvData.Frame >= EarliestFrame && RecvData.Frame <= LastCompletedStep)
 			{
 				const TAsncFrameSnapshot<AsyncModelDef>& Snapshot = DataStore->Frames[RecvData.Frame];
 

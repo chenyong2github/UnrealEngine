@@ -111,6 +111,14 @@ public:
 
 	int32 Reconcile_Internal(int32 LastCompletedStep)
 	{
+		Chaos::FPhysicsSolver* PhysicsSolver = static_cast<Chaos::FPhysicsSolver*>(this->GetSolver());
+		npCheckSlow(PhysicsSolver);
+
+		Chaos::FRewindData* RewindData = PhysicsSolver->GetRewindData();
+		npCheckSlow(RewindData);
+
+		const int32 EarliestFrame = RewindData->GetEarliestFrame_Internal();
+
 		// pop latest localframe offset
 		while(LocalFrameOffsetQueue.Dequeue(LocalFrameOffset));
 
@@ -119,7 +127,7 @@ public:
 		{
 			if (IAsyncReconcileService* Service = ServicePtr.Get())
 			{
-				const int32 Frame = Service->Reconcile(LastCompletedStep, LocalFrameOffset);
+				const int32 Frame = Service->Reconcile(LastCompletedStep, EarliestFrame, LocalFrameOffset);
 				if (Frame != INDEX_NONE)
 				{
 					RewindFrame = RewindFrame == INDEX_NONE ? Frame : FMath::Min<int32>(RewindFrame, Frame);

@@ -58,7 +58,7 @@ struct FNetworkPhysicsState
 	FSingleParticlePhysicsProxy* Proxy = nullptr;
 
 	// Local handle used by UNetworkPhysicsManager for registering/unregistering
-	int32 LocalManagedHandle;
+	int32 LocalManagedHandle = INDEX_NONE;
 
 	// The actual physics properties
 	FBasePhysicsState Physics;

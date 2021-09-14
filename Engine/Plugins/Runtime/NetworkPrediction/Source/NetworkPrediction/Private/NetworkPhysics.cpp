@@ -44,9 +44,10 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_INT(DebugTolerance, 1, "np2.Debug.Tolerance", "If enabled, only draw large corrections in world.");
 	NP_DEVCVAR_FLOAT(DebugDrawTolerance_X, 5.0, "np2.Debug.Tolerance.X",  "Location Debug Drawing Toleration");
 	NP_DEVCVAR_FLOAT(DebugDrawTolerance_R, 2.0, "np2.Debug.Tolerance.R",  "Simple distance based LOD");
-		
-	NP_DEVCVAR_INT(ForceResim, 0, "np2.ForceResim", "Forces near constant resimming");		
-	NP_DEVCVAR_INT(ForceResimWithoutCorrection, 0, "np2.ForceResimWithoutCorrection", "Forces near constant resimming WITHOUT applying server data");
+	
+	NETSIM_DEVCVAR_SHIPCONST_INT(NeverResim, 0, "np2.NeverResim", "Never allow resims to be triggered on client. E.g, ignore the server.");		
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceResim, 0, "np2.ForceResim", "Forces near constant resimming");		
+	NETSIM_DEVCVAR_SHIPCONST_INT(ForceResimWithoutCorrection, 0, "np2.ForceResimWithoutCorrection", "Forces near constant resimming WITHOUT applying server data");
 	
 	NP_DEVCVAR_INT(FixedLocalFrameOffset, -1, "np2.FixedLocalFrameOffset", "When > 0, use hardcoded frame offset on client from head");	
 	NP_DEVCVAR_INT(FixedLocalFrameOffsetTolerance, 3, "np2.FixedLocalFrameOffsetTolerance", "Tolerance when using np2.FixedLocalFrameOffset");
@@ -204,8 +205,9 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		}
 
 		PendingCorrections.Reset();
+		const int32 EarliestFrame = RewindData->GetEarliestFrame_Internal();
 
-		if (UE_NETWORK_PHYSICS::ForceResimWithoutCorrection > 0)
+		if (UE_NETWORK_PHYSICS::ForceResimWithoutCorrection() > 0)
 		{
 			//const int32 ForceRewindFrame = RewindData->GetEarliestFrame_Internal()+1; // This was causing us to back > 64 frames?
 			const int32 ForceRewindFrame = LastCompletedStep - 9;
@@ -247,9 +249,9 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 				FSingleParticlePhysicsProxy* Proxy = Obj.Proxy;
 				check(Proxy);
 
-				if (Obj.Frame < MinFrame)
+				if (Obj.Frame < EarliestFrame || Obj.Frame > LastCompletedStep)
 				{
-					UE_LOG(LogNetworkPhysics, Log, TEXT("Obj too stale to reconcile. Frame: %d. LastCompletedStep: %d"), Obj.Frame, LastCompletedStep);
+					UE_LOG(LogNetworkPhysics, Verbose, TEXT("Obj too stale to reconcile. Frame: %d. EarliestFrame: %d LastCompletedStep: %d"), Obj.Frame, EarliestFrame, LastCompletedStep);
 					continue;
 				}
 
@@ -290,7 +292,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					CompareVec(Obj.Physics.Location, P.X(), UE_NETWORK_PHYSICS::X, TEXT("Location")) ||
 					CompareVec(Obj.Physics.LinearVelocity, P.V(), UE_NETWORK_PHYSICS::V, TEXT("Velocity")) ||
 					CompareVec(Obj.Physics.AngularVelocity, P.W(), UE_NETWORK_PHYSICS::W, TEXT("Angular Velocity")) ||
-					CompareQuat(Obj.Physics.Rotation, P.R(), UE_NETWORK_PHYSICS::R, TEXT("Rotation")) || UE_NETWORK_PHYSICS::ForceResim > 0)
+					CompareQuat(Obj.Physics.Rotation, P.R(), UE_NETWORK_PHYSICS::R, TEXT("Rotation")) || UE_NETWORK_PHYSICS::ForceResim() > 0)
 				{
 
 					UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Rewind Needed. SimFrame: %d. Obj.Frame: %d. LastCompletedStep: %d."), SimulationFrame, Obj.Frame, LastCompletedStep);
@@ -344,27 +346,26 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 			int32 CallbackFrame = Callback->TriggerRewindIfNeeded_Internal(LastCompletedStep);
 			if (CallbackFrame != INDEX_NONE)
 			{
-				Stats.NumSubsystemCorrections++;
-				RewindToFrame = RewindToFrame == INDEX_NONE ? CallbackFrame : FMath::Min(RewindToFrame, CallbackFrame);
+				if (ensureMsgf(CallbackFrame >= EarliestFrame && CallbackFrame <= LastCompletedStep, TEXT("SimObjectCallback wants to rewind to invalid frame %d. (Valid Range: %d - %d)"), EarliestFrame, LastCompletedStep))
+				{
+					Stats.NumSubsystemCorrections++;
+					RewindToFrame = RewindToFrame == INDEX_NONE ? CallbackFrame : FMath::Min(RewindToFrame, CallbackFrame);
+				}
 			}
 		}
-
 		
 		for (auto& SubSys : NetworkPhysicsManager->SubSystems)
 		{
 			const int32 CallbackFrame = SubSys.Value->TriggerRewindIfNeeded_Internal(LastCompletedStep);
 			if (CallbackFrame != INDEX_NONE)
 			{
-				Stats.NumSubsystemCorrections++;
-				RewindToFrame = RewindToFrame == INDEX_NONE ? CallbackFrame : FMath::Min(RewindToFrame, CallbackFrame);
+				// Maybe EarliestFrame should be passed into TriggerRewindIfNeeded_Internal?
+				if (ensureMsgf(CallbackFrame >= EarliestFrame && CallbackFrame <= LastCompletedStep, TEXT("NP Subsystem %s wants to rewind to invalid frame %d. (Valid Range: %d - %d)"), *SubSys.Key.ToString(), CallbackFrame, EarliestFrame, LastCompletedStep))
+				{
+					Stats.NumSubsystemCorrections++;
+					RewindToFrame = RewindToFrame == INDEX_NONE ? CallbackFrame : FMath::Min(RewindToFrame, CallbackFrame);
+				}
 			}
-		}
-
-		// Calling code will ensure if we return a bad frame
-		if (!(RewindToFrame > INDEX_NONE && RewindToFrame < LastCompletedStep-1))
-		{
-			UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && RewindToFrame != INDEX_NONE, LogNetworkPhysics, Warning, TEXT("Trying to rewind to invalid frame %d (LastCompletedStep: %d)"), RewindToFrame, LastCompletedStep);
-			return INDEX_NONE;
 		}
 		
 		return RewindToFrame;
