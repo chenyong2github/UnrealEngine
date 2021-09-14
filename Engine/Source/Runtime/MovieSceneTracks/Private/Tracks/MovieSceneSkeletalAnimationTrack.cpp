@@ -642,7 +642,7 @@ static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeleta
 
 #if WITH_EDITOR
 		const UAnimDataModel* Model = AnimSequence->GetDataModel();
-		if (const FBoneAnimationTrack* TrackData = Model->FindBoneTrackByName(InBoneName))
+		if (const FBoneAnimationTrack* TrackData = Model->FindBoneTrackByName(BoneName))
 		{
 			TrackIndex = TrackData->BoneTreeIndex;
 		}
