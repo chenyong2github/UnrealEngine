@@ -317,7 +317,8 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform)
+			&& FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -349,7 +350,8 @@ class FSplitImaginaryReflectionGBufferCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform)
+			&& FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(Parameters.Platform);
 	}
 
 	static uint32 GetGroupSize()
@@ -414,7 +416,9 @@ static bool ShouldRayTracedReflectionsSortMaterials(const FViewInfo& View)
 
 static bool ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(const FViewInfo& View)
 {
-	return (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread() != 0);
+	// Deferred reflections are always used if platform does not support the high-end version
+	return !FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform())
+		|| (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread() != 0);
 }
 
 static bool ShouldRayTracedReflectionsRayTraceSkyLightContribution(const FScene& Scene)
@@ -432,7 +436,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflections(const FViewInfo
 		return;
 	}
 
-	if (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread())
+	if (ShouldRayTracedReflectionsUseSortedDeferredAlgorithm(View))
 	{
 		// If deferred reflections technique is used, then we only need to gather its shaders and skip the rest.
 		PrepareRayTracingDeferredReflections(View, Scene, OutRayGenShaders);
@@ -492,10 +496,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflectionsDeferredMaterial
 		return;
 	}
 
-	const bool bHybridReflections = ShouldRayTracedReflectionsUseHybridReflections();
-	const bool bRayTraceSkyLightContribution = ShouldRayTracedReflectionsRayTraceSkyLightContribution(Scene);
-
+	if (FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform()))
 	{
+		const bool bHybridReflections = ShouldRayTracedReflectionsUseHybridReflections();
+		const bool bRayTraceSkyLightContribution = ShouldRayTracedReflectionsRayTraceSkyLightContribution(Scene);
+
 		FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
 		PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
@@ -513,16 +518,19 @@ void FDeferredShadingSceneRenderer::PrepareSingleLayerWaterRayTracingReflections
 		return;
 	}
 
-	const bool bHybridReflections = ShouldRayTracedReflectionsUseHybridReflections();
-	const bool bRayTraceSkyLightContribution = ShouldRayTracedReflectionsRayTraceSkyLightContribution(Scene);
+	if (FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform()))
+	{
+		const bool bHybridReflections = ShouldRayTracedReflectionsUseHybridReflections();
+		const bool bRayTraceSkyLightContribution = ShouldRayTracedReflectionsRayTraceSkyLightContribution(Scene);
 
-	FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
-	PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::None);
-	PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
-	PermutationVector.Set<FRayTracingReflectionsRGS::FRayTraceSkyLightContribution>(bRayTraceSkyLightContribution);
-	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
-	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+		FRayTracingReflectionsRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FRayTracingReflectionsRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
+		PermutationVector.Set<FRayTracingReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::None);
+		PermutationVector.Set<FRayTracingReflectionsRGS::FHybrid>(bHybridReflections);
+		PermutationVector.Set<FRayTracingReflectionsRGS::FRayTraceSkyLightContribution>(bRayTraceSkyLightContribution);
+		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingReflectionsRGS>(PermutationVector);
+		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+	}
 }
 
 #endif // RHI_RAYTRACING
