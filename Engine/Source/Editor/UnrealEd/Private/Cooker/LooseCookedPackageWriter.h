@@ -45,6 +45,7 @@ public:
 	FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
 	void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	void RemoveCookedPackages() override;
+	void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
 	FAssetRegistryState* ReleasePreviousAssetRegistry() override;
 
 private:

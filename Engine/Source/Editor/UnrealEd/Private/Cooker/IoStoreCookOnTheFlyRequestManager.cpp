@@ -116,10 +116,12 @@ public:
 
 	FCompletedPackages MarkAsFailed(const FName& PackageName)
 	{
-		return MarkAsCompleted(PackageName, INDEX_NONE, TArrayView<const FPackageStoreEntryResource>());
+		FCompletedPackages ResultPackages;
+		MarkAsCompleted(PackageName, INDEX_NONE, TArrayView<const FPackageStoreEntryResource>(), ResultPackages);
+		return ResultPackages;
 	}
 
-	FCompletedPackages MarkAsCompleted(const FName& PackageName, const int32 EntryIndex, TArrayView<const FPackageStoreEntryResource> Entries)
+	void MarkAsCompleted(const FName& PackageName, const int32 EntryIndex, TArrayView<const FPackageStoreEntryResource> Entries, FCompletedPackages& OutPackages)
 	{
 		const int32 NumCookedPackages = CookedEntries.Num();
 		const int32 NumFailedPackages = FailedPackages.Num();
@@ -174,28 +176,25 @@ public:
 			AddWaitingPackage(Package);
 		}
 
-		FCompletedPackages CompletedPackages;
-		CompletedPackages.TotalCooked = CookedEntries.Num();
-		CompletedPackages.TotalFailed = FailedPackages.Num();
-		CompletedPackages.TotalTracked = Packages.Num();
+		OutPackages.TotalCooked = CookedEntries.Num();
+		OutPackages.TotalFailed = FailedPackages.Num();
+		OutPackages.TotalTracked = Packages.Num();
 
 		if (CookedEntries.Num() > NumCookedPackages || FailedPackages.Num() > NumFailedPackages)
 		{
 			for (int32 Idx = NumCookedPackages; Idx < CookedEntries.Num(); ++Idx)
 			{
-				CompletedPackages.CookedEntryIndices.Add(CookedEntries[Idx]);
+				OutPackages.CookedEntryIndices.Add(CookedEntries[Idx]);
 			}
 
 			for (int32 Idx = NumFailedPackages; Idx < FailedPackages.Num(); ++Idx)
 			{
-				CompletedPackages.FailedPackages.Add(FPackageId::FromName(FailedPackages[Idx]));
+				OutPackages.FailedPackages.Add(FPackageId::FromName(FailedPackages[Idx]));
 			}
 		}
-
-		return CompletedPackages;
 	}
 
-	void AddCompletedPackages(TArrayView<const FPackageStoreEntryResource> Entries)
+	void AddExistingPackages(TArrayView<const FPackageStoreEntryResource> Entries, TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
 	{
 		Packages.Reserve(Entries.Num());
 		CookedEntries.Reserve(Entries.Num());
@@ -203,16 +202,23 @@ public:
 		for (int32 EntryIndex = 0, Num = Entries.Num(); EntryIndex < Num; ++EntryIndex)
 		{
 			const FPackageStoreEntryResource& Entry = Entries[EntryIndex];
+			const IPackageStoreWriter::FOplogCookInfo& CookInfo = CookInfos[EntryIndex];
 			const FPackageId PackageId = Entry.GetPackageId();
 
 			FPackage& Package	= GetPackage(PackageId);
-
 			Package.PackageId	= PackageId;
 			Package.PackageName = Entry.PackageName;
-			Package.Status		= EPackageStatus::Cooked;
 			Package.EntryIndex	= EntryIndex;
 
-			CookedEntries.Add(Package.EntryIndex);
+			if (CookInfo.bUpToDate)
+			{
+				CookedEntries.Add(Package.EntryIndex);
+				Package.Status = EPackageStatus::Cooked;
+			}
+			else
+			{
+				Package.Status = EPackageStatus::None;
+			}
 		}
 	}
 
@@ -457,12 +463,14 @@ private:
 					check(PackageWriter); // This class should not be used except when COTFS is using an IPackageStoreWriter
 					Context->PackageWriter = PackageWriter;
 					
-					PackageWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries)
+					PackageWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries,
+						TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
 					{
-						Context->PackageTracker.AddCompletedPackages(Entries);
+						Context->PackageTracker.AddExistingPackages(Entries, CookInfos);
 					});
 
 					PackageWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
+					PackageWriter->OnMarkUpToDate().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackagesMarkedUpToDate);
 				}
 
 				return true;
@@ -521,7 +529,9 @@ private:
 		
 		UE::PackageStore::Messaging::FPackageStoreData PackageStoreData;
 		
-		Context.PackageWriter->GetEntries([&Context, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries)
+		Context.PackageWriter->GetEntries(
+			[&Context, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries,
+				TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
 		{
 			FScopeLock _(&Context.CriticalSection);
 			
@@ -619,17 +629,44 @@ private:
 
 			ConnectionServer->BroadcastMessage(Message, EventArgs.PlatformName);
 		}
-		
+
 		FCookOnTheFlyPackageTracker::FCompletedPackages NewCompletedPackages;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::MarkAsCooked);
-			
+
 			FPlatformContext& Context = GetContext(EventArgs.PlatformName);
 			FScopeLock _(&Context.CriticalSection);
 
-			NewCompletedPackages = Context.PackageTracker.MarkAsCompleted(EventArgs.PackageName, EventArgs.EntryIndex, EventArgs.Entries);
+			Context.PackageTracker.MarkAsCompleted(EventArgs.PackageName, EventArgs.EntryIndex, EventArgs.Entries, NewCompletedPackages);
 		}
+		BroadcastCompletedPackages(EventArgs.PlatformName, MoveTemp(NewCompletedPackages), EventArgs.Entries);
+	}
 
+	void OnPackagesMarkedUpToDate(const IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::OnPackagesMarkedUpToDate);
+
+		FCookOnTheFlyPackageTracker::FCompletedPackages NewCompletedPackages;
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::MarkAsCooked);
+
+			FPlatformContext& Context = GetContext(EventArgs.PlatformName);
+			FScopeLock _(&Context.CriticalSection);
+
+			for (int32 EntryIndex : EventArgs.PackageIndexes)
+			{
+				FName PackageName = EventArgs.Entries[EntryIndex].PackageName;
+				Context.PackageTracker.MarkAsCompleted(PackageName, EntryIndex, EventArgs.Entries, NewCompletedPackages);
+			}
+		}
+		BroadcastCompletedPackages(EventArgs.PlatformName, MoveTemp(NewCompletedPackages), EventArgs.Entries);
+	}
+
+	void BroadcastCompletedPackages(FName PlatformName,
+		FCookOnTheFlyPackageTracker::FCompletedPackages&& NewCompletedPackages, TArrayView<const FPackageStoreEntryResource> Entries)
+	{
+		using namespace UE::Cook;
+		using namespace UE::PackageStore::Messaging;
 		if (NewCompletedPackages.CookedEntryIndices.Num() || NewCompletedPackages.FailedPackages.Num())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::SendCookedPackagesMessage);
@@ -642,7 +679,7 @@ private:
 			for (int32 EntryIndex : NewCompletedPackages.CookedEntryIndices)
 			{
 				check(EntryIndex != INDEX_NONE);
-				PackageStoreData.CookedPackages.Add(EventArgs.Entries[EntryIndex]);
+				PackageStoreData.CookedPackages.Add(Entries[EntryIndex]);
 			}
 
 			UE_LOG(LogCookOnTheFly, Verbose, TEXT("Sending '%s' message, Cooked='%d', Failed='%d', Server total='%d/%d/%d' (Tracked/Cooked/Failed)"),
@@ -655,7 +692,7 @@ private:
 
 			FCookOnTheFlyMessage Message(ECookOnTheFlyMessage::PackagesCooked);
 			Message.SetBodyTo<FPackagesCookedMessage>(FPackagesCookedMessage { MoveTemp(PackageStoreData) });
-			ConnectionServer->BroadcastMessage(Message, EventArgs.PlatformName);
+			ConnectionServer->BroadcastMessage(Message, PlatformName);
 		}
 	}
 
@@ -741,7 +778,8 @@ private:
 				PackageStoreData.TotalFailedPackages = Context.PackageTracker.GetFailedPackages().Num();
 				PackageStoreData.FailedPackages = MoveTemp(CompletedPackages.FailedPackages);
 
-				Context.PackageWriter->GetEntries([&CompletedPackages, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries)
+				Context.PackageWriter->GetEntries([&CompletedPackages, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries,
+					TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
 				{
 					for (int32 EntryIndex : CompletedPackages.CookedEntryIndices)
 					{

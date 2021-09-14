@@ -190,6 +190,13 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 		bAllowSoftDependencies = !Options->bSkipSoftReferences;
 		bErrorOnEngineContentUse = Options->bErrorOnEngineContentUse;
 	}
+	else
+	{
+		// Do not queue soft-dependencies during CookOnTheFly; wait for them to be requested
+		// TODO: Report soft dependencies separately, and mark them as normal priority,
+		// and mark all hard dependencies as high priority in cook on the fly.
+		bAllowSoftDependencies = false;
+	}
 	bHybridIterativeEnabled = COTFS.bHybridIterativeEnabled;
 	bPreexploreDependenciesEnabled = COTFS.bPreexploreDependenciesEnabled;
 	if (bErrorOnEngineContentUse)
@@ -358,7 +365,7 @@ bool FRequestCluster::TryTakeOwnership(FPackageData& PackageData, bool bUrgent, 
 				// This might steal it from another RequestCluster or from the UnclusteredRequests if it's in request
 				// Doing that steal is wasteful but okay; one of the RequestClusters will win it and keep it
 				PackageData.SendToState(EPackageState::Request, ESendFlags::QueueRemove);
-				PackageData.UpdateRequestData(GetPlatforms(), bUrgent, MoveTemp(CompletionCallback));
+				PackageData.UpdateRequestData(GetPlatforms(), bUrgent, MoveTemp(CompletionCallback), false /* bAllowUpdateUrgency */);
 			}
 			return true;
 		}
@@ -473,7 +480,7 @@ void FRequestCluster::FetchDependencies(const FCookerTimer& CookerTimer, bool& b
 	}
 
 	// Reverse the TransitiveRequests array to put it in LeafToRoot order, and push it into the output Requests
-	COOK_STAT(DetailedCookStats::NumPreloadedDependencies += TransitiveRequests.Num() - Requests.Num());
+	COOK_STAT(DetailedCookStats::NumPreloadedDependencies += FMath::Max(0,TransitiveRequests.Num() - Requests.Num()));
 	Requests.Reset(TransitiveRequests.Num());
 	for (int32 Index = TransitiveRequests.Num() - 1; Index >= 0; --Index)
 	{
@@ -727,6 +734,7 @@ void FRequestCluster::VisitPackageData(FPackageData* PackageData, TArray<FName>*
 					{
 						bIncrementIterativeCounter = true;
 						PackageData->SetPlatformCooked(TargetPlatform, true);
+						PackageWriter->MarkPackagesUpToDate({ PackageName });
 					}
 					OutDependencies->Append(OplogDataScratch.BuildDependencies);
 					if (bAllowSoftDependencies)

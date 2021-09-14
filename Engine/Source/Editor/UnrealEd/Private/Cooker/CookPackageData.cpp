@@ -181,7 +181,7 @@ namespace Cook
 	}
 
 	void FPackageData::UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms,
-		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback)
+		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, bool bAllowUpdateUrgency)
 	{
 		if (IsInProgress())
 		{
@@ -203,7 +203,7 @@ namespace Cook
 				}
 				SetPlatformsRequested(InRequestedPlatforms, true);
 			}
-			else if (bUrgencyChanged)
+			else if (bUrgencyChanged && bAllowUpdateUrgency)
 			{
 				SendToState(GetState(), ESendFlags::QueueAddAndRemove);
 			}

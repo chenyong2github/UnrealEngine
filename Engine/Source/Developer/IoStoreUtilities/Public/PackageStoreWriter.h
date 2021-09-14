@@ -14,10 +14,23 @@ public:
 		return this;
 	}
 
+	struct FOplogCookInfo
+	{
+		struct FAttachment
+		{
+			const UTF8CHAR* Key;
+			FIoHash Hash;
+		};
+
+		ICookedPackageWriter::FCookedPackageInfo CookInfo;
+		TArray<FAttachment> Attachments;
+		bool bUpToDate = false;
+	};
+
 	/**
 	 * Returns all cooked package store entries.
 	 */
-	virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>)>&&) = 0;
+	virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>, TArrayView<const FOplogCookInfo>)>&&) = 0;
 
 	/**
 	 * Package commit event arguments
@@ -28,6 +41,7 @@ public:
 		FName PackageName;
 		int32 EntryIndex = INDEX_NONE;
 		TArrayView<const FPackageStoreEntryResource> Entries;
+		TArrayView<const FOplogCookInfo> CookInfos;
 		TArray<FAdditionalFileInfo> AdditionalFiles;
 	};
 
@@ -36,4 +50,18 @@ public:
 	 */
 	DECLARE_EVENT_OneParam(IPackageStoreWriter, FCommitEvent, const FCommitEventArgs&);
 	virtual FCommitEvent& OnCommit() = 0;
+
+	struct FMarkUpToDateEventArgs
+	{
+		FName PlatformName;
+		TArray<int32> PackageIndexes;
+		TArrayView<const FPackageStoreEntryResource> Entries;
+		TArrayView<const FOplogCookInfo> CookInfos;
+		TArray<FAdditionalFileInfo> AdditionalFiles;
+	};
+	/**
+	 * Broadcasted after a set of packages have been found to be up to date.
+	 */
+	DECLARE_EVENT_OneParam(IPackageStoreWriter, FMarkUpToDateEvent, const FMarkUpToDateEventArgs&);
+	virtual FMarkUpToDateEvent& OnMarkUpToDate() = 0;
 };

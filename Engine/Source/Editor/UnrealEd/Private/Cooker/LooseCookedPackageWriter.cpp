@@ -217,6 +217,10 @@ void FLooseCookedPackageWriter::RemoveCookedPackages(TArrayView<const FName> Pac
 	UncookedPathToCookedPath.Empty();
 }
 
+void FLooseCookedPackageWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages)
+{
+}
+
 void FLooseCookedPackageWriter::RemoveCookedPackages()
 {
 	DeleteSandboxDirectory();

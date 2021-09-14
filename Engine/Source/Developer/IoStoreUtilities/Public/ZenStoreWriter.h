@@ -44,13 +44,19 @@ public:
 	IOSTOREUTILITIES_API virtual void BeginCook(const FCookInfo& Info) override;
 	IOSTOREUTILITIES_API virtual void EndCook() override;
 
-	IOSTOREUTILITIES_API virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>)>&& Callback) override;
+	IOSTOREUTILITIES_API virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>, TArrayView<const FOplogCookInfo>)>&& Callback) override;
 
 	DECLARE_DERIVED_EVENT(FZenStoreWriter, IPackageStoreWriter::FCommitEvent, FCommitEvent);
 	IOSTOREUTILITIES_API virtual FCommitEvent& OnCommit() override
 	{
 		return CommitEvent;
 	}
+	DECLARE_DERIVED_EVENT(FZenStoreWriter, IPackageStoreWriter::FMarkUpToDateEvent, FMarkUpToDateEvent);
+	IOSTOREUTILITIES_API virtual FMarkUpToDateEvent& OnMarkUpToDate() override
+	{
+		return MarkUpToDateEvent;
+	}
+
 
 	virtual void Flush() override;
 
@@ -60,10 +66,12 @@ public:
 	IOSTOREUTILITIES_API virtual FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages() override;
+	IOSTOREUTILITIES_API virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
 
 private:
 	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
 	void BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& EventArgs);
+	void BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs);
 
 	struct FBulkDataEntry
 	{
@@ -104,18 +112,6 @@ private:
 		double TotalRequestTime = 0.0;
 	};
 
-	struct FOplogCookInfo
-	{
-		struct FAttachment
-		{
-			const UTF8CHAR* Key;
-			FIoHash Hash;
-		};
-
-		ICookedPackageWriter::FCookedPackageInfo CookInfo;
-		TArray<FAttachment> Attachments;
-	};
-
 	FRWLock								PackagesLock;
 	TMap<FName,FPendingPackageState>	PendingPackages;
 	TUniquePtr<UE::FZenStoreHttpClient>	HttpClient;
@@ -135,6 +131,7 @@ private:
 	
 	FCriticalSection					CommitEventCriticalSection;
 	FCommitEvent						CommitEvent;
+	FMarkUpToDateEvent					MarkUpToDateEvent;
 
 	class FZenStoreHttpQueue;
 	TUniquePtr<FZenStoreHttpQueue>		HttpQueue;
