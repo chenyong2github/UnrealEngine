@@ -23,6 +23,7 @@
 #include "ProjectDescriptor.h"
 #include "GameProjectGenerationModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "PluginsEditor"
 
@@ -153,8 +154,7 @@ void SPluginBrowser::Construct( const FArguments& Args )
 		]
 		+SSplitter::Slot()
 		[
-			SNew( SVerticalBox )
-
+			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.Padding(FMargin(0.0f, 0.0f, 0.0f, PaddingAmount))
 			.AutoHeight()
@@ -247,16 +247,11 @@ void SPluginBrowser::Construct( const FArguments& Args )
 
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(FMargin(PaddingAmount, PaddingAmount, PaddingAmount, 0.0f))
+			.Padding(FMargin(2.0f, 10.0f, 10.0f, 10.0f))
 			.HAlign(HAlign_Right)
 			[
-				SNew(SButton)
-				.ContentPadding(5)
-				.IsEnabled(true)
+				SNew(SPrimaryButton)
 				.ToolTip(SNew(SToolTip).Text(LOCTEXT("NewPluginEnabled", "Click here to open the Plugin Creator dialog.")))
-				.TextStyle(FEditorStyle::Get(), "LargeText")
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("NewPluginLabel", "New Plugin"))
 				.OnClicked(this, &SPluginBrowser::HandleNewPluginButtonClicked)
 			]

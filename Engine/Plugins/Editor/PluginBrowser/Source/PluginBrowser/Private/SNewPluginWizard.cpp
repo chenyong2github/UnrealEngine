@@ -44,6 +44,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "SourceCodeNavigation.h"
+#include "SPrimaryButton.h"
 
 DEFINE_LOG_CATEGORY(LogPluginWizard);
 
@@ -261,15 +262,11 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 
 	MainContent->AddSlot()
 	.AutoHeight()
-	.Padding(5)
+	.Padding(10)
 	.HAlign(HAlign_Right)
 	[
-		SNew(SButton)
-		.ContentPadding(5)
-		.TextStyle(FEditorStyle::Get(), "LargeText")
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+		SNew(SPrimaryButton)
 		.IsEnabled(this, &SNewPluginWizard::CanCreatePlugin)
-		.HAlign(HAlign_Center)
 		.Text(CreateButtonLabel)
 		.OnClicked(this, &SNewPluginWizard::OnCreatePluginClicked)
 	];
