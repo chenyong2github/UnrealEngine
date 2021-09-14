@@ -6,6 +6,7 @@
 #include "RequiredProgramMainCPPInclude.h"
 #include "CADInterfacesModule.h"
 #include "CADToolsModule.h"
+#include "CoreTechTypes.h"
 
 #include "Modules/ModuleManager.h"
 
