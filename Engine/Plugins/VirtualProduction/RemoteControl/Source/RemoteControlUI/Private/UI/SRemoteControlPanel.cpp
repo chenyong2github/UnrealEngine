@@ -111,6 +111,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		{
 			UpdateEntityDetailsView(EntityList->GetSelection());
 			UpdateRebindButtonVisibility();
+			CachedExposedProperties.Reset();
 		})
 		.EditMode_Lambda([this](){ return bIsInEditMode; });
 	

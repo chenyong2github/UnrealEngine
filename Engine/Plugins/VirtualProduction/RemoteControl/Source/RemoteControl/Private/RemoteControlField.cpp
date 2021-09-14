@@ -56,8 +56,16 @@ void FRemoteControlField::BindObject(UObject* InObjectToBind)
 		}
 		else if (AActor* Actor = Cast<AActor>(InObjectToBind))
 		{
-			// Attempt finding a matching component if the object is an actor.
-			FRemoteControlEntity::BindObject(Actor->GetComponentByClass(ResolvedOwnerClass));
+			// Attempt to bind to the root component since it is a very common case.
+			if (Actor->GetRootComponent()->GetClass() == ResolvedOwnerClass)
+			{
+				FRemoteControlEntity::BindObject(Actor->GetRootComponent());
+			}
+			else
+			{
+				// Search for a matching component if the root component was not a match.
+				FRemoteControlEntity::BindObject(Actor->GetComponentByClass(ResolvedOwnerClass));
+			}
 		}
 	}
 }
