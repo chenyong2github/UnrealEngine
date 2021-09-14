@@ -6544,10 +6544,10 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 
 				FString CleanFilename = FPaths::GetCleanFilename(RawFilename);
 				uint32  CleanFilenameHash = GetTypeHash(CleanFilename);
-				if (const TSharedRef<FUnrealSourceFile>* ExistingSourceFile = GUnrealSourceFilesMap.AddByHash(CleanFilenameHash, MoveTemp(CleanFilename), UnrealSourceFile))
+				if (TSharedPtr<FUnrealSourceFile> ExistingSourceFile = GUnrealSourceFilesMap.AddByHash(CleanFilenameHash, MoveTemp(CleanFilename), UnrealSourceFile))
 				{
 					FString NormalizedFullFilename = FullFilename;
-					FString NormalizedExistingFilename = (*ExistingSourceFile)->GetFilename();
+					FString NormalizedExistingFilename = ExistingSourceFile->GetFilename();
 
 					FPaths::NormalizeFilename(NormalizedFullFilename);
 					FPaths::NormalizeFilename(NormalizedExistingFilename);

@@ -108,13 +108,14 @@ private:
 // Wrapper class around SourceFiles map so we can quickly get a list of source files for a given package
 struct FUnrealSourceFiles : public FFreezableContainer
 {
-	TSharedRef<FUnrealSourceFile>* AddByHash(uint32 Hash, FString&& Filename, TSharedRef<FUnrealSourceFile> SourceFile)
+	TSharedPtr<FUnrealSourceFile> AddByHash(uint32 Hash, FString&& Filename, TSharedRef<FUnrealSourceFile> SourceFile)
 	{
 		check(!bFrozen);
 		TSharedRef<FUnrealSourceFile>* Existing = SourceFilesByString.FindByHash(Hash, Filename);
+		TSharedPtr<FUnrealSourceFile> Return(Existing != nullptr ? TSharedPtr<FUnrealSourceFile>(*Existing) : TSharedPtr<FUnrealSourceFile>());
 		AllSourceFiles.Add(&SourceFile.Get());
 		SourceFilesByString.AddByHash(Hash, MoveTemp(Filename), MoveTemp(SourceFile));
-		return Existing;
+		return Return;
 	}
 	const TSharedRef<FUnrealSourceFile>* Find(const FString& Id) const 
 	{
