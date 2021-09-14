@@ -16,10 +16,12 @@ class FShaderFormatD3D : public IShaderFormat
 {
 	enum
 	{
+		UE_SHADER_PCD3D_SHARED_VER = 1,
+
 		/** Version for shader format, this becomes part of the DDC key. */
-		UE_SHADER_PCD3D_SM6_VER = 2,
-		UE_SHADER_PCD3D_SM5_VER = 9,
-		UE_SHADER_PCD3D_ES3_1_VER = 8,
+		UE_SHADER_PCD3D_SM6_VER = UE_SHADER_PCD3D_SHARED_VER + 2,
+		UE_SHADER_PCD3D_SM5_VER = UE_SHADER_PCD3D_SHARED_VER + 9,
+		UE_SHADER_PCD3D_ES3_1_VER = UE_SHADER_PCD3D_SHARED_VER + 8,
 	};
 
 	void CheckFormat(FName Format) const

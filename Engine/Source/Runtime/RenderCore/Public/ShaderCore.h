@@ -177,16 +177,20 @@ enum class EShaderParameterType : uint8
 
 struct FParameterAllocation
 {
-	uint16 BufferIndex;
-	uint16 BaseIndex;
-	uint16 Size;
-	EShaderParameterType Type;
-	mutable bool bBound;
+	uint16 BufferIndex = 0;
+	uint16 BaseIndex = 0;
+	uint16 Size = 0;
+	EShaderParameterType Type{ EShaderParameterType::Num };
+	mutable bool bBound = false;
 
-	FParameterAllocation() :
-		Type(EShaderParameterType::Num),
-		bBound(false)
-	{}
+	FParameterAllocation() = default;
+	FParameterAllocation(uint16 InBufferIndex, uint16 InBaseIndex, uint16 InSize, EShaderParameterType InType)
+		: BufferIndex(InBufferIndex)
+		, BaseIndex(InBaseIndex)
+		, Size(InSize)
+		, Type(InType)
+	{
+	}
 
 	friend FArchive& operator<<(FArchive& Ar,FParameterAllocation& Allocation)
 	{
@@ -538,13 +542,25 @@ struct FShaderCodeResourceMasks
 };
 
 // if this changes you need to make sure all shaders get invalidated
+enum class EShaderCodeFeatures : uint8
+{
+	None                    = 0,
+	WaveOps                 = 1 << 0,
+	SixteenBitTypes         = 1 << 1,
+	TypedUAVLoadsExtended   = 1 << 2,
+	Atomic64                = 1 << 3,
+	DiagnosticBuffer        = 1 << 4,
+	BindlessResources       = 1 << 5,
+	BindlessSamplers        = 1 << 6,
+};
+ENUM_CLASS_FLAGS(EShaderCodeFeatures);
+
 struct FShaderCodeFeatures
 {
 	// for FindOptionalData() and AddOptionalData()
 	static const uint8 Key = 'x';
 
-	bool bUsesWaveOps = false;
-	bool bUsesDiagnosticBuffer = false;
+	EShaderCodeFeatures CodeFeatures = EShaderCodeFeatures::None;
 };
 
 // if this changes you need to make sure all shaders get invalidated
@@ -561,8 +577,15 @@ struct FShaderCodeVendorExtension
 	// for FindOptionalData() and AddOptionalData()
 	static const uint8 Key = 'v';
 
-	uint32 VendorId;
+	uint32 VendorId = 0;
 	FParameterAllocation Parameter;
+
+	FShaderCodeVendorExtension() = default;
+	FShaderCodeVendorExtension(uint32 InVendorId, uint16 InBufferIndex, uint16 InBaseIndex, uint16 InSize, EShaderParameterType InType)
+		: VendorId(InVendorId)
+		, Parameter(InBufferIndex, InBaseIndex, InSize, InType)
+	{
+	}
 
 	friend FArchive& operator<<(FArchive& Ar, FShaderCodeVendorExtension& Extension)
 	{
@@ -602,6 +625,11 @@ public:
 	uint32 GetActualShaderCodeSize() const
 	{
 		return ShaderCode.Num() - GetOptionalDataSize();
+	}
+
+	TArrayView<const uint8> GetOffsetShaderCode(int32 Offset)
+	{
+		return MakeArrayView(ShaderCode.GetData() + Offset, GetActualShaderCodeSize() - Offset);
 	}
 
 	// for convenience

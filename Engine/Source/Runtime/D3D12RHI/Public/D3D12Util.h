@@ -318,50 +318,6 @@ struct ShaderBytecodeHash
 	}
 };
 
-class FD3D12ShaderBytecode
-{
-public:
-	FD3D12ShaderBytecode()
-	{
-		FMemory::Memzero(Shader);
-		FMemory::Memzero(Hash);
-	}
-
-	FD3D12ShaderBytecode(const D3D12_SHADER_BYTECODE &InShader)
-		: Shader(InShader)
-	{
-		HashShader();
-	}
-
-	void SetShaderBytecode(const D3D12_SHADER_BYTECODE &InShader)
-	{
-		Shader = InShader;
-		HashShader();
-	}
-
-	const D3D12_SHADER_BYTECODE& GetShaderBytecode() const { return Shader; }
-	const ShaderBytecodeHash& GetHash() const { return Hash; }
-
-private:
-	void HashShader()
-	{
-		if (Shader.pShaderBytecode && Shader.BytecodeLength > 0)
-		{
-			// D3D shader bytecode contains a 128bit checksum in DWORD 1-4. We can just use that directly instead of hashing the whole shader bytecode ourselves.
-			check(Shader.BytecodeLength >= sizeof(uint32) + sizeof(Hash));
-			FMemory::Memcpy(&Hash, ((uint32*) Shader.pShaderBytecode) + 1, sizeof(Hash));
-		}
-		else
-		{
-			FMemory::Memzero(Hash);
-		}
-	}
-
-private:
-	ShaderBytecodeHash Hash;
-	D3D12_SHADER_BYTECODE Shader;
-};
-
 /**
  * The base class of threadsafe reference counted objects.
  */

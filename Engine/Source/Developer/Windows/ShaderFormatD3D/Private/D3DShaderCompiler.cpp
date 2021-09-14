@@ -792,8 +792,6 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 	}
 
 	// Gather reflection information
-	int32 NumInterpolants = 0;
-	TIndirectArray<FString> InterpolantNames;
 	TArray<FString> ShaderInputs;
 	TArray<FShaderCodeVendorExtension> VendorExtensions;
 
@@ -808,7 +806,6 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 		uint32 NumUAVs = 0;
 
 		TArray<FString> UniformBufferNames;
-		TArray<FString> ShaderOutputs;
 
 		TBitArray<> UsedUniformBufferSlots;
 		UsedUniformBufferSlots.Init(false, 32);
@@ -831,37 +828,12 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 			D3D11_SHADER_DESC ShaderDesc;
 			Reflector->GetDesc(&ShaderDesc);
 
-			if (Input.Target.Frequency == SF_Vertex)
-			{
-				for (uint32 Index = 0; Index < ShaderDesc.OutputParameters; ++Index)
-				{
-					// VC++ horrible hack: Runtime ESP checks get confused and fail for some reason calling Reflector->GetOutputParameterDesc() (because it comes from another DLL?)
-					// so "guard it" using the middle of an array; it's been confirmed NO corruption is really happening.
-					D3D11_SIGNATURE_PARAMETER_DESC ParamDescs[3];
-					D3D11_SIGNATURE_PARAMETER_DESC& ParamDesc = ParamDescs[1];
-					Reflector->GetOutputParameterDesc(Index, &ParamDesc);
-					if (ParamDesc.SystemValueType == D3D_NAME_UNDEFINED && ParamDesc.Mask != 0)
-					{
-						++NumInterpolants;
-						InterpolantNames.Add(new FString(FString::Printf(TEXT("%s%d"), ANSI_TO_TCHAR(ParamDesc.SemanticName), ParamDesc.SemanticIndex)));
-						ShaderOutputs.Add(*InterpolantNames.Last());
-					}
-				}
-			}
-			else if (Input.Target.Frequency == SF_Pixel)
+			if (Input.Target.Frequency == SF_Pixel)
 			{
 				if (GD3DAllowRemoveUnused != 0 && Input.bCompilingForShaderPipeline)
 				{
 					// Handy place for a breakpoint for debugging...
 					++GBreakpoint;
-				}
-				for(uint32 Index = 0; Index < ShaderDesc.OutputParameters; ++Index)
-				{
-					// VC++ horrible hack: Runtime ESP checks get confused and fail for some reason calling Reflector->GetInputParameterDesc() (because it comes from another DLL?)
-					// so "guard it" using the middle of an array; it's been confirmed NO corruption is really happening.
-					D3D11_SIGNATURE_PARAMETER_DESC ParamDescs[3];
-					D3D11_SIGNATURE_PARAMETER_DESC& ParamDesc = ParamDescs[1];
-					Reflector->GetOutputParameterDesc(Index, &ParamDesc);
 				}
 
 				bool bFoundUnused = false;

@@ -416,13 +416,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 
 			if (bIsVendorParameter)
 			{
-				FShaderCodeVendorExtension VendorExtension;
-				VendorExtension.VendorId = 0x1002; // AMD
-				VendorExtension.Parameter.BufferIndex = 0;
-				VendorExtension.Parameter.BaseIndex = BindDesc.BindPoint;
-				VendorExtension.Parameter.Size = BindCount;
-				VendorExtension.Parameter.Type = ParameterType;
-				VendorExtensions.Add(VendorExtension);
+				VendorExtensions.Emplace(0x1002 /*AMD*/, 0, BindDesc.BindPoint, BindCount, ParameterType);
 			}
 			else
 			{
@@ -465,24 +459,12 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 			const uint32 BindCount = 1;
 			if (bIsVendorParameter)
 			{
-				FShaderCodeVendorExtension VendorExtension;
-				if (bIsNVExtension)
-				{
-					VendorExtension.VendorId = 0x10DE; // NVIDIA
-				}
-				else if (bIsAMDExtensionDX11 || bIsAMDExtensionDX12)
-				{
-					VendorExtension.VendorId = 0x1002; // AMD
-				}
-				else if (bIsIntelExtension)
-				{
-					VendorExtension.VendorId = 0x8086; // INTEL
-				}
-				VendorExtension.Parameter.BufferIndex = 0;
-				VendorExtension.Parameter.BaseIndex = BindDesc.BindPoint;
-				VendorExtension.Parameter.Size = BindCount;
-				VendorExtension.Parameter.Type = EShaderParameterType::UAV;
-				VendorExtensions.Add(VendorExtension);
+				const uint32 VendorId =
+					bIsNVExtension ? 0x10DE : // NVIDIA
+					(bIsAMDExtensionDX11 || bIsAMDExtensionDX12) ? 0x1002 : // AMD
+					bIsIntelExtension ? 0x8086 : // Intel
+					0;
+				VendorExtensions.Emplace(VendorId, 0, BindDesc.BindPoint, BindCount, EShaderParameterType::UAV);
 			}
 			else if (bIsDiagnosticBufferParameter)
 			{
