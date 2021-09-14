@@ -19,15 +19,17 @@ public class ImageWrapper : ModuleRules
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"zlib",
-			"UElibPNG",
-			"UElibJPG"
+			"UElibPNG"
 		);
 
-		// Add LibJpegTurbo for supported platforms
-		// **** NOTE - Only Win64/Linux has been tested - other platforms are usable at your own risk, but have not been tested
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)))
-		/* (Target.Platform == UnrealTargetPlatform.Mac)) */
+		// Jpeg Decoding
+		// LibJpegTurbo is much faster than UElibJPG but has not been compiled or tested for all platforms
+		// Note that currently this module is included at runtime, so consider the increase in exe size before
+		// enabling for any of the console/phone platforms!
+
+		// **** NOTE - Only Win64/Linux has been tested - UnrealTargetPlatform.Mac is available but has not been tested, use at your own risk!
+		if (Target.Platform == UnrealTargetPlatform.Win64 /*|| Target.Platform == UnrealTargetPlatform.Mac*/
+			|| Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PublicDefinitions.Add("WITH_LIBJPEGTURBO=1");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "LibJpegTurbo");
@@ -35,6 +37,7 @@ public class ImageWrapper : ModuleRules
 		else
 		{
 			PublicDefinitions.Add("WITH_LIBJPEGTURBO=0");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "UElibJPG");
 		}
 
 		// Add openEXR lib for windows builds.
