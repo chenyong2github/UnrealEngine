@@ -52,6 +52,11 @@ public:
 		FCoreDelegates::OnActorLabelChanged.AddRaw(this, &FDataprepEditorOutlinerMode::OnActorLabelChanged);
 	}
 
+	~FDataprepEditorOutlinerMode()
+	{
+		FCoreDelegates::OnActorLabelChanged.RemoveAll(this);
+	}
+
 	virtual bool CanRenameItem(const ISceneOutlinerTreeItem& Item) const override { return false; }
 	virtual ESelectionMode::Type GetSelectionMode() const override { return ESelectionMode::Multi; }
 
