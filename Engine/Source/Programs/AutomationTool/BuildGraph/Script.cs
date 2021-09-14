@@ -781,9 +781,13 @@ namespace AutomationTool
 						string Input = ReadAttribute(Element, "Input");
 						Match Match = RegexValue.Match(Input);
 
+						bool Optional = Condition.Evaluate(ReadAttribute(Element, "Optional"));
 						if (!Match.Success)
 						{
-							LogError(Element, "Regex {0} did not find a match against input string {1}", RegexString, Input);
+							if (!Optional)
+							{
+								LogError(Element, "Regex {0} did not find a match against input string {1}", RegexString, Input);
+							}
 						}
 						else
 						{
@@ -1885,7 +1889,7 @@ namespace AutomationTool
 			{
 				if (Idx > 0 && Name[Idx] == ' ' && Name[Idx - 1] == ' ')
 				{
-					LogError(Element, "Consecutive spaces in object name");
+					LogError(Element, "Consecutive spaces in object name - '{0}'", Name);
 					return false;
 				}
 				if(Char.IsControl(Name[Idx]) || ScriptSchema.IllegalNameCharacters.IndexOf(Name[Idx]) != -1)
