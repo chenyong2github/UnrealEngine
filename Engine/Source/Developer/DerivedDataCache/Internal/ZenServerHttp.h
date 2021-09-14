@@ -112,7 +112,9 @@ public:
 	DERIVEDDATACACHE_API Result PerformBlockingDelete(FStringView Uri);
 
 	DERIVEDDATACACHE_API Result PerformBlockingPost(FStringView Uri, FCbObjectView Obj);
+	DERIVEDDATACACHE_API Result PerformBlockingPostPackage(FStringView Uri, FCbPackage Package);
 	DERIVEDDATACACHE_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload);
+	DERIVEDDATACACHE_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload, EContentType ContentType);
 
 	/**
 		* Returns the response buffer as a string. Note that is the request is performed
@@ -127,10 +129,12 @@ public:
 	  * Returns the response buffer. Note that is the request is performed
 	  * with an external buffer as target buffer this will be empty.
 	  */
-	const TArray64<uint8>& GetResponseBuffer() const
+	inline const TArray64<uint8>& GetResponseBuffer() const
 	{
 		return ResponseBuffer;
 	}
+
+	DERIVEDDATACACHE_API FCbObjectView GetResponseAsObject() const;
 
 	DERIVEDDATACACHE_API bool GetHeader(const ANSICHAR* Header, FString& OutValue) const;
 
@@ -152,6 +156,8 @@ private:
 	TArray64<uint8>			ResponseBuffer;
 	TArray<FString>			Headers;
 	FString					Domain;
+
+	void AddHeadersForContentType(EContentType ContentType);
 
 	/**
 	  * Supported request verb
