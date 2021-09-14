@@ -177,7 +177,7 @@ void SPropertyBinding::ForEachBindableFunction(UClass* FromClass, Predicate Pred
 			for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 			{
 				UClass* TestClass = *ClassIt;
-				if (!TestClass->IsNative() && TestClass->IsChildOf(UBlueprintFunctionLibrary::StaticClass()) && (!TestClass->HasAnyClassFlags(CLASS_Abstract)))
+				if (TestClass->IsChildOf(UBlueprintFunctionLibrary::StaticClass()) && (!TestClass->HasAnyClassFlags(CLASS_Abstract)))
 				{
 					CheckBindableClass(TestClass);
 				}
