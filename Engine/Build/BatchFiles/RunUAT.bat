@@ -52,6 +52,14 @@ rem ## Verify that dotnet is present
 call "%SCRIPT_DIR%GetDotnetPath.bat"
 if errorlevel 1 goto Error_NoDotnetSDK
 
+
+
+rem Checking for out-of-date files won't find source files in places like Engine/Platform, resulting in occasionally
+rem out of date builds. Until a better solution is found, always try to build AutomationTool.
+set FORCECOMPILE_UAT=FORCE
+
+
+
 call "%SCRIPT_DIR%BuildUAT.bat" %FORCECOMPILE_UAT%
 if errorlevel 1 goto Error_UATCompileFailed
 
