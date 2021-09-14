@@ -1737,7 +1737,7 @@ FContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContaine
 		{
 			RedirectsNameMapBuilder.MarkNameAsReferenced(Entry->GetSourcePackageName());
 			FMappedName MappedSourcePackageName = RedirectsNameMapBuilder.MapName(Entry->GetSourcePackageName());
-			if (Entry->Region.IsValid())
+			if (!Entry->Region.IsNone())
 			{
 				Header.CulturePackageMap.FindOrAdd(Entry->Region.ToString()).Add({ Entry->GetSourcePackageId(), Entry->GetPackageId(), MappedSourcePackageName });
 			}
