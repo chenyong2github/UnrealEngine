@@ -85,6 +85,8 @@ bool FFocalLengthFocusPoint::GetValue(int32 Index, FFocalLengthInfo& OutData) co
 	if(ZoomPoints.IsValidIndex(Index))
 	{
 		OutData = ZoomPoints[Index].FocalLengthInfo;
+
+		return true;
 	}
 
 	return false;

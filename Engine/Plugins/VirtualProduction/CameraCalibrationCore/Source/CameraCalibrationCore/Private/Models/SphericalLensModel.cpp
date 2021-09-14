@@ -11,3 +11,8 @@ FName USphericalLensModel::GetModelName() const
 { 
 	return FName("Spherical Lens Model"); 
 }
+
+FName USphericalLensModel::GetShortModelName() const
+{
+	return TEXT("Spherical");
+}

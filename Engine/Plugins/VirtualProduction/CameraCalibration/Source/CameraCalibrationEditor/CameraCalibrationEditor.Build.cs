@@ -24,6 +24,8 @@ namespace UnrealBuildTool.Rules
 					"EditorWidgets",
 					"Engine",
 					"InputCore",
+					"Json",
+					"JsonUtilities",
 					"LiveLinkCamera",
 					"LiveLinkComponents",
 					"LiveLinkEditor",
