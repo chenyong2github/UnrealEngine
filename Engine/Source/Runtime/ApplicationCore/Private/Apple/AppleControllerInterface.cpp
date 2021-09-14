@@ -90,19 +90,6 @@ void FAppleControllerInterface::SetCurrentController(GCController* Controller)
     {
         if (Controllers[ControllerIndex].Controller == Controller)
         {
-            break;
-        }
-    }
-    if (ControllerIndex == UE_ARRAY_COUNT(Controllers))
-    {
-        HandleConnection(Controller);
-    }
-
-
-    for (ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
-    {
-        if (Controllers[ControllerIndex].Controller == Controller)
-        {
             Controllers[ControllerIndex].PlayerIndex = PlayerIndex::PlayerOne;
         }
         else if (Controllers[ControllerIndex].PlayerIndex == PlayerIndex::PlayerOne)
