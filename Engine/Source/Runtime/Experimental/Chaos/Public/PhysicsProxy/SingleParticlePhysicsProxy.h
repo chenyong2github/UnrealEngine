@@ -139,9 +139,6 @@ public:
 	/**/
 	bool IsDirty();
 
-	bool IsInitialized() const { return InitializedOnStep != INDEX_NONE; }
-	void SetInitialized(const int32 InitializeStep) { InitializedOnStep = InitializeStep; }
-	int32 GetInitializedStep() const { return InitializedOnStep; }
 
 	/**/
 	Chaos::EWakeEventEntry GetWakeEvent() const;
@@ -170,9 +167,6 @@ public:
 	{
 		return static_cast<const Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
-	
-private:
-	int32 InitializedOnStep = INDEX_NONE;
 
 protected:
 	TUniquePtr<PARTICLE_TYPE> Particle;
