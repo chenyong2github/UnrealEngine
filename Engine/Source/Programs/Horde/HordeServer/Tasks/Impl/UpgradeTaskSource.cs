@@ -59,7 +59,7 @@ namespace HordeServer.Tasks.Impl
 						Payload = Any.Pack(Task).ToByteArray();
 					}
 
-					Lease = new AgentLease(ObjectId.GenerateNewId(), $"Upgrade to {RequiredVersion}", null, null, LogFile.Id, LeaseState.Pending, Payload, null);
+					Lease = new AgentLease(ObjectId.GenerateNewId(), $"Upgrade to {RequiredVersion}", null, null, LogFile.Id, LeaseState.Pending, null, true, Payload);
 				}
 				return TaskSubscription.FromResult(Lease);
 			}

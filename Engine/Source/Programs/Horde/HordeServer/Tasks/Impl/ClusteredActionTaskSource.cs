@@ -361,7 +361,7 @@ namespace HordeServer.Tasks.Impl
 			
 			byte[] Payload = Any.Pack(ActionTask).ToByteArray();
 			ObjectId OpId = ObjectId.Parse(Op.Id);
-			AgentLease Lease = new AgentLease(OpId, LeaseName, null, null, LogFile.Id, LeaseState.Pending, Payload, null);
+			AgentLease Lease = new AgentLease(OpId, LeaseName, null, null, LogFile.Id, LeaseState.Pending, null, false, Payload);
 			RemoteExecOperationInternal OpInternal = new RemoteExecOperationInternal(OpId, Lease.Id);
 
 			lock (ActiveOperations)

@@ -235,6 +235,11 @@ namespace HordeServer.Models
 		public IReadOnlyDictionary<string, int>? Resources { get; set; }
 
 		/// <summary>
+		/// Whether the lease requires exclusive access to the agent
+		/// </summary>
+		public bool Exclusive { get; set; }
+
+		/// <summary>
 		/// For leases in the pending state, encodes an "any" protobuf containing the payload for the agent to execute the lease.
 		/// </summary>
 		public byte[]? Payload { get; set; }
@@ -257,9 +262,10 @@ namespace HordeServer.Models
 		/// <param name="PoolId"></param>
 		/// <param name="LogId">Unique id for the log</param>
 		/// <param name="State">State for the lease</param>
-		/// <param name="Payload">Encoded "any" protobuf describing the contents of the payload</param>
 		/// <param name="Resources">Resources required for this lease</param>
-		public AgentLease(ObjectId Id, string Name, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, LeaseState State, byte[]? Payload, IReadOnlyDictionary<string, int>? Resources)
+		/// <param name="Exclusive">Whether to reserve the entire device</param>
+		/// <param name="Payload">Encoded "any" protobuf describing the contents of the payload</param>
+		public AgentLease(ObjectId Id, string Name, StreamId? StreamId, PoolId? PoolId, ObjectId? LogId, LeaseState State, IReadOnlyDictionary<string, int>? Resources, bool Exclusive, byte[]? Payload)
 		{
 			this.Id = Id;
 			this.Name = Name;
@@ -267,8 +273,9 @@ namespace HordeServer.Models
 			this.PoolId = PoolId;
 			this.LogId = LogId;
 			this.State = State;
-			this.Payload = Payload;
 			this.Resources = Resources;
+			this.Exclusive = Exclusive;
+			this.Payload = Payload;
 			StartTime = DateTime.UtcNow;
 		}
 
@@ -646,6 +653,10 @@ namespace HordeServer.Models
 		public static bool MeetsRequirements(this IAgent Agent, Condition? Condition, Dictionary<string, int>? Resources, bool Exclusive)
 		{
 			if (!Agent.Enabled || Agent.Status != AgentStatus.Ok)
+			{
+				return false;
+			}
+			if (Agent.Leases.Any(x => x.Exclusive))
 			{
 				return false;
 			}
