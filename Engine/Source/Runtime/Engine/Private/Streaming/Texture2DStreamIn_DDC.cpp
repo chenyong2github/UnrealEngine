@@ -173,7 +173,7 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 			if (MipKeys.Num())
 			{
 				GetCache().GetPayload(MipKeys, Context.Texture->GetPathName(), ECachePolicy::Default, DDCRequestOwner,
-					[this, &Context, LODBias](FCacheGetPayloadCompleteParams&& Params)
+					[this, LODBias](FCacheGetPayloadCompleteParams&& Params)
 					{
 						if (Params.Status == EStatus::Ok)
 						{
@@ -273,7 +273,6 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 					}
 					else
 					{
-						// UE_LOG(LogTexture, Warning, TEXT("Failed to stream mip data from the derived data cache for %s. Streaming mips will be recached."), Context.Texture->GetPathName() );
 						MarkAsCancelled();
 					}
 				}
@@ -293,19 +292,24 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 
 				if (MipMap.IsPagedToDerivedData())
 				{
-					check(DDCBuffers[MipIndex]);
-
-					const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
-					if (DDCBuffers[MipIndex].GetSize() == ExpectedMipSize)
+					if (DDCBuffers[MipIndex])
 					{
-						FMemory::Memcpy(MipData[MipIndex], DDCBuffers[MipIndex].GetData(), DDCBuffers[MipIndex].GetSize());
+						const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
+						if (DDCBuffers[MipIndex].GetSize() == ExpectedMipSize)
+						{
+							FMemory::Memcpy(MipData[MipIndex], DDCBuffers[MipIndex].GetData(), DDCBuffers[MipIndex].GetSize());
+						}
+						else
+						{
+							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected (%d) for mip %d of %s."), static_cast<int32>(DDCBuffers[MipIndex].GetSize()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
+							MarkAsCancelled();
+						}
+						DDCBuffers[MipIndex].Reset();
 					}
 					else
 					{
-						UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected (%d) for mip %d of %s."), static_cast<int32>(DDCBuffers[MipIndex].GetSize()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
 						MarkAsCancelled();
 					}
-					DDCBuffers[MipIndex].Reset();
 				}
 				else
 				{
