@@ -195,8 +195,6 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 	{
 		const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
 
-		InOutImplBackEndUEAndORT->ClearResources();
-
 		// Initialize and configure InOutImplBackEndUEAndORT
 		if (!UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(InOutImplBackEndUEAndORT, InModelFullFilePath, InDeviceType))
 		{
@@ -352,6 +350,8 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(TShare
 
 		InOutImplBackEndUEAndORT->AllocatorInfo = MakeUnique<Ort::MemoryInfo>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU));
 	}
+
+	InOutImplBackEndUEAndORT->ClearResources();
 
 	// Configure InOutImplBackEndUEAndORT
 	if (!InOutImplBackEndUEAndORT->ConfigureMembers(InDeviceType))
