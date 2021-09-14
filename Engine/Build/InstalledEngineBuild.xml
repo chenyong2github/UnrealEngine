@@ -78,10 +78,13 @@
 	<!-- Whether to use VS2019 -->
 	<Option Name="VS2019" Restrict="true|false" DefaultValue="false" Description="Use Visual Studio 2019 to build Windows targets. By default, Visual Studio 2017 is used for maximum compatibility"/>
 	
+	<!-- Ouput directory for the build -->
+	<Option Name="BuiltDirectory" DefaultValue="$(RootDir)/LocalBuilds/Engine/" Description="Directory for outputting the built engine"/>
+
 	<!-- The local output directory -->
-	<Property Name="LocalInstalledDir" Value="$(RootDir)/LocalBuilds/Engine/Windows"/>
-	<Property Name="LocalInstalledDirMac" Value="$(RootDir)/LocalBuilds/Engine/Mac"/>
-	<Property Name="LocalInstalledDirLinux" Value="$(RootDir)/LocalBuilds/Engine/Linux"/>
+	<Property Name="LocalInstalledDir" Value="$(BuiltDirectory)/Windows"/>
+	<Property Name="LocalInstalledDirMac" Value="$(BuiltDirectory)/Mac"/>
+	<Property Name="LocalInstalledDirLinux" Value="$(BuiltDirectory)/Linux"/>
 
 	<!-- Directory for storing build products like the Compressed DDC, Stripped and Signed files -->
 	<Property Name="SavedOutput" Value="$(RootDir)/Engine/Saved"/>
