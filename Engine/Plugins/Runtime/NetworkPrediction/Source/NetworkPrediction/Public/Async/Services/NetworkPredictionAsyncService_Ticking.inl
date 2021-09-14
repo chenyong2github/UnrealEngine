@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 namespace UE_NP {
 
@@ -26,6 +27,8 @@ public:
 
 	void Tick_Internal(FNetworkPredictionAsyncTickContext& Context, FNetworkPredictionSimCallbackOutput& Output) final override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_TickInternal);
+
 		TAsncFrameSnapshot<AsyncModelDef>& Snapshot = DataStore->Frames[Context.LocalStorageFrame];
 
 		for (auto& MapIt : DataStore->Instances)
