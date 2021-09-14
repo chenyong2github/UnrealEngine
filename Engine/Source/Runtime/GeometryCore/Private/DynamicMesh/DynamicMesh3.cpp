@@ -605,7 +605,7 @@ FString FDynamicMesh3::MeshInfoString()
 	return VtxString + "\n" + TriString + "\n" + EdgeString + "\n" + AttribString + "\n" + InfoString;
 }
 
-bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Options)
+bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Options) const
 {
 	if (VertexCount() != m2.VertexCount())
 	{

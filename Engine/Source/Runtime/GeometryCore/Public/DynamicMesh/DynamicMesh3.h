@@ -1277,7 +1277,7 @@ public:
 	 * Check if another mesh is the same as this mesh. By default only checks
 	 * vertices and triangles, turn on other parameters w/ flags
 	 */
-	virtual bool IsSameAs(const FDynamicMesh3& OtherMesh, const FSameAsOptions& Options);
+	virtual bool IsSameAs(const FDynamicMesh3& OtherMesh, const FSameAsOptions& Options) const;
 
 	/**
 	 * Options for what the validity check will permit
