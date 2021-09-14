@@ -473,8 +473,6 @@ private:
 
 	/** Callbacks for all the functionality for modifying arguments */
 	void OnRemoveClicked();
-	FReply OnArgMoveUp();
-	FReply OnArgMoveDown();
 
 	FText OnGetArgNameText() const;
 	FText OnGetArgToolTipText() const;
