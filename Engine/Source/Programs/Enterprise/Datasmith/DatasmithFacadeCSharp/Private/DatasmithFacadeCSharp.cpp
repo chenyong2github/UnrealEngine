@@ -4936,7 +4936,7 @@ SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeTransformAnimation_GetCurveInt
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeTransformAnimation_GetFrame(void * jarg1, int jarg2, int jarg3, int * jarg4, void * jarg5, void * jarg6, void * jarg7) {
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeTransformAnimation_GetFrame(void * jarg1, int jarg2, int jarg3, int * jarg4, double * jarg5, double * jarg6, double * jarg7) {
   FDatasmithFacadeTransformAnimation *arg1 = (FDatasmithFacadeTransformAnimation *) 0 ;
   EDatasmithFacadeAnimationTransformType arg2 ;
   int32 arg3 ;
@@ -4949,21 +4949,9 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeTransformAnimation_GetFrame(v
   arg2 = (EDatasmithFacadeAnimationTransformType)jarg2; 
   arg3 = (int32)jarg3; 
   arg4 = (int32 *)jarg4; 
-  arg5 = (double *)jarg5;
-  if (!arg5) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "double & type is null", 0);
-    return ;
-  } 
-  arg6 = (double *)jarg6;
-  if (!arg6) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "double & type is null", 0);
-    return ;
-  } 
-  arg7 = (double *)jarg7;
-  if (!arg7) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "double & type is null", 0);
-    return ;
-  } 
+  arg5 = (double *)jarg5; 
+  arg6 = (double *)jarg6; 
+  arg7 = (double *)jarg7; 
   ((FDatasmithFacadeTransformAnimation const *)arg1)->GetFrame(arg2,arg3,*arg4,*arg5,*arg6,*arg7);
 }
 
