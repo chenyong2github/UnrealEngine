@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
+#include "StaticMeshResources.h"
 
 struct FStaticMeshBuildVertex;
-struct FStaticMeshSection;
 struct FMeshNaniteSettings;
 
 namespace Nanite
