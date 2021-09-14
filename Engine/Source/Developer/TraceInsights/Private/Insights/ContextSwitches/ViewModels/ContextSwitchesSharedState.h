@@ -66,7 +66,7 @@ public:
 	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
-	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
+	virtual void ExtendCpuTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
 
 	//////////////////////////////////////////////////
 
@@ -131,7 +131,7 @@ private:
 	bool Command_ShowOverlays_IsChecked() const { return AreOverlaysVisible(); }
 
 	void Command_ShowExtendedLines_Execute() { ToggleExtendedLines(); }
-	bool Command_ShowExtendedLines_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible() && AreOverlaysVisible(); }
+	bool Command_ShowExtendedLines_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible(); }
 	bool Command_ShowExtendedLines_IsChecked() const { return AreExtendedLinesVisible(); }
 
 	bool IsValidCpuCoreEventSelected() const;

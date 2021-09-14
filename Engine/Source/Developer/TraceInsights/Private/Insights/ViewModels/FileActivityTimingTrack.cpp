@@ -342,39 +342,26 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFileActivitySharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+void FFileActivitySharedState::ExtendOtherTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
 {
 	if (&InSession != TimingView)
 	{
 		return;
 	}
 
-	//InOutMenuBuilder.BeginSection("File Activity", LOCTEXT("FileActivityHeading", "File Activity"));
+	BuildSubMenu(InOutMenuBuilder);
+
+	//InOutMenuBuilder.BeginSection("File Activity");
 	//{
-	//	InOutMenuBuilder.AddMenuEntry(
-	//		LOCTEXT("ShowAllIoTracks", "I/O Tracks - I"),
-	//		LOCTEXT("ShowAllIoTracks_Tooltip", "Show/hide the I/O (File Activity) tracks"),
-	//		FSlateIcon(),
-	//		FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideAllIoTracks),
-	//				  FCanExecuteAction(),
-	//				  FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsAllIoTracksToggleOn)),
-	//		NAME_None, //"QuickFilterSeparator",
-	//		EUserInterfaceActionType::ToggleButton
+	//	InOutMenuBuilder.AddSubMenu(
+	//		LOCTEXT("FileActivity_SubMenu", "File Activity"),
+	//		LOCTEXT("FileActivity_SubMenu_Desc", "File Activity track options"),
+	//		FNewMenuDelegate::CreateSP(this, &FFileActivitySharedState::BuildSubMenu),
+	//		false,
+	//		FSlateIcon()
 	//	);
 	//}
 	//InOutMenuBuilder.EndSection();
-
-	InOutMenuBuilder.BeginSection("File Activity");
-	{
-		InOutMenuBuilder.AddSubMenu(
-			LOCTEXT("FileActivity_SubMenu", "File Activity"),
-			LOCTEXT("FileActivity_SubMenu_Desc", "File Activity track options"),
-			FNewMenuDelegate::CreateSP(this, &FFileActivitySharedState::BuildSubMenu),
-			false,
-			FSlateIcon()
-		);
-	}
-	InOutMenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -385,7 +372,7 @@ void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 	{
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowIoOverviewTrack", "I/O Overview Track - I"),
-			LOCTEXT("ShowIoOverviewTrack_Tooltip", "Show/hide the I/O Overview track"),
+			LOCTEXT("ShowIoOverviewTrack_Tooltip", "Show/hide the I/O Overview track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoOverviewTrack),
 				FCanExecuteAction(),
@@ -407,7 +394,7 @@ void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowIoActivityTrack", "I/O Activity Track - I"),
-			LOCTEXT("ShowIoActivityTrack_Tooltip", "Show/hide the I/O Activity track"),
+			LOCTEXT("ShowIoActivityTrack_Tooltip", "Show/hide the I/O Activity track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoActivityTrack),
 				FCanExecuteAction(),

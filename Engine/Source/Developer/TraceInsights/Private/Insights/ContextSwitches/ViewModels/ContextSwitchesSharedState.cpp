@@ -108,7 +108,7 @@ FContextSwitchesSharedState::FContextSwitchesSharedState(STimingView* InTimingVi
 	: TimingView(InTimingView)
 	, ThreadsSerial(0)
 	, CpuCoresSerial(0)
-	, bAreCoreTracksVisible(false)
+	, bAreCoreTracksVisible(true)
 	, bAreContextSwitchesVisible(true)
 	, bAreOverlaysVisible(true)
 	, bAreExtendedLinesVisible(true)
@@ -146,7 +146,7 @@ void FContextSwitchesSharedState::OnBeginSession(Insights::ITimingViewSession& I
 	ThreadsSerial = 0;
 	CpuCoresSerial = 0;
 
-	bAreCoreTracksVisible = false;
+	bAreCoreTracksVisible = true;
 	bAreContextSwitchesVisible = true;
 	bAreOverlaysVisible = true;
 	bAreExtendedLinesVisible = true;
@@ -166,7 +166,7 @@ void FContextSwitchesSharedState::OnEndSession(Insights::ITimingViewSession& InS
 	ThreadsSerial = 0;
 	CpuCoresSerial = 0;
 
-	bAreCoreTracksVisible = false;
+	bAreCoreTracksVisible = true;
 	bAreContextSwitchesVisible = true;
 	bAreOverlaysVisible = true;
 	bAreExtendedLinesVisible = true;
@@ -206,24 +206,26 @@ void FContextSwitchesSharedState::Tick(Insights::ITimingViewSession& InSession, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FContextSwitchesSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
+void FContextSwitchesSharedState::ExtendCpuTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
 {
 	if (&InSession != TimingView)
 	{
 		return;
 	}
 
-	InMenuBuilder.BeginSection("ContextSwitches");
-	{
-		InMenuBuilder.AddSubMenu(
-			LOCTEXT("ContextSwitches_SubMenu", "Context Switches"),
-			LOCTEXT("ContextSwitches_SubMenu_Desc", "Context Switch track options"),
-			FNewMenuDelegate::CreateSP(this, &FContextSwitchesSharedState::BuildSubMenu),
-			false,
-			FSlateIcon()
-		);
-	}
-	InMenuBuilder.EndSection();
+	BuildSubMenu(InMenuBuilder);
+
+	//InMenuBuilder.BeginSection("ContextSwitches");
+	//{
+	//	InMenuBuilder.AddSubMenu(
+	//		LOCTEXT("ContextSwitches_SubMenu", "Context Switches"),
+	//		LOCTEXT("ContextSwitches_SubMenu_Desc", "Context Switch track options"),
+	//		FNewMenuDelegate::CreateSP(this, &FContextSwitchesSharedState::BuildSubMenu),
+	//		false,
+	//		FSlateIcon()
+	//	);
+	//}
+	//InMenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

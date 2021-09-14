@@ -28,8 +28,14 @@ public:
 	/** Called each frame. If any new tracks are created they can be added via ITimingViewSession::Add*Track() */
 	virtual void Tick(ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) = 0;
 
-	/** Extension hook for the 'quick filter' menu */
-	virtual void ExtendFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) = 0;
+	/** Extension hook for the 'CPU Tracks Filter' menu */
+	virtual void ExtendCpuTracksFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) {}
+	/** Extension hook for the 'GPU Tracks Filter' menu */
+	virtual void ExtendGpuTracksFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) {}
+	/** Extension hook for the 'Other Tracks Filter' menu */
+	virtual void ExtendOtherTracksFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) {}
+	/** Extension hook for the 'Plugins' menu */
+	virtual void ExtendFilterMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) {}
 
 	/** Extension hook for the context menu for all tracks
 	@return True if any menu option was added and False if no option was added */ 

@@ -496,14 +496,14 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FThreadTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+void FThreadTimingSharedState::ExtendGpuTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
 {
 	if (&InSession != TimingView)
 	{
 		return;
 	}
 
-	InOutMenuBuilder.BeginSection("ThreadProfiler", LOCTEXT("ThreadProfilerHeading", "Threads"));
+	InOutMenuBuilder.BeginSection("GpuTracks", LOCTEXT("GpuTracksHeading", "GPU Tracks"));
 	{
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
 		InOutMenuBuilder.AddMenuEntry(
@@ -513,10 +513,24 @@ void FThreadTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllGpuTracks),
 					  FCanExecuteAction(),
 					  FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::IsAllGpuTracksToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
+	}
+	InOutMenuBuilder.EndSection();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FThreadTimingSharedState::ExtendCpuTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+{
+	if (&InSession != TimingView)
+	{
+		return;
+	}
+
+	InOutMenuBuilder.BeginSection("CpuTracks", LOCTEXT("CpuTracksHeading", "CPU Tracks"));
+	{
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAllCpuTracks", "CPU Thread Tracks - U"),
@@ -525,7 +539,7 @@ void FThreadTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllCpuTracks),
 					  FCanExecuteAction(),
 					  FIsActionChecked::CreateSP(this, &FThreadTimingSharedState::IsAllCpuTracksToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -1417,9 +1431,7 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		ChildTrack->BuildContextMenu(MenuBuilder);
 	}
 
-	MenuBuilder.AddSeparator();
-
-	MenuBuilder.BeginSection("Options");
+	MenuBuilder.BeginSection("TimingEvents", LOCTEXT("TimingEventsSection", "Timing Events"));
 	{
 		FExecuteAction FilterTrackAction;
 		FilterTrackAction.BindSP(this, &FThreadTimingTrack::OnFilterTrackClicked);
