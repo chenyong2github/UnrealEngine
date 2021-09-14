@@ -37,6 +37,34 @@
 
 const FName UControlRigGraphSchema::GraphName_ControlRig(TEXT("Rig Graph"));
 
+FControlRigLocalVariableNameValidator::FControlRigLocalVariableNameValidator(const UBlueprint* Blueprint, const URigVMGraph* Graph, FName InExistingName)
+	: FStringSetNameValidator(InExistingName.ToString())
+{
+	if (Blueprint)
+	{
+		TSet<FName> NamesTemp;
+		// We allow local variables with same name as blueprint variable
+		
+		FBlueprintEditorUtils::GetFunctionNameList(Blueprint, NamesTemp);
+		FBlueprintEditorUtils::GetAllGraphNames(Blueprint, NamesTemp);
+		FBlueprintEditorUtils::GetSCSVariableNameList(Blueprint, NamesTemp);
+		FBlueprintEditorUtils::GetImplementingBlueprintsFunctionNameList(Blueprint, NamesTemp);
+
+		for (FName & Name : NamesTemp)
+		{
+			Names.Add(Name.ToString());
+		}
+	}
+
+	if (Graph)
+	{
+		for (const FRigVMGraphVariableDescription& LocalVariable : Graph->GetLocalVariables())
+		{
+			Names.Add(LocalVariable.Name.ToString());
+		}
+	}
+}
+
 FEdGraphPinType FControlRigGraphSchemaAction_LocalVar::GetPinType() const
 {
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
@@ -67,6 +95,10 @@ void FControlRigGraphSchemaAction_LocalVar::ChangeVariableType(const FEdGraphPin
 void FControlRigGraphSchemaAction_LocalVar::RenameVariable(const FName& NewName)
 {
 	const FName OldName = GetVariableName();
+	if (OldName == NewName)
+	{
+		return;
+	}
 	
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
 	{
@@ -81,21 +113,12 @@ bool FControlRigGraphSchemaAction_LocalVar::IsValidName(const FName& NewName, FT
 {
 	if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(GetVariableScope()))
 	{
-		FKismetNameValidator NameValidator(ControlRigGraph->GetBlueprint());
-		EValidatorResult Result = NameValidator.IsValid(NewName.ToString());
-		if (Result != EValidatorResult::Ok)
+		FControlRigLocalVariableNameValidator NameValidator(ControlRigGraph->GetBlueprint(), ControlRigGraph->GetModel(), GetVariableName());
+		EValidatorResult Result = NameValidator.IsValid(NewName.ToString(), false);
+		if (Result != EValidatorResult::Ok && Result != EValidatorResult::ExistingName)
 		{
 			OutErrorMessage = FText::FromString(TEXT("Name with invalid format"));
 			return false;
-		}
-		
-		for (const FRigVMGraphVariableDescription& LocalVar : ControlRigGraph->GetModel()->GetLocalVariables())
-		{
-			if (LocalVar.Name != GetVariableName() && LocalVar.Name == NewName)
-			{
-				OutErrorMessage = FText::FromString(TEXT("Name already in use"));
-				return false;
-			}
 		}
 	}
 	return true;
