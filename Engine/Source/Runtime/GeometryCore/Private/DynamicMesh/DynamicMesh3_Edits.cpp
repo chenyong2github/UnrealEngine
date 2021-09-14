@@ -463,7 +463,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 	// trim triangles data structures
 	TriangleRefCounts.Trim(TriangleCount());
-	Triangles.Resize(TriangleCount() * 3);
+	Triangles.Resize(TriangleCount());
 	TriangleEdges.Resize(TriangleCount() * 3);
 	if (HasTriangleGroups())
 	{
