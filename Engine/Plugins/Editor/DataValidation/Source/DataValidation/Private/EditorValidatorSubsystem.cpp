@@ -18,6 +18,7 @@
 #include "AssetData.h"
 #include "ISourceControlModule.h"
 #include "DataValidationChangelist.h"
+#include "DataValidationModule.h"
 
 #define LOCTEXT_NAMESPACE "EditorValidationSubsystem"
 
@@ -146,7 +147,7 @@ void UEditorValidatorSubsystem::CleanupValidators()
 	Validators.Empty();
 }
 
-EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject, TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings) const
+EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject, TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings, const EDataValidationUsecase InValidationUsecase) const
 {
 	EDataValidationResult Result = EDataValidationResult::NotValidated;
 	
@@ -159,7 +160,7 @@ EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject
 		{
 			for (auto ValidatorPair : Validators)
 			{
-				if (ValidatorPair.Value && ValidatorPair.Value->IsEnabled() && ValidatorPair.Value->CanValidateAsset(InObject))
+				if (ValidatorPair.Value && ValidatorPair.Value->IsEnabled() && ValidatorPair.Value->CanValidate(InValidationUsecase) && ValidatorPair.Value->CanValidateAsset(InObject))
 				{
 					ValidatorPair.Value->ResetValidationState();
 					EDataValidationResult NewResult = ValidatorPair.Value->ValidateLoadedAsset(InObject, ValidationErrors);
@@ -181,14 +182,14 @@ EDataValidationResult UEditorValidatorSubsystem::IsObjectValid(UObject* InObject
 	return Result;
 }
 
-EDataValidationResult UEditorValidatorSubsystem::IsAssetValid(FAssetData& AssetData, TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings) const
+EDataValidationResult UEditorValidatorSubsystem::IsAssetValid(const FAssetData& AssetData, TArray<FText>& ValidationErrors, TArray<FText>& ValidationWarnings, const EDataValidationUsecase InValidationUsecase) const
 {
 	if (AssetData.IsValid())
 	{
 		UObject* Obj = AssetData.GetAsset();
 		if (Obj)
 		{
-			return IsObjectValid(Obj, ValidationErrors, ValidationWarnings);
+			return IsObjectValid(Obj, ValidationErrors, ValidationWarnings, InValidationUsecase);
 		}
 		return EDataValidationResult::NotValidated;
 	}
@@ -198,9 +199,21 @@ EDataValidationResult UEditorValidatorSubsystem::IsAssetValid(FAssetData& AssetD
 
 int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList, bool bSkipExcludedDirectories, bool bShowIfNoFailures) const
 {
+	FValidateAssetsSettings Settings;
+	FValidateAssetsResults Results;
+
+	Settings.bSkipExcludedDirectories = bSkipExcludedDirectories;
+	Settings.bShowIfNoFailures = bShowIfNoFailures;
+	
+	return ValidateAssetsWithSettings(AssetDataList, Settings, Results);
+}
+
+int32 UEditorValidatorSubsystem::ValidateAssetsWithSettings(const TArray<FAssetData>& AssetDataList, const FValidateAssetsSettings& InSettings, FValidateAssetsResults& OutResults) const
+{
 	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ValidatingDataTask", "Validating Data..."));
-	SlowTask.Visibility = bShowIfNoFailures ? ESlowTaskVisibility::ForceVisible : ESlowTaskVisibility::Invisible;
-	if (bShowIfNoFailures)
+	SlowTask.Visibility = InSettings.bShowIfNoFailures ? ESlowTaskVisibility::ForceVisible : ESlowTaskVisibility::Invisible;
+	
+	if (InSettings.bShowIfNoFailures)
 	{
 		SlowTask.MakeDialogDelayed(.1f);
 	}
@@ -247,13 +260,13 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 	};
 
 	// Now add to map or update as needed
-	for (FAssetData& Data : AssetDataList)
+	for (const FAssetData& Data : AssetDataList)
 	{
 		FText ValidatingMessage = FText::Format(LOCTEXT("ValidatingFilename", "Validating {0}"), FText::FromString(Data.GetFullName()));
 		SlowTask.EnterProgressFrame(1.0f / NumFilesToValidate, ValidatingMessage);
 
 		// Check exclusion path
-		if (bSkipExcludedDirectories && IsPathExcludedFromValidation(Data.PackageName.ToString()))
+		if (InSettings.bSkipExcludedDirectories && IsPathExcludedFromValidation(Data.PackageName.ToString()))
 		{
 			++NumFilesSkipped;
 			continue;
@@ -263,7 +276,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 
 		TArray<FText> ValidationErrors;
 		TArray<FText> ValidationWarnings;
-		EDataValidationResult Result = IsAssetValid(Data, ValidationErrors, ValidationWarnings);
+		EDataValidationResult Result = IsAssetValid(Data, ValidationErrors, ValidationWarnings, InSettings.ValidationUsecase);
 		++NumFilesChecked;
 
 		AddAssetLogTokens(EMessageSeverity::Error, ValidationErrors, Data.PackageName);
@@ -294,7 +307,7 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 			}
 			else if (Result == EDataValidationResult::NotValidated)
 			{
-				if (bShowIfNoFailures)
+				if (InSettings.bShowIfNoFailures)
 				{
 					DataValidationLog.Info()->AddToken(FAssetNameToken::Create(Data.PackageName.ToString()))
 						->AddToken(FTextToken::Create(LOCTEXT("NotValidatedDataResult", "has no data validation.")));
@@ -307,7 +320,14 @@ int32 UEditorValidatorSubsystem::ValidateAssets(TArray<FAssetData> AssetDataList
 	const bool bFailed = (NumInvalidFiles > 0);
 	const bool bAtLeastOneWarning = (NumFilesWithWarnings > 0);
 
-	if (bFailed || bAtLeastOneWarning || bShowIfNoFailures)
+	OutResults.NumChecked = NumFilesChecked;
+	OutResults.NumValid = NumValidFiles;
+	OutResults.NumInvalid = NumInvalidFiles;
+	OutResults.NumSkipped = NumFilesSkipped;
+	OutResults.NumWarnings = NumFilesWithWarnings;
+	OutResults.NumUnableToValidate = NumFilesUnableToValidate;
+
+	if (bFailed || bAtLeastOneWarning || InSettings.bShowIfNoFailures)
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("Result"), bFailed ? LOCTEXT("Failed", "FAILED") : LOCTEXT("Succeeded", "SUCCEEDED"));
@@ -347,7 +367,15 @@ void UEditorValidatorSubsystem::ValidateOnSave(TArray<FAssetData> AssetDataList,
 	FMessageLog DataValidationLog("AssetCheck");
 	FText SavedAsset = AssetDataList.Num() == 1 ? FText::FromName(AssetDataList[0].AssetName) : LOCTEXT("MultipleErrors", "multiple assets");
 	DataValidationLog.NewPage(FText::Format(LOCTEXT("DataValidationLogPage", "Asset Save: {0}"), SavedAsset));
-	if (ValidateAssets(MoveTemp(AssetDataList), true, false) > 0)
+
+	FValidateAssetsSettings Settings;
+	FValidateAssetsResults Results;
+
+	Settings.bSkipExcludedDirectories = true;
+	Settings.bShowIfNoFailures = false;
+	Settings.ValidationUsecase = EDataValidationUsecase::Save;
+
+	if (ValidateAssetsWithSettings(AssetDataList, Settings, Results) > 0)
 	{
 		const FText ErrorMessageNotification = FText::Format(
 			LOCTEXT("ValidationFailureNotification", "Validation failed when saving {0}, check Data Validation log"), SavedAsset);
@@ -438,7 +466,7 @@ void UEditorValidatorSubsystem::ValidateChangelistPreSubmit(FSourceControlChange
 	Changelist->AddToRoot();
 
 	SlowTask.EnterProgressFrame(1.0f, LOCTEXT("ValidatingChangelist", "Validating changelist to submit"));
-	OutResult = IsObjectValid(Changelist, OutValidationErrors, OutValidationWarnings);
+	OutResult = IsObjectValid(Changelist, OutValidationErrors, OutValidationWarnings, EDataValidationUsecase::PreSubmit);
 
 	Changelist->RemoveFromRoot();
 }

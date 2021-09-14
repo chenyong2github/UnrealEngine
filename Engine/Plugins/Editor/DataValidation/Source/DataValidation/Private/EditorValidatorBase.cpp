@@ -10,6 +10,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Logging/TokenizedMessage.h"
+#include "DataValidationModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetValidation"
 
@@ -17,6 +18,11 @@ UEditorValidatorBase::UEditorValidatorBase()
 	: Super()
 {
 	bIsEnabled = true;
+}
+
+bool UEditorValidatorBase::CanValidate_Implementation(const EDataValidationUsecase InUsecase) const
+{
+	return true;
 }
 
 bool UEditorValidatorBase::CanValidateAsset_Implementation(UObject* InAsset) const

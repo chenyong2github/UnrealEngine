@@ -8,6 +8,28 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+UENUM(BlueprintType)
+enum class EDataValidationUsecase : uint8
+{
+	/** No usecase specified */
+	None = 0,
+
+	/** Triggered on user's demand */
+	Manual,
+
+	/** A commandlet invoked the validation */
+	Commandlet,
+
+	/** Saving a package triggered the validation */
+	Save,
+
+	/** Submit dialog triggered the validation */
+	PreSubmit,
+
+	/** Triggered by blueprint or c++ */
+	Script,
+};
+
 /**
  * The public interface to this module
  */
@@ -41,5 +63,5 @@ public:
 	}
 
 	/** Validates selected assets and opens a window to report the results. If bValidateDependencies is true it will also validate any assets that the selected assets depend on. */
-	virtual void ValidateAssets(TArray<FAssetData> SelectedAssets, bool bValidateDependencies) = 0;
+	virtual void ValidateAssets(const TArray<FAssetData>& SelectedAssets, bool bValidateDependencies, const EDataValidationUsecase InValidationUsecase) = 0;
 };

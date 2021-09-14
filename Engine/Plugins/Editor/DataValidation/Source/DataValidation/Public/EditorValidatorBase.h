@@ -12,6 +12,8 @@
 #include "Logging/LogVerbosity.h"
 #include "Internationalization/Text.h"
 #include "UObject/TextProperty.h"
+#include "DataValidationModule.h"
+
 #include "EditorValidatorBase.generated.h"
 
 /*
@@ -30,6 +32,10 @@ class DATAVALIDATION_API UEditorValidatorBase : public UObject
 
 public:
 	UEditorValidatorBase();
+
+	/** Override this to determine whether or not you can use this validator given this usecase */
+	UFUNCTION(BlueprintNativeEvent, Category = "Asset Validation")
+	bool CanValidate(const EDataValidationUsecase InUsecase) const;
 
 	/** Override this to determine whether or not you can validate a given asset with this validator */
 	UFUNCTION(BlueprintNativeEvent, Category = "Asset Validation")

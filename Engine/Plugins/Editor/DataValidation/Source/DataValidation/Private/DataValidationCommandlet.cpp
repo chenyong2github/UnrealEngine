@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataValidationCommandlet.h"
+#include "DataValidationModule.h"
 #include "IAssetRegistry.h"
 #include "AssetRegistryHelpers.h"
 #include "AssetRegistryModule.h"
@@ -43,7 +44,14 @@ bool UDataValidationCommandlet::ValidateData()
 	UEditorValidatorSubsystem* EditorValidationSubsystem = GEditor->GetEditorSubsystem<UEditorValidatorSubsystem>();
 	check(EditorValidationSubsystem);
 
-	EditorValidationSubsystem->ValidateAssets(AssetDataList);
+	FValidateAssetsSettings Settings;
+	FValidateAssetsResults Results;
+
+	Settings.bSkipExcludedDirectories = true;
+	Settings.bShowIfNoFailures = true;
+	Settings.ValidationUsecase = EDataValidationUsecase::Commandlet;
+
+	EditorValidationSubsystem->ValidateAssetsWithSettings(AssetDataList, Settings, Results);
 
 	return true;
 }
