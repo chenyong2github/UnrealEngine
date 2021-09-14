@@ -2,19 +2,21 @@
 
 #include "UVEditor2DViewportClient.h"
 
-#include "UVEditorMode.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "BaseBehaviors/MouseWheelBehavior.h"
-//#include "Drawing/DensityAdjustingGrid.h"
+#include "ContextObjectStore.h"
 #include "EditorModeManager.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "FrameTypes.h"
+#include "UVEditorMode.h"
 
 FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget)
 	: FEditorViewportClient(InModeTools, InPreviewScene, InEditorViewportWidget)
 {
+	ShowWidget(false);
+
 	// Don't draw the little XYZ drawing in the corner.
 	bDrawAxes = false;
 
@@ -43,6 +45,14 @@ FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeToo
 	BehaviorSet->Add(ZoomBehavior);
 
 	ModeTools->GetInteractiveToolsContext()->InputRouter->RegisterSource(this);
+
+	UContextObjectStore* ContextStore = ModeTools->GetInteractiveToolsContext()->ContextObjectStore;
+	ViewportButtonsAPI = ContextStore->FindContext<UUVToolViewportButtonsAPI>();
+	if (!ViewportButtonsAPI)
+	{
+		ViewportButtonsAPI = NewObject<UUVToolViewportButtonsAPI>();
+		ContextStore->AddContextObject(ViewportButtonsAPI);
+	}
 }
 
 const UInputBehaviorSet* FUVEditor2DViewportClient::GetInputBehaviors() const
@@ -56,7 +66,7 @@ void FUVEditor2DViewportClient::AddReferencedObjects(FReferenceCollector& Collec
 	FEditorViewportClient::AddReferencedObjects(Collector);
 
 	Collector.AddReferencedObject(BehaviorSet);
-	//Collector.AddReferencedObject(Grid);
+	Collector.AddReferencedObject(ViewportButtonsAPI);
 }
 
 bool FUVEditor2DViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float/*AmountDepressed*/, bool/*Gamepad*/)
@@ -134,4 +144,60 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 bool FUVEditor2DViewportClient::ShouldOrbitCamera() const
 {
 	return false; // The UV Editor's 2D viewport should never orbit.
+}
+
+void FUVEditor2DViewportClient::SetWidgetMode(UE::Widget::EWidgetMode NewMode)
+{
+	if (ViewportButtonsAPI)
+	{
+		switch (NewMode)
+		{
+		case UE::Widget::EWidgetMode::WM_None:
+			ViewportButtonsAPI->SetGizmoMode(UUVToolViewportButtonsAPI::EGizmoMode::Select);
+			break;
+		case UE::Widget::EWidgetMode::WM_Translate:
+			ViewportButtonsAPI->SetGizmoMode(UUVToolViewportButtonsAPI::EGizmoMode::Transform);
+			break;
+		default:
+			// Do nothing
+			break;
+		}
+	}
+}
+
+bool FUVEditor2DViewportClient::AreWidgetButtonsEnabled() const
+{
+	return ViewportButtonsAPI && ViewportButtonsAPI->AreGizmoButtonsEnabled();
+}
+
+bool FUVEditor2DViewportClient::CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const
+{
+	if (!AreWidgetButtonsEnabled())
+	{
+		return false;
+	}
+
+	return NewMode == UE::Widget::EWidgetMode::WM_None 
+		|| NewMode == UE::Widget::EWidgetMode::WM_Translate;
+}
+
+UE::Widget::EWidgetMode FUVEditor2DViewportClient::GetWidgetMode() const
+{
+	if (!AreWidgetButtonsEnabled())
+	{
+		return UE::Widget::EWidgetMode::WM_None;
+	}
+
+	switch (ViewportButtonsAPI->GetGizmoMode())
+	{
+	case UUVToolViewportButtonsAPI::EGizmoMode::Select:
+		return UE::Widget::EWidgetMode::WM_None;
+		break;
+	case UUVToolViewportButtonsAPI::EGizmoMode::Transform:
+		return UE::Widget::EWidgetMode::WM_Translate;
+		break;
+	default:
+		return UE::Widget::EWidgetMode::WM_None;
+		break;
+	}
 }
