@@ -7,6 +7,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "Components/BillboardComponent.h"
+#include "Editor.h"
 #include "Mechanics/DragAlignmentMechanic.h"
 #include "ModelingToolTargetUtil.h"
 #include "Selection/ToolSelectionUtil.h"

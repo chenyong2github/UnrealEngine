@@ -3,6 +3,7 @@
 #include "WorldBuildingReplaySpectator.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldBuildingReplaySpectatorHUD.h"
+#include "Algo/Transform.h"
 #include "Engine/DemoNetDriver.h"
 #include "GameFramework/PlayerInput.h"
 
