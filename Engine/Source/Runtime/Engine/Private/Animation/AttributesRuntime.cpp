@@ -481,8 +481,8 @@ void Attributes::MirrorAttributes(FStackAttributeContainer& CustomAttributes, co
 		if (TypeIndex != INDEX_NONE)
 		{
 			MirrorSets.Reset();
-			const TArray<int32, FAnimStackAllocator>& UniqueBoneIndices = CustomAttributes.GetUniqueTypedBoneIndices(TypeIndex);
-			TArray<int32, FAnimStackAllocator> SortedBoneIndices(UniqueBoneIndices); 
+			const TArray<int32>& UniqueBoneIndices = CustomAttributes.GetUniqueTypedBoneIndices(TypeIndex);
+			TArray<int32> SortedBoneIndices(UniqueBoneIndices); 
 			SortedBoneIndices.Sort();
 
 			for (int32 CurBoneIndex : UniqueBoneIndices)
@@ -499,7 +499,7 @@ void Attributes::MirrorAttributes(FStackAttributeContainer& CustomAttributes, co
 			}
 
 			TArray<TWrappedAttribute<FAnimStackAllocator>>& ValuesArray = FStackAttributeContainerAccessor::GetValues(CustomAttributes, TypeIndex);
-			const TArray<FAttributeId, FAnimStackAllocator>& AttributeIdentifiers = CustomAttributes.GetKeys(TypeIndex);
+			const TArray<FAttributeId>& AttributeIdentifiers = CustomAttributes.GetKeys(TypeIndex);
 
 			// gather attributes that are on mirrored bones 
 			for (int32 AttributeIndex = 0; AttributeIndex < AttributeIdentifiers.Num(); ++AttributeIndex)

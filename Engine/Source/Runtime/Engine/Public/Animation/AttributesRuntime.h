@@ -45,7 +45,7 @@ namespace UE
         struct TAttributeContainerAccessor
 		{
 			static TArray<TWrappedAttribute<InAllocator>>& GetValues(TAttributeContainer<BoneIndexType, InAllocator>& Attributes,  int32 TypeIndex) {return Attributes.GetValuesInternal(TypeIndex);}
-			static TArray<FAttributeId, InAllocator>& GetKeys(TAttributeContainer<BoneIndexType, InAllocator>& Attributes,  int32 TypeIndex) {return Attributes.GetKeysInternal(TypeIndex);}
+			static TArray<FAttributeId>& GetKeys(TAttributeContainer<BoneIndexType, InAllocator>& Attributes, int32 TypeIndex) {return Attributes.GetKeysInternal(TypeIndex);}
 		};
 
 		struct ENGINE_API FStackAttributeContainerAccessor : public TAttributeContainerAccessor<FCompactPoseBoneIndex, FAnimStackAllocator> {};
