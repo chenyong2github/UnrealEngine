@@ -917,6 +917,8 @@ void FDataprepEditor::OnExecutePipeline()
 	// Reset tracking of pipeline changes between execution
 	bPipelineChanged = false;
 
+	SceneOutliner->FullRefresh();
+
 	// Get stats now that the pipeline has executed
 	PostExecuteStatsPtr = FDataprepStats::GenerateWorldStats(PreviewWorld);
 	RefreshStatsTab();
