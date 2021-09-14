@@ -210,6 +210,12 @@ void UFractureModalTool::EnumerateVisualizationMapping(const FVisualizationMappi
 }
 
 
+void UFractureModalTool::NotifyOfPropertyChangeByTool(UFractureToolSettings* PropertySet) const
+{
+	OnPropertyModifiedDirectlyByTool.Broadcast(PropertySet);
+}
+
+
 void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
 	if (InToolkit.IsValid())

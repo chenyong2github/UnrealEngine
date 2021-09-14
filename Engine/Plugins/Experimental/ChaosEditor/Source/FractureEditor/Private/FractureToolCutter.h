@@ -235,12 +235,15 @@ public:
 	}
 
 	/** Use a 3D rigid transform gizmo to place the fracture pattern.  Only supports grouped fracture. */
-	UPROPERTY(EditAnywhere, Category = PlacementControls)
+	UPROPERTY(EditAnywhere, Category = PlacementControls, meta = (EditCondition = "bShowUseGizmoOption", EditConditionHides, HideEditConditionToggle))
 	bool bUseGizmo = true;
 
 	/** Recenter the gizmo to the center of the selection when selection changes */
-	UPROPERTY(EditAnywhere, Category = PlacementControls, meta = (EditCondition = "bUseGizmo"))
+	UPROPERTY(EditAnywhere, Category = PlacementControls, meta = (EditCondition = "bUseGizmo", EditConditionHides))
 	bool bCenterOnSelection = true;
+
+	UPROPERTY()
+	bool bShowUseGizmoOption = true;
 
 	UPROPERTY()
 	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
