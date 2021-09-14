@@ -51,5 +51,6 @@ public:
 	//~ Begin ULensModel interface
 	virtual UScriptStruct* GetParameterStruct() const override;
 	virtual FName GetModelName() const override;
+	virtual FName GetShortModelName() const override;
 	//~ End ULensModel interface
 };

@@ -24,6 +24,9 @@ public:
 	/** Get the lens model name */
 	virtual FName GetModelName() const PURE_VIRTUAL(ULensModel::GetModelName, return FName(""););
 
+	/** Get the lens model short name */
+	virtual FName GetShortModelName() const PURE_VIRTUAL(ULensModel::GetShortModelName, return FName(""););
+
 	/** Get the struct of distortion parameters supported by this model */
 	virtual UScriptStruct* GetParameterStruct() const PURE_VIRTUAL(ULensModel::GetParameterStruct, return nullptr;);
 
