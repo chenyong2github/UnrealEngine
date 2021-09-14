@@ -647,7 +647,7 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 
 	IPackageStoreWriter::FCommitEventArgs CommitEventArgs;
 
-	CommitEventArgs.PlatformName	= FName(*TargetPlatform.PlatformName()),
+	CommitEventArgs.PlatformName	= FName(*TargetPlatform.PlatformName());
 	CommitEventArgs.PackageName		= Info.PackageName;
 	CommitEventArgs.EntryIndex		= INDEX_NONE;
 	
@@ -666,16 +666,25 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 			check(PackageState->PackageData.IsValid);
 
 			FPackageDataEntry& PkgData = PackageState->PackageData;
-			
+
 			const int64 PkgDiskSize = PkgData.Payload.DataSize();
-			
+
 			FCbAttachment PkgDataAttachment(IoBufferToSharedBuffer(PkgData.Payload));
 			Pkg.AddAttachment(PkgDataAttachment);
 
-			CommitEventArgs.EntryIndex = PackageStoreEntries.Num();
-			PackageStoreEntries.Add(PkgData.PackageStoreEntry);
-			FOplogCookInfo& CookInfo = CookedPackagesInfo.Add_GetRef(FOplogCookInfo{
-				FCookedPackageInfo { Info.PackageName, IoHashToMD5(PkgDataAttachment.GetHash()), Info.PackageGuid, PkgDiskSize } });
+			CommitEventArgs.EntryIndex = PackageNameToIndex.FindOrAdd(Info.PackageName, PackageStoreEntries.Num());
+			if (CommitEventArgs.EntryIndex == PackageStoreEntries.Num())
+			{
+				PackageStoreEntries.Emplace();
+				CookedPackagesInfo.Emplace();
+			}
+
+			PackageStoreEntries[CommitEventArgs.EntryIndex] = PkgData.PackageStoreEntry;
+			FOplogCookInfo& CookInfo = CookedPackagesInfo[CommitEventArgs.EntryIndex];
+			CookInfo = FOplogCookInfo{
+					FCookedPackageInfo { Info.PackageName, IoHashToMD5(PkgDataAttachment.GetHash()), Info.PackageGuid, PkgDiskSize } };
+			CookInfo.bUpToDate = true;
+
 			int32 NumAttachments = Info.Attachments.Num();
 			TArray<FCbAttachment, TInlineAllocator<2>> CbAttachments;
 			if (NumAttachments)
@@ -701,8 +710,6 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 						UE::FZenStoreHttpClient::FindOrAddAttachmentId(AttachmentInfo->Key), CbAttachment.GetHash() });
 				}
 			}
-
-			PackageNameToIndex.Add(Info.PackageName, CookedPackagesInfo.Num()-1);
 
 			FCbWriter PackageObj;
 			PackageObj.BeginObject();
@@ -800,10 +807,10 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 		PendingPackages.Remove(Info.PackageName);
 	}
 }
-void FZenStoreWriter::GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>)>&& Callback)
+void FZenStoreWriter::GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>, TArrayView<const FOplogCookInfo>)>&& Callback)
 {
 	FReadScopeLock _(PackagesLock);
-	Callback(PackageStoreEntries);
+	Callback(PackageStoreEntries, CookedPackagesInfo);
 }
 
 void FZenStoreWriter::Flush()
@@ -912,6 +919,36 @@ void FZenStoreWriter::RemoveCookedPackages()
 	PackageNameToIndex.Empty();
 }
 
+void FZenStoreWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::MarkPackagesUpToDate);
+
+	IPackageStoreWriter::FMarkUpToDateEventArgs MarkUpToDateEventArgs;
+
+	MarkUpToDateEventArgs.PackageIndexes.Reserve(UpToDatePackages.Num());
+
+	{
+		FWriteScopeLock _(PackagesLock);
+		for (FName PackageName : UpToDatePackages)
+		{
+			int32* Index = PackageNameToIndex.Find(PackageName);
+			if (!Index)
+			{
+				UE_LOG(LogZenStoreWriter, Error, TEXT("MarkPackagesUpToDate called with package %s that is not in the oplog."),
+					*PackageName.ToString());
+				continue;
+			}
+
+			MarkUpToDateEventArgs.PackageIndexes.Add(*Index);
+			CookedPackagesInfo[*Index].bUpToDate = true;
+		}
+	}
+	if (MarkUpToDateEventArgs.PackageIndexes.Num())
+	{
+		BroadcastMarkUpToDate(MarkUpToDateEventArgs);
+	}
+}
+
 void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader)
 {
 	// File Manifest
@@ -1004,3 +1041,18 @@ void FZenStoreWriter::BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& Eve
 		CommitEvent.Broadcast(EventArgs);
 	}
 }
+
+void FZenStoreWriter::BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs)
+{
+	FScopeLock CommitEventLock(&CommitEventCriticalSection);
+
+	if (MarkUpToDateEvent.IsBound())
+	{
+		FReadScopeLock EntriesLock(PackagesLock);
+		EventArgs.PlatformName = FName(*TargetPlatform.PlatformName());
+		EventArgs.Entries = PackageStoreEntries;
+		EventArgs.CookInfos = CookedPackagesInfo;
+		MarkUpToDateEvent.Broadcast(EventArgs);
+	}
+}
+

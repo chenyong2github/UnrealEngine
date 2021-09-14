@@ -5778,6 +5778,7 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 					PackageData->SetPlatformCooked(TargetPlatform, true /* bSucceeded */);
 				}
 			}
+			PackageWriter.MarkPackagesUpToDate(Difference.IdenticalCookedPackages.Array());
 			for (FName UncookedPackage : Difference.IdenticalUncookedPackages)
 			{
 				// Mark this failed-to-cook package as cooked so that we don't unnecessarily try to cook it again

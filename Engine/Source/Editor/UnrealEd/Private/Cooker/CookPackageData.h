@@ -201,7 +201,7 @@ namespace UE::Cook
 		 * RequestData is set to the union of the previous and new values.
 		 */
 		void UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms, bool bInIsUrgent,
-			FCompletionCallback&& InCompletionCallback);
+			FCompletionCallback&& InCompletionCallback, bool bAllowUpdateUrgency=true);
 		/*
 		 * Set the given data onto the existing request data.
 		 * It is invalid to call with empty InRequestedPlatforms.

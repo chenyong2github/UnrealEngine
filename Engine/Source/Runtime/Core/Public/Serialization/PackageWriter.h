@@ -212,6 +212,11 @@ public:
 	virtual void RemoveCookedPackages() = 0;
 
 	/**
+	 * Signal the given cooked package(s) have been checked for changes and have not been modified since the last cook.
+	 */
+	virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) = 0;
+
+	/**
 	 * If a previous-version AssetRegistryState was allocated during GetCookedPackages, drop the reference to it
 	 * and return it to the caller who takes responsibility for deleting it.
 	 */
