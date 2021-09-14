@@ -11,6 +11,7 @@
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "UObject/UObjectIterator.h"
+#include "PropertyRestriction.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -68,6 +69,18 @@ private:
 		return false;
 	}
 };
+
+static UClass* FindOrLoadClass(const FString& ClassName)
+{
+	UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+
+	if (!Class)
+	{
+		Class = LoadObject<UClass>(nullptr, *ClassName);
+	}
+
+	return Class;
+}
 
 void SPropertyEditorClass::GetDesiredWidth(float& OutMinDesiredWidth, float& OutMaxDesiredWidth)
 {
@@ -140,12 +153,7 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 
 				for (const FString& ClassName : ClassFilterNames)
 				{
-					UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
-
-					if (!Class)
-					{
-						Class = LoadObject<UClass>(nullptr, *ClassName);
-					}
+					UClass* Class = FindOrLoadClass(ClassName);
 
 					if (Class)
 					{
@@ -170,8 +178,29 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 			}
 		};
 
+		// Filter based on UPROPERTY meta data
 		FillClassFilters(AllowedClassFilters, "AllowedClasses");
 		FillClassFilters(DisallowedClassFilters, "DisallowedClasses");
+
+		// Filter based on restrictions
+		for (const TSharedRef<const FPropertyRestriction>& ClassRestriction : PropertyNode->GetRestrictions())
+		{
+			for (TArray<FString>::TConstIterator Iter= ClassRestriction.Get().GetHiddenValuesIterator(); Iter; ++Iter)
+			{
+				if (UClass* HiddenClass = FindOrLoadClass(*Iter))
+				{
+					DisallowedClassFilters.Add(HiddenClass);
+				}
+			}
+
+			for (TArray<FString>::TConstIterator Iter = ClassRestriction.Get().GetDisabledValuesIterator(); Iter; ++Iter)
+			{
+				if (UClass* DisabledClass = FindOrLoadClass(*Iter))
+				{
+					DisallowedClassFilters.Add(DisabledClass);
+				}
+			}
+		}
 	}
 	else
 	{
@@ -332,11 +361,7 @@ void SPropertyEditorClass::SendToObjects(const FString& NewValue)
 	}
 	else if (!NewValue.IsEmpty() && NewValue != TEXT("None"))
 	{
-		UClass* NewClass = FindObject<UClass>(ANY_PACKAGE, *NewValue);
-		if(!NewClass)
-		{
-			NewClass = LoadObject<UClass>(nullptr, *NewValue);
-		}
+		UClass* NewClass = FindOrLoadClass(NewValue);
 		OnSetClass.Execute(NewClass);
 	}
 	else

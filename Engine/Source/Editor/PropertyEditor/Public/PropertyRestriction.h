@@ -24,6 +24,16 @@ public:
 	void RemoveDisabledValue(FString Value);
 	void RemoveAll();
 
+	TArray<FString>::TConstIterator GetHiddenValuesIterator() const 
+	{
+		return HiddenValues.CreateConstIterator();
+	}
+
+	TArray<FString>::TConstIterator GetDisabledValuesIterator() const
+	{
+		return DisabledValues.CreateConstIterator();
+	}
+
 private:
 
 	TArray<FString> HiddenValues;
