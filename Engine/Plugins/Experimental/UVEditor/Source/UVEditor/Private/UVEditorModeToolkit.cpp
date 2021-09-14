@@ -183,7 +183,6 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 
 	// TODO: Add more tools here
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginSelectTool);
-	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginTransformTool);
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginLayoutTool);
 	ToolbarBuilder.AddToolBarButton(CommandInfos.BeginParameterizeMeshTool);
 

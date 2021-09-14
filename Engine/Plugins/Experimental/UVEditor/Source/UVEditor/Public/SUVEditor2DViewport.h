@@ -16,4 +16,8 @@ public:
 	// is not helpful here because that gets called just once.
 	virtual void AddOverlayWidget(TSharedRef<SWidget> OverlaidWidget);
 	virtual void RemoveOverlayWidget(TSharedRef<SWidget> OverlaidWidget);
+
+	// SEditorViewport
+	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
+	bool IsWidgetModeActive(UE::Widget::EWidgetMode Mode) const override;
 };

@@ -1,0 +1,30 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "SViewportToolBar.h"
+
+class FUICommandList;
+class SUVEditor2DViewport;
+
+/**
+ * Toolbar that shows up at the top of the 2d viewport (has gizmo controls)
+ */
+class SUVEditor2DViewportToolBar : public SViewportToolBar
+{
+public:
+	SLATE_BEGIN_ARGS(SUVEditor2DViewportToolBar) {}
+		SLATE_ARGUMENT(TSharedPtr<FUICommandList>, CommandList)
+		SLATE_ARGUMENT(TSharedPtr<FExtender>, Extenders)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+
+private:
+	TSharedRef<SWidget> MakeToolBar(const TSharedPtr<FExtender> InExtenders);
+
+	/** Command list */
+	TSharedPtr<FUICommandList> CommandList;
+};

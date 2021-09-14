@@ -7,8 +7,9 @@
 #include "EditorViewportClient.h"
 #include "InputBehaviorSet.h"
 #include "UVEditor2DViewportBehaviorTargets.h" // FUVEditor2DScrollBehaviorTarget, FUVEditor2DMouseWheelZoomBehaviorTarget
+#include "UVToolContextObjects.h" // UUVToolViewportButtonsAPI::EGizmoMode
 
-//class UDensityAdjustingGrid;
+class UUVToolViewportButtonsAPI;
 
 /**
  * Client used to display a 2D view of the UV's, implemented by using a perspective viewport with a locked
@@ -22,10 +23,15 @@ public:
 
 	virtual ~FUVEditor2DViewportClient() {}
 
+	bool AreWidgetButtonsEnabled() const;
+
 	// FEditorViewportClient
 	virtual bool InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float/*AmountDepressed*/, bool/*Gamepad*/) override;
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
 	virtual bool ShouldOrbitCamera() const override;
+	bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override;
+	void SetWidgetMode(UE::Widget::EWidgetMode NewMode) override;
+	UE::Widget::EWidgetMode GetWidgetMode() const override;
 
 	// IInputBehaviorSource
 	virtual const UInputBehaviorSet* GetInputBehaviors() const override;
@@ -36,7 +42,7 @@ public:
 protected:
 	// These get added in AddReferencedObjects for memory management
 	UInputBehaviorSet* BehaviorSet;
-	//UDensityAdjustingGrid* Grid;
+	UUVToolViewportButtonsAPI* ViewportButtonsAPI;
 
 	// Note that it's generally less hassle if the unique ptr types are complete here,
 	// not forward declared, else we get compile errors if their destruction shows up

@@ -82,6 +82,10 @@ protected:
 	TObjectPtr<UInteractiveToolManager> ToolManager = nullptr;
 };
 
+/**
+ * Allows tools to interact with the 3d preview viewport, which has a separate
+ * world and input router.
+ */
 UCLASS()
 class UVEDITORTOOLS_API UUVToolLivePreviewAPI : public UUVToolContextObject
 {
@@ -100,15 +104,49 @@ protected:
 	TWeakObjectPtr<UInputRouter> InputRouter;
 };
 
-/** Stores a UV mesh selection */
+/**
+ * Allows tools to interact with buttons in the viewport (currently just gizmo controls)
+ */
 UCLASS()
-class UVEDITORTOOLS_API UUVToolMeshSelection : public UUVToolContextObject
+class UVEDITORTOOLS_API UUVToolViewportButtonsAPI : public UUVToolContextObject
 {
 	GENERATED_BODY()
 public:
 
-	TSharedPtr<UE::Geometry::FDynamicMeshSelection, ESPMode::ThreadSafe> Selection 
-		= MakeShared<UE::Geometry::FDynamicMeshSelection, ESPMode::ThreadSafe>();
+	enum class EGizmoMode
+	{
+		Select,
+		Transform
+	};
+
+	void SetGizmoButtonsEnabled(bool bOn)
+	{
+		bButtonsEnabled = bOn;
+	}
+
+	bool AreGizmoButtonsEnabled()
+	{
+		return bButtonsEnabled;
+	}
+
+	void SetGizmoMode(EGizmoMode ModeIn, bool bBroadcast = true)
+	{
+		GizmoMode = ModeIn;
+		OnGizmoModeChange.Broadcast(GizmoMode);
+	}
+
+	EGizmoMode GetGizmoMode()
+	{
+		return GizmoMode;
+	}
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGizmoModeChange, EGizmoMode NewGizmoMode);
+	FOnGizmoModeChange OnGizmoModeChange;
+
+protected:
+
+	bool bButtonsEnabled = false;
+	EGizmoMode GizmoMode = EGizmoMode::Select;
 };
 
 /** Stores UV mesh AABB trees */

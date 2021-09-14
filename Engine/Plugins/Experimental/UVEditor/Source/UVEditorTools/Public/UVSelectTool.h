@@ -28,8 +28,9 @@ class UUVSelectToolChangeRouter;
 class UUVToolStateObjectStore;
 class UPreviewMesh;
 class UUVEditorToolMeshInput;
-class UUVToolEmitChangeAPI;
 class UUVSeamSewAction;
+class UUVToolEmitChangeAPI;
+class UUVToolViewportButtonsAPI;
 
 UCLASS()
 class UVEDITORTOOLS_API UUVSelectToolBuilder : public UInteractiveToolBuilder
@@ -39,8 +40,6 @@ public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-	bool bGizmoEnabled = false;
 
 	// This is a pointer so that it can be updated under the builder without
 	// having to set it in the mode after initializing targets.
@@ -119,7 +118,6 @@ class UVEDITORTOOLS_API UUVSelectTool : public UInteractiveTool
 
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual void SetGizmoEnabled(bool bEnabledIn);
 	
 	/**
 	 * The tool will operate on the meshes given here.
@@ -173,6 +171,9 @@ protected:
 	TObjectPtr<USelectToolActionPropertySet> ToolActions = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UUVToolViewportButtonsAPI> ViewportButtonsAPI = nullptr;
+
+	UPROPERTY()
 	TObjectPtr<UMeshSelectionMechanic> SelectionMechanic = nullptr;
 
 	UPROPERTY()
@@ -212,9 +213,6 @@ protected:
 	void ApplyAction(ESelectToolAction ActionType);
 	const float LivePreviewHighlightThickness = 2.0;
 	const float LivePreviewHighlightDepthOffset = 0.5;
-
-	// We need this flag so that SetGizmoVisibility can be called before Setup() by the tool builder.
-	bool bGizmoEnabled = false;
 };
 
 /**
@@ -229,39 +227,4 @@ class UVEDITORTOOLS_API UUVSelectToolChangeRouter : public UUVToolContextObject
 public:
 
 	TWeakObjectPtr<UUVSelectTool> CurrentSelectTool = nullptr;
-};
-
-/**
- * A helper context object that allows us to inject an undo transaction back in time, which gets
- * used to deal with the fact that our stored selection may become invalidated by an intervening
- * tool, and needs to be cleared in an undoable transaction before that tool runs.
- * 
- * NOTE: It seems likely (especially after "Transform" is no longer a separate tool from "Select")
- * that we may just decide not to try to store a selection on tool shutdown. In that case we will
- * delete this class.
- */
-UCLASS()
-class UVEDITORTOOLS_API UUVSelectToolSpeculativeChangeAPI : public UUVToolContextObject
-{
-	GENERATED_BODY()
-public:
-
-	/** 
-	 * Emits a tool-independent change that does nothing unless a subsequent InsertIntoLastSpeculativeChange
-	 * call injects a change.
-	 */
-	void EmitSpeculativeChange(UObject* TargetObject, UUVToolEmitChangeAPI* EmitChangeAPI, const FText& TransactionName);
-
-	bool HasSpeculativeChange()
-	{
-		return ContentOfLastSpeculativeChange.IsValid();
-	}
-
-	/**
-	 * Inserts a change into the place marked by the last EmitSpeculativeChange call.
-	 */
-	void InsertIntoLastSpeculativeChange(TUniquePtr<FToolCommandChange> ChangeToInsert);
-
-protected:
-	TSharedPtr<TUniquePtr<FToolCommandChange>> ContentOfLastSpeculativeChange;
 };
