@@ -45,7 +45,7 @@
 #include "Async/Async.h"
 #include "RSA.h"
 #include "Misc/AssetRegistryInterface.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Misc/OutputDeviceFile.h"
 #include "Misc/FeedbackContext.h"
 #include "Serialization/LargeMemoryReader.h"
@@ -4712,7 +4712,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			return -1;
 		}
 
-		FString DevelopmentAssetRegistryPath = FPaths::Combine(Arguments.BasedOnReleaseVersionPath, TEXT("Metadata/DevelopmentAssetRegistry.bin"));
+		FString DevelopmentAssetRegistryPath = FPaths::Combine(Arguments.BasedOnReleaseVersionPath, TEXT("Metadata"), GetDevelopmentAssetRegistryFilename());
 
 		bool bAssetRegistryLoaded = false;
 		FArrayReader SerializedAssetData;

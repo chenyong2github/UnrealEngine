@@ -2,7 +2,7 @@
 
 #include "AssetManagerEditorModule.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PrimaryAssetTypeCustomization.h"
 #include "PrimaryAssetIdCustomization.h"
 #include "SAssetAuditBrowser.h"
@@ -1405,11 +1405,11 @@ FString FAssetManagerEditorModule::GetSavedAssetRegistryPath(ITargetPlatform* Ta
 	CommandLinePath.ReplaceInline(TEXT("[Platform]"), *PlatformName);
 	
 	// We can only load DevelopmentAssetRegistry, the normal asset registry doesn't have enough data to be useful
-	FString CookedDevelopmentAssetRegistry = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("DevelopmentAssetRegistry.bin");
+	FString CookedDevelopmentAssetRegistry = FPaths::ProjectDir() / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
 
 	FString DevCookedPath = CookedSandbox->ConvertToAbsolutePathForExternalAppForWrite(*CookedDevelopmentAssetRegistry).Replace(TEXT("[Platform]"), *PlatformName);
 	FString DevEditorCookedPath = EditorCookedSandbox->ConvertToAbsolutePathForExternalAppForWrite(*CookedDevelopmentAssetRegistry).Replace(TEXT("[Platform]"), *PlatformName);
-	FString DevSharedCookedPath = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), PlatformName, TEXT("Metadata"), TEXT("DevelopmentAssetRegistry.bin"));
+	FString DevSharedCookedPath = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), PlatformName, TEXT("Metadata"), GetDevelopmentAssetRegistryFilename());
 
 	// Try command line, then cooked, then shared build
 	if (!CommandLinePath.IsEmpty() && IFileManager::Get().FileExists(*CommandLinePath))
@@ -1474,15 +1474,16 @@ void FAssetManagerEditorModule::SetCurrentRegistrySource(const FString& SourceNa
 
 			IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
 			const void* ParentWindowWindowHandle = FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr);
-			const FText Title = LOCTEXT("LoadAssetRegistry", "Load DevelopmentAssetRegistry.bin");
-			const FString FileTypes = TEXT("DevelopmentAssetRegistry.bin|*.bin");
+			const TCHAR* DevelopmentAssetRegistryFilename = GetDevelopmentAssetRegistryFilename();
+			const FText Title = LOCTEXT("LoadAssetRegistry", "Load DevelopmentAssetRegistry");
+			const FString FileTypes = FString::Printf(TEXT("%s|*.bin"), DevelopmentAssetRegistryFilename);
 
 			TArray<FString> OutFilenames;
 			DesktopPlatform->OpenFileDialog(
 				ParentWindowWindowHandle,
 				Title.ToString(),
 				TEXT(""),
-				TEXT("DevelopmentAssetRegistry.bin"),
+				DevelopmentAssetRegistryFilename,
 				FileTypes,
 				EFileDialogFlags::None,
 				OutFilenames
