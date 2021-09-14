@@ -95,7 +95,7 @@ void FContextSwitchesTimingTrack::DrawLineEvents(const ITimingTrackDrawContext& 
 
 void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 {
-	if (SharedState.AreOverlaysVisible())
+	if (SharedState.AreOverlaysVisible() || SharedState.AreExtendedLinesVisible())
 	{
 		float LineY1 = 0.0f;
 		float LineY2 = 0.0f;
@@ -165,7 +165,7 @@ void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Contex
 		if (LineH > 0.0f)
 		{
 			const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
-			Helper.DrawContextSwitchMarkers(GetDrawState(), LineY1, LineH, 0.25f, SharedState.AreExtendedLinesVisible());
+			Helper.DrawContextSwitchMarkers(GetDrawState(), LineY1, LineH, 0.25f, SharedState.AreOverlaysVisible(), SharedState.AreExtendedLinesVisible());
 		}
 	}
 }

@@ -580,13 +580,13 @@ void FTimingViewDrawHelper::DrawFadedLineEvents(const FTimingEventsTrackDrawStat
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingViewDrawHelper::DrawContextSwitchMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity, bool bShowVerticalLines) const
+void FTimingViewDrawHelper::DrawContextSwitchMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity, bool bDrawOverlays, bool bDrawVerticalLines) const
 {
 	if (LineH > 0.0f)
 	{
 		const int32 LayerId = ReservedLayerId + ToInt32(EDrawLayer::EventHighlight);
 
-		if (bShowVerticalLines)
+		if (bDrawVerticalLines)
 		{
 			// Draw vertical lines (merged into large boxes).
 			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Boxes)
@@ -604,43 +604,46 @@ void FTimingViewDrawHelper::DrawContextSwitchMarkers(const FTimingEventsTrackDra
 			}
 		}
 
-		// Draw overlay for idle areas.
-		const FSlateBrush* IdleBrush = WhiteBrush;
-		const FLinearColor IdleColor(0.0f, 0.0f, 0.0f, 0.3f);
-		const int32 Count1 = DrawState.Boxes.Num();
-		const int32 Count2 = DrawState.Borders.Num();
-		int32 Index1 = 0;
-		int32 Index2 = 0;
-		const float MinX = Viewport.TimeToSlateUnitsRounded(Viewport.GetMinValidTime());
-		float CurrentX = FMath::Max(MinX, 0.0f);
-		while (Index1 < Count1 || Index2 < Count2)
+		if (bDrawOverlays)
 		{
-			const float X1 = (Index1 < Count1) ? DrawState.Boxes[Index1].X : FLT_MAX;
-			const float X2 = (Index2 < Count2) ? DrawState.Borders[Index2].X : FLT_MAX;
-			if (X1 < X2)
+			// Draw overlay for idle areas.
+			const FSlateBrush* IdleBrush = WhiteBrush;
+			const FLinearColor IdleColor(0.0f, 0.0f, 0.0f, 0.3f);
+			const int32 Count1 = DrawState.Boxes.Num();
+			const int32 Count2 = DrawState.Borders.Num();
+			int32 Index1 = 0;
+			int32 Index2 = 0;
+			const float MinX = Viewport.TimeToSlateUnitsRounded(Viewport.GetMinValidTime());
+			float CurrentX = FMath::Max(MinX, 0.0f);
+			while (Index1 < Count1 || Index2 < Count2)
 			{
-				if (X1 - CurrentX > 0.0f)
+				const float X1 = (Index1 < Count1) ? DrawState.Boxes[Index1].X : FLT_MAX;
+				const float X2 = (Index2 < Count2) ? DrawState.Borders[Index2].X : FLT_MAX;
+				if (X1 < X2)
 				{
-					DrawContext.DrawBox(LayerId, CurrentX, LineY, X1 - CurrentX, LineH, IdleBrush, IdleColor);
+					if (X1 - CurrentX > 0.0f)
+					{
+						DrawContext.DrawBox(LayerId, CurrentX, LineY, X1 - CurrentX, LineH, IdleBrush, IdleColor);
+					}
+					CurrentX = FMath::Max(CurrentX, X1 + DrawState.Boxes[Index1].W);
+					++Index1;
 				}
-				CurrentX = FMath::Max(CurrentX, X1 + DrawState.Boxes[Index1].W);
-				++Index1;
+				else
+				{
+					if (X2 - CurrentX > 0.0f)
+					{
+						DrawContext.DrawBox(LayerId, CurrentX, LineY, X2 - CurrentX, LineH, IdleBrush, IdleColor);
+					}
+					CurrentX = FMath::Max(CurrentX, X2 + DrawState.Borders[Index2].W);
+					++Index2;
+				}
 			}
-			else
+			const float MaxX = Viewport.TimeToSlateUnitsRounded(Viewport.GetMaxValidTime());
+			const float LastAreaW = FMath::Min(MaxX, Viewport.GetWidth()) - CurrentX;
+			if (LastAreaW > 0.0f)
 			{
-				if (X2 - CurrentX > 0.0f)
-				{
-					DrawContext.DrawBox(LayerId, CurrentX, LineY, X2 - CurrentX, LineH, IdleBrush, IdleColor);
-				}
-				CurrentX = FMath::Max(CurrentX, X2 + DrawState.Borders[Index2].W);
-				++Index2;
+				DrawContext.DrawBox(LayerId, CurrentX, LineY, LastAreaW, LineH, IdleBrush, IdleColor);
 			}
-		}
-		const float MaxX = Viewport.TimeToSlateUnitsRounded(Viewport.GetMaxValidTime());
-		const float LastAreaW = FMath::Min(MaxX, Viewport.GetWidth()) - CurrentX;
-		if (LastAreaW > 0.0f)
-		{
-			DrawContext.DrawBox(LayerId, CurrentX, LineY, LastAreaW, LineH, IdleBrush, IdleColor);
 		}
 	}
 }
