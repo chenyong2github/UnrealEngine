@@ -6791,25 +6791,20 @@ void FChildActorComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 	{
 		if (BlueprintEditorPtr.IsValid())
 		{
-			// only restrict for the components view (you can successfully add 
-			// a self child component in the execution graphs)
-			if (BlueprintEditorPtr.Pin()->GetCurrentMode() == FBlueprintEditorApplicationModes::BlueprintComponentsMode)
+			if (UBlueprint* Blueprint = BlueprintEditorPtr.Pin()->GetBlueprintObj())
 			{
-				if (UBlueprint* Blueprint = BlueprintEditorPtr.Pin()->GetBlueprintObj())
+				static FText RestrictReason = LOCTEXT("NoSelfChildActors", "Cannot append a child-actor of this blueprint type (could cause infinite recursion).");
+				TSharedPtr<FPropertyRestriction> ClassRestriction = MakeShareable(new FPropertyRestriction(RestrictReason));
+
+				ClassRestriction->AddDisabledValue(Blueprint->GetName());
+				ClassRestriction->AddDisabledValue(Blueprint->GetPathName());
+				if (Blueprint->GeneratedClass)
 				{
-					FText RestrictReason = LOCTEXT("NoSelfChildActors", "Cannot append a child-actor of this blueprint type (could cause infinite recursion).");
-					TSharedPtr<FPropertyRestriction> ClassRestriction = MakeShareable(new FPropertyRestriction(MoveTemp(RestrictReason)));
-
-					ClassRestriction->AddDisabledValue(Blueprint->GetName());
-					ClassRestriction->AddDisabledValue(Blueprint->GetPathName());
-					if (Blueprint->GeneratedClass)
-					{
-						ClassRestriction->AddDisabledValue(Blueprint->GeneratedClass->GetName());
-						ClassRestriction->AddDisabledValue(Blueprint->GeneratedClass->GetPathName());
-					}
-
-					ActorClassProperty->AddRestriction(ClassRestriction.ToSharedRef());
+					ClassRestriction->AddDisabledValue(Blueprint->GeneratedClass->GetName());
+					ClassRestriction->AddDisabledValue(Blueprint->GeneratedClass->GetPathName());
 				}
+
+				ActorClassProperty->AddRestriction(ClassRestriction.ToSharedRef());
 			}
 		}
 
