@@ -163,11 +163,6 @@ public:
 	void SetModeSettingsObject(UObject* InSettingsObject);
 	virtual void InvokeUI();
 protected:
-	bool CanStartTool(const FString& ToolTypeIdentifier);
-	bool CanAcceptActiveTool();
-	bool CanCancelActiveTool();
-	bool CanCompleteActiveTool();
-
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
 

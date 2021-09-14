@@ -20,7 +20,8 @@ UEdMode::UEdMode()
 	: bPendingDeletion(false)
 	, Owner(nullptr)
 {
-	ToolsContext = nullptr;
+	EditorToolsContext = nullptr;
+	ModeToolsContext = nullptr;
 	ToolCommandList = MakeShareable(new FUICommandList);
 }
 
@@ -49,11 +50,19 @@ void UEdMode::Enter()
 
 	bPendingDeletion = false;
 
-	ToolsContext = Owner->GetInteractiveToolsContext();
-	check(ToolsContext.IsValid());
+	// Editor-scope ToolsContext is provided by the Mode Manager
+	EditorToolsContext = Owner->GetInteractiveToolsContext();
+	check(EditorToolsContext.IsValid());
 
-	GetToolManager()->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
-	GetToolManager()->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
+	EditorToolsContext->ToolManager->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
+	EditorToolsContext->ToolManager->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
+
+	// Mode-scope ToolsContext is created derived from the Editor-Scope ToolsContext so that the UInputRouter can be shared
+	ModeToolsContext = EditorToolsContext->CreateNewChildEdModeToolsContext();
+	check(ModeToolsContext != nullptr);
+
+	ModeToolsContext->ToolManager->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
+	ModeToolsContext->ToolManager->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
 
 	// Create the settings object so that the toolkit has access to the object we are going to use at creation time
 	if (SettingsClass.IsValid())
@@ -84,25 +93,39 @@ void UEdMode::Enter()
 	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
 }
 
-void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder)
+void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, EToolsContextScope ToolScope)
 {
 	if (!Toolkit.IsValid())
 	{
 		return;
 	}
 
+	if (ToolScope == EToolsContextScope::Default)
+	{
+		ToolScope = GetDefaultToolScope();
+	}
+
+	UEditorInteractiveToolsContext* UseToolsContext = GetInteractiveToolsContext(ToolScope);
+	if (ensure(UseToolsContext != nullptr) == false)
+	{
+		return;
+	}
+
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
-	ToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
+	UseToolsContext->ToolManager->RegisterToolType(ToolIdentifier, Builder);
 	CommandList->MapAction(UICommand,
-		FExecuteAction::CreateUObject(ToolsContext.Get(), &UEdModeInteractiveToolsContext::StartTool, ToolIdentifier),
-		FCanExecuteAction::CreateWeakLambda(ToolsContext.Get(), [this, ToolIdentifier]() {
-			return ShouldToolStartBeAllowed(ToolIdentifier) && 
-				 ToolsContext->ToolManager->CanActivateTool(EToolSide::Mouse, ToolIdentifier);
-			}),
-		FIsActionChecked::CreateUObject(ToolsContext.Get(), &UEdModeInteractiveToolsContext::IsToolActive, EToolSide::Mouse, ToolIdentifier),
+		FExecuteAction::CreateUObject(UseToolsContext, &UEdModeInteractiveToolsContext::StartTool, ToolIdentifier),
+		FCanExecuteAction::CreateWeakLambda(UseToolsContext, [this, ToolIdentifier, UseToolsContext]() {
+			return ShouldToolStartBeAllowed(ToolIdentifier) &&
+				UseToolsContext->ToolManager->CanActivateTool(EToolSide::Mouse, ToolIdentifier);
+		}),
+		FIsActionChecked::CreateUObject(UseToolsContext, &UEdModeInteractiveToolsContext::IsToolActive, EToolSide::Mouse, ToolIdentifier),
 		EUIActionRepeatMode::RepeatDisabled);
 
-	RegisteredTools.Emplace(UICommand, ToolIdentifier);
+	if (ToolScope == EToolsContextScope::Editor)
+	{
+		RegisteredEditorTools.Emplace(UICommand, ToolIdentifier);
+	}
 }
 
 bool UEdMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
@@ -121,20 +144,28 @@ void UEdMode::Exit()
 	if (Toolkit.IsValid())
 	{
 		const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
-		for (auto& RegisteredTool : RegisteredTools)
+		for (auto& RegisteredTool : RegisteredEditorTools)
 		{
 			CommandList->UnmapAction(RegisteredTool.Key);
-			ToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
+			EditorToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
 		}
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
-	RegisteredTools.SetNum(0);
+	RegisteredEditorTools.SetNum(0);
 
-	GetToolManager()->OnToolStarted.RemoveAll(this);
-	GetToolManager()->OnToolEnded.RemoveAll(this);
+	// shutdown the Mode-scope ToolsContext, and notify the EditorToolsContext so it can release the reference it holds
+	if (UObjectInitialized() && ModeToolsContext != nullptr)
+	{
+		ModeToolsContext->ShutdownContext();
+		EditorToolsContext->OnChildEdModeToolsContextShutdown(ModeToolsContext);
+	}
 
-	ToolsContext = nullptr;
+	// disconnect from the Mode Manager's shared ToolsContext
+	EditorToolsContext->ToolManager->OnToolStarted.RemoveAll(this);
+	EditorToolsContext->ToolManager->OnToolEnded.RemoveAll(this);
+	EditorToolsContext = nullptr;
+	ModeToolsContext = nullptr;
 
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
 }
@@ -169,19 +200,42 @@ AActor* UEdMode::GetFirstSelectedActorInstance() const
 	return Owner->GetEditorSelectionSet()->GetTopSelectedObject<AActor>();
 }
 
-UInteractiveToolManager* UEdMode::GetToolManager() const
+UInteractiveToolManager* UEdMode::GetToolManager(EToolsContextScope ToolScope) const
 {
-	if (ToolsContext.IsValid())
+	if (ToolScope == EToolsContextScope::Default)
 	{
-		return ToolsContext->ToolManager;
+		ToolScope = GetDefaultToolScope();
 	}
 
+	if (ToolScope == EToolsContextScope::Editor)
+	{
+		return (EditorToolsContext.IsValid()) ? EditorToolsContext->ToolManager : nullptr;
+	}
+	else if (ToolScope == EToolsContextScope::EdMode)
+	{
+		return ModeToolsContext->ToolManager;
+	}
+	ensure(false);
 	return nullptr;
 }
 
-TWeakObjectPtr<UEdModeInteractiveToolsContext> UEdMode::GetInteractiveToolsContext() const
+UEditorInteractiveToolsContext* UEdMode::GetInteractiveToolsContext(EToolsContextScope ToolScope) const
 {
-	return ToolsContext;
+	if (ToolScope == EToolsContextScope::Default)
+	{
+		ToolScope = GetDefaultToolScope();
+	}
+
+	if (ToolScope == EToolsContextScope::Editor)
+	{
+		return EditorToolsContext.IsValid() ? EditorToolsContext.Get() : nullptr;
+	}
+	else if (ToolScope == EToolsContextScope::EdMode)
+	{
+		return ModeToolsContext;
+	}
+	ensure(false);
+	return nullptr;
 }
 
 void UEdMode::CreateToolkit()

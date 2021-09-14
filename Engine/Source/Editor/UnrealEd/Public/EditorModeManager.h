@@ -27,7 +27,7 @@ struct FViewportClick;
 class UEdMode;
 class UInteractiveGizmoManager;
 class UInputRouter;
-class UEdModeInteractiveToolsContext;
+class UModeManagerInteractiveToolsContext;
 class UTypedElementSelectionSet;
 
 /**
@@ -519,7 +519,9 @@ public:
 
 	void RemoveAllDelegateHandlers();
 
-	UEdModeInteractiveToolsContext* GetInteractiveToolsContext() const;
+	/** @return ToolsContext for this Mode Manager */
+	UModeManagerInteractiveToolsContext* GetInteractiveToolsContext() const;
+
 
 protected:
 	/** 
@@ -599,7 +601,7 @@ private:
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;
 
-	UEdModeInteractiveToolsContext* InteractiveToolsContext;
+	UModeManagerInteractiveToolsContext* InteractiveToolsContext;
 
 	FEditorViewportClient* HoveredViewportClient = nullptr;
 	FEditorViewportClient* FocusedViewportClient = nullptr;

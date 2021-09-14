@@ -11,6 +11,8 @@
 
 class FEditorModeTools;
 class FModeToolkit;
+class UEditorInteractiveToolsContext;
+class UModeManagerInteractiveToolsContext;
 class UEdModeInteractiveToolsContext;
 class UInteractiveToolManager;
 class UInteractiveTool;
@@ -32,6 +34,21 @@ namespace EEditAction
 		/** Stop evaluating other modes (early out) */
 		Halt,
 	};
+};
+
+/** 
+ * EToolsContextScope is used to determine the visibility/lifetime of Tools for a ToolsContext.
+ * For example Tools at the EdMode scope level will only be available when that Mode is active,
+ * will be unregistered when that mode Exits, and so on. 
+ */
+enum class EToolsContextScope
+{
+	/** Editor-wide Tools Scope */
+	Editor,
+	/** Mode-Specific Tools Scope */
+	EdMode,
+	/** Default mode configured in UEdMode */
+	Default
 };
 
 /**
@@ -101,7 +118,7 @@ public:
 
 	virtual void Enter();
 
-	virtual void RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder);
+	virtual void RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, EToolsContextScope ToolScope = EToolsContextScope::Default);
 
 	/** 
 	 * Subclasses can override this to add additional checks on whether a tool should be allowed to start.
@@ -198,10 +215,21 @@ protected:
 public:
 
 	/**
-	 * @return active ToolManager
+	 * Default Scope for InteractiveToolsContext API functions, eg RegisterTool(), GetToolManager(), GetInteractiveToolsContext().
+	 * See EToolsContextScope for details. Defaults to Editor scope.
 	 */
-	UInteractiveToolManager* GetToolManager() const;
-	TWeakObjectPtr<UEdModeInteractiveToolsContext> GetInteractiveToolsContext() const;
+	virtual EToolsContextScope GetDefaultToolScope() const { return EToolsContextScope::Editor; }
+
+	/**
+	 * @return active ToolManager for the desired (or default) ToolsContext Scope
+	 */
+	UInteractiveToolManager* GetToolManager(EToolsContextScope ToolScope = EToolsContextScope::Default) const;
+
+	/**
+	 * @return active ToolsContext for the desired (or default) ToolsContext Scope
+	 */
+	UEditorInteractiveToolsContext* GetInteractiveToolsContext(EToolsContextScope ToolScope = EToolsContextScope::Default) const;
+
 
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const
 	{
@@ -215,14 +243,22 @@ protected:
 	virtual void ActivateDefaultTool() {}
 	virtual void BindCommands() {}
 
-protected:
+private:
 
-	TWeakObjectPtr<UEdModeInteractiveToolsContext> ToolsContext;
+	/** Reference to the ModeManager-level ToolsContext shared across all EdModes */
+	TWeakObjectPtr<UModeManagerInteractiveToolsContext> EditorToolsContext;
+
+	/** The ToolsContext for this Mode, created as a child of the EditorToolsContext (shares InputRouter) */
+	UPROPERTY()
+	TObjectPtr<UEdModeInteractiveToolsContext> ModeToolsContext;
+
+	/** List of Tools this Mode has registered in the EditorToolsContext, to be unregistered on Mode shutdown */
+	TArray<TPair<TSharedPtr<FUICommandInfo>, FString>> RegisteredEditorTools;
+
+protected:
 
 	/** Command list lives here so that the key bindings on the commands can be processed in the viewport. */
 	TSharedPtr<FUICommandList> ToolCommandList;
-
-	TArray<TPair<TSharedPtr<FUICommandInfo>, FString>> RegisteredTools;
 
 	UPROPERTY()
 	TSoftClassPtr<UObject> SettingsClass;

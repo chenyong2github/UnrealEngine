@@ -34,7 +34,7 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorInteractiveGizmoManager : publi
 	GENERATED_BODY()
 
 protected:
-	friend class UEdModeInteractiveToolsContext;		// to call Initialize/Shutdown
+	friend class UEditorInteractiveToolsContext;		// to call Initialize/Shutdown
 
 	UEditorInteractiveGizmoManager();
 

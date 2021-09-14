@@ -27,6 +27,7 @@
 #include "UVEditorToolUtil.h"
 #include "UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
 
@@ -104,12 +105,12 @@ void UUVEditorMode::CreateToolkit()
 
 void UUVEditorMode::ActivateDefaultTool()
 {
-	ToolsContext->StartTool(UVEditorModeLocals::DefaultToolIdentifier);
+	GetInteractiveToolsContext()->StartTool(UVEditorModeLocals::DefaultToolIdentifier);
 }
 
 bool UUVEditorMode::IsDefaultToolActive()
 {
-	return ToolsContext->IsToolActive(EToolSide::Mouse, UVEditorModeLocals::DefaultToolIdentifier);
+	return GetInteractiveToolsContext()->IsToolActive(EToolSide::Mouse, UVEditorModeLocals::DefaultToolIdentifier);
 }
 
 void UUVEditorMode::BindCommands()
@@ -121,24 +122,24 @@ void UUVEditorMode::BindCommands()
 	CommandList->MapAction(
 		CommandInfos.AcceptActiveTool,
 		FExecuteAction::CreateLambda([this]() { 
-			ToolsContext->EndTool(EToolShutdownType::Accept); 
+			GetInteractiveToolsContext()->EndTool(EToolShutdownType::Accept); 
 			ActivateDefaultTool();
 			}),
-		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanAcceptActiveTool(); }),
+		FCanExecuteAction::CreateLambda([this]() { return GetInteractiveToolsContext()->CanAcceptActiveTool(); }),
 		FGetActionCheckState(),
-		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->ActiveToolHasAccept(); }),
+		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->ActiveToolHasAccept(); }),
 		EUIActionRepeatMode::RepeatDisabled
 	);
 
 	CommandList->MapAction(
 		CommandInfos.CancelActiveTool,
 		FExecuteAction::CreateLambda([this]() { 
-			ToolsContext->EndTool(EToolShutdownType::Cancel);
+			GetInteractiveToolsContext()->EndTool(EToolShutdownType::Cancel);
 			ActivateDefaultTool();
 			}),
-		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanCancelActiveTool(); }),
+		FCanExecuteAction::CreateLambda([this]() { return GetInteractiveToolsContext()->CanCancelActiveTool(); }),
 		FGetActionCheckState(),
-		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->ActiveToolHasAccept(); }),
+		FIsActionButtonVisible::CreateLambda([this]() {return GetInteractiveToolsContext()->ActiveToolHasAccept(); }),
 		EUIActionRepeatMode::RepeatDisabled
 	);
 }
@@ -147,7 +148,7 @@ void UUVEditorMode::Exit()
 {
 	// ToolsContext->EndTool only shuts the tool on the next tick, and ToolsContext->DeactivateActiveTool is
 	// inaccessible, so we end up having to do this to force the shutdown right now.
-	ToolsContext->ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+	GetToolManager()->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 
 	for (TObjectPtr<UUVEditorToolMeshInput> ToolInput : ToolInputObjects)
 	{

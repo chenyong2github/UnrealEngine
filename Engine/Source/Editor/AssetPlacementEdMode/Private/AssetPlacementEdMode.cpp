@@ -69,7 +69,7 @@ void UAssetPlacementEdMode::Enter()
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 
 	// Enable the select tool by default.
-	ToolsContext->StartTool(UPlacementModeSelectTool::ToolName);
+	GetInteractiveToolsContext()->StartTool(UPlacementModeSelectTool::ToolName);
 }
 
 void UAssetPlacementEdMode::Exit()

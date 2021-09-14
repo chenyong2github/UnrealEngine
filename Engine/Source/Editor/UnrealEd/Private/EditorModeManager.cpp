@@ -73,7 +73,7 @@ FEditorModeTools::FEditorModeTools()
 {
 	DefaultModeIDs.Add( FBuiltinEditorModes::EM_Default );
 
-	InteractiveToolsContext = NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), UEdModeInteractiveToolsContext::StaticClass(), NAME_None, RF_Transient);
+	InteractiveToolsContext = NewObject<UModeManagerInteractiveToolsContext>(GetTransientPackage(), UModeManagerInteractiveToolsContext::StaticClass(), NAME_None, RF_Transient);
 	InteractiveToolsContext->InitializeContextWithEditorModeManager(this);
 
 	// Load the last used settings
@@ -1794,7 +1794,7 @@ bool FEditorModeTools::CanAutoSave() const
 	return bCanAutoSave;
 }
 
-UEdModeInteractiveToolsContext* FEditorModeTools::GetInteractiveToolsContext() const
+UModeManagerInteractiveToolsContext* FEditorModeTools::GetInteractiveToolsContext() const
 {
 	return InteractiveToolsContext;
 }
