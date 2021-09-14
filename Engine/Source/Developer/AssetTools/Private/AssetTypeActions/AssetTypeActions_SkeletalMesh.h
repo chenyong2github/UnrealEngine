@@ -69,7 +69,7 @@ private:
 
 	void FillSourceMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeletalMesh>> Meshes) const;
 	void FillSkeletonMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeletalMesh>> Meshes) const;
-	void FillCreateMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeletalMesh>> Meshes) const;
+	void FillCreateMenu(UToolMenu* MenuBuilder, TArray<TWeakObjectPtr<USkeletalMesh>> Meshes) const;
 
 	void OnAssetRemoved(const struct FAssetData& AssetData);
 

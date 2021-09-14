@@ -83,8 +83,8 @@ TSharedPtr<SWidget> FControlRigBlueprintActions::GetThumbnailOverlay(const FAsse
 void FControlRigBlueprintActions::ExtendSketalMeshToolMenu()
 {
 	TArray<UToolMenu*> MenusToExtend;
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SkeletalMesh"));
-	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.Skeleton"));
+	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.SkeletalMesh.CreateSkeletalMeshSubmenu"));
+	MenusToExtend.Add(UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu.Skeleton.CreateSkeletalMeshSubmenu"));
 
 	for(UToolMenu* Menu : MenusToExtend)
 	{
@@ -93,7 +93,7 @@ void FControlRigBlueprintActions::ExtendSketalMeshToolMenu()
 			continue;
 		}
 
-		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
+		FToolMenuSection& Section = Menu->AddSection("ControlRig", LOCTEXT("ControlRigSectionName", "Control Rig"));
 		Section.AddDynamicEntry("GetActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
 			UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
