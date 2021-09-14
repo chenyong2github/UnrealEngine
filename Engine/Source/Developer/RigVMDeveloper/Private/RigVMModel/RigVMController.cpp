@@ -1191,6 +1191,14 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	for (const FRigVMGraphVariableDescription LocalVariable : Graph->GetLocalVariables())
+	{
+		if (InVarName == LocalVariable.Name)
+		{
+			return;
+		}
+	}
+	
 	const FString VarNameStr = InVarName.ToString();
 
 	if (bSetupUndoRedo)
@@ -1277,6 +1285,14 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	for (const FRigVMGraphVariableDescription LocalVariable : Graph->GetLocalVariables())
+	{
+		if (InOldVarName == LocalVariable.Name)
+		{
+			return;
+		}
+	}
 
 	const FString VarNameStr = InOldVarName.ToString();
 
@@ -1367,6 +1383,14 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	for (const FRigVMGraphVariableDescription LocalVariable : Graph->GetLocalVariables())
+	{
+		if (InVarName == LocalVariable.Name)
+		{
+			return;
+		}
+	}
 
 	const FString VarNameStr = InVarName.ToString();
 
@@ -5580,6 +5604,15 @@ bool URigVMController::RenameVariable(const FName& InOldName, const FName& InNew
 		}
 	}
 
+	// If there is a local variable with the old name, a rename of the blueprint member variable does not affect this graph
+	for (FRigVMGraphVariableDescription& LocalVariable : Graph->GetLocalVariables())
+	{
+		if (LocalVariable.Name == InOldName)
+		{
+			return false;
+		}
+	}
+
 	FRigVMRenameVariableAction Action;
 	if (bSetupUndoRedo)
 	{
@@ -6583,8 +6616,8 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		FString VariableName = InNewBoundVariablePath, SegmentPath;
 		InNewBoundVariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
 
-		FRigVMExternalVariable ExternalVariable = GetVariableByName(*VariableName);
-		if (ExternalVariable.IsValid(true))
+		FRigVMExternalVariable Variable = GetVariableByName(*VariableName);
+		if (Variable.IsValid(true))
 		{
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 			FRigVMRegisterOffset RegisterOffset;
@@ -6597,7 +6630,7 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 				return false;
 			}
 #else
-			if (!InPin->CanBeBoundToVariable(ExternalVariable, SegmentPath))
+			if (!InPin->CanBeBoundToVariable(Variable, SegmentPath))
 			{
 				return false;
 			}
@@ -6700,8 +6733,8 @@ bool URigVMController::MakeBindingsFromVariableNode(URigVMVariableNode* InNode, 
 	}
 
 	FName VariableName = InNode->GetVariableName();
-	FRigVMExternalVariable ExternalVariable = GetVariableByName(VariableName);
-	if (!ExternalVariable.IsValid(true /* allow nullptr */))
+	FRigVMExternalVariable Variable = GetVariableByName(VariableName);
+	if (!Variable.IsValid(true /* allow nullptr */))
 	{
 		return false;
 	}
@@ -8171,6 +8204,17 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& I
 
 	Graph->LocalVariables.Add(NewVariable);
 
+	for (URigVMNode* Node : Graph->GetNodes())
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+		{
+			if (VariableName == VariableNode->GetVariableName())
+			{
+				RefreshVariableNode(VariableNode->GetFName(), VariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
+			}
+		}
+	}
+
 	if (bSetupUndoRedo)
 	{
 		FRigVMInverseAction InverseAction;
@@ -8247,48 +8291,108 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 
 	if (FoundIndex != INDEX_NONE)
 	{
-		const FString VarNameStr = InVariableName.ToString();
-		TArray<URigVMNode*> Nodes = Graph->GetNodes();
-		for (URigVMNode* Node : Nodes)
+		FRigVMInverseAction InverseAction;
+		if (bSetupUndoRedo)
 		{
-			if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+			InverseAction.Title = FString::Printf(TEXT("Remove Local Variable %s"), *InVariableName.ToString());
+			ActionStack->BeginAction(InverseAction);			
+		}	
+		
+		const FString VarNameStr = InVariableName.ToString();
+
+		bool bSwitchToMemberVariable = false;
+		FRigVMExternalVariable ExternalVariableToSwitch;
+		{
+			TArray<FRigVMExternalVariable> ExternalVariables;
+			if (GetExternalVariablesDelegate.IsBound())
 			{
-				if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+				ExternalVariables.Append(GetExternalVariablesDelegate.Execute(GetGraph()));
+			}
+
+			for (const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+			{
+				if (ExternalVariable.Name == InVariableName)
 				{
-					if (VariablePin->GetDefaultValue() == VarNameStr)
+					bSwitchToMemberVariable = true;
+					ExternalVariableToSwitch = ExternalVariable;
+					break;
+				}	
+			}
+		}
+
+		if (!bSwitchToMemberVariable)
+		{
+			TArray<URigVMNode*> Nodes = Graph->GetNodes();
+			for (URigVMNode* Node : Nodes)
+			{
+				if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+				{
+					if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
 					{
-						RemoveNode(Node, bSetupUndoRedo, true);
-						continue;
+						if (VariablePin->GetDefaultValue() == VarNameStr)
+						{
+							RemoveNode(Node, bSetupUndoRedo, true);
+							continue;
+						}
+					}
+				}
+
+				TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
+				for (URigVMPin* Pin : AllPins)
+				{
+					if (Pin->GetBoundVariableName() == InVariableName.ToString())
+					{
+						BindPinToVariable(Pin, FString(), bSetupUndoRedo);
 					}
 				}
 			}
-
-			TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
-			for (URigVMPin* Pin : AllPins)
+		}
+		else
+		{
+			TArray<URigVMNode*> Nodes = Graph->GetNodes();
+			for (URigVMNode* Node : Nodes)
 			{
-				if (Pin->GetBoundVariableName() == InVariableName.ToString())
+				if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
 				{
-					BindPinToVariable(Pin, FString(), bSetupUndoRedo);
+					if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+					{
+						if (VariablePin->GetDefaultValue() == VarNameStr)
+						{
+							RefreshVariableNode(VariableNode->GetFName(), ExternalVariableToSwitch.Name, ExternalVariableToSwitch.TypeName.ToString(), ExternalVariableToSwitch.TypeObject, bSetupUndoRedo);
+							continue;
+						}
+					}
 				}
-			}
+
+				TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
+				for (URigVMPin* Pin : AllPins)
+				{
+					if (Pin->GetBoundVariableName() == InVariableName.ToString())
+					{
+						if (Pin->GetCPPType() != ExternalVariableToSwitch.TypeName.ToString() || Pin->GetCPPTypeObject() == ExternalVariableToSwitch.TypeObject)
+						{
+							BindPinToVariable(Pin, FString(), bSetupUndoRedo);
+						}
+					}
+				}
+			}		
 		}
 
 		if (!bSuspendNotifications)
 		{
 			Graph->MarkPackageDirty();
 		}
-		
+
 		if (bSetupUndoRedo)
 		{
-			FRigVMInverseAction InverseAction;
-			InverseAction.Title = FString::Printf(TEXT("Remove Local Variable %s"), *InVariableName.ToString());
-
-			ActionStack->BeginAction(InverseAction);
 			ActionStack->AddAction(FRigVMAddLocalVariableAction(LocalVariables[FoundIndex]));
-			ActionStack->EndAction(InverseAction);
-		}	
-		
+		}
 		LocalVariables.RemoveAt(FoundIndex);
+
+		if (bSetupUndoRedo)
+		{
+			ActionStack->EndAction(InverseAction);
+		}
 
 		if (bPrintPythonCommand)
 		{
@@ -11903,25 +12007,14 @@ void URigVMController::ValidatePin(URigVMPin* InPin)
 
 FRigVMExternalVariable URigVMController::GetVariableByName(const FName& InExternalVariableName)
 {
-	TArray<FRigVMExternalVariable> ExternalVariables = GetAllVariables();
-	for (const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+	TArray<FRigVMExternalVariable> Variables = GetAllVariables();
+	for (const FRigVMExternalVariable& Variable : Variables)
 	{
-		if (ExternalVariable.Name == InExternalVariableName)
+		if (Variable.Name == InExternalVariableName)
 		{
-			return ExternalVariable;
+			return Variable;
 		}
-	}
-
-	if(URigVMGraph* Graph = GetGraph())
-	{
-		for (FRigVMGraphVariableDescription LocalVariable : Graph->GetLocalVariables())
-		{
-			if (LocalVariable.Name == InExternalVariableName)
-			{
-				return LocalVariable.ToExternalVariable();
-			}
-		}
-	}
+	}	
 	
 	return FRigVMExternalVariable();
 }
@@ -11929,11 +12022,6 @@ FRigVMExternalVariable URigVMController::GetVariableByName(const FName& InExtern
 TArray<FRigVMExternalVariable> URigVMController::GetAllVariables()
 {
 	TArray<FRigVMExternalVariable> ExternalVariables;
-	
-	if (GetExternalVariablesDelegate.IsBound())
-	{
-		ExternalVariables.Append(GetExternalVariablesDelegate.Execute(GetGraph()));
-	}
 
 	if(URigVMGraph* Graph = GetGraph())
 	{
@@ -11943,6 +12031,11 @@ TArray<FRigVMExternalVariable> URigVMController::GetAllVariables()
 		}
 	}
 	
+	if (GetExternalVariablesDelegate.IsBound())
+	{
+		ExternalVariables.Append(GetExternalVariablesDelegate.Execute(GetGraph()));
+	}
+
 	return ExternalVariables;
 }
 

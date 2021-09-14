@@ -32,6 +32,8 @@ void FRigVMLocalVariableDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InS
 		VariableDescription = *ObjectsBeingCustomized[0]->GetContent<FRigVMGraphVariableDescription>();
 		GraphBeingCustomized = ObjectsBeingCustomized[0]->GetTypedOuter<URigVMGraph>();
 		BlueprintBeingCustomized = GraphBeingCustomized->GetTypedOuter<UControlRigBlueprint>();
+
+		NameValidator = FControlRigLocalVariableNameValidator(BlueprintBeingCustomized, GraphBeingCustomized, VariableDescription.Name);
 	}
 }
 
@@ -58,7 +60,11 @@ void FRigVMLocalVariableDetails::CustomizeChildren(TSharedRef<IPropertyHandle> I
 	.ValueContent()
 	.MaxDesiredWidth(250.0f)
 	[
-		NameHandle->CreatePropertyValueWidget()
+		SNew(SEditableTextBox)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(this, &FRigVMLocalVariableDetails::GetName)
+		.OnTextCommitted(this, &FRigVMLocalVariableDetails::SetName)
+		.OnVerifyTextChanged(this, &FRigVMLocalVariableDetails::OnVerifyNameChanged)
 	];
 
 	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
@@ -117,6 +123,35 @@ void FRigVMLocalVariableDetails::CustomizeChildren(TSharedRef<IPropertyHandle> I
 #endif
 		}
 	}
+}
+
+FText FRigVMLocalVariableDetails::GetName() const
+{
+	return FText::FromName(VariableDescription.Name);
+}
+
+void FRigVMLocalVariableDetails::SetName(const FText& InNewText, ETextCommit::Type InCommitType)
+{
+	if(InCommitType == ETextCommit::OnCleared)
+	{
+		return;
+	}
+
+	if (InNewText.ToString() == VariableDescription.Name.ToString())
+	{
+		return;
+	}
+
+	VariableDescription.Name =  *InNewText.ToString();
+	NameHandle->SetValue(VariableDescription.Name);
+}
+
+bool FRigVMLocalVariableDetails::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
+{
+	EValidatorResult Result = NameValidator.IsValid(InText.ToString(), false);
+	OutErrorMessage = INameValidatorInterface::GetErrorText(InText.ToString(), Result);	
+
+	return Result == EValidatorResult::Ok || Result == EValidatorResult::ExistingName;
 }
 
 FEdGraphPinType FRigVMLocalVariableDetails::OnGetPinInfo() const

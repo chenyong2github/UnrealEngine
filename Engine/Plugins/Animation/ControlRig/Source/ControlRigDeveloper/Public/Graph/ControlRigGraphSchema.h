@@ -6,6 +6,7 @@
 #include "GraphEditorDragDropAction.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "EdGraphSchema_K2_Actions.h"
+#include "Kismet2/Kismet2NameValidators.h"
 
 #include "ControlRigGraphSchema.generated.h"
 
@@ -41,6 +42,15 @@ struct FControlRigPinConnectionResponse
 
 	FPinConnectionResponse Response;
 	ECanCreateConnectionResponse_Extended ExtendedResponse;
+};
+
+/////////////////////////////////////////////////////
+// FControlRigLocalVariableNameValidator
+class CONTROLRIGDEVELOPER_API FControlRigLocalVariableNameValidator : public FStringSetNameValidator
+{
+
+public:
+	FControlRigLocalVariableNameValidator(const class UBlueprint* Blueprint, const URigVMGraph* Graph, FName InExistingName = NAME_None);
 };
 
 USTRUCT()

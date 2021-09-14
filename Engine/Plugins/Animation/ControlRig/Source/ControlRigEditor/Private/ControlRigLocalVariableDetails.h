@@ -13,6 +13,7 @@
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
 #include "DetailsViewWrapperObject.h"
+#include "Graph/ControlRigGraphSchema.h"
 
 class IPropertyHandle;
 
@@ -21,6 +22,7 @@ class FRigVMLocalVariableDetails : public IPropertyTypeCustomization
 	FRigVMLocalVariableDetails()
 	: GraphBeingCustomized(nullptr)
 	, BlueprintBeingCustomized(nullptr)
+	, NameValidator(nullptr, nullptr, NAME_None)
 	{}
 
 	
@@ -49,7 +51,12 @@ private:
 	TSharedPtr<IPropertyHandle> TypeObjectHandle;
 	TSharedPtr<IPropertyHandle> DefaultValueHandle;
 
+	FControlRigLocalVariableNameValidator NameValidator;
 	TArray<TSharedPtr<FString>> EnumOptions;
+
+	FText GetName() const;
+	void SetName(const FText& InNewText, ETextCommit::Type InCommitType);
+	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 	
 	FEdGraphPinType OnGetPinInfo() const;
 	void HandlePinInfoChanged(const FEdGraphPinType& PinType);
