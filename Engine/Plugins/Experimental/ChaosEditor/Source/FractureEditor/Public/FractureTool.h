@@ -167,6 +167,22 @@ public:
 		FractureContextChanged();
 	}
 
+	/**
+	 * Call after changing properties internally in the tool to allow external views of the property
+	 * to update properly. This is meant as an outward notification mechanism, not a way to to
+	 * pass along notifications, so don't call this if the property is changed externally (i.e., this
+	 * should not usually be called from OnPropertyModified unless the tool adds changes of its own).
+	 */
+	virtual void NotifyOfPropertyChangeByTool(UFractureToolSettings* PropertySet) const;
+
+	/**
+	 * OnPropertyModifiedDirectlyByTool is broadcast when a property is changed internally by the tool.
+	 * This allows any external display of such properties to update. In a DetailsView, for instance,
+	 * it refreshes certain cached states such as edit condition states for other properties.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(OnToolPropertyInternallyModified, UObject*);
+	OnToolPropertyInternallyModified OnPropertyModifiedDirectlyByTool;
+
 protected:
 
 	// Geometry collection components referenced by visualizations

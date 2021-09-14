@@ -1000,12 +1000,18 @@ bool FFractureEditorModeToolkit::CanExecuteAction(UFractureActionTool* InActionT
 	}
 }
 
-void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
+void FFractureEditorModeToolkit::ShutdownActiveTool()
 {
 	if (ActiveTool)
 	{
 		ActiveTool->Shutdown();
+		ActiveTool->OnPropertyModifiedDirectlyByTool.RemoveAll(this);
 	}
+}
+
+void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
+{
+	ShutdownActiveTool();
 
 	ActiveTool = InActiveTool;
 
@@ -1017,6 +1023,8 @@ void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
 
 	if (ActiveTool != nullptr)
 	{
+		ActiveTool->OnPropertyModifiedDirectlyByTool.AddSP(this, &FFractureEditorModeToolkit::InvalidateCachedDetailPanelState);
+
 		ActiveTool->Setup();
 
 		Settings.Append(ActiveTool->GetSettingsObjects());
@@ -1028,12 +1036,14 @@ void FFractureEditorModeToolkit::SetActiveTool(UFractureModalTool* InActiveTool)
 	DetailsView->SetObjects(Settings);
 }
 
+void FFractureEditorModeToolkit::InvalidateCachedDetailPanelState(UObject* ChangedObject)
+{
+	DetailsView->InvalidateCachedState();
+}
+
 void FFractureEditorModeToolkit::Shutdown()
 {
-	if (ActiveTool)
-	{
-		ActiveTool->Shutdown();
-	}
+	ShutdownActiveTool();
 }
 
 

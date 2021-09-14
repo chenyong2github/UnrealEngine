@@ -25,6 +25,8 @@ UFractureToolPlaneCut::UFractureToolPlaneCut(const FObjectInitializer& ObjInit)
 void UFractureToolPlaneCut::Setup()
 {
 	GizmoSettings->Setup(this);
+	PlaneCutSettings->bCanCutWithMultiplePlanes = !GizmoSettings->bUseGizmo;
+	NotifyOfPropertyChangeByTool(PlaneCutSettings);
 }
 
 
@@ -108,6 +110,19 @@ TArray<UObject*> UFractureToolPlaneCut::GetSettingsObjects() const
 	Settings.Add(PlaneCutSettings);
 	return Settings;
 }
+
+
+void UFractureToolPlaneCut::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFractureTransformGizmoSettings, bUseGizmo))
+	{
+		PlaneCutSettings->bCanCutWithMultiplePlanes = !GizmoSettings->bUseGizmo;
+		NotifyOfPropertyChangeByTool(PlaneCutSettings);
+	}
+	
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+}
+
 
 void UFractureToolPlaneCut::FractureContextChanged()
 {

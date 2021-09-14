@@ -102,6 +102,7 @@ public:
 	void SetActiveTool(UFractureModalTool* InActiveTool);
 	UFractureModalTool* GetActiveTool() const;
 	bool IsActiveTool(UFractureModalTool* InActiveTool);
+	void ShutdownActiveTool();
 
 	void Shutdown();
 
@@ -180,6 +181,8 @@ protected:
 	TSharedRef<SDockTab> CreateStatisticsTab(const FSpawnTabArgs& Args);
 	static bool IsGeometryCollectionSelected();
 	static bool IsSelectedActorsInEditorWorld();	
+
+	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
 
 private:
 	static void UpdateGeometryComponentAttributes(UGeometryCollectionComponent* Component);
