@@ -404,11 +404,6 @@ struct FDXILLibrary
 		InitFromDXIL(ShaderBytecode.pShaderBytecode, ShaderBytecode.BytecodeLength, InEntryNames, InExportNames, NumEntryNames);
 	}
 
-	void InitFromDXIL(const FD3D12ShaderBytecode& ShaderBytecode, LPCWSTR* InEntryNames, LPCWSTR* InExportNames, uint32 NumEntryNames)
-	{
-		InitFromDXIL(ShaderBytecode.GetShaderBytecode(), InEntryNames, InExportNames, NumEntryNames);
-	}
-
 	D3D12_STATE_SUBOBJECT GetSubobject() const
 	{
 		D3D12_STATE_SUBOBJECT Subobject = {};
@@ -972,7 +967,7 @@ public:
 			check(Entry.ExportNames.Num() <= Entry.MaxExports);
 
 			FDXILLibrary Library;
-			Library.InitFromDXIL(Shader->ShaderBytecode, OriginalEntryPoints.GetData(), RenamedEntryPoints.GetData(), OriginalEntryPoints.Num());
+			Library.InitFromDXIL(Shader->GetShaderBytecode(), OriginalEntryPoints.GetData(), RenamedEntryPoints.GetData(), OriginalEntryPoints.Num());
 
 			const FDXILLibrary* LibraryPtr = &Library;
 
@@ -1073,7 +1068,7 @@ public:
 
 			if (Shader->bPrecompiledPSO)
 			{
-				D3D12_SHADER_BYTECODE Bytecode = Shader->ShaderBytecode.GetShaderBytecode();
+				D3D12_SHADER_BYTECODE Bytecode = Shader->GetShaderBytecode();
 				Entry.StateObject = Device->DeserializeRayTracingStateObject(Bytecode, GlobalRootSignature);
 				if (Entry.StateObject)
 				{
@@ -2048,7 +2043,7 @@ static void GetBuildInShaderLibrary(FDXILLibrary& ShaderLibrary)
 {
 	FD3D12RayTracingShader* RayTracingShader = GetBuildInRayTracingShader<ShaderType>();
 	LPCWSTR EntryName[1] = { *RayTracingShader->EntryPoint };
-	ShaderLibrary.InitFromDXIL(RayTracingShader->ShaderBytecode.GetShaderBytecode().pShaderBytecode, RayTracingShader->ShaderBytecode.GetShaderBytecode().BytecodeLength, EntryName, EntryName, 1);
+	ShaderLibrary.InitFromDXIL(RayTracingShader->GetShaderBytecode().pShaderBytecode, RayTracingShader->GetShaderBytecode().BytecodeLength, EntryName, EntryName, 1);
 }
 
 void FD3D12Device::DestroyRayTracingDescriptorCache()
@@ -2594,7 +2589,7 @@ public:
 		{
 			FShaderStats Stats;
 			Stats.Name = *(Entry->Shader->EntryPoint);
-			Stats.ShaderSize = uint32(Entry->Shader->ShaderBytecode.GetShaderBytecode().BytecodeLength);
+			Stats.ShaderSize = Entry->Shader->Code.Num();
 			Stats.CompileTimeMS = Entry->CompileTimeMS;
 
 		#if PLATFORM_WINDOWS

@@ -52,8 +52,8 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 #define COPY_SHADER(Initial, Name) \
 	if (FD3D12##Name##Shader* Shader = (FD3D12##Name##Shader*) Initializer.BoundShaderState.##Name##ShaderRHI) \
 	{ \
-		Desc.Desc.Initial##S = Shader->ShaderBytecode.GetShaderBytecode(); \
-		Desc.Initial##SHash = Shader->ShaderBytecode.GetHash(); \
+		Desc.Desc.Initial##S = Shader->GetShaderBytecode(); \
+		Desc.Initial##SHash = Shader->GetBytecodeHash(); \
 	}
 	COPY_SHADER(V, Vertex);
 	COPY_SHADER(M, Mesh);
@@ -62,7 +62,7 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	COPY_SHADER(G, Geometry);
 #undef COPY_SHADER
 
-#if PLATFORM_WINDOWS
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 #define EXT_SHADER(Initial, Name) \
 	if (FD3D12##Name##Shader* Shader = (FD3D12##Name##Shader*) Initializer.BoundShaderState.##Name##ShaderRHI) \
 	{ \
@@ -97,9 +97,9 @@ FD3D12ComputePipelineStateDesc GetComputePipelineStateDesc(const FD3D12ComputeSh
 
 	Desc.pRootSignature = ComputeShader->pRootSignature;
 	Desc.Desc.pRootSignature = Desc.pRootSignature->GetRootSignature();
-	Desc.Desc.CS = ComputeShader->ShaderBytecode.GetShaderBytecode();
-	Desc.CSHash = ComputeShader->ShaderBytecode.GetHash();
-#if PLATFORM_WINDOWS
+	Desc.Desc.CS = ComputeShader->GetShaderBytecode();
+	Desc.CSHash = ComputeShader->GetBytecodeHash();
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	if (ComputeShader->VendorExtensions.Num() > 0)
 	{
 		Desc.Extensions = &ComputeShader->VendorExtensions;

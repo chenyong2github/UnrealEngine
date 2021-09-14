@@ -38,12 +38,56 @@ public:
 
 struct FD3D12ShaderData
 {
-	TArray<FShaderCodeVendorExtension> VendorExtensions;
+	/** The shader's bytecode, with custom data in the last byte. */
+	TArray<uint8> Code;
+
+	FD3D12ShaderResourceTable ShaderResourceTable;
+
+	FShaderCodePackedResourceCounts ResourceCounts{};
 
 	/** The static slot associated with the resource table index in ShaderResourceTable. */
 	TArray<FUniformBufferStaticSlot> StaticSlots;
 
-	bool bUsesDiagnosticBuffer = false;
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
+	TArray<FShaderCodeVendorExtension> VendorExtensions;
+#endif
+
+#if D3D12RHI_NEEDS_SHADER_FEATURE_CHECKS
+	EShaderCodeFeatures Features = EShaderCodeFeatures::None;
+#endif
+
+	D3D12_SHADER_BYTECODE GetShaderBytecode() const
+	{
+		return CD3DX12_SHADER_BYTECODE(Code.GetData(), Code.Num());
+	}
+
+	ShaderBytecodeHash GetBytecodeHash() const
+	{
+		ShaderBytecodeHash Hash;
+		if (Code.Num() == 0)
+		{
+			Hash.Hash[0] = Hash.Hash[1] = 0;
+		}
+		else
+		{
+			// D3D shader bytecode contains a 128bit checksum in DWORD 1-4. We can just use that directly instead of hashing the whole shader bytecode ourselves.
+			const uint8* pData = Code.GetData() + 4;
+			Hash = *reinterpret_cast<const ShaderBytecodeHash*>(pData);
+		}
+		return Hash;
+	}
+
+#if D3D12RHI_NEEDS_SHADER_FEATURE_CHECKS
+	FORCEINLINE EShaderCodeFeatures GetFeatures() const { return Features; }
+#else
+	FORCEINLINE EShaderCodeFeatures GetFeatures() const { return EShaderCodeFeatures::None; }
+#endif
+
+	FORCEINLINE bool UsesDiagnosticBuffer() const { return EnumHasAnyFlags(GetFeatures(), EShaderCodeFeatures::DiagnosticBuffer); }
+	FORCEINLINE bool UsesBindlessResources() const { return EnumHasAnyFlags(GetFeatures(), EShaderCodeFeatures::BindlessResources); }
+	FORCEINLINE bool UsesBindlessSamplers() const { return EnumHasAnyFlags(GetFeatures(), EShaderCodeFeatures::BindlessSamplers); }
+
+	bool InitCommon(TArrayView<const uint8> InCode);
 };
 
 /** This represents a vertex shader that hasn't been combined with a specific declaration to create a bound shader. */
@@ -51,83 +95,30 @@ class FD3D12VertexShader : public FRHIVertexShader, public FD3D12ShaderData
 {
 public:
 	enum { StaticFrequency = SF_Vertex };
-
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	/** The vertex shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	// TEMP remove with removal of bound shader state
-	int32 Offset;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
 };
 
 class FD3D12MeshShader : public FRHIMeshShader, public FD3D12ShaderData
 {
 public:
 	enum { StaticFrequency = SF_Mesh };
-
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	/** The mesh shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
 };
 
 class FD3D12AmplificationShader : public FRHIAmplificationShader, public FD3D12ShaderData
 {
 public:
 	enum { StaticFrequency = SF_Amplification };
-
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	/** The amplification shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
 };
 
 class FD3D12GeometryShader : public FRHIGeometryShader, public FD3D12ShaderData
 {
 public:
 	enum { StaticFrequency = SF_Geometry };
-
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	/** The shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
 };
 
 class FD3D12PixelShader : public FRHIPixelShader, public FD3D12ShaderData
 {
 public:
 	enum { StaticFrequency = SF_Pixel };
-
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	/** The shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
 };
 
 class FD3D12ComputeShader : public FRHIComputeShader, public FD3D12ShaderData
@@ -135,16 +126,7 @@ class FD3D12ComputeShader : public FRHIComputeShader, public FD3D12ShaderData
 public:
 	enum { StaticFrequency = SF_Compute };
 
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	/** The shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
-	const FD3D12RootSignature* pRootSignature;
+	const FD3D12RootSignature* pRootSignature = nullptr;
 };
 
 /**
@@ -202,23 +184,13 @@ class FD3D12RayTracingShader : public FRHIRayTracingShader, public FD3D12ShaderD
 public:
 	explicit FD3D12RayTracingShader(EShaderFrequency InFrequency) : FRHIRayTracingShader(InFrequency) {}
 
-	/** The shader's bytecode. */
-	FD3D12ShaderBytecode ShaderBytecode;
-
-	FD3D12ShaderResourceTable ShaderResourceTable;
-
-	/** The shader's bytecode, with custom data in the last byte. */
-	TArray<uint8> Code;
+	const FD3D12RootSignature* pRootSignature = nullptr;
 
 	/** The shader's DXIL entrypoint & base export name for DXR (required for RTPSO creation) */
 	FString EntryPoint; // Primary entry point for all ray tracing shaders. Assumed to be closest hit shader for SF_RayHitGroup.
 	FString AnyHitEntryPoint; // Optional any-hit shader entry point for SF_RayHitGroup.
 	FString IntersectionEntryPoint; // Optional intersection shader entry point for SF_RayHitGroup.
 	bool bPrecompiledPSO = false;
-
-	FShaderCodePackedResourceCounts ResourceCounts;
-
-	const FD3D12RootSignature* pRootSignature = nullptr;
 };
 
 #endif // D3D12_RHI_RAYTRACING

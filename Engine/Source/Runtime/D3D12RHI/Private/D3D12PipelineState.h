@@ -98,7 +98,7 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 		return Desc.MS.BytecodeLength > 0;
 	}
 
-#if PLATFORM_WINDOWS
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	// TODO: Replace with a global hash lookup to reduce overall footprint?
 	// Very few permutations, so a single > 0 u32 hash code would be lower
 	// memory usage, and very rarely cause a look up.
@@ -117,8 +117,6 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 			PSExtensions != nullptr ||
 			GSExtensions != nullptr);
 	}
-#else
-	FORCEINLINE bool HasVendorExtensions() const { return false; }
 #endif
 
 	FORCEINLINE FString GetName() const { return FString::Printf(TEXT("%llu"), CombinedHash); }
@@ -143,11 +141,9 @@ struct FD3D12ComputePipelineStateDesc
 
 	SIZE_T CombinedHash;
 
-#if PLATFORM_WINDOWS
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	const TArray<FShaderCodeVendorExtension>* Extensions;
 	FORCEINLINE bool HasVendorExtensions() const { return (Extensions != nullptr); }
-#else
-	FORCEINLINE bool HasVendorExtensions() const { return false; }
 #endif
 
 	FORCEINLINE FString GetName() const { return FString::Printf(TEXT("%llu"), CombinedHash); }

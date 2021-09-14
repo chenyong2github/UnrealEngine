@@ -930,6 +930,7 @@ void FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(const D3D12_RESOU
 
 bool UsesVendorExtensionSpace(const FD3D12ShaderData& ShaderData)
 {
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	for (const FShaderCodeVendorExtension& Extension : ShaderData.VendorExtensions)
 	{
 		if (Extension.VendorId == 0x1002) // AMD
@@ -938,6 +939,7 @@ bool UsesVendorExtensionSpace(const FD3D12ShaderData& ShaderData)
 			return true;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -958,35 +960,35 @@ void QuantizeBoundShaderState(
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, VertexShader->ResourceCounts, QBSS.RegisterCounts[SV_Vertex]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*VertexShader);
-		QBSS.bUseDiagnosticBuffer = VertexShader->bUsesDiagnosticBuffer;
+		QBSS.bUseDiagnosticBuffer = VertexShader->UsesDiagnosticBuffer();
 	}
 
 	if (const FD3D12MeshShader* const MeshShader = BSS->GetMeshShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, MeshShader->ResourceCounts, QBSS.RegisterCounts[SV_Mesh]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*MeshShader);
-		QBSS.bUseDiagnosticBuffer = MeshShader->bUsesDiagnosticBuffer;
+		QBSS.bUseDiagnosticBuffer = MeshShader->UsesDiagnosticBuffer();
 	}
 
 	if (const FD3D12AmplificationShader* const AmplificationShader = BSS->GetAmplificationShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, AmplificationShader->ResourceCounts, QBSS.RegisterCounts[SV_Amplification]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*AmplificationShader);
-		QBSS.bUseDiagnosticBuffer = AmplificationShader->bUsesDiagnosticBuffer;
+		QBSS.bUseDiagnosticBuffer = AmplificationShader->UsesDiagnosticBuffer();
 	}
 
 	if (const FD3D12PixelShader* const PixelShader = BSS->GetPixelShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, PixelShader->ResourceCounts, QBSS.RegisterCounts[SV_Pixel], true);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*PixelShader);
-		QBSS.bUseDiagnosticBuffer = PixelShader->bUsesDiagnosticBuffer;
+		QBSS.bUseDiagnosticBuffer = PixelShader->UsesDiagnosticBuffer();
 	}
 
 	if (const FD3D12GeometryShader* const GeometryShader = BSS->GetGeometryShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, GeometryShader->ResourceCounts, QBSS.RegisterCounts[SV_Geometry]);
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*GeometryShader);
-		QBSS.bUseDiagnosticBuffer = GeometryShader->bUsesDiagnosticBuffer;
+		QBSS.bUseDiagnosticBuffer = GeometryShader->UsesDiagnosticBuffer();
 	}
 }
 
@@ -1015,8 +1017,10 @@ void QuantizeBoundShaderState(
 	const bool bAllosUAVs = true;
 	QuantizeBoundShaderStateCommon(ResourceBindingTier, ComputeShader->ResourceCounts, SV_All, bAllosUAVs, OutQBSS);
 	check(OutQBSS.bAllowIAInputLayout == false); // No access to vertex buffers needed
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	OutQBSS.bUseVendorExtension = (ComputeShader->VendorExtensions.Num() > 0);
-	OutQBSS.bUseDiagnosticBuffer = ComputeShader->bUsesDiagnosticBuffer;
+#endif
+	OutQBSS.bUseDiagnosticBuffer = ComputeShader->UsesDiagnosticBuffer();
 }
 
 #if D3D12_RHI_RAYTRACING
@@ -1086,7 +1090,7 @@ void QuantizeBoundShaderState(
 
 	if (RayTracingShader)
 	{
-		OutQBSS.bUseDiagnosticBuffer = RayTracingShader->bUsesDiagnosticBuffer;
+		OutQBSS.bUseDiagnosticBuffer = RayTracingShader->UsesDiagnosticBuffer();
 	}
 }
 #endif // D3D12_RHI_RAYTRACING

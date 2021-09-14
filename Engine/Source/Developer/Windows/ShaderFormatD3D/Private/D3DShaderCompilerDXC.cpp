@@ -721,8 +721,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	if (SUCCEEDED(D3DCompileToDxilResult))
 	{
 		// Gather reflection information
-		int32 NumInterpolants = 0;
-		TIndirectArray<FString> InterpolantNames;
 		TArray<FString> ShaderInputs;
 		TArray<FShaderCodeVendorExtension> VendorExtensions;
 
@@ -738,6 +736,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 		TBitArray<> UsedUniformBufferSlots;
 		UsedUniformBufferSlots.Init(false, 32);
+
+		uint64 ShaderRequiresFlags{};
 
 		dxc::DxcDllSupport& DxcDllHelper = GetDxcDllHelper();
 		TRefCountPtr<IDxcUtils> Utils;
@@ -786,6 +786,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			{
 				FunctionReflection = LibraryReflection->GetFunctionByIndex(FunctionIndex);
 				FunctionReflection->GetDesc(&FunctionDesc);
+
+				ShaderRequiresFlags |= FunctionDesc.RequiredFeatureFlags;
 
 				for (const FString& MangledEntryPoint : MangledEntryPoints)
 				{
@@ -853,7 +855,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		}
 		else
 		{
-
 			TRefCountPtr<ID3D12ShaderReflection> ShaderReflection;
 			const HRESULT CreateReflectionResult = Utils->CreateReflection(&ReflBuffer, IID_PPV_ARGS(ShaderReflection.GetInitReference()));
 			if (FAILED(CreateReflectionResult))
@@ -864,15 +865,16 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			D3D12_SHADER_DESC ShaderDesc = {};
 			ShaderReflection->GetDesc(&ShaderDesc);
 
+			ShaderRequiresFlags = ShaderReflection->GetRequiresFlags();
+
 			ExtractParameterMapFromD3DShader<ID3D12ShaderReflection, D3D12_SHADER_DESC, D3D12_SHADER_INPUT_BIND_DESC,
 				ID3D12ShaderReflectionConstantBuffer, D3D12_SHADER_BUFFER_DESC,
 				ID3D12ShaderReflectionVariable, D3D12_SHADER_VARIABLE_DESC>(
 					Input, ShaderParameterParser,
 					AutoBindingSpace, ShaderReflection, ShaderDesc,
-					bGlobalUniformBufferUsed, bDiagnosticBufferUsed, 
+					bGlobalUniformBufferUsed, bDiagnosticBufferUsed,
 					NumSamplers, NumSRVs, NumCBs, NumUAVs,
 					Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
-
 
 			Output.bSucceeded = true;
 		}
@@ -898,14 +900,50 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			auto AddOptionalDataCallback = [&](FShaderCode& ShaderCode)
 			{
 				FShaderCodeFeatures CodeFeatures;
-				//#todo-rco: Really should look inside DXIL
-				CodeFeatures.bUsesWaveOps = Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations);
-				CodeFeatures.bUsesDiagnosticBuffer = bDiagnosticBufferUsed;
+
+				if ((ShaderRequiresFlags & D3D_SHADER_REQUIRES_WAVE_OPS) != 0)
+				{
+					EnumAddFlags(CodeFeatures.CodeFeatures, EShaderCodeFeatures::WaveOps);
+				}
+
+				if ((ShaderRequiresFlags & D3D_SHADER_REQUIRES_NATIVE_16BIT_OPS) != 0)
+				{
+					EnumAddFlags(CodeFeatures.CodeFeatures, EShaderCodeFeatures::SixteenBitTypes);
+				}
+
+				if ((ShaderRequiresFlags & D3D_SHADER_REQUIRES_TYPED_UAV_LOAD_ADDITIONAL_FORMATS) != 0)
+				{
+					EnumAddFlags(CodeFeatures.CodeFeatures, EShaderCodeFeatures::TypedUAVLoadsExtended);
+				}
+
+				if ((ShaderRequiresFlags & (D3D_SHADER_REQUIRES_ATOMIC_INT64_ON_TYPED_RESOURCE| D3D_SHADER_REQUIRES_ATOMIC_INT64_ON_GROUP_SHARED)) != 0)
+				{
+					EnumAddFlags(CodeFeatures.CodeFeatures, EShaderCodeFeatures::Atomic64);
+				}
+
+				if (bDiagnosticBufferUsed)
+				{
+					EnumAddFlags(CodeFeatures.CodeFeatures, EShaderCodeFeatures::DiagnosticBuffer);
+				}
+
+				if ((ShaderRequiresFlags & D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING) != 0)
+				{
+					EnumAddFlags(CodeFeatures.CodeFeatures, EShaderCodeFeatures::BindlessResources);
+				}
+
+				if ((ShaderRequiresFlags & D3D_SHADER_REQUIRES_SAMPLER_DESCRIPTOR_HEAP_INDEXING) != 0)
+				{
+					EnumAddFlags(CodeFeatures.CodeFeatures, EShaderCodeFeatures::BindlessSamplers);
+				}
 
 				// We only need this to appear when using a DXC shader
 				ShaderCode.AddOptionalData<FShaderCodeFeatures>(CodeFeatures);
-				uint8 IsSM6 = 1;
-				ShaderCode.AddOptionalData('6', &IsSM6, 1);
+
+				if (Language != ELanguage::SM6)
+				{
+					uint8 IsSM6 = 1;
+					ShaderCode.AddOptionalData('6', &IsSM6, 1);
+				}
 			};
 
 			//#todo-rco: Should compress ShaderCode?
