@@ -28,9 +28,6 @@ public:
 	FJointConstraintPhysicsProxy() = delete;
 	FJointConstraintPhysicsProxy(FJointConstraint* InConstraint, FPBDJointConstraintHandle* InHandle, UObject* InOwner = nullptr);
 
-	bool IsInitialized() const { return bInitialized; }
-	void SetInitialized() { bInitialized = true; }
-
 	static FGeometryParticleHandle* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
 
 	//

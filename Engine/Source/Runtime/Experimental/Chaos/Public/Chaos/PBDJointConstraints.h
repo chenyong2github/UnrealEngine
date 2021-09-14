@@ -52,6 +52,10 @@ namespace Chaos
 		void SetSettings(const FPBDJointSettings& Settings);
 		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
 
+		//TODO: implement this for RewindData to work correctly
+		ESyncState SyncState() const { ensure(false); return ESyncState::InSync; }
+		void SetEnabledDuringResim(bool bEnabled) { ensure(false); }
+
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConcreteContainer;

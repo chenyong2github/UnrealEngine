@@ -73,6 +73,10 @@ public:
 
 	TSharedPtr<FProxyTimestamp,ESPMode::ThreadSafe> GetSyncTimestamp() const { return SyncTimestamp; }
 
+	bool IsInitialized() const { return InitializedOnStep != INDEX_NONE; }
+	void SetInitialized(const int32 InitializeStep) { InitializedOnStep = InitializeStep; }
+	int32 GetInitializedStep() const { return InitializedOnStep; }
+
 
 protected:
 	// Ensures that derived classes can successfully call this destructor
@@ -89,6 +93,7 @@ protected:
 	/** Proxy type */
 	EPhysicsProxyType Type;
 	TSharedPtr<FProxyTimestamp,ESPMode::ThreadSafe> SyncTimestamp;
+	int32 InitializedOnStep = INDEX_NONE;
 };
 
 struct PhysicsProxyWrapper

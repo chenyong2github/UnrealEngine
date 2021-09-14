@@ -1034,7 +1034,7 @@ namespace Chaos
 				{
 					JointConstraintPhysicsProxies_Internal.Add(JointProxy);
 					JointProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
-					JointProxy->SetInitialized();
+					JointProxy->SetInitialized(GetCurrentFrame());
 				}
 				JointProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 				Dirty.Proxy->ResetDirtyIdx();
