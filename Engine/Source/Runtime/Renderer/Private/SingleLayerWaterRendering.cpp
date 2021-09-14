@@ -445,7 +445,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 		}
 
  		const bool bEnableSSR = CVarWaterSingleLayerSSR.GetValueOnRenderThread() != 0 && ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View);
-		const bool bEnableRTR = CVarWaterSingleLayerRTR.GetValueOnRenderThread() != 0 && ShouldRenderRayTracingReflections(View);
+		const bool bEnableRTR = CVarWaterSingleLayerRTR.GetValueOnRenderThread() != 0 && ShouldRenderRayTracingReflections(View) 
+			&& FDataDrivenShaderPlatformInfo::GetSupportsHighEndRayTracingReflections(View.GetShaderPlatform()); // Water requires the full RT reflection shader, which may not always be supported
+
 		if (bEnableRTR)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "RayTracingWaterReflections");
