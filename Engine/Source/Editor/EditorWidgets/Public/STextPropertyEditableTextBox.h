@@ -86,13 +86,15 @@ class EDITORWIDGETS_API STextPropertyEditableStringTableReference : public SComp
 {
 	SLATE_BEGIN_ARGS(STextPropertyEditableStringTableReference)
 		: _ComboStyle(&FCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox"))
-		, _ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+		, _ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
 		, _AllowUnlink(false)
 		{}
 		/** The styling of the combobox */
 		SLATE_STYLE_ARGUMENT(FComboBoxStyle, ComboStyle)
 		/** The styling of the button */
 		SLATE_STYLE_ARGUMENT(FButtonStyle, ButtonStyle)
+		/** Font for comboboxes */
+		SLATE_ARGUMENT(FSlateFontInfo, Font)
 		/** Should we show an "unlink" button? */
 		SLATE_ARGUMENT(bool, AllowUnlink)
 	SLATE_END_ARGS()
@@ -191,7 +193,7 @@ private:
 	bool IsSourceTextReadOnly() const;
 	bool IsIdentityReadOnly() const;
 	FText GetToolTipText() const;
-	EVisibility GetLocalizableVisibility() const;
+	bool IsTextLocalizable() const;
 
 	FText GetTextValue() const;
 	void OnTextChanged(const FText& NewText);
@@ -210,11 +212,12 @@ private:
 	FText GetPackageValue() const;
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
-	ECheckBoxState GetLocalizableCheckState(bool bActiveState) const;
+	ECheckBoxState GetLocalizableCheckState() const;
 
-	void HandleLocalizableCheckStateChanged(ECheckBoxState InCheckboxState, bool bActiveState);
+	void HandleLocalizableCheckStateChanged(ECheckBoxState InCheckboxState);
 
-	EVisibility GetTextWarningImageVisibility() const;
+	FText GetAdvancedTextSettingsComboToolTip() const;
+	const FSlateBrush* GetAdvancedTextSettingsComboImage() const;
 
 	bool IsValidIdentity(const FText& InIdentity, FText* OutReason = nullptr, const FText* InErrorCtx = nullptr) const;
 
