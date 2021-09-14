@@ -163,11 +163,13 @@ bool FIcoImageWrapper::LoadICOHeader()
 
 	if (bFoundImage)
 	{
+#if WITH_UNREALPNG
 		if (bIsPng)
 		{
 			SubImageWrapper = PngWrapper;
 		}
 		else
+#endif //WITH_UNREALPNG
 		{
 			SubImageWrapper = BmpWrapper;
 		}

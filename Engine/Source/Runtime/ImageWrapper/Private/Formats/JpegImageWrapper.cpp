@@ -16,20 +16,21 @@
 	#endif
 #endif
 
-PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
-#include "jpgd.h"
-#include "jpgd.cpp"
-#include "jpge.h"
-#include "jpge.cpp"
-PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 
 #if WITH_LIBJPEGTURBO
-THIRD_PARTY_INCLUDES_START
-#pragma push_macro("DLLEXPORT")
-#undef DLLEXPORT // libjpeg-turbo defines DLLEXPORT as well
-#include "turbojpeg.h"
-#pragma pop_macro("DLLEXPORT")
-THIRD_PARTY_INCLUDES_END
+	THIRD_PARTY_INCLUDES_START
+	#pragma push_macro("DLLEXPORT")
+	#undef DLLEXPORT // libjpeg-turbo defines DLLEXPORT as well
+	#include "turbojpeg.h"
+	#pragma pop_macro("DLLEXPORT")
+	THIRD_PARTY_INCLUDES_END
+#else
+	PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
+	#include "jpgd.h"
+	#include "jpgd.cpp"
+	#include "jpge.h"
+	#include "jpge.cpp"
+	PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS
 #endif	// WITH_LIBJPEGTURBO
 
 #ifdef __clang__
