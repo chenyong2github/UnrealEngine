@@ -7,7 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RHIResources.h"
+#include "RHI.h"
 #include "VulkanRHIPrivate.h"
 #include "VulkanResources.h"
 #include "VulkanPendingState.h"
