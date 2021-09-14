@@ -256,6 +256,7 @@ public:
 	{
 		OutModuleNames.Add(TEXT("ShaderFormatD3D"));
 		OutModuleNames.Add(TEXT("ShaderFormatOpenGL"));
+		OutModuleNames.Add(TEXT("VulkanShaderFormat"));
 	}
 
 	virtual const class FStaticMeshLODSettings& GetStaticMeshLODSettings( ) const override
