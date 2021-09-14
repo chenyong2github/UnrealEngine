@@ -16,6 +16,10 @@ class UBlueprint;
 class UBlueprintGeneratedClass;
 class FBreakpointParentItem;
 
+class SSearchBox;
+class SComboButton;
+class SCheckBox;
+
 //////////////////////////////////////////////////////////////////////////
 // FDebugLineItem
 
