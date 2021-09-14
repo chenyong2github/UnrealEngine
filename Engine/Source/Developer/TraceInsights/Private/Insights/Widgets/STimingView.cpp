@@ -147,21 +147,33 @@ void STimingView::Construct(const FArguments& InArgs)
 	LeftToolbar.BeginSection("Menus");
 	LeftToolbar.AddComboButton(
 		FUIAction(),
-		FOnGetContent::CreateSP(this, &STimingView::MakeTracksFilterMenu),
-		LOCTEXT("AllTracksFilter", "All Tracks"),
-		LOCTEXT("AllTracksFilterToolTip", "Filter all tracks."),
+		FOnGetContent::CreateSP(this, &STimingView::MakeAllTracksMenu),
+		LOCTEXT("AllTracksMenu", "All Tracks"),
+		LOCTEXT("AllTracksMenuToolTip", "Filter all tracks."),
 		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.AllTracksMenu"));
 	LeftToolbar.AddComboButton(
 		FUIAction(),
-		FOnGetContent::CreateSP(this, &STimingView::MakeTracksFilterMenu),
-		LOCTEXT("CpuGpuTracksFilter", "CPU/GPU Tracks"),
-		LOCTEXT("CpuGpuTracksFilterToolTip", "Filter CPU/GPU timing tracks."),
+		FOnGetContent::CreateSP(this, &STimingView::MakeCpuGpuTracksFilterMenu),
+		LOCTEXT("CpuGpuTracksMenu", "CPU/GPU"),
+		LOCTEXT("CpuGpuTracksMenuToolTip", "Filter CPU/GPU timing tracks."),
 		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.CpuGpuTracksMenu"));
 	LeftToolbar.AddComboButton(
 		FUIAction(),
-		FOnGetContent::CreateSP(this, &STimingView::MakeTracksFilterMenu),
-		LOCTEXT("OtherTracksFilter", "Other Tracks"),
-		LOCTEXT("OtherTracksFilterToolTip", "Filter other tracks."),
+		FOnGetContent::CreateSP(this, &STimingView::MakeOtherTracksFilterMenu),
+		LOCTEXT("OtherTracksMenu", "Other"),
+		LOCTEXT("OtherTracksMenuToolTip", "Filter other tracks."),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.OtherTracksMenu"));
+	LeftToolbar.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateSP(this, &STimingView::MakePluginTracksFilterMenu),
+		LOCTEXT("PluginTracksMenu", "Plugins"),
+		LOCTEXT("PluginTracksMenuToolTip", "Filter tracks added by plugins."),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.OtherTracksMenu"));
+	LeftToolbar.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateSP(this, &STimingView::MakeViewModeMenu),
+		LOCTEXT("ViewModeMenu", "View Mode"),
+		LOCTEXT("ViewModeMenuToolTip", "Various options for the Timing view."),
 		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.OtherTracksMenu"));
 	LeftToolbar.EndSection();
 
@@ -2798,8 +2810,8 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
+
 	bool bHasAnyActions = false;
 
 	if (HoveredTrack.IsValid())
@@ -2809,14 +2821,20 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		MenuBuilder.EndSection();
 
 		HoveredTrack->BuildContextMenu(MenuBuilder);
+		MenuBuilder.AddSeparator();
 		bHasAnyActions = true;
 	}
 
-	MenuBuilder.AddMenuEntry(Commands.QuickFind,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Find"));
+	MenuBuilder.BeginSection(TEXT("Misc"));
+	{
+		MenuBuilder.AddMenuEntry(Commands.QuickFind,
+			FName("QuickFind"),
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Find"));
+		bHasAnyActions = true;
+	}
+	MenuBuilder.EndSection();
 
 	for (Insights::ITimingViewExtender* Extender : GetExtenders())
 	{
@@ -2852,110 +2870,59 @@ void STimingView::CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<
 {
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::TopDocked))
 	{
-		if (Track->GetLocation() == ETimingTrackLocation::TopDocked)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_LocationTopDocked", "Location: Top Docked Tracks"),
-				LOCTEXT("ContextMenu_LocationTopDocked_Desc", "This track is in the list of top docked tracks."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
-		else
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_DockToTop", "Dock To Top"),
-				LOCTEXT("ContextMenu_DockToTop_Desc", "Dock this track to the top."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::TopDocked),
-						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::TopDocked)),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_DockToTop", "Top Docked"),
+			LOCTEXT("ContextMenu_DockToTop_Desc", "Dock this track to the top."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::TopDocked),
+				FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::TopDocked),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckTrackLocation, Track, ETimingTrackLocation::TopDocked)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton);
 	}
 
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::Scrollable))
 	{
-		if (Track->GetLocation() == ETimingTrackLocation::Scrollable)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_LocationScrollable", "Location: Scrollable Tracks"),
-				LOCTEXT("ContextMenu_LocationScrollable_Desc", "This track is in the list of scrollable tracks."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
-		else
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_MoveToScrollable", "Move to Scrollable Tracks"),
-				LOCTEXT("ContextMenu_MoveToScrollable_Desc", "Move this track to the list of scrollable tracks."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Scrollable),
-						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::Scrollable)),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_MoveToScrollable", "Scrollable"),
+			LOCTEXT("ContextMenu_MoveToScrollable_Desc", "Move this track to the list of scrollable tracks."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Scrollable),
+				FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::Scrollable),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckTrackLocation, Track, ETimingTrackLocation::Scrollable)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton);
 	}
 
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::BottomDocked))
 	{
-		if (Track->GetLocation() == ETimingTrackLocation::BottomDocked)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_LocationBottomDocked", "Location: Bottom Docked Tracks"),
-				LOCTEXT("ContextMenu_LocationBottomDocked_Desc", "This track is in the list of bottom docked tracks."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
-		else
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_DockToBottom", "Dock To Bottom"),
-				LOCTEXT("ContextMenu_DockToBottom_Desc", "Dock this track to the bottom."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked),
-						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked)),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_DockToBottom", "Bottom Docked"),
+			LOCTEXT("ContextMenu_DockToBottom_Desc", "Dock this track to the bottom."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked),
+				FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckTrackLocation, Track, ETimingTrackLocation::BottomDocked)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton);
 	}
 
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::Foreground))
 	{
-		if (Track->GetLocation() == ETimingTrackLocation::Foreground)
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_LocationForeground", "Location: Foreground Tracks"),
-				LOCTEXT("ContextMenu_LocationForeground_Desc", "This track is in the list of foreground tracks."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([] { return false; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
-		else
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContextMenu_MoveToForeground", "Move to Foreground Tracks"),
-				LOCTEXT("ContextMenu_MoveToForeground_Desc", "Move this track to the list of foreground tracks."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Foreground),
-						  FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::Foreground)),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_MoveToForeground", "Foreground"),
+			LOCTEXT("ContextMenu_MoveToForeground_Desc", "Move this track to the list of foreground tracks."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Foreground),
+				FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::Foreground),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckTrackLocation, Track, ETimingTrackLocation::Foreground)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 	}
 }
 
@@ -2997,7 +2964,8 @@ void STimingView::EnumerateAllTracks(TFunctionRef<bool(TSharedPtr<FBaseTimingTra
 
 void STimingView::ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation)
 {
-	if (ensure(CanChangeTrackLocation(Track, NewLocation)))
+	if (EnumHasAnyFlags(Track->GetValidLocations(), NewLocation) &&
+		Track->GetLocation() != NewLocation)
 	{
 		switch (Track->GetLocation())
 		{
@@ -3045,7 +3013,14 @@ void STimingView::ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimin
 
 bool STimingView::CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation) const
 {
-	return EnumHasAnyFlags(Track->GetValidLocations(), NewLocation) && Track->GetLocation() != NewLocation;
+	return EnumHasAnyFlags(Track->GetValidLocations(), NewLocation);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::CheckTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation Location) const
+{
+	return Track->GetLocation() == Location;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4288,21 +4263,159 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
+TSharedRef<SWidget> STimingView::MakeAllTracksMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
 
 	CreateAllTracksMenu(MenuBuilder);
 
-	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
-	{
-		const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+	return MenuBuilder.MakeWidget();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
+{
+	constexpr float MaxDesiredHeight = 24.0f + 8 * 18.0f;
+	constexpr float MaxDesiredHeightScrollableTracks = 24.0f + 16 * 18.0f;
+	constexpr float MinDesiredWidth = 300.0f;
+	constexpr float MaxDesiredWidth = 300.0f;
+
+	if (TopDockedTracks.Num() > 0)
+	{
+		MenuBuilder.BeginSection("TopDockedTracks", LOCTEXT("TopDockedTracksHeading", "Top Docked Tracks"));
+		//MenuBuilder.AddWidget(
+		//	SNew(STextBlock)
+		//	.Text(LOCTEXT("TopDockedTracks", "Top Docked Tracks")),
+		//	FText(), true);
+
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.MaxDesiredHeight(MaxDesiredHeight)
+			.MinDesiredWidth(MinDesiredWidth)
+			.MaxDesiredWidth(MaxDesiredWidth)
+			[
+				SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::TopDocked)
+			],
+			FText(), true);
+
+		MenuBuilder.EndSection();
+	}
+
+	if (ScrollableTracks.Num() > 0)
+	{
+		MenuBuilder.BeginSection("ScrollableTracks", LOCTEXT("ScrollableTracksHeading", "Scrollable Tracks"));
+		//MenuBuilder.AddWidget(
+		//	SNew(STextBlock)
+		//	.Text(LOCTEXT("ScrollableTracks", "Scrollable Tracks")),
+		//	FText(), true);
+
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 0.0f))
+			.MaxDesiredHeight(MaxDesiredHeightScrollableTracks)
+			.MinDesiredWidth(MinDesiredWidth)
+			.MaxDesiredWidth(MaxDesiredWidth)
+			[
+				SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::Scrollable)
+			],
+			FText(), true);
+
+		MenuBuilder.EndSection();
+	}
+
+	if (BottomDockedTracks.Num() > 0)
+	{
+		MenuBuilder.BeginSection("BottomDockedTracks", LOCTEXT("BottomDockedTracksHeading", "Bottom Docked Tracks"));
+		//MenuBuilder.AddWidget(
+		//	SNew(STextBlock)
+		//	.Text(LOCTEXT("BottomDockedTracks", "Bottom Docked Tracks")),
+		//	FText(), true);
+
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.MaxDesiredHeight(MaxDesiredHeight)
+			.MinDesiredWidth(MinDesiredWidth)
+			.MaxDesiredWidth(MaxDesiredWidth)
+			[
+				SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::BottomDocked)
+			],
+			FText(), true);
+
+		MenuBuilder.EndSection();
+	}
+
+	if (ForegroundTracks.Num() > 0)
+	{
+		MenuBuilder.BeginSection("ForegroundTracks", LOCTEXT("ForegroundTracksHeading", "Foreground Tracks"));
+		//MenuBuilder.AddWidget(
+		//	SNew(STextBlock)
+		//	.Text(LOCTEXT("ForegroundTracks", "Foreground Tracks")),
+		//	FText(), true);
+		
+		MenuBuilder.AddWidget(
+			SNew(SBox)
+			.MaxDesiredHeight(MaxDesiredHeight)
+			.MinDesiredWidth(MinDesiredWidth)
+			.MaxDesiredWidth(MaxDesiredWidth)
+			[
+				SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::Foreground)
+			],
+			FText(), true);
+
+		MenuBuilder.EndSection();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STimingView::MakeCpuGpuTracksFilterMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
+
+	// Let any plugin extend the GPU Tracks Filter menu.
+	for (Insights::ITimingViewExtender* Extender : GetExtenders())
+	{
+		Extender->ExtendGpuTracksFilterMenu(*this, MenuBuilder);
+	}
+
+	// Let any plugin extend the CPU Tracks Filter menu.
+	for (Insights::ITimingViewExtender* Extender : GetExtenders())
+	{
+		Extender->ExtendCpuTracksFilterMenu(*this, MenuBuilder);
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STimingView::MakeOtherTracksFilterMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
+
+	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+
+	MenuBuilder.BeginSection("GraphTracks", LOCTEXT("GraphTracksHeading", "Main Graph Track"));
+	{
 		MenuBuilder.AddMenuEntry(Commands.ShowMainGraphTrack);
-		MenuBuilder.AddMenuEntry(Commands.ToggleCompactMode);
-		MenuBuilder.AddMenuEntry(Commands.AutoHideEmptyTracks);
 	}
 	MenuBuilder.EndSection();
+
+	// Let any plugin extend the Other Tracks Filter menu.
+	for (Insights::ITimingViewExtender* Extender : GetExtenders())
+	{
+		Extender->ExtendOtherTracksFilterMenu(*this, MenuBuilder);
+	}
+
+	return MenuBuilder.MakeWidget();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STimingView::MakePluginTracksFilterMenu()
+{
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
 
 	// Let any plugin extend the filter menu.
 	for (Insights::ITimingViewExtender* Extender : GetExtenders())
@@ -4315,91 +4428,20 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
+TSharedRef<SWidget> STimingView::MakeViewModeMenu()
 {
-	MenuBuilder.BeginSection("AllTracks", LOCTEXT("AllTracksHeading", "All Tracks"));
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
 
-	if (TopDockedTracks.Num() > 0)
+	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+
+	MenuBuilder.BeginSection("ViewMode", LOCTEXT("ViewModeHeading", "View Mode"));
 	{
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("TopDockedTracks", "Top Docked Tracks"),
-			LOCTEXT("TopDockedTracks_Tooltip", "Show/hide individual top docked tracks"),
-			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
-				{
-					InSubMenuBuilder.AddWidget(
-						SNew(SBox)
-						.MaxDesiredHeight(300.0f)
-						.MinDesiredWidth(300.0f)
-						.MaxDesiredWidth(300.0f)
-						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::TopDocked)
-						],
-						FText(), true);
-				})
-		);
+		MenuBuilder.AddMenuEntry(Commands.ToggleCompactMode);
+		MenuBuilder.AddMenuEntry(Commands.AutoHideEmptyTracks);
 	}
-
-	if (BottomDockedTracks.Num() > 0)
-	{
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("BottomDockedTracks", "Bottom Docked Tracks"),
-			LOCTEXT("BottomDockedTracks_Tooltip", "Show/hide individual bottom docked tracks"),
-			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
-				{
-					InSubMenuBuilder.AddWidget(
-						SNew(SBox)
-						.MaxDesiredHeight(300.0f)
-						.MinDesiredWidth(300.0f)
-						.MaxDesiredWidth(300.0f)
-						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::BottomDocked)
-						],
-						FText(), true);
-				})
-		);
-	}
-
-	if (ScrollableTracks.Num() > 0)
-	{
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("ScrollableTracks", "Scrollable Tracks"),
-			LOCTEXT("ScrollableTracks_Tooltip", "Show/hide individual scrollable tracks"),
-			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
-				{
-					InSubMenuBuilder.AddWidget(
-						SNew(SBox)
-						.MaxDesiredHeight(300.0f)
-						.MinDesiredWidth(300.0f)
-						.MaxDesiredWidth(300.0f)
-						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::Scrollable)
-						],
-						FText(), true);
-				})
-		);
-	}
-
-	if (ForegroundTracks.Num() > 0)
-	{
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("ForegroundTracks", "Foreground Tracks"),
-			LOCTEXT("ForegroundTracks_Tooltip", "Show/hide individual foreground tracks"),
-			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
-				{
-					InSubMenuBuilder.AddWidget(
-						SNew(SBox)
-						.MaxDesiredHeight(300.0f)
-						.MinDesiredWidth(300.0f)
-						.MaxDesiredWidth(300.0f)
-						[
-							SNew(STimingViewTrackList, SharedThis(this), ETimingTrackLocation::Foreground)
-						],
-						FText(), true);
-				})
-		);
-	}
-
 	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

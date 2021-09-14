@@ -75,8 +75,12 @@ public:
 	TSharedRef<SWidget> MakeCompactAutoScrollOptionsMenu();
 	TSharedRef<SWidget> MakeAutoScrollOptionsMenu();
 
-	TSharedRef<SWidget> MakeTracksFilterMenu();
+	TSharedRef<SWidget> MakeAllTracksMenu();
 	void CreateAllTracksMenu(FMenuBuilder& MenuBuilder);
+	TSharedRef<SWidget> MakeCpuGpuTracksFilterMenu();
+	TSharedRef<SWidget> MakeOtherTracksFilterMenu();
+	TSharedRef<SWidget> MakePluginTracksFilterMenu();
+	TSharedRef<SWidget> MakeViewModeMenu();
 
 	bool ShowHideGraphTrack_IsChecked() const;
 	void ShowHideGraphTrack_Execute();
@@ -303,6 +307,7 @@ public:
 
 	void ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation);
 	bool CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation) const;
+	bool CheckTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation Location) const;
 
 	void UpdateScrollableTracksOrder();
 	int32 GetFirstScrollableTrackOrder() const;

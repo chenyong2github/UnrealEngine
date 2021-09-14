@@ -126,7 +126,7 @@ void STimingViewTrackList::Construct(const FArguments& InArgs, const TSharedRef<
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(2.0f, 0.0f)
+			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 			[
 				// Checkbox for bulk operations
 				SNew(SCheckBox)
@@ -164,6 +164,7 @@ void STimingViewTrackList::Construct(const FArguments& InArgs, const TSharedRef<
 				})
 			]
 			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
 			.FillWidth(1.0f)
 			[
 				// Search box allows for filtering
@@ -172,6 +173,7 @@ void STimingViewTrackList::Construct(const FArguments& InArgs, const TSharedRef<
 			]
 		]
 		+ SVerticalBox::Slot()
+		.Padding(FMargin(2.0f, 0.0f))
 		.FillHeight(1.0f)
 		[
 			SNew(SScrollBorder, ListView.ToSharedRef())

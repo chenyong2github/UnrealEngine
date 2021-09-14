@@ -651,7 +651,7 @@ const TSharedPtr<const ITimingEvent> FGraphTrack::GetEvent(float InPosX, float I
 
 void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("Misc");
+	MenuBuilder.BeginSection("Options", LOCTEXT("OptionsHeading", "Options"));
 	{
 		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowDebugInfo)) // debug functionality
 		{

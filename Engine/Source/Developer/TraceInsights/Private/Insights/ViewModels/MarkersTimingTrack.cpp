@@ -258,19 +258,8 @@ FReply FMarkersTimingTrack::OnMouseButtonDoubleClick(const FGeometry& MyGeometry
 
 void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection(TEXT("Misc"));
+	MenuBuilder.BeginSection(TEXT("Content"), LOCTEXT("ContentHeading", "Content"));
 	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ContextMenu_ToggleCollapsed", "Collapsed"),
-			LOCTEXT("ContextMenu_ToggleCollapsed_Desc", "Whether the vertical marker lines are collapsed or expanded."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::ToggleCollapsed),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsCollapsed)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ContextMenu_Bookmarks", "Bookmarks"),
 			LOCTEXT("ContextMenu_Bookmarks_Desc", "Change this track to show only the bookmarks."),
@@ -291,6 +280,21 @@ void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 					  FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsLogsTrack)),
 			NAME_None,
 			EUserInterfaceActionType::RadioButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection(TEXT("MarkerLines"), LOCTEXT("MarkerLinesHeading", "Marker Lines"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ContextMenu_ToggleCollapsed", "Collapsed"),
+			LOCTEXT("ContextMenu_ToggleCollapsed_Desc", "Whether the vertical marker lines are collapsed or expanded."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::ToggleCollapsed),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FMarkersTimingTrack::IsCollapsed)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 	MenuBuilder.EndSection();

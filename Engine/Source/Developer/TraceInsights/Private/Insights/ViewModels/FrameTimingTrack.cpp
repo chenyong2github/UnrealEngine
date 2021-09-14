@@ -116,7 +116,7 @@ void FFrameSharedState::Tick(Insights::ITimingViewSession& InSession, const Trac
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+void FFrameSharedState::ExtendOtherTracksFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
 {
 	if (&InSession != TimingView)
 	{
@@ -128,7 +128,7 @@ void FFrameSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllFrameTracks);
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAllFrameTracks", "Frame Tracks - R"),
-			LOCTEXT("ShowAllFrameTracks_Tooltip", "Show/hide all Frame tracks"),
+			LOCTEXT("ShowAllFrameTracks_Tooltip", "Show/hide all Frame tracks."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFrameSharedState::ShowHideAllFrameTracks),
 					  FCanExecuteAction(),
@@ -282,7 +282,7 @@ void FFrameTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 	if (!Header.IsCollapsed())
 	{
 		const FTimingTrackViewport& Viewport = Context.GetViewport();
-		DrawMarkers(Context, 0.0f, Viewport.GetHeight());
+		DrawMarkers(Context, Viewport.GetPosY(), Viewport.GetHeight());
 	}
 
 	const TSharedPtr<const ITimingEvent> SelectedEventPtr = Context.GetSelectedEvent();
@@ -311,7 +311,7 @@ void FFrameTimingTrack::DrawSelectedEventInfo(const FTimingEvent& SelectedEvent,
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const FVector2D Size = FontMeasureService->Measure(Str, Font);
 		const float X = Viewport.GetWidth() - Size.X - 23.0f;
-		const float Y = Viewport.GetHeight() - Size.Y - 18.0f;
+		const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
 
 		const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
 		const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);
