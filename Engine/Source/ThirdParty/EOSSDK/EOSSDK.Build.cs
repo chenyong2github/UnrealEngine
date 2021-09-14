@@ -58,7 +58,7 @@ public class EOSSDK : ModuleRules
 		}
 	}
 
-	public string EngineBinariesDir
+	public virtual string EngineBinariesDir
 	{
 		get
 		{
@@ -156,35 +156,36 @@ public class EOSSDK : ModuleRules
 
 			if (!bUseProjectBinary)
 			{
-			PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "armeabi-v7a", RuntimeLibraryFileName));
-			PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "arm64-v8a", RuntimeLibraryFileName));
+				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "armeabi-v7a", RuntimeLibraryFileName));
+				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, "libs", "arm64-v8a", RuntimeLibraryFileName));
 
-			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "EOSSDK_UPL.xml"));
-		}
+				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
+				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "EOSSDK_UPL.xml"));
+			}
         }
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			if (!bUseProjectBinary)
 			{
-			PublicAdditionalFrameworks.Add(new Framework("EOSSDK", SDKBinariesDir, "", true));
-		}
+				PublicAdditionalFrameworks.Add(new Framework("EOSSDK", SDKBinariesDir, "", true));
+			}
 		}
 		else
 		{
 			// Allow projects to provide their own EOSSDK binaries. We will still compile against our own headers, because EOSSDK makes guarantees about forward compat. Note this global definition is only valid for monolithic targets.
 			if(!bUseProjectBinary)
             {
-			PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, LibraryLinkName));
-				RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries", Target.Platform.ToString(), RuntimeLibraryFileName), Path.Combine(SDKBinariesDir, RuntimeLibraryFileName));
+				PublicAdditionalLibraries.Add(Path.Combine(SDKBinariesDir, LibraryLinkName));
+				RuntimeDependencies.Add(Path.Combine(EngineBinariesDir, RuntimeLibraryFileName), Path.Combine(SDKBinariesDir, RuntimeLibraryFileName));
+
 				// needed for linux to find the .so
-				PublicRuntimeLibraryPaths.Add(Path.Combine("$(EngineDir)/Binaries", Target.Platform.ToString()));
+				PublicRuntimeLibraryPaths.Add(EngineBinariesDir);
 			
-			if (bRequiresRuntimeLoad)
-			{
-				PublicDelayLoadDLLs.Add(RuntimeLibraryFileName);
+				if (bRequiresRuntimeLoad)
+				{
+					PublicDelayLoadDLLs.Add(RuntimeLibraryFileName);
+				}
 			}
 		}
 	}
-}
 }
