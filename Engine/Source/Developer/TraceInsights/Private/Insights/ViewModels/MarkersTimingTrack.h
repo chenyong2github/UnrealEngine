@@ -65,8 +65,8 @@ public:
 		bUseOnlyBookmarks = bInUseOnlyBookmarks;
 		UpdateTrackNameAndHeight();
 	}
-	void SetBookmarksTrack() { SetBookmarksTrackFlag(true); }
-	void SetLogsTrack() { SetBookmarksTrackFlag(false); }
+	void SetBookmarksTrack() { SetBookmarksTrackFlag(true); SetDirtyFlag(); }
+	void SetLogsTrack() { SetBookmarksTrackFlag(false); SetDirtyFlag(); }
 
 	// Stats
 	int32 GetNumLogMessages() const { return NumLogMessages; }
