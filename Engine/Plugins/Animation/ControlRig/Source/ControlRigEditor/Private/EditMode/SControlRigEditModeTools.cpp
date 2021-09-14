@@ -711,6 +711,8 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 		FMovieSceneControlRigSpaceBaseKey Value;
 		using namespace UE::MovieScene;
 		URigHierarchy* RigHierarchy = SpacePickerWidget->GetHierarchy();
+		Settings.TargetSpace = RigHierarchy->GetFirstParent(ControlKeys[0]);
+		/*  we just set space as parent, but leaving this in case we go back to setting based on current
 		EvaluateChannel(SpaceChannelAndSection.SpaceChannel, CurrentTime, Value);
 		switch (Value.SpaceType)
 		{
@@ -726,6 +728,7 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 		default:
 			Settings.TargetSpace = URigHierarchy::GetDefaultParentSocketKey();
 		}
+		*/
 		TRange<FFrameNumber> Range = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 		TArray<FFrameNumber> Keys;
 		TArray < FKeyHandle> KeyHandles;
