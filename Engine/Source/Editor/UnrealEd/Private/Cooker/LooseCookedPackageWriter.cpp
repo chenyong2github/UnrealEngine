@@ -76,7 +76,7 @@ void FLooseCookedPackageWriter::WriteLinkerAdditionalData(const FLinkerAdditiona
 
 FDateTime FLooseCookedPackageWriter::GetPreviousCookTime() const
 {
-	const FString PreviousAssetRegistry = FPaths::Combine(MetadataDirectoryPath, TEXT("DevelopmentAssetRegistry.bin"));
+	const FString PreviousAssetRegistry = FPaths::Combine(MetadataDirectoryPath, GetDevelopmentAssetRegistryFilename());
 	return IFileManager::Get().GetTimeStamp(*PreviousAssetRegistry);
 }
 

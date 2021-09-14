@@ -260,6 +260,5 @@ public:
 };
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
-const FString& GetDevelopmentAssetRegistryFilename();
 constexpr uint32 ExpectedMaxNumPlatforms = 32;
 #define REMAPPED_PLUGINS TEXT("RemappedPlugins")

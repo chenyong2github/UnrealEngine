@@ -642,3 +642,7 @@ namespace AssetRegistry
 	ASSETREGISTRY_API bool ReadPackageDataDependencies(FArchive& BinaryArchive, TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame);
 }
 }
+
+/** Returns the filename without filepath for the DevelopmentAssetRegistry written by the cooker. */
+ASSETREGISTRY_API const TCHAR* GetDevelopmentAssetRegistryFilename();
+

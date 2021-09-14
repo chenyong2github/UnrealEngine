@@ -9,8 +9,8 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Find.h"
 #include "AssetCompilingManager.h"
-#include "AssetRegistryModule.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Commandlets/AssetRegistryGenerator.h"
@@ -230,12 +230,6 @@ const FString& GetAssetRegistryFilename()
 {
 	static const FString AssetRegistryFilename = FString(TEXT("AssetRegistry.bin"));
 	return AssetRegistryFilename;
-}
-
-const FString& GetDevelopmentAssetRegistryFilename()
-{
-	static const FString DevelopmentAssetRegistryFilename = FString(TEXT("DevelopmentAssetRegistry.bin"));
-	return DevelopmentAssetRegistryFilename;
 }
 
 /**
@@ -7015,8 +7009,9 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					IFileManager::Get().Copy(*VersionedRegistryFilename, *CookedAssetRegistryFilename, true, true);
 
 					// Also copy development registry if it exists
-					const FString DevVersionedRegistryFilename = VersionedRegistryFilename.Replace(TEXT("AssetRegistry.bin"), TEXT("Metadata/DevelopmentAssetRegistry.bin"));
-					const FString DevCookedAssetRegistryFilename = CookedAssetRegistryFilename.Replace(TEXT("AssetRegistry.bin"), TEXT("Metadata/DevelopmentAssetRegistry.bin"));
+					FString DevelopmentAssetRegistryRelativePath = FString::Printf(TEXT("Metadata/%s"), GetDevelopmentAssetRegistryFilename());
+					const FString DevVersionedRegistryFilename = VersionedRegistryFilename.Replace(TEXT("AssetRegistry.bin"), *DevelopmentAssetRegistryRelativePath);
+					const FString DevCookedAssetRegistryFilename = CookedAssetRegistryFilename.Replace(TEXT("AssetRegistry.bin"), *DevelopmentAssetRegistryRelativePath);
 					IFileManager::Get().Copy(*DevVersionedRegistryFilename, *DevCookedAssetRegistryFilename, true, true);
 				}
 			}

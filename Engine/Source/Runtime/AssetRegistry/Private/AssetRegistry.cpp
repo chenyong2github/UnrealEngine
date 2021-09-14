@@ -291,6 +291,11 @@ EChunkProgressReportingType::Type GetChunkAvailabilityProgressType(EAssetAvailab
 	return ChunkReportType;
 }
 
+const TCHAR* GetDevelopmentAssetRegistryFilename()
+{
+	return TEXT("DevelopmentAssetRegistry.bin");
+}
+
 UAssetRegistry::UAssetRegistry(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

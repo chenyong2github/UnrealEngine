@@ -2,7 +2,8 @@
 
 #include "Commandlets/DiffAssetRegistriesCommandlet.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/IAssetRegistry.h"
 
 #include "UObject/Class.h"
 #include "PlatformInfo.h"
@@ -185,7 +186,6 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 			return false;
 		};
 
-	// const TCHAR* AssetRegistrySubPath = TEXT("/Metadata/DevelopmentAssetRegistry.bin");
 	const FString* OldPathVal = Params.Find(FString(TEXT("OldPath")));
 	if (OldPathVal)
 	{
@@ -253,7 +253,8 @@ int32 UDiffAssetRegistriesCommandlet::Main(const FString& FullCommandLine)
 	FPaths::NormalizeFilename(OldPath);
 
 	// try to discern platform
-	/*if (NewPath.Contains(AssetRegistrySubPath))
+	/*FString AssetRegistrySubPath = FString::Printf(TEXT("/Metadata/%s"), GetDevelopmentAssetRegistryFilename());
+	if (NewPath.Contains(AssetRegistrySubPath))
 	{
 		FString NewPlatformDir = NewPath.Left(NewPath.Find(AssetRegistrySubPath));
 		FString PlatformPath = FPaths::GetCleanFilename(NewPlatformDir);
