@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PBDRigidsSolver.h"
 #include "ChaosSolversModule.h"
@@ -21,6 +22,7 @@
 #include "Services/NetworkPredictionAsyncService_Ticking.inl"
 #include "Services/NetworkPredictionAsyncService_Reconcile.inl"
 #include "Services/NetworkPredictionAsyncService_NetSerialize.inl"
+
 
 
 namespace UE_NP {
@@ -288,6 +290,8 @@ public:
 	//	This includes the latest state/input + a "future input" which is the latest, but currently unprocessed, InputCmd we have on the GT
 	void NetSerializeInstance(FNetworkPredictionAsyncID ID, FArchive& Ar)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_NetSerializeInstance);
+
 		FGlobalInstanceData& InstanceData = GlobalInstanceData_External.FindChecked(ID);
 
 		// 1. Frame (this is the latest frame we have results for, on the game thread)
@@ -402,6 +406,8 @@ public:
 
 	void ProcessInputs_External(int32 PhysicsStep, int32 LocalFrameOffset, bool& bOutSendClientInputCmd) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_ProcessInputs_External);
+
 		npEnsureMsgf(NextPhysicsStep == 0 || (NextPhysicsStep == PhysicsStep), TEXT("Unexpected PhysicsStep %d (NextPhysicsStep: %d)"), PhysicsStep, NextPhysicsStep);
 
 		NextPhysicsStep = PhysicsStep+1;

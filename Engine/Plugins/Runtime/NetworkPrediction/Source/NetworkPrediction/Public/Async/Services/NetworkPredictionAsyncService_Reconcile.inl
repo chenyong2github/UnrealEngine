@@ -2,6 +2,7 @@
 
 #pragma once
 #include "NetworkPredictionCVars.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 namespace UE_NP {
 
@@ -30,6 +31,8 @@ public:
 
 	int32 Reconcile(const int32 LastCompletedStep, const int32 EarliestFrame, int32 LocalFrameOffset) final override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Reconcile);
+
 		if (!DataStore->NetRecvQueue.Dequeue(DataStore->NetRecvData))
 		{
 			return INDEX_NONE;
@@ -58,18 +61,18 @@ public:
 
 					if (LocalInputCmd.ShouldReconcile(RecvData.InputCmd))
 					{
-						UE_LOG(LogNetworkPrediction, Log, TEXT("Reconcile on InputCmd. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
+						//UE_LOG(LogNetworkPrediction, Log, TEXT("Reconcile on InputCmd. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
 						bShouldReconcile = true;
 					}
 					if (LocalNetState.ShouldReconcile(RecvData.NetState))
 					{
-						UE_LOG(LogNetworkPrediction, Log, TEXT("Reconcile on NetState. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
+						//UE_LOG(LogNetworkPrediction, Log, TEXT("Reconcile on NetState. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
 						bShouldReconcile = true;
 					}
 				}
 				else
 				{
-					UE_LOG(LogNetworkPrediction, Log, TEXT("Reconcile due to invalid state. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
+					//UE_LOG(LogNetworkPrediction, Log, TEXT("Reconcile due to invalid state. %s. Instance: %d. Frame: [%d/%d]"), AsyncModelDef::GetName(), idx, RecvData.Frame - LocalFrameOffset, RecvData.Frame);
 					bShouldReconcile = true;
 				}
 

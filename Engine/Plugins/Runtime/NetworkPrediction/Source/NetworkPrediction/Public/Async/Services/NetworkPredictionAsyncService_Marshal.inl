@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 /*=============================================================================
 
@@ -77,6 +78,8 @@ public:
 	// Marshal data from SimInput and to SimOutput, prior to ticking
 	void MarshalPreSimulate(const int32 LocalFrame, const bool bIsResim, const FNetworkPredictionSimCallbackInput* SimInput, FNetworkPredictionSimCallbackOutput& SimOutput) final override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_MarshalPreSimulate);
+
 		const TAsyncModelDataStore_Input<AsyncModelDef>* InputData = SimInput->GetDataStore<AsyncModelDef>();
 		TAsncFrameSnapshot<AsyncModelDef>& Snapshot = DataStore->Frames[LocalFrame];
 

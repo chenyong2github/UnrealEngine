@@ -23,6 +23,7 @@
 #include "NetworkPredictionDebug.h"
 #include "GameFramework/PlayerState.h"
 #include "Misc/FileHelper.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkPhysics);
 
@@ -32,7 +33,7 @@ namespace UE_NETWORK_PHYSICS
 	FAutoConsoleVariableRef CVarEnable(TEXT("np2.bEnable"), Enable, TEXT("Enabled rollback physics. Must be set before starting game"));
 
 	//NP_DEVCVAR_INT(Enable, 0, "np2.bEnable", "Enabled rollback physics. Must be set before starting game");
-	NP_DEVCVAR_INT(LogCorrections, 1, "np2.LogCorrections", "Logs corrections when they happen");		
+	NP_DEVCVAR_INT(LogCorrections, 0, "np2.LogCorrections", "Logs corrections when they happen");		
 	NP_DEVCVAR_INT(LogImpulses, -1, "np2.LogImpulses", "Logs all recorded F/T/LI/AI");
 
 	NP_DEVCVAR_FLOAT(X, 1.0f, "np2.Tolerance.X", "Location Tolerance");
@@ -197,6 +198,8 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		{
 			return INDEX_NONE;
 		}
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Physics_TriggerRewindIfNeeded_Internal);
 
 		if (ResimEndFrame != INDEX_NONE)
 		{
@@ -687,6 +690,8 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 
 void UNetworkPhysicsManager::PostNetRecv()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Physics_PostNetRecv);
+
 #if WITH_CHAOS
 	if (RewindCallback == nullptr)
 	{
@@ -896,6 +901,8 @@ void UNetworkPhysicsManager::PostNetRecv()
 
 void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Physics_PreNetSend);
+
 #if WITH_CHAOS
 	if (RewindCallback == nullptr)
 	{
@@ -999,6 +1006,8 @@ void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
 
 void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Physics_ProcessInputs_External);
+
 	UWorld* World = GetWorld();
 	const ENetMode NetMode = World->GetNetMode();
 
