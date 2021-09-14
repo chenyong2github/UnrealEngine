@@ -774,6 +774,9 @@ bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityChe
 		};
 	}
 
+	// When ref counts are dense, the used ref count must match the size of the vertex/triangle vector. 
+	CheckOrFailF(!VertexRefCounts.IsDense() || (VertexRefCounts.IsDense() && VertexRefCounts.GetCount() == Vertices.Num()));
+	CheckOrFailF(!TriangleRefCounts.IsDense() || (TriangleRefCounts.IsDense() && TriangleRefCounts.GetCount() == Triangles.Num()));
 
 	for (int tID : TriangleIndicesItr())
 	{
