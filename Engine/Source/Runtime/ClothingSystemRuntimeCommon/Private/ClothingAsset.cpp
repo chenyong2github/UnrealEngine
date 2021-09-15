@@ -965,12 +965,12 @@ void UClothingAssetCommon::PostLoad()
 
 	if (FortniteReleaseBranchCustomObjectVersion < FFortniteReleaseBranchCustomObjectVersion::ChaosClothAddTethersToCachedData &&
 		FrostyMainBranchObjectVersion < FUE5PrivateFrostyStreamObjectVersion::ChaosClothAddTethersToCachedData)
-		{
+	{
 		ClothingCachedDataFlags |= EClothingCachedDataFlagsCommon::Tethers;
 
-			// ReferenceBoneIndex is only required when rebinding the cloth.
-			CalculateReferenceBoneIndex();
-		}
+		// ReferenceBoneIndex is only required when rebinding the cloth.
+		CalculateReferenceBoneIndex();
+	}
 
 	// After fixing the content, we are ready to call functions that rely on it
 	if (ClothingCachedDataFlags != EClothingCachedDataFlagsCommon::None)
