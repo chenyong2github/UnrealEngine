@@ -258,6 +258,7 @@ namespace UnrealBuildTool
 		bool bUsePrecompiled;
 		string BuildToolOverride;
 		Dictionary<DirectoryReference, string> ModuleDirToForceIncludePaths = new Dictionary<DirectoryReference, string>();
+		Dictionary<DirectoryReference, string> ModuleDirToPchHeaderFile = new Dictionary<DirectoryReference, string>();
 		VCProjectFileSettings Settings;
 
 		/// This is the platform name that Visual Studio is always guaranteed to support.  We'll use this as
@@ -512,7 +513,9 @@ namespace UnrealBuildTool
 					List<string> ForceIncludePaths = new List<string>(CompileEnvironment.ForceIncludeFiles.Select(x => InsertPathVariables(x.Location)));
 					if (CompileEnvironment.PrecompiledHeaderIncludeFilename != null)
 					{
-						ForceIncludePaths.Add(InsertPathVariables(CompileEnvironment.PrecompiledHeaderIncludeFilename));
+						string PchHeaderFile = InsertPathVariables(CompileEnvironment.PrecompiledHeaderIncludeFilename);
+						ForceIncludePaths.Insert(0, PchHeaderFile);
+						ModuleDirToPchHeaderFile[Module.ModuleDirectory] = PchHeaderFile;
 					}
 					ModuleDirToForceIncludePaths[Module.ModuleDirectory] = String.Join(";", ForceIncludePaths);
 				}
@@ -1109,6 +1112,7 @@ namespace UnrealBuildTool
 
 				Dictionary<DirectoryReference, string> DirectoryToIncludeSearchPaths = new Dictionary<DirectoryReference, string>();
 				Dictionary<DirectoryReference, string> DirectoryToForceIncludePaths = new Dictionary<DirectoryReference, string>();
+				Dictionary<DirectoryReference, string> DirectoryToPchFile = new Dictionary<DirectoryReference, string>();
 				foreach (AliasedFile AliasedFile in LocalAliasedFiles)
 				{
 					// No need to add the root directory relative to the project (it would just be an empty string!)
@@ -1152,6 +1156,19 @@ namespace UnrealBuildTool
 							DirectoryToForceIncludePaths[Directory] = ForceIncludePaths;							
 						}
 
+						// Find the PCH file
+						string PchHeaderFile;
+						if (!DirectoryToPchFile.TryGetValue(Directory, out PchHeaderFile))
+						{
+							for (DirectoryReference ParentDir = Directory; ParentDir != null; ParentDir = ParentDir.ParentDirectory)
+							{
+								if (ModuleDirToPchHeaderFile.TryGetValue(ParentDir, out PchHeaderFile))
+								{
+									break;
+								}
+							}
+							DirectoryToPchFile[Directory] = PchHeaderFile;
+						}
 
 						// Find the include search paths
 						string IncludeSearchPaths;
@@ -1167,7 +1184,11 @@ namespace UnrealBuildTool
 
 						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\">", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
 						VCProjectFileContent.AppendLine("      <AdditionalIncludeDirectories>$(NMakeIncludeSearchPath);{0}</AdditionalIncludeDirectories>", IncludeSearchPaths);
-						VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>$(NMakeForcedIncludes);{0}</ForcedIncludeFiles>", ForceIncludePaths);
+						VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>{0}</ForcedIncludeFiles>", ForceIncludePaths);
+						if (PchHeaderFile != null && ProjectFileFormat >= VCProjectFileFormat.VisualStudio2022)
+						{
+							VCProjectFileContent.AppendLine("      <AdditionalOptions>/Yu\"{0}\"</AdditionalOptions>", PchHeaderFile);
+						}
 						VCProjectFileContent.AppendLine("    </{0}>", VCFileType);
 					}
 
