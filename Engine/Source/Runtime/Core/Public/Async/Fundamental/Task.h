@@ -23,6 +23,59 @@ namespace LowLevelTasks
 		Count
 	};
 
+	inline const TCHAR* ToString(ETaskPriority Priority)
+	{
+		if (Priority < ETaskPriority::High || Priority >= ETaskPriority::Count)
+		{
+			return nullptr;
+		}
+
+		const TCHAR* TaskPriorityToStr[] =
+		{
+			TEXT("High"),
+			TEXT("Normal"),
+			TEXT("BackgroundHigh"),
+			TEXT("BackgroundNormal"),
+			TEXT("BackgroundLow")
+		};
+		return TaskPriorityToStr[(int32)Priority];
+	}
+
+	inline bool ToTaskPriority(const TCHAR* PriorityStr, ETaskPriority& OutPriority)
+	{
+		if (FCString::Stricmp(PriorityStr, ToString(ETaskPriority::High)) == 0)
+		{
+			OutPriority = ETaskPriority::High;
+			return true;
+		}
+
+		if (FCString::Stricmp(PriorityStr, ToString(ETaskPriority::Normal)) == 0)
+		{
+			OutPriority = ETaskPriority::Normal;
+			return true;
+		}
+
+		if (FCString::Stricmp(PriorityStr, ToString(ETaskPriority::BackgroundHigh)) == 0)
+		{
+			OutPriority = ETaskPriority::BackgroundHigh;
+			return true;
+		}
+
+		if (FCString::Stricmp(PriorityStr, ToString(ETaskPriority::BackgroundNormal)) == 0)
+		{
+			OutPriority = ETaskPriority::BackgroundNormal;
+			return true;
+		}
+
+		if (FCString::Stricmp(PriorityStr, ToString(ETaskPriority::BackgroundLow)) == 0)
+		{
+			OutPriority = ETaskPriority::BackgroundLow;
+			return true;
+		}
+
+		return false;
+	}
+
 	enum class ETaskState : int32
 	{
 		CanceledAndCompleted,	//means the task is completed with execution of it's continuation but the runnable was cancelled
