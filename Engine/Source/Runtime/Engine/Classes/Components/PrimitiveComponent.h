@@ -2490,7 +2490,13 @@ public:
 	 *  @param  CollisionShape 	Shape of collision of PrimComp geometry
 	 *  @return true if PrimComp overlaps this component at the specified location/rotation
 	 */
-	virtual bool OverlapComponent(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape);
+
+    //UE_DEPRECATED(5.0, "Use the const version of OverlapComponent. This deprecation cannot be uncommented as it would produce false positives." )
+	virtual bool OverlapComponent(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape) final 
+	{
+		return const_cast<const UPrimitiveComponent*>(this)->OverlapComponent(Pos, Rot, CollisionShape);
+	}
+	virtual bool OverlapComponent(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape) const;
 
 	/**
 	 * Computes the minimum translation direction (MTD) when an overlap exists between the component and the given shape.
