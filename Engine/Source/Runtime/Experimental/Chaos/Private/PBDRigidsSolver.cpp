@@ -1141,7 +1141,8 @@ namespace Chaos
 
 	void FPBDRigidsSolver::ConditionalApplyRewind_Internal()
 	{
-		if(!IsShuttingDown() && MRewindCallback && !MRewindData->IsResim())
+		// Note: checking MRewindData->IsResim() can lead to recursion into this function on the last resim frame since the call to AdvanceSolver is what advances RewindData's internal frame
+		if(!IsShuttingDown() && MRewindCallback && !GetEvolution()->IsResimming())
 		{
 			const int32 LastStep = MRewindData->CurrentFrame() - 1;
 			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded_Internal(LastStep);
