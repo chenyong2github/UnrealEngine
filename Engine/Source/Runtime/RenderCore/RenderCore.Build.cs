@@ -13,8 +13,6 @@ public class RenderCore : ModuleRules
 		if (Target.bBuildEditor == true)
         {
 			DynamicallyLoadedModuleNames.Add("TargetPlatform");
-			// PakFileUtitilities due to file open order usage by the shader library
-			PrivateDependencyModuleNames.Add("PakFileUtilities");
 			// JSON is used for the asset info in the shader library
 			PrivateDependencyModuleNames.Add("Json");
 			// UObjects are used to produce the full path of the asset by which the shaders are identified
