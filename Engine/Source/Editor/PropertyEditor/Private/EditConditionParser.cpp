@@ -213,8 +213,6 @@ static FExpressionResult ApplyPropertyIsNull(const EditConditionParserTokens::FP
 		return MakeError(FText::Format(LOCTEXT("InvalidOperand", "EditCondition attempted to use an invalid operand \"{0}\"."), FText::FromString(Property.PropertyName)));
 	}
 
-	const FString& TypeNameValue = TypeName.GetValue();
-	
 	TOptional<UObject*> Ptr = Context.GetPointerValue(Property.PropertyName);
 	if (!Ptr.IsSet())
 	{
