@@ -407,11 +407,12 @@ Texture2D<float4>	DeepShadow_DomTexture;
 // point sampling and jittering to get the smooth aspect, and avoid expensive trilinear sampling in a sparse 
 // structure. These random functions make various tradeoff between randomness and correlation, so that the output 
 // can coverge with TAA without any denoiser. They result from experimentation, and don't have a good grounding
-float4 ComputeRandom4_0(uint2 PixelPosition, uint InSeed)
+float4 ComputeRandom4_0(uint2 PixelPosition, uint InSeed, uint JitterMode)
 {
+	InSeed = JitterMode > 1 ? 0 : InSeed;
 	const float2 U0 = InterleavedGradientNoise(PixelPosition, InSeed);
 	const float2 U1 = InterleavedGradientNoise(PixelPosition + 17, InSeed);
-	return float4(U0.x, U0.y, U1.x, U1.y);
+	return JitterMode > 0 ? float4(U0.x, U0.y, U1.x, U1.y) : float4(0,0,0,0);
 }
 
 float3 GetShadowMaskRandom(uint2 PixelPosition)
@@ -419,15 +420,15 @@ float3 GetShadowMaskRandom(uint2 PixelPosition)
 	float3 Random = 0.5f;
 	if (Voxel_RandomType == 0)
 	{
-		Random = GetHairVoxelJitter(PixelPosition.xy, View.StateFrameIndexMod8);
+		Random = GetHairVoxelJitter(PixelPosition.xy, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 	}
 	else if (Voxel_RandomType == 1)
 	{
-		Random = ComputeRandom4_0(PixelPosition, View.StateFrameIndexMod8).xyz;
+		Random = ComputeRandom4_0(PixelPosition, View.StateFrameIndexMod8, VirtualVoxel.JitterMode).xyz;
 	}
 	else if (Voxel_RandomType == 2)
 	{
-		Random = GetHairVoxelJitter2(PixelPosition, View.StateFrameIndexMod8).xyz;
+		Random = GetHairVoxelJitter2(PixelPosition, View.StateFrameIndexMod8, VirtualVoxel.JitterMode).xyz;
 	}
 	return Random;
 }
