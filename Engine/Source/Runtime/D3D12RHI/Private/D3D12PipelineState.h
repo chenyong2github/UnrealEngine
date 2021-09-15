@@ -71,12 +71,10 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_DESC
 	D3D12_CACHED_PIPELINE_STATE CachedPSO;
 	D3D12_PIPELINE_STATE_FLAGS Flags;
 
-	inline bool RequiresStream() const { return MS.BytecodeLength > 0; }
 	FD3D12_GRAPHICS_PIPELINE_STATE_STREAM PipelineStateStream() const;
 #if PLATFORM_SUPPORTS_MESH_SHADERS
 	FD3D12_MESH_PIPELINE_STATE_STREAM MeshPipelineStateStream() const;
 #endif
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC GraphicsDescV0() const;
 };
 
 struct FD3D12LowLevelGraphicsPipelineStateDesc
@@ -130,7 +128,6 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 struct FD3D12_COMPUTE_PIPELINE_STATE_DESC : public D3D12_COMPUTE_PIPELINE_STATE_DESC
 {
 	FD3D12_COMPUTE_PIPELINE_STATE_STREAM PipelineStateStream() const;
-	D3D12_COMPUTE_PIPELINE_STATE_DESC ComputeDescV0() const;
 };
 
 struct FD3D12ComputePipelineStateDesc
