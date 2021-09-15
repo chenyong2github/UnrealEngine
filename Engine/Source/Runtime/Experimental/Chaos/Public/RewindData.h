@@ -764,7 +764,100 @@ private:
 	const FFrameAndPhase FrameAndPhase = { 0,0 };
 };
 
+template <typename T> 
+const T* ConstifyHelper(T* Ptr) { return Ptr; }
+
+template <typename T>
+T NoRefHelper(const T& Ref) { return Ref; }
+
 extern CHAOS_API int32 EnableResimCache;
+
+template <typename TVal>
+class TDirtyObjects
+{
+public:
+	using TKey = decltype(ConstifyHelper(
+		((TVal*)0)->GetObjectPtr()
+	));
+
+	TVal& Add(const TKey Key, TVal&& Val)
+	{
+		if(int32* ExistingIdx = KeyToIdx.Find(Key))
+		{
+			ensure(false);	//Item alread exists, shouldn't be adding again
+			return DenseVals[*ExistingIdx];
+		}
+		else
+		{
+			const int32 Idx = DenseVals.Emplace(MoveTemp(Val));
+			KeyToIdx.Add(Key, Idx);
+			return DenseVals[Idx];
+		}
+	}
+
+	const TVal& FindChecked(const TKey Key) const
+	{
+		const int32 Idx = KeyToIdx.FindChecked(Key);
+		return DenseVals[Idx];
+	}
+
+	TVal& FindChecked(const TKey Key)
+	{
+		const int32 Idx = KeyToIdx.FindChecked(Key);
+		return DenseVals[Idx];
+	}
+
+	const TVal* Find(const TKey Key) const
+	{
+		if (const int32* Idx = KeyToIdx.Find(Key))
+		{
+			return &DenseVals[*Idx];
+		}
+
+		return nullptr;
+	}
+
+	TVal* Find(const TKey Key)
+	{
+		if (const int32* Idx = KeyToIdx.Find(Key))
+		{
+			return &DenseVals[*Idx];
+		}
+
+		return nullptr;
+	}
+
+	void Remove(const TKey Key)
+	{
+		if (const int32* Idx = KeyToIdx.Find(Key))
+		{
+			DenseVals.RemoveAtSwap(*Idx);
+
+			if(*Idx < DenseVals.Num())
+			{
+				const TKey SwappedKey = DenseVals[*Idx].GetObjectPtr();
+				KeyToIdx.FindChecked(SwappedKey) = *Idx;
+			}
+
+			KeyToIdx.Remove(Key);
+		}
+	}
+
+	int32 Num() const { return DenseVals.Num(); }
+
+	auto begin() { return DenseVals.begin(); }
+	auto end() { return DenseVals.end(); }
+
+	auto cbegin() const { return DenseVals.begin(); }
+	auto cend() const { return DenseVals.end(); }
+
+	const TVal* GetDensePtr() const { return DenseVals.GetData(); }
+	TVal* GetDensePtr() { return DenseVals.GetData(); }
+
+private:
+	TMap<TKey, int32> KeyToIdx;
+	TArray<TVal> DenseVals;
+};
 
 class FPBDRigidsSolver;
 
@@ -793,12 +886,29 @@ public:
 		return Managers[Frame].DeltaTime;
 	}
 
-	void CHAOS_API RemoveParticle(const FUniqueIdx UniqueIdx);
+	void CHAOS_API RemoveParticle(const FGeometryParticleHandle* Particle)
+	{
+		DirtyParticles.Remove(Particle);
+	}
+
+	void CHAOS_API RemoveJoint(const FPBDJointConstraintHandle* Joint)
+	{
+		DirtyJoints.Remove(Joint);
+	}
 
 	int32 CHAOS_API GetEarliestFrame_Internal() const { return CurFrame - FramesSaved; }
 
-	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase = FFrameAndPhase::EParticleHistoryPhase::PostPushData) const;
+	/* Query the state of particles from the past. Can only be used when not already resimming*/
+	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase = FFrameAndPhase::EParticleHistoryPhase::PostPushData) const
+	{
+		return GetPastStateAtFrameImp<FGeometryParticleState>(DirtyParticles, Handle, Frame, Phase);
+	}
+
+	/* Query the state of joints from the past. Can only be used when not already resimming*/
+	FJointState CHAOS_API GetPastJointStateAtFrame(const FPBDJointConstraintHandle& Handle, int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase = FFrameAndPhase::EParticleHistoryPhase::PostPushData) const
+	{
+		return GetPastStateAtFrameImp<FJointState>(DirtyJoints, Handle, Frame, Phase);
+	}
 
 	IResimCacheBase* GetCurrentStepResimCache() const
 	{
@@ -855,12 +965,10 @@ public:
 	}
 
 	//Number of particles that we're currently storing history for
-	int32 GetNumDirtyParticles() const { return AllDirtyParticles.Num(); }
+	int32 GetNumDirtyParticles() const { return DirtyParticles.Num(); }
 
-	template <bool bResim>
 	void PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData);
 
-	template <bool bResim>
 	void PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx);
 
 	void CHAOS_API MarkDirtyFromPT(FGeometryParticleHandle& Handle);
@@ -870,24 +978,6 @@ public:
 private:
 
 	friend class FPBDRigidsSolver;
-
-	struct FDirtyFrameInfo
-	{
-		int32 Frame;	//needed to protect against stale entries in circular buffer
-		uint8 Wave;
-
-		void SetWave(int32 InFrame, uint8 InWave)
-		{
-			Frame = InFrame;
-			Wave = InWave;
-		}
-
-		bool MissingWrite(int32 InFrame, uint8 InWave) const
-		{
-			//If this is not a stale entry and it was written to, but not during this latest sim
-			return (Wave != 0 && Frame == InFrame) && Wave != InWave;
-		}
-	};
 
 	void CHAOS_API AdvanceFrameImp(IResimCacheBase* ResimCache);
 
@@ -902,26 +992,30 @@ private:
 		FReal DeltaTime;
 	};
 
-	template <typename HistoryType>
-	struct TDirtyConcreteInfo
+	template <typename THistoryType, typename TObj>
+	struct TDirtyObjectInfo
 	{
 	private:
-		HistoryType History;
+		THistoryType History;
+		TObj* ObjPtr;
 		FDirtyPropertiesPool* PropertiesPool;
 	public:
+		int32 DirtyDynamics = INDEX_NONE;	//Only used by particles, indicates the dirty properties was written to.
 		int32 LastDirtyFrame;	//Track how recently this was made dirty
 		int32 InitializedOnStep = INDEX_NONE;	//if not INDEX_NONE, it indicates we saw initialization during rewind history window
 		bool bResimAsSlave = true;	//Indicates the particle will always resim in the exact same way from game thread data
 
-		TDirtyConcreteInfo(FDirtyPropertiesPool& InPropertiesPool, const int32 CurFrame, const int32 NumFrames)
+		TDirtyObjectInfo(FDirtyPropertiesPool& InPropertiesPool, TObj& InObj, const int32 CurFrame, const int32 NumFrames)
 			: History(NumFrames)
+			, ObjPtr(&InObj)
 			, PropertiesPool(&InPropertiesPool)
 			, LastDirtyFrame(CurFrame)
 		{
 		}
 
-		TDirtyConcreteInfo(TDirtyConcreteInfo&& Other)
+		TDirtyObjectInfo(TDirtyObjectInfo&& Other)
 			: History(MoveTemp(Other.History))
+			, ObjPtr(Other.ObjPtr)
 			, PropertiesPool(Other.PropertiesPool)
 			, LastDirtyFrame(Other.LastDirtyFrame)
 			, InitializedOnStep(Other.InitializedOnStep)
@@ -930,7 +1024,7 @@ private:
 			Other.PropertiesPool = nullptr;
 		}
 
-		~TDirtyConcreteInfo()
+		~TDirtyObjectInfo()
 		{
 			if (PropertiesPool)
 			{
@@ -938,9 +1032,11 @@ private:
 			}
 		}
 
-		TDirtyConcreteInfo(const TDirtyConcreteInfo& Other) = delete;
+		TDirtyObjectInfo(const TDirtyObjectInfo& Other) = delete;
 
-		HistoryType& AddFrame(const int32 Frame)
+		TObj* GetObjectPtr() const { return ObjPtr; }
+
+		THistoryType& AddFrame(const int32 Frame)
 		{
 			LastDirtyFrame = Frame;
 			return History;
@@ -951,102 +1047,59 @@ private:
 			History.ClearEntryAndFuture(FrameAndPhase);
 		}
 
-		const HistoryType& GetHistory() const	//For non-const access use AddFrame
+		const THistoryType& GetHistory() const	//For non-const access use AddFrame
 		{
 			return History;
 		}
 	};
 
-	struct FDirtyParticleInfo : public TDirtyConcreteInfo<FGeometryParticleStateBase>
-	{
-	private:
-		using Base = TDirtyConcreteInfo<FGeometryParticleStateBase>;
-		TGeometryParticleHandle<FReal,3>* PTParticle;
-	public:
-		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
-		int32 DirtyDynamics = INDEX_NONE;
+	using FDirtyParticleInfo = TDirtyObjectInfo<FGeometryParticleStateBase, FGeometryParticleHandle>;
+	using FDirtyJointInfo = TDirtyObjectInfo<FJointStateBase, FPBDJointConstraintHandle>;
 
-		FDirtyParticleInfo(FDirtyPropertiesPool& InPropertiesPool, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
-		: Base(InPropertiesPool, CurFrame, NumFrames)
-		, PTParticle(&InPTParticle)
-		, CachedUniqueIdx(UniqueIdx)
+	template <typename TDirtyObjs, typename TObj>
+	auto& FindOrAddDirtyObjImp(TDirtyObjs& DirtyObjs, TObj& Handle, const int32 InitializedOnFrame = INDEX_NONE)
+	{
+		if (auto Info = DirtyObjs.Find(&Handle))
 		{
-		}
-		
-		TGeometryParticleHandle<FReal,3>* GetPTParticle() const
-		{
-			return PTParticle;
-		}
-	};
-
-	struct FDirtyJointInfo : public TDirtyConcreteInfo<FJointStateBase>
-	{
-	private:
-		using Base = TDirtyConcreteInfo<FJointStateBase>;
-		FPBDJointConstraintHandle* Handle;
-	public:
-
-		FDirtyJointInfo(FDirtyPropertiesPool& InPropertiesPool, FPBDJointConstraintHandle& InJoint, const int32 CurFrame, const int32 NumFrames)
-			: Base(InPropertiesPool, CurFrame, NumFrames)
-			, Handle(&InJoint)
-		{
-		}
-	};
-
-	const FDirtyParticleInfo& FindParticleChecked(const FUniqueIdx UniqueIdx) const
-	{
-		const int32 Idx = ParticleToAllDirtyIdx.FindChecked(UniqueIdx);
-		return AllDirtyParticles[Idx];
-	}
-
-	FDirtyParticleInfo& FindParticleChecked(const FUniqueIdx UniqueIdx)
-	{
-		const int32 Idx = ParticleToAllDirtyIdx.FindChecked(UniqueIdx);
-		return AllDirtyParticles[Idx];
-	}
-
-	const FDirtyParticleInfo* FindParticle(const FUniqueIdx UniqueIdx) const
-	{
-		if(const int32* Idx = ParticleToAllDirtyIdx.Find(UniqueIdx))
-		{
-			return &AllDirtyParticles[*Idx];
+			return *Info;
 		}
 
-		return nullptr;
+		using TDirtyObj = decltype(NoRefHelper(*DirtyObjs.GetDensePtr()));
+		TDirtyObj& Info = DirtyObjs.Add(&Handle, TDirtyObj(PropertiesPool, Handle, CurFrame, Managers.Capacity()));
+		Info.InitializedOnStep = InitializedOnFrame;
+		return Info;
 	}
 
-	FDirtyParticleInfo* FindParticle(const FUniqueIdx UniqueIdx)
+	FDirtyParticleInfo& FindOrAddDirtyObj(FGeometryParticleHandle& Handle, const int32 InitializedOnFrame = INDEX_NONE)
 	{
-		if(const int32* Idx = ParticleToAllDirtyIdx.Find(UniqueIdx))
-		{
-			return &AllDirtyParticles[*Idx];
-		}
-
-		return nullptr;
+		return FindOrAddDirtyObjImp(DirtyParticles, Handle, InitializedOnFrame);
 	}
 
-	FDirtyParticleInfo& FindOrAddParticle(TGeometryParticleHandle<FReal,3>& PTParticle, const int32 InitializedOnFrame = INDEX_NONE);
-	FDirtyJointInfo& FindOrAddJoint(FPBDJointConstraintHandle& Handle, const int32 InitializedOnFrame = INDEX_NONE);
-
-	FDirtyParticleInfo& FindOrAddConcrete(FGeometryParticleHandle& Handle, const int32 InitializedOnFrame = INDEX_NONE)
+	FDirtyJointInfo& FindOrAddDirtyObj(FPBDJointConstraintHandle& Handle, const int32 InitializedOnFrame = INDEX_NONE)
 	{
-		return FindOrAddParticle(Handle, InitializedOnFrame);
+		return FindOrAddDirtyObjImp(DirtyJoints, Handle, InitializedOnFrame);
 	}
 
-	FDirtyJointInfo& FindOrAddConcrete(FPBDJointConstraintHandle& Handle, const int32 InitializedOnFrame = INDEX_NONE)
+	template <typename TObjState, typename TDirtyObjs, typename TObj>
+	auto GetPastStateAtFrameImp(const TDirtyObjs& DirtyObjs, const TObj& Handle, int32 Frame, FFrameAndPhase::EParticleHistoryPhase Phase) const
 	{
-		return FindOrAddJoint(Handle, InitializedOnFrame);
+		ensure(!IsResim());
+		ensure(Frame >= GetEarliestFrame_Internal());	//can't get state from before the frame we rewound to
+
+		const auto* Info = DirtyObjs.Find(&Handle);
+		const auto* State = Info ? &Info->GetHistory() : nullptr;
+		return TObjState(State, Handle, PropertiesPool, { Frame, Phase });
 	}
 
 	bool RewindToFrame(int32 Frame);
 
 	static void DesyncParticle(FDirtyParticleInfo& Info, const FFrameAndPhase FrameAndPhase);
 
-	TArrayAsMap<FUniqueIdx,int32> ParticleToAllDirtyIdx;
 	TCircularBuffer<FFrameManagerInfo> Managers;
-	FDirtyPropertiesPool PropertiesPool;	//must come before AllDirtyParticles since it relies on it (and used in destruction)
-	TArray<FDirtyParticleInfo> AllDirtyParticles;
-	TArray<FDirtyJointInfo> AllDirtyJoints;
+	FDirtyPropertiesPool PropertiesPool;	//must come before DirtyParticles since it relies on it (and used in destruction)
+
+	TDirtyObjects<FDirtyParticleInfo> DirtyParticles;
+	TDirtyObjects<FDirtyJointInfo> DirtyJoints;
 
 	FPBDRigidsSolver* Solver;
 	int32 CurFrame;

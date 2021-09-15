@@ -154,6 +154,8 @@ namespace ChaosTest {
 		// run PT again so that the cleanup is done
 		Solver->AdvanceAndDispatch_External(100.0f);
 		Solver->UpdateGameThreadStructures();
+		Solver->AdvanceAndDispatch_External(100.0f);
+		Solver->UpdateGameThreadStructures();
 
 		// Unique idx should be gone from the pending lists
 		EXPECT_FALSE(Solver->GetEvolution()->IsUniqueIndexPendingRelease(FirstIdx));

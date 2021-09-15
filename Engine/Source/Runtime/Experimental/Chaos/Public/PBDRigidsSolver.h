@@ -349,6 +349,8 @@ namespace Chaos
 		{
 			FSingleParticlePhysicsProxy* Proxy;
 			int32 DestroyOnStep;
+			FGeometryParticleHandle* Handle;
+			FUniqueIdx UniqueIdx;
 		};
 
 		TArray<FPendingDestroyInfo> PendingDestroyPhysicsProxy;

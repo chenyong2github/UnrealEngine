@@ -518,24 +518,14 @@ namespace Chaos
 			FGeometryParticleHandle* Handle = Proxy->GetHandle_LowLevel();
 			Proxy->SetHandle(nullptr);
 			const int32 OffsetForRewind = MRewindData ? MRewindData->Capacity() : 0;
-			PendingDestroyPhysicsProxy.Add(  FPendingDestroyInfo{Proxy, GetCurrentFrame() + OffsetForRewind});
+			PendingDestroyPhysicsProxy.Add(  FPendingDestroyInfo{Proxy, GetCurrentFrame() + OffsetForRewind, Handle, UniqueIdx});
 			
 			//If particle was created and destroyed before commands were enqueued just skip. I suspect we can skip entire lambda, but too much code to verify right now
-
 			if(Handle)
 			{
-				// Remove from rewind data
-				if(FRewindData* RewindData = GetRewindData())
-				{
-					RewindData->RemoveParticle(Handle->UniqueIdx());
-				}
-  
-				// Use the handle to destroy the particle data
-				GetEvolution()->DestroyParticle(Handle);
+				//Disable until particle is finally destroyed
+				GetEvolution()->DisableParticle(Handle);
 			}
-
-			// finally let's release the unique index
-			GetEvolution()->ReleaseUniqueIdx(UniqueIdx);
 		});
 	}
 
@@ -608,6 +598,13 @@ namespace Chaos
 		// Finish registration on the physics thread...
 		EnqueueCommandImmediate([InParticles, JointProxy, this]()
 			{
+				//TODO: consider deferring this so that rewind can resim with joint until moment of destruction
+				//For now we assume this always comes from server update
+				if(FRewindData* RewindData = GetRewindData())
+				{
+					RewindData->RemoveJoint(JointProxy->GetHandle());
+				}
+
 				JointProxy->DestroyOnPhysicsThread(this);
 				JointConstraintPhysicsProxies_Internal.RemoveSingle(JointProxy);
 				delete JointProxy;
@@ -712,6 +709,21 @@ namespace Chaos
 			FPendingDestroyInfo& Info = PendingDestroyPhysicsProxy[Idx];
 			if(Info.DestroyOnStep <= GetCurrentFrame() || IsShuttingDown())
 			{
+				// finally let's release the unique index
+				GetEvolution()->ReleaseUniqueIdx(Info.UniqueIdx);
+
+				if (Info.Handle)
+				{
+					// Remove from rewind data
+					if (FRewindData* RewindData = GetRewindData())
+					{
+						RewindData->RemoveParticle(Info.Handle);
+					}
+
+					// Use the handle to destroy the particle data
+					GetEvolution()->DestroyParticle(Info.Handle);
+				}
+
 				ensure(Info.Proxy->GetHandle_LowLevel() == nullptr);	//should have already cleared this out
 				delete Info.Proxy;
 				PendingDestroyPhysicsProxy.RemoveAtSwap(Idx);
@@ -944,15 +956,7 @@ namespace Chaos
 			{
 				if (RewindData)
 				{
-					//may want to remove branch by templatizing lambda
-					if (RewindData->IsResim())
-					{
-						RewindData->PushGTDirtyData<true>(*Manager, DataIdx, Dirty, ShapeDirtyData);
-					}
-					else
-					{
-						RewindData->PushGTDirtyData<false>(*Manager, DataIdx, Dirty, ShapeDirtyData);
-					}
+					RewindData->PushGTDirtyData(*Manager, DataIdx, Dirty, ShapeDirtyData);
 				}
 				Proxy->PushToPhysicsState(*Manager, DataIdx, Dirty, ShapeDirtyData, *GetEvolution(), ExternalDt);
 			}
@@ -1022,7 +1026,7 @@ namespace Chaos
 		});
 
 		//need to create new constraint handles
-		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT, Manager](int32 DataIdx, FDirtyProxy& Dirty)
+		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT, Manager, RewindData](int32 DataIdx, FDirtyProxy& Dirty)
 		{
 			switch (Dirty.Proxy->GetType())
 			{
@@ -1036,6 +1040,13 @@ namespace Chaos
 					JointProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 					JointProxy->SetInitialized(GetCurrentFrame());
 				}
+
+				//TODO: if we support predicting creation / destruction of joints need to handle null joint case
+				if (RewindData)
+				{
+					RewindData->PushGTDirtyData(*Manager, DataIdx, Dirty, nullptr);
+				}
+				
 				JointProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 				Dirty.Proxy->ResetDirtyIdx();
 				break;
@@ -1459,15 +1470,7 @@ namespace Chaos
 			int32 DataIdx = 0;
 			for(TPBDRigidParticleHandleImp<FReal,3,false>& DirtyParticle : DirtyParticles)
 			{
-				//may want to remove branch using templates outside loop
-				if (MRewindData->IsResim())
-				{
-					MRewindData->PushPTDirtyData<true>(*DirtyParticle.Handle(), DataIdx++);
-				}
-				else
-				{
-					MRewindData->PushPTDirtyData<false>(*DirtyParticle.Handle(), DataIdx++);
-				}
+				MRewindData->PushPTDirtyData(*DirtyParticle.Handle(), DataIdx++);
 			}
 		}
 	}
