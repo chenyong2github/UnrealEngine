@@ -1684,6 +1684,15 @@ bool GetRayTracingQualitySwitch()
 #endif
 }
 
+bool GetPathTracingQualitySwitch()
+{
+#if RAYHITGROUPSHADER && PATH_TRACING
+	return true;
+#else
+	return false;
+#endif
+}
+
 // Used for the RuntimeVirtualTextureReplace material expression
 // Returns true if rendering to a runtime virtual texture page
 bool GetRuntimeVirtualTextureOutputSwitch()

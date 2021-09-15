@@ -110,6 +110,7 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionGIReplace.h"
 #include "Materials/MaterialExpressionRayTracingQualitySwitch.h"
+#include "Materials/MaterialExpressionPathTracingQualitySwitch.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionHairAttributes.h"
 #include "Materials/MaterialExpressionHairColor.h"
@@ -15684,7 +15685,7 @@ int32 UMaterialExpressionRayTracingQualitySwitch::Compile(class FMaterialCompile
 	}
 	else if (!RayTraced.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing RayTracingQualitySwitch input 'RayTracing'"));
+		return Compiler->Errorf(TEXT("Missing RayTracingQualitySwitch input 'RayTraced'"));
 	}
 	else
 	{
@@ -15728,6 +15729,83 @@ uint32 UMaterialExpressionRayTracingQualitySwitch::GetInputType(int32 InputIndex
 	return MCT_Unknown;
 }
 #endif // WITH_EDITOR
+
+//
+// UMaterialExpressionPathTracingQualitySwitch
+//
+UMaterialExpressionPathTracingQualitySwitch::UMaterialExpressionPathTracingQualitySwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionPathTracingQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Normal.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing PathTracingQualitySwitch input 'Normal'"));
+	}
+	else if (!PathTraced.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing PathTracingQualitySwitch input 'PathTraced'"));
+	}
+	else
+	{
+		int32 Arg1 = Normal.Compile(Compiler);
+		int32 Arg2 = PathTraced.Compile(Compiler);
+
+		//only when both of these are real expressions do the actual code.  otherwise various output pins will
+		//end up considered 'set' when really we just want a default.  This can cause us to force depth output when we don't want it for example.
+		if (Arg1 != INDEX_NONE && Arg2 != INDEX_NONE)
+		{
+			return Compiler->PathTracingQualitySwitchReplace(Arg1, Arg2);
+		}
+		else if (Arg1 != INDEX_NONE)
+		{
+			return Arg1;
+		}
+		else if (Arg2 != INDEX_NONE)
+		{
+			return Arg2;
+		}
+		return INDEX_NONE;
+	}
+}
+
+bool UMaterialExpressionPathTracingQualitySwitch::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	if (Normal.Expression)
+	{
+		return Normal.Expression->IsResultMaterialAttributes(OutputIndex);
+	}
+	return false;
+}
+
+void UMaterialExpressionPathTracingQualitySwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("PathTracingQualitySwitchReplace"));
+}
+
+uint32 UMaterialExpressionPathTracingQualitySwitch::GetInputType(int32 InputIndex)
+{
+	return MCT_Unknown;
+}
+#endif // WITH_EDITOR
+
 
 UMaterialExpressionObjectOrientation::UMaterialExpressionObjectOrientation(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
