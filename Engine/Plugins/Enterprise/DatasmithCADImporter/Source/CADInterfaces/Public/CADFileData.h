@@ -19,7 +19,7 @@ namespace CADLibrary
 	class FCADFileData
 	{
 	public:
-		FCADFileData(const FImportParameters& InImportParameters, const FFileDescription& InFileDescription, const FString& InCachePath)
+		FCADFileData(const FImportParameters& InImportParameters, const FFileDescriptor& InFileDescription, const FString& InCachePath)
 			: CADImportSdk(ECADImportSdk::KernelIO)
 			, ImportParameters(InImportParameters)
 			, CachePath(InCachePath)
@@ -27,16 +27,16 @@ namespace CADLibrary
 			, bIsCacheDefined(!InCachePath.IsEmpty())
 			, FileDescription(InFileDescription)
 		{
-			SceneGraphArchive.FullPath = FileDescription.OriginalPath;
-			SceneGraphArchive.CADFileName = FileDescription.Name;
+			SceneGraphArchive.FullPath = FileDescription.GetSourcePath();
+			SceneGraphArchive.CADFileName = FileDescription.GetFileName();
 		}
 
 		uint32 GetSceneFileHash()
 		{
 			if (!SceneFileHash)
 			{
-				SceneFileHash = HashCombine(FileDescription.GetFileHash(), GetTypeHash(ImportParameters.StitchingTechnique));
-				SceneFileHash = HashCombine(SceneFileHash, GetTypeHash(CADImportSdk));
+				SceneFileHash = HashCombine(FileDescription.GetDescriptorHash(), ::GetTypeHash(ImportParameters.StitchingTechnique));
+				SceneFileHash = HashCombine(SceneFileHash, ::GetTypeHash(CADImportSdk));
 			}
 			return SceneFileHash;
 		}
@@ -46,12 +46,13 @@ namespace CADLibrary
 			if (!GeomFileHash)
 			{
 				GeomFileHash = GetSceneFileHash();
-				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters.ChordTolerance));
-				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters.MaxEdgeLength));
-				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters.MaxNormalAngle));
-				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters.MetricUnit));
-				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters.ScaleFactor));
-				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters.StitchingTechnique));
+				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.bDisableCADKernelTessellation));
+				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.ChordTolerance));
+				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.MaxEdgeLength));
+				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.MaxNormalAngle));
+				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.MetricUnit));
+				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.ScaleFactor));
+				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.StitchingTechnique));
 			}
 			return GeomFileHash;
 		}
@@ -94,7 +95,7 @@ namespace CADLibrary
 		{
 			if (IsCacheDefined())
 			{
-				FString CacheFileName = FString::Printf(TEXT("UEx%08x"), FileDescription.GetFileHash());
+				FString CacheFileName = FString::Printf(TEXT("UEx%08x"), FileDescription.GetDescriptorHash());
 				return FPaths::Combine(CachePath, TEXT("cad"), CacheFileName + TEXT(".ct"));
 			}
 			return FString();
@@ -130,14 +131,14 @@ namespace CADLibrary
 
 		int32 AddComponent(FCadId ComponentId)
 		{
-			int32 Index = SceneGraphArchive.ComponentSet.Emplace(ComponentId);
+			int32 Index = SceneGraphArchive.Components.Emplace(ComponentId);
 			SceneGraphArchive.CADIdToComponentIndex.Add(ComponentId, Index);
 			return Index;
 		}
 
 		FArchiveComponent& GetComponentAt(int32 Index)
 		{
-			return SceneGraphArchive.ComponentSet[Index];
+			return SceneGraphArchive.Components[Index];
 		}
 
 
@@ -166,14 +167,14 @@ namespace CADLibrary
 
 		int32 AddBody(FCadId BodyId)
 		{
-			int32 Index = SceneGraphArchive.BodySet.Emplace(BodyId);
+			int32 Index = SceneGraphArchive.Bodies.Emplace(BodyId);
 			SceneGraphArchive.CADIdToBodyIndex.Add(BodyId, Index);
 			return Index;
 		}
 
 		FArchiveBody& GetBodyAt(int32 Index)
 		{
-			return SceneGraphArchive.BodySet[Index];
+			return SceneGraphArchive.Bodies[Index];
 		}
 
 
@@ -189,29 +190,29 @@ namespace CADLibrary
 
 		int32 AddUnloadedComponent(FCadId ComponentId)
 		{
-			int32 Index = SceneGraphArchive.UnloadedComponentSet.Emplace(ComponentId);
+			int32 Index = SceneGraphArchive.UnloadedComponents.Emplace(ComponentId);
 			SceneGraphArchive.CADIdToUnloadedComponentIndex.Add(ComponentId, Index);
 			return Index;
 		}
 
 		FArchiveUnloadedComponent& GetUnloadedComponentAt(int32 Index)
 		{
-			return SceneGraphArchive.UnloadedComponentSet[Index];
+			return SceneGraphArchive.UnloadedComponents[Index];
 		}
 
-		FFileDescription& GetExternalReferences(int32 Index)
+		FFileDescriptor& GetExternalReferences(int32 Index)
 		{
-			return SceneGraphArchive.ExternalRefSet[Index];
+			return SceneGraphArchive.ExternalReferences[Index];
 		}
 
-		FFileDescription& AddExternalRef(const TCHAR* InFilePath, const TCHAR* InConfiguration, const TCHAR* InRootFilePath)
+		FFileDescriptor& AddExternalRef(const TCHAR* InFilePath, const TCHAR* InConfiguration, const TCHAR* InRootFilePath)
 		{
-			return SceneGraphArchive.ExternalRefSet.Emplace_GetRef(InFilePath, InConfiguration, InRootFilePath);
+			return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFilePath, InConfiguration, InRootFilePath);
 		}
 
-		FFileDescription& AddExternalRef(const FFileDescription& InFileDescription)
+		FFileDescriptor& AddExternalRef(const FFileDescriptor& InFileDescription)
 		{
-			return SceneGraphArchive.ExternalRefSet.Emplace_GetRef(InFileDescription);
+			return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFileDescription);
 		}
 
 		FBodyMesh& AddBodyMesh(FCadId BodyId)
@@ -226,9 +227,9 @@ namespace CADLibrary
 			SerializeBodyMeshSet(*MeshArchiveFilePath, BodyMeshes);
 		}
 
-		const TArray<FFileDescription>& GetExternalRefSet() const 
+		const TArray<FFileDescriptor>& GetExternalRefSet() const 
 		{
-			return SceneGraphArchive.ExternalRefSet;
+			return SceneGraphArchive.ExternalReferences;
 		}
 
 		const FString& GetSceneGraphFileName() const
@@ -286,44 +287,14 @@ namespace CADLibrary
 			return BodyMeshes;
 		}
 
-		const FFileDescription& GetCADFileDescription() const
+		const FFileDescriptor& GetCADFileDescription() const
 		{
 			return FileDescription;
 		}
 
-		FFileDescription& GetCADFileDescription()
+		FFileDescriptor& GetCADFileDescription()
 		{
 			return FileDescription;
-		}
-
-		bool HasConfiguration() const
-		{
-			return !FileDescription.Configuration.IsEmpty();
-		}
-
-		const FString& GetConfiguration() const
-		{
-			return FileDescription.Configuration;
-		}
-
-		const FString& FileExtension() const
-		{
-			return FileDescription.Extension;
-		}
-
-		const FString& FilePath() const
-		{
-			return FileDescription.Path;
-		}
-
-		const FString& FileName() const
-		{
-			return FileDescription.Name;
-		}
-
-		void ReplaceFileByCacheBackup(const FString& CacheFilePath)
-		{
-			FileDescription.ReplaceByKernelIOBackup(CacheFilePath);
 		}
 
 		void ReserveBodyMeshes(int32 MaxBodyCount)
@@ -378,7 +349,7 @@ namespace CADLibrary
 		const FString BodyCacheExt;
 		const bool bIsCacheDefined;
 
-		FFileDescription FileDescription;
+		FFileDescriptor FileDescription;
 
 		FString MeshArchiveFile;
 

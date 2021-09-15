@@ -91,6 +91,7 @@ namespace CADLibrary
 		void GetAttributeValue(CT_ATTRIB_TYPE attrib_type, int ith_field, FString& value);
 
 		FCADFileData& CADFileData;
+		FFileDescriptor& FileDescription;
 	};
 } // CADLibrary
 

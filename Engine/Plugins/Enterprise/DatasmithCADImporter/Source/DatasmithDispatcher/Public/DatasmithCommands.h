@@ -86,7 +86,7 @@ protected:
 	virtual void SerializeImpl(FArchive&) override;
 
 public:
-	CADLibrary::FFileDescription JobFileDescription;
+	CADLibrary::FFileDescriptor JobFileDescription;
 	int32 JobIndex = -1;
 };
 
@@ -99,7 +99,7 @@ protected:
 	virtual void SerializeImpl(FArchive&) override;
 
 public:
-	TArray<CADLibrary::FFileDescription> ExternalReferences;
+	TArray<CADLibrary::FFileDescriptor> ExternalReferences;
 	FString SceneGraphFileName;
 	FString GeomFileName;
 	ETaskState ProcessResult = ETaskState::Unknown;

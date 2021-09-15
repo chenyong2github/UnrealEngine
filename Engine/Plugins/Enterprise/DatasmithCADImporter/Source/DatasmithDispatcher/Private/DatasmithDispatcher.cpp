@@ -38,7 +38,7 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 	}
 }
 
-void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescription & InFileDescription)
+void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescriptor& InFileDescription)
 {
 	FScopeLock Lock(&TaskPoolCriticalSection);
 	for (const FTask& Task : TaskPool)
@@ -81,7 +81,7 @@ TOptional<FTask> FDatasmithDispatcher::GetNextTask()
 
 void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 {
-	CADLibrary::FFileDescription FileDescription;
+	CADLibrary::FFileDescriptor FileDescriptor;
 	{
 		FScopeLock Lock(&TaskPoolCriticalSection);
 
@@ -92,7 +92,7 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 
 		FTask& Task = TaskPool[TaskIndex];
 		Task.State = TaskState;
-		FileDescription = Task.FileDescription;
+		FileDescriptor = Task.FileDescription;
 
 		if (TaskState == ETaskState::ProcessOk
 			|| TaskState == ETaskState::ProcessFailed
@@ -107,10 +107,10 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 		}
 	}
 
-	UE_CLOG(TaskState == ETaskState::ProcessOk, LogDatasmithDispatcher, Verbose, TEXT("File processed: %s"), *FileDescription.Name);
-	UE_CLOG(TaskState == ETaskState::UnTreated, LogDatasmithDispatcher, Warning, TEXT("File resubmitted: %s"), *FileDescription.Name);
-	UE_CLOG(TaskState == ETaskState::ProcessFailed, LogDatasmithDispatcher, Error, TEXT("File processing failure: %s"), *FileDescription.Name);
-	UE_CLOG(TaskState == ETaskState::FileNotFound, LogDatasmithDispatcher, Warning, TEXT("file not found: %s"), *FileDescription.Path);
+	UE_CLOG(TaskState == ETaskState::ProcessOk, LogDatasmithDispatcher, Verbose, TEXT("File processed: %s"), *FileDescriptor.GetFileName());
+	UE_CLOG(TaskState == ETaskState::UnTreated, LogDatasmithDispatcher, Warning, TEXT("File resubmitted: %s"), *FileDescriptor.GetFileName());
+	UE_CLOG(TaskState == ETaskState::ProcessFailed, LogDatasmithDispatcher, Error, TEXT("File processing failure: %s"), *FileDescriptor.GetFileName());
+	UE_CLOG(TaskState == ETaskState::FileNotFound, LogDatasmithDispatcher, Warning, TEXT("file not found: %s"), *FileDescriptor.GetSourcePath());
 }
 
 void FDatasmithDispatcher::Process(bool bWithProcessor)
@@ -199,7 +199,7 @@ bool FDatasmithDispatcher::IsOver()
 	return CompletedTaskCount == TaskPool.Num();
 }
 
-void FDatasmithDispatcher::LinkCTFileToUnrealCacheFile(const CADLibrary::FFileDescription& CTFileDescription, const FString& UnrealSceneGraphFile, const FString& UnrealMeshFile)
+void FDatasmithDispatcher::LinkCTFileToUnrealCacheFile(const CADLibrary::FFileDescriptor& CTFileDescription, const FString& UnrealSceneGraphFile, const FString& UnrealMeshFile)
 {
 	FScopeLock Lock(&TaskPoolCriticalSection);
 
@@ -246,7 +246,7 @@ void FDatasmithDispatcher::ProcessLocal()
 {
 	while (TOptional<FTask> Task = GetNextTask())
 	{
-		CADLibrary::FFileDescription& FileDescription = Task->FileDescription;
+		CADLibrary::FFileDescriptor& FileDescription = Task->FileDescription;
 
 		CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescription, *FPaths::EnginePluginsDir(), ProcessCacheFolder);
 		ETaskState ProcessResult = FileReader.ProcessFile();
@@ -257,10 +257,10 @@ void FDatasmithDispatcher::ProcessLocal()
 		if (TaskState == ETaskState::ProcessOk)
 		{
 			const CADLibrary::FCADFileData& CADFileData = FileReader.GetCADFileData();
-			const TArray<CADLibrary::FFileDescription>& ExternalRefSet = CADFileData.GetExternalRefSet();
+			const TArray<CADLibrary::FFileDescriptor>& ExternalRefSet = CADFileData.GetExternalRefSet();
 			if (ExternalRefSet.Num() > 0)
 			{
-				for (const CADLibrary::FFileDescription& ExternalFile : ExternalRefSet)
+				for (const CADLibrary::FFileDescriptor& ExternalFile : ExternalRefSet)
 				{
 					AddTask(ExternalFile);
 				}

@@ -187,6 +187,7 @@ namespace CADLibrary
 
 	FCoreTechFileParser::FCoreTechFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath)
 		: CADFileData(InCADData)
+		, FileDescription(InCADData.GetCADFileDescription())
 	{
 	}
 
@@ -204,22 +205,25 @@ namespace CADLibrary
 		CT_UINT32 NumberOfIds = 1;
 
 		// Set specific import option according to format
-		if (CADFileData.HasConfiguration())
+		if (FileDescription.HasConfiguration())
 		{
-			if (CADFileData.FileExtension() == TEXT("jt"))
+			switch(FileDescription.GetFileFormat())
 			{
-				LoadOption = CADFileData.GetConfiguration();
+			case ECADFormat::JT:
+			{
+				LoadOption = FileDescription.GetConfiguration();
+				break;
 			}
-			else
+			case ECADFormat::SOLIDWORKS:
 			{
-				NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*CADFileData.FilePath());
+				NumberOfIds = CT_KERNEL_IO::AskFileNbOfIds(*FileDescription.GetPathOfFileToLoad());
 				if (NumberOfIds > 1)
 				{
-					CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*CADFileData.FilePath());
+					CT_UINT32 ActiveConfig = CT_KERNEL_IO::AskFileActiveConfig(*FileDescription.GetPathOfFileToLoad());
 					for (CT_UINT32 i = 0; i < NumberOfIds; i++)
 					{
-						CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*CADFileData.FilePath(), i);
-						if (CADFileData.GetConfiguration() == CoreTechFileParserUtils::AsFString(ConfValue))
+						CT_STR ConfValue = CT_KERNEL_IO::AskFileIdIthName(*FileDescription.GetPathOfFileToLoad(), i);
+						if (FileDescription.GetConfiguration() == CoreTechFileParserUtils::AsFString(ConfValue))
 						{
 							ActiveConfig = i;
 							break;
@@ -229,25 +233,29 @@ namespace CADLibrary
 					CTImportOption |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
 					LoadOption = FString::FromInt((int32)ActiveConfig);
 				}
+				break;
+			}
+			default :
+				break;
 			}
 		}
 
 		CTKIO_ChangeUnit(CADFileData.MetricUnit());
-		Result = CT_KERNEL_IO::LoadFile(*CADFileData.FilePath(), MainId, CTImportOption, 0, *LoadOption);
+		Result = CT_KERNEL_IO::LoadFile(*FileDescription.GetPathOfFileToLoad(), MainId, CTImportOption, 0, *LoadOption);
 		if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 		{
 			CT_KERNEL_IO::UnloadModel();
 			CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
 			CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
 			CTKIO_ChangeUnit(CADFileData.MetricUnit());
-			Result = CT_KERNEL_IO::LoadFile(*CADFileData.FilePath(), MainId, CTReImportOption, 0, *LoadOption);
+			Result = CT_KERNEL_IO::LoadFile(*FileDescription.GetPathOfFileToLoad(), MainId, CTReImportOption, 0, *LoadOption);
 		}
 
 		// the file is loaded but it's empty, so no data is generate
 		if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 		{
 			CT_KERNEL_IO::UnloadModel();
-			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s has been loaded but no assembly has been detected."), *CADFileData.FileName()));
+			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s has been loaded but no assembly has been detected."), *FileDescription.GetFileName()));
 			return ECADParsingResult::ProcessOk;
 		}
 
@@ -260,7 +268,7 @@ namespace CADLibrary
 		if (CADFileData.IsCacheDefined())
 		{
 			FString CacheFilePath = CADFileData.GetCADCachePath();
-			if (CacheFilePath != CADFileData.FilePath())
+			if (CacheFilePath != FileDescription.GetPathOfFileToLoad())
 			{
 				CT_LIST_IO ObjectList;
 				ObjectList.PushBack(MainId);
@@ -291,10 +299,10 @@ namespace CADLibrary
 		CADFileData.ReserveBodyMeshes(NbElements[CT_BODY_INDEX]);
 
 		FArchiveSceneGraph& SceneGraphArchive = CADFileData.GetSceneGraphArchive();
-		SceneGraphArchive.BodySet.Reserve(NbElements[CT_BODY_INDEX]);
-		SceneGraphArchive.ComponentSet.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
-		SceneGraphArchive.UnloadedComponentSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
-		SceneGraphArchive.ExternalRefSet.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
+		SceneGraphArchive.Bodies.Reserve(NbElements[CT_BODY_INDEX]);
+		SceneGraphArchive.Components.Reserve(NbElements[CT_ASSEMBLY_INDEX] + NbElements[CT_PART_INDEX] + NbElements[CT_COMPONENT_INDEX]);
+		SceneGraphArchive.UnloadedComponents.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
+		SceneGraphArchive.ExternalReferences.Reserve(NbElements[CT_UNLOADED_COMPONENT_INDEX] + NbElements[CT_UNLOADED_ASSEMBLY_INDEX] + NbElements[CT_UNLOADED_PART_INDEX]);
 		SceneGraphArchive.Instances.Reserve(NbElements[CT_INSTANCE_INDEX]);
 
 		SceneGraphArchive.CADIdToBodyIndex.Reserve(NbElements[CT_BODY_INDEX]);
@@ -315,7 +323,7 @@ namespace CADLibrary
 		CT_STR KernelIO_Version = CT_KERNEL_IO::AskVersion();
 		if (!KernelIO_Version.IsEmpty())
 		{
-			SceneGraphArchive.ComponentSet[0].MetaData.Add(TEXT("KernelIOVersion"), CoreTechFileParserUtils::AsFString(KernelIO_Version));
+			SceneGraphArchive.Components[0].MetaData.Add(TEXT("KernelIOVersion"), CoreTechFileParserUtils::AsFString(KernelIO_Version));
 		}
 
 		CT_KERNEL_IO::UnloadModel();
@@ -332,17 +340,18 @@ namespace CADLibrary
 	{
 		// Set import option
 		CT_FLAGS Flags = CT_LOAD_FLAGS_USE_DEFAULT;
+		Flags |= CT_LOAD_FLAGS_READ_META_DATA;
 
-		const FString& MainFileExt = CADFileData.FileExtension();
-
-		// Parallelization of monolithic JT file,
-		// For JT file, first step the file is read with "Structure only option"
-		// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
-		if (MainFileExt == TEXT("jt"))
+		switch(FileDescription.GetFileFormat())
 		{
-			if (!CADFileData.HasConfiguration())
+		case ECADFormat::JT:
+		{
+			// Parallelization of monolithic JT file,
+			// For JT file, first step the file is read with "Structure only option"
+			// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
+			if (!FileDescription.HasConfiguration())
 			{
-				FFileStatData FileStatData = IFileManager::Get().GetStatData(*CADFileData.FilePath());
+				FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.GetSourcePath());
 
 				if (FileStatData.FileSize > 2e6 /* 2 Mb */ && CADFileData.IsCacheDefined()) // First step 
 				{
@@ -354,25 +363,31 @@ namespace CADLibrary
 				Flags &= ~CT_LOAD_FLAGS_REMOVE_EMPTY_COMPONENTS;
 				Flags |= CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT;
 			}
+			break;
 		}
 
-		Flags |= CT_LOAD_FLAGS_READ_META_DATA;
 
-		if (MainFileExt == TEXT("catpart") || MainFileExt == TEXT("catproduct") || MainFileExt == TEXT("cgr"))
+		case ECADFormat::CATIA:
+		case ECADFormat::CATIA_CGR:
 		{
 			Flags |= CT_LOAD_FLAGS_V5_READ_GEOM_SET;
+			break;
 		}
 
-		// All the BRep topology is not available in IGES import
-		// Ask Kernel IO to complete or create missing topology
-		if (MainFileExt == TEXT("igs") || MainFileExt == TEXT("iges"))
+		case ECADFormat::IGES:
 		{
+			// All the BRep topology is not available in IGES import
+			// Ask Kernel IO to complete or create missing topology
 			Flags |= CT_LOAD_FLAG_COMPLETE_TOPOLOGY;
 			Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY;
+			break;
+		}
+		default:
+			break;
 		}
 
 		// 3dxml file is zipped files, it's full managed by Kernel_io. We cannot read it in sequential mode
-		if (MainFileExt != TEXT("3dxml") && CADFileData.IsSequentialImport())
+		if (FileDescription.GetFileFormat() != ECADFormat::CATIA_3DXML && CADFileData.IsSequentialImport())
 		{
 			Flags &= ~CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
 		}
@@ -514,10 +529,10 @@ namespace CADLibrary
 		CT_OBJECT_IO::AskType(ReferenceNodeId, type);
 		if (type == CT_UNLOADED_PART_TYPE || type == CT_UNLOADED_COMPONENT_TYPE || type == CT_UNLOADED_ASSEMBLY_TYPE)
 		{
-			Instance.bIsExternalRef = true;
+			Instance.bIsExternalReference = true;
 			if (int32* Index = CADFileData.FindUnloadedComponentOfId(ReferenceNodeId))
 			{
-				Instance.ExternalRef = CADFileData.GetExternalReferences(*Index);
+				Instance.ExternalReference = CADFileData.GetExternalReferences(*Index);
 				return true;
 			}
 
@@ -535,18 +550,18 @@ namespace CADLibrary
 
 			if (ExternalRefFullPath.IsEmpty())
 			{
-				ExternalRefFullPath = CADFileData.FilePath();
+				ExternalRefFullPath = FileDescription.GetSourcePath();
 			}
 
 			FString Configuration;
-			if (CADFileData.FileExtension() == TEXT("jt"))
+			if (FileDescription.GetFileFormat() == ECADFormat::JT)
 			{
 				// Parallelization of monolithic JT file,
 				// is the external reference is the current file ? 
 				// Yes => this is an unloaded part that will be imported with CT_LOAD_FLAGS_READ_SPECIFIC_OBJECT Option
 				// No => the external reference is realy external... 
 				FString ExternalName = FPaths::GetCleanFilename(ExternalRefFullPath);
-				if (ExternalName == CADFileData.FileName())
+				if (ExternalName == FileDescription.GetFileName())
 				{
 					Configuration = FString::Printf(TEXT("%d"), InternalId);
 				}
@@ -561,13 +576,13 @@ namespace CADLibrary
 			FArchiveUnloadedComponent& UnloadedComponent = CADFileData.GetUnloadedComponentAt(UnloadedComponentIndex);
 			ReadNodeMetaData(ReferenceNodeId, UnloadedComponent.MetaData);
 
-			FFileDescription& NewFileDescription = CADFileData.AddExternalRef(*ExternalRefFullPath, *Configuration, *CADFileData.GetCADFileDescription().MainCadFilePath);
-			Instance.ExternalRef = NewFileDescription;
+			FFileDescriptor& NewFileDescription = CADFileData.AddExternalRef(*ExternalRefFullPath, *Configuration, *FileDescription.GetRootFolder());
+			Instance.ExternalReference = NewFileDescription;
 
 			return true;
 		}
 
-		Instance.bIsExternalRef = false;
+		Instance.bIsExternalReference = false;
 
 		return ReadComponent(ReferenceNodeId, DefaultMaterialHash);
 	}

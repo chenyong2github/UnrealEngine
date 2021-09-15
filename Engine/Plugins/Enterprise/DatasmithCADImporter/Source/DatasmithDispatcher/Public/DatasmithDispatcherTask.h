@@ -13,13 +13,13 @@ struct FTask
 {
 	FTask() = default;
 
-	FTask(const CADLibrary::FFileDescription& InFile)
+	FTask(const CADLibrary::FFileDescriptor& InFile)
 		: FileDescription(InFile)
 		, State(ETaskState::UnTreated)
 	{
 	}
 
-	CADLibrary::FFileDescription FileDescription;
+	CADLibrary::FFileDescriptor FileDescription;
 	int32 Index = -1;
 	ETaskState State = ETaskState::Unknown;
 };

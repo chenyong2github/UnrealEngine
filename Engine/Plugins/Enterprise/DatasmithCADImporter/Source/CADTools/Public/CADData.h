@@ -52,6 +52,8 @@ enum class ECADParsingResult : uint8
 
 // TODO: Remove from hear and replace by DatasmithUtils::GetCleanFilenameAndExtension... But need to remove DatasmithCore dependancies 
 CADTOOLS_API void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilename, FString& OutExtension);
+CADTOOLS_API FString GetExtension(const FString& InFilePath);
+
 
 class CADTOOLS_API FCADMaterial
 {
@@ -76,51 +78,109 @@ struct CADTOOLS_API FObjectDisplayDataId
 	FColorId Color = 0; // => FastHash == ColorId+Transparency
 };
 
-struct CADTOOLS_API FFileDescription
+class CADTOOLS_API FFileDescriptor
 {
-	explicit FFileDescription(const TCHAR* InFilePath = nullptr, const TCHAR* InConfiguration = nullptr, const TCHAR* InRootFilePath = nullptr)
-		: Path(InFilePath)
-		, OriginalPath(InFilePath)
+public:
+	FFileDescriptor() = default;
+	
+	explicit FFileDescriptor(const TCHAR* InFilePath, const TCHAR* InConfiguration = nullptr, const TCHAR* InRootFolder = nullptr)
+		: SourceFilePath(InFilePath)
 		, Configuration(InConfiguration)
-		, MainCadFilePath(InRootFilePath)
 	{
-		if (MainCadFilePath.IsEmpty() && !Path.IsEmpty())
-		{
-			MainCadFilePath = FPaths::GetPath(Path);
-		}
-
-		GetCleanFilenameAndExtension(Path, Name, Extension);
-		Name += TEXT(".") + Extension;
+		Name = FPaths::GetCleanFilename(InFilePath);
+		Format = FileFormat(GetExtension(InFilePath));
+		RootFolder = InRootFolder ? InRootFolder : FPaths::GetPath(InFilePath);
 	}
 
 	/**
-	 * Used to replace CADFile path by the path of the file saved in KernelIO format (*.ct)
+	 * Used define and then load the cache of the CAD File instead of the source file
 	 */ 
-	void ReplaceByKernelIOBackup(const FString& InKernelIOBackupPath)
+	void SetCacheFile(const FString& InCacheFilePath)
 	{
-		Path = InKernelIOBackupPath;
+		CacheFilePath = InCacheFilePath;
 	}
 
-	bool operator==(const FFileDescription& Other) const
+	bool operator==(const FFileDescriptor& Other) const
 	{
 		return (Name.Equals(Other.Name, ESearchCase::IgnoreCase) && (Configuration == Other.Configuration));
 	}
 
-	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FFileDescription& File);
+	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FFileDescriptor& File);
 
-	uint32 GetFileHash() const;
+	friend CADTOOLS_API uint32 GetTypeHash(const FFileDescriptor& FileDescription);
 
-	ECADFormat GetFormat()
+	uint32 GetDescriptorHash() const
 	{
-		return FileFormat(Extension);
+		if (!DescriptorHash)
+		{
+			DescriptorHash = GetTypeHash(*this);
+		}
+		return DescriptorHash;
 	}
 
-	FString Path;
-	FString OriginalPath;
-	FString Name;
-	FString Extension;
-	FString Configuration;
-	FString MainCadFilePath;
+	const FString& GetSourcePath() const 
+	{
+		return SourceFilePath;
+	}
+	
+	bool HasConfiguration() const
+	{
+		return !Configuration.IsEmpty();
+	}
+
+	const FString& GetConfiguration() const
+	{
+		return Configuration;
+	}
+
+	void SetConfiguration(const FString& NewConfiguration)
+	{
+		Configuration = NewConfiguration;
+	}
+
+	ECADFormat GetFileFormat() const
+	{
+		return Format;
+	}
+
+	const FString& GetPathOfFileToLoad() const
+	{
+		if (CacheFilePath.IsEmpty())
+		{
+			return SourceFilePath;
+		}
+		else
+		{
+			return CacheFilePath;
+		}
+	}
+
+	/** Set the file path if SourceFilePath was not the real path */
+	void SetSourceFilePath(const FString& NewFilePath)
+	{
+		SourceFilePath = NewFilePath;
+	}
+
+	const FString& GetRootFolder() const 
+	{
+		return RootFolder;
+	}
+
+	const FString& GetFileName() const
+	{
+		return Name;
+	}
+
+private:
+
+	FString SourceFilePath; // e.g. d:/folder/content.jt
+	FString CacheFilePath; // if the file has already been loaded 
+	FString Name; // content.jt
+	ECADFormat Format; // ECADFormat::JT
+	FString Configuration; // dedicated to JT or SW file to read the good configuration (SW) or only a sub-file (JT)
+	FString RootFolder; // alternative folder where the file could be if its path is not valid.
+
+	mutable uint32 DescriptorHash = 0;
 };
 
 /**
@@ -277,12 +337,6 @@ inline void CopyValue(const void* Source, int Offset, uint8 Size, int32 Dest[3])
 		}
 	}
 }
-
-using ::GetTypeHash;
-FORCEINLINE CADTOOLS_API uint32 GetTypeHash(const FFileDescription& FileDescription)
-{
-	return HashCombine(GetTypeHash(FileDescription.Name), GetTypeHash(FileDescription.Configuration));
-};
 
 }
 
