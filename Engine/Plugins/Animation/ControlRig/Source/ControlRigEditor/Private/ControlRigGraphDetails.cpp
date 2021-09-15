@@ -143,11 +143,25 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 			[
 				SAssignNew(ArgumentNameWidget, SEditableTextBox)
 				.Text(this, &FControlRigArgumentLayout::OnGetArgNameText)
-				.OnTextChanged(this, &FControlRigArgumentLayout::OnArgNameChange)
 				.OnTextCommitted(this, &FControlRigArgumentLayout::OnArgNameTextCommitted)
 				.ToolTipText(this, &FControlRigArgumentLayout::OnGetArgToolTipText)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.IsEnabled(!ShouldPinBeReadOnly())
+				.OnVerifyTextChanged_Lambda([&](const FText& InNewText, FText& OutErrorMessage) -> bool
+				{
+					if (InNewText.IsEmpty())
+					{
+						OutErrorMessage = LOCTEXT("ArgumentNameEmpty", "Cannot have an argument with an emtpy string name.");
+						return false;
+					}
+					else if (InNewText.ToString().Len() >= NAME_SIZE)
+					{
+						OutErrorMessage = LOCTEXT("ArgumentNameTooLong", "Name of argument is too long.");
+						return false;
+					}
+					
+					return true;
+				})
 			]
 		]
 		.ValueContent()
@@ -296,11 +310,6 @@ FText FControlRigArgumentLayout::OnGetArgNameText() const
 FText FControlRigArgumentLayout::OnGetArgToolTipText() const
 {
 	return OnGetArgNameText(); // for now since we don't have tooltips
-}
-
-void FControlRigArgumentLayout::OnArgNameChange(const FText& InNewText)
-{
-	// do we need validation?
 }
 
 void FControlRigArgumentLayout::OnArgNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
@@ -663,6 +672,12 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 					OutErrorMessage = LOCTEXT("CategoryEmpty", "Cannot add a category with an empty string.");
 					return false;
 				}
+				else if (NewText.ToString().Len() >= NAME_SIZE)
+				{
+					OutErrorMessage = LOCTEXT("CategoryTooLong", "Name of category is too long.");
+					return false;
+				}
+				
 				if (ControlRigBlueprintPtr.IsValid())
 				{
 					if (NewText.EqualTo(FText::FromString(ControlRigBlueprintPtr.Get()->GetName())))
