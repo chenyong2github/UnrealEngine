@@ -20,6 +20,8 @@
 
 #if ELECTRA_PLATFORM_HAS_H265_DECODER
 
+#include "ElectraVideoDecoder_Apple.h"
+
 #include <VideoToolbox/VideoToolbox.h>
 
 DECLARE_CYCLE_STAT(TEXT("FVideoDecoderH265::Decode()"), STAT_ElectraPlayer_VideoH265Decode, STATGROUP_ElectraPlayer);
@@ -311,82 +313,6 @@ IVideoDecoderH265* IVideoDecoderH265::Create()
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-class FElectraPlayerVideoDecoderOutputH265Apple : public FVideoDecoderOutputApple
-{
-public:
-	FElectraPlayerVideoDecoderOutputH265Apple()
-		: ImageBufferRef(nullptr)
-	{
-	}
-
-	~FElectraPlayerVideoDecoderOutputH265Apple()
-	{
-		if (ImageBufferRef)
-		{
-			CFRelease(ImageBufferRef);
-		}
-	}
-
-    void Initialize(CVImageBufferRef InImageBufferRef, FParamDict* InParamDict)
-	{
-		FVideoDecoderOutputApple::Initialize(InParamDict);
-
-		if (ImageBufferRef)
-		{
-			CFRelease(ImageBufferRef);
-		}
-		ImageBufferRef = InImageBufferRef;
-		if (ImageBufferRef)
-		{
-			CFRetain(ImageBufferRef);
-
-			Stride = CVPixelBufferGetBytesPerRow(ImageBufferRef);
-		}
-	}
-
-	void SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer) override
-	{
-		OwningRenderer = InOwningRenderer;
-	}
-
-	void ShutdownPoolable() override
-	{
-		// release image buffer (we currently realloc it every time anyway)
-        if (ImageBufferRef)
-        {
-            CFRelease(ImageBufferRef);
-            ImageBufferRef = nullptr;
-        }
-
-		TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> lockedVideoRenderer = OwningRenderer.Pin();
-		if (lockedVideoRenderer.IsValid())
-		{
-			lockedVideoRenderer->SampleReleasedToPool(GetDuration());
-		}
-	}
-
-	virtual uint32 GetStride() const override
-	{
-		return Stride;
-	}
-
-	virtual CVImageBufferRef GetImageBuffer() const override
-	{
-		return ImageBufferRef;
-	}
-
-private:
-	uint32 Stride;
-
-	CVImageBufferRef ImageBufferRef;
-
-	// We hold a weak reference to the video renderer. During destruction the video renderer could be destroyed while samples are still out there..
-	TWeakPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> OwningRenderer;
-};
-
-/***************************************************************************************************************************************************/
-/***************************************************************************************************************************************************/
-/***************************************************************************************************************************************************/
 
 //-----------------------------------------------------------------------------
 /**
@@ -1663,7 +1589,7 @@ void FVideoDecoderH265::ProcessOutput(bool bFlush)
 				OutputBufferSampleProperties->Set("pts",          FVariantValue(NextImage.SourceInfo->PTS));
 				OutputBufferSampleProperties->Set("duration",     FVariantValue(NextImage.SourceInfo->Duration));
 
-				TSharedPtr<FElectraPlayerVideoDecoderOutputH265Apple, ESPMode::ThreadSafe> DecoderOutput = RenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputH265Apple>();
+				TSharedPtr<FElectraPlayerVideoDecoderOutputApple, ESPMode::ThreadSafe> DecoderOutput = RenderOutputBuffer->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputApple>();
 
 				DecoderOutput->Initialize(ImageBufferRef, OutputBufferSampleProperties);
                 if (ImageBufferRef)
