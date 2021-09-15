@@ -172,7 +172,6 @@ UEdGraphNode* FControlRigGraphSchemaAction_PromoteToVariable::PerformAction(UEdG
 
 	UControlRigBlueprint* Blueprint = RigGraph->GetBlueprint();
 	URigVMGraph* Model = RigGraph->GetModel();
-	URigVMPin* ModelPin = Model->FindPin(FromPin->GetName());
 	URigVMController* Controller = RigGraph->GetController();
 	if((Blueprint == nullptr) ||
 		(Model == nullptr) ||
@@ -180,6 +179,8 @@ UEdGraphNode* FControlRigGraphSchemaAction_PromoteToVariable::PerformAction(UEdG
 	{
 		return nullptr;
 	}
+	
+	URigVMPin* ModelPin = Model->FindPin(FromPin->GetName());
 
 	FName VariableName(NAME_None);
 
