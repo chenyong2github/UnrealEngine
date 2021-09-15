@@ -309,11 +309,11 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
 
+	const bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
+
 	{
 		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
 		float3 TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + ResolvedView.PreViewTranslation.xyz;
-
-		bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
 
 		MaterialParameters.CameraVector = -WorldRayDirection();
 
@@ -415,6 +415,20 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 		float VoN = abs(dot(WorldRayDirection(), N));
 		float Fr = FresnelReflectance(VoN, Eta);
 		Transparency *= pow(1 - Fr, 2) * (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+		// Now track the optical thickness so that we can account for Beer's law along the shadow ray
+		// TODO: to support lights inside glass we would need to track an extra offset, but this is hopefully an uncommon scenario
+		float Distance = RayTCurrent();
+		float3 LocalSigmaT = -log(max(GetMaterialBaseColor(PixelMaterialInputs), 1e-8f));
+		if (bIsFrontFace)
+		{
+			// remove contribution from the ray origin to the current hit (assuming the backside will be hit)
+			PackedPayload.SetTau(PackedPayload.GetTau() - LocalSigmaT * Distance);
+		}
+		else
+		{
+			// add contribution from ray origin to current hit (backside) - excess portion not covered by the ray will be removed by the front face hit
+			PackedPayload.SetTau(PackedPayload.GetTau() + LocalSigmaT * Distance);
+		}
 	}
 #endif
 #else
