@@ -33,6 +33,7 @@
 #include "ConvertToPolygonsTool.h"
 #include "AddPrimitiveTool.h"
 #include "AddPatchTool.h"
+#include "CubeGridTool.h"
 #include "RevolveBoundaryTool.h"
 #include "SmoothMeshTool.h"
 #include "OffsetMeshTool.h"
@@ -411,6 +412,8 @@ void UModelingToolsEditorMode::Enter()
 	auto ShapeSprayToolBuilder = NewObject<UShapeSprayToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginShapeSprayTool, TEXT("BeginShapeSprayTool"), ShapeSprayToolBuilder);
 
+	auto CubeGridToolBuilder = NewObject<UCubeGridToolBuilder>();
+	RegisterTool(ToolManagerCommands.BeginCubeGridTool, TEXT("BeginCubeGridTool"), CubeGridToolBuilder);
 
 	//
 	// vertex deform tools

@@ -191,6 +191,9 @@ public:
 	inline int AppendTriangle(int A, int B, int C)
 	{
 		Triangles.Add( bReverseOrientation ? FIndex3i(C, B, A) : FIndex3i(A, B, C) );
+		TriangleUVs.SetNum(Triangles.Num());
+		TriangleNormals.SetNum(Triangles.Num());
+		TrianglePolygonIDs.SetNum(Triangles.Num());
 		return Triangles.Num() - 1;
 	}
 

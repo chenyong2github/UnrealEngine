@@ -33,6 +33,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginShapeSprayTool;
 
 	TSharedPtr<FUICommandInfo> BeginSculptMeshTool;
+	TSharedPtr<FUICommandInfo> BeginCubeGridTool;
 	TSharedPtr<FUICommandInfo> BeginPolyEditTool;
 	TSharedPtr<FUICommandInfo> BeginSubdividePolyTool;
 	TSharedPtr<FUICommandInfo> BeginTriEditTool;

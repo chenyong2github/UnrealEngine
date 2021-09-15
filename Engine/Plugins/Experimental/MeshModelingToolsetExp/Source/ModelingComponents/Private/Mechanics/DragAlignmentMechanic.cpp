@@ -179,20 +179,23 @@ void UDragAlignmentMechanic::OnGizmoTransformChanged(FTransform NewTransform)
 void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMeshAABBTree3* ()> GetSpatialIn, 
 	const UE::Geometry::FTransform3d &TargetTransform, const FGroupTopologyDeformer* LinearDeformer)
 {
-	// Use the deformer to create a way to filter out triangles we don't want to be hitting (the ones we're manipulating)
-	const FDynamicMesh3* Mesh = LinearDeformer->GetMesh();
-	MeshRayCastTriangleFilter = [Mesh, LinearDeformer](int32 Tid)
+	if (LinearDeformer)
 	{
-		FIndex3i Vids = Mesh->GetTriangle(Tid);
-		for (int32 i = 0; i < 3; ++i)
+		// Use the deformer to create a way to filter out triangles we don't want to be hitting (the ones we're manipulating)
+		const FDynamicMesh3* Mesh = LinearDeformer->GetMesh();
+		MeshRayCastTriangleFilter = [Mesh, LinearDeformer](int32 Tid)
 		{
-			if (LinearDeformer->GetModifiedVertices().Contains(Vids[i]))
+			FIndex3i Vids = Mesh->GetTriangle(Tid);
+			for (int32 i = 0; i < 3; ++i)
 			{
-				return false;
+				if (LinearDeformer->GetModifiedVertices().Contains(Vids[i]))
+				{
+					return false;
+				}
 			}
-		}
-		return true;
-	};
+			return true;
+		};
+	}
 
 	// Set up the actual function that casts rays into the mesh.
 	MeshRayCast = [this, GetSpatialIn, TargetTransform, LinearDeformer](const FRay& WorldRay, FHitResult& HitResult, bool bUseFilter)

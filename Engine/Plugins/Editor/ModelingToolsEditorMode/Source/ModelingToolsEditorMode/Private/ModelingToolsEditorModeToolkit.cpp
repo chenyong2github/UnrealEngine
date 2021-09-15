@@ -615,6 +615,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginCubeGridTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshBooleanTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginCutMeshWithMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSubdividePolyTool);
