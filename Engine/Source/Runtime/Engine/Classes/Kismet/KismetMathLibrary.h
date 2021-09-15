@@ -2744,6 +2744,14 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Quat - Quat", CompactNodeTitle = "-", ScriptMethod = "Subtract", ScriptOperator = "-;-=", Keywords = "- subtract minus"), Category = "Math|Quat")
 	static FQuat Subtract_QuatQuat(const FQuat& A, const FQuat& B);
 
+	/** Makes a quat {X, Y, Z, W} */
+	UFUNCTION(BlueprintPure, Category = "Math|Quat", meta = (Keywords = "construct build", NativeMakeFunc))
+	static FQuat MakeQuat(float X, float Y, float Z, float W);
+
+	/** Breaks a quat apart into X, Y, Z, W */
+	UFUNCTION(BlueprintPure, Category = "Math|Quat", meta = (NativeBreakFunc))
+	static void BreakQuat(const FQuat& InQuat, float& X, float& Y, float& Z, float& W);
+
 	/**
 	 * Gets the result of multiplying two quaternions (A * B).
 	 *
