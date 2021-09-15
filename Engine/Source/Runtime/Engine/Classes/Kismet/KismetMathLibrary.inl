@@ -3202,6 +3202,20 @@ FQuat UKismetMathLibrary::Multiply_QuatQuat(const FQuat& A, const FQuat& B)
 	return A * B;
 }
 
+KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::MakeQuat(float X, float Y, float Z, float W)
+{
+	return FQuat(X, Y, Z, W);
+}
+
+KISMET_MATH_FORCEINLINE
+void UKismetMathLibrary::BreakQuat(const FQuat& InQuat, float& X, float& Y, float& Z, float& W)
+{
+	X = InQuat.X;
+	Y = InQuat.Y;
+	Z = InQuat.Z;
+	W = InQuat.W;
+}
 
 KISMET_MATH_FORCEINLINE
 bool UKismetMathLibrary::Quat_IsIdentity(const FQuat& Q, float Tolerance)
