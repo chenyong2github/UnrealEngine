@@ -54,13 +54,17 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	OutShader.bIsSm6Shader = IsSm6Shader && IsSm6ShaderSize && *IsSm6Shader;
 }
 
-static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency Frequency, const TArray<FShaderCodeVendorExtension>& VendorExtensions)
+static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency Frequency, const FD3D11ShaderData* ShaderData, bool& OutNeedsReset)
 {
+	if (ShaderData->bIsSm6Shader)
+	{
+		return false;
+	}
+
 	bool IsValidHardwareExtension = true;
 #if !PLATFORM_HOLOLENS
-	for (int32 ExtensionIndex = 0; ExtensionIndex < VendorExtensions.Num(); ++ExtensionIndex)
+	for (const FShaderCodeVendorExtension& Extension : ShaderData->VendorExtensions)
 	{
-		const FShaderCodeVendorExtension& Extension = VendorExtensions[ExtensionIndex];
 		if (Extension.VendorId == 0x10DE) // NVIDIA
 		{
 			if (!IsRHIDeviceNVIDIA())
@@ -73,6 +77,7 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 			if (Extension.Parameter.Type == EShaderParameterType::UAV)
 			{
 				NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, Extension.Parameter.BaseIndex);
+				OutNeedsReset = true;
 			}
 		}
 		else if (Extension.VendorId == 0x1002) // AMD
@@ -98,32 +103,17 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 	return IsValidHardwareExtension;
 }
 
-static void ResetVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency Frequency, const TArray<FShaderCodeVendorExtension>& VendorExtensions)
+static void ResetVendorExtensions(ID3D11Device* Direct3DDevice)
 {
 #if !PLATFORM_HOLOLENS
-	for (int32 ExtensionIndex = 0; ExtensionIndex < VendorExtensions.Num(); ++ExtensionIndex)
+	if (IsRHIDeviceNVIDIA())
 	{
-		const FShaderCodeVendorExtension& Extension = VendorExtensions[ExtensionIndex];
-		if (Extension.VendorId == 0x10DE)
-		{
-			// NVIDIA
-			if (Extension.Parameter.Type == EShaderParameterType::UAV)
-			{
-				NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, ~uint32(0));
-			}
-		}
-		else if (Extension.VendorId == 0x1002) // AMD
-		{
-		}
-		else if (Extension.VendorId == 0x8086) // Intel
-		{
-		}
+		NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, ~uint32(0));
 	}
 #endif
 }
 
-template <typename TShaderType>
-static inline void InitUniformBufferStaticSlots(TShaderType* Shader)
+static void InitUniformBufferStaticSlots(FD3D11ShaderData* Shader)
 {
 	const FBaseShaderResourceTable& SRT = Shader->ShaderResourceTable;
 
@@ -145,20 +135,24 @@ static inline void InitUniformBufferStaticSlots(TShaderType* Shader)
 FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
-
 	FD3D11VertexShader* Shader = new FD3D11VertexShader;
 
 	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
-	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+
+	TArrayView<const uint8> ActualCode = ShaderCode.GetOffsetShaderCode(Offset);
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	if (!Shader->bIsSm6Shader && ApplyVendorExtensions(Direct3DDevice, SF_Vertex, Shader->VendorExtensions))
+
+	bool bNeedsReset = false;
+	if (ApplyVendorExtensions(Direct3DDevice, SF_Vertex, Shader, bNeedsReset))
 	{
-		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateVertexShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
-		ResetVendorExtensions(Direct3DDevice, SF_Vertex, Shader->VendorExtensions);
+		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateVertexShader(ActualCode.GetData(), ActualCode.Num(), nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+		if (bNeedsReset)
+		{
+			ResetVendorExtensions(Direct3DDevice);
+		}
 		InitUniformBufferStaticSlots(Shader);
 	}
 	
@@ -179,20 +173,24 @@ FVertexShaderRHIRef FD3D11DynamicRHI::CreateVertexShader_RenderThread(
 FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
-
 	FD3D11GeometryShader* Shader = new FD3D11GeometryShader;
 
 	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
-	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+
+	TArrayView<const uint8> ActualCode = ShaderCode.GetOffsetShaderCode(Offset);
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	if (!Shader->bIsSm6Shader && ApplyVendorExtensions(Direct3DDevice, SF_Geometry, Shader->VendorExtensions))
+
+	bool bNeedsReset = false;
+	if (ApplyVendorExtensions(Direct3DDevice, SF_Geometry, Shader, bNeedsReset))
 	{
-		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateGeometryShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
-		ResetVendorExtensions(Direct3DDevice, SF_Geometry, Shader->VendorExtensions);
+		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateGeometryShader(ActualCode.GetData(), ActualCode.Num(), nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+		if (bNeedsReset)
+		{
+			ResetVendorExtensions(Direct3DDevice);
+		}
 		InitUniformBufferStaticSlots(Shader);
 	}
 
@@ -209,20 +207,24 @@ FGeometryShaderRHIRef FD3D11DynamicRHI::CreateGeometryShader_RenderThread(
 FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
-
 	FD3D11PixelShader* Shader = new FD3D11PixelShader;
 
 	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
-	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+
+	TArrayView<const uint8> ActualCode = ShaderCode.GetOffsetShaderCode(Offset);
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	if (!Shader->bIsSm6Shader && ApplyVendorExtensions(Direct3DDevice, SF_Pixel, Shader->VendorExtensions))
+
+	bool bNeedsReset = false;
+	if (ApplyVendorExtensions(Direct3DDevice, SF_Pixel, Shader, bNeedsReset))
 	{
-		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreatePixelShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
-		ResetVendorExtensions(Direct3DDevice, SF_Pixel, Shader->VendorExtensions);
+		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreatePixelShader(ActualCode.GetData(), ActualCode.Num(), nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+		if (bNeedsReset)
+		{
+			ResetVendorExtensions(Direct3DDevice);
+		}
 		InitUniformBufferStaticSlots(Shader);
 	}
 
@@ -239,20 +241,24 @@ FPixelShaderRHIRef FD3D11DynamicRHI::CreatePixelShader_RenderThread(
 FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 { 
 	FShaderCodeReader ShaderCode(Code);
-
 	FD3D11ComputeShader* Shader = new FD3D11ComputeShader;
 
 	FMemoryReaderView Ar( Code, true );
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
-	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+
+	TArrayView<const uint8> ActualCode = ShaderCode.GetOffsetShaderCode(Offset);
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	if (!Shader->bIsSm6Shader && ApplyVendorExtensions(Direct3DDevice, SF_Compute, Shader->VendorExtensions))
+
+	bool bNeedsReset = false;
+	if (ApplyVendorExtensions(Direct3DDevice, SF_Compute, Shader, bNeedsReset))
 	{
-		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateComputeShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
-		ResetVendorExtensions(Direct3DDevice, SF_Compute, Shader->VendorExtensions);
+		VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateComputeShader(ActualCode.GetData(), ActualCode.Num(), nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+		if (bNeedsReset)
+		{
+			ResetVendorExtensions(Direct3DDevice);
+		}
 		InitUniformBufferStaticSlots(Shader);
 	}
 

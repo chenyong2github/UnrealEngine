@@ -91,7 +91,7 @@ struct FD3D12QuantizedBoundShaderState
 	FShaderRegisterCounts RegisterCounts[SV_ShaderVisibilityCount];
 	ERTRootSignatureType RootSignatureType = RS_Raster;
 	uint8 bAllowIAInputLayout : 1;
-	uint8 bUseVendorExtension : 1;
+	uint8 bNeedsAgsIntrinsicsSpace : 1;
 	uint8 bUseDiagnosticBuffer : 1;
 	uint8 Padding : 5;
 

@@ -928,7 +928,7 @@ void FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(const D3D12_RESOU
 	}
 }
 
-bool UsesVendorExtensionSpace(const FD3D12ShaderData& ShaderData)
+bool NeedsAgsIntrinsicsSpace(const FD3D12ShaderData& ShaderData)
 {
 #if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	for (const FShaderCodeVendorExtension& Extension : ShaderData.VendorExtensions)
@@ -944,6 +944,22 @@ bool UsesVendorExtensionSpace(const FD3D12ShaderData& ShaderData)
 	return false;
 }
 
+static void QuantizeBoundShaderStateCommon(
+	FD3D12QuantizedBoundShaderState& OutQBSS,
+	const FD3D12ShaderData* ShaderData,
+	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier,
+	EShaderVisibility ShaderVisibility,
+	bool bAllowUAVs = false
+)
+{
+	if (ShaderData)
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, ShaderData->ResourceCounts, OutQBSS.RegisterCounts[ShaderVisibility], bAllowUAVs);
+		OutQBSS.bNeedsAgsIntrinsicsSpace |= NeedsAgsIntrinsicsSpace(*ShaderData);
+		OutQBSS.bUseDiagnosticBuffer = ShaderData->UsesDiagnosticBuffer();
+	}
+}
+
 void QuantizeBoundShaderState(
 	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
 	const FD3D12BoundShaderState* const BSS,
@@ -954,57 +970,14 @@ void QuantizeBoundShaderState(
 	// The objective is to allow a single root signature to represent many bound shader state objects.
 	// The bigger the quantization step sizes, the fewer the root signatures.
 	FMemory::Memzero(&QBSS, sizeof(QBSS));
+
 	QBSS.bAllowIAInputLayout = BSS->GetVertexDeclaration() != nullptr;	// Does the root signature need access to vertex buffers?
 
-	if (const FD3D12VertexShader* const VertexShader = BSS->GetVertexShader())
-	{
-		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, VertexShader->ResourceCounts, QBSS.RegisterCounts[SV_Vertex]);
-		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*VertexShader);
-		QBSS.bUseDiagnosticBuffer = VertexShader->UsesDiagnosticBuffer();
-	}
-
-	if (const FD3D12MeshShader* const MeshShader = BSS->GetMeshShader())
-	{
-		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, MeshShader->ResourceCounts, QBSS.RegisterCounts[SV_Mesh]);
-		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*MeshShader);
-		QBSS.bUseDiagnosticBuffer = MeshShader->UsesDiagnosticBuffer();
-	}
-
-	if (const FD3D12AmplificationShader* const AmplificationShader = BSS->GetAmplificationShader())
-	{
-		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, AmplificationShader->ResourceCounts, QBSS.RegisterCounts[SV_Amplification]);
-		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*AmplificationShader);
-		QBSS.bUseDiagnosticBuffer = AmplificationShader->UsesDiagnosticBuffer();
-	}
-
-	if (const FD3D12PixelShader* const PixelShader = BSS->GetPixelShader())
-	{
-		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, PixelShader->ResourceCounts, QBSS.RegisterCounts[SV_Pixel], true);
-		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*PixelShader);
-		QBSS.bUseDiagnosticBuffer = PixelShader->UsesDiagnosticBuffer();
-	}
-
-	if (const FD3D12GeometryShader* const GeometryShader = BSS->GetGeometryShader())
-	{
-		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, GeometryShader->ResourceCounts, QBSS.RegisterCounts[SV_Geometry]);
-		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*GeometryShader);
-		QBSS.bUseDiagnosticBuffer = GeometryShader->UsesDiagnosticBuffer();
-	}
-}
-
-static void QuantizeBoundShaderStateCommon(
-	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier,
-	const FShaderCodePackedResourceCounts& ResourceCounts,
-	EShaderVisibility ShaderVisibility,
-	bool bAllowUAVs,
-	FD3D12QuantizedBoundShaderState &OutQBSS
-)
-{
-	// BSS quantizer. There is a 1:1 mapping of quantized bound shader state objects to root signatures.
-	// The objective is to allow a single root signature to represent many bound shader state objects.
-	// The bigger the quantization step sizes, the fewer the root signatures.
-	FMemory::Memzero(&OutQBSS, sizeof(OutQBSS));
-	FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, ResourceCounts, OutQBSS.RegisterCounts[ShaderVisibility], bAllowUAVs);
+	QuantizeBoundShaderStateCommon(QBSS, BSS->GetVertexShader(),        ResourceBindingTier, SV_Vertex);
+	QuantizeBoundShaderStateCommon(QBSS, BSS->GetMeshShader(),          ResourceBindingTier, SV_Mesh);
+	QuantizeBoundShaderStateCommon(QBSS, BSS->GetAmplificationShader(), ResourceBindingTier, SV_Amplification);
+	QuantizeBoundShaderStateCommon(QBSS, BSS->GetPixelShader(),         ResourceBindingTier, SV_Pixel, true /*bAllowUAVs*/);
+	QuantizeBoundShaderStateCommon(QBSS, BSS->GetGeometryShader(),      ResourceBindingTier, SV_Geometry);
 }
 
 void QuantizeBoundShaderState(
@@ -1014,13 +987,15 @@ void QuantizeBoundShaderState(
 	)
 {
 	check(ComputeShader);
-	const bool bAllosUAVs = true;
-	QuantizeBoundShaderStateCommon(ResourceBindingTier, ComputeShader->ResourceCounts, SV_All, bAllosUAVs, OutQBSS);
+
+	// BSS quantizer. There is a 1:1 mapping of quantized bound shader state objects to root signatures.
+	// The objective is to allow a single root signature to represent many bound shader state objects.
+	// The bigger the quantization step sizes, the fewer the root signatures.
+	FMemory::Memzero(&OutQBSS, sizeof(OutQBSS));
+
+	QuantizeBoundShaderStateCommon(OutQBSS, ComputeShader, ResourceBindingTier, SV_All, true /*bAllowUAVs*/);
+
 	check(OutQBSS.bAllowIAInputLayout == false); // No access to vertex buffers needed
-#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
-	OutQBSS.bUseVendorExtension = (ComputeShader->VendorExtensions.Num() > 0);
-#endif
-	OutQBSS.bUseDiagnosticBuffer = ComputeShader->UsesDiagnosticBuffer();
 }
 
 #if D3D12_RHI_RAYTRACING

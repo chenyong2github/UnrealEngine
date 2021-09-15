@@ -316,8 +316,8 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		}
 	}
 
-#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
-	if (QBSS.bUseVendorExtension)
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
+	if (QBSS.bNeedsAgsIntrinsicsSpace)
 	{
 		check(RootParameterCount < MaxRootParameters);
 		TableSlots[RootParameterCount].InitAsUnorderedAccessView(0, AGS_DX12_SHADER_INSTRINSICS_SPACE_ID, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE, D3D12_SHADER_VISIBILITY_ALL);
