@@ -137,7 +137,9 @@ bool FPatchBasedMeshUVGenerator::ComputeInitialMeshPatches(
 	FPolygroupsGenerator::EWeightingType WeightType = (this->bNormalWeightedPatches) ?
 		FPolygroupsGenerator::EWeightingType::NormalDeviation : FPolygroupsGenerator::EWeightingType::None;
 	FVector3d GeneratorParams(this->PatchNormalWeight, 1.0, 1.0);
-	bool bOK = Generator.FindPolygroupsFromFurthestPointSampling(this->TargetPatchCount, WeightType, GeneratorParams);
+
+	bool bOK = Generator.FindPolygroupsFromFurthestPointSampling(this->TargetPatchCount, WeightType, GeneratorParams, this->GroupConstraint);
+
 	if (!bOK)
 	{
 		return false;
@@ -336,7 +338,15 @@ bool FPatchBasedMeshUVGenerator::ComputeIslandsByRegionMerging(
 	}
 
 	FMeshRegionGraph RegionGraph;
-	RegionGraph.BuildFromComponents(TargetMesh, ConnectedComponents, [&](int32 k) { return k; } );
+	if (GroupConstraint)
+	{
+		RegionGraph.BuildFromComponents(TargetMesh, ConnectedComponents, [&](int32 k) { return k; },
+			[this](int32 a, int32 b) { return GroupConstraint->GetGroup(a) == GroupConstraint->GetGroup(b); });
+	}
+	else
+	{
+		RegionGraph.BuildFromComponents(TargetMesh, ConnectedComponents, [&](int32 k) { return k; });
+	}
 
 	if (Progress && Progress->Cancelled())
 	{

@@ -7,6 +7,29 @@
 using namespace UE::Geometry;
 
 
+bool FPolygroupLayer::CheckExists(const FDynamicMesh3* Mesh)
+{
+	if (Mesh)
+	{
+		if (bIsDefaultLayer)
+		{
+			if (Mesh->HasTriangleGroups())
+			{
+				return true;
+			}
+		}
+		else
+		{
+			if (LayerIndex >= 0 && Mesh->HasAttributes() && LayerIndex < Mesh->Attributes()->NumPolygroupLayers())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+
 FPolygroupSet::FPolygroupSet(const FPolygroupSet* CopyIn)
 {
 	Mesh = CopyIn->Mesh;
@@ -21,6 +44,30 @@ FPolygroupSet::FPolygroupSet(const FDynamicMesh3* MeshIn)
 	GroupLayerIndex = -1;
 	RecalculateMaxGroupID();
 }
+
+/** Initialize a PolygroupSet for the given Mesh, and standard triangle group layer */
+FPolygroupSet::FPolygroupSet(const FDynamicMesh3* MeshIn, FPolygroupLayer GroupLayer)
+{
+	Mesh = MeshIn;
+	GroupLayerIndex = -1;
+	if (! GroupLayer.bIsDefaultLayer )
+	{
+		if (ensure(Mesh->Attributes()))
+		{
+			if (GroupLayer.LayerIndex < Mesh->Attributes()->NumPolygroupLayers())
+			{
+				PolygroupAttrib = Mesh->Attributes()->GetPolygroupLayer(GroupLayer.LayerIndex);
+				GroupLayerIndex = GroupLayer.LayerIndex;
+			}
+		}
+		if (GroupLayerIndex == -1)
+		{
+			ensureMsgf(false, TEXT("FPolygroupSet: Attribute index missing!"));
+		}
+	}
+	RecalculateMaxGroupID();
+}
+
 
 FPolygroupSet::FPolygroupSet(const FDynamicMesh3* MeshIn, const FDynamicMeshPolygroupAttribute* PolygroupAttribIn)
 {

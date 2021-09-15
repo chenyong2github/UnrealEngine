@@ -8,7 +8,11 @@
 using namespace UE::Geometry;
 
 
-void FMeshRegionGraph::BuildFromComponents(const FDynamicMesh3& Mesh, const FMeshConnectedComponents& Components, TFunctionRef<int32(int32)> ExternalIDFunc)
+void FMeshRegionGraph::BuildFromComponents(
+	const FDynamicMesh3& Mesh, 
+	const FMeshConnectedComponents& Components, 
+	TFunctionRef<int32(int32)> ExternalIDFunc,
+	TFunctionRef<bool(int32, int32)> TrisConnectedPredicate)
 {
 	int32 N = Components.Num();
 	Regions.SetNum(N);
@@ -23,7 +27,15 @@ void FMeshRegionGraph::BuildFromComponents(const FDynamicMesh3& Mesh, const FMes
 		for (int32 tid : Components[k].Indices)
 		{
 			TriangleToRegionMap[tid] = k;
-			TriangleNbrTris[tid] = Mesh.GetTriNeighbourTris(tid);
+			FIndex3i NbrTris = Mesh.GetTriNeighbourTris(tid);;
+			for (int j = 0; j < 3; ++j)
+			{
+				if (NbrTris[j] >= 0 && TrisConnectedPredicate(tid, NbrTris[j]) == false)
+				{
+					NbrTris[j] = -1;
+				}
+			}
+			TriangleNbrTris[tid] = NbrTris;
 		}
 	}
 
