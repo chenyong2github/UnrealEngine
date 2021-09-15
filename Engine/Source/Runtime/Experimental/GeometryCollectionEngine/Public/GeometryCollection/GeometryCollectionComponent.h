@@ -843,6 +843,7 @@ private:
 	void ClearEmbeddedGeometry();
 
 	void IncrementSleepTimer(float DeltaTime);
+	bool CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const;
 
 	/** True if GeometryCollection transforms have changed from previous tick. */
 	bool bIsMoving;

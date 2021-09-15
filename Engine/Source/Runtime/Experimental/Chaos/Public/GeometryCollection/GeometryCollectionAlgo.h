@@ -149,7 +149,7 @@ namespace GeometryCollectionAlgo
 	*  Global Matrices of the collection, transforms will be resized to fit
 	*/
 	template<typename MatrixType>
-	void CHAOS_API GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, const TManagedArray<float>& Scales, const TManagedArray<FTransform>& MassToLocals, TArray<MatrixType>& Transforms);
+	void CHAOS_API GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& UniformScale, TArray<MatrixType>& Transforms);
 
 	template<typename MatrixType>
 	void CHAOS_API GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, TArray<MatrixType>& Transforms);
