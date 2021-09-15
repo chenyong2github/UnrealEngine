@@ -11,6 +11,8 @@
 #include "ISequencer.h"
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "FrameNumberDetailsCustomization.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "SRigSpacePickerWidget"
 
@@ -595,6 +597,23 @@ FReply SRigSpacePickerWidget::HandleAddElementClicked()
 			const FRigElementKey Key = InItem->Key;
 			if(!IsDefaultSpace(Key) && IsValidKey(Key))
 			{
+				for(const FRigElementKey& ControlKey : ControlKeys)
+				{
+					FString FailureReason;
+					if(!Hierarchy->CanSwitchToParent(ControlKey, Key, &FailureReason))
+					{
+						// notification
+						FNotificationInfo Info(FText::FromString(FailureReason));
+						Info.bFireAndForget = true;
+						Info.FadeOutDuration = 2.0f;
+						Info.ExpireDuration = 8.0f;
+
+						const TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+						NotificationPtr->SetCompletionState(SNotificationItem::CS_Fail);
+						return;
+					}
+				}
+				
 				TArray<FRigElementKey> ChangedSpaceKeys = CurrentSpaceKeys;
 				ChangedSpaceKeys.AddUnique(Key);
 

@@ -72,23 +72,37 @@ FRigUnit_SwitchParent_Execute()
 		bMaintainGlobal ? ERigTransformType::CurrentGlobal : ERigTransformType::CurrentLocal;
 	
 	const FTransform Transform = ExecuteContext.Hierarchy->GetTransform(ChildElement, TransformTypeToMaintain);
-	
+
 	switch(Mode)
 	{
 		case ERigSwitchParentMode::World:
 		{
-			ExecuteContext.Hierarchy->SwitchToWorldSpace(ChildElement, false, true);
+			if(!ExecuteContext.Hierarchy->SwitchToWorldSpace(ChildElement, false, true))
+			{
+				return;
+			}
 			break;
 		}
 		case ERigSwitchParentMode::DefaultParent:
 		{
-			ExecuteContext.Hierarchy->SwitchToDefaultParent(ChildElement, false, true);
+			if(!ExecuteContext.Hierarchy->SwitchToDefaultParent(ChildElement, false, true))
+			{
+				return;
+			}
 			break;
 		}
 		case ERigSwitchParentMode::ParentItem:
 		default:
 		{
-			ExecuteContext.Hierarchy->SwitchToParent(ChildElement, ParentElement, false, true);
+			FString FailureReason;
+			if(!ExecuteContext.Hierarchy->SwitchToParent(ChildElement, ParentElement, false, true, &FailureReason))
+			{
+				if(!FailureReason.IsEmpty())
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("%s"), *FailureReason);
+				}
+				return;
+			}
 			break;
 		}
 	}
