@@ -8137,6 +8137,12 @@ int32 FHLSLMaterialTranslator::RayTracingQualitySwitchReplace(int32 Normal, int3
 	return GenericSwitch(TEXT("GetRayTracingQualitySwitch()"), RayTraced, Normal);
 }
 
+int32 FHLSLMaterialTranslator::PathTracingQualitySwitchReplace(int32 Normal, int32 PathTraced)
+{
+	return GenericSwitch(TEXT("GetPathTracingQualitySwitch()"), PathTraced, Normal);
+}
+
+
 int32 FHLSLMaterialTranslator::VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture)
 {
 	return GenericSwitch(TEXT("GetRuntimeVirtualTextureOutputSwitch()"), VirtualTexture, Default);

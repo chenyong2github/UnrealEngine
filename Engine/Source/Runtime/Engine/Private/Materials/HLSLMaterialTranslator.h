@@ -889,7 +889,8 @@ protected:
 	virtual int32 ShadowReplace(int32 Default, int32 Shadow) override;
 	virtual int32 ReflectionCapturePassSwitch(int32 Default, int32 Reflection) override;
 
-	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced);
+	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced) override;
+	virtual int32 PathTracingQualitySwitchReplace(int32 Normal, int32 PathTraced) override;
 
 	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) override;
 
