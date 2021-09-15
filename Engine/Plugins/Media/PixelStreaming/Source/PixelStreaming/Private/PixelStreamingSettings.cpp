@@ -306,6 +306,9 @@ namespace PixelStreamingSettings
 
 	void InitialiseSettings()
 	{
+
+		UE_LOG(PixelStreamer, Log, TEXT("Initialising Pixel Streaming settings."));
+
 		PixelStreamingSettings::CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnFilteredKeysChanged));
 
 		// Values parse from commands line

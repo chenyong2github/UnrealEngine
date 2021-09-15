@@ -10,11 +10,9 @@
 #include "PixelStreamingSettings.h"
 #include "HUDStats.h"
 #include "PixelStreamingPrivate.h"
-#include "PixelStreamingSettings.h"
 #include "PlayerSession.h"
 #include "PixelStreamingAudioSink.h"
 #include "LatencyTester.h"
-
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
@@ -161,6 +159,9 @@ void FPixelStreamingModule::StartupModule()
 	{
 		return;
 	}
+
+	// Initialise all settings from command line args etc
+	PixelStreamingSettings::InitialiseSettings();
 
 	// only D3D11/D3D12 is supported
 	if (GDynamicRHI == nullptr ||
