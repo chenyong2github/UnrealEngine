@@ -18,8 +18,8 @@ namespace Insights
 
 	enum class ETimingEventsColoringMode : uint32
 	{
-		ByName,
-		ById,
+		ByTimerName,
+		ByTimerId,
 		ByDuration,
 
 		Count
@@ -35,6 +35,9 @@ class STimingProfilerWindow;
 class FTimingProfilerManager : public TSharedFromThis<FTimingProfilerManager>, public IInsightsComponent
 {
 	friend class FTimingProfilerActionManager;
+
+public:
+	static const uint32 UnlimitedEventDepth = 1000;
 
 public:
 	/** Creates the Timing Profiler manager, only one instance can exist. */
@@ -232,8 +235,8 @@ private:
 	/** The name of the Timing Insights log listing. */
 	FName LogListingName;
 
-	Insights::ETimingEventsColoringMode ColoringMode = Insights::ETimingEventsColoringMode::ByName;
-	uint32 EventDepthLimit = 1000;
+	Insights::ETimingEventsColoringMode ColoringMode = Insights::ETimingEventsColoringMode::ByTimerName;
+	uint32 EventDepthLimit = UnlimitedEventDepth;
 
 	/** A shared pointer to the global instance of the Timing Profiler manager. */
 	static TSharedPtr<FTimingProfilerManager> Instance;

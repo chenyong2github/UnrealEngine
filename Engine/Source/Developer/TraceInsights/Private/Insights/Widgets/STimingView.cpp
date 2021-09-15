@@ -2747,29 +2747,12 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Zero)
 	{
-		uint32 Mode = (uint32)FTimingProfilerManager::Get()->GetColoringMode();
-		Mode = (Mode + 1) % (uint32)Insights::ETimingEventsColoringMode::Count;
-		FTimingProfilerManager::Get()->SetColoringMode((Insights::ETimingEventsColoringMode)Mode);
-		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+		ChooseNextCpuThreadTrackColoringMode();
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::X)
 	{
-		uint32 DepthLimit = FTimingProfilerManager::Get()->GetEventDepthLimit();
-		if (DepthLimit == 1)
-		{
-			DepthLimit = 4;
-		}
-		else if (DepthLimit == 4)
-		{
-			DepthLimit = 1000;
-		}
-		else
-		{
-			DepthLimit = 1;
-		}
-		FTimingProfilerManager::Get()->SetEventDepthLimit(DepthLimit);
-		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+		ChooseNextEventDepthLimit();
 		return FReply::Handled();
 	}
 #if ACTIVATE_BENCHMARK
@@ -2871,50 +2854,53 @@ void STimingView::CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::TopDocked))
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ContextMenu_DockToTop", "Top Docked"),
-			LOCTEXT("ContextMenu_DockToTop_Desc", "Dock this track to the top."),
+			LOCTEXT("TrackLocationMenu_DockToTop", "Top Docked"),
+			LOCTEXT("TrackLocationMenu_DockToTop_Desc", "Dock this track to the top."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::TopDocked),
 				FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::TopDocked),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckTrackLocation, Track, ETimingTrackLocation::TopDocked)),
 			NAME_None,
-			EUserInterfaceActionType::RadioButton);
+			EUserInterfaceActionType::RadioButton
+		);
 	}
 
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::Scrollable))
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ContextMenu_MoveToScrollable", "Scrollable"),
-			LOCTEXT("ContextMenu_MoveToScrollable_Desc", "Move this track to the list of scrollable tracks."),
+			LOCTEXT("TrackLocationMenu_MoveToScrollable", "Scrollable"),
+			LOCTEXT("TrackLocationMenu_MoveToScrollable_Desc", "Move this track to the list of scrollable tracks."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Scrollable),
 				FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::Scrollable),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckTrackLocation, Track, ETimingTrackLocation::Scrollable)),
 			NAME_None,
-			EUserInterfaceActionType::RadioButton);
+			EUserInterfaceActionType::RadioButton
+		);
 	}
 
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::BottomDocked))
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ContextMenu_DockToBottom", "Bottom Docked"),
-			LOCTEXT("ContextMenu_DockToBottom_Desc", "Dock this track to the bottom."),
+			LOCTEXT("TrackLocationMenu_DockToBottom", "Bottom Docked"),
+			LOCTEXT("TrackLocationMenu_DockToBottom_Desc", "Dock this track to the bottom."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked),
 				FCanExecuteAction::CreateSP(this, &STimingView::CanChangeTrackLocation, Track, ETimingTrackLocation::BottomDocked),
 				FIsActionChecked::CreateSP(this, &STimingView::CheckTrackLocation, Track, ETimingTrackLocation::BottomDocked)),
 			NAME_None,
-			EUserInterfaceActionType::RadioButton);
+			EUserInterfaceActionType::RadioButton
+		);
 	}
 
 	if (EnumHasAnyFlags(Track->GetValidLocations(), ETimingTrackLocation::Foreground))
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ContextMenu_MoveToForeground", "Foreground"),
-			LOCTEXT("ContextMenu_MoveToForeground_Desc", "Move this track to the list of foreground tracks."),
+			LOCTEXT("TrackLocationMenu_MoveToForeground", "Foreground"),
+			LOCTEXT("TrackLocationMenu_MoveToForeground_Desc", "Move this track to the list of foreground tracks."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::ChangeTrackLocation, Track, ETimingTrackLocation::Foreground),
@@ -4413,6 +4399,20 @@ TSharedRef<SWidget> STimingView::MakeOtherTracksFilterMenu()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool STimingView::ShowHideGraphTrack_IsChecked() const
+{
+	return GraphTrack->IsVisible();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ShowHideGraphTrack_Execute()
+{
+	GraphTrack->ToggleVisibility();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<SWidget> STimingView::MakePluginTracksFilterMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
@@ -4441,21 +4441,11 @@ TSharedRef<SWidget> STimingView::MakeViewModeMenu()
 	}
 	MenuBuilder.EndSection();
 
+	CreateDepthLimitMenu(MenuBuilder);
+
+	CreateCpuThreadTrackColoringModeMenu(MenuBuilder);
+
 	return MenuBuilder.MakeWidget();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STimingView::ShowHideGraphTrack_IsChecked() const
-{
-	return GraphTrack->IsVisible();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::ShowHideGraphTrack_Execute()
-{
-	GraphTrack->ToggleVisibility();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4497,6 +4487,153 @@ void STimingView::ToggleAutoHideEmptyTracks()
 	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
 	const bool bIsEnabled = IsAutoHideEmptyTracksEnabled();
 	Settings.SetAndSaveAutoHideEmptyTracks(bIsEnabled);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::CreateDepthLimitMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("DepthLimit", LOCTEXT("DepthLimitHeading", "Depth Limit"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("UnlimitedDepth", "Unlimited"),
+			LOCTEXT("UnlimitedDepth_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have unlimited depth (lanes)."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, FTimingProfilerManager::UnlimitedEventDepth),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, FTimingProfilerManager::UnlimitedEventDepth)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DepthLimit4", "4 Lanes"),
+			LOCTEXT("DepthLimit4_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have maximum 4 lanes."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, (uint32)4),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)4)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DepthLimit1", "Single Lane"),
+			LOCTEXT("DepthLimit1_Desc", "Timing Events tracks (like the Cpu Thread tracks) can have a single lane."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::SetEventDepthLimit, (uint32)1),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckEventDepthLimit, (uint32)1)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+	MenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ChooseNextEventDepthLimit()
+{
+	uint32 DepthLimit = FTimingProfilerManager::Get()->GetEventDepthLimit();
+	if (DepthLimit == 1)
+	{
+		DepthLimit = 4;
+	}
+	else if (DepthLimit == 4)
+	{
+		DepthLimit = FTimingProfilerManager::UnlimitedEventDepth;
+	}
+	else
+	{
+		DepthLimit = 1;
+	}
+	FTimingProfilerManager::Get()->SetEventDepthLimit(DepthLimit);
+	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SetEventDepthLimit(uint32 DepthLimit)
+{
+	FTimingProfilerManager::Get()->SetEventDepthLimit(DepthLimit);
+	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::CheckEventDepthLimit(uint32 DepthLimit)
+{
+	return DepthLimit == FTimingProfilerManager::Get()->GetEventDepthLimit();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::CreateCpuThreadTrackColoringModeMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("CpuThreadTrackColoringMode", LOCTEXT("CpuThreadTrackColoringModeHeading", "Coloring Mode (CPU Thread Tracks)"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("CpuThreadTrackColoringMode_ByTimerName", "By Timer Name"),
+			LOCTEXT("CpuThreadTrackColoringMode_ByTimerName_Desc", "Assign a color to CPU/GPU timing events based on their timer name."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::SetCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByTimerName),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByTimerName)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("CpuThreadTrackColoringMode_ByTimerId", "By Timer Id"),
+			LOCTEXT("CpuThreadTrackColoringMode_ByTimerId_Desc", "Assign a color to CPU/GPU timing events based on their timer id."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::SetCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByTimerId),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByTimerId)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("CpuThreadTrackColoringMode_ByDuration", "By Duration"),
+			LOCTEXT("CpuThreadTrackColoringMode_ByDuration_Desc", "Assign a color to CPU/GPU timing events based on their duration (inclusive time).\nred: > 10 ms,   yellow: (1 ms .. 10 ms],   green: (100 us .. 1 ms],   blue: ≤ 100 us"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &STimingView::SetCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByDuration),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &STimingView::CheckCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByDuration)),
+			NAME_None,
+			EUserInterfaceActionType::RadioButton
+		);
+	}
+	MenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ChooseNextCpuThreadTrackColoringMode()
+{
+	uint32 Mode = (uint32)FTimingProfilerManager::Get()->GetColoringMode();
+	Mode = (Mode + 1) % (uint32)Insights::ETimingEventsColoringMode::Count;
+	FTimingProfilerManager::Get()->SetColoringMode((Insights::ETimingEventsColoringMode)Mode);
+	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SetCpuThreadTrackColoringMode(Insights::ETimingEventsColoringMode Mode)
+{
+	FTimingProfilerManager::Get()->SetColoringMode(Mode);
+	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::CheckCpuThreadTrackColoringMode(Insights::ETimingEventsColoringMode Mode)
+{
+	return Mode == FTimingProfilerManager::Get()->GetColoringMode();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
