@@ -571,6 +571,7 @@ void INiagaraModule::OnAssetLoaded(UObject* Asset)
 
 UScriptStruct* FNiagaraTypeDefinition::ParameterMapStruct;
 UScriptStruct* FNiagaraTypeDefinition::IDStruct;
+UScriptStruct* FNiagaraTypeDefinition::RandInfoStruct;
 UScriptStruct* FNiagaraTypeDefinition::NumericStruct;
 UScriptStruct* FNiagaraTypeDefinition::FloatStruct;
 UScriptStruct* FNiagaraTypeDefinition::BoolStruct;
@@ -608,6 +609,7 @@ UEnum* FNiagaraTypeDefinition::FunctionDebugStateEnum;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ParameterMapDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::IDDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::RandInfoDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::NumericDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::FloatDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::BoolDef;
@@ -654,6 +656,7 @@ void FNiagaraTypeDefinition::Init()
 	static auto* NiagaraPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/Niagara"));
 	FNiagaraTypeDefinition::ParameterMapStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraParameterMap"));
 	FNiagaraTypeDefinition::IDStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraID"));
+	FNiagaraTypeDefinition::RandInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraRandInfo"));
 	FNiagaraTypeDefinition::NumericStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraNumeric"));
 	FNiagaraTypeDefinition::FloatStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraFloat"));
 	FNiagaraTypeDefinition::BoolStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraBool"));
@@ -679,6 +682,7 @@ void FNiagaraTypeDefinition::Init()
 	
 	ParameterMapDef = FNiagaraTypeDefinition(ParameterMapStruct);
 	IDDef = FNiagaraTypeDefinition(IDStruct);
+	RandInfoDef = FNiagaraTypeDefinition(RandInfoStruct);
 	NumericDef = FNiagaraTypeDefinition(NumericStruct);
 	FloatDef = FNiagaraTypeDefinition(FloatStruct);
 	BoolDef = FNiagaraTypeDefinition(BoolStruct);
@@ -871,6 +875,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 	FNiagaraTypeRegistry::Register(ParameterMapDef, ParamFlags);
 	FNiagaraTypeRegistry::Register(IDDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(RandInfoDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(NumericDef, ParamFlags);
 	FNiagaraTypeRegistry::Register(FloatDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(HalfDef, ParamFlags | PayloadFlags);
@@ -898,7 +903,6 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(UTextureDef, VarFlags);
 	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, VarFlags);
 	FNiagaraTypeRegistry::Register(UStaticMeshDef, VarFlags);
-	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags | PayloadFlags);
 
 	

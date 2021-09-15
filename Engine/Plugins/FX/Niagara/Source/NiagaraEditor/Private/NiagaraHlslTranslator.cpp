@@ -1616,14 +1616,16 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			}
 		}
 
-		// NiagaraID is a fundamental type which can be used in custom HLSL without declaring any pins of that type in any nodes.
-		// Make sure it's always defined in the generated HLSL.
-		StructsToDefine.AddUnique(FNiagaraTypeDefinition::GetIDDef());
-
 		// Generate the Parameter Map HLSL definitions. We don't add to the final HLSL output here. We just build up the strings and tables
 		// that are needed later.
 		TArray<FNiagaraVariable> PrimaryDataSetOutputEntries;
 		FString ParameterMapDefinitionStr = BuildParameterMapHlslDefinitions(PrimaryDataSetOutputEntries);
+
+		// Ensure some structures are always added as we use them in custom HLSL / data interface templates
+		// Remove some structures which we define inside NiagaraEmitterInstanceShader.usf as we want a common set of functions
+		// Ensure we always add structures that are fundamental to custom HLSL or data interface templates shader files
+		StructsToDefine.AddUnique(FNiagaraTypeDefinition::GetIDDef());
+		StructsToDefine.Remove(FNiagaraTypeDefinition::GetRandInfoDef());
 
 		for (const FNiagaraTypeDefinition& Type : StructsToDefine)
 		{

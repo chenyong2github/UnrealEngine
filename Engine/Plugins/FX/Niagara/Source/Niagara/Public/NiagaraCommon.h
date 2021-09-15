@@ -1266,22 +1266,6 @@ struct TStructOpsTypeTraits<FNiagaraUserParameterBinding> : public TStructOpsTyp
 	};
 };
 
-USTRUCT()
-struct FNiagaraRandInfo
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Random")
-	int32 Seed1 = 0;
-	
-	UPROPERTY(EditAnywhere, Category = "Random")
-	int32 Seed2 = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Random")
-	int32 Seed3 = 0;
-};
-
-
 //////////////////////////////////////////////////////////////////////////
 // Legacy Anim Trail Support
 
