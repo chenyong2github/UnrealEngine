@@ -34,6 +34,8 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "ControlRigSpaceChannelEditors.h"
 #include "IKeyArea.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
@@ -628,6 +630,20 @@ void SControlRigEditModeTools::HandleActiveSpaceChanged(URigHierarchy* InHierarc
 	{
 		if (UControlRig* ControlRig = SequencerRig.Get())
 		{
+			FString FailureReason;
+			if(!InHierarchy->CanSwitchToParent(InControlKey, InSpaceKey, &FailureReason))
+			{
+				// notification
+				FNotificationInfo Info(FText::FromString(FailureReason));
+				Info.bFireAndForget = true;
+				Info.FadeOutDuration = 2.0f;
+				Info.ExpireDuration = 8.0f;
+
+				const TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+				NotificationPtr->SetCompletionState(SNotificationItem::CS_Fail);
+				return;
+			}
+			
 			if (const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
 			{
 				ISequencer* Sequencer = WeakSequencer.Pin().Get();

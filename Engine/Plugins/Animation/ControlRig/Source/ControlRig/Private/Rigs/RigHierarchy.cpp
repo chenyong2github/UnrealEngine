@@ -1417,30 +1417,90 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild,  const TArray
 	return false;
 }
 
-bool URigHierarchy::SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren)
+bool URigHierarchy::CanSwitchToParent(FRigElementKey InChild, FRigElementKey InParent, FString* OutFailureReason)
 {
-	if(InParent == GetWorldSpaceSocketKey())
+	InParent = PreprocessParentElementKeyForSpaceSwitching(InChild, InParent);
+
+	FRigBaseElement* Child = Find(InChild);
+	if(Child == nullptr)
 	{
-		InParent = GetOrAddWorldSpaceSocket();
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FString::Printf(TEXT("Child Element %s cannot be found."), *InChild.ToString());
+		}
+		return false;
 	}
-	else if(InParent == GetDefaultParentSocketKey())
+
+	FRigBaseElement* Parent = Find(InParent);
+	if(Parent == nullptr)
 	{
-		const FRigElementKey FirstParent = GetFirstParent(InChild);
-		if(FirstParent == GetWorldSpaceSocketKey())
+		// if we don't specify anything and the element is parented directly to the world,
+		// perfomring this switch means unparenting it from world (since there is no default parent)
+		if(!InParent.IsValid() && GetFirstParent(InChild) == GetWorldSpaceSocketKey())
 		{
-			InParent = FRigElementKey();
+			return true;
 		}
-		else
+		
+		if(OutFailureReason)
 		{
-			InParent = FirstParent;
+			*OutFailureReason = FString::Printf(TEXT("Parent Element %s cannot be found."), *InParent.ToString());
+		}
+		return false;
+	}
+
+	// see if this is already parented to the target parent
+	if(GetFirstParent(Child) == Parent)
+	{
+		return true;
+	}
+
+	const FRigMultiParentElement* MultiParentChild = Cast<FRigMultiParentElement>(Child);
+	if(MultiParentChild == nullptr)
+	{
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FString::Printf(TEXT("Child Element %s does not allow space switching (it's not a multi parent element)."), *InChild.ToString());
 		}
 	}
-	return SwitchToParent(Find(InChild), Find(InParent), bInitial, bAffectChildren);
+
+	const FRigTransformElement* TransformParent = Cast<FRigMultiParentElement>(Parent);
+	if(TransformParent == nullptr)
+	{
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FString::Printf(TEXT("Parent Element %s is not a transform element"), *InParent.ToString());
+		}
+	}
+
+	if(IsParentedTo(InParent, InChild))
+	{
+		if(OutFailureReason)
+		{
+			*OutFailureReason = FString::Printf(TEXT("Cannot switch '%s' to '%s' - would cause a cycle."), *InChild.ToString(), *InParent.ToString());
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool URigHierarchy::SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren, FString* OutFailureReason)
+{
+	InParent = PreprocessParentElementKeyForSpaceSwitching(InChild, InParent);
+	return SwitchToParent(Find(InChild), Find(InParent), bInitial, bAffectChildren, OutFailureReason);
 }
 
 bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial,
-	bool bAffectChildren)
+	bool bAffectChildren, FString* OutFailureReason)
 {
+	if(InChild && InParent)
+	{
+		if(!CanSwitchToParent(InChild->GetKey(), InParent->GetKey(), OutFailureReason))
+		{
+			return false;
+		}
+	}
+
 	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
 		int32 ParentIndex = INDEX_NONE;
@@ -2856,6 +2916,28 @@ void URigHierarchy::UpdateAllCachedChildren() const
 		}
 	}
 }
+	
+FRigElementKey URigHierarchy::PreprocessParentElementKeyForSpaceSwitching(const FRigElementKey& InChildKey, const FRigElementKey& InParentKey)
+{
+	if(InParentKey == GetWorldSpaceSocketKey())
+	{
+		return GetOrAddWorldSpaceSocket();
+	}
+	else if(InParentKey == GetDefaultParentSocketKey())
+	{
+		const FRigElementKey FirstParent = GetFirstParent(InChildKey);
+		if(FirstParent == GetWorldSpaceSocketKey())
+		{
+			return FRigElementKey();
+		}
+		else
+		{
+			return FirstParent;
+		}
+	}
+
+	return InParentKey;
+}
 
 FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32 InCount, int32* OutStructureSize)
 {
@@ -4054,3 +4136,4 @@ void URigHierarchy::IntegrateParentConstraintQuat(
 	OutMixedRotation.W += InWeight * ParentRotation.W;
 	OutNumMixedRotations++;
 }
+

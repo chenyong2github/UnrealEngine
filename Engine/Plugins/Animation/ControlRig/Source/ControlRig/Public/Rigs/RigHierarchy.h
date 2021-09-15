@@ -1728,17 +1728,31 @@ public:
 	bool SetParentWeightArray(FRigBaseElement* InChild,  const TArrayView<const FRigElementWeight>& InWeights, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
-		* Switches a multi parent element to a single parent.
-		* This sets the new parent's weight to 1.0 and disables
-		* weights for all other potential parents.
-		* @param InChild The key of the multi parented element
-		* @param InParent The key of the parent to look up the weight for
-		* @param bInitial If true the initial weights will be used
-		* @param bAffectChildren If set to false children will not move (maintain global).
-		* @return Returns true if changing the weight was successful
-		*/
+	* Determines if the element can be switched to a provided parent
+	* @param InChild The key of the multi parented element
+	* @param InParent The key of the parent to look up the weight for
+	* @param OutFailureReason An optional pointer to retrieve the reason for failure
+	* @return Returns true if changing the weight was successful
+	*/
+	bool CanSwitchToParent(FRigElementKey InChild, FRigElementKey InParent, FString* OutFailureReason = nullptr);
+
+	/**
+	 * Switches a multi parent element to a single parent.
+	 * This sets the new parent's weight to 1.0 and disables
+	 * weights for all other potential parents.
+	 * @param InChild The key of the multi parented element
+	 * @param InParent The key of the parent to look up the weight for
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @param OutFailureReason An optional pointer to retrieve the reason for failure
+	 * @return Returns true if changing the weight was successful
+	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-	bool SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial = false, bool bAffectChildren = true);
+	bool SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial = false, bool bAffectChildren = true)
+	{
+		return SwitchToParent(InChild, InParent, bInitial, bAffectChildren, nullptr);
+	}
+	bool SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren, FString* OutFailureReason);
 
 	/**
 	 * Switches a multi parent element to a single parent.
@@ -1748,9 +1762,10 @@ public:
 	 * @param InParent The parent to look up the weight for
 	 * @param bInitial If true the initial weights will be used
 	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @param OutFailureReason An optional pointer to retrieve the reason for failure
 	 * @return Returns true if changing the weight was successful
 	 */
-	bool SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial = false, bool bAffectChildren = true);
+	bool SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial = false, bool bAffectChildren = true, FString* OutFailureReason = nullptr);
 
 	/**
 	 * Switches a multi parent element to a single parent.
@@ -2451,6 +2466,11 @@ private:
 	* @param bForce If set to true the table will always be updated
 	*/
 	void UpdateAllCachedChildren() const;
+
+	/**
+	 * Corrects a parent element key for space switching
+	 */
+	FRigElementKey PreprocessParentElementKeyForSpaceSwitching(const FRigElementKey& InChildKey, const FRigElementKey& InParentKey);
 
 	/*
 	 * Helper function to create an element for a given type
