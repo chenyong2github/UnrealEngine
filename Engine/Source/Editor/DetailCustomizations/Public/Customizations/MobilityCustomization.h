@@ -2,9 +2,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "Styling/SlateColor.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "Engine/EngineTypes.h"
+#include "Framework/SlateDelegates.h"
+#include "Styling/SlateColor.h"
 
 class IDetailCategoryBuilder;
 class IPropertyHandle;
@@ -29,11 +30,14 @@ public:
 
 private:
 
-	EComponentMobility::Type GetActiveMobility() const;
-	FSlateColor GetMobilityTextColor(EComponentMobility::Type InMobility) const;
-	void OnMobilityChanged(EComponentMobility::Type InMobility);
+	TSharedRef<class SWidget> OnGenerateWidget(FName InMobilityName) const;
+	void OnMobilityChanged(FName InMobilityName, ESelectInfo::Type);
 	FText GetMobilityToolTip() const;
-	
+	EComponentMobility::Type GetActiveMobility() const;
+	FText GetActiveMobilityText() const;
+	FText GetActiveMobilityToolTip() const;
+
+	TArray<FName> AllowedOptions;
 	TSharedPtr<IPropertyHandle> MobilityHandle;
 	bool bForLight;
 	uint8 RestrictedMobilityBits;
