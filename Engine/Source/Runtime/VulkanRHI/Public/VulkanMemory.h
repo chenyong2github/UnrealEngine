@@ -131,6 +131,7 @@ namespace VulkanRHI
 		EVulkanAllocationBuffer,
 		EVulkanAllocationImage,
 		EVulkanAllocationImageDedicated,
+		EVulkanAllocationSize, // keep last
 	};
 
 	enum EVulkanAllocationMetaType : uint8
@@ -145,7 +146,7 @@ namespace VulkanRHI
 		EVulkanAllocationMetaBufferUAV,
 		EVulkanAllocationMetaBufferStaging,
 		EVulkanAllocationMetaBufferOther,
-		EVulkanAllocationMetaSize,
+		EVulkanAllocationMetaSize, // keep last
 	};
 	enum EVulkanAllocationFlags
 	{
@@ -487,11 +488,6 @@ namespace VulkanRHI
 	class FVulkanAllocation
 	{
 	public:
-		enum
-		{
-			ALLOCATOR_INDEX_BITS = 13,
-			ALLOCATION_INDEX_BITS = 32-ALLOCATOR_INDEX_BITS,
-		};
 		FVulkanAllocation();
 		~FVulkanAllocation();
 		void Init(EVulkanAllocationType Type, EVulkanAllocationMetaType MetaType, uint64 Handle, uint32 InSize, uint32 AlignedOffset, uint32 AllocatorIndex, uint32 AllocationIndex, uint32 BufferId);
@@ -504,17 +500,25 @@ namespace VulkanRHI
 		void Own();
 		bool IsValid() const;
 		
-		
-		EVulkanAllocationType Type = EVulkanAllocationEmpty;
-		EVulkanAllocationMetaType MetaType = EVulkanAllocationMetaUnknown;
-		uint8 bHasOwnership = 0;
-
+		uint64 VulkanHandle = 0;
+		uint32 HandleId = 0;
 		uint32 Size = 0;
 		uint32 Offset = 0;
-		uint32 AllocatorIndex : ALLOCATOR_INDEX_BITS;
-		uint32 AllocationIndex : ALLOCATION_INDEX_BITS;
-		int32 HandleId = 0;
-		uint64 VulkanHandle = 0;
+		uint32 AllocationIndex = 0;
+		uint16 AllocatorIndex = 0;
+		EVulkanAllocationMetaType MetaType = EVulkanAllocationMetaUnknown;
+		uint8 Type : 7;
+		uint8 bHasOwnership : 1;
+
+		static_assert(EVulkanAllocationSize < 128, "Not enough bits to hold EVulkanAllocationType");
+		inline EVulkanAllocationType GetType() const
+		{
+			return (EVulkanAllocationType)Type;
+		}
+		inline void SetType(EVulkanAllocationType InType)
+		{
+			Type = (uint8)InType;
+		}
 
 		//helper functions
 		void* GetMappedPointer(FVulkanDevice* Device);
