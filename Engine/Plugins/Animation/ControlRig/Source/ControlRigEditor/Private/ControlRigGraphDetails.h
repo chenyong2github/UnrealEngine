@@ -83,7 +83,6 @@ private:
 
 	FText OnGetArgNameText() const;
 	FText OnGetArgToolTipText() const;
-	void OnArgNameChange(const FText& InNewText);
 	void OnArgNameTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 
 	FEdGraphPinType OnGetPinInfo() const;
