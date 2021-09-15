@@ -40,10 +40,7 @@ void FGenericFileIoStoreEventQueue::ServiceWait()
 	ServiceEvent->Wait();
 }
 
-FGenericFileIoStoreImpl::FGenericFileIoStoreImpl(FGenericFileIoStoreEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache)
-	: EventQueue(InEventQueue)
-	, BufferAllocator(InBufferAllocator)
-	, BlockCache(InBlockCache)
+FGenericFileIoStoreImpl::FGenericFileIoStoreImpl()
 {
 }
 
@@ -97,7 +94,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 
 	uint8* Dest;
 	check(!NextRequest->ImmediateScatter.Request);
-	NextRequest->Buffer = BufferAllocator.AllocBuffer();
+	NextRequest->Buffer = BufferAllocator->AllocBuffer();
 	if (!NextRequest->Buffer)
 	{
 		RequestQueue.Push(*NextRequest);
@@ -105,7 +102,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	}
 	Dest = NextRequest->Buffer->Memory;
 
-	if (!BlockCache.Read(NextRequest))
+	if (!BlockCache->Read(NextRequest))
 	{
 		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(NextRequest->FileHandle));
 		 
@@ -129,7 +126,7 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 				}
 				NextRequest->bFailed = false;
 				TRACE_COUNTER_ADD(IoDispatcherFileBackendFileSystemTotalBytesRead, NextRequest->Size);
-				BlockCache.Store(NextRequest);
+				BlockCache->Store(NextRequest);
 				break;
 			}
 		}

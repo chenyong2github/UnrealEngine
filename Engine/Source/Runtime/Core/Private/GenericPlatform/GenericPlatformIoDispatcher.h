@@ -23,29 +23,39 @@ private:
 	FEvent* ServiceEvent = nullptr;
 };
 
-class FGenericFileIoStoreImpl
+class FGenericFileIoStoreImpl : public IPlatformFileIoStore
 {
 public:
-	FGenericFileIoStoreImpl(FGenericFileIoStoreEventQueue& InEventQueue, FFileIoStoreBufferAllocator& InBufferAllocator, FFileIoStoreBlockCache& InBlockCache);
+	FGenericFileIoStoreImpl();
 	~FGenericFileIoStoreImpl();
-	void Initialize(const FWakeUpIoDispatcherThreadDelegate* InWakeUpDispatcherThreadDelegate)
+	void Initialize(const FInitializePlatformFileIoStoreParams& Params) override
 	{
-		WakeUpDispatcherThreadDelegate = InWakeUpDispatcherThreadDelegate;
+		WakeUpDispatcherThreadDelegate = Params.WakeUpDispatcherThreadDelegate;
+		BufferAllocator = Params.BufferAllocator;
+		BlockCache = Params.BlockCache;
 	}
-	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize);
-	void CloseContainer(uint64 ContainerFileHandle);
-	bool CreateCustomRequests(FFileIoStoreRequestAllocator& RequestAllocator, FFileIoStoreResolvedRequest& ResolvedRequest, FFileIoStoreReadRequestList& OutRequests)
+	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize) override;
+	void CloseContainer(uint64 ContainerFileHandle) override;
+	bool CreateCustomRequests(FFileIoStoreResolvedRequest& ResolvedRequest, FFileIoStoreReadRequestList& OutRequests) override
 	{
 		return false;
 	}
-	bool StartRequests(FFileIoStoreRequestQueue& RequestQueue);
-	void GetCompletedRequests(FFileIoStoreReadRequestList& OutRequests);
+	bool StartRequests(FFileIoStoreRequestQueue& RequestQueue) override;
+	void GetCompletedRequests(FFileIoStoreReadRequestList& OutRequests) override;
 
+	virtual void ServiceNotify() override
+	{
+		EventQueue.ServiceNotify();
+	}
+	virtual void ServiceWait() override
+	{
+		EventQueue.ServiceWait();
+	}
 private:
 	const FWakeUpIoDispatcherThreadDelegate* WakeUpDispatcherThreadDelegate = nullptr;
-	FGenericFileIoStoreEventQueue& EventQueue;
-	FFileIoStoreBufferAllocator& BufferAllocator;
-	FFileIoStoreBlockCache& BlockCache;
+	FGenericFileIoStoreEventQueue EventQueue;
+	FFileIoStoreBufferAllocator* BufferAllocator = nullptr;
+	FFileIoStoreBlockCache* BlockCache = nullptr;
 
 	FCriticalSection CompletedRequestsCritical;
 	FFileIoStoreReadRequestList CompletedRequests;

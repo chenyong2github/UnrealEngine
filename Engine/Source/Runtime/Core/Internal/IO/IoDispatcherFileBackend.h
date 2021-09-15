@@ -14,18 +14,6 @@
 #include "Misc/AES.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
-#ifndef PLATFORM_IMPLEMENTS_IO
-#define PLATFORM_IMPLEMENTS_IO 0
-#endif
-
-#if PLATFORM_IMPLEMENTS_IO
-#include COMPILED_PLATFORM_HEADER(PlatformIoDispatcher.h)
-#else
-#include "GenericPlatform/GenericPlatformIoDispatcher.h"
-typedef FGenericFileIoStoreEventQueue FFileIoStoreEventQueue;
-typedef FGenericFileIoStoreImpl FFileIoStoreImpl;
-#endif
-
 class IMappedFileHandle;
 
 struct FFileIoStoreCompressionContext
@@ -38,7 +26,7 @@ struct FFileIoStoreCompressionContext
 class FFileIoStoreReader
 {
 public:
-	FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl);
+	FFileIoStoreReader(IPlatformFileIoStore& InPlatformImpl);
 	~FFileIoStoreReader();
 	FIoStatus Initialize(const TCHAR* ContainerPath, int32 Order);
 	uint32 GetContainerInstanceId() const
@@ -62,7 +50,7 @@ public:
 private:
 	const FIoOffsetAndLength* FindChunkInternal(const FIoChunkId& ChunkId) const;
 
-	FFileIoStoreImpl& PlatformImpl;
+	IPlatformFileIoStore& PlatformImpl;
 	
 	struct FPerfectHashMap
 	{
@@ -110,7 +98,7 @@ class FFileIoStore final
 	, public IIoDispatcherFileBackend
 {
 public:
-	FFileIoStore();
+	FFileIoStore(TUniquePtr<IPlatformFileIoStore>&& PlatformImpl);
 	~FFileIoStore();
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
 	TIoStatusOr<FIoContainerId> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) override;
@@ -175,13 +163,12 @@ private:
 
 	uint64 ReadBufferSize = 0;
 	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;
-	FFileIoStoreEventQueue EventQueue;
 	FFileIoStoreBlockCache BlockCache;
 	FFileIoStoreBufferAllocator BufferAllocator;
 	FFileIoStoreRequestAllocator RequestAllocator;
 	FFileIoStoreRequestQueue RequestQueue;
 	FFileIoStoreRequestTracker RequestTracker;
-	FFileIoStoreImpl PlatformImpl;
+	TUniquePtr<IPlatformFileIoStore> PlatformImpl;
 	FRunnableThread* Thread = nullptr;
 	bool bIsMultithreaded;
 	TAtomic<bool> bStopRequested{ false };

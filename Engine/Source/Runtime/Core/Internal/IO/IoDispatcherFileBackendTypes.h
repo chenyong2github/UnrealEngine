@@ -7,6 +7,15 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Containers/Ticker.h"
+#include "Modules/ModuleInterface.h"
+
+#ifndef PLATFORM_IMPLEMENTS_IO
+#define PLATFORM_IMPLEMENTS_IO 0
+#endif
+
+#ifndef PLATFORM_IODISPATCHER_MODULE
+#define PLATFORM_IODISPATCHER_MODULE PREPROCESSOR_TO_STRING(PREPROCESSOR_JOIN(PLATFORM_HEADER_NAME, PlatformIoDispatcher))
+#endif
 
 #define IO_DISPATCHER_FILE_STATS (COUNTERSTRACE_ENABLED || CSV_PROFILER)
 
@@ -928,3 +937,39 @@ private:
 	// A read was started from a different file handle from the last one we used
 	static void OnHandleChangeSeek();
 };
+
+struct FInitializePlatformFileIoStoreParams
+{
+	const FWakeUpIoDispatcherThreadDelegate* WakeUpDispatcherThreadDelegate = nullptr;
+	FFileIoStoreRequestAllocator* RequestAllocator = nullptr;
+	FFileIoStoreBufferAllocator* BufferAllocator = nullptr;
+	FFileIoStoreBlockCache* BlockCache = nullptr;
+};
+
+class IPlatformFileIoStore
+{
+public:
+	virtual ~IPlatformFileIoStore() = default;
+	virtual void Initialize(const FInitializePlatformFileIoStoreParams& Params) = 0;
+
+	virtual bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize) = 0;
+	virtual void CloseContainer(uint64 ContainerFileHandle) = 0;
+
+	virtual bool CreateCustomRequests(FFileIoStoreResolvedRequest& ResolvedRequest, FFileIoStoreReadRequestList& OutRequests) = 0;
+	virtual bool StartRequests(FFileIoStoreRequestQueue& RequestQueue) = 0;
+	virtual void GetCompletedRequests(FFileIoStoreReadRequestList& OutRequests) = 0;
+
+	virtual void ServiceNotify() = 0;
+	virtual void ServiceWait() = 0;
+};
+
+class IPlatformFileIoStoreModule : public IModuleInterface
+{
+public:
+	virtual TUniquePtr<IPlatformFileIoStore> CreatePlatformFileIoStore() = 0;
+};
+
+#if PLATFORM_IMPLEMENTS_IO
+CORE_API TUniquePtr<IPlatformFileIoStore> CreatePlatformFileIoStore();
+#endif
+
