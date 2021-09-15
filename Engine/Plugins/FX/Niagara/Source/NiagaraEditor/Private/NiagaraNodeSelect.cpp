@@ -511,7 +511,11 @@ FString UNiagaraNodeSelect::GetInputCaseName(int32 Case) const
 	else if(SelectorPinType.IsEnum() && SelectorPinType.GetEnum())
 	{
 		UEnum* Enum = SelectorPinType.GetEnum();
-		return Enum->GetDisplayNameTextByValue(Case).ToString();
+		// the display name is subject to localization and some automatic prettification. To avoid the localization aspect, we retrieve the source string of the text
+		// which is essentially the still prettified non-localized base text. We have to keep it this way for backwards compatibility until we can do a full upgrade pass.
+		// Same in StaticSwitch @todo
+		FText EnumDisplayText = Enum->GetDisplayNameTextByValue(Case);
+		return *FTextInspector::GetSourceString(EnumDisplayText);
 	}
 
 	return TEXT("");

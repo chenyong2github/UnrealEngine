@@ -111,8 +111,7 @@ private:
 	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const;
 
 	void RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter);
-
-	FString GetOptionPinSuffix(int32 Index) const;
+	
 	void AddIntegerInputPin();
 	void RemoveIntegerInputPin();
 	FText GetIntegerAddButtonTooltipText() const;
