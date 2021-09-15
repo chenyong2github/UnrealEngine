@@ -1674,6 +1674,8 @@ FBlueprintEditor::FBlueprintEditor()
 	: bSaveIntermediateBuildProducts(false)
 	, bIsReparentingBlueprint(false)
 	, bPendingDeferredClose(false)
+	, CachedNumWarnings(0)
+	, CachedNumErrors(0)
 	, bRequestedSavingOpenDocumentState(false)
 	, bBlueprintModifiedOnOpen (false)
 	, PinVisibility(SGraphEditor::Pin_Show)
@@ -3787,7 +3789,10 @@ void FBlueprintEditor::Compile()
 
 		LogResults.EndEvent();
 
-		const bool bForceMessageDisplay = ((LogResults.NumWarnings > 0) || (LogResults.NumErrors > 0)) && !BlueprintObj->bIsRegeneratingOnLoad;
+		CachedNumWarnings = LogResults.NumWarnings;
+		CachedNumErrors = LogResults.NumErrors;
+
+		const bool bForceMessageDisplay = (LogResults.NumWarnings > 0 || LogResults.NumErrors > 0) && !BlueprintObj->bIsRegeneratingOnLoad;
 		DumpMessagesToCompilerLog(LogResults.Messages, bForceMessageDisplay);
 
 		UBlueprintEditorSettings const* BpEditorSettings = GetDefault<UBlueprintEditorSettings>();

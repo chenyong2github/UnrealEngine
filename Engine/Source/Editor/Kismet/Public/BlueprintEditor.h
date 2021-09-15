@@ -1339,6 +1339,10 @@ protected:
 	TSharedPtr<class SWidget> CompilerResults;
 	TSharedPtr<class IMessageLogListing> CompilerResultsListing;
 	
+	/** Limited cache of last compile results */
+	int32 CachedNumWarnings;
+	int32 CachedNumErrors;
+	
 	/** Find results log as well as the search filter */
 	TSharedPtr<class SFindInBlueprints> FindResults;
 

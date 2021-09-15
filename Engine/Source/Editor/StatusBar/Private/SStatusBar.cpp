@@ -769,8 +769,14 @@ void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 		}
 
 		bool bShouldDismiss = false;
+
+		// If we aren't focusing any new widgets, act as if the drawer is in the path 
+		bool bDrawerInPath = NewFocusedWidgetPath.ContainsWidget(ActiveDrawerOverlayContent.Get()) 
+			|| NewFocusedWidgetPath.ContainsWidget(this) 
+			|| NewFocusedWidgetPath.Widgets.Num() == 0;
+
 		// Do not close due to slow tasks as those opening send window activation events
-		if (!GIsSlowTask && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && ActiveDrawerOverlayContent.IsValid() && (!NewFocusedWidgetPath.ContainsWidget(ActiveDrawerOverlayContent.Get()) && !NewFocusedWidgetPath.ContainsWidget(this)))
+		if (!GIsSlowTask && !bDrawerInPath && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && ActiveDrawerOverlayContent.IsValid())
 		{
 			if (TSharedPtr<SWidget> MenuHost = FSlateApplication::Get().GetMenuHostWidget())
 			{
@@ -960,6 +966,11 @@ bool SStatusBar::IsDrawerOpened(const FName DrawerId) const
 bool SStatusBar::IsAnyOtherDrawerOpened(const FName DrawerId) const
 {
 	return OpenedDrawer.IsValid() && OpenedDrawer.DrawerId != DrawerId ? true : false;
+}
+
+FName SStatusBar::GetStatusBarName() const
+{
+	return StatusBarName;
 }
 
 FReply SStatusBar::OnDrawerButtonClicked(const FName DrawerId)
@@ -1184,14 +1195,14 @@ void SStatusBar::CloseDrawerImmediatelyInternal(const FOpenDrawerData& Data)
 	}
 }
 
-void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
+void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex)
 {
 	const int32 NumDrawers = RegisteredDrawers.Num();
 	RegisteredDrawers.AddUnique(Drawer);
 
 	if (RegisteredDrawers.Num() > NumDrawers)
 	{
-		DrawerBox->AddSlot()
+		DrawerBox->InsertSlot(SlotIndex)
 		.Padding(1.0f, 0.0f)
 		.AutoWidth()
 		[
@@ -1251,13 +1262,14 @@ void SStatusBar::OpenDrawer(const FName DrawerId)
 
 			OpenedDrawer = MoveTemp(NewlyOpenedDrawer);
 
-			DrawerData->OnDrawerOpenedDelegate.ExecuteIfBound(ThisStatusBar);
+			DrawerData->OnDrawerOpenedDelegate.ExecuteIfBound(ThisStatusBar->StatusBarName);
 		}
 	}
 }
 
-void SStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
+bool SStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
 {
+	bool bWasDismissed = false;
 	if (OpenedDrawer.IsValid())
 	{
 		FStatusBarDrawer* Drawer = RegisteredDrawers.FindByKey(OpenedDrawer.DrawerId);
@@ -1268,7 +1280,10 @@ void SStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
 		OpenedDrawer = FOpenDrawerData();
 
 		Drawer->OnDrawerDismissedDelegate.ExecuteIfBound(NewlyFocusedWidget);
+		bWasDismissed = true;
 	}
+
+	return bWasDismissed;
 }
 
 void SStatusBar::CloseDrawerImmediately(FName DrawerId)

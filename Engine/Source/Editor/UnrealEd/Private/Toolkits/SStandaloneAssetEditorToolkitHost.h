@@ -93,6 +93,11 @@ public:
 	 */
 	void SetToolbar(TSharedPtr<SWidget> Toolbar);
 
+	/**
+	 * Registers a drawer for the asset editor status bar
+	 */
+	void RegisterDrawer(struct FStatusBarDrawer&& Drawer, int32 SlotIndex = INDEX_NONE);
+
 	virtual FEditorModeTools& GetEditorModeManager() const override;
 
 private:
@@ -134,6 +139,8 @@ private:
 	/** A delegate which is called any time the LevelEditor's active viewport changes. */
 	FOnActiveViewportChanged OnActiveViewportChangedDelegate;
 
+	/** Reference to bottom status bar, containing dockable tabs */
+	TSharedPtr<SWidget> StatusBarWidget;
 
 	SVerticalBox::FSlot* ToolbarSlot;
 };

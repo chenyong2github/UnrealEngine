@@ -11,12 +11,14 @@ struct FAnimationTabSummoner : public FWorkflowTabFactory
 {
 public:
 	static const FName TabID;
+	static const FName WidgetAnimSequencerDrawerID;
 	
 public:
-	FAnimationTabSummoner(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor);
+	FAnimationTabSummoner(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor, bool bInIsDrawerTab = false);
 	
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 	
 protected:
 	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
+	bool bIsDrawerTab;
 };

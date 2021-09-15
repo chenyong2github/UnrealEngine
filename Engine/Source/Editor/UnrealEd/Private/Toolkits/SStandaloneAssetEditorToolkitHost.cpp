@@ -165,6 +165,7 @@ void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTab
 
 	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow( HostTab );
 	TSharedPtr<SWidget> RestoredUI = MyTabManager->RestoreFrom( NewLayout, ParentWindow );
+	StatusBarWidget = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(GetMenuName(), HostTab);
 
 	checkf(RestoredUI.IsValid(), TEXT("The layout must have a primary dock area") );
 
@@ -181,11 +182,11 @@ void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTab
 		[
 			RestoredUI.ToSharedRef()
 		]
-		+ SVerticalBox::Slot()
+	+ SVerticalBox::Slot()
 		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 		.AutoHeight()
 		[
-			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(GetMenuName(), HostTab)
+			StatusBarWidget.ToSharedRef()
 		]
 	];
 }
@@ -240,6 +241,14 @@ void SStandaloneAssetEditorToolkitHost::SetToolbar(TSharedPtr<SWidget> Toolbar)
 		[
 			SNullWidget::NullWidget
 		];
+	}
+}
+
+void SStandaloneAssetEditorToolkitHost::RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex)
+{
+	if (StatusBarWidget.IsValid())
+	{
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->RegisterDrawer(GetMenuName(), MoveTemp(Drawer), SlotIndex);
 	}
 }
 

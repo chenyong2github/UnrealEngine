@@ -7815,6 +7815,7 @@ void FStarshipEditorStyle::FStyle::SetupUMGEditorStyles()
 
 	Set("UMGEditor.ResizeResolutionFont", DEFAULT_FONT("Bold", 10));
 	Set("UMGEditor.CategoryIcon", new IMAGE_BRUSH("Icons/hiererchy_16x", Icon16x16));
+	Set("UMGEditor.AnimTabIcon", new IMAGE_BRUSH_SVG("Starship/MainToolbar/cinematics", Icon16x16));
 }
 
 void FStarshipEditorStyle::FStyle::SetupTranslationEditorStyles()

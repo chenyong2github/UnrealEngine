@@ -337,6 +337,51 @@ bool UStatusBarSubsystem::OpenOutputLogDrawer()
 	return false;
 }
 
+bool UStatusBarSubsystem::TryToggleDrawer(const FName DrawerId)
+{
+	bool bToggledSuccessfully = false;
+
+	TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelWindow();
+	if (!ParentWindow.IsValid())
+	{
+		if (TSharedPtr<SDockTab> ActiveTab = FGlobalTabmanager::Get()->GetActiveTab())
+		{
+			if (TSharedPtr<SDockTab> ActiveMajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ActiveTab->GetTabManager()))
+			{
+				ParentWindow = ActiveMajorTab->GetParentWindow();
+			}
+		}
+	}
+
+	if (ParentWindow.IsValid() && ParentWindow->GetType() == EWindowType::Normal)
+	{
+		for (auto StatusBar : StatusBars)
+		{
+			FStatusBarData& SBData = StatusBar.Value;
+			if (TSharedPtr<SStatusBar> StatusBarPinned = SBData.StatusBarWidget.Pin())
+			{
+				TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
+				if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
+				{
+					if (StatusBarPinned->IsDrawerOpened(DrawerId))
+					{
+						StatusBarPinned->DismissDrawer(nullptr);
+					}
+					else
+					{
+						StatusBarPinned->OpenDrawer(DrawerId);
+					}
+
+					bToggledSuccessfully = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return bToggledSuccessfully;
+}
+
 bool UStatusBarSubsystem::ForceDismissDrawer()
 {
 	bool bWasDismissed = false;
@@ -344,11 +389,7 @@ bool UStatusBarSubsystem::ForceDismissDrawer()
 	{
 		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
-			if (StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::ContentBrowser))
-			{
-				StatusBarPinned->DismissDrawer(nullptr);
-				bWasDismissed = true;
-			}
+			bWasDismissed |= StatusBarPinned->DismissDrawer(nullptr);
 		}
 	}
 
@@ -453,6 +494,14 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 	StatusBars.Add(StatusBarName, StatusBarData);
 
 	return StatusBar;
+}
+
+void UStatusBarSubsystem::RegisterDrawer(FName StatusBarName, FStatusBarDrawer&& Drawer, int32 SlotIndex)
+{
+	if (TSharedPtr<SStatusBar> StatusBar = GetStatusBar(StatusBarName))
+	{
+		StatusBar->RegisterDrawer(MoveTemp(Drawer), SlotIndex);
+	}
 }
 
 FStatusBarMessageHandle UStatusBarSubsystem::PushStatusBarMessage(FName StatusBarName, const TAttribute<FText>& InMessage, const TAttribute<FText>& InHintText)
@@ -641,7 +690,7 @@ TSharedRef<SWidget> UStatusBarSubsystem::OnGetContentBrowser()
 	return StatusBarContentBrowser.ToSharedRef();
 }
 
-void UStatusBarSubsystem::OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser)
+void UStatusBarSubsystem::OnContentBrowserOpened(FName StatusBarWithDrawerName)
 {
 	SNewUserTipNotification::Dismiss();
 
@@ -650,7 +699,7 @@ void UStatusBarSubsystem::OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusB
 	{
 		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
-			if (StatusBarWithContentBrowser != StatusBarPinned || StatusBarPinned->IsAnyOtherDrawerOpened(StatusBarDrawerIds::ContentBrowser))
+			if (StatusBarWithDrawerName != StatusBarPinned->GetStatusBarName() || StatusBarPinned->IsAnyOtherDrawerOpened(StatusBarDrawerIds::ContentBrowser))
 			{
 				StatusBarPinned->CloseDrawerImmediately();
 			}
@@ -704,14 +753,14 @@ TSharedRef<SWidget> UStatusBarSubsystem::OnGetOutputLog()
 	return StatusBarOutputLog.ToSharedRef();
 }
 
-void UStatusBarSubsystem::OnOutputLogOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser)
+void UStatusBarSubsystem::OnOutputLogOpened(FName StatusBarWithDrawerName)
 {
 	// Dismiss any other content browser that is opened when one status bar opens it.  The content browser is a shared resource and shouldn't be in the layout twice
 	for (auto StatusBar : StatusBars)
 	{
 		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.StatusBarWidget.Pin())
 		{
-			if (StatusBarWithContentBrowser != StatusBarPinned || StatusBarPinned->IsAnyOtherDrawerOpened(StatusBarDrawerIds::OutputLog))
+			if (StatusBarWithDrawerName != StatusBarPinned->GetStatusBarName() || StatusBarPinned->IsAnyOtherDrawerOpened(StatusBarDrawerIds::OutputLog))
 			{
 				StatusBarPinned->CloseDrawerImmediately();
 			}

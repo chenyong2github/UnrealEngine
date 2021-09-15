@@ -61,6 +61,7 @@ public class UMGEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"SlateRHIRenderer",
+				"StatusBar",
 				"MessageLog",
 				"MovieScene",
 				"MovieSceneTools",

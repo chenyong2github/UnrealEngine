@@ -9,6 +9,15 @@
 #include "WidgetPaletteFavorites.h"
 #include "WidgetDesignerSettings.generated.h"
 
+UENUM()
+enum EDisplayOnCompile
+{
+	DoC_ErrorsOrWarnings,
+	DoC_ErrorsOnly,
+	DoC_WarningsOnly,
+	DoC_Never,
+};
+
 /**
  * Implements the settings for the Widget Blueprint Designer.
  */
@@ -62,6 +71,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = Interaction)
 	bool bRespectLocks;
+
+	/** Setting to automatically create compile tab based on compile results */
+	UPROPERTY(EditAnywhere, config, Category = Interaction)
+	TEnumAsByte<EDisplayOnCompile> CreateOnCompile;
+
+	/** Setting to automatically dismiss compile tab based on compile results */
+	UPROPERTY(EditAnywhere, config, Category = Interaction)
+	TEnumAsByte<EDisplayOnCompile> DismissOnCompile;
 	
 	/**
 	 * List of Favorites widgets used to populate the Favorites Palette

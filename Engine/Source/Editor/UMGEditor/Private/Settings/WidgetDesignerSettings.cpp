@@ -14,6 +14,8 @@ UWidgetDesignerSettings::UWidgetDesignerSettings()
 	bShowOutlines = true;
 	bExecutePreConstructEvent = true;
 	bRespectLocks = true;
+	CreateOnCompile = EDisplayOnCompile::DoC_ErrorsOrWarnings;
+	DismissOnCompile = EDisplayOnCompile::DoC_ErrorsOrWarnings;
 }
 
 #if WITH_EDITOR
