@@ -1132,10 +1132,19 @@ void FAssetEditorToolkit::RegenerateMenusAndToolbars()
 }
 
 
+void FAssetEditorToolkit::RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex)
+{
+	TSharedPtr< class SStandaloneAssetEditorToolkitHost > HostWidget = StandaloneHost.Pin();
+	if (HostWidget.IsValid())
+	{
+		HostWidget->RegisterDrawer(MoveTemp(Drawer), SlotIndex);
+	}
+}
+
 void FAssetEditorToolkit::RestoreFromLayout(const TSharedRef<FTabManager::FLayout>& NewLayout)
 {
 	TSharedPtr< class SStandaloneAssetEditorToolkitHost > HostWidget = StandaloneHost.Pin();
-	if (HostWidget.Get() != NULL)
+	if (HostWidget.IsValid())
 	{
 		// Save the old layout
 		FLayoutSaveRestore::SaveToConfig(GEditorLayoutIni, TabManager->PersistLayout());

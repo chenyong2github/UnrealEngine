@@ -8,6 +8,7 @@
 
 #include "WidgetBlueprintEditorToolbar.h"
 #include "UMGEditorModule.h"
+#include "StatusBarSubsystem.h"
 #include "ToolMenus.h"
 
 #include "TabFactory/PaletteTabSummoner.h"
@@ -15,7 +16,6 @@
 #include "TabFactory/HierarchyTabSummoner.h"
 #include "TabFactory/BindWidgetTabSummoner.h"
 #include "TabFactory/DesignerTabSummoner.h"
-#include "TabFactory/SequencerTabSummoner.h"
 #include "TabFactory/DetailsTabSummoner.h"
 #include "TabFactory/AnimationTabSummoner.h"
 #include "TabFactory/NavigationTabSummoner.h"
@@ -32,75 +32,64 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	// Override the default created category here since "Designer Editor" sounds awkward
 	WorkspaceMenuCategory = FWorkspaceItem::NewGroup(LOCTEXT("WorkspaceMenu_WidgetDesigner", "Widget Designer"));
 
-	TabLayout = FTabManager::NewLayout("WidgetBlueprintEditor_Designer_Layout_v4_3")
+	TabLayout = FTabManager::NewLayout("WidgetBlueprintEditor_Designer_Layout_v4_555")
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()
-		->SetOrientation(Orient_Vertical)
+		->SetOrientation(Orient_Horizontal)
 		->Split
 		(
 			FTabManager::NewSplitter()
-			->SetOrientation(Orient_Horizontal)
-			->SetSizeCoefficient( 0.70f )
+			->SetSizeCoefficient( 0.15f )
+			->SetOrientation(Orient_Vertical)
 			->Split
 			(
-				FTabManager::NewSplitter()
-				->SetSizeCoefficient( 0.15f )
-				->SetOrientation(Orient_Vertical)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.5f)
-					->SetForegroundTab(FPaletteTabSummoner::TabID)
-					->AddTab(FPaletteTabSummoner::TabID, ETabState::OpenedTab)
-					->AddTab(FLibraryTabSummoner::TabID, ETabState::OpenedTab)
-				)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.5f)
-					->SetForegroundTab(FHierarchyTabSummoner::TabID)
-					->AddTab(FHierarchyTabSummoner::TabID, ETabState::OpenedTab)
-					->AddTab(FBindWidgetTabSummoner::TabID, ETabState::OpenedTab)
-				)
+				FTabManager::NewStack()
+				->SetSizeCoefficient(0.5f)
+				->SetForegroundTab(FPaletteTabSummoner::TabID)
+				->AddTab(FPaletteTabSummoner::TabID, ETabState::OpenedTab)
+				->AddTab(FLibraryTabSummoner::TabID, ETabState::OpenedTab)
 			)
 			->Split
 			(
-				FTabManager::NewSplitter()
-				->SetSizeCoefficient( 0.85f )
-				->SetOrientation(Orient_Horizontal)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetHideTabWell(true)
-					->AddTab( FDesignerTabSummoner::TabID, ETabState::OpenedTab )
-				)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient( 0.35f )
-					->AddTab( FDetailsTabSummoner::TabID, ETabState::OpenedTab )
-				)
+				FTabManager::NewStack()
+				->SetSizeCoefficient(0.5f)
+				->SetForegroundTab(FHierarchyTabSummoner::TabID)
+				->AddTab(FHierarchyTabSummoner::TabID, ETabState::OpenedTab)
+				->AddTab(FBindWidgetTabSummoner::TabID, ETabState::OpenedTab)
 			)
 		)
 		->Split
 		(
 			FTabManager::NewSplitter()
-			->SetOrientation(Orient_Horizontal)
-			->SetSizeCoefficient( 0.30f )
+			->SetSizeCoefficient(0.85f)
+			->SetOrientation(Orient_Vertical)
 			->Split
 			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(.15f)
-				->AddTab(FAnimationTabSummoner::TabID, ETabState::OpenedTab)
+				FTabManager::NewSplitter()
+				->SetSizeCoefficient(0.7f)
+				->SetOrientation(Orient_Horizontal)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetHideTabWell(true)
+					->SetSizeCoefficient(0.85f)
+					->AddTab( FDesignerTabSummoner::TabID, ETabState::OpenedTab )
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.35f)
+					->AddTab(FDetailsTabSummoner::TabID, ETabState::OpenedTab)
+				)
 			)
 			->Split
 			(
 				FTabManager::NewStack()
-				->SetSizeCoefficient(.85f)
-				->SetForegroundTab(FSequencerTabSummoner::TabID)
-				->AddTab(FSequencerTabSummoner::TabID, ETabState::OpenedTab)
-				->AddTab(FBlueprintEditorTabs::CompilerResultsID, ETabState::OpenedTab)
+				->SetSizeCoefficient( 0.3f )
+				->AddTab(FAnimationTabSummoner::TabID, ETabState::ClosedTab)
+				->AddTab(FBlueprintEditorTabs::CompilerResultsID, ETabState::ClosedTab)
+				->SetForegroundTab(FAnimationTabSummoner::TabID)
 			)
 		)
 	);
@@ -113,7 +102,6 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 	TabFactories.RegisterFactory(MakeShareable(new FBindWidgetTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FPaletteTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FLibraryTabSummoner(InWidgetEditor)));
-	TabFactories.RegisterFactory(MakeShareable(new FSequencerTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FAnimationTabSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FCompilerResultsSummoner(InWidgetEditor)));
 	TabFactories.RegisterFactory(MakeShareable(new FNavigationTabSummoner(InWidgetEditor)));
@@ -151,7 +139,17 @@ void FWidgetDesignerApplicationMode::PreDeactivateMode()
 void FWidgetDesignerApplicationMode::PostActivateMode()
 {
 	//FWidgetBlueprintApplicationMode::PostActivateMode();
+
 	TSharedPtr<FWidgetBlueprintEditor> BP = GetBlueprintEditor();
+
+	FStatusBarDrawer WidgetAnimSequencerDrawer(FAnimationTabSummoner::WidgetAnimSequencerDrawerID);
+	WidgetAnimSequencerDrawer.GetDrawerContentDelegate.BindSP(BP.Get(), &FWidgetBlueprintEditor::OnGetWidgetAnimSequencer);
+	WidgetAnimSequencerDrawer.OnDrawerOpenedDelegate.BindSP(BP.Get(), &FWidgetBlueprintEditor::OnWidgetAnimSequencerOpened);
+	WidgetAnimSequencerDrawer.OnDrawerDismissedDelegate.BindSP(BP.Get(), &FWidgetBlueprintEditor::OnWidgetAnimSequencerDismissed);
+	WidgetAnimSequencerDrawer.ButtonText = LOCTEXT("StatusBar_WidgetAnimSequencer", "Animations");
+	WidgetAnimSequencerDrawer.ToolTipText = LOCTEXT("StatusBar_WidgetAnimSequencerToolTip", "Opens animation sequencer (Ctrl+Shift+Space Bar).");
+	WidgetAnimSequencerDrawer.Icon = FAppStyle::Get().GetBrush("UMGEditor.AnimTabIcon");
+	BP->RegisterDrawer(MoveTemp(WidgetAnimSequencerDrawer), 1);
 
 	BP->OnEnteringDesigner();
 }

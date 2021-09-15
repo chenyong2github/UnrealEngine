@@ -5,9 +5,12 @@
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Framework/SlateDelegates.h"
 
 #include "StatusBarSubsystem.generated.h"
 
+DECLARE_DELEGATE_OneParam(FOnStatusBarDrawerOpened, FName StatusBarName)
+DECLARE_DELEGATE_OneParam(FOnStatusBarDrawerDismissed, const TSharedPtr<SWidget>&)
 
 class SStatusBar;
 class SWindow;
@@ -45,6 +48,33 @@ private:
 	{}
 
 	int32 Id;
+};
+
+struct FStatusBarDrawer
+{
+	FStatusBarDrawer(FName InUniqueId)
+		: UniqueId(InUniqueId)
+	{}
+
+	FName UniqueId;
+	FOnGetContent GetDrawerContentDelegate;
+	FOnStatusBarDrawerOpened OnDrawerOpenedDelegate;
+	FOnStatusBarDrawerDismissed OnDrawerDismissedDelegate;
+
+	TSharedPtr<SWidget> CustomWidget;
+	FText ButtonText;
+	FText ToolTipText;
+	const FSlateBrush* Icon;
+
+	bool operator==(const FName& OtherId) const
+	{
+		return UniqueId == OtherId;
+	}
+
+	bool operator==(const FStatusBarDrawer& Other) const
+	{
+		return UniqueId == Other.UniqueId;
+	}
 };
 
 struct FStatusBarData
@@ -94,7 +124,12 @@ public:
 	bool OpenOutputLogDrawer();
 
 	/**
-	 * Forces the drawer to dismiss. Usually it dismisses with focus. Only call this if there is some reason an open drawer would be invalid for the current state of the editor.
+	 * Tries to toggle the given drawer
+	 */
+	bool TryToggleDrawer(const FName DrawerId);
+
+	/**
+	 * Forces all drawers to dismiss. Usually it dismisses with focus. Only call this if there is some reason an open drawer would be invalid for the current state of the editor.
 	 */
 	bool ForceDismissDrawer();
 
@@ -104,6 +139,15 @@ public:
 	 * @param StatusBarName	The name of the status bar for updating it later.
 	 */
 	TSharedRef<SWidget> MakeStatusBarWidget(FName StatusBarName, const TSharedRef<SDockTab>& InParentTab);
+
+	/**
+	 * Creates a new instance of a status bar widget
+	 *
+	 * @param StatusBarName	The name of the status bar to add the drawer to
+	 * @param Drawer		The drawer to add to the status bar
+	 * @param SlotIndex		The position at which to add the new drawer
+	 */
+	void RegisterDrawer(FName StatusBarName, FStatusBarDrawer&& Drawer, int32 SlotIndex = INDEX_NONE);
 
 	/** 
 	 * Pushes a new status bar message
@@ -144,12 +188,12 @@ private:
 
 	TSharedPtr<SStatusBar> GetStatusBar(FName StatusBarName) const;
 	TSharedRef<SWidget> OnGetContentBrowser();
-	void OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser);
+	void OnContentBrowserOpened(FName StatusBarWithDrawerName);
 	void OnContentBrowserDismissed(const TSharedPtr<SWidget>& NewlyFocusedWidget);
 	void HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> ParentWindow);
 
 	TSharedRef<SWidget> OnGetOutputLog();
-	void OnOutputLogOpened(TSharedRef<SStatusBar>& StatusBarWithContentBrowser);
+	void OnOutputLogOpened(FName StatusBarWithDrawerName);
 	void OnOutputLogDismised(const TSharedPtr<SWidget>& NewlyFocusedWidget);
 
 	void OnDebugConsoleDrawerClosed();

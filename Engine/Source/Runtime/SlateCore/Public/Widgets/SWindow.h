@@ -790,6 +790,14 @@ public:
 		WidgetToFocusOnActivate = InWidget;
 	}
 
+	/**
+	 * Returns widget last focused on deactivate
+	 */
+	TWeakPtr<SWidget> GetWidgetFocusedOnDeactivate()
+	{
+		return WidgetFocusedOnDeactivate;
+	}
+
 	UE_DEPRECATED(4.16, "ActivateWhenFirstShown() is deprecated. Please use ActivationPolicy() instead.")
 	bool ActivateWhenFirstShown() const
 	{

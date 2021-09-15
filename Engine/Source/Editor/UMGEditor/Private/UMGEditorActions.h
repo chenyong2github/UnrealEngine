@@ -30,6 +30,17 @@ public:
 	TSharedPtr< FUICommandInfo > ExportAsPNG;
 	TSharedPtr< FUICommandInfo > SetImageAsThumbnail;
 	TSharedPtr< FUICommandInfo > ClearCustomThumbnail;
+	TSharedPtr< FUICommandInfo > OpenAnimDrawer;
+
+	TSharedPtr< FUICommandInfo > DismissOnCompile_ErrorsAndWarnings;
+	TSharedPtr< FUICommandInfo > DismissOnCompile_Errors;
+	TSharedPtr< FUICommandInfo > DismissOnCompile_Warnings;
+	TSharedPtr< FUICommandInfo > DismissOnCompile_Never;
+
+	TSharedPtr< FUICommandInfo > CreateOnCompile_ErrorsAndWarnings;
+	TSharedPtr< FUICommandInfo > CreateOnCompile_Errors;
+	TSharedPtr< FUICommandInfo > CreateOnCompile_Warnings;
+	TSharedPtr< FUICommandInfo > CreateOnCompile_Never;
 
 	/**
 	 * Initialize commands

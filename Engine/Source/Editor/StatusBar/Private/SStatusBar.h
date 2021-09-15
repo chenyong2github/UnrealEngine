@@ -9,9 +9,6 @@
 #include "Animation/CurveSequence.h"
 #include "Application/ThrottleManager.h"
 
-
-DECLARE_DELEGATE_OneParam(FOnStatusBarDrawerOpened, TSharedRef<SStatusBar>&)
-DECLARE_DELEGATE_OneParam(FOnStatusBarDrawerDismissed, const TSharedPtr<SWidget>&)
 DECLARE_DELEGATE_OneParam(FOnStatusBarDrawerTargetHeightChanged, float);
 
 class SWindow;
@@ -59,33 +56,6 @@ struct FStatusBarProgress
 	int32 TotalWorkToDo;
 	int32 TotalWorkDone;
 	FProgressNotificationHandle Handle;
-};
-
-struct FStatusBarDrawer
-{
-	FStatusBarDrawer(FName InUniqueId)
-		: UniqueId(InUniqueId)
-	{}
-
-	FName UniqueId;
-	FOnGetContent GetDrawerContentDelegate;
-	FOnStatusBarDrawerOpened OnDrawerOpenedDelegate;
-	FOnStatusBarDrawerDismissed OnDrawerDismissedDelegate;
-
-	TSharedPtr<SWidget> CustomWidget;
-	FText ButtonText;
-	FText ToolTipText;
-	const FSlateBrush* Icon;
-
-	bool operator==(const FName& OtherId) const
-	{
-		return UniqueId == OtherId;
-	}
-
-	bool operator==(const FStatusBarDrawer& Other) const
-	{
-		return UniqueId == Other.UniqueId;
-	}
 };
 
 struct FOpenDrawerData
@@ -169,7 +139,7 @@ public:
 	/**
 	 * Registers a new drawer with this status bar. Registering will add a button to open and close the drawer
 	 */
-	void RegisterDrawer(FStatusBarDrawer&& Drawer);
+	void RegisterDrawer(FStatusBarDrawer&& Drawer, int32 SlotIndex = INDEX_NONE);
 
 	/**
 	 * Opens a drawer
@@ -180,8 +150,11 @@ public:
 
 	/**
 	 * Dismisses an open drawer with an animation.  The drawer contents are removed once the animation is complete
+	 * 
+	 * @param NewlyFocusedWidget Optional widget to focus 
+	 * @return true if any open drawer was dismissed
 	 */
-	void DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget);
+	bool DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget);
 
 	/**
 	 * Closes a drawer immediately with no closing animation. Needed for when UI is shutting down or to prevent conflicts where a drawer is open in two places at once. 
@@ -194,6 +167,9 @@ public:
 
 	/** Is any drawer other than the one specified by DrawerId opened */
 	bool IsAnyOtherDrawerOpened(const FName DrawerId) const;
+
+	/** Get unique name of this status bar */
+	FName GetStatusBarName() const;
 
 private:
 	/** Called when global focus changes which is used to determine if we should close an opened content browser drawer */

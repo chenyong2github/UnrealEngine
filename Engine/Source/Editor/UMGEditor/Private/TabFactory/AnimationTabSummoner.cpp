@@ -8,6 +8,7 @@
 #include "Animation/WidgetAnimation.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditorUtils.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Views/STableViewBase.h"
@@ -19,6 +20,7 @@
 #endif // WITH_EDITOR
 #include "Blueprint/WidgetTree.h"
 
+#include "UMGEditorActions.h"
 #include "UMGStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -32,10 +34,12 @@
 #define LOCTEXT_NAMESPACE "UMG"
 
 const FName FAnimationTabSummoner::TabID(TEXT("Animations"));
+const FName FAnimationTabSummoner::WidgetAnimSequencerDrawerID(TEXT("WidgetAnimSequencer"));
 
-FAnimationTabSummoner::FAnimationTabSummoner(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor)
+FAnimationTabSummoner::FAnimationTabSummoner(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor, bool bInIsDrawerTab)
 		: FWorkflowTabFactory(TabID, InBlueprintEditor)
 		, BlueprintEditor(InBlueprintEditor)
+		, bIsDrawerTab(bInIsDrawerTab)
 {
 	TabLabel = LOCTEXT("AnimationsTabLabel", "Animations");
 	TabIcon = FSlateIcon(FUMGStyle::GetStyleSetName(), "Animations.TabIcon");
@@ -239,6 +243,11 @@ private:
 			Blueprint->Animations.Add(WidgetAnimation);
 			ListItem.Pin()->bNewAnimation = false;
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
+			if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditorPin = BlueprintEditor.Pin())
+			{
+				WidgetBlueprintEditorPin->NotifyWidgetAnimListChanged();
+			}
 		}
 	}
 private:
@@ -254,12 +263,22 @@ public:
 	SLATE_BEGIN_ARGS( SUMGAnimationList	) {}
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor )
+	~SUMGAnimationList()
+	{
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditorPin = BlueprintEditor.Pin())
+		{
+			WidgetBlueprintEditorPin->OnWidgetAnimationsUpdated.RemoveAll(this);
+		}
+	}
+
+	void Construct( const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor, bool bInIsDrawerTab )
 	{
 		BlueprintEditor = InBlueprintEditor;
+		bIsDrawerTab = bInIsDrawerTab;
 
 		InBlueprintEditor->GetOnWidgetBlueprintTransaction().AddSP( this, &SUMGAnimationList::OnWidgetBlueprintTransaction );
 		InBlueprintEditor->OnEnterWidgetDesigner.AddSP(this, &SUMGAnimationList::OnEnteringDesignerMode);
+		InBlueprintEditor->OnWidgetAnimationsUpdated.AddSP(this, &SUMGAnimationList::OnUpdatedAnimationList);
 
 		SAssignNew(AnimationListView, SWidgetAnimationListView)
 			.ItemHeight(20.0f)
@@ -274,38 +293,62 @@ public:
 		[
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding( FMargin(bIsDrawerTab ? 8.0 : 2.0, 2.0) )
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.Padding( 2 )
-				.AutoHeight()
+				SNew(SOverlay)
+				+SOverlay::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
 				[
-					SNew( SHorizontalBox )
-					+ SHorizontalBox::Slot()
-					.Padding(0)
-					.VAlign( VAlign_Center )
-					.AutoWidth()
+					SNew(SSplitter)
+					+ SSplitter::Slot()
+					.Value(0.15f)
 					[
-						SNew(SEditorHeaderButton)
-						.OnClicked( this, &SUMGAnimationList::OnNewAnimationClicked )
-						.Text( LOCTEXT("NewAnimationButtonText", "Animation") )
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.Padding( 2 )
+						.AutoHeight()
+						[
+							SNew( SHorizontalBox )
+							+ SHorizontalBox::Slot()
+							.Padding(0)
+							.VAlign( VAlign_Center )
+							.AutoWidth()
+							[
+								SNew(SEditorHeaderButton)
+								.OnClicked( this, &SUMGAnimationList::OnNewAnimationClicked )
+								.Text( LOCTEXT("NewAnimationButtonText", "Animation") )
+							]
+							+ SHorizontalBox::Slot()
+							.Padding(2.0f, 0.0f)
+							.VAlign( VAlign_Center )
+							[
+								SAssignNew(SearchBoxPtr, SSearchBox)
+								.HintText(LOCTEXT("Search Animations", "Search Animations"))
+								.OnTextChanged(this, &SUMGAnimationList::OnSearchChanged)
+							]
+						]
+						+ SVerticalBox::Slot()
+						.FillHeight(1.0f)
+						[
+							SNew(SScrollBorder, AnimationListView.ToSharedRef())
+							[
+								AnimationListView.ToSharedRef()
+							]
+						]
 					]
-					+ SHorizontalBox::Slot()
-					.Padding(2.0f, 0.0f)
-					.VAlign( VAlign_Center )
+					+ SSplitter::Slot()
+					.Value(0.85f)
 					[
-						SAssignNew(SearchBoxPtr, SSearchBox)
-						.HintText(LOCTEXT("Search Animations", "Search Animations"))
-						.OnTextChanged(this, &SUMGAnimationList::OnSearchChanged)
+						bIsDrawerTab ? BlueprintEditor.Pin()->CreateSequencerDrawerWidget() : BlueprintEditor.Pin()->CreateSequencerTabWidget()
 					]
 				]
-				+ SVerticalBox::Slot()
-				.FillHeight(1.0f)
+				+SOverlay::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Top)
+				.Padding(FMargin(24.0, 10.0))
 				[
-					SNew(SScrollBorder, AnimationListView.ToSharedRef())
-					[
-						AnimationListView.ToSharedRef()
-					]
+					CreateDrawerDockButton()
 				]
 			]
 		];
@@ -315,7 +358,7 @@ public:
 		CreateCommandList();
 	}
 
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
+	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
 	{
 		FReply Reply = FReply::Unhandled();
 		if( CommandList->ProcessCommandBindings( InKeyEvent ) )
@@ -328,18 +371,28 @@ public:
 
 private:
 
-	void UpdateAnimationList()
+	void OnUpdatedAnimationList()
 	{
 		Animations.Empty();
 
 		const TArray<UWidgetAnimation*>& WidgetAnimations = BlueprintEditor.Pin()->GetWidgetBlueprintObj()->Animations;
 
-		for( UWidgetAnimation* Animation : WidgetAnimations )
+		for (UWidgetAnimation* Animation : WidgetAnimations)
 		{
-			Animations.Add( MakeShareable( new FWidgetAnimationListItem( Animation ) ) );
+			Animations.Add(MakeShareable(new FWidgetAnimationListItem(Animation)));
 		}
-		
+
 		AnimationListView->RequestListRefresh();
+	}
+
+	void UpdateAnimationList()
+	{
+		// There may be multiple sequencers acting as a view for our widget
+		// Let the BP editor handle updates as it as aware of all possible sequencers
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditorPin = BlueprintEditor.Pin())
+		{
+			WidgetBlueprintEditorPin->NotifyWidgetAnimListChanged();
+		}
 	}
 
 	void OnEnteringDesignerMode()
@@ -545,6 +598,55 @@ private:
 			FExecuteAction::CreateSP(this, &SUMGAnimationList::OnRenameAnimation),
 			FCanExecuteAction::CreateSP(this, &SUMGAnimationList::CanExecuteContextMenuAction)
 			);
+
+		CommandList->MapAction(FUMGEditorCommands::Get().OpenAnimDrawer,
+			FExecuteAction::CreateSP(this, &SUMGAnimationList::ToggleAnimDrawer)
+		);
+	}
+
+	FReply CreateDrawerDockButtonClicked()
+	{
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetEditor = BlueprintEditor.Pin())
+		{
+			WidgetEditor->DockInLayoutClicked();
+		}
+
+		return FReply::Handled();
+	}
+
+	TSharedRef<SWidget> CreateDrawerDockButton()
+	{
+		if(bIsDrawerTab)
+		{
+			return 
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.ToolTipText(LOCTEXT("DockInLayout_Tooltip", "Docks animation drawer in tab."))
+				.ContentPadding(FMargin(1, 0))
+				.OnClicked(this, &SUMGAnimationList::CreateDrawerDockButtonClicked)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(4.0, 0.0f)
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("EditorViewport.SubMenu.Layouts"))
+					]
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.Padding(4.0, 0.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("DockInLayout", "Dock in Layout"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				];
+		}
+
+		return SNullWidget::NullWidget;
 	}
 
 	bool CanExecuteContextMenuAction() const
@@ -619,12 +721,22 @@ private:
 		AnimationListView->RequestScrollIntoView( SelectedAnimation );
 	}
 
+	void ToggleAnimDrawer()
+	{
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetEditor = BlueprintEditor.Pin())
+		{
+			WidgetEditor->ToggleAnimDrawer();
+		}
+	}
+
+
 private:
 	TSharedPtr<FUICommandList> CommandList;
 	TWeakPtr<FWidgetBlueprintEditor> BlueprintEditor;
 	TSharedPtr<SWidgetAnimationListView> AnimationListView;
 	TArray< TSharedPtr<FWidgetAnimationListItem> > Animations;
 	TSharedPtr<SSearchBox> SearchBoxPtr;
+	bool bIsDrawerTab;
 };
 
 
@@ -632,7 +744,7 @@ TSharedRef<SWidget> FAnimationTabSummoner::CreateTabBody(const FWorkflowTabSpawn
 {
 	TSharedPtr<FWidgetBlueprintEditor> BlueprintEditorPinned = BlueprintEditor.Pin();
 
-	return SNew( SUMGAnimationList, BlueprintEditorPinned );
+	return SNew( SUMGAnimationList, BlueprintEditorPinned, bIsDrawerTab);
 	
 }
 
