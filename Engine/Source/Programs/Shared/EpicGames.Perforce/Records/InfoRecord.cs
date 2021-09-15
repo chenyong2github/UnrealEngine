@@ -62,6 +62,16 @@ namespace EpicGames.Perforce
 		public string? CaseHandling;
 
 		/// <summary>
+		/// How to compare paths on this server
+		/// </summary>
+		public StringComparer PathComparer => String.Equals(CaseHandling, "insensitive", StringComparison.OrdinalIgnoreCase) ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+		/// <summary>
+		/// How to compare paths on this server
+		/// </summary>
+		public StringComparison PathComparison => String.Equals(CaseHandling, "insensitive", StringComparison.OrdinalIgnoreCase) ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+		/// <summary>
 		/// List of services provided by this server
 		/// </summary>
 		[PerforceTag("serverServices", Optional = true)]
