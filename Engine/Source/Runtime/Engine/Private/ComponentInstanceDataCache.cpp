@@ -150,6 +150,11 @@ public:
 		return *this;
 	}
 
+	virtual FArchive& operator<<(FObjectPtr& ObjectPtr) override
+	{
+		return FArchiveUObject::SerializeObjectPtr(*this, ObjectPtr);
+	}
+
 private:
 	const UActorComponent* Component;
 	FActorComponentInstanceData& ActorInstanceData;
@@ -201,6 +206,11 @@ public:
 		UObject* Obj = LazyObjectPtr.Get();
 		*this << Obj;
 		return *this;
+	}
+
+	virtual FArchive& operator<<(FObjectPtr& ObjectPtr) override
+	{
+		return FArchiveUObject::SerializeObjectPtr(*this, ObjectPtr);
 	}
 
 	FActorComponentInstanceData& ActorInstanceData;
