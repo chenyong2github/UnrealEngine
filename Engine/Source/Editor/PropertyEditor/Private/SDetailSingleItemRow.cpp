@@ -1236,6 +1236,7 @@ FArrayRowDragDropOp::FArrayRowDragDropOp(TSharedPtr<SDetailSingleItemRow> InRow)
 {
 	check(InRow.IsValid());
 	Row = InRow;
+	MouseCursor = EMouseCursor::GrabHandClosed;
 }
 
 void FArrayRowDragDropOp::Init()

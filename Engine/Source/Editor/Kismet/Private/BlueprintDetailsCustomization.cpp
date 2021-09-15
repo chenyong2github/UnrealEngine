@@ -2781,6 +2781,7 @@ public:
 		: TargetNode(InTargetNode)
 		, ParamItemPtr(InParamItemPtr)
 	{
+		MouseCursor = EMouseCursor::GrabHandClosed;
 	}
 
 	void Init()

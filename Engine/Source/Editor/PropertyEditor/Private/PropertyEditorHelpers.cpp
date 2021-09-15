@@ -832,6 +832,7 @@ namespace PropertyEditorHelpers
 				]
 			]
 		.ParentRow(InParentRow)
+		.Cursor(EMouseCursor::GrabHand)
 		.IsEnabled(InEnabledAttr)
 		.Visibility_Lambda([InParentRow]() { return InParentRow->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; });
 		return Handle;
