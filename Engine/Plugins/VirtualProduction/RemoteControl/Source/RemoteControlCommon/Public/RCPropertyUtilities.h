@@ -369,6 +369,24 @@ namespace RemoteControlPropertyUtilities
 		return true;
 	}
 
+	/** Specialization for FBoolProperty. */
+	template <>
+	inline bool Deserialize<FBoolProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+	{
+		using ValueType = TRemoteControlPropertyTypeTraits<FBoolProperty>::ValueType;
+		
+		TArray<uint8>* SrcPropertyContainer = InSrc.GetPropertyContainer();
+		checkf(SrcPropertyContainer != nullptr, TEXT("Deserialize requires Src to have a backing container."));
+
+		OutDst.Init(InSrc.Size()); // initializes only if necessary
+
+		const ValueType* SrcCurrentValue = InSrc.GetPropertyValue<ValueType>();
+		ValueType* DstCurrentValue = OutDst.GetPropertyValue<ValueType>();
+		*DstCurrentValue = *SrcCurrentValue;
+
+		return true;
+	}
+
 	/** Specialization for FStructProperty. */
 	template <>
 	inline bool Deserialize<FStructProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
