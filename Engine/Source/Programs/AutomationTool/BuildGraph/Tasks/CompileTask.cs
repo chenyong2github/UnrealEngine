@@ -20,7 +20,7 @@ namespace AutomationTool
 		/// <summary>
 		/// The target to compile.
 		/// </summary>
-		[TaskParameter]
+		[TaskParameter(Optional=true)]
 		public string Target;
 
 		/// <summary>
