@@ -1236,7 +1236,6 @@ namespace Audio
 			}
 			
 			WindowsNotificationClient->UnRegisterDeviceDeviceChangedListener(this);
-			WindowsNotificationClient.Reset();
 		}
 	}
 
