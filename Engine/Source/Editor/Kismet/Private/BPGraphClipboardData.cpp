@@ -120,6 +120,12 @@ UEdGraph* FBPGraphClipboardData::CreateAndPopulateGraph(UBlueprint* InBlueprint,
 						break;
 					}
 				}
+
+				// Mark the macro as public if it will be called from external objects
+				if (InBlueprint->BlueprintType == BPTYPE_MacroLibrary)
+				{
+					Graph->SetFlags(RF_Public);
+				}
 			}
 
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
