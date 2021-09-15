@@ -1040,7 +1040,7 @@ void UCubeGridTool::OnCtrlMiddleClick(const FInputDeviceRay& ClickPos)
 
 	// Transform the ray to grid space and see which of the corners is closest.
 	FVector3d GridSpaceRayOrigin = CubeGrid->ToGridPoint(ClickPos.WorldRay.Origin);
-	FVector3d GridSpaceRayDirection = CubeGrid->GetFrame().ToFrameVector(ClickPos.WorldRay.Direction);
+	FVector3d GridSpaceRayDirection = CubeGrid->GetFrame().ToFrameVector(FVector3d(ClickPos.WorldRay.Direction));
 	GridSpaceRayDirection.Normalize();
 	FRay3d GizmoSpaceRay(GridSpaceRayOrigin, GridSpaceRayDirection);
 
