@@ -46,6 +46,7 @@ namespace Insights
 	class FTimeMarker;
 	class FQuickFind;
 	class SQuickFind;
+	enum class ETimingEventsColoringMode : uint32;
 }
 
 /** A custom widget used to display timing events. */
@@ -70,20 +71,6 @@ public:
 	 * @param	InArgs	The declaration data for this widget
 	 */
 	void Construct(const FArguments& InArgs);
-
-	void CreateCompactMenuLine(FMenuBuilder& MenuBuilder, FText Label, TSharedRef<SWidget> InnerWidget) const;
-	TSharedRef<SWidget> MakeCompactAutoScrollOptionsMenu();
-	TSharedRef<SWidget> MakeAutoScrollOptionsMenu();
-
-	TSharedRef<SWidget> MakeAllTracksMenu();
-	void CreateAllTracksMenu(FMenuBuilder& MenuBuilder);
-	TSharedRef<SWidget> MakeCpuGpuTracksFilterMenu();
-	TSharedRef<SWidget> MakeOtherTracksFilterMenu();
-	TSharedRef<SWidget> MakePluginTracksFilterMenu();
-	TSharedRef<SWidget> MakeViewModeMenu();
-
-	bool ShowHideGraphTrack_IsChecked() const;
-	void ShowHideGraphTrack_Execute();
 
 	bool IsCompactModeEnabled() const;
 	void ToggleCompactMode();
@@ -385,11 +372,38 @@ protected:
 		return FVector2D(16.0f, 16.0f);
 	}
 
-	void ShowContextMenu(const FPointerEvent& MouseEvent);
-	void CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<FBaseTimingTrack> Track);
-
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
+
+	void CreateCompactMenuLine(FMenuBuilder& MenuBuilder, FText Label, TSharedRef<SWidget> InnerWidget) const;
+	TSharedRef<SWidget> MakeCompactAutoScrollOptionsMenu();
+	TSharedRef<SWidget> MakeAutoScrollOptionsMenu();
+
+	TSharedRef<SWidget> MakeAllTracksMenu();
+	void CreateAllTracksMenu(FMenuBuilder& MenuBuilder);
+
+	TSharedRef<SWidget> MakeCpuGpuTracksFilterMenu();
+
+	TSharedRef<SWidget> MakeOtherTracksFilterMenu();
+	bool ShowHideGraphTrack_IsChecked() const;
+	void ShowHideGraphTrack_Execute();
+
+	TSharedRef<SWidget> MakePluginTracksFilterMenu();
+
+	TSharedRef<SWidget> MakeViewModeMenu();
+
+	void CreateDepthLimitMenu(FMenuBuilder& MenuBuilder);
+	void ChooseNextEventDepthLimit();
+	void SetEventDepthLimit(uint32 DepthLimit);
+	bool CheckEventDepthLimit(uint32 DepthLimit);
+
+	void CreateCpuThreadTrackColoringModeMenu(FMenuBuilder& MenuBuilder);
+	void ChooseNextCpuThreadTrackColoringMode();
+	void SetCpuThreadTrackColoringMode(Insights::ETimingEventsColoringMode Mode);
+	bool CheckCpuThreadTrackColoringMode(Insights::ETimingEventsColoringMode Mode);
+
+	void ShowContextMenu(const FPointerEvent& MouseEvent);
+	void CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<FBaseTimingTrack> Track);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Auto-Scroll

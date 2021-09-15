@@ -213,10 +213,10 @@ static void AddTimingEventToBuilder(ITimingEventsTrackDrawStateBuilder& Builder,
 	uint32 EventColor;
 	switch (FTimingProfilerManager::Get()->GetColoringMode())
 	{
-		case Insights::ETimingEventsColoringMode::ByName:
+		case Insights::ETimingEventsColoringMode::ByTimerName:
 			EventColor = FTimingEvent::ComputeEventColor(Timer->Name);
 			break;
-		case Insights::ETimingEventsColoringMode::ById:
+		case Insights::ETimingEventsColoringMode::ByTimerId:
 			EventColor = FTimingEvent::ComputeEventColor(Timer->Id);
 			break;
 		case Insights::ETimingEventsColoringMode::ByDuration:

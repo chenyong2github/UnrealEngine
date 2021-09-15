@@ -377,18 +377,18 @@ void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoOverviewTrack),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoOverviewTrackVisible)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
 		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowOnlyErrors", "Show Only Errors (I/O Overview Track)"),
+			LOCTEXT("ShowOnlyErrors", "Only Errors (I/O Overview Track)"),
 			LOCTEXT("ShowOnlyErrors_Tooltip", "Show only the events with errors, in the I/O Overview track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleOnlyErrors),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsOnlyErrorsToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
@@ -399,18 +399,18 @@ void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoActivityTrack),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoActivityTrackVisible)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
 		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowBackgroundEvents", "Show Background Events (I/O Activity Track) - O"),
+			LOCTEXT("ShowBackgroundEvents", "Background Events (I/O Activity Track) - O"),
 			LOCTEXT("ShowBackgroundEvents_Tooltip", "Show background events for file activities, in the I/O Activity track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleBackgroundEvents),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::AreBackgroundEventsVisible)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -829,7 +829,7 @@ void FOverviewFileActivityTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuB
 			FUIAction(FExecuteAction::CreateSP(this, &FOverviewFileActivityTimingTrack::ToggleOnlyErrors),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FOverviewFileActivityTimingTrack::IsOnlyErrorsToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -968,7 +968,7 @@ void FDetailedFileActivityTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuB
 			FUIAction(FExecuteAction::CreateSP(this, &FDetailedFileActivityTimingTrack::ToggleOnlyErrors),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FDetailedFileActivityTimingTrack::IsOnlyErrorsToggleOn)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
@@ -979,7 +979,7 @@ void FDetailedFileActivityTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuB
 			FUIAction(FExecuteAction::CreateSP(this, &FDetailedFileActivityTimingTrack::ToggleBackgroundEvents),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &FDetailedFileActivityTimingTrack::AreBackgroundEventsVisible)),
-			NAME_None, //"QuickFilterSeparator",
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
