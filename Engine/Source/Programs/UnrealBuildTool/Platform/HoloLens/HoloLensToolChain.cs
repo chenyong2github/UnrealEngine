@@ -129,6 +129,15 @@ namespace UnrealBuildTool
 				VCToolChain.AddDefinition(Arguments, "_WINDLL");
 			}
 
+			// Experimental deterministic compile support
+			if (Target.WindowsPlatform.bDeterministic)
+			{
+				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+				{
+					Arguments.Add("/experimental:deterministic");
+				}
+			}
+
 			//
 			//	Debug
 			//
@@ -375,6 +384,12 @@ namespace UnrealBuildTool
 
 			// Don't embed the full PDB path; we want to be able to move binaries elsewhere. They will always be side by side.
 			Arguments.Add("/PDBALTPATH:%_PDB%");
+
+			// Experimental deterministic compile support
+			if (Target.WindowsPlatform.bDeterministic)
+			{
+				Arguments.Add("/experimental:deterministic");
+			}
 
 			//
 			//	Shipping & LTCG
