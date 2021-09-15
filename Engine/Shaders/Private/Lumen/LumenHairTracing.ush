@@ -57,7 +57,6 @@ void TraceHairScreen(
 #define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
 #define VOXEL_TRAVERSAL_DEBUG 0
 
-#include "../HairStrands/HairStrandsVoxelPageCommon.ush"
 #include "../HairStrands/HairStrandsVoxelPageTraversal.ush"
 
 void TraceHairVoxels(
@@ -73,7 +72,7 @@ void TraceHairVoxels(
 	// Hair strands voxel to apply hair shadow on top of opaque geometry
 	float3 RayStart = SamplePosition;
 	float3 RayEnd = SamplePosition + SampleDirection * MaxTraceDistance;
-	float4 Random = 0.5f; //GetHairVoxelJitter2(PixelCoord.xy, View.StateFrameIndexMod8);
+	float4 Random = GetHairVoxelJitter2(PixelCoord.xy, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
 	// Jitter start position to mask/compensate coarse voxel resolution
 	if (1)
