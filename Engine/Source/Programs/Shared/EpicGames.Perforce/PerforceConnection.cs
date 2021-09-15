@@ -825,6 +825,24 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Connection">Connection to the Perforce server</param>
 		/// <param name="Options">Options for the command</param>
+		/// <param name="ClientName">List only changes made from the named client workspace.</param>
+		/// <param name="MinChangeNumber">The minimum changelist number</param>
+		/// <param name="MaxChanges">List only the highest numbered changes</param>
+		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="UserName">List only changes made by the named user</param>
+		/// <param name="FileSpecs">Paths to query changes for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server.</returns>
+		public static async Task<List<ChangesRecord>> GetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, string? ClientName, int MinChangeNumber, int MaxChanges, ChangeStatus Status, string? UserName, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			return (await TryGetChangesAsync(Connection, Options, ClientName, MinChangeNumber, MaxChanges, Status, UserName, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Enumerates changes on the server
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
 		/// <param name="MaxChanges">List only the highest numbered changes</param>
 		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
 		/// <param name="FileSpecs">Paths to query changes for</param>
@@ -848,6 +866,24 @@ namespace EpicGames.Perforce
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server.</returns>
 		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, string? ClientName, int MaxChanges, ChangeStatus Status, string? UserName, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			return TryGetChangesAsync(Connection, Options, ClientName, -1, MaxChanges, Status, UserName, FileSpecs, CancellationToken);
+		}
+
+		/// <summary>
+		/// Enumerates changes on the server
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="ClientName">List only changes made from the named client workspace.</param>
+		/// <param name="MinChangeNumber">The minimum changelist number</param>
+		/// <param name="MaxChanges">List only the highest numbered changes</param>
+		/// <param name="Status">Limit the list to the changelists with the given status (pending, submitted or shelved)</param>
+		/// <param name="UserName">List only changes made by the named user</param>
+		/// <param name="FileSpecs">Paths to query changes for</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server.</returns>
+		public static Task<PerforceResponseList<ChangesRecord>> TryGetChangesAsync(this IPerforceConnection Connection, ChangesOptions Options, string? ClientName, int MinChangeNumber, int MaxChanges, ChangeStatus Status, string? UserName, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
 		{
 			List<string> Arguments = new List<string>();
 			if ((Options & ChangesOptions.IncludeIntegrations) != 0)
@@ -873,6 +909,10 @@ namespace EpicGames.Perforce
 			if (ClientName != null)
 			{
 				Arguments.Add($"-c{ClientName}");
+			}
+			if (MinChangeNumber != -1)
+			{
+				Arguments.Add($"-e{MinChangeNumber}");
 			}
 			if (MaxChanges != -1)
 			{
@@ -1521,6 +1561,61 @@ namespace EpicGames.Perforce
 				Arguments.Add($"{ChangeNumber}");
 			}
 			return CommandAsync<DescribeRecord>(Connection, "describe", Arguments, null, CancellationToken);
+		}
+
+		#endregion
+
+		#region p4 dirs
+
+		/// <summary>
+		/// List directories under a depot path
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="Stream">List directories mapped for the specified stream</param>
+		/// <param name="FileSpecs">Files to be opened for edit</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public static async Task<List<DirsRecord>> GetDirsAsync(this IPerforceConnection Connection, DirsOptions Options, string? Stream, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			return (await TryGetDirsAsync(Connection, Options, Stream, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// List directories under a depot path
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="Options">Options for the command</param>
+		/// <param name="Stream">List directories mapped for the specified stream</param>
+		/// <param name="FileSpecs">Files to be opened for edit</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		public static Task<PerforceResponseList<DirsRecord>> TryGetDirsAsync(this IPerforceConnection Connection, DirsOptions Options, string? Stream, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			List<string> Arguments = new List<string>();
+			if ((Options & DirsOptions.OnlyMapped) != 0)
+			{
+				Arguments.Add("-C");
+			}
+			if ((Options & DirsOptions.IncludeDeleted) != 0)
+			{
+				Arguments.Add("-D");
+			}
+			if ((Options & DirsOptions.OnlyHave) != 0)
+			{
+				Arguments.Add("-H");
+			}
+			if (Stream != null)
+			{
+				Arguments.Add("-S");
+				Arguments.Add(Stream);
+			}
+			if ((Options & DirsOptions.IgnoreCase) != 0)
+			{
+				Arguments.Add("-i");
+			}
+
+			return CommandAsync<DirsRecord>(Connection, "dirs", Arguments, FileSpecs.List, null, CancellationToken);
 		}
 
 		#endregion

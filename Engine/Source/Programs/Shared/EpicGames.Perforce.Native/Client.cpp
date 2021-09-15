@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "clientapi.h"
+#include "strtable.h"
 #include <assert.h>
 
 #ifdef _MSC_VER
 	#define NATIVE_API __declspec(dllexport)
+	#define strcasecmp _stricmp
 #else
 	#define NATIVE_API
 #endif
@@ -47,6 +49,7 @@ private:
 	FOnBufferReadyFn* OnBufferReady;
 
 public:
+	const char* Func = nullptr;
 	const char* PromptResponse = nullptr;
 
 	FClientUser(FWriteBuffer* WriteBuffer, FOnBufferReadyFn* OnBufferReady)
@@ -109,14 +112,6 @@ public:
 		}
 	}
 
-	virtual void Message(Error* err) override
-	{
-		while (!TryOutputError(err))
-		{
-			Flush();
-		}
-	}
-
 	bool TryOutputError(Error* Err)
 	{
 		static const char CodeKey[] = "code";
@@ -147,6 +142,38 @@ public:
 
 		Length += RecordLen;
 		return true;
+	}
+
+	virtual void Message(Error* Err) override
+	{
+		while (!TryOutputMessage(Err))
+		{
+			Flush();
+		}
+	}
+
+	bool TryOutputMessage(Error* Err)
+	{
+		// Try to translate these into stat messages depending on the command
+		if (Func != nullptr)
+		{
+			if (Err->GetSeverity() == E_INFO && strcasecmp(Func, "dirs") == 0)
+			{
+				StrDict* Dict = Err->GetDict();
+				if (Dict != nullptr)
+				{
+					StrPtr* DirName = Dict->GetVar("dirName");
+					if (DirName != nullptr)
+					{
+						StrBufDict StatDict;
+						StatDict.VSetVar(StrBuf("dir"), *DirName);
+						return TryWriteRecord(&StatDict);
+					}
+				}
+			}
+		}
+
+		return TryOutputError(Err);
 	}
 
 	virtual void OutputError(const char* errBuf) override
@@ -398,9 +425,11 @@ extern "C" NATIVE_API void Client_Login(FClient * Client, const char* Password)
 
 extern "C" NATIVE_API void Client_Command(FClient* Client, const char* Func, int ArgCount, const char** Args)
 {
+	Client->User.Func = Func;
 	Client->ClientApi.SetArgv(ArgCount, (char* const*)Args);
 	Client->ClientApi.Run(Func, &Client->User);
 	Client->User.Flush();
+	Client->User.Func = nullptr;
 }
 
 extern "C" NATIVE_API void Client_Destroy(FClient* Client)

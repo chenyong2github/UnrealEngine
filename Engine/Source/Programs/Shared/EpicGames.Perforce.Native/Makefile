@@ -23,4 +23,4 @@ clean:
 	rm -rf $(OBJDIR)/ 
 	rm -rf $(OUTDIR)/
  
-all: bridge
+all: client
