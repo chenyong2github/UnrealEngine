@@ -266,29 +266,6 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
-		/// Updates the query time on a stream object
-		/// </summary>
-		/// <param name="Stream">The stream to update</param>
-		/// <param name="LastCommitTime">The last query time</param>
-		/// <returns>New state of the commit stream</returns>
-		public async Task<IStream?> UpdateCommitTimeAsync(IStream? Stream, DateTime LastCommitTime)
-		{
-			// Try to update the commit stream with the new commits
-			while (Stream != null && (!Stream.LastCommitTime.HasValue || LastCommitTime > Stream.LastCommitTime))
-			{
-				// Try to update the document
-				if(await Streams.TryUpdateCommitTimeAsync(Stream, LastCommitTime))
-				{
-					break;
-				}
-
-				// Fetch the new stream document
-				Stream = await GetStreamAsync(Stream.Id);
-			}
-			return Stream;
-		}
-
-		/// <summary>
 		/// Determines if the user is authorized to perform an action on a particular stream
 		/// </summary>
 		/// <param name="Acl">ACL for the stream to check</param>

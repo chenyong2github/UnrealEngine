@@ -558,11 +558,6 @@ namespace HordeServer.Models
 		public IReadOnlyDictionary<TemplateRefId, TemplateRef> Templates { get; }
 
 		/// <summary>
-		/// Last time that we queried for commits
-		/// </summary>
-		public DateTime? LastCommitTime { get; }
-		
-		/// <summary>
 		/// Stream is paused for builds until specified time
 		/// </summary>
 		public DateTime? PausedUntil { get; }
@@ -716,7 +711,6 @@ namespace HordeServer.Models
 			HordeCommon.Rpc.GetStreamResponse Response = new HordeCommon.Rpc.GetStreamResponse();
 			Response.Name = Stream.Name;
 			Response.AgentTypes.Add(Stream.AgentTypes.ToDictionary(x => x.Key, x => x.Value.ToRpcResponse()));
-			Response.LastCommitTime = Stream.LastCommitTime.HasValue? Timestamp.FromDateTime(Stream.LastCommitTime.Value) : new Timestamp();
 			return Response;
 		}
 
