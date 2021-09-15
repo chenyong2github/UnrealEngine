@@ -246,6 +246,7 @@ JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeQueryComplete
 
 			NewProductInfo.Description = FText::FromString(FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(descriptions, Idx)));
 			NewProductInfo.PriceText = FText::FromString(FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(prices, Idx)));
+			NewProductInfo.CurrencyCode = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(currencyCodes, Idx));
 
 			// Convert the backend stated price into its base units
 			FInternationalization& I18N = FInternationalization::Get();
@@ -256,7 +257,6 @@ JNI_METHOD void Java_com_epicgames_ue4_GooglePlayStoreHelper_nativeQueryComplete
 			double Val = static_cast<double>(PricesRaw[Idx]) * static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
 
 			NewProductInfo.NumericPrice = FMath::TruncToInt(Val + 0.5);
-			NewProductInfo.CurrencyCode = FJavaHelper::FStringFromLocalRef(jenv, (jstring)jenv->GetObjectArrayElement(currencyCodes, Idx));
 
 			//Loop through original json data and populate dynamic map.
 			TSharedPtr<FJsonObject> JsonObject;
