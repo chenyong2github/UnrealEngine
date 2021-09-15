@@ -84,6 +84,36 @@ struct FAudioThreadInteractor
 	}
 };
 
+UE::Tasks::ETaskPriority GAudioTaskPriority = UE::Tasks::ETaskPriority::BackgroundNormal;
+
+static void SetAudioTaskPriority(const TArray<FString>& Args)
+{
+	UE_LOG(LogConsoleResponse, Display, TEXT("AudioTaskPriority was %s."), LowLevelTasks::ToString(GAudioTaskPriority));
+
+	if (Args.Num() > 1)
+	{
+		UE_LOG(LogConsoleResponse, Display, TEXT("WARNING: This command requires a single argument while %d were provided, all extra arguments will be ignored."), Args.Num());
+	}
+	else if (Args.IsEmpty())
+	{
+		UE_LOG(LogConsoleResponse, Display, TEXT("ERROR: Please provide a new priority value."));
+		return;
+	}
+
+	if (!LowLevelTasks::ToTaskPriority(*Args[0], GAudioTaskPriority))
+	{
+		UE_LOG(LogConsoleResponse, Display, TEXT("ERROR: Invalid priority: %s."), *Args[0]);
+	}
+
+	UE_LOG(LogConsoleResponse, Display, TEXT("Audio Task Priority was set to %s."), LowLevelTasks::ToString(GAudioTaskPriority));
+}
+
+static FAutoConsoleCommand AudioThreadPriorityConsoleCommand(
+	TEXT("AudioThread.TaskPriority"),
+	TEXT("Takes a single parameter of value `High`, `Normal`, `BackgroundHigh`, `BackgroundNormal` or `BackgroundLow`."),
+	FConsoleCommandWithArgsDelegate::CreateStatic(&SetAudioTaskPriority)
+);
+
 static FAutoConsoleVariableSink CVarUseAudioThreadSink(FConsoleCommandDelegate::CreateStatic(&FAudioThreadInteractor::UseAudioThreadCVarSinkFunction));
 
 bool FAudioThread::bUseThreadedAudio = false;
@@ -464,7 +494,7 @@ void FAudioThread::RunCommandOnAudioThread(TUniqueFunction<void()> InFunction, c
 	// we are on an unknown thread
 	else if (IsUsingThreadedAudio())
 	{
-		GAudioPipe.Launch(TEXT("AudioCommand"), MoveTemp(CommandWrapper));
+		GAudioPipe.Launch(TEXT("AudioCommand"), MoveTemp(CommandWrapper), GAudioTaskPriority);
 	}
 	else
 	{
