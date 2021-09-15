@@ -4,6 +4,7 @@
 #include "RHI.h"
 #include "SceneView.h"
 #include "PostProcess/PostProcessing.h"
+#include "ColorCorrectRegionDatabase.h"
 #include "ColorCorrectRegionsSubsystem.h"
 #include "ColorCorrectRegionsPostProcessMaterial.h"
 #include "ScreenPass.h"
@@ -347,6 +348,9 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 		{
 			AColorCorrectRegion* Region = *It;
 
+			// We use primitive componentIds to check if this region is hidden from camera in cases such as Display cluster.
+			FPrimitiveComponentId FirstComponentId = FColorCorrectRegionDatabase::GetFirstComponentId(Region);
+
 			/* If Region is pending for kill, invisible or disabled we don't need to render it.
 			*	If Region's Primitive is not visible in the current view's scene then we don't need to render it either.
 			*	We are checking if the region belongs to the same world as the view. 
@@ -360,7 +364,8 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 #if WITH_EDITOR
 				Region->IsHiddenEd() ||
 #endif
-				Region->GetWorld() != ViewFamily.Scene->GetWorld())
+				Region->GetWorld() != ViewFamily.Scene->GetWorld() ||
+				View.HiddenPrimitives.Contains(FirstComponentId))
 			{
 				continue;
 			}

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectRegion.h"
+#include "ColorCorrectRegionDatabase.h"
 #include "ColorCorrectRegionsSubsystem.h"
 #include "Engine/Classes/Components/MeshComponent.h"
 #include "CoreMinimal.h"
@@ -70,6 +71,11 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 	{
 		PreviousFrameTransform = CurrentFrameTransform;
 		GetActorBounds(true, BoxOrigin, BoxExtent);
+	}
+
+	if (const UPrimitiveComponent* FirstPrimitiveComponent = FindComponentByClass<UPrimitiveComponent>())
+	{
+		FColorCorrectRegionDatabase::UpdateCCRDatabaseFirstComponentId(this, FirstPrimitiveComponent->ComponentId);
 	}
 }
 
