@@ -121,6 +121,30 @@ public:
 
 		this->InertialScrollManager.ClearScrollVelocity();
 	}
+
+	virtual void Private_SignalSelectionChanged(ESelectInfo::Type SelectInfo) override
+	{
+		STreeView<ItemType>::Private_SignalSelectionChanged(SelectInfo);
+
+		// the SListView does not know about bHideParentsWhenFiltering and will select the boens regardless of their visible
+		// ( For example when using select all )
+		// this filter out those ones to only keep the ones that can be selected
+		{
+			TArray<ItemType> FilteredSelection;
+			for (const ItemType& Item: this->SelectedItems)
+			{
+				if (Private_CanItemBeSelected(Item))
+				{
+					FilteredSelection.Add(Item);
+				}
+			}
+			if (FilteredSelection.Num() != this->SelectedItems.Num())
+			{
+				this->ClearSelection();
+				this->SetItemSelection(FilteredSelection, true, SelectInfo);
+			}
+		}
+	}
 };
 
 void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditableSkeleton>& InEditableSkeleton, const FSkeletonTreeArgs& InSkeletonTreeArgs)
