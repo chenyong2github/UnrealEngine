@@ -637,8 +637,24 @@ struct FTexturePlatformData
 	/** The key associated with this derived data. */
 	TVariant<FString, UE::DerivedData::FCacheKeyProxy> DerivedDataKey;
 
+	struct FStructuredDerivedDataKey
+	{
+		FIoHash BuildDefinitionKey;
+		FGuid SourceGuid;
+		FGuid CompositeSourceGuid;
+
+		bool operator==(const FStructuredDerivedDataKey& Other) const
+		{
+			return BuildDefinitionKey == Other.BuildDefinitionKey && SourceGuid == Other.SourceGuid && CompositeSourceGuid == Other.CompositeSourceGuid;
+		}
+
+		bool operator!=(const FStructuredDerivedDataKey& Other) const
+		{
+			return BuildDefinitionKey != Other.BuildDefinitionKey || SourceGuid != Other.SourceGuid || CompositeSourceGuid != Other.CompositeSourceGuid;
+		}
+	};
 	/** The key used when comparing this derived data key to another reference key. */
-	TVariant<FString, UE::DerivedData::FCacheKeyProxy> ComparisonDerivedDataKey;
+	TVariant<FString, FStructuredDerivedDataKey> ComparisonDerivedDataKey;
 
 	/** Async cache task if one is outstanding. */
 	struct FTextureAsyncCacheDerivedDataTask* AsyncTask;

@@ -1872,22 +1872,20 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 			}
 			else
 			{
-				if (FTexturePlatformData::IsUsingNewDerivedData())
+				if (FTexturePlatformData::IsUsingNewDerivedData() && (Source.GetNumLayers() == 1) && !BuildSettings[0].bVirtualStreamable)
 				{
-					if (PlatformDataLink->IsAsyncWorkComplete())
+					
+					using namespace UE::DerivedData;
+					if (const FTexturePlatformData::FStructuredDerivedDataKey* ExistingDerivedDataKey = PlatformDataLink->ComparisonDerivedDataKey.TryGet<FTexturePlatformData::FStructuredDerivedDataKey>())
 					{
-						using namespace UE::DerivedData;
-						if (const FCacheKeyProxy* ExistingDerivedDataKey = PlatformDataLink->ComparisonDerivedDataKey.TryGet<FCacheKeyProxy>())
-						{
-							if (*ExistingDerivedDataKey->AsCacheKey() != *CreateTextureCacheKeyProxy(*this, CacheFlags, BuildSettings[0]).AsCacheKey())
-							{
-								bPerformCache = true;
-							}
-						}
-						else
+						if (*ExistingDerivedDataKey != CreateTextureDerivedDataKey(*this, CacheFlags, BuildSettings[0]))
 						{
 							bPerformCache = true;
 						}
+					}
+					else
+					{
+						bPerformCache = true;
 					}
 				}
 				else

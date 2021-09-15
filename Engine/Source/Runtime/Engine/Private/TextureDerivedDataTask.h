@@ -260,7 +260,7 @@ FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	EQueuedWorkPriority Priority,
 	ETextureCacheFlags Flags);
 
-UE::DerivedData::FCacheKeyProxy CreateTextureCacheKeyProxy(
+FTexturePlatformData::FStructuredDerivedDataKey CreateTextureDerivedDataKey(
 	UTexture& Texture,
 	ETextureCacheFlags CacheFlags,
 	const FTextureBuildSettings& Settings);
