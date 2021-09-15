@@ -118,6 +118,9 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxelAdaptive_Enable				(TEXT("r.H
 static FAutoConsoleVariableRef CVarHairVirtualVoxelAdaptive_CorrectionSpeed		(TEXT("r.HairStrands.Voxelization.Virtual.Adaptive.CorrectionSpeed"),		GHairVirtualVoxelAdaptive_CorrectionSpeed		, TEXT("Define the speed at which allocation adaption runs (value in 0..1, default = 0.25). A higher number means faster adaptation, but with a risk of oscillation i.e. over and under allocation"), ECVF_RenderThreadSafe);
 static FAutoConsoleVariableRef CVarHairVirtualVoxelAdaptive_CorrectionThreshold	(TEXT("r.HairStrands.Voxelization.Virtual.Adaptive.CorrectionThreshold"),	GHairVirtualVoxelAdaptive_CorrectionThreshold	, TEXT("Define the allocation margin to limit over allocation (value in 0..1, default = 0.95)"), ECVF_RenderThreadSafe);
 
+static int32 GHairVirtualVoxel_JitterMode = 1;
+static FAutoConsoleVariableRef CVarHairVirtualVoxel_JitterMode(TEXT("r.HairStrands.Voxelization.Virtual.Jitter"), GHairVirtualVoxel_JitterMode, TEXT("Change jittered for voxelization/traversal. 0: No jitter 1: Regular randomized jitter: 2: Constant Jitter (default = 1)"), ECVF_RenderThreadSafe);
+
 bool IsHairStrandsAdaptiveVoxelAllocationEnable()
 {
 	return GHairVirtualVoxelAdaptive_Enable > 0;
@@ -850,6 +853,12 @@ static void AddAllocateVoxelPagesPass(
 	OutVoxelizationViewInfoBuffer = VoxelizationViewInfoBuffer;
 }
 
+static float RoundHairVoxeliSize(float In)
+{
+	// Round voxel size to 0.01f to avoid oscillation issue
+	return FMath::RoundToFloat(In * 100.f) * 0.01f;
+}
+
 static FVirtualVoxelResources AllocateVirtualVoxelResources(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -867,7 +876,7 @@ static FVirtualVoxelResources AllocateVirtualVoxelResources(
 	const float MinVoxelWorldSize = 0.01f;
 	const float MaxVoxelWorldSize = 10.f;
 
-	float VoxelWorldSize = FMath::Clamp(GHairVirtualVoxel_VoxelWorldSize, MinVoxelWorldSize, MaxVoxelWorldSize);
+	float VoxelWorldSize = RoundHairVoxeliSize(FMath::Clamp(GHairVirtualVoxel_VoxelWorldSize, MinVoxelWorldSize, MaxVoxelWorldSize));
 
 	// Readback allocated value to adapt the voxel size in order to fit max page allocation
 	const bool bAdaptiveResolution = OutViewData && OutViewData->IsInit();
@@ -913,8 +922,8 @@ static FVirtualVoxelResources AllocateVirtualVoxelResources(
 			const float VolumeRatio_Thres = float(AllocatedPageCount) / float(PageCount * Threshold);
 			const float LinearRatio_Thres = FMath::Pow(VolumeRatio_Thres, 1.f / 3.f);
 
-			const float PrevWorldVoxelSize = OutViewData->VoxelWorldSize;
-
+			const float PrevWorldVoxelSize = RoundHairVoxeliSize(OutViewData->VoxelWorldSize);
+			
 			// If the page pool is not large enough increase voxel size
 			if (AllocatedPageCount > PageCount)
 			{
@@ -939,6 +948,7 @@ static FVirtualVoxelResources AllocateVirtualVoxelResources(
 			// Use previous frame prediction by default (a readback is currently in-flight, but not ready for this frame)
 			VoxelWorldSize = OutViewData->VoxelWorldSize;
 		}
+		VoxelWorldSize = RoundHairVoxeliSize(VoxelWorldSize);
 
 		// Update state data
 		OutViewData->VoxelWorldSize		= VoxelWorldSize;
@@ -952,6 +962,7 @@ static FVirtualVoxelResources AllocateVirtualVoxelResources(
 	Out.Parameters.Common.VoxelWorldSize			= VoxelWorldSize;
 	Out.Parameters.Common.PageResolution			= FMath::RoundUpToPowerOfTwo(FMath::Clamp(GHairVirtualVoxel_PageResolution, 2, 256));
 	Out.Parameters.Common.PageTextureResolution		= Out.Parameters.Common.PageCountResolution * Out.Parameters.Common.PageResolution;
+	Out.Parameters.Common.JitterMode				= FMath::Clamp(GHairVirtualVoxel_JitterMode, 0, 2);
 
 	Out.Parameters.Common.DensityScale				= GetHairStrandsVoxelizationDensityScale();
 	Out.Parameters.Common.DensityScale_AO			= GetHairStrandsVoxelizationDensityScale_AO();

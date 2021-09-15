@@ -76,7 +76,7 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	// Origin is shifted voxels away towards the light + a constant bias of the size of the voxel
 	float MaxVoxelSize = VirtualVoxel.VoxelWorldSize;
 
-	const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
+	const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 	const float3 DepthBias = MaxVoxelSize * (Settings.DeepShadowDepthBiasScale*L + SampleRandom);
 
 	FVirtualVoxelCommonDesc CommonDesc;

@@ -44,6 +44,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, )
 	SHADER_PARAMETER(uint32, PageIndexCount)
 	SHADER_PARAMETER(uint32, IndirectDispatchGroupSize)
 	SHADER_PARAMETER(uint32, NodeDescCount)
+	SHADER_PARAMETER(uint32, JitterMode)
 
 	SHADER_PARAMETER(float, DensityScale)
 	SHADER_PARAMETER(float, DensityScale_AO)

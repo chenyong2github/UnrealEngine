@@ -570,7 +570,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		const float DistanceThreshold = 10000;
 		const bool bDebugEnabled = false;
-		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
+		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
 		const float3 WP0 = View.WorldCameraOrigin;
 		const float3 E = ReconstructWorldPositionFromDepth(UV, ConvertFromDeviceZ(0.0001f));

@@ -31,7 +31,7 @@ float2 Output_InvResolution;
 
 float TraceAO(float3 WorldPosition, float3 WorldNormal, float2 SvPosition, float PixelRadius)
 {
-	const float3 VoxelOffset = VirtualVoxel.VoxelWorldSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8);
+	const float3 VoxelOffset = VirtualVoxel.VoxelWorldSize * GetHairVoxelJitter(SvPosition, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
 	const bool bDebugEnabled = all(uint2(SvPosition) == uint2(GetCursorPos()));
 	

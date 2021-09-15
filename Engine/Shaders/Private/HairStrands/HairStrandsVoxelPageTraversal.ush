@@ -28,6 +28,8 @@
 #define VOXEL_TRAVERSAL_FORCE_MIP_ENABLE 0
 #endif
 
+#include "HairStrandsVoxelPageCommon.ush"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if VOXEL_TRAVERSAL_DEBUG 
@@ -72,20 +74,24 @@ void AddAABBVolume(bool bEnabled, float3 P0, float3 P1)
 
 #endif
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Jitter functions
+
+float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed, uint JitterMode)
+{
+	Seed = JitterMode > 1 ? 0 : Seed;
+	return JitterMode > 0 ? float3(
+		InterleavedGradientNoise(float2(PixelCoord.xy), float(Seed)),
+		InterleavedGradientNoise(float2(PixelCoord.xy), float(Seed * 117.f)),
+		InterleavedGradientNoise(float2(PixelCoord.xy), float(Seed * 7901.f))) : float3(0, 0, 0);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool ShouldStopTraversal(const FHairTraversalResult InResult, float InHairCountThreshold, bool InUseOpaqueVisibility=true)
 {
 	// Change this function once we have better result/control over the opaque filtering
 	return (InUseOpaqueVisibility && InResult.Visibility == 0) || (InHairCountThreshold != 0 && InResult.HairCount > InHairCountThreshold);
-}
-
-float3 GetHairVoxelJitter(uint2 PixelCoord, uint Seed)
-{
-	return float3(
-		InterleavedGradientNoise(PixelCoord.xy, Seed),
-		InterleavedGradientNoise(PixelCoord.xy, Seed * 117),
-		InterleavedGradientNoise(PixelCoord.xy, Seed * 7901));
 }
 
 // This assume pages have a resolution of 32x32x32

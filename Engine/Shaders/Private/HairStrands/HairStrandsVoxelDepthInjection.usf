@@ -129,7 +129,7 @@ void MainPS(
 
 	const float DistanceThreshold = 1000;
 	const bool bDebugEnabled = false;
-	const float3 SampleRandom = 0.5f; //GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
+	const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
 	const float3 TracingDirection = bIsDirectional ? LightDirection : normalize(InWorldPosition - LightPosition);
 	const float3 WP0 = InWorldPosition;

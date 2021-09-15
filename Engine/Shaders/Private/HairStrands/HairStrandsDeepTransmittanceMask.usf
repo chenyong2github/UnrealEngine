@@ -379,9 +379,9 @@ FHairTransmittanceMask ComputeTransmittanceVoxel(
 	#endif
 	{
 		#if PERMUTATION_SUPERSAMPLING
-		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, SampleIt);
+		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, SampleIt, VirtualVoxel.JitterMode);
 		#else
-		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8);
+		const float3 SampleRandom = GetHairVoxelJitter(PixelCoord, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 		#endif
 		
 		const float PositionBiasScale = 0.5f;
@@ -482,7 +482,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		Settings.LightPosition = LightPosition;
 		Settings.DeepShadowDensityScale = 0;	// Use virtual voxel struct value
 		Settings.DeepShadowDepthBiasScale = 0;	// Use virtual voxel struct value
-		Settings.Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8);
+		Settings.Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
 		const float3 WorldPosition = ToWorldPosition(UV, SceneDepth);
