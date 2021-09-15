@@ -1126,6 +1126,7 @@ void UNiagaraScript::PreSave(const class ITargetPlatform* TargetPlatform)
 	UNiagaraSystem* SystemOwner = FindRootSystem();
 	if (SystemOwner)
 	{
+		SystemOwner->EnsureFullyLoaded();
 		SystemOwner->WaitForCompilationComplete();
 	}
 
