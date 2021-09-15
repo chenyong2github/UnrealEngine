@@ -74,6 +74,14 @@
 			]
 		},
 		{
+			"Name": "DatasmithWireTranslator2021",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
+		},
+		{
 			"Name": "DatasmithCoreTechExtension",
 			"Type": "Editor",
 			"LoadingPhase": "Default",

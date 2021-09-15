@@ -56,6 +56,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
 
 #define LOCTEXT_NAMESPACE "DatasmithWireTranslator"
 
+#define WRONG_VERSION_TEXT "Unsupported version of Alias detected. Please downgrade to Alias 2020.0 (or earlier version) or upgrade to Alias 2021 (or later version)."
 #define CAD_INTERFACE_UNAVAILABLE "CAD Interface module is unavailable. Meshing will be done by Alias."
 
 #ifdef USE_OPENMODEL
@@ -2043,16 +2044,24 @@ void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutC
 		if (FPlatformProcess::GetDllHandle(TEXT("libalias_api.dll")))
 		{
 			// Check installed version of Alias Tools because binaries before 2021.3 are not compatible with Alias 2022
+			const uint64 LibAlias2020Version = 7318349414924288;
+			const uint64 LibAlias2021Version = 7599824377020416;
 			const uint64 LibAlias2021_3Version = 7599833027117059;
 			uint64 FileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
 
-			if (FileVersion < LibAlias2021_3Version)
+			if (FileVersion > LibAlias2020Version && FileVersion < LibAlias2021Version)
+			{
+				UE_LOG(LogDatasmithWireTranslator, Warning, TEXT(WRONG_VERSION_TEXT));
+				OutCapabilities.bIsEnabled = false;
+				return;
+			}
+			else if(FileVersion >= LibAlias2021_3Version)
 			{
 				OutCapabilities.bIsEnabled = false;
 				return;
 			}
 
-			OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("wire"), TEXT("AliasStudio 2022, Model files") });
+			OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("wire"), TEXT("AliasStudio 2021, Model files") });
 			return;
 		}
 #endif
