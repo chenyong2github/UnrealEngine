@@ -4464,7 +4464,7 @@ void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPla
 	PackageWriter = CookContext->PackageWriter;
 	ICookedPackageWriter::FBeginPackageInfo Info;
 	Info.PackageName = Package->GetFName();
-
+	Info.LooseFilePath = PlatFilename;
 	PackageWriter->BeginPackage(Info);
 
 	// Indicate Setup was successful
@@ -7469,32 +7469,30 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 		const_cast<UCookOnTheFlyServer&>(*this).CreateSandboxFile();
 	}
 
-	const FString RootPath = FPaths::RootDir();
-	const FString RootPathSandbox = ConvertToFullSandboxPath(*RootPath, true);
-
-	const FString ProjectPath = FPaths::ProjectDir();
-	const FString ProjectPathSandbox = ConvertToFullSandboxPath(*ProjectPath, true);
-
-	const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
-	const bool bIsCleanBuild = !IsCookFlagSet(ECookInitializationFlags::Iterative);
-
+	const FString RootPathSandbox = ConvertToFullSandboxPath(FPaths::RootDir(), true);
+	FString MetadataPathSandbox;
+	if (IsCookingDLC())
+	{
+		MetadataPathSandbox = ConvertToFullSandboxPath(GetBaseDirectoryForDLC() / "Metadata", true);
+	}
+	else
+	{
+		MetadataPathSandbox = ConvertToFullSandboxPath(FPaths::ProjectDir() / "Metadata", true);
+	}
 	const FString PlatformString = TargetPlatform->PlatformName();
-
 	const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
-	const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+	const FString ResolvedMetadataPath = MetadataPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
 
 	ICookedPackageWriter* PackageWriter = nullptr;
-	FString MetadataDirectoryPath = ProjectPathSandbox / TEXT("Metadata");
-	MetadataDirectoryPath.ReplaceInline(TEXT("[Platform]"), *PlatformString);
 	FString WriterDebugName;
 	if (IsUsingZenStore())
 	{
-		PackageWriter = new FZenStoreWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform);
+		PackageWriter = new FZenStoreWriter(ResolvedRootPath, ResolvedMetadataPath, TargetPlatform);
 		WriterDebugName = TEXT("ZenStore");
 	}
 	else
 	{
-		PackageWriter = new FLooseCookedPackageWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform,
+		PackageWriter = new FLooseCookedPackageWriter(ResolvedRootPath, ResolvedMetadataPath, TargetPlatform,
 			const_cast<UCookOnTheFlyServer&>(*this).GetAsyncIODelete(), GetPackageNameCache(), PluginsToRemap);
 		WriterDebugName = TEXT("DirectoryWriter");
 	}

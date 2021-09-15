@@ -9,9 +9,6 @@
 #include "Shader.h"
 #include "IO/IoDispatcher.h"
 
-FIoChunkId GetShaderCodeArchiveChunkId(const FString& LibraryName, FName FormatName);
-FIoChunkId GetShaderCodeChunkId(const FSHAHash& ShaderHash);
-
 struct FShaderMapEntry
 {
 	uint32 ShaderIndicesOffset = 0u;
@@ -297,6 +294,9 @@ struct FIoStoreShaderCodeEntry
 class FIoStoreShaderCodeArchive : public FRHIShaderLibrary
 {
 public:
+	RENDERCORE_API static FIoChunkId GetShaderCodeArchiveChunkId(const FString& LibraryName, FName FormatName);
+	RENDERCORE_API static FIoChunkId GetShaderCodeChunkId(const FSHAHash& ShaderHash);
+	RENDERCORE_API static void SaveIoStoreShaderCodeArchive(const FSerializedShaderArchive& SerializedShaders, FArchive& OutLibraryAr);
 	static FIoStoreShaderCodeArchive* Create(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher);
 
 	virtual ~FIoStoreShaderCodeArchive();
@@ -334,6 +334,8 @@ public:
 	virtual void Teardown() override;
 
 private:
+	static constexpr uint32 CurrentVersion = 1;
+
 	struct FShaderPreloadEntry
 	{
 		FGraphEventRef PreloadEvent;

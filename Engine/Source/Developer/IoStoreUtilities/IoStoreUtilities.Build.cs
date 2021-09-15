@@ -13,7 +13,6 @@ public class IoStoreUtilities : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] {
             "Core",
             "CoreUObject",
-            "Projects",
             "AssetRegistry",
 			"DerivedDataCache",
 			"RenderCore",

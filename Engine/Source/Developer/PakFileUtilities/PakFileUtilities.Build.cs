@@ -12,6 +12,7 @@ public class PakFileUtilities : ModuleRules
             "Json",
             "Projects",
             "RSA",
+            "IoStoreUtilities",
         });
 
         PrivateIncludePathModuleNames.AddRange(new string[] {

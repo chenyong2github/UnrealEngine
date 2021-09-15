@@ -1072,8 +1072,6 @@ struct FIoStoreWriterSettings
 	bool bEnableCsvOutput = false;
 	bool bEnableFileRegions = false;
 	bool bCompressionEnableDDC = false;
-
-	CORE_API void InitializePlatformSpecificSettings(const ITargetPlatform* TargetPlatform);
 };
 
 enum class EIoContainerFlags : uint8

@@ -320,7 +320,8 @@ public:
 		return TotalScriptObjectCount;
 	}
 
-	void Initialize(const ITargetPlatform* TargetPlatform);
+	IOSTOREUTILITIES_API void Initialize(const ITargetPlatform* TargetPlatform);
+	void Initialize(const FIoBuffer& ScriptObjectsBuffer);
 
 	FPackageStorePackage* CreateMissingPackage(const FName& Name) const;
 	FPackageStorePackage* CreatePackageFromCookedHeader(const FName& Name, const FIoBuffer& CookedHeaderBuffer) const;
@@ -329,7 +330,8 @@ public:
 	FIoBuffer CreatePackageBuffer(const FPackageStorePackage* Package, const FIoBuffer& CookedExportsBuffer, TArray<FFileRegion>* InOutFileRegions) const;
 	FPackageStoreEntryResource CreatePackageStoreEntry(const FPackageStorePackage* Package) const;
 	FContainerHeader CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const;
-	FIoBuffer CreateScriptObjectsBuffer() const;
+	IOSTOREUTILITIES_API FIoBuffer CreateScriptObjectsBuffer() const;
+	void LoadScriptObjectsBuffer(const FIoBuffer& ScriptObjectsBuffer);
 	void ProcessRedirects(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap, bool bIsBuildingDLC) const;
 	void OptimizeExportBundles(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap);
 

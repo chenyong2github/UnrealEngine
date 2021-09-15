@@ -7,6 +7,13 @@
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/Paths.h"
+
+FPackageStoreManifest::FPackageStoreManifest(const FString& InCookedOutputPath)
+	: CookedOutputPath(InCookedOutputPath)
+{
+	FPaths::NormalizeFilename(CookedOutputPath);
+}
 
 void FPackageStoreManifest::BeginPackage(FName PackageName)
 {
@@ -78,7 +85,9 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 	for (const auto& KV : FileNameByChunkIdMap)
 	{
 		Writer->WriteObjectStart();
-		Writer->WriteValue(TEXT("Path"), KV.Value);
+		FString RelativePath = KV.Value;
+		FPaths::MakePathRelativeTo(RelativePath, *CookedOutputPath);
+		Writer->WriteValue(TEXT("Path"), RelativePath);
 		Writer->WriteValue(TEXT("ChunkId"), ChunkIdToString(KV.Key));
 		Writer->WriteObjectEnd();
 	}
@@ -162,7 +171,8 @@ FIoStatus FPackageStoreManifest::Load(const TCHAR* Filename)
 	{
 		TSharedPtr<FJsonObject> FileObject = FileValue->AsObject();
 		FIoChunkId ChunkId = ChunkIdFromString(FileObject->Values.FindRef(TEXT("ChunkId"))->AsString());
-		FileNameByChunkIdMap.Add(ChunkId, FileObject->Values.FindRef(TEXT("Path"))->AsString());
+		FString RelativePath = FileObject->Values.FindRef(TEXT("Path"))->AsString();
+		FileNameByChunkIdMap.Add(ChunkId, FPaths::Combine(CookedOutputPath, RelativePath));
 	}
 
 	TArray<TSharedPtr<FJsonValue>> PackagesArray = JsonObject->Values.FindRef(TEXT("Packages"))->AsArray();

@@ -22,6 +22,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/ArrayReader.h"
 #include "UObject/Package.h"
+#include "PackageStoreOptimizer.h"
 
 const static FName NAME_DummyCookedFilename(TEXT("DummyCookedFilename"));
 
@@ -31,6 +32,7 @@ FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
 	, TargetPlatform(*InTargetPlatform)
 	, PackageNameCache(InPackageNameCache)
+	, PackageStoreManifest(InOutputPath)
 	, PluginsToRemap(InPluginsToRemap)
 	, AsyncIODelete(InAsyncIODelete)
 	, bIterateSharedBuild(false)
@@ -43,6 +45,10 @@ FLooseCookedPackageWriter::~FLooseCookedPackageWriter()
 
 void FLooseCookedPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
+	PackageStoreManifest.BeginPackage(Info.PackageName);
+	// Temp solution until WritePackageData gets called also for LooseCookedPackageWriter
+	FIoChunkId ChunkId = CreateIoChunkId(FPackageId::FromName(Info.PackageName).Value(), 0, EIoChunkType::ExportBundleData);
+	PackageStoreManifest.AddPackageData(Info.PackageName, Info.LooseFilePath, ChunkId);
 }
 
 void FLooseCookedPackageWriter::CommitPackage(const FCommitPackageInfo& Info)
@@ -87,10 +93,20 @@ void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
 	{
 		DeleteSandboxDirectory();
 	}
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SaveScriptObjects);
+		FPackageStoreOptimizer PackageStoreOptimizer;
+		PackageStoreOptimizer.Initialize(&TargetPlatform);
+		FIoBuffer ScriptObjectsBuffer = PackageStoreOptimizer.CreateScriptObjectsBuffer();
+		FFileHelper::SaveArrayToFile(
+			MakeArrayView(ScriptObjectsBuffer.Data(), ScriptObjectsBuffer.DataSize()),
+			*(MetadataDirectoryPath / TEXT("scriptobjects.bin")));
+	}
 }
 
 void FLooseCookedPackageWriter::EndCook()
 {
+	PackageStoreManifest.Save(*(MetadataDirectoryPath / TEXT("packagestore.manifest")));
 }
 
 void FLooseCookedPackageWriter::Flush()

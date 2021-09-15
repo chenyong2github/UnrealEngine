@@ -604,27 +604,26 @@ namespace AutomationScripts
 			return Plugins.ToList();
 		}
 
-		private class PackageStoreManifest
+		private static void LoadPackageStoreManifest(ProjectParams Params, DeploymentContext SC)
 		{
-			public static IList<FileReference> GetCookedFiles(FileReference PackageStoreManifestFile)
+			if (!Params.Stage)
 			{
-				List<FileReference> CookedFiles = new List<FileReference>();
-				if (FileReference.Exists(PackageStoreManifestFile))
-				{
-					String JsonString = FileReference.ReadAllText(PackageStoreManifestFile);
-					PackageStoreManifest PackageStoreManifest = JsonSerializer.Deserialize<PackageStoreManifest>(JsonString);
-					foreach (PackageStoreManifest.FileInfo File in PackageStoreManifest.Files)
-					{
-						CookedFiles.Add(new FileReference(File.Path));
-					}
-				}
-				return CookedFiles;
+				return;
 			}
-			public IList<FileInfo> Files { get; set; }
-
-			public class FileInfo
+			if (!Params.ZenStore && !Params.IoStore)
 			{
-				public String Path { get; set; }
+				return;
+			}
+			FileReference PackageStoreManifestFile = FileReference.Combine(SC.MetadataDir, "packagestore.manifest");
+			if (FileReference.Exists(PackageStoreManifestFile))
+			{
+				String JsonString = FileReference.ReadAllText(PackageStoreManifestFile);
+				SC.PackageStoreManifest = JsonSerializer.Deserialize<PackageStoreManifest>(JsonString);
+				SC.PackageStoreManifest.FullPath = PackageStoreManifestFile.FullName;
+				foreach (PackageStoreManifest.FileInfo FileInfo in SC.PackageStoreManifest.Files)
+				{
+					FileInfo.Path = FileReference.Combine(SC.PlatformCookDir, FileInfo.Path).FullName;
+				}
 			}
 		}
 
@@ -724,10 +723,14 @@ namespace AutomationScripts
 				// Stage all the cooked data, this is the same rule as normal stage except we may skip Engine
 				List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(SC.PlatformCookDir, "*", SearchOption.AllDirectories).ToList();
 
-				// When cooking directly to I/O store contaier files look for the package store manifest
-				if (Params.IoStore || Params.ZenStore)
+				// When cooking to Zen get the list of cooked package files from the manifest
+				LoadPackageStoreManifest(Params, SC);
+				if (SC.PackageStoreManifest != null && SC.PackageStoreManifest.ZenServer != null)
 				{
-					CookedFiles.AddRange(PackageStoreManifest.GetCookedFiles(FileReference.Combine(SC.MetadataDir, "packagestore.manifest")));
+					foreach (PackageStoreManifest.FileInfo File in SC.PackageStoreManifest.Files)
+					{
+						CookedFiles.Add(new FileReference(File.Path));
+					}
 				}
 
 				foreach (FileReference CookedFile in CookedFiles)
@@ -1055,10 +1058,14 @@ namespace AutomationScripts
 					{
 						List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(CookOutputDir, "*", SearchOption.AllDirectories).ToList();
 
-						// When cooking directly to I/O store contaier files look for the package store manifest
-						if (Params.IoStore || Params.ZenStore)
+						// When cooking to Zen get the list of cooked package files from the manifest
+						LoadPackageStoreManifest(Params, SC);
+						if (SC.PackageStoreManifest != null && SC.PackageStoreManifest.ZenServer != null)
 						{
-							CookedFiles.AddRange(PackageStoreManifest.GetCookedFiles(FileReference.Combine(SC.MetadataDir, "packagestore.manifest")));
+							foreach (PackageStoreManifest.FileInfo File in SC.PackageStoreManifest.Files)
+							{
+								CookedFiles.Add(new FileReference(File.Path));
+							}
 						}
 
 						foreach (FileReference CookedFile in CookedFiles)
@@ -2816,6 +2823,12 @@ namespace AutomationScripts
 						Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
 						if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform, SC.CustomConfig))
 						{
+							bool bLegacyBulkDataOffsets = false;
+							if (PlatformEngineConfig.GetBool("Core.System", "LegacyBulkDataOffsets", out bLegacyBulkDataOffsets) && bLegacyBulkDataOffsets)
+							{
+								throw new AutomationException("'LegacyBulkDataOffsets' is enabled, this needs to be disabled and the data recooked in order for IoStore to work");
+							}
+
 							bool bAllowBulkDataInIoStore = true;
 							if(!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
 							{
@@ -2969,6 +2982,42 @@ namespace AutomationScripts
 					if (MaxIoStorePartitionSizeMB > 0)
 					{
 						AdditionalArgs += String.Format(" -maxPartitionSize={0}MB", MaxIoStorePartitionSizeMB);
+					}
+				}
+
+				int CompressionMinBytesSaved = 0;
+				if (PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionMinBytesSaved", out CompressionMinBytesSaved))
+				{
+					if (CompressionMinBytesSaved > 0)
+					{
+						AdditionalArgs += String.Format(" -compressionMinBytesSaved={0}", CompressionMinBytesSaved);
+					}
+				}
+
+				int CompressionMinPercentSaved = 0;
+				if (PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionMinPercentSaved", out CompressionMinPercentSaved))
+				{
+					if (CompressionMinBytesSaved > 0)
+					{
+						AdditionalArgs += String.Format(" -compressionMinPercentSaved={0}", CompressionMinPercentSaved);
+					}
+				}
+
+				bool CompresionEnableDDC = false;
+				if (PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bPackageCompressionEnableDDC", out CompresionEnableDDC))
+				{
+					if (CompresionEnableDDC)
+					{
+						AdditionalArgs += " -compressionEnableDDC";
+					}
+				}
+
+				int CompressionMinSizeToConsiderDDC = 0;
+				if (PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionMinSizeToConsiderDDC", out CompressionMinSizeToConsiderDDC))
+				{
+					if (CompressionMinSizeToConsiderDDC > 0)
+					{
+						AdditionalArgs += String.Format(" -compressionMinSizeToConsiderDDC={0}", CompressionMinSizeToConsiderDDC);
 					}
 				}
 
@@ -3149,7 +3198,7 @@ namespace AutomationScripts
 
 			if (Params.HasDLCName)
 			{
-				CommandletParams += String.Format("-DLCFile={0}", MakePathSafeToUseWithCommandLine(Params.DLCFile.FullName));
+				CommandletParams += String.Format("-CreateDLCContainer={0}", MakePathSafeToUseWithCommandLine(Params.DLCFile.FullName));
 
 				DirectoryReference DLCRoot = Params.DLCFile.Directory;
 				string DLCName = Params.DLCFile.GetFileNameWithoutExtension();
@@ -3184,7 +3233,24 @@ namespace AutomationScripts
 				CommandletParams += String.Format("-CreateGlobalContainer={0}", MakePathSafeToUseWithCommandLine(GlobalContainerOutputLocation.FullName));
 			}
 
-			CommandletParams += String.Format(" -CookedDirectory={0} -Commands={1}", MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
+			if (SC.PackageStoreManifest == null)
+			{
+				throw new AutomationException("A package store manifest is required when staging to IoStore");
+			}
+			CommandletParams += String.Format(" -CookedDirectory={0} -PackageStoreManifest={1} -Commands={2}",
+				MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()),
+				MakePathSafeToUseWithCommandLine(SC.PackageStoreManifest.FullPath),
+				MakePathSafeToUseWithCommandLine(CommandsFileName));
+			if (SC.PackageStoreManifest.ZenServer == null)
+			{
+				FileReference ScriptObjectsFile = FileReference.Combine(SC.MetadataDir, "scriptobjects.bin");
+				if (!FileReference.Exists(ScriptObjectsFile))
+				{
+					throw new AutomationException("scriptobjects.bin is required when staging to IoStore");
+				}
+				CommandletParams += String.Format(" -ScriptObjects={0}", MakePathSafeToUseWithCommandLine(ScriptObjectsFile.FullName));
+			}
+
 			if (OrderFiles != null && OrderFiles.Count() > 0)
 			{
 				CommandletParams += String.Format(" -Order={0}", MakePathSafeToUseWithCommandLine(string.Join(",", OrderFiles.Select(u => u.File.FullName).ToArray())));
@@ -3195,15 +3261,13 @@ namespace AutomationScripts
 				CommandletParams += AdditionalArgs;
 			}
 
-			CommandletParams += String.Format(" -TargetPlatform={0}", SC.StageTargetPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client));
-
 			if (Params.HasBasedOnReleaseVersion)
 			{
 				CommandletParams += String.Format(" -BasedOnReleaseVersionPath={0}", Params.GetBasedOnReleaseVersionPath(SC, Params.Client));
 			}
 
-			LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
-			RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
+			LogInformation("Running UnrealPak with arguments: {0}", CommandletParams);
+			RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, CommandletParams, Options: ERunOptions.Default | ERunOptions.UTF8Output);
 		}
 
 		private static void RunUnrealPakInParallel(List<string> Commands, List<string> LogNames, string AdditionalCompressionOptionsOnCommandLine)

@@ -15,8 +15,6 @@
 #include "Templates/Greater.h"
 #endif
 
-uint32 GIoStoreShaderCodeArchiveVersion = 1;
-
 int32 GShaderCodeLibraryAsyncLoadingPriority = int32(AIOP_Normal);
 static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
 	TEXT("r.ShaderCodeLibrary.DefaultAsyncIOPriority"),
@@ -32,24 +30,6 @@ static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingAllowDontCache(
 	TEXT(""),
 	ECVF_Default
 );
-
-FIoChunkId GetShaderCodeArchiveChunkId(const FString& LibraryName, FName FormatName)
-{
-	FString Name = FString::Printf(TEXT("%s-%s"), *LibraryName, *FormatName.ToString());
-	Name.ToLowerInline();
-	uint64 Hash = CityHash64(reinterpret_cast<const char*>(*Name), Name.Len() * sizeof(TCHAR));
-	return CreateIoChunkId(Hash, 0, EIoChunkType::ShaderCodeLibrary);
-}
-
-FIoChunkId GetShaderCodeChunkId(const FSHAHash& ShaderHash)
-{
-	uint8 Data[12];
-	FMemory::Memcpy(Data, ShaderHash.Hash, 11);
-	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(EIoChunkType::ShaderCode);
-	FIoChunkId ChunkId;
-	ChunkId.Set(Data, 12);
-	return ChunkId;
-}
 
 int32 FSerializedShaderArchive::FindShaderMapWithKey(const FSHAHash& Hash, uint32 Key) const
 {
@@ -1021,6 +1001,52 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 	return Shader;
 }
 
+FIoChunkId FIoStoreShaderCodeArchive::GetShaderCodeArchiveChunkId(const FString& LibraryName, FName FormatName)
+{
+	FString Name = FString::Printf(TEXT("%s-%s"), *LibraryName, *FormatName.ToString());
+	Name.ToLowerInline();
+	uint64 Hash = CityHash64(reinterpret_cast<const char*>(*Name), Name.Len() * sizeof(TCHAR));
+	return CreateIoChunkId(Hash, 0, EIoChunkType::ShaderCodeLibrary);
+}
+
+FIoChunkId FIoStoreShaderCodeArchive::GetShaderCodeChunkId(const FSHAHash& ShaderHash)
+{
+	uint8 Data[12];
+	FMemory::Memcpy(Data, ShaderHash.Hash, 11);
+	*reinterpret_cast<uint8*>(&Data[11]) = static_cast<uint8>(EIoChunkType::ShaderCode);
+	FIoChunkId ChunkId;
+	ChunkId.Set(Data, 12);
+	return ChunkId;
+}
+
+void FIoStoreShaderCodeArchive::SaveIoStoreShaderCodeArchive(const FSerializedShaderArchive& SerializedShaders, FArchive& OutLibraryAr)
+{
+	uint32 Version = CurrentVersion;
+	OutLibraryAr << Version;
+	OutLibraryAr << const_cast<FSerializedShaderArchive&>(SerializedShaders).ShaderMapHashes;
+	OutLibraryAr << const_cast<FSerializedShaderArchive&>(SerializedShaders).ShaderHashes;
+	TArray<FIoStoreShaderMapEntry> ShaderMapEntries;
+	ShaderMapEntries.Reserve(SerializedShaders.ShaderMapEntries.Num());
+	for (const FShaderMapEntry& ShaderMapEntry : SerializedShaders.ShaderMapEntries)
+	{
+		FIoStoreShaderMapEntry& IoStoreShaderMapEntry = ShaderMapEntries.AddDefaulted_GetRef();
+		IoStoreShaderMapEntry.ShaderIndicesOffset = ShaderMapEntry.ShaderIndicesOffset;
+		IoStoreShaderMapEntry.NumShaders = ShaderMapEntry.NumShaders;
+	}
+	OutLibraryAr << ShaderMapEntries;
+	TArray<FIoStoreShaderCodeEntry> ShaderEntries;
+	ShaderEntries.Reserve(SerializedShaders.ShaderEntries.Num());
+	for (const FShaderCodeEntry& ShaderEntry : SerializedShaders.ShaderEntries)
+	{
+		FIoStoreShaderCodeEntry& IoStoreShaderEntry = ShaderEntries.AddDefaulted_GetRef();
+		IoStoreShaderEntry.UncompressedSize = ShaderEntry.UncompressedSize;
+		IoStoreShaderEntry.CompressedSize = ShaderEntry.Size;
+		IoStoreShaderEntry.Frequency = ShaderEntry.Frequency;
+	}
+	OutLibraryAr << ShaderEntries;
+	OutLibraryAr << const_cast<FSerializedShaderArchive&>(SerializedShaders).ShaderIndices;
+}
+
 FIoStoreShaderCodeArchive* FIoStoreShaderCodeArchive::Create(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher)
 {
 	const FName PlatformName = LegacyShaderPlatformToShaderFormat(InPlatform);
@@ -1037,7 +1063,7 @@ FIoStoreShaderCodeArchive* FIoStoreShaderCodeArchive::Create(EShaderPlatform InP
 		FMemoryReaderView Ar(MakeArrayView(IoBuffer.Data(), IoBuffer.DataSize()));
 		uint32 Version = 0;
 		Ar << Version;
-		if (Version == GIoStoreShaderCodeArchiveVersion)
+		if (Version == CurrentVersion)
 		{
 			FIoStoreShaderCodeArchive* Library = new FIoStoreShaderCodeArchive(InPlatform, InLibraryName, InIoDispatcher);
 			Ar << Library->ShaderMapHashes;

@@ -251,6 +251,7 @@ FZenStoreWriter::FZenStoreWriter(
 	: TargetPlatform(*InTargetPlatform)
 	, OutputPath(InOutputPath)
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
+	, PackageStoreManifest(InOutputPath)
 	, PackageStoreOptimizer(new FPackageStoreOptimizer())
 	, CookMode(ICookedPackageWriter::FCookInfo::CookByTheBookMode)
 	, bInitialized(false)

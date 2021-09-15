@@ -2593,13 +2593,3 @@ void FIoStoreReader::GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexL
 			return true;
 		});
 }
-
-void FIoStoreWriterSettings::InitializePlatformSpecificSettings(const ITargetPlatform* TargetPlatform)
-{
-	FConfigCacheIni* PlatformConfig = TargetPlatform->GetConfigSystem();
-	const TCHAR* IniSection = TEXT("/Script/UnrealEd.ProjectPackagingSettings");
-	PlatformConfig->GetInt(IniSection, TEXT("PackageCompressionMinBytesSaved"), CompressionMinBytesSaved, GGameIni);
-	PlatformConfig->GetInt(IniSection, TEXT("PackageCompressionMinPercentSaved"), CompressionMinPercentSaved, GGameIni);
-	PlatformConfig->GetInt(IniSection, TEXT("PackageCompressionMinSizeToConsiderDDC"), CompressionMinSizeToConsiderDDC, GGameIni);
-	PlatformConfig->GetBool(IniSection, TEXT("bPackageCompressionEnableDDC"), bCompressionEnableDDC, GGameIni);
-}
