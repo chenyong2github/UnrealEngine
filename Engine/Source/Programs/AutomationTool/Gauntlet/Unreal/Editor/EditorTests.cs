@@ -41,13 +41,13 @@ namespace UnrealEditor
 		/// Control for interpretation of log warnings as test failures
 		/// </summary>
 		[AutoParam]
-		public string TreatLogWarningsAsTestErrors = "true";
+		public bool SuppressLogWarnings = false;
 
 		/// <summary>
 		/// Control for interpretation of log errors as test failures
 		/// </summary>
 		[AutoParam]
-		public string TreatLogErrorsAsTestErrors = "true";
+		public bool SuppressLogErrors = false;
 
 		/// <summary>
 		/// Modify the game instance lost timeout interval
@@ -99,14 +99,14 @@ namespace UnrealEditor
 				AppConfig.CommandLineParams.Add("trace=cpu,counters,bookmarks");
 			}
 
-			if (TreatLogWarningsAsTestErrors.ToLower() == "false" || TreatLogWarningsAsTestErrors == "0")
+			if (SuppressLogWarnings)
 			{
-				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bTreatLogWarningsAsTestErrors=false");
+				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bSuppressLogWarnings=true");
 			}
 
-			if (TreatLogErrorsAsTestErrors.ToLower() == "false" || TreatLogErrorsAsTestErrors == "0")
+			if (SuppressLogErrors)
 			{
-				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bTreatLogErrorsAsTestErrors=false");
+				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bSuppressLogErrors=true");
 			}
 
 			if (GameInstanceLostTimerSeconds != string.Empty)

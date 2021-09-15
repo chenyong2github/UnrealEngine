@@ -27,7 +27,7 @@ void FFunctionalTestBase::SetLogErrorAndWarningHandlingToDefault()
 	UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
 	bSuppressLogErrors = Settings->bSuppressLogErrors;
 	bSuppressLogWarnings = Settings->bSuppressLogWarnings;
-	bElevateLogWarningsToErrors = Settings->bTreatLogWarningsAsTestErrors;
+	bElevateLogWarningsToErrors = Settings->bElevateLogWarningsToErrors;
 }
 
 /**
