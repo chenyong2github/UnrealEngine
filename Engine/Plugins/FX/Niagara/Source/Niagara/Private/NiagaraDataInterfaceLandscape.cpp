@@ -949,25 +949,33 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 {
 	ALandscape* Landscape = GetLandscape(SystemInstance, InstanceData.Landscape.Get());
 
-	if (InstanceData.Landscape != Landscape)
+	// when in editor the contents of the Landscape are volatile and so we'll make sure to
+	// refresh our instance properties any time we apply
+	#if !WITH_EDITOR
+	if (InstanceData.Landscape == Landscape)
 	{
-		if (!Landscape)
-		{
-			InstanceData.Reset();
-			return;
-		}
+		return;
+	}
+	#endif
 
-		InstanceData.Landscape = Landscape;
-		InstanceData.HeightVirtualTextureIndex = INDEX_NONE;
-		InstanceData.NormalVirtualTextureIndex = INDEX_NONE;
+	if (!Landscape)
+	{
+		InstanceData.Reset();
+		return;
+	}
 
-		// only worry about virtual textures if our current platform supports them
-		if (UseVirtualTexturing(SystemInstance.GetFeatureLevel()))
+	InstanceData.Landscape = Landscape;
+	InstanceData.HeightVirtualTextureIndex = INDEX_NONE;
+	InstanceData.NormalVirtualTextureIndex = INDEX_NONE;
+
+	// only worry about virtual textures if our current platform supports them
+	if (UseVirtualTexturing(SystemInstance.GetFeatureLevel()))
+	{
+		const int32 RuntimeVirtualTextureCount = InstanceData.Landscape->RuntimeVirtualTextures.Num();
+		for (int32 TextureIt = 0; TextureIt < RuntimeVirtualTextureCount; ++TextureIt)
 		{
-			const int32 RuntimeVirtualTextureCount = InstanceData.Landscape->RuntimeVirtualTextures.Num();
-			for (int32 TextureIt = 0; TextureIt < RuntimeVirtualTextureCount; ++TextureIt)
+			if (const URuntimeVirtualTexture* Vt = InstanceData.Landscape->RuntimeVirtualTextures[TextureIt])
 			{
-				const URuntimeVirtualTexture* Vt = InstanceData.Landscape->RuntimeVirtualTextures[TextureIt];
 				const ERuntimeVirtualTextureMaterialType VirtualMaterialType = Vt->GetMaterialType();
 
 				switch (VirtualMaterialType)
@@ -991,26 +999,26 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 				}
 			}
 		}
-
-		bool SystemRequiresHeightsCpu = false;
-		bool SystemRequiresHeightsGpu = false;
-		SystemInstance.EvaluateBoundFunction(GetHeightName, SystemRequiresHeightsCpu, SystemRequiresHeightsGpu);
-
-		bool SystemRequiresNormalsCpu = false;
-		bool SystemRequiresNormalsGpu = false;
-		SystemInstance.EvaluateBoundFunction(GetWorldNormalName, SystemRequiresNormalsCpu, SystemRequiresNormalsGpu);
-
-		bool SystemRequiresPhysMatCpu = false;
-		bool SystemRequiresPhysMatGpu = false;
-		SystemInstance.EvaluateBoundFunction(GetPhysicalMaterialIndexName, SystemRequiresPhysMatCpu, SystemRequiresPhysMatGpu);
-
-		// we need to create our own copy of the collision geometry if either the heights are needed, and they're not
-		// provided by a virtual texture or if the normals are needed and they're not provided by a virtual texture
-		InstanceData.RequiresCollisionCacheGpu = (SystemRequiresHeightsGpu && InstanceData.HeightVirtualTextureIndex == INDEX_NONE)
-			|| (SystemRequiresNormalsGpu && InstanceData.NormalVirtualTextureIndex == INDEX_NONE);
-
-		InstanceData.RequiresPhysMatCacheGpu = SystemRequiresPhysMatGpu;
 	}
+
+	bool SystemRequiresHeightsCpu = false;
+	bool SystemRequiresHeightsGpu = false;
+	SystemInstance.EvaluateBoundFunction(GetHeightName, SystemRequiresHeightsCpu, SystemRequiresHeightsGpu);
+
+	bool SystemRequiresNormalsCpu = false;
+	bool SystemRequiresNormalsGpu = false;
+	SystemInstance.EvaluateBoundFunction(GetWorldNormalName, SystemRequiresNormalsCpu, SystemRequiresNormalsGpu);
+
+	bool SystemRequiresPhysMatCpu = false;
+	bool SystemRequiresPhysMatGpu = false;
+	SystemInstance.EvaluateBoundFunction(GetPhysicalMaterialIndexName, SystemRequiresPhysMatCpu, SystemRequiresPhysMatGpu);
+
+	// we need to create our own copy of the collision geometry if either the heights are needed, and they're not
+	// provided by a virtual texture or if the normals are needed and they're not provided by a virtual texture
+	InstanceData.RequiresCollisionCacheGpu = (SystemRequiresHeightsGpu && InstanceData.HeightVirtualTextureIndex == INDEX_NONE)
+		|| (SystemRequiresNormalsGpu && InstanceData.NormalVirtualTextureIndex == INDEX_NONE);
+
+	InstanceData.RequiresPhysMatCacheGpu = SystemRequiresPhysMatGpu;
 }
 
 
