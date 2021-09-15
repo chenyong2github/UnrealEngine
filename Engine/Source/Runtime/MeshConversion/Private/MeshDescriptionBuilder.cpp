@@ -39,6 +39,8 @@ void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
 	this->InstanceTangents = Attributes.GetVertexInstanceTangents();
 	this->InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
 	this->InstanceColors = Attributes.GetVertexInstanceColors();
+	this->GroupMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
+
 }
 
 
@@ -75,9 +77,11 @@ FVertexID FMeshDescriptionBuilder::AppendVertex(const FVector& Position)
 }
 
 
-FPolygonGroupID FMeshDescriptionBuilder::AppendPolygonGroup()
+FPolygonGroupID FMeshDescriptionBuilder::AppendPolygonGroup(FName MaterialSlotName)
 {
-	return MeshDescription->CreatePolygonGroup();
+	FPolygonGroupID NewPolygonGroupID = MeshDescription->CreatePolygonGroup();
+	GroupMaterialSlotNames.Set(NewPolygonGroupID, MaterialSlotName);
+	return NewPolygonGroupID;
 }
 
 

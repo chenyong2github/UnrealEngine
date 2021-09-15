@@ -73,9 +73,6 @@ public:
 	/** Enable per-triangle integer attribute named PolyTriGroups */
 	void EnablePolyGroups();
 
-	/** Create a new polygon group and return it's ID */
-	FPolygonGroupID AppendPolygonGroup();
-
 	/** Set the PolyTriGroups attribute value to a specific GroupID for a Triangle */
 	void SetPolyGroupID(const FTriangleID& TriangleID, int GroupID);
 
@@ -100,6 +97,15 @@ public:
 	 * Unique Vertex instances will be created for each polygon-vertex.
 	 */
 	FPolygonID AppendPolygon(const TArray<FVertexID>& Vertices, const FPolygonGroupID& PolygonGroup);
+
+
+	/** 
+	 * Create a new MeshDescription PolygonGroup and return it's ID.
+	 * PolygonGroups are not the same as Polygroups, they essentially represent
+	 * Mesh Sections, which then reference Material Slots, etc
+	 */
+	FPolygonGroupID AppendPolygonGroup(FName MaterialSlotName = NAME_None);
+
 
 	/** Set MeshAttribute::Edge::IsHard to true for all edges */
 	void SetAllEdgesHardness(bool bHard);
@@ -133,4 +139,6 @@ protected:
 	TArray<FUVID> TempUVBuffer;
 
 	TPolygonAttributesRef<int> PolyGroups;
+
+	TPolygonGroupAttributesRef<FName> GroupMaterialSlotNames;
 };

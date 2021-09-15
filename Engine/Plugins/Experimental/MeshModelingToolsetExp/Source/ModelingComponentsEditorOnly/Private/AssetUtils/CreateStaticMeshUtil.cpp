@@ -18,7 +18,6 @@ using namespace UE::AssetUtils;
 using namespace UE::Geometry;
 
 
-
 UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 	FStaticMeshAssetOptions& Options,
 	FStaticMeshResults& ResultsOut)
@@ -89,6 +88,9 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 		}
 	}
 
+	// determine maximum number of sections across all mesh LODs
+	int32 MaxNumSections = 0;
+
 	// if options included SourceModel meshes, copy them over
 	if (Options.SourceMeshes.MoveMeshDescriptions.Num() > 0)
 	{
@@ -98,6 +100,7 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 			{
 				FMeshDescription* Mesh = NewStaticMesh->GetMeshDescription(k);
 				*Mesh = MoveTemp(*Options.SourceMeshes.MoveMeshDescriptions[k]);
+				MaxNumSections = FMath::Max(MaxNumSections, Mesh->PolygonGroups().Num());
 				NewStaticMesh->CommitMeshDescription(k);
 			}
 		}
@@ -110,6 +113,7 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 			{
 				FMeshDescription* Mesh = NewStaticMesh->GetMeshDescription(k);
 				*Mesh = *Options.SourceMeshes.MeshDescriptions[k];
+				MaxNumSections = FMath::Max(MaxNumSections, Mesh->PolygonGroups().Num());
 				NewStaticMesh->CommitMeshDescription(k);
 			}
 		}
@@ -123,9 +127,27 @@ UE::AssetUtils::ECreateStaticMeshResult UE::AssetUtils::CreateStaticMeshAsset(
 				FMeshDescription* Mesh = NewStaticMesh->GetMeshDescription(k);
 				FDynamicMeshToMeshDescription Converter;
 				Converter.Convert(Options.SourceMeshes.DynamicMeshes[k], *Mesh, !Options.bEnableRecomputeTangents);
+				MaxNumSections = FMath::Max(MaxNumSections, Mesh->PolygonGroups().Num());
 				NewStaticMesh->CommitMeshDescription(k);
 			}
 		}
+	}
+
+	// Ensure that we have a Material Slot for each Section that exists on the mesh.
+	// This is not technically correct as the Sections on the MeshDescription (ie PolygonGroups)
+	// may reference any MaterialSlot (via the PolygonGroup::ImportedMaterialSlotName attribute),
+	// so it is valid for there to be fewer Materials than Sections. *However* if a Section does
+	// not have an ImportedMaterialSlotName, then the Section Index is used as Material Slot Index,
+	// and if that Material Slot Index does not exist, we are in a bit of an undefined state, for
+	// example the Section will not appear in the Static Mesh Editor, and various other code that
+	// does not properly handle Sections/Slots will be broken. 
+	// So, some of these extra Slots may be unused, but this is not a catastrophe. Note that the
+	// extra Slots will end up with no Material assigned.
+	int32 CurNumValidSections = UseNumMaterialSlots;
+	while (CurNumValidSections < MaxNumSections)
+	{
+		NewStaticMesh->GetStaticMaterials().Add(FStaticMaterial());
+		CurNumValidSections++;
 	}
 
 	// Nanite options
