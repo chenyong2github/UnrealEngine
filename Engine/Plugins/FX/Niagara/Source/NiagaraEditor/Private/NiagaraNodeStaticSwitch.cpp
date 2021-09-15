@@ -70,7 +70,8 @@ FString UNiagaraNodeStaticSwitch::GetInputCaseName(int32 Case) const
 	}
 	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
 	{
-		return SwitchTypeData.Enum->GetDisplayNameTextByValue(Case).ToString();
+		FText EnumDisplayText = SwitchTypeData.Enum->GetDisplayNameTextByValue(Case);
+		return *FTextInspector::GetSourceString(EnumDisplayText);
 	}
 
 	return TEXT("");
@@ -142,7 +143,10 @@ FName UNiagaraNodeStaticSwitch::GetOptionPinName(const FNiagaraVariable& Variabl
 	}
 	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
 	{
-		Suffix = SwitchTypeData.Enum->GetDisplayNameTextByValue(Value).ToString();
+		// the display name is subject to localization and some automatic prettification. To avoid the localization aspect, we retrieve the source string of the text
+		// which is essentially the still prettified non-localized base text. We have to keep it this way for backwards compatibility, until we do a full upgrade pass
+		FText EnumDisplayText = SwitchTypeData.Enum->GetDisplayNameTextByValue(Value);
+		Suffix = *FTextInspector::GetSourceString(EnumDisplayText);
 	}
 
 	return FName(Variable.GetName().ToString() + FString::Printf(TEXT(" if %s"), *Suffix));
@@ -265,26 +269,6 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 
 	// force the graph to refresh the metadata
 	GetNiagaraGraph()->GetParameterReferenceMap();
-}
-
-FString UNiagaraNodeStaticSwitch::GetOptionPinSuffix(int32 Index) const
-{
-	FString PathSuffix = TEXT(" if ");
-	if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
-	{
-		PathSuffix += Index == 0 ? TEXT("true") : TEXT("false");
-	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer)
-	{
-		PathSuffix += FString::FromInt(Index);
-	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
-	{
-		FText EnumName = SwitchTypeData.Enum->GetDisplayNameTextByIndex(Index);
-		PathSuffix += EnumName.ToString();
-	}
-
-	return PathSuffix;
 }
 
 bool UNiagaraNodeStaticSwitch::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
