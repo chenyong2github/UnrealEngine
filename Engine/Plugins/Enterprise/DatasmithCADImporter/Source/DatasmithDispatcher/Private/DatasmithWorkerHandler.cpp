@@ -333,7 +333,7 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 		return;
 	}
 
-	for (const CADLibrary::FFileDescription& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
+	for (const CADLibrary::FFileDescriptor& ExternalReferenceFile : CompletedTaskCommand.ExternalReferences)
 	{
 		Dispatcher.AddTask(ExternalReferenceFile);
 	}

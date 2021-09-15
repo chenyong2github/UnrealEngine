@@ -6,12 +6,14 @@
 #include "CADOptions.h"
 #include "CoreTechFileParser.h"
 #include "HAL/FileManager.h"
+#ifdef USE_TECHSOFT_SDK
 //#include "TechSoftFileParser.h"
+#endif
 #include "Templates/TypeHash.h"
 
 namespace CADLibrary
 {
-	FCADFileReader::FCADFileReader(const FImportParameters& ImportParams, FFileDescription& InFile, const FString& EnginePluginsPath, const FString& InCachePath)
+	FCADFileReader::FCADFileReader(const FImportParameters& ImportParams, FFileDescriptor& InFile, const FString& EnginePluginsPath, const FString& InCachePath)
 		: CADFileData(ImportParams, InFile, InCachePath)
 	{
 #ifdef USE_KERNEL_IO_SDK
@@ -31,17 +33,17 @@ namespace CADLibrary
 #endif
 	}
 
-	bool FCADFileReader::FindFile(FFileDescription& File)
+	bool FCADFileReader::FindFile(FFileDescriptor& File)
 	{
-		FString FileName = File.Name;
+		const FString& FileName = File.GetFileName();
 
-		FString FilePath = FPaths::GetPath(File.Path);
-		FString RootFilePath = File.MainCadFilePath;
+		FString FilePath = FPaths::GetPath(File.GetSourcePath());
+		FString RootFilePath = File.GetRootFolder();
 
 		// Basic case: FilePath is, or is in a sub-folder of, RootFilePath
 		if (FilePath.StartsWith(RootFilePath))
 		{
-			return IFileManager::Get().FileExists(*File.Path);
+			return IFileManager::Get().FileExists(*File.GetSourcePath());
 		}
 
 		// Advance case: end of FilePath is in a upper-folder of RootFilePath
@@ -76,7 +78,7 @@ namespace CADLibrary
 				FString NewFilePath = FPaths::Combine(RootPaths[IndexFolderPath], FilePaths[IndexFilePath]);
 				if (IFileManager::Get().FileExists(*NewFilePath))
 				{
-					File.Path = NewFilePath;
+					File.SetSourceFilePath(NewFilePath);
 					return true;
 				};
 			}
@@ -84,12 +86,12 @@ namespace CADLibrary
 
 		// Last case: the FilePath is elsewhere and the file exist
 		// A Warning is launch because the file could be expected to not be loaded
-		if (IFileManager::Get().FileExists(*File.Path))
+		if (IFileManager::Get().FileExists(*File.GetSourcePath()))
 		{
 			return true;
 		}
 
-		CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s cannot be found."), *File.Path));
+		CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s cannot be found."), *File.GetFileName()));
 		return false;
 	}
 
@@ -121,7 +123,7 @@ namespace CADLibrary
 				}
 				else // the file has been converted into CT file but meshed with different parameters
 				{
-					CADFileData.ReplaceFileByCacheBackup(CADFileCachePath);
+					CADFileData.GetCADFileDescription().SetCacheFile(CADFileCachePath);
 				}
 			}
 

@@ -95,39 +95,50 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	ImportParameters.MaxNormalAngle = TesselationOptions.NormalTolerance;
 	ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique)TesselationOptions.StitchingTechnique;
 
-	CADLibrary::FFileDescription FileDescription(*FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()),
-		TEXT(""),
-		*FPaths::GetPath(FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile())));
+	CADLibrary::FFileDescriptor FileDescription(*FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
 
 	// Do not change the model unit when translator is called by the Datasmith runtime plugin.
-#if WITH_EDITOR
-	if (FileDescription.Extension == TEXT("jt") && IsInGameThread())
-	{
-		ImportParameters.MetricUnit = 1.;
-		ImportParameters.ScaleFactor = 100.;
-	}
-#endif
-
 	ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
-	if (FileDescription.Extension == TEXT("prt")) // NX
+
+	switch (FileDescription.GetFileFormat())
+	{
+	case CADLibrary::ECADFormat::JT:
+	{
+#if WITH_EDITOR
+		if (IsInGameThread())
+		{
+			// In UE Editor, for historical QA reason (i.e. due to some validation files) the unit of JT file is set to meter as it seemed to be the default unit
+			// But setting the meter as the default unit requires resetting KernelIO that crash at the runtime...
+			// so for runtime use, metric unit is mm.
+			// this will change with the next release of CAD importer
+			ImportParameters.MetricUnit = 1.;
+			ImportParameters.ScaleFactor = 100.;
+		}
+#endif
+		break;
+	}
+	case CADLibrary::ECADFormat::NX:
 	{
 		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
 		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
 		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
+		break;
 	}
-	else if (FileDescription.Extension == TEXT("sldprt") || FileDescription.Extension == TEXT("sldasm") || // Solidworks
-		FileDescription.Extension == TEXT("iam") || FileDescription.Extension == TEXT("ipt") || // Inventor
-		FileDescription.Extension.StartsWith(TEXT("asm")) || FileDescription.Extension.StartsWith(TEXT("creo")) || FileDescription.Extension.StartsWith(TEXT("prt")) || FileDescription.Extension.StartsWith(TEXT("neu")) // Creo
-		)
+	case CADLibrary::ECADFormat::SOLIDWORKS:
+	case CADLibrary::ECADFormat::INVENTOR:
+	case CADLibrary::ECADFormat::CREO:
 	{
 		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::YUp_RightHanded;
 		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
 		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
+		break;
 	}
-	else if (FileDescription.Extension == TEXT("dwg")) // Autocad
+	case CADLibrary::ECADFormat::DWG:
 	{
 		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
 		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
+		break;
+	}
 	}
 
 	ImportParameters.bEnableTimeControl = CADLibrary::bGEnableTimeControl;

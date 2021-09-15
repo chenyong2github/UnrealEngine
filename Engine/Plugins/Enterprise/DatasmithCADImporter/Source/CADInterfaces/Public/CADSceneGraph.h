@@ -38,8 +38,8 @@ public:
 public:
 	FMatrix TransformMatrix = FMatrix::Identity;
 	FCadId ReferenceNodeId = 0;
-	bool bIsExternalRef = false;
-	FFileDescription ExternalRef;
+	bool bIsExternalReference = false;
+	FFileDescriptor ExternalReference;
 };
 
 class CADINTERFACES_API FArchiveComponent : public ICADArchiveObject
@@ -133,10 +133,10 @@ public:
 	TMap<FColorId, FArchiveColor> ColorHIdToColor;
 	TMap<FMaterialId, FArchiveMaterial> MaterialHIdToMaterial;
 
-	TArray<FArchiveBody> BodySet;
-	TArray<FArchiveComponent> ComponentSet;
-	TArray<FArchiveUnloadedComponent> UnloadedComponentSet;
-	TArray<FFileDescription> ExternalRefSet;
+	TArray<FArchiveBody> Bodies;
+	TArray<FArchiveComponent> Components;
+	TArray<FArchiveUnloadedComponent> UnloadedComponents;
+	TArray<FFileDescriptor> ExternalReferences;
 	TArray<FArchiveInstance> Instances;
 
 	TMap<FCadId, int32> CADIdToBodyIndex;

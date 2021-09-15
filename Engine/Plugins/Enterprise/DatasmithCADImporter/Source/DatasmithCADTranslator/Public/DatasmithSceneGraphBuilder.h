@@ -86,7 +86,7 @@ protected:
 	TSharedRef<IDatasmithScene> DatasmithScene;
 	const CADLibrary::FImportParameters& ImportParameters;
 	const uint32 ImportParametersHash;
-	CADLibrary::FFileDescription rootFileDescription;
+	CADLibrary::FFileDescriptor RootFileDescription;
 
 	TArray<CADLibrary::FArchiveSceneGraph> ArchiveMockUps;
 	TMap<uint32, CADLibrary::FArchiveSceneGraph*> CADFileToSceneGraphArchive;

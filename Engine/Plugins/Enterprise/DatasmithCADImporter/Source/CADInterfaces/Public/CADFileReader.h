@@ -20,7 +20,7 @@ namespace CADLibrary
 		 * @param EnginePluginsPath Full Path of EnginePlugins. Mandatory to set KernelIO to import DWG, or DGN files
 		 * @param InCachePath Full path of the cache in which the data will be saved
 		 */
-		FCADFileReader(const FImportParameters& ImportParams, FFileDescription& InCTFileDescription, const FString& EnginePluginsPath = TEXT(""), const FString& InCachePath = TEXT(""));
+		FCADFileReader(const FImportParameters& ImportParams, FFileDescriptor& InCTFileDescription, const FString& EnginePluginsPath = TEXT(""), const FString& InCachePath = TEXT(""));
 		ECADParsingResult ProcessFile();
 
 		const FCADFileData& GetCADFileData() const
@@ -34,7 +34,7 @@ namespace CADLibrary
 		}
 
 	private:
-		bool FindFile(FFileDescription& File);
+		bool FindFile(FFileDescriptor& File);
 
 		uint32 GetSceneFileHash(const uint32 InSGHash, const FImportParameters& ImportParam);
 		uint32 GetGeomFileHash(const uint32 InSGHash, const FImportParameters& ImportParam);

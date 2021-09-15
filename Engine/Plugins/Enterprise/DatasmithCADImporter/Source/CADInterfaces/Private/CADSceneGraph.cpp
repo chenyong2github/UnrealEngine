@@ -15,8 +15,8 @@ FArchive& operator<<(FArchive& Ar, FArchiveInstance& Instance)
 	Ar << Instance.MetaData;
 	Ar << Instance.TransformMatrix;
 	Ar << Instance.ReferenceNodeId;
-	Ar << Instance.bIsExternalRef;
-	Ar << Instance.ExternalRef;
+	Ar << Instance.bIsExternalReference;
+	Ar << Instance.ExternalReference;
 	return Ar;
 }
 
@@ -66,15 +66,15 @@ FArchive& operator<<(FArchive& Ar, FArchiveSceneGraph& SceneGraph)
 	Ar << SceneGraph.CADFileName;
 	Ar << SceneGraph.ArchiveFileName;
 	Ar << SceneGraph.FullPath;
-	Ar << SceneGraph.ExternalRefSet;
+	Ar << SceneGraph.ExternalReferences;
 
 	Ar << SceneGraph.ColorHIdToColor;
 	Ar << SceneGraph.MaterialHIdToMaterial;
 
 	Ar << SceneGraph.Instances;
-	Ar << SceneGraph.ComponentSet;
-	Ar << SceneGraph.UnloadedComponentSet;
-	Ar << SceneGraph.BodySet;
+	Ar << SceneGraph.Components;
+	Ar << SceneGraph.UnloadedComponents;
+	Ar << SceneGraph.Bodies;
 
 	Ar << SceneGraph.CADIdToInstanceIndex;
 	Ar << SceneGraph.CADIdToComponentIndex;
