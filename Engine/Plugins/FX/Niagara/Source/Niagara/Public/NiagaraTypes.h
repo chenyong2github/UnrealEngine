@@ -241,6 +241,21 @@ struct FNiagaraID
 	bool operator<(const FNiagaraID& Other)const { return Index < Other.Index || (Index == Other.Index && AcquireTag < Other.AcquireTag); }
 };
 
+USTRUCT()
+struct FNiagaraRandInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed1 = 0;
+	
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed2 = 0;
+
+	UPROPERTY(EditAnywhere, Category = "Random")
+	int32 Seed3 = 0;
+};
+
 #define NIAGARA_INVALID_ID (FNiagaraID({(INDEX_NONE), (INDEX_NONE)}))
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
@@ -878,6 +893,7 @@ public:
 	static const FNiagaraTypeDefinition& GetGenericNumericDef() { return NumericDef; }
 	static const FNiagaraTypeDefinition& GetParameterMapDef() { return ParameterMapDef; }
 	static const FNiagaraTypeDefinition& GetIDDef() { return IDDef; }
+	static const FNiagaraTypeDefinition& GetRandInfoDef() { return RandInfoDef; }
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
 	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
 	static const FNiagaraTypeDefinition& GetUStaticMeshDef() { return UStaticMeshDef; }
@@ -905,6 +921,7 @@ public:
 	static UScriptStruct* GetWildcardStruct() { return WildcardStruct; }
 	static UScriptStruct* GetParameterMapStruct() { return ParameterMapStruct; }
 	static UScriptStruct* GetIDStruct() { return IDStruct; }
+	static UScriptStruct* GetRandInfoStruct() { return RandInfoStruct; }
 
 	static UScriptStruct* GetHalfStruct() { return HalfStruct; }
 	static UScriptStruct* GetHalfVec2Struct() { return HalfVec2Struct; }
@@ -960,6 +977,7 @@ private:
 	static FNiagaraTypeDefinition NumericDef;
 	static FNiagaraTypeDefinition ParameterMapDef;
 	static FNiagaraTypeDefinition IDDef;
+	static FNiagaraTypeDefinition RandInfoDef;
 	static FNiagaraTypeDefinition UObjectDef;
 	static FNiagaraTypeDefinition UMaterialDef;
 	static FNiagaraTypeDefinition UTextureDef;
@@ -1009,6 +1027,7 @@ private:
 
 	static UScriptStruct* ParameterMapStruct;
 	static UScriptStruct* IDStruct;
+	static UScriptStruct* RandInfoStruct;
 
 	static TSet<UScriptStruct*> NumericStructs;
 	static TArray<FNiagaraTypeDefinition> OrderedNumericTypes;
@@ -1047,6 +1066,7 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 	if (TIsSame<T, FMatrix44f>::Value) { return FNiagaraTypeDefinition::GetMatrix4Def(); }
 	if (TIsSame<T, FLinearColor>::Value) { return FNiagaraTypeDefinition::GetColorDef(); }
 	if (TIsSame<T, FNiagaraID>::Value) { return FNiagaraTypeDefinition::GetIDDef(); }
+	if (TIsSame<T, FNiagaraRandInfo>::Value) { return FNiagaraTypeDefinition::GetRandInfoDef(); }
 }
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
