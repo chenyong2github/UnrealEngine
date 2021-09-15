@@ -1516,7 +1516,7 @@ public:
 			if (InPyFuncDef->FuncRetType && InPyFuncDef->FuncRetType != Py_None)
 			{
 				// If we have a tuple, then we actually want to return a bool but add every type within the tuple as output parameters
-				const bool bOptionalReturn = PyTuple_Check(InPyFuncDef->FuncRetType) != 0;
+				const bool bOptionalReturn = static_cast<bool>(PyTuple_Check(InPyFuncDef->FuncRetType));
 
 				PyObject* RetType = bOptionalReturn ? (PyObject*)&PyBool_Type : InPyFuncDef->FuncRetType;
 				FProperty* RetProp = PyUtil::CreateProperty(RetType, 1, Func, TEXT("ReturnValue"));
