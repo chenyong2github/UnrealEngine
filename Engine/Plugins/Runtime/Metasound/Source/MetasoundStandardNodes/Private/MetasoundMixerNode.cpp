@@ -217,8 +217,8 @@ namespace Metasound
 				PluginAuthor,
 				PluginNodeMissingPrompt,
 				InDefaultInterface,
-				{ NodeCategories::Audio },
-				{ LOCTEXT("Metasound_AudioMixerKeyword", "Mixer")},
+				{ NodeCategories::Mix },
+				{ LOCTEXT("Metasound_AudioMixerKeyword", "Mixer") },
 				FNodeDisplayStyle{}
 			};
 

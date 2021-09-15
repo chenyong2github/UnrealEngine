@@ -19,8 +19,8 @@ namespace Metasound
 		METASOUND_PARAM(InputValue, "Value", "Linear input value to map to log frequency output. Input and output are clamped to specified domain and range.");
 		METASOUND_PARAM(InputDomainMin, "Min Domain", "Min domain for the input value.");
 		METASOUND_PARAM(InputDomainMax, "Max Domain", "Max domain for the input value.");
-		METASOUND_PARAM(InputRangeMin, "Min Range", "Min positive range for the output frequency (hz) value.");
-		METASOUND_PARAM(InputRangeMax, "Max Range", "Max poasitive range for the output frequency (hz) value.");
+		METASOUND_PARAM(InputRangeMin, "Min Range", "Min positive range for the output frequency (Hz) value.");
+		METASOUND_PARAM(InputRangeMax, "Max Range", "Max positive range for the output frequency (Hz) value.");
 		METASOUND_PARAM(OutputFreq, "Frequency", "Output frequency value in hertz that is the log frequency of the input value.");
 	}
 
@@ -45,7 +45,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(NodeCategories::Music);
+				Info.CategoryHierarchy.Emplace(NodeCategories::Math);
 
 				return Info;
 			};
@@ -92,7 +92,7 @@ namespace Metasound
 		}
 
 		FLinearToLogFrequencyOperator(
-			const TDataReadReference<float>& InValue, 
+			const TDataReadReference<float>& InValue,
 			const TDataReadReference<float>& InDomainMin,
 			const TDataReadReference<float>& InDomainMax,
 			const TDataReadReference<float>& InRangeMin,
