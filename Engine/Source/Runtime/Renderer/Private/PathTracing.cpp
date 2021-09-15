@@ -55,6 +55,14 @@ TAutoConsoleVariable<float> CVarPathTracingFilterWidth(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<float> CVarPathTracingAbsorptionScale(
+	TEXT("r.PathTracing.AbsorptionScale"),
+	0.01,
+	TEXT("Sets the inverse distance at which BaseColor is reached for transmittance in refractive glass (default = 1/100 units)\n")
+	TEXT("Setting this value to 0 will disable absorption handling for refractive glass\n"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingMISMode(
 	TEXT("r.PathTracing.MISMode"),
 	2,
@@ -225,6 +233,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, MaxPathIntensity)
 	SHADER_PARAMETER(float, MaxNormalBias)
 	SHADER_PARAMETER(float, FilterWidth)
+	SHADER_PARAMETER(float, AbsorptionScale)
 END_SHADER_PARAMETER_STRUCT()
 
 
@@ -257,6 +266,7 @@ struct FPathTracingConfig
 			PathTracingData.VisualizeLightGrid != Other.PathTracingData.VisualizeLightGrid ||
 			PathTracingData.MaxPathIntensity != Other.PathTracingData.MaxPathIntensity ||
 			PathTracingData.FilterWidth != Other.PathTracingData.FilterWidth ||
+			PathTracingData.AbsorptionScale != Other.PathTracingData.AbsorptionScale ||
 			ViewRect != Other.ViewRect ||
 			LightShowFlags != Other.LightShowFlags ||
 			LightGridResolution != Other.LightGridResolution ||
@@ -340,6 +350,7 @@ static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 		FilterWidth = View.FinalPostProcessSettings.PathTracingFilterWidth;
 	}
 	PathTracingData.FilterWidth = FilterWidth;
+	PathTracingData.AbsorptionScale = CVarPathTracingAbsorptionScale.GetValueOnRenderThread();
 }
 
 static bool ShouldCompilePathTracingShadersForProject(EShaderPlatform ShaderPlatform)

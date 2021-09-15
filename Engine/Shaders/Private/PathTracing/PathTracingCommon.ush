@@ -92,6 +92,23 @@ struct FPackedPathTracingPayload : FMinimalPayload
 	{
 		PackedData[3] = asuint(PathRoughness);
 	}
+
+	// tau: optical depth along shadow ray, this is the integral of the extinction coefficient
+	float3 GetTau()
+	{
+		return float3(
+			asfloat(PackedData[4]),
+			asfloat(PackedData[5]),
+			asfloat(PackedData[6])
+		);
+	}
+
+	void SetTau(float3 Tau)
+	{
+		PackedData[4] = asuint(Tau.x);
+		PackedData[5] = asuint(Tau.y);
+		PackedData[6] = asuint(Tau.z);
+	}
 };
 
 // This payload structure is the expanded version of the above which is more convenient to work with
@@ -146,9 +163,16 @@ struct FPathTracingPayload : FMinimalPayload
 		Roughness = lerp(RoughnessData.x, RoughnessData.y, RoughnessData.z);
 	}
 
+	bool IsMaterialSolidGlass()
+	{
+		return ShadingModelID != SHADINGMODELID_THIN_TRANSLUCENT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Ior != 1.0 && Opacity < 1;
+	}
+
 	bool IsMaterialTransmissive()
 	{
-		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || (BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Ior != 1.0 && Roughness != 0 && Opacity < 1);
+		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
+			   ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT || 
+			   IsMaterialSolidGlass();
 	}
 
 	bool IsSubsurfaceMaterial()

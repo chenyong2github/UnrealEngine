@@ -43,6 +43,7 @@ uint VisualizeLightGrid;
 float MaxPathIntensity;
 float MaxNormalBias;
 float FilterWidth;
+float AbsorptionScale; // inverse distance at which we hit BaseColor - exposed mainly so we can disable absorption handling and experiment with the default scale factor
 
 RWTexture2D<float4> RadianceTexture;
 RWTexture2D<float4> AlbedoTexture;
@@ -51,6 +52,43 @@ RaytracingAccelerationStructure TLAS;
 int3 TileOffset;
 uint SceneVisibleLightCount;
 
+struct FPathState
+{                                   // packed size
+	uint2 PixelIndex;               //  4 bytes
+	RandomSequence RandSequence;    //  8 bytes
+	float3 Radiance;                // 12 bytes
+	float3 Albedo;                  //  6 bytes // half precision
+	float3 Normal;                  //  6 bytes // half precision
+	RayDesc Ray;                    // 12+12 = 24 bytes (TMin/TMax do not need to be stored)
+	FRayCone RayCone;               //  4 bytes // half precision
+	float3 PathThroughput;          // 12 bytes
+	float PathRoughness;            //  2 bytes // half precision
+	float3 SigmaT; // Extinction    //  6 bytes // half precision 
+									// 84 bytes total
+									// 21 words - sync with PATHTRACER_PATHSTATE_NUM_WORDS
+
+	void WritePixel(float BlendFactor)
+	{
+		// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
+		float4 OldPixel = Iteration > 0 ? RadianceTexture[PixelIndex] : 0;
+		float4 OldAlbedo = Iteration > 0 ? AlbedoTexture[PixelIndex] : 0;
+		float4 OldNormal = Iteration > 0 ? NormalTexture[PixelIndex] : 0;
+		float3 OldRadiance = OldPixel.rgb;
+		float OldVariance = OldPixel.a;
+
+		float3 NewRadiance = lerp(OldRadiance, Radiance, BlendFactor);
+
+		float RadianceY = Luminance(Radiance);
+
+		// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+		float DeviationSquared = (RadianceY - Luminance(NewRadiance)) * (RadianceY - Luminance(OldRadiance));
+		float NewVariance = lerp(OldVariance, DeviationSquared, BlendFactor);
+
+		RadianceTexture[PixelIndex] = float4(NewRadiance, NewVariance);
+		AlbedoTexture[PixelIndex] = lerp(OldAlbedo, float4(Albedo, 0), BlendFactor);
+		NormalTexture[PixelIndex] = lerp(OldNormal, float4(Normal, 0), BlendFactor);
+	}
+};
 
 void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bIsCameraRay)
 {
@@ -67,17 +105,17 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bI
 	TotalRadiance += PathRadiance;
 }
 
-FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint2 LaunchIndex, uint NumLights, float PathRoughness, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance, inout float3 Albedo, inout float3 Normal)
+FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
 	float SelectionWeightSum = 0;
-	float3 PayloadThroughput = PathThroughput;
+	float3 PayloadThroughput = PathState.PathThroughput;
 	FPathTracingPayload Payload;
 	if (!bIncludeEmission && bLastBounce)
 	{
 		Payload.SetMiss();
-		PathThroughput = 0;
+		PathState.PathThroughput = 0;
 		return Payload;
 	}
 	for (;;)
@@ -86,7 +124,7 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 		// also avoid noise from hot spots (they can be properly
 		// importance sampled if a capturing skylight is added)
 		const bool bIgnoreSky = !bIsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(RayCone, LaunchIndex, bIgnoreSky);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PathState.RayCone, PathState.PixelIndex, bIgnoreSky);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -95,17 +133,17 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 			RAY_TRACING_SHADER_SLOT_MATERIAL,
 			RAY_TRACING_NUM_SHADER_SLOTS,
 			MissShaderIndex,
-			Ray,
+			PathState.Ray,
 			PackedPayload);
 
 		// Loop over lights to capture their contribution
 		// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
-		for (uint LightId = 0; LightId < NumLights; ++LightId)
+		for (uint LightId = 0; LightId < NumVisibleLights; ++LightId)
 		{
-			RayDesc LightRay = Ray;
-			LightRay.TMax = PackedPayload.IsMiss() ? Ray.TMax : PackedPayload.HitT;
+			RayDesc LightRay = PathState.Ray;
+			LightRay.TMax = PackedPayload.IsMiss() ? PathState.Ray.TMax : PackedPayload.HitT;
 			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
-			AccumulateRadiance(Radiance, PathThroughput * LightRadiance, bIsCameraRay);
+			AccumulateRadiance(PathState.Radiance, PathState.PathThroughput * LightRadiance, bIsCameraRay);
 		}
 
 		if (PackedPayload.IsMiss())
@@ -115,7 +153,7 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 		}
 
 		// Unpack the payload
-		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, Ray);
+		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray);
 
 		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
 			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
@@ -127,17 +165,20 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 		// add in surface emission (except for modulate blend mode which uses Radiance as the transparency multiplier)
 		if (bIncludeEmission && HitPayload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
 		{
-			AccumulateRadiance(Radiance, PathThroughput * HitPayload.Radiance, bIsCameraRay);
+			AccumulateRadiance(PathState.Radiance, PathState.PathThroughput * HitPayload.Radiance, bIsCameraRay);
 		}
 
-		float3 Transparency = GetMaterialTransparency(HitPayload, Ray.Direction);
+		float3 Transparency = GetMaterialTransparency(HitPayload, PathState.Ray.Direction);
+
+		// account for Beer's law through the currently active medium
+		PathState.PathThroughput *= exp(-PathState.SigmaT * (HitPayload.HitT - PathState.Ray.TMin));
 
 		if (!bLastBounce)
 		{
-			float3 Contrib = PathThroughput * EstimateMaterialAlbedo(HitPayload);
+			float3 Contrib = PathState.PathThroughput * EstimateMaterialAlbedo(HitPayload);
 
 			// accumulate what the denoiser wants into albedo/normal (as long as the current path is rough enough)
-			AccumulateAlbedoNormal(HitPayload, PathThroughput, PathRoughness, Albedo, Normal);
+			AccumulateAlbedoNormal(HitPayload, PathState.PathThroughput, PathState.PathRoughness, PathState.Albedo, PathState.Normal);
 
 			float SelectionWeight = max3(Contrib.x, Contrib.y, Contrib.z);
 			SelectionWeightSum += SelectionWeight;
@@ -150,7 +191,7 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 				{
 					// the acceptance probability is not 1.0
 					// generate a random number to see if we should accept this hit
-					float RandValue = RandomSequence_GenerateSample1D(RandSequence);
+					float RandValue = RandomSequence_GenerateSample1D(PathState.RandSequence);
 					AcceptHit = RandValue * SelectionWeightSum < SelectionWeight;
 				}
 				else
@@ -164,16 +205,17 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 			{
 				// stash this hit for next time
 				Payload = HitPayload;
-				PayloadThroughput = PathThroughput / SelectionWeight;
+				PayloadThroughput = PathState.PathThroughput / SelectionWeight;
 			}
 		}
 
+		// account for local transparency change
+		PathState.PathThroughput *= Transparency;
 		// prepare next step around the loop
 		// retrace the exact same ray with TMin one ulp past the hit we just found
-		PathThroughput *= Transparency;
-		Ray.TMin = asfloat(asuint(HitPayload.HitT) + 1);
+		PathState.Ray.TMin = asfloat(asuint(HitPayload.HitT) + 1);
 
-		if (all(PathThroughput == 0))
+		if (all(PathState.PathThroughput == 0))
 		{
 			break;
 		}
@@ -182,11 +224,11 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool bIsC
 	if (SelectionWeightSum > 0)
 	{
 		// if we stored a valid hit in the payload, reset the path throughput to this point
-		PathThroughput = PayloadThroughput * SelectionWeightSum;
+		PathState.PathThroughput = PayloadThroughput * SelectionWeightSum;
 	}
 	else
 	{
-		PathThroughput = 0;
+		PathState.PathThroughput = 0;
 		Payload.SetMiss();
 	}
 	return Payload;
@@ -216,7 +258,7 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 	if (PackedPayload.IsMiss())
 	{
 		// we didn't hit any geo - just return whatever throughput is left
-		return PackedPayload.GetRayThroughput();
+		return PackedPayload.GetRayThroughput() * exp(-max(PackedPayload.GetTau() * AbsorptionScale, 0.0));
 	}
 
 	// we registered a hit -- assumed to be fully opaque
@@ -536,42 +578,6 @@ uint2 Reorder(uint2 I, uint2 N)
 	return GroupCoord * M + Shuffle(GroupId, GroupCoord);
 }
 
-struct FPathState
-{                                   // packed size
-	uint2 PixelIndex;               //  4 bytes
-	RandomSequence RandSequence;    //  8 bytes
-	float3 Radiance;                // 12 bytes
-	float3 Albedo;                  //  6 bytes // half precision
-	float3 Normal;                  //  6 bytes // half precision
-	RayDesc Ray;                    // 12+12 = 24 bytes (TMin/TMax do not need to be stored)
-	FRayCone RayCone;               //  4 bytes // half precision
-	float3 PathThroughput;          // 12 bytes
-	float PathRoughness;            //  4 bytes
-	                                // 80 bytes total
-
-	void WritePixel(float BlendFactor)
-	{
-		// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
-		float4 OldPixel = Iteration > 0 ? RadianceTexture[PixelIndex] : 0;
-		float4 OldAlbedo = Iteration > 0 ? AlbedoTexture[PixelIndex] : 0;
-		float4 OldNormal = Iteration > 0 ? NormalTexture[PixelIndex] : 0;
-		float3 OldRadiance = OldPixel.rgb;
-		float OldVariance = OldPixel.a;
-
-		float3 NewRadiance = lerp(OldRadiance, Radiance, BlendFactor);
-
-		float RadianceY = Luminance(Radiance);
-
-		// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-		float DeviationSquared = (RadianceY - Luminance(NewRadiance)) * (RadianceY - Luminance(OldRadiance));
-		float NewVariance = lerp(OldVariance, DeviationSquared, BlendFactor);
-
-		RadianceTexture[PixelIndex] = float4(NewRadiance, NewVariance);
-		AlbedoTexture[PixelIndex] = lerp(OldAlbedo, float4(Albedo, 0), BlendFactor);
-		NormalTexture[PixelIndex] = lerp(OldNormal, float4(Normal, 0), BlendFactor);
-	}
-};
-
 FPathState CreatePathState(uint2 DispatchIdx, uint2 DispatchDim)
 {
 	FPathState Output = (FPathState)0;
@@ -617,6 +623,7 @@ FPathState CreatePathState(uint2 DispatchIdx, uint2 DispatchDim)
 	// path state variables (these cary information between bounces)
 	Output.PathThroughput = 1.0;
 	Output.PathRoughness = 0;
+	Output.SigmaT = 0; // TODO: figure out the right start value for camera rays
 
 	return Output;
 }
@@ -637,7 +644,6 @@ float3 AdjustShadingNormal(float3 ShadingNormal, float3 GeoNormal, float3 RayDir
 	}
 	return ShadingNormal;
 }
-
 
 bool PathTracingKernel(inout FPathState PathState, int Bounce)
 {
@@ -660,19 +666,11 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	uint NumVisibleLights = bIsCameraRay ? SceneVisibleLightCount : 0;
 
 	FPathTracingPayload Payload = TraceTransparentRay(
-		PathState.Ray,
-		PathState.RayCone,
+		PathState,
 		bIsCameraRay,
 		bIsLastBounce,
 		bIncludeEmissive,
-		PathState.PixelIndex,
-		NumVisibleLights,
-		PathState.PathRoughness,
-		PathState.RandSequence,
-		PathState.PathThroughput,
-		PathState.Radiance,
-		PathState.Albedo,
-		PathState.Normal);
+		NumVisibleLights);
 
 	if (Payload.IsMiss())
 	{
@@ -850,6 +848,25 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 	// enlarge roughness based on the chosen lobe roughness
 	PathState.PathRoughness = max(PathState.PathRoughness, MaterialSample.Roughness);
+
+	// update the current extinction if we are crossing a boundary on glass
+	// summing the local extinction gives a rudimentary way of dealing with overlapping regions
+	// long term we will probably want a stack with priorities
+	if (MaterialSample.PositionBiasSign < 0 && Payload.IsMaterialSolidGlass())
+	{
+		float3 LocalSigmaT = -log(max(Payload.BaseColor, 1e-8f)) * AbsorptionScale;
+		if (Payload.IsFrontFace())
+		{
+			// entering
+			PathState.SigmaT += LocalSigmaT;
+		}
+		else
+		{
+			// exiting
+			PathState.SigmaT -= LocalSigmaT;
+			PathState.SigmaT = max(PathState.SigmaT, 0);
+		}
+	}
 
 	// If we are using Material sampling for lights
 	if (MISMode != 1 && bDoLightLoop)

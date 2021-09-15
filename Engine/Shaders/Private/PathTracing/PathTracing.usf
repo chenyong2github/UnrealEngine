@@ -63,7 +63,13 @@ FPathState LoadPathStateData(uint Index)
 	Output.PathThroughput.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 17]);
 	Output.PathThroughput.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 18]);
 
-	Output.PathRoughness = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 19]);
+	uint2 PackedRoughnessSigma;
+	PackedRoughnessSigma.x = PathStateData[PATH_STATE_STRIDE * Index + 19];
+	PackedRoughnessSigma.y = PathStateData[PATH_STATE_STRIDE * Index + 20];
+	Output.PathRoughness = f16tof32(PackedRoughnessSigma.x);
+	Output.SigmaT.x = f16tof32(PackedRoughnessSigma.x >> 16);
+	Output.SigmaT.y = f16tof32(PackedRoughnessSigma.y);
+	Output.SigmaT.z = f16tof32(PackedRoughnessSigma.y >> 16);
 
 	return Output;
 }
@@ -96,7 +102,8 @@ void StorePathStateData(FPathState PathState, uint Index)
 	PathStateData[PATH_STATE_STRIDE * Index + 17] = asuint(PathState.PathThroughput.y);
 	PathStateData[PATH_STATE_STRIDE * Index + 18] = asuint(PathState.PathThroughput.z);
 
-	PathStateData[PATH_STATE_STRIDE * Index + 19] = asuint(PathState.PathRoughness);
+	PathStateData[PATH_STATE_STRIDE * Index + 19] = f32tof16(PathState.PathRoughness) | (f32tof16(PathState.SigmaT.x) << 16);
+	PathStateData[PATH_STATE_STRIDE * Index + 20] = f32tof16(PathState.SigmaT.y) | (f32tof16(PathState.SigmaT.z) << 16);
 }
 
 RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
