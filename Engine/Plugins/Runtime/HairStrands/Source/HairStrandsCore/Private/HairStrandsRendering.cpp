@@ -146,7 +146,11 @@ class FHairStrandsCopyPositionCS : public FGlobalShader
 
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
+	{ 
+		// Used for copying guides data, which are used both for cards or strands
+		return IsHairStrandsSupported(EHairStrandsShaderType::Cards, Parameters.Platform) || IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform); 
+	}
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
