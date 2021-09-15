@@ -187,19 +187,24 @@ public:
 		Elements.Resize(ElementCount() * ElementSize);
 		ParentVertices.Resize(ElementCount());
 
+		// Remap and compact triangle element indices.
+		int32 MaxNewTID = 0;
 		for (int TID = 0, OldMaxTID = ElementTriangles.Num() / 3; TID < OldMaxTID; TID++)
 		{
-			int OldStart = TID * 3;
+			const int32 OldStart = TID * 3;
 			if (ElementTriangles[OldStart] == -1)
 			{
 				continue; // triangle was not set; skip it
 			}
-			int NewStart = CompactMaps.GetTriangleMapping(TID) * 3;
+			const int32 NewTID = CompactMaps.GetTriangleMapping(TID);
+			MaxNewTID = FMath::Max(MaxNewTID, NewTID);
+			const int32 NewStart = NewTID * 3;
 			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
 			{
 				ElementTriangles[NewStart + SubIdx] = MapE[ElementTriangles[OldStart + SubIdx]];
 			}
 		}
+		ElementTriangles.Resize((MaxNewTID + 1) * 3);
 
 		checkSlow(IsCompact());
 	}
