@@ -731,6 +731,7 @@ namespace ChaosTest {
 
 					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
 					{
+						bool bIsResimming = RewindData->IsResim();
 						if(PhysicsStep == 2)
 						{
 							Proxy->GetPhysicsThreadAPI()->AddForce(FVec3(1, 0, 0));
@@ -760,24 +761,15 @@ namespace ChaosTest {
 
 					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
 					{
-						if (!bIsResimming && LastCompletedStep == ResimEndFrame)
-						{
-							bIsResimming = true;
-							return ResimStartFrame;
-						}
-
 						if (LastCompletedStep == ResimEndFrame)
 						{
-							bIsResimming = false;
+							return ResimStartFrame;
 						}
-
 						return INDEX_NONE;
 					}
 
 					int32 ResimStartFrame = 1;
 					int32 ResimEndFrame = 10;
-					bool bIsResimming = false;
-
 				};
 
 				const int32 LastGameStep = 32;
@@ -818,6 +810,7 @@ namespace ChaosTest {
 
 					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
 					{
+						bool bIsResimming = RewindData->IsResim();
 						if (PhysicsStep == 2)
 						{
 							Proxy->GetPhysicsThreadAPI()->SetV(FVec3(0,0,2));
@@ -849,15 +842,9 @@ namespace ChaosTest {
 
 					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
 					{
-						if (!bIsResimming && LastCompletedStep == ResimEndFrame)
-						{
-							bIsResimming = true;
-							return ResimStartFrame;
-						}
-
 						if (LastCompletedStep == ResimEndFrame)
 						{
-							bIsResimming = false;
+							return ResimStartFrame;
 						}
 
 						return INDEX_NONE;
@@ -865,8 +852,6 @@ namespace ChaosTest {
 
 					int32 ResimStartFrame = 1;
 					int32 ResimEndFrame = 10;
-					bool bIsResimming = false;
-
 				};
 
 				const int32 LastGameStep = 32;
@@ -904,6 +889,7 @@ namespace ChaosTest {
 
 					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
 					{
+						bool bIsResimming = RewindData->IsResim();
 						if (bIsResimming)
 						{
 							if (PhysicsStep == 5)
@@ -924,24 +910,15 @@ namespace ChaosTest {
 
 					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
 					{
-						if (!bIsResimming && LastCompletedStep == ResimEndFrame)
-						{
-							bIsResimming = true;
-							return ResimStartFrame;
-						}
-
 						if (LastCompletedStep == ResimEndFrame)
 						{
-							bIsResimming = false;
+							return ResimStartFrame;
 						}
-
 						return INDEX_NONE;
 					}
 
 					int32 ResimStartFrame = 1;
 					int32 ResimEndFrame = 10;
-					bool bIsResimming = false;
-
 				};
 
 				auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
@@ -986,6 +963,14 @@ namespace ChaosTest {
 
 					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
 					{
+						bool bIsResimming = true;
+						if (PhysicsStep > HighestStep)
+						{
+							bIsResimming = false;
+							HighestStep = PhysicsStep;
+						}
+						ensure(bIsResimming == RewindData->IsResim()); // this would catch if IsResim is lieing to us
+
 						if (bIsResimming)
 						{
 							if (PhysicsStep == 5)
@@ -1006,15 +991,9 @@ namespace ChaosTest {
 
 					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
 					{
-						if (!bIsResimming && LastCompletedStep == ResimEndFrame)
-						{
-							bIsResimming = true;
-							return ResimStartFrame;
-						}
-
 						if (LastCompletedStep == ResimEndFrame)
 						{
-							bIsResimming = false;
+							return ResimStartFrame;
 						}
 
 						return INDEX_NONE;
@@ -1022,7 +1001,8 @@ namespace ChaosTest {
 
 					int32 ResimStartFrame = 1;
 					int32 ResimEndFrame = 10;
-					bool bIsResimming = false;
+
+					int32 HighestStep = INDEX_NONE;
 
 				};
 

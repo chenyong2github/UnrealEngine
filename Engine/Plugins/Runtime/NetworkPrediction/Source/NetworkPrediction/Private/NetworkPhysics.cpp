@@ -199,13 +199,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 			return INDEX_NONE;
 		}
 
+		npCheckSlow(!Solver->GetEvolution()->IsResimming());
+		npCheckSlow(!RewindData->IsResim());
+		
 		TRACE_CPUPROFILER_EVENT_SCOPE(NPA_Physics_TriggerRewindIfNeeded_Internal);
-
-		if (ResimEndFrame != INDEX_NONE)
-		{
-			// We are already in a resim and shouldn't trigger a new one
-			return INDEX_NONE;
-		}
 
 		PendingCorrections.Reset();
 		const int32 EarliestFrame = RewindData->GetEarliestFrame_Internal();
@@ -214,7 +211,6 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		{
 			//const int32 ForceRewindFrame = RewindData->GetEarliestFrame_Internal()+1; // This was causing us to back > 64 frames?
 			const int32 ForceRewindFrame = LastCompletedStep - 9;
-			ResimEndFrame = LastCompletedStep;
 			//UE_LOG(LogTemp, Warning, TEXT("Forcing rewind to %d. LastCompletedStep: %d"), ForceRewindFrame, LastCompletedStep);
 			return ForceRewindFrame;
 		}
@@ -530,10 +526,6 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 	void PostResimStep_Internal(int32 PhysicsStep) override
 	{
-		if (ResimEndFrame == PhysicsStep)
-		{
-			ResimEndFrame = INDEX_NONE;
-		}
 	}
 
 	void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs) override 
@@ -568,7 +560,6 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	// Objects that we need to correct in PreResimStep_Internal
 	TArray<FNetworkPhysicsState> PendingCorrections;
 	int32 PendingCorrectionIdx = INDEX_NONE;
-	int32 ResimEndFrame = INDEX_NONE;
 
 	Chaos::FRewindData* RewindData=nullptr; // This be made to be accessed off of IRewindCallback
 	Chaos::FPhysicsSolver* Solver = nullptr; //todo: shouldn't have to cache this, should be part of base class
