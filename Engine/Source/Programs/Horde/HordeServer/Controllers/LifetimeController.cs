@@ -28,24 +28,26 @@ namespace HordeServer.Controllers
 		}
 
 		/// <summary>
-		/// Readiness check for Kubernetes
-		/// If this return a non-successful HTTP response, Kubernetes will remove it from the load balancer,
-		/// preventing it from serving traffic.
+		/// Readiness check for server
+		/// 
+		/// When a SIGTERM has been received, the server is shutting down.
+		/// To communicate the server is stopping to load balancers/orchestrators, this route will return either 503 or 200.
+		/// The server will continue to serve requests, but it's assumed the load balancer has reacted and stopped sending
+		/// traffic by the time the server process exits.
 		/// </summary>
-		/// <returns>Ok if app is not stopping and all databases can be reached</returns>
+		/// <returns>Status code 503 is server is stopping, else 200 OK</returns>
 		[HttpGet]
 		[Route("/health/ready")]
-		public Task<ActionResult> K8sReadinessProbe()
+		public Task<ActionResult> ServerReadiness()
 		{
-			// Disabled for now
-			bool IsRunning = !LifetimeService.IsPreStopping;
-			bool IsMongoDBHealthy = true; //await LifetimeService.IsMongoDbConnectionHealthy();
-			bool IsRedisHealthy = true; //await LifetimeService.IsRedisConnectionHealthy();
-			int StatusCode = IsRunning && IsMongoDBHealthy && IsRedisHealthy ? 200 : 503;
-
-			string Content = $"IsRunning={IsRunning}\n";
-			Content += $"IsMongoDBHealthy={IsMongoDBHealthy}\n";
-			Content += $"IsRedisHealthy={IsRedisHealthy}\n";
+			int StatusCode = 200;
+			string Content = "ok";
+			
+			if (LifetimeService.IsPreStopping)
+			{
+				StatusCode = 503; // Service Unavailable
+				Content = "stopping";
+			}
 
 			return Task.FromResult<ActionResult>(new ContentResult { ContentType = "text/plain", StatusCode = StatusCode, Content = Content });
 		}

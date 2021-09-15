@@ -28,11 +28,6 @@ namespace HordeServer.Services
 		ILogger<LifetimeService> Logger;
 
 		/// <summary>
-		/// Task which waits for a period of time and sets the stopping task
-		/// </summary>
-		Task WaitAndTriggerStoppingTask = Task.CompletedTask;
-
-		/// <summary>
 		/// Task source for the server stopping
 		/// </summary>
 		TaskCompletionSource<bool> StoppingTaskCompletionSource;
@@ -105,12 +100,24 @@ namespace HordeServer.Services
 		/// </summary>
 		void ApplicationStopping()
 		{
+			Logger.LogInformation("SIGTERM signal received");
+			IsPreStopping = true;
+			IsStopping = true;
+
+			PreStoppingTaskCompletionSource.TrySetResult(true);
+			StoppingTaskCompletionSource.TrySetResult(true);
+
+			int ShutdownDelayMs = 30 * 1000;
+			Logger.LogInformation($"Delaying shutdown by sleeping {ShutdownDelayMs} ms...");
+			Thread.Sleep(ShutdownDelayMs);
+			Logger.LogInformation($"Server process now shutting down...");
+			
+			/*
 			if (PreStoppingTaskCompletionSource.TrySetResult(true))
 			{
-				Logger.LogInformation("Setting pre-stop event");
-				IsPreStopping = true;
+				
 				WaitAndTriggerStoppingTask = Task.Run(() => ExecStoppingTask());
-				/*
+				
 				Logger.LogInformation("App is stopping. Waiting an initial {InitialDelay} secs before waiting on any requests...", (int)InitialStoppingDelay.TotalSeconds);
 				Thread.Sleep(InitialStoppingDelay);
 				Logger.LogInformation("Blocking shutdown for up to {MaxGraceTimeout} secs until all request have finished...", (int)RequestGracefulTimeout.TotalSeconds);
@@ -131,8 +138,9 @@ namespace HordeServer.Services
 				{
 					Logger.LogInformation("One or more requests did not finish within the grace period of {TimeTaken} secs. Shutdown will now resume with risk of interrupting those requests!", (DateTime.UtcNow - StartTime).TotalSeconds);
 					RequestTrackerService.LogRequestsInProgress();
-				}*/
+				}
 			}
+			*/
 		}
 
 		async Task ExecStoppingTask()
