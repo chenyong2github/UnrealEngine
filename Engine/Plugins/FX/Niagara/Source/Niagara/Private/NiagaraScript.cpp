@@ -1355,6 +1355,7 @@ void UNiagaraScript::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	UNiagaraSystem* SystemOwner = FindRootSystem();
 	if (SystemOwner)
 	{
+		SystemOwner->EnsureFullyLoaded();
 		SystemOwner->WaitForCompilationComplete();
 	}
 
