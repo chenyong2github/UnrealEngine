@@ -2512,7 +2512,7 @@ namespace VulkanRHI
 
 	void FVulkanSubresourceAllocator::SetFreePending(FVulkanAllocation& Allocation)
 	{
-		check(Allocation.Type == Type);
+		check(Allocation.GetType() == Type);
 		check(Allocation.AllocatorIndex == GetAllocatorIndex());
 		{
 			FScopeLock ScopeLock(&CS);
@@ -2961,6 +2961,9 @@ namespace VulkanRHI
 		{
 			UE_LOG(LogVulkanRHI, Fatal, TEXT("Missing memory type index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), TypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
 		}
+
+		check(MemoryReqs.size <= (uint64)MAX_uint32);
+
 		const bool bForceSeparateAllocation = (MemoryPropertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) == VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
 		if(!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Image, MemoryReqs.size, MemoryReqs.alignment, bMapped, bForceSeparateAllocation, MetaType, File, Line))
 		{
@@ -3015,6 +3018,8 @@ namespace VulkanRHI
 			}
 		}
 
+		check(MemoryReqs.size <= (uint64)MAX_uint32);
+
 		if(!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Buffer, MemoryReqs.size, MemoryReqs.alignment, bMapped, false, MetaType, File, Line))
 		{
 			// Try another memory type if the allocation failed
@@ -3057,6 +3062,7 @@ namespace VulkanRHI
 			uint32 TypeIndex = 0;
 			VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromProperties(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, &TypeIndex));
 			ensure((MemoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+			check(MemoryReqs.size <= (uint64)MAX_uint32);
 			if (!ResourceTypeHeaps[TypeIndex])
 			{
 				UE_LOG(LogVulkanRHI, Fatal, TEXT("Missing memory type index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), TypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
@@ -3712,7 +3718,9 @@ namespace VulkanRHI
 	}
 
 	FVulkanAllocation::FVulkanAllocation()
+		: bHasOwnership(0)
 	{
+		SetType(EVulkanAllocationEmpty);
 	}
 	FVulkanAllocation::~FVulkanAllocation()
 	{
@@ -3724,7 +3732,7 @@ namespace VulkanRHI
 	{
 		check(State == EUNUSED);
 		State = EALLOCATED;
-		Type = Alloc.Type;
+		Type = Alloc.GetType();
 		MetaType = Alloc.MetaType;
 
 		Size = Alloc.Size;
@@ -3738,12 +3746,11 @@ namespace VulkanRHI
 	{
 		check(!HasAllocation());
 		bHasOwnership = 1;
-		Type = InType;
+		SetType(InType);
 		MetaType = InMetaType;
 		Size = InSize;
 		Offset = InAlignedOffset;
-		check(InAllocatorIndex < (1<<ALLOCATOR_INDEX_BITS));
-		check(InAllocationIndex < (1<<ALLOCATION_INDEX_BITS));
+		check(InAllocatorIndex < (uint32)MAX_uint16);
 		AllocatorIndex = InAllocatorIndex;
 		AllocationIndex = InAllocationIndex;
 		VulkanHandle = Handle;
