@@ -24,8 +24,9 @@ void FSlatePostProcessResource::Update(const FIntPoint& NewSize)
 		{
 			InitResource();
 		}
-	
-		ResizeTargets(NewSize);
+
+		FIntPoint NewMaxSize(FMath::Max(NewSize.X, RenderTargetSize.X), FMath::Max(NewSize.Y, RenderTargetSize.Y));
+		ResizeTargets(NewMaxSize);
 	}
 }
 
