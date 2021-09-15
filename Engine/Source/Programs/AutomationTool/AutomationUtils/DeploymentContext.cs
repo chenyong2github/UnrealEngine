@@ -94,6 +94,26 @@ public class FilesToStage
 	}
 }
 
+public class PackageStoreManifest
+{
+	public class ZenServerInfo
+	{
+		public string HostName { get; set; }
+		public int Port { get; set; }
+		public string ProjectId { get; set; }
+		public string OplogId { get; set; }
+	}
+	public class FileInfo
+	{
+		public string Path { get; set; }
+	}
+
+	public string FullPath { get; set; }
+
+	public ZenServerInfo ZenServer { get; set; }
+	public IList<FileInfo> Files { get; set; }
+}
+
 public class DeploymentContext //: ProjectParams
 {
 	/// <summary>
@@ -225,6 +245,11 @@ public class DeploymentContext //: ProjectParams
 	/// Probably going away, used to construct the pak file list
 	/// </summary>
 	public string PakFileInternalRoot = "../../../";
+
+	/// <summary>
+	/// Cooked package store manifest if available
+	/// </summary>
+	public PackageStoreManifest PackageStoreManifest;
 
 	/// <summary>
 	/// List of files to be staged

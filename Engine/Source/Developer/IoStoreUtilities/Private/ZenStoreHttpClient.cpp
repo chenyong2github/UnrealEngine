@@ -229,7 +229,12 @@ TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenStoreHttp_AppendOp);
 
-	return Async(EAsyncExecution::LargeThreadPool, [this, OpEntry]
+#if WITH_EDITOR
+	EAsyncExecution ThreadPool = EAsyncExecution::LargeThreadPool;
+#else
+	EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
+#endif
+	return Async(ThreadPool, [this, OpEntry]
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Zen_AppendOp_Async);
 		FLargeMemoryWriter SerializedPackage;
@@ -463,7 +468,12 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogUri(FStringBuilderBase& Chu
 
 TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetOplog()
 {
-	return Async(EAsyncExecution::LargeThreadPool, [this]
+#if WITH_EDITOR
+	EAsyncExecution ThreadPool = EAsyncExecution::LargeThreadPool;
+#else
+	EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
+#endif
+	return Async(ThreadPool, [this]
 	{
 		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		
@@ -487,7 +497,12 @@ TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetOplog()
 
 TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetFiles()
 {
-	return Async(EAsyncExecution::LargeThreadPool, [this]
+#if WITH_EDITOR
+	EAsyncExecution ThreadPool = EAsyncExecution::LargeThreadPool;
+#else
+	EAsyncExecution ThreadPool = EAsyncExecution::ThreadPool;
+#endif
+	return Async(ThreadPool, [this]
 	{
 		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		

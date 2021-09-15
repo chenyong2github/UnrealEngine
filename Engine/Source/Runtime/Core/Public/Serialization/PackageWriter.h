@@ -45,6 +45,7 @@ public:
 	struct FBeginPackageInfo
 	{
 		FName	PackageName;
+		FString	LooseFilePath;
 	};
 
 	/** Mark the beginning of a package store transaction for the specified package

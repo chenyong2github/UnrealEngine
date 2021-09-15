@@ -14,6 +14,7 @@
 #include "Serialization/MemoryReader.h"
 #include "UObject/Package.h"
 #include "Misc/SecureHash.h"
+#include "Serialization/LargeMemoryReader.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPackageStoreOptimizer, Log, All);
 
@@ -100,6 +101,11 @@ static FString RemapLocalizationPathIfNeeded(const FString& Path, FString* OutRe
 void FPackageStoreOptimizer::Initialize(const ITargetPlatform* TargetPlatform)
 {
 	FindScriptObjects(TargetPlatform);
+}
+
+void FPackageStoreOptimizer::Initialize(const FIoBuffer& ScriptObjectsBuffer)
+{
+	LoadScriptObjectsBuffer(ScriptObjectsBuffer);
 }
 
 FPackageStorePackage* FPackageStoreOptimizer::CreateMissingPackage(const FName& Name) const
@@ -397,6 +403,11 @@ void FPackageStoreOptimizer::ProcessImports(const FCookedHeaderData& CookedHeade
 		FPackageStorePackage::FUnresolvedImport& UnresolvedImport = UnresolvedImports[ImportIndex];
 		if (UnresolvedImport.bIsScriptImport)
 		{
+			FPackageObjectIndex ScriptObjectIndex = FPackageObjectIndex::FromScriptPath(UnresolvedImport.FullName);
+			if (!ScriptObjectsMap.Contains(ScriptObjectIndex))
+			{
+				UE_LOG(LogPackageStoreOptimizer, Warning, TEXT("Package '%s' is referencing missing script import '%s'"), *Package->Name.ToString(), *UnresolvedImport.FullName);
+			}
 			Package->Imports[ImportIndex] = FPackageObjectIndex::FromScriptPath(UnresolvedImport.FullName);
 		}
 		else if (!UnresolvedImport.bIsImportOfPackage)
@@ -1680,6 +1691,25 @@ FIoBuffer FPackageStoreOptimizer::CreateScriptObjectsBuffer() const
 
 	int64 DataSize = ScriptObjectsArchive.TotalSize();
 	return FIoBuffer(FIoBuffer::AssumeOwnership, ScriptObjectsArchive.ReleaseOwnership(), DataSize);
+}
+
+void FPackageStoreOptimizer::LoadScriptObjectsBuffer(const FIoBuffer& ScriptObjectsBuffer)
+{
+	FLargeMemoryReader ScriptObjectsArchive(ScriptObjectsBuffer.Data(), ScriptObjectsBuffer.DataSize());
+	TArray<FNameEntryId> NameMap = LoadNameBatch(ScriptObjectsArchive);
+	int32 NumScriptObjects;
+	ScriptObjectsArchive << NumScriptObjects;
+	for (int32 Index = 0; Index < NumScriptObjects; ++Index)
+	{
+		FScriptObjectEntry Entry;
+		ScriptObjectsArchive << Entry;
+		FScriptObjectData& ImportData = ScriptObjectsMap.Add(Entry.GlobalIndex);
+		const FMappedName& MappedName = FMappedName::FromMinimalName(Entry.ObjectName);
+		ImportData.ObjectName = FName::CreateFromDisplayId(NameMap[MappedName.GetIndex()], MappedName.GetNumber());
+		ImportData.GlobalIndex = Entry.GlobalIndex;
+		ImportData.OuterIndex = Entry.OuterIndex;
+		ImportData.CDOClassIndex = Entry.CDOClassIndex;
+	}
 }
 
 FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const FPackageStorePackage* Package) const

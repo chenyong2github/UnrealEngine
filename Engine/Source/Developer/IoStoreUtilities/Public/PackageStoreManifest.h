@@ -28,7 +28,7 @@ public:
 		FString OplogId;
 	};
 
-	IOSTOREUTILITIES_API FPackageStoreManifest() = default;
+	IOSTOREUTILITIES_API FPackageStoreManifest(const FString& CookedOutputPath);
 	IOSTOREUTILITIES_API ~FPackageStoreManifest() = default;
 
 	IOSTOREUTILITIES_API void BeginPackage(FName PackageName);
@@ -46,6 +46,7 @@ public:
 
 private:
 	mutable FCriticalSection CriticalSection;
+	FString CookedOutputPath;
 	TMap<FName, FPackageInfo> PackageInfoByNameMap;
 	TMap<FIoChunkId, FString> FileNameByChunkIdMap;
 	TUniquePtr<FZenServerInfo> ZenServerInfo;

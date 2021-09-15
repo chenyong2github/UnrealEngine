@@ -6,6 +6,7 @@
 #include "Serialization/PackageWriter.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
+#include "PackageStoreManifest.h"
 
 class FAsyncIODelete;
 class IPlugin;
@@ -71,6 +72,7 @@ private:
 	FString MetadataDirectoryPath;
 	const ITargetPlatform& TargetPlatform;
 	const FPackageNameCache& PackageNameCache;
+	FPackageStoreManifest PackageStoreManifest;
 	TUniquePtr<FAssetRegistryState> PreviousState;
 	const TArray<TSharedRef<IPlugin>>& PluginsToRemap;
 	FAsyncIODelete& AsyncIODelete;

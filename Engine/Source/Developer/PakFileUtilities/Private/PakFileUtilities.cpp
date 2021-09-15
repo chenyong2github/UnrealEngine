@@ -27,6 +27,7 @@
 #include "Serialization/FileRegions.h"
 #include "Misc/ICompressionFormat.h"
 #include "Misc/KeyChainUtilities.h"
+#include "IoStoreUtilities.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -4762,6 +4763,13 @@ void CheckAndReallocThreadPool()
  */
 bool ExecuteUnrealPak(const TCHAR* CmdLine)
 {
+	FString IoStoreArg;
+	if (FParse::Value(CmdLine, TEXT("-CreateGlobalContainer="), IoStoreArg) ||
+		FParse::Value(CmdLine, TEXT("-CreateDLCContainer="), IoStoreArg))
+	{
+		return CreateIoStoreContainerFiles(CmdLine) == 0;
+	}
+
 	// Parse all the non-option arguments from the command line
 	TArray<FString> NonOptionArguments;
 	for (const TCHAR* CmdLineEnd = CmdLine; *CmdLineEnd != 0;)
