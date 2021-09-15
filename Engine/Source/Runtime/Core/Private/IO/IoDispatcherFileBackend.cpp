@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IO/IoDispatcherFileBackend.h"
+#include "Misc/Parse.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "GenericPlatform/GenericPlatformIoDispatcher.h"
 #include "HAL/IConsoleManager.h"
 #include "Async/AsyncWork.h"
 #include "Async/MappedFileHandle.h"
@@ -17,6 +19,7 @@
 #include "Algo/MinElement.h"
 #include "Templates/Greater.h"
 #include "Containers/Ticker.h"
+#include "Modules/ModuleManager.h"
 
 TRACE_DECLARE_INT_COUNTER(IoDispatcherLatencyCircuitBreaks, TEXT("IoDispatcher/LatencyCircuitBreaks"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherSeekDistanceCircuitBreaks, TEXT("IoDispatcher/SeekDistanceCircuitBreaks"));
@@ -623,7 +626,7 @@ void FFileIoStoreRequestQueue::CancelRequestsWithFileHandle(const uint64 FileHan
 	}
 }
 
-FFileIoStoreReader::FFileIoStoreReader(FFileIoStoreImpl& InPlatformImpl)
+FFileIoStoreReader::FFileIoStoreReader(IPlatformFileIoStore& InPlatformImpl)
 	: PlatformImpl(InPlatformImpl)
 {
 }
@@ -1055,9 +1058,9 @@ void FFileIoStoreRequestTracker::ReleaseIoRequestReferences(FFileIoStoreResolved
 	RequestAllocator.Free(&ResolvedRequest);
 }
 
-FFileIoStore::FFileIoStore()
+FFileIoStore::FFileIoStore(TUniquePtr<IPlatformFileIoStore>&& InPlatformImpl)
 	: RequestTracker(RequestAllocator, RequestQueue)
-	, PlatformImpl(EventQueue, BufferAllocator, BlockCache)
+	, PlatformImpl(MoveTemp(InPlatformImpl))
 {
 }
 
@@ -1085,7 +1088,12 @@ void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InCo
 	uint64 CacheMemorySize = uint64(GIoDispatcherCacheSizeMB) << 20ull;
 	BlockCache.Initialize(CacheMemorySize, BufferSize);
 
-	PlatformImpl.Initialize(&BackendContext->WakeUpDispatcherThreadDelegate);
+	PlatformImpl->Initialize({
+		&BackendContext->WakeUpDispatcherThreadDelegate,
+		&RequestAllocator,
+		&BufferAllocator,
+		&BlockCache
+	});
 
 	uint64 DecompressionContextCount = uint64(GIoDispatcherDecompressionWorkerCount > 0 ? GIoDispatcherDecompressionWorkerCount : 4);
 	for (uint64 ContextIndex = 0; ContextIndex < DecompressionContextCount; ++ContextIndex)
@@ -1101,7 +1109,7 @@ void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InCo
 
 TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
 {
-	TUniquePtr<FFileIoStoreReader> Reader(new FFileIoStoreReader(PlatformImpl));
+	TUniquePtr<FFileIoStoreReader> Reader(new FFileIoStoreReader(*PlatformImpl));
 	FIoStatus IoStatus = Reader->Initialize(ContainerPath, Order);
 	if (!IoStatus.IsOk())
 	{
@@ -1198,7 +1206,7 @@ bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 			if (ResolvedSize > 0)
 			{
 				FFileIoStoreReadRequestList CustomRequests;
-				if (PlatformImpl.CreateCustomRequests(RequestAllocator, *ResolvedRequest, CustomRequests))
+				if (PlatformImpl->CreateCustomRequests(*ResolvedRequest, CustomRequests))
 				{
 					RequestTracker.AddReadRequestsToResolvedRequest(CustomRequests, *ResolvedRequest);
 					FFileIoStats::OnFilesystemReadsQueued(CustomRequests);
@@ -1469,11 +1477,11 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 	
 	if (!bIsMultithreaded)
 	{
-		while (PlatformImpl.StartRequests(RequestQueue));
+		while (PlatformImpl->StartRequests(RequestQueue));
 	}
 
 	FFileIoStoreReadRequestList CompletedRequests;
-	PlatformImpl.GetCompletedRequests(CompletedRequests);
+	PlatformImpl->GetCompletedRequests(CompletedRequests);
 	for (auto It = CompletedRequests.Steal(); It; ++It)
 	{
 		FFileIoStoreReadRequest* CompletedRequest = *It;
@@ -1702,7 +1710,7 @@ void FFileIoStore::OnNewPendingRequestsAdded()
 {
 	if (bIsMultithreaded)
 	{
-		EventQueue.ServiceNotify();
+		PlatformImpl->ServiceNotify();
 	}
 }
 
@@ -1808,7 +1816,7 @@ void FFileIoStore::ReadBlocks(FFileIoStoreResolvedRequest& ResolvedRequest)
 void FFileIoStore::FreeBuffer(FFileIoStoreBuffer& Buffer)
 {
 	BufferAllocator.FreeBuffer(&Buffer);
-	EventQueue.ServiceNotify();
+	PlatformImpl->ServiceNotify();
 }
 
 FFileIoStoreCompressionContext* FFileIoStore::AllocCompressionContext()
@@ -1857,7 +1865,7 @@ bool FFileIoStore::Init()
 void FFileIoStore::Stop()
 {
 	bStopRequested = true;
-	EventQueue.ServiceNotify();
+	PlatformImpl->ServiceNotify();
 }
 
 uint32 FFileIoStore::Run()
@@ -1865,10 +1873,10 @@ uint32 FFileIoStore::Run()
 	while (!bStopRequested)
 	{
 		UpdateAsyncIOMinimumPriority();
-		if (!PlatformImpl.StartRequests(RequestQueue))
+		if (!PlatformImpl->StartRequests(RequestQueue))
 		{
 			UpdateAsyncIOMinimumPriority();
-			EventQueue.ServiceWait();
+			PlatformImpl->ServiceWait();
 		}
 	}
 	return 0;
@@ -1876,7 +1884,34 @@ uint32 FFileIoStore::Run()
 
 TSharedRef<IIoDispatcherFileBackend> CreateIoDispatcherFileBackend()
 {
-	return MakeShared<FFileIoStore>();
+	const bool bCheckForPlatformImplementation = UE_BUILD_SHIPPING || !FParse::Param(FCommandLine::Get(), TEXT("forcegenericio"));
+
+	if (bCheckForPlatformImplementation)
+	{
+		const TCHAR* ModuleName = ANSI_TO_TCHAR(PLATFORM_IODISPATCHER_MODULE);
+		if (FModuleManager::Get().ModuleExists(ModuleName))
+		{
+			IPlatformFileIoStoreModule* PlatformModule = FModuleManager::LoadModulePtr<IPlatformFileIoStoreModule>(ModuleName);
+			if (PlatformModule)
+			{
+				TUniquePtr<IPlatformFileIoStore> PlatformImpl = PlatformModule->CreatePlatformFileIoStore();
+				if (PlatformImpl.IsValid())
+				{
+					return MakeShared<FFileIoStore>(MoveTemp(PlatformImpl));
+				}
+			}
+		}
+#if PLATFORM_IMPLEMENTS_IO
+		{
+			TUniquePtr<IPlatformFileIoStore> PlatformImpl = CreatePlatformFileIoStore();
+			if (PlatformImpl.IsValid())
+			{
+				return MakeShared<FFileIoStore>(MoveTemp(PlatformImpl));
+			}
+		}
+#endif
+	}
+	return MakeShared<FFileIoStore>(MakeUnique<FGenericFileIoStoreImpl>());
 }
 
 uint32 FFileIoStore::GetThreadId() const
