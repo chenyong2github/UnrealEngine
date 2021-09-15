@@ -98,6 +98,11 @@ namespace
 			Result = FPlatformProcess::GetDllHandle(*EngineBinaryPath);
 		}
 
+		if (!Result)
+		{
+			Result = FPlatformProcess::GetDllHandle(TEXT(EOSSDK_RUNTIME_LIBRARY_NAME));
+		}
+
 		return Result;
 	}
 #endif
