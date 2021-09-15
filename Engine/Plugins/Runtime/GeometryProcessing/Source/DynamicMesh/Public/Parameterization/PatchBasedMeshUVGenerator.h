@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Polygroups/PolygroupSet.h"
 #include "Util/ProgressCancel.h"
 
 namespace UE
@@ -25,6 +26,14 @@ namespace Geometry
 class DYNAMICMESH_API FPatchBasedMeshUVGenerator
 {
 public:
+
+	//
+	// If this is set, then the output patches will respect the borders of the
+	// input polygroups, eg as if they were disconnected components.
+	// Must be a PolygroupSet for the TargetMesh passed to functions below
+	//
+	FPolygroupSet* GroupConstraint = nullptr;
+
 
 	//
 	// Parameters for patch generation (ComputeInitialMeshPatches)

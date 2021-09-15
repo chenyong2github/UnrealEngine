@@ -12,6 +12,27 @@ namespace UE
 namespace Geometry
 {
 
+/**
+ * FPolygroupLayer represents a polygroup set on a FDynamicMesh3, which supports a "default"
+ * group set stored on the mesh, and then N extended group layers stored in the mesh AttributeSet.
+ * This struct can represent either.
+ */
+struct DYNAMICMESH_API FPolygroupLayer
+{
+	/** If true, layer is the default FDynamicMesh3 triangle groups layer */
+	bool bIsDefaultLayer = true;
+	/** If bIsDefaultLayer is false, this is the index of the AttributeSet Polygroup Layer */
+	int32 LayerIndex = -1;
+
+	/** Construct a FPolygroupLayer for the default layer */
+	static FPolygroupLayer Default() { return FPolygroupLayer{ true, -1 }; }
+	/** Construct a FPolygroupLayer for an extended layer */
+	static FPolygroupLayer Layer(int32 Index) { return FPolygroupLayer{ false, Index }; }
+
+	/** @return true if the specified layer (default or extended) exist and is initialized on the given Mesh */
+	bool CheckExists(const FDynamicMesh3* Mesh);
+};
+
 
 /**
  * Polygroup sets can be stored in multiple places. The default location is in the per-triangle group integer stored
@@ -33,6 +54,9 @@ struct DYNAMICMESH_API FPolygroupSet
 
 	/** Initialize a PolygroupSet for the given Mesh, and standard triangle group layer */
 	explicit FPolygroupSet(const FDynamicMesh3* MeshIn);
+
+	/** Initialize a PolygroupSet for the given Mesh, and standard triangle group layer */
+	explicit FPolygroupSet(const FDynamicMesh3* MeshIn, FPolygroupLayer GroupLayer);
 
 	/** Initialize a PolygroupSet for given Mesh and specific Polygroup attribute layer */
 	explicit FPolygroupSet(const FDynamicMesh3* MeshIn, const FDynamicMeshPolygroupAttribute* PolygroupAttribIn);

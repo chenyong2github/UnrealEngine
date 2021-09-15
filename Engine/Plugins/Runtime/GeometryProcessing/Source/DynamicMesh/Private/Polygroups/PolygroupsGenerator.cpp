@@ -7,6 +7,7 @@
 #include "Parameterization/MeshDijkstra.h"
 #include "Parameterization/IncrementalMeshDijkstra.h"
 #include "Parameterization/MeshRegionGraph.h"
+#include "Async/ParallelFor.h"
 
 #include "Curve/DynamicGraph3.h"
 
@@ -22,9 +23,13 @@ FPolygroupsGenerator::FPolygroupsGenerator(FDynamicMesh3* MeshIn)
 
 
 
-bool FPolygroupsGenerator::FindPolygroupsFromUVIslands()
+bool FPolygroupsGenerator::FindPolygroupsFromUVIslands(int32 UVLayer)
 {
-	const FDynamicMeshUVOverlay* UV = Mesh->Attributes()->GetUVLayer(0);
+	const FDynamicMeshUVOverlay* UV = Mesh->Attributes()->GetUVLayer(UVLayer);
+	if (!UV)
+	{
+		return false;
+	}
 
 	FMeshConnectedComponents Components(Mesh);
 	Components.FindConnectedTriangles([&UV](int32 TriIdx0, int32 TriIdx1)
@@ -50,6 +55,38 @@ bool FPolygroupsGenerator::FindPolygroupsFromUVIslands()
 	return (FoundPolygroups.Num() > 0);
 }
 
+
+bool FPolygroupsGenerator::FindPolygroupsFromHardNormalSeams()
+{
+	const FDynamicMeshNormalOverlay* Normals = Mesh->Attributes()->GetNormalLayer(0);
+	if (!Normals)
+	{
+		return false;
+	}
+
+	FMeshConnectedComponents Components(Mesh);
+	Components.FindConnectedTriangles([Normals](int32 TriIdx0, int32 TriIdx1)
+	{
+		return Normals->AreTrianglesConnected(TriIdx0, TriIdx1);
+	});
+
+	int32 NumComponents = Components.Num();
+	for (int32 ci = 0; ci < NumComponents; ++ci)
+	{
+		FoundPolygroups.Add(Components.GetComponent(ci).Indices);
+	}
+
+	if (bApplyPostProcessing)
+	{
+		PostProcessPolygroups(false);
+	}
+	if (bCopyToMesh)
+	{
+		CopyPolygroupsToMesh();
+	}
+
+	return (FoundPolygroups.Num() > 0);
+}
 
 
 bool FPolygroupsGenerator::FindPolygroupsFromConnectedTris()
@@ -147,7 +184,6 @@ bool FPolygroupsGenerator::FindPolygroupsFromFaceNormals(double DotTolerance)
 
 
 
-
 /**
  * Dual graph of mesh faces, ie graph of edges across faces between face centers.
  * Normals and Areas are tracked for each point.
@@ -172,7 +208,10 @@ public:
 	}
 
 	/** Build a Face Dual Graph for a triangle mesh */
-	static void MakeFaceDualGraphForMesh(FDynamicMesh3* Mesh, FMeshFaceDualGraph& FaceGraph)
+	static void MakeFaceDualGraphForMesh(
+		FDynamicMesh3* Mesh, 
+		FMeshFaceDualGraph& FaceGraph,
+		TFunctionRef<bool(int,int)> TrisConnectedPredicate )
 	{
 		// if not true, code below needs updating
 		check(Mesh->IsCompactT());
@@ -192,7 +231,7 @@ public:
 			FIndex3i NbrT = Mesh->GetTriNeighbourTris(tid);
 			for (int32 j = 0; j < 3; ++j)
 			{
-				if (Mesh->IsTriangle(NbrT[j]))
+				if (Mesh->IsTriangle(NbrT[j]) && TrisConnectedPredicate(tid, NbrT[j]) )
 				{
 					FaceGraph.AppendEdge(tid, NbrT[j]);
 				}
@@ -207,12 +246,23 @@ public:
 
 
 
-bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(int32 NumPoints, EWeightingType WeightingType, FVector3d WeightingCoeffs)
+bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(
+	int32 NumPoints, 
+	EWeightingType WeightingType, 
+	FVector3d WeightingCoeffs,
+	FPolygroupSet* StartingGroups)
 {
 	NumPoints = FMath::Min(NumPoints, Mesh->VertexCount());
 
+	// cannot seem to use auto or TUniqueFunction here...
+	TFunction<bool(int,int)> TrisConnectedPredicate = [](int, int) -> bool { return true; };
+	if (StartingGroups != nullptr)
+	{
+		TrisConnectedPredicate = [StartingGroups](int a, int b) -> bool { return StartingGroups->GetGroup(a) == StartingGroups->GetGroup(b) ? true : false; };
+	}
+
 	FMeshFaceDualGraph FaceGraph;
-	FMeshFaceDualGraph::MakeFaceDualGraphForMesh(Mesh, FaceGraph);
+	FMeshFaceDualGraph::MakeFaceDualGraphForMesh(Mesh, FaceGraph, TrisConnectedPredicate);
 
 	TIncrementalMeshDijkstra<FMeshFaceDualGraph> FurthestPoints(&FaceGraph);
 
@@ -221,7 +271,7 @@ bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(int32 NumPoin
 	// need to add at least one seed point for each mesh connected component, so that all triangles are assigned a group
 	// TODO: two seed points for components that have no boundary?
 	FMeshConnectedComponents Components(Mesh);
-	Components.FindConnectedTriangles();
+	Components.FindConnectedTriangles(TrisConnectedPredicate);
 	int32 NumConnected = Components.Num();
 	for (int32 k = 0; k < NumConnected; ++k)
 	{

@@ -33,7 +33,8 @@ public:
 	 */
 	void BuildFromComponents(const FDynamicMesh3& Mesh, 
 							 const FMeshConnectedComponents& Components,
-							 TFunctionRef<int32(int32)> ExternalIDFunc);
+							 TFunctionRef<int32(int32)> ExternalIDFunc,
+							 TFunctionRef<bool(int32, int32)> TrisConnectedPredicate = [](int a, int b) { return true; } );
 
 	/**
 	 * Build a region graph for a Mesh using the given triangle sets

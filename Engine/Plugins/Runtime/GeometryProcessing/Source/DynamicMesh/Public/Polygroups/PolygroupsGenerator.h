@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Polygroups/PolygroupSet.h"
 
 using UE::Geometry::FDynamicMesh3;
+
 
 namespace UE
 {
@@ -59,7 +61,12 @@ public:
 	/**
 	 * Find Polygroups based on UV Islands, ie each UV Island becomes a Polygroup
 	 */
-	bool FindPolygroupsFromUVIslands();
+	bool FindPolygroupsFromUVIslands(int32 UVLayer = 0);
+
+	/**
+	* Find Polygroups based on Seams in UV Overlay
+	*/
+	bool FindPolygroupsFromHardNormalSeams();
 
 	/**
 	 * Find Polygroups based on mesh connectivity, ie each connected-component becomes a Polygroup
@@ -79,8 +86,14 @@ public:
 	 * Incrementally compute approximate-geodesic-based furthest-point sampling of the mesh until NumPoints
 	 * samples have been found, then compute local geodesic patches (eg approximate surface voronoi diagaram).
 	 * Optionally weight geodesic-distance computation, which will produce different patch shapes.
+	 * If StartingGroups are provided, then new groups are constrained to subdivide existing groups, ie
+	 * none of the new groups will cross the boundaries of the StartingGroups
 	 */
-	bool FindPolygroupsFromFurthestPointSampling(int32 NumPoints, EWeightingType WeightingType, FVector3d WeightingCoeffs = FVector3d::One());
+	bool FindPolygroupsFromFurthestPointSampling(
+		int32 NumPoints, 
+		EWeightingType WeightingType, 
+		FVector3d WeightingCoeffs = FVector3d::One(),
+		FPolygroupSet* StartingGroups = nullptr);
 
 
 	/**
