@@ -153,6 +153,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	URichTextBlockDecorator* GetDecoratorByClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass);
 
+	/**
+	 * Causes the text to reflow it's layout and re-evaluate any decorators
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void RefreshTextLayout();
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	

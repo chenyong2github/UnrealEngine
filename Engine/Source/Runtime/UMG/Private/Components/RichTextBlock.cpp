@@ -357,6 +357,14 @@ void URichTextBlock::ApplyUpdatedDefaultTextStyle()
 	}
 }
 
+void URichTextBlock::RefreshTextLayout()
+{
+	if (MyRichTextBlock.IsValid())
+	{
+		MyRichTextBlock->Refresh();
+	}
+}
+
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
