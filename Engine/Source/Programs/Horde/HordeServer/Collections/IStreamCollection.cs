@@ -85,14 +85,6 @@ namespace HordeServer.Collections
 		Task<bool> TryUpdatePropertiesAsync(IStream Stream, string? NewName, int? NewOrder, string? NewNotificationChannel, string? NewNotificationChannelFilter, string? NewTriageChannel, List<StreamTab>? NewTabs, Dictionary<string, AgentType?>? NewAgentTypes, Dictionary<string, WorkspaceType?>? NewWorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? NewTemplateRefs, Dictionary<string, string?>? NewProperties, Acl? NewAcl, bool? UpdatePauseFields, DateTime? NewPausedUntil, string? NewPauseComment);
 
 		/// <summary>
-		/// Attempts to update the last commit time for a streams
-		/// </summary>
-		/// <param name="Stream"></param>
-		/// <param name="LastCommitTime"></param>
-		/// <returns></returns>
-		Task<bool> TryUpdateCommitTimeAsync(IStream Stream, DateTime LastCommitTime);
-
-		/// <summary>
 		/// Attempts to update the last trigger time for a schedule
 		/// </summary>
 		/// <param name="Stream">The stream to update</param>

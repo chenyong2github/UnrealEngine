@@ -54,7 +54,6 @@ namespace HordeServer.Collections.Impl
 			public Dictionary<string, AgentType> AgentTypes { get; set; } = new Dictionary<string, AgentType>(StringComparer.Ordinal);
 			public Dictionary<string, WorkspaceType> WorkspaceTypes { get; set; } = new Dictionary<string, WorkspaceType>(StringComparer.Ordinal);
 			public Dictionary<TemplateRefId, TemplateRef> Templates { get; set; } = new Dictionary<TemplateRefId, TemplateRef>();
-			public DateTime? LastCommitTime { get; set; }
 			public DateTime? PausedUntil { get; set; }
 			public string? PauseComment { get; set; }
 			public Acl? Acl { get; set; }
@@ -450,29 +449,6 @@ namespace HordeServer.Collections.Impl
 			{
 				return Task.FromResult(true);
 			}
-		}
-
-		/// <inheritdoc/>
-		public async Task<bool> TryUpdateCommitTimeAsync(IStream StreamInterface, DateTime LastCommitTime)
-		{
-			StreamDocument Stream = (StreamDocument)StreamInterface;
-
-			// Get the update to apply
-			UpdateDefinition<StreamDocument> Update = Builders<StreamDocument>.Update
-				.Set(x => x.LastCommitTime, Stream.LastCommitTime)
-				.Set(x => x.UpdateIndex, Stream.UpdateIndex + 1);
-
-			// Apply the update
-			UpdateResult Result = await Streams.UpdateOneAsync(x => x.Id == Stream.Id && x.UpdateIndex == Stream.UpdateIndex, Update);
-			if (Result.ModifiedCount == 0)
-			{
-				return false;
-			}
-
-			// Update the input document
-			Stream.LastCommitTime = LastCommitTime;
-			Stream.UpdateIndex++;
-			return true;
 		}
 
 		/// <inheritdoc/>
