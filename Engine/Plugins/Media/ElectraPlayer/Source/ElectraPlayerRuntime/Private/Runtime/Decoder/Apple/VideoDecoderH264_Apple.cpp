@@ -18,6 +18,8 @@
 #include "MediaVideoDecoderOutputApple.h"
 #include "Renderer/RendererVideo.h"
 
+#include "ElectraVideoDecoder_Apple.h"
+
 #include <VideoToolbox/VideoToolbox.h>
 
 DECLARE_CYCLE_STAT(TEXT("FVideoDecoderH264::Decode()"), STAT_ElectraPlayer_VideoH264Decode, STATGROUP_ElectraPlayer);
@@ -321,83 +323,6 @@ IVideoDecoderH264* IVideoDecoderH264::Create()
 	return new FVideoDecoderH264;
 }
 
-
-/***************************************************************************************************************************************************/
-/***************************************************************************************************************************************************/
-/***************************************************************************************************************************************************/
-
-class FElectraPlayerVideoDecoderOutputApple : public FVideoDecoderOutputApple
-{
-public:
-	FElectraPlayerVideoDecoderOutputApple()
-		: ImageBufferRef(nullptr)
-	{
-	}
-
-	~FElectraPlayerVideoDecoderOutputApple()
-	{
-		if (ImageBufferRef)
-		{
-			CFRelease(ImageBufferRef);
-		}
-	}
-
-    void Initialize(CVImageBufferRef InImageBufferRef, FParamDict* InParamDict)
-	{
-		FVideoDecoderOutputApple::Initialize(InParamDict);
-
-		if (ImageBufferRef)
-		{
-			CFRelease(ImageBufferRef);
-		}
-		ImageBufferRef = InImageBufferRef;
-		if (ImageBufferRef)
-		{
-			CFRetain(ImageBufferRef);
-
-			Stride = CVPixelBufferGetBytesPerRow(ImageBufferRef);
-		}
-	}
-
-	void SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer) override
-	{
-		OwningRenderer = InOwningRenderer;
-	}
-
-	void ShutdownPoolable() override
-	{
-		// release image buffer (we currently realloc it every time anyway)
-        if (ImageBufferRef)
-        {
-            CFRelease(ImageBufferRef);
-            ImageBufferRef = nullptr;
-        }
-
-		TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> lockedVideoRenderer = OwningRenderer.Pin();
-		if (lockedVideoRenderer.IsValid())
-		{
-			lockedVideoRenderer->SampleReleasedToPool(GetDuration());
-		}
-	}
-
-	virtual uint32 GetStride() const override
-	{
-		return Stride;
-	}
-
-	virtual CVImageBufferRef GetImageBuffer() const override
-	{
-		return ImageBufferRef;
-	}
-
-private:
-	uint32 Stride;
-
-	CVImageBufferRef ImageBufferRef;
-
-	// We hold a weak reference to the video renderer. During destruction the video renderer could be destroyed while samples are still out there..
-	TWeakPtr<IDecoderOutputOwner, ESPMode::ThreadSafe> OwningRenderer;
-};
 
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
@@ -1707,13 +1632,6 @@ void FVideoDecoderH264::ProcessOutput(bool bFlush)
 }
 
 } // namespace Electra
-
-// -----------------------------------------------------------------------------------------------------------------------------
-
-FVideoDecoderOutput* FElectraPlayerPlatformVideoDecoderOutputFactory::Create()
-{
-    return new Electra::FElectraPlayerVideoDecoderOutputApple();
-}
 
 
 #endif
