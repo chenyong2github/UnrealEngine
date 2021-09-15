@@ -240,6 +240,7 @@ public:
 		check(InEnumeratorIndex >= 0 && InEnumeratorIndex < InTargetEnum->NumEnums());
 
 		EnumDisplayText = InTargetEnum->GetDisplayNameTextByIndex(InEnumeratorIndex);
+		MouseCursor = EMouseCursor::GrabHandClosed;
 	}
 
 	void Init()

@@ -616,6 +616,7 @@ public:
 		: StructureDetails(InStructureDetails)
 		, FieldGuid(InFieldGuid)
 	{
+		MouseCursor = EMouseCursor::GrabHandClosed;
 		if (TSharedPtr<FUserDefinedStructureDetails> StructureDetailsSP = InStructureDetails.Pin())
 		{
 			VariableFriendlyName = FStructureEditorUtils::GetVariableFriendlyName(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid);
