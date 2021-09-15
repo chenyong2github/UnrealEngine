@@ -1422,6 +1422,12 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::CheckValidity(bool bAllowNonMan
 
 	// @todo: check that all connected element-pairs are also edges in parentmesh
 
+	// Check that the number of parent vertices is consistent with number of elements.
+	CheckOrFailF(ParentVertices.Num() * ElementSize == Elements.Num());
+
+	// Check that the per-triangle data does not exceed the number of triangles in the parent mesh.
+	CheckOrFailF(!ParentMesh || ElementTriangles.Num() <= ParentMesh->MaxTriangleID() * 3);
+
 	// check that parent vtx of a non-isolated element is actually a vertex
 	for (int elemid : ElementIndicesItr())
 	{
