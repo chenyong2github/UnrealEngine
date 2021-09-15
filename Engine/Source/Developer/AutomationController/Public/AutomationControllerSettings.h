@@ -79,14 +79,16 @@ public:
 	UPROPERTY(Config)
 	bool bSuppressLogWarnings;
 
-	/** Whether to treat log errors as test errors (default=true) */
+	/** Whether to treat log warnings as log errors (default=true) */
 	UPROPERTY(Config)
-	bool bTreatLogErrorsAsTestErrors;
-
+	bool bElevateLogWarningsToErrors;
+	
+private:
 	/** Whether to treat log warnings as test errors (default=true) */
-	UPROPERTY(Config)
+	UPROPERTY(Config, Meta = (DeprecatedProperty, DeprecationMessage = "Use bElevateLogWarningsToErrors instead."))
 	bool bTreatLogWarningsAsTestErrors;
 	
+public:
 	/** How long to wait between test updates (default=1sec)*/
 	UPROPERTY(Config)
 	float CheckTestIntervalSeconds;
@@ -102,4 +104,6 @@ public:
 	/** Whether to reset data stored in telemetry file (default=false) */
 	UPROPERTY(Config)
 	bool bResetTelemetryStorageOnNewSession;
+
+	virtual void PostInitProperties() override;
 };

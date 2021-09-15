@@ -31,7 +31,7 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 	// can leverage, not just functional tests
 	static bool bSuppressLogWarnings = false;
 	static bool bSuppressLogErrors = false;
-	static bool bTreatLogWarningsAsTestErrors = false;
+	static bool bElevateLogWarningsToErrors = false;
 
 	static FAutomationTestBase* LastTest = nullptr;
 
@@ -40,7 +40,7 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 		// These can be changed in the editor so can't just be cached for the whole session
 		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogErrors"), bSuppressLogErrors, GEngineIni);
 		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bSuppressLogWarnings"), bSuppressLogWarnings, GEngineIni);
-		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bTreatLogWarningsAsTestErrors"), bTreatLogWarningsAsTestErrors, GEngineIni);
+		GConfig->GetBool(TEXT("/Script/AutomationController.AutomationControllerSettings"), TEXT("bElevateLogWarningsToErrors"), bElevateLogWarningsToErrors, GEngineIni);
 		LastTest = CurrentTest;
 	}
 
@@ -58,7 +58,7 @@ CORE_API ELogVerbosity::Type GetAutomationLogLevel(ELogVerbosity::Type LogVerbos
 				{
 					EffectiveVerbosity = ELogVerbosity::NoLogging;
 				}
-				else if (CurrentTest->ElevateLogWarningsToErrors() || bTreatLogWarningsAsTestErrors)
+				else if (CurrentTest->ElevateLogWarningsToErrors() || bElevateLogWarningsToErrors)
 				{
 					EffectiveVerbosity = ELogVerbosity::Error;
 				}
