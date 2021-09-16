@@ -85,70 +85,56 @@ bool FDatasmithCADTranslator::IsSourceSupported(const FDatasmithSceneSource& Sou
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
-	ImportParameters.bDisableCADKernelTessellation = CADLibrary::bGDisableCADKernelTessellation;
-
-	ImportParameters.MetricUnit = 0.001;
-	ImportParameters.ScaleFactor = 0.1;
 	const FDatasmithTessellationOptions& TesselationOptions = GetCommonTessellationOptions();
-	ImportParameters.ChordTolerance = TesselationOptions.ChordTolerance;
-	ImportParameters.MaxEdgeLength = TesselationOptions.MaxEdgeLength;
-	ImportParameters.MaxNormalAngle = TesselationOptions.NormalTolerance;
-	ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique)TesselationOptions.StitchingTechnique;
+	CADLibrary::FFileDescriptor FileDescriptor(*FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
 
-	CADLibrary::FFileDescriptor FileDescription(*FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
+	ImportParameters.SetTesselationParameters(TesselationOptions.ChordTolerance, TesselationOptions.MaxEdgeLength, TesselationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique)TesselationOptions.StitchingTechnique);
+	ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
 
-	// Do not change the model unit when translator is called by the Datasmith runtime plugin.
-	ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
-
-	switch (FileDescription.GetFileFormat())
+	switch (FileDescriptor.GetFileFormat())
 	{
 	case CADLibrary::ECADFormat::JT:
 	{
 #if WITH_EDITOR
+		// Do not change the model unit when translator is called by the Datasmith runtime plugin.
 		if (IsInGameThread())
 		{
 			// In UE Editor, for historical QA reason (i.e. due to some validation files) the unit of JT file is set to meter as it seemed to be the default unit
 			// But setting the meter as the default unit requires resetting KernelIO that crash at the runtime...
 			// so for runtime use, metric unit is mm.
 			// this will change with the next release of CAD importer
-			ImportParameters.MetricUnit = 1.;
-			ImportParameters.ScaleFactor = 100.;
+			ImportParameters.SetMetricUnit(1.);
 		}
 #endif
 		break;
 	}
+
 	case CADLibrary::ECADFormat::NX:
 	{
-		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
-		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
-		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
+		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
+		ImportParameters.SetPropagationMode(CADLibrary::EDisplayDataPropagationMode::BodyOnly);
 		break;
 	}
+
 	case CADLibrary::ECADFormat::SOLIDWORKS:
 	case CADLibrary::ECADFormat::INVENTOR:
 	case CADLibrary::ECADFormat::CREO:
 	{
-		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::YUp_RightHanded;
-		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
-		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
+		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::YUp_RightHanded);
+		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
+		ImportParameters.SetPropagationMode(CADLibrary::EDisplayDataPropagationMode::BodyOnly);
 		break;
-	}
-	case CADLibrary::ECADFormat::DWG:
-	{
-		ImportParameters.DisplayPreference = CADLibrary::EDisplayPreference::ColorOnly;
-		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
-		break;
-	}
 	}
 
-	ImportParameters.bEnableTimeControl = CADLibrary::bGEnableTimeControl;
-	if (CADLibrary::GMaxImportThreads == 1)
+	case CADLibrary::ECADFormat::DWG:
 	{
-		ImportParameters.bEnableSequentialImport = CADLibrary::bGEnableCADCache;
+		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
+		ImportParameters.SetPropagationMode(CADLibrary::EDisplayDataPropagationMode::BodyOnly);
+		break;
 	}
-	else
-	{
-		ImportParameters.bEnableSequentialImport = true;
+
+	default:
+		break;
 	}
 
 	FString CachePath = FDatasmithCADTranslatorModule::Get().GetCacheDir();
@@ -156,14 +142,9 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	{
 		CachePath = FPaths::ConvertRelativePathToFull(CachePath);
 	}
-	else
-	{
-		// Sequential Import is disabling because it needs CADCache
-		ImportParameters.bEnableSequentialImport = false;
-	}
 
 	// Use sequential translation (multi-processed or not)
-	if (ImportParameters.bEnableSequentialImport)
+	if (CADLibrary::FImportParameters::bGEnableCADCache)
 	{
 		TMap<uint32, FString> CADFileToUEFileMap;
 		{
@@ -173,7 +154,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 				NumCores = FMath::Min(CADLibrary::GMaxImportThreads, NumCores);
 			}
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
-			Dispatcher.AddTask(FileDescription);
+			Dispatcher.AddTask(FileDescriptor);
 
 			Dispatcher.Process(CADLibrary::GMaxImportThreads != 1);
 		}
@@ -186,7 +167,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		return true;
 	}
 
-	CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescription, *FPaths::EnginePluginsDir());
+	CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescriptor, *FPaths::EnginePluginsDir());
 	if (FileReader.ProcessFile() != CADLibrary::ECADParsingResult::ProcessOk)
 	{
 		return false;
@@ -220,7 +201,7 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-		if (ImportParameters.bDisableCADKernelTessellation)
+		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
 			CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 		}

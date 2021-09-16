@@ -19,7 +19,7 @@ struct FMeshDescription;
 
 namespace CADLibrary
 {
-	struct FImportParameters;
+	class FImportParameters;
 	struct FMeshParameters;
 
 	class CADLIBRARY_API FCADKernelTools

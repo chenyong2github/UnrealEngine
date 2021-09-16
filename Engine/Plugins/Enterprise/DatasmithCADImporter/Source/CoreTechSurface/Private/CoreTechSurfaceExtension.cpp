@@ -46,14 +46,8 @@ bool UCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const F
 
 	CADLibrary::FCTMesh Mesh;
 
-	CADLibrary::FImportParameters ImportParameters;
-	ImportParameters.MetricUnit = SceneParameters.MetricUnit;
-	ImportParameters.ScaleFactor = SceneParameters.ScaleFactor;
-	ImportParameters.ChordTolerance = RetessellateOptions.ChordTolerance;
-	ImportParameters.MaxEdgeLength = RetessellateOptions.MaxEdgeLength;
-	ImportParameters.MaxNormalAngle = RetessellateOptions.NormalTolerance;
-	ImportParameters.ModelCoordSys = static_cast<FDatasmithUtils::EModelCoordSystem>(SceneParameters.ModelCoordSys);
-	ImportParameters.StitchingTechnique = CADLibrary::EStitchingTechnique(RetessellateOptions.StitchingTechnique);
+	CADLibrary::FImportParameters ImportParameters(SceneParameters.MetricUnit, SceneParameters.ScaleFactor, (FDatasmithUtils::EModelCoordSystem) SceneParameters.ModelCoordSys);
+	ImportParameters.SetTesselationParameters(RetessellateOptions.ChordTolerance, RetessellateOptions.MaxEdgeLength, RetessellateOptions.NormalTolerance, (CADLibrary::EStitchingTechnique)RetessellateOptions.StitchingTechnique);
 
 	CADLibrary::FMeshParameters CadMeshParameters;
 	CadMeshParameters.bNeedSwapOrientation = MeshParameters.bNeedSwapOrientation;

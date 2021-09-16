@@ -10,7 +10,7 @@
 #include "InterchangeFbxParser.h"
 
 struct FFileStatData;
-struct FImportParameters;
+class FImportParameters;
 
 class FInterchangeWorkerImpl
 {

@@ -640,18 +640,17 @@ public:
 		, ArchiveOpenNurbsVersion(0)
 		, FileLength(0)
 		, NumCRCErrors(0)
+		, ImportParameters(0.001, 0.1, FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy)
 	{
+
 		if (!TranslationCache.IsValid())
 		{
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
-		CADLibrary::FImportParameters ImportParameters;
-		ImportParameters.MetricUnit = 0.001;
-		ImportParameters.ScaleFactor = 0.1;
-		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
+		ImportParameters.SwitchOffUVMapScaling();
 
-		if (CADLibrary::bGDisableCADKernelTessellation)
+		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
 			TSharedRef<FOpenNurbsBRepToCoretechConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
 			CADModelConverter = OpenNurbsBRepToCoretechConverter;
@@ -833,6 +832,7 @@ private:
 
 	TArray<FString> MissingRenderMeshes;
 
+	CADLibrary::FImportParameters ImportParameters;
 	TSharedPtr<CADLibrary::ICADModelConverter> CADModelConverter;
 	TSharedPtr<IOpenNurbsBRepConverter> OpenNurbsBRepConverter;
 
@@ -2965,8 +2965,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 	if (OpenNurbsOptions.Geometry == EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation)
 	{
 		// Ref. visitBRep
-		const FDatasmithOpenNurbsOptions& TessellationOptions = OpenNurbsOptions;
-		CADModelConverter->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
+		CADModelConverter->SetImportParameters(OpenNurbsOptions.ChordTolerance, OpenNurbsOptions.MaxEdgeLength, OpenNurbsOptions.NormalTolerance, (CADLibrary::EStitchingTechnique)OpenNurbsOptions.StitchingTechnique);
 
 		CADModelConverter->InitializeProcess(CADModelConverter->GetMetricUnit());
 

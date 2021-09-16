@@ -12,7 +12,7 @@ struct FDatasmithTessellationOptions;
 
 namespace CADLibrary
 {
-struct FImportParameters;
+class FImportParameters;
 struct FMeshParameters;
 
 /**
@@ -56,9 +56,8 @@ public:
 	 * @param StitchingTechnique : CAD topology correction technique
 	 * @param bScaleUVMap : Scale the UV map to a world unit.
 	 */
-	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap) = 0;
+	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique) = 0;
 
-	//virtual void SetScaleFactor(double NewScaleValue) = 0;
 	virtual void SetMetricUnit(double NewMetricUnit) = 0;
 	virtual double GetScaleFactor() const = 0;
 	virtual double GetMetricUnit() const = 0;

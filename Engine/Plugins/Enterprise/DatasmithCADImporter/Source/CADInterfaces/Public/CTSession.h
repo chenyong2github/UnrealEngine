@@ -25,7 +25,6 @@ public:
 		: FCoreTechSessionBase(InOwner)
 		, ImportParams(InImportParameters)
 	{
-		ImportParams.bDisableCADKernelTessellation = true;
 	}
 
 	void ClearData();
@@ -39,28 +38,20 @@ public:
 	 */
 	bool TopoFixes(double SewingToleranceFactor = 100);
 
-	/**
-	 * @param InScaleFactor : use to scale meshing from Kernel-IO
-	 */
-	void SetScaleFactor(double InScaleFactor)
-	{
-		ImportParams.ScaleFactor = InScaleFactor;
-	}
-
 	double GetScaleFactor() const
 	{
-		return ImportParams.ScaleFactor;
+		return ImportParams.GetScaleFactor();
 	}
 
 	double GetSceneUnit() const
 	{
-		return ImportParams.MetricUnit;
+		return ImportParams.GetMetricUnit();
 	}
 
 	/**
 	 * Handle input file unit
 	 * @param FileMetricUnit: number of meters per file unit.
-	 * eg. For a file in inches, arg should be 0.0254
+	 * e.g. For a file in inches, arg should be 0.0254
 	 */
 	void SetSceneUnit(double InMetricUnit);
 
@@ -72,11 +63,11 @@ public:
 	 * @param NormalTolerance : Angle between two adjacent triangles
 	 * @param StitchingTechnique : CAD topology correction technique
 	 */
-	void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap);
+	void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique);
 	
 	void SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem)
 	{
-		ImportParams.ModelCoordSys = NewCoordinateSystem;
+		ImportParams.SetModelCoordinateSystem(NewCoordinateSystem);
 	}
 
 	const CADLibrary::FImportParameters& GetImportParameters() const

@@ -4,12 +4,16 @@
 
 #include "CADFileParser.h"
 #include "CADOptions.h"
-#include "CoreTechFileParser.h"
 #include "HAL/FileManager.h"
-#ifdef USE_TECHSOFT_SDK
-//#include "TechSoftFileParser.h"
-#endif
 #include "Templates/TypeHash.h"
+
+#ifdef USE_KERNEL_IO_SDK
+#include "CoreTechFileParser.h"
+#endif
+
+#ifdef USE_TECHSOFT_SDK
+#include "TechSoftFileParser.h"
+#endif
 
 namespace CADLibrary
 {
@@ -28,7 +32,7 @@ namespace CADLibrary
 #ifdef USE_TECHSOFT_SDK
 		if (GCADLibrary == TEXT("TechSoft"))
 		{
-			//CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
+			CADParser = MakeUnique<FTechSoftFileParser>(CADFileData, EnginePluginsPath);
 		}
 #endif
 	}
@@ -107,14 +111,14 @@ namespace CADLibrary
 			return ECADParsingResult::FileNotFound;
 		}
 
-		if (CADFileData.IsSequentialImport())
+		if (FImportParameters::bGEnableCADCache)
 		{
 			CADFileData.SetArchiveNames();
 
 			bool bNeedToProceed = true;
 
 			FString CADFileCachePath = CADFileData.GetCADCachePath();
-			if (!CADFileData.GetImportParameters().bOverwriteCache && IFileManager::Get().FileExists(*CADFileCachePath))
+			if (!FImportParameters::bGOverwriteCache && IFileManager::Get().FileExists(*CADFileCachePath))
 			{
 				FString MeshArchiveFilePath = CADFileData.GetMeshArchiveFilePath();
 				if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters

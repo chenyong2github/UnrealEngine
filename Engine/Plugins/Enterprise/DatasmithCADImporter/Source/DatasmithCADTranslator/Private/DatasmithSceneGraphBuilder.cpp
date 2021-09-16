@@ -39,9 +39,9 @@ namespace DatasmithSceneGraphBuilderImpl
 		}
 
 		FTransform LocalTransform(Instance.TransformMatrix);
-		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(ImportParameters.ModelCoordSys, LocalTransform);
+		FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(ImportParameters.GetModelCoordSys(), LocalTransform);
 
-		Actor->SetTranslation(LocalUETransform.GetTranslation() * ImportParameters.ScaleFactor);
+		Actor->SetTranslation(LocalUETransform.GetTranslation() * ImportParameters.GetScaleFactor());
 		Actor->SetScale(LocalUETransform.GetScale3D());
 		Actor->SetRotation(LocalUETransform.GetRotation());
 	}
@@ -516,7 +516,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneBaseGraphBuilder::BuildBody(in
 	ActorElement->SetLabel(*BodyLabel);
 	ActorElement->SetStaticMeshPathName(MeshElement->GetName());
 
-	if (MaterialUuid && ImportParameters.Propagation != CADLibrary::EDisplayDataPropagationMode::BodyOnly)
+	if (MaterialUuid && ImportParameters.GetPropagation() != CADLibrary::EDisplayDataPropagationMode::BodyOnly)
 	{
 		TSharedPtr< IDatasmithMaterialIDElement > PartMaterialIDElement = FindOrAddMaterial(MaterialUuid);
 		const TCHAR* MaterialIDElementName = PartMaterialIDElement->GetName();
@@ -733,19 +733,20 @@ void FDatasmithSceneBaseGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorEle
 
 bool FDatasmithSceneBaseGraphBuilder::DoesActorHaveChildrenOrIsAStaticMesh(const TSharedPtr< IDatasmithActorElement >& ActorElement)
 {
-	if (ActorElement != nullptr)
-	{
-		if (ActorElement->GetChildrenCount() > 0)
-		{
-			return true;
-		}
-		else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
-		{
-			const TSharedPtr< IDatasmithMeshActorElement >& MeshActorElement = StaticCastSharedPtr< IDatasmithMeshActorElement >(ActorElement);
-			return FCString::Strlen(MeshActorElement->GetStaticMeshPathName()) > 0;
-		}
-	}
-	return false;
+	return true;
+	//if (ActorElement != nullptr)
+	//{
+	//	if (ActorElement->GetChildrenCount() > 0)
+	//	{
+	//		return true;
+	//	}
+	//	else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
+	//	{
+	//		const TSharedPtr< IDatasmithMeshActorElement >& MeshActorElement = StaticCastSharedPtr< IDatasmithMeshActorElement >(ActorElement);
+	//		return FCString::Strlen(MeshActorElement->GetStaticMeshPathName()) > 0;
+	//	}
+	//}
+	//return false;
 }
 
 

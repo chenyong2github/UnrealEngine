@@ -10,10 +10,6 @@
 
 namespace CADLibrary
 {
-	CADTOOLS_API extern bool bGDisableCADKernelTessellation;
-	CADTOOLS_API extern bool bGEnableCADCache;
-	CADTOOLS_API extern bool bGEnableTimeControl;
-	CADTOOLS_API extern bool bGOverwriteCache;
 	CADTOOLS_API extern int32 GMaxImportThreads;
 	CADTOOLS_API extern FString GCADLibrary;
 
@@ -39,22 +35,48 @@ namespace CADLibrary
 		BodyOnly,
 	};
 
-	struct FImportParameters
+	class FImportParameters
 	{
-		double MetricUnit = 0.001;
-		double ScaleFactor = 0.1;
-		double ChordTolerance = 0.2;
-		double MaxEdgeLength = 0.0;
-		double MaxNormalAngle = 20.0;
-		EStitchingTechnique StitchingTechnique = EStitchingTechnique::StitchingNone;
-		FDatasmithUtils::EModelCoordSystem ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded;
-		EDisplayDataPropagationMode Propagation = EDisplayDataPropagationMode::TopDown;
-		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
-		bool bScaleUVMap = true;
-		bool bEnableSequentialImport = true;
-		bool bOverwriteCache = false;
-		bool bDisableCADKernelTessellation = false;
-		bool bEnableTimeControl = true;
+	private:
+		double MetricUnit;
+		double ScaleFactor;
+		double ChordTolerance;
+		double MaxEdgeLength;
+		double MaxNormalAngle;
+		EStitchingTechnique StitchingTechnique;
+		FDatasmithUtils::EModelCoordSystem ModelCoordSys;
+		EDisplayDataPropagationMode Propagation;
+		EDisplayPreference DisplayPreference;
+		bool bScaleUVMap;
+		
+	public:
+		CADTOOLS_API static bool bGDisableCADKernelTessellation;
+		CADTOOLS_API static bool bGEnableTimeControl;
+		CADTOOLS_API static bool bGEnableCADCache;
+		CADTOOLS_API static bool bGOverwriteCache;
+
+	public:
+		FImportParameters(double InMetricUnit = 0.001, double InScaleFactor = 0.1, FDatasmithUtils::EModelCoordSystem NewCoordinateSystem = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded)
+			: MetricUnit(InMetricUnit)
+			, ScaleFactor(InScaleFactor)
+			, ChordTolerance(0.2)
+			, MaxEdgeLength(0.0)
+			, MaxNormalAngle(20.0)
+			, StitchingTechnique(EStitchingTechnique::StitchingNone)
+			, ModelCoordSys(NewCoordinateSystem)
+			, Propagation(EDisplayDataPropagationMode::TopDown)
+			, DisplayPreference(EDisplayPreference::MaterialPrefered)
+			, bScaleUVMap(true)
+		{
+		}
+	
+		void SetTesselationParameters(double InChordTolerance, double InMaxEdgeLength, double InMaxNormalAngle, CADLibrary::EStitchingTechnique InStitchingTechnique)
+		{
+			ChordTolerance = InChordTolerance;
+			MaxEdgeLength = InMaxEdgeLength;
+			MaxNormalAngle = InMaxNormalAngle;
+			StitchingTechnique = InStitchingTechnique;
+		}
 
 		void SetMetricUnit(double NewMetricUnit)
 		{
@@ -64,7 +86,7 @@ namespace CADLibrary
 
 		uint32 GetHash() const
 		{
-			uint32 Hash = 0; 
+			uint32 Hash = 0;
 			for (double Param : {MetricUnit, ScaleFactor, ChordTolerance, MaxEdgeLength, MaxNormalAngle})
 			{
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
@@ -89,16 +111,19 @@ namespace CADLibrary
 			Ar << (uint8&) ImportParameters.Propagation;
 			Ar << (uint8&) ImportParameters.DisplayPreference;
 			Ar << ImportParameters.bScaleUVMap;
-			Ar << ImportParameters.bEnableSequentialImport;
-			Ar << ImportParameters.bOverwriteCache;
-			Ar << ImportParameters.bDisableCADKernelTessellation;
+			// these 4 static variables have to be serialized to be transmitted to CADWorkers
+			// because CADWorker has not access to CVars
+			Ar << ImportParameters.bGOverwriteCache;
+			Ar << ImportParameters.bGDisableCADKernelTessellation;
+			Ar << ImportParameters.bGEnableTimeControl;
+			Ar << ImportParameters.bGEnableCADCache;
 			return Ar;
 		}
 
 		FString DefineCADFilePath(const TCHAR* FolderPath, const TCHAR* InFileName) const
 		{
 			FString OutFileName = FPaths::Combine(FolderPath, InFileName);
-			if (bDisableCADKernelTessellation)
+			if (bGDisableCADKernelTessellation)
 			{
 				OutFileName += TEXT(".ct");
 			}
@@ -108,6 +133,79 @@ namespace CADLibrary
 			}
 			return OutFileName;
 		}
+
+		double GetMetricUnit() const
+		{
+			return MetricUnit;
+		}
+
+		double GetScaleFactor() const
+		{
+			return ScaleFactor;
+		}
+
+		double GetChordTolerance() const
+		{
+			return ChordTolerance;
+		}
+
+		double GetMaxNormalAngle() const
+		{
+			return MaxNormalAngle;
+		}
+
+		double GetMaxEdgeLength() const
+		{
+			return MaxEdgeLength;
+		}
+
+		EStitchingTechnique GetStitchingTechnique() const
+		{
+			return StitchingTechnique;
+		}
+
+		FDatasmithUtils::EModelCoordSystem GetModelCoordSys() const
+		{
+			return ModelCoordSys;
+		}
+
+		EDisplayDataPropagationMode GetPropagation() const
+		{
+			return Propagation;
+		}
+
+		EDisplayPreference GetDisplayPreference() const
+		{
+			return DisplayPreference;
+		}
+
+		bool NeedScaleUVMap() const
+		{	
+			return bScaleUVMap;
+		}
+
+		void SwitchOffUVMapScaling()
+		{
+			bScaleUVMap = false;
+		}
+
+		void SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem)
+		{
+			ModelCoordSys = NewCoordinateSystem;
+		}
+
+		void SetDisplayPreference(CADLibrary::EDisplayPreference InDisplayPreference)
+		{
+			DisplayPreference = InDisplayPreference;
+		}
+
+		void SetPropagationMode(CADLibrary::EDisplayDataPropagationMode InMode)
+		{
+			Propagation = InMode;
+		}
+
+		CADTOOLS_API friend uint32 GetTypeHash(const FImportParameters& ImportParameters);
+
 	};
 
 	struct FMeshParameters

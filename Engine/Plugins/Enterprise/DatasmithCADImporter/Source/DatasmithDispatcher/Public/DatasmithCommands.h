@@ -109,6 +109,16 @@ public:
 class FImportParametersCommand : public ICommand
 {
 public:
+	FImportParametersCommand(const CADLibrary::FImportParameters& InImportParameters)
+		: ImportParameters(InImportParameters)
+	{
+	}
+
+	FImportParametersCommand()
+		: ImportParameters()
+	{
+	}
+
 	virtual ECommandId GetType() const override { return ECommandId::ImportParams; }
 
 protected:

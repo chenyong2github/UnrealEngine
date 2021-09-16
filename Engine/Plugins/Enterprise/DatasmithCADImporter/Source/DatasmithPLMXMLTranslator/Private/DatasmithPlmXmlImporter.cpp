@@ -240,7 +240,7 @@ namespace PlmXml
 		FPlmXmlMeshLoaderWithDatasmithDispatcher(TSharedRef<IDatasmithScene> InDatasmithScene, FDatasmithTessellationOptions& InTessellationOptions)
 			: DatasmithScene(InDatasmithScene)
 			, TessellationOptions(InTessellationOptions)
-		
+			, ImportParameters()
 		{
 			FCADToolsModule& CADToolsModule = FCADToolsModule::Get();
 			
@@ -248,12 +248,7 @@ namespace PlmXml
 			IFileManager::Get().MakeDirectory(*CacheDir);
 
 			// Setup of import parameters for DatasmithDispatcher copied from FDatasmithCADTranslator's setup
-			ImportParameters.MetricUnit = 0.001;
-			ImportParameters.ScaleFactor = 0.1;
-			ImportParameters.ChordTolerance = TessellationOptions.ChordTolerance;
-			ImportParameters.MaxEdgeLength = TessellationOptions.MaxEdgeLength;
-			ImportParameters.MaxNormalAngle = TessellationOptions.NormalTolerance;
-			ImportParameters.StitchingTechnique = (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique;
+			ImportParameters.SetTesselationParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique);
 
 			DatasmithDispatcher = MakeUnique<DatasmithDispatcher::FDatasmithDispatcher>(ImportParameters, CacheDir, FPlatformMisc::NumberOfCores(), CADFileToUEFileMap, CADFileToUEGeomMap);
 		}
@@ -305,7 +300,7 @@ namespace PlmXml
 			{
 				OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
-				if (ImportParameters.bDisableCADKernelTessellation)
+				if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 				{
 					CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
 				}

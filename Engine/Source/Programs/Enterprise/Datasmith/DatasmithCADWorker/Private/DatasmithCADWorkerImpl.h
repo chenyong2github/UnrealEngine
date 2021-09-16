@@ -11,7 +11,7 @@
 
 
 struct FFileStatData;
-struct FImportParameters;
+class FImportParameters;
 
 class FDatasmithCADWorkerImpl
 {

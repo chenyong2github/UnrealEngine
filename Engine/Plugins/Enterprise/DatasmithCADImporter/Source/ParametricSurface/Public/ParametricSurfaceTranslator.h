@@ -14,7 +14,6 @@ class UDatasmithCommonTessellationOptions;
 class PARAMETRICSURFACE_API FParametricSurfaceTranslator : public IDatasmithTranslator
 {
 public:
-	virtual ~FParametricSurfaceTranslator() {}
 
 	// Begin IDatasmithTranslator overrides
 	virtual void GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options) override;

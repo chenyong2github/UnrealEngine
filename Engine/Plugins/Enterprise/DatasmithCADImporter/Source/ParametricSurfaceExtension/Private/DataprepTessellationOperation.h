@@ -12,7 +12,7 @@
 
 namespace CADLibrary
 {
-	struct FImportParameters;
+	class FImportParameters;
 }
 struct FMeshDescription;
 class UParametricSurfaceData;
