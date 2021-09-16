@@ -81,7 +81,7 @@ public:
 protected:
 	/** Properties of the tool are stored here */
 	UPROPERTY()
-	UPLUGIN_NAMEInteractiveToolProperties* Properties;
+	TObjectPtr<UPLUGIN_NAMEInteractiveToolProperties> Properties;
 
 
 protected:
