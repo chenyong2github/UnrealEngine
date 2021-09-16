@@ -1883,7 +1883,7 @@ void UCubeGridTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		TEXT("ToggleDiagonalMode"),
 		LOCTEXT("ToggleDiagonalModeAction", "Toggle Diagonal Mode"),
 		LOCTEXT("ToggleDiagonalModeTooltip", ""),
-		EModifierKey::None, EKeys::Z,
+		EModifierKey::None, EKeys::X,
 		[this]() {
 			if (Mode == EMode::Corner)
 			{
