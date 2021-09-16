@@ -88,7 +88,7 @@ function updateStatus() {
 		// Iterate over buttons
         for (var i = 0; i < currentState.buttons.length; i++) {
             var currButton = currentState.buttons[i];
-            var prevButton = prevState.butttons[i];
+            var prevButton = prevState.buttons[i];
             // Button 6 is actually the left trigger, send it to UE as an analog axis
             // Button 7 is actually the right trigger, send it to UE as an analog axis
             // The rest are normal buttons. Treat as such
