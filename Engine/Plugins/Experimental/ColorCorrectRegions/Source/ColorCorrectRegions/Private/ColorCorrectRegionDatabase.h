@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "SceneTypes.h"
+
 class AColorCorrectRegion;
 
 class FColorCorrectRegionDatabase
