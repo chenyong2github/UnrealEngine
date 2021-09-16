@@ -95,14 +95,14 @@ void FStaticMeshEditorModelingToolkit::Init(
 		[
 			SNew(SHorizontalBox)
 
-			//+SHorizontalBox::Slot()
-			//.AutoWidth()
-			//.VAlign(VAlign_Center)
-			//.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
-			//[
-			//	SNew(SImage)
-			//	.Image_Lambda([this] () { return ActiveToolIcon; })
-			//]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+			[
+				SNew(SImage)
+				.Image_Lambda([this] () { return ActiveToolIcon; })
+			]
 
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -143,20 +143,20 @@ void FStaticMeshEditorModelingToolkit::Init(
 				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 
-			//+SHorizontalBox::Slot()
-			//.AutoWidth()
-			//.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
-			//[
-			//	SNew(SButton)
-			//	.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-			//	.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-			//	.Text(LOCTEXT("OverlayComplete", "Complete"))
-			//	.ToolTipText(LOCTEXT("OverlayCompleteTooltip", "Exit the active Tool [Enter]"))
-			//	.HAlign(HAlign_Center)
-			//	.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); return FReply::Handled(); })
-			//	.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool(); })
-			//	.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })
-			//]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+				.Text(LOCTEXT("OverlayComplete", "Complete"))
+				.ToolTipText(LOCTEXT("OverlayCompleteTooltip", "Exit the active Tool [Enter]"))
+				.HAlign(HAlign_Center)
+				.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); return FReply::Handled(); })
+				.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool(); })
+				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })
+			]
 		]	
 	];
 
@@ -199,6 +199,7 @@ void FStaticMeshEditorModelingToolkit::BuildToolPalette(FName PaletteName, class
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginGenerateStaticMeshLODAssetTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginLODManagerTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
 }
 

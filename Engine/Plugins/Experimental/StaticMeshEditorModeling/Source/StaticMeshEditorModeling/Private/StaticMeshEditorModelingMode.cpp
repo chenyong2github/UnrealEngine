@@ -8,6 +8,7 @@
 #include "ToolTargets/StaticMeshComponentToolTarget.h"
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
 #include "Tools/LODManagerTool.h"
+#include "MeshInspectorTool.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorModelingMode"
 
@@ -28,6 +29,7 @@ void UStaticMeshEditorModelingMode::Enter()
 
 	RegisterTool(ToolManagerCommands.BeginGenerateStaticMeshLODAssetTool, TEXT("BeginGenerateStaticMeshLODAssetTool"), NewObject<UGenerateStaticMeshLODAssetToolBuilder>());
 	RegisterTool(ToolManagerCommands.BeginLODManagerTool, TEXT("BeginLODManagerTool"), NewObject<ULODManagerToolBuilder>());
+	RegisterTool(ToolManagerCommands.BeginMeshInspectorTool, TEXT("BeginMeshInspectorTool"), NewObject<UMeshInspectorToolBuilder>());
 }
 
 bool UStaticMeshEditorModelingMode::UsesToolkits() const
