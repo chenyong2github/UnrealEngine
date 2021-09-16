@@ -2303,7 +2303,6 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(b
 	// @todo: Should this be a check? Seems wrong to just silently change what the caller asked for.
 	if (Format == PF_NV12)
 	{
-		checkSlow(!bCreateRTV && !bCreateShaderResource);
 		bCreateRTV = false;
 		bCreateShaderResource = false;
 	}

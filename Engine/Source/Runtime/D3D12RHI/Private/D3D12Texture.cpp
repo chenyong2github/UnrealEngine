@@ -866,8 +866,6 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 
 	if (Format == PF_NV12)
 	{
-		// Check here to ensure callers aren't trying to do the wrong thing in the specific case of this format.
-		check(!bCreateRTV && !bCreateShaderResource);
 		bCreateRTV = false;
 		bCreateShaderResource = false;
 	}
@@ -2755,8 +2753,6 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 	// DXGI_FORMAT_NV12 allows us to create RTV and SRV but only with other formats, so we should block creation here.
 	if (Format == PF_NV12)
 	{
-		// Check here to ensure callers aren't trying to do the wrong thing in the specific case of this format.
-		checkSlow(!bCreateRTV && !bCreateShaderResource);
 		bCreateRTV = false;
 		bCreateShaderResource = false;
 	}
