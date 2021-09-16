@@ -10,6 +10,9 @@
 #define RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES 100
 #define RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES * 2
 
+// Forward declaration
+class AStaticMeshActor;
+
 /** Element offsets in the array list */
 struct FElementOffset
 {
@@ -99,6 +102,15 @@ class UNiagaraDataInterfaceRigidMeshCollisionQuery : public UNiagaraDataInterfac
 public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
+
+	UPROPERTY(EditAnywhere, Category = "Static Mesh")
+	bool StaticMesh = true;
+
+	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "UseStaticMeshes"))
+	FString Tag = TEXT("");
+
+	UPROPERTY(EditAnywhere, Category = "Static Mesh", meta = (EditCondition = "UseStaticMeshes"))
+	bool OnlyUseMoveable = true;
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
