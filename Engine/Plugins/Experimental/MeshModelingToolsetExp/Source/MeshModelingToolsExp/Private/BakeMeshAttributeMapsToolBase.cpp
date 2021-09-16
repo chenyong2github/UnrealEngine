@@ -224,16 +224,16 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const int PreviewIdx)
 void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult)
 {
 	FImageDimensions BakeDimensions = NewResult->GetDimensions();
-	const int32 NumBakers = NewResult->NumBakers();
-	for (int32 BakerIdx = 0; BakerIdx < NumBakers; ++BakerIdx)
+	const int32 NumEval = NewResult->NumEvaluators();
+	for (int32 EvalIdx = 0; EvalIdx < NumEval; ++EvalIdx)
 	{
-		FMeshMapEvaluator* Baker = NewResult->GetBaker(BakerIdx);
+		FMeshMapEvaluator* Eval = NewResult->GetEvaluator(EvalIdx);
 
-		auto UpdateCachedMap = [this, &NewResult, &BakerIdx, &BakeDimensions](const EBakeMapType BakeMapType, const FTexture2DBuilder::ETextureType TexType, const int32 ResultIdx) -> void
+		auto UpdateCachedMap = [this, &NewResult, &EvalIdx, &BakeDimensions](const EBakeMapType BakeMapType, const FTexture2DBuilder::ETextureType TexType, const int32 ResultIdx) -> void
 		{
 			FTexture2DBuilder TextureBuilder;
 			TextureBuilder.Initialize(TexType, BakeDimensions);
-			TextureBuilder.Copy(*NewResult->GetBakeResults(BakerIdx)[ResultIdx]);
+			TextureBuilder.Copy(*NewResult->GetBakeResults(EvalIdx)[ResultIdx]);
 			TextureBuilder.Commit(false);
 
 			// The CachedMap & CachedMapIndices can be thrown out of sync if updated during
@@ -244,7 +244,7 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 			}
 		};
 
-		switch (Baker->Type())
+		switch (Eval->Type())
 		{
 		case EMeshMapEvaluatorType::Normal:
 		{
@@ -254,13 +254,13 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		case EMeshMapEvaluatorType::Occlusion:
 		{
 			// Occlusion Evaluator always outputs AmbientOcclusion then BentNormal.
-			FMeshOcclusionMapEvaluator* OcclusionBaker = static_cast<FMeshOcclusionMapEvaluator*>(Baker);
+			const FMeshOcclusionMapEvaluator* OcclusionEval = static_cast<FMeshOcclusionMapEvaluator*>(Eval);
 			int32 OcclusionIdx = 0;
-			if ((bool)(OcclusionBaker->OcclusionType & EMeshOcclusionMapType::AmbientOcclusion))
+			if ((bool)(OcclusionEval->OcclusionType & EMeshOcclusionMapType::AmbientOcclusion))
 			{
 				UpdateCachedMap(EBakeMapType::AmbientOcclusion, FTexture2DBuilder::ETextureType::AmbientOcclusion, OcclusionIdx++);
 			}
-			if ((bool)(OcclusionBaker->OcclusionType & EMeshOcclusionMapType::BentNormal))
+			if ((bool)(OcclusionEval->OcclusionType & EMeshOcclusionMapType::BentNormal))
 			{
 				UpdateCachedMap(EBakeMapType::BentNormal, FTexture2DBuilder::ETextureType::NormalMap, OcclusionIdx++);
 			}
@@ -273,9 +273,9 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		}
 		case EMeshMapEvaluatorType::Property:
 		{
-			FMeshPropertyMapEvaluator* PropertyBaker = static_cast<FMeshPropertyMapEvaluator*>(Baker);
+			const FMeshPropertyMapEvaluator* PropertyEval = static_cast<FMeshPropertyMapEvaluator*>(Eval);
 			EBakeMapType MapType = EBakeMapType::None;
-			switch (PropertyBaker->Property)
+			switch (PropertyEval->Property)
 			{
 			case EMeshPropertyMapType::Normal:
 				MapType = EBakeMapType::NormalImage;
@@ -349,7 +349,7 @@ TArray<EBakeMapType> UBakeMeshAttributeMapsToolBase::GetMapTypesArray(const int3
 }
 
 
-UE::Geometry::FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(EBakeMapType MapType)
+FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(EBakeMapType MapType)
 {
 	FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::ColorLinear;
 	switch (MapType)

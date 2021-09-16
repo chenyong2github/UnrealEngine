@@ -11,7 +11,8 @@ FMeshConstantMapEvaluator FMeshVertexBaker::OneEvaluator(1.0f);
 
 void FMeshVertexBaker::Bake()
 {
-	if (!ensure(TargetMesh && TargetMesh->HasAttributes() && TargetMesh->Attributes()->HasPrimaryColors()))
+	if (!ensure(TargetMesh && TargetMesh->HasAttributes() && TargetMesh->Attributes()->HasPrimaryColors()) ||
+		!ensure(DetailSampler))
 	{
 		return;
 	}
@@ -92,7 +93,15 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 	FMeshVertexBaker* Baker = static_cast<FMeshVertexBaker*>(Data);
 	
 	ECorrespondenceStrategy UseStrategy = Baker->CorrespondenceStrategy;
-	if (UseStrategy == ECorrespondenceStrategy::Identity && ensure(Baker->DetailMesh == Baker->TargetMesh) == false)
+	bool bIsIdentity = true;
+	int NumDetailMeshes = 0;
+	auto CheckIdentity = [&Baker, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
+	{
+		bIsIdentity = bIsIdentity && (DetailMesh == Baker->TargetMesh);
+		++NumDetailMeshes;
+	};
+	Baker->DetailSampler->ProcessMeshes(CheckIdentity);
+	if (UseStrategy == ECorrespondenceStrategy::Identity && !ensure(bIsIdentity && (NumDetailMeshes == 1)))
 	{
 		// Identity strategy requires mesh to be the same. Could potentially have two copies, in which
 		// case this ensure is too conservative, but for now we will assume this
@@ -178,6 +187,11 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 			const int ElemIdx = TileIdx * TileWidth + Idx;
 			FMeshMapEvaluator::FCorrespondenceSample Sample;
 			SampleSurface(ElemIdx, Sample);
+
+			if (!Sample.DetailMesh || !Baker->DetailSampler->IsTriangle(Sample.DetailMesh, Sample.DetailTriID))
+			{
+				continue;
+			}
 
 			FVector4f& Pixel = Baker->BakeResult->GetPixel(ElemIdx);
 			float* BufferPtr = &Pixel[0];

@@ -14,8 +14,6 @@
 #include "Sampling/MeshPropertyMapEvaluator.h"
 #include "Sampling/MeshResampleImageEvaluator.h"
 
-#include "Materials/Material.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "ImageUtils.h"
 
 #include "AssetUtils/Texture2DBuilder.h"
@@ -138,7 +136,7 @@ public:
 			{
 				TSharedPtr<FMeshNormalMapEvaluator, ESPMode::ThreadSafe> NormalEval = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
 				DetailSampler.SetNormalMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer));
-				Baker->AddBaker(NormalEval);
+				Baker->AddEvaluator(NormalEval);
 				break;
 			}
 			case EBakeMapType::AmbientOcclusion:
@@ -179,69 +177,69 @@ public:
 					OcclusionEval->NormalSpace = FMeshOcclusionMapEvaluator::ESpace::Object;
 					break;
 				}
-				Baker->AddBaker(OcclusionEval);
+				Baker->AddEvaluator(OcclusionEval);
 				break;
 			}
 			case EBakeMapType::Curvature:
 			{
-				TSharedPtr<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe> CurvatureBaker = MakeShared<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe>();
-				CurvatureBaker->RangeScale = FMathd::Clamp(CurvatureSettings.RangeMultiplier, 0.0001, 1000.0);
-				CurvatureBaker->MinRangeScale = FMathd::Clamp(CurvatureSettings.MinRangeMultiplier, 0.0, 1.0);
-				CurvatureBaker->UseCurvatureType = (FMeshCurvatureMapEvaluator::ECurvatureType)CurvatureSettings.CurvatureType;
-				CurvatureBaker->UseColorMode = (FMeshCurvatureMapEvaluator::EColorMode)CurvatureSettings.ColorMode;
-				CurvatureBaker->UseClampMode = (FMeshCurvatureMapEvaluator::EClampMode)CurvatureSettings.ClampMode;
-				Baker->AddBaker(CurvatureBaker);
+				TSharedPtr<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe> CurvatureEval = MakeShared<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe>();
+				CurvatureEval->RangeScale = FMathd::Clamp(CurvatureSettings.RangeMultiplier, 0.0001, 1000.0);
+				CurvatureEval->MinRangeScale = FMathd::Clamp(CurvatureSettings.MinRangeMultiplier, 0.0, 1.0);
+				CurvatureEval->UseCurvatureType = (FMeshCurvatureMapEvaluator::ECurvatureType)CurvatureSettings.CurvatureType;
+				CurvatureEval->UseColorMode = (FMeshCurvatureMapEvaluator::EColorMode)CurvatureSettings.ColorMode;
+				CurvatureEval->UseClampMode = (FMeshCurvatureMapEvaluator::EClampMode)CurvatureSettings.ClampMode;
+				Baker->AddEvaluator(CurvatureEval);
 				break;
 			}
 			case EBakeMapType::NormalImage:
 			{
-				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
-				PropertyBaker->Property = EMeshPropertyMapType::Normal;
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyEval->Property = EMeshPropertyMapType::Normal;
 				DetailSampler.SetNormalMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer));
-				Baker->AddBaker(PropertyBaker);
+				Baker->AddEvaluator(PropertyEval);
 				break;
 			}
 			case EBakeMapType::FaceNormalImage:
 			{
-				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
-				PropertyBaker->Property = EMeshPropertyMapType::FacetNormal;
-				Baker->AddBaker(PropertyBaker);
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyEval->Property = EMeshPropertyMapType::FacetNormal;
+				Baker->AddEvaluator(PropertyEval);
 				break;
 			}
 			case EBakeMapType::PositionImage:
 			{
-				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
-				PropertyBaker->Property = EMeshPropertyMapType::Position;
-				Baker->AddBaker(PropertyBaker);
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyEval->Property = EMeshPropertyMapType::Position;
+				Baker->AddEvaluator(PropertyEval);
 				break;
 			}
 			case EBakeMapType::MaterialID:
 			{
-				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
-				PropertyBaker->Property = EMeshPropertyMapType::MaterialID;
-				Baker->AddBaker(PropertyBaker);
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyEval->Property = EMeshPropertyMapType::MaterialID;
+				Baker->AddEvaluator(PropertyEval);
 				break;
 			}
 			case EBakeMapType::VertexColorImage:
 			{
-				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
-				PropertyBaker->Property = EMeshPropertyMapType::VertexColor;
-				Baker->AddBaker(PropertyBaker);
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyEval->Property = EMeshPropertyMapType::VertexColor;
+				Baker->AddEvaluator(PropertyEval);
 				break;
 			}
 			case EBakeMapType::Texture2DImage:
 			{
-				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> ResampleBaker = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
+				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
 				DetailSampler.SetColorMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
-				Baker->AddBaker(ResampleBaker);
+				Baker->AddEvaluator(TextureEval);
 				break;
 			}
 			case EBakeMapType::MultiTexture:
 			{
-				TSharedPtr<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe> TextureBaker = MakeShared<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe>();
-				TextureBaker->DetailUVLayer = TextureSettings.UVLayer;
-				TextureBaker->MultiTextures = MaterialToTextureImageMap;
-				Baker->AddBaker(TextureBaker);
+				TSharedPtr<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe>();
+				TextureEval->DetailUVLayer = TextureSettings.UVLayer;
+				TextureEval->MultiTextures = MaterialToTextureImageMap;
+				Baker->AddEvaluator(TextureEval);
 				break;
 			}
 			default:

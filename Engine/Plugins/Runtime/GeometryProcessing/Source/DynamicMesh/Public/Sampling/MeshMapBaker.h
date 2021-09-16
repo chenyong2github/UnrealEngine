@@ -31,19 +31,19 @@ public:
 	void Bake();
 
 	/** Add a baker to be processed. */
-	int32 AddBaker(TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe> Target);
+	int32 AddEvaluator(const TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe>& Eval);
 
 	/** @return the evaluator at the given index. */
-	FMeshMapEvaluator* GetBaker(int32 BakerIdx);
+	FMeshMapEvaluator* GetEvaluator(int32 EvalIdx);
 
 	/** @return the number of bake evaluators on this baker. */
-	int32 NumBakers() const;
+	int32 NumEvaluators() const;
 
 	/** Reset the list of bakers. */
 	void Reset();
 
 	/** @return the bake result image for a given baker index. */
-	const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> GetBakeResults(int32 BakerIdx);
+	const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> GetBakeResults(int32 EvalIdx);
 
 	/** if this function returns true, we should abort calculation */
 	TFunction<bool(void)> CancelF = []() { return false; };

@@ -45,8 +45,8 @@ ENUM_CLASS_FLAGS(EBakeMapType);
 
 
 // Only include the Occlusion bitmask rather than its components
-// (AmbientOcclusion | BentNormal). Since the Occlusion baker can
-// bake both types in a single pass, only iterating over the Occlusion
+// (AmbientOcclusion | BentNormal). Since the Occlusion evaluator can
+// evaluate both types in a single pass, only iterating over the Occlusion
 // bitmask gives direct access to both types without the need to
 // externally track if we've handled the Occlusion evaluator in a prior
 // iteration loop.
