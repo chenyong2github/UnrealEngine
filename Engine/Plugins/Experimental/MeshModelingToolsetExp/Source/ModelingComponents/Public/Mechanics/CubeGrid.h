@@ -135,7 +135,11 @@ public:
 
 	double GetCurrentGridCellSize() const { return CurrentCellSize; }
 
-	double GetCellSize(int8 GridPower) const { return BaseGridCellSize * ((uint32)1 << GridPower); }
+	double GetCellSize(int8 GridPower) const { 
+		// This is split up into two statements to avoid a static analysis warning about
+		// shifting a 32 bit value and casting to a 64 bit value.
+		uint32 Multiplier = (uint32)1 << GridPower; 
+		return BaseGridCellSize * Multiplier; }
 
 	FVector3d ToWorldPoint(FVector3d GridPoint) const
 	{
