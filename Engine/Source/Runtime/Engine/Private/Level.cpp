@@ -979,7 +979,7 @@ void ULevel::PreDuplicate(FObjectDuplicationParameters& DupParams)
 			UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr;
 			if (ActorPackage)
 			{
-				FString ActorPath = GetPathName();
+				FString ActorPath = Actor->GetPathName();
 
 				if (DstPackage != SrcPackage)
 				{
