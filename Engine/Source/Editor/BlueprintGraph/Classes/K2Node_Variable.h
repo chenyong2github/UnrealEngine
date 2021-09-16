@@ -187,5 +187,8 @@ protected:
 	 * @return 
 	 */
 	FBPVariableDescription const* GetBlueprintVarDescription() const;
+
+	/** Returns whether a Function Graph contains a parameter with the given name */
+	static bool FunctionParameterExists(const UEdGraph* InFunctionGraph, const FName InParameterName);
 };
 
