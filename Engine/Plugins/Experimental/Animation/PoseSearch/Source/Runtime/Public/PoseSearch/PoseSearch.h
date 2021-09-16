@@ -312,6 +312,25 @@ struct POSESEARCH_API FPoseSearchIndex
 	void InverseNormalize (TArrayView<float> PoseVector) const;
 };
 
+USTRUCT()
+struct FPoseSearchExtrapolationParameters
+{
+	GENERATED_BODY()
+
+public:
+	// If the angular root motion speed in degrees is below this value, it will be treated as zero.
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	float AngularSpeedThreshold = 1.0f;
+	
+	// If the root motion linear speed is below this value, it will be treated as zero.
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	float LinearSpeedThreshold = 1.0f;
+
+	// Time from sequence start/end used to extrapolate the trajectory.
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	float SampleTime = 0.05f;
+};
+
 /** Animation metadata object for indexing a single animation. */
 UCLASS(BlueprintType, Category = "Animation|PoseSearch")
 class POSESEARCH_API UPoseSearchSequenceMetaData : public UAnimMetaData
@@ -324,6 +343,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Settings")
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
 	UPROPERTY();
 	FPoseSearchIndex SearchIndex;
@@ -451,6 +473,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Database")
 	TArray<FPoseSearchDatabaseSequence> Sequences;
+
+	UPROPERTY(EditAnywhere, Category="Database")
+	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
 	UPROPERTY()
 	FPoseSearchIndex SearchIndex;
@@ -616,6 +641,8 @@ enum class EDebugDrawFlags : uint32
 
 	/** Draw all pose vector features */
 	IncludeAllFeatures  = IncludePose | IncludeTrajectory,
+
+	Persistent = 1 << 3,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
 
@@ -625,7 +652,10 @@ struct POSESEARCH_API FDebugDrawParams
 	const UPoseSearchDatabase* Database = nullptr;
 	const UPoseSearchSequenceMetaData* SequenceMetaData = nullptr;
 	EDebugDrawFlags Flags = EDebugDrawFlags::IncludeAllFeatures;
+
 	float DefaultLifeTime = 5.0f;
+	float PointSize = 1.0f;
+
 	FTransform RootTransform = FTransform::Identity;
 
 	/** If set, draw the corresponding pose from the search index */
