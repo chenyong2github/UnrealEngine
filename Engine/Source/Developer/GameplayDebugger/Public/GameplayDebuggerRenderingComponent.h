@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Components/PrimitiveComponent.h"
 #include "DebugRenderSceneProxy.h"
 #include "GameplayDebuggerRenderingComponent.generated.h"
@@ -15,7 +13,7 @@ class FGameplayDebuggerDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
 	typedef FDebugDrawDelegateHelper Super;
 
 public:
-	~FGameplayDebuggerDebugDrawDelegateHelper()
+	virtual ~FGameplayDebuggerDebugDrawDelegateHelper() override
 	{
 		Reset();
 	}
@@ -40,8 +38,6 @@ class UGameplayDebuggerRenderingComponent : public UPrimitiveComponent
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 
 	FGameplayDebuggerDebugDrawDelegateHelper GameplayDebuggerDebugDrawDelegateHelper;

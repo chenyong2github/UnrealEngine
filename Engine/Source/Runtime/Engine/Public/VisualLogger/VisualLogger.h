@@ -143,8 +143,7 @@
 
 class FVisualLogger;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVisual, Display, All);
-
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogVisual, Display, All);
 
 #if ENABLE_VISUAL_LOG
 

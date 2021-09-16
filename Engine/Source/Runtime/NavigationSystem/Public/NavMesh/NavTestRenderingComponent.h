@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "PrimitiveViewRelevance.h"
 #include "Components/PrimitiveComponent.h"
 #include "DynamicMeshBuilder.h"
@@ -21,7 +19,7 @@ class FNavTestSceneProxy final : public FDebugRenderSceneProxy
 	friend class FNavTestDebugDrawDelegateHelper;
 
 public:
-	SIZE_T GetTypeHash() const override;
+	virtual SIZE_T GetTypeHash() const override;
 
 	struct FNodeDebugData
 	{
@@ -46,8 +44,6 @@ public:
 
 	FNavTestSceneProxy(const UNavTestRenderingComponent* InComponent);
 
-	~FNavTestSceneProxy() {}
-
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 	void GatherPathPoints();
@@ -61,11 +57,11 @@ public:
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof(*this) + GetAllocatedSize(); }
-
-	uint32 GetAllocatedSize(void) const;
+	virtual uint32 GetMemoryFootprint() const override { return sizeof(*this) + GetAllocatedSizeInternal(); }
 
 private:
+	uint32 GetAllocatedSizeInternal() const;
+
 	FVector3f NavMeshDrawOffset;
 
 	uint32 bShowBestPath : 1;
@@ -94,6 +90,10 @@ class FNavTestDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
 	typedef FDebugDrawDelegateHelper Super;
 
 public:
+	FNavTestDebugDrawDelegateHelper(): bShowBestPath(false), bShowDiff(false)
+	{
+	}
+
 	virtual void InitDelegateHelper(const FDebugRenderSceneProxy* InSceneProxy) override
 	{
 		check(0);
@@ -105,11 +105,11 @@ public:
 	virtual void UnregisterDebugDrawDelegate() override;
 
 protected:
-	void DrawDebugLabels(UCanvas* Canvas, APlayerController*) override;
+	virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*) override;
 
 private:
 	TSet<FNavTestSceneProxy::FNodeDebugData> NodeDebug;
-	ANavigationTestingActor* NavTestActor;
+	ANavigationTestingActor* NavTestActor = nullptr;
 	TArray<FVector> PathPoints;
 	TArray<FString> PathPointFlags;
 	FSetElementId BestNodeId;
@@ -129,7 +129,6 @@ class UNavTestRenderingComponent: public UPrimitiveComponent
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 
 private:

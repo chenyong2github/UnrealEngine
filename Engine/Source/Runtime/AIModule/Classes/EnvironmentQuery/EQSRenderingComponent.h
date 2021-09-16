@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EngineDefines.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "PrimitiveViewRelevance.h"
@@ -20,7 +18,7 @@ class AIMODULE_API FEQSSceneProxy final : public FDebugRenderSceneProxy
 {
 	friend class FEQSRenderingDebugDrawDelegateHelper;
 public:
-	SIZE_T GetTypeHash() const override;
+	virtual SIZE_T GetTypeHash() const override;
 
 	explicit FEQSSceneProxy(const UPrimitiveComponent& InComponent, const FString& ViewFlagName = TEXT("DebugAI"), const TArray<FSphere>& Spheres = TArray<FSphere>(), const TArray<FText3d>& Texts = TArray<FText3d>());
 	
@@ -49,8 +47,8 @@ class FEQSRenderingDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
 
 public:
 	FEQSRenderingDebugDrawDelegateHelper()
-		: ActorOwner(NULL)
-		, QueryDataSource(NULL)
+		: ActorOwner(nullptr)
+		, QueryDataSource(nullptr)
 		, bDrawOnlyWhenSelected(false)
 	{
 	}
@@ -95,7 +93,6 @@ class AIMODULE_API UEQSRenderingComponent : public UPrimitiveComponent
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 
 	void ClearStoredDebugData();
