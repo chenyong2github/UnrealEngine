@@ -1439,10 +1439,6 @@ namespace UnrealBuildTool
 					Args.Add("-project=" + MakeUnquotedPathString(OnlyGameProject, EPathType.Absolute));
 					Args.Add("-game");
 				}
-				if (bIncludeEngineSource)
-				{
-					Args.Add("-engine");
-				}
 				
 				if (bIncludeDotNetPrograms)
 				{
