@@ -887,7 +887,6 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	}
 
 	const bool bIsStreamingRequest = (ConnectionFlags & EConnectionFlags::Streaming) == EConnectionFlags::Streaming;
-	const bool bIsPrecookedIterativeRequest = (ConnectionFlags & EConnectionFlags::PreCookedIterative) == EConnectionFlags::PreCookedIterative;
 
 	ConnectedPlatformName = TEXT("");
 	ConnectedTargetPlatform = nullptr;
@@ -1165,17 +1164,6 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 
 		// return the cached files and their timestamps
 		// TODO: This second file list is now identical to the first.  This should be cleaned up in the future to not send two lists.
-		Out << FixedTimes;
-	}
-
-
-
-	if ( bIsPrecookedIterativeRequest )
-	{
-		TMap<FString, FDateTime> PrecookedList;
-		NetworkFileDelegates->InitialPrecookedListDelegate.ExecuteIfBound(ConnectedPlatformName, PrecookedList);
-
-		FixedTimes = FixupSandboxPathsForClient(PrecookedList);
 		Out << FixedTimes;
 	}
 

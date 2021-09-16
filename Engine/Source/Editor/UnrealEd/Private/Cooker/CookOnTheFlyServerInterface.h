@@ -80,14 +80,6 @@ public:
 	virtual void RemovePlatform(const FName& PlatformName) = 0;
 
 	/**
-	 * Returns all asset file(s) that has been cooked.
-	 *
-	 * @param PlatformName The platform name.
-	 * @param OutPrecookedFiles Filename(s) returned to the caller.
-	 */
-	virtual void GetPrecookedFileList(const FName& PlatformName, FPrecookedFileList& OutPrecookedFiles) = 0;
-
-	/**
 	 * Returns all unsolicited files that has been produced has a result of a cook request.
 	 *
 	 * @param PlatformName The platform name.

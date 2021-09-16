@@ -66,7 +66,7 @@ enum class EConnectionFlags : uint8
 {
 	None = 0x00000000,
 	Streaming = 0x00000001,
-	PreCookedIterative = 0x00000002,
+	PreCookedIterative = 0x00000002, //DEPRECATED
 };
 ENUM_CLASS_FLAGS(EConnectionFlags);
 

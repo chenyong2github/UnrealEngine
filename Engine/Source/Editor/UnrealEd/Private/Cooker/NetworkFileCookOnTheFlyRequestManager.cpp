@@ -14,7 +14,6 @@ public:
 		: CookOnTheFlyServer(InCookOnTheFlyServer)
 	{
 		FileServerOptions.Delegates.NewConnectionDelegate			= FNewConnectionDelegate::CreateRaw(this, &FNetworkFileCookOnTheFlyRequestManager::OnNewConnection);
-		FileServerOptions.Delegates.InitialPrecookedListDelegate	= FInitialPrecookedListDelegate::CreateRaw(this, &FNetworkFileCookOnTheFlyRequestManager::OnGetPrecookedList);
 		FileServerOptions.Delegates.FileRequestDelegate				= FFileRequestDelegate::CreateRaw(this, &FNetworkFileCookOnTheFlyRequestManager::OnFileRequest);
 		FileServerOptions.Delegates.RecompileShadersDelegate		= FRecompileShadersDelegate::CreateRaw(this, &FNetworkFileCookOnTheFlyRequestManager::OnRecompileShaders);
 		FileServerOptions.Delegates.SandboxPathOverrideDelegate		= FSandboxPathDelegate::CreateRaw(this, &FNetworkFileCookOnTheFlyRequestManager::OnGetSandboxPath);
@@ -48,11 +47,6 @@ private:
 	bool OnNewConnection(const FString& VersionInfo, const FString& PlatformName)
 	{
 		return CookOnTheFlyServer.AddPlatform(FName(*PlatformName)) != nullptr;
-	}
-
-	void OnGetPrecookedList(const FString& PlatformName, TMap<FString, FDateTime>& PrecookedFileList)
-	{
-		CookOnTheFlyServer.GetPrecookedFileList(FName(*PlatformName), PrecookedFileList);
 	}
 
 	void OnFileRequest(FString& Filename, const FString& PlatformNameStr, TArray<FString>& UnsolicitedFiles)
