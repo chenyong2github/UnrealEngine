@@ -19,6 +19,7 @@
 #include "Logging/LogMacros.h"
 
 class IElectraPlayerRuntimeModule;
+class IElectraSafeMediaOptionInterface;
 class FElectraPlayerResourceDelegate;
 
 
@@ -188,7 +189,7 @@ private:
 	FCriticalSection CallbackPointerLock;
 
 	/** Option interface */
-	const IMediaOptions* OptionInterface = nullptr;
+	TWeakPtr<IElectraSafeMediaOptionInterface, ESPMode::ThreadSafe> OptionInterface;
 
 	/** The media event handler */
 	IMediaEventSink* EventSink = nullptr;

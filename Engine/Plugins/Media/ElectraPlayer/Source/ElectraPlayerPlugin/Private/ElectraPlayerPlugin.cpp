@@ -85,7 +85,7 @@ FElectraPlayerPlugin::~FElectraPlayerPlugin()
 {
 	CallbackPointerLock.Lock();
 	EventSink = nullptr;
-	OptionInterface = nullptr;
+	OptionInterface.Reset();
 	CallbackPointerLock.Unlock();
 	if (Player.IsValid())
 	{
@@ -216,69 +216,76 @@ Electra::FVariantValue FElectraPlayerPlugin::FPlayerAdapterDelegate::QueryOption
 	TSharedPtr<FElectraPlayerPlugin, ESPMode::ThreadSafe> PinnedHost = Host.Pin();
 	if (PinnedHost.IsValid())
 	{
-		FScopeLock lock(&PinnedHost->CallbackPointerLock);
-		if (PinnedHost->OptionInterface)
+		PinnedHost->CallbackPointerLock.Lock();
+		TSharedPtr<IElectraSafeMediaOptionInterface, ESPMode::ThreadSafe> SafeOptionInterface = PinnedHost->OptionInterface.Pin();
+		PinnedHost->CallbackPointerLock.Unlock();
+		if (SafeOptionInterface.IsValid())
 		{
-			switch (Type)
+			IElectraSafeMediaOptionInterface::FScopedLock SafeLock(SafeOptionInterface);
+			IMediaOptions *SafeOptions = SafeOptionInterface->GetMediaOptionInterface();
+			if (SafeOptions)
 			{
-				case EOptionType::MaxVerticalStreamResolution:
+				switch (Type)
 				{
-					static const FName MaxResolutionOptionKey = TEXT("MaxResolutionForMediaStreaming");
-					return FVariantValue((int64)PinnedHost->OptionInterface->GetMediaOption(MaxResolutionOptionKey, (int64)0));
-				}
-
-				case EOptionType::MaxBandwidthForStreaming:
-				{
-					static const FName MaxBandwidthOptionKey = TEXT("ElectraMaxStreamingBandwidth");
-					return FVariantValue((int64)PinnedHost->OptionInterface->GetMediaOption(MaxBandwidthOptionKey, (int64)0));
-				}
-
-				case EOptionType::PlayListData:
-				{
-					static const FName PlaylistOptionKey = TEXT("ElectraGetPlaylistData");
-					if (PinnedHost->OptionInterface->HasMediaOption(PlaylistOptionKey))
+					case EOptionType::MaxVerticalStreamResolution:
 					{
-						check(Param.IsType(FVariantValue::EDataType::TypeFString));
-						return FVariantValue(PinnedHost->OptionInterface->GetMediaOption(PlaylistOptionKey, Param.GetFString()));
+						static const FName MaxResolutionOptionKey = TEXT("MaxResolutionForMediaStreaming");
+						return FVariantValue((int64)SafeOptions->GetMediaOption(MaxResolutionOptionKey, (int64)0));
 					}
-					break;
-				}
 
-				case EOptionType::LicenseKeyData:
-				{
-					static const FName LicenseKeyDataOptionKey = TEXT("ElectraGetLicenseKeyData");
-					if (PinnedHost->OptionInterface->HasMediaOption(LicenseKeyDataOptionKey))
+					case EOptionType::MaxBandwidthForStreaming:
 					{
-						check(Param.IsType(FVariantValue::EDataType::TypeFString));
-						return FVariantValue(PinnedHost->OptionInterface->GetMediaOption(LicenseKeyDataOptionKey, Param.GetFString()));
+						static const FName MaxBandwidthOptionKey = TEXT("ElectraMaxStreamingBandwidth");
+						return FVariantValue((int64)SafeOptions->GetMediaOption(MaxBandwidthOptionKey, (int64)0));
 					}
-					break;
-				}
 
-				case EOptionType::PlaystartPosFromSeekPositions:
-				{
-					static const FName PlaystartOptionKey = TEXT("ElectraGetPlaystartPosFromSeekPositions");
-					if (PinnedHost->OptionInterface->HasMediaOption(PlaystartOptionKey))
+					case EOptionType::PlayListData:
 					{
-						check(Param.IsType(FVariantValue::EDataType::TypeSharedPointer));
-
-						TSharedPtr<TArray<FTimespan>, ESPMode::ThreadSafe> PosArray = Param.GetSharedPointer<TArray<FTimespan>>();
-						if (PosArray.IsValid())
+						static const FName PlaylistOptionKey = TEXT("ElectraGetPlaylistData");
+						if (SafeOptions->HasMediaOption(PlaylistOptionKey))
 						{
-							TSharedPtr<FElectraSeekablePositions, ESPMode::ThreadSafe> Res = StaticCastSharedPtr<FElectraSeekablePositions, IMediaOptions::FDataContainer, ESPMode::ThreadSafe>(PinnedHost->OptionInterface->GetMediaOption(PlaystartOptionKey, MakeShared<FElectraSeekablePositions, ESPMode::ThreadSafe>(*PosArray)));
-							if (Res.IsValid() && Res->Data.Num())
-							{
-								return FVariantValue(int64(Res->Data[0].GetTicks())); // return HNS
-							}
+							check(Param.IsType(FVariantValue::EDataType::TypeFString));
+							return FVariantValue(SafeOptions->GetMediaOption(PlaylistOptionKey, Param.GetFString()));
 						}
-						return FVariantValue();
+						break;
 					}
-					break;
-				}
 
-				default:
-				{
-					break;
+					case EOptionType::LicenseKeyData:
+					{
+						static const FName LicenseKeyDataOptionKey = TEXT("ElectraGetLicenseKeyData");
+						if (SafeOptions->HasMediaOption(LicenseKeyDataOptionKey))
+						{
+							check(Param.IsType(FVariantValue::EDataType::TypeFString));
+							return FVariantValue(SafeOptions->GetMediaOption(LicenseKeyDataOptionKey, Param.GetFString()));
+						}
+						break;
+					}
+
+					case EOptionType::PlaystartPosFromSeekPositions:
+					{
+						static const FName PlaystartOptionKey = TEXT("ElectraGetPlaystartPosFromSeekPositions");
+						if (SafeOptions->HasMediaOption(PlaystartOptionKey))
+						{
+							check(Param.IsType(FVariantValue::EDataType::TypeSharedPointer));
+
+							TSharedPtr<TArray<FTimespan>, ESPMode::ThreadSafe> PosArray = Param.GetSharedPointer<TArray<FTimespan>>();
+							if (PosArray.IsValid())
+							{
+								TSharedPtr<FElectraSeekablePositions, ESPMode::ThreadSafe> Res = StaticCastSharedPtr<FElectraSeekablePositions, IMediaOptions::FDataContainer, ESPMode::ThreadSafe>(SafeOptions->GetMediaOption(PlaystartOptionKey, MakeShared<FElectraSeekablePositions, ESPMode::ThreadSafe>(*PosArray)));
+								if (Res.IsValid() && Res->Data.Num())
+								{
+									return FVariantValue(int64(Res->Data[0].GetTicks())); // return HNS
+								}
+							}
+							return FVariantValue();
+						}
+						break;
+					}
+
+					default:
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -471,9 +478,9 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 
 bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* InPlayerOptions)
 {
-	// Remember the option interface to poll for changes during playback.
+	// Get the safe option interface to poll for changes during playback.
 	CallbackPointerLock.Lock();
-	OptionInterface = Options;
+	OptionInterface = StaticCastSharedPtr<IElectraSafeMediaOptionInterface>(Options->GetMediaOption(TEXT("GetSafeMediaOptions"), TSharedPtr<IElectraSafeMediaOptionInterface, ESPMode::ThreadSafe>()));
 	CallbackPointerLock.Unlock();
 	UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Options@%p"), this, Options);
 
@@ -616,7 +623,7 @@ bool FElectraPlayerPlugin::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>&
 void FElectraPlayerPlugin::Close()
 {
 	CallbackPointerLock.Lock();
-	OptionInterface = nullptr;
+	OptionInterface.Reset();
 	CallbackPointerLock.Unlock();
 	Player->CloseInternal(true);
 }
