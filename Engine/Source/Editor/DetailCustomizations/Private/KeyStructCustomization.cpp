@@ -60,6 +60,7 @@ void FKeyStructCustomization::CustomizeHeaderOnlyWithButton(TSharedRef<class IPr
 			.OnKeyChanged(this, &FKeyStructCustomization::OnKeyChanged)
 			.Font(StructCustomizationUtils.GetRegularFont())
 			.AllowClear(!StructPropertyHandle->GetProperty()->HasAnyPropertyFlags(CPF_NoClear))
+		    .FilterBlueprintBindable(false)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(InputConstants::PropertyPadding)
