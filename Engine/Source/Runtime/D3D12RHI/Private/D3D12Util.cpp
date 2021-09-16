@@ -944,6 +944,16 @@ bool NeedsAgsIntrinsicsSpace(const FD3D12ShaderData& ShaderData)
 	return false;
 }
 
+static void SetBoundShaderStateFlags(FD3D12QuantizedBoundShaderState& OutQBSS, const FD3D12ShaderData* ShaderData)
+{
+	if (ShaderData)
+	{
+		OutQBSS.bUseDiagnosticBuffer |= ShaderData->UsesDiagnosticBuffer();
+		OutQBSS.bUseDirectlyIndexedResourceHeap |= ShaderData->UsesBindlessResources();
+		OutQBSS.bUseDirectlyIndexedSamplerHeap |= ShaderData->UsesBindlessSamplers();
+	}
+}
+
 static void QuantizeBoundShaderStateCommon(
 	FD3D12QuantizedBoundShaderState& OutQBSS,
 	const FD3D12ShaderData* ShaderData,
@@ -956,8 +966,9 @@ static void QuantizeBoundShaderStateCommon(
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, ShaderData->ResourceCounts, OutQBSS.RegisterCounts[ShaderVisibility], bAllowUAVs);
 		OutQBSS.bNeedsAgsIntrinsicsSpace |= NeedsAgsIntrinsicsSpace(*ShaderData);
-		OutQBSS.bUseDiagnosticBuffer = ShaderData->UsesDiagnosticBuffer();
 	}
+
+	SetBoundShaderStateFlags(OutQBSS, ShaderData);
 }
 
 void QuantizeBoundShaderState(
@@ -1063,10 +1074,7 @@ void QuantizeBoundShaderState(
 		checkNoEntry(); // Unexpected shader target frequency
 	}
 
-	if (RayTracingShader)
-	{
-		OutQBSS.bUseDiagnosticBuffer = RayTracingShader->UsesDiagnosticBuffer();
-	}
+	SetBoundShaderStateFlags(OutQBSS, RayTracingShader);
 }
 #endif // D3D12_RHI_RAYTRACING
 
