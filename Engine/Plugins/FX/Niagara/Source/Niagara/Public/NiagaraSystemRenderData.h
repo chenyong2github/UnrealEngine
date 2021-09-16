@@ -20,6 +20,13 @@ class FSceneView;
 class FNiagaraSystemRenderData
 {
 public:
+	struct FMaterialOverride
+	{
+		UMaterialInterface* Material = nullptr;
+		const UNiagaraRendererProperties* EmitterRendererProperty = nullptr; // Pointer only used for lookups, don't actually dereference
+		uint32 MaterialSubIndex = 0;
+	};
+
 	struct FSetDynamicDataCommand
 	{
 		FNiagaraRenderer* Renderer = nullptr;
@@ -53,7 +60,7 @@ public:
 	/** Gets the total size of dynamic data allocated */
 	uint32 GetDynamicDataSize() const;
 	/** Called at the end of the frame, before rendering when necessary to provide renderers with render thread data */
-	void GenerateSetDynamicDataCommands(FSetDynamicDataCommandList& Commands, const FNiagaraSceneProxy& SceneProxy, const FNiagaraSystemInstance* SystemInstance);
+	void GenerateSetDynamicDataCommands(FSetDynamicDataCommandList& Commands, const FNiagaraSceneProxy& SceneProxy, const FNiagaraSystemInstance* SystemInstance, TConstArrayView<FMaterialOverride> MaterialOverrides);
 	/** Gets the dynamic mesh elements from all renderers */
 	void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy& SceneProxy);
 #if RHI_RAYTRACING

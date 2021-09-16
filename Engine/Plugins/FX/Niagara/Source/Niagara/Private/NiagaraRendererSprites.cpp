@@ -47,6 +47,14 @@ struct FNiagaraDynamicDataSprites : public FNiagaraDynamicDataBase
 	{
 	}
 
+	virtual void ApplyMaterialOverride(int32 MaterialIndex, UMaterialInterface* MaterialOverride) override
+	{
+		if (MaterialIndex == 0 && MaterialOverride)
+		{
+			Material = MaterialOverride->GetRenderProxy();
+		}
+	}
+
 	FMaterialRenderProxy* Material = nullptr;
 	TArray<UNiagaraDataInterface*> DataInterfacesBound;
 	TArray<UObject*> ObjectsBound;

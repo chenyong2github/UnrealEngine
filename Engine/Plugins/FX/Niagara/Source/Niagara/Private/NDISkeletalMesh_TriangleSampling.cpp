@@ -929,12 +929,11 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordColor(FVectorVMExternalFuncti
 	if ( const FSkeletalMeshLODRenderData* LODData = InstData->CachedLODData )
 	{
 		const FColorVertexBuffer& Colors = LODData->StaticVertexBuffers.ColorVertexBuffer;
-		checkfSlow(Colors.GetNumVertices() != 0, TEXT("Trying to access vertex colors from mesh without any."));
 
 		const FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
 		const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
 		const int32 TriMax = (IndexBuffer->Num() / 3) - 1;
-		if (TriMax >= 0)
+		if (TriMax >= 0 && (Colors.GetNumVertices() > 0) && (Colors.GetVertexData() != nullptr) && Colors.GetAllowCPUAccess() )
 		{
 			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{

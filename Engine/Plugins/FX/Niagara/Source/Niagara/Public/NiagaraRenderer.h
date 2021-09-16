@@ -42,6 +42,7 @@ struct FNiagaraDynamicDataBase
 	FORCEINLINE FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
 
 	void SetVertexFactoryData(class FNiagaraVertexFactoryBase& VertexFactory);
+	virtual void ApplyMaterialOverride(int32 MaterialIndex, UMaterialInterface* MaterialOverride) {};
 
 protected:
 	FMaterialRelevance MaterialRelevance;

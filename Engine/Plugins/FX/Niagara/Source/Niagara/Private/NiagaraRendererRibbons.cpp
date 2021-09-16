@@ -96,6 +96,14 @@ struct FNiagaraDynamicDataRibbon : public FNiagaraDynamicDataBase
 	{
 	}
 
+	virtual void ApplyMaterialOverride(int32 MaterialIndex, UMaterialInterface* MaterialOverride) override
+	{
+		if (MaterialIndex == 0 && MaterialOverride)
+		{
+			Material = MaterialOverride->GetRenderProxy();
+		}
+	}
+
 	/** Material to use passed to the Renderer. */
 	FMaterialRenderProxy* Material;
 

@@ -1793,13 +1793,6 @@ void UNiagaraScript::PostLoad()
 
 	ProcessSerializedShaderMaps();
 
-#if WITH_EDITORONLY_DATA
-	if (CachedScriptVMId.BaseScriptCompileHash.IsValid() && AreScriptAndSourceSynchronized())
-	{
-		CacheResourceShadersForRendering(false, false /*bNeedsRecompile*/);
-	}
-#endif
-
 	GenerateStatIDs();
 
 	// Optimize the VM script for runtime usage
