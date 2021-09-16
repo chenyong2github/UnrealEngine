@@ -14,7 +14,7 @@
  * This class does nothing by itself, use subclasses like UGizmoCylinderObject
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoBaseObject : public UObject
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UGizmoBaseObject : public UObject
 {
 	GENERATED_BODY()
 

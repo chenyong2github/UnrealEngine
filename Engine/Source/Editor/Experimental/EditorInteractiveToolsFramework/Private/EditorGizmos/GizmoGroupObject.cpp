@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
-#include "BaseGizmos/GizmoGroupObject.h"
+#include "EditorGizmos/GizmoGroupObject.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 
 UGizmoGroupObject::UGizmoGroupObject()

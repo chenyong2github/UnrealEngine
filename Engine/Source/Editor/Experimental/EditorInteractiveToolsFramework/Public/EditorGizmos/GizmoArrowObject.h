@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseGizmos/GizmoBaseObject.h"
-#include "BaseGizmos/GizmoBoxObject.h"
-#include "BaseGizmos/GizmoConeObject.h"
-#include "BaseGizmos/GizmoCylinderObject.h"
+#include "EditorGizmos/GizmoBaseObject.h"
+#include "EditorGizmos/GizmoBoxObject.h"
+#include "EditorGizmos/GizmoConeObject.h"
+#include "EditorGizmos/GizmoCylinderObject.h"
 #include "InputState.h"
 #include "UObject/ObjectMacros.h"
 #include "GizmoArrowObject.generated.h"
@@ -17,7 +17,7 @@
  * cone or box head.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoArrowObject : public UGizmoBaseObject
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UGizmoArrowObject : public UGizmoBaseObject
 {
 	GENERATED_BODY()
 

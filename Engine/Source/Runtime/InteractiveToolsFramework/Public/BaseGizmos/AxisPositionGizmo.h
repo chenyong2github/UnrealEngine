@@ -48,7 +48,6 @@ public:
 	// UInteractiveGizmo overrides
 
 	virtual void Setup() override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	// IClickDragBehaviorTarget implementation
 
@@ -88,10 +87,6 @@ public:
 	/** The mouse click behavior of the gizmo is accessible so that it can be modified to use different mouse keys. */
 	UPROPERTY()
 	TObjectPtr<UClickDragInputBehavior> MouseBehavior;
-
-	/** Optional object used to render the gizmo. */
-	UPROPERTY()
-	TObjectPtr<UGizmoBaseObject> GizmoObject;
 
 
 public:

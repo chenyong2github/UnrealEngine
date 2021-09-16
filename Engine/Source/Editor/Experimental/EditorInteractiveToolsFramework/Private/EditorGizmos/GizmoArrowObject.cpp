@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
-#include "BaseGizmos/GizmoArrowObject.h"
+#include "EditorGizmos/GizmoArrowObject.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 
 UGizmoArrowObject::UGizmoArrowObject()
