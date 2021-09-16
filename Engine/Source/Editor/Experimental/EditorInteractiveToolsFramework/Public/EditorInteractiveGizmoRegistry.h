@@ -44,13 +44,10 @@ protected:
 
 	UPROPERTY()
 	FString CategoryName;
-
-	UPROPERTY()
-	TObjectPtr<UClass> BaseGizmoBuilderType;
 };
 
 UCLASS(Abstract)
-class UEditorGizmoRegistryCategoryEntry_Conditional : public UEditorGizmoRegistryCategoryEntry
+class UEditorGizmoRegistryCategoryEntry_ConditionalSelection : public UEditorGizmoRegistryCategoryEntry
 {
 	GENERATED_BODY()
 public:
@@ -62,7 +59,7 @@ public:
 
 
 UCLASS()
-class UEditorGizmoRegistryCategoryEntry_Primary : public UEditorGizmoRegistryCategoryEntry_Conditional
+class UEditorGizmoRegistryCategoryEntry_Primary : public UEditorGizmoRegistryCategoryEntry_ConditionalSelection
 {
 	GENERATED_BODY()
 public:
@@ -72,7 +69,7 @@ public:
 };
 
 UCLASS()
-class UEditorGizmoRegistryCategoryEntry_Accessory : public UEditorGizmoRegistryCategoryEntry_Conditional
+class UEditorGizmoRegistryCategoryEntry_Accessory : public UEditorGizmoRegistryCategoryEntry_ConditionalSelection
 {
 	GENERATED_BODY()
 public:
@@ -103,9 +100,9 @@ public:
 	/**
 	 * Register a new Editor gizmo type.
 	 * @param InGizmoCategory category in which to register gizmo builder
-	 * @param InGizmonBuilder new Editor gizmo builder
-	 * - Accessory gizmo builders must be inherited from UEditorInteractiveGizmoAccessoryBuilder.
-	 * - Primary gizmo builders must be inherited from UEditorInteractiveGizmoPrimaryBuilder.
+	 * @param InGizmoBuilder new Editor gizmo builder
+	 * - Accessory and Primary gizmo builders must derive from UInteractiveGizmoBuilder (of from a builder derived from it)
+	 *   and must implement the IEditorInteractiveConditionalGizmoBuilder and IEditorInteractiveSelectionGizmoBuilder interfaces.
 	 */
 	void RegisterEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder);
 

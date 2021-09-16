@@ -13,13 +13,6 @@ void UEditorGizmoRegistryCategoryEntry::RegisterGizmoType(UInteractiveGizmoBuild
 {
 	check(InGizmoBuilder);
 
-	if (!InGizmoBuilder->IsA(BaseGizmoBuilderType))
-	{
-		UE_LOG(LogEditorInteractiveGizmoRegistry, Warning,
-			TEXT("%s gizmo builder '%s' of type '%s' does not derive from '%s'! Skipping registration."), *CategoryName, *InGizmoBuilder->GetPathName(), *InGizmoBuilder->GetClass()->GetName(), *BaseGizmoBuilderType->GetName());
-		return;
-	}
-
 	if (GizmoTypes.Contains(InGizmoBuilder))
 	{
 		UE_LOG(LogEditorInteractiveGizmoRegistry, Warning,
@@ -50,14 +43,28 @@ void UEditorGizmoRegistryCategoryEntry::ClearGizmoTypes()
 	GizmoTypes.Reset();
 }
 
-void UEditorGizmoRegistryCategoryEntry_Conditional::RegisterGizmoType(UInteractiveGizmoBuilder* InGizmoBuilder)
+void UEditorGizmoRegistryCategoryEntry_ConditionalSelection::RegisterGizmoType(UInteractiveGizmoBuilder* InGizmoBuilder)
 {
+	if (!InGizmoBuilder->Implements<UEditorInteractiveGizmoConditionalBuilder>())
+	{
+		UE_LOG(LogEditorInteractiveGizmoRegistry, Warning,
+			TEXT("%s gizmo builder '%s' of type '%s' does not implement the IEditorInteractiveGizmoConditionalBuilder interface! Skipping registration."), *CategoryName, *InGizmoBuilder->GetPathName(), *InGizmoBuilder->GetClass()->GetName());
+		return;
+	}
+
+	if (!InGizmoBuilder->Implements<UEditorInteractiveGizmoSelectionBuilder>())
+	{
+		UE_LOG(LogEditorInteractiveGizmoRegistry, Warning,
+			TEXT("%s gizmo builder '%s' of type '%s' does not implement the IEditorInteractiveGizmoSelectionBuilder interface! Skipping registration."), *CategoryName, *InGizmoBuilder->GetPathName(), *InGizmoBuilder->GetClass()->GetName());
+		return;
+	}
+
 	Super::RegisterGizmoType(InGizmoBuilder);
 
 	GizmoTypes.StableSort(
 		[](UInteractiveGizmoBuilder& A, UInteractiveGizmoBuilder& B) {
-			UEditorInteractiveGizmoConditionalBuilder* AA = Cast<UEditorInteractiveGizmoConditionalBuilder>(&A);
-			UEditorInteractiveGizmoConditionalBuilder* BB = Cast<UEditorInteractiveGizmoConditionalBuilder>(&B);
+			IEditorInteractiveGizmoConditionalBuilder* AA = Cast<IEditorInteractiveGizmoConditionalBuilder>(&A);
+			IEditorInteractiveGizmoConditionalBuilder* BB = Cast<IEditorInteractiveGizmoConditionalBuilder>(&B);
 			return (AA)->GetPriority() > (BB)->GetPriority();
 		});
 }
@@ -65,7 +72,6 @@ void UEditorGizmoRegistryCategoryEntry_Conditional::RegisterGizmoType(UInteracti
 UEditorGizmoRegistryCategoryEntry_Primary::UEditorGizmoRegistryCategoryEntry_Primary()
 {
 	CategoryName = TEXT("Primary");
-	BaseGizmoBuilderType = UEditorInteractiveGizmoSelectionBuilder::StaticClass();
 }
 
 void UEditorGizmoRegistryCategoryEntry_Primary::GetQualifiedGizmoBuilders(const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& FoundBuilders)
@@ -74,7 +80,7 @@ void UEditorGizmoRegistryCategoryEntry_Primary::GetQualifiedGizmoBuilders(const 
 
 	if (FoundBuilders.Num() > 0)
 	{
-		if (UEditorInteractiveGizmoConditionalBuilder* Builder = Cast<UEditorInteractiveGizmoConditionalBuilder>(FoundBuilders[0]))
+		if (IEditorInteractiveGizmoConditionalBuilder* Builder = Cast<IEditorInteractiveGizmoConditionalBuilder>(FoundBuilders[0]))
 		{
 			FoundPriority = Builder->GetPriority();
 		}
@@ -82,7 +88,7 @@ void UEditorGizmoRegistryCategoryEntry_Primary::GetQualifiedGizmoBuilders(const 
 
 	for (TObjectPtr<UInteractiveGizmoBuilder> GizmoBuilder : GizmoTypes)
 	{
-		if (UEditorInteractiveGizmoConditionalBuilder* Builder = Cast<UEditorInteractiveGizmoConditionalBuilder>(GizmoBuilder))
+		if (IEditorInteractiveGizmoConditionalBuilder* Builder = Cast<IEditorInteractiveGizmoConditionalBuilder>(GizmoBuilder))
 		{
 			if (Builder->GetPriority() < FoundPriority)
 			{
@@ -93,7 +99,7 @@ void UEditorGizmoRegistryCategoryEntry_Primary::GetQualifiedGizmoBuilders(const 
 			{
 				// Reset found builders since only one primary builder should be buildable.
 				FoundBuilders.Reset();
-				FoundBuilders.Add(Builder);
+				FoundBuilders.Add(GizmoBuilder);
 				break;
 			}
 		}
@@ -103,7 +109,6 @@ void UEditorGizmoRegistryCategoryEntry_Primary::GetQualifiedGizmoBuilders(const 
 UEditorGizmoRegistryCategoryEntry_Accessory::UEditorGizmoRegistryCategoryEntry_Accessory()
 {
 	CategoryName = TEXT("Accessory");
-	BaseGizmoBuilderType = UEditorInteractiveGizmoSelectionBuilder::StaticClass();
 }
 
 void UEditorGizmoRegistryCategoryEntry_Accessory::GetQualifiedGizmoBuilders(const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& FoundBuilders)
@@ -112,7 +117,7 @@ void UEditorGizmoRegistryCategoryEntry_Accessory::GetQualifiedGizmoBuilders(cons
 
 	if (FoundBuilders.Num() > 0)
 	{
-		if (UEditorInteractiveGizmoConditionalBuilder* Builder = Cast<UEditorInteractiveGizmoConditionalBuilder>(FoundBuilders[0]))
+		if (IEditorInteractiveGizmoConditionalBuilder* Builder = Cast<IEditorInteractiveGizmoConditionalBuilder>(FoundBuilders[0]))
 		{
 			FoundPriority = Builder->GetPriority();
 		}
@@ -120,7 +125,7 @@ void UEditorGizmoRegistryCategoryEntry_Accessory::GetQualifiedGizmoBuilders(cons
 
 	for (TObjectPtr<UInteractiveGizmoBuilder> GizmoBuilder : GizmoTypes)
 	{
-		if (UEditorInteractiveGizmoConditionalBuilder* Builder = Cast<UEditorInteractiveGizmoConditionalBuilder>(GizmoBuilder))
+		if (IEditorInteractiveGizmoConditionalBuilder* Builder = Cast<IEditorInteractiveGizmoConditionalBuilder>(GizmoBuilder))
 		{
 			if (Builder->GetPriority() < FoundPriority)
 			{
@@ -135,7 +140,7 @@ void UEditorGizmoRegistryCategoryEntry_Accessory::GetQualifiedGizmoBuilders(cons
 				{
 					FoundBuilders.Reset();
 				}
-				FoundBuilders.Add(Builder);
+				FoundBuilders.Add(GizmoBuilder);
 			}
 		}
 	}

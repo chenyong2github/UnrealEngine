@@ -18,8 +18,13 @@ public:
 	static UTransformProxy* CreateTransformProxyForSelection(const FToolBuilderState& SceneState);
 };
 
-UCLASS(Transient, Abstract)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorInteractiveGizmoSelectionBuilder : public UEditorInteractiveGizmoConditionalBuilder
+UINTERFACE()
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorInteractiveGizmoSelectionBuilder : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class EDITORINTERACTIVETOOLSFRAMEWORK_API IEditorInteractiveGizmoSelectionBuilder
 {
 	GENERATED_BODY()
 
@@ -31,6 +36,6 @@ public:
 	 * This method is called after a gizmo is automatically built based upon selection and also to update the 
 	 * existing gizmo when the selection changes.
 	 */
-	virtual void UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState) PURE_VIRTUAL(UEditorInteractiveGizmoSelectionBuilder::UpdateGizmoForSelection, return;);
+	virtual void UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState) = 0;
 
 };

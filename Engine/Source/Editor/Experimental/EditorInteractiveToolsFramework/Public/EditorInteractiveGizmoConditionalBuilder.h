@@ -54,34 +54,30 @@ struct EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorGizmoTypePriority
 
 /** 
  * Gizmo builders which should be built once a condition is satisfied in the current scene state
- * inherit from UEditorInteractiveGizmoConditionalBuilder. The SatisfiesCondition method
+ * implement the IEditorInteractiveGizmoConditionalBuilder interface. The SatisfiesCondition method
  * should return true whenever the builder is buildable based on scene state, most commonly based
  * on selection. The builder's priority should be specified such that when more than one builder
  * is discovered, the builder with highest priority will be built.
  */
-UCLASS(Transient, Abstract)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorInteractiveGizmoConditionalBuilder : public UInteractiveGizmoBuilder
+UINTERFACE()
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorInteractiveGizmoConditionalBuilder : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class EDITORINTERACTIVETOOLSFRAMEWORK_API IEditorInteractiveGizmoConditionalBuilder
 {
 	GENERATED_BODY()
 
 public:
 
 	/** Returns the priority for this gizmo type.  */
-	virtual FEditorGizmoTypePriority GetPriority() const 
-	{ 
-		return FEditorGizmoTypePriority::DEFAULT_GIZMO_TYPE_PRIORITY;
-	}
+	virtual FEditorGizmoTypePriority GetPriority() const = 0;
 
 	/** Update the priority for this gizmo type.  */
-	virtual void UpdatePriority(const FEditorGizmoTypePriority& InPriority)
-	{
-		Priority = InPriority;
-	}
+	virtual void SetPriority(const FEditorGizmoTypePriority& InPriority) = 0;
 
 	/** Returns true if this gizmo is valid for creation based on the current state. */
-	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const  PURE_VIRTUAL(UEditorInteractiveGizmoConditionalBuilder::SatisfiesCondition, return false; );
+	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const = 0;
 
-protected:
-
-	FEditorGizmoTypePriority Priority = FEditorGizmoTypePriority::DEFAULT_GIZMO_TYPE_PRIORITY;
 };

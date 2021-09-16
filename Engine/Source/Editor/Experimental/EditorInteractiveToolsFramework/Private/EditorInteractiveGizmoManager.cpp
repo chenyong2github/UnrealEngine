@@ -103,7 +103,7 @@ TArray<UInteractiveGizmo*> UEditorInteractiveGizmoManager::CreateGizmosForCurren
 		{
 			if (UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmo(CurrentSceneState))
 			{
-				if (UEditorInteractiveGizmoSelectionBuilder* SelectionBuilder = Cast<UEditorInteractiveGizmoSelectionBuilder>(FoundBuilder))
+				if (IEditorInteractiveGizmoSelectionBuilder* SelectionBuilder = Cast<IEditorInteractiveGizmoSelectionBuilder>(FoundBuilder))
 				{
 					SelectionBuilder->UpdateGizmoForSelection(NewGizmo, CurrentSceneState);
 				}
