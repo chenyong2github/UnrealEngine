@@ -55,8 +55,8 @@ public:
 	 * Register a new Editor gizmo type.
 	 * @param InGizmoCategory category in which to register gizmo builder
 	 * @param InGizmonBuilder new Editor gizmo builder
-	 * - Accessory gizmo builders must be inherited from UEditorInteractiveGizmoAccessoryBuilder.
-	 * - Primary gizmo builders must be inherited from UEditorInteractiveGizmoPrimaryBuilder.
+	 * - Accessory and Primary gizmo builders must derive from UInteractiveGizmoBuilder (of from a builder derived from it)
+	 *   and must implement the IEditorInteractiveConditionalGizmoBuilder and IEditorInteractiveSelectionGizmoBuilder interfaces.
 	 */
 	void RegisterEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder);
 

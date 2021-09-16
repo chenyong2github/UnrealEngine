@@ -29,7 +29,7 @@ class FEditorTransformGizmoTransformChange;
 class FRay;
 
 UCLASS()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public UEditorInteractiveGizmoSelectionBuilder
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public UInteractiveGizmoBuilder, public IEditorInteractiveGizmoSelectionBuilder
 {
 	GENERATED_BODY()
 
@@ -38,12 +38,6 @@ public:
 	// UEditorInteractiveGizmoSelectionBuilder interface 
 	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 	virtual void UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState) override;
-
-	// UEditorInteractiveGizmoConditionalBuilder interface 
-	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const override
-	{
-		return true;
-	}
 };
 
 

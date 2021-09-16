@@ -68,8 +68,8 @@ public:
 	 * Register a new Editor gizmo type which will be global to the Editor.
 	 * @param InGizmoCategory category in which to register gizmo builder
 	 * @param InGizmonBuilder new Editor gizmo builder
-	 * - Accessory gizmo builders must be inherited from UEditorInteractiveGizmoAccessoryBuilder.
-	 * - Primary gizmo builders must be inherited from UEditorInteractiveGizmoPrimaryBuilder.
+	 * - Accessory and Primary gizmo builders must derive from UInteractiveGizmoBuilder (of from a builder derived from it)
+	 *   and must implement the IEditorInteractiveConditionalGizmoBuilder and IEditorInteractiveSelectionGizmoBuilder interfaces.
 	 */
 	void RegisterGlobalEditorGizmoType(EEditorGizmoCategory InGizmoCategory, UInteractiveGizmoBuilder* InGizmoBuilder);
 
@@ -93,7 +93,7 @@ public:
 	/** 
 	 * Get transform gizmo builder used to build the Level Editor TRS gizmo. 
 	 */
-	UEditorInteractiveGizmoSelectionBuilder* GetTransformGizmoBuilder()
+	UInteractiveGizmoBuilder* GetTransformGizmoBuilder()
 	{
 		return TransformGizmoBuilder;
 	}
@@ -102,7 +102,7 @@ private:
 
 	/** TRS gizmo builder */
 	UPROPERTY()
-	TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> TransformGizmoBuilder;
+	TObjectPtr<UInteractiveGizmoBuilder> TransformGizmoBuilder;
 
 	/** Actual registry */
 	UPROPERTY()
