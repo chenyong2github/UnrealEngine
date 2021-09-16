@@ -1530,6 +1530,7 @@ void FBodyInstanceCustomizationHelper::AddMassInKg(IDetailCategoryBuilder& Physi
 			MassInKgOverrideHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
+		.VAlign(VAlign_Center)
 		[
 			SNew(SNumericEntryBox<float>)
 			.IsEnabled(this, &FBodyInstanceCustomizationHelper::IsBodyMassEnabled)

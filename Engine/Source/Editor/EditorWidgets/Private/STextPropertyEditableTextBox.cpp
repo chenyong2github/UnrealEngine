@@ -24,6 +24,8 @@
 #include "Internationalization/StringTableRegistry.h"
 #include "Serialization/TextReferenceCollector.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/Layout/SLinkedBox.h"
+#include "SSimpleComboButton.h"
 
 #define LOCTEXT_NAMESPACE "STextPropertyEditableTextBox"
 
@@ -717,6 +719,7 @@ void STextPropertyEditableTextBox::Construct(const FArguments& InArgs, const TSh
 		[
 			SAssignNew(HorizontalBox, SHorizontalBox)
 			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			.FillWidth(1.0f)
 			[
 				SNew(SBox)
@@ -751,6 +754,7 @@ void STextPropertyEditableTextBox::Construct(const FArguments& InArgs, const TSh
 		[
 			SAssignNew(HorizontalBox, SHorizontalBox)
 			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
 			[
 				SNew(SBox)
 				.MinDesiredWidth(InArgs._MinDesiredWidth)
@@ -781,20 +785,8 @@ void STextPropertyEditableTextBox::Construct(const FArguments& InArgs, const TSh
 	HorizontalBox->AddSlot()
 		.AutoWidth()
 		[
-			SNew(SComboButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ContentPadding(FMargin(4, 0))
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ToolTipText(this, &STextPropertyEditableTextBox::GetAdvancedTextSettingsComboToolTip)
-			.HasDownArrow(false)
-			.ButtonContent()
-			[
-				SNew(SImage)
-				.Image(this, &STextPropertyEditableTextBox::GetAdvancedTextSettingsComboImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
+			SNew(SSimpleComboButton)
+			.Icon(this, &STextPropertyEditableTextBox::GetAdvancedTextSettingsComboImage)
 			.MenuContent()
 			[
 				SNew(SBox)

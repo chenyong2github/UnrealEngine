@@ -261,22 +261,32 @@ public:
 				EditableText.ToSharedRef()
 			];
 
+		TSharedPtr<SWidget> MainContents;
 
-		if (InArgs._Label.Widget == SNullWidget::NullWidget || InArgs._LabelLocation == ELabelLocation::Inside)
+		const bool bHasLabel = InArgs._Label.Widget != SNullWidget::NullWidget;
+
+		bool bHasInsideLabel = false;
+		if (bHasLabel && InArgs._LabelLocation == ELabelLocation::Inside)
 		{
-			if(InArgs._Label.Widget != SNullWidget::NullWidget)
-			{
-				Overlay->AddSlot()
-					.HAlign(HAlign_Left)
-					.VAlign(InArgs._LabelVAlign)
-					.Padding(InArgs._LabelPadding)
-					[
-						InArgs._Label.Widget
-					];
-			}
+			bHasInsideLabel = true;
 
-			ChildSlot
-			[
+			Overlay->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(InArgs._LabelVAlign)
+				.Padding(InArgs._LabelPadding)
+				[
+					InArgs._Label.Widget
+				];
+		}
+
+
+		if (bAllowSpin && !bHasInsideLabel)
+		{
+			MainContents = Overlay;
+		}
+		else 
+		{
+			MainContents =
 				SNew(SBorder)
 				.BorderImage(this, &SNumericEntryBox<NumericType>::GetBorderImage)
 				.BorderBackgroundColor(InArgs._BorderBackgroundColor)
@@ -284,7 +294,14 @@ public:
 				.Padding(0.f)
 				[
 					Overlay
-				]
+				];
+		}
+
+		if(!bHasLabel || bHasInsideLabel)
+		{
+			ChildSlot
+			[
+				MainContents.ToSharedRef()
 			];
 		}
 		else
@@ -302,14 +319,7 @@ public:
 				]
 				+ SHorizontalBox::Slot()
 				[
-					SNew(SBorder)
-					.BorderImage(this, &SNumericEntryBox<NumericType>::GetBorderImage)
-					.BorderBackgroundColor(InArgs._BorderBackgroundColor)
-					.ForegroundColor(InArgs._BorderForegroundColor)
-					.Padding(0.f)
-					[
-						Overlay
-					]
+					MainContents.ToSharedRef()
 				]
 			];
 		}

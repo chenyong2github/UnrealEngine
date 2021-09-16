@@ -30,6 +30,8 @@ public:
 
 	void GetDesiredWidth( float& OutMinDesiredWidth, float& OutMaxDesiredWidth );
 
+	FVector2D ComputeDesiredSize(float Scale) const;
+
 	bool SupportsKeyboardFocus() const override;
 
 	FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
