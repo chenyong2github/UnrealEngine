@@ -7,6 +7,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "MeshQueries.h"
 #include "MeshBoundaryLoops.h"
+#include "Selections/MeshConnectedComponents.h"
 
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -115,6 +116,16 @@ int32 UGeometryScriptLibrary_MeshQueryFunctions::GetNumOpenBorderLoops( UDynamic
 }
 
 
+int32 UGeometryScriptLibrary_MeshQueryFunctions::GetNumConnectedComponents( UDynamicMesh* TargetMesh )
+{
+	return SimpleMeshQuery<int32>(TargetMesh, 0, [&](const FDynamicMesh3& Mesh) { 
+		FMeshConnectedComponents Components(&Mesh);
+		Components.FindConnectedTriangles();
+		return Components.Num();
+	});
+}
+
+
 
 int32 UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleCount( UDynamicMesh* TargetMesh )
 {
@@ -199,22 +210,24 @@ FVector UGeometryScriptLibrary_MeshQueryFunctions::GetVertexPosition(UDynamicMes
 	});
 }
 
-TArray<FVector> UGeometryScriptLibrary_MeshQueryFunctions::GetAllVertexPositions(UDynamicMesh* TargetMesh, bool& bHasVertexIDGaps)
+UDynamicMesh* UGeometryScriptLibrary_MeshQueryFunctions::GetAllVertexPositions(UDynamicMesh* TargetMesh, TArray<FVector>& VertexPositions, bool& bHasVertexIDGaps)
 {
-	TArray<FVector> Positions;
+	VertexPositions.Reset();
+	bHasVertexIDGaps = false;
 	if (TargetMesh)
 	{
 		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 		{
-			Positions.Init(FVector::ZeroVector, ReadMesh.MaxVertexID());
+			VertexPositions.Init(FVector::ZeroVector, ReadMesh.MaxVertexID());
 			for (int32 vid : ReadMesh.VertexIndicesItr())
 			{
-				Positions[vid] = (FVector)ReadMesh.GetVertex(vid);
+				VertexPositions[vid] = (FVector)ReadMesh.GetVertex(vid);
 			}
 			bHasVertexIDGaps = ! ReadMesh.IsCompactV();
 		});
 	}
-	return Positions;
+	
+	return TargetMesh;
 }
 
 
@@ -270,6 +283,16 @@ void UGeometryScriptLibrary_MeshQueryFunctions::GetTriangleUVs(UDynamicMesh* Tar
 	});
 }
 
+
+
+
+
+bool UGeometryScriptLibrary_MeshQueryFunctions::GetHasMaterialIDs( UDynamicMesh* TargetMesh )
+{
+	return SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) {
+		return (Mesh.HasAttributes() && Mesh.Attributes()->HasMaterialID() && Mesh.Attributes()->GetMaterialID() != nullptr);
+	});
+}
 
 
 

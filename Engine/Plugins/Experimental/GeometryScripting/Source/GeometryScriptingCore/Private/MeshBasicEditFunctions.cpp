@@ -112,6 +112,32 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteVertexFromMes
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteVerticesFromMesh(
+	UDynamicMesh* TargetMesh,
+	const TArray<int32>& VertexList,
+	int& NumDeleted,
+	bool bDeferChangeNotifications)
+{
+	NumDeleted = 0;
+	if (TargetMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			for (int32 VertexID : VertexList)
+			{
+				EMeshResult Result = EditMesh.RemoveVertex(VertexID);
+				if (Result == EMeshResult::Ok)
+				{
+					NumDeleted++;
+				}
+			}
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+	}
+	return TargetMesh;
+}
+
+
+
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddTriangleToMesh(
@@ -228,6 +254,30 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteTriangleFromM
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::DeleteTrianglesFromMesh(
+	UDynamicMesh* TargetMesh,
+	const TArray<int32>& TriangleList,
+	int& NumDeleted,
+	bool bDeferChangeNotifications)
+{
+	NumDeleted = 0;
+	if (TargetMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			for (int32 TriangleID : TriangleList)
+			{
+				EMeshResult Result = EditMesh.RemoveTriangle(TriangleID);
+				if (Result == EMeshResult::Ok)
+				{
+					NumDeleted++;
+				}
+			}
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+	}
+	return TargetMesh;
+}
+
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
@@ -255,7 +305,14 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 			UE::Geometry::FTransform3d XForm(AppendTransform);
 			FMeshIndexMappings TmpMappings;
 			FDynamicMeshEditor Editor(&AppendToMesh);
-			Editor.AppendMesh(&OtherMesh, TmpMappings,
+			const FDynamicMesh3* UseOtherMesh = &OtherMesh;
+			FDynamicMesh3 TmpMesh;
+			if (UseOtherMesh == &AppendToMesh)
+			{
+				TmpMesh = OtherMesh;	// need  to make a copy if we are appending to ourself
+				UseOtherMesh = &TmpMesh;
+			}
+			Editor.AppendMesh(UseOtherMesh, TmpMappings,
 				[&](int, const FVector3d& Position) { return XForm.TransformPosition(Position); },
 				[&](int, const FVector3d& Normal) { return XForm.TransformNormal(Normal); });
 		});
@@ -313,6 +370,162 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshRepeated(
 	return TargetMesh;
 }
 
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendBuffersToMesh(
+	UDynamicMesh* TargetMesh,
+	const FGeometryScriptSimpleMeshBuffers& Buffers,
+	TArray<int>& NewTriangleIndices,
+	int MaterialID,
+	bool bDeferChangeNotifications,
+	UGeometryScriptDebug* Debug)
+{
+	NewTriangleIndices.Reset();
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendMeshRepeated_InvalidInput1", "AppendMeshRepeated: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		if (!EditMesh.HasAttributes())
+		{
+			EditMesh.EnableAttributes();
+		}
+		if (!EditMesh.HasTriangleGroups())
+		{
+			EditMesh.EnableTriangleGroups();
+		}
+
+		if (!EditMesh.Attributes()->HasMaterialID())
+		{
+			EditMesh.Attributes()->EnableMaterialID();
+		}
+		FDynamicMeshMaterialAttribute* MaterialIDs = EditMesh.Attributes()->GetMaterialID();
+
+		TArray<int32> VertexIDMap;
+		int32 NumVertices = Buffers.Vertices.Num();
+		VertexIDMap.SetNum(NumVertices);
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			int32 NewVertexID = EditMesh.AppendVertex((FVector3d)Buffers.Vertices[k]);
+			VertexIDMap[k] = NewVertexID;
+		}
+
+		auto MapTriangleFunc = [&VertexIDMap](FIntVector Triangle)
+		{
+			return FIndex3i(VertexIDMap[Triangle.X], VertexIDMap[Triangle.Y], VertexIDMap[Triangle.Z]);
+		};
+
+		int32 NumTriangles = Buffers.Triangles.Num();
+		bool bHaveGroups = Buffers.TriGroupIDs.Num() == NumTriangles;
+		int32 ConstantGroupID = EditMesh.AllocateTriangleGroup();
+		for (int32 k = 0; k < NumTriangles; ++k)
+		{
+			int32 UseGroupID = bHaveGroups ? Buffers.TriGroupIDs[k] : ConstantGroupID;
+			int32 NewTriangleID = EditMesh.AppendTriangle(MapTriangleFunc(Buffers.Triangles[k]), UseGroupID);
+			if (NewTriangleID < 0)
+			{
+				if (NewTriangleID == FDynamicMesh3::NonManifoldID)
+				{
+					UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendBuffersToMesh_NonManifold", "AppendBuffersToMesh: Triangle cannot be added because it would create invalid Non-Manifold Mesh Topology"));
+				}
+				else if (NewTriangleID == FDynamicMesh3::DuplicateTriangleID)
+				{
+					UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendBuffersToMesh_Duplicate", "AppendBuffersToMesh: Triangle cannot be added because it is a duplicate of an existing Triangle"));
+				}
+				else
+				{
+					UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("AppendBuffersToMesh_Unknown", "AppendBuffersToMesh: adding Triangle Failed"));
+				}
+				NewTriangleID = INDEX_NONE;
+			}
+			else
+			{
+				MaterialIDs->SetValue(NewTriangleID, MaterialID);
+			}
+			NewTriangleIndices.Add(NewTriangleID);
+		}
+
+
+		if (Buffers.Normals.Num() == NumVertices)
+		{
+			FDynamicMeshNormalOverlay* Normals = EditMesh.Attributes()->PrimaryNormals();
+			VertexIDMap.Reset();
+			for (int32 k = 0; k < NumVertices; ++k)
+			{
+				int32 NewElementID = Normals->AppendElement((FVector3f)Buffers.Normals[k]);
+				VertexIDMap[k] = NewElementID;
+			}
+			for (int32 k = 0; k < NumTriangles; ++k)
+			{
+				if (NewTriangleIndices[k] >= 0)
+				{
+					Normals->SetTriangle(NewTriangleIndices[k], MapTriangleFunc(Buffers.Triangles[k]));
+				}
+			}
+		}
+
+		const TArray<FVector2D>* AllUVSets[8] = { &Buffers.UV0, &Buffers.UV1, &Buffers.UV2, &Buffers.UV3, &Buffers.UV4, &Buffers.UV5, &Buffers.UV6, &Buffers.UV7 };
+		int32 NumUVLayers = 0;
+		for (int32 k = 0; k < 8; ++k)
+		{
+			if (AllUVSets[k]->Num() != NumVertices)
+			{
+				break;
+			}
+			NumUVLayers++;
+		}
+		EditMesh.Attributes()->SetNumUVLayers(NumUVLayers);
+		for (int32 li = 0; li < NumUVLayers; ++li)
+		{
+			FDynamicMeshUVOverlay* UVs = EditMesh.Attributes()->GetUVLayer(li);
+			VertexIDMap.Reset();
+			for (int32 k = 0; k < NumVertices; ++k)
+			{
+				int32 NewElementID = UVs->AppendElement( (FVector2f) (*AllUVSets[li])[k] );
+				VertexIDMap[k] = NewElementID;
+			}
+			for (int32 k = 0; k < NumTriangles; ++k)
+			{
+				if (NewTriangleIndices[k] >= 0)
+				{
+					UVs->SetTriangle(NewTriangleIndices[k], MapTriangleFunc(Buffers.Triangles[k]));
+				}
+			}
+		}
+
+		if (Buffers.VertexColors.Num() == NumVertices)
+		{
+			EditMesh.Attributes()->EnablePrimaryColors();
+			FDynamicMeshColorOverlay* Colors = EditMesh.Attributes()->PrimaryColors();
+			VertexIDMap.Reset();
+			for (int32 k = 0; k < NumVertices; ++k)
+			{
+				int32 NewElementID = Colors->AppendElement( ToVector4<float>(Buffers.VertexColors[k]) );
+				VertexIDMap[k] = NewElementID;
+			}
+			for (int32 k = 0; k < NumTriangles; ++k)
+			{
+				if (NewTriangleIndices[k] >= 0)
+				{
+					Colors->SetTriangle(NewTriangleIndices[k], MapTriangleFunc(Buffers.Triangles[k]));
+				}
+			}
+		}
+
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+
+
+
+
+	return TargetMesh;
+}
 
 
 
