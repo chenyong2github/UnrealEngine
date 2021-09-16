@@ -124,7 +124,7 @@ UTakeRecorderPanel* UTakeRecorderBlueprintLibrary::OpenTakeRecorderPanel()
 
 UTakeRecorderPanel* UTakeRecorderBlueprintLibrary::GetTakeRecorderPanel()
 {
-	return CurrentTakeRecorderPanel && CurrentTakeRecorderPanel->IsPanelOpen() ? CurrentTakeRecorderPanel : nullptr;
+	return CurrentTakeRecorderPanel;
 }
 
 void UTakeRecorderBlueprintLibrary::SetOnTakeRecorderPanelChanged(FOnTakeRecorderPanelChanged OnTakeRecorderPanelChanged)

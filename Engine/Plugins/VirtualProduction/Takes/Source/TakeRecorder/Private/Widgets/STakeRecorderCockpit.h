@@ -62,6 +62,8 @@ public:
 
 	void StopRecording();
 
+	void Refresh();
+
 private:
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

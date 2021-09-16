@@ -1009,6 +1009,7 @@ void STakeRecorderPanel::OnRecordingCancelled(UTakeRecorder* Recorder)
 {
 	RecordingLevelSequence = nullptr;
 	RefreshPanel();
+	CockpitWidget->Refresh();
 
 	Recorder->OnRecordingFinished().Remove(OnRecordingFinishedHandle);
 	Recorder->OnRecordingCancelled().Remove(OnRecordingCancelledHandle);
