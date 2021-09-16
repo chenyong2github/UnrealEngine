@@ -4,6 +4,7 @@
 
 #include "Algo/AnyOf.h"
 #include "Algo/Transform.h"
+#include "Containers/Set.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Text.h"
 #include "IStructSerializerBackend.h"
@@ -85,6 +86,8 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(FMetaSoundAssetRegistrationO
 	}
 
 	GetReferencedAssetClassCache().Reset();
+	// Triggers the existing runtime data to be out-of-date.
+	CurrentCachedRuntimeDataChangeID = FGuid::NewGuid();
 
 	if (InRegistrationOptions.bRebuildReferencedAssetClassKeys)
 	{
@@ -429,7 +432,7 @@ bool FMetasoundAssetBase::VersionAsset()
 	return bDidEdit;
 }
 
-TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() const
+TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument() const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -440,7 +443,7 @@ TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() cons
 	if (nullptr == Doc)
 	{
 		UE_LOG(LogMetaSound, Error, TEXT("Cannot create graph. Null MetaSound document in MetaSound asset [Name:%s]"), *GetOwningAssetName());
-		return TUniquePtr<IGraph>(nullptr);
+		return TSharedPtr<IGraph, ESPMode::ThreadSafe>(nullptr);
 	}
 
 	// Create graph which can spawn instances. TODO: cache graph.
@@ -455,7 +458,9 @@ TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() cons
 		}
 	}
 
-	return MoveTemp(FrontendGraph);
+	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> SharedGraph(FrontendGraph.Release());
+
+	return SharedGraph;
 }
 
 void FMetasoundAssetBase::RebuildReferencedAssetClassKeys()
@@ -560,27 +565,23 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 	using namespace Metasound::Frontend;
 	using FSendInfo = FMetaSoundParameterTransmitter::FSendInfo;
 
+	check(IsInGameThread() || IsInAudioThread());
+
+	const FRuntimeData& RuntimeData = GetRuntimeData();
+
 	TArray<FSendInfoAndVertexName> SendInfos;
 
-	FConstGraphHandle RootGraph = GetRootGraphHandle();
-
-	const TArray<FVertexName> SendVertices = GetTransmittableInputVertexNames();
-	for (const FVertexName& VertexName : SendVertices)
+	for (const FMetasoundFrontendClassInput& Vertex : RuntimeData.TransmittableInputs)
 	{
-		FConstNodeHandle InputNode = RootGraph->GetInputNodeWithName(VertexName);
-		for (FConstInputHandle InputHandle : InputNode->GetConstInputs())
-		{
-			FSendInfoAndVertexName Info;
+		FSendInfoAndVertexName Info;
 
-			// TODO: incorporate VertexID into address. But need to ensure that VertexID
-			// will be maintained after injecting Receive nodes. 
-			Info.SendInfo.Address = FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(InInstanceID, VertexName, InputHandle->GetDataType());
-			Info.SendInfo.ParameterName = VertexName;
-			Info.SendInfo.TypeName = InputHandle->GetDataType();
-			Info.VertexName = VertexName;
+		Info.SendInfo.Address = FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(InInstanceID, Vertex.Name, Vertex.TypeName);
+		Info.SendInfo.ParameterName = Vertex.Name;
+		Info.SendInfo.TypeName = Vertex.TypeName;
+		Info.VertexName = Vertex.Name;
 
-			SendInfos.Add(Info);
-		}
+		SendInfos.Add(Info);
+		
 	}
 
 	return SendInfos;
@@ -801,6 +802,82 @@ FString FMetasoundAssetBase::GetOwningAssetName() const
 		return OwningAsset->GetName();
 	}
 	return FString();
+}
+
+TSharedPtr<const Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::GetMetasoundCoreGraph() const
+{
+	return FMetasoundAssetBase::GetRuntimeData().Graph;
+}
+
+TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetTransmittableClassInputs() const
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+	check(IsInGameThread() || IsInAudioThread());
+
+	TArray<FMetasoundFrontendClassInput> Inputs;
+
+	if (const FMetasoundFrontendDocument* Doc = GetDocument().Get())
+	{
+		TSet<FVertexName> ArchetypeInputs;
+
+		auto GetVertexKey = [](const FMetasoundFrontendClassVertex& InVertex) { return InVertex.Name; };
+
+		// Do not transmit vertices defined in archetype. Those are already accounted
+		// for by owning object.
+		FMetasoundFrontendArchetype Archetype;
+		GetArchetype(Archetype);
+		Algo::Transform(Archetype.Interface.Inputs, ArchetypeInputs, GetVertexKey);
+
+		// Do not transmit vertices which are not transmittable. Async communication 
+		// is not supported without transmission.
+		IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
+
+		auto IsTransmittable = [&Registry, &ArchetypeInputs](const FMetasoundFrontendClassVertex& InVertex) -> bool
+		{	
+			if (!ArchetypeInputs.Contains(InVertex.Name))
+			{
+				FDataTypeRegistryInfo Info;
+				if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
+				{
+					return Info.bIsTransmittable;
+				}
+			}
+			return false;
+		};
+
+
+		for (const FMetasoundFrontendClassInput& Vertex : Doc->RootGraph.Interface.Inputs)
+		{
+			if (IsTransmittable(Vertex))
+			{
+				Inputs.Add(Vertex);
+			}
+		}
+	}
+
+	return Inputs;
+}
+
+const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::GetRuntimeData() const
+{
+	
+	// Check if a ChangeID has been generated before.
+	if (!CurrentCachedRuntimeDataChangeID.IsValid())
+	{
+		CurrentCachedRuntimeDataChangeID = FGuid::NewGuid();
+	}
+
+	// Check if CachedRuntimeData is out-of-date.
+	if (CachedRuntimeData.ChangeID != CurrentCachedRuntimeDataChangeID)
+	{
+		// Update CachedRuntimeData.
+		CachedRuntimeData.TransmittableInputs = GetTransmittableClassInputs();
+		CachedRuntimeData.Graph = BuildMetasoundDocument();
+		CachedRuntimeData.ChangeID = CurrentCachedRuntimeDataChangeID;
+	}
+
+	return CachedRuntimeData;
 }
 
 #undef LOCTEXT_NAMESPACE // "MetaSound"

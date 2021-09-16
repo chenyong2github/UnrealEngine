@@ -21,7 +21,7 @@ namespace Metasound
 	struct METASOUNDGENERATOR_API FMetasoundGeneratorInitParams
 	{
 		FOperatorSettings OperatorSettings;
-		TUniquePtr<IGraph> Graph;
+		TSharedPtr<const IGraph, ESPMode::ThreadSafe> Graph;
 		FMetasoundEnvironment Environment;
 		FString MetaSoundName;
 		TArray<FVertexName> AudioOutputNames;
