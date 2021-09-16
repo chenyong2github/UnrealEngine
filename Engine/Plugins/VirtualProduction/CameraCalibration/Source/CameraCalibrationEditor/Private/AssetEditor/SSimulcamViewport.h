@@ -5,17 +5,17 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "UObject/GCObject.h"
+#include "UObject/StrongObjectPtr.h"
 
-
-class UMaterial;
-class UMaterialExpressionTextureSample;
 class UTexture;
 
 struct FGeometry;
 struct FPointerEvent;
 
+class SSimulcamEditorViewport;
+
 /** Delegate to be executed when the viewport area is clicked */
-DECLARE_DELEGATE_TwoParams(FSimulcamViewportClickedEventHandler, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+DECLARE_DELEGATE_TwoParams(FSimulcamViewportClickedEventHandler, const FGeometry& MyGeometry, const FPointerEvent& PointerEvent);
 
 /**
  * UI to display the provided UTexture and respond to mouse clicks. 
@@ -23,17 +23,13 @@ DECLARE_DELEGATE_TwoParams(FSimulcamViewportClickedEventHandler, const FGeometry
 class SSimulcamViewport : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SSimulcamViewport) { }
-	SLATE_ATTRIBUTE(FVector2D, BrushImageSize);
+	SLATE_BEGIN_ARGS(SSimulcamViewport)
+	: _WithZoom(true), _WithPan(true)
+	{}
 	SLATE_EVENT(FSimulcamViewportClickedEventHandler, OnSimulcamViewportClicked)
+	SLATE_ATTRIBUTE(bool, WithZoom)
+	SLATE_ATTRIBUTE(bool, WithPan)
 	SLATE_END_ARGS()
-
-public:
-
-	/** Default constructor. */
-	SSimulcamViewport();
-
-public:
 
 	/**
 	 * Construct this widget
@@ -43,56 +39,22 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, UTexture* InTexture);
 
-	/**
-	 * Tick this widget
-	 * 
-	 * @param InAllottedGeometry Geometry of the widget.
-	 * @param InCurrentTime CurrentTime of the engine.
-	 * @param InDeltaTime Deltatime since last frame.
-	 */
-	virtual void Tick(const FGeometry& InAllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	/** Returns the current camera texture */
+	UTexture* GetTexture() const;
 
-private:
+	/** Is the camera texture valid ? */
+	bool HasValidTextureResource() const;
 
-	class FInternalReferenceCollector : public FGCObject
-	{
-	public:
-		FInternalReferenceCollector(SSimulcamViewport* InObject)
-			: Object(InObject)
-		{
-		}
-
-		//~ FGCObject interface
-		virtual void AddReferencedObjects(FReferenceCollector& InCollector) override
-		{
-			InCollector.AddReferencedObject(Object->Material);
-			InCollector.AddReferencedObject(Object->TextureSampler);
-		}
-
-	private:
-		SSimulcamViewport* Object;
-	};
-
-	friend FInternalReferenceCollector;
-
-	/** Collector to keep the UObject alive. */
-	FInternalReferenceCollector Collector;
-
-	/** The material that wraps the video texture for display in an SImage. */
-	UMaterial* Material;
-
-	/** The Slate brush that renders the material. */
-	TSharedPtr<FSlateBrush> MaterialBrush;
-
-	/** The video texture sampler in the wrapper material. */
-	UMaterialExpressionTextureSample* TextureSampler;
-
-	/** Brush image size attribute. */
-	TAttribute<FVector2D> BrushImageSize;
+	/** called whenever the viewport is clicked */
+	void OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent) { OnSimulcamViewportClicked.ExecuteIfBound(MyGeometry, PointerEvent); }
 
 private:
 
 	/** Delegate to be executed when the viewport area is clicked */
 	FSimulcamViewportClickedEventHandler OnSimulcamViewportClicked;
+
+	TSharedPtr<SSimulcamEditorViewport> TextureViewport;
+
+	TStrongObjectPtr<UTexture> Texture;
 };
 
