@@ -1241,6 +1241,7 @@ namespace UnrealBuildTool
 								// Generates project files for a single game
 								bIncludeDotNetPrograms = false;
 								IncludeEnginePrograms = false;
+								bIncludeEngineSource = false;
 								bGeneratingGameProjectFiles = true;
 								break;
 
