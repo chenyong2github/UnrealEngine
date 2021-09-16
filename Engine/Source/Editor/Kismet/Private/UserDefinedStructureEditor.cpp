@@ -28,6 +28,8 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "SEditorHeaderButton.h"
 #include "Styling/ToolBarStyle.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 
 #include "PropertyCustomizationHelpers.h"
 #include "SPinTypeSelector.h"
