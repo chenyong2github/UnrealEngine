@@ -115,7 +115,6 @@ public:
 	}
 
 	FImportParametersCommand()
-		: ImportParameters()
 	{
 	}
 

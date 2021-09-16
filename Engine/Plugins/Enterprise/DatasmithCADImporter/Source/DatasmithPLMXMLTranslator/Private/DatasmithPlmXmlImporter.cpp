@@ -240,7 +240,6 @@ namespace PlmXml
 		FPlmXmlMeshLoaderWithDatasmithDispatcher(TSharedRef<IDatasmithScene> InDatasmithScene, FDatasmithTessellationOptions& InTessellationOptions)
 			: DatasmithScene(InDatasmithScene)
 			, TessellationOptions(InTessellationOptions)
-			, ImportParameters()
 		{
 			FCADToolsModule& CADToolsModule = FCADToolsModule::Get();
 			

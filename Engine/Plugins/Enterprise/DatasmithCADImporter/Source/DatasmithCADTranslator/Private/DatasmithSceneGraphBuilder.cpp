@@ -733,20 +733,19 @@ void FDatasmithSceneBaseGraphBuilder::AddMetaData(TSharedPtr< IDatasmithActorEle
 
 bool FDatasmithSceneBaseGraphBuilder::DoesActorHaveChildrenOrIsAStaticMesh(const TSharedPtr< IDatasmithActorElement >& ActorElement)
 {
-	return true;
-	//if (ActorElement != nullptr)
-	//{
-	//	if (ActorElement->GetChildrenCount() > 0)
-	//	{
-	//		return true;
-	//	}
-	//	else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
-	//	{
-	//		const TSharedPtr< IDatasmithMeshActorElement >& MeshActorElement = StaticCastSharedPtr< IDatasmithMeshActorElement >(ActorElement);
-	//		return FCString::Strlen(MeshActorElement->GetStaticMeshPathName()) > 0;
-	//	}
-	//}
-	//return false;
+	if (ActorElement != nullptr)
+	{
+		if (ActorElement->GetChildrenCount() > 0)
+		{
+			return true;
+		}
+		else if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
+		{
+			const TSharedPtr< IDatasmithMeshActorElement >& MeshActorElement = StaticCastSharedPtr< IDatasmithMeshActorElement >(ActorElement);
+			return FCString::Strlen(MeshActorElement->GetStaticMeshPathName()) > 0;
+		}
+	}
+	return false;
 }
 
 
