@@ -51,8 +51,36 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		const FText& GetContextGroupDisplayName(EPrimaryContextGroup InContextGroup)
+		{
+			switch (InContextGroup)
+			{
+				case EPrimaryContextGroup::Inputs:
+					return NodeCategories::Inputs;
+
+				case EPrimaryContextGroup::Outputs:
+					return NodeCategories::Outputs;
+
+				case EPrimaryContextGroup::Graphs:
+					return NodeCategories::Graphs;
+
+				case EPrimaryContextGroup::Functions:
+					return NodeCategories::Functions;
+
+				case EPrimaryContextGroup::Conversions:
+					return NodeCategories::Conversions;
+
+				case EPrimaryContextGroup::Common:
+				default:
+				{
+					return FText::GetEmpty();
+				}
+			}
+		}
+
 		namespace SchemaPrivate
 		{
+
 			static const FText CategoryDelim = LOCTEXT("MetaSoundActionsCategoryDelim", "|");
 			static const FText KeywordDelim = LOCTEXT("MetaSoundKeywordDelim", " ");
 
@@ -61,58 +89,6 @@ namespace Metasound
 
 			static const FText OutputDisplayNameFormat = LOCTEXT("DisplayNameAddOutputFormat", "Set {0}");
 			static const FText OutputTooltipFormat = LOCTEXT("TooltipAddOutputFormat", "Adds a setter for the output '{0}' to the graph.");
-
-			enum class EPrimaryContextGroup
-			{
-				Default = 0,
-				Inputs,
-				Outputs,
-				Graphs,
-				Functions,
-				Conversions
-			};
-
-			const FText& GetContextGroupDisplayName(EPrimaryContextGroup InContextGroup)
-			{
-				switch (InContextGroup)
-				{
-					case EPrimaryContextGroup::Inputs:
-					{
-						static const FText InputGroupName = LOCTEXT("InputActions", "Inputs");
-						return InputGroupName;
-					}
-					case EPrimaryContextGroup::Outputs:
-					{
-						static const FText OutputGroupName = LOCTEXT("OutputActions", "Outputs");
-						return OutputGroupName;
-					}
-
-					case EPrimaryContextGroup::Graphs:
-					{
-						static const FText GraphGroupName = LOCTEXT("GraphActions", "Graphs");
-						return GraphGroupName;
-					}
-
-					case EPrimaryContextGroup::Functions:
-					{
-						static const FText FunctionGroupName = LOCTEXT("FunctionActions", "Functions");
-						return FunctionGroupName;
-					}
-
-					case EPrimaryContextGroup::Conversions:
-					{
-						static const FText ConversionGroupName = LOCTEXT("ConversionActions", "Conversions");
-						return ConversionGroupName;
-					}
-
-					case EPrimaryContextGroup::Default:
-					default:
-					{
-						checkNoEntry();
-						return FText::GetEmpty();
-					}
-				}
-			}
 
 			bool TryConnectNewNodeToPin(UEdGraphNode& NewGraphNode, UEdGraphPin* FromPin)
 			{
@@ -189,7 +165,7 @@ namespace Metasound
 						const FText NodeDisplayName = NodeHandle->GetDisplayName();
 						const FText Tooltip = FText::Format(InQuery.TooltipFormat, NodeDisplayName);
 						const FText DisplayName = FText::Format(InQuery.DisplayNameFormat, NodeDisplayName);
-						TSharedPtr<TAction> NewNodeAction = MakeShared<TAction>(GroupName, DisplayName, NodeHandle->GetID(), Tooltip, static_cast<int32>(InQuery.ContextGroup));
+						TSharedPtr<TAction> NewNodeAction = MakeShared<TAction>(GroupName, DisplayName, NodeHandle->GetID(), Tooltip, InQuery.ContextGroup);
 						InQuery.ActionMenuBuilder.AddAction(NewNodeAction);
 					}
 				}
@@ -257,8 +233,8 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 	return nullptr;
 }
 
-FMetasoundGraphSchemaAction_NewInput::FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InNodeID, FText InToolTip, const int32 InGrouping)
-	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+FMetasoundGraphSchemaAction_NewInput::FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InNodeID, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup)
+	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGroup)
 	, NodeID(InNodeID)
 {
 }
@@ -321,8 +297,13 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 	return nullptr;
 }
 
-FMetasoundGraphSchemaAction_PromoteToInput::FMetasoundGraphSchemaAction_PromoteToInput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping)
-	: FMetasoundGraphSchemaAction_NewInput(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), FGuid(), MoveTemp(InToolTip), InGrouping)
+FMetasoundGraphSchemaAction_PromoteToInput::FMetasoundGraphSchemaAction_PromoteToInput()
+	: FMetasoundGraphSchemaAction_NewInput(
+		FText(),
+		LOCTEXT("PromoteToInputName", "Promote To Graph Input"),
+		FGuid(),
+		LOCTEXT("PromoteToInputTooltip", "Promotes node input to graph input"),
+		Metasound::Editor::EPrimaryContextGroup::Common)
 {
 }
 
@@ -374,8 +355,8 @@ UEdGraphNode* FMetasoundGraphSchemaAction_PromoteToInput::PerformAction(UEdGraph
 	return nullptr;
 }
 
-FMetasoundGraphSchemaAction_NewOutput::FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, const int32 InGrouping)
-	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGrouping)
+FMetasoundGraphSchemaAction_NewOutput::FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup)
+	: FMetasoundGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), MoveTemp(InToolTip), InGroup)
 	, NodeID(InOutputNodeID)
 {
 }
@@ -434,8 +415,13 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 	return nullptr;
 }
 
-FMetasoundGraphSchemaAction_PromoteToOutput::FMetasoundGraphSchemaAction_PromoteToOutput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping)
-	: FMetasoundGraphSchemaAction_NewOutput(MoveTemp(InNodeCategory), MoveTemp(InDisplayName), FGuid(), MoveTemp(InToolTip), InGrouping)
+FMetasoundGraphSchemaAction_PromoteToOutput::FMetasoundGraphSchemaAction_PromoteToOutput()
+	: FMetasoundGraphSchemaAction_NewOutput(
+		FText(),
+		LOCTEXT("PromoteToOutputName", "Promote To Graph Output"),
+		FGuid(),
+		LOCTEXT("PromoteToOutputTooltip", "Promotes node output to graph output"),
+		Metasound::Editor::EPrimaryContextGroup::Common)
 {
 }
 
@@ -626,18 +612,12 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 				return bHasOutputOfType;
 			});
 
-			TSharedPtr<FMetasoundGraphSchemaAction_PromoteToInput> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_PromoteToInput>(
-				SchemaPrivate::GetContextGroupDisplayName(SchemaPrivate::EPrimaryContextGroup::Inputs),
-				LOCTEXT("PromoteToInputName", "Promote To Graph Input"),
-				LOCTEXT("PromoteToInputTooltip", "Promotes node input to graph input"),
-				static_cast<int32>(SchemaPrivate::EPrimaryContextGroup::Inputs));
-
-			static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder).AddAction(NewNodeAction);
+			static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder).AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToInput>());
 		}
 
 		if (FromPin->Direction == EGPD_Output)
 		{
-			Frontend::FConstOutputHandle OutputHandle = Editor::FGraphBuilder::GetConstOutputHandleFromPin(FromPin);
+			FConstOutputHandle OutputHandle = FGraphBuilder::GetConstOutputHandleFromPin(FromPin);
 			ClassFilters.InputFilterFunction = [OutputHandle](const FMetasoundFrontendClassInput& InInput)
 			{
 				return InInput.TypeName == OutputHandle->GetDataType();
@@ -655,13 +635,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 				return bHasInputOfType;
 			});
 
-			TSharedPtr<FMetasoundGraphSchemaAction_PromoteToOutput> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_PromoteToOutput>(
-				SchemaPrivate::GetContextGroupDisplayName(SchemaPrivate::EPrimaryContextGroup::Outputs),
-				LOCTEXT("PromoteToOutputName", "Promote To Graph Output"),
-				LOCTEXT("PromoteToOutputTooltip", "Promotes node output to graph output"),
-				static_cast<int32>(SchemaPrivate::EPrimaryContextGroup::Outputs));
-
-			static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder).AddAction(NewNodeAction);
+			static_cast<FGraphActionMenuBuilder&>(ContextMenuBuilder).AddAction(MakeShared<FMetasoundGraphSchemaAction_PromoteToOutput>());
 		}
 	}
 	else
@@ -669,7 +643,7 @@ void UMetasoundEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilde
 		TSharedPtr<FEditor> MetasoundEditor = FGraphBuilder::GetEditorForGraph(*ContextMenuBuilder.CurrentGraph);
 		if (MetasoundEditor.IsValid() && MetasoundEditor->CanPasteNodes())
 		{
-			TSharedPtr<FMetasoundGraphSchemaAction_Paste> NewAction = MakeShared<FMetasoundGraphSchemaAction_Paste>(FText::GetEmpty(), LOCTEXT("PasteHereAction", "Paste here"), FText::GetEmpty(), 0);
+			TSharedPtr<FMetasoundGraphSchemaAction_Paste> NewAction = MakeShared<FMetasoundGraphSchemaAction_Paste>(FText::GetEmpty(), LOCTEXT("PasteHereAction", "Paste here"), FText::GetEmpty(), EPrimaryContextGroup::Common);
 			ContextMenuBuilder.AddAction(NewAction);
 		}
 
@@ -811,7 +785,7 @@ const FPinConnectionResponse UMetasoundEditorGraphSchema::CanCreateConnection(co
 		}
 
 		// Break existing connections on inputs only - multiple output connections are acceptable
-		if (InputPin->LinkedTo.Num() > 0)
+		if (!InputPin->LinkedTo.IsEmpty())
 		{
 			ECanCreateConnectionResponse ReplyBreakOutputs;
 			if (InputPin == PinA)
@@ -1143,7 +1117,7 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 				NodeCategories::Conversions,
 				Metadata.GetDisplayName(),
 				Tooltip,
-				static_cast<int32>(SchemaPrivate::EPrimaryContextGroup::Conversions),
+				EPrimaryContextGroup::Conversions,
 				KeywordsText
 			);
 
@@ -1166,7 +1140,7 @@ void UMetasoundEditorGraphSchema::GetDataTypeInputNodeActions(FGraphContextMenuB
 		ActionMenuBuilder,
 		Inputs,
 		InFilter,
-		SchemaPrivate::EPrimaryContextGroup::Inputs,
+		EPrimaryContextGroup::Inputs,
 		SchemaPrivate::InputDisplayNameFormat,
 		SchemaPrivate::InputTooltipFormat,
 		bShowSelectedActions
@@ -1203,7 +1177,7 @@ void UMetasoundEditorGraphSchema::GetDataTypeOutputNodeActions(FGraphContextMenu
 		ActionMenuBuilder,
 		Outputs,
 		InFilter,
-		SchemaPrivate::EPrimaryContextGroup::Outputs,
+		EPrimaryContextGroup::Outputs,
 		SchemaPrivate::OutputDisplayNameFormat,
 		SchemaPrivate::OutputTooltipFormat,
 		bShowSelectedActions
@@ -1267,18 +1241,18 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 
 		if (Metadata.GetCategoryHierarchy().IsEmpty() || Metadata.GetCategoryHierarchy()[0].CompareTo(Metasound::NodeCategories::Conversions))
 		{
-			TArray<FText> CategoryHeirarchy { GetContextGroupDisplayName(Path ? EPrimaryContextGroup::Graphs : EPrimaryContextGroup::Functions) };
-			CategoryHeirarchy.Append(Metadata.GetCategoryHierarchy());
+			const EPrimaryContextGroup ContextGroup = Path ? EPrimaryContextGroup::Graphs : EPrimaryContextGroup::Functions;
+			TArray<FText> CategoryHierarchy { GetContextGroupDisplayName(ContextGroup) };
+			CategoryHierarchy.Append(Metadata.GetCategoryHierarchy());
 			const FText KeywordsText = FText::Join(KeywordDelim, Metadata.GetKeywords());
-			const FText CategoryText = FText::Join(CategoryDelim, CategoryHeirarchy);
-			const int32 GroupID = static_cast<int32>(Path ? EPrimaryContextGroup::Graphs : EPrimaryContextGroup::Functions);
+			const FText CategoryText = FText::Join(CategoryDelim, CategoryHierarchy);
 
 			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 			(
 				CategoryText,
 				Metadata.GetDisplayName(),
 				Tooltip,
-				GroupID,
+				ContextGroup,
 				KeywordsText
 			);
 
@@ -1302,7 +1276,7 @@ void UMetasoundEditorGraphSchema::GetCommentAction(FGraphActionMenuBuilder& Acti
 			const FText MenuDescription = NumSelected > 0 ? LOCTEXT("CreateCommentAction", "Create Comment from Selection") : LOCTEXT("AddCommentAction", "Add Comment...");
 			const FText ToolTip = LOCTEXT("CreateCommentToolTip", "Creates a comment.");
 
-			TSharedPtr<FMetasoundGraphSchemaAction_NewComment> NewAction(new FMetasoundGraphSchemaAction_NewComment(FText::GetEmpty(), MenuDescription, ToolTip, 0));
+			TSharedPtr<FMetasoundGraphSchemaAction_NewComment> NewAction = MakeShared<FMetasoundGraphSchemaAction_NewComment>(FText::GetEmpty(), MenuDescription, ToolTip, EPrimaryContextGroup::Common);
 			ActionMenuBuilder.AddAction(NewAction);
 		}
 	}

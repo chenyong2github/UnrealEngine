@@ -9,6 +9,7 @@
 #include "EdGraphUtilities.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundFrontendNodesCategories.h"
 #include "Templates/Function.h"
 #include "UObject/ObjectMacros.h"
 
@@ -26,6 +27,20 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		// Ordered such that highest priority is highest value
+		enum class EPrimaryContextGroup : uint8
+		{
+			Conversions = 0,
+			Graphs,
+			Functions,
+			Outputs,
+			Inputs,
+
+			Common
+		};
+
+		const FText& GetContextGroupDisplayName(EPrimaryContextGroup InContextGroup);
+
 		using FInputFilterFunction = TFunction<bool(const FMetasoundFrontendClassInput&)>;
 		using FOutputFilterFunction = TFunction<bool(const FMetasoundFrontendClassOutput&)>;
 		using FInterfaceNodeFilterFunction = TFunction<bool(Frontend::FConstNodeHandle)>;
@@ -47,8 +62,13 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction : public FEdGraphSchemaAc
 		: FEdGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords = FText::GetEmpty())
-		: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, MoveTemp(InKeywords))
+	FMetasoundGraphSchemaAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup, FText InKeywords = FText::GetEmpty())
+		: FEdGraphSchemaAction(
+			MoveTemp(InNodeCategory),
+			MoveTemp(InMenuDesc),
+			MoveTemp(InToolTip),
+			/*InNodeCategory.IsEmpty() ? */static_cast<int32>(InGroup)/* : 0*/,
+			MoveTemp(InKeywords))
 	{}
 
 	virtual const FSlateBrush* GetIconBrush() const
@@ -77,7 +97,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FMetaso
 		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InInputNodeID, FText InToolTip, const int32 InGrouping);
+	FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InInputNodeID, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup);
 
 	//~ Begin FMetasoundGraphSchemaAction Interface
 	virtual const FSlateBrush* GetIconBrush() const override;
@@ -96,11 +116,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToInput : public F
 {
 	GENERATED_USTRUCT_BODY();
 
-	FMetasoundGraphSchemaAction_PromoteToInput()
-		: FMetasoundGraphSchemaAction_NewInput()
-	{}
-
-	FMetasoundGraphSchemaAction_PromoteToInput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping);
+	FMetasoundGraphSchemaAction_PromoteToInput();
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -120,7 +136,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FMetas
 		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, const int32 InGrouping);
+	FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup);
 
 	//~ Begin FMetasoundGraphSchemaAction Interface
 	virtual const FSlateBrush* GetIconBrush() const override;
@@ -139,11 +155,7 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_PromoteToOutput : public 
 {
 	GENERATED_USTRUCT_BODY();
 
-	FMetasoundGraphSchemaAction_PromoteToOutput()
-		: FMetasoundGraphSchemaAction_NewOutput()
-	{}
-
-	FMetasoundGraphSchemaAction_PromoteToOutput(FText InNodeCategory, FText InDisplayName, FText InToolTip, const int32 InGrouping);
+	FMetasoundGraphSchemaAction_PromoteToOutput();
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -163,8 +175,8 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewNode : public FMetasou
 		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewNode(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, const int32 InGrouping, FText InKeywords = FText::GetEmpty())
-		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGrouping, InKeywords)
+	FMetasoundGraphSchemaAction_NewNode(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup, FText InKeywords = FText::GetEmpty())
+		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGroup, InKeywords)
 	{}
 
 	//~ Begin FMetasoundGraphSchemaAction Interface
@@ -188,8 +200,8 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewFromSelected : public 
 		: FMetasoundGraphSchemaAction_NewNode()
 	{}
 
-	FMetasoundGraphSchemaAction_NewFromSelected(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping)
-		: FMetasoundGraphSchemaAction_NewNode(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping) 
+	FMetasoundGraphSchemaAction_NewFromSelected(FText InNodeCategory, FText InMenuDesc, FText InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup)
+		: FMetasoundGraphSchemaAction_NewNode(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGroup)
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
@@ -207,8 +219,8 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewComment : public FMeta
 		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewComment(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, const int32 InGrouping)
-		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGrouping)
+	FMetasoundGraphSchemaAction_NewComment(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup)
+		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGroup)
 	{}
 
 	//~ Begin FMetasoundGraphSchemaAction Interface
@@ -232,8 +244,8 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_Paste : public FMetasound
 		: FMetasoundGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_Paste(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, const int32 InGrouping)
-		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGrouping)
+	FMetasoundGraphSchemaAction_Paste(const FText& InNodeCategory, const FText& InMenuDesc, const FText& InToolTip, Metasound::Editor::EPrimaryContextGroup InGroup)
+		: FMetasoundGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InGroup)
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
