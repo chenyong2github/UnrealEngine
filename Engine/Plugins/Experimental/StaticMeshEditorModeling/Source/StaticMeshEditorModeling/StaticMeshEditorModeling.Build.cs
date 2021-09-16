@@ -45,6 +45,7 @@ public class StaticMeshEditorModeling : ModuleRules
 				"Slate",
 				"SlateCore",
 				"StaticMeshEditor",
+				"MeshModelingToolsExp",
 				"ToolMenus",
 				"UnrealEd",
 			}
