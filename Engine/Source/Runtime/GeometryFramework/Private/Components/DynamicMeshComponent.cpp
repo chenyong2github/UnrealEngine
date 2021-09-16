@@ -180,6 +180,51 @@ void UDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3d& Tra
 
 
 
+bool UDynamicMeshComponent::ValidateMaterialSlots(bool bCreateIfMissing, bool bDeleteExtraSlots)
+{
+	int32 MaxMeshMaterialID = 0;
+	MeshObject->ProcessMesh([&](const FDynamicMesh3& EditMesh)
+	{
+		if (EditMesh.HasAttributes() && EditMesh.Attributes()->HasMaterialID() && EditMesh.Attributes()->GetMaterialID() != nullptr)
+		{
+			const FDynamicMeshMaterialAttribute* MaterialIDs = EditMesh.Attributes()->GetMaterialID();
+			for (int TriangleID : EditMesh.TriangleIndicesItr())
+			{
+				MaxMeshMaterialID = FMath::Max(MaxMeshMaterialID, MaterialIDs->GetValue(TriangleID));
+			}
+		}
+	});
+	int32 NumRequiredMaterials = MaxMeshMaterialID + 1;
+
+	int32 NumMaterials = GetNumMaterials();
+	if ( bCreateIfMissing && NumMaterials < NumRequiredMaterials )
+	{
+		for (int32 k = NumMaterials; k < NumRequiredMaterials; ++k)
+		{
+			SetMaterial(k, nullptr);
+		}
+	}
+	NumMaterials = GetNumMaterials();
+
+	if (bDeleteExtraSlots && NumMaterials > NumRequiredMaterials)
+	{
+		SetNumMaterials(NumRequiredMaterials);
+	}
+	NumMaterials = GetNumMaterials();
+
+	return (NumMaterials == NumRequiredMaterials);
+}
+
+
+void UDynamicMeshComponent::ConfigureMaterialSet(const TArray<UMaterialInterface*>& NewMaterialSet)
+{
+	for (int k = 0; k < NewMaterialSet.Num(); ++k)
+	{
+		SetMaterial(k, NewMaterialSet[k]);
+	}	
+}
+
+
 void UDynamicMeshComponent::SetTangentsType(EDynamicMeshComponentTangentsMode NewTangentsType)
 {
 	if (NewTangentsType != TangentsType)

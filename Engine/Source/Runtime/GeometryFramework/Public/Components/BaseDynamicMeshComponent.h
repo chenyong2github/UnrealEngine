@@ -334,6 +334,8 @@ public:
 	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 
+	virtual void SetNumMaterials(int32 NumMaterials);
+
 	UPROPERTY()
 	TArray<TObjectPtr<UMaterialInterface>> BaseMaterials;
 };

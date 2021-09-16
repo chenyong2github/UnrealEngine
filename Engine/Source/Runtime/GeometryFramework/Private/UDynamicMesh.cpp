@@ -42,7 +42,7 @@ void UDynamicMesh::InitializeNewMesh()
 	InitializeMesh();
 }
 
-void UDynamicMesh::Reset()
+UDynamicMesh* UDynamicMesh::Reset()
 {
 	FDynamicMeshChangeInfo ChangeInfo;
 	ChangeInfo.Type = EDynamicMeshChangeType::GeneralEdit;
@@ -51,9 +51,10 @@ void UDynamicMesh::Reset()
 		check(&EditMesh == Mesh.Get());		// assuming that EditMesh is internal mesh here...
 		InitializeMesh();
 	}, ChangeInfo);
+	return this;
 }
 
-void UDynamicMesh::ResetToCube()
+UDynamicMesh* UDynamicMesh::ResetToCube()
 {
 	FDynamicMeshChangeInfo ChangeInfo;
 	ChangeInfo.Type = EDynamicMeshChangeType::GeneralEdit;
@@ -66,6 +67,7 @@ void UDynamicMesh::ResetToCube()
 		EditMesh.EnableTriangleGroups();
 		EditMesh.Attributes()->EnableMaterialID();
 	}, ChangeInfo);
+	return this;
 }
 
 
