@@ -317,17 +317,16 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 	}
 
 	const FFrameAndPhase FrameAndPhase{ CurFrame, FFrameAndPhase::PostCallbacks };
-	FDirtyParticleInfo* DirtyParticlesDense = DirtyParticles.GetDensePtr();
 	for (int32 DirtyIdx = DirtyParticles.Num() - 1; DirtyIdx >= 0; --DirtyIdx)
 	{
-		FDirtyParticleInfo& Info = DirtyParticlesDense[DirtyIdx];
+		FDirtyParticleInfo& Info = DirtyParticles.GetDenseAt(DirtyIdx);
 
 		ensure(IsResimAndInSync(*Info.GetObjectPtr()) || Info.GetHistory().IsClean(FrameAndPhase));  //Sim hasn't run yet so PostCallbacks (sim results) should be clean
 
 		//if hasn't changed in a while stop tracking
 		if (Info.LastDirtyFrame < EarliestFrame)
 		{
-			RemoveParticle(DirtyParticlesDense[DirtyIdx].GetObjectPtr());
+			RemoveParticle(Info.GetObjectPtr());
 		}
 		else
 		{
