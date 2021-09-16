@@ -294,7 +294,7 @@ public:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
 
-		const bool bActiveFeedback = bDragging;
+		const bool bActiveFeedback = bDragging || IsInTextMode();
 
 		const FSlateBrush* BackgroundImage = bActiveFeedback ? BackgroundActiveBrush : IsHovered() ?
 			BackgroundHoveredBrush :

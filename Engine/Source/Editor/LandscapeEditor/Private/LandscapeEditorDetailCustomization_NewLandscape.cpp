@@ -361,7 +361,6 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 		.FillWidth(1)
 		[
 			SNew(SNumericEntryBox<int32>)
-			.LabelVAlign(VAlign_Center)
 			.Font(DetailBuilder.GetDetailFont())
 			.MinValue(1)
 			.MaxValue(32)
@@ -386,7 +385,6 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 		.FillWidth(1)
 		[
 			SNew(SNumericEntryBox<int32>)
-			.LabelVAlign(VAlign_Center)
 			.Font(DetailBuilder.GetDetailFont())
 			.MinValue(1)
 			.MaxValue(32)
@@ -508,15 +506,12 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 		]
 	]
 	.ValueContent()
+	.VAlign(VAlign_Center)
 	[
-		SNew(SBox)
-		.Padding(FMargin(0,0,12,0)) // Line up with the other properties due to having no reset to default button
-		[
-			SNew(SEditableTextBox)
-			.IsReadOnly(true)
-			.Font(DetailBuilder.GetDetailFont())
-			.Text(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetTotalComponentCount)
-		]
+		SNew(SEditableTextBox)
+		.IsReadOnly(true)
+		.Font(DetailBuilder.GetDetailFont())
+		.Text(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetTotalComponentCount)
 	];
 
 	NewLandscapeCategory.AddCustomRow(FText::GetEmpty())

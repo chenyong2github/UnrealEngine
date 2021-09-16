@@ -56,6 +56,7 @@ void FStaticMeshComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 			OverrideLightResProperty->CreatePropertyNameWidget()
 		]
 		.ValueContent()
+		.VAlign(VAlign_Center)
 		[
 			SNew(SWidgetSwitcher)
 			.WidgetIndex(this, &FStaticMeshComponentDetails::HandleNoticeSwitcherWidgetIndex)

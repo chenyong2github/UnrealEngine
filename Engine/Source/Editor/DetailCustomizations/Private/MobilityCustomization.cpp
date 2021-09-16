@@ -136,7 +136,7 @@ void FMobilityCustomization::GenerateHeaderRowContent(FDetailWidgetRow& WidgetRo
 		.Content()
 		[
 			SNew(STextBlock)
-			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 			.Text(this, &FMobilityCustomization::GetActiveMobilityText)
 			.ToolTipText(this, &FMobilityCustomization::GetActiveMobilityToolTip)
 		];
@@ -151,6 +151,7 @@ void FMobilityCustomization::GenerateHeaderRowContent(FDetailWidgetRow& WidgetRo
 	]
 	.ValueContent()
 	.MaxDesiredWidth(0)
+	.VAlign(VAlign_Center)
 	[
 		ComboBox
 	];
@@ -163,7 +164,7 @@ TSharedRef<SWidget> FMobilityCustomization::OnGenerateWidget(const FName InMobil
 	const FText ToolTip = GetOptionToolTip(Mobility, bForLight);
 
 	return SNew(STextBlock)
-		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.MobilityFont"))
+		.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 		.Text(Text)
 		.ToolTipText(ToolTip);
 }

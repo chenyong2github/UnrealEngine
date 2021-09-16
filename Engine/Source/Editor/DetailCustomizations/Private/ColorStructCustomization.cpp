@@ -87,14 +87,17 @@ TSharedRef<SWidget> FColorStructCustomization::CreateColorWidget(TWeakPtr<IPrope
 	return
 		SNew(SBox)
 		.Padding(FMargin(0,0,4.0f,0.0f))
+		.VAlign(VAlign_Center)
 		[
 			SAssignNew(ColorWidgetBackgroundBorder, SBorder)
 			.Padding(1)
 			.BorderImage(FAppStyle::Get().GetBrush("ColorPicker.RoundedSolidBackground"))
 			.BorderBackgroundColor(this, &FColorStructCustomization::GetColorWidgetBorderColor)
+			.VAlign(VAlign_Center)
 			[
 				SNew(SOverlay)
 				+ SOverlay::Slot()
+				.VAlign(VAlign_Center)
 				[
 					SAssignNew(ColorPickerParentWidget, SColorBlock)
 					.AlphaBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.RoundedAlphaBackground"))
@@ -107,6 +110,7 @@ TSharedRef<SWidget> FColorStructCustomization::CreateColorWidget(TWeakPtr<IPrope
 					.IsEnabled(this, &FColorStructCustomization::IsValueEnabled, StructWeakHandlePtr)
 				]
 				+ SOverlay::Slot()
+				.VAlign(VAlign_Center)
 				[
 					SNew(SBorder)
 					.Visibility(this, &FColorStructCustomization::GetMultipleValuesTextVisibility)
