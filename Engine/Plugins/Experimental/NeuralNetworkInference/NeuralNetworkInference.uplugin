@@ -40,7 +40,7 @@
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
-				"Win64", "Linux", "Mac"
+				"Win64", "Linux"
 			]
 		},
 		{
