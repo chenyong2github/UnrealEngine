@@ -394,6 +394,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 
 	StopTicker();
 	FOnlineSubsystemImpl::Shutdown();
+	SocketSubsystem->Shutdown();
 
 	// Release our ref to the interfaces. May still exist since they can be aggregated
 	UserManager = nullptr;

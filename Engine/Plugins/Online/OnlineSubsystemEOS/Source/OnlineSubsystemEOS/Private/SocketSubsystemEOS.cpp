@@ -35,6 +35,11 @@ void FSocketSubsystemEOS::Shutdown()
 {
 	// Destruct our sockets before we finish destructing, as they maintain a reference to us
 	TrackedSockets.Reset();
+
+	if (FSocketSubsystemModule* SocketSubsystem = FModuleManager::GetModulePtr<FSocketSubsystemModule>("Sockets"))
+	{
+		SocketSubsystem->UnregisterSocketSubsystem(EOS_SUBSYSTEM);
+	}
 }
 
 FSocket* FSocketSubsystemEOS::CreateSocket(const FName& SocketTypeName, const FString& SocketDescription, const FName& /*unused*/)
