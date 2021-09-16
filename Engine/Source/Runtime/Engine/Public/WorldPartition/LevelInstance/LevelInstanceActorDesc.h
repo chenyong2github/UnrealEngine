@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/GCObject.h"
+#include "UObject/ObjectPtr.h"
 #include "Containers/Map.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
@@ -30,14 +31,12 @@ protected:
 	virtual void Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData) override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
-	virtual void RegisterContainer();
-	virtual void OnRegister();
 	virtual void OnUnregister();
 
 	FName LevelPackage;
 	FTransform LevelInstanceTransform;
 	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
 
-	const UActorDescContainer* LevelInstanceContainer = nullptr;
+	mutable TObjectPtr<const UActorDescContainer> LevelInstanceContainer;
 #endif
 };
