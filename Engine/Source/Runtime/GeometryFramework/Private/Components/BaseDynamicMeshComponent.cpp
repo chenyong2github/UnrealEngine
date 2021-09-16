@@ -124,6 +124,23 @@ void UBaseDynamicMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterfa
 }
 
 
+void UBaseDynamicMeshComponent::SetNumMaterials(int32 NumMaterials)
+{
+	if (BaseMaterials.Num() > NumMaterials)
+	{
+		// discard extra materials
+		BaseMaterials.SetNum(NumMaterials);
+	}
+	else
+	{
+		while (NumMaterials < BaseMaterials.Num())
+		{
+			SetMaterial(NumMaterials, nullptr);
+			NumMaterials++;
+		}
+	}
+}
+
 void UBaseDynamicMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
 {
 	UMeshComponent::GetUsedMaterials(OutMaterials, bGetDebugMaterials);

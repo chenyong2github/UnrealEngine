@@ -110,14 +110,16 @@ public:
 	 * This *does not* allocate a new mesh, so any existing mesh pointers/refs are still valid
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	void Reset();
+	UPARAM(DisplayName = "Self") UDynamicMesh* 
+	Reset();
 
 	/**
 	 * Clear the internal mesh to a 100x100x100 cube with base at the origin.
 	 * This this instead of Reset() if an initially-empty mesh is undesirable (eg for a Component)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	void ResetToCube();
+	UPARAM(DisplayName = "Self") UDynamicMesh* 
+	ResetToCube();
 
 	//
 	// Native access/modification functions

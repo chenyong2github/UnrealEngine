@@ -390,6 +390,28 @@ public:
 
 
 
+	//===============================================================================================================
+	// Material Set API. DynamicMeshComponent supports changing the Material Set dynamically, even at Runtime.
+public:
+
+	/**
+	 * Set new list of Materials for the Mesh. Dynamic Mesh Component does not have 
+	 * Slot Names, so the size of the Material Set should be the same as the number of
+	 * different Material IDs on the mesh MaterialID attribute
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	void ConfigureMaterialSet(const TArray<UMaterialInterface*>& NewMaterialSet);
+
+	/**
+	 * Compute the maximum MaterialID on the DynamicMesh, and ensure that Material Slots match.
+	 * Pass both arguments as false to just do a check.
+	 * @param bCreateIfMissing if true, add extra (empty) Material Slots to match max MaterialID
+	 * @param bDeleteExtraSlots if true, extra Material Slots beyond max MaterialID are removed
+	 * @return true if at the end of this function, Material Slot Count == Max MaterialID
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	bool ValidateMaterialSlots(bool bCreateIfMissing = true, bool bDeleteExtraSlots = true);
+
 
 	//===============================================================================================================
 	// Triangle-Vertex Tangents support. The default behavior is to not use Tangents, this will lead to incorrect
