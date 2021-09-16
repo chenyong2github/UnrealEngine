@@ -34,14 +34,9 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 	bool bSuccessfulTessellation = false;
 
 #if WITH_EDITOR
-	CADLibrary::FImportParameters ImportParameters;
-	ImportParameters.MetricUnit = SceneParameters.MetricUnit;
-	ImportParameters.ScaleFactor = SceneParameters.ScaleFactor;
-	ImportParameters.ChordTolerance = RetessellateOptions.ChordTolerance;
-	ImportParameters.MaxEdgeLength = RetessellateOptions.MaxEdgeLength;
-	ImportParameters.MaxNormalAngle = RetessellateOptions.NormalTolerance;
-	ImportParameters.ModelCoordSys = static_cast<FDatasmithUtils::EModelCoordSystem>(SceneParameters.ModelCoordSys);
-	ImportParameters.StitchingTechnique = CADLibrary::EStitchingTechnique(RetessellateOptions.StitchingTechnique);
+	CADLibrary::FImportParameters ImportParameters((double) SceneParameters.MetricUnit, (double) SceneParameters.ScaleFactor);
+	ImportParameters.SetModelCoordinateSystem((FDatasmithUtils::EModelCoordSystem) SceneParameters.ModelCoordSys);
+	ImportParameters.SetTesselationParameters(RetessellateOptions.ChordTolerance, RetessellateOptions.MaxEdgeLength, RetessellateOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) RetessellateOptions.StitchingTechnique);
 
 	CADLibrary::FMeshParameters CadMeshParameters;
 	CadMeshParameters.bNeedSwapOrientation = MeshParameters.bNeedSwapOrientation;
@@ -61,7 +56,7 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
 		}
 
-		TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / ImportParameters.MetricUnit);
+		TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / ImportParameters.GetMetricUnit());
 		CADKernelSession->AddDatabase(RawData);
 
 		TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession->GetModel();
@@ -110,9 +105,9 @@ namespace CADKernelSurface
 			{
 				UCADKernelParametricSurfaceData* CADKernelData = Datasmith::MakeAdditionalData<UCADKernelParametricSurfaceData>();
 				CADKernelData->RawData = MoveTemp(ByteArray);
-				CADKernelData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.ModelCoordSys);
-				CADKernelData->SceneParameters.MetricUnit = InSceneParameters.MetricUnit;
-				CADKernelData->SceneParameters.ScaleFactor = InSceneParameters.ScaleFactor;
+				CADKernelData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.GetModelCoordSys());
+				CADKernelData->SceneParameters.MetricUnit = InSceneParameters.GetMetricUnit();
+				CADKernelData->SceneParameters.ScaleFactor = InSceneParameters.GetScaleFactor();
 
 				CADKernelData->MeshParameters.bNeedSwapOrientation = InMeshParameters.bNeedSwapOrientation;
 				CADKernelData->MeshParameters.bIsSymmetric = InMeshParameters.bIsSymmetric;

@@ -37,7 +37,7 @@ struct FDatasmithMeshElementPayload;
 
 namespace CADLibrary
 {
-	struct FImportParameters;
+	class FImportParameters;
 	struct FMeshParameters;
 }
 

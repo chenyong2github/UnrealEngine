@@ -23,7 +23,7 @@ namespace CADLibrary
 			: CADImportSdk(ECADImportSdk::KernelIO)
 			, ImportParameters(InImportParameters)
 			, CachePath(InCachePath)
-			, BodyCacheExt(InImportParameters.bDisableCADKernelTessellation ? TEXT(".ct") : TEXT(".ugeom"))
+			, BodyCacheExt(FImportParameters::bGDisableCADKernelTessellation ? TEXT(".ct") : TEXT(".ugeom"))
 			, bIsCacheDefined(!InCachePath.IsEmpty())
 			, FileDescription(InFileDescription)
 		{
@@ -35,7 +35,7 @@ namespace CADLibrary
 		{
 			if (!SceneFileHash)
 			{
-				SceneFileHash = HashCombine(FileDescription.GetDescriptorHash(), ::GetTypeHash(ImportParameters.StitchingTechnique));
+				SceneFileHash = HashCombine(FileDescription.GetDescriptorHash(), ::GetTypeHash(ImportParameters.GetStitchingTechnique()));
 				SceneFileHash = HashCombine(SceneFileHash, ::GetTypeHash(CADImportSdk));
 			}
 			return SceneFileHash;
@@ -46,13 +46,7 @@ namespace CADLibrary
 			if (!GeomFileHash)
 			{
 				GeomFileHash = GetSceneFileHash();
-				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.bDisableCADKernelTessellation));
-				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.ChordTolerance));
-				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.MaxEdgeLength));
-				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.MaxNormalAngle));
-				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.MetricUnit));
-				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.ScaleFactor));
-				GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(ImportParameters.StitchingTechnique));
+				GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters));
 			}
 			return GeomFileHash;
 		}
@@ -215,11 +209,26 @@ namespace CADLibrary
 			return SceneGraphArchive.ExternalReferences.Emplace_GetRef(InFileDescription);
 		}
 
-		FBodyMesh& AddBodyMesh(FCadId BodyId)
+		/** return a unique value that will be used to define the static mesh name */
+		uint32 GetStaticMeshHash(const int32 BodyId)
 		{
-			return BodyMeshes.Emplace_GetRef(BodyId);
+			return HashCombine(GetSceneFileHash(), ::GetTypeHash(BodyId));
 		}
 
+		FBodyMesh& AddBodyMesh(FCadId BodyId, FArchiveBody& Body)
+		{
+			FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
+			BodyMesh.MeshActorName = GetStaticMeshHash(BodyId);
+			Body.MeshActorName = BodyMesh.MeshActorName;
+			return BodyMesh;
+		}
+
+		FBodyMesh& AddBodyMesh(FCadId BodyId)
+		{
+			FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
+			BodyMesh.MeshActorName = GetStaticMeshHash(BodyId);
+			return BodyMesh;
+		}
 
 		void ExportMeshArchiveFile()
 		{
@@ -305,41 +314,6 @@ namespace CADLibrary
 		const FImportParameters& GetImportParameters() const
 		{
 			return ImportParameters;
-		}
-
-		double MetricUnit() const
-		{
-			return ImportParameters.MetricUnit;
-		}
-
-		const EStitchingTechnique& GetStitchingTechnique() const
-		{
-			return ImportParameters.StitchingTechnique;
-		}
-
-		bool IsCADKernelTessellation() const
-		{
-			return ImportParameters.bDisableCADKernelTessellation;
-		}
-
-		bool IsSequentialImport() const
-		{
-			return ImportParameters.bEnableSequentialImport;
-		}
-
-		bool NeedUVMapScaling() const
-		{
-			return ImportParameters.bScaleUVMap;
-		}
-
-		double GetScaleFactor() const
-		{
-			return ImportParameters.ScaleFactor;
-		}
-
-		double GetMetricUnit() const
-		{
-			return ImportParameters.MetricUnit;
 		}
 
 	private:

@@ -54,7 +54,7 @@ namespace CADLibrary
 
 		for (FVector& Vertex : VertexArray)
 		{
-			Vertex *= Context.ImportParams.ScaleFactor;
+			Vertex *= Context.ImportParams.GetScaleFactor();
 		}
 
 		int32 VertexCount = VertexArray.Num();
@@ -71,7 +71,7 @@ namespace CADLibrary
 			VertexIndex++;
 
 			FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.ModelCoordSys, Vertex);
+			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
 			Context.VertexIds[VertexIndex] = VertexID;
 		}
 
@@ -86,7 +86,7 @@ namespace CADLibrary
 			for (const FVector& Vertex : VertexArray)
 			{
 				FVertexID VertexID = MeshDescription.CreateVertex();
-				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.ModelCoordSys, Vertex);
+				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) Context.ImportParams.GetModelCoordSys(), Vertex);
 				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
 				Context.SymmetricVertexIds[VertexIndex++] = VertexID;
 			}
@@ -221,7 +221,7 @@ namespace CADLibrary
 
 				if (!Step)
 				{
-					FDatasmithUtils::ConvertVectorArray(Context.ImportParams.ModelCoordSys, FaceMesh->Normals);
+					FDatasmithUtils::ConvertVectorArray(Context.ImportParams.GetModelCoordSys(), FaceMesh->Normals);
 					for (FVector& Normal : FaceMesh->Normals)
 					{
 						Normal = Normal.GetSafeNormal();
@@ -387,22 +387,22 @@ namespace CADLibrary
 			MeshModel->AddCriterion(CurvatureCriterion);
 		}
 
-		if (ImportParameters.MaxEdgeLength > SMALL_NUMBER)
+		if (ImportParameters.GetMaxEdgeLength() > SMALL_NUMBER)
 		{
 
-			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, ImportParameters.MaxEdgeLength / ImportParameters.ScaleFactor);
+			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, ImportParameters.GetMaxEdgeLength() / ImportParameters.GetScaleFactor());
 			MeshModel->AddCriterion(MaxSizeCriterion);
 		}
 
-		if (ImportParameters.ChordTolerance > SMALL_NUMBER)
+		if (ImportParameters.GetChordTolerance() > SMALL_NUMBER)
 		{
-			TSharedPtr<CADKernel::FCriterion> ChordCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Sag, ImportParameters.ChordTolerance / ImportParameters.ScaleFactor);
+			TSharedPtr<CADKernel::FCriterion> ChordCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Sag, ImportParameters.GetChordTolerance() / ImportParameters.GetScaleFactor());
 			MeshModel->AddCriterion(ChordCriterion);
 		}
 
-		if (ImportParameters.MaxNormalAngle > SMALL_NUMBER)
+		if (ImportParameters.GetMaxNormalAngle() > SMALL_NUMBER)
 		{
-			TSharedPtr<CADKernel::FCriterion> MaxNormalAngleCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Angle, ImportParameters.MaxNormalAngle);
+			TSharedPtr<CADKernel::FCriterion> MaxNormalAngleCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Angle, ImportParameters.GetMaxNormalAngle());
 			MeshModel->AddCriterion(MaxNormalAngleCriterion);
 		}
 	}

@@ -44,11 +44,11 @@ FDatasmithWorkerHandler::FDatasmithWorkerHandler(FDatasmithDispatcher& InDispatc
 	, WorkerState(EWorkerState::Uninitialized)
 	, ErrorState(EWorkerErrorState::Ok)
 	, CachePath(InCachePath)
+	, ImportParametersCommand(InImportParameters)
 	, bShouldTerminate(false)
 {
 	ThreadName = FString(TEXT("DatasmithWorkerHandler_")) + FString::FromInt(Id);
 	IOThread = FThread(*ThreadName, [this]() { Run(); } );
-	ImportParametersCommand.ImportParameters = InImportParameters;
 }
 
 FDatasmithWorkerHandler::~FDatasmithWorkerHandler()

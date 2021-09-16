@@ -53,9 +53,9 @@ public:
 		return false;
 	}
 
-	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap) override
+	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique) override
 	{
-		FCTSession::SetImportParameters(ChordTolerance, MaxEdgeLength, NormalTolerance, StitchingTechnique, bScaleUVMap);
+		FCTSession::SetImportParameters(ChordTolerance, MaxEdgeLength, NormalTolerance, StitchingTechnique);
 	}
 
 	virtual void SetMetricUnit(double NewMetricUnit) override
@@ -65,12 +65,12 @@ public:
 
 	virtual double GetScaleFactor() const override
 	{
-		return ImportParams.ScaleFactor;
+		return ImportParams.GetScaleFactor();
 	}
 
 	virtual double GetMetricUnit() const override
 	{
-		return ImportParams.MetricUnit;
+		return ImportParams.GetMetricUnit();
 	}
 
 	virtual bool IsSessionValid() override

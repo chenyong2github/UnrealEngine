@@ -47,7 +47,7 @@ namespace CoreTechSurface
 			return false;
 		}
 
-		CADLibrary::CTKIO_ChangeUnit(ImportParameters.MetricUnit);
+		CADLibrary::CTKIO_ChangeUnit(ImportParameters.GetMetricUnit());
 		uint64 MainObjectID;
 		if(!CADLibrary::CTKIO_LoadModel(*FileName, MainObjectID, 0x00020000 /* CT_LOAD_FLAGS_READ_META_DATA */))
 		{
@@ -55,7 +55,7 @@ namespace CoreTechSurface
 			return false;
 		}
 
-		if (ImportParameters.StitchingTechnique != CADLibrary::EStitchingTechnique::StitchingNone)
+		if (ImportParameters.GetStitchingTechnique() != CADLibrary::EStitchingTechnique::StitchingNone)
 		{
 			CADLibrary::CTKIO_Repair(MainObjectID, CADLibrary::EStitchingTechnique::StitchingSew);
 		}
@@ -75,9 +75,9 @@ namespace CoreTechSurface
 					UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
 					CoreTechData->SourceFile = InFilePath;
 					CoreTechData->RawData = MoveTemp(ByteArray);
-					CoreTechData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.ModelCoordSys);
-					CoreTechData->SceneParameters.MetricUnit = InSceneParameters.MetricUnit;
-					CoreTechData->SceneParameters.ScaleFactor = InSceneParameters.ScaleFactor;
+					CoreTechData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.GetModelCoordSys());
+					CoreTechData->SceneParameters.MetricUnit = InSceneParameters.GetMetricUnit();
+					CoreTechData->SceneParameters.ScaleFactor = InSceneParameters.GetScaleFactor();
 
 					CoreTechData->MeshParameters.bNeedSwapOrientation = InMeshParameters.bNeedSwapOrientation;
 					CoreTechData->MeshParameters.bIsSymmetric = InMeshParameters.bIsSymmetric;

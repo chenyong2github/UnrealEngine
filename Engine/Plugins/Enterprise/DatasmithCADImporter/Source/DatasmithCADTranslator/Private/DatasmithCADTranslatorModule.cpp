@@ -25,13 +25,7 @@ void FDatasmithCADTranslatorModule::StartupModule()
 		IFileManager::Get().DeleteDirectory(*OldCacheDir, true, true);
 	}
 
-	bool bCreateCacheFolder = false;
-	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableCADCache")))
-	{
-		bCreateCacheFolder = CVar->GetInt() != 0;
-	}
-
-	if (bCreateCacheFolder)
+	if (CADLibrary::FImportParameters::bGEnableCADCache)
 	{
 		CacheDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("DatasmithCADCache"), *FString::FromInt(CacheVersion)));
 		IFileManager::Get().MakeDirectory(*CacheDir);

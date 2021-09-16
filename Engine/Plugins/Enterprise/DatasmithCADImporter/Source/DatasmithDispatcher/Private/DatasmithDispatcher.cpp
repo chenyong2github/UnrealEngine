@@ -28,7 +28,7 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 	, NumberOfWorkers(InNumberOfWorkers)
 	, NextWorkerId(0)
 {
-	if (ImportParameters.bEnableSequentialImport)
+	if (CADLibrary::FImportParameters::bGEnableCADCache)
 	{
 		// init cache folders
 		IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("scene")), true);

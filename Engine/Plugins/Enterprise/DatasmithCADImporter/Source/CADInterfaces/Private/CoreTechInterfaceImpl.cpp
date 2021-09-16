@@ -449,13 +449,13 @@ namespace CADLibrary
 
 		// convert max edge length to model units
 		double ModelUnit = FLT_MAX; // default value is huge, as 0.0 causes bugs in KernelIO...
-		if (ImportParams.MaxEdgeLength > SMALL_NUMBER)
+		if (ImportParams.GetMaxEdgeLength() > SMALL_NUMBER)
 		{
-			ModelUnit = ImportParams.MaxEdgeLength / ImportParams.ScaleFactor;
+			ModelUnit = ImportParams.GetMaxEdgeLength() / ImportParams.GetScaleFactor();
 		}
 
 		// Apply retrieved tessellation parameters to CoreTech tessellation engine
-		return ChangeTesselationParameters(ImportParams.ChordTolerance / ImportParams.ScaleFactor, ModelUnit, ImportParams.MaxNormalAngle);
+		return ChangeTesselationParameters(ImportParams.GetChordTolerance() / ImportParams.GetScaleFactor(), ModelUnit, ImportParams.GetMaxNormalAngle());
 	}
 
 	//ECADParsingResult FCoreTechInterfaceImpl::LoadFile(const FFileDescription& InFileDescription, const FImportParameters& InImportParameters, const FString& InCachePath, FArchiveSceneGraph& OutSceneGraphArchive, TArray<FString>& OutWarningMessages, TArray<FBodyMesh>& OutBodyMeshes)

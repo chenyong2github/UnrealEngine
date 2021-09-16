@@ -240,14 +240,15 @@ namespace CADLibrary
 			}
 		}
 
-		CTKIO_ChangeUnit(CADFileData.MetricUnit());
+		const FImportParameters& ImportParameters = CADFileData.GetImportParameters();
+		CTKIO_ChangeUnit(ImportParameters.GetMetricUnit());
 		Result = CT_KERNEL_IO::LoadFile(*FileDescription.GetPathOfFileToLoad(), MainId, CTImportOption, 0, *LoadOption);
 		if (Result == IO_ERROR_EMPTY_ASSEMBLY)
 		{
 			CT_KERNEL_IO::UnloadModel();
 			CT_FLAGS CTReImportOption = CTImportOption | CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
 			CTReImportOption &= ~CT_LOAD_FLAGS_READ_ASM_STRUCT_ONLY;  // BUG CT -> Ticket 11685
-			CTKIO_ChangeUnit(CADFileData.MetricUnit());
+			CTKIO_ChangeUnit(ImportParameters.GetMetricUnit());
 			Result = CT_KERNEL_IO::LoadFile(*FileDescription.GetPathOfFileToLoad(), MainId, CTReImportOption, 0, *LoadOption);
 		}
 
@@ -279,12 +280,12 @@ namespace CADLibrary
 
 		CoreTechFileParserUtils::AddFaceIdAttribut(MainId);
 
-		if (CADFileData.GetStitchingTechnique() != StitchingNone && !CADFileData.IsCADKernelTessellation())
+		if (ImportParameters.GetStitchingTechnique() != StitchingNone && !FImportParameters::bGDisableCADKernelTessellation)
 		{
-			CADLibrary::CTKIO_Repair(MainId, CADFileData.GetStitchingTechnique(), 10.);
+			CADLibrary::CTKIO_Repair(MainId, ImportParameters.GetStitchingTechnique(), 10.);
 		}
 
-		CTKIO_SetCoreTechTessellationState(CADFileData.GetImportParameters());
+		CTKIO_SetCoreTechTessellationState(ImportParameters);
 
 		const CT_OBJECT_TYPE TypeSet[] = { CT_INSTANCE_TYPE, CT_ASSEMBLY_TYPE, CT_PART_TYPE, CT_COMPONENT_TYPE, CT_BODY_TYPE, CT_UNLOADED_COMPONENT_TYPE, CT_UNLOADED_ASSEMBLY_TYPE, CT_UNLOADED_PART_TYPE };
 		enum EObjectTypeIndex : uint8	{ CT_INSTANCE_INDEX = 0, CT_ASSEMBLY_INDEX, CT_PART_INDEX, CT_COMPONENT_INDEX, CT_BODY_INDEX, CT_UNLOADED_COMPONENT_INDEX, CT_UNLOADED_ASSEMBLY_INDEX, CT_UNLOADED_PART_INDEX };
@@ -346,11 +347,11 @@ namespace CADLibrary
 		{
 		case ECADFormat::JT:
 		{
-			// Parallelization of monolithic JT file,
-			// For JT file, first step the file is read with "Structure only option"
-			// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
+		// Parallelization of monolithic JT file,
+		// For JT file, first step the file is read with "Structure only option"
+		// For each body, the JT file is read with "READ_SPECIFIC_OBJECT", Configuration == BodyId
 			if (!FileDescription.HasConfiguration())
-			{
+		{
 				FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.GetSourcePath());
 
 				if (FileStatData.FileSize > 2e6 /* 2 Mb */ && CADFileData.IsCacheDefined()) // First step 
@@ -376,8 +377,8 @@ namespace CADLibrary
 
 		case ECADFormat::IGES:
 		{
-			// All the BRep topology is not available in IGES import
-			// Ask Kernel IO to complete or create missing topology
+		// All the BRep topology is not available in IGES import
+		// Ask Kernel IO to complete or create missing topology
 			Flags |= CT_LOAD_FLAG_COMPLETE_TOPOLOGY;
 			Flags |= CT_LOAD_FLAG_SEARCH_NEW_TOPOLOGY;
 			break;
@@ -387,7 +388,7 @@ namespace CADLibrary
 		}
 
 		// 3dxml file is zipped files, it's full managed by Kernel_io. We cannot read it in sequential mode
-		if (FileDescription.GetFileFormat() != ECADFormat::CATIA_3DXML && CADFileData.IsSequentialImport())
+		if (FileDescription.GetFileFormat() != ECADFormat::CATIA_3DXML && FImportParameters::bGEnableCADCache)
 		{
 			Flags &= ~CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
 		}
@@ -472,7 +473,7 @@ namespace CADLibrary
 			CT_FLAGS BodyProperties;
 			CT_BODY_IO::AskProperties(BodyId, BodyProperties);
 
-			if (!CADFileData.IsCADKernelTessellation() || !(BodyProperties & CT_BODY_PROP_EXACT))
+			if (!FImportParameters::bGDisableCADKernelTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
 			{
 				if (ReadKioBody(BodyId, ComponentId, DefaultMaterialHash, false))
 				{
@@ -648,9 +649,9 @@ namespace CADLibrary
 			CoreTechFileParserUtils::GetCTObjectDisplayDataIds(FaceID, FaceMaterial);
 			SetFaceMainMaterial(FaceMaterial, BodyMaterial, BodyMesh, Index);
 
-			if (CADFileData.NeedUVMapScaling() && Tessellation.TexCoordArray.Num() > 0)
+			if (CADFileData.GetImportParameters().NeedScaleUVMap() && Tessellation.TexCoordArray.Num() > 0)
 			{
-				CoreTechFileParserUtils::ScaleUV(FaceID, Tessellation.TexCoordArray, (float) CADFileData.GetScaleFactor());
+				CoreTechFileParserUtils::ScaleUV(FaceID, Tessellation.TexCoordArray, (float) CADFileData.GetImportParameters().GetScaleFactor());
 			}
 		};
 
@@ -696,7 +697,7 @@ namespace CADLibrary
 		BodyMesh.MeshActorName = ArchiveBody.MeshActorName;
 
 		{
-			TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / CADFileData.GetMetricUnit());
+			TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / CADFileData.GetImportParameters().GetMetricUnit());
 
 			TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession->GetModel();
 
@@ -1619,24 +1620,6 @@ namespace CADLibrary
 		{
 			return CtName.IsEmpty() ? FString() : CtName.toUnicode();
 		};
-
-		uint32 GetSceneFileHash(const uint32 InSGHash, const FImportParameters& ImportParam)
-		{
-			uint32 FileHash = HashCombine(InSGHash, ::GetTypeHash(ImportParam.StitchingTechnique));
-			return FileHash;
-		}
-
-		uint32 GetGeomFileHash(const uint32 InSGHash, const FImportParameters& ImportParam)
-		{
-			uint32 FileHash = InSGHash;
-			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.ChordTolerance));
-			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.MaxEdgeLength));
-			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.MaxNormalAngle));
-			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.MetricUnit));
-			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.ScaleFactor));
-			FileHash = HashCombine(FileHash, ::GetTypeHash(ImportParam.StitchingTechnique));
-			return FileHash;
-		}
 
 		bool GetColor(uint32 ColorUuid, FColor& OutColor)
 		{

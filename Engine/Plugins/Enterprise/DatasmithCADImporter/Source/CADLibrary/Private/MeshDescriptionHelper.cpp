@@ -80,7 +80,7 @@ namespace CADLibrary
 		{
 			for (const FVector& Vertex : CTTessellation.PositionArray)
 			{
-				VertexDataSet.Emplace(GlobalVertexCount, Vertex * ImportParams.ScaleFactor);
+				VertexDataSet.Emplace(GlobalVertexCount, Vertex * ImportParams.GetScaleFactor());
 				++GlobalVertexCount;
 			}
 		}
@@ -160,7 +160,7 @@ namespace CADLibrary
 
 			FVertexID VertexID = MeshDescription.CreateVertex();
 			Body.VertexIds.Add(VertexID);
-			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, VertexDataSet[VertexIndex].Coordinates);
+			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.GetModelCoordSys(), VertexDataSet[VertexIndex].Coordinates);
 			VertexDataSet[VertexIndex].VertexID = VertexID;
 		}
 
@@ -184,7 +184,7 @@ namespace CADLibrary
 
 				FVertexID VertexID = MeshDescription.CreateVertex();
 				Body.SymmetricVertexIds.Add(VertexID);
-				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, VertexDataSet[VertexIndex].Coordinates);
+				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.GetModelCoordSys(), VertexDataSet[VertexIndex].Coordinates);
 				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
 
 				VertexDataSet[VertexIndex].SymVertexID = VertexID;
@@ -211,38 +211,18 @@ namespace CADLibrary
 		int32 TriangleCount = Body.TriangleCount;
 		TArray<FTessellationData>& FaceTessellationSet = Body.Faces;
 
-		// Add offset to the bounding box to avoid to remove good vertex
-		FVector Size = Body.BBox.GetSize();
-		FBox BBox = Body.BBox.ExpandBy(Size.Size());
-		BBox.IsValid = Body.BBox.IsValid;
-		BBox.Min *= ImportParams.ScaleFactor;
-		BBox.Max *= ImportParams.ScaleFactor;
-
 		TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
 		TArray<FVector>& VertexArray = Body.VertexArray;
 
 		for (FVector& Vertex : VertexArray)
 		{
-			Vertex *= ImportParams.ScaleFactor;
-			}
+			Vertex *= ImportParams.GetScaleFactor();
+		}
 
 		TArray<int32>& VertexIdSet = Body.VertexIds;
 		int32 VertexCount = VertexArray.Num();
 		VertexIdSet.SetNumZeroed(VertexCount);
-
-		if (BBox.IsValid)
-		{
-			int32 VertexIndex = 0;
-			for (const FVector& Vertex : VertexArray)
-			{
-				if (!BBox.IsInside(Vertex))
-				{
-					VertexIdSet[VertexIndex] = INDEX_NONE;
-				}
-				VertexIndex++;
-			}
-		}
 
 		// Make MeshDescription.VertexPositions and VertexID
 		MeshDescription.ReserveNewVertices(MeshParameters.bIsSymmetric ? VertexCount * 2 : VertexCount);
@@ -259,7 +239,7 @@ namespace CADLibrary
 			}
 
 			FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, Vertex);
+			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.GetModelCoordSys(), Vertex);
 			VertexIdSet[VertexIndex] = VertexID;
 		}
 
@@ -281,7 +261,7 @@ namespace CADLibrary
 				}
 
 				FVertexID VertexID = MeshDescription.CreateVertex();
-				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.ModelCoordSys, Vertex);
+				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.GetModelCoordSys(), Vertex);
 				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
 				SymmetricVertexIds[VertexIndex++] = VertexID;
 			}
@@ -406,7 +386,7 @@ namespace CADLibrary
 
 		if (Algo::AnyOf(BodyTessellation.Faces, [](const FTessellationData& FaceTessellation) { return !FaceTessellation.TexCoordArray.IsEmpty(); }))
 		{
-		VertexInstanceUVs.SetNumChannels(1);
+			VertexInstanceUVs.SetNumChannels(1);
 		}
 
 		int32 NbStep = 1;
@@ -509,7 +489,7 @@ namespace CADLibrary
 
 				if (!Step)
 				{
-					FDatasmithUtils::ConvertVectorArray(ImportParams.ModelCoordSys, Tessellation.NormalArray);
+					FDatasmithUtils::ConvertVectorArray(ImportParams.GetModelCoordSys(), Tessellation.NormalArray);
 					for (FVector& Normal : Tessellation.NormalArray)
 					{
 						Normal = Normal.GetSafeNormal();
