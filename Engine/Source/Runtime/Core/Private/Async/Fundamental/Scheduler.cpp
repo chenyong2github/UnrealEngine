@@ -348,6 +348,11 @@ namespace LowLevelTasks
 
 			if (WaitCount < WorkerSpinCycles)
 			{
+				if (WaitCount == 0 && !bDrowsing)
+				{
+					TrySleeping(WorkerEvent, true, bDrowsing, bPermitBackgroundWork);
+				}
+
 				OutOfWork.Start();
 				FPlatformProcess::YieldCycles(WaitCycles);
 				WaitCount++;

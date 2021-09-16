@@ -359,7 +359,11 @@ namespace LowLevelTasks
 				WorkerEvent->SleepEvent->Trigger(); 
 				return true; // Solving State two: (((Running -> Drowsing) -> Sleeping) -> Running)
 			}
-			continue; // Solving State one: (Running -> Drowsing) -> Running  OR ((Running -> Drowsing) -> Drowsing) -> Running
+			else if (SleepState == ESleepState::Drowsing)
+			{
+				return true; // Solving State one: (Running -> Drowsing) -> Running  OR ((Running -> Drowsing) -> Drowsing) -> Running
+			}
+			continue; 
 		}
 		return false;
 	}
