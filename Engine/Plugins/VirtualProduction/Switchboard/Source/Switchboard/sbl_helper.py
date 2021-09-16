@@ -4,29 +4,32 @@ from __future__ import annotations
 
 import argparse
 import copy
+from dataclasses import dataclass
 import io
 import json
 import logging
 import marshal
 import os
 import pathlib
+from queue import Empty, Queue
 import subprocess
 import sys
 import threading
 import tempfile
 import traceback
-from queue import Empty, Queue
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 
-MAX_PARALLEL_WORKERS = 8 # Consistent with UGS, ushell, etc.
+MAX_PARALLEL_WORKERS = 8  # Consistent with UGS, ushell, etc.
 
 SCRIPT_NAME = os.path.basename(__file__)
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 
 def p4_variables() -> Dict[str, str]:
-    ''' Returns Perforce variable (e.g. `P4CONFIG`, `p4 set`) key/value pairs. '''
+    '''
+    Returns Perforce variable (e.g. `P4CONFIG`, `p4 set`) key/value pairs.
+    '''
     output = subprocess.check_output(['p4', 'set', '-q']).decode()
     variables: Dict[str, str] = {}
     for line in output.splitlines():
@@ -44,7 +47,8 @@ def p4(
     client: Optional[str] = None,
 ) -> subprocess.Popen:
     ''' Runs a p4 command and includes some common/required switches. '''
-    args = ['p4', f'-zprog={SCRIPT_NAME}', f'-zversion={__version__}', '-ztag', '-G', '-Qutf8']
+    args = ['p4', f'-zprog={SCRIPT_NAME}', f'-zversion={__version__}', '-ztag',
+            '-G', '-Qutf8']
 
     if user is not None:
         args.extend(['-u', user])
@@ -58,9 +62,11 @@ def p4(
 
     logging.debug(f'p4(): invoking subprocess: args={args}')
 
-    # stdin=subprocess.DEVNULL is required when launched via SwitchboardListener; otherwise this call tries
-    # to make the non-existent stdin inheritable, and raises `OSError: [WinError 6] The handle is invalid`
-    return subprocess.Popen(args, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL)
+    # stdin=subprocess.DEVNULL is required when launched via
+    # SwitchboardListener; otherwise this call tries to make the non-existent
+    # stdin inheritable, raising `OSError: [WinError 6] The handle is invalid`
+    return subprocess.Popen(args, stdout=subprocess.PIPE,
+                            stdin=subprocess.DEVNULL)
 
 
 def p4_get_records(
@@ -115,9 +121,13 @@ def p4_have(
     user: Optional[str] = None,
     client: Optional[str] = None,
 ) -> List[Optional[int]]:
-    ''' Returns a list of revision numbers, or None if the file doesn't exist on the client. '''
+    '''
+    Returns a list of revision numbers, or `None` if the file doesn't exist on
+    the client.
+    '''
     result: List[Optional[int]] = []
-    records = p4_get_records('have', pathspecs, include_error=True, user=user, client=client)
+    records = p4_get_records('have', pathspecs, include_error=True, user=user,
+                             client=client)
     for record in records:
         if record[b'code'] == b'stat':
             result.append(int(record[b'haveRev']))
@@ -132,17 +142,21 @@ def p4_print(
     user: Optional[str] = None,
     client: Optional[str] = None,
 ) -> List[Tuple[Optional[str], dict]]:
-    ''' Returns a list of (fileContents, statRecord).
-        If the file does not exist, or is deleted at the specified revision, fileContents will be None.
+    '''
+    Returns a list of (fileContents, statRecord).
+    If the file does not exist, or is deleted at the specified revision,
+    fileContents will be `None`.
     '''
     results: List[Tuple[Optional[str], dict]] = []
-    records = p4_get_records('print', pathspecs, include_info=True, include_error=True, user=user, client=client)
+    records = p4_get_records('print', pathspecs, include_info=True,
+                             include_error=True, user=user, client=client)
 
-    # For each file, a stat record is returned, followed (if present) by a text record.
+    # For each file, a stat record is returned, followed by a text record.
+    # In the case of an error (e.g. nonexistent file), there is no text record.
     last_stat_record = {}
     for record in records:
         if record[b'code'] == b'stat':
-            if b'delete' in record[b'action']: # 'deleted' or 'move/delete'
+            if b'delete' in record[b'action']:  # 'deleted' or 'move/delete'
                 results.append((None, record))
             else:
                 last_stat_record = record
@@ -161,18 +175,25 @@ def p4_print(
 
 class SyncFile:
     ''' Represents a single file pending sync. '''
-    def __init__(self, depot_path: str, client_path: Optional[str], rev: int, size: int, action: str):
+    def __init__(
+        self, depot_path: str, client_path: Optional[str], rev: int, size: int,
+        action: str
+    ):
         self.depot_path = depot_path
         self.client_path = client_path
         self.rev = rev
         self.size = size
         self.action = action
 
-        self.clobber = False # Used during noclobber resolution, controls whether to force sync in a second pass.
+        # Used during noclobber resolution; controls whether to force sync in a
+        # second pass.
+        self.clobber = False
 
     @property
     def spec(self) -> str:
-        ''' Returns the full path + rev spec (compatible with `p4 sync -L`). '''
+        '''
+        Returns the full path + rev spec (compatible with `p4 sync -L`).
+        '''
         return f'{self.depot_path}#{self.rev}'
 
     def __str__(self) -> str:
@@ -180,7 +201,9 @@ class SyncFile:
 
 
 class SyncWorkload:
-    ''' Represents a sync operation, or e.g. a parallel worker's subset thereof. '''
+    '''
+    Represents a sync operation, or e.g. a parallel worker's subset thereof.
+    '''
     def __init__(self):
         self.sync_files: Dict[str, SyncFile] = {}
         self.workload_size = 0
@@ -192,7 +215,8 @@ class SyncWorkload:
         self.sync_files[new_file.depot_path] = new_file
         self.workload_size += new_file.size
         if new_file.client_path:
-            self.client_path_to_depot_path[new_file.client_path] = new_file.depot_path
+            self.client_path_to_depot_path[
+                new_file.client_path] = new_file.depot_path
 
     def add(self, new_file: SyncFile):
         assert new_file.depot_path not in self.sync_files
@@ -222,12 +246,18 @@ def p4_sync_worker(
     user: Optional[str] = None,
     client: Optional[str] = None,
 ):
-    ''' Performs a sync (subset), and reports file sync completions via `completion_queue`. '''
+    '''
+    Performs a sync (subset), and reports file sync completions via
+    `completion_queue`.
+    '''
     gopts = []
     opts = ['--parallel=0']
 
-    # p4 2020.1 relnotes: "'p4 sync -L' now allows files to be specified with revision specifiers of #0."
-    workload_has_deletes = any(x.rev == 0 for x in sync_workload.sync_files.values())
+    # p4 2020.1 relnotes: "'p4 sync -L' now allows files to be specified with
+    # revision specifiers of #0."
+    # To support older servers, we don't use -L in the presence of deletes.
+    workload_has_deletes = any(
+        x.rev == 0 for x in sync_workload.sync_files.values())
     if not workload_has_deletes:
         opts.append('-L')
 
@@ -237,12 +267,13 @@ def p4_sync_worker(
     if force:
         opts.append('-f')
 
-    argfile = tempfile.NamedTemporaryFile(prefix=f'{SCRIPT_NAME}-', suffix='.txt', mode='wt', delete=False)
+    argfile = tempfile.NamedTemporaryFile(
+        prefix=f'{SCRIPT_NAME}-', suffix='.txt', mode='wt', delete=False)
     gopts.extend(['-x', argfile.name])
 
     for item in sync_workload.sync_files.values():
         argfile.write(f'{item.spec}\n')
-    argfile.close() # Otherwise the p4 process can't access the file.
+    argfile.close()  # Otherwise the p4 process can't access the file.
 
     proc = p4('sync', opts, gopts, user=user, client=client)
 
@@ -269,33 +300,40 @@ def p4_sync_worker(
         elif record[b'code'] == b'error':
             data: bytes = record[b'data']
 
-            # Detect file sync cancellation caused by client being noclobber and the file being writable.
-            # Note that this only happens AFTER a typical completion 'stat' record was also emitted.
+            # Detect file sync cancellation caused by client being noclobber
+            # and the file being writable. Note that this only happens AFTER a
+            # typical completion 'stat' record has also been emitted.
             if data.startswith(CLOBBER_PREFIX):
-                clobber_client_path = data[len(CLOBBER_PREFIX):-1].decode() # Also trim \n
-                clobber_file = sync_workload.get_by_client_path(clobber_client_path)
+                # :-1 to also trim \n
+                clobber_client_path = data[len(CLOBBER_PREFIX):-1].decode()
+                clobber_file = sync_workload.get_by_client_path(
+                    clobber_client_path)
                 if clobber_file:
                     if clobber_queue:
                         clobber_queue.put(copy.deepcopy(clobber_file))
                     else:
-                        # Caller isn't gathering the list of clobber files; just emit the error message.
+                        # Caller isn't gathering the list of clobber files;
+                        # just emit the error message.
                         logging.error(record[b'data'].decode())
                 else:
                     # Shouldn't happen.
-                    logging.error(f'Unable to map clobber file to depot path: {clobber_client_path}')
+                    logging.error('Unable to map clobber file to depot path: '
+                                  f'{clobber_client_path}')
                 continue
 
-        # NB: Not currently handling '... up-to-date' here; should have been excluded in preview.
-
+        # NB: Not currently handling '... up-to-date' here; should have been
+        # excluded in preview.
         logging.warning(f'p4_sync_worker(): Unhandled record: {record}')
 
     proc.stdout.close()
-    os.unlink(argfile.name) # We can clean up the temporary `-x` file now.
+    os.unlink(argfile.name)  # We can clean up the temporary `-x` file now.
 
-    # This shouldn't happen, but if something goes wrong it prevents a deadlock.
+    # This shouldn't happen, but if something goes wrong it prevents a deadlock
+    # UPDATE: FIXME: Happens if the connection to the Perforce server is lost.
     if len(remaining_work.sync_files):
         for depot_path, item in remaining_work.sync_files.copy().items():
-            logging.warning(f'p4_sync_worker(): Flushing item not explicitly completed: {item}')
+            logging.warning('p4_sync_worker(): Flushing item not explicitly '
+                            f'completed: {item}')
             complete_item(depot_path)
 
 
@@ -307,24 +345,29 @@ def p4_get_preview_sync_files(
 ) -> SyncWorkload:
     ''' Runs a preview sync to generate a list of files and revisions. '''
     result_workload = SyncWorkload()
-    records = p4_get_records('sync', ['-n', *input_specs],
-        include_info=True, include_error=True, user=user, client=client)
+    records = p4_get_records(
+        'sync', ['-n', *input_specs], include_info=True, include_error=True,
+        user=user, client=client)
 
     for record in records:
         if record[b'code'] == b'stat':
             depot_path = record[b'depotFile'].decode()
             action = record[b'action'].decode()
-            client_path = record[b'clientFile'].decode() if b'clientFile' in record else None
+            client_path = None
+            if b'clientFile' in record:
+                client_path = record[b'clientFile'].decode()
 
             if action == 'deleted':
-                # Delete records report the 'rev' PRIOR to the delete, and have no 'fileFize'.
+                # Delete records report the 'rev' PRIOR to the delete, and have
+                # no 'fileFize'.
                 rev = 0
                 size = 0
             else:
                 rev = int(record[b'rev'])
                 size = int(record[b'fileSize'])
 
-            result_workload.add_or_replace(SyncFile(depot_path, client_path, rev, size, action))
+            result_workload.add_or_replace(SyncFile(depot_path, client_path,
+                                                    rev, size, action))
             continue
         elif record[b'code'] == b'info':
             msg = f'{record[b"data"].decode()}'
@@ -338,7 +381,8 @@ def p4_get_preview_sync_files(
                 logging.info(record[b'data'].decode().rstrip())
                 continue
 
-        logging.warning(f'p4_get_preview_sync_files(): Unhandled record: {record}')
+        logging.warning('p4_get_preview_sync_files(): Unhandled record: '
+                        f'{record}')
 
     return result_workload
 
@@ -365,7 +409,8 @@ def p4_sync(
     write_workload_file: Optional[io.TextIOWrapper] = None
 ) -> Optional[int]:
     # First, gather complete list of files/revisions that need to be synced.
-    total_work = p4_get_preview_sync_files(input_specs, user=user, client=client)
+    total_work = p4_get_preview_sync_files(input_specs, user=user,
+                                           client=client)
 
     if sync_filter_fn:
         sync_filter_fn(total_work)
@@ -374,14 +419,17 @@ def p4_sync(
         logging.info('Nothing to do')
         return None
 
-    # User may have requested to write the pending sync files and revisions to file and exit early.
+    # User may have requested to write the pending sync files and revisions to
+    # file and exit early.
     if write_workload_file is not None:
         for item in total_work.sync_files.values():
             write_workload_file.write(f'{item.spec}\n')
         return 0
 
-    # Separate deletes and run them on their own worker process. (We no longer refer to `total_work` after this.)
-    # (p4 2020.1 relnotes: "'p4 sync -L' now allows files to be specified with revision specifiers of #0.")
+    # Separate deletes and run them on their own worker process. We no longer
+    # refer to `total_work` after this.
+    # TODO?: This is only necessary if the server is < 2020.1, which added
+    #        support for revision specifiers of #0 using `p4 sync -L`.
     nondelete_work = SyncWorkload()
     delete_work = SyncWorkload()
     for item in total_work.sync_files.copy().values():
@@ -399,9 +447,11 @@ def p4_sync(
         if clobber_filter_fn:
             clobber_queue = Queue()
 
-        p4_sync_worker(delete_work, clobber_queue=clobber_queue, dry_run=dry_run, user=user, client=client)
+        p4_sync_worker(delete_work, clobber_queue=clobber_queue,
+                       dry_run=dry_run, user=user, client=client)
 
-        # First pass clobber retry: Force sync any deletes where we want to override noclobber.
+        # First pass clobber retry: Force sync any deletes where we want to
+        # override noclobber.
         if clobber_queue and (clobber_queue.qsize() > 0):
             clobber_work = SyncWorkload()
             while clobber_queue.qsize() > 0:
@@ -411,20 +461,23 @@ def p4_sync(
 
             for depot_path, file in clobber_work.sync_files.copy().items():
                 if not file.clobber:
-                    logging.error(f'NOT clobbering writable file: {file.client_path or file.depot_path}')
+                    logging.error('NOT clobbering writable file: '
+                                  f'{file.client_path or file.depot_path}')
                     clobber_work.remove(depot_path)
                 else:
-                    logging.warning(f'Forcing clobber of writable file: {file.client_path}')
+                    logging.warning('Forcing clobber of writable file: '
+                                    f'{file.client_path}')
 
             num_files_to_clobber = len(clobber_work.sync_files)
             if num_files_to_clobber:
                 logging.info(f'Clobbering {num_files_to_clobber} files')
-                p4_sync_worker(clobber_work, force=True, dry_run=dry_run, user=user, client=client)
+                p4_sync_worker(clobber_work, force=True, dry_run=dry_run,
+                               user=user, client=client)
 
         logging.info('Done removing files from workspace')
 
     # Second pass: Dispatch all non-delete sync actions to worker threads.
-    # FIXME: This block is almost the same as above, but we don't use multiple workers above.
+    # FIXME: This block is almost the same as above, but with multiple workers.
     clobber_queue: Optional[Queue[SyncFile]] = None
     if clobber_filter_fn:
         clobber_queue = Queue()
@@ -438,7 +491,8 @@ def p4_sync(
         user=user,
         client=client)
 
-    # Second pass clobber retry: Force sync where we want to override noclobber.
+    # Second pass clobber retry: Force sync where we want to override
+    # noclobber.
     if clobber_queue and (clobber_queue.qsize() > 0):
         clobber_work = SyncWorkload()
         while clobber_queue.qsize() > 0:
@@ -448,10 +502,12 @@ def p4_sync(
 
         for depot_path, file in clobber_work.sync_files.copy().items():
             if not file.clobber:
-                logging.error(f'NOT clobbering writable file: {file.client_path or file.depot_path}')
+                logging.error('NOT clobbering writable file: '
+                              f'{file.client_path or file.depot_path}')
                 clobber_work.remove(depot_path)
             else:
-                logging.warning(f'Forcing clobber of writable file: {file.client_path}')
+                logging.warning('Forcing clobber of writable file: '
+                                f'{file.client_path}')
 
         num_files_to_clobber = len(clobber_work.sync_files)
         if num_files_to_clobber:
@@ -484,16 +540,21 @@ def dispatch_sync_workers(
     # Display summary of total sync workload.
     total_sync_bytes = work.workload_size
     total_sync_files = len(work.sync_files)
-    logging.info(f'Syncing {friendly_bytes(total_sync_bytes)} in {total_sync_files:,} files')
+    logging.info(f'Syncing {friendly_bytes(total_sync_bytes)} '
+                 f'in {total_sync_files:,} files')
 
-    # Upper bound is least of 1) CPU cores minus one, 2) number of files or 3) hardcoded max constant.
-    num_workers = min(filter(None, [num_workers, (os.cpu_count() or 1) - 1, total_sync_files, MAX_PARALLEL_WORKERS]))
+    # Upper bound is least of 1) CPU cores minus one, 2) number of files, or
+    # 3) hardcoded max constant.
+    num_workers = min(filter(None, [num_workers, (os.cpu_count() or 1) - 1,
+                                    total_sync_files, MAX_PARALLEL_WORKERS]))
 
     # Distribute balanced loads to workers.
     worker_loads = [SyncWorkload() for _ in range(num_workers)]
-    work.sync_files = dict(sorted(work.sync_files.items(), key=lambda x: x[1].size, reverse=True))
+    work.sync_files = dict(sorted(work.sync_files.items(),
+                                  key=lambda x: x[1].size, reverse=True))
     for sync_item in work.sync_files.values():
-        lightest_load = min(worker_loads, key=lambda x: (x.workload_size, len(x.sync_files)))
+        lightest_load = min(worker_loads,
+                            key=lambda x: (x.workload_size, len(x.sync_files)))
         lightest_load.add_or_replace(sync_item)
 
     logging.info(f'Using {num_workers} parallel workers')
@@ -507,30 +568,36 @@ def dispatch_sync_workers(
         worker_name = f'Worker {i}'
         load = worker_loads[i]
         if num_workers > 1:
-            logging.info(f'    {worker_name} - {friendly_bytes(load.workload_size)} in {len(load.sync_files):,} files')
+            logging.info(
+                f'    {worker_name} - {friendly_bytes(load.workload_size)} '
+                f'in {len(load.sync_files):,} files')
 
         worker = threading.Thread(
             name=worker_name,
             target=p4_sync_worker,
             args=(load,),
-            kwargs={'completion_queue': completion_queue, 'clobber_queue': clobber_queue,
-                'force': force, 'dry_run': dry_run, 'user': user, 'client': client}
+            kwargs={'completion_queue': completion_queue,
+                    'clobber_queue': clobber_queue, 'force': force,
+                    'dry_run': dry_run, 'user': user, 'client': client}
         )
         workers.append(worker)
         worker.start()
 
-    # Wait for workers to signal completed file syncs, and display progress updates.
-    remaining_load = copy.deepcopy(work) # Items are removed from this copy as they are completed.
+    # Wait for workers to signal completed file syncs, and display progress.
+
+    # Items are removed from this copy as they are completed.
+    remaining_load = copy.deepcopy(work)
     remaining_num_files = len(remaining_load.sync_files)
     while remaining_num_files:
         try:
             completed_file = completion_queue.get(timeout=1.0)
         except Empty:
             if any(worker.is_alive() for worker in workers):
-                continue # Workers still running; wait patiently.
+                continue  # Workers still running; wait patiently.
             else:
-                logging.error(f'{remaining_num_files} unsynced files remaining, but all workers have exited')
-                return 1 # Shouldn't happen.
+                logging.error(f'{remaining_num_files} unsynced files '
+                              'remaining, but all workers have exited')
+                return 1  # Shouldn't happen.
 
         remaining_load.remove(completed_file.depot_path)
         remaining_num_files = len(remaining_load.sync_files)
@@ -538,7 +605,8 @@ def dispatch_sync_workers(
         if progress_fn is not None:
             completed_bytes = total_sync_bytes - remaining_load.workload_size
             completed_files = total_sync_files - remaining_num_files
-            progress_fn(completed_bytes, total_sync_bytes, completed_files, total_sync_files)
+            progress_fn(completed_bytes, total_sync_bytes, completed_files,
+                        total_sync_files)
 
     for worker in workers:
         worker.join()
@@ -546,7 +614,10 @@ def dispatch_sync_workers(
     return 0
 
 
-def path_is_relative_to(root: Union[str, os.PathLike[str]], other: Union[str, os.PathLike[str]]) -> bool:
+def path_is_relative_to(
+    root: Union[str, os.PathLike[str]],
+    other: Union[str, os.PathLike[str]]
+) -> bool:
     try:
         pathlib.PurePath(other).relative_to(root)
         return True
@@ -570,13 +641,14 @@ class SbListenerHelper:
         self.p4user: Optional[str] = None
         self.p4client: Optional[str] = None
 
-
     @staticmethod
     def build_parser():
         parser = argparse.ArgumentParser()
 
         # Global options
-        parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
+        parser.add_argument(
+            '--log-level', default='INFO',
+            help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
 
         subparsers = parser.add_subparsers(dest='action')
         subparsers.required = True
@@ -584,25 +656,48 @@ class SbListenerHelper:
         # Sync action
         sync_parser = subparsers.add_parser('sync')
 
-        sync_parser.add_argument('pathspecs', nargs='*', metavar='pathSpec[revSpec]',
-            help='File/path specifier, supporting * or ... wildcards [and optional # or @ revision specifier suffix]')
+        sync_parser.add_argument(
+            'pathspecs', nargs='*', metavar='pathSpec[revSpec]',
+            help='File/path specifier, supporting * or ... wildcards '
+                 '[and optional # or @ revision specifier suffix]')
 
-        sync_parser.add_argument('--project', type=pathlib.Path, metavar='UPROJECT', help='Path to .uproject file')
-        sync_parser.add_argument('--engine-cl', type=int, help='Changelist to sync engine to (requires UPROJECT)')
-        sync_parser.add_argument('--project-cl', type=int, help='Changelist to sync project to (requires UPROJECT)')
-        sync_parser.add_argument('--generate', action='store_true', help='Run GenerateProjectFiles after syncing')
-        sync_parser.add_argument('--clobber-engine', action='store_true', help='Override noclobber for engine files')
-        sync_parser.add_argument('--clobber-project', action='store_true', help='Override noclobber for project files')
+        sync_parser.add_argument(
+            '--project', type=pathlib.Path, metavar='UPROJECT',
+            help='Path to .uproject file')
+        sync_parser.add_argument(
+            '--engine-dir', type=pathlib.Path,
+            help='Path to Engine directory. If omitted, the ancestors of the '
+                 'project directory will be searched')
+        sync_parser.add_argument(
+            '--engine-cl', type=int,
+            help='Changelist to sync engine to (requires UPROJECT)')
+        sync_parser.add_argument(
+            '--project-cl', type=int,
+            help='Changelist to sync project to (requires UPROJECT)')
+        sync_parser.add_argument(
+            '--generate', action='store_true',
+            help='Run GenerateProjectFiles after syncing')
+        sync_parser.add_argument(
+            '--clobber-engine', action='store_true',
+            help='Override noclobber for engine files')
+        sync_parser.add_argument(
+            '--clobber-project', action='store_true',
+            help='Override noclobber for project files')
 
-        sync_parser.add_argument('-n', '--dry-run', action='store_true', help='Preview sync; do not update files')
-        sync_parser.add_argument('-u', '--p4user', type=str, help='Override Perforce P4USER')
-        sync_parser.add_argument('-c', '--p4client', type=str, help='Override Perforce P4CLIENT')
+        sync_parser.add_argument('-n', '--dry-run', action='store_true',
+                                 help='Preview sync; do not update files')
+        sync_parser.add_argument('-u', '--p4user', type=str,
+                                 help='Override Perforce P4USER')
+        sync_parser.add_argument('-c', '--p4client', type=str,
+                                 help='Override Perforce P4CLIENT')
 
-        sync_parser.add_argument('--dump-sync', type=argparse.FileType('wt'), metavar='SYNC_WORKLOAD_TEXT_FILE',
-            help='Write the complete list of depot paths and revisions that would be synced, but exit without syncing')
+        sync_parser.add_argument(
+            '--dump-sync', type=argparse.FileType('wt'),
+            metavar='SYNC_WORKLOAD_TEXT_FILE',
+            help='Write the complete list of depot paths and revisions that '
+                 'would be synced, but exit without syncing')
 
         return parser
-
 
     def run(self, args: Optional[Sequence[str]] = None) -> int:
         options = self.parser.parse_args(args)
@@ -617,18 +712,20 @@ class SbListenerHelper:
 
         assert False
 
-
     def run_sync(self, options: argparse.Namespace) -> int:
         pathspecs: List[str] = [*options.pathspecs]
 
         self.check_sync_options(options)
 
         if self.sync_engine_cl:
-            pathspecs.append(f'{self.engine_dir.parent / "*"}@{self.sync_engine_cl}')
-            pathspecs.append(f'{self.engine_dir / "..."}@{self.sync_engine_cl}')
+            pathspecs.append((f'{self.engine_dir.parent / "*"}'
+                              f'@{self.sync_engine_cl}'))
+            pathspecs.append((f'{self.engine_dir / "..."}'
+                              f'@{self.sync_engine_cl}'))
 
         if self.sync_project_cl:
-            pathspecs.append(f'{self.uproj_path.parent / "..."}@{self.sync_project_cl}')
+            pathspecs.append((f'{self.uproj_path.parent / "..."}'
+                              f'@{self.sync_project_cl}'))
 
         if len(pathspecs) < 1:
             self.parser.error('Nothing specified to sync')
@@ -637,19 +734,18 @@ class SbListenerHelper:
             for pathspec in pathspecs:
                 logging.info(f' - {pathspec}')
 
-        buildver_info = None
+        buildver_info = self.get_buildver_info()
         if self.sync_engine_cl:
-            buildver_info = self.get_buildver_info()
-            if buildver_info['have_rev'] is not None:
-                pathspecs.append(f"{buildver_info['local_path']}#0")
+            # Remove Build.version if present, so we can write our own.
+            if buildver_info.have_rev:
+                pathspecs.append(f"{buildver_info.local_path}#0")
 
         def sync_filter(workload: SyncWorkload):
-            # Don't add Build.version to the workspace, but do allow it to be removed.
-            try:
-                if (buildver_info['depot_path'] is not None) and (workload.sync_files[buildver_info['depot_path']].rev != 0):
-                    workload.remove(buildver_info['depot_path'])
-            except KeyError:
-                pass
+            # Don't add Build.version to the workspace, but do allow removal.
+            buildver_path = buildver_info.depot_path
+            if buildver_path and (buildver_path in workload.sync_files):
+                if workload.sync_files[buildver_path].rev != 0:
+                    workload.remove(buildver_path)
 
         def clobber_filter(clobber: SyncWorkload):
             clobber.sync_files = dict(sorted(clobber.sync_files.items()))
@@ -657,15 +753,18 @@ class SbListenerHelper:
             for depot_path, clobber_file in clobber.sync_files.items():
                 if clobber_file.client_path is not None:
                     if self.clobber_engine and self.engine_dir:
-                        if path_is_relative_to(self.engine_dir, clobber_file.client_path):
+                        if path_is_relative_to(self.engine_dir,
+                                               clobber_file.client_path):
                             clobber_file.clobber = True
 
                     if self.clobber_project and self.uproj_path:
-                        if path_is_relative_to(self.uproj_path.parent, clobber_file.client_path):
+                        if path_is_relative_to(self.uproj_path.parent,
+                                               clobber_file.client_path):
                             clobber_file.clobber = True
                 else:
                     # Shouldn't happen.
-                    logging.error(f'clobber_filter(): Missing client path for clobber file: {depot_path}')
+                    logging.error('clobber_filter(): Missing client path for '
+                                  f'clobber file: {depot_path}')
                     continue
 
         sync_result = p4_sync(
@@ -680,16 +779,17 @@ class SbListenerHelper:
         )
 
         if sync_result is None:
-            return 0 # Nothing was synced
+            return 0  # Nothing was synced
         elif self.dry_run or options.dump_sync:
-            return sync_result # Nothing more to do
+            return sync_result  # Nothing more to do
 
         # Write updated Build.version.
         if self.sync_engine_cl:
-            if buildver_info['updated_text'] is not None:
+            assert buildver_info is not None
+            if buildver_info.updated_text:
                 logging.info('Updating Build.version')
-                with open(buildver_info['local_path'], 'wt') as buildver_file:
-                    buildver_file.write(buildver_info['updated_text'])
+                with open(buildver_info.local_path, 'wt') as buildver_file:
+                    buildver_file.write(buildver_info.updated_text)
 
         # Generate project files.
         if self.generate_after_sync:
@@ -698,36 +798,63 @@ class SbListenerHelper:
             if gpf_result == 0:
                 logging.info('Done generating project files')
             else:
-                logging.error(f'GenerateProjectFiles failed with code {gpf_result}')
+                logging.error('GenerateProjectFiles failed with code '
+                              f'{gpf_result}')
                 return gpf_result
 
         return sync_result
 
+    @dataclass
+    class BuildVerInfo:
+        local_path: str
+        have_rev: Optional[int] = None
+        depot_path: Optional[str] = None
+        depot_text: Optional[str] = None
+        updated_text: Optional[str] = None
 
-    def get_buildver_info(self):
-        ''' Read `Build.version` from depot and return its info, along with changes that reflect local build. '''
+    def get_buildver_info(self) -> BuildVerInfo:
+        '''
+        Read `Build.version` from depot and return its info, depot contents,
+        and an updated version of its contents which reflects the local build.
+        '''
         logging.debug('get_buildver_info(): start')
 
         assert self.engine_dir
 
-        epicint_local_path = os.path.join(self.engine_dir, 'Restricted', 'NotForLicensees', 'Build', 'EpicInternal.txt')
-        buildver_local_path = os.path.join(self.engine_dir, 'Build', 'Build.version')
+        epicint_local_path = os.path.join(
+            self.engine_dir, 'Restricted', 'NotForLicensees', 'Build',
+            'EpicInternal.txt')
+        buildver_local_path = os.path.join(self.engine_dir, 'Build',
+                                           'Build.version')
 
-        buildver_have_rev = p4_have([buildver_local_path], user=self.p4user, client=self.p4client)[0]
+        ret_info = SbListenerHelper.BuildVerInfo(
+            local_path=buildver_local_path)
 
-        prints = p4_print([f'{path}@{self.sync_engine_cl}' for path in (epicint_local_path, buildver_local_path)],
+        ret_info.have_rev = p4_have([buildver_local_path],
+                                    user=self.p4user, client=self.p4client)[0]
+
+        if not self.sync_engine_cl:
+            return ret_info
+
+        prints = p4_print(
+            [f'{path}@{self.sync_engine_cl}'
+             for path in (epicint_local_path, buildver_local_path)],
             user=self.p4user, client=self.p4client)
         epicint_depot_text, _ = prints[0]
-        buildver_depot_text, buildver_meta = prints[1]
+        ret_info.depot_text, buildver_meta = prints[1]
 
-        updated_buildver_text: Optional[str] = None
-        buildver_depot_path: Optional[str] = None
+        if ret_info.depot_text is not None:
+            ret_info.depot_path = buildver_meta[b'depotFile'].decode()
 
-        if buildver_depot_text is not None:
-            # Code changelist determination compatible with precompiled binaries.
-            code_exts = ['.cs', '.h', '.cpp', '.usf', '.ush', '.uproject', '.uplugin']
-            engine_code_paths = [f'{self.engine_dir}/.../*{ext}@<={self.sync_engine_cl}' for ext in code_exts]
-            engine_code_changes = p4_changes(engine_code_paths, limit=1, user=self.p4user, client=self.p4client)
+            # Code CL determination compatible with precompiled binaries.
+            code_exts = ['.cs', '.h', '.cpp', '.usf', '.ush', '.uproject',
+                         '.uplugin']
+            engine_code_paths = [
+                f'{self.engine_dir}/.../*{ext}@<={self.sync_engine_cl}'
+                for ext in code_exts]
+            engine_code_changes = p4_changes(
+                engine_code_paths, limit=1,
+                user=self.p4user, client=self.p4client)
             if len(engine_code_changes) > 0:
                 code_cl = max(int(x[b'change']) for x in engine_code_changes)
             else:
@@ -736,116 +863,148 @@ class SbListenerHelper:
 
             # Generate and return the updated Build.version contents.
             try:
-                build_ver: Dict[str, Union[int, str]] = json.loads(buildver_depot_text)
+                build_ver: Dict[str, Union[int, str]] = json.loads(
+                    ret_info.depot_text)
             except json.JSONDecodeError:
-                logging.error('Unable to parse depot Build.version JSON', exc_info=sys.exc_info())
-                return
+                logging.error('Unable to parse depot Build.version JSON',
+                              exc_info=sys.exc_info())
+                return ret_info
 
-            buildver_depot_path = buildver_meta[b'depotFile'].decode()
-            branch_name = buildver_depot_path.replace('/Engine/Build/Build.version', '')
+            branch_name = ret_info.depot_path.replace(
+                '/Engine/Build/Build.version', '')
             updates = {
                 'Changelist': self.sync_engine_cl,
                 'IsLicenseeVersion': 1 if epicint_depot_text is None else 0,
                 'BranchName': branch_name.replace('/', '+'),
             }
 
-			# Don't overwrite the compatible changelist if we're in a hotfix release
-            if (build_ver['CompatibleChangelist'] == 0) or (build_ver['IsLicenseeVersion'] != updates['IsLicenseeVersion']):
+            # Don't overwrite the compatible changelist if we're in a hotfix
+            # release.
+            no_depot_compat = build_ver['CompatibleChangelist'] == 0
+            licensee_changed = (build_ver['IsLicenseeVersion']
+                                != updates['IsLicenseeVersion'])
+            if no_depot_compat or licensee_changed:
                 updates['CompatibleChangelist'] = code_cl
 
-            logging.debug(f"get_buildver_info(): {updates}")
+            logging.debug(f"get_buildver_info(): updates = {updates}")
 
             build_ver.update(updates)
-            updated_buildver_text = json.dumps(build_ver, indent=4)
+            ret_info.updated_text = json.dumps(build_ver, indent=4)
 
         else:
-            logging.error(f'Unable to p4_print() Build.version ({buildver_meta})')
+            logging.error('Unable to p4_print() Build.version '
+                          f'({buildver_meta})')
 
-        result = {}
-        result['updated_text'] = updated_buildver_text
-        result['depot_text'] = buildver_depot_text
-        result['depot_path'] = buildver_depot_path
-        result['local_path'] = buildver_local_path
-        result['have_rev'] = buildver_have_rev
-        return result
+        return ret_info
 
-
-    def on_sync_progress(self, completed_bytes: int, total_bytes: int, completed_files: int, total_files: int):
-        progress_pct = completed_bytes / total_bytes if total_bytes > 0 else completed_files / total_files
-        bytes_str = f'{friendly_bytes(completed_bytes)} / {friendly_bytes(total_bytes)}'
+    def on_sync_progress(
+        self,
+        completed_bytes: int,
+        total_bytes: int,
+        completed_files: int,
+        total_files: int
+    ):
+        if total_bytes != 0:
+            progress_pct = completed_bytes / total_bytes
+        else:
+            progress_pct = completed_files / total_files
+        bytes_str = (f'{friendly_bytes(completed_bytes)} / '
+                     f'{friendly_bytes(total_bytes)}')
         files_str = f'{completed_files:,} / {total_files:,} files'
-        progress_str = f'Progress: {progress_pct:.2%} ({bytes_str}; {files_str})'
+        progress_str = (f'Progress: {progress_pct:.2%} '
+                        f'({bytes_str}; {files_str})')
 
         if sys.stdout.isatty():
             # Continuously erase and rewrite interactive progress status line.
-            print(f'\r{" "*70}\r{progress_str}\r', end='' if progress_pct != 1.0 else None, flush=True)
+            end = '' if progress_pct != 1.0 else None
+            print(f'\r{" "*70}\r{progress_str}\r', end=end, flush=True)
         else:
             logging.info(progress_str)
 
-
     def check_sync_options(self, options: argparse.Namespace):
-        ''' Parse `sync` options, caching their values, and ensuring consistency between related options. '''
+        '''
+        Parse `sync` options, caching their values, and ensuring consistency
+        between related options.
+        '''
         self.dry_run = options.dry_run
         self.p4user = options.p4user
         self.p4client = options.p4client
+        self.clobber_engine = options.clobber_engine
+        self.clobber_project = options.clobber_project
 
-        consistency_opts = ('project', 'engine_cl', 'project_cl', 'generate', 'clobber_engine', 'clobber_project')
-        if any(getattr(options, opt) is not None for opt in consistency_opts):
-            if options.project is None:
-                self.parser.error('--[engine|project]-cl, --clobber-[engine|project], --generate require --project')
-            elif options.engine_cl is not None and options.engine_cl <= 0:
-                self.parser.error(f'Invalid --engine-cl {options.engine_cl}')
-            elif options.project_cl is not None and options.project_cl <= 0:
-                self.parser.error(f'Invalid --project-cl {options.project_cl}')
+        if options.project is None:
+            if options.project_cl is not None:
+                self.parser.error('--project-cl requires --project')
+            elif options.generate is not None:
+                self.parser.error('--generate requires --project')
 
-            self.sync_engine_cl = options.engine_cl
-            self.sync_project_cl = options.project_cl
-            self.generate_after_sync = options.generate
-            self.clobber_engine = options.clobber_engine
-            self.clobber_project = options.clobber_project
+        if options.engine_cl is not None and options.engine_cl <= 0:
+            self.parser.error(f'Invalid --engine-cl {options.engine_cl}')
+        elif options.project_cl is not None and options.project_cl <= 0:
+            self.parser.error(f'Invalid --project-cl {options.project_cl}')
 
+        self.sync_engine_cl = options.engine_cl
+        self.sync_project_cl = options.project_cl
+        self.generate_after_sync = options.generate
+
+        if options.project:
             try:
                 self.uproj_path = options.project.resolve(strict=True)
             except FileNotFoundError:
-                self.parser.error(f'argument --project: FileNotFoundError: {options.project}')
+                self.parser.error('argument --project: FileNotFoundError: '
+                                  f'{options.project}')
 
             try:
-                proj_data = json.load(self.uproj_path.open())
+                _ = json.load(self.uproj_path.open())
             except json.JSONDecodeError:
-                self.parser.error(f'argument --project: unable to parse JSON\n\n{traceback.format_exc()}')
+                self.parser.error('argument --project: unable to parse JSON'
+                                  f'\n\n{traceback.format_exc()}')
 
+        if options.engine_dir:
+            self.engine_dir = options.engine_dir
+        else:
             # Find engine; look up the tree from the project for an Engine/ dir
             iter_dir = self.uproj_path.parent.parent
             while not iter_dir.samefile(iter_dir.anchor):
-                candidate = iter_dir / "Engine"
+                candidate = iter_dir / 'Engine'
                 if candidate.is_dir():
                     self.engine_dir = candidate
                     break
                 iter_dir = iter_dir.parent
 
-            if self.engine_dir is None:
-                if self.sync_engine_cl is not None:
-                    self.parser.error('--engine-cl was specified, but unable to determine engine directory')
-                elif self.generate_after_sync:
-                    self.parser.error('--generate was specified, but unable to determine engine directory')
-
+        if self.engine_dir is None:
+            if self.sync_engine_cl is not None:
+                self.parser.error('--engine-cl was specified, but unable to '
+                                  'determine engine directory')
+            elif self.generate_after_sync:
+                self.parser.error('--generate was specified, but unable to '
+                                  'determine engine directory')
 
     def generate_project_files(self) -> int:
-        ''' Invokes GenerateProjectFiles script, streams the output to INFO logging, and returns the exit code. '''
+        '''
+        Invokes GenerateProjectFiles script, streams the output to INFO
+        logging, and returns the exit code.
+        '''
         assert self.uproj_path and self.engine_dir
 
         if sys.platform.startswith('win'):
-            gpf_script = os.path.join(self.engine_dir, 'Build', 'BatchFiles', 'GenerateProjectFiles.bat')
+            gpf_script = os.path.join(self.engine_dir, 'Build', 'BatchFiles',
+                                      'GenerateProjectFiles.bat')
         else:
-            gpf_script = os.path.join(self.engine_dir, 'Build', 'BatchFiles', 'Linux' 'GenerateProjectFiles.sh')
+            gpf_script = os.path.join(self.engine_dir, 'Build', 'BatchFiles',
+                                      'Linux' 'GenerateProjectFiles.sh')
 
         args = [gpf_script, str(self.uproj_path)]
 
-        logging.debug(f'generate_project_files(): invoking subprocess: args={args}')
+        logging.debug('generate_project_files(): invoking subprocess: '
+                      f'args={args}')
 
-        # stdin=subprocess.DEVNULL is required when launched via SwitchboardListener; otherwise this call tries
-        # to make the non-existent stdin inheritable, and raises `OSError: [WinError 6] The handle is invalid`
-        with subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE) as proc:
+        # stdin=subprocess.DEVNULL is required when launched via
+        # SwitchboardListener; otherwise this call tries to make the
+        # non-existent stdin inheritable, raising `OSError: [WinError 6] The
+        # handle is invalid`
+        with subprocess.Popen(args, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE) as proc:
             for line in proc.stdout:
                 logging.info(f'gpf> {line.decode().rstrip()}')
 

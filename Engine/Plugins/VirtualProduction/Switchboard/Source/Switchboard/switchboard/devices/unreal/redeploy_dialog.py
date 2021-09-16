@@ -158,10 +158,6 @@ class RedeployListenerDialog(QtWidgets.QDialog):
         self.listener_exe_base64: Optional[str] = None
         self.listener_exe_sha1sum: Optional[str] = None
 
-        qss_file = os.path.join(CONFIG.SWITCHBOARD_DIR, 'switchboard/ui/switchboard.qss')
-        with open(qss_file, 'r') as styling:
-            self.setStyleSheet(styling.read())
-
         self.setWindowTitle('Update Listeners')
 
         self.finished.connect(self.on_dialog_finished)

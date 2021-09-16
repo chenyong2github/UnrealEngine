@@ -1,5 +1,13 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+import importlib
+import inspect
+import os
+import traceback
+from typing import Dict, List, Type
+
+from PySide2 import QtCore, QtGui
+
 from switchboard.config import CONFIG, SETTINGS
 from switchboard.switchboard_logging import LOGGER
 from switchboard import config_osc as osc
@@ -7,16 +15,10 @@ from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import AddDeviceDialog, DeviceWidget
 import switchboard.switchboard_utils as utils
 
-from PySide2 import QtCore, QtGui
-
-import importlib
-import inspect
-import os
-import traceback
-
 
 DEVICE_PLUGIN_PACKAGE = "switchboard.devices"
 DEVICE_PLUGIN_PATH = os.path.join(os.path.dirname(__file__))
+
 
 class DeviceManager(QtCore.QObject):
     signal_device_added = QtCore.Signal(object)
@@ -25,14 +27,20 @@ class DeviceManager(QtCore.QObject):
     def __init__(self):
         super().__init__()
 
-        self._plugins, self._plugin_widgets, self._plugin_icons = self.find_available_device_plugins()
-        self._devices = {}
+        self._plugins, self._plugin_widgets, self._plugin_icons = \
+            self.find_available_device_plugins()
+
+        self._devices: Dict[int, Device] = {}  # key is device_hash
         self._device_name_validator = DeviceNameValidator(self)
 
     def add_devices(self, device_config):
         for device_type, devices in device_config.items():
             for device in devices:
                 self._add_device(device_type, device["name"], device["ip_address"], **device["kwargs"])
+
+        # notify the plugins that all devices were added (gets called even if no devices were added)
+        for device_cls in self._plugins.values():
+            device_cls.all_devices_added()
 
     def _add_device(self, device_type, name, ip, **kwargs):
         device_cls_name = device_type
@@ -55,14 +63,12 @@ class DeviceManager(QtCore.QObject):
         return device
 
     def find_available_device_plugins(self):
-
         plugin_modules = self._find_plugin_modules()
 
-        found_plugins = {}
-        plugin_widgets = {}
+        found_plugins: Dict[str, Type[Device]] = {}
+        plugin_widgets: Dict[str, Type[DeviceWidget]] = {}
 
         for plugin in plugin_modules:
-
             try:
                 plugin_module = importlib.import_module(plugin)
             except:
@@ -88,8 +94,8 @@ class DeviceManager(QtCore.QObject):
         return found_plugins, plugin_widgets, plugin_icons
 
     def _find_plugin_modules(self):
-
-        plugin_modules = []
+        ''' Discovers and returns qualified import paths for plugins. '''
+        plugin_modules: List[str] = []
         device_subdirs = next(os.walk(DEVICE_PLUGIN_PATH))[1]
 
         for subdir in device_subdirs:

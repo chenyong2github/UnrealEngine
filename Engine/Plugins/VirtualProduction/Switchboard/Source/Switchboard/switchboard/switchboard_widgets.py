@@ -1,7 +1,10 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 import time
+from typing import Optional
 
 from PySide2 import QtCore, QtGui, QtWidgets
+
+from switchboard.switchboard_logging import LOGGER
 
 
 DEVICE_LIST_WIDGET_HEIGHT = 54
@@ -117,33 +120,53 @@ class MultiSelectionComboBox(QtWidgets.QComboBox):
 
 
 class ControlQPushButton(QtWidgets.QPushButton):
-    def __init__(self, parent=None):
+    def __init__(self, parent = None, *, hover_focus: bool = True):
         super().__init__(parent)
 
-    def focusInEvent(self, e):
-        super().focusInEvent(e)
+        # Avoid "click -> focus -> disable -> focus arbitrary nearby widget"
+        self.setFocusPolicy(QtCore.Qt.TabFocus)
+
+        # Deprecated behavior: force focus on mouse enter for icon changes.
+        # Defaults to True for backward compatibility, but should be removed.
+        # New code should use stylesheet :hover selectors instead.
+        self.hover_focus = hover_focus
 
     def enterEvent(self, event):
         super().enterEvent(event)
-        self.setFocus()
+        if self.hover_focus:
+            self.setFocus()
 
     def leaveEvent(self, event):
         super().leaveEvent(event)
-        self.clearFocus()
+        if self.hover_focus:
+            self.clearFocus()
 
     @classmethod
-    def create(self, icon_off, icon_on=None,
-                icon_hover_on=None, icon_hover=None,
-                icon_disabled_on=None, icon_disabled=None,
-                icon_size=None,
-                checkable=True, checked=False,
-                tool_tip=None, parent=True):
-        button = ControlQPushButton()
+    def create(
+        cls, icon_off=None,
+        icon_on=None,
+        icon_hover_on=None, icon_hover=None,
+        icon_disabled_on=None, icon_disabled=None,
+        icon_size=None,
+        checkable=True, checked=False,
+        tool_tip=None,
+        *,
+        hover_focus: bool = True,
+        name: Optional[str] = None
+    ):
+        button = ControlQPushButton(hover_focus=hover_focus)
 
-        button.setProperty("no_background", True)
-        button.setStyle(button.style())
+        if name:
+            button.setObjectName(name)
+
+        set_qt_property(button, 'no_background', True)
 
         icon = QtGui.QIcon()
+        pixmap: Optional[QtGui.QPixmap] = None
+
+        if icon_off:
+            pixmap = QtGui.QPixmap(icon_off)
+            icon.addPixmap(pixmap, QtGui.QIcon.Normal, QtGui.QIcon.Off)
 
         if icon_on:
             pixmap = QtGui.QPixmap(icon_on)
@@ -165,15 +188,15 @@ class ControlQPushButton(QtWidgets.QPushButton):
             pixmap = QtGui.QPixmap(icon_disabled)
             icon.addPixmap(pixmap, QtGui.QIcon.Disabled, QtGui.QIcon.On)
 
-        pixmap = QtGui.QPixmap(icon_off)
-        icon.addPixmap(pixmap, QtGui.QIcon.Normal, QtGui.QIcon.Off)
-
         button.setIcon(icon)
 
-        if not icon_size:
+        if pixmap and not icon_size:
             icon_size = pixmap.rect().size()
-        button.setIconSize(icon_size)
-        button.setMinimumSize(QtCore.QSize(25, 35))
+
+        if icon_size:
+            button.setIconSize(icon_size)
+
+        button.setMinimumSize(25, 35)
 
         if tool_tip:
             button.setToolTip(tool_tip)
@@ -190,8 +213,7 @@ class FramelessQLineEdit(QtWidgets.QLineEdit):
         super().__init__(parent)
 
         if not self.isReadOnly():
-            self.setProperty("frameless", True)
-            self.setStyle(self.style())
+            set_qt_property(self, "frameless", True)
 
         self.current_text = None
         self.is_valid = True
@@ -243,6 +265,52 @@ class FramelessQLineEdit(QtWidgets.QLineEdit):
             self.clearFocus()
 
 
-def set_qt_property(widget, prop, value):
+def set_qt_property(
+    widget: QtWidgets.QWidget, prop, value, *,
+    update_box_model: bool = True,
+    recursive_refresh: bool = False
+):
+    '''
+    Set a dynamic property on the specified widget, and also recalculate its
+    styling to take the property change into account.
+
+    Args:
+        widget: The widget for which to trigger a style refresh.
+        prop: The name of the dynamic property to set.
+        value: The new value of the dynamic property `prop`.
+        update_box_model: Whether to trigger the more expensive update steps
+            required for style changes that impact the box model of the widget.
+        recursive: Whether to also refresh the styling of all child widgets.
+    '''
     widget.setProperty(prop, value)
-    widget.setStyle(widget.style())
+    refresh_qt_styles(widget, update_box_model=update_box_model,
+                      recursive=recursive_refresh)
+
+
+def refresh_qt_styles(
+    widget: QtWidgets.QWidget, *,
+    update_box_model: bool = True,
+    recursive: bool = False
+):
+    '''
+    Recalculate a Qt widget's styling (and optionally its children's styling).
+
+    Args:
+        widget: The widget for which to trigger a style refresh.
+        update_box_model: Whether to perform the more expensive update steps
+            required for style changes that impact the box model of the widget.
+        recursive: Whether to also refresh the styling of all child widgets.
+    '''
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+
+    if update_box_model:
+        style_change_event = QtCore.QEvent(QtCore.QEvent.StyleChange)
+        QtWidgets.QApplication.sendEvent(widget, style_change_event)
+        widget.update()
+        widget.updateGeometry()
+
+    if recursive:
+        for child in widget.findChildren(QtWidgets.QWidget):
+            refresh_qt_styles(child, recursive=True,
+                              update_box_model=update_box_model)
