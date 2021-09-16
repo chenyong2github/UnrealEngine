@@ -116,17 +116,15 @@ public:
 	DERIVEDDATACACHE_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload);
 	DERIVEDDATACACHE_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload, EContentType ContentType);
 
-	/**
-		* Returns the response buffer as a string. Note that is the request is performed
-		* with an external buffer as target buffer this string will be empty.
-		*/
+	/** Returns the response buffer as a string. Note that is the request is performed
+		with an external buffer as target buffer this string will be empty.
+	 */
 	inline FString GetResponseAsString() const
 	{
 		return GetAnsiBufferAsString(ResponseBuffer);
 	}
 
-	/**
-	  * Returns the response buffer. Note that is the request is performed
+	/** Returns the response buffer. Note that is the request is performed
 	  * with an external buffer as target buffer this will be empty.
 	  */
 	inline const TArray64<uint8>& GetResponseBuffer() const
@@ -135,6 +133,7 @@ public:
 	}
 
 	DERIVEDDATACACHE_API FCbObjectView GetResponseAsObject() const;
+	DERIVEDDATACACHE_API FCbPackage GetResponseAsPackage() const;
 
 	DERIVEDDATACACHE_API bool GetHeader(const ANSICHAR* Header, FString& OutValue) const;
 
@@ -153,7 +152,7 @@ private:
 	TArray64<uint8>*		WriteHeaderBufferPtr = nullptr;
 
 	TArray64<uint8>			ResponseHeader;
-	TArray64<uint8>			ResponseBuffer;
+	TArray64<uint8>			ResponseBuffer;	// If no other response buffer is set, this is where the response payload goes
 	TArray<FString>			Headers;
 	FString					Domain;
 

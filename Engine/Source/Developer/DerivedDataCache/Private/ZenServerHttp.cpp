@@ -142,25 +142,32 @@ namespace UE::Zen {
 		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CompactBinary);
 	}
 
+	struct CbPackageHeader
+	{
+		uint32	HeaderMagic;
+		uint32	AttachmentCount;
+		uint32	Reserved1;
+		uint32	Reserved2;
+	};
+
+	static const uint32 kMagic = 0xaa77aacc;
+
+	struct CbAttachmentEntry
+	{
+		uint64	AttachmentSize;
+		uint32	Flags;
+		FIoHash	AttachmentHash;
+
+		enum
+		{
+			IsCompressed = (1u << 0),	// Is marshaled using compressed buffer storage format
+			IsObject = (1u << 1),		// Is compact binary object
+		};
+
+	};
+
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingPostPackage(FStringView Uri, FCbPackage Package)
 	{
-		struct CbPackageHeader
-		{
-			uint32	HeaderMagic;
-			uint32	AttachmentCount;
-			uint32	Reserved1;
-			uint32	Reserved2;
-		};
-
-		static const uint32 kMagic = 0xaa77aacc;
-
-		struct CbAttachmentEntry
-		{
-			uint64	AttachmentSize;
-			uint32	Reserved1;
-			FIoHash	AttachmentHash;
-		};
-
 		TConstArrayView<FCbAttachment> Attachments = Package.GetAttachments();
 		FCbObject Object = Package.GetObject();
 		FCompressedBuffer ObjectBuffer = FCompressedBuffer::Compress(Object.GetBuffer(), FOodleDataCompression::ECompressor::NotSet, FOodleDataCompression::ECompressionLevel::None);
@@ -180,7 +187,7 @@ namespace UE::Zen {
 			CbAttachmentEntry Entry;
 			Entry.AttachmentHash = ObjectBuffer.GetRawHash();
 			Entry.AttachmentSize = ObjectBuffer.GetCompressedSize();
-			Entry.Reserved1 = 0;
+			Entry.Flags = CbAttachmentEntry::IsObject;
 
 			Out.Serialize(&Entry, sizeof Entry);
 		}
@@ -191,8 +198,30 @@ namespace UE::Zen {
 		{
 			CbAttachmentEntry Entry;
 			Entry.AttachmentHash = Attachment.GetHash();
-			Entry.AttachmentSize = Attachment.AsCompressedBinary().GetCompressedSize();
-			Entry.Reserved1 = 0;
+			Entry.Flags = 0;
+
+			if (Attachment.IsCompressedBinary())
+			{
+				Entry.AttachmentSize = Attachment.AsCompressedBinary().GetCompressedSize();
+				Entry.Flags |= CbAttachmentEntry::IsCompressed;
+			}
+			else if (Attachment.IsBinary())
+			{
+				Entry.AttachmentSize = Attachment.AsCompositeBinary().GetSize();
+			}
+			else if (Attachment.IsNull())
+			{
+				checkNoEntry();
+			}
+			else if (Attachment.IsObject())
+			{
+				Entry.AttachmentSize = Attachment.AsObject().GetSize();
+				Entry.Flags |= CbAttachmentEntry::IsObject;
+			}
+			else
+			{
+				checkNoEntry();
+			}
 
 			Out.Serialize(&Entry, sizeof Entry);
 		}
@@ -205,11 +234,76 @@ namespace UE::Zen {
 
 		for (const FCbAttachment& Attachment : Attachments)
 		{
-			FCompressedBuffer Payload = Attachment.AsCompressedBinary();
-			Out << Payload;
+			if (Attachment.IsCompressedBinary())
+			{
+				FCompressedBuffer Payload = Attachment.AsCompressedBinary();
+				Out << Payload;
+			}
+			else if (Attachment.IsBinary())
+			{
+				const FCompositeBuffer& Buffer = Attachment.AsCompositeBinary();
+				FSharedBuffer SharedBuffer = Buffer.ToShared();
+
+				Out.Serialize((void*)SharedBuffer.GetData(), SharedBuffer.GetSize());
+			}
+			else if (Attachment.IsNull())
+			{
+				checkNoEntry();
+			}
+			else if (Attachment.IsObject())
+			{
+				checkNoEntry();
+			}
+			else
+			{
+				checkNoEntry();
+			}
 		}
 
 		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CompactBinaryPackage);
+	}
+
+	FCbPackage FZenHttpRequest::GetResponseAsPackage() const
+	{
+		const TArray64<uint8>& Response = GetResponseBuffer();
+		FLargeMemoryReader Reader(Response.GetData(), Response.Num());
+
+		FCbPackage Package;
+
+		CbPackageHeader Hdr;
+		Reader.Serialize(&Hdr, sizeof Hdr);
+
+		if (Hdr.HeaderMagic != kMagic)
+		{
+			return {};
+		}
+
+		TArray<CbAttachmentEntry> AttachmentEntries;
+		AttachmentEntries.SetNum(Hdr.AttachmentCount);
+
+		Reader.Serialize(AttachmentEntries.GetData(), Hdr.AttachmentCount * sizeof(CbAttachmentEntry));
+
+		int Index = 0;
+
+		for (const CbAttachmentEntry& Entry : AttachmentEntries)
+		{
+			FUniqueBuffer AttachmentData = FUniqueBuffer::Alloc(Entry.AttachmentSize);
+			Reader.Serialize(AttachmentData.GetData(), AttachmentData.GetSize());
+
+			if (Index == 0)
+			{
+
+			}
+			else
+			{
+				FCbAttachment Attachment(AttachmentData.MoveToShared());
+				Package.AddAttachment(Attachment);
+			}
+
+			++Index;
+		}
+
+		return Package;
 	}
 
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingPost(FStringView Uri, FMemoryView Payload)
