@@ -922,6 +922,37 @@ namespace AutomationTool
 			// either valid or we're out of ideas...
 			return ProjectPath;
 		}
+
+		/// <summary>
+		/// Full path to the Project executable for the current platform.
+		/// </summary>
+		/// <param name="ProjectFile">Path to Project file</param>
+		/// <param name="TargetType">Target type</param>
+		/// <param name="TargetPlatform">Target platform</param>
+		/// <param name="TargetConfiguration">Target build configuration</param>
+		/// <param name="Cmd">Do you want the console subsystem/commandlet executable?</param>
+		/// <returns></returns>
+		public static FileReference GetProjectTarget(FileReference ProjectFile, UnrealBuildTool.TargetType TargetType, UnrealBuildTool.UnrealTargetPlatform TargetPlatform, UnrealBuildTool.UnrealTargetConfiguration TargetConfiguration = UnrealBuildTool.UnrealTargetConfiguration.Development, bool Cmd = false)
+		{
+			ProjectProperties Properties = ProjectUtils.GetProjectProperties(ProjectFile);
+			List<SingleTargetProperties> Targets = Properties.Targets.Where(x => x.Rules.Type == TargetType).ToList();
+			string TargetName = null;
+			switch (Targets.Count)
+			{
+				case 0:
+					return null;
+				case 1:
+					TargetName = Targets.First().TargetName;
+					break;
+				default:
+					Properties.EngineConfigs[TargetPlatform].GetString("/Script/BuildSettings.BuildSettings", "DefaultEditorTarget", out TargetName);
+					break;
+			}
+
+			FileReference TargetReceiptFileName = UnrealBuildTool.TargetReceipt.GetDefaultPath(ProjectFile.Directory, TargetName, TargetPlatform, TargetConfiguration, "");
+			UnrealBuildTool.TargetReceipt TargetReceipt = UnrealBuildTool.TargetReceipt.Read(TargetReceiptFileName);
+			return Cmd ? TargetReceipt.LaunchCmd : TargetReceipt.Launch;
+		}
 	}
 
     public class BranchInfo

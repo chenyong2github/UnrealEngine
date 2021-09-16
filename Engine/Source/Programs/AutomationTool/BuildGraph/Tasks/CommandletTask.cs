@@ -100,7 +100,11 @@ namespace AutomationTool.Tasks
 			FileReference EditorExe;
 			if(Parameters.EditorExe == null)
 			{
-                EditorExe = new FileReference(HostPlatform.Current.GetUE4ExePath("UnrealEditor-Cmd.exe"));
+				EditorExe = ProjectUtils.GetProjectTarget(ProjectFile, UnrealBuildTool.TargetType.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, true);
+				if (EditorExe == null)
+				{
+					EditorExe = new FileReference(HostPlatform.Current.GetUE4ExePath("UnrealEditor-Cmd.exe"));
+				}
 			}
 			else
 			{

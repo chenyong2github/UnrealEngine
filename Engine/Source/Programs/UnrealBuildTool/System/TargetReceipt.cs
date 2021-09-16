@@ -305,6 +305,11 @@ namespace UnrealBuildTool
 		public FileReference? Launch;
 
 		/// <summary>
+		/// The console subsystem/commmandlet exectuable to launch for this target
+		/// </summary>
+		public FileReference? LaunchCmd;
+
+		/// <summary>
 		/// The build products which are part of this target
 		/// </summary>
 		public List<BuildProduct> BuildProducts = new List<BuildProduct>();
@@ -560,6 +565,11 @@ namespace UnrealBuildTool
 			{
 				Receipt.Launch = ExpandPathVariables(Launch, EngineDir, ProjectDir);
 			}
+			string LaunchCmd;
+			if(RawObject.TryGetStringField("LaunchCmd", out LaunchCmd))
+			{
+				Receipt.LaunchCmd = ExpandPathVariables(LaunchCmd, EngineDir, ProjectDir);
+			}
 
 			// Read the build products
 			JsonObject[] BuildProductObjects;
@@ -719,6 +729,11 @@ namespace UnrealBuildTool
 				if(Launch != null)
 				{
 					Writer.WriteValue("Launch", InsertPathVariables(Launch, EngineDir, ProjectDir));
+				}
+
+				if(LaunchCmd != null)
+				{
+					Writer.WriteValue("LaunchCmd", InsertPathVariables(LaunchCmd, EngineDir, ProjectDir));
 				}
 
 				Writer.WriteObjectStart("Version");

@@ -627,41 +627,48 @@ namespace Gauntlet
 
 
 		/// <summary>
-		/// Given a platform, a build config, and true/false for client, returns the path to the binary for that config. E.g.
-		/// Win64, Shipping, false = Binaries\Win64\FooServer-Win64-Shipping.exe
+		/// Given a role, platform, and config, returns the path to the binary for that config. E.g. Binaries\Win64\FooServer-Win64-Shipping.exe
 		/// </summary>
+		/// <param name="TargetRole"></param>
 		/// <param name="TargetPlatform"></param>
-		/// <param name="BuildConfig"></param>
-		/// <param name="IsClient"></param>
+		/// <param name="TargetConfiguration"></param>
 		/// <returns></returns>
-		virtual public string GetRelativeExecutablePath(UnrealTargetRole TargetType, UnrealTargetPlatform TargetPlatform, UnrealTargetConfiguration TargetConfiguration)
+		virtual public string GetRelativeExecutablePath(UnrealTargetRole TargetRole, UnrealTargetPlatform TargetPlatform, UnrealTargetConfiguration TargetConfiguration)
 		{
 			string ExePath;
 
-			if (TargetType.UsesEditor())
+			if (TargetRole.UsesEditor())
 			{
-				string ExeFileName = "UnrealEditor";
-				if (TargetConfiguration != UnrealTargetConfiguration.Development)
+				FileReference EditorExe = ProjectUtils.GetProjectTarget(ProjectPath, UnrealBuildTool.TargetType.Editor, TargetPlatform, TargetConfiguration);
+				if (EditorExe != null)
 				{
-					ExeFileName += string.Format("-{0}-{1}", TargetPlatform.ToString(), TargetConfiguration.ToString());
+					ExePath = EditorExe.FullName;
 				}
+				else
+				{
+					string ExeFileName = "UnrealEditor";
+					if (TargetConfiguration != UnrealTargetConfiguration.Development)
+					{
+						ExeFileName += string.Format("-{0}-{1}", TargetPlatform.ToString(), TargetConfiguration.ToString());
+					}
 
-				ExeFileName += Platform.GetExeExtension(TargetPlatform);
+					ExeFileName += Platform.GetExeExtension(TargetPlatform);
 
-				ExePath = string.Format("Engine/Binaries/{0}/{1}", BuildHostPlatform.Current.Platform, ExeFileName);
+					ExePath = string.Format("Engine/Binaries/{0}/{1}", BuildHostPlatform.Current.Platform, ExeFileName);
+				}
 			}
 			else
 			{
 				string BuildType = "";
 
-				if (TargetType == UnrealTargetRole.Client)
+				if (TargetRole == UnrealTargetRole.Client)
 				{
 					if (!UsesSharedBuildType)
 					{
 						BuildType = "Client";
 					}
 				}
-				else if (TargetType == UnrealTargetRole.Server)
+				else if (TargetRole == UnrealTargetRole.Server)
 				{
 					if (!UsesSharedBuildType)
 					{
@@ -685,16 +692,16 @@ namespace Gauntlet
 					{
 						Flags |= BuildFlags.CanReplaceExecutable;
 					}
-                    if (Globals.Params.ParseParam("bulk"))
-                    {
-                        Flags |= BuildFlags.Bulk;
-                    }
+					if (Globals.Params.ParseParam("bulk"))
+					{
+						Flags |= BuildFlags.Bulk;
+					}
 					else if(Globals.Params.ParseParam("notbulk"))
 					{
 						Flags |= BuildFlags.NotBulk;
 					}
 
-                    var Build = GetMatchingBuilds(TargetType, TargetPlatform, TargetConfiguration, Flags).FirstOrDefault();
+					var Build = GetMatchingBuilds(TargetRole, TargetPlatform, TargetConfiguration, Flags).FirstOrDefault();
 
 					if (Build != null)
 					{
@@ -719,7 +726,7 @@ namespace Gauntlet
 
 					ExeFileName += Platform.GetExeExtension(TargetPlatform);
 
-					string BasePath = GetPlatformPath(TargetType, TargetPlatform);
+					string BasePath = GetPlatformPath(TargetRole, TargetPlatform);
 					string ProjectBinary = string.Format("{0}\\Binaries\\{1}\\{2}", ProjectName, TargetPlatform.ToString(), ExeFileName);
 					string StubBinary = Path.Combine(BasePath, ExeFileName);
 					string DevBinary = Path.Combine(Environment.CurrentDirectory, ProjectBinary);

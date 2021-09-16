@@ -1445,8 +1445,19 @@ namespace UnrealBuildTool
 				{
 					if (Pair.Value == BuildProductType.Executable)
 					{
-						Receipt.Launch = Pair.Key;
-						break;
+						if (System.IO.Path.GetFileNameWithoutExtension(Pair.Key.FullName).EndsWith("-Cmd"))
+						{
+							Receipt.LaunchCmd = Pair.Key;
+						}
+						else
+						{
+							Receipt.Launch = Pair.Key;
+						}
+
+						if ( Receipt.Launch != null && Receipt.LaunchCmd != null )
+						{
+							break;
+						}
 					}
 				}
 			}
