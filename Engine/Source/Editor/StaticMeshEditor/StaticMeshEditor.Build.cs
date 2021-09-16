@@ -46,6 +46,8 @@ public class StaticMeshEditor : ModuleRules
 				"StaticMeshDescription",
 				"ToolMenus",
 				"DetailCustomizations",
+				"StatusBar",
+				"WorkspaceMenuStructure",
 				"PhysicsUtilities",
 			}
 		);
@@ -55,7 +57,6 @@ public class StaticMeshEditor : ModuleRules
 				"SceneOutliner",
 				"ClassViewer",
 				"ContentBrowser",
-				"WorkspaceMenuStructure",
                 "MeshReductionInterface",
             }
 		);

@@ -52,6 +52,11 @@
 #include "EditorViewportTabContent.h"
 #include "EditorViewportLayout.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
+#include "EditorModeManager.h"
+#include "StaticMeshEditorModeUILayer.h"
+#include "AssetEditorModeManager.h"
+#include "Engine/Selection.h"
+
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditor"
 
@@ -261,10 +266,25 @@ void FStaticMeshEditor::InitStaticMeshEditor( const EToolkitMode::Type Mode, con
 	const bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, StaticMeshEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultToolbar, bCreateDefaultStandaloneMenu, ObjectToEdit );
 
+	
+	TSharedPtr<class IToolkitHost> PinnedToolkitHost = ToolkitHost.Pin();
+	check(PinnedToolkitHost.IsValid());
+	ModeUILayer = MakeShareable(new FStaticMeshEditorModeUILayer(PinnedToolkitHost.Get()));
+
+
 	ExtendMenu();
 	ExtendToolBar();
 	RegenerateMenusAndToolbars();
 	GenerateSecondaryToolbar();
+}
+
+
+void FStaticMeshEditor::PostInitAssetEditor()
+{
+	// (Copied from FUVEditorToolkit::PostInitAssetEditor)
+	// We need the viewport client to start out focused, or else it won't get ticked until we click inside it.
+	FStaticMeshEditorViewportClient& ViewportClient = GetStaticMeshViewport()->GetViewportClient();
+	ViewportClient.ReceivedFocus(ViewportClient.Viewport);
 }
 
 void FStaticMeshEditor::GenerateSecondaryToolbar()
@@ -926,6 +946,16 @@ void FStaticMeshEditor::ExtendToolBar()
 	AddToolbarExtender(ToolbarExtender);
 
 	IStaticMeshEditorModule* StaticMeshEditorModule = &FModuleManager::LoadModuleChecked<IStaticMeshEditorModule>("StaticMeshEditor");
+
+	TArray<IStaticMeshEditorModule::FStaticMeshEditorToolbarExtender> ToolbarExtenderDelegates = StaticMeshEditorModule->GetAllStaticMeshEditorToolbarExtenders();
+	for (auto& ToolbarExtenderDelegate : ToolbarExtenderDelegates)
+	{
+		if (ToolbarExtenderDelegate.IsBound())
+		{
+			AddToolbarExtender(ToolbarExtenderDelegate.Execute(GetToolkitCommands(), SharedThis(this)));
+		}
+	}
+
 	EditorToolbarExtender = StaticMeshEditorModule->GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects());
 	AddToolbarExtender(EditorToolbarExtender);
 	AddSecondaryToolbarExtender(StaticMeshEditorModule->GetSecondaryToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
@@ -2484,6 +2514,67 @@ TStatId FStaticMeshEditor::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FStaticMeshEditor, STATGROUP_TaskGraphTasks);
 }
 
+void FStaticMeshEditor::AddViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget)
+{
+	TSharedPtr<SStaticMeshEditorViewport> Viewport = GetStaticMeshViewport();
+
+	if (Viewport.IsValid() && Viewport->GetViewportOverlay().IsValid())
+	{
+		Viewport->GetViewportOverlay()->AddSlot()
+		[
+			InOverlaidWidget
+		];
+	}
+}
+
+void FStaticMeshEditor::RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget)
+{
+	TSharedPtr<SStaticMeshEditorViewport> Viewport = GetStaticMeshViewport();
+
+	if (Viewport.IsValid() && Viewport->GetViewportOverlay().IsValid())
+	{
+		Viewport->GetViewportOverlay()->RemoveSlot(InViewportOverlayWidget);
+	}
+}
+
+
+void FStaticMeshEditor::CreateEditorModeManager()
+{
+	//
+	// This function doesn't actually create a new manager -- it assigns StaticMeshEditorViewport->GetViewportClient().GetModeTools() 
+	// to this->EditorModeManager. This is because these two pointers should refer to the same mode manager object, and currently
+	// the ViewPortClient's ModeTools object is created first.
+	// 
+	// This function also:
+	// - sets the manager's PreviewScene to be StaticMeshEditorViewport->GetPreviewScene()
+	// - adds StaticMeshEditorViewport->GetStaticMeshComponent() to the manager's ComponentSet (i.e. selected mesh components)
+	// 
+	
+	TSharedPtr<FAssetEditorModeManager> NewManager = MakeShared<FAssetEditorModeManager>();
+
+	TSharedPtr<SStaticMeshEditorViewport> StaticMeshEditorViewport = GetStaticMeshViewport();
+	if (StaticMeshEditorViewport.IsValid())
+	{
+		TSharedPtr<FEditorModeTools> SharedModeTools = StaticMeshEditorViewport->GetViewportClient().GetModeTools()->AsShared();
+		NewManager = StaticCastSharedPtr<FAssetEditorModeManager>(SharedModeTools);
+		check(NewManager.IsValid());
+
+		TSharedRef<FAdvancedPreviewScene> PreviewScene = StaticMeshEditorViewport->GetPreviewScene();
+		NewManager->SetPreviewScene(&PreviewScene.Get());
+
+		UStaticMeshComponent* const Component = StaticMeshEditorViewport->GetStaticMeshComponent();
+
+		// Copied from FPersonaEditorModeManager::SetPreviewScene(FPreviewScene * NewPreviewScene)
+		USelection* ComponentSet = NewManager->GetSelectedComponents();
+		ComponentSet->BeginBatchSelectOperation();
+		ComponentSet->DeselectAll();
+		ComponentSet->Select(Component, true);
+		ComponentSet->EndBatchSelectOperation();
+	}
+
+	EditorModeManager = NewManager;
+}
+
 bool FStaticMeshEditor::CanRemoveUVChannel()
 {
 	// Can remove UV channel if there's one that is currently being selected and displayed, 
@@ -2902,6 +2993,17 @@ void FStaticMeshEditor::RemoveCurrentUVChannel()
 			RefreshTool();
 		}
 	}
+}
+
+void FStaticMeshEditor::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
+{
+	ModeUILayer->OnToolkitHostingStarted(Toolkit);
+}
+
+
+void FStaticMeshEditor::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
+{
+	ModeUILayer->OnToolkitHostingFinished(Toolkit);
 }
 
 #undef LOCTEXT_NAMESPACE
