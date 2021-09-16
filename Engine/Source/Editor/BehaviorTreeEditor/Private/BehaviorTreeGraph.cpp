@@ -61,7 +61,7 @@ void UBehaviorTreeGraph::UpdateBlackboardChange()
 			UBTNode* MyNodeInstance = Cast<UBTNode>(MyNode->NodeInstance);
 			if (MyNodeInstance)
 			{
-				UBehaviorTreeTypes::SetBTLoggingContext(MyNodeInstance);
+				FScopedBTLoggingContext LogContext(MyNodeInstance);
 				MyNodeInstance->InitializeFromAsset(*BTAsset);
 			}
 
@@ -70,7 +70,7 @@ void UBehaviorTreeGraph::UpdateBlackboardChange()
 				UBTNode* DecoratorNodeInstance = MyNode->Decorators[iDecorator] ? Cast<UBTNode>(MyNode->Decorators[iDecorator]->NodeInstance) : NULL;
 				if (DecoratorNodeInstance)
 				{
-					UBehaviorTreeTypes::SetBTLoggingContext(DecoratorNodeInstance);
+					FScopedBTLoggingContext LogContext(DecoratorNodeInstance);
 					DecoratorNodeInstance->InitializeFromAsset(*BTAsset);
 				}
 
@@ -86,12 +86,10 @@ void UBehaviorTreeGraph::UpdateBlackboardChange()
 				UBTNode* ServiceNodeInstance = MyNode->Services[iService] ? Cast<UBTNode>(MyNode->Services[iService]->NodeInstance) : NULL;
 				if (ServiceNodeInstance)
 				{
-					UBehaviorTreeTypes::SetBTLoggingContext(ServiceNodeInstance);
+					FScopedBTLoggingContext LogContext(ServiceNodeInstance);
 					ServiceNodeInstance->InitializeFromAsset(*BTAsset);
 				}
 			}
-
-			UBehaviorTreeTypes::SetBTLoggingContext(nullptr);
 		}
 	}
 }

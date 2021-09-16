@@ -143,7 +143,10 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 	UBehaviorTree& TreeAsset, UObject* NodeOuter)
 {
 	InitList.Add(FNodeInitializationData(NodeOb, ParentNode, ExecutionIndex, TreeDepth, NodeOb->GetInstanceMemorySize(), NodeOb->GetSpecialMemorySize()));
-	NodeOb->InitializeFromAsset(TreeAsset);
+	{
+		FScopedBTLoggingContext LogContext(NodeOb);
+		NodeOb->InitializeFromAsset(TreeAsset);
+	}
 	ExecutionIndex++;
 
 	UBTCompositeNode* CompositeOb = Cast<UBTCompositeNode>(NodeOb);
@@ -167,6 +170,7 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 			InitList.Add(FNodeInitializationData(Service, CompositeOb, ExecutionIndex, TreeDepth,
 				Service->GetInstanceMemorySize(), Service->GetSpecialMemorySize()));
 
+			FScopedBTLoggingContext LogContext(Service);
 			Service->InitializeFromAsset(TreeAsset);
 			// don't initialize parent link for services on composite node
 			ExecutionIndex++;
@@ -193,6 +197,7 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 				InitList.Add(FNodeInitializationData(Decorator, CompositeOb, ExecutionIndex, TreeDepth,
 					Decorator->GetInstanceMemorySize(), Decorator->GetSpecialMemorySize()));
 
+				FScopedBTLoggingContext LogContext(Decorator);
 				Decorator->InitializeFromAsset(TreeAsset);
 				Decorator->InitializeParentLink(ChildIndex);
 				ExecutionIndex++;
@@ -223,6 +228,7 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 
 					// initialize with parent tree
 					Decorator->MarkInjectedNode();
+					FScopedBTLoggingContext LogContext(Decorator);
 					Decorator->InitializeFromAsset(TreeAsset);
 					Decorator->InitializeParentLink(ChildIndex);
 					ExecutionIndex++;
@@ -262,6 +268,7 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 					InitList.Add(FNodeInitializationData(Service, CompositeOb, ExecutionIndex, TreeDepth,
 						Service->GetInstanceMemorySize(), Service->GetSpecialMemorySize()));
 
+					FScopedBTLoggingContext LogContext(Service);
 					Service->InitializeFromAsset(TreeAsset);
 					Service->InitializeParentLink(ChildIndex);
 					ExecutionIndex++;

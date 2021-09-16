@@ -668,3 +668,18 @@ public:
 	// 	pass nullptr to clear
 	static void SetBTLoggingContext(const UBTNode* NewBTLoggingContext);
 };
+
+/** Helper struct to push a node as the new logging context and automatically reset the context on destruction. */
+struct FScopedBTLoggingContext
+{
+	FScopedBTLoggingContext() = delete;
+	explicit FScopedBTLoggingContext(const UBTNode* Context)
+	{
+		UBehaviorTreeTypes::SetBTLoggingContext(Context);
+	}
+
+	~FScopedBTLoggingContext()
+	{
+		UBehaviorTreeTypes::SetBTLoggingContext(nullptr);
+	}
+};
