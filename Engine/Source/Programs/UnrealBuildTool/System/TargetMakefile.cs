@@ -22,7 +22,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 24;
+		public const int CurrentVersion = 25;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -176,6 +176,11 @@ namespace UnrealBuildTool
 		public HashSet<FileItem> InternalDependencies = new HashSet<FileItem>();
 
 		/// <summary>
+		/// TargetRules-set memory estimate per action. Used to control the number of parallel actions that are spawned.
+		/// </summary>
+		public double MemoryPerActionGB = 0.0;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ExternalMetadata">External build metadata from the platform</param>
@@ -250,6 +255,7 @@ namespace UnrealBuildTool
 			PluginFiles = Reader.ReadHashSet(() => Reader.ReadFileItem());
 			ExternalDependencies = Reader.ReadHashSet(() => Reader.ReadFileItem());
 			InternalDependencies = Reader.ReadHashSet(() => Reader.ReadFileItem());
+			MemoryPerActionGB = Reader.ReadDouble();
 		}
 
 		/// <summary>
@@ -286,6 +292,7 @@ namespace UnrealBuildTool
 			Writer.WriteHashSet(PluginFiles, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(ExternalDependencies, x => Writer.WriteFileItem(x));
 			Writer.WriteHashSet(InternalDependencies, x => Writer.WriteFileItem(x));
+			Writer.WriteDouble(MemoryPerActionGB);
 		}
 
 		/// <summary>

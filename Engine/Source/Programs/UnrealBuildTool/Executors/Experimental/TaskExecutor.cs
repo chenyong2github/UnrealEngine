@@ -59,7 +59,13 @@ namespace UnrealBuildTool
 
 		public static int GetDefaultNumParallelProcesses()
 		{
-			return Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytes));
+			double MemoryPerActionBytesComputed = Math.Max(MemoryPerActionBytes, MemoryPerActionBytesOverride);
+			if (MemoryPerActionBytesComputed > MemoryPerActionBytes)
+			{
+				Log.TraceInformation($"Overriding MemoryPerAction with target-defined value of {MemoryPerActionBytesComputed / 1024 / 1024 / 1024} bytes");
+			}
+
+			return Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytesComputed));
 		}
 
 		/// <summary>

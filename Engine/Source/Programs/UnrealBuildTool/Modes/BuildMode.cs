@@ -591,6 +591,8 @@ namespace UnrealBuildTool
 
 						OutputToolchainInfo(TargetDescriptors, Makefiles);
 
+						ActionExecutor.SetMemoryPerActionOverride(Makefiles.Select(x => x.MemoryPerActionGB).Max());
+
 						using(Timeline.ScopeEvent("ActionGraph.ExecuteActions()"))
 						{
 							ActionGraph.ExecuteActions(BuildConfiguration, MergedActionsToExecute);
@@ -726,6 +728,8 @@ namespace UnrealBuildTool
 				{
 					Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor.SpecificFilesToCompile);
 				}
+
+				Makefile.MemoryPerActionGB = Target.Rules.MemoryPerActionGB;
 
 				// Save the pre-build scripts onto the makefile
 				Makefile.PreBuildScripts = PreBuildScripts;

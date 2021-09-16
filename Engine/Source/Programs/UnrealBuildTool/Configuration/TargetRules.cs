@@ -1574,6 +1574,11 @@ namespace UnrealBuildTool
 		[CommandLine("-LinkerArguments=")]
 		public string? AdditionalLinkerArguments;
 
+		/// <summary>
+		/// Max amount of memory that each compile action may require. Used by ParallelExecutor and TaskExecutor to decide the maximum 
+		/// number of parallel actions to start at one time.
+		/// </summary>
+		public double MemoryPerActionGB = 0.0;
 
 		/// <summary>
 		/// List of modules to disable unity builds for
@@ -2840,6 +2845,11 @@ namespace UnrealBuildTool
 		public string? AdditionalLinkerArguments
 		{
 			get { return Inner.AdditionalLinkerArguments; }
+		}
+
+		public double MemoryPerActionGB
+		{
+			get { return Inner.MemoryPerActionGB; }
 		}
 
 		public string? GeneratedProjectName
