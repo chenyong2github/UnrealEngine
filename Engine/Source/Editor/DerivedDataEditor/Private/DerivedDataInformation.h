@@ -19,10 +19,10 @@ public:
 
 	static double				GetCacheActivityTimeSeconds(bool bGet, bool bLocal);
 	static double				GetCacheActivitySizeBytes(bool bGet, bool bLocal);
-	static bool					GetHasLocalCache();
 	static bool					GetHasRemoteCache();
-	static void					UpdateRemoteCacheState();
 	static ERemoteCacheState	GetRemoteCacheState() { return RemoteCacheState; }
+	static FText				GetRemoteCacheStateAsText();
+	static void					UpdateRemoteCacheState();
 	static bool					IsUploading() { return bIsUploading; }
 	static bool					IsDownloading() { return bIsDownloading; }
 

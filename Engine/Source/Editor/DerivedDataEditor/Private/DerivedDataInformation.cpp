@@ -108,31 +108,6 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 	return (double)TotalCycles * FPlatformTime::GetSecondsPerCycle();
 }
 
-bool FDerivedDataInformation::GetHasLocalCache()
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
-	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
-		if (Node->Children.Num() == 0)
-		{
-			LeafUsageStats.Add(Node);
-		}
-		});
-
-	for (int32 Index = 0; Index < LeafUsageStats.Num(); Index++)
-	{
-		const FDerivedDataBackendInterface* Backend = LeafUsageStats[Index]->GetBackendInterface();
-
-		if (Backend->GetSpeedClass() == FDerivedDataBackendInterface::ESpeedClass::Local)
-			return true;
-	}
-
-	return false;
-}
-
-
 bool FDerivedDataInformation::GetHasRemoteCache()
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -185,6 +160,38 @@ void FDerivedDataInformation::UpdateRemoteCacheState()
 		}
 	}
 
+}
+
+
+FText FDerivedDataInformation::GetRemoteCacheStateAsText()
+{
+	switch (FDerivedDataInformation::GetRemoteCacheState())
+	{
+	case ERemoteCacheState::Idle:
+	{
+		return FText::FromString(TEXT("Idle"));
+		break;
+	}
+
+	case ERemoteCacheState::Busy:
+	{
+		return FText::FromString(TEXT("Busy"));
+		break;
+	}
+
+	case ERemoteCacheState::Unavailable:
+	{
+		return FText::FromString(TEXT("Unavailable"));
+		break;
+	}
+
+	default:
+	case ERemoteCacheState::Warning:
+	{
+		return FText::FromString(TEXT("Warning"));
+		break;
+	}
+	}
 }
 
 
