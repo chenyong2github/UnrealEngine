@@ -8,7 +8,6 @@
 #include "Editor.h"
 #include "EditorMetadataOverrides.h"
 #include "IDetailDragDropHandler.h"
-#include "IDetailKeyframeHandler.h"
 #include "IDetailPropertyExtensionHandler.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyEditorConstants.h"
@@ -31,8 +30,8 @@
 
 namespace DetailWidgetConstants
 {
-	const FMargin LeftRowPadding( 20.0f, 2.5f, 10.0f, 2.5f );
-	const FMargin RightRowPadding( 12.0f, 2.5f, 2.0f, 2.5f );
+	const FMargin LeftRowPadding( 20.0f, 0.0f, 10.0f, 0.0f );
+	const FMargin RightRowPadding( 12.0f, 0.0f, 2.0f, 0.0f );
 }
 
 namespace SDetailSingleItemRow_Helper
@@ -452,7 +451,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			NameColumnBox->AddSlot()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
-				.Padding(8,0,0,0)
+				.Padding(2,0,0,0)
 				.AutoWidth()
 				[
 					SNew(SDetailExpanderArrow, SharedThis(this))
@@ -461,7 +460,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			NameColumnBox->AddSlot()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Left)
-				.Padding(3,0,0,0)
+				.Padding(2,0,0,0)
 				.AutoWidth()
 				[
 					SNew(SEditConditionWidget)
@@ -474,18 +473,38 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				NameColumnBox->AddSlot()
 					.HAlign(WidgetRow.NameWidget.HorizontalAlignment)
 					.VAlign(WidgetRow.NameWidget.VerticalAlignment)
-					.Padding(5,0,0,0)
+					.Padding(2,0,0,0)
 					[
 						NameWidget.ToSharedRef()
 					];
-		
-				Splitter->AddSlot()
-					.Value(ColumnSizeData.NameColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnNameColumnResized)
+			}
+			else
+			{
+				// create whole row widget, which takes up both the Name and Value columns:
+				// | Name | Value | Right |
+				NameColumnBox->SetEnabled(IsEnabledAttribute);
+				NameColumnBox->AddSlot()
+					.HAlign(WidgetRow.WholeRowWidget.HorizontalAlignment)
+					.VAlign(WidgetRow.WholeRowWidget.VerticalAlignment)
+					.Padding(2,0,0,0)
+					[
+						WidgetRow.WholeRowWidget.Widget
+					];
+			}
+
+			Splitter->AddSlot()
+				.Value(ColumnSizeData.PropertyColumnWidth)
+				.OnSlotResized(ColumnSizeData.OnPropertyColumnResized)
+				[
+					SNew(SBox)
+					.MinDesiredHeight(PropertyEditorConstants::PropertyRowHeight)
 					[
 						NameColumnBox
-					];
+					]
+				];
 
+			if (bHasMultipleColumns)
+			{
 				// create Value column:
 				// | Name | Value | Right |
 				Splitter->AddSlot()
@@ -510,24 +529,6 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 						[
 							ExtensionWidget.ToSharedRef()
 						]
-					];
-			}
-			else
-			{
-				NameColumnBox->SetEnabled(IsEnabledAttribute);
-				NameColumnBox->AddSlot()
-					.HAlign(WidgetRow.WholeRowWidget.HorizontalAlignment)
-					.VAlign(WidgetRow.WholeRowWidget.VerticalAlignment)
-					.Padding(5,0,0,0)
-					[
-						WidgetRow.WholeRowWidget.Widget
-					];
-
-				Splitter->AddSlot()
-					.Value(ColumnSizeData.PropertyColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnPropertyColumnResized)
-					[
-						NameColumnBox
 					];
 			}
 
@@ -577,16 +578,11 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 				SNew(SBorder)
 				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
 				.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
 				.Padding(0)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Center)
-					.Padding(5,0,5,0)
-					[
-						ToolbarBuilder.MakeWidget()
-					]
+					ToolbarBuilder.MakeWidget()
 				]
 			];
 		}
@@ -687,17 +683,12 @@ void SDetailSingleItemRow::OnResetToDefaultClicked() const
 /** Get the background color of the outer part of the row, which contains the edit condition and extension widgets. */
 FSlateColor SDetailSingleItemRow::GetOuterBackgroundColor() const
 {
-	if (IsHighlighted())
+	if (IsHighlighted() || DragOperation.IsValid())
 	{
 		return FAppStyle::Get().GetSlateColor("Colors.Hover");
 	}
 
-	if (IsHovered())
-	{
-		return FAppStyle::Get().GetSlateColor("Colors.Header");
-	}
-
-	return FAppStyle::Get().GetSlateColor("Colors.Panel");
+	return PropertyEditorConstants::GetRowBackgroundColor(0, this->IsHovered());
 }
 
 /** Get the background color of the inner part of the row, which contains the name and value widgets. */
@@ -708,18 +699,8 @@ FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
 		return FAppStyle::Get().GetSlateColor("Colors.Hover");
 	}
 
-	if (IsHovered())
-	{
-		return FAppStyle::Get().GetSlateColor("Colors.Header");
-	}
-	
-	if (DragOperation.IsValid())
-	{
-		return FAppStyle::Get().GetSlateColor("Colors.Hover");
-	}
-
-	int32 IndentLevel = GetIndentLevelForBackgroundColor();
-	return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel);
+	const int32 IndentLevel = GetIndentLevelForBackgroundColor();
+	return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel, this->IsHovered());
 }
 
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
@@ -1167,7 +1148,6 @@ void SDetailSingleItemRow::CreateGlobalExtensionWidgets(TArray<FPropertyRowExten
 	FOnGenerateGlobalRowExtensionArgs Args;
 	Args.OwnerTreeNode = OwnerTreeNode;
 
-	
 	if (Customization->HasPropertyNode())
 	{
 		Args.PropertyHandle = PropertyEditorHelpers::GetPropertyHandle(Customization->GetPropertyNode().ToSharedRef(), nullptr, nullptr);

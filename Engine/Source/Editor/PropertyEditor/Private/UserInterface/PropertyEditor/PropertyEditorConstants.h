@@ -18,7 +18,9 @@ public:
 	static const FName MD_BitmaskEnum;
 	static const FName MD_UseEnumValuesAsMaskValuesInEditor;
 
-	static const FSlateBrush* GetOverlayBrush( const TSharedRef< class FPropertyEditor > PropertyEditor );
+	static constexpr float PropertyRowHeight = 26.0f;
 
-	static FSlateColor GetRowBackgroundColor(int32 IndentLevel);
+	static const FSlateBrush* GetOverlayBrush(const TSharedRef<class FPropertyEditor> PropertyEditor);
+
+	static FSlateColor GetRowBackgroundColor(int32 IndentLevel, bool IsHovered);
 };

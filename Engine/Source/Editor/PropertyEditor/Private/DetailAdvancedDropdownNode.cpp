@@ -1,23 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailAdvancedDropdownNode.h"
+
+#include "PropertyCustomizationHelpers.h"
+#include "SDetailRowIndent.h"
+#include "SDetailTableRowBase.h"
+#include "Styling/StyleColors.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "SDetailTableRowBase.h"
-#include "PropertyCustomizationHelpers.h"
 
 class SAdvancedDropdownRow : public SDetailTableRowBase
 {
 public:
-	SLATE_BEGIN_ARGS( SAdvancedDropdownRow )
-		: _IsExpanded( false )
-		, _IsButtonEnabled( true )
-		, _ShouldShowAdvancedButton( false )
+	SLATE_BEGIN_ARGS(SAdvancedDropdownRow)
+		: _IsExpanded(false)
+		, _IsButtonEnabled(true)
 	{}
-		SLATE_ATTRIBUTE( bool, IsExpanded )
-		SLATE_ATTRIBUTE( bool, IsButtonEnabled )
-		SLATE_ARGUMENT( bool, ShouldShowAdvancedButton )
-		SLATE_EVENT( FOnClicked, OnClicked )
+		SLATE_ATTRIBUTE(bool, IsExpanded)
+		SLATE_ATTRIBUTE(bool, IsButtonEnabled)
+		SLATE_ARGUMENT(bool, IsVisible)
+		SLATE_EVENT(FOnClicked, OnClicked)
 	SLATE_END_ARGS()
 
 	/**
@@ -25,91 +28,107 @@ public:
 	 *
 	 * @param InArgs   A declaration from which to construct the widget
 	 */
-	void Construct( const FArguments& InArgs, IDetailsViewPrivate* InDetailsView, const TSharedRef<STableViewBase>& InOwnerTableView, bool bIsTopNode, bool bInDisplayShowAdvancedMessage)
+	void Construct( const FArguments& InArgs, IDetailsViewPrivate* InDetailsView, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
 		IsExpanded = InArgs._IsExpanded;
 		DetailsView = InDetailsView;
-		bDisplayShowAdvancedMessage = bInDisplayShowAdvancedMessage;
 
 		TSharedPtr<SWidget> ContentWidget;
-		if( bIsTopNode )
-		{
-			ContentWidget = SNew(SImage)
-				.Image(FEditorStyle::GetBrush("DetailsView.AdvancedDropdownBorder.Open"));
-		}
-		else if( InArgs._ShouldShowAdvancedButton )
-		{
-			ContentWidget = 		
-				SNew( SVerticalBox )
-				+ SVerticalBox::Slot()
-				.HAlign( HAlign_Center )
-				.AutoHeight()
-				[
-					SNew( STextBlock )
-					.Text( NSLOCTEXT("DetailsView", "NoSimpleProperties", "Click the arrow to display advanced properties") )
-					.Font( IDetailLayoutBuilder::GetDetailFont() )
-					.Visibility( this, &SAdvancedDropdownRow::OnGetHelpTextVisibility )
-					.ColorAndOpacity(FLinearColor(1,1,1,.5))
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SAssignNew(ExpanderButton, SButton)
-					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-					.HAlign(HAlign_Center)
-					.ContentPadding(2)
-					.OnClicked(InArgs._OnClicked)
-					.IsEnabled(InArgs._IsButtonEnabled)
-					.ToolTipText(this, &SAdvancedDropdownRow::GetAdvancedPulldownToolTipText )
-					[
-						SNew(SImage)
-						.Image(this, &SAdvancedDropdownRow::GetAdvancedPulldownImage)
-					]
-				];
-		}
-		else
-		{
-			ContentWidget = SNew(SSpacer);
-		}
 
-		const FSlateBrush* ScrollBarWellBrush = FAppStyle::Get().GetBrush("DetailsView.GridLine");
-		const FSlateBrush* BackgroundBrush = FAppStyle::Get().GetBrush("DetailsView.AdvancedDropdownBorder");
-
-		TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
-		auto GetScrollbarWellBrush = [OwnerTableViewWeak, ScrollBarWellBrush, BackgroundBrush]()
+		if (InArgs._IsVisible)
 		{
-			return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ? ScrollBarWellBrush : BackgroundBrush;
-		};
-
-		ChildSlot
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
-			.Padding(bIsTopNode ? FMargin(0) : FMargin(0, 0, 0, 1))
+			ContentWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Fill)
+			.AutoWidth()
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Fill)
-				.HAlign(HAlign_Fill)
+				SNew(SDetailRowIndent, SharedThis(this))
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(2, 0, 0, 0)
+			.AutoWidth()
+			[
+				SAssignNew(ExpanderButton, SButton)
+				.ButtonStyle(FCoreStyle::Get(), "NoBorder")
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.ClickMethod(EButtonClickMethod::MouseDown)
+				.OnClicked(InArgs._OnClicked)
+				.IsEnabled(InArgs._IsButtonEnabled)
+				.ContentPadding(0)
+				.IsFocusable(false)
+				.ToolTipText(this, &SAdvancedDropdownRow::GetAdvancedPulldownToolTipText )
 				[
-					SNew(SBorder)
-					.BorderImage(FAppStyle::Get().GetBrush("DetailsView.AdvancedDropdownBorder"))
-					.Padding(bIsTopNode ? FMargin(0, 0, 0, 2) : FMargin(0, 3, 0, 2))
-					[
-						ContentWidget.ToSharedRef()
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Fill)
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					SNew(SBorder)
-					.BorderImage_Lambda(GetScrollbarWellBrush)
-					.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
+					SNew(SImage)
+					.Image(this, &SAdvancedDropdownRow::GetExpanderImage)
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 				]
 			]
-		];
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Fill)
+			.Padding(4, 0, 0, 0)
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.HeightOverride(PropertyEditorConstants::PropertyRowHeight)
+				[
+					SNew(STextBlock)
+					.Text(NSLOCTEXT("PropertyEditor", "Advanced", "Advanced"))
+					.Font(FAppStyle::Get().GetFontStyle(PropertyEditorConstants::PropertyFontStyle))
+					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+				]
+			];
+
+			TWeakPtr<STableViewBase> OwnerTableViewWeak = InOwnerTableView;
+			auto GetScrollbarWellBrush = [this, OwnerTableViewWeak]()
+			{
+				return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ?
+					FAppStyle::Get().GetBrush("DetailsView.GridLine") : 
+					FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle");
+			};
+
+			auto GetScrollbarWellTint = [this, OwnerTableViewWeak]()
+			{
+				return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ?
+					FStyleColors::White : 
+					this->GetRowBackgroundColor();
+			};
+
+			ChildSlot
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
+				.Padding(FMargin(0, 0, 0, 1))
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					[
+						SNew(SBorder)
+						.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+						.BorderBackgroundColor(this, &SAdvancedDropdownRow::GetRowBackgroundColor)
+						.Padding(0)
+						[
+							ContentWidget.ToSharedRef()
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Fill)
+					.AutoWidth()
+					[
+						SNew(SBorder)
+						.BorderImage_Lambda(GetScrollbarWellBrush)
+						.BorderBackgroundColor_Lambda(GetScrollbarWellTint)
+						.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
+					]
+				]
+			];
+		}
 
 		STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(
 			STableRow::FArguments()
@@ -121,27 +140,51 @@ public:
 
 private:
 
-	EVisibility OnGetHelpTextVisibility() const
-	{
-		return bDisplayShowAdvancedMessage && !IsExpanded.Get() ? EVisibility::Visible : EVisibility::Collapsed;
-	}
-
 	FText GetAdvancedPulldownToolTipText() const
 	{
 		return IsExpanded.Get() ? NSLOCTEXT("DetailsView", "HideAdvanced", "Hide Advanced") : NSLOCTEXT("DetailsView", "ShowAdvanced", "Show Advanced");
 	}
 
-	const FSlateBrush* GetAdvancedPulldownImage() const
+	const FSlateBrush* GetExpanderImage() const
 	{
-		if( ExpanderButton->IsHovered() )
+		const bool bIsItemExpanded = IsExpanded.Get();
+
+		FName ResourceName;
+		if (bIsItemExpanded)
 		{
-			return IsExpanded.Get() ? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered") : FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
+			if (ExpanderButton->IsHovered())
+			{
+				static const FName ExpandedHoveredName = "TreeArrow_Expanded_Hovered";
+				ResourceName = ExpandedHoveredName;
+			}
+			else
+			{
+				static const FName ExpandedName = "TreeArrow_Expanded";
+				ResourceName = ExpandedName;
+			}
 		}
 		else
 		{
-			return IsExpanded.Get() ? FEditorStyle::GetBrush("DetailsView.PulldownArrow.Up") : FEditorStyle::GetBrush("DetailsView.PulldownArrow.Down");
+			if (ExpanderButton->IsHovered())
+			{
+				static const FName CollapsedHoveredName = "TreeArrow_Collapsed_Hovered";
+				ResourceName = CollapsedHoveredName;
+			}
+			else
+			{
+				static const FName CollapsedName = "TreeArrow_Collapsed";
+				ResourceName = CollapsedName;
+			}
 		}
+
+		return FAppStyle::Get().GetBrush(ResourceName);
 	}
+
+	FSlateColor GetRowBackgroundColor() const
+	{
+		return PropertyEditorConstants::GetRowBackgroundColor(0, this->IsHovered());
+	}
+
 
 private:
 	TAttribute<bool> IsExpanded;
@@ -152,11 +195,10 @@ private:
 
 TSharedRef< ITableRow > FAdvancedDropdownNode::GenerateWidgetForTableView( const TSharedRef<STableViewBase>& OwnerTable, bool bAllowFavoriteSystem)
 {
-	return SNew( SAdvancedDropdownRow, ParentCategory.GetDetailsView(), OwnerTable, bIsTopNode, bDisplayShowAdvancedMessage )
-		.OnClicked( this, &FAdvancedDropdownNode::OnAdvancedDropDownClicked )
-		.IsButtonEnabled( IsEnabled )
-		.IsExpanded( IsExpanded )
-		.ShouldShowAdvancedButton( bShouldShowAdvancedButton );
+	return SNew(SAdvancedDropdownRow, ParentCategory.GetDetailsView(), OwnerTable)
+		.OnClicked(this, &FAdvancedDropdownNode::OnAdvancedDropDownClicked)
+		.IsButtonEnabled(IsEnabled)
+		.IsExpanded(IsExpanded);
 }
 
 bool FAdvancedDropdownNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const

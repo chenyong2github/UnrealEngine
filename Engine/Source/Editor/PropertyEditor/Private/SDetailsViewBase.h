@@ -94,9 +94,9 @@ public:
 	virtual FIsPropertyEditingEnabled& GetIsPropertyEditingEnabledDelegate() override { return IsPropertyEditingEnabledDelegate; }
 	virtual bool IsPropertyEditingEnabled() const override;
 	virtual void SetKeyframeHandler(TSharedPtr<class IDetailKeyframeHandler> InKeyframeHandler) override;
-	virtual TSharedPtr<IDetailKeyframeHandler> GetKeyframeHandler() override;
+	virtual TSharedPtr<IDetailKeyframeHandler> GetKeyframeHandler() const override { return KeyframeHandler; }
 	virtual void SetExtensionHandler(TSharedPtr<class IDetailPropertyExtensionHandler> InExtensionHandler) override;
-	virtual TSharedPtr<IDetailPropertyExtensionHandler> GetExtensionHandler() override;
+	virtual TSharedPtr<IDetailPropertyExtensionHandler> GetExtensionHandler() const override { return ExtensionHandler; }
 	virtual bool IsPropertyVisible(const struct FPropertyAndParent& PropertyAndParent) const override;
 	virtual bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const override;
 	virtual bool IsCustomRowVisible(FName InRowName, FName InParentName) const override;

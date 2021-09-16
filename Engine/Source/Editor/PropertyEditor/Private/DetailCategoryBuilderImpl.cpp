@@ -917,11 +917,10 @@ void FDetailCategoryImpl::GenerateChildrenForLayouts()
 	// Generate nodes for advanced dropdowns
 	if (AdvancedChildNodes.Num() > 0)
 	{
-		TAttribute<bool> ShowAdvanced(this, &FDetailCategoryImpl::ShouldShowAdvanced);
 		TAttribute<bool> IsEnabled(this, &FDetailCategoryImpl::IsAdvancedDropdownEnabled);
+		TAttribute<bool> IsExpanded(this, &FDetailCategoryImpl::ShouldShowAdvanced);
 
-		AdvancedDropdownNodeTop = MakeShared<FAdvancedDropdownNode>(AsShared(), true);
-		AdvancedDropdownNodeBottom = MakeShared<FAdvancedDropdownNode>(AsShared(), ShowAdvanced, IsEnabled, AdvancedChildNodes.Num() > 0, SimpleChildNodes.Num() == 0);
+		AdvancedDropdownNode = MakeShared<FAdvancedDropdownNode>(AsShared(), IsExpanded, IsEnabled, AdvancedChildNodes.Num() > 0);
 	}
 }
 
@@ -948,32 +947,30 @@ void FDetailCategoryImpl::GetGeneratedChildren(FDetailNodeList& OutChildren, boo
 		}
 	}
 
-	if (!bIgnoreAdvancedDropdown && ShouldShowAdvanced())
+	if (!bIgnoreAdvancedDropdown)
 	{
-		if (AdvancedDropdownNodeTop.IsValid())
+		if (AdvancedChildNodes.Num() > 0 && AdvancedDropdownNode.IsValid())
 		{
-			OutChildren.Add(AdvancedDropdownNodeTop.ToSharedRef());
+			OutChildren.Add(AdvancedDropdownNode.ToSharedRef());
 		}
 
-		for (TSharedRef<FDetailTreeNode>& Child : AdvancedChildNodes)
+		if (ShouldShowAdvanced())
 		{
-			if (bIgnoreVisibility || Child->GetVisibility() == ENodeVisibility::Visible)
+			for (TSharedRef<FDetailTreeNode>& Child : AdvancedChildNodes)
 			{
-				if (Child->ShouldShowOnlyChildren())
+				if (bIgnoreVisibility || Child->GetVisibility() == ENodeVisibility::Visible)
 				{
-					Child->GetChildren(OutChildren);
-				}
-				else
-				{
-					OutChildren.Add(Child);
+					if (Child->ShouldShowOnlyChildren())
+					{
+						Child->GetChildren(OutChildren);
+					}
+					else
+					{
+						OutChildren.Add(Child);
+					}
 				}
 			}
 		}
-	}
-
-	if (!bIgnoreAdvancedDropdown && AdvancedDropdownNodeBottom.IsValid())
-	{
-		OutChildren.Add(AdvancedDropdownNodeBottom.ToSharedRef());
 	}
 }
 
@@ -1048,8 +1045,7 @@ void FDetailCategoryImpl::GenerateLayout()
 	// Reset all children
 	SimpleChildNodes.Empty();
 	AdvancedChildNodes.Empty();
-	AdvancedDropdownNodeTop.Reset();
-	AdvancedDropdownNodeBottom.Reset();
+	AdvancedDropdownNode.Reset();
 	InlinePropertyNode.Reset();
 
 	GenerateChildrenForLayouts();

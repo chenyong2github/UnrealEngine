@@ -158,11 +158,11 @@ public:
 	virtual void SetIsPropertyEditingEnabledDelegate( FIsPropertyEditingEnabled IsPropertyEditingEnabled ) = 0;
 	virtual FIsPropertyEditingEnabled& GetIsPropertyEditingEnabledDelegate() = 0;
 
-	virtual void SetKeyframeHandler( TSharedPtr<class IDetailKeyframeHandler> InKeyframeHandler ) = 0;
-	virtual TSharedPtr<IDetailKeyframeHandler> GetKeyframeHandler() = 0;
+	virtual void SetKeyframeHandler( TSharedPtr<IDetailKeyframeHandler> InKeyframeHandler ) = 0;
+	virtual TSharedPtr<IDetailKeyframeHandler> GetKeyframeHandler() const = 0;
 
-	virtual void SetExtensionHandler(TSharedPtr<class IDetailPropertyExtensionHandler> InExtensionHandler) = 0;
-	virtual TSharedPtr<class IDetailPropertyExtensionHandler> GetExtensionHandler() = 0;
+	virtual void SetExtensionHandler(TSharedPtr<IDetailPropertyExtensionHandler> InExtensionHandler) = 0;
+	virtual TSharedPtr<IDetailPropertyExtensionHandler> GetExtensionHandler() const = 0;
 
 	/**
 	 * @return true if property editing is enabled (based on the FIsPropertyEditingEnabled delegate)

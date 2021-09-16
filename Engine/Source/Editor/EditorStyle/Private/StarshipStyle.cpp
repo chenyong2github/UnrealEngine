@@ -3219,9 +3219,9 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		Set( "DetailsView.EditConfigProperties",      new IMAGE_BRUSH("Icons/icon_PropertyMatrix_16px",  Icon16x16, FLinearColor::White ) );
 
 		Set( "DetailsView.CollapsedCategory",         new FSlateColorBrush(FStyleColors::Header));
-		Set( "DetailsView.CollapsedCategory_Hovered", new FSlateColorBrush(FStyleColors::Header));
+		Set( "DetailsView.CollapsedCategory_Hovered", new FSlateColorBrush(FStyleColors::Hover));
 		Set( "DetailsView.CategoryTop",               new FSlateColorBrush(FStyleColors::Header));
-		Set( "DetailsView.CategoryTop_Hovered",       new FSlateColorBrush(FStyleColors::Header));
+		Set( "DetailsView.CategoryTop_Hovered",       new FSlateColorBrush(FStyleColors::Hover));
 		Set( "DetailsView.CategoryBottom",            new FSlateColorBrush(FStyleColors::Recessed));
 		
 		// these are not actually displayed as white, see PropertyEditorConstants::GetRowBackgroundColor
@@ -3239,10 +3239,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 
 		Set( "DetailsView.GridLine", new FSlateColorBrush(FStyleColors::Recessed) );
 
-		Set( "DetailsView.AdvancedDropdownBorder",      new FSlateColorBrush(FStyleColors::Panel));
-		Set( "DetailsView.AdvancedDropdownBorder.Open", new IMAGE_BRUSH("Common/ScrollBoxShadowTop", FVector2D(64,8)));
-
-		Set( "DetailsView.CategoryFontStyle", FStyleFonts::Get().NormalBold);
+		Set( "DetailsView.CategoryFontStyle", FStyleFonts::Get().SmallBold);
 		Set( "DetailsView.CategoryTextStyle", FTextBlockStyle(NormalText)
 			.SetFont(GetFontStyle("DetailsView.CategoryFontStyle"))
 			.SetColorAndOpacity(FStyleColors::ForegroundHeader)
@@ -3259,26 +3256,25 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			.SetHoveredForeground(FStyleColors::ForegroundHover)
 			.SetPressedForeground(FStyleColors::ForegroundHover)
 			.SetDisabledForeground(FStyleColors::Foreground)
-			.SetNormalPadding(FMargin(0, 2, 0, 2))
-			.SetPressedPadding(FMargin(0, 3, 0, 1));
+			.SetNormalPadding(FMargin(2, 2, 2, 2))
+			.SetPressedPadding(FMargin(2, 3, 2, 1));
 
 		Set("DetailsView.ExtensionToolBar.Button", DetailsExtensionMenuButton);
 
 		FToolBarStyle DetailsExtensionToolBarStyle = FToolBarStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar"))
-			.SetBackground(FSlateNoResource())
+			.SetButtonStyle(DetailsExtensionMenuButton)
+			.SetExpandBrush(CORE_IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(4, 16)))
 			.SetIconSize(Icon16x16)
+			.SetBackground(FSlateNoResource())
 			.SetLabelPadding(FMargin(0))
 			.SetComboButtonPadding(FMargin(0))
-			.SetBlockPadding(FMargin(2, 0))
-			.SetIndentedBlockPadding(FMargin(0))
+			.SetBlockPadding(FMargin(0))
 			.SetIndentedBlockPadding(FMargin(0))
 			.SetBackgroundPadding(FMargin(0))
-			.SetButtonPadding(FMargin(2, 0))
-			.SetCheckBoxPadding(FMargin(3, 0))
-			.SetButtonStyle(DetailsExtensionMenuButton)
+			.SetButtonPadding(FMargin(0))
+			.SetCheckBoxPadding(FMargin(0))
 			.SetSeparatorBrush(FSlateNoResource())
-			.SetSeparatorPadding(FMargin(4, 0))
-			.SetExpandBrush(CORE_IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
+			.SetSeparatorPadding(FMargin(0));
 
 		Set("DetailsView.ExtensionToolBar", DetailsExtensionToolBarStyle);
 

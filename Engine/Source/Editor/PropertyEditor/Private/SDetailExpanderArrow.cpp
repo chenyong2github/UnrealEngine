@@ -13,7 +13,7 @@ void SDetailExpanderArrow::Construct(const FArguments& InArgs, TSharedRef<SDetai
 	ChildSlot
 	[
 		SNew(SConstrainedBox)
-		.MinWidth(16)
+		.MinWidth(12)
 		.Visibility(this, &SDetailExpanderArrow::GetExpanderVisibility)
 		[
 			SAssignNew(ExpanderArrow, SButton)
@@ -22,7 +22,7 @@ void SDetailExpanderArrow::Construct(const FArguments& InArgs, TSharedRef<SDetai
 			.HAlign(HAlign_Center)
 			.ClickMethod(EButtonClickMethod::MouseDown)
 			.OnClicked(this, &SDetailExpanderArrow::OnExpanderClicked)
-			.ContentPadding(FMargin(0))
+			.ContentPadding(0)
 			.IsFocusable(false)
 			[
 				SNew(SImage)
@@ -41,7 +41,7 @@ EVisibility SDetailExpanderArrow::GetExpanderVisibility() const
 		return EVisibility::Collapsed;
 	}
 
-	return RowPtr->DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+	return RowPtr->DoesItemHaveChildren() ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 const FSlateBrush* SDetailExpanderArrow::GetExpanderImage() const

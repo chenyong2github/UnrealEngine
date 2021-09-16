@@ -520,19 +520,9 @@ void SDetailsViewBase::SetKeyframeHandler( TSharedPtr<class IDetailKeyframeHandl
 	KeyframeHandler = InKeyframeHandler;
 }
 
-TSharedPtr<IDetailKeyframeHandler> SDetailsViewBase::GetKeyframeHandler() 
-{
-	return KeyframeHandler;
-}
-
 void SDetailsViewBase::SetExtensionHandler(TSharedPtr<class IDetailPropertyExtensionHandler> InExtensionHandler)
 {
 	ExtensionHandler = InExtensionHandler;
-}
-
-TSharedPtr<IDetailPropertyExtensionHandler> SDetailsViewBase::GetExtensionHandler()
-{
-	return ExtensionHandler;
 }
 
 void SDetailsViewBase::SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance OnGetGenericDetails)
