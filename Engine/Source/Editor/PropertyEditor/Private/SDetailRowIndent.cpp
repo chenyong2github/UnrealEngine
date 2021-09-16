@@ -62,16 +62,12 @@ FOptionalSize SDetailRowIndent::GetIndentWidth() const
 	{
 		IndentLevel = RowPtr->GetIndentLevelForBackgroundColor();
 	}
+
 	return IndentLevel * 16.0f;
 }
 
 FSlateColor SDetailRowIndent::GetRowBackgroundColor(int32 IndentLevel) const
 {
 	TSharedPtr<SDetailTableRowBase> RowPtr = Row.Pin();
-	if (RowPtr.IsValid() && RowPtr->IsHovered())
-	{
-		return FAppStyle::Get().GetSlateColor("Colors.Header");
-	}
-
-	return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel);
+	return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel, RowPtr.IsValid() && RowPtr->IsHovered());
 }

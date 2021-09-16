@@ -383,10 +383,8 @@ private:
 	TArray< TSharedRef<FDetailTreeNode> > SimpleChildNodes;
 	/** All Advanced child nodes */
 	TArray< TSharedRef<FDetailTreeNode> > AdvancedChildNodes;
-	/** Advanced dropdown node (always shown) */
-	TSharedPtr<FDetailTreeNode> AdvancedDropdownNodeBottom;
-	/** Advanced dropdown node that is shown if the advanced dropdown is expanded */
-	TSharedPtr<FDetailTreeNode> AdvancedDropdownNodeTop;
+	/** Advanced dropdown node. */
+	TSharedPtr<FDetailTreeNode> AdvancedDropdownNode;
 	/** Delegate called when expansion of the category changes */
 	FOnBooleanValueChanged OnExpansionChangedDelegate;
 	/** The display name of the category */

@@ -454,7 +454,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	
 	TSharedPtr<SHorizontalBox> CustomContentBox;
 
-	if(ShouldDisplayThumbnail(InArgs, ObjectClass))
+	if (ShouldDisplayThumbnail(InArgs, ObjectClass))
 	{
 		FObjectOrAssetData Value; 
 		GetValue( Value );
@@ -475,13 +475,13 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 		}
 
 		ValueContentBox->AddSlot()
-		.Padding(FMargin(0,5,5,5))
+		.Padding(0,3,5,0)
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
 			.Visibility(EVisibility::SelfHitTestInvisible)
-			.Padding(FMargin(0.0f, 0.0f, 4.0f, 4.0f))
+			.Padding(FMargin(0, 0, 4, 4))
 			.BorderImage(FAppStyle::Get().GetBrush("PropertyEditor.AssetTileItem.DropShadow"))
 			[
 				SNew(SOverlay)
@@ -513,7 +513,8 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	
 		ValueContentBox->AddSlot()
-		.Padding(FMargin(0.0f, 5.0f))
+		.Padding(0)
+		.VAlign(VAlign_Center)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -527,8 +528,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			.AutoHeight()
 			[
 				SAssignNew(CustomContentBox, SHorizontalBox)
-
-				+SHorizontalBox::Slot()
+				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				[
 					SAssignNew(ButtonBoxWrapper, SBox)

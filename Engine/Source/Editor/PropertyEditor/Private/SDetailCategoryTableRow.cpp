@@ -14,8 +14,6 @@ void SDetailCategoryTableRow::Construct(const FArguments& InArgs, TSharedRef<FDe
 	bIsInnerCategory = InArgs._InnerCategory;
 	bShowBorder = InArgs._ShowBorder;
 
-	const float VerticalPadding = bIsInnerCategory ? 6 : 8;
-
 	FDetailColumnSizeData& ColumnSizeData = InOwnerTreeNode->GetDetailsView()->GetColumnSizeData();
 
 	TSharedRef<SHorizontalBox> HeaderBox = SNew(SHorizontalBox)
@@ -29,18 +27,17 @@ void SDetailCategoryTableRow::Construct(const FArguments& InArgs, TSharedRef<FDe
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
-		.Padding(5, 0, 0, 0)
+		.Padding(2, 0, 0, 0)
 		.AutoWidth()
 		[
 			SNew(SDetailExpanderArrow, SharedThis(this))
 		]
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
-		.Padding(12, VerticalPadding, 0, VerticalPadding)
+		.Padding(4, 0, 0, 0)
 		.FillWidth(1)
 		[
 			SNew(STextBlock)
-			.TransformPolicy(ETextTransformPolicy::ToUpper)
 			.Text(InArgs._DisplayName)
 			.Font(FAppStyle::Get().GetFontStyle(bIsInnerCategory ? PropertyEditorConstants::PropertyFontStyle : PropertyEditorConstants::CategoryFontStyle))
 			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
@@ -80,18 +77,25 @@ void SDetailCategoryTableRow::Construct(const FArguments& InArgs, TSharedRef<FDe
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Fill)
+			.Padding(0)
 			[
 				SNew(SBorder)
 				.BorderImage(this, &SDetailCategoryTableRow::GetBackgroundImage)
 				.BorderBackgroundColor(this, &SDetailCategoryTableRow::GetInnerBackgroundColor)
 				.Padding(0)
 				[
-					HeaderBox
+					SNew(SBox)
+					.MinDesiredHeight(PropertyEditorConstants::PropertyRowHeight)
+					.VAlign(VAlign_Center)
+					[
+						HeaderBox
+					]
 				]
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Fill)
+			.Padding(0)
 			.AutoWidth()
 			[
 				SNew(SBorder)
@@ -124,14 +128,8 @@ const FSlateBrush* SDetailCategoryTableRow::GetBackgroundImage() const
 			return FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle");
 		}
 
-		if (IsHovered())
-		{
-			return FAppStyle::Get().GetBrush("DetailsView.CategoryTop_Hovered");
-		}
-		else
-		{
-			return FAppStyle::Get().GetBrush("DetailsView.CategoryTop");
-		}
+		// intentionally no hover on outer categories
+		return FAppStyle::Get().GetBrush("DetailsView.CategoryTop");
 	}
 
 	return nullptr;
@@ -149,7 +147,7 @@ FSlateColor SDetailCategoryTableRow::GetInnerBackgroundColor() const
 
 		IndentLevel = FMath::Max(IndentLevel - 1, 0);
 
-		return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel);
+		return PropertyEditorConstants::GetRowBackgroundColor(IndentLevel, this->IsHovered());
 	}
 
 	return FSlateColor(FLinearColor::White);
