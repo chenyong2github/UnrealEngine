@@ -2,11 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/EngineTypes.h"
 #include "PrimitiveViewRelevance.h"
-#include "RenderResource.h"
 #include "MaterialShared.h"
 #include "DynamicMeshBuilder.h"
 #include "DebugRenderSceneProxy.h"
@@ -59,11 +56,10 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 
 	struct FDebugPoint
 	{
-		FDebugPoint() {}
 		FDebugPoint(const FVector& InPosition, const FColor& InColor, const float InSize) : Position(InPosition), Color(InColor), Size(InSize) {}
 		FVector Position;
 		FColor Color;
-		float Size;
+		float Size = 0.f;
 	};
 
 	TArray<FDebugRenderSceneProxy::FDebugLine> ThickLineItems;
@@ -102,7 +98,6 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 	uint32 GetAllocatedSize() const;
 
 #if WITH_RECAST
-	int32 GetDetailFlags(const ARecastNavMesh* NavMesh) const;
 	void GatherData(const ARecastNavMesh* NavMesh, int32 InNavDetailFlags, const TArray<int32>& TileSet);
 
 #if RECAST_INTERNAL_DEBUG_DATA
@@ -120,16 +115,15 @@ public:
 	virtual SIZE_T GetTypeHash() const override;
 
 	FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, FNavMeshSceneProxyData* InProxyData, bool ForceToRender = false);
-	virtual ~FNavMeshSceneProxy();
+	virtual ~FNavMeshSceneProxy() override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 protected:
-	void DrawDebugBox(FPrimitiveDrawInterface* PDI, FVector const& Center, FVector const& Box, FColor const& Color) const;
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
-	virtual uint32 GetMemoryFootprint(void) const override { return sizeof(*this) + GetAllocatedSize(); }
-	uint32 GetAllocatedSize(void) const;
+	virtual uint32 GetMemoryFootprint(void) const override { return sizeof(*this) + GetAllocatedSizeInternal(); }
+	uint32 GetAllocatedSizeInternal(void) const;
 
 private:			
 	FNavMeshSceneProxyData ProxyData;
@@ -203,7 +197,6 @@ public:
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface
 

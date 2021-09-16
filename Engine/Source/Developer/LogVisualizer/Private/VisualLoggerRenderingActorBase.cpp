@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualLoggerRenderingActorBase.h"
-#include "AI/NavigationSystemBase.h"
-#include "VisualLogger/VisualLogger.h"
 #include "LogVisualizerSettings.h"
-#include "VisualLoggerDatabase.h"
-#include "LogVisualizerPublic.h"
 #if WITH_EDITOR
 #include "GeomTools.h"
 #endif // WITH_EDITOR
 #include "VisualLoggerRenderingComponent.h"
+#include "VisualLogger/VisualLogger.h"
 
 namespace FDebugDrawing
 {
@@ -20,7 +17,7 @@ class UVisualLoggerRenderingComponent;
 class FVisualLoggerSceneProxy final : public FDebugRenderSceneProxy
 {
 public:
-	SIZE_T GetTypeHash() const override
+	virtual SIZE_T GetTypeHash() const override
 	{
 		static size_t UniquePointer;
 		return reinterpret_cast<size_t>(&UniquePointer);
@@ -46,11 +43,6 @@ public:
 	}
 
 	virtual uint32 GetMemoryFootprint(void) const override { return sizeof(*this) + GetAllocatedSize(); }
-
-	uint32 GetAllocatedSize(void) const
-	{
-		return FDebugRenderSceneProxy::GetAllocatedSize();
-	}
 };
 
 UVisualLoggerRenderingComponent::UVisualLoggerRenderingComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -60,9 +52,9 @@ UVisualLoggerRenderingComponent::UVisualLoggerRenderingComponent(const FObjectIn
 FPrimitiveSceneProxy* UVisualLoggerRenderingComponent::CreateSceneProxy()
 {
 	AVisualLoggerRenderingActorBase* RenderingActor = Cast<AVisualLoggerRenderingActorBase>(GetOuter());
-	if (RenderingActor == NULL)
+	if (RenderingActor == nullptr)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	ULogVisualizerSettings *Settings = ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>();
@@ -86,7 +78,7 @@ FPrimitiveSceneProxy* UVisualLoggerRenderingComponent::CreateSceneProxy()
 	if (VLogSceneProxy)
 	{
 		DebugDrawDelegateHelper.InitDelegateHelper(VLogSceneProxy);
-		DebugDrawDelegateHelper.ReregisterDebugDrawDelegate();
+		DebugDrawDelegateHelper.RegisterDebugDrawDelegate();
 	}
 #endif
 	return VLogSceneProxy;
@@ -100,15 +92,6 @@ FBoxSphereBounds UVisualLoggerRenderingComponent::CalcBounds(const FTransform& L
 	MyBounds = FBox(FVector(-HALF_WORLD_MAX, -HALF_WORLD_MAX, -HALF_WORLD_MAX), FVector(HALF_WORLD_MAX, HALF_WORLD_MAX, HALF_WORLD_MAX));
 
 	return MyBounds;
-}
-
-void UVisualLoggerRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
-{
-	Super::CreateRenderState_Concurrent(Context);
-
-#if WITH_EDITOR
-	DebugDrawDelegateHelper.RegisterDebugDrawDelegate();
-#endif
 }
 
 void UVisualLoggerRenderingComponent::DestroyRenderState_Concurrent()
@@ -204,7 +187,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 
 	if (bAddEntryLocationPointer)
 	{
-		const float Length = 100;
+		constexpr float Length = 100;
 		const FVector DirectionNorm = FVector(0, 0, 1).GetSafeNormal();
 		FVector YAxis, ZAxis;
 		DirectionNorm.FindBestAxisVectors(YAxis, ZAxis);
@@ -358,18 +341,18 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			const bool bDrawLabel = ElementToDraw->Description.IsEmpty() == false;
 			for (int32 Index = 0; Index + 2 < ElementToDraw->Points.Num(); Index += 3)
 			{
-				const FVector Orgin = ElementToDraw->Points[Index];
+				const FVector Origin = ElementToDraw->Points[Index];
 				const FVector Direction = ElementToDraw->Points[Index + 1].GetSafeNormal();
 				const FVector Angles = ElementToDraw->Points[Index + 2];
 				const float Length = Angles.X;
 
 				FVector YAxis, ZAxis;
 				Direction.FindBestAxisVectors(YAxis, ZAxis);
-				DebugShapes.Cones.Add(FDebugRenderSceneProxy::FCone(FScaleMatrix(FVector(Length)) * FMatrix(Direction, YAxis, ZAxis, Orgin), Angles.Y, Angles.Z, Color));
+				DebugShapes.Cones.Add(FDebugRenderSceneProxy::FCone(FScaleMatrix(FVector(Length)) * FMatrix(Direction, YAxis, ZAxis, Origin), Angles.Y, Angles.Z, Color));
 
 				if (bDrawLabel)
 				{
-					DebugShapes.Texts.Add(FDebugRenderSceneProxy::FText3d(ElementToDraw->Description, Orgin, Color));
+					DebugShapes.Texts.Add(FDebugRenderSceneProxy::FText3d(ElementToDraw->Description, Origin, Color));
 				}
 			}
 		}
@@ -523,7 +506,7 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 				const FVector XAxis = Rotation.RotateVector(FVector::XAxisVector);
 				const FVector YAxis = Rotation.RotateVector(FVector::YAxisVector);
 				
-				static const int32 CircleDivs = 12;
+				static constexpr int32 CircleDivs = 12;
 				FVector PrevPosition = FVector::ZeroVector;
 				for (int32 Div = 0; Div <= CircleDivs; Div++)
 				{
@@ -544,7 +527,12 @@ void AVisualLoggerRenderingActorBase::GetDebugShapes(const FVisualLogEntry& InEn
 			}
 		}
 			break;
-			
+		case EVisualLoggerShapeElement::Invalid:
+			UE_LOG(LogVisual, Warning, TEXT("Invalid element type"));
+			break;
+
+		default:
+			UE_LOG(LogVisual, Warning, TEXT("Unhandled element type: %s"), ElementToDraw->GetType());
 		}
 	}
 }

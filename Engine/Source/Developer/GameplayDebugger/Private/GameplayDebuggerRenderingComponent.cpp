@@ -13,7 +13,7 @@ class FGameplayDebuggerCompositeSceneProxy : public FDebugRenderSceneProxy
 public:
 	FGameplayDebuggerCompositeSceneProxy(const UPrimitiveComponent* InComponent) : FDebugRenderSceneProxy(InComponent) { }
 
-	virtual ~FGameplayDebuggerCompositeSceneProxy()
+	virtual ~FGameplayDebuggerCompositeSceneProxy() override
 	{
 		for (int32 Idx = 0; Idx < ChildProxies.Num(); Idx++)
 		{
@@ -49,18 +49,7 @@ public:
 
 	virtual uint32 GetMemoryFootprint(void) const override
 	{
-		return sizeof(*this) + GetAllocatedSize();
-	}
-
-	uint32 GetAllocatedSize(void) const
-	{
-		uint32 Size = ChildProxies.GetAllocatedSize();
-		for (int32 Idx = 0; Idx < ChildProxies.Num(); Idx++)
-		{
-			Size += ChildProxies[Idx]->GetMemoryFootprint();
-		}
-
-		return Size;
+		return sizeof(*this) + GetAllocatedSizeInternal();
 	}
 
 	void AddChild(FDebugRenderSceneProxy* NewChild)
@@ -71,6 +60,18 @@ public:
 	void AddRange(TArray<FDebugRenderSceneProxy*> Children)
 	{
 		ChildProxies.Append(Children);
+	}
+
+private:
+	uint32 GetAllocatedSizeInternal(void) const
+	{
+		uint32 Size = FDebugRenderSceneProxy::GetAllocatedSize() + ChildProxies.GetAllocatedSize();
+		for (int32 Idx = 0; Idx < ChildProxies.Num(); Idx++)
+		{
+			Size += ChildProxies[Idx]->GetMemoryFootprint();
+		}
+
+		return Size;
 	}
 
 protected:
@@ -137,7 +138,7 @@ FPrimitiveSceneProxy* UGameplayDebuggerRenderingComponent::CreateSceneProxy()
 		TArray<FDebugRenderSceneProxy*> SceneProxies;
 		for (int32 Idx = 0; Idx < OwnerReplicator->GetNumCategories(); Idx++)
 		{
-			TSharedRef<FGameplayDebuggerCategory> Category = OwnerReplicator->GetCategory(Idx);
+			const TSharedRef<FGameplayDebuggerCategory> Category = OwnerReplicator->GetCategory(Idx);
 			if (Category->IsCategoryEnabled())
 			{
 				FDebugDrawDelegateHelper* DebugDrawDelegateHelper = nullptr;
@@ -164,7 +165,7 @@ FPrimitiveSceneProxy* UGameplayDebuggerRenderingComponent::CreateSceneProxy()
 	if (CompositeProxy)
 	{
 		GameplayDebuggerDebugDrawDelegateHelper.InitDelegateHelper(CompositeProxy);
-		GameplayDebuggerDebugDrawDelegateHelper.ReregisterDebugDrawDelegate();
+		GameplayDebuggerDebugDrawDelegateHelper.RegisterDebugDrawDelegate();
 	}
 	return CompositeProxy;
 }
@@ -172,13 +173,6 @@ FPrimitiveSceneProxy* UGameplayDebuggerRenderingComponent::CreateSceneProxy()
 FBoxSphereBounds UGameplayDebuggerRenderingComponent::CalcBounds(const FTransform &LocalToWorld) const
 {
 	return FBoxSphereBounds(FBox::BuildAABB(FVector::ZeroVector, FVector(1000000.0f, 1000000.0f, 1000000.0f)));
-}
-
-void UGameplayDebuggerRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
-{
-	Super::CreateRenderState_Concurrent(Context);
-
-	GameplayDebuggerDebugDrawDelegateHelper.RegisterDebugDrawDelegate();
 }
 
 void UGameplayDebuggerRenderingComponent::DestroyRenderState_Concurrent()
