@@ -300,31 +300,6 @@ public:
 		Cooker.PlatformManager->ReleaseCookOnTheFlyPlatform(PlatformName);
 	}
 
-	virtual void GetPrecookedFileList(const FName& PlatformName, UE::Cook::FPrecookedFileList& OutPrecookedFiles) override
-	{
-		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-		const ITargetPlatform* TargetPlatform = TPM.FindTargetPlatform(PlatformName);
-		if (!TargetPlatform)
-		{
-			UE_LOG(LogCook, Warning, TEXT("Trying to get precooked file(s) on the fly for invalid platform '%s'"), *PlatformName.ToString());
-			return;
-		}
-
-		TArray<FName> CookedPlatformFiles;
-		Cooker.PackageDatas->GetCookedFileNamesForPlatform(TargetPlatform, CookedPlatformFiles, /* include failed */ true, /* include successful */ true);
-
-		for (const FName& CookedFile : CookedPlatformFiles)
-		{
-			const FString SandboxFilename = Cooker.ConvertToFullSandboxPath(CookedFile.ToString(), true, PlatformName.ToString());
-			if (IFileManager::Get().FileExists(*SandboxFilename))
-			{
-				continue;
-			}
-
-			OutPrecookedFiles.Add(CookedFile.ToString(),FDateTime::MinValue());
-		}
-	}
-
 	virtual void GetUnsolicitedFiles(const FName& PlatformName, const FString& Filename, const bool bIsCookable, TArray<FString>& OutUnsolicitedFiles) override
 	{
 		while (true)

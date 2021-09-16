@@ -122,7 +122,6 @@ public class Launch : ModuleRules
 			PrivateDependencyModuleNames.AddRange(new string[] {
 					"NetworkFile",
 					"StreamingFile",
-					"CookedIterativeFile",
 					"AutomationWorker"
 			});
 		}

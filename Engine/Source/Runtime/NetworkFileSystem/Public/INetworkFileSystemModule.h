@@ -75,31 +75,18 @@ DECLARE_MULTICAST_DELEGATE_OneParam( FOnFileModifiedDelegate, const FString& );
 DECLARE_DELEGATE_RetVal_TwoParams( bool, FNewConnectionDelegate, const FString&, const FString& );
 
 
-/**
- * Delegate which returns a list of all the files which should already be deployed to the devkit
- *
- * @param 1 IN, Platform to get precooked file list
- * @param 2 OUT, list of precooked files 
- */
-typedef TMap<FString,FDateTime> FFileTimeMap;
-DECLARE_DELEGATE_TwoParams( FInitialPrecookedListDelegate, const FString&, FFileTimeMap& );
-
-
-
 // container struct for delegates which the network file system uses
 struct FNetworkFileDelegateContainer
 {
 public:
 	FNetworkFileDelegateContainer() : 
 		NewConnectionDelegate(nullptr), 
-		InitialPrecookedListDelegate(nullptr),
 		SandboxPathOverrideDelegate(nullptr),
 		FileRequestDelegate(nullptr),
 		RecompileShadersDelegate(nullptr),
 		OnFileModifiedCallback(nullptr)
 	{}
 	FNewConnectionDelegate NewConnectionDelegate; 
-	FInitialPrecookedListDelegate InitialPrecookedListDelegate;
 	FSandboxPathDelegate SandboxPathOverrideDelegate;
 	FFileRequestDelegate FileRequestDelegate;
 	FRecompileShadersDelegate RecompileShadersDelegate;
