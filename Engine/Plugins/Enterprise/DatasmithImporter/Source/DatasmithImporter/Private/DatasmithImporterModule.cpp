@@ -168,7 +168,7 @@ void FDatasmithImporterModule::SetupMenuEntry()
 {
 	if (!IsRunningCommandlet())
 	{
-		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
+		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
 		check(ContentMenu);
 
 		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ImportAssets");

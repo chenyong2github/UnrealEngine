@@ -103,6 +103,8 @@
 #include "PlatformInfo.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/ScopeExit.h"
+#include "Dialogs/DlgPickPath.h"
+#include "AssetToolsModule.h"
 
 #include "Internationalization/Culture.h"
 
@@ -2218,6 +2220,26 @@ void FLevelEditorActionCallbacks::OpenMarketplace()
 	FUnrealEdMisc::Get().OpenMarketplace();
 }
 
+void FLevelEditorActionCallbacks::ImportContent()
+{
+	FString Path = "/Game";
+
+	//Ask the user for the root path where they want to any content to be placed
+	TSharedRef<SDlgPickPath> PickContentPathDlg =
+		SNew(SDlgPickPath)
+		.Title(LOCTEXT("ChooseImportRootContentPath", "Choose a location to import the content into"));
+
+	if (PickContentPathDlg->ShowModal() == EAppReturnType::Cancel)
+	{
+		return;
+	}
+
+	Path = PickContentPathDlg->GetPath().ToString();
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+
+	AssetToolsModule.Get().ImportAssetsWithDialog(Path);
+}
 
 void FLevelEditorActionCallbacks::ToggleVR()
 {
@@ -3481,7 +3503,8 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( WorldProperties, "World Settings", "Displays the world settings", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( OpenPlaceActors, "Place Actors Panel", "Opens the Place Actors Panel", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::P) );
 	UI_COMMAND( OpenContentBrowser, "Open Content Browser", "Opens the Content Browser", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control|EModifierKey::Shift, EKeys::F) );
-	UI_COMMAND( OpenMarketplace, "Open Marketplace", "Opens the Marketplace", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( OpenMarketplace, "Unreal Marketplace", "Opens the Marketplace", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( ImportContent, "Import Content...", "Import Content into a specified location", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND( ToggleVR, "Toggle VR", "Toggles VR (Virtual Reality) mode", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::V ) );
 

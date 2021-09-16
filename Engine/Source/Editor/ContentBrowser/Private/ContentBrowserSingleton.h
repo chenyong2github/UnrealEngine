@@ -14,6 +14,8 @@ class FTabManager;
 class FViewport;
 class SContentBrowser;
 class UFactory;
+class UToolMenu;
+class FWorkspaceItem;
 
 #define MAX_CONTENT_BROWSERS 4
 
@@ -129,6 +131,9 @@ private:
 
 	/** Populates properties that come from ini files */
 	void PopulateConfigValues();
+
+	/** Creates the Content Browser submenu in the Level Editor Toolbar Add menu */
+	void GetContentBrowserSubMenu(UToolMenu* Menu, TSharedRef<FWorkspaceItem> ContentBrowserGroup);
 
 public:
 	/** The tab identifier/instance name for content browser tabs */

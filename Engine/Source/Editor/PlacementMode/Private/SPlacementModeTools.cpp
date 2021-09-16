@@ -390,7 +390,7 @@ void SPlacementAssetMenuEntry::Construct(const FArguments& InArgs, const TShared
 		.BorderImage( this, &SPlacementAssetMenuEntry::GetBorder )
 		.Cursor( EMouseCursor::GrabHand )
 		.ToolTip( AssetEntryToolTip )
-		.Padding(FMargin(12.f, 3.f, 5.f, 3.f))
+		.Padding(FMargin(27.f, 3.f, 5.f, 3.f))
 		[
 			SNew( SHorizontalBox )
 
@@ -412,6 +412,7 @@ void SPlacementAssetMenuEntry::Construct(const FArguments& InArgs, const TShared
 
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.f)
+			.Padding(1.f, 0.f, 0.f, 0.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[

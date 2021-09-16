@@ -297,9 +297,11 @@ void FPlacementModeModule::StartupModule()
 		};
 
 		
-		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.CreateQuickMenu");
+		UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
 		FName CreateSectionName = TEXT("PMQCreateMenu");
-		FText CreateSectionDisplayName = NSLOCTEXT("PlacementMode", "PMQCreateMenu", "Create");
+		FText CreateSectionDisplayName = NSLOCTEXT("PlacementMode", "PMQCreateMenu", "Place Actors");
+
+		GenerateCategorySubMenu(ContentMenu, CreateSectionName, CreateSectionDisplayName, FBuiltInPlacementCategories::Basic());
 
 		// All Subcategories as submenus
 		FName CategoriesSectionName = TEXT("CreateAllCategories");
@@ -318,28 +320,24 @@ void FPlacementModeModule::StartupModule()
 					GenerateCategorySubMenu(InMenu, CreateSectionName, CreateSectionDisplayName, CategoryInfo.UniqueHandle);
 				}
 			}
-		));
+		), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
 
 
-		// Basics Section
-		GenerateQuickCreateSection(FBuiltInPlacementCategories::Basic(), ContentMenu);
-
-		// Recents Section, limit to 5 items, then put in an all Recents submenu
+		// Recents Section, limit to 5 items
 		const FName& RecentName = FBuiltInPlacementCategories::RecentlyPlaced();
+
 		ContentMenu->AddDynamicSection(RecentName,
-			FNewToolMenuDelegate::CreateLambda([this, GenerateQuickCreateSection, GenerateCategorySubMenu](UToolMenu* InMenu)
+			FNewToolMenuDelegate::CreateLambda([this, GenerateQuickCreateSection, GenerateCategorySubMenu, CreateSectionName, CreateSectionDisplayName](UToolMenu* InMenu)
 			{
 				const FName& RecentName = FBuiltInPlacementCategories::RecentlyPlaced();
 				FPlacementCategory* RecentCategory = Categories.Find(RecentName);
 				RefreshRecentlyPlaced();
 				GenerateQuickCreateSection(RecentName, InMenu, 5);
-				GenerateCategorySubMenu(InMenu, RecentName, RecentCategory->DisplayName, RecentName);
 			}
 		));
 
 		// Open Placement Browser Panel
-		FToolMenuSection& BrowserSection = ContentMenu->AddSection(TEXT("PlacementBrowserMenuSection"));
-		BrowserSection.AddSeparator(NAME_None);
+		FToolMenuSection& BrowserSection = ContentMenu->AddSection(TEXT("PlacementBrowserMenuSection"), FText::GetEmpty(), FToolMenuInsert(RecentName, EToolMenuInsertType::Before));
 
 		BrowserSection.AddMenuEntry(FLevelEditorCommands::Get().OpenPlaceActors);
 

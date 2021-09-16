@@ -1164,6 +1164,37 @@ void LevelEditorActionHelpers::OnSelectPlayerControllerClassPicked(UClass* InCho
 	FSlateApplication::Get().DismissAllMenus();
 }
 
+FText FLevelEditorToolBar::GetActiveModeName(TWeakPtr<SLevelEditor> LevelEditorPtr)
+{
+#define LOCTEXT_NAMESPACE "LevelEditorToolBar"
+
+	for (const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
+	{
+		TSharedPtr<SLevelEditor> LevelEditorPin = LevelEditorPtr.Pin();
+		if (LevelEditorPin.IsValid() && LevelEditorPin->GetEditorModeManager().IsModeActive(Mode.ID) && Mode.IsVisible())
+		{
+			return FText::Format(LOCTEXT("ActiveMode", "{0} Mode"), Mode.Name);
+		}
+	}
+
+	return LOCTEXT("ActiveMode", "No Active Mode");
+
+#undef LOCTEXT_NAMESPACE
+}
+
+const FSlateBrush* FLevelEditorToolBar::GetActiveModeIcon(TWeakPtr<SLevelEditor> LevelEditorPtr)
+{
+	for (const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
+	{
+		TSharedPtr<SLevelEditor> LevelEditorPin = LevelEditorPtr.Pin();
+		if (LevelEditorPin.IsValid() && LevelEditorPin->GetEditorModeManager().IsModeActive(Mode.ID) && Mode.IsVisible())
+		{
+			return Mode.IconBrush.GetIcon();
+		}
+	}
+	return nullptr;
+}
+
 void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUICommandList>& InCommandList, const TSharedRef<SLevelEditor> InLevelEditor)
 {
 	RegisterSourceControlMenu();
@@ -1173,14 +1204,15 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 	RegisterOpenBlueprintMenu();
 	RegisterContentMenu();
 	RegisterCreateMenu();
+	RegisterAddMenu();
 
 #define LOCTEXT_NAMESPACE "LevelEditorToolBar"
 
-	UToolMenu* AssetsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AssetsToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
-	AssetsToolBar->StyleName = "AssetEditorToolbar";
+	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ModesToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	ModesToolbar->StyleName = "AssetEditorToolbar";
 	{
 		{
-			FToolMenuSection& Section = AssetsToolBar->AddSection("File");
+			FToolMenuSection& Section = ModesToolbar->AddSection("File");
 
 			// Save All Levels
 			Section.AddEntry(FToolMenuEntry::InitToolBarButton(
@@ -1190,33 +1222,142 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "AssetEditor.SaveAsset"),
 				NAME_None,
 				FName("SaveAllLevels")
-				));
+			));
 		}
 
+		TWeakPtr<SLevelEditor> LevelEditorPtr = InLevelEditor;
+		ModesToolbar->AddDynamicSection("EditorModes", FNewToolMenuDelegate::CreateLambda([LevelEditorPtr](UToolMenu* ToolMenu)
+			{
+				FToolMenuSection& Section = ToolMenu->AddSection("EditorModes");
+				
+				// Combo Button to swap editor modes
+				TSharedRef<SComboButton> EditorModesComboButton = SNew(SComboButton)
+					.OnGetMenuContent_Lambda([LevelEditorPtr]()
+					{
+						const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+						const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();
+
+						TArray<FEditorModeInfo> DefaultModes;
+						TArray<FEditorModeInfo> NonDefaultModes;
+						TArray<TSharedPtr<FUICommandInfo>> CommandInfos;
+
+						for (const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
+						{
+							TSharedPtr<SLevelEditor> LevelEditorPin = LevelEditorPtr.Pin();
+							if (LevelEditorPin.IsValid() && LevelEditorPin->GetEditorModeManager().IsDefaultMode(Mode.ID))
+							{
+								DefaultModes.Add(Mode.ID);
+							}
+							else
+							{
+								NonDefaultModes.Add(Mode.ID);
+							}
+
+						}
+
+						auto GetCommandForModes = [&CommandInfos, &Commands](TArrayView<FEditorModeInfo> Modes)
+						{
+							for (const FEditorModeInfo& Mode : Modes)
+							{
+								FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
+
+								TSharedPtr<FUICommandInfo> EditorModeCommand =
+									FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
+
+								if (EditorModeCommand->GetDefaultChord(EMultipleKeyBindingIndex(0)).IsValidChord())
+								{
+									CommandInfos.Add(EditorModeCommand);
+								}
+									
+							}
+						};
+
+						// Default Modes first
+						GetCommandForModes(DefaultModes);
+
+						GetCommandForModes(NonDefaultModes);
+
+						FMenuBuilder MenuBuilder(true, LevelEditorModule.GetGlobalLevelEditorActions());
+
+						MenuBuilder.BeginSection("EditorModes");
+
+						for (TSharedPtr<FUICommandInfo> Command : CommandInfos)
+						{
+							MenuBuilder.AddMenuEntry(Command);
+						}
+
+						MenuBuilder.EndSection();
+
+						return MenuBuilder.MakeWidget();
+					})
+					.ButtonContent()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(FMargin(0.f, 0.f, 6.f, 0.f))
+						[
+							SNew(SBox)
+							.WidthOverride(16.f)
+							.HeightOverride(16.f)
+							[
+								SNew(SImage)
+								.Image_Static(&FLevelEditorToolBar::GetActiveModeIcon, LevelEditorPtr)
+							]
+							
+						]
+						+ SHorizontalBox::Slot()
+						[
+							SNew(STextBlock)
+							.Text_Static(&FLevelEditorToolBar::GetActiveModeName, LevelEditorPtr)
+						]
+						
+					];
+
+				// Horizontal Box to add some spacing beside the modes combo button
+				TSharedRef<SHorizontalBox> EditorModesWidget = 
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0)
+					[
+						SNew(SSpacer)
+						.Size(FVector2D(10.f, 1.0f))
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						EditorModesComboButton
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(1.0)
+					[
+						SNew(SSpacer)
+						.Size(FVector2D(10.f, 1.0f))
+					];
+					
+
+				Section.AddEntry(FToolMenuEntry::InitWidget("Editor Modes", EditorModesWidget, LOCTEXT("EditorModesLabel", "Editor Modes")));
+
+				Section.AddSeparator(NAME_None);
+			}));
+	}
+
+	UToolMenu* AssetsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AssetsToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	AssetsToolBar->StyleName = "AssetEditorToolbar";
+	{
 		{
 			FToolMenuSection& Section = AssetsToolBar->AddSection("Content");
 
-			FToolMenuEntry CreateEntry = FToolMenuEntry::InitComboButton(
-				"Create",
+			FToolMenuEntry AddContentEntry = FToolMenuEntry::InitComboButton(
+				"AddContent",
 				FUIAction(),
-				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateCreateMenuWidget, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
-				LOCTEXT("OpenCreate_Label", "Create"),
-				LOCTEXT("OpenCreate_Tooltip", "Quickly add to the project."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenPlaceActors")
+				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateAddMenuWidget, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
+				LOCTEXT("AddContent_Label", "Add"),
+				LOCTEXT("AddContent_Tooltip", "Quickly add to the project."),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenAddContent.Background", NAME_None, "LevelEditor.OpenAddContent.Overlay")
 			);
-			CreateEntry.StyleNameOverride = "CalloutToolbar";
-			Section.AddEntry(CreateEntry);
-
-			FToolMenuEntry ContentEntry = FToolMenuEntry::InitComboButton(
-				"Content",
-				FUIAction(),
-				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateContentMenuWidget, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
-				LOCTEXT("OpenContent_Label", "Content"),
-				LOCTEXT("OpenContent_Tooltip", "Quickly find content available to add to the project."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenContentBrowser")
-			);
-			ContentEntry.StyleNameOverride = "CalloutToolbar";
-			Section.AddEntry(ContentEntry);
+			AddContentEntry.StyleNameOverride = "AssetEditorToolbar";
+			Section.AddEntry(AddContentEntry);
 
 			FToolMenuEntry BlueprintEntry = FToolMenuEntry::InitComboButton(
 				"OpenBlueprint",
@@ -1224,9 +1365,9 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateOpenBlueprintMenuContent, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
 				LOCTEXT("OpenBlueprint_Label", "Blueprints"),
 				LOCTEXT("OpenBlueprint_ToolTip", "List of world Blueprints available to the user for editing or creation."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.OpenLevelBlueprint")
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenLevelBlueprint")
 			);
-			BlueprintEntry.StyleNameOverride = "CalloutToolbar";
+			BlueprintEntry.StyleNameOverride = "AssetEditorToolbar";
 			Section.AddEntry(BlueprintEntry);
 
 			FToolMenuEntry CinematicsEntry = FToolMenuEntry::InitComboButton(
@@ -1237,70 +1378,12 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				LOCTEXT("EditCinematics_Tooltip", "Displays a list of Level Sequence objects to open in their respective editors"),
 				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenCinematic")
 			);
-			CinematicsEntry.StyleNameOverride = "CalloutToolbar";
+			CinematicsEntry.StyleNameOverride = "AssetEditorToolbar";
 			Section.AddEntry(CinematicsEntry);
 
 			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FLevelEditorCommands::Get().ToggleVR, LOCTEXT("ToggleVR", "VR Mode")));
 		}
 
-	}
-
-	UToolMenu* ModesToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ModesToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
-	ModesToolbar->StyleName = "AssetEditorToolbar";
-	{
-		TWeakPtr<SLevelEditor> LevelEditorPtr = InLevelEditor;
-		ModesToolbar->AddDynamicSection("EditorModes", FNewToolMenuDelegate::CreateLambda([LevelEditorPtr](UToolMenu* ToolMenu)
-		{
-			FToolMenuSection& Section = ToolMenu->AddSection("EditorModes");
-			Section.AddSeparator(NAME_None);
-			const FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-			const FLevelEditorModesCommands& Commands = LevelEditorModule.GetLevelEditorModesCommands();
-
-			TArray<FEditorModeInfo, TInlineAllocator<1>> DefaultModes;
-
-			TArray<FEditorModeInfo, TInlineAllocator<10>> NonDefaultModes;
-
-			for (const FEditorModeInfo& Mode : GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetEditorModeInfoOrderedByPriority())
-			{
-				TSharedPtr<SLevelEditor> LevelEditorPin = LevelEditorPtr.Pin();
-				if (LevelEditorPin.IsValid() && LevelEditorPin->GetEditorModeManager().IsDefaultMode(Mode.ID))
-				{
-					DefaultModes.Add(Mode.ID);
-				}
-				else
-				{
-					NonDefaultModes.Add(Mode.ID);
-				}
-
-			}
-
-			auto BuildEditorModes =
-				[&Commands, &Section](TArrayView<FEditorModeInfo> Modes)
-			{
-				for (const FEditorModeInfo& Mode : Modes)
-				{
-					FName EditorModeCommandName = FName(*(FString("EditorMode.") + Mode.ID.ToString()));
-
-					TSharedPtr<FUICommandInfo> EditorModeCommand =
-						FInputBindingManager::Get().FindCommandInContext(Commands.GetContextName(), EditorModeCommandName);
-
-					// If a command isn't yet registered for this mode, we need to register one.
-					if (!EditorModeCommand.IsValid())
-					{
-						continue;
-					}
-
-					Section.AddEntry(FToolMenuEntry::InitToolBarButton(EditorModeCommand));
-				}
-
-			};
-
-			// Build Default Modes first
-			BuildEditorModes(MakeArrayView(DefaultModes));
-
-			// Build non-default modes second
-			BuildEditorModes(MakeArrayView(NonDefaultModes));
-		}));
 	}
 
 	UToolMenu* PlayToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.PlayToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
@@ -1441,37 +1524,14 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 			SNew(SHorizontalBox)
 			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 			+ SHorizontalBox::Slot()
-			.Padding(0.0f)
+			.AutoWidth()
+			[
+				UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.ModesToolBar", MenuContext)
+			]
+			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.AssetsToolBar", MenuContext)
-			]
-			
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SSpacer)
-				.Size(FVector2D(120.f, 1.0f))
-			]
-			
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Left)
-			[
-				SNew(SBox)
-				.MinDesiredWidth_Lambda(
-					[LevelEditorWeakPtr]()
-					{
-						if (TSharedPtr<SLevelEditor> LevelEditor = LevelEditorWeakPtr.Pin())
-						{
-							return LevelEditor->GetTickSpaceGeometry().GetLocalSize().X / 4.0f;
-						}
-						return 350.f;
-					}
-				)
-				[
-					UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.ModesToolBar", MenuContext)
-				]
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Left)
@@ -1865,12 +1925,8 @@ void FLevelEditorToolBar::RegisterContentMenu()
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
 	UToolMenu* ContentMenu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
 	{
-		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ProjectContent");
-		Section.InitSection("ProjectContent", LOCTEXT("ProjectContent_Label", "Project Content"), FToolMenuInsert("ContentBrowser", EToolMenuInsertType::First));
-	}
-	{
-		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ExternalContent");
-		Section.InitSection("ExternalContent", LOCTEXT("ExternalContent_Label", "Get Content"), FToolMenuInsert());
+		FToolMenuSection& Section = ContentMenu->FindOrAddSection("Content");
+		Section.InitSection("ExternalContent", LOCTEXT("Content_Label", "Get Content"), FToolMenuInsert());
 		if (FLauncherPlatformModule::Get()->CanOpenLauncher(true))
 		{
 			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMarketplace);
@@ -1887,6 +1943,26 @@ void FLevelEditorToolBar::RegisterCreateMenu()
 	{
 		FToolMenuSection& Section = ContentMenu->FindOrAddSection("Create");
 		Section.InitSection("ProjectContent", LOCTEXT("Create_Label", "Create"), FToolMenuInsert());
+	}
+#undef LOCTEXT_NAMESPACE
+}
+
+void FLevelEditorToolBar::RegisterAddMenu()
+{
+#define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
+	UToolMenu* AddMenu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
+	AddMenu->bSearchable = true;
+	{
+		FToolMenuSection& Section = AddMenu->FindOrAddSection("Content");
+
+		Section.InitSection("Content", LOCTEXT("Content_Label", "Get Content"), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
+
+		Section.AddMenuEntry(FLevelEditorCommands::Get().ImportContent);
+
+		if (FLauncherPlatformModule::Get()->CanOpenLauncher(true))
+		{
+			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMarketplace).InsertPosition = FToolMenuInsert("OpenBridgeTab", EToolMenuInsertType::After);
+		}
 	}
 #undef LOCTEXT_NAMESPACE
 }
@@ -1935,6 +2011,16 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateCreateMenuWidget(TSharedRef<F
 	MenuContext.AddObject(LevelEditorMenuContext);
 
 	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.CreateQuickMenu", MenuContext);
+}
+
+TSharedRef< SWidget > FLevelEditorToolBar::GenerateAddMenuWidget(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor)
+{
+	FToolMenuContext MenuContext(InCommandList);
+	ULevelEditorMenuContext* LevelEditorMenuContext = NewObject<ULevelEditorMenuContext>();
+	LevelEditorMenuContext->LevelEditor = InLevelEditor;
+	MenuContext.AddObject(LevelEditorMenuContext);
+
+	return UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.AddQuickMenu", MenuContext);
 }
 
 void FLevelEditorToolBar::RegisterCinematicsMenu()

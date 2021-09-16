@@ -39,14 +39,22 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 		// We can execute folder actions when we only have a single path selected, and that path is a valid path for creating a folder
 		return bHasSinglePathSelected && bIsValidNewFolderPath;
 	};
+
+	// If a single folder is selected and it is not valid for creating a new folder (The All Folder), don't create a context menu
+	if (bHasSinglePathSelected && !bIsValidNewFolderPath)
+	{
+		return;
+	}
+
 	const FCanExecuteAction CanExecuteFolderActionsDelegate = FCanExecuteAction::CreateLambda(CanExecuteFolderActions);
 
 	// Get Content
+	FToolMenuSection& GetContentSection = Menu->AddSection("ContentBrowserGetContent", LOCTEXT("GetContentMenuHeading", "Get Content"));
+
 	if ( InOnGetContentRequested.IsBound() )
 	{
 		{
-			FToolMenuSection& Section = Menu->AddSection( "ContentBrowserGetContent", LOCTEXT( "GetContentMenuHeading", "Content" ) );
-			Section.AddMenuEntry(
+			GetContentSection.AddMenuEntry(
 				"GetContent",
 				LOCTEXT( "GetContentText", "Add Feature or Content Pack..." ),
 				LOCTEXT( "GetContentTooltip", "Add features and content packs to the project." ),

@@ -2271,10 +2271,8 @@ void SContentBrowser::PopulateAddNewContextMenu(class UToolMenu* Menu)
 
 	// New feature packs don't depend on the current paths, so we always add this item if it was requested
 	FNewAssetOrClassContextMenu::FOnGetContentRequested OnGetContentRequested;
-	if (ContextObject->OwnerDomain == EContentBrowserDataMenuContext_AddNewMenuDomain::Toolbar)
-	{
-		OnGetContentRequested = FNewAssetOrClassContextMenu::FOnGetContentRequested::CreateSP(this, &SContentBrowser::OnAddContentRequested);
-	}
+	
+	OnGetContentRequested = FNewAssetOrClassContextMenu::FOnGetContentRequested::CreateSP(this, &SContentBrowser::OnAddContentRequested);
 
 	FNewAssetOrClassContextMenu::MakeContextMenu(
 		Menu,

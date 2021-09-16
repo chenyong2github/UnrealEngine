@@ -233,7 +233,7 @@ void FNewAssetContextMenu::MakeContextMenu(
 	if (InOnImportAssetRequested.IsBound() && !FirstSelectedPath.IsNone())
 	{
 		{
-			FToolMenuSection& Section = Menu->AddSection("ContentBrowserImportAsset", LOCTEXT("ImportAssetMenuHeading", "Import Asset"));
+			FToolMenuSection& Section = Menu->FindOrAddSection("ContentBrowserGetContent");
 			Section.AddMenuEntry(
 				"ImportAsset",
 				FText::Format(LOCTEXT("ImportAsset", "Import to {0}..."), FText::FromName(FirstSelectedPath)),
@@ -243,7 +243,7 @@ void FNewAssetContextMenu::MakeContextMenu(
 					FExecuteAction::CreateStatic(&FNewAssetContextMenu::ExecuteImportAsset, InOnImportAssetRequested, FirstSelectedPath),
 					CanExecuteAssetActionsDelegate
 					)
-				);
+				).InsertPosition = FToolMenuInsert(NAME_None, EToolMenuInsertType::First);
 		}
 	}
 
