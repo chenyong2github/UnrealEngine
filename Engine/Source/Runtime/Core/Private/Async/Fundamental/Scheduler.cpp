@@ -346,20 +346,20 @@ namespace LowLevelTasks
 				break;
 			}
 
-			if (WaitCount < WorkerSpinCycles)
+			if (WaitCount == 0 && !bDrowsing)
 			{
-				if (WaitCount == 0 && !bDrowsing)
-				{
-					TrySleeping(WorkerEvent, true, bDrowsing, bPermitBackgroundWork);
-				}
-
-				OutOfWork.Start();
+				TrySleeping(WorkerEvent, OutOfWork.Start(), bDrowsing, bPermitBackgroundWork);
+				WaitCount++;
+			}
+			else if (WaitCount < WorkerSpinCycles)
+			{
 				FPlatformProcess::YieldCycles(WaitCycles);
 				WaitCount++;
-				continue;
 			}
-
-			TrySleeping(WorkerEvent, OutOfWork.Stop(), bDrowsing, bPermitBackgroundWork);
+			else
+			{
+				bDrowsing = TrySleeping(WorkerEvent, OutOfWork.Stop(), bDrowsing, bPermitBackgroundWork);
+			}			
 		}
 
 		while (WakeUpWorker(bPermitBackgroundWork)) {}
