@@ -63,7 +63,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UPLUGIN_NAMESimpleToolProperties* Properties;
+	TObjectPtr<UPLUGIN_NAMESimpleToolProperties> Properties;
 
 
 protected:
