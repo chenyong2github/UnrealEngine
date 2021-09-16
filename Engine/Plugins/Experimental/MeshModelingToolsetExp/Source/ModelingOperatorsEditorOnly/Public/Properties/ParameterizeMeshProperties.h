@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "InteractiveTool.h"
 
 #include "ParameterizeMeshProperties.generated.h"
@@ -75,7 +74,7 @@ public:
 	float CurvatureAlignment = 1.0f;
 
 	/** Distortion/Stretching Threshold for island merging - larger values increase the allowable UV stretching */
-	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0", EditCondition = "bIslandMerging == true"))
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0"))
 	float MergingThreshold = 1.5f;
 
 	/** UV islands will not be merged if their average face normals deviate by larger than this amount */

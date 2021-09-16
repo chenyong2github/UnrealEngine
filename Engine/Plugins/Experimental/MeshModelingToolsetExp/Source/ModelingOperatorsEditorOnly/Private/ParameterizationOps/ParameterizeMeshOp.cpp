@@ -362,6 +362,14 @@ bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool
 bool FParameterizeMeshOp::ComputeUVs_PatchBuilder(FDynamicMesh3& InOutMesh, FProgressCancel* ProgressCancel)
 {
 	FPatchBasedMeshUVGenerator UVGenerator;
+
+	TUniquePtr<FPolygroupSet> PolygroupConstraint;
+	if (bRespectInputGroups && InputGroupLayer.CheckExists(&InOutMesh))
+	{
+		PolygroupConstraint = MakeUnique<FPolygroupSet>(&InOutMesh, InputGroupLayer);
+		UVGenerator.GroupConstraint = PolygroupConstraint.Get();
+	}
+
 	UVGenerator.TargetPatchCount = FMath::Max(1,InitialPatchCount);
 	UVGenerator.bNormalWeightedPatches = true;
 	UVGenerator.PatchNormalWeight = FMath::Clamp(PatchCurvatureAlignmentWeight, 0.0, 999999.0);

@@ -42,6 +42,7 @@ public:
 	EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
 	double AngleTolerance = 0.1f;
 	int32 NumPoints = 10;
+	bool bSubdivideExisting = false;
 	FPolygroupsGenerator::EWeightingType WeightingType = FPolygroupsGenerator::EWeightingType::None;
 	FVector3d WeightingCoeffs = FVector3d::One();
 	int32 MinGroupSize = 2;
@@ -77,6 +78,11 @@ public:
 			Generator.FindPolygroupsFromUVIslands();
 			break;
 		}
+		case EConvertToPolygonsMode::FromNormalSeams:
+		{
+			Generator.FindPolygroupsFromHardNormalSeams();
+			break;
+		}
 		case EConvertToPolygonsMode::FromConnectedTris:
 		{
 			Generator.FindPolygroupsFromConnectedTris();
@@ -90,7 +96,15 @@ public:
 		}
 		case EConvertToPolygonsMode::FromFurthestPointSampling:
 		{
-			Generator.FindPolygroupsFromFurthestPointSampling(NumPoints, WeightingType, WeightingCoeffs);
+			if (bSubdivideExisting)
+			{
+				FPolygroupSet InputGroups(OriginalMesh.Get());
+				Generator.FindPolygroupsFromFurthestPointSampling(NumPoints, WeightingType, WeightingCoeffs, &InputGroups);
+			}
+			else
+			{
+				Generator.FindPolygroupsFromFurthestPointSampling(NumPoints, WeightingType, WeightingCoeffs, nullptr);
+			}
 			break;
 		}
 		default:
@@ -216,6 +230,7 @@ void UConvertToPolygonsTool::Setup()
 	Settings->WatchProperty(Settings->bShowGroupColors, [this](bool) { UpdateVisualization(); });
 	Settings->WatchProperty(Settings->AngleTolerance, [this](float) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->NumPoints, [this](int32) { OnSettingsModified(); });
+	Settings->WatchProperty(Settings->bSplitExisting, [this](bool) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->bNormalWeighted, [this](bool) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->NormalWeighting, [this](float) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->MinGroupSize, [this](int32) { OnSettingsModified(); });
@@ -232,6 +247,7 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 	ConvertToPolygonsOp.ConversionMode    = Settings->ConversionMode;
 	ConvertToPolygonsOp.AngleTolerance    = Settings->AngleTolerance;
 	ConvertToPolygonsOp.NumPoints = Settings->NumPoints;
+	ConvertToPolygonsOp.bSubdivideExisting = Settings->bSplitExisting;
 	ConvertToPolygonsOp.WeightingType = (Settings->bNormalWeighted) ? FPolygroupsGenerator::EWeightingType::NormalDeviation : FPolygroupsGenerator::EWeightingType::None;
 	ConvertToPolygonsOp.WeightingCoeffs = FVector3d(Settings->NormalWeighting, 1.0, 1.0);
 	ConvertToPolygonsOp.MinGroupSize = Settings->MinGroupSize;

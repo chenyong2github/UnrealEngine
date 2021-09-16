@@ -8,6 +8,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/MeshUVChannelProperties.h"
+#include "PropertySets/PolygroupLayersProperties.h"
 #include "Drawing/UVLayoutPreview.h"
 
 #include "ParameterizeMeshTool.generated.h"
@@ -21,6 +22,7 @@ class UParameterizeMeshToolUVAtlasProperties;
 class UParameterizeMeshToolXAtlasProperties;
 class UParameterizeMeshToolPatchBuilderProperties;
 
+
 UCLASS()
 class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
@@ -28,6 +30,19 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public USin
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
+
+
+UCLASS()
+class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolPatchBuilderGroupLayerProperties : public UPolygroupLayersProperties
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category = PolygroupLayers)
+	bool bConstrainToPolygroups = false;
+
+};
+
 
 
 /**
@@ -71,6 +86,8 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UParameterizeMeshToolPatchBuilderGroupLayerProperties> PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;

@@ -86,6 +86,12 @@ void UParameterizeMeshTool::Setup()
 	AddToolPropertySource(PatchBuilderProperties);
 	SetToolPropertySourceEnabled(PatchBuilderProperties, false);
 
+	PolygroupLayerProperties = NewObject<UParameterizeMeshToolPatchBuilderGroupLayerProperties>(this);
+	PolygroupLayerProperties->RestoreProperties(this, TEXT("ModelingUVTools") );
+	PolygroupLayerProperties->InitializeGroupLayers(InputMesh.Get());
+	AddToolPropertySource(PolygroupLayerProperties);
+	SetToolPropertySourceEnabled(PolygroupLayerProperties, false);
+
 
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
 	MaterialSettings->MaterialMode = ESetMeshMaterialMode::Checkerboard;
@@ -121,7 +127,8 @@ void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* 
 		|| PropertySet == Settings 
 		|| PropertySet == UVAtlasProperties  
 		|| PropertySet == XAtlasProperties  
-		|| PropertySet == PatchBuilderProperties )
+		|| PropertySet == PatchBuilderProperties
+		|| PropertySet == PolygroupLayerProperties)
 	{
 		Preview->InvalidateResult();
 	}
@@ -136,6 +143,7 @@ void UParameterizeMeshTool::OnMethodTypeChanged()
 	SetToolPropertySourceEnabled(UVAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::UVAtlas);
 	SetToolPropertySourceEnabled(XAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::XAtlas);
 	SetToolPropertySourceEnabled(PatchBuilderProperties, Settings->Method == EParameterizeMeshUVMethod::PatchBuilder);
+	SetToolPropertySourceEnabled(PolygroupLayerProperties, Settings->Method == EParameterizeMeshUVMethod::PatchBuilder);
 
 	Preview->InvalidateResult();
 }
@@ -155,6 +163,7 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	UVAtlasProperties->SaveProperties(this);
 	XAtlasProperties->SaveProperties(this);
 	PatchBuilderProperties->SaveProperties(this);
+	PolygroupLayerProperties->SaveProperties(this, TEXT("ModelingUVTools"));
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	
@@ -215,6 +224,11 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 
 	// patchbuilder options
 	ParameterizeMeshOp->InitialPatchCount = PatchBuilderProperties->InitialPatches;
+	ParameterizeMeshOp->bRespectInputGroups = PolygroupLayerProperties->bConstrainToPolygroups;
+	if (PolygroupLayerProperties->bConstrainToPolygroups)
+	{
+		ParameterizeMeshOp->InputGroupLayer = PolygroupLayerProperties->GetSelectedLayer(*InputMesh);
+	}
 	ParameterizeMeshOp->PatchCurvatureAlignmentWeight = PatchBuilderProperties->CurvatureAlignment;
 	ParameterizeMeshOp->PatchMergingMetricThresh = PatchBuilderProperties->MergingThreshold;
 	ParameterizeMeshOp->PatchMergingAngleThresh = PatchBuilderProperties->MaxAngleDeviation;
