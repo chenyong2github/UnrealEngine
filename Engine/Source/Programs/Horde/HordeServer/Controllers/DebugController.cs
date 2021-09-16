@@ -36,6 +36,7 @@ using Microsoft.Extensions.Options;
 using StatsdClient;
 
 using Amazon.S3;
+using JetBrains.Profiler.SelfApi;
 
 namespace HordeServer.Controllers
 {
@@ -870,6 +871,60 @@ namespace HordeServer.Controllers
 			}
 
 			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = Message };
+		}
+		
+		/// <summary>
+		/// Starts the profiler session
+		/// </summary>
+		/// <returns>Text message</returns>
+		[HttpGet]
+		[Route("/api/v1/debug/profiler/start")]
+		public async Task<ActionResult> StartProfiler()
+		{
+			await DotTrace.EnsurePrerequisiteAsync();
+
+			string SnapshotDir = Path.Join(Path.GetTempPath(), "horde-profiler-snapshots");
+			if (!Directory.Exists(SnapshotDir))
+			{
+				Directory.CreateDirectory(SnapshotDir);
+			}
+
+			var Config = new DotTrace.Config();
+			Config.SaveToDir(SnapshotDir);
+			DotTrace.Attach(Config);
+			DotTrace.StartCollectingData();
+			
+			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = "Profiling session started. Using dir " + SnapshotDir };
+		}
+		
+		/// <summary>
+		/// Stops the profiler session
+		/// </summary>
+		/// <returns>Text message</returns>
+		[HttpGet]
+		[Route("/api/v1/debug/profiler/stop")]
+		public ActionResult StopProfiler()
+		{
+			DotTrace.SaveData();
+			DotTrace.Detach();
+			return new ContentResult { ContentType = "text/plain", StatusCode = (int)HttpStatusCode.OK, Content = "Profiling session stopped" };
+		}
+		
+		/// <summary>
+		/// Downloads the captured profiling snapshots
+		/// </summary>
+		/// <returns>A .zip file containing the profiling snapshots</returns>
+		[HttpGet]
+		[Route("/api/v1/debug/profiler/download")]
+		public ActionResult DownloadProfilingData()
+		{
+			string SnapshotZipFile = DotTrace.GetCollectedSnapshotFilesArchive(false);
+			if (!System.IO.File.Exists(SnapshotZipFile))
+			{
+				return NotFound("The generated snapshot .zip file was not found");
+			}
+			
+			return PhysicalFile(SnapshotZipFile, "application/zip", Path.GetFileName(SnapshotZipFile));
 		}
 	}
 }
