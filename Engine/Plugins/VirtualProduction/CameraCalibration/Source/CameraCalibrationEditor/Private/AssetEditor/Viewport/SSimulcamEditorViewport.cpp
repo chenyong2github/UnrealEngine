@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "AssetEditor/Viewport/SSimulcamEditorViewport.h"
 #include "AssetEditor/SSimulcamViewport.h"
 #include "AssetEditor/Viewport/SimulcamEditorViewportClient.h"
-#include "AssetEditor/Viewport/SSimulcamEditorViewport.h"
 #include "Engine/Texture.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Engine/VolumeTexture.h"
