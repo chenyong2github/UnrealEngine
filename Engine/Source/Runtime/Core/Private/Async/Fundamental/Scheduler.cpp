@@ -348,7 +348,7 @@ namespace LowLevelTasks
 
 			if (WaitCount == 0 && !bDrowsing)
 			{
-				TrySleeping(WorkerEvent, OutOfWork.Start(), bDrowsing, bPermitBackgroundWork);
+				verifySlow(TrySleeping(WorkerEvent, OutOfWork.Start(), false, bPermitBackgroundWork));
 				WaitCount++;
 			}
 			else if (WaitCount < WorkerSpinCycles)
