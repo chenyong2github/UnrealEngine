@@ -238,7 +238,10 @@ namespace Chaos
 		(const Chaos::FPBDRigidsSolver* Solver, FBreakingEventData& BreakingEventData)
 		{
 			check(Solver);
+
+#if PHYSICS_THREAD_CONTEXT
 			ensure(IsInPhysicsThreadContext());
+#endif
 
 			SCOPE_CYCLE_COUNTER(STAT_GatherBreakingEvent);
 
@@ -310,7 +313,10 @@ namespace Chaos
 		(const Chaos::FPBDRigidsSolver* Solver, FTrailingEventData& TrailingEventData)
 		{
 			check(Solver);
+
+#if PHYSICS_THREAD_CONTEXT
 			ensure(IsInPhysicsThreadContext());
+#endif
 
 			// #todo: This isn't working - SolverActor parameters are set on a solver but it is currently a different solver that is simulating!!
 			if (!Solver->GetEventFilters()->IsTrailingEventEnabled())
@@ -405,7 +411,10 @@ namespace Chaos
 		(const Chaos::FPBDRigidsSolver* Solver, FSleepingEventData& SleepingEventData)
 		{
 			check(Solver);
+
+#if PHYSICS_THREAD_CONTEXT
 			ensure(IsInPhysicsThreadContext());
+#endif
 
 			SCOPE_CYCLE_COUNTER(STAT_GatherSleepingEvent);
 
@@ -446,7 +455,9 @@ namespace Chaos
 		(const Chaos::FPBDRigidsSolver* Solver, FRemovalEventData& RemovalEventData)
 			{
 				check(Solver);
+#if PHYSICS_THREAD_CONTEXT
 				ensure(IsInPhysicsThreadContext());
+#endif
 
 				
 				FRemovalDataArray& AllRemovalDataArray = RemovalEventData.RemovalData.AllRemovalArray;

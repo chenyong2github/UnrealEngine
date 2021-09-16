@@ -2453,8 +2453,9 @@ namespace ChaosTest {
 			}
 			
 			const int RewindStep = 5;
-
+#if PHYSICS_THREAD_CONTEXT
 			FPhysicsThreadContextScope Scope(true);
+#endif
 			auto& Particle = *Proxy->GetPhysicsThreadAPI();
 			FRewindData* RewindData = Solver->GetRewindData();
 			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
@@ -2550,7 +2551,9 @@ namespace ChaosTest {
 			
 			const int RewindStep = 5;
 
+#if PHYSICS_THREAD_CONTEXT
 			FPhysicsThreadContextScope Scope(true);
+#endif
 			FRewindData* RewindData = Solver->GetRewindData();
 			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 			auto& Particle = *Proxy->GetPhysicsThreadAPI();
@@ -2740,7 +2743,9 @@ namespace ChaosTest {
 			const int RewindStep = 5;
 			auto& Particle = *Proxy->GetPhysicsThreadAPI();
 
+#if PHYSICS_THREAD_CONTEXT
 			FPhysicsThreadContextScope Scope(true);
+#endif
 			{
 				FRewindData* RewindData = Solver->GetRewindData();
 				//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
@@ -2932,7 +2937,9 @@ namespace ChaosTest {
 
 			const int RewindStep = 0;
 
+#if PHYSICS_THREAD_CONTEXT
 			FPhysicsThreadContextScope Scope(true);
+#endif
 			auto& Dynamic = *DynamicProxy->GetPhysicsThreadAPI();
 			auto& Kinematic = *KinematicProxy->GetPhysicsThreadAPI();
 
@@ -3022,7 +3029,9 @@ namespace ChaosTest {
 				EXPECT_LE(Dynamic.X()[2], 6);
 			}
 
+#if PHYSICS_THREAD_CONTEXT
 			FPhysicsThreadContextScope Scope(true);
+#endif
 			auto& Dynamic = *DynamicProxy->GetPhysicsThreadAPI();
 			auto& Kinematic = *KinematicProxy->GetPhysicsThreadAPI();
 			const int RewindStep = 0;
@@ -3370,7 +3379,9 @@ namespace ChaosTest {
 				EXPECT_GE(Dynamic.X()[2], 10);
 			}
 
+#if PHYSICS_THREAD_CONTEXT
 			FPhysicsThreadContextScope Scope(true);
+#endif
 			auto& Dynamic = *DynamicProxy->GetPhysicsThreadAPI();
 			auto& Kinematic = *KinematicProxy->GetPhysicsThreadAPI();
 
@@ -3479,7 +3490,9 @@ namespace ChaosTest {
 			EXPECT_LE(Dynamic.X()[2], 12);
 		}
 
+#if PHYSICS_THREAD_CONTEXT
 		FPhysicsThreadContextScope Scope(true);
+#endif
 		auto& Dynamic = *DynamicProxy->GetPhysicsThreadAPI();
 		auto& Kinematic = *KinematicProxy->GetPhysicsThreadAPI();
 
@@ -3586,7 +3599,9 @@ namespace ChaosTest {
 			}
 		}
 
+#if PHYSICS_THREAD_CONTEXT
 		FPhysicsThreadContextScope Scope(true);
+#endif
 		auto& Dynamic = *DynamicProxy->GetPhysicsThreadAPI();
 		auto& Kinematic = *KinematicProxy->GetPhysicsThreadAPI();
 
@@ -3675,7 +3690,9 @@ namespace ChaosTest {
 
 			const int32 RewindStep = 3;
 
+#if PHYSICS_THREAD_CONTEXT
 			FPhysicsThreadContextScope Scope(true);
+#endif
 			FRewindData* RewindData = UnitTest.Solver->GetRewindData();
 			//EXPECT_TRUE(RewindData->RewindToFrame(RewindStep));
 
