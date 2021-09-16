@@ -5046,11 +5046,14 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 		OutVar.SetValue(EnumValue);
 		return true;
 	}
-
-	else if (CompileOptions.AdditionalDefines.Contains(SYS_PARAM_EMITTER_LOCALSPACE.GetName().ToString()) && OutVar == SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION)
+	else if (OutVar == SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION)
 	{
-		OutVar.SetValue(FVector(EForceInit::ForceInitToZero));
-		return true;
+		FNiagaraVariable ResolvedLocalSpaceCompileOptionVar = ActiveHistoryForFunctionCalls.ResolveAliases(SYS_PARAM_EMITTER_LOCALSPACE);
+		if (CompileOptions.AdditionalDefines.Contains(ResolvedLocalSpaceCompileOptionVar.GetName().ToString()))
+		{
+			OutVar.SetValue(FVector(EForceInit::ForceInitToZero));
+			return true;
+		}
 	}
 
 	return false;
@@ -5063,8 +5066,10 @@ bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVa
 		// Simulation position is 0 for localspace emitters.
 		// If we are not in localspace then this will not be a literal constant and is instead a default linked variable as handled in GenerateConstantString().
 		// If we are in localspace, interpret Engine.Emitter.SimulationPosition and Engine.Owner.Position and handle via ParameterMapRegisterExternalConstantNamespaceVariable.
-		const bool bEmitterLocalSpace = CompileOptions.AdditionalDefines.Contains(SYS_PARAM_EMITTER_LOCALSPACE.GetName().ToString());
-		if (bEmitterLocalSpace == false)
+		FNiagaraVariable ResolvedLocalSpaceCompileOptionVar = ActiveHistoryForFunctionCalls.ResolveAliases(SYS_PARAM_EMITTER_LOCALSPACE);
+		const bool bIsEmitterLocalSpaceCompileOptionSet = CompileOptions.AdditionalDefines.Contains(ResolvedLocalSpaceCompileOptionVar.GetName().ToString());
+
+		if (bIsEmitterLocalSpaceCompileOptionSet == false)
 		{
 			return ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_POSITION, InNode, InParamMapHistoryIdx, Output, InDefaultPin);
 		}
