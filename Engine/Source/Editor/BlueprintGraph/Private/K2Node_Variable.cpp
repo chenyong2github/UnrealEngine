@@ -2,6 +2,7 @@
 
 
 #include "K2Node_Variable.h"
+#include "K2Node_FunctionEntry.h"
 #include "BlueprintCompilationManager.h"
 #include "UObject/UObjectHash.h"
 #include "Components/PrimitiveComponent.h"
@@ -1011,7 +1012,8 @@ void UK2Node_Variable::PostPasteNode()
 		{
 			UEdGraph* FunctionGraph = FBlueprintEditorUtils::GetTopLevelGraph(GetGraph());
 			FBPVariableDescription* VariableDescription = FBlueprintEditorUtils::FindLocalVariable(Blueprint, FunctionGraph, VariableReference.GetMemberName());
-			if(VariableDescription)
+			bool bFoundParam = FunctionParameterExists(FunctionGraph, VariableReference.GetMemberName());
+			if(VariableDescription || bFoundParam)
 			{
 				VariableReference.SetLocalMember(VariableReference.GetMemberName(), FunctionGraph->GetName(), VariableReference.GetMemberGuid());
 			}
@@ -1097,6 +1099,21 @@ void UK2Node_Variable::JumpToDefinition() const
 
 	// Otherwise, fall back to the inherited behavior
 	Super::JumpToDefinition();
+}
+
+bool UK2Node_Variable::FunctionParameterExists(const UEdGraph* InFunctionGraph, const FName InParameterName)
+{
+	TArray<UK2Node_FunctionEntry*> Entry;
+	InFunctionGraph->GetNodesOfClass<UK2Node_FunctionEntry>(Entry);
+
+	if (ensureMsgf(Entry.Num() == 1, TEXT("Couldn't find a Function Entry node in graph %s"), *InFunctionGraph->GetName()))
+	{
+		check(Entry[0]);
+
+		return Entry[0]->UserDefinedPinExists(InParameterName);
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE
