@@ -3,7 +3,9 @@
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "Polygroups/PolygroupUtil.h"
 
+using namespace UE::Geometry;
 
 void UPolygroupLayersProperties::InitializeGroupLayers(const FDynamicMesh3* Mesh)
 {
@@ -55,5 +57,19 @@ void UPolygroupLayersProperties::SetSelectedFromPolygroupIndex(int32 Index)
 	else
 	{
 		ActiveGroupLayer = FName(GroupLayersList[Index+1]);
+	}
+}
+
+
+UE::Geometry::FPolygroupLayer UPolygroupLayersProperties::GetSelectedLayer(const FDynamicMesh3& FromMesh)
+{
+	if (HasSelectedPolygroup() == false)
+	{
+		return FPolygroupLayer::Default();
+	}
+	else
+	{
+		int32 Index = UE::Geometry::FindPolygroupLayerIndexByName(FromMesh, ActiveGroupLayer);
+		return (Index >= 0) ? FPolygroupLayer::Layer(Index) : FPolygroupLayer::Default();
 	}
 }

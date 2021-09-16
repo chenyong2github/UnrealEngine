@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "InteractiveTool.h"
 #include "GeometryBase.h"
+#include "Polygroups/PolygroupSet.h"
 #include "PolygroupLayersProperties.generated.h"
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
@@ -38,5 +39,7 @@ public:
 	bool HasSelectedPolygroup() const;
 
 	void SetSelectedFromPolygroupIndex(int32 Index);
+
+	UE::Geometry::FPolygroupLayer GetSelectedLayer(const FDynamicMesh3& FromMesh);
 };
 

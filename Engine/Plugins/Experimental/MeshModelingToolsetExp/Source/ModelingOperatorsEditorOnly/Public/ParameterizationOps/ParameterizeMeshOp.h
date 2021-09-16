@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
+#include "Polygroups/PolygroupSet.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
 #include "ParameterizeMeshOp.generated.h"
@@ -47,6 +48,8 @@ public:
 
 	// PatchBuilder generation parameters
 	int32 InitialPatchCount = 100;
+	bool bRespectInputGroups = false;
+	FPolygroupLayer InputGroupLayer;
 	double PatchCurvatureAlignmentWeight = 1.0;
 	double PatchMergingMetricThresh = 1.5;
 	double PatchMergingAngleThresh = 45.0;
