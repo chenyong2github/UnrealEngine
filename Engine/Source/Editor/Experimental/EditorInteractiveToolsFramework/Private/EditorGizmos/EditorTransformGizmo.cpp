@@ -2,11 +2,11 @@
 
 #include "EditorGizmos/EditorTransformGizmo.h"
 #include "BaseGizmos/AxisPositionGizmo.h"
-#include "BaseGizmos/GizmoArrowObject.h"
-#include "BaseGizmos/GizmoBoxObject.h"
-#include "BaseGizmos/GizmoConeObject.h"
-#include "BaseGizmos/GizmoCylinderObject.h"
-#include "BaseGizmos/GizmoGroupObject.h"
+#include "EditorGizmos/GizmoArrowObject.h"
+#include "EditorGizmos/GizmoBoxObject.h"
+#include "EditorGizmos/GizmoConeObject.h"
+#include "EditorGizmos/GizmoCylinderObject.h"
+#include "EditorGizmos/GizmoGroupObject.h"
 #include "BaseGizmos/TransformSources.h"
 #include "EditorGizmos/EditorAxisSources.h"
 #include "EditorGizmos/EditorParameterToTransformAdapters.h"
@@ -467,7 +467,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddAxisTranslationGizmo(
 	InArrowObject->ConeObject->Offset = -(AXIS_LENGTH + AXIS_CONE_HEAD_OFFSET);
 
 	// arrow object provides the render capability
-	TranslateGizmo->GizmoObject = InArrowObject;
+	// TranslateGizmo->GizmoObject = InArrowObject;
 
 	// axis source provides the translation axis
 	TranslateGizmo->AxisSource = Cast<UObject>(InAxisSource);
@@ -627,7 +627,7 @@ UInteractiveGizmo* UEditorTransformGizmo::AddAxisScaleGizmo(
 	check(ScaleGizmo);
 
 	// arrow object provides the render capability
-	ScaleGizmo->GizmoObject = InArrowObject;
+	// ScaleGizmo->GizmoObject = InArrowObject;
 
 	// axis source provides the translation axis
 	ScaleGizmo->AxisSource = Cast<UObject>(InGizmoAxisSource);

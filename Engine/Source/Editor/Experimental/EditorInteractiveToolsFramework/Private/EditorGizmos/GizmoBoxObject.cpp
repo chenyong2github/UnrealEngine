@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
-#include "BaseGizmos/GizmoBoxObject.h"
+#include "EditorGizmos/GizmoBoxObject.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "Materials/MaterialInterface.h"

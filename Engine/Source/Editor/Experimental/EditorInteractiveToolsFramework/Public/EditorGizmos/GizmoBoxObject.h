@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseGizmos/GizmoBaseObject.h"
+#include "EditorGizmos/GizmoBaseObject.h"
 #include "InputState.h"
 #include "UObject/ObjectMacros.h"
 #include "GizmoBoxObject.generated.h"
@@ -13,7 +13,7 @@
  * Draws a solid axis-aligned 3D box based on parameters.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoBoxObject : public UGizmoBaseObject
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UGizmoBoxObject : public UGizmoBaseObject
 {
 	GENERATED_BODY()
 

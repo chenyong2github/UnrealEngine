@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseGizmos/GizmoArrowObject.h"
-#include "BaseGizmos/GizmoBaseObject.h"
-#include "BaseGizmos/GizmoGroupObject.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "EditorGizmos/EditorAxisSources.h"
+#include "EditorGizmos/GizmoArrowObject.h"
+#include "EditorGizmos/GizmoBaseObject.h"
+#include "EditorGizmos/GizmoGroupObject.h"
+#include "EditorGizmos/GizmoObjectHitTargets.h"
+#include "EditorGizmos/GizmoObjectStateTargets.h"
+#include "EditorGizmos/GizmoObjectTransformSources.h"
 #include "EditorInteractiveGizmoSelectionBuilder.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveToolObjects.h"

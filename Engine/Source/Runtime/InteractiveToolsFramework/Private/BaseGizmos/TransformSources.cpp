@@ -20,21 +20,6 @@ void UGizmoComponentWorldTransformSource::SetTransform(const FTransform& NewTran
 	OnTransformChanged.Broadcast(this);
 }
 
-FTransform UGizmoObjectWorldTransformSource::GetTransform() const
-{
-	return Object->LocalToWorldTransform;
-}
-
-void UGizmoObjectWorldTransformSource::SetTransform(const FTransform& TransformIn)
-{
-	if (bModifyObjectOnTransform)
-	{
-		Object->Modify();
-	}
-	Object->SetLocalToWorldTransform(TransformIn);
-	OnTransformChanged.Broadcast(this);
-}
-
 
 FTransform UGizmoScaledTransformSource::GetTransform() const
 {

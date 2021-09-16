@@ -4,10 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "BaseGizmos/GizmoBaseObject.h"
-#include "BaseGizmos/GizmoBoxObject.h"
-#include "BaseGizmos/GizmoConeObject.h"
-#include "BaseGizmos/GizmoCylinderObject.h"
+#include "EditorGizmos/GizmoBaseObject.h"
 #include "InputState.h"
 #include "GizmoGroupObject.generated.h"
 
@@ -16,7 +13,7 @@
  * Contains multiple gizmo objects.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoGroupObject : public UGizmoBaseObject
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UGizmoGroupObject : public UGizmoBaseObject
 {
 	GENERATED_BODY()
 

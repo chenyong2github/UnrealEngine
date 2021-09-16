@@ -39,14 +39,6 @@ void UAxisPositionGizmo::Setup()
 	bInInteraction = false;
 }
 
-void UAxisPositionGizmo::Render(IToolsContextRenderAPI* RenderAPI)
-{
-	if (GizmoObject)
-	{
-		GizmoObject->Render(RenderAPI);
-	}
-}
-
 FInputRayHit UAxisPositionGizmo::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
 	FInputRayHit GizmoHit;

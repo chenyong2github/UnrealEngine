@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
-#include "BaseGizmos/GizmoConeObject.h"
+#include "EditorGizmos/GizmoConeObject.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "InputState.h"
