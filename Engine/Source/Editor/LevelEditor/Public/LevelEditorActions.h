@@ -619,9 +619,6 @@ public:
 	TSharedPtr< FUICommandInfo > ResetSelectedParticleSystem;
 	TSharedPtr< FUICommandInfo > SelectActorsInLayers;
 
-	TSharedPtr< FUICommandInfo > FocusAllViewportsToSelection;
-	TSharedPtr< FUICommandInfo > FocusViewportToSelection;
-
         // Open merge actor command
 	TSharedPtr< FUICommandInfo > OpenMergeActor;
 

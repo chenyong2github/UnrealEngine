@@ -195,6 +195,7 @@ public:
 	TSharedPtr< FUICommandInfo > CycleTransformGizmos;
 	TSharedPtr< FUICommandInfo > CycleTransformGizmoCoordSystem;
 
+	TSharedPtr< FUICommandInfo > FocusAllViewportsToSelection;
 	TSharedPtr< FUICommandInfo > FocusViewportToSelection;
 
 	/** Toggle automatic exposure */
