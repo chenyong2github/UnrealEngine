@@ -164,6 +164,10 @@ private:
 	/** Called by Slate to determine whether icons/labels are visible */
 	EVisibility GetIconVisibility(bool bIsASmallIcon) const;
 
+	FSlateColor GetIconForegroundColor() const;
+
+	const FSlateBrush* GetOverlayIconBrush() const;
+
 	FSlateColor OnGetForegroundColor() const;
 
 private:

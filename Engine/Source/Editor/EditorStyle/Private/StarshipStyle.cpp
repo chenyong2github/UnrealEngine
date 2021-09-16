@@ -4540,8 +4540,12 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "LevelEditor.OpenPlaceActors", new IMAGE_BRUSH_SVG( "Starship/Common/PlaceActors", Icon20x20 ) );
 		Set( "LevelEditor.OpenContentBrowser", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/content", Icon20x20 ) );
 		Set( "LevelEditor.OpenMarketplace", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/marketplace", Icon20x20) );
+		Set( "LevelEditor.ImportContent", new CORE_IMAGE_BRUSH_SVG("Starship/Common/import", Icon20x20));
 		Set( "LevelEditor.OpenLevelBlueprint", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/blueprints", Icon20x20) );
 		Set( "LevelEditor.OpenCinematic", new IMAGE_BRUSH_SVG("Starship/MainToolbar/cinematics", Icon20x20));
+
+		Set( "LevelEditor.OpenAddContent.Background", new IMAGE_BRUSH_SVG("Starship/MainToolbar/PlaceActorsBase", Icon20x20));
+		Set( "LevelEditor.OpenAddContent.Overlay", new IMAGE_BRUSH_SVG("Starship/MainToolbar/ToolBadgePlus", Icon20x20, FStyleColors::AccentGreen));
 
 		Set( "LevelEditor.CreateClassBlueprint", new IMAGE_BRUSH("Icons/icon_class_Blueprint_New_16x", Icon16x16));
 		Set( "LevelEditor.OpenClassBlueprint", new IMAGE_BRUSH("Icons/icon_class_Blueprint_Open_16x", Icon16x16));
@@ -5433,7 +5437,7 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 
 		MainToolbarLeftButton.SetButtonStyle(LeftToolbarButton);
-		MainToolbarLeftButton.SetButtonPadding(FMargin(8.f, 0.0f, 0.0f, 0.0f));
+		MainToolbarLeftButton.SetButtonPadding(FMargin(10.f, 0.0f, 0.0f, 0.0f));
 		MainToolbarLeftButton.SetSeparatorPadding(FMargin(0.f, 0.f, 8.f, 0.f));
 
 		Set("Toolbar.BackplateLeft", MainToolbarLeftButton);
@@ -5500,8 +5504,8 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 			.SetPressedPadding(FMargin(2.f, 2.f, 8.f, 2.f));
 
 		MainToolbarRightButton.SetButtonStyle(RightToolbarButton);
-		MainToolbarRightButton.SetButtonPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
-		MainToolbarRightButton.SetSeparatorPadding(FMargin(8.f, 0.f, 8.f, 0.f));
+		MainToolbarRightButton.SetButtonPadding(FMargin(0.0f, 0.0f, 4.0f, 0.0f));
+		MainToolbarRightButton.SetSeparatorPadding(FMargin(6.f, 0.f, 8.f, 0.f));
 
 		Set("Toolbar.BackplateRight", MainToolbarRightButton);
 
@@ -6371,7 +6375,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetFont(DEFAULT_FONT("Regular", 7)));
 
 
-		Set( "ContentBrowser.AddContent", new IMAGE_BRUSH( "Icons/icon_AddContent_40x", Icon25x25 ) );
+		Set( "ContentBrowser.AddContent", new IMAGE_BRUSH_SVG( "Starship/ContentBrowser/ContentPack", Icon20x20 ) );
 		Set( "ContentBrowser.ImportPackage", new IMAGE_BRUSH( "Icons/icon_Import_40x", Icon25x25 ) );
 	
 		// Asset Context Menu
@@ -6440,7 +6444,7 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set( "ContentBrowser.AssetDragDropTooltipBackground", new BOX_BRUSH( "Old/Menu_Background", FMargin(8.0f/64.0f) ) );
 		Set( "ContentBrowser.CollectionTreeDragDropBorder", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f ) );
 		Set( "ContentBrowser.PopupMessageIcon", new IMAGE_BRUSH( "Icons/alert", Icon32x32) );
-		Set( "ContentBrowser.NewFolderIcon", new IMAGE_BRUSH("Icons/icon_AddFolder_16x", Icon16x16 ) );
+		Set( "ContentBrowser.NewFolderIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-plus", Icon16x16 ) );
 
 		Set( "ContentBrowser.Local", new IMAGE_BRUSH( "ContentBrowser/Content_Local_12x", Icon12x12 ) );
 		Set( "ContentBrowser.Local.Small", new IMAGE_BRUSH( "ContentBrowser/Content_Local_16x", Icon16x16 ) );

@@ -69,9 +69,9 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 	// 	}
 	// }
 
-	// Adding Bridge entry to Quick Content menu.
-	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
-	FToolMenuSection& Section = ContentMenu->FindOrAddSection("ExternalContent");
+	// Adding Bridge entry to Add Content menu.
+	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
+	FToolMenuSection& Section = ContentMenu->FindOrAddSection("Content");
 	Section.AddMenuEntry("OpenBridgeTab",
 		LOCTEXT("OpenBridgeTab_Label", "Quixel Bridge"),
 		LOCTEXT("OpenBridgeTab_Desc", "Opens the Quixel Bridge."),
@@ -99,12 +99,11 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 	
 	ContextMenuSection.AddMenuEntry(
 		"GetMegascans",
-		LOCTEXT("OpenBridgeTabText", "Add Quixel Content"),
+		LOCTEXT("OpenBridgeTabText", "Quixel Bridge"),
 		LOCTEXT("GetBridgeTooltip", "Add Megascans and DHI assets to project."),
 		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.MenuLogo"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBridgeUIManagerImpl::CreateWIndow), FCanExecuteAction())
 	);
-
 
 }
 

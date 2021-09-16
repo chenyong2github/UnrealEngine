@@ -51,7 +51,7 @@ void FLevelEditorModesCommands::RegisterCommands()
 				ModeName,
 				Tooltip,
 				ModeIcon,
-				EUserInterfaceActionType::ToggleButton,
+				EUserInterfaceActionType::CollapsedButton,
 				DefaultKeyBinding);
 
 			EditorModeCommands.Add(EditorModeCommand);

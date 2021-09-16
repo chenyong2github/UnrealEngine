@@ -139,6 +139,10 @@ void SLevelEditor::BindCommands()
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OpenMarketplace ) );
 
 	LevelEditorCommands->MapAction(
+		Actions.ImportContent,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::ImportContent));
+
+	LevelEditorCommands->MapAction(
 		Actions.ToggleVR,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ToggleVR ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ToggleVR_CanExecute ),

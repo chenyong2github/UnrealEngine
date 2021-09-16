@@ -554,6 +554,7 @@ public:
 	TSharedPtr< FUICommandInfo > OpenContentBrowser;
 	TSharedPtr< FUICommandInfo > OpenMarketplace;
 	TSharedPtr< FUICommandInfo > ToggleVR;
+	TSharedPtr< FUICommandInfo > ImportContent;
 
 	/**
 	 * Blueprints commands
@@ -1154,6 +1155,9 @@ public:
 
 	/** Open the Marketplace */
 	static void OpenMarketplace();
+
+	/** Import content into a chosen location*/
+	static void ImportContent();
 
 	/** Checks out the Project Settings config */
 	static void CheckOutProjectSettingsConfig();

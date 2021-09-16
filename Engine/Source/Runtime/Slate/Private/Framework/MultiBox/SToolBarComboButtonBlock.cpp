@@ -7,6 +7,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Styling/ToolBarStyle.h"
+#include "Widgets/Images/SLayeredImage.h"
 
 
 FToolBarComboButtonBlock::FToolBarComboButtonBlock( const FUIAction& InAction, const FOnGetContent& InMenuContentGenerator, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, bool bInSimpleComboBox )
@@ -85,6 +86,13 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 	TSharedRef<SWidget> IconWidget = SNullWidget::NullWidget;
 	if (!ToolBarComboButtonBlock->bSimpleComboBox)
 	{
+		TSharedRef<SLayeredImage> ActualIconWidget =
+			SNew(SLayeredImage)
+			.ColorAndOpacity(this, &SToolBarComboButtonBlock::GetIconForegroundColor)
+			.Image(this, &SToolBarComboButtonBlock::GetIconBrush);
+
+		ActualIconWidget->AddLayer(TAttribute<const FSlateBrush*>(this, &SToolBarComboButtonBlock::GetOverlayIconBrush));
+
 		if (MultiBox->GetType() == EMultiBoxType::SlimHorizontalToolBar)
 		{
 			const FVector2D IconSize = ToolBarStyle.IconSize;
@@ -94,17 +102,12 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 				.WidthOverride(IconSize.X)
 				.HeightOverride(IconSize.Y)
 				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(this, &SToolBarComboButtonBlock::GetIconBrush)
+					ActualIconWidget
 				];
 		}
 		else
 		{
-			IconWidget = 
-				SNew(SImage)
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(this, &SToolBarComboButtonBlock::GetIconBrush);
+			IconWidget = ActualIconWidget;
 		}
 
 		Label = ToolBarComboButtonBlock->Label;
@@ -275,6 +278,30 @@ const FSlateBrush* SToolBarComboButtonBlock::GetSmallIconBrush() const
 EVisibility SToolBarComboButtonBlock::GetIconVisibility(bool bIsASmallIcon) const
 {
 	return ((bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get()) ^ bIsASmallIcon) ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+FSlateColor SToolBarComboButtonBlock::GetIconForegroundColor() const
+{
+	// If any brush has a tint, don't assume it should be subdued
+	const FSlateBrush* Brush = GetIconBrush();
+	if (Brush && Brush->TintColor != FLinearColor::White)
+	{
+		return FLinearColor::White;
+	}
+
+	return FSlateColor::UseForeground();
+}
+
+const FSlateBrush* SToolBarComboButtonBlock::GetOverlayIconBrush() const
+{
+	const FSlateIcon& ActualIcon = Icon.Get();
+
+	if (ActualIcon.IsSet())
+	{
+		return ActualIcon.GetOverlayIcon();
+	}
+
+	return nullptr;
 }
 
 FSlateColor SToolBarComboButtonBlock::OnGetForegroundColor() const

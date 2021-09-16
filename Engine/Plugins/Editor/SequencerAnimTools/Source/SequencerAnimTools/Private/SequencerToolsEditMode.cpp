@@ -33,7 +33,8 @@ USequencerToolsEditMode::~USequencerToolsEditMode()
 
 bool USequencerToolsEditMode::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
-	return OtherModeID == FName(TEXT("EM_SequencerMode"), FNAME_Find) || OtherModeID == FName(TEXT("EditMode.ControlRig"), FNAME_Find) || OtherModeID == FName(TEXT("EditMode.ControlRigEditor"), FNAME_Find);
+	// Compatible with all modes similar to FSequencerEdMode
+	return true;
 }
 
 //If we have one of our own active tools we pass input to it's commands.

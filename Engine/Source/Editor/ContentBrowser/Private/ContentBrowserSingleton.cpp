@@ -44,52 +44,22 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 	// We're going to call a static function in the editor style module, so we need to make sure the module has actually been loaded
 	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 
-	// Register the tab spawners for all content browsers
-	const FSlateIcon ContentBrowserIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.TabIcon");
+	const FSlateIcon ContentBrowserIcon(FAppStyle::Get().GetStyleSetName(), "ContentBrowser.TabIcon");
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 	TSharedRef<FWorkspaceItem> ContentBrowserGroup = MenuStructure.GetLevelEditorCategory()->AddGroup(
-		LOCTEXT( "WorkspaceMenu_ContentBrowserCategory", "Content Browser" ),
-		LOCTEXT( "ContentBrowserMenuTooltipText", "Open a Content Browser tab." ),
+		LOCTEXT("WorkspaceMenu_ContentBrowserCategory", "Content Browser"),
+		LOCTEXT("ContentBrowserMenuTooltipText", "Open a Content Browser tab."),
 		ContentBrowserIcon,
 		true);
 
-	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
-	FToolMenuSection& Section = ContentMenu->FindOrAddSection("ProjectContent");
-	Section.AddMenuEntry("FocusContentBrowser",
-		LOCTEXT("FocusContentBrowser_Label", "Focus Content Browser"),
-		LOCTEXT("FocusContentBrowser_Desc", "Focuses the most recently active content browser tab."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateRaw(this, &FContentBrowserSingleton::FocusPrimaryContentBrowser, true), FCanExecuteAction())
-	);
-	Section.AddSeparator(NAME_None);
 
-	auto AddSpawnerEntryToMenuSection = [](FToolMenuSection& InSection, FTabSpawnerEntry& InSpawnerNode, FName InTabID)
-	{
-		InSection.AddMenuEntry(
-			InTabID,
-			InSpawnerNode.GetDisplayName().IsEmpty() ? FText::FromName(InTabID) : InSpawnerNode.GetDisplayName(),
-			InSpawnerNode.GetTooltipText(),
-			FSlateIcon(),
-			FGlobalTabmanager::Get()->GetUIActionForTabSpawnerMenuEntry(InSpawnerNode.AsSpawnerEntry()),
-			EUserInterfaceActionType::Check
-			);
-	};
+	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
+	FToolMenuSection& Section = ContentMenu->FindOrAddSection("Content");
 
-	for ( int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
-	{
-		const FName TabID = FName(*FString::Printf(TEXT("ContentBrowserTab%d"), BrowserIdx + 1));
-		ContentBrowserTabIDs[BrowserIdx] = TabID;
-
-		const FText DefaultDisplayName = GetContentBrowserLabelWithIndex( BrowserIdx );
-
-		FTabSpawnerEntry& ContentBrowserTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner( TabID, FOnSpawnTab::CreateRaw(this, &FContentBrowserSingleton::SpawnContentBrowserTab, BrowserIdx) )
-			.SetDisplayName(DefaultDisplayName)
-			.SetTooltipText( LOCTEXT( "ContentBrowserMenuTooltipText", "Open a Content Browser tab." ) )
-			.SetGroup( ContentBrowserGroup )
-			.SetIcon(ContentBrowserIcon);
-
-		AddSpawnerEntryToMenuSection(Section, ContentBrowserTabSpawner, TabID);
-	}
+	Section.AddSubMenu("ContentBrowser", LOCTEXT("ContentBrowserMenu", "Content Browser"), LOCTEXT("ContentBrowserTooltip", "Actions related to the Content Browser"),
+						FNewToolMenuDelegate::CreateRaw(this, &FContentBrowserSingleton::GetContentBrowserSubMenu, ContentBrowserGroup), false, 
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenContentBrowser"))
+						.InsertPosition = FToolMenuInsert("OpenMarketplace", EToolMenuInsertType::After);
 
 	// Register to be notified when properties are edited
 	FEditorDelegates::LoadSelectedAssetsIfNeeded.AddRaw(this, &FContentBrowserSingleton::OnEditorLoadSelectedAssetsIfNeeded);
@@ -985,6 +955,49 @@ void FContentBrowserSingleton::PopulateConfigValues()
 				PluginSettings.Emplace(PluginSetting);
 			}
 		}
+	}
+}
+
+void FContentBrowserSingleton::GetContentBrowserSubMenu(UToolMenu* Menu, TSharedRef<FWorkspaceItem> ContentBrowserGroup)
+{
+	// Register the tab spawners for all content browsers
+	const FSlateIcon ContentBrowserIcon(FAppStyle::Get().GetStyleSetName(), "ContentBrowser.TabIcon");
+
+	FToolMenuSection& Section = Menu->AddSection("ContentBrowser");
+
+	Section.AddMenuEntry("FocusContentBrowser",
+		LOCTEXT("FocusContentBrowser_Label", "Focus Content Browser"),
+		LOCTEXT("FocusContentBrowser_Desc", "Focuses the most recently active content browser tab."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FContentBrowserSingleton::FocusPrimaryContentBrowser, true), FCanExecuteAction())
+	);
+
+	auto AddSpawnerEntryToMenuSection = [](FToolMenuSection& InSection, FTabSpawnerEntry& InSpawnerNode, FName InTabID)
+	{
+		InSection.AddMenuEntry(
+			InTabID,
+			InSpawnerNode.GetDisplayName().IsEmpty() ? FText::FromName(InTabID) : InSpawnerNode.GetDisplayName(),
+			InSpawnerNode.GetTooltipText(),
+			FSlateIcon(),
+			FGlobalTabmanager::Get()->GetUIActionForTabSpawnerMenuEntry(InSpawnerNode.AsSpawnerEntry()),
+			EUserInterfaceActionType::Check
+		);
+	};
+
+	for (int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++)
+	{
+		const FName TabID = FName(*FString::Printf(TEXT("ContentBrowserTab%d"), BrowserIdx + 1));
+		ContentBrowserTabIDs[BrowserIdx] = TabID;
+
+		const FText DefaultDisplayName = GetContentBrowserLabelWithIndex(BrowserIdx);
+
+		FTabSpawnerEntry& ContentBrowserTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TabID, FOnSpawnTab::CreateRaw(this, &FContentBrowserSingleton::SpawnContentBrowserTab, BrowserIdx))
+			.SetDisplayName(DefaultDisplayName)
+			.SetTooltipText(LOCTEXT("ContentBrowserMenuTooltipText", "Open a Content Browser tab."))
+			.SetGroup(ContentBrowserGroup)
+			.SetIcon(ContentBrowserIcon);
+
+		AddSpawnerEntryToMenuSection(Section, ContentBrowserTabSpawner, TabID);
 	}
 }
 
