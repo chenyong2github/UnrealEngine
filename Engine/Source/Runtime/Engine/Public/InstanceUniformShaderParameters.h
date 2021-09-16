@@ -23,6 +23,8 @@
 
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
+#define INSTANCE_COMPRESSED_TRANSFORM	0
+
 // TODO: Rename to FInstanceSceneData
 struct FPrimitiveInstance
 {
@@ -46,7 +48,7 @@ struct FPrimitiveInstance
 		if (PrimitiveToWorld.IsScaleNonUniform())
 	#endif
 		{
-			LocalToWorld.Orthonormalize();
+			LocalToWorld.Orthogonalize();
 		}
 
 		return LocalToWorld;
@@ -73,7 +75,7 @@ struct FPrimitiveInstanceDynamicData
 		if (PrevPrimitiveToWorld.IsScaleNonUniform())
 	#endif
 		{
-			PrevLocalToWorld.Orthonormalize();
+			PrevLocalToWorld.Orthogonalize();
 		}
 
 		return PrevLocalToWorld;
@@ -98,7 +100,11 @@ FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 struct FInstanceSceneShaderData
 {
 	// Must match GetInstanceSceneData() in SceneData.ush
+#if INSTANCE_COMPRESSED_TRANSFORM
+	enum { DataStrideInFloat4s = 8 };
+#else
 	enum { DataStrideInFloat4s = 10 };
+#endif
 
 	TStaticArray<FVector4, DataStrideInFloat4s> Data;
 
