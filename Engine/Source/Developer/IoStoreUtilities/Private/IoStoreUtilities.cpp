@@ -2,7 +2,6 @@
 
 #include "IoStoreUtilities.h"
 
-#if !UE_BUILD_SHIPPING
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Hash/CityHash.h"
@@ -5083,5 +5082,3 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	return CreateTarget(Arguments, WriterSettings);
 }
-
-#endif
