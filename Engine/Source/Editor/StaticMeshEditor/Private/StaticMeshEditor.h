@@ -35,6 +35,7 @@ class UStaticMeshSocket;
 class FViewportTabContent;
 struct FPropertyChangedEvent;
 struct FTabSpawnerEntry;
+class FStaticMeshEditorModeUILayer;
 
 /**
  * StaticMesh Editor class
@@ -69,9 +70,15 @@ private:
 	/** Initializes the editor to use a static mesh. Should be the first thing called. */
 	void InitEditorForStaticMesh(UStaticMesh* ObjectToEdit);
 
+	virtual void PostInitAssetEditor() override;
+
 public:
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
+
+	// IToolkitHost Interface
+	void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override;
+	void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
 
 	/**
 	 * Edits the specified static mesh object
@@ -217,6 +224,13 @@ public:
 	/** Returns the stat ID for this tickable class */
 	virtual TStatId GetStatId() const final;
 
+	/** Add a widget to the StaticMeshViewport's ViewportOverlay */
+	void AddViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget) override;
+
+	/** Remove a widget from the StaticMeshViewport's ViewportOverlay */
+	void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
+
+	void CreateEditorModeManager() override;
 
 private:
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
@@ -576,4 +590,6 @@ private:
 	bool bDrawWireframes;
 	bool bDrawVertexColors;
 	bool bDrawAdditionalData;
+
+	TSharedPtr<FStaticMeshEditorModeUILayer> ModeUILayer;
 };

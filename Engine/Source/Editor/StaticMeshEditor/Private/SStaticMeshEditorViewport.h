@@ -127,6 +127,9 @@ public:
 
 	/** Returns the preview scene being renderd in the viewport */
 	TSharedRef<FAdvancedPreviewScene> GetPreviewScene() { return PreviewScene.ToSharedRef(); }
+
+	TSharedPtr<SOverlay> GetViewportOverlay() { return ViewportOverlay; }
+
 protected:
 	/** SEditorViewport interface */
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
