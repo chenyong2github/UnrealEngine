@@ -105,6 +105,8 @@ void UBTNode::InitializeInSubtree(UBehaviorTreeComponent& OwnerComp, uint8* Node
 		NodeInstance->SetOwner(OwnerComp.GetOwner());
 		NodeInstance->InitializeMemory(OwnerComp, NodeMemory, InitType);
 		check(TreeAsset);
+
+		FScopedBTLoggingContext LogContext(NodeInstance);
 		NodeInstance->InitializeFromAsset(*TreeAsset);
 		NodeInstance->OnInstanceCreated(OwnerComp);
 		NextInstancedIndex++;

@@ -642,9 +642,7 @@ FString UBehaviorTreeTypes::GetShortTypeName(const UObject* Ob)
 
 void UBehaviorTreeTypes::SetBTLoggingContext(const UBTNode* NewBTLoggingContext)
 {
-	BTLoggingContext = NewBTLoggingContext 
-		? FString::Printf(TEXT("%s[%d]"), *NewBTLoggingContext->GetNodeName(), NewBTLoggingContext->GetExecutionIndex())
-		: TEXT("");
+	BTLoggingContext = DescribeNodeHelper(NewBTLoggingContext);
 }
 
 //----------------------------------------------------------------------//
