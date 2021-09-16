@@ -1657,8 +1657,8 @@ void UNiagaraComponent::BeginDestroy()
 		PoolingMethod = ENCPoolMethod::None;
 	}
 
-	//By now we will have already unregistered with the scalability manger. Either directly in OnComponentDestroyed, or via the post GC callbacks in the manager it's self in the case of someone calling MarkPendingKill() directly on a component.
-	ScalabilityManagerHandle = INDEX_NONE;
+	//In most cases we have already unregistered by now but there are few edge cases where we need to unregister here.
+	UnregisterWithScalabilityManager();
 
 	DestroyInstance();
 

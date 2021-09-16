@@ -141,12 +141,7 @@ public:
 	void OnPooledReuse(UWorld& NewWorld) { SystemInstance->OnPooledReuse(NewWorld); }
 
 private:
-	struct FMaterialOverride
-	{
-		UMaterialInterface* Material = nullptr;
-		const UNiagaraRendererProperties* EmitterRendererProperty = nullptr; // Pointer only used for lookups, don't actually dereference
-		uint32 MaterialSubIndex = 0;
-	};
+	using FMaterialOverride = FNiagaraSystemRenderData::FMaterialOverride;
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

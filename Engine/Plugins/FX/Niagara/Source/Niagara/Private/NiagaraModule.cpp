@@ -1180,17 +1180,17 @@ UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(c
 		FNiagaraTypeRegistry& Registry = Get();
 		FReadScopeLock Lock(Registry.RegisteredTypesLock);
 		for (const FNiagaraTypeDefinition& Def : Registry.RegisteredTypes)
-	{
-		if (Def.IsDataInterface())
 		{
-			UClass* FoundDIClass = Def.GetClass();
-			if (FoundDIClass && (FoundDIClass->GetName() == DIClassName || FoundDIClass->GetFullName() == DIClassName))
+			if (Def.IsDataInterface())
 			{
-				DIClass = FoundDIClass;
-				break;
+				UClass* FoundDIClass = Def.GetClass();
+				if (FoundDIClass && (FoundDIClass->GetName() == DIClassName || FoundDIClass->GetFullName() == DIClassName))
+				{
+					DIClass = FoundDIClass;
+					break;
+				}
 			}
 		}
-	}
 	}
 
 	// Consider the possibility of a redirector pointing to a new location..

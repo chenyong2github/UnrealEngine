@@ -118,7 +118,7 @@ uint32 FNiagaraSystemRenderData::GetDynamicDataSize() const
 	return Size;
 }
 
-void FNiagaraSystemRenderData::GenerateSetDynamicDataCommands(FSetDynamicDataCommandList& Commands, const FNiagaraSceneProxy& SceneProxy, const FNiagaraSystemInstance* SystemInstance)
+void FNiagaraSystemRenderData::GenerateSetDynamicDataCommands(FSetDynamicDataCommandList& Commands, const FNiagaraSceneProxy& SceneProxy, const FNiagaraSystemInstance* SystemInstance, TConstArrayView<FMaterialOverride> MaterialOverrides)
 {
 	if (!SystemInstance)
 	{
@@ -183,6 +183,17 @@ void FNiagaraSystemRenderData::GenerateSetDynamicDataCommands(FSetDynamicDataCom
 					if (bRendererEditorEnabled && !EmitterInst->IsComplete() && !SystemInstance->IsComplete())
 					{
 						NewData = Renderer->GenerateDynamicData(&SceneProxy, Properties, EmitterInst);
+
+						if (NewData)
+						{
+							for (const FMaterialOverride& MaterialOverride : MaterialOverrides)
+							{
+								if (MaterialOverride.EmitterRendererProperty == Properties)
+								{
+									NewData->ApplyMaterialOverride(MaterialOverride.MaterialSubIndex, MaterialOverride.Material);
+								}
+							}
+						}
 					}
 
 					Commands.Add(FSetDynamicDataCommand(Renderer, NewData));

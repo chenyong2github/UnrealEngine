@@ -61,7 +61,7 @@ FNiagaraSystemRenderData* FNiagaraSystemInstanceController::CreateSystemRenderDa
 
 void FNiagaraSystemInstanceController::GenerateSetDynamicDataCommands(FNiagaraSystemRenderData::FSetDynamicDataCommandList& Commands, FNiagaraSystemRenderData& RenderData, const FNiagaraSceneProxy& SceneProxy)
 {
-	RenderData.GenerateSetDynamicDataCommands(Commands, SceneProxy, SystemInstance.Get());
+	RenderData.GenerateSetDynamicDataCommands(Commands, SceneProxy, SystemInstance.Get(), EmitterMaterials);
 }
 
 void FNiagaraSystemInstanceController::PostTickRenderers(FNiagaraSystemRenderData& RenderData)

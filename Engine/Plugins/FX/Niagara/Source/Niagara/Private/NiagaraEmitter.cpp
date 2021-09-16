@@ -1235,6 +1235,19 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	{
 		MaxInstanceCount = 0;
 	}
+
+	// Cache shaders for all GPU scripts
+#if WITH_EDITORONLY_DATA
+	if ( AreAllScriptAndSourcesSynchronized() )
+	{
+		ForEachScript(
+			[](UNiagaraScript* Script)
+			{
+				Script->CacheResourceShadersForRendering(false, false);
+			}
+		);
+	}
+#endif
 }
 
 void UNiagaraEmitter::CacheFromShaderCompiled()
@@ -1351,7 +1364,6 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 	}
 	DebugSimName.Append(GetName());
 #endif
-
 }
 
 bool UNiagaraEmitter::IsAllowedByScalability()const
