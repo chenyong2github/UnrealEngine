@@ -52,6 +52,21 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 		ContentBrowserIcon,
 		true);
 
+	for (int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++)
+	{
+		const FName TabID = FName(*FString::Printf(TEXT("ContentBrowserTab%d"), BrowserIdx + 1));
+		ContentBrowserTabIDs[BrowserIdx] = TabID;
+
+		const FText DefaultDisplayName = GetContentBrowserLabelWithIndex(BrowserIdx);
+
+		FTabSpawnerEntry& ContentBrowserTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TabID, FOnSpawnTab::CreateRaw(this, &FContentBrowserSingleton::SpawnContentBrowserTab, BrowserIdx))
+			.SetDisplayName(DefaultDisplayName)
+			.SetTooltipText(LOCTEXT("ContentBrowserMenuTooltipText", "Open a Content Browser tab."))
+			.SetGroup(ContentBrowserGroup)
+			.SetIcon(ContentBrowserIcon);
+
+		ContentBrowserTabs.Add(ContentBrowserTabSpawner.AsSpawnerEntry());
+	}
 
 	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
 	FToolMenuSection& Section = ContentMenu->FindOrAddSection("Content");
@@ -972,33 +987,24 @@ void FContentBrowserSingleton::GetContentBrowserSubMenu(UToolMenu* Menu, TShared
 		FUIAction(FExecuteAction::CreateRaw(this, &FContentBrowserSingleton::FocusPrimaryContentBrowser, true), FCanExecuteAction())
 	);
 
-	auto AddSpawnerEntryToMenuSection = [](FToolMenuSection& InSection, FTabSpawnerEntry& InSpawnerNode, FName InTabID)
+	auto AddSpawnerEntryToMenuSection = [](FToolMenuSection& InSection, TSharedPtr<FTabSpawnerEntry> InSpawnerNode, FName InTabID)
 	{
 		InSection.AddMenuEntry(
 			InTabID,
-			InSpawnerNode.GetDisplayName().IsEmpty() ? FText::FromName(InTabID) : InSpawnerNode.GetDisplayName(),
-			InSpawnerNode.GetTooltipText(),
+			InSpawnerNode->GetDisplayName().IsEmpty() ? FText::FromName(InTabID) : InSpawnerNode->GetDisplayName(),
+			InSpawnerNode->GetTooltipText(),
 			FSlateIcon(),
-			FGlobalTabmanager::Get()->GetUIActionForTabSpawnerMenuEntry(InSpawnerNode.AsSpawnerEntry()),
+			FGlobalTabmanager::Get()->GetUIActionForTabSpawnerMenuEntry(InSpawnerNode),
 			EUserInterfaceActionType::Check
 		);
 	};
 
 	for (int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++)
 	{
-		const FName TabID = FName(*FString::Printf(TEXT("ContentBrowserTab%d"), BrowserIdx + 1));
-		ContentBrowserTabIDs[BrowserIdx] = TabID;
-
-		const FText DefaultDisplayName = GetContentBrowserLabelWithIndex(BrowserIdx);
-
-		FTabSpawnerEntry& ContentBrowserTabSpawner = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TabID, FOnSpawnTab::CreateRaw(this, &FContentBrowserSingleton::SpawnContentBrowserTab, BrowserIdx))
-			.SetDisplayName(DefaultDisplayName)
-			.SetTooltipText(LOCTEXT("ContentBrowserMenuTooltipText", "Open a Content Browser tab."))
-			.SetGroup(ContentBrowserGroup)
-			.SetIcon(ContentBrowserIcon);
-
-		AddSpawnerEntryToMenuSection(Section, ContentBrowserTabSpawner, TabID);
+		const FName TabID = ContentBrowserTabIDs[BrowserIdx];
+		AddSpawnerEntryToMenuSection(Section, ContentBrowserTabs[BrowserIdx], TabID);
 	}
+
 }
 
 #undef LOCTEXT_NAMESPACE
