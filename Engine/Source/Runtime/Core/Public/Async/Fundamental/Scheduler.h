@@ -364,8 +364,7 @@ namespace LowLevelTasks
 			else if (SleepState == ESleepState::Drowsing)
 			{
 				return true; // Solving State one: (Running -> Drowsing) -> Running  OR ((Running -> Drowsing) -> Drowsing) -> Running
-			}
-			continue; 
+			} 
 		}
 		return false;
 	}
