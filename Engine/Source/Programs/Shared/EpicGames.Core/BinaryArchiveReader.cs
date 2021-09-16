@@ -168,6 +168,15 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Reads a double (64 bit floating point value) from the stream
+		/// </summary>
+		/// <returns>The value that was read</returns>
+		public double ReadDouble()
+		{
+			return BitConverter.Int64BitsToDouble(ReadLong());
+		}
+
+		/// <summary>
 		/// Reads a string from the stream
 		/// </summary>
 		/// <returns>The value that was read</returns>

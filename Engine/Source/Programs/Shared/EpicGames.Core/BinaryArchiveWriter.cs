@@ -226,6 +226,15 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Writes a double (64 bit floating point value) to the stream
+		/// </summary>
+		/// <param name="Value">Value to write</param>
+		public void WriteDouble(double Value)
+		{
+			WriteLong(BitConverter.DoubleToInt64Bits(Value));
+		}
+
+		/// <summary>
 		/// Writes a string to the output
 		/// </summary>
 		/// <param name="Value">Value to write</param>
