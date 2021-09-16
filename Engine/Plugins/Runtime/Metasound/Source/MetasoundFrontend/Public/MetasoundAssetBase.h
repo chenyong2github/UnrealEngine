@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "MetasoundAccessPtr.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
@@ -15,11 +13,9 @@
 #include "UObject/SoftObjectPath.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-
 // Forward Declarations
 class FMetasoundAssetBase;
 class UEdGraph;
-
 
 namespace Metasound
 {
@@ -201,12 +197,10 @@ public:
 		Metasound::FVertexName VertexName;
 	};
 
-	// Builds the Metasound Document returned by `GetDocument() const`.
-	virtual TUniquePtr<Metasound::IGraph> BuildMetasoundDocument() const;
-
 protected:
 	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) = 0;
 
+	// Get information for communicating asynchronously with MetaSound running instance.
 	TArray<FSendInfoAndVertexName> GetSendInfos(uint64 InInstanceID) const;
 
 #if WITH_EDITORONLY_DATA
@@ -219,18 +213,42 @@ protected:
 	// Returns an access pointer to the document.
 	virtual Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const = 0;
 
-	// Returns the owning asset responsible for transactions applied to metasound
+	// Returns the owning asset responsible for transactions applied to MetaSound
 	virtual UObject* GetOwningAsset() = 0;
 
-	// Returns the owning asset responsible for transactions applied to metasound
+	// Returns the owning asset responsible for transactions applied to MetaSound
 	virtual const UObject* GetOwningAsset() const = 0;
 
 	FString GetOwningAssetName() const;
 
+	// Returns a shared instance of the core metasound graph.
+	TSharedPtr<const Metasound::IGraph, ESPMode::ThreadSafe> GetMetasoundCoreGraph() const;
 
 private:
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 
+	// Container for runtime data of MetaSound graph.
+	struct FRuntimeData
+	{
+		// Current ID of graph.
+		FGuid ChangeID;
+
+		// Array of inputs which can be transmitted to.
+		TArray<FMetasoundFrontendClassInput> TransmittableInputs;
+
+		// Core graph.
+		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph;
+	};
+	// Cache ID is used to determine whether CachedRuntimeData is out-of-date.
+	mutable FGuid CurrentCachedRuntimeDataChangeID;
+	mutable FRuntimeData CachedRuntimeData;
+
+	// Returns the current runtime data. If the cached data is out-of-date, it will
+	// be updated in this call.
+	const FRuntimeData& GetRuntimeData() const;
+
+	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument() const;
+	TArray<FMetasoundFrontendClassInput> GetTransmittableClassInputs() const;
 	TSet<Metasound::FVertexName> GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const;
 	TArray<Metasound::FVertexName> GetTransmittableInputVertexNames() const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const;

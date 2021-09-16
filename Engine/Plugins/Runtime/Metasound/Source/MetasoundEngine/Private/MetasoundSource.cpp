@@ -428,8 +428,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	FOperatorSettings InSettings = GetOperatorSettings(static_cast<FSampleRate>(SampleRate));
 	FMetasoundEnvironment Environment = CreateEnvironment(InParams);
 
-	// TODO: cache graph to avoid having to create it every call to `CreateSoundGenerator(...)`
-	TUniquePtr<IGraph> MetasoundGraph = BuildMetasoundDocument();
+	TSharedPtr<const IGraph, ESPMode::ThreadSafe> MetasoundGraph = GetMetasoundCoreGraph();
 	if (!MetasoundGraph.IsValid())
 	{
 		UE_LOG(LogMetaSound, Error, TEXT("Cannot create UMetaSoundSource SoundGenerator [Name:%s]. Failed to create MetaSound Graph"), *GetName());
@@ -439,7 +438,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	FMetasoundGeneratorInitParams InitParams =
 	{
 		InSettings,
-		MoveTemp(MetasoundGraph),
+		MetasoundGraph,
 		Environment,
 		GetName(),
 		GetAudioOutputVertexKeys(),
