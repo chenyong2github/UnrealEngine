@@ -302,8 +302,7 @@ FText SDerivedDataStatusBarWidget::GetTitleToolTipText() const
 	FTextBuilder DescBuilder;
 
 	DescBuilder.AppendLineFormat(LOCTEXT("GraphNameText", "Graph : {0}"), FText::FromString(GetDerivedDataCache()->GetGraphName()));
-	DescBuilder.AppendLineFormat(LOCTEXT("GraphStatusText", "Status : {0}"), FText::FromString((GetDerivedDataCache()->AnyAsyncRequestsRemaining() ? TEXT("Busy") : TEXT("Idle"))));
-
+	
 	return DescBuilder.ToText();
 }
 
@@ -312,12 +311,45 @@ FText SDerivedDataStatusBarWidget::GetTitleText() const
 	return LOCTEXT("DerivedDataToolBarName", "Derived Data");
 }
 
+FText GetRemoteCacheStateAsText()
+{
+	switch ( FDerivedDataInformation::GetRemoteCacheState())
+	{
+		case ERemoteCacheState::Idle :
+		{
+			return FText::FromString(TEXT("Idle"));
+			break;
+		}
+
+		case ERemoteCacheState::Busy :
+		{
+			return FText::FromString(TEXT("Busy"));
+			break;
+		}	
+
+		case ERemoteCacheState::Unavailable:
+		{
+			return FText::FromString(TEXT("Unavailable"));
+			break;
+		}
+
+		default:
+		case ERemoteCacheState::Warning:
+		{
+			return FText::FromString(TEXT("Warning"));
+			break;
+		}
+	}
+}
+
 FText SDerivedDataStatusBarWidget::GetRemoteCacheToolTipText() const
 {
 	FTextBuilder DescBuilder;
 
-	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheConnectedText", "Remote Cache : {0}\n"), FText::FromString((FDerivedDataInformation::GetHasRemoteCache() ? TEXT("Connected") : TEXT("Unavailable"))));
-
+	DescBuilder.AppendLine(LOCTEXT("RemoteCacheToolTipText", "Remote Cache\n"));
+	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheConnectedText", "Connected\t: {0}"), FText::FromString((FDerivedDataInformation::GetHasRemoteCache() ? TEXT("Yes") : TEXT("No"))));
+	DescBuilder.AppendLineFormat(LOCTEXT("RemoteCacheStatusText", "Status\t: {0}"), GetRemoteCacheStateAsText() );
+	
 	const double DownloadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(true, false), EUnit::Bytes, EUnit::Megabytes);
 	const double UploadedBytesMB = FUnitConversion::Convert(FDerivedDataInformation::GetCacheActivitySizeBytes(false, false), EUnit::Bytes, EUnit::Megabytes);
 
