@@ -140,11 +140,6 @@ namespace HordeServer
 				LogDir = DirectoryReference.Combine(DataDir);
 			}
 
-			if (HordeSettings.WithDatadog)
-			{
-				GlobalTracer.Register(Datadog.Trace.OpenTracing.OpenTracingTracerFactory.CreateTracer());
-			}
-
 			Serilog.Log.Logger = new LoggerConfiguration()
 				.WithHordeConfig(HordeSettings)
 				.Enrich.FromLogContext()
@@ -153,6 +148,12 @@ namespace HordeServer
 				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(LogDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
 				.ReadFrom.Configuration(Config)
 				.CreateLogger();
+
+			if (HordeSettings.WithDatadog)
+			{
+				Serilog.Log.Logger.Information("Enabling datadog tracing");
+				GlobalTracer.Register(Datadog.Trace.OpenTracing.OpenTracingTracerFactory.CreateTracer());
+			}
 
 			if (Arguments.HasOption("-UpdateSchemas"))
 			{
