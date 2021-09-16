@@ -851,8 +851,8 @@ public:
 	auto cbegin() const { return DenseVals.begin(); }
 	auto cend() const { return DenseVals.end(); }
 
-	const TVal* GetDensePtr() const { return DenseVals.GetData(); }
-	TVal* GetDensePtr() { return DenseVals.GetData(); }
+	const TVal& GetDenseAt(const int32 Idx) const { return DenseVals[Idx]; }
+	TVal& GetDenseAt(const int32 Idx) { return DenseVals[Idx]; }
 
 private:
 	TMap<TKey, int32> KeyToIdx;
@@ -1058,7 +1058,7 @@ private:
 			return *Info;
 		}
 
-		using TDirtyObj = decltype(NoRefHelper(*DirtyObjs.GetDensePtr()));
+		using TDirtyObj = decltype(NoRefHelper(DirtyObjs.GetDenseAt(0)));
 		TDirtyObj& Info = DirtyObjs.Add(&Handle, TDirtyObj(PropertiesPool, Handle, CurFrame, Managers.Capacity()));
 		Info.InitializedOnStep = InitializedOnFrame;
 		return Info;
