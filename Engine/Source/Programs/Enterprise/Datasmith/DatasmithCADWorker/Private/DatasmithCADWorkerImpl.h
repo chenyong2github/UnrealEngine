@@ -30,7 +30,7 @@ private:
 	/**
 	 * @param MaxDuration is defined in seconds.
 	 */
-	void CheckDuration(const CADLibrary::FFileDescription& FileToProcess, const int64 MaxDuration); 
+	void CheckDuration(const CADLibrary::FFileDescriptor& FileToProcess, const int64 MaxDuration); 
 
 private:
 	DatasmithDispatcher::FNetworkClientNode NetworkInterface;

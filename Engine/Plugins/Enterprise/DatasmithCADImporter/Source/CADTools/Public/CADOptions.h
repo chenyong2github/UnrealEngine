@@ -67,13 +67,13 @@ namespace CADLibrary
 			uint32 Hash = 0; 
 			for (double Param : {MetricUnit, ScaleFactor, ChordTolerance, MaxEdgeLength, MaxNormalAngle})
 			{
-				Hash = HashCombine(Hash, GetTypeHash(Param));
+				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
 			for (uint32 Param : {uint32(StitchingTechnique), uint32(ModelCoordSys), uint32(Propagation), uint32(DisplayPreference)})
 			{
-				Hash = HashCombine(Hash, GetTypeHash(Param));
+				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
-			Hash = HashCombine(Hash, GetTypeHash(bScaleUVMap));
+			Hash = HashCombine(Hash, ::GetTypeHash(bScaleUVMap));
 			return Hash;
 		}
 
