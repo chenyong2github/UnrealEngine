@@ -30,8 +30,7 @@ public class ONNXRuntime : ModuleRules
 		);
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 || 
-			Target.Platform == UnrealTargetPlatform.Linux ||
-			Target.Platform == UnrealTargetPlatform.Mac)
+			Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			PublicIncludePaths.AddRange(
 				new string[] {
@@ -72,7 +71,7 @@ public class ONNXRuntime : ModuleRules
 			);
 		}
 		// Linux
-		else if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac)
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			PublicDependencyModuleNames.AddRange
 				(
