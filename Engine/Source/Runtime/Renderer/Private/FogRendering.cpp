@@ -133,34 +133,10 @@ public:
 		FogStartZ.Bind(Initializer.ParameterMap,TEXT("FogStartZ"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, float FogClipSpaceZ)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
-
-		{
-			// The fog can be set to start at a certain euclidean distance.
-			// clamp the value to be behind the near plane z
-			float FogStartDistance = FMath::Max(30.0f, View.ExponentialFogParameters.W);
-
-			// Here we compute the nearest z value the fog can start
-			// to render the quad at this z value with depth test enabled.
-			// This means with a bigger distance specified more pixels are
-			// are culled and don't need to be rendered. This is faster if
-			// there is opaque content nearer than the computed z.
-
-			FMatrix InvProjectionMatrix = View.ViewMatrices.GetInvProjectionMatrix();
-
-			FVector ViewSpaceCorner = InvProjectionMatrix.TransformFVector4(FVector4(1, 1, 1, 1));
-
-			float Ratio = ViewSpaceCorner.Z / ViewSpaceCorner.Size();
-
-			FVector ViewSpaceStartFogPoint(0.0f, 0.0f, FogStartDistance * Ratio);
-			FVector4 ClipSpaceMaxDistance = View.ViewMatrices.GetProjectionMatrix().TransformPosition(ViewSpaceStartFogPoint);
-
-			float FogClipSpaceZ = ClipSpaceMaxDistance.Z / ClipSpaceMaxDistance.W;
-
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(),FogStartZ, FogClipSpaceZ);
-		}
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(),FogStartZ, FogClipSpaceZ);
 	}
 
 private:
@@ -377,6 +353,22 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFogVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 
+	// The fog can be set to start at a certain euclidean distance.
+	// clamp the value to be behind the near plane z
+	float FogStartDistance = FMath::Max(30.0f, View.ExponentialFogParameters.W);
+
+	// Here we compute the nearest z value the fog can start
+	// to render the quad at this z value with depth test enabled.
+	// This means with a bigger distance specified more pixels are
+	// are culled and don't need to be rendered. This is faster if
+	// there is opaque content nearer than the computed z.
+	FMatrix InvProjectionMatrix = View.ViewMatrices.GetInvProjectionMatrix();
+	FVector ViewSpaceCorner = InvProjectionMatrix.TransformFVector4(FVector4(1, 1, 1, 1));
+	float Ratio = ViewSpaceCorner.Z / ViewSpaceCorner.Size();
+	FVector ViewSpaceStartFogPoint(0.0f, 0.0f, FogStartDistance * Ratio);
+	FVector4 ClipSpaceMaxDistance = View.ViewMatrices.GetProjectionMatrix().TransformPosition(ViewSpaceStartFogPoint);
+	float FogClipSpaceZ = ClipSpaceMaxDistance.Z / ClipSpaceMaxDistance.W;
+
 	if (bShouldRenderVolumetricFog)
 	{
 		if (View.FogInscatteringColorCubemap)
@@ -385,7 +377,7 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ExponentialHeightFogPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			VertexShader->SetParameters(RHICmdList, View);
+			VertexShader->SetParameters(RHICmdList, View, FogClipSpaceZ);
 			ExponentialHeightFogPixelShader->SetParameters(RHICmdList, View, Params, FogUniformBuffer);
 		}
 		else if (View.bUseDirectionalInscattering)
@@ -394,7 +386,7 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ExponentialHeightFogPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			VertexShader->SetParameters(RHICmdList, View);
+			VertexShader->SetParameters(RHICmdList, View, FogClipSpaceZ);
 			ExponentialHeightFogPixelShader->SetParameters(RHICmdList, View, Params, FogUniformBuffer);
 		}
 		else
@@ -403,7 +395,7 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ExponentialHeightFogPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			VertexShader->SetParameters(RHICmdList, View);
+			VertexShader->SetParameters(RHICmdList, View, FogClipSpaceZ);
 			ExponentialHeightFogPixelShader->SetParameters(RHICmdList, View, Params, FogUniformBuffer);
 		}
 	}
@@ -413,19 +405,13 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 
 		if (GraphicsPSOInit.bDepthBounds)
 		{
-			const FMatrix Projection = View.ViewMatrices.GetProjectionMatrix();
-			const FVector4 FogStartPoint4 = FVector4(0.0f, 0.0f, View.ExponentialFogParameters.W, 1.f);
-			const FVector4 FogStartPoint4Clip = Projection.TransformFVector4(FogStartPoint4);
-			float FogCDistanceClip = FogStartPoint4Clip.Z / FogStartPoint4Clip.W;
-
-
 			if (bool(ERHIZBuffer::IsInverted))
 			{
-				RHICmdList.SetDepthBounds(0.0f, FogCDistanceClip);
+				RHICmdList.SetDepthBounds(0.0f, FogClipSpaceZ);
 			}
 			else
 			{
-				RHICmdList.SetDepthBounds(FogCDistanceClip, 1.0f);
+				RHICmdList.SetDepthBounds(FogClipSpaceZ, 1.0f);
 			}
 		}
 
@@ -435,7 +421,7 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ExponentialHeightFogPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			VertexShader->SetParameters(RHICmdList, View);
+			VertexShader->SetParameters(RHICmdList, View, FogClipSpaceZ);
 			ExponentialHeightFogPixelShader->SetParameters(RHICmdList, View, Params, FogUniformBuffer);
 		}
 		else if (View.bUseDirectionalInscattering)
@@ -444,7 +430,7 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ExponentialHeightFogPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			VertexShader->SetParameters(RHICmdList, View);
+			VertexShader->SetParameters(RHICmdList, View, FogClipSpaceZ);
 			ExponentialHeightFogPixelShader->SetParameters(RHICmdList, View, Params, FogUniformBuffer);
 		}
 		else
@@ -453,7 +439,7 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ExponentialHeightFogPixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			VertexShader->SetParameters(RHICmdList, View);
+			VertexShader->SetParameters(RHICmdList, View, FogClipSpaceZ);
 			ExponentialHeightFogPixelShader->SetParameters(RHICmdList, View, Params, FogUniformBuffer);
 		}
 	}
