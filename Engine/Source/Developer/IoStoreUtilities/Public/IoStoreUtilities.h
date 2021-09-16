@@ -4,8 +4,4 @@
 
 #include "CoreMinimal.h"
 
-#if !UE_BUILD_SHIPPING
-
 IOSTOREUTILITIES_API int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine);
-
-#endif
