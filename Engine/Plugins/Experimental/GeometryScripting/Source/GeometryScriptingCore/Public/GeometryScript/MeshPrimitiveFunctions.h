@@ -70,9 +70,9 @@ public:
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
 		float Radius = 50,
-		int32 StepsX = 0,
-		int32 StepsY = 0,
-		int32 StepsZ = 0,
+		int32 StepsX = 6,
+		int32 StepsY = 6,
+		int32 StepsZ = 6,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -146,6 +146,22 @@ public:
 		int32 Steps = 8,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	 * Polygon should be oriented counter-clockwise to produce a correctly-oriented shape, otherwise it will be inside-out
+	 * Polygon endpoint is not repeated.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendSimpleExtrudePolygon( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		const TArray<FVector2D>& PolygonVertices,
+		float Height = 100,
+		int32 HeightSteps = 0,
+		bool bCapped = true,
+		UGeometryScriptDebug* Debug = nullptr);
+
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
@@ -198,6 +214,21 @@ public:
 		int32 SpokeSteps = 0,
 		float StartAngle = 0,
 		float EndAngle = 360,
+		float HoleRadius = 0,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	* Polygon should be oriented counter-clockwise to produce a correctly-oriented shape, otherwise it will be inside-out
+	* Polygon endpoint is not repeated.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendTriangulatedPolygon( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		const TArray<FVector2D>& PolygonVertices,
+		bool bAllowSelfIntersections = true,
 		UGeometryScriptDebug* Debug = nullptr);
 
 };

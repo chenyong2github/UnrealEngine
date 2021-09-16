@@ -15,6 +15,9 @@
 #include "Generators/RectangleMeshGenerator.h"
 #include "Generators/DiscMeshGenerator.h"
 #include "Generators/SweepGenerator.h"
+#include "Generators/FlatTriangulationMeshGenerator.h"
+#include "ConstrainedDelaunay2.h"
+#include "Arrangement2d.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -335,6 +338,55 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleRevolve
 
 
 
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleExtrudePolygon(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	const TArray<FVector2D>& PolygonVertices,
+	float Height,
+	int32 HeightSteps,
+	bool bCapped,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSimpleExtrudePolygon_NullMesh", "AppendSimpleExtrudePolygon: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (PolygonVertices.Num() < 3)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSimpleExtrudePolygon_InvalidPolygon", "AppendSimpleExtrudePolygon: PolygonVertices array requires at least 3 positions"));
+		return TargetMesh;
+	}
+
+	FGeneralizedCylinderGenerator ExtrudeGen;
+	for (const FVector2D& Point : PolygonVertices)
+	{
+		ExtrudeGen.CrossSection.AppendVertex((FVector2d)Point);
+	}
+
+	int32 NumDivisions = FMath::Max(1, HeightSteps - 1);
+	int32 NumPathSteps = NumDivisions + 1;
+	double StepSize = (double)Height / (double)NumDivisions;
+
+	for (int32 k = 0; k <= NumPathSteps; ++k)
+	{
+		double StepHeight = (k == NumPathSteps) ? Height : ((double)k * StepSize);
+		ExtrudeGen.Path.Add(FVector3d(0, 0, StepHeight));
+	}
+
+	ExtrudeGen.InitialFrame = FFrame3d();
+	ExtrudeGen.bCapped = bCapped;
+	ExtrudeGen.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	ExtrudeGen.Generate();
+
+	AppendPrimitive(TargetMesh, &ExtrudeGen, Transform, PrimitiveOptions);
+	return TargetMesh;
+}
+
+
+
 UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleSweptPolygon(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
@@ -476,6 +528,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendDisc(
 	int32 SpokeSteps,
 	float StartAngle,
 	float EndAngle,
+	float HoleRadius,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -485,20 +538,93 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendDisc(
 	}
 
 	FDiscMeshGenerator DiscGenerator;
-	DiscGenerator.Radius = FMath::Max(FMathf::ZeroTolerance, Radius);
-	DiscGenerator.Normal = FVector3f::UnitZ();
-	DiscGenerator.AngleSamples = FMath::Max(3, AngleSteps);
-	DiscGenerator.RadialSamples = FMath::Max(3, SpokeSteps);
-	DiscGenerator.StartAngle = StartAngle;
-	DiscGenerator.EndAngle = EndAngle;
-	DiscGenerator.bSinglePolygroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
-	DiscGenerator.Generate();
+	FPuncturedDiscMeshGenerator PuncturedDiscGenerator;
+	FDiscMeshGenerator* UseGenerator = &DiscGenerator;
 
-	AppendPrimitive(TargetMesh, &DiscGenerator, Transform, PrimitiveOptions);
+	if (HoleRadius > 0)
+	{
+		PuncturedDiscGenerator.HoleRadius = HoleRadius;
+		UseGenerator = &PuncturedDiscGenerator;
+	}
+
+	UseGenerator->Radius = FMath::Max(FMathf::ZeroTolerance, Radius);
+	UseGenerator->Normal = FVector3f::UnitZ();
+	UseGenerator->AngleSamples = FMath::Max(3, AngleSteps);
+	UseGenerator->RadialSamples = FMath::Max(3, SpokeSteps);
+	UseGenerator->StartAngle = StartAngle;
+	UseGenerator->EndAngle = EndAngle;
+	UseGenerator->bSinglePolygroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	UseGenerator->Generate();
+	AppendPrimitive(TargetMesh, UseGenerator, Transform, PrimitiveOptions);
 
 	return TargetMesh;
 }
 
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendTriangulatedPolygon(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	const TArray<FVector2D>& PolygonVertices,
+	bool bAllowSelfIntersections,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendTriangulatedPolygon_InvalidInput", "AppendTriangulatedPolygon: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (PolygonVertices.Num() < 3)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendTriangulatedPolygon_InvalidPolygon", "AppendTriangulatedPolygon: PolygonVertices array requires at least 3 positions"));
+		return TargetMesh;
+	}
+
+	FPolygon2d Polygon;
+	for (FVector2D Vertex : PolygonVertices)
+	{
+		Polygon.AppendVertex(Vertex);
+	}
+	FGeneralPolygon2d GeneralPolygon(Polygon);
+
+	FConstrainedDelaunay2d Triangulator;
+	if (bAllowSelfIntersections)
+	{
+		FArrangement2d Arrangement(Polygon.Bounds());
+		// arrangement2d builds a general 2d graph that discards orientation info ...
+		Triangulator.FillRule = FConstrainedDelaunay2d::EFillRule::Odd;
+		Triangulator.bOrientedEdges = false;
+		Triangulator.bSplitBowties = true;
+		for (FSegment2d Seg : GeneralPolygon.GetOuter().Segments())
+		{
+			Arrangement.Insert(Seg);
+		}
+		Triangulator.Add(Arrangement.Graph);
+	}
+	else
+	{
+		Triangulator.Add(GeneralPolygon);
+	}
+
+	bool bTriangulationSuccess = Triangulator.Triangulate([&GeneralPolygon](const TArray<FVector2d>& Vertices, FIndex3i Tri) 
+	{
+		return GeneralPolygon.Contains((Vertices[Tri.A] + Vertices[Tri.B] + Vertices[Tri.C]) / 3.0);	// keep triangles based on the input polygon's winding
+	});
+
+	// even if bTriangulationSuccess is false, there may still be some triangles, so only fail if the mesh is empty
+	if (Triangulator.Triangles.Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("AppendTriangulatedPolygon_Failed", "AppendTriangulatedPolygon: Failed to triangulate polygon"));
+		return TargetMesh;
+	}
+
+	FFlatTriangulationMeshGenerator TriangulationMeshGen;
+	TriangulationMeshGen.Vertices2D = Triangulator.Vertices;
+	TriangulationMeshGen.Triangles2D = Triangulator.Triangles;
+	AppendPrimitive(TargetMesh, &TriangulationMeshGen.Generate(), Transform, PrimitiveOptions);
+
+	return TargetMesh;
+}
 
 
 

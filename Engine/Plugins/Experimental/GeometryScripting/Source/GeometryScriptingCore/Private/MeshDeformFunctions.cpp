@@ -6,6 +6,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "SpaceDeformerOps/BendMeshOp.h"
 #include "SpaceDeformerOps/TwistMeshOp.h"
+#include "SpaceDeformerOps/FlareMeshOp.h"
 #include "UDynamicMesh.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -17,6 +18,7 @@ using namespace UE::Geometry;
 UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyBendWarpToMesh(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptBendWarpOptions Options,
+	FTransform BendOrientation,
 	float BendAngle,
 	float BendExtent,
 	UGeometryScriptDebug* Debug)
@@ -27,27 +29,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyBendWarpToMesh(
 		return TargetMesh;
 	}
 
-	FVector3d UseAxis = Options.BendAxis.GetSafeNormal();
-	if (FMath::Abs(1.0 - UseAxis.Length()) > 0.1)
-	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyBendWarpToMesh_InvalidAxis", "ApplyBendWarpToMesh: BendAxis is degenerate"));
-		UseAxis = FVector3d::UnitZ();
-	}
-	FFrame3d WarpFrame = FFrame3d((FVector3d)Options.BendOrigin, (FVector3d)UseAxis);
-
-	if (Options.TowardAxis.Length() > 0)
-	{
-		FVector3d UseTowardAxis = (FVector3d)Options.TowardAxis.GetSafeNormal();
-		if ( WarpFrame.Z().Dot(UseTowardAxis) < 0.95 )
-		{
-			WarpFrame.ConstrainedAlignAxis(1, UseTowardAxis, WarpFrame.Z());
-		}
-	}
-
-	if (Options.BendAxisRotation != 0)
-	{
-		WarpFrame.Rotate(FQuaterniond( WarpFrame.Z(), Options.BendAxisRotation, true));
-	}
+	FFrame3d WarpFrame = FFrame3d(BendOrientation);
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
@@ -82,6 +64,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyBendWarpToMesh(
 UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyTwistWarpToMesh(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptTwistWarpOptions Options,
+	FTransform TwistOrientation,
 	float TwistAngle,
 	float TwistExtent,
 	UGeometryScriptDebug* Debug)
@@ -92,27 +75,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyTwistWarpToMesh(
 		return TargetMesh;
 	}
 
-	FVector3d UseAxis = Options.TwistAxis.GetSafeNormal();
-	if (FMath::Abs(1.0 - UseAxis.Length()) > 0.1)
-	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyTwistWarpToMesh_InvalidAxis", "ApplyTwistWarpToMesh: TwistAxis is degenerate"));
-		UseAxis = FVector3d::UnitZ();
-	}
-	FFrame3d WarpFrame = FFrame3d((FVector3d)Options.TwistOrigin, UseAxis);
-
-	if (Options.TowardAxis.Length() > 0)
-	{
-		FVector3d UseTowardAxis = (FVector3d)Options.TowardAxis.GetSafeNormal();
-		if ( WarpFrame.Z().Dot(UseTowardAxis) < 0.95 )
-		{
-			WarpFrame.ConstrainedAlignAxis(1, UseTowardAxis, WarpFrame.Z());
-		}
-	}
-
-	if (Options.TwistAxisRotation != 0)
-	{
-		WarpFrame.Rotate(FQuaterniond( WarpFrame.Z(), Options.TwistAxisRotation, true));
-	}
+	FFrame3d WarpFrame = FFrame3d(TwistOrientation);
 
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{
@@ -138,6 +101,53 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyTwistWarpToMesh(
 
 	return TargetMesh;
 }
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyFlareWarpToMesh(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptFlareWarpOptions Options,
+	FTransform FlareOrientation,
+	float FlarePercentX,
+	float FlarePercentY,
+	float FlareExtent,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyFlareWarpToMesh_InvalidInput", "ApplyFlareWarpToMesh: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	FFrame3d WarpFrame = FFrame3d(FlareOrientation);
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		// todo extract Flare warp into standalone math code
+		TSharedPtr<FDynamicMesh3> TmpMeshPtr = MakeShared<FDynamicMesh3>();
+		*TmpMeshPtr = MoveTemp(EditMesh);
+
+		FFlareMeshOp FlareOp;
+		FlareOp.OriginalMesh = TmpMeshPtr;
+		FlareOp.GizmoFrame = WarpFrame;
+		FlareOp.LowerBoundsInterval = (Options.bSymmetricExtents) ? -FlareExtent : -Options.LowerExtent;
+		FlareOp.UpperBoundsInterval = FlareExtent;
+		FlareOp.FlarePercentX = FlarePercentX;
+		FlareOp.FlarePercentY = FlarePercentY;
+		FlareOp.bSmoothEnds = Options.bSmoothEnds;
+
+		FlareOp.CalculateResult(nullptr);
+
+		TUniquePtr<FDynamicMesh3> NewResultMesh = FlareOp.ExtractResult();
+		FDynamicMesh3* NewResultMeshPtr = NewResultMesh.Release();
+		EditMesh = MoveTemp(*NewResultMeshPtr);
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
 
 
 
