@@ -80,14 +80,16 @@ struct FNDIRigidMeshCollisionData
 	/** Release the buffers */
 	void Release();
 
+	ETickingGroup ComputeTickingGroup();
+
+	/** The instance ticking group */
+	ETickingGroup TickingGroup;
+
 	/** Physics asset Gpu buffer */
 	FNDIRigidMeshCollisionBuffer* AssetBuffer;
 
 	/** Physics asset Cpu arrays */
 	FNDIRigidMeshCollisionArrays AssetArrays;  
-
-	/** The instance ticking group */
-	ETickingGroup TickingGroup;
 
 	/** Static Mesh Components **/
 	TArray<AStaticMeshActor*> StaticMeshActors;

@@ -339,24 +339,7 @@ void FNDIRigidMeshCollisionBuffer::ReleaseRHI()
 
 //------------------------------------------------------------------------------------------------------------
 
-ETickingGroup ComputeTickingGroup(const TArray<TWeakObjectPtr<class USkeletalMeshComponent>> SkeletalMeshes)
-{
-	ETickingGroup TickingGroup = NiagaraFirstTickGroup;
-	for (int32 ComponentIndex = 0; ComponentIndex < SkeletalMeshes.Num(); ++ComponentIndex)
-	{
-		if (SkeletalMeshes[ComponentIndex].Get() != nullptr)
-		{
-			const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(SkeletalMeshes[ComponentIndex].Get());
 
-			const ETickingGroup ComponentTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
-			const ETickingGroup PhysicsTickGroup = Component->bBlendPhysics ? FMath::Max(ComponentTickGroup, TG_EndPhysics) : ComponentTickGroup;
-			const ETickingGroup ClampedTickGroup = FMath::Clamp(ETickingGroup(PhysicsTickGroup + 1), NiagaraFirstTickGroup, NiagaraLastTickGroup);
-
-			TickingGroup = FMath::Max(TickingGroup, ClampedTickGroup);
-		}
-	}
-	return TickingGroup;
-}
 
 void FNDIRigidMeshCollisionData::Release()
 {
@@ -386,7 +369,7 @@ void FNDIRigidMeshCollisionData::Init(UNiagaraDataInterfaceRigidMeshCollisionQue
 		{
 			AStaticMeshActor* StaticMeshActor = *It;
 
-			if (!Interface->OnlyUseMoveable || (Interface->OnlyUseMoveable && StaticMeshActor->IsRootComponentMovable()) && 
+			if ((!Interface->OnlyUseMoveable || (Interface->OnlyUseMoveable && StaticMeshActor->IsRootComponentMovable())) && 
 				(Interface->Tag == FString("") || (Interface->Tag != FString("") && StaticMeshActor->Tags.Contains(FName(Interface->Tag)))))
 			{
 				StaticMeshActors.Add(StaticMeshActor);
@@ -423,13 +406,36 @@ void FNDIRigidMeshCollisionData::Update(UNiagaraDataInterfaceRigidMeshCollisionQ
 {
 	if (Interface != nullptr && SystemInstance != nullptr)
 	{		
-		//TickingGroup = ComputeTickingGroup(Interface->SourceComponents);
+		TickingGroup = ComputeTickingGroup();
 
 		if (0 < StaticMeshActors.Num() && StaticMeshActors[0] != nullptr)
 		{
 			UpdateInternalArrays(StaticMeshActors, &AssetArrays);
 		}
 	}
+}
+
+ETickingGroup FNDIRigidMeshCollisionData::ComputeTickingGroup()
+{
+	TickingGroup = NiagaraFirstTickGroup;
+	for (int32 ComponentIndex = 0; ComponentIndex < StaticMeshActors.Num(); ++ComponentIndex)
+	{
+		if (StaticMeshActors[ComponentIndex] != nullptr)
+		{			
+			UStaticMeshComponent* Component = StaticMeshActors[ComponentIndex]->GetStaticMeshComponent();
+
+			if (Component == nullptr)
+			{
+				continue;
+			}
+				const ETickingGroup ComponentTickGroup = FMath::Max(Component->PrimaryComponentTick.TickGroup, Component->PrimaryComponentTick.EndTickGroup);
+				const ETickingGroup PhysicsTickGroup = ComponentTickGroup;
+				const ETickingGroup ClampedTickGroup = FMath::Clamp(ETickingGroup(PhysicsTickGroup + 1), NiagaraFirstTickGroup, NiagaraLastTickGroup);		
+
+			TickingGroup = FMath::Max(TickingGroup, ClampedTickGroup);
+		}
+	}
+	return TickingGroup;
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -580,7 +586,6 @@ UNiagaraDataInterfaceRigidMeshCollisionQuery::UNiagaraDataInterfaceRigidMeshColl
 {
 	Proxy.Reset(new FNDIRigidMeshCollisionProxy());
 }
-
 
 bool UNiagaraDataInterfaceRigidMeshCollisionQuery::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
