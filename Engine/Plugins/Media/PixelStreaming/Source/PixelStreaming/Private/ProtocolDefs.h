@@ -50,6 +50,11 @@ namespace PixelStreamingProtocol
 		TouchStart = 80,
 		TouchEnd = 81,
 		TouchMove = 82,
+
+		// Gamepad Input Messages. Range = 90..99
+		GamepadButtonPressed = 90,
+		GamepadButtonReleased = 91,
+		GamepadAnalog = 92,
 		
 		/**********************************************************************/
 
