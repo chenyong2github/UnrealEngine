@@ -5739,7 +5739,6 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 		LinkerRoot->SetLoadedPath(FPackagePath::FromPackageNameUnchecked(Desc.PackageNameToLoad));
 		LinkerRoot->SetCanBeImportedFlag(Desc.bCanBeImported);
 		LinkerRoot->SetPackageId(Desc.UPackageId);
-		LinkerRoot->SetPackageIdToLoad(Desc.PackageIdToLoad);
 		LinkerRoot->SetPackageFlagsTo(PackageSummary->PackageFlags | PKG_Cooked);
 		LinkerRoot->LinkerPackageVersion = GPackageFileUEVersion;
 		LinkerRoot->LinkerLicenseeVersion = GPackageFileLicenseeUEVersion;

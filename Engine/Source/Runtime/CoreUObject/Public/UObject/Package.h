@@ -230,9 +230,6 @@ private:
 	/** Globally unique id */
 	FPackageId PackageId;
 
-	/** Globally unique id used to address I/O chunks within the package */
-	FPackageId PackageIdToLoad;
-
 	/** The PackagePath this package was loaded from */
 	FPackagePath LoadedPath;
 public:
@@ -603,13 +600,7 @@ public:
 	/** returns the unique package id to load */
 	FORCEINLINE FPackageId GetPackageIdToLoad() const
 	{
-		return PackageIdToLoad;
-	}
-
-	/** sets the unique package id to load */
-	FORCEINLINE void SetPackageIdToLoad(FPackageId InPackageIdToLoad)
-	{
-		PackageIdToLoad = InPackageIdToLoad;
+		return FPackageId::FromName(LoadedPath.GetPackageFName());
 	}
 
 	/**
