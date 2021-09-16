@@ -154,7 +154,7 @@ void SLevelEditor::BindCommands()
 		FExecuteAction::CreateStatic< TWeakPtr< SLevelEditor > >( &FLevelEditorActionCallbacks::OnShowWorldProperties, SharedThis( this ) ) );
 	
 	LevelEditorCommands->MapAction( 
-		Actions.FocusAllViewportsToSelection, 
+		FEditorViewportCommands::Get().FocusAllViewportsToSelection,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("CAMERA ALIGN") ) )
 		);
 
