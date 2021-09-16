@@ -1527,13 +1527,6 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 		}
 	}
 
-	if (System != nullptr)
-	{
-		System->ComputeEmittersExecutionOrder();
-		System->ComputeRenderersDrawOrder();
-		System->CacheFromCompiledData();
-	}
-
 	FNiagaraSystemUpdateContext UpdateContext;
 
 	//TODO: Some path through the system sim init code is causing this to break running systems.
@@ -1548,6 +1541,7 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 			}
 		}
 	);
+
 	if (MultiResetMode == EMultiResetMode::ResetThisInstance)
 	{
 		if (PreviewComponent != nullptr)
@@ -1557,7 +1551,14 @@ void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiRe
 	}
 	else
 	{
-		UpdateContext.Add(&GetSystem(), ReinitMode == EReinitMode::ReinitializeSystem);
+		UNiagaraSystem* NiagaraSystem = &GetSystem();
+		UpdateContext.Add(NiagaraSystem, ReinitMode == EReinitMode::ReinitializeSystem);
+
+		// When reinitializing the whole system update all re-cache all information
+		// Note: This must be done after we add the system to the update context as this will ensure we waited for any async work to complete
+		NiagaraSystem->ComputeEmittersExecutionOrder();
+		NiagaraSystem->ComputeRenderersDrawOrder();
+		NiagaraSystem->CacheFromCompiledData();
 	}
 
 	UpdateContext.CommitUpdate();
