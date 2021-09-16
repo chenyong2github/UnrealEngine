@@ -1434,14 +1434,19 @@ namespace UnrealBuildTool
 				Args.Add("-projectfiles");
 				Args.Add("-vscode");
 
-				if (bForeignProject)
+				if (bGeneratingGameProjectFiles)
 				{
 					Args.Add("-project=" + MakeUnquotedPathString(OnlyGameProject, EPathType.Absolute));
 					Args.Add("-game");
+				}
+				if (bIncludeEngineSource)
+				{
 					Args.Add("-engine");
 				}
-				else
+				
+				if (bIncludeDotNetPrograms)
 				{
+					Args.Add("-dotnet");
 					PreLaunchTask = "UnrealBuildTool " + HostPlatform.ToString() + " Development Build";
 				}
 
