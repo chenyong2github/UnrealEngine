@@ -14,6 +14,7 @@
 
 FLevelInstanceActorDesc::FLevelInstanceActorDesc()
 	: DesiredRuntimeBehavior(ELevelInstanceRuntimeBehavior::Embedded)
+	, LevelInstanceContainer(nullptr)
 {
 
 }
@@ -36,33 +37,27 @@ void FLevelInstanceActorDesc::Init(UActorDescContainer* InContainer, const FWorl
 	FWorldPartitionActorDesc::Init(InContainer, DescData);
 }
 
-void FLevelInstanceActorDesc::OnRegister()
-{
-	FWorldPartitionActorDesc::OnRegister();
-	RegisterContainer();
-}
-
 void FLevelInstanceActorDesc::OnUnregister()
 {
 	FWorldPartitionActorDesc::OnUnregister();
 	LevelInstanceContainer = nullptr;
 }
 
-void FLevelInstanceActorDesc::RegisterContainer()
-{
-	check(!LevelInstanceContainer);
-	if (Container && (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded || DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned))
-	{
-		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
-		{
-			UWorldPartition* WorldPartition = Container->GetWorld()->GetWorldPartition();
-			LevelInstanceContainer = WorldPartition->RegisterActorDescContainer(LevelPackage);
-		}
-	}
-}
-
 bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
+	// Lazy register
+	if (!LevelInstanceContainer)
+	{
+		if (Container && (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded || DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned))
+		{
+			if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
+			{
+				UWorldPartition* WorldPartition = Container->GetWorld()->GetWorldPartition();
+				LevelInstanceContainer = WorldPartition->RegisterActorDescContainer(LevelPackage);
+			}
+		}
+	}
+
 	if (LevelInstanceContainer)
 	{
 		OutLevelContainer = LevelInstanceContainer;
