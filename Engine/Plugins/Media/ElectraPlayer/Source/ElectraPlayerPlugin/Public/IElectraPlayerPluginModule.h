@@ -4,6 +4,7 @@
 
 #include "Templates/SharedPointer.h"
 #include "Modules/ModuleInterface.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/Timespan.h"
 #include "Containers/Array.h"
 #include "IMediaOptions.h"
