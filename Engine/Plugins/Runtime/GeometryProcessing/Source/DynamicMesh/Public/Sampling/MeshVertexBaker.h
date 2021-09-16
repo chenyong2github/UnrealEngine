@@ -19,12 +19,15 @@ public:
 	enum class EBakeMode
 	{
 		Channel,	// Bake scalar data into color channels
-		Color		// Bake color data to RGB
+		Color		// Bake color data to RGBA
 	};
 
 	EBakeMode BakeMode = EBakeMode::Color;
 
+	/** Evaluator to use for full color bakes */
 	TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe> ColorEvaluator;
+
+	/** Evaluators to use for per channel (RGBA) bakes */
 	TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe> ChannelEvaluators[4];
 
 public:	
@@ -46,6 +49,7 @@ public:
 	//
 
 protected:
+	/** Template bake implementation. */
 	template<EBakeMode ComputeMode>
 	static void BakeImpl(void* Data);
 
@@ -70,7 +74,7 @@ protected:
 	/** The total size of the temporary float buffer for BakeSample. */
 	int32 BakeSampleBufferSize = 0;
 
-	/** */
+	/** Function pointer to internal bake implementation. */
 	using BakeFn = void(*)(void* Data);
 	BakeFn BakeInternal = nullptr;
 

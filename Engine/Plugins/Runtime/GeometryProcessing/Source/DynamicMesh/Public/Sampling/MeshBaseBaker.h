@@ -104,10 +104,6 @@ public:
 	}
 
 protected:
-	const FDynamicMesh3* DetailMesh = nullptr;
-	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
-	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> DetailMeshTangents;
-	
 	const FDynamicMesh3* TargetMesh = nullptr;
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> TargetMeshTangents;
 

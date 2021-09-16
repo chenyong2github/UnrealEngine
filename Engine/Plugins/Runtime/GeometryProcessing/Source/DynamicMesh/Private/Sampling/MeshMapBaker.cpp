@@ -142,7 +142,15 @@ void FMeshMapBaker::Bake()
 	}
 
 	ECorrespondenceStrategy UseStrategy = this->CorrespondenceStrategy;
-	if (UseStrategy == ECorrespondenceStrategy::Identity && ensure(DetailMesh == Mesh) == false)
+	bool bIsIdentity = true;
+	int NumDetailMeshes = 0;
+	auto CheckIdentity = [Mesh, &bIsIdentity, &NumDetailMeshes](const void* DetailMesh)
+	{
+		bIsIdentity = bIsIdentity && (DetailMesh == Mesh);
+		++NumDetailMeshes;
+	};
+	DetailSampler->ProcessMeshes(CheckIdentity);
+	if (UseStrategy == ECorrespondenceStrategy::Identity && !ensure(bIsIdentity && (NumDetailMeshes == 1)))
 	{
 		// Identity strategy requires mesh to be the same. Could potentially have two copies, in which
 		// case this ensure is too conservative, but for now we will assume this
@@ -277,7 +285,7 @@ void FMeshMapBaker::Bake()
 		}
 	};
 	
-	ParallelFor(NumTiles, [this, &Tiles, &ImageTileBuffer, &GutterTexelsPerTile, &OutputQueue, &WriteToOutputBuffer, &OverwriteFn, &AddFn, &NoopFn, &WriteQueuedOutput](int32 TileIdx)
+	ParallelFor(NumTiles, [this, &Tiles, &GutterTexelsPerTile, &OutputQueue, &WriteToOutputBuffer, &OverwriteFn, &NoopFn, &WriteQueuedOutput](int32 TileIdx)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE("FMeshMapBaker::BakeTile");
 		// Generate unpadded and padded tiles.
@@ -385,7 +393,7 @@ void FMeshMapBaker::Bake()
 
 				auto WriteToPixel = [this, &PixelBuffer, &ImageLinearIdx](TArray<int32>& BakeIds, float OneOverWeight)
 				{
-					for (int32 Idx : BakeIds)
+					for (const int32 Idx : BakeIds)
 					{
 						const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
 						const int32 NumData = Context.DataLayout.Num();
@@ -432,8 +440,6 @@ void FMeshMapBaker::Bake()
 				int64 GutterPixelTo;
 				int64 GutterPixelFrom;
 				Tie(GutterPixelTo, GutterPixelFrom) = GutterTexelsPerTile[TileIdx][GutterIdx];
-				FVector2i FromCoords = Dimensions.GetCoords(GutterPixelFrom);
-				FVector2i ToCoords = Dimensions.GetCoords(GutterPixelTo);
 				for (int32 Idx = 0; Idx < NumResults; Idx++)
 				{
 					BakeResults[Idx]->CopyPixel(GutterPixelFrom, GutterPixelTo);
@@ -487,7 +493,7 @@ void FMeshMapBaker::BakeSample(
 
 			const float FilterWeight = TextureFilterEval(TexelDistance);
 			PixelWeight += FilterWeight;
-			for (int32 BakeIdx : BakeIds)
+			for (const int32 BakeIdx : BakeIds)
 			{
 				const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[BakeIdx];
 				const int32 NumData = Context.DataLayout.Num();
@@ -511,7 +517,7 @@ void FMeshMapBaker::BakeSample(
 		const int64 BufferTilePixelLinearIdx = Tile.GetIndexFromSourceCoords(ImageCoords); 
 		float* PixelBuffer = TileBuffer.GetPixel(BufferTilePixelLinearIdx);
 		
-		for (int32 Idx : BakeIds)
+		for (const int32 Idx : BakeIds)
 		{
 			const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
 			const int32 NumData = Context.DataLayout.Num();
@@ -533,14 +539,14 @@ void FMeshMapBaker::BakeSample(
 	OverwriteFn(BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Overwrite]);
 }
 
-int32 FMeshMapBaker::AddBaker(TSharedPtr<FMeshMapEvaluator> Sampler)
+int32 FMeshMapBaker::AddEvaluator(const TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe>& Eval)
 {
-	return Bakers.Add(Sampler);
+	return Bakers.Add(Eval);
 }
 
-FMeshMapEvaluator* FMeshMapBaker::GetBaker(const int32 BakerIdx)
+FMeshMapEvaluator* FMeshMapBaker::GetEvaluator(const int32 EvalIdx)
 {
-	return Bakers[BakerIdx].Get();
+	return Bakers[EvalIdx].Get();
 }
 
 void FMeshMapBaker::Reset()
@@ -549,15 +555,15 @@ void FMeshMapBaker::Reset()
 	BakeResults.Empty();
 }
 
-int32 FMeshMapBaker::NumBakers() const
+int32 FMeshMapBaker::NumEvaluators() const
 {
 	return Bakers.Num();
 }
 
-const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> FMeshMapBaker::GetBakeResults(const int32 BakerIdx)
+const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> FMeshMapBaker::GetBakeResults(const int32 EvalIdx)
 {
-	const int32 ResultIdx = BakeOffsets[BakerIdx];
-	const int32 NumResults = BakeOffsets[BakerIdx + 1] - ResultIdx;
+	const int32 ResultIdx = BakeOffsets[EvalIdx];
+	const int32 NumResults = BakeOffsets[EvalIdx + 1] - ResultIdx;
 	return TArrayView<TUniquePtr<TImageBuilder<FVector4f>>>(&BakeResults[ResultIdx], NumResults);
 }
 

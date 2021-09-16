@@ -84,7 +84,6 @@ private:
 };
 
 
-// TODO: Replace virtuals with templates. Dynamic dispatch isn't required here.	
 /**
  * Base bake detail sampler class.
  *

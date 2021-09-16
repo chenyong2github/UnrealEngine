@@ -353,15 +353,15 @@ public:
 			{
 			case EBakeMapType::TangentSpaceNormalMap:
 			{
-				TSharedPtr<FMeshNormalMapEvaluator, ESPMode::ThreadSafe> NormalBaker = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
-				Baker->AddBaker(NormalBaker);
+				TSharedPtr<FMeshNormalMapEvaluator, ESPMode::ThreadSafe> NormalEval = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
+				Baker->AddEvaluator(NormalEval);
 				break;	
 			}
 			case EBakeMapType::Texture2DImage:
 			{
-				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> ResampleBaker = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
+				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
 				DetailSampler.SetColorMaps(CachedMeshToColorImageMap);
-				Baker->AddBaker(ResampleBaker);
+				Baker->AddEvaluator(TextureEval);
 				break;
 			}
 			default:
