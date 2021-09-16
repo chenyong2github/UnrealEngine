@@ -43,6 +43,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
+#include "SMetasoundActionMenu.h"
 #include "SMetasoundPalette.h"
 #include "SNodePanel.h"
 #include "Templates/SharedPointer.h"
@@ -175,7 +176,8 @@ namespace Metasound
 				{
 					if (UMetasoundEditorGraphVariable* GraphVariable = MetasoundAction->GetVariable())
 					{
-						GraphVariable->SetDisplayName(InNewText);
+						GraphVariable->SetDisplayName(FText());
+						GraphVariable->SetNodeName(*InNewText.ToString());
 					}
 				}
 			}
@@ -1191,10 +1193,11 @@ namespace Metasound
 					}));
 			}
 
-			SGraphEditor::FGraphEditorEvents InEvents;
-			InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FEditor::OnSelectedNodesChanged);
-			InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FEditor::OnNodeTitleCommitted);
-			InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FEditor::ExecuteNode);
+			SGraphEditor::FGraphEditorEvents GraphEvents;
+			GraphEvents.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &FEditor::OnCreateGraphActionMenu);
+			GraphEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FEditor::ExecuteNode);
+			GraphEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FEditor::OnSelectedNodesChanged);
+			GraphEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FEditor::OnNodeTitleCommitted);
 
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
@@ -1203,7 +1206,7 @@ namespace Metasound
 				.AdditionalCommands(GraphEditorCommands)
 				.Appearance(this, &FEditor::GetGraphAppearance)
 				.AutoExpandActionMenu(true)
-				.GraphEvents(InEvents)
+				.GraphEvents(GraphEvents)
 				.GraphToEdit(MetasoundAsset->GetGraph())
 				.IsEditable(this, &FEditor::IsGraphEditable)
 				.ShowGraphStateOverlay(false);
@@ -1939,6 +1942,19 @@ namespace Metasound
 		FReply FEditor::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent)
 		{
 			return FReply::Unhandled();
+		}
+
+		FActionMenuContent FEditor::OnCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
+		{
+			TSharedRef<SMetasoundActionMenu> ActionMenu = SNew(SMetasoundActionMenu)
+				.AutoExpandActionMenu(bAutoExpand)
+				.Graph(&GetMetaSoundGraphChecked())
+				.NewNodePosition(InNodePosition)
+				.DraggedFromPins(InDraggedPins)
+				.OnClosedCallback(InOnMenuClosed);
+// 				.OnCloseReason(this, &FEditor::OnGraphActionMenuClosed);
+
+			return FActionMenuContent(ActionMenu, ActionMenu->GetFilterTextBox());
 		}
 
 		void FEditor::OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType)

@@ -29,8 +29,6 @@ namespace Metasound
 			FName GetMetadataPropertyPath() const;
 
 			FName DocumentPropertyName;
-
-			TSharedPtr<SGraphActionMenu> GraphActionMenu;
 		};
 	} // namespace Editor
 } // namespace Metasound
