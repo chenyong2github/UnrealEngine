@@ -18,7 +18,7 @@ FORCEINLINE TFunction<float(float)> GetTransferFunction(EEncoding SourceEncoding
 	case EEncoding::Gamma22:     return bIsEncode ? &EncodeGamma22 : &DecodeGamma22;
 	case EEncoding::BT1886:      return bIsEncode ? &EncodeBT1886 : &DecodeBT1886;
 	case EEncoding::Cineon:      return bIsEncode ? &EncodeCineon : &DecodeCineon;
-	case EEncoding::RedLog:      return bIsEncode ? &EncodeRedLog : &DecodeRedLog;
+	case EEncoding::REDLog:      return bIsEncode ? &EncodeREDLog : &DecodeREDLog;
 	case EEncoding::REDLog3G10:  return bIsEncode ? &EncodeREDLog3G10 : &DecodeREDLog3G10;
 	case EEncoding::SLog1:       return bIsEncode ? &EncodeSLog1 : &DecodeSLog1;
 	case EEncoding::SLog2:       return bIsEncode ? &EncodeSLog2 : &DecodeSLog2;

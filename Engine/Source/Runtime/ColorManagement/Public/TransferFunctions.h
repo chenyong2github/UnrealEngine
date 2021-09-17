@@ -166,7 +166,7 @@ FORCEINLINE float DecodeCineon(float Value)
 *
 * @return float encoded value.
 */
-FORCEINLINE float EncodeRedLog(float Value)
+FORCEINLINE float EncodeREDLog(float Value)
 {
 	const float BlackOffset = FGenericPlatformMath::Pow(10.0f, (0.0f - 1023.0f) / 511.0f);
 	return (1023.0f + 511.0f * FGenericPlatformMath::LogX(10.0f, Value * (1.0f - BlackOffset) + BlackOffset)) / 1023.0f;
@@ -177,7 +177,7 @@ FORCEINLINE float EncodeRedLog(float Value)
 *
 * @return float decoded value.
 */
-FORCEINLINE float DecodeRedLog(float Value)
+FORCEINLINE float DecodeREDLog(float Value)
 {
 	const float BlackOffset = FGenericPlatformMath::Pow(10.0f, (0.0f - 1023.0f) / 511.0f);
 	return (FGenericPlatformMath::Pow(10.0f, (1023.0f * Value - 1023.0f) / 511.0f) - BlackOffset) / (1.0f - BlackOffset);

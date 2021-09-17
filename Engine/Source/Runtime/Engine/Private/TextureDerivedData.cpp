@@ -64,7 +64,7 @@
 
 // Version number for the texture encoding enum types (UE::Color::EEncoding/ETextureSourceEncoding).
 // Make sure to increment upon changes to the list.
-#define TEXTURE_ENCODING_TYPES_VER 1
+#define TEXTURE_ENCODING_TYPES_VER 2
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
