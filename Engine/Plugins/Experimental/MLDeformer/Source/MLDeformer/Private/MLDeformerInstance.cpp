@@ -146,7 +146,6 @@ void FMLDeformerInstance::Update()
 	}
 
 	// We only support GPU processing of the neural network at the moment.
-	check(NeuralNetwork->GetBackEnd() == ENeuralBackEnd::UEOnly);
 	check(NeuralNetwork->GetInputDeviceType() == ENeuralDeviceType::CPU);
 	check(NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU);
 	check(NeuralNetwork->GetOutputDeviceType() == ENeuralDeviceType::GPU);
