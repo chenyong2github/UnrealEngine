@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/SBoxPanel.h"
 
 #include "CameraCalibrationStep.generated.h"
 
 struct FGeometry;
+struct FKey;
 struct FPointerEvent;
 
 class FCameraCalibrationStepsController;
@@ -34,6 +36,9 @@ public:
 
 	/** Callback when viewport is clicked. Returns false if the event was not handled. */
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return false;  };
+
+	/** Callback when key is pressed while viewport is focused. Returns false if the event was not handled. */
+	virtual bool OnViewportInputKey(const FKey& InKey, const EInputEvent& InEvent) { return false; };
 
 	/** Returns the UI of this camera calibration step. Expected to only be called once */
 	virtual TSharedRef<SWidget> BuildUI() { return SNew(SVerticalBox); };

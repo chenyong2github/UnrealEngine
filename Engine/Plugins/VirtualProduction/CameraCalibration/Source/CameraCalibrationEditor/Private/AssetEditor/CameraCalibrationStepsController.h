@@ -123,6 +123,9 @@ public:
 	/** Called by the UI when the Simulcam Viewport is clicked */
 	void OnSimulcamViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
+	/** Called by the UI when the Simulcam Viewport receives keyboard input */
+	bool OnSimulcamViewportInputKey(const FKey& InKey, const EInputEvent& InEvent);
+
 private:
 
 	/** Finds the LiveLinkCameraController used in the given CameraActor that is also using the given LensFile */

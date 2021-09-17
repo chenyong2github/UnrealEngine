@@ -32,8 +32,8 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MediaPlayer.h"
-#include "MediaTexture.h"
 #include "MediaSource.h"
+#include "MediaTexture.h"
 #include "Misc/MessageDialog.h"
 #include "Models/SphericalLensModel.h"
 #include "Modules/ModuleManager.h"
@@ -773,6 +773,22 @@ void FCameraCalibrationStepsController::OnSimulcamViewportClicked(const FGeometr
 	}
 }
 
+bool FCameraCalibrationStepsController::OnSimulcamViewportInputKey(const FKey& InKey, const EInputEvent& InEvent)
+{
+	bool bStepHandled = false;
+
+	for (TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationSteps)
+	{
+		if (Step.IsValid() && Step->IsActive())
+		{
+			bStepHandled |= Step->OnViewportInputKey(InKey, InEvent);
+			break;
+		}
+	}
+
+	return bStepHandled;
+}
+
 ULiveLinkCameraController* FCameraCalibrationStepsController::FindLiveLinkCameraController() const
 {
 	return FindLiveLinkCameraControllerWithLens(Camera.Get(), LensFile.Get());
@@ -979,7 +995,7 @@ void FCameraCalibrationStepsController::FindMediaSourceUrls(TArray<TSharedPtr<FS
 	{
 		if (const UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx))
 		{
-			OutMediaSourceUrls.Add(MakeShareable(new FString(MediaSource->GetUrl())));
+			OutMediaSourceUrls.Add(MakeShared<FString>(MediaSource->GetUrl()));
 		}
 	}
 }

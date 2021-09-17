@@ -218,6 +218,22 @@ TArray<FName> UCameraCalibrationSubsystem::GetCameraNodalOffsetAlgos() const
 	return OutKeys;
 }
 
+TSubclassOf<UCameraImageCenterAlgo> UCameraCalibrationSubsystem::GetCameraImageCenterAlgo(FName Name) const
+{
+	if (CameraImageCenterAlgosMap.Contains(Name))
+	{
+		return CameraImageCenterAlgosMap[Name];
+	}
+	return nullptr;
+}
+
+TArray<FName> UCameraCalibrationSubsystem::GetCameraImageCenterAlgos() const
+{
+	TArray<FName> OutKeys;
+	CameraImageCenterAlgosMap.GetKeys(OutKeys);
+	return OutKeys;
+}
+
 TSubclassOf<UCameraCalibrationStep> UCameraCalibrationSubsystem::GetCameraCalibrationStep(FName Name) const
 {
 	if (CameraCalibrationStepsMap.Contains(Name))
@@ -240,6 +256,20 @@ void UCameraCalibrationSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 
 	PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda([&]()
 	{
+		// Find Image Center Algos
+		{
+			TArray<TSubclassOf<UCameraImageCenterAlgo>> Algos;
+
+			for (TObjectIterator<UClass> AlgoIt; AlgoIt; ++AlgoIt)
+			{
+				if (AlgoIt->IsChildOf(UCameraImageCenterAlgo::StaticClass()) && !AlgoIt->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
+				{
+					const UCameraImageCenterAlgo* Algo = CastChecked<UCameraImageCenterAlgo>(AlgoIt->GetDefaultObject());
+					CameraImageCenterAlgosMap.Add(Algo->FriendlyName(), TSubclassOf<UCameraImageCenterAlgo>(*AlgoIt));
+				}
+			}
+		}
+
 		// Find Nodal Offset Algos
 		{
 			TArray<TSubclassOf<UCameraNodalOffsetAlgo>> Algos;
@@ -272,6 +302,7 @@ void UCameraCalibrationSubsystem::Initialize(FSubsystemCollectionBase& Collectio
 void UCameraCalibrationSubsystem::Deinitialize()
 {
 	LensModelMap.Empty(0);
+	CameraImageCenterAlgosMap.Empty(0);
 	CameraNodalOffsetAlgosMap.Empty(0);
 	CameraCalibrationStepsMap.Empty(0);
 

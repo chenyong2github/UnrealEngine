@@ -2,24 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "Engine/World.h"
 #include "CameraCalibrationStep.h"
 
-#include "LensDistortionTool.generated.h"
+#include "ImageCenterTool.generated.h"
 
-struct FGeometry;
 struct FLensFileEvalData;
-struct FPointerEvent;
 
-class UCameraLensDistortionAlgo;
+class UCameraImageCenterAlgo;
 
 /**
- * ULensDistortionTool is the controller for the lens distortion panel.
+ * UImageCenterTool is the controller for the image center panel.
  */
 UCLASS()
-class ULensDistortionTool : public UCameraCalibrationStep
+class UImageCenterTool : public UCameraCalibrationStep
 {
 	GENERATED_BODY()
 
@@ -30,30 +25,26 @@ public:
 	virtual void Shutdown() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual bool OnViewportInputKey(const FKey& InKey, const EInputEvent& InEvent) override;
 	virtual TSharedRef<SWidget> BuildUI() override;
-	virtual FName FriendlyName() const  override { return TEXT("Lens Distortion"); };
+	virtual FName FriendlyName() const  override { return TEXT("Image Center"); };
 	virtual bool DependsOnStep(UCameraCalibrationStep* Step) const override;
 	virtual void Activate() override;
 	virtual void Deactivate() override;
-	virtual FCameraCalibrationStepsController* GetCameraCalibrationStepsController() const override;
 	virtual bool IsActive() const override;
+	virtual FCameraCalibrationStepsController* GetCameraCalibrationStepsController() const override;
 	//~ End UCameraCalibrationStep interface
 
-public:
+	/** Returns the currently active algorithm */
+	UCameraImageCenterAlgo* GetAlgo() const;
 
-	/** Selects the algorithm by name */
+	/** Sets the active algorithm by name */
 	void SetAlgo(const FName& AlgoName);
-
-	/** Returns the currently selected algorithm */
-	UCameraLensDistortionAlgo* GetAlgo() const;
-
-	/** Returns available algorithm names */
-	TArray<FName> GetAlgos() const;
 
 public:
 
 	/** Called by the UI when the user wants to save the calibration data that the current algorithm is providing */
-	void OnSaveCurrentCalibrationData();
+	void OnSaveCurrentImageCenter();
 
 private:
 
@@ -62,11 +53,7 @@ private:
 
 	/** The currently selected algorithm */
 	UPROPERTY(Transient)
-	UCameraLensDistortionAlgo* CurrentAlgo;
-
-	/** Holds the registered camera lens distortion algos */
-	UPROPERTY(Transient)
-	TMap<FName, TSubclassOf<UCameraLensDistortionAlgo>> AlgosMap;
+	TObjectPtr<UCameraImageCenterAlgo> CurrentAlgo;
 
 	/** True if this tool is the active one in the panel */
 	bool bIsActive = false;

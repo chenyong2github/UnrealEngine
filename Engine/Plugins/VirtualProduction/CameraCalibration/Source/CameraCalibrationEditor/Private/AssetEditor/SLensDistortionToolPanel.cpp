@@ -125,7 +125,7 @@ void SLensDistortionToolPanel::UpdateAlgosOptions()
 
 	for (FName& AlgoName : Tool->GetAlgos())
 	{
-		CurrentAlgos.Add(MakeShareable(new FString(AlgoName.ToString())));
+		CurrentAlgos.Add(MakeShared<FString>(AlgoName.ToString()));
 	}
 
 	// Ask the ComboBox to refresh its options from its source (that we just updated)

@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 
 #include "CameraCalibrationTypes.h"
+#include "CameraImageCenterAlgo.h"
 #include "CameraNodalOffsetAlgo.h"
 #include "CameraCalibrationStep.h"
 #include "Containers/ArrayView.h"
@@ -79,6 +80,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	TArray<FName> GetCameraNodalOffsetAlgos() const;
 
+	/** Returns the image center algorithm by name */
+	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
+	TSubclassOf<UCameraImageCenterAlgo> GetCameraImageCenterAlgo(FName Name) const;
+
+	/** Returns an array with the names of the available image center algorithms */
+	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
+	TArray<FName> GetCameraImageCenterAlgos() const;
+
 	/** Returns an array with the names of the available camera calibration steps */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
 	TArray<FName> GetCameraCalibrationSteps() const;
@@ -123,6 +132,10 @@ private:
 	/** Holds the registered camera nodal offset algos */
 	UPROPERTY(Transient)
 	TMap<FName, TSubclassOf<UCameraNodalOffsetAlgo>> CameraNodalOffsetAlgosMap;
+
+	/** Holds the registered camera image center algos */
+	UPROPERTY(Transient)
+	TMap<FName, TSubclassOf<UCameraImageCenterAlgo>> CameraImageCenterAlgosMap;
 
 	/** Holds the registered camera calibration steps */
 	UPROPERTY(Transient)
