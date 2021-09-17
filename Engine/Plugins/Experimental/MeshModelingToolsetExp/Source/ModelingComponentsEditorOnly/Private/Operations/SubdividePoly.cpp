@@ -686,3 +686,41 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 	return true;
 }
 
+
+
+FSubdividePoly::ETopologyCheckResult FSubdividePoly::ValidateTopology()
+{
+	if (GroupTopology.Groups.Num() == 0)
+	{
+		return ETopologyCheckResult::NoGroups;
+	}
+
+	if (GroupTopology.Groups.Num() < 2)
+	{
+		return ETopologyCheckResult::InsufficientGroups;
+	}
+
+	for (const FGroupTopology::FGroup& Group : GroupTopology.Groups)
+	{
+		if (Group.Boundaries.Num() == 0)
+		{
+			return ETopologyCheckResult::UnboundedPolygroup;
+		}
+
+		if (Group.Boundaries.Num() > 1)
+		{
+			return ETopologyCheckResult::MultiBoundaryPolygroup;
+		}
+
+		for (const FGroupTopology::FGroupBoundary& Boundary : Group.Boundaries)
+		{
+			if (Boundary.GroupEdges.Num() < 3)
+			{
+				return ETopologyCheckResult::DegeneratePolygroup;
+			}
+		}
+	}
+
+	return ETopologyCheckResult::Ok;
+}
+

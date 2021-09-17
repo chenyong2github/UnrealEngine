@@ -29,6 +29,18 @@ struct DYNAMICMESH_API FPolygroupLayer
 	/** Construct a FPolygroupLayer for an extended layer */
 	static FPolygroupLayer Layer(int32 Index) { return FPolygroupLayer{ false, Index }; }
 
+	bool operator==(const FPolygroupLayer& OtherLayer) const 
+	{
+		if (bIsDefaultLayer || OtherLayer.bIsDefaultLayer)
+		{
+			return bIsDefaultLayer && OtherLayer.bIsDefaultLayer;
+		}
+		else
+		{
+			return LayerIndex == OtherLayer.LayerIndex;
+		}
+	}
+
 	/** @return true if the specified layer (default or extended) exist and is initialized on the given Mesh */
 	bool CheckExists(const FDynamicMesh3* Mesh);
 };

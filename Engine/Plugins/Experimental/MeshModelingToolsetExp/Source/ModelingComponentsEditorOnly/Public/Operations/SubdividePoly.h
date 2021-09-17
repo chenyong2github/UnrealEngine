@@ -68,6 +68,17 @@ public:
 
 	~FSubdividePoly();
 
+	enum class ETopologyCheckResult
+	{
+		Ok = 0,
+		NoGroups = 1,
+		InsufficientGroups = 2,
+		UnboundedPolygroup = 3,
+		MultiBoundaryPolygroup = 4,
+		DegeneratePolygroup = 5
+	};
+	ETopologyCheckResult ValidateTopology();
+
 	bool ComputeTopologySubdivision();
 
 	bool ComputeSubdividedMesh(FDynamicMesh3& OutMesh);
