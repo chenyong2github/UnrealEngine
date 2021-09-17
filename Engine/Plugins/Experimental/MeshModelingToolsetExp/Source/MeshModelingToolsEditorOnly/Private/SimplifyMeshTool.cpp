@@ -47,7 +47,9 @@ USimplifyMeshToolProperties::USimplifyMeshToolProperties()
 	SimplifierType = ESimplifyType::QEM;
 	TargetMode = ESimplifyTargetType::Percentage;
 	TargetPercentage = 50;
-	TargetCount = 1000;
+	TargetTriangleCount = 1000;
+	TargetVertexCount = 1000;
+	MinimalAngleThreshold = 0.01;
 	TargetEdgeLength = 5.0;
 	bReproject = false;
 	bPreventNormalFlips = true;
@@ -192,7 +194,8 @@ TUniquePtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
 	Op->bAllowSeamCollapse = !SimplifyProperties->bPreserveSharpEdges;
 	Op->bReproject = SimplifyProperties->bReproject;
 	Op->SimplifierType = SimplifyProperties->SimplifierType;
-	Op->TargetCount = SimplifyProperties->TargetCount;
+	Op->TargetCount = ( SimplifyProperties->TargetMode == ESimplifyTargetType::VertexCount) ?  SimplifyProperties->TargetVertexCount : SimplifyProperties->TargetTriangleCount;
+	Op->MinimalPlanarAngleThresh = SimplifyProperties->MinimalAngleThreshold;
 	Op->TargetEdgeLength = SimplifyProperties->TargetEdgeLength;
 	Op->TargetMode = SimplifyProperties->TargetMode;
 	Op->TargetPercentage = SimplifyProperties->TargetPercentage;
