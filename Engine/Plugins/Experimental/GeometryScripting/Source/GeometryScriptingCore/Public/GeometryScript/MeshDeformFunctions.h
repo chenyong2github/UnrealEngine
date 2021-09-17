@@ -48,7 +48,18 @@ public:
 	bool bBidirectional = true;
 };
 
+UENUM(BlueprintType)
+enum class EGeometryScriptFlareType : uint8
+{
+	//Displaced by sin(pi x) with x in 0 to 1
+	SinMode = 0,
 
+	//Displaced by sin(pi x)*sin(pi x) with x in 0 to 1. This provides a smooth normal transition.
+	SinSquaredMode = 1,
+
+	// Displaced by piecewise-linear trianglular mode
+	TriangleMode = 2
+};
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptFlareWarpOptions
@@ -63,9 +74,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (EditCondition = "bSymmetricExtents == false"))
 	float LowerExtent = 10;
 
-	/** */
+	/** Determines the profile used as a displacement */
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	bool bSmoothEnds = true;
+	EGeometryScriptFlareType FlareType = EGeometryScriptFlareType::SinMode;
 };
 
 

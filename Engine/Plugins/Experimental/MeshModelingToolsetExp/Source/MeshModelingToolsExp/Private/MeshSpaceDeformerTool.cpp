@@ -70,7 +70,18 @@ TUniquePtr<FDynamicMeshOperator> USpaceDeformerOperatorFactory::MakeNewOperator(
 			static_cast<FFlareMeshOp*>(DeformerOp.Get())->FlarePercentY = SpaceDeformerTool->Settings->FlarePercentY;
 			static_cast<FFlareMeshOp*>(DeformerOp.Get())->FlarePercentX = SpaceDeformerTool->Settings->bLockXAndYFlaring ? 
 				SpaceDeformerTool->Settings->FlarePercentY : SpaceDeformerTool->Settings->FlarePercentX;
-			static_cast<FFlareMeshOp*>(DeformerOp.Get())->bSmoothEnds = SpaceDeformerTool->Settings->bSmoothEnds;
+			if (SpaceDeformerTool->Settings->FlareProfileType == EFlareProfileType::SinMode)
+			{
+				static_cast<FFlareMeshOp*>(DeformerOp.Get())->FlareType = FFlareMeshOp::EFlareType::SinFlare;
+			}
+			else if (SpaceDeformerTool->Settings->FlareProfileType == EFlareProfileType::SinSquaredMode)
+			{
+				static_cast<FFlareMeshOp*>(DeformerOp.Get())->FlareType = FFlareMeshOp::EFlareType::SinSqrFlare;
+			}
+			else
+			{
+				static_cast<FFlareMeshOp*>(DeformerOp.Get())->FlareType = FFlareMeshOp::EFlareType::LinearFlare;
+			}
 			break;
 		}
 		case ENonlinearOperationType::Twist:

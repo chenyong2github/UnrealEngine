@@ -135,7 +135,18 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyFlareWarpToMesh(
 		FlareOp.UpperBoundsInterval = FlareExtent;
 		FlareOp.FlarePercentX = FlarePercentX;
 		FlareOp.FlarePercentY = FlarePercentY;
-		FlareOp.bSmoothEnds = Options.bSmoothEnds;
+		if (Options.FlareType == EGeometryScriptFlareType::SinMode)
+		{
+			FlareOp.FlareType = FFlareMeshOp::EFlareType::SinFlare;
+		}
+		else if (Options.FlareType == EGeometryScriptFlareType::SinSquaredMode)
+		{
+			FlareOp.FlareType = FFlareMeshOp::EFlareType::SinSqrFlare;
+		}
+		else
+		{
+			FlareOp.FlareType = FFlareMeshOp::EFlareType::LinearFlare;
+		}
 
 		FlareOp.CalculateResult(nullptr);
 
