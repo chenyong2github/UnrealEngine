@@ -4,6 +4,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "Operations/RepairOrientation.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Polygroups/PolygroupSet.h"
@@ -194,6 +195,49 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::ComputeSplitNormals(
 
 	return TargetMesh;
 }
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::ComputeTangents( 
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptTangentsOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeTangents_InvalidInput", "ComputeTangents: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	// todo: publish correct change types
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (EditMesh.HasAttributes() == false || !(Options.UVLayer < EditMesh.Attributes()->NumUVLayers()) || EditMesh.Attributes()->NumNormalLayers() == 0 )
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeTangents_NoUVLayers", "ComputeTangents: TargetMesh is missing UV Set or Normals required to compute Tangents"));
+			return;
+		}
+		if (EditMesh.Attributes()->HasTangentSpace() == false)
+		{
+			EditMesh.Attributes()->EnableTangents();
+		}
+
+		FComputeTangentsOptions TangentOptions;
+		TangentOptions.bAveraged = (Options.Type == EGeometryScriptTangentTypes::FastMikkT);
+
+		FMeshTangentsd Tangents(&EditMesh);
+		Tangents.ComputeTriVertexTangents(
+			EditMesh.Attributes()->PrimaryNormals(),
+			EditMesh.Attributes()->GetUVLayer(Options.UVLayer),
+			TangentOptions);
+		Tangents.CopyToOverlays(EditMesh);
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
 
 
 

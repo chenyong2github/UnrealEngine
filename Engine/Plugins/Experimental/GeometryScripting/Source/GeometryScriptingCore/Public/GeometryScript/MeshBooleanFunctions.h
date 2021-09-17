@@ -71,6 +71,28 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bFlipCutSide = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float UVWorldDimension = 1.0;
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshPlaneSliceOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bFillHoles = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bFillSpans = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float GapWidth = 0.01;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float UVWorldDimension = 1.0;
 };
 
 
@@ -122,9 +144,16 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyMeshPlaneCut( 
 		UDynamicMesh* TargetMesh, 
-		FVector CutPlaneOrigin,
-		FVector CutPlaneNormal,
+		FTransform CutFrame,
 		FGeometryScriptMeshPlaneCutOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Booleans", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyMeshPlaneSlice( 
+		UDynamicMesh* TargetMesh, 
+		FTransform CutFrame,
+		FGeometryScriptMeshPlaneSliceOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -132,8 +161,7 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyMeshMirror( 
 		UDynamicMesh* TargetMesh, 
-		FVector MirrorPlaneOrigin,
-		FVector MirrorPlaneNormal,
+		FTransform MirrorFrame,
 		FGeometryScriptMeshMirrorOptions Options,
 		UGeometryScriptDebug* Debug = nullptr);
 

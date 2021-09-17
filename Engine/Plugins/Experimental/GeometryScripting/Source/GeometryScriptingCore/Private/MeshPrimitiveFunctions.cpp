@@ -18,6 +18,9 @@
 #include "Generators/FlatTriangulationMeshGenerator.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"
+#include "Util/RevolveUtil.h"
+
+#include "CompositionOps/CurveSweepOp.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -25,10 +28,20 @@ using namespace UE::Geometry;
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_MeshPrimitiveFunctions"
 
 
-static void AppendPrimitive(UDynamicMesh* TargetMesh, FMeshShapeGenerator* Generator, FTransform Transform, FGeometryScriptPrimitiveOptions PrimitiveOptions)
+static void AppendPrimitive(
+	UDynamicMesh* TargetMesh, 
+	FMeshShapeGenerator* Generator, 
+	FTransform Transform, 
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FVector3d PreTranslate = FVector3d::Zero())
 {
-	auto ApplyOptionsToMesh = [&Transform, &PrimitiveOptions](FDynamicMesh3& Mesh)
+	auto ApplyOptionsToMesh = [&Transform, &PrimitiveOptions, PreTranslate](FDynamicMesh3& Mesh)
 	{
+		if (PreTranslate.SquaredLength() > 0)
+		{
+			MeshTransforms::Translate(Mesh, PreTranslate);
+		}
+
 		MeshTransforms::ApplyTransform(Mesh, (UE::Geometry::FTransform3d)Transform);
 		if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::SingleGroup)
 		{
@@ -80,10 +93,13 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendBox(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
-	FBox Box,
+	float DimensionX,
+	float DimensionY,
+	float DimensionZ,
 	int32 StepsX,
 	int32 StepsY,
 	int32 StepsZ,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -92,13 +108,10 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendBox(
 		return TargetMesh;
 	}
 
-	UE::Geometry::FAxisAlignedBox3d ConvertBox(Box);
-	if (ConvertBox.MaxDim() == 0)
-	{
-		ConvertBox = UE::Geometry::FAxisAlignedBox3d(FVector3d(-50, -50, 0), FVector3d(50, 50, 100));
-	}
+	UE::Geometry::FAxisAlignedBox3d ConvertBox(
+		FVector3d(-DimensionX / 2, -DimensionY / 2, 0),
+		FVector3d(DimensionX / 2, DimensionY / 2, DimensionZ));
 	
-	// todo: could apply transform to box here and skip later?
 	// todo: if Steps X/Y/Z are zero, can use trivial box generator
 
 	FGridBoxMeshGenerator GridBoxGenerator;
@@ -107,7 +120,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendBox(
 	GridBoxGenerator.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	GridBoxGenerator.Generate();
 
-	AppendPrimitive(TargetMesh, &GridBoxGenerator, Transform, PrimitiveOptions);
+	FVector3d OriginShift = (Origin == EGeometryScriptPrimitiveOriginMode::Center) ? FVector3d(0, 0, -DimensionZ/2) : FVector3d::Zero();
+	AppendPrimitive(TargetMesh, &GridBoxGenerator, Transform, PrimitiveOptions, OriginShift);
 
 	return TargetMesh;
 }
@@ -121,6 +135,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSphereLatLong
 	float Radius,
 	int32 StepsPhi,
 	int32 StepsTheta,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -136,7 +151,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSphereLatLong
 	SphereGenerator.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	SphereGenerator.Generate();
 
-	AppendPrimitive(TargetMesh, &SphereGenerator, Transform, PrimitiveOptions);
+	FVector3d OriginShift = (Origin == EGeometryScriptPrimitiveOriginMode::Base) ? FVector3d(0, 0, Radius) : FVector3d::Zero();
+	AppendPrimitive(TargetMesh, &SphereGenerator, Transform, PrimitiveOptions, OriginShift);
 
 	return TargetMesh;
 }
@@ -151,6 +167,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSphereBox(
 	int32 StepsX,
 	int32 StepsY,
 	int32 StepsZ,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -165,7 +182,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSphereBox(
 	SphereGenerator.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	SphereGenerator.Generate();
 
-	AppendPrimitive(TargetMesh, &SphereGenerator, Transform, PrimitiveOptions);
+	FVector3d OriginShift = (Origin == EGeometryScriptPrimitiveOriginMode::Base) ? FVector3d(0, 0, Radius) : FVector3d::Zero();
+	AppendPrimitive(TargetMesh, &SphereGenerator, Transform, PrimitiveOptions, OriginShift);
 
 	return TargetMesh;
 }
@@ -181,6 +199,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCapsule(
 	float LineLength,
 	int32 HemisphereSteps,
 	int32 CircleSteps,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -197,7 +216,9 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCapsule(
 	CapsuleGenerator.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	CapsuleGenerator.Generate();
 
-	AppendPrimitive(TargetMesh, &CapsuleGenerator, Transform, PrimitiveOptions);
+	FVector3d OriginShift = FVector3d::Zero();
+	OriginShift.Z = (Origin == EGeometryScriptPrimitiveOriginMode::Center) ? -(LineLength / 2) : Radius;
+	AppendPrimitive(TargetMesh, &CapsuleGenerator, Transform, PrimitiveOptions, OriginShift);
 
 	return TargetMesh;
 }
@@ -214,6 +235,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCylinder(
 	int32 RadialSteps,
 	int32 HeightSteps,
 	bool bCapped,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -232,7 +254,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCylinder(
 	CylinderGenerator.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	CylinderGenerator.Generate();
 
-	AppendPrimitive(TargetMesh, &CylinderGenerator, Transform, PrimitiveOptions);
+	FVector3d OriginShift = (Origin == EGeometryScriptPrimitiveOriginMode::Center) ? FVector3d(0, 0, -(Height/2)) : FVector3d::Zero();
+	AppendPrimitive(TargetMesh, &CylinderGenerator, Transform, PrimitiveOptions, OriginShift);
 
 	return TargetMesh;
 }
@@ -249,6 +272,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCone(
 	int32 RadialSteps,
 	int32 HeightSteps,
 	bool bCapped,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -267,7 +291,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendCone(
 	CylinderGenerator.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	CylinderGenerator.Generate();
 
-	AppendPrimitive(TargetMesh, &CylinderGenerator, Transform, PrimitiveOptions);
+	FVector3d OriginShift = (Origin == EGeometryScriptPrimitiveOriginMode::Center) ? FVector3d(0, 0, -(Height/2)) : FVector3d::Zero();
+	AppendPrimitive(TargetMesh, &CylinderGenerator, Transform, PrimitiveOptions, OriginShift);
 
 	return TargetMesh;
 }
@@ -281,13 +306,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendTorus(
 	float MinorRadius,
 	int32 MajorSteps,
 	int32 MinorSteps,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	FPolygon2d Circle = FPolygon2d::MakeCircle(FMath::Max(FMathf::ZeroTolerance, MinorRadius), FMath::Max(3, MinorSteps));
 	TArray<FVector2D> PolygonVertices;
+	FVector2d Shift = (Origin == EGeometryScriptPrimitiveOriginMode::Base) ? FVector2d(0, MinorRadius) : FVector2d::Zero();
 	for (FVector2d v : Circle.GetVertices())
 	{
-		PolygonVertices.Add((FVector2D)v);
+		PolygonVertices.Add((FVector2D)(v+Shift));
 	}
 	return AppendSimpleRevolvePolygon(TargetMesh, PrimitiveOptions, Transform, PolygonVertices, MajorRadius, MajorSteps, Debug);
 }
@@ -339,6 +366,157 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleRevolve
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRevolvePath(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	const TArray<FVector2D>& PathVertices,
+	FGeometryScriptRevolveOptions RevolveOptions,
+	int32 Steps,
+	bool bCapped,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendRevolvePath_NullMesh", "AppendRevolvePath: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (PathVertices.Num() < 2)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendRevolvePath_InvalidPolygon", "AppendRevolvePath: PathVertices array requires at least 2 positions"));
+		return TargetMesh;
+	}
+
+	FCurveSweepOp CurveSweepOp;
+
+	FVector3d AxisDirection(0, 0, 1);
+	FVector3d AxisOrigin(0, 0, 0);
+	for (FVector2D Point : PathVertices)
+	{
+		CurveSweepOp.ProfileCurve.Add(FVector3d(Point.X, 0, Point.Y));
+	}
+	// unclear why but the sweep code seems to be written for a clockwise ordering...
+	Algo::Reverse(CurveSweepOp.ProfileCurve);
+
+	// Project first and last points onto the revolution axis to cap it
+	if (bCapped)
+	{
+		FVector3d FirstPoint = CurveSweepOp.ProfileCurve[0];
+		FVector3d LastPoint = CurveSweepOp.ProfileCurve.Last();
+
+		double DistanceAlongAxis = AxisDirection.Dot(LastPoint - AxisOrigin);
+		FVector3d ProjectedPoint = AxisOrigin + (AxisDirection * DistanceAlongAxis);
+		CurveSweepOp.ProfileCurve.Add(ProjectedPoint);
+
+		DistanceAlongAxis = AxisDirection.Dot(FirstPoint - AxisOrigin);
+		ProjectedPoint = AxisOrigin + (AxisDirection * DistanceAlongAxis);
+		CurveSweepOp.ProfileCurve.Add(ProjectedPoint);
+
+		CurveSweepOp.bProfileCurveIsClosed = true;
+	}
+	else
+	{
+		CurveSweepOp.bProfileCurveIsClosed = false;
+	}
+
+	//double TotalRevolutionDegrees = RevolveDegrees;// (AlongAxisOffsetPerDegree == 0) ? ClampedRevolutionDegrees : RevolutionDegrees;
+	double TotalRevolutionDegrees = FMath::Clamp(RevolveOptions.RevolveDegrees, 0.1f, 360.0f);
+
+	double DegreesPerStep = TotalRevolutionDegrees / (double)Steps;
+	double DegreesOffset = RevolveOptions.DegreeOffset;
+	if (RevolveOptions.ReverseDirection)
+	{
+		DegreesPerStep *= -1;
+		DegreesOffset *= -1;
+	}
+	//double DownAxisOffsetPerStep = TotalRevolutionDegrees * AlongAxisOffsetPerDegree / Steps;
+
+	if (RevolveOptions.bProfileAtMidpoint && DegreesPerStep != 0 && FMathd::Abs(DegreesPerStep) < 180)
+	{
+		RevolveUtil::MakeProfileCurveMidpointOfFirstStep(CurveSweepOp.ProfileCurve, DegreesPerStep, AxisOrigin, AxisDirection);
+	}
+
+	// Generate the sweep curve
+	//CurveSweepOpOut.bSweepCurveIsClosed = bWeldFullRevolution && AlongAxisOffsetPerDegree == 0 && TotalRevolutionDegrees == 360;
+	CurveSweepOp.bSweepCurveIsClosed = (TotalRevolutionDegrees == 360);
+	int32 NumSweepFrames = CurveSweepOp.bSweepCurveIsClosed ? Steps : Steps + 1; // If closed, last sweep frame is also first
+	CurveSweepOp.SweepCurve.Reserve(NumSweepFrames);
+	RevolveUtil::GenerateSweepCurve(AxisOrigin, AxisDirection, DegreesOffset,
+		DegreesPerStep, 0.0, NumSweepFrames, CurveSweepOp.SweepCurve);
+
+	// Weld any vertices that are on the axis
+	RevolveUtil::WeldPointsOnAxis(CurveSweepOp.ProfileCurve, AxisOrigin,
+		AxisDirection, 0.1, CurveSweepOp.ProfileVerticesToWeld);
+
+	CurveSweepOp.bSharpNormals = RevolveOptions.bHardNormals;
+	CurveSweepOp.SharpNormalAngleTolerance = RevolveOptions.HardNormalAngle;
+	//CurveSweepOpOut.DiagonalTolerance = DiagonalProportionTolerance;
+	//double UVScale = MaterialProperties.UVScale;
+	double UVScale = 1.0;
+	CurveSweepOp.UVScale = FVector2d(UVScale, UVScale);
+	//if (bReverseProfileCurve ^ bFlipVs)
+	//{
+	//	CurveSweepOpOut.UVScale[1] *= -1;
+	//	CurveSweepOpOut.UVOffset = FVector2d(0, UVScale);
+	//}
+	CurveSweepOp.bUVsSkipFullyWeldedEdges = true;
+	CurveSweepOp.bUVScaleRelativeWorld = true; // MaterialProperties.bWorldSpaceUVScale;
+	CurveSweepOp.UnitUVInWorldCoordinates = 100; // This seems to be the case in the AddPrimitiveTool
+	CurveSweepOp.QuadSplitMode = EProfileSweepQuadSplit::Uniform;
+
+	if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad)
+	{
+		CurveSweepOp.PolygonGroupingMode = EProfileSweepPolygonGrouping::PerFace;
+	}
+	if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerFace)
+	{
+		CurveSweepOp.PolygonGroupingMode = EProfileSweepPolygonGrouping::PerProfileSegment;
+	}
+	else
+	{
+		CurveSweepOp.PolygonGroupingMode = EProfileSweepPolygonGrouping::Single;
+	}
+
+	CurveSweepOp.CapFillMode = (bCapped) ?
+		FCurveSweepOp::ECapFillMode::EarClipping : FCurveSweepOp::ECapFillMode::None;		// delaunay? hits ensure...
+
+	CurveSweepOp.CalculateResult(nullptr);
+	TUniquePtr<FDynamicMesh3> ResultMesh = CurveSweepOp.ExtractResult();
+	MeshTransforms::ApplyTransform(*ResultMesh, (UE::Geometry::FTransform3d)Transform);
+
+	if (PrimitiveOptions.bFlipOrientation)
+	{
+		ResultMesh->ReverseOrientation(true);
+		if (ResultMesh->HasAttributes() && ResultMesh->Attributes()->PrimaryNormals() != nullptr)
+		{
+			FDynamicMeshNormalOverlay* Normals = ResultMesh->Attributes()->PrimaryNormals();
+			for (int elemid : Normals->ElementIndicesItr())
+			{
+				Normals->SetElement(elemid, -Normals->GetElement(elemid));
+			}
+		}
+	}
+
+	if (TargetMesh->IsEmpty())
+	{
+		TargetMesh->SetMesh(MoveTemp(*ResultMesh));
+	}
+	else
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			FMeshIndexMappings TmpMappings;
+			FDynamicMeshEditor Editor(&EditMesh);
+			Editor.AppendMesh(ResultMesh.Get(), TmpMappings);
+
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	}
+
+	return TargetMesh;
+}
+
+
+
 UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleExtrudePolygon(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
@@ -347,6 +525,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleExtrude
 	float Height,
 	int32 HeightSteps,
 	bool bCapped,
+	EGeometryScriptPrimitiveOriginMode Origin,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -381,7 +560,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleExtrude
 	ExtrudeGen.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	ExtrudeGen.Generate();
 
-	AppendPrimitive(TargetMesh, &ExtrudeGen, Transform, PrimitiveOptions);
+	FVector3d OriginShift = (Origin == EGeometryScriptPrimitiveOriginMode::Center) ? FVector3d(0, 0, -(Height/2)) : FVector3d::Zero();
+	AppendPrimitive(TargetMesh, &ExtrudeGen, Transform, PrimitiveOptions, OriginShift);
 	return TargetMesh;
 }
 
@@ -440,7 +620,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangle(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
-	FBox2D Box,
+	float DimensionX,
+	float DimensionY,
 	int32 StepsWidth,
 	int32 StepsHeight,
 	UGeometryScriptDebug* Debug)
@@ -451,18 +632,11 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangle(
 		return TargetMesh;
 	}
 
-	UE::Geometry::FAxisAlignedBox2d ConvertBox(Box);
-	if (ConvertBox.MaxDim() == 0)
-	{
-		ConvertBox = UE::Geometry::FAxisAlignedBox2d(FVector2d(-50, -50), FVector2d(50, 50));
-	}
-	FVector2d Center = ConvertBox.Center();
-
 	FRectangleMeshGenerator RectGenerator;
-	RectGenerator.Origin = FVector3d(Center.X, Center.Y, 0);
+	RectGenerator.Origin = FVector3d(0, 0, 0);
 	RectGenerator.Normal = FVector3f::UnitZ();
-	RectGenerator.Width = ConvertBox.Width();
-	RectGenerator.Height = ConvertBox.Height();
+	RectGenerator.Width = DimensionX / 2;
+	RectGenerator.Height = DimensionY / 2;
 	RectGenerator.WidthVertexCount = FMath::Max(0, StepsWidth);
 	RectGenerator.HeightVertexCount = FMath::Max(0, StepsHeight);
 	RectGenerator.bSinglePolygroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
@@ -480,7 +654,8 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangl
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
-	FBox2D Box,
+	float DimensionX,
+	float DimensionY,
 	float CornerRadius,
 	int32 StepsWidth,
 	int32 StepsHeight,
@@ -493,18 +668,11 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangl
 		return TargetMesh;
 	}
 
-	UE::Geometry::FAxisAlignedBox2d ConvertBox(Box);
-	if (ConvertBox.MaxDim() == 0)
-	{
-		ConvertBox = UE::Geometry::FAxisAlignedBox2d(FVector2d(-50, -50), FVector2d(50, 50));
-	}
-	FVector2d Center = ConvertBox.Center();
-
 	FRoundedRectangleMeshGenerator RectGenerator;
-	RectGenerator.Origin = FVector3d(Center.X, Center.Y, 0);
+	RectGenerator.Origin = FVector3d(0, 0, 0);
 	RectGenerator.Normal = FVector3f::UnitZ();
-	RectGenerator.Width = ConvertBox.Width();
-	RectGenerator.Height = ConvertBox.Height();
+	RectGenerator.Width = DimensionX / 2;
+	RectGenerator.Height = DimensionY / 2;
 	RectGenerator.WidthVertexCount = FMath::Max(0, StepsWidth);
 	RectGenerator.HeightVertexCount = FMath::Max(0, StepsHeight);
 	RectGenerator.Radius = FMath::Max(FMathf::ZeroTolerance, CornerRadius);

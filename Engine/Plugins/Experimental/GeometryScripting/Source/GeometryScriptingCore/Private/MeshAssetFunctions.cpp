@@ -162,14 +162,28 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 	ToStaticMeshAsset->SetFlags(RF_Transactional);
 	// mark as modified
 	ToStaticMeshAsset->Modify();
-	// mark mesh description for modify
-	ToStaticMeshAsset->ModifyMeshDescription(UseLODIndex);
+
+	if (ToStaticMeshAsset->GetNumSourceModels() < UseLODIndex+1)
+	{
+		ToStaticMeshAsset->SetNumSourceModels(UseLODIndex+1);
+	}
+
+	// configure build settings from options
+	FStaticMeshSourceModel& LODSourceModel = ToStaticMeshAsset->GetSourceModel(UseLODIndex);
+	FMeshBuildSettings& BuildSettings = LODSourceModel.BuildSettings;
+	BuildSettings.bRecomputeNormals = Options.bEnableRecomputeNormals;
+	BuildSettings.bRecomputeTangents = Options.bEnableRecomputeTangents;
+	BuildSettings.bRemoveDegenerates = Options.bEnableRemoveDegenerates;
 
 	FMeshDescription* MeshDescription = ToStaticMeshAsset->GetMeshDescription(UseLODIndex);
 	if (MeshDescription == nullptr)
 	{
 		MeshDescription = ToStaticMeshAsset->CreateMeshDescription(UseLODIndex);
 	}
+
+	// mark mesh description for modify
+	ToStaticMeshAsset->ModifyMeshDescription(UseLODIndex);
+
 	if (!ensure(MeshDescription != nullptr))
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs,
@@ -178,15 +192,10 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 	}
 
 	FConversionToMeshDescriptionOptions ConversionOptions;
-	//if (FromDynamicMesh->GetMesh()->HasVertexColors())
-	//{
-	//	ConversionOptions.bUpdateVtxColors = true;		// is this still relevant now that we have vertex color attribute?
-	//}
-
 	FDynamicMeshToMeshDescription Converter(ConversionOptions);
 	FromDynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
 	{
-		Converter.Convert(&ReadMesh, *MeshDescription);
+		Converter.Convert(&ReadMesh, *MeshDescription, !BuildSettings.bRecomputeTangents);
 	});
 
 	ToStaticMeshAsset->CommitMeshDescription(UseLODIndex);

@@ -15,8 +15,6 @@ using namespace UE::Geometry;
 
 void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)
 {
-	check(Progress != nullptr);
-
 	if (Progress && Progress->Cancelled())
 	{
 		return;
