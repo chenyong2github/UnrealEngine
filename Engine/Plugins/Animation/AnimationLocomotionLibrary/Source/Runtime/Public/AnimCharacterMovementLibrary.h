@@ -3,6 +3,8 @@
 #pragma once
 
 #include "AnimCharacterMovementTypes.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+
 #include "AnimCharacterMovementLibrary.generated.h"
 
 class UAnimSequence;
