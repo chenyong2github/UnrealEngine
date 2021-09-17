@@ -11,7 +11,9 @@ public class ONNXRuntimeProto : ModuleRules
 		Type = ModuleType.External;
 		// Win64 or Linux
 		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.Linux)
+			Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.Mac
+			)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include");
@@ -29,7 +31,7 @@ public class ONNXRuntimeProto : ModuleRules
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
 				} 
-				else if(Target.Platform == UnrealTargetPlatform.Linux)
+				else if(Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac)
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, "lib" + LibFileName + ".a"));
 				}

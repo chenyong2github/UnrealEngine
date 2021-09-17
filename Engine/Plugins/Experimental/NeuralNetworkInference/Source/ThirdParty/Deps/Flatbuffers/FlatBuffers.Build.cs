@@ -11,7 +11,9 @@ public class FlatBuffers : ModuleRules
 		Type = ModuleType.External;
 		// Win64, Linux and PS5
 		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.Linux)
+			Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.Mac 
+			)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include/");
@@ -30,7 +32,7 @@ public class FlatBuffers : ModuleRules
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
 				} 
-				else if(Target.Platform == UnrealTargetPlatform.Linux)
+				else if(Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac)
 				{
 					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, "lib" + LibFileName + ".a"));
 				}

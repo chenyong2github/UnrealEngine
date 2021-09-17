@@ -10,7 +10,7 @@ public class Nsync : ModuleRules
 	{
 		Type = ModuleType.External;
 		// All platforms not Win64
-		if (Target.Platform == UnrealTargetPlatform.Linux)
+		if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			// PublicSystemIncludePaths
 			string IncPath = Path.Combine(ModuleDirectory, "include/");
