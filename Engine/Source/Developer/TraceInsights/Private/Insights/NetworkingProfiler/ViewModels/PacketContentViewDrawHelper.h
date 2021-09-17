@@ -211,14 +211,6 @@ public:
 	const FSlateBrush* GetWhiteBrush() const { return WhiteBrush; }
 	const FSlateFontInfo& GetEventFont() const { return EventFont; }
 
-	float GetLayoutPosY() const { return LayoutPosY; }
-	float GetLayoutEventH() const { return LayoutEventH; }
-	float GetLayoutEventDY() const { return LayoutEventDY; }
-
-	void SetLayoutPosY(const float InLayoutPosY) { LayoutPosY = InLayoutPosY; }
-	void SetLayoutEventH(const float InLayoutEventH) { LayoutEventH = InLayoutEventH; }
-	void SetLayoutEventDY(const float InLayoutEventDY) { LayoutEventDY = InLayoutEventDY; }
-
 	void DrawBackground() const;
 	void Draw(const FPacketContentViewDrawState& DrawState, const float Opacity = 1.0f) const;
 	void DrawEventHighlight(const FNetworkPacketEvent& Event, EHighlightMode Mode) const;
@@ -234,10 +226,6 @@ private:
 	const FSlateBrush* HoveredEventBorderBrush;
 	const FSlateBrush* SelectedEventBorderBrush;
 	const FSlateFontInfo EventFont;
-
-	float LayoutPosY;
-	float LayoutEventH;
-	float LayoutEventDY;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

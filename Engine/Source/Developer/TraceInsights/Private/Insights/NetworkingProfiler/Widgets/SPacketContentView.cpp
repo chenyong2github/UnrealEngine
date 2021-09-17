@@ -107,221 +107,213 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 {
 	ProfilerWindow = InProfilerWindow;
 
-	ChildSlot
-	[
-		SNew(SOverlay)
-		.Visibility(EVisibility::SelfHitTestInvisible)
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
 
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Top)
-		.Padding(FMargin(0, 0, 0, 0))
-		[
-			SNew(SHorizontalBox)
-
-			//////////////////////////////////////////////////
-			// Find Packet
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+	ToolbarBuilder.BeginSection("FindPacket");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
 			.VAlign(VAlign_Center)
-			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+			.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("FindPacketText", "Find Packet:"))
 			]
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ToolTipText(LOCTEXT("PreviousPacketToolTip", "Previous Packet"))
-				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindPreviousPacket_OnClicked)
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FInsightsStyle::GetBrush("FindPrevious"))
-				]
-			]
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &SPacketContentView::FindPreviousPacket)),
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("PreviousPacketToolTip", "Previous Packet"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindPrevious"),
+			EUserInterfaceActionType::Button
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+			.VAlign(VAlign_Center)
 			[
 				SNew(SEditableTextBox)
 				.RevertTextOnEscape(true)
 				.SelectAllTextWhenFocused(true)
 				.Text(this, &SPacketContentView::GetPacketText)
+				.ToolTipText(LOCTEXT("SequenceNumber_Tooltip", "Sequence Number"))
 				.OnTextCommitted(this, &SPacketContentView::Packet_OnTextCommitted)
 				.MinDesiredWidth(30.0f)
 			]
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ToolTipText(LOCTEXT("NextPacketToolTip", "Next Packet"))
-				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindNextPacket_OnClicked)
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FInsightsStyle::GetBrush("FindNext"))
-				]
-			]
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &SPacketContentView::FindNextPacket)),
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("NextPacketToolTip", "Next Packet"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindNext"),
+			EUserInterfaceActionType::Button
+		);
+	}
+	ToolbarBuilder.EndSection();
 
-			//////////////////////////////////////////////////
-			// Find Event
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+	ToolbarBuilder.BeginSection("FindEvent");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
 			.VAlign(VAlign_Center)
-			.Padding(12.0f, 0.0f, 0.0f, 0.0f)
+			.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("FindEventText", "Find Event:"))
 			]
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ToolTipText(LOCTEXT("FindFirstEventToolTip", "First Event"))
-				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindFirstEvent)
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FInsightsStyle::GetBrush("FindFirst"))
-				]
-			]
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &SPacketContentView::FindFirstEvent)),
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("FindFirstEventToolTip", "First Event"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindFirst"),
+			EUserInterfaceActionType::Button
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ToolTipText(LOCTEXT("FindPreviousEventToolTip", "Previous Event"))
-				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindPreviousEvent, EEventNavigationType::AnyLevel)
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FInsightsStyle::GetBrush("FindPrevious"))
-				]
-			]
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &SPacketContentView::FindPreviousEvent, EEventNavigationType::AnyLevel)),
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("FindPreviousEventToolTip", "Previous Event"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindPrevious"),
+			EUserInterfaceActionType::Button
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ToolTipText(LOCTEXT("FindNextEventToolTip", "Next Event"))
-				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindNextEvent, EEventNavigationType::AnyLevel)
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FInsightsStyle::GetBrush("FindNext"))
-				]
-			]
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &SPacketContentView::FindNextEvent, EEventNavigationType::AnyLevel)),
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("FindNextEventToolTip", "Next Event"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindNext"),
+			EUserInterfaceActionType::Button
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SButton)
-				.ToolTipText(LOCTEXT("FindLastEventToolTip", "Last Event"))
-				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindLastEvent)
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FInsightsStyle::GetBrush("FindLast"))
-				]
-			]
+		ToolbarBuilder.AddToolBarButton(
+			FUIAction(FExecuteAction::CreateSP(this, &SPacketContentView::FindLastEvent)),
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("FindLastEventToolTip", "Last Event"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "FindLast"),
+			EUserInterfaceActionType::Button
+		);
+	}
+	ToolbarBuilder.EndSection();
 
-			//////////////////////////////////////////////////
-			// By NetId
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(12.0f, 0.0f, 0.0f, 0.0f)
+	ToolbarBuilder.BeginSection("FilterByNetId");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
 			[
 				SNew(SCheckBox)
 				.ToolTipText(LOCTEXT("FilterByNetId_Tooltip", "Filter events that have the specified NetId."))
 				.IsChecked(this, &SPacketContentView::FilterByNetId_IsChecked)
 				.OnCheckStateChanged(this, &SPacketContentView::FilterByNetId_OnCheckStateChanged)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("FilterByNetId_Text", "By NetId:"))
+					SNew(SBox)
+					.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FilterByNetId_Text", "By NetId:"))
+					]
 				]
 			]
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+			.VAlign(VAlign_Center)
 			[
 				SNew(SEditableTextBox)
 				.RevertTextOnEscape(true)
 				.SelectAllTextWhenFocused(true)
 				.Text(this, &SPacketContentView::GetFilterNetIdText)
+				.ToolTipText(LOCTEXT("NetId_Tooltip", "NetId"))
 				.OnTextCommitted(this, &SPacketContentView::FilterNetId_OnTextCommitted)
 				.MinDesiredWidth(40.0f)
 			]
+		);
+	}
+	ToolbarBuilder.EndSection();
 
-			//////////////////////////////////////////////////
-			// By Event Type
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(12.0f, 0.0f, 0.0f, 0.0f)
+	ToolbarBuilder.BeginSection("FilterByEventType");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
 			[
 				SNew(SCheckBox)
 				.ToolTipText(LOCTEXT("FilterByEventType_Tooltip", "Filter events that have the specified type.\n\nTo set the event type:\n\tdouble click either an event in the Packet Content view\n\tor an event type in the NetStats tree view."))
 				.IsChecked(this, &SPacketContentView::FilterByEventType_IsChecked)
 				.OnCheckStateChanged(this, &SPacketContentView::FilterByEventType_OnCheckStateChanged)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("FilterByEventType_Text", "By Type:"))
+					SNew(SBox)
+					.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FilterByEventType_Text", "By Type:"))
+					]
 				]
 			]
+		);
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+			.VAlign(VAlign_Center)
 			[
 				SNew(SEditableTextBox)
 				.Text(this, &SPacketContentView::GetFilterEventTypeText)
+				.ToolTipText(LOCTEXT("EventType_Tooltip", "Event Type\n\nTo set the event type:\n\tdouble click either an event in the Packet Content view\n\tor an event type in the NetStats tree view."))
 				.IsReadOnly(true)
 				.MinDesiredWidth(120.0f)
 			]
+		);
+	}
+	ToolbarBuilder.EndSection();
 
-			//////////////////////////////////////////////////
-			// Highlight Filtered Events
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(12.0f, 0.0f, 0.0f, 0.0f)
+	ToolbarBuilder.BeginSection("HighlightFilteredEvents");
+	{
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
 			[
 				SNew(SCheckBox)
 				.ToolTipText(LOCTEXT("HighlightFilteredEvents_Tooltip", "Highlight filtered events."))
 				.IsChecked(this, &SPacketContentView::HighlightFilteredEvents_IsChecked)
 				.OnCheckStateChanged(this, &SPacketContentView::HighlightFilteredEvents_OnCheckStateChanged)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("HighlightFilteredEvents_Text", "Highlight"))
+					SNew(SBox)
+					.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("HighlightFilteredEvents_Text", "Highlight"))
+					]
 				]
 			]
+		);
+	}
+	ToolbarBuilder.EndSection();
 
-			//////////////////////////////////////////////////
+	ChildSlot
+	[
+		SNew(SOverlay)
+		.Visibility(EVisibility::SelfHitTestInvisible)
+
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Top)
+		.Padding(FMargin(0, 0, 0, 0))
+		[
+			ToolbarBuilder.MakeWidget()
 		]
 
 		+ SOverlay::Slot()
@@ -345,28 +337,24 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindPreviousPacket_OnClicked()
+void SPacketContentView::FindPreviousPacket()
 {
 	TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
 	if (PacketView.IsValid())
 	{
 		PacketView->SelectPreviousPacket();
 	}
-
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindNextPacket_OnClicked()
+void SPacketContentView::FindNextPacket()
 {
 	TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
 	if (PacketView.IsValid())
 	{
 		PacketView->SelectNextPacket();
 	}
-
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -395,7 +383,7 @@ void SPacketContentView::Packet_OnTextCommitted(const FText& InNewText, ETextCom
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindFirstEvent()
+void SPacketContentView::FindFirstEvent()
 {
 	if (FilteredDrawState->Events.Num() > 0)
 	{
@@ -403,17 +391,16 @@ FReply SPacketContentView::FindFirstEvent()
 		OnSelectedEventChanged();
 		BringEventIntoView(SelectedEvent);
 	}
-
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindPreviousEvent(EEventNavigationType NavigationType)
+void SPacketContentView::FindPreviousEvent(EEventNavigationType NavigationType)
 {
 	if (!SelectedEvent.IsValid())
 	{
-		return FindFirstEvent();
+		FindFirstEvent();
+		return;
 	}
 
 	const int32 EventCount = FilteredDrawState->Events.Num();
@@ -460,16 +447,16 @@ FReply SPacketContentView::FindPreviousEvent(EEventNavigationType NavigationType
 	}
 
 	BringEventIntoView(SelectedEvent);
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindNextEvent(EEventNavigationType NavigationType)
+void SPacketContentView::FindNextEvent(EEventNavigationType NavigationType)
 {
 	if (!SelectedEvent.IsValid())
 	{
-		return FindLastEvent();
+		FindLastEvent();
+		return;
 	}
 
 	const int32 EventCount = FilteredDrawState->Events.Num();
@@ -516,12 +503,11 @@ FReply SPacketContentView::FindNextEvent(EEventNavigationType NavigationType)
 	}
 
 	BringEventIntoView(SelectedEvent);
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindLastEvent()
+void SPacketContentView::FindLastEvent()
 {
 	if (FilteredDrawState->Events.Num() > 0)
 	{
@@ -529,17 +515,16 @@ FReply SPacketContentView::FindLastEvent()
 		OnSelectedEventChanged();
 		BringEventIntoView(SelectedEvent);
 	}
-
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindPreviousLevel()
+void SPacketContentView::FindPreviousLevel()
 {
 	if (!SelectedEvent.IsValid())
 	{
-		return FindFirstEvent();
+		FindFirstEvent();
+		return;
 	}
 
 	const int32 EventCount = FilteredDrawState->Events.Num();
@@ -565,16 +550,16 @@ FReply SPacketContentView::FindPreviousLevel()
 	}
 
 	BringEventIntoView(SelectedEvent);
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindNextLevel()
+void SPacketContentView::FindNextLevel()
 {
 	if (!SelectedEvent.IsValid())
 	{
-		return FindLastEvent();
+		FindLastEvent();
+		return;
 	}
 
 	const int32 EventCount = FilteredDrawState->Events.Num();
@@ -600,7 +585,6 @@ FReply SPacketContentView::FindNextLevel()
 	}
 
 	BringEventIntoView(SelectedEvent);
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1039,15 +1023,12 @@ FNetworkPacketEventRef SPacketContentView::GetEventAtMousePosition(float X, floa
 			const float EventX1 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.BitOffset));
 			const float EventX2 = ViewportX.GetRoundedOffsetForValue(static_cast<double>(Event.BitOffset + Event.BitSize));
 
-			constexpr float EventsPosY = 32.0f;
-			constexpr float EventH = 14.0f;
-			constexpr float EventDY = 2.0f;
-			const float EventY = EventsPosY + (EventH + EventDY) * Event.Level;
+			const float EventY = Viewport.GetTopEventPosY() + (Viewport.GetEventHeight() + Viewport.GetEventDY()) * Event.Level;
 
 			constexpr float ToleranceX = 1.0f;
 
 			if (X >= EventX1 - ToleranceX && X <= EventX2 &&
-				Y >= EventY - EventDY / 2 && Y < EventY + EventH + EventDY / 2)
+				Y >= EventY - Viewport.GetEventDY() / 2 && Y < EventY + Viewport.GetEventHeight() + Viewport.GetEventDY() / 2)
 			{
 				return FNetworkPacketEventRef(Event);
 			}
@@ -1073,10 +1054,6 @@ int32 SPacketContentView::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 		Stopwatch.Start();
 
 		FPacketContentViewDrawHelper Helper(DrawContext, Viewport);
-
-		Helper.SetLayoutPosY(32.0f);
-		//Helper.SetLayoutEventH(14.0f);
-		//Helper.SetLayoutEventDY(2.0f);
 
 		Helper.DrawBackground();
 

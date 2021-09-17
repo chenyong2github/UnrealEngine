@@ -152,16 +152,16 @@ public:
 	void EnableFilterEventType(const uint32 InEventTypeIndex);
 	void DisableFilterEventType();
 
-	FReply FindFirstEvent();
-	FReply FindPreviousEvent(EEventNavigationType NavigationType);
-	FReply FindNextEvent(EEventNavigationType NavigationType);
-	FReply FindLastEvent();
-	FReply FindPreviousLevel();
-	FReply FindNextLevel();
+	void FindFirstEvent();
+	void FindPreviousEvent(EEventNavigationType NavigationType);
+	void FindNextEvent(EEventNavigationType NavigationType);
+	void FindLastEvent();
+	void FindPreviousLevel();
+	void FindNextLevel();
 
 private:
-	FReply FindPreviousPacket_OnClicked();
-	FReply FindNextPacket_OnClicked();
+	void FindPreviousPacket();
+	void FindNextPacket();
 
 	FText GetPacketText() const;
 	void Packet_OnTextCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
