@@ -3,6 +3,7 @@
 #include "UVEditorSubsystem.h"
 
 #include "ToolTargetManager.h"
+#include "ToolTargets/DynamicMeshComponentToolTarget.h"
 #include "ToolTargets/StaticMeshToolTarget.h"
 #include "ToolTargets/SkeletalMeshToolTarget.h"
 #include "UVEditor.h"
@@ -19,6 +20,7 @@ void UUVEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	ToolTargetManager->AddTargetFactory(NewObject<UStaticMeshToolTargetFactory>(ToolTargetManager));
 	ToolTargetManager->AddTargetFactory(NewObject<USkeletalMeshToolTargetFactory>(ToolTargetManager));
+	ToolTargetManager->AddTargetFactory(NewObject<UDynamicMeshComponentToolTargetFactory>(ToolTargetManager));
 }
 
 void UUVEditorSubsystem::Deinitialize()
