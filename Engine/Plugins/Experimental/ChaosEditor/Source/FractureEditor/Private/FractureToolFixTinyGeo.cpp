@@ -109,6 +109,16 @@ void UFractureToolFixTinyGeo::FractureContextChanged()
 			SmallIndices
 		);
 
+		if (TinyGeoSettings->bAlsoMergeSelected)
+		{
+			const TArray<int32> Selection = FractureContext.GetSelection();
+			for (int32 Bone : Selection)
+			{
+				// note: we AddUnique when doing the merge, but for rendering we allow duplicates
+				SmallIndices.Add(Bone);
+			}
+		}
+
 		FTransform OuterTransform = FractureContext.GetTransform();
 		for (int32 TransformIdx : SmallIndices) // small transforms
 		{
@@ -183,13 +193,31 @@ int32 UFractureToolFixTinyGeo::ExecuteFracture(const FFractureToolContext& Fract
 			MinVolume,
 			SmallIndices
 		);
+
+		if (TinyGeoSettings->bAlsoMergeSelected)
+		{
+			const TArray<int32> Selection = FractureContext.GetSelection();
+			for (int32 Bone : Selection)
+			{
+				SmallIndices.AddUnique(Bone);
+			}
+		}
+
+		// convert ENeighborSelectionMethod to the PlanarCut module version (the only difference is it's not a UENUM)
+		UE::PlanarCut::ENeighborSelectionMethod SelectionMethod = UE::PlanarCut::ENeighborSelectionMethod::LargestNeighbor;
+		if (TinyGeoSettings->NeighborSelection == ENeighborSelectionMethod::NearestCenter)
+		{
+			SelectionMethod = UE::PlanarCut::ENeighborSelectionMethod::NearestCenter;
+		}
+
 		MergeBones(
 			Collection,
 			TransformIndices,
 			Volumes,
 			MinVolume,
 			SmallIndices,
-			false /*bUnionJoinedPieces*/ // Note: Union-ing the pieces is nicer in theory, but can leave cracks and non-manifold garbage
+			false, /*bUnionJoinedPieces*/ // Note: Union-ing the pieces is nicer in theory, but can leave cracks and non-manifold garbage
+			SelectionMethod
 		);
 		UpdateIdx = 0;
 	}
