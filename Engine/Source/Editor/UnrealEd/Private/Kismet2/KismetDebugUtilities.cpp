@@ -1194,15 +1194,17 @@ void FKismetDebugUtilities::RestoreBreakpointsOnLoad(const UBlueprint* Blueprint
 		return;
 	}
 
+#if WITH_EDITORONLY_DATA
 	// Remove stale breakpoints
 	RemoveBreakpointsByPredicate(
 		Blueprint,
 		[Blueprint](const FBlueprintBreakpoint& Breakpoint)
 		{
 			const UEdGraphNode* const Location = Breakpoint.GetLocation();
-			return !Location || !Location->IsIn(Blueprint);
+			return !Location || Location->GetTypedOuter<UPackage>()->GetPersistentGuid() != Blueprint->GetTypedOuter<UPackage>()->GetPersistentGuid();
 		}
 	);
+#endif
 
 	// Restore breakpoints based on preferred method
 	const UBlueprintEditorSettings* BlueprintEditorSettings = GetDefault<UBlueprintEditorSettings>();
@@ -1235,6 +1237,55 @@ bool FKismetDebugUtilities::HasDebuggingData(const UBlueprint* Blueprint)
 
 //////////////////////////////////////////////////////////////////////////
 // Blueprint utils
+
+void FKismetDebugUtilities::PostDuplicateBlueprint(UBlueprint* SrcBlueprint, UBlueprint* DupBlueprint, const TArray<UEdGraphNode*>& DupNodes)
+{
+	// Duplicate Breakpoints from the source blueprint
+	if (TArray<FBlueprintBreakpoint>* Breakpoints = GetBreakpoints(SrcBlueprint))
+	{
+		for (FBlueprintBreakpoint& Breakpoint : *Breakpoints)
+		{
+			if (UEdGraphNode* Location = Breakpoint.GetLocation())
+			{
+				UEdGraphNode* const* NewLocation = DupNodes.FindByPredicate(
+					[Location](const UEdGraphNode* Node) -> bool
+					{
+						return Node->NodeGuid == Location->NodeGuid;
+					}
+				);
+				if (NewLocation)
+				{
+					CreateBreakpoint(DupBlueprint, *NewLocation, Breakpoint.IsEnabled());
+				}
+			}
+		}
+	}
+
+	// Duplicate Watched Pins
+	if (TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(SrcBlueprint))
+	{
+		for (FBlueprintWatchedPin& WatchedPin : *WatchedPins)
+		{
+			if (UEdGraphPin* Pin = WatchedPin.Get())
+			{
+				UEdGraphNode* const* NewOwningNode = DupNodes.FindByPredicate(
+					[Pin](const UEdGraphNode* Node) -> bool
+					{
+						return Node->NodeGuid == Pin->GetOwningNode()->NodeGuid;
+					}
+				);
+
+				if (NewOwningNode)
+				{
+					if (const UEdGraphPin* NewPin = (*NewOwningNode)->FindPin(Pin->PinName))
+					{
+						AddPinWatch(DupBlueprint, NewPin);
+					}
+				}
+			}
+		}
+	}
+}
 
 bool FKismetDebugUtilities::BlueprintHasBreakpoints(const UBlueprint* Blueprint)
 {

@@ -287,6 +287,9 @@ public:
 	
 	// Blueprint utils 
 
+	/** Duplicates debug data from original blueprint to new duplicated blueprint */
+	static void PostDuplicateBlueprint(UBlueprint* SrcBlueprint, UBlueprint* DupBlueprint, const TArray<UEdGraphNode*>& DupNodes);
+
 	// Looks thru the debugging data for any class variables associated with the pin
 	static class FProperty* FindClassPropertyForPin(UBlueprint* Blueprint, const UEdGraphPin* Pin);
 

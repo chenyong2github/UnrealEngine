@@ -1812,6 +1812,7 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 		{
 			// Grab the old CDO, which contains the class defaults
 			UClass* OldBPGCAsClass = Blueprint->GeneratedClass;
+			UBlueprint* OldBlueprint = Cast<UBlueprint>(OldBPGCAsClass->ClassGeneratedBy);
 			UBlueprintGeneratedClass* OldBPGC = (UBlueprintGeneratedClass*)(OldBPGCAsClass);
 			UObject* OldCDO = OldBPGC->GetDefaultObject();
 			check(OldCDO != nullptr);
@@ -1938,9 +1939,13 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 				Var.VarGuid = NewVarGuids.Emplace(Var.VarGuid, FGuid::NewGuid());
 			}
 
-			// Give all nodes a new Guid
 			TArray< UEdGraphNode* > AllGraphNodes;
 			GetAllNodesOfClass(Blueprint, AllGraphNodes);
+
+			// Before we update Guids, we can use them to dupe breakpoints, watchpins to the new BP
+			FKismetDebugUtilities::PostDuplicateBlueprint(OldBlueprint, Blueprint, AllGraphNodes);
+
+			// Give all nodes a new Guid
 			for(UEdGraphNode* Node : AllGraphNodes)
 			{
 				if (!FBlueprintDuplicationScopeFlags::HasAnyFlag(FBlueprintDuplicationScopeFlags::TheSameNodeGuid))
