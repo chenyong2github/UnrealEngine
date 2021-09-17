@@ -12,18 +12,21 @@
 /**
  * Interface for remote execution functionality
  */
-class IRemoteExecutor : public IModularFeature
+namespace UE::RemoteExecution
 {
-public:
-	/** Virtual destructor */
-	virtual ~IRemoteExecutor() {}
+	class IRemoteExecutor : public IModularFeature
+	{
+	public:
+		/** Virtual destructor */
+		virtual ~IRemoteExecutor() {}
 
-	virtual FName GetFName() const = 0;
-	virtual FText GetNameText() const = 0;
-	virtual FText GetDescriptionText() const = 0;
+		virtual FName GetFName() const = 0;
+		virtual FText GetNameText() const = 0;
+		virtual FText GetDescriptionText() const = 0;
 
-	virtual bool CanRemoteExecute() const = 0;
+		virtual bool CanRemoteExecute() const = 0;
 
-	virtual IContentAddressableStorage* GetContentAddressableStorage() const = 0;
-	virtual IExecution* GetExecution() const = 0;
-};
+		virtual IContentAddressableStorage* GetContentAddressableStorage() const = 0;
+		virtual IExecution* GetExecution() const = 0;
+	};
+}

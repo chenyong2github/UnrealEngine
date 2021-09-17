@@ -4,34 +4,38 @@
 
 #define LOCTEXT_NAMESPACE "DefaultRemoteExecutor"
 
-FName FDefaultRemoteExecutor::GetFName() const
-{
-	return FName("None");
-}
 
-FText FDefaultRemoteExecutor::GetNameText() const
+namespace UE::RemoteExecution
 {
-	return LOCTEXT("DefaultDisplayName", "None");
-}
+	FName FDefaultRemoteExecutor::GetFName() const
+	{
+		return FName("None");
+	}
 
-FText FDefaultRemoteExecutor::GetDescriptionText() const
-{
-	return LOCTEXT("DefaultDisplayDesc", "Disable remote execution.");
-}
+	FText FDefaultRemoteExecutor::GetNameText() const
+	{
+		return LOCTEXT("DefaultDisplayName", "None");
+	}
 
-bool FDefaultRemoteExecutor::CanRemoteExecute() const
-{
-	return false;
-}
+	FText FDefaultRemoteExecutor::GetDescriptionText() const
+	{
+		return LOCTEXT("DefaultDisplayDesc", "Disable remote execution.");
+	}
 
-IContentAddressableStorage* FDefaultRemoteExecutor::GetContentAddressableStorage() const
-{
-	return nullptr;
-}
+	bool FDefaultRemoteExecutor::CanRemoteExecute() const
+	{
+		return false;
+	}
 
-IExecution* FDefaultRemoteExecutor::GetExecution() const
-{
-	return nullptr;
+	IContentAddressableStorage* FDefaultRemoteExecutor::GetContentAddressableStorage() const
+	{
+		return nullptr;
+	}
+
+	IExecution* FDefaultRemoteExecutor::GetExecution() const
+	{
+		return nullptr;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

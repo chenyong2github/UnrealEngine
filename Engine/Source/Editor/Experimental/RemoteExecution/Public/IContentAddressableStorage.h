@@ -5,35 +5,37 @@
 #include "CoreMinimal.h"
 #include "Async/Future.h"
 
-struct FAction;
-struct FBatchReadBlobsRequest;
-struct FBatchReadBlobsResponse;
-struct FBatchUpdateBlobsRequest;
-struct FBatchUpdateBlobsResponse;
-struct FCommand;
-struct FDigest;
-struct FDirectory;
-struct FFindMissingBlobsRequest;
-struct FFindMissingBlobsResponse;
-struct FStatus;
+struct FIoHash;
 
 
-class IContentAddressableStorage
+namespace UE::RemoteExecution
 {
-public:
-	/** Virtual destructor */
-	virtual ~IContentAddressableStorage() {}
+	enum class EStatusCode;
+	class IRemoteMessage;
+	struct FGetObjectTreeResponse;
 
-	virtual bool ToDigest(const TArray<uint8>& InData, FDigest& OutDigest) = 0;
-	virtual bool ToBlob(const FDirectory& InDirectory, TArray<uint8>& OutData, FDigest& OutDigest) = 0;
-	virtual bool ToBlob(const FCommand& InCommand, TArray<uint8>& OutData, FDigest& OutDigest) = 0;
-	virtual bool ToBlob(const FAction& InAction, TArray<uint8>& OutData, FDigest& OutDigest) = 0;
+	class IContentAddressableStorage
+	{
+	public:
+		/** Virtual destructor */
+		virtual ~IContentAddressableStorage() {}
 
-	virtual FStatus FindMissingBlobs(const FFindMissingBlobsRequest& Request, FFindMissingBlobsResponse& Response, int64 TimeoutMs = 0) = 0;
-	virtual FStatus BatchUpdateBlobs(const FBatchUpdateBlobsRequest& Request, FBatchUpdateBlobsResponse& Response, int64 TimeoutMs = 0) = 0;
-	virtual FStatus BatchReadBlobs(const FBatchReadBlobsRequest& Request, FBatchReadBlobsResponse& Response, int64 TimeoutMs = 0) = 0;
+		virtual bool ToBlob(const IRemoteMessage& Message, TArray<uint8>& OutBlob, FIoHash& OutIoHash) = 0;
+		virtual FIoHash ToDigest(const TArray<uint8>& Blob) = 0;
 
-	virtual TFuture<TPair<FStatus, FFindMissingBlobsResponse>> FindMissingBlobsAsync(const FFindMissingBlobsRequest& Request, TUniqueFunction<void()> CompletionCallback = nullptr, int64 TimeoutMs = 0) = 0;
-	virtual TFuture<TPair<FStatus, FBatchUpdateBlobsResponse>> BatchUpdateBlobsAsync(const FBatchUpdateBlobsRequest& Request, TUniqueFunction<void()> CompletionCallback = nullptr, int64 TimeoutMs = 0) = 0;
-	virtual TFuture<TPair<FStatus, FBatchReadBlobsResponse>> BatchReadBlobsAsync(const FBatchReadBlobsRequest& Request, TUniqueFunction<void()> CompletionCallback = nullptr, int64 TimeoutMs = 0) = 0;
-};
+		virtual TFuture<EStatusCode> DoesBlobExistAsync(const FString& NameSpaceId, const FIoHash& Hash) = 0;
+		virtual TFuture<TMap<FIoHash, EStatusCode>> DoBlobsExistAsync(const FString& NameSpaceId, const TSet<FIoHash>& Hashes) = 0;
+
+		virtual TFuture<EStatusCode> PutBlobAsync(const FString& NameSpaceId, const FIoHash& Hash, const TArray<uint8>& Data) = 0;
+		virtual TFuture<TMap<FIoHash, EStatusCode>> PutBlobsAsync(const FString& NameSpaceId, const TMap<FIoHash, TArray<uint8>>& Blobs) = 0;
+
+		virtual TFuture<EStatusCode> PutMissingBlobAsync(const FString& NameSpaceId, const FIoHash& Hash, const TArray<uint8>& Data) = 0;
+		virtual TFuture<TMap<FIoHash, EStatusCode>> PutMissingBlobsAsync(const FString& NameSpaceId, const TMap<FIoHash, TArray<uint8>>& Blobs) = 0;
+
+		virtual TFuture<TPair<EStatusCode, TArray<uint8>>> GetBlobAsync(const FString& NameSpaceId, const FIoHash& Hash) = 0;
+		virtual TFuture<TMap<FIoHash, TPair<EStatusCode, TArray<uint8>>>> GetBlobsAsync(const FString& NameSpaceId, const TSet<FIoHash>& Hashes) = 0;
+
+		virtual TFuture<TPair<EStatusCode, FGetObjectTreeResponse>> GetObjectTreeAsync(const FString& NameSpaceId, const FIoHash& Hash, const TSet<FIoHash>& HaveHashes) = 0;
+		virtual TFuture<TPair<EStatusCode, FGetObjectTreeResponse>> GetObjectTreeAsync(const FString& NameSpaceId, const FIoHash& Hash) = 0;
+	};
+}

@@ -5,17 +5,22 @@
 #include "CoreMinimal.h"
 #include "Async/Future.h"
 
-struct FExecuteRequest;
-struct FExecuteResponse;
 
-
-class IExecution
+namespace UE::RemoteExecution
 {
-public:
-	/** Virtual destructor */
-	virtual ~IExecution() {}
+	enum class EStatusCode;
+	class FAddTasksRequest;
+	class FGetTaskUpdatesResponse;
 
-	virtual bool Execute(const FExecuteRequest& Request, FExecuteResponse& Response, int64 TimeoutMs = 0) = 0;
+	class IExecution
+	{
+	public:
+		/** Virtual destructor */
+		virtual ~IExecution() {}
 
-	virtual TFuture<FExecuteResponse> ExecuteAsync(const FExecuteRequest& Request, TUniqueFunction<void()> CompletionCallback = nullptr, int64 TimeoutMs = 0) = 0;
-};
+		virtual TFuture<EStatusCode> AddTasksAsync(const FString& ChannelId, const FAddTasksRequest& Request) = 0;
+		virtual TFuture<TPair<EStatusCode, FGetTaskUpdatesResponse>> GetUpdatesAsync(const FString& ChannelId, const int32 WaitSeconds = 0) = 0;
+
+		virtual TFuture<TPair<EStatusCode, FGetTaskUpdatesResponse>> RunTasksAsync(const FAddTasksRequest& AddTaskRequest, const int32 TimeoutSeconds = 0) = 0;
+	};
+}
