@@ -137,6 +137,25 @@ void FTextureLODGroupLayout::GenerateChildContent(IDetailChildrenBuilder& Childr
 			];
 	}
 
+	{
+		ChildrenBuilder.AddCustomRow(LOCTEXT("MaxLODSizeVT", "Max LOD Size VT"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(LOCTEXT("MaxLODSizeVT", "Max LOD Size VT"))
+			]
+			.ValueContent()
+			[
+				SNew(SSpinBox<uint32>)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.MinValue(0)
+				.MaxValue(32768)
+				.Value(this, &FTextureLODGroupLayout::GetMaxLODSizeVT)
+				.OnValueChanged(this, &FTextureLODGroupLayout::OnMaxLODSizeVTChanged)
+				.OnValueCommitted(this, &FTextureLODGroupLayout::OnMaxLODSizeVTCommitted)
+			];
+	}
 
 	// LOD Bias
 	{
@@ -289,6 +308,22 @@ void FTextureLODGroupLayout::OnMaxLODSizeCommitted(uint32 NewValue, ETextCommit:
 		//		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.ReductionSettings"), TEXT("MaxLODSize"), FString::Printf(TEXT("%.1f"), NewValue));
 	//}
 	OnMaxLODSizeChanged(NewValue);
+}
+
+
+uint32 FTextureLODGroupLayout::GetMaxLODSizeVT() const
+{
+	return LodGroup->MaxLODSize_VT;
+}
+
+void FTextureLODGroupLayout::OnMaxLODSizeVTChanged(uint32 NewValue)
+{
+	LodGroup->MaxLODSize_VT = NewValue;
+}
+
+void FTextureLODGroupLayout::OnMaxLODSizeVTCommitted(uint32 NewValue, ETextCommit::Type TextCommitType)
+{
+	OnMaxLODSizeVTChanged(NewValue);
 }
 
 

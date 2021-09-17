@@ -47,6 +47,11 @@ private:
 	void OnMaxLODSizeChanged(uint32 NewValue);
 	void OnMaxLODSizeCommitted(uint32 NewValue, ETextCommit::Type TextCommitType);
 
+	// Controls for the Max LOD Size VT property editing
+	uint32 GetMaxLODSizeVT() const;
+	void OnMaxLODSizeVTChanged(uint32 NewValue);
+	void OnMaxLODSizeVTCommitted(uint32 NewValue, ETextCommit::Type TextCommitType);
+
 	// Controls for the LOD Bias property editing
 	int32 GetLODBias() const;
 	void OnLODBiasChanged(int32 NewValue);

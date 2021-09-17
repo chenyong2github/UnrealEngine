@@ -18,8 +18,6 @@ struct ENGINE_API FTextureLODGroup
 
 	FTextureLODGroup()
 		: Group(TEXTUREGROUP_World)
-		, MinLODMipCount(0)
-		, MaxLODMipCount(32)
 		, LODBias(0)
 		, LODBias_Smaller(-1)
 		, LODBias_Smallest(-1)
@@ -29,9 +27,9 @@ struct ENGINE_API FTextureLODGroup
 		, MaxLODSize(4096)
 		, MaxLODSize_Smaller(-1)
 		, MaxLODSize_Smallest(-1)
+		, MaxLODSize_VT(0)
 		, OptionalLODBias(0)
 		, OptionalMaxLODSize(4096)
-		, OptionalMaxLODMipCount(32)
 		, MinMagFilter(NAME_Aniso)
 		, MipFilter(NAME_Point)
 		, MipLoadOptions(ETextureMipLoadOptions::AllMips)
@@ -46,16 +44,10 @@ struct ENGINE_API FTextureLODGroup
 		SetupGroup();
 	}
 
-	/** Minimum LOD mip count below which the code won't bias.						*/
+	/** Group ID.																	*/
 	UPROPERTY()
 	TEnumAsByte<TextureGroup> Group;
 
-	/** Minimum LOD mip count below which the code won't bias.						*/
-	int32 MinLODMipCount;
-	
-	/** Maximum LOD mip count. Bias will be adjusted so texture won't go above.		*/
-	int32 MaxLODMipCount;
-	
 	/** Group LOD bias.																*/
 	UPROPERTY()
 	int32 LODBias;
@@ -89,6 +81,9 @@ struct ENGINE_API FTextureLODGroup
 	UPROPERTY()
 	int32 MaxLODSize_Smallest;
 
+	UPROPERTY()
+	int32 MaxLODSize_VT;
+
 	/** If this is greater then 0 will put that number of mips into an optional bulkdata package */
 	UPROPERTY()
 	int32 OptionalLODBias;
@@ -96,8 +91,6 @@ struct ENGINE_API FTextureLODGroup
 	/** Put all the mips which have a width / height larger then OptionalLODSize into an optional bulkdata package */
 	UPROPERTY()
 	int32 OptionalMaxLODSize;
-
-	int32 OptionalMaxLODMipCount;
 
 	UPROPERTY()
 	FName MinMagFilter;
