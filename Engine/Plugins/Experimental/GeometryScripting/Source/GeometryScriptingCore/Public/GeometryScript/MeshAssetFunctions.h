@@ -36,6 +36,15 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptCopyMeshToAssetOptions
 	GENERATED_BODY()
 public:
 	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEnableRecomputeNormals = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEnableRecomputeTangents = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEnableRemoveDegenerates = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEmitTransaction = true;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)

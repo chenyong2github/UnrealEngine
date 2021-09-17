@@ -42,6 +42,28 @@ public:
 };
 
 
+UENUM(BlueprintType)
+enum class EGeometryScriptTangentTypes : uint8
+{
+	FastMikkT = 0,
+	PerTriangle = 1
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptTangentsOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptTangentTypes Type = EGeometryScriptTangentTypes::FastMikkT;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int UVLayer = 0;
+};
+
+
+
 UCLASS(meta = (ScriptName = "GeometryScript_Normals"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshNormalsFunctions : public UBlueprintFunctionLibrary
 {
@@ -87,7 +109,12 @@ public:
 		FGeometryScriptCalculateNormalsOptions CalculateOptions,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Normals", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ComputeTangents( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptTangentsOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
 
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Normals", meta=(ScriptMethod))

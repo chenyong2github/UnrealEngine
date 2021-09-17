@@ -7,6 +7,9 @@
 #include "Polygroups/PolygroupSet.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Parameterization/PatchBasedMeshUVGenerator.h"
+#include "XAtlasWrapper.h"
+
 #include "Async/ParallelFor.h"
 #include "UDynamicMesh.h"
 
@@ -46,6 +49,45 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::SetNumUVSets(
 
 	return TargetMesh;
 }
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::CopyUVSet(
+	UDynamicMesh* TargetMesh,
+	int FromUVSet,
+	int ToUVSet,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyUVSet_InvalidInput", "CopyUVSet: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (FromUVSet == ToUVSet)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetNumUVSets_SameSet", "SetNumUVSets: From and To UV Sets have the same Index"));
+		return TargetMesh;
+	}
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		FDynamicMeshUVOverlay* FromUVOverlay = nullptr, *ToUVOverlay = nullptr;
+		if (EditMesh.HasAttributes())
+		{
+			FromUVOverlay = (FromUVSet < EditMesh.Attributes()->NumUVLayers()) ? EditMesh.Attributes()->GetUVLayer(FromUVSet) : nullptr;
+			ToUVOverlay = (ToUVSet < EditMesh.Attributes()->NumUVLayers()) ? EditMesh.Attributes()->GetUVLayer(ToUVSet) : nullptr;
+		}
+		if (FromUVOverlay == nullptr || ToUVOverlay == nullptr)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetNumUVSets_CopyUVSet", "CopyUVSet: From or To UV Set does not Exist"));
+			return;
+		}
+		FDynamicMeshUVEditor UVEditor(&EditMesh, ToUVOverlay);
+		UVEditor.CopyUVLayer(FromUVOverlay);
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
 
 
 
@@ -296,6 +338,149 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::SetMeshUVsFromBoxProjectio
 
 
 
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::SetMeshUVsFromCylinderProjection(
+	UDynamicMesh* TargetMesh,
+	int UVSetIndex,
+	FTransform CylinderTransform,
+	float SplitAngle,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshUVsFromCylinderProjection_InvalidInput", "SetMeshUVsFromCylinderProjection: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	bool bHasUVSet = false;
+	ApplyMeshUVEditorOperation(TargetMesh, UVSetIndex, bHasUVSet, Debug,
+		[&](FDynamicMesh3& EditMesh, FDynamicMeshUVOverlay* UVOverlay, FDynamicMeshUVEditor& UVEditor)
+	{
+		TArray<int32> AllTriangles;
+		for (int32 tid : EditMesh.TriangleIndicesItr())
+		{
+			AllTriangles.Add(tid);
+		}
+
+		FFrame3d ProjectionFrame(CylinderTransform);
+		FVector Scale = CylinderTransform.GetScale3D();
+		FVector3d Dimensions = (FVector)Scale;
+		UVEditor.SetTriangleUVsFromCylinderProjection(AllTriangles, [&](const FVector3d& Pos) { return Pos; },
+			ProjectionFrame, Dimensions, SplitAngle);
+	});
+	if (bHasUVSet == false)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetMeshUVsFromCylinderProjection_InvalidUVSet", "SetMeshUVsFromCylinderProjection: UVSetIndex does not exist on TargetMesh"));
+	}
+
+	return TargetMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::RecomputeMeshUVs( 
+	UDynamicMesh* TargetMesh, 
+	int UVSetIndex,
+	FGeometryScriptRecomputeUVsOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("RecomputeMeshUVs_InvalidInput", "RecomputeMeshUVs: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	bool bHasUVSet = false;
+	ApplyMeshUVEditorOperation(TargetMesh, UVSetIndex, bHasUVSet, Debug,
+		[&](FDynamicMesh3& EditMesh, FDynamicMeshUVOverlay* UVOverlay, FDynamicMeshUVEditor& UVEditor)
+	{
+
+
+		TUniquePtr<FPolygroupSet> IslandSourceGroups;
+		if (Options.IslandSource == EGeometryScriptUVIslandSource::PolyGroups)
+		{
+			FPolygroupLayer InputGroupLayer{ Options.GroupLayer.bDefaultLayer, Options.GroupLayer.ExtendedLayerIndex };
+			if (InputGroupLayer.CheckExists(&EditMesh))
+			{
+
+				IslandSourceGroups = MakeUnique<FPolygroupSet>(&EditMesh, InputGroupLayer);
+			}
+			else
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("RecomputeMeshUVs_MissingGroups", "RecomputeMeshUVs: Requested Polygroup Layer does not exist"));
+				return;
+			}
+		}
+
+		// find group-connected-components
+		FMeshConnectedComponents ConnectedComponents(&EditMesh);
+		if (Options.IslandSource == EGeometryScriptUVIslandSource::PolyGroups)
+		{
+			ConnectedComponents.FindConnectedTriangles([&](int32 CurTri, int32 NbrTri) {
+				return IslandSourceGroups->GetTriangleGroup(CurTri) == IslandSourceGroups->GetTriangleGroup(NbrTri);
+			});
+		}
+		else
+		{
+			ConnectedComponents.FindConnectedTriangles([&](int32 Triangle0, int32 Triangle1) {
+				return UVOverlay->AreTrianglesConnected(Triangle0, Triangle1);
+			});
+		}
+
+		int32 NumComponents = ConnectedComponents.Num();
+		TArray<bool> bComponentSolved;
+		bComponentSolved.Init(false, NumComponents);
+		int32 SuccessCount = 0;
+		for (int32 k = 0; k < NumComponents; ++k)
+		{
+			const TArray<int32>& ComponentTris = ConnectedComponents[k].Indices;
+			bComponentSolved[k] = false;
+			switch (Options.Method)
+			{
+			case EGeometryScriptUVFlattenMethod::ExpMap:
+			{
+				FDynamicMeshUVEditor::FExpMapOptions ExpMapOptions;
+				ExpMapOptions.NormalSmoothingRounds = Options.ExpMapOptions.NormalSmoothingRounds;
+				ExpMapOptions.NormalSmoothingAlpha = Options.ExpMapOptions.NormalSmoothingAlpha;
+				bComponentSolved[k] = UVEditor.SetTriangleUVsFromExpMap(ComponentTris, ExpMapOptions);
+			}
+			break;
+
+			case EGeometryScriptUVFlattenMethod::Conformal:
+				bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris);
+				if ( bComponentSolved[k] )
+				{
+					UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+				}
+				break;
+			}
+		}
+
+		if (Options.bAutoAlignIslandsWithAxes)
+		{
+			ParallelFor(NumComponents, [&](int32 k)
+			{
+				if (bComponentSolved[k])
+				{
+					const TArray<int32>& ComponentTris = ConnectedComponents[k].Indices;
+					UVEditor.AutoOrientUVArea(ComponentTris);
+				};
+			});
+		}
+
+	});
+	if (bHasUVSet == false)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("RecomputeMeshUVs_InvalidUVSet", "RecomputeMeshUVs: UVSetIndex does not exist on TargetMesh"));
+	}
+
+	return TargetMesh;
+}
+
+
+
+
 UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::RepackMeshUVs( 
 	UDynamicMesh* TargetMesh, 
 	int UVSetIndex,
@@ -334,6 +519,189 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::RepackMeshUVs(
 
 	return TargetMesh;
 }
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::AutoGeneratePatchBuilderMeshUVs( 
+	UDynamicMesh* TargetMesh, 
+	int UVSetIndex,
+	FGeometryScriptPatchBuilderOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGeneratePatchBuilderMeshUVs_InvalidInput", "AutoGeneratePatchBuilderMeshUVs: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	bool bHasUVSet = false;
+	ApplyMeshUVEditorOperation(TargetMesh, UVSetIndex, bHasUVSet, Debug,
+		[&](FDynamicMesh3& EditMesh, FDynamicMeshUVOverlay* UVOverlay, FDynamicMeshUVEditor& UVEditor)
+	{
+		FPatchBasedMeshUVGenerator UVGenerator;
+
+		TUniquePtr<FPolygroupSet> PolygroupConstraint;
+		if (Options.bRespectInputGroups)
+		{
+			FPolygroupLayer InputGroupLayer{ Options.GroupLayer.bDefaultLayer, Options.GroupLayer.ExtendedLayerIndex };
+			if (InputGroupLayer.CheckExists(&EditMesh))
+			{
+
+				PolygroupConstraint = MakeUnique<FPolygroupSet>(&EditMesh, InputGroupLayer);
+				UVGenerator.GroupConstraint = PolygroupConstraint.Get();
+			}
+			else
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGeneratePatchBuilderMeshUVs_MissingGruops", "AutoGeneratePatchBuilderMeshUVs: Requested Polygroup Layer does not exist"));
+			}
+		}
+
+		UVGenerator.TargetPatchCount = FMath::Max(1,Options.InitialPatchCount);
+		UVGenerator.bNormalWeightedPatches = true;
+		UVGenerator.PatchNormalWeight = FMath::Clamp(Options.PatchCurvatureAlignmentWeight, 0.0, 999999.0);
+		UVGenerator.MinPatchSize = FMath::Max(1,Options.MinPatchSize);
+
+		UVGenerator.MergingThreshold = FMath::Clamp(Options.PatchMergingMetricThresh, 0.001, 9999.0);
+		UVGenerator.MaxNormalDeviationDeg = FMath::Clamp(Options.PatchMergingAngleThresh, 0.0, 180.0);
+
+		UVGenerator.NormalSmoothingRounds = FMath::Clamp(Options.ExpMapOptions.NormalSmoothingRounds, 0, 9999);
+		UVGenerator.NormalSmoothingAlpha = FMath::Clamp(Options.ExpMapOptions.NormalSmoothingAlpha, 0.0, 1.0);
+
+		UVGenerator.bAutoPack = Options.bAutoPack;
+		if (Options.bAutoPack)
+		{
+			UVGenerator.bAutoAlignPatches = Options.PackingOptions.bOptimizeIslandRotation;
+			UVGenerator.PackingTextureResolution = FMath::Clamp(Options.PackingOptions.TargetImageWidth, 16, 4096);
+			UVGenerator.PackingGutterWidth = 1.0;
+		}
+		FGeometryResult Result = UVGenerator.AutoComputeUVs(*UVEditor.GetMesh(), *UVEditor.GetOverlay(), nullptr);
+
+		if (Result.HasFailed())
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("AutoGeneratePatchBuilderMeshUVs_Failed", "AutoGeneratePatchBuilderMeshUVs: UV Generation Failed"));
+		}
+
+	});
+	if (bHasUVSet == false)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGeneratePatchBuilderMeshUVs_InvalidUVSet", "AutoGeneratePatchBuilderMeshUVs: UVSetIndex does not exist on TargetMesh"));
+	}
+
+	return TargetMesh;
+}
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::AutoGenerateXAtlasMeshUVs( 
+	UDynamicMesh* TargetMesh, 
+	int UVSetIndex,
+	FGeometryScriptXAtlasOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGenerateXAtlasMeshUVs_InvalidInput", "AutoGenerateXAtlasMeshUVs: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	bool bHasUVSet = false;
+	ApplyMeshUVEditorOperation(TargetMesh, UVSetIndex, bHasUVSet, Debug,
+		[&](FDynamicMesh3& EditMesh, FDynamicMeshUVOverlay* UVOverlay, FDynamicMeshUVEditor& UVEditor)
+	{
+		if (EditMesh.IsCompact() == false)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGenerateXAtlasMeshUVs_NonCompact", "AutoGenerateXAtlasMeshUVs: TargetMesh must be Compacted before running XAtlas"));
+			return;
+		}
+
+
+		const bool bFixOrientation = false;
+		//const bool bFixOrientation = true;
+		//FDynamicMesh3 FlippedMesh(EMeshComponents::FaceGroups);
+		//FlippedMesh.Copy(Mesh, false, false, false, false);
+		//if (bFixOrientation)
+		//{
+		//	FlippedMesh.ReverseOrientation(false);
+		//}
+
+
+		int32 NumVertices = EditMesh.VertexCount();
+		TArray<FVector3f> VertexBuffer;
+		VertexBuffer.SetNum(NumVertices);
+		for (int32 k = 0; k < NumVertices; ++k)
+		{
+			VertexBuffer[k] = (FVector3f)EditMesh.GetVertex(k);
+		}
+
+		TArray<int32> IndexBuffer;
+		IndexBuffer.Reserve(EditMesh.TriangleCount()*3);
+		for (FIndex3i Triangle : EditMesh.TrianglesItr())
+		{
+			IndexBuffer.Add(Triangle.A);
+			IndexBuffer.Add(Triangle.B);
+			IndexBuffer.Add(Triangle.C);
+		}
+
+		TArray<FVector2D> UVVertexBuffer;
+		TArray<int32>     UVIndexBuffer;
+		TArray<int32>     VertexRemapArray; // This maps the UV vertices to the original position vertices.  Note multiple UV vertices might share the same positional vertex (due to UV boundaries)
+		XAtlasWrapper::XAtlasChartOptions ChartOptions;
+		ChartOptions.MaxIterations = Options.MaxIterations;
+		XAtlasWrapper::XAtlasPackOptions PackOptions;
+		bool bSuccess = XAtlasWrapper::ComputeUVs(IndexBuffer, VertexBuffer, ChartOptions, PackOptions,
+			UVVertexBuffer, UVIndexBuffer, VertexRemapArray);
+		if (bSuccess == false)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("AutoGenerateXAtlasMeshUVs_Failed", "AutoGenerateXAtlasMeshUVs: UV Generation Failed"));
+			return;
+		}
+
+		UVOverlay->ClearElements();
+
+		int32 NumUVs = UVVertexBuffer.Num();
+		TArray<int32> UVOffsetToElID;  UVOffsetToElID.Reserve(NumUVs);
+		for (int32 i = 0; i < NumUVs; ++i)
+		{
+			FVector2D UV = UVVertexBuffer[i];
+			const int32 VertOffset = VertexRemapArray[i];		// The associated VertID in the dynamic mesh
+			const int32 NewID = UVOverlay->AppendElement(FVector2f(UV));		// add the UV to the mesh overlay
+			UVOffsetToElID.Add(NewID);
+		}
+
+		int32 NumUVTris = UVIndexBuffer.Num() / 3;
+		for (int32 i = 0; i < NumUVTris; ++i)
+		{
+			int32 t = i * 3;
+			FIndex3i UVTri(UVIndexBuffer[t], UVIndexBuffer[t + 1], UVIndexBuffer[t + 2]);	// The triangle in UV space
+			FIndex3i TriVertIDs;				// the triangle in terms of the VertIDs in the DynamicMesh
+			for (int c = 0; c < 3; ++c)
+			{
+				int32 Offset = VertexRemapArray[UVTri[c]];		// the offset for this vertex in the LinearMesh
+				TriVertIDs[c] = Offset;
+			}
+
+			// NB: this could be slow.. 
+			int32 TriID = EditMesh.FindTriangle(TriVertIDs[0], TriVertIDs[1], TriVertIDs[2]);
+			if (TriID != IndexConstants::InvalidID)
+			{
+				FIndex3i ElTri = (bFixOrientation) ?
+					FIndex3i(UVOffsetToElID[UVTri[1]], UVOffsetToElID[UVTri[0]], UVOffsetToElID[UVTri[2]])
+					: FIndex3i(UVOffsetToElID[UVTri[0]], UVOffsetToElID[UVTri[1]], UVOffsetToElID[UVTri[2]]);
+				UVOverlay->SetTriangle(TriID, ElTri);
+			}
+		}
+
+	});
+	if (bHasUVSet == false)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGenerateXAtlasMeshUVs_InvalidUVSet", "AutoGenerateXAtlasMeshUVs: UVSetIndex does not exist on TargetMesh"));
+	}
+
+	return TargetMesh;
+}
+
 
 
 

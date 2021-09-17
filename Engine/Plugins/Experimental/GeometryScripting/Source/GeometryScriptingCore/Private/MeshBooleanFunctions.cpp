@@ -181,8 +181,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshSelfUnion(
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshPlaneCut(
 	UDynamicMesh* TargetMesh,
-	FVector CutPlaneOrigin,
-	FVector CutPlaneNormal,
+	FTransform CutFrame,
 	FGeometryScriptMeshPlaneCutOptions Options,
 	UGeometryScriptDebug* Debug)
 {
@@ -192,21 +191,19 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshPlaneCut(
 		return TargetMesh;
 	}
 
+	FFrame3d UseCutFrame(CutFrame);
+	FVector3d CutPlaneOrigin = UseCutFrame.Origin;
+	FVector3d UseNormal = UseCutFrame.Z();
 	if (Options.bFlipCutSide)
 	{
-		CutPlaneNormal = -CutPlaneNormal;
-	}
-	FVector3d UseNormal = CutPlaneNormal.GetSafeNormal();
-	if (FMath::Abs(1.0 - UseNormal.Length()) > 0.1)
-	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyMeshPlaneCut_InvalidNormal", "ApplyMeshPlaneCut: Normal vector is degenerate"));
-		UseNormal = FVector3d::UnitZ();
+		UseNormal = -UseNormal;
 	}
 
 	bool bSuccess = false;
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 	{
 		FMeshPlaneCut Cut(&EditMesh, CutPlaneOrigin, UseNormal);
+		Cut.UVScaleFactor = 1.0 / Options.UVWorldDimension;
 		bSuccess = Cut.Cut();
 
 		if (Options.bFillHoles)
@@ -221,12 +218,78 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshPlaneCut(
 
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshPlaneSlice(
+	UDynamicMesh* TargetMesh,
+	FTransform CutFrame,
+	FGeometryScriptMeshPlaneSliceOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	const FName ObjectIndexAttribute = "ObjectIndexAttribute";
+
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyMeshPlaneSlice_InvalidInput", "ApplyMeshPlaneSlice: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	FFrame3d UseCutFrame(CutFrame);
+	FVector3d CutPlaneOrigin = UseCutFrame.Origin;
+	FVector3d UseNormal = UseCutFrame.Z();
+
+	bool bSuccess = false;
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		TDynamicMeshScalarTriangleAttribute<int>* SubObjectAttrib = new TDynamicMeshScalarTriangleAttribute<int>(&EditMesh);
+		SubObjectAttrib->Initialize(0);
+		EditMesh.Attributes()->AttachAttribute(ObjectIndexAttribute, SubObjectAttrib);
+
+		int MaxSubObjectID = -1;
+		for (int TID : EditMesh.TriangleIndicesItr())
+		{
+			MaxSubObjectID = FMath::Max(MaxSubObjectID, SubObjectAttrib->GetValue(TID));
+		}
+
+		FMeshPlaneCut Cut(&EditMesh, CutPlaneOrigin, UseNormal);
+		Cut.UVScaleFactor = 1.0 / Options.UVWorldDimension;
+
+		Cut.PlaneOrigin -= Cut.PlaneNormal * Options.GapWidth;
+		Cut.CutWithoutDelete(true, 0, SubObjectAttrib, MaxSubObjectID + 1, true, false);
+
+		int SecondCutMaxID = MaxSubObjectID;
+		for (int TID : EditMesh.TriangleIndicesItr())
+		{
+			SecondCutMaxID = FMath::Max(SecondCutMaxID, SubObjectAttrib->GetValue(TID));
+		}
+
+		Cut.PlaneOrigin += Cut.PlaneNormal * (2.0 * Options.GapWidth);
+		Cut.CutWithoutDelete(true, 0, SubObjectAttrib, SecondCutMaxID + 1, false, true);
+
+		for (int TID : EditMesh.TriangleIndicesItr())
+		{
+			int SubObjectID = SubObjectAttrib->GetValue(TID);
+			if (SubObjectID > MaxSubObjectID && SubObjectID <= SecondCutMaxID)
+			{
+				EditMesh.RemoveTriangle(TID);
+			}
+		}
+
+		if (Options.bFillHoles)
+		{
+			Cut.HoleFill(ConstrainedDelaunayTriangulate<double>, Options.bFillSpans);
+		}
+
+		EditMesh.Attributes()->RemoveAttribute(ObjectIndexAttribute);
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshMirror(
 	UDynamicMesh* TargetMesh,
-	FVector MirrorPlaneOrigin,
-	FVector MirrorPlaneNormal,
+	FTransform CutFrame,
 	FGeometryScriptMeshMirrorOptions Options,
 	UGeometryScriptDebug* Debug)
 {
@@ -238,15 +301,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBooleanFunctions::ApplyMeshMirror(
 
 	const double PlaneTolerance = FMathf::ZeroTolerance * 10.0;
 
+	FFrame3d UseCutFrame(CutFrame);
+	FVector3d MirrorPlaneOrigin = UseCutFrame.Origin;
+	FVector3d UseNormal = UseCutFrame.Z();
 	if (Options.bApplyPlaneCut && Options.bFlipCutSide)
 	{
-		MirrorPlaneNormal = -MirrorPlaneNormal;
-	}
-	FVector3d UseNormal = MirrorPlaneNormal.GetSafeNormal();
-	if (FMath::Abs(1.0 - UseNormal.Length()) > 0.1)
-	{
-		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyMeshMirror_InvalidNormal", "ApplyMeshMirror: Normal vector is degenerate"));
-		UseNormal = FVector3d::UnitZ();
+		UseNormal = -UseNormal;
 	}
 
 	bool bSuccess = false;

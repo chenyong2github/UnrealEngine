@@ -44,7 +44,8 @@ public class GeometryScriptingCore : ModuleRules
 				"StaticMeshDescription",
 				"MeshConversion",
 				"GeometryAlgorithms",
-				"ModelingOperators"
+				"ModelingOperators",
+				"ModelingComponents"
 			}
 			);
 

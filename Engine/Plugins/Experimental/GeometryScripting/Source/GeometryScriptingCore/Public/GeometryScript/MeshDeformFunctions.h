@@ -81,6 +81,105 @@ public:
 
 
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPerlinNoiseLayerOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float Magnitude = 5.0;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float Frequency = 0.25;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	FVector FrequencyShift = FVector::Zero();
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int RandomSeed = 0;
+};
+
+
+
+UENUM(BlueprintType)
+enum class EGeometryScriptMathWarpType : uint8
+{
+	SinWave1D = 0,
+	SinWave2D = 1,
+	SinWave3D = 2
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMathWarpOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float Magnitude = 5.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float Frequency = 0.25f;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float FrequencyShift = 0.0;
+};
+
+
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPerlinNoiseOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	FGeometryScriptPerlinNoiseLayerOptions BaseLayer;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bApplyAlongNormal = true;
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptIterativeMeshSmoothingOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int NumIterations = 10;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float Alpha = 0.2;
+};
+
+
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptDisplaceFromTextureOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float Magnitude = 1.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	FVector2D UVScale = FVector2D(1,1);
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	FVector2D UVOffset = FVector2D(0,0);
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float Center = 0.5;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int ImageChannel = 0;
+};
+
+
+
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_MeshDeformers"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshDeformFunctions : public UBlueprintFunctionLibrary
@@ -118,4 +217,41 @@ public:
 		float FlarePercentY = 0,
 		float FlareExtent = 50,
 		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyMathWarpToMesh(  
+		UDynamicMesh* TargetMesh, 
+		FTransform WarpOrientation,
+		EGeometryScriptMathWarpType WarpType,
+		FGeometryScriptMathWarpOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyPerlinNoiseToMesh(  
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPerlinNoiseOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyIterativeSmoothingToMesh(  
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptIterativeMeshSmoothingOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyDisplaceFromTextureMap(  
+		UDynamicMesh* TargetMesh, 
+		UTexture2D* Texture,
+		FGeometryScriptDisplaceFromTextureOptions Options,
+		int32 UVLayer = 0,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	
 };

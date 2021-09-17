@@ -16,6 +16,12 @@ enum class EGeometryScriptPrimitivePolygroupMode : uint8
 	PerQuad = 2
 };
 
+UENUM(BlueprintType)
+enum class EGeometryScriptPrimitiveOriginMode : uint8
+{
+	Center = 0,
+	Base = 1
+};
 
 
 USTRUCT(BlueprintType)
@@ -28,6 +34,31 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bFlipOrientation = false;
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptRevolveOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float RevolveDegrees = 360.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float DegreeOffset = 0.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool ReverseDirection = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bHardNormals = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float HardNormalAngle = 30.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bProfileAtMidpoint = false;
 };
 
 
@@ -44,10 +75,13 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
-		FBox Box,
+		float DimensionX = 100,
+		float DimensionY = 100,
+		float DimensionZ = 100,
 		int32 StepsX = 0,
 		int32 StepsY = 0,
 		int32 StepsZ = 0,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -58,8 +92,9 @@ public:
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
 		float Radius = 50,
-		int32 StepsPhi = 8,
-		int32 StepsTheta = 8,
+		int32 StepsPhi = 10,
+		int32 StepsTheta = 16,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Center,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -73,6 +108,7 @@ public:
 		int32 StepsX = 6,
 		int32 StepsY = 6,
 		int32 StepsZ = 6,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Center,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -82,10 +118,11 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
-		float Radius = 10,
-		float LineLength = 50,
-		int32 HemisphereSteps = 4,
+		float Radius = 30,
+		float LineLength = 75,
+		int32 HemisphereSteps = 5,
 		int32 CircleSteps = 8,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -95,11 +132,12 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
-		float Radius = 25,
-		float Height = 50,
-		int32 RadialSteps = 8,
+		float Radius = 50,
+		float Height = 100,
+		int32 RadialSteps = 12,
 		int32 HeightSteps = 0,
 		bool bCapped = true,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -109,12 +147,13 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
-		float BaseRadius = 25,
+		float BaseRadius = 50,
 		float TopRadius = 5,
-		float Height = 50,
-		int32 RadialSteps = 8,
-		int32 HeightSteps = 0,
+		float Height = 100,
+		int32 RadialSteps = 12,
+		int32 HeightSteps = 4,
 		bool bCapped = true,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -124,10 +163,11 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
-		float MajorRadius = 100,
-		float MinorRadius = 20,
-		int32 MajorSteps = 8,
-		int32 MinorSteps = 4,
+		float MajorRadius = 50,
+		float MinorRadius = 25,
+		int32 MajorSteps = 16,
+		int32 MinorSteps = 8,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**
@@ -146,6 +186,19 @@ public:
 		int32 Steps = 8,
 		UGeometryScriptDebug* Debug = nullptr);
 
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	AppendRevolvePath( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		const TArray<FVector2D>& PathVertices,
+		FGeometryScriptRevolveOptions RevolveOptions,
+		int32 Steps = 8,
+		bool bCapped = true,
+		UGeometryScriptDebug* Debug = nullptr);
+
 	/**
 	 * Polygon should be oriented counter-clockwise to produce a correctly-oriented shape, otherwise it will be inside-out
 	 * Polygon endpoint is not repeated.
@@ -160,6 +213,7 @@ public:
 		float Height = 100,
 		int32 HeightSteps = 0,
 		bool bCapped = true,
+		EGeometryScriptPrimitiveOriginMode Origin = EGeometryScriptPrimitiveOriginMode::Base,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -185,7 +239,8 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
-		FBox2D Box,
+		float DimensionX = 100,
+		float DimensionY = 100,
 		int32 StepsWidth = 0,
 		int32 StepsHeight = 0,
 		UGeometryScriptDebug* Debug = nullptr);
@@ -196,7 +251,8 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
-		FBox2D Box,
+		float DimensionX = 100,
+		float DimensionY = 100,
 		float CornerRadius = 5,
 		int32 StepsWidth = 0,
 		int32 StepsHeight = 0,

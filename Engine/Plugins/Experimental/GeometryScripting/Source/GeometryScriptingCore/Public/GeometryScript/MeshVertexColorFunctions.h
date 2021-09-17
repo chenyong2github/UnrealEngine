@@ -17,12 +17,22 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshVertexColorFunctions 
 	GENERATED_BODY()
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Repair", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	SetMeshConstantVertexColor(
+		UDynamicMesh* TargetMesh,
+		FLinearColor Color,
+		FGeometryScriptColorFlags Flags,
+		bool bClearExisting = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	SetMeshPerVertexColors(
 		UDynamicMesh* TargetMesh,
 		UPARAM(ref) const TArray<FLinearColor>& VertexColors,
 		UGeometryScriptDebug* Debug = nullptr);
+
 
 };
 

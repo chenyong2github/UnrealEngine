@@ -294,7 +294,19 @@ bool UGeometryScriptLibrary_MeshQueryFunctions::GetHasMaterialIDs( UDynamicMesh*
 	});
 }
 
+bool UGeometryScriptLibrary_MeshQueryFunctions::GetHasPolygroups( UDynamicMesh* TargetMesh )
+{
+	return SimpleMeshQuery<bool>(TargetMesh, false, [&](const FDynamicMesh3& Mesh) {
+		return Mesh.HasTriangleGroups();
+	});
+}
 
+int UGeometryScriptLibrary_MeshQueryFunctions::GetNumExtendedPolygroupLayers( UDynamicMesh* TargetMesh )
+{
+	return SimpleMeshQuery<int>(TargetMesh, 0, [&](const FDynamicMesh3& Mesh) {
+		return Mesh.HasAttributes() ? Mesh.Attributes()->NumPolygroupLayers() : 0;
+	});
+}
 
 
 

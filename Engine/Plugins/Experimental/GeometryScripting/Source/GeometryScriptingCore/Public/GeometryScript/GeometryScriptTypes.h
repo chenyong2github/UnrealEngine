@@ -129,6 +129,50 @@ public:
 
 
 
+
+//
+// Colors
+//
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptColorFlags
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Color)
+	bool bRed = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Color)
+	bool bGreen = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Color)
+	bool bBlue = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Color)
+	bool bAlpha = true;
+
+	bool AllSet() const { return bRed && bGreen && bBlue && bAlpha; }
+};
+
+
+
+//
+// Polygroups
+//
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptGroupLayer
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = LOD)
+	bool bDefaultLayer = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = LOD)
+	int ExtendedLayerIndex = 0;
+};
+
+
 //
 // Spatial data structures
 //
@@ -143,6 +187,7 @@ public:
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3> Spatial;
 	TSharedPtr<UE::Geometry::TFastWindingTree<UE::Geometry::FDynamicMesh3>> FWNTree;
 };
+
 
 
 
