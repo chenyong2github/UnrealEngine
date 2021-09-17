@@ -16,11 +16,9 @@
 #include "Generators/DiscMeshGenerator.h"
 #include "Generators/SweepGenerator.h"
 #include "Generators/FlatTriangulationMeshGenerator.h"
+#include "Generators/RevolveGenerator.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"
-#include "Util/RevolveUtil.h"
-
-#include "CompositionOps/CurveSweepOp.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -82,6 +80,64 @@ static void AppendPrimitive(
 			FDynamicMeshEditor Editor(&EditMesh);
 			Editor.AppendMesh(&TempMesh, TmpMappings);
 
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	}
+}
+
+
+
+static void AppendPrimitiveMesh(
+	UDynamicMesh* TargetMesh, 
+	FDynamicMesh3& AppendMesh,
+	FTransform Transform, 
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FVector3d PreTranslate = FVector3d::Zero())
+{
+	auto ApplyOptionsToMesh = [&Transform, &PrimitiveOptions, PreTranslate](FDynamicMesh3& Mesh)
+	{
+		if (PreTranslate.SquaredLength() > 0)
+		{
+			MeshTransforms::Translate(Mesh, PreTranslate);
+		}
+
+		MeshTransforms::ApplyTransform(Mesh, (UE::Geometry::FTransform3d)Transform);
+		if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::SingleGroup)
+		{
+			for (int32 tid : Mesh.TriangleIndicesItr())
+			{
+				Mesh.SetTriangleGroup(tid, 0);
+			}
+		}
+		if (PrimitiveOptions.bFlipOrientation)
+		{
+			Mesh.ReverseOrientation(true);
+			if (Mesh.HasAttributes())
+			{
+				FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
+				for (int elemid : Normals->ElementIndicesItr())
+				{
+					Normals->SetElement(elemid, -Normals->GetElement(elemid));
+				}
+			}
+		}
+	};
+
+	if (TargetMesh->IsEmpty())
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			EditMesh.Copy(AppendMesh);
+			ApplyOptionsToMesh(EditMesh);
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	}
+	else
+	{
+		ApplyOptionsToMesh(AppendMesh);
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			FMeshIndexMappings TmpMappings;
+			FDynamicMeshEditor Editor(&EditMesh);
+			Editor.AppendMesh(&AppendMesh, TmpMappings);
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 	}
 }
@@ -302,6 +358,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendTorus(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
+	FGeometryScriptRevolveOptions RevolveOptions,
 	float MajorRadius,
 	float MinorRadius,
 	int32 MajorSteps,
@@ -316,15 +373,16 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendTorus(
 	{
 		PolygonVertices.Add((FVector2D)(v+Shift));
 	}
-	return AppendSimpleRevolvePolygon(TargetMesh, PrimitiveOptions, Transform, PolygonVertices, MajorRadius, MajorSteps, Debug);
+	return AppendRevolvePolygon(TargetMesh, PrimitiveOptions, Transform, PolygonVertices, RevolveOptions, MajorRadius, MajorSteps, Debug);
 }
 
 
-UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleRevolvePolygon(
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRevolvePolygon(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptPrimitiveOptions PrimitiveOptions,
 	FTransform Transform,
 	const TArray<FVector2D>& PolygonVertices,
+	FGeometryScriptRevolveOptions RevolveOptions,
 	float Radius,
 	int32 Steps,
 	UGeometryScriptDebug* Debug)
@@ -340,26 +398,93 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSimpleRevolve
 		return TargetMesh;
 	}
 
-	FGeneralizedCylinderGenerator RevolveGen;
+	FRevolvePlanarPolygonGenerator RevolveGen;
 	for (FVector2D Point : PolygonVertices)
 	{
-		RevolveGen.CrossSection.AppendVertex(FVector2d(Point.X, Point.Y));
+		RevolveGen.PolygonVertices.Add(FVector2d(Point.X + Radius, Point.Y));
 	}
-	
-	FPolygon2d PathPoly = FPolygon2d::MakeCircle(FMath::Max(FMathf::ZeroTolerance, Radius), FMath::Max(3, Steps));
-	for (FVector2d v : PathPoly.GetVertices())
+	RevolveGen.Steps = FMath::Max(Steps, 2);
+	RevolveGen.RevolveDegrees = RevolveOptions.RevolveDegrees;
+	RevolveGen.DegreeOffset = RevolveOptions.DegreeOffset;
+	RevolveGen.bReverseDirection = RevolveOptions.bReverseDirection;
+	RevolveGen.bProfileAtMidpoint = RevolveOptions.bProfileAtMidpoint;
+	RevolveGen.bFillPartialRevolveEndcaps = RevolveOptions.bFillPartialRevolveEndcaps;
+
+	FDynamicMesh3 ResultMesh = RevolveGen.GenerateMesh();
+
+	// generate hard normals
+	if (RevolveOptions.bHardNormals)
 	{
-		RevolveGen.Path.Add(FVector3d(v.X, v.Y, 0.0));
+		float NormalDotProdThreshold = FMathf::Cos( FMathf::Clamp(RevolveOptions.HardNormalAngle, 0.0, 180.0) * FMathf::DegToRad);
+		FMeshNormals FaceNormalsCalc(&ResultMesh);
+		FaceNormalsCalc.ComputeTriangleNormals();
+		const TArray<FVector3d>& FaceNormals = FaceNormalsCalc.GetNormals();
+		ResultMesh.Attributes()->PrimaryNormals()->CreateFromPredicate([&](int VID, int TA, int TB) {
+			return !(FaceNormals[TA].Dot(FaceNormals[TB]) < NormalDotProdThreshold);
+		}, 0);
+		FMeshNormals RecomputeMeshNormals(&ResultMesh);
+		RecomputeMeshNormals.RecomputeOverlayNormals(ResultMesh.Attributes()->PrimaryNormals(), true, true);
+		RecomputeMeshNormals.CopyToOverlay(ResultMesh.Attributes()->PrimaryNormals(), false);
 	}
-	Algo::Reverse(RevolveGen.Path);
 
-	RevolveGen.bLoop = true;
-	RevolveGen.bCapped = false;
-	RevolveGen.bPolygroupPerQuad = (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad);
-	RevolveGen.InitialFrame = FFrame3d(RevolveGen.Path[0], FVector3d::UnitX(), FVector3d::UnitZ(), -FVector3d::UnitY());
-	RevolveGen.Generate();
+	AppendPrimitiveMesh(TargetMesh, ResultMesh, Transform, PrimitiveOptions);
+	return TargetMesh;
+}
 
-	AppendPrimitive(TargetMesh, &RevolveGen, Transform, PrimitiveOptions);
+
+UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendSpiralRevolvePolygon(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPrimitiveOptions PrimitiveOptions,
+	FTransform Transform,
+	const TArray<FVector2D>& PolygonVertices,
+	FGeometryScriptRevolveOptions RevolveOptions,
+	float Radius,
+	int Steps,
+	float RisePerRevolution,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSpiralRevolvePolygon_NullMesh", "AppendSpiralRevolvePolygon: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (PolygonVertices.Num() < 3)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AppendSpiralRevolvePolygon_InvalidPolygon", "AppendSpiralRevolvePolygon: PolygonVertices array requires at least 3 positions"));
+		return TargetMesh;
+	}
+
+	FSpiralRevolvePlanarPolygonGenerator RevolveGen;
+	for (FVector2D Point : PolygonVertices)
+	{
+		RevolveGen.PolygonVertices.Add(FVector2d(Point.X + Radius, Point.Y));
+	}
+	RevolveGen.Steps = FMath::Max(Steps, 2);
+	RevolveGen.RevolveDegrees = FMath::Max(0.0001, RevolveOptions.RevolveDegrees);
+	RevolveGen.DegreeOffset = RevolveOptions.DegreeOffset;
+	RevolveGen.bReverseDirection = RevolveOptions.bReverseDirection;
+	RevolveGen.bProfileAtMidpoint = RevolveOptions.bProfileAtMidpoint;
+	RevolveGen.bFillPartialRevolveEndcaps = RevolveOptions.bFillPartialRevolveEndcaps;
+	RevolveGen.RisePerFullRevolution = RisePerRevolution;
+
+	FDynamicMesh3 ResultMesh = RevolveGen.GenerateMesh();
+
+	// generate hard normals
+	if (RevolveOptions.bHardNormals)
+	{
+		float NormalDotProdThreshold = FMathf::Cos( FMathf::Clamp(RevolveOptions.HardNormalAngle, 0.0, 180.0) * FMathf::DegToRad);
+		FMeshNormals FaceNormalsCalc(&ResultMesh);
+		FaceNormalsCalc.ComputeTriangleNormals();
+		const TArray<FVector3d>& FaceNormals = FaceNormalsCalc.GetNormals();
+		ResultMesh.Attributes()->PrimaryNormals()->CreateFromPredicate([&](int VID, int TA, int TB) {
+			return !(FaceNormals[TA].Dot(FaceNormals[TB]) < NormalDotProdThreshold);
+		}, 0);
+		FMeshNormals RecomputeMeshNormals(&ResultMesh);
+		RecomputeMeshNormals.RecomputeOverlayNormals(ResultMesh.Attributes()->PrimaryNormals(), true, true);
+		RecomputeMeshNormals.CopyToOverlay(ResultMesh.Attributes()->PrimaryNormals(), false);
+	}
+
+	AppendPrimitiveMesh(TargetMesh, ResultMesh, Transform, PrimitiveOptions);
 	return TargetMesh;
 }
 
@@ -387,131 +512,37 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRevolvePath(
 		return TargetMesh;
 	}
 
-	FCurveSweepOp CurveSweepOp;
-
-	FVector3d AxisDirection(0, 0, 1);
-	FVector3d AxisOrigin(0, 0, 0);
+	FRevolvePlanarPathGenerator RevolveGen;
 	for (FVector2D Point : PathVertices)
 	{
-		CurveSweepOp.ProfileCurve.Add(FVector3d(Point.X, 0, Point.Y));
+		RevolveGen.PathVertices.Add((FVector2d)Point);
 	}
-	// unclear why but the sweep code seems to be written for a clockwise ordering...
-	Algo::Reverse(CurveSweepOp.ProfileCurve);
+	RevolveGen.Steps = FMath::Max(Steps, 2);
+	RevolveGen.bCapped = bCapped;
+	RevolveGen.RevolveDegrees = RevolveOptions.RevolveDegrees;
+	RevolveGen.DegreeOffset = RevolveOptions.DegreeOffset;
+	RevolveGen.bReverseDirection = RevolveOptions.bReverseDirection;
+	RevolveGen.bProfileAtMidpoint = RevolveOptions.bProfileAtMidpoint;
+	RevolveGen.bFillPartialRevolveEndcaps = RevolveOptions.bFillPartialRevolveEndcaps;
 
-	// Project first and last points onto the revolution axis to cap it
-	if (bCapped)
+	FDynamicMesh3 ResultMesh = RevolveGen.GenerateMesh();
+
+	// generate hard normals
+	if (RevolveOptions.bHardNormals)
 	{
-		FVector3d FirstPoint = CurveSweepOp.ProfileCurve[0];
-		FVector3d LastPoint = CurveSweepOp.ProfileCurve.Last();
-
-		double DistanceAlongAxis = AxisDirection.Dot(LastPoint - AxisOrigin);
-		FVector3d ProjectedPoint = AxisOrigin + (AxisDirection * DistanceAlongAxis);
-		CurveSweepOp.ProfileCurve.Add(ProjectedPoint);
-
-		DistanceAlongAxis = AxisDirection.Dot(FirstPoint - AxisOrigin);
-		ProjectedPoint = AxisOrigin + (AxisDirection * DistanceAlongAxis);
-		CurveSweepOp.ProfileCurve.Add(ProjectedPoint);
-
-		CurveSweepOp.bProfileCurveIsClosed = true;
-	}
-	else
-	{
-		CurveSweepOp.bProfileCurveIsClosed = false;
+		float NormalDotProdThreshold = FMathf::Cos(FMathf::Clamp(RevolveOptions.HardNormalAngle, 0.0, 180.0) * FMathf::DegToRad);
+		FMeshNormals FaceNormalsCalc(&ResultMesh);
+		FaceNormalsCalc.ComputeTriangleNormals();
+		const TArray<FVector3d>& FaceNormals = FaceNormalsCalc.GetNormals();
+		ResultMesh.Attributes()->PrimaryNormals()->CreateFromPredicate([&](int VID, int TA, int TB) {
+			return !(FaceNormals[TA].Dot(FaceNormals[TB]) < NormalDotProdThreshold);
+		}, 0);
+		FMeshNormals RecomputeMeshNormals(&ResultMesh);
+		RecomputeMeshNormals.RecomputeOverlayNormals(ResultMesh.Attributes()->PrimaryNormals(), true, true);
+		RecomputeMeshNormals.CopyToOverlay(ResultMesh.Attributes()->PrimaryNormals(), false);
 	}
 
-	//double TotalRevolutionDegrees = RevolveDegrees;// (AlongAxisOffsetPerDegree == 0) ? ClampedRevolutionDegrees : RevolutionDegrees;
-	double TotalRevolutionDegrees = FMath::Clamp(RevolveOptions.RevolveDegrees, 0.1f, 360.0f);
-
-	double DegreesPerStep = TotalRevolutionDegrees / (double)Steps;
-	double DegreesOffset = RevolveOptions.DegreeOffset;
-	if (RevolveOptions.ReverseDirection)
-	{
-		DegreesPerStep *= -1;
-		DegreesOffset *= -1;
-	}
-	//double DownAxisOffsetPerStep = TotalRevolutionDegrees * AlongAxisOffsetPerDegree / Steps;
-
-	if (RevolveOptions.bProfileAtMidpoint && DegreesPerStep != 0 && FMathd::Abs(DegreesPerStep) < 180)
-	{
-		RevolveUtil::MakeProfileCurveMidpointOfFirstStep(CurveSweepOp.ProfileCurve, DegreesPerStep, AxisOrigin, AxisDirection);
-	}
-
-	// Generate the sweep curve
-	//CurveSweepOpOut.bSweepCurveIsClosed = bWeldFullRevolution && AlongAxisOffsetPerDegree == 0 && TotalRevolutionDegrees == 360;
-	CurveSweepOp.bSweepCurveIsClosed = (TotalRevolutionDegrees == 360);
-	int32 NumSweepFrames = CurveSweepOp.bSweepCurveIsClosed ? Steps : Steps + 1; // If closed, last sweep frame is also first
-	CurveSweepOp.SweepCurve.Reserve(NumSweepFrames);
-	RevolveUtil::GenerateSweepCurve(AxisOrigin, AxisDirection, DegreesOffset,
-		DegreesPerStep, 0.0, NumSweepFrames, CurveSweepOp.SweepCurve);
-
-	// Weld any vertices that are on the axis
-	RevolveUtil::WeldPointsOnAxis(CurveSweepOp.ProfileCurve, AxisOrigin,
-		AxisDirection, 0.1, CurveSweepOp.ProfileVerticesToWeld);
-
-	CurveSweepOp.bSharpNormals = RevolveOptions.bHardNormals;
-	CurveSweepOp.SharpNormalAngleTolerance = RevolveOptions.HardNormalAngle;
-	//CurveSweepOpOut.DiagonalTolerance = DiagonalProportionTolerance;
-	//double UVScale = MaterialProperties.UVScale;
-	double UVScale = 1.0;
-	CurveSweepOp.UVScale = FVector2d(UVScale, UVScale);
-	//if (bReverseProfileCurve ^ bFlipVs)
-	//{
-	//	CurveSweepOpOut.UVScale[1] *= -1;
-	//	CurveSweepOpOut.UVOffset = FVector2d(0, UVScale);
-	//}
-	CurveSweepOp.bUVsSkipFullyWeldedEdges = true;
-	CurveSweepOp.bUVScaleRelativeWorld = true; // MaterialProperties.bWorldSpaceUVScale;
-	CurveSweepOp.UnitUVInWorldCoordinates = 100; // This seems to be the case in the AddPrimitiveTool
-	CurveSweepOp.QuadSplitMode = EProfileSweepQuadSplit::Uniform;
-
-	if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerQuad)
-	{
-		CurveSweepOp.PolygonGroupingMode = EProfileSweepPolygonGrouping::PerFace;
-	}
-	if (PrimitiveOptions.PolygroupMode == EGeometryScriptPrimitivePolygroupMode::PerFace)
-	{
-		CurveSweepOp.PolygonGroupingMode = EProfileSweepPolygonGrouping::PerProfileSegment;
-	}
-	else
-	{
-		CurveSweepOp.PolygonGroupingMode = EProfileSweepPolygonGrouping::Single;
-	}
-
-	CurveSweepOp.CapFillMode = (bCapped) ?
-		FCurveSweepOp::ECapFillMode::EarClipping : FCurveSweepOp::ECapFillMode::None;		// delaunay? hits ensure...
-
-	CurveSweepOp.CalculateResult(nullptr);
-	TUniquePtr<FDynamicMesh3> ResultMesh = CurveSweepOp.ExtractResult();
-	MeshTransforms::ApplyTransform(*ResultMesh, (UE::Geometry::FTransform3d)Transform);
-
-	if (PrimitiveOptions.bFlipOrientation)
-	{
-		ResultMesh->ReverseOrientation(true);
-		if (ResultMesh->HasAttributes() && ResultMesh->Attributes()->PrimaryNormals() != nullptr)
-		{
-			FDynamicMeshNormalOverlay* Normals = ResultMesh->Attributes()->PrimaryNormals();
-			for (int elemid : Normals->ElementIndicesItr())
-			{
-				Normals->SetElement(elemid, -Normals->GetElement(elemid));
-			}
-		}
-	}
-
-	if (TargetMesh->IsEmpty())
-	{
-		TargetMesh->SetMesh(MoveTemp(*ResultMesh));
-	}
-	else
-	{
-		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
-		{
-			FMeshIndexMappings TmpMappings;
-			FDynamicMeshEditor Editor(&EditMesh);
-			Editor.AppendMesh(ResultMesh.Get(), TmpMappings);
-
-		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
-	}
-
+	AppendPrimitiveMesh(TargetMesh, ResultMesh, Transform, PrimitiveOptions);
 	return TargetMesh;
 }
 
