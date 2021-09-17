@@ -3088,22 +3088,22 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			);
 
 		FWindowStyle InViewportDecoratorWindow = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FWindowStyle>("Window");
-		InViewportDecoratorWindow.SetCornerRadius(20);
+		InViewportDecoratorWindow.SetCornerRadius(4);
 
 		Set("InViewportDecoratorWindow", InViewportDecoratorWindow);
-		FLinearColor TransparentHeader = FStyleColors::Panel.GetSpecifiedColor();
-		TransparentHeader.A = 0.5f;
-		FLinearColor TransparentToolbar = FStyleColors::Header.GetSpecifiedColor();
-		TransparentToolbar.A = 0.5f;
 		FLinearColor TransparentBackground = FStyleColors::Background.GetSpecifiedColor();
-		TransparentBackground.A = 0.35f;
-		Set("PropertyTable.InViewport.Header", new FSlateRoundedBoxBrush(FSlateColor(TransparentHeader), FVector4(10.0f, 10.0f, 0.0f, 0.0f)));
-		Set("PropertyTable.InViewport.Background", new FSlateRoundedBoxBrush(FSlateColor(TransparentBackground), 10.0f));
+		TransparentBackground.A = 0.8f;
+		Set("PropertyTable.InViewport.Header", new FSlateRoundedBoxBrush(FStyleColors::Title, FVector4(4.0f, 4.0f, 0.0f, 0.0f)));
+		Set("PropertyTable.InViewport.Background", new FSlateRoundedBoxBrush(FSlateColor(TransparentBackground), 4.0f));
 		// InViewportToolbar
 		{
 			FToolBarStyle InViewportToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
-			InViewportToolbar.SetBackground(FSlateColorBrush(FSlateColor(TransparentToolbar)));
-			InViewportToolbar.SetBackgroundPadding(0.0f);
+			InViewportToolbar.SetBackground(FSlateColorBrush(FStyleColors::Panel));
+			InViewportToolbar.SetBackgroundPadding(FMargin(4.0f, 0.0f));
+			InViewportToolbar.SetButtonPadding(0.0f);
+			InViewportToolbar.SetIconSize(Icon16x16);
+			InViewportToolbar.ButtonStyle.SetNormalPadding(FMargin(4, 4, 4, 4));
+			InViewportToolbar.ButtonStyle.SetPressedPadding(FMargin(4, 5, 4, 3));
 			Set("InViewportToolbar", InViewportToolbar);
 		}
 		const FTableViewStyle InViewportViewStyle = FTableViewStyle()

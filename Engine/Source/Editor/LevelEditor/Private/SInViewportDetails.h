@@ -53,15 +53,12 @@ public:
 	 * Create this Drag and Drop Content
 	 *
 	 * @param InUIToBeDragged	  The UI being dragged 
-	 * @param InTabGrabOffset     Where within the tab we grabbed, so we're not dragging by the upper left of the tab.
+	 * @param InDecoratorOffset   Where within the UI we grabbed, so we're not dragging by the upper left of the UI.
 	 * @param OwnerAreaSize       Size of the DockArea at the time when we start dragging.
 	 *
 	 * @return a new FDockingDragOperation
 	 */
-	static TSharedRef<FInViewportUIDragOperation> New(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InTabGrabOffset, const FVector2D& OwnerAreaSize);
-
-	/** @return location where the user grabbed within the tab as a fraction of the tab's size */
-	FVector2D GetTabGrabOffsetFraction() const;
+	static TSharedRef<FInViewportUIDragOperation> New(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InDecoratorOffset, const FVector2D& OwnerAreaSize);
 
 	virtual ~FInViewportUIDragOperation();
 
@@ -70,13 +67,13 @@ public:
 
 protected:
 	/** The constructor is protected, so that this class can only be instantiated as a shared pointer. */
-	FInViewportUIDragOperation(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InTabGrabOffsetFraction, const FVector2D& OwnerAreaSize);
+	FInViewportUIDragOperation(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InDecoratorOffsetFromCursor, const FVector2D& OwnerAreaSize);
 
 	/** What is actually being dragged in this operation */
 	TSharedPtr<class SInViewportDetails> UIBeingDragged;
 
-	/** Where the user grabbed the tab as a fraction of the tab's size */
-	FVector2D TabGrabOffsetFraction;
+	/** Where the user grabbed the UI measured in screen space from its top-left corner */
+	FVector2D DecoratorOffsetFromCursor;
 
 	/** Decorator widget where we add temp doc tabs to */
 	TSharedPtr<SDockingTabStack> CursorDecoratorStackNode;
@@ -115,7 +112,7 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
-	FReply StartDraggingDetails(FVector2D InTabGrabOffsetFraction, const FPointerEvent& MouseEvent);
+	FReply StartDraggingDetails(FVector2D InTabGrabScreenSpaceOffset, const FPointerEvent& MouseEvent);
 	FDetailColumnSizeData& GetColumnSizeData() { return ColumnSizeData; }
 	AActor* GetSelectedActorInEditor() const;
 	UToolMenu* GetGeneratedToolbarMenu() const;
