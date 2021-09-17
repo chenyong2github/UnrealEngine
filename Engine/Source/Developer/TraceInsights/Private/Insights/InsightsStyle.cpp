@@ -19,6 +19,8 @@
 #define CORE_BOX_BRUSH_SVG(RelativePath, ...)    FSlateVectorBoxBrush   (Style.RootToCoreContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 #define CORE_BORDER_BRUSH_SVG(RelativePath, ...) FSlateVectorBorderBrush(Style.RootToCoreContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
+#define TODO_IMAGE_BRUSH(...) IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/StaticMesh", __VA_ARGS__)
+
 TSharedPtr<FSlateStyleSet> FInsightsStyle::StyleInstance = nullptr;
 
 void FInsightsStyle::Initialize()
@@ -116,56 +118,54 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("LogView.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Log", Icon32x32));
 	Style.Set("LogView.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Log", Icon16x16));
 
-	Style.Set("TableTreeView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon32x32));
-	Style.Set("TableTreeView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon16x16));
+	Style.Set("TableTreeView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("TableTreeView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
 	//////////////////////////////////////////////////
 	// Asset Loading Insights
 
-	Style.Set("LoadingProfiler.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("LoadingProfiler.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("LoadingProfiler.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("LoadingProfiler.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
 	//////////////////////////////////////////////////
 	// Networking Insights
 
-	Style.Set("NetworkingProfiler.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("NetworkingProfiler.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("NetworkingProfiler.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("NetworkingProfiler.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("PacketOveriew.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("PacketOveriew.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("PacketView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("PacketView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("PacketContentView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("PacketContentView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("PacketContentView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("PacketContentView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("NetStatsView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("NetStatsView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("NetStatsView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("NetStatsView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
 	//////////////////////////////////////////////////
 	// Memory Insights
 
-	Style.Set("MemoryProfiler.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("MemoryProfiler.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("MemoryProfiler.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("MemoryProfiler.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("MemInvestigationView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("MemInvestigationView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("MemInvestigationView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("MemInvestigationView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("MemAllocTableTreeView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("MemAllocTableTreeView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("MemAllocTableTreeView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("MemAllocTableTreeView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("MemTagTreeView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("MemTagTreeView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("MemTagTreeView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("MemTagTreeView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
 	Style.Set("Mem.Add.Small", new IMAGE_BRUSH("Icons/icon_Cascade_AddLOD2_40x", Icon20x20));
 	Style.Set("Mem.Remove.Small", new IMAGE_BRUSH("Icons/icon_Cascade_DeleteLOD_40x", Icon20x20));
 
 	//////////////////////////////////////////////////
 
-	Style.Set("FindFirst", new IMAGE_BRUSH("Animation/backward_end", Icon20x20));
-	//Style.Set("FindPrevious", new IMAGE_BRUSH("Animation/backward", Icon20x20));
+	Style.Set("FindFirst", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-left", Icon20x20));
 	Style.Set("FindPrevious", new IMAGE_BRUSH("../../Editor/Slate/Icons/GeneralTools/Previous_40x", Icon20x20));
-	//Style.Set("FindNext", new IMAGE_BRUSH("Animation/forward", Icon20x20));
 	Style.Set("FindNext", new IMAGE_BRUSH("../../Editor/Slate/Icons/GeneralTools/Next_40x", Icon20x20));
-	Style.Set("FindLast", new IMAGE_BRUSH("Animation/forward_end", Icon20x20));
+	Style.Set("FindLast", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-right", Icon20x20));
 
 	//////////////////////////////////////////////////
 
@@ -189,6 +189,8 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 
 	return StyleRef;
 }
+
+#undef TODO_IMAGE_BRUSH
 
 #undef IMAGE_BRUSH
 #undef BOX_BRUSH

@@ -850,8 +850,11 @@ TSharedRef<SWidget> SNetworkingProfilerWindow::CreateGameInstanceComboBox()
 			SNew(STextBlock)
 			.Text(this, &SNetworkingProfilerWindow::GameInstance_GetSelectedText)
 		];
-
-	return GameInstanceComboBox.ToSharedRef();
+	return SNew(SBox)
+		.Padding(FMargin(4.0f, 0.0f, 2.0f, 0.0f))
+		[
+			GameInstanceComboBox.ToSharedRef()
+		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -915,8 +918,11 @@ TSharedRef<SWidget> SNetworkingProfilerWindow::CreateConnectionComboBox()
 			SNew(STextBlock)
 			.Text(this, &SNetworkingProfilerWindow::Connection_GetSelectedText)
 		];
-
-	return ConnectionComboBox.ToSharedRef();
+	return SNew(SBox)
+		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
+		[
+			ConnectionComboBox.ToSharedRef()
+		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -981,7 +987,11 @@ TSharedRef<SWidget> SNetworkingProfilerWindow::CreateConnectionModeComboBox()
 			.Text(this, &SNetworkingProfilerWindow::ConnectionMode_GetSelectedText)
 		];
 
-	return ConnectionModeComboBox.ToSharedRef();
+	return SNew(SBox)
+		.Padding(FMargin(2.0f, 0.0f, 4.0f, 0.0f))
+		[
+			ConnectionModeComboBox.ToSharedRef()
+		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
