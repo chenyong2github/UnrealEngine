@@ -97,8 +97,7 @@ FText SGraphNodeAnimStateAlias::GetPreviewCornerText() const
 
 const FSlateBrush* SGraphNodeAnimStateAlias::GetNameIcon() const
 {
-	// @todo: Change this to a unique icon and/or look for better visual distinction between state/conduit/alias.
-	return FEditorStyle::GetBrush(TEXT("Graph.TransitionNode.Icon"));
+	return FEditorStyle::GetBrush(TEXT("Graph.AliasNode.Icon"));
 }
 
 TSharedPtr<SToolTip> SGraphNodeAnimStateAlias::GetComplexTooltip()
