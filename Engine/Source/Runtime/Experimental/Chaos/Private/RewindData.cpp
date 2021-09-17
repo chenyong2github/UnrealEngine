@@ -129,10 +129,7 @@ bool FRewindData::RewindToFrame(int32 Frame)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(RewindToFrame);
 
-#if PHYSICS_THREAD_CONTEXT
-	ensure(IsInPhysicsThreadContext());
-#endif
-
+	EnsureIsInPhysicsThreadContext();
 	//Can't go too far back
 	const int32 EarliestFrame = GetEarliestFrame_Internal();
 	if(Frame < EarliestFrame)

@@ -800,12 +800,12 @@ protected:
 			//if proxy is registered with solver, we need a lock
 			if(GetSolverBase() != nullptr)
 			{
-				ensure(IsInGameThreadContext());
+				EnsureIsInGameThreadContext();
 			}
 		}
 		else
 		{
-			ensure(IsInPhysicsThreadContext());
+			EnsureIsInPhysicsThreadContext();
 		}
 #endif
 	}

@@ -643,9 +643,7 @@ namespace Chaos
 
 	void FPBDRigidsSolver::SetSuspensionTargetOnPhysicsThread(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, bool Enabled)
 	{
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInPhysicsThreadContext());
-#endif
+		EnsureIsInPhysicsThreadContext();
 		FSuspensionConstraintPhysicsProxy* SuspensionProxy = GTConstraint->GetProxy<FSuspensionConstraintPhysicsProxy>();
 		check(SuspensionProxy);
 		SuspensionProxy->UpdateTargetOnPhysicsThread(this, TargetPos, Enabled);

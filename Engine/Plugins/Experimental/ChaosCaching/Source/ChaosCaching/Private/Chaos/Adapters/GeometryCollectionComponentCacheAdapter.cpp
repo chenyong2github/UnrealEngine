@@ -46,9 +46,7 @@ namespace Chaos
 	void FGeometryCollectionCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComp, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
 	{
 
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInPhysicsThreadContext());
-#endif
+		EnsureIsInPhysicsThreadContext();
 
 
 		using FClusterParticle = Chaos::FPBDRigidClusteredParticleHandle;
@@ -238,9 +236,7 @@ namespace Chaos
 															FPlaybackTickRecord&							   TickRecord,
 															TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const
 	{
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInPhysicsThreadContext());
-#endif
+		EnsureIsInPhysicsThreadContext();
 		
 		using FClusterParticle = Chaos::FPBDRigidClusteredParticleHandle;
 		using FRigidParticle = Chaos::FPBDRigidParticleHandle;
@@ -609,9 +605,7 @@ namespace Chaos
 	{
 		// Caches recorded previous to Version 1 may not scrub correctly as the MassToLocal transform has been burned in.
 		
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInGameThreadContext());
-#endif
+		EnsureIsInGameThreadContext();
 
 		
 		if (!InCache || InCache->GetDuration() == 0.0f)
@@ -674,9 +668,7 @@ namespace Chaos
 
 	bool FGeometryCollectionCacheAdapter::InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache)
 	{
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInGameThreadContext());
-#endif
+		EnsureIsInGameThreadContext();
 		
 		UGeometryCollectionComponent*    Comp     = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy    = Comp->GetPhysicsProxy();
@@ -745,9 +737,7 @@ namespace Chaos
 
 	bool FGeometryCollectionCacheAdapter::InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache, float InTime)
 	{
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInGameThreadContext());
-#endif
+		EnsureIsInGameThreadContext();
 
 		if (UGeometryCollectionComponent* Comp = CastChecked<UGeometryCollectionComponent>(InComponent))
 		{
@@ -835,9 +825,7 @@ namespace Chaos
 
 	void FGeometryCollectionCacheAdapter::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
 	{
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInGameThreadContext());
-#endif
+		EnsureIsInGameThreadContext();
 		
 		BreakingDataArray = &Event.BreakingData.AllBreakingsArray;
 
@@ -856,9 +844,7 @@ namespace Chaos
 
 	void FGeometryCollectionCacheAdapter::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 	{
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInGameThreadContext());
-#endif
+		EnsureIsInGameThreadContext();
 		
 		CollisionDataArray = &Event.CollisionData.AllCollisionsArray;
 
@@ -877,9 +863,7 @@ namespace Chaos
 
 	void FGeometryCollectionCacheAdapter::HandleTrailingEvents(const Chaos::FTrailingEventData& Event)
 	{
-#if PHYSICS_THREAD_CONTEXT
-		ensure(IsInGameThreadContext());
-#endif
+		EnsureIsInGameThreadContext();
 		
 		TrailingDataArray = &Event.TrailingData.AllTrailingsArray;
 
