@@ -1307,6 +1307,13 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 		return;
 	}
 
+	const ULevelSequence* LevelSequence = Object->GetTypedOuter<ULevelSequence>();
+	if ( !LevelSequence || ( LevelSequence != MainLevelSequence && !SequencesID.Contains( LevelSequence ) ) )
+	{
+		// This is not one of our managed level sequences, so ignore changes
+		return;
+	}
+
 	if ( UMovieScene* MovieScene = Cast< UMovieScene >( Object ) )
 	{
 		HandleMovieSceneChange( *MovieScene );
