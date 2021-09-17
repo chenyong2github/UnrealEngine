@@ -23,6 +23,8 @@ struct FPhysicsInputCmd
 	FPhysicsInputCmd()
 		: Force(ForceInitToZero)
 		, Torque(ForceInitToZero)
+		, Acceleration(ForceInitToZero)
+		, AngularAcceleration(ForceInitToZero)
 	{ }
 
 	// Simple world vector force to be applied
@@ -31,6 +33,12 @@ struct FPhysicsInputCmd
 
 	UPROPERTY(BlueprintReadWrite, Category = "Input")
 	FVector	Torque;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Input")
+	FVector	Acceleration;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Input")
+	FVector	AngularAcceleration;
 
 	/** Target yaw of character (Degrees). Torque will be applied to rotate character towards target. */
 	UPROPERTY(BlueprintReadWrite, Category = "Input")
@@ -56,6 +64,8 @@ struct FPhysicsInputCmd
 
 		Ar << Force;
 		Ar << Torque;
+		Ar << Acceleration;
+		Ar << AngularAcceleration;
 		Ar << TargetYaw;
 		Ar << bJumpedPressed;
 		Ar << bBrakesPressed;
@@ -72,6 +82,8 @@ struct FPhysicsInputCmd
 	{
 		return FVector::DistSquared(Force, AuthState.Force) > 0.1f
 			|| FVector::DistSquared(Torque, AuthState.Torque) > 0.1f
+			|| FVector::DistSquared(Acceleration, AuthState.Acceleration) > 0.1f
+			|| FVector::DistSquared(AngularAcceleration, AuthState.AngularAcceleration) > 0.1f
 			|| !FMath::IsNearlyEqual(TargetYaw, AuthState.TargetYaw, 1.0f)
 			|| bJumpedPressed != AuthState.bJumpedPressed
 			//|| Counter != AuthState.Counter // this will cause constant corrections with multiple clients but useful in testing single client
@@ -94,6 +106,9 @@ struct FPhysicsMovementNetState
 	// Actually used by AsyncTick to scale force applied
 	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	float ForceMultiplier = 125000.f;
+
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	float JumpStrength = 100.f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Mock Object")
 	float AutoFaceTargetYawStrength = 200000.f;
@@ -146,6 +161,7 @@ struct FPhysicsMovementNetState
 	void NetSerialize(FArchive& Ar)
 	{
 		Ar << ForceMultiplier;
+		Ar << JumpStrength;
 		Ar << RandValue;
 		Ar << AutoFaceTargetYawStrength;
 		Ar << AutoFaceTargetYawDamp;
@@ -165,6 +181,7 @@ struct FPhysicsMovementNetState
 	{
 		return 
 			ForceMultiplier != AuthState.ForceMultiplier || 
+			JumpStrength != AuthState.JumpStrength ||
 			RandValue != AuthState.RandValue ||
 			AutoFaceTargetYawStrength != AuthState.AutoFaceTargetYawStrength ||
 			AutoFaceTargetYawDamp != AuthState.AutoFaceTargetYawDamp ||
