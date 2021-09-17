@@ -58,10 +58,7 @@ class METASOUNDFRONTEND_API IMetaSoundAssetManager
 public:
 	static void Set(IMetaSoundAssetManager& InInterface)
 	{
-		if (!IsTesting())
-		{
-			check(!Instance);
-		}
+		check(!Instance);
 		Instance = &InInterface;
 	}
 
@@ -70,9 +67,6 @@ public:
 		check(Instance);
 		return *Instance;
 	}
-
-	// Whether or not manager is being used to run tests or not (enabling instances to be reset without asserting.)
-	virtual bool IsTesting() const { return false; }
 
 	// Whether or not the class is eligible for auto-update
 	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const = 0;
