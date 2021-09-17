@@ -176,13 +176,13 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 		{
 			FMeshNormals::QuickComputeVertexNormals(*ResultMesh, false);
 		}
-		ComputeSimplify<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
+		ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
 			MeshBoundaryConstraint,
 			GroupBoundaryConstraint,
 			MaterialBoundaryConstraint,
 			bPreserveSharpEdges, bAllowSeamCollapse,
 			ESimplifyTargetType::MinimalPlanar, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
-			FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory,
+			FQEMSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory,
 			UseGeometricTolerance);
 	}
 	else if (SimplifierType == ESimplifyType::MinimalExistingVertex)
