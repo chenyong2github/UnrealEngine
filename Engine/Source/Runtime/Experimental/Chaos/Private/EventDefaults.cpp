@@ -33,9 +33,7 @@ namespace Chaos
 		{
 			check(Solver);
 
-#if PHYSICS_THREAD_CONTEXT
-			ensure(IsInPhysicsThreadContext());
-#endif
+			EnsureIsInPhysicsThreadContext();
 
 			SCOPE_CYCLE_COUNTER(STAT_GatherCollisionEvent);
 
@@ -239,9 +237,7 @@ namespace Chaos
 		{
 			check(Solver);
 
-#if PHYSICS_THREAD_CONTEXT
-			ensure(IsInPhysicsThreadContext());
-#endif
+			EnsureIsInPhysicsThreadContext();
 
 			SCOPE_CYCLE_COUNTER(STAT_GatherBreakingEvent);
 
@@ -314,9 +310,7 @@ namespace Chaos
 		{
 			check(Solver);
 
-#if PHYSICS_THREAD_CONTEXT
-			ensure(IsInPhysicsThreadContext());
-#endif
+			EnsureIsInPhysicsThreadContext();
 
 			// #todo: This isn't working - SolverActor parameters are set on a solver but it is currently a different solver that is simulating!!
 			if (!Solver->GetEventFilters()->IsTrailingEventEnabled())
@@ -412,9 +406,7 @@ namespace Chaos
 		{
 			check(Solver);
 
-#if PHYSICS_THREAD_CONTEXT
-			ensure(IsInPhysicsThreadContext());
-#endif
+			EnsureIsInPhysicsThreadContext();
 
 			SCOPE_CYCLE_COUNTER(STAT_GatherSleepingEvent);
 
@@ -455,10 +447,7 @@ namespace Chaos
 		(const Chaos::FPBDRigidsSolver* Solver, FRemovalEventData& RemovalEventData)
 			{
 				check(Solver);
-#if PHYSICS_THREAD_CONTEXT
-				ensure(IsInPhysicsThreadContext());
-#endif
-
+				EnsureIsInPhysicsThreadContext();
 				
 				FRemovalDataArray& AllRemovalDataArray = RemovalEventData.RemovalData.AllRemovalArray;
 				TMap<IPhysicsProxyBase*, TArray<int32>>& AllRemovalIndicesByPhysicsProxy = RemovalEventData.PhysicsProxyToRemovalIndices.PhysicsProxyToIndicesMap;
