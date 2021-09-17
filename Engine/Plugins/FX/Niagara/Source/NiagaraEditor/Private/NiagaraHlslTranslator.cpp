@@ -1043,22 +1043,24 @@ static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, T
 	}
 }
 
-const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagaraCompileRequestData* InCompileData, const FNiagaraCompileOptions& InCompileOptions, FHlslNiagaraTranslatorOptions InTranslateOptions)
+const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagaraCompileRequestData* InCompileData, const FNiagaraCompileRequestDuplicateData* InCompileDuplicateData, const FNiagaraCompileOptions& InCompileOptions, FHlslNiagaraTranslatorOptions InTranslateOptions)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraHlslTranslate);
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*InCompileOptions.GetPathName(), NiagaraChannel);
 
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_Translate);
 	check(InCompileData);
+	check(InCompileDuplicateData);
 
 	CompileOptions = InCompileOptions;
 	CompileData = InCompileData;
+	CompileDuplicateData = InCompileDuplicateData;
 	TranslationOptions = InTranslateOptions;
 	CompilationTarget = TranslationOptions.SimTarget;
 	TranslateResults.bHLSLGenSucceeded = false;
 	TranslateResults.OutputHLSL = "";
 
-	TWeakObjectPtr<UNiagaraGraph> SourceGraph = CompileData->NodeGraphDeepCopy;
+	TWeakObjectPtr<UNiagaraGraph> SourceGraph = CompileDuplicateData->NodeGraphDeepCopy;
 
 	if (!SourceGraph.IsValid())
 	{
@@ -1089,7 +1091,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	ParamMapHistories.Empty();
 	ParamMapSetVariablesToChunks.Empty();
 
-	OtherOutputParamMapHistories = CompileData->GetPrecomputedHistories();
+	OtherOutputParamMapHistories = CompileDuplicateData->GetPrecomputedHistories();
 
 	// Make the sanitized variable version of this list.
 	OtherOutputParamMapHistoriesSanitizedVariables.AddDefaulted(OtherOutputParamMapHistories.Num());
@@ -1233,7 +1235,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					// If we allow partial writes we need to ensure that we are not reading from our own buffer, we ask our data interfaces if this is true or not
 					if (TranslationStages[Index].bPartialParticleUpdate)
 					{
-						for (auto it = InCompileData->CopiedDataInterfacesByName.CreateConstIterator(); it; ++it)
+						for (auto it = InCompileDuplicateData->SharedNameToDuplicatedDataInterfaceMap->CreateConstIterator(); it; ++it)
 						{
 							const UNiagaraDataInterface* DataInterface = it->Value;
 							if (DataInterface->ReadsEmitterParticleData(InCompileData->EmitterUniqueName))
@@ -1957,8 +1959,8 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		return;
 	}
 
-	UObject* const* FoundCDO = CompileData->CDOs.Find(IterationSourceVar.GetType().GetClass());
-	if (!FoundCDO || !IterationSourceVar.GetType().GetClass())
+	UNiagaraDataInterface* CDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(IterationSourceVar.GetType().GetClass());
+	if (!CDO || !IterationSourceVar.GetType().GetClass())
 	{
 		Error(FText::Format(LOCTEXT("CannotFindIterationSourceCDOInParamMap", "Variable {0}'s cached CDO for class was missing during compile!"), FText::FromName(TranslationStage.IterationSource)), nullptr, nullptr);
 		return;
@@ -2009,7 +2011,6 @@ void FHlslNiagaraTranslator::HandleSimStageSetupAndTeardown(int32 InWhichStage, 
 		bWroteToIterationSource = true;
 
 	// Now decide if we need to put in the pre/post
-	UNiagaraDataInterface* CDO = Cast<UNiagaraDataInterface>(*FoundCDO);
 	if (CDO && CDO->CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
 	{
 		bool bNeedsDIOwner = false;
@@ -2631,9 +2632,8 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString& InHlslOutput)
 	{
 		FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[i];
 
-		UObject* const* FoundCDO = CompileData->CDOs.Find(Info.Type.GetClass());
-		check(FoundCDO != nullptr);
-		UNiagaraDataInterface* CDO = Cast<UNiagaraDataInterface>(*FoundCDO);
+		UNiagaraDataInterface* CDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(Info.Type.GetClass());
+		check(CDO != nullptr);
 		if (CDO && CDO->CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
 		{
 			if ( !InterfaceClasses.Contains(Info.Type.GetFName()) )
@@ -5124,9 +5124,8 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 					}
 					else
 					{
-						UObject*const* Obj = CompileData->CDOs.Find(const_cast<UClass*>(InVariable.GetType().GetClass()));
-						check(Obj != nullptr);
-						DataInterface = CastChecked<UNiagaraDataInterface>(*Obj);
+						DataInterface = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(const_cast<UClass*>(InVariable.GetType().GetClass()));
+						check(DataInterface != nullptr);
 					}
 					if (ensure(DataInterface))
 					{
@@ -5874,9 +5873,8 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 		// for variables encountered without ever being set. We do this by creating an instance of the CDO.
 		if (UNiagaraScript::IsStandaloneScript(CompileOptions.TargetUsage) && LastSetChunkIdx == INDEX_NONE)
 		{
-			UObject*const* Obj = CompileData->CDOs.Find(const_cast<UClass*>(Var.GetType().GetClass()));
-			check(Obj != nullptr);
-			UNiagaraDataInterface* DataInterface = CastChecked<UNiagaraDataInterface>(*Obj);
+			UNiagaraDataInterface* DataInterface = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(const_cast<UClass*>(Var.GetType().GetClass()));
+			check(DataInterface != nullptr);
 			if (DataInterface)
 			{
 				LastSetChunkIdx = RegisterDataInterface(Var, DataInterface, true, false);
@@ -6291,9 +6289,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 				FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(CallInputs[i]);
 				if (TypeDef.IsDataInterface())
 				{
-					UObject* const* FoundCDO = CompileData->CDOs.Find(TypeDef.GetClass());
-					UNiagaraDataInterface* CDO = (FoundCDO ? Cast<UNiagaraDataInterface>(*FoundCDO) : nullptr);
-
+					UNiagaraDataInterface* CDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(TypeDef.GetClass());
 					if (CDO == nullptr)
 					{
 						// If the cdo wasn't found, the data interface was not passed through a parameter map and so it won't be bound correctly, so add a compile error
@@ -6660,9 +6656,7 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 		}
 		else if (Input.GetType().IsDataInterface())
 		{
-			UObject* const* FoundCDO = CompileData->CDOs.Find(Input.GetType().GetClass());
-			UNiagaraDataInterface* CDO = (FoundCDO ? Cast<UNiagaraDataInterface>(*FoundCDO) : nullptr);
-
+			UNiagaraDataInterface* CDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(Input.GetType().GetClass());
 			if (CDO == nullptr)
 			{
 				// If the cdo wasn't found, the data interface was not passed through a parameter map and so it won't be bound correctly, so add a compile error
@@ -7285,8 +7279,8 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 			// Double-check to make sure that the signature matches those specified by the data 
 			// interface. It could be that the existing node has been removed and the graph
 			// needs to be refactored. If that's the case, emit an error.
-			UObject* const* FoundCDO = CompileData->CDOs.Find(Info.Type.GetClass());
-			if (FoundCDO == nullptr)
+			UNiagaraDataInterface* CDO = CompileDuplicateData->GetDuplicatedDataInterfaceCDOForClass(Info.Type.GetClass());
+			if (CDO == nullptr)
 			{
 				// If the cdo wasn't found, the data interface was not passed through a parameter map and so it won't be bound correctly, so add a compile error
 				// and invalidate the signature.
@@ -7295,8 +7289,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				return;
 			}
 
-			UNiagaraDataInterface* CDO = Cast<UNiagaraDataInterface>(*FoundCDO);
-			if (CDO != nullptr && OutSignature.bMemberFunction)
+			if (OutSignature.bMemberFunction)
 			{
 				TArray<FNiagaraFunctionSignature> DataInterfaceFunctions;
 				CDO->GetFunctions(DataInterfaceFunctions);

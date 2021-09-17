@@ -104,10 +104,10 @@ void UNiagaraScriptSource::PostLoad()
 	}
 }
 
-UNiagaraScriptSource* UNiagaraScriptSource::CreateCompilationCopy()
+UNiagaraScriptSource* UNiagaraScriptSource::CreateCompilationCopy(const TArray<ENiagaraScriptUsage>& CompileUsages)
 {
 	UNiagaraScriptSource* Result = NewObject<UNiagaraScriptSource>();
-	Result->NodeGraph = NodeGraph->CreateCompilationCopy();
+	Result->NodeGraph = NodeGraph->CreateCompilationCopy(CompileUsages);
 	Result->bIsCompilationCopy = true;
 	Result->AddToRoot();
 	return Result;

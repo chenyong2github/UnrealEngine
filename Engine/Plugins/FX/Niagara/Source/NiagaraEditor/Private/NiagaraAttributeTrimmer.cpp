@@ -470,7 +470,7 @@ static void TrimAttributes_Safe(TConstArrayView<const FNiagaraParameterMapHistor
 	}));
 }
 
-static void TrimAttributes_Aggressive(const FNiagaraCompileRequestData* CompileData, TConstArrayView<const FNiagaraParameterMapHistory*> LocalParamHistories, TSet<FName>& AttributesToPreserve, TArray<FNiagaraVariable>& Attributes)
+static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData* CompileDuplicateData, TConstArrayView<const FNiagaraParameterMapHistory*> LocalParamHistories, TSet<FName>& AttributesToPreserve, TArray<FNiagaraVariable>& Attributes)
 {
 	// variable references hidden in custom hlsl nodes may not be present in a specific stages parameter map
 	// so we consolidate all the variables into one list to use when going through custom hlsl nodes
@@ -492,7 +492,7 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestData* CompileD
 
 	for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
 	{
-		FFunctionInputResolver InputResolver(CompileData->NodeGraphDeepCopy.Get(), ParamMap->OriginatingScriptUsage);
+		FFunctionInputResolver InputResolver(CompileDuplicateData->NodeGraphDeepCopy.Get(), ParamMap->OriginatingScriptUsage);
 
 		const int32 VariableCount = ParamMap->Variables.Num();
 
@@ -689,7 +689,7 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 		}
 		else if (AggressiveTrimAttributesEnabled)
 		{
-			TrimAttributes_Aggressive(CompileData, LocalParamHistories, AttributesToPreserve, Attributes);
+			TrimAttributes_Aggressive(CompileDuplicateData, LocalParamHistories, AttributesToPreserve, Attributes);
 		}
 
 		for (const FNiagaraVariable& Attribute : PreTrimmedAttributes)

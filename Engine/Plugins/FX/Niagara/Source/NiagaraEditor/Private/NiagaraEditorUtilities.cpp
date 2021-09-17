@@ -1097,6 +1097,10 @@ void FixUpNumericPinsVisitor(const UEdGraphSchema_Niagara* Schema, UNiagaraNode*
 
 void FNiagaraEditorUtilities::FixUpNumericPins(const UEdGraphSchema_Niagara* Schema, UNiagaraNode* Node)
 {
+	if (ensureMsgf(Node->GetOutermost() == GetTransientPackage(), TEXT("Can not fix up numerics on non-transient node {0}"), *Node->GetPathName()) == false)
+	{
+		return;
+	}
 	auto FixUpVisitor = [&](const UEdGraphSchema_Niagara* LSchema, UNiagaraNode* LNode) { FixUpNumericPinsVisitor(LSchema, LNode); };
 	TraverseGraphFromOutputDepthFirst(Schema, Node, FixUpVisitor);
 }
@@ -1329,6 +1333,11 @@ void FNiagaraEditorUtilities::ResolveNumerics(UNiagaraGraph* SourceGraph, bool b
 void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
 	ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver)
 {
+	if (ensureMsgf(Graph->GetOutermost() == GetTransientPackage(), TEXT("Can not preprocess non-transient function graph {0}"), *Graph->GetPathName()) == false)
+	{
+		return;
+	}
+
 	// Change any numeric inputs or outputs to match the types from the call node.
 	TArray<UNiagaraNodeInput*> InputNodes;
 

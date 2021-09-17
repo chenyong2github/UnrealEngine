@@ -492,10 +492,10 @@ void INiagaraModule::UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditor
 	EditorOnlyDataUtilities.Reset();
 }
 
-int32 INiagaraModule::StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions)
+int32 INiagaraModule::StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InCompileDuplicateData, const FNiagaraCompileOptions& InCompileOptions)
 {
 	checkf(ScriptCompilerDelegate.IsBound(), TEXT("Create default script compiler delegate not bound."));
-	return ScriptCompilerDelegate.Execute(InCompileData, InCompileOptions);
+	return ScriptCompilerDelegate.Execute(InCompileData, InCompileDuplicateData, InCompileOptions);
 }
 
 TSharedPtr<FNiagaraVMExecutableData> INiagaraModule::GetCompileJobResult(int32 JobID, bool bWait)
@@ -535,22 +535,47 @@ void INiagaraModule::UnregisterCompileResultDelegate(FDelegateHandle DelegateHan
 
 TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> INiagaraModule::Precompile(UObject* Obj, FGuid Version)
 {
-	checkf(ObjectPrecompilerDelegate.IsBound(), TEXT("ObjectPrecompiler delegate not bound."));
-	return ObjectPrecompilerDelegate.Execute(Obj, Version);
+	checkf(PrecompileDelegate.IsBound(), TEXT("Precompile delegate not bound."));
+	return PrecompileDelegate.Execute(Obj, Version);
+}
+
+TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> INiagaraModule::PrecompileDuplicate(
+	const FNiagaraCompileRequestDataBase* OwningSystemRequestData,
+	UNiagaraSystem* OwningSystem,
+	UNiagaraEmitter* OwningEmitter,
+	UNiagaraScript* TargetScript,
+	FGuid TargetVersion)
+{
+	checkf(PrecompileDuplicateDelegate.IsBound(), TEXT("PrecompileDuplicate delegate not bound."));
+	return PrecompileDuplicateDelegate.Execute(OwningSystemRequestData, OwningSystem, OwningEmitter, TargetScript, TargetVersion);
 }
 
 FDelegateHandle INiagaraModule::RegisterPrecompiler(FOnPrecompile PreCompiler)
 {
-	checkf(ObjectPrecompilerDelegate.IsBound() == false, TEXT("Only one handler is allowed for the ObjectPrecompiler delegate"));
-	ObjectPrecompilerDelegate = PreCompiler;
-	return ObjectPrecompilerDelegate.GetHandle();
+	checkf(PrecompileDelegate.IsBound() == false, TEXT("Only one handler is allowed for the Precompiler delegate"));
+	PrecompileDelegate = PreCompiler;
+	return PrecompileDelegate.GetHandle();
 }
 
 void INiagaraModule::UnregisterPrecompiler(FDelegateHandle DelegateHandle)
 {
-	checkf(ObjectPrecompilerDelegate.IsBound(), TEXT("ObjectPrecompiler is not registered"));
-	checkf(ObjectPrecompilerDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the ObjectPrecompiler delegate with the handle it was registered with."));
-	ObjectPrecompilerDelegate.Unbind();
+	checkf(PrecompileDelegate.IsBound(), TEXT("ObjectPrecompiler is not registered"));
+	checkf(PrecompileDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the Precompiler delegate with the handle it was registered with."));
+	PrecompileDelegate.Unbind();
+}
+
+FDelegateHandle INiagaraModule::RegisterPrecompileDuplicator(FOnPrecompileDuplicate PreCompileDuplicator)
+{
+	checkf(PrecompileDuplicateDelegate.IsBound() == false, TEXT("Only one handler is allowed for the PrecompileDuplicator delegate"));
+	PrecompileDuplicateDelegate = PreCompileDuplicator;
+	return PrecompileDuplicateDelegate.GetHandle();
+}
+
+void INiagaraModule::UnregisterPrecompileDuplicator(FDelegateHandle DelegateHandle)
+{
+	checkf(PrecompileDuplicateDelegate.IsBound(), TEXT("PrecompileDuplicator is not registered"));
+	checkf(PrecompileDuplicateDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the PrecompileDuplicator delegate with the handle it was registered with."));
+	PrecompileDuplicateDelegate.Unbind();
 }
 
 void INiagaraModule::OnAssetLoaded(UObject* Asset)

@@ -26,7 +26,7 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 	// UObject interface
 	virtual void PostLoad() override;
 
-	UNiagaraScriptSource* CreateCompilationCopy();
+	UNiagaraScriptSource* CreateCompilationCopy(const TArray<ENiagaraScriptUsage>& CompileUsages);
 
 	void ReleaseCompilationCopy();
 

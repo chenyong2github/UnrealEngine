@@ -175,16 +175,17 @@ enum class ENiagaraCompilationState : uint8
 struct FNiagaraLazyPrecompileReference
 {
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> GetPrecompileData(UNiagaraScript* ForScript);
+	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> GetPrecompileDuplicateData(UNiagaraEmitter* OwningEmitter, UNiagaraScript* TargetScript);
 	
 	UNiagaraSystem* System = nullptr;
 	TArray<UNiagaraScript*> Scripts;
 	TMap<UNiagaraScript*, int32> EmitterScriptIndex;
 	TArray<TObjectPtr<UObject>> CompilationRootObjects;
-	TArray<FNiagaraVariable> EncounteredExposedVars;
 
 private:
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData;
 	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>> EmitterMapping;
+	TArray<TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe>> PrecompileDuplicateDatas;
 };
 
 struct FNiagaraAsyncTaskSharedData
@@ -210,7 +211,9 @@ public:
 	bool bWaitForCompileJob = false;
 	bool bUsedShaderCompilerWorker = false;
 	bool bFetchedGCObjects = false;
+	UNiagaraSystem* OwningSystem;
 	FEmitterCompiledScriptPair ScriptPair;
+	TArray<FNiagaraVariable> EncounteredExposedVars;
 
 	ENiagaraCompilationState CurrentState;
 
@@ -220,8 +223,9 @@ public:
 	// this data is shared between the ddc thread and the game thread that starts the compilation
 	TSharedPtr<FNiagaraLazyPrecompileReference, ESPMode::ThreadSafe> PrecompileReference;
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> ComputedPrecompileData;
+	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> ComputedPrecompileDuplicateData;
 
-	FNiagaraAsyncCompileTask(FString InAssetPath, const FEmitterCompiledScriptPair& InScriptPair);
+	FNiagaraAsyncCompileTask(UNiagaraSystem* InOwningSystem, FString InAssetPath, const FEmitterCompiledScriptPair& InScriptPair);
 
 	const FEmitterCompiledScriptPair& GetScriptPair() const { return ScriptPair; };
 	void WaitAndResolveResult();

@@ -22,6 +22,7 @@
 
 class UNiagaraDataInterface;
 class FNiagaraCompileRequestDataBase;
+class FNiagaraCompileRequestDuplicateDataBase;
 class UNiagaraConvertInPlaceUtilityBase;
 
 #define NIAGARA_INVALID_MEMORY (0xBA)
@@ -1001,7 +1002,7 @@ public:
 
 	/** Request an asynchronous compile for the script, possibly forcing it to compile. The output values are the compilation id of the data as well as the async handle to 
 		gather up the results with. The function returns whether or not any compiles were actually issued. */
-	NIAGARA_API bool RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle);
+	NIAGARA_API bool RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, const TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe>& RequestDuplicateData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle);
 
 	/** Builds the DDC string for the derived data cache using the supplied CompiledId */
 	static FString BuildNiagaraDDCKeyString(const FNiagaraVMExecutableDataId& CompileId);

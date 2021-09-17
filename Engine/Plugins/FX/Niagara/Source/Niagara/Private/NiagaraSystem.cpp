@@ -147,9 +147,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrec
 		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
 		SystemPrecompiledData = NiagaraModule.Precompile(Container, FGuid());
 
-		// Grab the list of user variables that were actually encountered so that we can add to them later.
-		SystemPrecompiledData->GatherPreCompiledVariables(TEXT("User"), EncounteredExposedVars);
-		SystemPrecompiledData->GetReferencedObjects(CompilationRootObjects);
 		const TArray<FNiagaraEmitterHandle>& EmitterHandles = System->GetEmitterHandles();
 		for (int32 i = 0; i < EmitterHandles.Num(); i++)
 		{
@@ -157,8 +154,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrec
 			if (Handle.GetInstance() && Handle.GetIsEnabled())
 			{
 				TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> EmitterPrecompiledData = SystemPrecompiledData->GetDependentRequest(i);
-				EmitterPrecompiledData->GetReferencedObjects(CompilationRootObjects);
-				
 				TArray<UNiagaraScript*> EmitterScripts;
 				Handle.GetInstance()->GetScripts(EmitterScripts, false, true);
 				check(EmitterScripts.Num() > 0);
@@ -166,9 +161,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrec
 				{
 					EmitterMapping.Add(EmitterScript, EmitterPrecompiledData);
 				}
-
-				// Add the emitter's User variables to the encountered list to expose for later.
-				EmitterPrecompiledData->GatherPreCompiledVariables(TEXT("User"), EncounteredExposedVars);
 			}
 		}
 	}
@@ -191,8 +183,37 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrec
 	return *EmitterPrecompileData;
 }
 
-FNiagaraAsyncCompileTask::FNiagaraAsyncCompileTask(FString InAssetPath, const FEmitterCompiledScriptPair& InScriptPair)
+TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagaraLazyPrecompileReference::GetPrecompileDuplicateData(UNiagaraEmitter* OwningEmitter, UNiagaraScript* TargetScript)
 {
+	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> PrecompileDuplicateData;
+	for (TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> ExistingPrecompileDuplicateData : PrecompileDuplicateDatas)
+	{
+		if (ExistingPrecompileDuplicateData->IsDuplicateDataFor(System, OwningEmitter, TargetScript))
+		{
+			PrecompileDuplicateData = ExistingPrecompileDuplicateData;
+		}
+	}
+
+	if (PrecompileDuplicateData.IsValid() == false)
+	{
+		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
+
+		PrecompileDuplicateData = NiagaraModule.PrecompileDuplicate(SystemPrecompiledData.Get(), System, OwningEmitter, TargetScript, FGuid());
+		PrecompileDuplicateDatas.Add(PrecompileDuplicateData);
+
+		PrecompileDuplicateData->GetDuplicatedObjects(CompilationRootObjects);
+		for (int32 i = 0; i < PrecompileDuplicateData->GetDependentRequestCount(); i++)
+		{
+			PrecompileDuplicateData->GetDependentRequest(i)->GetDuplicatedObjects(CompilationRootObjects);
+		}
+	}
+
+	return PrecompileDuplicateData;
+}
+
+FNiagaraAsyncCompileTask::FNiagaraAsyncCompileTask(UNiagaraSystem* InOwningSystem, FString InAssetPath, const FEmitterCompiledScriptPair& InScriptPair)
+{
+	OwningSystem = InOwningSystem;
 	AssetPath = InAssetPath;
 	ScriptPair = InScriptPair;
 
@@ -340,9 +361,34 @@ void FNiagaraAsyncCompileTask::PrecompileData()
 	DDCKey = CurrentDDCKey;
 	
 	ComputedPrecompileData = PrecompileReference->GetPrecompileData(ScriptPair.CompiledScript);
-	if (ComputedPrecompileData == nullptr)
+	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> SystemPrecompileDuplicateData = PrecompileReference->GetPrecompileDuplicateData(ScriptPair.Emitter, ScriptPair.CompiledScript);
+
+	if (ComputedPrecompileData == nullptr || SystemPrecompileDuplicateData == nullptr)
 	{
 		AbortTask();
+		return;
+	}
+
+	// Grab the list of user variables that were actually encountered so that we can add to them later.
+	ComputedPrecompileData->GatherPreCompiledVariables(TEXT("User"), EncounteredExposedVars);
+	for(int32 i = 0; i < ComputedPrecompileData->GetDependentRequestCount(); i++)
+	{
+		ComputedPrecompileData->GetDependentRequest(i)->GatherPreCompiledVariables(TEXT("User"), EncounteredExposedVars);
+	}
+
+	// Assign the correct duplicate data for this request.
+	if(ScriptPair.CompiledScript->GetUsage() == ENiagaraScriptUsage::SystemSpawnScript || ScriptPair.CompiledScript->GetUsage() == ENiagaraScriptUsage::SystemUpdateScript)
+	{
+		ComputedPrecompileDuplicateData = SystemPrecompileDuplicateData;
+	}
+	else
+	{
+		UNiagaraEmitter* OwningEmitter = ScriptPair.Emitter;
+		int32 EmitterIndex = OwningSystem->GetEmitterHandles().IndexOfByPredicate([OwningEmitter](const FNiagaraEmitterHandle& EmitterHandle) { return EmitterHandle.GetInstance() == OwningEmitter; });
+		if(EmitterIndex != INDEX_NONE)
+		{
+			ComputedPrecompileDuplicateData = SystemPrecompileDuplicateData->GetDependentRequest(EmitterIndex);
+		}
 	}
 }
 
@@ -351,7 +397,7 @@ void FNiagaraAsyncCompileTask::StartCompileJob()
 	UE_LOG(LogNiagara, Verbose, TEXT("Starting compilation for %s!"), *AssetPath);
 	
 	// Fire off the compile job
-	if (ScriptPair.CompiledScript->RequestExternallyManagedAsyncCompile(ComputedPrecompileData, ScriptPair.CompileId, ScriptPair.PendingJobID))
+	if (ScriptPair.CompiledScript->RequestExternallyManagedAsyncCompile(ComputedPrecompileData, ComputedPrecompileDuplicateData, ScriptPair.CompileId, ScriptPair.PendingJobID))
 	{
 		UE_LOG(LogNiagara, Verbose, TEXT("Designated compilation ID %i for compilation of %s!"), ScriptPair.PendingJobID, *AssetPath);
 		bUsedShaderCompilerWorker = true;
@@ -2554,11 +2600,17 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 		
 		FNiagaraSystemCompileRequest& CompileRequest = ActiveCompilations[0];
 		bool bAreWeWaitingForAnyResults = false;
+		double StartTime = FPlatformTime::Seconds();
 		
 		// Check to see if ALL of the sub-requests have resolved.
 		for (auto& AsyncTask : CompileRequest.DDCTasks)
 		{
-			AsyncTask->ProcessCurrentState();
+			// if a task is very expensive we bail and continue on the next frame  
+			if (FPlatformTime::Seconds() - StartTime < 0.125)
+			{
+				AsyncTask->ProcessCurrentState();
+			}
+
 			if (AsyncTask->IsDone())
 			{
 				continue;
@@ -2618,7 +2670,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 				TMap<FName, UNiagaraDataInterface*> ObjectNameMap;
 				if (AsyncTask->ComputedPrecompileData.IsValid())
 				{
-					ObjectNameMap = AsyncTask->ComputedPrecompileData->GetObjectNameMap(); 
+					ObjectNameMap = AsyncTask->ComputedPrecompileDuplicateData->GetObjectNameMap(); 
 				}
 				else
 				{
@@ -2633,7 +2685,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 				// Synchronize the variables that we actually encountered during precompile so that we can expose them to the end user.
 				TArray<FNiagaraVariable> OriginalExposedParams;
 				ExposedParameters.GetParameters(OriginalExposedParams);
-				TArray<FNiagaraVariable>& EncounteredExposedVars = AsyncTask->PrecompileReference->EncounteredExposedVars;
+				TArray<FNiagaraVariable>& EncounteredExposedVars = AsyncTask->EncounteredExposedVars;
 				for (int32 i = 0; i < EncounteredExposedVars.Num(); i++)
 				{
 					if (OriginalExposedParams.Contains(EncounteredExposedVars[i]) == false)
@@ -2643,7 +2695,8 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 					}
 				}
 				
-				AsyncTask->ComputedPrecompileData->ReleaseCompilationCopies();
+				AsyncTask->ComputedPrecompileDuplicateData->ReleaseCompilationCopies();
+				AsyncTask->ComputedPrecompileDuplicateData.Reset();
 				AsyncTask->ComputedPrecompileData.Reset();
 			}
 		}
@@ -2935,7 +2988,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 						Pair.CompiledScript->ComputeVMCompilationId(NewID, FGuid());
 						Pair.CompileId = NewID;
 
-						TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(EmitterScript->GetPathName(), Pair);
+						TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(this, EmitterScript->GetPathName(), Pair);
 						if (EmitterScript->IsCompilable() && !EmitterScript->AreScriptAndSourceSynchronized())
 						{
 							ScriptsNeedingCompile.Add(EmitterScript);
@@ -2963,7 +3016,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				Pair.CompiledScript->ComputeVMCompilationId(NewID, FGuid());
 				Pair.CompileId = NewID;
 
-				TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(SystemSpawnScript->GetPathName(), Pair);
+				TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(this, SystemSpawnScript->GetPathName(), Pair);
 				if (!SystemSpawnScript->AreScriptAndSourceSynchronized())
 				{
 					ScriptsNeedingCompile.Add(SystemSpawnScript);
@@ -2985,7 +3038,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 				Pair.CompiledScript->ComputeVMCompilationId(NewID, FGuid());
 				Pair.CompileId = NewID;
 
-				TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(SystemUpdateScript->GetPathName(), Pair);
+				TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe> AsyncTask = MakeShared<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>(this, SystemUpdateScript->GetPathName(), Pair);
 				if (!SystemUpdateScript->AreScriptAndSourceSynchronized())
 				{
 					ScriptsNeedingCompile.Add(SystemUpdateScript);

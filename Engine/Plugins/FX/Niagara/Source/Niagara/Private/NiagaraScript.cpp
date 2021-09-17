@@ -2391,12 +2391,22 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 		TArray<TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>> DependentRequests;
 		TArray<uint8> OutData;
 		INiagaraModule& NiagaraModule = FModuleManager::Get().LoadModuleChecked<INiagaraModule>(TEXT("Niagara"));
-		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> RequestData = NiagaraModule.Precompile(this, ScriptVersion);
 
+		TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> RequestData = NiagaraModule.Precompile(this, ScriptVersion);
 		if (RequestData.IsValid() == false)
 		{
 			COOK_STAT(Timer.TrackCyclesOnly());
 			UE_LOG(LogNiagara, Error, TEXT("Failed to precompile %s.  This is due to unexpected invalid or broken data.  Additional details should be in the log."), *GetPathName());
+			return;
+		}
+
+		TArray<FNiagaraVariable> PrecompiledVariables;
+		RequestData->GatherPreCompiledVariables(FString(), PrecompiledVariables);
+		TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> RequestDuplicateData = NiagaraModule.PrecompileDuplicate(RequestData.Get(), nullptr, nullptr, this, ScriptVersion);
+		if (RequestDuplicateData.IsValid() == false)
+		{
+			COOK_STAT(Timer.TrackCyclesOnly());
+			UE_LOG(LogNiagara, Error, TEXT("Failed to precompile duplicate %s.  This is due to unexpected invalid or broken data.  Additional details should be in the log."), *GetPathName());
 			return;
 		}
 
@@ -2407,20 +2417,20 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 			if (BinaryToExecData(this, OutData, ExeData))
 			{
 				COOK_STAT(Timer.AddHit(OutData.Num()));
-				SetVMCompilationResults(LastGeneratedVMId, ExeData, FString(), RequestData->GetObjectNameMap());
+				SetVMCompilationResults(LastGeneratedVMId, ExeData, FString(), RequestDuplicateData->GetObjectNameMap());
 				return;
 			}
 		}
 
 		ActiveCompileRoots.Empty();
-		RequestData->GetReferencedObjects(ActiveCompileRoots);
+		RequestDuplicateData->GetDuplicatedObjects(ActiveCompileRoots);
 
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ScriptData->ModuleUsageBitmask, GetPathName(), GetFullName(), GetName());
-		int32 JobHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), Options);
+		int32 JobHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), RequestDuplicateData.Get(), Options);
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(JobHandle, true);
 		if (ExeData)
 		{
-			SetVMCompilationResults(LastGeneratedVMId, *ExeData, FString(), RequestData->GetObjectNameMap());
+			SetVMCompilationResults(LastGeneratedVMId, *ExeData, FString(), RequestDuplicateData->GetObjectNameMap());
 			// save result to the ddc
 			if (ExecToBinaryData(this, OutData, *ExeData))
 			{
@@ -2436,7 +2446,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 	}
 }
 
-bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle)
+bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>& RequestData, const TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe>& RequestDuplicateData, FNiagaraVMExecutableDataId& OutCompileId, uint32& OutAsyncHandle)
 {
 	COOK_STAT(auto Timer = NiagaraScriptCookStats::UsageStats.TimeSyncWork());
 	COOK_STAT(Timer.TrackCyclesOnly());
@@ -2462,7 +2472,7 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 		FNiagaraCompileOptions Options(GetUsage(), GetUsageId(), ScriptData->ModuleUsageBitmask, GetPathName(), GetFullName(), GetName());
 		Options.AdditionalDefines = LastGeneratedVMId.AdditionalDefines;
 		Options.AdditionalVariables = LastGeneratedVMId.AdditionalVariables;
-		OutAsyncHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), Options);
+		OutAsyncHandle = NiagaraModule.StartScriptCompileJob(RequestData.Get(), RequestDuplicateData.Get(), Options);
 		UE_LOG(LogNiagara, Verbose, TEXT("Script '%s' is requesting compile.."), *GetFullName());
 		return true;
 	}
