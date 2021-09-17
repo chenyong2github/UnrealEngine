@@ -27,6 +27,31 @@ FSequenceEvaluatorReference USequenceEvaluatorLibrary::SetExplicitTime(const FSe
 	return SequenceEvaluator;
 }
 
+FSequenceEvaluatorReference USequenceEvaluatorLibrary::AdvanceTime(const FAnimUpdateContext& UpdateContext, const FSequenceEvaluatorReference& SequenceEvaluator, float PlayRate)
+{
+	SequenceEvaluator.CallAnimNodeFunction<FAnimNode_SequenceEvaluator>(
+		TEXT("AdvanceTime"),
+		[&UpdateContext, PlayRate](FAnimNode_SequenceEvaluator& InSequenceEvaluator)
+		{
+			if (const FAnimationUpdateContext* AnimationUpdateContext = UpdateContext.GetContext())
+			{
+				float ExplicitTime = InSequenceEvaluator.GetExplicitTime();
+				FAnimationRuntime::AdvanceTime(InSequenceEvaluator.GetShouldLoop(), AnimationUpdateContext->GetDeltaTime() * PlayRate, ExplicitTime, InSequenceEvaluator.GetCurrentAssetLength());
+
+				if (!InSequenceEvaluator.SetExplicitTime(ExplicitTime))
+				{
+					UE_LOG(LogSequenceEvaluatorLibrary, Warning, TEXT("Could not advance time on sequence evaluator, ExplicitTime is not dynamic. Set it as Always Dynamic."));
+				}
+			}
+			else
+			{
+				UE_LOG(LogSequenceEvaluatorLibrary, Warning, TEXT("AdvanceTime called with invalid context"));
+			}
+		});
+
+	return SequenceEvaluator;
+}
+
 FSequenceEvaluatorReference USequenceEvaluatorLibrary::SetSequence(const FSequenceEvaluatorReference& SequenceEvaluator, UAnimSequenceBase* Sequence)
 {
 	SequenceEvaluator.CallAnimNodeFunction<FAnimNode_SequenceEvaluator>(
