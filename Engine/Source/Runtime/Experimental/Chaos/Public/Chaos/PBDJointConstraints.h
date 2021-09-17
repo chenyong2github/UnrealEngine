@@ -16,6 +16,7 @@
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/PBDJointConstraintTypes.h"
 #include "Chaos/PBDJointConstraintData.h"
+#include "Chaos/GeometryParticles.h"
 
 namespace Chaos
 {
@@ -52,9 +53,11 @@ namespace Chaos
 		void SetSettings(const FPBDJointSettings& Settings);
 		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
 
-		//TODO: implement this for RewindData to work correctly
-		ESyncState SyncState() const { ensure(false); return ESyncState::InSync; }
-		void SetEnabledDuringResim(bool bEnabled) { ensure(false); }
+		ESyncState SyncState() const;
+		void SetSyncState(ESyncState SyncState);
+
+		void SetEnabledDuringResim(bool bEnabled);
+		EResimType ResimType() const;
 
 	protected:
 		using Base::ConstraintIndex;
@@ -75,6 +78,9 @@ namespace Chaos
 		bool bDriveTargetChanged;
 		FVec3 LinearImpulse;
 		FVec3 AngularImpulse;
+		EResimType ResimType = EResimType::FullResim;
+		ESyncState SyncState = ESyncState::InSync;
+		bool bEnabledDuringResim = true;
 	};
 
 	/**
@@ -233,6 +239,13 @@ namespace Chaos
 		FVec3 GetConstraintLinearImpulse(int32 ConstraintIndex) const;
 		FVec3 GetConstraintAngularImpulse(int32 ConstraintIndex) const;
 
+		ESyncState GetConstraintSyncState(int32 ConstraintIndex) const;
+		void SetConstraintSyncState(int32 ConstraintIndex, ESyncState SyncState);
+		
+		void SetConstraintEnabledDuringResim(int32 ConstraintIndex, bool bEnabled);
+		
+		EResimType GetConstraintResimType(int32 ConstraintIndex) const;
+		
 		//
 		// General Rule API
 		//

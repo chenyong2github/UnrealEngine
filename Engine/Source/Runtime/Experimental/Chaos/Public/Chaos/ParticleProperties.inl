@@ -19,3 +19,5 @@ CHAOS_PROPERTY(KinematicTarget,FKinematicTarget, EPhysicsProxyType::SinglePartic
 
 CHAOS_PROPERTY(JointSettings, FPBDJointSettings, EPhysicsProxyType::JointConstraintType)
 CHAOS_PROPERTY(JointParticleProxies, FProxyBasePair, EPhysicsProxyType::JointConstraintType)
+
+#undef CHAOS_PROPERTY

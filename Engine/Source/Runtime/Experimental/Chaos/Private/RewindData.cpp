@@ -125,6 +125,17 @@ bool FGeometryParticleStateBase::IsInSync(const FGeometryParticleHandle& Handle,
 	return true;
 }
 
+template <bool bSkipDynamics>
+bool FJointStateBase::IsInSync(const FPBDJointConstraintHandle& Handle, const FFrameAndPhase FrameAndPhase, const FDirtyPropertiesPool& Pool) const
+{
+	if (!JointSettings.IsInSync(Handle, FrameAndPhase, Pool))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool FRewindData::RewindToFrame(int32 Frame)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(RewindToFrame);
@@ -147,24 +158,26 @@ bool FRewindData::RewindToFrame(int32 Frame)
 	FFrameAndPhase RewindFrameAndPhase{ Frame, FFrameAndPhase::PostPushData };
 	FFrameAndPhase CurFrameAndPhase{ CurFrame, FFrameAndPhase::PrePushData };
 
-	//If we're rewinding a particle that doesn't need to save head (resim as slave never checks for desync so we don't care about head)
-	auto RewindNoSave = [RewindFrameAndPhase, this](auto Particle, auto& Property, const auto& RewindFunc)
+	auto RewindHelper = [RewindFrameAndPhase, CurFrameAndPhase, this](auto Obj, bool bResimAsSlave, auto& Property, const auto& RewindFunc) -> bool
 	{
-		if (auto Val = Property.Read(RewindFrameAndPhase, PropertiesPool))
+		if (bResimAsSlave)
 		{
-			RewindFunc(Particle, *Val);
+			//If we're rewinding a particle that doesn't need to save head (resim as slave never checks for desync so we don't care about head)
+			if (auto Val = Property.Read(RewindFrameAndPhase, PropertiesPool))
+			{
+				RewindFunc(Obj, *Val);
+			}
 		}
-	};
-
-	//If we're rewinding a particle that needs to save head (during resim when we get back to latest frame and phase we need to check for desync)
-	auto RewindAndSave = [RewindFrameAndPhase, CurFrameAndPhase, this](auto Particle, auto& Property, const auto& RewindFunc) -> bool
-	{
-		if (!Property.IsClean(RewindFrameAndPhase))
+		else
 		{
-			Property.WriteAccessMonotonic(CurFrameAndPhase, PropertiesPool).CopyFrom(*Particle);
-			RewindFunc(Particle, *Property.Read(RewindFrameAndPhase, PropertiesPool));
+			//If we're rewinding an object that needs to save head (during resim when we get back to latest frame and phase we need to check for desync)
+			if (!Property.IsClean(RewindFrameAndPhase))
+			{
+				CopyDataFromObject(Property.WriteAccessMonotonic(CurFrameAndPhase, PropertiesPool), *Obj);
+				RewindFunc(Obj, *Property.Read(RewindFrameAndPhase, PropertiesPool));
 
-			return true;
+				return true;
+			}
 		}
 
 		return false;
@@ -176,33 +189,20 @@ bool FRewindData::RewindToFrame(int32 Frame)
 
 		//rewind is about to start, all particles should be in sync at this point
 		ensure(PTParticle->SyncState() == ESyncState::InSync);
+		
+		FGeometryParticleStateBase& History = DirtyParticleInfo.AddFrame(CurFrame);	//non-const in case we need to record what's at head for a rewind (CurFrame has already been increased to the next frame)
 
-		if(DirtyParticleInfo.bResimAsSlave)
+		const bool bResimAsSlave = DirtyParticleInfo.bResimAsSlave;
+		bool bAnyChange = RewindHelper(PTParticle, bResimAsSlave, History.ParticlePositionRotation, [](auto Particle, const auto& Data) {Particle->SetXR(Data); });
+		bAnyChange |= RewindHelper(PTParticle, bResimAsSlave, History.NonFrequentData, [](auto Particle, const auto& Data) {Particle->SetNonFrequentData(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToKinematicParticle(), bResimAsSlave, History.Velocities, [](auto Particle, const auto& Data) {Particle->SetVelocities(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToKinematicParticle(), bResimAsSlave, History.KinematicTarget, [](auto Particle, const auto& Data) {Particle->SetKinematicTarget(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsSlave,  History.Dynamics, [](auto Particle, const auto& Data) {Particle->SetDynamics(Data); });
+		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsSlave,  History.DynamicsMisc, [Evolution = Solver->GetEvolution()](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data, *Evolution); });
+		bAnyChange |= RewindHelper(PTParticle->CastToRigidParticle(),bResimAsSlave,  History.MassProps, [](auto Particle, const auto& Data) {Particle->SetMassProps(Data); });
+
+		if (!bResimAsSlave)
 		{
-			//simple rewind with all data coming back exactly the same from gt
-			//this means we don't need to save head or do anything special
-			const FGeometryParticleStateBase& History = DirtyParticleInfo.GetHistory();
-
-			RewindNoSave(PTParticle, History.ParticlePositionRotation, [](auto Particle, const auto& Data) {Particle->SetXR(Data); });
-			RewindNoSave(PTParticle, History.NonFrequentData, [](auto Particle, const auto& Data) {Particle->SetNonFrequentData(Data); });
-			RewindNoSave(PTParticle->CastToKinematicParticle(), History.Velocities, [](auto Particle, const auto& Data) {Particle->SetVelocities(Data); });
-			RewindNoSave(PTParticle->CastToKinematicParticle(), History.KinematicTarget, [](auto Particle, const auto& Data) {Particle->SetKinematicTarget(Data); });
-			RewindNoSave(PTParticle->CastToRigidParticle(), History.Dynamics, [](auto Particle, const auto& Data) {Particle->SetDynamics(Data); });
-			RewindNoSave(PTParticle->CastToRigidParticle(), History.DynamicsMisc, [Evolution = Solver->GetEvolution()](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data, *Evolution); });
-			RewindNoSave(PTParticle->CastToRigidParticle(), History.MassProps, [](auto Particle, const auto& Data) {Particle->SetMassProps(Data); });
-		}
-		else
-		{
-			FGeometryParticleStateBase& History = DirtyParticleInfo.AddFrame(CurFrame);	//non-const in case we need to record what's at head for a rewind (CurFrame has already been increased to the next frame)
-
-			bool bAnyChange = RewindAndSave(PTParticle, History.ParticlePositionRotation, [](auto Particle, const auto& Data) {Particle->SetXR(Data); });
-			bAnyChange |= RewindAndSave(PTParticle, History.NonFrequentData, [](auto Particle, const auto& Data) {Particle->SetNonFrequentData(Data); });
-			bAnyChange |= RewindAndSave(PTParticle->CastToKinematicParticle(), History.Velocities, [](auto Particle, const auto& Data) {Particle->SetVelocities(Data); });
-			bAnyChange |= RewindAndSave(PTParticle->CastToKinematicParticle(), History.KinematicTarget, [](auto Particle, const auto& Data) {Particle->SetKinematicTarget(Data); });
-			bAnyChange |= RewindAndSave(PTParticle->CastToRigidParticle(), History.Dynamics, [](auto Particle, const auto& Data) {Particle->SetDynamics(Data); });
-			bAnyChange |= RewindAndSave(PTParticle->CastToRigidParticle(), History.DynamicsMisc, [Evolution = Solver->GetEvolution()](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data, *Evolution); });
-			bAnyChange |= RewindAndSave(PTParticle->CastToRigidParticle(), History.MassProps, [](auto Particle, const auto& Data) {Particle->SetMassProps(Data); });
-
 			if (bAnyChange)
 			{
 				//particle actually changes not just created/streamed so need to update its state
@@ -216,15 +216,27 @@ bool FRewindData::RewindToFrame(int32 Frame)
 				DirtyParticleInfo.GetObjectPtr()->SetEnabledDuringResim(true);
 			}
 
-		if (DirtyParticleInfo.InitializedOnStep > Frame)
-		{
-			//hasn't initialized yet, so disable
-			//must do this after rewind because SetDynamicsMisc will re-enable
-			//(the disable is a temp way to ignore objects not spawned yet, they weren't really disabled which is why it gets re-enabled)
-			Solver->GetEvolution()->DisableParticle(DirtyParticleInfo.GetObjectPtr());
+			if (DirtyParticleInfo.InitializedOnStep > Frame)
+			{
+				//hasn't initialized yet, so disable
+				//must do this after rewind because SetDynamicsMisc will re-enable
+				//(the disable is a temp way to ignore objects not spawned yet, they weren't really disabled which is why it gets re-enabled)
+				Solver->GetEvolution()->DisableParticle(DirtyParticleInfo.GetObjectPtr());
+			}
 		}
-		}
+	}
 
+	for(FDirtyJointInfo& DirtyJointInfo : DirtyJoints)
+	{
+		FPBDJointConstraintHandle* Joint = DirtyJointInfo.GetObjectPtr();
+
+		//rewind is about to start, all particles should be in sync at this point
+		ensure(Joint->SyncState() == ESyncState::InSync);
+
+		FJointStateBase& History = DirtyJointInfo.AddFrame(CurFrame);	//non-const in case we need to record what's at head for a rewind (CurFrame has already been increased to the next frame)
+
+		const bool bResimAsSlave = DirtyJointInfo.bResimAsSlave;
+		bool bAnyChange = RewindHelper(Joint, bResimAsSlave, History.JointSettings, [](auto Joint, const auto& Data) {Joint->SetSettings(Data); });
 	}
 
 	CurFrame = Frame;
@@ -232,6 +244,23 @@ bool FRewindData::RewindToFrame(int32 Frame)
 	FramesSaved = 0; //can't rewind before this point. This simplifies saving the state at head
 
 	return true;
+}
+
+template <bool bSkipDynamics, typename TDirtyInfo>
+void FRewindData::DesyncIfNecessary(TDirtyInfo& Info, const FFrameAndPhase FrameAndPhase)
+{
+	ensure(IsResim());	//shouldn't bother with desync unless we're resimming
+
+	auto Handle = Info.GetObjectPtr();
+	const auto& History = Info.GetHistory();
+	if (Handle->SyncState() == ESyncState::InSync && !History.template IsInSync<bSkipDynamics>(*Handle, FrameAndPhase, PropertiesPool))
+	{
+		if (!SkipDesyncTest)
+		{
+			//first time desyncing so need to clear history from this point into the future
+			DesyncObject(Info, FrameAndPhase);
+		}
+	}
 }
 
 void FRewindData::FinishFrame()
@@ -242,18 +271,18 @@ void FRewindData::FinishFrame()
 	{
 		FFrameAndPhase FutureFrame{ CurFrame + 1, FFrameAndPhase::PrePushData };
 
-		for(FDirtyParticleInfo& Info : DirtyParticles)
+		auto FinishHelper = [this, FutureFrame](auto& DirtyObjs)
 		{
-			if (Info.bResimAsSlave)
+			for (auto& Info : DirtyObjs)
 			{
-				//resim as slave means always in sync and no cleanup needed
-				continue;
-			}
+				if (Info.bResimAsSlave)
+				{
+					//resim as slave means always in sync and no cleanup needed
+					continue;
+				}
 
-			auto& Handle = *Info.GetObjectPtr();
-			if (auto Rigid = Handle.CastToRigidParticle())
-			{
-				if(Rigid->ResimType() == EResimType::FullResim)
+				auto& Handle = *Info.GetObjectPtr();
+				if (Handle.ResimType() == EResimType::FullResim)
 				{
 					if (IsFinalResim())
 					{
@@ -272,7 +301,10 @@ void FRewindData::FinishFrame()
 					}
 				}
 			}
-		}
+		};
+
+		FinishHelper(DirtyParticles);
+		FinishHelper(DirtyJoints);
 	}
 	
 
@@ -280,72 +312,66 @@ void FRewindData::FinishFrame()
 	LatestFrame = FMath::Max(LatestFrame,CurFrame);
 }
 
-int32 SkipDesyncTest = 0;
+CHAOS_API int32 SkipDesyncTest = 0;
 FAutoConsoleVariableRef CVarSkipDesyncTest(TEXT("p.SkipDesyncTest"), SkipDesyncTest, TEXT("Skips hard desync test, this means all particles will assume to be clean except spawning at different times. This is useful for a perf lower bound, not actually correct"));
-
-void FRewindData::DesyncParticle(FDirtyParticleInfo& Info, const FFrameAndPhase FrameAndPhase)
-{
-	Info.ClearPhaseAndFuture(FrameAndPhase);
-	Info.GetObjectPtr()->SetSyncState(ESyncState::HardDesync);
-}
-
-template <bool bSkipDynamics>
-void FRewindData::DesyncIfNecessary(FDirtyParticleInfo& Info, const FFrameAndPhase FrameAndPhase)
-{
-	ensure(IsResim());	//shouldn't bother with desync unless we're resimming
-
-	auto Handle = Info.GetObjectPtr();
-	if (Handle->SyncState() == ESyncState::InSync && !Info.GetHistory().IsInSync<bSkipDynamics>(*Handle, FrameAndPhase, PropertiesPool))
-	{
-		if (!SkipDesyncTest)
-		{
-			//first time desyncing so need to clear history from this point into the future
-			DesyncParticle(Info, FrameAndPhase);
-		}
-	}
-}
 
 void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 {
 	FramesSaved = FMath::Min(FramesSaved+1,static_cast<int32>(Managers.Capacity()-1));
 
 	const int32 EarliestFrame = CurFrame - 1 - FramesSaved;
+	const FFrameAndPhase FrameAndPhase{ CurFrame, FFrameAndPhase::PostCallbacks };
+
+	auto AdvanceHelper = [this, EarliestFrame, FrameAndPhase](auto& DirtyObjects, const auto& DesyncFunc, const auto& AdvanceDirtyFunc)
+	{
+		for (int32 DirtyIdx = DirtyObjects.Num() - 1; DirtyIdx >= 0; --DirtyIdx)
+		{
+			auto& Info = DirtyObjects.GetDenseAt(DirtyIdx);
+
+			ensure(IsResimAndInSync(*Info.GetObjectPtr()) || Info.GetHistory().IsClean(FrameAndPhase));  //Sim hasn't run yet so PostCallbacks (sim results) should be clean
+
+			//if hasn't changed in a while stop tracking
+			if (Info.LastDirtyFrame < EarliestFrame)
+			{
+				RemoveObject(Info.GetObjectPtr());
+			}
+			else
+			{
+
+				auto Handle = Info.GetObjectPtr();
+				Info.bResimAsSlave = Handle->ResimType() == EResimType::ResimAsSlave;
+
+				if (IsResim() && !Info.bResimAsSlave)
+				{
+					DesyncIfNecessary</*bSkipDynamics=*/false>(Info, FrameAndPhase);
+				}
+
+				if (IsResim() && Handle->SyncState() != ESyncState::InSync && !SkipDesyncTest)
+				{
+					Handle->SetEnabledDuringResim(true);	//for now just mark anything out of sync as resim enabled. TODO: use bubble
+					DesyncFunc(Handle);
+				}
+
+				AdvanceDirtyFunc(Info, Handle);
+			}
+		}
+	};
+
 	TArray<FGeometryParticleHandle*> DesyncedParticles;
-	if(IsResim())
+	if (IsResim())
 	{
 		DesyncedParticles.Reserve(DirtyParticles.Num());
 	}
 
-	const FFrameAndPhase FrameAndPhase{ CurFrame, FFrameAndPhase::PostCallbacks };
-	for (int32 DirtyIdx = DirtyParticles.Num() - 1; DirtyIdx >= 0; --DirtyIdx)
-	{
-		FDirtyParticleInfo& Info = DirtyParticles.GetDenseAt(DirtyIdx);
-
-		ensure(IsResimAndInSync(*Info.GetObjectPtr()) || Info.GetHistory().IsClean(FrameAndPhase));  //Sim hasn't run yet so PostCallbacks (sim results) should be clean
-
-		//if hasn't changed in a while stop tracking
-		if (Info.LastDirtyFrame < EarliestFrame)
+	AdvanceHelper(DirtyParticles,
+		[&DesyncedParticles](FGeometryParticleHandle* DesyncedHandle)
 		{
-			RemoveParticle(Info.GetObjectPtr());
-		}
-		else
+			DesyncedParticles.Add(DesyncedHandle);
+		},
+
+		[this, FrameAndPhase](FDirtyParticleInfo& Info, FGeometryParticleHandle* Handle)
 		{
-
-			auto Handle = Info.GetObjectPtr();
-			Info.bResimAsSlave = Handle->ResimType() == EResimType::ResimAsSlave;
-
-			if (IsResim() && !Info.bResimAsSlave)
-			{
-				DesyncIfNecessary(Info, FrameAndPhase);
-			}
-
-			if(IsResim() && Handle->SyncState() != ESyncState::InSync && !SkipDesyncTest)
-			{
-				Handle->SetEnabledDuringResim(true);	//for now just mark anything out of sync as resim enabled. TODO: use bubble
-				DesyncedParticles.Add(Handle);
-			}
-
-			if(Info.DirtyDynamics == CurFrame && !IsResimAndInSync(*Handle))
+			if (Info.DirtyDynamics == CurFrame && !IsResimAndInSync(*Handle))
 			{
 				//we only need to check the cast because right now there's no property system on PT, so any time a sim callback touches a particle we just mark it as dirty dynamics
 				if (auto Rigid = Handle->CastToRigidParticle())
@@ -355,8 +381,12 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 					Latest.Dynamics.WriteAccessMonotonic(FrameAndPhase, PropertiesPool).CopyFrom(*Rigid);
 				}
 			}
-		}
-	}
+		});
+
+	AdvanceHelper(DirtyJoints, [](const FPBDJointConstraintHandle*) {}, [](const FDirtyJointInfo&, const FPBDJointConstraintHandle*) {});
+
+	//TODO: if joint is desynced we should desync particles as well
+	//If particle of joint is desynced, we need to make sure the joint is reconsidered too for optimization, though maybe not "desynced"
 
 	if(IsResim() && ResimCache)
 	{
@@ -367,19 +397,6 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 #ifndef REWIND_DESYNC
 #define REWIND_DESYNC 0
 #endif
-
-template <typename TData, typename TObj>
-void CopyDataFromObject(TData& Data, const TObj& Obj)
-{
-	Data.CopyFrom(Obj);
-}
-
-void CopyDataFromObject(FPBDJointSettings& Data, const FPBDJointConstraintHandle& Joint)
-{
-	Data = Joint.GetSettings();
-}
-
-
 
 void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,const int32 SrcDataIdx,const FDirtyProxy& Dirty, const FShapeDirtyData* ShapeDirtyData)
 {
@@ -513,7 +530,7 @@ void FRewindData::SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy)
 		Solver->GetEvolution()->EnableParticle(Handle, nullptr);
 		if(Proxy.GetInitializedStep() != CurFrame)
 		{
-			DesyncParticle(Info, FFrameAndPhase{ Proxy.GetInitializedStep(), FFrameAndPhase::PrePushData });	//Spawned earlier so mark as desynced from that first frame
+			DesyncObject(Info, FFrameAndPhase{ Proxy.GetInitializedStep(), FFrameAndPhase::PrePushData });	//Spawned earlier so mark as desynced from that first frame
 			Proxy.SetInitialized(CurFrame);
 		}
 	}
@@ -564,6 +581,27 @@ void FRewindData::MarkDirtyFromPT(FGeometryParticleHandle& Handle)
 					Data->CopyFrom(*Rigid);
 				}
 			}
+		}
+	}
+}
+
+void FRewindData::MarkDirtyJointFromPT(FPBDJointConstraintHandle& Handle)
+{
+	FDirtyJointInfo& Info = FindOrAddDirtyObj(Handle);
+
+	const bool bRecordingHistory = !IsResimAndInSync(Handle);
+
+	FJointStateBase& Latest = Info.AddFrame(CurFrame);
+
+	//TODO: use property system
+
+	const FFrameAndPhase FrameAndPhase{ CurFrame, FFrameAndPhase::PostPushData };
+
+	if (bRecordingHistory || Latest.JointSettings.IsClean(FrameAndPhase))
+	{
+		if (auto Data = Latest.JointSettings.WriteAccessNonDecreasing(FFrameAndPhase{ CurFrame, FFrameAndPhase::PostPushData }, PropertiesPool))
+		{
+			CopyDataFromObject(*Data, Handle);
 		}
 	}
 }

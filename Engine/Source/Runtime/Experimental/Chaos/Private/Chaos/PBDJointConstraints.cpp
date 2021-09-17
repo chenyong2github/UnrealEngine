@@ -104,6 +104,26 @@ namespace Chaos
 		return ConcreteContainer()->GetConstraintAngularImpulse(ConstraintIndex);
 	}
 
+	ESyncState FPBDJointConstraintHandle::SyncState() const
+	{
+		return ConcreteContainer()->GetConstraintSyncState(ConstraintIndex);
+	}
+
+	void FPBDJointConstraintHandle::SetSyncState(ESyncState SyncState)
+	{
+		return ConcreteContainer()->SetConstraintSyncState(ConstraintIndex, SyncState);
+	}
+
+	void FPBDJointConstraintHandle::SetEnabledDuringResim(bool bEnabled)
+	{
+		return ConcreteContainer()->SetConstraintEnabledDuringResim(ConstraintIndex, bEnabled);
+	}
+
+	EResimType FPBDJointConstraintHandle::ResimType() const
+	{
+		return ConcreteContainer()->GetConstraintResimType(ConstraintIndex);
+	}
+
 	
 	const FPBDJointSettings& FPBDJointConstraintHandle::GetSettings() const
 	{
@@ -695,6 +715,26 @@ namespace Chaos
 	FVec3 FPBDJointConstraints::GetConstraintAngularImpulse(int32 ConstraintIndex) const
 	{
 		return ConstraintStates[ConstraintIndex].AngularImpulse;
+	}
+
+	ESyncState FPBDJointConstraints::GetConstraintSyncState(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].SyncState;
+	}
+
+	void FPBDJointConstraints::SetConstraintSyncState(int32 ConstraintIndex, ESyncState SyncState)
+	{
+		ConstraintStates[ConstraintIndex].SyncState = SyncState;
+	}
+
+	void FPBDJointConstraints::SetConstraintEnabledDuringResim(int32 ConstraintIndex, bool bEnabled)
+	{
+		ConstraintStates[ConstraintIndex].bEnabledDuringResim = bEnabled;
+	}
+
+	EResimType FPBDJointConstraints::GetConstraintResimType(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].ResimType;
 	}
 
 

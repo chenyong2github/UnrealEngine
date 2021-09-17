@@ -1018,7 +1018,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 
 				JointConstraint->SetParticleProxies({ ValidParticle, KinematicEndPoint });
 
-				Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame1, InLocalFrame2 };
+				Chaos::FTransformPair TransformPair = { InLocalFrame1, InLocalFrame2 };
 				if (bSwapped)
 				{
 					Swap(TransformPair[0], TransformPair[1]);
@@ -1124,7 +1124,7 @@ FTransform FChaosEngineInterface::GetLocalPose(const FPhysicsConstraintHandle& I
 	{
 		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
-			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
+			const Chaos::FTransformPair& M = Constraint->GetJointTransforms();
 			if (InFrame == EConstraintFrame::Frame1)
 			{
 				return M[0];
@@ -1159,7 +1159,7 @@ FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& 
 		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
 			Chaos::FProxyBasePair BasePairs = Constraint->GetParticleProxies();
-			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
+			const Chaos::FTransformPair& M = Constraint->GetJointTransforms();
 
 			if (InFrame == EConstraintFrame::Frame1)
 			{
@@ -1337,7 +1337,7 @@ void FChaosEngineInterface::SetLocalPose(const FPhysicsConstraintHandle& InConst
 	{
 		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
-			Chaos::FJointConstraint::FTransformPair JointTransforms = Constraint->GetJointTransforms();
+			Chaos::FTransformPair JointTransforms = Constraint->GetJointTransforms();
 			if (InFrame == EConstraintFrame::Frame1)
 			{
 				JointTransforms[0] = InPose;

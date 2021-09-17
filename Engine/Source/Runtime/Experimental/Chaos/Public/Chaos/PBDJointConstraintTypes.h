@@ -121,6 +121,11 @@ namespace Chaos
 		// whenever settings change.
 		void Sanitize();
 
+		bool operator==(const FPBDJointSettings& Other) const
+		{
+			return !FMemory::Memcmp(this, &Other, sizeof(*this));
+		}
+
 		FTransformPair ConnectorTransforms;
 
 		FReal Stiffness;
