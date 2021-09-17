@@ -1279,6 +1279,12 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 						FMenuBuilder MenuBuilder(true, LevelEditorModule.GetGlobalLevelEditorActions());
 
+						TSharedPtr<SLevelEditor> LevelEditorPin = LevelEditorPtr.Pin();
+						if (LevelEditorPin.IsValid())
+						{
+							MenuBuilder.PushCommandList(LevelEditorPin->GetLevelEditorActions().ToSharedRef());
+						}
+
 						MenuBuilder.BeginSection("EditorModes");
 
 						for (TSharedPtr<FUICommandInfo> Command : CommandInfos)
