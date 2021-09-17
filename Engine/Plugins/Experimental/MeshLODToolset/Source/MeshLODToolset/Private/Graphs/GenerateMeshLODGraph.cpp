@@ -36,7 +36,7 @@ using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 
-typedef UE::GeometryFlow::TSwitchNode<FDynamicMesh3, 3, (int)EMeshProcessingDataTypes::DynamicMesh> FMeshGeneratorSwitchNode;
+typedef UE::GeometryFlow::TSwitchNode<FDynamicMesh3, 4, (int)EMeshProcessingDataTypes::DynamicMesh> FMeshGeneratorSwitchNode;
 
 
 void FGenerateMeshLODGraph::SetSourceMesh(const FDynamicMesh3& SourceMeshIn)
@@ -80,6 +80,12 @@ void FGenerateMeshLODGraph::UpdateSimplifySettings(const FMeshSimplifySettings& 
 {
 	UpdateSettingsSourceNodeValue(*Graph, SimplifySettingsNode, SimplifySettings);
 	CurrentSimplifySettings = SimplifySettings;
+}
+
+void FGenerateMeshLODGraph::UpdateGenerateConvexHullMeshSettings(const FGenerateConvexHullMeshSettings& GenerateConvexHullMeshSettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, GenerateConvexHullMeshSettingsNode, GenerateConvexHullMeshSettings);
+	CurrentGenerateConvexHullMeshSettings = GenerateConvexHullMeshSettings;
 }
 
 void FGenerateMeshLODGraph::UpdateNormalsSettings(const FMeshNormalsSettings& NormalsSettings)
@@ -346,12 +352,19 @@ void FGenerateMeshLODGraph::BuildGraph(const FDynamicMesh3* SourceMeshHint)
 	CleanMeshSettingsNode = Graph->AddNodeOfType<FMeshMakeCleanGeometrySettingsSourceNode>(TEXT("CleanerSettings"));
 	Graph->InferConnection(CleanMeshSettingsNode, CleanMeshNode);
 
+	GenerateConvexHullMeshNode = Graph->AddNodeOfType<FGenerateConvexHullMeshNode>(TEXT("ConvexHullMesh"));
+	Graph->InferConnection(FilterTrianglesNode, GenerateConvexHullMeshNode);
+	GenerateConvexHullMeshSettingsNode = Graph->AddNodeOfType<FGenerateConvexHullMeshSettingsSourceNode>(TEXT("ConvexHullMeshSettings"));
+	Graph->InferConnection(GenerateConvexHullMeshSettingsNode, GenerateConvexHullMeshNode);
+
+
 	// integer param that controls which mesh generator will be used
 	MeshGeneratorSwitchNode = Graph->AddNodeOfType<FMeshGeneratorSwitchNode>(TEXT("MeshGeneratorSwitch"));
 	Graph->AddConnection(SolidifyNode, FSolidifyMeshNode::OutParamResultMesh(), MeshGeneratorSwitchNode, FMeshGeneratorSwitchNode::InParamValue(0));
 	Graph->AddConnection(MorphologyNode, FVoxClosureMeshNode::OutParamResultMesh(), MeshGeneratorSwitchNode, FMeshGeneratorSwitchNode::InParamValue(1));
 	Graph->AddConnection(CleanMeshNode, FMeshMakeCleanGeometryNode::OutParamResultMesh(), MeshGeneratorSwitchNode, FMeshGeneratorSwitchNode::InParamValue(2));
-	
+	Graph->AddConnection(GenerateConvexHullMeshNode, FGenerateConvexHullMeshNode::OutParamResultMesh(), MeshGeneratorSwitchNode, FMeshGeneratorSwitchNode::InParamValue(3));
+
 	// helper to separate next block from changes above
 	FGraph::FHandle FinalMeshOutputNode = MeshGeneratorSwitchNode;
 

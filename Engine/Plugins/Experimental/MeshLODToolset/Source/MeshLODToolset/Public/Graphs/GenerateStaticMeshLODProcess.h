@@ -26,7 +26,8 @@ enum class EGenerateStaticMeshLODProcess_MeshGeneratorModes : uint8
 	// note: must keep in sync with FGenerateMeshLODGraph::ECoreMeshGeneratorMode
 	Solidify = 0,
 	SolidifyAndClose = 1,
-	CleanAndSimplify = 2
+	CleanAndSimplify = 2,
+	ConvexHull = 3
 };
 
 
@@ -41,19 +42,33 @@ struct FGenerateStaticMeshLODProcessSettings
 	// Solidify settings
 
 	/** Target number of voxels along the maximum dimension for Solidify operation */
-	UPROPERTY(EditAnywhere, Category = Solidify, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024", DisplayName="Voxel Resolution"))
+	UPROPERTY(EditAnywhere, Category = Solidify, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024", DisplayName="Voxel Resolution",
+	EditConditionHides, EditCondition = "MeshGenerator != EGenerateStaticMeshLODProcess_MeshGeneratorModes::ConvexHull"))
 	int SolidifyVoxelResolution = 128;
 
 	/** Winding number threshold to determine what is considered inside the mesh during Solidify */
-	UPROPERTY(EditAnywhere, Category = Solidify, AdvancedDisplay, meta = (UIMin = "0.1", UIMax = ".9", ClampMin = "-10", ClampMax = "10"))
+	UPROPERTY(EditAnywhere, Category = Solidify, AdvancedDisplay, meta = (UIMin = "0.1", UIMax = ".9", ClampMin = "-10", ClampMax = "10",
+	EditConditionHides, EditCondition = "MeshGenerator != EGenerateStaticMeshLODProcess_MeshGeneratorModes::ConvexHull"))
 	float WindingThreshold = 0.5f;
 
 
 	// Morphology settings
 
 	/** Offset distance in the Morpohological Closure operation */
-	UPROPERTY(EditAnywhere, Category = Morphology, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Closure Distance"))
+	UPROPERTY(EditAnywhere, Category = Morphology, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Closure Distance",
+	EditConditionHides, EditCondition = "MeshGenerator != EGenerateStaticMeshLODProcess_MeshGeneratorModes::ConvexHull"))
 	float ClosureDistance = 1.0f;
+
+
+	// Convex Hull Settings
+
+	/** Whether to subsample input vertices using a regular grid before computing the convex hull */
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditConditionHides, EditCondition = "MeshGenerator == EGenerateStaticMeshLODProcess_MeshGeneratorModes::ConvexHull"))
+	bool bPrefilterVertices = true;
+
+	/** Grid resolution (along the maximum-length axis) for subsampling before computing the convex hull */
+	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", EditConditionHides, EditCondition = "MeshGenerator == EGenerateStaticMeshLODProcess_MeshGeneratorModes::ConvexHull", UIMin = 4, UIMax = 100))
+	int PrefilterGridResolution = 10;
 
 };
 
