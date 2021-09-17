@@ -103,7 +103,7 @@ namespace CADKernel
 			return Database.SpawnEntityIdent(SelectedEntities, bForceSpawning);
 		}
 
-		uint32 SpawnEntityIdent(TSharedPtr<FEntity>& SelectedEntity, bool bForceSpawning)
+		uint32 SpawnEntityIdent(TSharedPtr<FEntity> SelectedEntity, bool bForceSpawning)
 		{
 			return Database.SpawnEntityIdent(SelectedEntity, bForceSpawning);
 		}

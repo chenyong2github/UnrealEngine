@@ -44,16 +44,16 @@ namespace CADKernel
 #endif
 	}
 
+#ifdef CADKERNEL_DEV
 	void Wait(bool bMakeWait)
 	{
 		if (bMakeWait)
 		{
-#ifdef CADKERNEL_DEV
 			system("PAUSE");
 			printf("Hello\n");
-#endif
 		}
 	}
+#endif
 
 	void Open3DDebugSegment(FIdent Ident)
 	{

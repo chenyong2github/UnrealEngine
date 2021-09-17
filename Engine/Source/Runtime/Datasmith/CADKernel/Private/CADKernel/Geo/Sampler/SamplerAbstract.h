@@ -151,7 +151,8 @@ namespace CADKernel
 		void RunSampling()
 		{
 
-			while (int32 CandidatePointsCount = CandidatePoints.Size())
+			// < 100000 : check to avoid that the process loops endlessly
+			while (int32 CandidatePointsCount = CandidatePoints.Size() && Sampling.Coordinates.Num() < 100000)
 			{
 				NextCoordinates.Empty();
 

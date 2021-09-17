@@ -20,8 +20,8 @@ int32 FMesh::RegisterCoordinates()
 FInfoEntity& FMesh::GetInfo(FInfoEntity& Info) const
 {
 	return FEntityGeom::GetInfo(Info)
-		.Add(TEXT("geometric Entity"), GetGeometricEntity())
-		.Add(TEXT("mesh model"), GetMeshModel())
+		.Add(TEXT("Geometric Entity"), (FEntity&) GetGeometricEntity())
+		.Add(TEXT("Mesh model"), (FEntity&) GetMeshModel())
 		.Add(TEXT("Node Num"), (int32) NodeCoordinates.Num());
 }
 #endif
