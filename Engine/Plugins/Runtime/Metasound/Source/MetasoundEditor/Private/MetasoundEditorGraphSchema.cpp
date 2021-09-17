@@ -920,13 +920,7 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 				TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputsWithVertexName(Pin->GetFName());
 				if (ensure(!InputHandles.IsEmpty()))
 				{
-					const FText& DisplayName = InputHandles[0]->GetDisplayName();
-					if (!DisplayName.IsEmptyOrWhitespace())
-					{
-						return DisplayName;
-					}
-
-					return FText::FromName(InputHandles[0]->GetName());
+					return InputHandles[0]->GetDisplayName();;
 				}
 			}
 			else
@@ -934,13 +928,7 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 				TArray<FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputsWithVertexName(Pin->GetFName());
 				if (ensure(!OutputHandles.IsEmpty()))
 				{
-					const FText& DisplayName = OutputHandles[0]->GetDisplayName();
-					if (!DisplayName.IsEmptyOrWhitespace())
-					{
-						return DisplayName;
-					}
-
-					return FText::FromName(OutputHandles[0]->GetName());
+					return OutputHandles[0]->GetDisplayName();
 				}
 			}
 

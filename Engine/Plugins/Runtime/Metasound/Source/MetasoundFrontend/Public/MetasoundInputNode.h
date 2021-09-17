@@ -277,10 +277,9 @@ namespace Metasound
 			{
 				FNodeClassMetadata Info;
 
-				Info.ClassName = {TEXT("Input"), GetMetasoundDataTypeName<DataType>(), TEXT("")};
+				Info.ClassName = { "Input", GetMetasoundDataTypeName<DataType>(), FName() };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = FText::Format(LOCTEXT("Metasound_InputNodeDisplayNameFormat", "Input {0}"), FText::FromName(GetMetasoundDataTypeName<DataType>()));
 				Info.Description = LOCTEXT("Metasound_InputNodeDescription", "Input into the parent Metasound graph.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
