@@ -59,11 +59,6 @@ void FTextureLODGroup::SetupGroup()
 		}
 	}
 
-	MinLODMipCount = FMath::CeilLogTwo(MinLODSize);
-	MaxLODMipCount = FMath::CeilLogTwo(MaxLODSize);
-
-	OptionalMaxLODMipCount = FMath::CeilLogTwo(OptionalMaxLODSize);
-
 	// Linear filtering
 	if (MinMagFilter == NAME_Linear)
 	{
@@ -182,9 +177,15 @@ int32 UTextureLODSettings::CalculateLODBias(int32 Width, int32 Height, int32 Max
 		UsedLODBias += GUITextureLODBias;
 	}
 
-	// Don't apply LOD group mip clamping to VT, since VT max size isn't constrained by any GPU capabilities
-	const int32 MinLOD	= bVirtualTexture ? 0 : LODGroupInfo.MinLODMipCount;
-	const int32 MaxLOD	= bVirtualTexture ? TextureMaxLOD : LODGroupInfo.MaxLODMipCount;
+	int32 MinLOD = FMath::CeilLogTwo(LODGroupInfo.MinLODSize);
+	int32 MaxLOD = FMath::CeilLogTwo(LODGroupInfo.MaxLODSize);
+
+	if (bVirtualTexture)
+	{
+		// Virtual textures have no MinLOD and a specific MaxLOD setting.
+		MinLOD = 0;
+		MaxLOD = LODGroupInfo.MaxLODSize_VT > 0 ? FMath::CeilLogTwo(LODGroupInfo.MaxLODSize_VT) : TextureMaxLOD;
+	}
 
 	int32 WantedMaxLOD	= FMath::Clamp( TextureMaxLOD - UsedLODBias, MinLOD, MaxLOD );
 	WantedMaxLOD		= FMath::Clamp( WantedMaxLOD, 0, TextureMaxLOD );
@@ -206,7 +207,7 @@ int32 UTextureLODSettings::CalculateNumOptionalMips(int32 LODGroup, const int32 
 		return 0;
 	}
 
-	int32 OptionalLOD = FMath::Min(LODGroupInfo.OptionalMaxLODMipCount+1, NumMips);
+	int32 OptionalLOD = FMath::Min<int32>(FMath::CeilLogTwo(LODGroupInfo.OptionalMaxLODSize) + 1, NumMips);
 
 	int32 NumOptionalMips = FMath::Min(NumMips - (OptionalLOD - LODGroupInfo.OptionalLODBias), MinMipToInline);
 	return NumOptionalMips;
