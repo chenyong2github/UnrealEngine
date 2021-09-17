@@ -95,7 +95,8 @@ public:
 	 * @param InSandboxFile sandbox to load/save data
 	 * @param bGenerateStreamingInstallManifest should we build a streaming install manifest 
 	 */
-	void BuildChunkManifest(const TSet<FName>& CookedPackages, const TSet<FName>& DevelopmentOnlyPackages, FSandboxPlatformFile* InSandboxFile, bool bGenerateStreamingInstallManifest);
+	void BuildChunkManifest(const TSet<FName>& CookedPackages, const TSet<FName>& DevelopmentOnlyPackages,
+		FSandboxPlatformFile& InSandboxFile, bool bGenerateStreamingInstallManifest);
 
 	/**
 	 * Register a chunk data generator with this generator.
@@ -130,24 +131,6 @@ public:
 	FAssetPackageData* GetAssetPackageData(const FName& PackageName);
 
 	/**
-	 * Adds a package to chunk manifest (just calls the other AddPackageToChunkManifestFunction with more parameters)
-	 *
-	 * @param Package Package to add to one of the manifests
-	 * @param SandboxFilename Cooked sandbox path of the package to add to a manifest
-	 * @param LastLoadedMapName Name of the last loaded map (can be empty)
-	 * @param the SandboxPlatformFile used during cook
-	 */
-	void AddPackageToChunkManifest(const FName& PackageFName, const FString& PackagePathName, const FString& SandboxFilename, const FString& LastLoadedMapName, FSandboxPlatformFile* InSandboxFile);
-	
-	/**
-	 * Add a package to the manifest but don't assign it to any chunk yet, packages which are not assigned by the end of the cook will be put into chunk 0
-	 * 
-	 * @param Package which is unassigned
-	 * @param The sandbox file path of the package
-	 */
-	void AddUnassignedPackageToManifest(UPackage* Package, const FString& PackageSandboxPath );
-
-	/**
 	 * Deletes temporary manifest directories.
 	 */
 	void CleanManifestDirectories();
@@ -158,7 +141,7 @@ public:
 	 * @param InSandboxFile the InSandboxFile used during cook
 	 * @param InExtraFlavorChunkSize the ChunkSize used during cooking for InExtraFlavor, value greater than 0 will trigger a cook for extra flavor with specified chunk size
 	 */
-	bool SaveManifests(FSandboxPlatformFile* InSandboxFile, int64 InExtraFlavorChunkSize = 0);
+	bool SaveManifests(FSandboxPlatformFile& InSandboxFile, int64 InExtraFlavorChunkSize = 0);
 
 	/**
 	* Saves generated asset registry data for each platform.
@@ -168,7 +151,7 @@ public:
 	/** 
 	 * Writes out CookerOpenOrder.log file 
 	 */
-	bool WriteCookerOpenOrder(FSandboxPlatformFile* InSandboxFile);
+	bool WriteCookerOpenOrder(FSandboxPlatformFile& InSandboxFile);
 
 	/**
 	 * Follows an assets dependency chain to build up a list of package names in the same order as the runtime would attempt to load them
@@ -257,19 +240,19 @@ private:
 	/** Highest chunk id, being used for geneating dependency tree */
 	int32 HighestChunkId;
 	/** Array of Maps with chunks<->packages assignments */
-	TArray<FChunkPackageSet*>		ChunkManifests;
+	TArray<TUniquePtr<FChunkPackageSet>> ChunkManifests;
 	/** Map of packages that has not been assigned to chunks */
-	FChunkPackageSet				UnassignedPackageSet;
+	FChunkPackageSet UnassignedPackageSet;
 	/** Map of all cooked Packages */
-	FChunkPackageSet				AllCookedPackageSet;
+	FChunkPackageSet AllCookedPackageSet;
 	/** Array of Maps with chunks<->packages assignments. This version contains all dependent packages */
-	TArray<FChunkPackageSet*>		FinalChunkManifests;
+	TArray<TUniquePtr<FChunkPackageSet>> FinalChunkManifests;
 	/** Additional data generators used when creating chunks */
 	TArray<TSharedRef<IChunkDataGenerator>> ChunkDataGenerators;
 	/** Lookup table of used package names used when searching references. */
-	TSet<FName>						InspectedNames;
-	/** */
-	UChunkDependencyInfo*			DependencyInfo;
+	TSet<FName> InspectedNames;
+	/** Source of the config-driven parent-child relationships between chunks. */
+	UChunkDependencyInfo& DependencyInfo;
 
 	/** Required flags a dependency must have if it is to be followed when adding package dependencies to chunks.*/
 	UE::AssetRegistry::EDependencyQuery DependencyQuery;
@@ -323,14 +306,15 @@ private:
 	 * 
 	 * @param the InSandboxFile used during cook
 	 */
-	void FixupPackageDependenciesForChunks(FSandboxPlatformFile* InSandboxFile);
+	void FixupPackageDependenciesForChunks(FSandboxPlatformFile& InSandboxFile);
 
 	/**
 	 * Attaches encryption key guids into the registry data for encrypted primary assets
 	 */
 	void InjectEncryptionData(FAssetRegistryState& TargetState);
 
-	void AddPackageAndDependenciesToChunk(FChunkPackageSet* ThisPackageSet, FName InPkgName, const FString& InSandboxFile, int32 PakchunkIndex, FSandboxPlatformFile* SandboxPlatformFile);
+	void AddPackageAndDependenciesToChunk(FChunkPackageSet& ThisPackageSet, FName InPkgName,
+		const FString& InSandboxFile, int32 PakchunkIndex, FSandboxPlatformFile& SandboxPlatformFile);
 
 	/**
 	 * Returns the path of the temporary packaging directory for the specified platform.
@@ -340,49 +324,18 @@ private:
 		return FPaths::ProjectSavedDir() / TEXT("TmpPackaging") / Platform;
 	}
 
-	/**
-	 * 
-	 */
+	/** Returns the config-driven max size of a chunk for the given platform, or -1 for no limit. */
 	int64 GetMaxChunkSizePerPlatform( const ITargetPlatform* Platform ) const;
 
-	/**
-	* Returns an array of chunks ID for a package name that have been assigned during the cook process.
-	*/
-	FORCEINLINE TArray<int32> GetExistingPackageChunkAssignments(FName PackageFName)
-	{
-		TArray<int32> ExistingChunkIDs;
-		for (uint32 ChunkIndex = 0, MaxChunk = ChunkManifests.Num(); ChunkIndex < MaxChunk; ++ChunkIndex)
-		{
-			if (ChunkManifests[ChunkIndex] && ChunkManifests[ChunkIndex]->Contains(PackageFName))
-			{
-				ExistingChunkIDs.AddUnique(ChunkIndex);
-			}
-		}
+	/** Returns an array of chunks ID for a package name that have been assigned during the cook process. */
+	TArray<int32> GetExistingPackageChunkAssignments(FName PackageFName);
 
-		if ( StartupPackages.Contains(PackageFName ))
-		{
-			ExistingChunkIDs.AddUnique(0);
-		}
-
-		return ExistingChunkIDs;
-	}
-
-	/**
-	* Returns an array of chunks IDs for a package that have been assigned in the editor.
-	*/
-	FORCEINLINE TArray<int32> GetAssetRegistryChunkAssignments(const FName& PackageFName)
-	{
-		TArray<int32> RegistryChunkIDs;
-		auto* FoundIDs = PackageChunkIDMap.Find(PackageFName);
-		if (FoundIDs)
-		{
-			RegistryChunkIDs = *FoundIDs;
-		}
-		return RegistryChunkIDs;
-	}
+	/** Returns an array of chunks IDs for a package that have been assigned in the editor. */
+	TArray<int32> GetAssetRegistryChunkAssignments(const FName& PackageFName);
 
 	/** Generate manifest for a single package */
-	void GenerateChunkManifestForPackage(const FName& PackageFName, const FString& PackagePathName, const FString& SandboxFilename, const FString& LastLoadedMapName, FSandboxPlatformFile* InSandboxFile);
+	void GenerateChunkManifestForPackage(const FName& PackageFName, const FString& PackagePathName,
+		const FString& SandboxFilename, const FString& LastLoadedMapName, FSandboxPlatformFile& InSandboxFile);
 
 	/** Deletes the temporary packaging directory for the specified platform */
 	bool CleanTempPackagingDirectory(const FString& Platform) const;
@@ -391,7 +344,7 @@ private:
 	bool ShouldPlatformGenerateStreamingInstallManifest(const ITargetPlatform* Platform) const;
 
 	/** Generates and saves streaming install chunk manifest */
-	bool GenerateStreamingInstallManifest(int64 InExtraFlavorChunkSize, FSandboxPlatformFile* InSandboxFile);
+	bool GenerateStreamingInstallManifest(int64 InExtraFlavorChunkSize, FSandboxPlatformFile& InSandboxFile);
 
 	/** Gather a list of dependencies required by to completely load this package */
 	bool GatherAllPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames);
@@ -412,7 +365,8 @@ private:
 	FString	GetShortestReferenceChain(FName PackageName, int32 ChunkID);
 
 	/** Deprecated method to remove redundant chunks */
-	void ResolveChunkDependencyGraph(const FChunkDependencyTreeNode& Node, const TSet<FName>& BaseAssetSet, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks);
+	void ResolveChunkDependencyGraph(const FChunkDependencyTreeNode& Node,
+		const TSet<FName>& BaseAssetSet, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks);
 
 	/** Helper function to verify Chunk asset assignment is valid */
 	bool CheckChunkAssetsAreNotInChild(const FChunkDependencyTreeNode& Node);

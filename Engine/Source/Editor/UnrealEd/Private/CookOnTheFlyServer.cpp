@@ -6888,12 +6888,12 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				}
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(BuildChunkManifest);
-					Generator.BuildChunkManifest(CookedPackageNames, IgnorePackageNames, SandboxFile.Get(), CookByTheBookOptions->bGenerateStreamingInstallManifests);
+					Generator.BuildChunkManifest(CookedPackageNames, IgnorePackageNames, *SandboxFile, CookByTheBookOptions->bGenerateStreamingInstallManifests);
 				}
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(SaveManifests);
 					// Always try to save the manifests, this is required to make the asset registry work, but doesn't necessarily write a file
-					if (!Generator.SaveManifests(SandboxFile.Get()))
+					if (!Generator.SaveManifests(*SandboxFile))
 					{
 						UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
 					}
@@ -6903,7 +6903,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					{
 						if (ExtraFlavorChunkSize > 0)
 						{
-							if (!Generator.SaveManifests(SandboxFile.Get(), ExtraFlavorChunkSize))
+							if (!Generator.SaveManifests(*SandboxFile, ExtraFlavorChunkSize))
 							{
 								UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
 							}
@@ -6921,7 +6921,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(WriteCookerOpenOrder);
 					if (!IsCookFlagSet(ECookInitializationFlags::Iterative))
 					{
-						Generator.WriteCookerOpenOrder(SandboxFile.Get());
+						Generator.WriteCookerOpenOrder(*SandboxFile);
 					}
 				}
 				// now that we have the asset registry and cooking open order, we have enough information to split the shader library
