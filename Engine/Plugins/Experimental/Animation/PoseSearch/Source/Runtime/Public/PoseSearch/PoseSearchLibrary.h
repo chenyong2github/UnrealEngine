@@ -26,9 +26,9 @@ struct POSESEARCH_API FMotionMatchingSettings
 {
 	GENERATED_BODY()
 
-	// Dynamic biasing weights for influencing pose search queries
+	// Dynamic weights for influencing pose selection
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
-	FPoseSearchBiasWeightParams BiasWeights;
+	FPoseSearchDynamicWeightParams Weights;
 
 	// Time in seconds to blend out to the new pose. Uses inertial blending and requires an Inertialization node after this node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
@@ -73,6 +73,10 @@ struct POSESEARCH_API FMotionMatchingState
 	// The current query feature vector used to search the database for pose candidates
 	UPROPERTY(Transient)
 	FPoseSearchFeatureVectorBuilder ComposedQuery;
+
+	// Precomputed runtime weights
+	UPROPERTY(Transient)
+	FPoseSearchWeightsContext WeightsContext;
 
 	// When the database changes, the search parameters are reset
 	UPROPERTY(Transient)

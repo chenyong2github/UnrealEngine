@@ -33,8 +33,6 @@ void FPoseSearchDebuggerFeatureReflection::EmptyAll()
 
 namespace UE { namespace PoseSearch {
 
-constexpr uint8 DrawDebugDepthPriority = SDPG_Foreground + 2;
-
 class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData>
 {
 public:
@@ -521,64 +519,30 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 		CreateRows(Database);
 	}
 	check(ActiveView.Rows.Num() == 1);
+	
+	FPoseSearchDynamicWeightParams StateDynamicWeightParams;
+	FPoseSearchWeightsContext StateWeights;
+	StateWeights.Update(StateDynamicWeightParams, &Database);
 
-	// Active bias weights pulled from the MM node
-	FPoseSearchBiasWeights BiasWeights;
-    BiasWeights.Weights = State.BiasWeights;
+	FPoseSearchWeightsContext PoseWeights;
+	FPoseSearchDynamicWeightParams WeightParams = StateDynamicWeightParams;
+	WeightParams.TrajectoryDynamicWeights.ChannelWeightScale = 0.0f;
+	PoseWeights.Update(WeightParams, &Database);
 
-	const FPoseSearchFeatureVectorLayout& Layout = Database.Schema->Layout;
+	FPoseSearchWeightsContext TrajectoryWeights;
+	WeightParams = StateDynamicWeightParams;
+	WeightParams.PoseDynamicWeights.ChannelWeightScale = 0.0f;
+	TrajectoryWeights.Update(WeightParams, &Database);
+	
 	const FPoseSearchIndex& SearchIndex = Database.SearchIndex;
 
-	// Reverse engineer weight params from weights array
-	auto ExtractWeight = [](
-		const FPoseSearchFeatureVectorLayout& InLayout,
-		const FPoseSearchBiasWeights& InBiasWeights,
-		const EPoseSearchFeatureType InFeatureType,
-		const bool bTrajectory
-		) -> float
-		{
-			int32 FeatureIdx = INDEX_NONE;
-			if (InLayout.EnumerateFeature(InFeatureType, bTrajectory, FeatureIdx))
-			{
-				const FPoseSearchFeatureDesc& Feature = InLayout.Features[FeatureIdx];
-            	// Return first weight found associated with the feature
-				// as the same weight is applied to all features in the buffer (for now?)
-            	return InBiasWeights.Weights[Feature.ValueOffset];	
-			}
-			return 0.0f;
-		};
-
-	// @TODO: Compute alternate scores based on column visibility in view options
-	// Zeroed trajectory for pose score exclusively
-	FPoseSearchBiasWeightParams Params;
-	Params.PosePositionWeight = ExtractWeight(Layout, BiasWeights, EPoseSearchFeatureType::Position, false);
-	Params.PoseLinearVelocityWeight = ExtractWeight(Layout, BiasWeights, EPoseSearchFeatureType::LinearVelocity, false);
-	Params.TrajectoryPositionWeight = 0.0f;
-	Params.TrajectoryLinearVelocityWeight = 0.0f;
-	
-	FPoseSearchBiasWeights PoseBiasWeights;
-	PoseBiasWeights.Init(Params, Layout);
-
-	// Zeroed pose for trajectory score
-	Params.PosePositionWeight = 0.0f;
-	Params.PoseLinearVelocityWeight = 0.0f;
-	Params.TrajectoryPositionWeight = ExtractWeight(Layout, BiasWeights, EPoseSearchFeatureType::Position, true);
-	Params.TrajectoryLinearVelocityWeight = ExtractWeight(Layout, BiasWeights, EPoseSearchFeatureType::LinearVelocity, true);
-	
-	FPoseSearchBiasWeights TrajectoryBiasWeights;
-	TrajectoryBiasWeights.Init(Params, Layout);
-	
-	const FPoseSearchBiasWeightsContext BiasWeightsContext { &BiasWeights, &Database };
-	const FPoseSearchBiasWeightsContext PoseBiasWeightsContext { &PoseBiasWeights, &Database };
-	const FPoseSearchBiasWeightsContext TrajectoryBiasWeightsContext { &TrajectoryBiasWeights, &Database };
-	
 	for(const TSharedRef<FDebuggerDatabaseRowData>& Row : DatabaseView.Rows)
 	{
 		const int32 PoseIdx = Row->PoseIdx;
 		
-		Row->Score = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &BiasWeightsContext);
-		Row->PoseScore = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &PoseBiasWeightsContext);
-		Row->TrajectoryScore = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &TrajectoryBiasWeightsContext);
+		Row->Score = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &StateWeights);
+		Row->PoseScore = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &PoseWeights);
+		Row->TrajectoryScore = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &TrajectoryWeights);
 
 		// If we are on the active pose for the frame
 		if (PoseIdx == State.DbPoseIdx)
@@ -1641,4 +1605,4 @@ FName FDebuggerViewCreator::GetName() const
 	return Name;
 }
 
-}}
+}} // namespace UE::PoseSearch

@@ -3,6 +3,7 @@
 #include "PoseSearch/PoseSearch.h"
 #include "PoseSearchEigenHelper.h"
 
+#include "Algo/BinarySearch.h"
 #include "Async/ParallelFor.h"
 #include "Templates/IdentityFunctor.h"
 #include "Templates/Invoke.h"
@@ -23,10 +24,10 @@
 #include "BonePose.h"
 #include "Trace/PoseSearchTraceLogger.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Misc/MemStack.h"
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
 
-PRAGMA_DISABLE_OPTIMIZATION
 
 namespace UE { namespace PoseSearch {
 
@@ -61,15 +62,28 @@ static FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequenc
 
 static inline float CompareFeatureVectors(int32 NumValues, const float* A, const float* B, const float* Weights)
 {
-	float Dissimilarity = 0.f;
+	double Dissimilarity = 0.f;
 
 	for (int32 ValueIdx = 0; ValueIdx != NumValues; ++ValueIdx)
 	{
-		const float Diff = Weights[ValueIdx] * (A[ValueIdx] - B[ValueIdx]);
+		const float Diff = A[ValueIdx] - B[ValueIdx];
+		Dissimilarity += Weights[ValueIdx] * (Diff * Diff);
+	}
+
+	return (float)Dissimilarity;
+}
+
+static inline float CompareFeatureVectors(int32 NumValues, const float* A, const float* B)
+{
+	double Dissimilarity = 0.f;
+
+	for (int32 ValueIdx = 0; ValueIdx != NumValues; ++ValueIdx)
+	{
+		const float Diff = A[ValueIdx] - B[ValueIdx];
 		Dissimilarity += Diff * Diff;
 	}
 
-	return Dissimilarity;
+	return (float)Dissimilarity;
 }
 
 FLinearColor GetColorForFeature(FPoseSearchFeatureDesc Feature, const FPoseSearchFeatureVectorLayout* Layout)
@@ -140,6 +154,12 @@ FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueTy
 }
 
 
+// Stopgap channel indices since schemas don't yet support explicit channels of data
+constexpr int32 ChannelIdxPose = 0;
+constexpr int32 ChannelIdxTrajectoryTime = 1;
+constexpr int32 ChannelIdxTrajectoryDistance = 2;
+
+
 //////////////////////////////////////////////////////////////////////////
 // FFeatureTypeTraits
 
@@ -188,14 +208,6 @@ bool FPoseSearchFeatureDesc::operator==(const FPoseSearchFeatureDesc& Other) con
 		(Domain == Other.Domain);
 }
 
-bool FPoseSearchFeatureDesc::IsSubsampleOfSameFeature(const FPoseSearchFeatureDesc& Other) const
-{
-	return
-		(SchemaBoneIdx == Other.SchemaBoneIdx) &&
-		(Type == Other.Type) &&
-		(Domain == Other.Domain);
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchFeatureVectorLayout
@@ -210,25 +222,6 @@ void FPoseSearchFeatureVectorLayout::Init()
 
 		uint32 FeatureNumFloats = UE::PoseSearch::GetFeatureTypeTraits(Feature.Type).NumFloats;
 		FloatCount += FeatureNumFloats;
-
-		if (Feature.SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex)
-		{
-			if (FirstTrajectoryValueOffset == -1)
-			{
-				FirstTrajectoryValueOffset = Feature.ValueOffset;
-			}
-
-			NumTrajectoryValues += FeatureNumFloats;
-		}
-		else
-		{
-			if (FirstPoseValueOffset == -1)
-			{
-				FirstPoseValueOffset = Feature.ValueOffset;
-			}
-
-			NumPoseValues += FeatureNumFloats;
-		}
 	}
 
 	NumFloats = FloatCount;
@@ -238,10 +231,6 @@ void FPoseSearchFeatureVectorLayout::Reset()
 {
 	Features.Reset();
 	NumFloats = 0;
-	NumTrajectoryValues = 0;
-	NumPoseValues = 0;
-	FirstTrajectoryValueOffset = -1;
-	FirstPoseValueOffset = -1;
 }
 
 bool FPoseSearchFeatureVectorLayout::IsValid(int32 MaxNumBones) const
@@ -262,18 +251,45 @@ bool FPoseSearchFeatureVectorLayout::IsValid(int32 MaxNumBones) const
 	return true;
 }
 
-bool FPoseSearchFeatureVectorLayout::EnumerateFeature(EPoseSearchFeatureType FeatureType, bool bTrajectory, int32& OutFeatureIdx) const
+bool FPoseSearchFeatureVectorLayout::EnumerateBy(int32 ChannelIdx, EPoseSearchFeatureType Type, int32& InOutFeatureIdx) const
 {
-	// This function behaves similar to a generator
-	// OutFeatureIdx represents the 'next' Pose Feature Description that matches the inner criteria
-	// OutFeatureIdx can then be used again as a starting index to begin a subsequent search
-	for (int32 Idx = OutFeatureIdx + 1, Size = Features.Num(); Idx < Size; ++Idx)
+	auto IsChannelMatch = [](int32 ChannelIdx, const FPoseSearchFeatureDesc& Feature) -> bool
 	{
-		// A trajectory feature match will result when bTrajectory = True and SchemaBoneIdx = -1
-		// A pose feature match will result when bTrajectory = False and SchemaBoneIdx != -1
-		if (Features[Idx].Type == FeatureType && (bTrajectory == (Features[Idx].SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex)))
+		bool bChannelMatch = true;
+		if (ChannelIdx == UE::PoseSearch::ChannelIdxPose)
 		{
-			OutFeatureIdx = Idx;
+			bChannelMatch = Feature.SchemaBoneIdx != FPoseSearchFeatureDesc::TrajectoryBoneIndex;
+		}
+		else if (ChannelIdx == UE::PoseSearch::ChannelIdxTrajectoryTime)
+		{
+			bChannelMatch = (Feature.SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex) && (Feature.Domain == EPoseSearchFeatureDomain::Time);
+		}
+		else if (ChannelIdx == UE::PoseSearch::ChannelIdxTrajectoryDistance)
+		{
+			bChannelMatch = (Feature.SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex) && (Feature.Domain == EPoseSearchFeatureDomain::Distance);
+		}
+		return bChannelMatch;
+	};
+
+	auto IsTypeMatch = [](EPoseSearchFeatureType Type, const FPoseSearchFeatureDesc& Feature) -> bool
+	{
+		bool bTypeMatch = true;
+		if (Type != EPoseSearchFeatureType::Invalid)
+		{
+			bTypeMatch = Feature.Type == Type;
+		}
+		return bTypeMatch;
+	};
+
+	for (int32 Size = Features.Num(); ++InOutFeatureIdx < Size; )
+	{
+		const FPoseSearchFeatureDesc& Feature = Features[InOutFeatureIdx];
+
+		bool bChannelMatch = IsChannelMatch(ChannelIdx, Feature);
+		bool bTypeMatch = IsTypeMatch(Type, Feature);
+
+		if (bChannelMatch && bTypeMatch)
+		{
 			return true;
 		}
 	}
@@ -346,6 +362,24 @@ float UPoseSearchSchema::GetTrajectoryFutureDistanceHorizon () const
 float UPoseSearchSchema::GetTrajectoryPastDistanceHorizon () const
 {
 	return TrajectorySampleDistances.Num() ? TrajectorySampleDistances[0] : 1.0f;
+}
+
+TArrayView<const float> UPoseSearchSchema::GetChannelSampleOffsets (int32 ChannelIdx) const
+{
+	if (ChannelIdx == UE::PoseSearch::ChannelIdxPose)
+	{
+		return PoseSampleTimes;
+	}
+	else if (ChannelIdx == UE::PoseSearch::ChannelIdxTrajectoryTime)
+	{
+		return TrajectorySampleTimes;
+	}
+	else if (ChannelIdx == UE::PoseSearch::ChannelIdxTrajectoryDistance)
+	{
+		return TrajectorySampleDistances;
+	}
+
+	return {};
 }
 
 void UPoseSearchSchema::GenerateLayout()
@@ -463,34 +497,331 @@ void UPoseSearchSchema::ResolveBoneReferences()
 
 
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchBiasWeights
+// FPoseSearchChannelWeightParams
 
-void FPoseSearchBiasWeights::Init(const FPoseSearchBiasWeightParams& WeightParams, const FPoseSearchFeatureVectorLayout& Layout)
+FPoseSearchChannelWeightParams::FPoseSearchChannelWeightParams()
 {
-	// Initialize all weights to a default value of 1, and subsequently override all bound weights to their assigned value
-	Weights.Init(1.f, Layout.NumFloats);
-	BindSemanticWeight(WeightParams.TrajectoryPositionWeight, Layout, EPoseSearchFeatureType::Position, true);
-	BindSemanticWeight(WeightParams.TrajectoryLinearVelocityWeight, Layout, EPoseSearchFeatureType::LinearVelocity, true);
-	BindSemanticWeight(WeightParams.PosePositionWeight, Layout, EPoseSearchFeatureType::Position, false);
-	BindSemanticWeight(WeightParams.PoseLinearVelocityWeight, Layout, EPoseSearchFeatureType::LinearVelocity, false);
+	for (int32 Type = 0; Type != (int32)EPoseSearchFeatureType::Num; ++Type)
+	{
+		TypeWeights.Add((EPoseSearchFeatureType)Type, 1.0f);
+	}
 }
 
-void FPoseSearchBiasWeights::BindSemanticWeight(float Weight, const FPoseSearchFeatureVectorLayout& Layout, EPoseSearchFeatureType FeatureType, bool bTrajectory)
-{
-	// The Weight parameter will be bound to a specific feature described by the FPoseSearchFeatureVectorLayout
-	int32 FeatureIdx = INDEX_NONE;
-	while (Layout.EnumerateFeature(FeatureType, bTrajectory, FeatureIdx))
-	{
-		const FPoseSearchFeatureDesc& Feature = Layout.Features[FeatureIdx];
-		const int32 FirstValueIdx = Feature.ValueOffset;
-		const int32 NumValues = UE::PoseSearch::GetFeatureTypeTraits(FeatureType).NumFloats;
 
-		// NOTE: This enumeration method is currently assumed by the PoseSearch Debugger
-		for (int32 Idx = 0; Idx < NumValues; ++Idx)
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchWeights
+
+void FPoseSearchWeights::Init(const FPoseSearchWeightParams& WeightParams, const UPoseSearchSchema* Schema, const FPoseSearchDynamicWeightParams& DynamicWeightParams)
+{
+	using namespace UE::PoseSearch;
+	using namespace Eigen;
+
+	// Convenience enum for indexing by horizon
+	enum EHorizon : int
+	{
+		History,
+		Prediction,
+		Num
+	};
+
+	// Initialize weights
+	Weights.Reset();
+	Weights.SetNumZeroed(Schema->Layout.NumFloats);
+
+	// Completely disable weights if requested
+	if (DynamicWeightParams.bDebugDisableWeights)
+	{
+		for (float& Weight: Weights)
 		{
-			Weights[FirstValueIdx + Idx] = Weight;
+			Weight = 1.0f;
+		}
+		return;
+	}
+
+	
+	FMemMark MemMark(FMemStack::Get());
+
+
+	// Setup channel indexable weight params
+	constexpr int ChannelNum = 3;
+	const FPoseSearchChannelWeightParams* ChannelWeightParams[ChannelNum];
+	const FPoseSearchChannelDynamicWeightParams* ChannelDynamicWeightParams[ChannelNum];
+
+	ChannelWeightParams[ChannelIdxPose] = &WeightParams.PoseWeight;
+	ChannelWeightParams[ChannelIdxTrajectoryTime] = &WeightParams.TrajectoryWeight;
+	ChannelWeightParams[ChannelIdxTrajectoryDistance] = &WeightParams.TrajectoryWeight;
+
+	ChannelDynamicWeightParams[ChannelIdxPose] = &DynamicWeightParams.PoseDynamicWeights;
+	ChannelDynamicWeightParams[ChannelIdxTrajectoryTime] = &DynamicWeightParams.TrajectoryDynamicWeights;
+	ChannelDynamicWeightParams[ChannelIdxTrajectoryDistance] = &DynamicWeightParams.TrajectoryDynamicWeights;
+
+
+	// Normalize channel weights
+	Array<float, ChannelNum, 1> NormalizedChannelWeights;
+	for (int ChannelIdx = 0; ChannelIdx != ChannelNum; ++ChannelIdx)
+	{
+		NormalizedChannelWeights[ChannelIdx] = ChannelWeightParams[ChannelIdx]->ChannelWeight * ChannelDynamicWeightParams[ChannelIdx]->ChannelWeightScale;
+
+		// Zero the channel weight if there are no features in this channel
+		int32 FeatureIdx = INDEX_NONE;
+		if (!Schema->Layout.EnumerateBy(ChannelIdx, EPoseSearchFeatureType::Invalid, FeatureIdx))
+		{
+			NormalizedChannelWeights[ChannelIdx] = 0.0f;
 		}
 	}
+
+	const float ChannelWeightSum = NormalizedChannelWeights.sum();
+	if (!FMath::IsNearlyZero(ChannelWeightSum))
+	{
+		NormalizedChannelWeights *= (1.0f / ChannelWeightSum);
+	}	
+
+
+	// Determine maximum number of channel sample offsets for allocation
+	int32 MaxChannelSampleOffsets = 0;
+	for (int ChannelIdx = 0; ChannelIdx != ChannelNum; ++ChannelIdx)
+	{
+		TArrayView<const float> ChannelSampleOffsets = Schema->GetChannelSampleOffsets(ChannelIdx);
+		MaxChannelSampleOffsets = FMath::Max(MaxChannelSampleOffsets, ChannelSampleOffsets.Num());
+	}
+
+	// WeightsByFeature is indexed by FeatureIdx in a Layout
+	TArray<float, TMemStackAllocator<>> WeightsByFeatureStorage;
+	WeightsByFeatureStorage.SetNum(Schema->Layout.Features.Num());
+	Map<ArrayXf> WeightsByFeature(WeightsByFeatureStorage.GetData(), WeightsByFeatureStorage.Num());
+
+	// HorizonWeightsBySample is indexed by the channel's sample offsets in a Schema
+	TArray<float, TMemStackAllocator<>> HorizonWeightsBySampleStorage;
+	HorizonWeightsBySampleStorage.SetNum(MaxChannelSampleOffsets);
+	Map<ArrayXf> HorizonWeightsBySample(HorizonWeightsBySampleStorage.GetData(), HorizonWeightsBySampleStorage.Num());
+
+	// WeightsByType is indexed by feature type
+	Array<float, (int)EPoseSearchFeatureType::Num, 1> WeightsByType;
+
+
+	// Determine each channel's feature weights
+	for (int ChannelIdx = 0; ChannelIdx != ChannelNum; ++ChannelIdx)
+	{
+		// Ignore this channel entirely if it has no weight
+		if (FMath::IsNearlyZero(NormalizedChannelWeights[ChannelIdx]))
+		{
+			continue;
+		}
+
+		// Get channel info
+		const FPoseSearchChannelWeightParams& ChannelWeights = *ChannelWeightParams[ChannelIdx];
+		const FPoseSearchChannelDynamicWeightParams& ChannelDynamicWeights = *ChannelDynamicWeightParams[ChannelIdx];
+		TArrayView<const float> ChannelSampleOffsets = Schema->GetChannelSampleOffsets(ChannelIdx);
+
+		// Reset scratch weights
+		WeightsByFeature.setConstant(0.0f);
+		WeightsByType.setConstant(0.0f);
+		HorizonWeightsBySample.setConstant(0.0f);
+
+
+		// Initialize weights by type lookup
+		for (int Type = 0; Type != (int)EPoseSearchFeatureType::Num; ++Type)
+		{
+			WeightsByType[Type] = ChannelWeights.TypeWeights.FindRef((EPoseSearchFeatureType)Type);
+
+			// Zero the weight if this channel doesn't have any features using this type
+			int32 FeatureIdx = INDEX_NONE;
+			if (!Schema->Layout.EnumerateBy(ChannelIdx, (EPoseSearchFeatureType)Type, FeatureIdx))
+			{
+				WeightsByType[Type] = 0.0f;
+			}
+		}
+
+		// Normalize type weights
+		float TypeWeightsSum = WeightsByType.sum();
+		if (!FMath::IsNearlyZero(TypeWeightsSum))
+		{
+			WeightsByType *= (1.0f / TypeWeightsSum);
+		}
+		else
+		{
+			// Ignore this channel entirely if there are no types contributing weight
+			continue;
+		}
+
+
+		// Determine the range of sample offsets that make up the history and prediction horizons
+		FInt32Range HorizonSampleIdxRanges[EHorizon::Num];
+		{
+			int32 IdxUpper = Algo::UpperBound(ChannelSampleOffsets, 0.0f);
+			int32 IdxLower = ChannelSampleOffsets[0] <= 0.0f ? 0 : IdxUpper;
+			HorizonSampleIdxRanges[EHorizon::History] = FInt32Range(IdxLower, IdxUpper);
+
+			IdxLower = IdxUpper;
+			IdxUpper = ChannelSampleOffsets.Num();
+			HorizonSampleIdxRanges[EHorizon::Prediction] = FInt32Range(IdxLower, IdxUpper);
+		}
+
+
+		// Initialize horizon weights
+		Array<float, 1, EHorizon::Num> NormalizedHorizonWeights;
+		NormalizedHorizonWeights.setConstant(0.0f);
+
+		if (!HorizonSampleIdxRanges[EHorizon::History].IsEmpty())
+		{
+			NormalizedHorizonWeights[EHorizon::History] = ChannelWeights.HistoryParams.Weight * ChannelDynamicWeights.HistoryWeightScale;
+		}
+		if (!HorizonSampleIdxRanges[EHorizon::Prediction].IsEmpty())
+		{
+			NormalizedHorizonWeights[EHorizon::Prediction] = ChannelWeights.PredictionParams.Weight * ChannelDynamicWeights.PredictionWeightScale;
+		}
+		
+		// Normalize horizon weights
+		float HorizonWeightSum = NormalizedHorizonWeights.sum();
+		if (!FMath::IsNearlyZero(HorizonWeightSum))
+		{
+			NormalizedHorizonWeights *= (1.0f / HorizonWeightSum);
+		}
+		else
+		{
+			// Ignore this channel entirely if the horizons don't contribute any weight
+			continue;
+		}
+
+
+		auto SetHorizonSampleWeights = [&HorizonWeightsBySample, &ChannelSampleOffsets](FInt32Range SampleIdxRange, const FPoseSearchChannelHorizonParams& HorizonParams)
+		{
+			// Segment length represents the number of sample offsets in the span that make up this horizon
+			int32 SegmentLength = SampleIdxRange.Size<int32>();
+
+			if (SegmentLength > 0)
+			{
+				int32 SegmentBegin = SampleIdxRange.GetLowerBoundValue();
+				if (HorizonParams.bInterpolate && SegmentLength > 1)
+				{
+					// We'll map the range spanned by the horizon's sample offsets to the interpolation range
+					// The interpolation range is 0 to 1 unless an initial value was set
+					// The initial value allows the user to set a minimum weight or reverse the lerp direction
+					// We'll normalize these weights in the next step
+					FVector2D InputRange(ChannelSampleOffsets[SegmentBegin], ChannelSampleOffsets[SegmentBegin + SegmentLength - 1]);
+					FVector2D OutputRange(HorizonParams.InitialValue, 1.0f - HorizonParams.InitialValue);
+
+					for (int32 OffsetIdx = SegmentBegin; OffsetIdx != SegmentBegin + SegmentLength; ++OffsetIdx)
+					{
+						float SampleOffset = ChannelSampleOffsets[OffsetIdx];
+						float Alpha = FMath::GetMappedRangeValueUnclamped(InputRange, OutputRange, SampleOffset);
+						float Weight = FAlphaBlend::AlphaToBlendOption(Alpha, HorizonParams.InterpolationMethod);
+						HorizonWeightsBySample[OffsetIdx] = Weight;
+					}
+				}
+				else
+				{
+					// If we're not interpolating weights across this horizon, just give them all equal weight
+					HorizonWeightsBySample.segment(SegmentBegin, SegmentLength).setConstant(1.0f);
+				}
+
+				// Normalize weights within the horizon's segment of sample offsets
+				float HorizonSum = HorizonWeightsBySample.segment(SegmentBegin, SegmentLength).sum();
+				if (!FMath::IsNearlyZero(HorizonSum))
+				{
+					HorizonWeightsBySample.segment(SegmentBegin, SegmentLength) *= 1.0f / HorizonSum;
+				}
+			}
+		};
+
+		SetHorizonSampleWeights(HorizonSampleIdxRanges[EHorizon::History], ChannelWeights.HistoryParams);
+		SetHorizonSampleWeights(HorizonSampleIdxRanges[EHorizon::Prediction], ChannelWeights.PredictionParams);
+
+
+		// Now set this channel's weights for every feature in each horizon
+		Array<float, 1, EHorizon::Num> HorizonSums;
+		HorizonSums = 0.0f;
+		for (int FeatureIdx = INDEX_NONE; Schema->Layout.EnumerateBy(ChannelIdx, EPoseSearchFeatureType::Invalid, FeatureIdx); /*empty*/)
+		{
+			const FPoseSearchFeatureDesc& Feature = Schema->Layout.Features[FeatureIdx];
+
+			for (int HorizonIdx = 0; HorizonIdx != EHorizon::Num; ++HorizonIdx)
+			{
+				if (HorizonSampleIdxRanges[HorizonIdx].Contains(Feature.SubsampleIdx))
+				{
+					int HorizonSize = HorizonSampleIdxRanges[HorizonIdx].Size<int>();
+					WeightsByFeature[FeatureIdx] = HorizonWeightsBySample[Feature.SubsampleIdx] * (HorizonSize * WeightsByType[(int)Feature.Type]);
+					HorizonSums[HorizonIdx] += WeightsByFeature[FeatureIdx];
+					break;
+				}
+			}
+		}
+
+		// Scale feature weights within horizons so that they have the desired total horizon weight
+		for (int FeatureIdx = INDEX_NONE; Schema->Layout.EnumerateBy(ChannelIdx, EPoseSearchFeatureType::Invalid, FeatureIdx); /*empty*/)
+		{
+			const FPoseSearchFeatureDesc& Feature = Schema->Layout.Features[FeatureIdx];
+
+			for (int HorizonIdx = 0; HorizonIdx != EHorizon::Num; ++HorizonIdx)
+			{
+				if (HorizonSampleIdxRanges[HorizonIdx].Contains(Feature.SubsampleIdx))
+				{
+					float HorizonWeight = NormalizedHorizonWeights[HorizonIdx] / HorizonSums[HorizonIdx];
+					WeightsByFeature[FeatureIdx] *= HorizonWeight;
+					break;
+				}
+			}
+		}
+
+		// Scale all features in all horizons so they have the desired channel weight
+		WeightsByFeature *= NormalizedChannelWeights[ChannelIdx];
+
+		// Weights should sum to channel weight at this point
+		ensure(FMath::IsNearlyEqual(WeightsByFeature.sum(), NormalizedChannelWeights[ChannelIdx], KINDA_SMALL_NUMBER));
+
+		// Merge feature weights for channel into per-value weights buffer
+		// Weights are replicated per feature dimension so the cost function can directly index weights by value index
+		for (int FeatureIdx = INDEX_NONE; Schema->Layout.EnumerateBy(ChannelIdx, EPoseSearchFeatureType::Invalid, FeatureIdx); /*empty*/)
+		{
+			const FPoseSearchFeatureDesc& Feature = Schema->Layout.Features[FeatureIdx];
+			int32 ValueSize = GetFeatureTypeTraits(Feature.Type).NumFloats;
+			int32 ValueTerm = Feature.ValueOffset + ValueSize;
+			for (int32 ValueIdx = Feature.ValueOffset; ValueIdx != ValueTerm; ++ValueIdx)
+			{
+				Weights[ValueIdx] = WeightsByFeature[FeatureIdx];
+			}
+		}
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchWeightsContext
+
+void FPoseSearchWeightsContext::Update(const FPoseSearchDynamicWeightParams& ActiveWeights, const UPoseSearchDatabase* ActiveDatabase)
+{
+	bool bRecomputeWeights = false;
+	if (Database != ActiveDatabase)
+	{
+		Database = ActiveDatabase;
+		bRecomputeWeights = true;
+	}
+
+	if (DynamicWeights != ActiveWeights)
+	{
+		DynamicWeights = ActiveWeights;
+		bRecomputeWeights = true;
+	}
+
+	if (bRecomputeWeights)
+	{
+		int32 NumGroups = ActiveDatabase ? 1 : 0;
+		ComputedGroupWeights.SetNum(NumGroups);
+		for (FPoseSearchWeights& GroupWeights: ComputedGroupWeights)
+		{
+			GroupWeights.Init(Database->Weights, Database->Schema, ActiveWeights);
+		}
+	}
+}
+
+const FPoseSearchWeights* FPoseSearchWeightsContext::GetGroupWeights(int32 WeightsGroupIdx) const
+{
+	if (ComputedGroupWeights.IsValidIndex(WeightsGroupIdx))
+	{
+		return &ComputedGroupWeights[WeightsGroupIdx];
+	}
+
+	return nullptr;
 }
 
 
@@ -847,7 +1178,7 @@ void FPoseSearchFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Element, 
 
 bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(UE::PoseSearch::FPoseHistory* History)
 {
-	check(Schema && Schema->IsValid());
+	check(Schema.IsValid() && Schema->IsValid());
 	check(History);
 
 	FPoseSearchFeatureDesc Feature;
@@ -889,7 +1220,7 @@ bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(UE::PoseSearch::FPoseHi
 
 void FPoseSearchFeatureVectorBuilder::BuildFromTrajectoryTimeBased(const FTrajectorySampleRange& Trajectory)
 {
-	check(Schema && Schema->IsValid());
+	check(Schema.IsValid() && Schema->IsValid());
 
 	FPoseSearchFeatureDesc Feature;
 	Feature.Domain = EPoseSearchFeatureDomain::Time;
@@ -912,7 +1243,7 @@ void FPoseSearchFeatureVectorBuilder::BuildFromTrajectoryTimeBased(const FTrajec
 
 void FPoseSearchFeatureVectorBuilder::BuildFromTrajectoryDistanceBased(const FTrajectorySampleRange& Trajectory)
 {
-	check(Schema && Schema->IsValid());
+	check(Schema.IsValid() && Schema->IsValid());
 
 	FPoseSearchFeatureDesc Feature;
 	Feature.Domain = EPoseSearchFeatureDomain::Distance;
@@ -2348,7 +2679,7 @@ static void DrawFeatureVector(const FDebugDrawParams& DrawParams, const FFeature
 	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::IncludeTrajectory))
 	{
 		DrawTrajectoryFeatures(DrawParams, Reader, EPoseSearchFeatureDomain::Time);
-        DrawTrajectoryFeatures(DrawParams, Reader, EPoseSearchFeatureDomain::Distance);
+		DrawTrajectoryFeatures(DrawParams, Reader, EPoseSearchFeatureDomain::Distance);
 	}
 }
 
@@ -2497,7 +2828,7 @@ static void PreprocessSearchIndexNormalize(FPoseSearchIndex* SearchIndex)
 	// exponentially rather than additively and square rooting the sum of squares does not 
 	// remove that bias. [1]
 	//
-	// The pose matrix is transformed in place and the tranformation matrix, its inverse,
+	// The pose matrix is transformed in place and the transformation matrix, its inverse,
 	// and data mean vector are computed and stored along with it.
 	//
 	// N:	number of dimensions for input column vectors
@@ -2614,7 +2945,7 @@ static void PreprocessSearchIndexNormalize(FPoseSearchIndex* SearchIndex)
 static void PreprocessSearchIndexSphere(FPoseSearchIndex* SearchIndex)
 {
 	// This function performs correlation based zero-phase component analysis sphering (ZCA-cor sphering)
-	// The pose matrix is transformed in place and the tranformation matrix, its inverse,
+	// The pose matrix is transformed in place and the transformation matrix, its inverse,
 	// and data mean vector are computed and stored along with it.
 	//
 	// N:	number of dimensions for input column vectors
@@ -2657,13 +2988,13 @@ static void PreprocessSearchIndexSphere(FPoseSearchIndex* SearchIndex)
 	// Z^(-1) = V * D^(1/2) * V^T
 	// x := (Z^(-1) * x) + u
 	//
-	// The sphering processs allows nearest neighbor queries to use the Mahalonobis metric
+	// The sphering process allows nearest neighbor queries to use the Mahalanobis metric
 	// which is unitless, scale-invariant, and accounts for feature correlation.
 	// The Mahalanobis distance between two random vectors x and y in data matrix X is:
 	// d(x,y) = ((x-y)^T * cov(X)^(-1) * (x-y))^(1/2)
 	//
-	// Because sphering transforms X into a new matrix with identity covariance, the Mahalonobis
-	// distance equation above reduces to Eucledean distance since cov(X)^(-1) = I:
+	// Because sphering transforms X into a new matrix with identity covariance, the Mahalanobis
+	// distance equation above reduces to Euclidean distance since cov(X)^(-1) = I:
 	// d(x,y) = ((x-y)^T * (x-y))^(1/2)
 	// 
 	// References:
@@ -2679,6 +3010,7 @@ static void PreprocessSearchIndexSphere(FPoseSearchIndex* SearchIndex)
 	//
 	// Note this sphering preprocessor needs more work and isn't yet exposed in the editor as an option.
 	// Todo:
+	// - Figure out apparent flipping behavior
 	// - Try singular value decomposition in place of eigendecomposition
 	// - Remove zero variance feature axes from data and search queries
 	// - Support weighted Mahalanobis metric. User supplied weights need to be transformed to data's new basis.
@@ -2980,20 +3312,6 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 		TotalFloats += Output.FeatureVectorTable.Num();
 	}
 
-	// Establish per-sequence pose search bias weights if metadata is present
-	for (int32 SequenceIdx = 0; SequenceIdx != Database->Sequences.Num(); ++SequenceIdx)
-	{
-		FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[SequenceIdx];
-		if (DbSequence.Sequence)
-		{
-			const UPoseSearchSequenceBiasWeightMetaData* BiasWeightMetadata = DbSequence.Sequence->FindMetaDataByClass<UPoseSearchSequenceBiasWeightMetaData>();
-			if (BiasWeightMetadata)
-			{
-				DbSequence.BiasWeights.Init(BiasWeightMetadata->BiasWeights, Database->Schema->Layout);
-			}
-		}
-	}
-
 	// Join animation data into a single search index
 	Database->SearchIndex.Values.Reset(TotalFloats);
 	for (const FSequenceIndexer& Indexer : Indexers)
@@ -3010,21 +3328,7 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 	return true;
 }
 
-static inline void DefaultInitializeWeights(const FPoseSearchBiasWeightsContext* BiasWeightsContext, int32 Size, TArray<float>& Weights, bool& bBiasWeightContextAvailable)
-{
-	bBiasWeightContextAvailable = BiasWeightsContext && BiasWeightsContext->HasBiasWeights();
-
-	if (bBiasWeightContextAvailable)
-	{
-		Weights = BiasWeightsContext->BiasWeights->Weights;
-	}
-	else
-	{
-		Weights.Init(1.f, Size);
-	}
-}
-
-static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext = nullptr)
+static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr)
 {
 	FSearchResult Result;
 	if (!ensure(SearchIndex.IsValid()))
@@ -3032,64 +3336,17 @@ static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<cons
 		return Result;
 	}
 
-	if(!ensure(Query.Num() == SearchIndex.Schema->Layout.NumFloats))
+	if (!ensure(Query.Num() == SearchIndex.Schema->Layout.NumFloats))
 	{
 		return Result;
 	}
 
-	bool bBiasWeightContextAvailable = false;
-
-	// Initial weights by default are set to 1, but may be independently set by an external system such as motion matching
-	TArray<float> InitialWeights;
-	DefaultInitializeWeights(BiasWeightsContext, Query.Num(), InitialWeights, bBiasWeightContextAvailable);
-	const auto InitialWeightsMap = Eigen::Map<const Eigen::ArrayXf>(InitialWeights.GetData(), InitialWeights.Num());
-
-	// Accumulated weights will contain the per-pose final weights, optionally including per-sequence and/or other external values
-	TArray<float> AccumulatedWeights(InitialWeights);
-	auto AccumulatedWeightsMap = Eigen::Map<Eigen::ArrayXf>(AccumulatedWeights.GetData(), AccumulatedWeights.Num());
-
 	float BestPoseDissimilarity = MAX_flt;
 	int32 BestPoseIdx = INDEX_NONE;
 
-	for (int32 PoseIdx = 0, PrevSequenceIdx = INDEX_NONE; PoseIdx != SearchIndex.NumPoses; ++PoseIdx)
+	for (int32 PoseIdx = 0; PoseIdx != SearchIndex.NumPoses; ++PoseIdx)
 	{
-		// Sequence index and metadata tracking are done within this loop in order to optimize
-		// and elide unnecessary recomputing of the weight buffer.
-		bool bSequenceWeightsAvailable = false;
-		int32_t SequenceIdx = INDEX_NONE;
-
-		if (bBiasWeightContextAvailable)
-		{
-			// Apply the per-sequence bias weights if they are present within the sequence metadata
-			SequenceIdx = BiasWeightsContext->Database->FindSequenceForPose(PoseIdx);
-			if (SequenceIdx != PrevSequenceIdx)
-			{
-				const FPoseSearchDatabaseSequence& SequenceEntry = BiasWeightsContext->Database->Sequences[SequenceIdx];
-				bSequenceWeightsAvailable = SequenceEntry.BiasWeights.IsInitialized();
-
-				if (bSequenceWeightsAvailable)
-				{
-					const auto& SequenceBiasWeights = SequenceEntry.BiasWeights.Weights;
-					AccumulatedWeightsMap *= Eigen::Map<const Eigen::ArrayXf>(SequenceBiasWeights.GetData(), SequenceBiasWeights.Num());
-				}
-			}
-		}
-
-		const int32 FeatureValueOffset = PoseIdx * SearchIndex.Schema->Layout.NumFloats;
-
-		const float PoseDissimilarity = CompareFeatureVectors(
-			SearchIndex.Schema->Layout.NumFloats,
-			Query.GetData(),
-			&SearchIndex.Values[FeatureValueOffset],
-			AccumulatedWeights.GetData()
-		);
-
-		if (bSequenceWeightsAvailable && SequenceIdx != PrevSequenceIdx)
-		{
-			// Reset pose weights to remove any extraneous sequence contributions for the next iteration
-			AccumulatedWeightsMap = InitialWeightsMap;
-			PrevSequenceIdx = SequenceIdx;
-		}
+		const float PoseDissimilarity = ComparePoses(SearchIndex, PoseIdx, Query, WeightsContext);
 		
 		if (PoseDissimilarity < BestPoseDissimilarity)
 		{
@@ -3135,7 +3392,7 @@ FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> 
 	return Result;
 }
 
-FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext, FDebugDrawParams DebugDrawParams)
+FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext, FDebugDrawParams DebugDrawParams)
 {
 	if (!ensure(Database && Database->IsValidForSearch()))
 	{
@@ -3144,7 +3401,7 @@ FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const flo
 
 	const FPoseSearchIndex& SearchIndex = Database->SearchIndex;
 
-	FDbSearchResult Result = Search(SearchIndex, Query, BiasWeightsContext);
+	FDbSearchResult Result = Search(SearchIndex, Query, WeightsContext);
 	if (!Result.IsValid())
 	{
 		return FDbSearchResult();
@@ -3171,30 +3428,23 @@ FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const flo
 	return Result;
 }
 
-float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext)
+float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext)
 {
 	TArrayView<const float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
 	check(PoseValues.Num() == Query.Num());
 
-	bool bBiasWeightContextAvailable = false;
-
-	TArray<float> Weights;
-	DefaultInitializeWeights(BiasWeightsContext, Query.Num(), Weights, bBiasWeightContextAvailable);
-
-	if (bBiasWeightContextAvailable)
+	float Dissimilarity;
+	if (WeightsContext)
 	{
-		// Apply the per-sequence bias weights if present on the sequence metadata
-		const int32 SequenceIdx = BiasWeightsContext->Database->FindSequenceForPose(PoseIdx);
-		const FPoseSearchDatabaseSequence& SequenceEntry = BiasWeightsContext->Database->Sequences[SequenceIdx];
-
-		if (SequenceEntry.BiasWeights.IsInitialized())
-		{
-			const auto& SequenceWeights = SequenceEntry.BiasWeights.Weights;
-			Eigen::Map<Eigen::ArrayXf>(Weights.GetData(), Weights.Num()) *= Eigen::Map<const Eigen::ArrayXf>(SequenceWeights.GetData(), SequenceWeights.Num());
-		}
+		const FPoseSearchWeights* WeightsSet = WeightsContext->GetGroupWeights(0);
+		Dissimilarity = CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), Query.GetData(), WeightsSet->Weights.GetData());
+	}
+	else
+	{
+		Dissimilarity = CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), Query.GetData());
 	}
 
-	return CompareFeatureVectors(PoseValues.Num(), PoseValues.GetData(), Query.GetData(), Weights.GetData());
+	return Dissimilarity;
 }
 
 
@@ -3262,7 +3512,5 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 }
 
 }} // namespace UE::PoseSearch
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 IMPLEMENT_MODULE(UE::PoseSearch::FModule, PoseSearch)
