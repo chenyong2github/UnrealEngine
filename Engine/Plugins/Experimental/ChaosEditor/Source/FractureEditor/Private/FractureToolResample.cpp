@@ -15,6 +15,8 @@
 UFractureToolResample::UFractureToolResample(const FObjectInitializer& ObjInit) 
 	: Super(ObjInit) 
 {
+	ResampleSettings = NewObject<UFractureResampleSettings>(GetTransientPackage(), UFractureResampleSettings::StaticClass());
+	ResampleSettings->OwnerTool = this;
 }
 
 FText UFractureToolResample::GetDisplayText() const
@@ -51,6 +53,7 @@ TArray<UObject*> UFractureToolResample::GetSettingsObjects() const
  {
 	TArray<UObject*> Settings;
 	Settings.Add(CollisionSettings);
+	Settings.Add(ResampleSettings);
 	return Settings;
 }
 
@@ -81,10 +84,13 @@ void UFractureToolResample::FractureContextChanged()
 			int32 FaceStart = Collection.FaceStart[GeometryIdx];
 			int32 FaceEnd = FaceStart + Collection.FaceCount[GeometryIdx];
 			// only show off-vertex samples; skip over the samples that are on faces
-			for (int32 FIdx = FaceStart; FIdx < FaceEnd; FIdx++)
+			if (ResampleSettings->bOnlyShowAddedPoints)
 			{
-				FIntVector Face = Collection.Indices[FIdx];
-				VertStart = FMath::Max(VertStart, Face.GetMax() + 1);
+				for (int32 FIdx = FaceStart; FIdx < FaceEnd; FIdx++)
+				{
+					FIntVector Face = Collection.Indices[FIdx];
+					VertStart = FMath::Max(VertStart, Face.GetMax() + 1);
+				}
 			}
 			for (int32 VIdx = VertStart; VIdx < VertEnd; VIdx++)
 			{
