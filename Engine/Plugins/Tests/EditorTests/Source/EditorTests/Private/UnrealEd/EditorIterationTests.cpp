@@ -19,12 +19,12 @@
  * Test to open the sub editor windows for a specified list of assets.
  * This list can be setup in the Editor Preferences window within the editor or the DefaultEngine.ini file for that particular project.
 */
-IMPLEMENT_CUSTOM_COMPLEX_AUTOMATION_TEST(FIterationOpenAssets, FAutomationTestBase, "Project.Iteration.OpenAssets", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter);
+IMPLEMENT_CUSTOM_COMPLEX_AUTOMATION_TEST(FIterationOpenAssets, FAutomationTestBase, "Project.Iteration.PIE", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter);
 
 void FIterationOpenAssets::GetTests(TArray<FString>& OutBeautifiedNames, TArray<FString>& OutTestCommands) const
 {
 	const UAutomationTestSettings* AutomationTestSettings = GetDefault<UAutomationTestSettings>();
-	for ( FSoftObjectPath AssetRef : AutomationTestSettings->AssetsToOpen )
+	for ( FSoftObjectPath AssetRef : AutomationTestSettings->MapsToPIETest)
 	{
 		OutBeautifiedNames.Add(AssetRef.GetAssetName());
 		OutTestCommands.Add(AssetRef.GetLongPackageName());
