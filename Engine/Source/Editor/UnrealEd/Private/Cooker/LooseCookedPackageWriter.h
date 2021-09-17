@@ -42,12 +42,11 @@ public:
 	void BeginCook(const FCookInfo& Info) override;
 	void EndCook() override;
 	void Flush() override;
-	void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) override;
+	TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override;
 	FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
 	void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	void RemoveCookedPackages() override;
 	void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
-	FAssetRegistryState* ReleasePreviousAssetRegistry() override;
 
 private:
 
@@ -66,6 +65,7 @@ private:
 		const FString& SandboxRootDir, const FString& RelativeRootDir,
 		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
 		const FString& CookedPath, FString& OutUncookedPath) const;
+	void RemoveCookedPackagesByUncookedFilename(const TArray<FName>& UncookedFileNamesToRemove);
 
 	TMap<FName, FName> UncookedPathToCookedPath;
 	FString OutputPath;
@@ -73,7 +73,6 @@ private:
 	const ITargetPlatform& TargetPlatform;
 	const FPackageNameCache& PackageNameCache;
 	FPackageStoreManifest PackageStoreManifest;
-	TUniquePtr<FAssetRegistryState> PreviousState;
 	const TArray<TSharedRef<IPlugin>>& PluginsToRemap;
 	FAsyncIODelete& AsyncIODelete;
 	bool bIterateSharedBuild;
