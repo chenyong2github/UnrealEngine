@@ -37,8 +37,8 @@ DEFINE_LOG_CATEGORY(LogPoseSearch);
 
 constexpr float DrawDebugLineThickness = 2.0f;
 constexpr float DrawDebugPointSize = 3.0f;
-constexpr float DrawDebugVelocityScale = 0.1f;
-constexpr float DrawDebugArrowSize = 5.0f;
+constexpr float DrawDebugVelocityScale = 0.08f;
+constexpr float DrawDebugArrowSize = 30.0f;
 constexpr float DrawDebugSphereSize = 3.0f;
 constexpr int32 DrawDebugSphereSegments = 8;
 constexpr float DrawDebugSphereLineThickness = 0.5f;
@@ -74,10 +74,16 @@ static inline float CompareFeatureVectors(int32 NumValues, const float* A, const
 
 FLinearColor GetColorForFeature(FPoseSearchFeatureDesc Feature, const FPoseSearchFeatureVectorLayout* Layout)
 {
-	int32 FeatureIdx = Layout->Features.IndexOfByKey(Feature);
+	const float FeatureIdx = Layout->Features.IndexOfByKey(Feature);
+	const float FeatureCountIdx = Layout->Features.Num() - 1;
+	const float FeatureCountIdxHalf = FeatureCountIdx / 2.f;
 	check(FeatureIdx != INDEX_NONE);
-	float Lerp = (float)(FeatureIdx) / (Layout->Features.Num() - 1);
-	FLinearColor ColorHSV(Lerp * 360.0f, 0.8f, 0.5f, 1.0f);
+
+	const float Hue = FeatureIdx < FeatureCountIdxHalf
+		? FMath::GetMappedRangeValueUnclamped({ 0.f, FeatureCountIdxHalf }, FVector2D(60.f, 0.f), FeatureIdx)
+		: FMath::GetMappedRangeValueUnclamped({ FeatureCountIdxHalf, FeatureCountIdx }, FVector2D(280.f, 220.f), FeatureIdx);
+
+	const FLinearColor ColorHSV(Hue, 1.f, 1.f);
 	return ColorHSV.HSVToLinearRGB();
 }
 

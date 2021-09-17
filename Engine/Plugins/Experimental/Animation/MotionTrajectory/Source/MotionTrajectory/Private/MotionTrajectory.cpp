@@ -27,14 +27,14 @@ FTrajectorySample UMotionTrajectoryComponent::GetPresentTrajectory() const
 {
 	const APawn* Pawn = TryGetOwnerPawn();
 	checkf(false, TEXT("UMotionTrajectoryComponent::GetPresentTrajectory for Pawn: %s requires implementation."), Pawn ? *(Pawn->GetHumanReadableName()) : TEXT("NULL"));
-	return {};
+	return FTrajectorySample();
 }
 
 FTransform UMotionTrajectoryComponent::GetPresentWorldTransform() const
 {
 	const APawn* Pawn = TryGetOwnerPawn();
 	checkf(false, TEXT("UMotionTrajectoryComponent::GetPresentWorldTransform for Pawn: %s requires implementation."), Pawn ? *(Pawn->GetHumanReadableName()) : TEXT("NULL"));
-	return {};
+	return FTransform::Identity;
 }
 
 const APawn* UMotionTrajectoryComponent::TryGetOwnerPawn() const
@@ -62,15 +62,18 @@ FTrajectorySampleRange UMotionTrajectoryComponent::CombineHistoryPresentPredicti
 	Trajectory.Samples.Add(PresentTrajectory);
 	Trajectory.Samples.Append(Prediction.Samples);
 	Trajectory.SampleRate = SampleRate;
-
+#if WITH_EDITORONLY_DATA
+	Trajectory.DebugDrawTrajectory(bDebugDrawTrajectory, GetOwner()->GetWorld(), PreviousWorldTransform);
+#endif
 	return Trajectory;
 }
 
 void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 {
 	// World space transform and time are used for determining local-relative historical samples
+	const UWorld* World = GetWorld();
 	const FTransform WorldTransform = GetPresentWorldTransform();
-	const float WorldGameTime = UKismetSystemLibrary::GetGameTimeInSeconds(GetWorld());
+	const float WorldGameTime = UKismetSystemLibrary::GetGameTimeInSeconds(World);
 
 	// Skip on the very first sample
 	if (PreviousWorldGameTime != 0.f)
@@ -115,6 +118,7 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 		// Remove all trajectory samples which are outside the boundaries of the enabled domain horizons
 		SampleHistory.RemoveAll([&](const FTrajectorySample& Sample)
 			{
+				// Remove superfluous zero motion samples
 				if (Sample.IsZeroSample() && PresentTrajectory.IsZeroSample())
 				{
 					return true;

@@ -226,7 +226,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingForSequencePlayer(const FAnimUpdate
 			if ((InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 			{
 				const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[InOutMotionMatchingState.DbSequenceIdx];
-				SequencePlayerNode->SetSequence(ResultDbSequence.Sequence);
+				SequencePlayerNode->SetSequence(Cast<UAnimSequenceBase>(ResultDbSequence.Sequence));
 				SequencePlayerNode->SetAccumulatedTime(InOutMotionMatchingState.AssetPlayerTime);
 				SequencePlayerNode->SetLoopAnimation(ResultDbSequence.bLoopAnimation);
 				SequencePlayerNode->SetPlayRate(1.f);
