@@ -26,7 +26,10 @@ public:
 
 	// Returns the hierarchy currently linked to this controller
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-	URigHierarchy* GetHierarchy() const { return Hierarchy; }
+	URigHierarchy* GetHierarchy() const
+	{
+		return Hierarchy.Get();
+	}
 
 	// Sets the hierarchy currently linked to this controller
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
@@ -517,7 +520,7 @@ public:
 private:
 
 	UPROPERTY(transient)
-	TObjectPtr<URigHierarchy> Hierarchy;
+	TWeakObjectPtr<URigHierarchy> Hierarchy;
 
 	FRigHierarchyModifiedEvent ModifiedEvent;
 	void Notify(ERigHierarchyNotification InNotifType, const FRigBaseElement* InElement);
@@ -527,7 +530,7 @@ private:
 	 * Returns true if this controller is valid / linked to a valid hierarchy.
 	 * @return Returns true if this controller is valid / linked to a valid hierarchy.
 	 */
-	FORCEINLINE bool IsValid() const { return Hierarchy != nullptr; }
+	FORCEINLINE bool IsValid() const { return Hierarchy.IsValid(); }
 
 	/**
 	 * Adds a new element to the hierarchy

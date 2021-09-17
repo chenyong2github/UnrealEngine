@@ -48,8 +48,7 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneCurve(FString CurveNameStr)
 {
 	TStrongObjectPtr<URigHierarchy> ValidCurveContainer(NewObject<URigHierarchy>());
-	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
-	Controller->SetHierarchy(ValidCurveContainer.Get());
+	URigHierarchyController* Controller = ValidCurveContainer->GetController(true);
 	Controller->AddCurve(FName(*CurveNameStr));
 	return ValidCurveContainer;
 }
@@ -70,8 +69,7 @@ TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHiera
 TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyTwoBones(FString Bone1NameStr, FString Bone2NameStr)
 {
 	TStrongObjectPtr<URigHierarchy> TestHierarchy(NewObject<URigHierarchy>());
-	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
-	Controller->SetHierarchy(TestHierarchy.Get());
+	URigHierarchyController* Controller = TestHierarchy->GetController(true);
 	const FRigElementKey Bone1Key = Controller->AddBone(*Bone1NameStr, FRigElementKey(), FTransform(FVector(1.f, 0.f, 0.f)), true, ERigBoneType::User);
 	Controller->AddBone(*Bone2NameStr, Bone1Key, FTransform(FVector(1.f, 2.f, 3.f)), true, ERigBoneType::User);
 	return TestHierarchy;
@@ -130,8 +128,7 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneMorphTarget(FString MorphTargetStr)
 {
 	TStrongObjectPtr<URigHierarchy> ValidCurveContainer(NewObject<URigHierarchy>());
-	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
-	Controller->SetHierarchy(ValidCurveContainer.Get());
+	URigHierarchyController* Controller = ValidCurveContainer->GetController(true);
 	Controller->AddCurve(FName(*MorphTargetStr));
 	return ValidCurveContainer;
 }
@@ -139,8 +136,7 @@ TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveCont
 TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str)
 {
 	TStrongObjectPtr<URigHierarchy> ValidCurveContainer(NewObject<URigHierarchy>());
-	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
-	Controller->SetHierarchy(ValidCurveContainer.Get());
+	URigHierarchyController* Controller = ValidCurveContainer->GetController(true);
 	Controller->AddCurve(FName(*MorphTarget1Str));
 	Controller->AddCurve(FName(*MorphTarget2Str));
 	return ValidCurveContainer;

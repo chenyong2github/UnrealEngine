@@ -29,9 +29,6 @@ private:
 	// custom units that are used to execute this rig
 	TArray<FRigUnit_AddBoneTransform> AddBoneRigUnits;
 
-	UPROPERTY(transient)
-	TObjectPtr<URigHierarchyController> Controller;
-
 	/** Create RigElements - bone hierarchy and curves - from incoming skeleton */
 	void CreateRigElements(const USkeletalMesh* InReferenceMesh);
 	void CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping);

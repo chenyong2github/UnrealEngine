@@ -172,6 +172,9 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	// Create the data source registry here to avoid UObject creation from Non-Game Threads
 	GetDataSourceRegistry();
 
+	// Create the Hierarchy Controller here to avoid UObject creation from Non-Game Threads
+	GetHierarchy()->GetController(true);
+	
 	// should refresh mapping 
 	RequestSetup();
 

@@ -1029,7 +1029,7 @@ void FControlRigEditor::ToggleSetupMode()
 		// need to clear selection before remove transient control
 		// because active selection will trigger transient control recreation after removal	
 		PreviousSelection = RigBlueprint->Hierarchy->GetSelectedKeys();
-		RigBlueprint->HierarchyController->ClearSelection();
+		RigBlueprint->GetHierarchyController()->ClearSelection();
 		
 		// need to copy here since the removal changes the iterator
 		if (ControlRig)
