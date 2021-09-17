@@ -64,7 +64,7 @@ void UMLDeformerAsset::PostLoad()
 	Super::PostLoad();
 	if (NeuralNetwork)
 	{
-		NeuralNetwork->SetBackEnd(ENeuralBackEnd::UEOnly);
+		NeuralNetwork->SetBackEnd(ENeuralBackEnd::Auto);
 		NeuralNetwork->SetInputDeviceType(ENeuralDeviceType::CPU);
 		NeuralNetwork->SetDeviceType(ENeuralDeviceType::GPU);
 		NeuralNetwork->SetOutputDeviceType(ENeuralDeviceType::GPU);

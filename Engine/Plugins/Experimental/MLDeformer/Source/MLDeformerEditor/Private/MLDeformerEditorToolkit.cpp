@@ -336,7 +336,7 @@ bool FMLDeformerEditorToolkit::TryLoadOnnxFile() const
 		if (Network->Load(OnnxFile))
 		{
 			EditorData->GetDeformerAsset()->NeuralNetwork = Network;
-			EditorData->GetDeformerAsset()->NeuralNetwork->SetBackEnd(ENeuralBackEnd::UEOnly);
+			EditorData->GetDeformerAsset()->NeuralNetwork->SetBackEnd(ENeuralBackEnd::Auto);
 			EditorData->GetDeformerAsset()->NeuralNetwork->SetInputDeviceType(ENeuralDeviceType::CPU);
 			EditorData->GetDeformerAsset()->NeuralNetwork->SetDeviceType(ENeuralDeviceType::GPU);
 			EditorData->GetDeformerAsset()->NeuralNetwork->SetOutputDeviceType(ENeuralDeviceType::GPU);
