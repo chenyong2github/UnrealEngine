@@ -59,6 +59,8 @@ void FTextureLODGroup::SetupGroup()
 		}
 	}
 
+	MaxLODMipCount = FMath::CeilLogTwo(MaxLODSize);
+
 	// Linear filtering
 	if (MinMagFilter == NAME_Linear)
 	{

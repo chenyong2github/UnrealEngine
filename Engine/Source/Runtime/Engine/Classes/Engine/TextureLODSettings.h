@@ -18,6 +18,7 @@ struct ENGINE_API FTextureLODGroup
 
 	FTextureLODGroup()
 		: Group(TEXTUREGROUP_World)
+		, MaxLODMipCount(32)
 		, LODBias(0)
 		, LODBias_Smaller(-1)
 		, LODBias_Smallest(-1)
@@ -48,6 +49,9 @@ struct ENGINE_API FTextureLODGroup
 	UPROPERTY()
 	TEnumAsByte<TextureGroup> Group;
 
+	/** Maximum LOD mip count. Bias will be adjusted so texture won't go above.		*/
+	int32 MaxLODMipCount;
+	
 	/** Group LOD bias.																*/
 	UPROPERTY()
 	int32 LODBias;
