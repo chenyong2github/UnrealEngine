@@ -600,7 +600,7 @@ void UPropertyValue::ApplyDataToResolvedObject()
 	// Modify container component
 	UObject* ContainerObject = nullptr;
 	if (ParentContainerObject && ParentContainerObject->IsA(UActorComponent::StaticClass()))
-		{
+	{
 		ParentContainerObject->SetFlags(RF_Transactional);
 		ParentContainerObject->Modify();
 		ContainerObject = ParentContainerObject;
@@ -608,8 +608,28 @@ void UPropertyValue::ApplyDataToResolvedObject()
 
 	if (PropertySetter)
 	{
-		// If we resolved, these are valid
-		ApplyViaFunctionSetter((UObject*)ParentContainerAddress);
+		// If we resolved, this is valid
+		UObject* TargetObject = ( UObject* ) ParentContainerAddress;
+
+		// For UE-121592: Set relative rotation using SetRelativeRotationExact because if the rotation we want to set
+		// contains a >90 degree Y value, the value shown on the details panel after applying will be the equivalent rotation
+		// where Y value is <90, but that also has X and Y rotations (e.g. [0, 95, 0] will become [180, 85, 180]).
+		// This is not so bad on the details panel, but if the sequencer is involved and we want to animate from [0, 89, 0] to
+		// [0, 95, 0], we may actually end up interpolating between [0, 89, 0] to [180, 85, 180], which will not look correct
+		if ( PropertySetter->GetName() == TEXT( "K2_SetRelativeRotation" ) )
+		{
+			if ( const FRotator* RecordedRotator = reinterpret_cast<const FRotator*>( GetRecordedData().GetData() ) )
+			{
+				if ( USceneComponent* Comp = Cast<USceneComponent>( TargetObject ) )
+				{
+					Comp->SetRelativeRotationExact( *RecordedRotator );
+				}
+			}
+		}
+		else
+		{
+			ApplyViaFunctionSetter( TargetObject );
+		}
 	}
 	// Bool properties need to be set in a particular way since they hold internal private
 	// masks and offsets
@@ -1246,7 +1266,7 @@ bool UPropertyValue::IsRecordedDataCurrent()
 	}
 
 	// When setting relative rotation, our input rotator value goes through some math
-	// that might infinitesimaly change its quaternion representation, but nevertheless
+	// that might infinitesimally change its quaternion representation, but nevertheless
 	// alter the float representation as a byte array, so we need this explicit check.
 	// Note that regular Rotator properties are compared byte-wise, so it should only happen for
 	// RelativeRotation
@@ -1256,7 +1276,15 @@ bool UPropertyValue::IsRecordedDataCurrent()
 		const FRotator* RecordedRotator = (const FRotator*)RecordedData.GetData();
 		const FRotator* CurrentRotator = (const FRotator*)CurrentData.GetData();
 
-		return RecordedRotator->Equals(*CurrentRotator, SCENECOMPONENT_ROTATOR_TOLERANCE);
+		// Compare via FQuats, because while our recorded rotator will remain correct, it is possible that
+		// the rotation on the object is an equivalent rotation instead (like how [0, 95, 0] and [180, 85, 180]
+		// are equivallent), and FRotator::Equals would claim they are different
+		if ( RecordedRotator && CurrentRotator )
+		{
+			const FQuat RecordedQuat = RecordedRotator->Quaternion();
+			const FQuat CurrentQuat = CurrentRotator->Quaternion();
+			return RecordedQuat.Equals( CurrentQuat );
+		}
 	}
 	else if (PropCategory == EPropertyValueCategory::RelativeLocation ||  PropCategory == EPropertyValueCategory::RelativeScale3D)
 	{
