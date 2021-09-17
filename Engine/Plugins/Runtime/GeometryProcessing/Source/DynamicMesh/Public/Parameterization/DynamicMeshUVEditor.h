@@ -65,6 +65,12 @@ public:
 	void ResetUVs(const TArray<int32>& Triangles);
 
 	/**
+	 * Copy UVs from another overlay
+	 */
+	bool CopyUVLayer(FDynamicMeshUVOverlay* FromUVOverlay);
+
+
+	/**
 	 * Create new UV island for each Triangle, by planar projection onto plane of Triangle. No transforms/etc are applied.
 	 */
 	void SetPerTriangleUVs(const TArray<int32>& Triangles, double ScaleFactor = 1.0, FUVEditResult* Result = nullptr);

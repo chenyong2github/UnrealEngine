@@ -68,49 +68,42 @@ USingleSelectionMeshEditingTool* USubdividePolyToolBuilder::CreateNewTool(const 
 bool USubdividePolyTool::CheckGroupTopology(FText& Message)
 {
 	FGroupTopology Topo(OriginalMesh.Get(), true);
+	FSubdividePoly TempSubD(Topo, *OriginalMesh, 1);
+	FSubdividePoly::ETopologyCheckResult CheckResult = TempSubD.ValidateTopology();
 
-	if (Topo.Groups.Num() == 0)
+	if (CheckResult == FSubdividePoly::ETopologyCheckResult::NoGroups)
 	{
 		Message = LOCTEXT("NoGroupsWarning",
 						  "This object has no PolyGroups.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
 		return false;
 	}
 
-	if (Topo.Groups.Num() < 2)
+	if (CheckResult == FSubdividePoly::ETopologyCheckResult::InsufficientGroups)
 	{
-		// TODO: for an open surface, use the surface boundary as a group boundary?
 		Message = LOCTEXT("SingleGroupsWarning",
 						  "This object has only one PolyGroup.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
 		return false;
 	}
 
-	for (const FGroupTopology::FGroup& Group : Topo.Groups)
+	if (CheckResult == FSubdividePoly::ETopologyCheckResult::UnboundedPolygroup)
 	{
-		if (Group.Boundaries.Num() == 0)
-		{
-			// Error: Group has no boundaries, e.g. closed surface component with only one group
-			Message = LOCTEXT("NoGroupBoundaryWarning",
-							  "Found a PolyGroup with no boundaries.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
-			return false;
-		}
+		Message = LOCTEXT("NoGroupBoundaryWarning",
+			"Found a PolyGroup with no boundaries.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+		return false;
+	}
 
-		if (Group.Boundaries.Num() > 1)
-		{
-			// Error: Group has multiple boundaries, e.g. nested polygon
-			Message = LOCTEXT("MultipleGroupBoundaryWarning",
-							  "Found a PolyGroup with multiple boundaries, which is not supported.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
-			return false;
-		}
+	if (CheckResult == FSubdividePoly::ETopologyCheckResult::MultiBoundaryPolygroup)
+	{
+		Message = LOCTEXT("MultipleGroupBoundaryWarning",
+			"Found a PolyGroup with multiple boundaries, which is not supported.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+		return false;
+	}
 
-		for (const FGroupTopology::FGroupBoundary& Boundary : Group.Boundaries)
-		{
-			if (Boundary.GroupEdges.Num() < 3)
-			{
-				Message = LOCTEXT("DegenerateGroupPolygon",
-								  "One PolyGroup has fewer than three boundary edges.\nUse the PolyGroups or Select Tool to assign/fix PolyGroups.\nTool will be limited to Loop subdivision scheme.");
-				return false;
-			}
-		}
+	if (CheckResult == FSubdividePoly::ETopologyCheckResult::DegeneratePolygroup)
+	{
+		Message = LOCTEXT("DegenerateGroupPolygon",
+			"One PolyGroup has fewer than three boundary edges.\nUse the PolyGroups or Select Tool to assign/fix PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+		return false;
 	}
 
 	return true;

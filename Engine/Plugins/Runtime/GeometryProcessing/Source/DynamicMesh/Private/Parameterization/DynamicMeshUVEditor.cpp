@@ -80,6 +80,40 @@ void FDynamicMeshUVEditor::ResetUVs(const TArray<int32>& Triangles)
 	}
 }
 
+
+bool FDynamicMeshUVEditor::CopyUVLayer(FDynamicMeshUVOverlay* FromUVOverlay)
+{
+	if (FromUVOverlay == nullptr || FromUVOverlay == UVOverlay)
+	{
+		return false;
+	}
+
+	TArray<int32> ElementIDMap;
+	ElementIDMap.SetNum(FromUVOverlay->MaxElementID());
+
+	UVOverlay->ClearElements();
+	for (int32 ElementID : FromUVOverlay->ElementIndicesItr())
+	{
+		FVector2f UV = FromUVOverlay->GetElement(ElementID);
+		int32 NewID = UVOverlay->AppendElement(UV);
+		ElementIDMap[ElementID] = NewID;
+	}
+
+	for (int32 TriangleID : Mesh->TriangleIndicesItr())
+	{
+		if (FromUVOverlay->IsSetTriangle(TriangleID))
+		{
+			FIndex3i UVTriangle = FromUVOverlay->GetTriangle(TriangleID);
+			UVTriangle.A = ElementIDMap[UVTriangle.A];
+			UVTriangle.B = ElementIDMap[UVTriangle.B];
+			UVTriangle.C = ElementIDMap[UVTriangle.C];
+			UVOverlay->SetTriangle(TriangleID, UVTriangle);
+		}
+	}
+
+	return true;
+}
+
 void FDynamicMeshUVEditor::TransformUVElements(const TArray<int32>& ElementIDs, TFunctionRef<FVector2f(const FVector2f&)> TransformFunc)
 {
 	for (int32 elemid : ElementIDs)
