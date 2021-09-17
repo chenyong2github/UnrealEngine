@@ -21,6 +21,8 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "GlobalDistanceField.h"
 
+CSV_DEFINE_CATEGORY(DistanceField, false);
+
 extern int32 GDFReverseAtlasAllocationOrder;
 
 static TAutoConsoleVariable<int32> CVarBrickAtlasSizeXYInBricks(
@@ -53,16 +55,16 @@ static TAutoConsoleVariable<int32> CVarDebugForceNumMips(
 	TEXT("When set to > 0, overrides the requested number of mips for streaming.  1 = only lowest resolution mip loaded, 3 = all mips loaded.  Mips will still be clamped by available space in the atlas."),
 	ECVF_RenderThreadSafe);
 
-int32 GDistanceFieldAtlasLogStats = 0;
-FAutoConsoleVariableRef CVarDistanceFieldAtlasLogStats(
+static int32 GDistanceFieldAtlasLogStats = 0;
+static FAutoConsoleVariableRef CVarDistanceFieldAtlasLogStats(
 	TEXT("r.DistanceFields.LogAtlasStats"),
 	GDistanceFieldAtlasLogStats,
 	TEXT("Set to 1 to dump atlas stats, set to 2 to dump atlas and SDF asset stats."),
 	ECVF_RenderThreadSafe
 	);
 
-const int32 MaxStreamingRequests = 4095;
-const int32 DistanceFieldBlockAllocatorSizeInBricks = 16;
+static const int32 MaxStreamingRequests = 4095;
+static const int32 DistanceFieldBlockAllocatorSizeInBricks = 16;
 
 class FCopyDistanceFieldAtlasCS : public FGlobalShader
 {
@@ -94,7 +96,6 @@ class FCopyDistanceFieldAtlasCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FCopyDistanceFieldAtlasCS, "/Engine/Private/DistanceFieldStreaming.usf", "CopyDistanceFieldAtlasCS", SF_Compute);
-
 
 class FScatterUploadDistanceFieldAtlasCS : public FGlobalShader
 {
@@ -789,6 +790,94 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 	}
 }
 
+void EncodeAssetData(const FDistanceFieldAssetState& AssetState, const int32 ReversedMipIndex, FVector4* OutAssetData)
+{
+	const FDistanceFieldAssetMipState& MipState = AssetState.ReversedMips[ReversedMipIndex];
+	const int32 MipIndex = AssetState.BuiltData->Mips.Num() - ReversedMipIndex - 1;
+	const FSparseDistanceFieldMip& MipBuiltData = AssetState.BuiltData->Mips[MipIndex];
+	const FVector2D DistanceFieldToVolumeScaleBias = MipBuiltData.DistanceFieldToVolumeScaleBias;
+	const int32 NumMips = AssetState.ReversedMips.Num();
+
+	check(NumMips <= DistanceField::NumMips);
+	check(DistanceField::NumMips < 4);
+	check(MipBuiltData.IndirectionDimensions.X < DistanceField::MaxIndirectionDimension
+		&& MipBuiltData.IndirectionDimensions.Y < DistanceField::MaxIndirectionDimension
+		&& MipBuiltData.IndirectionDimensions.Z < DistanceField::MaxIndirectionDimension);
+
+	uint32 IntVector0[4] =
+	{
+		(uint32)MipBuiltData.IndirectionDimensions.X | (uint32)(MipBuiltData.IndirectionDimensions.Y << 10) | (uint32)(MipBuiltData.IndirectionDimensions.Z << 20) | (uint32)(NumMips << 30),
+		(uint32)MipState.IndirectionTableOffset,
+		0,
+		0
+	};
+
+	// Bypass NaN checks in FVector4 ctors
+	FVector4 FloatVector0;
+	FloatVector0.X = *(const float*)&IntVector0[0];
+	FloatVector0.Y = *(const float*)&IntVector0[1];
+	FloatVector0.Z = *(const float*)&IntVector0[2];
+	FloatVector0.W = *(const float*)&IntVector0[3];
+
+	FVector4 VolumeToIndirectionScale = FVector4(MipBuiltData.VolumeToVirtualUVScale, DistanceFieldToVolumeScaleBias.X);
+	VolumeToIndirectionScale.X *= MipBuiltData.IndirectionDimensions.X;
+	VolumeToIndirectionScale.Y *= MipBuiltData.IndirectionDimensions.Y;
+	VolumeToIndirectionScale.Z *= MipBuiltData.IndirectionDimensions.Z;
+
+	FVector4 VolumeToIndirectionAdd = FVector4(MipBuiltData.VolumeToVirtualUVAdd, DistanceFieldToVolumeScaleBias.Y);
+	VolumeToIndirectionAdd.X *= MipBuiltData.IndirectionDimensions.X;
+	VolumeToIndirectionAdd.Y *= MipBuiltData.IndirectionDimensions.Y;
+	VolumeToIndirectionAdd.Z *= MipBuiltData.IndirectionDimensions.Z;
+
+	OutAssetData[0] = FloatVector0;
+	OutAssetData[1] = VolumeToIndirectionScale;
+	OutAssetData[2] = VolumeToIndirectionAdd;
+}
+
+void FDistanceFieldSceneData::UploadAssetData(
+	FRDGBuilder& GraphBuilder,
+	const TArray<FDistanceFieldAssetMipId>& AssetDataUploads)
+{
+	if (AssetDataUploads.IsEmpty())
+	{
+		return;
+	}
+	
+	AssetDataUploadBuffer.Init(AssetDataUploads.Num(), AssetDataMipStrideFloat4s * sizeof(FVector4), true, TEXT("DistanceFields.DFAssetDataUploadBuffer"));
+
+	for (FDistanceFieldAssetMipId AssetMipUpload : AssetDataUploads)
+	{
+		const int32 ReversedMipIndex = AssetMipUpload.ReversedMipIndex;
+		FVector4* UploadAssetData = (FVector4*)AssetDataUploadBuffer.Add_GetRef(AssetMipUpload.AssetId.AsInteger() * DistanceField::NumMips + ReversedMipIndex);
+
+		if (AssetStateArray.IsValidId(AssetMipUpload.AssetId))
+		{
+			const FDistanceFieldAssetState& AssetState = AssetStateArray[AssetMipUpload.AssetId];
+			EncodeAssetData(AssetState, ReversedMipIndex, UploadAssetData);
+		}
+		else
+		{
+			// Clear invalid entries to zero
+			UploadAssetData[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+			UploadAssetData[1] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+			UploadAssetData[2] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+		}
+	}
+
+	AddPass(GraphBuilder, RDG_EVENT_NAME("UploadAssetData"), [this](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.Transition({
+				FRHITransitionInfo(AssetDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+				});
+
+			AssetDataUploadBuffer.ResourceUploadTo(RHICmdList, AssetDataBuffer, false);
+
+			RHICmdList.Transition({
+				FRHITransitionInfo(AssetDataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
+				});
+		});
+}
+
 void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View,
@@ -874,6 +963,17 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 	ResizeResourceIfNeeded(GraphBuilder.RHICmdList, AssetDataBuffer, AssetDataSizeBytes, TEXT("DistanceFields.DFAssetData"));
 	const uint32 IndirectionTableSizeBytes = FMath::Max<uint32>(FMath::RoundUpToPowerOfTwo(IndirectionTableAllocator.GetMaxSize()) * sizeof(uint32), 16);
 	ResizeResourceIfNeeded(GraphBuilder.RHICmdList, IndirectionTable, IndirectionTableSizeBytes, TEXT("DistanceFields.DFIndirectionTable"));
+
+	{
+		const FIntVector AtlasDimensions = BrickTextureDimensionsInBricks * DistanceField::BrickSize;
+		const SIZE_T AtlasSizeBytes = AtlasDimensions.X * AtlasDimensions.Y * AtlasDimensions.Z * GPixelFormats[DistanceField::DistanceFieldFormat].BlockBytes;
+		const SIZE_T IndirectionTableBytes = IndirectionTable.NumBytes;
+
+		float AtlasSizeMB = float(AtlasSizeBytes) / (1024.0f * 1024.0f);
+		float IndirectionTableSizeMB = float(IndirectionTableBytes) / (1024.0f * 1024.0f);
+		CSV_CUSTOM_STAT(DistanceField, AtlasMB, AtlasSizeMB, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(DistanceField, IndirectionTableMB, IndirectionTableSizeMB, ECsvCustomStatOp::Set);
+	}
 
 	{
 		FDistanceFieldAsyncUpdateParameters UpdateParameters;
@@ -977,72 +1077,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 
 		GraphBuilder.FinalizeTextureAccess(DistanceFieldBrickVolumeTextureRDG, ERHIAccess::SRVMask);
 	}
-
-	if (AssetDataUploads.Num() > 0)
-	{
-		AssetDataUploadBuffer.Init(AssetDataUploads.Num(), AssetDataMipStrideFloat4s * sizeof(FVector4), true, TEXT("DistanceFields.DFAssetDataUploadBuffer"));
-
-		for (FDistanceFieldAssetMipId AssetMipUpload : AssetDataUploads)
-		{
-			const int32 ReversedMipIndex = AssetMipUpload.ReversedMipIndex;
-			FVector4* UploadAssetData = (FVector4*)AssetDataUploadBuffer.Add_GetRef(AssetMipUpload.AssetId.AsInteger() * DistanceField::NumMips + ReversedMipIndex);
-
-			if (AssetStateArray.IsValidId(AssetMipUpload.AssetId))
-			{
-				const FDistanceFieldAssetState& AssetState = AssetStateArray[AssetMipUpload.AssetId];
-				const FDistanceFieldAssetMipState& MipState = AssetState.ReversedMips[ReversedMipIndex];
-				const int32 MipIndex = AssetState.BuiltData->Mips.Num() - ReversedMipIndex - 1;
-				const FSparseDistanceFieldMip& MipBuiltData = AssetState.BuiltData->Mips[MipIndex];
-				const FVector2D DistanceFieldToVolumeScaleBias = MipBuiltData.DistanceFieldToVolumeScaleBias;
-				const int32 NumMips = AssetState.ReversedMips.Num();
-
-				check(NumMips <= DistanceField::NumMips);
-				check(DistanceField::NumMips < 4);
-				check(MipBuiltData.IndirectionDimensions.X < DistanceField::MaxIndirectionDimension
-					&& MipBuiltData.IndirectionDimensions.Y < DistanceField::MaxIndirectionDimension
-					&& MipBuiltData.IndirectionDimensions.Z < DistanceField::MaxIndirectionDimension);
-
-				uint32 IntVector0[4] =
-				{
-					(uint32)MipBuiltData.IndirectionDimensions.X | (uint32)(MipBuiltData.IndirectionDimensions.Y << 10) | (uint32)(MipBuiltData.IndirectionDimensions.Z << 20) | (uint32)(NumMips << 30),
-					(uint32)FFloat16(DistanceFieldToVolumeScaleBias.X).Encoded | ((uint32)FFloat16(DistanceFieldToVolumeScaleBias.Y).Encoded << 16),
-					(uint32)MipState.IndirectionTableOffset,
-					0
-				};
-
-				// Bypass NaN checks in FVector4 ctors
-				FVector4 FloatVector0;
-				FloatVector0.X = *(const float*)&IntVector0[0];
-				FloatVector0.Y = *(const float*)&IntVector0[1];
-				FloatVector0.Z = *(const float*)&IntVector0[2];
-				FloatVector0.W = *(const float*)&IntVector0[3];
-
-				UploadAssetData[0] = FloatVector0;
-				UploadAssetData[1] = FVector4(MipBuiltData.VolumeToVirtualUVScale, 0.0f);
-				UploadAssetData[2] = FVector4(MipBuiltData.VolumeToVirtualUVAdd, 0.0f);
-			}
-			else
-			{
-				// Clear invalid entries to zero
-				UploadAssetData[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-				UploadAssetData[1] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-				UploadAssetData[2] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-			}
-		}
-
-		AddPass(GraphBuilder, RDG_EVENT_NAME("UploadAssetData"), [this](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.Transition({
-				FRHITransitionInfo(AssetDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			});
-
-			AssetDataUploadBuffer.ResourceUploadTo(RHICmdList, AssetDataBuffer, false);
-
-			RHICmdList.Transition({
-				FRHITransitionInfo(AssetDataBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-			});
-		});
-	}
+	
+	UploadAssetData(GraphBuilder, AssetDataUploads);
 
 	GenerateStreamingRequests(GraphBuilder, View, Scene, bLumenEnabled, GlobalShaderMap);
 
