@@ -522,7 +522,7 @@ private:
 
 	TSharedPtr<FTaskbarList> TaskbarList;
 
-#if WITH_ACCESSIBILITY
+#if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA
 	/** Handler for WM_GetObject messages that come in */
 	TUniquePtr<class FWindowsUIAManager> UIAManager;
 #endif

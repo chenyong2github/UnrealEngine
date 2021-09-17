@@ -31,9 +31,15 @@ public class ApplicationCore : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"XInput"
 			);
-			if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication)
+			// We only enable UIA with Win64
+			if (Target.bCompileWithAccessibilitySupport && !Target.bIsBuildingConsoleApplication && Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				PublicSystemLibraries.Add("uiautomationcore.lib");
+				PublicDefinitions.Add("UE_WINDOWS_USING_UIA=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("UE_WINDOWS_USING_UIA=0");
 			}
 
 			// Uses DXGI to query GPU hardware prior to RHI startup

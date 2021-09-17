@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if WITH_ACCESSIBILITY
+#if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA
 
 #include "Templates/SharedPointer.h"
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"

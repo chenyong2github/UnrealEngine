@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_ACCESSIBILITY
+#if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA
 
 #include "Windows/Accessibility/WindowsUIAControlProvider.h"
 #include "Windows/Accessibility/WindowsUIAWidgetProvider.h"
