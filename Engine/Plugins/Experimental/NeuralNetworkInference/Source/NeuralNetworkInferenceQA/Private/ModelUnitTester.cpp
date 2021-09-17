@@ -226,9 +226,7 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	{
 		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 		// CPU
-		InOutNetwork->SetDeviceType(ENeuralDeviceType::CPU);
-		InOutNetwork->SetOutputDeviceType(ENeuralDeviceType::CPU);
-		InOutNetwork->SetInputDeviceType(ENeuralDeviceType::CPU);
+		InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::CPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
 		InOutNetwork->Run();
 		CPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 	}
@@ -236,9 +234,7 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	{
 		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 		// Input CPU + GPU + Output CPU
-		InOutNetwork->SetDeviceType(ENeuralDeviceType::GPU);
-		InOutNetwork->SetInputDeviceType(ENeuralDeviceType::CPU);
-		InOutNetwork->SetOutputDeviceType(ENeuralDeviceType::CPU);
+		InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
 		InOutNetwork->Run();
 		CPUGPUCPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 	}
@@ -249,15 +245,14 @@ if (InBackEnd == ENeuralBackEnd::UEOnly /*|| true*/)
 {
 		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
 		// Input CPU + GPU + Output GPU
-		InOutNetwork->SetDeviceType(ENeuralDeviceType::GPU);
-		InOutNetwork->SetInputDeviceType(ENeuralDeviceType::CPU);
-		InOutNetwork->SetOutputDeviceType(ENeuralDeviceType::GPU);
+		InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::GPU);
 		InOutNetwork->Run();
 		InOutNetwork->OutputTensorsToCPU();
 		CPUGPUGPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 }
 else
 {
+	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("FModelUnitTester::ModelAccuracyTest(): GPU output for UEAndORT back end not working yet. Uncomment this line to test it."));
 	CPUGPUGPUOutputs.Push(CPUGPUCPUOutputs[Index]);
 }
 	}
@@ -305,9 +300,7 @@ else
 		bDidGlobalTestPassed &= !bDidSomeTestFailed;
 	}
 	// Reset to original network state
-	InOutNetwork->SetDeviceType(OriginalDeviceType);
-	InOutNetwork->SetInputDeviceType(OriginalInputDeviceType);
-	InOutNetwork->SetOutputDeviceType(OriginalOutputDeviceType);
+	InOutNetwork->SetDeviceType(/*DeviceType*/OriginalDeviceType, /*InputDeviceType*/OriginalInputDeviceType, /*OutputDeviceType*/OriginalOutputDeviceType);
 	InOutNetwork->SetBackEnd(OriginalBackEnd);
 	// Test successful
 	return bDidGlobalTestPassed;

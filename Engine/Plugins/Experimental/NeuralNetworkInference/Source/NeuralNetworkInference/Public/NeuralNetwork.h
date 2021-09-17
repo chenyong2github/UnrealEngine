@@ -96,11 +96,9 @@ public:
 	 * @see DeviceType, InputDeviceType, and OutputDeviceType for more details.
 	 */
 	ENeuralDeviceType GetDeviceType() const;
-	void SetDeviceType(const ENeuralDeviceType InDeviceType);
 	ENeuralDeviceType GetInputDeviceType() const;
-	void SetInputDeviceType(const ENeuralDeviceType InInputDeviceType);
 	ENeuralDeviceType GetOutputDeviceType() const;
-	void SetOutputDeviceType(const ENeuralDeviceType InOutputDeviceType);
+	void SetDeviceType(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType = ENeuralDeviceType::CPU, const ENeuralDeviceType InOutputDeviceType = ENeuralDeviceType::CPU);
 
 	/**
 	 * Getter and setter functions for SynchronousMode.
@@ -234,11 +232,6 @@ private:
 	 */
 	struct FImplBackEndUEOnly;
 	TSharedPtr<FImplBackEndUEOnly> ImplBackEndUEOnly;
-
-	/**
-	 * Auxiliary function for Set(Input/Output)DeviceType.
-	 */
-	void SetXDeviceType(ENeuralDeviceType& OutDeviceType, const ENeuralDeviceType InDeviceType);
 
 	/**
 	 * It loads the desired network graph definition and weights internally saved on this UNeuralNetwork instance.
