@@ -995,9 +995,6 @@ struct FMetasoundFrontendClassStyle
 
 	UPROPERTY()
 	FMetasoundFrontendClassStyleDisplay Display;
-
-	UPROPERTY()
-	bool bIsUserGenerated = false;
 };
 
 USTRUCT()

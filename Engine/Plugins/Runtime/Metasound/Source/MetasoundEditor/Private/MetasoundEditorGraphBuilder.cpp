@@ -89,6 +89,8 @@ namespace Metasound
 
 		UMetasoundEditorGraphExternalNode* FGraphBuilder::AddExternalNode(UObject& InMetaSound, Frontend::FNodeHandle& InNodeHandle, FVector2D InLocation, bool bInSelectNewNode)
 		{
+			using namespace Frontend;
+
 			UMetasoundEditorGraphExternalNode* NewGraphNode = nullptr;
 			if (!ensure(InNodeHandle->GetClassMetadata().GetType() == EMetasoundFrontendClassType::External))
 			{
@@ -101,6 +103,9 @@ namespace Metasound
 			FGraphNodeCreator<UMetasoundEditorGraphExternalNode> NodeCreator(Graph);
 
 			NewGraphNode = NodeCreator.CreateNode(bInSelectNewNode);
+
+			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(InNodeHandle->GetClassMetadata());
+			NewGraphNode->bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
 			NewGraphNode->ClassName = InNodeHandle->GetClassMetadata().GetClassName();
 
 			NodeCreator.Finalize();
@@ -1598,7 +1603,7 @@ namespace Metasound
 
 		bool FGraphBuilder::SynchronizePinLiteral(UEdGraphPin& InPin)
 		{
-			using namespace Metasound::Frontend;
+			using namespace Frontend;
 
 			if (!ensure(InPin.Direction == EGPD_Input))
 			{

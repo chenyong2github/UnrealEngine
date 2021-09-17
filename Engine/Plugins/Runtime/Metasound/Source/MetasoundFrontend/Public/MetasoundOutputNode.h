@@ -117,10 +117,9 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {TEXT("Output"), GetMetasoundDataTypeName<DataType>(), TEXT("")};
+			Info.ClassName = { "Output", GetMetasoundDataTypeName<DataType>(), FName() };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_OutputNodeDisplayNameFormat", "Output {0}"), FText::FromName(GetMetasoundDataTypeName<DataType>()));
 			Info.Description = LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;

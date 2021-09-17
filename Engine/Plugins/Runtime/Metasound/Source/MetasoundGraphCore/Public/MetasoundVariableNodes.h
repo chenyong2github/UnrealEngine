@@ -111,10 +111,9 @@ namespace Metasound
 		{
 			FNodeClassMetadata Info;
 
-			Info.ClassName = {"InitVariable", GetMetasoundDataTypeName<DataType>(), ""};
+			Info.ClassName = { "InitVariable", GetMetasoundDataTypeName<DataType>(), FName() };
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_InitVariableNodeDisplayNameFormat", "Init {0} Variable"), FText::FromName(GetMetasoundDataTypeName<DataType>()));
 			Info.Description = LOCTEXT("Metasound_InitVariableNodeDescription", "Initialize a variable of a MetaSound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;

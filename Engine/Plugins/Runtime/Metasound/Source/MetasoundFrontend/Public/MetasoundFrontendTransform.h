@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
@@ -109,6 +110,7 @@ namespace Metasound
 		  * a new class (useful for when an asset is duplicated). */
 		class METASOUNDFRONTEND_API FRegenerateAssetClassName : public IDocumentTransform
 		{
+
 		public:
 			FRegenerateAssetClassName() = default;
 

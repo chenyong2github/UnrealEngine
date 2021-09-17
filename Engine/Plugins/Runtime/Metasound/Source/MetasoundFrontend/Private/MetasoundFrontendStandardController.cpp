@@ -3315,10 +3315,17 @@ namespace Metasound
 				{
 					FMetasoundFrontendNode& Node = GraphClass->Graph.Nodes.Emplace_GetRef(*NodeClass);
 
+					// Cache the asset name on the node if it node is reference to asset-defined graph.
+					const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(NodeClass->Metadata);
+					if (const FSoftObjectPath* Path = IMetaSoundAssetManager::GetChecked().FindObjectPathFromKey(RegistryKey))
+					{
+						const FString& AssetName = Path->GetAssetName();
+						Node.Name = *AssetName;
+					}
 					Node.UpdateID();
 
 					FNodeAccessPtr NodePtr = GraphClassPtr.GetNodeWithNodeID(Node.GetID());
-					return GetNodeHandle(FGraphController::FNodeAndClass{NodePtr, InExistingDependency});
+					return GetNodeHandle(FGraphController::FNodeAndClass { NodePtr, InExistingDependency });
 				}
 			}
 
