@@ -63,15 +63,10 @@ void FInViewportUIDragOperation::OnDragged(const FDragDropEvent& DragDropEvent)
 	CursorDecoratorWindow->MoveWindowTo(TargetPosition);
 }
 
-TSharedRef<FInViewportUIDragOperation> FInViewportUIDragOperation::New(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InTabGrabOffset, const FVector2D& OwnerAreaSize)
+TSharedRef<FInViewportUIDragOperation> FInViewportUIDragOperation::New(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InDecoratorOffset, const FVector2D& OwnerAreaSize)
 {
-	const TSharedRef<FInViewportUIDragOperation> Operation = MakeShareable(new FInViewportUIDragOperation(InUIToBeDragged, InTabGrabOffset, OwnerAreaSize));
+	const TSharedRef<FInViewportUIDragOperation> Operation = MakeShareable(new FInViewportUIDragOperation(InUIToBeDragged, InDecoratorOffset, OwnerAreaSize));
 	return Operation;
-}
-
-FVector2D FInViewportUIDragOperation::GetTabGrabOffsetFraction() const
-{
-	return TabGrabOffsetFraction;
 }
 
 FInViewportUIDragOperation::~FInViewportUIDragOperation()
@@ -79,9 +74,9 @@ FInViewportUIDragOperation::~FInViewportUIDragOperation()
 
 }
 
-FInViewportUIDragOperation::FInViewportUIDragOperation(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InTabGrabOffsetFraction, const FVector2D& OwnerAreaSize)
+FInViewportUIDragOperation::FInViewportUIDragOperation(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InDecoratorOffset, const FVector2D& OwnerAreaSize)
 	: UIBeingDragged(InUIToBeDragged)
-	, TabGrabOffsetFraction(InTabGrabOffsetFraction)
+	, DecoratorOffsetFromCursor(InDecoratorOffset)
 	, LastContentSize(OwnerAreaSize)
 {
 	// Create the decorator window that we will use during this drag and drop to make the user feel like
@@ -100,8 +95,7 @@ FInViewportUIDragOperation::FInViewportUIDragOperation(const TSharedRef<class SI
 
 const FVector2D FInViewportUIDragOperation::GetDecoratorOffsetFromCursor()
 {
-	const FVector2D TabDesiredSize = UIBeingDragged->GetDesiredSize();
-	return TabGrabOffsetFraction * TabDesiredSize;
+	return DecoratorOffsetFromCursor;
 }
 
 class SInViewportDetailsRow : public STableRow< TSharedPtr<IDetailTreeNode> >
@@ -141,46 +135,47 @@ public:
 				.PhysicalSplitterHandleSize(1.0f)
  				.HitDetectionSplitterHandleSize(5.0f)
  				+ SSplitter::Slot()
-				.SizeRule(SSplitter::ESizeRule::FractionOfParent)
  				.Value(ColumnSizeData.NameColumnWidth)
 				.OnSlotResized(ColumnSizeData.OnNameColumnResized)
  				[
 					SNew(SBox)
-					.HAlign(HAlign_Right)
- 					.Padding(5.0f)
+					.HAlign(HAlign_Left)
+ 					.Padding(2.0f)
+					.Clipping(EWidgetClipping::OnDemand)
  					[
 						NameWidget.ToSharedRef()
 					]
  				]
  				+ SSplitter::Slot()
-				.SizeRule(SSplitter::ESizeRule::FractionOfParent)
  				.Value(ColumnSizeData.ValueColumnWidth)
  				.OnSlotResized(ColumnSizeData.OnValueColumnResized)
  				[
  					SNew(SBox)
- 					.Padding(5.0f)
+ 					.Padding(2.0f)
  					[
  						ValueWidget.ToSharedRef()
  					]
 				]
 				+ SSplitter::Slot()
-					.SizeRule(SSplitter::ESizeRule::SizeToContent)
+				.Value(ColumnSizeData.RightColumnWidth)
+				.OnSlotResized(ColumnSizeData.OnRightColumnResized)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(2.0f)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						.Padding(2.0f)
-						[
-							ResetWidget.ToSharedRef()
-						]
-					];
+						ResetWidget.ToSharedRef()
+					]
+				];
  		}
 
 		ChildSlot
 			[
 				SNew(SBox)
-				.MinDesiredWidth(350.0f)
+				.MinDesiredWidth(250.0f)
+				.Padding(FMargin(14.f, 0.f, 10.f, 0.f))
 				[
 					RowWidget.ToSharedRef()
 				]
@@ -206,7 +201,7 @@ void SInViewportDetails::Construct(const FArguments& InArgs)
 	FPropertyRowGeneratorArgs Args;
 	Args.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
 	Args.NotifyHook = GUnrealEd;
-	ColumnSizeData.ValueColumnWidth = 0.5f;
+	ColumnSizeData.SetValueColumnWidth(0.5f);
 	PropertyRowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(Args);
 
 	USelection::SelectionChangedEvent.AddRaw(this, &SInViewportDetails::OnEditorSelectionChanged);
@@ -234,7 +229,8 @@ void SInViewportDetails::GenerateWidget()
 		}
 		else
 		{
-			NameString = SelectedActor->GetHumanReadableName();
+			// Use the actor label because that's the friendly name used in other editor UI.
+			NameString = SelectedActor->GetActorLabel();
 		}
 
 		// Get the common base class of the selected objects
@@ -261,9 +257,9 @@ void SInViewportDetails::GenerateWidget()
 		ChildSlot
 			[
 				SNew(SBackgroundBlur)
-				.BlurStrength(20)
+				.BlurStrength(4)
 				.Padding(0.0f)
-				.CornerRadius(FVector4(15.0f, 15.0f, 15.0f, 15.0f))
+				.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
 				[
 					SNew(SBorder)
 					.BorderImage(FAppStyle::Get().GetBrush("PropertyTable.InViewport.Background"))
@@ -288,13 +284,15 @@ void SInViewportDetails::GenerateWidget()
 								[
 									SNew(SImage)
 									.Image(ActorIcon)
+									.ColorAndOpacity(FSlateColor::UseForeground())
 								]
 								+ SHorizontalBox::Slot()
-								.Padding(10.0f, 2.0f)
+								.VAlign(VAlign_Center)
+								.Padding(4.0f, 0.0f)
 								[
 									SNew(STextBlock)
 									.Text(FText::FromString(NameString))
-									.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+									.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont"))
 								]
 							]
 						]
@@ -307,7 +305,7 @@ void SInViewportDetails::GenerateWidget()
 						]
 						+ SVerticalBox::Slot()
 						.AutoHeight()
-						.Padding(0.0f)
+						.Padding(FMargin(0.0f, 5.0f))
 						[
 							MakeDetailsWidget()
 						]
@@ -457,13 +455,13 @@ TSharedRef<ITableRow> SInViewportDetails::GenerateListRow(TSharedPtr<IDetailTree
 
 }
 
-FReply SInViewportDetails::StartDraggingDetails(FVector2D InTabGrabOffsetFraction, const FPointerEvent& MouseEvent)
+FReply SInViewportDetails::StartDraggingDetails(FVector2D InTabGrabScreenSpaceOffset, const FPointerEvent& MouseEvent)
 {
 	// Start dragging.
 	TSharedRef<FInViewportUIDragOperation> DragDropOperation =
 		FInViewportUIDragOperation::New(
 			SharedThis(this),
-			InTabGrabOffsetFraction,
+			InTabGrabScreenSpaceOffset,
 			GetDesiredSize()
 		);
 	if (OwningViewport.IsValid())
@@ -480,7 +478,7 @@ void SInViewportDetailsHeader::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush("PropertyTable.InViewport.Header"))
-			.Padding(5.0f)
+			.Padding(FMargin(8.0f, 5.0f))
 			[
 				InArgs._Content.Widget
 			]
@@ -490,16 +488,12 @@ void SInViewportDetailsHeader::Construct(const FArguments& InArgs)
 FReply SInViewportDetailsHeader::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	// Need to remember where within a tab we grabbed
-	const FVector2D TabGrabOffset = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-	const FVector2D TabSize = MyGeometry.GetLocalSize();
-	const FVector2D TabGrabOffsetFraction = FVector2D(
-		FMath::Clamp(TabGrabOffset.X / TabSize.X, 0.0f, 1.0f),
-		FMath::Clamp(TabGrabOffset.Y / TabSize.Y, 0.0f, 1.0f));
+	const FVector2D TabGrabScreenSpaceOffset = MouseEvent.GetScreenSpacePosition() - MyGeometry.GetAbsolutePosition();
 
 	TSharedPtr<SInViewportDetails> PinnedParent = ParentPtr.Pin();
 	if (PinnedParent.IsValid())
 	{
-		return PinnedParent->StartDraggingDetails(TabGrabOffsetFraction, MouseEvent);
+		return PinnedParent->StartDraggingDetails(TabGrabScreenSpaceOffset, MouseEvent);
 	}
 
 	return FReply::Unhandled();
