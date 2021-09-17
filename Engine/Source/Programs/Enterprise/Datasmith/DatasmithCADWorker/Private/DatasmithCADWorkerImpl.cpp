@@ -183,7 +183,7 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 
 void FDatasmithCADWorkerImpl::CheckDuration(const CADLibrary::FFileDescriptor& FileToProcess, const int64 MaxDuration)
 {
-	if (!ImportParameters.bEnableTimeControl)
+	if (!ImportParameters.bGEnableTimeControl)
 	{
 		return;
 	}
