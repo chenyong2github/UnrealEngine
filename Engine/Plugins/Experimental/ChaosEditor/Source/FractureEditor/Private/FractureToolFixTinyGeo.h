@@ -16,10 +16,18 @@ enum class EGeometrySelectionMethod
 	VolumeCubeRoot,
 	// Select by cube root of volume relative to the overall shape's cube root of volume
 	RelativeVolume
-	//~ TODO: also have a manual selection method?
 };
 
-/** Settings controlling how convex hulls are generated for geometry collections */
+UENUM()
+enum class ENeighborSelectionMethod
+{
+	// Merge to the neighbor with the largest volume
+	LargestNeighbor,
+	// Merge to the neighbor with the closest center
+	NearestCenter
+};
+
+/** Settings controlling how tiny geometry is selected and merged into neighboring geometry */
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureTinyGeoSettings : public UFractureToolSettings
 {
@@ -34,14 +42,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = FilterSettings)
 	EGeometrySelectionMethod SelectionMethod = EGeometrySelectionMethod::RelativeVolume;
 
+	UPROPERTY(EditAnywhere, Category = FilterSettings)
+	ENeighborSelectionMethod NeighborSelection = ENeighborSelectionMethod::LargestNeighbor;
+
 	/** If volume is less than this value cubed, geometry should be merged into neighbors -- i.e. a value of 2 merges geometry smaller than a 2x2x2 cube */
 	UPROPERTY(EditAnywhere, Category = FilterSettings, meta = (ClampMin = ".00001", UIMin = ".1", UIMax = "10", EditCondition = "SelectionMethod == EGeometrySelectionMethod::VolumeCubeRoot", EditConditionHides))
 	double MinVolumeCubeRoot = 1;
 
 	/** If cube root of volume relative to the overall shape's cube root of volume is less than this, the geometry should be merged into its neighbors.
 	(Note: This is a bit different from the histogram viewer's "Relative Size," which instead shows values relative to the largest rigid bone.) */
-	UPROPERTY(EditAnywhere, Category = FilterSettings, meta = (ClampMin = ".001", UIMax = ".1", ClampMax = "1.0", EditCondition = "SelectionMethod == EGeometrySelectionMethod::RelativeVolume", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = FilterSettings, meta = (ClampMin = "0", UIMax = ".1", ClampMax = "1.0", EditCondition = "SelectionMethod == EGeometrySelectionMethod::RelativeVolume", EditConditionHides))
 	double RelativeVolume = .01;
+
+	/** Also merge selected bones to their neighbors */
+	UPROPERTY(EditAnywhere, Category = FilterSettings)
+	bool bAlsoMergeSelected = false;
 
 };
 

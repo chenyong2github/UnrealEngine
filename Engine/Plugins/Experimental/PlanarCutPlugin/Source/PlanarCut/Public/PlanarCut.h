@@ -243,15 +243,29 @@ void PLANARCUT_API FindSmallBones(
 	TArray<int32>& OutSmallBones
 );
 
+namespace UE
+{
+	namespace PlanarCut
+	{
+		enum ENeighborSelectionMethod
+		{
+			LargestNeighbor,
+			NearestCenter
+		};
+	}
+}
+
+
 /**
- * Merge chosen geometry into neighboring geometry.  Geometry will be merged into its largest neighboring geometry (if any).
+ * Merge chosen geometry into neighboring geometry.
  *
- * @param Collection			The collection to be processed
- * @param TransformIndices		The transform indices to process, or empty if all should be processed
- * @param Volumes				Volumes of geometry; 1:1 w/ TransformIndices array
- * @param MinVolume				If merged small geometry is larger than this, it will not require further merging
- * @param SmallTransformIndices	Transformed indices of pieces that we want to merge
- * @param bUnionJoinedPieces	Try to 'union' the merged pieces, removing internal triangles and connecting the shared cut boundary
+ * @param Collection				The collection to be processed
+ * @param TransformIndices			The transform indices to process, or empty if all should be processed
+ * @param Volumes					Volumes of geometry; 1:1 w/ TransformIndices array
+ * @param MinVolume					If merged small geometry is larger than this, it will not require further merging
+ * @param SmallTransformIndices		Transform indices of pieces that we want to merge
+ * @param bUnionJoinedPieces		Try to 'union' the merged pieces, removing internal triangles and connecting the shared cut boundary
+ * @param NeighborSelectionMethod	How to choose which neighbor to merge to
  */
 int32 PLANARCUT_API MergeBones(
 	FGeometryCollection& Collection,
@@ -259,7 +273,8 @@ int32 PLANARCUT_API MergeBones(
 	const TArrayView<const double>& Volumes,
 	double MinVolume,
 	const TArrayView<const int32>& SmallTransformIndices,
-	bool bUnionJoinedPieces
+	bool bUnionJoinedPieces,
+	UE::PlanarCut::ENeighborSelectionMethod NeighborSelectionMethod
 );
 
 /**
