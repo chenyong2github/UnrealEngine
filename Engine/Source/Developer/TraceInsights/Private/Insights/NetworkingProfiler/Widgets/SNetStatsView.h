@@ -175,7 +175,7 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Grouping
 
-	void CreateSortedGroups();
+	void CreateGroups();
 	void CreateGroupByOptionsSources();
 
 	void GroupBy_OnSelectionChanged(TSharedPtr<ENetEventGroupingMode> NewGroupingMode, ESelectInfo::Type SelectInfo);
@@ -195,7 +195,7 @@ protected:
 	void CreateSortings();
 
 	void UpdateCurrentSortingByColumn();
-	void SortTreeChildNodes();
+	void SortTreeNodes();
 	void SortTreeNodesRec(FNetEventNode& Node, const Insights::ITableCellValueSorter& Sorter);
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
@@ -232,7 +232,7 @@ protected:
 	void HideColumn(const FName ColumnId);
 
 	// ToggleColumnVisibility
-	bool IsColumnVisible(const FName ColumnId);
+	bool IsColumnVisible(const FName ColumnId) const;
 	bool CanToggleColumnVisibility(const FName ColumnId) const;
 	void ToggleColumnVisibility(const FName ColumnId);
 
@@ -306,7 +306,7 @@ protected:
 
 	//bool bUseFiltering;
 
-	/** The search box widget used to filter items displayed in the stats and groups tree. */
+	/** The search box widget used to filter items displayed in the tree. */
 	TSharedPtr<SSearchBox> SearchBox;
 
 	/** The text based filter. */
