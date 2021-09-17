@@ -1976,6 +1976,26 @@ void PostSavePackage(FSaveContext& SaveContext)
 	// Package has been saved, so unmark the NewlyCreated flag.
 	Package->ClearPackageFlags(PKG_NewlyCreated);
 
+	if (SaveContext.Linker != nullptr)
+	{
+		// Copy and modify the output SerializedPackageFlags from the PackageFlags written into the file
+		SaveContext.SerializedPackageFlags = SaveContext.Linker->Summary.GetPackageFlags();
+		// Currently the PKG_ContainsNoAsset flag is not serialized as part of the summary
+		bool bContainsAsset = false;
+		for (FObjectExport& Export : SaveContext.Linker->ExportMap)
+		{
+			if (Export.bIsAsset)
+			{
+				bContainsAsset = true;
+				break;
+			}
+		}
+		if (!bContainsAsset)
+		{
+			SaveContext.SerializedPackageFlags |= PKG_ContainsNoAsset;
+		}
+	}
+
 	// Notify the soft reference collector about our harvested soft references during save. 
 	// This is currently needed only for cooking which does not require editor-only references 
 #if WITH_EDITOR

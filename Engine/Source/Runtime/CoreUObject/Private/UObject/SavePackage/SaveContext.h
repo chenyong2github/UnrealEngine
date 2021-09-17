@@ -539,8 +539,11 @@ public:
 			return Result;
 		}
 
-		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : (bDiffOnlyIdentical ? ESavePackageResult::Success : ESavePackageResult::DifferentContent);
-		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed, AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)), 0, IsCompareLinker() ? MoveTemp(Linker) : nullptr);
+		ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub
+			: (bDiffOnlyIdentical ? ESavePackageResult::Success : ESavePackageResult::DifferentContent);
+		return FSavePackageResultStruct(FinalResult, TotalPackageSizeUncompressed,
+			AsyncWriteAndHashSequence.Finalize(EAsyncExecution::TaskGraph, MoveTemp(HashCompletionFunc)),
+			SerializedPackageFlags, IsCompareLinker() ? MoveTemp(Linker) : nullptr);
 	}
 
 	FObjectSaveContextData& GetObjectSaveContext()
@@ -573,6 +576,7 @@ public:
 	int32 OffsetAfterPackageFileSummary = 0;
 	int32 OffsetAfterImportMap = 0;
 	int32 OffsetAfterExportMap = 0;
+	int32 SerializedPackageFlags = 0;
 	TAsyncWorkSequence<FMD5> AsyncWriteAndHashSequence;
 	TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
 	FSavePackageOutputFileArray AdditionalPackageFiles;
