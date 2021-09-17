@@ -3,6 +3,7 @@
 #include "AnimDistanceMatchingLibrary.h"
 #include "Animation/AnimSequence.h"
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
+#include "Curves/CurveFloat.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAnimDistanceMatchingLibrary, Verbose, All);
 
