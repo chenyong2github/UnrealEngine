@@ -25,7 +25,6 @@ namespace UnrealBuildTool
 		/// Types of project files to generate
 		/// </summary>
 		[CommandLine("-ProjectFileFormat")]
-		[CommandLine("-2017", Value = nameof(ProjectFileFormat.VisualStudio2017))] // + override compiler
 		[CommandLine("-2019", Value = nameof(ProjectFileFormat.VisualStudio2019))] // + override compiler
 		[CommandLine("-2022", Value = nameof(ProjectFileFormat.VisualStudio2022))] // + override compiler
 		[CommandLine("-Makefile", Value = nameof(ProjectFileFormat.Make))]
@@ -193,9 +192,6 @@ namespace UnrealBuildTool
 						break;
 					case ProjectFileFormat.VisualStudio:
 						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.Default, Arguments);
-						break;
-					case ProjectFileFormat.VisualStudio2017:
-						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.VisualStudio2017, Arguments);
 						break;
 					case ProjectFileFormat.VisualStudio2019:
 						Generator = new VCProjectFileGenerator(ProjectFile, VCProjectFileFormat.VisualStudio2019, Arguments);

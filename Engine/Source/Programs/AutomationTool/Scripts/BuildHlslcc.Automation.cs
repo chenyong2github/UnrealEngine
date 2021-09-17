@@ -16,7 +16,7 @@ using UnrealBuildBase;
 [Help("Builds Hlslcc using CMake build system.")]
 [Help("TargetPlatforms", "Specify a list of target platforms to build, separated by '+' characters (eg. -TargetPlatforms=Win64+Linux+Mac). Architectures are specified with '-'. Default is Win64+Linux.")]
 [Help("TargetConfigs", "Specify a list of configurations to build, separated by '+' characters (eg. -TargetConfigs=Debug+RelWithDebInfo). Default is Debug+RelWithDebInfo.")]
-[Help("TargetWindowsCompilers", "Specify a list of target compilers to use when building for Windows, separated by '+' characters (eg. -TargetCompilers=VisualStudio2017+VisualStudio2019). Default is VisualStudio2019.")]
+[Help("TargetWindowsCompilers", "Specify a list of target compilers to use when building for Windows, separated by '+' characters (eg. -TargetCompilers=VisualStudio2019+VisualStudio2022). Default is VisualStudio2019.")]
 [Help("SkipBuild", "Do not perform build step. If this argument is not supplied libraries will be built (in accordance with TargetLibs, TargetPlatforms and TargetWindowsCompilers).")]
 [Help("SkipDeployLibs", "Do not perform library deployment to the engine. If this argument is not supplied libraries will be copied into the engine.")]
 [Help("SkipDeploySource", "Do not perform source deployment to the engine. If this argument is not supplied source will be copied into the engine.")]
@@ -89,8 +89,8 @@ class BuildHlslcc : BuildCommand
 		string VisualStudioDirectoryName;
 		switch (TargetWindowsCompiler)
 		{
-			case WindowsCompiler.VisualStudio2017:
 			case WindowsCompiler.VisualStudio2019:
+			case WindowsCompiler.VisualStudio2022:
 				VisualStudioDirectoryName = "VS2015";
 				break;
 			default:
@@ -171,11 +171,11 @@ class BuildHlslcc : BuildCommand
 		string VisualStudioName;
 		switch (TargetWindowsCompiler)
 		{
-			case WindowsCompiler.VisualStudio2017:
-				VisualStudioName = "Visual Studio 15 2017";
-				break;
 			case WindowsCompiler.VisualStudio2019:
 				VisualStudioName = "Visual Studio 16 2019";
+				break;
+			case WindowsCompiler.VisualStudio2022:
+				VisualStudioName = "Visual Studio 17 2022";
 				break;
 			default:
 				throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
@@ -662,8 +662,8 @@ class BuildHlslcc : BuildCommand
 		{
 			switch (TargetWindowsCompiler)
 			{
-				case WindowsCompiler.VisualStudio2017:
 				case WindowsCompiler.VisualStudio2019:
+				case WindowsCompiler.VisualStudio2022:
 					VisualStudioName = "VS2015";
 					break;
 				default:

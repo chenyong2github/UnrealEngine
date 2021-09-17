@@ -368,7 +368,7 @@ namespace UnrealBuildTool
 		{
 			long OpenFoldersEnd = Reader.BaseStream.Position + Reader.ReadInt32();
 
-			if(Format >= VCProjectFileFormat.VisualStudio2017)
+			if(Format >= VCProjectFileFormat.VisualStudio2019)
 			{
 				int Header1 = Reader.ReadInt32();
 				/*int Header2 =*/ Reader.ReadInt32();
@@ -408,7 +408,7 @@ namespace UnrealBuildTool
 
 		void WriteOpenProjects(BinaryWriter Writer, VCProjectFileFormat Format)
 		{
-			if(Format >= VCProjectFileFormat.VisualStudio2017)
+			if(Format >= VCProjectFileFormat.VisualStudio2019)
 			{
 				Writer.Write(4 + (4 + 4 + 1) + 2 + OpenProjects.Sum(x => GetStringSize(x.Item1) + 2 + x.Item2.Sum(y => GetStringSize(y))));
 				Writer.Write(15);
