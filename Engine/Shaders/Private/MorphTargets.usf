@@ -19,7 +19,6 @@
 #define TANGENTZ_MAX_BITS				16
 
 RWBuffer<uint> MorphVertexBuffer;
-RWBuffer<int> MorphNormalizationBuffer;
 ByteAddressBuffer MorphDataBuffer;
 
 //TODO: use a buffer instead of packing into constant buffer?
@@ -28,7 +27,6 @@ uint4 MorphTargetGroupOffsets[GMorphTargetDispatchBatchSize / 4];
 float4 MorphTargetWeights[GMorphTargetDispatchBatchSize / 4];
 
 float4 PositionScale;
-float WeightScale;
 float2 Precision;
 
 groupshared uint LocalGroupOffsets[GMorphTargetDispatchBatchSize];
@@ -151,10 +149,6 @@ void GPUMorphUpdateCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_Gro
 			InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 4], asuint(QuantizedTangentZOffset.y));
 			InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 5], asuint(QuantizedTangentZOffset.z));
 		}
-
-		// Update weight sum
-		int QuantizedWeight = (int)round(Weight * WeightScale);
-		InterlockedAdd(MorphNormalizationBuffer[DestVertexIndex], QuantizedWeight);	//TODO: Only used to normalize tangent weights. Are we sure we even want to do this?
 	}
 }
 
@@ -170,13 +164,7 @@ void GPUMorphNormalizeCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_
 	MorphVertexBuffer[DestVertexAddress + 1] = asuint(Position.y);
 	MorphVertexBuffer[DestVertexAddress + 2] = asuint(Position.z);
 	
-	// TODO: Does this tangent normalization code make sense?
-	const float Weight = float(MorphNormalizationBuffer[DestVertexIndex]) * WeightScale;
 	float3 TangentZ = float3(int3(MorphVertexBuffer[DestVertexAddress + 3], MorphVertexBuffer[DestVertexAddress + 4], MorphVertexBuffer[DestVertexAddress + 5])) * PositionScale.w;
-	if (Weight > 1.0f)
-	{
-		TangentZ /= Weight;
-	}
 	MorphVertexBuffer[DestVertexAddress + 3] = asuint(TangentZ.x);
 	MorphVertexBuffer[DestVertexAddress + 4] = asuint(TangentZ.y);
 	MorphVertexBuffer[DestVertexAddress + 5] = asuint(TangentZ.z);

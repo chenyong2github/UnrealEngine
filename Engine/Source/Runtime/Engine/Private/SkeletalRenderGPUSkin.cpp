@@ -125,10 +125,6 @@ void FMorphVertexBuffer::InitDynamicRHI()
 	{
 		UAVValue = RHICreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
 		bNeedsInitialClear = true;
-
-		uint32 NormalizationBufferSize = LodData.GetNumVertices() * sizeof(int);
-		NormalizationBufferRHI = RHICreateVertexBuffer(NormalizationBufferSize, Flags, CreateInfo);
-		NormalizationBufferUAV = RHICreateUnorderedAccessView(NormalizationBufferRHI, PF_R32_SINT);
 	}
 
 	// hasn't been updated yet
@@ -140,8 +136,6 @@ void FMorphVertexBuffer::ReleaseDynamicRHI()
 	UAVValue.SafeRelease();
 	VertexBufferRHI.SafeRelease();
 	SRVValue.SafeRelease();
-	NormalizationBufferRHI.SafeRelease();
-	NormalizationBufferUAV.SafeRelease();
 }
 
 /*-----------------------------------------------------------------------------
@@ -735,15 +729,13 @@ void FSkeletalMeshObjectGPUSkin::UpdateMorphVertexBuffer(FRHICommandListImmediat
 
 TArray<float> FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::MorphAccumulatedWeightArray;
 
-void FGPUMorphUpdateCS::SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, float WeightScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer)
+void FGPUMorphUpdateCS::SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer)
 {
 	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
 
 	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
-	SetUAVParameter(RHICmdList, CS, MorphNormalizationBufferParameter, MorphVertexBuffer.GetNormalizationUAV());
 
 	SetShaderValue(RHICmdList, CS, PositionScaleParameter, LocalScale);
-	SetShaderValue(RHICmdList, CS, WeightScaleParameter, WeightScale);
 	FVector2D Precision = { MorphTargetVertexInfoBuffers.GetPositionPrecision(), MorphTargetVertexInfoBuffers.GetTangentZPrecision() };
 	SetShaderValue(RHICmdList, CS, PrecisionParameter, Precision);
 
@@ -773,13 +765,11 @@ void FGPUMorphUpdateCS::EndAllDispatches(FRHICommandList& RHICmdList)
 
 IMPLEMENT_SHADER_TYPE(, FGPUMorphUpdateCS, TEXT("/Engine/Private/MorphTargets.usf"), TEXT("GPUMorphUpdateCS"), SF_Compute);
 
-void FGPUMorphNormalizeCS::SetParameters(FRHICommandList& RHICmdList, const FVector4& InvLocalScale, float InvWeightScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer)
+void FGPUMorphNormalizeCS::SetParameters(FRHICommandList& RHICmdList, const FVector4& InvLocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer)
 {
 	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
 	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
-	SetUAVParameter(RHICmdList, CS, MorphNormalizationBufferParameter, MorphVertexBuffer.GetNormalizationUAV());
 	SetShaderValue(RHICmdList, CS, PositionScaleParameter, InvLocalScale);
-	SetShaderValue(RHICmdList, CS, WeightScaleParameter, InvWeightScale);
 }
 
 void FGPUMorphNormalizeCS::Dispatch(FRHICommandList& RHICmdList, uint32 NumVertices)
@@ -796,16 +786,14 @@ void FGPUMorphNormalizeCS::EndAllDispatches(FRHICommandList& RHICmdList)
 
 IMPLEMENT_SHADER_TYPE(, FGPUMorphNormalizeCS, TEXT("/Engine/Private/MorphTargets.usf"), TEXT("GPUMorphNormalizeCS"), SF_Compute);
 
-static void CalculateMorphDeltaBounds(const TArray<float>& MorphTargetWeights, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FVector4& MorphScale, FVector4& InvMorphScale, float& OutWeightScale, float& OutInvWeightScale)
+static void CalculateMorphDeltaBounds(const TArray<float>& MorphTargetWeights, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FVector4& MorphScale, FVector4& InvMorphScale)
 {
 	double MinAccumScale[4] = { 0, 0, 0, 0 };
 	double MaxAccumScale[4] = { 0, 0, 0, 0 };
 	double MaxScale[4] = { 0, 0, 0, 0 };
-	double WeightScale = 0.0;
 
 	for (uint32 i = 0; i < MorphTargetVertexInfoBuffers.GetNumMorphs(); i++)
 	{
-		WeightScale += FMath::Abs(MorphTargetWeights[i]);
 		FVector4 MinMorphScale = MorphTargetVertexInfoBuffers.GetMinimumMorphScale(i);
 		FVector4 MaxMorphScale = MorphTargetVertexInfoBuffers.GetMaximumMorphScale(i);
 
@@ -821,15 +809,12 @@ static void CalculateMorphDeltaBounds(const TArray<float>& MorphTargetWeights, c
 		}
 	}
 
-	WeightScale = FMath::Max<double>(WeightScale, 1.0);
 	MaxScale[0] = FMath::Max<double>(MaxScale[0], 1.0);
 	MaxScale[1] = FMath::Max<double>(MaxScale[1], 1.0);
 	MaxScale[2] = FMath::Max<double>(MaxScale[2], 1.0);
 	MaxScale[3] = FMath::Max<double>(MaxScale[3], 1.0);
 
 	const double ScaleToInt24 = 16777216.0;
-	OutWeightScale = float(ScaleToInt24 / WeightScale);
-	OutInvWeightScale = float(WeightScale / ScaleToInt24);
 
 	MorphScale = FVector4
 	(
@@ -871,33 +856,22 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 			LodData.GetNumVertices(),
 			MorphTargetVertexInfoBuffers.GetNumBatches());
 
-		RHICmdList.Transition(
-		{
-			FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-		});
+		RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetUAV(), FUintVector4(0, 0, 0, 0));
-		RHICmdList.ClearUAVUint(MorphVertexBuffer.GetNormalizationUAV(), FUintVector4(0, 0, 0, 0));
 
 		{
 			FVector4 MorphScale; 
 			FVector4 InvMorphScale; 
-			float WeightScale;
-			float InvWeightScale;
 			{
 				SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_ApplyDelta);
-				CalculateMorphDeltaBounds(MorphTargetWeights, MorphTargetVertexInfoBuffers, MorphScale, InvMorphScale, WeightScale, InvWeightScale);
+				CalculateMorphDeltaBounds(MorphTargetWeights, MorphTargetVertexInfoBuffers, MorphScale, InvMorphScale);
 			}
 
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateScatter, TEXT("Scatter"));
 
-				RHICmdList.Transition(
-				{
-					FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute)
-				});
-				RHICmdList.BeginUAVOverlap({ MorphVertexBuffer.GetUAV(), MorphVertexBuffer.GetNormalizationUAV() });
+				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+				RHICmdList.BeginUAVOverlap(MorphVertexBuffer.GetUAV());
 
 				//the first pass scatters all morph targets into the vertexbuffer using atomics
 				//multiple morph targets can be batched by a single shader where the shader will rely on
@@ -935,23 +909,19 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 					}
 
 					RHICmdList.SetComputeShader(GPUMorphUpdateCS.GetComputeShader());
-					GPUMorphUpdateCS->SetParameters(RHICmdList, MorphScale, WeightScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
+					GPUMorphUpdateCS->SetParameters(RHICmdList, MorphScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
 					GPUMorphUpdateCS->SetMorphOffsetsAndWeights(RHICmdList, BatchOffsets, GroupOffsets, Weights);
 					GPUMorphUpdateCS->Dispatch(RHICmdList, NumBatches);
 				}
 				
 				GPUMorphUpdateCS->EndAllDispatches(RHICmdList);
-				RHICmdList.EndUAVOverlap({ MorphVertexBuffer.GetUAV(), MorphVertexBuffer.GetNormalizationUAV() });
+				RHICmdList.EndUAVOverlap(MorphVertexBuffer.GetUAV());
 			}
 
 			{
 				SCOPED_DRAW_EVENTF(RHICmdList, MorphUpdateNormalize, TEXT("Normalize"));
 
-				RHICmdList.Transition(
-				{
-					FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(MorphVertexBuffer.GetNormalizationUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute)
-				});
+				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 
 				//The second pass normalizes the scattered result and converts it back into floats.
 				//The dispatches are split by morph permutation (and their accumulated weight) .
@@ -960,7 +930,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 				//binary search to find the correct target weight within the batch.
 				TShaderMapRef<FGPUMorphNormalizeCS> GPUMorphNormalizeCS(GetGlobalShaderMap(FeatureLevel));
 				RHICmdList.SetComputeShader(GPUMorphNormalizeCS.GetComputeShader());
-				GPUMorphNormalizeCS->SetParameters(RHICmdList, InvMorphScale, InvWeightScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
+				GPUMorphNormalizeCS->SetParameters(RHICmdList, InvMorphScale, MorphTargetVertexInfoBuffers, MorphVertexBuffer);
 				GPUMorphNormalizeCS->Dispatch(RHICmdList, MorphVertexBuffer.GetNumVerticies());
 				GPUMorphNormalizeCS->EndAllDispatches(RHICmdList);
 				RHICmdList.Transition(FRHITransitionInfo(MorphVertexBuffer.GetUAV(), ERHIAccess::UAVCompute, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask));
