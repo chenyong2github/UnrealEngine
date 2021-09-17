@@ -602,7 +602,7 @@ namespace Chaos
 				//For now we assume this always comes from server update
 				if(FRewindData* RewindData = GetRewindData())
 				{
-					RewindData->RemoveJoint(JointProxy->GetHandle());
+					RewindData->RemoveObject(JointProxy->GetHandle());
 				}
 
 				JointProxy->DestroyOnPhysicsThread(this);
@@ -717,7 +717,7 @@ namespace Chaos
 					// Remove from rewind data
 					if (FRewindData* RewindData = GetRewindData())
 					{
-						RewindData->RemoveParticle(Info.Handle);
+						RewindData->RemoveObject(Info.Handle);
 					}
 
 					// Use the handle to destroy the particle data

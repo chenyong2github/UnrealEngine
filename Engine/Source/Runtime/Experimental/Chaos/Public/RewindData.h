@@ -82,6 +82,17 @@ struct FPropertyInterval
 	FFrameAndPhase FrameAndPhase;
 };
 
+template <typename TData, typename TObj>
+void CopyDataFromObject(TData& Data, const TObj& Obj)
+{
+	Data.CopyFrom(Obj);
+}
+
+inline void CopyDataFromObject(FPBDJointSettings& Data, const FPBDJointConstraintHandle& Joint)
+{
+	Data = Joint.GetSettings();
+}
+
 template <typename T, EChaosProperty PropName, bool bNoEntryIsHead = true>
 class TParticlePropertyBuffer
 {
@@ -177,9 +188,9 @@ public:
 		if (const T* Val = Read(FrameAndPhase, Pool))
 		{
 			T HeadVal;
-			HeadVal.CopyFrom(Handle);
+			CopyDataFromObject(HeadVal, Handle);
 			return *Val == HeadVal;
-	}
+		}
 
 		return NoEntryInSync<THandle, T, bNoEntryIsHead>::Helper(Handle);
 	}
@@ -461,7 +472,7 @@ private:
 	}\
 
 #define REWIND_JOINT_PROPERTY(PROP, FUNC_NAME, NAME)\
-	decltype(auto) FUNC_NAME() const\
+	decltype(auto) Get##FUNC_NAME() const\
 	{\
 		const auto Data = State ? State->PROP.Read(FrameAndPhase, Pool) : nullptr;\
 		return Data ? Data->NAME : Head.GetSettings().NAME;\
@@ -672,6 +683,7 @@ struct FJointStateBase
 		return JointSettings.IsClean(FrameAndPhase) && ProxyPair.IsClean(FrameAndPhase);
 	}
 
+	template <bool bSkipDynamics>
 	bool IsInSync(const FPBDJointConstraintHandle& Handle, const FFrameAndPhase FrameAndPhase, const FDirtyPropertiesPool& Pool) const;
 
 	TParticlePropertyBuffer<FPBDJointSettings, EChaosProperty::JointSettings> JointSettings;
@@ -695,67 +707,10 @@ public:
 	{
 	}
 
-	REWIND_JOINT_PROPERTY(JointSettings, JointTransforms, ConnectorTransforms);
-	REWIND_JOINT_PROPERTY(JointSettings, CollisionEnabled, bCollisionEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, ProjectionEnabled, bProjectionEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, ProjectionLinearAlpha, LinearProjection);
-	REWIND_JOINT_PROPERTY(JointSettings, ProjectionAngularAlpha, AngularProjection);
-	REWIND_JOINT_PROPERTY(JointSettings, ParentInvMassScale, ParentInvMassScale);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearBreakForce, LinearBreakForce);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearPlasticityLimit, LinearPlasticityLimit);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearPlasticityType, LinearPlasticityType);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularBreakTorque, AngularBreakTorque);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularPlasticityLimit, AngularPlasticityLimit);
-	REWIND_JOINT_PROPERTY(JointSettings, UserData, UserData);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearPositionDriveXEnabled, bLinearPositionDriveEnabled[0]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearPositionDriveYEnabled, bLinearPositionDriveEnabled[1]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearPositionDriveZEnabled, bLinearPositionDriveEnabled[2]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearDrivePositionTarget, LinearDrivePositionTarget);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearVelocityDriveXEnabled, bLinearVelocityDriveEnabled[0]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearVelocityDriveYEnabled, bLinearVelocityDriveEnabled[1]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearVelocityDriveZEnabled, bLinearVelocityDriveEnabled[2]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearDriveVelocityTarget, LinearDriveVelocityTarget);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearDriveForceMode, LinearDriveForceMode);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearMotionTypesX, LinearMotionTypes[0]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearMotionTypesY, LinearMotionTypes[1]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearMotionTypesZ, LinearMotionTypes[2]);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearDriveStiffness, LinearDriveStiffness);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearDriveDamping, LinearDriveDamping);
-	REWIND_JOINT_PROPERTY(JointSettings, ContactTransferScale, ContactTransferScale);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularSLerpPositionDriveEnabled, bAngularSLerpPositionDriveEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularTwistPositionDriveEnabled, bAngularTwistPositionDriveEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularSwingPositionDriveEnabled, bAngularSwingPositionDriveEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularDrivePositionTarget, AngularDrivePositionTarget);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularSLerpVelocityDriveEnabled, bAngularSLerpVelocityDriveEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularTwistVelocityDriveEnabled, bAngularTwistVelocityDriveEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularSwingVelocityDriveEnabled, bAngularSwingVelocityDriveEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularDriveVelocityTarget, AngularDriveVelocityTarget);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularDriveForceMode, AngularDriveForceMode);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularMotionTypesX, AngularMotionTypes[0]);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularMotionTypesY, AngularMotionTypes[1]);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularMotionTypesZ, AngularMotionTypes[2]);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularDriveStiffness, AngularDriveStiffness);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularDriveDamping, AngularDriveDamping);
-	REWIND_JOINT_PROPERTY(JointSettings, Stiffness, Stiffness);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftLinearLimitsEnabled, bSoftLinearLimitsEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftTwistLimitsEnabled, bSoftTwistLimitsEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftSwingLimitsEnabled, bSoftSwingLimitsEnabled);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearSoftForceMode, LinearSoftForceMode);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularSoftForceMode, AngularSoftForceMode);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftLinearStiffness, SoftLinearStiffness);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftLinearDamping, SoftLinearDamping);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftTwistStiffness, SoftTwistStiffness);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftTwistDamping, SoftTwistDamping);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftSwingStiffness, SoftSwingStiffness);
-	REWIND_JOINT_PROPERTY(JointSettings, SoftSwingDamping, SoftSwingDamping);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearLimit, LinearLimit);
-	REWIND_JOINT_PROPERTY(JointSettings, AngularLimits, AngularLimits);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearContactDistance, LinearContactDistance);
-	REWIND_JOINT_PROPERTY(JointSettings, TwistContactDistance, TwistContactDistance);
-	REWIND_JOINT_PROPERTY(JointSettings, SwingContactDistance, SwingContactDistance);
-	REWIND_JOINT_PROPERTY(JointSettings, LinearRestitution, LinearRestitution);
-	REWIND_JOINT_PROPERTY(JointSettings, TwistRestitution, TwistRestitution);
-	REWIND_JOINT_PROPERTY(JointSettings, SwingRestitution, SwingRestitution);
+	//See JointProperties for API
+	//Each CHAOS_INNER_JOINT_PROPERTY entry will have a Get*
+#define CHAOS_INNER_JOINT_PROPERTY(OuterProp, FuncName, Inner, InnerType) REWIND_JOINT_PROPERTY(OuterProp, FuncName, Inner);
+#include "Chaos/JointProperties.inl"
 
 private:
 	const FPBDJointConstraintHandle& Head;
@@ -859,6 +814,8 @@ private:
 	TArray<TVal> DenseVals;
 };
 
+extern CHAOS_API int32 SkipDesyncTest;
+
 class FPBDRigidsSolver;
 
 class FRewindData
@@ -886,12 +843,12 @@ public:
 		return Managers[Frame].DeltaTime;
 	}
 
-	void CHAOS_API RemoveParticle(const FGeometryParticleHandle* Particle)
+	void CHAOS_API RemoveObject(const FGeometryParticleHandle* Particle)
 	{
 		DirtyParticles.Remove(Particle);
 	}
 
-	void CHAOS_API RemoveJoint(const FPBDJointConstraintHandle* Joint)
+	void CHAOS_API RemoveObject(const FPBDJointConstraintHandle* Joint)
 	{
 		DirtyJoints.Remove(Joint);
 	}
@@ -966,6 +923,7 @@ public:
 	void PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const int32 SrcDataIdx);
 
 	void CHAOS_API MarkDirtyFromPT(FGeometryParticleHandle& Handle);
+	void CHAOS_API MarkDirtyJointFromPT(FPBDJointConstraintHandle& Handle);
 
 	void CHAOS_API SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy);
 
@@ -1087,7 +1045,12 @@ private:
 
 	bool RewindToFrame(int32 Frame);
 
-	static void DesyncParticle(FDirtyParticleInfo& Info, const FFrameAndPhase FrameAndPhase);
+	template <typename TDirtyInfo>
+	static void DesyncObject(TDirtyInfo& Info, const FFrameAndPhase FrameAndPhase)
+	{
+		Info.ClearPhaseAndFuture(FrameAndPhase);
+		Info.GetObjectPtr()->SetSyncState(ESyncState::HardDesync);
+	}
 
 	TCircularBuffer<FFrameManagerInfo> Managers;
 	FDirtyPropertiesPool PropertiesPool;	//must come before DirtyParticles since it relies on it (and used in destruction)
@@ -1103,11 +1066,11 @@ private:
 	bool bNeedsSave;	//Indicates that some data is pointing at head and requires saving before a rewind
 	bool bResimOptimization;
 
-	bool IsResimAndInSync(const FGeometryParticleHandle& Handle) const { return IsResim() && Handle.SyncState() == ESyncState::InSync; }
+	template <typename TObj>
+	bool IsResimAndInSync(const TObj& Handle) const { return IsResim() && Handle.SyncState() == ESyncState::InSync; }
 
-	template <bool bSkipDynamics = false>
-	void DesyncIfNecessary(FDirtyParticleInfo& Info, const FFrameAndPhase FrameAndPhase);
-
+	template <bool bSkipDynamics, typename TDirtyInfo>
+	void DesyncIfNecessary(TDirtyInfo& Info, const FFrameAndPhase FrameAndPhase);
 };
 
 /** Used by user code to determine when rewind should occur and gives it the opportunity to record any additional data */
