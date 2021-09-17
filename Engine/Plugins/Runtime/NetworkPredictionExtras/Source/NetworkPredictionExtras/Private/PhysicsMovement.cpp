@@ -9,6 +9,7 @@
 #include "EngineUtils.h"
 #include "Net/UnrealNetwork.h"
 #include "Chaos/SimCallbackObject.h"
+#include "Chaos/Utilities.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/PlayerController.h"
 #include "DrawDebugHelpers.h"
@@ -147,7 +148,7 @@ struct FPhysicsMovementSimulation
 
 				if (NetState.JumpStartFrame + UE_NETWORK_PHYSICS::JumpFrameDuration() > SimulationFrame)
 				{
-					PT->AddForce( Chaos::FVec3(0.f, 0.f, UE_NETWORK_PHYSICS::JumpForce()) );
+					PT->AddForce( Chaos::FVec3(0.f, 0.f, UE_NETWORK_PHYSICS::JumpForce()) * NetState.JumpStrength * PT->M() );
 
 					//UE_LOG(LogTemp, Warning, TEXT("[%d] Jumped [JumpStart: %d. InAir: %d]"), SimulationFrame, NetState.JumpStartFrame, NetState.InAirFrame);
 					NetState.JumpCooldownMS = 1000;
@@ -189,9 +190,11 @@ struct FPhysicsMovementSimulation
 		else
 		{
 			// Movement
-			if (InputCmd.Force.SizeSquared() > 0.001f)
+			const bool bHasLinearForceInput = InputCmd.Force.SizeSquared() > 0.0f || InputCmd.Acceleration.SizeSquared() > 0.0f;
+			if (bHasLinearForceInput)
 			{
-				PT->AddForce(InputCmd.Force * NetState.ForceMultiplier * UE_NETWORK_PHYSICS::MovementK());
+				const FVector ForceFromAcceleration = InputCmd.Acceleration * PT->M();
+				PT->AddForce((InputCmd.Force + ForceFromAcceleration) * NetState.ForceMultiplier * UE_NETWORK_PHYSICS::MovementK());
 
 			}
 			else if(!bInAir)
@@ -210,9 +213,13 @@ struct FPhysicsMovementSimulation
 			}
 
 			// Rotation
-			if (InputCmd.Torque.SizeSquared() > 0.001f)
+			const bool bHasAngularForceInput = InputCmd.Torque.SizeSquared() > 0.0f || InputCmd.AngularAcceleration.SizeSquared() > 0.0f;
+			if (bHasAngularForceInput)
 			{
-				PT->AddTorque(InputCmd.Torque* NetState.ForceMultiplier* UE_NETWORK_PHYSICS::RotationK());
+				const Chaos::FMatrix33 WorldI = Chaos::Utilities::ComputeWorldSpaceInertia(PT->R() * PT->RotationOfMass(), PT->I());
+				const FVector TorqueFromAngularAcceleration = WorldI * InputCmd.AngularAcceleration;
+				const FVector TorqueInput = InputCmd.Torque * NetState.ForceMultiplier * UE_NETWORK_PHYSICS::RotationK();
+				PT->AddTorque(TorqueInput + TorqueFromAngularAcceleration);
 			}
 
 			if (NetState.bEnableAutoFaceTargetYaw)
@@ -232,13 +239,14 @@ struct FPhysicsMovementSimulation
 			}
 		}
 
-		// Drag force
-		FVector V = PT->V();
-		V.Z = 0.f;
-		if (V.SizeSquared() > 0.1f)
+		// Drag
 		{
-			FVector Drag = -1.f * V * UE_NETWORK_PHYSICS::DragK();
-			PT->AddForce(Drag);
+			FVector NewV = PT->V();
+			if (NewV.SizeSquared() > 0.1f)
+			{
+				const float DragFactor = FMath::Max(0.f, FMath::Min(1.f - (UE_NETWORK_PHYSICS::DragK() * DeltaSeconds), 1.f));
+				PT->SetV(Chaos::FVec3(NewV.X* DragFactor, NewV.Y* DragFactor, NewV.Z * DragFactor));
+			}
 		}
 		
 		// angular velocity limit
