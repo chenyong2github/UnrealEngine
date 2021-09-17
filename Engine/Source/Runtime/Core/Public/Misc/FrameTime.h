@@ -304,7 +304,7 @@ FORCEINLINE_DEBUGGABLE double FFrameTime::AsDecimal() const
 
 FORCEINLINE_DEBUGGABLE FFrameTime FFrameTime::FromDecimal(double InDecimalFrame)
 {
-	int32 NewFrame = static_cast<int32>(FMath::FloorToDouble(InDecimalFrame));
+	int32 NewFrame = static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(InDecimalFrame), (double)TNumericLimits<int32>::Min(), (double)TNumericLimits<int32>::Max()));
 
 	// Ensure fractional parts above the highest sub frame float precision do not round to 0.0
 	double Fraction = InDecimalFrame - FMath::FloorToDouble(InDecimalFrame);
