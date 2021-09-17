@@ -106,6 +106,15 @@ public:
 	IMAGECORE_API void ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const;
 
 	/**
+	 * Linearize to a RGBA32F destination image by applying the decoding function that corresponds to the specified source encoding.
+	 * If None, this call will be equivalent to CopyTo(DestImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear).
+	 *
+	 * @param SourceEncoding - Opaque source encoding (matching UE::Color::EEncoding).
+	 * @param DestImage - The destination image.
+	 */
+	IMAGECORE_API void Linearize(uint8 SourceEncoding, FImage& DestImage) const;
+
+	/**
 	 * Gets the number of bytes per pixel.
 	 *
 	 * @return Bytes per pixel.

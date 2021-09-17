@@ -1019,6 +1019,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Texture, meta=(DisplayName="sRGB"), AssetRegistrySearchable)
 	uint8 SRGB:1;
 
+	/** Source encoding of the texture, exposing more options than just sRGB. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, AssetRegistrySearchable, AdvancedDisplay)
+	TEnumAsByte<enum ETextureSourceEncoding> SourceEncodingOverride;
+	
+
 #if WITH_EDITORONLY_DATA
 
 	/** A flag for using the simplified legacy gamma space e.g pow(color,1/2.2) for converting from FColor to FLinearColor, if we're doing sRGB. */

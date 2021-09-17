@@ -295,3 +295,26 @@ enum TextureCompressionSettings
 	TC_EncodedReflectionCapture		UMETA(Hidden),
 	TC_MAX,
 };
+
+/** List of (advanced) texture source encodings, matching the list in `ColorManagementDefines.h`. */
+UENUM()
+enum ETextureSourceEncoding
+{
+	TSE_None = 0 UMETA(DisplayName = "Default", ToolTip = "The source encoding is assumed to match the state of the sRGB checkbox parameter."),
+	TSE_Linear = 1 UMETA(DisplayName = "Linear", ToolTip = "The source encoding is considered linear (before optional sRGB encoding is applied)."),
+	TSE_sRGB = 2 UMETA(DisplayName = "sRGB", ToolTip = "sRGB source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_ST2084 = 3 UMETA(DisplayName = "ST 2084/PQ", ToolTip = "SMPTE ST 2084/PQ source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_Gamma22 = 4 UMETA(DisplayName = "Gamma 2.2", ToolTip = "Gamma 2.2 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_BT1886 = 5 UMETA(DisplayName = "BT1886", ToolTip = "BT1886 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_Cineon = 6 UMETA(DisplayName = "Cineon", ToolTip = "Cineon source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_RedLog = 7 UMETA(DisplayName = "RedLog", ToolTip = "RedLog source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_REDLog3G10 = 8 UMETA(DisplayName = "REDLog3G10", ToolTip = "REDLog3G10 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_SLog1 = 9 UMETA(DisplayName = "SLog1", ToolTip = "Sony SLog1 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_SLog2 = 10 UMETA(DisplayName = "SLog2", ToolTip = "Sony SLog2 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_SLog3 = 11 UMETA(DisplayName = "SLog3", ToolTip = "Sony SLog3 source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_AlexaV3LogC = 12 UMETA(DisplayName = "AlexaV3LogC", ToolTip = "ARRI Alexa V3 LogC source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_CanonLog = 13 UMETA(DisplayName = "CanonLog", ToolTip = "Canon Log source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_ProTune = 14 UMETA(DisplayName = "ProTune", ToolTip = "GoPro ProTune source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_VLog = 15 UMETA(DisplayName = "V-Log", ToolTip = "Panasonic V-Log source encoding to be linearized (before optional sRGB encoding is applied)."),
+	TSE_MAX,
+};

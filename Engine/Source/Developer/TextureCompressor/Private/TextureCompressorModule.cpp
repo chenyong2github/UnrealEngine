@@ -1206,10 +1206,10 @@ static uint32 ComputeLongLatCubemapExtents(const FImage& SrcImage, const uint32 
 	return FMath::Clamp(1U << FMath::FloorLog2(SrcImage.SizeX / 2), 32U, MaxCubemapTextureResolution);
 }
 
-void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution)
+void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution, uint8 SourceEncodingOverride)
 {
 	FImage LongLatImage;
-	SrcImage.CopyTo(LongLatImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+	SrcImage.Linearize(SourceEncodingOverride, LongLatImage);
 
 	// TODO_TEXTURE: Expose target size to user.
 	uint32 Extent = ComputeLongLatCubemapExtents(LongLatImage, MaxCubemapTextureResolution);
@@ -2545,7 +2545,6 @@ private:
 		for (int32 MipIndex = StartMip; MipIndex < StartMip + CopyCount; ++MipIndex)
 		{
 			const FImage& Image = SourceMips[MipIndex];
-			ERawImageFormat::Type MipFormat = ERawImageFormat::RGBA32F;
 
 			// create base for the mip chain
 			FImage* Mip = new(OutMipChain) FImage();
@@ -2553,7 +2552,7 @@ private:
 			if (bLongLatCubemap)
 			{
 				// Generate the base mip from the long-lat source image.
-				GenerateBaseCubeMipFromLongitudeLatitude2D(Mip, Image, BuildSettings.MaxTextureResolution);
+				GenerateBaseCubeMipFromLongitudeLatitude2D(Mip, Image, BuildSettings.MaxTextureResolution, BuildSettings.SourceEncodingOverride);
 				break;
 			}
 			else
@@ -2562,9 +2561,7 @@ private:
 				if(BuildSettings.bApplyKernelToTopMip)
 				{
 					FImage Temp;
-					
-					Image.CopyTo(Temp, MipFormat, EGammaSpace::Linear);
-
+					Image.Linearize(BuildSettings.SourceEncodingOverride, Temp);
 					if(BuildSettings.bRenormalizeTopMip)
 					{
 						NormalizeMip(Temp);
@@ -2574,7 +2571,7 @@ private:
 				}
 				else
 				{
-					Image.CopyTo(*Mip, MipFormat, EGammaSpace::Linear);
+					Image.Linearize(BuildSettings.SourceEncodingOverride, *Mip);
 
 					if(BuildSettings.bRenormalizeTopMip)
 					{

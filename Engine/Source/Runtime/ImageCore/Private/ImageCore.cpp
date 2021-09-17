@@ -3,7 +3,18 @@
 #include "ImageCore.h"
 #include "Modules/ModuleManager.h"
 #include "Async/ParallelFor.h"
+#include "TransferFunctions.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogImageCore, Log, All);
+
+static constexpr float MAX_HALF_FLOAT16 = 65504.0f;
+
+FORCEINLINE static void SaturateToHalfFloat(FLinearColor& LinearCol)
+{
+	LinearCol.R = FMath::Clamp(LinearCol.R, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
+	LinearCol.G = FMath::Clamp(LinearCol.G, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
+	LinearCol.B = FMath::Clamp(LinearCol.B, -MAX_HALF_FLOAT16, MAX_HALF_FLOAT16);
+}
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ImageCore);
 
@@ -439,6 +450,164 @@ void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawI
 		InitImageStorage(TempDestImage);
 		ResizeImage(*SrcImagePtr, TempDestImage);
 		TempDestImage.CopyTo(DestImage, DestFormat, DestGammaSpace);
+	}
+}
+
+void FImage::Linearize(uint8 SourceEncoding, FImage& DestImage) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(Linearize);
+
+	DestImage.SizeX = SizeX;
+	DestImage.SizeY = SizeY;
+	DestImage.NumSlices = NumSlices;
+	DestImage.Format = ERawImageFormat::RGBA32F;
+	DestImage.GammaSpace = EGammaSpace::Linear;
+	InitImageStorage(DestImage);
+
+	const FImage& SrcImage = *this;
+	check(SrcImage.SizeX == DestImage.SizeX);
+	check(SrcImage.SizeY == DestImage.SizeY);
+	check(SrcImage.NumSlices == DestImage.NumSlices);
+
+	UE::Color::EEncoding SourceEncodingType = static_cast<UE::Color::EEncoding>(SourceEncoding);
+
+	if (SourceEncodingType == UE::Color::EEncoding::None)
+	{
+		CopyImage(SrcImage, DestImage);
+		return;
+	}
+	else if (SourceEncodingType >= UE::Color::EEncoding::Max)
+	{
+		UE_LOG(LogImageCore, Warning, TEXT("Invalid encoding %d, falling back to linearization using CopyImage."), SourceEncoding);
+		CopyImage(SrcImage, DestImage);
+		return;
+	}
+
+	const bool bDestIsGammaCorrected = DestImage.IsGammaCorrected();
+	const int64 NumTexels = int64(SrcImage.SizeX) * SrcImage.SizeY * SrcImage.NumSlices;
+	const int64 NumJobs = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	int64 TexelsPerJob = NumTexels / NumJobs;
+	if (TexelsPerJob * NumJobs < NumTexels)
+	{
+		++TexelsPerJob;
+	}
+
+	TFunction<FLinearColor(const FLinearColor&)> DecodeFunction = UE::Color::GetColorDecodeFunction(SourceEncodingType);
+	check(DecodeFunction != nullptr);
+
+	// Convert to 32-bit linear floating point.
+	TArrayView64<FLinearColor> DestColors = DestImage.AsRGBA32F();
+	switch (SrcImage.Format)
+	{
+	case ERawImageFormat::G8:
+	{
+		TArrayView64<const uint8> SrcLum = SrcImage.AsG8();
+		for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+		{
+			FColor SrcColor(SrcLum[TexelIndex], SrcLum[TexelIndex], SrcLum[TexelIndex], 255);
+			DestColors[TexelIndex] = SrcColor.ReinterpretAsLinear();
+			DestColors[TexelIndex] = DecodeFunction(DestColors[TexelIndex]);
+			SaturateToHalfFloat(DestColors[TexelIndex]);
+		}
+	}
+	break;
+
+	case ERawImageFormat::G16:
+	{
+		TArrayView64<const uint16> SrcLum = SrcImage.AsG16();
+		for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+		{
+			float Value = FColor::DequantizeUNorm16ToFloat(SrcLum[TexelIndex]);
+			DestColors[TexelIndex] = FLinearColor(Value, Value, Value, 1.0f);
+			DestColors[TexelIndex] = DecodeFunction(DestColors[TexelIndex]);
+			SaturateToHalfFloat(DestColors[TexelIndex]);
+		}
+	}
+	break;
+
+	case ERawImageFormat::BGRA8:
+	{
+		TArrayView64<const FColor> SrcColors = SrcImage.AsBGRA8();
+		EGammaSpace SrcGamma = SrcImage.GammaSpace;
+
+		ParallelFor(NumJobs, [DestColors, SrcColors, TexelsPerJob, NumTexels, SrcGamma, DecodeFunction](int64 JobIndex)
+			{
+				int64 StartIndex = JobIndex * TexelsPerJob;
+				int64 EndIndex = FMath::Min(StartIndex + TexelsPerJob, NumTexels);
+				for (int64 TexelIndex = StartIndex; TexelIndex < EndIndex; ++TexelIndex)
+				{
+					DestColors[TexelIndex] = SrcColors[TexelIndex].ReinterpretAsLinear();
+					DestColors[TexelIndex] = DecodeFunction(DestColors[TexelIndex]);
+					SaturateToHalfFloat(DestColors[TexelIndex]);
+				}
+			});
+	}
+	break;
+
+	case ERawImageFormat::BGRE8:
+	{
+		TArrayView64<const FColor> SrcColors = SrcImage.AsBGRE8();
+		for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+		{
+			DestColors[TexelIndex] = SrcColors[TexelIndex].FromRGBE();
+			DestColors[TexelIndex] = DecodeFunction(DestColors[TexelIndex]);
+			SaturateToHalfFloat(DestColors[TexelIndex]);
+		}
+	}
+	break;
+
+	case ERawImageFormat::RGBA16:
+	{
+		TArrayView64<const uint16> SrcColors = SrcImage.AsRGBA16();
+		for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+		{
+			int64 SrcIndex = TexelIndex * 4;
+			DestColors[TexelIndex] = FLinearColor(
+				SrcColors[SrcIndex + 0] / 65535.0f,
+				SrcColors[SrcIndex + 1] / 65535.0f,
+				SrcColors[SrcIndex + 2] / 65535.0f,
+				SrcColors[SrcIndex + 3] / 65535.0f
+			);
+			DestColors[TexelIndex] = DecodeFunction(DestColors[TexelIndex]);
+			SaturateToHalfFloat(DestColors[TexelIndex]);
+		}
+	}
+	break;
+
+	case ERawImageFormat::RGBA16F:
+	{
+		TArrayView64<const FFloat16Color> SrcColors = SrcImage.AsRGBA16F();
+		for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+		{
+			DestColors[TexelIndex] = SrcColors[TexelIndex].GetFloats();
+			DestColors[TexelIndex] = DecodeFunction(DestColors[TexelIndex]);
+			SaturateToHalfFloat(DestColors[TexelIndex]);
+		}
+	}
+	break;
+
+	case ERawImageFormat::RGBA32F:
+	{
+		TArrayView64<const FLinearColor> SrcColors = SrcImage.AsRGBA32F();
+		for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+		{
+			DestColors[TexelIndex] = DecodeFunction(SrcColors[TexelIndex]);
+			SaturateToHalfFloat(DestColors[TexelIndex]);
+		}
+	}
+	break;
+
+	case ERawImageFormat::R16F:
+	{
+		TArrayView64<const FFloat16> SrcColors = SrcImage.AsR16F();
+		for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
+		{
+			DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex].GetFloat(), 0, 0, 1);
+			DestColors[TexelIndex] = DecodeFunction(DestColors[TexelIndex]);
+			SaturateToHalfFloat(DestColors[TexelIndex]);
+		}
+	}
+	break;
 	}
 }
 

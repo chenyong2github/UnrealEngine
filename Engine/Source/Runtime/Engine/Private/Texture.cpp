@@ -95,6 +95,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 		[this](FTextureResource* InTextureResource) { SetResource(InTextureResource); })
 {
 	SRGB = true;
+	SourceEncodingOverride = ETextureSourceEncoding::TSE_None;
 	Filter = TF_Default;
 	MipLoadOptions = ETextureMipLoadOptions::Default;
 #if WITH_EDITORONLY_DATA

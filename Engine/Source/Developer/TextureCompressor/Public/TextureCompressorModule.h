@@ -105,6 +105,8 @@ struct FTextureBuildSettings
 	uint32 bLongLatSource : 1;
 	/** Whether the texture contains color data in the sRGB colorspace. */
 	uint32 bSRGB : 1;
+	/** Advanced source encoding of the image. */
+	uint8 SourceEncodingOverride;
 	/** Whether the texture should use the legacy gamma space for converting to sRGB */
 	uint32 bUseLegacyGamma : 1;
 	/** Whether the border of the image should be maintained during mipmap generation. */
@@ -199,6 +201,7 @@ struct FTextureBuildSettings
 		, bVolume(false)
 		, bLongLatSource(false)
 		, bSRGB(false)
+		, SourceEncodingOverride(0 /*UE::Color::EEncoding::None*/)
 		, bUseLegacyGamma(false)
 		, bPreserveBorder(false)
 		, bForceNoAlphaChannel(false)
@@ -309,7 +312,7 @@ public:
 	 * @param OutMip - The output mip.
 	 * @param SrcImage - The source longlat image.
 	 */
-	TEXTURECOMPRESSOR_API static void GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution);
+	TEXTURECOMPRESSOR_API static void GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution, uint8 SourceEncodingOverride = 0);
 
 
 	/**
