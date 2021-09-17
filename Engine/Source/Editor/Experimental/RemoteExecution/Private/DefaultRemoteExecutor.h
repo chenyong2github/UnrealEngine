@@ -5,15 +5,19 @@
 #include "CoreMinimal.h"
 #include "IRemoteExecutor.h"
 
-class FDefaultRemoteExecutor : public IRemoteExecutor
+
+namespace UE::RemoteExecution
 {
-public:
-	virtual FName GetFName() const override;
-	virtual FText GetNameText() const override;
-	virtual FText GetDescriptionText() const override;
+	class FDefaultRemoteExecutor : public IRemoteExecutor
+	{
+	public:
+		virtual FName GetFName() const override;
+		virtual FText GetNameText() const override;
+		virtual FText GetDescriptionText() const override;
 
-	virtual bool CanRemoteExecute() const override;
+		virtual bool CanRemoteExecute() const override;
 
-	virtual IContentAddressableStorage* GetContentAddressableStorage() const;
-	virtual IExecution* GetExecution() const;
-};
+		virtual IContentAddressableStorage* GetContentAddressableStorage() const;
+		virtual IExecution* GetExecution() const;
+	};
+}

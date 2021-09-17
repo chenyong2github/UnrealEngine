@@ -4,10 +4,9 @@
 #include "Features/IModularFeatures.h"
 #include "ISettingsModule.h"
 #include "RemoteExecutionSettings.h"
-#include "Messages.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_MODULE(FRemoteExecutionModule, RemoteExecution);
+IMPLEMENT_MODULE(UE::RemoteExecution::FRemoteExecutionModule, RemoteExecution);
 
 #define LOCTEXT_NAMESPACE "RemoteExecutionModule"
 
@@ -16,76 +15,79 @@ DEFINE_LOG_CATEGORY(LogRemoteExecution);
 static FName RemoteExecutionFeatureName(TEXT("RemoteExecution"));
 
 
-FRemoteExecutionModule::FRemoteExecutionModule()
-	: CurrentExecutor(nullptr)
+namespace UE::RemoteExecution
 {
-}
-
-void FRemoteExecutionModule::StartupModule()
-{
-	GetMutableDefault<URemoteExecutionSettings>()->LoadConfig();
-
-	// Register to check for remote execution features
-	IModularFeatures::Get().OnModularFeatureRegistered().AddRaw(this, &FRemoteExecutionModule::HandleModularFeatureRegistered);
-	IModularFeatures::Get().OnModularFeatureUnregistered().AddRaw(this, &FRemoteExecutionModule::HandleModularFeatureUnregistered);
-
-	// bind default accessor to editor
-	IModularFeatures::Get().RegisterModularFeature(RemoteExecutionFeatureName, &DefaultExecutor);
-}
-
-void FRemoteExecutionModule::ShutdownModule()
-{
-	// unbind default provider from editor
-	IModularFeatures::Get().UnregisterModularFeature(RemoteExecutionFeatureName, &DefaultExecutor);
-
-	// we don't care about modular features any more
-	IModularFeatures::Get().OnModularFeatureRegistered().RemoveAll(this);
-	IModularFeatures::Get().OnModularFeatureUnregistered().RemoveAll(this);
-}
-
-bool FRemoteExecutionModule::CanRemoteExecute() const
-{
-	return CurrentExecutor->CanRemoteExecute();;
-}
-
-IRemoteExecutor& FRemoteExecutionModule::GetRemoteExecutor() const
-{
-	return *CurrentExecutor;
-}
-
-void FRemoteExecutionModule::SetRemoteExecutor(const FName& InName)
-{
-	const int32 FeatureCount = IModularFeatures::Get().GetModularFeatureImplementationCount(RemoteExecutionFeatureName);
-	for (int32 FeatureIndex = 0; FeatureIndex < FeatureCount; FeatureIndex++)
+	FRemoteExecutionModule::FRemoteExecutionModule()
+		: CurrentExecutor(nullptr)
 	{
-		IModularFeature* Feature = IModularFeatures::Get().GetModularFeatureImplementation(RemoteExecutionFeatureName, FeatureIndex);
-		check(Feature);
+	}
 
-		IRemoteExecutor& RemoteExecution = *static_cast<IRemoteExecutor*>(Feature);
-		if (InName == RemoteExecution.GetFName())
+	void FRemoteExecutionModule::StartupModule()
+	{
+		GetMutableDefault<URemoteExecutionSettings>()->LoadConfig();
+
+		// Register to check for remote execution features
+		IModularFeatures::Get().OnModularFeatureRegistered().AddRaw(this, &FRemoteExecutionModule::HandleModularFeatureRegistered);
+		IModularFeatures::Get().OnModularFeatureUnregistered().AddRaw(this, &FRemoteExecutionModule::HandleModularFeatureUnregistered);
+
+		// bind default accessor to editor
+		IModularFeatures::Get().RegisterModularFeature(RemoteExecutionFeatureName, &DefaultExecutor);
+	}
+
+	void FRemoteExecutionModule::ShutdownModule()
+	{
+		// unbind default provider from editor
+		IModularFeatures::Get().UnregisterModularFeature(RemoteExecutionFeatureName, &DefaultExecutor);
+
+		// we don't care about modular features any more
+		IModularFeatures::Get().OnModularFeatureRegistered().RemoveAll(this);
+		IModularFeatures::Get().OnModularFeatureUnregistered().RemoveAll(this);
+	}
+
+	bool FRemoteExecutionModule::CanRemoteExecute() const
+	{
+		return CurrentExecutor->CanRemoteExecute();;
+	}
+
+	IRemoteExecutor& FRemoteExecutionModule::GetRemoteExecutor() const
+	{
+		return *CurrentExecutor;
+	}
+
+	void FRemoteExecutionModule::SetRemoteExecutor(const FName& InName)
+	{
+		const int32 FeatureCount = IModularFeatures::Get().GetModularFeatureImplementationCount(RemoteExecutionFeatureName);
+		for (int32 FeatureIndex = 0; FeatureIndex < FeatureCount; FeatureIndex++)
 		{
-			CurrentExecutor = static_cast<IRemoteExecutor*>(Feature);
-			break;
+			IModularFeature* Feature = IModularFeatures::Get().GetModularFeatureImplementation(RemoteExecutionFeatureName, FeatureIndex);
+			check(Feature);
+
+			IRemoteExecutor& RemoteExecution = *static_cast<IRemoteExecutor*>(Feature);
+			if (InName == RemoteExecution.GetFName())
+			{
+				CurrentExecutor = static_cast<IRemoteExecutor*>(Feature);
+				break;
+			}
 		}
 	}
-}
 
-void FRemoteExecutionModule::HandleModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature)
-{
-	if (Type == RemoteExecutionFeatureName)
+	void FRemoteExecutionModule::HandleModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature)
 	{
-		const FString PreferredRemoteExecutor = GetDefault<URemoteExecutionSettings>()->PreferredRemoteExecutor;
+		if (Type == RemoteExecutionFeatureName)
+		{
+			const FString PreferredRemoteExecutor = GetDefault<URemoteExecutionSettings>()->PreferredRemoteExecutor;
 
-		CurrentExecutor = &DefaultExecutor;
-		SetRemoteExecutor(FName(PreferredRemoteExecutor));
+			CurrentExecutor = &DefaultExecutor;
+			SetRemoteExecutor(FName(PreferredRemoteExecutor));
+		}
 	}
-}
 
-void FRemoteExecutionModule::HandleModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature)
-{
-	if (Type == RemoteExecutionFeatureName && CurrentExecutor == static_cast<IRemoteExecutor*>(ModularFeature))
+	void FRemoteExecutionModule::HandleModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature)
 	{
-		CurrentExecutor = &DefaultExecutor;
+		if (Type == RemoteExecutionFeatureName && CurrentExecutor == static_cast<IRemoteExecutor*>(ModularFeature))
+		{
+			CurrentExecutor = &DefaultExecutor;
+		}
 	}
 }
 

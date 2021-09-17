@@ -68,7 +68,6 @@ public class UnrealEd : ModuleRules
 				"NavigationSystem",
 				"Media",
 				"VirtualTexturingEditor",
-				"RemoteExecution",
 				"TextureBuild"
 			}
 		);
@@ -210,6 +209,8 @@ public class UnrealEd : ModuleRules
 				"AnimationBlueprintLibrary",
 				"MaterialBaking",
 				"CookOnTheFly",
+				"RemoteExecution",
+				"HordeExecutor",
 			}
 		);
 
@@ -280,7 +281,6 @@ public class UnrealEd : ModuleRules
 					"ProjectTargetPlatformEditor",
 					"PListEditor",
 					"TraceInsights",
-					"BazelExecutor",
 				}
 			);
 		}

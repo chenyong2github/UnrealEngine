@@ -6,36 +6,36 @@
 #include "IRemoteExecutionModule.h"
 #include "DefaultRemoteExecutor.h"
 
-
 REMOTEEXECUTION_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteExecution, Display, All);
 
-class FRemoteExecutionModule : public IRemoteExecutionModule
+
+namespace UE::RemoteExecution
 {
+	class FRemoteExecutionModule : public IRemoteExecutionModule
+	{
+	public:
+		/** Default constructor. */
+		FRemoteExecutionModule();
 
-public:
+		// IModuleInterface interface
 
-	/** Default constructor. */
-	FRemoteExecutionModule();
+		virtual void StartupModule() override;
+		virtual void ShutdownModule() override;
 
-	// IModuleInterface interface
+		// IRemoteExecutionModule interface
+		virtual bool CanRemoteExecute() const override;
+		virtual IRemoteExecutor& GetRemoteExecutor() const override;
+		virtual void SetRemoteExecutor(const FName& InName);
 
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	private:
+		/** Handle when one of the modular features we are interested in is registered */
+		void HandleModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature);
 
-	// IRemoteExecutionModule interface
-	virtual bool CanRemoteExecute() const override;
-	virtual IRemoteExecutor& GetRemoteExecutor() const override;
-	virtual void SetRemoteExecutor(const FName& InName);
+		/** Handle when one of the modular features we are interested in is unregistered */
+		void HandleModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature);
 
-private:
-	/** Handle when one of the modular features we are interested in is registered */
-	void HandleModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature);
+		FDefaultRemoteExecutor DefaultExecutor;
 
-	/** Handle when one of the modular features we are interested in is unregistered */
-	void HandleModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature);
-
-	FDefaultRemoteExecutor DefaultExecutor;
-
-	IRemoteExecutor* CurrentExecutor;
-
-};
+		IRemoteExecutor* CurrentExecutor;
+	};
+}
