@@ -18,6 +18,7 @@
 #include "MeshProcessingNodes/MeshThickenNode.h"
 #include "MeshProcessingNodes/MeshDeleteTrianglesNode.h"
 #include "MeshProcessingNodes/MeshAutoGenerateUVsNode.h"
+#include "MeshProcessingNodes/GenerateConvexHullMeshNode.h"
 #include "DataTypes/MeshImageBakingData.h"
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 
@@ -52,7 +53,8 @@ public:
 	{
 		Solidify = 0,
 		SolidifyAndClose = 1,
-		SimplifyOnly = 2
+		SimplifyOnly = 2,
+		ConvexHull = 3
 	};
 	void UpdateCoreMeshGeneratorMode(ECoreMeshGeneratorMode NewMode);
 	ECoreMeshGeneratorMode GetCurrentCoreMeshGeneratorMode() const { return CurrentCoreMeshGeneratorMode; }
@@ -68,6 +70,9 @@ public:
 
 	void UpdateSimplifySettings(const UE::GeometryFlow::FMeshSimplifySettings& SimplifySettings);
 	const UE::GeometryFlow::FMeshSimplifySettings& GetCurrentSimplifySettings() const { return CurrentSimplifySettings; }
+
+	void UpdateGenerateConvexHullMeshSettings(const UE::GeometryFlow::FGenerateConvexHullMeshSettings& ConvexHullSettings);
+	const UE::GeometryFlow::FGenerateConvexHullMeshSettings& GetCurrentGenerateConvexHullMeshSettings() const { return CurrentGenerateConvexHullMeshSettings; }
 
 	void UpdateNormalsSettings(const UE::GeometryFlow::FMeshNormalsSettings& NormalsSettings);
 	const UE::GeometryFlow::FMeshNormalsSettings& GetCurrentNormalsSettings() const { return CurrentNormalsSettings; }
@@ -128,6 +133,10 @@ protected:
 	UE::GeometryFlow::FGraph::FHandle SimplifyNode;
 	UE::GeometryFlow::FGraph::FHandle SimplifySettingsNode;
 	UE::GeometryFlow::FMeshSimplifySettings CurrentSimplifySettings;
+
+	UE::GeometryFlow::FGraph::FHandle GenerateConvexHullMeshNode;
+	UE::GeometryFlow::FGraph::FHandle GenerateConvexHullMeshSettingsNode;
+	UE::GeometryFlow::FGenerateConvexHullMeshSettings CurrentGenerateConvexHullMeshSettings;
 
 	UE::GeometryFlow::FGraph::FHandle NormalsNode;
 	UE::GeometryFlow::FGraph::FHandle NormalsSettingsNode;

@@ -665,6 +665,15 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		Generator->UpdateMorphologySettings(NewClosureSettings);
 	}
 
+	if (NewCombinedSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
+		NewCombinedSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution)
+	{
+		UE::GeometryFlow::FGenerateConvexHullMeshSettings NewConvexHullSettings = Generator->GetCurrentGenerateConvexHullMeshSettings();
+		NewConvexHullSettings.bPrefilterVertices = NewCombinedSettings.bPrefilterVertices;
+		NewConvexHullSettings.PrefilterGridResolution = NewCombinedSettings.PrefilterGridResolution;
+		Generator->UpdateGenerateConvexHullMeshSettings(NewConvexHullSettings);
+	}
+
 	CurrentSettings = NewCombinedSettings;
 }
 
