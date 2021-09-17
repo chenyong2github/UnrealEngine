@@ -13,6 +13,7 @@
 #include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimationAsset.h"
 #include "Animation/MotionTrajectoryTypes.h"
+#include "AlphaBlend.h"
 #include "BoneIndices.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 
@@ -61,7 +62,7 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 {
 	GENERATED_BODY()
 
-	static constexpr int32 TrajectoryBoneIndex = -1;
+	static constexpr int32 TrajectoryBoneIndex = -1; 
 
 	UPROPERTY()
 	int32 SchemaBoneIdx;
@@ -81,8 +82,6 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 
 	bool operator==(const FPoseSearchFeatureDesc& Other) const;
 
-	bool IsSubsampleOfSameFeature(const FPoseSearchFeatureDesc& Other) const;
-
 	FPoseSearchFeatureDesc()
 		: SchemaBoneIdx(MAX_int32)
 		, SubsampleIdx(MAX_int32)
@@ -91,6 +90,7 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 		, ValueOffset(MAX_int32)
 	{}
 };
+
 
 /**
 * Explicit description of a pose feature vector.
@@ -109,49 +109,19 @@ struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 	TArray<FPoseSearchFeatureDesc> Features;
 
 	UPROPERTY()
-	uint32 NumFloats = 0;
-
-	UPROPERTY()
-	uint32 NumTrajectoryValues = 0;
-
-	UPROPERTY()
-	int32 FirstTrajectoryValueOffset = -1;
-
-	UPROPERTY()
-	uint32 NumPoseValues = 0;
-
-	UPROPERTY()
-	int32 FirstPoseValueOffset = -1;
+	int32 NumFloats = 0;
 
 	bool IsValid(int32 MaxNumBones) const;
 
-	bool EnumerateFeature(EPoseSearchFeatureType FeatureType, bool bTrajectory, int32& OutFeatureIdx) const;
+	bool EnumerateBy(int32 ChannelIdx, EPoseSearchFeatureType Type, int32& InOutFeatureIdx) const;
 };
-
-
-//USTRUCT()
-//struct FPoseSearchSchemaBoneRef
-//{
-//	GENERATED_BODY()
-//
-//	/** Index into UPoseSearchSchema::Bones. */
-//	UPROPERTY()
-//	int32 BoneIdx = -1;
-//
-//	/**
-//	* Optional index into UPoseSearchSchema::Bones.
-//	* Causes BoneIdx to be sampled in the reference frame of this bone.
-//	*/
-//	UPROPERTY()
-//	int32 RelativeBoneIdx = -1;
-//};
 
 UENUM()
 enum class EPoseSearchDataPreprocessor : int32
 {
 	None			= 0,
 	Automatic		= 1,
-	Normalize    	= 2,
+	Normalize		= 2,
 	Sphere			= 3 UMETA(Hidden),
 
 	Invalid = -1 UMETA(Hidden)
@@ -170,7 +140,7 @@ public:
 	static constexpr int32 DefaultSampleRate = 10;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	USkeleton* Skeleton = nullptr;
+	TObjectPtr<USkeleton> Skeleton = nullptr;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "60"), Category = "Schema")
 	int32 SampleRate = DefaultSampleRate;
@@ -189,11 +159,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TArray<FBoneReference> Bones;
-
-	/*
-	UPROPERTY(EditAnywhere, Category = "Schema")
-	TArray<FPoseSearchSchemaBoneRef> PoseSampleBones;
-	*/
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TArray<float> PoseSampleTimes;
@@ -243,6 +208,8 @@ public:
 	// Returns a positive value when there are no past sample distances.
 	float GetTrajectoryPastDistanceHorizon () const;
 
+	TArrayView<const float> GetChannelSampleOffsets (int32 ChannelIdx) const;
+
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
@@ -261,7 +228,7 @@ struct POSESEARCH_API FPoseSearchIndexPreprocessInfo
 	GENERATED_BODY()
 
 	UPROPERTY()
-	uint32 NumDimensions = 0;
+	int32 NumDimensions = 0;
 
 	UPROPERTY()
 	TArray<float> TransformationMatrix;
@@ -297,7 +264,7 @@ struct POSESEARCH_API FPoseSearchIndex
 	TArray<float> Values;
 
 	UPROPERTY()
-	const UPoseSearchSchema* Schema = nullptr;
+	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 
 	UPROPERTY()
 	FPoseSearchIndexPreprocessInfo PreprocessInfo;
@@ -339,7 +306,7 @@ class POSESEARCH_API UPoseSearchSequenceMetaData : public UAnimMetaData
 public:
 
 	UPROPERTY(EditAnywhere, Category="Settings")
-	const UPoseSearchSchema* Schema = nullptr;
+	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Settings")
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
@@ -357,64 +324,147 @@ public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 };
 
-/** Bias weights for influencing the results of a pose search query */
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
-struct POSESEARCH_API FPoseSearchBiasWeightParams
+struct POSESEARCH_API FPoseSearchChannelHorizonParams
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
-	float TrajectoryLinearVelocityWeight = 1.f;
+	// Total score contribution of all samples within this horizon, normalized with other horizons
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"))
+	float Weight = 1.0f;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
-	float TrajectoryPositionWeight = 1.f;
+	// Whether to interpolate samples within this horizon
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Advanced")
+	bool bInterpolate = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
-	float PoseLinearVelocityWeight = 1.f;
+	// Horizon sample weights will be interpolated from InitialValue to 1.0 - InitialValue and then normalized
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Advanced", meta = (EditCondition = "bInterpolate", ClampMin="0.0", ClampMax="1.0"))
+	float InitialValue = 0.1f;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"));
-	float PosePositionWeight = 1.f;
+	// Curve type for horizon interpolation 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Advanced", meta = (EditCondition = "bInterpolate"))
+	EAlphaBlendOption InterpolationMethod = EAlphaBlendOption::Linear;
 };
 
-/** Expanded bias weights from FPoseSearchBiasWeightParams which match the binary layout described by FPoseSearchFeatureVectorLayout */
-USTRUCT()
-struct POSESEARCH_API FPoseSearchBiasWeights
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
+struct POSESEARCH_API FPoseSearchChannelWeightParams
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	// Contribution of this score component. Normalized with other channels.
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"))
+	float ChannelWeight = 1.0f;
+
+	// History horizon params (for sample offsets <= 0)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	FPoseSearchChannelHorizonParams HistoryParams;
+
+	// Prediction horizon params (for sample offsets > 0)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	FPoseSearchChannelHorizonParams PredictionParams;
+
+	// Contribution of each type within this channel
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	TMap<EPoseSearchFeatureType, float> TypeWeights;
+
+	FPoseSearchChannelWeightParams();
+};
+
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
+struct POSESEARCH_API FPoseSearchChannelDynamicWeightParams
+{
+	GENERATED_BODY()
+
+	// Multiplier for the contribution of this score component. Final weight will be normalized with other channels after scaling.
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"))
+	float ChannelWeightScale = 1.0f;
+
+	// Multiplier for history score contribution. Normalized with prediction weight after scaling.
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"))
+	float HistoryWeightScale = 1.0f;
+
+	// Multiplier for prediction score contribution. Normalized with history weight after scaling.
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"))
+	float PredictionWeightScale = 1.0f;
+
+	bool operator==(const FPoseSearchChannelDynamicWeightParams& Rhs) const
+	{
+		return (ChannelWeightScale == Rhs.ChannelWeightScale)
+			&& (HistoryWeightScale == Rhs.HistoryWeightScale)
+			&& (PredictionWeightScale == Rhs.PredictionWeightScale);
+	}
+	bool operator!=(const FPoseSearchChannelDynamicWeightParams& Rhs) const { return !(*this == Rhs); }
+};
+
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
+struct POSESEARCH_API FPoseSearchWeightParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	FPoseSearchChannelWeightParams PoseWeight;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	FPoseSearchChannelWeightParams TrajectoryWeight;
+};
+
+USTRUCT(BlueprintType, Category="Animation|Pose Search")
+struct POSESEARCH_API FPoseSearchDynamicWeightParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	FPoseSearchChannelDynamicWeightParams PoseDynamicWeights;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	FPoseSearchChannelDynamicWeightParams TrajectoryDynamicWeights;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
+	bool bDebugDisableWeights = false;
+
+	bool operator==(const FPoseSearchDynamicWeightParams& Rhs) const
+	{
+		return (PoseDynamicWeights == Rhs.PoseDynamicWeights)
+			&& (TrajectoryDynamicWeights == Rhs.TrajectoryDynamicWeights)
+			&& (bDebugDisableWeights == Rhs.bDebugDisableWeights);
+	}
+	bool operator!=(const FPoseSearchDynamicWeightParams& Rhs) const { return !(*this == Rhs); }
+};
+
+USTRUCT()
+struct POSESEARCH_API FPoseSearchWeights
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
 	TArray<float> Weights;
 
 	bool IsInitialized() const { return !Weights.IsEmpty(); }
-	void Init(const FPoseSearchBiasWeightParams& WeightParams, const FPoseSearchFeatureVectorLayout& Layout);
-
-private:
-	void BindSemanticWeight(float Weight, const FPoseSearchFeatureVectorLayout& Layout, EPoseSearchFeatureType FeatureType, bool bTrajectory);
+	void Init(const FPoseSearchWeightParams& WeightParams, const UPoseSearchSchema* Schema, const FPoseSearchDynamicWeightParams& RuntimeParams);
 };
 
-/** 
-* Bias weight context contains a reference to global/external weights and a relevant pose search database
-* The database parameter is primarily used for locating per-sequence bias weights
-*/
-struct FPoseSearchBiasWeightsContext
-{
-	const FPoseSearchBiasWeights* BiasWeights = nullptr;
-	const UPoseSearchDatabase* Database = nullptr;
-
-	bool IsInitialized() const { return !!Database; }
-	bool HasBiasWeights() const { return !!BiasWeights && BiasWeights->IsInitialized(); }
-};
-
-/** Per-sequence bias weights for influencing the results of a pose search query */
-UCLASS(BlueprintType, Category = "Animation|Pose Search")
-class POSESEARCH_API UPoseSearchSequenceBiasWeightMetaData : public UAnimMetaData
+USTRUCT()
+struct POSESEARCH_API FPoseSearchWeightsContext
 {
 	GENERATED_BODY()
-public:
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FPoseSearchBiasWeightParams BiasWeights;
+public:
+	// Check if the database or runtime weight parameters have changed and then computes and caches new group weights
+	void Update(const FPoseSearchDynamicWeightParams& DynamicWeights, const UPoseSearchDatabase * Database);
+
+	const FPoseSearchWeights* GetGroupWeights (int32 WeightsGroupIdx) const;
+	
+private:
+	UPROPERTY(Transient)
+	TWeakObjectPtr<const UPoseSearchDatabase> Database = nullptr;
+
+	UPROPERTY(Transient)
+	FPoseSearchDynamicWeightParams DynamicWeights;
+
+	UPROPERTY(Transient)
+	TArray<FPoseSearchWeights> ComputedGroupWeights;
 };
+
 
 /** An entry in a UPoseSearchDatabase. */
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
@@ -423,7 +473,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category="Sequence")
-	UAnimSequence* Sequence = nullptr;
+	TObjectPtr<UAnimSequence> Sequence = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
@@ -436,7 +486,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	// for one shot anims with past sampling. When past sampling is used without a lead in sequence,
 	// the sampling range of the main sequence will be clamped if necessary.
 	UPROPERTY(EditAnywhere, Category="Sequence")
-	UAnimSequence* LeadInSequence = nullptr;
+	TObjectPtr<UAnimSequence> LeadInSequence = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	bool bLoopLeadInAnimation = false;
@@ -446,7 +496,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	// for one shot anims with future sampling. When future sampling is used without a follow up sequence,
 	// the sampling range of the main sequence will be clamped if necessary.
 	UPROPERTY(EditAnywhere, Category="Sequence")
-	UAnimSequence* FollowUpSequence = nullptr;
+	TObjectPtr<UAnimSequence> FollowUpSequence = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	bool bLoopFollowUpAnimation = false;
@@ -456,9 +506,6 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 
 	UPROPERTY()
 	int32 NumPoses = 0;
-
-	UPROPERTY()
-	FPoseSearchBiasWeights BiasWeights;
 };
 
 /** A data asset for indexing a collection of animation sequences. */
@@ -471,11 +518,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Database")
 	const UPoseSearchSchema* Schema;
 
-	UPROPERTY(EditAnywhere, Category="Database")
-	TArray<FPoseSearchDatabaseSequence> Sequences;
+	UPROPERTY(EditAnywhere, Category = "Database")
+	FPoseSearchWeightParams Weights;
+
+	UPROPERTY(EditAnywhere, Category = "Database")
+	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
 	UPROPERTY(EditAnywhere, Category="Database")
-	FPoseSearchExtrapolationParameters ExtrapolationParameters;
+	TArray<FPoseSearchDatabaseSequence> Sequences;
 
 	UPROPERTY()
 	FPoseSearchIndex SearchIndex;
@@ -508,7 +558,7 @@ public:
 	void Reset();
 	void ResetFeatures();
 
-	const UPoseSearchSchema* GetSchema() const { return Schema; }
+	const UPoseSearchSchema* GetSchema() const { return Schema.Get(); }
 
 	TArrayView<const float> GetValues() const { return Values; }
 	TArrayView<const float> GetNormalizedValues() const { return ValuesNormalized; }
@@ -540,7 +590,7 @@ private:
 	void BuildFromTrajectoryDistanceBased(const FTrajectorySampleRange& Trajectory);
 
 	UPROPERTY(Transient)
-	const UPoseSearchSchema* Schema = nullptr;
+	TWeakObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 
 	TArray<float> Values;
 	TArray<float> ValuesNormalized;
@@ -706,7 +756,7 @@ POSESEARCH_API void Draw(const FDebugDrawParams& DrawParams);
 * @param Sequence			The input sequence create a search index for
 * @param SequenceMetaData	The input sequence indexing info and output search index
 * 
-* @return					Whether the index was built successfully
+* @return Whether the index was built successfully
 */
 POSESEARCH_API bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* SequenceMetaData);
 
@@ -716,7 +766,7 @@ POSESEARCH_API bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenc
 * 
 * @param Database	The input collection of animations and output search index
 * 
-* @return			Whether the index was built successfully
+* @return Whether the index was built successfully
 */
 POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database);
 
@@ -724,12 +774,12 @@ POSESEARCH_API bool BuildIndex(UPoseSearchDatabase* Database);
 /**
 * Performs a pose search on a sequence's UPoseSearchSequenceMetaData.
 *
-* @param Sequence			The sequence to search within. Must contain a UPoseSearchSequenceMetaData object.
-* @param Query				The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the UPoseSearchSequenceMetaData.
-* @param BiasWeightsContext	Optional bias weight context used to influence pose search query results
-* @param DrawParams			Visualization options
+* @param Sequence		The sequence to search within. Must contain a UPoseSearchSequenceMetaData object.
+* @param Query			The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the UPoseSearchSequenceMetaData.
+* @param WeightsContext	Optional weights context used to influence pose search query results
+* @param DrawParams		Visualization options
 * 
-* @return					The pose in the sequence that most closely matches the Query.
+* @return The pose in the sequence that most closely matches the Query.
 */
 POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> Query, FDebugDrawParams DrawParams = FDebugDrawParams());
 
@@ -737,26 +787,26 @@ POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayVie
 /**
 * Performs a pose search on a UPoseSearchDatabase.
 *
-* @param Database			The database to search within
-* @param Query				The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the Database.
-* @param BiasWeightsContext	Optional bias weight context used to influence pose search query results
-* @param DrawParams			Visualization options
+* @param Database		The database to search within
+* @param Query			The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the Database.
+* @param WeightsContext	Optional weights context used to influence pose search query results
+* @param DrawParams		Visualization options
 * 
-* @return					The pose in the database that most closely matches the Query.
+* @return The pose in the database that most closely matches the Query.
 */
-POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
+POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
 
 
 /**
 * Evaluate pose comparison metric between a pose in the search index and an input query
 * 
-* @param SearchIndex		The search index containing the pose to compare to the query
-* @param PoseIdx			The index of the pose in the search index to compare to the query
-* @param Query				The query to compare against. Must have been built using the same schema as the SearchIndex.
-* @param BiasWeightsContext Optional bias weight context used to influence pose comparison
+* @param SearchIndex	The search index containing the pose to compare to the query
+* @param PoseIdx		The index of the pose in the search index to compare to the query
+* @param Query			The query to compare against. Must have been built using the same schema as the SearchIndex.
+* @param WeightsContext	Optional weights context used to influence pose comparison
 * 
-* @return					Dissimilarity between the two poses
+* @return Dissimilarity between the two poses
 */
-POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchBiasWeightsContext* BiasWeightsContext = nullptr);
+POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr);
 
 }} // namespace UE::PoseSearch

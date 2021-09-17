@@ -2,6 +2,7 @@
 
 #include "PoseSearch/PoseSearchLibrary.h"
 
+#include "Animation/AnimSequence.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "PoseSearch/AnimNode_MotionMatching.h"
@@ -64,7 +65,6 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 	, FMotionMatchingState& InOutMotionMatchingState
 )
 {
-	FPoseSearchBiasWeights QueryBiasWeights;
 	InOutMotionMatchingState.Flags = EMotionMatchingFlags::None;
 	const float DeltaTime = Context.GetDeltaTime();
 
@@ -108,20 +108,27 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		// Update features in the query with the latest inputs
 		InOutMotionMatchingState.ComposeQuery(Database, Trajectory);
 
-		// Initialize the pose search query bias weights context
-		QueryBiasWeights.Init(Settings.BiasWeights, Database->Schema->Layout);
-
-		const FPoseSearchBiasWeightsContext BiasWeightsContext = { &QueryBiasWeights, Database };
+		// Update weight groups
+		InOutMotionMatchingState.WeightsContext.Update(Settings.Weights, Database);
 
 		// Determine how much the updated query vector deviates from the current pose vector
 		float CurrentDissimilarity = MAX_flt;
 		if (InOutMotionMatchingState.DbPoseIdx != INDEX_NONE)
 		{
-			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, InOutMotionMatchingState.DbPoseIdx, InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(), &BiasWeightsContext);
+			CurrentDissimilarity = UE::PoseSearch::ComparePoses(
+				Database->SearchIndex,
+				InOutMotionMatchingState.DbPoseIdx,
+				InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(),
+				&InOutMotionMatchingState.WeightsContext
+			);
 		}
 
 		// Search the database for the nearest match to the updated query vector
-		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(), &BiasWeightsContext);
+		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(
+			Database,
+			InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(),
+			&InOutMotionMatchingState.WeightsContext
+		);
 		if (Result.IsValid() && (InOutMotionMatchingState.ElapsedPoseJumpTime >= Settings.SearchThrottleTime))
 		{
 			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
@@ -136,7 +143,8 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 				bNearbyPose = FMath::Abs(InOutMotionMatchingState.AssetPlayerTime - Result.TimeOffsetSeconds) < Settings.PoseJumpThresholdTime;
 				if (!bNearbyPose && ResultDbSequence.bLoopAnimation)
 				{
-					bNearbyPose = FMath::Abs(Database->GetSequenceLength(InOutMotionMatchingState.DbSequenceIdx) - InOutMotionMatchingState.AssetPlayerTime - Result.TimeOffsetSeconds) < Settings.PoseJumpThresholdTime;
+					const float AssetLength = Database->GetSequenceLength(InOutMotionMatchingState.DbSequenceIdx);
+					bNearbyPose = FMath::Abs(AssetLength - InOutMotionMatchingState.AssetPlayerTime - Result.TimeOffsetSeconds) < Settings.PoseJumpThresholdTime;
 				}
 			}
 
@@ -184,23 +192,23 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 	}
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-	UE::PoseSearch::FTraceMotionMatchingState TraceState;
-	if ((InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
+	if (InOutMotionMatchingState.DbPoseIdx != INDEX_NONE)
 	{
-		TraceState.Flags |= UE::PoseSearch::FTraceMotionMatchingState::EFlags::FollowupAnimation;
+		UE::PoseSearch::FTraceMotionMatchingState TraceState;
+		if ((InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
+		{
+			TraceState.Flags |= UE::PoseSearch::FTraceMotionMatchingState::EFlags::FollowupAnimation;
+		}
+
+		TraceState.ElapsedPoseJumpTime = InOutMotionMatchingState.ElapsedPoseJumpTime;
+		// @TODO: Change this to only be the previous query, not persistently updated (i.e. if throttled)?
+		TraceState.QueryVector = InOutMotionMatchingState.ComposedQuery.GetValues();
+		TraceState.QueryVectorNormalized = InOutMotionMatchingState.ComposedQuery.GetNormalizedValues();
+		TraceState.BiasWeights = InOutMotionMatchingState.WeightsContext.GetGroupWeights(0)->Weights;
+		TraceState.DbPoseIdx = InOutMotionMatchingState.DbPoseIdx;
+		TraceState.DatabaseId = FObjectTrace::GetObjectId(Database);
+		UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, TraceState)
 	}
-	if (InOutMotionMatchingState.DbPoseIdx == INDEX_NONE)
-	{
-		return;
-	}
-	TraceState.ElapsedPoseJumpTime = InOutMotionMatchingState.ElapsedPoseJumpTime;
-	// @TODO: Change this to only be the previous query, not persistently updated (i.e. if throttled)?
-	TraceState.QueryVector = InOutMotionMatchingState.ComposedQuery.GetValues();
-	TraceState.QueryVectorNormalized = InOutMotionMatchingState.ComposedQuery.GetNormalizedValues();
-	TraceState.BiasWeights = QueryBiasWeights.Weights;
-	TraceState.DbPoseIdx = InOutMotionMatchingState.DbPoseIdx;
-	TraceState.DatabaseId = FObjectTrace::GetObjectId(Database);
-	UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, TraceState)
 #endif
 }
 

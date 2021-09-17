@@ -48,9 +48,9 @@ public:
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_AssetPlayerBase Interface
-	virtual float GetAccumulatedTime() const {return GetExplicitTime();}
-	virtual void SetAccumulatedTime(float NewTime) { SetExplicitTime(NewTime); }
-	virtual UAnimationAsset* GetAnimAsset() const { return GetSequence(); }
+	virtual float GetAccumulatedTime() const override {return GetExplicitTime();}
+	virtual void SetAccumulatedTime(float NewTime) override { SetExplicitTime(NewTime); }
+	virtual UAnimationAsset* GetAnimAsset() const override { return GetSequence(); }
 	// End of FAnimNode_AssetPlayerBase Interface
 
 	void SetExplicitPreviousTime(float PreviousTime) { InternalTimeAccumulator = PreviousTime; }
