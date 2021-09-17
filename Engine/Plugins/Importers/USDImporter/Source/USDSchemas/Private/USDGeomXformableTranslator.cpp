@@ -250,11 +250,16 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 	USceneComponent* SceneComponent = nullptr;
 	UObject* ComponentOuter = nullptr;
 
+	// Can't have public or standalone on spawned actors and components because that
+	// will lead to asserts when trying to collect them during a level change, or when
+	// trying to replace them (right-clicking from the world outliner)
+	EObjectFlags ComponentFlags = Context->ObjectFlags & ~RF_Standalone & ~RF_Public;
+
 	if ( bNeedsActor.GetValue() )
 	{
 		// Spawn actor
 		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.ObjectFlags = Context->ObjectFlags & ~RF_Standalone;
+		SpawnParameters.ObjectFlags = ComponentFlags;
 		SpawnParameters.OverrideLevel =  Context->Level;
 		SpawnParameters.Name = Prim.GetName();
 		SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested; // Will generate a unique name in case of a conflict
@@ -327,7 +332,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		if ( ComponentType.IsSet() && ComponentType.GetValue() != nullptr )
 		{
 			const FName ComponentName = MakeUniqueObjectName( ComponentOuter, ComponentType.GetValue(), FName( Prim.GetName() ) );
-			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, Context->ObjectFlags & ~RF_Standalone);
+			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, ComponentFlags );
 
 			if ( AActor* Owner = SceneComponent->GetOwner() )
 			{
