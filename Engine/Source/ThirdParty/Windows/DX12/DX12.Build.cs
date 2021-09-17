@@ -12,7 +12,7 @@ public class DX12 : ModuleRules
 
 		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			string LibDir = DirectXSDKDir + "/Lib/x64/";
 			PublicAdditionalLibraries.AddRange(
@@ -28,7 +28,7 @@ public class DX12 : ModuleRules
 		}
 
 		// D3D12Core runtime. Currently x64 only, but ARM64 can also be supported if necessary.
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicDefinitions.Add("D3D12_CORE_ENABLED=1");
 
@@ -66,7 +66,7 @@ public class DX12 : ModuleRules
 				"d3d12.dll"
 			});
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
