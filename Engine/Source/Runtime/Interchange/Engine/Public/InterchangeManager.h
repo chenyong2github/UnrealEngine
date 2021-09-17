@@ -30,6 +30,13 @@ class FAsyncTaskNotification;
 class UInterchangeFactoryBase;
 class UInterchangePipelineBase;
 
+/** Some utilities delegates for the automation of interchange */
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnObjectImportDoneDynamic, UObject*, Object);
+DECLARE_DELEGATE_OneParam(FOnObjectImportDoneNative, UObject*);
+
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnImportDoneDynamic, const TArray<UObject*>&, Objects);
+DECLARE_DELEGATE_OneParam(FOnImportDoneNative, const TArray<UObject*>&);
+
 namespace UE
 {
 	namespace Interchange
@@ -117,6 +124,13 @@ namespace UE
 
 			// Callback when the status switches to done.
 			void OnDone(TFunction< void(FImportResult&) > Callback);
+
+			// Internal delegates (use the FImportAssetParameters when calling the interchange import functions to set those)
+			FOnObjectImportDoneDynamic OnObjectDone;
+			FOnObjectImportDoneNative OnObjectDoneNative;
+
+			FOnImportDoneDynamic OnImportDone;
+			FOnImportDoneNative OnImportDoneNative;
 
 		protected:
 			/* FGCObject interface */
@@ -219,14 +233,39 @@ struct FImportAssetParameters
 {
 	GENERATED_USTRUCT_BODY()
 
+	// If the import is a reimport for a specific asset set the asset to reimport here
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	TObjectPtr<UObject> ReimportAsset = nullptr;
 
+	// Tell interchange that import is automated and it shouldn't present a model window
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	bool bIsAutomated = false;
 
+	// Adding some override will tell interchange to use the specific custom set pipelines instead of letting the user or the system chose
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	TArray<TObjectPtr<UInterchangePipelineBase>> OverridePipelines;
+
+	/* Delegates used track the imported objects */
+
+	// This is called each time an asset is imported or reimported from the import call
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset", meta=(PinHiddenByDefault))
+	FOnObjectImportDoneDynamic OnAssetDone;
+	FOnObjectImportDoneNative OnAssetDoneNative;
+
+	// This is called when all the assets where imported from the source data
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset", meta=(PinHiddenByDefault))
+	FOnImportDoneDynamic OnAssetsImportDone;
+	FOnImportDoneNative OnAssetsImportDoneNative;
+
+	// This is called each time an object in the scene is imported or reimported from the import call
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset", meta=(PinHiddenByDefault))
+	FOnObjectImportDoneDynamic OnSceneObjectDone;
+	FOnObjectImportDoneNative OnSceneObjectDoneNative;
+
+	// This is called when all the scene object where imported from the source data
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset", meta=(PinHiddenByDefault))
+	FOnImportDoneDynamic OnSceneImportDone;
+	FOnImportDoneNative OnSceneImportDoneNative;
 };
 
 UCLASS(Transient, BlueprintType)
@@ -354,7 +393,7 @@ public:
 	* @return: A new UInterchangeSourceData.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
-	UInterchangeSourceData* CreateSourceData(const FString& InFileName);
+	static UInterchangeSourceData* CreateSourceData(const FString& InFileName);
 
 	/**
 	* Script helper to get a registered factory for a specified class
@@ -368,7 +407,7 @@ public:
 	 * Return an FImportAsynHelper pointer. The pointer is deleted when ReleaseAsyncHelper is call.
 	 * @param Data - The data we want to pass to the different import tasks
 	 */
-	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data);
+	TSharedRef<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data, const FImportAssetParameters& ImportAssetParameters);
 
 	/** Delete the specified AsyncHelper and remove it from the array that was holding it. */
 	void ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper);
