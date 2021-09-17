@@ -65,6 +65,6 @@ public:
 		return false; 
 	};
 
-	/** Called to present the user with instructions on how to this this algo */
+	/** Called to present the user with instructions on how to use this algo */
 	virtual TSharedRef<SWidget> BuildHelpWidget() { return SNew(STextBlock).Text(FText::FromString(TEXT("Coming soon!"))); };
 };

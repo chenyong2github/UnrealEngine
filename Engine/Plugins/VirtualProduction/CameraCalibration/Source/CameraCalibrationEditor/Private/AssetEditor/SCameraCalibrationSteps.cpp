@@ -68,6 +68,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 			[
 				SNew(SSimulcamViewport, CalibrationStepsController.Pin()->GetRenderTarget())
 				.OnSimulcamViewportClicked_Raw(CalibrationStepsController.Pin().Get(), &FCameraCalibrationStepsController::OnSimulcamViewportClicked)
+				.OnSimulcamViewportInputKey_Raw(CalibrationStepsController.Pin().Get(), &FCameraCalibrationStepsController::OnSimulcamViewportInputKey)
 			]
 		]
 
@@ -226,7 +227,7 @@ void SCameraCalibrationSteps::UpdateMediaSourcesOptions()
 	}
 
 	// Add a "None" option
-	CurrentMediaSources.Add(MakeShareable(new FString(TEXT("None"))));
+	CurrentMediaSources.Add(MakeShared<FString>(TEXT("None")));
 
 	check(MediaSourcesComboBox.IsValid());
 

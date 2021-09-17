@@ -6,7 +6,7 @@
 #include "CameraCalibrationStepsController.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraCalibrationTypes.h"
-#include "LensDistortionTool.h"
+#include "ImageCenterTool.h"
 #include "LiveLinkCameraController.h"
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
@@ -58,7 +58,7 @@ TSharedRef<SWidget> UNodalOffsetTool::BuildUI()
 
 bool UNodalOffsetTool::DependsOnStep(UCameraCalibrationStep* Step) const
 {
-	return !!Cast<ULensDistortionTool>(Step);
+	return !!Cast<UImageCenterTool>(Step);
 }
 
 void UNodalOffsetTool::Activate()

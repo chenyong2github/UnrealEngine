@@ -1,36 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SNodalOffsetToolPanel.h"
+#include "SImageCenterToolPanel.h"
 
-#include "AssetRegistry/AssetData.h"
 #include "CameraCalibrationSubsystem.h"
-#include "CameraNodalOffsetAlgo.h"
 #include "Dialogs/CustomDialog.h"
 #include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
-#include "Engine/Selection.h"
-#include "LensFile.h"
-#include "NodalOffsetTool.h"
-#include "Styling/CoreStyle.h"
-#include "Styling/SlateStyle.h"
+#include "ImageCenterTool.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STreeView.h"
 
 
-#define LOCTEXT_NAMESPACE "NodalOffsetTool"
+#define LOCTEXT_NAMESPACE "ImageCenterTool"
 
 
-void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool* InNodalOffsetTool)
+void SImageCenterToolPanel::Construct(const FArguments& InArgs, UImageCenterTool* InImageCenterTool)
 {
-	NodalOffsetTool = InNodalOffsetTool;
+	ImageCenterTool = InImageCenterTool;
 
 	// This will be the widget wrapper of the custom algo UI.
-	NodalOffsetUI = SNew(SVerticalBox);
+	ImageCenterUI = SNew(SVerticalBox);
 
 	ChildSlot
 	[
@@ -38,29 +28,29 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool
 
 		+ SHorizontalBox::Slot() // Right toolbar
 		.FillWidth(0.25f)
-		[ 
+		[
 			SNew(SVerticalBox)
 
 			+ SVerticalBox::Slot() // Algo picker
 			.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-			[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("NodalOffsetAlgo", "Nodal Offset Algo"), BuildNodalOffsetAlgoPickerWidget())]
+			[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("ImageCenterAlgo", "Image Center Algo"), BuildImageCenterAlgoPickerWidget())]
 
 			+ SVerticalBox::Slot() // Algo UI
 			.AutoHeight()
-			[ BuildNodalOffsetUIWrapper() ]
+			[BuildImageCenterUIWrapper()]
 
-			+ SVerticalBox::Slot() // Save Offset
+			+ SVerticalBox::Slot() // Save Image Center
 			.AutoHeight()
 			.Padding(0, 20)
 			[
-				SNew(SButton).Text(LOCTEXT("AddToNodalOffsetLUT", "Add To Nodal Offset Calibration"))
+				SNew(SButton).Text(LOCTEXT("AddToImageCenterLUT", "Update Image Center Calibration"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([&]() -> FReply
 				{
-					if (NodalOffsetTool.IsValid())
+					if (ImageCenterTool.IsValid())
 					{
-						NodalOffsetTool->OnSaveCurrentNodalOffset();
+						ImageCenterTool->OnSaveCurrentImageCenter();
 					}
 					return FReply::Handled();
 				})
@@ -69,28 +59,28 @@ void SNodalOffsetToolPanel::Construct(const FArguments& InArgs, UNodalOffsetTool
 	];
 }
 
-TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetUIWrapper()
+TSharedRef<SWidget> SImageCenterToolPanel::BuildImageCenterUIWrapper()
 {
 	return SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot() // Algo's Widget
 		.AutoHeight()
-		[ NodalOffsetUI.ToSharedRef() ];
+		[ImageCenterUI.ToSharedRef()];
 }
 
-void SNodalOffsetToolPanel::UpdateNodalOffsetUI()
+void SImageCenterToolPanel::UpdateImageCenterUI()
 {
 	check(AlgosComboBox.IsValid());
 
 	// Get current algo to later compare with new one
-	const UCameraNodalOffsetAlgo* OldAlgo = NodalOffsetTool->GetNodalOffsetAlgo();
+	const UCameraImageCenterAlgo* OldAlgo = ImageCenterTool->GetAlgo();
 
 	// Set new algo by name
 	const FName AlgoName(*AlgosComboBox->GetSelectedItem());
-	NodalOffsetTool->SetNodalOffsetAlgo(AlgoName);
+	ImageCenterTool->SetAlgo(AlgoName);
 
 	// Get the new algo
-	UCameraNodalOffsetAlgo* Algo = NodalOffsetTool->GetNodalOffsetAlgo();
+	UCameraImageCenterAlgo* Algo = ImageCenterTool->GetAlgo();
 
 	// nullptr may indicate that it was unregistered, so refresh combobox options.
 	if (!Algo)
@@ -106,23 +96,22 @@ void SNodalOffsetToolPanel::UpdateNodalOffsetUI()
 	}
 
 	// Remove old UI
-	check(NodalOffsetUI.IsValid());
-	NodalOffsetUI->ClearChildren();
+	check(ImageCenterUI.IsValid());
+	ImageCenterUI->ClearChildren();
 
 	// Assign GUI
-	NodalOffsetUI->AddSlot() [Algo->BuildUI()];
+	ImageCenterUI->AddSlot()[Algo->BuildUI()];
 }
 
-void SNodalOffsetToolPanel::UpdateAlgosOptions()
+void SImageCenterToolPanel::UpdateAlgosOptions()
 {
 	CurrentAlgos.Empty();
 
 	// Ask the subsystem for the list of registered Algos
-
 	UCameraCalibrationSubsystem* Subsystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 	check(Subsystem);
 
-	for (FName& Name : Subsystem->GetCameraNodalOffsetAlgos())
+	for (FName& Name : Subsystem->GetCameraImageCenterAlgos())
 	{
 		CurrentAlgos.Add(MakeShared<FString>(Name.ToString()));
 	}
@@ -131,7 +120,7 @@ void SNodalOffsetToolPanel::UpdateAlgosOptions()
 	AlgosComboBox->RefreshOptions();
 }
 
-TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
+TSharedRef<SWidget> SImageCenterToolPanel::BuildImageCenterAlgoPickerWidget()
 {
 	// Create ComboBox widget
 
@@ -140,7 +129,7 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 		.OnSelectionChanged_Lambda([&](TSharedPtr<FString> NewValue, ESelectInfo::Type Type) -> void
 		{
 			// Replace the custom algo widget
-			UpdateNodalOffsetUI();
+			UpdateImageCenterUI();
 		})
 		.OnGenerateWidget_Lambda([&](TSharedPtr<FString> InOption) -> TSharedRef<SWidget>
 		{
@@ -190,12 +179,12 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 			.OnClicked_Lambda([&]() -> FReply
 			{
-				if (!NodalOffsetTool.IsValid())
+				if (!ImageCenterTool.IsValid())
 				{
 					return FReply::Handled();
 				}
 
-				UCameraNodalOffsetAlgo* Algo = NodalOffsetTool->GetNodalOffsetAlgo();
+				UCameraImageCenterAlgo* Algo = ImageCenterTool->GetAlgo();
 
 				if (!Algo)
 				{
@@ -204,7 +193,7 @@ TSharedRef<SWidget> SNodalOffsetToolPanel::BuildNodalOffsetAlgoPickerWidget()
 
 				TSharedRef<SCustomDialog> AlgoHelpWindow =
 					SNew(SCustomDialog)
-					.Title(FText::FromName(NodalOffsetTool->FriendlyName()))
+					.Title(FText::FromName(ImageCenterTool->FriendlyName()))
 					.DialogContent(Algo->BuildHelpWidget())
 					.Buttons({ SCustomDialog::FButton(LOCTEXT("Ok", "Ok")) });
 

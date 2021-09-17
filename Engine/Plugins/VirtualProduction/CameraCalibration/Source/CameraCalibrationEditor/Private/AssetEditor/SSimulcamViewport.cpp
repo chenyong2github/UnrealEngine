@@ -8,15 +8,16 @@
 void SSimulcamViewport::Construct(const FArguments& InArgs, UTexture* InTexture)
 {
 	OnSimulcamViewportClicked = InArgs._OnSimulcamViewportClicked;
+	OnSimulcamViewportInputKey = InArgs._OnSimulcamViewportInputKey;
 
 	Texture = TStrongObjectPtr<UTexture>(InTexture);
 
 	TextureViewport = SNew(SSimulcamEditorViewport, SharedThis(this), InArgs._WithZoom.Get(), InArgs._WithPan.Get());
 
 	ChildSlot
-	[
-		TextureViewport.ToSharedRef()
-	];
+		[
+			TextureViewport.ToSharedRef()
+		];
 }
 
 UTexture* SSimulcamViewport::GetTexture() const
@@ -28,4 +29,13 @@ bool SSimulcamViewport::HasValidTextureResource() const
 {
 	UTexture* CurrentTexture = GetTexture();
 	return CurrentTexture != nullptr && CurrentTexture->GetResource() != nullptr;
+}
+
+bool SSimulcamViewport::OnViewportInputKey(const FKey& Key, const EInputEvent& Event)
+{ 
+	if (OnSimulcamViewportInputKey.IsBound())
+	{
+		return OnSimulcamViewportInputKey.Execute(Key, Event);
+	}
+	return false;
 }
