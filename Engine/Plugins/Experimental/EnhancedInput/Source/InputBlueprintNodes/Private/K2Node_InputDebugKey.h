@@ -85,6 +85,9 @@ class INPUTBLUEPRINTNODES_API UK2Node_InputDebugKey : public UK2Node, public IK2
 	/** Get the 'released' input pin */
 	UEdGraphPin* GetReleasedPin() const;
 
+	/** Get the 'Action Value' input pin */
+	UEdGraphPin* GetActionValuePin() const;
+
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title/tooltip */
 	FNodeTextCache CachedTooltip;
