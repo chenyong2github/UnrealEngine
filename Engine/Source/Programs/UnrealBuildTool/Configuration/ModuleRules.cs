@@ -1535,7 +1535,7 @@ namespace UnrealBuildTool
 				{
 					Linkage = "-static-md";
 				}
-				Toolset = "-v141";
+				Toolset = "-v142";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
