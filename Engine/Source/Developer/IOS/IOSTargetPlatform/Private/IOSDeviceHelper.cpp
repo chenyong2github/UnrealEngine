@@ -9,6 +9,9 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/IProjectManager.h"
+#include "Misc/MessageDialog.h"
+
+#define LOCTEXT_NAMESPACE "MiscIOSMessages"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
 
@@ -27,6 +30,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
         FString ProductType;
         DeviceConnectionInterface DeviceInterface;
         uint32 msgType;
+		bool isAuthorized;
     };
 
 
@@ -35,6 +39,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
         FString DeviceName;
         FString DeviceID;
         FString DeviceType;
+		bool isAuthorized;
         DeviceConnectionInterface DeviceInterface;
     };
 
@@ -103,14 +108,44 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
             }
 
             FPlatformProcess::ExecProcess(*LibimobileDeviceInfo, *Arguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo, NULL, true);
-            // parse product type and device name
-            FString DeviceName;
+            
+			LibIMobileDevice ToAdd;
+
+            // ideviceinfo can fail when the connected device is untrusted. It can be "Pairing dialog response pending (-19)", "Invalid HostID (-21)" or "User denied pairing (-18)"
+            // the only thing we can do is to make sure the Trust popup is correctly displayed.
+            if (OutStdErrInfo.Contains("ERROR: "))
+            {
+				if (OutStdErrInfo.Contains("Could not connect to lockdownd"))
+				{
+					UE_LOG(LogIOSDeviceHelper, Warning, TEXT("Could not pair with connected iOS/tvOS device. Trust this computer by accepting the popup on device."));
+					FString LibimobileDevicePair = GetLibImobileDeviceExe("idevicepair");
+					FString PairArguments = "-u " + DeviceID + " pair";
+					FPlatformProcess::ExecProcess(*LibimobileDevicePair, *PairArguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo, NULL, true);
+				}
+				else
+				{
+					UE_LOG(LogIOSDeviceHelper, Warning, TEXT("Libimobile call failed : %s"), *OutStdErrInfo);
+				}
+				OutStdOutInfo.Empty();
+				OutStdErrInfo.Empty();
+				ToAdd.isAuthorized = false;
+			}
+			else
+			{
+				ToAdd.isAuthorized = true;
+			}
+
+			// parse product type and device name
+			FString DeviceName;
             OutStdOutInfo.Split(TEXT("DeviceName: "), nullptr, &DeviceName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-            DeviceName.Split(LINE_TERMINATOR, &DeviceName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			DeviceName.Split(LINE_TERMINATOR, &DeviceName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+			if (!ToAdd.isAuthorized)
+            {
+				DeviceName = LOCTEXT("IosTvosUnauthorizedDevice", "iOS / tvOS (Unauthorized)").ToString();
+	        }
             FString ProductType;
             OutStdOutInfo.Split(TEXT("ProductType: "), nullptr, &ProductType, ESearchCase::CaseSensitive, ESearchDir::FromStart);
             ProductType.Split(LINE_TERMINATOR, &ProductType, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-            LibIMobileDevice ToAdd;
             ToAdd.DeviceID = DeviceID;
             ToAdd.DeviceName = DeviceName;
             ToAdd.DeviceType = ProductType;
@@ -260,7 +295,30 @@ public:
     }
 
 private:
+    
+    void NotifyDeviceChange(LibIMobileDevice& Device, bool bAdd)
+    {
+        FDeviceNotificationCallbackInformation CallbackInfo;
 
+        if (bAdd)
+        {
+            CallbackInfo.DeviceName = Device.DeviceName;
+            CallbackInfo.UDID = Device.DeviceID;
+            CallbackInfo.DeviceInterface = Device.DeviceInterface;
+            CallbackInfo.ProductType = Device.DeviceType;
+            CallbackInfo.msgType = 1;
+			CallbackInfo.isAuthorized = Device.isAuthorized;
+        }
+        else
+        {
+            CallbackInfo.UDID = Device.DeviceID;
+            CallbackInfo.msgType = 2;
+            DeviceNotification.Broadcast(&CallbackInfo);
+
+        }
+        DeviceNotification.Broadcast(&CallbackInfo);
+    }
+    
     void QueryDevices()
     {
         FString OutStdOut;
@@ -277,6 +335,11 @@ private:
                 UE_LOG(LogIOSDeviceHelper, Verbose, TEXT("IOS device listing is disabled for 1 minute (too many failed attempts)!"));
                 Enable(false);
             }
+			for (LibIMobileDevice device : CachedDevices)
+			{
+				NotifyDeviceChange(device, false);
+			}
+			CachedDevices.Empty();
             return;
         }
         RetryQuery = 5;
@@ -285,43 +348,43 @@ private:
 
         for (int32 Index = 0; Index < ParsedDevices.Num(); ++Index)
         {
-            // move on to next device if this one is already a known device
-            if (ConnectedDeviceIds.Find(ParsedDevices[Index].DeviceID) != INDEX_NONE)
-            {
-                ConnectedDeviceIds.Remove(ParsedDevices[Index].DeviceID);
-                continue;
-            }
+			TObjectPtr<LibIMobileDevice> Found = CachedDevices.FindByPredicate(
+				[&](LibIMobileDevice Element) {
+					return Element.DeviceID == ParsedDevices[Index].DeviceID;
+				});
+			if (Found != nullptr)
+			{
+				if (Found->isAuthorized != ParsedDevices[Index].isAuthorized)
+				{
+					NotifyDeviceChange(ParsedDevices[Index], false);
+					NotifyDeviceChange(ParsedDevices[Index], true);
+				}
+				Found->DeviceID = "DealtWith";
+			}
+			else
+			{
+				NotifyDeviceChange(ParsedDevices[Index], true);
+			}
+	
+        }
 
-            // create an FIOSDevice
-            FDeviceNotificationCallbackInformation CallbackInfo;
-            CallbackInfo.DeviceName = ParsedDevices[Index].DeviceName;
-            CallbackInfo.UDID = ParsedDevices[Index].DeviceID;
-            CallbackInfo.DeviceInterface = ParsedDevices[Index].DeviceInterface;
-            CallbackInfo.ProductType = ParsedDevices[Index].DeviceType;
-            CallbackInfo.msgType = 1;
-            DeviceNotification.Broadcast(&CallbackInfo);
-        }
-        
-        // remove all devices no longer found
-        for (int32 DeviceIndex = 0; DeviceIndex < ConnectedDeviceIds.Num(); ++DeviceIndex)
+        for (int32 Index = 0; Index < CachedDevices.Num(); ++Index)
         {
-            FDeviceNotificationCallbackInformation CallbackInfo;
-            CallbackInfo.UDID = ConnectedDeviceIds[DeviceIndex];
-            CallbackInfo.msgType = 2;
-            DeviceNotification.Broadcast(&CallbackInfo);
+            if (CachedDevices[Index].DeviceID != "DealtWith")
+            {
+                NotifyDeviceChange(CachedDevices[Index], false);
+            }
         }
-        ConnectedDeviceIds.Empty();
-        for (int32 Index = 0; Index < ParsedDevices.Num(); ++Index)
-        {
-            ConnectedDeviceIds.Add(ParsedDevices[Index].DeviceID);
-        }
+
+        CachedDevices.Empty();
+		CachedDevices = ParsedDevices;
     }
 
     bool Stopping;
     bool bCheckDevices;
     bool NeedSDKCheck;
     int RetryQuery;
-    TArray<FString> ConnectedDeviceIds;
+    TArray<LibIMobileDevice> CachedDevices;
     FDeviceNotification DeviceNotification;
 };
 
@@ -403,6 +466,7 @@ void FIOSDeviceHelper::DoDeviceConnect(void* CallbackInfo)
     Event.DeviceID = FString::Printf(TEXT("%s@%s"), cbi->ProductType.Contains(TEXT("AppleTV")) ? TEXT("TVOS") : TEXT("IOS"), *(cbi->UDID));
     Event.DeviceName = cbi->DeviceName;
     Event.DeviceType = cbi->ProductType;
+	Event.bIsAuthorized = cbi->isAuthorized;
     Event.bCanReboot = false;
     Event.bCanPowerOn = false;
     Event.bCanPowerOff = false;
