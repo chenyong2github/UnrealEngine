@@ -26,7 +26,7 @@
 #include "Developer/SourceCodeAccess/Public/ISourceCodeAccessModule.h"
 #endif
 
-#if WITH_ACCESSIBILITY
+#if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA
 #include "Windows/Accessibility/WindowsUIAManager.h"
 #include "Windows/Accessibility/WindowsUIAWidgetProvider.h"
 #include <UIAutomation.h>
@@ -116,7 +116,7 @@ FWindowsApplication::FWindowsApplication( const HINSTANCE HInstance, const HICON
 		bAllowedToDeferMessageProcessing,
 		TEXT( "Whether windows message processing is deferred until tick or if they are processed immediately" ) )
 	, bInModalSizeLoop( false )
-#if WITH_ACCESSIBILITY
+#if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA
 	, UIAManager(new FWindowsUIAManager(*this))
 #endif
 	, bSimulatingHighPrecisionMouseInputForRDP(false)
@@ -384,7 +384,9 @@ void FWindowsApplication::SetMessageHandler( const TSharedRef< FGenericApplicati
 void FWindowsApplication::SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler)
 {
 	GenericApplication::SetAccessibleMessageHandler(InAccessibleMessageHandler);
+#if UE_WINDOWS_USING_UIA
 	UIAManager->OnAccessibleMessageHandlerChanged();
+#endif
 }
 #endif
 
@@ -1683,7 +1685,7 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 		case WM_DESTROY:
 			{
 				Windows.Remove( CurrentNativeEventWindow );
-#if WITH_ACCESSIBILITY
+#if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA
 				// Tell UIA that the window no longer exists so that it can release some resources
 				if (GetAccessibleMessageHandler()->ApplicationIsAccessible())
 				{
@@ -1865,7 +1867,7 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 			}
 			break;
 
-#if WITH_ACCESSIBILITY
+#if WITH_ACCESSIBILITY && UE_WINDOWS_USING_UIA
 		case WM_GETOBJECT:
 		{
 			if (GetAccessibleMessageHandler()->ApplicationIsAccessible())
