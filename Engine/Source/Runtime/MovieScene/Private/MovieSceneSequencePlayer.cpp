@@ -1009,7 +1009,13 @@ void UMovieSceneSequencePlayer::UpdateTimeCursorPosition_Internal(FFrameTime New
 			FMovieSceneEvaluationRange Range = UpdatePlayPosition(PlayPosition, NewPosition, Method);
 			UpdateMovieSceneInstance(Range, StatusOverride);
 
-			if (HasAuthority())
+			// If we are using replicated playback and are not an authoritative sequence player, we need to wait 
+			// for the server to tell us to finish.
+			const bool bHasAuthorityToFinish = (
+					HasAuthority() || 
+					PlaybackClient == nullptr ||
+					!PlaybackClient->GetIsReplicatedPlayback());
+			if (bHasAuthorityToFinish)
 			{
 				FinishPlaybackInternal(NewPosition);
 
