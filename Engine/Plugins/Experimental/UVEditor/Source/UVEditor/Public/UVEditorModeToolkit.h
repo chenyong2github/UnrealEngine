@@ -9,6 +9,7 @@
 
 class SBorder;
 class STextBlock;
+class UInteractiveToolPropertySet;
 
 /**
  * The UV editor mode toolkit is responsible for the panel on the side in the UV editor
@@ -28,8 +29,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
 
-
-	virtual void SetBackgroundSettings(UObject* InSettingsObject);
+	virtual void SetModeDetailsViewObjects(const TArray<TObjectPtr<UInteractiveToolPropertySet>>& InObjects);
 
 	virtual FText GetActiveToolDisplayName() const override { return ActiveToolName; }
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;

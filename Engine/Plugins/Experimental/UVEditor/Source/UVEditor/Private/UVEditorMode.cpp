@@ -9,11 +9,12 @@
 #include "Framework/Commands/UICommandList.h"
 #include "InteractiveTool.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
+#include "ModelingToolTargetUtil.h"
 #include "PreviewMesh.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/DynamicMeshProvider.h"
-#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "ToolSetupUtil.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "ToolTargetManager.h"
@@ -27,6 +28,7 @@
 #include "UVEditorToolUtil.h"
 #include "UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
+#include "UVEditorModeChannelProperties.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
@@ -37,11 +39,60 @@ const FEditorModeID UUVEditorMode::EM_UVEditorModeId = TEXT("EM_UVEditorMode");
 
 namespace UVEditorModeLocals
 {
-	// TODO: This is temporary. We need to be able to configure the layer we look at,
-	// and ideally show multiple layers at a time.
-	const int32 UVLayerIndex = 0;	
+	// The layer we open when we first open the UV editor
+	const int32 DefaultUVLayerIndex = 0;
 
+	// Determines what the default tool is
 	const FString DefaultToolIdentifier = TEXT("UVSelectTool");
+
+	const FText UVLayerChangeTransactionName = LOCTEXT("UVLayerChangeTransactionName", "Change UV Layer");
+
+	/** 
+	 * Change for undoing/redoing displayed layer changes.
+	 */
+	class FInputObjectUVLayerChange : public FToolCommandChange
+	{
+	public:
+		FInputObjectUVLayerChange(int32 AssetIDIn, int32 OldUVLayerIndexIn, int32 NewUVLayerIndexIn)
+			: AssetID(AssetIDIn)
+			, OldUVLayerIndex(OldUVLayerIndexIn)
+			, NewUVLayerIndex(NewUVLayerIndexIn)
+		{
+		}
+
+		virtual void Apply(UObject* Object) override
+		{
+			UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(Object);
+			UVEditorMode->ChangeInputObjectLayer(AssetID, NewUVLayerIndex);
+			UVEditorMode->UpdateSelectedLayer();
+		}
+
+		virtual void Revert(UObject* Object) override
+		{
+			UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(Object);
+			UVEditorMode->ChangeInputObjectLayer(AssetID, OldUVLayerIndex);
+			UVEditorMode->UpdateSelectedLayer();
+		}
+
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(Object);
+			return !(UVEditorMode && UVEditorMode->IsActive());
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("UVEditorModeLocals::FInputObjectUVLayerChange");
+		}
+
+	protected:
+		int32 AssetID;
+		int32 OldUVLayerIndex;
+		int32 NewUVLayerIndex;
+	};
+
+
+
 }
 
 const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
@@ -49,9 +100,12 @@ const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
 	static const FToolTargetTypeRequirements ToolTargetRequirements =
 		FToolTargetTypeRequirements({
 			UMaterialProvider::StaticClass(),
-			UDynamicMeshCommitter::StaticClass(),
-			UDynamicMeshProvider::StaticClass(),
-			UAssetBackedTarget::StaticClass()
+
+			// What we actually care about is dynamic meshes, but we don't currently have
+			// a standardized dynamic mesh commiter/provider interface, because UDynamicMesh
+			// doesn't implement IDynamicMeshCommitter
+			UMeshDescriptionCommitter::StaticClass(),
+			UMeshDescriptionProvider::StaticClass()
 			});
 	return ToolTargetRequirements;
 }
@@ -71,14 +125,24 @@ void UUVEditorMode::Enter()
 
 	BackgroundVisualization = NewObject<UUVEditorBackgroundPreview>(this);
 	BackgroundVisualization->CreateInWorld(GetWorld(), FTransform::Identity);
-	EditorModeToolkit->SetBackgroundSettings(BackgroundVisualization->Settings);
 
-	BackgroundVisualization->Settings->WatchProperty(BackgroundVisualization->Settings->bVisible, [this](bool IsVisible) { UpdateTriangleMaterialBasedOnBackground(IsVisible); });
-	PropertyObjectsToTick.Add(BackgroundVisualization->Settings);
+	UVChannelProperties = NewObject<UUVEditorUVChannelProperties>(this);
+	UVChannelProperties->WatchProperty(UVChannelProperties->Asset, [this](FString UVAsset) {SwitchActiveAsset(UVAsset); });
+	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](FString UVChannel) {SwitchActiveChannel(UVChannel); });
+
+	BackgroundVisualization->Settings->WatchProperty(BackgroundVisualization->Settings->bVisible, 
+		[this](bool IsVisible) { UpdateTriangleMaterialBasedOnBackground(IsVisible); });
+
+	AddDisplayedPropertySet(UVChannelProperties);
+	AddDisplayedPropertySet(BackgroundVisualization->Settings);
+		
+	StaticCastSharedPtr<FUVEditorModeToolkit>(Toolkit)->SetModeDetailsViewObjects(PropertyObjectsToDisplay);
 
 	RegisterTools();
 
 	ActivateDefaultTool();
+
+	bIsActive = true;
 }
 
 void UUVEditorMode::RegisterTools()
@@ -98,9 +162,15 @@ void UUVEditorMode::RegisterTools()
 	RegisterTool(CommandInfos.BeginParameterizeMeshTool, TEXT("UVParameterizeMeshTool"), UVEditorParameterizeMeshToolBuilder);
 }
 
+void UUVEditorMode::AddDisplayedPropertySet(const TObjectPtr<UInteractiveToolPropertySet>& PropertySet)
+{
+	PropertyObjectsToTick.Add(PropertySet);
+	PropertyObjectsToDisplay.Add(PropertySet);
+}
+
 void UUVEditorMode::CreateToolkit()
 {
-	Toolkit = EditorModeToolkit = MakeShared<FUVEditorModeToolkit>();
+	Toolkit = MakeShared<FUVEditorModeToolkit>();
 }
 
 void UUVEditorMode::ActivateDefaultTool()
@@ -155,34 +225,77 @@ void UUVEditorMode::Exit()
 		ToolInput->Shutdown();
 	}
 	ToolInputObjects.Reset();
+	WireframesToTick.Reset();
+	OriginalObjectsToEdit.Reset();
+	
+	for (TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview : AppliedPreviews)
+	{
+		Preview->Shutdown();
+	}
+	AppliedPreviews.Reset();
+	AppliedCanonicalMeshes.Reset();
+	ToolTargets.Reset();
 
 	if (BackgroundVisualization)
 	{
 		BackgroundVisualization->Disconnect();
+		BackgroundVisualization = nullptr;
 	}
+
+	UVChannelProperties = nullptr;
+	PropertyObjectsToTick.Empty();
+	PropertyObjectsToDisplay.Empty();
+	LivePreviewWorld = nullptr;
+
+	bIsActive = false;
 
 	Super::Exit();
 }
 
-void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TArray<FTransform>* TransformsIn)
+void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, 
+	const TArray<FTransform>& TransformsIn)
 {
 	using namespace UVEditorModeLocals;
 
 	OriginalObjectsToEdit = AssetsIn;
+	Transforms = TransformsIn;
 
 	// Build the tool targets that provide us with 3d dynamic meshes
 	UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
 	UVSubsystem->BuildTargets(AssetsIn, GetToolTargetRequirements(), ToolTargets);
 
-	// Get an api for manipulating things in the live preview, which has its own world and input router
+	// For creating the actual input objects, we'll need pointers both to the 2d unwrap world and the
+	// 3d preview world. We already have the 2d world in GetWorld(). Get the 3d one.
 	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
 	UUVToolLivePreviewAPI* LivePreviewAPI = ContextStore->FindContext<UUVToolLivePreviewAPI>();
 	check(LivePreviewAPI);
-	UWorld* LivePreviewWorld = LivePreviewAPI->GetLivePreviewWorld();
+	LivePreviewWorld = LivePreviewAPI->GetLivePreviewWorld();
 
-	double ScaleFactor = GetUVMeshScalingFactor();
+	// Collect the 3d dynamic meshes from targets. There will always be one for each asset, and the AssetID
+	// of each asset will be the index into these arrays. Individual input objects (representing a specific
+	// UV layer), will point to these existing 3d meshes.
+	for (UToolTarget* Target : ToolTargets)
+	{
+		// The applied canonical mesh is the 3d mesh with all of the layer changes applied. If we switch
+		// to a different layer, the changes persist in the applied canonical.
+		TSharedPtr<FDynamicMesh3> AppliedCanonical = MakeShared<FDynamicMesh3>(UE::ToolTarget::GetDynamicMeshCopy(Target));
+		AppliedCanonicalMeshes.Add(AppliedCanonical);
 
-	// These functions will determine the mapping between UV values and the resulting mesh vertex positions. 
+		// Make a preview version of the applied canonical to show. Tools can attach computes to this, though
+		// they would have to take care if we ever allow multiple layers to be displayed for one asset, to
+		// avoid trying to attach two computes to the same preview object (in which case one would be thrown out)
+		UMeshOpPreviewWithBackgroundCompute* AppliedPreview = NewObject<UMeshOpPreviewWithBackgroundCompute>();
+		AppliedPreview->Setup(LivePreviewWorld);
+		AppliedPreview->PreviewMesh->UpdatePreview(AppliedCanonical.Get());
+
+		FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
+		AppliedPreview->ConfigureMaterials(MaterialSet.Materials, 
+			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+		AppliedPreviews.Add(AppliedPreview);
+	}
+
+	// When creating UV unwraps, these functions will determine the mapping between UV values and the
+	// resulting unwrap mesh vertex positions. 
 	// If we're looking down on the unwrapped mesh, with the Z axis towards us, we want U's to be right, and
 	// V's to be up. In Unreal's left-handed coordinate system, this means that we map U's to world Y
 	// and V's to world X.
@@ -192,6 +305,7 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 	// frequently end up negative).
 	// The ScaleFactor just scales the mesh up. Scaling the mesh up makes it easier to zoom in
 	// further into the display before getting issues with the camera near plane distance.
+	double ScaleFactor = GetUVMeshScalingFactor();
 	auto UVToVertPosition = [this, ScaleFactor](const FVector2f& UV)
 	{
 		return FVector3d((1 - UV.Y) * ScaleFactor, UV.X * ScaleFactor, 0);
@@ -201,18 +315,22 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 		return FVector2D(VertPosition.Y / ScaleFactor, 1 - (VertPosition.X / ScaleFactor));
 	};
 
-	// For each of our tool targets, we're going to create a UV tool input object that bundles together
-	// the 3d preview and the unwrapped UV layer, with both a reference and a "preview with background op"
-	// versions of both
-	for (UToolTarget* Target : ToolTargets)
+	// Construct the full input objects that the tools actually operate on.
+	for (int32 AssetID = 0; AssetID < ToolTargets.Num(); ++AssetID)
 	{
 		UUVEditorToolMeshInput* ToolInputObject = NewObject<UUVEditorToolMeshInput>();
-		
-		if (!ToolInputObject->InitializeMeshes(Target, UVLayerIndex,
+
+		if (!ToolInputObject->InitializeMeshes(ToolTargets[AssetID], AppliedCanonicalMeshes[AssetID],
+			AppliedPreviews[AssetID], AssetID, DefaultUVLayerIndex,
 			GetWorld(), LivePreviewWorld, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()),
 			UVToVertPosition, VertPositionToUV))
 		{
-			continue;
+			return;
+		}
+
+		if (Transforms.Num() == ToolTargets.Num())
+		{
+			ToolInputObject->AppliedPreview->PreviewMesh->SetTransform(Transforms[AssetID]);
 		}
 
 		ToolInputObject->UnwrapPreview->PreviewMesh->SetMaterial(
@@ -221,9 +339,6 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 				(FLinearColor)TriangleColor,
 				TriangleDepthOffset,
 				TriangleOpacity));
-
-		// Initialize our timestamp so we can later detect changes
-		MeshChangeStamps.Add(ToolInputObject->UnwrapCanonical->GetShapeChangeStamp());
 
 		// Set up the wireframe display of the unwrapped mesh.
 		UMeshElementsVisualizer* WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
@@ -254,16 +369,16 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 		// The tool input object will hold on to the wireframe for the purposes of updating it and cleaning it up
 		ToolInputObject->WireframeDisplay = WireframeDisplay;
 
+		// Initialize our changestamp so we can later detect changes
+		LastSeenChangeStamps.Add(ToolInputObject->UnwrapCanonical->GetShapeChangeStamp());
+
 		ToolInputObjects.Add(ToolInputObject);
 	}
-	
-	if (TransformsIn && TransformsIn->Num() == AssetsIn.Num())
-	{
-		for (int i = 0; i < ToolInputObjects.Num(); ++i)
-		{
-			ToolInputObjects[i]->AppliedPreview->PreviewMesh->SetTransform((*TransformsIn)[i]);
-		}
-	}
+
+	// Initialize our layer selector
+	UVChannelProperties->Initialize(ToolTargets, AppliedCanonicalMeshes, true);
+	PreviousUVLayerIndex = UVChannelProperties->GetSelectedChannelIndex();
+	PendingUVLayerIndex = PreviousUVLayerIndex;
 }
 
 void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
@@ -273,24 +388,15 @@ void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniq
 
 bool UUVEditorMode::HaveUnappliedChanges()
 {
-	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
-	{
-		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp() != MeshChangeStamps[i])
-		{
-			return true;
-		}
-	}
-	return false;
+	return ModifiedAssetIDs.Num() > 0;
 }
 
 void UUVEditorMode::GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> UnappliedAssetsOut)
 {
-	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
+	for (int32 AssetID : ModifiedAssetIDs)
 	{
-		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp() != MeshChangeStamps[i])
-		{
-			UnappliedAssetsOut.Add(OriginalObjectsToEdit[i]);
-		}
+		// The asset ID corresponds to the index into OriginalObjectsToEdit
+		UnappliedAssetsOut.Add(OriginalObjectsToEdit[AssetID]);
 	}
 }
 
@@ -300,17 +406,13 @@ void UUVEditorMode::ApplyChanges()
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("UVEditorApplyChangesTransaction", "UV Editor Apply Changes"));
 
-	IDynamicMeshCommitter::FDynamicMeshCommitInfo CommitInfo(false);
-	CommitInfo.bUVsChanged = true;
-
-	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
+	for (int32 AssetID : ModifiedAssetIDs)
 	{
-		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp() != MeshChangeStamps[i])
-		{
-			Cast<IDynamicMeshCommitter>(ToolTargets[i])->CommitDynamicMesh(*ToolInputObjects[i]->AppliedCanonical, CommitInfo);
-			MeshChangeStamps[i] = ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp();
-		}
+		// The asset ID corresponds to the index into ToolTargets and AppliedCanonicalMeshes
+		UE::ToolTarget::CommitDynamicMeshUVUpdate(ToolTargets[AssetID], AppliedCanonicalMeshes[AssetID].Get());
 	}
+
+	ModifiedAssetIDs.Reset();
 
 	GetToolManager()->EndUndoTransaction();
 }
@@ -344,7 +446,35 @@ void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVis
 
 void UUVEditorMode::ModeTick(float DeltaTime)
 {
+	using namespace UVEditorModeLocals;
+
 	Super::ModeTick(DeltaTime);
+
+	if (PreviousUVLayerIndex!= PendingUVLayerIndex)
+	{
+		int32 AssetID = UVChannelProperties->GetSelectedAssetID();
+		if (ensure(ToolInputObjects[AssetID]->UVLayerIndex != PendingUVLayerIndex))
+		{
+			GetToolManager()->BeginUndoTransaction(UVLayerChangeTransactionName);
+
+			// TODO: Perhaps we need our own interactive tools context that allows this kind of "end tool now"
+			// call. We can't do the normal EndTool call because we cannot defer shutdown until the tick.
+			GetInteractiveToolsContext()->ToolManager->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+
+			ChangeInputObjectLayer(AssetID, PendingUVLayerIndex);
+
+			GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(this,
+				MakeUnique<FInputObjectUVLayerChange>(AssetID, PreviousUVLayerIndex, PendingUVLayerIndex), 
+				UVLayerChangeTransactionName);
+
+			GetToolManager()->EndUndoTransaction();
+
+			ActivateDefaultTool();
+			//GetInteractiveToolsContext()->ToolManager->ActivateTool(EToolSide::Mouse);
+
+		}
+		PreviousUVLayerIndex = PendingUVLayerIndex;
+	}
 
 	for (TObjectPtr<UInteractiveToolPropertySet>& Propset : PropertyObjectsToTick)
 	{
@@ -376,9 +506,101 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 
 	for (int i = 0; i < ToolInputObjects.Num(); ++i)
 	{
-		ToolInputObjects[i]->AppliedPreview->Tick(DeltaTime);
-		ToolInputObjects[i]->UnwrapPreview->Tick(DeltaTime);
+		TObjectPtr<UUVEditorToolMeshInput> ToolInput = ToolInputObjects[i];
+		ToolInput->AppliedPreview->Tick(DeltaTime);
+		ToolInput->UnwrapPreview->Tick(DeltaTime);
+
+		int32 ChangeStamp = ToolInput->UnwrapCanonical->GetShapeChangeStamp();
+		if (LastSeenChangeStamps[i] != ChangeStamp)
+		{
+			LastSeenChangeStamps[i] = ChangeStamp;
+			ModifiedAssetIDs.Add(ToolInput->AssetID);
+		}
 	}
+}
+
+
+void UUVEditorMode::SwitchActiveAsset(const FString& UVAsset)
+{
+	if (UVChannelProperties)
+	{
+		// Not doing an ensure here because the "revert to default" can give us an empty string
+		UVChannelProperties->ValidateUVAssetSelection(true);
+		UpdateSelectedLayer();
+	}
+}
+
+void UUVEditorMode::UpdateSelectedLayer()
+{
+	int32 AssetID = UVChannelProperties->GetSelectedAssetID();
+	if (!ensure(AssetID != INDEX_NONE))
+	{
+		return;
+	}
+	const TArray<FString>& ChannelNames = UVChannelProperties->GetUVChannelNames();
+
+	// Find the currently selected layer for the current asset
+	bool bFound = false;
+	for (auto InputObject : ToolInputObjects)
+	{
+		if (InputObject->AssetID == AssetID)
+		{
+			bFound = true;
+
+			UVChannelProperties->UVChannel = ChannelNames[InputObject->UVLayerIndex];
+			UVChannelProperties->SilentUpdateWatched();
+			PreviousUVLayerIndex = InputObject->UVLayerIndex;
+			break;
+		}
+	}
+	if (!ensure(bFound))
+	{
+		UVChannelProperties->UVChannel = TEXT("");
+		PreviousUVLayerIndex = INDEX_NONE;
+	}
+
+	PendingUVLayerIndex = PreviousUVLayerIndex;
+}
+
+
+void UUVEditorMode::SwitchActiveChannel(const FString& UVChannel)
+{
+	using namespace UVEditorModeLocals;
+
+	if (UVChannelProperties)
+	{
+		// Not doing an ensure because the "revert to default" can give us an empty string
+		UVChannelProperties->ValidateUVChannelSelection(true);
+		int32 NewUVLayerIndex = UVChannelProperties->GetSelectedChannelIndex();
+
+		if (ensure(NewUVLayerIndex != IndexConstants::InvalidID))
+		{
+			PendingUVLayerIndex = NewUVLayerIndex;
+		}
+	}
+}
+
+void UUVEditorMode::ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex)
+{
+	using namespace UVEditorModeLocals;
+
+	bool bFound = false;
+	for (auto InputObject : ToolInputObjects)
+	{
+		if (InputObject->AssetID == AssetID)
+		{
+			bFound = true;
+
+			if (ensure(InputObject->UVLayerIndex != NewLayerIndex))
+			{
+				InputObject->UVLayerIndex = NewLayerIndex;
+				InputObject->UpdateAllFromAppliedCanonical();
+			}
+			break;
+		}
+	}
+
+	ensure(bFound);
 }
 
 #undef LOCTEXT_NAMESPACE

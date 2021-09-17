@@ -168,13 +168,13 @@ bool UUVEditorToolMeshInput::IsValid() const
 		&& UnwrapPreview && UnwrapPreview->IsValidLowLevel()
 		&& AppliedCanonical
 		&& AppliedPreview && AppliedPreview->IsValidLowLevel()
-		&& OriginalAsset && OriginalAsset->IsValidLowLevel()
+		&& SourceTarget && SourceTarget->IsValid()
 		&& UVLayerIndex >= 0;
 }
 
-bool UUVEditorToolMeshInput::InitializeMeshes(
-	UToolTarget* Target, int32 UVLayerIndexIn,
-	UWorld* UnwrapWorld, UWorld* LivePreviewWorld,
+bool UUVEditorToolMeshInput::InitializeMeshes(UToolTarget* Target, 
+	TSharedPtr<FDynamicMesh3> AppliedCanonicalIn, UMeshOpPreviewWithBackgroundCompute* AppliedPreviewIn,
+	int32 AssetIDIn, int32 UVLayerIndexIn, UWorld* UnwrapWorld, UWorld* LivePreviewWorld,
 	UMaterialInterface* WorkingMaterialIn,
 	TFunction<FVector3d(const FVector2f&)> UVToVertPositionFuncIn,
 	TFunction<FVector2f(const FVector3d&)> VertPositionToUVFuncIn)
@@ -184,17 +184,14 @@ bool UUVEditorToolMeshInput::InitializeMeshes(
 	// We'll need to update this function once they exist.
 	using namespace UE::ToolTarget;
 
-	checkSlow(Cast<IAssetBackedTarget>(Target) 
-		&& Cast<IDynamicMeshProvider>(Target)
-		&& Cast<IMaterialProvider>(Target));
-
-	OriginalAsset = Cast<IAssetBackedTarget>(Target)->GetSourceData();
+	SourceTarget = Target;
+	AssetID = AssetIDIn;
 	UVLayerIndex = UVLayerIndexIn;
 	UVToVertPosition = UVToVertPositionFuncIn;
 	VertPositionToUV = VertPositionToUVFuncIn;
 
 	// We are given the preview- i.e. the mesh with the uv layer applied.
-	AppliedCanonical = Cast<IDynamicMeshProvider>(Target)->GetDynamicMesh();
+	AppliedCanonical = AppliedCanonicalIn;
 
 	if (!AppliedCanonical->HasAttributes()
 		|| UVLayerIndex >= AppliedCanonical->Attributes()->NumUVLayers())
@@ -202,14 +199,7 @@ bool UUVEditorToolMeshInput::InitializeMeshes(
 		return false;
 	}
 
-	// Create a preview version of the 3d mesh
-	AppliedPreview = NewObject<UMeshOpPreviewWithBackgroundCompute>();
-	AppliedPreview->Setup(LivePreviewWorld);
-	AppliedPreview->PreviewMesh->UpdatePreview(AppliedCanonical.Get());
-
-	FComponentMaterialSet MaterialSet;
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
-	AppliedPreview->ConfigureMaterials(MaterialSet.Materials, WorkingMaterialIn);
+	AppliedPreview = AppliedPreviewIn;
 
 	// Set up the unwrapped mesh
 	UnwrapCanonical = MakeShared<FDynamicMesh3>();
@@ -235,15 +225,14 @@ void UUVEditorToolMeshInput::Shutdown()
 		WireframeDisplay = nullptr;
 	}
 
-	UnwrapPreview->Cancel();
-	AppliedPreview->Cancel();
-
 	UnwrapCanonical = nullptr;
+	UnwrapPreview->Shutdown();
 	UnwrapPreview = nullptr;
 	AppliedCanonical = nullptr;
+	// Can't shut down AppliedPreview because it is owned by mode
 	AppliedPreview = nullptr;
 
-	OriginalAsset = nullptr;
+	SourceTarget = nullptr;
 }
 
 void UUVEditorToolMeshInput::UpdateUnwrapPreviewOverlayFromPositions(const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
@@ -289,7 +278,7 @@ void UUVEditorToolMeshInput::UpdateAppliedPreviewFromUnwrapPreview(const TArray<
 	AppliedPreview->PreviewMesh->DeferredEditMesh([this, SourceUnwrapMesh, ChangedVids, ChangedConnectivityTids](FDynamicMesh3& Mesh)
 	{
 			const FDynamicMeshUVOverlay* SourceOverlay = SourceUnwrapMesh->Attributes()->PrimaryUV();
-			FDynamicMeshUVOverlay* DestOverlay = Mesh.Attributes()->PrimaryUV();
+			FDynamicMeshUVOverlay* DestOverlay = Mesh.Attributes()->GetUVLayer(UVLayerIndex);
 
 			CopyMeshOverlay(*SourceOverlay, *DestOverlay, false, ChangedVids, ChangedConnectivityTids);
 	}, false);
@@ -310,7 +299,7 @@ void UUVEditorToolMeshInput::UpdateUnwrapPreviewFromAppliedPreview(const TArray<
 	using namespace UVEditorToolMeshInputLocals;
 
 	// Convert the AppliedPreview UV overlay to positions in UnwrapPreview
-	const FDynamicMeshUVOverlay* SourceOverlay = AppliedPreview->PreviewMesh->GetMesh()->Attributes()->PrimaryUV();
+	const FDynamicMeshUVOverlay* SourceOverlay = AppliedPreview->PreviewMesh->GetMesh()->Attributes()->GetUVLayer(UVLayerIndex);
 	UnwrapPreview->PreviewMesh->DeferredEditMesh([this, SourceOverlay, ChangedElementIDs, ChangedConnectivityTids](FDynamicMesh3& Mesh)
 	{
 		UVEditorToolUtil::UpdateUVUnwrapMesh(*SourceOverlay, Mesh, UVToVertPosition, ChangedElementIDs, ChangedConnectivityTids);
@@ -408,6 +397,18 @@ void UUVEditorToolMeshInput::UpdateAllFromUnwrapCanonical(
 	CopyMeshOverlay(*SourceOverlay, *DestOverlay, false, ChangedVids, ChangedConnectivityTids);
 
 	UpdatePreviewsFromCanonical(ChangedVids, ChangedConnectivityTids, FastRenderUpdateTids);
+}
+
+void UUVEditorToolMeshInput::UpdateAllFromAppliedCanonical(
+	const TArray<int32>* ChangedElementIDs, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids)
+{
+	using namespace UVEditorToolMeshInputLocals;
+
+	// Update UnwrapCanonical
+	const FDynamicMeshUVOverlay* SourceOverlay = AppliedCanonical->Attributes()->GetUVLayer(UVLayerIndex);
+	UVEditorToolUtil::UpdateUVUnwrapMesh(*SourceOverlay, *UnwrapCanonical, UVToVertPosition, ChangedElementIDs, ChangedConnectivityTids);
+
+	UpdatePreviewsFromCanonical(ChangedElementIDs, ChangedConnectivityTids, FastRenderUpdateTids);
 }
 
 void UUVEditorToolMeshInput::UpdateAllFromAppliedPreview(

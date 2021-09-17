@@ -44,7 +44,7 @@ namespace UVToolContextObjectLocals
 
 		virtual bool HasExpired(UObject* Object) const override
 		{
-			return !(UVToolInputObject.IsValid() && UnwrapCanonicalMeshChange);
+			return !(UVToolInputObject.IsValid() && UVToolInputObject->IsValid() && UnwrapCanonicalMeshChange);
 		}
 
 

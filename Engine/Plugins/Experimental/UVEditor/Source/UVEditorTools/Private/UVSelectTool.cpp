@@ -81,6 +81,12 @@ namespace UVSelectToolLocals
 			}
 		}
 
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
+			return !(ChangeRouter && ChangeRouter->CurrentSelectTool.IsValid());
+		}
+
 		virtual FString ToString() const override
 		{
 			return TEXT("UVSelectToolLocals::FSelectionChange");
@@ -158,7 +164,7 @@ namespace UVSelectToolLocals
 
 		virtual bool HasExpired(UObject* Object) const override
 		{
-			return !(UVToolInputObject.IsValid() && UnwrapCanonicalMeshChange);
+			return !(UVToolInputObject.IsValid() && UVToolInputObject->IsValid() && UnwrapCanonicalMeshChange);
 		}
 
 
@@ -285,7 +291,14 @@ void UUVSelectTool::Setup()
 			Tree->SetMesh(Target->UnwrapCanonical.Get());
 			TreeStore->Set(Target->UnwrapCanonical.Get(), Tree);
 		}
-		if (!Tree->IsValid(false))
+		// TODO: We currently can't do this check because the aabb tree checks the mesh
+		// changestamp, and that gets (arguably incorrectly) reset if we do an update
+		// that involves a clear. So, for instance, after a layout operation, the changestamp
+		// frequently ends up matching the original and incorrectly passes the check.
+		// All this means that storing the tree is currently pointless because
+		// we rebuild it each time we switch back to this tool, but we keep the code
+		// until we fix the change stamp thing or give a workaround.
+		//if (!Tree->IsValid(false))
 		{
 			Tree->Build();
 		}
@@ -298,6 +311,19 @@ void UUVSelectTool::Setup()
 		SelectionMechanic->AddSpatial(AABBTrees[i],
 			Targets[i]->UnwrapPreview->PreviewMesh->GetTransform());
 	}
+
+	// Remove trees that are no longer relevant (because their layer is not displayed)
+	TreeStore->RemoveByPredicate([this](TPair<FDynamicMesh3*, TSharedPtr<FDynamicMeshAABBTree3>> Pair)
+	{
+		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+		{
+			if (Target->UnwrapCanonical.Get() == Pair.Key)
+			{
+				return false;
+			}
+		}
+		return true;
+	});
 
 	// Make sure that if we receive undo/redo events on the meshes, we update the tree structures
 	// and the selection mechanic drawn elements. Note that we mainly have to worry about this

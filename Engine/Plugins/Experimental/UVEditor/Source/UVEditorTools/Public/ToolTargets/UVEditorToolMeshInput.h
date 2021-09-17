@@ -89,14 +89,18 @@ public:
 	FOnUndoRedo OnUndoRedo;
 
 	// Additional needed information
-	TObjectPtr<UObject> OriginalAsset = nullptr;
+	TObjectPtr<UToolTarget> SourceTarget = nullptr;
+	int32 AssetID = -1;
 	int32 UVLayerIndex = 0;
 
 	// Mappings used for generating and baking back the unwrap.
 	TFunction<FVector3d(const FVector2f&)> UVToVertPosition;
 	TFunction<FVector2f(const FVector3d&)> VertPositionToUV;
 
-	bool InitializeMeshes(UToolTarget* Target, int32 UVLayerIndex,
+	bool InitializeMeshes(UToolTarget* Target, 
+		TSharedPtr<UE::Geometry::FDynamicMesh3> AppliedCanonicalIn,
+		UMeshOpPreviewWithBackgroundCompute* AppliedPreviewIn,
+		int32 AssetID, int32 UVLayerIndex,
 		UWorld* UnwrapWorld, UWorld* LivePreviewWorld,
 		UMaterialInterface* WorkingMaterialIn,
 		TFunction<FVector3d(const FVector2f&)> UVToVertPositionFuncIn,
@@ -166,6 +170,12 @@ public:
 	 * operates directly on the unwrap mesh.
 	 */
 	void UpdateAllFromUnwrapCanonical(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
+
+	/**
+	 * Updates the other meshes using the mesh in AppliedCanonical. Useful when switching UV layer indices or otherwise
+	 * resetting the collection from the "original" data.
+	 */
+	void UpdateAllFromAppliedCanonical(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
 
 	/**
 	 * Updates the other meshes using the UV overlay in the live preview.
