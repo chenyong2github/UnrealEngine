@@ -183,6 +183,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
 	int32 GetNumberOfFrames() const;
 
+	/** Override wireframe color? */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	void SetOverrideWireframeColor(bool bOverride);
+
+	/** Check whether we are overriding the wireframe color or not. */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	bool GetOverrideWireframeColor() const;
+
+	/** Set the color, used when overriding the wireframe color is enabled. */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	void SetWireframeOverrideColor(const FLinearColor Color);
+
+	/** Get the wireframe override color, used when overriding the wireframe color is enabled. */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	FLinearColor GetWireframeOverrideColor() const;
+
+
 public:
 	/** Helper to get the frame of the ABC asset at this time*/
 	int32 GetFrameAtTime(const float Time) const;
@@ -278,4 +295,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = GeometryCache)
 	bool bManualTick;
+
+	/** Do we override the wireframe rendering color? */
+	UPROPERTY(EditAnywhere, Category = GeometryCache)
+	bool bOverrideWireframeColor;
+
+	/** The wireframe override color. */
+	UPROPERTY(EditAnywhere, Category = GeometryCache, meta = (EditCondition = "bOVerrideWireframeColor"))
+	FLinearColor WireframeOverrideColor;
 };

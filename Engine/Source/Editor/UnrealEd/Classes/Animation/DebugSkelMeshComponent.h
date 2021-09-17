@@ -124,7 +124,7 @@ public:
 	* Constructor.
 	* @param	Component - skeletal mesh primitive being added
 	*/
-	FDebugSkelMeshSceneProxy(const UDebugSkelMeshComponent* InComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, const FColor& InWireframeOverlayColor = FColor::White);
+	FDebugSkelMeshSceneProxy(const UDebugSkelMeshComponent* InComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, FLinearColor InWireframeOverlayColor = FLinearColor::White);
 
 	virtual ~FDebugSkelMeshSceneProxy()
 	{}
@@ -226,6 +226,9 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 
 	UPROPERTY(transient)
 	bool bDisplayVertexColors;
+
+	UPROPERTY(transient)
+	FLinearColor WireframeMeshOverlayColor;
 
 	UE_DEPRECATED(5.0, "This variable is no longer used. Use ProcessRootMotionMode instead.")
 	UPROPERTY()
@@ -436,6 +439,13 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 
 	/** Whether the current LOD of the debug mesh is being synced with the attached (preview) mesh instance. */
 	bool IsTrackingAttachedLOD() const;
+
+	/** Set the wireframe mesh overlay color, which basically controls the color of the wireframe. */
+	void SetWireframeMeshOverlayColor(FLinearColor Color) { WireframeMeshOverlayColor = Color; }
+
+	/** Get the wireframe mesh overlay color, which basically controls the color of the wireframe. */
+	FLinearColor GetWireframeMeshOverlayColor() const { return WireframeMeshOverlayColor; }
+
 
 #if WITH_EDITOR
 	//TODO - This is a really poor way to post errors to the user. Work out a better way.

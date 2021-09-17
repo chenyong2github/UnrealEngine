@@ -46,6 +46,8 @@ UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& Objec
 	bTrackAttachedInstanceLOD = false;
 
 	BoneRadiusMultiplier = 1.f;
+
+	WireframeMeshOverlayColor = FLinearColor(0.4f, 0.8f, 0.66f);
 	
 	CachedClothBounds = FBoxSphereBounds(ForceInit);
 
@@ -411,7 +413,6 @@ FPrimitiveSceneProxy* UDebugSkelMeshComponent::CreateSceneProxy()
 		!bHideSkin &&
 		MeshObject)
 	{
-		const FColor WireframeMeshOverlayColor(102,205,170,255);
 		Result = ::new FDebugSkelMeshSceneProxy(this, SkelMeshRenderData, WireframeMeshOverlayColor);
 	}
 
@@ -1120,12 +1121,12 @@ bool UDebugSkelMeshComponent::IsReferencePoseShown() const
 /***************************************************
  * FDebugSkelMeshSceneProxy 
  ***************************************************/
-FDebugSkelMeshSceneProxy::FDebugSkelMeshSceneProxy(const UDebugSkelMeshComponent* InComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, const FColor& InWireframeOverlayColor /*= FColor::White*/) :
+FDebugSkelMeshSceneProxy::FDebugSkelMeshSceneProxy(const UDebugSkelMeshComponent* InComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, FLinearColor InWireframeOverlayColor /*= FLinearColor::White*/) :
 	FSkeletalMeshSceneProxy(InComponent, InSkelMeshRenderData)
 	, bSelectable(false)
 {
 	DynamicData = nullptr;
-	SetWireframeColor(FLinearColor(InWireframeOverlayColor));
+	SetWireframeColor(InWireframeOverlayColor);
 
 	if(GEngine->ClothPaintMaterial)
 	{
