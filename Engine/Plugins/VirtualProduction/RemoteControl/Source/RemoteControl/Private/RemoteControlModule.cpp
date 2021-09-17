@@ -4,6 +4,7 @@
 #include "IRemoteControlModule.h"
 #include "IStructDeserializerBackend.h"
 #include "IStructSerializerBackend.h"
+#include "Components/ActorComponent.h"
 #include "Components/LightComponent.h"
 #include "RCPropertyUtilities.h"
 #include "RemoteControlFieldPath.h"
@@ -525,6 +526,11 @@ public:
 					if (OngoingModification->bHasStartedTransaction)
 					{
 						SnapshotTransactionBuffer(InCall.CallRef.Object.Get());
+
+						if (UActorComponent* Component = Cast<UActorComponent>(InCall.CallRef.Object.Get()))
+						{
+							SnapshotTransactionBuffer(Component->GetOwner());
+						}
 					}
 				}
 				else
