@@ -1190,3 +1190,10 @@ void UDynamicMeshComponent::UpdateCollision(bool bOnlyIfPending)
 		RebuildPhysicsData();
 	}
 }
+
+void UDynamicMeshComponent::EnableComplexAsSimpleCollision()
+{
+	bEnableComplexCollision = true;
+	CollisionType = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+	UpdateCollision(true);
+}
