@@ -125,7 +125,8 @@ function updateStatus() {
         // Iterate over gamepad axes
         for (var i = 0; i < currentState.axes.length; i += 2) {
             var x = parseFloat(currentState.axes[i].toFixed(4));
-            var y = parseFloat(currentState.axes[i + 1].toFixed(4));
+            // https://w3c.github.io/gamepad/#remapping Gamepad broweser side standard mapping has positive down, negative up. This is downright disgusting. So we fix it.
+            var y = -parseFloat(currentState.axes[i + 1].toFixed(4));
             if (i === 0) {
                 // left stick
                 // axis 1 = left horizontal
