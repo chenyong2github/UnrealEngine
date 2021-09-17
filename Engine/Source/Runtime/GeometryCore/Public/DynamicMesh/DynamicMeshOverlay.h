@@ -192,18 +192,35 @@ public:
 		for (int TID = 0, OldMaxTID = ElementTriangles.Num() / 3; TID < OldMaxTID; TID++)
 		{
 			const int32 OldStart = TID * 3;
-			if (ElementTriangles[OldStart] == -1)
-			{
-				continue; // triangle was not set; skip it
-			}
 			const int32 NewTID = CompactMaps.GetTriangleMapping(TID);
-			MaxNewTID = FMath::Max(MaxNewTID, NewTID);
-			const int32 NewStart = NewTID * 3;
-			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+			if (NewTID == IndexConstants::InvalidID)
 			{
-				ElementTriangles[NewStart + SubIdx] = MapE[ElementTriangles[OldStart + SubIdx]];
+				// skip if there's no mapping
+				continue;
+			}
+
+			MaxNewTID = FMath::Max(NewTID, MaxNewTID);
+
+			const int32 NewStart = NewTID * 3;
+			if (ElementTriangles[OldStart] == IndexConstants::InvalidID)
+			{
+				// triangle was not set; copy back InvalidID
+				for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+				{
+					ElementTriangles[NewStart + SubIdx] = IndexConstants::InvalidID;
+				}
+			}
+			else
+			{
+				for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+				{
+					ElementTriangles[NewStart + SubIdx] = MapE[ElementTriangles[OldStart + SubIdx]];
+				}
 			}
 		}
+		// ElementTriangles should never grow during a compaction, so just resizing is ok
+		// (i.e., we shouldn't need to set InvalidID on any added triangles)
+		checkSlow(ElementTriangles.Num() >= (MaxNewTID + 1) * 3);
 		ElementTriangles.Resize((MaxNewTID + 1) * 3);
 
 		checkSlow(IsCompact());
