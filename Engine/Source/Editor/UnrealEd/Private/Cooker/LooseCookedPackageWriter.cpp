@@ -24,8 +24,6 @@
 #include "UObject/Package.h"
 #include "PackageStoreOptimizer.h"
 
-const static FName NAME_DummyCookedFilename(TEXT("DummyCookedFilename"));
-
 FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath, const FString& InMetadataDirectoryPath, const ITargetPlatform* InTargetPlatform,
 	FAsyncIODelete& InAsyncIODelete, const FPackageNameCache& InPackageNameCache, const TArray<TSharedRef<IPlugin>>& InPluginsToRemap)
 	: OutputPath(InOutputPath)
@@ -114,11 +112,8 @@ void FLooseCookedPackageWriter::Flush()
 	UPackage::WaitForAsyncFileWrites();
 }
 
-void FLooseCookedPackageWriter::GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages)
+TUniquePtr<FAssetRegistryState> FLooseCookedPackageWriter::LoadPreviousAssetRegistry()
 {
-	// GetCookedPackages is currently only called in BeginCook to read the list of previous cooked files
-	// Read that list from the platform cooked asset registry file
-
 	// Report files from the shared build if the option is set
 	FString PreviousAssetRegistryFile;
 	if (bIterateSharedBuild)
@@ -127,10 +122,6 @@ void FLooseCookedPackageWriter::GetCookedPackages(TArray<FCookedPackageInfo>& Ou
 		DeleteSandboxDirectory();
 		PreviousAssetRegistryFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
 			*TargetPlatform.PlatformName(), TEXT("Metadata"), GetDevelopmentAssetRegistryFilename());
-
-		// We use NAME_DummyCookedFilename as a placeholder in UncookedPathToCookedPath to indicate the file comes from the shared pak file
-		// If an actual filename of this name exists, our placeholder system will break
-		check(!IFileManager::Get().FileExists(*NAME_DummyCookedFilename.ToString()));
 	}
 	else
 	{
@@ -138,52 +129,58 @@ void FLooseCookedPackageWriter::GetCookedPackages(TArray<FCookedPackageInfo>& Ou
 	}
 
 	UncookedPathToCookedPath.Reset();
-	GetAllCookedFiles();
 
 	FArrayReader SerializedAssetData;
-	if (IFileManager::Get().FileExists(*PreviousAssetRegistryFile) && FFileHelper::LoadFileToArray(SerializedAssetData, *PreviousAssetRegistryFile))
+	if (!IFileManager::Get().FileExists(*PreviousAssetRegistryFile) || !FFileHelper::LoadFileToArray(SerializedAssetData, *PreviousAssetRegistryFile))
+	{ 
+		RemoveCookedPackages();
+		return TUniquePtr<FAssetRegistryState>();
+	}
+
+	TUniquePtr<FAssetRegistryState> PreviousState = MakeUnique<FAssetRegistryState>();
+	PreviousState->Load(SerializedAssetData);
+
+	// If we are iterating from a shared build the cooked files do not exist in the local cooked directory;
+	// we assume they are packaged in the pak file (which we don't want to extract to confirm) and keep them all.
+	if (!bIterateSharedBuild)
 	{
-		PreviousState = MakeUnique<FAssetRegistryState>();
-		PreviousState->Load(SerializedAssetData);
-
-		const TMap<FName, const FAssetPackageData*>& DataMap = PreviousState->GetAssetPackageDataMap();
-		OutCookedPackages.Reserve(OutCookedPackages.Num() + DataMap.Num());
-		FString UncookedFileNameStr;
-
-		for (const TPair<FName, const FAssetPackageData*>& Pair : DataMap)
+		// For regular iteration, remove every file from the PreviousState that no longer exists in the cooked directory
+		// and remove every cooked file from disk that is not present in the AssetRegistry
+		GetAllCookedFiles();
+		TSet<FName> ExistsOnlyInRegistry;
+		TSet<FName> ExistsOnlyOnDisk;
+		ExistsOnlyOnDisk.Reserve(UncookedPathToCookedPath.Num());
+		for (TPair<FName, FName>& Pair : UncookedPathToCookedPath)
+		{
+			ExistsOnlyOnDisk.Add(Pair.Key);
+		}
+		for (const TPair<FName, const FAssetPackageData*>& Pair : PreviousState->GetAssetPackageDataMap())
 		{
 			FName PackageName = Pair.Key;
 			const FAssetPackageData* PackageData = Pair.Value;
+			const FName UncookedFilename = PackageNameCache.GetCachedStandardFileName(PackageName);
 			bool bExistsOnDisk = false;
-			if (bIterateSharedBuild)
+			if (!UncookedFilename.IsNone())
 			{
-				// if we are iterating of a shared build the cooked files might not exist in the cooked directory because we assume they are packaged in the pak file (which we don't want to extract)
-				// Overwrite the value in UncookedPathToCookpath with a placeholder that indicates the file exists even if it's not present in the Cooked directory
-				if (FPackageName::DoesPackageExist(PackageName.ToString(), nullptr, &UncookedFileNameStr))
-				{
-					UncookedPathToCookedPath.Add(FName(*UncookedFileNameStr), NAME_DummyCookedFilename);
-				}
-				bExistsOnDisk = true;
+				bExistsOnDisk = (ExistsOnlyOnDisk.Remove(UncookedFilename) == 1);
 			}
-			else
+			if (!bExistsOnDisk)
 			{
-				const FName UncookedFilename = PackageNameCache.GetCachedStandardFileName(PackageName);
-				if (!UncookedFilename.IsNone())
-				{
-					FName* CookedFilename = UncookedPathToCookedPath.Find(UncookedFilename);
-					bExistsOnDisk = CookedFilename != nullptr;
-				}
-			}
-			if (bExistsOnDisk)
-			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-				OutCookedPackages.Add(FCookedPackageInfo{ PackageName, PackageData->CookedHash,
-					PackageData->PackageGuid, PackageData->DiskSize });
-				// Oplog attachments are not implemented by FLooseCookedPackageWriter
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+				ExistsOnlyInRegistry.Add(PackageName);
 			}
 		}
+
+		if (ExistsOnlyInRegistry.Num())
+		{
+			PreviousState->PruneAssetData(TSet<FName>(), ExistsOnlyInRegistry, FAssetRegistrySerializationOptions());
+		}
+		if (ExistsOnlyOnDisk.Num())
+		{
+			RemoveCookedPackagesByUncookedFilename(ExistsOnlyOnDisk.Array());
+		}
 	}
+
+	return PreviousState;
 }
 
 FCbObject FLooseCookedPackageWriter::GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey)
@@ -199,12 +196,12 @@ void FLooseCookedPackageWriter::RemoveCookedPackages(TArrayView<const FName> Pac
 		return;
 	}
 
-	// if we are going to clear the cooked packages it is conceivable that we will recook the packages which we just cooked 
-	// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
-	UPackage::WaitForAsyncFileWrites();
-	
 	if (PackageNamesToRemove.Num() > 0)
 	{
+		// if we are going to clear the cooked packages it is conceivable that we will recook the packages which we just cooked 
+		// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
+		UPackage::WaitForAsyncFileWrites();
+
 		// PackageNameCache is read-game-thread-only, so we have to read it before calling parallel-for
 		TArray<FName> UncookedFileNamesToRemove;
 		UncookedFileNamesToRemove.Reserve(PackageNamesToRemove.Num());
@@ -216,21 +213,32 @@ void FLooseCookedPackageWriter::RemoveCookedPackages(TArrayView<const FName> Pac
 				UncookedFileNamesToRemove.Add(UncookedFileName);
 			}
 		}
-
-		auto DeletePackageLambda = [&UncookedFileNamesToRemove, this](int32 PackageIndex)
-		{
-			FName UncookedFileName = UncookedFileNamesToRemove[PackageIndex];
-			FName* CookedFileName = UncookedPathToCookedPath.Find(UncookedFileName);
-			if (CookedFileName)
-			{
-				TStringBuilder<256> FilePath;
-				CookedFileName->ToString(FilePath);
-				IFileManager::Get().Delete(*FilePath, true, true, true);
-			}
-		};
-		ParallelFor(UncookedFileNamesToRemove.Num(), DeletePackageLambda);
+		RemoveCookedPackagesByUncookedFilename(UncookedFileNamesToRemove);
 	}
+
+	// We no longer have a use for UncookedPathToCookedPath, after the RemoveCookedPackages call at the beginning of the cook.
 	UncookedPathToCookedPath.Empty();
+}
+
+void FLooseCookedPackageWriter::RemoveCookedPackagesByUncookedFilename(const TArray<FName>& UncookedFileNamesToRemove)
+{
+	auto DeletePackageLambda = [&UncookedFileNamesToRemove, this](int32 PackageIndex)
+	{
+		FName UncookedFileName = UncookedFileNamesToRemove[PackageIndex];
+		FName* CookedFileName = UncookedPathToCookedPath.Find(UncookedFileName);
+		if (CookedFileName)
+		{
+			TStringBuilder<256> FilePath;
+			CookedFileName->ToString(FilePath);
+			IFileManager::Get().Delete(*FilePath, true, true, true);
+		}
+	};
+	ParallelFor(UncookedFileNamesToRemove.Num(), DeletePackageLambda);
+
+	for (FName UncookedFilename : UncookedFileNamesToRemove)
+	{
+		UncookedPathToCookedPath.Remove(UncookedFilename);
+	}
 }
 
 void FLooseCookedPackageWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages)
@@ -240,11 +248,6 @@ void FLooseCookedPackageWriter::MarkPackagesUpToDate(TArrayView<const FName> UpT
 void FLooseCookedPackageWriter::RemoveCookedPackages()
 {
 	DeleteSandboxDirectory();
-}
-
-FAssetRegistryState* FLooseCookedPackageWriter::ReleasePreviousAssetRegistry()
-{
-	return PreviousState.Release();
 }
 
 void FLooseCookedPackageWriter::DeleteSandboxDirectory()

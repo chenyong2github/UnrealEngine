@@ -375,6 +375,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InExtraFlav
 	TMap<FString, int64> PackageFileSizes;
 	if (MaxChunkSize > 0)
 	{
+		// ZENTODO: Pull file size information from the AssetRegistryState, since the packages do not exist on disk in zen
 		FString SandboxPath = InSandboxFile->GetSandboxDirectory();
 		SandboxPath.ReplaceInline(TEXT("[Platform]"), *Platform);
 		FPackageFileSizeVisitor PackageSearch(PackageFileSizes);
@@ -795,20 +796,18 @@ void FAssetRegistryGenerator::CleanManifestDirectories()
 	CleanTempPackagingDirectory(TargetPlatform->PlatformName());
 }
 
-void FAssetRegistryGenerator::SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& InPreviousState,
-	TMap<FName, FAssetPackageData*>&& PreviousAssetPackageData, TArray<FName>& OutTombstonePackages)
+void FAssetRegistryGenerator::SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& InPreviousState)
 {
-	OutTombstonePackages.Reset();
+	PreviousPackagesToUpdate.Empty();
 	if (InPreviousState)
 	{
-		for (const TPair<FName, const FAssetPackageData*>& Pair : InPreviousState->GetAssetPackageDataMap())
+		const TMap<FName, const FAssetPackageData*>& PreviousPackageDataMap = InPreviousState->GetAssetPackageDataMap();
+		PreviousPackagesToUpdate.Reserve(PreviousPackageDataMap.Num());
+		for (const TPair<FName, const FAssetPackageData*>& Pair : PreviousPackageDataMap)
 		{
 			FName PackageName = Pair.Key;
-			const FAssetPackageData& PreviousPackageData = *Pair.Value;
 			if (!State.GetAssetPackageData(PackageName))
 			{
-				// Tombstone means a package from the previous cook no longer exists in perforce
-				OutTombstonePackages.Add(PackageName);
 				continue;
 			}
 			TArrayView<FAssetData const * const> PreviousAssetDatas = InPreviousState->GetAssetsByPackageName(PackageName);
@@ -822,24 +821,8 @@ void FAssetRegistryGenerator::SetPreviousAssetRegistry(TUniquePtr<FAssetRegistry
 					UpdateAssetDatas.Add(FAssetData(*AssetData));
 				}
 			}
+			const FAssetPackageData& PreviousPackageData = *Pair.Value;
 			UpdateData.Get<1>() = PreviousPackageData;
-		}
-	}
-	else
-	{
-		for (TPair<FName, FAssetPackageData*>& Pair : PreviousAssetPackageData)
-		{
-			FName PackageName = Pair.Key;
-			FAssetPackageData& PreviousPackageData = *Pair.Value;
-			if (!State.GetAssetPackageData(PackageName))
-			{
-				// Tombstone means a package from the previous cook no longer exists in perforce
-				OutTombstonePackages.Add(PackageName);
-				continue;
-			}
-			TPair<TArray<FAssetData>, FAssetPackageData>& UpdateData = PreviousPackagesToUpdate.FindOrAdd(PackageName);
-			// No AssetDatas available in this case
-			UpdateData.Get<1>() = MoveTemp(PreviousPackageData);
 		}
 	}
 }
@@ -1076,9 +1059,10 @@ void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
 	FGameDelegates::Get().GetAssignLayerChunkDelegate() = FAssignLayerChunkDelegate::CreateStatic(AssignLayerChunkDelegate);
 }
 
-void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifferenceOptions& Options, const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap, FAssetRegistryDifference& OutDifference)
+void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifferenceOptions& Options, const FAssetRegistryState& PreviousState, FAssetRegistryDifference& OutDifference)
 {
 	TArray<FName> ModifiedScriptPackages;
+	const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap = PreviousState.GetAssetPackageDataMap();
 
 	for (const TPair<FName, const FAssetPackageData*>& PackagePair : State.GetAssetPackageDataMap())
 	{
@@ -1120,10 +1104,7 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 	for (const TPair<FName, const FAssetPackageData*>& PackagePair : PreviousAssetPackageDataMap)
 	{
 		FName PackageName = PackagePair.Key;
-		const FAssetPackageData* PreviousPackageData = PackagePair.Value;
-
 		const FAssetPackageData* CurrentPackageData = State.GetAssetPackageData(PackageName);
-
 		if (!CurrentPackageData)
 		{
 			OutDifference.RemovedPackages.Add(PackageName);
@@ -1159,6 +1140,19 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 					ModifiedPackagesToRecurse.Add(ReferencerPackage);
 				}
 			}
+		}
+	}
+}
+
+void FAssetRegistryGenerator::ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& RemovedPackages)
+{
+	for (const TPair<FName, const FAssetPackageData*>& PackagePair : PreviousState.GetAssetPackageDataMap())
+	{
+		FName PackageName = PackagePair.Key;
+		const FAssetPackageData* CurrentPackageData = State.GetAssetPackageData(PackageName);
+		if (!CurrentPackageData)
+		{
+			RemovedPackages.Add(PackageName);
 		}
 	}
 }

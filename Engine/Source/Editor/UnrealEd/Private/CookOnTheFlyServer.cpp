@@ -5650,36 +5650,6 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 	using namespace UE::Cook;
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackages);
 
-	struct FPreviousAssetPackageData
-	{
-		FPreviousAssetPackageData(const TArray<ICookedPackageWriter::FCookedPackageInfo>& InCookedPackages)
-		{
-			AssetPackageDatas.SetNum(InCookedPackages.Num());
-			AssetPackageDataMap.Reserve(InCookedPackages.Num());
-
-			for (int32 Idx = 0, Count = InCookedPackages.Num(); Idx < Count; ++Idx)
-			{
-				const ICookedPackageWriter::FCookedPackageInfo& CookedPackageInfo = InCookedPackages[Idx];
-				FAssetPackageData& AssetPackageData = AssetPackageDatas[Idx];
-				
-				AssetPackageData.CookedHash = CookedPackageInfo.Hash;
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				AssetPackageData.PackageGuid = CookedPackageInfo.PackageGuid;
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				AssetPackageData.DiskSize = CookedPackageInfo.DiskSize;
-
-				AssetPackageDataMap.Add(CookedPackageInfo.PackageName, &AssetPackageData);
-			}
-		}
-		TMap<FName, const FAssetPackageData*>& GetConstAssetPackageDataMap()
-		{
-			return reinterpret_cast<TMap<FName, const FAssetPackageData*>&>(AssetPackageDataMap);
-		}
-
-		TArray<FAssetPackageData> AssetPackageDatas;
-		TMap<FName, FAssetPackageData*> AssetPackageDataMap;
-	};
-
 	// TODO: NumPackagesIterativelySkipped is only counted for the first platform; to count all platforms we would
 	// have to check whether each one is already cooked.
 	bool bFirstPlatform = true;
@@ -5692,20 +5662,26 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 		UE_LOG(LogCook, Display, TEXT("Populating cooked package(s) from %s package store on platform '%s'"),
 			*CookSavePackageContext.WriterDebugName, *TargetPlatform->PlatformName());
 
-		TArray<ICookedPackageWriter::FCookedPackageInfo> CookedPackages;
-		PackageWriter.GetCookedPackages(CookedPackages);
-		// TODO: Implementation ReleasePreviousAssetRegistry for all PackageWriters and add an assertion here instead of handling null.
-		TUniquePtr<FAssetRegistryState> PreviousAssetRegistry(PackageWriter.ReleasePreviousAssetRegistry());
-
-		UE_LOG(LogCook, Display, TEXT("Found '%d' cooked package(s) in package store"), CookedPackages.Num());
-
-		FPreviousAssetPackageData PreviousAssetPackageData(CookedPackages);
+		TUniquePtr<FAssetRegistryState> PreviousAssetRegistry(PackageWriter.LoadPreviousAssetRegistry());
+		int32 NumPreviousPackages = PreviousAssetRegistry ? PreviousAssetRegistry->GetNumPackages() : 0;
+		UE_LOG(LogCook, Display, TEXT("Found '%d' cooked package(s) in package store"), NumPreviousPackages);
+		if (NumPreviousPackages == 0)
+		{
+			continue;
+		}
 
 		if (bHybridIterativeEnabled)
 		{
 			// HybridIterative does the equivalent operation of bRecurseModifications=true and bRecurseScriptModifications=true,
 			// but checks for out-of-datedness are done by FRequestCluster using the TargetDomainKey (which is built
 			// from dependencies), so we do not need to check for out-of-datedness here
+
+			// Remove packages that no longer exist in the WorkspaceDomain from the TargetDomain. We have to
+			// check this for all packages in the previous cook rather than just the currently referenced
+			// set because when packages are removed the references to them are usually also removed.
+			TArray<FName> TombstonePackages;
+			PlatformAssetRegistry.ComputePackageRemovals(*PreviousAssetRegistry, TombstonePackages);
+			PackageWriter.RemoveCookedPackages(TombstonePackages);
 		}
 		else
 		{
@@ -5718,7 +5694,7 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 			Options.bRecurseModifications = true;
 			Options.bRecurseScriptModifications = !IsCookFlagSet(ECookInitializationFlags::IgnoreScriptPackagesOutOfDate);
 			FAssetRegistryGenerator::FAssetRegistryDifference Difference;
-			PlatformAssetRegistry.ComputePackageDifferences(Options, PreviousAssetPackageData.GetConstAssetPackageDataMap(), Difference);
+			PlatformAssetRegistry.ComputePackageDifferences(Options, *PreviousAssetRegistry, Difference);
 
 			TArray<FName> PackagesToRemove;
 			PackagesToRemove.Reserve(Difference.ModifiedPackages.Num() + Difference.RemovedPackages.Num() + Difference.IdenticalUncookedPackages.Num());
@@ -5780,17 +5756,7 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 			}
 		}
 
-		TArray<FName> TombstonePackages;
-		PlatformAssetRegistry.SetPreviousAssetRegistry(MoveTemp(PreviousAssetRegistry),
-			MoveTemp(PreviousAssetPackageData.AssetPackageDataMap), TombstonePackages);
-
-		if (bHybridIterativeEnabled)
-		{
-			// Remove packages that no longer exist in the WorkspaceDomain from the TargetDomain. We have to
-			// check this for all packages in the previous cook rather than just the currently referenced
-			// set because when packages are removed the references to them are usually also removed.
-			PackageWriter.RemoveCookedPackages(TombstonePackages);
-		}
+		PlatformAssetRegistry.SetPreviousAssetRegistry(MoveTemp(PreviousAssetRegistry));
 	}
 }
 

@@ -42,10 +42,9 @@ public:
 	const ITargetPlatform* GetTargetPlatform() const { return TargetPlatform; }
 
 	/** 
-	 * Sets asset registry from a previous run that is used for iterative or DLC cooking
+	 * Sets asset registry from a previous run that is used for iterative cooking
 	 */
-	void SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& PreviousState,
-		TMap<FName, FAssetPackageData*>&& PreviousAssetPackageData, TArray<FName>& OutTombstonePackages);
+	void SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& PreviousState);
 
 	/**
 	 * Options when computing the differences between current and previous state.
@@ -82,7 +81,10 @@ public:
 	 * @param PreviousAssetPackageDataMap previously cooked asset package data
 	 * @param OutDifference the differences between the current and the previous state
 	 */
-	void ComputePackageDifferences(const FComputeDifferenceOptions& Options, const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap, FAssetRegistryDifference& OutDifference);
+	void ComputePackageDifferences(const FComputeDifferenceOptions& Options, const FAssetRegistryState& PreviousState, FAssetRegistryDifference& OutDifference);
+
+	/** Computes just the list of packages in the PreviousState that no longer exist in the current state. */
+	void ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& RemovedPackages);
 
 	/**
 	 * GenerateChunkManifest 

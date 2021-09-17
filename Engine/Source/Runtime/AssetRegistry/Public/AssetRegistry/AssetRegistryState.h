@@ -392,6 +392,9 @@ public:
 	/** Returns the number of assets in this state */
 	int32 GetNumAssets() const { return NumAssets; }
 
+	/** Returns the number of packages in this state */
+	int32 GetNumPackages() const { return CachedAssetsByPackageName.Num(); }
+
 #if ASSET_REGISTRY_STATE_DUMPING_ENABLED
 	/**
 	 * Writes out the state in textual form. Use arguments to control which segments to emit.

@@ -7,6 +7,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/CompactBinary.h"
+#include "Templates/UniquePtr.h"
 
 class FAssetRegistryState;
 class IPackageStoreWriter;
@@ -192,9 +193,9 @@ public:
 	};
 
 	/**
-	 * Appends list of cooked package(s) to the given output array.
+	 * Returns an AssetRegistry describing the previous cook results.
 	 */
-	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) = 0;
+	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() = 0;
 
 	/**
 	 * Returns an Attachment that was previously commited for the given PackageName.
@@ -216,15 +217,6 @@ public:
 	 * Signal the given cooked package(s) have been checked for changes and have not been modified since the last cook.
 	 */
 	virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) = 0;
-
-	/**
-	 * If a previous-version AssetRegistryState was allocated during GetCookedPackages, drop the reference to it
-	 * and return it to the caller who takes responsibility for deleting it.
-	 */
-	virtual FAssetRegistryState* ReleasePreviousAssetRegistry()
-	{
-		return nullptr;
-	}
 
 	/** Downcast function for ICookedPackageWriters that implement the IPackageStoreWriter inherited interface. */
 	virtual IPackageStoreWriter* AsPackageStoreWriter()

@@ -8,7 +8,9 @@
 #include "Algo/BinarySearch.h"
 #include "Algo/IsSorted.h"
 #include "Algo/Sort.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Async/Async.h"
+#include "Serialization/ArrayReader.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/LargeMemoryWriter.h" 
@@ -16,6 +18,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/App.h"
+#include "Misc/FileHelper.h"
 #include "Misc/StringBuilder.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/Paths.h"
@@ -819,13 +822,53 @@ void FZenStoreWriter::Flush()
 	HttpQueue->Flush();
 }
 
-void FZenStoreWriter::GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) 
+TUniquePtr<FAssetRegistryState> FZenStoreWriter::LoadPreviousAssetRegistry() 
 {
-	OutCookedPackages.Reserve(OutCookedPackages.Num() + CookedPackagesInfo.Num());
-	for (FOplogCookInfo& CookedPackageInfo : CookedPackagesInfo)
+	// Load the previous asset registry to return to CookOnTheFlyServer, and set the packages enumerated in both *this and
+	// the returned asset registry to the intersection of the oplog and the previous asset registry;
+	// to report a package as already cooked we have to have the information from both sources.
+	FString PreviousAssetRegistryFile = FPaths::Combine(MetadataDirectoryPath, GetDevelopmentAssetRegistryFilename());
+	FArrayReader SerializedAssetData;
+	if (!IFileManager::Get().FileExists(*PreviousAssetRegistryFile) ||
+		!FFileHelper::LoadFileToArray(SerializedAssetData, *PreviousAssetRegistryFile))
 	{
-		OutCookedPackages.Add(CookedPackageInfo.CookInfo);
+		RemoveCookedPackages();
+		return TUniquePtr<FAssetRegistryState>();
 	}
+
+	TUniquePtr<FAssetRegistryState> PreviousState = MakeUnique<FAssetRegistryState>();
+	PreviousState->Load(SerializedAssetData);
+
+	TSet<FName> RemoveSet;
+	const TMap<FName, const FAssetPackageData*>& PreviousStatePackages = PreviousState->GetAssetPackageDataMap(); 
+	for (const TPair<FName, const FAssetPackageData*>& Pair : PreviousStatePackages)
+	{
+		FName PackageName = Pair.Key;
+		if (!PackageNameToIndex.Find(PackageName))
+		{
+			RemoveSet.Add(PackageName);
+		}
+	}
+	if (RemoveSet.Num())
+	{
+		PreviousState->PruneAssetData(TSet<FName>(), RemoveSet, FAssetRegistrySerializationOptions());
+	}
+
+	TArray<FName> RemoveArray;
+	for (TPair<FName, int32>& Pair : PackageNameToIndex)
+	{
+		FName PackageName = Pair.Key;
+		if (!PreviousStatePackages.Find(PackageName))
+		{
+			RemoveArray.Add(PackageName);
+		}
+	}
+	if (RemoveArray.Num())
+	{
+		RemoveCookedPackages(RemoveArray);
+	}
+
+	return PreviousState;
 }
 
 FCbObject FZenStoreWriter::GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey)
@@ -935,8 +978,11 @@ void FZenStoreWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePacka
 			int32* Index = PackageNameToIndex.Find(PackageName);
 			if (!Index)
 			{
-				UE_LOG(LogZenStoreWriter, Error, TEXT("MarkPackagesUpToDate called with package %s that is not in the oplog."),
-					*PackageName.ToString());
+				if (!FPackageName::IsScriptPackage(WriteToString<128>(PackageName)))
+				{
+					UE_LOG(LogZenStoreWriter, Warning, TEXT("MarkPackagesUpToDate called with package %s that is not in the oplog."),
+						*PackageName.ToString());
+				}
 				continue;
 			}
 
