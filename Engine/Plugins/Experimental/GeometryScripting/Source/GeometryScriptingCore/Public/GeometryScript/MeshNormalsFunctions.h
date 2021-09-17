@@ -38,7 +38,7 @@ public:
 	bool bSplitByFaceGroup = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	FName FaceGroupLayerName = FName();
+	FGeometryScriptGroupLayer GroupLayer;
 };
 
 

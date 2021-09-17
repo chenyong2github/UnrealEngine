@@ -8,6 +8,10 @@
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 #include "ProjectionTargets.h"
+#include "Polygroups/PolygroupSet.h"
+#include "GroupTopology.h"
+#include "Operations/PolygroupRemesh.h"
+#include "ConstrainedDelaunay2.h"
 
 #include "UDynamicMesh.h"
 
@@ -42,6 +46,49 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSimplifyFunctions::ApplySimplifyToPlana
 
 	return TargetMesh;
 }
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshSimplifyFunctions::ApplySimplifyToPolygroupTopology(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptPolygroupSimplifyOptions Options,
+	FGeometryScriptGroupLayer GroupLayer,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplySimplifyToPolygroupTopology_InvalidInput", "ApplySimplifyToPolygroupTopology: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		FPolygroupLayer InputGroupLayer{ GroupLayer.bDefaultLayer, GroupLayer.ExtendedLayerIndex };
+		if (InputGroupLayer.CheckExists(&EditMesh) == false)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplySimplifyToPolygroupTopology_MissingGroups", "ApplySimplifyToPolygroupTopology: Target Polygroup Layer does not exist"));
+			return;
+		}
+
+		TUniquePtr<FGroupTopology> Topo;
+		if (GroupLayer.bDefaultLayer)
+		{
+			Topo = MakeUnique<FGroupTopology>(&EditMesh, true);
+		}
+		else
+		{
+			Topo = MakeUnique<FGroupTopology>(&EditMesh, EditMesh.Attributes()->GetPolygroupLayer(GroupLayer.ExtendedLayerIndex), true);
+		}
+
+		FPolygroupRemesh Simplifier(&EditMesh, Topo.Get(), ConstrainedDelaunayTriangulate<double>);
+		Simplifier.SimplificationAngleTolerance = Options.AngleThreshold;
+		Simplifier.Compute();
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
 
 
 
