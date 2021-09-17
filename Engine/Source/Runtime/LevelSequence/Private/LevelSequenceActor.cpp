@@ -116,6 +116,11 @@ TOptional<EAspectRatioAxisConstraint> ALevelSequenceActor::GetAspectRatioAxisCon
 	return AspectRatioAxisConstraint;
 }
 
+bool ALevelSequenceActor::GetIsReplicatedPlayback() const
+{
+	return bReplicatePlayback;
+}
+
 ULevelSequencePlayer* ALevelSequenceActor::GetSequencePlayer() const
 {
 	return SequencePlayer && SequencePlayer->GetSequence() ? SequencePlayer : nullptr;

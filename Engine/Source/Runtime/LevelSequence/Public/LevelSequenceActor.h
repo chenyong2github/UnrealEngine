@@ -262,6 +262,7 @@ protected:
 	virtual bool RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual UObject* GetInstanceData() const override;
 	virtual TOptional<EAspectRatioAxisConstraint> GetAspectRatioAxisConstraint() const override;
+	virtual bool GetIsReplicatedPlayback() const override;
 	//~ End IMovieScenePlaybackClient interface
 
 	//~ Begin UObject interface

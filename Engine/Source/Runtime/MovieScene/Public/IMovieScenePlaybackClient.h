@@ -45,4 +45,12 @@ public:
 	{
 		return TOptional<EAspectRatioAxisConstraint>();
 	}
+
+	/*
+	 * Whether this playback client wants replicated playback.
+	 */
+	virtual bool GetIsReplicatedPlayback() const
+	{
+		return false;
+	}
 };
