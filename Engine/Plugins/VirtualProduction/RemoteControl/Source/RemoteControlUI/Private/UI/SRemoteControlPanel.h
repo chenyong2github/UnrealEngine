@@ -17,6 +17,7 @@ struct FListEntry;
 class FRCPanelWidgetRegistry;
 struct FRemoteControlEntity;
 class FReply;
+class IToolkitHost;
 class IPropertyRowGenerator;
 class IPropertyHandle;
 class SBox;
@@ -44,7 +45,7 @@ class SRemoteControlPanel : public SCompoundWidget, public FSelfRegisteringEdito
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset);
+	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TSharedPtr<IToolkitHost> InToolkitHost);
 	~SRemoteControlPanel();
 
 	//~ FEditorUndoClient interface
@@ -126,6 +127,9 @@ private:
 
 	/** Handle exposing an actor. */
 	void ExposeActor(AActor* Actor);
+
+	/** Opens or closes the entity details view tab. */
+	void ToggleDetailsView();
 
 	/** Handles disabling CPU throttling. */
 	FReply OnClickDisableUseLessCPU() const;
@@ -221,4 +225,9 @@ private:
 	TSharedPtr<STextBlock> PresetNameTextBlock;
 	/** Holds a cache of widgets. */
 	TSharedPtr<FRCPanelWidgetRegistry> WidgetRegistry;
+	
+	/** The toolkit that hosts this panel. */
+	TSharedPtr<IToolkitHost> ToolkitHost;
+
+	bool bShowingEntityDetailsView = false;
 };

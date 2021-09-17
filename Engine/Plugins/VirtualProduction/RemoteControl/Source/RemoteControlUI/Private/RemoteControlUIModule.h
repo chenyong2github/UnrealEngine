@@ -6,11 +6,11 @@
 #include "CoreMinimal.h"	
 #include "Input/Reply.h"
 #include "LevelEditor.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
 
+class IToolkitHost;
 class SRemoteControlPanel;
 class URemoteControlPreset;
 
@@ -52,7 +52,7 @@ public:
 	 * @param The preset to display.
 	 * @return The remote control widget.
 	 */
-	TSharedRef<SRemoteControlPanel> CreateRemoteControlPanel(URemoteControlPreset* Preset);
+	TSharedRef<SRemoteControlPanel> CreateRemoteControlPanel(URemoteControlPreset* Preset, const TSharedPtr<IToolkitHost>& ToolkitHost = TSharedPtr<IToolkitHost>());
 
 	/**
 	 * Get the map of entity metadata entry customizations.
@@ -61,6 +61,10 @@ public:
 	{
 		return ExternalEntityMetadataCustomizations;
 	}
+
+public:
+	static const FName EntityDetailsTabName;
+	static const FName RemoteControlPanelTabName;
 
 private:
 	/**
@@ -139,4 +143,5 @@ private:
 
 	/** Map of metadata key to customization handler. */
 	TMap<FName, FOnCustomizeMetadataEntry> ExternalEntityMetadataCustomizations;
+
 };

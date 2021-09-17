@@ -3,7 +3,6 @@
 #include "SRemoteControlPanel.h"
 
 #include "ActorEditorUtils.h"
-#include "AssetData.h"
 #include "AssetRegistryModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
@@ -40,14 +39,14 @@
 #include "SRCPanelFunctionPicker.h"
 #include "SRCPanelExposedActor.h"
 #include "SRCPanelExposedField.h"
-#include "SRCPanelFieldGroup.h"
 #include "SRCPanelTreeNode.h"
 #include "Subsystems/Subsystem.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
 #include "Templates/UnrealTypeTraits.h"
-#include "UObject/SoftObjectPtr.h"
+#include "Toolkits/IToolkitHost.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -57,7 +56,6 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -90,11 +88,12 @@ namespace RemoteControlPanelUtils
 	}
 }
 
-void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
+void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TSharedPtr<IToolkitHost> InToolkitHost)
 {
 	OnEditModeChange = InArgs._OnEditModeChange;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
 	WidgetRegistry = MakeShared<FRCPanelWidgetRegistry>();
+	ToolkitHost = InToolkitHost;
 
 	UpdateRebindButtonVisibility();
 
@@ -190,6 +189,20 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 						.Text(LOCTEXT("RebindButtonText", "Rebind All"))
 					]
 				]
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+					.ToolTipText(LOCTEXT("EntityDetailsToolTip", "Open the details panel for the selected exposed entity."))
+					.OnClicked_Lambda([this](){ ToggleDetailsView(); return FReply::Handled(); })
+					[
+						SNew(SImage)
+						.Image(FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
+					]
+				]
+
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(4.0f, 0)
@@ -308,29 +321,10 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 						+ SSplitter::Slot()
 						.Value(TreeBindingSplitRatioBottom)
 						[
-							SNew(SSplitter)
-							.Orientation(Orient_Vertical)
-							.HitDetectionSplitterHandleSize(0.0f) // Effectively disables user manipulation (but keeps visuals)
-							+ SSplitter::Slot()
-							.SizeRule(SSplitter::SizeToContent)
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 							[
-								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-								[
-									SNew(SBox)
-									.MinDesiredHeight(40.0f)
-									[
-										CreateEntityDetailsView()
-									]
-								]
-							]
-							+ SSplitter::Slot()
-							[
-								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-								[
-									EntityProtocolDetails.ToSharedRef()
-								]
+								EntityProtocolDetails.ToSharedRef()
 							]
 						]
 					]
@@ -915,6 +909,34 @@ void SRemoteControlPanel::ExposeActor(AActor* Actor)
 	}
 }
 
+void SRemoteControlPanel::ToggleDetailsView()
+{
+	const FTabId TabId = FTabId(FRemoteControlUIModule::EntityDetailsTabName);
+	
+	if (ToolkitHost)
+	{
+		bShowingEntityDetailsView = !bShowingEntityDetailsView;
+		
+		if (bShowingEntityDetailsView)
+		{
+			// Request the Tab Manager to invoke the tab. This will spawn the tab if needed, otherwise pull it to focus. This assumes
+			// that the Toolkit Host's Tab Manager has already registered a tab with a NullWidget for content.
+			if (TSharedPtr<SDockTab> EntityDetailsTab = ToolkitHost->GetTabManager()->TryInvokeTab(TabId))
+			{
+				EntityDetailsTab->SetContent(CreateEntityDetailsView());
+			}
+		}
+		else
+		{
+			if (TSharedPtr<SDockTab> ExistingTab = ToolkitHost->GetTabManager()->FindExistingLiveTab(TabId))
+			{
+				ExistingTab->RequestCloseTab();
+			}
+		}
+	}
+
+}
+
 TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 {
 	FDetailsViewArgs Args;
@@ -971,7 +993,7 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 			}
 		}
 	}
-	if (ensure(EntityDetailsView))
+	if (EntityDetailsView)
 	{
 		EntityDetailsView->SetStructureData(SelectedEntityPtr);
 	}

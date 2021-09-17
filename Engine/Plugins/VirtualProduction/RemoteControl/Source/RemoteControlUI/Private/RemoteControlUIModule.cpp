@@ -5,8 +5,6 @@
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
 #include "EditorStyleSet.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "PropertyHandle.h"
@@ -25,6 +23,10 @@
 #include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlUI"
+
+const FName FRemoteControlUIModule::EntityDetailsTabName = "RemoteControl_EntityDetails";
+const FName FRemoteControlUIModule::RemoteControlPanelTabName = "RemoteControl_RemoteControlPanel";
+
 
 namespace RemoteControlUIModule
 {
@@ -82,14 +84,14 @@ void FRemoteControlUIModule::UnregisterMetadataCustomization(FName MetadataKey)
 	ExternalEntityMetadataCustomizations.Remove(MetadataKey);
 }
 
-TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset)
+TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset, const TSharedPtr<IToolkitHost>& ToolkitHost)
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
 		Panel->SetEditMode(false);
 	}
 
-	TSharedRef<SRemoteControlPanel> PanelRef = SAssignNew(WeakActivePanel, SRemoteControlPanel, Preset)
+	TSharedRef<SRemoteControlPanel> PanelRef = SAssignNew(WeakActivePanel, SRemoteControlPanel, Preset, ToolkitHost)
 		.OnEditModeChange_Lambda(
 			[this](TSharedPtr<SRemoteControlPanel> Panel, bool bEditMode) 
 			{
