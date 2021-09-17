@@ -115,7 +115,7 @@ namespace D3D12ShaderUtils
 			}
 		}
 
-		inline TCHAR* GetFlagName(D3D12_ROOT_SIGNATURE_FLAGS Flag)
+		inline const TCHAR* GetFlagName(D3D12_ROOT_SIGNATURE_FLAGS Flag)
 		{
 			switch (Flag)
 			{
@@ -137,12 +137,10 @@ namespace D3D12ShaderUtils
 				return TEXT("DENY_MESH_SHADER_ROOT_ACCESS");
 #endif
 
-#if !defined(D3D12RHI_DYNAMIC_RESOURCES_UNSUPPORTED)
 			case D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED:
 				return TEXT("CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED");
 			case D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED:
 				return TEXT("SAMPLER_HEAP_DIRECTLY_INDEXED");
-#endif
 
 			default:
 				break;
