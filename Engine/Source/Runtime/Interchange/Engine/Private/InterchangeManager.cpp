@@ -229,6 +229,42 @@ void UE::Interchange::FImportResult::SetDone()
 			DoneCallback(*this);
 		}
 
+		TArray<UObject*> Objects = GetImportedObjects();
+
+		if (IsInGameThread())
+		{
+			OnImportDoneNative.ExecuteIfBound(Objects);
+			OnImportDone.ExecuteIfBound(Objects);
+		}
+		else
+		{
+			TArray<TWeakObjectPtr<UObject>> WeakObjects;
+			WeakObjects.Reserve(Objects.Num());
+			for (UObject* Object : Objects)
+			{
+				WeakObjects.Emplace(Object);
+			}
+
+			// call the callbacks on the game thread
+			Async(EAsyncExecution::TaskGraphMainThread, [InWeakObjects = MoveTemp(WeakObjects), ImportDoneNative = OnImportDoneNative, ImportDone = OnImportDone]()
+			{
+				TArray<UObject*> ValidObjects;
+				ValidObjects.Reserve(InWeakObjects.Num());
+
+				for (const TWeakObjectPtr<UObject>& WeakObject : InWeakObjects)
+				{
+					if (UObject* ValidObject = WeakObject.Get())
+					{
+						ValidObjects.Add(ValidObject);
+					}
+				}
+
+				ImportDoneNative.ExecuteIfBound(ValidObjects);
+				ImportDone.ExecuteIfBound(ValidObjects);
+			});
+		}
+
+
 		GraphEvent->DispatchSubsequents();
 	}
 }
@@ -266,8 +302,28 @@ UObject* UE::Interchange::FImportResult::GetFirstAssetOfClass(UClass* InClass) c
 
 void UE::Interchange::FImportResult::AddImportedObject(UObject* ImportedObject)
 {
-	FWriteScopeLock WriteScopeLock(ImportedObjectsRWLock);
-	ImportedObjects.Add(ImportedObject);
+	{
+		FWriteScopeLock WriteScopeLock(ImportedObjectsRWLock);
+		ImportedObjects.Add(ImportedObject);
+	}
+
+	if (IsInGameThread())
+	{
+		OnObjectDoneNative.ExecuteIfBound(ImportedObject);
+		OnObjectDone.ExecuteIfBound(ImportedObject);
+	}
+	else
+	{
+		// call the callbacks on the game thread
+		Async(EAsyncExecution::TaskGraphMainThread, [WeakImportedObject = TWeakObjectPtr<UObject>(ImportedObject), ObjectDoneNative = OnObjectDoneNative, ObjectDone = OnObjectDone] ()
+			{
+				if (UObject* ImportedObjectInGameThread = WeakImportedObject.Get())
+				{
+					ObjectDoneNative.ExecuteIfBound(ImportedObjectInGameThread);
+					ObjectDone.ExecuteIfBound(ImportedObjectInGameThread);
+				}
+			});
+	}
 }
 
 void UE::Interchange::FImportResult::OnDone(TFunction< void(FImportResult&) > Callback)
@@ -566,8 +622,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	TaskData.bIsAutomated = ImportAssetParameters.bIsAutomated;
 	TaskData.ImportType = ImportType;
 	TaskData.ReimportObject = ImportAssetParameters.ReimportAsset;
-	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = CreateAsyncHelper(TaskData);
-	check(AsyncHelper.IsValid());
+	TSharedRef<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = CreateAsyncHelper(TaskData, ImportAssetParameters);
 
 	//Create a duplicate of the source data, we need to be multithread safe so we copy it to control the life cycle. The async helper will hold it and delete it when the import task will be completed.
 	UInterchangeSourceData* DuplicateSourceData = Cast<UInterchangeSourceData>(StaticDuplicateObject(SourceData, GetTransientPackage()));
@@ -783,12 +838,22 @@ const UClass* UInterchangeManager::GetRegisteredFactoryClass(const UClass* Class
 	return Result;
 }
 
-TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeManager::CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data)
+TSharedRef<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeManager::CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data, const FImportAssetParameters& ImportAssetParameters)
 {
-	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = MakeShared<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe>();
+	TSharedRef<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = MakeShared<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe>();
 	//Copy the task data
 	AsyncHelper->TaskData = Data;
 	
+	AsyncHelper->AssetImportResult->OnObjectDone = ImportAssetParameters.OnAssetDone;
+	AsyncHelper->AssetImportResult->OnObjectDoneNative = ImportAssetParameters.OnAssetDoneNative;
+	AsyncHelper->AssetImportResult->OnImportDone = ImportAssetParameters.OnAssetsImportDone;
+	AsyncHelper->AssetImportResult->OnImportDoneNative = ImportAssetParameters.OnAssetsImportDoneNative;
+
+	AsyncHelper->SceneImportResult->OnObjectDone = ImportAssetParameters.OnSceneObjectDone;
+	AsyncHelper->SceneImportResult->OnObjectDoneNative = ImportAssetParameters.OnSceneObjectDoneNative;
+	AsyncHelper->SceneImportResult->OnImportDone = ImportAssetParameters.OnSceneImportDone;
+	AsyncHelper->SceneImportResult->OnImportDoneNative = ImportAssetParameters.OnSceneImportDoneNative;
+
 	AsyncHelper->AssetImportResult->SetInProgress();
 
 	return AsyncHelper;

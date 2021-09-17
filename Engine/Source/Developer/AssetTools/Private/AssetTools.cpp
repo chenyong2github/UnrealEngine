@@ -1915,11 +1915,10 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	{
 		for (int32 FileIdx = 0; FileIdx < FilesAndDestinations.Num(); ++FileIdx)
 		{
-			// Filename and DestinationPath will need to get santized before we create an asset out of them as they
+			// Filename will need to get sanitized before we create an asset out of them as they
 			// can be created out of sources that contain spaces and other invalid characters. Filename cannot be sanitized
 			// until other checks are done that rely on looking at the actual source file so sanitation is delayed.
 			const FString& Filename = FilesAndDestinations[FileIdx].Key;
-			const FString DestinationPath = ObjectTools::SanitizeObjectPath(FilesAndDestinations[FileIdx].Value);
 			{
 				UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
 				if (!InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))

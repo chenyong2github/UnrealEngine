@@ -1336,6 +1336,9 @@ namespace UM
 		/// UFUNCTION()
 		/// TArray<FString> FuncName() const; // Always return string array even if FName property.
 		GetOptions,
+
+		/// [PropertyMetadata] The property can be exposed as a data pin, but is hidden by default.
+		PinHiddenByDefault,
 	};
 
 	// Metadata usable in UPROPERTY for customizing the behavior of Persona and UMG
@@ -1345,16 +1348,13 @@ namespace UM
 		/// [PropertyMetadata] The property is not exposed as a data pin and is only be editable in the details panel. Applicable only to properties that will be displayed in Persona and UMG.
 		NeverAsPin, 
 
-		/// [PropertyMetadata] The property can be exposed as a data pin, but is hidden by default. Applicable only to properties that will be displayed in Persona and UMG.
-		PinHiddenByDefault, 
-
 		/// [PropertyMetadata] The property can be exposed as a data pin and is visible by default. Applicable only to properties that will be displayed in Persona and UMG.
 		PinShownByDefault, 
 
 		/// [PropertyMetadata] The property is always exposed as a data pin. Applicable only to properties that will be displayed in Persona and UMG.
 		AlwaysAsPin, 
 
-		/// [PropertyMetadata] Indicates that the property has custom code to display and should not generate a standard property widget int he details panel. Applicable only to properties that will be displayed in Persona.
+		/// [PropertyMetadata] Indicates that the property has custom code to display and should not generate a standard property widget in the details panel. Applicable only to properties that will be displayed in Persona.
 		CustomizeProperty,
 	};
 

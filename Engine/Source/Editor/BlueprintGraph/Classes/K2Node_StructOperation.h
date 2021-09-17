@@ -39,8 +39,18 @@ protected:
 		virtual void GetRecordDefaults(FProperty* TestProperty, FOptionalPinFromProperty& Record) const override
 		{
 			Record.bCanToggleVisibility = true;
-			UStruct* OwnerStruct = TestProperty ? TestProperty->GetOwnerStruct() : nullptr;
-			Record.bShowPin = OwnerStruct ? !OwnerStruct->HasMetaData(TEXT("HiddenByDefault")) : true;
+			Record.bShowPin = true;
+			if (TestProperty)
+			{
+				Record.bShowPin = !TestProperty->HasMetaData(TEXT("PinHiddenByDefault"));
+				if (Record.bShowPin)
+				{
+					if (UStruct* OwnerStruct = TestProperty->GetOwnerStruct())
+					{
+						Record.bShowPin = !OwnerStruct->HasMetaData(TEXT("HiddenByDefault"));
+					}
+				}
+			}
 		}
 
 		virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex, FProperty* Property) const override;
