@@ -384,7 +384,8 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 				if (!bGamePaused || KeyBinding->bExecuteWhenPaused)
 				{
 					FKeyState* KeyState = KeyStateMap.Find(KeyBinding->Chord.Key);
-					if (KeyState && KeyState->EventCounts[KeyBinding->KeyEvent].Num() > 0)
+					// We always want to update any analog debug events, like Gamepad axis 
+					if ((KeyState && KeyState->EventCounts[KeyBinding->KeyEvent].Num() > 0) || KeyBinding->Chord.Key.IsAnalog())
 					{
 						// Record intent to trigger
 						TriggeredDebugDelegates.Add(KeyBinding->Clone());
@@ -396,7 +397,11 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		// Action all debug delegates that triggered this tick, in the order in which they triggered.
 		for (TUniquePtr<FInputDebugKeyBinding>& Delegate : TriggeredDebugDelegates)
 		{
-			Delegate->Execute();
+			const FKeyState* KeyState = GetKeyState(Delegate->Chord.Key);
+			
+			FInputActionValue ActionValue(KeyState ? KeyState->RawValue : FVector::ZeroVector);
+			
+			Delegate->Execute(ActionValue);
 		}
 		TriggeredDebugDelegates.Reset();
 #endif

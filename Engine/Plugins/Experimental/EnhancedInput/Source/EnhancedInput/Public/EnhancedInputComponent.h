@@ -17,8 +17,8 @@
 enum class ETriggerEvent : uint8;
 
 /** Delegate signature for debug key events. */
-DECLARE_DELEGATE_OneParam(FInputDebugKeyHandlerSignature, FKey);
-DECLARE_DYNAMIC_DELEGATE_OneParam(FInputDebugKeyHandlerDynamicSignature, FKey, Key);
+DECLARE_DELEGATE_TwoParams(FInputDebugKeyHandlerSignature, FKey, FInputActionValue);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FInputDebugKeyHandlerDynamicSignature, FKey, Key, FInputActionValue, ActionValue);
 
 /** Delegate signature for action events. */
 DECLARE_DELEGATE(FEnhancedInputActionHandlerSignature);
@@ -191,11 +191,9 @@ public:
 		, Chord(InChord)
 	{ }
 
-	virtual void Execute() const = 0;
+	virtual void Execute(const FInputActionValue& ActionValue) const = 0;
 	virtual TUniquePtr<FInputDebugKeyBinding> Clone() const = 0;
 };
-// TODO:: Add FInputDebugKeyValueBinding?
-
 
 
 /**
@@ -230,9 +228,9 @@ private:
 public:
 	FInputDebugKeyDelegateBinding(const FInputChord Chord, const EInputEvent KeyEvent, bool bExecuteWhenPaused) : FInputDebugKeyBinding(Chord, KeyEvent, bExecuteWhenPaused) {}
 
-	virtual void Execute() const override
+	virtual void Execute(const FInputActionValue& ActionValue) const override
 	{
-		Delegate.Execute(Chord.Key);	// TODO: Remove FKey param? We don't support AnyKey, so it isn't terribly useful. TODO: Provide key raw value param to support axis keys.
+		Delegate.Execute(Chord.Key, ActionValue);	// TODO: Remove FKey param? We don't support AnyKey, so it isn't terribly useful.
 	}
 	virtual TUniquePtr<FInputDebugKeyBinding> Clone() const override 
 	{
