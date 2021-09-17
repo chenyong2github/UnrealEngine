@@ -91,6 +91,7 @@ URigHierarchy::URigHierarchy()
 , bIsInteracting(false)
 , LastInteractedKey()
 , bSuspendNotifications(false)
+, HierarchyController(nullptr)
 , ResetPoseHash(INDEX_NONE)
 #if WITH_EDITOR
 , bPropagatingChange(false)
@@ -1829,22 +1830,18 @@ void URigHierarchy::SendAutoKeyEvent(FRigElementKey InElement, float InOffsetInS
 
 URigHierarchyController* URigHierarchy::GetController(bool bCreateIfNeeded)
 {
-	if(LastControllerPtr.IsValid())
+	if(HierarchyController)
 	{
-		return Cast<URigHierarchyController>(LastControllerPtr.Get());
+		return HierarchyController;
 	}
 	else if(bCreateIfNeeded)
 	{
-		if(UObject* Outer = GetOuter())
-		{
-			if(!IsGarbageCollecting())
-			{
-				URigHierarchyController* Controller = NewObject<URigHierarchyController>(Outer);
-				Controller->SetHierarchy(this);
-				LastControllerPtr = Controller;
-				return Controller;
-			}
-		}
+		 if(!IsGarbageCollecting())
+		 {
+			 HierarchyController = NewObject<URigHierarchyController>(this, TEXT("HierarchyController"), RF_Transient);
+			 HierarchyController->SetHierarchy(this);
+			 return HierarchyController;
+		 }
 	}
 	return nullptr;
 }

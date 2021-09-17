@@ -22,7 +22,7 @@ public:
 	{
 		if (Hierarchy)
 		{
-			Controller->RemoveFromRoot();
+			// we no longer add/remove the controller to/from root since controller is now part of the hierarchy
 			Hierarchy->RemoveFromRoot();
 		}
 	}
@@ -32,11 +32,10 @@ public:
 		if (!Hierarchy)
 		{
 			Hierarchy = NewObject<URigHierarchy>();
-			Controller = NewObject<URigHierarchyController>();
-			Controller->SetHierarchy(Hierarchy);
+			Controller = Hierarchy->GetController(true);
 
 			Hierarchy->AddToRoot();
-			Controller->AddToRoot();
+			// we no longer add the controller to root since controller is now part of the hierarchy
 
 			Context.Hierarchy = Hierarchy;;
 			ExecuteContext.Hierarchy = Hierarchy;

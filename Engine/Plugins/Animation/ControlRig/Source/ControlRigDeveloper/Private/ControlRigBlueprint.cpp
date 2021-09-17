@@ -106,10 +106,9 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 #endif
 
 	Hierarchy = CreateDefaultSubobject<URigHierarchy>(TEXT("Hierarchy"));
-	HierarchyController = CreateDefaultSubobject<URigHierarchyController>(TEXT("HierarchyController"));
-	HierarchyController->SetHierarchy(Hierarchy);
+	URigHierarchyController* Controller = Hierarchy->GetController(true);
 	// give BP a chance to propagate hierarchy changes to available control rig instances
-	HierarchyController->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
+	Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
 }
 
 UControlRigBlueprint::UControlRigBlueprint()
@@ -1344,7 +1343,7 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 			, *InNewBlueprintName));
 
 	// Hierarchy
-	Commands.Append(HierarchyController->GeneratePythonCommands());
+	Commands.Append(Hierarchy->GetController(true)->GeneratePythonCommands());
 		
 	// Add variables
 	for (const FBPVariableDescription& Variable : NewVariables)
@@ -1848,14 +1847,11 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 	
-	if(HierarchyController)
+	if (URigHierarchyController* Controller = Hierarchy->GetController(true))
 	{
-		HierarchyController->OnModified().RemoveAll(this);
+		Controller->OnModified().RemoveAll(this);
+		Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
 	}
-	
-	HierarchyController = NewObject<URigHierarchyController>(this);
-	HierarchyController->SetHierarchy(Hierarchy);
-	HierarchyController->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
 }

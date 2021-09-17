@@ -448,7 +448,7 @@ public:
 	TObjectPtr<URigHierarchy> Hierarchy;
 
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
-	URigHierarchyController* GetHierarchyController() { return HierarchyController; }
+	URigHierarchyController* GetHierarchyController() { return Hierarchy->GetController(true); }
 
 private:
 
@@ -493,9 +493,6 @@ private:
 
 	UPROPERTY(transient, DuplicateTransient)
 	int32 VMRecompilationBracket;
-
-	UPROPERTY(transient, DuplicateTransient)
-	TObjectPtr<URigHierarchyController> HierarchyController;
 
 	FRigVMGraphModifiedEvent ModifiedEvent;
 	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject);

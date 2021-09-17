@@ -70,8 +70,5 @@ private:
 	UPROPERTY()
 	EControlRigFKRigExecuteMode ApplyMode;
 
-	UPROPERTY(transient)
-	TObjectPtr<URigHierarchyController> Controller;
-
 	friend class FControlRigInteractionTest;
 };

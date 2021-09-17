@@ -91,54 +91,51 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 
 void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
 {
-	if(Controller == nullptr)
-	{
-		Controller = NewObject<URigHierarchyController>(this);
-		Controller->SetHierarchy(GetHierarchy());
-	}
-	
 	GetHierarchy()->Reset();
-	Controller->ImportBones(InReferenceSkeleton, NAME_None, false, false, true, false);
-
-	if (InSmartNameMapping)
+	if (URigHierarchyController* Controller = GetHierarchy()->GetController(true))
 	{
-		TArray<FName> NameArray;
-		InSmartNameMapping->FillNameArray(NameArray);
-		for (int32 Index = 0; Index < NameArray.Num(); ++Index)
+		Controller->ImportBones(InReferenceSkeleton, NAME_None, false, false, true, false);
+
+		if (InSmartNameMapping)
 		{
-			Controller->AddCurve(NameArray[Index], 0.f, false);
+			TArray<FName> NameArray;
+			InSmartNameMapping->FillNameArray(NameArray);
+			for (int32 Index = 0; Index < NameArray.Num(); ++Index)
+			{
+				 Controller->AddCurve(NameArray[Index], 0.f, false);
+			}
 		}
-	}
 
-	// add control for all bone hierarchy
-	GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
-    {
-		const FName BoneName = BoneElement->GetName();
-		const int32 ParentIndex = GetHierarchy()->GetFirstParent(BoneElement->GetIndex());
-		const FName NullName = GetNullName(BoneName);// name conflict?
-		const FName ControlName = GetControlName(BoneName); // name conflict?
+		// add control for all bone hierarchy
+		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
+        {
+            const FName BoneName = BoneElement->GetName();
+            const int32 ParentIndex = GetHierarchy()->GetFirstParent(BoneElement->GetIndex());
+            const FName NullName = GetNullName(BoneName);// name conflict?
+            const FName ControlName = GetControlName(BoneName); // name conflict?
 
-		FRigElementKey NullKey;
+            FRigElementKey NullKey;
 		
-		if (ParentIndex != INDEX_NONE)
-		{
-			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
-			FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentIndex);
-			FTransform LocalTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
-			NullKey = Controller->AddNull(NullName, GetHierarchy()->GetKey(ParentIndex), LocalTransform, false, false);
-		}
-		else
-		{
-			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
-			NullKey = Controller->AddNull(NullName, FRigElementKey(), GlobalTransform, true, false);
-		}
+            if (ParentIndex != INDEX_NONE)
+            {
+                FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
+                FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentIndex);
+                FTransform LocalTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
+                NullKey = Controller->AddNull(NullName, GetHierarchy()->GetKey(ParentIndex), LocalTransform, false, false);
+            }
+            else
+            {
+                FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
+                NullKey = Controller->AddNull(NullName, FRigElementKey(), GlobalTransform, true, false);
+            }
 
-		FRigControlSettings Settings;
-		Settings.DisplayName = BoneName;
-		Controller->AddControl(ControlName, NullKey, Settings, FRigControlValue::Make(FTransform::Identity), FTransform::Identity, FTransform::Identity, false);
+            FRigControlSettings Settings;
+            Settings.DisplayName = BoneName;
+            Controller->AddControl(ControlName, NullKey, Settings, FRigControlValue::Make(FTransform::Identity), FTransform::Identity, FTransform::Identity, false);
 
-		return true;
-	});
+            return true;
+        });
+	}
 }
 
 void UAdditiveControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh)

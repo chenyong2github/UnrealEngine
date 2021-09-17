@@ -23,21 +23,30 @@ URigHierarchyController::~URigHierarchyController()
 
 void URigHierarchyController::SetHierarchy(URigHierarchy* InHierarchy)
 {
-	if(Hierarchy)
+	// since we changed the controller to be a property of the hierarchy,
+	// controlling a different hierarchy is no longer allowed
+	if (ensure(InHierarchy == GetOuter()))
 	{
-		if(!Hierarchy->HasAnyFlags(RF_BeginDestroyed) && Hierarchy->IsValidLowLevel())
+		// make sure making multiple valid SetHieararchy() calls won't lead to accumulated delegates
+		// though it should not happen in the first place
+		if (Hierarchy.IsValid())
 		{
-			Hierarchy->OnModified().RemoveAll(this);
+			if(!Hierarchy->HasAnyFlags(RF_BeginDestroyed) && Hierarchy->IsValidLowLevel())
+			{
+				  Hierarchy->OnModified().RemoveAll(this);
+			}
 		}
-		Hierarchy->LastControllerPtr.Reset();
+		
+		URigHierarchy* OuterHierarchy = Cast<URigHierarchy>(GetOuter());
+		if (ensure(OuterHierarchy))
+		{
+			Hierarchy = OuterHierarchy;
+			Hierarchy->OnModified().AddUObject(this, &URigHierarchyController::HandleHierarchyModified);
+		}
 	}
-
-	Hierarchy = InHierarchy;
-
-	if(Hierarchy)
+	else
 	{
-		Hierarchy->OnModified().AddUObject(this, &URigHierarchyController::HandleHierarchyModified);
-		Hierarchy->LastControllerPtr = this;
+		UE_LOG(LogControlRig, Error, TEXT("Invalid API Usage, Called URigHierarchyController::SetHierarchy(...) with a Hierarchy that is not the outer of the controller"));
 	}
 }
 
@@ -2523,7 +2532,7 @@ void URigHierarchyController::ReportWarning(const FString& InMessage) const
 	}
 
 	FString Message = InMessage;
-	if (Hierarchy)
+	if (Hierarchy.IsValid())
 	{
 		if (UPackage* Package = Cast<UPackage>(Hierarchy->GetOutermost()))
 		{
@@ -2548,7 +2557,7 @@ void URigHierarchyController::ReportError(const FString& InMessage) const
 	}
 
 	FString Message = InMessage;
-	if (Hierarchy)
+	if (Hierarchy.IsValid())
 	{
 		if (UPackage* Package = Cast<UPackage>(Hierarchy->GetOutermost()))
 		{

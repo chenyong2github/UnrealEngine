@@ -250,69 +250,66 @@ void UFKControlRig::SetControlActive(const TArray<FFKBoneCheckInfo>& BoneChecks)
 
 void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
 {
-	if(Controller == nullptr)
-	{
-		Controller = NewObject<URigHierarchyController>(this);
-		Controller->SetHierarchy(GetHierarchy());
-	}
-	
 	GetHierarchy()->Reset();
-	Controller->ImportBones(InReferenceSkeleton, NAME_None, false, false, true, false);
-
-	if (InSmartNameMapping)
+	if (URigHierarchyController* Controller = GetHierarchy()->GetController(true))
 	{
-		TArray<FName> NameArray;
-		InSmartNameMapping->FillNameArray(NameArray);
-		for (int32 Index = 0; Index < NameArray.Num(); ++Index)
+		Controller->ImportBones(InReferenceSkeleton, NAME_None, false, false, true, false);
+
+		if (InSmartNameMapping)
 		{
-			Controller->AddCurve(NameArray[Index], 0.f, false);
+			TArray<FName> NameArray;
+			InSmartNameMapping->FillNameArray(NameArray);
+			for (int32 Index = 0; Index < NameArray.Num(); ++Index)
+			{
+				 Controller->AddCurve(NameArray[Index], 0.f, false);
+			}
 		}
-	}
 
-	// add control for all bone hierarchy 
-	int32 ControlIndex = 0;
+		// add control for all bone hierarchy 
+		int32 ControlIndex = 0;
 
-	GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
-	{
-		const FName BoneName = BoneElement->GetName();
-		const FName ControlName = GetControlName(BoneName); // name conflict?
-		const FRigElementKey ParentKey = GetHierarchy()->GetFirstParent(BoneElement->GetKey());
-
-		FTransform OffsetTransform = FTransform::Identity;
-
-		FRigControlSettings Settings;
-		Settings.ControlType = ERigControlType::EulerTransform;
-		Settings.DisplayName = BoneName;
-
-		OffsetTransform.NormalizeRotation();
-		OffsetTransform.SetScale3D(FVector::OneVector);
-		
-		Controller->AddControl(ControlName, ParentKey, Settings, FRigControlValue::Make(FEulerTransform::Identity), OffsetTransform, FTransform::Identity, false);
-
-		return true;
-	});
-
-	SetControlOffsetsFromBoneInitials();
-	
-	GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
-    {
-        const FName ControlName = GetControlName(CurveElement->GetName()); // name conflict?
-
-		FRigControlSettings Settings;
-		Settings.ControlType = ERigControlType::Float;
-		Settings.DisplayName = CurveElement->GetName();
-
-		Controller->AddControl(ControlName, FRigElementKey(), Settings, FRigControlValue::Make(CurveElement->Value), FTransform::Identity, FTransform::Identity, false);
-		
-		return true;
-	});
-
-	if (IsControlActive.Num() != GetHierarchy()->Num())
-	{
-		IsControlActive.SetNum(GetHierarchy()->Num());
-		for (bool& bIsActive : IsControlActive)
+		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
 		{
-			bIsActive = true;
+			const FName BoneName = BoneElement->GetName();
+			const FName ControlName = GetControlName(BoneName); // name conflict?
+			const FRigElementKey ParentKey = GetHierarchy()->GetFirstParent(BoneElement->GetKey());
+
+			FTransform OffsetTransform = FTransform::Identity;
+
+			FRigControlSettings Settings;
+			Settings.ControlType = ERigControlType::EulerTransform;
+			Settings.DisplayName = BoneName;
+
+			OffsetTransform.NormalizeRotation();
+			OffsetTransform.SetScale3D(FVector::OneVector);
+			
+			Controller->AddControl(ControlName, ParentKey, Settings, FRigControlValue::Make(FEulerTransform::Identity), OffsetTransform, FTransform::Identity, false);
+
+			return true;
+		});
+
+		SetControlOffsetsFromBoneInitials();
+		
+		GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
+		{
+			const FName ControlName = GetControlName(CurveElement->GetName()); // name conflict?
+
+			FRigControlSettings Settings;
+			Settings.ControlType = ERigControlType::Float;
+			Settings.DisplayName = CurveElement->GetName();
+
+			Controller->AddControl(ControlName, FRigElementKey(), Settings, FRigControlValue::Make(CurveElement->Value), FTransform::Identity, FTransform::Identity, false);
+			
+			return true;
+		});
+
+		if (IsControlActive.Num() != GetHierarchy()->Num())
+		{
+			IsControlActive.SetNum(GetHierarchy()->Num());
+			for (bool& bIsActive : IsControlActive)
+			{
+				 bIsActive = true;
+			}
 		}
 	}
 }

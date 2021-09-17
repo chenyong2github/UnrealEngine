@@ -2603,7 +2603,9 @@ private:
 	FRigHierarchyUndoRedoTransformEvent UndoRedoEvent;
 
 	TWeakObjectPtr<URigHierarchy> HierarchyForSelectionPtr;
-	TWeakObjectPtr<UObject> LastControllerPtr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<URigHierarchyController> HierarchyController;
 
 	TMap<FRigElementKey, FRigElementKey> PreviousParentMap;
 	TMap<FRigElementKey, FRigElementKey> PreviousNameMap;
