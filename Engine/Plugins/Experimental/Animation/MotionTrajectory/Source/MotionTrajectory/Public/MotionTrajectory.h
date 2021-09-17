@@ -29,7 +29,7 @@ struct MOTIONTRAJECTORY_API FMotionTrajectorySettings
 	// Trajectory mask for specifying a time and/or distance domain
 	// Default: Time Domain of 2.0 seconds
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(Bitmask, BitmaskEnum=ETrajectorySampleDomain))
-	int32 Domain = 1; // ETrajectorySampleDomain::TIME
+	int32 Domain = 1; // ETrajectorySampleDomain::Time
 
 	// Sample time horizon
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(ClampMin="0.0"))
@@ -106,15 +106,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Motion Trajectory")
 	void SetSampleRate(int32 Rate);
 
-	// Retrieves the trajectory history as a range
+	// Retrieves the historical trajectory
 	UFUNCTION(BlueprintCallable, Category="Motion Trajectory")
 	FTrajectorySampleRange GetHistory() const;
 
-	// Prediction simulation settings
+	// Prediction trajectory simulation settings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Settings")
 	FMotionTrajectorySettings PredictionSettings;
 
-	// History retention settings
+	// Historical trajectory settings
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Settings")
 	FMotionTrajectorySettings HistorySettings;
 
@@ -141,4 +141,13 @@ public:
 	// Consider enabling this option when accurate trajectory sample speed at low tick rates (high interpolation usage) is important
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
 	bool bSmoothInterpolation = false;
+
+#if WITH_EDITORONLY_DATA
+	// Debug drawing options for the complete trajectory range
+	// a.MotionTrajectory.Debug (0/1) to enable or disable
+	// a.MotionTrajectory.Options (0-6) to enable additional sample information
+	// a.MotionTrajectory.Stride (*) to stride sample information display by a specified modulo
+	UPROPERTY(EditAnywhere, Category="Debug")
+	bool bDebugDrawTrajectory = false;
+#endif
 };

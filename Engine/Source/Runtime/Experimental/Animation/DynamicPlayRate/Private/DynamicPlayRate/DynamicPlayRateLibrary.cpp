@@ -11,8 +11,8 @@
 DEFINE_LOG_CATEGORY_STATIC(LogDynamicPlayRateLibrary, Verbose, All);
 
 #if ENABLE_ANIM_DEBUG
-TAutoConsoleVariable<int32> CVarAnimNodeDynamicPlayRateDebug(TEXT("a.DynamicPlayRate.Debug"), 0, TEXT("Turn on debug for dynamic play rate adjustment"));
-TAutoConsoleVariable<int32> CVarAnimNodeDynamicPlayRateEnable(TEXT("a.DynamicPlayRate.Enable"), 1, TEXT("Toggle dynamic play rate adjustment"));
+TAutoConsoleVariable<int32> CVarDynamicPlayRateDebug(TEXT("a.DynamicPlayRate.Debug"), 0, TEXT("Turn on debug for dynamic play rate adjustment"));
+TAutoConsoleVariable<int32> CVarDynamicPlayRateEnable(TEXT("a.DynamicPlayRate.Enable"), 1, TEXT("Toggle dynamic play rate adjustment"));
 #endif
 
 float FDynamicPlayRateSettings::ComputePlayRate(float PlayRate, float DeltaTime) const
@@ -37,12 +37,12 @@ float DynamicPlayRateAdjustment(const FAnimationUpdateContext& Context
 
 #if ENABLE_ANIM_DEBUG
 	// Debug enable/disable toggle for play rate scaling
-	if (!CVarAnimNodeDynamicPlayRateEnable.GetValueOnAnyThread())
+	if (!CVarDynamicPlayRateEnable.GetValueOnAnyThread())
 	{
 		return PlayRate;
 	}
 #if WITH_EDITORONLY_DATA
-	bool bDebugDraw = Settings.bDebugDraw || CVarAnimNodeDynamicPlayRateDebug.GetValueOnAnyThread();
+	bool bDebugDraw = Settings.bDebugDraw || CVarDynamicPlayRateDebug.GetValueOnAnyThread();
 #endif
 #else
 #if WITH_EDITORONLY_DATA

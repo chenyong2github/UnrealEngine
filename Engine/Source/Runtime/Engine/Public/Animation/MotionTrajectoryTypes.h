@@ -63,6 +63,13 @@ struct ENGINE_API FTrajectorySampleRange
 {
 	GENERATED_BODY()
 
+	// Debug rendering contants
+	static constexpr FLinearColor DebugDefaultPredictionColor{ 0.f, 1.f, 0.f };
+	static constexpr FLinearColor DebugDefaultHistoryColor{ 0.f, 0.f, 1.f };
+	static constexpr float DebugDefaultArrowScale = 0.025f;
+	static constexpr float DebugDefaultArrowSize = 40.f;
+	static constexpr float DebugDefaultArrowThickness = 2.f;
+
 	// Linearly ordered (Time or Distance domain) container for past, present, and future trajectory samples
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
 	TArray<FTrajectorySample> Samples;
@@ -84,6 +91,16 @@ struct ENGINE_API FTrajectorySampleRange
 
 	// Determine if all trajectory samples are default values
 	bool HasOnlyZeroSamples() const;
+
+	// Debug draw in-world trajectory samples and optional corresponding information
+	void DebugDrawTrajectory(bool bEnable
+		, const UWorld* World
+		, const FTransform& WorldTransform
+		, const FLinearColor PredictionColor = DebugDefaultPredictionColor
+		, const FLinearColor HistoryColor = DebugDefaultHistoryColor
+		, float ArrowScale = DebugDefaultArrowScale
+		, float ArrowSize = DebugDefaultArrowSize
+		, float ArrowThickness = DebugDefaultArrowThickness) const;
 
 	// Iterator for precise subsampling of the trajectory
 	template <typename Container> static FTrajectorySample IterSampleTrajectory(const Container& Samples, ETrajectorySampleDomain DomainType, float DomainValue, int32& InitialIdx, bool bSmoothInterp = false)

@@ -171,3 +171,27 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::ClampTrajectoryDirecti
 
 	return Trajectory;
 }
+
+void UMotionTrajectoryBlueprintLibrary::DebugDrawTrajectory(const AActor* Actor
+	, const FTransform& WorldTransform
+	, const FTrajectorySampleRange& Trajectory
+	, const FLinearColor PredictionColor
+	, const FLinearColor HistoryColor
+	, float ArrowScale
+	, float ArrowSize
+	, float ArrowThickness
+)
+{
+	if (Actor)
+	{
+		Trajectory.DebugDrawTrajectory(true
+			, Actor->GetWorld()
+			, WorldTransform.IsValid() ? WorldTransform : FTransform::Identity
+			, PredictionColor
+			, HistoryColor
+			, ArrowScale
+			, ArrowSize
+			, ArrowThickness
+		);
+	}
+}

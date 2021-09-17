@@ -2,6 +2,22 @@
 
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Algo/AllOf.h"
+#include "DrawDebugHelpers.h"
+
+#if ENABLE_ANIM_DEBUG
+constexpr int32 DebugTrajectorySampleDisable = 0;
+constexpr int32 DebugTrajectorySampleCount = 1;
+constexpr int32 DebugTrajectorySampleTime = 2;
+constexpr int32 DebugTrajectorySampleDistance = 3;
+constexpr int32 DebugTrajectorySamplePosition = 4;
+constexpr int32 DebugTrajectorySampleVelocity = 5;
+constexpr int32 DebugTrajectorySampleAccel = 6;
+TAutoConsoleVariable<int32> CVarMotionTrajectoryDebug(TEXT("a.MotionTrajectory.Debug"), 0, TEXT("Turn on debug drawing for motion trajectory"));
+TAutoConsoleVariable<int32> CVarMotionTrajectoryDebugStride(TEXT("a.MotionTrajectory.Stride"), 1, TEXT("Configure the sample stride when displaying information"));
+TAutoConsoleVariable<int32> CVarMotionTrajectoryDebugOptions(TEXT("a.MotionTrajectory.Options"), 0,
+	TEXT("Toggle motion trajectory sample information:\n 0. Disable Text\n 1. Index\n2. Accumulated Time\n 3. Accumulated Distance\n 4. Position\n 5. Velocity\n 6. Acceleration")
+);
+#endif
 
 namespace
 {
@@ -86,4 +102,71 @@ void FTrajectorySampleRange::RemoveHistory()
 		{
 			return Sample.AccumulatedSeconds < 0.f;
 		});
+}
+
+void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
+	, const UWorld* World
+	, const FTransform& WorldTransform
+	, const FLinearColor PredictionColor
+	, const FLinearColor HistoryColor
+	, float ArrowScale
+	, float ArrowSize
+	, float ArrowThickness) const
+{
+	if (bEnable
+#if ENABLE_ANIM_DEBUG
+		|| CVarMotionTrajectoryDebug.GetValueOnAnyThread()
+#endif
+		)
+	{
+		if (World)
+		{
+			const int32 DebugSampleStride = CVarMotionTrajectoryDebugStride.GetValueOnAnyThread();
+			const int32 DebugSampleOptions = CVarMotionTrajectoryDebugOptions.GetValueOnAnyThread();
+
+			for (int32 Idx = 0, Num = Samples.Num(); Idx < Num; Idx++)
+			{
+				const FVector WorldPosition = WorldTransform.TransformPosition(Samples[Idx].Position);
+				const FVector WorldVelocity = (WorldTransform.TransformVector(Samples[Idx].LocalLinearVelocity) * ArrowScale) + WorldPosition;
+
+				// Interpolate the history and prediction color over the entire trajectory range
+				const float ColorLerp = static_cast<float>(Idx) / static_cast<float>(Num);
+				const FLinearColor Color = FLinearColor::LerpUsingHSV(PredictionColor, HistoryColor, ColorLerp);
+
+				DrawDebugDirectionalArrow(World, WorldPosition, WorldVelocity, ArrowSize, Color.ToFColor(true), false, 0.f, 0, ArrowThickness);
+#if ENABLE_ANIM_DEBUG
+				FString DebugSampleString;
+				switch (DebugSampleOptions)
+				{
+				case 1: // Sample Index
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Idx });
+;					break;
+				case 2: // Sample Accumulated Time
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].AccumulatedSeconds });
+					break;
+				case 3: // Sample Accumulated Distance
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].AccumulatedDistance });
+					break;
+				case 4: // Sample Position
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].Position.ToCompactString() });
+					break;
+				case 5: // Sample Velocity
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LocalLinearVelocity.ToCompactString() });
+					break;
+				case 6: // Sample Acceleration
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LocalLinearAcceleration.ToCompactString() });
+					break;
+				default:
+					break;
+				}
+
+				// Conditionally display per-sample information against a specified stride
+				if (!DebugSampleString.IsEmpty() && !!DebugSampleStride && (Idx % DebugSampleStride == 0))
+				{
+					DrawDebugString(World, WorldVelocity + FVector(0.f, 0.f, 10.f), DebugSampleString, nullptr, FColor::White, 0.f, false, 1.f);
+				}
+#endif
+			}
+		}
+	}
 }
