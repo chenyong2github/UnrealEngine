@@ -15,6 +15,9 @@
 #include "MeshDescription.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
+#include "GroupTopology.h"
+#include "Operations/PolygroupRemesh.h"
+#include "ConstrainedDelaunay2.h"
 #include "OverlappingCorners.h"
 #include "StaticMeshOperations.h"
 
@@ -197,6 +200,19 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh, 
 			FQEMSimplification::ESimplificationCollapseModes::MinimalExistingVertexError, bUseQuadricMemory,
 			UseGeometricTolerance);
+	}
+	else if (SimplifierType == ESimplifyType::MinimalPolygroup)
+	{
+		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
+		FGroupTopology Topology(ResultMesh.Get(), true);
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		FPolygroupRemesh Remesh(ResultMesh.Get(), &Topology, ConstrainedDelaunayTriangulate<double>);
+		Remesh.SimplificationAngleTolerance = PolyEdgeAngleTolerance;
+		bool bSuccess = Remesh.Compute();
 	}
 	else // SimplifierType == ESimplifyType::UEStandard
 	{

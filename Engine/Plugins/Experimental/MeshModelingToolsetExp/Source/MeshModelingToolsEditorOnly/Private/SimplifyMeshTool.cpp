@@ -204,6 +204,7 @@ TUniquePtr<FDynamicMeshOperator> USimplifyMeshTool::MakeNewOperator()
 	Op->MaterialBoundaryConstraint = (EEdgeRefineFlags)SimplifyProperties->MaterialBoundaryConstraint;
 	Op->bGeometricDeviationConstraint = SimplifyProperties->bGeometricConstraint;
 	Op->GeometricTolerance = SimplifyProperties->GeometricTolerance;
+	Op->PolyEdgeAngleTolerance = SimplifyProperties->PolyEdgeAngleTolerance;
 	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 	Op->SetTransform(LocalToWorld);
 
