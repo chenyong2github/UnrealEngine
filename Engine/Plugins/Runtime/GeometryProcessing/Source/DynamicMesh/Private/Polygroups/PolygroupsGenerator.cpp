@@ -444,7 +444,22 @@ void FPolygroupsGenerator::CopyPolygroupsToMesh()
 	}
 }
 
+void FPolygroupsGenerator::CopyPolygroupsToPolygroupSet(FPolygroupSet& Polygroups, FDynamicMesh3& TargetMesh)
+{
+	// set groups from Polygroups
+	int NumPolygroups = FoundPolygroups.Num();
 
+	// can be parallel for
+	for (int PolyIdx = 0; PolyIdx < NumPolygroups; PolyIdx++)
+	{
+		const TArray<int>& Polygroup = FoundPolygroups[PolyIdx];
+		int NumTriangles = Polygroup.Num();
+		for (int k = 0; k < NumTriangles; ++k)
+		{
+			Polygroups.SetGroup(Polygroup[k], (PolyIdx + 1), TargetMesh);
+		}
+	}
+}
 
 
 

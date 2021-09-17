@@ -102,6 +102,10 @@ public:
 	*/
 	void CopyPolygroupsToMesh();
 
+	/**
+	* Copy the computed Polygroups to the given PolygroupSet and Mesh
+	*/
+	void CopyPolygroupsToPolygroupSet(FPolygroupSet& Polygroups, FDynamicMesh3& TargetMesh);
 
 	/**
 	 * Initialize the PolygroupEdges output member by finding all the mesh edges that are on polygroup borders.
