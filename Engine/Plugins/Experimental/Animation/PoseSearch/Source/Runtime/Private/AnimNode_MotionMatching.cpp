@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearch/AnimNode_MotionMatching.h"
-#include "PoseSearch/PoseSearch.h"
-#include "PoseSearch/PoseSearchPredictionLibrary.h"
-#include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
+
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/MotionTrajectoryTypes.h"
+#include "DynamicPlayRate/DynamicPlayRateLibrary.h"
+#include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
+#include "PoseSearch/PoseSearch.h"
 #include "Trace/PoseSearchTraceLogger.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_MotionMatching"
-
 
 /////////////////////////////////////////////////////
 // FAnimNode_MotionMatching
@@ -21,7 +22,7 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	InitNewDatabaseSearch();
+	MotionMatchingState.InitNewDatabaseSearch(Database, Settings.SearchThrottleTime);
 
 	Source.SetLinkNode(&SequencePlayerNode);
 	Source.Initialize(Context);
@@ -38,160 +39,41 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateAssetPlayer);
 
-
 	GetEvaluateGraphExposedInputs().Execute(Context);
-	// Note: What if the input database changes? That's not being handled at all!
 
-	bool bJumpedToPose = false;
-	FPoseSearchBiasWeights QueryBiasWeights;
-	
-#if UE_POSE_SEARCH_TRACE_ENABLED
-	UE::PoseSearch::FTraceMotionMatchingState State;
-#endif
+	// Update with the sequence player's current time.
+	MotionMatchingState.AssetPlayerTime = SequencePlayerNode.GetAccumulatedTime();
 
-	const float DeltaTime = Context.GetDeltaTime();
+	// Execute core motion matching algorithm and retain across frame state
+	UpdateMotionMatchingState(Context
+		, Database
+		, Trajectory
+		, Settings
+		, MotionMatchingState
+	);
 
-	if (IsValidForSearch())
+	// If a new pose is requested, jump to the pose by updating the embedded sequence player node
+	if ((MotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 	{
-		if (PreviousDatabase != Database)
-		{
-			InitNewDatabaseSearch();
-		}
-
-		if (!ComposedQuery.IsInitializedForSchema(Database->Schema))
-		{
-			ComposedQuery.Init(Database->Schema);
-		}
-
-		const float AssetTime = SequencePlayerNode.GetAccumulatedTime();
-		const float AssetLength = SequencePlayerNode.GetCurrentAssetLength();
-
-		// Step the pose forward
-		if (DbPoseIdx != INDEX_NONE)
-		{
-			check(DbSequenceIdx != INDEX_NONE);
-
-			// Determine roughly which pose we're playing from the database based on the sequence player time
-			DbPoseIdx = Database->GetPoseIndexFromAssetTime(DbSequenceIdx, AssetTime);
-
-			// Overwrite query feature vector with the stepped pose from the database
-			if (DbPoseIdx != INDEX_NONE)
-			{
-				ComposedQuery.CopyFromSearchIndex(Database->SearchIndex, DbPoseIdx);
-			}
-		}
-
-		if (DbPoseIdx == INDEX_NONE)
-		{
-			UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
-			if (PoseHistoryProvider)
-			{
-				UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-				ComposedQuery.TrySetPoseFeatures(&History);
-				ComposedQuery.TrySetPastTrajectoryFeatures(&History);
-			}
-		}
-
-		// Update features in the query with the latest inputs
-		ComposeQuery(Context);
-
-		// Initialize the pose search query bias weights context
-		QueryBiasWeights.Init(BiasWeights, Database->Schema->Layout);
-
-		const FPoseSearchBiasWeightsContext BiasWeightsContext = { &QueryBiasWeights, Database };
-
-		// Determine how much the updated query vector deviates from the current pose vector
-		float CurrentDissimilarity = MAX_flt;
-		if (DbPoseIdx != INDEX_NONE)
-		{
-			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, DbPoseIdx, ComposedQuery.GetNormalizedValues(), &BiasWeightsContext);
-		}
-
-		// Search the database for the nearest match to the updated query vector
-		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetNormalizedValues(), &BiasWeightsContext);
-		if (Result.IsValid() && (ElapsedPoseJumpTime >= SearchThrottleTime))
-		{
-			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
-
-			// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
-			bool bBetterPose = Result.Dissimilarity * (1.0f + (MinPercentImprovement / 100.0f)) < CurrentDissimilarity;
-
-			// We'll ignore the candidate pose if it is too near to our current pose
-			bool bNearbyPose = false;
-			if (DbSequenceIdx == Result.DbSequenceIdx)
-			{
-				bNearbyPose = FMath::Abs(AssetTime - Result.TimeOffsetSeconds) < PoseJumpThreshold;
-				if (!bNearbyPose && ResultDbSequence.bLoopAnimation)
-				{
-					bNearbyPose = FMath::Abs(AssetLength - AssetTime - Result.TimeOffsetSeconds) < PoseJumpThreshold;
-				}
-			}
-
-			// Start playback from the candidate pose if we determined it was a better option
-			if (bBetterPose && !bNearbyPose)
-			{
-				JumpToPose(Context, Result);
-				bJumpedToPose = true;
-			}
-		}
-
-		// Continue with the follow up sequence if we're finishing a one shot anim
-		if (!bJumpedToPose && SequencePlayerNode.GetSequence() && !SequencePlayerNode.GetLoopAnimation())
-		{
-			float AssetTimeAfterUpdate = AssetTime + DeltaTime;
-			if (AssetTimeAfterUpdate > AssetLength)
-			{
-				const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[DbSequenceIdx];
-				int32 FollowUpDbSequenceIdx = Database->Sequences.IndexOfByPredicate([&](const FPoseSearchDatabaseSequence& Entry){ return Entry.Sequence == DbSequence.FollowUpSequence; });
-				if (FollowUpDbSequenceIdx != INDEX_NONE)
-				{
-					const FPoseSearchDatabaseSequence& FollowUpDbSequence = Database->Sequences[FollowUpDbSequenceIdx];
-					float FollowUpAssetTime = AssetTimeAfterUpdate - AssetLength;
-					int32 FollowUpPoseIdx = Database->GetPoseIndexFromAssetTime(FollowUpDbSequenceIdx, FollowUpAssetTime);
-
-					UE::PoseSearch::FDbSearchResult FollowUpResult;
-					FollowUpResult.DbSequenceIdx = FollowUpDbSequenceIdx;
-					FollowUpResult.PoseIdx = FollowUpPoseIdx;
-					FollowUpResult.TimeOffsetSeconds = FollowUpAssetTime;
-					JumpToPose(Context, FollowUpResult);
-					bJumpedToPose = true;
-#if UE_POSE_SEARCH_TRACE_ENABLED
-					State.Flags |= UE::PoseSearch::FTraceMotionMatchingState::EFlags::FollowupAnimation;
-#endif
-				}
-			}
-		}
+		const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[MotionMatchingState.DbSequenceIdx];
+		SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
+		SequencePlayerNode.SetAccumulatedTime(MotionMatchingState.AssetPlayerTime);
+		SequencePlayerNode.SetLoopAnimation(ResultDbSequence.bLoopAnimation);
+		SequencePlayerNode.SetPlayRate(1.f);
 	}
 
-	if (bJumpedToPose)
-	{
-		ElapsedPoseJumpTime = 0.0f;
-	}
-	else
-	{
-		ElapsedPoseJumpTime += DeltaTime;
-	}
-	 
-	const FPredictionSequenceState SequenceState = { SequencePlayerNode.GetSequence() , SequencePlayerNode.GetAccumulatedTime(), SequencePlayerNode.GetPlayRate(), SequencePlayerNode.GetLoopAnimation() };
-	const float PlayRate = UPoseSearchPredictionDistanceMatching::ComputePlayRate(Context, Prediction, PredictionSettings, SequenceState);
+	// Optionally applying dynamic play rate adjustment to chosen sequences based on predictive motion analysis
+	const float PlayRate = DynamicPlayRateAdjustment(Context
+		, Trajectory
+		, DynamicPlayRateSettings
+		, SequencePlayerNode.GetSequence()
+		, SequencePlayerNode.GetAccumulatedTime()
+		, SequencePlayerNode.GetPlayRate()
+		, SequencePlayerNode.GetLoopAnimation()
+	);
+
 	SequencePlayerNode.SetPlayRate(PlayRate);
-
 	Source.Update(Context);
-	
-#if UE_POSE_SEARCH_TRACE_ENABLED
-	if (DbPoseIdx == INDEX_NONE)
-	{
-		return;
-	}
-	State.ElapsedPoseJumpTime = ElapsedPoseJumpTime;
-	// @TODO: Change this to only be the previous query, not persistently updated (i.e. if throttled)?
-	State.QueryVector = ComposedQuery.GetValues();
-	State.QueryVectorNormalized = ComposedQuery.GetNormalizedValues();
-	State.BiasWeights = QueryBiasWeights.Weights;
-	State.DbPoseIdx = DbPoseIdx;
-	State.DatabaseId = FObjectTrace::GetObjectId(Database.Get());
-	UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, State)
-#endif
 }
 
 bool FAnimNode_MotionMatching::HasPreUpdate() const
@@ -219,12 +101,12 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 
 		if (bDebugDrawMatch)
 		{
-			DrawParams.PoseIdx = DbPoseIdx;
+			DrawParams.PoseIdx = MotionMatchingState.DbPoseIdx;
 		}
 
-		if (bDebugDrawGoal)
+		if (bDebugDrawQuery)
 		{
-			DrawParams.PoseVector = ComposedQuery.GetValues();
+			DrawParams.PoseVector = MotionMatchingState.ComposedQuery.GetValues();
 		}
 
 		UE::PoseSearch::Draw(DrawParams);
@@ -235,55 +117,6 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 void FAnimNode_MotionMatching::GatherDebugData(FNodeDebugData& DebugData)
 {
 	Source.GatherDebugData(DebugData);
-}
-
-bool FAnimNode_MotionMatching::IsValidForSearch() const
-{
-	return Database && Database->IsValidForSearch();
-}
-
-void FAnimNode_MotionMatching::ComposeQuery(const FAnimationBaseContext& Context)
-{
-	// Merge goal features into the query vector
-	if (ComposedQuery.IsCompatible(Goal))
-	{
-		ComposedQuery.MergeReplace(Goal);
-	}
-
-	ComposedQuery.Normalize(Database->SearchIndex);
-}
-
-void FAnimNode_MotionMatching::JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result)
-{
-	// Remember which pose and sequence we're playing from the database
-	DbPoseIdx = Result.PoseIdx;
-	DbSequenceIdx = Result.DbSequenceIdx;
-
-	// Immediately jump to the pose by updating the embedded sequence player node
-	const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
-	SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
-	SequencePlayerNode.SetAccumulatedTime(Result.TimeOffsetSeconds);
-	SequencePlayerNode.SetLoopAnimation(ResultDbSequence.bLoopAnimation);
-	SequencePlayerNode.SetPlayRate(1.f);
-
-	// Use inertial blending to smooth over the transition
-	// It would be cool in the future to adjust the blend time by amount of dissimilarity, but we'll need a standardized distance metric first.
-	if (BlendTime > 0.0f)
-	{
-		UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
-		if (InertializationRequester)
-		{
-			InertializationRequester->RequestInertialization(BlendTime);
-		}
-	}
-}
-
-void FAnimNode_MotionMatching::InitNewDatabaseSearch()
-{
-	DbPoseIdx = INDEX_NONE;
-	DbSequenceIdx = INDEX_NONE;
-	ElapsedPoseJumpTime = SearchThrottleTime;
-	PreviousDatabase = Database;
 }
 
 // FAnimNode_AssetPlayerBase interface

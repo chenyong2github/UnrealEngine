@@ -71,12 +71,12 @@ ENUM_CLASS_FLAGS(FTraceMotionMatchingState::EFlags)
 }}
 
 #define UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, MotionMatchingState) \
-	UE::PoseSearch::FTraceMotionMatchingState::Output(Context, State);
+	UE::PoseSearch::FTraceMotionMatchingState::Output(Context, MotionMatchingState);
 
 #else
 
 // Empty declarations if not enabled
-#define UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, State)
+#define UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, MotionMatchingState)
 
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 

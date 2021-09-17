@@ -26,6 +26,8 @@
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 namespace UE { namespace PoseSearch {
 
 DEFINE_LOG_CATEGORY(LogPoseSearch);
@@ -640,6 +642,16 @@ int32 UPoseSearchDatabase::GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float 
 	return INDEX_NONE;
 }
 
+float UPoseSearchDatabase::GetSequenceLength(int32 DbSequenceIdx) const
+{
+	return Sequences[DbSequenceIdx].Sequence->GetPlayLength();
+}
+
+bool UPoseSearchDatabase::DoesSequenceLoop(int32 DbSequenceIdx) const
+{
+	return Sequences[DbSequenceIdx].bLoopAnimation;
+}
+
 bool UPoseSearchDatabase::IsValidForIndexing() const
 {
 	bool bValid = Schema && Schema->IsValid() && !Sequences.IsEmpty();
@@ -869,90 +881,50 @@ bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(UE::PoseSearch::FPoseHi
 	return true;
 }
 
-bool FPoseSearchFeatureVectorBuilder::TrySetPastTrajectoryFeatures(UE::PoseSearch::FPoseHistory* History)
+void FPoseSearchFeatureVectorBuilder::BuildFromTrajectoryTimeBased(const FTrajectorySampleRange& Trajectory)
 {
 	check(Schema && Schema->IsValid());
-	check(History);
 
-	bool bSuccess = TrySetPastTrajectoryTimeFeatures(History);
-	bSuccess &= TrySetPastTrajectoryDistanceFeatures(History);
-
-	return bSuccess;
-}
-
-bool FPoseSearchFeatureVectorBuilder::TrySetPastTrajectoryTimeFeatures(UE::PoseSearch::FPoseHistory* History)
-{
 	FPoseSearchFeatureDesc Feature;
 	Feature.Domain = EPoseSearchFeatureDomain::Time;
 	Feature.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
 
-	for (int32 SchemaSubsampleIdx = 0; SchemaSubsampleIdx != Schema->TrajectorySampleTimes.Num(); ++SchemaSubsampleIdx)
+	for (int32 Idx = 0, NextIterStartIdx = 0, Num = Schema->TrajectorySampleTimes.Num(); Idx < Num; ++Idx)
 	{
-		Feature.SubsampleIdx = SchemaSubsampleIdx;
-		
-		// Stop when we've reached future samples
-		float SampleTime = Schema->TrajectorySampleTimes[SchemaSubsampleIdx];
-		if (SampleTime > 0.0f)
-		{
-			break;
-		}
+		const float SampleTime = Schema->TrajectorySampleTimes[Idx];
+		const FTrajectorySample Sample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, ETrajectorySampleDomain::Time, SampleTime, NextIterStartIdx);
 
-		float SecondsAgo = -SampleTime;
-		FTransform WorldComponentTransform;
-		if (!History->TrySampleRootTimeBased(SecondsAgo, &WorldComponentTransform))
-		{
-			return false;
-		}
+		Feature.SubsampleIdx = Idx;
 
-		FTransform WorldPrevComponentTransform;
-		if (!History->TrySampleRootTimeBased(SecondsAgo + History->GetSampleTimeInterval(), &WorldPrevComponentTransform))
-		{
-			return false;
-		}
+		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
+		SetVector(Feature, Sample.LocalLinearVelocity);
 
-		SetTransform(Feature, WorldComponentTransform);
-		SetTransformVelocity(Feature, WorldComponentTransform, WorldPrevComponentTransform, History->GetSampleTimeInterval());
+		Feature.Type = EPoseSearchFeatureType::Position;
+		SetVector(Feature, Sample.Position);
 	}
-
-	return true;
 }
 
-bool FPoseSearchFeatureVectorBuilder::TrySetPastTrajectoryDistanceFeatures(UE::PoseSearch::FPoseHistory* History)
+void FPoseSearchFeatureVectorBuilder::BuildFromTrajectoryDistanceBased(const FTrajectorySampleRange& Trajectory)
 {
+	check(Schema && Schema->IsValid());
+
 	FPoseSearchFeatureDesc Feature;
 	Feature.Domain = EPoseSearchFeatureDomain::Distance;
 	Feature.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
 
-	for (int32 SchemaSubsampleIdx = 0; SchemaSubsampleIdx != Schema->TrajectorySampleDistances.Num(); ++SchemaSubsampleIdx)
+	for (int32 Idx = 0, NextIterStartIdx = 0, Num = Schema->TrajectorySampleDistances.Num(); Idx < Num; ++Idx)
 	{
-		Feature.SubsampleIdx = SchemaSubsampleIdx;
-		
-		// Stop when we've reached future samples
-		float SampleDistance = Schema->TrajectorySampleDistances[SchemaSubsampleIdx];
-		if (SampleDistance > 0.0f)
-		{
-			break;
-		}
+		const float SampleDistance = Schema->TrajectorySampleDistances[Idx];
+		const FTrajectorySample Sample = FTrajectorySampleRange::IterSampleTrajectory(Trajectory.Samples, ETrajectorySampleDomain::Distance, SampleDistance, NextIterStartIdx);
 
-		float SampleTime = 0.0f;
-		float PastDistance = -SampleDistance;
-		FTransform WorldComponentTransform;
-		if (!History->TrySampleRootDistanceBased(PastDistance, &WorldComponentTransform, &SampleTime))
-		{
-			return false;
-		}
+		Feature.SubsampleIdx = Idx;
 
-		FTransform WorldPrevComponentTransform;
-		if (!History->TrySampleRootTimeBased(SampleTime + History->GetSampleTimeInterval(), &WorldPrevComponentTransform))
-		{
-			return false;
-		}
+		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
+		SetVector(Feature, Sample.LocalLinearVelocity);
 
-		SetTransform(Feature, WorldComponentTransform);
-		SetTransformVelocity(Feature, WorldComponentTransform, WorldPrevComponentTransform, History->GetSampleTimeInterval());
-	}
-
-	return true;
+		Feature.Type = EPoseSearchFeatureType::Position;
+		SetVector(Feature, Sample.Position);
+	} 
 }
 
 void FPoseSearchFeatureVectorBuilder::CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx)
@@ -1024,6 +996,12 @@ void FPoseSearchFeatureVectorBuilder::Normalize(const FPoseSearchIndex& ForSearc
 {
 	ValuesNormalized = Values;
 	ForSearchIndex.Normalize(ValuesNormalized);
+}
+
+void FPoseSearchFeatureVectorBuilder::BuildFromTrajectory(const FTrajectorySampleRange& Trajectory)
+{
+	BuildFromTrajectoryTimeBased(Trajectory);
+	BuildFromTrajectoryDistanceBased(Trajectory);
 }
 
 namespace UE { namespace PoseSearch {
@@ -1124,61 +1102,6 @@ bool FPoseHistory::TrySamplePose(float SecondsAgo, const FReferenceSkeleton& Ref
 	return bSampled;
 }
 
-bool FPoseHistory::TrySampleRootTimeBased(float SecondsAgo, FTransform* OutTransform) const
-{
-	int32 NextIdx = LowerBound(Knots.begin(), Knots.end(), SecondsAgo, TGreater<>());
-	if (NextIdx <= 0 || NextIdx >= Knots.Num())
-	{
-		return false;
-	}
-
-	int32 PrevIdx = NextIdx - 1;
-
-	const FPose& PrevPose = Poses[PrevIdx];
-	const FPose& NextPose = Poses[NextIdx];
-
-	// Compute alpha between previous and next knots
-	float Alpha = FMath::GetMappedRangeValueUnclamped(
-		FVector2D(Knots[PrevIdx], Knots[NextIdx]),
-		FVector2D(0.0f, 1.0f),
-		SecondsAgo);
-
-	FTransform RootTransform;
-	RootTransform.Blend(PrevPose.WorldComponentTransform, NextPose.WorldComponentTransform, Alpha);
-	RootTransform.SetToRelativeTransform(Poses.Last().WorldComponentTransform);
-
-	*OutTransform = RootTransform;
-	return true;
-}
-
-bool FPoseHistory::TrySampleRootDistanceBased(float SampleDistance, FTransform* OutTransform, float* OutSampleTime) const
-{
-	float SampleTime = 0.0f;
-
-	// Find the relevant distance samples and convert to time
-	double NextDistance = 0.0;
-	double PrevDistance = 0.0;
-	for (int32 NextIdx = Poses.Num() - 2; NextIdx >= 0; --NextIdx)
-	{
-		FTransform PrevTransform = Poses[NextIdx+1].WorldComponentTransform;
-		FTransform NextTransform = Poses[NextIdx].WorldComponentTransform;
-
-		NextDistance += FVector::Distance(PrevTransform.GetTranslation(), NextTransform.GetTranslation());
-		if (NextDistance >= SampleDistance)
-		{
-			float DistanceSampleAlpha = (float)FMath::GetRangePct(PrevDistance, NextDistance, (double)SampleDistance);
-			SampleTime = FMath::Lerp(Knots[NextIdx+1], Knots[NextIdx], DistanceSampleAlpha);
-			break;
-		}
-
-		PrevDistance = NextDistance;
-	}
-
-	bool bResult = TrySampleRootTimeBased(SampleTime, OutTransform);
-	*OutSampleTime = SampleTime;
-	return bResult;
-}
-
 void FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext)
 {
 	// Age our elapsed times
@@ -1220,7 +1143,6 @@ void FPoseHistory::Update(float SecondsElapsed, const FPoseContext& PoseContext)
 	Knots.Last() = 0.0f;
 	FPose& CurrentPose = Poses.Last();
 	CopyCompactToSkeletonPose(PoseContext.Pose, CurrentPose.LocalTransforms);
-	CurrentPose.WorldComponentTransform = PoseContext.AnimInstanceProxy->GetComponentTransform();
 }
 
 float FPoseHistory::GetSampleTimeInterval() const
@@ -3334,5 +3256,7 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 }
 
 }} // namespace UE::PoseSearch
+
+PRAGMA_ENABLE_OPTIMIZATION
 
 IMPLEMENT_MODULE(UE::PoseSearch::FModule, PoseSearch)
