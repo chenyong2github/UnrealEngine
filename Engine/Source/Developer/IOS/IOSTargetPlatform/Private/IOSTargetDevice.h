@@ -120,6 +120,7 @@ public:
 	virtual bool IsDefault() const override;
 	virtual bool PowerOff(bool Force) override;
 	virtual bool PowerOn() override;
+	virtual bool IsAuthorized() const override { return bIsDeviceAuthorized; }
 	virtual bool Reboot(bool bReconnect = false) override;
 	virtual bool SupportsFeature(ETargetDeviceFeatures Feature) const;
 	virtual bool TerminateProcess(const int64 ProcessId) override;
@@ -173,6 +174,9 @@ private:
 	/** Name of device */
 	FString DeviceName;
 
+	// Holds a flag indicating whether the device is USB / OTA comms authorized
+	bool bIsDeviceAuthorized;
+
 	/** Type of device */
 	ETargetDeviceTypes DeviceType;
 
@@ -204,6 +208,16 @@ public:
 	void SetDeviceName(const FString InDeviceName)
 	{
 		DeviceName = InDeviceName;
+	}
+
+	/**
+ * Sets the device's authorization state.
+ *
+ * @param bInIsAuthorized - Whether the device is authorized for USB communications.
+ */
+	void SetAuthorized(bool bInIsAuthorized)
+	{
+		bIsDeviceAuthorized = bInIsAuthorized;
 	}
 
 	/** Sets the type of the device */

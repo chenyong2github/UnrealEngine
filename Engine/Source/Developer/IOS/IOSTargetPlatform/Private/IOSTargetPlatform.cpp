@@ -376,7 +376,7 @@ void FIOSTargetPlatform::HandleDeviceConnected(const FIOSLaunchDaemonPong& Messa
 	
 	if (!Device.IsValid())
 	{
-		if ((Message.DeviceType.Contains(TEXT("AppleTV")) && bIsTVOS) || (!Message.DeviceType.Contains(TEXT("AppleTV")) && !bIsTVOS))
+	if ((Message.DeviceType.Contains(TEXT("AppleTV")) && bIsTVOS) || (!Message.DeviceType.Contains(TEXT("AppleTV")) && !bIsTVOS))
 		{
 			Device = MakeShareable(new FIOSTargetDevice(*this));
 
@@ -385,6 +385,7 @@ void FIOSTargetPlatform::HandleDeviceConnected(const FIOSLaunchDaemonPong& Messa
 			Device->SetFeature(ETargetDeviceFeatures::PowerOff, Message.bCanPowerOff);
 			Device->SetDeviceId(DeviceId);
 			Device->SetDeviceName(Message.DeviceName);
+			Device->SetAuthorized(Message.bIsAuthorized);
 			Device->SetDeviceType(Message.DeviceType);
 			Device->SetIsSimulated(Message.DeviceID.Contains(TEXT("Simulator")));
 

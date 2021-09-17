@@ -49,6 +49,7 @@ void FGameLaunchDaemonMessageHandler::HandlePingMessage(const FIOSLaunchDaemonPi
 			, false
 			, false
 			, false
+			, true
 			), MessageSender);
 	}
 }
