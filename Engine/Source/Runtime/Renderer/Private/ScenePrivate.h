@@ -2051,6 +2051,8 @@ private:
 
 	void ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
 
+	void UploadAssetData(FRDGBuilder& GraphBuilder, const TArray<FDistanceFieldAssetMipId>& AssetDataUploads);
+
 	void AsyncUpdate(FDistanceFieldAsyncUpdateParameters UpdateParameters);
 
 	void GenerateStreamingRequests(

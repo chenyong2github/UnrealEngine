@@ -709,7 +709,6 @@ void RayTraceShadows(
 	FHeightFieldAtlasParameters HeightFieldAtlasParameters;
 	HeightFieldAtlasParameters.HeightFieldTexture = GHeightFieldTextureAtlas.GetAtlasTexture();
 	HeightFieldAtlasParameters.HFVisibilityTexture = GHFVisibilityTextureAtlas.GetAtlasTexture();
-	HeightFieldAtlasParameters.HeightFieldAtlasTexelSize = FVector2D(1.0f / GHeightFieldTextureAtlas.GetSizeX(), 1.0f / GHeightFieldTextureAtlas.GetSizeY());
 
 	{
 		FDistanceFieldShadowingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDistanceFieldShadowingCS::FParameters>();

@@ -48,7 +48,11 @@ uint3 DistanceFieldBrickAtlasSizeLog2;
 // Size of a voxel in the brick atlas, which is also 1 / AtlasSize.
 float3 DistanceFieldBrickAtlasTexelSize;
 
-// Stores ranges of global brick indices for each asset mip.  Brick indices be INVALID_BRICK_INDEX.  
+float3 DistanceFieldBrickAtlasHalfTexelSize;
+float3 DistanceFieldBrickOffsetToAtlasUVScale;
+float3 DistanceFieldUniqueDataBrickSizeInAtlasTexels;
+
+// Stores ranges of global brick indices for each asset mip. Brick indices be INVALID_BRICK_INDEX.
 ByteAddressBuffer DistanceFieldIndirectionTable;
 
 // Brick atlas texture, used with hardware trilinear filtering
@@ -69,9 +73,9 @@ struct FDFAssetData
 	// Transforms the volume texture encoded distance to volume space 
 	float2 DistanceFieldToVolumeScaleBias;
 
-	// Transforms a volume space position to virtual UV space
-	float3 VolumeToVirtualUVAdd;
-	float3 VolumeToVirtualUVScale;
+	// Transforms a volume space position to virtual indirection space
+	float3 VolumeToIndirectionAdd;
+	float3 VolumeToIndirectionScale;
 };
 
 // Per-scene buffer containing packed Distance Field Asset data
@@ -82,25 +86,32 @@ StructuredBuffer<float4> SceneDistanceFieldAssetData;
 #define DF_MAX_NUM_MIPS 3
 #define DF_ASSET_DATA_STRIDE (DF_ASSET_DATA_MIP_STRIDE * DF_MAX_NUM_MIPS)
 #define INVALID_BRICK_INDEX 0xFFFFFFFF
+#define INDIRECTION_DIMENSION_MASK 0x3FF // Must match DistanceField::MaxIndirectionDimension
+
+FDFAssetData LoadDFAssetData(StructuredBuffer<float4> AssetDataBuffer, uint Offset)
+{
+	uint4 Vector0 = asuint(AssetDataBuffer[Offset + 0]);
+	float4 Vector1 = AssetDataBuffer[Offset + 1];
+	float4 Vector2 = AssetDataBuffer[Offset + 2];
+
+	FDFAssetData Data;
+	Data.IndirectionDimensions.x = Vector0.x & INDIRECTION_DIMENSION_MASK;
+	Data.IndirectionDimensions.y = (Vector0.x >> 10) & INDIRECTION_DIMENSION_MASK;
+	Data.IndirectionDimensions.z = (Vector0.x >> 20) & INDIRECTION_DIMENSION_MASK;
+	Data.NumMips = Vector0.x >> 30;
+	Data.IndirectionTableOffset = Vector0.y;
+
+	Data.DistanceFieldToVolumeScaleBias = float2(Vector1.w, Vector2.w);
+	Data.VolumeToIndirectionScale = Vector1.xyz;
+	Data.VolumeToIndirectionAdd = Vector2.xyz;
+
+	return Data;
+}
 
 // ReversedMipIndex must be in [0, NumMips - 1], where 0 is the lowest resolution mip that is always present
 FDFAssetData LoadDFAssetData(uint AssetIndex, uint ReversedMipIndex)
 {
-	FDFAssetData Data;
-	uint4 Vector0 = asuint(SceneDistanceFieldAssetData[AssetIndex * DF_ASSET_DATA_STRIDE + ReversedMipIndex * DF_ASSET_DATA_MIP_STRIDE + 0]);
-	// Must match DistanceField::MaxIndirectionDimension
-	Data.IndirectionDimensions.x = Vector0.x & 0x3FF;
-	Data.IndirectionDimensions.y = (Vector0.x >> 10) & 0x3FF;
-	Data.IndirectionDimensions.z = (Vector0.x >> 20) & 0x3FF;
-	Data.NumMips = Vector0.x >> 30;
-	Data.DistanceFieldToVolumeScaleBias = float2(f16tof32(asuint(Vector0.y) & 0xFFFF), f16tof32(asuint(Vector0.y) >> 16));
-	Data.IndirectionTableOffset = Vector0.z;
-
-	float4 Vector1 = SceneDistanceFieldAssetData[AssetIndex * DF_ASSET_DATA_STRIDE + ReversedMipIndex * DF_ASSET_DATA_MIP_STRIDE + 1];
-	Data.VolumeToVirtualUVScale = Vector1.xyz;
-	float4 Vector2 = SceneDistanceFieldAssetData[AssetIndex * DF_ASSET_DATA_STRIDE + ReversedMipIndex * DF_ASSET_DATA_MIP_STRIDE + 2];
-	Data.VolumeToVirtualUVAdd = Vector2.xyz;
-	return Data;
+	return LoadDFAssetData(SceneDistanceFieldAssetData, AssetIndex * DF_ASSET_DATA_STRIDE + ReversedMipIndex * DF_ASSET_DATA_MIP_STRIDE);
 }
 
 // Loads the mip asset data for the highest resolution mip, which is also the narrowest band, so the distance field sampled with this asset data will have clamped distances.  
@@ -438,22 +449,23 @@ float SampleDistanceFieldBrickTexture(float3 UV)
 // This distance is clamped to the band of the current mip
 float SampleSparseMeshSignedDistanceField(float3 SampleVolumePosition, FDFAssetData DFAssetData)
 {
-	// Transform the volume space position into the [0 - 1] virtual UV space of the mesh
-	float3 VolumeUV = SampleVolumePosition * DFAssetData.VolumeToVirtualUVScale + DFAssetData.VolumeToVirtualUVAdd; 
+	// Transform the volume space position into the [0, IndirectionDimensions] virtual indirection space of the mesh
+	float3 IndirectionPos = SampleVolumePosition * DFAssetData.VolumeToIndirectionScale + DFAssetData.VolumeToIndirectionAdd;
 
-	uint3 IndirectionCoord = VolumeUV * DFAssetData.IndirectionDimensions;
+	int3 IndirectionCoord = IndirectionPos;
 	uint IndirectionIndex = (IndirectionCoord.z * DFAssetData.IndirectionDimensions.y + IndirectionCoord.y) * DFAssetData.IndirectionDimensions.x + IndirectionCoord.x;
 	// Fetch the brick index that covers this region of the virtual UV space
 	uint BrickIndex = DistanceFieldIndirectionTable.Load((DFAssetData.IndirectionTableOffset + IndirectionIndex) * 4);
+	bool ValidBrick = BrickIndex != INVALID_BRICK_INDEX;
 
 	float MaxEncodedDistance = DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
 	float DistanceField = MaxEncodedDistance;
 
 	// If the brick was not stored then it had the maximum encodable distance
-	if (BrickIndex != INVALID_BRICK_INDEX)
+	if (ValidBrick)
 	{
 		// Half voxel border around each brick
-		float3 BrickLocalUV = (VolumeUV * DFAssetData.IndirectionDimensions - IndirectionCoord) * DistanceFieldUniqueDataBrickSize + .5f;
+		float3 BrickLocalUV = IndirectionPos - IndirectionCoord;
 
 		// Decompose into 3d offset
 		float3 BrickOffset = uint3(
@@ -461,7 +473,7 @@ float SampleSparseMeshSignedDistanceField(float3 SampleVolumePosition, FDFAssetD
 			(BrickIndex >> DistanceFieldBrickAtlasSizeLog2.x) & DistanceFieldBrickAtlasMask.y, 
 			BrickIndex >> (DistanceFieldBrickAtlasSizeLog2.x + DistanceFieldBrickAtlasSizeLog2.y));
 
-		float3 AtlasUV = (BrickOffset * DistanceFieldBrickSize + BrickLocalUV) * DistanceFieldBrickAtlasTexelSize;
+		float3 AtlasUV = BrickOffset.xyz * DistanceFieldBrickOffsetToAtlasUVScale + BrickLocalUV * DistanceFieldUniqueDataBrickSizeInAtlasTexels + DistanceFieldBrickAtlasHalfTexelSize;
 		float EncodedDistanceField = SampleDistanceFieldBrickTexture(AtlasUV);
 
 		DistanceField = EncodedDistanceField * DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
@@ -510,8 +522,8 @@ float DistanceToMeshSurfaceStandalone(float3 SampleVolumePosition, FDFObjectData
 // SampleVolumePosition must be within [-VolumePositionExtent, VolumePositionExtent]
 float3 CalculateMeshSDFGradient(float3 SampleVolumePosition, FDFAssetData DFAssetData)
 {
-	float3 VirtualUVVoxelSize = 1.0f / float3(DFAssetData.IndirectionDimensions * DistanceFieldUniqueDataBrickSize);
-	float3 VolumeSpaceVoxelSize = VirtualUVVoxelSize / DFAssetData.VolumeToVirtualUVScale;
+	float3 VirtualUVVoxelSize = 1.0f / float3(DistanceFieldUniqueDataBrickSize);
+	float3 VolumeSpaceVoxelSize = VirtualUVVoxelSize / DFAssetData.VolumeToIndirectionScale;
 
 	// Mesh distance fields have a 1 voxel border around the mesh bounds and can't bilinear sample further than 0.5 voxel from that border
 	float3 VoxelOffset = 0.5f * VolumeSpaceVoxelSize;
@@ -547,5 +559,3 @@ float SampleHFVisibilityTexture(float2 UV)
 	return Texture2DSampleLevel(HFVisibilityTexture, DistanceFieldSampler, UV, 0).r;
 #endif
 }
-
-float2 HeightFieldAtlasTexelSize;

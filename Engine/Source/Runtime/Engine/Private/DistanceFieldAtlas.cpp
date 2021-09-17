@@ -38,8 +38,6 @@
 
 #define LOCTEXT_NAMESPACE "DistanceField"
 
-CSV_DEFINE_CATEGORY(DistanceField, false);
-
 #if ENABLE_COOK_STATS
 namespace DistanceFieldCookStats
 {

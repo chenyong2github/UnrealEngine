@@ -137,6 +137,10 @@ FDistanceFieldAtlasParameters DistanceField::SetupAtlasParameters(const FDistanc
 			FMath::FloorLog2(DistanceFieldSceneData.BrickTextureDimensionsInBricks.Y),
 			FMath::FloorLog2(DistanceFieldSceneData.BrickTextureDimensionsInBricks.Z));
 		SceneParameters.DistanceFieldBrickAtlasTexelSize = FVector(1.0f) / FVector(DistanceFieldSceneData.BrickTextureDimensionsInBricks * DistanceField::BrickSize);
+
+		SceneParameters.DistanceFieldBrickAtlasHalfTexelSize = 0.5f * SceneParameters.DistanceFieldBrickAtlasTexelSize;
+		SceneParameters.DistanceFieldBrickOffsetToAtlasUVScale = SceneParameters.DistanceFieldBrickSize * SceneParameters.DistanceFieldBrickAtlasTexelSize;
+		SceneParameters.DistanceFieldUniqueDataBrickSizeInAtlasTexels = SceneParameters.DistanceFieldUniqueDataBrickSize * SceneParameters.DistanceFieldBrickAtlasTexelSize;
 	}
 	else
 	{

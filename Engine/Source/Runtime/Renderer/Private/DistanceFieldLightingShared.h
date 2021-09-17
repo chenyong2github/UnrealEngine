@@ -103,12 +103,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldAtlasParameters, )
 	SHADER_PARAMETER(FIntVector, DistanceFieldBrickAtlasMask)
 	SHADER_PARAMETER(FIntVector, DistanceFieldBrickAtlasSizeLog2)
 	SHADER_PARAMETER(FVector3f, DistanceFieldBrickAtlasTexelSize)
+	SHADER_PARAMETER(FVector3f, DistanceFieldBrickAtlasHalfTexelSize)
+	SHADER_PARAMETER(FVector3f, DistanceFieldBrickOffsetToAtlasUVScale)
+	SHADER_PARAMETER(FVector3f, DistanceFieldUniqueDataBrickSizeInAtlasTexels)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FHeightFieldAtlasParameters, )
 	SHADER_PARAMETER_TEXTURE(Texture2D, HeightFieldTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D, HFVisibilityTexture)
-	SHADER_PARAMETER(FVector2D, HeightFieldAtlasTexelSize)
 END_SHADER_PARAMETER_STRUCT()
 
 namespace DistanceField
