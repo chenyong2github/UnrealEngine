@@ -19,7 +19,7 @@ enum class EEncoding : uint8 {
 	Gamma22,
 	BT1886,
 	Cineon,
-	RedLog,
+	REDLog,
 	REDLog3G10,
 	SLog1,
 	SLog2,
