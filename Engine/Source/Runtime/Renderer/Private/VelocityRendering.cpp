@@ -390,6 +390,11 @@ bool FVelocityMeshProcessor::PrimitiveHasVelocityForView(const FViewInfo& View, 
 	{
 		return false;
 	}
+	// Velocity pass not rendered for debug views.
+	if (View.Family->UseDebugViewPS())
+	{
+		return false;
+	}
 
 	const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneProxy->GetBounds();
 	const float LODFactorDistanceSquared = (PrimitiveBounds.Origin - View.ViewMatrices.GetViewOrigin()).SizeSquared() * FMath::Square(View.LODDistanceFactor);
