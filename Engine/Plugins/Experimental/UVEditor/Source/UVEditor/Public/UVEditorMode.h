@@ -6,8 +6,11 @@
 
 #include "Tools/UEdMode.h"
 #include "ToolTargets/ToolTarget.h"
+#include "GeometryBase.h"
 
 #include "UVEditorMode.generated.h"
+
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 class FToolCommandChange;
 class IUVUnwrapDynamicMesh;
@@ -16,10 +19,13 @@ class UPreviewMesh;
 class UToolTarget;
 class UWorld;
 class FUVEditorModeToolkit;
-class UInteractiveToolPropertySet;
+class UInteractiveToolPropertySet; 
+class UMeshOpPreviewWithBackgroundCompute;
 class UUVToolStateObjectStore;
 class UUVEditorToolMeshInput;
 class UUVEditorBackgroundPreview;
+class UUVEditorUVChannelProperties;
+
 
 /**
  * The UV editor mode is the mode used in the UV asset editor. It holds most of the inter-tool state.
@@ -48,7 +54,13 @@ public:
 	 */
 	static double GetUVMeshScalingFactor() { return 1000; }
 
-	void InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TArray<FTransform>* TransformsIn);
+	void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn);
+
+	// public for use by undo/redo
+	void ChangeInputObjectLayer(int32 AssetID, int32 NewLayerIndex);
+	void UpdateSelectedLayer();
+
+	bool IsActive() { return bIsActive; }
 
 	// TODO: We'll probably eventually want a function like this so we can figure out how big our 3d preview
 	// scene is and how we should position the camera intially...
@@ -75,17 +87,16 @@ public:
 	// it to later get (accidentally) more entangled with mode internals. At the same time, we're not
 	// sure whether we want to make the UEdMode one public. So this is the minimal-impact tweak.
 	virtual void ActivateDefaultTool() override;
+
 	// This is currently not part of the base class at all... Should it be?
 	virtual bool IsDefaultToolActive();
 
 	// We don't actually override MouseEnter, etc, because things get forwarded to the input
 	// router via FEditorModeTools, and we don't have any additional input handling to do at the mode level.
 
-
 	// Holds the background visualiztion
 	UPROPERTY()
 	TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
-
 
 protected:
 
@@ -93,57 +104,110 @@ protected:
 	virtual void CreateToolkit() override;
 	// Not sure whether we need these yet
 	virtual void BindCommands() override;
-	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
-	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override {}
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override {}
+	
 	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
-
-	// Wireframe Display Properties
-	float TriangleOpacity = 1.0;
-	float TriangleDepthOffset = 0.5;
-	const float WireframeDepthOffset = 0.6;	
-	FColor TriangleColor = FColor(50, 194, 219);
-	FColor WireframeColor = FColor(50, 100, 219);
-	FColor IslandBorderColor = FColor(103, 52, 235);
-
-    /**
-     * Stores a pointer to the specific EditorModeToolkit so we can interact with specific UI detail views
-     */
-	TSharedPtr<FUVEditorModeToolkit> EditorModeToolkit;
+	void AddDisplayedPropertySet(const TObjectPtr<UInteractiveToolPropertySet>& PropertySet);
 
 	/**
-	 * This stores the original objects that the UV editor was asked to operate on (for
-	 * instance UStaticMesh pointers).
+	 * Stores original input objects, for instance UStaticMesh pointers. AssetIDs on tool input 
+	 * objects are indices into this array (and ones that are 1:1 with it)
 	 */
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> OriginalObjectsToEdit;
 
 	/**
-	 * This stores tool targets created from OriginalObjectsToEdit that provide us with dynamic meshes.
+	 * Tool targets created from OriginalObjectsToEdit (and 1:1 with that array) that provide
+	 * us with dynamic meshes whose UV layers we unwrap.
 	 */
 	UPROPERTY()
 	TArray<TObjectPtr<UToolTarget>> ToolTargets;
 
 	/**
-	 * The actual input objects we give to the tools, including unwrapped meshes and previews, created
-	 * out of ToolTargets.
+	 * Transforms that should be used for the 3d previews, 1:1 with OriginalObjectsToEdit
+	 * and ToolTargets.
+	 */
+	TArray<FTransform> Transforms;
+
+	/**
+	 * 1:1 with the asset arrays. Hold dynamic mesh representations of the targets. These
+	 * are authoritative versions of the combined UV layers that get baked back on apply.
+	 */
+	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3>> AppliedCanonicalMeshes;
+
+	/**
+	 * 1:1 with AppliedCanonicalMeshes, the actual displayed 3d meshes that can be used
+	 * by tools for background computations. However if doing so, keep in mind that while
+	 * we currently do not display more than one layer at a time for each asset, if we
+	 * someday do, tools would have to take care to disallow cases where the two layers
+	 * of the same asset might try to use the same preview for a background compute.
+	 */
+	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> AppliedPreviews;
+
+	/**
+	 * Input objects we give to the tools, one per displayed UV layer. This includes pointers
+	 * to the applied meshes, but also contains the unwrapped mesh and preview. These should
+	 * not be assumed to be the same length as the asset arrays in case we someday do not
+	 * display exactly a single layer per asset.
 	 */
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> ToolInputObjects;
 
-
 	/**
 	 * Wireframes have to get ticked to be able to respond to setting changes.
+	 * This is 1:1 with ToolInputObjects.
 	 */
 	TArray<TWeakObjectPtr<UMeshElementsVisualizer>> WireframesToTick;
 
+
+	// Authoritative list of targets that have changes that have not been baked back yet.
+	TSet<int32> ModifiedAssetIDs;
+
+	// Helper array of canonical unwrap changestamps that allows us to detect changes to UVs.
+	// Used to populate ModifiedAssetIDs on tick.
+	TArray<int32> LastSeenChangeStamps;
+
+
+	/** Used as a selector of UV channels/layers of opened assets in the editor. */
+	UPROPERTY()
+	TObjectPtr<UUVEditorUVChannelProperties> UVChannelProperties = nullptr;
+
+	// Used with UVChannelProperties
+	void SwitchActiveAsset(const FString& UVAsset);
+	void SwitchActiveChannel(const FString& UVChannel);
+
+	// Used to change layers with our current picker approach (we need to remember the previous
+	// layer value so we know which one to remove). Likely to change if we start adding/removing
+	// using some different UI.
+	int32 PreviousUVLayerIndex = -1;
+	int32 PendingUVLayerIndex = PreviousUVLayerIndex;
+
+
+	// Wireframe Display Properties
+	float TriangleOpacity = 1.0;
+	float TriangleDepthOffset = 0.5;
+	const float WireframeDepthOffset = 0.6;
+	FColor TriangleColor = FColor(50, 194, 219);
+	FColor WireframeColor = FColor(50, 100, 219);
+	FColor IslandBorderColor = FColor(103, 52, 235);
+
+	// Here largely for convenience to avoid having to pass it around functions.
+	UPROPERTY()
+	TObjectPtr<UWorld> LivePreviewWorld = nullptr;
+
 	/**
-	 * If we want to have mode-level property objects, whether user-visible or not,
-	 * they can be put here to be ticked.
+	* Mode-level property objects to display in the details panel.
+	*/
+	UPROPERTY()
+	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToDisplay;
+
+	/**
+	 * Mode-level property objects (visible or not) that get ticked.
 	 */
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToTick;
 
-	// This keeps track of whether the meshes inside DisplayedMeshes have been changed since
-	// the last time that they were baked back to their targets.
-	TArray<int32> MeshChangeStamps;
+	bool bIsActive = false;
 };
+

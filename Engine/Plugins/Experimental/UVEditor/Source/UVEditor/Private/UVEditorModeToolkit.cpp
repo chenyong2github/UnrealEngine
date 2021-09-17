@@ -50,7 +50,10 @@ namespace UVEditorModeToolkitLocals
 		{
 			// To not be expired, we must be in some non-default tool.
 			UUVEditorMode* Mode = Cast<UUVEditorMode>(Object);
-			return !(Mode && Mode->GetInteractiveToolsContext()->ToolManager->HasAnyActiveTool() && !Mode->IsDefaultToolActive());
+			return !(Mode && Mode->GetInteractiveToolsContext() 
+				&& Mode->GetInteractiveToolsContext()->ToolManager
+				&& Mode->GetInteractiveToolsContext()->ToolManager->HasAnyActiveTool() 
+				&& !Mode->IsDefaultToolActive());
 		}
 
 		virtual FString ToString() const override
@@ -313,12 +316,11 @@ FText FUVEditorModeToolkit::GetBaseToolkitName() const
 	return NSLOCTEXT("UVEditorModeToolkit", "DisplayName", "UVEditorMode");
 }
 
-
-void FUVEditorModeToolkit::SetBackgroundSettings(UObject* InSettingsObject)
+void FUVEditorModeToolkit::SetModeDetailsViewObjects(const TArray<TObjectPtr<UInteractiveToolPropertySet>>& InObjects)
 {
-	BackgroundDetailsView->SetObject(InSettingsObject);
+	TArray<TObjectPtr<UObject>> Objects(InObjects);
+	ModeDetailsView->SetObjects(Objects);
 }
-
 
 void FUVEditorModeToolkit::UpdateActiveToolProperties()
 {

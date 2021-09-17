@@ -9,6 +9,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
 #include "TargetInterfaces/DynamicMeshSource.h"
 
 #include "ModelingObjectsCreationAPI.h"
@@ -46,6 +47,23 @@ UPrimitiveComponent* UE::ToolTarget::GetTargetComponent(UToolTarget* Target)
 	}
 	ensure(false);
 	return nullptr;
+}
+
+FString UE::ToolTarget::GetHumanReadableName(UToolTarget* Target)
+{
+	IAssetBackedTarget* TargetAsset = Cast<IAssetBackedTarget>(Target);
+	if (TargetAsset)
+	{
+		return TargetAsset->GetSourceData()->GetName();
+	}
+
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	if (TargetComponent)
+	{
+		return TargetComponent->GetOwnerComponent()->GetFullGroupName(false);
+	}
+
+	return FString("");
 }
 
 bool UE::ToolTarget::HideSourceObject(UToolTarget* Target)
@@ -320,6 +338,16 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUVUpda
 		return EDynamicMeshUpdateResult::Ok;
 	}
 
+	IDynamicMeshCommitter* DynamicMeshCommitter = Cast<IDynamicMeshCommitter>(Target);
+	if (DynamicMeshCommitter)
+	{
+		IDynamicMeshCommitter::FDynamicMeshCommitInfo CommitInfo(false);
+		CommitInfo.bUVsChanged = true;
+
+		DynamicMeshCommitter->CommitDynamicMesh(*UpdatedMesh, CommitInfo);
+
+		return EDynamicMeshUpdateResult::Ok;
+	}
 
 	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
 	if (!ensure(MeshDescriptionCommitter))

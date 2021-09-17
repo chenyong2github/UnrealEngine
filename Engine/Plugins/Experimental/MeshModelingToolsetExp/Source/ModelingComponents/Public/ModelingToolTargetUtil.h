@@ -38,6 +38,11 @@ MODELINGCOMPONENTS_API AActor* GetTargetActor(UToolTarget* Target);
 MODELINGCOMPONENTS_API UPrimitiveComponent* GetTargetComponent(UToolTarget* Target);
 
 /**
+ * @return a human readable identifier for a ToolTarget, based on the underlying nature of it.
+ */
+MODELINGCOMPONENTS_API FString GetHumanReadableName(UToolTarget* Target);
+
+/**
  * Hide the "Source Object" (eg PrimitiveComponent, Actor, etc) backing a ToolTarget
  * @return true on success
  */

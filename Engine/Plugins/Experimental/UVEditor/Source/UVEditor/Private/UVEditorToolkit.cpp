@@ -340,7 +340,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	TArray<FTransform> ObjectTransforms;
 	ObjectTransforms.SetNum(ObjectsToEdit.Num());
 
-	UVMode->InitializeTargets(ObjectsToEdit, &ObjectTransforms);
+	UVMode->InitializeTargets(ObjectsToEdit, ObjectTransforms);
 
 	// Plug in the mode tool panel
 	TSharedPtr<FModeToolkit> UVModeToolkit = UVMode->GetToolkit().Pin();
