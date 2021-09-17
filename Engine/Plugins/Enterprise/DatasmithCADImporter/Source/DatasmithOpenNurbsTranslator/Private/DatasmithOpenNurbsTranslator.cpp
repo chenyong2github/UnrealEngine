@@ -640,14 +640,13 @@ public:
 		, ArchiveOpenNurbsVersion(0)
 		, FileLength(0)
 		, NumCRCErrors(0)
-		, ImportParameters(0.001, 0.1, FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy)
 	{
-
 		if (!TranslationCache.IsValid())
 		{
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
+		CADLibrary::FImportParameters ImportParameters(0.001, 0.1, FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
 		ImportParameters.SwitchOffUVMapScaling();
 
 		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
@@ -832,7 +831,6 @@ private:
 
 	TArray<FString> MissingRenderMeshes;
 
-	CADLibrary::FImportParameters ImportParameters;
 	TSharedPtr<CADLibrary::ICADModelConverter> CADModelConverter;
 	TSharedPtr<IOpenNurbsBRepConverter> OpenNurbsBRepConverter;
 
