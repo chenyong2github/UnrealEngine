@@ -92,10 +92,8 @@ public class Launch : ModuleRules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
-				DynamicallyLoadedModuleNames.AddRange(new string[] {
-					"AudioMixerCoreAudio",
-					"CoreAudio",
-				});
+				DynamicallyLoadedModuleNames.Add("AudioMixerCoreAudio");
+				PublicFrameworks.Add("CoreAudio");
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
