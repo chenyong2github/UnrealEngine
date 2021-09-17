@@ -33,7 +33,9 @@ public class PoseSearch : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"AnimationCore",
-				"TraceLog"
+				"TraceLog",
+				"AnimGraphRuntime",
+				"DynamicPlayRate"
 			}
 		);
 
@@ -42,8 +44,8 @@ public class PoseSearch : ModuleRules
             {
 				"Core",
 				"CoreUObject",
-				"Engine",
-            }
+				"Engine"
+			}
 		);
 	}
 }

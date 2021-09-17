@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "PoseSearch/PoseSearch.h"
-#include "PoseSearch/PoseSearchPredictionTypes.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "Animation/MotionTrajectoryTypes.h"
+#include "DynamicPlayRate/DynamicPlayRateLibrary.h"
+#include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchLibrary.h"
+
 #include "AnimNode_MotionMatching.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)
@@ -18,48 +21,27 @@ public:
 	FPoseLink Source;
 
 	// Collection of animations for motion matching
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	TObjectPtr<const UPoseSearchDatabase> Database = nullptr;
 
-	// Dynamic biasing weights during pose search queries
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	FPoseSearchBiasWeightParams BiasWeights;
-
-	// Motion matching goal
+	// Motion trajectory samples for pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
-	FPoseSearchFeatureVectorBuilder Goal;
+	FTrajectorySampleRange Trajectory;
 
-	// Trajectory prediction samples
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	FPredictionTrajectoryRange Prediction;
+	// Settings for dynamic play rate adjustment on sequences chosen by motion matching
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
+	FDynamicPlayRateSettings DynamicPlayRateSettings;
 
-	// Configuration for prediction play rate adjustment, error tolerances, and sampling resolution
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	FPredictionTrajectorySettings PredictionSettings;
-
-	// Time in seconds to blend out to the new pose. Uses inertial blending and requires an Inertialization node after this node.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float BlendTime = 0.2f;
-
-	// Don't jump to poses that are less than this many seconds away
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float PoseJumpThreshold = 4.0f;
-
-	// Minimum amount of time to wait between pose searches
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float SearchThrottleTime = 0.1f;
-
-	// How much better the search result must be compared to the current pose in order to jump to it
-	// Note: This feature won't work quite as advertised until search data rescaling is implemented
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float MinPercentImprovement = 0.0f;
+	// Settings for the core motion matching algorithm evaluation
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
+	FMotionMatchingSettings Settings;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Debug)
 	bool bDebugDraw = false;
 
 	UPROPERTY(EditAnywhere, Category=Debug)
-	bool bDebugDrawGoal = true;
+	bool bDebugDrawQuery = true;
 
 	UPROPERTY(EditAnywhere, Category=Debug)
 	bool bDebugDrawMatch = true;
@@ -78,26 +60,8 @@ private:
 	// Embedded sequence player node for playing animations from the motion matching database
 	FAnimNode_SequencePlayer_Standalone SequencePlayerNode;
 
-	// The current pose we're playing from the database
-	int32 DbPoseIdx = INDEX_NONE;
-
-	// The current animation we're playing from the database
-	int32 DbSequenceIdx = INDEX_NONE;
-
-	// The current query feature vector used to search the database for pose candidates
-	FPoseSearchFeatureVectorBuilder ComposedQuery;
-
-	// When the current database is different from the previous one, the search parameters are reset
-	UPROPERTY(Transient)
-	TObjectPtr<const UPoseSearchDatabase> PreviousDatabase = nullptr;
-
-	// Time since the last pose jump
-	float ElapsedPoseJumpTime = 0.0f;
-
-	bool IsValidForSearch() const;
-	void ComposeQuery(const FAnimationBaseContext& Context);
-	void JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result);
-	void InitNewDatabaseSearch();
+	// Encapsulated motion matching algorithm and internal state
+	FMotionMatchingState MotionMatchingState;
 	
 	// FAnimNode_AssetPlayerBase
 protected:

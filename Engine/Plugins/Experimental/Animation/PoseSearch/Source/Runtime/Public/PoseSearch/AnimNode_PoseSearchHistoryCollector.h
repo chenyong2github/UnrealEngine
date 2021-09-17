@@ -12,12 +12,19 @@ struct POSESEARCH_API FAnimNode_PoseSearchHistoryCollector : public FAnimNode_Ba
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Links)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Links)
 	FPoseLink Source;
 
+	// The maximum amount of poses that can be stored
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
+	int32 PoseCount = 128;
+	
+	// The time horizon for how long a pose will be stored in seconds
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
+	float PoseDuration = 4.f;
+
 public:
-	FAnimNode_PoseSearchHistoryCollector()
-	{}
+	FAnimNode_PoseSearchHistoryCollector() { }
 
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
@@ -32,5 +39,4 @@ public:
 protected:
 
 	UE::PoseSearch::FPoseHistory PoseHistory;
-	TArray<float> Query;
 };

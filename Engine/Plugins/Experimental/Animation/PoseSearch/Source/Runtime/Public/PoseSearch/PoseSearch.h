@@ -12,11 +12,11 @@
 #include "Animation/AnimMetaData.h"
 #include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimationAsset.h"
+#include "Animation/MotionTrajectoryTypes.h"
 #include "BoneIndices.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 
 #include "PoseSearch.generated.h"
-
 
 class UAnimSequence;
 struct FCompactPose;
@@ -160,7 +160,7 @@ enum class EPoseSearchDataPreprocessor : int32
 /**
 * Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
 */
-UCLASS(BlueprintType, Category = "Animation|PoseSearch")
+UCLASS(BlueprintType, Category = "Animation|Pose Search")
 class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
@@ -332,7 +332,7 @@ public:
 };
 
 /** Animation metadata object for indexing a single animation. */
-UCLASS(BlueprintType, Category = "Animation|PoseSearch")
+UCLASS(BlueprintType, Category = "Animation|Pose Search")
 class POSESEARCH_API UPoseSearchSequenceMetaData : public UAnimMetaData
 {
 	GENERATED_BODY()
@@ -358,7 +358,7 @@ public: // UObject
 };
 
 /** Bias weights for influencing the results of a pose search query */
-USTRUCT(BlueprintType, Category = "Animation|PoseSearch")
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FPoseSearchBiasWeightParams
 {
 	GENERATED_BODY()
@@ -406,7 +406,7 @@ struct FPoseSearchBiasWeightsContext
 };
 
 /** Per-sequence bias weights for influencing the results of a pose search query */
-UCLASS(BlueprintType, Category = "Animation|PoseSearch")
+UCLASS(BlueprintType, Category = "Animation|Pose Search")
 class POSESEARCH_API UPoseSearchSequenceBiasWeightMetaData : public UAnimMetaData
 {
 	GENERATED_BODY()
@@ -417,7 +417,7 @@ public:
 };
 
 /** An entry in a UPoseSearchDatabase. */
-USTRUCT(BlueprintType, Category = "Animation|PoseSearch")
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FPoseSearchDatabaseSequence
 {
 	GENERATED_BODY()
@@ -462,7 +462,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 };
 
 /** A data asset for indexing a collection of animation sequences. */
-UCLASS(BlueprintType, Category = "Animation|PoseSearch")
+UCLASS(BlueprintType, Category = "Animation|Pose Search")
 class POSESEARCH_API UPoseSearchDatabase : public UDataAsset
 {
 	GENERATED_BODY()
@@ -482,6 +482,8 @@ public:
 
 	int32 FindSequenceForPose(int32 PoseIdx) const;
 	int32 GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float AssetTime) const;
+	float GetSequenceLength(int32 DbSequenceIdx) const;
+	bool DoesSequenceLoop(int32 DbSequenceIdx) const;
 
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
@@ -497,7 +499,7 @@ public: // UObject
 * FFeatureVectorBuilder is used to build search queries at runtime and for adding samples during search index construction.
 */
 
-USTRUCT(BlueprintType, Category = "Animation|PoseSearch")
+USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FPoseSearchFeatureVectorBuilder
 {
 	GENERATED_BODY()
@@ -518,8 +520,8 @@ public:
 	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
 	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
+	void BuildFromTrajectory(const FTrajectorySampleRange& Trajectory);
 	bool TrySetPoseFeatures(UE::PoseSearch::FPoseHistory* History);
-	bool TrySetPastTrajectoryFeatures(UE::PoseSearch::FPoseHistory* History);
 
 	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
 	void CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx);
@@ -534,8 +536,8 @@ public:
 	void Normalize(const FPoseSearchIndex& ForSearchIndex);
 
 private:
-	bool TrySetPastTrajectoryTimeFeatures(UE::PoseSearch::FPoseHistory* History);
-	bool TrySetPastTrajectoryDistanceFeatures(UE::PoseSearch::FPoseHistory* History);
+	void BuildFromTrajectoryTimeBased(const FTrajectorySampleRange& Trajectory);
+	void BuildFromTrajectoryDistanceBased(const FTrajectorySampleRange& Trajectory);
 
 	UPROPERTY(Transient)
 	const UPoseSearchSchema* Schema = nullptr;
@@ -557,8 +559,6 @@ public:
 	void Init(int32 InNumPoses, float InTimeHorizon);
 	void Init(const FPoseHistory& History);
 	bool TrySamplePose(float SecondsAgo, const FReferenceSkeleton& RefSkeleton, const TArray<FBoneIndexType>& RequiredBones);
-	bool TrySampleRootTimeBased(float SecondsAgo, FTransform* OutTransform) const;
-	bool TrySampleRootDistanceBased(float PastDistance, FTransform* OutTransform, float* OutSampleTime) const;
 
 	void Update(float SecondsElapsed, const FPoseContext& PoseContext);
 	float GetSampleTimeInterval() const;
@@ -575,7 +575,6 @@ private:
 	struct FPose
 	{
 		TArray<FTransform> LocalTransforms;
-		FTransform WorldComponentTransform;
 	};
 
 	TRingBuffer<FPose> Poses;
