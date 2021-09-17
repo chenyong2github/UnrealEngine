@@ -108,6 +108,11 @@ void UWaterMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 	}
 }
 
+void UWaterMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Material)
+{
+	UE_LOG(LogWater, Warning, TEXT("SetMaterial is not compatible with UWaterMeshComponent since all materials on this component are auto-populated from the Water Bodies contained within it."));
+}
+
 bool UWaterMeshComponent::ShouldRenderSelected() const
 {
 	if (bSelectable)
