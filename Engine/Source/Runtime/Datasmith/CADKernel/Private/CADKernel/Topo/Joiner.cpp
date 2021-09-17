@@ -19,13 +19,72 @@
 
 using namespace CADKernel;
 
-FJoiner::FJoiner(TSharedRef<FSession> InSession, const TArray<TSharedPtr<FTopologicalFace>>& InFaces, double InTolerance)
+FJoiner::FJoiner(FSession& InSession, const TSharedRef<FModel>& InModel, double InTolerance)
+	: Session(InSession)
+	, JoiningTolerance(InTolerance* UE_SQRT_2)
+	, JoiningToleranceSquare(FMath::Square(JoiningTolerance))
+{
+	int32 ShellCount = 0;
+	for (const TSharedPtr<FBody>& Body : InModel->GetBodies())
+	{
+		ShellCount += Body->GetShells().Num();
+	}
+	Shells.Reserve(ShellCount);
+
+	for (const TSharedPtr<FBody>& Body : InModel->GetBodies())
+	{
+		Shells.Append(Body->GetShells());
+	}
+
+	InitFaces();
+}
+
+FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& InFaces, double InTolerance)
 	: Session(InSession)
 	, Faces(InFaces)
 	, JoiningTolerance(InTolerance * UE_SQRT_2)
 	, JoiningToleranceSquare(FMath::Square(JoiningTolerance))
 {
 }
+
+FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>>& InShells, double InTolerance)
+	: Session(InSession)
+	, Shells(InShells)
+	, JoiningTolerance(InTolerance)
+	, JoiningToleranceSquare(FMath::Square(JoiningTolerance))
+{
+	InitFaces();
+}
+
+void FJoiner::InitFaces()
+{
+	int32 FaceCount = 0;
+	for (const TSharedPtr<FShell>& Shell : Shells)
+	{
+		Shell->CompleteMetadata();
+		FaceCount += Shell->FaceCount();
+	}
+	Faces.Reserve(FaceCount);
+
+	for (const TSharedPtr<FShell>& Shell : Shells)
+	{
+		Shell->SpreadBodyOrientation();
+		for (const FOrientedFace& Face : Shell->GetFaces())
+		{
+			Faces.Add(Face.Entity);
+		}
+		for (const FOrientedFace& Face : Shell->GetFaces())
+		{
+			Face.Entity->CompleteMetadata();
+		}
+	}
+
+	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
+	{
+		Face->ResetMarker2();
+	}
+}
+
 
 void FJoiner::RemoveFacesFromShell()
 {
@@ -39,6 +98,7 @@ void FJoiner::RemoveFacesFromShell()
 			Face->ResetHost();
 		}	
 	}
+
 	for (TWeakPtr<FShell> WeakShell : ShellSet)
 	{
 		TSharedPtr<FShell> Shell = WeakShell.Pin();
@@ -63,40 +123,6 @@ void FJoiner::RemoveFacesFromShell()
 		Shell->ReplaceFaces(ShellFace);
 	}
 }
-
-FJoiner::FJoiner(TSharedRef<FSession> InSession, const TArray<TSharedPtr<FShell>>& InShells, double InTolerance)
-	: Session(InSession)
-	, Shells(InShells)
-	, JoiningTolerance(InTolerance)
-	, JoiningToleranceSquare(FMath::Square(JoiningTolerance))
-{
-	int32 FaceCount = 0;
-	for (const TSharedPtr<FShell>& Shell : InShells)
-	{
-		Shell->CompleteMetadata();
-		FaceCount += Shell->FaceCount();
-	}
-	Faces.Reserve(FaceCount);
-
-	for (const TSharedPtr<FShell>& Shell : InShells)
-	{
-		Shell->SpreadBodyOrientation();
-		for (const FOrientedFace& Face : Shell->GetFaces())
-		{
-			Faces.Add(Face.Entity);
-		}
-		for (const FOrientedFace& Face : Shell->GetFaces())
-		{
-			Face.Entity->CompleteMetadata();
-		}
-	}
-
-	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
-	{
-		Face->ResetMarker2();
-	}
-}
-
 
 void FJoiner::EmptyShells()
 {
@@ -1000,7 +1026,7 @@ void FJoiner::SplitIntoConnectedShell()
 		else
 		{
 			TSharedRef<FBody> Body = FEntity::MakeShared<FBody>();
-			Session->GetModel()->Add(Body);
+			Session.GetModel()->Add(Body);
 			TSharedRef<FShell> Shell = FEntity::MakeShared<FShell>();
 			Body->AddShell(Shell);
 			Body->SetName(FaceSubset.MainName);
@@ -1012,7 +1038,7 @@ void FJoiner::SplitIntoConnectedShell()
 		}
 	}
 
-	Session->GetModel()->RemoveEmptyBodies();
+	Session.GetModel()->RemoveEmptyBodies();
 }
 
 

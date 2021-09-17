@@ -5,20 +5,21 @@
 
 namespace CADKernel
 {
+	class FModel;
 	class FSession;
 	class FShell;
 	class FTopologicalEdge;
 	class FTopologicalFace;
 	class FTopologicalVertex;
 
-	class FJoiner
+	class CADKERNEL_API FJoiner
 	{
 		friend class FThinZone;
 		friend class FThinZoneFinder;
 
 	protected:
 
-		TSharedRef<FSession> Session;
+		FSession& Session;
 
 		TArray<TSharedPtr<FShell>> Shells;
 		TArray<TSharedPtr<FTopologicalFace>> Faces;
@@ -28,8 +29,9 @@ namespace CADKernel
 
 	public:
 
-		FJoiner(TSharedRef<FSession> InSession, const TArray<TSharedPtr<FShell>>& Shells, double Tolerance);
-		FJoiner(TSharedRef<FSession> InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double Tolerance);
+		FJoiner(FSession& InSession, const TSharedRef<FModel>& Shells, double Tolerance);
+		FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, double Tolerance);
+		FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, double Tolerance);
 
 		void JoinFaces();
 		//void JoinFaces(bool bProcessOnlyBorderEdges, bool bProcessOnlyNonManifoldEdges);
@@ -43,12 +45,22 @@ namespace CADKernel
 		//void SortByShell(TSharedPtr<FBody> Body, TArray<TSharedPtr<FBody>>& OutNewBody);
 		//void Join(TArray<TSharedPtr<FBody>> Bodies, double Tolerance);
 
+		/**
+		 * Split into connected shell and put each shell into the appropriate body
+		 */
 		void SplitIntoConnectedShell();
-		void RemoveFacesFromShell();
 
 	private:
 
+		/**
+		 * Call by constructor.
+		 * For each shell, add their faces into Faces array, complete the metadata and set the states for the joining process
+		 */
+		void InitFaces();
+
 		void EmptyShells();
+
+		void RemoveFacesFromShell();
 
 		/**
 		 * Return an array of active vertices.

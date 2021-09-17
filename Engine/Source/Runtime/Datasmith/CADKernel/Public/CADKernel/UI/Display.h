@@ -37,7 +37,11 @@ namespace CADKernel
 
 	struct FLinearBoundary;
 
+#ifdef CADKERNEL_DEV
 	void Wait(bool bMakeWait = true);
+#else
+	inline void Wait(bool bMakeWait = true) {};
+#endif
 
 	void Open3DDebugSession(FString name, const TArray<FIdent>& idList = TArray<FIdent>());
 	void Close3DDebugSession();
@@ -73,7 +77,7 @@ namespace CADKernel
 		}
 	};
 
-	void CADKERNEL_API FlushVisu();
+	CADKERNEL_API void FlushVisu();
 
 	template<typename TPoint>
 	void DrawPoint(const TPoint& InPoint, EVisuProperty Property = EVisuProperty::BluePoint)
