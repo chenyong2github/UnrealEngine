@@ -85,12 +85,24 @@ namespace CADLibrary
 			return FString();
 		}
 
+		/**
+		 * @return the path of CAD cache file
+		 */
 		const FString GetCADCachePath() const
 		{
 			if (IsCacheDefined())
 			{
 				FString CacheFileName = FString::Printf(TEXT("UEx%08x"), FileDescription.GetDescriptorHash());
 				return FPaths::Combine(CachePath, TEXT("cad"), CacheFileName + TEXT(".ct"));
+			}
+			return FString();
+		}
+
+		const FString GetCachePath() const
+		{
+			if (IsCacheDefined())
+			{
+				return CachePath;
 			}
 			return FString();
 		}
@@ -220,13 +232,6 @@ namespace CADLibrary
 			FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
 			BodyMesh.MeshActorName = GetStaticMeshHash(BodyId);
 			Body.MeshActorName = BodyMesh.MeshActorName;
-			return BodyMesh;
-		}
-
-		FBodyMesh& AddBodyMesh(FCadId BodyId)
-		{
-			FBodyMesh& BodyMesh = BodyMeshes.Emplace_GetRef(BodyId);
-			BodyMesh.MeshActorName = GetStaticMeshHash(BodyId);
 			return BodyMesh;
 		}
 
