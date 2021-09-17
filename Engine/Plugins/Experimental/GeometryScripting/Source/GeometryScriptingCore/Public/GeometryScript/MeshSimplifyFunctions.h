@@ -19,6 +19,15 @@ public:
 	float AngleThreshold = 0.001;
 };
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPolygroupSimplifyOptions
+{
+	GENERATED_BODY()
+public:
+	/** */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float AngleThreshold = 0.001;
+};
 
 
 UENUM(BlueprintType)
@@ -69,6 +78,14 @@ public:
 	ApplySimplifyToPlanar(  
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPlanarSimplifyOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplySimplifyToPolygroupTopology(  
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptPolygroupSimplifyOptions Options,
+		FGeometryScriptGroupLayer GroupLayer,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Simplification", meta=(ScriptMethod))

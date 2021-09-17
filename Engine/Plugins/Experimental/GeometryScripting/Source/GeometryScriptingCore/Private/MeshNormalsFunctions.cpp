@@ -167,7 +167,17 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::ComputeSplitNormals(
 		FaceNormals.ComputeTriangleNormals();
 		const TArray<FVector3d>& Normals = FaceNormals.GetNormals();
 
-		FPolygroupSet FaceGroups(&EditMesh, SplitOptions.FaceGroupLayerName);
+		TUniquePtr<FPolygroupSet> SplitByGroups;
+		if (SplitOptions.bSplitByFaceGroup)
+		{
+			FPolygroupLayer InputGroupLayer{ SplitOptions.GroupLayer.bDefaultLayer, SplitOptions.GroupLayer.ExtendedLayerIndex };
+			if (InputGroupLayer.CheckExists(&EditMesh) == false)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeSplitNormals_MissingGroups", "ComputeSplitNormals: Polygroup Layer does not exist"));
+				return;
+			}
+			SplitByGroups = MakeUnique<FPolygroupSet>(&EditMesh, InputGroupLayer);
+		}
 
 		// create new normal overlay topology based on splitting criteria
 		EditMesh.Attributes()->PrimaryNormals()->CreateFromPredicate([&](int VID, int TA, int TB)
@@ -176,7 +186,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::ComputeSplitNormals(
 			{
 				return false;
 			}
-			if (SplitOptions.bSplitByFaceGroup && FaceGroups.GetTriangleGroup(TA) != FaceGroups.GetTriangleGroup(TB))
+			if (SplitOptions.bSplitByFaceGroup && SplitByGroups->GetTriangleGroup(TA) != SplitByGroups->GetTriangleGroup(TB))
 			{
 				return false;
 			}
