@@ -30,7 +30,7 @@ void FDummySkeletalMeshVertexBuffer::CleanUp()
 */
 FArchive& operator<<(FArchive& Ar, FDummySkeletalMeshVertexBuffer& VertexBuffer)
 {
-	FStripDataFlags StripFlags(Ar, 0, VER_UE4_STATIC_SKELETAL_MESH_SERIALIZATION_FIX);
+	FStripDataFlags StripFlags(Ar, 0, FPackageFileVersion::CreateUE4Version(VER_UE4_STATIC_SKELETAL_MESH_SERIALIZATION_FIX));
 
 	Ar << VertexBuffer.NumTexCoords;
 	Ar << VertexBuffer.bUseFullPrecisionUVs;

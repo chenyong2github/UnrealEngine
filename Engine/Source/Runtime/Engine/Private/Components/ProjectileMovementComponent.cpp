@@ -57,7 +57,7 @@ void UProjectileMovementComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	const int32 LinkerUEVer = GetLinkerUEVersion();
+	const FPackageFileVersion LinkerUEVer = GetLinkerUEVersion();
 
 	if (LinkerUEVer < VER_UE4_REFACTOR_PROJECTILE_MOVEMENT)
 	{

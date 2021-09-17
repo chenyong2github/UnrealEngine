@@ -206,7 +206,7 @@ void FNetworkPlatformFile::InitializeAfterSetActive()
 		else
 		{
 			// receive the cooked version information
-			int32 ServerPackageVersion = 0;
+			FPackageFileVersion ServerPackageVersion;
 			int32 ServerPackageLicenseeVersion = 0;
 			ProcessServerInitialResponse(Response, ServerPackageVersion, ServerPackageLicenseeVersion);
 			ProcessServerCachedFilesResponse(Response, ServerPackageVersion, ServerPackageLicenseeVersion);
@@ -234,7 +234,7 @@ void FNetworkPlatformFile::InitializeAfterSetActive()
 
 }
 
-void FNetworkPlatformFile::ProcessServerCachedFilesResponse(FArrayReader& Response, const int32 ServerPackageVersion, const int32 ServerPackageLicenseeVersion)
+void FNetworkPlatformFile::ProcessServerCachedFilesResponse(FArrayReader& Response, const FPackageFileVersion& ServerPackageVersion, const int32 ServerPackageLicenseeVersion)
 {
 	/* The server root content directories */
 	TArray<FString> ServerRootContentDirectories;
@@ -267,9 +267,9 @@ void FNetworkPlatformFile::ProcessServerCachedFilesResponse(FArrayReader& Respon
 		TUniquePtr<IFileHandle> FileHandle(InnerPlatformFile->OpenRead(*CookedVersionFile));
 		if (FileHandle.IsValid())
 		{
-			int32 StoredPackageCookedVersion;
+			FPackageFileVersion StoredPackageCookedVersion;
 			int32 StoredPackageCookedLicenseeVersion;
-			if (FileHandle->Read((uint8*)&StoredPackageCookedVersion, sizeof(int32)) == true)
+			if (FileHandle->Read((uint8*)&StoredPackageCookedVersion, sizeof(FPackageFileVersion)) == true)
 			{
 				if (FileHandle->Read((uint8*)&StoredPackageCookedLicenseeVersion, sizeof(int32)) == true)
 				{
@@ -282,8 +282,8 @@ void FNetworkPlatformFile::ProcessServerCachedFilesResponse(FArrayReader& Respon
 					{
 						UE_LOG(LogNetworkPlatformFile, Display,
 							TEXT("Engine version mismatch: Server %d.%d, Stored %d.%d\n"),
-							ServerPackageVersion, ServerPackageLicenseeVersion,
-							StoredPackageCookedVersion, StoredPackageCookedLicenseeVersion);
+							ServerPackageVersion.ToValue(), ServerPackageLicenseeVersion,
+							StoredPackageCookedVersion.ToValue(), StoredPackageCookedLicenseeVersion);
 					}
 				}
 			}
@@ -326,7 +326,7 @@ void FNetworkPlatformFile::ProcessServerCachedFilesResponse(FArrayReader& Respon
 		TUniquePtr<IFileHandle> FileHandle(InnerPlatformFile->OpenWrite(*CookedVersionFile));
 		if (FileHandle.IsValid())
 		{
-			FileHandle->Write((const uint8*)&ServerPackageVersion, sizeof(int32));
+			FileHandle->Write((const uint8*)&ServerPackageVersion, sizeof(FPackageFileVersion));
 			FileHandle->Write((const uint8*)&ServerPackageLicenseeVersion, sizeof(int32));
 		}
 		else
@@ -822,7 +822,7 @@ void FNetworkPlatformFile::FillGetFileList(FNetworkFileArchive& Payload)
 	Payload << CustomPlatformData;
 }
 
-void FNetworkPlatformFile::ProcessServerInitialResponse(FArrayReader& InResponse, int32& OutServerPackageVersion, int32& OutServerPackageLicenseeVersion)
+void FNetworkPlatformFile::ProcessServerInitialResponse(FArrayReader& InResponse, FPackageFileVersion& OutServerPackageVersion, int32& OutServerPackageLicenseeVersion)
 {
 	// Receive the cooked version information.
 	InResponse << OutServerPackageVersion;

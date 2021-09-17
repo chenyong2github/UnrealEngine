@@ -9,7 +9,8 @@
 
 void FSnapshotFileVersionInfo::Initialize()
 {
-	FileVersion = GPackageFileUEVersion;
+	FileVersion = GPackageFileUEVersion.FileVersionUE4;
+	FileVersionUE5 = GPackageFileUEVersion.FileVersionUE5;
 	FileVersionLicensee = GPackageFileLicenseeUEVersion;
 }
 
@@ -54,7 +55,9 @@ void FSnapshotVersionInfo::ApplyToArchive(FArchive& Archive) const
 {
 	if (ensure(Archive.IsLoading()))
 	{
-		Archive.SetUEVer(FileVersion.FileVersion);
+		FPackageFileVersion UEVersion(FileVersion.FileVersion, (EUnrealEngineObjectUE5Version)FileVersion.FileVersionUE5);
+
+		Archive.SetUEVer(UEVersion);
 		Archive.SetLicenseeUEVer(FileVersion.FileVersionLicensee);
 		Archive.SetEngineVer(FEngineVersionBase(EngineVersion.Major, EngineVersion.Minor, EngineVersion.Patch, EngineVersion.Changelist));
 

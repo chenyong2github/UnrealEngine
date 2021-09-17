@@ -7,6 +7,8 @@
 
 #define LOCTEXT_NAMESPACE "ConcertVersion"
 
+
+
 namespace ConcertVersionUtil
 {
 
@@ -49,13 +51,16 @@ bool ValidateVersion(const int32 InCurrent, const int32 InOther, const FText InV
 
 void FConcertFileVersionInfo::Initialize()
 {
-	FileVersion = GPackageFileUEVersion;
+	FileVersion = GPackageFileUEVersion.FileVersionUE4;
+	FileVersionUE5 = GPackageFileUEVersion.FileVersionUE5;
+
 	FileVersionLicensee = GPackageFileLicenseeUEVersion;
 }
 
 bool FConcertFileVersionInfo::Validate(const FConcertFileVersionInfo& InOther, const EConcertVersionValidationMode InValidationMode, FText* OutFailureReason) const
 {
-	return ConcertVersionUtil::ValidateVersion(FileVersion, InOther.FileVersion, LOCTEXT("PackageVersionName", "Package Version"), InValidationMode, OutFailureReason)
+	return ConcertVersionUtil::ValidateVersion(FileVersion, InOther.FileVersion, LOCTEXT("PackageVersionName", "UE4 Package Version"), InValidationMode, OutFailureReason)
+		&& ConcertVersionUtil::ValidateVersion(FileVersionUE5, InOther.FileVersionUE5, LOCTEXT("PackageVersionName", "UE5 Package Version"), InValidationMode, OutFailureReason)
 		&& ConcertVersionUtil::ValidateVersion(FileVersionLicensee, InOther.FileVersionLicensee, LOCTEXT("LicenseePackageVersionName", "Licensee Package Version"), InValidationMode, OutFailureReason);
 }
 

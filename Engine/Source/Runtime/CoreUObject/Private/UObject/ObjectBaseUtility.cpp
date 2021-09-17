@@ -16,7 +16,7 @@
  *			a) this object is a native only class, or
  *			b) this object's linker has been detached, in which case it is already fully loaded
  */
-int32 UObjectBaseUtility::GetLinkerUEVersion() const
+FPackageFileVersion UObjectBaseUtility::GetLinkerUEVersion() const
 {
 	FLinkerLoad* Loader = GetLinker();
 

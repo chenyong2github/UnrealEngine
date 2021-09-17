@@ -197,7 +197,7 @@ void USoundBase::PostLoad()
 		bOutputToBusOnly_DEPRECATED = false;
 	}
 
-	const int32 LinkerUEVersion = GetLinkerUEVersion();
+	const FPackageFileVersion LinkerUEVersion = GetLinkerUEVersion();
 
 	if (LinkerUEVersion < VER_UE4_SOUND_CONCURRENCY_PACKAGE)
 	{

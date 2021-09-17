@@ -4043,7 +4043,7 @@ void FBodyInstance::FixupData(class UObject* Loader)
 {
 	check (Loader);
 
-	int32 const UEVersion = Loader->GetLinkerUEVersion();
+	FPackageFileVersion const UEVersion = Loader->GetLinkerUEVersion();
 
 #if WITH_EDITOR
 	if (UEVersion < VER_UE4_ADD_CUSTOMPROFILENAME_CHANGE)

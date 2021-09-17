@@ -1095,7 +1095,7 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 
 	// report the package version information
 	// The downside of this is that ALL cooked data will get tossed on package version changes
-	int32 PackageFileUnrealVersion = GPackageFileUEVersion;
+	FPackageFileVersion PackageFileUnrealVersion = GPackageFileUEVersion;
 	Out << PackageFileUnrealVersion;
 	int32 PackageFileLicenseeUnrealVersion = GPackageFileLicenseeUEVersion;
 	Out << PackageFileLicenseeUnrealVersion;

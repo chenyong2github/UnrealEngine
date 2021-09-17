@@ -751,7 +751,7 @@ void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFo
 		else
 		{
 			UE_LOG(LogSerialization, Log, TEXT("ArchiveName: %s"), *GetArchiveName());
-			UE_LOG(LogSerialization, Log, TEXT("Archive UE4 Version: %d"), UEVer());
+			UE_LOG(LogSerialization, Log, TEXT("Archive UE4 Version: %d"), UEVer().ToValue());
 			UE_LOG(LogSerialization, Log, TEXT("Archive Licensee Version: %d"), LicenseeUEVer());
 			UE_LOG(LogSerialization, Log, TEXT("Position: %lld"), Tell());
 			UE_LOG(LogSerialization, Log, TEXT("Read Size: %lld"), Length);
@@ -792,7 +792,7 @@ void FArchive::SerializeCompressedNew(void* V, int64 Length, FName CompressionFo
 		if ( ! FCompression::IsFormatValid(CompressionFormatToDecode) )
 		{
 			UE_LOG(LogSerialization, Log, TEXT("ArchiveName: %s"), *GetArchiveName());
-			UE_LOG(LogSerialization, Log, TEXT("Archive UE4 Version: %d"), UEVer());
+			UE_LOG(LogSerialization, Log, TEXT("Archive UE4 Version: %d"), UEVer().ToValue());
 			UE_LOG(LogSerialization, Log, TEXT("Archive Licensee Version: %d"), LicenseeUEVer());
 			UE_LOG(LogSerialization, Log, TEXT("Position: %lld"), Tell());
 			UE_LOG(LogSerialization, Log, TEXT("Read Size: %lld"), Length);
@@ -1342,7 +1342,7 @@ void FArchive::LogfImpl(const TCHAR* Fmt, ...)
 	FMemory::SystemFree( Buffer );
 }
 
-void FArchiveState::SetUEVer(int32 InVer)
+void FArchiveState::SetUEVer(FPackageFileVersion InVer)
 {
 	ArUEVer = InVer;
 }

@@ -32,7 +32,7 @@ FArchive& operator<<( FArchive& Ar, FWorldTileLayer& D )
 void operator<<(FStructuredArchive::FSlot Slot, FWorldTileLayer& D)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	int32 Version = Slot.GetUnderlyingArchive().UEVer();
+	const FPackageFileVersion Version = Slot.GetUnderlyingArchive().UEVer();
 
 	// Serialized with FPackageFileSummary
 	Record << SA_VALUE(TEXT("Name"), D.Name) << SA_VALUE(TEXT("Reserved0"), D.Reserved0) << SA_VALUE(TEXT("Reserved1"), D.Reserved1);
@@ -116,7 +116,7 @@ FArchive& operator<<( FArchive& Ar, FWorldTileInfo& D )
 void operator<<(FStructuredArchive::FSlot Slot, FWorldTileInfo& D)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	int32 ArchiveVersion = Slot.GetUnderlyingArchive().UEVer();
+	const FPackageFileVersion ArchiveVersion = Slot.GetUnderlyingArchive().UEVer();
 
 	// Serialized with FPackageFileSummary
 	Record << SA_VALUE(TEXT("Position"), D.Position) << SA_VALUE(TEXT("Bounds"), D.Bounds) << SA_VALUE(TEXT("Layer"), D.Layer);

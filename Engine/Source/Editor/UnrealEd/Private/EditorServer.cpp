@@ -2393,14 +2393,12 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 			return false;
 		}
 
-		const int32 UEVersion = Summary.GetFileVersionUE();
-
 		// Validate the summary.
-		if( UEVersion < VER_UE4_OLDEST_LOADABLE_PACKAGE )
+		if (Summary.IsFileVersionTooOld())
 		{
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("File"), FText::FromString( FString( PackageFilename ) ));
-			Arguments.Add(TEXT("Version"), UEVersion);
+			Arguments.Add(TEXT("Version"), Summary.GetFileVersionUE().FileVersionUE4);
 			Arguments.Add(TEXT("First"), VER_UE4_OLDEST_LOADABLE_PACKAGE);
 			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsOlder", "{File} is an UE4 map [File:v{Version}], from an engine release no longer supported [Min:v{First}]." ), 
 				Arguments);
@@ -2410,17 +2408,19 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 		const int32 UELicenseeVersion = Summary.GetFileVersionLicenseeUE();
 
 		// Don't load packages that were saved with an engine version newer than the current one.
-		if( UEVersion > GPackageFileUEVersion )
+		if (Summary.IsFileVersionTooNew())
 		{
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("File"), FText::FromString( FString( PackageFilename ) ));
-			Arguments.Add(TEXT("Version"), UEVersion);
-			Arguments.Add(TEXT("Last"), GPackageFileUEVersion);
-			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsNewer", "{File} is a UE map [File:v{Version}], from an engine release newer than this [Cur:v{Last}]." ), 
+			Arguments.Add(TEXT("UE4Version"), Summary.GetFileVersionUE().FileVersionUE4);
+			Arguments.Add(TEXT("UE5Version"), Summary.GetFileVersionUE().FileVersionUE5);
+			Arguments.Add(TEXT("UE4Lastest"), GPackageFileUEVersion.FileVersionUE4);
+			Arguments.Add(TEXT("UE5Lastest"), GPackageFileUEVersion.FileVersionUE5);
+			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsNewer", "{File} is a UE map [File:v{UE4Version}|{UE5Version}], from an engine release newer than this [Cur:v{UE4Lastest}|{UE5Lastest}]." ), 
 				Arguments);
 			return false;
 		}
-		else if( UELicenseeVersion > GPackageFileLicenseeUEVersion )
+		else if (UELicenseeVersion > GPackageFileLicenseeUEVersion)
 		{
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("File"), FText::FromString( FString( PackageFilename ) ));

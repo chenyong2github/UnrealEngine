@@ -80,7 +80,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	// Don't read packages that are too old
-	if( PackageFileSummary.GetFileVersionUE() < VER_UE4_OLDEST_LOADABLE_PACKAGE )
+	if (PackageFileSummary.IsFileVersionTooOld())
 	{
 		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too old"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooOld);
@@ -88,7 +88,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	// Don't read packages that were saved with an package version newer than the current one.
-	if( (PackageFileSummary.GetFileVersionUE() > GPackageFileUEVersion) || (PackageFileSummary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion) )
+	if (PackageFileSummary.IsFileVersionTooNew() || PackageFileSummary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion)
 	{
 		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too new"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooNew);

@@ -617,12 +617,16 @@ public:
 	 *			a) this object is a native only class, or
 	 *			b) this object's linker has been detached, in which case it is already fully loaded
 	 */
-	int32 GetLinkerUEVersion() const;
-
-
-	UE_DEPRECATED(5.0, "Use GetLinkerUEVersion instead")
-	inline int32 GetLinkerUE4Version() const { return GetLinkerUEVersion(); }
-
+	FPackageFileVersion GetLinkerUEVersion() const;
+		
+	UE_DEPRECATED(5.0, "Use GetLinkerUEVersion instead which returns the version as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
+	inline int32 GetLinkerUE4Version() const 
+	{ 
+		// Existing code calling GetLinkerUE4Version will be testing against UE4 version numbers so 
+		// we can just return the UE4 version number.
+		// All new code that might actually need the UE5 version as well should be calling ::GetLinkerUEVersion
+		return GetLinkerUEVersion().FileVersionUE4;
+	}
 
 	/**
 	 * Returns the licensee version of the linker for this object.

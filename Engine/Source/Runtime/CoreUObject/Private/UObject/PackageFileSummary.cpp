@@ -30,7 +30,7 @@ static ECustomVersionSerializationFormat::Type GetCustomVersionFormatForArchive(
 	return CustomVersionFormat;
 }
 
-static void FixCorruptEngineVersion(int ObjectVersion, FEngineVersion& Version)
+static void FixCorruptEngineVersion(const FPackageFileVersion& ObjectVersion, FEngineVersion& Version)
 {
 	// The move of EpicInternal.txt in CL 12740027 broke checks for non-licensee builds in UGS. resulted in checks for Epic internal builds in UGS breaking, and assets being saved out with the licensee flag set.
 	// Detect such assets and clear the licensee bit.
@@ -98,8 +98,9 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		*		-5 indicates the replacement of writing out the "UE3 version" so older versions of engine can gracefully fail to open newer packages
 		*		-6 indicates optimizations to how custom versions are being serialized
 		*		-7 indicates the texture allocation info has been removed from the summary
+		*		-8 indicates that the UE5 version has been added to the summary
 		*/
-		const int32 CurrentLegacyFileVersion = -7;
+		const int32 CurrentLegacyFileVersion = -8;
 		int32 LegacyFileVersion = CurrentLegacyFileVersion;
 		Record << SA_VALUE(TEXT("LegacyFileVersion"), LegacyFileVersion);
 
@@ -111,7 +112,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				{
 					// we can't safely load more than this because the legacy version code differs in ways we can not predict.
 					// Make sure that the linker will fail to load with it.
-					Sum.FileVersionUE = 0;
+					Sum.FileVersionUE.Reset();
 					Sum.FileVersionLicenseeUE = 0;
 					return;
 				}
@@ -121,7 +122,14 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 					int32 LegacyUE3Version = 0;
 					Record << SA_VALUE(TEXT("LegacyUE3Version"), LegacyUE3Version);
 				}
-				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE);
+
+				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE.FileVersionUE4);
+				
+				if (LegacyFileVersion <= -8)
+				{
+					Record << SA_VALUE(TEXT("FileVersionUE5"), Sum.FileVersionUE.FileVersionUE5);
+				}
+			
 				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE);
 
 				if (LegacyFileVersion <= -2)
@@ -129,7 +137,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 					Sum.CustomVersionContainer.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))), GetCustomVersionFormatForArchive(LegacyFileVersion));
 				}
 
-				if (!Sum.FileVersionUE && !Sum.FileVersionLicenseeUE)
+				if (!Sum.FileVersionUE.FileVersionUE4 && !Sum.FileVersionUE.FileVersionUE5 && !Sum.FileVersionLicenseeUE)
 				{
 #if WITH_EDITOR
 					if (!GAllowUnversionedContentInEditor)
@@ -149,7 +157,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			else
 			{
 				// This is probably an old UE3 file, make sure that the linker will fail to load with it.
-				Sum.FileVersionUE = 0;
+				Sum.FileVersionUE.Reset();
 				Sum.FileVersionLicenseeUE = 0;
 			}
 		}
@@ -160,6 +168,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				int32 Zero = 0;
 				Record << SA_VALUE(TEXT("LegacyUE3version"), Zero); // LegacyUE3version
 				Record << SA_VALUE(TEXT("FileVersionUE4"), Zero); // VersionUE4
+				Record << SA_VALUE(TEXT("FileVersionUE5"), Zero); // VersionUE5
 				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Zero); // VersionLicenseeUE4
 
 				FCustomVersionContainer NoCustomVersions;
@@ -170,7 +179,8 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				// Must write out the last UE3 engine version, so that older versions identify it as new
 				int32 LegacyUE3Version = 864;
 				Record << SA_VALUE(TEXT("LegacyUE3Version"), LegacyUE3Version);
-				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE);
+				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE.FileVersionUE4);
+				Record << SA_VALUE(TEXT("FileVersionUE5"), Sum.FileVersionUE.FileVersionUE5);
 				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE);
 
 				// Serialise custom version map.
@@ -207,7 +217,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		Record << SA_VALUE(TEXT("ImportCount"), Sum.ImportCount) << SA_VALUE(TEXT("ImportOffset"), Sum.ImportOffset);
 		Record << SA_VALUE(TEXT("DependsOffset"), Sum.DependsOffset);
 
-		if (BaseArchive.IsLoading() && (Sum.FileVersionUE < VER_UE4_OLDEST_LOADABLE_PACKAGE || Sum.FileVersionUE > GPackageFileUEVersion))
+		if (BaseArchive.IsLoading() && (Sum.FileVersionUE < VER_UE4_OLDEST_LOADABLE_PACKAGE || Sum.IsFileVersionTooNew()))
 		{
 			return; // we can't safely load more than this because the below was different in older files.
 		}
@@ -319,7 +329,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		if (!FCompression::VerifyCompressionFlagsValid(Sum.CompressionFlags))
 		{
 			UE_LOG(LogLinker, Warning, TEXT("Failed to read package file summary, the file \"%s\" has invalid compression flags (%d)."), *BaseArchive.GetArchiveName(), Sum.CompressionFlags);
-			Sum.FileVersionUE = VER_UE4_OLDEST_LOADABLE_PACKAGE - 1;
+			Sum.InvalidateFileVersion();
 			return;
 		}
 
@@ -330,7 +340,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		{
 			// this file has package level compression, we won't load it.
 			UE_LOG(LogLinker, Warning, TEXT("Failed to read package file summary, the file \"%s\" is has package level compression (and is probably cooked). These old files cannot be loaded in the editor."), *BaseArchive.GetArchiveName());
-			Sum.FileVersionUE = VER_UE4_OLDEST_LOADABLE_PACKAGE - 1;
+			Sum.InvalidateFileVersion();
 			return; // we can't safely load more than this because we just changed the version to something it is not.
 		}
 
@@ -398,6 +408,20 @@ void FPackageFileSummary::SetCustomVersionContainer(const FCustomVersionContaine
 {
 	CustomVersionContainer = InContainer;
 	CustomVersionContainer.SortByKey();
+}
+
+void FPackageFileSummary::SetFileVersions(const int32 EpicUE4, const int32 EpicUE5, const int32 LicenseeUE, const bool bInSaveUnversioned)
+{
+	// We could also make sure that EpicUE4 is >= VER_UE4_OLDEST_LOADABLE_PACKAGE but there might be a use case for setting
+	// an out of date version.
+	check(EpicUE4 <= EUnrealEngineObjectUE4Version::VER_UE4_AUTOMATIC_VERSION);
+	check(EpicUE5 <= (int32)EUnrealEngineObjectUE5Version::AUTOMATIC_VERSION);
+
+	FileVersionUE.FileVersionUE4 = EpicUE4;
+	FileVersionUE.FileVersionUE5 = EpicUE5;
+	FileVersionLicenseeUE = LicenseeUE;
+
+	bUnversioned = bInSaveUnversioned;
 }
 
 void FPackageFileSummary::SetPackageFlags(uint32 InPackageFlags)
