@@ -45,4 +45,7 @@ private:
 
 	uint32 NvPresentBarrierCount      = 0;
 	uint32 NvPresentBarrierCountLimit = 0;
+
+	uint32 NvCompletionCount      = 0;
+	uint32 NvCompletionCountLimit = 0;
 };
