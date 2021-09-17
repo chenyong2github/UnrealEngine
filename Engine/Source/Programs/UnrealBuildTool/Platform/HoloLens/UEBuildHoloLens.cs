@@ -24,7 +24,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "CompilerVersion")]
 		[XmlConfigFile(Category = "HoloLensPlatform")]
-		[CommandLine("-2017", Value = nameof(WindowsCompiler.VisualStudio2017))]
 		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
 		[CommandLine("-2022", Value = nameof(WindowsCompiler.VisualStudio2022))]
 		public WindowsCompiler Compiler = WindowsCompiler.Default;
@@ -349,11 +348,7 @@ namespace UnrealBuildTool
 
 		public static DirectoryReference GetCppCXMetadataLocation(WindowsCompiler Compiler, DirectoryReference SelectedToolChainDir)
 		{
-			if (Compiler >= WindowsCompiler.VisualStudio2017)
-			{
-				return DirectoryReference.Combine(SelectedToolChainDir, "lib", "x86", "Store", "references");
-			}
-			else if (Compiler >= WindowsCompiler.VisualStudio2019)
+			if (Compiler >= WindowsCompiler.VisualStudio2019)
 			{
 				return DirectoryReference.Combine(SelectedToolChainDir, "lib", "x86", "Store", "references");
 			}
@@ -399,7 +394,7 @@ namespace UnrealBuildTool
 			if (DirectoryReference.Exists(ReferenceDir))
 			{
 				// Prefer a contract from a suitable SDK-versioned subdir of the references folder when available (starts with 15063 SDK)
-				//Version WindowsSDKVersionMaxForToolchain = Compiler < WindowsCompiler.VisualStudio2017 ? HoloLens.MaximumSDKVersionForVS2015 : null;
+				//Version WindowsSDKVersionMaxForToolchain = Compiler <= WindowsCompiler.VisualStudio2019 ? HoloLens.MaximumSDKVersionForVS2015 : null;
 				DirectoryReference SDKVersionedReferenceDir = DirectoryReference.Combine(ReferenceDir, SDKVersion.ToString());
 				DirectoryReference ContractDir = DirectoryReference.Combine(SDKVersionedReferenceDir, ApiContract);
 				Version ContractLatestVersion = null;

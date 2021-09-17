@@ -318,7 +318,7 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("/clang:--trace-includes");
 				}
-				else if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017 )
+				else if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019 )
 				{
 					Arguments.Add("/showIncludes");
 				}
@@ -329,7 +329,7 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("-fdiagnostics-absolute-paths");
 			}
-			else if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+			else if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 			{
 				Arguments.Add("/FC");
 			}
@@ -379,7 +379,7 @@ namespace UnrealBuildTool
 			Arguments.Add("/wd4819");
 
 			// Disable Microsoft extensions on VS2017+ for improved standards compliance.
-			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017 && Target.WindowsPlatform.bStrictConformanceMode)
+			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019 && Target.WindowsPlatform.bStrictConformanceMode)
 			{
 				// This define is needed to ensure that MSVC static analysis mode doesn't declare attributes that are incompatible with strict conformance mode
 				AddDefinition(Arguments, "SAL_NO_ATTRIBUTE_DECLARATIONS=1");
@@ -392,13 +392,13 @@ namespace UnrealBuildTool
 			// Previously %s meant "the current character set" and %S meant "the other one".
 			// Now %s means multibyte and %S means wide. %Ts means "natural width".
 			// Reverting this behaviour until the UE4 source catches up.
-			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017 || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019 || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
 				AddDefinition(Arguments, "_CRT_STDIO_LEGACY_WIDE_SPECIFIERS=1");
 			}
 
 			// @todo HoloLens: Silence the hash_map deprecation errors for now. This should be replaced with unordered_map for the real fix.
-			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017 || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019 || Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
 			{
 				AddDefinition(Arguments, "_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS=1");
 			}
@@ -419,7 +419,7 @@ namespace UnrealBuildTool
 			AddDefinition(Arguments, "_DISABLE_EXTENDED_ALIGNED_STORAGE");
 
 			// Fix Incredibuild errors with helpers using heterogeneous character sets
-			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 			{
 				Arguments.Add("/source-charset:utf-8");
 				Arguments.Add("/execution-charset:utf-8");
@@ -439,7 +439,7 @@ namespace UnrealBuildTool
 			// Experimental deterministic compile support
 			if (Target.WindowsPlatform.bDeterministic)
 			{
-				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 				{
 					Arguments.Add("/experimental:deterministic");
 				}
@@ -660,7 +660,7 @@ namespace UnrealBuildTool
 			}
 
 			//@todo: Disable warnings for VS2017. These should be reenabled as we clear the reasons for them out of the engine source and the VS2015 toolchain evolves.
-			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 			{
 				// Disable shadow variable warnings
 				if (CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Off)
@@ -955,7 +955,6 @@ namespace UnrealBuildTool
 							break;
 						case WindowsCompiler.Intel:
 							break;
-						case WindowsCompiler.VisualStudio2017:
 						case WindowsCompiler.VisualStudio2019:
 						case WindowsCompiler.VisualStudio2022:
 							Arguments[Arguments.Count - 1] += ":FASTLINK";
@@ -1166,7 +1165,7 @@ namespace UnrealBuildTool
 			// Generate the timing info
 			if (CompileEnvironment.bPrintTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
-				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 				{
 					if (CompileEnvironment.bPrintTimingInfo)
 					{

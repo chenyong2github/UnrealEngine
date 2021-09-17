@@ -37,11 +37,6 @@ namespace UnrealBuildTool
 		Intel,
 
 		/// <summary>
-		/// Visual Studio 2017 (Visual C++ 15.0)
-		/// </summary>
-		VisualStudio2017,
-
-		/// <summary>
 		/// Visual Studio 2019 (Visual C++ 16.0)
 		/// </summary>
 		VisualStudio2019,
@@ -136,7 +131,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/WindowsTargetPlatform.WindowsTargetSettings", "CompilerVersion")]
 		[XmlConfigFile(Category = "WindowsPlatform")]
-		[CommandLine("-2017", Value = nameof(WindowsCompiler.VisualStudio2017))]
 		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
 		[CommandLine("-2022", Value = nameof(WindowsCompiler.VisualStudio2022))]
 		[CommandLine("-Compiler=")]
@@ -260,7 +254,7 @@ namespace UnrealBuildTool
 		/// Microsoft provides legacy_stdio_definitions library to enable building with VS2015 until they fix everything up.
 		public bool bNeedsLegacyStdioDefinitionsLib
 		{
-			get { return Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022 || Compiler == WindowsCompiler.Clang; }
+			get { return Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022 || Compiler == WindowsCompiler.Clang; }
 		}
 
 		/// <summary>
@@ -425,17 +419,16 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// When using a Visual Studio compiler, returns the version name as a string
 		/// </summary>
-		/// <returns>The Visual Studio compiler version name (e.g. "2015")</returns>
+		/// <returns>The Visual Studio compiler version name (e.g. "2019")</returns>
 		public string GetVisualStudioCompilerVersionName()
 		{
 			switch (Compiler)
 			{
 				case WindowsCompiler.Clang:
 				case WindowsCompiler.Intel:
-				case WindowsCompiler.VisualStudio2017:
 				case WindowsCompiler.VisualStudio2019:
 				case WindowsCompiler.VisualStudio2022:
-					return "2015"; // VS2017 is backwards compatible with VS2015 compiler
+					return "2015"; // VS2022 is backwards compatible with VS2015 compiler
 
 				default:
 					throw new BuildException("Unexpected WindowsCompiler version for GetVisualStudioCompilerVersionName().  Either not using a Visual Studio compiler or switch block needs to be updated");
@@ -991,7 +984,7 @@ namespace UnrealBuildTool
 
 //			@Todo: Still getting reports of frequent OOM issues with this enabled as of 15.7.
 //			// Enable fast PDB linking if we're on VS2017 15.7 or later. Previous versions have OOM issues with large projects.
-//			if(!Target.bFormalBuild && !Target.bUseFastPDBLinking.HasValue && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+//			if(!Target.bFormalBuild && !Target.bUseFastPDBLinking.HasValue && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 //			{
 //				VersionNumber Version;
 //				DirectoryReference ToolChainDir;
@@ -1071,8 +1064,6 @@ namespace UnrealBuildTool
 		{
 			switch (Compiler)
 			{
-				case WindowsCompiler.VisualStudio2017:
-					return "Visual Studio 2017";
 				case WindowsCompiler.VisualStudio2019:
 					return "Visual Studio 2019";
 				case WindowsCompiler.VisualStudio2022:
@@ -1124,7 +1115,7 @@ namespace UnrealBuildTool
 				Installations = new List<VisualStudioInstallation>();
 			    if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			    {
-				    if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022)
+				    if(Compiler >= WindowsCompiler.VisualStudio2019)
 				    {
 						try
 						{
@@ -1157,10 +1148,6 @@ namespace UnrealBuildTool
 											continue;
 										}
 										else if (Compiler == WindowsCompiler.VisualStudio2019 && Version < Version2019)
-										{
-											continue;
-										}
-										else if(Compiler == WindowsCompiler.VisualStudio2017 && Version >= Version2019)
 										{
 											continue;
 										}
@@ -1266,7 +1253,7 @@ namespace UnrealBuildTool
 							}
 						}
 					}
-				    else if(Compiler == WindowsCompiler.VisualStudio2017 || Compiler == WindowsCompiler.VisualStudio2019 || Compiler == WindowsCompiler.VisualStudio2022)
+				    else if(Compiler >= WindowsCompiler.VisualStudio2019)
 				    {
 						// Enumerate all the manually installed toolchains
 						List<VisualStudioInstallation> Installations = FindVisualStudioInstallations(Compiler);
@@ -1283,7 +1270,6 @@ namespace UnrealBuildTool
 							string VSDir = string.Empty;
 							switch (Compiler)
 							{
-								case WindowsCompiler.VisualStudio2017: VSDir = "VS2017"; break;
 								case WindowsCompiler.VisualStudio2019: VSDir = "VS2019"; break;
 								case WindowsCompiler.VisualStudio2022: VSDir = "VS2022"; break;
 							}
@@ -1321,7 +1307,7 @@ namespace UnrealBuildTool
 				foreach (DirectoryReference ToolChainDir in DirectoryReference.EnumerateDirectories(BaseDir))
 				{
 					VersionNumber? Version;
-					if (IsValidToolChainDir2017or2019(ToolChainDir, out Version))
+					if (IsValidToolChainDirMSVC(ToolChainDir, out Version))
 					{
 						AddVisualCppToolChain(Version, bPreview, ToolChainDir, ToolChains);
 					}
@@ -1436,7 +1422,7 @@ namespace UnrealBuildTool
 		/// <param name="ToolChainDir">The toolchain directory</param>
 		/// <param name="Version">The version number for the toolchain</param>
 		/// <returns>True if the path is a valid version</returns>
-		static bool IsValidToolChainDir2017or2019(DirectoryReference ToolChainDir, [NotNullWhen(true)] out VersionNumber? Version)
+		static bool IsValidToolChainDirMSVC(DirectoryReference ToolChainDir, [NotNullWhen(true)] out VersionNumber? Version)
 		{
 			FileReference CompilerExe = FileReference.Combine(ToolChainDir, "bin", "Hostx86", "x64", "cl.exe");
 			if(!FileReference.Exists(CompilerExe))
@@ -1622,12 +1608,12 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// Get the Visual Studio 2017 install directory
-			List<DirectoryReference> InstallDirs2017 = WindowsPlatform.FindVisualStudioInstallations(WindowsCompiler.VisualStudio2017).ConvertAll(x => x.BaseDir);
-			foreach (DirectoryReference InstallDir in InstallDirs2017)
+			// Get the Visual Studio 2022 install directory
+			List<DirectoryReference> InstallDirs2022 = WindowsPlatform.FindVisualStudioInstallations(WindowsCompiler.VisualStudio2022).ConvertAll(x => x.BaseDir);
+			foreach (DirectoryReference InstallDir in InstallDirs2022)
 			{
-				FileReference MsBuildLocation = FileReference.Combine(InstallDir, "MSBuild", "15.0", "Bin", "MSBuild.exe");
-				if(FileReference.Exists(MsBuildLocation))
+				FileReference MsBuildLocation = FileReference.Combine(InstallDir, "MSBuild", "Current", "Bin", "MSBuild.exe");
+				if (FileReference.Exists(MsBuildLocation))
 				{
 					OutLocation = MsBuildLocation;
 					return true;
@@ -1742,7 +1728,6 @@ namespace UnrealBuildTool
 					string VSDir = string.Empty;
 					switch (Compiler)
 					{
-						case WindowsCompiler.VisualStudio2017: VSDir = "VS2017"; break;
 						case WindowsCompiler.VisualStudio2019: VSDir = "VS2019"; break;
 						case WindowsCompiler.VisualStudio2022: VSDir = "VS2022"; break;
 					}

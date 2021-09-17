@@ -315,13 +315,13 @@ public sealed class BuildPhysX : BuildCommand
 			this.CompilerName = CompilerName;
 			switch (CompilerName)
 			{
-				case "VS2017":
-					Compiler = WindowsCompiler.VisualStudio2017;
-					VisualStudioName = "Visual Studio 15 2017";
-					break;
 				case "VS2019":
 					Compiler = WindowsCompiler.VisualStudio2019;
 					VisualStudioName = "Visual Studio 16 2019";
+					break;
+				case "VS2022":
+					Compiler = WindowsCompiler.VisualStudio2022;
+					VisualStudioName = "Visual Studio 17 2022";
 					break;
 				default:
 					throw new BuildException("Unknown windows compiler specified: {0}", CompilerName);

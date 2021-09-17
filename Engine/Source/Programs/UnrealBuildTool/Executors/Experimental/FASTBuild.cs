@@ -856,13 +856,6 @@ namespace UnrealBuildTool
 
 				switch (VCEnv.Compiler)
 				{
-					case WindowsCompiler.VisualStudio2017:
-						// For now we are working with the 140 version, might need to change to 141 or 150 depending on the version of the Toolchain you chose
-						// to install
-						platformVersionNumber = "140";
-						AddText($"\t.Executable = '$WindowsSDKBasePath$/bin/{VCEnv.WindowsSdkVersion}/x64/rc.exe'\n");
-						break;
-
 					case WindowsCompiler.VisualStudio2019:
 						// For now we are working with the 140 version, might need to change to 141 or 150 depending on the version of the Toolchain you chose
 						// to install
@@ -969,14 +962,7 @@ namespace UnrealBuildTool
 					FinalMSVCRedistPath = PrefferedMSVCRedistPath;
 				}
 
-				if (VCEnv.Compiler == WindowsCompiler.VisualStudio2017)
-				{
-					//VS 2017 is really confusing in terms of version numbers and paths so these values might need to be modified depending on what version of the tool chain you
-					// chose to install.
-					AddText(string.Format("\t\t'{0}/Redist/MSVC/14.16.27012/{1}/Microsoft.VC141.CRT/msvcp{2}.dll'\n", VCEnv.GetVCInstallDirectory(), VCEnv.Architecture, platformVersionNumber));
-					AddText(string.Format("\t\t'{0}/Redist/MSVC/14.16.27012/{1}/Microsoft.VC141.CRT/vccorlib{2}.dll'\n", VCEnv.GetVCInstallDirectory(), VCEnv.Architecture, platformVersionNumber));
-				}
-				else // if (VCEnv.Compiler == WindowsCompiler.VisualStudio2019)
+				// if (VCEnv.Compiler == WindowsCompiler.VisualStudio2019)
 				{
 					AddText($"\t\t'$Root$/msvcp{platformVersionNumber}.dll'\n");
 					AddText(string.Format("\t\t'{0}/vccorlib{1}.dll'\n", FinalMSVCRedistPath, platformVersionNumber));

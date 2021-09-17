@@ -132,7 +132,7 @@ namespace UnrealBuildTool
 			// Experimental deterministic compile support
 			if (Target.WindowsPlatform.bDeterministic)
 			{
-				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2017)
+				if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 				{
 					Arguments.Add("/experimental:deterministic");
 				}

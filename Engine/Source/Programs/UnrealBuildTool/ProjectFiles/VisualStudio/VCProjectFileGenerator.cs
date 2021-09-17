@@ -31,7 +31,6 @@ namespace UnrealBuildTool
 	enum VCProjectFileFormat
 	{
 		Default,          // Default to the best installed version, but allow SDKs to override
-		VisualStudio2017,
 		VisualStudio2019,
 		VisualStudio2022,
 	}
@@ -128,11 +127,7 @@ namespace UnrealBuildTool
 				Settings.ProjectFileFormat = InProjectFileFormat;
 			}
 
-			if (InArguments.HasOption("-2017"))
-			{
-				BuildToolOverride = "-2017";
-			}
-			else if (InArguments.HasOption("-2019"))
+			if (InArguments.HasOption("-2019"))
 			{
 				BuildToolOverride = "-2019";
 			}
@@ -224,8 +219,6 @@ namespace UnrealBuildTool
 		{
 			switch (ProjectFileFormat)
 			{
-				case VCProjectFileFormat.VisualStudio2017:
-					return "15.0";
 				case VCProjectFileFormat.VisualStudio2019:
 					return "16.0";
 				case VCProjectFileFormat.VisualStudio2022:
@@ -239,8 +232,6 @@ namespace UnrealBuildTool
 		{
 			switch (ProjectFileFormat)
 			{
-				case VCProjectFileFormat.VisualStudio2017:
-					return "v141";
 				case VCProjectFileFormat.VisualStudio2019:
 					return "v142";
 				case VCProjectFileFormat.VisualStudio2022:
@@ -279,15 +270,7 @@ namespace UnrealBuildTool
 			base.SetupSupportedPlatformsAndConfigurations(IncludeAllPlatforms, out SupportedPlatformNames);
 
 			// If we have a non-default setting for visual studio, check the compiler exists. If not, revert to the default.
-			if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2017)
-			{
-				if (!WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2017))
-				{
-					Log.TraceWarning("Visual Studio C++ 2017 installation not found - ignoring preferred project file format.");
-					Settings.ProjectFileFormat = VCProjectFileFormat.Default;
-				}
-			}
-			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2019)
+			if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2019)
 			{
 				if (!WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2019))
 				{
@@ -313,10 +296,6 @@ namespace UnrealBuildTool
 				if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2019) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2019))
 				{
 					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2019;
-				}
-				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2017) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2017))
-				{
-					Settings.ProjectFileFormat = VCProjectFileFormat.VisualStudio2017;
 				}
 				else if (WindowsPlatform.HasCompiler(WindowsCompiler.VisualStudio2022) && WindowsPlatform.HasIDE(WindowsCompiler.VisualStudio2022))
 				{
@@ -513,14 +492,6 @@ namespace UnrealBuildTool
 				VCSolutionFileContent.AppendLine("Microsoft Visual Studio Solution File, Format Version 12.00");
 				VCSolutionFileContent.AppendLine("# Visual Studio Version 16");
 				VCSolutionFileContent.AppendLine("VisualStudioVersion = 16.0.28315.86");
-				VCSolutionFileContent.AppendLine("MinimumVisualStudioVersion = 10.0.40219.1");
-			}
-			else if (Settings.ProjectFileFormat == VCProjectFileFormat.VisualStudio2017)
-			{
-				VCSolutionFileContent.AppendLine();
-				VCSolutionFileContent.AppendLine("Microsoft Visual Studio Solution File, Format Version 12.00");
-				VCSolutionFileContent.AppendLine("# Visual Studio 15");
-				VCSolutionFileContent.AppendLine("VisualStudioVersion = 15.0.25807.0");
 				VCSolutionFileContent.AppendLine("MinimumVisualStudioVersion = 10.0.40219.1");
 			}
 			else
@@ -831,9 +802,6 @@ namespace UnrealBuildTool
 				FileReference SolutionOptionsFileName;
 				switch (Settings.ProjectFileFormat)
 				{
-					case VCProjectFileFormat.VisualStudio2017:
-						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v15", ".suo");
-						break;
 					case VCProjectFileFormat.VisualStudio2019:
 						SolutionOptionsFileName = FileReference.Combine(MasterProjectPath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v16", ".suo");
 						break;
@@ -866,13 +834,9 @@ namespace UnrealBuildTool
 
 					// Mark all the projects as closed by default, apart from the startup project
 					VCSolutionExplorerState ExplorerState = new VCSolutionExplorerState();
-					if (Settings.ProjectFileFormat >= VCProjectFileFormat.VisualStudio2017)
+					if (Settings.ProjectFileFormat >= VCProjectFileFormat.VisualStudio2019)
 					{
-						BuildSolutionExplorerState_VS2017(RootFolder, "", ExplorerState, DefaultProject);
-					}
-					else
-					{
-						BuildSolutionExplorerState_VS2015(AllProjectFiles, ExplorerState, DefaultProject, IncludeEnginePrograms);
+						BuildSolutionExplorerState_VS2019(RootFolder, "", ExplorerState, DefaultProject);
 					}
 					Options.SetExplorerState(ExplorerState);
 
@@ -910,7 +874,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		static void BuildSolutionExplorerState_VS2017(MasterProjectFolder Folder, string Suffix, VCSolutionExplorerState ExplorerState, ProjectFile DefaultProject)
+		static void BuildSolutionExplorerState_VS2019(MasterProjectFolder Folder, string Suffix, VCSolutionExplorerState ExplorerState, ProjectFile DefaultProject)
 		{
 			foreach (ProjectFile Project in Folder.ChildProjects)
 			{
@@ -936,27 +900,7 @@ namespace UnrealBuildTool
 				{
 					ExplorerState.OpenProjects.Add(new Tuple<string, string[]>(SubFolderName, new string[] { SubFolderName }));
 				}
-				BuildSolutionExplorerState_VS2017(SubFolder, ";" + SubFolderName, ExplorerState, DefaultProject);
-			}
-		}
-
-		static void BuildSolutionExplorerState_VS2015(List<ProjectFile> AllProjectFiles, VCSolutionExplorerState ExplorerState, ProjectFile DefaultProject, bool IncludeEnginePrograms)
-		{
-			foreach (ProjectFile ProjectFile in AllProjectFiles)
-			{
-				string ProjectName = ProjectFile.ProjectFilePath.GetFileNameWithoutExtension();
-				if (ProjectFile == DefaultProject)
-				{
-					ExplorerState.OpenProjects.Add(new Tuple<string, string[]>(ProjectName, new string[] { ProjectName }));
-				}
-				else
-				{
-					ExplorerState.OpenProjects.Add(new Tuple<string, string[]>(ProjectName, new string[] { }));
-				}
-			}
-			if (IncludeEnginePrograms)
-			{
-				ExplorerState.OpenProjects.Add(new Tuple<string, string[]>("Automation", new string[0]));
+				BuildSolutionExplorerState_VS2019(SubFolder, ";" + SubFolderName, ExplorerState, DefaultProject);
 			}
 		}
 

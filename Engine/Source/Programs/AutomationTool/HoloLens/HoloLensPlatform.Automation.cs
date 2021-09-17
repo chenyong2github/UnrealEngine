@@ -539,9 +539,13 @@ namespace HoloLens.Automation
 
 			if (PDBCopyPath == null || !FileReference.Exists(PDBCopyPath))
 			{
-				if (WindowsExports.TryGetVSInstallDir(WindowsCompiler.VisualStudio2017, out VSInstallDir))
+				if (WindowsExports.TryGetVSInstallDir(WindowsCompiler.VisualStudio2019, out VSInstallDir))
 				{
-					PDBCopyPath = FileReference.Combine(VSInstallDir, "MSBuild", "Microsoft", "VisualStudio", "v15.0", "AppxPackage", "PDBCopy.exe");
+					PDBCopyPath = FileReference.Combine(VSInstallDir, "MSBuild", "Microsoft", "VisualStudio", "v16.0", "AppxPackage", "PDBCopy.exe");
+				}
+				else if (WindowsExports.TryGetVSInstallDir(WindowsCompiler.VisualStudio2022, out VSInstallDir))
+				{
+					PDBCopyPath = FileReference.Combine(VSInstallDir, "MSBuild", "Microsoft", "VisualStudio", "v17.0", "AppxPackage", "PDBCopy.exe");
 				}
 			}
 
@@ -995,7 +999,7 @@ namespace HoloLens.Automation
 			TargetRules Rules = Params.ProjectTargets.Find(x => x.Rules.Type == TargetType.Game)?.Rules;
 
 			bool UseDebugCrt = false;
-			WindowsCompiler compiler = WindowsCompiler.VisualStudio2017;
+			WindowsCompiler compiler = WindowsCompiler.VisualStudio2019;
 
 			//TODO: Why is this null?
 			if (Rules != null)
@@ -1760,7 +1764,7 @@ namespace HoloLens.Automation
             switch (Compiler)
 			{
 				case WindowsCompiler.VisualStudio2019:
-				case WindowsCompiler.VisualStudio2017:
+				case WindowsCompiler.VisualStudio2022:
 				//Compiler version is still 14 for 2017
 				case WindowsCompiler.Default:
 					VCVersionFragment = "14";

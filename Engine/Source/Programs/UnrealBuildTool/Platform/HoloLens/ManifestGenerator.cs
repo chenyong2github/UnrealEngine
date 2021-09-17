@@ -2377,7 +2377,7 @@ namespace UnrealBuildTool
 			{
 				VSSchemaFolder = DirectoryReference.Combine(VSInstallDir, "Xml", "Schemas");
 			}
-			else if (WindowsPlatform.TryGetVSInstallDir(WindowsCompiler.VisualStudio2017, out VSInstallDir))
+			else if (WindowsPlatform.TryGetVSInstallDir(WindowsCompiler.VisualStudio2022, out VSInstallDir))
 			{
 				VSSchemaFolder = DirectoryReference.Combine(VSInstallDir, "Xml", "Schemas");
 			}
