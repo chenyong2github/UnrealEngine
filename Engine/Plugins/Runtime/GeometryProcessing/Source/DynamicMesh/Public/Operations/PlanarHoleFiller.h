@@ -40,7 +40,7 @@ public:
 
 public:
 	/**
-	 *  Construct simple hole filler (just adds a central vertex and a triangle fan)
+	 *  Construct planar hole filler (projects the hole edges to a plane and fills the hole w/ a general 2D polygon triangulation)
 	 */
 	FPlanarHoleFiller(FDynamicMesh3* Mesh, const TArray<TArray<int>> *VertexLoops, TFunction<TArray<FIndex3i>(const FGeneralPolygon2d&)> PlanarTriangulationFunc, FVector3d PlaneOrigin, FVector3d PlaneNormal) 
 		: Mesh(Mesh), VertexLoops(VertexLoops), PlanarTriangulationFunc(PlanarTriangulationFunc), PlaneOrigin(PlaneOrigin), PlaneNormal(PlaneNormal)
