@@ -449,7 +449,7 @@ void FAndroidTargetSettingsCustomization::BuildIconSection(IDetailLayoutBuilder&
 			SNew(SBox)
 			.HAlign(HAlign_Center)
 			[
-				SNew(SHyperlinkLaunchURL, TEXT("http://developer.android.com/design/style/iconography.html"))
+				SNew(SHyperlinkLaunchURL, TEXT("https://material.io/design/iconography/product-icons.html"))
 				.Text(LOCTEXT("AndroidDeveloperIconographyPage", "Android Developer Page on Iconography"))
 				.ToolTipText(LOCTEXT("AndroidDeveloperIconographyPageTooltip", "Opens a page on Android Iconography"))
 			]
