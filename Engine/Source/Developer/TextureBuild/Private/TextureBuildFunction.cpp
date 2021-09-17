@@ -109,6 +109,7 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	BuildSettings.bVolume = Object["bVolume"].AsBool(BuildSettings.bVolume);
 	BuildSettings.bLongLatSource = Object["bLongLatSource"].AsBool(BuildSettings.bLongLatSource);
 	BuildSettings.bSRGB = Object["bSRGB"].AsBool(BuildSettings.bSRGB);
+	ReadCbField(Object["SourceEncodingOverride"], BuildSettings.SourceEncodingOverride);
 	BuildSettings.bUseLegacyGamma = Object["bUseLegacyGamma"].AsBool(BuildSettings.bUseLegacyGamma);
 	BuildSettings.bPreserveBorder = Object["bPreserveBorder"].AsBool(BuildSettings.bPreserveBorder);
 	BuildSettings.bForceNoAlphaChannel = Object["bForceNoAlphaChannel"].AsBool(BuildSettings.bForceNoAlphaChannel);

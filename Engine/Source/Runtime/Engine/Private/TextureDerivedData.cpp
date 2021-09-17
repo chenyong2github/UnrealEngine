@@ -62,6 +62,10 @@
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
 #define TEXTURE_VT_DERIVEDDATA_VER	TEXT("93F54B64FA524F78BCA4EA2CD30B1E9F")
 
+// Version number for the texture encoding enum types (UE::Color::EEncoding/ETextureSourceEncoding).
+// Make sure to increment upon changes to the list.
+#define TEXTURE_ENCODING_TYPES_VER 1
+
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
 {
@@ -108,6 +112,13 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	TempByte = Settings.bCubemap; Ar << TempByte;
 	TempByte = Settings.bTextureArray; Ar << TempByte;
 	TempByte = Settings.bSRGB ? (Settings.bSRGB | ( Settings.bUseLegacyGamma ? 0 : 0x2 )) : 0; Ar << TempByte;
+
+	if (Settings.SourceEncodingOverride != 0 /*UE::Color::EEncoding::None*/)
+	{
+		TempUint32 = TEXTURE_ENCODING_TYPES_VER; Ar << TempUint32;
+		TempByte = Settings.SourceEncodingOverride; Ar << TempByte;
+	}
+
 	TempByte = Settings.bPreserveBorder; Ar << TempByte;
 	TempByte = Settings.bDitherMipMapAlpha; Ar << TempByte;
 
@@ -472,6 +483,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.DiffuseConvolveMipLevel = 0;
 	OutBuildSettings.bLongLatSource = false;
 	OutBuildSettings.bStreamable = false;
+	OutBuildSettings.SourceEncodingOverride = Texture.SourceEncodingOverride.GetValue();
 
 	if (Texture.MaxTextureSize > 0)
 	{
