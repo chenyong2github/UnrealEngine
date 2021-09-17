@@ -98,6 +98,7 @@ bool FPolygroupRemesh::Compute()
 			}
 		}
 		FVector3d PrevEdge = FirstEdge;
+		FVector3d LastKeptEdge = FirstEdge;
 		int32 FirstKeptIdx = KeptVertices[SpanV[0]] ? 0 : -1;
 		int32 LastKeptIdx = FirstKeptIdx;
 		int32 NumKept = int32(KeptVertices[SpanV[0]]) + int32(KeptVertices[SpanV.Last()]);
@@ -107,7 +108,8 @@ bool FPolygroupRemesh::Compute()
 			FVector3d NextEdge = Next - Center;
 			NextEdge.Normalize();
 			int32 SpanVID = SpanV[SpanIdx];
-			if (KeptVertices[SpanVID] || NextEdge.Dot(PrevEdge) < DotTolerance)
+			// track deviation from (1) the most recent edge and (2) the last edge from a vertex we kept, so gentle slow turns across many edges are also captured
+			if (KeptVertices[SpanVID] || NextEdge.Dot(PrevEdge) < DotTolerance || NextEdge.Dot(LastKeptEdge) < DotTolerance)
 			{
 				NumKept++;
 				KeptVertices[SpanVID] = true;
@@ -122,6 +124,7 @@ bool FPolygroupRemesh::Compute()
 					}
 				}
 
+				LastKeptEdge = NextEdge;
 				LastKeptIdx = SpanIdx;
 				if (FirstKeptIdx == -1)
 				{

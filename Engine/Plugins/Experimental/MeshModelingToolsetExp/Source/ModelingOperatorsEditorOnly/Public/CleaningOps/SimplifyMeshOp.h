@@ -51,6 +51,9 @@ enum class ESimplifyType : uint8
 	/** Collapse any spurious edges but do not change the 3D shape. */
 	MinimalPlanar = 4 UMETA(DisplayName = "Minimal Shape-Preserving"),
 
+	/** Only preserve polygroup boundaries; ignore all other shape features */
+	MinimalPolygroup = 5 UMETA(DisplayName = "Minimal Polygroup-Preserving"),
+
 };
 
 namespace UE
@@ -75,6 +78,9 @@ public:
 	UE::Geometry::EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
 	float MinimalPlanarAngleThresh = 0.01f;
+
+	// For minimal polygroup-preserving simplification: Threshold angle change (in degrees) along a polygroup edge, above which a vertex must be added
+	float PolyEdgeAngleTolerance = 0.1f;
 
 	bool bGeometricDeviationConstraint = false;
 	float GeometricTolerance = 0.0f;
