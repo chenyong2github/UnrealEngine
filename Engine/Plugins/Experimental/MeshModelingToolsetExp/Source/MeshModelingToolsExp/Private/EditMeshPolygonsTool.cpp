@@ -8,6 +8,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "CompGeom/PolygonTriangulation.h"
+#include "ConstrainedDelaunay2.h"
 #include "Components/BrushComponent.h"
 #include "ContextObjectStore.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
@@ -25,6 +26,7 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "ModelingToolTargetUtil.h" // UE::ToolTarget:: functions
 #include "Operations/SimpleHoleFiller.h"
+#include "Operations/PolygroupRemesh.h"
 #include "Selection/PersistentMeshSelection.h"
 #include "Selection/StoredMeshSelectionUtil.h"
 #include "Selection/PolygonSelectionMechanic.h"
@@ -930,6 +932,9 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		case EEditMeshPolygonsToolActions::FlipSingleEdge:
 			ApplyFlipSingleEdge();
 			break;
+		case EEditMeshPolygonsToolActions::SimplifyByGroups:
+			SimplifyByGroups();
+			break;
 		}
 
 		PendingAction = EEditMeshPolygonsToolActions::NoAction;
@@ -1279,6 +1284,26 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 		ChangeTracker.EndChange(), ActiveSelection, true);
 }
 
+
+
+void UEditMeshPolygonsTool::SimplifyByGroups()
+{
+	FDynamicMesh3* Mesh = CurrentMesh.Get();
+	FDynamicMeshChangeTracker ChangeTracker(Mesh);
+	ChangeTracker.BeginChange();
+	ChangeTracker.SaveTriangles(Mesh->TriangleIndicesItr(), true); // We will change the entire mesh
+	
+	FPolygroupRemesh Remesh(Mesh, Topology.Get(), ConstrainedDelaunayTriangulate<double>);
+	bool bSuccess = Remesh.Compute();
+	if (!bSuccess)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("OnSimplifyByGroupFailures", "Some polygroups could not be correctly simplified"), EToolMessageLevel::UserWarning);
+	}
+
+	FGroupTopologySelection NewSelection; // Empty the selection
+
+	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSimplifyByGroup", "Simplify by Group"), ChangeTracker.EndChange(), NewSelection, true);
+}
 
 
 

@@ -119,6 +119,8 @@ enum class EEditMeshPolygonsToolActions
 
 	PlanarProjectionUV,
 
+	SimplifyByGroups,
+
 	// triangle-specific edits
 	PokeSingleFace,
 	SplitSingleEdge,
@@ -233,6 +235,10 @@ public:
 	/** Duplicate the selected faces at their borders */
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Duplicate", DisplayPriority = 12))
 	void Duplicate() { PostAction(EEditMeshPolygonsToolActions::Duplicate); }
+
+	/** Simplify every polygon group by removing vertices on shared straight edges and retriangulating */
+	UFUNCTION(CallInEditor, Category = ShapeEdits, meta = (DisplayName = "SimplifyByGroups", DisplayPriority = 13))
+	void SimplifyByGroups() { PostAction(EEditMeshPolygonsToolActions::SimplifyByGroups); }
 
 };
 
@@ -560,6 +566,8 @@ protected:
 	void ApplyFlipSingleEdge();
 	void ApplyCollapseSingleEdge();
 	void ApplySplitSingleEdge();
+
+	void SimplifyByGroups();
 
 	FFrame3d ActiveSelectionFrameLocal;
 	FFrame3d ActiveSelectionFrameWorld;
