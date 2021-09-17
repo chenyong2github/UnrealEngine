@@ -49,7 +49,7 @@ echo ===========================================================================
 echo.
 
 pause
-
+rmdir "%KEY_DIR%" /s/q
 mkdir "%KEY_DIR%" 2> NUL
 pushd %SSHDIR%
 %RSYNC% -az -e '%SSH% -p %SSHPORT%' "%USER%@%MACHINE%":.ssh/RemoteToolChainPrivate.key "%CYGWIN_KEY_PATH%"
