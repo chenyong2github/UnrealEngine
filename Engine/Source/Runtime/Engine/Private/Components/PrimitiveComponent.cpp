@@ -1250,7 +1250,7 @@ void UPrimitiveComponent::PostLoad()
 {
 	Super::PostLoad();
 	
-	int32 const UEVersion = GetLinkerUEVersion();
+	FPackageFileVersion const UEVersion = GetLinkerUEVersion();
 
 	// as temporary fix for the bug TTP 299926
 	// permanent fix is coming

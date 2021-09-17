@@ -64,6 +64,8 @@ struct FSaveGameFileVersion
 		InitialVersion = 1,
 		// serializing custom versions into the savegame data to handle that type of versioning
 		AddedCustomVersions = 2,
+		// added a new UE5 version number to FPackageFileSummary
+		PackageFileSummaryVersionChange = 3,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -91,7 +93,7 @@ struct FSaveGameHeader
 
 	int32 FileTypeTag;
 	int32 SaveGameFileVersion;
-	int32 PackageFileUEVersion;
+	FPackageFileVersion PackageFileUEVersion;
 	FEngineVersion SavedEngineVersion;
 	int32 CustomVersionFormat;
 	FCustomVersionContainer CustomVersions;
@@ -101,7 +103,6 @@ struct FSaveGameHeader
 FSaveGameHeader::FSaveGameHeader()
 	: FileTypeTag(0)
 	, SaveGameFileVersion(0)
-	, PackageFileUEVersion(0)
 	, CustomVersionFormat(static_cast<int32>(ECustomVersionSerializationFormat::Unknown))
 {}
 
@@ -119,7 +120,7 @@ void FSaveGameHeader::Empty()
 {
 	FileTypeTag = 0;
 	SaveGameFileVersion = 0;
-	PackageFileUEVersion = 0;
+	PackageFileUEVersion.Reset();
 	SavedEngineVersion.Empty();
 	CustomVersionFormat = (int32)ECustomVersionSerializationFormat::Unknown;
 	CustomVersions.Empty();
@@ -155,7 +156,17 @@ void FSaveGameHeader::Read(FMemoryReader& MemoryReader)
 		MemoryReader << SaveGameFileVersion;
 
 		// Read engine and UE version information
-		MemoryReader << PackageFileUEVersion;
+		if (SaveGameFileVersion >= FSaveGameFileVersion::PackageFileSummaryVersionChange)
+		{
+			MemoryReader << PackageFileUEVersion;
+		}
+		else
+		{
+			int32 OldUe4Version;
+			MemoryReader << OldUe4Version;
+
+			PackageFileUEVersion = FPackageFileVersion::CreateUE4Version(OldUe4Version);
+		}
 
 		MemoryReader << SavedEngineVersion;
 

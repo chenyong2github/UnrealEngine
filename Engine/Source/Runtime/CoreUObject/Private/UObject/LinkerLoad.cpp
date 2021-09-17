@@ -1217,10 +1217,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// Validate the summary.
-	if (Summary.GetFileVersionUE() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
+	if (Summary.IsFileVersionTooOld())
 	{
 		UE_LOG(LogLinker, Warning, TEXT("The file %s was saved by a previous version which is not backwards compatible with this one. Min Required Version: %i  Package Version: %i"),
-			*GetDebugName(), (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE());
+			*GetDebugName(), (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE().FileVersionUE4);
 		return LINKER_Failed;
 	}
 
@@ -1281,11 +1281,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// Don't load packages that were saved with package version newer than the current one.
-	if (bLoaderVersionCheck && ((Summary.GetFileVersionUE() > GPackageFileUEVersion)
-								|| (Summary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion)))
+	if (bLoaderVersionCheck && ((Summary.IsFileVersionTooNew()) || (Summary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion)))
 	{
 		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."),
-			*GetDebugName(), Summary.GetFileVersionUE(), GPackageFileUEVersion, Summary.GetFileVersionLicenseeUE(), GPackageFileLicenseeUEVersion);
+			*GetDebugName(), Summary.GetFileVersionUE().ToValue(), GPackageFileUEVersion.ToValue(), Summary.GetFileVersionLicenseeUE(), GPackageFileLicenseeUEVersion);
 		return LINKER_Failed;
 	}
 

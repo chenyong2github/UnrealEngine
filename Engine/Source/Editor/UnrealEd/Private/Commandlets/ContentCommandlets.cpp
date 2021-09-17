@@ -430,8 +430,8 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 	}
 	if ( Switches.Contains(TEXT("CHECKUE4VER")) )
 	{
-		// Limits resaving to packages with this ue4 package version or lower.
-		MaxResaveUEVersion = FMath::Max<int32>(GPackageFileUEVersion - 1, 0);
+		// Limits resaving to packages with this package version or lower.
+		MaxResaveUEVersion = FMath::Max<int32>(GPackageFileUEVersion.ToValue() - 1, 0);
 	}
 	else if ( Switches.Contains(TEXT("RESAVEDEPRECATED")) )
 	{
@@ -448,7 +448,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 			{
 				if ( MinResaveUEVersion == CURRENT_PACKAGE_VERSION )
 				{
-					MinResaveUEVersion = GPackageFileUEVersion;
+					MinResaveUEVersion = GPackageFileUEVersion.ToValue();
 				}
 			}
 
@@ -456,7 +456,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 			{
 				if ( MaxResaveUEVersion == CURRENT_PACKAGE_VERSION )
 				{
-					MaxResaveUEVersion = GPackageFileUEVersion;
+					MaxResaveUEVersion = GPackageFileUEVersion.ToValue();
 				}
 			}
 		}
@@ -782,7 +782,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 				if( bIsReadOnly == true && bVerifyContent == true && bAutoCheckOut == false )
 				{
 					UE_LOG(LogContentCommandlet, Warning, TEXT("Package [%s] is read-only but needs to be resaved (UE Version: %i, Licensee Version: %i  Current UE Version: %i, Current Licensee Version: %i)"),
-						*Filename, Linker->Summary.GetFileVersionUE(), Linker->Summary.GetFileVersionLicenseeUE(), GPackageFileUEVersion, VER_LATEST_ENGINE_LICENSEEUE4 );
+						*Filename, Linker->Summary.GetFileVersionUE().ToValue(), Linker->Summary.GetFileVersionLicenseeUE(), GPackageFileUEVersion.ToValue(), VER_LATEST_ENGINE_LICENSEEUE4 );
 					if( SavePackageHelper(Package, FString(TEXT("Temp.temp"))) )
 					{
 						UE_LOG(LogContentCommandlet, Warning, TEXT("Correctly saved:  [Temp.temp].") );
@@ -848,7 +848,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 					if (Verbosity != ONLY_ERRORS)
 					{
 						UE_LOG(LogContentCommandlet, Display, TEXT("Resaving package [%s] (UE Version: %i, Licensee Version: %i  Saved UE Version: %i, Saved Licensee Version: %i)"),
-							*Filename,Linker->Summary.GetFileVersionUE(), Linker->Summary.GetFileVersionLicenseeUE(), GPackageFileUEVersion, VER_LATEST_ENGINE_LICENSEEUE4 );
+							*Filename,Linker->Summary.GetFileVersionUE().ToValue(), Linker->Summary.GetFileVersionLicenseeUE(), GPackageFileUEVersion.ToValue(), VER_LATEST_ENGINE_LICENSEEUE4 );
 					}
 
 					const static bool bKeepPackageGUIDOnSave = FParse::Param(FCommandLine::Get(), TEXT("KeepPackageGUIDOnSave"));
@@ -1368,9 +1368,8 @@ FText UResavePackagesCommandlet::GetChangelistDescription() const
 
 void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLinker, bool& bSavePackage )
 {
-	const int32 UEPackageVersion = PackageLinker->Summary.GetFileVersionUE();
+	const int32 UEPackageVersion = PackageLinker->Summary.GetFileVersionUE().ToValue();
 	const int32 LicenseeUEPackageVersion = PackageLinker->Summary.GetFileVersionLicenseeUE();
-
 
 	// validate that this package meets the minimum requirement
 	if ( MinResaveUEVersion != IGNORE_PACKAGE_VERSION && UEPackageVersion < MinResaveUEVersion )

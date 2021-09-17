@@ -842,7 +842,13 @@ public:
 	 * @param InClassFlags - User defined per class flags .
 	 * @param InVersion - Minimal strip version required to serialize strip flags
 	 */
-	FStripDataFlags( FArchive& Ar, uint8 InClassFlags = 0, int32 InVersion = VER_UE4_OLDEST_LOADABLE_PACKAGE );
+	FStripDataFlags(FArchive& Ar, uint8 InClassFlags = 0, const FPackageFileVersion& InVersion = GOldestLoadablePackageFileUEVersion);
+	UE_DEPRECATED(5.0, "Use the other overload that takes InVersion as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
+	inline FStripDataFlags(FArchive& Ar, uint8 InClassFlags, int32 InVersion)
+		: FStripDataFlags(Ar, InClassFlags, FPackageFileVersion::CreateUE4Version(InVersion))
+	{
+
+	}
 
 	/** 
 	 * Constructor.
@@ -853,7 +859,13 @@ public:
 	 * @param InClassFlags - User defined per class flags.
 	 * @param InVersion - Minimal version required to serialize strip flags
 	 */
-	FStripDataFlags( FArchive& Ar, uint8 InGlobalFlags, uint8 InClassFlags, int32 InVersion = VER_UE4_OLDEST_LOADABLE_PACKAGE );
+	FStripDataFlags( FArchive& Ar, uint8 InGlobalFlags, uint8 InClassFlags, const FPackageFileVersion& InVersion = GOldestLoadablePackageFileUEVersion);
+	UE_DEPRECATED(5.0, "Use the other overload that takes InVersion as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
+	inline FStripDataFlags(FArchive& Ar, uint8 InGlobalFlags, uint8 InClassFlags, int32 InVersion)
+		: FStripDataFlags(Ar, InGlobalFlags, InClassFlags, FPackageFileVersion::CreateUE4Version(InVersion))
+	{
+
+	}
 
 	/**
 	* Constructor.
@@ -864,7 +876,13 @@ public:
 	* @param InClassFlags - User defined per class flags .
 	* @param InVersion - Minimal strip version required to serialize strip flags
 	*/
-	FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFlags = 0, int32 InVersion = VER_UE4_OLDEST_LOADABLE_PACKAGE);
+	FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFlags = 0, const FPackageFileVersion& InVersion = GOldestLoadablePackageFileUEVersion);
+	UE_DEPRECATED(5.0, "Use the other overload that takes InVersion as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
+	inline FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFlags, int32 InVersion)
+		: FStripDataFlags(Slot, InClassFlags, FPackageFileVersion::CreateUE4Version(InVersion))
+	{
+
+	}
 
 	/**
 	* Constructor.
@@ -875,7 +893,13 @@ public:
 	* @param InClassFlags - User defined per class flags.
 	* @param InVersion - Minimal version required to serialize strip flags
 	*/
-	FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalFlags, uint8 InClassFlags, int32 InVersion = VER_UE4_OLDEST_LOADABLE_PACKAGE);
+	FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalFlags, uint8 InClassFlags, const FPackageFileVersion& InVersion = GOldestLoadablePackageFileUEVersion);
+	UE_DEPRECATED(5.0, "Use the other overload that takes InVersion as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
+	inline FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalFlags, uint8 InClassFlags, int32 InVersion)
+		: FStripDataFlags(Slot, InGlobalFlags, InClassFlags, FPackageFileVersion::CreateUE4Version(InVersion))
+	{
+
+	}
 
 	/**
 	 * Checks if FStripDataFlags::Editor flag is set or not

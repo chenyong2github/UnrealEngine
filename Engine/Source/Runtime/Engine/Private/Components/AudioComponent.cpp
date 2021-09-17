@@ -167,7 +167,7 @@ void UAudioComponent::Serialize(FArchive& Ar)
 void UAudioComponent::PostLoad()
 {
 #if WITH_EDITORONLY_DATA
-	const int32 LinkerUEVersion = GetLinkerUEVersion();
+	const FPackageFileVersion LinkerUEVersion = GetLinkerUEVersion();
 
 	// Translate the old HighFrequencyGainMultiplier value to the new LowPassFilterFrequency value
 	if (LinkerUEVersion < VER_UE4_USE_LOW_PASS_FILTER_FREQ)

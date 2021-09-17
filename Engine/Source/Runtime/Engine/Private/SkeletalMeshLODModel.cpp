@@ -848,7 +848,7 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 				if (Ar.IsLoading() && Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::UseSharedColorBufferFormat)
 				{
 					TArray<FColor> OldColors;
-					FStripDataFlags LegacyColourStripFlags(Ar, 0, VER_UE4_STATIC_SKELETAL_MESH_SERIALIZATION_FIX);
+					FStripDataFlags LegacyColourStripFlags(Ar, 0, FPackageFileVersion::CreateUE4Version(VER_UE4_STATIC_SKELETAL_MESH_SERIALIZATION_FIX));
 					OldColors.BulkSerialize(Ar);
 				}
 				else
@@ -887,7 +887,7 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 
 			if (Ar.UEVer() >= VER_UE4_APEX_CLOTH && HasClothData())
 			{
-				FStripDataFlags StripFlags2(Ar, 0, VER_UE4_STATIC_SKELETAL_MESH_SERIALIZATION_FIX);
+				FStripDataFlags StripFlags2(Ar, 0, FPackageFileVersion::CreateUE4Version(VER_UE4_STATIC_SKELETAL_MESH_SERIALIZATION_FIX));
 				TSkeletalMeshVertexData<FMeshToMeshVertData> DummyClothData(true);
 
 				if (!StripFlags2.IsDataStrippedForServer() || Ar.IsCountingMemory())

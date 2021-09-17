@@ -148,7 +148,7 @@ bool UK2Node::HasNonEditorOnlyReferences() const
 
 void UK2Node::FixupPinDefaultValues()
 {
-	const int32 LinkerUEVersion = GetLinkerUEVersion();
+	const FPackageFileVersion LinkerUEVersion = GetLinkerUEVersion();
 	const int32 LinkerFrameworkVersion = GetLinkerCustomVersion(FFrameworkObjectVersion::GUID);
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 

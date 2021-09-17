@@ -829,7 +829,7 @@ void UMaterialExpression::Serialize(FStructuredArchive::FRecord Record)
 	Archive.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
-	const int32 UEVer = Archive.UEVer();
+	const FPackageFileVersion UEVer = Archive.UEVer();
 	const int32 RenderVer = Archive.CustomVer(FRenderingObjectVersion::GUID);
 	const int32 UE5Ver = Archive.CustomVer(FUE5MainStreamObjectVersion::GUID);
 

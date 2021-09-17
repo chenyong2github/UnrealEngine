@@ -3,19 +3,20 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/VarArgs.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/EnableIf.h"
-#include "Templates/IsEnumClass.h"
-#include "Templates/Function.h"
 #include "HAL/PlatformProperties.h"
+#include "Internationalization/TextNamespaceFwd.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CompressionFlags.h"
 #include "Misc/EngineVersionBase.h"
-#include "Internationalization/TextNamespaceFwd.h"
-#include "Templates/IsValidVariadicFunctionArg.h"
+#include "Misc/VarArgs.h"
 #include "Templates/AndOrNot.h"
+#include "Templates/EnableIf.h"
+#include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfType.h"
+#include "Templates/IsEnumClass.h"
 #include "Templates/IsSigned.h"
+#include "Templates/IsValidVariadicFunctionArg.h"
+#include "UObject/ObjectVersion.h"
 
 class FArchive;
 class FCustomVersionContainer;
@@ -186,7 +187,7 @@ public:
 	}
 
 	/** Returns the global engine serialization version used for this archive. */
-	FORCEINLINE int32 UEVer() const
+	FORCEINLINE FPackageFileVersion UEVer() const
 	{
 		return ArUEVer;
 	}
@@ -198,10 +199,10 @@ public:
 	}
 
 	/** Returns the global engine serialization version used for this archive. */
-	UE_DEPRECATED(5.0, "Use UEVer instead")
+	UE_DEPRECATED(5.0, "Use UEVer instead which returns the version as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
 	FORCEINLINE int32 UE4Ver() const
 	{
-		return UEVer();
+		return ArUEVer.FileVersionUE4;
 	}
 
 	/** Returns the licensee-specific version used for this archive, will be 0 by default. */
@@ -877,12 +878,13 @@ public:
 	 *
 	 * @param UEVer	new version number
 	 */
-	virtual void SetUEVer(int32 InVer);
+	virtual void SetUEVer(FPackageFileVersion InVer);
 
-	UE_DEPRECATED(5.0, "Use SetUEVer instead")
+	UE_DEPRECATED(5.0, "Use SetUEVer instead which takes the version as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
 	FORCEINLINE void SetUE4Ver(int32 InVer)
 	{
-		SetUEVer(InVer);
+		FPackageFileVersion PackageFileVersion = FPackageFileVersion::CreateUE4Version((EUnrealEngineObjectUE4Version)InVer);
+		SetUEVer(PackageFileVersion);
 	}
 
 	/**
@@ -920,7 +922,7 @@ public:
 // These will be private in FArchive
 protected:
 	/** Holds the archive version. */
-	int32 ArUEVer;
+	FPackageFileVersion ArUEVer;
 
 	/** Holds the archive version for licensees. */
 	int32 ArLicenseeUEVer;
@@ -1787,6 +1789,7 @@ public:
 	}
 
 	using FArchiveState::UEVer;
+	using FArchiveState::UE4Ver;
 	using FArchiveState::LicenseeUEVer;
 	using FArchiveState::EngineVer;
 	using FArchiveState::EngineNetVer;
@@ -2039,6 +2042,7 @@ public:
 	using FArchiveState::SetForceUnicode;
 	using FArchiveState::SetIsPersistent;
 	using FArchiveState::SetUEVer;
+	using FArchiveState::SetUE4Ver;
 	using FArchiveState::SetLicenseeUEVer;
 	using FArchiveState::SetEngineVer;
 	using FArchiveState::SetEngineNetVer;

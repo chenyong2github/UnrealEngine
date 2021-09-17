@@ -45,7 +45,8 @@ bool GTargetDomainClassUseAllowList = true;
 bool GTargetDomainClassEmptyAllowList = false;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("86E449B024FD412BB80DB1397EFAE34D");
+const TCHAR* EditorDomainVersion = TEXT("B9190641FCE0441EBC818BBE6C265735");
+											
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 const TCHAR* EditorDomainBulkDataListBucketName = TEXT("EditorDomainBulkDataList");
@@ -71,8 +72,8 @@ EPackageDigestResult AppendPackageDigest(FCbWriter& Writer, bool& bOutEditorDoma
 	const FAssetPackageData& PackageData, FName PackageName)
 {
 	bOutEditorDomainEnabled = true;
-
-	int32 CurrentFileVersionUE = GPackageFileUEVersion;
+	
+	FPackageFileVersion CurrentFileVersionUE = GPackageFileUEVersion;
 	int32 CurrentFileVersionLicenseeUE = GPackageFileLicenseeUEVersion;
 	Writer << EditorDomainVersion;
 	Writer << GetEditorDomainSaveUnversioned();

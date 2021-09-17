@@ -40,8 +40,8 @@ FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForc
 		UPackage* Package = dynamic_cast<UPackage*>(LinkerRoot);
 
 		// Set main summary info.
-		Summary.Tag           = PACKAGE_FILE_TAG;
-		Summary.SetFileVersions( GPackageFileUEVersion, GPackageFileLicenseeUEVersion, bInSaveUnversioned );
+		Summary.Tag = PACKAGE_FILE_TAG;
+		Summary.SetToLatestFileVersions(bInSaveUnversioned);
 		Summary.SavedByEngineVersion = FEngineVersion::Current();
 		Summary.CompatibleWithEngineVersion = FEngineVersion::CompatibleWith();
 		Summary.SetPackageFlags(Package ? Package->GetPackageFlags() : 0);
@@ -95,7 +95,7 @@ FLinkerSave::FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteS
 
 		// Set main summary info.
 		Summary.Tag = PACKAGE_FILE_TAG;
-		Summary.SetFileVersions(GPackageFileUEVersion, GPackageFileLicenseeUEVersion, bInSaveUnversioned);
+		Summary.SetToLatestFileVersions(bInSaveUnversioned);
 		Summary.SavedByEngineVersion = FEngineVersion::Current();
 		Summary.CompatibleWithEngineVersion = FEngineVersion::CompatibleWith();
 		Summary.SetPackageFlags(Package ? Package->GetPackageFlags() : 0);
@@ -143,8 +143,8 @@ FLinkerSave::FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSa
 		UPackage* Package = dynamic_cast<UPackage*>(LinkerRoot);
 
 		// Set main summary info.
-		Summary.Tag           = PACKAGE_FILE_TAG;
-		Summary.SetFileVersions( GPackageFileUEVersion, GPackageFileLicenseeUEVersion, bInSaveUnversioned );
+		Summary.Tag = PACKAGE_FILE_TAG;
+		Summary.SetToLatestFileVersions(bInSaveUnversioned);
 		Summary.SavedByEngineVersion = FEngineVersion::Current();
 		Summary.CompatibleWithEngineVersion = FEngineVersion::CompatibleWith();
 		Summary.SetPackageFlags(Package ? Package->GetPackageFlags() : 0);

@@ -343,7 +343,7 @@ bool FStreamingNetworkPlatformFile::InitializeInternal(IPlatformFile* Inner, con
 	if(SendPayloadAndReceiveResponse(Payload,Response))
 	{
 		// Receive the cooked version information.
-		int32 ServerPackageVersion = 0;
+		FPackageFileVersion ServerPackageVersion;
 		int32 ServerPackageLicenseeVersion = 0;
 		ProcessServerInitialResponse(Response, ServerPackageVersion, ServerPackageLicenseeVersion);
 

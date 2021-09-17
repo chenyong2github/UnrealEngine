@@ -52,7 +52,7 @@ struct FPackageFileSummary
 
 private:
 	/* UE file version */
-	int32		FileVersionUE;
+	FPackageFileVersion FileVersionUE;
 	/* Licensee file version */
 	int32		FileVersionLicenseeUE;
 	/* Custom version numbers. Keyed off a unique tag for each custom component. */
@@ -225,20 +225,21 @@ public:
 	FPackageFileSummary& operator=(FPackageFileSummary&&) = default;
 	FPackageFileSummary& operator=(const FPackageFileSummary&) = default;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	int32 GetFileVersionUE() const
+	
+	FPackageFileVersion GetFileVersionUE() const
 	{
 		return FileVersionUE;
+	}
+
+	UE_DEPRECATED(5.0, "Use UEVer instead which returns the version as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
+	int32 GetFileVersionUE4() const
+	{
+		return FileVersionUE.FileVersionUE4;
 	}
 
 	int32 GetFileVersionLicenseeUE() const
 	{
 		return FileVersionLicenseeUE;
-	}
-	UE_DEPRECATED(5.0, "Use GetFileVersion instead")
-	int32 GetFileVersionUE4() const
-	{
-		return GetFileVersionUE();
 	}
 
 	UE_DEPRECATED(5.0, "Use GetFileVersionLicenseeUE instead")
@@ -254,11 +255,34 @@ public:
 
 	void SetCustomVersionContainer(const FCustomVersionContainer& InContainer);
 
-	void SetFileVersions(const int32 EpicUE, const int32 LicenseeUE, const bool bInSaveUnversioned = false)
+	/** Used to manually set the package file and licensee versions */
+	COREUOBJECT_API void SetFileVersions(const int32 EpicUE4, const int32 EpicUE5, const int32 LicenseeUE, const bool bInSaveUnversioned = false);
+	
+	UE_DEPRECATED(5.0, "Use the other overload of SetFileVersions that takes an UE5 version as well")
+	inline void SetFileVersions(const int32 EpicUE, const int32 LicenseeUE, const bool bInSaveUnversioned = false)
 	{
-		FileVersionUE = EpicUE;
-		FileVersionLicenseeUE = LicenseeUE;
+		SetFileVersions(EpicUE, GPackageFileUEVersion.FileVersionUE5, LicenseeUE, bInSaveUnversioned);
+	}
+
+	/** Set both the package file versions and the licensee version to the most recent version numbers supported */
+	void SetToLatestFileVersions(const bool bInSaveUnversioned)
+	{
+		FileVersionUE = GPackageFileUEVersion;
+		FileVersionLicenseeUE = GPackageFileLicenseeUEVersion;
+
 		bUnversioned = bInSaveUnversioned;
+	}
+
+	/** Returns true if any of the package file versions are older than the minimum supported versions */
+	bool IsFileVersionTooOld() const
+	{
+		return FileVersionUE < VER_UE4_OLDEST_LOADABLE_PACKAGE;
+	}
+
+	/** Returns true if any of the package file versions are newer than currently supported by the running process */
+	bool IsFileVersionTooNew() const
+	{
+		return FileVersionUE.FileVersionUE4 > GPackageFileUEVersion.FileVersionUE4 || FileVersionUE.FileVersionUE5 > GPackageFileUEVersion.FileVersionUE5;
 	}
 
 	/** Get the summary package flags. */
@@ -273,5 +297,16 @@ public:
 	/** I/O functions */
 	friend COREUOBJECT_API FArchive& operator<<(FArchive& Ar, FPackageFileSummary& Sum);
 	friend COREUOBJECT_API void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum);
-};
 
+private:
+
+	/** 
+	 * Set the UE4 version to below the oldest loadable version. This is used when an error is encountered during serialization 
+	 * and we need to prevent the use of the package. When calling this make sure you log a warning with the 'LogLinker' category
+	 * to inform the user of the problem.
+	 */
+	void InvalidateFileVersion()
+	{
+		FileVersionUE = FPackageFileVersion::CreateUE4Version((EUnrealEngineObjectUE4Version)(VER_UE4_OLDEST_LOADABLE_PACKAGE - 1));
+	}
+};

@@ -497,12 +497,12 @@ void FConsoleOutputDevice::Serialize(const TCHAR* Text, ELogVerbosity::Type Verb
 /*-----------------------------------------------------------------------------
 	Serialized data stripping.
 -----------------------------------------------------------------------------*/
-FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InClassFlags /*= 0*/, int32 InVersion /*= VER_UE4_OLDEST_LOADABLE_PACKAGE */ )
+FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InClassFlags /*= 0*/, const FPackageFileVersion& InVersion /*= GOldestLoadablePackageFileUEVersion */ )
 	: GlobalStripFlags( 0 )
 	, ClassStripFlags( 0 )
 {
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (Ar.UEVer() >= InVersion)
+	if (Ar.UEVer().IsCompatible(InVersion))
 	{
 		if (Ar.IsCooking())
 		{
@@ -517,12 +517,12 @@ FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InClassFlags /*= 0*/
 	}
 }
 
-FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InGlobalFlags, uint8 InClassFlags, int32 InVersion /*= VER_UE4_OLDEST_LOADABLE_PACKAGE */ )
+FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InGlobalFlags, uint8 InClassFlags, const FPackageFileVersion& InVersion /*= GOldestLoadablePackageFileUEVersion */)
 	: GlobalStripFlags( 0 )
 	, ClassStripFlags( 0 )
 {
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (Ar.UEVer() >= InVersion)
+	if (Ar.UEVer().IsCompatible(InVersion))
 	{
 		if (Ar.IsCooking())
 		{
@@ -538,7 +538,7 @@ FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InGlobalFlags, uint8
 /*-----------------------------------------------------------------------------
 Serialized data stripping.
 -----------------------------------------------------------------------------*/
-FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFlags /*= 0*/, int32 InVersion /*= VER_UE4_OLDEST_LOADABLE_PACKAGE */)
+FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFlags /*= 0*/, const FPackageFileVersion& InVersion /*= GOldestLoadablePackageFileUEVersion */)
 	: GlobalStripFlags(0)
 	, ClassStripFlags(0)
 {
@@ -546,7 +546,7 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFl
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (UnderlyingArchive.UEVer() >= InVersion)
+	if (UnderlyingArchive.UEVer().IsCompatible(InVersion))
 	{
 		if (UnderlyingArchive.IsCooking())
 		{
@@ -561,7 +561,7 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFl
 	}
 }
 
-FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalFlags, uint8 InClassFlags, int32 InVersion /*= VER_UE4_OLDEST_LOADABLE_PACKAGE */)
+FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalFlags, uint8 InClassFlags, const FPackageFileVersion& InVersion /*= GOldestLoadablePackageFileUEVersion */)
 	: GlobalStripFlags(0)
 	, ClassStripFlags(0)
 {
@@ -569,7 +569,7 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalF
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (UnderlyingArchive.UEVer() >= InVersion)
+	if (UnderlyingArchive.UEVer().IsCompatible(InVersion))
 	{
 		if (UnderlyingArchive.IsCooking())
 		{

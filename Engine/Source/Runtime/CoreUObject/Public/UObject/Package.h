@@ -245,7 +245,7 @@ public:
 	class FLinkerLoad* LinkerLoad;
 
 	/** Linker package version this package has been serialized with. This is mostly used by PostLoad **/
-	int32 LinkerPackageVersion;
+	FPackageFileVersion LinkerPackageVersion;
 
 	/** Linker licensee version this package has been serialized with. This is mostly used by PostLoad **/
 	int32 LinkerLicenseeVersion;

@@ -18,9 +18,13 @@ struct LEVELSNAPSHOTS_API FSnapshotFileVersionInfo
 	/** Initialize this version info from the compiled in data */
 	void Initialize();
 
-	/* UE File version */
+	/* UE4 File version */
 	UPROPERTY()
-	int32 FileVersion = 0;
+	int32 FileVersion = 0; // Ideally we would rename this FileVersionUE4
+
+	/* UE5 File version */
+	UPROPERTY()
+	int32 FileVersionUE5 = 0;
 
 	/* Licensee file version */
 	UPROPERTY()
