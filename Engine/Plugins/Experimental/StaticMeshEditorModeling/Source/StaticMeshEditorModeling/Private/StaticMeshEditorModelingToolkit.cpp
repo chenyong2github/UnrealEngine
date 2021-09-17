@@ -13,7 +13,7 @@
 #include "EditorStyleSet.h"
 #include "IDetailsView.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-
+#include "Tools/GenerateStaticMeshLODAssetTool.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorModelingToolkit"
 
@@ -260,6 +260,12 @@ void FStaticMeshEditorModelingToolkit::OnToolStarted(UInteractiveToolManager* Ma
 	ActiveToolIcon = FModelingToolsEditorModeStyle::Get()->GetOptionalBrush(ActiveToolIconName);
 
 	GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+
+	const UInteractiveTool* CurrentTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	if (CurrentTool->GetClass()->IsChildOf<UGenerateStaticMeshLODAssetTool>())
+	{
+		PostWarning(LOCTEXT("AutoLODStaticMeshEditorWarning", "Note: This tool may create new assets including new Static Meshes, Textures, and Materials"));
+	}
 }
 
 
