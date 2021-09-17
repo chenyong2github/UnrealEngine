@@ -49,7 +49,7 @@ public:
 	float DegreeOffset = 0.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	bool ReverseDirection = false;
+	bool bReverseDirection = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bHardNormals = false;
@@ -59,6 +59,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bProfileAtMidpoint = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bFillPartialRevolveEndcaps = true;
 };
 
 
@@ -163,6 +166,7 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
+		FGeometryScriptRevolveOptions RevolveOptions,
 		float MajorRadius = 50,
 		float MinorRadius = 25,
 		int32 MajorSteps = 16,
@@ -177,13 +181,28 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
-	AppendSimpleRevolvePolygon( 
+	AppendRevolvePolygon( 
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptPrimitiveOptions PrimitiveOptions,
 		FTransform Transform,
 		const TArray<FVector2D>& PolygonVertices,
+		FGeometryScriptRevolveOptions RevolveOptions,
 		float Radius = 100,
 		int32 Steps = 8,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives", meta = (ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	AppendSpiralRevolvePolygon(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		const TArray<FVector2D>& PolygonVertices,
+		FGeometryScriptRevolveOptions RevolveOptions,
+		float Radius = 100,
+		int Steps = 18,
+		float RisePerRevolution = 50,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
