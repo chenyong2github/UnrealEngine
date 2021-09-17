@@ -30,6 +30,8 @@ UGeometryCacheComponent::UGeometryCacheComponent(const FObjectInitializer& Objec
 	Duration = 0.0f;
 	bManualTick = false;
 	MotionVectorScale = 1.f;
+	bOverrideWireframeColor = false;
+	WireframeOverrideColor = FLinearColor::Green;
 }
 
 void UGeometryCacheComponent::BeginDestroy()
@@ -502,7 +504,6 @@ void UGeometryCacheComponent::ReleaseResources()
 
 int32 UGeometryCacheComponent::GetFrameAtTime(const float Time) const
 {
-
 	const float FrameTime = GetNumberOfFrames() > 1 ? Duration / (float)(GetNumberOfFrames() - 1) : 0.0f;
 	const int32 NormalizedFrame =  FMath::Clamp(FMath::RoundToInt(Time / FrameTime), 0, GetNumberOfFrames() - 1);
 	const int32 StartFrame = GeometryCache != nullptr ? GeometryCache->GetStartFrame() : 0;
@@ -525,6 +526,27 @@ int32 UGeometryCacheComponent::GetNumberOfFrames() const
 	}
 	return 0;
 }
+
+void UGeometryCacheComponent::SetOverrideWireframeColor(bool bOverride)
+{
+	bOverrideWireframeColor = bOverride;
+}
+
+bool UGeometryCacheComponent::GetOverrideWireframeColor() const
+{
+	return bOverrideWireframeColor;
+}
+
+void UGeometryCacheComponent::SetWireframeOverrideColor(FLinearColor Color)
+{
+	WireframeOverrideColor = Color;
+}
+
+FLinearColor UGeometryCacheComponent::GetWireframeOverrideColor() const
+{
+	return WireframeOverrideColor;
+}
+
 #if WITH_EDITOR
 void UGeometryCacheComponent::PreEditUndo()
 {

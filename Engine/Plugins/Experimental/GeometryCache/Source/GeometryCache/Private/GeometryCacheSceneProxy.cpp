@@ -70,6 +70,9 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 	bAlwaysHasVelocity = true;
 	PlaybackSpeed = (Component->IsPlaying()) ? Component->GetPlaybackSpeed() : 0.0f;
 	MotionVectorScale = Component->GetMotionVectorScale();
+	bOverrideWireframeColor = Component->GetOverrideWireframeColor();
+	WireframeOverrideColor = Component->GetWireframeOverrideColor();
+	
 	UpdatedFrameNum = 0;
 
 	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) || (FeatureLevel == ERHIFeatureLevel::ES3_1);
@@ -414,7 +417,8 @@ void FGeometryCacheSceneProxy::GetDynamicMeshElements(const TArray<const FSceneV
 		const bool bLevelColorationEnabled = EngineShowFlags.LevelColoration;
 		const bool bPropertyColorationEnabled = EngineShowFlags.PropertyColoration;
 
-		FLinearColor ViewWireframeColor(bLevelColorationEnabled ? GetLevelColor() : GetWireframeColor());
+		const FLinearColor WireColor = bOverrideWireframeColor ? WireframeOverrideColor : GetWireframeColor();
+		FLinearColor ViewWireframeColor(bLevelColorationEnabled ? GetLevelColor() : WireColor);
 		if (bPropertyColorationEnabled)
 		{
 			ViewWireframeColor = GetPropertyColor();

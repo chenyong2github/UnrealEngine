@@ -388,6 +388,9 @@ private:
 	float PlaybackSpeed;
 	float MotionVectorScale;
 
+	bool bOverrideWireframeColor = false;
+	FLinearColor WireframeOverrideColor = FLinearColor::Green;
+
 	FMaterialRelevance MaterialRelevance;
 	uint32 bLooping : 1;
 	uint32 bIsPlayingBackwards : 1;
