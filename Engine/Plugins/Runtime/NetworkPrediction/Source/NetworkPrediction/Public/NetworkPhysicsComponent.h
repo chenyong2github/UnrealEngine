@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NetworkPhysics.h"
+#include "Net/Serialization/FastArraySerializer.h"
 #include "NetworkPhysicsComponent.generated.h"
 
 // Generic component that will register an actor's primitive component with the Network Physics system.
@@ -22,19 +23,18 @@ public:
 	virtual void InitializeComponent() override;
 	virtual void UninitializeComponent() override;
 
-	UPROPERTY(Replicated, transient)
-	FNetworkPhysicsState NetworkPhysicsState;
-
 	UFUNCTION(BlueprintPure, Category = "Network Physics")
-	int32 GetNetworkPredictionLOD() const { return NetworkPhysicsState.LocalLOD; }
+	int32 GetNetworkPredictionLOD() const { return NetworkPhysicsStateArray.Num() > 0 ? NetworkPhysicsStateArray[0].LocalLOD : 0; }
 
 	APlayerController* GetOwnerPC() const;
 
 protected:
+	
+	FSingleParticlePhysicsProxy* GetManagedProxy() const { return NetworkPhysicsStateArray.Num() > 0 ? NetworkPhysicsStateArray[0].Proxy : nullptr; }
+	
+private:
 
-	FSingleParticlePhysicsProxy* GetManagedProxy() const { return NetworkPhysicsState.Proxy; }
-
-	// Which component's physics body to manage if there are multiple PrimitiveComponent and not the root component.
-	UPROPERTY(EditDefaultsOnly, Category = "Network Physics")
-	FName ManagedComponentTag=NAME_None;
+	// Array of physics state being managed. Do not mess with this directly, it should only be touched in InitializeComponent
+	UPROPERTY(Replicated, transient)
+	TArray<FNetworkPhysicsState> NetworkPhysicsStateArray;
 };
