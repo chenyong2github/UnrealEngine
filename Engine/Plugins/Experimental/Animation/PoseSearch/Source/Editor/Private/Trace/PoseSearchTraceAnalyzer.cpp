@@ -41,22 +41,27 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 		case RouteId_MotionMatchingState:
 			{
 				FTraceMotionMatchingStateMessage Message;
-				Message.ElapsedPoseJumpTime = EventData.GetValue<float>("ElapsedPoseJumpTime");
-				// Cast back to our flag type
+				Message.DatabaseId = EventData.GetValue<uint64>("DatabaseId");
 				Message.Flags = static_cast<FTraceMotionMatchingState::EFlags>(EventData.GetValue<uint32>("Flags"));
 				Message.DbPoseIdx = EventData.GetValue<int32>("DbPoseIdx");
+				Message.ElapsedPoseJumpTime = EventData.GetValue<float>("ElapsedPoseJumpTime");
+				Message.QueryVector = EventData.GetArrayView<float>("QueryVector");
+                Message.QueryVectorNormalized = EventData.GetArrayView<float>("QueryVectorNormalized");
 
-				// Gather array types
-				TArrayView<const float> View = EventData.GetArrayView<float>("QueryVector");
-				Message.QueryVector = View;
-				
-				View = EventData.GetArrayView<float>("QueryVectorNormalized");
-                Message.QueryVectorNormalized = View;
-				
-				View = EventData.GetArrayView<float>("BiasWeights");
-				Message.BiasWeights = View;
-				
-				Message.DatabaseId = EventData.GetValue<uint64>("DatabaseId");
+				TArrayView<const float> ChannelWeightScales = EventData.GetArrayView<float>("ChannelWeightScales");
+				TArrayView<const float> HistoryWeightScales = EventData.GetArrayView<float>("HistoryWeightScales");
+				TArrayView<const float> PredictionWeightScales = EventData.GetArrayView<float>("PredictionWeightScales");
+
+				if ((ChannelWeightScales.Num() == 2) && (HistoryWeightScales.Num() == 2) && (PredictionWeightScales.Num() == 2))
+				{
+					Message.Weights.PoseDynamicWeights.ChannelWeightScale = ChannelWeightScales[0];
+					Message.Weights.TrajectoryDynamicWeights.ChannelWeightScale = ChannelWeightScales[1];
+					Message.Weights.PoseDynamicWeights.HistoryWeightScale = HistoryWeightScales[0];
+					Message.Weights.TrajectoryDynamicWeights.HistoryWeightScale = HistoryWeightScales[1];
+					Message.Weights.PoseDynamicWeights.PredictionWeightScale = PredictionWeightScales[0];
+					Message.Weights.TrajectoryDynamicWeights.PredictionWeightScale = PredictionWeightScales[1];
+					Message.Weights.bDebugDisableWeights = EventData.GetValue<bool>("DebugDisableWeights");
+				}
 
 				// Common data
 				Message.NodeId = NodeId;

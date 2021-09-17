@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PoseSearch/PoseSearch.h"
 #include "ObjectTrace.h"
 
 // Enable this if object tracing is enabled, mimics animation tracing
@@ -39,12 +40,12 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	/** Storage container for state booleans */
 	EFlags Flags = EFlags::None;
 
-	/** Feature value array of the query data */
+	/** Search vectors in normalized and unnormalized forms */
 	TArrayView<const float> QueryVector;
 	TArrayView<const float> QueryVectorNormalized;
 
-	/** Weight bias params for motion matching queries */
-	TArrayView<const float> BiasWeights;
+	/** Runtime weights */
+	FPoseSearchDynamicWeightParams Weights;
 
 	/** Index of the pose in our database */
 	int32 DbPoseIdx = 0;

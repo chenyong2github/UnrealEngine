@@ -520,19 +520,22 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	}
 	check(ActiveView.Rows.Num() == 1);
 	
-	FPoseSearchDynamicWeightParams StateDynamicWeightParams;
 	FPoseSearchWeightsContext StateWeights;
-	StateWeights.Update(StateDynamicWeightParams, &Database);
+	StateWeights.Update(State.Weights, &Database);
 
 	FPoseSearchWeightsContext PoseWeights;
-	FPoseSearchDynamicWeightParams WeightParams = StateDynamicWeightParams;
-	WeightParams.TrajectoryDynamicWeights.ChannelWeightScale = 0.0f;
-	PoseWeights.Update(WeightParams, &Database);
+	{
+		FPoseSearchDynamicWeightParams WeightParams = State.Weights;
+		WeightParams.TrajectoryDynamicWeights.ChannelWeightScale = 0.0f;
+		PoseWeights.Update(WeightParams, &Database);
+	}
 
 	FPoseSearchWeightsContext TrajectoryWeights;
-	WeightParams = StateDynamicWeightParams;
-	WeightParams.PoseDynamicWeights.ChannelWeightScale = 0.0f;
-	TrajectoryWeights.Update(WeightParams, &Database);
+	{
+		FPoseSearchDynamicWeightParams WeightParams = State.Weights;
+		WeightParams.PoseDynamicWeights.ChannelWeightScale = 0.0f;
+		TrajectoryWeights.Update(WeightParams, &Database);
+	}
 	
 	const FPoseSearchIndex& SearchIndex = Database.SearchIndex;
 

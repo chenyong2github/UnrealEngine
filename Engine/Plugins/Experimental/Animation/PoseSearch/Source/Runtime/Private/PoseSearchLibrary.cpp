@@ -204,7 +204,7 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		// @TODO: Change this to only be the previous query, not persistently updated (i.e. if throttled)?
 		TraceState.QueryVector = InOutMotionMatchingState.ComposedQuery.GetValues();
 		TraceState.QueryVectorNormalized = InOutMotionMatchingState.ComposedQuery.GetNormalizedValues();
-		TraceState.BiasWeights = InOutMotionMatchingState.WeightsContext.GetGroupWeights(0)->Weights;
+		TraceState.Weights = Settings.Weights;
 		TraceState.DbPoseIdx = InOutMotionMatchingState.DbPoseIdx;
 		TraceState.DatabaseId = FObjectTrace::GetObjectId(Database);
 		UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, TraceState)

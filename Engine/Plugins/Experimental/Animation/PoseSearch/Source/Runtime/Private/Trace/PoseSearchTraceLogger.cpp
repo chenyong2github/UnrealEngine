@@ -20,7 +20,10 @@ UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
 	UE_TRACE_EVENT_FIELD(int32, DbPoseIdx)
 	UE_TRACE_EVENT_FIELD(float[], QueryVector)
 	UE_TRACE_EVENT_FIELD(float[], QueryVectorNormalized)
-	UE_TRACE_EVENT_FIELD(float[], BiasWeights)
+	UE_TRACE_EVENT_FIELD(float[], ChannelWeightScales)
+	UE_TRACE_EVENT_FIELD(float[], HistoryWeightScales)
+	UE_TRACE_EVENT_FIELD(float[], PredictionWeightScales)
+	UE_TRACE_EVENT_FIELD(bool, DebugDisableWeights)
 UE_TRACE_EVENT_END()
 
 namespace UE { namespace PoseSearch {
@@ -56,6 +59,23 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 	TRACE_OBJECT(AnimInstance);
 	UObject* SkeletalMeshComponent = AnimInstance->GetOuter();
 
+	float ChannelWeightScales[] =
+	{
+		State.Weights.PoseDynamicWeights.ChannelWeightScale,
+		State.Weights.TrajectoryDynamicWeights.ChannelWeightScale
+	};
+
+	float HistoryWeightScales[] =
+	{
+		State.Weights.PoseDynamicWeights.HistoryWeightScale,
+		State.Weights.TrajectoryDynamicWeights.HistoryWeightScale
+	};
+	float PredictionWeightScales[] =
+	{
+		State.Weights.PoseDynamicWeights.PredictionWeightScale,
+		State.Weights.TrajectoryDynamicWeights.PredictionWeightScale
+	};
+
 	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel)
 		<< MotionMatchingState.Cycle(FPlatformTime::Cycles64())
 		<< MotionMatchingState.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
@@ -63,13 +83,15 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 		<< MotionMatchingState.SkeletalMeshComponentId(FObjectTrace::GetObjectId(SkeletalMeshComponent))
 		<< MotionMatchingState.NodeId(InContext.GetCurrentNodeId())
 		<< MotionMatchingState.ElapsedPoseJumpTime(State.ElapsedPoseJumpTime)
-		// Cast to uint32 for event message
 		<< MotionMatchingState.Flags(static_cast<uint32>(State.Flags))
+		<< MotionMatchingState.DatabaseId(State.DatabaseId)
+		<< MotionMatchingState.DbPoseIdx(State.DbPoseIdx)
 		<< MotionMatchingState.QueryVector(State.QueryVector.GetData(), State.QueryVector.Num())
 		<< MotionMatchingState.QueryVectorNormalized(State.QueryVectorNormalized.GetData(), State.QueryVectorNormalized.Num())
-		<< MotionMatchingState.BiasWeights(State.BiasWeights.GetData(), State.BiasWeights.Num())
-		<< MotionMatchingState.DbPoseIdx(State.DbPoseIdx)
-		<< MotionMatchingState.DatabaseId(State.DatabaseId);
+		<< MotionMatchingState.ChannelWeightScales(ChannelWeightScales, UE_ARRAY_COUNT(ChannelWeightScales))
+		<< MotionMatchingState.HistoryWeightScales(HistoryWeightScales, UE_ARRAY_COUNT(HistoryWeightScales))
+		<< MotionMatchingState.PredictionWeightScales(PredictionWeightScales, UE_ARRAY_COUNT(PredictionWeightScales))
+		<< MotionMatchingState.DebugDisableWeights(State.Weights.bDebugDisableWeights);
 }
 
 }}

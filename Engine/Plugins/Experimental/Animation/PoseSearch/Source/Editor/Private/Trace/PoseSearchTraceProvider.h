@@ -27,7 +27,7 @@ struct FTraceMotionMatchingStateMessage : FTraceMessage
 	float ElapsedPoseJumpTime;
 	TArray<float> QueryVector;
 	TArray<float> QueryVectorNormalized;
-	TArray<float> BiasWeights;
+	FPoseSearchDynamicWeightParams Weights;
 	int32 DbPoseIdx;
 	uint64 DatabaseId;
 };
