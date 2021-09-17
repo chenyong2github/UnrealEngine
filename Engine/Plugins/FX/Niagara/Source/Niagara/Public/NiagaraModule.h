@@ -18,6 +18,7 @@ struct FNiagaraVMExecutableData;
 class UNiagaraScript;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
+class FNiagaraCompileRequestDuplicateDataBase;
 class INiagaraMergeManager;
 class INiagaraEditorOnlyDataUtilities;
 struct FNiagaraParameterStore;
@@ -34,9 +35,11 @@ class NIAGARA_API INiagaraModule : public IModuleInterface
 public:
 #if WITH_EDITOR
 	typedef TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> CompileRequestPtr;
-	DECLARE_DELEGATE_RetVal_TwoParams(int32, FScriptCompiler, const FNiagaraCompileRequestDataBase*, const FNiagaraCompileOptions&);
+	typedef TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> CompileRequestDuplicatePtr;
+	DECLARE_DELEGATE_RetVal_ThreeParams(int32, FScriptCompiler, const FNiagaraCompileRequestDataBase*, const FNiagaraCompileRequestDuplicateDataBase*, const FNiagaraCompileOptions&);
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FCheckCompilationResult, int32, bool);
 	DECLARE_DELEGATE_RetVal_TwoParams(CompileRequestPtr, FOnPrecompile, UObject*, FGuid);
+	DECLARE_DELEGATE_RetVal_FiveParams(CompileRequestDuplicatePtr, FOnPrecompileDuplicate, const FNiagaraCompileRequestDataBase* /*OwningSystemRequestData*/, UNiagaraSystem* /*OwningSystem*/, UNiagaraEmitter* /*OwningEmitter*/, UNiagaraScript* /*TargetScript*/, FGuid /*Version*/);
 #endif
 	DECLARE_DELEGATE_RetVal(void, FOnProcessQueue);
 
@@ -72,7 +75,7 @@ public:
 
 	void UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
-	int32 StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions);
+	int32 StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InCompileDuplicateData, const FNiagaraCompileOptions& InCompileOptions);
 	TSharedPtr<FNiagaraVMExecutableData> GetCompileJobResult(int32 JobID, bool bWait);
 
 	FDelegateHandle RegisterScriptCompiler(FScriptCompiler ScriptCompiler);
@@ -82,8 +85,16 @@ public:
 	void UnregisterCompileResultDelegate(FDelegateHandle DelegateHandle);
 
 	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* InObj, FGuid Version);
+	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> PrecompileDuplicate(
+		const FNiagaraCompileRequestDataBase* OwningSystemRequestData,
+		UNiagaraSystem* OwningSystem,
+		UNiagaraEmitter* OwningEmitter,
+		UNiagaraScript* TargetScript,
+		FGuid TargetVersion);
 	FDelegateHandle RegisterPrecompiler(FOnPrecompile PreCompiler);
 	void UnregisterPrecompiler(FDelegateHandle DelegateHandle);
+	FDelegateHandle RegisterPrecompileDuplicator(FOnPrecompileDuplicate PreCompileDuplicator);
+	void UnregisterPrecompileDuplicator(FDelegateHandle DelegateHandle);
 
 	void OnAssetLoaded(UObject* Asset);
 
@@ -215,7 +226,8 @@ public:
 
 	FScriptCompiler ScriptCompilerDelegate;
 	FCheckCompilationResult CompilationResultDelegate;
-	FOnPrecompile ObjectPrecompilerDelegate;
+	FOnPrecompile PrecompileDelegate;
+	FOnPrecompileDuplicate PrecompileDuplicateDelegate;
 #endif
 
 	static int32 EngineEffectsQuality;

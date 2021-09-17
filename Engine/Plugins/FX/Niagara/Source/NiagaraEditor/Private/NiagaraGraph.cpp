@@ -951,7 +951,28 @@ void UNiagaraGraph::FindEquivalentOutputNodes(ENiagaraScriptUsage TargetUsageTyp
 	OutputNodes = NodesFound;
 }
 
-UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
+void BuildCompleteTraversal(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& AllNodes)
+{
+	if (CurrentNode == nullptr || AllNodes.Contains(CurrentNode))
+	{
+		return;
+	}
+
+	AllNodes.Add(CurrentNode);
+
+	for (UEdGraphPin* Pin : CurrentNode->GetAllPins())
+	{
+		if(Pin->Direction == EGPD_Input)
+		{
+			for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
+			{
+				BuildCompleteTraversal(LinkedPin->GetOwningNode(), AllNodes);
+			}
+		}
+	}
+}
+
+UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptUsage>& CompileUsages)
 {
 	check(!bIsForCompilationOnly);
 	UNiagaraGraph* Result = NewObject<UNiagaraGraph>();
@@ -961,6 +982,11 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
 	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 	{
 		FProperty* Property = *PropertyIt;
+		if (*Property->GetNameCPP() == GET_MEMBER_NAME_CHECKED(UEdGraph, Nodes))
+		{
+			// The nodes will be handled separately below.
+			continue;
+		}
 		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(this);
         uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
 
@@ -974,8 +1000,20 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
 		It.Value = CastChecked<UNiagaraScriptVariable>(NiagaraEditorModule.GetPooledDuplicateObject(It.Value));
 	}
 
-	// duplicate the nodes
+	// Only add references to nodes which match a complie usage.
 	TMap<UEdGraphNode*, UEdGraphNode*> DuplicationMapping;
+	TArray<UNiagaraNodeOutput*> OutputNodes;
+	GetNodesOfClass(OutputNodes);
+	for (UNiagaraNodeOutput* OutputNode : OutputNodes)
+	{
+		if(CompileUsages.ContainsByPredicate([OutputNode](ENiagaraScriptUsage CompileUsage) { return UNiagaraScript::IsEquivalentUsage(CompileUsage, OutputNode->GetUsage()); }))
+		{
+			TArray<UEdGraphNode*> TraversedNodes;
+			BuildCompleteTraversal(OutputNode, TraversedNodes);
+			Result->Nodes.Append(TraversedNodes);
+		}
+	}
+
 	TArray<UEdGraphNode*> NewNodes;
 	for (UEdGraphNode* Node : Result->Nodes)
 	{
@@ -992,11 +1030,22 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy()
 			for (int i = 0; i < Pin->LinkedTo.Num(); i++)
 			{
 				UEdGraphPin* LinkedPin = Pin->LinkedTo[i];
-				UEdGraphNode* NewNode = DuplicationMapping[LinkedPin->GetOwningNode()];
-				UEdGraphPin** NodePin = NewNode->Pins.FindByPredicate([LinkedPin](UEdGraphPin* Pin) { return Pin->PinId == LinkedPin->PinId; });
-				check(NodePin);
-				Pin->LinkedTo[i] = *NodePin;
+				UEdGraphNode** NewNodePtr = DuplicationMapping.Find(LinkedPin->GetOwningNode());
+				if (NewNodePtr == nullptr)
+				{
+					// If output pins were connected to another node which wasn't encountered in traversal then it's possible it won't be found here.
+					// In that case set the linked pin to nullptr to be removed later.
+					Pin->LinkedTo[i] = nullptr;
+				}
+				else
+				{
+					UEdGraphPin** NodePin = (*NewNodePtr)->Pins.FindByPredicate([LinkedPin](UEdGraphPin* Pin) { return Pin->PinId == LinkedPin->PinId; });
+					check(NodePin);
+					Pin->LinkedTo[i] = *NodePin;
+				}
 			}
+			// Remove any null linked pins.
+			Pin->LinkedTo.RemoveAll([](const UEdGraphPin* Pin) { return Pin == nullptr; });
 		}
 	}
 	Result->Nodes = NewNodes;

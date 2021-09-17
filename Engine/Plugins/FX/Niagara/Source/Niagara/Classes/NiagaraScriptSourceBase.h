@@ -30,13 +30,24 @@ class FNiagaraCompileRequestDataBase
 {
 public:
 	virtual ~FNiagaraCompileRequestDataBase() {}
-	virtual bool GatherPreCompiledVariables(const FString& InNamespaceFilter, TArray<FNiagaraVariable>& OutVars) = 0;
-	virtual void GetReferencedObjects(TArray<UObject*>& Objects) = 0;
-	virtual const TMap<FName, UNiagaraDataInterface*>& GetObjectNameMap() = 0;
+	virtual void GatherPreCompiledVariables(const FString& InNamespaceFilter, TArray<FNiagaraVariable>& OutVars) const = 0;
 	virtual int32 GetDependentRequestCount() const = 0;
 	virtual TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> GetDependentRequest(int32 Index) = 0;
+	virtual const FNiagaraCompileRequestDataBase* GetDependentRequest(int32 Index) const = 0;
 	virtual FName ResolveEmitterAlias(FName VariableName) const = 0;
 	virtual bool GetUseRapidIterationParams() const = 0;
+};
+
+/** External reference to the compile request data generated.*/
+class FNiagaraCompileRequestDuplicateDataBase
+{
+public:
+	virtual ~FNiagaraCompileRequestDuplicateDataBase() {}
+	virtual bool IsDuplicateDataFor(UNiagaraSystem* InSystem, UNiagaraEmitter* InEmitter, UNiagaraScript* InScript) const = 0;
+	virtual void GetDuplicatedObjects(TArray<UObject*>& Objects) = 0;
+	virtual const TMap<FName, UNiagaraDataInterface*>& GetObjectNameMap() = 0;
+	virtual int32 GetDependentRequestCount() const = 0;
+	virtual TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> GetDependentRequest(int32 Index) = 0;
 	virtual void ReleaseCompilationCopies() = 0;
 };
 

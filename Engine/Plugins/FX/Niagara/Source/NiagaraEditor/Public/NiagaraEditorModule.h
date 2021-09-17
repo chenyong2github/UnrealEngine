@@ -24,6 +24,7 @@ class FNiagaraSystemViewModel;
 class FNiagaraScriptMergeManager;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
+class FNiagaraCompileRequestDuplicateDataBase;
 class UMovieSceneNiagaraParameterTrack;
 struct IConsoleCommand;
 class INiagaraEditorOnlyDataUtilities;
@@ -109,10 +110,16 @@ public:
 	NIAGARAEDITOR_API static FNiagaraEditorModule& Get();
 
 	/** Start the compilation of the specified script. */
-	virtual int32 CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileOptions& InCompileOptions);
+	virtual int32 CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileRequestDuplicateDataBase* InCompileRequestDuplicate, const FNiagaraCompileOptions& InCompileOptions);
 	virtual TSharedPtr<FNiagaraVMExecutableData> GetCompilationResult(int32 JobID, bool bWait);
 
-	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* Obj, FGuid Version);
+	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* InObj, FGuid Version);
+	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> PrecompileDuplicate(
+		const FNiagaraCompileRequestDataBase* OwningSystemRequestData,
+		UNiagaraSystem* OwningSystem,
+		UNiagaraEmitter* OwningEmitter,
+		UNiagaraScript* TargetScript,
+		FGuid TargetVersion);
 
 	/** Gets the extensibility managers for outside entities to extend static mesh editor's menus and toolbars */
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override {return MenuExtensibilityManager;}
@@ -280,6 +287,7 @@ private:
 	FDelegateHandle ScriptCompilerHandle;
 	FDelegateHandle CompileResultHandle;
 	FDelegateHandle PrecompilerHandle;
+	FDelegateHandle PrecompileDuplicatorHandle;
 
 	FDelegateHandle DeviceProfileManagerUpdatedHandle;
 
