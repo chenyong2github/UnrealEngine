@@ -350,6 +350,6 @@ void FPlayerSession::SendVideoEncoderQP(double QP) const
 {
 	if (!SendMessage(PixelStreamingProtocol::EToPlayerMsg::VideoEncoderAvgQP, FString::FromInt(QP)))
 	{
-		UE_LOG(PixelStreamer, Error, TEXT("Failed to send video encoder QP to peer."));
+		UE_LOG(PixelStreamer, Verbose, TEXT("Failed to send video encoder QP to peer."));
 	}
 }

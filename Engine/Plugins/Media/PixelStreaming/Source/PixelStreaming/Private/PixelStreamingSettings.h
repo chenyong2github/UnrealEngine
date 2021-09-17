@@ -50,8 +50,10 @@ namespace PixelStreamingSettings
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars
-	extern TAutoConsoleVariable<bool> CVarPixelStreamingHudStats;
-	extern TAutoConsoleVariable<int32> CVarFreezeFrameQuality;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingOnScreenStats;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingLogStats;
+
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingFreezeFrameQuality;
 	extern TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingDisableLatencyTester;
 	extern TArray<FKey> FilteredKeys;

@@ -8,7 +8,7 @@
 #include "PixelStreamerDelegates.h"
 #include "SignallingServerConnection.h"
 #include "PixelStreamingSettings.h"
-#include "HUDStats.h"
+#include "PixelStreamingStats.h"
 #include "PixelStreamingPrivate.h"
 #include "PlayerSession.h"
 #include "PixelStreamingAudioSink.h"
@@ -375,7 +375,7 @@ void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rec
 	if (bSuccess)
 	{
 		// Compress to a JPEG of the maximum possible quality.
-		int32 Quality = PixelStreamingSettings::CVarFreezeFrameQuality.GetValueOnAnyThread();
+		int32 Quality = PixelStreamingSettings::CVarPixelStreamingFreezeFrameQuality.GetValueOnAnyThread();
 		const TArray64<uint8>& JpegBytes = ImageWrapper->GetCompressed(Quality);
 		Streamer->SendFreezeFrame(JpegBytes);
 	}
@@ -397,7 +397,7 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
-	FHUDStats::Get().Tick();
+	FPixelStreamingStats::Get().Tick();
 
 	// If we are running a latency test then check if we have timing results and if we do transmit them
 	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::RESULTS_READY)

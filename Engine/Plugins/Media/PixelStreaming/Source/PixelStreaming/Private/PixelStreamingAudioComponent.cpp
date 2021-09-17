@@ -110,7 +110,7 @@ bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 
     if(!IPixelStreamingModule::IsAvailable())
     {
-        UE_LOG(PixelStreamer, Warning, TEXT("Pixel Streaming audio component could not listen to anything because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
+        UE_LOG(PixelStreamer, Verbose, TEXT("Pixel Streaming audio component could not listen to anything because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
         return false;
     }
 

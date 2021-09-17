@@ -191,13 +191,20 @@ namespace PixelStreamingSettings
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars
-	TAutoConsoleVariable<bool> CVarPixelStreamingHudStats(
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingOnScreenStats(
 		TEXT("PixelStreaming.HUDStats"),
 		false,
-		TEXT("Whether to show PixelStreaming stats on the in-game HUD."),
-		ECVF_RenderThreadSafe);
+		TEXT("Whether to show PixelStreaming stats on the in-game HUD (default: true)."),
+		ECVF_Default);
 
-	TAutoConsoleVariable<int32> CVarFreezeFrameQuality(
+	TAutoConsoleVariable<bool> CVarPixelStreamingLogStats(
+		TEXT("PixelStreaming.LogStats"),
+		false,
+		TEXT("Whether to show PixelStreaming stats in the log (default: false)."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingFreezeFrameQuality(
 		TEXT("PixelStreaming.FreezeFrameQuality"),
 		100,
 		TEXT("Compression quality of the freeze frame"),
@@ -322,23 +329,28 @@ namespace PixelStreamingSettings
 		CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), PixelStreamingSettings::CVarPixelStreamingCaptureSize);
 		CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers);
 		CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCStartBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCMinBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCLowQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCLowQpThreshold);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCHighQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCHighQpThreshold);
-		CommandLineParseValue(TEXT("FreezeFrameQuality="), PixelStreamingSettings::CVarFreezeFrameQuality);
+		CommandLineParseValue(TEXT("PixelStreamingFreezeFrameQuality"), PixelStreamingSettings::CVarPixelStreamingFreezeFrameQuality);
 		CommandLineParseValue(TEXT("PixelStreamingKeyFilter="), PixelStreamingSettings::CVarPixelStreamingKeyFilter);
 
 		// Options parse (if these exist they are set to true)
-		CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingHudStats);
+		CommandLineParseOption(TEXT("PixelStreamingOnScreenStats"), PixelStreamingSettings::CVarPixelStreamingOnScreenStats);
+		CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingOnScreenStats);
+		CommandLineParseOption(TEXT("PixelStreamingLogStats"), PixelStreamingSettings::CVarPixelStreamingLogStats);
+
 		CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame);
 		CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
-		CommandLineParseOption(TEXT("PixelStreamingUseBackBufferCaptureSize"), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
+		CommandLineParseOption(TEXT("PixelStreamingUseBackBufferSize"), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableReceiveAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableReceiveAudio);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableTransmitAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableTransmitAudio);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableAudioSync"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableAudioSync);
+		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableResolutionChange"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableResolutionChange);
 		CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger"), PixelStreamingSettings::CVarSendPlayerIdAsInteger);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice);
 		CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester);

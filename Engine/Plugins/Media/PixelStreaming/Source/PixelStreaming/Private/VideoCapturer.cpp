@@ -2,7 +2,6 @@
 
 #include "VideoCapturer.h"
 #include "Utils.h"
-
 #include "Engine/Engine.h"
 #include "CommonRenderResources.h"
 #include "GlobalShader.h"
@@ -11,13 +10,12 @@
 #include "Modules/ModuleManager.h"
 #include "PixelStreamingFrameBuffer.h"
 #include "PixelStreamingSettings.h"
+#include "PixelStreamingStats.h"
 #include "ClearQuad.h"
 #include "LatencyTester.h"
 #include "RHIStaticStates.h"
 #include "ScreenRendering.h"
-
 #include "CudaModule.h"
-
 #include "VulkanRHIPrivate.h"
 
 extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize;
@@ -122,14 +120,6 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 	// Latency test post capture
 	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_CAPTURE)
 	{
-		// Render a fully red frame for latency testing purposes
-		// FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		// FTexture2DRHIRef& DestinationTexture = BackBuffers[InputFrame];
-		// FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
-		// RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
-		// DrawClearQuad(RHICmdList, FLinearColor::Red);
-		// RHICmdList.EndRenderPass();
-		// We don't do the red frame latency test anymore, but if we want to enable it in future we can uncomment above ^^
 		FLatencyTester::RecordPostCaptureTime(FrameId);
 	}
 
@@ -141,6 +131,18 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 	OnFrame(Frame);
 
 	InputFrame->Release();
+
+	// If stats are enabled, records the stats during capture now.
+	FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
+	if(Stats.GetStatsEnabled())
+	{
+		int64 TimestampNowUs = rtc::TimeMicros();
+		int64 CaptureLatencyUs = TimestampNowUs - TimestampUs;
+		double CaptureLatencyMs = (double)CaptureLatencyUs / 1000.0;
+		Stats.SetCaptureLatency(CaptureLatencyMs);
+		Stats.OnCaptureFinished();
+	}
+
 }
 
 AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()

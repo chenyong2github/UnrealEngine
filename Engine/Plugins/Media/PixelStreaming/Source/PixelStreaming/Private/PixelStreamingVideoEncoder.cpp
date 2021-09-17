@@ -4,7 +4,7 @@
 #include "VideoEncoderFactory.h"
 #include "PixelStreamingFrameBuffer.h"
 #include "PlayerSession.h"
-#include "HUDStats.h"
+#include "PixelStreamingStats.h"
 #include "UnrealEngine.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/Paths.h"
@@ -73,6 +73,13 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
 
+	// Record stat for when WebRTC delivered frame, if stats are enabled.
+	FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
+	if(Stats.GetStatsEnabled())
+	{
+		Stats.OnWebRTCDeliverFrameForEncode();
+	}
+
 	const FPixelStreamingFrameBuffer* EncoderFrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(frame.video_frame_buffer().get());
 
 	if (!Context->Encoder)
@@ -81,7 +88,7 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	}
 
 	// Detect video frame not matching encoder encoding resolution
-	// Note: This can happen when UE application changes its resolution and the encoder is not programattically.
+	// Note: This can happen when UE application changes its resolution and the encoder is not programattically updated.
 	int const FrameWidth = frame.width();
 	int const FrameHeight = frame.height();
 	if (EncoderConfig.Width != FrameWidth || EncoderConfig.Height != FrameHeight)
@@ -316,26 +323,17 @@ void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEnco
 
 	Context->Factory->OnEncodedImage(Image, &CodecInfo, &FragHeader);
 
-	FHUDStats& Stats = FHUDStats::Get();
-	const double LatencyMs = InPacket.Timings.FinishTs.GetTotalMilliseconds() - InPacket.Timings.StartTs.GetTotalMilliseconds();
+	FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
+	const double EncoderLatencyMs = (InPacket.Timings.FinishTs.GetTotalMicroseconds() - InPacket.Timings.StartTs.GetTotalMicroseconds()) / 1000.0;
 	const double BitrateMbps = InPacket.DataSize * 8 * InPacket.Framerate / 1000000.0;
-	const double CaptureMs = (InPacket.Timings.StartTs.GetTotalMicroseconds() - InFrame->GetTimestampUs()) / 1000.0;
 
-	if (PixelStreamingSettings::CVarPixelStreamingHudStats.GetValueOnAnyThread())
+	if (Stats.GetStatsEnabled())
 	{
-		Stats.EncoderLatencyMs.Update(LatencyMs);
-		Stats.EncoderBitrateMbps.Update(BitrateMbps);
-		Stats.EncoderFPS.Update(InPacket.Framerate);
-		Stats.CaptureLatencyMs.Update(CaptureMs);
-		Stats.EncoderQP.Update(InPacket.VideoQP);
+		Stats.SetEncoderLatency(EncoderLatencyMs);
+		Stats.SetEncoderBitrateMbps(BitrateMbps);
+		Stats.SetEncoderQP(InPacket.VideoQP);
+		Stats.OnEncodingFinished();
 	}
-
-	UE_LOG(PixelStreamer, VeryVerbose, TEXT("QP %d, capture latency %.0f ms, encode latency %.0f ms, bitrate %.3f Mbps, %d bytes")
-		, InPacket.VideoQP
-		, CaptureMs
-		, LatencyMs
-		, BitrateMbps
-		, (int)InPacket.DataSize);
 
 	// If we are running a latency test then record pre-encode timing
 	if (FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_ENCODE)
