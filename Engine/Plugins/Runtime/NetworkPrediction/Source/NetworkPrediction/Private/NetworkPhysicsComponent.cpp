@@ -64,59 +64,42 @@ void UNetworkPhysicsComponent::InitializeComponent()
 		return Pc;
 	};
 
-	UPrimitiveComponent* PrimitiveComponent = nullptr;
 	if (AActor* MyActor = GetOwner())
 	{
-		// Explicitly tagged component
-		if (ManagedComponentTag != NAME_None)
+		TInlineComponentArray<UPrimitiveComponent*> FoundComponents;
+		MyActor->GetComponents<UPrimitiveComponent>(FoundComponents);
+		for (UPrimitiveComponent* FoundComponent : FoundComponents)
 		{
-			if (UPrimitiveComponent* FoundComponent = SelectComponent(MyActor->GetComponentsByTag(UPrimitiveComponent::StaticClass(), ManagedComponentTag)))
-			{
-				PrimitiveComponent = FoundComponent;
-			}
-			else
-			{
-				UE_LOG(LogNetworkPhysics, Warning, TEXT("Actor %s: could not find a valid Primitive Component with Tag %s"), *MyActor->GetPathName(), *ManagedComponentTag.ToString());
-			}
-		}
+			NetworkPhysicsStateArray.Reserve(FoundComponents.Num());
 
-		// Root component
-		if (!PrimitiveComponent && ValidComponent(MyActor->GetRootComponent()))
-		{
-			PrimitiveComponent = CastChecked<UPrimitiveComponent>(MyActor->GetRootComponent());
-		}
-
-		// Any other valid primitive component?
-		if (!PrimitiveComponent)
-		{
-			if (UPrimitiveComponent* FoundComponent = SelectComponent(MyActor->K2_GetComponentsByClass(UPrimitiveComponent::StaticClass())))
+			if (FPhysicsInterface::IsValid(FoundComponent->BodyInstance.ActorHandle))
 			{
-				PrimitiveComponent = FoundComponent;
+				FNetworkPhysicsState& NewElement = NetworkPhysicsStateArray.AddDefaulted_GetRef();
+
+				NewElement.Proxy = FoundComponent->BodyInstance.ActorHandle;
+				NewElement.OwningActor = GetOwner();
+
+				Manager->RegisterPhysicsProxy(&NewElement);
+
+				Manager->RegisterPhysicsProxyDebugDraw(&NewElement, [this, FoundComponent](const UNetworkPhysicsManager::FDrawDebugParams& P)
+				{
+					const float Thickness = 2.f;
+					
+					FBox Box(ForceInit);
+					Box += FoundComponent->CalcBounds(FTransform::Identity).GetBox();
+
+					FVector BoxOrigin;
+					FVector BoxExtent;
+					Box.GetCenterAndExtents(BoxOrigin, BoxExtent);
+					const FVector RelativeScale3D = FoundComponent->GetRelativeScale3D();
+					BoxExtent *= RelativeScale3D;
+
+					DrawDebugBox(P.DrawWorld, P.Loc + BoxOrigin, BoxExtent, P.Rot, P.Color, false, P.Lifetime, 0, Thickness);
+				});
 			}
 		}
 	}
 
-	if (ensureMsgf(PrimitiveComponent, TEXT("No PrimitiveComponent found on %s"), *GetPathName()))
-	{
-		NetworkPhysicsState.Proxy = PrimitiveComponent->BodyInstance.ActorHandle;
-		NetworkPhysicsState.OwningActor = GetOwner();
-		ensure(NetworkPhysicsState.OwningActor);
-
-		Manager->RegisterPhysicsProxy(&NetworkPhysicsState);
-
-		Manager->RegisterPhysicsProxyDebugDraw(&NetworkPhysicsState, [this](const UNetworkPhysicsManager::FDrawDebugParams& P)
-			{
-				AActor* Actor = this->GetOwner();
-				FBox LocalSpaceBox = Actor->CalculateComponentsBoundingBoxInLocalSpace();
-				const float Thickness = 2.f;
-
-				FVector ActorOrigin;
-				FVector ActorExtent;
-				LocalSpaceBox.GetCenterAndExtents(ActorOrigin, ActorExtent);
-				ActorExtent *= Actor->GetActorScale3D();
-				DrawDebugBox(P.DrawWorld, P.Loc, ActorExtent, P.Rot, P.Color, false, P.Lifetime, 0, Thickness);
-			});
-	}
 #endif
 }
 
@@ -128,7 +111,10 @@ void UNetworkPhysicsComponent::UninitializeComponent()
 	{
 		if (UNetworkPhysicsManager* Manager = World->GetSubsystem<UNetworkPhysicsManager>())
 		{
-			Manager->UnregisterPhysicsProxy(&NetworkPhysicsState);
+			for (FNetworkPhysicsState& Element : NetworkPhysicsStateArray)
+			{
+				Manager->UnregisterPhysicsProxy(&Element);
+			}
 		}
 	}
 #endif
@@ -147,7 +133,8 @@ APlayerController* UNetworkPhysicsComponent::GetOwnerPC() const
 void UNetworkPhysicsComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME( UNetworkPhysicsComponent, NetworkPhysicsState);
+	DOREPLIFETIME( UNetworkPhysicsComponent, NetworkPhysicsStateArray);
+	
 }
 
 // ========================================================================================
