@@ -456,6 +456,9 @@ protected:
 	// Physics APIs
 	//
 public:
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	void EnableComplexAsSimpleCollision();
+
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	virtual bool WantsNegXTriMesh() override;
