@@ -354,12 +354,12 @@ FVectorCurve* FTransformCurve::GetVectorCurveByIndex(int32 Index)
 ////////////////////////////////////////////////////
 //  FCachedFloatCurve
 
-bool FCachedFloatCurve::IsValid(UAnimSequenceBase* InAnimSequence) const
+bool FCachedFloatCurve::IsValid(const UAnimSequenceBase* InAnimSequence) const
 {
 	return ((CurveName != NAME_None) && (GetFloatCurve(InAnimSequence) != nullptr));
 }
 
-float FCachedFloatCurve::GetValueAtPosition(UAnimSequenceBase* InAnimSequence, const float& InPosition) const
+float FCachedFloatCurve::GetValueAtPosition(const UAnimSequenceBase* InAnimSequence, const float& InPosition) const
 {
 	if (const FFloatCurve* DistanceCurve = GetFloatCurve(InAnimSequence))
 	{
@@ -369,9 +369,9 @@ float FCachedFloatCurve::GetValueAtPosition(UAnimSequenceBase* InAnimSequence, c
 	return 0.f;
 }
 
-USkeleton::AnimCurveUID FCachedFloatCurve::GetAnimCurveUID(UAnimSequenceBase* InAnimSequence) const
+USkeleton::AnimCurveUID FCachedFloatCurve::GetAnimCurveUID(const UAnimSequenceBase* InAnimSequence) const
 {
-	if (CachedUID == SmartName::MaxUID && InAnimSequence)
+	if (CurveName != CachedCurveName && InAnimSequence)
 	{
 		if (const USkeleton* Skeleton = InAnimSequence->GetSkeleton())
 		{
@@ -379,6 +379,7 @@ USkeleton::AnimCurveUID FCachedFloatCurve::GetAnimCurveUID(UAnimSequenceBase* In
 			if (CurveNameMapping)
 			{
 				CachedUID = CurveNameMapping->FindUID(CurveName);
+				CachedCurveName = CurveName;
 			}
 		}
 	}
@@ -386,7 +387,7 @@ USkeleton::AnimCurveUID FCachedFloatCurve::GetAnimCurveUID(UAnimSequenceBase* In
 	return CachedUID;
 }
 
-const FFloatCurve* FCachedFloatCurve::GetFloatCurve(UAnimSequenceBase* InAnimSequence) const
+const FFloatCurve* FCachedFloatCurve::GetFloatCurve(const UAnimSequenceBase* InAnimSequence) const
 {
 	if (InAnimSequence)
 	{
@@ -404,7 +405,7 @@ const FFloatCurve* FCachedFloatCurve::GetFloatCurve(UAnimSequenceBase* InAnimSeq
 ////////////////////////////////////////////////////
 //  FDistanceCurve
 
-float FDistanceCurve::GetDistanceRange(UAnimSequenceBase* InAnimSequence) const
+float FDistanceCurve::GetDistanceRange(const UAnimSequenceBase* InAnimSequence) const
 {
 	if (const FFloatCurve* DistanceCurve = GetFloatCurve(InAnimSequence))
 	{
@@ -416,7 +417,7 @@ float FDistanceCurve::GetDistanceRange(UAnimSequenceBase* InAnimSequence) const
 	return 0.f;
 }
 
-float FDistanceCurve::GetAnimPositionFromDistance(UAnimSequenceBase* InAnimSequence, const float& InDistance)
+float FDistanceCurve::GetAnimPositionFromDistance(const UAnimSequenceBase* InAnimSequence, const float& InDistance) const
 {
 	if (const FFloatCurve* DistanceCurve = GetFloatCurve(InAnimSequence))
 	{

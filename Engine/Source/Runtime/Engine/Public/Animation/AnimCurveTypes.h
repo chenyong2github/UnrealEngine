@@ -257,23 +257,24 @@ struct ENGINE_API FCachedFloatCurve
 	GENERATED_USTRUCT_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Curve Settings")
-		FName CurveName;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Curve Settings")
+	FName CurveName;
 
 private:
 	mutable USkeleton::AnimCurveUID CachedUID;
+	mutable FName CachedCurveName;
 
 public:
 	FCachedFloatCurve()
 		: CachedUID(SmartName::MaxUID)
 	{}
 
-	bool IsValid(UAnimSequenceBase* InAnimSequence) const;
-	float GetValueAtPosition(UAnimSequenceBase* InAnimSequence, const float& InPosition) const;
-	const FFloatCurve* GetFloatCurve(UAnimSequenceBase* InAnimSequence) const;
+	bool IsValid(const UAnimSequenceBase* InAnimSequence) const;
+	float GetValueAtPosition(const UAnimSequenceBase* InAnimSequence, const float& InPosition) const;
+	const FFloatCurve* GetFloatCurve(const UAnimSequenceBase* InAnimSequence) const;
 
 protected:
-	USkeleton::AnimCurveUID GetAnimCurveUID(UAnimSequenceBase* InAnimSequence) const;
+	USkeleton::AnimCurveUID GetAnimCurveUID(const UAnimSequenceBase* InAnimSequence) const;
 };
 
 USTRUCT(BlueprintType)
@@ -290,8 +291,8 @@ public:
 		: Super(Other)
 	{}
 
-	float GetDistanceRange(UAnimSequenceBase* InAnimSequence) const;
-	float GetAnimPositionFromDistance(UAnimSequenceBase* InAnimSequence, const float& InDistance);
+	float GetDistanceRange(const UAnimSequenceBase* InAnimSequence) const;
+	float GetAnimPositionFromDistance(const UAnimSequenceBase* InAnimSequence, const float& InDistance) const;
 };
 
 /**
