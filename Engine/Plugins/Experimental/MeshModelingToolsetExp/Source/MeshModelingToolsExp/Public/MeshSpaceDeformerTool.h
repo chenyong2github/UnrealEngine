@@ -61,6 +61,19 @@ enum class  ENonlinearOperationType : int8
 	Twist
 };
 
+UENUM()
+enum class EFlareProfileType : int8
+{
+	//Displaced by sin(pi x) with x in 0 to 1
+	SinMode, 
+
+	//Displaced by sin(pi x)*sin(pi x) with x in 0 to 1. This provides a smooth normal transition.
+	SinSquaredMode,
+	
+	// Displaced by piecewise-linear trianglular mode
+	TriangleMode 
+};
+
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UMeshSpaceDeformerToolProperties : public UInteractiveToolPropertySet
 {
@@ -95,6 +108,12 @@ public:
 	float TwistDegrees = 180;
 
 	/**
+	* Determines the profile used as a displacement
+	*/ 
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SelectedOperationType == ENonlinearOperationType::Flare", EditConditionHides))
+	EFlareProfileType FlareProfileType = EFlareProfileType::SinMode;
+
+	/**
 	 * Determines how much to flare perpendicular to the Z axis. When set to 100%, points are moved double the distance
 	 * away from the gizmo Z axis at the most extreme flare point. 0% does not flare at all, whereas -100% pinches all
 	 * the way to the gizmo Z axis at the most extreme flare point.
@@ -124,12 +143,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
 		EditCondition = "SelectedOperationType == ENonlinearOperationType::Bend || SelectedOperationType == ENonlinearOperationType::Twist", EditConditionHides))
 	bool bLockBottom = false;
-
-	/**
-	 * When true, changes the flare/pinch function to have C1 continuity at the upper and lower bounds.
-	 */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SelectedOperationType == ENonlinearOperationType::Flare", EditConditionHides))
-	bool bSmoothEnds = true;
 
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowOriginalMesh = true;

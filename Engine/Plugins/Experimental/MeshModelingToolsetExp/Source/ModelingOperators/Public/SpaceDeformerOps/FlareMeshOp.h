@@ -19,13 +19,15 @@ public:
 	double FlarePercentX = 100;
 	double FlarePercentY = 100;
 
-	/** 
-	 * Changes the type of flaring. When false, the flaring is the curve of sin(y) from 0 to Pi,
-	 * which makes the ends of the flaring sharp because the derivative is not 0. When true, the 
-	 * flaring is the curve of cos(y) + 1 from -Pi to Pi, which makes the ends smooth out back
-	 * into the shape.
-	 */
-	bool bSmoothEnds = false;
+	enum class EFlareType
+	{
+		SinFlare = 0,     // Flaring is the curve sin(Pi y)  y in [0, 1]
+		SinSqrFlare = 1,  // Flaring is the curve sin(Pi y)**2  y in  [0, 1]  which makes the ends smooth out back into shape
+		LinearFlare = 2   // Flaring is  2*y  y in [0, 1/2] and 2(1-y) y in (1/2, 1] 
+	};
+
+	EFlareType FlareType = EFlareType::SinFlare;
+
 protected:
 
 };
