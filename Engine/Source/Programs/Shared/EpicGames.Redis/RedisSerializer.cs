@@ -89,10 +89,48 @@ namespace EpicGames.Redis
 			public T FromRedisValue(RedisValue Value) => (T)TypeConverter.ConvertFrom((string)Value);
 		}
 
-		class RedisIntConverter : IRedisConverter<int>
+		class RedisNativeConverter<T> : IRedisConverter<T>
 		{
-			public RedisValue ToRedisValue(int Value) => Value;
-			public int FromRedisValue(RedisValue Value) => (int?)Value ?? 0;
+			Func<RedisValue, T> FromRedisValueFunc;
+			Func<T, RedisValue> ToRedisValueFunc;
+
+			public RedisNativeConverter(Func<RedisValue, T> FromRedisValueFunc, Func<T, RedisValue> ToRedisValueFunc)
+			{
+				this.FromRedisValueFunc = FromRedisValueFunc;
+				this.ToRedisValueFunc = ToRedisValueFunc;
+			}
+
+			public T FromRedisValue(RedisValue Value) => FromRedisValueFunc(Value);
+			public RedisValue ToRedisValue(T Value) => ToRedisValueFunc(Value);
+		}
+
+		static Dictionary<Type, object> NativeConverters = CreateNativeConverterLookup();
+
+		static Dictionary<Type, object> CreateNativeConverterLookup()
+		{
+			KeyValuePair<Type, object>[] Converters =
+			{
+				CreateNativeConverter(x => (bool)x, x => x),
+				CreateNativeConverter(x => (int)x, x => x),
+				CreateNativeConverter(x => (int?)x, x => x),
+				CreateNativeConverter(x => (uint)x, x => x),
+				CreateNativeConverter(x => (uint?)x, x => x),
+				CreateNativeConverter(x => (long)x, x => x),
+				CreateNativeConverter(x => (long?)x, x => x),
+				CreateNativeConverter(x => (ulong)x, x => x),
+				CreateNativeConverter(x => (ulong?)x, x => x),
+				CreateNativeConverter(x => (double)x, x => x),
+				CreateNativeConverter(x => (double?)x, x => x),
+				CreateNativeConverter(x => (ReadOnlyMemory<byte>)x, x => x),
+				CreateNativeConverter(x => (byte[])x, x => x),
+				CreateNativeConverter(x => (string)x, x => x),
+			};
+			return new Dictionary<Type, object>(Converters);
+		}
+
+		static KeyValuePair<Type, object> CreateNativeConverter<T>(Func<RedisValue, T> FromRedisValueFunc, Func<T, RedisValue> ToRedisValueFunc)
+		{
+			return new KeyValuePair<Type, object>(typeof(T), new RedisNativeConverter<T>(FromRedisValueFunc, ToRedisValueFunc));
 		}
 
 		/// <summary>
@@ -120,10 +158,11 @@ namespace EpicGames.Redis
 				}
 
 				// Check for known basic types
-				if (Type == typeof(int))
-				{
-					return (IRedisConverter<T>)new RedisIntConverter();
-				}
+				object? NativeConverter;
+				if (NativeConverters.TryGetValue(typeof(T), out NativeConverter))
+                {
+					return (IRedisConverter<T>)NativeConverter;
+                }
 
 				// Check if there's a regular converter we can use to convert to/from a string
 				TypeConverter? Converter = TypeDescriptor.GetConverter(Type);

@@ -80,8 +80,6 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Start the subscription
 		/// </summary>
-		/// <param name="Flags"></param>
-		/// <returns></returns>
 		internal static async Task<RedisChannelSubscription<T>> CreateAsync(ISubscriber Subscriber, RedisChannel<T> Channel, Action<RedisChannel<T>, T> Handler, CommandFlags Flags = CommandFlags.None)
 		{
 			RedisChannelSubscription<T> Subscription = new RedisChannelSubscription<T>(Subscriber, Channel, Handler);
@@ -92,8 +90,7 @@ namespace EpicGames.Redis
 		/// <summary>
 		/// Unsubscribe from the channel
 		/// </summary>
-		/// <param name="Flags">Flags for the oper</param>
-		/// <returns></returns>
+		/// <param name="Flags">Flags for the operation</param>
 		public async Task UnsubscribeAsync(CommandFlags Flags = CommandFlags.None)
 		{
 			if (Subscriber != null)
