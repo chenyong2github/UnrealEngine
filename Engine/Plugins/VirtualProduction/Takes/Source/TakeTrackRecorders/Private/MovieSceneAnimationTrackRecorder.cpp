@@ -247,14 +247,14 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 		USceneComponent* RootComponent = Actor->GetRootComponent();
 		USceneComponent* AttachParent = RootComponent ? RootComponent->GetAttachParent() : nullptr;
 
-		//In Sequence Recorder this would be done via checking if the component was dynamically created, due to changes in how the take recorder handles this, it no longer 
-		//possible so it seems if it's native do root, otherwise, don't.  
-		bool bRemoveRootAnimation = SkeletalMeshComponent->CreationMethod != EComponentCreationMethod::Native ? false : true;
-		// Need to pass this up to the settings since it's used later to force root lock and transfer root from animation to transform
 		UMovieSceneAnimationTrackRecorderSettings* AnimSettings = CastChecked<UMovieSceneAnimationTrackRecorderSettings>(Settings.Get());
-		AnimSettings->bRemoveRootAnimation = bRemoveRootAnimation;
+		//In Sequence Recorder this would be done via checking if the component was dynamically created, due to changes in how the take recorder handles this, it no longer 
+		//possible so it seems if it's native do root, otherwise use the setting
+		//we what we did on the track recorder since later we need to actually remove the root and transfer to the transform track if needed.
+		bRootWasRemoved = SkeletalMeshComponent->CreationMethod != EComponentCreationMethod::Native ? false : AnimSettings->bRemoveRootAnimation;
+
 		//If not removing root we also don't record in world space ( not totally sure if it matters but matching up with Sequence Recorder)
-		bool bRecordInWorldSpace = bRemoveRootAnimation == false ? false : true;
+		bool bRecordInWorldSpace = bRootWasRemoved == false ? false : true;
 
 		if (bRecordInWorldSpace && AttachParent && OwningTakeRecorderSource)
 		{
@@ -271,7 +271,7 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 		RecordingSettings.TangentMode = AnimSettings->TangentMode;
 		RecordingSettings.Length = 0;
 		RecordingSettings.bRecordInWorldSpace = bRecordInWorldSpace;
-		RecordingSettings.bRemoveRootAnimation = bRemoveRootAnimation;
+		RecordingSettings.bRemoveRootAnimation = bRootWasRemoved;
 		RecordingSettings.bCheckDeltaTimeAtBeginning = false;
 		AnimationRecorder.Init(SkeletalMeshComponent.Get(), AnimSequence.Get(), &AnimationSerializer, RecordingSettings);
 		AnimationRecorder.BeginRecording();
@@ -297,8 +297,7 @@ void UMovieSceneAnimationTrackRecorder::RemoveRootMotion()
 {
 	 if(AnimSequence.IsValid())
 	 {
-		 UMovieSceneAnimationTrackRecorderSettings* AnimSettings = CastChecked<UMovieSceneAnimationTrackRecorderSettings>(Settings.Get());
-		 if (AnimSettings->bRemoveRootAnimation) 
+		 if (bRootWasRemoved)
 		 {
 			 // Remove Root Motion by forcing the root lock on for now (which prevents the motion at evaluation time)
 			 // In addition to set it to root lock we need to make sure it's to be zero'd since 

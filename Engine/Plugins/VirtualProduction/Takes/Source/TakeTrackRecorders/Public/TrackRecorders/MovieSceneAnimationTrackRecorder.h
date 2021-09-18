@@ -56,6 +56,7 @@ protected:
 	// UMovieSceneTrackRecorder Interface
 
 public:
+	bool RootWasRemoved() const { return bRootWasRemoved; }
 	void RemoveRootMotion();
 	void ProcessRecordedTimes(const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate);
 
@@ -94,4 +95,7 @@ private:
 
 	/**Serializer */
 	FAnimationSerializer AnimationSerializer;
+
+	/** Root Was Removed*/
+	bool bRootWasRemoved = true;
 };
