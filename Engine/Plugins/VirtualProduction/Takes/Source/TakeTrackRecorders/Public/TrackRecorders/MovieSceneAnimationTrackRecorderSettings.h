@@ -44,8 +44,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Animation Recorder Settings")
 	TEnumAsByte<ERichCurveTangentMode> TangentMode;
 
-	/** The following parameter is dynamically set based upon whether or not the animation was spawned dynamically via a blueprint or not, if so set to false, otherwise true */
-	UPROPERTY()
+	/** If true we remove the root animation and move it to a transform track, if false we leave it on the root bone in the anim sequence*/
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Animation Recorder Settings")
 	bool bRemoveRootAnimation;
 
 

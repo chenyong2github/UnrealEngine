@@ -860,10 +860,9 @@ void UTakeRecorderActorSource::PostProcessTrackRecorders(ULevelSequence* InSeque
 			break;
 		}
 	}
-
-	if (RootTransformRecorder && FirstAnimationRecorder)
+	// We need to take the root motion data from the animation and override the data the Transform Track had originally captured if we are removing root
+	if (RootTransformRecorder && FirstAnimationRecorder && FirstAnimationRecorder->RootWasRemoved())
 	{
-		// We need to take the root motion data from the animation and override the data the Transform Track had originally captured
 		RootTransformRecorder->PostProcessAnimationData(FirstAnimationRecorder);
 		FirstAnimationRecorder->RemoveRootMotion();
 	}
@@ -875,7 +874,7 @@ void UTakeRecorderActorSource::PostProcessTrackRecorders(ULevelSequence* InSeque
 		{
 			UMovieSceneAnimationTrackRecorder* AnimationTrackRecorder = Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder);
 			
-			if (TrackRecorder != FirstAnimationRecorder)
+			if (TrackRecorder != FirstAnimationRecorder && AnimationTrackRecorder->RootWasRemoved())
 			{
 				AnimationTrackRecorder->RemoveRootMotion();
 			}

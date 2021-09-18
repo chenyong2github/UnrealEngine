@@ -463,8 +463,7 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 	{
 		return;
 	}
-	UMovieSceneAnimationTrackRecorderSettings* AnimSettings = CastChecked<UMovieSceneAnimationTrackRecorderSettings>(AnimTrackRecorder->GetTrackRecorderSettings());
-	if (AnimSettings->bRemoveRootAnimation)
+	if (AnimTrackRecorder->RootWasRemoved())
 	{
 		//Get All Animation Keys
 		FBufferedTransformKeys  AnimationKeys;
