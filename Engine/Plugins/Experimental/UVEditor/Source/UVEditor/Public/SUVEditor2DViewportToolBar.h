@@ -6,6 +6,7 @@
 
 #include "SViewportToolBar.h"
 
+class FExtender;
 class FUICommandList;
 class SUVEditor2DViewport;
 
