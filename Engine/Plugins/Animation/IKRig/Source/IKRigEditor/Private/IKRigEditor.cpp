@@ -36,6 +36,9 @@ void FIKRigEditor::StartupModule()
 	IKRetargeterAssetAction = MakeShareable(new FAssetTypeActions_IKRetargeter);
 	FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get().RegisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
 
+	// extend the content browser menu
+	FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu();
+
 	// register custom editor modes
 	FEditorModeRegistry::Get().RegisterMode<FIKRigEditMode>(FIKRigEditMode::ModeName, LOCTEXT("IKRigEditMode", "IKRig"), FSlateIcon(), false);
 	FEditorModeRegistry::Get().RegisterMode<FIKRetargetEditMode>(FIKRetargetEditMode::ModeName, LOCTEXT("IKRetargetEditMode", "IKRetarget"), FSlateIcon(), false);
@@ -72,7 +75,6 @@ void FIKRigEditor::ShutdownModule()
 		}
 		IKRetargeterAssetAction.Reset();
 	}
-
 }
 
 #undef LOCTEXT_NAMESPACE

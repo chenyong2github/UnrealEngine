@@ -34,6 +34,8 @@ namespace UnrealBuildTool.Rules
                     "EditorStyle",
                     "Persona",
                     "SkeletonEditor",
+                    "ContentBrowser",
+                    "AnimationBlueprintLibrary",
                     
 					"PropertyEditor",
 					"BlueprintGraph",

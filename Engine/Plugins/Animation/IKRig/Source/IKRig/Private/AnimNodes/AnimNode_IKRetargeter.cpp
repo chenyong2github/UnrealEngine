@@ -37,14 +37,14 @@ void FAnimNode_IKRetargeter::Evaluate_AnyThread(FPoseContext& Output)
 	}
 
 	// run the retargeter
-	CurrentlyUsedRetargeter->RunRetargeter(SourceMeshComponentSpaceBoneTransforms);
+	const TArray<FTransform>& RetargetedPose = CurrentlyUsedRetargeter->RunRetargeter(SourceMeshComponentSpaceBoneTransforms);
 
 	// copy pose back
 	FCSPose<FCompactPose> ComponentPose;
 	ComponentPose.InitPose(Output.Pose);
 	for (FCompactPoseBoneIndex CompactBoneIndex : Output.Pose.ForEachBoneIndex())
 	{
-		ComponentPose.SetComponentSpaceTransform(CompactBoneIndex, CurrentlyUsedRetargeter->TargetSkeleton.OutputGlobalPose[CompactBoneIndex.GetInt()]);
+		ComponentPose.SetComponentSpaceTransform(CompactBoneIndex, RetargetedPose[CompactBoneIndex.GetInt()]);
 	}
 
 	// convert to local space

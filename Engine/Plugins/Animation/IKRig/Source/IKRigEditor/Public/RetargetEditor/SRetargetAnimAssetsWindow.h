@@ -1,0 +1,284 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "EditorAnimUtils.h"
+#include "SEditorViewport.h"
+#include "Settings/SkeletalMeshEditorSettings.h"
+
+class UIKRetargeter;
+
+//** Data needed to initiate a batch duplicate and retarget of animation assets */
+struct FIKRetargetAnimAssetsContext
+{
+	/** The selected assets when batch process was initiated */
+	TArray<TWeakObjectPtr<UObject>> AssetsToRetarget;
+
+	/** Source mesh to use to copy animation FROM. */
+	USkeletalMesh* SourceMesh = nullptr;
+
+	/** Target mesh to use to copy animation TO. */
+	USkeletalMesh* TargetMesh = nullptr;
+
+	/** The retargeter used to copy animation */
+	UIKRetargeter* IKRetargetAsset = nullptr;
+
+	/** Whether we are remapping assets that are referenced by the assets the user selects to remap */
+	bool bRemapReferencedAssets = true;
+
+	/* Rename rules for duplicated assets */
+	EditorAnimUtils::FNameDuplicationRule NameRule;
+
+	/* The base folder path to put newly duplicated assets */
+	FString FolderPath = "";
+
+	/* Reset all data (called when window re-opened */
+	void Reset();
+
+	/* Is the data configured in such a way that we could run the retarget? */
+	bool IsValid() const;
+
+	/* Actually run the process to duplicate and retarget the assets. */
+	void RunRetarget();
+
+private:
+
+
+	/**
+	* Initialize set of referenced assets to retarget.
+	* @return	Number of assets that need retargeting.
+	*/
+	int32 GenerateAssetLists();
+
+	/* Duplicate all the assets to retarget */
+	void DuplicateRetargetAssets();
+
+	/* Retarget skeleton and animation on all the duplicates */
+	void RetargetAssets();
+
+	/* Convert animation on all the duplicates */
+	void ConvertAnimation();
+
+	/* Output notifications of results */
+	void NotifyUserOfResults() const;
+
+	void GetNewAssets(TArray<UObject*>& NewAssets) const;
+
+	/**
+	* Duplicates the supplied AssetsToDuplicate and returns a map of original asset to duplicate. Templated wrapper that calls DuplicateAssetInternal.
+	*
+	* @param	AssetsToDuplicate	The animations to duplicate
+	* @param	DestinationPackage	The package that the duplicates should be placed in
+	*
+	* @return	TMap of original animation to duplicate
+	*/
+	template<class AssetType>
+	static TMap<AssetType*, AssetType*> DuplicateAssets(
+		const TArray<AssetType*>& AssetsToDuplicate,
+		UPackage* DestinationPackage,
+		const EditorAnimUtils::FNameDuplicationRule* NameRule);
+	
+	/** Lists of assets to retarget. Populated from selection during init */
+	TArray<UAnimationAsset*>	AnimationAssetsToRetarget;
+	TArray<UAnimBlueprint*>		AnimBlueprintsToRetarget;
+
+	/** Lists of original assets map to duplicate assets */
+	TMap<UAnimationAsset*, UAnimationAsset*>	DuplicatedAnimAssets;
+	TMap<UAnimBlueprint*, UAnimBlueprint*>		DuplicatedBlueprints;
+
+	TMap<UAnimationAsset*, UAnimationAsset*>	RemappedAnimAssets;
+
+	/** If we only chose one object to retarget store it here */
+	UObject* SingleTargetObject = nullptr;
+};
+
+//** Viewport in retarget dialog that shows source / target retarget pose */
+class SRetargetPoseViewport: public SEditorViewport
+{
+	
+public:
+	
+	SLATE_BEGIN_ARGS(SRetargetPoseViewport)
+	{}
+	SLATE_ARGUMENT(USkeletalMesh*, SkeletalMesh)
+	SLATE_END_ARGS()
+
+	SRetargetPoseViewport();
+
+	void Construct(const FArguments& InArgs);
+	
+	void SetSkeletalMesh(USkeletalMesh* SkeletalMesh);
+
+protected:
+	
+	/** SEditorViewport interface */
+	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
+	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
+	/** END SEditorViewport interface */
+
+private:
+
+	USkeletalMesh* Mesh;
+
+	FPreviewScene PreviewScene;
+
+	class UDebugSkelMeshComponent* PreviewComponent;
+
+	virtual bool IsVisible() const override;
+};
+
+//** Client for SRetargetPoseViewport */
+class FRetargetPoseViewportClient: public FEditorViewportClient
+{
+	
+public:
+	
+	FRetargetPoseViewportClient(
+		FPreviewScene& InPreviewScene,
+		const TSharedRef<SRetargetPoseViewport>& InRetargetPoseViewport)
+		: FEditorViewportClient(
+			nullptr,
+			&InPreviewScene,
+			StaticCastSharedRef<SEditorViewport>(InRetargetPoseViewport))
+	{
+		SetViewMode(VMI_Lit);
+
+		// Always composite editor objects after post processing in the editor
+		EngineShowFlags.SetCompositeEditorPrimitives(true);
+		EngineShowFlags.DisableAdvancedFeatures();
+
+		UpdateLighting();
+
+		// Setup defaults for the common draw helper.
+		DrawHelper.bDrawPivot = false;
+		DrawHelper.bDrawWorldBox = false;
+		DrawHelper.bDrawKillZ = false;
+		DrawHelper.bDrawGrid = true;
+		DrawHelper.GridColorAxis = FColor(70, 70, 70);
+		DrawHelper.GridColorMajor = FColor(40, 40, 40);
+		DrawHelper.GridColorMinor =  FColor(20, 20, 20);
+		DrawHelper.PerspectiveGridSize = HALF_WORLD_MAX1;
+
+		bDisableInput = true;
+	}
+
+	/** FEditorViewportClient interface */
+	virtual void Tick(float DeltaTime) override
+	{
+		if (PreviewScene)
+		{
+			PreviewScene->GetWorld()->Tick(LEVELTICK_All, DeltaTime);
+		}
+	}
+
+	virtual FSceneInterface* GetScene() const override
+	{
+		return PreviewScene->GetScene();
+	}
+
+	virtual FLinearColor GetBackgroundColor() const override 
+	{ 
+		return FLinearColor::White; 
+	}
+	/** END FEditorViewportClient interface */
+
+	void UpdateLighting() const
+	{
+		const USkeletalMeshEditorSettings* Options = GetDefault<USkeletalMeshEditorSettings>();
+
+		PreviewScene->SetLightDirection(Options->AnimPreviewLightingDirection);
+		PreviewScene->SetLightColor(Options->AnimPreviewDirectionalColor);
+		PreviewScene->SetLightBrightness(Options->AnimPreviewLightBrightness);
+	}
+};
+
+//** Window to display when configuring batch duplicate & retarget process */
+class SRetargetAnimAssetsWindow : public SCompoundWidget
+{
+	
+public:
+
+	SLATE_BEGIN_ARGS(SRetargetAnimAssetsWindow)
+		: _CurrentSkeletalMesh(nullptr)
+		, _WidgetWindow(nullptr)
+		, _ShowRemapOption(false)
+	{
+	}
+
+	SLATE_ARGUMENT( USkeletalMesh*, CurrentSkeletalMesh )
+	SLATE_ARGUMENT( TSharedPtr<SWindow>, WidgetWindow )
+	SLATE_ARGUMENT( bool, ShowRemapOption )
+	SLATE_END_ARGS()	
+
+	/** Constructs this widget for the window */
+	void Construct( const FArguments& InArgs );
+
+private:
+
+	/** Retarget or Cancel buttons */
+	bool CanApply() const;
+	FReply OnApply();
+	FReply OnCancel();
+	void CloseWindow();
+
+	/** Handler for dialog window close button */
+	void OnDialogClosed(const TSharedRef<SWindow>& Window);
+
+	/** Modifying Source Mesh */
+	void SourceMeshAssigned(const FAssetData& InAssetData);
+	FString GetCurrentSourceMeshPath() const;
+
+	/** Modifying Target Mesh */
+	void TargetMeshAssigned(const FAssetData& InAssetData);
+	FString GetCurrentTargetMeshPath() const;
+
+	/** Modifying Retargeter */
+	FString GetCurrentRetargeterPath() const;
+	void RetargeterAssigned(const FAssetData& InAssetData);
+	
+	/** Modifying "Remap Assets" checkbox */
+	ECheckBoxState IsRemappingReferencedAssets() const;
+	void OnRemappingReferencedAssetsChanged(ECheckBoxState InNewRadioState);
+
+	/** Modifying Rename Prefix */
+	FText GetPrefixName() const;
+	void SetPrefixName(const FText &InText);
+
+	/** Modifying Rename Suffix */
+	FText GetSuffixName() const;
+	void SetSuffixName(const FText &InText);
+
+	/** Modifying Search/Replace text */
+	FText GetReplaceFrom() const;
+	void SetReplaceFrom(const FText &InText);
+	FText GetReplaceTo() const;
+	void SetReplaceTo(const FText &InText);
+
+	/** Example rename text */
+	FText GetExampleText() const;
+	void UpdateExampleText();
+
+	/** Modify folder output path */
+	FText GetFolderPath() const;
+
+	/** Necessary data collected from UI to run retarget. */
+	FIKRetargetAnimAssetsContext RetargetContext;
+
+	/** The rename rule sample text */
+	FText ExampleText;
+
+	/** Pool for maintaining and rendering thumbnails */
+	TSharedPtr<FAssetThumbnailPool> AssetThumbnailPool;
+
+	/** Viewport displaying SOURCE mesh in retarget pose */
+	TSharedPtr<SRetargetPoseViewport> SourceViewport;
+
+	/** Viewport displaying TARGET mesh in retarget pose */
+	TSharedPtr<SRetargetPoseViewport> TargetViewport;
+
+public:
+
+	static void ShowWindow(TArray<UObject*> InAnimAssets);
+
+	static TSharedPtr<SWindow> DialogWindow;
+};
