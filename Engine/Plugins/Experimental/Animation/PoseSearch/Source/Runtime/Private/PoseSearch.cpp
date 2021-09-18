@@ -1030,6 +1030,25 @@ bool UPoseSearchDatabase::IsValidForSearch() const
 	return IsValidForIndexing() && SearchIndex.IsValid();
 }
 
+void UPoseSearchDatabase::CollectSimpleSequences()
+{
+	for (auto& SimpleSequence: SimpleSequences)
+	{
+		auto Predicate = [&SimpleSequence](FPoseSearchDatabaseSequence& DbSequence) -> bool
+		{
+			return DbSequence.Sequence == SimpleSequence;
+		};
+
+		if (!Sequences.ContainsByPredicate(Predicate))
+		{
+			FPoseSearchDatabaseSequence& DbSequence = Sequences.AddDefaulted_GetRef();
+			DbSequence.Sequence = SimpleSequence;
+		}
+	}
+
+	SimpleSequences.Reset();
+}
+
 void UPoseSearchDatabase::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	SearchIndex.Reset();
@@ -1046,6 +1065,21 @@ void UPoseSearchDatabase::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	Super::PreSave(ObjectSaveContext);
 }
+
+#if WITH_EDITOR
+void UPoseSearchDatabase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleSequences))
+	{
+		if (!SimpleSequences.IsEmpty())
+		{
+			CollectSimpleSequences();
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 
 //////////////////////////////////////////////////////////////////////////

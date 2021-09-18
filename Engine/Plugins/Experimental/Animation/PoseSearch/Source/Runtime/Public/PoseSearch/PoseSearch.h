@@ -524,6 +524,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
+	// Drag and drop animations here to add them in bulk to Sequences
+	UPROPERTY(EditAnywhere, Category = "Database", DisplayName="Drag And Drop Anims Here")
+	TArray<TObjectPtr<UAnimSequence>> SimpleSequences;
+
 	UPROPERTY(EditAnywhere, Category="Database")
 	TArray<FPoseSearchDatabaseSequence> Sequences;
 
@@ -541,6 +545,13 @@ public:
 
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+private:
+	void CollectSimpleSequences();
 };
 
 
