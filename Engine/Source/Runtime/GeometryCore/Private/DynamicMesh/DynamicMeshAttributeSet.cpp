@@ -866,7 +866,7 @@ void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplit
 	}
 }
 
-bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other) const
+bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other, bool bIgnoreDataLayout) const
 {
 	if (UVLayers.Num() != Other.UVLayers.Num() ||
 		NormalLayers.Num() != Other.NormalLayers.Num() ||
@@ -877,7 +877,7 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other) c
 
 	for (int Idx = 0; Idx < UVLayers.Num(); Idx++)
 	{
-		if (!UVLayers[Idx].IsSameAs(Other.UVLayers[Idx]))
+		if (!UVLayers[Idx].IsSameAs(Other.UVLayers[Idx], bIgnoreDataLayout))
 		{
 			return false;
 		}
@@ -885,7 +885,7 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other) c
 
 	for (int Idx = 0; Idx < NormalLayers.Num(); Idx++)
 	{
-		if (!NormalLayers[Idx].IsSameAs(Other.NormalLayers[Idx]))
+		if (!NormalLayers[Idx].IsSameAs(Other.NormalLayers[Idx], bIgnoreDataLayout))
 		{
 			return false;
 		}
@@ -893,7 +893,7 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other) c
 
 	for (int Idx = 0; Idx < PolygroupLayers.Num(); Idx++)
 	{
-		if (!PolygroupLayers[Idx].IsSameAs(Other.PolygroupLayers[Idx]))
+		if (!PolygroupLayers[Idx].IsSameAs(Other.PolygroupLayers[Idx], bIgnoreDataLayout))
 		{
 			return false;
 		}
@@ -905,7 +905,7 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other) c
 	}
 	if (HasPrimaryColors())
 	{
-		if (!ColorLayer->IsSameAs(*Other.ColorLayer))
+		if (!ColorLayer->IsSameAs(*Other.ColorLayer, bIgnoreDataLayout))
 		{
 			return false;
 		}
@@ -917,22 +917,111 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other) c
 	}
 	if (HasMaterialID())
 	{
-		if (!MaterialIDAttrib->IsSameAs(*Other.MaterialIDAttrib))
+		if (!MaterialIDAttrib->IsSameAs(*Other.MaterialIDAttrib, bIgnoreDataLayout))
 		{
 			return false;
 		}
 	}
 
+	if (SkinWeightAttributes.Num() != Other.SkinWeightAttributes.Num())
+	{
+		return false;
+	}
+	if (!SkinWeightAttributes.IsEmpty())
+	{
+		SkinWeightAttributesMap::TConstIterator It(SkinWeightAttributes);
+		SkinWeightAttributesMap::TConstIterator ItOther(Other.SkinWeightAttributes);
+		while (It && ItOther)
+		{
+			if (It.Key() != ItOther.Key())
+			{
+				return false;
+			}
+			const FDynamicMeshVertexSkinWeightsAttribute* SkinWeights = It->Value.Get();
+			const FDynamicMeshVertexSkinWeightsAttribute* SkinWeightsOther = ItOther->Value.Get();
+
+			if (SkinWeights->VertexBoneWeights.Num() != SkinWeightsOther->VertexBoneWeights.Num())
+			{
+				return false;
+			}
+
+			for (int32 i = 0, Num = SkinWeights->VertexBoneWeights.Num(); i < Num; ++i)
+			{
+				AnimationCore::FBoneWeights BoneWeights = SkinWeights->VertexBoneWeights[i];
+				AnimationCore::FBoneWeights BoneWeightsOther = SkinWeightsOther->VertexBoneWeights[i];
+
+				if (BoneWeights.Num() != BoneWeightsOther.Num())
+				{
+					return false;
+				}
+
+				for (int32 Index = 0; Index < BoneWeights.Num(); ++Index)
+				{
+					// If the weight is the same, the order is nondeterministic. Hence, we need to "manually" look for the same values.
+					const int32 IndexOther = BoneWeightsOther.FindWeightIndexByBone(BoneWeights[Index].GetBoneIndex());
+					if (IndexOther == INDEX_NONE || BoneWeights[Index].GetRawWeight() != BoneWeightsOther[IndexOther].GetRawWeight())
+					{
+						return false;
+					}
+				}
+			}
+
+			++It;
+			++ItOther;
+		}
+	}
+	
 	// TODO: Test GenericAttributes
 
 	return true;
 }
 
-void FDynamicMeshAttributeSet::Serialize(FArchive& Ar)
+namespace FDynamicMeshAttributeSet_Local
 {
-	Ar << UVLayers;
-	Ar << NormalLayers;
-	Ar << PolygroupLayers;
+template <typename LayerType>
+void SerializeLayers(TIndirectArray<LayerType>& Layers, FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression)
+{
+	int32 Num = Layers.Num();
+	Ar << Num;
+	if (Ar.IsLoading())
+	{
+		Layers.Empty(Num);
+		for (int32 Index = 0; Index < Num; ++Index)
+		{
+			Layers.Add(new typename TIndirectArray<LayerType>::ElementType);
+		}
+	}
+	for (int32 Index = 0; Index < Num; ++Index)
+	{
+		Layers[Index].Serialize(Ar, CompactMaps, bUseCompression);
+	}
+}
+} // namespace FDynamicMeshAttributeSet_Local
+
+void FDynamicMeshAttributeSet::Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression)
+{
+	using namespace FDynamicMeshAttributeSet_Local;
+	
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	const bool bUseLegacySerialization = Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization;
+
+	if (bUseLegacySerialization)
+	{
+		// Use serialization in TIndirectArray.
+		Ar << UVLayers;
+		Ar << NormalLayers;
+		Ar << PolygroupLayers;
+	}
+	else
+	{
+		Ar << bUseCompression;
+
+		// We do our own serialization since using the serialization in TIndirectArray will not allow us to do compacting/compression.
+		SerializeLayers(UVLayers, Ar, CompactMaps, bUseCompression);
+		SerializeLayers(NormalLayers, Ar, CompactMaps, bUseCompression);
+		SerializeLayers(PolygroupLayers, Ar, CompactMaps, bUseCompression);
+	}
 
 	if (Ar.IsLoading())
 	{
@@ -952,16 +1041,16 @@ void FDynamicMeshAttributeSet::Serialize(FArchive& Ar)
 		}
 	}
 
-	// Use int32 here to futureproof for multiple color layers.
-	int32 bHasColorLayer = HasPrimaryColors() ? 1 : 0;
-	Ar << bHasColorLayer;
-	if (bHasColorLayer)
+	// Use int32 here to future-proof for multiple color layers.
+	int32 NumColorLayers = HasPrimaryColors() ? 1 : 0;
+	Ar << NumColorLayers;
+	if (NumColorLayers > 0)
 	{
 		if (Ar.IsLoading())
 		{
 			EnablePrimaryColors();
 		}
-		Ar << *ColorLayer;
+		ColorLayer->Serialize(Ar, CompactMaps, bUseCompression);
 	}
 
 	bool bHasMaterialID = HasMaterialID();
@@ -972,9 +1061,49 @@ void FDynamicMeshAttributeSet::Serialize(FArchive& Ar)
 		{
 			EnableMaterialID();
 		}
-		Ar << *MaterialIDAttrib;
+		MaterialIDAttrib->Serialize(Ar, CompactMaps, bUseCompression);
+	}
+
+	if (!bUseLegacySerialization)
+	{
+		int32 NumSkinWeightAttributes = SkinWeightAttributes.Num();
+		Ar << NumSkinWeightAttributes;
+
+		if (Ar.IsLoading())
+		{
+			SkinWeightAttributes.Reset();
+
+			for (int32 i = 0; i < NumSkinWeightAttributes; ++i)
+			{
+				FName Key;
+				Ar << Key;
+
+				TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>& Value = SkinWeightAttributes.Emplace(Key, nullptr);
+				bool IsValid;
+				Ar << IsValid;
+				if (IsValid)
+				{
+					Value.Reset(new FDynamicMeshVertexSkinWeightsAttribute(ParentMesh, false));
+					Value.Get()->Serialize(Ar, CompactMaps, bUseCompression);
+				}
+			}
+		}
+		else
+		{
+			for (SkinWeightAttributesMap::TIterator It(SkinWeightAttributes); It; ++It)
+			{
+				Ar << It.Key();
+
+				const TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>& Value = It.Value();
+				bool bIsValid = Value.IsValid();
+				Ar << bIsValid;
+				if (bIsValid)
+				{
+					Value.Get()->Serialize(Ar, CompactMaps, bUseCompression);
+				}
+			}
+		}
 	}
 
 	//Ar << GenericAttributes; // TODO
 }
-

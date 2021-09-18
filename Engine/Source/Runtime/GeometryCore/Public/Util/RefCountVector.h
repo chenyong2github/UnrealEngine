@@ -112,6 +112,7 @@ public:
 
 	void Decrement(int Index, unsigned short DecrementCount = 1)
 	{
+		checkSlow(RefCounts[Index] != INVALID_REF_COUNT && RefCounts[Index] >= DecrementCount);
 		RefCounts[Index] -= DecrementCount;
 		if (RefCounts[Index] == 0)
 		{
@@ -222,6 +223,59 @@ public:
 	// todo:
 	//   remove
 	//   clear
+
+	/**
+	 * Rebuilds all reference counts from external source data via callables.
+	 *
+	 * For example, we could rebuild ref counts for vertices by iterating over all triangles via the Iterate callable, and in the process any vertex we
+	 * encounter for the first time gets a ref count of 1 via the AllocateRefCount callable, and any vertex we encounter repeatedly has its ref count
+	 * incremented by one via the IncrementRefCount callable. 
+	 *
+	 * @param Num Number of items that get referenced.
+	 * @param Iterate Callable that iterates over all referenced items in the external source data.
+	 * @param AllocateRefCount Callable for allocating an item, i.e. an item that is referenced for the first time.
+	 * @param IncrementRefCount Callable for incrementing an item, i.e. an item that has been referenced before.
+	 */
+	template <typename IterateFunc, typename AllocateRefCountFunc, typename IncrementRefCountFunc>
+	void Rebuild(SIZE_T Num, IterateFunc&& Iterate, AllocateRefCountFunc&& AllocateRefCount, IncrementRefCountFunc&& IncrementRefCount)
+	{
+		// Initialize ref counts to the given number of elements.
+		RefCounts.Resize(Num);
+		RefCounts.Fill(INVALID_REF_COUNT);
+		UsedCount = 0;
+
+		// Lambda for updating ref count for a given index. This is passed to the external iterate function.
+		const auto UpdateRefCount = [this, &AllocateRefCount, &IncrementRefCount](int32 Index)
+		{
+			unsigned short& RefCount = RefCounts[Index];
+			if (RefCount == INVALID_REF_COUNT)
+			{
+				// Increase used counter and call external function to initialize value.
+				++UsedCount;
+				Forward<AllocateRefCountFunc>(AllocateRefCount)(RefCount);
+			}
+			else
+			{
+				// Call external function to initialize value.
+				Forward<IncrementRefCountFunc>(IncrementRefCount)(RefCount);
+			}
+		};
+
+		// Call external function that iterates over all external pieces of data, which will in turn call the lambda to update ref counts. 
+		Forward<IterateFunc>(Iterate)(UpdateRefCount);
+
+		// Add unused elements to free list.
+		const SIZE_T FreeIndicesNum = Num - UsedCount;
+		FreeIndices.SetNum(FreeIndicesNum);
+		SIZE_T FreeIndicesIndex = 0;
+		for (SIZE_T Index = 0; (Index < Num) & (FreeIndicesIndex < FreeIndicesNum); ++Index)
+		{
+			if (RefCounts[Index] == INVALID_REF_COUNT)
+			{
+				FreeIndices[FreeIndicesIndex++] = Index;
+			}
+		}
+	}
 
 	void RebuildFreeList()
 	{
@@ -444,9 +498,9 @@ public:
 		return FilteredEnumerable(Indices(), FilterFunc);
 	}
 
-	FString UsageStats()
+	FString UsageStats() const
 	{
-		return FString::Printf(TEXT("RefCountSize %d  FreeSize %d  FreeMem %dkb"),
+		return FString::Printf(TEXT("RefCountSize %llu  FreeSize %llu  FreeMem %llukb"),
 			RefCounts.GetLength(), FreeIndices.GetLength(), (FreeIndices.GetByteCount() / 1024));
 	}
 
@@ -459,16 +513,111 @@ public:
 	 */
 	friend FArchive& operator<<(FArchive& Ar, FRefCountVector& Vec)
 	{
-		Vec.Serialize(Ar);
+		Vec.Serialize(Ar, false, false);
 		return Ar;
 	}
 
-	/** Serialize FRefCountVector to an archive. */
-	void Serialize(FArchive& Ar)
+	/**
+	 * Serialize FRefCountVector to an archive.
+	 * @param Ar Archive to serialize with
+	 * @param bCompactData Only serialize unique data and/or recompute redundant data when loading.
+	 * @param bUseCompression Use compression to serialize data; the resulting size will likely be smaller but serialization will take significantly longer.
+	 */
+	void Serialize(FArchive& Ar, bool bCompactData, bool bUseCompression)
 	{
-		Ar << RefCounts;
-		Ar << FreeIndices;
-		Ar << UsedCount;
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
+		{
+			Ar << RefCounts;
+			Ar << FreeIndices;
+			Ar << UsedCount;
+		}
+		else
+		{
+			// Serialize options.
+			Ar << bCompactData;
+			Ar << bUseCompression;
+
+			// Serialize number of used ref counts. While this is redundant to the contents of the ref count vector, it allows us to accelerate restoring the
+			// free indices and therefore it is worth the very minor storage overhead.
+			Ar << UsedCount;
+
+			// Serialize ref counts.
+			if (bUseCompression)
+			{
+				RefCounts.Serialize<true, true>(Ar);
+			}
+			else
+			{
+				RefCounts.Serialize<true, false>(Ar);
+			}
+
+			if (UsedCount == RefCounts.Num())
+			{
+				// If all ref counts are used then we can ignore the free indices entirely during save, and just clear them during load.
+
+				if (Ar.IsLoading() && !FreeIndices.IsEmpty())
+				{
+					FreeIndices.Clear();
+				}
+			}
+			else
+			{
+				// Compact the data by omitting the free indices entirely during save and recompute them during load.
+				// Considering the significant time overhead for compression, we compact if either bCompactData or bUseCompression is enabled.
+				if (bCompactData || bUseCompression)
+				{
+					if (Ar.IsLoading())
+					{
+						// Rebuild the free indices from the invalid ref count values.
+						const size_t NumFree = RefCounts.Num() - UsedCount;
+						FreeIndices.Resize(NumFree);
+						size_t Index = 0;
+						for (size_t i = 0, Num = RefCounts.Num(); (i < Num) & (Index < NumFree); ++i)
+						{
+							if (RefCounts[i] == INVALID_REF_COUNT)
+							{
+								FreeIndices[Index++] = i;
+							}
+						}
+						ensure(Index == NumFree);
+					}
+				}
+				else
+				{
+					FreeIndices.Serialize<true, false>(Ar);
+				}
+			}
+		}
+	}
+
+	friend bool operator==(const FRefCountVector& Lhs, const FRefCountVector& Rhs)
+	{
+		if (Lhs.GetCount() != Rhs.GetCount())
+		{
+			return false;
+		}
+
+		const int32 Num = FMath::Max(Lhs.GetMaxIndex(), Rhs.GetMaxIndex());
+		for (int32 Idx = 0; Idx < Num; ++Idx)
+		{
+			const bool LhsIsValid = Lhs.IsValid(Idx);
+			if (LhsIsValid != Rhs.IsValid(Idx))
+			{
+				return false;
+			}
+			if (LhsIsValid && Lhs.GetRefCount(Idx) != Rhs.GetRefCount(Idx))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	friend bool operator!=(const FRefCountVector& Lhs, const FRefCountVector& Rhs)
+	{
+		return !(Lhs == Rhs);
 	}
 
 private:

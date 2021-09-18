@@ -523,7 +523,7 @@ public:
 	/**
 	 * Returns true if this overlay is the same as Other.
 	 */
-	bool IsSameAs(const TDynamicMeshOverlay<RealType, ElementSize>& Other) const;
+	bool IsSameAs(const TDynamicMeshOverlay<RealType, ElementSize>& Other, bool bIgnoreDataLayout) const;
 
 	/**
 	 * Serialization operator for FDynamicMeshOverlay.
@@ -534,12 +534,18 @@ public:
 	 */
 	friend FArchive& operator<<(FArchive& Ar, TDynamicMeshOverlay<RealType,ElementSize>& Overlay)
 	{
-		Overlay.Serialize(Ar);
+		Overlay.Serialize(Ar, nullptr, false);
 		return Ar;
 	}
 
-	/** Serialize the overlay to an archive. */
-	void Serialize(FArchive& Ar);
+	/**
+	 * Serialize to and from an archive.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param CompactMaps If this is not a null pointer, the mesh serialization compacted the vertex and/or triangle data using the provided mapping. 
+	 * @param bUseCompression Use compression for serializing bulk data.
+	 */
+	void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression);
 
 public:
 	/** Set a triangle's element indices to InvalidID */

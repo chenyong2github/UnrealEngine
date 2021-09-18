@@ -2,6 +2,8 @@
 
 #include "Util/SmallListSet.h"
 
+#include <UObject/UE5MainStreamObjectVersion.h>
+
 using namespace UE::Geometry;
 
 const int32 FSmallListSet::NullValue = -1;
@@ -45,7 +47,7 @@ void FSmallListSet::AllocateAt(int32 ListIndex)
 
 void FSmallListSet::Insert(int32 ListIndex, int32 Value)
 {
-	checkSlow(ListIndex >= 0);
+	checkSlow(0 <= ListIndex && ListIndex < ListHeads.Num());
 	int32 block_ptr = ListHeads[ListIndex];
 	if (block_ptr == NullValue)
 	{
@@ -412,4 +414,125 @@ bool FSmallListSet::RemoveFromLinkedList(int32 block_ptr, int32 val)
 		cur_ptr = LinkedListElements[cur_ptr + 1];
 	}
 	return false;
+}
+
+void FSmallListSet::Serialize(FArchive& Ar, bool bCompactData, bool bUseCompression)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
+	{
+		Ar << ListHeads;
+		Ar << ListBlocks;
+		Ar << FreeBlocks;
+		Ar << AllocatedCount;
+		Ar << LinkedListElements;
+		Ar << FreeHeadIndex;
+	}
+	else
+	{
+		Ar << bCompactData;
+		Ar << bUseCompression;
+
+		auto SerializeVector = [](FArchive& Ar, auto& Vector, bool bUseCompression)
+		{
+			if (bUseCompression)
+			{
+				Vector.template Serialize<true, true>(Ar);
+			}
+			else
+			{
+				Vector.template Serialize<true, false>(Ar);
+			}
+		};
+
+		// Compact the data into a flat buffer if either bCompactData or bUseCompression is enabled.
+		// Considering the significant time overhead for compression, it makes sense to just compact the data as well even though it is not requested.
+		if (bCompactData || bUseCompression)
+		{
+			// We are compacting the data by flattening the lists into one tightly packed buffer.
+			// The first value in the buffer is the number of allocated lists even if they are empty. After that each list consists of the number of values
+			// followed by the actual values.
+			// Note that due to values beyond the BLOCKSIZE are inserted into the linked list, we reverse the order for these values then loading in the data to
+			// restore the original order.
+
+			// Temporary buffer to flatten all lists during save or restore them during load.
+			TDynamicVector<int32> Buffer;
+
+			if (Ar.IsLoading())
+			{
+				Reset();
+
+				SerializeVector(Ar, Buffer, bUseCompression);
+
+				size_t BufferIndex = 0;
+				const int32 ListCount = Buffer[BufferIndex++];
+				Resize(ListCount);
+
+				for (size_t ListIndex = 0; ListIndex < ListCount; ++ListIndex)
+				{
+					const int32 ListValueCount = Buffer[BufferIndex++];
+					if (ListValueCount > 0)
+					{
+						AllocateAt(ListIndex);
+
+						// The first BLOCKSIZE values get inserted in order.
+						const int32 ListValueCountInBlock = FMath::Min(BLOCKSIZE, ListValueCount);
+						for (int32 ListValueIndex = 0; ListValueIndex < ListValueCountInBlock; ++ListValueIndex)
+						{
+							Insert(ListIndex, Buffer[BufferIndex + ListValueIndex]);
+						}
+
+						// Any values beyond BLOCKSIZE get inserted in reversed order. This is due to the fact that any values inserted into the linked list
+						// effectively get reversed in order, and we want to restore the original order before serializing out the data.
+						for (int32 ListValueIndex = ListValueCount - 1; ListValueIndex >= BLOCKSIZE; --ListValueIndex)
+						{
+							Insert(ListIndex, Buffer[BufferIndex + ListValueIndex]);
+						}
+
+						BufferIndex += ListValueCount;
+					}
+				}
+			}
+			else
+			{
+				const size_t ListCount = ListHeads.Num();
+				size_t BufferSize = 0;
+				size_t BufferIndex = 0;
+
+				// Store number of lists.
+				Buffer.Resize(++BufferSize);
+				Buffer[BufferIndex++] = ListCount;
+
+				for (size_t ListIndex = 0; ListIndex < ListCount; ++ListIndex)
+				{
+					const int32 ListValueCount = GetCount(ListIndex);
+
+					// Store number of values in the current list. 
+					Buffer.Resize(BufferSize += 1 + ListValueCount);
+					Buffer[BufferIndex++] = ListValueCount;
+
+					if (ListValueCount > 0)
+					{
+						// Store values in the current list.
+						for (const int32 Value : Values(ListIndex))
+						{
+							Buffer[BufferIndex++] = Value;
+						}
+					}
+				}
+
+				SerializeVector(Ar, Buffer, bUseCompression);
+			}
+		}
+		else
+		{
+			// Naively serialize all of the underlying data.
+			SerializeVector(Ar, ListHeads, false);
+			SerializeVector(Ar, ListBlocks, false);
+			SerializeVector(Ar, FreeBlocks, false);
+			SerializeVector(Ar, LinkedListElements, false);
+			Ar << AllocatedCount;
+			Ar << FreeHeadIndex;
+		}
+	}
 }

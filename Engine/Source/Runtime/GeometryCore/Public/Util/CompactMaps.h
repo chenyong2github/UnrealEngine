@@ -14,7 +14,7 @@ namespace Geometry
 {
 /**
  * Stores index remapping for vertices and triangles.
- * Should only be used for compacting, and should maintain invariant that Map*[Idx] <= Idx for all maps
+ * Should only be used for compacting, and should maintain invariant that *Map[Idx] <= Idx for all maps
  */
 class FCompactMaps
 {

@@ -373,7 +373,7 @@ public:
 	/**
 	 * Returns true if this AttributeSet is the same as Other.
 	 */
-	bool IsSameAs(const FDynamicMeshAttributeSet& Other) const;
+	bool IsSameAs(const FDynamicMeshAttributeSet& Other, bool bIgnoreDataLayout) const;
 
 	/**
 	 * Serialization operator for FDynamicMeshAttributeSet.
@@ -384,12 +384,18 @@ public:
 	 */
 	friend GEOMETRYCORE_API FArchive& operator<<(FArchive& Ar, FDynamicMeshAttributeSet& Set)
 	{
-		Set.Serialize(Ar);
+		Set.Serialize(Ar, nullptr, false);
 		return Ar;
 	}
 
-	/** Serialize the set to an archive. */
-	void Serialize(FArchive& Ar);
+	/**
+	* Serialize to and from an archive.
+	*
+	* @param Ar Archive to serialize with.
+	* @param CompactMaps If this is not a null pointer, the mesh serialization compacted the vertex and/or triangle data using the provided mapping. 
+	* @param bUseCompression Use compression for serializing bulk data.
+	*/
+	void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression);
 
 protected:
 	/** Parent mesh of this attribute set */
@@ -404,9 +410,11 @@ protected:
 
 	TIndirectArray<FDynamicMeshPolygroupAttribute> PolygroupLayers;
 
-	TMap<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>> SkinWeightAttributes;
-	
-	TMap<FName, TUniquePtr<FDynamicMeshAttributeBase>> GenericAttributes;
+	using SkinWeightAttributesMap = TMap<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>;
+	SkinWeightAttributesMap SkinWeightAttributes;
+
+	using GenericAttributesMap = TMap<FName, TUniquePtr<FDynamicMeshAttributeBase>>;
+	GenericAttributesMap GenericAttributes;
 	
 protected:
 	friend class FDynamicMesh3;

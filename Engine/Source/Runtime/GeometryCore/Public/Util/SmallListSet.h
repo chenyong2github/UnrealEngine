@@ -190,21 +190,58 @@ public:
 	 */
 	friend FArchive& operator<<(FArchive& Ar, FSmallListSet& Set)
 	{
-		Set.Serialize(Ar);
+		Set.Serialize(Ar, false, false);
 		return Ar;
 	}
 
-	/** Serialize FSmallListSet to an archive. */
-	void Serialize(FArchive& Ar)
+	/**
+	* Serialize FSmallListSet to an archive.
+	* @param Ar Archive to serialize with
+	* @param bCompactData Only serialize unique data and/or recompute redundant data when loading.
+	* @param bUseCompression Use compression to serialize data; the resulting size will likely be smaller but serialization will take significantly longer.
+	*/
+	void Serialize(FArchive& Ar, bool bCompactData, bool bUseCompression);
+
+	friend bool operator==(const FSmallListSet& Lhs, const FSmallListSet& Rhs)
 	{
-		Ar << ListHeads;
-		Ar << ListBlocks;
-		Ar << FreeBlocks;
-		Ar << AllocatedCount;
-		Ar << LinkedListElements;
-		Ar << FreeHeadIndex;
+		if (Lhs.Size() != Rhs.Size())
+		{
+			return false;
+		}
+	
+		for (int32 ListIndex = 0, ListNum = Lhs.Size(); ListIndex < ListNum; ++ListIndex)
+		{
+			if (Lhs.GetCount(ListIndex) != Rhs.GetCount(ListIndex))
+			{
+				return false;
+			}
+
+			ValueIterator ItLhs = Lhs.BeginValues(ListIndex);
+			ValueIterator ItRhs = Rhs.BeginValues(ListIndex);
+			const ValueIterator ItLhsEnd = Lhs.EndValues(ListIndex);
+			const ValueIterator ItRhsEnd = Rhs.EndValues(ListIndex);
+			while (ItLhs != ItLhsEnd && ItRhs != ItRhsEnd)
+			{
+				if (*ItLhs != *ItRhs)
+				{
+					return false;
+				}
+				++ItLhs;
+				++ItRhs;
+			}
+			if (ItLhs != ItLhsEnd || ItRhs != ItRhsEnd)
+			{
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
+	friend bool operator!=(const FSmallListSet& Lhs, const FSmallListSet& Rhs)
+	{
+		return !(Lhs == Rhs);
+	}
 
 	//
 	// iterator support
@@ -479,7 +516,7 @@ public:
 protected:
 
 
-	// grab a block from the free list, or allocate a one
+	// grab a block from the free list, or allocate a new one
 	int32 AllocateBlock();
 
 	// push a link-node onto the free list
@@ -495,9 +532,9 @@ protected:
 
 
 public:
-	inline FString MemoryUsage()
+	inline FString MemoryUsage() const
 	{
-		return FString::Printf(TEXT("ListSize %d  Blocks Count %d  Free %d  Mem %dkb   Linked Mem %dkb"),
+		return FString::Printf(TEXT("ListSize %llu  Blocks Count %d  Free %llu  Mem %llukb   Linked Mem %llukb"),
 			ListHeads.GetLength(), AllocatedCount, (FreeBlocks.GetLength() * sizeof(int32) / 1024),
 			ListBlocks.GetLength(), (LinkedListElements.GetLength() * sizeof(int32) / 1024));
 	}

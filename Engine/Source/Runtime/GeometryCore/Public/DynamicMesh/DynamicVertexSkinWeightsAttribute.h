@@ -145,7 +145,7 @@ public:
 		}
 	}
 
-	/** Initialize the attribute values to the given max triangle ID */
+	/** Initialize the attribute values to the given max vertex ID */
 	void Initialize(const FBoneWeights InitialValue = {})
 	{
 		check(Parent != nullptr);
@@ -336,6 +336,144 @@ public:
 		return true;
 	}
 
+	void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression)
+	{
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+		Ar << bUseCompression;
+
+		const bool bUseVertexCompactMap = CompactMaps && CompactMaps->VertexMapIsSet();
+
+		if (!bUseCompression)
+		{
+			if (Ar.IsLoading() || !bUseVertexCompactMap)
+			{
+				VertexBoneWeights.Serialize<false, false>(Ar);
+			}
+			else
+			{
+				TDynamicVector<FBoneWeights> VertexBoneWeightsCompact;
+				VertexBoneWeightsCompact.Resize(Parent->VertexCount());
+
+				for (int32 Vid = 0, Num = VertexBoneWeights.Num(); Vid < Num; ++Vid)
+				{
+					const int32 VidCompact = CompactMaps->GetVertexMapping(Vid);
+					if (VidCompact != FCompactMaps::InvalidID)
+					{
+						VertexBoneWeightsCompact[VidCompact] = VertexBoneWeights[Vid];
+					}
+				}
+
+				VertexBoneWeightsCompact.Serialize<false, false>(Ar);
+			}
+		}
+		else
+		{
+			// To achieve better compression performance both w.r.t. size and speed, we copy everything into one big flat buffer.
+			// We take advantage of the fact that we can effectively store everything as int32 for both the vector/array sizes as well as the bone weights.
+			TArray<int32> Buffer;
+
+			if (Ar.IsLoading())
+			{
+				// Serialize size of decompressed buffer to be able to hold all the compressed data in the archive, and allocate accordingly.
+				int32 BufferSize;
+				Ar << BufferSize;
+				Buffer.SetNumUninitialized(BufferSize);
+
+				// Decompress buffer from archive.
+				Ar.SerializeCompressedNew(Buffer.GetData(), Buffer.Num() * sizeof(int32), NAME_Oodle, NAME_Oodle, COMPRESS_NoFlags, false, nullptr);
+
+				// Restore bone weights arrays from decompressed buffer.
+				int32* BufferPtr = Buffer.GetData();
+				VertexBoneWeights.Resize(*BufferPtr++);
+				AnimationCore::FBoneWeightsSettings BoneWeightsSettings;
+				BoneWeightsSettings.SetNormalizeType(AnimationCore::EBoneWeightNormalizeType::None);
+				for (FBoneWeights& BoneWeights : VertexBoneWeights)
+				{
+					const int32 Num = *BufferPtr++;
+					for (int32 i = 0; i < Num; ++i)
+					{
+						BoneWeights.SetBoneWeight(reinterpret_cast<AnimationCore::FBoneWeight&>(*BufferPtr++), BoneWeightsSettings);
+					}
+				}
+				checkSlow(BufferPtr == &*Buffer.end());
+			}
+			else
+			{
+				// Determine total number of individual bone weights.
+
+				auto CountBoneWeights = [](const FBoneWeights& BoneWeights, SIZE_T& NumBoneWeights)
+				{
+					NumBoneWeights += BoneWeights.Num();
+				};
+
+				SIZE_T NumBoneWeights = 0;
+				if (!bUseVertexCompactMap)
+				{
+					for (const FBoneWeights& BoneWeights : VertexBoneWeights)
+					{
+						CountBoneWeights(BoneWeights, NumBoneWeights);
+					}
+				}
+				else
+				{
+					for (int32 Vid = 0, Num = VertexBoneWeights.Num(); Vid < Num; ++Vid)
+					{
+						const int32 VidCompact = CompactMaps->GetVertexMapping(Vid);
+						if (VidCompact != FCompactMaps::InvalidID)
+						{
+							CountBoneWeights(VertexBoneWeights[Vid], NumBoneWeights);
+						}
+					}
+				}
+
+				// Set buffer size to hold number of vertex bone weight arrays, size for vertex each bone weight array, and all individual bone weights.
+				// We also serialize out size of uncompressed buffer to allow for allocation to correct size during loading.
+				uint32 BufferSize = 1 + VertexBoneWeights.Num() + NumBoneWeights;
+				Buffer.SetNumUninitialized(BufferSize);
+				Ar << BufferSize;
+
+				// Write everything into the buffer.
+
+				auto WriteBoneWeights = [](const FBoneWeights& BoneWeights, int32*& BufferPtr)
+				{
+					const int32 Num = BoneWeights.Num();
+					*BufferPtr++ = Num;
+					if (Num > 0)
+					{
+						FMemory::Memcpy(BufferPtr, &BoneWeights[0], Num * sizeof(int32));
+						BufferPtr += Num;
+					}
+				};
+
+				int32* BufferPtr = Buffer.GetData();
+				if (!bUseVertexCompactMap)
+				{
+					*BufferPtr++ = VertexBoneWeights.Num();
+					for (const FBoneWeights& BoneWeights : VertexBoneWeights)
+					{
+						WriteBoneWeights(BoneWeights, BufferPtr);
+					}
+				}
+				else
+				{
+					*BufferPtr++ = Parent->VertexCount();
+					for (int32 Vid = 0, Num = VertexBoneWeights.Num(); Vid < Num; ++Vid)
+					{
+						const int32 VidCompact = CompactMaps->GetVertexMapping(Vid);
+						if (VidCompact != FCompactMaps::InvalidID)
+						{
+							WriteBoneWeights(VertexBoneWeights[Vid], BufferPtr);
+						}
+					}
+				}
+				checkSlow(BufferPtr == &*Buffer.end());
+
+				// Compress buffer to archive.
+				Ar.SerializeCompressedNew(Buffer.GetData(), Buffer.Num() * sizeof(int32), NAME_Oodle, NAME_Oodle, COMPRESS_NoFlags, false, nullptr);
+			}
+		}
+	}
 
 protected:
 
