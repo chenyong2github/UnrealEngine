@@ -25,7 +25,7 @@ uint NumTriangles;
 
 Buffer<SNORM float4> TangentInputBuffer;
 Buffer<float2> UVsInputBuffer;
-RWBuffer<SNORM float4> TangentBufferUAV;
+RWBuffer<TANGENT_RWBUFFER_FORMAT> TangentBufferUAV;
 
 // in vertices
 uint InputStreamStart;

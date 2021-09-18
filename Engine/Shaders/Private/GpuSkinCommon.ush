@@ -94,9 +94,12 @@ uint PackS8x3N(float3 Unpacked)
 }
 
 #if OPENGL_PROFILE
+// GL does not support SNORM images, so instead we write to SINT
+#define TANGENT_RWBUFFER_FORMAT		int4
 #define TangentBias_SkinCache(X)	ConvertTangentUnormToSnorm8(X)
-#define TangentUnbias_SkinCache(X)	ConvertTangentSnormToUnorm16(X)
+#define TangentUnbias_SkinCache(X)	round(X * 32767.0)
 #else
+#define TANGENT_RWBUFFER_FORMAT		SNORM float4
 #define TangentBias_SkinCache(X)	(X)
 #define TangentUnbias_SkinCache(X)	(X)
 #endif // OPENGL_PROFILE

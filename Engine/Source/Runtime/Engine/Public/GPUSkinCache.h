@@ -251,11 +251,14 @@ public:
 			}
 			if (WithTangents)
 			{
-				Tangents.Buffer.Initialize(TEXT("SkinCacheTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
+				// OpenGL ES does not support writing to RGBA16_SNORM images, instead pack data into SINT in the shader
+				const EPixelFormat TangentsFormat = IsOpenGLPlatform(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_SINT : PF_R16G16B16A16_SNORM;
+				
+				Tangents.Buffer.Initialize(TEXT("SkinCacheTangents"), TangentBufferBytesPerElement, NumVertices * 2, TangentsFormat, BUF_Static);
 				Tangents.AccessState = ERHIAccess::Unknown;
 				if (UseIntermediateTangents)
 				{
-					IntermediateTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateTangents"), TangentBufferBytesPerElement, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
+					IntermediateTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateTangents"), TangentBufferBytesPerElement, NumVertices * 2, TangentsFormat, BUF_Static);
 					IntermediateTangents.AccessState = ERHIAccess::Unknown;
 				}
 			}

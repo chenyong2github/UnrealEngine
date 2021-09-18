@@ -178,7 +178,7 @@ const float MBSize = 1048576.f; // 1024 x 1024 bytes
 
 static inline bool DoesPlatformSupportGPUSkinCache(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5 || IsMetalSM5Platform(Platform) || IsVulkanSM5Platform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsGPUSkinCache(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsGPUSkinCache(Platform);
 }
 
 ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform)
@@ -710,7 +710,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsGPUSkinCacheAvailable(Parameters.Platform) && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsGPUSkinCacheAvailable(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
