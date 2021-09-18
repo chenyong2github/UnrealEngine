@@ -797,7 +797,7 @@ FGPUSkinPassthroughVertexFactory
 void FGPUSkinPassthroughVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
 	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
-	if (!ContainsManualVertexFetch)
+	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
 	{
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
 	}
@@ -810,7 +810,6 @@ bool FGPUSkinPassthroughVertexFactory::ShouldCompilePermutation(const FVertexFac
 {
 	// Passthrough is only valid on platforms with Compute Shader support AND for (skeletal meshes or default materials)
 	return IsGPUSkinCacheAvailable(Parameters.Platform) &&
-		IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
 		Super::ShouldCompilePermutation(Parameters) &&
 		(Parameters.MaterialParameters.bIsUsedWithSkeletalMesh || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }

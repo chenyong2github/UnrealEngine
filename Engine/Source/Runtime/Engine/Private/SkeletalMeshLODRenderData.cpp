@@ -73,6 +73,21 @@ namespace
 	};
 }
 
+static bool IsGPUSkinCacheAvailable(const ITargetPlatform& TargetPlatform)
+{
+	TArray<FName> TargetedShaderFormats;
+	TargetPlatform.GetAllTargetedShaderFormats(TargetedShaderFormats);
+	for (int32 FormatIndex = 0; FormatIndex < TargetedShaderFormats.Num(); ++FormatIndex)
+	{
+		const EShaderPlatform LegacyShaderPlatform = ShaderFormatToLegacyShaderPlatform(TargetedShaderFormats[FormatIndex]);
+		if (IsGPUSkinCacheAvailable(LegacyShaderPlatform))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 // Serialization.
 FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 {
@@ -83,7 +98,11 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
 	uint8 ClassDataStripFlags = 0;
-	ClassDataStripFlags |= (Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering)) ? DuplicatedVertices : 0;
+	if (Ar.IsCooking() && 
+		!(Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DeferredRendering) || IsGPUSkinCacheAvailable(*Ar.CookingTarget())))
+	{
+		ClassDataStripFlags |= DuplicatedVertices;
+	}
 
 	// When data is cooked for server platform some of the
 	// variables are not serialized so that they're always
@@ -193,7 +212,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 	}
 
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
-    if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
+    if (IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform) || IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
 		const bool bSkinCacheNeedsDuplicatedVertices = GPUSkinCacheNeedsDuplicatedVertices();
 		for (auto& RenderSection : RenderSections)
@@ -212,7 +231,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 				RenderSection.DuplicatedVerticesBuffer.ReleaseCPUResources();
 #endif
 			}
-}
+		}
     }
 
 	// UseGPUMorphTargets() can be toggled only on SM5 atm
@@ -557,7 +576,7 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	BeginReleaseResource(&StaticVertexBuffers.ColorVertexBuffer);
 	BeginReleaseResource(&ClothVertexBuffer);
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
-    if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
+    if (IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform) || IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
 		if (GPUSkinCacheNeedsDuplicatedVertices())
 		{

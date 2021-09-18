@@ -224,7 +224,7 @@ FBoneMatrix CalcBoneMatrix( FVertexUnpacked VertexUnpacked, uint VertexIndex )
 }
 
 Buffer<SNORM float4> TangentInputBuffer;
-RWBuffer<SNORM float4> TangentBufferUAV;
+RWBuffer<TANGENT_RWBUFFER_FORMAT> TangentBufferUAV;
 Buffer<float> PositionInputBuffer;
 RWBuffer<float> PositionBufferUAV;
 
