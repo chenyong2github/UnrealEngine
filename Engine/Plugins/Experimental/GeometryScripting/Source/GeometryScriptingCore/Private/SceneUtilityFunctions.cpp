@@ -16,6 +16,11 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_SceneUtilityFunctions"
 
+UDynamicMeshPool* UGeometryScriptLibrary_SceneUtilityFunctions::CreateDynamicMeshPool()
+{
+	return NewObject<UDynamicMeshPool>();
+}
+
 
 UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponent(
 	USceneComponent* Component,
