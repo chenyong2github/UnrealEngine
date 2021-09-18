@@ -9,7 +9,7 @@
 
 class UStaticMesh;
 class UDynamicMesh;
-
+class UDynamicMeshPool;
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptCopyMeshFromComponentOptions
@@ -32,6 +32,12 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_SceneUtilityFunctions : p
 {
 	GENERATED_BODY()
 public:
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Utility")
+	static UPARAM(DisplayName = "Dynamic Mesh Pool") UDynamicMeshPool*
+	CreateDynamicMeshPool();
+
+
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Scene", meta = (ExpandEnumAsExecs = "Outcome"))
 	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh*

@@ -1,0 +1,109 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "GeometryScript/GeometryScriptTypes.h"
+#include "CollisionFunctions.generated.h"
+
+class UDynamicMesh;
+class UDynamicMeshComponent;
+class UStaticMesh;
+
+UENUM(BlueprintType)
+enum class EGeometryScriptCollisionGenerationMethod : uint8
+{
+	AlignedBoxes = 0,
+	OrientedBoxes = 1,
+	MinimalSpheres = 2,
+	Capsules = 3,
+	ConvexHulls = 4,
+	SweptHulls = 5,
+	MinVolumeShapes = 6
+};
+
+
+UENUM(BlueprintType)
+enum class EGeometryScriptSweptHullAxis : uint8
+{
+	X = 0,
+	Y = 1,
+	Z = 2,
+	/** Use X/Y/Z axis with smallest axis-aligned-bounding-box dimension */
+	SmallestBoxDimension = 3,
+	/** Compute projected hull for each of X/Y/Z axes and use the one that has the smallest volume  */
+	SmallestVolume = 4
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptCollisionFromMeshOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEmitTransaction = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptCollisionGenerationMethod Method = EGeometryScriptCollisionGenerationMethod::MinVolumeShapes;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bAutoDetectSpheres = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bAutoDetectBoxes = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bAutoDetectCapsules = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float MinThickness = 1.0;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bSimplifyHulls = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int ConvexHullTargetFaceCount = 25;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	float SweptHullSimplifyTolerance = 0.1;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptSweptHullAxis SweptHullAxis = EGeometryScriptSweptHullAxis::Z;
+
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bRemoveFullyContainedShapes = true;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	int MaxShapeCount = 0;
+};
+
+
+
+
+UCLASS(meta = (ScriptName = "GeometryScript_Collision"))
+class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_CollisionFunctions : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+public:
+
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
+	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
+	SetStaticMeshCollisionFromMesh(
+		UDynamicMesh* FromDynamicMesh, 
+		UStaticMesh* ToStaticMeshAsset, 
+		FGeometryScriptCollisionFromMeshOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Collision")
+	static UPARAM(DisplayName = "Dynamic Mesh") UDynamicMesh* 
+	SetDynamicMeshCollisionFromMesh(
+		UDynamicMesh* FromDynamicMesh, 
+		UDynamicMeshComponent* ToDynamicMeshComponent,
+		FGeometryScriptCollisionFromMeshOptions Options,
+		UGeometryScriptDebug* Debug = nullptr);
+
+};
