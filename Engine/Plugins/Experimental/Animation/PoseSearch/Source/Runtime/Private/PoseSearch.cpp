@@ -959,7 +959,7 @@ int32 UPoseSearchDatabase::GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float 
 	FFloatInterval Range = UE::PoseSearch::GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
 	if (Range.Contains(AssetTime))
 	{
-		int32 PoseOffset = FMath::RoundToInt(Schema->SampleRate * (AssetTime - Range.Min));		
+		int32 PoseOffset = FMath::FloorToInt(Schema->SampleRate * (AssetTime - Range.Min));
 		if (PoseOffset >= DbSequence.NumPoses)
 		{
 			if (DbSequence.bLoopAnimation)
@@ -977,6 +977,13 @@ int32 UPoseSearchDatabase::GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float 
 	}
 	
 	return INDEX_NONE;
+}
+
+FFloatInterval UPoseSearchDatabase::GetEffectiveSamplingRange(int32 DbSequenceIdx) const
+{
+	const FPoseSearchDatabaseSequence& DbSequence = Sequences[DbSequenceIdx];
+	FFloatInterval Range = UE::PoseSearch::GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
+	return Range;
 }
 
 float UPoseSearchDatabase::GetSequenceLength(int32 DbSequenceIdx) const
@@ -3328,7 +3335,7 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 	return true;
 }
 
-static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr)
+static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, const TSet<int32>& ExcludedIndices = TSet<int32>())
 {
 	FSearchResult Result;
 	if (!ensure(SearchIndex.IsValid()))
@@ -3346,6 +3353,11 @@ static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<cons
 
 	for (int32 PoseIdx = 0; PoseIdx != SearchIndex.NumPoses; ++PoseIdx)
 	{
+		if (ExcludedIndices.Contains(PoseIdx))
+		{
+			continue;
+		}
+
 		const float PoseDissimilarity = ComparePoses(SearchIndex, PoseIdx, Query, WeightsContext);
 		
 		if (PoseDissimilarity < BestPoseDissimilarity)
@@ -3392,7 +3404,11 @@ FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> 
 	return Result;
 }
 
-FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext, FDebugDrawParams DebugDrawParams)
+FDbSearchResult Search(
+	const UPoseSearchDatabase* Database, 
+	TArrayView<const float> Query, 
+	const FPoseSearchWeightsContext* WeightsContext, 
+	const float EndTimeToExclude, FDebugDrawParams DebugDrawParams)
 {
 	if (!ensure(Database && Database->IsValidForSearch()))
 	{
@@ -3401,7 +3417,23 @@ FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const flo
 
 	const FPoseSearchIndex& SearchIndex = Database->SearchIndex;
 
-	FDbSearchResult Result = Search(SearchIndex, Query, WeightsContext);
+	const int32 NumSequenceIndicesToExclude = Database->Schema->SampleRate * EndTimeToExclude;
+	TSet<int32> ExcludedIndices;
+	if (NumSequenceIndicesToExclude > 0)
+	{
+		for (const FPoseSearchDatabaseSequence& Sequence : Database->Sequences)
+		{
+			// leaving at least one sample per sequence
+			const int32 ExclusionStartIndex = Sequence.FirstPoseIdx + FMath::Max(1, Sequence.NumPoses - NumSequenceIndicesToExclude);
+			const int32 ExclusionEndIndex = Sequence.FirstPoseIdx + Sequence.NumPoses;
+			for (int32 ExcludedIndex = ExclusionStartIndex; ExcludedIndex < ExclusionEndIndex; ++ExcludedIndex)
+			{
+				ExcludedIndices.Add(ExcludedIndex);
+			}
+		}
+	}
+	
+	FDbSearchResult Result = Search(SearchIndex, Query, WeightsContext, ExcludedIndices);
 	if (!Result.IsValid())
 	{
 		return FDbSearchResult();
