@@ -5,6 +5,9 @@
 #include "SUVEditor2DViewportToolBar.h"
 
 #include "EditorViewportCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
 
 
 void SUVEditor2DViewportToolBar::Construct(const FArguments& InArgs)

@@ -4,6 +4,7 @@
 
 #include "AssetDataTagMap.h"
 #include "AssetRegistryModule.h"
+#include "Async/Async.h"
 #include "CoreMinimal.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Notifications/NotificationManager.h"
