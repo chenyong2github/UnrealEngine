@@ -17,6 +17,7 @@
 #include "MovieSceneToolHelpers.h"
 #include "MovieSceneToolsModule.h"
 #include "Engine/EngineTypes.h"
+#include "EditorUndoClient.h"
 
 struct FAssetData;
 class FMenuBuilder;
@@ -26,11 +27,16 @@ class UFKControlRig;
 class FEditorModeTools;
 class FControlRigEditMode;
 struct FRigControlModifiedContext;
+struct FMovieSceneControlRigSpaceChannel;
+struct FMovieSceneChannel;
+struct FKeyAddOrDeleteEventItem;
+struct FKeyMoveEventItem;
 
 /**
  * Tools for animation tracks
  */
-class FControlRigParameterTrackEditor : public FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>, public IMovieSceneToolsAnimationBakeHelper
+class FControlRigParameterTrackEditor : public FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>, public IMovieSceneToolsAnimationBakeHelper,
+	public FEditorUndoClient
 {
 public:
 	/**
@@ -70,6 +76,11 @@ public:
 
 	//IMovieSceneToolsAnimationBakeHelper
 	virtual void PostEvaluation(UMovieScene* MovieScene, FFrameNumber Frame);
+
+	//FEditorUndoClient Interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 private:
 
@@ -118,6 +129,11 @@ private:
 	void HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
 	void HandleOnInitialized(UControlRig* Subject, const EControlRigState InState, const FName& InEventName);
 
+	/** SpaceChannel Delegates*/
+	void HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel);
+	void HandleSpaceKeyDeleted(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel, const TArray<FKeyAddOrDeleteEventItem>& DeletedItems);
+	void HandleSpaceKeyMoved(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel, const  TArray<FKeyMoveEventItem>& MovedItems);
+
 	/** Select control rig if not selected, select controls from key areas */
 	void SelectRigsAndControls(UControlRig* Subject, const TArray<const IKeyArea*>& KeyAreas);
 
@@ -130,6 +146,8 @@ private:
 	/** Import FBX*/
 	void ImportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection, 
 		TArray<FFBXNodeAndChannels>* NodeAndChannels);
+	/** Find Track for given ControlRig*/
+	UMovieSceneControlRigParameterTrack* FindTrack(UControlRig* InControlRig);
 
 	/** Select Bones to Animate on FK Rig*/
 	void SelectFKBonesToAnimate(UFKControlRig* FKControlRig, UMovieSceneControlRigParameterTrack* Track);
@@ -150,7 +168,6 @@ private:
 
 	/** Command Bindings added by the Transform Track Editor to Sequencer and curve editor. */
 	TSharedPtr<FUICommandList> CommandBindings;
-
 	FAcquiredResources AcquiredResources;
 
 public:
@@ -185,6 +202,7 @@ private:
 	FDelegateHandle OnMovieSceneChannelChangedHandle;
 	FDelegateHandle OnActorAddedToSequencerHandle;
 
+	//map used for space channel delegates since we loose them
 
 	//used to sync curve editor selections/displays on next tick for performance reasons
 	TSet<FName> DisplayedControls;
@@ -206,8 +224,13 @@ private:
 	/** Whether or not we should check for Animatable Controls when filtering*/
 	bool bFilterAssetByAnimatableControls;
 
+	/** Handle to help updating selection on tick tick to avoid too many flooded selections*/
 	FTimerHandle UpdateSelectionTimerHandle;
+
+	/** Array of sections that are getting undone, we need to recreate any space channel add,move key delegates to them*/
+	mutable TArray<UMovieSceneControlRigParameterSection*> SectionsGettingUndone;
 };
+
 
 
 /** Class for control rig sections */

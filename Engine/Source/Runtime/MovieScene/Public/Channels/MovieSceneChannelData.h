@@ -2,11 +2,12 @@
 
 #pragma once
 
+#include "UObject/ObjectMacros.h"
 #include "Containers/ArrayView.h"
 #include "Curves/KeyHandle.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/FrameTime.h"
-
+#include "Channels/MovieSceneChannel.h"
 #include "MovieSceneChannelData.generated.h"
 
 struct FFrameRate;
@@ -186,8 +187,9 @@ protected:
 	 *
 	 * @param InTimes        A pointer to an array that should be operated on by this class. Externally owned.
 	 * @param InKeyHandles   A key handle map used for persistent, order independent identification of keys
+	 * @param InChannel      A optional pointer to the owning channel.
 	 */
-	FMovieSceneChannelData(TArray<FFrameNumber>* InTimes, FKeyHandleLookupTable* InKeyHandles);
+	FMovieSceneChannelData(TArray<FFrameNumber>* InTimes, FKeyHandleLookupTable* InKeyHandles, FMovieSceneChannel* InChannel = nullptr);
 
 	/**
 	 * Move the key at index KeyIndex to a new time
@@ -203,6 +205,7 @@ protected:
 	 */
 	int32 AddKeyInternal(FFrameNumber InTime);
 
+
 protected:
 
 	/** Pointer to an external array of sorted times. Must be kept in sync with a corresponding value array. */
@@ -210,8 +213,11 @@ protected:
 
 	/** Pointer to an external key handle map */
 	FKeyHandleLookupTable* KeyHandles;
-};
 
+	/** Optional Pointer to the owning FMovieSceneChannel, should be set if the add,move, and delete callbacks are needed */
+	FMovieSceneChannel* OwningChannel;
+
+};
 
 /**
  * Templated channel data utility class that provides a consistent interface for interacting with a channel's keys and values.
@@ -230,12 +236,28 @@ struct TMovieSceneChannelData : FMovieSceneChannelData
 	 * @param InTimes        A pointer to an array of times that should be operated on by this class. Externally owned.
 	 * @param InValues       A pointer to an array of values that should be operated on by this class. Externally owned.
 	 * @param InKeyHandles   A key handle map used for persistent, order independent identification of keys
+	 * @param InChannel A option point to the owning channel, should be set if the move,add, delete delegates are utilizaed
 	 */
-	TMovieSceneChannelData(TArray<FFrameNumber>* InTimes, TArray<ValueType>* InValues, FKeyHandleLookupTable* InKeyHandles)
+	TMovieSceneChannelData(TArray<FFrameNumber>* InTimes, TArray<ValueType>* InValues, FKeyHandleLookupTable* InKeyHandles, FMovieSceneChannel* InChannel = nullptr)
+		: FMovieSceneChannelData(InTimes, InKeyHandles, InChannel), Values(InValues) 
+	{
+		check(Times && Values);
+	}
+
+
+	/**
+	 * Constructor that takes a non-owning pointer to an array of times and values, and a key handle map
+	 *
+	 * @param InTimes        A pointer to an array of times that should be operated on by this class. Externally owned.
+	 * @param InValues       A pointer to an array of values that should be operated on by this class. Externally owned.
+	 * @param InKeyHandles   A key handle map used for persistent, order independent identification of keys
+	 */
+	TMovieSceneChannelData(TArray<FFrameNumber>* InTimes, TArray<ValueType>* InValues, FMovieSceneChannel* InChannel, FKeyHandleLookupTable* InKeyHandles)
 		: FMovieSceneChannelData(InTimes, InKeyHandles), Values(InValues)
 	{
 		check(Times && Values);
 	}
+	
 
 	/**
 	 * Conversion to a constant version of this class
@@ -272,6 +294,13 @@ struct TMovieSceneChannelData : FMovieSceneChannelData
 	{
 		int32 KeyIndex = AddKeyInternal(InTime);
 		Values->Insert(InValue, KeyIndex);
+		if (OwningChannel && OwningChannel->OnKeyAddedEvent().IsBound())
+		{
+			TArray<FKeyAddOrDeleteEventItem> Items;
+			Items.Add(FKeyAddOrDeleteEventItem(KeyIndex, InTime));
+			OwningChannel->OnKeyAddedEvent().Broadcast(OwningChannel, Items);
+			
+		}
 		return KeyIndex;
 	}
 
@@ -316,6 +345,13 @@ struct TMovieSceneChannelData : FMovieSceneChannelData
 	void RemoveKey(int32 KeyIndex)
 	{
 		check(Times->IsValidIndex(KeyIndex));
+		if (OwningChannel && OwningChannel->OnKeyDeletedEvent().IsBound())
+		{
+			const FFrameNumber Time = (*Times)[KeyIndex];
+			TArray<FKeyAddOrDeleteEventItem> Items;
+			Items.Add(FKeyAddOrDeleteEventItem(KeyIndex, Time));
+			OwningChannel->OnKeyDeletedEvent().Broadcast(OwningChannel, Items);
+		}
 		Times->RemoveAt(KeyIndex, 1, false);
 		Values->RemoveAt(KeyIndex, 1, false);
 
@@ -450,6 +486,16 @@ struct TMovieSceneChannelData : FMovieSceneChannelData
 	 */
 	void Reset()
 	{
+		if (OwningChannel && OwningChannel->OnKeyDeletedEvent().IsBound())
+		{
+			TArray<FKeyAddOrDeleteEventItem> Items;
+			for (int32 Index = 0; Index < Times->Num(); ++Index)
+			{
+				const FFrameNumber Time = (*Times)[Index];
+				Items.Add(FKeyAddOrDeleteEventItem(Index, Time));
+			}
+			OwningChannel->OnKeyDeletedEvent().Broadcast(OwningChannel, Items);
+		}
 		Times->Reset();
 		Values->Reset();
 		if (KeyHandles)
@@ -462,6 +508,7 @@ private:
 
 	/** Pointer to an external array of values, to be kept in sync with FMovieSceneChannelData::Times */
 	TArray<ValueType>* Values;
+
 };
 
 

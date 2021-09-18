@@ -15,6 +15,38 @@ struct FFrameRate;
 struct FFrameNumber;
 struct FKeyDataOptimizationParams;
 
+/*
+*  Events that are fired when adding, deleting or moving keys
+*/
+/**
+*  Item that's sent  when an event is fired when we delete or add a key
+*/
+struct FKeyAddOrDeleteEventItem
+{
+	FKeyAddOrDeleteEventItem(int32 InIndex, FFrameNumber InFrame) : Index(InIndex), Frame(InFrame) {};
+	int32 Index;
+	FFrameNumber Frame;;
+};
+
+/**
+*  Item that's sent when an event is fired when we move a key in time
+*/
+struct FKeyMoveEventItem
+{
+	FKeyMoveEventItem(int32 InIndex, FFrameNumber InFrame, int32 InNewIndex, FFrameNumber InNewFrame) : Index(InIndex), Frame(InFrame), NewIndex(InNewIndex), NewFrame(InNewFrame) {};
+	int32 Index;
+	FFrameNumber Frame;
+	int32 NewIndex;
+	FFrameNumber NewFrame;
+};
+
+/*
+* Note if any Channel uses these delegate's they need a custom serializer to make sure they stick around on undo/redo. Dynamic delegates are too heavy.
+*/
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneChannelDataKeyAddedEvent, FMovieSceneChannel*, const TArray<FKeyAddOrDeleteEventItem>& Items);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneChannelDataKeyDeletedEvent, FMovieSceneChannel*, const TArray<FKeyAddOrDeleteEventItem>& Items);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneChannelDataKeyMovedEvent, FMovieSceneChannel*, const TArray<FKeyMoveEventItem>& Items);
+
 USTRUCT()
 struct MOVIESCENE_API FMovieSceneChannel
 {
@@ -155,5 +187,33 @@ struct MOVIESCENE_API FMovieSceneChannel
 	 *
 	 */
 	virtual void PostEditChange() {}
+
+public:
+
+	/**
+	* Get delegate that's called when a key is added
+	*@return Returns key added event delegate
+	*/
+	FMovieSceneChannelDataKeyAddedEvent& OnKeyAddedEvent() { return KeyAddedEvent; }
+	/**
+	* Get delegate that's called when a key is deleted
+	*@return Returns key deleted event delegate
+	*/
+	FMovieSceneChannelDataKeyDeletedEvent& OnKeyDeletedEvent() { return KeyDeletedEvent; }
+	/**
+	* Get delegate that's called when a key is moved
+	*@return Returns key moved event delegate
+	*/
+	FMovieSceneChannelDataKeyMovedEvent& OnKeyMovedEvent() { return KeyMovedEvent; }
+
+protected:
+	/** Broadcasts a notification whenever key is added */
+	FMovieSceneChannelDataKeyAddedEvent KeyAddedEvent;
+
+	/** Broadcasts a notification whenever key is deleted */
+	FMovieSceneChannelDataKeyDeletedEvent KeyDeletedEvent;
+
+	/** Broadcasts a notification whenever key is moved */
+	FMovieSceneChannelDataKeyMovedEvent KeyMovedEvent;
 
 };
