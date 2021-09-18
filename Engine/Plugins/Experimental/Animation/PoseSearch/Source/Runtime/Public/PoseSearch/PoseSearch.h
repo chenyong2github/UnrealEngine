@@ -534,6 +534,7 @@ public:
 	int32 GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float AssetTime) const;
 	float GetSequenceLength(int32 DbSequenceIdx) const;
 	bool DoesSequenceLoop(int32 DbSequenceIdx) const;
+	FFloatInterval GetEffectiveSamplingRange(int32 DbSequenceIdx) const;
 
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
@@ -787,14 +788,15 @@ POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayVie
 /**
 * Performs a pose search on a UPoseSearchDatabase.
 *
-* @param Database		The database to search within
-* @param Query			The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the Database.
-* @param WeightsContext	Optional weights context used to influence pose search query results
-* @param DrawParams		Visualization options
+* @param Database			The database to search within
+* @param Query				The pose query to search for. To build a query, see FFeatureVectorBuilder. Must have been built using the same schema as the Database.
+* @param WeightsContext		Optional weights context used to influence pose search query results
+* @param EndTimeToExclude	Samples this close to the end of an animation sequence will be ignored by the search. 
+* @param DrawParams			Visualization options
 * 
 * @return The pose in the database that most closely matches the Query.
 */
-POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
+POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, const float EndTimeToExclude = 0.0f, FDebugDrawParams DrawParams = FDebugDrawParams());
 
 
 /**

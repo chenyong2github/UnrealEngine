@@ -13,6 +13,26 @@
 
 #include "PoseSearchLibrary.generated.h"
 
+namespace UE::PoseSearch
+{
+	struct FMotionMatchingContinuityParams
+	{
+		FDbSearchResult Result;
+		bool bJumpRequired = false;
+
+		bool IsValid()
+		{
+			return Result.IsValid();
+		}
+
+		void Reset()
+		{
+			Result = UE::PoseSearch::FDbSearchResult();
+			bJumpRequired = false;
+		}
+	};
+}
+
 UENUM(BlueprintType, Category="Motion Trajectory", meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class EMotionMatchingFlags : uint8
 {
@@ -46,6 +66,11 @@ struct POSESEARCH_API FMotionMatchingSettings
 	// Note: This feature won't work quite as advertised until search data rescaling is implemented
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0", ClampMax="100"))
 	float MinPercentImprovement = 100.f;
+
+	// Pose indices SequenceEndExclusionTime or less away from the end of the database sequence will be ignored by the 
+	// PoseSearch. This ensures the search doesn't get stuck at the end of a sequence.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0"))
+	float SequenceEndExlusionTime = 0.25f;
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")
@@ -61,6 +86,9 @@ struct POSESEARCH_API FMotionMatchingState
 
 	// Internally stores the 'jump' to a new pose/sequence index and asset time for evaluation
 	void JumpToPose(const UE::PoseSearch::FDbSearchResult& Result);
+
+	// Updates DbPoseIdx to track DeltaTime and jumps to a follow-up sequence when available
+	UE::PoseSearch::FMotionMatchingContinuityParams ComputeContinuityParameters(const FAnimationUpdateContext& Context) const;
 
 	// The current pose we're playing from the database
 	UPROPERTY(Transient)
