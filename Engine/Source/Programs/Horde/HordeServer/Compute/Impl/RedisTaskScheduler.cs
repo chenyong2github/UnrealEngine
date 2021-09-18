@@ -114,8 +114,8 @@ namespace HordeServer.Compute.Impl
 		{
 			this.Redis = Redis;
 			this.BaseKey = BaseKey;
-			this.QueueIndex = new RedisSet<TQueueId>(BaseKey.Append("index"));
-			this.ActiveQueues = new RedisHash<TQueueId, DateTime>(BaseKey.Append("active"));
+			this.QueueIndex = new RedisSet<TQueueId>(Redis, BaseKey.Append("index"));
+			this.ActiveQueues = new RedisHash<TQueueId, DateTime>(Redis, BaseKey.Append("active"));
 			this.NewQueueChannel = new RedisChannel<TQueueId>(BaseKey.Append("new_queues").ToString());
 			this.Logger = Logger;
 
@@ -156,7 +156,7 @@ namespace HordeServer.Compute.Impl
 		/// <returns></returns>
 		RedisList<TTask> GetQueue(TQueueId QueueId)
 		{
-			return new RedisList<TTask>(GetQueueKey(QueueId));
+			return new RedisList<TTask>(Redis, GetQueueKey(QueueId));
 		}
 
 		/// <summary>
@@ -167,7 +167,7 @@ namespace HordeServer.Compute.Impl
 		{
 			ITransaction Transaction = Redis.CreateTransaction();
 			Transaction.AddCondition(Condition.KeyExists(GetQueueKey(QueueId)));
-			_ = Transaction.SetAddAsync(QueueIndex, QueueId);
+			_ = Transaction.With(QueueIndex).AddAsync(QueueId);
 			await Transaction.ExecuteAsync();
 
 			await Redis.PublishAsync(NewQueueChannel, QueueId);
@@ -181,7 +181,7 @@ namespace HordeServer.Compute.Impl
 		{
 			ITransaction Transaction = Redis.CreateTransaction();
 			Transaction.AddCondition(Condition.KeyNotExists(GetQueueKey(QueueId)));
-			_ = Transaction.SetRemoveAsync(QueueIndex, QueueId);
+			_ = Transaction.With(QueueIndex).RemoveAsync(QueueId);
 			await Transaction.ExecuteAsync(CommandFlags.FireAndForget);
 		}
 
@@ -194,7 +194,7 @@ namespace HordeServer.Compute.Impl
 		{
 			RedisList<TTask> List = GetQueue(QueueId);
 
-			long NewLength = await Redis.ListRightPushAsync(List, Task);
+			long NewLength = await List.RightPushAsync(Task);
 			if (NewLength == 1)
 			{
 				await AddQueueToIndexAsync(QueueId);
@@ -210,7 +210,7 @@ namespace HordeServer.Compute.Impl
 		{
 			RedisList<TTask> List = GetQueue(QueueId);
 
-			long NewLength = await Redis.ListLeftPushAsync(List, Task);
+			long NewLength = await List.LeftPushAsync(Task);
 			if (NewLength == 1)
 			{
 				await AddQueueToIndexAsync(QueueId);
@@ -229,7 +229,7 @@ namespace HordeServer.Compute.Impl
 			Listener? Listener = null;
 			try
 			{
-				TQueueId[] Queues = await Redis.SetMembersAsync(QueueIndex);
+				TQueueId[] Queues = await QueueIndex.MembersAsync();
 				while (!Token.IsCancellationRequested)
 				{
 					// Try to dequeue an item from the list
@@ -301,7 +301,7 @@ namespace HordeServer.Compute.Impl
 		{
 			await AddActiveQueue(QueueId);
 
-			TTask? Item = await Redis.ListLeftPopAsync(GetQueue(QueueId));
+			TTask? Item = await GetQueue(QueueId).LeftPopAsync();
 			if (Item == null)
 			{
 				await RemoveQueueFromIndexAsync(QueueId);
@@ -345,7 +345,7 @@ namespace HordeServer.Compute.Impl
 					}
 					if (Interlocked.CompareExchange(ref LocalActiveQueues, NewLocalActiveKeys, LocalActiveKeysCopy) == LocalActiveKeysCopy)
 					{
-						await Redis.HashSetAsync(ActiveQueues, QueueId, DateTime.UtcNow);
+						await ActiveQueues.SetAsync(QueueId, DateTime.UtcNow);
 						break;
 					}
 				}
@@ -358,12 +358,12 @@ namespace HordeServer.Compute.Impl
 		/// <returns></returns>
 		public async Task<List<TQueueId>> GetInactiveQueuesAsync()
 		{
-			HashSet<TQueueId> Keys = new HashSet<TQueueId>(await Redis.SetMembersAsync(QueueIndex));
+			HashSet<TQueueId> Keys = new HashSet<TQueueId>(await QueueIndex.MembersAsync());
 			HashSet<TQueueId> InvalidKeys = new HashSet<TQueueId>();
 
 			DateTime MinTime = DateTime.UtcNow - TimeSpan.FromMinutes(1.0);
 
-			HashEntry<TQueueId, DateTime>[] Entries = await Redis.HashGetAllAsync(ActiveQueues);
+			HashEntry<TQueueId, DateTime>[] Entries = await ActiveQueues.GetAllAsync();
 			foreach (HashEntry<TQueueId, DateTime> Entry in Entries)
 			{
 				if (Entry.Value < MinTime)
@@ -378,7 +378,7 @@ namespace HordeServer.Compute.Impl
 
 			if (InvalidKeys.Count > 0)
 			{
-				await Redis.HashDeleteAsync(ActiveQueues, InvalidKeys.ToArray());
+				await ActiveQueues.DeleteAsync(InvalidKeys.ToArray());
 			}
 
 			return Keys.ToList();

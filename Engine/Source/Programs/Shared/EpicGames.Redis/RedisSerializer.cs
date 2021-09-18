@@ -89,6 +89,12 @@ namespace EpicGames.Redis
 			public T FromRedisValue(RedisValue Value) => (T)TypeConverter.ConvertFrom((string)Value);
 		}
 
+		class RedisIntConverter : IRedisConverter<int>
+		{
+			public RedisValue ToRedisValue(int Value) => Value;
+			public int FromRedisValue(RedisValue Value) => (int?)Value ?? 0;
+		}
+
 		/// <summary>
 		/// Static class for caching converter lookups
 		/// </summary>
@@ -111,6 +117,12 @@ namespace EpicGames.Redis
 						ConverterType = ConverterType.MakeGenericType(Type);
 					}
 					return (IRedisConverter<T>)Activator.CreateInstance(ConverterType)!;
+				}
+
+				// Check for known basic types
+				if (Type == typeof(int))
+				{
+					return (IRedisConverter<T>)new RedisIntConverter();
 				}
 
 				// Check if there's a regular converter we can use to convert to/from a string
