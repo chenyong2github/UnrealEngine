@@ -1486,45 +1486,119 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::CheckValidity(bool bAllowNonMan
 
 
 template<typename RealType, int ElementSize>
-bool TDynamicMeshOverlay<RealType, ElementSize>::IsSameAs(const TDynamicMeshOverlay<RealType, ElementSize>& Other) const
+bool TDynamicMeshOverlay<RealType, ElementSize>::IsSameAs(const TDynamicMeshOverlay<RealType, ElementSize>& Other, bool bIgnoreDataLayout) const
 {
-	if (ElementsRefCounts.GetCount() != Other.ElementsRefCounts.GetCount() ||
-		ElementsRefCounts.GetMaxIndex() != Other.ElementsRefCounts.GetMaxIndex() ||
-		Elements.Num() != Other.Elements.Num() ||
-		ParentVertices.Num() != Other.ParentVertices.Num() ||
-		ElementTriangles.Num() != Other.ElementTriangles.Num())
+	if (ElementsRefCounts.GetCount() != Other.ElementsRefCounts.GetCount())
 	{
 		return false;
 	}
 
-	for (int Idx = 0; Idx < ElementsRefCounts.GetMaxIndex(); Idx++)
+	if (!bIgnoreDataLayout || (ElementsRefCounts.IsDense() && Other.ElementsRefCounts.IsDense() && ParentMesh->MaxTriangleID() == ParentMesh->TriangleCount() &&
+		Other.ParentMesh->MaxTriangleID() == Other.ParentMesh->TriangleCount()))
 	{
-		if (ElementsRefCounts.GetRefCount(Idx) != Other.ElementsRefCounts.GetRefCount(Idx))
+		if (ElementsRefCounts.GetMaxIndex() != Other.ElementsRefCounts.GetMaxIndex() ||
+			Elements.Num() != Other.Elements.Num() ||
+			ParentVertices.Num() != Other.ParentVertices.Num() ||
+			ElementTriangles.Num() != Other.ElementTriangles.Num())
+		{
+			return false;
+		}
+
+		if (Elements != Other.Elements)
+		{
+			return false;
+		}
+
+		for (int Idx = 0; Idx < ElementsRefCounts.GetMaxIndex(); Idx++)
+		{
+			if (ElementsRefCounts.GetRefCount(Idx) != Other.ElementsRefCounts.GetRefCount(Idx))
+			{
+				return false;
+			}
+		}
+
+		if (ParentVertices != Other.ParentVertices)
+		{
+			return false;
+		}
+
+		if (ElementTriangles != Other.ElementTriangles)
 		{
 			return false;
 		}
 	}
-
-	for (int Idx = 0; Idx < Elements.Num(); Idx++)
+	else
 	{
-		if (Elements[Idx] != Other.Elements[Idx])
+		FRefCountVector::IndexIterator ItEid = ElementsRefCounts.BeginIndices();
+		const FRefCountVector::IndexIterator ItEidEnd = ElementsRefCounts.EndIndices();
+		FRefCountVector::IndexIterator ItEidOther = Other.ElementsRefCounts.BeginIndices();
+		const FRefCountVector::IndexIterator ItEidEndOther = Other.ElementsRefCounts.EndIndices();
+
+		TDynamicVector<int> EidMapping;
+		EidMapping.Resize(ElementsRefCounts.GetMaxIndex(), FDynamicMesh3::InvalidID);
+
+		while (ItEid != ItEidEnd && ItEidOther != ItEidEndOther)
+		{
+			for (int32 i = 0; i < ElementSize; ++i)
+			{
+				if (Elements[*ItEid * ElementSize + i] != Other.Elements[*ItEidOther * ElementSize + i])
+				{
+					// Element values are not the same.
+					return false;
+				}
+			}
+
+			if (ElementsRefCounts.GetRawRefCount(*ItEid) != Other.ElementsRefCounts.GetRefCount(*ItEidOther))
+			{
+				// Element ref counts are not the same.
+				return false;
+			}
+
+			EidMapping[*ItEid] = *ItEidOther;
+
+			++ItEid;
+			++ItEidOther;
+		}
+		
+		if (ItEid != ItEidEnd || ItEidOther != ItEidEndOther)
+		{
+			// Number of elements is not the same.
+			return false;
+		}
+		
+		if (ParentMesh->TriangleCount() != Other.ParentMesh->TriangleCount())
 		{
 			return false;
 		}
-	}
 
-	for (int Idx = 0; Idx < ParentVertices.Num(); Idx++)
-	{
-		if (ParentVertices[Idx] != Other.ParentVertices[Idx])
+		FRefCountVector::IndexIterator ItTid = ParentMesh->GetTrianglesRefCounts().BeginIndices();
+		const FRefCountVector::IndexIterator ItTidEnd = ParentMesh->GetTrianglesRefCounts().EndIndices();
+		FRefCountVector::IndexIterator ItTidOther = Other.ParentMesh->GetTrianglesRefCounts().BeginIndices();
+		const FRefCountVector::IndexIterator ItTidEndOther = Other.ParentMesh->GetTrianglesRefCounts().EndIndices();
+
+		while (ItTid != ItTidEnd && ItTidOther != ItTidEndOther)
 		{
-			return false;
+			const int ElementTrianglesIdx = *ItTid * 3;
+			const int ElementTrianglesIdxOther = *ItTidOther * 3;
+
+			for (int i = 0; i < 3; ++i)
+			{
+				const int Eid = ElementTriangles[ElementTrianglesIdx + i];
+				const int EidOther = Other.ElementTriangles[ElementTrianglesIdxOther + i];
+				if (EidOther != (Eid != FDynamicMesh3::InvalidID ? EidMapping[Eid] : FDynamicMesh3::InvalidID))
+				{
+					// Triangle elements do not index the same element value.
+					return false;
+				}
+			}
+
+			++ItTid;
+			++ItTidOther;
 		}
-	}
 
-	for (int Idx = 0; Idx < ElementTriangles.Num(); Idx++)
-	{
-		if (ElementTriangles[Idx] != Other.ElementTriangles[Idx])
+		if (ItTid != ItTidEnd || ItTidOther != ItTidEndOther)
 		{
+			// Number of element triangles is not the same.
 			return false;
 		}
 	}
@@ -1534,12 +1608,136 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::IsSameAs(const TDynamicMeshOver
 
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::Serialize(FArchive& Ar)
+void TDynamicMeshOverlay<RealType, ElementSize>::Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression)
 {
-	Ar << ElementsRefCounts;
-	Ar << Elements;
-	Ar << ParentVertices;
-	Ar << ElementTriangles;
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
+	{
+		Ar << ElementsRefCounts;
+		Ar << Elements;
+		Ar << ParentVertices;
+		Ar << ElementTriangles;
+	}
+	else
+	{
+		auto SerializeVector = [](FArchive& Ar, auto& Vector, bool bUseCompression)
+		{
+			if (bUseCompression)
+			{
+				Vector.template Serialize<true, true>(Ar);
+			}
+			else
+			{
+				Vector.template Serialize<true, false>(Ar);
+			}
+		};
+		
+		TOptional<TArray<int>> ElementMap;
+
+		if (Ar.IsLoading() || !CompactMaps || !CompactMaps->VertexMapIsSet())
+		{
+			ElementsRefCounts.Serialize(Ar, false, bUseCompression);
+
+			SerializeVector(Ar, Elements, bUseCompression);
+			SerializeVector(Ar, ParentVertices, bUseCompression);
+		}
+		else
+		{
+			const size_t NumElements = ElementsRefCounts.GetCount();
+
+			FRefCountVector ElementsRefCountsCompact;
+			ElementsRefCountsCompact.Trim(NumElements);
+			TDynamicVector<unsigned short>& RawElementsRefCountsCompact = ElementsRefCountsCompact.GetRawRefCountsUnsafe();
+			const TDynamicVector<unsigned short>& RawElementsRefCounts = ElementsRefCounts.GetRawRefCountsUnsafe();
+
+			TDynamicVector<RealType> ElementsCompact;
+			ElementsCompact.SetNum(NumElements * ElementSize);
+			TDynamicVector<int> ParentVerticesCompact;
+			ParentVerticesCompact.SetNum(NumElements);
+
+			ElementMap.Emplace();
+			ElementMap->Init(FDynamicMesh3::InvalidID, ElementsRefCounts.GetMaxIndex());
+			TArray<int>& ElementMapping = *ElementMap;
+
+			int EidCompact = 0;
+			for (int Eid : ElementsRefCounts.Indices())
+			{
+				RawElementsRefCountsCompact[EidCompact] = RawElementsRefCounts[Eid];
+				for (int32 i = 0; i < ElementSize; ++i)
+				{
+					ElementsCompact[EidCompact * ElementSize + i] = Elements[Eid * ElementSize + i];
+				}
+				ParentVerticesCompact[EidCompact] = CompactMaps->GetVertexMapping(ParentVertices[Eid]);
+				ElementMapping[Eid] = EidCompact;
+				++EidCompact;
+			}
+
+			ElementsRefCountsCompact.Serialize(Ar, true, bUseCompression);
+			SerializeVector(Ar, ElementsCompact, bUseCompression);
+			SerializeVector(Ar, ParentVerticesCompact, bUseCompression);
+		}
+
+		if (Ar.IsLoading() || ((!CompactMaps || !CompactMaps->TriangleMapIsSet()) && !ElementMap))
+		{
+			SerializeVector(Ar, ElementTriangles, bUseCompression);
+		}
+		else
+		{
+			TDynamicVector<int> ElementTrianglesCompact;
+			ElementTrianglesCompact.SetNum(ParentMesh->TriangleCount() * 3);
+
+			if (CompactMaps && CompactMaps->TriangleMapIsSet() && ElementMap)
+			{
+				TArray<int>& ElementMapping = *ElementMap;
+
+				for (const int Tid : ParentMesh->TriangleIndicesItr())
+				{
+					const int TriIndex = Tid * 3;
+					const int TriIndexCompact = CompactMaps->GetTriangleMapping(Tid) * 3;
+					const int TriElement0 = ElementTriangles[TriIndex + 0];
+					const int TriElement1 = ElementTriangles[TriIndex + 1];
+					const int TriElement2 = ElementTriangles[TriIndex + 2];
+					ElementTrianglesCompact[TriIndexCompact + 0] = TriElement0 != FDynamicMesh3::InvalidID
+						                                               ? ElementMapping[TriElement0]
+						                                               : FDynamicMesh3::InvalidID;
+					ElementTrianglesCompact[TriIndexCompact + 1] = TriElement1 != FDynamicMesh3::InvalidID
+						                                               ? ElementMapping[TriElement1]
+						                                               : FDynamicMesh3::InvalidID;
+					ElementTrianglesCompact[TriIndexCompact + 2] = TriElement2 != FDynamicMesh3::InvalidID
+						                                               ? ElementMapping[TriElement2]
+						                                               : FDynamicMesh3::InvalidID;
+				}
+			}
+			else if (CompactMaps && CompactMaps->TriangleMapIsSet())
+			{
+				for (const int Tid : ParentMesh->TriangleIndicesItr())
+				{
+					const int TriIndex = Tid * 3;
+					const int TriIndexCompact = CompactMaps->GetTriangleMapping(Tid) * 3;
+					ElementTrianglesCompact[TriIndexCompact + 0] = ElementTriangles[TriIndex + 0];
+					ElementTrianglesCompact[TriIndexCompact + 1] = ElementTriangles[TriIndex + 1];
+					ElementTrianglesCompact[TriIndexCompact + 2] = ElementTriangles[TriIndex + 2];
+				}
+			}
+			else
+			{
+				TArray<int>& ElementMapping = *ElementMap;
+
+				for (const int Tid : ParentMesh->TriangleIndicesItr())
+				{
+					const int TriIndex = Tid * 3;
+					const int TriElement0 = ElementTriangles[TriIndex + 0];
+					const int TriElement1 = ElementTriangles[TriIndex + 1];
+					const int TriElement2 = ElementTriangles[TriIndex + 2];
+					ElementTrianglesCompact[TriIndex + 0] = TriElement0 != FDynamicMesh3::InvalidID ? ElementMapping[TriElement0] : FDynamicMesh3::InvalidID;
+					ElementTrianglesCompact[TriIndex + 1] = TriElement1 != FDynamicMesh3::InvalidID ? ElementMapping[TriElement1] : FDynamicMesh3::InvalidID;
+					ElementTrianglesCompact[TriIndex + 2] = TriElement2 != FDynamicMesh3::InvalidID ? ElementMapping[TriElement2] : FDynamicMesh3::InvalidID;
+				}
+			}
+
+			SerializeVector(Ar, ElementTrianglesCompact, bUseCompression);
+		}
+	}
 }
 
 

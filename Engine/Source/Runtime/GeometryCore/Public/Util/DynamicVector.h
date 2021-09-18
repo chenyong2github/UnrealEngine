@@ -7,6 +7,7 @@
 #include <CoreMinimal.h>
 #include "Containers/StaticArray.h"
 #include "Serialization/Archive.h"
+#include <UObject/UE5MainStreamObjectVersion.h>
 #include "VectorTypes.h"
 #include "IndexTypes.h"
 
@@ -104,6 +105,8 @@ public:
 
 	inline Type& operator[](unsigned int Index)
 	{
+		checkSlow(Index < Num());
+
 		int ArrayIndex, BlockIndex;
 		GetIndices( Index, ArrayIndex, BlockIndex );
 	
@@ -111,6 +114,8 @@ public:
 	}
 	inline const Type& operator[](unsigned int Index) const
 	{
+		checkSlow(Index < Num());
+
 		int ArrayIndex, BlockIndex;
 		GetIndices( Index, ArrayIndex, BlockIndex );
 	
@@ -130,31 +135,59 @@ public:
 	 */
 	friend FArchive& operator<<(FArchive& Ar, TDynamicVector& Vec)
 	{
-		Vec.Serialize(Ar);
+		Vec.Serialize<false, false>(Ar);
 		return Ar;
 	}
 
-	/** Serialize vector to an archive */
+	/**
+	 * Serialize vector to and from an archive
+	 * @tparam bForceBulkSerialization Forces serialization to consider data to be trivial and serialize it in bulk to potentially achieve better performance.
+	 * @tparam bUseCompression Use compression to serialize data; the resulting size will likely be smaller but serialization will take significantly longer.
+	 * @param Ar Archive to serialize with
+	 */
+	template <bool bForceBulkSerialization = false, bool bUseCompression = false>
 	void Serialize(FArchive& Ar)
 	{
-		Ar << CurBlock;
-		Ar << CurBlockUsed;
-		Ar << Blocks;
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
+		{
+			const SIZE_T CountBytes = 3 * sizeof(uint32) + Blocks.Num() * BlockSize * sizeof(Type);
+			Ar.CountBytes(CountBytes, CountBytes);
+			Ar << CurBlock;
+			Ar << CurBlockUsed;
+			Blocks.Serialize_Legacy(Ar);
 
-		// Account for a previously existing issue where one additional empty block was allocated and the resulting values for the current block can cause
-        // crashes, for example when using Back().
-        if (Ar.IsLoading() && CurBlock > 0 && CurBlockUsed == 0)
-        {
-            const SIZE_T Count = Num();
-            checkSlow(Count % BlockSize == 0);
-            checkSlow(Count / BlockSize < Blocks.Num());
+			// Account for a previously existing issue where one additional empty block was allocated and the resulting values for the current block can cause
+			// crashes, for example when using Back().
+			if (CurBlock > 0 && CurBlockUsed == 0)
+			{
+				const SIZE_T Count = Num();
+				checkSlow(Count % BlockSize == 0);
+				checkSlow(Count / BlockSize < Blocks.Num());
 
-        	// Fix CurBlock and CurBlockUsed.
-            SetCurBlock(Count);
+				// Fix CurBlock and CurBlockUsed.
+				SetCurBlock(Count);
 
-        	// Remove empty block.
-            Blocks.Truncate(Count / BlockSize, false);
-        }
+				// Remove empty block.
+				Blocks.Truncate(Count / BlockSize, false);
+			}
+		}
+		else
+		{
+			uint32 SerializeNum = Num();
+			const SIZE_T CountBytes =  sizeof(uint32) + SerializeNum * sizeof(Type);
+			Ar.CountBytes(CountBytes, CountBytes);
+			Ar << SerializeNum;
+			if (SerializeNum == 0 && Ar.IsLoading())
+			{
+				Clear();
+			}
+			else if (SerializeNum > 0)
+			{
+				SetCurBlock(SerializeNum);
+				Blocks.template Serialize<bForceBulkSerialization, bUseCompression>(Ar, SerializeNum);
+			}
+		}
 	}
 
 public:
@@ -357,68 +390,131 @@ private:
 			Elements.Empty(NewReservedSize);
 		}
 
-		/**
-		 * Count bytes needed to serialize this array.
-		 *
-		 * @param Ar Archive to count for.
-		 */
-		void CountBytes(FArchive& Ar) const
-		{
-			Elements.CountBytes(Ar);
-		}
-
-		/**
-		 * Serialization operator for TBlockVector.
-		 *
-		 * @param Ar Archive to serialize with.
-		 * @param Vec Vector to serialize.
-		 * @returns Passing down serializing archive.
-		 */
-		friend FArchive& operator<<(FArchive& Ar, TBlockVector& Vec)
-		{
-			Vec.Serialize(Ar);
-			return Ar;
-		}
-
 		/** Serialize TBlockVector to archive. */
-		void Serialize(FArchive& Ar)
+		void Serialize_Legacy(FArchive& Ar)
 		{
-			CountBytes(Ar);
+			const auto SerializeElement = [](FArchive& Ar, ArrayType* Element)
+			{
+				if (TCanBulkSerialize<Type>::Value)
+				{
+					Ar.Serialize(Element->GetData(), Element->Num() * sizeof(Type));
+				}
+				else
+				{
+					Ar << *Element;
+				}
+			};
+
+			int32 BlockNum = Num();
+			Ar << BlockNum;
 			if (Ar.IsLoading())
 			{
 				// Load array.
-				int32 NewNum;
-				Ar << NewNum;
-				Empty(NewNum);
-				for (int32 Index = 0; Index < NewNum; Index++)
+				Empty(BlockNum);
+				for (int32 Index = 0; Index < BlockNum; Index++)
 				{
 					ArrayType* NewElement = new ArrayType;
-					// TODO: Consider moving bulk serialization code into TStaticArray.
-					if (TCanBulkSerialize<Type>::Value)
-					{
-						Ar.Serialize(NewElement->GetData(), NewElement->Num() * sizeof(Type));
-					}
-					else
-					{
-						Ar << *NewElement;
-					}
+					SerializeElement(Ar, NewElement);
 					Add(NewElement);
 				}
 			}
 			else
 			{
 				// Save array.
-				int32 CurNum = Num();
-				Ar << CurNum;
-				for (int32 Index = 0; Index < CurNum; Index++)
+				for (int32 Index = 0; Index < BlockNum; Index++)
 				{
-					if (TCanBulkSerialize<Type>::Value)
+					SerializeElement(Ar, &(*this)[Index]);
+				}
+			}
+		}
+
+		template <bool bForceBulkSerialization, bool bUseCompression>
+		void Serialize(FArchive& Ar, uint32 Num)
+		{
+			constexpr bool bUseBulkSerialization = bForceBulkSerialization || TCanBulkSerialize<Type>::Value || sizeof(Type) == 1;
+			static_assert(!bUseCompression || bUseBulkSerialization, "Compression only available when using bulk serialization");
+
+			checkSlow(Num > 0);
+
+			// Serialize compression flag, which adds flexibility when de-serializing existing data even if some implementation details change.  
+			bool bUseCompressionForBulkSerialization = bUseBulkSerialization && bUseCompression;
+			Ar << bUseCompressionForBulkSerialization;
+
+			// Determine number of blocks.
+			const bool bNumIsNotMultipleOfBlockSize = Num % BlockSize != 0;
+			const uint32 NumBlocks = Num / BlockSize + bNumIsNotMultipleOfBlockSize;
+			
+			if (bUseCompressionForBulkSerialization)
+			{
+				// When using compression, copy everything to/from a big single buffer and serialize the big buffer.
+				// This results in better compression ratios while at the same time accelerating compression. 
+
+				TArray<Type> Buffer;
+				Buffer.SetNumUninitialized(Num);
+				Type* BufferPtr = Buffer.GetData();
+				SIZE_T NumCopyRemaining = Num;
+
+				if (!Ar.IsLoading())
+				{					
+					for (uint32 Index = 0; Index < NumBlocks; ++Index)
 					{
-						Ar.Serialize((*this)[Index].GetData(), (*this)[Index].Num() * sizeof(Type));
+						const SIZE_T NumCopy = FMath::template Min<uint32>(NumCopyRemaining, BlockSize);
+						FMemory::Memcpy(BufferPtr, Elements[Index]->GetData(), NumCopy * sizeof(Type));
+						BufferPtr += NumCopy;
+						NumCopyRemaining -= BlockSize;
+					}
+				}
+
+				Ar.SerializeCompressedNew(Buffer.GetData(), Num * sizeof(Type), NAME_Oodle, NAME_Oodle, COMPRESS_NoFlags, false, nullptr);
+
+				if (Ar.IsLoading())
+				{
+					Empty(NumBlocks);
+					for (uint32 Index = 0; Index < NumBlocks; ++Index)
+					{
+						ArrayType *const NewElement = new ArrayType;
+						const SIZE_T NumCopy = FMath::template Min<uint32>(NumCopyRemaining, BlockSize);
+						FMemory::Memcpy(NewElement->GetData(), BufferPtr, NumCopy * sizeof(Type));
+						Add(NewElement);
+						BufferPtr += NumCopy;
+						NumCopyRemaining -= BlockSize;
+					}
+				}
+			}
+			else
+			{
+				const auto SerializeElement = [&Ar, bUseBulkSerialization](ArrayType* Element, uint32 ElementNum)
+				{
+					if (bUseBulkSerialization)
+					{
+						Ar.Serialize(Element->GetData(), ElementNum * sizeof(Type));
 					}
 					else
 					{
-						Ar << (*this)[Index];
+						for (uint32 Index = 0; Index < ElementNum; ++Index)
+						{
+							Ar << (*Element)[Index];
+						}
+					}
+				};
+
+				if (Ar.IsLoading())
+				{
+					Empty(NumBlocks);
+					for (uint32 Index = 0; Index < NumBlocks; ++Index)
+					{
+						ArrayType *const NewElement = new ArrayType;
+						SerializeElement(NewElement, FMath::template Min<uint32>(Num, BlockSize));
+						Add(NewElement);
+						Num -= BlockSize;
+					}
+				}
+				else
+				{
+					for (uint32 Index = 0; Index < NumBlocks; ++Index)
+					{
+						SerializeElement(&(*this)[Index], FMath::template Min<uint32>(Num, BlockSize));
+						Num -= BlockSize;
 					}
 				}
 			}

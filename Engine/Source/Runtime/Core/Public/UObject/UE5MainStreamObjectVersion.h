@@ -178,6 +178,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add generic tagging of all anim graph nodes in anim blueprints
 		AnimGraphNodeTaggingAdded,
 		
+		// Add custom version to FDynamicMesh3
+		DynamicMeshCompactedSerialization,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

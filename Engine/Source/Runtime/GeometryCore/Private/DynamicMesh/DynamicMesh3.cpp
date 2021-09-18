@@ -607,41 +607,140 @@ FString FDynamicMesh3::MeshInfoString()
 
 bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Options) const
 {
+	auto SameVertex = [this, &m2, &Options](const int Vid, const int VidM2)
+	{
+		return VectorUtil::EpsilonEqual(GetVertexRef(Vid), m2.GetVertexRef(VidM2), static_cast<double>(Options.Epsilon));
+	};
+
 	if (VertexCount() != m2.VertexCount())
 	{
 		return false;
 	}
+
 	if (TriangleCount() != m2.TriangleCount())
 	{
 		return false;
 	}
-	for (int vid : VertexIndicesItr())
+
+	TOptional<TDynamicVector<int>> VidMapping;
+	TOptional<TDynamicVector<int>> TidMapping;
+
+	if (!Options.bIgnoreDataLayout || (VertexRefCounts.IsDense() && m2.VertexRefCounts.IsDense() && TriangleRefCounts.IsDense() && m2.TriangleRefCounts.IsDense()))
 	{
-		if (m2.IsVertex(vid) == false || VectorUtil::EpsilonEqual(GetVertex(vid), m2.GetVertex(vid), (double)Options.Epsilon) == false)
+		for (const int Vid : VertexIndicesItr())
 		{
-			return false;
+			if (m2.IsVertex(Vid) == false || !SameVertex(Vid, Vid))
+			{
+				return false;
+			}
+		}
+
+		for (const int Tid : TriangleIndicesItr())
+		{
+			if (m2.IsTriangle(Tid) == false || (GetTriangle(Tid) != m2.GetTriangle(Tid)))
+			{
+				return false;
+			}
 		}
 	}
-	for (int tid : TriangleIndicesItr())
+	else
 	{
-		if (m2.IsTriangle(tid) == false || (GetTriangle(tid) != m2.GetTriangle(tid)))
+		// Ignore holes in vertex and triangle data, i.e. don't use specific IDs but still make sure they are still in the same order.
+
+		// Vertices
 		{
-			return false;
+			FRefCountVector::IndexIterator ItVid = VertexRefCounts.BeginIndices();
+			const FRefCountVector::IndexIterator ItEndVid = VertexRefCounts.EndIndices();
+			FRefCountVector::IndexIterator ItVidM2 = m2.VertexRefCounts.BeginIndices();
+			const FRefCountVector::IndexIterator ItEndVidM2 = m2.VertexRefCounts.EndIndices();
+
+			VidMapping.Emplace();
+			VidMapping->Resize(Vertices.Num(), InvalidID);
+
+			while (ItVid != ItEndVid && ItVidM2 != ItEndVidM2)
+			{
+				(*VidMapping)[*ItVid] = *ItVidM2;
+
+				if (!SameVertex(*ItVid, *ItVidM2))
+				{
+					// Vertices are not the same.
+					return false;
+				}
+			
+				++ItVid;
+				++ItVidM2;
+			}
+		
+			if (ItVid != ItEndVid || ItVidM2 != ItEndVidM2)
+			{
+				// Number of vertices is not the same.
+				return false;
+			}
+		}
+
+		// Triangles
+		{
+			FRefCountVector::IndexIterator ItTid = TriangleRefCounts.BeginIndices();
+			const FRefCountVector::IndexIterator ItEndTid = TriangleRefCounts.EndIndices();
+			FRefCountVector::IndexIterator ItTidM2 = m2.TriangleRefCounts.BeginIndices();
+			const FRefCountVector::IndexIterator ItEndTidM2 = m2.TriangleRefCounts.EndIndices();
+
+			TidMapping.Emplace();
+			TidMapping->Resize(Triangles.Num(), InvalidID);
+		
+			while (ItTid != ItEndTid && ItTidM2 != ItEndTidM2)
+			{
+				const FIndex3i Tri = GetTriangle(*ItTid);
+				const FIndex3i TriM2 = m2.GetTriangle(*ItTidM2);
+
+				(*TidMapping)[*ItTid] = *ItTidM2;
+
+				for (int i = 0; i < 3; ++i)
+				{
+					if (TriM2[i] != (VidMapping ? (*VidMapping)[Tri[i]] : Tri[i]))
+					{
+						// Triangle vertices are not the same.
+						return false;
+					}
+				}
+
+				++ItTid;
+				++ItTidM2;
+			}
+
+			if (ItTid != ItEndTid || ItTidM2 != ItEndTidM2)
+			{
+				// Number of triangles is not the same.
+				return false;
+			}
 		}
 	}
+
 	if (Options.bCheckConnectivity)
 	{
+		if (EdgeCount() != m2.EdgeCount())
+		{
+			return false;
+		}
 		for (int eid : EdgeIndicesItr())
 		{
-			FEdge e = GetEdge(eid);
-			int other_eid = m2.FindEdge(e.Vert[0], e.Vert[1]);
+			const FEdge e = GetEdge(eid);
+			const int Vert0 = VidMapping ? (*VidMapping)[e.Vert[0]] : e.Vert[0];
+			const int Vert1 = VidMapping ? (*VidMapping)[e.Vert[1]] : e.Vert[1];
+			const int other_eid = m2.FindEdge(Vert0, Vert1);
 			if (other_eid == InvalidID)
 			{
 				return false;
 			}
-			FEdge oe = m2.GetEdge(other_eid);
-			if (FMath::Min(e.Tri[0], e.Tri[1]) != FMath::Min(oe.Tri[0], oe.Tri[1]) ||
-			    FMath::Max(e.Tri[0], e.Tri[1]) != FMath::Max(oe.Tri[0], oe.Tri[1]))
+			const FEdge oe = m2.GetEdge(other_eid);
+			const FIndex2i eTri = [&e, &TidMapping]
+			{
+				return !TidMapping
+					       ? e.Tri
+					       : FIndex2i{e.Tri[0] != InvalidID ? (*TidMapping)[e.Tri[0]] : InvalidID, e.Tri[1] != InvalidID ? (*TidMapping)[e.Tri[1]] : InvalidID};
+			}();
+			if (FMath::Min(eTri[0], eTri[1]) != FMath::Min(oe.Tri[0], oe.Tri[1]) ||
+			    FMath::Max(eTri[0], eTri[1]) != FMath::Max(oe.Tri[0], oe.Tri[1]))
 			{
 				return false;
 			}
@@ -653,9 +752,19 @@ bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Opti
 		{
 			return false;
 		}
-		for (int eid : EdgeIndicesItr())
+		for (const int Eid : EdgeIndicesItr())
 		{
-			if (m2.IsEdge(eid) == false || GetEdge(eid) != m2.GetEdge(eid))
+			if (m2.IsEdge(Eid) == false)
+			{
+				return false;
+			}
+			FEdge Edge = GetEdge(Eid);
+			if (TidMapping.IsSet())
+			{
+				Edge.Tri[0] = Edge.Tri[0] != InvalidID ? (*TidMapping)[Edge.Tri[0]] : InvalidID;
+				Edge.Tri[1] = Edge.Tri[1] != InvalidID ? (*TidMapping)[Edge.Tri[1]] : InvalidID;
+			}
+			if (Edge != m2.GetEdge(Eid))
 			{
 				return false;
 			}
@@ -671,7 +780,7 @@ bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Opti
 		{
 			for (int vid : VertexIndicesItr())
 			{
-				if (VectorUtil::EpsilonEqual(GetVertexNormal(vid), m2.GetVertexNormal(vid), Options.Epsilon) == false)
+				if (VectorUtil::EpsilonEqual(GetVertexNormal(vid), m2.GetVertexNormal(VidMapping ? (*VidMapping)[vid] : vid), Options.Epsilon) == false)
 				{
 					return false;
 				}
@@ -688,7 +797,7 @@ bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Opti
 		{
 			for (int vid : VertexIndicesItr())
 			{
-				if (VectorUtil::EpsilonEqual(GetVertexColor(vid), m2.GetVertexColor(vid), Options.Epsilon) == false)
+				if (VectorUtil::EpsilonEqual(GetVertexColor(vid), m2.GetVertexColor(VidMapping ? (*VidMapping)[vid] : vid), Options.Epsilon) == false)
 				{
 					return false;
 				}
@@ -705,7 +814,7 @@ bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Opti
 		{
 			for (int vid : VertexIndicesItr())
 			{
-				if (VectorUtil::EpsilonEqual(GetVertexUV(vid), m2.GetVertexUV(vid), Options.Epsilon) == false)
+				if (VectorUtil::EpsilonEqual(GetVertexUV(vid), m2.GetVertexUV(VidMapping ? (*VidMapping)[vid] : vid), Options.Epsilon) == false)
 				{
 					return false;
 				}
@@ -720,9 +829,10 @@ bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Opti
 		}
 		if (HasTriangleGroups())
 		{
-			for (int tid : TriangleIndicesItr())
+			for (int Tid : TriangleIndicesItr())
 			{
-				if (GetTriangleGroup(tid) != m2.GetTriangleGroup(tid))
+				const int TidM2 = TidMapping ? (*TidMapping)[Tid] : Tid;
+				if (GetTriangleGroup(Tid) != m2.GetTriangleGroup(TidM2))
 				{
 					return false;
 				}
@@ -737,7 +847,7 @@ bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Opti
 		}
 		if (HasAttributes())
 		{
-			if (!AttributeSet->IsSameAs(*m2.AttributeSet))
+			if (!AttributeSet->IsSameAs(*m2.AttributeSet, Options.bIgnoreDataLayout))
 			{
 				return false;
 			}
@@ -761,7 +871,7 @@ bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityChe
 	{
 		CheckOrFailF = [&](bool b)
 		{
-			checkf(b, TEXT("FEdgeLoop::CheckValidity failed!"));
+			checkf(b, TEXT("FDynamicMesh3::CheckValidity failed!"));
 			is_ok = is_ok && b;
 		};
 	}
@@ -769,7 +879,7 @@ bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityChe
 	{
 		CheckOrFailF = [&](bool b)
 		{
-			ensureMsgf(b, TEXT("FEdgeLoop::CheckValidity failed!"));
+			ensureMsgf(b, TEXT("FDynamicMesh3::CheckValidity failed!"));
 			is_ok = is_ok && b;
 		};
 	}

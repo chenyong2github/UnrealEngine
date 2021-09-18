@@ -376,17 +376,49 @@ public:
 	/**
 	 * Returns true if this AttributeSet is the same as Other.
 	 */
-	bool IsSameAs(const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& Other) const
+	bool IsSameAs(const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& Other, bool bIgnoreDataLayout) const
 	{
-		if (AttribValues.Num() != Other.AttribValues.Num())
+		if (!bIgnoreDataLayout)
 		{
-			return false;
-		}
-
-		for (int Idx = 0, NumValues = AttribValues.Num(); Idx < NumValues; Idx++)
-		{
-			if (AttribValues[Idx] != Other.AttribValues[Idx])
+			if (AttribValues.Num() != Other.AttribValues.Num())
 			{
+				return false;
+			}
+
+			for (int Idx = 0, NumValues = AttribValues.Num(); Idx < NumValues; Idx++)
+			{
+				if (AttribValues[Idx] != Other.AttribValues[Idx])
+				{
+					return false;
+				}
+			}
+		}
+		else
+		{
+			FRefCountVector::IndexIterator ItTid = ParentMesh->GetTrianglesRefCounts().BeginIndices();
+			const FRefCountVector::IndexIterator ItTidEnd = ParentMesh->GetTrianglesRefCounts().EndIndices();
+			FRefCountVector::IndexIterator ItTidOther = Other.ParentMesh->GetTrianglesRefCounts().BeginIndices();
+			const FRefCountVector::IndexIterator ItTidEndOther = Other.ParentMesh->GetTrianglesRefCounts().EndIndices();
+
+			while (ItTid != ItTidEnd && ItTidOther != ItTidEndOther)
+			{
+				for (int32 i = 0; i < AttribDimension; ++i)
+				{
+					const AttribValueType AttribValue = AttribValues[*ItTid * AttribDimension + i];
+					const AttribValueType AttribValueOther = Other.AttribValues[*ItTidOther * AttribDimension + i];
+					if (AttribValue != AttribValueOther)
+					{
+						// Triangle attribute value is not the same.
+						return false;
+					}
+				}
+				++ItTid;
+				++ItTidOther;
+			}
+
+			if (ItTid != ItTidEnd || ItTidOther != ItTidEndOther)
+			{
+				// Number of triangle attribute values is not the same.
 				return false;
 			}
 		}
@@ -403,14 +435,65 @@ public:
 	 */
 	friend FArchive& operator<<(FArchive& Ar, TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& Attr)
 	{
-		Attr.Serialize(Ar);
+		Attr.Serialize(Ar, nullptr, false);
 		return Ar;
 	}
 
-	/** Serialize the attribute to an archive. */
-	void Serialize(FArchive& Ar)
+	/**
+	* Serialize to and from an archive.
+	*
+	* @param Ar Archive to serialize with.
+	* @param CompactMaps If this is not a null pointer, the mesh serialization compacted the vertex and/or triangle data using the provided mapping. 
+	* @param bUseCompression Use compression for serializing bulk data.
+	*/
+	void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression)
 	{
-		Ar << AttribValues;
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DynamicMeshCompactedSerialization)
+		{
+			Ar << AttribValues;
+		}
+		else
+		{
+			auto SerializeVector = [](FArchive& Ar, auto& Vector, bool bUseCompression)
+			{
+				if (bUseCompression)
+				{
+					Vector.template Serialize<true, true>(Ar);
+				}
+				else
+				{
+					Vector.template Serialize<true, false>(Ar);
+				}
+			};
+
+			Ar << bUseCompression;
+
+			if (CompactMaps == nullptr || !CompactMaps->TriangleMapIsSet())
+			{
+				SerializeVector(Ar, AttribValues, bUseCompression);
+			}
+			else
+			{
+				TDynamicVector<AttribValueType> AttribValuesCompact;
+				AttribValuesCompact.SetNum(ParentMesh->TriangleCount() * AttribDimension);
+
+				int32 TidCompact = 0;
+				for (int32 Tid = 0, Num = AttribValues.Num() / AttribDimension; Tid < Num; ++Tid)
+				{
+					const int32 TidMapping = CompactMaps->GetTriangleMapping(Tid);
+					if (TidMapping != FCompactMaps::InvalidID)
+					{
+						for (int32 i = 0; i < AttribDimension; ++i)
+						{
+							AttribValuesCompact[TidCompact++] = AttribValues[Tid * AttribDimension + i];
+						}
+					}
+				}
+
+				SerializeVector(Ar, AttribValuesCompact, bUseCompression);
+			}
+		}
 	}
 };
 

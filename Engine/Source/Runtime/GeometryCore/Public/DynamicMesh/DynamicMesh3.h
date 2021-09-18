@@ -1270,6 +1270,10 @@ public:
 		bool bCheckUVs = false;
 		bool bCheckGroups = false;
 		bool bCheckAttributes = false;
+
+		// Ignore gaps and padding in the data layout, i.e. the exact index is irrelevant as long as valid entries are equal in value and in the same order.
+		bool bIgnoreDataLayout = false;
+
 		float Epsilon = TMathUtil<float>::Epsilon;
 	};
 
@@ -1457,12 +1461,19 @@ protected:
 
 	void ReverseTriOrientationInternal(int TriangleID);
 
+	/**
+	* Internal implementations for serialization to allow for better code separation between different versions and other implementation details.
+	* @tparam Variant Identifier for a specific implementation, e.g. depending on the version and/or specific options.
+	* @param Ptr Pointer to optional data, e.g. version specific options.
+	*/
+	template<int Variant>
+	void SerializeInternal(FArchive& Ar, void* Ptr);
 
-	/** Returns the internal version number used during serialization. This is used for testing purposes. */
-	static int SerializeInternal_LatestVersion();
 };
 
 
 
 } // end namespace UE::Geometry
 } // end namespace UE
+
+template<> struct TCanBulkSerialize<UE::Geometry::FDynamicMesh3::FEdge> { enum { Value = true }; };
