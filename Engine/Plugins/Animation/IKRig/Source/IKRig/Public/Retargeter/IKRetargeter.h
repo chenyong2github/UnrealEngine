@@ -57,7 +57,7 @@ struct IKRIG_API FRetargetChainMap
 	//FName IkRelativeTargetBone;	
 };
 
-struct FRetargetSkeleton
+struct IKRIG_API FRetargetSkeleton
 {
 	TArray<FName> BoneNames;
 	
@@ -79,13 +79,13 @@ struct FRetargetSkeleton
 
 	void UpdateGlobalTransformsBelowBone(
 		const int32 StartBoneIndex,
-		TArray<FTransform>& InOutLocalPose,
-		TArray<FTransform>& InOutGlobalPose) const;
+		TArray<FTransform>& InLocalPose,
+		TArray<FTransform>& OutGlobalPose) const;
 
 	void UpdateLocalTransformsBelowBone(
 		const int32 StartBoneIndex,
-		TArray<FTransform>& InOutLocalPose,
-		TArray<FTransform>& InOutGlobalPose) const;
+		TArray<FTransform>& OutLocalPose,
+		TArray<FTransform>& InGlobalPose) const;
 	
 	void UpdateGlobalTransformOfSingleBone(
 		const int32 BoneIndex,
@@ -404,10 +404,22 @@ public:
 	int32 AssetVersion = 0;
 
 	UIKRetargeter();
-	
+
+	/**
+	* Initialize the retargeter to enable running it.
+	* @param SourceSkeleton - the skeletal mesh to poses FROM
+	* @param TargetSkeleton - the skeletal mesh to poses TO
+	* @param Outer - a UObject that will live for the duration of the retargeting workload
+	* @warning - Initialization does a lot of validation and can fail for many reasons. Check bIsLoadedAndValid afterwards.
+	*/
 	void Initialize(USkeletalMesh *SourceSkeleton, USkeletalMesh *TargetSkeleton, UObject* Outer);
-	
-	void RunRetargeter(const TArray<FTransform>& InSourceGlobalPose);
+
+	/**
+	 * Run the retarget to generate a new pose.
+	 * @param InSourceGlobalPose -  is the source mesh input pose in Component/Global space
+	 * @return The retargeted Component/Global space pose for the target skeleton
+	 */
+	TArray<FTransform>& RunRetargeter(const TArray<FTransform>& InSourceGlobalPose);
 
 	FTransform GetTargetBoneRetargetPoseGlobalTransform(const FName& ChainName) const;
 
@@ -416,6 +428,7 @@ public:
 	FRetargetChainMap* GetChainMap(const FName& TargetChainName);
 
 #if WITH_EDITOR
+	
 	// UObject
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -338,6 +338,11 @@ FTransform FChainDecoderFK::GetTransformAtParam(
 	const TArray<float>& InParams,
 	const float Param) const
 {
+	if (InParams.Num() == 1)
+	{
+		return Transforms[0];
+	}
+	
 	if (Param < KINDA_SMALL_NUMBER)
 	{
 		return Transforms[0];
@@ -906,7 +911,7 @@ bool UIKRetargeter::InitializeIKRig(UObject* Outer, const FReferenceSkeleton& In
 	return true;
 }
 
-void UIKRetargeter::RunRetargeter(const TArray<FTransform>& InSourceGlobalPose)
+TArray<FTransform>&  UIKRetargeter::RunRetargeter(const TArray<FTransform>& InSourceGlobalPose)
 {
 	check(bIsLoadedAndValid);
 
@@ -918,7 +923,7 @@ void UIKRetargeter::RunRetargeter(const TArray<FTransform>& InSourceGlobalPose)
 	// then the TargetSkeleton.RetargetGlobalPose will contain the updated retarget pose.
 	if (bEditReferencePoseMode)
 	{
-		return; 
+		return TargetSkeleton.OutputGlobalPose; 
 	}
 
 	// ROOT retargeting
@@ -940,7 +945,9 @@ void UIKRetargeter::RunRetargeter(const TArray<FTransform>& InSourceGlobalPose)
 	if (bRetargetIK)
 	{
 		RunIKRetarget(InSourceGlobalPose, TargetSkeleton.OutputGlobalPose);
-	}	
+	}
+
+	return TargetSkeleton.OutputGlobalPose;
 }
 
 void UIKRetargeter::RunRootRetarget(
