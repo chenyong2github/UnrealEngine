@@ -101,7 +101,7 @@ namespace HordeServer.Compute.Impl
 		/// <returns></returns>
 		RedisList<T> GetChannel(string ChannelId)
 		{
-			return new RedisList<T>(KeyPrefix.Append(ChannelId));
+			return new RedisList<T>(Redis, KeyPrefix.Append(ChannelId));
 		}
 
 		/// <inheritdoc/>
@@ -109,7 +109,7 @@ namespace HordeServer.Compute.Impl
 		{
 			RedisList<T> Channel = GetChannel(ChannelId);
 
-			long Length = await Redis.ListRightPushAsync(Channel, Message);
+			long Length = await Channel.RightPushAsync(Message);
 			if (Length == 1)
 			{
 				await Redis.PublishAsync(UpdateChannel, ChannelId, CommandFlags.FireAndForget);
@@ -117,13 +117,13 @@ namespace HordeServer.Compute.Impl
 			await Redis.KeyExpireAsync(Channel.Key, ExpireTime, CommandFlags.FireAndForget);
 		}
 
-		async Task<bool> ReadMessagesAsync(RedisList<T> List, List<T> Messages)
+		static async Task<bool> ReadMessagesAsync(RedisList<T> List, List<T> Messages)
 		{
-			T? Message = await Redis.ListLeftPopAsync(List);
+			T? Message = await List.LeftPopAsync();
 			while(Message != null)
 			{
 				Messages.Add(Message);
-				Message = await Redis.ListLeftPopAsync(List);
+				Message = await List.LeftPopAsync();
 			}
 			return Messages.Count > 0;
 		}

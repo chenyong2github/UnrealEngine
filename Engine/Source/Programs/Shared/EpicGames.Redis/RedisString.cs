@@ -12,8 +12,10 @@ namespace EpicGames.Redis
 	/// Represents a typed Redis list with a given key
 	/// </summary>
 	/// <typeparam name="TElement">The type of element stored in the list</typeparam>
-	public readonly struct RedisString<TElement> : IEquatable<RedisString<TElement>>
+	public readonly struct RedisString<TElement>
 	{
+		readonly IDatabaseAsync Database;
+
 		/// <summary>
 		/// The key for the list
 		/// </summary>
@@ -23,40 +25,39 @@ namespace EpicGames.Redis
 		/// Constructor
 		/// </summary>
 		/// <param name="Key"></param>
-		public RedisString(RedisKey Key) => this.Key = Key;
-
-		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is RedisString<TElement> String && Key == String.Key;
-
-		/// <inheritdoc/>
-		public bool Equals(RedisString<TElement> Other) => Key == Other.Key;
-
-		/// <inheritdoc/>
-		public override int GetHashCode() => Key.GetHashCode();
-
-		/// <summary>Compares two instances for equality</summary>
-		public static bool operator ==(RedisString<TElement> Left, RedisString<TElement> Right) => Left.Key == Right.Key;
-
-		/// <summary>Compares two instances for equality</summary>
-		public static bool operator !=(RedisString<TElement> Left, RedisString<TElement> Right) => Left.Key != Right.Key;
-	}
-
-	/// <summary>
-	/// Extension methods for <see cref="IDatabaseAsync"/>
-	/// </summary>
-	public static class RedisStringExtensions
-	{
-		/// <inheritdoc cref="IDatabaseAsync.StringSetAsync(RedisKey, RedisValue, TimeSpan?, When, CommandFlags)"/>
-		public static Task StringSetAsync<T>(this IDatabaseAsync Database, RedisString<T> Str, T Value, TimeSpan? Expiry = null, When When = When.Always, CommandFlags Flags = CommandFlags.None)
+		public RedisString(IDatabaseAsync Database, RedisKey Key)
 		{
-			return Database.StringSetAsync(Str.Key, RedisSerializer.Serialize(Value), Expiry, When, Flags);
+			this.Database = Database;
+			this.Key = Key;
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.StringGetAsync(RedisKey, CommandFlags)"/>
-		public static async Task<T> StringSetAsync<T>(this IDatabaseAsync Database, RedisString<T> Str, CommandFlags Flags = CommandFlags.None)
+		public async Task<TElement> GetAsync(CommandFlags Flags = CommandFlags.None)
 		{
-			RedisValue Value = await Database.StringGetAsync(Str.Key, Flags);
-			return RedisSerializer.Deserialize<T>(Value);
+			RedisValue Value = await Database.StringGetAsync(Key, Flags);
+			return RedisSerializer.Deserialize<TElement>(Value);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.StringSetAsync(RedisKey, RedisValue, TimeSpan?, When, CommandFlags)"/>
+		public Task SetAsync(TElement Value, TimeSpan? Expiry = null, When When = When.Always, CommandFlags Flags = CommandFlags.None)
+		{
+			return Database.StringSetAsync(Key, RedisSerializer.Serialize(Value), Expiry, When, Flags);
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for sets
+	/// </summary>
+	public static class RedisStringExtensions
+	{
+		/// <summary>
+		/// Creates a version of this string which modifies a transaction rather than the direct DB
+		/// </summary>
+		/// <param name="Transaction"></param>
+		/// <returns></returns>
+		public static RedisString<TElement> With<TElement>(this ITransaction Transaction, RedisString<TElement> Set)
+		{
+			return new RedisString<TElement>(Transaction, Set.Key);
 		}
 	}
 }

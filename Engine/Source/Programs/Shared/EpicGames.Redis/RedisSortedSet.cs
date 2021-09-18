@@ -51,8 +51,10 @@ namespace EpicGames.Redis
 	/// Represents a typed Redis list with a given key
 	/// </summary>
 	/// <typeparam name="TElement">The type of element stored in the list</typeparam>
-	public readonly struct RedisSortedSet<TElement> : IEquatable<RedisSortedSet<TElement>>
+	public readonly struct RedisSortedSet<TElement>
 	{
+		readonly IDatabaseAsync Database;
+
 		/// <summary>
 		/// The key for the list
 		/// </summary>
@@ -62,70 +64,81 @@ namespace EpicGames.Redis
 		/// Constructor
 		/// </summary>
 		/// <param name="Key"></param>
-		public RedisSortedSet(RedisKey Key) => this.Key = Key;
-
-		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is RedisSortedSet<TElement> Set && Key == Set.Key;
-
-		/// <inheritdoc/>
-		public bool Equals(RedisSortedSet<TElement> Other) => Key == Other.Key;
-
-		/// <inheritdoc/>
-		public override int GetHashCode() => Key.GetHashCode();
-
-		/// <summary>Compares two instances for equality</summary>
-		public static bool operator ==(RedisSortedSet<TElement> Left, RedisSortedSet<TElement> Right) => Left.Key == Right.Key;
-
-		/// <summary>Compares two instances for equality</summary>
-		public static bool operator !=(RedisSortedSet<TElement> Left, RedisSortedSet<TElement> Right) => Left.Key != Right.Key;
-	}
-
-	/// <summary>
-	/// Extension methods for <see cref="IDatabaseAsync"/>
-	/// </summary>
-	public static class RedisSortedSetExtensions
-	{
-		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, double, CommandFlags)"/>
-		public static Task<bool> SortedSetAddAsync<T>(this IDatabaseAsync Database, RedisSortedSet<T> Set, T Value, double Score, CommandFlags Flags = CommandFlags.None)
+		public RedisSortedSet(IDatabaseAsync Database, RedisKey Key)
 		{
-			return Database.SortedSetAddAsync(Set.Key, RedisSerializer.Serialize(Value), Score, Flags);
+			this.Database = Database;
+			this.Key = Key;
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, double, CommandFlags)"/>
-		public static Task<long> SortedSetAddAsync<T>(this IDatabaseAsync Database, RedisSortedSet<T> Set, SortedSetEntry<T>[] Values, CommandFlags Flags = CommandFlags.None)
+		public Task<bool> AddAsync<T>(T Value, double Score, When When = When.Always, CommandFlags Flags = CommandFlags.None)
+		{
+			return Database.SortedSetAddAsync(Key, RedisSerializer.Serialize(Value), Score, When, Flags);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, double, CommandFlags)"/>
+		public Task<long> AddAsync<T>(SortedSetEntry<T>[] Values, CommandFlags Flags = CommandFlags.None)
 		{
 			SortedSetEntry[] Untyped = Array.ConvertAll(Values, x => new SortedSetEntry(RedisSerializer.Serialize(x.Element), x.Score));
-			return Database.SortedSetAddAsync(Set.Key, Untyped, Flags);
+			return Database.SortedSetAddAsync(Key, Untyped, Flags);
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveAsync(RedisKey, RedisValue, CommandFlags)"/>
+		public Task<bool> RemoveAsync<T>(T Value, CommandFlags Flags = CommandFlags.None)
+		{
+			return Database.SortedSetRemoveAsync(Key, RedisSerializer.Serialize(Value), Flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveRangeByScoreAsync(RedisKey, double, double, Exclude, Order, long, long, CommandFlags)"/>
-		public static async Task<long> SortedSetRemoveRangeByScoreAsync<T>(this IDatabaseAsync Database, RedisSortedSet<T> Set, double Start = double.NegativeInfinity, double Stop = double.PositiveInfinity, Exclude Exclude = Exclude.None, CommandFlags Flags = CommandFlags.None)
+		public async Task<long> RemoveRangeByScoreAsync<T>(double Start = double.NegativeInfinity, double Stop = double.PositiveInfinity, Exclude Exclude = Exclude.None, CommandFlags Flags = CommandFlags.None)
 		{
-			return await Database.SortedSetRemoveRangeByScoreAsync(Set.Key, Start, Stop, Exclude, Flags);
+			return await Database.SortedSetRemoveRangeByScoreAsync(Key, Start, Stop, Exclude, Flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, double, CommandFlags)"/>
-		public static async IAsyncEnumerable<SortedSetEntry<T>> SortedSetScanAsync<T>(this IDatabaseAsync Database, RedisSortedSet<T> Set, RedisValue Pattern = default, int PageSize = 250, long Cursor = 0, int PageOffset = 0, CommandFlags Flags = CommandFlags.None)
+		public async IAsyncEnumerable<SortedSetEntry<T>> ScanAsync<T>(RedisValue Pattern = default, int PageSize = 250, long Cursor = 0, int PageOffset = 0, CommandFlags Flags = CommandFlags.None)
 		{
-			await foreach (SortedSetEntry Entry in Database.SortedSetScanAsync(Set.Key, Pattern, PageSize, Cursor, PageOffset, Flags))
+			await foreach (SortedSetEntry Entry in Database.SortedSetScanAsync(Key, Pattern, PageSize, Cursor, PageOffset, Flags))
 			{
 				yield return new SortedSetEntry<T>(Entry);
 			}
 		}
 
-		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByScoreAsync(RedisKey, double, double, Exclude, Order, long, long, CommandFlags)"/>
-		public static async Task<T[]> SortedSetRangeByScoreAsync<T>(this IDatabaseAsync Database, RedisSortedSet<T> Set, double Start = double.NegativeInfinity, double Stop = double.PositiveInfinity, Exclude Exclude = Exclude.None, Order Order = Order.Ascending, long Skip = 0L, long Take = -1L, CommandFlags Flags = CommandFlags.None)
+		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByRankAsync(RedisKey, long, long, Order, CommandFlags)"/>
+		public async Task<T[]> RangeByRankAsync<T>(long Start, long Stop = -1, Order Order = Order.Ascending, CommandFlags Flags = CommandFlags.None)
 		{
-			RedisValue[] Values = await Database.SortedSetRangeByScoreAsync(Set.Key, Start, Stop, Exclude, Order, Skip, Take, Flags);
+			RedisValue[] Values = await Database.SortedSetRangeByRankAsync(Key, Start, Stop, Order, Flags);
+			return Array.ConvertAll(Values, x => RedisSerializer.Deserialize<T>(x));
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByScoreAsync(RedisKey, double, double, Exclude, Order, long, long, CommandFlags)"/>
+		public async Task<T[]> RangeByScoreAsync<T>(double Start = double.NegativeInfinity, double Stop = double.PositiveInfinity, Exclude Exclude = Exclude.None, Order Order = Order.Ascending, long Skip = 0L, long Take = -1L, CommandFlags Flags = CommandFlags.None)
+		{
+			RedisValue[] Values = await Database.SortedSetRangeByScoreAsync(Key, Start, Stop, Exclude, Order, Skip, Take, Flags);
 			return Array.ConvertAll(Values, x => RedisSerializer.Deserialize<T>(x));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRangeByScoreWithScoresAsync(RedisKey, double, double, Exclude, Order, long, long, CommandFlags)"/>
-		public static async Task<SortedSetEntry<T>[]> SortedSetRangeByScoreWithScoresAsync<T>(this IDatabaseAsync Database, RedisSortedSet<T> Set, double Start = double.NegativeInfinity, double Stop = double.PositiveInfinity, Exclude Exclude = Exclude.None, Order Order = Order.Ascending, long Skip = 0L, long Take = -1L, CommandFlags Flags = CommandFlags.None)
+		public async Task<SortedSetEntry<T>[]> RangeByScoreWithScoresAsync<T>(double Start = double.NegativeInfinity, double Stop = double.PositiveInfinity, Exclude Exclude = Exclude.None, Order Order = Order.Ascending, long Skip = 0L, long Take = -1L, CommandFlags Flags = CommandFlags.None)
 		{
-			SortedSetEntry[] Values = await Database.SortedSetRangeByScoreWithScoresAsync(Set.Key, Start, Stop, Exclude, Order, Skip, Take, Flags);
+			SortedSetEntry[] Values = await Database.SortedSetRangeByScoreWithScoresAsync(Key, Start, Stop, Exclude, Order, Skip, Take, Flags);
 			return Array.ConvertAll(Values, x => new SortedSetEntry<T>(x));
 		}
+	}
 
+	/// <summary>
+	/// Extension methods for sets
+	/// </summary>
+	public static class RedisSortedSetExtensions
+	{
+		/// <summary>
+		/// Creates a version of this set which modifies a transaction rather than the direct DB
+		/// </summary>
+		/// <param name="Transaction"></param>
+		/// <returns></returns>
+		public static RedisSortedSet<TElement> With<TElement>(this ITransaction Transaction, RedisSortedSet<TElement> Set)
+		{
+			return new RedisSortedSet<TElement>(Transaction, Set.Key);
+		}
 	}
 }

@@ -3,6 +3,7 @@
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,8 +14,13 @@ namespace EpicGames.Redis
 	/// Represents a typed Redis list with a given key
 	/// </summary>
 	/// <typeparam name="TElement">The type of element stored in the list</typeparam>
-	public readonly struct RedisList<TElement> : IEquatable<RedisList<TElement>>
+	public readonly struct RedisList<TElement>
 	{
+		/// <summary>
+		/// The database containing this object
+		/// </summary>
+		IDatabaseAsync Database { get; }
+
 		/// <summary>
 		/// The key for the list
 		/// </summary>
@@ -24,79 +30,78 @@ namespace EpicGames.Redis
 		/// Constructor
 		/// </summary>
 		/// <param name="Key"></param>
-		public RedisList(RedisKey Key) => this.Key = Key;
-
-		/// <inheritdoc/>
-		public override bool Equals(object? Obj) => Obj is RedisList<TElement> List && Key == List.Key;
-
-		/// <inheritdoc/>
-		public bool Equals(RedisList<TElement> Other) => Key == Other.Key;
-
-		/// <inheritdoc/>
-		public override int GetHashCode() => Key.GetHashCode();
-
-		/// <summary>Compares two instances for equality</summary>
-		public static bool operator ==(RedisList<TElement> Left, RedisList<TElement> Right) => Left.Key == Right.Key;
-
-		/// <summary>Compares two instances for equality</summary>
-		public static bool operator !=(RedisList<TElement> Left, RedisList<TElement> Right) => Left.Key != Right.Key;
-	}
-
-	/// <summary>
-	/// Extension methods for typed lists
-	/// </summary>
-	public static class RedisListExtensions
-	{
-		/// <inheritdoc cref="IDatabaseAsync.ListLengthAsync(RedisKey, CommandFlags)"/>
-		public static Task<long> ListLengthAsync<T>(this IDatabase Database, RedisList<T> List)
+		public RedisList(IDatabaseAsync Database, RedisKey Key)
 		{
-			return Database.ListLengthAsync(List.Key);
+			this.Database = Database;
+			this.Key = Key;
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.ListLengthAsync(RedisKey, CommandFlags)"/>
+		public Task<long> LengthAsync()
+		{
+			return Database.ListLengthAsync(Key);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListLeftPushAsync(RedisKey, RedisValue, When, CommandFlags)"/>
-		public static Task<long> ListLeftPushAsync<T>(this IDatabase Database, RedisList<T> List, T Item, When When = When.Always, CommandFlags Flags = CommandFlags.None)
+		public Task<long> LeftPushAsync(TElement Item, When When = When.Always, CommandFlags Flags = CommandFlags.None)
 		{
-			return Database.ListLeftPushAsync(List.Key, RedisSerializer.Serialize(Item), When, Flags);
+			return Database.ListLeftPushAsync(Key, RedisSerializer.Serialize(Item), When, Flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListLeftPushAsync(RedisKey, RedisValue[], When, CommandFlags)"/>
-		public static Task<long> ListLeftPushAsync<T>(this IDatabase Database, RedisList<T> List, IEnumerable<T> Items, When When = When.Always, CommandFlags Flags = CommandFlags.None)
+		public Task<long> LeftPushAsync(IEnumerable<TElement> Items, When When = When.Always, CommandFlags Flags = CommandFlags.None)
 		{
 			RedisValue[] Values = Items.Select(x => RedisSerializer.Serialize(x)).ToArray();
-			return Database.ListLeftPushAsync(List.Key, Values, When, Flags);
+			return Database.ListLeftPushAsync(Key, Values, When, Flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListLeftPopAsync(RedisKey, CommandFlags)">
-		public static async Task<T?> ListLeftPopAsync<T>(this IDatabase Database, RedisList<T> List, CommandFlags Flags = CommandFlags.None) where T : class
+		public async Task<TElement> LeftPopAsync(CommandFlags Flags = CommandFlags.None)
 		{
-			RedisValue Value = await Database.ListLeftPopAsync(List.Key, Flags);
-			return Value.IsNull ? null : RedisSerializer.Deserialize<T>(Value);
+			RedisValue Value = await Database.ListLeftPopAsync(Key, Flags);
+			return Value.IsNull ? default(TElement)! : RedisSerializer.Deserialize<TElement>(Value);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListRangeAsync(RedisKey, CommandFlags)">
-		public static async Task<T[]> ListRangeAsync<T>(this IDatabase Database, RedisList<T> List, long Start = 0, long Stop = -1, CommandFlags Flags = CommandFlags.None) where T : class
+		public async Task<TElement[]> RangeAsync(long Start = 0, long Stop = -1, CommandFlags Flags = CommandFlags.None)
 		{
-			RedisValue[] Values = await Database.ListRangeAsync(List.Key, Start, Stop, Flags);
-			return Array.ConvertAll(Values, x => RedisSerializer.Deserialize<T>(x));
+			RedisValue[] Values = await Database.ListRangeAsync(Key, Start, Stop, Flags);
+			return Array.ConvertAll(Values, (Converter<RedisValue, T>)(x => (T)RedisSerializer.Deserialize<TElement>(x)));
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListRightPushAsync(RedisKey, RedisValue, When, CommandFlags)"/>
-		public static Task<long> ListRightPushAsync<T>(this IDatabase Database, RedisList<T> List, T Item, When When = When.Always, CommandFlags Flags = CommandFlags.None)
+		public Task<long> RightPushAsync(TElement Item, When When = When.Always, CommandFlags Flags = CommandFlags.None)
 		{
-			return Database.ListRightPushAsync(List.Key, RedisSerializer.Serialize(Item), When, Flags);
+			return Database.ListRightPushAsync(Key, RedisSerializer.Serialize(Item), When, Flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListRightPushAsync(RedisKey, RedisValue[], When, CommandFlags)"/>
-		public static Task<long> ListRightPushAsync<T>(this IDatabase Database, RedisList<T> List, IEnumerable<T> Items, When When = When.Always, CommandFlags Flags = CommandFlags.None)
+		public Task<long> RightPushAsync(IEnumerable<TElement> Items, When When = When.Always, CommandFlags Flags = CommandFlags.None)
 		{
 			RedisValue[] Values = Items.Select(x => RedisSerializer.Serialize(x)).ToArray();
-			return Database.ListRightPushAsync(List.Key, Values, When, Flags);
+			return Database.ListRightPushAsync(Key, Values, When, Flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.ListTrimAsync(RedisKey, long, long, CommandFlags)">
-		public static async Task ListTrimAsync<T>(this IDatabase Database, RedisList<T> List, long Start, long Stop, CommandFlags Flags = CommandFlags.None) where T : class
+		public Task TrimAsync(long Start, long Stop, CommandFlags Flags = CommandFlags.None)
 		{
-			await Database.ListTrimAsync(List.Key, Start, Stop, Flags);
+			return Database.ListTrimAsync(Key, Start, Stop, Flags);
+		}
+	}
+
+	/// <summary>
+	/// Extension methods for sets
+	/// </summary>
+	public static class RedisListExtensions
+	{
+		/// <summary>
+		/// Creates a version of this list which modifies a transaction rather than the direct DB
+		/// </summary>
+		/// <param name="Transaction"></param>
+		/// <returns></returns>
+		public static RedisList<TElement> With<TElement>(this ITransaction Transaction, RedisList<TElement> Set)
+		{
+			return new RedisList<TElement>(Transaction, Set.Key);
 		}
 	}
 }
