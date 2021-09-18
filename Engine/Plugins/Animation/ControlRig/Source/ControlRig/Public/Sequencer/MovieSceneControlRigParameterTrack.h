@@ -9,6 +9,7 @@
 #include "ControlRig.h"
 #include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "INodeAndChannelMappings.h"
+#include "MovieSceneControlRigParameterSection.h"
 #include "MovieSceneControlRigParameterTrack.generated.h"
 
 /**
@@ -107,7 +108,15 @@ public:
 
 	CONTROLRIG_API void SetTrackName(FName InName) { TrackName = InName; }
 
+	UMovieSceneControlRigParameterSection::FSpaceChannelAddedEvent& SpaceChannelAdded() { return OnSpaceChannelAdded; }
+
 private:
+
+	//we register this with sections.
+	void HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel);
+	//then send this event out to the track editor.
+	UMovieSceneControlRigParameterSection::FSpaceChannelAddedEvent OnSpaceChannelAdded;
+
 
 	void ReconstructControlRig();
 

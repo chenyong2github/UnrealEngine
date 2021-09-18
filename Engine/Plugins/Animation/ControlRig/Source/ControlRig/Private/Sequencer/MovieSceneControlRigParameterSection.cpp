@@ -1151,6 +1151,11 @@ void UMovieSceneControlRigParameterSection::AddSpaceChannel(FName InControlName,
 	if (!HasSpaceChannel(InControlName))
 	{
 		SpaceChannels.Add(FSpaceControlNameAndChannel(InControlName));
+		if (OnSpaceChannelAdded.IsBound())
+		{
+			FSpaceControlNameAndChannel& NameAndChannel = SpaceChannels[SpaceChannels.Num() - 1];
+			OnSpaceChannelAdded.Broadcast(this, &NameAndChannel.SpaceCurve);
+		}
 	}
 	if (bReconstructChannel)
 	{

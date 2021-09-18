@@ -155,6 +155,9 @@ struct CONTROLRIG_API FChannelMapInfo
 
 };
 
+
+struct FMovieSceneControlRigSpaceChannel;
+
 /**
  * Movie scene section that controls animation controller animation
  */
@@ -164,6 +167,9 @@ class CONTROLRIG_API UMovieSceneControlRigParameterSection : public UMovieSceneP
 	GENERATED_BODY()
 
 public:
+
+	/** Bindable event for when we add a space channel*/
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FSpaceChannelAddedEvent, UMovieSceneControlRigParameterSection*, FMovieSceneControlRigSpaceChannel*);
 
 	void AddEnumParameterKey(FName InParameterName, FFrameNumber InTime, uint8 InValue);
 	void AddIntegerParameterKey(FName InParameterName, FFrameNumber InTime, int32 InValue);
@@ -180,7 +186,11 @@ public:
 	TArray<FSpaceControlNameAndChannel>& GetSpaceChannels();
 	const TArray< FSpaceControlNameAndChannel>& GetSpaceChannels() const;
 	FName FindControlNameFromSpaceChannel(const FMovieSceneControlRigSpaceChannel* SpaceChannel) const;
+	
+	FSpaceChannelAddedEvent& SpaceChannelAdded() { return OnSpaceChannelAdded; }
 private:
+
+	FSpaceChannelAddedEvent OnSpaceChannelAdded;
 
 	/** Control Rig that controls us*/
 	UPROPERTY()

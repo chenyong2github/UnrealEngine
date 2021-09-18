@@ -48,11 +48,17 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateNewSection()
 	{
 		NewSection->SetBlendType(EMovieSceneBlendType::Additive);
 	}
+	NewSection->SpaceChannelAdded().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded);
 	if (ControlRig)
 	{
 		NewSection->RecreateWithThisControlRig(ControlRig,bSetDefault);
 	}
 	return  NewSection;
+}
+
+void UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded(UMovieSceneControlRigParameterSection* Section, FMovieSceneControlRigSpaceChannel* Channel)
+{
+	OnSpaceChannelAdded.Broadcast(Section, Channel);
 }
 
 void UMovieSceneControlRigParameterTrack::RemoveAllAnimationData()
@@ -342,6 +348,10 @@ void UMovieSceneControlRigParameterTrack::ReconstructControlRig()
 				UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section);
 				if (CRSection)
 				{
+					if (CRSection->SpaceChannelAdded().IsBoundToObject(this) == false)
+					{
+						CRSection->SpaceChannelAdded().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded);
+					}
 					CRSection->RecreateWithThisControlRig(ControlRig, false);
 				}
 			}
@@ -362,6 +372,7 @@ void UMovieSceneControlRigParameterTrack::PostEditImport()
 
 	ReconstructControlRig();
 }
+
 
 CONTROLRIG_API void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewControlRig, bool RecreateChannels)
 {
