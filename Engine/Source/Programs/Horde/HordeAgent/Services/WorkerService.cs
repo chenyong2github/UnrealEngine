@@ -38,6 +38,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Status = Grpc.Core.Status;
+using EpicGames.Horde.Storage;
+using EpicGames.Horde.Compute;
 
 [assembly: InternalsVisibleTo("HordeAgentTests")]
 
@@ -908,41 +910,44 @@ namespace HordeAgent.Services
 		{
 			Logger.LogInformation("Starting compute task (lease {LeaseId})", LeaseId);
 
-			DateTimeOffset ActionTaskStartTime = DateTimeOffset.UtcNow;
-			using (IRpcClientRef Client = await RpcConnection.GetClientRef(new RpcContext(), CancellationToken))
+			ComputeTaskResultMessage Result;
+			try
 			{
-				DirectoryReference LeaseDir = DirectoryReference.Combine(WorkingDir, "Compute", LeaseId);
-				DirectoryReference.CreateDirectory(LeaseDir);
+				DateTimeOffset ActionTaskStartTime = DateTimeOffset.UtcNow;
+				using (IRpcClientRef Client = await RpcConnection.GetClientRef(new RpcContext(), CancellationToken))
+				{
+					DirectoryReference LeaseDir = DirectoryReference.Combine(WorkingDir, "Compute", LeaseId);
+					DirectoryReference.CreateDirectory(LeaseDir);
 
-				ComputeTaskExecutor Executor = new ComputeTaskExecutor(Client.Channel, Logger);
-				try
-				{
-					Logger.LogInformation("Running executor");
-					ComputeTaskResultMessage Result = await Executor.ExecuteAsync(LeaseId, ComputeTask, LeaseDir, CancellationToken);
-					return new LeaseResult(Result.ToByteArray());
-				}
-				catch (Exception re)
-				{
-/*					Logger.LogError(re, "Unhandled exception during remote execution");
-					PostActionResultRequest PostResultRequest = new PostActionResultRequest();
-					PostResultRequest.LeaseId = LeaseId;
-					PostResultRequest.ActionDigest = ComputeTask.Digest;
-					PostResultRequest.Error = new RpcException(new Status(StatusCode.Unknown, "Unhandled exception during remote execution: " + re.Message), re.Message).Status;
-					await Executor.ActionRpc.PostActionResultAsync(PostResultRequest);
-*/
-					throw re;
-				}
-				finally
-				{
+					ComputeTaskExecutor Executor = new ComputeTaskExecutor(Client.Channel, Logger);
 					try
 					{
-						DirectoryReference.Delete(LeaseDir, true);
+						Result = await Executor.ExecuteAsync(LeaseId, ComputeTask, LeaseDir, CancellationToken);
 					}
-					catch
+					finally
 					{
+						try
+						{
+							DirectoryReference.Delete(LeaseDir, true);
+						}
+						catch
+						{
+						}
 					}
 				}
 			}
+			catch (BlobNotFoundException Ex)
+			{
+				Logger.LogError(Ex, "Blob not found: {Hash}", Ex.Hash);
+				Result = new ComputeTaskResultMessage(ComputeTaskOutcome.BlobNotFound, Ex.Hash.ToString());
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Exception while executing compute task");
+				Result = new ComputeTaskResultMessage(ComputeTaskOutcome.Exception, Ex.ToString());
+			}
+
+			return new LeaseResult(Result.ToByteArray());
 		}
 
 		/// <summary>

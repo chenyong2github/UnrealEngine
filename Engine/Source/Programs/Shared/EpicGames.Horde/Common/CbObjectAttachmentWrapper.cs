@@ -16,21 +16,31 @@ namespace EpicGames.Horde.Common
 	public partial class CbObjectAttachmentWrapper
 	{
 		/// <summary>
+		/// The hash value
+		/// </summary>
+		public IoHash Hash => new IoHash(Data.ToByteArray());
+
+		/// <summary>
+		/// Returns the object attachment 
+		/// </summary>
+		public CbObjectAttachment Attachment => new CbObjectAttachment(Hash);
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Hash"></param>
 		public CbObjectAttachmentWrapper(IoHash Hash)
 		{
-			this.Hash = ByteString.CopyFrom(Hash.Memory.ToArray());
+			this.Data = ByteString.CopyFrom(Hash.Memory.ToArray());
 		}
 
 		/// <summary>
 		/// Convert from an IoHashWrapper to an IoHash
 		/// </summary>
 		/// <param name="Hash"></param>
-		public static implicit operator CbObjectAttachment(CbObjectAttachmentWrapper Attachment)
+		public static implicit operator CbObjectAttachment(CbObjectAttachmentWrapper Wrapper)
 		{
-			return new CbObjectAttachment(new IoHash(Attachment.Hash.ToByteArray()));
+			return Wrapper.Attachment;
 		}
 
 		/// <summary>

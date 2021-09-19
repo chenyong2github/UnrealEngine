@@ -104,12 +104,8 @@ namespace HordeAgent
 		/// <returns>The action result</returns>
 		public async Task<ComputeTaskResultMessage> ExecuteAsync(string LeaseId, ComputeTaskMessage ComputeTaskMessage, DirectoryReference SandboxDir, CancellationToken CancellationToken)
 		{
-			ComputeTask? Task = await BlobStore.GetObjectAsync<ComputeTask>(ComputeTaskMessage.NamespaceId, (CbObjectAttachment)ComputeTaskMessage.TaskHash);
-			if (Task == null)
-			{
-				throw new RpcException(new Grpc.Core.Status(StatusCode.NotFound, "Unable to find action message"));
-			}
-			Logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", (IoHash)(CbObjectAttachment)ComputeTaskMessage.TaskHash, LeaseId);
+			ComputeTask Task = await BlobStore.GetObjectAsync<ComputeTask>(ComputeTaskMessage.NamespaceId, ComputeTaskMessage.Task);
+			Logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", ComputeTaskMessage.Task.Hash, LeaseId);
 
 			DirectoryReference.CreateDirectory(SandboxDir);
 			FileUtils.ForceDeleteDirectoryContents(SandboxDir);
@@ -119,7 +115,6 @@ namespace HordeAgent
 			await SetupSandboxAsync(ComputeTaskMessage.NamespaceId, InputDirectory, SandboxDir);
 			DateTimeOffset InputFetchCompleted = DateTimeOffset.UtcNow;
 
-			ComputeTaskResultMessage ResultMessage;
 			using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
 			{
 				string FileName = FileReference.Combine(SandboxDir, Task.WorkingDirectory.ToString(), Task.Executable.ToString()).FullName;
@@ -169,40 +164,10 @@ namespace HordeAgent
 						Result.OutputHash = await PutOutput(ComputeTaskMessage.NamespaceId, SandboxDir, OutputFiles);
 					}
 
-					ResultMessage = new ComputeTaskResultMessage();
-					ResultMessage.OutputHash = (CbObjectAttachment)await BlobStore.PutObjectAsync(ComputeTaskMessage.NamespaceId, Result);
-
-
-					/*
-										Result.ExecutionMetadata.OutputUploadStartTimestamp = Timestamp.FromDateTimeOffset(DateTimeOffset.UtcNow);
-										foreach (var (FileRef, OutputPath) in ResolveOutputPaths(SandboxDir, Command.OutputPaths))
-										{
-											byte[] Bytes = await FileReference.ReadAllBytesAsync(FileRef);
-											Digest Digest = await Storage.PutBulkDataAsync(InstanceName, Bytes);
-
-											OutputFile OutputFileInfo = new OutputFile();
-											OutputFileInfo.Path = OutputPath;
-											OutputFileInfo.Digest = Digest;
-											Result.OutputFiles.Add(OutputFileInfo);
-
-											Logger.LogInformation("Uploaded {File} (digest: {Digest}, size: {Size})", FileRef, Digest.Hash, Digest.SizeBytes);
-										}
-										Result.ExecutionMetadata.OutputUploadCompletedTimestamp = Timestamp.FromDateTimeOffset(DateTimeOffset.UtcNow);
-										Result.ExecutionMetadata.WorkerCompletedTimestamp = Timestamp.FromDateTimeOffset(DateTimeOffset.UtcNow);
-
-										PostActionResultRequest PostResultRequest = new PostActionResultRequest();
-										PostResultRequest.LeaseId = LeaseId;
-										PostResultRequest.ActionDigest = ActionTask.Digest;
-										PostResultRequest.Result = Result;
-										await ActionRpc.PostActionResultAsync(PostResultRequest);
-
-										await CacheActionResultAsync(Action, ActionTask, Result);
-					*/
-					// Command.OutputPaths
-					// Command.OutputDirectories
+					CbObjectAttachment Attachment = await BlobStore.PutObjectAsync(ComputeTaskMessage.NamespaceId, Result);
+					return new ComputeTaskResultMessage(Attachment);
 				}
 			}
-			return ResultMessage;
 		}
 
 		/// <summary>

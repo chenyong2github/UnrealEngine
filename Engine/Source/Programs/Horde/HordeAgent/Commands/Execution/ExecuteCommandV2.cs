@@ -272,9 +272,9 @@ namespace HordeAgent.Commands
 						GetTaskUpdateResponse Response = new GetTaskUpdateResponse();
 						Response.AgentId = RpcResponse.AgentId;
 						Response.LeaseId = RpcResponse.LeaseId;
-						Response.ResultHash = (RpcResponse.ResultHash == null)? (CbObjectAttachment?)null : (CbObjectAttachment)RpcResponse.ResultHash;
+						Response.Result = RpcResponse.Result?.Hash;
 						Response.State = RpcResponse.State;
-						Response.TaskHash = RpcResponse.TaskHash;
+						Response.TaskHash = RpcResponse.Task;
 						Response.Time = RpcResponse.Time.ToDateTime();
 
 						if (!await OnUpdateAsync(Response))
@@ -426,9 +426,9 @@ namespace HordeAgent.Commands
 				{
 					Logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", (IoHash)(CbObjectAttachment)Response.TaskHash, Response.AgentId, Response.LeaseId);
 				}
-				if (Response.ResultHash != null)
+				if (Response.Result != null)
 				{
-					await HandleCompleteTask(ComputeClient, NamespaceId, Response.ResultHash.Value, Logger);
+					await HandleCompleteTask(ComputeClient, NamespaceId, Response.Result.Value, Logger);
 				}
 				return Response.State != ComputeTaskState.Complete;
 			});
