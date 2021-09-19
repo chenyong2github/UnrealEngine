@@ -2033,6 +2033,53 @@ void UMovieSceneControlRigParameterSection::SetControlRig(UControlRig* InControl
 	ControlRigClass = ControlRig ? ControlRig->GetClass() : nullptr;
 }
 
+void UMovieSceneControlRigParameterSection::FixRotationWinding(FName ControlName, FFrameNumber StartFrame, FFrameNumber EndFrame)
+{
+	FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ControlName);
+	if (pChannelIndex == nullptr || GetControlRig() == nullptr)
+	{
+		return;
+	}
+	int32 ChannelIndex = pChannelIndex->ChannelIndex;
+	TArrayView<FMovieSceneFloatChannel*> FloatChannels = GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	if (FRigControlElement* ControlElement = GetControlRig()->FindControl(ControlName))
+	{
+		if (ControlElement->Settings.ControlType == ERigControlType::Rotator  ||
+			ControlElement->Settings.ControlType == ERigControlType::EulerTransform ||
+			ControlElement->Settings.ControlType == ERigControlType::Transform || 
+			ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
+		{
+			int32 StartIndex = (ControlElement->Settings.ControlType == ERigControlType::Rotator) ? 0 : 3;
+			for (int32 Index = 0; Index < 3; ++Index)
+			{
+				int32 RealIndex = StartIndex + Index + ChannelIndex;
+				int32 NumKeys = FloatChannels[RealIndex]->GetNumKeys();
+				bool bDidFrame = false;
+				float PrevVal = 0.0f;
+				for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
+				{
+					const FFrameNumber& Frame = FloatChannels[RealIndex]->GetData().GetTimes()[KeyIndex];
+					if (Frame >= StartFrame && Frame <= EndFrame)
+					{
+						FMovieSceneFloatValue Val = FloatChannels[RealIndex]->GetData().GetValues()[KeyIndex];
+						if (bDidFrame == true)
+						{
+							FMath::WindRelativeAnglesDegrees(PrevVal, Val.Value);
+							FloatChannels[RealIndex]->GetData().GetValues()[KeyIndex].Value = Val.Value;
+						}
+						else
+						{
+							bDidFrame = true;
+						}
+						PrevVal = Val.Value;
+					}
+					
+				}
+			}
+		}
+	}
+}
+
 #if WITH_EDITOR
 
 void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber FrameNumber, bool bSetDefault, bool bAutoKey)

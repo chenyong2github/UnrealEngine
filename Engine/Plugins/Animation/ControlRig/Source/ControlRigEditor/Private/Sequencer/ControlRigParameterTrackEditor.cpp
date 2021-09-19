@@ -1437,6 +1437,10 @@ void FControlRigParameterTrackEditor::OnChannelChanged(const FMovieSceneChannelM
 			GetSequencer()->ForceEvaluate(); //now run sequencer...
 			Section->GetControlRig()->Evaluate_AnyThread();
 			Section->ControlsToSet.Empty();
+
+			TOptional<FFrameNumber> Optional;
+			FControlRigSpaceChannelHelpers::CompensateIfNeeded(Section->GetControlRig(), GetSequencer().Get(), Section,
+				ControlName, Optional);
 		}
 	}
 }
@@ -2178,8 +2182,9 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 					
 					FFrameNumber KeyTime = (Context.LocalTime == FLT_MAX) ? GetTimeForKey() : GetSequencer()->GetFocusedTickResolution().AsFrameTime((double)Context.LocalTime).RoundToFrame();
 
-					FControlRigSpaceChannelHelpers::CompensatePreviousFrameIfNeeded(ControlRig, GetSequencer().Get(), ParamSection,
-						ControlElement->GetName(), KeyTime);
+					TOptional<FFrameNumber> OptionalKeyTime = KeyTime;
+					FControlRigSpaceChannelHelpers::CompensateIfNeeded(ControlRig, GetSequencer().Get(), ParamSection,
+						ControlElement->GetName(), OptionalKeyTime);
 				}
 			}
 		}
