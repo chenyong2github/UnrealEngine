@@ -58,9 +58,17 @@ namespace EpicGames.Horde.Compute
 		[CbField("s")]
 		public ComputeTaskState State { get; set; }
 
-		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.ResultHash"/>
+		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.Outcome"/>
+		[CbField("o")]
+		public ComputeTaskOutcome Outcome { get; set; }
+
+		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.Detail"/>
+		[CbField("d")]
+		public string? Detail { get; set; }
+
+		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.Result"/>
 		[CbField("r")]
-		public CbObjectAttachment? ResultHash { get; set; }
+		public CbObjectAttachment? Result { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.AgentId"/>
 		[CbField("a")]

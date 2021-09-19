@@ -86,12 +86,14 @@ namespace HordeServer.Compute.Impl
 			{
 				GetTaskUpdateResponse Update = new GetTaskUpdateResponse();
 
-				Update.TaskHash = Result.TaskHash;
+				Update.TaskHash = Result.Task;
 				Update.Time = Result.Time;
 				Update.State = Result.State;
-				Update.ResultHash = Result.ResultHash;
+				Update.Outcome = Result.Outcome;
+				Update.Result = Result.Result;
 				Update.AgentId = Result.AgentId?.ToString();
 				Update.LeaseId = Result.LeaseId?.ToString();
+				Update.Detail = Result.Detail;
 
 				Response.Updates.Add(Update);
 			}

@@ -12,6 +12,27 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
+	/// Exception thrown when a blob is not found in the object store
+	/// </summary>
+	public sealed class BlobNotFoundException : Exception
+	{
+		/// <summary>
+		/// Hash of the missing blob
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Hash"></param>
+		public BlobNotFoundException(IoHash Hash)
+			: base("Blob {Hash} was not found in the object store")
+		{
+			this.Hash = Hash;
+		}
+	}
+
+	/// <summary>
 	/// Extension methods for <see cref="BlobStore.BlobStoreClient"/>
 	/// </summary>
 	public static class BlobStoreExtensions
@@ -38,7 +59,7 @@ namespace EpicGames.Horde.Storage
 				}
 			}
 
-			throw new RpcException(new Status(StatusCode.NotFound, $"Unable to fetch blob {Hash}"));
+			throw new BlobNotFoundException(Hash);
 		}
 
 		/// <summary>
@@ -64,7 +85,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="NamespaceId">Namespace for the data</param>
 		/// <param name="Hash">Hash of the blob</param>
 		/// <returns>Byte array of blob data</returns>
-		public static async Task<T> GetObjectAsync<T>(this BlobStore.BlobStoreClient BlobStore, string NamespaceId, IoHash Hash) where T : class
+		public static async Task<T> GetObjectAsync<T>(this BlobStore.BlobStoreClient BlobStore, string NamespaceId, CbObjectAttachment Hash) where T : class
 		{
 			byte[] Data = await GetBlobAsync(BlobStore, NamespaceId, Hash);
 			return CbSerializer.Deserialize<T>(new CbField(Data));
@@ -117,10 +138,10 @@ namespace EpicGames.Horde.Storage
 		/// <param name="NamespaceId">Namespace for the data</param>
 		/// <param name="Item">The item to write</param>
 		/// <returns>Byte array of blob data</returns>
-		public static Task<IoHash> PutObjectAsync<T>(this BlobStore.BlobStoreClient BlobStore, string NamespaceId, T Item)
+		public static async Task<CbObjectAttachment> PutObjectAsync<T>(this BlobStore.BlobStoreClient BlobStore, string NamespaceId, T Item)
 		{
 			ReadOnlyMemory<byte> Data = CbSerializer.Serialize(Item).GetView();
-			return PutBlobAsync(BlobStore, NamespaceId, Data);
+			return await PutBlobAsync(BlobStore, NamespaceId, Data);
 		}
 	}
 }
