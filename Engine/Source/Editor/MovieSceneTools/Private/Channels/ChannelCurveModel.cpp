@@ -187,6 +187,11 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::SetKeyPositions(TAr
 			}
 		}
 		Channel->PostEditChange();
+		if(WeakSequencer.IsValid())
+		{ 
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			WeakSequencer.Pin()->OnChannelChanged().Broadcast(MetaData, Section);
+		}
 		CurveModifiedDelegate.Broadcast();
 	}
 }
@@ -360,6 +365,11 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::AddKeys(TArrayView<
 		// For now we need to duplicate the new key handle array due to API mismatch. This will auto calculate tangents if needed.
 		SetKeyAttributes(NewKeyHandles, InKeyAttributes);
 		Channel->PostEditChange();
+		if (WeakSequencer.IsValid())
+		{
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			WeakSequencer.Pin()->OnChannelChanged().Broadcast(MetaData, Section);
+		}
 		CurveModifiedDelegate.Broadcast();
 	}
 }
@@ -384,6 +394,11 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::RemoveKeys(TArrayVi
 			}
 		}
 		Channel->PostEditChange();
+		if (WeakSequencer.IsValid())
+		{
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			WeakSequencer.Pin()->OnChannelChanged().Broadcast(MetaData, Section);
+		}
 		CurveModifiedDelegate.Broadcast();
 	}
 }
