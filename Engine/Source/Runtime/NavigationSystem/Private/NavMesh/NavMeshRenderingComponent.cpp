@@ -1092,7 +1092,7 @@ FNavMeshSceneProxy::FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, F
 		return;
 	}
 
-	MeshColors.Reserve(NumberOfMeshes);
+	MeshColors.Reserve(NumberOfMeshes + 1);	// we add one more proxy after the loop
 	MeshBatchElements.Reserve(NumberOfMeshes);
 	const FMaterialRenderProxy* ParentMaterial = GEngine->DebugMeshMaterial->GetRenderProxy();
 
@@ -1109,7 +1109,7 @@ FNavMeshSceneProxy::FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, F
 		Element.IndexBuffer = &IndexBuffer;
 		MeshBatchElements.Add(Element);
 
-		MeshColors.Add(FColoredMaterialRenderProxy(ParentMaterial, CurrentMeshBuilder.ClusterColor));
+		MeshColors.Add(MakeUnique<FColoredMaterialRenderProxy>(ParentMaterial, CurrentMeshBuilder.ClusterColor));
 
 		const int32 VertexIndexOffset = Vertices.Num();
 		Vertices.Append(CurrentMeshBuilder.Vertices);
@@ -1127,7 +1127,7 @@ FNavMeshSceneProxy::FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, F
 		}
 	}
 
-	MeshColors.Add(FColoredMaterialRenderProxy(ParentMaterial, NavMeshRenderColor_PathCollidingGeom));
+	MeshColors.Add(MakeUnique<FColoredMaterialRenderProxy>(ParentMaterial, NavMeshRenderColor_PathCollidingGeom));
 
 	if (Vertices.Num())
 	{
@@ -1216,7 +1216,7 @@ void FNavMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 
 					Mesh.bWireframe = false;
 					Mesh.VertexFactory = &VertexFactory;
-					Mesh.MaterialRenderProxy = &MeshColors[Index];
+					Mesh.MaterialRenderProxy = MeshColors[Index].Get();
 					Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
 					Mesh.Type = PT_TriangleList;
 					Mesh.DepthPriorityGroup = SDPG_World;
@@ -1395,7 +1395,7 @@ uint32 FNavMeshSceneProxy::GetAllocatedSizeInternal() const
 		VertexBuffers.PositionVertexBuffer.GetNumVertices() * VertexBuffers.PositionVertexBuffer.GetStride() +
 		VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
 		VertexBuffers.ColorVertexBuffer.GetNumVertices() * VertexBuffers.ColorVertexBuffer.GetStride() +
-		MeshColors.GetAllocatedSize() +
+		MeshColors.GetAllocatedSize() + MeshColors.Num() * sizeof(FColoredMaterialRenderProxy) +
 		MeshBatchElements.GetAllocatedSize();
 }
 
