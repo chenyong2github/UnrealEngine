@@ -1022,11 +1022,11 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 			[
 				SAssignNew(UniformToolbarPanel, SUniformWrapPanel)
 				.HAlign(HAlign_Left)
-				.MinDesiredSlotWidth(46.f)
+				.MinDesiredSlotWidth(50.f)
 				.MinDesiredSlotHeight(43.f)
-				.MaxDesiredSlotWidth(46.f)
+				.MaxDesiredSlotWidth(50.f)
 				.MaxDesiredSlotHeight(43.f)
-				.SlotPadding(FMargin(1.f, 1.f))
+				.SlotPadding(FMargin(2.f, 1.f))
 			];
 		}
 		break;

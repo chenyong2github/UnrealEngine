@@ -1647,7 +1647,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		PaletteToolBarStyle.SetComboButtonPadding(  FMargin(0.0f, 0.0f));
 		PaletteToolBarStyle.SetIndentedBlockPadding(FMargin(0.0f, 0.0f));
 		PaletteToolBarStyle.SetBlockPadding(        FMargin(0.0f, 0.0f));
-		PaletteToolBarStyle.ToggleButton.SetPadding(FMargin(2.0f, 6.0f));
+		PaletteToolBarStyle.ToggleButton.SetPadding(FMargin(0.0f, 6.0f));
 		PaletteToolBarStyle.ButtonStyle.SetNormalPadding(FMargin(2.0f, 6.0f));
 		PaletteToolBarStyle.ButtonStyle.SetPressedPadding(FMargin(2.0f, 6.0f));
 
