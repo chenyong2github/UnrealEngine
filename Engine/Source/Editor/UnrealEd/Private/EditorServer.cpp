@@ -2534,7 +2534,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				
 				// Don't show progress dialogs when loading one of our startup maps. They should load rather quickly.
 				FScopedSlowTask SlowTask(100, LocalizedLoadingMap, bShowProgress != 0);
-				SlowTask.MakeDialog();
+				SlowTask.MakeDialogDelayed(3.0f);
 
 				SlowTask.EnterProgressFrame(10, FText::Format( NSLOCTEXT("UnrealEd", "LoadingMapStatus_CleaningUp", "{0} (Clearing existing world)"), LocalizedLoadingMap ));
 
