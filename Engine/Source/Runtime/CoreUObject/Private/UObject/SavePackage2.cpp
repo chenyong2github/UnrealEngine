@@ -2040,7 +2040,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	// Create slow task dialog if needed
 	const int32 TotalSaveSteps = 12;
 	FScopedSlowTask SlowTask(TotalSaveSteps, FText(), SaveContext.IsUsingSlowTask());
-	SlowTask.MakeDialog(SaveContext.IsFromAutoSave());
+	SlowTask.MakeDialogDelayed(3.0f, SaveContext.IsFromAutoSave());
 
 	// Harvest Package
 	SlowTask.EnterProgressFrame();
@@ -2279,7 +2279,7 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 	// Create the slow task dialog if needed
 	const int32 TotalSaveSteps = 7;
 	FScopedSlowTask SlowTask(TotalSaveSteps, GetSlowTaskStatusMessage(SaveContext), SaveContext.IsUsingSlowTask());
-	SlowTask.MakeDialog(SaveContext.IsFromAutoSave());
+	SlowTask.MakeDialogDelayed(3.0f, SaveContext.IsFromAutoSave());
 
 	SlowTask.EnterProgressFrame();
 	SaveContext.Result = ValidatePackage(SaveContext);
@@ -2365,7 +2365,7 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 {
 	const int32 TotalSaveSteps = 4;
 	FScopedSlowTask SlowTask(TotalSaveSteps, NSLOCTEXT("Core", "SavingFiles", "Saving files..."), SaveArgs.bSlowTask);
-	SlowTask.MakeDialog(!!(SaveArgs.SaveFlags & SAVE_FromAutosave));
+	SlowTask.MakeDialogDelayed(3.0f, !!(SaveArgs.SaveFlags & SAVE_FromAutosave));
 
 	// Create all the package save context and run pre save
 	SlowTask.EnterProgressFrame();

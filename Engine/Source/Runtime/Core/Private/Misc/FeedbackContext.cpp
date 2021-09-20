@@ -46,7 +46,7 @@ void FFeedbackContext::BeginSlowTask( const FText& Task, bool ShowProgressDialog
 	TUniquePtr<FSlowTask> NewScope(new FSlowTask(0, Task, true, *this));
 	if (ShowProgressDialog)
 	{
-		NewScope->MakeDialog(bShowCancelButton);
+		NewScope->MakeDialogDelayed(3.0f, bShowCancelButton);
 	}
 
 	NewScope->Initialize();
