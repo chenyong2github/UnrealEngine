@@ -1789,7 +1789,7 @@ class FLandscapeToolNewLandscape : public FLandscapeTool
 {
 public:
 	FEdModeLandscape* EdMode;
-	ENewLandscapePreviewMode::Type NewLandscapePreviewMode;
+	ENewLandscapePreviewMode NewLandscapePreviewMode;
 	ELandscapeEdge::Type DraggingEdge;
 	float DraggingEdge_Remainder;
 

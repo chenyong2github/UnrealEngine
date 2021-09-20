@@ -256,14 +256,14 @@ void FLandscapeEditorDetailCustomization_ImportExport::OnHeightmapSelectedCheckS
 	}
 }
 
-ECheckBoxState FLandscapeEditorDetailCustomization_ImportExport::ModeIsChecked(EImportExportMode::Type Value)
+ECheckBoxState FLandscapeEditorDetailCustomization_ImportExport::ModeIsChecked(EImportExportMode Value)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	check(LandscapeEdMode != nullptr);
 	return LandscapeEdMode->ImportExportMode == Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void FLandscapeEditorDetailCustomization_ImportExport::OnModeChanged(ECheckBoxState NewCheckedState, EImportExportMode::Type Value)
+void FLandscapeEditorDetailCustomization_ImportExport::OnModeChanged(ECheckBoxState NewCheckedState, EImportExportMode Value)
 {
 	if (NewCheckedState == ECheckBoxState::Checked)
 	{

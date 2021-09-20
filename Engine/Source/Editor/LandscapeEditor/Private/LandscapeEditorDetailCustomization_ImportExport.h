@@ -36,8 +36,8 @@ private:
 	static bool IsHeightmapEnabled();
 	static ECheckBoxState GetHeightmapSelectedCheckState();
 	static void OnHeightmapSelectedCheckStateChanged(ECheckBoxState CheckState);
-	static ECheckBoxState ModeIsChecked(EImportExportMode::Type Value);
-	static void OnModeChanged(ECheckBoxState NewCheckedState, EImportExportMode::Type Value);
+	static ECheckBoxState ModeIsChecked(EImportExportMode Value);
+	static void OnModeChanged(ECheckBoxState NewCheckedState, EImportExportMode Value);
 
 	static EVisibility GetImportResultErrorVisibility(TSharedRef<IPropertyHandle> PropertyHandle_ImportResult);
 	static FSlateColor GetImportResultErrorColor(TSharedRef<IPropertyHandle> PropertyHandle_ImportResult);

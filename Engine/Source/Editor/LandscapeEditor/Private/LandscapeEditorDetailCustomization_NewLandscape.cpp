@@ -44,6 +44,8 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Editor.h"
 #include "LandscapeSubsystem.h"
+#include "SPrimaryButton.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
 
@@ -65,30 +67,31 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 
 	NewLandscapeCategory.AddCustomRow(FText::GetEmpty())
 	[
-		SNew(SUniformGridPanel)
-		.SlotPadding(FMargin(10, 2))
-		+ SUniformGridPanel::Slot(0, 0)
+		SNew(SBox)
+		.Padding(2.0f)
+		.HAlign(HAlign_Center)
 		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "RadioButton")
-			.IsChecked(this, &FLandscapeEditorDetailCustomization_NewLandscape::NewLandscapeModeIsChecked, ENewLandscapePreviewMode::NewLandscape)
-			.OnCheckStateChanged(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnNewLandscapeModeChanged, ENewLandscapePreviewMode::NewLandscape)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("NewLandscape", "Create New"))
-			]
+			SNew(SSegmentedControl<ENewLandscapePreviewMode>)
+			.Value_Lambda([this]()
+			{
+				FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+				return LandscapeEdMode ? LandscapeEdMode->NewLandscapePreviewMode : ENewLandscapePreviewMode::NewLandscape;
+
+			})
+			.OnValueChanged_Lambda([this](ENewLandscapePreviewMode Mode)
+			{
+				FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+				if (LandscapeEdMode != nullptr)
+				{
+					LandscapeEdMode->NewLandscapePreviewMode = Mode;
+				}
+			})
+			+SSegmentedControl<ENewLandscapePreviewMode>::Slot(ENewLandscapePreviewMode::NewLandscape)
+			.Text(LOCTEXT("NewLandscape", "Create New"))
+			+ SSegmentedControl<ENewLandscapePreviewMode>::Slot(ENewLandscapePreviewMode::ImportLandscape)
+			.Text(LOCTEXT("ImportLandscape", "Import from File"))
 		]
-		+ SUniformGridPanel::Slot(1, 0)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "RadioButton")
-			.IsChecked(this, &FLandscapeEditorDetailCustomization_NewLandscape::NewLandscapeModeIsChecked, ENewLandscapePreviewMode::ImportLandscape)
-			.OnCheckStateChanged(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnNewLandscapeModeChanged, ENewLandscapePreviewMode::ImportLandscape)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ImportLandscape", "Import from File"))
-			]
-		]
+		
 	];
 
 	TSharedRef<IPropertyHandle> PropertyHandle_CanHaveLayersContent = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, bCanHaveLayersContent));
@@ -514,10 +517,13 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 		.Text(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetTotalComponentCount)
 	];
 
-	NewLandscapeCategory.AddCustomRow(FText::GetEmpty())
+	NewLandscapeCategory.AddCustomRow(FText::GetEmpty()).WholeRowContent()
+	.VAlign(VAlign_Center)
+	.HAlign(HAlign_Right)
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
+		.Padding(4,0)
 		.AutoWidth()
 		[
 			SNew(SButton)
@@ -527,6 +533,7 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			.OnClicked(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnFillWorldButtonClicked)
 		]
 		+ SHorizontalBox::Slot()
+		.Padding(4, 0)
 		.AutoWidth()
 		[
 			SNew(SButton)
@@ -537,19 +544,17 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			.IsEnabled(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled)
 		]
 		+ SHorizontalBox::Slot()
-		.FillWidth(1)
-		//[
-		//]
-		+ SHorizontalBox::Slot()
+		.Padding(4, 0)
 		.AutoWidth()
 		[
-			SNew(SButton)
+			SNew(SPrimaryButton)
 			.Visibility_Static(&GetVisibilityOnlyInNewLandscapeMode, ENewLandscapePreviewMode::NewLandscape)
 			.Text(LOCTEXT("Create", "Create"))
 			.AddMetaData<FTutorialMetaData>(FTutorialMetaData(TEXT("CreateButton"), TEXT("LevelEditorToolBox")))
 			.OnClicked(this, &FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked)
 		]
 		+ SHorizontalBox::Slot()
+		.Padding(4, 0)
 		.AutoWidth()
 		[
 			SNew(SButton)
@@ -768,7 +773,7 @@ FText FLandscapeEditorDetailCustomization_NewLandscape::GetTotalComponentCount()
 }
 
 
-EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetVisibilityOnlyInNewLandscapeMode(ENewLandscapePreviewMode::Type value)
+EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetVisibilityOnlyInNewLandscapeMode(ENewLandscapePreviewMode value)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode != nullptr)
@@ -781,35 +786,6 @@ EVisibility FLandscapeEditorDetailCustomization_NewLandscape::GetVisibilityOnlyI
 	return EVisibility::Collapsed;
 }
 
-ECheckBoxState FLandscapeEditorDetailCustomization_NewLandscape::NewLandscapeModeIsChecked(ENewLandscapePreviewMode::Type value) const
-{
-	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode != nullptr)
-	{
-		if (LandscapeEdMode->NewLandscapePreviewMode == value)
-		{
-			return ECheckBoxState::Checked;
-		}
-	}
-	return ECheckBoxState::Unchecked;
-}
-
-void FLandscapeEditorDetailCustomization_NewLandscape::OnNewLandscapeModeChanged(ECheckBoxState NewCheckedState, ENewLandscapePreviewMode::Type value)
-{
-	if (NewCheckedState == ECheckBoxState::Checked)
-	{
-		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-		if (LandscapeEdMode != nullptr)
-		{
-			LandscapeEdMode->NewLandscapePreviewMode = value;
-
-			if (value == ENewLandscapePreviewMode::ImportLandscape)
-			{
-				LandscapeEdMode->NewLandscapePreviewMode = ENewLandscapePreviewMode::ImportLandscape;
-			}
-		}
-	}
-}
 
 FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 {

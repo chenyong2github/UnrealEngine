@@ -16,6 +16,8 @@
 
 class IDetailLayoutBuilder;
 
+enum class ENewLandscapePreviewMode : uint8;
+
 /**
  * Slate widgets customizer for the "New Landscape" tool
  */
@@ -58,9 +60,7 @@ public:
 	FReply OnCreateButtonClicked();
 	FReply OnFillWorldButtonClicked();
 
-	static EVisibility GetVisibilityOnlyInNewLandscapeMode(ENewLandscapePreviewMode::Type value);
-	ECheckBoxState NewLandscapeModeIsChecked(ENewLandscapePreviewMode::Type value) const;
-	void OnNewLandscapeModeChanged(ECheckBoxState NewCheckedState, ENewLandscapePreviewMode::Type value);
+	static EVisibility GetVisibilityOnlyInNewLandscapeMode(ENewLandscapePreviewMode value);
 
 	// Import
 	static EVisibility GetHeightmapErrorVisibility(TSharedRef<IPropertyHandle> PropertyHandle_HeightmapImportResult);
