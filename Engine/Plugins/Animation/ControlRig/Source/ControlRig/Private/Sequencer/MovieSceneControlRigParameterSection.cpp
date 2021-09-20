@@ -2058,7 +2058,7 @@ void UMovieSceneControlRigParameterSection::FixRotationWinding(FName ControlName
 				float PrevVal = 0.0f;
 				for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 				{
-					const FFrameNumber& Frame = FloatChannels[RealIndex]->GetData().GetTimes()[KeyIndex];
+					const FFrameNumber Frame = FloatChannels[RealIndex]->GetData().GetTimes()[KeyIndex];
 					if (Frame >= StartFrame && Frame <= EndFrame)
 					{
 						FMovieSceneFloatValue Val = FloatChannels[RealIndex]->GetData().GetValues()[KeyIndex];
