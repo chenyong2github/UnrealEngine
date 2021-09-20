@@ -125,12 +125,10 @@ void UChildActorComponent::Serialize(FArchive& Ar)
 		{
 			if (!FBlueprintSupport::IsDeferredDependencyPlaceholder(ChildActorTemplate))
 			{
-				// It is unknown how this state can come to be, so for now we'll simply correct the issue and record that it occurs and 
-				// and if it is occurring frequently, then investigate how the state comes to pass
-				if (!ensureAlwaysMsgf(ChildActorTemplate == nullptr, TEXT("Found unexpected ChildActorTemplate %s when ChildActorClass is null"), *ChildActorTemplate->GetFullName()))
-				{
-					ChildActorTemplate = nullptr;
-				}
+				// If ChildActorClass is null then the ChildActorTemplate needs to be as well
+				// In certain cases with inheritance clearing ChildActorClass in a grandparent does
+				// not clear the ChildActorTemplate on load, so we clear it here 
+				ChildActorTemplate = nullptr;
 			}
 		}
 	}
