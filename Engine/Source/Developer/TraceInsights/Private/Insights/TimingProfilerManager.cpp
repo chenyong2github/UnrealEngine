@@ -213,6 +213,7 @@ bool FTimingProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
 
 void FTimingProfilerManager::OnTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
+	OnWindowClosedEvent();
 	RemoveProfilerWindow();
 
 	// Disable TabClosed delegate.

@@ -136,6 +136,8 @@ STimingView::~STimingView()
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, LoadingSharedState.Get());
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, ThreadTimingSharedState.Get());
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, FrameSharedState.Get());
+
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(QuickFindTabId);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -271,7 +273,8 @@ void STimingView::Construct(const FArguments& InArgs)
 	FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(QuickFindTabId,
 		FOnSpawnTab::CreateSP(this, &STimingView::SpawnQuickFindTab))
 		.SetDisplayName(LOCTEXT("QuickFindTabTitle", "Quick Find"))
-		.SetMenuType(ETabSpawnerMenuType::Hidden);
+		.SetMenuType(ETabSpawnerMenuType::Hidden)
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "FolderExplore.Icon.Large"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4718,6 +4721,12 @@ TSharedRef<SDockTab> STimingView::SpawnQuickFindTab(const FSpawnTabArgs& Args)
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab);
+
+	const TSharedPtr<SWindow>& OwnerWindow = Args.GetOwnerWindow();
+	if (OwnerWindow.IsValid() && OwnerWindow != FSlateApplication::Get().FindWidgetWindow(SharedThis(this)))
+	{
+		OwnerWindow->Resize(FVector2D(600, 400));
+	}
 
 	if (!QuickFindWidgetSharedPtr.IsValid())
 	{
