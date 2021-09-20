@@ -254,6 +254,7 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 	SetInfo.next = nullptr;
 	FCStringAnsi::Strcpy(SetInfo.actionSetName, XR_MAX_ACTION_SET_NAME_SIZE, "ue4");
 	FCStringAnsi::Strcpy(SetInfo.localizedActionSetName, XR_MAX_ACTION_SET_NAME_SIZE, "Unreal Engine 4");
+	SetInfo.priority = 0;
 	XR_ENSURE(xrCreateActionSet(Instance, &SetInfo, &ActionSet));
 
 	XrPath LeftHand = GetPath(Instance, "/user/hand/left");
