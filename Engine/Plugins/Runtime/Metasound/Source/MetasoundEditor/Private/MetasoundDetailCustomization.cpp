@@ -11,6 +11,8 @@
 #include "IDetailGroup.h"
 #include "Input/Events.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundEditor.h"
+#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
@@ -66,9 +68,7 @@ namespace Metasound
 
 		void FMetasoundDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 		{
-			using namespace Metasound;
-			using namespace Metasound::Editor;
-			using namespace Metasound::Frontend;
+			using namespace Frontend;
 
 			EMetasoundActiveDetailView DetailsView = EMetasoundActiveDetailView::Metasound;
 			if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
@@ -76,7 +76,7 @@ namespace Metasound
 				DetailsView = EditorSettings->DetailView;
 			}
 
-			// Currently only support modifying a single MetaSound at a time (Multiple MetaSound editting will be covered by separate tool)
+			// Currently only support modifying a single MetaSound at a time (Multiple MetaSound editing will be covered by separate tool)
 			TArray<TWeakObjectPtr<UObject>> Objects;
 			DetailLayout.GetObjectsBeingCustomized(Objects);
 			if (Objects.Num() > 1)
@@ -124,14 +124,38 @@ namespace Metasound
 							return false;
 						});
 
+						if (MetaSoundSource.IsValid())
+						{
+							OutputFormat->SetOnPropertyValuePreChange(FSimpleDelegate::CreateLambda([Source = MetaSoundSource]()
+							{
+								if (Source.IsValid())
+								{
+									TSharedPtr<FEditor> ParentEditor = FGraphBuilder::GetEditorForMetasound(*Source.Get());
+									if (ParentEditor.IsValid())
+									{
+										ParentEditor->DestroyAnalyzers();
+									};
+								}
+							}));
+
+							OutputFormat->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([Source = MetaSoundSource]()
+							{
+								if (Source.IsValid())
+								{
+									TSharedPtr<FEditor> ParentEditor = FGraphBuilder::GetEditorForMetasound(*Source.Get());
+									if (ParentEditor.IsValid())
+									{
+										ParentEditor->CreateAnalyzers();
+									};
+								}
+							}));
+						}
+
 						TSharedRef<SWidget> OutputFormatValueWidget = OutputFormat->CreatePropertyValueWidget();
 						OutputFormatValueWidget->SetEnabled(IsEnabledAttribute);
 
 						static const FText OutputFormatName = LOCTEXT("MetasoundOutputFormatPropertyName", "Output Format");
 						GeneralCategoryBuilder.AddCustomRow(OutputFormatName)
-// 						.EditCondition(
-// 						{
-// 						}), nullptr)
 						.NameContent()
 						[
 							OutputFormat->CreatePropertyNameWidget()

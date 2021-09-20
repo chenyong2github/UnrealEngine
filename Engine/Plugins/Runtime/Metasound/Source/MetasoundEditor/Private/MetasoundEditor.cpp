@@ -237,10 +237,9 @@ namespace Metasound
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Settings"));
 
-
-			InTabManager->RegisterTabSpawner(TabFactory::Names::Analyzers, FOnSpawnTab::CreateLambda([InMetasoundMeter = MetasoundMeter](const FSpawnTabArgs& Args)
+			InTabManager->RegisterTabSpawner(TabFactory::Names::Analyzers, FOnSpawnTab::CreateLambda([InAnalyzerWidget = BuildAnalyzerWidget()](const FSpawnTabArgs& Args)
 			{
-				return TabFactory::CreateAnalyzersTab(InMetasoundMeter, Args);
+				return TabFactory::CreateAnalyzersTab(InAnalyzerWidget, Args);
 			}))
 			.SetDisplayName(LOCTEXT("AnalyzersTab", "Analyzers"))
 			.SetGroup(WorkspaceMenuCategoryRef)
@@ -257,6 +256,39 @@ namespace Metasound
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::GraphCanvas);
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::Inspector);
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::Metasound);
+		}
+
+		TSharedPtr<SWidget> FEditor::BuildAnalyzerWidget() const
+		{
+			if (!OutputMeter.IsValid() || !OutputMeter->GetWidget().IsValid())
+			{
+				return SNullWidget::NullWidget->AsShared();
+			}
+
+			const ISlateStyle* MetaSoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle");
+			FLinearColor BackgroundColor = FLinearColor::Transparent;
+			if (ensure(MetaSoundStyle))
+			{
+				BackgroundColor = MetaSoundStyle->GetColor("MetasoundEditor.Analyzers.BackgroundColor");
+			}
+
+			return SNew(SOverlay)
+			+ SOverlay::Slot()
+			[
+				SNew(SColorBlock)
+				.Color(BackgroundColor)
+			]
+			+ SOverlay::Slot()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.FillHeight(1.0f)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Fill)
+				[
+					OutputMeter->GetWidget().ToSharedRef()
+				]
+			];
 		}
 
 		bool FEditor::IsPlaying() const
@@ -304,10 +336,7 @@ namespace Metasound
 				NameChangeDelegateHandles.Reset();
 			}
 
-			if (MetasoundMeterAnalyzer.IsValid() && ResultsDelegateHandle.IsValid())
-			{
-				MetasoundMeterAnalyzer->OnLatestPerChannelMeterResultsNative.Remove(ResultsDelegateHandle);
-			}
+			DestroyAnalyzers();
 
 			check(GEditor);
 			GEditor->UnregisterForUndo(this);
@@ -339,7 +368,7 @@ namespace Metasound
 
 			CreateAnalyzers();
 
-			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v8")
+			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v9")
 				->AddArea
 				(
 					FTabManager::NewPrimaryArea()
@@ -369,14 +398,14 @@ namespace Metasound
 						->Split
 						(
 							FTabManager::NewStack()
-							->SetSizeCoefficient(0.80f)
+							->SetSizeCoefficient(0.77f)
 							->SetHideTabWell(true)
 							->AddTab(TabFactory::Names::GraphCanvas, ETabState::OpenedTab)
 						)
 						->Split
 						(
 							FTabManager::NewStack()
-							->SetSizeCoefficient(0.05f)
+							->SetSizeCoefficient(0.08f)
 							->SetHideTabWell(true)
 							->AddTab(TabFactory::Names::Analyzers, ETabState::OpenedTab)
 						)
@@ -394,11 +423,6 @@ namespace Metasound
 		UObject* FEditor::GetMetasoundObject() const
 		{
 			return Metasound;
-		}
-
-		UObject* FEditor::GetMetasoundAudioBusObject() const
-		{
-			return MetasoundAudioBus.Get();
 		}
 
 		void FEditor::SetSelection(const TArray<UObject*>& SelectedObjects)
@@ -532,62 +556,28 @@ namespace Metasound
 			return false;
 		}
 
-		void FEditor::OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& InMeterResults)
+		void FEditor::CreateAnalyzers()
 		{
-			if (InMeterAnalyzer && MetasoundMeter.IsValid())
+			if (UMetaSoundSource* MetaSoundSource = Cast<UMetaSoundSource>(Metasound))
 			{
-				FMeterChannelInfo ChannelInfo;
-				ChannelInfo.MeterValue = InMeterResults.MeterValue;
-				ChannelInfo.PeakValue = InMeterResults.PeakValue;
-
-				check(ChannelIndex < MetasoundChannelInfo.Num());
-				MetasoundChannelInfo[ChannelIndex] = ChannelInfo;
-
-				// If it's the last channel, update the widget
-				if (ChannelIndex == MetasoundChannelInfo.Num() - 1)
+				if (!OutputMeter.IsValid())
 				{
-					MetasoundMeter->SetMeterChannelInfo(MetasoundChannelInfo);
+					OutputMeter = MakeShared<FEditorMeter>();
 				}
+				OutputMeter->Init(EAudioBusChannels::Stereo, MetaSoundSource->NumChannels);
+			}
+			else
+			{
+				OutputMeter.Reset();
 			}
 		}
 
-		void FEditor::CreateAnalyzers()
+		void FEditor::DestroyAnalyzers()
 		{
-			MetasoundAudioBus = TStrongObjectPtr<UAudioBus>(NewObject<UAudioBus>());
-			MetasoundAudioBus->AudioBusChannels = EAudioBusChannels::Stereo;
-
-			MetasoundMeterAnalyzer = TStrongObjectPtr<UMeterAnalyzer>(NewObject<UMeterAnalyzer>());
-
-			ResultsDelegateHandle = MetasoundMeterAnalyzer->OnLatestPerChannelMeterResultsNative.AddRaw(this, &FEditor::OnMeterOutput);
-
-			MetasoundMeterAnalyzerSettings = TStrongObjectPtr<UMeterSettings>(NewObject<UMeterSettings>());
-			MetasoundMeterAnalyzerSettings->PeakHoldTime = 4000.0f;
-
-			MetasoundMeterAnalyzer->Settings = MetasoundMeterAnalyzerSettings.Get();
-
-			UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-			MetasoundMeterAnalyzer->StartAnalyzing(EditorWorld, MetasoundAudioBus.Get());
-
-			// Create the audio meter
-			MetasoundMeter = SNew(SAudioMeter);
-
-			// TODO: THIS IS TEMP, WIP
-			MetasoundMeter->SetOrientation(EOrientation::Orient_Vertical);
-			MetasoundMeter->SetBackgroundColor(FLinearColor(0.0075f, 0.0075f, 0.0075, 1.0f));
-			MetasoundMeter->SetMeterBackgroundColor(FLinearColor(0.031f, 0.031f, 0.031f, 1.0f));
-			MetasoundMeter->SetMeterValueColor(FLinearColor(0.025719f, 0.208333f, 0.069907f, 1.0f));
-			MetasoundMeter->SetMeterPeakColor(FLinearColor(0.24349f, 0.708333f, 0.357002f, 1.0f));
-			MetasoundMeter->SetMeterClippingColor(FLinearColor(1.0f, 0.0f, 0.112334f, 1.0f));
-			MetasoundMeter->SetMeterScaleColor(FLinearColor(0.017642f, 0.017642f, 0.017642f, 1.0f));
-			MetasoundMeter->SetMeterScaleLabelColor(FLinearColor(0.442708f, 0.442708f, 0.442708f, 1.0f));
-
-			FMeterChannelInfo DefaultInfo;
-			DefaultInfo.MeterValue = -60.0f;
-			DefaultInfo.PeakValue = -60.0f;
-			MetasoundChannelInfo.Add(DefaultInfo);
-			MetasoundChannelInfo.Add(DefaultInfo);
-			MetasoundMeter->SetMeterChannelInfo(MetasoundChannelInfo);
-
+			if (OutputMeter.IsValid())
+			{
+				OutputMeter->Teardown();
+			}
 		}
 
 		void FEditor::ExtendToolbar()
@@ -790,19 +780,14 @@ namespace Metasound
 
 		void FEditor::Export()
 		{
-			FMetasoundAssetBase* InMetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
-			check(InMetasoundAsset);
-
-			if (!InMetasoundAsset)
-			{
-				return;
-			}
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
 
 			static const FString MetasoundExtension(TEXT(".metasound"));
 
 			// TODO: We could just make this an object.
 			const FString Path = FPaths::ProjectSavedDir() / TEXT("MetaSounds") + FPaths::ChangeExtension(Metasound->GetPathName(), MetasoundExtension);
-			InMetasoundAsset->GetDocumentHandle()->ExportToJSONAsset(Path);
+			MetasoundAsset->GetDocumentHandle()->ExportToJSONAsset(Path);
 		}
 
 		void FEditor::Play()
@@ -831,9 +816,9 @@ namespace Metasound
 						SetPreviewID(ParamInterfaceObject->GetUniqueID());
 					}
 
-					if (MetasoundAudioBus.IsValid())
+					if (UAudioBus* AudioBus = OutputMeter->GetAudioBus())
 					{
-						PreviewComp->SetAudioBusSendPostEffect(MetasoundAudioBus.Get(), 1.0f);
+						PreviewComp->SetAudioBusSendPostEffect(AudioBus, 1.0f);
 					}
 				}
 

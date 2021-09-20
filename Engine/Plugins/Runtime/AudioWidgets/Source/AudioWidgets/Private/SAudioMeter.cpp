@@ -10,21 +10,23 @@ SAudioMeter::SAudioMeter()
 {
 }
 
-void SAudioMeter::Construct(const SAudioMeter::FArguments& InDeclaration)
+void SAudioMeter::Construct(const SAudioMeter::FArguments& InArgs)
 {
-	check(InDeclaration._Style);
+	check(InArgs._Style);
 
-	Orientation = InDeclaration._Orientation;
+	Orientation = InArgs._Orientation;
 
-	BackgroundColor = InDeclaration._BackgroundColor;
-	MeterBackgroundColor = InDeclaration._MeterBackgroundColor;
-	MeterValueColor = InDeclaration._MeterValueColor;
-	MeterPeakColor = InDeclaration._MeterPeakColor;
-	MeterClippingColor = InDeclaration._MeterClippingColor;
+	BackgroundColor = InArgs._BackgroundColor;
+	MeterBackgroundColor = InArgs._MeterBackgroundColor;
+	MeterValueColor = InArgs._MeterValueColor;
+	MeterPeakColor = InArgs._MeterPeakColor;
+	MeterScaleColor = InArgs._MeterScaleColor;
+	MeterScaleLabelColor = InArgs._MeterScaleLabelColor;
+	MeterClippingColor = InArgs._MeterClippingColor;
 
-	Style = InDeclaration._Style;
+	Style = InArgs._Style;
 
-	MeterChannelInfoAttribute = InDeclaration._MeterChannelInfo;
+	MeterChannelInfoAttribute = InArgs._MeterChannelInfo;
 }
 
 int32 SAudioMeter::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const

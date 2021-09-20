@@ -10,6 +10,7 @@
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Templates/SharedPointer.h"
+#include "Widgets/Colors/SColorBlock.h"
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
 
@@ -29,15 +30,15 @@ namespace Metasound
 				const FName Palette = "MetasoundEditor_Palette";
 			}
 
-			TSharedRef<SDockTab> CreateAnalyzersTab(TSharedPtr<SAudioMeter> InAudioMeter, const FSpawnTabArgs& Args)
+			TSharedRef<SDockTab> CreateAnalyzersTab(TSharedPtr<SWidget> InAnalyzerWidget, const FSpawnTabArgs& Args)
 			{
 				check(Args.GetTabId() == Names::Analyzers);
 
 				return SNew(SDockTab)
-					.Label(LOCTEXT("MetasoundAnalyzersTitle", "Analyzers"))
-					[
-						InAudioMeter.ToSharedRef()
-					];
+				.Label(LOCTEXT("MetasoundAnalyzersTitle", "Analyzers"))
+				[
+					InAnalyzerWidget.ToSharedRef()
+				];
 			}
 
 			TSharedRef<SDockTab> CreateGraphCanvasTab(TSharedPtr<SWidget> GraphEditor, const FSpawnTabArgs& Args)
