@@ -987,6 +987,9 @@ protected:
 
 	friend class FEventRouter;
 
+	/** Transforms a pointer event to account for non-standard viewport resolutions */
+	FPointerEvent TransformPointerEvent(const FPointerEvent& PointerEvent, const TSharedPtr<SWindow>& Window) const;
+
 	virtual bool DoesWidgetHaveMouseCaptureByUser(const TSharedPtr<const SWidget> Widget, int32 UserIndex, TOptional<int32> PointerIndex) const override;
 	virtual bool DoesWidgetHaveMouseCapture(const TSharedPtr<const SWidget> Widget) const override;
 
