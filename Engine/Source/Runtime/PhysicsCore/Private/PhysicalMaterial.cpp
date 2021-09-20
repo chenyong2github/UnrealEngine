@@ -43,12 +43,20 @@ UPhysicalMaterial::~UPhysicalMaterial() = default;
 #if WITH_EDITOR
 void UPhysicalMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	bool bSkipUpdate = false;
 	if(!MaterialHandle)
 	{
-		MaterialHandle = MakeUnique<FPhysicsMaterialHandle>();
+		// If we don't currently have a material calling GetPhysicsMaterial will already call update as a side effect
+		// to set the initial state - so we can skip it in that case.
+		bSkipUpdate = true;
 	}
-	// Update PhysX material last so we have a valid Parent
-	FChaosEngineInterface::UpdateMaterial(*MaterialHandle, this);
+
+	FPhysicsMaterialHandle& PhysMaterial = GetPhysicsMaterial();
+
+	if(!bSkipUpdate)
+	{
+		FChaosEngineInterface::UpdateMaterial(*MaterialHandle, this);
+	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
