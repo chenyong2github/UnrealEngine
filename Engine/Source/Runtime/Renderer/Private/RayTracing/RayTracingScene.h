@@ -12,6 +12,7 @@
 #include "RenderGraphResources.h"
 #include "Misc/MemStack.h"
 #include "Containers/ArrayView.h"
+#include "PrimitiveSceneProxy.h"
 
 class FRHIRayTracingScene;
 class FRHIShaderResourceView;
