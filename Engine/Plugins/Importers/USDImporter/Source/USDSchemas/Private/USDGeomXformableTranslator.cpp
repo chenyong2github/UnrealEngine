@@ -211,7 +211,11 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 			return  UsdPrim.IsPseudoRoot() ||
 					UsdPrim.IsModel() ||
 					UsdPrim.IsGroup() ||
-					UsdUtils::HasCompositionArcs( UsdPrim );
+					UsdUtils::HasCompositionArcs( UsdPrim ) ||
+					UsdPrim.HasAttribute( TEXT( "unrealCameraPrimName" ) );  // If we have this, then we correspond to the root component
+																			 // of an exported ACineCameraActor. Let's create an actual
+																			 // CineCameraActor here so that our child camera prim can just
+																			 // take it's UCineCameraComponent instead
 		};
 
 		bNeedsActor =

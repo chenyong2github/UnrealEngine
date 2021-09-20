@@ -4,6 +4,7 @@
 
 #include "USDMemory.h"
 #include "USDPrimConversion.h"
+#include "USDTypesConversion.h"
 
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
@@ -19,12 +20,52 @@
 
 USceneComponent* FUsdGeomCameraTranslator::CreateComponents()
 {
-	constexpr bool bNeedsActor = true;
-	USceneComponent* RootComponent = CreateComponentsEx( TSubclassOf< USceneComponent >( UCineCameraComponent::StaticClass() ), bNeedsActor );
+	USceneComponent* Component = nullptr;
 
-	UpdateComponents( RootComponent );
+	// Check if this prim actually originated from a CineCameraComponent that was the main camera component
+	// of an ACineCameraActor. If so, then the USDGeomXformableTranslator that ran on our parent prim
+	// likely already created an ACineCameraActor for us, and we can just take its already created
+	// main camera component instead
+	{
+		FScopedUsdAllocs UsdAllocs;
 
-	return RootComponent;
+		if ( pxr::UsdPrim UsdPrim{ GetPrim() } )
+		{
+			if ( pxr::UsdPrim UsdParentPrim = UsdPrim.GetParent() )
+			{
+				bool bIsCineCameraActorMainComponent = false;
+				if ( pxr::UsdAttribute Attr = UsdParentPrim.GetAttribute( UnrealToUsd::ConvertToken( TEXT( "unrealCameraPrimName" ) ).Get() ) )
+				{
+					pxr::TfToken CameraComponentPrimName;
+					if ( Attr.Get<pxr::TfToken>( &CameraComponentPrimName ) )
+					{
+						if ( CameraComponentPrimName == UsdPrim.GetName() )
+						{
+							bIsCineCameraActorMainComponent = true;
+						}
+					}
+				}
+
+				if ( Context->ParentComponent && bIsCineCameraActorMainComponent )
+				{
+					ACineCameraActor* ParentOwnerActor = Cast<ACineCameraActor>( Context->ParentComponent->GetOwner() );
+					if ( ParentOwnerActor && ParentOwnerActor->GetRootComponent() == Context->ParentComponent )
+					{
+						Component = ParentOwnerActor->GetCineCameraComponent();
+					}
+				}
+			}
+		}
+	}
+
+	if ( !Component )
+	{
+		bool bNeedsActor = true;
+		Component = CreateComponentsEx( TSubclassOf< USceneComponent >( UCineCameraComponent::StaticClass() ), bNeedsActor );
+	}
+
+	UpdateComponents( Component );
+	return Component;
 }
 
 void FUsdGeomCameraTranslator::UpdateComponents( USceneComponent* SceneComponent )
@@ -36,14 +77,26 @@ void FUsdGeomCameraTranslator::UpdateComponents( USceneComponent* SceneComponent
 
 	FUsdGeomXformableTranslator::UpdateComponents( SceneComponent );
 
-	// The CineCamera component is not actually the root component
-	for ( USceneComponent* ChildComponent : SceneComponent->GetAttachChildren() )
+	UCineCameraComponent* CameraComponent = Cast<UCineCameraComponent>( SceneComponent );
+
+	// If could be that we're a random Camera prim (and not an exported CineCameraComponent of an ACineCameraActor),
+	// and so we'll have spawned a brand new ACineCameraActor for this prim alone and SceneComponent will be pointing
+	// at its root component (which is just an USceneComponent)
+	if ( !CameraComponent )
 	{
-		if ( UCineCameraComponent* CameraComponent = Cast< UCineCameraComponent >( ChildComponent ) )
+		if ( ACineCameraActor* CameraActor = Cast<ACineCameraActor>( SceneComponent->GetOwner() ) )
 		{
-			FScopedUsdAllocs UsdAllocs;
-			UsdToUnreal::ConvertGeomCamera( Context->Stage, pxr::UsdGeomCamera( GetPrim() ), *CameraComponent, Context->Time );
+			if ( SceneComponent == CameraActor->GetRootComponent() )
+			{
+				CameraComponent = CameraActor->GetCineCameraComponent();
+			}
 		}
+	}
+
+	if ( CameraComponent )
+	{
+		FScopedUsdAllocs UsdAllocs;
+		UsdToUnreal::ConvertGeomCamera( Context->Stage, pxr::UsdGeomCamera( GetPrim() ), *CameraComponent, Context->Time );
 	}
 }
 

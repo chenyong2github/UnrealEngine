@@ -281,7 +281,25 @@ bool UsdUtils::HasCompositionArcs( const pxr::UsdPrim& Prim )
 
 UClass* UsdUtils::GetActorTypeForPrim( const pxr::UsdPrim& Prim )
 {
-	if ( Prim.IsA< pxr::UsdGeomCamera >() )
+	// If we have this attribute and a valid child camera prim then we'll assume
+	// we correspond to the root scene component of an exported cine camera actor. Let's assume
+	// then that we have an actual ACineCameraActor class so that the schema translators can
+	// reuse the main UCineCameraComponent for the actual child camera prim
+	bool bIsCineCameraActorRootComponent = false;
+	if ( pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealToUsd::ConvertToken( TEXT( "unrealCameraPrimName" ) ).Get() ) )
+	{
+		pxr::TfToken CameraComponentPrim;
+		if ( Attr.Get<pxr::TfToken>( &CameraComponentPrim ) )
+		{
+			pxr::UsdPrim ChildCameraPrim = Prim.GetChild( CameraComponentPrim );
+			if ( ChildCameraPrim && ChildCameraPrim.IsA<pxr::UsdGeomCamera>() )
+			{
+				bIsCineCameraActorRootComponent = true;
+			}
+		}
+	}
+
+	if ( Prim.IsA< pxr::UsdGeomCamera >() || bIsCineCameraActorRootComponent )
 	{
 		return ACineCameraActor::StaticClass();
 	}
