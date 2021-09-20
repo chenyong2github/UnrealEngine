@@ -2,22 +2,14 @@
 
 #include "SLoadingProfilerToolbar.h"
 
-#include "EditorStyleSet.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Docking/TabManager.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/SToolTip.h"
 
 // Insights
 #include "Insights/InsightsCommands.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/LoadingProfiler/LoadingProfilerCommands.h"
-#include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -45,12 +37,24 @@ void SLoadingProfilerToolbar::Construct(const FArguments& InArgs)
 		{
 			ToolbarBuilder.BeginSection("View");
 			{
-				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleTimingViewVisibility);
-				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleEventAggregationTreeViewVisibility);
-				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleObjectTypeAggregationTreeViewVisibility);
-				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().TogglePackageDetailsTreeViewVisibility);
-				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleExportDetailsTreeViewVisibility);
-				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleRequestsTreeViewVisibility);
+				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleTimingViewVisibility,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingView.Icon.Large"));
+				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleEventAggregationTreeViewVisibility,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleObjectTypeAggregationTreeViewVisibility,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().TogglePackageDetailsTreeViewVisibility,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleExportDetailsTreeViewVisibility,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
+				ToolbarBuilder.AddToolBarButton(FLoadingProfilerCommands::Get().ToggleRequestsTreeViewVisibility,
+					NAME_None, TAttribute<FText>(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "TableTreeView.Icon.Large"));
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -59,7 +63,9 @@ void SLoadingProfilerToolbar::Construct(const FArguments& InArgs)
 		{
 			ToolbarBuilder.BeginSection("Debug");
 			{
-				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().ToggleDebugInfo);
+				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().ToggleDebugInfo,
+					NAME_None, FText(), TAttribute<FText>(),
+					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"));
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -67,45 +73,32 @@ void SLoadingProfilerToolbar::Construct(const FArguments& InArgs)
 
 	TSharedPtr<FUICommandList> CommandList = FInsightsManager::Get()->GetCommandList();
 
-	FToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	Local::FillViewToolbar(ToolbarBuilder);
 
-	FToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	Local::FillRightSideToolbar(RightSideToolbarBuilder);
 
-	// Create the tool bar!
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
 
-		+SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		.FillWidth(1.0)
 		.Padding(0.0f)
 		[
-			SNew(SBorder)
-			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-			[
-				ToolbarBuilder.MakeWidget()
-			]
+			ToolbarBuilder.MakeWidget()
 		]
 
-		+SHorizontalBox::Slot()
+		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		.Padding(0.0f)
 		[
-			SNew(SBorder)
-			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-			[
-				RightSideToolbarBuilder.MakeWidget()
-			]
+			RightSideToolbarBuilder.MakeWidget()
 		]
 	];
 }

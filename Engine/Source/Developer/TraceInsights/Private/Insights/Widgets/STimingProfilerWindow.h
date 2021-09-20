@@ -63,9 +63,6 @@ public:
 	TSharedPtr<SLogView> GetLogView() const { return LogView; }
 
 private:
-	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
-	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-
 	TSharedRef<SDockTab> SpawnTab_FramesTrack(const FSpawnTabArgs& Args);
 	void OnFramesTrackTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 

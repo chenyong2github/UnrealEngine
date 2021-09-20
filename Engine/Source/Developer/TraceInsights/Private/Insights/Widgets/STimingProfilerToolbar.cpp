@@ -2,20 +2,14 @@
 
 #include "STimingProfilerToolbar.h"
 
-#include "EditorStyleSet.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Docking/TabManager.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
 
 // Insights
 #include "Insights/InsightsCommands.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommands.h"
-#include "Insights/TimingProfilerManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -88,24 +82,17 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	Local::FillRightSideToolbar(RightSideToolbarBuilder);
 
-	// Create the tool bar!
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
+		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		.FillWidth(1.0)
 		.Padding(0.0f)
 		[
-			SNew(SBorder)
-			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-			[
-				ToolbarBuilder.MakeWidget()
-			]
+			ToolbarBuilder.MakeWidget()
 		]
 
 		+ SHorizontalBox::Slot()
@@ -114,13 +101,7 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 		.AutoWidth()
 		.Padding(0.0f)
 		[
-			SNew(SBorder)
-			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-			[
-				RightSideToolbarBuilder.MakeWidget()
-			]
+			RightSideToolbarBuilder.MakeWidget()
 		]
 	];
 }

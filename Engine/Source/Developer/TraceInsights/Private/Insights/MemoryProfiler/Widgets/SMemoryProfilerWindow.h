@@ -38,7 +38,6 @@ namespace Insights
 struct FMemoryProfilerTabs
 {
 	// Tab identifiers
-	static const FName ToolbarID;
 	static const FName TimingViewID;
 	static const FName MemInvestigationViewID;
 	static const FName MemTagTreeViewID;
@@ -93,9 +92,6 @@ public:
 	void CloseMemAllocTableTreeTabs();
 
 private:
-	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
-	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
 	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
@@ -180,10 +176,12 @@ private:
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
 
 private:
+	TSharedRef<FMemorySharedState> SharedState;
+
 	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
+
 	TArray<TSharedRef<Insights::FTimeMarker>> CustomTimeMarkers;
-	TSharedPtr<FMemorySharedState> SharedState;
 
 	/** The Memory Investigation (Allocation Queries) view widget */
 	TSharedPtr<SMemInvestigationView> MemInvestigationView;

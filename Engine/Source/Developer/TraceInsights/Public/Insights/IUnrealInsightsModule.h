@@ -44,7 +44,7 @@ struct TRACEINSIGHTS_API FInsightsManagerTabs
 struct TRACEINSIGHTS_API FTimingProfilerTabs
 {
 	// Tab identifiers
-	static const FName ToolbarID;
+	static const FName ToolbarID; // DEPRECATED
 	static const FName FramesTrackID;
 	static const FName TimingViewID;
 	static const FName TimersID;
