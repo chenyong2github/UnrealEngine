@@ -49,9 +49,6 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilterConfigurator> InFilterConfiguratorViewModel)
 {
-	SAssignNew(ExternalScrollbar, SScrollBar)
-	.AlwaysShowScrollbar(true);
-
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -67,42 +64,17 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 			.FillWidth(1.0f)
 			.Padding(0.0f)
 			[
-				SNew(SScrollBox)
-				.Orientation(Orient_Horizontal)
-
-				+ SScrollBox::Slot()
-				[
-					SNew(SOverlay)
-
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
-					[
-						SAssignNew(TreeView, STreeView<FFilterConfiguratorNodePtr>)
-						.ExternalScrollbar(ExternalScrollbar)
-						.SelectionMode(ESelectionMode::None)
-						.TreeItemsSource(&GroupNodes)
-						.OnGetChildren(this, &SFilterConfigurator::TreeView_OnGetChildren)
-						.OnGenerateRow(this, &SFilterConfigurator::TreeView_OnGenerateRow)
-						.ItemHeight(12.0f)
-						.HeaderRow
-						(
-							SAssignNew(TreeViewHeaderRow, SHeaderRow)
-							.Visibility(EVisibility::Visible)
-						)
-					]
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f)
-			[
-				SNew(SBox)
-				.WidthOverride(FOptionalSize(13.0f))
-				[
-					ExternalScrollbar.ToSharedRef()
-				]
+				SAssignNew(TreeView, STreeView<FFilterConfiguratorNodePtr>)
+				.SelectionMode(ESelectionMode::None)
+				.TreeItemsSource(&GroupNodes)
+				.OnGetChildren(this, &SFilterConfigurator::TreeView_OnGetChildren)
+				.OnGenerateRow(this, &SFilterConfigurator::TreeView_OnGenerateRow)
+				.ItemHeight(12.0f)
+				.HeaderRow
+				(
+					SAssignNew(TreeViewHeaderRow, SHeaderRow)
+					.Visibility(EVisibility::Visible)
+				)
 			]
 		]
 	];
@@ -132,6 +104,8 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 	FilterConfiguratorViewModel = InFilterConfiguratorViewModel;
 
 	GroupNodes.Add(FilterConfiguratorViewModel->GetRootNode());
+
+	SetInitialExpansionRec(FilterConfiguratorViewModel->GetRootNode(), true);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -160,6 +134,15 @@ TSharedRef<ITableRow> SFilterConfigurator::TreeView_OnGenerateRow(FFilterConfigu
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFilterConfigurator::SetInitialExpansionRec(const FFilterConfiguratorNodePtr& Node, bool Value)
+{
+	TreeView->SetItemExpansion(Node, Value);
+	for (const Insights::FBaseTreeNodePtr& Child : Node->GetChildren())
+	{
+		SetInitialExpansionRec(StaticCastSharedPtr<FFilterConfiguratorNode, Insights::FBaseTreeNode>(Child), Value);
+	}
+}
 
 } // namespace Insights
 

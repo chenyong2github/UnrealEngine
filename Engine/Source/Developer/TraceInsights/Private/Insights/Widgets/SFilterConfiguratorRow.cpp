@@ -5,11 +5,13 @@
 #include "EditorStyleSet.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SlateOptMacros.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSuggestionTextBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
@@ -38,9 +40,13 @@ void SFilterConfiguratorRow::Construct(const FArguments& InArgs, const TSharedRe
 TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName& InColumnName)
 {
 	TSharedRef<SHorizontalBox> GeneratedWidget = SNew(SHorizontalBox);
+
+	TSharedRef<SHorizontalBox> LeftBox = SNew(SHorizontalBox);
+	TSharedRef<SHorizontalBox> RightBox = SNew(SHorizontalBox);
+
 	if (!FilterConfiguratorNodePtr->IsGroup())
 	{
-		GeneratedWidget->AddSlot()
+		LeftBox->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
@@ -50,7 +56,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			];
 
 		// Filter combo box
-		GeneratedWidget->AddSlot()
+		LeftBox->AddSlot()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -73,7 +79,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			];
 
 		// Operator combo box
-		GeneratedWidget->AddSlot()
+		LeftBox->AddSlot()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.FillWidth(1.0)
@@ -89,10 +95,10 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 					.OptionsSource(GetAvailableFilterOperators())
 					.OnSelectionChanged(this, &SFilterConfiguratorRow::AvailableFilterOperators_OnSelectionChanged)
 					.OnGenerateWidget(this, &SFilterConfiguratorRow::AvailableFilterOperators_OnGenerateWidget)
-						[
+					[
 						SNew(STextBlock)
 						.Text(this, &SFilterConfiguratorRow::AvailableFilterOperators_GetSelectionText)
-						]
+					]
 				]
 			];
 
@@ -100,11 +106,10 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 		{
 			SuggestionTextBoxValue = FilterConfiguratorNodePtr->GetTextBoxValue();
 
-			GeneratedWidget->AddSlot()
+			LeftBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Left)
-				.FillWidth(1.0)
 				.Padding(2.0f)
 				[
 					SNew(SSuggestionTextBox)
@@ -120,46 +125,41 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 		}
 		else
 		{
-			GeneratedWidget->AddSlot()
+			LeftBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Left)
 				.FillWidth(1.0)
 				.Padding(2.0f)
 				[
-				SNew(SEditableTextBox)
-				.MinDesiredWidth(50.0f)
-				.OnTextCommitted(this, &SFilterConfiguratorRow::OnTextBoxValueCommitted)
-				.Text(this, &SFilterConfiguratorRow::GetTextBoxValue)
-				.ToolTipText(this, &SFilterConfiguratorRow::GetTextBoxTooltipText)
-				.HintText(this, &SFilterConfiguratorRow::GetTextBoxHintText)
-				.OnVerifyTextChanged(this, &SFilterConfiguratorRow::TextBox_OnVerifyTextChanged)
+					SNew(SEditableTextBox)
+					.MinDesiredWidth(50.0f)
+					.OnTextCommitted(this, &SFilterConfiguratorRow::OnTextBoxValueCommitted)
+					.Text(this, &SFilterConfiguratorRow::GetTextBoxValue)
+					.ToolTipText(this, &SFilterConfiguratorRow::GetTextBoxTooltipText)
+					.HintText(this, &SFilterConfiguratorRow::GetTextBoxHintText)
+					.OnVerifyTextChanged(this, &SFilterConfiguratorRow::TextBox_OnVerifyTextChanged)
 				];
 		}
 			
-		GeneratedWidget->AddSlot()
+		RightBox->AddSlot()
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			.Padding(2.0f)
+			.HAlign(HAlign_Right)
 			.AutoWidth()
 			[
 				SNew(SButton)
 				.ToolTipText(LOCTEXT("DeleteFilterTooptip", "Delete Filter"))
-				.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, -1.0f))
 				.OnClicked(this, &SFilterConfiguratorRow::DeleteFilter_OnClicked)
 				.Content()
 				[
 					SNew(SImage)
-					.ColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.0f, 0.0f, 1.0f)))
-					.Image(FInsightsStyle::Get().GetBrush("Mem.Remove.Small"))
+					.Image(FCoreStyle::Get().GetBrush("Icons.Delete"))
 				]
 			];
 	}
 	else
 	{
-		OwnerTablePtr.Pin()->Private_SetItemExpansion(FilterConfiguratorNodePtr, true);
-
-		GeneratedWidget->AddSlot()
+		LeftBox->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
@@ -169,7 +169,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				.ShouldDrawWires(true)
 			];
 
-		GeneratedWidget->AddSlot()
+		LeftBox->AddSlot()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -191,54 +191,120 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				]
 			];
 		
-		GeneratedWidget->AddSlot()
-			.HAlign(HAlign_Left)
+		RightBox->AddSlot()
+			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(2.0f)
 			[
 				SNew(SButton)
-				.Text(LOCTEXT("AddFilter", "Add Filter"))
 				.ToolTipText(LOCTEXT("AddFilterDesc", "Add a filter node as a child to this group node."))
 				.OnClicked(this, &SFilterConfiguratorRow::AddFilter_OnClicked)
+				.Content()
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FCoreStyle::Get().GetBrush("Icons.Filter"))
+					]
+
+					+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Margin(FMargin(2.0, 0.0f, 0.0f, 0.0f))
+							.Text(LOCTEXT("AddFilter", "Add Filter"))
+						]
+					]
 			];
 
-		GeneratedWidget->AddSlot()
-			.HAlign(HAlign_Left)
+		RightBox->AddSlot()
+			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(2.0f)
 			[
 				SNew(SButton)
-				.Text(LOCTEXT("AddGroup", "Add Group"))
 				.ToolTipText(LOCTEXT("AddGroupDesc", "Add a group node as a child to this group node."))
 				.OnClicked(this, &SFilterConfiguratorRow::AddGroup_OnClicked)
+				.Content()
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.Outliner"))
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Margin(FMargin(2.0, 0.0f, 0.0f, 0.0f))
+						.Text(LOCTEXT("AddGroup", "Add Group"))
+					]
+				]
 			];
 
 		// Do not show Delete button for the Root node
-		if (FilterConfiguratorNodePtr->GetGroupPtr().IsValid())
-		{
-			GeneratedWidget->AddSlot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Left)
-				.Padding(2.0f)
-				.AutoWidth()
+		EVisibility DeleteVisibility = FilterConfiguratorNodePtr->GetGroupPtr().IsValid() ? EVisibility::Visible : EVisibility::Hidden;
+		RightBox->AddSlot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ToolTipText(LOCTEXT("DeleteGroupTooptip", "Delete Group"))
+				.OnClicked(this, &SFilterConfiguratorRow::DeleteGroup_OnClicked)
+				.HAlign(HAlign_Right)
+				.Visibility(DeleteVisibility)
+				.Content()
 				[
-					SNew(SButton)
-					.ToolTipText(LOCTEXT("DeleteGroupTooptip", "Delete Group"))
-					.ContentPadding(FMargin(2.0f, 0.0f, 2.0f, -1.0f))
-					.OnClicked(this, &SFilterConfiguratorRow::DeleteGroup_OnClicked)
-					.Content()
-					[
-						SNew(SImage)
-						.ColorAndOpacity(FSlateColor(FLinearColor(0.5f, 0.0f, 0.0f, 1.0f)))
-						.Image(FInsightsStyle::Get().GetBrush("Mem.Remove.Small"))
-					]
-				];
-		}
+					SNew(SImage)
+					.Image(FCoreStyle::Get().GetBrush("Icons.Delete"))
+				]
+			];
 	}
 
-	return GeneratedWidget;
+	GeneratedWidget->AddSlot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.AutoWidth()
+		[
+			LeftBox
+		];
+
+	GeneratedWidget->AddSlot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.FillWidth(1.0f)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
+			.HAlign(EHorizontalAlignment::HAlign_Fill)
+			.BorderBackgroundColor(FLinearColor::Black)
+			.BorderImage(FEditorStyle::GetBrush("Border"))
+			[
+				RightBox
+			]
+		];
+
+	return	SNew(SBorder)
+			.Padding(FMargin(2))
+			.BorderBackgroundColor(FLinearColor::Black)
+			.BorderImage(FEditorStyle::GetBrush("Border"))
+			[
+				GeneratedWidget
+			];
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

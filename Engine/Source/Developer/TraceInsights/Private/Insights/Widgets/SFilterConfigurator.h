@@ -59,8 +59,9 @@ public:
 private:
 	void InitCommandList();
 
-private:
+	void SetInitialExpansionRec(const FFilterConfiguratorNodePtr& Node, bool Value);
 
+private:
 	TSharedPtr<class FFilterConfigurator> FilterConfiguratorViewModel;
 
 	/** The tree widget which holds the filters. */

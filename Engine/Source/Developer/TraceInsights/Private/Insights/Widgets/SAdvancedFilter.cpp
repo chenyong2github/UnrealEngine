@@ -78,8 +78,9 @@ void SAdvancedFilter::Construct(const FArguments& InArgs, TSharedPtr<FFilterConf
 			.Padding(1.0f)
 			[
 				SNew(SButton)
+				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("PrimaryButton"))
 				.Text(LOCTEXT("OK", "OK"))
-				.ToolTipText(LOCTEXT("OKDESC", "Apply the changes to the filters."))
+				.ToolTipText(LOCTEXT("OKDesc", "Apply the changes to the filters."))
 				.OnClicked(this, &SAdvancedFilter::OK_OnClicked)
 			]
 
