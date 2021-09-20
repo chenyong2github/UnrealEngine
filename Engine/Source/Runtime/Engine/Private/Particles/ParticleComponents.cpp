@@ -3924,6 +3924,13 @@ void UParticleSystemComponent::OnRegister()
 		// Force it to LODLevel 0
 		LODLevel = 0;
 	}
+
+	// Deal with the case where the particle component is attached to an actor in a hidden sublevel. Without this, the component will be visible instead of being hidden as well.
+	if (CachedLevelCollection == nullptr && GetOwner() == nullptr && IsValid(GetAttachParent()))
+	{
+		const ULevel* const AttachParentLevel = GetAttachParent()->GetComponentLevel();
+		CachedLevelCollection = AttachParentLevel ? AttachParentLevel->GetCachedLevelCollection() : nullptr;
+	}
 }
 
 void UParticleSystemComponent::OnUnregister()
