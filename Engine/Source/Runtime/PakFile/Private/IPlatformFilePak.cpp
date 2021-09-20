@@ -266,27 +266,24 @@ void FPakPlatformFile::GetPrunedFilenamesInChunk(const FString& InPakFilename, c
 
 void FPakPlatformFile::GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList)
 {
-	if (FIoDispatcher::IsInitialized())
+	FPakPlatformFile* PakPlatformFile = static_cast<FPakPlatformFile*>(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+	if (!PakPlatformFile || !PakPlatformFile->IoDispatcherFileBackend.IsValid())
 	{
-		FPakPlatformFile* PakPlatformFile = static_cast<FPakPlatformFile*>(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
-		if (!PakPlatformFile)
+		return;
+	}
+	FScopeLock ScopedLock(&PakPlatformFile->PakListCritical);
+	for (const FPakListEntry& PakListEntry : PakPlatformFile->PakFiles)
+	{
+		if (FPaths::GetBaseFilename(PakListEntry.PakFile->PakFilename) == InContainerName)
 		{
-			return;
-		}
-		FScopeLock ScopedLock(&PakPlatformFile->PakListCritical);
-		for (const FPakListEntry& PakListEntry : PakPlatformFile->PakFiles)
-		{
-			if (FPaths::GetBaseFilename(PakListEntry.PakFile->PakFilename) == InContainerName)
+			TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+			FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(PakListEntry.PakFile->PakFilename, TEXT("")), GetRegisteredEncryptionKeys().GetKeys());
+			if (Status.IsOk())
 			{
-				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
-				FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(PakListEntry.PakFile->PakFilename, TEXT("")), GetRegisteredEncryptionKeys().GetKeys());
-				if (Status.IsOk())
-				{
-					IoStoreReader->GetFilenamesByBlockIndex(InBlockIndex, OutFileList);
-				}
-	
-				break;
+				IoStoreReader->GetFilenamesByBlockIndex(InBlockIndex, OutFileList);
 			}
+	
+			break;
 		}
 	}
 }
@@ -308,26 +305,23 @@ void FPakPlatformFile::GetPrunedFilenamesInPakFile(const FString& InPakFilename,
 
 void FPakPlatformFile::GetFilenamesFromIostoreContainer(const FString& InContainerName, TArray<FString>& OutFileList)
 {
-	if (FIoDispatcher::IsInitialized())
+	FPakPlatformFile* PakPlatformFile = static_cast<FPakPlatformFile*>(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
+	if (!PakPlatformFile || !PakPlatformFile->IoDispatcherFileBackend.IsValid())
 	{
-		FPakPlatformFile* PakPlatformFile = static_cast<FPakPlatformFile*>(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
-		if (!PakPlatformFile)
+		return;
+	}
+	FScopeLock ScopedLock(&PakPlatformFile->PakListCritical);
+	for (const FPakListEntry& PakListEntry : PakPlatformFile->PakFiles)
+	{
+		if (FPaths::GetBaseFilename(PakListEntry.PakFile->PakFilename) == InContainerName)
 		{
-			return;
-		}
-		FScopeLock ScopedLock(&PakPlatformFile->PakListCritical);
-		for (const FPakListEntry& PakListEntry : PakPlatformFile->PakFiles)
-		{
-			if (FPaths::GetBaseFilename(PakListEntry.PakFile->PakFilename) == InContainerName)
+			TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
+			FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(PakListEntry.PakFile->PakFilename, TEXT("")), GetRegisteredEncryptionKeys().GetKeys());
+			if (Status.IsOk())
 			{
-				TUniquePtr<FIoStoreReader> IoStoreReader(new FIoStoreReader());
-				FIoStatus Status = IoStoreReader->Initialize(*FPaths::ChangeExtension(PakListEntry.PakFile->PakFilename, TEXT("")), GetRegisteredEncryptionKeys().GetKeys());
-				if (Status.IsOk())
-				{
-					IoStoreReader->GetFilenames(OutFileList);
-				}
-				break;
+				IoStoreReader->GetFilenames(OutFileList);
 			}
+			break;
 		}
 	}
 }
@@ -4649,7 +4643,7 @@ void FPakPlatformFile::Tick()
 #if CSV_PROFILER
 
 	int64 LocalTotalLoaded = GTotalLoaded;
-	if (FIoDispatcher::IsInitialized())
+	if (IoDispatcherFileBackend.IsValid())
 	{
 		LocalTotalLoaded += FIoDispatcher::Get().GetTotalLoaded();
 	}
@@ -7327,34 +7321,26 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	FString GlobalUTocPath = FString::Printf(TEXT("%sPaks/global.utoc"), *FPaths::ProjectContentDir());
 	if (!IsRunningCookOnTheFly() && FPlatformFileManager::Get().GetPlatformFile().FileExists(*GlobalUTocPath))
 	{
-		FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
-		if (IoDispatcherInitStatus.IsOk())
+		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+		IoDispatcherFileBackend = CreateIoDispatcherFileBackend();
+		IoDispatcher.Mount(IoDispatcherFileBackend.ToSharedRef());
+		TIoStatusOr<FIoContainerId> IoDispatcherMountStatus = IoDispatcherFileBackend->Mount(*FPaths::ChangeExtension(GlobalUTocPath, TEXT("")), 0, FGuid(), FAES::FAESKey());
+		if (IoDispatcherMountStatus.IsOk())
 		{
-			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-			IoDispatcherFileBackend = CreateIoDispatcherFileBackend();
-			IoDispatcher.Mount(IoDispatcherFileBackend.ToSharedRef());
-			TIoStatusOr<FIoContainerId> IoDispatcherMountStatus = IoDispatcherFileBackend->Mount(*FPaths::ChangeExtension(GlobalUTocPath, TEXT("")), 0, FGuid(), FAES::FAESKey());
-			if (IoDispatcherMountStatus.IsOk())
+			UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
+			IoDispatcher.OnSignatureError().AddLambda([](const FIoSignatureError& Error)
 			{
-				UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
-				IoDispatcher.OnSignatureError().AddLambda([](const FIoSignatureError& Error)
-				{
-					FPakChunkSignatureCheckFailedData FailedData(Error.ContainerName, TPakChunkHash(), TPakChunkHash(), Error.BlockIndex);
+				FPakChunkSignatureCheckFailedData FailedData(Error.ContainerName, TPakChunkHash(), TPakChunkHash(), Error.BlockIndex);
 #if !PAKHASH_USE_CRC
-					FailedData.ExpectedHash = Error.ExpectedHash;
-					FailedData.ReceivedHash = Error.ActualHash;
+				FailedData.ExpectedHash = Error.ExpectedHash;
+				FailedData.ReceivedHash = Error.ActualHash;
 #endif
-					FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(FailedData);
-				});
-			}
-			else
-			{
-				UE_LOG(LogPakFile, Error, TEXT("Failed to mount I/O dispatcher container: '%s'"), *IoDispatcherMountStatus.Status().ToString());
-			}
+				FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(FailedData);
+			});
 		}
 		else
 		{
-			UE_LOG(LogPakFile, Error, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
+			UE_LOG(LogPakFile, Error, TEXT("Failed to mount I/O dispatcher container: '%s'"), *IoDispatcherMountStatus.Status().ToString());
 		}
 	}
 
@@ -7678,7 +7664,7 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 			}
 		}
 
-		if (FIoDispatcher::IsInitialized())
+		if (IoDispatcherFileBackend.IsValid())
 		{
 			FString ContainerPath = FPaths::ChangeExtension(InPakFilename, FString());
 			FIoStatus Status = FIoDispatcher::Get().Unmount(*ContainerPath);

@@ -69,8 +69,8 @@
 #include "IPlatformFilePak.h"
 #endif
 
-#ifndef USE_IO_DISPATCHER 
-#define USE_IO_DISPATCHER (WITH_IOSTORE_IN_EDITOR || !(IS_PROGRAM || WITH_EDITOR))
+#ifndef USE_IO_DISPATCHER
+#define USE_IO_DISPATCHER (WITH_ENGINE || WITH_IOSTORE_IN_EDITOR || !(IS_PROGRAM || WITH_EDITOR))
 #endif
 #if USE_IO_DISPATCHER
 #include "IO/IoDispatcher.h"
@@ -1807,6 +1807,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
+#if USE_IO_DISPATCHER
+	if (FIoStatus Status = FIoDispatcher::Initialize(); !Status.IsOk())
+	{
+		UE_LOG(LogInit, Error, TEXT("Failed to initialize I/O dispatcher: '%s'"), *Status.ToString());
+		return 1;
+	}
+#endif
+
 	{
 		SCOPED_BOOT_TIMING("BeginPreInitTextLocalization");
 		BeginPreInitTextLocalization();
@@ -2543,7 +2551,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 #if USE_IO_DISPATCHER
-	if (FIoDispatcher::IsInitialized())
 	{
 		SCOPED_BOOT_TIMING("InitIoDispatcher");
 		FIoDispatcher::InitializePostSettings();

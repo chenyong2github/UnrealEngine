@@ -758,18 +758,25 @@ FIoDispatcher::OnSignatureError()
 	return Impl->OnSignatureError();
 }
 
+static bool
+HasScriptObjectsChunk(FIoDispatcher& Dispatcher)
+{
+	static bool bHasScriptObjectsChunk = Dispatcher.DoesChunkExist(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects));
+	return bHasScriptObjectsChunk;
+}
+
 bool
 FIoDispatcher::IsInitialized()
 {
-	return GIoDispatcher.IsValid();
+	return GIoDispatcher && HasScriptObjectsChunk(*GIoDispatcher);
 }
 
 FIoStatus
 FIoDispatcher::Initialize()
 {
 	LLM_SCOPE(ELLMTag::FileSystem);
+	check(!GIoDispatcher);
 	GIoDispatcher = MakeUnique<FIoDispatcher>();
-
 	return GIoDispatcher->Impl->Initialize();
 }
 
@@ -777,7 +784,6 @@ void
 FIoDispatcher::InitializePostSettings()
 {
 	LLM_SCOPE(ELLMTag::FileSystem);
-
 	check(GIoDispatcher);
 	bool bSuccess = GIoDispatcher->Impl->InitializePostSettings();
 	UE_CLOG(!bSuccess, LogIoDispatcher, Fatal, TEXT("Failed to initialize IoDispatcher"));
