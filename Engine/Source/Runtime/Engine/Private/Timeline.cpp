@@ -558,6 +558,20 @@ float FTimeline::GetTimelineLength() const
 	}
 }
 
+float FTimeline::GetScaledTimelineLength() const
+{
+	const float CurrentPlayRate = GetPlayRate();
+	if(CurrentPlayRate != 0.0f)
+	{
+		return GetTimelineLength() / CurrentPlayRate;	
+	}
+	else
+	{
+		UE_LOG(LogTimeline, Error, TEXT("Invalid timeline PlayRate!"));
+		return 0.0f;
+	}
+}
+
 /** Sets the timeline length mode */
 void FTimeline::SetTimelineLengthMode(ETimelineLengthMode NewMode)
 {
@@ -810,6 +824,11 @@ void UTimelineComponent::SetNewTime (float NewTime)
 float UTimelineComponent::GetTimelineLength() const
 {
 	return TheTimeline.GetTimelineLength();
+}
+
+float UTimelineComponent::GetScaledTimelineLength() const
+{
+	return TheTimeline.GetScaledTimelineLength();
 }
 
 void UTimelineComponent::SetTimelineLength(float NewLength)

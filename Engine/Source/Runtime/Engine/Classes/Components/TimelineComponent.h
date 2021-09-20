@@ -316,6 +316,9 @@ public:
 	/** Get length of the timeline */
 	ENGINE_API float GetTimelineLength() const;
 
+	/** Get length of the timeline divided by the play rate */
+	ENGINE_API float GetScaledTimelineLength() const;
+
 	/** Sets the timeline length mode */
 	ENGINE_API void SetTimelineLengthMode(ETimelineLengthMode NewMode);
 
@@ -461,6 +464,10 @@ public:
 	/** Get length of the timeline */
 	UFUNCTION(BlueprintCallable, Category="Components|Timeline")
 	ENGINE_API float GetTimelineLength() const;
+
+	/** Get length of the timeline divided by the play rate */
+	UFUNCTION(BlueprintCallable, Category="Components|Timeline")
+	ENGINE_API float GetScaledTimelineLength() const;
 
 	/** Set length of the timeline */
 	UFUNCTION(BlueprintCallable, Category="Components|Timeline")
