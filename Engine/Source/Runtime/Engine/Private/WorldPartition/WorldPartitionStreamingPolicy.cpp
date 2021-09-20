@@ -13,6 +13,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
+#include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -111,7 +112,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 			const FVector ViewLocationLocal = WorldToLocal.TransformPosition(ViewLocation);
 			const FRotator ViewRotationLocal = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
 			static const FName NAME_SIE(TEXT("SIE"));
-			StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false));
+			StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false, EStreamingSourcePriority::Default));
 		}
 		else
 #endif
@@ -134,7 +135,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 						ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
 						ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();						
 						EStreamingSourceTargetState TargetState = Player->PlayerController->StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
-						StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, TargetState, /*bBlockOnSlowLoading=*/true));
+						StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, TargetState, /*bBlockOnSlowLoading=*/true, EStreamingSourcePriority::Default));
 					}
 				}
 			}
@@ -143,17 +144,13 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 		for (IWorldPartitionStreamingSourceProvider* StreamingSourceProvider : WorldPartition->StreamingSourceProviders)
 		{
 			FWorldPartitionStreamingSource StreamingSource;
+			// Default Streaming Source provider's priority to be less than those based on player controllers
+			StreamingSource.Priority = EStreamingSourcePriority::Low;
 			if (StreamingSourceProvider->GetStreamingSource(StreamingSource))
 			{
 				// Transform to Local
 				StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
 				StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
-				// If none is provided, default Streaming Source provider's priority to be less than those based on player controllers
-				if (StreamingSource.Priority == EStreamingSourcePriority::Default)
-				{
-					StreamingSource.Priority = EStreamingSourcePriority::Low;
-				}
-
 				StreamingSources.Add(StreamingSource);
 			}
 		}
@@ -228,7 +225,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			// Activation superseeds Loading
 			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
 		}
-	} 
+	}
 	else 
 	{
 		// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
@@ -275,6 +272,10 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = LoadStreamingCells.Difference(LoadedCells);
 	TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = ActivatedCells.Union(LoadedCells).Difference(ActivateStreamingCells.Union(LoadStreamingCells));
 
+#if !UE_BUILD_SHIPPING
+	UpdateDebugCellsStreamingPriority(ActivateStreamingCells, LoadStreamingCells);
+#endif
+
 	if(World->bMatchStarted)
 	{
 		WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Verbose);
@@ -307,6 +308,27 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	FrameActivateCells.Reset();
 	FrameLoadCells.Reset();
 }
+
+#if !UE_BUILD_SHIPPING
+void UWorldPartitionStreamingPolicy::UpdateDebugCellsStreamingPriority(const TSet<const UWorldPartitionRuntimeCell*>& ActivateStreamingCells, const TSet<const UWorldPartitionRuntimeCell*>& LoadStreamingCells)
+{
+	if (FWorldPartitionDebugHelper::IsRuntimeSpatialHashCellStreamingPriotityShown())
+	{
+		TSet<const UWorldPartitionRuntimeCell*> CellsToSort;
+		CellsToSort.Append(ActivateStreamingCells);
+		CellsToSort.Append(LoadStreamingCells);
+
+		TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedCells;
+		WorldPartition->RuntimeHash->SortStreamingCellsByImportance(CellsToSort, StreamingSources, SortedCells);
+		const int32 CellCount = SortedCells.Num();
+		int32 CellPrio = 0;
+		for (const UWorldPartitionRuntimeCell* SortedCell : SortedCells)
+		{
+			const_cast<UWorldPartitionRuntimeCell*>(SortedCell)->SetDebugStreamingPriority(float(CellPrio++) / CellCount);
+		}
+	}
+}
+#endif
 
 void UWorldPartitionStreamingPolicy::UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate)
 {		

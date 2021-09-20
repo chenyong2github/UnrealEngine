@@ -302,13 +302,14 @@ struct FWorldPartitionStreamingQuerySource
 /**
  * Streaming Source Priority
  */
-enum class EStreamingSourcePriority : int32
+UENUM(BlueprintType)
+enum class EStreamingSourcePriority : uint8
 {
-	Highest = INT_MIN,
-	High = -4096,
-	Normal = 0,
-	Low = 4096,
-	Lowest = INT_MAX,
+	Highest = 0,
+	High = 64,
+	Normal = 128,
+	Low = 192,
+	Lowest = 255,
 	Default = Normal
 };
 
@@ -324,7 +325,7 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, TargetGrid(NAME_None)
 	{}
 
-	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, bool bInBlockOnSlowLoading, EStreamingSourcePriority InPriority = EStreamingSourcePriority::Default, float InVelocity = 0.f)
+	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, bool bInBlockOnSlowLoading, EStreamingSourcePriority InPriority, float InVelocity = 0.f)
 		: Name(InName)
 		, Location(InLocation)
 		, Rotation(InRotation)

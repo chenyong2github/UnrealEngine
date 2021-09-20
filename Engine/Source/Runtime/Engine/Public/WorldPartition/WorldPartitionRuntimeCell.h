@@ -10,6 +10,12 @@
 #include "Algo/AnyOf.h"
 #include "WorldPartitionRuntimeCell.generated.h"
 
+enum class EWorldPartitionRuntimeCellVisualizeMode
+{
+	StreamingPriority,
+	StreamingStatus
+};
+
 USTRUCT()
 struct FWorldPartitionRuntimeCellObjectMapping
 {
@@ -122,7 +128,7 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual bool CanAddToWorld() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanAddToWorld, return false;);
 	virtual ULevel* GetLevel() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetLevel, return nullptr;);
 	virtual EWorldPartitionRuntimeCellState GetCurrentState() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetCurrentState, return EWorldPartitionRuntimeCellState::Unloaded;);
-	virtual FLinearColor GetDebugColor() const { return FLinearColor::Black; }
+	virtual FLinearColor GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const { static const FLinearColor DefaultColor = FLinearColor::Black.CopyWithNewOpacity(0.25f); return DefaultColor; }
 	virtual bool IsAlwaysLoaded() const { return bIsAlwaysLoaded; }
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bIsAlwaysLoaded = bInIsAlwaysLoaded; }
 	virtual void SetPriority(int32 InPriority) { Priority = InPriority; }
@@ -167,7 +173,13 @@ class UWorldPartitionRuntimeCell : public UObject
 	
 	bool GetIsHLOD() const { return bIsHLOD; }
 
+#if !UE_BUILD_SHIPPING
+	void SetDebugStreamingPriority(float InDebugStreamingPriority) { DebugStreamingPriority = InDebugStreamingPriority; }
+#endif
+
 protected:
+	FLinearColor GetDebugStreamingPriorityColor() const;
+
 #if WITH_EDITOR
 	void UpdateDebugName();
 #endif
@@ -202,11 +214,20 @@ private:
 	UPROPERTY()
 	bool bBlockOnSlowLoading;
 
+protected:
 	// Source Priority
-	mutable int32 CachedSourcePriority;
+	mutable uint8 CachedMinSourcePriority;
+
+	// Source Priorities
+	mutable TArray<float> CachedSourcePriorityWeights;
 
 	// Epoch used to dirty cache
 	mutable int32 CachedSourceInfoEpoch;
 
 	static int32 StreamingSourceCacheEpoch;
+
+#if !UE_BUILD_SHIPPING
+	// Represents the streaming priority relative to other cells
+	float DebugStreamingPriority;
+#endif
 };

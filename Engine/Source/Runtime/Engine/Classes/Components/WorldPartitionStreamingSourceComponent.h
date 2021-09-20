@@ -60,6 +60,9 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
 	TArray<FStreamingSourceShape> Shapes;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
+	EStreamingSourcePriority Priority;
+
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif

@@ -15,8 +15,11 @@ UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer&
 : Super(ObjectInitializer)
 , bIsAlwaysLoaded(false)
 , Priority(0)
-, CachedSourcePriority(0)
+, CachedMinSourcePriority((uint8)EStreamingSourcePriority::Lowest)
 , CachedSourceInfoEpoch(INT_MIN)
+#if !UE_BUILD_SHIPPING
+, DebugStreamingPriority(-1.f)
+#endif
 {}
 
 #if WITH_EDITOR
@@ -74,17 +77,21 @@ bool UWorldPartitionRuntimeCell::CacheStreamingSourceInfo(const UWorldPartitionR
 	{
 		CachedSourceInfoEpoch = UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch;
 		bWasCacheDirtied = true;
+		CachedSourcePriorityWeights.Reset();
 	}
 
+	static_assert((uint8)EStreamingSourcePriority::Lowest == 255);
+	CachedSourcePriorityWeights.Add(1.f - ((float)Info.Source.Priority / 255.f));
+
 	// If cache was dirtied, use value, else use minimum with existing cached value
-	CachedSourcePriority = bWasCacheDirtied ? (int32)Info.Source.Priority : FMath::Min((int32)Info.Source.Priority, CachedSourcePriority);
+	CachedMinSourcePriority = bWasCacheDirtied ? (uint8)Info.Source.Priority : FMath::Min((uint8)Info.Source.Priority, CachedMinSourcePriority);
 	return bWasCacheDirtied;
 }
 
 int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* Other) const
 {
 	// Source priority (lower value is higher prio)
-	const int32 Comparison = CachedSourcePriority - Other->CachedSourcePriority;
+	const int32 Comparison = (int32)CachedMinSourcePriority - (int32)Other->CachedMinSourcePriority;
 	// Cell priority (lower value is higher prio)
 	return (Comparison != 0) ? Comparison : (Priority - Other->Priority);
 }
@@ -94,5 +101,17 @@ bool UWorldPartitionRuntimeCell::IsDebugShown() const
 	return FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(GridName) &&
 		   FWorldPartitionDebugHelper::IsDebugStreamingStatusShown(GetStreamingStatus()) &&
 		   FWorldPartitionDebugHelper::AreDebugDataLayersShown(DataLayers) &&
-		   FWorldPartitionDebugHelper::IsDebugCellNameShow(DebugName);
+		   FWorldPartitionDebugHelper::IsDebugCellNameShown(DebugName);
+}
+
+FLinearColor UWorldPartitionRuntimeCell::GetDebugStreamingPriorityColor() const
+{
+#if !UE_BUILD_SHIPPING
+	if ((CachedSourceInfoEpoch == UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch) &&
+		(DebugStreamingPriority >= 0.f && DebugStreamingPriority <= 1.f))
+	{
+		return FWorldPartitionDebugHelper::GetHeatMapColor(1.f - DebugStreamingPriority);
+	}
+#endif
+	return FLinearColor::Transparent;
 }

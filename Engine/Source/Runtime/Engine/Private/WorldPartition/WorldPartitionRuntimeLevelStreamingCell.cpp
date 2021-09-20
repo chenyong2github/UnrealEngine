@@ -7,6 +7,7 @@
 
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/WorldPartitionDebugHelper.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
@@ -64,11 +65,26 @@ bool UWorldPartitionRuntimeLevelStreamingCell::IsLoading() const
 	return Super::IsLoading();
 }
 
-FLinearColor UWorldPartitionRuntimeLevelStreamingCell::GetDebugColor() const
+FLinearColor UWorldPartitionRuntimeLevelStreamingCell::GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const
 {
-	FLinearColor Color = LevelStreaming ? ULevelStreaming::GetLevelStreamingStatusColor(GetStreamingStatus()) : FLinearColor::Black;
-	Color.A = 0.25f / (Level + 1);
-	return Color;
+	switch (VisualizeMode)
+	{
+		case EWorldPartitionRuntimeCellVisualizeMode::StreamingPriority:
+		{
+			return GetDebugStreamingPriorityColor();
+		}
+		case EWorldPartitionRuntimeCellVisualizeMode::StreamingStatus:
+		{
+			// Return streaming status color
+			FLinearColor Color = LevelStreaming ? ULevelStreaming::GetLevelStreamingStatusColor(GetStreamingStatus()) : FLinearColor::Black;
+			Color.A = 0.25f / (Level + 1);
+			return Color;
+		}
+		default:
+		{
+			return Super::GetDebugColor(VisualizeMode);
+		}
+	}
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::SetIsAlwaysLoaded(bool bInIsAlwaysLoaded)

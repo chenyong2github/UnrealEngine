@@ -16,6 +16,7 @@ UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent
 	, DefaultVisualizerLoadingRange(10000.f)
 #endif
 	, TargetGrid(NAME_None)
+	, Priority(EStreamingSourcePriority::Low)
 	, bStreamingSourceEnabled(true)
 	, TargetState(EStreamingSourceTargetState::Activated)
 {
@@ -73,6 +74,7 @@ bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartition
 		OutStreamingSource.TargetGrid = TargetGrid;
 		OutStreamingSource.TargetHLODLayer = TargetHLODLayer;
 		OutStreamingSource.Shapes = Shapes;
+		OutStreamingSource.Priority = Priority;
 		return true;
 	}
 	return false;
