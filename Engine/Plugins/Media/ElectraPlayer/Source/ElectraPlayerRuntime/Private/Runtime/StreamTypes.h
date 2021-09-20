@@ -19,7 +19,7 @@ namespace Electra
 
 	static inline const TCHAR* GetStreamTypeName(EStreamType StreamType)
 	{
-		switch (StreamType)
+		switch(StreamType)
 		{
 			case EStreamType::Video:
 				return TEXT("Video");
@@ -89,9 +89,11 @@ namespace Electra
 			Codec = InCodec;
 		}
 
+		FString GetCodecName() const;
+
 		bool IsVideoCodec() const
 		{
-			switch (GetCodec())
+			switch(GetCodec())
 			{
 				case ECodec::H264:
 				case ECodec::H265:
@@ -103,7 +105,7 @@ namespace Electra
 
 		bool IsAudioCodec() const
 		{
-			switch (GetCodec())
+			switch(GetCodec())
 			{
 				case ECodec::AAC:
 				case ECodec::EAC3:
@@ -115,7 +117,7 @@ namespace Electra
 
 		bool IsSubtitleCodec() const
 		{
-			switch (GetCodec())
+			switch(GetCodec())
 			{
 				case ECodec::WebVTT:
 				case ECodec::TTML:
@@ -655,6 +657,10 @@ namespace Electra
 		// RFC-4646 and of RFC-5646
 		TOptional<FString> Language_ISO639;
 
+		// Preferred codec. Typically set to ensure the same track remains selected after a seek in case the same content
+		// is provided with different formats. See GetCodecName()
+		TOptional<FString> Codec;
+
 		// Rarely used. Unconditionally selects a track by its index where the index is a sequential numbering from [0..n)
 		// of the tracks as they are found. If the index is invalid the selection rules for kind and language are applied.
 		TOptional<int32> OverrideIndex;
@@ -673,9 +679,12 @@ namespace Electra
 			FString Lang1 = Language_ISO639.IsSet() ? Language_ISO639.GetValue() : FString();
 			FString Lang2 = Other.Language_ISO639.IsSet() ? Other.Language_ISO639.GetValue() : FString();
 
+			FString Codec1 = Codec.IsSet() ? Codec.GetValue() : FString();
+			FString Codec2 = Other.Codec.IsSet() ? Other.Codec.GetValue() : FString();
+
 			if (Kind1.IsEmpty() || Kind2.IsEmpty() || Kind1.Equals(Kind2))
 			{
-				return Lang1.Equals(Lang2);
+				return Lang1.Equals(Lang2) && Codec1.Equals(Codec2);
 			}
 			return false;
 		}
@@ -684,9 +693,10 @@ namespace Electra
 		{
 			Kind.Reset();
 			Language_ISO639.Reset();
+			Codec.Reset();
 			OverrideIndex.Reset();
 		}
-		virtual void UpdateWith(const FString& InKind, const FString& InLanguage, int32 InOverrideIndex)
+		virtual void UpdateWith(const FString& InKind, const FString& InLanguage, const FString& InCodec, int32 InOverrideIndex)
 		{
 			Reset();
 			if (!InKind.IsEmpty())
@@ -697,18 +707,23 @@ namespace Electra
 			{
 				Language_ISO639 = InLanguage;
 			}
+			if (!InCodec.IsEmpty())
+			{
+				Codec = InCodec;
+			}
 			if (InOverrideIndex >= 0)
 			{
 				OverrideIndex = InOverrideIndex;
 			}
 		}
-		virtual void UpdateIfOverrideSet(const FString& InKind, const FString& InLanguage)
+		virtual void UpdateIfOverrideSet(const FString& InKind, const FString& InLanguage, const FString& InCodec)
 		{
 			if (OverrideIndex.IsSet())
 			{
 				ClearOverrideIndex();
 				Kind = InKind;
 				Language_ISO639 = InLanguage;
+				Codec = InCodec;
 			}
 		}
 		virtual void ClearOverrideIndex()

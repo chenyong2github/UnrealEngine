@@ -1348,6 +1348,9 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 						AudioAttributes.Language_ISO639 = Meta->Language;
 						PlaystartOptions.InitialAudioTrackAttributes.Language_ISO639 = Meta->Language;
 					}
+					AudioAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
+					PlaystartOptions.InitialAudioTrackAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
+
 					TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
 					if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 					{
@@ -1399,6 +1402,9 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 						SubtitleAttributes.Language_ISO639 = Meta->Language;
 						PlaystartOptions.InitialSubtitleTrackAttributes.Language_ISO639 = Meta->Language;
 					}
+					SubtitleAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
+					PlaystartOptions.InitialSubtitleTrackAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
+
 					TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
 					if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 					{

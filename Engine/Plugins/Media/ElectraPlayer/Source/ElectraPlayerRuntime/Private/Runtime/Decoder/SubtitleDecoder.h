@@ -32,7 +32,7 @@ namespace Electra
 		// State methods
 		//
 		virtual void SetPlayerSessionServices(IPlayerSessionServices* SessionServices) = 0;
-		virtual void Open() = 0;
+		virtual void Open(const FParamDict& Options) = 0;
 		virtual void Close() = 0;
 		virtual void Start() = 0;
 		virtual void Stop() = 0;

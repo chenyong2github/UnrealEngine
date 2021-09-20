@@ -221,7 +221,9 @@ namespace Electra
 			Codec = ECodec::WebVTT;
 			return true;
 		}
-		else if (CodecOTI.Equals(TEXT("stpp")))		// this is indicating one of the many TTML variants, should be IMSC1, SMPTE-TT, EBU-TT
+		// This is indicating one of the many TTML variants (eg. IMSC1, SMPTE-TT, EBU-TT) and profiles (eg. stpp.ttml.im1t)
+		//	See: https://www.w3.org/TR/ttml-profile-registry/#registry-profile-designator-specifications
+		else if (CodecOTI.StartsWith(TEXT("stpp")))
 		{
 			StreamType = EStreamType::Subtitle;
 			CodecSpecifier = CodecOTI;
@@ -241,6 +243,31 @@ namespace Electra
 			CodecSpecifier = CodecOTI;
 			Codec = ECodec::Unknown;
 			return false;
+		}
+	}
+
+	FString FStreamCodecInformation::GetCodecName() const
+	{
+		switch(Codec)
+		{
+			case FStreamCodecInformation::ECodec::H264:
+				return FString(TEXT("avc"));
+			case FStreamCodecInformation::ECodec::H265:
+				return FString(TEXT("hevc"));
+			case FStreamCodecInformation::ECodec::AAC:
+				return FString(TEXT("aac"));
+			case FStreamCodecInformation::ECodec::EAC3:
+				return FString(TEXT("eac3"));
+			case FStreamCodecInformation::ECodec::WebVTT:
+				return FString(TEXT("wvtt"));
+			case FStreamCodecInformation::ECodec::TTML:
+				return FString(TEXT("stpp"));
+			case FStreamCodecInformation::ECodec::TX3G:
+				return FString(TEXT("tx3g"));
+			case FStreamCodecInformation::ECodec::OtherSubtitle:
+				return FString(TEXT("subt"));
+			default:
+				return FString(TEXT("unknown"));
 		}
 	}
 

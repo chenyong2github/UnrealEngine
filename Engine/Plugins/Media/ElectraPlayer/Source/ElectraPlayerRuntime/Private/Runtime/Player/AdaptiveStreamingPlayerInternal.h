@@ -1003,6 +1003,7 @@ private:
 				Decoder->GetDecodedSubtitleFlushDelegate().Unbind();
 				delete Decoder;
 				Decoder = nullptr;
+				bIsRunning = false;
 			}
 		}
 		void Flush()
@@ -1013,15 +1014,15 @@ private:
 			}
 		}
 		
-		void Start(bool bInitialState=true)
+		void Start()
 		{
-			if (bInitialState != bIsRunning)
+			if (Decoder)
 			{
-				if (Decoder)
+				if (!bIsRunning)
 				{
 					Decoder->Start();
+					bIsRunning = true;
 				}
-				bIsRunning = bInitialState;
 			}
 		}
 		
@@ -1433,8 +1434,9 @@ private:
 	{
 		TSharedPtrTS<IStreamSegment>				Request;
 		FTimeValue									AtTime;
-		TSharedPtrTS<IManifest::IPlayPeriod>		Period;					//!< Set if transitioning between periods. This is the new period that needs to be readied.
-		bool										bStartOver = false;
+		TSharedPtrTS<IManifest::IPlayPeriod>		Period;							//!< Set if transitioning between periods. This is the new period that needs to be readied.
+		bool										bStartOver = false;				//!< True when switching tracks within an ongoing period
+		bool										bPlayPosAutoReselect = false;	//!< True when trying to re-select a stream at the start of a new period when it was not available before.
 		EStreamType									StreamType = EStreamType::Unsupported;
 		FPlayStartPosition							StartoverPosition;
 	};
@@ -1444,6 +1446,11 @@ private:
 		TSharedPtrTS<ITimelineMediaAsset>		Period;
 		FString									ID;
 		FTimeRange								TimeRange;
+
+		// Currently selected buffer source per stream type in this period.
+		TSharedPtrTS<FBufferSourceInfo>			BufferSourceInfoVid;
+		TSharedPtrTS<FBufferSourceInfo>			BufferSourceInfoAud;
+		TSharedPtrTS<FBufferSourceInfo>			BufferSourceInfoTxt;
 	};
 
 
@@ -1487,6 +1494,9 @@ private:
 	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight);
 	void UpdateStreamResolutionLimit();
 	void AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPeriod> InUpcomingPeriod);
+	void UpdatePeriodStreamBufferSourceInfo(TSharedPtrTS<IManifest::IPlayPeriod> InForPeriod, EStreamType InStreamType, TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
+	TSharedPtrTS<FBufferSourceInfo> GetStreamBufferInfoAtTime(bool& bOutHavePeriods, bool& bOutFoundTime, EStreamType InStreamType, const FTimeValue& InAtTime) const;
+
 
 	// AU memory / generic stream reader memory
 	void* AUAllocate(IAccessUnitMemoryProvider::EDataType type, SIZE_T size, SIZE_T alignment) override;
@@ -1644,7 +1654,7 @@ private:
 	FLoopParam															CurrentLoopParam;
 	TMediaQueueDynamicNoLock<FPlayerLoopState>							NextLoopStates;
 
-	FCriticalSection													ActivePeriodCriticalSection;
+	mutable FCriticalSection											ActivePeriodCriticalSection;
 	TArray<FPeriodInformation>											ActivePeriods;
 	TArray<FPeriodInformation>											UpcomingPeriods;
 	TSharedPtrTS<IManifest::IPlayPeriod>								InitialPlayPeriod;
@@ -1654,6 +1664,7 @@ private:
 	TSharedPtrTS<FPendingStartRequest>									PendingStartRequest;
 	TSharedPtrTS<IStreamSegment>										PendingFirstSegmentRequest;
 	TQueue<FPendingSegmentRequest>										NextPendingSegmentRequests;
+	TArray<FPendingSegmentRequest>										PlayPosPendingSegmentRequests;
 	TQueue<TSharedPtrTS<IStreamSegment>>								ReadyWaitingSegmentRequests;
 	TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>				CompletedSegmentRequests;
 	bool																bFirstSegmentRequestIsForLooping;

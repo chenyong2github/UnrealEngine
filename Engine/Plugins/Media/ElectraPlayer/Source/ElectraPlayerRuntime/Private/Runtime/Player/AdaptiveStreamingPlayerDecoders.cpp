@@ -179,12 +179,18 @@ bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& O
 		ActivePeriodCriticalSection.Unlock();
 		return false;
 	}
+	bool bFound = false;
 	for(int32 i=0; i<ActivePeriods.Num(); ++i)
 	{
 		if (AtTime >= ActivePeriods[i].TimeRange.Start && AtTime < (ActivePeriods[i].TimeRange.End.IsValid() ? ActivePeriods[i].TimeRange.End : FTimeValue::GetPositiveInfinity()))
 		{
 			Asset = ActivePeriods[i].Period;
+			bFound = true;
 		}
+	}
+	if (!bFound)
+	{
+		Asset = ActivePeriods[0].Period;
 	}
 	ActivePeriodCriticalSection.Unlock();
 	if (Asset.IsValid())
@@ -498,12 +504,18 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 				SubtitleDecoder.Decoder = ISubtitleDecoder::Create(AccessUnit);
 				if (SubtitleDecoder.Decoder)
 				{
+					FParamDict Options;
+					Options.Set(TEXT("sendEmptySubtitleDuringGaps"), Electra::FVariantValue(true));
+
 					SubtitleDecoder.Decoder->SetPlayerSessionServices(this);
 					SubtitleDecoder.Decoder->GetDecodedSubtitleReceiveDelegate().BindRaw(this, &FAdaptiveStreamingPlayer::OnDecodedSubtitleReceived);
 					SubtitleDecoder.Decoder->GetDecodedSubtitleFlushDelegate().BindRaw(this, &FAdaptiveStreamingPlayer::OnFlushSubtitleReceivers);
-					SubtitleDecoder.Decoder->Open();
+					SubtitleDecoder.Decoder->Open(Options);
 					// Start the decoder, if decoding is currently running.
-					SubtitleDecoder.Start(DecoderState == EDecoderState::eDecoder_Running);
+					if (DecoderState == EDecoderState::eDecoder_Running)
+					{
+						SubtitleDecoder.Start();
+					}
 				}
 				else
 				{
@@ -720,9 +732,23 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 		if (PeekedAU)
 		{
 			// Change in codec?
-			if (CurrentCodecInfo && PeekedAU->AUCodecData.IsValid() && PeekedAU->AUCodecData->ParsedInfo.GetCodec() != CurrentCodecInfo->GetCodec())
+			if (CurrentCodecInfo && PeekedAU->AUCodecData.IsValid())
 			{
-				bCodecChangeDetected = true;
+				// Actual different codec?
+				if (PeekedAU->AUCodecData->ParsedInfo.GetCodec() != CurrentCodecInfo->GetCodec())
+				{
+					bCodecChangeDetected = true;
+				}
+				// Mimetype change in subtitles?
+				else if (Type == EStreamType::Subtitle && !PeekedAU->AUCodecData->ParsedInfo.GetMimeType().Equals(CurrentCodecInfo->GetMimeType()))
+				{
+					bCodecChangeDetected = true;
+				}
+			}
+
+			// Is there a change?
+			if (bCodecChangeDetected)
+			{
 				if (Decoder)
 				{
 					// Check type of stream. We can currently change the video and subtitle codecs only.

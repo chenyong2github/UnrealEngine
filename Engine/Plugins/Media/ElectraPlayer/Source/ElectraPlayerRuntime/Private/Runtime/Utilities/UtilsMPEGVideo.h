@@ -165,6 +165,13 @@ namespace Electra
 			int32 GetNumberOfSPS() const;
 			const FISO14496_10_seq_parameter_set_data& GetParsedSPS(int32 SpsIndex) const;
 
+			uint8 GetAVCProfileIndication() const
+			{ return AVCProfileIndication; }
+			uint8 GetProfileCompatibility() const
+			{ return ProfileCompatibility; }
+			uint8 GetAVCLevelIndication() const
+			{ return AVCLevelIndication; }
+
 		private:
 			TArray<uint8>													RawData;
 			TArray<uint8>													CodecSpecificData;

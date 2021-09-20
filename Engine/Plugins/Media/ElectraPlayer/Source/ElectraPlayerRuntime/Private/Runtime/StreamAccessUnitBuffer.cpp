@@ -216,24 +216,27 @@ namespace Electra
 
 	void FMultiTrackAccessUnitBuffer::AddUpcomingBuffer(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo)
 	{
-		FMediaCriticalSection::ScopedLock lock(AccessLock);
-		// Add to the current or the switch-over chain?
-		if (SwitchOverBufferChain.Num())
+		if (InBufferSourceInfo.IsValid())
 		{
-			if (!SwitchOverBufferChain.Last().Info->PeriodAdaptationSetID.Equals(InBufferSourceInfo->PeriodAdaptationSetID))
+			FMediaCriticalSection::ScopedLock lock(AccessLock);
+			// Add to the current or the switch-over chain?
+			if (SwitchOverBufferChain.Num())
 			{
-				FQueuedBuffer Next;
-				Next.Info = MoveTemp(InBufferSourceInfo);
-				SwitchOverBufferChain.Emplace(MoveTemp(Next));
+				if (!SwitchOverBufferChain.Last().Info->PeriodAdaptationSetID.Equals(InBufferSourceInfo->PeriodAdaptationSetID))
+				{
+					FQueuedBuffer Next;
+					Next.Info = MoveTemp(InBufferSourceInfo);
+					SwitchOverBufferChain.Emplace(MoveTemp(Next));
+				}
 			}
-		}
-		else
-		{
-			if (UpcomingBufferChain.Num() == 0 || !UpcomingBufferChain.Last().Info->PeriodAdaptationSetID.Equals(InBufferSourceInfo->PeriodAdaptationSetID))
+			else
 			{
-				FQueuedBuffer Next;
-				Next.Info = MoveTemp(InBufferSourceInfo);
-				UpcomingBufferChain.Emplace(MoveTemp(Next));
+				if (UpcomingBufferChain.Num() == 0 || !UpcomingBufferChain.Last().Info->PeriodAdaptationSetID.Equals(InBufferSourceInfo->PeriodAdaptationSetID))
+				{
+					FQueuedBuffer Next;
+					Next.Info = MoveTemp(InBufferSourceInfo);
+					UpcomingBufferChain.Emplace(MoveTemp(Next));
+				}
 			}
 		}
 	}
@@ -408,6 +411,8 @@ namespace Electra
 				bool bSwitch = false;
 				if (PopUntilDTS.IsValid() && PopUntilPTS.IsValid())
 				{
+					TSharedPtrTS<FAccessUnitBuffer> ActiveBuffer = GetSelectedTrackBuffer();
+					bool bActiveIsEmpty = !ActiveBuffer.IsValid() || ActiveBuffer->Num() == 0;
 					for(int32 nBuf=0; nBuf<SwitchOverBufferChain.Num(); ++nBuf)
 					{
 						if (SwitchOverBufferChain[nBuf].Buffer.IsValid())
@@ -417,6 +422,15 @@ namespace Electra
 
 							// Does it contain the time we want to switch at?
 							if (SwitchOverBufferChain[nBuf].Buffer->ContainsPTS(PopUntilPTS))
+							{
+								bSwitch = true;
+								break;
+							}
+							// If this buffer is empty and the switchover one is not we switch over now.
+							// This is for the cases where we are not getting any more data from the current buffer
+							// and the LastPoppedDTS/PTS are in the past and will not be contained in the new buffer,
+							// which happens mostly with sparse data like infrequent subtitle AUs.
+							if (bActiveIsEmpty && SwitchOverBufferChain[nBuf].Buffer->Num())
 							{
 								bSwitch = true;
 								break;

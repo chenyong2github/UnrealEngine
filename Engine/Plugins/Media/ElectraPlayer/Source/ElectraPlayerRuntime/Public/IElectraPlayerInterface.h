@@ -105,6 +105,7 @@ public:
 	{
 		TOptional<FString> Kind;
 		TOptional<FString> Language_ISO639;
+		TOptional<FString> Codec;
 		TOptional<int32> TrackIndexOverride;
 		void Reset()
 		{

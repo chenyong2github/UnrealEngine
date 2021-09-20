@@ -100,8 +100,24 @@ namespace Electra
 			return UEMEDIA_ERROR_READ_ERROR;
 		}
 
-		UEMediaError ReadString(FString& OutString, uint32 MaxBytes)
+		UEMediaError ReadString(FString& OutString, uint32 MaxBytes, bool bIsUTF8=true)
 		{
+			TArray<uint8> Buf;
+			Buf.Reserve(MaxBytes);
+
+			auto ConvFromBuf = [](const TArray<uint8>& SrcBuf, bool bIsUTF8) -> FString
+			{
+				if (bIsUTF8)
+				{
+					FUTF8ToTCHAR cnv((const ANSICHAR*)SrcBuf.GetData(), SrcBuf.Num());
+					return FString(cnv.Length(), cnv.Get());
+				}
+				else
+				{
+					return FString((const char*)SrcBuf.GetData());
+				}
+			};
+
 			OutString.Empty();
 			if (MaxBytes == 0)
 			{
@@ -118,13 +134,14 @@ namespace Electra
 				}
 				if (NextChar == 0)
 				{
+					OutString = ConvFromBuf(Buf, bIsUTF8);
 					return UEMEDIA_ERROR_OK;
 				}
 				if (i == 0)
 				{
 					FirstByte = NextChar;
 				}
-				OutString.AppendChar((TCHAR)NextChar);
+				Buf.Add(NextChar);
 			}
 			// NOTE: This is mostly for the 'qt' brand. ISO files should not be using such strings.
 			// FIXME: Do this only for brands that may require this?
@@ -132,6 +149,7 @@ namespace Electra
 			if (FirstByte + 1 == MaxBytes)
 			{
 				// NOTE: We do _not_ remove the length from the string!
+				OutString = ConvFromBuf(Buf, bIsUTF8);
 				return UEMEDIA_ERROR_OK;
 			}
 			return UEMEDIA_ERROR_INSUFFICIENT_DATA;	// Did not find a NUL char to terminate the string in the maximum number of characters allowed to read.
@@ -1716,6 +1734,38 @@ private:
 
 
 	/**
+	 * 'sthd' box.
+	 * ISO/IEC 14496-12:2014 - 12.6.2 - Subtitle media header
+	 */
+	class FMP4BoxSTHD : public FMP4BoxFull
+	{
+	public:
+		FMP4BoxSTHD(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxSTHD()
+		{
+		}
+
+	private:
+		FMP4BoxSTHD() = delete;
+		FMP4BoxSTHD(const FMP4BoxSTHD&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+			return Error;
+		}
+
+	private:
+	};
+
+
+	/**
 	 * 'dref' box.
 	 * ISO/IEC 14496-12:2014 - 8.7.2 - Data Reference Box
 	 */
@@ -2367,6 +2417,146 @@ private:
 
 
 	/**
+	 * XMLSubtitleSampleEntry sample entry (ISO/IEC 14496-12 Section 12.6.3 Sample entry)
+	 */
+	class FMP4BoxXMLSubtitleSampleEntry : public FMP4BoxSampleEntry
+	{
+	public:
+		FMP4BoxXMLSubtitleSampleEntry(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox, int32 InSTSDBoxVersion)
+			: FMP4BoxSampleEntry(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+			, STSDBoxVersion(InSTSDBoxVersion)
+		{
+		}
+
+		virtual ~FMP4BoxXMLSubtitleSampleEntry()
+		{
+		}
+
+		const TArray<uint8> GetRawBoxData() const
+		{
+			return BoxData;
+		}
+
+		int32 GetTranslationX() const
+		{
+			return TranslationX;
+		}
+
+		int32 GetTranslationY() const
+		{
+			return TranslationY;
+		}
+
+		uint16 GetWidth() const
+		{
+			return Width;
+		}
+
+		uint16 GetHeight() const
+		{
+			return Height;
+		}
+
+		uint32 GetTimescale() const
+		{
+			return Timescale;
+		}
+
+		const FString& GetNamespace() const
+		{
+			return Namespace;
+		}
+		const FString& GetSchemaLocation() const
+		{
+			return SchemaLocation;
+		}
+		const TArray<FString>& GetAuxiliaryMimeTypes() const
+		{
+			return AuxiliaryMimeTypes;
+		}
+
+	private:
+		FMP4BoxXMLSubtitleSampleEntry() = delete;
+		FMP4BoxXMLSubtitleSampleEntry(const FMP4BoxXMLSubtitleSampleEntry&) = delete;
+
+	protected:
+		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+
+			// Duplicate all the data we are reading into a buffer that we need to provide to the subtitle plugin.
+			FMP4BoxReader::ScopedDataDuplication DuplicateBoxData(ParseInfo->Reader(), BoxData);
+
+			RETURN_IF_ERROR(FMP4BoxSampleEntry::ReadAndParseAttributes(ParseInfo));
+
+			const FMP4BoxTKHD* TKHD = ParseInfo->GetCurrentTrackBox() ? static_cast<const FMP4BoxTKHD*>(ParseInfo->GetCurrentTrackBox()->GetBoxPath(FMP4Box::kBox_tkhd)) : nullptr;
+			if (TKHD)
+			{
+				Width = TKHD->GetWidth();
+				Height = TKHD->GetHeight();
+				// Translation must not be using fractional digits and can thus be treated like integers.
+				TranslationX = (int32) TKHD->GetMatrixValue(6);
+				TranslationY = (int32) TKHD->GetMatrixValue(7);
+			}
+
+			const FMP4BoxMDHD* MDHD = ParseInfo->GetCurrentTrackBox() ? static_cast<const FMP4BoxMDHD*>(ParseInfo->GetCurrentTrackBox()->FindBox(FMP4Box::kBox_mdhd)) : nullptr;
+			if (MDHD)
+			{
+				Timescale = MDHD->GetTimescale();
+			}
+
+			int32 BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(Namespace, BytesRemaining));
+			BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(SchemaLocation, BytesRemaining));
+			FString AuxMimes;
+			BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(AuxMimes, BytesRemaining));
+			AuxMimes.ParseIntoArrayWS(AuxiliaryMimeTypes);
+			BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+
+			// There may be child boxes here now, more precisely a 'btrt' box.
+			if (BytesRemaining > 0)
+			{
+				// Now that there are additional boxes we ourselves are no longer a leaf box.
+				bIsLeafBox = false;
+				// This will read all the boxes in here and add them as children.
+				for(; BytesRemaining>0; BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset)))
+				{
+					IParserISO14496_12::FBoxType	ChildBoxType;
+					int64							ChildBoxSize;
+					uint8							ChildBoxUUID[16];
+
+					int64 BoxStartOffset = ParseInfo->Reader()->GetCurrentReadOffset();
+					RETURN_IF_ERROR(ParseInfo->ReadBoxTypeAndSize(ChildBoxType, ChildBoxSize, ChildBoxUUID));
+#if MEDIA_DEBUG_HAS_BOX_NAMES
+					char boxName[4];
+					*((uint32*)&boxName) = MEDIA_TO_BIG_ENDIAN(ChildBoxType);
+#endif
+					int64 BoxDataOffset = ParseInfo->Reader()->GetCurrentReadOffset();
+					FMP4Box* NextBox = new FMP4BoxIgnored(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true);
+
+					AddChildBox(NextBox);
+					RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(NextBox));
+				}
+			}
+			return Error;
+		}
+
+		TArray<uint8>		BoxData;
+		FString				Namespace;
+		FString				SchemaLocation;
+		TArray<FString>		AuxiliaryMimeTypes;
+		int32				STSDBoxVersion;
+		uint32				Timescale = 0;
+		uint16				Width = 0;
+		uint16				Height = 0;
+		int32				TranslationX = 0;
+		int32				TranslationY = 0;
+	};
+
+
+	/**
 	 * AVC Decoder Configuration box (ISO/IEC 14496-15:2014 - 5.4.2.1.2)
 	 */
 	class FMP4BoxAVCC : public FMP4BoxBasic
@@ -2705,7 +2895,7 @@ private:
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
 			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
-			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(ExtendedLanguage, BytesRemaining));
+			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(ExtendedLanguage, BytesRemaining, false));
 			return Error;
 		}
 
@@ -2995,6 +3185,10 @@ private:
 						else if (ChildBoxType == FMP4Box::kSample_wvtt)
 						{
 							NextBox = new FMP4BoxWVTTSampleEntry(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true, Version);
+						}
+						else if (ChildBoxType == FMP4Box::kSample_stpp)
+						{
+							NextBox = new FMP4BoxXMLSubtitleSampleEntry(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true, Version);
 						}
 						else
 						{
@@ -4851,6 +5045,9 @@ private:
 						case FMP4Box::kBox_smhd:
 							NextBox = new FMP4BoxSMHD(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
+						case FMP4Box::kBox_sthd:
+							NextBox = new FMP4BoxSTHD(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
 						case FMP4Box::kBox_dref:
 							NextBox = new FMP4BoxDREF(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);		// 'dref' is not a true leaf box, but its elements are a list that must be parsed.
 							break;
@@ -5389,11 +5586,12 @@ private:
 		};
 
 
-		UEMediaError ParseAVC1SampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
+		UEMediaError ParseAVCxSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox, int32 InAvcType);
 		UEMediaError ParseHVC1SampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseMP4ASampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseTX3GSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseWVTTSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
+		UEMediaError ParseSTPPSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 
 		FMP4ParseInfo* ParsedData;
 
@@ -6268,8 +6466,9 @@ private:
 	}
 
 
-	UEMediaError FParserISO14496_12::ParseAVC1SampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox)
+	UEMediaError FParserISO14496_12::ParseAVCxSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox, int32 InAvcType)
 	{
+		check(InAvcType == 1 || InAvcType == 3);
 		const FMP4BoxVisualSampleEntry* VisualSampleEntry = static_cast<const FMP4BoxVisualSampleEntry*>(SampleBox);
 		check(VisualSampleEntry->GetNumberOfChildren() > 0);
 		if (VisualSampleEntry->GetNumberOfChildren() > 0)
@@ -6295,23 +6494,44 @@ private:
 							Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
 							if (Track->CodecSpecificDataAVC.GetNumberOfSPS() == 0)
 							{
-								return UEMEDIA_ERROR_FORMAT_ERROR;
+								if (InAvcType == 3)
+								{
+									Track->CodecInformation.SetProfile(Track->CodecSpecificDataAVC.GetAVCProfileIndication());
+									Track->CodecInformation.SetProfileLevel(Track->CodecSpecificDataAVC.GetAVCLevelIndication());
+									Track->CodecInformation.SetProfileConstraints(Track->CodecSpecificDataAVC.GetProfileCompatibility());
+									Track->CodecInformation.SetCodecSpecifierRFC6381(FString::Printf(TEXT("avc%d.%02x%02x%02x"), InAvcType, Track->CodecSpecificDataAVC.GetAVCProfileIndication(), Track->CodecSpecificDataAVC.GetProfileCompatibility(), Track->CodecSpecificDataAVC.GetAVCLevelIndication()));
+									if (Track->TKHDBox)
+									{
+										Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(Track->TKHDBox->GetWidth(), Track->TKHDBox->GetHeight()));
+										Track->CodecInformation.SetCrop(FStreamCodecInformation::FCrop(0, 0, Track->TKHDBox->GetWidth() % 16, Track->TKHDBox->GetHeight() % 16));
+										Track->CodecInformation.SetAspectRatio(FStreamCodecInformation::FAspectRatio(1, 1));
+									}
+
+									bGotVideoFormat = true;
+								}
+								else
+								{
+									return UEMEDIA_ERROR_FORMAT_ERROR;
+								}
 							}
-							const MPEG::FISO14496_10_seq_parameter_set_data& sps = Track->CodecSpecificDataAVC.GetParsedSPS(0);
-							int32 CropL, CropR, CropT, CropB;
-							sps.GetCrop(CropL, CropR, CropT, CropB);
-							Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(sps.GetWidth() - CropL - CropR, sps.GetHeight() - CropT - CropB));
-							Track->CodecInformation.SetCrop(FStreamCodecInformation::FCrop(CropL, CropT, CropR, CropB));
-							FStreamCodecInformation::FAspectRatio ar;
-							sps.GetAspect(ar.Width, ar.Height);
-							Track->CodecInformation.SetAspectRatio(ar);
-							Track->CodecInformation.SetFrameRate(sps.GetTiming());
-							Track->CodecInformation.SetProfile(sps.profile_idc);
-							Track->CodecInformation.SetProfileLevel(sps.level_idc);
-							uint8 Constraints = (sps.constraint_set0_flag << 7) | (sps.constraint_set1_flag << 6) | (sps.constraint_set2_flag << 5) | (sps.constraint_set3_flag << 4) | (sps.constraint_set4_flag << 3) | (sps.constraint_set5_flag << 2);
-							Track->CodecInformation.SetProfileConstraints(Constraints);
-							Track->CodecInformation.SetCodecSpecifierRFC6381(FString::Printf(TEXT("avc1.%02x%02x%02x"), sps.profile_idc, Constraints, sps.level_idc));
-							bGotVideoFormat = true;
+							else
+							{
+								const MPEG::FISO14496_10_seq_parameter_set_data& sps = Track->CodecSpecificDataAVC.GetParsedSPS(0);
+								int32 CropL, CropR, CropT, CropB;
+								sps.GetCrop(CropL, CropR, CropT, CropB);
+								Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(sps.GetWidth() - CropL - CropR, sps.GetHeight() - CropT - CropB));
+								Track->CodecInformation.SetCrop(FStreamCodecInformation::FCrop(CropL, CropT, CropR, CropB));
+								FStreamCodecInformation::FAspectRatio ar;
+								sps.GetAspect(ar.Width, ar.Height);
+								Track->CodecInformation.SetAspectRatio(ar);
+								Track->CodecInformation.SetFrameRate(sps.GetTiming());
+								Track->CodecInformation.SetProfile(sps.profile_idc);
+								Track->CodecInformation.SetProfileLevel(sps.level_idc);
+								uint8 Constraints = (sps.constraint_set0_flag << 7) | (sps.constraint_set1_flag << 6) | (sps.constraint_set2_flag << 5) | (sps.constraint_set3_flag << 4) | (sps.constraint_set4_flag << 3) | (sps.constraint_set5_flag << 2);
+								Track->CodecInformation.SetProfileConstraints(Constraints);
+								Track->CodecInformation.SetCodecSpecifierRFC6381(FString::Printf(TEXT("avc%d.%02x%02x%02x"), InAvcType, sps.profile_idc, Constraints, sps.level_idc));
+								bGotVideoFormat = true;
+							}
 						}
 						else
 						{
@@ -6568,6 +6788,27 @@ private:
 		return UEMEDIA_ERROR_NOT_SUPPORTED;
 	}
 
+	UEMediaError FParserISO14496_12::ParseSTPPSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox)
+	{
+		// Need to check if there is a subtitle decoder capable of decoding this.
+		if (ISubtitleDecoder::IsSupported(TEXT(""), TEXT("stpp")))
+		{
+			const FMP4BoxXMLSubtitleSampleEntry* SubtitleSampleEntry = static_cast<const FMP4BoxXMLSubtitleSampleEntry*>(Track->STSDBox->GetChildBox(0));
+
+			Track->CodecSpecificDataRAW = SubtitleSampleEntry->GetRawBoxData();
+			Track->CodecInformation.SetStreamType(EStreamType::Subtitle);
+			Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::TTML);
+			Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
+			Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
+			Track->CodecInformation.SetCodecSpecifierRFC6381(TEXT("stpp"));
+			Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(SubtitleSampleEntry->GetWidth(), SubtitleSampleEntry->GetHeight()));
+			Track->CodecInformation.SetTranslation(FStreamCodecInformation::FTranslation(SubtitleSampleEntry->GetTranslationX(), SubtitleSampleEntry->GetTranslationY()));
+			Track->CodecInformation.SetFrameRate(FTimeFraction(1, SubtitleSampleEntry->GetTimescale()));
+			return UEMEDIA_ERROR_OK;
+		}
+		return UEMEDIA_ERROR_NOT_SUPPORTED;
+	}
+
 	UEMediaError FParserISO14496_12::PrepareTracks(IPlayerSessionServices* PlayerSession, TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment)
 	{
 		delete ParsedTrackInfo;
@@ -6782,11 +7023,15 @@ private:
 								}
 								// Expecting avc1/avc3/hvc1/hev1 for video right now.
 								UEMediaError Error = UEMEDIA_ERROR_FORMAT_ERROR;
-								if (FRMABox->GetDataFormat() == FMP4Box::kSample_avc1 || FRMABox->GetDataFormat() == FMP4Box::kSample_avc3)
+								if (FRMABox->GetDataFormat() == FMP4Box::kSample_avc1)
 								{
-									Error = ParseAVC1SampleType(PlayerSession, Track.Get(), STSDFirstChildBox);
+									Error = ParseAVCxSampleType(PlayerSession, Track.Get(), STSDFirstChildBox, 1);
 								}
-								else if ( FRMABox->GetDataFormat() == FMP4Box::kSample_hvc1 || FRMABox->GetDataFormat() == FMP4Box::kSample_hev1)
+								else if (FRMABox->GetDataFormat() == FMP4Box::kSample_avc3)
+								{
+									Error = ParseAVCxSampleType(PlayerSession, Track.Get(), STSDFirstChildBox, 3);
+								}
+								else if (FRMABox->GetDataFormat() == FMP4Box::kSample_hvc1 || FRMABox->GetDataFormat() == FMP4Box::kSample_hev1)
 								{
 									Error = ParseHVC1SampleType(PlayerSession, Track.Get(), STSDFirstChildBox);
 								}
@@ -6843,7 +7088,7 @@ private:
 							case FMP4Box::kSample_avc1:
 							case FMP4Box::kSample_avc3:
 							{
-								UEMediaError Error = ParseAVC1SampleType(PlayerSession, Track.Get(), STSDFirstChildBox);
+								UEMediaError Error = ParseAVCxSampleType(PlayerSession, Track.Get(), STSDFirstChildBox, STSDFirstChildBox->GetType() == FMP4Box::kSample_avc1 ? 1 : 3);
 								/*
 								if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
 								{
@@ -6885,6 +7130,15 @@ private:
 							}
 							case FMP4Box::kSample_stpp:
 							{
+								UEMediaError Error = ParseSTPPSampleType(PlayerSession, Track.Get(), STSDFirstChildBox);
+								if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
+								{
+									bIsSupported = false;
+								}
+								else if (Error != UEMEDIA_ERROR_OK)
+								{
+									return Error;
+								}
 								break;
 							}
 							case FMP4Box::kSample_tx3g:
