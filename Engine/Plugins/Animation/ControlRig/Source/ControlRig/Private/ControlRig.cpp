@@ -79,9 +79,6 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 #endif
 	, DebugBoneRadiusMultiplier(1.f)
 {
-	SetVM(ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM")));
-	DynamicHierarchy = ObjectInitializer.CreateDefaultSubobject<URigHierarchy>(this, TEXT("DynamicHierarchy"));
-
 	EventQueue.Add(FRigUnit_BeginExecution::EventName);
 }
 
@@ -182,7 +179,6 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	{
 		RequestInit();
 	}
-
 	
 	GetHierarchy()->OnModified().RemoveAll(this);
 	GetHierarchy()->OnModified().AddUObject(this, &UControlRig::HandleHierarchyModified);
@@ -478,19 +474,6 @@ void UControlRig::InstantiateVMFromCDO()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if (VM == nullptr || VM->GetOuter() != this)
-	{
-		SetVM(NewObject<URigVM>(this, TEXT("VM")));
-		
-#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-		// ensure memory storage objects are created during initialization in game thread
-		// delaying this step may lead to async uobject creation and causing GC to complain
-		VM->GetMemoryByType(ERigVMMemoryType::Work, true);
-		VM->GetMemoryByType(ERigVMMemoryType::Literal, true);
-		VM->GetMemoryByType(ERigVMMemoryType::Debug, true);
-#endif
-	}
-	
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
@@ -1135,27 +1118,6 @@ void UControlRig::RequestSetup()
 void UControlRig::SetEventQueue(const TArray<FName>& InEventNames)
 {
 	EventQueue = InEventNames;
-}
-
-void UControlRig::SetVM(URigVM* NewVM)
-{
-	if (VM)
-	{
-		VM->ExecutionReachedExit().RemoveAll(this);
-		VM->SetRuntimeSettings(FRigVMRuntimeSettings());
-	}
-	
-	if (NewVM)
-	{
-		if (!NewVM->ExecutionReachedExit().IsBoundToObject(this))
-		{
-			NewVM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
-		}
-	}
-
-	VM = NewVM;
-
-	UpdateVMSettings();
 }
 
 void UControlRig::UpdateVMSettings()
@@ -2807,6 +2769,53 @@ void UControlRig::SetControlCustomization(const FRigElementKey& InControl, const
 	check(InControl.Type == ERigElementType::Control);
 	
 	ControlCustomizations.FindOrAdd(InControl) = InCustomization;
+}
+
+void UControlRig::PostInitInstanceIfRequired()
+{
+	if(GetHierarchy() == nullptr || GetVM() == nullptr)
+	{
+		if(HasAnyFlags(RF_ClassDefaultObject))
+		{
+			PostInitInstance(nullptr);
+		}
+		else
+		{
+			UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+			PostInitInstance(CDO);
+		}
+	}
+}
+
+void UControlRig::PostInitInstance(UControlRig* InCDO)
+{
+	const EObjectFlags SubObjectFlags =
+	HasAnyFlags(RF_ClassDefaultObject) ?
+		RF_Public | RF_DefaultSubObject :
+		RF_Transient | RF_Transactional;
+
+	// set up the VM
+	VM = NewObject<URigVM>(this, TEXT("VM"), SubObjectFlags);
+	VM->GetMemoryByType(ERigVMMemoryType::Work, true);
+	VM->GetMemoryByType(ERigVMMemoryType::Literal, true);
+	VM->GetMemoryByType(ERigVMMemoryType::Debug, true);
+
+	VM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
+	UpdateVMSettings();
+
+	// set up the hierarchy
+	DynamicHierarchy = NewObject<URigHierarchy>(this, TEXT("DynamicHierarchy"), SubObjectFlags);
+
+#if WITH_EDITOR
+	const TWeakObjectPtr<UControlRig> WeakThis = this;
+	DynamicHierarchy->OnUndoRedo().AddStatic(&UControlRig::OnHierarchyTransformUndoRedoWeak, WeakThis);
+#endif
+
+	if(!HasAnyFlags(RF_ClassDefaultObject) && InCDO)
+	{
+		VM->CopyFrom(InCDO->GetVM());
+		DynamicHierarchy->CopyHierarchy(InCDO->GetHierarchy());
+	}
 }
 
 void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const FRigElementKey& InKey, ERigTransformType::Type InTransformType, const FTransform& InTransform, bool bIsUndo)

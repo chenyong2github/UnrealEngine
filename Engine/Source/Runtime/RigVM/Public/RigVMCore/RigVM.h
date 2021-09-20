@@ -247,13 +247,13 @@ public:
 
 #endif
 
-	UPROPERTY(transient, DuplicateTransient)
+	UPROPERTY()
 	TObjectPtr<URigVMMemoryStorage> WorkMemoryStorageObject;
 
-	UPROPERTY(transient, DuplicateTransient)
+	UPROPERTY()
 	TObjectPtr<URigVMMemoryStorage> LiteralMemoryStorageObject;
 
-	UPROPERTY(transient, DuplicateTransient)
+	UPROPERTY()
 	TObjectPtr<URigVMMemoryStorage> DebugMemoryStorageObject;
 
 	TArray<FRigVMPropertyPathDescription> ExternalPropertyPathDescriptions;

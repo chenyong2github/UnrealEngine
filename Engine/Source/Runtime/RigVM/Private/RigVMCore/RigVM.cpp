@@ -115,6 +115,16 @@ void URigVM::Serialize(FArchive& Ar)
 		return;
 	}
 
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
+	// call into the super class to serialize any uproperty
+	if(Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
+	{
+		Super::Serialize(Ar);
+	}
+	
+#endif
+
 	ensure(ExecutingThreadId == INDEX_NONE);
 
 	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())

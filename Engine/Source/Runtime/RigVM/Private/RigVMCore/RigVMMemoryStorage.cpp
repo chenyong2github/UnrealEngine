@@ -309,9 +309,7 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	URigVMMemoryStorageGeneratorClass* OldClass = FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName);
 	if(OldClass)
 	{
-		OldClass->RemoveFromRoot();
 		OldClass->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-		OldClass->MarkPendingKill();
 	}
 
 	// create the new class
@@ -320,9 +318,6 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 		*ClassName,
 		RF_Standalone | RF_Public
 	);
-
-	// add it to the root so that the garbage collector doesn't pick it up
-	Class->AddToRoot();
 
 	// clear the class (sets relevant flags)
 	Class->PurgeClass(false);
@@ -390,9 +385,7 @@ bool URigVMMemoryStorageGeneratorClass::RemoveStorageClass(UObject* InOuter, ERi
 	URigVMMemoryStorageGeneratorClass* OldClass = FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName);
 	if(OldClass)
 	{
-		OldClass->RemoveFromRoot();
 		OldClass->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-		OldClass->MarkPendingKill();
 		return true;
 	}
 

@@ -20,6 +20,20 @@ uint8* UControlRigBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* 
 	return Super::GetPersistentUberGraphFrame(Obj, FuncToCheck);
 }
 
+void UControlRigBlueprintGeneratedClass::PostInitInstance(UObject* InObj)
+{
+	UControlRig* ControlRig = Cast<UControlRig>(InObj);
+	check(ControlRig);
+
+	UControlRig* CDO = nullptr;
+	if(!ControlRig->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		CDO = Cast<UControlRig>(GetDefaultObject());;
+	}
+
+	ControlRig->PostInitInstance(CDO);
+}
+
 void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -49,14 +63,6 @@ void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	{
 		if (Ar.IsLoading())
 		{
-			if (CDO->VM == nullptr)
-			{
-				CDO->SetVM(NewObject<URigVM>(CDO, TEXT("VM")));
-			}
-			if (CDO->VM->GetOuter() != CDO)
-			{
-				CDO->SetVM(NewObject<URigVM>(CDO, TEXT("VM")));
-			}
 			CDO->VM->CopyFrom(VM);
 		}
 	}

@@ -94,6 +94,7 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 		// and in UControlRig::InitializeFromCDO,
 		// other Control Rig Instances are then initialized From the CDO 
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
+		ControlRig->PostInitInstanceIfRequired();
 		
 		// copy hierarchy
 		{
