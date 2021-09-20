@@ -9,6 +9,7 @@
 #include "GraphEditor.h"
 #include "IDetailsView.h"
 #include "IMetasoundEditor.h"
+#include "MetasoundEditorMeter.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "Misc/NotifyHook.h"
@@ -61,7 +62,6 @@ namespace Metasound
 			COUNT
 		};
 
-
 		class FEditor : public IMetasoundEditor, public FGCObject, public FNotifyHook, public FEditorUndoClient
 		{
 		public:
@@ -78,7 +78,6 @@ namespace Metasound
 
 			/** IMetasoundEditor interface */
 			virtual UObject* GetMetasoundObject() const override;
-			virtual UObject* GetMetasoundAudioBusObject() const override;
 			virtual void SetSelection(const TArray<UObject*>& SelectedObjects) override;
 			virtual bool GetBoundsForSelectedNodes(FSlateRect& Rect, float Padding) override;
 
@@ -125,8 +124,11 @@ namespace Metasound
 			void OnInputNameChanged(FGuid InNodeID);
 			void OnOutputNameChanged(FGuid InNodeID);
 
-			void OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& MeterResults);
+			/** Creates analyzers */
+			void CreateAnalyzers();
 
+			/** Destroys analyzers */
+			void DestroyAnalyzers();
 
 		protected:
 			// Callbacks for action tree
@@ -203,9 +205,6 @@ namespace Metasound
 			/** Creates all internal widgets for the tabs to point at */
 			void CreateInternalWidgets();
 
-			/** Creates analyzers */
-			void CreateAnalyzers();
-
 			/** Builds the toolbar widget for the Metasound editor */
 			void ExtendToolbar();
 
@@ -265,6 +264,8 @@ namespace Metasound
 			void CreateGraphEditorWidget();
 
 		private:
+			TSharedPtr<SWidget> BuildAnalyzerWidget() const;
+
 			void EditObjectSettings();
 
 			void NotifyNodePasteFailure_ReferenceLoop();
@@ -284,11 +285,8 @@ namespace Metasound
 			/** Metasound Interface menu */
 			TSharedPtr<SGraphActionMenu> MetasoundInterfaceMenu;
 
-			/** Metasound Output Meter widget */
-			TSharedPtr<SAudioMeter> MetasoundMeter;
-
-			/** Metasound channel info for the meter. */
-			TArray<FMeterChannelInfo> MetasoundChannelInfo;
+			/** Meter used in the analyzer tab for auditioning preview output. */
+			TSharedPtr<FEditorMeter> OutputMeter;
 
 			/** Palette of Node types */
 			TSharedPtr<SMetasoundPalette> Palette;
@@ -302,17 +300,6 @@ namespace Metasound
 
 			/** The Metasound asset being edited */
 			UObject* Metasound = nullptr;
-
-			/** The preview audio bus. Used for analysis. */
-			TStrongObjectPtr<UAudioBus> MetasoundAudioBus;
-
-			/** Metasound analyzer object. */
-			TStrongObjectPtr<UMeterAnalyzer> MetasoundMeterAnalyzer;
-
-			TStrongObjectPtr<UMeterSettings> MetasoundMeterAnalyzerSettings;
-
-			/** Handle for results delegate for metasound meter analyzer. */
-			FDelegateHandle ResultsDelegateHandle;
 
 			TMap<FGuid, FDelegateHandle> NameChangeDelegateHandles;
 
