@@ -4642,12 +4642,23 @@ void StaticExit()
 	Misc.
 -----------------------------------------------------------------------------*/
 
-//
-// Return the static transient package.
-//
 UPackage* GetTransientPackage()
 {
 	return GObjTransientPkg;
+}
+
+UObject* GetTransientOuterForRename(UClass* ForClass)
+{
+	// if someone has tautologically placed themself within their own hierarchy then we'll
+	// just assume they're ok with eventually being outered to a upackage, similar UPackage
+	// is a UObject, so if someone demands that they be outered to 'a uobject' we'll 
+	// just leave them directly parented to the transient package:
+	if (ForClass->ClassWithin && ForClass->ClassWithin != ForClass && ForClass->ClassWithin != UObject::StaticClass())
+	{
+		FScopedAllowAbstractClassAllocation AllowAbstract;
+		return NewObject<UObject>(GetTransientOuterForRename(ForClass->ClassWithin), ForClass->ClassWithin, NAME_None, RF_Transient);
+	}
+	return GetTransientPackage();
 }
 
 //keep this global to ensure that an actual write is prepared

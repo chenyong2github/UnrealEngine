@@ -192,6 +192,9 @@ COREUOBJECT_API TArray<const TCHAR*> ParsePropertyFlags(EPropertyFlags Flags);
 /** Returns the transient top-level package, which is useful for temporarily storing objects that should never be saved */
 COREUOBJECT_API UPackage* GetTransientPackage();
 
+/** Returns an object in the transient package which respects the rules of Within */
+COREUOBJECT_API UObject* GetTransientOuterForRename(UClass* ForClass);
+
 /**
  * Gets INI file name from object's reference if it contains one. 
  *
