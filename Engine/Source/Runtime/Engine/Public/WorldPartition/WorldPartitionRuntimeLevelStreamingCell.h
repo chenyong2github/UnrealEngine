@@ -19,7 +19,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual bool CanAddToWorld() const override;
 	virtual ULevel* GetLevel() const override;
 	virtual EWorldPartitionRuntimeCellState GetCurrentState() const override;
-	virtual FLinearColor GetDebugColor() const override;
+	virtual FLinearColor GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const override;
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) override;
 	virtual EStreamingStatus GetStreamingStatus() const override;
 	virtual bool IsLoading() const override;
