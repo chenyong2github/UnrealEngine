@@ -242,24 +242,18 @@ struct FGizmoHistory
 	}
 };
 
-namespace ENewLandscapePreviewMode
+enum class ENewLandscapePreviewMode : uint8
 {
-	enum Type
-	{
-		None,
-		NewLandscape,
-		ImportLandscape,
-	};
-}
+	None,
+	NewLandscape,
+	ImportLandscape,
+};
 
-namespace EImportExportMode
+enum class EImportExportMode : uint8
 {
-	enum Type
-	{
-		Import,
-		Export,
-	};
-}
+	Import,
+	Export,
+};
 
 enum class ELandscapeEditingState : uint8
 {
@@ -294,8 +288,8 @@ public:
 	// UI setting for additional UI Tools
 	int32 CurrentBrushSetIndex;
 
-	ENewLandscapePreviewMode::Type NewLandscapePreviewMode;
-	EImportExportMode::Type ImportExportMode;
+	ENewLandscapePreviewMode NewLandscapePreviewMode;
+	EImportExportMode ImportExportMode;
 
 	TWeakObjectPtr<ALandscapeGizmoActiveActor> CurrentGizmoActor;
 	// UI callbacks for copy/paste tool

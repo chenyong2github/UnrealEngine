@@ -61,7 +61,7 @@ void FNewLandscapeUtils::ImportLandscapeData( ULandscapeEditorObject* UISettings
 	}
 }
 
-TOptional< TArray< FLandscapeImportLayerInfo > > FNewLandscapeUtils::CreateImportLayersInfo( ULandscapeEditorObject* UISettings, int32 NewLandscapePreviewMode )
+TOptional< TArray< FLandscapeImportLayerInfo > > FNewLandscapeUtils::CreateImportLayersInfo( ULandscapeEditorObject* UISettings, ENewLandscapePreviewMode NewLandscapePreviewMode )
 {
 	TArray<FLandscapeImportLayerInfo> ImportLayers;
 	ELandscapeImportResult Result = ELandscapeImportResult::Success;
@@ -82,7 +82,7 @@ TOptional< TArray< FLandscapeImportLayerInfo > > FNewLandscapeUtils::CreateImpor
 	return MoveTemp(ImportLayers);
 }
 
-TArray<uint16> FNewLandscapeUtils::ComputeHeightData(ULandscapeEditorObject* UISettings, TArray< FLandscapeImportLayerInfo >& ImportLayers, int32 NewLandscapePreviewMode)
+TArray<uint16> FNewLandscapeUtils::ComputeHeightData(ULandscapeEditorObject* UISettings, TArray< FLandscapeImportLayerInfo >& ImportLayers, ENewLandscapePreviewMode NewLandscapePreviewMode)
 {
 	TArray<uint16> HeightData;
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape)
