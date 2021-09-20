@@ -19,7 +19,7 @@ class UMaterialEditorPreviewParameters;
 /** Data for a row in the list of custom primitive data entries*/
 struct FCustomPrimitiveDataRowData
 {
-	FCustomPrimitiveDataRowData(int32 InSlot, FString InName, FString InUsage = "") : Slot(InSlot), Name(InName) {}
+	FCustomPrimitiveDataRowData(int32 InSlot, FString InName, bool bInIsDuplicate = false) : Slot(InSlot), Name(InName), bIsDuplicate(bInIsDuplicate) {}
 
 	int32 Slot = 0;
 	FString Name = "";
