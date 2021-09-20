@@ -300,16 +300,6 @@ namespace Chaos
 			UniqueIdxToGTParticles[Idx] = nullptr;
 		}
 	}
-	
-	void FPhysicsSolverBase::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
-	{
-		//TODO: this function calls both internal and extrnal - sort of assumed during initialization. Should decide what thread it's called on and mark it as either external or internal
-		MRewindData = MakeUnique<FRewindData>(((FPBDRigidsSolver*)this), NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
-		bUseCollisionResimCache = InUseCollisionResimCache;
-		MRewindCallback = MoveTemp(RewindCallback);
-		MarshallingManager.SetHistoryLength_Internal(NumFrames);
-		PullResultsManager->SetHistoryLength_External(NumFrames);	
-	}
 
 	void FPhysicsSolverBase::SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
 	{
