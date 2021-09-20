@@ -4,24 +4,22 @@
 
 #include "AssetEditor/CameraCalibrationCommands.h"
 #include "AssetToolsModule.h"
+#include "CameraCalibrationSettings.h"
+#include "CameraCalibrationSubsystem.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Factories/LensFileFactoryNew.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "IAssetTools.h"
 #include "Misc/FeedbackContext.h"
-#include "CameraCalibrationSettings.h"
-#include "CameraCalibrationSubsystem.h"
 #include "LensFile.h"
-#include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
-#include "UI/CameraCalibrationEditorStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Textures/SlateIcon.h"
+#include "ToolMenus.h"
+#include "UI/CameraCalibrationEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationMenu"
 
@@ -43,29 +41,51 @@ struct FCameraCalibrationMenuEntryImpl
 			FCanExecuteAction::CreateLambda([this] 
 			{ 
 				return GetDefaultLensFile() != nullptr;
-			}),
-			FIsActionChecked::CreateLambda([this]
-			{ 
-				return GetDefaultLensFile() != nullptr;
 			})
 		);
 
-		ToolBarExtender = MakeShared<FExtender>();
-		ToolBarExtender->AddToolBarExtension("Settings", EExtensionHook::After, Actions, FToolBarExtensionDelegate::CreateRaw(this, &FCameraCalibrationMenuEntryImpl::FillToolbar));
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ModesToolBar");
+		FToolMenuSection& Section = Menu->FindOrAddSection("LensFile");
 
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolBarExtender);
+		auto ButtonTooltipLambda = [this]()
+		{
+			ULensFile* LensFile = GetDefaultLensFile();
+			if (LensFile == nullptr)
+			{
+				return LOCTEXT("NoFile_ToolTip", "Select a Lens File to edit it.");
+			}
+			return FText::Format(LOCTEXT("LensFile_ToolTip", "Edit '{0}'") , FText::FromName(LensFile->GetFName()));
+		};
+
+		// Add a button to edit the default LensFile
+		FToolMenuEntry LensFileButtonEntry = FToolMenuEntry::InitToolBarButton(
+			FCameraCalibrationCommands::Get().Edit,
+			LOCTEXT("LensFile_Label", "Lens File"),
+			MakeAttributeLambda(ButtonTooltipLambda),
+			FSlateIcon(FCameraCalibrationEditorStyle::Get().GetStyleSetName(), TEXT("ClassIcon.LensFile"))
+		);
+		LensFileButtonEntry.SetCommandList(Actions);
+
+		FToolMenuEntry LensFileMenuEntry = FToolMenuEntry::InitComboButton(
+		"LensFileMenu",
+		FUIAction(),
+		FOnGetContent::CreateRaw(this, &FCameraCalibrationMenuEntryImpl::GenerateMenuContent),
+		LOCTEXT("LevelEditorToolbarLensFileButtonLabel", "LensFile"),
+		LOCTEXT("LevelEditorToolbarLensFileButtonTooltip", "Configure default LensFile"),
+		FSlateIcon(),
+		true //bInSimpleComboBox
+		);
+
+		LensFileMenuEntry.StyleNameOverride = "CalloutToolbar";
+		Section.AddEntry(LensFileButtonEntry);
+		Section.AddEntry(LensFileMenuEntry);
 	}
 
 	~FCameraCalibrationMenuEntryImpl()
 	{
-		if (!IsEngineExitRequested() && ToolBarExtender.IsValid())
+		if (!IsEngineExitRequested())
 		{
-			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
-			if (LevelEditorModule)
-			{
-				LevelEditorModule->GetToolBarExtensibilityManager()->RemoveExtender(ToolBarExtender);
-			}
+			UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.ModesToolBar", "LensFile");
 		}
 	}
 
@@ -106,42 +126,6 @@ struct FCameraCalibrationMenuEntryImpl
 		GetMutableDefault<UCameraCalibrationEditorSettings>()->SetUserLensFile(Asset);
 		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 		return SubSystem->SetDefaultLensFile(Asset);
-	}
-
-	void FillToolbar(FToolBarBuilder& ToolbarBuilder)
-	{
-		ToolbarBuilder.BeginSection("Lens Distortion");
-		{
-			auto TooltipLambda = [this]()
-			{
-				ULensFile* LensFile = GetDefaultLensFile();
-				if (LensFile == nullptr)
-				{
-					return LOCTEXT("NoFile_ToolTip", "Select a Lens File to edit it.");
-				}
-				return FText::Format(LOCTEXT("LensFile_ToolTip", "Edit '{0}'") , FText::FromName(LensFile->GetFName()));
-			};
-
-			// Add a button to edit the current lens file
-			ToolbarBuilder.AddToolBarButton(
-				FCameraCalibrationCommands::Get().Edit,
-				NAME_None,
-				LOCTEXT("LensFile_Label", "Lens File"),
-				MakeAttributeLambda(TooltipLambda),
-				FSlateIcon(FCameraCalibrationEditorStyle::Get().GetStyleSetName(), TEXT("ToolbarIcon.LensFile"))
-			);
-
-			// Add a simple drop-down menu (no label, no icon for the drop-down button itself) that list the lens files available
-			ToolbarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateRaw(this, &FCameraCalibrationMenuEntryImpl::GenerateMenuContent),
-				FText::GetEmpty(),
-				LOCTEXT("LensFileButton_ToolTip", "List of Lens Files available to the user for editing."),
-				FSlateIcon(),
-				true
-			);
-		}
-		ToolbarBuilder.EndSection();
 	}
 
 	TSharedRef<SWidget> GenerateMenuContent()
@@ -205,10 +189,6 @@ struct FCameraCalibrationMenuEntryImpl
 			false
 		);
 	}
-
-private:
-
-	TSharedPtr<FExtender> ToolBarExtender;
 
 public:
 
