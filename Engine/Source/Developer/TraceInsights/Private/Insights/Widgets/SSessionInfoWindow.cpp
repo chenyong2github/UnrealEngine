@@ -39,7 +39,6 @@ const FName FSessionInfoTabs::SessionInfoID(TEXT("SessionInfo"));
 
 SSessionInfoWindow::SSessionInfoWindow()
 	: DurationActive(0.0f)
-	, TabManager()
 {
 }
 
@@ -68,7 +67,7 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs, const TSharedRef<SD
 
 	TabManager->RegisterTabSpawner(FSessionInfoTabs::SessionInfoID, FOnSpawnTab::CreateRaw(this, &SSessionInfoWindow::SpawnTab_SessionInfo))
 		.SetDisplayName(LOCTEXT("SessionInfo", "Session Info"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Toolbar.Icon.Small"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "SessionInfo.Icon.Small"))
 		.SetGroup(AppMenuGroup);
 
 	TSharedRef<FTabManager::FLayout> Layout = []() -> TSharedRef<FTabManager::FLayout>
@@ -90,7 +89,6 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs, const TSharedRef<SD
 
 	// Create & initialize main menu.
 	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
-
 	MenuBarBuilder.AddPullDownMenu(
 		LOCTEXT("MenuLabel", "Menu"),
 		FText::GetEmpty(),
@@ -98,9 +96,25 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs, const TSharedRef<SD
 		FName(TEXT("Menu"))
 	);
 
+#if !WITH_EDITOR
+	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
+	MenuWidget->SetClipping(EWidgetClipping::ClipToBoundsWithoutIntersecting);
+#endif
+
 	ChildSlot
 	[
 		SNew(SOverlay)
+
+#if !WITH_EDITOR
+		// Menu
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Top)
+		.Padding(34.0f, -60.0f, 0.0f, 0.0f)
+		[
+			MenuWidget
+		]
+#endif
 
 		// Version
 		+ SOverlay::Slot()
@@ -113,24 +127,13 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs, const TSharedRef<SD
 			.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
 			.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
 		]
+
 		// Overlay slot for the main window area
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Fill)
 		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				MenuBarBuilder.MakeWidget()
-			]
-
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
-			]
+			TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
 		]
 	];
 }
@@ -309,14 +312,13 @@ TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArg
 	return DockTab;
 }
 
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SSessionInfoWindow::OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
-
 }
-
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

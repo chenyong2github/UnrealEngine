@@ -32,7 +32,6 @@ class SNetStatsView;
 struct FNetworkingProfilerTabs
 {
 	// Tab identifiers
-	static const FName ToolbarID;
 	static const FName PacketViewID;
 	static const FName PacketContentViewID;
 	static const FName NetStatsViewID;
@@ -144,9 +143,6 @@ public:
 	void SetSelectedEventTypeIndex(uint32 InEventTypeIndex);
 
 private:
-	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
-	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-
 	TSharedRef<SDockTab> SpawnTab_PacketView(const FSpawnTabArgs& Args);
 	void OnPacketViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 

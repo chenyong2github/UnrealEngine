@@ -32,7 +32,6 @@ namespace Insights
 struct FLoadingProfilerTabs
 {
 	// Tab identifiers
-	static const FName ToolbarID;
 	static const FName TimingViewID;
 	static const FName EventAggregationTreeViewID;
 	static const FName ObjectTypeAggregationTreeViewID;
@@ -81,9 +80,6 @@ public:
 	TSharedPtr<Insights::SUntypedTableTreeView> GetRequestsTreeView() const { return RequestsTreeView; }
 
 private:
-	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
-	void OnToolbarTabClosed(TSharedRef<SDockTab> TabBeingClosed);
-
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
 	void OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
