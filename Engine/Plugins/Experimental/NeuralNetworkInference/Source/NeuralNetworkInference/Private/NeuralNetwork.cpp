@@ -145,7 +145,7 @@ void UNeuralNetwork::SetDeviceType(const ENeuralDeviceType InDeviceType, const E
 		DeviceType = InDeviceType;
 		InputDeviceType = InInputDeviceType;
 		OutputDeviceType = InOutputDeviceType;
-		if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+		if (bIsLoaded && BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT) // No need to re-load if not bIsLoaded
 		{
 			Load();
 		}
@@ -186,8 +186,35 @@ void UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 	if (BackEndForCurrentPlatform != NewBackEndForCurrentPlatform)
 	{
 		BackEndForCurrentPlatform = NewBackEndForCurrentPlatform;
-		Load();
+		if (bIsLoaded) // No need to re-load if not bIsLoaded
+		{
+			Load();
+		}
 	}
+}
+
+bool UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd()
+{
+	return FImplBackEndUEAndORT::IsGPUConfigCompatible();
+}
+
+bool UNeuralNetwork::IsGPUConfigCompatibleForCurrentBackEnd() const
+{
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		return IsGPUConfigCompatibleForUEAndORTBackEnd();
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+		return true;
+	}
+
+	// Unknown
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::IsGPUSupported(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	return false;
 }
 
 const FNeuralTensor& UNeuralNetwork::GetInputTensor(const int32 InTensorIndex) const
@@ -436,7 +463,7 @@ bool UNeuralNetwork::Load()
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		UNeuralNetwork::FImplBackEndUEAndORT::SetDeviceToCPUIfD3D12NotSupported(DeviceType);
+		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType);
 		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, AreInputTensorSizesVariable, ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
 	}
 	// UEOnly
@@ -502,6 +529,13 @@ void UNeuralNetwork::PostLoad()
 	// If ModelReadFromFileInBytes is not empty, call Load() 
 	if (ModelReadFromFileInBytes.Num() > 0)
 	{
+		// If GPU selected but not compatible, set to CPU
+		if (!IsGPUConfigCompatibleForCurrentBackEnd())
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::PostLoad(): IsGPUConfigCompatibleForCurrentBackEnd() returned false, setting DeviceType to CPU."));
+			DeviceType = ENeuralDeviceType::CPU;
+		}
+		// Load
 		if (!Load())
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::PostLoad(): UNeuralNetwork could not be loaded."));

@@ -123,56 +123,44 @@ IDMLDevice* FPrivateImplBackEndUEAndORT::FDMLDeviceList::Add(ID3D12Device* Devic
 /* UNeuralNetwork public functions
  *****************************************************************************/
 
-void UNeuralNetwork::FImplBackEndUEAndORT::SetDeviceToCPUIfD3D12NotSupported(ENeuralDeviceType& InOutDeviceType)
+void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType)
 {
 	if (InOutDeviceType != ENeuralDeviceType::CPU)
 	{
-		if (!IsD3D12Supported())
+		if (!IsGPUConfigCompatible())
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::SetDeviceToCPUIfD3D12NotSupported(): Setting device to CPU provisionally."));
 			InOutDeviceType = ENeuralDeviceType::CPU;
+
+			const FString RHIName = GDynamicRHI->GetName();
+			const FString ErrorMessage = TEXT("On Windows, only DirectX 12 rendering (\"D3D12\") is compatible with the UEAndORT back end of NeuralNetworkInference (NNI). Instead, \"") + RHIName
+				+ TEXT("\" was used. You have the following options:\n\n"
+					"\t1. (Recommended) Switch Unreal Engine to DX12. In order to do that:\n"
+					"\t\t - Go to \"Project Settings\", \"Platforms\", \"Windows\", \"Default RHI\".\n"
+					"\t\t - Select \"DirectX 12\".\n"
+					"\t\t - Restart Unreal Engine.\n"
+					"\t2. Alternatively, switch the network to CPU with UNeuralNetwork::SetDeviceType().\n"
+					"\t3. (Not recommended) You could also switch the network to UEOnly with UNeuralNetwork::SetBackEnd().\n\n"
+					"Network set to CPU provisionally.");
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(): %s"), *ErrorMessage);
+#if WITH_EDITOR
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ErrorMessage));
+#endif //WITH_EDITOR
 		}
 	}
 }
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::IsD3D12Supported()
+bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUConfigCompatible()
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
-
 #ifdef PLATFORM_WIN64
-	// To create a DirectML device we need to check that we're using DX12 first
+	// Return whether it is DX12
 	const FString RHIName = GDynamicRHI->GetName();
-
-	// Display warning if not DX12
-	if (RHIName != TEXT("D3D12"))
-	{
-		const FString ErrorMessage = TEXT("On Windows, only DirectX 12 rendering (\"D3D12\") is compatible with NeuralNetworkInference (NNI). Instead, \"") + RHIName
-			+ TEXT("\" was used. You have the following options:\n"
-				"\t1. (Recommended) Switch Unreal Engine to DX12. In order to do that:\n"
-					"\t\t - Go to \"Project Settings\", \"Platforms\", \"Windows\", \"Default RHI\".\n"
-					"\t\t - Select \"DirectX 12\".\n"
-					"\t\t - Restart Unreal Engine.\n"
-				"\t2. Alternatively, switch the network to CPU with UNeuralNetwork::SetDeviceType().\n"
-				"\t3. (Not recommended) You could also switch the network to UEOnly with UNeuralNetwork::SetBackEnd().\n"
-				"Setting the network to CPU provisionally.");
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::ConfigureMembers(): %s"), *ErrorMessage, *RHIName);
-#if WITH_EDITOR
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ErrorMessage));
-#endif //WITH_EDITOR
-		return false;
-	}
-
-	return true;
-
-#else //PLATFORM_WIN64
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::IsD3D12Supported(): This function will always return false outside of Windows."));
-	return false;
+	return (RHIName == TEXT("D3D12"));
 #endif //PLATFORM_WIN64
-
-#else //WITH_UE_AND_ORT_SUPPORT
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::IsD3D12Supported(): This function will always return false if WITH_UE_AND_ORT_SUPPORT is not defined."));
-	return false;
 #endif //WITH_UE_AND_ORT_SUPPORT
+
+	// If not Windows and/or if WITH_UE_AND_ORT_SUPPORT not defined, then this should return true because GPU will always work
+	return true;
 }
 
 //bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
@@ -433,8 +421,10 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 	if (InDeviceType == ENeuralDeviceType::GPU)
 	{
 #ifdef PLATFORM_WIN64
-		if (!IsD3D12Supported())
+		// To create a DirectML device we need to check that we're using DX12 first
+		if (!IsGPUConfigCompatible())
 		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::ConfigureMembers(): UEAndORT back end for GPU needs DX12 enabled."));
 			return false;
 		}
 
