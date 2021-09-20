@@ -2052,11 +2052,11 @@ namespace AutomationTool
                 {
 					if (RuntimePlatform.IsMac)
 					{
-						CachedRootBuildStorageDirectory = CombinePaths("Volumes", "Builds");
+						CachedRootBuildStorageDirectory = CombinePaths("/Volumes", "Builds");
 					}
 					else if (RuntimePlatform.IsLinux)
 					{
-						CachedRootBuildStorageDirectory = CombinePaths("mnt", "Builds");
+						CachedRootBuildStorageDirectory = CombinePaths("/mnt", "Builds");
 					}
 					else
 					{
