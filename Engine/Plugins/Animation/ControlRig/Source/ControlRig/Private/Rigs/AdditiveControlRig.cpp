@@ -59,6 +59,8 @@ void UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FNam
 
 void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 {
+	PostInitInstanceIfRequired();
+	
 	Super::Initialize(bInitRigUnits);
 
 	if (GetObjectBinding() == nullptr)
@@ -91,6 +93,8 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 
 void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
 {
+	PostInitInstanceIfRequired();
+	
 	GetHierarchy()->Reset();
 	if (URigHierarchyController* Controller = GetHierarchy()->GetController(true))
 	{

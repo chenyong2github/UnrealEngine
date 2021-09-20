@@ -192,6 +192,8 @@ void UFKControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalM
 
 void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 {
+	PostInitInstanceIfRequired();
+
 	Super::Initialize(bInitRigUnits);
 
 	if (GetObjectBinding() == nullptr)
@@ -250,6 +252,8 @@ void UFKControlRig::SetControlActive(const TArray<FFKBoneCheckInfo>& BoneChecks)
 
 void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
 {
+	PostInitInstanceIfRequired();
+
 	GetHierarchy()->Reset();
 	if (URigHierarchyController* Controller = GetHierarchy()->GetController(true))
 	{

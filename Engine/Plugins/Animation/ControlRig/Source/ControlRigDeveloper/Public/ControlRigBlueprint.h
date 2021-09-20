@@ -558,6 +558,10 @@ private:
 
 	void HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
+#if WITH_EDITOR
+	void HandlePackageDone(TConstArrayView<UPackage*> InPackages);
+#endif
+
 	// Class used to temporarily cache all 
 	// current control values and reapply them
 	// on destruction
