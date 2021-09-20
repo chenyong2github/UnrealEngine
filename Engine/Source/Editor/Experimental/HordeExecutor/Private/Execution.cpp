@@ -120,9 +120,9 @@ namespace UE::RemoteExecution
 			for (FGetTaskUpdateResponse& Update : Response.Value.Updates)
 			{
 				UE_LOG(LogHordeExecutor, Verbose, TEXT("WaitForTasksAsync: %s %s"),
-					*TaskStateString(Update.State),
+					*ComputeTaskStateString(Update.State),
 					*FString::FromHexBlob(Update.TaskHash.GetBytes(), sizeof(FIoHash::ByteArray)));
-				if (Update.State == ETaskState::Complete)
+				if (Update.State == EComputeTaskState::Complete)
 				{
 					WaitTask->Complete.Add(Update.TaskHash, MoveTemp(Update));
 				}

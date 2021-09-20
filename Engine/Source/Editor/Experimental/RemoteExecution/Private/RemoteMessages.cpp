@@ -46,7 +46,8 @@ namespace UE::RemoteExecution
 
 	FGetTaskUpdateResponse::FGetTaskUpdateResponse()
 		: Time(0)
-		, State(ETaskState::Queued)
+		, State(EComputeTaskState::Queued)
+		, Outcome(EComputeTaskOutcome::Success)
 	{
 	}
 
@@ -60,6 +61,8 @@ namespace UE::RemoteExecution
 		}
 		Writer.AddDateTime("t", Time);
 		Writer.AddInteger("s", (int32)State);
+		Writer.AddInteger("o", (int32)Outcome);
+		Writer.AddString("d", Detail);
 		if (ResultHash != FIoHash::Zero)
 		{
 			Writer.AddObjectAttachment("r", ResultHash);
@@ -74,7 +77,9 @@ namespace UE::RemoteExecution
 	{
 		TaskHash = CbObjectView["h"].AsObjectAttachment();
 		Time = CbObjectView["t"].AsDateTime();
-		State = (ETaskState)CbObjectView["s"].AsInt32();
+		State = (EComputeTaskState)CbObjectView["s"].AsInt32();
+		Outcome = (EComputeTaskOutcome)CbObjectView["o"].AsInt32();
+		Detail = FString(CbObjectView["d"].AsString());
 		ResultHash = CbObjectView["r"].AsObjectAttachment();
 		AgentId = FString(CbObjectView["a"].AsString());
 		LeaseId = FString(CbObjectView["l"].AsString());
