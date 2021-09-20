@@ -4201,6 +4201,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		try
 		{
 			Intent BrowserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(URL));
+			BrowserIntent.addCategory(Intent.CATEGORY_BROWSABLE);
 
 			// open browser on its own task
 			BrowserIntent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY | Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);

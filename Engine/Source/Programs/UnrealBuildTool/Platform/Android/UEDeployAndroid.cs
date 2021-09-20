@@ -2548,6 +2548,22 @@ namespace UnrealBuildTool
 
 			Text.AppendLine("");
 
+			if (TargetSDKVersion >= 30)
+			{
+				Text.AppendLine("\t<queries>");
+				Text.AppendLine("\t\t<intent>");
+				Text.AppendLine("\t\t\t<action android:name=\"android.intent.action.VIEW\" />");
+				Text.AppendLine("\t\t\t<category android:name=\"android.intent.category.BROWSABLE\" />");
+				Text.AppendLine("\t\t\t<data android:scheme=\"http\" />");
+				Text.AppendLine("\t\t</intent>");
+				Text.AppendLine("\t\t<intent>");
+				Text.AppendLine("\t\t\t<action android:name=\"android.intent.action.VIEW\" />");
+				Text.AppendLine("\t\t\t<category android:name=\"android.intent.category.BROWSABLE\" />");
+				Text.AppendLine("\t\t\t<data android:scheme=\"https\" />");
+				Text.AppendLine("\t\t</intent>");
+				Text.AppendLine("\t</queries>");
+			}
+
 			Text.AppendLine("\t<!-- Application Definition -->");
 			Text.AppendLine("\t<application android:label=\"@string/app_name\"");
 			Text.AppendLine("\t             android:icon=\"@drawable/icon\"");
