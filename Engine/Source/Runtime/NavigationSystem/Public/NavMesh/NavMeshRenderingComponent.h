@@ -13,6 +13,7 @@
 #include "Math/GenericOctree.h"
 #include "StaticMeshResources.h"
 #include "NavigationSystemTypes.h"
+#include "Templates/UnrealTemplate.h"
 #include "NavMeshRenderingComponent.generated.h"
 
 class APlayerController;
@@ -108,7 +109,7 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 };
 
 // exported to API for GameplayDebugger module
-class NAVIGATIONSYSTEM_API FNavMeshSceneProxy final : public FDebugRenderSceneProxy
+class NAVIGATIONSYSTEM_API FNavMeshSceneProxy final : public FDebugRenderSceneProxy, public FNoncopyable
 {
 	friend class FNavMeshDebugDrawDelegateHelper;
 public:
@@ -132,7 +133,7 @@ private:
 	FStaticMeshVertexBuffers VertexBuffers;
 	FLocalVertexFactory VertexFactory;
 
-	TArray<FColoredMaterialRenderProxy> MeshColors;
+	TArray<TUniquePtr<FColoredMaterialRenderProxy>> MeshColors;
 	TArray<FMeshBatchElement> MeshBatchElements;
 
 	FDebugDrawDelegate DebugTextDrawingDelegate;

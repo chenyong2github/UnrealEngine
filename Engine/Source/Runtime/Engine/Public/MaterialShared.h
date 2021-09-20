@@ -27,6 +27,7 @@
 #include "Serialization/ArchiveProxy.h"
 #include "MaterialSceneTextureId.h"
 #include "VirtualTexturing.h"
+#include "Templates/UnrealTemplate.h"
 
 #include "Shader/Preshader.h"
 
@@ -2258,7 +2259,7 @@ class USubsurfaceProfile;
 /**
  * A material render proxy used by the renderer.
  */
-class FMaterialRenderProxy : public FRenderResource
+class FMaterialRenderProxy : public FRenderResource, public FNoncopyable
 {
 public:
 
@@ -2351,7 +2352,6 @@ public:
 	}
 
 	// FRenderResource interface.
-	ENGINE_API virtual void InitDynamicRHI() override;
 	ENGINE_API virtual void ReleaseDynamicRHI() override;
 	ENGINE_API virtual void ReleaseResource() override;
 
