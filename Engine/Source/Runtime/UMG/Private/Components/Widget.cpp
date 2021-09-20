@@ -1089,6 +1089,10 @@ bool UWidget::IsEditorWidget() const
 		{
 			return WidgetBP->AllowEditorWidget();
 		}
+		else if (UUserWidget* UserWidget = Cast<UUserWidget>(WidgetBPObject))
+		{
+			return UserWidget->IsEditorUtility();
+		}
 	}
 
 	return false;
