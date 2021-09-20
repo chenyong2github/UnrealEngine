@@ -18,6 +18,7 @@
 #include "Chaos/Defines.h"
 #include "Chaos/PendingSpatialData.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "RewindData.h"
 
 
 extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
@@ -413,6 +414,11 @@ public:
 
 	CHAOS_API void DestroyParticle(FGeometryParticleHandle* Particle)
 	{
+		if(MRewindData)
+		{
+			MRewindData->RemoveObject(Particle);
+		}
+
 		RemoveParticleFromAccelerationStructure(*Particle);
 		DisconnectConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
 		ConstraintGraph.RemoveParticle(Particle);
@@ -806,6 +812,11 @@ public:
 		bCanStartAsyncTasks = bInCanStartAsyncTasks;
 	}
 
+	void SetRewindData(FRewindData* RewindData)
+	{
+		MRewindData = RewindData;
+	}
+
 	CHAOS_API void DisableParticleWithRemovalEvent(FGeometryParticleHandle* Particle);
 	const TArray<FRemovalData>& GetAllRemovals() { return MAllRemovals; }
 	void ResetAllRemovals() { MAllRemovals.Reset(); }
@@ -924,6 +935,7 @@ protected:
 	FAccelerationStructure* InternalAcceleration;
 	FAccelerationStructure* AsyncInternalAcceleration;
 	FAccelerationStructure* AsyncExternalAcceleration;
+	FRewindData* MRewindData = nullptr;
 
 	//internal thread will push into this and external thread will consume
 	TQueue<FAccelerationStructure*,EQueueMode::Spsc> ExternalStructuresQueue;
