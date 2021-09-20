@@ -757,7 +757,7 @@ void FLidarPointCloudEditorViewportClient::DrawSelectionBox(FCanvas& Canvas)
 	Viewport->GetMousePos(SelectionCurrentLocation);
 
 	const float InvScale = 1.0f / Viewport->GetClient()->GetDPIScale();
-
+	
 	const float X = FMath::Min(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale;
 	const float Y = FMath::Min(SelectionStartLocation.Y, SelectionCurrentLocation.Y) * InvScale;
 	const float SizeX = FMath::Max(SelectionStartLocation.X, SelectionCurrentLocation.X) * InvScale - X;
@@ -774,20 +774,20 @@ void FLidarPointCloudEditorViewportClient::DrawSelectionBox(FCanvas& Canvas)
 		Line.SetColor(GetDefault<UEditorStyleSettings>()->SelectionColor);
 		Line.LineThickness = 2;
 
-		Line.Origin = FVector(SelectionStartLocation);
-		Line.EndPos = FVector(SelectionCurrentLocation.X, SelectionStartLocation.Y, 0);
+		Line.Origin = FVector(X, Y, 0);
+		Line.EndPos = FVector(X + SizeX, Y, 0);
 		Canvas.DrawItem(Line);
 
 		Line.Origin = Line.EndPos;
-		Line.EndPos = FVector(SelectionCurrentLocation);
+		Line.EndPos = FVector(X + SizeX, Y + SizeY, 0);
 		Canvas.DrawItem(Line);
 
 		Line.Origin = Line.EndPos;
-		Line.EndPos = FVector(SelectionStartLocation.X, SelectionCurrentLocation.Y, 0);
+		Line.EndPos = FVector(X, Y + SizeY, 0);
 		Canvas.DrawItem(Line);
 
 		Line.Origin = Line.EndPos;
-		Line.EndPos = FVector(SelectionStartLocation);
+		Line.EndPos = FVector(X, Y, 0);
 		Canvas.DrawItem(Line);
 	}
 }
@@ -811,6 +811,13 @@ void FLidarPointCloudEditorViewportClient::DrawSelectionPolygonal(FCanvas& Canva
 	}
 
 	TArray<FVector2D> VectorPoints = ToVectorArray(DrawSelectionPoints);
+
+	// Account for DPI
+	const float InvScale = 1.0f / Viewport->GetClient()->GetDPIScale();
+	for(FVector2D& DrawPoint : VectorPoints)
+	{
+		DrawPoint *= InvScale;
+	}
 
 	// Calculate visual indication of complete polygon for the user
 	const bool bPolyComplete = DrawSelectionPoints.Num() > 2 && (DrawSelectionPoints.Last() - DrawSelectionPoints[0]).SizeSquared() < PolySnapDistanceSq;
