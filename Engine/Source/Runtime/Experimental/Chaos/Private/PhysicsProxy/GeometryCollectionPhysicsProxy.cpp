@@ -1854,7 +1854,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	bool bUseRelativeSize = RestCollection.HasAttribute(TEXT("Size"), FTransformCollection::TransformGroup);
 	if (!bUseRelativeSize)
 	{
-		UE_LOG(LogChaos, Warning, TEXT("Relative Size not found on Rest Collection. Using bounds volume for SizeSpecificData indexing instead."));
+		UE_LOG(LogChaos, Display, TEXT("Relative Size not found on Rest Collection. Using bounds volume for SizeSpecificData indexing instead."));
 	}
 
 
