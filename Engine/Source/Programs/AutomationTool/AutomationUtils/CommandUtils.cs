@@ -2037,7 +2037,7 @@ namespace AutomationTool
         /// <summary>
         /// "P:\Builds" or "/Volumes/Builds". Root Folder for all build storage.
         /// </summary>
-        /// <returns>"P:\Builds" or "/Volumes/Builds" unless overridden by -UseLocalBuildStorage from the commandline, where is uses Engine\Saved\LocalBuilds\.</returns>
+        /// <returns>"P:\Builds" or "/Volumes/Builds" or "/mnt/Builds" unless overridden by -UseLocalBuildStorage from the commandline, where is uses Engine\Saved\LocalBuilds\.</returns>
         public static string RootBuildStorageDirectory()
         {
             if (string.IsNullOrEmpty(CachedRootBuildStorageDirectory))
@@ -2050,7 +2050,18 @@ namespace AutomationTool
                 }
                 else
                 {
-                    CachedRootBuildStorageDirectory = RuntimePlatform.IsWindows ? CombinePaths("P:", "Builds") : "/Volumes/Builds";
+					if (RuntimePlatform.IsMac)
+					{
+						CachedRootBuildStorageDirectory = CombinePaths("Volumes", "Builds");
+					}
+					else if (RuntimePlatform.IsLinux)
+					{
+						CachedRootBuildStorageDirectory = CombinePaths("mnt", "Builds");
+					}
+					else
+					{
+						CachedRootBuildStorageDirectory = CombinePaths("P:", "Builds");
+					}
                 }
             }
             return CachedRootBuildStorageDirectory;
