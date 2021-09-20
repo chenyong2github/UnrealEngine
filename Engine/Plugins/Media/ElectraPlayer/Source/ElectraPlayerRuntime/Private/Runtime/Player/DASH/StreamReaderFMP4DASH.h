@@ -40,6 +40,7 @@ public:
 	virtual void GetDownloadStats(Metrics::FSegmentDownloadStats& OutStats) const override;
 
 	EStreamType												StreamType = EStreamType::Unsupported;				//!< Type of stream (video, audio, etc.)
+	FStreamCodecInformation									CodecInfo;											//!< Partial codec info as can be collected from the MPD.
 	TSharedPtrTS<IPlaybackAssetRepresentation>				Representation;										//!< The representation this request belongs to.
 	TSharedPtrTS<IPlaybackAssetAdaptationSet>				AdaptationSet;										//!< The adaptation set the representation belongs to.
 	TSharedPtrTS<ITimelineMediaAsset>						Period;												//!< The period the adaptation set belongs to.
@@ -162,6 +163,7 @@ private:
 		void HandleRequest();
 
 		FErrorDetail GetInitSegment(TSharedPtrTS<const IParserISO14496_12>& OutMP4InitSegment, const TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InRequest);
+		FErrorDetail RetrieveSideloadedFile(TSharedPtrTS<const TArray<uint8>>& OutData, const TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InRequest);
 		void CheckForInbandDASHEvents();
 		void HandleEventMessages();
 

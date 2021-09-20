@@ -378,6 +378,7 @@ void FManifestMP4Internal::FPlayPeriodMP4::MakeBufferSourceInfoFromMetadata(EStr
 		OutBufferSourceInfo = MakeSharedTS<FBufferSourceInfo>();
 		OutBufferSourceInfo->Kind = InMetadata->Kind;
 		OutBufferSourceInfo->Language = InMetadata->Language;
+		OutBufferSourceInfo->Codec = InMetadata->HighestBandwidthCodec.GetCodecName();
 		TSharedPtrTS<FTimelineAssetMP4> Asset = MediaAsset.Pin();
 		OutBufferSourceInfo->PeriodAdaptationSetID = Asset->GetUniqueIdentifier() + TEXT(".") + InMetadata->ID;
 		TArray<FTrackMetadata> Metadata;

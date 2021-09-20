@@ -39,6 +39,8 @@ namespace Electra
 		// Partial track metadata. See FTrackMetadata.
 		FString		Kind;
 		FString		Language;
+		FString		Codec;
+
 		// Internal hard index, used for multiplexed streams.
 		int32		HardIndex = -1;
 	};
@@ -67,6 +69,7 @@ namespace Electra
 		FTimeValue					DTS;							//!< DTS
 		FTimeValue					Duration;						//!< Duration
 		FTimeValue					OverlapAdjust;					//!< If set this indicates by how much the AU overlaps the desired time. Negative values indicate the AU is too early. Only set when DropState is zero.
+		FTimeValue					PTO;							//!< Media local presentation time offset.
 		uint32						AUSize;							//!< Size of this access unit
 		void*						AUData;							//!< Access unit data
 		TSharedPtrTS<CodecData>		AUCodecData;					//!< If set, points to sideband data for this access unit.
@@ -76,6 +79,7 @@ namespace Electra
 		bool						bIsSyncSample;					//!< true if this is a sync sample (keyframe)
 		bool						bIsDummyData;					//!< True if the decoder must be reset before decoding this AU.
 		bool						bTrackChangeDiscontinuity;		//!< True if this is the first AU after a track change.
+		bool						bIsSideloaded;					//!< True if the payload is not streamed but loaded from a sidecar file.
 
 		TSharedPtrTS<const FBufferSourceInfo>	BufferSourceInfo;
 		TSharedPtrTS<const FPlayerLoopState>	PlayerLoopState;
@@ -154,6 +158,8 @@ namespace Electra
 			PTS.SetToInvalid();
 			DTS.SetToInvalid();
 			Duration.SetToInvalid();
+			OverlapAdjust.SetToZero();
+			PTO.SetToZero();
 			ESType = EStreamType::Unsupported;
 			AUSize = 0;
 			AUData = nullptr;
@@ -164,6 +170,7 @@ namespace Electra
 			bIsSyncSample = false;
 			bIsDummyData = false;
 			bTrackChangeDiscontinuity = false;
+			bIsSideloaded = false;
 			bHasBeenPrepared = false;
 		}
 

@@ -1038,7 +1038,9 @@ FErrorDetail FPlaylistReaderHLS::ParsePlaylist(FPlaylistRequestPtr FromRequest)
 	{
 		int32 RequestBytes = FromRequest->GetReceiveBuffer()->Buffer.Num();
 		// The FromRequest buffer is not zero terminated. We need to pick the correct FString constructor for converting the chars into TCHARs while adding the terminating zero!
-		ParseError = Parser.Parse(FString(RequestBytes, (TCHAR*)FUTF8ToTCHAR((const ANSICHAR*)FromRequest->GetReceiveBuffer()->Buffer.GetLinearReadData(), RequestBytes).Get()), Playlist);
+		FUTF8ToTCHAR TextConv((const ANSICHAR*)FromRequest->GetReceiveBuffer()->Buffer.GetLinearReadData(), RequestBytes);
+		FString UTF8String(TextConv.Length(), TextConv.Get());
+		ParseError = Parser.Parse(UTF8String, Playlist);
 	}
 
 	if (ParseError == HLSPlaylistParser::EPlaylistError::None)

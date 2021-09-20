@@ -510,7 +510,7 @@ void FDASHPlayPeriod::PrioritizeSelection(TArray<FPrioritizedSelection>& Selecti
 			Candidate.Priority = NewPriority;
 		}
 	}
-	// Sort forst by descending bitrate?
+	// Sort first by descending bitrate?
 	if (bSortByBitrateDescending)
 	{
 		Selection.StableSort([](const FPrioritizedSelection& a, const FPrioritizedSelection& b)
@@ -584,11 +584,32 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 				PrioritizeSelection(Selection, StreamType, true, false);
 				if (Selection.Num())
 				{
-					// Take the highest prioritized set.
+					// Take the highest prioritized set for now.
 					SelectedTypeIndex = Selection[0].Index;
+
+					// Check if there is a preferred codec set. If we have multiple AdaptationSets for the same language using different codecs
+					// we pick the one for which there is a preference. If there is none matching the first is chosen.
+					// This is primarily to ensure the same track is kept when seeking or across period boundaries.
+					if (Attributes.Codec.IsSet())
+					{
+						FString PreferredCodec = Attributes.Codec.GetValue();
+						if (!PreferredCodec.IsEmpty())
+						{
+							for(int32 i=0; i<Selection.Num(); ++i)
+							{
+								if (Selection[i].CodecInfo.GetCodecName().Equals(PreferredCodec))
+								{
+									SelectedTypeIndex = i;
+									break;
+								}
+							}
+						}
+					}
+
 					AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, SelectedTypeIndex));
 				}
 			}
+
 			// Matching language not found. Is there an explicit index given?
 			// Note: for now we use the explicit override even if a matching language was already found.
 			//       there's a reason the override is specified, like to enforce a specific codec for the same language.
@@ -625,6 +646,7 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 			OutBufferSourceInfo = MakeSharedTS<FBufferSourceInfo>();
 			OutBufferSourceInfo->Kind = tm.Kind;
 			OutBufferSourceInfo->Language = tm.Language;
+			OutBufferSourceInfo->Codec = tm.HighestBandwidthCodec.GetCodecName();
 			OutBufferSourceInfo->HardIndex = SelectedTypeIndex;
 			OutBufferSourceInfo->PeriodAdaptationSetID = Period->GetUniqueIdentifier() + TEXT("/") + AS->GetUniqueIdentifier();
 		}
@@ -1004,7 +1026,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 			SearchOpt.PeriodDuration = Period->GetDuration();
 			if (!SearchOpt.PeriodDuration.IsValid() || SearchOpt.PeriodDuration.IsPositiveInfinity())
 			{
-				SearchOpt.PeriodDuration = Manifest->GetLastPeriodEndTime() - AST;
+				SearchOpt.PeriodDuration = Manifest->GetLastPeriodEndTime() - AST - Period->GetStart();
 			}
 			SearchOpt.bHasFollowingPeriod = Period->GetHasFollowingPeriod();
 			SearchOpt.SearchType = SearchType;
@@ -1024,6 +1046,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 			{
 				TSharedPtrTS<FStreamSegmentRequestFMP4DASH> SegmentRequest = MakeSharedTS<FStreamSegmentRequestFMP4DASH>();
 				SegmentRequest->StreamType = ActiveSelection[i].StreamType;
+				SegmentRequest->CodecInfo = Repr->GetCodecInformation();
 				SegmentRequest->Representation = Repr;
 				SegmentRequest->AdaptationSet = Adapt;
 				SegmentRequest->Period = Period;
@@ -1074,6 +1097,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 
 				TSharedPtrTS<FStreamSegmentRequestFMP4DASH> SegmentRequest = MakeSharedTS<FStreamSegmentRequestFMP4DASH>();
 				SegmentRequest->StreamType = ActiveSelection[i].StreamType;
+				SegmentRequest->CodecInfo = Repr->GetCodecInformation();
 				SegmentRequest->Representation = Repr;
 				SegmentRequest->AdaptationSet = Adapt;
 				SegmentRequest->Period = Period;
@@ -1211,6 +1235,12 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		SearchOpt.PeriodLocalTime.SetFromND(Current->Segment.Time - Current->Segment.PTO + Current->Segment.Duration*3/4, Current->Segment.Timescale);
 		SearchOpt.PeriodDuration = Period->GetDuration();
 		SearchOpt.SearchType = IManifest::ESearchType::After;
+		// If this representation is side loaded there is nothing to fetch next.
+		// Set the period search time such that the search will have to return EOS.
+		if (Repr.IsValid() && Repr->IsSideloadedSubtitle())
+		{
+			SearchOpt.PeriodLocalTime.SetToPositiveInfinity();
+		}
 	}
 	else if (InNextType == ENextSegType::SamePeriodRetry)
 	{
@@ -1248,7 +1278,15 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 	}
 	SearchOpt.bHasFollowingPeriod = Period->GetHasFollowingPeriod();
 
-	FManifestDASHInternal::FRepresentation::ESearchResult SearchResult = Repr->FindSegment(PlayerSessionServices, SegmentInfo, RemoteElementLoadRequests, SearchOpt);
+	FManifestDASHInternal::FRepresentation::ESearchResult SearchResult;
+	if (Repr.IsValid())
+	{
+		SearchResult = Repr->FindSegment(PlayerSessionServices, SegmentInfo, RemoteElementLoadRequests, SearchOpt);
+	}
+	else
+	{
+		SearchResult = FManifestDASHInternal::FRepresentation::ESearchResult::PastEOS;
+	}
 	if (SearchResult == FManifestDASHInternal::FRepresentation::ESearchResult::NeedElement)
 	{
 		TSharedPtrTS<IPlaylistReader> ManifestReader = PlayerSessionServices->GetManifestReader();
@@ -1296,6 +1334,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 		TSharedPtrTS<FStreamSegmentRequestFMP4DASH> SegmentRequest = MakeSharedTS<FStreamSegmentRequestFMP4DASH>();
 		SegmentRequest->PlayerLoopState = Current->PlayerLoopState;
 		SegmentRequest->StreamType = Current->GetType();
+		SegmentRequest->CodecInfo = Repr->GetCodecInformation();
 		SegmentRequest->Representation = Repr;
 		SegmentRequest->AdaptationSet = Adapt;
 		SegmentRequest->Period = Period;
@@ -2087,32 +2126,40 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 			}
 		}
 	}
-	// Remove empty hierarchy levels
-	SegmentBase.Remove(nullptr);
-	SegmentTemplate.Remove(nullptr);
-	// Nothing? Bad MPD.
-	if (SegmentBase.Num() == 0 && SegmentTemplate.Num() == 0)
-	{
-		PostError(InPlayerSessionServices, FString::Printf(TEXT("Representation \"%s\" does not have one of <SegmentBase> or <SegmentTemplate> anywhere in the MPD hierarchy!"), *MPDRepresentation->GetID()), ERRCODE_DASH_MPD_BAD_REPRESENTATION);
-		bIsUsable = false;
-		return FManifestDASHInternal::FRepresentation::ESearchResult::BadType;
-	}
 
-	if (SegmentBase.Num())
+	if (IsSideloadedSubtitle())
 	{
-		return FindSegment_Base(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentBase);
+		return SetupSideloadedFile(InPlayerSessionServices, OutSegmentInfo, InSearchOptions, MPDRepresentation);
 	}
 	else
 	{
-		// Get the segment timeline, if one is used.
-		TSharedPtrTS<FDashMPD_SegmentTimelineType> SegmentTimeline = GET_ATTR(SegmentTemplate, GetSegmentTimeline(), IsValid(), TSharedPtrTS<FDashMPD_SegmentTimelineType>());
-		if (SegmentTimeline.IsValid())
+		// Remove empty hierarchy levels
+		SegmentBase.Remove(nullptr);
+		SegmentTemplate.Remove(nullptr);
+		// Nothing? Bad MPD.
+		if (SegmentBase.Num() == 0 && SegmentTemplate.Num() == 0)
 		{
-			return FindSegment_Timeline(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate, SegmentTimeline);
+			PostError(InPlayerSessionServices, FString::Printf(TEXT("Representation \"%s\" does not have one of <SegmentBase> or <SegmentTemplate> anywhere in the MPD hierarchy!"), *MPDRepresentation->GetID()), ERRCODE_DASH_MPD_BAD_REPRESENTATION);
+			bIsUsable = false;
+			return FManifestDASHInternal::FRepresentation::ESearchResult::BadType;
+		}
+
+		if (SegmentBase.Num())
+		{
+			return FindSegment_Base(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentBase);
 		}
 		else
 		{
-			return FindSegment_Template(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate);
+			// Get the segment timeline, if one is used.
+			TSharedPtrTS<FDashMPD_SegmentTimelineType> SegmentTimeline = GET_ATTR(SegmentTemplate, GetSegmentTimeline(), IsValid(), TSharedPtrTS<FDashMPD_SegmentTimelineType>());
+			if (SegmentTimeline.IsValid())
+			{
+				return FindSegment_Timeline(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate, SegmentTimeline);
+			}
+			else
+			{
+				return FindSegment_Template(InPlayerSessionServices, OutSegmentInfo, OutRemoteElementLoadRequests, InSearchOptions, MPDRepresentation, SegmentTemplate);
+			}
 		}
 	}
 }
@@ -2369,8 +2416,8 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	}
 	uint32 SegmentDuration = Duration.Value();
 
-	// Get the period local time into media local timescale
-	int64 MediaLocalSearchTime = InSearchOptions.PeriodLocalTime.GetAsTimebase(MPDTimescale);
+	// Get the period local time into media local timescale and add the PTO.
+	int64 MediaLocalSearchTime = InSearchOptions.PeriodLocalTime.GetAsTimebase(MPDTimescale) + PTO;
 	// If the first media segment does not fall onto the period start there will be an EPT delta that is usually negative.
 	// To simplify calculation of the segment index we shift the search time such that 0 would correspond to the EPT.
 	int32 EPTdelta = EptDelta.GetWithDefault(0);
@@ -2380,16 +2427,16 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		MediaLocalSearchTime = 0;
 	}
 
-	int64 MediaLocalPeriodDuration;
+	int64 MediaLocalPeriodEnd;
 	uint32 MaxSegmentsInPeriod;
 	if (InSearchOptions.PeriodDuration.IsValid() && !InSearchOptions.PeriodDuration.IsInfinity())
 	{
-		MediaLocalPeriodDuration = InSearchOptions.PeriodDuration.GetAsTimebase(MPDTimescale) - EPTdelta;
-		MaxSegmentsInPeriod = (MediaLocalPeriodDuration + SegmentDuration - 1) / SegmentDuration;
+		MediaLocalPeriodEnd = InSearchOptions.PeriodDuration.GetAsTimebase(MPDTimescale) - EPTdelta + PTO;
+		MaxSegmentsInPeriod = (MediaLocalPeriodEnd + SegmentDuration - 1) / SegmentDuration;
 	}
 	else
 	{
-		MediaLocalPeriodDuration = TNumericLimits<int64>::Max() - PTO;
+		MediaLocalPeriodEnd = TNumericLimits<int64>::Max();
 		MaxSegmentsInPeriod = TNumericLimits<uint32>::Max();
 	}
 	// Clamp against the number of segments described by EndNumber.
@@ -2460,13 +2507,13 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		return FManifestDASHInternal::FRepresentation::ESearchResult::PastEOS;
 	}
 
-	OutSegmentInfo.Time = PTO + EPTdelta + SegmentNum * (int64)SegmentDuration;
+	OutSegmentInfo.Time = EPTdelta + SegmentNum * (int64)SegmentDuration;
 	OutSegmentInfo.PTO = PTO;
 	OutSegmentInfo.EPTdelta = EPTdelta;
 	OutSegmentInfo.Duration = SegmentDuration;
 	OutSegmentInfo.Number = StartNumber + SegmentNum;
-	OutSegmentInfo.MediaLocalFirstAUTime = MediaLocalSearchTime + PTO;
-	OutSegmentInfo.MediaLocalLastAUTime = MediaLocalPeriodDuration + PTO;
+	OutSegmentInfo.MediaLocalFirstAUTime = MediaLocalSearchTime;
+	OutSegmentInfo.MediaLocalLastAUTime = MediaLocalPeriodEnd;
 	OutSegmentInfo.Timescale = MPDTimescale;
 	OutSegmentInfo.bMayBeMissing = SegmentNum + 1 >= MaxSegmentsInPeriod;
 	OutSegmentInfo.bIsLastInPeriod = OutSegmentInfo.bMayBeMissing && InSearchOptions.bHasFollowingPeriod;
@@ -2812,6 +2859,67 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	else
 	{
 		return FManifestDASHInternal::FRepresentation::ESearchResult::PastEOS;
+	}
+}
+
+
+FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRepresentation::SetupSideloadedFile(IPlayerSessionServices* InPlayerSessionServices, FSegmentInformation& OutSegmentInfo, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation)
+{
+	// As per DASH-IF-IOP 4.3, Section 6.4.5. Guidelines for side-loaded TTML and WebVTT files
+	// side loaded subtitles must not use @presentationTimeOffset, which makes sense since this attribute is not defined on <Representation> elements.
+	// However, we allow its use as well as a @timescale to give the value in.
+	uint32 Timescale = 1000;
+	uint64 PTO = 0;
+	const TArray<IDashMPDElement::FXmlAttribute>& OtherAttributes = MPDRepresentation->GetOtherAttributes();
+	for(auto &Attribute : OtherAttributes)
+	{
+		if (Attribute.GetName().Equals(TEXT("presentationTimeOffset")))
+		{
+			LexFromString(PTO, *Attribute.GetValue());
+		}
+		else if (Attribute.GetName().Equals(TEXT("timescale")))
+		{
+			LexFromString(Timescale, *Attribute.GetValue());
+		}
+	}
+	if (!Timescale)
+	{
+		Timescale = 1;
+	}
+
+	int64 MediaLocalSearchTime = InSearchOptions.PeriodLocalTime.GetAsTimebase(Timescale);
+	if (MediaLocalSearchTime < 0)
+	{
+		MediaLocalSearchTime = 0;
+	}
+	int64 MediaLocalPeriodEnd = InSearchOptions.PeriodDuration.IsValid() && !InSearchOptions.PeriodDuration.IsInfinity() ? InSearchOptions.PeriodDuration.GetAsTimebase(Timescale) : TNumericLimits<int64>::Max();
+	if (MediaLocalSearchTime >= MediaLocalPeriodEnd)
+	{
+		return FManifestDASHInternal::FRepresentation::ESearchResult::PastEOS;
+	}
+
+	// The time must be set to the PTO so it won't cause a problem searching for the next period (where the PTO is subtracted from the time)
+	OutSegmentInfo.Time = (int64) PTO;
+	OutSegmentInfo.PTO = (int64) PTO;
+	OutSegmentInfo.Duration = MediaLocalPeriodEnd;
+	OutSegmentInfo.Number = 0;
+	OutSegmentInfo.NumberOfBytes = 0;
+	OutSegmentInfo.FirstByteOffset = 0;
+	OutSegmentInfo.MediaLocalFirstAUTime = MediaLocalSearchTime;
+	OutSegmentInfo.MediaLocalLastAUTime = MediaLocalPeriodEnd;
+	OutSegmentInfo.Timescale = Timescale;
+	OutSegmentInfo.ATO.SetToZero();
+	OutSegmentInfo.bIsSideload = true;
+	OutSegmentInfo.bIsLastInPeriod = true;
+	TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>> SegmentBase;
+	if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentBase))
+	{
+		bIsUsable = false;
+		return FManifestDASHInternal::FRepresentation::ESearchResult::BadType;
+	}
+	else
+	{
+		return FManifestDASHInternal::FRepresentation::ESearchResult::Found;
 	}
 }
 

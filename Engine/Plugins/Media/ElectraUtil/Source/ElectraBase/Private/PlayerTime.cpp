@@ -135,7 +135,8 @@ namespace Electra
 			return 0;
 		}
 
-		TBigInt<128> n(HNS);
+		bool bIsNeg = HNS < 0;
+		TBigInt<128> n(bIsNeg ? -HNS : HNS);
 		TBigInt<128> d(10000000);
 		TBigInt<128> s(CustomTimebase);
 
@@ -143,7 +144,7 @@ namespace Electra
 		n /= d;
 
 		int64 r = n.ToInt();
-		return r;
+		return bIsNeg ? -r : r;
 	}
 
 	// ---------------------------------------------------------------------------------------------------------------------
@@ -229,7 +230,8 @@ namespace Electra
 			return Numerator >= 0 ? 0x7fffffffffffffffLL : -0x7fffffffffffffffLL;
 		}
 
-		TBigInt<128> n(Numerator);
+		bool bIsNeg = Numerator < 0;
+		TBigInt<128> n(bIsNeg ? -Numerator : Numerator);
 		TBigInt<128> d(Denominator);
 		TBigInt<128> s(CustomTimebase);
 
@@ -237,7 +239,7 @@ namespace Electra
 		n /= d;
 
 		int64 r = n.ToInt();
-		return r;
+		return bIsNeg ? -r : r;
 	}
 
 

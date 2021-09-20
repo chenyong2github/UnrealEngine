@@ -470,6 +470,17 @@ struct FTimeRange
 	{
 		return Start.IsValid() && End.IsValid();
 	}
+
+	bool Contains(const FTimeValue& Value)
+	{
+		return Value >= Start && Value < End;
+	}
+
+	bool Overlaps(const FTimeRange& OtherRange)
+	{
+		return End > OtherRange.Start && Start < OtherRange.End;
+	}
+
 	FTimeValue	Start;
 	FTimeValue	End;
 };

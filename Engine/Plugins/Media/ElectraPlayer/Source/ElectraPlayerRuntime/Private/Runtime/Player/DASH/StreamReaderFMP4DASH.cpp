@@ -557,6 +557,112 @@ FErrorDetail FStreamReaderFMP4DASH::FStreamHandler::GetInitSegment(TSharedPtrTS<
 	}
 }
 
+
+FErrorDetail FStreamReaderFMP4DASH::FStreamHandler::RetrieveSideloadedFile(TSharedPtrTS<const TArray<uint8>>& OutData, const TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& Request)
+{
+	if (Request->Segment.MediaURL.URL.IsEmpty())
+	{
+		return FErrorDetail();
+	}
+
+	// Check if we already have this cached.
+	IPlayerEntityCache::FCacheItem CachedItem;
+	if (PlayerSessionService->GetEntityCache()->GetCachedEntity(CachedItem, Request->Segment.MediaURL.URL, Request->Segment.MediaURL.Range))
+	{
+		// Already cached. Use it.
+		OutData = CachedItem.RawPayloadData;
+		return FErrorDetail();
+	}
+
+	// Get the manifest reader. We need it to handle the download.
+	TSharedPtrTS<IPlaylistReader> ManifestReader = PlayerSessionService->GetManifestReader();
+	if (!ManifestReader.IsValid())
+	{
+		return PostError(PlayerSessionService, TEXT("Entity loader disappeared"), 0);
+	}
+
+	// Create a download finished structure we can wait upon for completion.
+	struct FLoadResult
+	{
+		FMediaEvent Event;
+		bool bSuccess = false;
+	};
+	TSharedPtrTS<FLoadResult> LoadResult = MakeSharedTS<FLoadResult>();
+
+	// Create the download request.
+	TSharedPtrTS<FMPDLoadRequestDASH> LoadReq = MakeSharedTS<FMPDLoadRequestDASH>();
+	LoadReq->LoadType = FMPDLoadRequestDASH::ELoadType::Sideload;
+	LoadReq->URL = Request->Segment.MediaURL.URL;
+	LoadReq->Range = Request->Segment.MediaURL.Range;
+	if (Request->Segment.MediaURL.CustomHeader.Len())
+	{
+		LoadReq->Headers.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, Request->Segment.MediaURL.CustomHeader}));
+	}
+	LoadReq->PlayerSessionServices = PlayerSessionService;
+	LoadReq->CompleteCallback.BindLambda([LoadResult](TSharedPtrTS<FMPDLoadRequestDASH> LoadRequest, bool bSuccess)
+	{
+		LoadResult->bSuccess = bSuccess;
+		LoadResult->Event.Signal();
+	});
+	// Issue the download request.
+	check(ManifestReader->GetPlaylistType().Equals(TEXT("dash")));
+	IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(ManifestReader.Get());
+	Reader->AddElementLoadRequests(TArray<TWeakPtrTS<FMPDLoadRequestDASH>>({LoadReq}));
+
+	// Wait for completion or abort
+	while(!HasReadBeenAborted())
+	{
+		if (LoadResult->Event.WaitTimeout(1000 * 100))
+		{
+			break;
+		}
+	}
+	if (HasReadBeenAborted())
+	{
+		return FErrorDetail();
+	}
+	
+	// Set up download stats to be sent to the stream selector.
+	const HTTP::FConnectionInfo* ci = LoadReq->GetConnectionInfo();
+	Metrics::FSegmentDownloadStats ds;
+	ds.StatsID = FMediaInterlockedIncrement(UniqueDownloadID);
+	ds.StreamType = Request->GetType();
+	ds.SegmentType = Metrics::ESegmentType::Media;
+	ds.URL = Request->Segment.MediaURL.URL;
+	ds.Range = Request->Segment.MediaURL.Range;
+	ds.CDN = Request->Segment.MediaURL.CDN;
+	ds.bWasSuccessful = LoadResult->bSuccess;
+	ds.HTTPStatusCode = ci->StatusInfo.HTTPStatus;
+	ds.TimeToFirstByte = ci->TimeUntilFirstByte;
+	ds.TimeToDownload = (ci->RequestEndTime - ci->RequestStartTime).GetAsSeconds();
+	ds.ByteSize = ci->ContentLength;
+	ds.NumBytesDownloaded = ci->BytesReadSoFar;
+	ds.ThroughputBps = ci->Throughput.GetThroughput() ? ci->Throughput.GetThroughput() : (ds.TimeToDownload > 0.0 ? 8 * ds.NumBytesDownloaded / ds.TimeToDownload : 0);
+	ds.MediaAssetID = Request->Period.IsValid() ? Request->Period->GetUniqueIdentifier() : "";
+	ds.AdaptationSetID = Request->AdaptationSet.IsValid() ? Request->AdaptationSet->GetUniqueIdentifier() : "";
+	ds.RepresentationID = Request->Representation.IsValid() ? Request->Representation->GetUniqueIdentifier() : "";
+	ds.Bitrate = Request->GetBitrate();
+
+	if (!LoadResult->bSuccess)
+	{
+		Request->ConnectionInfo = *ci;
+		StreamSelector->ReportDownloadEnd(ds);
+		return CreateError(FString::Printf(TEXT("Sideloaded media download error: %s"), *ci->StatusInfo.ErrorDetail.GetMessage()), INTERNAL_ERROR_INIT_SEGMENT_DOWNLOAD_ERROR);
+	}
+
+	OutData = MakeSharedTS<const TArray<uint8>>(TArrayView<uint8>(LoadReq->Request->GetResponseBuffer()->Buffer.GetLinearReadData(), LoadReq->Request->GetResponseBuffer()->Buffer.GetLinearReadSize()));
+
+	// Add this to the entity cache in case it needs to be retrieved again.
+	IPlayerEntityCache::FCacheItem CacheItem;
+	CacheItem.URL = LoadReq->URL;
+	CacheItem.Range = LoadReq->Range;
+	CacheItem.RawPayloadData = OutData;
+	PlayerSessionService->GetEntityCache()->CacheEntity(CacheItem);
+
+	StreamSelector->ReportDownloadEnd(ds);
+	return FErrorDetail();
+}
+
 void FStreamReaderFMP4DASH::FStreamHandler::CheckForInbandDASHEvents()
 {
 	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
@@ -766,7 +872,55 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 
 	if (InitSegmentError.IsOK() && !HasReadBeenAborted())
 	{
-		if (!bIsEmptyFillerSegment)
+		if (Request->Segment.bIsSideload)
+		{
+			FErrorDetail SideloadError;
+			TSharedPtrTS<const TArray<uint8>> SideloadedData;
+			SideloadError = RetrieveSideloadedFile(SideloadedData, Request);
+			if (SideloadError.IsOK())
+			{
+				// CSD is only partially available for sideloaded files.
+				CSD->ParsedInfo = Request->CodecInfo;
+
+				uint32 TrackTimescale = Request->Segment.Timescale;
+
+				// Create an access unit
+				FAccessUnit *AccessUnit = FAccessUnit::Create(Parameters.MemoryProvider);
+				AccessUnit->ESType = Request->GetType();
+				AccessUnit->AUSize = (uint32) SideloadedData->Num();
+				AccessUnit->AUData = AccessUnit->AllocatePayloadBuffer(AccessUnit->AUSize);
+				FMemory::Memcpy(AccessUnit->AUData, SideloadedData->GetData(), SideloadedData->Num());
+				AccessUnit->AUCodecData = CSD;
+				AccessUnit->bIsFirstInSequence = true;
+				AccessUnit->bIsSyncSample = true;
+				AccessUnit->bIsDummyData = false;
+				AccessUnit->bIsSideloaded = true;
+				AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
+				AccessUnit->PlayerLoopState = PlayerLoopState;
+				AccessUnit->DropState = FAccessUnit::EDropState::None;
+
+				// Sideloaded files coincide with the period start
+				AccessUnit->DTS = TimeOffset;
+				AccessUnit->PTS = TimeOffset;
+				AccessUnit->PTO.SetFromND(Request->Segment.PTO, TrackTimescale);
+
+				FTimeValue Duration(Request->Segment.Duration, TrackTimescale);
+				AccessUnit->Duration = Duration;
+
+				DurationSuccessfullyRead += Duration;
+				NextExpectedDTS = AccessUnit->DTS + Duration;
+				LastKnownAUDuration = Duration;
+				AccessUnitFIFO.Push(AccessUnit);
+				// Clear the pointer since we must not touch this AU again after we handed it off.
+				AccessUnit = nullptr;
+			}
+			else
+			{
+				CurrentRequest->ConnectionInfo.StatusInfo.ErrorDetail = SideloadError;
+				bHasErrored = true;
+			}
+		}
+		else if (!bIsEmptyFillerSegment)
 		{
 			ReadBuffer.Reset();
 			ReadBuffer.ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
@@ -924,6 +1078,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									AccessUnit->DTS += TimeOffset;
 									AccessUnit->PTS.SetFromND(AUPTS - PTO, TrackTimescale);
 									AccessUnit->PTS += TimeOffset;
+									AccessUnit->PTO.SetFromND(PTO, TrackTimescale);
 
 									ElectraCDM::FMediaCDMSampleInfo SampleEncryptionInfo;
 									bool bIsSampleEncrypted = TrackIterator->GetEncryptionInfo(SampleEncryptionInfo);

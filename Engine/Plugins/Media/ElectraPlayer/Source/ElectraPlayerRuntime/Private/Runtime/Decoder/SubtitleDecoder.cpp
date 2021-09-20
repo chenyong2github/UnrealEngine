@@ -113,7 +113,7 @@ public:
 
 	virtual void SetPlayerSessionServices(IPlayerSessionServices* SessionServices) override;
 
-	virtual void Open() override;
+	virtual void Open(const FParamDict& Options) override;
 	virtual void Close() override;
 	virtual void Start() override;
 	virtual void Stop() override;
@@ -144,6 +144,7 @@ private:
 	void OnDecodedSubtitleReceived(ISubtitleDecoderOutputPtr DecodedSubtitle);
 
 	TSharedPtr<IElectraSubtitleDecoder, ESPMode::ThreadSafe> PluginDecoder;
+	FParamDict PluginDecoderOptions;
 	IPlayerSessionServices* PlayerSessionServices = nullptr;
 	TArray<uint8> RawCSD;
 	FStreamCodecInformation CodecInfo;
@@ -164,7 +165,17 @@ ISubtitleDecoder* ISubtitleDecoder::Create(FAccessUnit* AccessUnit)
 	check(AccessUnit);
 	if (AccessUnit && AccessUnit->AUCodecData.IsValid())
 	{
-		TSharedPtr<IElectraSubtitleDecoder, ESPMode::ThreadSafe> PluginDecoder = FSubtitleDecoderPlugins::Get().CreateDecoder(AccessUnit->AUCodecData->ParsedInfo.GetCodecSpecifierRFC6381());
+		TSharedPtr<IElectraSubtitleDecoder, ESPMode::ThreadSafe> PluginDecoder;
+		// For sideloaded data prefer to create the decoder via the Mime type. This allows the decoder to
+		// know that the data is there all at once and it needs to handle it in a non-streaming fashion.
+		if (AccessUnit->bIsSideloaded)
+		{
+			PluginDecoder = FSubtitleDecoderPlugins::Get().CreateDecoder(AccessUnit->AUCodecData->ParsedInfo.GetMimeType());
+		}
+		if (!PluginDecoder.IsValid())
+		{
+			PluginDecoder = FSubtitleDecoderPlugins::Get().CreateDecoder(AccessUnit->AUCodecData->ParsedInfo.GetCodecSpecifierRFC6381());
+		}
 		if (PluginDecoder.IsValid())
 		{
 			FSubtitleDecoder* Decoder = new FSubtitleDecoder(MoveTemp(PluginDecoder));
@@ -204,13 +215,14 @@ void FSubtitleDecoder::SetPlayerSessionServices(IPlayerSessionServices* InSessio
 	PlayerSessionServices = InSessionServices;
 }
 
-void FSubtitleDecoder::Open()
+void FSubtitleDecoder::Open(const FParamDict& Options)
 {
 	check(PlayerSessionServices);
 	check(PluginDecoder.IsValid());
 	if (PluginDecoder.IsValid())
 	{
-		FParamDict Addtl;
+		PluginDecoderOptions = Options;
+		FParamDict Addtl(Options);
 		Addtl.Set(TEXT("width"), FVariantValue((int64) CodecInfo.GetResolution().Width));
 		Addtl.Set(TEXT("height"), FVariantValue((int64) CodecInfo.GetResolution().Height));
 		Addtl.Set(TEXT("offset_x"), FVariantValue((int64) CodecInfo.GetTranslation().GetX()));
@@ -306,7 +318,7 @@ bool FSubtitleDecoder::ResetForTrackChange(FAccessUnit* AccessUnit)
 		{
 			SetCSD(AccessUnit->AUCodecData->RawCSD);
 			SetCodecInfo(AccessUnit->AUCodecData->ParsedInfo);
-			Open();
+			Open(PluginDecoderOptions);
 			if (bWasStarted)
 			{
 				Start();
@@ -332,6 +344,13 @@ IAccessUnitBufferInterface::EAUpushResult FSubtitleDecoder::AUdataPushAU(FAccess
 				}
 			}
 			FParamDict Addtl;
+			// For sideloaded subtitles we pass an ID to the plugin via the additional options. This allows the plugin to identify
+			// whether or not it has already parsed this data before (when seeking for instance).
+			if (AccessUnit->bIsSideloaded && AccessUnit->BufferSourceInfo.IsValid())
+			{
+				Addtl.Set(FString(TEXT("SideloadedID")), FVariantValue(AccessUnit->BufferSourceInfo->PeriodAdaptationSetID));
+			}
+			Addtl.Set(FString(TEXT("PTO")), FVariantValue(AccessUnit->PTO));
 			PluginDecoder->AddStreamedSubtitleData(TArray<uint8>((const uint8*)AccessUnit->AUData, (int32)AccessUnit->AUSize), AccessUnit->PTS, AccessUnit->Duration, Addtl);
 		}
 		return IAccessUnitBufferInterface::EAUpushResult::Ok;
