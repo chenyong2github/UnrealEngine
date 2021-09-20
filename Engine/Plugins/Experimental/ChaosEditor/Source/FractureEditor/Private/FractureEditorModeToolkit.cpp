@@ -63,6 +63,8 @@
 #include "DetailLayoutBuilder.h"
 #include "PropertyHandle.h"
 
+#include "LevelEditor.h"
+
 #include "FractureSettings.h"
 #include "Toolkits/AssetEditorModeUILayer.h"
 #include "SPrimaryButton.h"
@@ -183,6 +185,12 @@ FFractureEditorModeToolkit::FFractureEditorModeToolkit()
 FFractureEditorModeToolkit::~FFractureEditorModeToolkit()
 {
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+
+	if (FModuleManager::Get().IsModuleLoaded(TEXT("LevelEditor")))
+	{
+		auto& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		LevelEditorModule.OnMapChanged().RemoveAll(this);
+	}
 }
 
 void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
@@ -199,6 +207,9 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FFractureEditorModeToolkit::OnObjectPostEditChange);
+
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditorModule.OnMapChanged().AddRaw(this, &FFractureEditorModeToolkit::HandleMapChanged);
 
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = false;
@@ -692,6 +703,22 @@ void FFractureEditorModeToolkit::SetHideForUnselected(UGeometryCollectionCompone
 
 			GCComp->RefreshEmbeddedGeometry();
 
+		}
+	}
+}
+
+void FFractureEditorModeToolkit::HandleMapChanged(class UWorld* NewWorld, EMapChangeType MapChangeType)
+{
+	if ((MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap || MapChangeType == EMapChangeType::TearDownWorld))
+	{
+		if (auto* EditorMode = GetEditorMode())
+		{ 
+			EditorMode->Exit();
+		}
+		else
+		{
+			TArray<UGeometryCollectionComponent*> EmptySelection;
+			SetOutlinerComponents(EmptySelection);
 		}
 	}
 }

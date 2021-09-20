@@ -6,6 +6,7 @@
 #include "Chaos/Real.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Toolkits/BaseToolkit.h"
+#include "UnrealEdMisc.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "IDetailCustomization.h"
@@ -193,6 +194,9 @@ private:
 	void BindCommands();
 
 	void SetHideForUnselected(UGeometryCollectionComponent* GCComp);
+
+	/** Callback for map changes. */
+	void HandleMapChanged(UWorld* NewWorld, EMapChangeType MapChangeType);
 
 private:
 	UFractureModalTool* ActiveTool;
