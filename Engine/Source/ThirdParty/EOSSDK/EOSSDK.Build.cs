@@ -133,7 +133,7 @@ public class EOSSDK : ModuleRules
 	{
 		get
 		{
-			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Mac;
 			// Other platforms may override this property.
 		}
 	}
@@ -160,6 +160,12 @@ public class EOSSDK : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			PublicAdditionalFrameworks.Add(new Framework("EOSSDK", SDKBinariesDir, "", true));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			string DylibPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "EOSSDK", "Mac", RuntimeLibraryFileName);
+			PublicDelayLoadDLLs.Add(DylibPath);
+			RuntimeDependencies.Add(DylibPath);
 		}
 		else
 		{
