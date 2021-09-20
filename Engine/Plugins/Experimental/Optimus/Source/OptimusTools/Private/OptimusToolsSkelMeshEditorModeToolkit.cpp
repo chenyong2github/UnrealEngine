@@ -79,9 +79,9 @@ void FOptimusToolsSkelMeshEditorModeToolkit::Init(
 	ToolWarningArea->SetText(FText::GetEmpty());
 
 
-	SAssignNew(ToolkitWidget, SBorder)
+	SAssignNew(ToolkitWidget, SBox)
 		.HAlign(HAlign_Fill)
-		.Padding(4)
+		.Padding(2)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
