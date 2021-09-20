@@ -14,6 +14,7 @@
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Serialization/BufferArchive.h"
 #include "ZenBackendUtils.h"
 #include "ZenSerialization.h"
 #include "ZenServerHttp.h"
@@ -722,14 +723,13 @@ bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringV
 {
 	const FCacheKey& Key = Record.GetKey();
 	FCbPackage Package = Record.Save();
-	FCbWriter PackageWriter;
-	UE::Zen::SaveCbPackage(Package, PackageWriter);
-	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(PackageWriter.GetSaveSize());
-	PackageWriter.Save(Buffer);
+	FBufferArchive Ar;
+	Package.Save(Ar);
+	FCompositeBuffer Buffer = FCompositeBuffer(FSharedBuffer::MakeView(Ar.GetData(), Ar.Num()));
 	TStringBuilder<256> Uri;
 	AppendZenUri(Record.GetKey(), Uri);
 	AppendPolicyQueryString(Policy, Uri);
-	if (PutZenData(Uri.ToString(), FCompositeBuffer(Buffer.MoveToShared()), Zen::EContentType::CompactBinaryPackage)
+	if (PutZenData(Uri.ToString(), Buffer, Zen::EContentType::CompactBinaryPackage)
 		!= FDerivedDataBackendInterface::EPutStatus::Cached)
 	{
 		return false;

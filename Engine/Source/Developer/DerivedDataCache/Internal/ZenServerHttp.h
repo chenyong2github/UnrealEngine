@@ -157,6 +157,7 @@ private:
 	FString					Domain;
 
 	void AddHeadersForContentType(EContentType ContentType);
+	void AddHeadersForAcceptType(EContentType ContentType);
 
 	/**
 	  * Supported request verb
