@@ -648,132 +648,132 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SStartPageWindow::Construct(const FArguments& InArgs)
 {
 	ChildSlot
+	[
+		SNew(SOverlay)
+
+		// Version
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Top)
+		.Padding(0.0f, -16.0f, 4.0f, 0.0f)
 		[
-			SNew(SOverlay)
+			SNew(STextBlock)
+			.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
+			.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
+			.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
+		]
 
-			// Version
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Top)
-			.Padding(0.0f, -16.0f, 4.0f, 0.0f)
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(SBox)
 			[
-				SNew(STextBlock)
-				.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
-				.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
-				.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
-			]
-
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-			[
-				SNew(SBox)
-				[
-					SNew(SBorder)
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
-					.Padding(0.0f)
-					.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
-					.BorderBackgroundColor(FSlateColor(EStyleColor::Panel))
-				]
-			]
-
-			// Overlay slot for the main window area
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			[
-				SAssignNew(MainContentPanel, SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.AutoHeight()
-				.Padding(12.0f, 8.0f, 12.0f, 4.0f)
-				[
-					ConstructTraceStoreDirectoryPanel()
-				]
-
-				+ SVerticalBox::Slot()
+				SNew(SBorder)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
-				.FillHeight(1.0f)
-				.Padding(3.0f, 4.0f)
-				[
-					ConstructSessionsPanel()
-				]
+				.Padding(0.0f)
+				.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(FSlateColor(EStyleColor::Panel))
+			]
+		]
 
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.AutoHeight()
-				.Padding(12.0f, 4.0f)
-				[
-					ConstructLoadPanel()
-				]
+		// Overlay slot for the main window area
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		[
+			SAssignNew(MainContentPanel, SVerticalBox)
 
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.AutoHeight()
-				.Padding(3.0f, 3.0f)
-				[
-					SNew(SBox)
-					.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
-					[
-						SNew(SBorder)
-						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
-						.Padding(8.0f)
-						[
-							ConstructConnectPanel()
-						]
-					]
-				]
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.AutoHeight()
+			.Padding(12.0f, 8.0f, 12.0f, 4.0f)
+			[
+				ConstructTraceStoreDirectoryPanel()
 			]
 
-			// Overlay for fake splashscreen.
-			+ SOverlay::Slot()
+			+ SVerticalBox::Slot()
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
-			.Padding(0.0f)
+			.FillHeight(1.0f)
+			.Padding(3.0f, 4.0f)
+			[
+				ConstructSessionsPanel()
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.AutoHeight()
+			.Padding(12.0f, 4.0f)
+			[
+				ConstructLoadPanel()
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.AutoHeight()
+			.Padding(3.0f, 3.0f)
 			[
 				SNew(SBox)
-				.Visibility(this, &SStartPageWindow::SplashScreenOverlay_Visibility)
+				.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
 				[
 					SNew(SBorder)
 					.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
-					.BorderBackgroundColor(this, &SStartPageWindow::SplashScreenOverlay_ColorAndOpacity)
-					.Padding(0.0f)
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
+					.Padding(8.0f)
 					[
-						SNew(SBox)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock)
-							.Text(this, &SStartPageWindow::GetSplashScreenOverlayText)
-							.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
-							.ColorAndOpacity(this, &SStartPageWindow::SplashScreenOverlay_TextColorAndOpacity)
-						]
+						ConstructConnectPanel()
 					]
 				]
 			]
+		]
 
-			// Notification area overlay
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Bottom)
-			.Padding(16.0f)
+		// Overlay for fake splashscreen.
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		.Padding(0.0f)
+		[
+			SNew(SBox)
+			.Visibility(this, &SStartPageWindow::SplashScreenOverlay_Visibility)
 			[
-				SAssignNew(NotificationList, SNotificationList)
+				SNew(SBorder)
+				.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
+				.BorderBackgroundColor(this, &SStartPageWindow::SplashScreenOverlay_ColorAndOpacity)
+				.Padding(0.0f)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				[
+					SNew(SBox)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(this, &SStartPageWindow::GetSplashScreenOverlayText)
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+						.ColorAndOpacity(this, &SStartPageWindow::SplashScreenOverlay_TextColorAndOpacity)
+					]
+				]
 			]
+		]
 
-			// Settings dialog overlay
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Expose(OverlaySettingsSlot)
-		];
+		// Notification area overlay
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Bottom)
+		.Padding(16.0f)
+		[
+			SAssignNew(NotificationList, SNotificationList)
+		]
+
+		// Settings dialog overlay
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Expose(OverlaySettingsSlot)
+	];
 
 	RefreshTraceList();
 

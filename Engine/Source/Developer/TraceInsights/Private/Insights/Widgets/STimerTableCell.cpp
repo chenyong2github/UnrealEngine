@@ -38,9 +38,9 @@ void STimerTableCell::Construct(const FArguments& InArgs, const TSharedRef<ITabl
 	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	ChildSlot
-		[
-			GenerateWidgetForColumn(InArgs, TableRow)
-		];
+	[
+		GenerateWidgetForColumn(InArgs, TableRow)
+	];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
