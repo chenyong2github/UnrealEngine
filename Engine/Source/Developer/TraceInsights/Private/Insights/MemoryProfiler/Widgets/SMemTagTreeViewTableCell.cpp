@@ -37,9 +37,9 @@ void SMemTagTreeViewTableCell::Construct(const FArguments& InArgs, const TShared
 	SetHoveredCellDelegate = InArgs._OnSetHoveredCell;
 
 	ChildSlot
-		[
-			GenerateWidgetForColumn(InArgs, TableRow)
-		];
+	[
+		GenerateWidgetForColumn(InArgs, TableRow)
+	];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

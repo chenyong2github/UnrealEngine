@@ -108,11 +108,11 @@ public:
 		ChildSlot
 		[
 			SNew(SBorder)
-				.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-				.BorderBackgroundColor(this, &SLogMessageRow::GetBackgroundColor)
-				[
-					Row
-				]
+			.BorderImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
+			.BorderBackgroundColor(this, &SLogMessageRow::GetBackgroundColor)
+			[
+				Row
+			]
 		];
 	}
 
@@ -579,96 +579,86 @@ void SLogView::Construct(const FArguments& InArgs)
 		// Toolbar
 		+ SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
 		[
-			SNew(SBox)
-			.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
-			[
-				ToolbarBuilder.MakeWidget()
-			]
+			ToolbarBuilder.MakeWidget()
 		]
 
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
-			SNew(SBox)
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.Padding(0.0f)
 			.VAlign(VAlign_Fill)
 			[
-				SNew(SHorizontalBox)
+				SNew(SScrollBox)
+				.Orientation(Orient_Horizontal)
 
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding(0.0f)
+				+ SScrollBox::Slot()
 				.VAlign(VAlign_Fill)
 				[
-					SNew(SScrollBox)
-					.Orientation(Orient_Horizontal)
+					SAssignNew(ListView, SListView<TSharedPtr<FLogMessage>>)
+					.ExternalScrollbar(ExternalScrollbar)
+					.ItemHeight(20.0f)
+					.SelectionMode(ESelectionMode::Single)
+					.OnMouseButtonClick(this, &SLogView::OnMouseButtonClick)
+					.OnSelectionChanged(this, &SLogView::OnSelectionChanged)
+					.ListItemsSource(&Messages)
+					.OnGenerateRow(this, &SLogView::OnGenerateRow)
+					.ConsumeMouseWheel(EConsumeMouseWheel::Always)
+					.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SLogView::ListView_GetContextMenu))
+					.HeaderRow
+					(
+						SNew(SHeaderRow)
 
-					+ SScrollBox::Slot()
-					.VAlign(VAlign_Fill)
-					[
-						SAssignNew(ListView, SListView<TSharedPtr<FLogMessage>>)
-						.ExternalScrollbar(ExternalScrollbar)
-						.ItemHeight(20.0f)
-						.SelectionMode(ESelectionMode::Single)
-						.OnMouseButtonClick(this, &SLogView::OnMouseButtonClick)
-						.OnSelectionChanged(this, &SLogView::OnSelectionChanged)
-						.ListItemsSource(&Messages)
-						.OnGenerateRow(this, &SLogView::OnGenerateRow)
-						.ConsumeMouseWheel(EConsumeMouseWheel::Always)
-						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SLogView::ListView_GetContextMenu))
-						.HeaderRow
-						(
-							SNew(SHeaderRow)
+						+ SHeaderRow::Column(LogViewColumns::IdColumnName)
+						.ManualWidth(60.0f)
+						.DefaultLabel(LOCTEXT("IdColumn", "Index"))
 
-							+ SHeaderRow::Column(LogViewColumns::IdColumnName)
-							.ManualWidth(60.0f)
-							.DefaultLabel(LOCTEXT("IdColumn", "Index"))
+						+ SHeaderRow::Column(LogViewColumns::TimeColumnName)
+						.ManualWidth(94.0f)
+						.DefaultLabel(LOCTEXT("TimeColumn", "Time"))
 
-							+ SHeaderRow::Column(LogViewColumns::TimeColumnName)
-							.ManualWidth(94.0f)
-							.DefaultLabel(LOCTEXT("TimeColumn", "Time"))
+						+ SHeaderRow::Column(LogViewColumns::VerbosityColumnName)
+						.ManualWidth(80.0f)
+						.DefaultLabel(LOCTEXT("VerbosityColumn", "Verbosity"))
 
-							+ SHeaderRow::Column(LogViewColumns::VerbosityColumnName)
-							.ManualWidth(80.0f)
-							.DefaultLabel(LOCTEXT("VerbosityColumn", "Verbosity"))
+						+ SHeaderRow::Column(LogViewColumns::CategoryColumnName)
+						.ManualWidth(120.0f)
+						.DefaultLabel(LOCTEXT("CategoryColumn", "Category"))
 
-							+ SHeaderRow::Column(LogViewColumns::CategoryColumnName)
-							.ManualWidth(120.0f)
-							.DefaultLabel(LOCTEXT("CategoryColumn", "Category"))
+						+ SHeaderRow::Column(LogViewColumns::MessageColumnName)
+						.ManualWidth(880.0f)
+						.DefaultLabel(LOCTEXT("MessageColumn", "Message"))
 
-							+ SHeaderRow::Column(LogViewColumns::MessageColumnName)
-							.ManualWidth(880.0f)
-							.DefaultLabel(LOCTEXT("MessageColumn", "Message"))
+						+ SHeaderRow::Column(LogViewColumns::FileColumnName)
+						.ManualWidth(600.0f)
+						.DefaultLabel(LOCTEXT("FileColumn", "File"))
 
-							+ SHeaderRow::Column(LogViewColumns::FileColumnName)
-							.ManualWidth(600.0f)
-							.DefaultLabel(LOCTEXT("FileColumn", "File"))
-
-							+ SHeaderRow::Column(LogViewColumns::LineColumnName)
-							.ManualWidth(60.0f)
-							.DefaultLabel(LOCTEXT("LineColumn", "Line"))
-						)
-					]
+						+ SHeaderRow::Column(LogViewColumns::LineColumnName)
+						.ManualWidth(60.0f)
+						.DefaultLabel(LOCTEXT("LineColumn", "Line"))
+					)
 				]
+			]
 
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.0f)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f)
+			[
+				SNew(SBox)
+				.WidthOverride(FOptionalSize(13.0f))
 				[
-					SNew(SBox)
-					.WidthOverride(FOptionalSize(13.0f))
-					[
-						ExternalScrollbar.ToSharedRef()
-					]
+					ExternalScrollbar.ToSharedRef()
 				]
 			]
 		]
 	];
 
 	InitCommandList();
-
-	// Register ourselves with the profiler manager.
-	//TODO: FTimingProfilerManager::Get()->OnRequestLogViewUpdate().AddSP(this, &SLogView::ProfilerManager_OnRequestLogViewUpdate);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 

@@ -1110,7 +1110,7 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 
-	MenuBuilder.BeginSection("FramesTrack", LOCTEXT("ContextMenu_Header", "Frames Track"));
+	MenuBuilder.BeginSection("Frames", LOCTEXT("FramesHeading", "Frames"));
 	{
 		struct FLocal
 		{
@@ -1151,7 +1151,11 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
+	}
+	MenuBuilder.EndSection();
 
+	MenuBuilder.BeginSection("Zoom", LOCTEXT("ZoomHeading", "Zoom"));
+	{
 		FUIAction Action_AutoZoom
 		(
 			FExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_AutoZoom_Execute),
