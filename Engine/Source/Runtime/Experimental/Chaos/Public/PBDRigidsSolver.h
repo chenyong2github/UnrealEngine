@@ -213,6 +213,8 @@ namespace Chaos
 		const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return MEvolution->GetSuspensionConstraints(); }
 		void SetSuspensionTargetOnPhysicsThread(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, bool Enabled);
 
+		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
+
 		/**/
 		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
 		FPBDRigidsEvolution* GetEvolution() const { return MEvolution.Get(); }
