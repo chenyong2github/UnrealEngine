@@ -39,6 +39,8 @@ public:
 		return bAutoRunDefaultAction;
 	}
 
+	virtual bool IsEditorUtility() const override { return true; }
+
 protected:
 	UPROPERTY(Category = Config, EditDefaultsOnly, BlueprintReadWrite, AssetRegistrySearchable)
 	FString HelpText;

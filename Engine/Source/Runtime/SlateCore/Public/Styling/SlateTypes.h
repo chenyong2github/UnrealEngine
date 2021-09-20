@@ -262,7 +262,17 @@ struct SLATECORE_API FCheckBoxStyle : public FSlateWidgetStyle
 		UndeterminedImage.UnlinkColors();
 		UndeterminedHoveredImage.UnlinkColors();
 		UndeterminedPressedImage.UnlinkColors();
+		BackgroundImage.UnlinkColors();
+		BackgroundHoveredImage.UnlinkColors();
+		BackgroundPressedImage.UnlinkColors();
+
 		ForegroundColor.Unlink();
+		HoveredForeground.Unlink();
+		PressedForeground.Unlink();
+		CheckedForeground.Unlink();
+		CheckedHoveredForeground.Unlink();
+		CheckedPressedForeground.Unlink();
+		UndeterminedForeground.Unlink();
 		BorderBackgroundColor.Unlink();
 	}
 };

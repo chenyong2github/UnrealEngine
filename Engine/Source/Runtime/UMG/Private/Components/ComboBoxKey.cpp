@@ -22,6 +22,12 @@ UComboBoxKey::UComboBoxKey()
 		const ISlateStyle& SlateStyle = IsEditorWidget() ? FCoreStyle::Get() : FUMGCoreStyle::Get();
 		WidgetStyle = SlateStyle.GetWidgetStyle<FComboBoxStyle>("ComboBox");
 		ItemStyle = SlateStyle.GetWidgetStyle<FTableRowStyle>("TableView.Row");
+
+		if (IsEditorWidget())
+		{
+			// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
+			PostEditChange();
+		}
 #else
 		WidgetStyle = FUMGCoreStyle::Get().GetWidgetStyle<FComboBoxStyle>("ComboBox");
 		ItemStyle = FUMGCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");

@@ -846,6 +846,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Animation)
 	void BindToAnimationEvent(UWidgetAnimation* Animation, FWidgetAnimationDynamicEvent Delegate, EWidgetAnimationEvent AnimationEvent, FName UserTag = NAME_None);
 
+	/** Is this widget an editor utility widget. */
+	virtual bool IsEditorUtility() const { return false; }
+
 protected:
 
 	/**
