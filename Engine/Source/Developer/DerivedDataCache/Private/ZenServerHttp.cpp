@@ -117,6 +117,25 @@ namespace UE::Zen {
 		}
 	}
 
+	void FZenHttpRequest::AddHeadersForAcceptType(EContentType ContentType)
+	{
+		switch (ContentType)
+		{
+		case EContentType::Binary:
+			Headers.Add(FString(TEXT("Accept: application/octet-stream")));
+			break;
+		case EContentType::CompactBinary:
+			Headers.Add(FString(TEXT("Accept: application/x-ue-cb")));
+			break;
+		case EContentType::CompactBinaryPackage:
+			Headers.Add(FString(TEXT("Accept: application/x-ue-cbpkg")));
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
+
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingPut(const TCHAR* Uri, const FCompositeBuffer& Buffer, EContentType ContentType)
 	{
 		uint32 ContentLength = 0u;
@@ -354,21 +373,17 @@ namespace UE::Zen {
 	{
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
 		OutPackage.Reset();
+
+		AddHeadersForAcceptType(EContentType::CompactBinaryPackage);
+
 		// TODO: When PackageBytes can be written in segments directly, set the WritePtr to the OutPackage and use that
 		TArray64<uint8> PackageBytes;
 		WriteDataBufferPtr = &PackageBytes;
 		Result LocalResult = PerformBlocking(Uri, RequestVerb::Get, 0u);
 		if (IsSuccessCode(ResponseCode))
 		{
-			if (ValidateCompactBinaryPackage(FMemoryView(PackageBytes.GetData(), PackageBytes.Num()), ECbValidateMode::All) != ECbValidateError::None)
-			{
-				bResponseFormatValid = false;
-			}
-			else
-			{
-				FLargeMemoryReader PackageLoader(PackageBytes.GetData(), PackageBytes.Num());
-				bResponseFormatValid = UE::Zen::TryLoadCbPackage(OutPackage, PackageLoader);
-			}
+			FLargeMemoryReader Ar(PackageBytes.GetData(), PackageBytes.Num());
+			bResponseFormatValid = OutPackage.TryLoad(Ar);
 		}
 		return LocalResult;
 	}
