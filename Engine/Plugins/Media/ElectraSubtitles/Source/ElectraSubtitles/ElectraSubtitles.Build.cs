@@ -13,8 +13,10 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"ElectraBase",
 					"ElectraSamples",
-					"XmlParser"
+					"Expat"
 				});
+			// Expat is a static library, not a DLL.
+			PrivateDefinitions.Add("XML_STATIC=1");
 		}
 	}
 }
