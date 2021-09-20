@@ -34,6 +34,7 @@ public class StaticMeshEditorModeling : ModuleRules
 			new string[]
 			{
 				"Core",
+				"InputCore",
 				"CoreUObject",
 				"EditorInteractiveToolsFramework",
 				"EditorStyle",
