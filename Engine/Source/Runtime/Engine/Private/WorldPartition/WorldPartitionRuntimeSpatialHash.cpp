@@ -274,8 +274,15 @@ void FSpatialHashStreamingGrid::GetFilteredCellsForDebugDraw(const FSpatialHashS
 	}
 }
 
+EWorldPartitionRuntimeCellVisualizeMode FSpatialHashStreamingGrid::GetStreamingCellVisualizeMode() const
+{
+	const EWorldPartitionRuntimeCellVisualizeMode VisualizeMode = FWorldPartitionDebugHelper::IsRuntimeSpatialHashCellStreamingPriotityShown() ? EWorldPartitionRuntimeCellVisualizeMode::StreamingPriority : EWorldPartitionRuntimeCellVisualizeMode::StreamingStatus;
+	return VisualizeMode;
+}
+
 void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FTransform& Transform) const
 {
+	const EWorldPartitionRuntimeCellVisualizeMode VisualizeMode = GetStreamingCellVisualizeMode();
 	const UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
 	TMap<FName, FColor> DataLayerDebugColors;
 	if (DataLayerSubsystem)
@@ -335,7 +342,7 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 					}
 
 					// Draw Cell using its debug color
-					FColor CellColor = Cell->GetDebugColor().ToFColor(false).WithAlpha(16);
+					FColor CellColor = Cell->GetDebugColor(VisualizeMode).ToFColor(false).WithAlpha(64);
 					DrawDebugSolidBox(World, CellBox, CellColor, Transform, false, -1.f, 255);
 					FVector CellPos = Transform.TransformPosition(CellBox.GetCenter());
 					DrawDebugBox(World, CellPos, BoundsExtent, Transform.GetRotation(), CellColor.WithAlpha(255), false, -1.f, 255, 10.f);
@@ -400,6 +407,7 @@ void FSpatialHashStreamingGrid::DrawStreamingSource3D(UWorld* World, const FSphe
 
 void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FBox& Region, const FBox2D& GridScreenBounds, TFunctionRef<FVector2D(const FVector2D&)> WorldToScreen) const
 {
+	const EWorldPartitionRuntimeCellVisualizeMode VisualizeMode = GetStreamingCellVisualizeMode();
 	const UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
 	TMap<FName, FColor> DataLayerDebugColors;
 	if (DataLayerSubsystem)
@@ -417,36 +425,9 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, UWorld* World, const TAr
 	float MaxCellCoordTextWidth, MaxCellCoordTextHeight;
 	Canvas->StrLen(GEngine->GetTinyFont(), CellCoordString, MaxCellCoordTextWidth, MaxCellCoordTextHeight);
 
-	const UWorldPartitionRuntimeCell* DefaultEmptyCell = UWorldPartitionRuntimeCell::StaticClass()->GetDefaultObject<UWorldPartitionRuntimeCell>();
 	TArray<const UWorldPartitionRuntimeCell*> FilteredCells;
 	for (int32 GridLevel = MinGridLevel; GridLevel <= MaxGridLevel; ++GridLevel)
 	{
-		// Draw X/Y Axis
-		{
-			FCanvasLineItem Axis;
-			Axis.LineThickness = 3;
-			{
-				Axis.SetColor(FLinearColor::Red);
-				FVector2D LineStart = WorldToScreen(FVector2D(-1638400.f, 0.f));
-				FVector2D LineEnd = WorldToScreen(FVector2D(1638400.f, 0.f));
-				LineStart.X = FMath::Clamp(LineStart.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
-				LineStart.Y = FMath::Clamp(LineStart.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
-				LineEnd.X = FMath::Clamp(LineEnd.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
-				LineEnd.Y = FMath::Clamp(LineEnd.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
-				Axis.Draw(CanvasObject, LineStart, LineEnd);
-			}
-			{
-				Axis.SetColor(FLinearColor::Green);
-				FVector2D LineStart = WorldToScreen(FVector2D(0.f, -1638400.f));
-				FVector2D LineEnd = WorldToScreen(FVector2D(0.f, 1638400.f));
-				LineStart.X = FMath::Clamp(LineStart.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
-				LineStart.Y = FMath::Clamp(LineStart.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
-				LineEnd.X = FMath::Clamp(LineEnd.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
-				LineEnd.Y = FMath::Clamp(LineEnd.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
-				Axis.Draw(CanvasObject, LineStart, LineEnd);
-			}
-		}
-
 		// Draw Grid cells at desired grid level
 		const FSquare2DGridHelper& Helper = GetGridHelper();
 		Helper.Levels[GridLevel].ForEachIntersectingCells(Region, [&](const FIntVector2& Coords)
@@ -478,13 +459,6 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, UWorld* World, const TAr
 				}
 			}
 
-			// Draw cell bounds
-			static FLinearColor CellDefaultColor = DefaultEmptyCell->GetDebugColor().CopyWithNewOpacity(0.25f);
-			FCanvasBoxItem Box(CellScreenBounds.Min, CellScreenBounds.GetSize());
-			Box.SetColor(CellDefaultColor);
-			Box.BlendMode = SE_BLEND_Translucent;
-			Canvas->DrawItem(Box);
-
 			const int32* LayerCellIndexPtr = GridLevels[GridLevel].LayerCellsMapping.Find(Coords.Y * Helper.Levels[GridLevel].GridSize + Coords.X);
 			const FSpatialHashStreamingGridLayerCell* LayerCell = LayerCellIndexPtr ? &GridLevels[GridLevel].LayerCells[*LayerCellIndexPtr] : nullptr;
 			GetFilteredCellsForDebugDraw(LayerCell, DataLayerSubsystem, FilteredCells);
@@ -497,7 +471,7 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, UWorld* World, const TAr
 			{
 				// Draw Cell using its debug color
 				FVector2D StartPos = CellScreenBounds.Min + CellOffset;
-				FCanvasTileItem Item(StartPos, GWhiteTexture, CellBoundsSize, Cell->GetDebugColor().CopyWithNewOpacity(0.25f));
+				FCanvasTileItem Item(StartPos, GWhiteTexture, CellBoundsSize, Cell->GetDebugColor(VisualizeMode));
 				Item.BlendMode = SE_BLEND_Translucent;
 				Canvas->DrawItem(Item);
 				CellOffset.Y += CellBoundsSize.Y;
@@ -517,7 +491,39 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, UWorld* World, const TAr
 					}
 				}
 			}
+
+			// Draw cell bounds
+			FCanvasBoxItem Box(CellScreenBounds.Min, CellScreenBounds.GetSize());
+			Box.SetColor(FLinearColor::Black);
+			Box.BlendMode = SE_BLEND_Translucent;
+			Canvas->DrawItem(Box);
 		});
+
+		// Draw X/Y Axis
+		{
+			FCanvasLineItem Axis;
+			Axis.LineThickness = 3;
+			{
+				Axis.SetColor(FLinearColor::Red);
+				FVector2D LineStart = WorldToScreen(FVector2D(-1638400.f, 0.f));
+				FVector2D LineEnd = WorldToScreen(FVector2D(1638400.f, 0.f));
+				LineStart.X = FMath::Clamp(LineStart.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
+				LineStart.Y = FMath::Clamp(LineStart.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
+				LineEnd.X = FMath::Clamp(LineEnd.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
+				LineEnd.Y = FMath::Clamp(LineEnd.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
+				Axis.Draw(CanvasObject, LineStart, LineEnd);
+			}
+			{
+				Axis.SetColor(FLinearColor::Green);
+				FVector2D LineStart = WorldToScreen(FVector2D(0.f, -1638400.f));
+				FVector2D LineEnd = WorldToScreen(FVector2D(0.f, 1638400.f));
+				LineStart.X = FMath::Clamp(LineStart.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
+				LineStart.Y = FMath::Clamp(LineStart.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
+				LineEnd.X = FMath::Clamp(LineEnd.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
+				LineEnd.Y = FMath::Clamp(LineEnd.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
+				Axis.Draw(CanvasObject, LineStart, LineEnd);
+			}
+		}
 
 		// Draw Streaming Sources
 		const float GridLoadingRange = GetLoadingRange();
@@ -949,6 +955,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				FBox2D Bounds;
 				verify(TempLevel.GetCellBounds(FIntVector2(CellCoordX, CellCoordY), Bounds));
 				StreamingCell->Position = FVector(Bounds.GetCenter(), 0.f);
+				StreamingCell->Extent = Bounds.GetExtent().X;
 				StreamingCell->SetDebugInfo(CellGlobalCoords, CurrentStreamingGrid.GridName);
 				StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
 				StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
@@ -1214,7 +1221,7 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeSpatialHash::GetStream
 
 	if (StreamingCell->CachedIsBlockingSource)
 	{
-		const float Distance = FMath::Sqrt(StreamingCell->CachedBlockingMinDistanceSquare) - ((float)(*StreamingGrid)->GetCellSize(StreamingCell->Level) / 2.f);
+		const float Distance = FMath::Sqrt(StreamingCell->CachedMinSquareDistanceToSource) - ((float)(*StreamingGrid)->GetCellSize(StreamingCell->Level) / 2.f);
 
 		const float Ratio = Distance / LoadingRange;
 

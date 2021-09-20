@@ -18,8 +18,8 @@ UWorldPartitionRuntimeSpatialHashCell::UWorldPartitionRuntimeSpatialHashCell(con
 : Super(ObjectInitializer)
 , Level(0)
 , CachedIsBlockingSource(false)
-, CachedBlockingMinDistanceSquare(MAX_FLT)
-, CachedSourceMinSortDistance(0.f)
+, CachedMinSquareDistanceToSource(MAX_FLT)
+, CachedSourceSortingDistance(0.f)
 {}
 
 #if WITH_EDITOR
@@ -47,33 +47,89 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 	if (bWasCacheDirtied)
 	{
 		CachedIsBlockingSource = false;
-		CachedBlockingMinDistanceSquare = MAX_FLT;
+		CachedMinSquareDistanceToSource = MAX_FLT;
+		CachedSourceModulatedDistances.Reset();
 	}
 
-	const float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
-	const float SqrDistance = FVector::DistSquared(Info.SourceShape.GetCenter(), Position);
+	float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
+	const float SquareDistance = FVector::DistSquared2D(Info.SourceShape.GetCenter(), Position);
 	float AngleFactor = 1.f;
 	if (!FMath::IsNearlyZero(AngleContribution))
 	{
-		const FVector2D SourceForward(Info.SourceShape.GetAxis());
-		const FVector2D SourceToCell(Position - Info.SourceShape.GetCenter());
-		const float Dot = FVector2D::DotProduct(SourceForward.GetSafeNormal(), SourceToCell.GetSafeNormal());
-		const float NormalizedAngle = FMath::Clamp(FMath::Abs(FMath::Acos(Dot) / PI), 0.f, 1.f);
+		const FBox Box(FVector(Position.X - Extent, Position.Y - Extent, 0.f), FVector(Position.X + Extent, Position.Y + Extent, 0.f));
+		const FVector2D SourcePos(Info.SourceShape.GetCenter());
+		const FVector StartVert(SourcePos, 0.f);
+		const FVector EndVert(SourcePos + FVector2D(Info.SourceShape.GetScaledAxis()), 0.f);
+
+		float Angle = 0.f;
+		if (!FMath::LineBoxIntersection(Box, StartVert, EndVert, EndVert - StartVert))
+		{
+			// Find smallest angle using 4 corners and center of cell bounds
+			const FVector2D Position2D(Position);
+			float MaxDot = 0.f;
+			FVector2D SourceForward(Info.SourceShape.GetAxis());
+			SourceForward.Normalize();
+			FVector2D CellPoints[5];
+			CellPoints[0] = Position2D + FVector2D(-Extent, -Extent);
+			CellPoints[1] = Position2D + FVector2D(-Extent, Extent);
+			CellPoints[2] = Position2D + FVector2D(Extent, -Extent);
+			CellPoints[3] = Position2D + FVector2D(Extent, Extent);
+			CellPoints[4] = Position2D;
+			for (const FVector2D& CellPoint : CellPoints)
+			{
+				const FVector2D SourceToCell(CellPoint - SourcePos);
+				const float Dot = FVector2D::DotProduct(SourceForward, SourceToCell.GetSafeNormal());
+				MaxDot = FMath::Max(MaxDot, Dot);
+			}
+			Angle = FMath::Abs(FMath::Acos(MaxDot) / PI);
+		}
+		const float NormalizedAngle = FMath::Clamp(Angle, PI/180.f, 1.f);
 		AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
 	}
 	// Modulate distance to cell by angle relative to source forward vector (to prioritize cells in front)
-	float ModulatedDistance = SqrDistance * AngleFactor;
-
-	// If cache was dirtied, use value, else use minimum with existing cached value
-	CachedSourceMinSortDistance = bWasCacheDirtied ? ModulatedDistance : FMath::Min(ModulatedDistance, CachedSourceMinSortDistance);
+	const float SquareAngleFactor = AngleFactor * AngleFactor;
+	const float ModulatedSquareDistance = SquareDistance * SquareAngleFactor;
+	CachedSourceModulatedDistances.Add(ModulatedSquareDistance);
+	int32 Count = CachedSourceModulatedDistances.Num();
+	check(Count == CachedSourcePriorityWeights.Num());
+	if (Count == 1)
+	{
+		CachedSourceSortingDistance = ModulatedSquareDistance;
+	}
+	else
+	{
+		float TotalSourcePriorityWeight = 0.f;
+		for (int32 i = 0; i < Count; ++i)
+		{
+			TotalSourcePriorityWeight += CachedSourcePriorityWeights[i];
+		}
+		int32 HighestPrioMinDistIndex = 0;
+		float WeightedModulatedDistance = 0.f;
+		for (int32 i = 0; i < Count; ++i)
+		{
+			WeightedModulatedDistance += CachedSourceModulatedDistances[i] * CachedSourcePriorityWeights[i] / TotalSourcePriorityWeight;
+			
+			// Find highest priority source with the minimum modulated distance
+			if ((i != 0) &&
+				(CachedSourceModulatedDistances[i] < CachedSourceModulatedDistances[HighestPrioMinDistIndex]) &&
+				(CachedSourcePriorityWeights[i] >= CachedSourcePriorityWeights[HighestPrioMinDistIndex]))
+			{
+				HighestPrioMinDistIndex = i;
+			}
+		}
+		// Sorting distance is the minimum between these:
+		// - the highest priority source with the minimum modulated distance 
+		// - the weighted modulated distance
+		CachedSourceSortingDistance = FMath::Min(CachedSourceModulatedDistances[HighestPrioMinDistIndex], WeightedModulatedDistance);
+	}
 	
 	// Only consider blocking sources
 	if (Info.Source.bBlockOnSlowLoading)
 	{
 		CachedIsBlockingSource = true;
-		CachedBlockingMinDistanceSquare = FMath::Min(SqrDistance, CachedBlockingMinDistanceSquare);
 	}
 
+	CachedMinSquareDistanceToSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToSource);
 	return bWasCacheDirtied;
 }
 
@@ -90,8 +146,16 @@ int32 UWorldPartitionRuntimeSpatialHashCell::SortCompare(const UWorldPartitionRu
 		if (Result == 0)
 		{
 			// Closest distance (lower value is higher prio)
-			const float Diff = CachedSourceMinSortDistance - Other->CachedSourceMinSortDistance;
-			Result = Diff < 0.f ? -1 : (Diff > 0.f ? 1 : 0);
+			const float Diff = CachedSourceSortingDistance - Other->CachedSourceSortingDistance;
+			if (FMath::IsNearlyZero(Diff))
+			{
+				const float RawDistanceDiff = CachedMinSquareDistanceToSource - Other->CachedMinSquareDistanceToSource;
+				Result = RawDistanceDiff < 0.f ? -1 : (RawDistanceDiff > 0.f ? 1 : 0);
+			}
+			else
+			{
+				Result = Diff < 0.f ? -1 : (Diff > 0.f ? 1 : 0);
+			}
 		}
 	}
 	return Result;
