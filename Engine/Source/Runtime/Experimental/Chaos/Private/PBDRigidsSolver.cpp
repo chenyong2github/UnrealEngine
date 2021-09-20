@@ -675,6 +675,7 @@ namespace Chaos
 		if(RewindCaptureNumFrames >= 0)
 		{
 			EnableRewindCapture(RewindCaptureNumFrames, bUseCollisionResimCache || !!UseResimCache);
+			MEvolution->SetRewindData(GetRewindData());
 		}
 
 		MEvolution->SetCaptureRewindDataFunction([this](const TParticleView<TPBDRigidParticles<FReal,3>>& ActiveParticles)
@@ -714,12 +715,6 @@ namespace Chaos
 
 				if (Info.Handle)
 				{
-					// Remove from rewind data
-					if (FRewindData* RewindData = GetRewindData())
-					{
-						RewindData->RemoveObject(Info.Handle);
-					}
-
 					// Use the handle to destroy the particle data
 					GetEvolution()->DestroyParticle(Info.Handle);
 				}
