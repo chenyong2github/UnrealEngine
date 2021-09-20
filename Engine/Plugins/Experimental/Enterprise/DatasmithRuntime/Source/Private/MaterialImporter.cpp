@@ -40,8 +40,6 @@ namespace DatasmithRuntime
 
 		TSharedPtr< IDatasmithElement >& Element = Elements[ MaterialData.ElementId ];
 
-		FString MaterialName = FString(Element->GetName()) + TEXT("_LU_") + FString::FromInt(MaterialData.ElementId);
-
 		bool bUsingMaterialFromCache = false;
 
 		if ( !MaterialData.Object.IsValid() )
@@ -59,13 +57,14 @@ namespace DatasmithRuntime
 			}
 			else
 			{
+				FString MaterialName = FString::Printf(TEXT("M_%s_%d"), Element->GetName(), MaterialData.ElementId);
+
 #ifdef ASSET_DEBUG
-				MaterialName = TEXT("M_") + FDatasmithUtils::SanitizeObjectName(MaterialName);
-				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Materials"), MaterialName));
+				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Game/Runtime/Materials"), MaterialName));
 				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
 				MaterialData.Object->SetFlags(RF_Public);
 #else
-				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
+				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr, *MaterialName) );
 #endif
 				check(MaterialData.Object.IsValid());
 
