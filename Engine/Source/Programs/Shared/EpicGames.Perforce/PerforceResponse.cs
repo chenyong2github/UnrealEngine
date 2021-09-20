@@ -153,7 +153,7 @@ namespace EpicGames.Perforce
 					}
 					else if(InternalData is PerforceError)
 					{
-						throw new PerforceException($"Expected record of type '{typeof(T).Name}', got error: {InternalData}");
+						throw new PerforceException($"{InternalData}");
 					}
 					else
 					{
