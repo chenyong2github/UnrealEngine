@@ -324,7 +324,7 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 				ConstructorHelpers::StripObjectClass(PrevPerObjectValues[Index]);
 				if (UObject* SubObject = StaticFindObject(UObject::StaticClass(), ANY_PACKAGE, *PrevPerObjectValues[Index]))
 				{
-					SubObject->Rename(*MakeUniqueObjectName(GetTransientPackage(), SubObject->GetClass()).ToString(), GetTransientPackage(), REN_DontCreateRedirectors);
+					SubObject->Rename(nullptr, GetTransientOuterForRename(SubObject->GetClass()), REN_DontCreateRedirectors);
 				}
 			}
 		}
