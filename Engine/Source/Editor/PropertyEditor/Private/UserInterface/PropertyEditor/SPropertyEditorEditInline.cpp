@@ -197,6 +197,20 @@ TSharedRef<SWidget> SPropertyEditorEditInline::GenerateClassPicker()
 	return FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, OnPicked);
 }
 
+UObject* GetTransientOuterForRename(UClass* ForClass)
+{
+	// if someone has tautologically placed themself within their own hierarchy then we'll
+	// just assume they're ok with eventually being outered to a upackage, similar UPackage
+	// is a UObject, so if someone demands that they be outered to 'a uobject' we'll 
+	// just leave them directly parented to the transient package:
+	if (ForClass->ClassWithin && ForClass->ClassWithin != ForClass && ForClass->ClassWithin != UObject::StaticClass())
+	{
+		FScopedAllowAbstractClassAllocation AllowAbstract;
+		return NewObject<UObject>(GetTransientOuterForRename(ForClass->ClassWithin), ForClass->ClassWithin, NAME_None, RF_Transient);
+	}
+	return GetTransientPackage();
+}
+
 void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 {
 	TArray<FObjectBaseAddress> ObjectsToModify;
@@ -321,7 +335,7 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 				ConstructorHelpers::StripObjectClass(PrevPerObjectValues[Index]);
 				if (UObject* SubObject = StaticFindObject(UObject::StaticClass(), ANY_PACKAGE, *PrevPerObjectValues[Index]))
 				{
-					SubObject->Rename(*MakeUniqueObjectName(GetTransientPackage(), SubObject->GetClass()).ToString(), GetTransientPackage(), REN_DontCreateRedirectors);
+					SubObject->Rename(nullptr, GetTransientOuterForRename(SubObject->GetClass()), REN_DontCreateRedirectors);
 				}
 			}
 		}
