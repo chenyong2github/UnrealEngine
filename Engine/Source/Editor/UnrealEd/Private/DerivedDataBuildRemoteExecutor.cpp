@@ -1160,6 +1160,19 @@ void FRemoteBuildExecutionRequest::OnExecutionCompleted(UE::RemoteExecution::ESt
 		return;
 	}
 
+	if (Result.Updates[0].Outcome != UE::RemoteExecution::EComputeTaskOutcome::Success)
+	{
+		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Outcome %s: %s"),
+			*UE::RemoteExecution::ComputeTaskOutcomeString(Result.Updates[0].Outcome),
+			*Result.Updates[0].Detail);
+		State.Owner.End(this, [this]
+			{
+				CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
+				CompletionEvent->Trigger();
+			});
+		return;
+	}
+
 	if (Result.Updates[0].ResultHash == FIoHash::Zero)
 	{
 		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Zero ResultHash returned from remote build operation!"));

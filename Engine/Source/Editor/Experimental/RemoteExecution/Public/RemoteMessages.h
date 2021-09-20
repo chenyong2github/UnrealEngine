@@ -31,20 +31,46 @@ namespace UE::RemoteExecution
 		GatewayTimeout = 504,
 	};
 
-	enum class ETaskState : int32
+	enum class EComputeTaskState : int32
 	{
 		Queued = 0,
 		Executing = 1,
 		Complete = 2,
 	};
 
-	static FString TaskStateString(const ETaskState TaskState)
+	enum class EComputeTaskOutcome : int32
 	{
-		switch (TaskState)
+		Success = 0,
+		Failed = 1,
+		Cancelled = 2,
+		NoResult = 3,
+		Exipred = 4,
+		BlobNotFound = 5,
+		Exception = 6,
+	};
+
+	static FString ComputeTaskStateString(const EComputeTaskState ComputeTaskState)
+	{
+		switch (ComputeTaskState)
 		{
-		case ETaskState::Queued: return TEXT("Queued");
-		case ETaskState::Executing: return TEXT("Executing");
-		case ETaskState::Complete: return TEXT("Complete");
+		case EComputeTaskState::Queued: return TEXT("Queued");
+		case EComputeTaskState::Executing: return TEXT("Executing");
+		case EComputeTaskState::Complete: return TEXT("Complete");
+		}
+		return TEXT("Unknown");
+	}
+
+	static FString ComputeTaskOutcomeString(const EComputeTaskOutcome ComputeTaskOutcome)
+	{
+		switch (ComputeTaskOutcome)
+		{
+		case EComputeTaskOutcome::Success: return TEXT("Success");
+		case EComputeTaskOutcome::Failed: return TEXT("Failed");
+		case EComputeTaskOutcome::Cancelled: return TEXT("Cancelled");
+		case EComputeTaskOutcome::NoResult: return TEXT("NoResult");
+		case EComputeTaskOutcome::Exipred: return TEXT("Exipred");
+		case EComputeTaskOutcome::BlobNotFound: return TEXT("BlobNotFound");
+		case EComputeTaskOutcome::Exception: return TEXT("Exception");
 		}
 		return TEXT("Unknown");
 	}
@@ -68,7 +94,9 @@ namespace UE::RemoteExecution
 	public:
 		FIoHash TaskHash;
 		FDateTime Time;
-		ETaskState State;
+		EComputeTaskState State;
+		EComputeTaskOutcome Outcome;
+		FString Detail;
 		FIoHash ResultHash;
 		FString AgentId;
 		FString LeaseId;
