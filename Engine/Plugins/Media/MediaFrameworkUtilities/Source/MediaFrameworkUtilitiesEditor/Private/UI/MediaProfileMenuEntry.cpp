@@ -9,16 +9,16 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "IAssetTools.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "LevelEditor.h"
 #include "Misc/FeedbackContext.h"
-#include "Modules/ModuleManager.h"
 #include "Profile/IMediaProfileManager.h"
 #include "Profile/MediaProfile.h"
 #include "Profile/MediaProfileSettings.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenus.h"
 
 #include "UI/MediaFrameworkUtilitiesEditorStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -29,7 +29,7 @@ struct FMediaProfileMenuEntryImpl
 {
 	FMediaProfileMenuEntryImpl()
 	{
-		TSharedPtr<FUICommandList> Actions = MakeShareable(new FUICommandList);
+		TSharedPtr<FUICommandList> Actions = MakeShared<FUICommandList>();
 
 		// Action to edit the current selected media profile
 		Actions->MapAction(FMediaProfileCommands::Get().Edit,
@@ -40,26 +40,52 @@ struct FMediaProfileMenuEntryImpl
 					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(MediaProfile);
 				}
 			}),
-			FCanExecuteAction::CreateLambda([] { return IMediaProfileManager::Get().GetCurrentMediaProfile() != nullptr; }),
-			FIsActionChecked::CreateLambda([]{ return IMediaProfileManager::Get().GetCurrentMediaProfile() != nullptr; })
+			FCanExecuteAction::CreateLambda([] { return IMediaProfileManager::Get().GetCurrentMediaProfile() != nullptr; })
 		);
 
-		ToolBarExtender = MakeShareable(new FExtender);
-		ToolBarExtender->AddToolBarExtension("Settings", EExtensionHook::After, Actions, FToolBarExtensionDelegate::CreateRaw(this, &FMediaProfileMenuEntryImpl::FillToolbar));
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ModesToolBar");
+		FToolMenuSection& Section = Menu->FindOrAddSection("MediaProfile");
 
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-		LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolBarExtender);
+		auto ButtonTooltipLambda = [this]()
+		{
+			UMediaProfile* MediaProfile = IMediaProfileManager::Get().GetCurrentMediaProfile();
+			if (MediaProfile == nullptr)
+			{
+				return LOCTEXT("EmptyMediaProfile_ToolTip", "Select a Media Profile to edit it.");
+			}
+			return FText::Format(LOCTEXT("MediaProfile_ToolTip", "Edit '{0}'")
+				, FText::FromName(MediaProfile->GetFName()));
+		};
+
+		// Add a button to edit the current media profile
+		FToolMenuEntry MediaProfileButtonEntry = FToolMenuEntry::InitToolBarButton(
+			FMediaProfileCommands::Get().Edit,
+			LOCTEXT("MediaProfile_Label", "Media Profile"),
+			MakeAttributeLambda(ButtonTooltipLambda),
+			FSlateIcon(FMediaFrameworkUtilitiesEditorStyle::GetStyleSetName(), TEXT("ToolbarIcon.MediaProfile"))
+		);
+		MediaProfileButtonEntry.SetCommandList(Actions);
+
+		FToolMenuEntry MediaProfileMenuEntry = FToolMenuEntry::InitComboButton(
+		"MediaProfileMenu",
+		FUIAction(),
+		FOnGetContent::CreateRaw(this, &FMediaProfileMenuEntryImpl::GenerateMenuContent),
+		LOCTEXT("LevelEditorToolbarMediaProfileButtonLabel", "MediaProfile"),
+		LOCTEXT("LevelEditorToolbarMediaProfileButtonTooltip", "Configure current MediaProfile"),
+		FSlateIcon(),
+		true //bInSimpleComboBox
+		);
+
+		MediaProfileMenuEntry.StyleNameOverride = "CalloutToolbar";
+		Section.AddEntry(MediaProfileButtonEntry);
+		Section.AddEntry(MediaProfileMenuEntry);
 	}
 
 	~FMediaProfileMenuEntryImpl()
 	{
-		if (!IsEngineExitRequested() && ToolBarExtender.IsValid())
+		if (!IsEngineExitRequested())
 		{
-			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor");
-			if (LevelEditorModule)
-			{
-				LevelEditorModule->GetToolBarExtensibilityManager()->RemoveExtender(ToolBarExtender);
-			}
+			UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.ModesToolBar", "MediaProfile");
 		}
 	}
 
@@ -114,43 +140,6 @@ struct FMediaProfileMenuEntryImpl
 
 		GetMutableDefault<UMediaProfileEditorSettings>()->SetUserMediaProfile(Asset);
 		IMediaProfileManager::Get().SetCurrentMediaProfile(Asset);
-	}
-
-	void FillToolbar(FToolBarBuilder& ToolbarBuilder)
-	{
-		ToolbarBuilder.BeginSection("Media Profile");
-		{
-			auto TooltipLambda = [this]()
-			{
-				UMediaProfile* MediaProfile = IMediaProfileManager::Get().GetCurrentMediaProfile();
-				if (MediaProfile == nullptr)
-				{
-					return LOCTEXT("EmptyMediaProfile_ToolTip", "Select a Media Profile to edit it.");
-				}
-				return FText::Format(LOCTEXT("MediaProfile_ToolTip", "Edit '{0}'")
-					, FText::FromName(MediaProfile->GetFName()));
-			};
-
-			// Add a button to edit the current media profile
-			ToolbarBuilder.AddToolBarButton(
-				FMediaProfileCommands::Get().Edit,
-				NAME_None,
-				LOCTEXT("MediaProfile_Label", "Media Profile"),
-				MakeAttributeLambda(TooltipLambda),
-				FSlateIcon(FMediaFrameworkUtilitiesEditorStyle::GetStyleSetName(), TEXT("ToolbarIcon.MediaProfile"))
-			);
-
-			// Add a simple drop-down menu (no label, no icon for the drop-down button itself) that list the media profile available
-			ToolbarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateRaw(this, &FMediaProfileMenuEntryImpl::GenerateMenuContent),
-				FText::GetEmpty(),
-				LOCTEXT("MediaProfileButton_ToolTip", "List of Media Profile available to the user for editing or creation."),
-				FSlateIcon(),
-				true
-			);
-		}
-		ToolbarBuilder.EndSection();
 	}
 
 	TSharedRef<SWidget> GenerateMenuContent()
@@ -214,10 +203,6 @@ struct FMediaProfileMenuEntryImpl
 			false
 		);
 	}
-
-private:
-
-	TSharedPtr<FExtender> ToolBarExtender;
 
 public:
 

@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"TimeManagement",
+					"ToolMenus",
 					"UnrealEd",
 					"WorkspaceMenuStructure",
 				});
