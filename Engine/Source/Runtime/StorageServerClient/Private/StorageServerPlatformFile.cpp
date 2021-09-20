@@ -278,25 +278,17 @@ bool FStorageServerPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* C
 		{
 			if (SendGetFileListMessage())
 			{
-				FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
-				if (IoDispatcherInitStatus.IsOk())
-				{
-					FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-					TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
-					IoDispatcher.Mount(IoDispatcherBackend);
+				FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+				TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
+				IoDispatcher.Mount(IoDispatcherBackend);
 #if WITH_COTF
-					if (IsRunningCookOnTheFly())
-					{
-						UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-						CookOnTheFlyModule.GetServerConnection().OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
-					}
-#endif					
-					bResult = true;
-				}
-				else
+				if (IsRunningCookOnTheFly())
 				{
-					UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to initialize IoDispatcher with Zen host '%s'"), *Connection->GetHostAddr());
+					UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+					CookOnTheFlyModule.GetServerConnection().OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
 				}
+#endif
+				bResult = true;
 			}
 			else
 			{
