@@ -10,6 +10,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SUniformWrapPanel.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 
 SSkeletalMeshEditorToolbox::~SSkeletalMeshEditorToolbox()
@@ -136,14 +137,15 @@ void SSkeletalMeshEditorToolbox::UpdateInlineContent(const TSharedPtr<IToolkit>&
 
 void SSkeletalMeshEditorToolbox::UpdatePalette(const TSharedRef<FModeToolkit>& InModeToolkit)
 {
-	TSharedRef<SUniformWrapPanel> PaletteTabBox = SNew(SUniformWrapPanel)
-	                                                  .SlotPadding(FMargin(1.f, 2.f))
-	                                                  .HAlign(HAlign_Center);
+	TSharedRef<SSegmentedControl<FName>> PaletteTabBox = SNew(SSegmentedControl<FName>)
+		.UniformPadding(FMargin(8.f, 3.f))
+		.Value_Lambda([InModeToolkit]() { return InModeToolkit->GetCurrentPalette(); })
+		.OnValueChanged_Lambda([InModeToolkit](const FName& Palette) { InModeToolkit->SetCurrentPalette(Palette); });
 
 	// Only show if there's more than one entry.
 	PaletteTabBox->SetVisibility(TAttribute<EVisibility>::Create(
 		TAttribute<EVisibility>::FGetter::CreateLambda([PaletteTabBox]() -> EVisibility { 
-			return PaletteTabBox->GetChildren()->Num() > 1 ? EVisibility::Visible : EVisibility::Collapsed; 
+			return PaletteTabBox->NumSlots() > 1 ? EVisibility::Visible : EVisibility::Collapsed;
 		})));
 
 	// Also build the toolkit here
@@ -173,31 +175,9 @@ void SSkeletalMeshEditorToolbox::UpdatePalette(const TSharedRef<FModeToolkit>& I
 
 		TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
 
-		PaletteTabBox->AddSlot()
-		[
-			SNew(SCheckBox)
-			.Padding(FMargin(8.f, 4.f, 8.f, 5.f))
-			.Style( FEditorStyle::Get(),  "PaletteToolBar.Tab" )
-			.OnCheckStateChanged_Lambda([/*PaletteSwitcher, PaletteWidget, */InModeToolkit, Palette](const ECheckBoxState) {
-					InModeToolkit->SetCurrentPalette(Palette);
-				} 
-			)
-			// .IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-			.IsChecked_Lambda([InModeToolkit, Palette]() -> ECheckBoxState {
-				if (InModeToolkit->GetCurrentPalette() == Palette)
-				{
-					return ECheckBoxState::Checked;
-				}
-				return ECheckBoxState::Unchecked;
-			})
-			[
-				SNew(STextBlock)
-				.TextStyle(FAppStyle::Get(), "NormalText")
-				.Text(InModeToolkit->GetToolPaletteDisplayName(Palette))
-				.Justification(ETextJustify::Center)
-			]
-		];
-
+		const bool bRebuildChildren = false;
+		PaletteTabBox->AddSlot(Palette, false)
+		.Text(InModeToolkit->GetToolPaletteDisplayName(Palette));
 
 		PaletteSwitcher->AddSlot()
 		[
@@ -205,6 +185,7 @@ void SSkeletalMeshEditorToolbox::UpdatePalette(const TSharedRef<FModeToolkit>& I
 		]; 
 	}
 
+	PaletteTabBox->RebuildChildren();
 
 	ModeToolHeader->SetContent(
 		SNew(SVerticalBox)
@@ -212,6 +193,7 @@ void SSkeletalMeshEditorToolbox::UpdatePalette(const TSharedRef<FModeToolkit>& I
 		+SVerticalBox::Slot()
 		.Padding(8.f, 0.f, 0.f, 8.f)
 		.AutoHeight()
+		.HAlign(HAlign_Center)
 		[
 			PaletteTabBox
 		]
