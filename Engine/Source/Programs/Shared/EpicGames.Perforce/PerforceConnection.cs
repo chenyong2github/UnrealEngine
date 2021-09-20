@@ -474,7 +474,7 @@ namespace EpicGames.Perforce
 				{
 					Connection.Logger.LogDebug("Unexpected response {Idx}: {Text}", Idx, Responses[Idx].ToString());
 				}
-				throw new PerforceException("Expected one result from 'p4 {0}', got {1}", Arguments, Responses.Count);
+				throw new PerforceException("Expected one result from 'p4 {0}', got {1}", Command, Responses.Count);
 			}
 			return Responses[0];
 		}
