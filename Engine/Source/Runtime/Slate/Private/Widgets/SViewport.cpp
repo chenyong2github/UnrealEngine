@@ -102,21 +102,6 @@ void SViewport::SetActive(bool bActive)
 	}
 }
 
-FVector2D SViewport::TransformToViewport(const FVector2D& CursorPosition) const
-{
-	// Screen space mapping scales everything. When viewport resolution doesn't match platform resolution, 
-	// this causes offset cursor hit-tests in fullscreen. Correct in slate since we are first viewport-aware processor.
-	if (FSlateApplication::Get().GetTransformFullscreenMouseInput() && !GIsEditor && CachedParentWindow.IsValid() && CachedParentWindow.Pin()->GetWindowMode() == EWindowMode::Fullscreen)
-	{
-		FDisplayMetrics CachedDisplayMetrics;
-		FSlateApplication::Get().GetCachedDisplayMetrics(CachedDisplayMetrics);
-		FVector2D DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
-		return CursorPosition * GetTickSpaceGeometry().GetAbsoluteSize() / DisplaySize;
-	}
-
-	return CursorPosition;
-}
-
 EActiveTimerReturnType SViewport::EnsureTick(double InCurrentTime, float InDeltaTime)
 {
 	return EActiveTimerReturnType::Continue;
@@ -243,11 +228,7 @@ void SViewport::Tick( const FGeometry& AllottedGeometry, const double InCurrentT
 
 FCursorReply SViewport::OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const
 {
-	FPointerEvent ViewportOffsetMouseEvent(
-		CursorEvent,
-		TransformToViewport(CursorEvent.GetScreenSpacePosition()),
-		TransformToViewport(CursorEvent.GetLastScreenSpacePosition()));
-	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnCursorQuery(MyGeometry, ViewportOffsetMouseEvent) : FCursorReply::Unhandled();
+	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnCursorQuery(MyGeometry, CursorEvent) : FCursorReply::Unhandled();
 }
 
 TOptional<TSharedRef<SWidget>> SViewport::OnMapCursor(const FCursorReply& CursorReply) const
@@ -257,20 +238,12 @@ TOptional<TSharedRef<SWidget>> SViewport::OnMapCursor(const FCursorReply& Cursor
 
 FReply SViewport::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	FPointerEvent ViewportOffsetMouseEvent(
-		MouseEvent, 
-		TransformToViewport(MouseEvent.GetScreenSpacePosition()), 
-		TransformToViewport(MouseEvent.GetLastScreenSpacePosition()));
-	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseButtonDown(MyGeometry, ViewportOffsetMouseEvent) : FReply::Unhandled();
+	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseButtonDown(MyGeometry, MouseEvent) : FReply::Unhandled();
 }
 
 FReply SViewport::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	FPointerEvent ViewportOffsetMouseEvent(
-		MouseEvent,
-		TransformToViewport(MouseEvent.GetScreenSpacePosition()),
-		TransformToViewport(MouseEvent.GetLastScreenSpacePosition()));
-	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseButtonUp(MyGeometry, ViewportOffsetMouseEvent) : FReply::Unhandled();
+	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseButtonUp(MyGeometry, MouseEvent) : FReply::Unhandled();
 }
 
 void SViewport::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
@@ -279,11 +252,7 @@ void SViewport::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& 
 
 	if (ViewportInterface.IsValid())
 	{
-		FPointerEvent ViewportOffsetMouseEvent(
-			MouseEvent,
-			TransformToViewport(MouseEvent.GetScreenSpacePosition()),
-			TransformToViewport(MouseEvent.GetLastScreenSpacePosition()));
-		ViewportInterface.Pin()->OnMouseEnter(MyGeometry, ViewportOffsetMouseEvent);
+		ViewportInterface.Pin()->OnMouseEnter(MyGeometry, MouseEvent);
 	}
 }
 
@@ -293,39 +262,23 @@ void SViewport::OnMouseLeave( const FPointerEvent& MouseEvent )
 
 	if (ViewportInterface.IsValid())
 	{
-		FPointerEvent ViewportOffsetMouseEvent(
-			MouseEvent,
-			TransformToViewport(MouseEvent.GetScreenSpacePosition()),
-			TransformToViewport(MouseEvent.GetLastScreenSpacePosition()));
-		ViewportInterface.Pin()->OnMouseLeave(ViewportOffsetMouseEvent);
+		ViewportInterface.Pin()->OnMouseLeave(MouseEvent);
 	}
 }
 
 FReply SViewport::OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	FPointerEvent ViewportOffsetMouseEvent(
-		MouseEvent,
-		TransformToViewport(MouseEvent.GetScreenSpacePosition()),
-		TransformToViewport(MouseEvent.GetLastScreenSpacePosition()));
-	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseMove(MyGeometry, ViewportOffsetMouseEvent) : FReply::Unhandled();
+	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseMove(MyGeometry, MouseEvent) : FReply::Unhandled();
 }
 
 FReply SViewport::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	FPointerEvent ViewportOffsetMouseEvent(
-		MouseEvent,
-		TransformToViewport(MouseEvent.GetScreenSpacePosition()),
-		TransformToViewport(MouseEvent.GetLastScreenSpacePosition()));
-	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseWheel(MyGeometry, ViewportOffsetMouseEvent) : FReply::Unhandled();
+	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseWheel(MyGeometry, MouseEvent) : FReply::Unhandled();
 }
 
 FReply SViewport::OnMouseButtonDoubleClick( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	FPointerEvent ViewportOffsetMouseEvent(
-		MouseEvent,
-		TransformToViewport(MouseEvent.GetScreenSpacePosition()),
-		TransformToViewport(MouseEvent.GetLastScreenSpacePosition()));
-	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseButtonDoubleClick(MyGeometry, ViewportOffsetMouseEvent) : FReply::Unhandled();
+	return ViewportInterface.IsValid() ? ViewportInterface.Pin()->OnMouseButtonDoubleClick(MyGeometry, MouseEvent) : FReply::Unhandled();
 }
 
 FReply SViewport::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent )

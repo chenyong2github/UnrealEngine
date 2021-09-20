@@ -534,6 +534,20 @@ FReply FSceneViewport::AcquireFocusAndCapture(FIntPoint MousePosition, EFocusCau
 		{
 			bCursorHiddenDueToCapture = true;
 			MousePosBeforeHiddenDueToCapture = MousePosition;
+			
+			// The slate app will correct mouse positions for non-standard screen / viewport resolution combos
+			// We want to save the mouse position pre-correction so it isn't applied twice when restoring mouse position
+			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidgetRef);
+			if (FSlateApplication::Get().GetTransformFullscreenMouseInput() && !GIsEditor && Window.IsValid() && Window->GetWindowMode() == EWindowMode::Fullscreen)
+			{
+				FDisplayMetrics CachedDisplayMetrics;
+				FSlateApplication::Get().GetCachedDisplayMetrics(CachedDisplayMetrics);
+				FVector2D WindowSize = Window->GetSizeInScreen();
+				FVector2D DisplaySize = { (float)CachedDisplayMetrics.PrimaryDisplayWidth, (float)CachedDisplayMetrics.PrimaryDisplayHeight };
+				FVector2D CorrectionScale = DisplaySize / WindowSize;
+				MousePosBeforeHiddenDueToCapture = { (int32)(MousePosition.X * CorrectionScale.X), (int32)(MousePosition.Y * CorrectionScale.Y) };
+			}
+
 		}
 
 		if ( bCursorHiddenDueToCapture || !bShouldShowMouseCursor )

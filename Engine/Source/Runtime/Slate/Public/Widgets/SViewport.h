@@ -201,9 +201,6 @@ public:
 	UE_DEPRECATED(4.11, "SetWidgetToFocusOnActivate is no longer needed, remove this call.")
 	void SetWidgetToFocusOnActivate(TSharedPtr<SWidget> WidgetToFocus) { }
 
-	/** Transform a cursor position to the viewport */
-	FVector2D TransformToViewport(const FVector2D& CursorPosition) const;
-
 public:
 
 	// SWidget interface
