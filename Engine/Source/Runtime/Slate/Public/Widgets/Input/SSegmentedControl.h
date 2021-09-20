@@ -213,12 +213,10 @@ public:
 
 				+SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
-				.Padding(0.0f, 0.5f, 0.f, 0.f)  // Compensate down for the baseline - helps when using all caps
 				.AutoWidth()
 				[
 					SNew(STextBlock)
 					.TextStyle(TextStyle)
-					.Justification(ETextJustify::Center)
 					.Text(ChildSlotPtr->_Text) 
 				];
 			}
