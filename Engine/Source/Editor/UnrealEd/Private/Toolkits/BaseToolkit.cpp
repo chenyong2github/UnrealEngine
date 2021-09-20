@@ -19,6 +19,8 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SSegmentedControl.h"
+
 #define LOCTEXT_NAMESPACE "BaseToolkit"
 
 FBaseToolkit::FBaseToolkit()
@@ -478,14 +480,15 @@ void FModeToolkit::UpdatePrimaryModePanel()
 
 		if (HasIntegratedToolPalettes())
 		{
-			TSharedRef< SUniformWrapPanel> PaletteTabBox = SNew(SUniformWrapPanel)
-				.SlotPadding(FMargin(1.f, 2.f))
-				.HAlign(HAlign_Center);
+			TSharedRef<SSegmentedControl<FName>> PaletteTabBox = SNew(SSegmentedControl<FName>)
+				.UniformPadding(FMargin(8.f, 3.f))
+				.Value_Lambda([this]() { return GetCurrentPalette(); } ) 
+				.OnValueChanged_Lambda([this](const FName& Palette) { SetCurrentPalette(Palette); } );
 
 			// Only show if there is more than one child in the switcher
 			PaletteTabBox->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([PaletteTabBox]() -> EVisibility
 				{
-					return PaletteTabBox->GetChildren()->Num() > 1 ? EVisibility::Visible : EVisibility::Collapsed;
+					return PaletteTabBox->NumSlots() > 1 ? EVisibility::Visible : EVisibility::Collapsed;
 				})));
 
 			// Also build the toolkit here 
@@ -496,63 +499,47 @@ void FModeToolkit::UpdatePrimaryModePanel()
 			CommandList = GetToolkitCommands();
 
 			TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher)
-				.WidgetIndex_Lambda([this, PaletteNames]() -> int32 {
-				int32 FoundIndex;
-				if (PaletteNames.Find(GetCurrentPalette(), FoundIndex))
+				.WidgetIndex_Lambda(
+				[this, PaletteNames]() -> int32
 				{
-					return FoundIndex;
-				}
-				return 0;
-					});
+					int32 FoundIndex;
+					if (PaletteNames.Find(GetCurrentPalette(), FoundIndex))
+					{
+						return FoundIndex;
+					}
+					return 0;
+				});
 
-
+			
 			for (auto Palette : PaletteNames)
 			{
 				FName ToolbarCustomizationName = GetEditorMode() ?  GetEditorMode()->GetModeInfo().ToolbarCustomizationName : GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
 				FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
 				ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 
-				 BuildToolPalette(Palette, ModeToolbarBuilder);
+				BuildToolPalette(Palette, ModeToolbarBuilder);
 
 				TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
 
-				PaletteTabBox->AddSlot()
-					[
-						SNew(SCheckBox)
-						.Padding(FMargin(8.f, 4.f, 8.f, 5.f))
-						.Style(FEditorStyle::Get(), "PaletteToolBar.Tab")
-						.OnCheckStateChanged_Lambda([this, Palette](const ECheckBoxState) {
-							SetCurrentPalette(Palette);
-						}
-					)
-					.IsChecked_Lambda([this, Palette]() -> ECheckBoxState {
-							if (GetCurrentPalette() == Palette)
-							{
-								return ECheckBoxState::Checked;
-							}
-							return ECheckBoxState::Unchecked;
-						})
-							[
-								SNew(STextBlock)
-								.TextStyle(FAppStyle::Get(), "NormalText")
-								.Text(GetToolPaletteDisplayName(Palette))
-								.Justification(ETextJustify::Center)
-							]
-					];
-
+				const bool bRebuildChildren = false;
+				PaletteTabBox->AddSlot(Palette, false)
+				.Text(GetToolPaletteDisplayName(Palette));
 
 				PaletteSwitcher->AddSlot()
-					[
-						PaletteWidget
-					];
+				[
+					PaletteWidget
+				];
 			}
+
+			PaletteTabBox->RebuildChildren();
+
 			if (ModeToolHeader)
 			{
 				ModeToolHeader->SetContent(
 					SNew(SVerticalBox)
-
 					+ SVerticalBox::Slot()
-					.Padding(8.f, 0.f, 0.f, 8.f)
+					.Padding(0.f, 0.f, 0.f, 8.f)
+					.HAlign(HAlign_Center)
 					.AutoHeight()
 					[
 						PaletteTabBox
