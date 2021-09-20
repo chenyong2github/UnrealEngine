@@ -768,7 +768,7 @@ void FControlRigSpaceChannelHelpers::HandleSpaceKeyTimeChanged(UControlRig* Cont
 								{
 									for (int32 KeyIndex = FloatChannel->GetData().GetTimes().Num() - 1; KeyIndex >= 0; --KeyIndex)
 									{
-										const FFrameNumber& Frame = FloatChannel->GetData().GetTimes()[KeyIndex];
+										const FFrameNumber Frame = FloatChannel->GetData().GetTimes()[KeyIndex];
 										FFrameNumber Diff = Frame - CurrentFrame;
 										FFrameNumber AbsDiff = Diff < 0 ? -Diff : Diff;
 										if (AbsDiff <= 1)
@@ -782,7 +782,7 @@ void FControlRigSpaceChannelHelpers::HandleSpaceKeyTimeChanged(UControlRig* Cont
 								{
 									for (int32 KeyIndex = 0; KeyIndex < FloatChannel->GetData().GetTimes().Num(); ++KeyIndex)
 									{
-										const FFrameNumber& Frame = FloatChannel->GetData().GetTimes()[KeyIndex];
+										const FFrameNumber Frame = FloatChannel->GetData().GetTimes()[KeyIndex];
 										FFrameNumber Diff = Frame - CurrentFrame;
 										FFrameNumber AbsDiff = Diff < 0 ? -Diff : Diff;
 										if (AbsDiff <= 1)
