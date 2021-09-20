@@ -915,22 +915,17 @@ void SRemoteControlPanel::ToggleDetailsView()
 	
 	if (ToolkitHost)
 	{
-		bShowingEntityDetailsView = !bShowingEntityDetailsView;
-		
-		if (bShowingEntityDetailsView)
+		if (TSharedPtr<SDockTab> ExistingTab = ToolkitHost->GetTabManager()->FindExistingLiveTab(TabId))
+		{
+			ExistingTab->RequestCloseTab();
+		}
+		else
 		{
 			// Request the Tab Manager to invoke the tab. This will spawn the tab if needed, otherwise pull it to focus. This assumes
 			// that the Toolkit Host's Tab Manager has already registered a tab with a NullWidget for content.
 			if (TSharedPtr<SDockTab> EntityDetailsTab = ToolkitHost->GetTabManager()->TryInvokeTab(TabId))
 			{
 				EntityDetailsTab->SetContent(CreateEntityDetailsView());
-			}
-		}
-		else
-		{
-			if (TSharedPtr<SDockTab> ExistingTab = ToolkitHost->GetTabManager()->FindExistingLiveTab(TabId))
-			{
-				ExistingTab->RequestCloseTab();
 			}
 		}
 	}

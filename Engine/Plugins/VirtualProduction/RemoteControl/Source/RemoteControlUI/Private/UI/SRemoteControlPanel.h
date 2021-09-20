@@ -228,6 +228,4 @@ private:
 	
 	/** The toolkit that hosts this panel. */
 	TSharedPtr<IToolkitHost> ToolkitHost;
-
-	bool bShowingEntityDetailsView = false;
 };
