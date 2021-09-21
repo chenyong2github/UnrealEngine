@@ -21,7 +21,63 @@
 	#include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
 
+namespace UE
+{
+	namespace UsdShadeMaterialTranslator
+	{
+		namespace Private
+		{
+			bool IsMaterialUsingUDIMs(const pxr::UsdShadeMaterial& UsdShadeMaterial)
+			{
+				FScopedUsdAllocs UsdAllocs;
 
+				pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
+				if (!SurfaceShader)
+				{
+					return false;
+				}
+
+				for (const pxr::UsdShadeInput& ShadeInput : SurfaceShader.GetInputs())
+				{
+					pxr::UsdShadeConnectableAPI Source;
+					pxr::TfToken SourceName;
+					pxr::UsdShadeAttributeType AttributeType;
+
+					if (ShadeInput.GetConnectedSource(&Source, &SourceName, &AttributeType))
+					{
+						pxr::UsdShadeInput FileInput;
+
+						// UsdUVTexture: Get its file input
+						if (AttributeType == pxr::UsdShadeAttributeType::Output)
+						{
+							FileInput = Source.GetInput(UnrealIdentifiers::File);
+						}
+						// Check if we are being directly passed an asset
+						else
+						{
+							FileInput = Source.GetInput(SourceName);
+						}
+
+						if (FileInput && FileInput.GetTypeName() == pxr::SdfValueTypeNames->Asset) // Check that FileInput is of type Asset
+						{
+							pxr::SdfAssetPath TextureAssetPath;
+							FileInput.GetAttr().Get< pxr::SdfAssetPath >(&TextureAssetPath);
+
+							FString TexturePath = UsdToUnreal::ConvertString(TextureAssetPath.GetAssetPath());
+
+							if (TexturePath.Contains(TEXT("<UDIM>")))
+							{
+								return true;
+							}
+						}
+					}
+				}
+
+				return false;
+			}
+		}
+	}
+}
 void FUsdShadeMaterialTranslator::CreateAssets()
 {
 	pxr::UsdShadeMaterial ShadeMaterial( GetPrim() );
@@ -39,11 +95,24 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 
 	if ( !ConvertedMaterial )
 	{
-		FString MaterialPath = UsdUtils::IsMaterialTranslucent( ShadeMaterial )
-			? TEXT( "Material'/USDImporter/Materials/UsdPreviewSurfaceTranslucent.UsdPreviewSurfaceTranslucent'" )
-			: TEXT( "Material'/USDImporter/Materials/UsdPreviewSurface.UsdPreviewSurface'" );
+		const bool bIsTranslucent = UsdUtils::IsMaterialTranslucent( ShadeMaterial );
+		const bool bNeedsVirtualTextures = UE::UsdShadeMaterialTranslator::Private::IsMaterialUsingUDIMs( ShadeMaterial );
 
-		if ( UMaterialInterface* MasterMaterial = Cast< UMaterialInterface >( FSoftObjectPath( MaterialPath ).TryLoad() ) )
+		FString MasterMaterialName = TEXT("UsdPreviewSurface");
+
+		if ( bIsTranslucent )
+		{
+			MasterMaterialName += TEXT("Translucent");
+		}
+
+		if ( bNeedsVirtualTextures )
+		{
+			MasterMaterialName += TEXT("VT");
+		}
+
+		const FString MasterMaterialPath = FString::Printf( TEXT("Material'/USDImporter/Materials/%s.%s"), *MasterMaterialName, *MasterMaterialName );
+
+		if ( UMaterialInterface* MasterMaterial = Cast< UMaterialInterface >( FSoftObjectPath( MasterMaterialPath ).TryLoad() ) )
 		{
 			if ( GIsEditor ) // Also have to prevent Standalone game from going with MaterialInstanceConstants
 			{
@@ -78,6 +147,17 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetCache.Get(), PrimvarToUVIndex );
 
 				ConvertedMaterial = NewMaterial;
+			}
+		}
+	}
+	else if ( Context->MaterialToPrimvarToUVIndex && Context->AssetCache )
+	{
+		if ( const FString* PrimPathForCachedAsset = Context->AssetCache->GetAssetPrimLinks().FindKey( ConvertedMaterial ) )
+		{
+			if ( TMap<FString, int32>* PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex->Find(*PrimPathForCachedAsset) )
+			{
+				// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path
+				Context->MaterialToPrimvarToUVIndex->FindOrAdd(PrimPath.GetString()) = *PrimvarToUVIndex;
 			}
 		}
 	}
