@@ -12,10 +12,197 @@
 #include "RemoteControlRequest.h"
 #include "RemoteControlResponse.h"
 #include "RemoteControlRoute.h"
+#include "RemoteControlReflectionUtils.h"
 #include "WebRemoteControl.h"
 #include "WebRemoteControlUtils.h"
 
 static TAutoConsoleVariable<int32> CVarWebRemoteControlFramesBetweenPropertyNotifications(TEXT("WebControl.FramesBetweenPropertyNotifications"), 5, TEXT("The number of frames between sending batches of property notifications."));
+
+namespace WebSocketMessageHandlerStructUtils
+{
+	using namespace UE::WebRCReflectionUtils;
+
+	FName Struct_PropertyValue = "WEBRC_PropertyValue";
+	FName Prop_PropertyLabel = "PropertyLabel";
+	FName Prop_Id = "Id";
+	FName Prop_ObjectPath = "ObjectPath";
+	FName Prop_PropertyValue = "PropertyValue";
+
+	FName Struct_PresetFieldsChanged = "WEBRC_PresetFieldsChanged";
+	FName Prop_Type = "Type";
+	FName Prop_PresetName= "PresetName";
+	FName Prop_PresetId = "PresetId";
+	FName Prop_ChangedFields = "ChangedFields";
+
+	FName Struct_ActorPropertyValue= "WEBRC_ActorPropertyValue";
+	FName Prop_PropertyName = "PropertyName";
+
+	FName Struct_ModifiedActor = "WEBRC_ModifiedActor";
+	FName Prop_DisplayName = "DisplayName";
+	FName Prop_Path = "Path";
+	FName Prop_ModifiedProperties = "ModifiedProperties";
+
+	FName Struct_ModifiedActors = "WEBRC_ModifiedActors";
+	FName Prop_ModifiedActors = "ModifiedActors";
+	
+	UScriptStruct* CreatePropertyValueContainer(FProperty* InValueProperty)
+	{
+		check(InValueProperty);
+
+		static FGuid PropertyValueGuid = FGuid::NewGuid();
+
+		FWebRCGenerateStructArgs Args;
+
+		Args.StringProperties = 
+		{ 
+			Prop_PropertyLabel,
+			Prop_Id,
+			Prop_ObjectPath
+		};
+
+		Args.GenericProperties.Emplace(Prop_PropertyValue, InValueProperty);
+
+		const FString StructName = FString::Format(TEXT("{0}_{1}_{2}_{3}"), { *Struct_PropertyValue.ToString(), *InValueProperty->GetClass()->GetName(), *InValueProperty->GetName(), PropertyValueGuid.ToString() });
+
+		return GenerateStruct(*StructName, Args);
+	}
+
+	UScriptStruct* CreatePresetFieldsChangedStruct(UScriptStruct* PropertyValueStruct)
+	{
+		FWebRCGenerateStructArgs Args;
+		Args.StringProperties =
+		{ 
+			Prop_PresetId,
+			Prop_PresetName,
+			Prop_Type
+		};
+
+		Args.ArrayProperties.Emplace(Prop_ChangedFields, PropertyValueStruct);
+
+		return GenerateStruct(Struct_PresetFieldsChanged, Args);
+	}
+
+	UScriptStruct* CreateActorPropertyValueContainer(FProperty* InValueProperty)
+	{
+		static FGuid ActorPropertyValueGuid = FGuid::NewGuid();
+
+		FWebRCGenerateStructArgs Args;
+		Args.StringProperties =
+		{
+			Prop_PropertyName
+		};
+
+		Args.GenericProperties.Emplace(Prop_PropertyValue, InValueProperty);
+
+		const FString StructName = FString::Format(TEXT("{0}_{1}_{2}_{3}"), { *Struct_PropertyValue.ToString(), *InValueProperty->GetClass()->GetName(), *InValueProperty->GetName(), ActorPropertyValueGuid.ToString() });
+
+		return GenerateStruct(*StructName, Args);
+	}
+
+	UScriptStruct* CreateModifiedActorStruct(UScriptStruct* ModifiedPropertiesStruct)
+	{
+		FWebRCGenerateStructArgs Args;
+		Args.StringProperties =
+		{
+			Prop_Id,
+			Prop_DisplayName,
+			Prop_Path
+		};
+
+		Args.ArrayProperties.Emplace(Prop_ModifiedProperties, ModifiedPropertiesStruct);
+
+		return GenerateStruct(Struct_ModifiedActor, Args);
+	}
+
+	UScriptStruct* CreateModifiedActorsStruct(UScriptStruct* ModifiedActorStruct)
+	{
+		FWebRCGenerateStructArgs Args;
+		Args.StringProperties =
+		{
+			Prop_Type,
+			Prop_PresetName,
+			Prop_PresetId
+		};
+
+		Args.ArrayProperties.Emplace(Prop_ModifiedActors, ModifiedActorStruct);
+
+		return GenerateStruct(Struct_ModifiedActors, Args);
+	}
+
+	FStructOnScope CreatePropertyValueOnScope(const TSharedPtr<FRemoteControlProperty>& RCProperty, const FRCObjectReference& ObjectReference)
+	{
+		UScriptStruct* Struct = CreatePropertyValueContainer(ObjectReference.Property.Get());
+		FStructOnScope StructOnScope{ Struct };
+
+		SetStringPropertyValue(Prop_PropertyLabel, StructOnScope, RCProperty->GetLabel().ToString());
+		SetStringPropertyValue(Prop_Id, StructOnScope, RCProperty->GetId().ToString());
+		SetStringPropertyValue(Prop_ObjectPath, StructOnScope, ObjectReference.Object->GetPathName());
+		CopyPropertyValue(Prop_PropertyValue, StructOnScope, ObjectReference);
+
+		return StructOnScope;
+	}
+
+	FStructOnScope CreatePresetFieldsChangedStructOnScope(const URemoteControlPreset* Preset, const TArray<FStructOnScope>& PropertyValuesOnScope)
+	{
+		UScriptStruct* PropertyValueStruct = (UScriptStruct*)PropertyValuesOnScope[0].GetStruct();
+		check(PropertyValueStruct);
+
+		UScriptStruct* TopLevelStruct = CreatePresetFieldsChangedStruct(PropertyValueStruct);
+
+		FStructOnScope FieldsChangedOnScope{ TopLevelStruct };
+		SetStringPropertyValue(Prop_Type, FieldsChangedOnScope, TEXT("PresetFieldsChanged"));
+		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetFName().ToString());
+		SetStringPropertyValue(Prop_PresetId, FieldsChangedOnScope, *Preset->GetPresetId().ToString());
+		SetStructArrayPropertyValue(Prop_ChangedFields, FieldsChangedOnScope, PropertyValuesOnScope);
+
+		return FieldsChangedOnScope;
+	}
+
+	FStructOnScope CreateActorPropertyValueOnScope(const URemoteControlPreset* Preset, const FRCObjectReference& ObjectReference)
+	{
+		UScriptStruct* Struct = CreateActorPropertyValueContainer(ObjectReference.Property.Get());
+		FStructOnScope StructOnScope{ Struct };
+
+		SetStringPropertyValue(Prop_PropertyName, StructOnScope, *ObjectReference.Property->GetName());
+		CopyPropertyValue(Prop_PropertyValue, StructOnScope, ObjectReference);
+
+		return StructOnScope;
+	}
+
+	FStructOnScope CreateModifiedActorStructOnScope(const URemoteControlPreset* Preset, const FRemoteControlActor& RCActor, const TArray<FStructOnScope>& ModifiedPropertiesOnScope)
+	{
+		check(ModifiedPropertiesOnScope.Num() > 0);
+		UScriptStruct* ModifiedPropertiesStruct = (UScriptStruct*)ModifiedPropertiesOnScope[0].GetStruct();
+		check(ModifiedPropertiesStruct);
+
+		UScriptStruct* TopLevelStruct = CreateModifiedActorStruct(ModifiedPropertiesStruct);
+		FStructOnScope FieldsChangedOnScope{ TopLevelStruct };
+
+		SetStringPropertyValue(Prop_Id, FieldsChangedOnScope, *RCActor.GetId().ToString());
+		SetStringPropertyValue(Prop_DisplayName, FieldsChangedOnScope, *RCActor.GetLabel().ToString());
+		SetStringPropertyValue(Prop_Path, FieldsChangedOnScope, *RCActor.Path.ToString());
+		SetStructArrayPropertyValue(Prop_ModifiedProperties, FieldsChangedOnScope, ModifiedPropertiesOnScope);
+
+		return FieldsChangedOnScope;
+	}
+
+	FStructOnScope CreateModifiedActorsStructOnScope(const URemoteControlPreset* Preset, const TArray<FStructOnScope>& ModifiedActorsOnScope)
+	{
+		check(ModifiedActorsOnScope.Num() > 0);
+		UScriptStruct* ModifiedActorStruct = (UScriptStruct*)ModifiedActorsOnScope[0].GetStruct();
+		check(ModifiedActorStruct);
+
+		UScriptStruct* TopLevelStruct = CreateModifiedActorsStruct(ModifiedActorStruct);
+		FStructOnScope FieldsChangedOnScope{ TopLevelStruct };
+
+		SetStringPropertyValue(Prop_Type, FieldsChangedOnScope, TEXT("PresetActorModified"));
+		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetFName().ToString());
+		SetStringPropertyValue(Prop_PresetId, FieldsChangedOnScope, *Preset->GetPresetId().ToString());
+		SetStructArrayPropertyValue(Prop_ModifiedActors, FieldsChangedOnScope, ModifiedActorsOnScope);
+
+		return FieldsChangedOnScope;
+	}
+}
 
 FWebSocketMessageHandler::FWebSocketMessageHandler(FRCWebSocketServer* InServer, const FGuid& InActingClientId)
 	: Server(InServer)
@@ -229,7 +416,9 @@ void FWebSocketMessageHandler::ProcessChangedActorProperties()
 		for (const TPair<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>& ClientToModifications : Entry.Value)
 		{
 			TArray<uint8> WorkingBuffer;
-			if (ClientToModifications.Value.Num() && WriteActorPropertyChangePayload(Preset, ClientToModifications.Value, WorkingBuffer))
+			FMemoryWriter Writer(WorkingBuffer);
+
+			if (ClientToModifications.Value.Num() && WriteActorPropertyChangePayload(Preset, ClientToModifications.Value, Writer))
 			{
 				TArray<uint8> Payload;
 				WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
@@ -606,141 +795,64 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 {
 	bool bHasProperty = false;
 
-	FMemoryWriter Writer(OutBuffer);
-	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
-
-	//Might be a better idea to have defined structures for our web socket notification messages
-
-	//Response object
-	JsonWriter->WriteObjectStart();
+	TArray<FStructOnScope> PropValuesOnScope;
+	for (const FGuid& RCPropertyId : InModifiedPropertyIds)
 	{
-		JsonWriter->WriteValue(TEXT("Type"), TEXT("PresetFieldsChanged"));
-		JsonWriter->WriteValue("PresetName", *InPreset->GetFName().ToString());
-		JsonWriter->WriteValue("PresetId", *InPreset->GetPresetId().ToString());
-
-		JsonWriter->WriteIdentifierPrefix("ChangedFields");
-
-		//All exposed properties of this preset that changed
-		JsonWriter->WriteArrayStart();
+		FRCObjectReference ObjectRef;
+		if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(RCPropertyId).Pin())
 		{
-			for (const FGuid& RCPropertyId : InModifiedPropertyIds)
+			if (IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, RCProperty->GetBoundObjects()[0], RCProperty->FieldPathInfo.ToString(), ObjectRef))
 			{
 				bHasProperty = true;
-
-				FRCObjectReference ObjectRef;
-				if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(RCPropertyId).Pin())
-				{
-					//Property object
-					JsonWriter->WriteObjectStart();
-					{
-						JsonWriter->WriteValue(TEXT("PropertyLabel"), *RCProperty->GetLabel().ToString());
-						JsonWriter->WriteValue(TEXT("Id"), *RCProperty->GetId().ToString());
-
-						for (UObject* Object : RCProperty->GetBoundObjects())
-						{
-							bHasProperty = true;
-
-							IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, RCProperty->FieldPathInfo.ToString(), ObjectRef);
-
-							JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
-							JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
-
-							RemotePayloadSerializer::SerializePartial(
-								[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
-								{
-									return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
-								}
-							, Writer);
-
-						}
-					}
-					JsonWriter->WriteObjectEnd();
-				}
-
+				PropValuesOnScope.Add(WebSocketMessageHandlerStructUtils::CreatePropertyValueOnScope(RCProperty, ObjectRef));
 			}
 		}
-		JsonWriter->WriteArrayEnd();
 	}
-	JsonWriter->WriteObjectEnd();
+
+	if (PropValuesOnScope.Num())
+	{
+		FStructOnScope FieldsChangedEventOnScope = WebSocketMessageHandlerStructUtils::CreatePresetFieldsChangedStructOnScope(InPreset, PropValuesOnScope);
+
+		FMemoryWriter Writer(OutBuffer);
+		WebRemoteControlUtils::SerializeStructOnScope(FieldsChangedEventOnScope, Writer);
+	}
 
 	return bHasProperty;
 }
 
 
-bool FWebSocketMessageHandler::WriteActorPropertyChangePayload(URemoteControlPreset* InPreset, const TMap<FRemoteControlActor, TArray<FRCObjectReference>>& InModifications, TArray<uint8>& OutBuffer)
+bool FWebSocketMessageHandler::WriteActorPropertyChangePayload(URemoteControlPreset* InPreset, const TMap<FRemoteControlActor, TArray<FRCObjectReference>>& InModifications, FMemoryWriter& InWriter)
 {
 	bool bHasProperty = false;
 
-	FMemoryWriter Writer(OutBuffer);
-	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
+	TArray<FStructOnScope> ModifiedActorsOnScope;
 
-	//Might be a better idea to have defined structures for our web socket notification messages
-
-	//Response object
-	JsonWriter->WriteObjectStart();
+	for (const TPair<FRemoteControlActor, TArray<FRCObjectReference>>& Pair : InModifications)
 	{
-		JsonWriter->WriteValue(TEXT("Type"), TEXT("PresetActorModified"));
-		JsonWriter->WriteValue("PresetName", *InPreset->GetFName().ToString());
-		JsonWriter->WriteValue("PresetId", *InPreset->GetPresetId().ToString());
-
-		JsonWriter->WriteIdentifierPrefix("ModifiedActors");
-
-		JsonWriter->WriteArrayStart();
-
-		for (const TPair<FRemoteControlActor, TArray<FRCObjectReference>>& Pair : InModifications)
+		if (AActor* ModifiedActor = Cast<AActor>(Pair.Key.Path.ResolveObject()))
 		{
-			JsonWriter->WriteObjectStart();
-			
-			AActor* ModifiedActor = Cast<AActor>(Pair.Key.Path.ResolveObject());
-			if (!ModifiedActor)
-			{
-				continue;
-			}
+			TArray<FStructOnScope> PropertyValuesOnScope;
 
-			FString RCActorName = Pair.Key.GetLabel().ToString();
-			
-			JsonWriter->WriteValue(TEXT("Id"), *Pair.Key.GetId().ToString());
-			JsonWriter->WriteValue(TEXT("DisplayName"), RCActorName);
-			JsonWriter->WriteValue(TEXT("Path"), Pair.Key.Path.ToString());
-
-			JsonWriter->WriteIdentifierPrefix("ModifiedProperties");
-			//All exposed properties of this preset that changed
-			JsonWriter->WriteArrayStart();
+			for (const FRCObjectReference& Ref : Pair.Value)
 			{
-				for (const FRCObjectReference& Ref : Pair.Value)
+				const FProperty* Property = Ref.Property.Get();
+
+				if (Property && Ref.IsValid())
 				{
-					const FProperty* Property = Ref.Property.Get();
-
-					if (!Property || !Ref.IsValid())
-					{
-						continue;
-					}
-
 					bHasProperty = true;
-
-					//Property object
-					JsonWriter->WriteObjectStart();
-					{
-						JsonWriter->WriteValue(TEXT("PropertyName"), Property->GetName());
-						JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
-						RemotePayloadSerializer::SerializePartial(
-							[&Ref](FJsonStructSerializerBackend& SerializerBackend)
-							{
-								return IRemoteControlModule::Get().GetObjectProperties(Ref, SerializerBackend);
-							}
-						, Writer);
-
-					}
-					JsonWriter->WriteObjectEnd();
+					PropertyValuesOnScope.Add(WebSocketMessageHandlerStructUtils::CreateActorPropertyValueOnScope(InPreset, Ref));
 				}
 			}
-			JsonWriter->WriteArrayEnd();
-			JsonWriter->WriteObjectEnd();
-		}
-		JsonWriter->WriteArrayEnd();
 
+			if (PropertyValuesOnScope.Num())
+			{
+				ModifiedActorsOnScope.Add(WebSocketMessageHandlerStructUtils::CreateModifiedActorStructOnScope(InPreset, Pair.Key, PropertyValuesOnScope));
+			}
+		}
 	}
-	JsonWriter->WriteObjectEnd();
+
+	FStructOnScope ActorsModifedOnScope = WebSocketMessageHandlerStructUtils::CreateModifiedActorsStructOnScope(InPreset, ModifiedActorsOnScope);
+	WebRemoteControlUtils::SerializeStructOnScope(ActorsModifedOnScope, InWriter);
 
 	return bHasProperty;
 }

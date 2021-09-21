@@ -123,38 +123,6 @@ namespace RemotePayloadSerializer
 		JsonWriter->WriteObjectEnd();
 	}
 
-	bool SerializePartial(TFunctionRef<bool(FRCJsonStructSerializerBackend&)> SerializeFunction, FMemoryWriter& SerializedPayloadWriter)
-	{
-		TArray<uint8> WorkingBuffer;
-		FMemoryWriter TemporaryBufferWriter(WorkingBuffer);
-		FRCJsonStructSerializerBackend TemporaryBackend(TemporaryBufferWriter, FRCJsonStructSerializerBackend::DefaultSerializerFlags);
-
-		int32 ColonPosition = -1;
-		int32 LastBracketPosition = -1;
-
-		bool bSuccess = SerializeFunction(TemporaryBackend);
-
-		FStringView BufferView = FStringView((TCHAR*)WorkingBuffer.GetData(), WorkingBuffer.Num() / sizeof(TCHAR));
-		if (bSuccess)
-		{
-			BufferView.FindChar(TEXT(':'), ColonPosition);
-			BufferView.FindLastChar(TEXT('}'), LastBracketPosition);
-			ColonPosition++;
-		}
-
-		if (LastBracketPosition > ColonPosition)
-		{
-			BufferView.MidInline(ColonPosition, LastBracketPosition - ColonPosition);
-			SerializedPayloadWriter.Serialize((uint8*)BufferView.GetData(), BufferView.Len() * sizeof(TCHAR) / sizeof(uint8));
-		}
-		else
-		{
-			bSuccess = false;
-		}
-
-		return bSuccess;
-	}
-
 	bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, const FHttpResultCallback& InCompleteCallback)
 	{
 		// Create Json reader to read the payload, the payload will already be validated as being in TCHAR
