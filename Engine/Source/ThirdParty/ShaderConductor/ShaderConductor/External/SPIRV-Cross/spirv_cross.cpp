@@ -2748,13 +2748,14 @@ bool Compiler::CombinedImageSamplerHandler::handle(Op opcode, const uint32_t *ar
 	VariableID image_id = remap_parameter(args[2]);
 	VariableID sampler_id = is_fetch ? compiler.dummy_sampler_id : remap_parameter(args[3]);
 
-	// UE Change Begin: For opengl based platforms we merge all samplers to a single sampler per texture
+	// UE Change Begin: For OpenGL based platforms we merge all samplers to a single sampler per texture.
 	bool only_match_image_id = single_sampler_per_texture;
-	auto itr = find_if(begin(compiler.combined_image_samplers), end(compiler.combined_image_samplers),
-	                   [image_id, sampler_id, only_match_image_id](const CombinedImageSampler &combined) {
-							return combined.image_id == image_id && (combined.sampler_id == sampler_id || only_match_image_id);
-	                   });
-	// UE Change End: For opengl based platforms we merge all samplers to a single sampler per texture
+	auto itr =
+	    find_if(begin(compiler.combined_image_samplers), end(compiler.combined_image_samplers),
+	            [image_id, sampler_id, only_match_image_id](const CombinedImageSampler &combined) {
+		            return combined.image_id == image_id && (combined.sampler_id == sampler_id || only_match_image_id);
+	            });
+	// UE Change End: For OpenGL based platforms we merge all samplers to a single sampler per texture.
 
 	if (itr == end(compiler.combined_image_samplers))
 	{
@@ -2814,12 +2815,13 @@ bool Compiler::CombinedImageSamplerHandler::handle(Op opcode, const uint32_t *ar
 
 		compiler.combined_image_samplers.push_back({ combined_id, image_id, sampler_id });
 	}
-	// UE Change Begin: For opengl based platforms we merge all samplers to a single sampler per texture
+	// UE Change Begin: For OpenGL based platforms we merge all samplers to a single sampler per texture.
 	else if (single_sampler_per_texture)
 	{
 		compiler.combined_image_samplers.push_back({ itr->combined_id, image_id, sampler_id });
 	}
-	// UE Change End: For opengl based platforms we merge all samplers to a single sampler per texture
+	// UE Change End: For OpenGL based platforms we merge all samplers to a single sampler per texture.
+
 	return true;
 }
 
@@ -2854,7 +2856,7 @@ VariableID Compiler::build_dummy_sampler_for_combined_images()
 		return 0;
 }
 
-// UE Change Begin: For opengl based platforms we merge all samplers to a single sampler per texture
+// UE Change Begin: For OpenGL based platforms we merge all samplers to a single sampler per texture
 void Compiler::build_combined_image_samplers(bool single_sampler_per_texture)
 {
 	ir.for_each_typed_id<SPIRFunction>([&](uint32_t, SPIRFunction &func) {
@@ -2867,7 +2869,7 @@ void Compiler::build_combined_image_samplers(bool single_sampler_per_texture)
 	CombinedImageSamplerHandler handler(*this, single_sampler_per_texture);
 	traverse_all_reachable_opcodes(get<SPIRFunction>(ir.default_entry_point), handler);
 }
-// UE Change End: For opengl based platforms we merge all samplers to a single sampler per texture
+// UE Change End: For OpenGL based platforms we merge all samplers to a single sampler per texture
 
 SmallVector<SpecializationConstant> Compiler::get_specialization_constants() const
 {
@@ -3292,6 +3294,10 @@ bool Compiler::AnalyzeVariableScopeAccessHandler::handle(spv::Op op, const uint3
 	}
 
 	case OpArrayLength:
+		// Only result is a temporary.
+		notify_variable_access(args[1], current_block->self);
+		break;
+
 	case OpLine:
 	case OpNoLine:
 		// Uses literals, but cannot be a phi variable or temporary, so ignore.

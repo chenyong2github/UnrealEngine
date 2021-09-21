@@ -140,10 +140,9 @@ public:
 		// If non-zero, controls layout(num_views = N) in; in GL_OVR_multiview2.
 		uint32_t ovr_multiview_view_count = 0;
 
-		// UE Change Begin: Fixup layout locations to include padding for arrays
-		// Fixup layout locations to account for padding between array indicies
+		// UE Change Begin: Fixup layout locations to include padding for arrays.
 		bool fixup_layout_locations = false;
-		// UE Change End: Fixup layout locations to include padding for arrays
+		// UE Change End: Fixup layout locations to include padding for arrays.
 
 		enum Precision
 		{
@@ -395,7 +394,7 @@ protected:
 	virtual void emit_struct_padding_target(const SPIRType &type);
 	virtual std::string image_type_glsl(const SPIRType &type, uint32_t id = 0);
 	std::string constant_expression(const SPIRConstant &c);
-	std::string constant_op_expression(const SPIRConstantOp &cop);
+	virtual std::string constant_op_expression(const SPIRConstantOp &cop);
 	virtual std::string constant_expression_vector(const SPIRConstant &c, uint32_t vector);
 	virtual void emit_fixup();
 	virtual std::string variable_decl(const SPIRType &type, const std::string &name, uint32_t id = 0);
@@ -946,9 +945,9 @@ protected:
 	std::unordered_set<LocationComponentPair, InternalHasher> masked_output_locations;
 	std::unordered_set<uint32_t> masked_output_builtins;
 
-	// UE Change Begin: Fixup layout locations to include padding for arrays
+	// UE Change Begin: Fixup layout locations to include padding for arrays.
 	void fixup_layout_locations();
-	// UE Change End: Fixup layout locations to include padding for arrays
+	// UE Change End: Fixup layout locations to include padding for arrays.
 
 private:
 	void init();

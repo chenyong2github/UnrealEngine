@@ -623,23 +623,22 @@ void CompilerGLSL::ray_tracing_khr_fixup_locations()
 	});
 }
 
-// UE Change Begin: Fixup layout locations to include padding for arrays
+// UE Change Begin: Fixup layout locations to include padding for arrays.
 void CompilerGLSL::fixup_layout_locations()
 {
-	auto remap = [&](uint32_t storage_type) { 
+	auto remap = [&](uint32_t storage_type) {
 		uint32_t location = 0;
 
 		ir.for_each_typed_id<SPIRVariable>([&](uint32_t, SPIRVariable &var) {
 			auto &type = this->get<SPIRType>(var.basetype);
-			bool is_block = has_decoration(type.self, DecorationBlock);
+			const bool is_block = has_decoration(type.self, DecorationBlock);
 			auto &flags = get_decoration_bitset(var.self);
 			if (flags.get(DecorationLocation) && can_use_io_location(var.storage, is_block))
 			{
 				if (is_hidden_variable(var))
 					return;
 
-				bool can_remap = var.storage == storage_type;
-
+				const bool can_remap = var.storage == storage_type;
 				if (!can_remap)
 					return;
 
@@ -661,7 +660,7 @@ void CompilerGLSL::fixup_layout_locations()
 	if (execution.model == ExecutionModelVertex)
 		remap(StorageClassOutput);
 }
-// UE Change End: Fixup layout locations to include padding for arrays
+// UE Change End: Fixup layout locations to include padding for arrays.
 
 string CompilerGLSL::compile()
 {
@@ -690,10 +689,10 @@ string CompilerGLSL::compile()
 	find_static_extensions();
 	fixup_image_load_store_access();
 
-	// UE Change Begin: Fixup layout locations to include padding for arrays
+	// UE Change Begin: Fixup layout locations to include padding for arrays.
 	if (options.fixup_layout_locations)
 		fixup_layout_locations();
-	// UE Change End: Fixup layout locations to include padding for arrays
+	// UE Change End: Fixup layout locations to include padding for arrays.
 
 	update_active_builtins();
 	analyze_image_and_sampler_usage();
@@ -1191,10 +1190,10 @@ string CompilerGLSL::to_interpolation_qualifiers(const Bitset &flags)
 	//    res += "smooth ";
 	if (flags.get(DecorationFlat))
 		res += "flat ";
-	// UE Change Begin: OpenGLES does not support noperspective
+	// UE Change Begin: ESSL does not support noperspective.
 	if (flags.get(DecorationNoPerspective) && !options.es)
 		res += "noperspective ";
-	// UE Change End: OpenGLES does not support noperspective
+	// UE Change End: ESSL does not support noperspective.
 	if (flags.get(DecorationCentroid))
 		res += "centroid ";
 	if (flags.get(DecorationPatch))
@@ -1225,10 +1224,10 @@ string CompilerGLSL::to_interpolation_qualifiers(const Bitset &flags)
 
 string CompilerGLSL::layout_for_member(const SPIRType &type, uint32_t index)
 {
-	// UE Change Begin: Member layouts not supported on ES
+	// UE Change Begin: Member layouts not supported in ESSL.
 	if (is_legacy() || options.es)
 		return "";
-	// UE Change End: OpenGLES does not support noperspective
+	// UE Change End: Member layouts not supported in ESSL.
 
 	bool is_block = has_decoration(type.self, DecorationBlock) || has_decoration(type.self, DecorationBufferBlock);
 	if (!is_block)
@@ -2021,11 +2020,11 @@ string CompilerGLSL::layout_for_variable(const SPIRVariable &var)
 	if (can_use_binding && flags.get(DecorationBinding))
 		attr.push_back(join("binding = ", get_decoration(var.self, DecorationBinding)));
 
-	// UE Change Begin: Offsets not supported fully on gles
+	// UE Change Begin: Offsets not supported fully in ESSL.
 	if (var.storage != StorageClassOutput && flags.get(DecorationOffset) && !options.es)
 		attr.push_back(join("offset = ", get_decoration(var.self, DecorationOffset)));
-	// UE Change End: Offsets not supported fully on gles
-	
+	// UE Change End: Offsets not supported fully in ESSL.
+
 	// Instead of adding explicit offsets for every element here, just assume we're using std140 or std430.
 	// If SPIR-V does not comply with either layout, we cannot really work around it.
 	if (can_use_buffer_blocks && (ubo_block || emulated_ubo))
@@ -4765,6 +4764,14 @@ string CompilerGLSL::constant_op_expression(const SPIRConstantOp &cop)
 		GLSL_BOP(SGreaterThan, ">");
 		GLSL_BOP(UGreaterThanEqual, ">=");
 		GLSL_BOP(SGreaterThanEqual, ">=");
+
+	case OpSRem:
+	{
+		uint32_t op0 = cop.arguments[0];
+		uint32_t op1 = cop.arguments[1];
+		return join(to_enclosed_expression(op0), " - ", to_enclosed_expression(op1), " * ", "(",
+		                 to_enclosed_expression(op0), " / ", to_enclosed_expression(op1), ")");
+	}
 
 	case OpSelect:
 	{
@@ -8101,7 +8108,11 @@ string CompilerGLSL::bitcast_glsl_op(const SPIRType &out_type, const SPIRType &i
 {
 	// OpBitcast can deal with pointers.
 	if (out_type.pointer || in_type.pointer)
+	{
+		if (out_type.vecsize == 2 || in_type.vecsize == 2)
+			require_extension_internal("GL_EXT_buffer_reference_uvec2");
 		return type_to_glsl(out_type);
+	}
 
 	if (out_type.basetype == in_type.basetype)
 		return "";
@@ -12683,6 +12694,10 @@ void CompilerGLSL::emit_instruction(const Instruction &instruction)
 		if (type.storage != StorageClassPhysicalStorageBufferEXT)
 			SPIRV_CROSS_THROW("Only StorageClassPhysicalStorageBufferEXT is supported by OpConvertUToPtr.");
 
+		auto &in_type = expression_type(ops[2]);
+		if (in_type.vecsize == 2)
+			require_extension_internal("GL_EXT_buffer_reference_uvec2");
+
 		auto op = type_to_glsl(type);
 		emit_unary_func_op(ops[0], ops[1], ops[2], op.c_str());
 		break;
@@ -12694,6 +12709,9 @@ void CompilerGLSL::emit_instruction(const Instruction &instruction)
 		auto &ptr_type = expression_type(ops[2]);
 		if (ptr_type.storage != StorageClassPhysicalStorageBufferEXT)
 			SPIRV_CROSS_THROW("Only StorageClassPhysicalStorageBufferEXT is supported by OpConvertPtrToU.");
+
+		if (type.vecsize == 2)
+			require_extension_internal("GL_EXT_buffer_reference_uvec2");
 
 		auto op = type_to_glsl(type);
 		emit_unary_func_op(ops[0], ops[1], ops[2], op.c_str());
@@ -13403,9 +13421,9 @@ string CompilerGLSL::image_type_glsl(const SPIRType &type, uint32_t id)
 	case DimBuffer:
 		if (options.es && options.version < 320)
 		{
-			// UE Change Begin: Incorrect extension for opengles
+			// UE Change Begin: Incorrect extension for ESSL.
 			require_extension_internal("GL_EXT_texture_buffer");
-			// UE Change End: Incorrect extension for opengles
+			// UE Change End: Incorrect extension for ESSL.
 		}
 		else if (!options.es && options.version < 300)
 			require_extension_internal("GL_EXT_texture_buffer_object");
@@ -15050,26 +15068,30 @@ void CompilerGLSL::emit_block_chain(SPIRBlock &block)
 		}
 
 		// Might still have to flush phi variables if we branch from loop header directly to merge target.
-		if (flush_phi_required(block.self, block.next_block))
+		// This is supposed to emit all cases where we branch from header to merge block directly.
+		// There are two main scenarios where cannot rely on default fallthrough.
+		// - There is an explicit default: label already.
+		//   In this case, literals_to_merge need to form their own "default" case, so that we avoid executing that block.
+		// - Header -> Merge requires flushing PHI. In this case, we need to collect all cases and flush PHI there.
+		bool header_merge_requires_phi = flush_phi_required(block.self, block.next_block);
+		bool need_fallthrough_block = block.default_block == block.next_block || !literals_to_merge.empty();
+		if ((header_merge_requires_phi && need_fallthrough_block) || !literals_to_merge.empty())
 		{
-			if (block.default_block == block.next_block || !literals_to_merge.empty())
+			for (auto &case_literal : literals_to_merge)
+				statement("case ", to_case_label(case_literal, unsigned_case), label_suffix, ":");
+
+			if (block.default_block == block.next_block)
 			{
-				for (auto &case_literal : literals_to_merge)
-					statement("case ", to_case_label(case_literal, unsigned_case), label_suffix, ":");
-
-				if (block.default_block == block.next_block)
-				{
-					if (is_legacy_es())
-						statement("else");
-					else
-						statement("default:");
-				}
-
-				begin_scope();
-				flush_phi(block.self, block.next_block);
-				statement("break;");
-				end_scope();
+				if (is_legacy_es())
+					statement("else");
+				else
+					statement("default:");
 			}
+
+			begin_scope();
+			flush_phi(block.self, block.next_block);
+			statement("break;");
+			end_scope();
 		}
 
 		if (degenerate_switch && !is_legacy_es())
@@ -15137,8 +15159,11 @@ void CompilerGLSL::emit_block_chain(SPIRBlock &block)
 		break;
 	}
 
+	// If the Kill is terminating a block with a (probably synthetic) return value, emit a return value statement.
 	case SPIRBlock::Kill:
 		statement(backend.discard_literal, ";");
+		if (block.return_value)
+			statement("return ", to_expression(block.return_value), ";");
 		break;
 
 	case SPIRBlock::Unreachable:
