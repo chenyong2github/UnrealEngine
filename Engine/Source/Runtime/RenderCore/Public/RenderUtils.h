@@ -247,7 +247,7 @@ public:
 	virtual void InitRHI()
 	{
 		FVertexDeclarationElementList Elements;
-		uint32 Stride = sizeof(FVector2D);
+		uint16 Stride = sizeof(FVector2D);
 		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, Stride, false));
 		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
 	}
@@ -263,7 +263,7 @@ extern RENDERCORE_API TGlobalResource<FTileVertexDeclaration> GTileVertexDeclara
 /**
  * Maps from an X,Y,Z cube vertex coordinate to the corresponding vertex index.
  */
-inline uint16 GetCubeVertexIndex(uint32 X,uint32 Y,uint32 Z) { return X * 4 + Y * 2 + Z; }
+inline uint16 GetCubeVertexIndex(uint32 X,uint32 Y,uint32 Z) { return (uint16)(X * 4 + Y * 2 + Z); }
 
 /**
 * A 3x1 of xyz(11:11:10) format.

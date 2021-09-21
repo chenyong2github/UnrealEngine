@@ -139,8 +139,8 @@ struct FVertexStreamComponent
 	FVertexStreamComponent(const FVertexBuffer* InVertexBuffer, uint32 InOffset, uint32 InStride, EVertexElementType InType, EVertexStreamUsage Usage = EVertexStreamUsage::Default) :
 		VertexBuffer(InVertexBuffer),
 		StreamOffset(0),
-		Offset(InOffset),
-		Stride(InStride),
+		Offset((uint8)InOffset),
+		Stride((uint8)InStride),
 		Type(InType),
 		VertexStreamUsage(Usage)
 	{
@@ -151,8 +151,8 @@ struct FVertexStreamComponent
 	FVertexStreamComponent(const FVertexBuffer* InVertexBuffer, uint32 InStreamOffset, uint32 InOffset, uint32 InStride, EVertexElementType InType, EVertexStreamUsage Usage = EVertexStreamUsage::Default) :
 		VertexBuffer(InVertexBuffer),
 		StreamOffset(InStreamOffset),
-		Offset(InOffset),
-		Stride(InStride),
+		Offset((uint8)InOffset),
+		Stride((uint8)InStride),
 		Type(InType),
 		VertexStreamUsage(Usage)
 	{

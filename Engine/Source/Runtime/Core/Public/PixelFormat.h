@@ -197,3 +197,8 @@ enum class EPixelFormatChannelFlags : uint8
 	None = 0,
 };
 ENUM_CLASS_FLAGS(EPixelFormatChannelFlags);
+
+// EPixelFormat is currently used interchangably with uint8, and most call sites taking a uint8
+// should be updated to take an EPixelFormat instead, but in the interim this allows fixing
+// type conversion warnings
+#define UE_PIXELFORMAT_TO_UINT8(argument) static_cast<uint8>(argument)

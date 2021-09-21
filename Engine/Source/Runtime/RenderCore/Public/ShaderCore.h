@@ -460,7 +460,7 @@ struct FShaderCompilerEnvironment
 
 	void SetRenderTargetOutputFormat(uint32 RenderTargetIndex, EPixelFormat PixelFormat)
 	{
-		RenderTargetOutputFormatsMap.Add(RenderTargetIndex, PixelFormat);
+		RenderTargetOutputFormatsMap.Add(RenderTargetIndex, UE_PIXELFORMAT_TO_UINT8(PixelFormat));
 	}
 
 	friend FArchive& operator<<(FArchive& Ar,FShaderCompilerEnvironment& Environment)

@@ -239,7 +239,7 @@ public:
 	explicit inline TRDGHandle(int32 InIndex)
 	{
 		check(InIndex >= 0 && InIndex <= kNullIndex);
-		Index = InIndex;
+		Index = (IndexType)InIndex;
 	}
 
 	FORCEINLINE IndexType GetIndex() const { check(IsValid()); return Index; }
