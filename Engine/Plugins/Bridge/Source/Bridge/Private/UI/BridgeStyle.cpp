@@ -39,6 +39,7 @@ FName FBridgeStyle::GetContextName()
 }
 
 #define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
+#define IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush( Style->RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 const FVector2D Icon20x20(20.0f, 20.0f);
 const FVector2D Icon40x40(40.0f, 40.0f);
 
@@ -63,7 +64,22 @@ void FBridgeStyle::SetIcon(const FString& StyleName, const FString& ResourcePath
 	FSlateApplication::Get().GetRenderer()->ReloadTextureResources();
 }
 
+void FBridgeStyle::SetSVGIcon(const FString& StyleName, const FString& ResourcePath)
+{
+	FSlateStyleSet* Style = MSStyleInstance.Get();
+
+	FString Name(GetContextName().ToString());
+	Name = Name + "." + StyleName;
+	Style->Set(*Name, new IMAGE_BRUSH_SVG(ResourcePath, Icon40x40));
+
+	Name += ".Small";
+	Style->Set(*Name, new IMAGE_BRUSH_SVG(ResourcePath, Icon20x20));
+
+	FSlateApplication::Get().GetRenderer()->ReloadTextureResources();
+}
+
 #undef IMAGE_BRUSH
+#undef IMAGE_BRUSH_SVG
 
 const ISlateStyle& FBridgeStyle::Get()
 {
