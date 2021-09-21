@@ -69,6 +69,7 @@ public:
 
 	static bool SupportsBCTextureFormats() { return false; }
 	static bool SupportsASTCTextureFormats() { return true; }
+	static bool SupportsETC2TextureFormats() { return true; }
 	static bool SupportsQuerySurfaceProperties() { return false; }
 
 	static void SetupFeatureLevels()
