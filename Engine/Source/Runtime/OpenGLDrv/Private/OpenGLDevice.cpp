@@ -1142,6 +1142,8 @@ void FOpenGLDynamicRHI::Init()
 	check(!GIsRHIInitialized);
 	VERIFY_GL_SCOPE();
 
+	GRHISupportsMultithreadedShaderCreation = false;
+
 	FOpenGLProgramBinaryCache::Initialize();
 	RegisterSharedShaderCodeDelegates();
 	InitializeStateResources();

@@ -962,6 +962,9 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 		ShaderCode = (uint8*)UncompressedCode;
 	}
 
+	// detect the breach of contract early
+	ensureAlwaysMsgf(IsInRenderingThread() || GRHISupportsMultithreadedShaderCreation, TEXT("More than one thread is creating shaders, but GRHISupportsMultithreadedShaderCreation is false."));
+
 	const auto ShaderCodeView = MakeArrayView(ShaderCode, ShaderEntry.UncompressedSize);
 	const FSHAHash& ShaderHash = SerializedShaders.ShaderHashes[Index];
 	switch (ShaderEntry.Frequency)

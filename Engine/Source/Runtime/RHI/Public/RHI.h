@@ -424,6 +424,9 @@ extern RHI_API bool GRHISupportsUAVFormatAliasing;
 /** true if the pointer returned by Lock is a persistent direct pointer to gpu memory */
 extern RHI_API bool GRHISupportsDirectGPUMemoryLock;
 
+/** true if the multi-threaded shader creation is supported by (or desirable for) the RHI. */
+extern RHI_API bool GRHISupportsMultithreadedShaderCreation;
+
 /** The minimum Z value in clip space for the RHI. */
 extern RHI_API float GMinClipZ;
 

@@ -274,7 +274,6 @@ typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray,	 FCle
 
 // Compute shaders for clearing each resource type. No bounds checks enabled.
 typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,           FClearReplacementBase_Uint_Zero>     FClearReplacementCS_Buffer_Uint_Zero;
-typedef TClearReplacementCS<EClearReplacementResourceType::LargeBuffer,      FClearReplacementBase_Uint_Zero>     FClearReplacementCS_LargeBuffer_Uint_Zero;
 typedef TClearReplacementCS<EClearReplacementResourceType::StructuredBuffer, FClearReplacementBase_Uint_Zero>     FClearReplacementCS_StructuredBuffer_Uint_Zero;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray,   FClearReplacementBase_Uint_Zero>     FClearReplacementCS_Texture2DArray_Uint_Zero;
 typedef TClearReplacementCS<EClearReplacementResourceType::Buffer,           FClearReplacementBase_Uint>          FClearReplacementCS_Buffer_Uint;
@@ -307,6 +306,11 @@ typedef TClearReplacementCS<EClearReplacementResourceType::StructuredBuffer, FCl
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture3D,        FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Texture3D_Sint4_Bounds;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2D,        FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Texture2D_Sint4_Bounds;
 typedef TClearReplacementCS<EClearReplacementResourceType::Texture2DArray,   FClearReplacementBase_Sint4_Bounds>  FClearReplacementCS_Texture2DArray_Sint4_Bounds;
+
+/**
+ * Force creation of the above clear replacement shaders. This is sometimes useful if multi-threaded creation (i.e. on demand) isn't supported.
+ */
+void RENDERCORE_API CreateClearReplacementShaders();
 
 /**
  * Helper functions for running the clear replacement shader for specific resource types, values types and number of channels.

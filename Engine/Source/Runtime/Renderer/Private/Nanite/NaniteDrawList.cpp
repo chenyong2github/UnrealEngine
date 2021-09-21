@@ -383,8 +383,7 @@ public:
 		TRACE_CPUPROFILER_EVENT_SCOPE(SubmitNaniteMaterialPassCommandsAnyThreadTask);
 		checkSlow(RHICmdList.IsInsideRenderPass());
 
-		// FDrawVisibleMeshCommandsAnyThreadTasks must only run on RT if RHISupportsMultithreadedShaderCreation is not supported!
-		check(IsInRenderingThread() || RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform));
+		// check for the multithreaded shader creation has been moved to FShaderCodeArchive::CreateShader() 
 
 		// Recompute draw range.
 		const int32 DrawNum = NaniteMaterialPassCommands.Num();

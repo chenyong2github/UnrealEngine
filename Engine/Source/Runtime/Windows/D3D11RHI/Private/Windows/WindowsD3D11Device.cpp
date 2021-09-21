@@ -1704,6 +1704,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		GRHIVendorId = Adapter.DXGIAdapterDesc.VendorId;
 		GRHIDeviceId = Adapter.DXGIAdapterDesc.DeviceId;
 		GRHIDeviceRevision = Adapter.DXGIAdapterDesc.Revision;
+		// turn off creation on other threads for NVidia since a driver heuristic will notice that and make the creation synchronous, and that is not desirable given that large number of shaders will still be created on a single thread
+		GRHISupportsMultithreadedShaderCreation = !IsRHIDeviceNVIDIA(); 
 
 		UE_LOG(LogD3D11RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), 
 			Adapter.DXGIAdapterDesc.DeviceId);
