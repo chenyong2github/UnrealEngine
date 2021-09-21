@@ -14,7 +14,10 @@
 
 #include "LandscapeProxy.h"
 #include "Landscape.h"
+#include "LandscapeSplineActor.h"
 #include "Engine/Texture2D.h"
+#include "EngineUtils.h"
+
 
 // Register the custom version with core
 FCustomVersionRegistration GRegisterLandscapeCustomVersion(FLandscapeCustomVersion::GUID, FLandscapeCustomVersion::LatestVersion, TEXT("Landscape"));
@@ -172,6 +175,25 @@ void WorldDuplicateEventFunction(UWorld* World, bool bDuplicateForPIE, TMap<UObj
 	{
 		AddPerWorldLandscapeData(World);
 	}
+
+#if WITH_EDITOR
+	// Fixup LandscapeGuid on World duplication
+	if (!bDuplicateForPIE)
+	{
+		TMap<FGuid, FGuid> NewLandscapeGuids;
+		for (ALandscapeProxy* Proxy : TActorRange<ALandscapeProxy>(World, ALandscapeProxy::StaticClass(), EActorIteratorFlags::SkipPendingKill))
+		{
+			FGuid& NewGuid = NewLandscapeGuids.FindOrAdd(Proxy->GetLandscapeGuid(), FGuid::NewGuid());
+			Proxy->SetLandscapeGuid(NewGuid);
+		}
+
+		for (ALandscapeSplineActor* SplineActor : TActorRange<ALandscapeSplineActor>(World, ALandscapeSplineActor::StaticClass(), EActorIteratorFlags::SkipPendingKill))
+		{
+			FGuid& NewGuid = NewLandscapeGuids.FindOrAdd(SplineActor->GetLandscapeGuid(), FGuid::NewGuid());
+			SplineActor->SetLandscapeGuid(NewGuid);
+		}
+	}
+#endif
 }
 
 void FLandscapeModule::StartupModule()
