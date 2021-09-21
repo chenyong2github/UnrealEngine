@@ -16,7 +16,7 @@ class UMovieSceneMediaTrack;
 /**
  * Track editor that understands how to animate MediaPlayer properties on objects
  */
-class FMediaTrackEditor
+class MEDIACOMPOSITINGEDITOR_API FMediaTrackEditor
 	: public FMovieSceneTrackEditor
 {
 public:
@@ -27,7 +27,7 @@ public:
 	 * @param OwningSequencer The sequencer object that will own the track editor.
 	 * @return The new track editor.
 	 */
-	static TSharedRef<ISequencerTrackEditor> CreateTrackEditor(TSharedRef<ISequencer> OwningSequencer)
+	static TSharedRef<ISequencerTrackEditor>  CreateTrackEditor(TSharedRef<ISequencer> OwningSequencer)
 	{
 		return MakeShared<FMediaTrackEditor>(OwningSequencer);
 	}

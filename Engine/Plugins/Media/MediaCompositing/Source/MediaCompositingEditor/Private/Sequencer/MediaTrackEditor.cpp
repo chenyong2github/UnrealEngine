@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MediaTrackEditor.h"
+#include "Sequencer/MediaTrackEditor.h"
 
 #include "ContentBrowserModule.h"
 #include "EditorStyleSet.h"
