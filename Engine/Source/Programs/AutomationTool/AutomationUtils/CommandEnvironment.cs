@@ -132,8 +132,13 @@ namespace AutomationTool
 			CommandUtils.SetEnvVar(EnvVarNames.MacMallocNanoZone, MallocNanoZone);
 
 			int IsChildInstanceInt;
-			int.TryParse(CommandUtils.GetEnvVar("uebp_UATChildInstance", "0"), out IsChildInstanceInt);
+			int.TryParse(CommandUtils.GetEnvVar(EnvVarNames.IsChildInstance, "0"), out IsChildInstanceInt);
 			IsChildInstance = (IsChildInstanceInt != 0);
+
+			if (IsChildInstance)
+			{
+				Log.TraceInformation($"AutomationTool is running as a child instance ({EnvVarNames.IsChildInstance}={IsChildInstanceInt.ToString()})");
+			}
 
 			// Setup the timestamp string
 			DateTime LocalTime = DateTime.Now;
