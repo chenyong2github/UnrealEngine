@@ -622,16 +622,6 @@ public:
         // Open merge actor command
 	TSharedPtr< FUICommandInfo > OpenMergeActor;
 
-	/** Selects all Geometry Collection geometry */
-	TSharedPtr< FUICommandInfo > GeometryCollectionSelectAllGeometry;
-
-	/** Deselects all Geometry Collection geometry */
-	TSharedPtr< FUICommandInfo > GeometryCollectionSelectNone;
-
-	/** Selects inverse of currently seleted Geometry Collection geometry */
-	TSharedPtr< FUICommandInfo > GeometryCollectionSelectInverseGeometry;
-
-
 };
 
 /**
@@ -1004,6 +994,9 @@ public:
 	 */
 	static void OnSelectAllActorsOfClass( bool bArchetype );
 
+	/** Called to see if all selected actors are the same class */
+	static bool CanSelectAllActorsOfClass();
+
 	/** Called when selecting the actor that owns the currently selected component(s) */
 	static void OnSelectComponentOwnerActor();
 
@@ -1330,6 +1323,23 @@ public:
 	 *	@return true if it can execute.
 	 */
 	static bool ActorSelected_CanExecute();
+
+	enum EActorTypeFlags : uint8
+	{
+		IncludePawns			= 1 << 0,
+		IncludeStaticMeshes		= 1 << 1,
+		IncludeSkeletalMeshes	= 1 << 2,
+		IncludeEmitters			= 1 << 3,
+	};
+
+	/**
+	 * Checks to see if at least one actor (of the given types) is selected
+	 *
+	 * @param TypeFlags		actor types to look for - one or more of EActorTypeFlags or'ed together
+	 * @param bSingleOnly	if true, then requires selection to be exactly one actor
+	 * @return				true if it can execute.
+	 */
+	static bool ActorTypesSelected_CanExecute(EActorTypeFlags TypeFlags, bool bSingleOnly);
 
 	/**
 	 * Checks to see if multiple actors are selected

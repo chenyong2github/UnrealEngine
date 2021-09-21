@@ -1824,6 +1824,12 @@ void FLevelEditorActionCallbacks::OnSelectAllActorsOfClass( bool bArchetype )
 	GEditor->SelectAllActorsWithClass( bArchetype );
 }
 
+bool FLevelEditorActionCallbacks::CanSelectAllActorsOfClass()
+{
+	FSelectedActorInfo SelectionInfo = AssetSelectionUtils::GetSelectedActorInfo();
+	return SelectionInfo.NumSelected > 0 && SelectionInfo.bAllSelectedActorsOfSameType;
+}
+
 void FLevelEditorActionCallbacks::OnSelectComponentOwnerActor()
 {
 	auto ComponentOwner = Cast<AActor>(*GEditor->GetSelectedActorIterator());
@@ -1867,6 +1873,9 @@ void FLevelEditorActionCallbacks::OnApplyMaterialToSurface()
 void FLevelEditorActionCallbacks::OnSelectAllLights()
 {
 	GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+
+	GEditor->SelectNone(false, true);
+
 	// Select all light actors.
 	for( ALight* Light : TActorRange<ALight>(GetWorld()) )
 	{
@@ -3190,6 +3199,35 @@ bool FLevelEditorActionCallbacks::ActorsSelected_CanExecute()
 	return GEditor->GetSelectedActorCount() > 1;
 }
 
+bool FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute(EActorTypeFlags TypeFlags, bool bSingleOnly)
+{
+	FSelectedActorInfo SelectionInfo = AssetSelectionUtils::GetSelectedActorInfo();
+	if (SelectionInfo.NumSelected > 0 && (!bSingleOnly || SelectionInfo.NumSelected == 1))
+	{
+		if ((TypeFlags & IncludePawns) && SelectionInfo.bHavePawn)
+		{
+			return true;
+		}
+
+		if ((TypeFlags & IncludeStaticMeshes) && SelectionInfo.bHaveStaticMesh)
+		{
+			return true;
+		}
+
+		if ((TypeFlags & IncludeSkeletalMeshes) && SelectionInfo.bHaveSkeletalMesh)
+		{
+			return true;
+		}
+
+		if ((TypeFlags & IncludeEmitters) && SelectionInfo.bHaveEmitter)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FLevelEditorActionCallbacks::ElementSelected_CanExecute()
 {
 	// TODO: Ideally this would come from some level editor context
@@ -3568,10 +3606,6 @@ void FLevelEditorCommands::RegisterCommands()
 			.DefaultChord(FInputChord())
 		);
 	}
-
-	UI_COMMAND(GeometryCollectionSelectAllGeometry, "Select All Geometry In Hierarchy", "Select all geometry in hierarchy", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(GeometryCollectionSelectNone, "Deselect All Geometry In Hierarchy", "Deselect all geometry in hierarchy", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(GeometryCollectionSelectInverseGeometry, "Select Inverse Geometry In Hierarchy", "Select inverse geometry in hierarchy", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(OpenMergeActor, "Merge Actors", "Opens the Merge Actor panel", EUserInterfaceActionType::Button, FInputChord());
 }

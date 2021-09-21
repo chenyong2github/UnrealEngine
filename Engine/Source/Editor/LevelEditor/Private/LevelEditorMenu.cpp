@@ -22,6 +22,8 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "TranslationEditor/Public/ITranslationEditor.h"
 #include "LocalizationDashboard/Public/ILocalizationDashboardModule.h"
+#include "AssetSelection.h"
+#include "EditorViewportCommands.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditorMenu"
 
@@ -231,7 +233,7 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 			FToolMenuSection& Section = Menu->FindOrAddSection(NAME_None);
 
 
-			FToolMenuEntry& Entry =
+			FToolMenuEntry& BuildEntry =
 				Section.AddSubMenu(
 					"Build",
 					LOCTEXT("BuildMenu", "Build"),
@@ -239,7 +241,17 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 					FNewToolMenuChoice()
 				);
 
-			Entry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
+			BuildEntry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
+
+			FToolMenuEntry& SelectEntry =
+				Section.AddSubMenu(
+					"Select",
+					LOCTEXT("SelectMenu", "Select"),
+					LOCTEXT("SelectMenu_ToolTip", "Level Selection"),
+					FNewToolMenuChoice()
+				);
+
+			SelectEntry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
 		}
 
 
@@ -306,6 +318,8 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 	// Extend the Build menu
 	RegisterBuildMenu();
 
+	// Extend the Select menu
+	RegisterSelectMenu();
 }
 
 TSharedRef< SWidget > FLevelEditorMenu::MakeLevelEditorMenu( const TSharedPtr<FUICommandList>& CommandList, TSharedPtr<class SLevelEditor> LevelEditor )
@@ -637,4 +651,76 @@ void FLevelEditorMenu::RegisterBuildMenu()
 	}
 
 }
+
+void FLevelEditorMenu::RegisterSelectMenu()
+{
+	static const FName BaseMenuName = "LevelEditor.MainMenu.Select";
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu(BaseMenuName);
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectActorGeneral", NSLOCTEXT("LevelViewportContextMenu", "SelectAnyHeading", "General"));
+		Section.AddMenuEntry(FGenericCommands::Get().SelectAll, TAttribute<FText>(), NSLOCTEXT("LevelViewportContextMenu", "SelectAll_ToolTip", "Selects all actors"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectNone);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().InvertSelection);
+		Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			{
+				FSelectedActorInfo SelectionInfo = AssetSelectionUtils::GetSelectedActorInfo();
+				TAttribute<FText> SelectAllActorsText;
+				if (SelectionInfo.bAllSelectedActorsOfSameType && !SelectionInfo.SelectionStr.IsEmpty())
+				{
+					SelectAllActorsText = FText::Format(NSLOCTEXT("LevelViewportContextMenu", "SelectActorsOfSameClass", "Select All {0}(s)"), FText::FromString(SelectionInfo.SelectionStr));
+				}
+				InSection.AddMenuEntry(FLevelEditorCommands::Get().SelectAllActorsOfSameClass, SelectAllActorsText);
+			}));
+		Section.AddMenuEntry(FEditorViewportCommands::Get().FocusViewportToSelection);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectActorHierarchy", NSLOCTEXT("LevelViewportContextMenu", "SelectHierarchyHeading", "Hierarchy"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectImmediateChildren);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllDescendants);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectBSP", NSLOCTEXT("LevelViewportContextMenu", "SelectBSPHeading", "BSP"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllAddditiveBrushes);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllSubtractiveBrushes);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllSurfaces);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectLights", NSLOCTEXT("LevelViewportContextMenu", "SelectLightHeading", "Lights"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectRelevantLights);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllLights);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStationaryLightsExceedingOverlap);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectMeshes", NSLOCTEXT("LevelViewportContextMenu", "SelectStaticMeshHeading", "Static Meshes"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStaticMeshesOfSameClass, NSLOCTEXT("LevelViewportContextMenu", "SelectStaticMeshesOfSameClass_Menu", "Select Matching (Selected Classes)"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStaticMeshesAllClasses, NSLOCTEXT("LevelViewportContextMenu", "SelectStaticMeshesAllClasses_Menu", "Select Matching (All Classes)"));
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectHLODCluster", NSLOCTEXT("LevelViewportContextMenu", "SelectHLODClusterHeading", "Hierachical LODs"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectOwningHierarchicalLODCluster, NSLOCTEXT("LevelViewportContextMenu", "SelectOwningHierarchicalLODCluster_Menu", "Select Owning HierarchicalLODCluster"));
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectSkeletalMeshes", NSLOCTEXT("LevelViewportContextMenu", "SelectSkeletalMeshHeading", "Skeletal Meshes"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectSkeletalMeshesOfSameClass);
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectSkeletalMeshesAllClasses);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectEmitters", NSLOCTEXT("LevelViewportContextMenu", "SelectEmitterHeading", "Emitters"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectMatchingEmitter);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("SelectMaterial", NSLOCTEXT("LevelViewportContextMenu", "SelectMaterialHeading", "Materials"));
+		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllWithSameMaterial);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

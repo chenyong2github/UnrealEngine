@@ -31,7 +31,9 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"Chaos",
 					"MeshDescription",
-					"StaticMeshDescription"
+					"StaticMeshDescription",
+					"LevelEditor",
+					"InputCore",
 				}
 			);
 
