@@ -56,7 +56,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 	#define PLATFORM_ALWAYS_HAS_SSE4_1						0
 #endif
 // FMA3 support was added starting from AMD Piledriver (excluding Jaguar) and Intel Haswell (excluding Pentium and Celeron)
-// Available on PS5 and XSX
 #ifndef PLATFORM_ALWAYS_HAS_FMA3
 	#define PLATFORM_ALWAYS_HAS_FMA3						0
 #endif
