@@ -45,7 +45,7 @@ void CompositeMain(
 
 	float4 Radiance = RadianceTexture.Load(TexCoord);
 
-	OutColor = float4(Radiance.rgb * View.PreExposure, 1.0);
+	OutColor = float4(Radiance.rgb * View.PreExposure, Radiance.a);
 
 	if (ProgressDisplayEnabled && (Iteration + 1) < MaxSamples)
 	{
@@ -100,13 +100,7 @@ void CompositeMain(
     // split-screen debugging aids
 	if (UV.x < 0.5)
 	{
-		uint NumSamples = Iteration + 1;
-		float OutVariance = Radiance.a;
-		float Lum = Luminance(Radiance.rgb); // mean
-		float StdErr = NumSamples > 0 ? sqrt(OutVariance / NumSamples) : 0; // stderr
-		//OutColor = Tonemap(Lum + 3 * StdErr) - Tonemap(max(Lum - 3 * StdErr, 0.0)); // error estimator
-		OutColor = StdErr * View.PreExposure;
-		//OutColor = StdErr / (Lum + 0.0001) * View.PreExposure;
+		OutColor = 1 - Radiance.a; // visualize alpha channel
 	}
 #endif
 }
