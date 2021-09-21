@@ -2107,7 +2107,7 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				{
 					UnrealToUsd::ConvertMeshComponent( UsdStage, MeshComponent, UsdPrim );
 				}
-				else if ( UsdPrim.IsA( TEXT( "Camera" ) ) )
+				else if ( UsdPrim && UsdPrim.IsA( TEXT( "Camera" ) ) )
 				{
 					// Our component may be pointing directly at a camera component in case we recreated an exported
 					// ACineCameraActor (see UE-120826)
