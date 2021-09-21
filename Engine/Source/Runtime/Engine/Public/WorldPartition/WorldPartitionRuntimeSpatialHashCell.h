@@ -30,7 +30,10 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 	// Used to determine if cell was requested by blocking source
 	mutable bool CachedIsBlockingSource;
 
-	// Represents the square distance from cell to closest streaming source
+	// Represents the square distance from cell to the closest blocking streaming source
+	mutable float CachedMinSquareDistanceToBlockingSource;
+
+	// Represents the square distance from cell to the closest streaming source
 	mutable float CachedMinSquareDistanceToSource;
 
 	// Modulated distance to the different streaming sources used to sort relative priority amongst streaming cells
