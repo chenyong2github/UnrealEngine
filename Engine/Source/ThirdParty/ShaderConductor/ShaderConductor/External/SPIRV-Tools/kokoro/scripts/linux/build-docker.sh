@@ -58,7 +58,7 @@ if [ $TOOL = "cmake" ]; then
   using ninja-1.10.0
 
   # Possible configurations are:
-  # ASAN, COVERAGE, RELEASE, DEBUG, DEBUG_EXCEPTION, RELEASE_MINGW
+  # ASAN, UBSAN, COVERAGE, RELEASE, DEBUG, DEBUG_EXCEPTION, RELEASE_MINGW
   BUILD_TYPE="Debug"
   if [ $CONFIG = "RELEASE" ] || [ $CONFIG = "RELEASE_MINGW" ]; then
     BUILD_TYPE="RelWithDebInfo"
@@ -69,6 +69,13 @@ if [ $TOOL = "cmake" ]; then
   if [ $CONFIG = "ASAN" ]; then
     ADDITIONAL_CMAKE_FLAGS="-DSPIRV_USE_SANITIZER=address,bounds,null"
     [ $COMPILER = "clang" ] || { echo "$CONFIG requires clang"; exit 1; }
+  elif [ $CONFIG = "UBSAN" ]; then
+    # UBSan requires RTTI, and by default UBSan does not exit when errors are
+    # encountered - additional compiler options are required to force this.
+    # The -DSPIRV_USE_SANITIZER=undefined option instructs SPIR-V Tools to be
+    # built with UBSan enabled.
+    ADDITIONAL_CMAKE_FLAGS="-DSPIRV_USE_SANITIZER=undefined -DENABLE_RTTI=ON -DCMAKE_C_FLAGS=-fno-sanitize-recover=all -DCMAKE_CXX_FLAGS=-fno-sanitize-recover=all"
+    [ $COMPILER = "clang" ] || { echo "$CONFIG requires clang"; exit 1; }
   elif [ $CONFIG = "COVERAGE" ]; then
     ADDITIONAL_CMAKE_FLAGS="-DENABLE_CODE_COVERAGE=ON"
     SKIP_TESTS="True"
@@ -77,6 +84,10 @@ if [ $TOOL = "cmake" ]; then
   elif [ $CONFIG = "RELEASE_MINGW" ]; then
     ADDITIONAL_CMAKE_FLAGS="-Dgtest_disable_pthreads=ON -DCMAKE_TOOLCHAIN_FILE=$SRC/cmake/linux-mingw-toolchain.cmake"
     SKIP_TESTS="True"
+  fi
+
+  if [ $COMPILER = "clang" ]; then
+    ADDITIONAL_CMAKE_FLAGS="$ADDITIONAL_CMAKE_FLAGS -DSPIRV_BUILD_LIBFUZZER_TARGETS=ON"
   fi
 
   clean_dir "$ROOT_DIR/build"

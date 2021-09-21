@@ -142,6 +142,12 @@ class FuzzerContext {
   uint32_t GetChanceOfAddingArrayOrStructType() const {
     return chance_of_adding_array_or_struct_type_;
   }
+  uint32_t GetChanceOfAddingAtomicLoad() const {
+    return chance_of_adding_atomic_load_;
+  }
+  uint32_t GetChanceOfAddingAtomicStore() const {
+    return chance_of_adding_atomic_store_;
+  }
   uint32_t GetChanceOfAddingBitInstructionSynonym() const {
     return chance_of_adding_bit_instruction_synonym_;
   }
@@ -492,6 +498,8 @@ class FuzzerContext {
   uint32_t chance_of_adding_another_pass_to_pass_loop_;
   uint32_t chance_of_adding_another_struct_field_;
   uint32_t chance_of_adding_array_or_struct_type_;
+  uint32_t chance_of_adding_atomic_load_;
+  uint32_t chance_of_adding_atomic_store_;
   uint32_t chance_of_adding_bit_instruction_synonym_;
   uint32_t chance_of_adding_both_branches_when_replacing_opselect_;
   uint32_t chance_of_adding_composite_extract_;
