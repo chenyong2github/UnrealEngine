@@ -17,7 +17,14 @@ class ALevelSequenceActor;
 #if WITH_EDITOR
 
 class ISequencer;
+class FConcertClientWorkspace;
 struct FSequencerInitParams;
+
+struct FSequencePlayer
+{
+	TWeakObjectPtr<ALevelSequenceActor> Actor;
+	FDelegateHandle	SignatureChangedHandle;
+};
 
 /**
  * Sequencer manager that is held by the client sync module that keeps track of open sequencer UIs, regardless of whether a session is open or not
@@ -81,12 +88,22 @@ public:
 	virtual bool IsSequencerRemoteOpenEnabled() const override;
 
 	/**
+	 * Checks the CVar to see if we are allowed to forcefully close the player on game instances.
+	 *
+	 * @return true if we should always close a sequence player on a -game instance.
+	 */
+	bool ShouldAlwaysCloseGameSequencerPlayer() const;
+
+	/**
 	 * Set the remote open option in Multi-User
 	 * which open sequencer for other user when this option is enabled on both user machines.
 	 * 
 	 * @param bEnable The value to set for the remote open option
 	 */
 	virtual void SetSequencerRemoteOpen(bool bEnable) override;
+
+	/** Assign the current active workspace to this sequencer. */
+	void SetActiveWorkspace(TSharedPtr<FConcertClientWorkspace> Workspace);
 
 private:
 	/** Enum signifying how a sequencer UI is currently playing. Necessary to prevent transport event contention. */
@@ -117,6 +134,8 @@ private:
 	};
 
 private:
+	void HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
+
 	/**
 	 * Called when a sequencer closes.
 	 *
@@ -176,14 +195,21 @@ private:
 	void OnEndFrame();
 
 	/**
-	 * Apply a Sequencer open event 
+	 * Apply a Sequencer open event
 	 *
 	 * @param SequenceObjectPath	The sequence to open
 	 */
 	void ApplyTransportOpenEvent(const FString& SequenceObjectPath);
 
 	/**
-	 * Apply a Sequencer event 
+	 * Create a new sequence player to be used in -game instances.
+	 *
+	 * @param SequenceObjectPath	The object path for the Level Sequence object we are creating.
+	 */
+	void CreateNewSequencePlayerIfNotExists(const FString& SequenceObjectPath);
+
+	/**
+	 * Apply a Sequencer event
 	 *
 	 * @param PendingState	The pending state to apply
 	 */
@@ -211,6 +237,13 @@ private:
 	void ApplyCloseToPlayers(const FConcertSequencerCloseEvent& InEvent);
 
 	/**
+	 * Apply CloseEvent to Open sequencers and players.
+	 *
+	 * @param PendingClose  The close event state.
+	 */
+	void ApplyTransportCloseEvent(const FConcertSequencerCloseEvent& PendingClose);
+
+	/**
 	 * Gather all the currently open sequencer UIs that have the specified path as their root sequence
 	 *
 	 * @param InSequenceObjectPath        The full path to the root asset to gather sequences for
@@ -231,6 +264,13 @@ private:
 	}
 
 private:
+
+	/** Destroy the given sequence player with corresponding actor. */
+	void DestroyPlayer(FSequencePlayer& Player, ALevelSequenceActor* LevelSequenceActor);
+
+	/** Indicates if this sequence player can be closed. */
+	bool CanClose(const FConcertSequencerCloseEvent& InEvent) const;
+
 	/** Called by the MovieScene object when the property changes of the object. */
 	void OnPlayerSignatureChanged();
 
@@ -243,17 +283,24 @@ private:
 	/** List of pending sequencer open events to apply at end of frame. */
 	TArray<FString> PendingSequenceOpenEvents;
 
+	/** List of pending sequencer open events to apply at end of frame. */
+	TArray<FConcertSequencerCloseEvent> PendingSequenceCloseEvents;
+
+	/**
+	 * List of pending sequence players that are scheduled for destruction. The first member of the tuple is the key /
+	 * level sequence player we a removing.  The second member tuple is the soft object path name of the replacement
+	 * level sequence when it is recreated.
+	 */
+	TArray<TTuple<FName,FString>> PendingDestroy;
+
+	/** List of pending sequence players that are scheduled for creation. */
+	TArray<FString> PendingCreate;
+
 	/** Map of all currently opened Root Sequence State in a session, locally opened or not. */
 	TMap<FName, FConcertSequencerState> SequencerStates;
 
 	/** List of all locally opened sequencer. */
 	TArray<FOpenSequencerData> OpenSequencers;
-
-	struct FSequencePlayer
-	{
-		TWeakObjectPtr<ALevelSequenceActor> Actor;
-		FDelegateHandle						SignatureChangedHandle;
-	};
 
 	/** Map of opened sequence players, if not in editor mode. */
 	TMap<FName, FSequencePlayer> SequencePlayers;
@@ -266,6 +313,9 @@ private:
 	
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;
+
+	/** Weak pointer to the active workspace. */
+	TWeakPtr<FConcertClientWorkspace> Workspace;
 };
 
 #endif // WITH_EDITOR

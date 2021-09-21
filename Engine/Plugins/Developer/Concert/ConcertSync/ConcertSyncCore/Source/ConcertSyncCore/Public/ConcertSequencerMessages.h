@@ -79,6 +79,9 @@ struct FConcertSequencerCloseEvent
 
 	UPROPERTY()
 	bool bMasterClose = false;
+
+	UPROPERTY()
+	int32 EditorsWithSequencerOpened = -1;
 };
 
 /**
