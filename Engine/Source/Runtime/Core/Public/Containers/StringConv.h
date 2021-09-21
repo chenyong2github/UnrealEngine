@@ -234,26 +234,26 @@ public:
 			if (OutputIteratorByteSizeRemaining >= 2)
 			{
 				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 6)         | 128 | 64);
-				*(OutputIterator++) = (ANSICHAR) (Codepoint       & 0x3F) | 128;
+				*(OutputIterator++) = (ANSICHAR)((Codepoint       & 0x3F) | 128);
 			}
 		}
 		else if (Codepoint < 0x10000)
 		{
 			if (OutputIteratorByteSizeRemaining >= 3)
 			{
-				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 12)        | 128 | 64 | 32);
-				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 6) & 0x3F) | 128;
-				*(OutputIterator++) = (ANSICHAR) (Codepoint       & 0x3F) | 128;
+				*(OutputIterator++) = (ANSICHAR) ((Codepoint >> 12)        | 128 | 64 | 32);
+				*(OutputIterator++) = (ANSICHAR)(((Codepoint >> 6) & 0x3F) | 128);
+				*(OutputIterator++) = (ANSICHAR) ((Codepoint       & 0x3F) | 128);
 			}
 		}
 		else
 		{
 			if (OutputIteratorByteSizeRemaining >= 4)
 			{
-				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 18)         | 128 | 64 | 32 | 16);
-				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 12) & 0x3F) | 128;
-				*(OutputIterator++) = (ANSICHAR)((Codepoint >> 6 ) & 0x3F) | 128;
-				*(OutputIterator++) = (ANSICHAR) (Codepoint        & 0x3F) | 128;
+				*(OutputIterator++) = (ANSICHAR) ((Codepoint >> 18)         | 128 | 64 | 32 | 16);
+				*(OutputIterator++) = (ANSICHAR)(((Codepoint >> 12) & 0x3F) | 128);
+				*(OutputIterator++) = (ANSICHAR)(((Codepoint >> 6 ) & 0x3F) | 128);
+				*(OutputIterator++) = (ANSICHAR) ((Codepoint        & 0x3F) | 128);
 			}
 		}
 
