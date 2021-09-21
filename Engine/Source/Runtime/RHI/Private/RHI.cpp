@@ -1740,6 +1740,7 @@ RHI_API const TCHAR* RHIVendorIdToString()
 	case 0x1010: return TEXT("ImgTec");
 	case 0x10DE: return TEXT("NVIDIA");
 	case 0x13B5: return TEXT("ARM");
+	case 0x14E4: return TEXT("Broadcom");
 	case 0x5143: return TEXT("Qualcomm");
 	case 0x8086: return TEXT("Intel");
 	default: return TEXT("Unknown");
@@ -1754,6 +1755,7 @@ RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId)
 	case EGpuVendorId::ImgTec: return TEXT("ImgTec");
 	case EGpuVendorId::Nvidia: return TEXT("NVIDIA");
 	case EGpuVendorId::Arm: return TEXT("ARM");
+	case EGpuVendorId::Broadcom: return TEXT("Broadcom");
 	case EGpuVendorId::Qualcomm: return TEXT("Qualcomm");
 	case EGpuVendorId::Intel: return TEXT("Intel");
 	case EGpuVendorId::NotQueried: return TEXT("Not Queried");

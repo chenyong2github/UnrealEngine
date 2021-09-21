@@ -37,9 +37,10 @@ public:
 	// create the platform-specific surface object - required
 	static void CreateSurface(VkSurfaceKHR* OutSurface);
 
-	// most platforms support BC* but not ASTC*
+	// most platforms support BC* but not ASTC* or ETC2*
 	static bool SupportsBCTextureFormats() { return true; }
 	static bool SupportsASTCTextureFormats() { return false; }
+	static bool SupportsETC2TextureFormats() { return false; }
 
 	// most platforms can query the surface for the present mode, and size, etc
 	static bool SupportsQuerySurfaceProperties() { return true; }

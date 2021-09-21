@@ -799,7 +799,10 @@ void FVulkanDevice::SetupFormats()
 		{
 			SetComponentMapping(PF_ASTC_12x12, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
 		}
+	}
 
+	if (FVulkanPlatform::SupportsETC2TextureFormats())
+	{
 		MapFormatSupport(PF_ETC2_RGB, VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK);
 		if (GPixelFormats[PF_ETC2_RGB].Supported)
 		{

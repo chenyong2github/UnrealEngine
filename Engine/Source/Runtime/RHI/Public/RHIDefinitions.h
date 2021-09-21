@@ -1500,6 +1500,7 @@ enum class EGpuVendorId
 	ImgTec		= 0x1010,
 	Nvidia		= 0x10DE, 
 	Arm			= 0x13B5, 
+	Broadcom	= 0x14E4,
 	Qualcomm	= 0x5143,
 	Intel		= 0x8086,
 	Mesa		= 0x10005,
@@ -2126,6 +2127,7 @@ inline EGpuVendorId RHIConvertToGpuVendorId(uint32 VendorId)
 	case EGpuVendorId::ImgTec:
 	case EGpuVendorId::Nvidia:
 	case EGpuVendorId::Arm:
+	case EGpuVendorId::Broadcom:
 	case EGpuVendorId::Qualcomm:
 	case EGpuVendorId::Intel:
 		return (EGpuVendorId)VendorId;
