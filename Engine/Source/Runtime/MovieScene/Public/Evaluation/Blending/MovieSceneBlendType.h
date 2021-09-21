@@ -170,7 +170,7 @@ private:
 
 	MOVIESCENE_API void IterateToNext();
 
-	FORCEINLINE static int8 MaxValidOffset() { return StaticEnum<EMovieSceneBlendType>()->NumEnums() - 2; }
+	FORCEINLINE static int8 MaxValidOffset() { return (int8)(StaticEnum<EMovieSceneBlendType>()->NumEnums() - 2); }
 
 	FMovieSceneBlendTypeField Field;
 	int8 Offset;

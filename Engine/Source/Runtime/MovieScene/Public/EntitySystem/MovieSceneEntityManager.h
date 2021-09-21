@@ -884,8 +884,8 @@ private:
 		void Set(int32 InAllocationIndex, int32 InEntryIndexWithinAllocation)
 		{
 			check((InAllocationIndex & 0xFFFF0000) == 0 && (InEntryIndexWithinAllocation & 0xFFFF0000) == 0);
-			AllocationIndex = InAllocationIndex;
-			EntryIndexWithinAllocation = InEntryIndexWithinAllocation;
+			AllocationIndex = (uint16)InAllocationIndex;
+			EntryIndexWithinAllocation = (uint16)InEntryIndexWithinAllocation;
 		}
 
 		int32 GetAllocationIndex() const

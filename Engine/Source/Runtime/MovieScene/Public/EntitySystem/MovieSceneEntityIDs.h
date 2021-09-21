@@ -181,7 +181,7 @@ struct FComponentTypeID
 	static FComponentTypeID FromBitIndex(int32 BitIndex)
 	{
 		check( (BitIndex & 0xFFFF0000) == 0 );
-		return FComponentTypeID(BitIndex);
+		return FComponentTypeID((uint16)BitIndex);
 	}
 
 	template<typename T>
