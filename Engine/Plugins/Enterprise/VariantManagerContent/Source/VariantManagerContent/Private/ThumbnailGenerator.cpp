@@ -81,7 +81,7 @@ namespace ThumbnailGeneratorImpl
 
 	// This function works like ImageUtils::CreateTexture, except that it should also work at runtime
 	// Note that it's entirely possible that Bytes is a compressed (e.g. DXT1) byte buffer, although we won't be able to copy source data in that case
-    UTexture2D* CreateTextureFromBulkData(uint32 Width, uint32 Height, void* Bytes, uint64 NumBytes, EPixelFormat PixelFormat, bool bSetSourceData = false)
+    UTexture2D* CreateTextureFromBulkData(uint32 Width, uint32 Height, const void* Bytes, uint64 NumBytes, EPixelFormat PixelFormat, bool bSetSourceData = false)
     {
         UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PixelFormat);
         if (Texture)
@@ -99,7 +99,7 @@ namespace ThumbnailGeneratorImpl
 					uint64 Index = ( Height - 1 - Y ) * Width * sizeof( FColor );
 					uint8* DestPtr = &MipData[ Index ];
 
-					FMemory::Memcpy( DestPtr, reinterpret_cast< uint8* >( Bytes ) + Index, Width * sizeof( FColor ) );
+					FMemory::Memcpy( DestPtr, reinterpret_cast< const uint8* >( Bytes ) + Index, Width * sizeof( FColor ) );
 				}
 				Texture->Source.UnlockMip( 0 );
 
@@ -138,163 +138,81 @@ UTexture2D* ThumbnailGenerator::GenerateThumbnailFromTexture(UTexture2D* Texture
 	Texture->SetForceMipLevelsToBeResident(30.0f);
 	Texture->WaitForStreaming();
 
-	// Prepare command data: We'll pull the data directly from the GPU resource, as the format in
-	// BulkData could be anything
-	struct FCommandData
-	{
-		int32 SourceWidth;
-		int32 SourceHeight;
-		UTexture2D* Texture;
-		TPromise<void> Promise;
+	int32 TargetWidth = Texture->GetSizeX();
+	int32 TargetHeight = Texture->GetSizeY();
 
-		TArray<uint8> PackedSourceBytes;
-		EPixelFormat PackedPixelFormat = EPixelFormat::PF_Unknown;
-		bool bCanResize;
-	};
-	using FCommandDataPtr = TSharedPtr<FCommandData, ESPMode::ThreadSafe>;
-	FCommandDataPtr CommandData = MakeShared<FCommandData, ESPMode::ThreadSafe>();
-	CommandData->Texture = Texture;
-	CommandData->SourceWidth = Texture->GetSizeX();
-	CommandData->SourceHeight = Texture->GetSizeY();
-
-	TFuture<void> CompletionFuture = CommandData->Promise.GetFuture();
-
-	int32 TargetWidth = FMath::Min(CommandData->SourceWidth, VARIANT_MANAGER_THUMBNAIL_SIZE);
-	int32 TargetHeight = FMath::Min(CommandData->SourceHeight, VARIANT_MANAGER_THUMBNAIL_SIZE);
-
-	ENQUEUE_RENDER_COMMAND(RetrieveTextureDataForThumbnail)(
-		[CommandData, TargetWidth, TargetHeight](FRHICommandListImmediate& RHICmdList)
-		{
-			if (!CommandData->Texture->Resource)
-			{
-				CommandData->Promise.SetValue();
-				return;
-			}
-
-			FTexture2DRHIRef Texture2DRHI = CommandData->Texture->Resource->TextureRHI->GetTexture2D();
-
-			CommandData->PackedPixelFormat = Texture2DRHI->GetFormat();
-			CommandData->bCanResize = ThumbnailGeneratorImpl::IsPixelFormatResizeable( CommandData->PackedPixelFormat );
-
-			// We can only resize FColor-like formats, otherwise we'll just copy the full data.
-			// Let's at least choose the smallest MIP we can reasonably take
-			// We start at CurrentFirstMip instead of 0 because Texture2DRHI will always match the CurrentFirstMip, so
-			// even if the texture is 256x256, we may be dealing with CurrentFirstMip 2, and so a 64x64 resource.
-			// This shouldn't happen if we wait for streaming (that we do), but just to be safe
-			int32 TargetMipIndex = ((FTexture2DResource*)CommandData->Texture->Resource)->GetCurrentFirstMip();
-			if (!CommandData->bCanResize)
-			{
-				for(int32 MipIndex = 0; MipIndex < CommandData->Texture->PlatformData->Mips.Num(); ++MipIndex)
-				{
-					const FTexture2DMipMap& Mip = CommandData->Texture->PlatformData->Mips[MipIndex];
-					if (Mip.SizeX < TargetWidth || Mip.SizeY < TargetHeight)
-					{
-						break;
-					}
-
-					TargetMipIndex = MipIndex;
-					CommandData->SourceWidth = Mip.SizeX;
-					CommandData->SourceHeight = Mip.SizeY;
-				}
-			}
-
-			uint32 BlockBytes = GPixelFormats[CommandData->PackedPixelFormat].BlockBytes;
-			uint32 BlockSizeX = GPixelFormats[CommandData->PackedPixelFormat].BlockSizeX;
-			uint32 BlockSizeY = GPixelFormats[CommandData->PackedPixelFormat].BlockSizeY;
-
-			uint32 NumBlocksX = CommandData->SourceWidth / BlockSizeX;
-			uint32 NumBlocksY = CommandData->SourceHeight / BlockSizeY;
-
-			uint32 DestStride = NumBlocksX * BlockBytes;
-			uint32 SourceStride = 0;
-			const uint8* SourceBytes = reinterpret_cast<const uint8*>(
-				RHILockTexture2D(
-					Texture2DRHI, TargetMipIndex, EResourceLockMode::RLM_ReadOnly, SourceStride, false
-			));
-
-			// Pack texture data if needed
-			CommandData->PackedSourceBytes.SetNumUninitialized(DestStride * NumBlocksY);
-			if (SourceStride == DestStride)
-			{
-				FMemory::Memcpy(CommandData->PackedSourceBytes.GetData(), SourceBytes, CommandData->PackedSourceBytes.Num());
-			}
-			else
-			{
-				uint8* DestBytes = CommandData->PackedSourceBytes.GetData();
-
-				for (uint32 Row = 0; Row < NumBlocksY; ++Row)
-				{
-					FMemory::Memcpy(DestBytes, SourceBytes, DestStride);
-					SourceBytes += SourceStride;
-					DestBytes += DestStride;
-				}
-			}
-
-			RHIUnlockTexture2D(Texture2DRHI, TargetMipIndex, false);
-			CommandData->Promise.SetValue();
-		}
-	);
-
-	CompletionFuture.Get();
-
-	if (CommandData->PackedPixelFormat == EPixelFormat::PF_Unknown)
+	if (TargetWidth == 0 || TargetHeight == 0 || !Texture->Resource)
 	{
 		UE_LOG(LogVariantContent, Error, TEXT("Failed create a thumbnail from texture '%s'"), *Texture->GetName());
 		return nullptr;
 	}
 
-	UTexture2D* Thumbnail = nullptr;
-	TArray<uint8> DestBytes;
-	EPixelFormat SourceDataPixelFormat = CommandData->Texture->GetPixelFormat();
-
-	// Resize image if we need to (and can)
-	if ((TargetWidth != CommandData->SourceWidth || TargetHeight != CommandData->SourceHeight) && CommandData->bCanResize)
+	if (TargetWidth > VARIANT_MANAGER_THUMBNAIL_SIZE || TargetHeight > VARIANT_MANAGER_THUMBNAIL_SIZE)
 	{
-		DestBytes.SetNumUninitialized(TargetWidth * TargetHeight * sizeof(FColor));
-
-		TArrayView<const FColor> SourceColors = TArrayView<const FColor>(reinterpret_cast<const FColor*>(CommandData->PackedSourceBytes.GetData()), CommandData->SourceWidth* CommandData->SourceHeight);
-		TArrayView<FColor> DestColors = TArrayView<FColor>(reinterpret_cast<FColor*>(DestBytes.GetData()), TargetWidth * TargetHeight);
-
-		const bool bForceOpaqueOutput = false;
-		FImageUtils::ImageResize(CommandData->SourceWidth, CommandData->SourceHeight, SourceColors, TargetWidth, TargetHeight, DestColors, CommandData->Texture->SRGB, bForceOpaqueOutput);
-
-		const bool bSetSourceData = true;
-		Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
-			TargetWidth,
-			TargetHeight,
-			DestBytes.GetData(),
-			DestBytes.Num(),
-			SourceDataPixelFormat,
-			bSetSourceData
-		);
-	}
-	else
-	{
-		int32 NumBytes = CommandData->PackedSourceBytes.Num();
-
-		// Let the user know if the thumbnail ends up significantly larger than expected
-		if (NumBytes > 5 * VARIANT_MANAGER_THUMBNAIL_SIZE * VARIANT_MANAGER_THUMBNAIL_SIZE * sizeof(FColor))
+		if (TargetWidth >= TargetHeight)
 		{
-			UE_LOG(LogVariantContent, Warning, TEXT("Thumbnail created from texture '%s' will store a thumbnail that is %d by %d in size (%d KB), because it failed to resize the received thumbnail effectively. Better results could be achieved with a texture that has more Mips, or an uncompressed pixel format."), *Texture->GetName(), TargetWidth, TargetHeight, NumBytes / 1000);
+			TargetHeight = (int)(VARIANT_MANAGER_THUMBNAIL_SIZE * TargetHeight / (float)TargetWidth);
+			TargetWidth = VARIANT_MANAGER_THUMBNAIL_SIZE;
 		}
-
-		const bool bSetSourceData = true;
-		Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
-			TargetWidth,
-			TargetHeight,
-			CommandData->PackedSourceBytes.GetData(),
-			NumBytes,
-			SourceDataPixelFormat,
-			bSetSourceData
-		);
+		else
+		{
+			TargetWidth = (int)(VARIANT_MANAGER_THUMBNAIL_SIZE * TargetWidth / (float)TargetHeight);
+			TargetHeight = VARIANT_MANAGER_THUMBNAIL_SIZE;
+		}
 	}
 
-    if (Thumbnail == nullptr)
+	UTextureRenderTarget2D* RenderTargetTexture = NewObject<UTextureRenderTarget2D>();
+	RenderTargetTexture->AddToRoot();
+	RenderTargetTexture->ClearColor = FLinearColor::Transparent;
+	RenderTargetTexture->TargetGamma = 0.f;
+	RenderTargetTexture->InitCustomFormat(TargetWidth, TargetHeight, PF_B8G8R8A8, false);
+
+	FTextureRenderTargetResource* RenderTargetResource = RenderTargetTexture->GameThread_GetRenderTargetResource();
+
+	const double Time = FApp::GetCurrentTime() - GStartTime;
+	FCanvas Canvas(RenderTargetResource, NULL, Time, FApp::GetDeltaTime(), Time, GWorld->Scene->GetFeatureLevel());
+	Canvas.Clear(FLinearColor::Black);
+
+	const bool bAlphaBlend = false;
+
+	Canvas.DrawTile(
+		0.0f,
+		0.0f,
+		(float)TargetWidth,
+		(float)TargetHeight,
+		0.0f,
+		0.0f,
+		1.0f,
+		1.0f,
+		FLinearColor::White,
+		Texture->Resource,
+		bAlphaBlend);
+	Canvas.Flush_GameThread();
+
+	// Copy the contents of the remote texture to system memory
+	TArray<FColor> CapturedImage;
+	CapturedImage.SetNumUninitialized(TargetWidth * TargetHeight);
+	RenderTargetResource->ReadPixelsPtr(CapturedImage.GetData(), FReadSurfaceDataFlags(), FIntRect(0, 0, TargetWidth, TargetHeight));
+
+	RenderTargetTexture->RemoveFromRoot();
+	RenderTargetTexture = nullptr;
+
+	const bool bSetSourceData = true;
+	UTexture2D* Thumbnail = ThumbnailGeneratorImpl::CreateTextureFromBulkData(
+		TargetWidth,
+		TargetHeight,
+		(void*)CapturedImage.GetData(),
+		CapturedImage.Num() * sizeof(FColor),
+		PF_B8G8R8A8,
+		bSetSourceData
+	);
+
+	if (Thumbnail == nullptr)
 	{
 		UE_LOG(LogVariantContent, Warning, TEXT("Failed to generate thumbnail from texture '%s'"), *Texture->GetName());
 	}
 
-    return Thumbnail;
+	return Thumbnail;
 }
 
 UTexture2D* ThumbnailGenerator::GenerateThumbnailFromFile(FString FilePath)
