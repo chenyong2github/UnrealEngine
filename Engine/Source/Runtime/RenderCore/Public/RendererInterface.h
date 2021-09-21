@@ -197,7 +197,7 @@ public:
 		ETextureCreateFlags InFlags,
 		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
-		uint32 InArraySize = 1,
+		uint16 InArraySize = 1,
 		uint16 InNumMips = 1,
 		bool InAutowritable = true)
 	{
@@ -235,7 +235,7 @@ public:
 		ETextureCreateFlags InFlags,
 		ETextureCreateFlags InTargetableFlags,
 		bool bInForceSeparateTargetAndShaderResource,
-		uint32 InArraySize,
+		uint16 InArraySize,
 		uint16 InNumMips = 1,
 		bool InAutowritable = true)
 	{

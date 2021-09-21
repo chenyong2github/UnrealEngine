@@ -3379,7 +3379,7 @@ public:
 		{
 			if (PSOContext.CachedRenderTargets[i].Texture)
 			{
-				GraphicsPSOInit.RenderTargetFormats[i] = PSOContext.CachedRenderTargets[i].Texture->GetFormat();
+				GraphicsPSOInit.RenderTargetFormats[i] = UE_PIXELFORMAT_TO_UINT8(PSOContext.CachedRenderTargets[i].Texture->GetFormat());
 				GraphicsPSOInit.RenderTargetFlags[i] = PSOContext.CachedRenderTargets[i].Texture->GetFlags();
 				const FRHITexture2DArray* TextureArray = PSOContext.CachedRenderTargets[i].Texture->GetTexture2DArray();
 			}

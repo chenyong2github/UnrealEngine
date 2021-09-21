@@ -275,9 +275,9 @@ protected:
 	explicit FShaderMapResource(EShaderPlatform InPlatform, int32 NumShaders);
 	virtual ~FShaderMapResource();
 
-	uint32 GetAllocatedSize() const
+	SIZE_T GetAllocatedSize() const
 	{
-		uint32 Size = NumRHIShaders * sizeof(std::atomic<FRHIShader*>);
+		SIZE_T Size = NumRHIShaders * sizeof(std::atomic<FRHIShader*>);
 #if RHI_RAYTRACING
 		Size += RayTracingMaterialLibraryIndices.GetAllocatedSize();
 #endif
@@ -437,7 +437,7 @@ public:
 			TokenBits.AddZeroed();
 		}
 
-		uint8 Token = InValue;
+		uint8 Token;
 
 		// Anything that does not fit in 4 bits needs to go into FullLengths, with a special token value of 0
 		// InValue == 0 also should go into FullLengths, because its Token value is also 0
@@ -445,6 +445,10 @@ public:
 		{
 			Token = 0;
 			FullLengths.Add(InValue);
+		}
+		else
+		{
+			Token = (uint8)InValue;
 		}
 
 		const uint32 Shift = (NumTokens % 8) * 4;

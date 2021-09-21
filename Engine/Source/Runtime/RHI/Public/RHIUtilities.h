@@ -137,7 +137,7 @@ struct FTextureRWBuffer2D
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateTexture2D(
-			SizeX, SizeY, Format, //PF_R32_FLOAT,
+			SizeX, SizeY, UE_PIXELFORMAT_TO_UINT8(Format), //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
 			1,
 			Flags,
@@ -196,7 +196,7 @@ struct FTextureRWBuffer3D
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateTexture3D(
-			SizeX, SizeY, SizeZ, Format,
+			SizeX, SizeY, SizeZ, UE_PIXELFORMAT_TO_UINT8(Format),
 			/*NumMips=*/ 1,
 			/*Flags=*/ TexCreate_ShaderResource | TexCreate_UAV,
 			/*BulkData=*/ CreateInfo);
@@ -295,8 +295,8 @@ struct FRWBuffer
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.ResourceArray = InResourceArray;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, InResourceState, CreateInfo);
-		UAV = RHICreateUnorderedAccessView(Buffer, Format);
-		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
+		UAV = RHICreateUnorderedAccessView(Buffer, UE_PIXELFORMAT_TO_UINT8(Format));
+		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, UE_PIXELFORMAT_TO_UINT8(Format));
 	}
 
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, EBufferUsageFlags AdditionalUsage = BUF_None, FResourceArrayInterface* InResourceArray = nullptr)
@@ -353,7 +353,7 @@ struct FTextureReadBuffer2D
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.BulkData = InBulkData;
 		Buffer = RHICreateTexture2D(
-			SizeX, SizeY, Format, //PF_R32_FLOAT,
+			SizeX, SizeY, UE_PIXELFORMAT_TO_UINT8(Format), //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
 			1,
 			Flags,
@@ -402,7 +402,7 @@ struct FReadBuffer
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.ResourceArray = InResourceArray;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | AdditionalUsage, ERHIAccess::SRVMask, CreateInfo);
-		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
+		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, UE_PIXELFORMAT_TO_UINT8(Format));
 	}
 
 	void Release()
