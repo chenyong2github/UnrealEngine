@@ -2,6 +2,7 @@
 
 #include "Engine/TextureLODSettings.h"
 #include "Engine/Texture2D.h"
+#include "Engine/TextureCube.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "VT/VirtualTextureBuiltData.h"
@@ -259,6 +260,13 @@ void UTextureLODSettings::GetMipGenSettings(const UTexture& Texture, TextureMipG
 
 		Setting = LODGroup.MipGenSettings;
 	}
+
+	// angular filtering only applies to cubemaps
+	if (Setting == TMGS_Angular && !Texture.IsA(UTextureCube::StaticClass()))
+	{
+		Setting = TMGS_NoMipmaps;
+	}
+
 	OutMipGenSettings = Setting;
 
 	// ------------

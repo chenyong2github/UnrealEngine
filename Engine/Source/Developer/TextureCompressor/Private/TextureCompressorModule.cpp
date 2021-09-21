@@ -2607,7 +2607,15 @@ private:
 		// Generate any missing mips in the chain.
 		if (NumOutputMips > OutMipChain.Num())
 		{
-			GenerateMipChain(BuildSettings, OutMipChain.Last(), OutMipChain);
+			// Do angular filtering of cubemaps if requested.
+			if (BuildSettings.MipGenSettings == TMGS_Angular)
+			{
+				GenerateAngularFilteredMips(OutMipChain, NumOutputMips, BuildSettings.DiffuseConvolveMipLevel);
+			}
+			else
+			{
+				GenerateMipChain(BuildSettings, OutMipChain.Last(), OutMipChain);
+			}
 		}
 		check(OutMipChain.Num() == NumOutputMips);
 
