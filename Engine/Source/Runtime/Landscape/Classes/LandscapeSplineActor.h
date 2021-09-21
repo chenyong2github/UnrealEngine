@@ -20,6 +20,7 @@ protected:
 	
 public:
 	virtual FGuid GetLandscapeGuid() const override { return LandscapeGuid; }
+	void SetLandscapeGuid(const FGuid& Guid) { LandscapeGuid = Guid; }
 	virtual ULandscapeSplinesComponent* GetSplinesComponent() const override;
 	virtual FTransform LandscapeActorToWorld() const override;
 	virtual ULandscapeInfo* GetLandscapeInfo() const override;

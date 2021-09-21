@@ -3965,18 +3965,13 @@ void ALandscape::PostEditImport()
 
 void ALandscape::PostDuplicate(bool bDuplicateForPIE)
 {
+	Super::PostDuplicate(bDuplicateForPIE);
+
 	if (!bDuplicateForPIE)
 	{
-		// Need to generate new GUID when duplicating
-		LandscapeGuid = FGuid::NewGuid();
-		// This makes sure at least we have a LandscapeInfo mapped for this GUID.
-		CreateLandscapeInfo();
-
 		// Some edit layers could be affected by BP brushes, which might need to be updated when the landscape is transformed :
 		RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
 	}
-
-	Super::PostDuplicate(bDuplicateForPIE);
 }
 #endif	//WITH_EDITOR
 
