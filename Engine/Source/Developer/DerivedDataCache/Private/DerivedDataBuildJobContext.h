@@ -18,8 +18,8 @@ namespace UE::DerivedData { class FBuildOutputBuilder; }
 namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { class IBuildJob; }
 namespace UE::DerivedData { class IRequestOwner; }
-namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
-namespace UE::DerivedData { enum class ECachePolicy : uint8; }
+namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
+namespace UE::DerivedData { enum class ECachePolicy : uint32; }
 namespace UE::DerivedData { enum class EPriority : uint8; }
 
 namespace UE::DerivedData::Private

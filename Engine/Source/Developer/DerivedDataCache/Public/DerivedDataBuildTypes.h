@@ -21,7 +21,7 @@ namespace UE::DerivedData
  * BuildPayload(Build | CacheStore): never get from the cache; always build; return one payload.
  * BuildPayload(Cache | CacheSkipData): allow cache get; never build; skip every payload.
  */
-enum class EBuildPolicy : uint8
+enum class EBuildPolicy : uint32
 {
 	/** A value without any flags set. */
 	None            = 0,
@@ -40,8 +40,11 @@ enum class EBuildPolicy : uint8
 	/** Allow a cache query and a cache store for the build. */
 	Cache           = CacheQuery | CacheStore,
 
+	/** Keep records in the cache for at least the duration of the session. */
+	CacheKeepAlive  = 1 << 4,
+
 	/** Skip fetching the payload data from the cache. */
-	SkipData        = 1 << 4,
+	SkipData        = 1 << 5,
 
 	/** Allow cache query+store, allow local+remote build when missed or skipped, and fetch the payload(s). */
 	Default         = Build | Cache,
