@@ -18,6 +18,8 @@ namespace UnrealBuildTool.Rules
 					"Runtime/Json/Private",
 				}
 			);
+
+			UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 		}
 	}
 }
