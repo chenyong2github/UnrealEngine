@@ -7,7 +7,6 @@
 #include "IRemoteExecutor.h"
 #include "IContentAddressableStorage.h"
 #include "IExecution.h"
-#include "HAL/RunnableThread.h"
 
 
 namespace UE::RemoteExecution
@@ -26,7 +25,6 @@ namespace UE::RemoteExecution
 	private:
 		TUniquePtr<IContentAddressableStorage> ContentAddressableStorage;
 		TUniquePtr<IExecution> Execution;
-		TUniquePtr<FRunnableThread> Thread;
 
 	public:
 		void Initialize(const FSettings& Settings);

@@ -18,8 +18,6 @@ namespace UnrealBuildTool.Rules
 				"RemoteExecution",
 				}
 			);
-
-			OptimizeCode = CodeOptimization.Never;
 		}
 	}
 }
