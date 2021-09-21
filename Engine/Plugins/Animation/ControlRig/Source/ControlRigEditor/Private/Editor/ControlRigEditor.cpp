@@ -1271,6 +1271,7 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 	}
 
 	RefreshDetailView();
+	LastDebuggedRig = GetCustomDebugObjectLabel(DebuggedControlRig);
 }
 
 FString FControlRigEditor::GetCustomDebugObjectLabel(UObject* ObjectBeingDebugged) const
@@ -1796,8 +1797,6 @@ void FControlRigEditor::Compile()
 		{
 			ValueScope = MakeUnique<UControlRigBlueprint::FControlValueScope>(GetControlRigBlueprint());
 		}
-
-		LastDebuggedRig.Empty();
 
 		// force to disable the supended notif brackets
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
@@ -2977,6 +2976,21 @@ void FControlRigEditor::Tick(float DeltaTime)
 			ControlRig->SetDeltaTime(DeltaTime);
 			ControlRig->Evaluate_AnyThread();
 			bDrawHierarchyBones = true;
+		}
+
+		if (LastDebuggedRig != GetCustomDebugObjectLabel(Blueprint->GetObjectBeingDebugged()))
+		{
+			TArray<FCustomDebugObject> DebugList;
+			GetCustomDebugObjects(DebugList);
+
+			for (const FCustomDebugObject& DebugObject : DebugList)
+			{
+				if (DebugObject.NameOverride == LastDebuggedRig)
+				{
+					GetBlueprintObj()->SetObjectBeingDebugged(DebugObject.Object);
+					break;
+				}
+			}
 		}
 	}
 
