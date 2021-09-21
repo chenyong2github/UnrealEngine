@@ -278,6 +278,7 @@
 #endif //WITH_EDITOR
 #include "Materials/MaterialInstanceConstant.h"
 #include "Curves/CurveLinearColorAtlas.h"
+#include "Curves/CurveLinearColor.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
@@ -518,7 +519,14 @@ void ValidateParameterNameInternal(class UMaterialExpression* ExpressionToValida
 					// Name are unique per class type
 					if (Expression != ExpressionToValidate && Expression->GetParameterName() == PotentialName && Expression->GetClass() == ExpressionToValidate->GetClass())
 					{
-						ExpressionToValidate->SetValueToMatchingExpression(Expression);
+						FMaterialParameterMetadata Meta;
+						if (OwningMaterial->GetParameterValue(Expression->GetParameterType(), PotentialName, Meta, EMaterialGetParameterValueFlags::CheckAll))
+						{
+							const EMaterialExpressionSetParameterValueFlags Flags =
+								EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty |
+								EMaterialExpressionSetParameterValueFlags::NoUpdateExpressionGuid;
+							verify(ExpressionToValidate->SetParameterValue(PotentialName, Meta, Flags));
+						}
 						break;
 					}
 				}
@@ -1475,6 +1483,16 @@ void UMaterialExpression::SetEditableName(const FString& NewName)
 {
 	// This function is only safe to call in a class that has implemented CanRenameNode() to return true
 	check(false);
+}
+
+EMaterialParameterType UMaterialExpression::GetParameterType() const
+{
+	FMaterialParameterMetadata Meta;
+	if (GetParameterValue(Meta))
+	{
+		return Meta.Value.Type;
+	}
+	return EMaterialParameterType::None;
 }
 
 void UMaterialExpression::ValidateParameterName(const bool bAllowDuplicateName)
@@ -2694,11 +2712,17 @@ void UMaterialExpressionRuntimeVirtualTextureSampleParameter::GetAllParameterInf
 
 #if WITH_EDITOR
 
-bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue)
+bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
 		VirtualTexture = InValue;
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
+			FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+			PostEditChangeProperty(PropertyChangedEvent);
+		}
 		return true;
 	}
 
@@ -2735,19 +2759,6 @@ bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::MatchesSearchQuery
 
 	return Super::MatchesSearchQuery(SearchQuery);
 }
-
-void UMaterialExpressionRuntimeVirtualTextureSampleParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
-{
-	URuntimeVirtualTexture* Value = nullptr;
-	if (Material->GetRuntimeVirtualTextureParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), Value))
-	{
-		VirtualTexture = Value;
-		FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionRuntimeVirtualTextureSampleParameter, VirtualTexture));
-		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-		PostEditChangeProperty(PropertyChangedEvent);
-	}
-}
-
 #endif
 
 UMaterialExpressionRuntimeVirtualTextureReplace::UMaterialExpressionRuntimeVirtualTextureReplace(const FObjectInitializer& ObjectInitializer)
@@ -2958,18 +2969,6 @@ void UMaterialExpressionTextureSampleParameter::ValidateParameterName(const bool
 {
 	ValidateParameterNameInternal(this, Material, bAllowDuplicateName);
 }
-
-void UMaterialExpressionTextureSampleParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
-{
-	UTexture* ExistingValue;
-	if (Material->GetTextureParameterValue(OtherExpression->GetParameterName(), ExistingValue))
-	{
-		Texture = ExistingValue;
-		FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
-		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-		PostEditChangeProperty(PropertyChangedEvent);
-	}
-}
 #endif // WITH_EDITOR
 
 bool UMaterialExpressionTextureSampleParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const
@@ -2984,11 +2983,17 @@ bool UMaterialExpressionTextureSampleParameter::IsNamedParameter(const FHashedMa
 }
 
 #if WITH_EDITOR
-bool UMaterialExpressionTextureSampleParameter::SetParameterValue(FName InParameterName, UTexture* InValue)
+bool UMaterialExpressionTextureSampleParameter::SetParameterValue(FName InParameterName, UTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
 		Texture = InValue;
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionTextureSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, Texture));
+			FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+			PostEditChangeProperty(PropertyChangedEvent);
+		}
 		return true;
 	}
 	return false;
@@ -4904,32 +4909,6 @@ void UMaterialExpressionStaticComponentMaskParameter::GetCaption(TArray<FString>
 	OutCaptions.Add(TEXT("Mask Param")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-
-void UMaterialExpressionStaticComponentMaskParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
-{
-	bool R = false;
-	bool G = false;
-	bool B = false;
-	bool A = false;
-	FGuid Guid;
-	Material->GetStaticComponentMaskParameterValue(OtherExpression->GetParameterName(), R, G, B, A, Guid);
-	DefaultR = R;
-	DefaultG = G;
-	DefaultB = B;
-	DefaultA = A;
-	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultR));
-	FPropertyChangedEvent RChangedEvent(ParamProperty);
-	PostEditChangeProperty(RChangedEvent);
-	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultG));
-	FPropertyChangedEvent GChangedEvent(ParamProperty);
-	PostEditChangeProperty(GChangedEvent);
-	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultB));
-	FPropertyChangedEvent BChangedEvent(ParamProperty);
-	PostEditChangeProperty(BChangedEvent);
-	ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultA));
-	FPropertyChangedEvent AChangedEvent(ParamProperty);
-	PostEditChangeProperty(AChangedEvent);
-}
 #endif // WITH_EDITOR
 
 bool UMaterialExpressionStaticComponentMaskParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid&OutExpressionGuid) const
@@ -4948,7 +4927,7 @@ bool UMaterialExpressionStaticComponentMaskParameter::IsNamedParameter(const FHa
 }
 
 #if WITH_EDITOR
-bool  UMaterialExpressionStaticComponentMaskParameter::SetParameterValue(FName InParameterName, bool InR, bool InG, bool InB, bool InA, FGuid InExpressionGuid)
+bool  UMaterialExpressionStaticComponentMaskParameter::SetParameterValue(FName InParameterName, bool InR, bool InG, bool InB, bool InA, FGuid InExpressionGuid, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
@@ -4956,7 +4935,25 @@ bool  UMaterialExpressionStaticComponentMaskParameter::SetParameterValue(FName I
 		DefaultG = InG;
 		DefaultB = InB;
 		DefaultA = InA;
-		ExpressionGUID = InExpressionGuid;
+		if (!EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::NoUpdateExpressionGuid))
+		{
+			ExpressionGUID = InExpressionGuid;
+		}
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultR));
+			FPropertyChangedEvent RChangedEvent(ParamProperty);
+			PostEditChangeProperty(RChangedEvent);
+			ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultG));
+			FPropertyChangedEvent GChangedEvent(ParamProperty);
+			PostEditChangeProperty(GChangedEvent);
+			ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultB));
+			FPropertyChangedEvent BChangedEvent(ParamProperty);
+			PostEditChangeProperty(BChangedEvent);
+			ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticComponentMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticComponentMaskParameter, DefaultA));
+			FPropertyChangedEvent AChangedEvent(ParamProperty);
+			PostEditChangeProperty(AChangedEvent);
+		}
 		return true;
 	}
 
@@ -7860,11 +7857,17 @@ void UMaterialExpressionVectorParameter::GetAllParameterInfo(TArray<FMaterialPar
 }
 
 #if WITH_EDITOR
-bool UMaterialExpressionVectorParameter::SetParameterValue(FName InParameterName, FLinearColor InValue)
+bool UMaterialExpressionVectorParameter::SetParameterValue(FName InParameterName, FLinearColor InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
 		DefaultValue = InValue;
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
+			FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+			PostEditChangeProperty(PropertyChangedEvent);
+		}
 		return true;
 	}
 	return false;
@@ -7951,16 +7954,6 @@ bool UMaterialExpressionVectorParameter::HasClassAndNameCollision(UMaterialExpre
 	}
 	return Super::HasClassAndNameCollision(OtherExpression);
 }
-
-void UMaterialExpressionVectorParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
-{
-	FLinearColor ExistingValue = FLinearColor::Transparent;
-	Material->GetVectorParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), ExistingValue);
-	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
-	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-	PostEditChangeProperty(PropertyChangedEvent);
-}
 #endif
 
 //
@@ -7992,7 +7985,7 @@ UMaterialExpressionChannelMaskParameter::UMaterialExpressionChannelMaskParameter
 }
 
 #if WITH_EDITOR
-bool UMaterialExpressionChannelMaskParameter::SetParameterValue(FName InParameterName, FLinearColor InValue)
+bool UMaterialExpressionChannelMaskParameter::SetParameterValue(FName InParameterName, FLinearColor InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
@@ -8015,6 +8008,20 @@ bool UMaterialExpressionChannelMaskParameter::SetParameterValue(FName InParamete
 		else
 		{
 			MaskChannel = EChannelMaskParameterColor::Alpha;
+		}
+
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			{
+				FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionVectorParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue));
+				FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+				PostEditChangeProperty(PropertyChangedEvent);
+			}
+			{
+				FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionChannelMaskParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionChannelMaskParameter, MaskChannel));
+				FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+				PostEditChangeProperty(PropertyChangedEvent);
+			}
 		}
 
 		// Update caption and preview
@@ -8182,11 +8189,17 @@ void UMaterialExpressionScalarParameter::GetAllParameterInfo(TArray<FMaterialPar
 }
 
 #if WITH_EDITOR
-bool UMaterialExpressionScalarParameter::SetParameterValue(FName InParameterName, float InValue)
+bool UMaterialExpressionScalarParameter::SetParameterValue(FName InParameterName, float InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
 		DefaultValue = InValue;
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionScalarParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue));
+			FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+			PostEditChangeProperty(PropertyChangedEvent);
+		}
 		return true;
 	}
 	return false;
@@ -8252,17 +8265,6 @@ bool UMaterialExpressionScalarParameter::HasClassAndNameCollision(UMaterialExpre
 	}
 	return Super::HasClassAndNameCollision(OtherExpression);
 }
-
-void UMaterialExpressionScalarParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
-{
-	float ExistingValue = 0.0f;
-	Material->GetScalarParameterDefaultValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), ExistingValue);
-	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionScalarParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue));
-	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-	PostEditChangeProperty(PropertyChangedEvent);
-}
-
 #endif
 
 //
@@ -8370,17 +8372,6 @@ void UMaterialExpressionStaticBoolParameter::GetCaption(TArray<FString>& OutCapt
 	OutCaptions.Add(FString::Printf(TEXT("Static Bool Param (%s)"), (DefaultValue ? TEXT("True") : TEXT("False")))); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
-
-void UMaterialExpressionStaticBoolParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
-{
-	bool ExistingValue = false;
-	FGuid Guid;
-	Material->GetStaticSwitchParameterValue(OtherExpression->GetParameterName(), ExistingValue, Guid);
-	DefaultValue = ExistingValue;
-	FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticBoolParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticBoolParameter, DefaultValue));
-	FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-	PostEditChangeProperty(PropertyChangedEvent);
-}
 #endif // WITH_EDITOR
 
 bool UMaterialExpressionStaticBoolParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid) const
@@ -8396,12 +8387,21 @@ bool UMaterialExpressionStaticBoolParameter::IsNamedParameter(const FHashedMater
 }
 
 #if WITH_EDITOR
-bool UMaterialExpressionStaticBoolParameter::SetParameterValue(FName InParameterName, bool InValue, FGuid InExpressionGuid)
+bool UMaterialExpressionStaticBoolParameter::SetParameterValue(FName InParameterName, bool InValue, FGuid InExpressionGuid, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
 		DefaultValue = InValue;
-		ExpressionGUID = InExpressionGuid;
+		if (!EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::NoUpdateExpressionGuid))
+		{
+			ExpressionGUID = InExpressionGuid;
+		}
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionStaticBoolParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionStaticBoolParameter, DefaultValue));
+			FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+			PostEditChangeProperty(PropertyChangedEvent);
+		}
 		return true;
 	}
 
@@ -11375,23 +11375,6 @@ void UMaterialExpressionFontSampleParameter::ValidateParameterName(const bool bA
 {
 	ValidateParameterNameInternal(this, Material, bAllowDuplicateName);
 }
-
-void UMaterialExpressionFontSampleParameter::SetValueToMatchingExpression(UMaterialExpression* OtherExpression)
-{
-	UFont* FontValue;
-	int32 FontPage;
-	if (Material->GetFontParameterValue(FMaterialParameterInfo(OtherExpression->GetParameterName()), FontValue, FontPage))
-	{
-		Font = FontValue;
-		FontTexturePage = FontPage;
-		FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
-		FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-		PostEditChangeProperty(PropertyChangedEvent);
-		ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
-		FPropertyChangedEvent PageChangedEvent(ParamProperty);
-		PostEditChangeProperty(PageChangedEvent);
-	}
-}
 #endif // WITH_EDITOR
 
 bool UMaterialExpressionFontSampleParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage) const
@@ -11407,12 +11390,21 @@ bool UMaterialExpressionFontSampleParameter::IsNamedParameter(const FHashedMater
 }
 
 #if WITH_EDITOR
-bool UMaterialExpressionFontSampleParameter::SetParameterValue(FName InParameterName, UFont* InFontValue, int32 InFontPage)
+bool UMaterialExpressionFontSampleParameter::SetParameterValue(FName InParameterName, UFont* InFontValue, int32 InFontPage, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
 	{
 		Font = InFontValue;
 		FontTexturePage = InFontPage;
+		if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
+		{
+			FProperty* ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, Font));
+			FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+			PostEditChangeProperty(PropertyChangedEvent);
+			ParamProperty = FindFProperty<FProperty>(UMaterialExpressionFontSampleParameter::StaticClass(), GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionFontSampleParameter, FontTexturePage));
+			FPropertyChangedEvent PageChangedEvent(ParamProperty);
+			PostEditChangeProperty(PageChangedEvent);
+		}
 		return true;
 	}
 
@@ -19105,7 +19097,6 @@ void UMaterialExpressionCurveAtlasRowParameter::GetTexturesForceMaterialRecompil
 	}
 }
 
-
 int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	// Some error checking. Note that when bUseCustomPrimitiveData is true we don't rely on the Curve at all
@@ -19177,6 +19168,40 @@ int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler
 	}
 }
 
+bool UMaterialExpressionCurveAtlasRowParameter::GetParameterValue(FMaterialParameterMetadata& OutMeta) const
+{
+	float Value = 0.0f;
+	if (Atlas && Curve)
+	{
+		const int32 SlotIndex = Atlas->GradientCurves.Find(Curve);
+		if (SlotIndex != INDEX_NONE)
+		{
+			Value = (float)SlotIndex;
+		}
+		OutMeta.bUsedAsAtlasPosition = true;
+		OutMeta.ScalarCurve = Curve;
+		OutMeta.ScalarAtlas = Atlas;
+	}
+
+	OutMeta.Value = Value;
+	OutMeta.ExpressionGuid = ExpressionGUID;
+	return true;
+}
+
+bool UMaterialExpressionCurveAtlasRowParameter::SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags)
+{
+	if (Name == ParameterName &&
+		Meta.Value.Type == EMaterialParameterType::Scalar &&
+		Meta.bUsedAsAtlasPosition)
+	{
+		Curve = Meta.ScalarCurve.Get();
+		Atlas = Meta.ScalarAtlas.Get();
+		DefaultValue = Meta.Value.AsScalar();
+		return true;
+	}
+	return false;
+}
+
 void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.Property 
@@ -19189,12 +19214,11 @@ void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FProperty
 		}
 		if (SlotIndex != INDEX_NONE)
 		{
-			float NewValue = (float)SlotIndex;
-			SetParameterValue(ParameterName, NewValue);
+			DefaultValue = (float)SlotIndex;
 		}
 		else
 		{
-			SetParameterValue(ParameterName, 0.0f);
+			DefaultValue = 0.0f;
 		}
 	}
 

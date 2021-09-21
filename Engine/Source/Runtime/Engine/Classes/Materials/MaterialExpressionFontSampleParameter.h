@@ -48,14 +48,19 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 	virtual FName GetParameterName() const override { return ParameterName; }
 	virtual void SetParameterName(const FName& Name) override { ParameterName = Name; }
 	virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
-	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
-	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
+	{
+		OutMeta.Value = FMaterialParameterValue(Font, FontTexturePage);
+		OutMeta.ExpressionGuid = ExpressionGUID;
+		return true;
+	}
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::Font)
 		{
-			return SetParameterValue(Name, Meta.Value.Font.Value, Meta.Value.Font.Page);
+			return SetParameterValue(Name, Meta.Value.Font.Value, Meta.Value.Font.Page, Flags);
 		}
-		return Super::SetParameterValue(Name, Meta);
+		return Super::SetParameterValue(Name, Meta, Flags);
 	}
 #endif
 	//~ End UMaterialExpression Interface
@@ -64,7 +69,7 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage) const;
 
 #if WITH_EDITOR
-	bool SetParameterValue(FName InParameterName, UFont* InFontValue, int32 InFontPage);
+	bool SetParameterValue(FName InParameterName, UFont* InFontValue, int32 InFontPage, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 #endif
 
 	/**

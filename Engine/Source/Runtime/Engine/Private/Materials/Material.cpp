@@ -1336,25 +1336,9 @@ bool UMaterial::IsCompilingOrHadCompileError(ERHIFeatureLevel::Type InFeatureLev
 bool UMaterial::SetParameterValueEditorOnly(const FName& ParameterName, const FMaterialParameterMetadata& Meta)
 {
 	// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
-	// Lambda which calls SetParameterValue on a given parameter and triggers a PostEditChange event if successful
-	auto TrySetParameterValue = [ParameterName, Meta](UMaterialExpression* Expression) -> bool
-	{
-		if (Expression && Expression->SetParameterValue(ParameterName, Meta))
-		{
-			FProperty* ParamProperty = Expression->GetClass()->FindPropertyByName(TEXT("DefaultValue"));
-			if (ParamProperty)
-			{
-				FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
-				Expression->PostEditChangeProperty(PropertyChangedEvent);
-				return true;
-			}
-		}
-		return false;
-	};
-
 	for (TObjectPtr<UMaterialExpression>& Expression : Expressions)
 	{
-		if (TrySetParameterValue(Expression))
+		if (Expression && Expression->SetParameterValue(ParameterName, Meta, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
 		{
 			return true;
 		}
@@ -1373,7 +1357,7 @@ bool UMaterial::SetParameterValueEditorOnly(const FName& ParameterName, const FM
 					{
 						for (const TObjectPtr<UMaterialExpression>& FunctionExpression : *ExpressionPtr)
 						{
-							if (TrySetParameterValue(FunctionExpression))
+							if (FunctionExpression && FunctionExpression->SetParameterValue(ParameterName, Meta, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
 							{
 								return true;
 							}
@@ -4460,23 +4444,11 @@ void UMaterial::RebuildShadingModelField()
 bool UMaterial::GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName)
 {
 	bool bRet = false;
-
-	if(Expression->IsA(UMaterialExpressionParameter::StaticClass()))
+	if (Expression->HasAParameterName())
 	{
-		OutName = ((UMaterialExpressionParameter*)Expression)->ParameterName;
+		OutName = Expression->GetParameterName();
 		bRet = true;
 	}
-	else if(Expression->IsA(UMaterialExpressionTextureSampleParameter::StaticClass()))
-	{
-		OutName = ((UMaterialExpressionTextureSampleParameter*)Expression)->ParameterName;
-		bRet = true;
-	}
-	else if(Expression->IsA(UMaterialExpressionFontSampleParameter::StaticClass()))
-	{
-		OutName = ((UMaterialExpressionFontSampleParameter*)Expression)->ParameterName;
-		bRet = true;
-	}
-
 	return bRet;
 }
 
@@ -4488,111 +4460,63 @@ bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialE
 		return false;
 	}
 
-	bool bRet = true;
-
-	if(Source->IsA(UMaterialExpressionTextureSampleParameter::StaticClass()))
+	bool bResult = false;
+	FMaterialParameterMetadata Meta;
+	if (Source->GetParameterValue(Meta))
 	{
-		UMaterialExpressionTextureSampleParameter *SourceTex = (UMaterialExpressionTextureSampleParameter*)Source;
-		UMaterialExpressionTextureSampleParameter *DestTex = (UMaterialExpressionTextureSampleParameter*)Destination;
+		const FName ParameterName = Destination->GetParameterName();
+		Destination->Modify();
+		verify(Destination->SetParameterValue(ParameterName, Meta, EMaterialExpressionSetParameterValueFlags::NoUpdateExpressionGuid));
 
-		DestTex->Modify();
-		DestTex->Texture = SourceTex->Texture;
-		DestTex->Group = SourceTex->Group; // Group isn't editor only for textures
+		if (Source->IsA(UMaterialExpressionParameter::StaticClass()))
+		{
+			UMaterialExpressionParameter* SourceParam = (UMaterialExpressionParameter*)Source;
+			UMaterialExpressionParameter* DestParam = (UMaterialExpressionParameter*)Destination;
 #if WITH_EDITOR
-		DestTex->SortPriority = SourceTex->SortPriority;
+			DestParam->Group = SourceParam->Group;
+			DestParam->SortPriority = SourceParam->SortPriority;
 #endif
-	}
-	else if (Source->IsA(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass()))
-	{
-		UMaterialExpressionRuntimeVirtualTextureSampleParameter* SourceRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Source;
-		UMaterialExpressionRuntimeVirtualTextureSampleParameter* DestRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Destination;
-
-		DestRVT->Modify();
-		DestRVT->VirtualTexture = SourceRVT->VirtualTexture;
-		DestRVT->Group = SourceRVT->Group;
+		}
+		else if (Source->IsA(UMaterialExpressionTextureSampleParameter::StaticClass()))
+		{
+			UMaterialExpressionTextureSampleParameter* SourceTex = (UMaterialExpressionTextureSampleParameter*)Source;
+			UMaterialExpressionTextureSampleParameter* DestTex = (UMaterialExpressionTextureSampleParameter*)Destination;
+			DestTex->Group = SourceTex->Group; // Group isn't editor only for textures
+#if WITH_EDITOR
+			DestTex->SortPriority = SourceTex->SortPriority;
+#endif
+		}
+		else if (Source->IsA(UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass()))
+		{
+			UMaterialExpressionRuntimeVirtualTextureSampleParameter* SourceRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Source;
+			UMaterialExpressionRuntimeVirtualTextureSampleParameter* DestRVT = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)Destination;
+			DestRVT->Group = SourceRVT->Group;
 #if WITH_EDITORONLY_DATA
-		DestRVT->SortPriority = SourceRVT->SortPriority;
+			DestRVT->SortPriority = SourceRVT->SortPriority;
 #endif
-	}
-	else if(Source->IsA(UMaterialExpressionVectorParameter::StaticClass()))
-	{
-		UMaterialExpressionVectorParameter *SourceVec = (UMaterialExpressionVectorParameter*)Source;
-		UMaterialExpressionVectorParameter *DestVec = (UMaterialExpressionVectorParameter*)Destination;
-
-		DestVec->Modify();
-		DestVec->DefaultValue = SourceVec->DefaultValue;
+		}
+		else if (Source->IsA(UMaterialExpressionFontSampleParameter::StaticClass()))
+		{
+			UMaterialExpressionFontSampleParameter* SourceFont = (UMaterialExpressionFontSampleParameter*)Source;
+			UMaterialExpressionFontSampleParameter* DestFont = (UMaterialExpressionFontSampleParameter*)Destination;
+			DestFont->Group = SourceFont->Group; // Group isn't editor only for fonts
 #if WITH_EDITOR
-		DestVec->Group = SourceVec->Group;
-		DestVec->SortPriority = SourceVec->SortPriority;
+			DestFont->SortPriority = SourceFont->SortPriority;
 #endif
-	}
-	else if(Source->IsA(UMaterialExpressionStaticBoolParameter::StaticClass()))
-	{
-		UMaterialExpressionStaticBoolParameter *SourceVec = (UMaterialExpressionStaticBoolParameter*)Source;
-		UMaterialExpressionStaticBoolParameter *DestVec = (UMaterialExpressionStaticBoolParameter*)Destination;
-
-		DestVec->Modify();
-		DestVec->DefaultValue = SourceVec->DefaultValue;
-#if WITH_EDITOR
-		DestVec->Group = SourceVec->Group;
-		DestVec->SortPriority = SourceVec->SortPriority;
-#endif
-	}
-	else if(Source->IsA(UMaterialExpressionStaticComponentMaskParameter::StaticClass()))
-	{
-		UMaterialExpressionStaticComponentMaskParameter *SourceVec = (UMaterialExpressionStaticComponentMaskParameter*)Source;
-		UMaterialExpressionStaticComponentMaskParameter *DestVec = (UMaterialExpressionStaticComponentMaskParameter*)Destination;
-
-		DestVec->Modify();
-		DestVec->DefaultR = SourceVec->DefaultR;
-		DestVec->DefaultG = SourceVec->DefaultG;
-		DestVec->DefaultB = SourceVec->DefaultB;
-		DestVec->DefaultA = SourceVec->DefaultA;
-#if WITH_EDITOR
-		DestVec->Group = SourceVec->Group;
-		DestVec->SortPriority = SourceVec->SortPriority;
-#endif
-	}
-	else if(Source->IsA(UMaterialExpressionScalarParameter::StaticClass()))
-	{
-		UMaterialExpressionScalarParameter *SourceVec = (UMaterialExpressionScalarParameter*)Source;
-		UMaterialExpressionScalarParameter *DestVec = (UMaterialExpressionScalarParameter*)Destination;
-
-		DestVec->Modify();
-		DestVec->DefaultValue = SourceVec->DefaultValue;
-#if WITH_EDITOR
-		DestVec->Group = SourceVec->Group;
-		DestVec->SortPriority = SourceVec->SortPriority;
-#endif
-	}
-	else if(Source->IsA(UMaterialExpressionFontSampleParameter::StaticClass()))
-	{
-		UMaterialExpressionFontSampleParameter *SourceFont = (UMaterialExpressionFontSampleParameter*)Source;
-		UMaterialExpressionFontSampleParameter *DestFont = (UMaterialExpressionFontSampleParameter*)Destination;
-
-		DestFont->Modify();
-		DestFont->Font = SourceFont->Font;
-		DestFont->FontTexturePage = SourceFont->FontTexturePage;
-		DestFont->Group = SourceFont->Group; // Group isn't editor only for fonts
-#if WITH_EDITOR
-		DestFont->SortPriority = SourceFont->SortPriority;
-#endif
-	}
-	else
-	{
-		bRet = false;
-	}
-
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Unexpected expression parameter type %s"), *Source->GetClass()->GetName());
+		}
 
 #if WITH_EDITOR
-	if (bRet)
-	{
 		Destination->Desc = Source->Desc;
 		Destination->GraphNode->OnUpdateCommentText(Destination->Desc);
+#endif
+		bResult = true;
 	}
-#endif // WITH_EDITOR
 
-	return bRet;
+	return bResult;
 }
 
 void UMaterial::BeginDestroy()

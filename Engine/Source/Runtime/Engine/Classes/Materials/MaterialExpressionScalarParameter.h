@@ -44,13 +44,21 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
-	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
+	{
+		OutMeta.Value = DefaultValue;
+		OutMeta.ExpressionGuid = ExpressionGUID;
+		OutMeta.ScalarMin = SliderMin;
+		OutMeta.ScalarMax = SliderMax;
+		return true;
+	}
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::Scalar)
 		{
-			return SetParameterValue(Name, Meta.Value.AsScalar());
+			return SetParameterValue(Name, Meta.Value.AsScalar(), Flags);
 		}
-		return Super::SetParameterValue(Name, Meta);
+		return Super::SetParameterValue(Name, Meta, Flags);
 	}
 #endif
 	//~ End UMaterialExpression Interface
@@ -59,12 +67,11 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) const;
 
 #if WITH_EDITOR
-	bool SetParameterValue(FName InParameterName, float InValue);
+	bool SetParameterValue(FName InParameterName, float InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
 	virtual bool HasClassAndNameCollision(UMaterialExpression* OtherExpression) const override;
-	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
 #endif
 
 	virtual bool IsUsedAsAtlasPosition() const { return false; }

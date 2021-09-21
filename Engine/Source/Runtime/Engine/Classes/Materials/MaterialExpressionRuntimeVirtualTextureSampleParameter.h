@@ -31,7 +31,7 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 
 #if WITH_EDITOR
 	/** If this is the named parameter from this material expression, then set its value. */
-	bool SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue);
+	bool SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 #endif
 
 	/** Return whether this is the named parameter from this material expression, and if it is then return its value. */
@@ -50,14 +50,19 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 	virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
-	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
-	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
+	{
+		OutMeta.Value = VirtualTexture;
+		OutMeta.ExpressionGuid = ExpressionGUID;
+		return true;
+	}
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::RuntimeVirtualTexture)
 		{
-			return SetParameterValue(Name, Meta.Value.RuntimeVirtualTexture);
+			return SetParameterValue(Name, Meta.Value.RuntimeVirtualTexture, Flags);
 		}
-		return Super::SetParameterValue(Name, Meta);
+		return Super::SetParameterValue(Name, Meta, Flags);
 	}
 #endif
 	virtual FGuid& GetParameterExpressionId() override { return ExpressionGUID; }

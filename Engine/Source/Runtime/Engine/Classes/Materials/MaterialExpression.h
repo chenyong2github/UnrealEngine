@@ -149,6 +149,14 @@ enum class EMaterialGenerateHLSLStatus : uint8
 	Error,
 };
 
+enum class EMaterialExpressionSetParameterValueFlags : uint32
+{
+	None = 0u,
+	SendPostEditChangeProperty = (1u << 0), // Send PostEditChangeProperty events for all properties that are modified
+	NoUpdateExpressionGuid = (1u << 1), // By default ExpressionGUI will be updated for static parameters
+};
+ENUM_CLASS_FLAGS(EMaterialExpressionSetParameterValueFlags);
+
 UCLASS(abstract, BlueprintType, hidecategories=Object)
 class ENGINE_API UMaterialExpression : public UObject
 {
@@ -515,11 +523,13 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual bool HasAParameterName() const { return false; }
 	virtual void ValidateParameterName(const bool bAllowDuplicateName = true);
 	virtual bool HasClassAndNameCollision(UMaterialExpression* OtherExpression) const;
-	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) {};
+
+	EMaterialParameterType GetParameterType() const;
 
 	virtual FName GetParameterName() const { return NAME_None; }
 	virtual void SetParameterName(const FName& Name) {}
-	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) { return false; }
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const { return false; }
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None) { return false; }
 
 	/**
 	 * Called after a node copy, once the Material and Function properties are set correctly and that all new expressions are added to Material->Expressions

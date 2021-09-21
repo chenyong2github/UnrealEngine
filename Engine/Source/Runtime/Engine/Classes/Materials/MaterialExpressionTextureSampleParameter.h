@@ -50,15 +50,24 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	virtual FName GetParameterName() const override { return ParameterName; }
 	virtual void SetParameterName(const FName& Name) override { ParameterName = Name; }
 	virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
-	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
 	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
-	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
+	{
+		OutMeta.Value = Texture;
+		OutMeta.ExpressionGuid = ExpressionGUID;
+		OutMeta.ChannelName[0] = ChannelNames.R;
+		OutMeta.ChannelName[1] = ChannelNames.G;
+		OutMeta.ChannelName[2] = ChannelNames.B;
+		OutMeta.ChannelName[3] = ChannelNames.A;
+		return true;
+	}
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::Texture)
 		{
-			return SetParameterValue(Name, Meta.Value.Texture);
+			return SetParameterValue(Name, Meta.Value.Texture, Flags);
 		}
-		return Super::SetParameterValue(Name, Meta);
+		return Super::SetParameterValue(Name, Meta, Flags);
 	}
 #endif
 	//~ End UMaterialExpression Interface
@@ -67,7 +76,7 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const;
 
 #if WITH_EDITOR
-	bool SetParameterValue(FName InParameterName, UTexture* InValue);
+	bool SetParameterValue(FName InParameterName, UTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void ApplyChannelNames();
 
