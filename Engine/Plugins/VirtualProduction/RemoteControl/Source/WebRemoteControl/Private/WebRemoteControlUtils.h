@@ -37,22 +37,6 @@ namespace RemotePayloadSerializer
 	 */
 	void SerializeWrappedCallResponse(int32 RequestId, TUniquePtr<FHttpServerResponse> Response, FMemoryWriter& Writer);
 
-	/**
-	 * Calls a the provided serializer function then strips the identifier from the resulting JSON.
-	 * ie. A returned payload like:
-	 * {
-	 *   "RelativeLocation": {
-	 *		"prop": 2
-	 *    }
-	 * }
-	 *
-	 * Would result in:
-	 * "prop": 2
-	 *
-	 * @todo Modify struct serializer to allow serializing without the identifier since this method is pretty inefficient.
-	 */
-	bool SerializePartial(TFunctionRef<bool(FRCJsonStructSerializerBackend&)> SerializeFunction, FMemoryWriter& SerializedPayloadWriter);
-
 	bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, const FHttpResultCallback& InCompleteCallback);
 
 	bool SerializeCall(const FRCCall& InCall, TArray<uint8>& OutPayload, bool bOnlyReturn = false);
@@ -320,4 +304,17 @@ namespace WebRemoteControlUtils
 	 * @return Whether or not the content type matches the target content type.
 	 */
 	bool IsRequestContentType(const FHttpServerRequest& InRequest, const FString& InContentType, FString* OutErrorText);
+
+	/**
+	 * Serialize a struct on scope.
+	 * @param Struct the struct on scope to serialize.
+	 * @param Writer the memory archive to write to.
+	 */
+	template <typename SerializerBackendType = FRCJsonStructSerializerBackend>
+	void SerializeStructOnScope(const FStructOnScope& Struct, FMemoryWriter& Writer)
+	{
+		static_assert(TIsDerivedFrom<SerializerBackendType, IStructSerializerBackend>::IsDerived, "SerializerBackendType must inherit from IStructSerializerBackend.");
+		SerializerBackendType SerializerBackend(Writer);
+		FStructSerializer::Serialize(Struct.GetStructMemory(), *(UScriptStruct*)Struct.GetStruct(), SerializerBackend, FStructSerializerPolicies());
+	}
 }
