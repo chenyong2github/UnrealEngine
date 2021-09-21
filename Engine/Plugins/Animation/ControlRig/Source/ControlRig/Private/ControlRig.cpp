@@ -2813,6 +2813,7 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 
 	if(!HasAnyFlags(RF_ClassDefaultObject) && InCDO)
 	{
+		InCDO->PostInitInstanceIfRequired();
 		VM->CopyFrom(InCDO->GetVM());
 		DynamicHierarchy->CopyHierarchy(InCDO->GetHierarchy());
 	}
