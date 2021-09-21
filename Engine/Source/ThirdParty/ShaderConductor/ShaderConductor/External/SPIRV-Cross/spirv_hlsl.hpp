@@ -138,18 +138,17 @@ public:
 		// the semantic name will be queried once per active location.
 		bool flatten_matrix_vertex_input_semantics = false;
 
-		// UE Change Begin: Reconstruct original name of input/output semantics
-		bool reconstruct_semantics = false;
-		// UE Change End: Reconstruct original name of input/output semantics
-
-		// UE Change Begin: Reconstruct original name of global cbuffer declarations
+		// UE Change Begin: Reconstruct original name of global cbuffer declarations.
 		bool reconstruct_cbuffer_names = false;
-		// UE Change End: Reconstruct original name of global cbuffer declarations
+		// UE Change End: Reconstruct original name of global cbuffer declarations.
 
-		// UE Change Begin: Allow disabling explicit resource binding
+		// UE Change Begin: Reconstruct original name of input/output semantics.
+		bool reconstruct_semantics = false;
+		// UE Change End: Reconstruct original name of input/output semantics.
+
+		// UE Change Begin: Allow disabling explicit resource binding.
 		bool implicit_resource_binding = false;
-		// UE Change End: Allow disabling explicit resource binding
-
+		// UE Change End: Allow disabling explicit resource binding.
 	};
 
 	explicit CompilerHLSL(std::vector<uint32_t> spirv_)
