@@ -53,7 +53,7 @@ public:
 	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
 	bool IsAlwaysLoaded() const { return bAlwaysLoaded; }
 
-	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float InLoadingRange);
+	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, double InLoadingRange);
 #endif
 
 #if WITH_EDITOR
@@ -87,7 +87,7 @@ private:
 
 	/** Loading range of the runtime grid created to encompass HLOD actors generated for this HLOD Layer */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
-	float LoadingRange;
+	double LoadingRange;
 
 	/** HLOD Layer to assign to the generated HLOD actors */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))

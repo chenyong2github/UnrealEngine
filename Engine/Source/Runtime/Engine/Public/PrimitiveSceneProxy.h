@@ -449,10 +449,10 @@ public:
 	 * Determines the DPG to render the primitive in regardless of view.
 	 * Should only be called if HasViewDependentDPG()==true.
 	 */
-	virtual uint8 GetStaticDepthPriorityGroup() const
+	virtual ESceneDepthPriorityGroup GetStaticDepthPriorityGroup() const
 	{
 		check(!HasViewDependentDPG());
-		return StaticDepthPriorityGroup;
+		return (ESceneDepthPriorityGroup)StaticDepthPriorityGroup;
 	}
 
 	/**
@@ -461,16 +461,16 @@ public:
 	 * @param View - The view to determine the primitive's DPG for.
 	 * @return The DPG the primitive should be rendered in for the given view.
 	 */
-	uint8 GetDepthPriorityGroup(const FSceneView* View) const
+	ESceneDepthPriorityGroup GetDepthPriorityGroup(const FSceneView* View) const
 	{
 		return (bUseViewOwnerDepthPriorityGroup && IsOwnedBy(View->ViewActor)) ?
-			ViewOwnerDepthPriorityGroup :
-			StaticDepthPriorityGroup;
+			(ESceneDepthPriorityGroup)ViewOwnerDepthPriorityGroup :
+			(ESceneDepthPriorityGroup)StaticDepthPriorityGroup;
 	}
 
 	/** Every derived class should override these functions */
 	virtual uint32 GetMemoryFootprint( void ) const = 0;
-	uint32 GetAllocatedSize( void ) const { return( Owners.GetAllocatedSize() ); }
+	SIZE_T GetAllocatedSize( void ) const { return( Owners.GetAllocatedSize() ); }
 
 	/**
 	 * Set the collision flag on the scene proxy to enable/disable collision drawing

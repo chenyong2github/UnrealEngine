@@ -527,7 +527,7 @@ void UBrushComponent::PostLoad()
 #endif
 }
 
-uint8 UBrushComponent::GetStaticDepthPriorityGroup() const
+ESceneDepthPriorityGroup UBrushComponent::GetStaticDepthPriorityGroup() const
 {
 	ABrush* BrushOwner = Cast<ABrush>(GetOwner());
 

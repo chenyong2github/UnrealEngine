@@ -3543,7 +3543,7 @@ struct ENGINE_API FRepMovement
 		RBState.Quaternion = Rotation.Quaternion();
 		RBState.LinVel = LinearVelocity;
 		RBState.AngVel = AngularVelocity;
-		RBState.Flags = (bSimulatedPhysicSleep ? ERigidBodyFlags::Sleeping : ERigidBodyFlags::None) | ERigidBodyFlags::NeedsUpdate;
+		RBState.Flags = (decltype(FRigidBodyState::Flags))(bSimulatedPhysicSleep ? ERigidBodyFlags::Sleeping : ERigidBodyFlags::None) | ERigidBodyFlags::NeedsUpdate;
 	}
 
 	bool operator==(const FRepMovement& Other) const
@@ -4071,7 +4071,7 @@ private:
 public:
 	/** Max Samples to record. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="DebugFloatHistory")
-	float MaxSamples;
+	int32 MaxSamples;
 
 	/** Min value to record. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DebugFloatHistory")
@@ -4092,7 +4092,7 @@ public:
 		, bAutoAdjustMinMax(true)
 	{ }
 
-	FDebugFloatHistory(float const & InMaxSamples, float const & InMinValue, float const & InMaxValue, bool const & InbAutoAdjustMinMax)
+	FDebugFloatHistory(int32 const & InMaxSamples, float const & InMinValue, float const & InMaxValue, bool const & InbAutoAdjustMinMax)
 		: MaxSamples(InMaxSamples)
 		, MinValue(InMinValue)
 		, MaxValue(InMaxValue)

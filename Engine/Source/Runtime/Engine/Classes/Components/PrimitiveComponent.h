@@ -1843,7 +1843,7 @@ public:
 	 * Even if the primitive's elements are drawn in multiple DPGs, a primary DPG is needed for occlusion culling and shadow projection.
 	 * @return The DPG the primitive's primary elements will be drawn in.
 	 */
-	virtual uint8 GetStaticDepthPriorityGroup() const { return DepthPriorityGroup; }
+	virtual ESceneDepthPriorityGroup GetStaticDepthPriorityGroup() const { return DepthPriorityGroup; }
 
 	/** 
 	 * Retrieves the materials used in this component 

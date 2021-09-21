@@ -86,7 +86,7 @@ public:
 		return History.AddCycles(Cycles);
 	}
 
-	FORCEINLINE float GetAverageTimeSeconds()const
+	FORCEINLINE double GetAverageTimeSeconds() const
 	{
 		return FPlatformTime::ToSeconds(History.GetAverageCycles());
 	}

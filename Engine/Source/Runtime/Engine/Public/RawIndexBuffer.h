@@ -261,7 +261,7 @@ public:
 	/**
 	 * Computes the amount of memory allocated to store the indices.
 	 */
-	FORCEINLINE uint32 GetAllocatedSize() const
+	FORCEINLINE SIZE_T GetAllocatedSize() const
 	{
 		return IndexStorage.GetAllocatedSize();
 	}
@@ -447,7 +447,7 @@ public:
 	virtual int32 AddItem(uint32 Val) override
 	{
 		++CachedNumIndices;
-		return Indices.Add(Val);
+		return Indices.Add((INDEX_TYPE)Val);
 	}
 
 	virtual uint32 Get(uint32 Idx) const override

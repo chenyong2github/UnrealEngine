@@ -262,7 +262,7 @@ struct FPakInfo
 		}
 	}
 
-	uint8 GetCompressionMethodIndex(FName CompressionMethod)
+	int32 GetCompressionMethodIndex(FName CompressionMethod)
 	{
 		// look for existing method
 		for (uint8 Index = 0; Index < CompressionMethods.Num(); Index++)

@@ -6045,7 +6045,7 @@ void FSkeletalMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* 
 
 	if (!HasViewDependentDPG())
 	{
-		uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
+		ESceneDepthPriorityGroup PrimitiveDPG = GetStaticDepthPriorityGroup();
 		bool bUseSelectedMaterial = false;
 
 		int32 NumLODs = SkeletalMeshRenderData->LODRenderData.Num();
