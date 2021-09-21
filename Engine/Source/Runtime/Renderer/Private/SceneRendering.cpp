@@ -64,6 +64,7 @@
 #include "SystemTextures.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #include "Misc/AutomationTest.h"
+#include "Engine/TextureCube.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
@@ -3162,7 +3163,24 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 				FSceneViewState* ViewState = (FSceneViewState*)View.State;
 				bool bViewParentOrFrozen = ViewState && (ViewState->HasViewParent() || ViewState->bIsFrozen);
 				bool bLocked = View.bIsLocked;
-				if ((GAreScreenMessagesEnabled && !GEngine->bSuppressMapWarnings) && (bViewParentOrFrozen || bLocked || bAnyWarning))
+
+				// display a warning if an ambient cubemap uses non-angular mipmap filtering
+				bool bShowAmbientCubemapMipGenSettingsWarning = false;
+
+#if WITH_EDITORONLY_DATA
+				for (FFinalPostProcessSettings::FCubemapEntry ContributingCubemap : View.FinalPostProcessSettings.ContributingCubemaps)
+				{
+					// platform configuration can't be loaded from the rendering thread, therefore the warning wont be displayed for TMGS_FromTextureGroup settings
+					if (ContributingCubemap.AmbientCubemap &&
+						ContributingCubemap.AmbientCubemap->MipGenSettings != TMGS_FromTextureGroup &&
+						ContributingCubemap.AmbientCubemap->MipGenSettings != TMGS_Angular)
+					{
+						bShowAmbientCubemapMipGenSettingsWarning = true;
+						break;
+					}
+				}
+#endif
+				if ((GAreScreenMessagesEnabled && !GEngine->bSuppressMapWarnings) && (bViewParentOrFrozen || bLocked || bShowAmbientCubemapMipGenSettingsWarning || bAnyWarning))
 				{
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
@@ -3172,7 +3190,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning, bMobileMissingSkyMaterial, 
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowLocalExposureDisabledWarning,
-						bLumenEnabledButHasNoDataForTracing, bLumenEnabledButDisabledForTheProject, bNaniteEnabledButNoAtomics, bNaniteEnabledButDisabledInProject, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight]
+						bLumenEnabledButHasNoDataForTracing, bLumenEnabledButDisabledForTheProject, bNaniteEnabledButNoAtomics, bNaniteEnabledButDisabledInProject, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight, bShowAmbientCubemapMipGenSettingsWarning]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3367,6 +3385,13 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						{
 							FString String = FString::Printf(TEXT("Video memory has been exhausted (%.3f MB over budget). Expect extremely poor performance."), float(GDemotedLocalMemorySize) / 1048576.0f);
 							Canvas.DrawShadowedText(10, Y, FText::FromString(String), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+							Y += 14;
+						}
+
+						if (bShowAmbientCubemapMipGenSettingsWarning)
+						{
+							static const FText Message = NSLOCTEXT("Renderer", "AmbientCubemapMipGenSettings", "Ambient cubemaps should use 'Angular' Mip Gen Settings.");
+							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}
 
@@ -3864,18 +3889,18 @@ void FSceneRenderer::CleanUp(FRHICommandListImmediate& RHICmdList)
 
 	if (!GSceneRenderCleanUpState.bWaitForTasksComplete)
 	{
-	switch (GSceneRenderCleanUpState.CompletionMode)
-	{
-	case ESceneRenderCleanUpMode::Deferred:
+		switch (GSceneRenderCleanUpState.CompletionMode)
+		{
+		case ESceneRenderCleanUpMode::Deferred:
 			ReleaseSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer);
-		break;
-	case ESceneRenderCleanUpMode::DeferredAndAsync:
-		GSceneRenderCleanUpState.Task->Wait(ENamedThreads::GetRenderThread_Local());
+			break;
+		case ESceneRenderCleanUpMode::DeferredAndAsync:
+			GSceneRenderCleanUpState.Task->Wait(ENamedThreads::GetRenderThread_Local());
 			break;
 		}
 	}
 
-		DeleteSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer, GSceneRenderCleanUpState.MemStackMark);
+	DeleteSceneRenderer(RHICmdList, GSceneRenderCleanUpState.Renderer, GSceneRenderCleanUpState.MemStackMark);
 	GSceneRenderCleanUpState = {};
 }
 

@@ -130,6 +130,8 @@ enum TextureMipGenSettings
 	TMGS_Blur5 UMETA(DisplayName = "Blur5"),
 	/** Use the first texel of each 2x2 (or 2x2x2) group. */
 	TMGS_Unfiltered UMETA(DisplayName = "Unfiltered"),
+	/** Introduce significant amount of blur using angular filtering (only applies to cubemaps, useful for ambient lighting). */
+	TMGS_Angular UMETA(DisplayName = "Angular"),
 	TMGS_MAX,
 
 	// Note: These are serialized as as raw values in the texture DDC key, so additional entries
