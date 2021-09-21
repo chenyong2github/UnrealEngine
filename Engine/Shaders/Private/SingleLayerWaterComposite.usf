@@ -147,7 +147,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			float IndirectSpecularOcclusion = 1.0f;
 			float3 ExtraIndirectSpecular = 0;
 			uint CaptureDataStartIndex = 0;
-			uint NumCulledReflectionCaptures = 0;
+			uint NumCulledReflectionCaptures = ForwardLightData.NumReflectionCaptures;
 			//
 			float3 N = GBuffer.WorldNormal;
 			float3 V = -CameraToPixel;
