@@ -43,7 +43,7 @@ struct FMediaProfileMenuEntryImpl
 			FCanExecuteAction::CreateLambda([] { return IMediaProfileManager::Get().GetCurrentMediaProfile() != nullptr; })
 		);
 
-		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ModesToolBar");
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
 		FToolMenuSection& Section = Menu->FindOrAddSection("MediaProfile");
 
 		auto ButtonTooltipLambda = [this]()
@@ -85,7 +85,7 @@ struct FMediaProfileMenuEntryImpl
 	{
 		if (!IsEngineExitRequested())
 		{
-			UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.ModesToolBar", "MediaProfile");
+			UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.User", "MediaProfile");
 		}
 	}
 

@@ -44,7 +44,7 @@ struct FCameraCalibrationMenuEntryImpl
 			})
 		);
 
-		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ModesToolBar");
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
 		FToolMenuSection& Section = Menu->FindOrAddSection("LensFile");
 
 		auto ButtonTooltipLambda = [this]()
@@ -85,7 +85,7 @@ struct FCameraCalibrationMenuEntryImpl
 	{
 		if (!IsEngineExitRequested())
 		{
-			UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.ModesToolBar", "LensFile");
+			UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.User", "LensFile");
 		}
 	}
 
