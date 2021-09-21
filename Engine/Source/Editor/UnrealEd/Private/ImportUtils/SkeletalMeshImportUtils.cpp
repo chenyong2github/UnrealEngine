@@ -228,68 +228,6 @@ void SkeletalMesUtilsImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* Sourc
 	const FSkeletalMeshLODModel* SourceLODModel = &SourceMeshModel->LODModels[LodIndex];
 	FSkeletalMeshLODModel OriginalLODModel;
 
-	if (bSaveNonReducedMeshData && (SourceMeshModel->OriginalReductionSourceMeshData.IsValidIndex(LodIndex) && !SourceMeshModel->OriginalReductionSourceMeshData[LodIndex]->IsEmpty()))
-	{
-		TMap<FString, TArray<FMorphTargetDelta>> TempLODMorphTargetData;
-		//Get the before reduce LODModel, this lod model contain all the possible sections
-		SourceMeshModel->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(OriginalLODModel, TempLODMorphTargetData, SourceSkeletalMesh);
-		//If there was section that was remove by the reduction (Disabled in the original data, zero triangle after reduction, GenerateUpTo settings...),
-		//we have to use the original section data and apply the section data that was modified after the reduction
-		if (OriginalLODModel.Sections.Num() > SourceLODModel->Sections.Num())
-		{
-			TArray<bool> OriginalMatched;
-			OriginalMatched.AddZeroed(OriginalLODModel.Sections.Num());
-			//Now apply the after reduce settings change, but we need to match the section since there can be reduced one
-			for (int32 ReduceSectionIndex = 0; ReduceSectionIndex < SourceLODModel->Sections.Num(); ++ReduceSectionIndex)
-			{
-				const FSkelMeshSection& ReduceSection = SourceLODModel->Sections[ReduceSectionIndex];
-				for (int32 OriginalSectionIndex = 0; OriginalSectionIndex < OriginalLODModel.Sections.Num(); ++OriginalSectionIndex)
-				{
-					if (OriginalMatched[OriginalSectionIndex])
-					{
-						continue;
-					}
-					FSkelMeshSection& OriginalSection = OriginalLODModel.Sections[OriginalSectionIndex];
-					if ((OriginalSection.bDisabled) || (OriginalSection.GenerateUpToLodIndex != INDEX_NONE && OriginalSection.GenerateUpToLodIndex < LodIndex))
-					{
-						continue;
-					}
-
-					if (ReduceSection.MaterialIndex == OriginalSection.MaterialIndex)
-					{
-						OriginalMatched[OriginalSectionIndex] = true;
-						OriginalSection.bDisabled = ReduceSection.bDisabled;
-						OriginalSection.bCastShadow = ReduceSection.bCastShadow;
-						OriginalSection.bVisibleInRayTracing = ReduceSection.bVisibleInRayTracing;
-						OriginalSection.bRecomputeTangent = ReduceSection.bRecomputeTangent;
-						OriginalSection.RecomputeTangentsVertexMaskChannel = ReduceSection.RecomputeTangentsVertexMaskChannel;
-						OriginalSection.GenerateUpToLodIndex = ReduceSection.GenerateUpToLodIndex;
-						break;
-					}
-				}
-			}
-			//Set the unmatched original section data using the current UserSectionsData so we keep the user changes
-			for (int32 OriginalSectionIndex = 0; OriginalSectionIndex < OriginalLODModel.Sections.Num(); ++OriginalSectionIndex)
-			{
-				if (OriginalMatched[OriginalSectionIndex])
-				{
-					continue;
-				}
-				FSkelMeshSection& OriginalSection = OriginalLODModel.Sections[OriginalSectionIndex];
-				if (const FSkelMeshSourceSectionUserData* ReduceUserSectionData = SourceLODModel->UserSectionsData.Find(OriginalSection.OriginalDataSectionIndex))
-				{
-					OriginalSection.bDisabled = ReduceUserSectionData->bDisabled;
-					OriginalSection.bCastShadow = ReduceUserSectionData->bCastShadow;
-					OriginalSection.bVisibleInRayTracing = ReduceUserSectionData->bVisibleInRayTracing;
-					OriginalSection.bRecomputeTangent = ReduceUserSectionData->bRecomputeTangent;
-					OriginalSection.RecomputeTangentsVertexMaskChannel = ReduceUserSectionData->RecomputeTangentsVertexMaskChannel;
-					OriginalSection.GenerateUpToLodIndex = ReduceUserSectionData->GenerateUpToLodIndex;
-				}
-			}
-			//Use the OriginalLODModel
-			SourceLODModel = &OriginalLODModel;
-		}
-	}
 	ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData.AddZeroed();
 	check(ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData.IsValidIndex(LodIndex));
 
@@ -407,6 +345,8 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshD
 	}
 	ExistingMeshDataPtr->ExistingRetargetBasePose = SourceSkeletalMesh->GetRetargetBasePose();
 
+	ExistingMeshDataPtr->ExistingInlineReductionCacheDatas = SourceMeshModel->InlineReductionCacheDatas;
+
 	if (SourceMeshModel->LODModels.Num() > 0 &&
 		SourceSkeletalMesh->GetLODNum() == SourceMeshModel->LODModels.Num())
 	{
@@ -415,19 +355,6 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshImportUtils::SaveExistingSkelMeshD
 		ExistingMeshDataPtr->ExistingLODModels.Empty(SourceMeshModel->LODModels.Num());
 		for ( int32 LODIndex = 0; LODIndex < SourceMeshModel->LODModels.Num() ; ++LODIndex)
 		{
-			//const int32 ReductionLODIndex = LODModelIndex + OffsetReductionLODIndex;
-			TSharedPtr<FReductionBaseSkeletalMeshBulkData> ReductionLODData;
-			if (SourceMeshModel->OriginalReductionSourceMeshData.IsValidIndex(LODIndex) && !SourceMeshModel->OriginalReductionSourceMeshData[LODIndex]->IsEmpty())
-			{
-				FSkeletalMeshLODModel BaseLODModel;
-				TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
-				SourceMeshModel->OriginalReductionSourceMeshData[LODIndex]->LoadReductionData(BaseLODModel, BaseLODMorphTargetData, SourceSkeletalMesh);
-				ReductionLODData = MakeShared<FReductionBaseSkeletalMeshBulkData>();
-				ReductionLODData->SaveReductionData(BaseLODModel, BaseLODMorphTargetData, SourceSkeletalMesh);
-			}
-			//Add the reduction source mesh data if it exist, otherwise an empty sharedPtr.
-			ExistingMeshDataPtr->ExistingOriginalReductionSourceMeshData.Add(MoveTemp(ReductionLODData));
-			
 			//Add a new LOD Model to the existing LODModels data
 			const FSkeletalMeshLODModel& LODModel = SourceMeshModel->LODModels[LODIndex];
 			ExistingMeshDataPtr->ExistingLODModels.Add(FSkeletalMeshLODModel::CreateCopy(&LODModel));
@@ -751,7 +678,6 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 			bMaterialReset = true;
 		}
 	}
-
 	SkeletalMesh->SetLODSettings(MeshData->ExistingLODSettings);
 	// ensure LOD 0 contains correct setting 
 	if (SkeletalMesh->GetLODSettings() && SkeletalMesh->GetLODInfoArray().Num() > 0)
@@ -779,31 +705,14 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 				SkeletalMesh->GetMeshOnlySocketList().Add(MeshData->ExistingSockets[i]);
 			}
 		}
+		if (!ensure(SkeletalMeshImportedModel->InlineReductionCacheDatas.IsValidIndex(0)))
+		{
+			UE_LOG(LogSkeletalMeshImport, Display, TEXT("Reimport SkeletalMesh did not have a valid inline reduction cache data for LOD 0"));
+		}
 
 		// We copy back and fix-up the LODs that still work with this skeleton.
 		if (MeshData->ExistingLODModels.Num() > 1)
 		{
-			auto RestoreReductionSourceData = [&SkeletalMesh, &SkeletalMeshImportedModel, &MeshData](int32 ExistingIndex, int32 NewIndex)
-			{
-				if (!MeshData->ExistingOriginalReductionSourceMeshData[ExistingIndex].IsValid() || MeshData->ExistingOriginalReductionSourceMeshData[ExistingIndex]->IsEmpty())
-				{
-					return;
-				}
-				//Restore the original reduction source mesh data
-				FSkeletalMeshLODModel BaseLODModel;
-				TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
-				MeshData->ExistingOriginalReductionSourceMeshData[ExistingIndex]->LoadReductionData(BaseLODModel, BaseLODMorphTargetData, SkeletalMesh);
-				FReductionBaseSkeletalMeshBulkData* ReductionLODData = new FReductionBaseSkeletalMeshBulkData();
-				ReductionLODData->SaveReductionData(BaseLODModel, BaseLODMorphTargetData, SkeletalMesh);
-				//Add necessary empty slot
-				while (SkeletalMeshImportedModel->OriginalReductionSourceMeshData.Num() < NewIndex)
-				{
-					FReductionBaseSkeletalMeshBulkData* EmptyReductionLODData = new FReductionBaseSkeletalMeshBulkData();
-					SkeletalMeshImportedModel->OriginalReductionSourceMeshData.Add(EmptyReductionLODData);
-				}
-				SkeletalMeshImportedModel->OriginalReductionSourceMeshData.Add(ReductionLODData);
-			};
-
 			if (SkeletonsAreCompatible(SkeletalMesh->GetRefSkeleton(), MeshData->ExistingRefSkeleton, bImportSkinningOnly))
 			{
 				// First create mapping table from old skeleton to new skeleton.
@@ -912,7 +821,35 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 						//We need to add LODInfo
 						SkeletalMeshImportedModel->LODModels.Add(LODModelCopy);
 						SkeletalMesh->AddLODInfo(LODInfo);
-						RestoreReductionSourceData(LODIndex, SkeletalMesh->GetLODNum() - 1);
+						
+						auto FillInlineReductionData = [&MeshData, &SkeletalMeshImportedModel, LODIndex]()
+						{
+							if (MeshData->ExistingInlineReductionCacheDatas.IsValidIndex(LODIndex))
+							{
+								SkeletalMeshImportedModel->InlineReductionCacheDatas[LODIndex] = MeshData->ExistingInlineReductionCacheDatas[LODIndex];
+							}
+							else
+							{
+								SkeletalMeshImportedModel->InlineReductionCacheDatas[LODIndex].SetCacheGeometryInfo(SkeletalMeshImportedModel->LODModels[LODIndex]);
+							}
+						};
+
+						if (!SkeletalMeshImportedModel->InlineReductionCacheDatas.IsValidIndex(LODIndex))
+						{
+							SkeletalMeshImportedModel->InlineReductionCacheDatas.AddDefaulted(LODIndex + 1 - SkeletalMeshImportedModel->InlineReductionCacheDatas.Num());
+							check(SkeletalMeshImportedModel->InlineReductionCacheDatas.IsValidIndex(LODIndex));
+							FillInlineReductionData();
+						}
+						else
+						{
+							uint32 LODVertexCount = MAX_uint32;
+							uint32 LODTriangleCount = MAX_uint32;
+							SkeletalMeshImportedModel->InlineReductionCacheDatas[LODIndex].GetCacheGeometryInfo(LODVertexCount, LODTriangleCount);
+							if (LODVertexCount == MAX_uint32 || LODTriangleCount == MAX_uint32)
+							{
+								FillInlineReductionData();
+							}
+						}
 					}
 				}
 			}
@@ -988,14 +925,6 @@ void SkeletalMeshImportUtils::RestoreExistingSkelMeshData(const TSharedPtr<const
 		}
 		UserDataObject->Rename(nullptr, SkeletalMesh, REN_DontCreateRedirectors | REN_DoNotDirty);
 		SkeletalMesh->AddAssetUserData(UserDataObject);
-	}
-
-	if (!bImportSkinningOnly && (!MeshData->ExistingLODInfo.IsValidIndex(SafeReimportLODIndex) || !MeshData->ExistingLODInfo[SafeReimportLODIndex].bHasBeenSimplified))
-	{
-		if (SkeletalMeshImportedModel->OriginalReductionSourceMeshData.IsValidIndex(SafeReimportLODIndex))
-		{
-			SkeletalMeshImportedModel->OriginalReductionSourceMeshData[SafeReimportLODIndex]->EmptyBulkData();
-		}
 	}
 
 	//Copy mesh changed delegate data

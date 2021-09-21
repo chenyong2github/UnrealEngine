@@ -47,8 +47,14 @@ public:
 	FString GetLODModelIdString() const;
 
 	ENGINE_API void EmptyOriginalReductionSourceMeshData();
+	
 	/* When user reduce an imported LOD with himself (BaseLOD == TargetLOD), we need to store some imported model data so we can reduce again from the same data.*/
-	TArray<FReductionBaseSkeletalMeshBulkData*> OriginalReductionSourceMeshData;
+	/* We do not need to store such a data, since we can use the USkeletalMesh::MeshEditorDataObject which have the imported data */
+	TArray<FReductionBaseSkeletalMeshBulkData*> OriginalReductionSourceMeshData_DEPRECATED;
+
+	/* When user reduce an imported LOD with himself (BaseLOD == TargetLOD), we need to store the geometry count (vertex count and triangle count).
+	We use this data to query if the reduction is active when the reduction criterion is an absolute vertex/triangle number*/
+	TArray<FInlineReductionCacheData> InlineReductionCacheDatas;
 #endif
 
 	/** Serialize to/from the specified archive.. */

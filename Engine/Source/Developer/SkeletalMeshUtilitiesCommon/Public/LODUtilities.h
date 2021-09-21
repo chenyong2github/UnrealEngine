@@ -6,7 +6,9 @@
 #include "MeshBuild.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#include "Rendering/SkeletalMeshLODModel.h"
 #include "Framework/Commands/UIAction.h"
+#include "Animation/MorphTarget.h"
 
 namespace ClothingAssetUtils
 {
@@ -23,6 +25,14 @@ struct FSkeletalMeshUpdateContext
 	TArray<UActorComponent*>	AssociatedComponents;
 
 	FExecuteAction				OnLODChanged;
+};
+
+/* Helper struct to define inline data when applying morph target on a reduce LOD. Inline data is needed when reduction is inline (LOD reduce itself). */
+struct FInlineReductionDataParameter
+{
+	bool bIsDataValid = false;
+	FSkeletalMeshLODModel InlineOriginalSrcModel;
+	TMap<FString, TArray<FMorphTargetDelta>> InlineOriginalSrcMorphTargetData;
 };
 
 class FSkeletalMeshImportData;
@@ -85,7 +95,7 @@ public:
 	* @param LodIndex - The LOD index to restore the imported LOD model
 	* @param bReregisterComponent - if true the component using the skeletal mesh will all be re register.
 	*/
-	static bool RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex);
+	static bool RestoreSkeletalMeshLODImportedData_DEPRECATED(USkeletalMesh* SkeletalMesh, int32 LodIndex);
 	
 	/**
 	 * Refresh LOD Change
@@ -185,7 +195,7 @@ private:
 	* @param SourceLOD      - The source LOD morph target .
 	* @param DestinationLOD   - The destination LOD morph target to apply the source LOD morph target
 	*/
-	static void ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 SourceLOD, int32 DestinationLOD);
+	static void ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 SourceLOD, int32 DestinationLOD, const FInlineReductionDataParameter& InlineApplyMorphTargetParameter);
 
 	/**
 	*  Clear generated morphtargets for the given LODs

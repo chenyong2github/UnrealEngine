@@ -5829,7 +5829,6 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 {
 	for (int32 LodIndex = 0; LodIndex < SkeletalMesh->GetLODNum(); LodIndex++)
 	{
-		const FSkeletalMeshLODModel* LODModel = &(SkeletalMesh->GetImportedModel()->LODModels[LodIndex]);
 		const FSkeletalMeshLODInfo* ThisLODInfo = SkeletalMesh->GetLODInfo(LodIndex);
 
 		check(ThisLODInfo);
@@ -5839,51 +5838,49 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 		{
 			continue;
 		}
-		const bool bReductionActive = SkeletalMesh->IsReductionActive(LodIndex);
-		const bool bInlineReduction = bReductionActive && (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
-		if (bReductionActive && !bInlineReduction)
+		const bool bInlineReduction = SkeletalMesh->IsReductionActive(LodIndex) && (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
+		if (!bInlineReduction)
 		{
 			//Generated LOD (not inline) do not need imported data
 			continue;
 		}
 
-		TMap<FString, TArray<FMorphTargetDelta>> LODMorphTargetData;
-		FSkeletalMeshLODModel TempLODModel;
-		if (bInlineReduction)
+		//Find the reduction data to restore the imported LODModel by using the deprecated OriginalReductionSourceMeshData_DEPRECATED data
+		if (SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED.IsValidIndex(LodIndex))
 		{
-			//Find the reduction data to restore the imported LODModel
-			if (!SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LodIndex))
-			{
-				//We should never end up here since the inline reduction feature add this data to assets
-				const bool bSkeletalMeshInlineReductionHasOriginalData = false;
-				UE_ASSET_LOG(LogSkeletalMesh, Warning, SkeletalMesh, TEXT("LOD %d do not have original reduction data but use inline reduction"), LodIndex);
-				checkSlow(bSkeletalMeshInlineReductionHasOriginalData);
-				continue;
-			}
+			FSkeletalMeshLODModel& ToUpdateLODModel = SkeletalMesh->GetImportedModel()->LODModels[LodIndex];
+			TMap<FString, TArray<FMorphTargetDelta>> LODMorphTargetData;
+			
+			//Old inline reduced assets do not have the original imported skin weight data, it must be re-import if we want to convert it to import data
 			//Swap the LODModel pointer to the one we store when reducing, so we add the true import data
-			SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(TempLODModel, LODMorphTargetData, SkeletalMesh);
-		}
-		else
-		{
-			LODMorphTargetData.Empty(SkeletalMesh->GetMorphTargets().Num());
-			for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
+			SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED[LodIndex]->LoadReductionData(ToUpdateLODModel, LODMorphTargetData, SkeletalMesh);
+
+			TArray<UMorphTarget*> OriginalMorphTargets;
+			OriginalMorphTargets.Reserve(LODMorphTargetData.Num());
+			for (const TPair<FString, TArray<FMorphTargetDelta>>& MorphTargetChannel : LODMorphTargetData)
 			{
-				if (!MorphTarget->HasDataForLOD(LodIndex))
+				UMorphTarget* ExistingMorphTarget = nullptr;
+				for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
 				{
-					continue;
+					if (MorphTarget->GetName() == MorphTargetChannel.Key)
+					{
+						ExistingMorphTarget = MorphTarget;
+					}
 				}
-				TArray<FMorphTargetDelta>& MorphDeltasArray = LODMorphTargetData.FindOrAdd(MorphTarget->GetName());
-				const FMorphTargetLODModel& BaseMorphModel = MorphTarget->GetMorphLODModels()[LodIndex];
-				//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
-				for (const FMorphTargetDelta& MorphDelta : BaseMorphModel.Vertices)
+				if (!ExistingMorphTarget)
 				{
-					MorphDeltasArray.Add(MorphDelta);
+					FName MorphTargetName = *(MorphTargetChannel.Key);
+					ExistingMorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
+					check(ExistingMorphTarget);
 				}
+
+				const TArray<FMorphTargetDelta>& MorphTargetDeltas = MorphTargetChannel.Value;
+				ExistingMorphTarget->PopulateDeltas(MorphTargetDeltas, LodIndex, ToUpdateLODModel.Sections, ThisLODInfo->BuildSettings.bRecomputeNormals, false, ThisLODInfo->BuildSettings.MorphThresholdPosition);
 			}
-			FSkeletalMeshLODModel::CopyStructure(&TempLODModel, LODModel);
 		}
 
-		//Now use the TempLODModel and the LODMorphTargetData to build an importData
+		FSkeletalMeshLODModel* LODModel = &(SkeletalMesh->GetImportedModel()->LODModels[LodIndex]);
+
 		FSkeletalMeshImportData ImportData;
 		ImportData.bDiffPose = false;
 		ImportData.bHasNormals = true;
@@ -5891,21 +5888,52 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 		ImportData.bUseT0AsRefPose = false;
 		ImportData.bHasVertexColors = SkeletalMesh->GetHasVertexColors();
 
-		const TArray<FSkeletalMaterial>& SKMaterials = SkeletalMesh->GetMaterials();
+		TArray<FSkeletalMaterial>& SKMaterials = SkeletalMesh->GetMaterials();
 		ImportData.Materials.Reserve(SkeletalMesh->GetMaterials().Num());
+		TArray<FName> UniqueMaterialNames;
 		for (int32 MaterialIndex = 0; MaterialIndex < SKMaterials.Num(); ++MaterialIndex)
 		{
-			SkeletalMeshImportData::FMaterial& Material = ImportData.Materials.AddDefaulted_GetRef();
+			SkeletalMeshImportData::FMaterial& Material = ImportData.Materials.AddZeroed_GetRef();
 			Material.Material = SKMaterials[MaterialIndex].MaterialInterface;
+			//Make sure skeletal mesh material has the slot name set properly
+			if (SKMaterials[MaterialIndex].ImportedMaterialSlotName == NAME_None)
+			{
+				if (SKMaterials[MaterialIndex].MaterialInterface)
+				{
+					SKMaterials[MaterialIndex].ImportedMaterialSlotName = SKMaterials[MaterialIndex].MaterialInterface->GetFName();
+				}
+				else if (SKMaterials[MaterialIndex].MaterialSlotName != NAME_None)
+				{
+					SKMaterials[MaterialIndex].ImportedMaterialSlotName = SKMaterials[MaterialIndex].MaterialSlotName;
+				}
+				else
+				{
+					//We cannot find any valid name
+					UE_ASSET_LOG(LogSkeletalMesh, Display, SkeletalMesh, TEXT("FMeshUtilities::CreateImportDataFromLODModel: Cannot assign valid slotname to material slot"));
+					SKMaterials[MaterialIndex].ImportedMaterialSlotName = NAME_None;
+				}
+				//each material slot must have a unique imported material name
+				while (UniqueMaterialNames.Contains(SKMaterials[MaterialIndex].ImportedMaterialSlotName))
+				{
+					const int32 NameUniqueNumber = SKMaterials[MaterialIndex].ImportedMaterialSlotName.GetNumber() + 1;
+					SKMaterials[MaterialIndex].ImportedMaterialSlotName.SetNumber(NameUniqueNumber);
+				}
+			}
+			if (SKMaterials[MaterialIndex].MaterialSlotName == NAME_None)
+			{
+				SKMaterials[MaterialIndex].MaterialSlotName = SKMaterials[MaterialIndex].ImportedMaterialSlotName;
+			}
+			UniqueMaterialNames.Add(SKMaterials[MaterialIndex].ImportedMaterialSlotName);
+
 			Material.MaterialImportName = SKMaterials[MaterialIndex].ImportedMaterialSlotName.ToString();
 		}
 
-		ImportData.NumTexCoords = FMath::Min(TempLODModel.NumTexCoords, static_cast<uint32>(MAX_TEXCOORDS));
+		ImportData.NumTexCoords = FMath::Min(LODModel->NumTexCoords, static_cast<uint32>(MAX_TEXCOORDS));
 
 		const FReferenceSkeleton& ReferenceSkeleton = SkeletalMesh->GetRefSkeleton();
 		for (int32 BoneIndex = 0; BoneIndex < ReferenceSkeleton.GetRawBoneNum(); ++BoneIndex)
 		{
-			SkeletalMeshImportData::FBone& RefBone = ImportData.RefBonesBinary.AddDefaulted_GetRef();
+			SkeletalMeshImportData::FBone& RefBone = ImportData.RefBonesBinary.AddZeroed_GetRef();
 			const FMeshBoneInfo& MeshBoneInfo = ReferenceSkeleton.GetRawRefBoneInfo()[BoneIndex];
 			const FTransform& MeshBonePose = ReferenceSkeleton.GetRawRefBonePose()[BoneIndex];
 			RefBone.Name = MeshBoneInfo.ExportName;
@@ -5920,17 +5948,17 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 		}
 
 		TArray<FSoftSkinVertex> Vertices;
-		TempLODModel.GetVertices(Vertices);
+		LODModel->GetVertices(Vertices);
 		const int32 VertexCount = Vertices.Num();
-		const int32 TriangleCount = TempLODModel.IndexBuffer.Num() / 3;
+		const int32 TriangleCount = LODModel->IndexBuffer.Num() / 3;
 		ImportData.Points.Reserve(VertexCount);
 		ImportData.PointToRawMap.Reserve(VertexCount);
 		ImportData.Wedges.Reserve(VertexCount);
 		ImportData.Faces.Reserve(TriangleCount);
 
-		for (int32 SectionIndex = 0; SectionIndex < TempLODModel.Sections.Num(); ++SectionIndex)
+		for (int32 SectionIndex = 0; SectionIndex < LODModel->Sections.Num(); ++SectionIndex)
 		{
-			const FSkelMeshSection& Section = TempLODModel.Sections[SectionIndex];
+			const FSkelMeshSection& Section = LODModel->Sections[SectionIndex];
 			int32 VerticeIndexStart = Section.BaseVertexIndex;
 			int32 VerticeIndexEnd = VerticeIndexStart + Section.GetNumVertices();
 			int32 MaterialIndex = Section.MaterialIndex;
@@ -5948,7 +5976,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 					{
 						break;
 					}
-					SkeletalMeshImportData::FRawBoneInfluence& Influence = ImportData.Influences.AddDefaulted_GetRef();
+					SkeletalMeshImportData::FRawBoneInfluence& Influence = ImportData.Influences.AddZeroed_GetRef();
 					Influence.VertexIndex = PointIndex;
 					Influence.BoneIndex = Section.BoneMap[Vertex.InfluenceBones[InfluenceIndex]];
 					Influence.Weight = static_cast<float>(Vertex.InfluenceWeights[InfluenceIndex]) / 255.0f;
@@ -5958,7 +5986,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 
 		for (int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 		{
-			SkeletalMeshImportData::FTriangle& Face = ImportData.Faces.AddDefaulted_GetRef();
+			SkeletalMeshImportData::FTriangle& Face = ImportData.Faces.AddZeroed_GetRef();
 			int32 IndexBufferIndex = TriangleIndex * 3;
 			int32 SectionIndex;
 			int32 VerticeIndex[3];
@@ -5966,25 +5994,25 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
 				const int32 WedgeIndex = ImportData.Wedges.Num();
-				VerticeIndex[Corner] = TempLODModel.IndexBuffer[IndexBufferIndex + Corner];
+				VerticeIndex[Corner] = LODModel->IndexBuffer[IndexBufferIndex + Corner];
 				int32 NextEdgeCornerIndex = (Corner + 1) % 3;
-				TempLODModel.GetSectionFromVertexIndex(VerticeIndex[Corner], SectionIndex, SectionVertexIndex[Corner]);
+				LODModel->GetSectionFromVertexIndex(VerticeIndex[Corner], SectionIndex, SectionVertexIndex[Corner]);
 				const FSoftSkinVertex& Vertex = Vertices[VerticeIndex[Corner]];
-				SkeletalMeshImportData::FVertex& Wedge = ImportData.Wedges.AddDefaulted_GetRef();
+				SkeletalMeshImportData::FVertex& Wedge = ImportData.Wedges.AddZeroed_GetRef();
 				Wedge.Color = Vertex.Color;
 				for (int32 UVIndex = 0; UVIndex < static_cast<int32>(ImportData.NumTexCoords); ++UVIndex)
 				{
 					Wedge.UVs[UVIndex] = Vertex.UVs[UVIndex];
 				}
 				Wedge.VertexIndex = VerticeIndex[Corner];
-				Wedge.MatIndex = TempLODModel.Sections[SectionIndex].MaterialIndex;
+				Wedge.MatIndex = LODModel->Sections[SectionIndex].MaterialIndex;
 
 				Face.WedgeIndex[Corner] = WedgeIndex;
 				Face.TangentX[Corner] = Vertex.TangentX;
 				Face.TangentY[Corner] = Vertex.TangentY;
 				Face.TangentZ[Corner] = Vertex.TangentZ;
 			}
-			Face.MatIndex = TempLODModel.Sections[SectionIndex].MaterialIndex;
+			Face.MatIndex = LODModel->Sections[SectionIndex].MaterialIndex;
 			//Faceted by default
 			Face.SmoothingGroups = 0x0;
 		}
@@ -5992,29 +6020,35 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 		//Recreate smooth group
 		ImportData.ComputeSmoothGroupFromNormals();
 
-		ImportData.MorphTargetNames.Reserve(LODMorphTargetData.Num());
-		ImportData.MorphTargetModifiedPoints.Reserve(LODMorphTargetData.Num());
-		ImportData.MorphTargets.Reserve(LODMorphTargetData.Num());
-		for (const TPair<FString, TArray<FMorphTargetDelta>>& MorphTargetChannel : LODMorphTargetData)
+		const int32 SrcMorphTargetNum = SkeletalMesh->GetMorphTargets().Num();
+		ImportData.MorphTargetNames.Reserve(SrcMorphTargetNum);
+		ImportData.MorphTargetModifiedPoints.Reserve(SrcMorphTargetNum);
+		ImportData.MorphTargets.Reserve(SrcMorphTargetNum);
+		for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
 		{
-			ImportData.MorphTargetNames.Add(MorphTargetChannel.Key);
-			const TArray<FMorphTargetDelta>& MorphTargetDeltas = MorphTargetChannel.Value;
+			if (!MorphTarget->HasDataForLOD(LodIndex))
+			{
+				continue;
+			}
+			ImportData.MorphTargetNames.Add(MorphTarget->GetName());
+			const FMorphTargetLODModel& BaseMorphModel = MorphTarget->GetMorphLODModels()[LodIndex];
 			FSkeletalMeshImportData& MorphImportShape = ImportData.MorphTargets.AddDefaulted_GetRef();
 			TSet<uint32>& ModifiedPoints = ImportData.MorphTargetModifiedPoints.AddDefaulted_GetRef();
-			for (const FMorphTargetDelta& MorphTargetDelta : MorphTargetDeltas)
+			//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
+			for (const FMorphTargetDelta& MorphTargetDelta : BaseMorphModel.Vertices)
 			{
 				ModifiedPoints.Add(MorphTargetDelta.SourceIdx);
 				MorphImportShape.Points.Add(MorphTargetDelta.PositionDelta + Vertices[MorphTargetDelta.SourceIdx].Position);
 			}
 		}
 
-		if (TempLODModel.SkinWeightProfiles.Num() > 0)
+		if (LODModel->SkinWeightProfiles.Num() > 0)
 		{
 			FSkeletalMeshImportData ReferenceCopy;
 			ReferenceCopy = ImportData;
 			ReferenceCopy.KeepAlternateSkinningBuildDataOnly();
 			ReferenceCopy.Influences.Empty();
-			for (TPair<FName, FImportedSkinWeightProfileData>& SkinWeightProfile : TempLODModel.SkinWeightProfiles)
+			for (TPair<FName, FImportedSkinWeightProfileData>& SkinWeightProfile : LODModel->SkinWeightProfiles)
 			{
 				FString ProfileName = SkinWeightProfile.Key.ToString();
 				FImportedSkinWeightProfileData& ImportedSkinWeightProfileData = SkinWeightProfile.Value;
@@ -6032,8 +6066,8 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 				{
 					int32 OutSectionIndex = INDEX_NONE;
 					int32 OutSectionVertexIndex = INDEX_NONE;
-					TempLODModel.GetSectionFromVertexIndex(VerticeIndex, OutSectionIndex, OutSectionVertexIndex);
-					const FSkelMeshSection& Section = TempLODModel.Sections[OutSectionIndex];
+					LODModel->GetSectionFromVertexIndex(VerticeIndex, OutSectionIndex, OutSectionVertexIndex);
+					const FSkelMeshSection& Section = LODModel->Sections[OutSectionIndex];
 					const FRawSkinWeight& SkinWeight = ImportedSkinWeightProfileData.SkinWeights[VerticeIndex];
 					for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 					{
@@ -6042,11 +6076,11 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 						{
 							break;
 						}
-						SkeletalMeshImportData::FRawBoneInfluence& Influence = AlternateInfluence.Influences.AddDefaulted_GetRef();
+						SkeletalMeshImportData::FRawBoneInfluence& Influence = AlternateInfluence.Influences.AddZeroed_GetRef();
 						Influence.VertexIndex = VerticeIndex;
 						Influence.BoneIndex = Section.BoneMap[SkinWeight.InfluenceBones[InfluenceIndex]];
 						Influence.Weight = Weight;
-						SkeletalMeshImportData::FVertInfluence& SourceModelInfluence = ImportedSkinWeightProfileData.SourceModelInfluences.AddDefaulted_GetRef();
+						SkeletalMeshImportData::FVertInfluence& SourceModelInfluence = ImportedSkinWeightProfileData.SourceModelInfluences.AddZeroed_GetRef();
 						SourceModelInfluence.VertIndex = VerticeIndex;
 						SourceModelInfluence.BoneIndex = SkinWeight.InfluenceBones[InfluenceIndex];
 						SourceModelInfluence.Weight = Weight;
@@ -6058,6 +6092,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 
 		SkeletalMesh->SaveLODImportedData(LodIndex, ImportData);
 		SkeletalMesh->SetLODImportedDataVersions(LodIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
+		UE_ASSET_LOG(LogSkeletalMesh, Display, SkeletalMesh, TEXT("FMeshUtilities::CreateImportDataFromLODModel: ImportData created for LOD %d"), LodIndex);
 	}
 }
 

@@ -374,23 +374,20 @@ void FLODUtilities::RemoveLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 D
 				SkeletalMesh->SaveLODImportedData(FirstDepLODIndex, ToRemovedLODImportData);
 
 				//Manage the override original reduction source mesh data
-				if (SkelMeshModel->OriginalReductionSourceMeshData.IsValidIndex(FirstDepLODIndex) && SkelMeshModel->OriginalReductionSourceMeshData[FirstDepLODIndex])
+				if (SkelMeshModel->InlineReductionCacheDatas.IsValidIndex(FirstDepLODIndex))
 				{
 					if(SkeletalMesh->IsLODImportedDataBuildAvailable(DesiredLOD))
 					{
-						//Empty the OriginalReductionSourceMeshData it will be recreate when we will rebuild the asset
-						SkelMeshModel->OriginalReductionSourceMeshData[FirstDepLODIndex]->EmptyBulkData();
+						//The inline reduction cache data will be recache by the build
+						SkelMeshModel->InlineReductionCacheDatas[FirstDepLODIndex].SetCacheGeometryInfo(MAX_uint32, MAX_uint32);
 					}
-					//If we are modifying an old asset we have to duplicate the original reduction source mesh data from the source model
-					else if(SkelMeshModel->OriginalReductionSourceMeshData.IsValidIndex(DesiredLOD) &&
-						SkelMeshModel->OriginalReductionSourceMeshData[DesiredLOD] &&
-						!SkelMeshModel->OriginalReductionSourceMeshData[DesiredLOD]->IsEmpty())
+					else if(SkelMeshModel->InlineReductionCacheDatas.IsValidIndex(DesiredLOD))
 					{
 						//If there is no build copy the one from the DesiredLOD
-						FSkeletalMeshLODModel LODModel;
-						TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
-						SkelMeshModel->OriginalReductionSourceMeshData[DesiredLOD]->LoadReductionData(LODModel, BaseLODMorphTargetData, SkeletalMesh);
-						SkelMeshModel->OriginalReductionSourceMeshData[FirstDepLODIndex]->SaveReductionData(LODModel, BaseLODMorphTargetData, SkeletalMesh);
+						uint32 CacheVertexCount = 0;
+						uint32 CacheTriangleCount = 0;
+						SkelMeshModel->InlineReductionCacheDatas[DesiredLOD].GetCacheGeometryInfo(CacheVertexCount, CacheTriangleCount);
+						SkelMeshModel->InlineReductionCacheDatas[FirstDepLODIndex].SetCacheGeometryInfo(CacheVertexCount, CacheTriangleCount);
 					}
 				}
 
@@ -840,15 +837,8 @@ void ProjectTargetOnBase(const TArray<FSoftSkinVertex>& BaseVertices, const TArr
 	}
 }
 
-void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMeshBulkData* ReductionBaseSkeletalMeshBulkData, int32 SourceLOD, int32 DestinationLOD, const TMap<UMorphTarget *, TMap<uint32, uint32>>& PerMorphTargetBaseIndexToMorphTargetDelta, const TMap<uint32, TArray<uint32>>& BaseMorphIndexToTargetIndexList, const TArray<FSoftSkinVertex>& TargetVertices, const TArray<FTargetMatch>& TargetMatchData)
+void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, const FInlineReductionDataParameter& InlineReductionDataParameter, int32 SourceLOD, int32 DestinationLOD, const TMap<UMorphTarget *, TMap<uint32, uint32>>& PerMorphTargetBaseIndexToMorphTargetDelta, const TMap<uint32, TArray<uint32>>& BaseMorphIndexToTargetIndexList, const TArray<FSoftSkinVertex>& TargetVertices, const TArray<FTargetMatch>& TargetMatchData)
 {
-	TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
-	if (ReductionBaseSkeletalMeshBulkData != nullptr)
-	{
-		FSkeletalMeshLODModel TempBaseLODModel;
-		ReductionBaseSkeletalMeshBulkData->LoadReductionData(TempBaseLODModel, BaseLODMorphTargetData, SkeletalMesh);
-	}
-
 	FSkeletalMeshModel* SkeletalMeshModel = SkeletalMesh->GetImportedModel();
 	const FSkeletalMeshLODModel& TargetLODModel = SkeletalMeshModel->LODModels[DestinationLOD];
 
@@ -860,9 +850,9 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMes
 		{
 			continue;
 		}
-		bool bUseBaseMorphDelta = SourceLOD == DestinationLOD && BaseLODMorphTargetData.Contains(MorphTarget->GetFullName());
+		bool bUseBaseMorphDelta = SourceLOD == DestinationLOD && InlineReductionDataParameter.bIsDataValid && InlineReductionDataParameter.InlineOriginalSrcMorphTargetData.Contains(MorphTarget->GetFullName());
 
-		const TArray<FMorphTargetDelta> *BaseMorphDeltas = bUseBaseMorphDelta ? BaseLODMorphTargetData.Find(MorphTarget->GetFullName()) : nullptr;
+		const TArray<FMorphTargetDelta> *BaseMorphDeltas = bUseBaseMorphDelta ? InlineReductionDataParameter.InlineOriginalSrcMorphTargetData.Find(MorphTarget->GetFullName()) : nullptr;
 		if (BaseMorphDeltas == nullptr || BaseMorphDeltas->Num() <= 0)
 		{
 			bUseBaseMorphDelta = false;
@@ -996,7 +986,7 @@ void FLODUtilities::ClearGeneratedMorphTarget(USkeletalMesh* SkeletalMesh, int32
 	}
 }
 
-void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 SourceLOD, int32 DestinationLOD)
+void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 SourceLOD, int32 DestinationLOD, const FInlineReductionDataParameter& InlineReductionDataParameter)
 {
 	check(SkeletalMesh);
 	FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
@@ -1010,8 +1000,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	}
 
 	FSkeletalMeshLODModel& SourceLODModel = SkeletalMeshResource->LODModels[SourceLOD];
-	FReductionBaseSkeletalMeshBulkData* ReductionBaseSkeletalMeshBulkData = nullptr;
-	bool bReduceBaseLOD = DestinationLOD == SourceLOD && SkeletalMeshResource->OriginalReductionSourceMeshData.IsValidIndex(SourceLOD) && !SkeletalMeshResource->OriginalReductionSourceMeshData[SourceLOD]->IsEmpty();
+	bool bReduceBaseLOD = DestinationLOD == SourceLOD && InlineReductionDataParameter.bIsDataValid;
 	if (!bReduceBaseLOD && SourceLOD == DestinationLOD)
 	{
 		//Abort remapping of morph target since the data is missing
@@ -1033,20 +1022,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 		return;
 	}
 
-	if (bReduceBaseLOD)
-	{
-		ReductionBaseSkeletalMeshBulkData = SkeletalMeshResource->OriginalReductionSourceMeshData[SourceLOD];
-	}
-
-	FSkeletalMeshLODModel TempBaseLODModel;
-	TMap<FString, TArray<FMorphTargetDelta>> TempBaseLODMorphTargetData;
-	if (bReduceBaseLOD)
-	{
-		check(ReductionBaseSkeletalMeshBulkData != nullptr);
-		ReductionBaseSkeletalMeshBulkData->LoadReductionData(TempBaseLODModel, TempBaseLODMorphTargetData, SkeletalMesh);
-	}
-
-	const FSkeletalMeshLODModel& BaseLODModel = bReduceBaseLOD ? TempBaseLODModel : SkeletalMeshResource->LODModels[SourceLOD];
+	const FSkeletalMeshLODModel& BaseLODModel = bReduceBaseLOD ? InlineReductionDataParameter.InlineOriginalSrcModel : SkeletalMeshResource->LODModels[SourceLOD];
 	const FSkeletalMeshLODInfo* BaseLODInfo = SkeletalMesh->GetLODInfo(SourceLOD);
 	const FSkeletalMeshLODModel& TargetLODModel = SkeletalMeshResource->LODModels[DestinationLOD];
 	const FSkeletalMeshLODInfo* TargetLODInfo = SkeletalMesh->GetLODInfo(DestinationLOD);
@@ -1103,7 +1079,12 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 		}
 	}
 	//We should have match all the target sections
-	check(!TargetSectionMatchBaseIndex.Contains(INDEX_NONE));
+	if (TargetSectionMatchBaseIndex.Contains(INDEX_NONE))
+	{
+		//This case is not fatal but need attention.
+		//Because of the chunking its possible a generated LOD end up with more sections.
+		UE_ASSET_LOG(LogLODUtilities, Display, SkeletalMesh, TEXT("FLODUtilities::ApplyMorphTargetsToLOD: The target contain more section then the source. Extra sections will not be affected by morph targets remap"));
+	}
 	TArray<FSoftSkinVertex> BaseVertices;
 	TArray<FSoftSkinVertex> TargetVertices;
 	BaseLODModel.GetVertices(BaseVertices);
@@ -1141,8 +1122,8 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 			continue;
 		}
 
-		bool bUseTempMorphDelta = SourceLOD == DestinationLOD && bReduceBaseLOD && TempBaseLODMorphTargetData.Contains(MorphTarget->GetFullName());
-		const TArray<FMorphTargetDelta> *TempMorphDeltas = bUseTempMorphDelta ? TempBaseLODMorphTargetData.Find(MorphTarget->GetFullName()) : nullptr;
+		bool bUseTempMorphDelta = SourceLOD == DestinationLOD && bReduceBaseLOD && InlineReductionDataParameter.InlineOriginalSrcMorphTargetData.Contains(MorphTarget->GetFullName());
+		const TArray<FMorphTargetDelta> *TempMorphDeltas = bUseTempMorphDelta ? InlineReductionDataParameter.InlineOriginalSrcMorphTargetData.Find(MorphTarget->GetFullName()) : nullptr;
 		if (TempMorphDeltas == nullptr || TempMorphDeltas->Num() <= 0)
 		{
 			bUseTempMorphDelta = false;
@@ -1173,7 +1154,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 		}
 	}
 	//Create the target morph target
-	CreateLODMorphTarget(SkeletalMesh, ReductionBaseSkeletalMeshBulkData, SourceLOD, DestinationLOD, PerMorphTargetBaseIndexToMorphTargetDelta, BaseMorphIndexToTargetIndexList, TargetVertices, TargetMatchData);
+	CreateLODMorphTarget(SkeletalMesh, InlineReductionDataParameter, SourceLOD, DestinationLOD, PerMorphTargetBaseIndexToMorphTargetDelta, BaseMorphIndexToTargetIndexList, TargetVertices, TargetMatchData);
 }
 
 void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, const ITargetPlatform* TargetPlatform, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
@@ -1194,7 +1175,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 	if (DesiredLOD == 0
 		&& SkeletalMesh->GetLODInfo(DesiredLOD) != nullptr
 		&& SkeletalMesh->GetLODInfo(DesiredLOD)->bHasBeenSimplified
-		&& (!SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(0) || SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[0]->IsEmpty()))
+		&& !SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas.IsValidIndex(0))
 	{
 		//The base LOD was reduce and there is no valid data, we cannot regenerate this lod it must be re-import before
 		FFormatNamedArguments Args;
@@ -1231,6 +1212,8 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		FLODUtilities::UnbindClothingAndBackup(SkeletalMesh, ClothingBindings, DesiredLOD);
 	}
 
+	FInlineReductionDataParameter InlineReductionDataParameter;
+
 	if (SkeletalMesh->GetLODInfo(DesiredLOD) != nullptr)
 	{
 		FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
@@ -1239,55 +1222,57 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		//We must save the original reduction data, special case when we reduce inline we save even if its already simplified
 		if (SkeletalMeshResource->LODModels.IsValidIndex(DesiredLOD) && (!SkeletalMesh->GetLODInfo(DesiredLOD)->bHasBeenSimplified || DesiredLOD == Settings.BaseLOD))
 		{
-			// Caller should not call this in multithread if the LOD was never simplified or if its doing inline reduction
-			check(IsInGameThread());
 
 			FSkeletalMeshLODModel& SrcModel = SkeletalMeshResource->LODModels[DesiredLOD];
-			while (DesiredLOD >= SkeletalMeshResource->OriginalReductionSourceMeshData.Num())
+			if (!SkeletalMeshResource->InlineReductionCacheDatas.IsValidIndex(DesiredLOD))
 			{
-				FReductionBaseSkeletalMeshBulkData *EmptyReductionData = new FReductionBaseSkeletalMeshBulkData();
-				SkeletalMeshResource->OriginalReductionSourceMeshData.Add(EmptyReductionData);
+				//We should not do that in a worker thread, the serialization of the SkeletalMeshResource is suppose to allocate the correct number of inline data caches
+				//If the user add LOD in person editor, the simplification will be call in the game thread, see FLODUtilities::RegenerateLOD
+				if (!ensure(IsInGameThread()))
+				{
+					UE_ASSET_LOG(LogLODUtilities, Error, SkeletalMesh, TEXT("FLODUtilities::SimplifySkeletalMeshLOD: InlineReductionCacheDatas was not added in the game thread."));
+				}
+				SkeletalMeshResource->InlineReductionCacheDatas.AddDefaulted((DesiredLOD + 1) - SkeletalMeshResource->InlineReductionCacheDatas.Num());
 			}
-			check(SkeletalMeshResource->OriginalReductionSourceMeshData.IsValidIndex(DesiredLOD));
-			//Make the copy of the data only once until the ImportedModel change (re-imported)
-			if (SkeletalMeshResource->OriginalReductionSourceMeshData[DesiredLOD]->IsEmpty())
+			check(SkeletalMeshResource->InlineReductionCacheDatas.IsValidIndex(DesiredLOD));
+			SkeletalMeshResource->InlineReductionCacheDatas[DesiredLOD].SetCacheGeometryInfo(SrcModel);
+
+			InlineReductionDataParameter.InlineOriginalSrcMorphTargetData.Empty(SkeletalMesh->GetMorphTargets().Num());
+			for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
 			{
-				TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;
-				BaseLODMorphTargetData.Empty(SkeletalMesh->GetMorphTargets().Num());
-				for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
+				if (!MorphTarget->HasDataForLOD(DesiredLOD))
 				{
-					if (!MorphTarget->HasDataForLOD(DesiredLOD))
-					{
-						continue;
-					}
-					TArray<FMorphTargetDelta>& MorphDeltasArray = BaseLODMorphTargetData.FindOrAdd(MorphTarget->GetFullName());
-					//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
-					int32 NumDeltas = 0;
-					const FMorphTargetDelta* BaseDeltaArray = MorphTarget->GetMorphTargetDelta(DesiredLOD, NumDeltas);
-					for (int32 DeltaIndex = 0; DeltaIndex < NumDeltas; DeltaIndex++)
-					{
-						MorphDeltasArray.Add(BaseDeltaArray[DeltaIndex]);
-					}
+					continue;
 				}
-				
-				// Copy the original SkeletalMesh LODModel
-				// Unbind clothing before saving the original data, we must not restore clothing to do inline reduction
+				TArray<FMorphTargetDelta>& MorphDeltasArray = InlineReductionDataParameter.InlineOriginalSrcMorphTargetData.FindOrAdd(MorphTarget->GetFullName());
+				const FMorphTargetLODModel& BaseMorphModel = MorphTarget->GetMorphLODModels()[DesiredLOD];
+				//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
+				int32 NumDeltas = 0;
+				const FMorphTargetDelta* BaseDeltaArray = MorphTarget->GetMorphTargetDelta(DesiredLOD, NumDeltas);
+				for (int32 DeltaIndex = 0; DeltaIndex < NumDeltas; DeltaIndex++)
 				{
-					TArray<ClothingAssetUtils::FClothingAssetMeshBinding> TemporaryRemoveClothingBindings;
-					FLODUtilities::UnbindClothingAndBackup(SkeletalMesh, TemporaryRemoveClothingBindings, DesiredLOD);
-
-					SkeletalMeshResource->OriginalReductionSourceMeshData[DesiredLOD]->SaveReductionData(SrcModel, BaseLODMorphTargetData, SkeletalMesh);
-
-					if (TemporaryRemoveClothingBindings.Num() > 0)
-					{
-						FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, TemporaryRemoveClothingBindings, DesiredLOD);
-					}
+					MorphDeltasArray.Add(BaseDeltaArray[DeltaIndex]);
 				}
+			}
 
-				if (DesiredLOD == 0)
+			// Copy the original SkeletalMesh LODModel
+			// Unbind clothing before saving the original data, we must not restore clothing to do inline reduction
+			{
+				TArray<ClothingAssetUtils::FClothingAssetMeshBinding> TemporaryRemoveClothingBindings;
+				FLODUtilities::UnbindClothingAndBackup(SkeletalMesh, TemporaryRemoveClothingBindings, DesiredLOD);
+
+				FSkeletalMeshLODModel::CopyStructure(&InlineReductionDataParameter.InlineOriginalSrcModel, &SrcModel);
+
+				if (TemporaryRemoveClothingBindings.Num() > 0)
 				{
-					SkeletalMesh->GetLODInfo(DesiredLOD)->SourceImportFilename = SkeletalMesh->GetAssetImportData()->GetFirstFilename();
+					FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, TemporaryRemoveClothingBindings, DesiredLOD);
 				}
+			}
+			InlineReductionDataParameter.bIsDataValid = true;
+
+			if (DesiredLOD == 0)
+			{
+				SkeletalMesh->GetLODInfo(DesiredLOD)->SourceImportFilename = SkeletalMesh->GetAssetImportData()->GetFirstFilename();
 			}
 		}
 	}
@@ -1296,21 +1281,20 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 	{
 		check(SkeletalMesh->GetLODNum() >= 1);
 
-		auto ApplyMorphTargetOption = [&SkeletalMesh, &DesiredLOD]()
+		//Manage morph target after the reduction. either apply to the reduce LOD or clear them all
 		{
 			FSkeletalMeshOptimizationSettings& ReductionSettings = SkeletalMesh->GetLODInfo(DesiredLOD)->ReductionSettings;
 			//Apply morph to the new LOD. Force it if we reduce the base LOD, base LOD must apply the morph target
 			if (ReductionSettings.bRemapMorphTargets)
 			{
-				ApplyMorphTargetsToLOD(SkeletalMesh, ReductionSettings.BaseLOD, DesiredLOD);
+				ApplyMorphTargetsToLOD(SkeletalMesh, ReductionSettings.BaseLOD, DesiredLOD, InlineReductionDataParameter);
 			}
 			else
 			{
 				ClearGeneratedMorphTarget(SkeletalMesh, DesiredLOD);
 			}
-		};
+		}
 
-		ApplyMorphTargetOption();
 		if (IsInGameThread())
 		{
 			SkeletalMesh->MarkPackageDirty();
@@ -1367,57 +1351,12 @@ void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateCo
 	}
 }
 
-bool FLODUtilities::RestoreSkeletalMeshLODImportedData(USkeletalMesh* SkeletalMesh, int32 LodIndex)
+bool FLODUtilities::RestoreSkeletalMeshLODImportedData_DEPRECATED(USkeletalMesh* SkeletalMesh, int32 LodIndex)
 {
-	if (!SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LodIndex) || SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->IsEmpty())
-	{
-		//There is nothing to restore
-		return false;
-	}
-
-	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
-
-	// Unbind LodIndex existing clothing assets before restoring the LOD
-	TArray<ClothingAssetUtils::FClothingAssetMeshBinding> ClothingBindings;
-	FLODUtilities::UnbindClothingAndBackup(SkeletalMesh, ClothingBindings);
-
-	FSkeletalMeshLODModel ImportedBaseLODModel;
-	TMap<FString, TArray<FMorphTargetDelta>> ImportedBaseLODMorphTargetData;
-	SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(ImportedBaseLODModel, ImportedBaseLODMorphTargetData, SkeletalMesh);
-	{
-		if (!SkeletalMesh->IsLODImportedDataBuildAvailable(LodIndex))
-		{
-			ImportedBaseLODModel.UpdateChunkedSectionInfo(SkeletalMesh->GetName());
-		}
-		//When we restore a LOD we destroy the LODMaterialMap (user manual section material slot assignation)
-		FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(LodIndex);
-		LODInfo->LODMaterialMap.Empty();
-		LODInfo->bHasBeenSimplified = false;
-		//Copy the SkeletalMeshLODModel
-		FSkeletalMeshLODModel::CopyStructure(&(SkeletalMesh->GetImportedModel()->LODModels[LodIndex]), &ImportedBaseLODModel);
-		//Copy the morph target deltas
-		bool bInitMorphTargetData = false;
-		for (UMorphTarget *MorphTarget : SkeletalMesh->GetMorphTargets())
-		{
-			if (!ImportedBaseLODMorphTargetData.Contains(MorphTarget->GetFullName()))
-			{
-				continue;
-			}
-			TArray<FMorphTargetDelta>& ImportedDeltas = ImportedBaseLODMorphTargetData[MorphTarget->GetFullName()];
-
-			MorphTarget->PopulateDeltas(ImportedDeltas, LodIndex, SkeletalMesh->GetImportedModel()->LODModels[LodIndex].Sections, false, false);
-			bInitMorphTargetData |= SkeletalMesh->RegisterMorphTarget(MorphTarget, false);
-		}
-		SkeletalMesh->InitMorphTargetsAndRebuildRenderData();
-		
-		//Empty the bulkdata since we restore it
-		SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->EmptyBulkData();
-
-		//Put back the clothing for the restore LOD
-		FLODUtilities::RestoreClothingFromBackup(SkeletalMesh, ClothingBindings);
-	}
-
-	return true;
+	const bool bThisFunctionIsDeprecated = true;
+	ensure(!bThisFunctionIsDeprecated);
+	UE_ASSET_LOG(LogLODUtilities, Error, SkeletalMesh, TEXT("FLODUtilities::RestoreSkeletalMeshLODImportedData_DEPRECATED: This function is deprecated."));
+	return false;
 }
 
 void FLODUtilities::RefreshLODChange(const USkeletalMesh* SkeletalMesh)
@@ -2370,32 +2309,28 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 			SkeletalMesh->ReserveLODImportData(MaxDependentLODIndex);
 			//Reduce all dependent LODs
 			FThreadSafeBool bNeedsPackageDirtied(false);
-			TBitArray<> CanReduceLODInParallel;
-			CanReduceLODInParallel.Init(true, SkeletalMesh->GetLODNum());
-			//Reduce the LODs which need to save the OriginalReductionSourceMeshData in the main thread, bulkdata are not multithread safe.
-			for (int32 DependentLODIndex : DependentLODs)
-			{
-				const FSkeletalMeshLODInfo* DepLODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
-				if (!DepLODInfo || (!DepLODInfo->bHasBeenSimplified || DependentLODIndex == DepLODInfo->ReductionSettings.BaseLOD))
-				{
-					CanReduceLODInParallel[DependentLODIndex] = false;
-					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, TargetPlatform, false, &bNeedsPackageDirtied);
-				}
-			}
 			
-			// Reduce LODs in parallel
+			//Adjust the InlineReductionCacheDatas before simplifying dependent LODs
+			if (SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas.Num() < LODNumber)
+			{
+				SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas.AddDefaulted(LODNumber - SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas.Num());
+			}
+			else if (SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas.Num() > LODNumber)
+			{
+				//If we have too much entry simply shrink the array to valid LODModel size
+				SkeletalMesh->GetImportedModel()->InlineReductionCacheDatas.SetNum(LODNumber);
+			}
+
+			// Reduce LODs in parallel (reduction is multithread safe)
 			const bool bHasAccessToLockedProperties = !FSkeletalMeshAsyncBuildScope::ShouldWaitOnLockedProperties(SkeletalMesh);
-			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, &CanReduceLODInParallel, bHasAccessToLockedProperties, &TargetPlatform](int32 IterationIndex)
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, bHasAccessToLockedProperties, &TargetPlatform](int32 IterationIndex)
 			{
 				TUniquePtr<FSkeletalMeshAsyncBuildScope> AsyncBuildScope(bHasAccessToLockedProperties ? MakeUnique<FSkeletalMeshAsyncBuildScope>(SkeletalMesh) : nullptr);
 
 				check(DependentLODs.IsValidIndex(IterationIndex));
 				int32 DependentLODIndex = DependentLODs[IterationIndex];
-				if (CanReduceLODInParallel[DependentLODIndex])
-				{
-					check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
-					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, TargetPlatform, false, &bNeedsPackageDirtied);
-				}
+				check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
+				FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, TargetPlatform, false, &bNeedsPackageDirtied);
 			});
 
 			if (bNeedsPackageDirtied && IsInGameThread())
