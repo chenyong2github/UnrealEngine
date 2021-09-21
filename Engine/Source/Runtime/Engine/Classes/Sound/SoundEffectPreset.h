@@ -37,7 +37,7 @@ public:
 	virtual bool HasAssetActions() const { return false; }
 	virtual void Init() PURE_VIRTUAL(USoundEffectPreset::Init, );
 	virtual void OnInit() {};
-	virtual FColor GetPresetColor() const { return FColor(200.0f, 100.0f, 100.0f); }
+	virtual FColor GetPresetColor() const { return FColor(200, 100, 100); }
 
 	void Update();
 	void AddEffectInstance(TSoundEffectPtr& InEffectPtr);
