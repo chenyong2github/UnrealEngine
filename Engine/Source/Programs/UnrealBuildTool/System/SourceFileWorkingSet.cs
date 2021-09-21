@@ -114,7 +114,7 @@ namespace UnrealBuildTool
 
 			BackgroundProcess = new Process();
 			BackgroundProcess.StartInfo.FileName = GitPath;
-			BackgroundProcess.StartInfo.Arguments = "status --porcelain";
+			BackgroundProcess.StartInfo.Arguments = "--no-optional-locks status --porcelain";
 			BackgroundProcess.StartInfo.WorkingDirectory = RootDir.FullName;
 			BackgroundProcess.StartInfo.RedirectStandardOutput = true;
 			BackgroundProcess.StartInfo.RedirectStandardError = true;
