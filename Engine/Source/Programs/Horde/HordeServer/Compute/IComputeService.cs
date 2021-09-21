@@ -37,7 +37,7 @@ namespace HordeServer.Compute
 		/// <summary>
 		/// The input hash
 		/// </summary>
-		public CbObjectAttachment TaskHash { get; }
+		public CbObjectAttachment Task { get; }
 
 		/// <summary>
 		/// Timestamp for the event
@@ -48,6 +48,11 @@ namespace HordeServer.Compute
 		/// State of the task
 		/// </summary>
 		public ComputeTaskState State { get; }
+
+		/// <summary>
+		/// Indicates the outcome of a task
+		/// </summary>
+		public ComputeTaskOutcome Outcome { get; }
 
 		/// <summary>
 		/// When transitioning to the executing state, includes the agent name
@@ -62,7 +67,12 @@ namespace HordeServer.Compute
 		/// <summary>
 		/// Hash of the result, if complete
 		/// </summary>
-		public CbObjectAttachment? ResultHash { get; }
+		public CbObjectAttachment? Result { get; }
+
+		/// <summary>
+		/// Additional information for the given outcome
+		/// </summary>
+		public string? Detail { get; }
 	}
 
 	/// <summary>
