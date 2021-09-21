@@ -33,7 +33,7 @@ private:
 	TSharedRef<class SWidget> OnGenerateWidget(FName InMobilityName) const;
 	void OnMobilityChanged(FName InMobilityName, ESelectInfo::Type);
 	FText GetMobilityToolTip() const;
-	EComponentMobility::Type GetActiveMobility() const;
+	TOptional<EComponentMobility::Type> GetActiveMobility() const;
 	FText GetActiveMobilityText() const;
 	FText GetActiveMobilityToolTip() const;
 
