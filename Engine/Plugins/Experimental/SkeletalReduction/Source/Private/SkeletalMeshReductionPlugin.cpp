@@ -1872,7 +1872,8 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	// only allow to set BaseLOD if the LOD is less than this
 	if (Settings.BaseLOD > 0)
 	{
-		if (Settings.BaseLOD == LODIndex && (!SkelResource->OriginalReductionSourceMeshData.IsValidIndex(Settings.BaseLOD) || SkelResource->OriginalReductionSourceMeshData[Settings.BaseLOD]->IsEmpty()))
+		
+		if (Settings.BaseLOD == LODIndex && !SkeletalMesh.IsLODImportedDataBuildAvailable(LODIndex))
 		{
 			//Cannot reduce ourself if we are not imported
 			UE_LOG(LogSkeletalMeshReduction, Warning, TEXT("Building LOD %d - Cannot generate LOD with himself if the LOD do not have imported Data. Using Base LOD 0 instead"), LODIndex);
@@ -1940,17 +1941,9 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	bool bReducingSourceModel = false;
-	//Reducing source LOD, we need to use the temporary data so it can be iterative
-	if (BaseLOD == LODIndex && (SkelResource->OriginalReductionSourceMeshData.IsValidIndex(BaseLOD) && !SkelResource->OriginalReductionSourceMeshData[BaseLOD]->IsEmpty()))
+	//Reducing source LOD, we need to use the LOD import data so it can be iterative
+	if (BaseLOD == LODIndex && SkeletalMesh.IsLODImportedDataBuildAvailable(LODIndex))
 	{
-		TMap<FString, TArray<FMorphTargetDelta>> TempLODMorphTargetData;
-		SkelResource->OriginalReductionSourceMeshData[BaseLOD]->LoadReductionData(*SrcModel, TempLODMorphTargetData, &SkeletalMesh);
-
-		//Restore the section data state (like disabled...)
-		RestoreUserSectionsData(SrcModelBackup, *SrcModel);
-		//Rebackup the source model since we update it, source always have empty LODMaterial map
-		//If you swap a material ID and after you do inline reduction, you have to remap it again, but not if you reduce and then remap the materialID
-		//this is by design currently
 		bReducingSourceModel = true;
 	}
 	else
@@ -2008,7 +2001,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 		}
 
-		FBoneContainer RequiredBones(RequiredBoneIndexArray, false, *(&SkeletalMesh));
+		FBoneContainer RequiredBones(RequiredBoneIndexArray, false, SkeletalMesh);
 		RequiredBones.SetUseRAWData(true);
 
 		FCompactPose Pose;
@@ -2146,32 +2139,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 			if (!bLODModelAdded)
 			{
-				TBitArray<> SourceSectionMatched;
-				SourceSectionMatched.Init(false, DstModelBackup.Sections.Num());
-				for (int32 SectionIndex = 0; SectionIndex < ImportedModelLOD.Sections.Num(); ++SectionIndex)
-				{
-					FSkelMeshSection& Section = ImportedModelLOD.Sections[SectionIndex];
-					for (int32 SourceSectionIndex = 0; SourceSectionIndex < DstModelBackup.Sections.Num(); ++SourceSectionIndex)
-					{
-						if (SourceSectionMatched[SourceSectionIndex])
-						{
-							continue;
-						}
-						const FSkelMeshSection& SourceSection = DstModelBackup.Sections[SourceSectionIndex];
-						if (const FSkelMeshSourceSectionUserData* SourceUserData = DstModelBackup.UserSectionsData.Find(SourceSection.OriginalDataSectionIndex))
-						{
-							if (Section.MaterialIndex == SourceSection.MaterialIndex)
-							{
-								Section.OriginalDataSectionIndex = SourceSection.OriginalDataSectionIndex;
-								SourceSectionMatched[SourceSectionIndex] = true;
-								break;
-							}
-						}
-					}
-				}
-
-				ImportedModelLOD.UserSectionsData = DstModelBackup.UserSectionsData;
-				ImportedModelLOD.SyncronizeUserSectionsDataArray();
+				RestoreUserSectionsData(DstModelBackup, ImportedModelLOD);
 				//If its an existing LOD put back the buildStringID
 				ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
 				ImportedModelLOD.RawSkeletalMeshBulkDataID = BackupRawSkeletalMeshBulkDataID;
@@ -2230,6 +2198,13 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		//It also warranty that we do not change the ddc key
 		SkeletalMesh.SaveLODImportedData(LODIndex, RawMesh);
 		SkeletalMesh.SetLODImportedDataVersions(LODIndex, GeoImportVersion, SkinningImportVersion);
+		if (!bLODModelAdded)
+		{
+			//The SaveLODImportdData can change the cache RawSkeletalMeshBulkDataID, so we have to put back the backup after the save
+			FSkeletalMeshLODModel& ImportedModelLOD = SkeletalMesh.GetImportedModel()->LODModels[LODIndex];
+			ImportedModelLOD.BuildStringID = BackupLodModelBuildStringID;
+			ImportedModelLOD.RawSkeletalMeshBulkDataID = BackupRawSkeletalMeshBulkDataID;
+		}
 	}
 
 	SkeletalMesh.CalculateRequiredBones(SkeletalMeshResource.LODModels[LODIndex], SkeletalMesh.GetRefSkeleton(), &BonesToRemove);

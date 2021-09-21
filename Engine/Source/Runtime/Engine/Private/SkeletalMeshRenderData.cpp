@@ -345,10 +345,21 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 	{
 		COOK_STAT(auto Timer = SkeletalMeshCookStats::UsageStats.TimeSyncWork());
 		int32 T0 = FPlatformTime::Cycles();
-		DerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
 
+		//When we import a skeletalmesh, in some cases the asset is not yet built, and the usersectiondata and the inline cache are not set
+		//until the initial build. This is due to the section count which is establish by the initial build of the import data. The section count
+		//is part of the key because users can change section settings(see UserSectionData). So when we do a initial build we do not compute yet
+		//the key and force the build code path, the key will be compute after the build and the DDC data will be store with the computed key.
+		const bool bAllowDdcFetch = Owner->IsInitialBuildDone();
+		if (bAllowDdcFetch)
+		{
+			DerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
+		}
+		
+		//If we have an initial build, the ddc key will be computed only after the build. Some structure are missing until we first build the asset to get the drived data key
+		
 		TArray64<uint8> DerivedData;
-		if(DDCUtils64Bit::GetSynchronous(DerivedDataKey, Owner, DerivedData))
+		if(bAllowDdcFetch && DDCUtils64Bit::GetSynchronous(DerivedDataKey, Owner, DerivedData))
 		{
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			
@@ -514,12 +525,21 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 			//Recompute the derived data key in case there was some data correction during the build process, this make sure the DDC key is always representing the correct build result.
 			//There should never be correction of the data during the build, the data has to be corrected in the post load before calling this function.
 			FString BuiltDerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
-			if(BuiltDerivedDataKey != DerivedDataKey)
+			//Only compare keys if the ddc fetch was allowed
+			if (bAllowDdcFetch)
 			{
-				//If we are in this case we should resave the asset so the source data will be the same and we can use this DDC. Reduction can change the number of sections and the user section data is in the DDC key.
-				//So if we change the reduction algorithm, its possible we fall in this situation.
-				//We save the real data key which force the asset to always rebuild when the editor is loading it until the user save it
-				UE_LOG(LogSkeletalMesh, Log, TEXT("Skeletal mesh [%s]: The derived data key is different after the build. Resave the asset to avoid rebuilding it everytime the editor load it."), *Owner->GetPathName());
+				if (BuiltDerivedDataKey != DerivedDataKey)
+				{
+					//If we are in this case we should resave the asset so the source data will be the same and we can use this DDC. Reduction can change the number of sections and the user section data is in the DDC key.
+					//So if we change the reduction algorithm, its possible we fall in this situation.
+					//We save the real data key which force the asset to always rebuild when the editor is loading it until the user save it
+					UE_LOG(LogSkeletalMesh, Log, TEXT("Skeletal mesh [%s]: The derived data key is different after the build. Resave the asset to avoid rebuilding it everytime the editor load it."), *Owner->GetPathName());
+				}
+			}
+			else
+			{
+				//After the initial build we set the key to the built one
+				DerivedDataKey = BuiltDerivedDataKey;
 			}
 
 			//Store the data using the built key to avoid DDC corruption

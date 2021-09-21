@@ -43,7 +43,7 @@ struct FExistingMeshLodSectionData
 struct FExistingSkelMeshData
 {
 	TArray<USkeletalMeshSocket*>			ExistingSockets;
-	TArray<TSharedPtr<FReductionBaseSkeletalMeshBulkData>> ExistingOriginalReductionSourceMeshData;
+	TArray<FInlineReductionCacheData>		ExistingInlineReductionCacheDatas;
 	TIndirectArray<FSkeletalMeshLODModel>	ExistingLODModels;
 	TArray<FSkeletalMeshLODInfo>			ExistingLODInfo;
 	FReferenceSkeleton						ExistingRefSkeleton;

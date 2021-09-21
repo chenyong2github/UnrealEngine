@@ -588,6 +588,36 @@ void FReductionBaseSkeletalMeshBulkData::GetGeometryInfo(uint32& LODVertexNumber
 }
 
 /*------------------------------------------------------------------------------
+FInlineReductionCacheData
+------------------------------------------------------------------------------*/
+
+void FInlineReductionCacheData::SetCacheGeometryInfo(const FSkeletalMeshLODModel& SourceLODModel)
+{
+	CacheLODVertexCount = 0;
+	CacheLODTriCount = 0;
+	for (int32 SectionIndex = 0; SectionIndex < SourceLODModel.Sections.Num(); ++SectionIndex)
+	{
+		const FSkelMeshSection& Section = SourceLODModel.Sections[SectionIndex];
+		//We count disabled section, since the render buffer contain the disabled section data. This is crucial for memory budget
+		//Make sure the count fit in a uint32
+		CacheLODVertexCount += Section.NumVertices < 0 ? 0 : Section.NumVertices;
+		CacheLODTriCount += Section.NumTriangles;
+	}
+}
+
+void FInlineReductionCacheData::SetCacheGeometryInfo(uint32 LODVertexCount, uint32 LODTriCount)
+{
+	CacheLODVertexCount = LODVertexCount;
+	CacheLODTriCount = LODTriCount;
+}
+
+void FInlineReductionCacheData::GetCacheGeometryInfo(uint32& LODVertexCount, uint32& LODTriCount) const
+{
+	LODVertexCount = CacheLODVertexCount;
+	LODTriCount = CacheLODTriCount;
+}
+
+/*------------------------------------------------------------------------------
 FRawSkeletalMeshBulkData
 ------------------------------------------------------------------------------*/
 
@@ -792,7 +822,6 @@ void FRawSkeletalMeshBulkData::SaveRawMesh(FSkeletalMeshImportData& InMesh)
 		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
 		SerializeLoadingCustomVersionContainer = Ar.GetCustomVersions();
 	}
-	// Unlock bulk data when we leave scope
 
 	//Create the guid from the content, this allow to use the data into the ddc key
 	FSHA1 Sha;

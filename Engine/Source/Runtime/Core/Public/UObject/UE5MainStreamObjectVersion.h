@@ -180,6 +180,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		
 		// Add custom version to FDynamicMesh3
 		DynamicMeshCompactedSerialization,
+
+		// Remove the inline reduction bulkdata and replace it by a simple vertex and triangle count cache
+		ConvertReductionBaseSkeletalMeshBulkDataToInlineReductionCacheData,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

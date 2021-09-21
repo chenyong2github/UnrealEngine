@@ -1881,6 +1881,17 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			// Create actual rendering data.
 			bBuildSuccess = MeshUtilities.BuildSkeletalMesh(ImportedResource->LODModels[ImportLODModelIndex], SkeletalMesh->GetPathName(), SkeletalMesh->GetRefSkeleton(), LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, LegacyBuildOptions, &WarningMessages, &WarningNames);
 
+			//Cache the vertex/triangle count in the InlineReductionCacheData so we can know if the LODModel need reduction or not.
+			TArray<FInlineReductionCacheData>& InlineReductionCacheDatas = ImportedResource->InlineReductionCacheDatas;
+			if (!InlineReductionCacheDatas.IsValidIndex(ImportLODModelIndex))
+			{
+				InlineReductionCacheDatas.AddDefaulted((ImportLODModelIndex + 1) - InlineReductionCacheDatas.Num());
+			}
+			if (ensure(InlineReductionCacheDatas.IsValidIndex(ImportLODModelIndex)))
+			{
+				InlineReductionCacheDatas[ImportLODModelIndex].SetCacheGeometryInfo(ImportedResource->LODModels[ImportLODModelIndex]);
+			}
+
 			// temporary hack of message/names, should be one token or a struct
 			if (WarningMessages.Num() > 0 && WarningNames.Num() == WarningMessages.Num())
 			{

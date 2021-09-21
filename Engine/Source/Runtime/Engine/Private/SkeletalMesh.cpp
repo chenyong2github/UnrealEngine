@@ -33,6 +33,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "EngineUtils.h"
 #include "EditorSupportDelegates.h"
 #include "GPUSkinVertexFactory.h"
@@ -608,6 +609,16 @@ void USkeletalMesh::ValidateBoundsExtension()
 }
 
 #if WITH_EDITOR
+
+bool USkeletalMesh::IsInitialBuildDone() const
+{
+	//We are consider built if we have a valid lod model and a valid inline reduction cache
+	return GetImportedModel() != nullptr &&
+		GetImportedModel()->LODModels.Num() >= 0 &&
+		GetImportedModel()->LODModels[0].Sections.Num() > 0 &&
+		GetImportedModel()->InlineReductionCacheDatas.Num() > 0;
+}
+
 /* Return true if the reduction settings are setup to reduce a LOD*/
 bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 {
@@ -624,7 +635,7 @@ bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 		uint32 LODVertexNumber = MAX_uint32;
 		uint32 LODTriNumber = MAX_uint32;
 		const FSkeletalMeshLODInfo* LODInfoPtr = GetLODInfo(LODIndex);
-		bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
+		const bool bLODHasBeenSimplified = LODInfoPtr && LODInfoPtr->bHasBeenSimplified;
 		if (GetImportedModel() && GetImportedModel()->LODModels.IsValidIndex(LODIndex))
 		{
 			if (!bLODHasBeenSimplified)
@@ -642,12 +653,10 @@ bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 					LODTriNumber += Section.NumTriangles;
 				}
 			}
-			else if (GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex)
-				&& !GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty())
+			else if (GetImportedModel()->InlineReductionCacheDatas.IsValidIndex(LODIndex))
 			{
-				//In this case we have to use the stored reduction source data to know how many vertices/triangles we have before the reduction
-				USkeletalMesh* MutableSkeletalMesh = const_cast<USkeletalMesh*>(this);
-				GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->GetGeometryInfo(LODVertexNumber, LODTriNumber, MutableSkeletalMesh);
+				//In this case we have to use the inline cache reduction data to know how many vertices/triangles we have before the reduction
+				GetImportedModel()->InlineReductionCacheDatas[LODIndex].GetCacheGeometryInfo(LODVertexNumber, LODTriNumber);
 			}
 		}
 		bReductionActive = ReductionModule->IsReductionActive(ReductionSettings, LODVertexNumber, LODTriNumber);
@@ -1702,6 +1711,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FNiagaraObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	FStripDataFlags StripFlags( Ar );
 
@@ -2160,8 +2170,7 @@ void USkeletalMesh::Build()
 	BeginBuildInternal(Context);
 	
 	// Inline reduction is not thread-safe, prevent async build until this is fixed.
-	const bool bHasInlineReductions = SkeletalMeshImpl::HasInlineReductions(this);
-	if (!bHasInlineReductions && FSkeletalMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	if (FSkeletalMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
 	{
 		PrepareForAsyncCompilation();
 
@@ -2188,6 +2197,14 @@ void USkeletalMesh::BeginBuildInternal(FSkeletalMeshBuildContext& Context)
 
 	// Release the static mesh's resources.
 	ReleaseResources();
+
+	//Make sure InlineReduction structure are created
+	const int32 MaxLodIndex = GetLODNum() - 1;
+	if (GetImportedModel()->InlineReductionCacheDatas.IsValidIndex(MaxLodIndex))
+	{
+		//We should not do that in main thread, this is why there is an ensure
+		GetImportedModel()->InlineReductionCacheDatas.AddDefaulted((MaxLodIndex + 1) - GetImportedModel()->InlineReductionCacheDatas.Num());
+	}
 
 	// Flush the resource release commands to the rendering thread to ensure that the build doesn't occur while a resource is still
 	// allocated, and potentially accessing the USkeletalMesh.
@@ -2707,8 +2724,8 @@ void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
 
 		bool bMustUseReductionSourceData = bIsLODReductionActive
 			&& ThisLODInfo->bHasBeenSimplified
-			&& GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LodIndex)
-			&& !(GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->IsEmpty());
+			&& GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED.IsValidIndex(LodIndex)
+			&& !(GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED[LodIndex]->IsEmpty());
 
 		if (bIsLODReductionActive && !ThisLODInfo->bHasBeenSimplified && IsLODImportedDataEmpty(LodIndex))
 		{
@@ -2747,7 +2764,7 @@ void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
 			//We must load the reduction source model, since reduction can remove section
 			FSkeletalMeshLODModel ReductionSrcLODModel;
 			TMap<FString, TArray<FMorphTargetDelta>> TmpMorphTargetData;
-			GetImportedModel()->OriginalReductionSourceMeshData[LodIndex]->LoadReductionData(ReductionSrcLODModel, TmpMorphTargetData, this);
+			GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED[LodIndex]->LoadReductionData(ReductionSrcLODModel, TmpMorphTargetData, this);
 			
 			//Fill the user data with the original value
 			TMap<int32, FSkelMeshSourceSectionUserData> BackupUserSectionsData = ThisLODModel.UserSectionsData;
@@ -2797,61 +2814,85 @@ void USkeletalMesh::PostLoadValidateUserSectionData()
 			continue;
 		}
 
+		const int32 ReductionBaseLOD = LODInfoPtr->ReductionSettings.BaseLOD;
+		if (!GetImportedModel()->LODModels.IsValidIndex(ReductionBaseLOD))
+		{
+			//The base LOD should always be valid for generated LOD
+			UE_ASSET_LOG(LogSkeletalMesh, Display, this, TEXT("This asset generated lod %d, is base on an invalid LOD index %d."), LodIndex, ReductionBaseLOD);
+			continue;
+		}
+		FSkeletalMeshLODModel& BaseReductionLODModel = GetImportedModel()->LODModels[ReductionBaseLOD];
 		FSkeletalMeshLODModel& ThisLODModel = GetImportedModel()->LODModels[LodIndex];
 		const int32 SectionNum = ThisLODModel.Sections.Num();
-		//See if more then one section use the same UserSectionData
-		bool bLODHaveSectionIssue = false;
-		TBitArray<> AvailableUserSectionData;
-		AvailableUserSectionData.Init(true, ThisLODModel.UserSectionsData.Num());
-		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		
+		//We must make sure the result is similar to what the reduction will give. So we will not have more user section data then the number we have for the base LOD.
+		//Because reduction reset the UserSectionData to the number of parent section after the reduction.
+		bool UserSectionDataBadCount = ThisLODModel.UserSectionsData.Num() > SectionNum;
+		if (!UserSectionDataBadCount && LodIndex != ReductionBaseLOD)
 		{
-			FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
-			if (Section.ChunkedParentSectionIndex != INDEX_NONE)
+			UserSectionDataBadCount = (ThisLODModel.UserSectionsData.Num() > BaseReductionLODModel.UserSectionsData.Num());
+		}
+		bool bLODHaveSectionIssue = UserSectionDataBadCount;
+		if (!bLODHaveSectionIssue)
+		{
+			//See if more then one section use the same UserSectionData
+			TBitArray<> AvailableUserSectionData;
+			AvailableUserSectionData.Init(true, ThisLODModel.UserSectionsData.Num());
+			for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
 			{
+				FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
+				if (Section.ChunkedParentSectionIndex != INDEX_NONE)
+				{
+					continue;
+				}
+				if (!AvailableUserSectionData.IsValidIndex(Section.OriginalDataSectionIndex) || !AvailableUserSectionData[Section.OriginalDataSectionIndex])
+				{
+					bLODHaveSectionIssue = true;
+					break;
+				}
+				AvailableUserSectionData[Section.OriginalDataSectionIndex] = false;
+			}
+			if (!bLODHaveSectionIssue)
+			{
+				//Everything is good nothing to fix
 				continue;
 			}
-			if(!AvailableUserSectionData.IsValidIndex(Section.OriginalDataSectionIndex) || !AvailableUserSectionData[Section.OriginalDataSectionIndex])
-			{
-				bLODHaveSectionIssue = true;
-				break;
-			}
-			AvailableUserSectionData[Section.OriginalDataSectionIndex] = false;
-		}
-		if(!bLODHaveSectionIssue)
-		{
-			//Everything is good nothing to fix
-			continue;
 		}
 
 		//Force the source UserSectionData, then restore the UserSectionData value each section was using
 		//We use the source section user data entry in case we do not have any override
-		const FSkeletalMeshLODModel& BaseLODModel = GetImportedModel()->LODModels[LODInfoPtr->ReductionSettings.BaseLOD];
 		TMap<int32, FSkelMeshSourceSectionUserData> NewUserSectionsData;
 
-		int32 CurrentOriginalSectionIndex = 0;
+		int32 CurrentOriginalSectionIndex = -1;
 		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
 		{
 			FSkelMeshSection& Section = ThisLODModel.Sections[SectionIndex];
 			if (Section.ChunkedParentSectionIndex != INDEX_NONE)
 			{
+				//The section zero must never be a chunked children
+				if (!ensure(CurrentOriginalSectionIndex >= 0))
+				{
+					CurrentOriginalSectionIndex = 0;
+				}
 				//We do not restore user section data for chunked section, the parent has already fix it
 				Section.OriginalDataSectionIndex = CurrentOriginalSectionIndex;
 				continue;
 			}
+
+			//Parent (non chunked) section must increment the index
+			CurrentOriginalSectionIndex++;
 
 			FSkelMeshSourceSectionUserData& SectionUserData = NewUserSectionsData.FindOrAdd(CurrentOriginalSectionIndex);
 			if(const FSkelMeshSourceSectionUserData* BackupSectionUserData = ThisLODModel.UserSectionsData.Find(Section.OriginalDataSectionIndex))
 			{
 				SectionUserData = *BackupSectionUserData;
 			}
-			else if(const FSkelMeshSourceSectionUserData* BaseSectionUserData = BaseLODModel.UserSectionsData.Find(CurrentOriginalSectionIndex))
+			else if(const FSkelMeshSourceSectionUserData* BaseSectionUserData = BaseReductionLODModel.UserSectionsData.Find(CurrentOriginalSectionIndex))
 			{
 				SectionUserData = *BaseSectionUserData;
 			}
 
 			Section.OriginalDataSectionIndex = CurrentOriginalSectionIndex;
-			//Parent (non chunked) section must increment the index
-			CurrentOriginalSectionIndex++;
 		}
 		ThisLODModel.UserSectionsData = NewUserSectionsData;
 
@@ -2907,7 +2948,21 @@ void USkeletalMesh::PostLoadEnsureImportDataExist()
 {
 	//If we have a LODModel with no import data and the LOD model have at least one section using more bone then any platform max GPU bone count. We will recreate the import data to allow the asset to be build and chunk properly.
 	const int32 MinimumPerPlatformMaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMinimumPerPlatformMaxGPUSkinBonesValue();
+	//This flag is set from the max gpu skin bones, if true ImportLODData will be created
 	bool bNeedToCreateImportData = false;
+
+	//The following two flags are acting together when bNeedToCreateImportData == false.
+	//When we found a LOD that is reduce inline, we want to convert the deprecated reduction source data
+	//and create the import data from it.
+
+	//If we found a LOD doing inline reduction this flag will be set to trtue
+	bool bContainInlineReduction = false;
+	//If we found a LOD doing inline reduction but with baked skinweight data this flag will be true.
+	//If this flag is true we will not create the imported data, except if bNeedToCreateData is true
+	//In case bNeedToCreateData is true, user will have to re-import the skinning data to comply with
+	//the per platform max gpu bone.
+	bool bCannotConvertSkinWeightProfile = false;
+
 	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
 	{
 		const FSkeletalMeshLODModel* LODModel = &(GetImportedModel()->LODModels[LodIndex]);
@@ -2919,12 +2974,35 @@ void USkeletalMesh::PostLoadEnsureImportDataExist()
 		{
 			continue;
 		}
+		
+		//We create the import data only if the mesh was simplified and its doing inline reduction
+		//Non simplified mesh without import data should not be converted because the simplification will kick in and the asset will be simplified (asset vertex and face count will change)
 		const bool bReductionActive = IsReductionActive(LodIndex);
 		const bool bInlineReduction = bReductionActive && (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
 		if (bReductionActive && !bInlineReduction)
 		{
 			//Generated LOD (not inline) do not need imported data
 			continue;
+		}
+		else if (bInlineReduction && ThisLODInfo->bHasBeenSimplified)
+		{
+			//If we cannot convert alternate skin weight data, we do not want to allow 
+			if (GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED.IsValidIndex(LodIndex))
+			{
+				//Old inline reduced assets do not have the original imported skin weight data, it must be re-import if we want to convert it to import data
+				bool bUseSkinWeightProfile = LODModel->SkinWeightProfiles.Num() > 0;
+				FSkeletalMeshLODModel ReductionLODModel;
+				TMap<FString, TArray<FMorphTargetDelta>> ReductionLODMorphTargetData;
+				//Swap the LODModel pointer to the one we store when reducing, so we add the true import data
+				GetImportedModel()->OriginalReductionSourceMeshData_DEPRECATED[LodIndex]->LoadReductionData(ReductionLODModel, ReductionLODMorphTargetData, this);
+
+				if (bUseSkinWeightProfile && ReductionLODModel.SkinWeightProfiles.IsEmpty())
+				{
+					//If we cannot convert a particular LOD, prevent Creation of import data and exit the loop
+					bCannotConvertSkinWeightProfile = true;
+				}
+			}
+			bContainInlineReduction = true;
 		}
 		//See if the LODModel data use more bones then the chunking allow
 		int32 MaxBoneperSection = 0;
@@ -2939,8 +3017,18 @@ void USkeletalMesh::PostLoadEnsureImportDataExist()
 			break;
 		}
 	}
-	if (bNeedToCreateImportData)
+
+	if (bNeedToCreateImportData || (bContainInlineReduction && !bCannotConvertSkinWeightProfile))
 	{
+		if (!ensure(IsInGameThread()))
+		{
+			UE_ASSET_LOG(LogSkeletalMesh, Error, this, TEXT("USkeletalMesh::PostLoadEnsureImportDataExist() must be call on the game thread."));
+			return;
+		}
+		if (bCannotConvertSkinWeightProfile)
+		{
+			UE_ASSET_LOG(LogSkeletalMesh, Warning, this, TEXT("USkeletalMesh::PostLoadEnsureImportDataExist() Cannot convert old alternate skin weight profiles data. Re-import all alternate profiles for this skeletal mesh."));
+		}
 		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 		//We create the import data for all LOD that do not have import data except for the generated LODs.
 		MeshUtilities.CreateImportDataFromLODModel(this);
@@ -3154,17 +3242,6 @@ void USkeletalMesh::BeginPostLoadInternal(FSkeletalMeshPostLoadContext& Context)
 		MeshClothingAsset->ConditionalPostLoad();
 	}
 
-	Context.bIsPreSkeletalMeshBuildRefactor = GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor;
-	
-	if (!Context.bIsPreSkeletalMeshBuildRefactor)
-	{
-		check(!GetUseLegacyMeshDerivedDataKey());
-		
-		// We can safely release the write lock now since we're not going to modify this value during build, but we still
-		// require it to be locked in read-only if the game-thread would want to write to it while we read it...
-		ReleaseAsyncProperty(ESkeletalMeshAsyncProperties::UseLegacyMeshDerivedDataKey, EAsyncPropertyLockType::WriteOnly);
-	}
-
 	// Make sure the mesh editor data object is a sub object of the skeletalmesh, rename it to change the owner to be the skeletalmesh.
 	if (IsMeshEditorDataValid() && GetMeshEditorData().GetOuter() != this)
 	{
@@ -3265,6 +3342,47 @@ void USkeletalMesh::BeginPostLoadInternal(FSkeletalMeshPostLoadContext& Context)
 			}
 		}
 	}
+
+	if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset)
+	{
+		ReserveLODImportData(GetImportedModel()->LODModels.Num() - 1);
+		for (int32 LODIndex = 0; LODIndex < GetImportedModel()->LODModels.Num(); ++LODIndex)
+		{
+			FSkeletalMeshLODModel& ThisLODModel = GetImportedModel()->LODModels[LODIndex];
+			//We can have partial data if the asset was save after the split workflow implementation
+			//Use the deprecated member to retrieve this data
+			if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow)
+			{
+				if (!ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.IsEmpty())
+				{
+					FSkeletalMeshImportData SerializeMeshData;
+					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.LoadRawMesh(SerializeMeshData);
+					SaveLODImportedData(LODIndex, SerializeMeshData);
+				}
+				//Get the FRawSkeletalMeshBulkData to set the geo and skinning version
+				FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+				RawSkeletalMeshBulkData.GeoImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.GeoImportVersion;
+				RawSkeletalMeshBulkData.SkinningImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SkinningImportVersion;
+				//Empty the DEPRECATED member
+				FSkeletalMeshImportData EmptyMeshData;
+				ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SaveRawMesh(EmptyMeshData);
+				ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
+			}
+			//Set the cache data into the LODModel
+			FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
+			ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
+			ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
+			ThisLODModel.RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData.GetIdString();
+		}
+	}
+
+	if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshBuildRefactor)
+	{
+		CreateUserSectionsDataForLegacyAssets();
+	}
+
+	PostLoadEnsureImportDataExist();
+
 #endif // #if WITH_EDITOR
 }
 
@@ -3281,10 +3399,7 @@ void USkeletalMesh::PostLoad()
 	BeginPostLoadInternal(Context);
 
 #if WITH_EDITOR
-	// Inline reduction is not thread-safe, prevent async build until this is fixed.
-	const bool bHasInlineReductions = SkeletalMeshImpl::HasInlineReductions(this);
-	const bool bForceSynchronous = Context.bIsPreSkeletalMeshBuildRefactor || bHasInlineReductions;
-	if (!bForceSynchronous && FSkeletalMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	if (FSkeletalMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
 	{
 		PrepareForAsyncCompilation();
 
@@ -3321,47 +3436,7 @@ void USkeletalMesh::ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Contex
 
 		UpdateGenerateUpToData();
 
-		if (GetLinkerCustomVersion(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshMoveEditorSourceDataToPrivateAsset)
-		{
-			ReserveLODImportData(GetImportedModel()->LODModels.Num() - 1);
-			for (int32 LODIndex = 0; LODIndex < GetImportedModel()->LODModels.Num(); ++LODIndex)
-			{
-				FSkeletalMeshLODModel& ThisLODModel = GetImportedModel()->LODModels[LODIndex];
-				//We can have partial data if the asset was save after the split workflow implementation
-				//Use the deprecated member to retrieve this data
-				if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::NewSkeletalMeshImporterWorkflow)
-				{
-					if (!ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.IsEmpty())
-					{
-						FSkeletalMeshImportData SerializeMeshData;
-						ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.LoadRawMesh(SerializeMeshData);
-						SaveLODImportedData(LODIndex, SerializeMeshData);
-					}
-					//Get the FRawSkeletalMeshBulkData to set the geo and skinning version
-					FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
-					RawSkeletalMeshBulkData.GeoImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.GeoImportVersion;
-					RawSkeletalMeshBulkData.SkinningImportVersion = ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SkinningImportVersion;
-					//Empty the DEPRECATED member
-					FSkeletalMeshImportData EmptyMeshData;
-					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.SaveRawMesh(EmptyMeshData);
-					ThisLODModel.RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
-				}
-				//Set the cache data into the LODModel
-				FRawSkeletalMeshBulkData& RawSkeletalMeshBulkData = GetMeshEditorData().GetLODImportedData(LODIndex);
-				ThisLODModel.bIsRawSkeletalMeshBulkDataEmpty = RawSkeletalMeshBulkData.IsEmpty();
-				ThisLODModel.bIsBuildDataAvailable = RawSkeletalMeshBulkData.IsBuildDataAvailable();
-				ThisLODModel.RawSkeletalMeshBulkDataID = RawSkeletalMeshBulkData.GetIdString();
-			}
-		}
-
-		if (Context.bIsPreSkeletalMeshBuildRefactor)
-		{
-			CreateUserSectionsDataForLegacyAssets();
-		}
-
 		PostLoadValidateUserSectionData();
-
-		PostLoadEnsureImportDataExist();
 
 		PostLoadVerifyAndFixBadTangent();
 
@@ -3431,11 +3506,9 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 
 #if WITH_EDITOR
 	ApplyFinishBuildInternalData(&Context);
-#else
-	// init morph targets here as in non-editor builds we don't use DDC or build the mesh. 
-	// should do this before InitResources, so that we clear invalid morph targets.
-	InitMorphTargets();
 #endif
+	// should do this before InitResources.
+	InitMorphTargets();
 
 	// initialize rendering resources
 	if (FApp::CanEverRender())
@@ -5205,9 +5278,10 @@ void USkeletalMesh::RemoveLODInfo(int32 Index)
 		{
 			GetMeshEditorDataObject()->RemoveLODImportedData(Index);
 		}
-		if (GetImportedModel() && GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(Index))
+		
+		if (GetImportedModel()->InlineReductionCacheDatas.IsValidIndex(Index))
 		{
-			GetImportedModel()->OriginalReductionSourceMeshData.RemoveAt(Index);
+			GetImportedModel()->InlineReductionCacheDatas.RemoveAt(Index);
 		}
 #endif // WITH_EDITOR
 		LODInfoArray.RemoveAt(Index);

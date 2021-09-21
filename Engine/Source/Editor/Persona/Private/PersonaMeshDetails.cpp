@@ -2721,13 +2721,11 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 				
 				bool bIsbuildAvailable = SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
 
-				bool bIsReductionDataPresent = (SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex) && !SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty());
 				
 				//Avoid offering re-generate if the LOD is reduce on himself and do not have the original data, the user in this case has to re-import the asset to generate the data 
 				bool LodCannotRegenerate = (SkelMesh->GetLODInfo(LODIndex) != nullptr
 					&& LODIndex == SkelMesh->GetLODInfo(LODIndex)->ReductionSettings.BaseLOD
 					&& SkelMesh->GetLODInfo(LODIndex)->bHasBeenSimplified
-					&& !bIsReductionDataPresent
 					&& !bIsbuildAvailable);
 
 				bool bShowGenerateButtons = !LodCannotRegenerate;
@@ -3352,8 +3350,7 @@ void FPersonaMeshDetails::RestoreNonReducedLOD(int32 LODIndex)
 
 	if (CurrentLODInfo->bHasBeenSimplified
 		&& !bIsReductionActive
-		&& (bIsLODModelbuildDataAvailable
-			|| FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex)))
+		&& bIsLODModelbuildDataAvailable)
 	{
 		CurrentLODInfo->bHasBeenSimplified = false;
 	}
@@ -3447,18 +3444,13 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 		FSkeletalMeshLODInfo& CurrentLODInfo = *(SkelMesh->GetLODInfo(LODIndex));
 		
 		bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex) && SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
-		bool bIsReductionDataPresent = (SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex) && !SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->IsEmpty());
 		if (LODIndex == CurrentLODInfo.ReductionSettings.BaseLOD
 			&& CurrentLODInfo.bHasBeenSimplified
 			&& !SkelMesh->IsReductionActive(LODIndex)
-			&& (bIsLODModelbuildDataAvailable || bIsReductionDataPresent))
+			&& (bIsLODModelbuildDataAvailable))
 		{
-			//Restore the base LOD data
+			//The build of the skeletalmesh will restore the data properly
 			CurrentLODInfo.bHasBeenSimplified = false;
-			if (!bIsLODModelbuildDataAvailable)
-			{
-				FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex);
-			}
 			return;
 		}
 		else if (!CurrentLODInfo.bHasBeenSimplified
@@ -3473,6 +3465,7 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 		UpdateContext.AssociatedComponents.Push(GetPersonaToolkit()->GetPreviewMeshComponent());
 
 		FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform());
+
 	}
 	return;
 }

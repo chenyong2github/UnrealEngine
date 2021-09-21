@@ -433,7 +433,7 @@ private:
 };
 
 /**
-* Bulk data storage for raw ImportModel.
+* Bulk data storage for raw ImportModel. This structure is deprecated, we now only store the original vertex and triangle count, see FInlineReductionCacheData.
 */
 struct FReductionBaseSkeletalMeshBulkData
 {
@@ -479,6 +479,29 @@ public:
 	/** Returns true if no bulk data is available for this mesh. */
 	FORCEINLINE bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }
 };
+
+struct FInlineReductionCacheData
+{
+	uint32 CacheLODVertexCount = MAX_uint32;
+	uint32 CacheLODTriCount = MAX_uint32;
+
+	/*
+	 * Caching those value since this is a slow operation to load the bulk data to retrieve the original geometry information
+	 */
+	ENGINE_API void SetCacheGeometryInfo(const FSkeletalMeshLODModel& SourceLODModel);
+
+	ENGINE_API void SetCacheGeometryInfo(uint32 LODVertexCount, uint32 LODTriCount);
+
+	/** Return the cache count of vertices and triangles. */
+	ENGINE_API void GetCacheGeometryInfo(uint32& LODVertexCount, uint32& LODTriCount) const;
+};
+
+FORCEINLINE FArchive& operator<<(FArchive& Ar, FInlineReductionCacheData& InlineReductionCacheData)
+{
+	Ar << InlineReductionCacheData.CacheLODVertexCount;
+	Ar << InlineReductionCacheData.CacheLODTriCount;
+	return Ar;
+}
 
 /**
 * Bulk data storage for raw meshes.
