@@ -138,7 +138,13 @@ private:
 	FReply HandleSpaceMoveUp(FRigElementKey InKey);
 	FReply HandleSpaceMoveDown(FRigElementKey InKey);
 	void HandleSpaceDelete(FRigElementKey InKey);
+
+public:
+	
 	FReply HandleAddElementClicked();
+
+private:
+	
 	bool IsSpaceMoveUpEnabled(FRigElementKey InKey) const;
 	bool IsSpaceMoveDownEnabled(FRigElementKey InKey) const;
 
