@@ -936,9 +936,9 @@ FMatrix FEditorModeTools::GetLocalCoordinateSystem()
 	{
 		if (TTypedElement<ITypedElementWorldInterface> BottomSelected = GetEditorSelectionSet()->GetBottomSelectedElement<ITypedElementWorldInterface>())
 		{
-			FTransform RelativeTransform;
-			BottomSelected.GetRelativeTransform(RelativeTransform);
-			Matrix = FQuatRotationMatrix(RelativeTransform.GetRotation());
+			FTransform LocalToWorldTransform;
+			BottomSelected.GetWorldTransform(LocalToWorldTransform);
+			Matrix = FQuatRotationMatrix(LocalToWorldTransform.GetRotation());
 		}
 	}
 
