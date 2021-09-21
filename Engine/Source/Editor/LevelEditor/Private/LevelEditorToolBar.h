@@ -64,10 +64,6 @@ protected:
 	 */
 	static TSharedRef< SWidget > GenerateCinematicsMenuContent(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
 
-	static TSharedRef< SWidget > GenerateContentMenuWidget(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
-
-	static TSharedRef< SWidget > GenerateCreateMenuWidget(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
-
 	static TSharedRef< SWidget > GenerateAddMenuWidget(TSharedRef<FUICommandList> InCommandList, TWeakPtr<SLevelEditor> InLevelEditor);
 
 	/**
@@ -89,8 +85,6 @@ private:
 
 	static void RegisterQuickSettingsMenu();
 	static void RegisterOpenBlueprintMenu();
-	static void RegisterContentMenu();
-	static void RegisterCreateMenu();
 	static void RegisterAddMenu();
 
 	static FText GetActiveModeName(TWeakPtr<SLevelEditor> LevelEditorPtr);
