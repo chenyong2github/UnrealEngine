@@ -516,7 +516,7 @@ public:
 		if (!HasViewDependentDPG())
 		{
 			// Determine the DPG the primitive should be drawn in.
-			uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
+			ESceneDepthPriorityGroup PrimitiveDPG = GetStaticDepthPriorityGroup();
 
 			PDI->ReserveMemoryForMeshes(Elements.Num());
 
@@ -537,7 +537,7 @@ public:
 					BatchElement.MaxVertexIndex = ModelElement.MaxVertexIndex;
 					BatchElement.VertexFactoryUserData = Elements[ElementIndex].GetVertexFactoryUniformBuffer();
 					MeshElement.Type = PT_TriangleList;
-					MeshElement.DepthPriorityGroup = PrimitiveDPG;
+					MeshElement.DepthPriorityGroup = (uint8)PrimitiveDPG;
 					MeshElement.LODIndex = 0;
 					const bool bValidIndexBuffer = !BatchElement.IndexBuffer || (BatchElement.IndexBuffer && BatchElement.IndexBuffer->IsInitialized() && BatchElement.IndexBuffer->IndexBufferRHI);
 					ensure(bValidIndexBuffer);

@@ -471,10 +471,11 @@ public:
 		VUp.Normalize();
 		VRight.Normalize();
 
-		return FVector2D(FMath::Acos(VCenter | VRight), FMath::Acos(VCenter | VUp));
+		using ResultType = decltype(FVector2D::X);
+		return FVector2D((ResultType)FMath::Acos(VCenter | VRight), (ResultType)FMath::Acos(VCenter | VUp));
 	}
 
-	float ComputeNearPlane() const
+	FMatrix::FReal ComputeNearPlane() const
 	{
 		return ( ProjectionMatrix.M[3][3] - ProjectionMatrix.M[3][2] ) / ( ProjectionMatrix.M[2][2] - ProjectionMatrix.M[2][3] );
 	}

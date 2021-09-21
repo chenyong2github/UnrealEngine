@@ -1498,7 +1498,7 @@ struct FPostProcessSettings
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	FVector BloomConvolutionPreFilter_DEPRECATED;
+	FVector3f BloomConvolutionPreFilter_DEPRECATED;
 #endif
 	
 	/** Boost intensity of select pixels  prior to computing bloom convolution (Min, Max, Multiplier).  Max < Min disables */

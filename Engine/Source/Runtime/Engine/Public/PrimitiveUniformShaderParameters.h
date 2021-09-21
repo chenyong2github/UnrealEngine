@@ -258,9 +258,9 @@ public:
 			FVector4 WorldX = FVector4(Parameters.LocalToWorld.M[0][0], Parameters.LocalToWorld.M[0][1], Parameters.LocalToWorld.M[0][2], 0);
 			FVector4 WorldY = FVector4(Parameters.LocalToWorld.M[1][0], Parameters.LocalToWorld.M[1][1], Parameters.LocalToWorld.M[1][2], 0);
 			FVector4 WorldZ = FVector4(Parameters.LocalToWorld.M[2][0], Parameters.LocalToWorld.M[2][1], Parameters.LocalToWorld.M[2][2], 0);
-			float ScaleX = FVector(WorldX).Size();
-			float ScaleY = FVector(WorldY).Size();
-			float ScaleZ = FVector(WorldZ).Size();
+			FVector::FReal ScaleX = FVector(WorldX).Size();
+			FVector::FReal ScaleY = FVector(WorldY).Size();
+			FVector::FReal ScaleZ = FVector(WorldZ).Size();
 			Parameters.NonUniformScale = FVector4(ScaleX, ScaleY, ScaleZ, FMath::Max3(FMath::Abs(ScaleX), FMath::Abs(ScaleY), FMath::Abs(ScaleZ)));
 			Parameters.InvNonUniformScale = FVector3f(
 				ScaleX > KINDA_SMALL_NUMBER ? 1.0f / ScaleX : 0.0f,

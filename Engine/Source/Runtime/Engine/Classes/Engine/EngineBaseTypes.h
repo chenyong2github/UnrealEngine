@@ -1020,7 +1020,7 @@ struct FExposureSettings
 		TCHAR Buffer[BUFFER_SIZE];
 		check((Comma-In)+1 < BUFFER_SIZE);
 		
-		FCString::Strncpy(Buffer, In, (Comma-In)+1);
+		FCString::Strncpy(Buffer, In, UE_PTRDIFF_TO_INT32((Comma-In)+1));
 		FixedEV100 = FCString::Atof(Buffer);
 		bFixed = !!FCString::Atoi(Comma+1);
 	}

@@ -361,12 +361,12 @@ inline void CalculateFPSTimings()
 	extern ENGINE_API float GAverageFPS;
 	extern ENGINE_API float GAverageMS;
 	// Calculate the average frame time via continued averaging.
-	static double LastTime	= 0;
-	double CurrentTime		= FPlatformTime::Seconds();
-	float FrameTime			= (CurrentTime - LastTime) * 1000;
+	static double LastTime = 0.0;
+	double CurrentTime = FPlatformTime::Seconds();
+	const float FrameTimeMS = (float)((CurrentTime - LastTime) * 1000.0);
 	// A 3/4, 1/4 split gets close to a simple 10 frame moving average
-	GAverageMS				= GAverageMS * 0.75f + FrameTime * 0.25f;
-	LastTime				= CurrentTime;
+	GAverageMS = GAverageMS * 0.75f + FrameTimeMS * 0.25f;
+	LastTime = CurrentTime;
 	// Calculate average framerate.
 	GAverageFPS = 1000.f / GAverageMS;
 }

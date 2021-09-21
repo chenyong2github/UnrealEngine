@@ -3125,8 +3125,8 @@ struct FLODMask
 
 	void SetLOD(int32 LODIndex)
 	{
-		DitheredLODIndices[0] = LODIndex;
-		DitheredLODIndices[1] = LODIndex;
+		DitheredLODIndices[0] = (int8)LODIndex;
+		DitheredLODIndices[1] = (int8)LODIndex;
 	}
 	void SetLODSample(int32 LODIndex, int32 SampleIndex)
 	{

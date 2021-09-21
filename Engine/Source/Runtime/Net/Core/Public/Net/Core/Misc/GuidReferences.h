@@ -53,7 +53,7 @@ public:
 		MappedDynamicGUIDs(InMappedDynamicGUIDs),
 		Array(nullptr)
 	{
-		NumBufferBits = InReader.GetPosBits() - InMark.GetPos();
+		NumBufferBits = UE_PTRDIFF_TO_INT32(InReader.GetPosBits() - InMark.GetPos());
 		InMark.Copy(InReader, Buffer);
 	}
 
