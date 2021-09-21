@@ -976,7 +976,7 @@ public:
 	 * @param CompressionOverrides Optional argument for compression overrides.
 	 * @return			compressed data size, or zero if it could not be obtained
 	 */
-	int32 GetCompressedDataSize(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform())
+	SIZE_T GetCompressedDataSize(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform())
 	{
 		FByteBulkData* Data = GetCompressedData(Format, CompressionOverrides);
 		return Data ? Data->GetBulkDataSize() : 0;
