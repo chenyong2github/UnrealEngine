@@ -1603,7 +1603,7 @@ bool USubobjectDataSubsystem::ReparentSubobjects(const FReparentSubobjectParams&
 				AttachSubobject(NewParentData->GetHandle(), DroppedData->GetHandle());
 
 				// Attempt to locate a matching instance of the parent component template in the Actor context that's being edited
-				USceneComponent* ParentSceneComponent = Cast<USceneComponent>(DroppedData->FindMutableComponentInstanceInActor(Params.ActorPreviewContext));
+				USceneComponent* ParentSceneComponent = OldParentData ? Cast<USceneComponent>(OldParentData->FindMutableComponentInstanceInActor(Params.ActorPreviewContext)) : nullptr;
 				if(SceneComponentTemplate && ParentSceneComponent && ParentSceneComponent->IsRegistered())
 				{
 					ConformTransformRelativeToParent(SceneComponentTemplate, ParentSceneComponent);
