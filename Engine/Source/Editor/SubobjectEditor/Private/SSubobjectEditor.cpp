@@ -3291,13 +3291,13 @@ FSubobjectDataHandle SSubobjectEditor::PerformComboAddClass(TSubclassOf<UActorCo
 				{
 					if (ComponentClasses[ComponentIndex]->IsChildOf(NewClass))
 					{
-						const FSubobjectDataHandle ParentHandle = SubobjectSystem->FindHandleForObject(CachedRootHandle, Object);
-						if(ParentHandle.IsValid())
-						{
-							NewComponentHandle = AddNewSubobject(ParentHandle, NewClass, Object, OutFailReason, MoveTemp(AddTransaction));
-							bAddedComponent = true;
-							break;
-						}
+						const TArray<FSubobjectDataHandle>& SelectedHandles = GetSelectedHandles();
+						const FSubobjectDataHandle& ParentHandle = SelectedHandles.Num() > 0 ? SelectedHandles[0] : CachedRootHandle;
+						ensureMsgf(ParentHandle.IsValid(), TEXT("Attempting to add a component from an invalid selection!"));
+						
+						NewComponentHandle = AddNewSubobject(ParentHandle, NewClass, Object, OutFailReason, MoveTemp(AddTransaction));
+						bAddedComponent = true;
+						break;
 					}
 				}
 			}
