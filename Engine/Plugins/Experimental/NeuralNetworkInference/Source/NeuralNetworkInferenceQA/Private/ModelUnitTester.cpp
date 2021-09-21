@@ -222,6 +222,7 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	// Multiple for loops to make sure that running on the CPU does not affect GPU results or vice versa
 	bool bDidGlobalTestPassed = true;
 	TArray<TArray<float>> CPUOutputs, CPUGPUCPUOutputs, CPUGPUGPUOutputs;
+	// Input CPU + Network CPU + Output CPU
 	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 	{
 		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
@@ -230,24 +231,42 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 		InOutNetwork->Run();
 		CPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 	}
+	// Input CPU + Network GPU + Output CPU
 	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 	{
 		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
-		// Input CPU + GPU + Output CPU
 		InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
 		InOutNetwork->Run();
 		CPUGPUCPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 	}
+	// Input CPU + Network GPU + Output GPU
 	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 	{
 // @todo: Remove if/else (and else contents) once DX12 version of NNI (UEAndORT) is ready
 if (InBackEnd == ENeuralBackEnd::UEOnly /*|| true*/)
 {
 		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
-		// Input CPU + GPU + Output GPU
 		InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::GPU);
 		InOutNetwork->Run();
 		InOutNetwork->OutputTensorsToCPU();
+		CPUGPUGPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
+}
+else
+{
+	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("FModelUnitTester::ModelAccuracyTest(): GPU output for UEAndORT back end not working yet. Uncomment this line to test it."));
+	CPUGPUGPUOutputs.Push(CPUGPUCPUOutputs[Index]);
+}
+	}
+	// Input GPU + Network GPU + Output CPU
+	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
+	{
+// @todo: Remove if/else (and else contents) once DX12 version of NNI (UEAndORT) is ready
+if (InBackEnd == ENeuralBackEnd::UEOnly /*|| true*/)
+{
+		InOutNetwork->SetInputFromArrayCopy(InputArrays[Index]);
+		InOutNetwork->InputTensorsToGPU();
+		InOutNetwork->SetDeviceType(/*DeviceType*/ENeuralDeviceType::GPU, /*InputDeviceType*/ENeuralDeviceType::GPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
+		InOutNetwork->Run();
 		CPUGPUGPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 }
 else

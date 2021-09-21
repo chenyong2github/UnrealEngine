@@ -151,11 +151,13 @@ public:
 	const FNeuralTensor& GetOutputTensor(const int32 InTensorIndex = 0) const;
 	int64 GetOutputTensorNumber() const;
 	/**
-	 * Non-efficient function meant to be used only for debugging purposes. It will send the GPU memory of the desired output tensor(s) back into CPU memory.
-	 * It is useful for debugging OutputDeviceType == ENeuralDeviceType::GPU cases.
-	 * @param InOutputTensorIndexes If empty (default value), it will apply to all output tensors.
+	 * Non-efficient functions meant to be used only for debugging purposes.
+	 * - InputTensorsToCPU will send the CPU memory of the desired input tensor(s) to GPU memory. Used to debug InputDeviceType == ENeuralDeviceType::GPU.
+	 * - OutputTensorsToCPU will send the GPU memory of the desired output tensor(s) back to CPU memory. Used to debug OutputDeviceType == ENeuralDeviceType::GPU.
+	 * @param InTensorIndexes If empty (default value), it will apply to all output tensors.
 	 */
-	void OutputTensorsToCPU(const TArray<int32>& InOutputTensorIndexes = TArray<int32>());
+	void InputTensorsToGPU(const TArray<int32>& InTensorIndexes = TArray<int32>());
+	void OutputTensorsToCPU(const TArray<int32>& InTensorIndexes = TArray<int32>());
 
 	/**
 	 * Run() executes the forward pass on the current UNeuralNetwork given the current input FDeprecatedNeuralTensor(s), which were previously filled with
@@ -248,8 +250,9 @@ private:
 	bool Load();
 
 	/**
-	 * Mutable version of GetOutputTensor(const int32 InTensorIndex) const.
+	 * Private and mutable version of GetInputTensor()/GetOutputTensor().
 	 */
+	FNeuralTensor& GetInputTensorMutable(const int32 InTensorIndex = 0);
 	FNeuralTensor& GetOutputTensorMutable(const int32 InTensorIndex = 0);
 
 public:
