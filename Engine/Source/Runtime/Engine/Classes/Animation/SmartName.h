@@ -158,7 +158,7 @@ struct ENGINE_API FSmartNameMapping
 	void InitializeCurveMetaData(class USkeleton* Skeleton);
 
 	/** Get the maximum in use UID */
-	SmartName::UID_Type GetMaxUID() const { return CurveNameList.Num() - 1; }
+	SmartName::UID_Type GetMaxUID() const { return (SmartName::UID_Type)(CurveNameList.Num() - 1); }
 
 private:
 	// List of curve names, indexed by UID

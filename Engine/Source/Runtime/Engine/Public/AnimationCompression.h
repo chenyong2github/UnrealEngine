@@ -114,9 +114,9 @@ public:
 		}
 		Temp.Normalize();
 
-		X = (int32)(Temp.X * Quant16BitFactor) + Quant16BitOffs;
-		Y = (int32)(Temp.Y * Quant16BitFactor) + Quant16BitOffs;
-		Z = (int32)(Temp.Z * Quant16BitFactor) + Quant16BitOffs;
+		X = (uint16)((int32)(Temp.X * Quant16BitFactor) + Quant16BitOffs);
+		Y = (uint16)((int32)(Temp.Y * Quant16BitFactor) + Quant16BitOffs);
+		Z = (uint16)((int32)(Temp.Z * Quant16BitFactor) + Quant16BitOffs);
 	}
 
 	void ToQuat(FQuat& Out) const
@@ -293,9 +293,9 @@ public:
 	{
 		FVector3f Temp( Vec / 128.0f );
 
-		X = (int32)(Temp.X * Quant16BitFactor) + Quant16BitOffs;
-		Y = (int32)(Temp.Y * Quant16BitFactor) + Quant16BitOffs;
-		Z = (int32)(Temp.Z * Quant16BitFactor) + Quant16BitOffs;
+		X = (uint16)((int32)(Temp.X * Quant16BitFactor) + Quant16BitOffs);
+		Y = (uint16)((int32)(Temp.Y * Quant16BitFactor) + Quant16BitOffs);
+		Z = (uint16)((int32)(Temp.Z * Quant16BitFactor) + Quant16BitOffs);
 	}
 
 	void ToVector(FVector3f& Out) const

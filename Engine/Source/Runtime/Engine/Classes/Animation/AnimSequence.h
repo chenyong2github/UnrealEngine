@@ -451,7 +451,7 @@ public:
 
 	// Returns the framerate of the animation
 	UE_DEPRECATED(5.0, "GetFrameRate is deprecated see UAnimDataModel::GetFrameRate for the source frame rate, or GetSamplingFrameRate for the target frame rate instead")
-	float GetFrameRate() const { return GetSamplingFrameRate().AsDecimal(); }
+	float GetFrameRate() const { return (float)GetSamplingFrameRate().AsDecimal(); }
 
 	// Extract Root Motion transform from the animation
 	FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const;
