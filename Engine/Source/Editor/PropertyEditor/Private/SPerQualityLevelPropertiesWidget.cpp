@@ -49,24 +49,24 @@ TSharedRef<SWidget> SOverridePropertiesWidget::MakeOverrideWidget(FName InName, 
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SAssignNew(HorizontalBox, SHorizontalBox)
-			+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		.Padding(0.0f, 0.0f, 2.0f, 2.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(InDisplayText)
-		]
-		]
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			OnGenerateWidget.Execute(InName)
-		]
+			.AutoHeight()
+			[
+				SAssignNew(HorizontalBox, SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.Padding(0.0f, 0.0f, 2.0f, 2.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(InDisplayText)
+				]
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				OnGenerateWidget.Execute(InName)
+			]
 		];
 
 	if (InName != NAME_None)
@@ -78,17 +78,17 @@ TSharedRef<SWidget> SOverridePropertiesWidget::MakeOverrideWidget(FName InName, 
 			[
 				SNew(SButton)
 				.ContentPadding(2.0f)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.OnClicked(this, &SOverridePropertiesWidget::RemoveEntry, InName)
-			.ToolTipText(FText::Format(NSLOCTEXT("SOverridePropertiesWidget", "RemoveOverrideFor", "Remove Override for {0}"), InDisplayText))
-			.ForegroundColor(FSlateColor::UseForeground())
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Content()
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("Icons.Cross"))
-			]
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(this, &SOverridePropertiesWidget::RemoveEntry, InName)
+				.ToolTipText(FText::Format(NSLOCTEXT("SOverridePropertiesWidget", "RemoveOverrideFor", "Remove Override for {0}"), InDisplayText))
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Icons.Delete"))
+				]
 			];
 	}
 	else
@@ -100,20 +100,20 @@ TSharedRef<SWidget> SOverridePropertiesWidget::MakeOverrideWidget(FName InName, 
 			[
 				SNew(SComboButton)
 				.Visibility_Lambda([this]() { return bAddedMenuItem ? EVisibility::Visible : EVisibility::Hidden; })
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ContentPadding(2.0f)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.HasDownArrow(false)
-			.ButtonContent()
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_AddToArray"))
-			]
-		.MenuContent()
-			[
-				InAddMenuBuilder.MakeWidget()
-			]
-		.ToolTipText(NSLOCTEXT("SOverridePropertiesWidget", "AddOverrideToolTip", "Add an override for a specific quality level"))
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ContentPadding(2.0f)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.HasDownArrow(false)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+				]
+				.MenuContent()
+				[
+					InAddMenuBuilder.MakeWidget()
+				]
+				.ToolTipText(NSLOCTEXT("SOverridePropertiesWidget", "AddOverrideToolTip", "Add an override for a specific quality level"))
 			];
 	}
 
