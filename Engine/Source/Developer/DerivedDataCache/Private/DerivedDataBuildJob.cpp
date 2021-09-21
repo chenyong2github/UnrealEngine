@@ -190,9 +190,6 @@ private:
 	/** Policy requested and/or configured for the job. */
 	EBuildPolicy BuildPolicy{EBuildPolicy::None};
 
-	/** True if AdvanceToState is executing. */
-	bool bInAdvanceToState{};
-
 	/** Available in [ResolveKey, Complete] for jobs created from a key or definition. */
 	FBuildKey DefinitionKey;
 	/** Available in [ResolveAction, ExecuteLocal) for jobs created from a key or definition. */
@@ -210,6 +207,7 @@ private:
 	/** Available in [CacheQuery, CacheStoreWait). Context used by IBuildFunction. */
 	TRefCountPtr<FBuildJobContext> Context;
 
+	/** Available in (NotStarted, Complete). */
 	TUniquePtr<IBuildJobSchedule> Schedule;
 
 	/** Lock to synchronize writes to State, NextState, bInAdvanceToState. */
@@ -232,6 +230,9 @@ private:
 
 	ICache& Cache;
 	IBuild& BuildSystem;
+
+	/** True if AdvanceToState is executing. */
+	bool bInAdvanceToState{};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -45,7 +45,7 @@ using FOnCacheGetPayloadComplete = TUniqueFunction<void (FCacheGetPayloadComplet
  * Put(Remote): write to every writable remote cache, skipping local caches.
  * Put(Local): write to every writable local cache, skipping remote caches.
  */
-enum class ECachePolicy : uint8
+enum class ECachePolicy : uint32
 {
 	/** A value without any flags set. */
 	None            = 0,
@@ -75,6 +75,9 @@ enum class ECachePolicy : uint8
 
 	/** Skip copying records to local caches for get requests if they already exist locally. */
 	SkipLocalCopy   = 1 << 7,
+
+	/** Keep records in the cache for at least the duration of the session. */
+	KeepAlive       = 1 << 8,
 
 	/** Allow cache requests to query and store records in local caches. */
 	Local           = QueryLocal | StoreLocal,

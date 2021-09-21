@@ -27,7 +27,7 @@ namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildJobCompleteParams; }
 namespace UE::DerivedData { struct FBuildKey; }
-namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
+namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
 namespace UE::DerivedData { using FOnBuildJobComplete = TUniqueFunction<void (FBuildJobCompleteParams&& Params)>; }
 
 namespace UE::DerivedData::Private

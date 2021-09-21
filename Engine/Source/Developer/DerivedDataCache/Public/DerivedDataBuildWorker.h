@@ -24,7 +24,7 @@ namespace UE::DerivedData { class IBuild; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FBuildWorkerActionCompleteParams; }
 namespace UE::DerivedData { struct FBuildWorkerFileDataCompleteParams; }
-namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
+namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
 
 namespace UE::DerivedData
 {

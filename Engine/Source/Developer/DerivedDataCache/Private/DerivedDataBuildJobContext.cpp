@@ -30,6 +30,10 @@ FBuildJobContext::FBuildJobContext(
 	, CachePolicy(ECachePolicy::Default)
 	, BuildPolicy(InBuildPolicy)
 {
+	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheKeepAlive))
+	{
+		EnumAddFlags(CachePolicy, ECachePolicy::KeepAlive);
+	}
 }
 
 FStringView FBuildJobContext::GetName() const
@@ -158,9 +162,13 @@ void FBuildJobContext::SetCacheBucket(FCacheBucket Bucket)
 
 void FBuildJobContext::SetCachePolicy(ECachePolicy Policy)
 {
-	checkf(!EnumHasAnyFlags(Policy, ECachePolicy::SkipData),
-		TEXT("SkipData flags not allowed on the cache policy for build of '%s' by %s. ")
+	checkf(!EnumHasAnyFlags(CachePolicy ^ Policy, ECachePolicy::SkipData),
+		TEXT("SkipData flags may not be modified on the cache policy for build of '%s' by %s. ")
 		TEXT("Flags for skipping data may be set indirectly through EBuildPolicy."),
+		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+	checkf(!EnumHasAnyFlags(CachePolicy ^ Policy, ECachePolicy::KeepAlive),
+		TEXT("KeepAlive flag may not be modified on the cache policy for build of '%s' by %s. ")
+		TEXT("Flags for cache record lifetime may be set indirectly through EBuildPolicy."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	CachePolicy = Policy;
 }
@@ -171,8 +179,12 @@ void FBuildJobContext::SetBuildPolicy(EBuildPolicy Policy)
 		TEXT("Cache flags may not be modified on the build policy for build of '%s' by %s. ")
 		TEXT("Flags for modifying cache operations may be set through ECachePolicy."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
+	checkf(!EnumHasAnyFlags(BuildPolicy ^ Policy, EBuildPolicy::CacheKeepAlive),
+		TEXT("CacheKeepAlive flag may not be modified on the build policy for build of '%s' by %s. ")
+		TEXT("Flags for cache record lifetime may only be set through the build session."),
+		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	checkf(!EnumHasAnyFlags(BuildPolicy ^ Policy, EBuildPolicy::SkipData),
-		TEXT("SkipData flag may not be modified on the build policy for build of '%s' by %s. ")
+		TEXT("SkipData flags may not be modified on the build policy for build of '%s' by %s. ")
 		TEXT("Flags for skipping the data may only be set through the build session."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	BuildPolicy = Policy;

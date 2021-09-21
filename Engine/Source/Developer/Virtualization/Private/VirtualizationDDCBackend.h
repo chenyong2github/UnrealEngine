@@ -5,7 +5,7 @@
 #include "Virtualization/IVirtualizationBackend.h"
 #include "DerivedDataCacheKey.h"
 
-namespace UE::DerivedData { enum class ECachePolicy : uint8; }
+namespace UE::DerivedData { enum class ECachePolicy : uint32; }
 
 namespace UE::Virtualization
 {

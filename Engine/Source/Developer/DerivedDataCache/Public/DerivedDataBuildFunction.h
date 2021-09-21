@@ -14,8 +14,8 @@ namespace UE::DerivedData { class FBuildContext; }
 namespace UE::DerivedData { class FCacheBucket; }
 namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { struct FPayloadId; }
-namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
-namespace UE::DerivedData { enum class ECachePolicy : uint8; }
+namespace UE::DerivedData { enum class EBuildPolicy : uint32; }
+namespace UE::DerivedData { enum class ECachePolicy : uint32; }
 
 namespace UE::DerivedData
 {
@@ -140,13 +140,23 @@ public:
 	/** Returns the cache policy used when reading or writing this build in the cache. */
 	virtual ECachePolicy GetCachePolicy() const = 0;
 
-	/** Overrides the cache policy used when reading or writing this build in the cache. */
+	/**
+	 * Overrides the cache policy used when reading or writing this build in the cache.
+	 *
+	 * Always set the cache policy by modifying the policy returned by GetCachePolicy(), to maintain
+	 * the state of other flags. Changes to Skip* and KeepAlive flags are not allowed.
+	 */
 	virtual void SetCachePolicy(ECachePolicy Policy) = 0;
 
 	/** Returns the build policy used when executing this build. */
 	virtual EBuildPolicy GetBuildPolicy() const = 0;
 
-	/** Overrides the build policy used when executing this build. */
+	/**
+	 * Overrides the build policy used when executing this build.
+	 *
+	 * Always set the build policy by modifying the policy returned by GetBuildPolicy(), to maintain
+	 * the state of other flags. Changes to Cache* and Skip* flags are not allowed.
+	 */
 	virtual void SetBuildPolicy(EBuildPolicy Policy) = 0;
 
 	/** Sets the estimated peak memory required to execute the build, excluding input size. */
