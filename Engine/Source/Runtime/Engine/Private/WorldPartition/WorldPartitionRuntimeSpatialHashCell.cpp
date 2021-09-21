@@ -18,6 +18,7 @@ UWorldPartitionRuntimeSpatialHashCell::UWorldPartitionRuntimeSpatialHashCell(con
 : Super(ObjectInitializer)
 , Level(0)
 , CachedIsBlockingSource(false)
+, CachedMinSquareDistanceToBlockingSource(MAX_FLT)
 , CachedMinSquareDistanceToSource(MAX_FLT)
 , CachedSourceSortingDistance(0.f)
 {}
@@ -47,6 +48,7 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 	if (bWasCacheDirtied)
 	{
 		CachedIsBlockingSource = false;
+		CachedMinSquareDistanceToBlockingSource = MAX_FLT;
 		CachedMinSquareDistanceToSource = MAX_FLT;
 		CachedSourceModulatedDistances.Reset();
 	}
@@ -127,6 +129,7 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const UWorl
 	if (Info.Source.bBlockOnSlowLoading)
 	{
 		CachedIsBlockingSource = true;
+		CachedMinSquareDistanceToBlockingSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToBlockingSource);
 	}
 
 	CachedMinSquareDistanceToSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToSource);
