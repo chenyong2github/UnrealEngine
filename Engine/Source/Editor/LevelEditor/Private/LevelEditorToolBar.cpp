@@ -1481,6 +1481,9 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 	}
 
+	UToolMenu* UserToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.User", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+	UserToolbar->StyleName = "AssetEditorToolbar";
+
 	UToolMenu* SettingsToolbar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.SettingsToolbar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
 	SettingsToolbar->StyleName = "AssetEditorToolbar";
 	{
@@ -1541,8 +1544,14 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Left)
+			.AutoWidth()
 			[
 				UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.PlayToolBar", MenuContext)
+			]
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			[
+				UToolMenus::Get()->GenerateWidget("LevelEditor.LevelEditorToolBar.User", MenuContext)
 			]
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
