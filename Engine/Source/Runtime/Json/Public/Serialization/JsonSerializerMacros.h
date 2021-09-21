@@ -818,7 +818,7 @@ public:
 			// Iterate all of the keys and their values
 			for (TSharedPtr<FJsonValue>& Value : JsonArray)
 			{
-				Array.Add(Value->AsNumber());
+				Array.Add((int32)Value->AsNumber());
 			}
 		}
 	}
