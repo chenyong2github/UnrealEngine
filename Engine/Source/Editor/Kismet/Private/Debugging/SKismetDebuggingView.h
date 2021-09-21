@@ -162,6 +162,9 @@ public:
 	static TWeakObjectPtr<const UObject> CurrentActiveObject;
 	
 	FText GetTabLabel() const;
+
+	/** Registers the Kismet.DebuggingViewToolBar if it hasn't already been registered */
+	static void TryRegisterDebugToolbar();
 protected:
 	FText GetTopText() const;
 	bool CanDisableAllBreakpoints() const;

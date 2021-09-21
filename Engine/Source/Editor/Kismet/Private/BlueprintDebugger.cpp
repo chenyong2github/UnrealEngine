@@ -14,6 +14,8 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "BlueprintEditorTabs.h"
+#include "ToolMenus.h"
+#include "Kismet2/DebuggerCommands.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugger"
 
@@ -118,6 +120,9 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 	{
 		ensure(BlueprintDebuggerLayout.IsValid());
 	}
+
+	// Register Toolbar
+	SKismetDebuggingView::TryRegisterDebugToolbar();
 
 	const FName ExecutionFlowTabName = FName(TEXT("ExecutionFlowApp"));
 	const FName CallStackTabName = CallStackViewer::GetTabName();

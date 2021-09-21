@@ -1966,6 +1966,17 @@ FText SKismetDebuggingView::GetTabLabel() const
 		NSLOCTEXT("BlueprintExecutionFlow", "TabTitle", "Data Flow");
 }
 
+void SKismetDebuggingView::TryRegisterDebugToolbar()
+{
+	static const FName ToolbarName = "Kismet.DebuggingViewToolBar";
+	if (!UToolMenus::Get()->IsMenuRegistered(ToolbarName))
+	{
+		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(ToolbarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
+		FToolMenuSection& Section = ToolBar->AddSection("Debug");
+		FPlayWorldCommands::BuildToolbar(Section);
+	}
+}
+
 FText SKismetDebuggingView::GetTopText() const
 {
 	return LOCTEXT("ShowDebugForActors", "Showing debug info for instances of the blueprint:");
@@ -2041,16 +2052,7 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 
 	// Build the debug toolbar
 	static const FName ToolbarName = "Kismet.DebuggingViewToolBar";
-	if (!UToolMenus::Get()->IsMenuRegistered(ToolbarName))
-	{
-		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(ToolbarName, NAME_None, EMultiBoxType::SlimHorizontalToolBar);
-
-		{
-			FToolMenuSection& Section = ToolBar->AddSection("Debug");
-			FPlayWorldCommands::BuildToolbar(Section);
-		}
-	}
-
+	TryRegisterDebugToolbar();
 	FToolMenuContext MenuContext(FPlayWorldCommands::GlobalPlayWorldActions);
 	TSharedRef<SWidget> ToolbarWidget = UToolMenus::Get()->GenerateWidget(ToolbarName, MenuContext);
 	
