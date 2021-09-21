@@ -113,7 +113,10 @@ namespace AutomationTool
 				}
 				
 				// Clean rules folders up
-				ProjectUtils.CleanupFolders();
+				if (!CommandUtils.CmdEnv.IsChildInstance)
+				{
+					ProjectUtils.CleanupFolders();
+				}
 
 				// Compile scripts.
 				using (TelemetryStopwatch ScriptLoadStopwatch = new TelemetryStopwatch("ScriptLoad"))
