@@ -465,6 +465,14 @@ void SRigHierarchyTreeView::RefreshTreeView(bool bRebuildContent)
 				RestoreSparseItemInfos(Pair.Value);
 			}
 
+			if(Delegates.OnCompareKeys.IsBound())
+			{
+				Algo::Sort(RootElements, [&](const TSharedPtr<FRigTreeElement>& A, const TSharedPtr<FRigTreeElement>& B)
+				{
+					return Delegates.OnCompareKeys.Execute(A->Key, B->Key);
+				});
+			}
+
 			if (RootElements.Num() > 0)
 			{
 				AddSpacerElement();
