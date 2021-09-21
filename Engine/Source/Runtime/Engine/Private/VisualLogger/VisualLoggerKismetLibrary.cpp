@@ -76,7 +76,7 @@ void UVisualLoggerKismetLibrary::LogSegment(UObject* WorldContextObject, const F
 {
 #if ENABLE_VISUAL_LOG
 	const ELogVerbosity::Type DefaultVerbosity = ELogVerbosity::Log;
-	FVisualLogger::GeometryShapeLogf(WorldContextObject, CategoryName, DefaultVerbosity, SegmentStart, SegmentEnd, ObjectColor.ToFColor(true), Thickness, TEXT("%s"), *Text);
+	FVisualLogger::GeometryShapeLogf(WorldContextObject, CategoryName, DefaultVerbosity, SegmentStart, SegmentEnd, ObjectColor.ToFColor(true), (uint16)Thickness, TEXT("%s"), *Text);
 #endif
 	if (bAddToMessageLog)
 	{

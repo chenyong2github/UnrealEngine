@@ -54,7 +54,7 @@ class ENGINE_API FNavigationLockContext
 {
 public:
 	FNavigationLockContext(ENavigationLockReason::Type Reason = ENavigationLockReason::Unknown, bool bApplyLock = true)
-		: MyWorld(NULL), LockReason(Reason), bSingleWorld(false), bIsLocked(false)
+		: MyWorld(NULL), LockReason((uint8)Reason), bSingleWorld(false), bIsLocked(false)
 	{
 		if (bApplyLock)
 		{
@@ -63,7 +63,7 @@ public:
 	}
 
 	FNavigationLockContext(UWorld* InWorld, ENavigationLockReason::Type Reason = ENavigationLockReason::Unknown, bool bApplyLock = true)
-		: MyWorld(InWorld), LockReason(Reason), bSingleWorld(true), bIsLocked(false)
+		: MyWorld(InWorld), LockReason((uint8)Reason), bSingleWorld(true), bIsLocked(false)
 	{
 		if (bApplyLock)
 		{

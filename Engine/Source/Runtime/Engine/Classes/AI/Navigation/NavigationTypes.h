@@ -327,7 +327,7 @@ struct FNavigationPortalEdge
 		return ((FVector*)&Left)[Index];
 	}
 
-	FORCEINLINE float GetLength() const { return FVector::Dist(Left, Right); }
+	FORCEINLINE FVector::FReal GetLength() const { return FVector::Dist(Left, Right); }
 
 	FORCEINLINE FVector GetMiddlePoint() const { return Left + (Right - Left) / 2; }
 };
