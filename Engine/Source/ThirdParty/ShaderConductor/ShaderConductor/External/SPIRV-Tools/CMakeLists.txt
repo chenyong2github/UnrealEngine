@@ -84,6 +84,10 @@ endif(SPIRV_BUILD_COMPRESSION)
 
 option(SPIRV_BUILD_FUZZER "Build spirv-fuzz" OFF)
 
+set(SPIRV_LIB_FUZZING_ENGINE_LINK_OPTIONS "" CACHE STRING "Used by OSS-Fuzz to control, via link options, which fuzzing engine should be used")
+
+option(SPIRV_BUILD_LIBFUZZER_TARGETS "Build libFuzzer targets" OFF)
+
 option(SPIRV_WERROR "Enable error on warning" ON)
 if(("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU") OR (("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang") AND (NOT CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")))
   set(COMPILER_IS_LIKE_GNU TRUE)
@@ -295,7 +299,7 @@ endif()
 # Turn off if they take too long.
 option(SPIRV_CHECK_CONTEXT "In a debug build, check if the IR context is in a valid state." ON)
 if (${SPIRV_CHECK_CONTEXT})
-  add_definitions(-DSPIRV_CHECK_CONTEXT)
+  add_compile_options($<$<CONFIG:Debug>:-DSPIRV_CHECK_CONTEXT>)
 endif()
 
 # Precompiled header macro. Parameters are source file list and filename for pch cpp file.

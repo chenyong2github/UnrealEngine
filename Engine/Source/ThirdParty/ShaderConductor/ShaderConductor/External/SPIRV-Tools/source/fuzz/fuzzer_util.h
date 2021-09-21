@@ -169,6 +169,10 @@ uint32_t GetArraySize(const opt::Instruction& array_type_instruction,
 uint32_t GetBoundForCompositeIndex(const opt::Instruction& composite_type_inst,
                                    opt::IRContext* ir_context);
 
+// Returns memory semantics mask for specific storage class.
+SpvMemorySemanticsMask GetMemorySemanticsForStorageClass(
+    SpvStorageClass storage_class);
+
 // Returns true if and only if |context| is valid, according to the validator
 // instantiated with |validator_options|.  |consumer| is used for error
 // reporting.
@@ -599,6 +603,21 @@ bool NewTerminatorPreservesDominationRules(opt::IRContext* ir_context,
 // module()->end().
 opt::Module::iterator GetFunctionIterator(opt::IRContext* ir_context,
                                           uint32_t function_id);
+
+// Returns true if the instruction with opcode |opcode| does not change its
+// behaviour depending on the signedness of the operand at
+// |use_in_operand_index|.
+// Assumes that the operand must be the id of an integer scalar or vector.
+bool IsAgnosticToSignednessOfOperand(SpvOp opcode,
+                                     uint32_t use_in_operand_index);
+
+// Returns true if |type_id_1| and |type_id_2| represent compatible types
+// given the context of the instruction with |opcode| (i.e. we can replace
+// an operand of |opcode| of the first type with an id of the second type
+// and vice-versa).
+bool TypesAreCompatible(opt::IRContext* ir_context, SpvOp opcode,
+                        uint32_t use_in_operand_index, uint32_t type_id_1,
+                        uint32_t type_id_2);
 
 }  // namespace fuzzerutil
 }  // namespace fuzz

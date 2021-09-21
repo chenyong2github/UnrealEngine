@@ -4399,6 +4399,125 @@ OpFunctionEnd
                         "1[%BAD], but not via a structured exit"));
 }
 
+TEST_F(ValidateCFG, SwitchSelectorNotAnInt) {
+  const std::string spirv = R"(
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main"
+OpExecutionMode %main LocalSize 1 1 1
+%void = OpTypeVoid
+%float = OpTypeFloat 32
+%float_1 = OpConstant %float 1
+%void_fn = OpTypeFunction %void
+%main = OpFunction %void None %void_fn
+%entry = OpLabel
+OpSelectionMerge %default None
+OpSwitch %float_1 %default
+%default = OpLabel
+OpReturn
+OpFunctionEnd
+)";
+
+  CompileSuccessfully(spirv);
+  EXPECT_EQ(SPV_ERROR_INVALID_ID, ValidateInstructions());
+  EXPECT_THAT(getDiagnosticString(),
+              HasSubstr("Selector type must be OpTypeInt"));
+}
+
+TEST_F(ValidateCFG, SwitchDefaultNotALabel) {
+  const std::string spirv = R"(
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main"
+OpExecutionMode %main LocalSize 1 1 1
+%void = OpTypeVoid
+%int = OpTypeInt 32 0
+%int_1 = OpConstant %int 1
+%void_fn = OpTypeFunction %void
+%main = OpFunction %void None %void_fn
+%entry = OpLabel
+OpSelectionMerge %default None
+OpSwitch %int_1 %int_1
+%default = OpLabel
+OpReturn
+OpFunctionEnd
+)";
+
+  CompileSuccessfully(spirv);
+  EXPECT_EQ(SPV_ERROR_INVALID_ID, ValidateInstructions());
+  EXPECT_THAT(getDiagnosticString(),
+              HasSubstr("Default must be an OpLabel instruction"));
+}
+
+TEST_F(ValidateCFG, BlockDepthRecursion) {
+  const std::string text = R"(
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main"
+%void = OpTypeVoid
+%bool = OpTypeBool
+%undef = OpUndef %bool
+%void_fn = OpTypeFunction %void
+%main = OpFunction %void None %void_fn
+%1 = OpLabel
+OpBranch %2
+%2 = OpLabel
+OpLoopMerge %3 %4 None
+OpBranchConditional %undef %3 %4
+%4 = OpLabel
+OpBranch %2
+%3 = OpLabel
+OpBranch %5
+%5 = OpLabel
+OpSelectionMerge %2 None
+OpBranchConditional %undef %6 %7
+%6 = OpLabel
+OpReturn
+%7 = OpLabel
+OpReturn
+OpFunctionEnd
+)";
+
+  CompileSuccessfully(text);
+  EXPECT_EQ(SPV_ERROR_INVALID_CFG, ValidateInstructions());
+}
+
+TEST_F(ValidateCFG, BadStructuredExitBackwardsMerge) {
+  const std::string spirv = R"(
+OpCapability Shader
+OpMemoryModel Logical GLSL450
+OpEntryPoint GLCompute %main "main"
+%void = OpTypeVoid
+%bool = OpTypeBool
+%undef = OpUndef %bool
+%void_fn = OpTypeFunction %void
+%main = OpFunction %void None %void_fn
+%1 = OpLabel
+OpBranch %2
+%2 = OpLabel
+OpLoopMerge %4 %5 None
+OpBranchConditional %undef %4 %6
+%6 = OpLabel
+OpSelectionMerge %7 None
+OpBranchConditional %undef %8 %9
+%7 = OpLabel
+OpReturn
+%8 = OpLabel
+OpBranch %5
+%9 = OpLabel
+OpSelectionMerge %6 None
+OpBranchConditional %undef %5 %5
+%5 = OpLabel
+OpBranch %2
+%4 = OpLabel
+OpReturn
+OpFunctionEnd
+)";
+
+  CompileSuccessfully(spirv);
+  EXPECT_EQ(SPV_ERROR_INVALID_CFG, ValidateInstructions());
+}
+
 }  // namespace
 }  // namespace val
 }  // namespace spvtools

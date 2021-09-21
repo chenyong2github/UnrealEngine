@@ -145,6 +145,19 @@ bool AggressiveDCEPass::AllExtensionsSupported() const {
     if (extensions_allowlist_.find(extName) == extensions_allowlist_.end())
       return false;
   }
+  // Only allow NonSemantic.Shader.DebugInfo.100, we cannot safely optimise
+  // around unknown extended instruction sets even if they are non-semantic
+  for (auto& inst : context()->module()->ext_inst_imports()) {
+    assert(inst.opcode() == SpvOpExtInstImport &&
+           "Expecting an import of an extension's instruction set.");
+    const char* extension_name =
+        reinterpret_cast<const char*>(&inst.GetInOperand(0).words[0]);
+    if (0 == std::strncmp(extension_name, "NonSemantic.", 12) &&
+        0 != std::strncmp(extension_name, "NonSemantic.Shader.DebugInfo.100",
+                          32)) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -468,6 +481,11 @@ bool AggressiveDCEPass::AggressiveDCE(Function* func) {
     if (liveInst->type_id() != 0) {
       AddToWorklist(get_def_use_mgr()->GetDef(liveInst->type_id()));
     }
+    BasicBlock* basic_block = context()->get_instr_block(liveInst);
+    if (basic_block != nullptr) {
+      AddToWorklist(basic_block->GetLabelInst());
+    }
+
     // If in a structured if or loop construct, add the controlling
     // conditional branch and its merge.
     BasicBlock* blk = context()->get_instr_block(liveInst);
@@ -630,7 +648,8 @@ void AggressiveDCEPass::InitializeModuleScopeLiveInstructions() {
   }
   // Keep all entry points.
   for (auto& entry : get_module()->entry_points()) {
-    if (get_module()->version() >= SPV_SPIRV_VERSION_WORD(1, 4)) {
+    if (get_module()->version() >= SPV_SPIRV_VERSION_WORD(1, 4) &&
+        !preserve_interface_) {
       // In SPIR-V 1.4 and later, entry points must list all global variables
       // used. DCE can still remove non-input/output variables and update the
       // interface list. Mark the entry point as live and inputs and outputs as
@@ -718,7 +737,7 @@ Pass::Status AggressiveDCEPass::ProcessImpl() {
 
   // Process all entry point functions.
   ProcessFunction pfn = [this](Function* fp) { return AggressiveDCE(fp); };
-  modified |= context()->ProcessEntryPointCallTree(pfn);
+  modified |= context()->ProcessReachableCallTree(pfn);
 
   // If the decoration manager is kept live then the context will try to keep it
   // up to date.  ADCE deals with group decorations by changing the operands in
@@ -745,21 +764,20 @@ Pass::Status AggressiveDCEPass::ProcessImpl() {
 
   // Cleanup all CFG including all unreachable blocks.
   ProcessFunction cleanup = [this](Function* f) { return CFGCleanup(f); };
-  modified |= context()->ProcessEntryPointCallTree(cleanup);
+  modified |= context()->ProcessReachableCallTree(cleanup);
 
   return modified ? Status::SuccessWithChange : Status::SuccessWithoutChange;
 }
 
 bool AggressiveDCEPass::EliminateDeadFunctions() {
   // Identify live functions first. Those that are not live
-  // are dead. ADCE is disabled for non-shaders so we do not check for exported
-  // functions here.
+  // are dead.
   std::unordered_set<const Function*> live_function_set;
   ProcessFunction mark_live = [&live_function_set](Function* fp) {
     live_function_set.insert(fp);
     return false;
   };
-  context()->ProcessEntryPointCallTree(mark_live);
+  context()->ProcessReachableCallTree(mark_live);
 
   bool modified = false;
   for (auto funcIter = get_module()->begin();
@@ -937,7 +955,8 @@ bool AggressiveDCEPass::ProcessGlobalValues() {
     }
   }
 
-  if (get_module()->version() >= SPV_SPIRV_VERSION_WORD(1, 4)) {
+  if (get_module()->version() >= SPV_SPIRV_VERSION_WORD(1, 4) &&
+      !preserve_interface_) {
     // Remove the dead interface variables from the entry point interface list.
     for (auto& entry : get_module()->entry_points()) {
       std::vector<Operand> new_operands;
@@ -962,8 +981,6 @@ bool AggressiveDCEPass::ProcessGlobalValues() {
 
   return modified;
 }
-
-AggressiveDCEPass::AggressiveDCEPass() = default;
 
 Pass::Status AggressiveDCEPass::Process() {
   // Initialize extensions allowlist
@@ -1026,6 +1043,7 @@ void AggressiveDCEPass::InitExtensions() {
       "SPV_KHR_subgroup_uniform_control_flow",
       "SPV_KHR_integer_dot_product",
       "SPV_EXT_shader_image_int64",
+      "SPV_KHR_non_semantic_info",
   });
 }
 

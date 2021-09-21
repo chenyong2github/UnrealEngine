@@ -28,8 +28,10 @@ set(SPIRV_TOOLS_OPT_SOURCES
   const_folding_rules.h
   constants.h
   control_dependence.h
+  convert_to_sampled_image_pass.h
   convert_to_half_pass.h
   copy_prop_arrays.h
+  dataflow.h
   dead_branch_elim_pass.h
   dead_insert_elim_pass.h
   dead_variable_elimination.h
@@ -136,8 +138,10 @@ set(SPIRV_TOOLS_OPT_SOURCES
   const_folding_rules.cpp
   constants.cpp
   control_dependence.cpp
+  convert_to_sampled_image_pass.cpp
   convert_to_half_pass.cpp
   copy_prop_arrays.cpp
+  dataflow.cpp
   dead_branch_elim_pass.cpp
   dead_insert_elim_pass.cpp
   dead_variable_elimination.cpp
