@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using EpicGames.Horde.Compute;
 using EpicGames.Serialization;
 using System;
