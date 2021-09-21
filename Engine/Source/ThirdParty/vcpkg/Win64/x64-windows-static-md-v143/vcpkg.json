@@ -1,8 +1,0 @@
-{
-  "name": "ue5",
-  "version-string": "0.0.0",
-  "description": "Unreal Engine 5 dependencies built with vcpkg",
-  "dependencies": [
-    "grpc"
-  ]
-}

@@ -1,1 +1,0 @@
-See https://github.com/microsoft/vcpkg/tree/master/ports for how to create a port config.
