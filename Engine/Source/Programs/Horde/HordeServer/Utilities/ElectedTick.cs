@@ -41,7 +41,7 @@ namespace HordeServer.Utilities
 		/// <param name="Interval">Interval for calling the tick function</param>
 		/// <param name="Logger">The log service</param>
 		public ElectedTick(DatabaseService DatabaseService, ObjectId ServiceId, Func<CancellationToken, Task> TickAsync, TimeSpan Interval, ILogger Logger)
-			: this(DatabaseService, ServiceId, async (Token) => { await TickAsync(Token); return DateTime.UtcNow + Interval; }, Logger)
+			: this(DatabaseService, ServiceId, Interval, Interval, async (Token) => { await TickAsync(Token); return DateTime.UtcNow + Interval; }, Logger)
 		{
 		}
 

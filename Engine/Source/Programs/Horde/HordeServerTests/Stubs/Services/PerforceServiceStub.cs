@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Perforce;
 using HordeServer.Models;
 using HordeServer.Services;
 using System;
@@ -35,6 +36,11 @@ namespace HordeServerTests.Stubs.Services
 		}
 
 		public Dictionary<string, SortedDictionary<int, ChangeDetails>> Changes { get; } = new Dictionary<string, SortedDictionary<int, ChangeDetails>>(StringComparer.OrdinalIgnoreCase);
+
+		public Task<NativePerforceConnection?> GetServiceUserConnection(string? ClusterName)
+		{
+			throw new NotImplementedException();
+		}
 
 		public void AddChange(string StreamName, int Number, string Author, string Description, IEnumerable<string> Files)
 		{

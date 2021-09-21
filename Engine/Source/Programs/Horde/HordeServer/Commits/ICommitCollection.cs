@@ -42,4 +42,27 @@ namespace HordeServer.Commits
 		/// <returns></returns>
 		Task<List<ICommit>> FindCommitsAsync(StreamId StreamId, int? MinChange = null, int? MaxChange = null, int? Index = null, int? Count = null);
 	}
+
+	/// <summary>
+	/// Extension methods for <see cref="ICommitCollection"/>
+	/// </summary>
+	static class CommitCollectionExtensions
+	{
+		/// <summary>
+		/// Gets a commit from a stream by changelist number
+		/// </summary>
+		/// <param name="CommitCollection">The commit collection</param>
+		/// <param name="StreamId"></param>
+		/// <param name="Change"></param>
+		/// <returns></returns>
+		public static async Task<ICommit?> GetCommitAsync(this ICommitCollection CommitCollection, StreamId StreamId, int Change)
+		{
+			List<ICommit> Commits = await CommitCollection.FindCommitsAsync(StreamId, Change, Change);
+			if (Commits.Count == 0)
+			{
+				return null;
+			}
+			return Commits[0];
+		}
+	}
 }

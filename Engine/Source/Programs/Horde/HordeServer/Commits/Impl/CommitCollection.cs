@@ -47,6 +47,9 @@ namespace HordeServer.Commits.Impl
 			[BsonElement("p")]
 			public string BasePath { get; set; } = String.Empty;
 
+			[BsonElement("tr")]
+			public string? TreeRef { get; set; }
+
 			[BsonElement("t")]
 			public DateTime DateUtc { get; set; }
 
@@ -72,6 +75,7 @@ namespace HordeServer.Commits.Impl
 				}
 				this.Description = NewCommit.Description;
 				this.BasePath = NewCommit.BasePath;
+				this.TreeRef = NewCommit.TreeRef;
 				this.DateUtc = NewCommit.DateUtc;
 			}
 		}
