@@ -319,12 +319,51 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 				.Padding(FMargin(8.f))
+				.HeaderContent()
+				[
+					SNew(SHorizontalBox)
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(0.f, 0.f, 0.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Picker_SpaceWidget", "Spaces"))
+						.Font(FCoreStyle::Get().GetFontStyle("ExpandableArea.TitleFont"))
+					]
+					
+					+SHorizontalBox::Slot()
+					.FillWidth(1.f)
+					[
+						SNew(SSpacer)
+					]
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Center)
+					.Padding(0.f, 2.f, 8.f, 2.f)
+					[
+						SNew(SButton)
+						.ContentPadding(0.0f)
+						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+						.OnClicked(this, &SControlRigEditModeTools::HandleAddSpaceClicked)
+						.Cursor(EMouseCursor::Default)
+						.ToolTipText(LOCTEXT("AddSpace", "Add Space"))
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+						]
+					]
+				]
 				.BodyContent()
 				[
 					SAssignNew(SpacePickerWidget, SRigSpacePickerWidget)
 					.AllowDelete(true)
 					.AllowReorder(true)
-					.AllowAdd(true)
+					.AllowAdd(false)
 					.ShowBakeButton(true)
 					.GetControlCustomization(this, &SControlRigEditModeTools::HandleGetControlElementCustomization)
 					.OnActiveSpaceChanged(this, &SControlRigEditModeTools::HandleActiveSpaceChanged)
@@ -690,6 +729,11 @@ void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy
 			InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 		}
 	}
+}
+
+FReply SControlRigEditModeTools::HandleAddSpaceClicked()
+{
+	return SpacePickerWidget->HandleAddElementClicked();
 }
 
 FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
