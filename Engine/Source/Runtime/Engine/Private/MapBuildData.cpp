@@ -800,25 +800,32 @@ bool UMapBuildDataRegistry::IsLegacyBuildData() const
 
 bool UMapBuildDataRegistry::IsLightingValid(ERHIFeatureLevel::Type InFeatureLevel) const
 {
-	const bool bUsingVTLightmaps = UseVirtualTextureLightmap(InFeatureLevel);
-
-	// this code checks if AT LEAST 1 virtual textures is valid. 
-	for (auto MeshBuildDataPair : MeshBuildData)
+	if (MeshBuildData.Num() == 0)
 	{
-		const FMeshMapBuildData& Data = MeshBuildDataPair.Value;
-		if (/*Data.IsDefault() == false &&*/ Data.LightMap.IsValid())
+		return LevelPrecomputedLightVolumeBuildData.Num() > 0 || LevelPrecomputedVolumetricLightmapBuildData.Num() > 0;
+	}
+	else
+	{
+		const bool bUsingVTLightmaps = UseVirtualTextureLightmap(InFeatureLevel);
+
+		// this code checks if AT LEAST 1 virtual textures is valid. 
+		for (auto MeshBuildDataPair : MeshBuildData)
 		{
-			const FLightMap2D* Lightmap2D = Data.LightMap->GetLightMap2D();
-			if (Lightmap2D)
+			const FMeshMapBuildData& Data = MeshBuildDataPair.Value;
+			if (/*Data.IsDefault() == false &&*/ Data.LightMap.IsValid())
 			{
-				if ((bUsingVTLightmaps && Lightmap2D->IsVirtualTextureValid()) || (!bUsingVTLightmaps && (Lightmap2D->IsValid(0) || Lightmap2D->IsValid(1))))
+				const FLightMap2D* Lightmap2D = Data.LightMap->GetLightMap2D();
+				if (Lightmap2D)
 				{
-					return true;
+					if ((bUsingVTLightmaps && Lightmap2D->IsVirtualTextureValid()) || (!bUsingVTLightmaps && (Lightmap2D->IsValid(0) || Lightmap2D->IsValid(1))))
+					{
+						return true;
+					}
 				}
 			}
 		}
+		return false;
 	}
-	return false;
 }
 
 FLightmapClusterResourceInput GetClusterInput(const FMeshMapBuildData& MeshBuildData)
