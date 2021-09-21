@@ -41,14 +41,13 @@ public:
 	/** End IAssetEditorInstance interface */
 
 private:
-	/** Handle spawning the tab that holds the remote control panel tab. */
+	//~ Handlers that spawn remote control tabs.
 	TSharedRef<SDockTab> HandleTabManagerSpawnPanelTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> HandleTabManagerSpawnDetailsTab(const FSpawnTabArgs& Args);
 
 	/** Handle invoking the remote control tab. */
 	void InvokePanelTab();
 private:
-	/** Holds the remote control panel tab id. */
-	static const FName PanelTabId;
 	/** Holds the remote control panel app identifier. */
 	static const FName RemoteControlPanelAppIdentifier;
 	/** Holds the preset being edited. */
