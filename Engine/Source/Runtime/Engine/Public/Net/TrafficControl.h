@@ -44,7 +44,7 @@ public:
 
 	double GetLatestRTT() const { return LatestRTT; }
 	uint32 GetBytesInFlight() const { return BytesInFlight; }
-	uint32 GetPacketsInFlight() const { return OutPacketRecords.Count(); }
+	uint32 GetPacketsInFlight() const { return (uint32)OutPacketRecords.Count(); }
 
 private:
 	FNetworkCongestionControl* TrafficControlModule;

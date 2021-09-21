@@ -155,9 +155,9 @@ struct NETCORE_API FDDoSStateConfig : public FDDoSState
 	{
 		// Exclude escalation triggers from this
 		//Target.EscalateTimeQuotaMSPerFrame		= (EscalateTimeQuotaMSPerFrame == -1 ? -1 : EscalateTimeQuotaMSPerFrame * FrameAdjustment);
-		Target.PacketLimitPerFrame				= (PacketLimitPerFrame == -1 ? -1 : PacketLimitPerFrame * FrameAdjustment);
-		Target.PacketTimeLimitMSPerFrame		= (PacketTimeLimitMSPerFrame == -1 ? -1 : PacketTimeLimitMSPerFrame * FrameAdjustment);
-		Target.NetConnPacketTimeLimitMSPerFrame	= (NetConnPacketTimeLimitMSPerFrame == -1 ? -1 : NetConnPacketTimeLimitMSPerFrame * FrameAdjustment);
+		Target.PacketLimitPerFrame				= (PacketLimitPerFrame == -1 ? -1 : (int32)(PacketLimitPerFrame * FrameAdjustment));
+		Target.PacketTimeLimitMSPerFrame		= (PacketTimeLimitMSPerFrame == -1 ? -1 : (int32)(PacketTimeLimitMSPerFrame * FrameAdjustment));
+		Target.NetConnPacketTimeLimitMSPerFrame	= (NetConnPacketTimeLimitMSPerFrame == -1 ? -1 : (int32)(NetConnPacketTimeLimitMSPerFrame * FrameAdjustment));
 	}
 };
 

@@ -4252,10 +4252,11 @@ void UClass::SetUpUhtReplicationData()
 		{
 			if (It->PropertyFlags & CPF_Net)
 			{
-				It->RepIndex = ClassReps.Num();
+				It->RepIndex = (uint16)ClassReps.Num();
 				new (ClassReps) FRepRecord(*It, 0);
 			}
 		}
+		check(ClassReps.Num() <= 65535);
 
 		ClassFlags |= CLASS_ReplicationDataIsSetUp;
 		ClassReps.Shrink();
@@ -4334,12 +4335,13 @@ void UClass::SetUpRuntimeReplicationData()
 		ClassReps.Reserve(ClassReps.Num() + NetProperties.Num());
 		for (int32 i = 0; i < NetProperties.Num(); i++)
 		{
-			NetProperties[i]->RepIndex = ClassReps.Num();
+			NetProperties[i]->RepIndex = (uint16)ClassReps.Num();
 			for (int32 j = 0; j < NetProperties[i]->ArrayDim; j++)
 			{
 				new(ClassReps)FRepRecord(NetProperties[i], j);
 			}
 		}
+		check(ClassReps.Num() <= 65535);
 
 		if (bIsNativeClass && GValidateReplicatedProperties)
 		{
