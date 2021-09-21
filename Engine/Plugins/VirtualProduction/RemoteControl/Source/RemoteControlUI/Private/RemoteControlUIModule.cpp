@@ -4,6 +4,7 @@
 
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
+#include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "MaterialEditor/DEditorParameterValue.h"
@@ -12,6 +13,7 @@
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlSettings.h"
+#include "AssetEditor/RemoteControlPresetEditorToolkit.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
@@ -23,6 +25,10 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlUI"
+
+const FName FRemoteControlUIModule::EntityDetailsTabName = "RemoteControl_EntityDetails";
+const FName FRemoteControlUIModule::RemoteControlPanelTabName = "RemoteControl_RemoteControlPanel";
+
 
 namespace RemoteControlUIModule
 {
@@ -37,6 +43,12 @@ namespace RemoteControlUIModule
 
 		return CustomizedStructNames;
 	};
+	
+	static void OnOpenRemoteControlPanel(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& EditWithinLevelEditor, class URemoteControlPreset* Preset)
+	{
+		TSharedRef<FRemoteControlPresetEditorToolkit> Toolkit = FRemoteControlPresetEditorToolkit::CreateEditor(Mode, EditWithinLevelEditor,  Preset);
+		Toolkit->InitRemoteControlPresetEditor(Mode, EditWithinLevelEditor, Preset);
+	}
 }
 
 void FRemoteControlUIModule::StartupModule()
@@ -82,14 +94,14 @@ void FRemoteControlUIModule::UnregisterMetadataCustomization(FName MetadataKey)
 	ExternalEntityMetadataCustomizations.Remove(MetadataKey);
 }
 
-TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset)
+TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset, const TSharedPtr<IToolkitHost>& ToolkitHost)
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
 		Panel->SetEditMode(false);
 	}
 
-	TSharedRef<SRemoteControlPanel> PanelRef = SAssignNew(WeakActivePanel, SRemoteControlPanel, Preset)
+	TSharedRef<SRemoteControlPanel> PanelRef = SAssignNew(WeakActivePanel, SRemoteControlPanel, Preset, ToolkitHost)
 		.OnEditModeChange_Lambda(
 			[this](TSharedPtr<SRemoteControlPanel> Panel, bool bEditMode) 
 			{
