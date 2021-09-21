@@ -1075,6 +1075,8 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 	bool bSectionContainsIcons = false;
 	int32 NextMenuSeparator = INDEX_NONE;
 
+	int32 ConsecutiveSeparatorCount = 0;
+
 	for( int32 Index = 0; Index < Blocks.Num(); Index++ )
 	{
 		// If we've passed the last menu separator, scan for the next one (the end of the list is also considered a menu separator for the purposes of this index)
@@ -1089,7 +1091,7 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 					bSectionContainsIcons = true;
 				}
 
-				if (TestBlock.GetType() == EMultiBlockType::Separator)
+				if (TestBlock.IsSeparator())
 				{
 					break;
 				}
@@ -1098,7 +1100,21 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 
 		const FMultiBlock& Block = *Blocks[Index];
 		EMultiBlockLocation::Type Location = EMultiBlockLocation::None;
-		
+	
+		if (Block.IsSeparator())
+		{
+			++ConsecutiveSeparatorCount;
+			// Skip consecutive separators. Only draw one separator no matter how many are submitted.
+			if (ConsecutiveSeparatorCount > 1)
+			{
+				continue;
+			}
+		}
+		else
+		{
+			ConsecutiveSeparatorCount = 0;
+		}
+
 		TSharedPtr<const FMultiBlock> NextBlock = nullptr;
 
 		if (Blocks.IsValidIndex(Index + 1))

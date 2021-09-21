@@ -5483,7 +5483,7 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 		MainToolbarRightButton.SetButtonStyle(RightToolbarButton);
 		MainToolbarRightButton.SetButtonPadding(FMargin(0.0f, 0.0f, 4.0f, 0.0f));
-		MainToolbarRightButton.SetSeparatorPadding(FMargin(6.f, 0.f, 8.f, 0.f));
+		MainToolbarRightButton.SetSeparatorPadding(FMargin(4.f, -5.f, 8.f, -5.f));
 
 		Set("Toolbar.BackplateRight", MainToolbarRightButton);
 
