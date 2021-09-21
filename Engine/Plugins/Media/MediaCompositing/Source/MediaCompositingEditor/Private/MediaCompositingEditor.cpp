@@ -7,7 +7,7 @@
 #include "ISequenceRecorder.h"
 #include "MediaCompositingEditorStyle.h"
 #include "MediaSequenceRecorderExtender.h"
-#include "MediaTrackEditor.h"
+#include "Sequencer/MediaTrackEditor.h"
 #include "MediaPlayerPropertyTrackEditor.h"
 
 
