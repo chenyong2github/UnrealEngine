@@ -142,6 +142,7 @@ void FConcertSyncClient::CreateWorkspace(const TSharedRef<FConcertSyncClientLive
 		// TODO: Revisit this, as all it seems to be used for now is forcing redirectors to be left behind
 		SourceControlProxy->SetWorkspace(Workspace);
 	}
+	SequencerManager->SetActiveWorkspace(Workspace);
 #endif
 }
 
