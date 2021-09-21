@@ -69,8 +69,8 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 	// }
 
 	// Adding Bridge entry to Quick Content menu.
-	UToolMenu* ContentMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ContentQuickMenu");
-	FToolMenuSection& Section = ContentMenu->FindOrAddSection("ExternalContent");
+	UToolMenu* AddMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
+	FToolMenuSection& Section = AddMenu->FindOrAddSection("Content");
 	Section.AddMenuEntry("OpenBridgeTab",
 		LOCTEXT("OpenBridgeTab_Label", "Quixel Bridge"),
 		LOCTEXT("OpenBridgeTab_Desc", "Opens the Quixel Bridge."),
