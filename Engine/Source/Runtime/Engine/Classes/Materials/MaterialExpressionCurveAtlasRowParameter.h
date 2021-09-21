@@ -28,6 +28,9 @@ class UMaterialExpressionCurveAtlasRowParameter : public UMaterialExpressionScal
 	virtual bool CanReferenceTexture() const { return true; }
 
 #if WITH_EDITOR
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override;
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override;
+
 	virtual uint32 GetInputType(int32 InputIndex) override 
 	{
 		return MCT_Float;

@@ -33,7 +33,17 @@ class UMaterialExpressionChannelMaskParameter : public UMaterialExpressionVector
 #endif
 
 #if WITH_EDITOR
-	virtual bool SetParameterValue(FName InParameterName, FLinearColor InValue) override;
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
+	{
+		if (Super::GetParameterValue(OutMeta))
+		{
+			OutMeta.bUsedAsChannelMask = true;
+			return true;
+		}
+		return false;
+	}
+
+	virtual bool SetParameterValue(FName InParameterName, FLinearColor InValue, EMaterialExpressionSetParameterValueFlags Flags) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;

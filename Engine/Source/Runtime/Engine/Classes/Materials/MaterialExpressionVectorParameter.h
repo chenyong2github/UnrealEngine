@@ -33,13 +33,23 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
-	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
+	{
+		OutMeta.Value = DefaultValue;
+		OutMeta.ExpressionGuid = ExpressionGUID;
+		OutMeta.ChannelName[0] = ChannelNames.R;
+		OutMeta.ChannelName[1] = ChannelNames.G;
+		OutMeta.ChannelName[2] = ChannelNames.B;
+		OutMeta.ChannelName[3] = ChannelNames.A;
+		return true;
+	}
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::Vector)
 		{
-			return SetParameterValue(Name, Meta.Value.AsLinearColor());
+			return SetParameterValue(Name, Meta.Value.AsLinearColor(), Flags);
 		}
-		return Super::SetParameterValue(Name, Meta);
+		return Super::SetParameterValue(Name, Meta, Flags);
 	}
 #endif
 	//~ End UMaterialExpression Interface
@@ -48,7 +58,7 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
 
 #if WITH_EDITOR
-	virtual bool SetParameterValue(FName InParameterName, FLinearColor InValue);
+	virtual bool SetParameterValue(FName InParameterName, FLinearColor InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;	
 
@@ -57,7 +67,6 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 
 	virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
 	virtual bool HasClassAndNameCollision(UMaterialExpression* OtherExpression) const override;
-	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
 #endif
 
 	virtual bool IsUsedAsChannelMask() const {return false;}

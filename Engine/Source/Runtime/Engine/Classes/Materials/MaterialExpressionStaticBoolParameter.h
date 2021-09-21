@@ -23,15 +23,20 @@ public:
 	virtual int32 CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual uint32 GetOutputType(int32 OutputIndex) override {return MCT_StaticBool;}
-	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
 	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
-	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
+	{
+		OutMeta.Value = (bool)DefaultValue;
+		OutMeta.ExpressionGuid = ExpressionGUID;
+		return true;
+	}
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::StaticSwitch)
 		{
-			return SetParameterValue(Name, Meta.Value.AsStaticSwitch(), Meta.ExpressionGuid);
+			return SetParameterValue(Name, Meta.Value.AsStaticSwitch(), Meta.ExpressionGuid, Flags);
 		}
-		return Super::SetParameterValue(Name, Meta);
+		return Super::SetParameterValue(Name, Meta, Flags);
 	}
 #endif
 	//~ End UMaterialExpression Interface
@@ -40,7 +45,7 @@ public:
 	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid) const;
 
 #if WITH_EDITOR
-	bool SetParameterValue(FName InParameterName, bool OutValue, FGuid InExpressionGuid);
+	bool SetParameterValue(FName InParameterName, bool OutValue, FGuid InExpressionGuid, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 #endif
 };
 
