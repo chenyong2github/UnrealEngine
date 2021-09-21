@@ -59,6 +59,13 @@ namespace HordeServer.Services
 	public interface IPerforceService
 	{
 		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="ClusterName"></param>
+		/// <returns></returns>
+		public Task<NativePerforceConnection?> GetServiceUserConnection(string? ClusterName);
+
+		/// <summary>
 		/// Gets the definition of a stream
 		/// </summary>
 		/// <param name="ClusterName">Name of the Perforce cluster</param>

@@ -375,7 +375,7 @@ namespace HordeServer.Models
 		/// </summary>
 		/// <param name="Name">Name of the cluster</param>
 		/// <returns></returns>
-		public PerforceCluster FindPerforceCluster(string? Name)
+		public PerforceCluster? FindPerforceCluster(string? Name)
 		{
 			List<PerforceCluster> Clusters = PerforceClusters;
 			if (Clusters.Count == 0)

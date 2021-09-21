@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Perforce;
 using HordeServer.Models;
 using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
@@ -38,7 +39,7 @@ namespace HordeServer.Services
 	/// <summary>
 	/// P4API implementation of the Perforce service
 	/// </summary>
-	public class PerforceService : IPerforceService
+	class PerforceService : IPerforceService
 	{
 		class CachedTicketInfo
 		{
@@ -148,6 +149,46 @@ namespace HordeServer.Services
 				throw;
 			}
 			return Repository;
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="ClusterName"></param>
+		/// <returns></returns>
+		public async Task<NativePerforceConnection?> GetServiceUserConnection(string? ClusterName)
+		{
+			if(ClusterName != null)
+			{
+				Globals Globals = await CachedGlobals.GetCached();
+				PerforceCluster? Cluster = Globals.FindPerforceCluster(ClusterName);
+				if(Cluster != null)
+				{
+					string? UserName = null;
+					string? Password = null;
+					if (Cluster.ServiceAccount != null)
+					{
+						PerforceCredentials? Credentials = Cluster.Credentials.FirstOrDefault(x => x.UserName.Equals(Cluster.ServiceAccount, StringComparison.OrdinalIgnoreCase));
+						if (Credentials == null)
+						{
+							throw new Exception($"No credentials defined for {Cluster.ServiceAccount} on {Cluster.Name}");
+						}
+					}
+
+					PerforceSettings Settings = new PerforceSettings();
+					Settings.User = UserName;
+					Settings.Client = "__DOES_NOT_EXIST__";
+
+					NativePerforceConnection NativeConnection = new NativePerforceConnection(Logger);
+					await NativeConnection.ConnectAsync(Settings);
+					if (Password != null)
+					{
+						await NativeConnection.LoginAsync(Password);
+					}
+					return NativeConnection;
+				}
+			}
+			return null;
 		}
 
 		async Task<P4.Repository> GetServiceUserConnection(PerforceCluster Cluster)

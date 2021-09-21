@@ -160,9 +160,9 @@ namespace EpicGames.Redis
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveRangeByScoreAsync(RedisKey, double, double, Exclude, CommandFlags)"/>
-		public async Task<long> RemoveRangeByScoreAsync(double Start, double Stop, Exclude Exclude = Exclude.None, CommandFlags Flags = CommandFlags.None)
+		public Task<long> RemoveRangeByScoreAsync(double Start, double Stop, Exclude Exclude = Exclude.None, CommandFlags Flags = CommandFlags.None)
 		{
-			return await Database.SortedSetRemoveRangeByScoreAsync(Key, Start, Stop, Exclude, Flags);
+			return Database.SortedSetRemoveRangeByScoreAsync(Key, Start, Stop, Exclude, Flags);
 		}
 
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetRemoveRangeByValueAsync(RedisKey, RedisValue, RedisValue, Exclude, CommandFlags)"/>
@@ -180,6 +180,13 @@ namespace EpicGames.Redis
 			{
 				yield return new SortedSetEntry<TElement>(Entry);
 			}
+		}
+
+		/// <inheritdoc cref="IDatabaseAsync.SortedSetScoreAsync(RedisKey, RedisValue, CommandFlags)"/>
+		public Task<double?> ScoreAsync(TElement Member, CommandFlags Flags = CommandFlags.None)
+		{
+			RedisValue Value = RedisSerializer.Serialize(Member);
+			return Database.SortedSetScoreAsync(Key, Value, Flags);
 		}
 	}
 
