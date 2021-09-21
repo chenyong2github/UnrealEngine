@@ -1620,8 +1620,6 @@ public:
 	/** Collect all material expressions fomr this material and all its functions and figure out which possible shading models exist in this material */
 	ENGINE_API void RebuildShadingModelField();
 
-#endif // WITH_EDITOR
-
 	/**
 	 * Get the name of a parameter.
 	 * @param	Expression	The expression to retrieve the name from.
@@ -1637,6 +1635,7 @@ public:
 	 * @param	Destination		The destination parameter that will receive Source's values.
 	 */
 	static bool CopyExpressionParameters(UMaterialExpression* Source, UMaterialExpression* Destination);
+#endif // WITH_EDITOR
 
 	/**
 	 * Return whether the provided expression node is a parameter.
