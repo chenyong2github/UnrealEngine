@@ -20,6 +20,7 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 {
@@ -31,6 +32,9 @@ TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, co
 	GEngine->OnLevelActorAttached().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorAttached);
 	GEngine->OnLevelActorFolderChanged().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorFolderChanged);
 	GEngine->OnLevelActorListChanged().AddRaw(Hierarchy, &FActorHierarchy::OnLevelActorListChanged);
+
+	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+	WorldPartitionEditorModule.OnWorldPartitionCreated().AddRaw(Hierarchy, &FActorHierarchy::OnWorldPartitionCreated);
 
 	if (World.IsValid())
 	{
@@ -75,6 +79,9 @@ FActorHierarchy::~FActorHierarchy()
 		GEngine->OnLevelActorFolderChanged().RemoveAll(this);
 		GEngine->OnLevelActorListChanged().RemoveAll(this);
 	}
+
+	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+	WorldPartitionEditorModule.OnWorldPartitionCreated().RemoveAll(this);
 
 	if (RepresentingWorld.IsValid())
 	{
@@ -495,6 +502,14 @@ void FActorHierarchy::FullRefreshEvent()
 	EventData.Type = FSceneOutlinerHierarchyChangedData::FullRefresh;
 
 	HierarchyChangedEvent.Broadcast(EventData);
+}
+
+void FActorHierarchy::OnWorldPartitionCreated(UWorld* InWorld)
+{
+	if (RepresentingWorld.Get() == InWorld)
+	{
+		FullRefreshEvent();
+	}
 }
 
 void FActorHierarchy::OnLevelActorAdded(AActor* InActor)
