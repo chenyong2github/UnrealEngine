@@ -1396,7 +1396,10 @@ EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraMetadata(const ACameraMetada
 		return EGoogleARCoreAPIStatus::AR_ERROR_SESSION_PAUSED;
 	}
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 	ArImageMetadata_getNdkCameraMetadata(SessionHandle, LatestImageMetadata, &OutCameraMetadata);
+#pragma clang diagnostic pop
 
 	return LatestImageMetadataStatus;
 }
