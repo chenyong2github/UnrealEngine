@@ -13,6 +13,7 @@
 #include "EngineUtils.h"
 #include "Editor.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 TUniquePtr<FDataLayerHierarchy> FDataLayerHierarchy::Create(FDataLayerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 {
@@ -33,6 +34,9 @@ FDataLayerHierarchy::FDataLayerHierarchy(FDataLayerMode* Mode, const TWeakObject
 		GEngine->OnLevelActorDeleted().AddRaw(this, &FDataLayerHierarchy::OnLevelActorDeleted);
 		GEngine->OnLevelActorListChanged().AddRaw(this, &FDataLayerHierarchy::OnLevelActorListChanged);
 	}
+
+	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+	WorldPartitionEditorModule.OnWorldPartitionCreated().AddRaw(this, &FDataLayerHierarchy::OnWorldPartitionCreated);
 
 	if (World.IsValid())
 	{
@@ -68,6 +72,9 @@ FDataLayerHierarchy::~FDataLayerHierarchy()
 		GEngine->OnLevelActorDeleted().RemoveAll(this);
 		GEngine->OnLevelActorListChanged().RemoveAll(this);
 	}
+
+	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+	WorldPartitionEditorModule.OnWorldPartitionCreated().RemoveAll(this);
 
 	if (RepresentingWorld.IsValid())
 	{
@@ -196,6 +203,14 @@ FSceneOutlinerTreeItemPtr FDataLayerHierarchy::CreateParentItem(const FSceneOutl
 		}
 	}
 	return nullptr;
+}
+
+void FDataLayerHierarchy::OnWorldPartitionCreated(UWorld* InWorld)
+{
+	if (RepresentingWorld.Get() == InWorld)
+	{
+		FullRefreshEvent();
+	}
 }
 
 void FDataLayerHierarchy::OnLevelActorsAdded(const TArray<AActor*>& InActors)

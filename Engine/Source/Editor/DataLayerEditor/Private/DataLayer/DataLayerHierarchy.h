@@ -28,6 +28,7 @@ private:
 	FDataLayerHierarchy(const FDataLayerHierarchy&) = delete;
 	FDataLayerHierarchy& operator=(const FDataLayerHierarchy&) = delete;
 
+	void OnWorldPartitionCreated(UWorld* InWorld);
 	void OnLevelActorsAdded(const TArray<AActor*>& InActors);
 	void OnLevelActorsRemoved(const TArray<AActor*>& InActors);
 	void OnLevelActorAdded(AActor* InActor);

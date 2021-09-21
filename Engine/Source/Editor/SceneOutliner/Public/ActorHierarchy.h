@@ -35,6 +35,7 @@ private:
 	void CreateComponentItems(const AActor* Actor, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
 private:
 	// Update the hierarchy when actor or world changing events occur
+	void OnWorldPartitionCreated(UWorld* InWorld);
 
 	void OnLevelActorAdded(AActor* InActor);
 	void OnLevelActorDeleted(AActor* InActor);
