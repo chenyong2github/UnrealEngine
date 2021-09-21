@@ -1073,22 +1073,26 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	ActionList.MapAction(
 		Commands.SelectImmediateChildren,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT ALL CHILDREN") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT ALL CHILDREN") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute )
 	);
 
 	ActionList.MapAction(
 		Commands.SelectAllDescendants,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT ALL DESCENDANTS") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT ALL DESCENDANTS") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute )
 	);
 
 	ActionList.MapAction(
 		Commands.SelectAllActorsOfSameClass,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, false )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, false ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::CanSelectAllActorsOfClass )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectAllActorsOfSameClassWithArchetype,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, true )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OnSelectAllActorsOfClass, true ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::CanSelectAllActorsOfClass )
 		);
 
 	ActionList.MapAction(
@@ -1099,42 +1103,51 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	ActionList.MapAction(
 		Commands.SelectRelevantLights,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT RELEVANTLIGHTS") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT RELEVANTLIGHTS") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectStaticMeshesOfSameClass,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSTATICMESH") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSTATICMESH") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, FLevelEditorActionCallbacks::IncludeStaticMeshes, /*bSingleOnly*/ false )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectStaticMeshesAllClasses,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSTATICMESH ALLCLASSES") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSTATICMESH ALLCLASSES") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, FLevelEditorActionCallbacks::IncludeStaticMeshes, /*bSingleOnly*/ false )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectOwningHierarchicalLODCluster,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::OnSelectOwningHLODCluster)
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::OnSelectOwningHLODCluster),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, FLevelEditorActionCallbacks::IncludeStaticMeshes, /*bSingleOnly*/ true )
 		);
 
+	FLevelEditorActionCallbacks::EActorTypeFlags IncludePawnsAndSkeletalMeshes = static_cast<FLevelEditorActionCallbacks::EActorTypeFlags>(FLevelEditorActionCallbacks::IncludePawns | FLevelEditorActionCallbacks::IncludeSkeletalMeshes);
 	ActionList.MapAction(
 		Commands.SelectSkeletalMeshesOfSameClass,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSKELETALMESH") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSKELETALMESH") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, IncludePawnsAndSkeletalMeshes, /*bSingleOnly*/ false )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectSkeletalMeshesAllClasses,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSKELETALMESH ALLCLASSES") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGSKELETALMESH ALLCLASSES") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, IncludePawnsAndSkeletalMeshes, /*bSingleOnly*/ false )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectAllWithSameMaterial,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGMATERIAL") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGMATERIAL") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorSelected_CanExecute )
 		);
 
 	ActionList.MapAction(
 		Commands.SelectMatchingEmitter,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGEMITTER") ) )
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("ACTOR SELECT MATCHINGEMITTER") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ActorTypesSelected_CanExecute, FLevelEditorActionCallbacks::IncludeEmitters, /*bSingleOnly*/ false )
 		);
 
 	ActionList.MapAction(
@@ -1756,27 +1769,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	ActionList.MapAction(
 		Commands.OpenMergeActor,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::OpenMergeActor_Clicked)
-		);
-
-	ActionList.MapAction(
-		Commands.GeometryCollectionSelectAllGeometry,
-		FExecuteAction::CreateStatic(FLevelEditorActionCallbacks::GeometryCollection_SelectAllGeometry),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(FLevelEditorActionCallbacks::GeometryCollection_IsChecked)
-		);
-
-	ActionList.MapAction(
-		Commands.GeometryCollectionSelectNone,
-		FExecuteAction::CreateStatic(FLevelEditorActionCallbacks::GeometryCollection_SelectNone),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(FLevelEditorActionCallbacks::GeometryCollection_IsChecked)
-		);
-
-	ActionList.MapAction(
-		Commands.GeometryCollectionSelectInverseGeometry,
-		FExecuteAction::CreateStatic(FLevelEditorActionCallbacks::GeometryCollection_SelectInverseGeometry),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(FLevelEditorActionCallbacks::GeometryCollection_IsChecked)
 		);
 }
 	

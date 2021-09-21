@@ -70,7 +70,7 @@ static TSharedRef<FExtender> OnExtendLevelEditorMenu(const TSharedRef<FUICommand
 	if (Volumes.Num())
 	{
 		Extender->AddMenuExtension(
-			"SelectActorGeneral",
+			"ActorSelectVisibilityLevels",
 			EExtensionHook::After,
 			nullptr,
 			FMenuExtensionDelegate::CreateStatic(&CreateLevelViewportContextMenuEntries, Volumes));

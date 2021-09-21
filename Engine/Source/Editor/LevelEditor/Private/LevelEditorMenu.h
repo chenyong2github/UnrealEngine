@@ -26,4 +26,5 @@ public:
 	static TSharedRef< SWidget > MakeLevelEditorMenu( const TSharedPtr<FUICommandList>& CommandList, TSharedPtr<class SLevelEditor> LevelEditor );
 private:
 	static void RegisterBuildMenu();
+	static void RegisterSelectMenu();
 };

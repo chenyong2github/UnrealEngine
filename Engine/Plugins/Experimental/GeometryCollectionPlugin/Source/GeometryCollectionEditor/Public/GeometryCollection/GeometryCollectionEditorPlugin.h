@@ -51,6 +51,9 @@ public:
 	static const ISlateStyle* GetEditorStyle();
 
 private:
+	void RegisterMenus();
+
+private:
 	TArray<IConsoleObject*> EditorCommands;
 
 	// Asset actions for new asset types

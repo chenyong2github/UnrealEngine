@@ -61,13 +61,6 @@ public:
 	static FSelectedActorInfo SelectionInfo;
 public:
 	/**
-	 * Fills in menu options for the select actor menu
-	 *
-	 * @param MenuBuilder	The menu to add items to
-	 */
-	static void FillSelectActorMenu(UToolMenu* Menu);
-
-	/**
 	 * Fills in menu options for the actor visibility menu
 	 *
 	 * @param MenuBuilder	The menu to add items to
@@ -393,13 +386,6 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 
 		{
 			FToolMenuSection& Section = InMenu->AddSection("ActorSelectVisibilityLevels");
-
-			// Add a sub-menu for "Select"
-			Section.AddSubMenu(
-				"SelectSubMenu",
-				LOCTEXT("SelectSubMenu", "Select"),
-				LOCTEXT("SelectSubMenu_ToolTip", "Opens the actor selection menu"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSelectActorMenu));
 
 			Section.AddSubMenu(
 				"EditSubMenu",
@@ -875,118 +861,6 @@ void FLevelEditorContextMenu::BuildGroupMenu(UToolMenu* Menu, const FSelectedAct
 				LOCTEXT("GroupMenu", "Groups"),
 				LOCTEXT("GroupMenu_ToolTip", "Opens the actor grouping menu"),
 				FNewToolMenuDelegate::CreateStatic( &FLevelEditorContextMenuImpl::FillGroupMenu));
-		}
-	}
-}
-
-void FLevelEditorContextMenuImpl::FillSelectActorMenu(UToolMenu* Menu)
-{
-	FText SelectAllActorStr = FText::Format( LOCTEXT("SelectActorsOfSameClass", "Select All {0}(s)"), FText::FromString( SelectionInfo.SelectionStr ) );
-	int32 NumSelectedSurfaces = AssetSelectionUtils::GetNumSelectedSurfaces( SelectionInfo.SharedWorld );
-
-	{
-		FToolMenuSection& Section = Menu->AddSection("SelectActorGeneral", LOCTEXT("SelectAnyHeading", "General"));
-		Section.AddMenuEntry( FGenericCommands::Get().SelectAll, TAttribute<FText>(), LOCTEXT("SelectAll_ToolTip", "Selects all actors") );
-		Section.AddMenuEntry( FLevelEditorCommands::Get().SelectNone );
-		Section.AddMenuEntry( FLevelEditorCommands::Get().InvertSelection );
-	}
-
-	if( !SelectionInfo.bHaveBrush && SelectionInfo.bAllSelectedActorsOfSameType && SelectionInfo.SelectionStr.Len() != 0 )
-	{
-		// These menu options appear if only if all the actors are the same type and we aren't selecting brush
-		FToolMenuSection& Section = Menu->AddSection("SelectAllActorsOfSameClass");
-		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllActorsOfSameClass, SelectAllActorStr);
-	}
-
-	{
-		FToolMenuSection& Section = Menu->AddSection("SelectActorHierarchy", LOCTEXT("SelectHierarchyHeading", "Hierarchy"));
-		Section.AddMenuEntry( FLevelEditorCommands::Get().SelectImmediateChildren );
-		Section.AddMenuEntry( FLevelEditorCommands::Get().SelectAllDescendants );
-	}
-
-	// Add brush commands when we have a brush or any surfaces selected
-	{
-		FToolMenuSection& Section = Menu->AddSection("SelectBSP", LOCTEXT("SelectBSPHeading", "BSP"));
-		if( SelectionInfo.bHaveBrush || NumSelectedSurfaces > 0 )
-		{
-			if( SelectionInfo.bAllSelectedAreBrushes )
-			{
-				Section.AddMenuEntry( FLevelEditorCommands::Get().SelectAllActorsOfSameClass, SelectAllActorStr);
-			}
-		}
-
-		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllAddditiveBrushes);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllSubtractiveBrushes);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllSurfaces);
-	}
-
-	if( SelectionInfo.NumSelected > 0 || NumSelectedSurfaces > 0 )
-	{
-		// If any actors are selected add lights selection options
-		{
-			FToolMenuSection& Section = Menu->AddSection("SelectLights", LOCTEXT("SelectLightHeading", "Lights"));
-			Section.AddMenuEntry(FLevelEditorCommands::Get().SelectRelevantLights);
-
-			if ( SelectionInfo.bHaveLight )
-			{
-				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllLights);
-				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStationaryLightsExceedingOverlap);
-			}
-		}
-
-		if( SelectionInfo.bHaveStaticMesh )
-		{
-			// if any static meshes are selected allow selecting actors using the same mesh
-			{
-				FToolMenuSection& Section = Menu->AddSection("SelectMeshes", LOCTEXT("SelectStaticMeshHeading", "Static Meshes"));
-				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStaticMeshesOfSameClass, LOCTEXT("SelectStaticMeshesOfSameClass_Menu", "Select Matching (Selected Classes)"));
-				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectStaticMeshesAllClasses, LOCTEXT("SelectStaticMeshesAllClasses_Menu", "Select Matching (All Classes)"));
-			}
-
-			if (SelectionInfo.NumSelected == 1)
-			{
-				{
-					FToolMenuSection& Section = Menu->AddSection("SelectHLODCluster", LOCTEXT("SelectHLODClusterHeading", "Hierachical LODs"));
-					Section.AddMenuEntry(FLevelEditorCommands::Get().SelectOwningHierarchicalLODCluster, LOCTEXT("SelectOwningHierarchicalLODCluster_Menu", "Select Owning HierarchicalLODCluster"));
-				}
-			}			
-		}
-
-		if( SelectionInfo.bHavePawn || SelectionInfo.bHaveSkeletalMesh )
-		{
-			// if any skeletal meshes are selected allow selecting actors using the same mesh
-			{
-				FToolMenuSection& Section = Menu->AddSection("SelectSkeletalMeshes", LOCTEXT("SelectSkeletalMeshHeading", "Skeletal Meshes"));
-				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectSkeletalMeshesOfSameClass);
-				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectSkeletalMeshesAllClasses);
-			}
-		}
-
-		if( SelectionInfo.bHaveEmitter )
-		{
-			{
-				FToolMenuSection& Section = Menu->AddSection("SelectEmitters", LOCTEXT("SelectEmitterHeading", "Emitters"));
-				Section.AddMenuEntry(FLevelEditorCommands::Get().SelectMatchingEmitter);
-			}
-		}
-	}
-
-	if( SelectionInfo.bHaveBrush || SelectionInfo.NumSelected > 0 )
-	{
-		FToolMenuSection& Section = Menu->AddSection("SelectMaterial", LOCTEXT("SelectMaterialHeading", "Materials"));
-		{
-			Section.AddMenuEntry(FLevelEditorCommands::Get().SelectAllWithSameMaterial);
-		}
-	}
-
-	// Add geometry collection commands
-	if (FModuleManager::Get().IsModuleLoaded("GeometryCollectionEditor"))
-	{
-		FToolMenuSection& Section = Menu->AddSection("SelectBones", LOCTEXT("GeometryCollectionHeading", "Geometry Collection"));
-		{
-			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectAllGeometry);
-			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectNone);
-			Section.AddMenuEntry(FLevelEditorCommands::Get().GeometryCollectionSelectInverseGeometry);
 		}
 	}
 }
