@@ -15,17 +15,11 @@ namespace UE::RemoteExecution
 		Shutdown();
 
 		ContentAddressableStorage.Reset(new FContentAddressableStorage(Settings.ContentAddressableStorageTarget, Settings.ContentAddressableStorageHeaders));
-
 		Execution.Reset(new FExecution(Settings.ExecutionTarget, Settings.ExecutionHeaders));
 	}
 
 	void FHordeExecutor::Shutdown()
 	{
-		if (Thread.IsValid())
-		{
-			Thread->Kill();
-		}
-		Thread.Reset();
 		ContentAddressableStorage.Reset();
 		Execution.Reset();
 	}
