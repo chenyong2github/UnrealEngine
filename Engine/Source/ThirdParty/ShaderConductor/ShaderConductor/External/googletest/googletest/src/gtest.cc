@@ -4436,15 +4436,15 @@ void XmlUnitTestResultPrinter::OutputXmlTestProperties(
     return;
   }
 
-  *stream << "<" << kProperties << ">\n";
+  *stream << "      <" << kProperties << ">\n";
   for (int i = 0; i < result.test_property_count(); ++i) {
     const TestProperty& property = result.GetTestProperty(i);
-    *stream << "<" << kProperty;
+    *stream << "        <" << kProperty;
     *stream << " name=\"" << EscapeXmlAttribute(property.key()) << "\"";
     *stream << " value=\"" << EscapeXmlAttribute(property.value()) << "\"";
     *stream << "/>\n";
   }
-  *stream << "</" << kProperties << ">\n";
+  *stream << "      </" << kProperties << ">\n";
 }
 
 // End XmlUnitTestResultPrinter
@@ -5038,7 +5038,7 @@ class ScopedPrematureExitFile {
       // create the file with a single "0" character in it.  I/O
       // errors are ignored as there's nothing better we can do and we
       // don't want to fail the test because of this.
-      FILE* pfile = posix::FOpen(premature_exit_filepath, "w");
+      FILE* pfile = posix::FOpen(premature_exit_filepath_.c_str(), "w");
       fwrite("0", 1, 1, pfile);
       fclose(pfile);
     }
