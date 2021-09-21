@@ -5033,17 +5033,6 @@ void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 			NewGlobalTime = (PlaybackSpeed > 0 ? MaxInclusiveTime : MinInclusiveTime) * LocalToRootTransform;
 			NewPlaybackStatus = EMovieScenePlayerStatus::Stopped;
 		}
-		// Ensure the time is within the working range
-		else if (!WorkingRange.Contains(NewLocalTime / LocalTickResolution))
-		{
-			FFrameTime WorkingMin = (WorkingRange.GetLowerBoundValue() * LocalTickResolution).CeilToFrame();
-			FFrameTime WorkingMax = (WorkingRange.GetUpperBoundValue() * LocalTickResolution).FloorToFrame();
-
-			NewGlobalTime = FMath::Clamp(NewLocalTime, WorkingMin, WorkingMax) * LocalToRootTransform;
-
-			bResetPosition = true;
-			NewPlaybackStatus = EMovieScenePlayerStatus::Stopped;
-		}
 	}
 
 	// Ensure the time is in the current view - must occur before the time cursor changes
