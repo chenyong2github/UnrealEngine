@@ -57,6 +57,7 @@ struct FPathState
 	uint2 PixelIndex;               //  4 bytes
 	RandomSequence RandSequence;    //  8 bytes
 	float3 Radiance;                // 12 bytes
+	float  BackgroundVisibility;    //  4 bytes
 	float3 Albedo;                  //  6 bytes // half precision
 	float3 Normal;                  //  6 bytes // half precision
 	RayDesc Ray;                    // 12+12 = 24 bytes (TMin/TMax do not need to be stored)
@@ -64,27 +65,18 @@ struct FPathState
 	float3 PathThroughput;          // 12 bytes
 	float PathRoughness;            //  2 bytes // half precision
 	float3 SigmaT; // Extinction    //  6 bytes // half precision 
-									// 84 bytes total
-									// 21 words - sync with PATHTRACER_PATHSTATE_NUM_WORDS
+									// 88 bytes total
+									// 22 words - sync with PATHTRACER_PATHSTATE_NUM_WORDS
 
 	void WritePixel(float BlendFactor)
 	{
 		// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
-		float4 OldPixel = Iteration > 0 ? RadianceTexture[PixelIndex] : 0;
-		float4 OldAlbedo = Iteration > 0 ? AlbedoTexture[PixelIndex] : 0;
-		float4 OldNormal = Iteration > 0 ? NormalTexture[PixelIndex] : 0;
-		float3 OldRadiance = OldPixel.rgb;
-		float OldVariance = OldPixel.a;
+		float4 OldPixel  = Iteration > 0 ? RadianceTexture[PixelIndex] : 0;
+		float4 OldAlbedo = Iteration > 0 ? AlbedoTexture[PixelIndex]   : 0;
+		float4 OldNormal = Iteration > 0 ? NormalTexture[PixelIndex]   : 0;
 
-		float3 NewRadiance = lerp(OldRadiance, Radiance, BlendFactor);
-
-		float RadianceY = Luminance(Radiance);
-
-		// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
-		float DeviationSquared = (RadianceY - Luminance(NewRadiance)) * (RadianceY - Luminance(OldRadiance));
-		float NewVariance = lerp(OldVariance, DeviationSquared, BlendFactor);
-
-		RadianceTexture[PixelIndex] = float4(NewRadiance, NewVariance);
+		const float4 PixelValue = float4(Radiance, saturate(BackgroundVisibility));
+		RadianceTexture[PixelIndex] = lerp(OldPixel, PixelValue, BlendFactor);
 		AlbedoTexture[PixelIndex] = lerp(OldAlbedo, float4(Albedo, 0), BlendFactor);
 		NormalTexture[PixelIndex] = lerp(OldNormal, float4(Normal, 0), BlendFactor);
 	}
@@ -148,7 +140,12 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 		if (PackedPayload.IsMiss())
 		{
-			// Ray didn't hit any real geometry, so nothing left to do
+			// Ray didn't hit any real geometry
+			// Accumulate a hit against the sky (for camera rays) and exit
+			if (bIsCameraRay)
+			{
+				PathState.BackgroundVisibility += Luminance(PathState.PathThroughput);
+			}
 			break;
 		}
 
@@ -300,7 +297,7 @@ FProbeResult TraceProbeRay(RayDesc Ray, uint2 PixelCoord)
 	FPathTracingPayload Payload = UnpackPathTracingPayload(PackedPayload, Ray);
 	FProbeResult Result;
 	Result.HitT = PackedPayload.HitT;
-	Result.WorldNormal = Payload.WorldNormal;
+	Result.WorldNormal = Payload.WorldSmoothNormal;
 	Result.WorldGeoNormal = Payload.WorldGeoNormal;
 	Result.FrontFace = Payload.IsFrontFace();
 	return Result;
@@ -512,11 +509,13 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 				// we hit the boundary! overwrite the current payload and exit the walk with a diffuse scattering event
 				Payload.WorldPos = Ray.Origin + ProbeResult.HitT * Ray.Direction;
 				Payload.WorldNormal = ProbeResult.WorldNormal;
+				Payload.WorldSmoothNormal = ProbeResult.WorldNormal;
 				Payload.WorldGeoNormal = ProbeResult.WorldGeoNormal;
 				// make sure normal is pointed outward from the object so we capture illumination from the exterior
 				if (ProbeResult.FrontFace != Payload.IsFrontFace())
 				{
 					Payload.WorldNormal *= -1.0;
+					Payload.WorldSmoothNormal *= -1.0;
 					Payload.WorldGeoNormal *= -1.0;
 				}
 				Payload.ShadingModelID = SHADINGMODELID_NUM; // invalid value so that we get diffuse shading
@@ -681,6 +680,20 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// fix dark edges in reflections from shading normals
 	Payload.WorldNormal = AdjustShadingNormal(Payload.WorldNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
 	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
+
+#if 0
+	PathState.Radiance = 0.5 * Payload.WorldNormal + 0.5;
+	return false;
+#endif
+
+#if 0
+	if (Payload.ShadingModelID == SHADINGMODELID_EYE)
+	{
+		//Payload.WorldNormal = Payload.CustomVector;
+		Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+		Payload.Anisotropy = 0;
+	}
+#endif
 
 	// As soon as the path is blurry enough, we can get away with diffuse sampling only
 	const bool bSimplifySSS = PathState.PathRoughness >= 0.15;

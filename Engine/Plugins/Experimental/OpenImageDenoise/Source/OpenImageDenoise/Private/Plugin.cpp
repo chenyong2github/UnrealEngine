@@ -104,6 +104,16 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ColorTe
 
 	OIDNFilter.execute();
 
+	// copy alpha channel (TODO: find a way to denoise it as well?)
+	for (int Y = 0, OutIndex = 0, Index = 0; Y < Size.Y; Y++)
+	{
+		for (int X = 0; X < Size.X; X++, OutIndex++, Index++)
+		{
+			DestBuffer[OutIndex].A = RawPixels[Index].A;
+		}
+		OutIndex += DestStride / sizeof(FLinearColor) - Size.X;
+	}
+
 	RHICmdList.UnlockTexture2D(OutputTex, 0, false);
 
 #if WITH_EDITOR

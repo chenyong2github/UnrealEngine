@@ -35,10 +35,12 @@ FPathState LoadPathStateData(uint Index)
 	Output.Radiance.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 4]);
 	Output.Radiance.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 5]);
 
+	Output.BackgroundVisibility = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 6]);
+
 	uint3 PackedAlbedoNormal;
-	PackedAlbedoNormal.x = PathStateData[PATH_STATE_STRIDE * Index + 6];
-	PackedAlbedoNormal.y = PathStateData[PATH_STATE_STRIDE * Index + 7];
-	PackedAlbedoNormal.z = PathStateData[PATH_STATE_STRIDE * Index + 8];
+	PackedAlbedoNormal.x = PathStateData[PATH_STATE_STRIDE * Index + 7];
+	PackedAlbedoNormal.y = PathStateData[PATH_STATE_STRIDE * Index + 8];
+	PackedAlbedoNormal.z = PathStateData[PATH_STATE_STRIDE * Index + 9];
 	Output.Albedo.x = f16tof32(PackedAlbedoNormal.x);
 	Output.Albedo.y = f16tof32(PackedAlbedoNormal.x >> 16);
 	Output.Albedo.z = f16tof32(PackedAlbedoNormal.y);
@@ -46,26 +48,26 @@ FPathState LoadPathStateData(uint Index)
 	Output.Normal.y = f16tof32(PackedAlbedoNormal.z);
 	Output.Normal.z = f16tof32(PackedAlbedoNormal.z >> 16);
 
-	Output.Ray.Origin.x = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 9]);
-	Output.Ray.Origin.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 10]);
-	Output.Ray.Origin.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 11]);
-	Output.Ray.Direction.x = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 12]);
-	Output.Ray.Direction.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 13]);
-	Output.Ray.Direction.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 14]);
+	Output.Ray.Origin.x = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 10]);
+	Output.Ray.Origin.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 11]);
+	Output.Ray.Origin.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 12]);
+	Output.Ray.Direction.x = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 13]);
+	Output.Ray.Direction.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 14]);
+	Output.Ray.Direction.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 15]);
 	Output.Ray.TMin = 0;
 	Output.Ray.TMax = POSITIVE_INFINITY;
 
-	uint PackedRayCone = PathStateData[PATH_STATE_STRIDE * Index + 15];
+	uint PackedRayCone = PathStateData[PATH_STATE_STRIDE * Index + 16];
 	Output.RayCone.Width = f16tof32(PackedRayCone);
 	Output.RayCone.SpreadAngle = f16tof32(PackedRayCone >> 16);
 
-	Output.PathThroughput.x = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 16]);
-	Output.PathThroughput.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 17]);
-	Output.PathThroughput.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 18]);
+	Output.PathThroughput.x = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 17]);
+	Output.PathThroughput.y = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 18]);
+	Output.PathThroughput.z = asfloat(PathStateData[PATH_STATE_STRIDE * Index + 19]);
 
 	uint2 PackedRoughnessSigma;
-	PackedRoughnessSigma.x = PathStateData[PATH_STATE_STRIDE * Index + 19];
-	PackedRoughnessSigma.y = PathStateData[PATH_STATE_STRIDE * Index + 20];
+	PackedRoughnessSigma.x = PathStateData[PATH_STATE_STRIDE * Index + 20];
+	PackedRoughnessSigma.y = PathStateData[PATH_STATE_STRIDE * Index + 21];
 	Output.PathRoughness = f16tof32(PackedRoughnessSigma.x);
 	Output.SigmaT.x = f16tof32(PackedRoughnessSigma.x >> 16);
 	Output.SigmaT.y = f16tof32(PackedRoughnessSigma.y);
@@ -85,25 +87,27 @@ void StorePathStateData(FPathState PathState, uint Index)
 	PathStateData[PATH_STATE_STRIDE * Index + 4] = asuint(PathState.Radiance.y);
 	PathStateData[PATH_STATE_STRIDE * Index + 5] = asuint(PathState.Radiance.z);
 
-	PathStateData[PATH_STATE_STRIDE * Index + 6] = f32tof16(PathState.Albedo.x) | (f32tof16(PathState.Albedo.y) << 16);
-	PathStateData[PATH_STATE_STRIDE * Index + 7] = f32tof16(PathState.Albedo.z) | (f32tof16(PathState.Normal.x) << 16);
-	PathStateData[PATH_STATE_STRIDE * Index + 8] = f32tof16(PathState.Normal.y) | (f32tof16(PathState.Normal.z) << 16);
+	PathStateData[PATH_STATE_STRIDE * Index + 6] = asuint(PathState.BackgroundVisibility);
 
-	PathStateData[PATH_STATE_STRIDE * Index + 9]  = asuint(PathState.Ray.Origin.x);
-	PathStateData[PATH_STATE_STRIDE * Index + 10] = asuint(PathState.Ray.Origin.y);
-	PathStateData[PATH_STATE_STRIDE * Index + 11] = asuint(PathState.Ray.Origin.z);
-	PathStateData[PATH_STATE_STRIDE * Index + 12] = asuint(PathState.Ray.Direction.x);
-	PathStateData[PATH_STATE_STRIDE * Index + 13] = asuint(PathState.Ray.Direction.y);
-	PathStateData[PATH_STATE_STRIDE * Index + 14] = asuint(PathState.Ray.Direction.z);
+	PathStateData[PATH_STATE_STRIDE * Index + 7] = f32tof16(PathState.Albedo.x) | (f32tof16(PathState.Albedo.y) << 16);
+	PathStateData[PATH_STATE_STRIDE * Index + 8] = f32tof16(PathState.Albedo.z) | (f32tof16(PathState.Normal.x) << 16);
+	PathStateData[PATH_STATE_STRIDE * Index + 9] = f32tof16(PathState.Normal.y) | (f32tof16(PathState.Normal.z) << 16);
 
-	PathStateData[PATH_STATE_STRIDE * Index + 15] = f32tof16(PathState.RayCone.Width) | (f32tof16(PathState.RayCone.SpreadAngle) << 16);
+	PathStateData[PATH_STATE_STRIDE * Index + 10] = asuint(PathState.Ray.Origin.x);
+	PathStateData[PATH_STATE_STRIDE * Index + 11] = asuint(PathState.Ray.Origin.y);
+	PathStateData[PATH_STATE_STRIDE * Index + 12] = asuint(PathState.Ray.Origin.z);
+	PathStateData[PATH_STATE_STRIDE * Index + 13] = asuint(PathState.Ray.Direction.x);
+	PathStateData[PATH_STATE_STRIDE * Index + 14] = asuint(PathState.Ray.Direction.y);
+	PathStateData[PATH_STATE_STRIDE * Index + 15] = asuint(PathState.Ray.Direction.z);
 
-	PathStateData[PATH_STATE_STRIDE * Index + 16] = asuint(PathState.PathThroughput.x);
-	PathStateData[PATH_STATE_STRIDE * Index + 17] = asuint(PathState.PathThroughput.y);
-	PathStateData[PATH_STATE_STRIDE * Index + 18] = asuint(PathState.PathThroughput.z);
+	PathStateData[PATH_STATE_STRIDE * Index + 16] = f32tof16(PathState.RayCone.Width) | (f32tof16(PathState.RayCone.SpreadAngle) << 16);
 
-	PathStateData[PATH_STATE_STRIDE * Index + 19] = f32tof16(PathState.PathRoughness) | (f32tof16(PathState.SigmaT.x) << 16);
-	PathStateData[PATH_STATE_STRIDE * Index + 20] = f32tof16(PathState.SigmaT.y) | (f32tof16(PathState.SigmaT.z) << 16);
+	PathStateData[PATH_STATE_STRIDE * Index + 17] = asuint(PathState.PathThroughput.x);
+	PathStateData[PATH_STATE_STRIDE * Index + 18] = asuint(PathState.PathThroughput.y);
+	PathStateData[PATH_STATE_STRIDE * Index + 19] = asuint(PathState.PathThroughput.z);
+
+	PathStateData[PATH_STATE_STRIDE * Index + 20] = f32tof16(PathState.PathRoughness) | (f32tof16(PathState.SigmaT.x) << 16);
+	PathStateData[PATH_STATE_STRIDE * Index + 21] = f32tof16(PathState.SigmaT.y) | (f32tof16(PathState.SigmaT.z) << 16);
 }
 
 RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
