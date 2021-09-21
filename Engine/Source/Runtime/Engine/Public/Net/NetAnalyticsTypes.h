@@ -343,7 +343,7 @@ public:
 		return NumberOfTrackedFrames;
 	}
 
-	const float GetBurstyPacketLossPerSecond(double DurationSec) const
+	const double GetBurstyPacketLossPerSecond(double DurationSec) const
 	{
 		return DurationSec > 0.0 ? GetNumberOfFramesWithBurstsOfPacketLoss() / DurationSec : 0.0;
 	}
