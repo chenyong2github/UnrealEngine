@@ -659,6 +659,7 @@ namespace DatasmithRhino
 		public Dictionary<string, DatasmithMaterialInfo> MaterialHashToMaterialInfo = new Dictionary<string, DatasmithMaterialInfo>();
 		public Dictionary<string, DatasmithTextureInfo> TextureHashToTextureInfo = new Dictionary<string, DatasmithTextureInfo>();
 		public Dictionary<int, string> GroupIndexToName = new Dictionary<int, string>();
+		public Dictionary<Guid, RhinoObject> TextureMappindIdToRhinoObject = new Dictionary<Guid, RhinoObject>();
 
 		private Dictionary<int, string> MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
 		private Dictionary<Guid, string> TextureIdToTextureHash = new Dictionary<Guid, string>();
@@ -746,6 +747,7 @@ namespace DatasmithRhino
 			MaterialHashToMaterialInfo = new Dictionary<string, DatasmithMaterialInfo>();
 			TextureHashToTextureInfo = new Dictionary<string, DatasmithTextureInfo>();
 			GroupIndexToName = new Dictionary<int, string>();
+			TextureMappindIdToRhinoObject = new Dictionary<Guid, RhinoObject>();
 
 			MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
 			TextureIdToTextureHash = new Dictionary<Guid, string>();
@@ -2055,6 +2057,8 @@ namespace DatasmithRhino
 						ObjectIdToMeshInfoDictionary.Add(CurrentObject.Id, MeshInfo);
 						UpdateMaterialElementMapping(MeshInfo, MeshInfo.MaterialIndices);
 					}
+
+					UpdateTextureMappingCache(CurrentObject);
 				}
 			}
 		}
@@ -2266,6 +2270,15 @@ namespace DatasmithRhino
 			}
 
 			ElementInfos.Add(ElementInfo);
+		}
+
+		private void UpdateTextureMappingCache(RhinoObject InRhinoObject)
+		{
+			foreach (int ChannelId in InRhinoObject.GetTextureChannels())
+			{
+				Rhino.Render.TextureMapping Mapping = InRhinoObject.GetTextureMapping(ChannelId);
+				TextureMappindIdToRhinoObject[Mapping.Id] = InRhinoObject;
+			}
 		}
 	}
 }
