@@ -631,6 +631,20 @@ FReply SRigSpacePickerWidget::HandleAddElementClicked()
 		}
 	});
 
+	TreeDelegates.OnCompareKeys = FOnRigTreeCompareKeys::CreateLambda([](const FRigElementKey& A, const FRigElementKey& B) -> bool
+	{
+		// controls should always show up first - so we'll sort them to the start of the list
+		if(A.Type == ERigElementType::Control && B.Type != ERigElementType::Control)
+		{
+			return true;
+		}
+		if(B.Type == ERigElementType::Control && A.Type != ERigElementType::Control)
+		{
+			return false;
+		}
+		return A < B;
+	});
+
 	TSharedPtr<SSearchableRigHierarchyTreeView> SearchableTreeView = SNew(SSearchableRigHierarchyTreeView)
 	.RigTreeDelegates(TreeDelegates);
 	SearchableTreeView->GetTreeView()->RefreshTreeView(true);

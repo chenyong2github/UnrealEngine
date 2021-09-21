@@ -61,6 +61,7 @@ DECLARE_DELEGATE_RetVal(const URigHierarchy*, FOnGetRigTreeHierarchy);
 DECLARE_DELEGATE_RetVal(const FRigTreeDisplaySettings&, FOnGetRigTreeDisplaySettings);
 DECLARE_DELEGATE_RetVal_TwoParams(FName, FOnRigTreeRenameElement, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/);
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnRigTreeVerifyElementNameChanged, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/, FText& /*OutErrorMessage*/);
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnRigTreeCompareKeys, const FRigElementKey& /*A*/, const FRigElementKey& /*B*/);
 
 typedef STableRow<TSharedPtr<FRigTreeElement>>::FOnCanAcceptDrop FOnRigTreeCanAcceptDrop;
 typedef STableRow<TSharedPtr<FRigTreeElement>>::FOnAcceptDrop FOnRigTreeAcceptDrop;
@@ -83,6 +84,7 @@ struct CONTROLRIGEDITOR_API FRigTreeDelegates
 	FOnRigTreeMouseButtonClick OnMouseButtonClick;
 	FOnRigTreeMouseButtonDoubleClick OnMouseButtonDoubleClick;
 	FOnRigTreeSetExpansionRecursive OnSetExpansionRecursive;
+	FOnRigTreeCompareKeys OnCompareKeys;
 
 	FRigTreeDelegates()
 	{
