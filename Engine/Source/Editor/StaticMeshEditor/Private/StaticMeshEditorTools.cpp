@@ -3235,23 +3235,24 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	}
 
 	LODSettingsCategory.AddCustomRow(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+	.Visibility(bDisablePerPlatformMinLod ? EVisibility::Visible : EVisibility::Collapsed)
 	.RowTag("QualityLevelMinLOD")
 	.NameContent()
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
+			.Text(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
 		]
-	.ValueContent()
+		.ValueContent()
 		.MinDesiredWidth((float)(StaticMesh->GetQualityLevelMinLOD().PerQuality.Num() + 1)*125.0f)
 		.MaxDesiredWidth((float)((int32)QualityLevelProperty::EQualityLevels::Num + 1)*125.0f)
 		[
 			SNew(SPerQualityLevelPropertiesWidget)
 			.IsEnabled(FLevelOfDetailSettingsLayout::GetLODCount() > 1 && bDisablePerPlatformMinLod)
-		.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODWidget)
-		.OnAddEntry(this, &FLevelOfDetailSettingsLayout::AddMinLODQualityLevelOverride)
-		.OnRemoveEntry(this, &FLevelOfDetailSettingsLayout::RemoveMinLODQualityLevelOverride)
-		.EntryNames(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODOverrideNames)
+			.OnGenerateWidget(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODWidget)
+			.OnAddEntry(this, &FLevelOfDetailSettingsLayout::AddMinLODQualityLevelOverride)
+			.OnRemoveEntry(this, &FLevelOfDetailSettingsLayout::RemoveMinLODQualityLevelOverride)
+			.EntryNames(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODOverrideNames)
 		];
 
 	{
@@ -3319,6 +3320,8 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		SNew(SButton)
 		.OnClicked(this, &FLevelOfDetailSettingsLayout::OnApply)
 		.IsEnabled(this, &FLevelOfDetailSettingsLayout::IsApplyNeeded)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
 		[
 			SNew( STextBlock )
 			.Text(LOCTEXT("ApplyChanges", "Apply Changes"))
@@ -3623,10 +3626,12 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 				.ValueContent()
 				.HAlign(HAlign_Left)
 				[
-					SNew(SButton)
+ 					SNew(SButton)
 					.OnClicked(this, &FLevelOfDetailSettingsLayout::OnRemoveLOD, LODIndex)
 					.IsEnabled(this, &FLevelOfDetailSettingsLayout::CanRemoveLOD, LODIndex)
 					.ToolTipText( LOCTEXT("RemoveLOD_ToolTip", "Removes this LOD from the Static Mesh") )
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
 					[
 						SNew(STextBlock)
 						.Text( LOCTEXT("RemoveLOD", "Remove LOD") )
@@ -4792,6 +4797,8 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		SNew(SButton)
 		.OnClicked(this, &FNaniteSettingsLayout::OnApply)
 		.IsEnabled(this, &FNaniteSettingsLayout::IsApplyNeeded)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("ApplyChanges", "Apply Changes"))
