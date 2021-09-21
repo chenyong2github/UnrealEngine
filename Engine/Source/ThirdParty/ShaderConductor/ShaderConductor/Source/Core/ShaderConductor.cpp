@@ -38,6 +38,7 @@
 // UE Change Begin: Allow remapping of variables in glsl
 #include <sstream>
 // UE Change End: Allow remapping of variables in glsl
+
 #include <dxc/DxilContainer/DxilContainer.h>
 #include <dxc/dxcapi.h>
 // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
@@ -68,93 +69,93 @@ using namespace ShaderConductor;
 // UE Change Begin: Clean up parameter parsing
 static bool ParseSpirvCrossOption(const ShaderConductor::MacroDefine& define, const char* name, uint32_t& outValue)
 {
-	if (::strcmp(define.name, name) == 0)
-	{
-		outValue = static_cast<uint32_t>(std::stoi(define.value));
-		return true;
-	}
-	return false;
+    if (::strcmp(define.name, name) == 0)
+    {
+        outValue = static_cast<uint32_t>(std::stoi(define.value));
+        return true;
+    }
+    return false;
 }
 
 static bool ParseSpirvCrossOption(const ShaderConductor::MacroDefine& define, const char* name, bool& outValue)
 {
-	if (::strcmp(define.name, name) == 0)
-	{
-		outValue = (std::stoi(define.value) != 0);
-		return true;
-	}
-	return false;
+    if (::strcmp(define.name, name) == 0)
+    {
+        outValue = (std::stoi(define.value) != 0);
+        return true;
+    }
+    return false;
 }
 
-#define PARSE_SPIRVCROSS_OPTION(DEFINE, NAME, VALUE)	\
-	if (ParseSpirvCrossOption(DEFINE, NAME, VALUE))		\
-	{													\
-		return true;									\
-	}
-	
+#define PARSE_SPIRVCROSS_OPTION(DEFINE, NAME, VALUE)    \
+    if (ParseSpirvCrossOption(DEFINE, NAME, VALUE))     \
+    {                                                   \
+        return true;                                    \
+    }
+
 // These options are shared between GLSL, HLSL, and Metal compilers
 static bool ParseSpirvCrossOptionCommon(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
 {
-	PARSE_SPIRVCROSS_OPTION(define, "reconstruct_global_uniforms", opt.reconstruct_global_uniforms);
-	return false;
+    PARSE_SPIRVCROSS_OPTION(define, "reconstruct_global_uniforms", opt.reconstruct_global_uniforms);
+    return false;
 }
 
 static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
 {
-	PARSE_SPIRVCROSS_OPTION(define, "emit_push_constant_as_uniform_buffer", opt.emit_push_constant_as_uniform_buffer);
-	PARSE_SPIRVCROSS_OPTION(define, "emit_uniform_buffer_as_plain_uniforms", opt.emit_uniform_buffer_as_plain_uniforms);
-	PARSE_SPIRVCROSS_OPTION(define, "flatten_multidimensional_arrays", opt.flatten_multidimensional_arrays);
-	PARSE_SPIRVCROSS_OPTION(define, "force_flattened_io_blocks", opt.force_flattened_io_blocks);
-	return false;
+    PARSE_SPIRVCROSS_OPTION(define, "emit_push_constant_as_uniform_buffer", opt.emit_push_constant_as_uniform_buffer);
+    PARSE_SPIRVCROSS_OPTION(define, "emit_uniform_buffer_as_plain_uniforms", opt.emit_uniform_buffer_as_plain_uniforms);
+    PARSE_SPIRVCROSS_OPTION(define, "flatten_multidimensional_arrays", opt.flatten_multidimensional_arrays);
+    PARSE_SPIRVCROSS_OPTION(define, "force_flattened_io_blocks", opt.force_flattened_io_blocks);
+    return false;
 }
 
 static bool ParseSpirvCrossOptionHlsl(spirv_cross::CompilerHLSL::Options& opt, const ShaderConductor::MacroDefine& define)
 {
-	PARSE_SPIRVCROSS_OPTION(define, "reconstruct_semantics", opt.reconstruct_semantics);
-	PARSE_SPIRVCROSS_OPTION(define, "reconstruct_cbuffer_names", opt.reconstruct_cbuffer_names);
-	PARSE_SPIRVCROSS_OPTION(define, "implicit_resource_binding", opt.implicit_resource_binding);
-	return false;
+    PARSE_SPIRVCROSS_OPTION(define, "reconstruct_semantics", opt.reconstruct_semantics);
+    PARSE_SPIRVCROSS_OPTION(define, "reconstruct_cbuffer_names", opt.reconstruct_cbuffer_names);
+    PARSE_SPIRVCROSS_OPTION(define, "implicit_resource_binding", opt.implicit_resource_binding);
+    return false;
 }
 
 static bool ParseSpirvCrossOptionMetal(spirv_cross::CompilerMSL::Options& opt, const ShaderConductor::MacroDefine& define)
 {
-	PARSE_SPIRVCROSS_OPTION(define, "ios_support_base_vertex_instance", opt.ios_support_base_vertex_instance);
-	PARSE_SPIRVCROSS_OPTION(define, "swizzle_texture_samples", opt.swizzle_texture_samples);
-	PARSE_SPIRVCROSS_OPTION(define, "texel_buffer_texture_width", opt.texel_buffer_texture_width);
-	// Use Metal's native texture-buffer type for HLSL buffers.
-	PARSE_SPIRVCROSS_OPTION(define, "texture_buffer_native", opt.texture_buffer_native);
-	// Use Metal's native frame-buffer fetch API for subpass inputs.
-	PARSE_SPIRVCROSS_OPTION(define, "use_framebuffer_fetch_subpasses", opt.use_framebuffer_fetch_subpasses);
-	// Storage buffer robustness - clamps access to SSBOs to the size of the buffer.
-	PARSE_SPIRVCROSS_OPTION(define, "enforce_storge_buffer_bounds", opt.enforce_storge_buffer_bounds);
-	PARSE_SPIRVCROSS_OPTION(define, "buffer_size_buffer_index", opt.buffer_size_buffer_index);
-	// Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess.
-	PARSE_SPIRVCROSS_OPTION(define, "capture_output_to_buffer", opt.capture_output_to_buffer);
-	PARSE_SPIRVCROSS_OPTION(define, "shader_output_buffer_index", opt.shader_output_buffer_index);
-	// Allow the caller to specify the various auxiliary Metal buffer indices.
-	PARSE_SPIRVCROSS_OPTION(define, "indirect_params_buffer_index", opt.indirect_params_buffer_index);
-	PARSE_SPIRVCROSS_OPTION(define, "shader_patch_output_buffer_index", opt.shader_patch_output_buffer_index);
-	PARSE_SPIRVCROSS_OPTION(define, "shader_tess_factor_buffer_index", opt.shader_tess_factor_buffer_index);
-	PARSE_SPIRVCROSS_OPTION(define, "shader_input_wg_index", opt.shader_input_wg_index);
-	// Allow the caller to specify the Metal translation should use argument buffers.
-	PARSE_SPIRVCROSS_OPTION(define, "argument_buffers", opt.argument_buffers);
-	PARSE_SPIRVCROSS_OPTION(define, "argument_buffer_offset", opt.argument_buffer_offset);
-	PARSE_SPIRVCROSS_OPTION(define, "invariant_float_math", opt.invariant_float_math);
-	// Emulate texturecube_array with texture2d_array for iOS where this type is not available.
-	PARSE_SPIRVCROSS_OPTION(define, "emulate_cube_array", opt.emulate_cube_array);
-	// Allow user to enable decoration binding.
-	PARSE_SPIRVCROSS_OPTION(define, "enable_decoration_binding", opt.enable_decoration_binding);
+    PARSE_SPIRVCROSS_OPTION(define, "ios_support_base_vertex_instance", opt.ios_support_base_vertex_instance);
+    PARSE_SPIRVCROSS_OPTION(define, "swizzle_texture_samples", opt.swizzle_texture_samples);
+    PARSE_SPIRVCROSS_OPTION(define, "texel_buffer_texture_width", opt.texel_buffer_texture_width);
+    // Use Metal's native texture-buffer type for HLSL buffers.
+    PARSE_SPIRVCROSS_OPTION(define, "texture_buffer_native", opt.texture_buffer_native);
+    // Use Metal's native frame-buffer fetch API for subpass inputs.
+    PARSE_SPIRVCROSS_OPTION(define, "use_framebuffer_fetch_subpasses", opt.use_framebuffer_fetch_subpasses);
+    // Storage buffer robustness - clamps access to SSBOs to the size of the buffer.
+    PARSE_SPIRVCROSS_OPTION(define, "enforce_storge_buffer_bounds", opt.enforce_storge_buffer_bounds);
+    PARSE_SPIRVCROSS_OPTION(define, "buffer_size_buffer_index", opt.buffer_size_buffer_index);
+    // Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess.
+    PARSE_SPIRVCROSS_OPTION(define, "capture_output_to_buffer", opt.capture_output_to_buffer);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_output_buffer_index", opt.shader_output_buffer_index);
+    // Allow the caller to specify the various auxiliary Metal buffer indices.
+    PARSE_SPIRVCROSS_OPTION(define, "indirect_params_buffer_index", opt.indirect_params_buffer_index);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_patch_output_buffer_index", opt.shader_patch_output_buffer_index);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_tess_factor_buffer_index", opt.shader_tess_factor_buffer_index);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_input_wg_index", opt.shader_input_wg_index);
+    // Allow the caller to specify the Metal translation should use argument buffers.
+    PARSE_SPIRVCROSS_OPTION(define, "argument_buffers", opt.argument_buffers);
+    //PARSE_SPIRVCROSS_OPTION(define, "argument_buffer_offset", opt.argument_buffer_offset);
+    PARSE_SPIRVCROSS_OPTION(define, "invariant_float_math", opt.invariant_float_math);
+    // Emulate texturecube_array with texture2d_array for iOS where this type is not available.
+    PARSE_SPIRVCROSS_OPTION(define, "emulate_cube_array", opt.emulate_cube_array);
+    // Allow user to enable decoration binding.
+    PARSE_SPIRVCROSS_OPTION(define, "enable_decoration_binding", opt.enable_decoration_binding);
 
-	// Specify dimension of subpass input attachments.
-	static const char* subpassInputDimIdent = "subpass_input_dimension";
-	static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
-	if (!strncmp(define.name, subpassInputDimIdent, subpassInputDimIdentLen))
-	{
-		int binding = std::stoi(define.name + subpassInputDimIdentLen);
-		opt.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(define.value);
-	}
+    // Specify dimension of subpass input attachments.
+    static const char* subpassInputDimIdent = "subpass_input_dimension";
+    static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
+    if (!strncmp(define.name, subpassInputDimIdent, subpassInputDimIdentLen))
+    {
+        int binding = std::stoi(define.name + subpassInputDimIdentLen);
+        opt.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(define.value);
+    }
 
-	return false;
+    return false;
 }
 // UE Change End: Clean up parameter parsing
 
@@ -701,43 +702,44 @@ namespace
         return shaderProfile;
     }
 
-	// UE Change Begin: Allow remapping of variables in glsl
-	struct Remap
-	{
-		std::string src_name;
-		std::string dst_name;
-		unsigned components;
-	};
+    // UE Change Begin: Allow remapping of variables in glsl
+    struct Remap
+    {
+        std::string src_name;
+        std::string dst_name;
+        unsigned components;
+    };
 
-	static bool remap_generic(spirv_cross::Compiler& compiler, const spirv_cross::SmallVector<spirv_cross::Resource>& resources, const Remap& remap)
-	{
-		auto itr =
-			std::find_if(std::begin(resources), std::end(resources), [&remap](const spirv_cross::Resource& res) { return res.name == remap.src_name; });
+    static bool remap_generic(spirv_cross::Compiler& compiler, const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
+                              const Remap& remap)
+    {
+        auto itr = std::find_if(std::begin(resources), std::end(resources),
+                                [&remap](const spirv_cross::Resource& res) { return res.name == remap.src_name; });
 
-		if (itr != std::end(resources))
-		{
-			compiler.set_remapped_variable_state(itr->id, true);
-			compiler.set_name(itr->id, remap.dst_name);
-			compiler.set_subpass_input_remapped_components(itr->id, remap.components);
-			return true;
-		}
-		else
-			return false;
-	}
+        if (itr != std::end(resources))
+        {
+            compiler.set_remapped_variable_state(itr->id, true);
+            compiler.set_name(itr->id, remap.dst_name);
+            compiler.set_subpass_input_remapped_components(itr->id, remap.components);
+            return true;
+        }
+        else
+            return false;
+    }
 
-	static void remap(spirv_cross::Compiler& compiler, const spirv_cross::ShaderResources & res, const std::vector<Remap>& remaps)
-	{
-		for (auto& remap : remaps)
-		{
-			if (remap_generic(compiler, res.stage_inputs, remap))
-				return;
-			if (remap_generic(compiler, res.stage_outputs, remap))
-				return;
-			if (remap_generic(compiler, res.subpass_inputs, remap))
-				return;
-		}
-	}
-	// UE Change End: Allow remapping of variables in glsl
+    static void remap(spirv_cross::Compiler& compiler, const spirv_cross::ShaderResources& res, const std::vector<Remap>& remaps)
+    {
+        for (auto& remap : remaps)
+        {
+            if (remap_generic(compiler, res.stage_inputs, remap))
+                return;
+            if (remap_generic(compiler, res.stage_outputs, remap))
+                return;
+            if (remap_generic(compiler, res.subpass_inputs, remap))
+                return;
+        }
+    }
+    // UE Change End: Allow remapping of variables in glsl
 
     void ConvertDxcResult(Compiler::ResultDesc& result, IDxcOperationResult* dxcResult, ShadingLanguage targetLanguage, bool asModule)
     {
@@ -1023,9 +1025,9 @@ namespace
         bool combinedImageSamplers = false;
         bool buildDummySampler = false;
 
-		// UE Change Begin: Allow remapping of variables in glsl
-		std::vector<Remap> remaps;
-		// UE Change End: Allow remapping of variables in glsl
+        // UE Change Begin: Allow remapping of variables in glsl
+        std::vector<Remap> remaps;
+        // UE Change End: Allow remapping of variables in glsl
 
         switch (target.language)
         {
@@ -1149,57 +1151,54 @@ namespace
         opts.flatten_multidimensional_arrays = false;
         opts.enable_420pack_extension =
             (target.language == ShadingLanguage::Glsl) && ((target.version == nullptr) || (opts.version >= 420));
-		// UE Change Begin: Fixup layout locations to include padding for arrays
-		opts.fixup_layout_locations = true;
-		// UE Change End: Fixup layout locations to include padding for arrays
-        // UE Change Begin: Always enable Vulkan semantics
-		opts.vulkan_semantics = !(target.language == ShadingLanguage::Glsl || target.language == ShadingLanguage::Essl);
-		//opts.emit_uniform_buffer_as_plain_uniforms = false;
-
-        // UE Change End: Always enable Vulkan semantics
+        // UE Change Begin: Fixup layout locations to include padding for arrays.
+        opts.fixup_layout_locations = true;
+        // UE Change End: Fixup layout locations to include padding for arrays.
+        // UE Change Begin: Always enable Vulkan semantics if we don't target GLSL or ESSL
+        opts.vulkan_semantics = !(target.language == ShadingLanguage::Glsl || target.language == ShadingLanguage::Essl);
+        // UE Change End: Always enable Vulkan semantics if we don't target GLSL or ESSL
         opts.vertex.fixup_clipspace = opts.es;
         opts.vertex.flip_vert_y = opts.es;
         opts.vertex.support_nonzero_base_instance = true;
-		
         compiler->set_common_options(opts);
 
         // UE Change Begin: Allow variable typenames to be renamed to support samplerExternalOES in ESSL.
 		if (target.language == ShadingLanguage::Essl)
         {
-			auto* glslCompiler = static_cast<spirv_cross::CompilerGLSL*>(compiler.get());
-			auto glslOpts = glslCompiler->get_common_options();
+            auto* glslCompiler = static_cast<spirv_cross::CompilerGLSL*>(compiler.get());
+            auto glslOpts = glslCompiler->get_common_options();
 
-			for (unsigned i = 0; i < target.numOptions; i++)
-			{
-				auto& Define = target.options[i];
-				if (!ParseSpirvCrossOptionGlsl(glslOpts, Define))
-				{
-					// UE Change Begin: Allow remapping of variables in glsl
-					if (!strcmp(Define.name, "remap_glsl"))
-					{
-						std::vector<std::string> Args;
-						std::stringstream ss(Define.value);
-						std::string Arg;
+            for (unsigned i = 0; i < target.numOptions; i++)
+            {
+                auto& Define = target.options[i];
+                if (!ParseSpirvCrossOptionGlsl(glslOpts, Define))
+                {
+                    // UE Change Begin: Allow remapping of variables in glsl
+                    if (!strcmp(Define.name, "remap_glsl"))
+                    {
+                        std::vector<std::string> Args;
+                        std::stringstream ss(Define.value);
+                        std::string Arg;
 
-						while (std::getline(ss, Arg, ' '))
-						{
-							Args.push_back(Arg);
-						}
+                        while (std::getline(ss, Arg, ' '))
+                        {
+                            Args.push_back(Arg);
+                        }
 
-						if (Args.size() < 3)
-							continue;
+                        if (Args.size() < 3)
+                            continue;
 
-						remaps.push_back({ Args[0], Args[1], (uint32_t)std::atoi(Args[2].c_str()) });
-					}
-					// UE Change End: Allow remapping of variables in glsl
-				}
-			}
+                        remaps.push_back({Args[0], Args[1], (uint32_t)std::atoi(Args[2].c_str())});
+                    }
+                    // UE Change End: Allow remapping of variables in glsl
+                }
+            }
 
-			// UE Change Begin: Allow remapping of variables in glsl
-			remap(*glslCompiler, glslCompiler->get_shader_resources(), remaps);
-			// UE Change End: Allow remapping of variables in glsl
+            // UE Change Begin: Allow remapping of variables in glsl
+            remap(*glslCompiler, glslCompiler->get_shader_resources(), remaps);
+            // UE Change End: Allow remapping of variables in glsl
 
-			glslCompiler->set_common_options(glslOpts);
+            glslCompiler->set_common_options(glslOpts);
 
             if (target.variableTypeRenameCallback)
             {
@@ -1220,7 +1219,6 @@ namespace
         if (target.language == ShadingLanguage::Hlsl)
         {
             auto* hlslCompiler = static_cast<spirv_cross::CompilerHLSL*>(compiler.get());
-			auto commonOpts = hlslCompiler->get_common_options();
             auto hlslOpts = hlslCompiler->get_hlsl_options();
             if (target.version != nullptr)
             {
@@ -1238,44 +1236,45 @@ namespace
                 buildDummySampler = true;
             }
 
-			// UE Change Begin: Support overriding HLSL options
-			for (unsigned i = 0; i < target.numOptions; i++)
-			{
-				if (!ParseSpirvCrossOptionCommon(commonOpts, target.options[i]))
-				{
-					ParseSpirvCrossOptionHlsl(hlslOpts, target.options[i]);
-				}
-			}
-			hlslCompiler->set_common_options(commonOpts);
-			// UE Change End: Support overriding HLSL options
+            // UE Change Begin: Support overriding HLSL options.
+            auto commonOpts = hlslCompiler->get_common_options();
+            for (unsigned i = 0; i < target.numOptions; i++)
+            {
+                if (!ParseSpirvCrossOptionCommon(commonOpts, target.options[i]))
+                {
+                    ParseSpirvCrossOptionHlsl(hlslOpts, target.options[i]);
+                }
+            }
+            hlslCompiler->set_common_options(commonOpts);
+            // UE Change End: Support overriding HLSL options.
 
-			hlslCompiler->set_hlsl_options(hlslOpts);
+            hlslCompiler->set_hlsl_options(hlslOpts);
         }
         else if ((target.language == ShadingLanguage::Msl_macOS) || (target.language == ShadingLanguage::Msl_iOS))
         {
             auto* mslCompiler = static_cast<spirv_cross::CompilerMSL*>(compiler.get());
-            auto opt = mslCompiler->get_msl_options();
+            auto mslOpts = mslCompiler->get_msl_options();
             if (target.version != nullptr)
             {
-                opt.msl_version = opts.version;
+                mslOpts.msl_version = opts.version;
             }
-            opt.swizzle_texture_samples = false;
+            mslOpts.swizzle_texture_samples = false;
 
             // UE Change Begin: Ensure base vertex and instance indices start with zero if source language is HLSL.
-            opt.enable_base_index_zero = true;
+            mslOpts.enable_base_index_zero = true;
             // UE Change End: Ensure base vertex and instance indices start with zero if source language is HLSL.
 
             // UE Change Begin: Support reflection & overriding Metal options & resource bindings to generate correct code.
             for (unsigned i = 0; i < target.numOptions; i++)
             {
-				ParseSpirvCrossOptionMetal(opt, target.options[i]);
+                ParseSpirvCrossOptionMetal(mslOpts, target.options[i]);
             }
             // UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code.
 
-            opt.platform = (target.language == ShadingLanguage::Msl_iOS) ? spirv_cross::CompilerMSL::Options::iOS
+            mslOpts.platform = (target.language == ShadingLanguage::Msl_iOS) ? spirv_cross::CompilerMSL::Options::iOS
                                                                              : spirv_cross::CompilerMSL::Options::macOS;
 
-            mslCompiler->set_msl_options(opt);
+            mslCompiler->set_msl_options(mslOpts);
 
 			// UE Change Begin: Don't re-assign binding slots. This is done with SPIRV-Reflect.
 #if 0
@@ -1310,10 +1309,10 @@ namespace
 
         if (combinedImageSamplers)
         {
-			// UE Change Begin: For opengl based platforms we merge all samplers to a single sampler per texture
-			bool singleSamplerPerTexture = (target.language == ShadingLanguage::Glsl || target.language == ShadingLanguage::Essl);
+            // UE Change Begin: For OpenGL based platforms we merge all samplers to a single sampler per texture
+            bool singleSamplerPerTexture = (target.language == ShadingLanguage::Glsl || target.language == ShadingLanguage::Essl);
             compiler->build_combined_image_samplers(singleSamplerPerTexture);
-			// UE Change End: For opengl based platforms we merge all samplers to a single sampler per texture
+            // UE Change End: For OpenGL based platforms we merge all samplers to a single sampler per texture
 
             if (options.inheritCombinedSamplerBindings)
             {
