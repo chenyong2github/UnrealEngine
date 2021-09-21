@@ -61,6 +61,7 @@
 #include "ProfilingDebugging/StallDetector.h"
 #include "RenderUtils.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "ClearReplacementShaders.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -6457,35 +6458,31 @@ static FString GetGlobalShaderMapKeyString(const FGlobalShaderMapId& ShaderMapId
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("GSM"), *GetGlobalShaderMapDDCKey(), *ShaderMapKeyString);
 }
 
-/** Saves the platform's shader map to the DDC. */
+/** Saves the platform's shader map to the DDC. It is assumed that the caller will check IsComplete() first before calling the function. */
 static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 {
 	// We've finally built the global shader map, so we can count the miss as we put it in the DDC.
 	COOK_STAT(auto Timer = GlobalShaderCookStats::UsageStats.TimeSyncWork());
 
 	const ITargetPlatform* TargetPlatform = GGlobalShaderTargetPlatform[Platform];
-
 	TArray<uint8> SaveData;
 
 	FGlobalShaderMapId ShaderMapId(Platform, TargetPlatform);
-	// avoid saving incomplete shadermaps
+	// caller should prevent incomplete shadermaps to be saved
 	FGlobalShaderMap* GlobalSM = GetGlobalShaderMap(Platform);
-	if (GlobalSM->IsComplete(TargetPlatform))
+	for (auto const& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 	{
-		for (auto const& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
+		FGlobalShaderMapSection* Section = GlobalSM->FindSection(ShaderFilenameDependencies.Key);
+		if (Section)
 		{
-			FGlobalShaderMapSection* Section = GlobalSM->FindSection(ShaderFilenameDependencies.Key);
-			if (Section)
-			{
-				Section->FinalizeContent();
+			Section->FinalizeContent();
 
-				SaveData.Reset();
-				FMemoryWriter Ar(SaveData, true);
-				Section->Serialize(Ar);
+			SaveData.Reset();
+			FMemoryWriter Ar(SaveData, true);
+			Section->Serialize(Ar);
 
-				GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
-				COOK_STAT(Timer.AddMiss(SaveData.Num()));
-			}
+			GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
+			COOK_STAT(Timer.AddMiss(SaveData.Num()));
 		}
 	}
 }
@@ -6640,6 +6637,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 		GGlobalShaderMap[Platform] = new FGlobalShaderMap(Platform);
 
 		bool bLoadedFromCacheFile = false;
+		bool bShaderMapIsBeingCompiled = false;
 
 		// Try to load the global shaders from a local cache file if it exists
 		// This method is used exclusively with cooked content, since the DDC is not present
@@ -6770,6 +6768,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 				{
 					// it's a miss, but we haven't built anything yet. Save the counting until we actually have it built.
 					COOK_STAT(Timer.TrackCyclesOnly());
+					bShaderMapIsBeingCompiled = true;
 				}
 
 				++HandleIndex;
@@ -6782,6 +6781,12 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 		if (GCreateShadersOnLoad && Platform == GMaxRHIShaderPlatform)
 		{
 			GGlobalShaderMap[Platform]->BeginCreateAllShaders();
+		}
+
+		// While we're early in the game's startup, create certain global shaders that may be later created on random threads otherwise. 
+		if (!bShaderMapIsBeingCompiled && !GRHISupportsMultithreadedShaderCreation)
+		{
+			CreateClearReplacementShaders();
 		}
 	}
 }
@@ -7170,50 +7175,57 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& Comp
 
 	for (int32 PlatformIndex = 0; PlatformIndex < ShaderPlatformsProcessed.Num(); PlatformIndex++)
 	{
+		EShaderPlatform Platform = ShaderPlatformsProcessed[PlatformIndex];
+		FGlobalShaderMap* GlobalShaderMap = GGlobalShaderMap[Platform];
+		const ITargetPlatform* TargetPlatform = GGlobalShaderTargetPlatform[Platform];
+
+		// Process the shader pipelines that share shaders
+		FPlatformTypeLayoutParameters LayoutParams;
+		LayoutParams.InitializeForPlatform(TargetPlatform);
+		const EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
+
+		for (const FShaderPipelineType* ShaderPipelineType : SharedPipelines)
 		{
-			// Process the shader pipelines that share shaders
-			EShaderPlatform Platform = ShaderPlatformsProcessed[PlatformIndex];
-			FGlobalShaderMap* GlobalShaderMap = GGlobalShaderMap[Platform];
-			const ITargetPlatform* TargetPlatform = GGlobalShaderTargetPlatform[Platform];
-
-			FPlatformTypeLayoutParameters LayoutParams;
-			LayoutParams.InitializeForPlatform(TargetPlatform);
-			const EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
-
-			for (const FShaderPipelineType* ShaderPipelineType : SharedPipelines)
+			check(ShaderPipelineType->IsGlobalTypePipeline());
+			if (!GlobalShaderMap->HasShaderPipeline(ShaderPipelineType))
 			{
-				check(ShaderPipelineType->IsGlobalTypePipeline());
-				if (!GlobalShaderMap->HasShaderPipeline(ShaderPipelineType))
+				auto& StageTypes = ShaderPipelineType->GetStages();
+
+				FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType);
+				for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
 				{
-					auto& StageTypes = ShaderPipelineType->GetStages();
-
-					FShaderPipeline* ShaderPipeline = new FShaderPipeline(ShaderPipelineType);
-					for (int32 Index = 0; Index < StageTypes.Num(); ++Index)
+					FGlobalShaderType* GlobalShaderType = ((FShaderType*)(StageTypes[Index]))->GetGlobalShaderType();
+					if (GlobalShaderType->ShouldCompilePermutation(Platform, kUniqueShaderPermutationId, PermutationFlags))
 					{
-						FGlobalShaderType* GlobalShaderType = ((FShaderType*)(StageTypes[Index]))->GetGlobalShaderType();
-						if (GlobalShaderType->ShouldCompilePermutation(Platform, kUniqueShaderPermutationId, PermutationFlags))
-						{
-							TShaderRef<FShader> Shader = GlobalShaderMap->GetShader(GlobalShaderType, kUniqueShaderPermutationId);
-							check(Shader.IsValid());
-							ShaderPipeline->AddShader(Shader.GetShader(), kUniqueShaderPermutationId);
-						}
-						else
-						{
-							break;
-						}
+						TShaderRef<FShader> Shader = GlobalShaderMap->GetShader(GlobalShaderType, kUniqueShaderPermutationId);
+						check(Shader.IsValid());
+						ShaderPipeline->AddShader(Shader.GetShader(), kUniqueShaderPermutationId);
 					}
-					ShaderPipeline->Validate(ShaderPipelineType);
-					GlobalShaderMap->FindOrAddShaderPipeline(ShaderPipelineType, ShaderPipeline);
+					else
+					{
+						break;
+					}
 				}
+				ShaderPipeline->Validate(ShaderPipelineType);
+				GlobalShaderMap->FindOrAddShaderPipeline(ShaderPipelineType, ShaderPipeline);
 			}
-
-			// at this point the new global sm is populated and we can delete the deferred copy, if any
-			delete GGlobalShaderMap_DeferredDeleteCopy[ShaderPlatformsProcessed[PlatformIndex]];	// even if it was nullptr, deleting null is Okay
-			GGlobalShaderMap_DeferredDeleteCopy[ShaderPlatformsProcessed[PlatformIndex]] = nullptr;
 		}
 
-		// Save the global shader map for any platforms that were recompiled
-		SaveGlobalShaderMapToDerivedDataCache(ShaderPlatformsProcessed[PlatformIndex]);
+		// at this point the new global sm is populated and we can delete the deferred copy, if any
+		delete GGlobalShaderMap_DeferredDeleteCopy[ShaderPlatformsProcessed[PlatformIndex]];	// even if it was nullptr, deleting null is Okay
+		GGlobalShaderMap_DeferredDeleteCopy[ShaderPlatformsProcessed[PlatformIndex]] = nullptr;
+
+		// Save the global shader map for any platforms that were recompiled, but only if it is complete (it can be also a subject to ODSC, perhaps unnecessarily, as we cannot use a partial global SM)
+		FGlobalShaderMapId ShaderMapId(Platform, TargetPlatform);
+		if (GlobalShaderMap->IsComplete(TargetPlatform))
+		{
+			SaveGlobalShaderMapToDerivedDataCache(ShaderPlatformsProcessed[PlatformIndex]);
+
+			if (!GRHISupportsMultithreadedShaderCreation && Platform == GMaxRHIShaderPlatform)
+			{
+				CreateClearReplacementShaders();
+			}
+		}
 	}
 }
 

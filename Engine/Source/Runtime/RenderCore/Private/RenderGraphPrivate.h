@@ -202,7 +202,8 @@ FORCEINLINE bool IsParallelExecuteEnabled()
 		&& !GRHICommandList.Bypass()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
-		&& !GRDGTransitionLog;
+		&& !GRDGTransitionLog
+		&& GRHISupportsMultithreadedShaderCreation;
 }
 
 template <typename ResourceRegistryType, typename FunctionType>
