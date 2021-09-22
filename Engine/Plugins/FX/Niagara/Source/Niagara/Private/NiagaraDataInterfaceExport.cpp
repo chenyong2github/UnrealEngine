@@ -3,8 +3,10 @@
 #include "NiagaraDataInterfaceExport.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCustomVersion.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraComputeExecutionContext.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuReadbackManager.h"
+#include "NiagaraGPUSystemTick.h"
 #include "NiagaraSystemInstance.h"
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
@@ -164,7 +166,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 
 			RHICmdList.Transition(FRHITransitionInfo(InstanceData->WriteBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::CopySrc));
 
-			FNiagaraGpuReadbackManager* ReadbackManager = Context.Batcher->GetGpuReadbackManager();
+			FNiagaraGpuReadbackManager* ReadbackManager = Context.ComputeDispatchInterface->GetGpuReadbackManager();
 			ReadbackManager->EnqueueReadback(
 				RHICmdList,
 				InstanceData->WriteBuffer.Buffer,
@@ -247,7 +249,7 @@ public:
 			if (InstanceData->WeakCallbackHandler.IsExplicitlyNull())
 			{
 				WriteBufferSize = 0;
-				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), Context.Batcher->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer));
+				RHICmdList.SetUAVParameter(Context.Shader.GetComputeShader(), WriteBufferParam.GetUAVIndex(), Context.ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer));
 			}
 			else
 			{
@@ -326,7 +328,7 @@ void UNiagaraDataInterfaceExport::DestroyPerInstanceData(void* PerInstanceData, 
 
 	ENQUEUE_RENDER_COMMAND(FNDIExport_RemoveProxy)
 	(
-		[RT_Proxy=GetProxyAs<FNDIExportProxy>(), InstanceID=SystemInstance->GetId(), Batcher=SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
+		[RT_Proxy=GetProxyAs<FNDIExportProxy>(), InstanceID=SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 		{
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
 		}

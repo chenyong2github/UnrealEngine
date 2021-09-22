@@ -9,7 +9,7 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "Widgets/SNiagaraBakerWidget.h"
 #include "NiagaraBakerRenderer.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 
@@ -154,12 +154,8 @@ void FNiagaraBakerViewModel::RenderBaker()
 	UWorld* World = PreviewComponent->GetWorld();
 	FSceneInterface* BakerScene = World->Scene;
 
-	NiagaraEmitterInstanceBatcher* NiagaraBatcher = nullptr;
-	if (World->Scene && World->Scene->GetFXSystem())
-	{
-		NiagaraBatcher = static_cast<NiagaraEmitterInstanceBatcher*>(World->Scene->GetFXSystem()->GetInterface(NiagaraEmitterInstanceBatcher::Name));
-	}
-	check(NiagaraBatcher);
+	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World);
+	ensureMsgf(ComputeDispatchInterface, TEXT("The batcher was not valid on the world this may result in incorrect baking"));
 
 	// Create output render targets & output Baker data
 	TArray<UTextureRenderTarget2D*, TInlineAllocator<4>> RenderTargets;
@@ -197,14 +193,9 @@ void FNiagaraBakerViewModel::RenderBaker()
 		PreviewComponent->TickComponent(BakerSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
 
 		// We need any GPU sims to flush pending ticks
-		if (NiagaraBatcher)
+		if (ComputeDispatchInterface)
 		{
-			ENQUEUE_RENDER_COMMAND(NiagaraFlushBatcher)(
-				[RT_NiagaraBatcher=NiagaraBatcher](FRHICommandListImmediate& RHICmdList)
-				{
-					RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, true);
-				}
-			);
+			ComputeDispatchInterface->FlushPendingTicks_GameThread();
 		}
 
 		const float WorldTime = FApp::GetCurrentTime() - BakerSettings->StartSeconds - BakerSettings->DurationSeconds + FrameTime;

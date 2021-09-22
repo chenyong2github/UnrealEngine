@@ -14,6 +14,7 @@ class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
 class FNiagaraSystemSimulation;
+class FNiagaraGpuComputeDispatchInterface;
 
 using FNiagaraSystemSimulationPtr = TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe>;
 
@@ -308,9 +309,9 @@ public:
 
 	ETickingGroup GetTickGroup() const { return SystemTickGroup; }
 
-	FORCEINLINE NiagaraEmitterInstanceBatcher* GetBatcher()const { return Batcher; }
+	FORCEINLINE FNiagaraGpuComputeDispatchInterface* GetDispatchInterface() const { return DispatchInterface; }
 
-	ENiagaraGPUTickHandlingMode GetGPUTickHandlingMode()const;
+	ENiagaraGPUTickHandlingMode GetGPUTickHandlingMode() const;
 
 	/** If true we use legacy simulation contexts that could not handle per instance DI calls in the system scripts and would force the whole simulation solo. */
 	static bool UseLegacySystemSimulationContexts();
@@ -426,7 +427,7 @@ protected:
 
 	mutable FString CrashReporterTag;
 
-	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+	FNiagaraGpuComputeDispatchInterface* DispatchInterface = nullptr;
 
 	static bool bUseLegacyExecContexts;
 };

@@ -82,7 +82,7 @@ public:
 	FNiagaraRenderer& operator=(const FNiagaraRenderer& Other) = delete;
 
 	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InComponent);
-	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) {}
+	virtual void CreateRenderThreadResources() {}
 	virtual void ReleaseRenderThreadResources() {}
 	virtual void DestroyRenderState_Concurrent() {}
 

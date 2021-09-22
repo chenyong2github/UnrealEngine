@@ -47,7 +47,7 @@ public:
 	~FNiagaraSystemRenderData();
 
 	/** Called from the render thread to give renderers an opportunity to create resources needed for rendering. */
-	void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher& Batcher);
+	void CreateRenderThreadResources();
 	/** Called from the render thread to give renderers an opportunity to release their resources. */
 	void ReleaseRenderThreadResources();
 	/** Gives the system's renderers an opportunity to free resources */

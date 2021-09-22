@@ -14,8 +14,11 @@
 #include "Async/ParallelFor.h"
 #include "NiagaraComponent.h"
 #include "NiagaraWorldManager.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraGPUSystemTick.h"
 #include "NiagaraCrashReporterHandler.h"
+#include "NiagaraSystemGpuComputeProxy.h"
+
 
 // Niagara Async Ticking Sequence
 // - NiagaraSystemSimulation::Tick_GameThread
@@ -630,15 +633,7 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 	FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(InWorld);
 	check(WorldMan);
 
-	Batcher = nullptr;
-	if (World && World->Scene)
-	{
-		FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem();
-		if (FXSystemInterface)
-		{
-			Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name));
-		}
-	}
+	DispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World);
 
 	bCanExecute = System->GetSystemSpawnScript()->GetVMExecutableData().IsValid() && System->GetSystemUpdateScript()->GetVMExecutableData().IsValid();
 
@@ -2256,7 +2251,7 @@ void FNiagaraSystemSimulation::BuildConstantBufferTable(
 ENiagaraGPUTickHandlingMode FNiagaraSystemSimulation::GetGPUTickHandlingMode()const
 {
 	const UNiagaraSystem* System = GetSystem();
-	if (Batcher && FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform()) && System && System->HasAnyGPUEmitters())
+	if (DispatchInterface && FNiagaraUtilities::AllowGPUParticles(DispatchInterface->GetShaderPlatform()) && System && System->HasAnyGPUEmitters())
 	{
 		//TODO: Maybe some DI post ticks can even be done concurrent too which would also remove this restriction.
 		bool bGT = System->HasDIsWithPostSimulateTick() || GNiagaraSystemSimulationConcurrentGPUTickInit == 0;

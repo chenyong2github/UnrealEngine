@@ -12,7 +12,6 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "NiagaraComponent.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 
 #include <memory>
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -534,10 +533,10 @@ void UNiagaraDataInterfaceChaosDestruction::DestroyPerInstanceData(void* PerInst
 	{
 		FNiagaraDataInterfaceProxyChaosDestruction* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyChaosDestruction>();
 		ENQUEUE_RENDER_COMMAND(FNiagaraDIChaosDestructionDestroyInstanceData) (
-			[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
-		{
-			ThisProxy->DestroyInstanceData(Batcher, InstanceID);
-		}
+			[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
+			{
+				ThisProxy->DestroyInstanceData(InstanceID);
+			}
 		);
 	}
 }
@@ -4121,7 +4120,7 @@ void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FNi
 	SystemsToGPUInstanceData.Add(SystemInstance, FNiagaraDIChaosDestruction_GPUData());
 }
 
-void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
+void FNiagaraDataInterfaceProxyChaosDestruction::DestroyInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 	check(SystemsToGPUInstanceData.Contains(SystemInstance));

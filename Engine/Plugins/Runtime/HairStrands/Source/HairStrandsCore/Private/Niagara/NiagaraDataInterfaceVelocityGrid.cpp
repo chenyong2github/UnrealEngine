@@ -3,9 +3,10 @@
 #include "Niagara/NiagaraDataInterfaceVelocityGrid.h"
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSimStageData.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
@@ -189,7 +190,7 @@ void FNDIVelocityGridParametersCS::Set(FRHICommandList& RHICmdList, const FNiaga
 	}
 	else
 	{
-		SetUAVParameter(RHICmdList, ComputeShaderRHI, GridDestinationBuffer, Context.Batcher->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer));
+		SetUAVParameter(RHICmdList, ComputeShaderRHI, GridDestinationBuffer, Context.ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer));
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, GridCurrentBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, GridSize, FIntVector());
@@ -243,7 +244,7 @@ void UNiagaraDataInterfaceVelocityGrid::DestroyPerInstanceData(void* PerInstance
 
 	FNDIVelocityGridProxy* ThisProxy = GetProxyAs<FNDIVelocityGridProxy>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
-		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
+		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 	{
 		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 	}
@@ -830,7 +831,7 @@ void FNDIVelocityGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagar
 	if (ProxyData != nullptr)
 	{
 		//ProxyData->Swap();
-		CopyTexture(RHICmdList, Context.Batcher->GetFeatureLevel(), ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer,  ProxyData->GridSize);
+		CopyTexture(RHICmdList, Context.ComputeDispatchInterface->GetFeatureLevel(), ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer,  ProxyData->GridSize);
 		//FRHICopyTextureInfo CopyInfo;
 		//RHICmdList.CopyTexture(ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer,
 		//	ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer, CopyInfo);

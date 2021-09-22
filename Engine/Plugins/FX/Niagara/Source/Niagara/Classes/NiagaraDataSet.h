@@ -9,8 +9,6 @@
 #include "RenderingThread.h"
 #include "NiagaraDataSet.generated.h"
 
-class NiagaraEmitterInstanceBatcher;
-
 /** Helper class defining the layout and location of an FNiagaraVariable in an FNiagaraDataBuffer-> */
 USTRUCT()
 struct FNiagaraVariableLayoutInfo
@@ -41,7 +39,7 @@ struct FNiagaraVariableLayoutInfo
 class FNiagaraDataSet;
 class FNiagaraShader;
 class FNiagaraGPUInstanceCountManager;
-class NiagaraEmitterInstanceBatcher;
+class FNiagaraGpuComputeDispatchInterface;
 struct FNiagaraComputeExecutionContext;
 
 //Base class for objects in Niagara that are owned by one object but are then passed for reading to other objects, potentially on other threads.
@@ -105,7 +103,7 @@ protected:
 class NIAGARA_API FNiagaraDataBuffer : public FNiagaraSharedObject
 {
 	friend class FScopedNiagaraDataSetGPUReadback;
-	friend class NiagaraEmitterInstanceBatcher;
+	//friend class FNiagaraGpuComputeDispatchInterface;
 	
 protected:
 	virtual ~FNiagaraDataBuffer();
@@ -171,6 +169,8 @@ public:
 	FORCEINLINE uint32 GetGPUInstanceCountBufferOffset() const { return GPUInstanceCountBufferOffset; }
 	FORCEINLINE FRWBuffer& GetGPUIDToIndexTable() { return GPUIDToIndexTable; }
 
+	FORCEINLINE void SetGPUInstanceCountBufferOffset(uint32 Offset) { GPUInstanceCountBufferOffset = Offset; }
+
 	FORCEINLINE int32 GetSafeComponentBufferSize() const { return GetSafeComponentBufferSize(GetNumInstancesAllocated()); }
 	FORCEINLINE uint32 GetFloatStride() const { return FloatStride; }
 	FORCEINLINE uint32 GetInt32Stride() const { return Int32Stride; }
@@ -192,10 +192,7 @@ public:
 	static void SetOutputShaderParams(FRHICommandList& RHICmdList, class FNiagaraShader* Shader, FNiagaraDataBuffer* Buffer);
 	static void UnsetShaderParams(FRHICommandList& RHICmdList, class FNiagaraShader* Shader);
 
-	void ClearGPUInstanceCount()
-	{
-		GPUInstanceCountBufferOffset = INDEX_NONE;
-	}
+	FORCEINLINE void ClearGPUInstanceCount() { GPUInstanceCountBufferOffset = INDEX_NONE; }
 
 	void BuildRegisterTable();
 
@@ -317,7 +314,7 @@ General storage class for all per instance simulation data in Niagara.
 class NIAGARA_API FNiagaraDataSet
 {
 	friend FNiagaraDataBuffer;
-	friend class NiagaraEmitterInstanceBatcher;
+	friend class FNiagaraGpuComputeDispatch;
 
 public:
 
@@ -551,13 +548,13 @@ public:
 		}
 	}
 
-	void ReadbackData(NiagaraEmitterInstanceBatcher* Batcher, FNiagaraDataSet* InDataSet);
+	void ReadbackData(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FNiagaraDataSet* InDataSet);
 	uint32 GetNumInstances() const { check(DataSet != nullptr); return NumInstances; }
 
 private:
 	FNiagaraDataSet*	DataSet = nullptr;
 	FNiagaraDataBuffer* DataBuffer = nullptr;
-	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = nullptr;
 	uint32				NumInstances = 0;
 };
 #endif

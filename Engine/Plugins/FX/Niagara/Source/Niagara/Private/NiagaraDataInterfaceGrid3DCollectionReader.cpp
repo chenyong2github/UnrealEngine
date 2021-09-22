@@ -4,13 +4,13 @@
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 #include "TextureResource.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "NiagaraSettings.h"
 #include "NiagaraConstants.h"
+#include "NiagaraComputeExecutionContext.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif

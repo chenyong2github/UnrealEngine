@@ -5,21 +5,21 @@
 #include "NiagaraCommon.h"
 
 class FNiagaraSystemInstance;
-class NiagaraEmitterInstanceBatcher;
+class FNiagaraGpuComputeDispatchInterface;
 struct FNiagaraComputeExecutionContext;
 class FNiagaraGPUInstanceCountManager;
 class FNiagaraGPUSystemTick;
 
 class FNiagaraSystemGpuComputeProxy
 {
-	friend class NiagaraEmitterInstanceBatcher;
+	friend class FNiagaraGpuComputeDispatch;
 
 public:
 	FNiagaraSystemGpuComputeProxy(FNiagaraSystemInstance* OwnerInstance);
 	~FNiagaraSystemGpuComputeProxy();
 
-	void AddToBatcher(NiagaraEmitterInstanceBatcher* Batcher);
-	void RemoveFromBatcher(NiagaraEmitterInstanceBatcher* Batcher, bool bDeleteProxy);
+	void AddToRenderThread(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface);
+	void RemoveFromRenderThread(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, bool bDeleteProxy);
 
 	FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
 	ENiagaraGpuComputeTickStage::Type GetComputeTickStage() const { return ComputeTickStage; }
@@ -34,8 +34,8 @@ public:
 
 private:
 	FNiagaraSystemInstance*						DebugOwnerInstance = nullptr;
-	NiagaraEmitterInstanceBatcher*				DebugOwnerBatcher = nullptr;
-	int32										BatcherIndex = INDEX_NONE;
+	FNiagaraGpuComputeDispatchInterface*		DebugOwnerComputeDispatchInterface = nullptr;
+	int32										ComputeDispatchIndex = INDEX_NONE;
 
 	FNiagaraSystemInstanceID					SystemInstanceID = FNiagaraSystemInstanceID();
 	ENiagaraGpuComputeTickStage::Type			ComputeTickStage = ENiagaraGpuComputeTickStage::PostOpaqueRender;

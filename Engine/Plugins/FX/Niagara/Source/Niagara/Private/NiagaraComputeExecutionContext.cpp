@@ -2,7 +2,8 @@
 
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraStats.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemGpuComputeProxy.h"
@@ -23,20 +24,20 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 {
 	// EmitterInstanceReadback.GPUCountOffset should be INDEX_NONE at this point to ensure the index is reused.
-	// When the batcher is being destroyed though, we don't free the index, but this would not be leaking.
+	// When the ComputeDispatchInterface is being destroyed though, we don't free the index, but this would not be leaking.
 	// check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
 	SetDataToRender(nullptr);
 
 	ExternalCBufferLayout = nullptr;
 }
 
-void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraComputeExecutionContext::Reset(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface)
 {
-	NiagaraEmitterInstanceBatcher* RT_Batcher = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
+	FNiagaraGpuComputeDispatchInterface* RT_ComputeDispatchInterface = ComputeDispatchInterface && !ComputeDispatchInterface->IsPendingKill() ? ComputeDispatchInterface : nullptr;
 	ENQUEUE_RENDER_COMMAND(ResetRT)(
-		[RT_Batcher, RT_Context=this](FRHICommandListImmediate& RHICmdList)
+		[RT_ComputeDispatchInterface, RT_Context=this](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_Context->ResetInternal(RT_Batcher);
+			RT_Context->ResetInternal(RT_ComputeDispatchInterface);
 		}
 	);
 }
@@ -189,13 +190,13 @@ void FNiagaraComputeExecutionContext::PostTick()
 	}
 }
 
-void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraComputeExecutionContext::ResetInternal(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface)
 {
 	checkf(IsInRenderingThread(), TEXT("Can only reset the gpu context from the render thread"));
 
-	if (Batcher)
+	if (ComputeDispatchInterface)
 	{
-		Batcher->GetGPUInstanceCounterManager().FreeEntry(CountOffset_RT);
+		static_cast<FNiagaraGpuComputeDispatch*>(ComputeDispatchInterface)->GetGPUInstanceCounterManager().FreeEntry(CountOffset_RT);
 	}
 
 	CurrentNumInstances_RT = 0;

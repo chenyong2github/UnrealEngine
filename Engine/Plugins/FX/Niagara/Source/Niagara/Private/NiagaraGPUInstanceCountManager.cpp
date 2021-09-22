@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGPUInstanceCountManager.h"
+#include "NiagaraEmptyUAVPool.h"
+#include "NiagaraGpuComputeDispatch.h"
+#include "NiagaraRenderer.h"
 #include "NiagaraStats.h"
+
 #include "Containers/DynamicRHIResourceArray.h"
 #include "GPUSortManager.h" // CopyUIntBufferToTargets
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
-#include "NiagaraRenderer.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 
@@ -250,7 +252,7 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(FRHICommandListImmediate& RH
 			int32 UsedIndexCounts[] = { AllocatedInstanceCounts };
 			CopyUIntBufferToTargets(RHICmdList, FeatureLevel, CountBuffer.SRV, UAVs, UsedIndexCounts, 0, UE_ARRAY_COUNT(UAVs));
 
-			// NiagaraEmitterInstanceBatcher expects the count buffer to be readable and copyable before running the sim.
+			// FNiagaraGpuComputeDispatch expects the count buffer to be readable and copyable before running the sim.
 			RHICmdList.Transition(FRHITransitionInfo(NextCountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState));
 
 			// Swap the buffers
@@ -350,7 +352,7 @@ FNiagaraGPUInstanceCountManager::FIndirectArgSlot FNiagaraGPUInstanceCountManage
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterInstanceBatcher& Batcher, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, ENiagaraGPUCountUpdatePhase::Type CountPhase)
+void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, ENiagaraGPUCountUpdatePhase::Type CountPhase)
 {
 	// Anything to process?
 	TArray<FNiagaraDrawIndirectArgGenTaskInfo>& ArgTasks = DrawIndirectArgGenTasks[CountPhase];
@@ -375,7 +377,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 			RHIUnlockBuffer(TaskInfosBuffer.Buffer);
 		}
 
-		FNiagaraUAVPoolAccessScope UAVPoolAccessScope(Batcher);
+		FNiagaraEmptyUAVPoolScopedAccess UAVPoolAccessScope(ComputeDispatchInterface->GetEmptyUAVPool());
 		TArray<FRHITransitionInfo, TInlineAllocator<10>> Transitions;
 		Transitions.Reserve(DrawIndirectPool.Num() + 2);
 
@@ -390,7 +392,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 		else
 		{
 			// This can happen if there are no InstanceCountClearTasks and all DrawIndirectArgGenTasks_PreOpaque are using culled counts
-			CountsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
+			CountsUAV = ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
 		}
 
 		// Get culled counts buffer
@@ -441,7 +443,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterIn
 			}
 			else
 			{
-				ArgsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
+				ArgsUAV = ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
 			}
 
 			const bool bIsLastDispatch = DispatchIdx == (NumDispatches - 1);
@@ -591,8 +593,8 @@ void FNiagaraGPUInstanceCountManager::EnqueueGPUReadback(FRHICommandListImmediat
 			CountReadback = new FRHIGPUBufferReadback(TEXT("Niagara GPU Instance Count Readback"));
 		}
 		CountReadbackSize = UsedInstanceCounts;
-		// No need for a transition, NiagaraEmitterInstanceBatcher ensures that the buffer is left in the
-		// correct state after the sim.
+
+		// No need for a transition, FNiagaraGpuComputeDispatch ensures that the buffer is left in the correct state after the simulation.
 		CountReadback->EnqueueCopy(RHICmdList, CountBuffer.Buffer);
 	}
 }

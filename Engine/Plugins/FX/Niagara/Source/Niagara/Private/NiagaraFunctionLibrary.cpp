@@ -20,7 +20,7 @@
 #include "Engine/VolumeTexture.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraFunctionLibrary"
 
@@ -1786,17 +1786,11 @@ void UNiagaraFunctionLibrary::InitVectorVMFastPathOps()
 void UNiagaraFunctionLibrary::SetComponentNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, UPrimitiveComponent* Primitive, int32 CollisionGroup)
 {
 #if RHI_RAYTRACING
-	if(UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	if ( UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull) )
 	{
-		if(FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		if ( FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World) )
 		{
-			if(FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())			
-			{
-				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
-				{
-					Batcher->SetPrimitiveRayTracingCollisionGroup(Primitive, CollisionGroup);
-				}
-			}
+			ComputeDispatchInterface->SetPrimitiveRayTracingCollisionGroup(Primitive, CollisionGroup);
 		}
 	}
 #endif
@@ -1810,21 +1804,17 @@ void UNiagaraFunctionLibrary::SetActorNiagaraGPURayTracedCollisionGroup(UObject*
 		return;
 	}
 
-	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	if ( UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull) )
 	{
-		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		if (FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World))
 		{
-			if (FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())
-			{
-				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
+			Actor->ForEachComponent<UPrimitiveComponent>(
+				/*bIncludeFromChildActors*/true,
+				[&ComputeDispatchInterface, &CollisionGroup](UPrimitiveComponent* PrimitiveComponent)
 				{
-					Actor->ForEachComponent<UPrimitiveComponent>(/*bIncludeFromChildActors*/true, [&Batcher, &CollisionGroup](UPrimitiveComponent* PrimitiveComponent)
-					{
-							Batcher->SetPrimitiveRayTracingCollisionGroup(PrimitiveComponent, CollisionGroup);
-					});
-				}
+					ComputeDispatchInterface->SetPrimitiveRayTracingCollisionGroup(PrimitiveComponent, CollisionGroup);
+				});
 			}
-		}
 	}
 #endif
 }
@@ -1834,15 +1824,9 @@ int32 UNiagaraFunctionLibrary::AcquireNiagaraGPURayTracedCollisionGroup(UObject*
 #if RHI_RAYTRACING
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
-		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		if (FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World))
 		{
-			if (FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())
-			{
-				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
-				{
-					return Batcher->AcquireGPURayTracedCollisionGroup();
-				}
-			}
+			return ComputeDispatchInterface->AcquireGPURayTracedCollisionGroup();
 		}
 	}
 #endif
@@ -1854,15 +1838,9 @@ void UNiagaraFunctionLibrary::ReleaseNiagaraGPURayTracedCollisionGroup(UObject* 
 #if RHI_RAYTRACING
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
-		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		if (FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World))
 		{
-			if (FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())
-			{
-				if (NiagaraEmitterInstanceBatcher* Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name)))
-				{
-					Batcher->ReleaseGPURayTracedCollisionGroup(CollisionGroup);
-				}
-			}
+			ComputeDispatchInterface->ReleaseGPURayTracedCollisionGroup(CollisionGroup);
 		}
 	}
 #endif

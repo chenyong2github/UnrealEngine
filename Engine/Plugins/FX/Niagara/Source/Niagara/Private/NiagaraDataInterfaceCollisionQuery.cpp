@@ -4,8 +4,10 @@
 
 #include "GlobalDistanceFieldParameters.h"
 #include "NiagaraComponent.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraRayTracingHelper.h"
+#include "NiagaraSimStageData.h"
 #include "NiagaraStats.h"
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
@@ -99,7 +101,7 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 		{
 			//Accumulate the total ray requests for this DI for all dispatches in the stage.
 			int32 RayRequests = MaxTracesPerParticle * Context.SimStageData->DestinationNumInstances;
-			FNiagaraRayTracingHelper& RTHelper = Context.Batcher->GetRayTracingHelper();
+			FNiagaraRayTracingHelper& RTHelper = Context.ComputeDispatchInterface->GetRayTracingHelper();
 			RTHelper.AddToDispatch(this, RayRequests, MaxRetraces);
 		}
 #endif
@@ -111,9 +113,9 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 		return true;
 	}
 
-	virtual void FinalizePreStage(FRHICommandList& RHICmdList, const NiagaraEmitterInstanceBatcher* Batcher) override
+	virtual void FinalizePreStage(FRHICommandList& RHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface) override
 	{
-		FNiagaraRayTracingHelper& RTHelper = Batcher->GetRayTracingHelper();
+		FNiagaraRayTracingHelper& RTHelper = ComputeDispatchInterface->GetRayTracingHelper();
 		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0)
 		{
 			RTHelper.BuildDispatch(RHICmdList, this);
@@ -963,8 +965,8 @@ public:
 		// Bind distance field parameters
 		if (GlobalDistanceFieldParameters.IsBound())
 		{
-			check(Context.Batcher);
-			const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData = Context.Batcher->GetGlobalDistanceFieldParameters();
+			check(Context.ComputeDispatchInterface);
+			const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData = static_cast<const FNiagaraGpuComputeDispatch*>(Context.ComputeDispatchInterface)->GetGlobalDistanceFieldParameters();//-BATCHERTODO:
 
 			if (GlobalDistanceFieldParameterData)
 			{
@@ -984,7 +986,7 @@ public:
 
 		if ((IsRayTracingEnabled() && GEnableGPUHWRTCollisions) || HasRayTracingParametersBound)
 		{
-			FNiagaraRayTracingHelper& RTHelper = Context.Batcher->GetRayTracingHelper();
+			FNiagaraRayTracingHelper& RTHelper = Context.ComputeDispatchInterface->GetRayTracingHelper();
 			const FNiagaraRayTraceDispatchInfo* DispatchInfo = nullptr;
 			if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && QueryDI->MaxTracesPerParticle > 0)
 			{

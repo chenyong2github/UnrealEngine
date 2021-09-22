@@ -3,12 +3,12 @@
 #include "NiagaraDataInterfaceActorComponent.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCustomVersion.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "ShaderCompilerCore.h"
+#include "ShaderParameterUtils.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceActorComponent"
 

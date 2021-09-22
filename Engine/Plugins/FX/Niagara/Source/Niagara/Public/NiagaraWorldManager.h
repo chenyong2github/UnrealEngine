@@ -72,8 +72,8 @@ public:
 	static void OnStartup();
 	static void OnShutdown();
 
-	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
-	static void OnBatcherDestroyed(class NiagaraEmitterInstanceBatcher* InBatcher);
+	// Gamethread callback to cleanup references to the given ComputeDispatchInterface before it gets deleted on the renderthread.
+	static void OnComputeDispatchInterfaceDestroyed(class FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface);
 
 	static void DestroyAllSystemSimulations(class UNiagaraSystem* System);
 
@@ -214,8 +214,8 @@ private:
 	// Callback to handle any pre GC processing needed.
 	static void OnPreGarbageCollectBeginDestroy();
 		
-	// Gamethread callback to cleanup references to the given batcher before it gets deleted on the renderthread.
-	void OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBatcher* InBatcher);
+	// Gamethread callback to cleanup references to the given ComputeDispatchInterface before it gets deleted on the renderthread.
+	void OnComputeDispatchInterfaceDestroyed_Internal(class FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface);
 
 	bool CanPreCull(UNiagaraEffectType* EffectType);
 

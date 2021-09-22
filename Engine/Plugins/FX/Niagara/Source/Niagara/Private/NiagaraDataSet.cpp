@@ -9,7 +9,8 @@
 #include "NiagaraStats.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraGPUInstanceCountManager.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraShaderParticleID.h"
 
 DECLARE_CYCLE_STAT(TEXT("InitRenderData"), STAT_InitRenderData, STATGROUP_Niagara);
@@ -1298,12 +1299,12 @@ void FNiagaraDataBuffer::UnsetShaderParams(FRHICommandList& RHICmdList, FNiagara
 }
 
 #if WITH_EDITOR
-void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatcher* InBatcher, FNiagaraDataSet* InDataSet)
+void FScopedNiagaraDataSetGPUReadback::ReadbackData(FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface, FNiagaraDataSet* InDataSet)
 {
 	check(DataSet == nullptr);
 	check(InDataSet != nullptr);
 
-	Batcher = InBatcher && !InBatcher->IsPendingKill() ? Batcher : nullptr;
+	ComputeDispatchInterface = InComputeDispatchInterface && !InComputeDispatchInterface->IsPendingKill() ? ComputeDispatchInterface : nullptr;
 	DataSet = InDataSet;
 	DataBuffer = DataSet->GetCurrentData();
 
@@ -1317,9 +1318,9 @@ void FScopedNiagaraDataSetGPUReadback::ReadbackData(NiagaraEmitterInstanceBatche
 		{
 			// Read DrawIndirect Params
 			const uint32 BufferOffset = DataBuffer->GetGPUInstanceCountBufferOffset();
-			if (Batcher && BufferOffset != INDEX_NONE)
+			if (ComputeDispatchInterface && BufferOffset != INDEX_NONE)
 			{
-				FRHIBuffer* InstanceCountBuffer = Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().Buffer;
+				FRHIBuffer* InstanceCountBuffer = static_cast<FNiagaraGpuComputeDispatch*>(ComputeDispatchInterface)->GetGPUInstanceCounterManager().GetInstanceCountBuffer().Buffer;
 
 				void* Data = RHICmdList.LockBuffer(InstanceCountBuffer, 0, (BufferOffset + 1) * sizeof(int32), RLM_ReadOnly);
 				NumInstances = reinterpret_cast<int32*>(Data)[BufferOffset];
