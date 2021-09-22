@@ -1504,6 +1504,7 @@ struct FDirectReadParamHandler
 template <typename T>
 FORCEINLINE void ReadWithCheck(FVectorVMExternalFunctionContext& Context, FName AttributeToRead, T Default)
 {
+	static_assert(!TIsUECoreVariant<T, double>::Value, "Passing double core variant. Must be float type!");
 	FDirectReadParamHandler<T> Params(Context);
 	bool bWriteDummyData = true;
 	if (FNiagaraEmitterInstance* EmitterInstance = Params.GetEmitterInstance())
@@ -1590,7 +1591,7 @@ void UNiagaraDataInterfaceParticleRead::ReadVector3(FVectorVMExternalFunctionCon
 
 void UNiagaraDataInterfaceParticleRead::ReadVector4(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
-	ReadWithCheck<FVector4>(Context, AttributeToRead, FVector4(ForceInit));
+	ReadWithCheck<FVector4f>(Context, AttributeToRead, FVector4f(ForceInit));
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadColor(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
@@ -1637,6 +1638,7 @@ struct FDirectReadByIndexParamHandler
 template<typename T>
 FORCEINLINE void ReadByIndexWithCheck(FVectorVMExternalFunctionContext& Context, FName AttributeToRead, T Default)
 {
+	static_assert(!TIsUECoreVariant<T, double>::Value, "Passing double core variant. Must be float type!");
 	FDirectReadByIndexParamHandler<T> Params(Context);
 
 	bool bWriteDummyData = true;
@@ -1710,7 +1712,7 @@ void UNiagaraDataInterfaceParticleRead::ReadVector3ByIndex(FVectorVMExternalFunc
 
 void UNiagaraDataInterfaceParticleRead::ReadVector4ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
-	ReadByIndexWithCheck<FVector4>(Context, AttributeToRead, FVector4(ForceInit));
+	ReadByIndexWithCheck<FVector4f>(Context, AttributeToRead, FVector4f(ForceInit));
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadColorByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)

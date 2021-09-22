@@ -158,11 +158,11 @@ void UNiagaraDataInterfaceCubeTexture::SampleCubeTexture(FVectorVMExternalFuncti
 {
 	FNDIInputParam<FVector3f> InCoord(Context);
 	FNDIInputParam<float> InMipLevel(Context);
-	FNDIOutputParam<FVector4> OutColor(Context);
+	FNDIOutputParam<FVector4f> OutColor(Context);
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		OutColor.SetAndAdvance(FVector4(1.0f, 0.0f, 1.0f, 1.0f));
+		OutColor.SetAndAdvance(FVector4f(1.0f, 0.0f, 1.0f, 1.0f));
 	}
 
 }

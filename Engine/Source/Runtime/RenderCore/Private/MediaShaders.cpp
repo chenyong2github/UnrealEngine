@@ -573,7 +573,7 @@ void FRGB10toYUVv210ConvertPS::SetParameters(FRHICommandList& CommandList, TRefC
  *****************************************************************************/
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB8toY8ConvertUB, )
-SHADER_PARAMETER(FVector4, ColorTransform)
+SHADER_PARAMETER(FVector4f, ColorTransform)
 SHADER_PARAMETER(uint32, LinearToSrgb)
 SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
 SHADER_PARAMETER_SAMPLER(SamplerState, SamplerP)
@@ -583,7 +583,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGB8toY8ConvertUB, "RGB8toY8ConvertUB"
 IMPLEMENT_SHADER_TYPE(, FRGB8toY8ConvertPS, TEXT("/Engine/Private/MediaShaders.usf"), TEXT("RGB8toY8ConvertPS"), SF_Pixel);
 
 
-void FRGB8toY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4& ColorTransform, bool LinearToSrgb)
+void FRGB8toY8ConvertPS::SetParameters(FRHICommandList& CommandList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4f& ColorTransform, bool LinearToSrgb)
 {
 	FRGB8toY8ConvertUB UB;
 	{

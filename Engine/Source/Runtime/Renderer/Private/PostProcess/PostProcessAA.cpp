@@ -16,8 +16,8 @@ TAutoConsoleVariable<int32> CVarFXAAQuality(
 
 BEGIN_SHADER_PARAMETER_STRUCT(FFXAAParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureInput, Input)
-	SHADER_PARAMETER(FVector4, fxaaConsoleRcpFrameOpt)
-	SHADER_PARAMETER(FVector4, fxaaConsoleRcpFrameOpt2)
+	SHADER_PARAMETER(FVector4f, fxaaConsoleRcpFrameOpt)
+	SHADER_PARAMETER(FVector4f, fxaaConsoleRcpFrameOpt2)
 	SHADER_PARAMETER(float, fxaaQualitySubpix)
 	SHADER_PARAMETER(float, fxaaQualityEdgeThreshold)
 	SHADER_PARAMETER(float, fxaaQualityEdgeThresholdMin)
@@ -89,13 +89,13 @@ FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 
 	{
 		float N = 0.5f;
-		FVector4 Value(-N * OutputExtentInverse.X, -N * OutputExtentInverse.Y, N * OutputExtentInverse.X, N * OutputExtentInverse.Y);
+		FVector4f Value(-N * OutputExtentInverse.X, -N * OutputExtentInverse.Y, N * OutputExtentInverse.X, N * OutputExtentInverse.Y);
 		PassParameters->fxaaConsoleRcpFrameOpt = Value;
 	}
 
 	{
 		float N = 2.0f;
-		FVector4 Value(-N * OutputExtentInverse.X, -N * OutputExtentInverse.Y, N * OutputExtentInverse.X, N * OutputExtentInverse.Y);
+		FVector4f Value(-N * OutputExtentInverse.X, -N * OutputExtentInverse.Y, N * OutputExtentInverse.X, N * OutputExtentInverse.Y);
 		PassParameters->fxaaConsoleRcpFrameOpt2 = Value;
 	}
 

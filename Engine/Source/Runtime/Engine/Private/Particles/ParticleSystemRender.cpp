@@ -433,7 +433,7 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexData(void* VertexData, void* Dy
 	FParticleSpriteVertex* FillVertex;
 	FParticleVertexDynamicParameter* DynFillVertex;
 
-	FVector4 DynamicParameterValue(1.0f,1.0f,1.0f,1.0f);
+	FVector4f DynamicParameterValue(1.0f,1.0f,1.0f,1.0f);
 	FVector ParticlePosition;
 	FVector ParticleOldPosition;
 	float SubImageIndex = 0.0f;
@@ -542,7 +542,7 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexDataNonInstanced(void* VertexDa
 	FParticleSpriteVertexNonInstanced* FillVertex;
 	FParticleVertexDynamicParameter* DynFillVertex;
 
-	FVector4 DynamicParameterValue(1.0f,1.0f,1.0f,1.0f);
+	FVector4f DynamicParameterValue(1.0f,1.0f,1.0f,1.0f);
 	FVector ParticlePosition;
 	FVector ParticleOldPosition;
 	float SubImageIndex = 0.0f;
@@ -947,7 +947,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 				FVector2D ObjectNDCPosition;
 				FVector2D ObjectMacroUVScales;
 					Proxy->GetObjectPositionAndScale(*View, ObjectNDCPosition, ObjectMacroUVScales);
-				PerViewUniformParameters.MacroUVParameters = FVector4(ObjectNDCPosition.X, ObjectNDCPosition.Y, ObjectMacroUVScales.X, ObjectMacroUVScales.Y);
+				PerViewUniformParameters.MacroUVParameters = FVector4f(ObjectNDCPosition.X, ObjectNDCPosition.Y, ObjectMacroUVScales.X, ObjectMacroUVScales.Y);
 				CollectorResources.UniformBuffer = FParticleSpriteUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
 
 				// Set the sprite uniform buffer for this view.
@@ -1039,11 +1039,11 @@ void FDynamicSpriteEmitterData::UpdateRenderThreadResourcesEmitter(const FPartic
 	const FDynamicSpriteEmitterReplayDataBase* SourceData = GetSourceData();
 	if( SourceData )
 	{
-		UniformParameters.AxisLockRight = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-		UniformParameters.AxisLockUp = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+		UniformParameters.AxisLockRight = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		UniformParameters.AxisLockUp = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		UniformParameters.RotationScale = 1.0f;
 		UniformParameters.RotationBias = 0.0f;
-		UniformParameters.TangentSelector = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+		UniformParameters.TangentSelector = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		UniformParameters.InvDeltaSeconds = SourceData->InvDeltaSeconds;
 
 		// Parameters for computing sprite tangents.
@@ -1116,7 +1116,7 @@ void FDynamicSpriteEmitterData::UpdateRenderThreadResourcesEmitter(const FPartic
 		}	
 
 		// SubUV information.
-		UniformParameters.SubImageSize = FVector4(
+		UniformParameters.SubImageSize = FVector4f(
 			SourceData->SubImages_Horizontal,
 			SourceData->SubImages_Vertical,
 			1.0f / SourceData->SubImages_Horizontal,
@@ -1373,7 +1373,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 			const FDynamicSpriteEmitterReplayDataBase* SourceData = GetSourceData();
 			FMeshParticleUniformParameters UniformParameters;
-			UniformParameters.SubImageSize = FVector4(
+			UniformParameters.SubImageSize = FVector4f(
 				1.0f / (SourceData ? SourceData->SubImages_Horizontal : 1),
 				1.0f / (SourceData ? SourceData->SubImages_Vertical : 1),
 				0, 0);
@@ -1424,13 +1424,13 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 					ActiveParticleCount = Source.MaxDrawCount;
 				}
 					
-				int32 PrevTransformVertexStride = sizeof(FVector4) * 3;
+				int32 PrevTransformVertexStride = sizeof(FVector4f) * 3;
 					
 				uint8* TempPrevTranformVert = (uint8*)PrevTransformBuffer;
 
 				for (int32 i = ActiveParticleCount - 1; i >= 0; i--)
 				{
-					FVector4* PrevTransformVertex = (FVector4*)TempPrevTranformVert;
+					FVector4f* PrevTransformVertex = (FVector4f*)TempPrevTranformVert;
 						
 					const int32	CurrentIndex = Source.DataContainer.ParticleIndices[i];
 					const uint8* ParticleBase = Source.DataContainer.ParticleData + CurrentIndex * Source.ParticleStride;
@@ -1442,9 +1442,9 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 					// Transpose on CPU to allow for simpler shader code to perform the transform.
 					const FMatrix Transpose = TransMat.GetTransposed();
 						
-					PrevTransformVertex[0] = FVector4(Transpose.M[0][0], Transpose.M[0][1], Transpose.M[0][2], Transpose.M[0][3]);
-					PrevTransformVertex[1] = FVector4(Transpose.M[1][0], Transpose.M[1][1], Transpose.M[1][2], Transpose.M[1][3]);
-					PrevTransformVertex[2] = FVector4(Transpose.M[2][0], Transpose.M[2][1], Transpose.M[2][2], Transpose.M[2][3]);
+					PrevTransformVertex[0] = FVector4f(Transpose.M[0][0], Transpose.M[0][1], Transpose.M[0][2], Transpose.M[0][3]);
+					PrevTransformVertex[1] = FVector4f(Transpose.M[1][0], Transpose.M[1][1], Transpose.M[1][2], Transpose.M[1][3]);
+					PrevTransformVertex[2] = FVector4f(Transpose.M[2][0], Transpose.M[2][1], Transpose.M[2][2], Transpose.M[2][3]);
 						
 					TempPrevTranformVert += PrevTransformVertexStride;
 				}
@@ -2059,7 +2059,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 
 	int32 InstanceVertexStride = sizeof(FMeshParticleInstanceVertex);
 	int32 DynamicParameterVertexStride = bUsesDynamicParameter ? sizeof(FMeshParticleInstanceVertexDynamicParameter) : 0;
-	int32 PrevTransformVertexStride = sizeof(FVector4) * 3;
+	int32 PrevTransformVertexStride = sizeof(FVector4f) * 3;
 
 	uint8* TempVert = (uint8*)InstanceData;
 	uint8* TempDynamicParameterVert = (uint8*)DynamicParameterData;
@@ -2089,9 +2089,9 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 		
 		// Transpose on CPU to allow for simpler shader code to perform the transform. 
 		const FMatrix Transpose = TransMat.GetTransposed();
-		CurrentInstanceVertex.Transform[0] = FVector4(Transpose.M[0][0], Transpose.M[0][1], Transpose.M[0][2], Transpose.M[0][3]);
-		CurrentInstanceVertex.Transform[1] = FVector4(Transpose.M[1][0], Transpose.M[1][1], Transpose.M[1][2], Transpose.M[1][3]);
-		CurrentInstanceVertex.Transform[2] = FVector4(Transpose.M[2][0], Transpose.M[2][1], Transpose.M[2][2], Transpose.M[2][3]);
+		CurrentInstanceVertex.Transform[0] = FVector4f(Transpose.M[0][0], Transpose.M[0][1], Transpose.M[0][2], Transpose.M[0][3]);
+		CurrentInstanceVertex.Transform[1] = FVector4f(Transpose.M[1][0], Transpose.M[1][1], Transpose.M[1][2], Transpose.M[1][3]);
+		CurrentInstanceVertex.Transform[2] = FVector4f(Transpose.M[2][0], Transpose.M[2][1], Transpose.M[2][2], Transpose.M[2][3]);
 
 		if (bUseStaticMeshLODs)
 		{
@@ -2110,7 +2110,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 
 		if (PrevTransformBuffer)
 		{
-			FVector4* PrevTransformVertex = (FVector4*)TempPrevTranformVert;
+			FVector4f* PrevTransformVertex = (FVector4f*)TempPrevTranformVert;
 			
 			if (Source.MeshMotionBlurOffset)
 			{
@@ -2120,9 +2120,9 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 
 				// Transpose on CPU to allow for simpler shader code to perform the transform. 
 				const FMatrix PrevTranspose = PrevTransMat.GetTransposed();
-				PrevTransformVertex[0] = FVector4(PrevTranspose.M[0][0], PrevTranspose.M[0][1], PrevTranspose.M[0][2], PrevTranspose.M[0][3]);
-				PrevTransformVertex[1] = FVector4(PrevTranspose.M[1][0], PrevTranspose.M[1][1], PrevTranspose.M[1][2], PrevTranspose.M[1][3]);
-				PrevTransformVertex[2] = FVector4(PrevTranspose.M[2][0], PrevTranspose.M[2][1], PrevTranspose.M[2][2], PrevTranspose.M[2][3]);
+				PrevTransformVertex[0] = FVector4f(PrevTranspose.M[0][0], PrevTranspose.M[0][1], PrevTranspose.M[0][2], PrevTranspose.M[0][3]);
+				PrevTransformVertex[1] = FVector4f(PrevTranspose.M[1][0], PrevTranspose.M[1][1], PrevTranspose.M[1][2], PrevTranspose.M[1][3]);
+				PrevTransformVertex[2] = FVector4f(PrevTranspose.M[2][0], PrevTranspose.M[2][1], PrevTranspose.M[2][2], PrevTranspose.M[2][3]);
 			}
 			else
 			{
@@ -2156,11 +2156,11 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 			DeltaPosition.ToDirectionAndLength(Direction, Speed);
 
 			// Pack direction and speed.
-			CurrentInstanceVertex.Velocity = FVector4(Direction, Speed);
+			CurrentInstanceVertex.Velocity = FVector4f(Direction, Speed);
 		}
 		else
 		{
-			CurrentInstanceVertex.Velocity = FVector4();
+			CurrentInstanceVertex.Velocity = FVector4f();
 		}
 
 		// The particle dynamic value
@@ -2168,7 +2168,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 		{
 			if (Source.DynamicParameterDataOffset > 0)
 			{
-				FVector4 DynamicParameterValue;
+				FVector4f DynamicParameterValue;
 				FMeshParticleInstanceVertexDynamicParameter CurrentInstanceVertexDynParam;
 				GetDynamicValueFromPayload(Source.DynamicParameterDataOffset, Particle, DynamicParameterValue);
 				CurrentInstanceVertexDynParam.DynamicValue[0] = DynamicParameterValue.X;
@@ -2245,7 +2245,7 @@ void FDynamicMeshEmitterData::SetupVertexFactory( FMeshParticleVertexFactory* In
 		{
 			Data.TransformComponent[MatrixRow] = FVertexStreamComponent(
 				NULL,
-				STRUCT_OFFSET(FMeshParticleInstanceVertex, Transform) + sizeof(FVector4) * MatrixRow, 
+				STRUCT_OFFSET(FMeshParticleInstanceVertex, Transform) + sizeof(FVector4f) * MatrixRow, 
 				0,
 				VET_Float4,
 				EVertexStreamUsage::Instancing
@@ -2354,11 +2354,11 @@ FParticleBeamTrailUniformBufferRef CreateBeamTrailUniformBuffer(
 		const FMatrix& LocalToWorld = SourceData->bUseLocalSpace ? Proxy->GetLocalToWorld() : FMatrix::Identity;
 		ComputeLockedAxes( LockAxisFlag, LocalToWorld, CameraUp, CameraRight );
 	}
-	UniformParameters.CameraUp = FVector4( CameraUp, 0.0f );
-	UniformParameters.CameraRight = FVector4( CameraRight, 0.0f );
+	UniformParameters.CameraUp = FVector4f( CameraUp, 0.0f );
+	UniformParameters.CameraRight = FVector4f( CameraRight, 0.0f );
 
 	// Screen alignment.
-	UniformParameters.ScreenAlignment = FVector4( (float)SourceData->ScreenAlignment, 0.0f, 0.0f, 0.0f );
+	UniformParameters.ScreenAlignment = FVector4f( (float)SourceData->ScreenAlignment, 0.0f, 0.0f, 0.0f );
 
 	return FParticleBeamTrailUniformBufferRef::CreateUniformBufferImmediate( UniformParameters, UniformBuffer_SingleFrame );
 }
@@ -5665,15 +5665,15 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 				float InvCount = 1.0f / InterpCount;
 				float Diff = PrevTrailPayload->SpawnTime - TrailPayload->SpawnTime;
 				
-				FVector4 CurrDynParam;
-				FVector4 PrevDynParam;
+				FVector4f CurrDynParam;
+				FVector4f PrevDynParam;
 				if (bFillDynamic)
 				{
 					GetDynamicValueFromPayload(Source.DynamicParameterDataOffset, *PackingParticle, CurrDynParam);
 					GetDynamicValueFromPayload(Source.DynamicParameterDataOffset, *PrevParticle, PrevDynParam);
 				}
 
-				FVector4 InterpDynamic(1.0f, 1.0f, 1.0f, 1.0f);
+				FVector4f InterpDynamic(1.0f, 1.0f, 1.0f, 1.0f);
 				for (int32 SpawnIdx = InterpCount - 1; SpawnIdx >= 0; SpawnIdx--)
 				{
 					float TimeStep = InvCount * SpawnIdx;
@@ -5683,7 +5683,7 @@ int32 FDynamicRibbonEmitterData::FillVertexData(struct FAsyncBufferFillData& Dat
 					float InterpSize = FMath::Lerp<float>(CurrSize, PrevSize, TimeStep);
 					if (bFillDynamic)
 					{
-						InterpDynamic = FMath::Lerp<FVector4>(CurrDynParam, PrevDynParam, TimeStep);
+						InterpDynamic = FMath::Lerp<FVector4f>(CurrDynParam, PrevDynParam, TimeStep);
 					}
 
 					if (bTextureTileDistance == true)	
@@ -5985,7 +5985,7 @@ struct FAnimTrailParticleRenderData
 		Generate interpolated vertex locations for the current location in the trail.
 		Interpolates between PrevParticle and Particle.
 	*/
-	void CalcVertexData(float InterpFactor, FVector& OutLocation, FVector& OutFirst, FVector& OutSecond, float& OutTileU, float& OutSize, FLinearColor& OutColor, FVector4* OutDynamicParameters)
+	void CalcVertexData(float InterpFactor, FVector& OutLocation, FVector& OutFirst, FVector& OutSecond, float& OutTileU, float& OutSize, FLinearColor& OutColor, FVector4f* OutDynamicParameters)
 	{
 		check(CanRender());
 		if( InterpFactor == 0.0f )
@@ -6099,10 +6099,10 @@ struct FAnimTrailParticleRenderData
 
 			if( OutDynamicParameters )
 			{
-				FVector4 PrevPrevDynamicParam;
-				FVector4 PrevDynamicParam;
-				FVector4 CurrDynamicParam;
-				FVector4 NextDynamicParam;
+				FVector4f PrevPrevDynamicParam;
+				FVector4f PrevDynamicParam;
+				FVector4f CurrDynamicParam;
+				FVector4f NextDynamicParam;
 				
 				GetDynamicValueFromPayload(Source.DynamicParameterDataOffset, *PrevPrevDynParamParticle, PrevPrevDynamicParam);
 				GetDynamicValueFromPayload(Source.DynamicParameterDataOffset, *PrevParticle, PrevDynamicParam);
@@ -6336,7 +6336,7 @@ int32 FDynamicAnimTrailEmitterData::FillVertexData(struct FAsyncBufferFillData& 
 				// Interpolate between current and next...
 				float InvCount = 1.0f / InterpCount;
 
-				FVector4 InterpDynamic(1.0f, 1.0f, 1.0f, 1.0f);
+				FVector4f InterpDynamic(1.0f, 1.0f, 1.0f, 1.0f);
 				for (int32 SpawnIdx = InterpCount - 1; SpawnIdx >= 0; SpawnIdx--)
 				{
 					float TimeStep = InvCount * SpawnIdx;
@@ -6403,7 +6403,7 @@ int32 FDynamicAnimTrailEmitterData::FillVertexData(struct FAsyncBufferFillData& 
 			}
 			else
 			{
-				FVector4 InterpDynamic(1.0f, 1.0f, 1.0f, 1.0f);
+				FVector4f InterpDynamic(1.0f, 1.0f, 1.0f, 1.0f);
 				RenderData.CalcVertexData( 0.0f, Location, FirstSocket, SecondSocket, TiledU, InterpSize, InterpColor, bFillDynamic ? &InterpDynamic : NULL );
 
 				if (bTextureTileDistance == true)
@@ -6734,7 +6734,7 @@ static FAutoConsoleVariableRef EnableMacroUVDebugSpam(
 /** Object position in post projection space. */
 void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View, FVector2D& ObjectNDCPosition, FVector2D& ObjectMacroUVScales) const
 {
-	const FVector4 ObjectPostProjectionPositionWithW = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(DynamicData->SystemPositionForMacroUVs);
+	const FVector4f ObjectPostProjectionPositionWithW = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(DynamicData->SystemPositionForMacroUVs);
 	ObjectNDCPosition = FVector2D(ObjectPostProjectionPositionWithW / FMath::Max(ObjectPostProjectionPositionWithW.W, 0.00001f));
 	
 	float MacroUVRadius = DynamicData->SystemRadiusForMacroUVs;
@@ -6760,8 +6760,8 @@ void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View
 	{
 		// Need to determine the scales required to transform positions into UV's for the ParticleMacroUVs material node
 		// Determine screenspace extents by transforming the object position + appropriate camera vector * radius
-		const FVector4 RightPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(0));
-		const FVector4 UpPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(1));
+		const FVector4f RightPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(0));
+		const FVector4f UpPostProjectionPosition = View.ViewMatrices.GetViewProjectionMatrix().TransformPosition(MacroUVPosition + MacroUVRadius * View.ViewMatrices.GetTranslatedViewMatrix().GetColumn(1));
 		//checkSlow(RightPostProjectionPosition.X - ObjectPostProjectionPositionWithW.X >= 0.0f && UpPostProjectionPosition.Y - ObjectPostProjectionPositionWithW.Y >= 0.0f);
 
 		// Scales to transform the view space positions corresponding to SystemPositionForMacroUVs +- SystemRadiusForMacroUVs into [0, 1] in xy
@@ -6792,18 +6792,18 @@ void FParticleSystemSceneProxy::GetObjectPositionAndScale(const FSceneView& View
 				UE_LOG(LogParticles, Error, TEXT("MacroUVRadius: %.6f"), MacroUVRadius);
 				UE_LOG(LogParticles, Error, TEXT("DX: %.6f"), DX);
 				UE_LOG(LogParticles, Error, TEXT("DY: %.6f"), DY);
-				FVector4 View0 = View.ViewMatrices.GetViewMatrix().GetColumn(0);
-				FVector4 View1 = View.ViewMatrices.GetViewMatrix().GetColumn(1);
-				FVector4 View2 = View.ViewMatrices.GetViewMatrix().GetColumn(2);
-				FVector4 View3 = View.ViewMatrices.GetViewMatrix().GetColumn(3);
+				FVector4f View0 = View.ViewMatrices.GetViewMatrix().GetColumn(0);
+				FVector4f View1 = View.ViewMatrices.GetViewMatrix().GetColumn(1);
+				FVector4f View2 = View.ViewMatrices.GetViewMatrix().GetColumn(2);
+				FVector4f View3 = View.ViewMatrices.GetViewMatrix().GetColumn(3);
 				UE_LOG(LogParticles, Error, TEXT("View0: {%.6f, %.6f, %.6f, %.6f}"), View0.X, View0.Y, View0.Z, View0.W);
 				UE_LOG(LogParticles, Error, TEXT("View1: {%.6f, %.6f, %.6f, %.6f}"), View1.X, View1.Y, View1.Z, View1.W);
 				UE_LOG(LogParticles, Error, TEXT("View2: {%.6f, %.6f, %.6f, %.6f}"), View2.X, View2.Y, View2.Z, View2.W);
 				UE_LOG(LogParticles, Error, TEXT("View3: {%.6f, %.6f, %.6f, %.6f}"), View3.X, View3.Y, View3.Z, View3.W);
-				FVector4 ViewProj0 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(0);
-				FVector4 ViewProj1 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(1);
-				FVector4 ViewProj2 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(2);
-				FVector4 ViewProj3 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(3);
+				FVector4f ViewProj0 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(0);
+				FVector4f ViewProj1 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(1);
+				FVector4f ViewProj2 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(2);
+				FVector4f ViewProj3 = View.ViewMatrices.GetViewProjectionMatrix().GetColumn(3);
 				UE_LOG(LogParticles, Error, TEXT("ViewProj0: {%.6f, %.6f, %.6f, %.6f}"), ViewProj0.X, ViewProj0.Y, ViewProj0.Z, ViewProj0.W);
 				UE_LOG(LogParticles, Error, TEXT("ViewProj1: {%.6f, %.6f, %.6f, %.6f}"), ViewProj1.X, ViewProj1.Y, ViewProj1.Z, ViewProj1.W);
 				UE_LOG(LogParticles, Error, TEXT("ViewProj2: {%.6f, %.6f, %.6f, %.6f}"), ViewProj2.X, ViewProj2.Y, ViewProj2.Z, ViewProj2.W);

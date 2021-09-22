@@ -499,15 +499,15 @@ private:
  * Uniform buffer for GPU particle sprite emitters.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FGPUSpriteEmitterUniformParameters,)
-	SHADER_PARAMETER(FVector4, ColorCurve)
-	SHADER_PARAMETER(FVector4, ColorScale)
-	SHADER_PARAMETER(FVector4, ColorBias)
-	SHADER_PARAMETER(FVector4, MiscCurve)
-	SHADER_PARAMETER(FVector4, MiscScale)
-	SHADER_PARAMETER(FVector4, MiscBias)
-	SHADER_PARAMETER(FVector4, SizeBySpeed)
-	SHADER_PARAMETER(FVector4, SubImageSize)
-	SHADER_PARAMETER(FVector4, TangentSelector)
+	SHADER_PARAMETER(FVector4f, ColorCurve)
+	SHADER_PARAMETER(FVector4f, ColorScale)
+	SHADER_PARAMETER(FVector4f, ColorBias)
+	SHADER_PARAMETER(FVector4f, MiscCurve)
+	SHADER_PARAMETER(FVector4f, MiscScale)
+	SHADER_PARAMETER(FVector4f, MiscBias)
+	SHADER_PARAMETER(FVector4f, SizeBySpeed)
+	SHADER_PARAMETER(FVector4f, SubImageSize)
+	SHADER_PARAMETER(FVector4f, TangentSelector)
 	SHADER_PARAMETER(FVector3f, CameraFacingBlend)
 	SHADER_PARAMETER(float, RemoveHMDRoll)
 	SHADER_PARAMETER(float, RotationRateScale)
@@ -526,10 +526,10 @@ typedef TUniformBufferRef<FGPUSpriteEmitterUniformParameters> FGPUSpriteEmitterU
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FGPUSpriteEmitterDynamicUniformParameters, )
 	SHADER_PARAMETER( FVector2D, LocalToWorldScale )
 	SHADER_PARAMETER( float, EmitterInstRandom)
-	SHADER_PARAMETER( FVector4, AxisLockRight )
-	SHADER_PARAMETER( FVector4, AxisLockUp )
-	SHADER_PARAMETER( FVector4, DynamicColor)
-	SHADER_PARAMETER( FVector4, MacroUVParameters )
+	SHADER_PARAMETER( FVector4f, AxisLockRight )
+	SHADER_PARAMETER( FVector4f, AxisLockUp )
+	SHADER_PARAMETER( FVector4f, DynamicColor)
+	SHADER_PARAMETER( FVector4f, MacroUVParameters )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FGPUSpriteEmitterDynamicUniformParameters, "EmitterDynamicUniforms");
@@ -804,14 +804,14 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FGPUSpriteVertexFactory,"/Engine/Private/ParticleG
  * Uniform buffer to hold parameters for particle simulation.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleSimulationParameters,)
-	SHADER_PARAMETER(FVector4, AttributeCurve)
-	SHADER_PARAMETER(FVector4, AttributeCurveScale)
-	SHADER_PARAMETER(FVector4, AttributeCurveBias)
-	SHADER_PARAMETER(FVector4, AttributeScale)
-	SHADER_PARAMETER(FVector4, AttributeBias)
-	SHADER_PARAMETER(FVector4, MiscCurve)
-	SHADER_PARAMETER(FVector4, MiscScale)
-	SHADER_PARAMETER(FVector4, MiscBias)
+	SHADER_PARAMETER(FVector4f, AttributeCurve)
+	SHADER_PARAMETER(FVector4f, AttributeCurveScale)
+	SHADER_PARAMETER(FVector4f, AttributeCurveBias)
+	SHADER_PARAMETER(FVector4f, AttributeScale)
+	SHADER_PARAMETER(FVector4f, AttributeBias)
+	SHADER_PARAMETER(FVector4f, MiscCurve)
+	SHADER_PARAMETER(FVector4f, MiscScale)
+	SHADER_PARAMETER(FVector4f, MiscBias)
 	SHADER_PARAMETER(FVector3f, Acceleration)
 	SHADER_PARAMETER(FVector3f, OrbitOffsetBase)
 	SHADER_PARAMETER(FVector3f, OrbitOffsetRange)
@@ -837,9 +837,9 @@ typedef TUniformBufferRef<FParticleSimulationParameters> FParticleSimulationBuff
 struct FParticlePerFrameSimulationParameters
 {
 	/** Position (XYZ) and squared radius (W) of the point attractor. */
-	FVector4 PointAttractor;
+	FVector4f PointAttractor;
 	/** Position offset (XYZ) to add to particles and strength of the attractor (W). */
-	FVector4 PositionOffsetAndAttractorStrength;
+	FVector4f PositionOffsetAndAttractorStrength;
 	/** Amount by which to scale bounds for collision purposes. */
 	FVector2D LocalToWorldScale;
 
@@ -902,7 +902,7 @@ public:
 		// The offset must only be applied once in the frame, and be stored in the persistent data (not the interpolated one).
 		const float FixDeltaSeconds = CVarGPUParticleFixDeltaSeconds.GetValueOnRenderThread();
 		const bool bApplyOffset = FixDeltaSeconds <= 0 || bUseFixDT;
-		const FVector4 OnlyAttractorStrength = FVector4(0, 0, 0, Parameters.PositionOffsetAndAttractorStrength.W);
+		const FVector4f OnlyAttractorStrength = FVector4f(0, 0, 0, Parameters.PositionOffsetAndAttractorStrength.W);
 
 		SetShaderValue(RHICmdList,ShaderRHI,PointAttractor,Parameters.PointAttractor);
 		SetShaderValue(RHICmdList,ShaderRHI,PositionOffsetAndAttractorStrength, bApplyOffset ? Parameters.PositionOffsetAndAttractorStrength : OnlyAttractorStrength);
@@ -937,9 +937,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FVectorFieldUniformParameters,)
 	SHADER_PARAMETER( int32, Count )
 	SHADER_PARAMETER_ARRAY( FMatrix44f, WorldToVolume, [MAX_VECTOR_FIELDS] )
 	SHADER_PARAMETER_ARRAY( FMatrix44f, VolumeToWorld, [MAX_VECTOR_FIELDS] )
-	SHADER_PARAMETER_ARRAY( FVector4, IntensityAndTightness, [MAX_VECTOR_FIELDS] )
-	SHADER_PARAMETER_ARRAY( FVector4, VolumeSize, [MAX_VECTOR_FIELDS] )
-	SHADER_PARAMETER_ARRAY( FVector4, TilingAxes, [MAX_VECTOR_FIELDS] )
+	SHADER_PARAMETER_ARRAY( FVector4f, IntensityAndTightness, [MAX_VECTOR_FIELDS] )
+	SHADER_PARAMETER_ARRAY( FVector4f, VolumeSize, [MAX_VECTOR_FIELDS] )
+	SHADER_PARAMETER_ARRAY( FVector4f, TilingAxes, [MAX_VECTOR_FIELDS] )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVectorFieldUniformParameters, "VectorFields");
@@ -1293,7 +1293,7 @@ FORCEINLINE int32 ComputeAlignedTileCount(int32 TileCount)
 
 /**
  * Builds a vertex buffer containing the offsets for a set of tiles.
- * @param TileOffsetsRef - The vertex buffer to fill. Must be at least TileCount * sizeof(FVector4) in size.
+ * @param TileOffsetsRef - The vertex buffer to fill. Must be at least TileCount * sizeof(FVector4f) in size.
  * @param Tiles - The tiles which will be drawn.
  * @param TileCount - The number of tiles in the array.
  * @param AlignedTileCount - The number of tiles to create in buffer for aligned rendering.
@@ -1720,16 +1720,16 @@ public:
 			uint16 Stride = sizeof(FNewParticle);
 			// InitialPosition.
 			Elements.Add(FVertexElement(0, Offset, VET_Float4, 0, Stride, /*bUseInstanceIndex=*/ true));
-			Offset += sizeof(FVector4);
+			Offset += sizeof(FVector4f);
 			// InitialVelocity.
 			Elements.Add(FVertexElement(0, Offset, VET_Float4, 1, Stride, /*bUseInstanceIndex=*/ true));
-			Offset += sizeof(FVector4);
+			Offset += sizeof(FVector4f);
 			// RenderAttributes.
 			Elements.Add(FVertexElement(0, Offset, VET_Float4, 2, Stride, /*bUseInstanceIndex=*/ true));
-			Offset += sizeof(FVector4);
+			Offset += sizeof(FVector4f);
 			// SimulationAttributes.
 			Elements.Add(FVertexElement(0, Offset, VET_Float4, 3, Stride, /*bUseInstanceIndex=*/ true));
-			Offset += sizeof(FVector4);
+			Offset += sizeof(FVector4f);
 			// ParticleIndex.
 			Elements.Add(FVertexElement(0, Offset, VET_Float2, 4, Stride, /*bUseInstanceIndex=*/ true));
 			Offset += sizeof(FVector2D);
@@ -1833,7 +1833,7 @@ void InjectNewParticles(FRHICommandList& RHICmdList, FGraphicsPipelineStateIniti
  * Uniform buffer to hold parameters for visualizing particle simulation.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FParticleSimVisualizeParameters, )
-	SHADER_PARAMETER( FVector4, ScaleBias )
+	SHADER_PARAMETER( FVector4f, ScaleBias )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleSimVisualizeParameters,"PSV");
@@ -2244,7 +2244,7 @@ static FBox ComputeParticleBounds(
 		UniformBuffer = FParticleBoundsUniformBufferRef::CreateUniformBufferImmediate( Parameters, UniformBuffer_SingleFrame );
 
 		// Create a buffer for storing bounds.
-		const int32 BufferSize = GroupCount * 2 * sizeof(FVector4);
+		const int32 BufferSize = GroupCount * 2 * sizeof(FVector4f);
 		FRHIResourceCreateInfo CreateInfo(TEXT("BoundsVertexBuffer"));
 		FBufferRHIRef BoundsVertexBufferRHI = RHICreateVertexBuffer(
 			BufferSize,
@@ -2270,7 +2270,7 @@ static FBox ComputeParticleBounds(
 		ParticleBoundsCS->UnbindBuffers(RHICmdList);
 
 		// Read back bounds.
-		FVector4* GroupBounds = (FVector4*)RHILockBuffer( BoundsVertexBufferRHI, 0, BufferSize, RLM_ReadOnly );
+		FVector4f* GroupBounds = (FVector4f*)RHILockBuffer( BoundsVertexBufferRHI, 0, BufferSize, RLM_ReadOnly );
 
 		// Find valid starting bounds.
 		uint32 GroupIndex = 0;
@@ -2926,7 +2926,7 @@ public:
 				FVector2D ObjectNDCPosition;
 				FVector2D ObjectMacroUVScales;
 				Proxy->GetObjectPositionAndScale(*View,ObjectNDCPosition, ObjectMacroUVScales);
-				PerViewDynamicParameters.MacroUVParameters = FVector4(ObjectNDCPosition.X, ObjectNDCPosition.Y, ObjectMacroUVScales.X, ObjectMacroUVScales.Y); 
+				PerViewDynamicParameters.MacroUVParameters = FVector4f(ObjectNDCPosition.X, ObjectNDCPosition.Y, ObjectMacroUVScales.X, ObjectMacroUVScales.Y); 
 
 				if (bUseLocalSpace == false)
 				{
@@ -3256,8 +3256,8 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		// Setup axis lock parameters if required.
 		const FMatrix& LocalToWorld = ComponentToWorld;
 		const EParticleAxisLock LockAxisFlag = (EParticleAxisLock)EmitterInfo.LockAxisFlag;
-		DynamicData->EmitterDynamicParameters.AxisLockRight = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-		DynamicData->EmitterDynamicParameters.AxisLockUp = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+		DynamicData->EmitterDynamicParameters.AxisLockRight = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		DynamicData->EmitterDynamicParameters.AxisLockUp = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 
 		if(LockAxisFlag != EPAL_NONE)
 		{
@@ -3274,8 +3274,8 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 
 		
 		// Setup dynamic color parameter. Only set when using particle parameter distributions.
-		FVector4 ColorOverLife(1.0f, 1.0f, 1.0f, 1.0f);
-		FVector4 ColorScaleOverLife(1.0f, 1.0f, 1.0f, 1.0f);
+		FVector4f ColorOverLife(1.0f, 1.0f, 1.0f, 1.0f);
+		FVector4f ColorScaleOverLife(1.0f, 1.0f, 1.0f, 1.0f);
 		if( EmitterInfo.DynamicColorScale.IsCreated() )
 		{
 			ColorScaleOverLife = EmitterInfo.DynamicColorScale.GetValue(0.0f,Component);
@@ -3392,8 +3392,8 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 			}
 
 			FVector PointAttractorPosition = ComponentToWorld.TransformPosition(EmitterInfo.PointAttractorPosition);
-			DynamicData->PerFrameSimulationParameters.PointAttractor = FVector4(PointAttractorPosition, EmitterInfo.PointAttractorRadiusSq);
-			DynamicData->PerFrameSimulationParameters.PositionOffsetAndAttractorStrength = FVector4(PositionOffsetThisTick, PointAttractorStrength);
+			DynamicData->PerFrameSimulationParameters.PointAttractor = FVector4f(PointAttractorPosition, EmitterInfo.PointAttractorRadiusSq);
+			DynamicData->PerFrameSimulationParameters.PositionOffsetAndAttractorStrength = FVector4f(PositionOffsetThisTick, PointAttractorStrength);
 			DynamicData->PerFrameSimulationParameters.LocalToWorldScale = DynamicData->EmitterDynamicParameters.LocalToWorldScale;
 			DynamicData->PerFrameSimulationParameters.DeltaSeconds = PendingDeltaSeconds; // This value is used when updating vector fields.
 			Exchange(DynamicData->TilesToClear, TilesToClear);
@@ -4572,8 +4572,8 @@ static void SetParametersForVectorField(FVectorFieldUniformParameters& OutParame
 
 		OutParameters.WorldToVolume[Index] = VectorFieldInstance->WorldToVolume;
 		OutParameters.VolumeToWorld[Index] = VectorFieldInstance->VolumeToWorldNoScale;
-		OutParameters.VolumeSize[Index] = FVector4(Resource->SizeX, Resource->SizeY, Resource->SizeZ, 0);
-		OutParameters.IntensityAndTightness[Index] = FVector4(Intensity, Tightness, 0, 0 );
+		OutParameters.VolumeSize[Index] = FVector4f(Resource->SizeX, Resource->SizeY, Resource->SizeZ, 0);
+		OutParameters.IntensityAndTightness[Index] = FVector4f(Intensity, Tightness, 0, 0 );
 		OutParameters.TilingAxes[Index].X = VectorFieldInstance->bTileX ? 1.0f : 0.0f;
 		OutParameters.TilingAxes[Index].Y = VectorFieldInstance->bTileY ? 1.0f : 0.0f;
 		OutParameters.TilingAxes[Index].Z = VectorFieldInstance->bTileZ ? 1.0f : 0.0f;
@@ -4758,8 +4758,8 @@ void FFXSystem::SimulateGPUParticles(
 			{
 				VectorFieldParameters.WorldToVolume[Index] = FMatrix::Identity;
 				VectorFieldParameters.VolumeToWorld[Index] = FMatrix::Identity;
-				VectorFieldParameters.VolumeSize[Index] = FVector4(1.0f);
-				VectorFieldParameters.IntensityAndTightness[Index] = FVector4(0.0f);
+				VectorFieldParameters.VolumeSize[Index] = FVector4f(1.0f);
+				VectorFieldParameters.IntensityAndTightness[Index] = FVector4f(0.0f);
 			}
 			VectorFieldParameters.Count = 0;
 			EmptyVectorFieldUniformBuffer = FVectorFieldUniformBufferRef::CreateUniformBufferImmediate(VectorFieldParameters, UniformBuffer_SingleFrame);	
@@ -4861,8 +4861,8 @@ void FFXSystem::SimulateGPUParticles(
 						const int32 Index = PadCount++;
 						VectorFieldParameters.WorldToVolume[Index] = FMatrix::Identity;
 						VectorFieldParameters.VolumeToWorld[Index] = FMatrix::Identity;
-						VectorFieldParameters.VolumeSize[Index] = FVector4(1.0f);
-						VectorFieldParameters.IntensityAndTightness[Index] = FVector4(0.0f);
+						VectorFieldParameters.VolumeSize[Index] = FVector4f(1.0f);
+						VectorFieldParameters.IntensityAndTightness[Index] = FVector4f(0.0f);
 					}
 #endif
 		
@@ -5208,7 +5208,7 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 	const EParticleAxisLock LockAxisFlag = (EParticleAxisLock)InResourceData.LockAxisFlag;
 	const bool bRotationLock = (LockAxisFlag >= EPAL_ROTATE_X) && (LockAxisFlag <= EPAL_ROTATE_Z);
 
-	Resources->UniformParameters.TangentSelector = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+	Resources->UniformParameters.TangentSelector = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 	Resources->UniformParameters.RotationBias = 0.0f;
 
 	if (InResourceData.ScreenAlignment == PSA_Velocity)
@@ -5273,13 +5273,13 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 	Resources->SimulationParameters.AttributeCurve = GParticleCurveTexture.ComputeCurveScaleBias(Resources->SimulationAttrTexelAllocation);
 	Resources->SimulationParameters.AttributeCurveScale = InResourceData.SimulationAttrCurveScale;
 	Resources->SimulationParameters.AttributeCurveBias = InResourceData.SimulationAttrCurveBias;
-	Resources->SimulationParameters.AttributeScale = FVector4(
+	Resources->SimulationParameters.AttributeScale = FVector4f(
 		InResourceData.DragCoefficientScale,
 		InResourceData.PerParticleVectorFieldScale,
 		InResourceData.ResilienceScale,
 		1.0f  // OrbitRandom
 		);
-	Resources->SimulationParameters.AttributeBias = FVector4(
+	Resources->SimulationParameters.AttributeBias = FVector4f(
 		InResourceData.DragCoefficientBias,
 		InResourceData.PerParticleVectorFieldBias,
 		InResourceData.ResilienceBias,

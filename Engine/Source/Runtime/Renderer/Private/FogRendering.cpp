@@ -58,8 +58,8 @@ struct FHeightFogRenderingParameters
 	FRHITexture* LinearDepthTextureRHI = nullptr;
 	FIntRect ViewRect;
 	float LinearDepthReadScale = 1.0f;
-	FVector4 LinearDepthMinMaxUV;
-	FVector4 LightShaftOcclusionMinMaxUV;
+	FVector4f LinearDepthMinMaxUV;
+	FVector4f LightShaftOcclusionMinMaxUV;
 };
 
 void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters)
@@ -74,14 +74,14 @@ void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 		}
 
 		OutParameters.ExponentialFogParameters = View.ExponentialFogParameters;
-		OutParameters.ExponentialFogColorParameter = FVector4(View.ExponentialFogColor, 1.0f - View.FogMaxOpacity);
+		OutParameters.ExponentialFogColorParameter = FVector4f(View.ExponentialFogColor, 1.0f - View.FogMaxOpacity);
 		OutParameters.ExponentialFogParameters2 = View.ExponentialFogParameters2;
 		OutParameters.ExponentialFogParameters3 = View.ExponentialFogParameters3;
 		OutParameters.SinCosInscatteringColorCubemapRotation = View.SinCosInscatteringColorCubemapRotation;
 		OutParameters.FogInscatteringTextureParameters = View.FogInscatteringTextureParameters;
 		OutParameters.InscatteringLightDirection = View.InscatteringLightDirection;
 		OutParameters.InscatteringLightDirection.W = View.bUseDirectionalInscattering ? FMath::Max(0.f, View.DirectionalInscatteringStartDistance) : -1.f;
-		OutParameters.DirectionalInscatteringColor = FVector4(FVector(View.DirectionalInscatteringColor), FMath::Clamp(View.DirectionalInscatteringExponent, 0.000001f, 1000.0f));
+		OutParameters.DirectionalInscatteringColor = FVector4f(FVector(View.DirectionalInscatteringColor), FMath::Clamp(View.DirectionalInscatteringExponent, 0.000001f, 1000.0f));
 		OutParameters.FogInscatteringColorCubemap = Cubemap->TextureRHI;
 		OutParameters.FogInscatteringColorSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
@@ -145,12 +145,12 @@ public:
 
 			FMatrix InvProjectionMatrix = View.ViewMatrices.GetInvProjectionMatrix();
 
-			FVector ViewSpaceCorner = InvProjectionMatrix.TransformFVector4(FVector4(1, 1, 1, 1));
+			FVector ViewSpaceCorner = InvProjectionMatrix.TransformFVector4(FVector4f(1, 1, 1, 1));
 
 			float Ratio = ViewSpaceCorner.Z / ViewSpaceCorner.Size();
 
 			FVector ViewSpaceStartFogPoint(0.0f, 0.0f, FogStartDistance * Ratio);
-			FVector4 ClipSpaceMaxDistance = View.ViewMatrices.GetProjectionMatrix().TransformPosition(ViewSpaceStartFogPoint);
+			FVector4f ClipSpaceMaxDistance = View.ViewMatrices.GetProjectionMatrix().TransformPosition(ViewSpaceStartFogPoint);
 
 			float FogClipSpaceZ = ClipSpaceMaxDistance.Z / ClipSpaceMaxDistance.W;
 
@@ -340,11 +340,11 @@ void FSceneRenderer::InitFogConstants()
 					CollapsedFogParameter[i] = FogInfo.FogData[i].Density * FMath::Pow(2.0f, CollapsedFogParameterPower);
 				}
 
-				View.ExponentialFogParameters = FVector4(CollapsedFogParameter[0], FogInfo.FogData[0].HeightFalloff, MaxObserverHeight, FogInfo.StartDistance);
-				View.ExponentialFogParameters2 = FVector4(CollapsedFogParameter[1], FogInfo.FogData[1].HeightFalloff, FogInfo.FogData[1].Density, FogInfo.FogData[1].Height);
-				View.ExponentialFogColor = FVector(FogInfo.FogColor.R, FogInfo.FogColor.G, FogInfo.FogColor.B);
+				View.ExponentialFogParameters = FVector4f(CollapsedFogParameter[0], FogInfo.FogData[0].HeightFalloff, MaxObserverHeight, FogInfo.StartDistance);
+				View.ExponentialFogParameters2 = FVector4f(CollapsedFogParameter[1], FogInfo.FogData[1].HeightFalloff, FogInfo.FogData[1].Density, FogInfo.FogData[1].Height);
+				View.ExponentialFogColor = FVector3f(FogInfo.FogColor.R, FogInfo.FogColor.G, FogInfo.FogColor.B);
 				View.FogMaxOpacity = FogInfo.FogMaxOpacity;
-				View.ExponentialFogParameters3 = FVector4(FogInfo.FogData[0].Density, FogInfo.FogData[0].Height, FogInfo.InscatteringColorCubemap ? 1.0f : 0.0f, FogInfo.FogCutoffDistance);
+				View.ExponentialFogParameters3 = FVector4f(FogInfo.FogData[0].Density, FogInfo.FogData[0].Height, FogInfo.InscatteringColorCubemap ? 1.0f : 0.0f, FogInfo.FogCutoffDistance);
 				View.SinCosInscatteringColorCubemapRotation = FVector2D(FMath::Sin(FogInfo.InscatteringColorCubemapAngle), FMath::Cos(FogInfo.InscatteringColorCubemapAngle));
 				View.FogInscatteringColorCubemap = FogInfo.InscatteringColorCubemap;
 				const float InvRange = 1.0f / FMath::Max(FogInfo.FullyDirectionalInscatteringColorDistance - FogInfo.NonDirectionalInscatteringColorDistance, .00001f);
@@ -418,7 +418,7 @@ static void SetFogShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 			const FMatrix Projection = View.ViewMatrices.GetProjectionMatrix();
 			const FVector4 FogStartPoint4 = FVector4(0.0f, 0.0f, View.ExponentialFogParameters.W, 1.f);
 			const FVector4 FogStartPoint4Clip = Projection.TransformFVector4(FogStartPoint4);
-			float FogCDistanceClip = FogStartPoint4Clip.Z / FogStartPoint4Clip.W;
+			float FogCDistanceClip = float(FogStartPoint4Clip.Z / FogStartPoint4Clip.W); // LWC_TODO: precision loss
 
 
 			if (bool(ERHIZBuffer::IsInverted))
@@ -534,7 +534,7 @@ void FDeferredShadingSceneRenderer::RenderFog(
 						{
 							const float InvLightShaftOcclusionTextureExtentX = 1.0f / LightShaftOcclusionTextureExtent.X;
 							const float InvLightShaftOcclusionTextureExtentY = 1.0f / LightShaftOcclusionTextureExtent.Y;
-							Parameters.LightShaftOcclusionMinMaxUV = FVector4(
+							Parameters.LightShaftOcclusionMinMaxUV = FVector4f(
 								0.5f * InvLightShaftOcclusionTextureExtentX,
 								0.5f * InvLightShaftOcclusionTextureExtentY,
 								(LightShaftOcclusionTextureExtent.X - 0.5f) * InvLightShaftOcclusionTextureExtentX,

@@ -285,7 +285,7 @@ FVector UNiagaraParameterCollectionInstance::GetVectorParameter(const FString& I
 
 FVector4 UNiagaraParameterCollectionInstance::GetVector4Parameter(const FString& InVariableName)
 {
-	return ParameterStorage.GetParameterValue<FVector4>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	return (FVector4)ParameterStorage.GetParameterValue<FVector4f>(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
 }
 
 

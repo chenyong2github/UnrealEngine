@@ -56,12 +56,12 @@ namespace MediaShaders
  */
 struct FMediaElementVertex
 {
-	FVector4 Position;
+	FVector4f Position;
 	FVector2D TextureCoordinate;
 
 	FMediaElementVertex() { }
 
-	FMediaElementVertex(const FVector4& InPosition, const FVector2D& InTextureCoordinate)
+	FMediaElementVertex(const FVector4f& InPosition, const FVector2D& InTextureCoordinate)
 		: Position(InPosition)
 		, TextureCoordinate(InTextureCoordinate)
 	{ }
@@ -589,7 +589,7 @@ public:
 		: FGlobalShader(Initializer)
 	{ }
 
-	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4& ColorTransform, bool LinearToSrgb);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FVector4f& ColorTransform, bool LinearToSrgb);
 };
 
 

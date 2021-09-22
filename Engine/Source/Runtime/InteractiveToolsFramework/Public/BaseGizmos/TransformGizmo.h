@@ -21,7 +21,6 @@ class UGizmoComponentAxisSource;
 class UGizmoTransformChangeStateTarget;
 class UGizmoViewContext;
 class FTransformGizmoTransformChange;
-class FRay;
 
 /**
  * ATransformGizmoActor is an Actor type intended to be used with UTransformGizmo,

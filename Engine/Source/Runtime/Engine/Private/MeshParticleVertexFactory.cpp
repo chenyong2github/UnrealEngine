@@ -53,8 +53,8 @@ public:
 	virtual void InitRHI()
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyPrevTransformBuffer"));
-		VB = RHICreateVertexBuffer(sizeof(FVector4) * 3, BUF_Static | BUF_ShaderResource, CreateInfo);
-		SRV = RHICreateShaderResourceView(VB, sizeof(FVector4), PF_A32B32G32R32F);
+		VB = RHICreateVertexBuffer(sizeof(FVector4f) * 3, BUF_Static | BUF_ShaderResource, CreateInfo);
+		SRV = RHICreateShaderResourceView(VB, sizeof(FVector4f), PF_A32B32G32R32F);
 	}
 
 	virtual void ReleaseRHI()
@@ -223,7 +223,7 @@ void FMeshParticleVertexFactory::SetDynamicParameterBuffer(const FVertexBuffer* 
 
 uint8* FMeshParticleVertexFactory::LockPreviousTransformBuffer(uint32 ParticleCount)
 {
-	const static uint32 ElementSize = sizeof(FVector4);
+	const static uint32 ElementSize = sizeof(FVector4f);
 	const static uint32 ParticleSize = ElementSize * 3;
 	const uint32 AllocationRequest = ParticleCount * ParticleSize;
 

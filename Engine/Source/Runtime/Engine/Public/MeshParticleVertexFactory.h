@@ -25,7 +25,7 @@ struct FShaderCompilerEnvironment;
  * Uniform buffer for mesh particle vertex factories.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FMeshParticleUniformParameters, ENGINE_API)
-	SHADER_PARAMETER( FVector4, SubImageSize )
+	SHADER_PARAMETER( FVector4f, SubImageSize )
 	SHADER_PARAMETER( uint32, TexCoordWeightA )
 	SHADER_PARAMETER( uint32, TexCoordWeightB )
 	SHADER_PARAMETER( uint32, PrevTransformAvailable )

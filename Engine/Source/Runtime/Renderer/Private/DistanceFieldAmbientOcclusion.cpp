@@ -625,11 +625,11 @@ void AllocateTileIntersectionBuffers(
 
 	int32 TileCount = TileListGroupSize.X * TileListGroupSize.Y;
 
-	FRDGBufferRef TileConeAxisAndCos = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), TileCount), TEXT("TileConeAxisAndCos"));
+	FRDGBufferRef TileConeAxisAndCos = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), TileCount), TEXT("TileConeAxisAndCos"));
 	OutParameters.RWTileConeAxisAndCos = GraphBuilder.CreateUAV(TileConeAxisAndCos);
 	OutParameters.TileConeAxisAndCos = GraphBuilder.CreateSRV(TileConeAxisAndCos);
 
-	FRDGBufferRef TileConeDepthRanges = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), TileCount), TEXT("TileConeDepthRanges"));
+	FRDGBufferRef TileConeDepthRanges = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), TileCount), TEXT("TileConeDepthRanges"));
 	OutParameters.RWTileConeDepthRanges = GraphBuilder.CreateUAV(TileConeDepthRanges);
 	OutParameters.TileConeDepthRanges = GraphBuilder.CreateSRV(TileConeDepthRanges);
 

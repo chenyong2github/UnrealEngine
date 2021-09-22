@@ -120,7 +120,7 @@ void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumCl
 	if (ExcludeRect.Width() > 0 && ExcludeRect.Height() > 0)
 	{
 		// with a hole in it
-		FVector4 OuterVertices[4];
+		FVector4f OuterVertices[4];
 		OuterVertices[0].Set(-1.0f, 1.0f, Depth, 1.0f);
 		OuterVertices[1].Set(1.0f, 1.0f, Depth, 1.0f);
 		OuterVertices[2].Set(1.0f, -1.0f, Depth, 1.0f);
@@ -128,19 +128,19 @@ void DrawClearQuadMRT(FRHICommandList& RHICmdList, bool bClearColor, int32 NumCl
 
 		float InvViewWidth = 1.0f / ViewSize.X;
 		float InvViewHeight = 1.0f / ViewSize.Y;
-		FVector4 FractionRect = FVector4(ExcludeRect.Min.X * InvViewWidth, ExcludeRect.Min.Y * InvViewHeight, (ExcludeRect.Max.X - 1) * InvViewWidth, (ExcludeRect.Max.Y - 1) * InvViewHeight);
+		FVector4f FractionRect = FVector4f(ExcludeRect.Min.X * InvViewWidth, ExcludeRect.Min.Y * InvViewHeight, (ExcludeRect.Max.X - 1) * InvViewWidth, (ExcludeRect.Max.Y - 1) * InvViewHeight);
 
-		FVector4 InnerVertices[4];
+		FVector4f InnerVertices[4];
 		InnerVertices[0].Set(FMath::Lerp(-1.0f, 1.0f, FractionRect.X), FMath::Lerp(1.0f, -1.0f, FractionRect.Y), Depth, 1.0f);
 		InnerVertices[1].Set(FMath::Lerp(-1.0f, 1.0f, FractionRect.Z), FMath::Lerp(1.0f, -1.0f, FractionRect.Y), Depth, 1.0f);
 		InnerVertices[2].Set(FMath::Lerp(-1.0f, 1.0f, FractionRect.Z), FMath::Lerp(1.0f, -1.0f, FractionRect.W), Depth, 1.0f);
 		InnerVertices[3].Set(FMath::Lerp(-1.0f, 1.0f, FractionRect.X), FMath::Lerp(1.0f, -1.0f, FractionRect.W), Depth, 1.0f);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("DrawClearQuadMRT"));
-		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 10, BUF_Volatile, CreateInfo);
-		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 10, RLM_WriteOnly);
+		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4f) * 10, BUF_Volatile, CreateInfo);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 10, RLM_WriteOnly);
 		
-		FVector4* Vertices = reinterpret_cast<FVector4*>(VoidPtr);
+		FVector4f* Vertices = reinterpret_cast<FVector4f*>(VoidPtr);
 		Vertices[0] = OuterVertices[0];
 		Vertices[1] = InnerVertices[0];
 		Vertices[2] = OuterVertices[1];

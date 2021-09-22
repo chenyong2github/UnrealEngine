@@ -142,7 +142,7 @@ private:
 	struct FPerElementConstants
 	{
 		FMatrix44f ViewProjection;
-		FVector4 VertexShaderParams;
+		FVector4f VertexShaderParams;
 	};
 	static_assert(sizeof(FPerElementConstants) == sizeof(float) * 20, "Size mismatch");	// LWC_TODO: Fix for FVector4f
 
@@ -170,8 +170,8 @@ protected:
 private:
 	MS_ALIGN(16) struct FPerElementConstants
 	{
-		FVector4 ShaderParams;		// 16 bytes
-		FVector4 ShaderParams2;		// 16 bytes
+		FVector4f ShaderParams;		// 16 bytes
+		FVector4f ShaderParams2;	// 16 bytes
 		uint32 ShaderType;			//  4 bytes
 		uint32 IgnoreTextureAlpha;	//	4 bytes
 		uint32 DisableEffect;		//  4 bytes

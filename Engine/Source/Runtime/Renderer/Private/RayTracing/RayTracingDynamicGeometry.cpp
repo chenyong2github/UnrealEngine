@@ -176,8 +176,8 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		RWBuffer = &VertexPositionBuffer->RWBuffer;
 	}
 
-	FMatrix InstanceTransform = UpdateParams.InstanceTransform;
-	FMatrix InverseTransform = InstanceTransform;
+	FMatrix44f InstanceTransform = UpdateParams.InstanceTransform;
+	FMatrix44f InverseTransform = InstanceTransform;
 	InverseTransform.M[3][3] = 1.0f;
 	InverseTransform = InverseTransform.InverseFast();
 

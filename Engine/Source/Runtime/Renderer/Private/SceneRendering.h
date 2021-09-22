@@ -133,7 +133,7 @@ protected:
 class FMobileMovableSpotLightsShadowInfo
 {
 public:
-	FVector4 ShadowBufferSize = FVector4(0.0f);
+	FVector4f ShadowBufferSize = FVector4f(0.0f);
 	FRHITexture* ShadowDepthTexture = nullptr;
 };
 
@@ -704,15 +704,15 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER(FVector2D, DirectionalLightDistanceFadeMAD) \
 	SHADER_PARAMETER(uint32, NumDirectionalLightCascades) \
 	SHADER_PARAMETER(int32, DirectionalLightVSM) \
-	SHADER_PARAMETER(FVector4, CascadeEndDepths) \
+	SHADER_PARAMETER(FVector4f, CascadeEndDepths) \
 	SHADER_PARAMETER_ARRAY(FMatrix44f, DirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades]) \
-	SHADER_PARAMETER_ARRAY(FVector4, DirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
-	SHADER_PARAMETER(FVector4, DirectionalLightShadowmapAtlasBufferSize) \
+	SHADER_PARAMETER_ARRAY(FVector4f, DirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
+	SHADER_PARAMETER(FVector4f, DirectionalLightShadowmapAtlasBufferSize) \
 	SHADER_PARAMETER(float, DirectionalLightDepthBias) \
 	SHADER_PARAMETER(uint32, DirectionalLightUseStaticShadowing) \
 	SHADER_PARAMETER(uint32, SimpleLightsEndIndex) \
 	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex) \
-	SHADER_PARAMETER(FVector4, DirectionalLightStaticShadowBufferSize) \
+	SHADER_PARAMETER(FVector4f, DirectionalLightStaticShadowBufferSize) \
 	SHADER_PARAMETER(FMatrix44f, DirectionalLightWorldToStaticShadow) \
 	SHADER_PARAMETER(uint32, DirectLightingShowFlag) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas) \
@@ -787,7 +787,7 @@ struct FTransientLightFunctionTextureAtlasTile
 	bool bIsDefault;		// If true, then the atlas item generation can be skipped
 	FRDGTextureRef Texture;
 	FIntRect RectBound;
-	FVector4 MinMaxUvBound;
+	FVector4f MinMaxUvBound;
 };
 
 struct FVolumetricFogLocalLightFunctionInfo
@@ -853,13 +853,13 @@ static const int32 GMaxNumReflectionCaptures = 341;
 
 /** Per-reflection capture data needed by the shader. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionCaptureShaderData,)
-	SHADER_PARAMETER_ARRAY(FVector4,PositionAndRadius,[GMaxNumReflectionCaptures])
+	SHADER_PARAMETER_ARRAY(FVector4f,PositionAndRadius,[GMaxNumReflectionCaptures])
 	// R is brightness, G is array index, B is shape
-	SHADER_PARAMETER_ARRAY(FVector4,CaptureProperties,[GMaxNumReflectionCaptures])
-	SHADER_PARAMETER_ARRAY(FVector4,CaptureOffsetAndAverageBrightness,[GMaxNumReflectionCaptures])
+	SHADER_PARAMETER_ARRAY(FVector4f,CaptureProperties,[GMaxNumReflectionCaptures])
+	SHADER_PARAMETER_ARRAY(FVector4f,CaptureOffsetAndAverageBrightness,[GMaxNumReflectionCaptures])
 	// Stores the box transform for a box shape, other data is packed for other shapes
 	SHADER_PARAMETER_ARRAY(FMatrix44f,BoxTransform,[GMaxNumReflectionCaptures])
-	SHADER_PARAMETER_ARRAY(FVector4,BoxScales,[GMaxNumReflectionCaptures])
+	SHADER_PARAMETER_ARRAY(FVector4f,BoxScales,[GMaxNumReflectionCaptures])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 // Structure in charge of storing all information about TAA's history.
@@ -1303,11 +1303,11 @@ public:
 	FMobileMovableSpotLightsShadowInfo MobileMovableSpotLightsShadowInfo;
 
 	/** Parameters for exponential height fog. */
-	FVector4 ExponentialFogParameters;
-	FVector4 ExponentialFogParameters2;
-	FVector ExponentialFogColor;
+	FVector4f ExponentialFogParameters;
+	FVector4f ExponentialFogParameters2;
+	FVector3f ExponentialFogColor;
 	float FogMaxOpacity;
-	FVector4 ExponentialFogParameters3;
+	FVector4f ExponentialFogParameters3;
 	FVector2D SinCosInscatteringColorCubemapRotation;
 
 	UTexture* FogInscatteringColorCubemap;

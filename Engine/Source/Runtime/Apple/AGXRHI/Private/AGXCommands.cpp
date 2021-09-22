@@ -30,7 +30,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
-		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4)));
+		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4f)));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 	virtual void ReleaseRHI() override
@@ -38,7 +38,7 @@ public:
 		VertexDeclarationRHI.SafeRelease();
 	}
 };
-static TGlobalResource<FVector4VertexDeclaration> GVector4VertexDeclaration;
+static TGlobalResource<FVector4VertexDeclaration> FVector4VertexDeclaration;
 
 mtlpp::PrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType)
 {
@@ -605,7 +605,7 @@ void FAGXDynamicRHI::SetupRecursiveResources()
 		auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 		TShaderMapRef<TOneColorVS<true> > DefaultVertexShader(ShaderMap);
 		TShaderMapRef<TOneColorVS<true, true> > LayeredVertexShader(ShaderMap);
-		GVector4VertexDeclaration.InitRHI();
+		FVector4VertexDeclaration.InitRHI();
 		
 		for (uint32 Instanced = 0; Instanced < 2; Instanced++)
 		{
@@ -661,7 +661,7 @@ void FAGXDynamicRHI::SetupRecursiveResources()
 					}
 				}
 				
-				// SetGlobalBoundShaderState(RHICmdList, GMaxRHIFeatureLevel, GClearMRTBoundShaderState[NumBuffers - 1][Instanced], GVector4VertexDeclaration.VertexDeclarationRHI, VertexShader, PixelShader);
+				// SetGlobalBoundShaderState(RHICmdList, GMaxRHIFeatureLevel, GClearMRTBoundShaderState[NumBuffers - 1][Instanced], FVector4VertexDeclaration.VertexDeclarationRHI, VertexShader, PixelShader);
 			}
 		}
 		

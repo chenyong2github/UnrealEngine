@@ -270,7 +270,7 @@ FOpenGLBufferUnorderedAccessView::~FOpenGLBufferUnorderedAccessView()
 	// not clearing cached state as SSBO can still be bound as SRV
 }
 
-void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values)
+void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 {
 	FOpenGLUnorderedAccessView* Texture = ResourceCast(UnorderedAccessViewRHI);
 

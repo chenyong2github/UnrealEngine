@@ -19,12 +19,12 @@ public:
 			{
 				FRHIResourceCreateInfo CreateInfo(TEXT("WaterInstanceDataBuffers"));
 
-				int32 SizeInBytes = Align<int32>(InInstanceCount * sizeof(FVector4), 4 * 1024);
+				int32 SizeInBytes = Align<int32>(InInstanceCount * sizeof(FVector4f), 4 * 1024);
 
 				for (int32 i = 0; i < NumBuffers; ++i)
 				{
 					Buffer[i] = RHICreateVertexBuffer(SizeInBytes, BUF_Dynamic, CreateInfo);
-					BufferMemory[i] = TArrayView<FVector4>();
+					BufferMemory[i] = TArrayView<FVector4f>();
 				}
 			}
 		);
@@ -51,7 +51,7 @@ public:
 		for (int32 i = 0; i < NumBuffers; ++i)
 		{
 			Unlock(i);
-			BufferMemory[i] = TArrayView<FVector4>();
+			BufferMemory[i] = TArrayView<FVector4f>();
 		}
 	}
 
@@ -60,18 +60,18 @@ public:
 		return Buffer[InBufferID];
 	}
 
-	TArrayView<FVector4> GetBufferMemory(int32 InBufferID) const
+	TArrayView<FVector4f> GetBufferMemory(int32 InBufferID) const
 	{
 		check(!BufferMemory[InBufferID].IsEmpty());
 		return BufferMemory[InBufferID];
 	}
 
 private:
-	TArrayView<FVector4> Lock(int32 InInstanceCount, int32 InBufferID)
+	TArrayView<FVector4f> Lock(int32 InInstanceCount, int32 InBufferID)
 	{
 		check(IsInRenderingThread());
 
-		uint32 SizeInBytes = InInstanceCount * sizeof(FVector4);
+		uint32 SizeInBytes = InInstanceCount * sizeof(FVector4f);
 
 		if (SizeInBytes > Buffer[InBufferID]->GetSize())
 		{
@@ -85,8 +85,8 @@ private:
 			Buffer[InBufferID] = RHICreateVertexBuffer(AlignedSizeInBytes, BUF_Dynamic, CreateInfo);
 		}
 
-		FVector4* Data = reinterpret_cast<FVector4*>(RHILockBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
-		return TArrayView<FVector4>(Data, InInstanceCount);
+		FVector4f* Data = reinterpret_cast<FVector4f*>(RHILockBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
+		return TArrayView<FVector4f>(Data, InInstanceCount);
 	}
 
 	void Unlock(int32 InBufferID)
@@ -95,5 +95,5 @@ private:
 	}
 
 	FBufferRHIRef Buffer[NumBuffers];
-	TArrayView<FVector4> BufferMemory[NumBuffers];
+	TArrayView<FVector4f> BufferMemory[NumBuffers];
 };

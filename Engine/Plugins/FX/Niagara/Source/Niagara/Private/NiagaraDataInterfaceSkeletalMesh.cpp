@@ -1006,15 +1006,15 @@ void FSkeletalMeshGpuDynamicBufferProxy::InitRHI()
 	for (FSkeletalBuffer& Buffer : RWBufferBones)
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("SkeletalMeshGpuDynamicBuffer"));
-		Buffer.SectionBuffer = RHICreateVertexBuffer(sizeof(FVector4) * 3 * SectionBoneCount, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
-		Buffer.SectionSRV = RHICreateShaderResourceView(Buffer.SectionBuffer, sizeof(FVector4), PF_A32B32G32R32F);
+		Buffer.SectionBuffer = RHICreateVertexBuffer(sizeof(FVector4f) * 3 * SectionBoneCount, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
+		Buffer.SectionSRV = RHICreateShaderResourceView(Buffer.SectionBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
 
-		Buffer.SamplingBuffer = RHICreateVertexBuffer(sizeof(FVector4) * 3 * (SamplingBoneCount + SamplingSocketCount), BUF_ShaderResource | BUF_Dynamic, CreateInfo);
-		Buffer.SamplingSRV = RHICreateShaderResourceView(Buffer.SamplingBuffer, sizeof(FVector4), PF_A32B32G32R32F);
+		Buffer.SamplingBuffer = RHICreateVertexBuffer(sizeof(FVector4f) * 3 * (SamplingBoneCount + SamplingSocketCount), BUF_ShaderResource | BUF_Dynamic, CreateInfo);
+		Buffer.SamplingSRV = RHICreateShaderResourceView(Buffer.SamplingBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
 
 #if STATS
-		GPUMemoryUsage += sizeof(FVector4) * 3 * SectionBoneCount;
-		GPUMemoryUsage += sizeof(FVector4) * 2 * (SamplingBoneCount + SamplingSocketCount);
+		GPUMemoryUsage += sizeof(FVector4f) * 3 * SectionBoneCount;
+		GPUMemoryUsage += sizeof(FVector4f) * 2 * (SamplingBoneCount + SamplingSocketCount);
 #endif
 	}
 #if STATS
@@ -1061,10 +1061,10 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 		return;
 	}
 
-	static_assert(sizeof(FVector4) == 4 * sizeof(float), "FVector4 should match 4 * floats");
+	static_assert(sizeof(FVector4f) == 4 * sizeof(float), "FVector4f should match 4 * floats");
 
-	TArray<FVector4> AllSectionsRefToLocalMatrices;
-	TArray<FVector4> BoneSamplingData;
+	TArray<FVector4f> AllSectionsRefToLocalMatrices;
+	TArray<FVector4f> BoneSamplingData;
 
 	auto FillBuffers =
 		[&](const TArray<FTransform>& BoneTransforms)
@@ -1095,6 +1095,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 				{
 					const int32 BoneIndex = Section.BoneMap[m];
 					const FTransform& BoneTransform = BoneTransforms[BoneIndex];
+					// LWC_TODO: precision loss
 					const FMatrix44f BoneMatrix = SkelMesh->GetRefBasesInvMatrix().IsValidIndex(BoneIndex) ? SkelMesh->GetRefBasesInvMatrix()[BoneIndex] * (FMatrix44f)BoneTransform.ToMatrixWithScale() : (FMatrix44f)BoneTransform.ToMatrixWithScale();
 					BoneMatrix.To3x4MatrixTranspose(&AllSectionsRefToLocalMatrices[Float4Count].X);
 					Float4Count += 3;
@@ -1107,7 +1108,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			{
 				const FQuat Rotation = BoneTransform.GetRotation();
 				BoneSamplingData.Add(BoneTransform.GetLocation());
-				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
+				BoneSamplingData.Add(FVector4f(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
 				BoneSamplingData.Add(BoneTransform.GetScale3D());
 			}
 
@@ -1116,7 +1117,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			{
 				const FQuat4f Rotation = SocketTransform.GetRotation();
 				BoneSamplingData.Add(SocketTransform.GetLocation());
-				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
+				BoneSamplingData.Add(FVector4f(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
 				BoneSamplingData.Add(SocketTransform.GetScale3D());
 			}
 		};
@@ -1213,7 +1214,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 
 			// Copy bone remap data matrices
 			{
-				const uint32 NumBytes = AllSectionsRefToLocalMatrices.Num() * sizeof(FVector4);
+				const uint32 NumBytes = AllSectionsRefToLocalMatrices.Num() * sizeof(FVector4f);
 				void* DstData = RHILockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer, 0, NumBytes, RLM_WriteOnly);
 				FMemory::Memcpy(DstData, AllSectionsRefToLocalMatrices.GetData(), NumBytes);
 				RHIUnlockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer);
@@ -1221,8 +1222,8 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 
 			// Copy bone sampling data
 			{
-				const uint32 NumBytes = BoneSamplingData.Num() * sizeof(FVector4);
-				FVector4* DstData = reinterpret_cast<FVector4*>(RHILockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
+				const uint32 NumBytes = BoneSamplingData.Num() * sizeof(FVector4f);
+				FVector4f* DstData = reinterpret_cast<FVector4f*>(RHILockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
 				FMemory::Memcpy(DstData, BoneSamplingData.GetData(), NumBytes);
 				RHIUnlockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer);
 			}
@@ -1548,8 +1549,8 @@ public:
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix44f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, FMatrix44f::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, FQuat::Identity);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat4f::Identity);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, FQuat4f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, 0.0f);
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, EnabledFeatures, 0);

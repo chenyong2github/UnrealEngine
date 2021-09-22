@@ -637,11 +637,11 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 				const uint32 NumDFObjects = NumObjectsInBuffer;
 
 				const uint32 DFObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectDataStride);
-				const uint32 DFObjectDataNumBytes = DFObjectDataNumFloat4s * sizeof(FVector4);
+				const uint32 DFObjectDataNumBytes = DFObjectDataNumFloat4s * sizeof(FVector4f);
 				ResizeResourceIfNeeded(GraphBuilder.RHICmdList, ObjectBuffers->Data, DFObjectDataNumBytes, TEXT("DistanceFields.DFObjectData"));
 
 				const uint32 DFObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectBoundsStride);
-				const uint32 DFObjectBoundsNumBytes = DFObjectBoundsNumFloat4s * sizeof(FVector4);
+				const uint32 DFObjectBoundsNumBytes = DFObjectBoundsNumFloat4s * sizeof(FVector4f);
 				ResizeResourceIfNeeded(GraphBuilder.RHICmdList, ObjectBuffers->Bounds, DFObjectBoundsNumBytes, TEXT("DistanceFields.DFObjectBounds"));
 
 				const int32 NumDFObjectUploads = IndicesToUpdateInObjectBuffers.Num();
@@ -650,8 +650,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 				if (NumDFObjectUploads > 0)
 				{
-					UploadDistanceFieldDataBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("DistanceFields.DFObjectDataUploadBuffer"));
-					UploadDistanceFieldBoundsBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("DistanceFields.DFObjectBoundsUploadBuffer"));
+					UploadDistanceFieldDataBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectDataStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectDataUploadBuffer"));
+					UploadDistanceFieldBoundsBuffer.Init(NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectBoundsUploadBuffer"));
 
 					const TArray<FPrimitiveBounds>& PrimitiveBounds = Scene->PrimitiveBounds;
 
@@ -675,8 +675,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 										DFUpdateCS.Lock();
 									}
 
-									FVector4* UploadObjectData = (FVector4*)UploadDistanceFieldDataBuffer.Add_GetRef(Index);
-									FVector4* UploadObjectBounds = (FVector4*)UploadDistanceFieldBoundsBuffer.Add_GetRef(Index);
+									FVector4f* UploadObjectData = (FVector4f*)UploadDistanceFieldDataBuffer.Add_GetRef(Index);
+									FVector4f* UploadObjectBounds = (FVector4f*)UploadDistanceFieldBoundsBuffer.Add_GetRef(Index);
 
 									if (RangeCount > 1)
 									{
@@ -692,14 +692,14 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									const FMatrix44f LocalToWorld = PrimAndInst.LocalToWorld.ToMatrix44f();
 									const FBox WorldSpaceMeshBounds = LocalSpaceMeshBounds.TransformBy(LocalToWorld);
 
-									const FVector4 ObjectBoundingSphere(WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
+									const FVector4f ObjectBoundingSphere(WorldSpaceMeshBounds.GetCenter(), WorldSpaceMeshBounds.GetExtent().Size());
 									
 									UploadObjectBounds[0] = ObjectBoundingSphere;
 
 									const FGlobalDFCacheType CacheType = PrimitiveSceneProxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
 									const float OftenMovingValue = CacheType == GDF_Full ? 1.0f : 0.0f;
 
-									const FVector4 ObjectWorldExtent(WorldSpaceMeshBounds.GetExtent(), OftenMovingValue);
+									const FVector4f ObjectWorldExtent(WorldSpaceMeshBounds.GetExtent(), OftenMovingValue);
 									UploadObjectBounds[1] = ObjectWorldExtent;
 
 									// Uniformly scale our Volume space to lie within [-1, 1] at the max extent
@@ -715,9 +715,9 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const FMatrix44f WorldToVolumeT = VolumeToWorld.Inverse().GetTransposed();
 									// WorldToVolumeT
-									UploadObjectData[0] = (*(FVector4*)&WorldToVolumeT.M[0]);
-									UploadObjectData[1] = (*(FVector4*)&WorldToVolumeT.M[1]);
-									UploadObjectData[2] = (*(FVector4*)&WorldToVolumeT.M[2]);
+									UploadObjectData[0] = (*(FVector4f*)&WorldToVolumeT.M[0]);
+									UploadObjectData[1] = (*(FVector4f*)&WorldToVolumeT.M[1]);
+									UploadObjectData[2] = (*(FVector4f*)&WorldToVolumeT.M[2]);
 
 									// Minimal surface bias which increases chance that ray hit will a surface located between two texels
 									float ExpandSurfaceDistance = (GMeshSDFSurfaceBiasExpand * VolumePositionExtent / FVector(DistanceFieldData->Mips[0].IndirectionDimensions * DistanceField::UniqueDataBrickSize)).Size();
@@ -728,7 +728,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									}
 
 									const float WSign = DistanceFieldData->bMostlyTwoSided ? -1 : 1;
-									UploadObjectData[3] = FVector4(VolumePositionExtent, WSign * ExpandSurfaceDistance);
+									UploadObjectData[3] = FVector4f(VolumePositionExtent, WSign * ExpandSurfaceDistance);
 
 									const int32 PrimIdx = PrimAndInst.Primitive->GetIndex();
 									const FPrimitiveBounds& PrimBounds = PrimitiveBounds[PrimIdx];
@@ -741,8 +741,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 										PrimAndInst.Primitive->GetInstanceSceneDataOffset() + PrimAndInst.InstanceIndex :
 										PrimAndInst.Primitive->GetInstanceSceneDataOffset();
 
-									// Bypass NaN checks in FVector4 ctor
-									FVector4 Vector4;
+									// Bypass NaN checks in FVector4f ctor
+									FVector4f Vector4;
 									Vector4.X = MinDrawDist2;
 									Vector4.Y = MaxDrawDist * MaxDrawDist;
 									Vector4.Z = SelfShadowBias;
@@ -750,13 +750,13 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									UploadObjectData[4] = Vector4;
 
 									const FMatrix44f VolumeToWorldT = VolumeToWorld.GetTransposed();
-									UploadObjectData[5] = *(FVector4*)&VolumeToWorldT.M[0];
-									UploadObjectData[6] = *(FVector4*)&VolumeToWorldT.M[1];
-									UploadObjectData[7] = *(FVector4*)&VolumeToWorldT.M[2];
+									UploadObjectData[5] = *(FVector4f*)&VolumeToWorldT.M[0];
+									UploadObjectData[6] = *(FVector4f*)&VolumeToWorldT.M[1];
+									UploadObjectData[7] = *(FVector4f*)&VolumeToWorldT.M[2];
 
-									FVector4 FloatVector8(VolumeToWorld.GetScaleVector(), 0.0f);
+									FVector4f FloatVector8(VolumeToWorld.GetScaleVector(), 0.0f);
 
-									// Bypass NaN checks in FVector4 ctor
+									// Bypass NaN checks in FVector4f ctor
 									FSetElementId AssetStateSetId = AssetStateArray.FindId(DistanceFieldData);
 									check(AssetStateSetId.IsValidId());
 									const int32 AssetStateInt = AssetStateSetId.AsInteger();
@@ -879,19 +879,19 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 				const uint32 NumHeightFieldObjects = DistanceFieldSceneData.NumHeightFieldObjectsInBuffer;
 
 				const uint32 HeighFieldObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectDataStride);
-				const uint32 HeighFieldObjectDataNumBytes = HeighFieldObjectDataNumFloat4s * sizeof(FVector4);
+				const uint32 HeighFieldObjectDataNumBytes = HeighFieldObjectDataNumFloat4s * sizeof(FVector4f);
 				ResizeResourceIfNeeded(GraphBuilder.RHICmdList, ObjectBuffers->Data, HeighFieldObjectDataNumBytes, TEXT("HeighFieldObjectData"));
 
 				const uint32 HeighFieldObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectBoundsStride);
-				const uint32 HeighFieldObjectBoundsNumBytes = HeighFieldObjectBoundsNumFloat4s * sizeof(FVector4);
+				const uint32 HeighFieldObjectBoundsNumBytes = HeighFieldObjectBoundsNumFloat4s * sizeof(FVector4f);
 				ResizeResourceIfNeeded(GraphBuilder.RHICmdList, ObjectBuffers->Bounds, HeighFieldObjectBoundsNumBytes, TEXT("HeighFieldObjectBounds"));
 
 				const int32 NumHeighFieldObjectUploads = DistanceFieldSceneData.IndicesToUpdateInHeightFieldObjectBuffers.Num();
 
 				if (NumHeighFieldObjectUploads > 0)
 				{
-					DistanceFieldSceneData.UploadHeightFieldDataBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectDataStride * sizeof(FVector4), true, TEXT("HeighFieldObjectDataUploadBuffer"));
-					DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
+					DistanceFieldSceneData.UploadHeightFieldDataBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectDataStride * sizeof(FVector4f), true, TEXT("HeighFieldObjectDataUploadBuffer"));
+					DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Init(NumHeighFieldObjectUploads, FHeightFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4f), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
 
 					AddPass(GraphBuilder, RDG_EVENT_NAME("UploadHeightFieldObjects"), [this, &DistanceFieldSceneData, &ObjectBuffers](FRHICommandListImmediate& RHICmdList)
 					{
@@ -901,8 +901,8 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 							{
 								FPrimitiveSceneInfo* Primitive = DistanceFieldSceneData.HeightfieldPrimitives[Index];
 
-								FVector4* UploadObjectData = (FVector4*)DistanceFieldSceneData.UploadHeightFieldDataBuffer.Add_GetRef(Index);
-								FVector4* UploadObjectBounds = (FVector4*)DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Add_GetRef(Index);
+								FVector4f* UploadObjectData = (FVector4f*)DistanceFieldSceneData.UploadHeightFieldDataBuffer.Add_GetRef(Index);
+								FVector4f* UploadObjectBounds = (FVector4f*)DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Add_GetRef(Index);
 
 								UTexture2D* HeightNormalTexture;
 								UTexture2D* DiffuseColorTexture;
@@ -912,33 +912,33 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 
 								const FBoxSphereBounds& Bounds = Primitive->Proxy->GetBounds();
 								const FBox BoxBound = Bounds.GetBox();
-								UploadObjectBounds[0] = FVector4(BoxBound.GetCenter(), Bounds.SphereRadius);
-								UploadObjectBounds[1] = FVector4(BoxBound.GetExtent(), 0.f);
+								UploadObjectBounds[0] = FVector4f(BoxBound.GetCenter(), Bounds.SphereRadius);
+								UploadObjectBounds[1] = FVector4f(BoxBound.GetExtent(), 0.f);
 
 								const FMatrix& LocalToWorld = HeightFieldCompDesc.LocalToWorld;
 								check(LocalToWorld.GetMaximumAxisScale() > 0.f);
 								const FMatrix WorldToLocalT = LocalToWorld.Inverse().GetTransposed();
-								UploadObjectData[0] = *(const FVector4*)&WorldToLocalT.M[0];
-								UploadObjectData[1] = *(const FVector4*)&WorldToLocalT.M[1];
-								UploadObjectData[2] = *(const FVector4*)&WorldToLocalT.M[2];
+								UploadObjectData[0] = *(const FVector4f*)&WorldToLocalT.M[0];
+								UploadObjectData[1] = *(const FVector4f*)&WorldToLocalT.M[1];
+								UploadObjectData[2] = *(const FVector4f*)&WorldToLocalT.M[2];
 
 								const FIntRect& HeightFieldRect = HeightFieldCompDesc.HeightfieldRect;
 								const float WorldToLocalScale = FMath::Min3(
 									WorldToLocalT.GetColumn(0).Size(),
 									WorldToLocalT.GetColumn(1).Size(),
 									WorldToLocalT.GetColumn(2).Size());
-								UploadObjectData[3] = FVector4(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f);
+								UploadObjectData[3] = FVector4f(HeightFieldRect.Width(), HeightFieldRect.Height(), WorldToLocalScale, 0.f);
 
-								FVector4 HeightUVScaleBias(ForceInitToZero);
+								FVector4f HeightUVScaleBias(ForceInitToZero);
 								if (HeightNormalTexture)
 								{
 									const uint32 HeightNormalTextureHandle = GHeightFieldTextureAtlas.GetAllocationHandle(HeightNormalTexture);
 									if (HeightNormalTextureHandle != INDEX_NONE)
 									{
-										const FVector4& HeightFieldScaleBias = HeightFieldCompDesc.HeightfieldScaleBias;
+										const FVector4f& HeightFieldScaleBias = HeightFieldCompDesc.HeightfieldScaleBias;
 										check(HeightFieldScaleBias.Y >= 0.f && HeightFieldScaleBias.Z >= 0.f && HeightFieldScaleBias.W >= 0.f);
 
-										const FVector4 ScaleBias = GHeightFieldTextureAtlas.GetAllocationScaleBias(HeightNormalTextureHandle);
+										const FVector4f ScaleBias = GHeightFieldTextureAtlas.GetAllocationScaleBias(HeightNormalTextureHandle);
 										HeightUVScaleBias.Set(FMath::Abs(HeightFieldScaleBias.X) * ScaleBias.X,
 											HeightFieldScaleBias.Y * ScaleBias.Y,
 											HeightFieldScaleBias.Z * ScaleBias.X + ScaleBias.Z,
@@ -947,14 +947,14 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 								}
 								UploadObjectData[4] = HeightUVScaleBias;
 
-								FVector4 VisUVScaleBias(ForceInitToZero);
+								FVector4f VisUVScaleBias(ForceInitToZero);
 								if (VisibilityTexture)
 								{
 									const uint32 VisHandle = GHFVisibilityTextureAtlas.GetAllocationHandle(VisibilityTexture);
 									if (VisHandle != INDEX_NONE)
 									{
-										const FVector4 ScaleBias = GHFVisibilityTextureAtlas.GetAllocationScaleBias(VisHandle);
-										VisUVScaleBias = FVector4(1.f / HeightFieldRect.Width() * ScaleBias.X, 1.f / HeightFieldRect.Height() * ScaleBias.Y, ScaleBias.Z, ScaleBias.W);
+										const FVector4f ScaleBias = GHFVisibilityTextureAtlas.GetAllocationScaleBias(VisHandle);
+										VisUVScaleBias = FVector4f(1.f / HeightFieldRect.Width() * ScaleBias.X, 1.f / HeightFieldRect.Height() * ScaleBias.Y, ScaleBias.Z, ScaleBias.W);
 									}
 								}
 								UploadObjectData[5] = VisUVScaleBias;

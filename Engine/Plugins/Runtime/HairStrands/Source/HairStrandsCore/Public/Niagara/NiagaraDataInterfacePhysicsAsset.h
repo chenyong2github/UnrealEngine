@@ -31,15 +31,15 @@ struct FElementOffset
 struct FNDIPhysicsAssetArrays
 {
 	FElementOffset ElementOffsets;
-	TStaticArray<FVector4, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> WorldTransform;
-	TStaticArray<FVector4, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> InverseTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentInverse;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousInverse;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> RestTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> RestInverse;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_PRIMITIVES> ElementExtent;
+	TStaticArray<FVector4f, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> WorldTransform;
+	TStaticArray<FVector4f, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> InverseTransform;
+	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentTransform;
+	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentInverse;
+	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousTransform;
+	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousInverse;
+	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_TRANSFORMS> RestTransform;
+	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_TRANSFORMS> RestInverse;
+	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_PRIMITIVES> ElementExtent;
 	TStaticArray<uint32, PHYSICS_ASSET_MAX_PRIMITIVES> PhysicsType;
 };
 

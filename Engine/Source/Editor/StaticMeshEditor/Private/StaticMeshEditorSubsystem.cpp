@@ -1525,7 +1525,7 @@ bool UStaticMeshEditorSubsystem::HasVertexColors(UStaticMesh* StaticMesh)
 	{
 		const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LodIndex);
 		FStaticMeshConstAttributes Attributes(*MeshDescription);
-		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 		if (!VertexInstanceColors.IsValid())
 		{
 			continue;

@@ -224,7 +224,7 @@ END_SHADER_PARAMETER_STRUCT();
 
 // Set of common shader parameters shared by all subsurface shaders.
 BEGIN_SHADER_PARAMETER_STRUCT(FSubsurfaceParameters, )
-	SHADER_PARAMETER(FVector4, SubsurfaceParams)
+	SHADER_PARAMETER(FVector4f, SubsurfaceParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
@@ -239,7 +239,7 @@ FSubsurfaceParameters GetSubsurfaceCommonParameters(FRDGBuilder& GraphBuilder, c
 	const float SSSOverrideNumSamples = float(CVarSSSBurleyNumSamplesOverride.GetValueOnRenderThread());
 
 	FSubsurfaceParameters Parameters;
-	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, 0);
+	Parameters.SubsurfaceParams = FVector4f(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, 0);
 	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters.SceneTextures = SceneTextures;
 	Parameters.SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();

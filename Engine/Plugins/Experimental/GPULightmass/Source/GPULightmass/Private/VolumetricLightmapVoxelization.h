@@ -15,8 +15,8 @@
 #include "MeshPassProcessor.inl"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVLMVoxelizationParams, )
-	SHADER_PARAMETER(FVector4, VolumeCenter)
-	SHADER_PARAMETER(FVector4, VolumeExtent)
+	SHADER_PARAMETER(FVector4f, VolumeCenter)
+	SHADER_PARAMETER(FVector4f, VolumeExtent)
 	SHADER_PARAMETER(int32, VolumeMaxDim)
 	SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
 	SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)

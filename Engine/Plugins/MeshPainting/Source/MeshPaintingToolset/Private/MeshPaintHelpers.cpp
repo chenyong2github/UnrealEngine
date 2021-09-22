@@ -109,7 +109,7 @@ bool UMeshPaintingSubsystem::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, i
 		int32 NumWedges = MeshDescription->VertexInstances().Num();
 		if (RenderModel.WedgeMap.Num() == NumWedges)
 		{
-			TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
+			TVertexInstanceAttributesRef<FVector4f> Colors = Attributes.GetVertexInstanceColors();
 			int32 VertexInstanceIndex = 0;
 			for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
@@ -139,7 +139,7 @@ bool UMeshPaintingSubsystem::PropagateColorsToRawMesh(UStaticMesh* StaticMesh, i
 
 		// Fall back to mapping based on position.
 		TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
-		TVertexInstanceAttributesRef<FVector4> Colors = Attributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesRef<FVector4f> Colors = Attributes.GetVertexInstanceColors();
 		TArray<FColor> NewVertexColors;
 		FPositionVertexBuffer TempPositionVertexBuffer;
 		int32 NumVertex = MeshDescription->Vertices().Num();

@@ -217,7 +217,7 @@ void FMeshDescriptionBuilder::SetNumUVLayers(int32 NumUVLayers)
 }
 
 
-void FMeshDescriptionBuilder::SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color)
+void FMeshDescriptionBuilder::SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4f& Color)
 {
 	if (InstanceColors.IsValid())
 	{

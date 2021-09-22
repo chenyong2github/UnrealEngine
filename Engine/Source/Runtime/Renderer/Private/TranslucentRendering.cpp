@@ -715,7 +715,7 @@ void SetupDownsampledTranslucencyViewParameters(
 	// instead of using the expected ratio, use the actual dimensions to avoid rounding errors
 	float ActualDownsampleX = float(ViewRect.Width()) / float(View.ViewRect.Width());
 	float ActualDownsampleY = float(ViewRect.Height()) / float(View.ViewRect.Height());
-	DownsampledTranslucencyViewParameters.LightProbeSizeRatioAndInvSizeRatio = FVector4(ActualDownsampleX, ActualDownsampleY, 1.0f / ActualDownsampleX, 1.0f / ActualDownsampleY);
+	DownsampledTranslucencyViewParameters.LightProbeSizeRatioAndInvSizeRatio = FVector4f(ActualDownsampleX, ActualDownsampleY, 1.0f / ActualDownsampleX, 1.0f / ActualDownsampleY);
 }
 
 TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBasePassUniformBuffer(
@@ -778,7 +778,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
 			);
-			const FVector4 HZBUvFactorAndInvFactorValue(
+			const FVector4f HZBUvFactorAndInvFactorValue(
 				HZBUvFactor.X,
 				HZBUvFactor.Y,
 				1.0f / HZBUvFactor.X,
@@ -853,7 +853,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 
 		FVector2D InvBufferSize(1.0f / float(EffectiveBufferSize.X), 1.0f / float(EffectiveBufferSize.Y));
 
-		FVector4 ScreenPosToPixelValue(
+		FVector4f ScreenPosToPixelValue(
 			ViewportExtent.X * 0.5f * InvBufferSize.X,
 			-ViewportExtent.Y * 0.5f * InvBufferSize.Y,
 			(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,

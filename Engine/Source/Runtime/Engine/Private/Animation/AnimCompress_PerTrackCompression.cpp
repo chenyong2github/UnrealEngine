@@ -123,7 +123,7 @@ protected:
 		const int32 NumKeys = TranslationData.PosKeys.Num();
 
 		// Determine the bounds
-		const FBox KeyBounds(TranslationData.PosKeys.GetData(), NumKeys);
+		const FBox3f KeyBounds(TranslationData.PosKeys.GetData(), NumKeys);
 		const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.X) >= ZeroingThreshold);
 		const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Y) >= ZeroingThreshold);
 		const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Z) >= ZeroingThreshold);
@@ -180,7 +180,7 @@ protected:
 		const int32 NumKeys = TranslationData.PosKeys.Num();
 
 		// Determine the bounds
-		const FBox KeyBounds(TranslationData.PosKeys.GetData(), NumKeys);
+		const FBox3f KeyBounds(TranslationData.PosKeys.GetData(), NumKeys);
 		const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.X) >= ZeroingThreshold);
 		const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Y) >= ZeroingThreshold);
 		const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Z) >= ZeroingThreshold);
@@ -226,7 +226,7 @@ protected:
 		const int32 NumKeys = TranslationData.PosKeys.Num();
 
 		// Determine the bounds
-		const FBox KeyBounds(TranslationData.PosKeys.GetData(), NumKeys);
+		const FBox3f KeyBounds(TranslationData.PosKeys.GetData(), NumKeys);
 		const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.X) >= ZeroingThreshold);
 		const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Y) >= ZeroingThreshold);
 		const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Z) >= ZeroingThreshold);
@@ -605,7 +605,7 @@ protected:
 		const int32 NumKeys = ScaleData.ScaleKeys.Num();
 
 		// Determine the bounds
-		const FBox KeyBounds(ScaleData.ScaleKeys.GetData(), NumKeys);
+		const FBox3f KeyBounds(ScaleData.ScaleKeys.GetData(), NumKeys);
 		const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.X) >= ZeroingThreshold);
 		const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Y) >= ZeroingThreshold);
 		const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Z) >= ZeroingThreshold);
@@ -662,7 +662,7 @@ protected:
 		const int32 NumKeys = ScaleData.ScaleKeys.Num();
 
 		// Determine the bounds
-		const FBox KeyBounds(ScaleData.ScaleKeys.GetData(), NumKeys);
+		const FBox3f KeyBounds(ScaleData.ScaleKeys.GetData(), NumKeys);
 		const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.X) >= ZeroingThreshold);
 		const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Y) >= ZeroingThreshold);
 		const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Z) >= ZeroingThreshold);
@@ -708,7 +708,7 @@ protected:
 		const int32 NumKeys = ScaleData.ScaleKeys.Num();
 
 		// Determine the bounds
-		const FBox KeyBounds(ScaleData.ScaleKeys.GetData(), NumKeys);
+		const FBox3f KeyBounds(ScaleData.ScaleKeys.GetData(), NumKeys);
 		const bool bHasX = (FMath::Abs(KeyBounds.Max.X) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.X) >= ZeroingThreshold);
 		const bool bHasY = (FMath::Abs(KeyBounds.Max.Y) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Y) >= ZeroingThreshold);
 		const bool bHasZ = (FMath::Abs(KeyBounds.Max.Z) >= ZeroingThreshold) || (FMath::Abs(KeyBounds.Min.Z) >= ZeroingThreshold);

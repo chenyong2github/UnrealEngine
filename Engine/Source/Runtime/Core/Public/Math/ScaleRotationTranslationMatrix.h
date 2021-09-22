@@ -94,4 +94,7 @@ FORCEINLINE TScaleRotationTranslationMatrix<T>::TScaleRotationTranslationMatrix(
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(ScaleRotationTranslationMatrix, 44);
+UE_DECLARE_LWC_TYPE(ScaleRotationTranslationMatrix, 44);
+
+template<> struct TIsUECoreVariant<FScaleRotationTranslationMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FScaleRotationTranslationMatrix44d> { enum { Value = true }; };

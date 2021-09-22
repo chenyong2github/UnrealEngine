@@ -225,7 +225,7 @@ FRDGBufferRef SetupVisualizeReflectionTraces(FRDGBuilder& GraphBuilder, FLumenRe
 
 	if (!VisualizeTracesData || VisualizeTracesData->Desc.NumElements != VisualizeBufferNumElements)
 	{
-		VisualizeTracesData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), VisualizeBufferNumElements), TEXT("VisualizeTracesData"));
+		VisualizeTracesData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), VisualizeBufferNumElements), TEXT("VisualizeTracesData"));
 	}
 
 	VisualizeTracesParameters.VisualizeTraceCoherency = 0;
@@ -432,8 +432,8 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(float,HistoryWeight)
 		SHADER_PARAMETER(float,PrevInvPreExposure)
 		SHADER_PARAMETER(FVector2D,InvDiffuseIndirectBufferSize)
-		SHADER_PARAMETER(FVector4,HistoryScreenPositionScaleBias)
-		SHADER_PARAMETER(FVector4,HistoryUVMinMax)
+		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
@@ -684,7 +684,7 @@ void UpdateHistoryReflections(
 		TRefCountPtr<IPooledRenderTarget>* SpecularIndirectHistoryState = &ReflectionTemporalState.SpecularIndirectHistoryRT;
 		TRefCountPtr<IPooledRenderTarget>* ResolveVarianceHistoryState = &ReflectionTemporalState.ResolveVarianceHistoryRT;
 		FIntRect* HistoryViewRect = &ReflectionTemporalState.HistoryViewRect;
-		FVector4* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
+		FVector4f* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
 
 		FRDGTextureRef OldDepthHistory = View.PrevViewInfo.DepthBuffer ? GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer) : SceneTextures.Depth.Target;
 
@@ -707,7 +707,7 @@ void UpdateHistoryReflections(
 			PassParameters->HistoryScreenPositionScaleBias = *HistoryScreenPositionScaleBias;
 
 			// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
-			PassParameters->HistoryUVMinMax = FVector4(
+			PassParameters->HistoryUVMinMax = FVector4f(
 				(HistoryViewRect->Min.X + 0.5f) * InvBufferSize.X,
 				(HistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
 				(HistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,

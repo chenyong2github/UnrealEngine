@@ -71,4 +71,7 @@ FORCEINLINE T TClipProjectionMatrix<T>::sgn(T a)
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(ClipProjectionMatrix, 44);
+UE_DECLARE_LWC_TYPE(ClipProjectionMatrix, 44);
+
+template<> struct TIsUECoreVariant<FClipProjectionMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FClipProjectionMatrix44d> { enum { Value = true }; };

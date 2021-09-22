@@ -10,24 +10,32 @@
  *
  * A capsule consists of two sphere connected by a cylinder.
  */
-struct FCapsuleShape
+namespace UE
 {
+namespace Math
+{
+
+template<typename T>
+struct TCapsuleShape
+{
+	using FReal = T;
+
 	/** The capsule's center point. */
-	FVector3f Center;						// LWC_TODO: Precision loss. This (and Orientation) should be FVector but is memcopied to an RHI buffer. See CapsuleShadowRendering.cpp:705
+	TVector<T> Center;
 
 	/** The capsule's radius. */
-	float Radius;
+	T Radius;
 
 	/** The capsule's orientation in space. */
-	FVector3f Orientation;
+	TVector<T> Orientation;
 
 	/** The capsule's length. */
-	float Length;
+	T Length;
 
 public:
 
 	/** Default constructor. */
-	FCapsuleShape() { }
+	TCapsuleShape() { }
 
 	/**
 	 * Create and inintialize a new instance.
@@ -37,10 +45,22 @@ public:
 	 * @param InOrientation The capsule's orientation in space.
 	 * @param InLength The capsule's length.
 	 */
-	FCapsuleShape(FVector InCenter, float InRadius, FVector InOrientation, float InLength)
+	TCapsuleShape(TVector<T> InCenter, T InRadius, TVector<T> InOrientation, T InLength)
 		: Center(InCenter)
 		, Radius(InRadius)
 		, Orientation(InOrientation)
 		, Length(InLength)
 	{ }
+
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TCapsuleShape(const TCapsuleShape<FArg>& From) : TCapsuleShape<T>(TVector<T>(From.Center), (T)From.Radius, TVector<T>(From.Orientation), (T)From.Length) {}
 };
+
+}	// namespace UE::Math
+}	// namespace UE
+
+UE_DECLARE_LWC_TYPE(CapsuleShape, 3);
+
+template<> struct TIsUECoreVariant<FCapsuleShape3f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FCapsuleShape3d> { enum { Value = true }; };

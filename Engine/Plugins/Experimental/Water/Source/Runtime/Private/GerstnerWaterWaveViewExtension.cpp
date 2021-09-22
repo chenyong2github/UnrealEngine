@@ -41,8 +41,8 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 {
 	if (bRebuildGPUData)
 	{
-		TResourceArray<FVector4> WaterIndirectionBuffer;
-		TResourceArray<FVector4> WaterDataBuffer;
+		TResourceArray<FVector4f> WaterIndirectionBuffer;
+		TResourceArray<FVector4f> WaterDataBuffer;
 
 		const TWeakObjectPtr<UWorld> WorldPtr = GetWorld();
 		check(WorldPtr.IsValid())
@@ -74,7 +74,7 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 					// Y: Num waves
 					// Z: TargetWaveMaskDepth
 					// W: Unused
-					FVector4& Header = WaterIndirectionBuffer.Last();
+					FVector4f& Header = WaterIndirectionBuffer.Last();
 					Header.X = DataBaseIndex;
 					Header.Y = NumWaves;
 					Header.Z = WaterBodyComponent->TargetWaveMaskDepth;
@@ -86,8 +86,8 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 
 						const int32 WaveIndex = DataBaseIndex + (i * NumFloat4PerWave);
 
-						WaterDataBuffer[WaveIndex] = FVector4(Wave.Direction.X, Wave.Direction.Y, Wave.WaveLength, Wave.Amplitude);
-						WaterDataBuffer[WaveIndex + 1] = FVector4(Wave.Steepness, 0.0f, 0.0f, 0.0f);
+						WaterDataBuffer[WaveIndex] = FVector4f(Wave.Direction.X, Wave.Direction.Y, Wave.WaveLength, Wave.Amplitude);
+						WaterDataBuffer[WaveIndex + 1] = FVector4f(Wave.Steepness, 0.0f, 0.0f, 0.0f);
 					}
 				}
 			}
@@ -109,12 +109,12 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 			[WaveGPUData=WaveGPUData, WaterDataBuffer, WaterIndirectionBuffer](FRHICommandListImmediate& RHICmdList) mutable
 			{
 				FRHIResourceCreateInfo CreateInfoData(TEXT("WaterDataBuffer"), &WaterDataBuffer);
-				WaveGPUData->DataBuffer = RHICreateBuffer(WaterDataBuffer.GetResourceDataSize(), BUF_VertexBuffer | BUF_ShaderResource | BUF_Static, sizeof(FVector4), ERHIAccess::SRVMask, CreateInfoData);
-				WaveGPUData->DataSRV = RHICreateShaderResourceView(WaveGPUData->DataBuffer, sizeof(FVector4), PF_A32B32G32R32F);
+				WaveGPUData->DataBuffer = RHICreateBuffer(WaterDataBuffer.GetResourceDataSize(), BUF_VertexBuffer | BUF_ShaderResource | BUF_Static, sizeof(FVector4f), ERHIAccess::SRVMask, CreateInfoData);
+				WaveGPUData->DataSRV = RHICreateShaderResourceView(WaveGPUData->DataBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
 
 				FRHIResourceCreateInfo CreateInfoIndirection(TEXT("WaterIndirectionBuffer"), &WaterIndirectionBuffer);
-				WaveGPUData->IndirectionBuffer = RHICreateBuffer(WaterIndirectionBuffer.GetResourceDataSize(), BUF_VertexBuffer | BUF_ShaderResource | BUF_Static, sizeof(FVector4), ERHIAccess::SRVMask, CreateInfoIndirection);
-				WaveGPUData->IndirectionSRV = RHICreateShaderResourceView(WaveGPUData->IndirectionBuffer, sizeof(FVector4), PF_A32B32G32R32F);
+				WaveGPUData->IndirectionBuffer = RHICreateBuffer(WaterIndirectionBuffer.GetResourceDataSize(), BUF_VertexBuffer | BUF_ShaderResource | BUF_Static, sizeof(FVector4f), ERHIAccess::SRVMask, CreateInfoIndirection);
+				WaveGPUData->IndirectionSRV = RHICreateShaderResourceView(WaveGPUData->IndirectionBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
 			}
 		);
 

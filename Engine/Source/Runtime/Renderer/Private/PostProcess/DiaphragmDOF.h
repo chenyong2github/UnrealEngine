@@ -23,7 +23,7 @@ namespace DiaphragmDOF
 bool IsEnabled(const FViewInfo& View);
 
 float ComputeFocalLengthFromFov(const FSceneView& View);
-FVector4 CircleDofHalfCoc(const FViewInfo& View);
+FVector4f CircleDofHalfCoc(const FViewInfo& View);
 
 /** Physically based circle of confusion computation model. */
 struct FPhysicalCocModel

@@ -506,7 +506,7 @@ class FStrataMaterialStencilTaggingPassPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(Strata::FStrataTilePassVS::FParameters, VS)
-		SHADER_PARAMETER(FVector4, DebugTileColor)
+		SHADER_PARAMETER(FVector4f, DebugTileColor)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -562,7 +562,7 @@ static void AddStrataInternalClassificationTilePass(
 
 	EPrimitiveType StrataTilePrimitiveType = PT_TriangleList;
 	const FIntPoint OutputResolution = View.ViewRect.Size();
-	FVector4 OutputResolutionAndInv = FVector4(OutputResolution.X, OutputResolution.Y, 1.0f / float(OutputResolution.X), 1.0f / float(OutputResolution.Y));
+	FVector4f OutputResolutionAndInv = FVector4f(OutputResolution.X, OutputResolution.Y, 1.0f / float(OutputResolution.X), 1.0f / float(OutputResolution.Y));
 
 	FStrataMaterialStencilTaggingPassPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FStrataMaterialStencilTaggingPassPS::FParameters>();
 	FillUpTiledPassData(TileMaterialType, View, ParametersPS->VS, StrataTilePrimitiveType);
@@ -581,10 +581,10 @@ static void AddStrataInternalClassificationTilePass(
 		switch (TileMaterialType)
 		{
 		case EStrataTileMaterialType::ESimple:
-			ParametersPS->DebugTileColor = FVector4(0.0f, 1.0f, 0.0f, 1.0);
+			ParametersPS->DebugTileColor = FVector4f(0.0f, 1.0f, 0.0f, 1.0);
 			break;
 		case EStrataTileMaterialType::EComplex:
-			ParametersPS->DebugTileColor = FVector4(1.0f, 0.0f, 0.0f, 1.0);
+			ParametersPS->DebugTileColor = FVector4f(1.0f, 0.0f, 0.0f, 1.0);
 			break;
 		default:
 			check(false);
@@ -598,7 +598,7 @@ static void AddStrataInternalClassificationTilePass(
 			ERenderTargetLoadAction::ELoad,
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthNop_StencilWrite);
-		ParametersPS->DebugTileColor = FVector4(ForceInitToZero);
+		ParametersPS->DebugTileColor = FVector4f(ForceInitToZero);
 	}
 	
 	GraphBuilder.AddPass(

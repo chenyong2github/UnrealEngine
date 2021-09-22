@@ -69,4 +69,7 @@ FORCEINLINE TScaleMatrix<T>::TScaleMatrix( const TVector<T>& Scale )
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(ScaleMatrix, 44);
+UE_DECLARE_LWC_TYPE(ScaleMatrix, 44);
+
+template<> struct TIsUECoreVariant<FScaleMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FScaleMatrix44d> { enum { Value = true }; };

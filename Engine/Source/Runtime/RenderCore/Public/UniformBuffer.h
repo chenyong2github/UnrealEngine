@@ -27,6 +27,8 @@ TUniformBufferRef<TBufferStruct> CreateUniformBufferImmediate(const TBufferStruc
 template<typename TBufferStruct>
 class TUniformBuffer : public FRenderResource
 {
+	static_assert(!TIsUECoreVariant<TBufferStruct, double>::Value, "UniformBufferRHIRef cannot be double core variants! Switch to float variant.");
+
 public:
 
 	TUniformBuffer()

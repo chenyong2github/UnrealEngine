@@ -34,7 +34,7 @@ public:
 #endif
 	//FNiagaraInterface END
 
-	FORCEINLINE void AddDynamicParam(TArray<FNiagaraRibbonVertexDynamicParameter>& ParamData, const FVector4& DynamicParam);
+	FORCEINLINE void AddDynamicParam(TArray<FNiagaraRibbonVertexDynamicParameter>& ParamData, const FVector4f& DynamicParam);
 protected:
 	struct FRibbonRenderingIndexOffsets
 	{

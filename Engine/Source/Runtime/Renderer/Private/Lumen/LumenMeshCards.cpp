@@ -150,7 +150,7 @@ class FLumenCardGPUData
 public:
 	// Must match usf
 	enum { DataStrideInFloat4s = 7 };
-	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4) };
+	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4f) };
 
 	static void PackSurfaceMipMap(const FLumenCard& Card, int32 ResLevel, uint32& PackedSizeInPages, uint32& PackedPageTableOffset)
 	{
@@ -169,13 +169,13 @@ public:
 		}
 	}
 
-	static void FillData(const class FLumenCard& RESTRICT Card, FVector4* RESTRICT OutData)
+	static void FillData(const class FLumenCard& RESTRICT Card, FVector4f* RESTRICT OutData)
 	{
 		// Note: layout must match GetLumenCardData in usf
 
-		OutData[0] = FVector4(Card.WorldOBB.AxisX[0], Card.WorldOBB.AxisY[0], Card.WorldOBB.AxisZ[0], Card.WorldOBB.Origin.X);
-		OutData[1] = FVector4(Card.WorldOBB.AxisX[1], Card.WorldOBB.AxisY[1], Card.WorldOBB.AxisZ[1], Card.WorldOBB.Origin.Y);
-		OutData[2] = FVector4(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Card.WorldOBB.Origin.Z);
+		OutData[0] = FVector4f(Card.WorldOBB.AxisX[0], Card.WorldOBB.AxisY[0], Card.WorldOBB.AxisZ[0], Card.WorldOBB.Origin.X);
+		OutData[1] = FVector4f(Card.WorldOBB.AxisX[1], Card.WorldOBB.AxisY[1], Card.WorldOBB.AxisZ[1], Card.WorldOBB.Origin.Y);
+		OutData[2] = FVector4f(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Card.WorldOBB.Origin.Z);
 
 		const FIntPoint ResLevelBias = Card.ResLevelToResLevelXYBias();
 		uint32 Packed3W = 0;
@@ -183,7 +183,7 @@ public:
 		Packed3W |= (uint8(ResLevelBias.Y) & 0xFF) << 8;
 		Packed3W |= Card.bVisible && Card.IsAllocated() ? (1 << 16) : 0;
 
-		OutData[3] = FVector4(Card.WorldOBB.Extent.X, Card.WorldOBB.Extent.Y, Card.WorldOBB.Extent.Z, 0.0f);
+		OutData[3] = FVector4f(Card.WorldOBB.Extent.X, Card.WorldOBB.Extent.Y, Card.WorldOBB.Extent.Z, 0.0f);
 		OutData[3].W = *((float*)&Packed3W);
 
 		// Map low-res level for diffuse
@@ -204,8 +204,8 @@ public:
 		FVector3f MeshCardsBoundsCenter = Card.LocalOBB.Origin;
 		FVector3f MeshCardsBoundsExtent = Card.LocalOBB.RotateCardToLocal(Card.LocalOBB.Extent).GetAbs();
 
-		OutData[5] = FVector4(MeshCardsBoundsCenter.X, MeshCardsBoundsCenter.Y, MeshCardsBoundsCenter.Z, 0.0f);
-		OutData[6] = FVector4(MeshCardsBoundsExtent.X, MeshCardsBoundsExtent.Y, MeshCardsBoundsExtent.Z, 0.0f);
+		OutData[5] = FVector4f(MeshCardsBoundsCenter.X, MeshCardsBoundsCenter.Y, MeshCardsBoundsCenter.Z, 0.0f);
+		OutData[6] = FVector4f(MeshCardsBoundsExtent.X, MeshCardsBoundsExtent.Y, MeshCardsBoundsExtent.Z, 0.0f);
 
 		static_assert(DataStrideInFloat4s == 7, "Data stride doesn't match");
 	}
@@ -217,10 +217,10 @@ struct FLumenMeshCardsGPUData
 	enum { DataStrideInFloat4s = 8 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * 16 };
 
-	static void FillData(const class FLumenMeshCards& RESTRICT MeshCards, FVector4* RESTRICT OutData);
+	static void FillData(const class FLumenMeshCards& RESTRICT MeshCards, FVector4f* RESTRICT OutData);
 };
 
-void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards, FVector4* RESTRICT OutData)
+void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards, FVector4f* RESTRICT OutData)
 {
 	// Note: layout must match GetLumenMeshCardsData in usf
 
@@ -228,26 +228,26 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	const FMatrix44f TransposedLocalToWorld = MeshCards.LocalToWorld.GetTransposed();
 	const FMatrix44f TransposedWorldToLocal = WorldToLocal.GetTransposed();
 
-	OutData[0] = *(FVector4*)&TransposedLocalToWorld.M[0];
-	OutData[1] = *(FVector4*)&TransposedLocalToWorld.M[1];
-	OutData[2] = *(FVector4*)&TransposedLocalToWorld.M[2];
+	OutData[0] = *(FVector4f*)&TransposedLocalToWorld.M[0];
+	OutData[1] = *(FVector4f*)&TransposedLocalToWorld.M[1];
+	OutData[2] = *(FVector4f*)&TransposedLocalToWorld.M[2];
 
-	OutData[3] = *(FVector4*)&TransposedWorldToLocal.M[0];
-	OutData[4] = *(FVector4*)&TransposedWorldToLocal.M[1];
-	OutData[5] = *(FVector4*)&TransposedWorldToLocal.M[2];
+	OutData[3] = *(FVector4f*)&TransposedWorldToLocal.M[0];
+	OutData[4] = *(FVector4f*)&TransposedWorldToLocal.M[1];
+	OutData[5] = *(FVector4f*)&TransposedWorldToLocal.M[2];
 
 	uint32 PackedData[4];
 	PackedData[0] = MeshCards.FirstCardIndex;
 	PackedData[1] = MeshCards.NumCards;
 	PackedData[2] = MeshCards.CardLookup[0];
 	PackedData[3] = MeshCards.CardLookup[1];
-	OutData[6] = *(FVector4*)&PackedData;
+	OutData[6] = *(FVector4f*)&PackedData;
 
 	PackedData[0] = MeshCards.CardLookup[2];
 	PackedData[1] = MeshCards.CardLookup[3];
 	PackedData[2] = MeshCards.CardLookup[4];
 	PackedData[3] = MeshCards.CardLookup[5];
-	OutData[7] = *(FVector4*)&PackedData;
+	OutData[7] = *(FVector4f*)&PackedData;
 
 	static_assert(DataStrideInFloat4s == 8, "Data stride doesn't match");
 }
@@ -268,8 +268,8 @@ void Lumen::UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FS
 		{
 			const int32 NumCardEntries = LumenSceneData.Cards.Num();
 			const uint32 CardSceneNumFloat4s = NumCardEntries * FLumenCardGPUData::DataStrideInFloat4s;
-			const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4);
-			bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4), TEXT("Lumen.Cards"));
+			const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4f);
+			bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4f), TEXT("Lumen.Cards"));
 		}
 
 		if (GLumenSceneUploadEveryFrame)
@@ -296,7 +296,7 @@ void Lumen::UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FS
 				{
 					const FLumenCard& Card = LumenSceneData.Cards.IsAllocated(Index) ? LumenSceneData.Cards[Index] : NullCard;
 
-					FVector4* Data = (FVector4*)LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FVector4f* Data = (FVector4f*)LumenSceneData.UploadBuffer.Add_GetRef(Index);
 					FLumenCardGPUData::FillData(Card, Data);
 				}
 			}
@@ -356,7 +356,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 
 		const uint32 NumMeshCards = LumenSceneData.MeshCards.Num();
 		const uint32 MeshCardsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumMeshCards * FLumenMeshCardsGPUData::DataStrideInFloat4s);
-		const uint32 MeshCardsNumBytes = MeshCardsNumFloat4s * sizeof(FVector4);
+		const uint32 MeshCardsNumBytes = MeshCardsNumFloat4s * sizeof(FVector4f);
 		const bool bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.MeshCardsBuffer, MeshCardsNumBytes, TEXT("Lumen.MeshCards"));
 
 		const int32 NumMeshCardsUploads = LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Num();
@@ -373,7 +373,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 				{
 					const FLumenMeshCards& MeshCards = LumenSceneData.MeshCards.IsAllocated(Index) ? LumenSceneData.MeshCards[Index] : NullMeshCards;
 
-					FVector4* Data = (FVector4*) LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FVector4f* Data = (FVector4f*) LumenSceneData.UploadBuffer.Add_GetRef(Index);
 					FLumenMeshCardsGPUData::FillData(MeshCards, Data);
 				}
 			}

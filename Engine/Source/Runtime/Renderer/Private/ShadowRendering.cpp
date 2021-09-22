@@ -202,24 +202,24 @@ public:
 	virtual void InitRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyWholeSceneDirectionalShadowStencilVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4) * 12, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FVector4* DummyContents = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 12, RLM_WriteOnly);
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * 12, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 12, RLM_WriteOnly);
 
 		// Far Plane
-		DummyContents[0] = FVector4( 1,  1,  1 /* StencilFar */);
-		DummyContents[1] = FVector4(-1,  1,  1);
-		DummyContents[2] = FVector4( 1, -1,  1);
-		DummyContents[3] = FVector4( 1, -1,  1);
-		DummyContents[4] = FVector4(-1,  1,  1);
-		DummyContents[5] = FVector4(-1, -1,  1);
+		DummyContents[0] = FVector4f( 1,  1,  1 /* StencilFar */);
+		DummyContents[1] = FVector4f(-1,  1,  1);
+		DummyContents[2] = FVector4f( 1, -1,  1);
+		DummyContents[3] = FVector4f( 1, -1,  1);
+		DummyContents[4] = FVector4f(-1,  1,  1);
+		DummyContents[5] = FVector4f(-1, -1,  1);
 
 		// Near Plane
-		DummyContents[6]  = FVector4(-1,  1, -1 /* StencilNear */);
-		DummyContents[7]  = FVector4( 1,  1, -1);
-		DummyContents[8]  = FVector4(-1, -1, -1);
-		DummyContents[9]  = FVector4(-1, -1, -1);
-		DummyContents[10] = FVector4( 1,  1, -1);
-		DummyContents[11] = FVector4( 1, -1, -1);
+		DummyContents[6]  = FVector4f(-1,  1, -1 /* StencilNear */);
+		DummyContents[7]  = FVector4f( 1,  1, -1);
+		DummyContents[8]  = FVector4f(-1, -1, -1);
+		DummyContents[9]  = FVector4f(-1, -1, -1);
+		DummyContents[10] = FVector4f( 1,  1, -1);
+		DummyContents[11] = FVector4f( 1, -1, -1);
 
 		RHIUnlockBuffer(VertexBufferRHI);
 	}
@@ -312,19 +312,19 @@ void FShadowVolumeBoundProjectionVS::SetParameters(
 	}
 	else
 	{
-		StencilingGeometryParameters.Set(RHICmdList, this, FVector4(0,0,0,1));
+		StencilingGeometryParameters.Set(RHICmdList, this, FVector4f(0,0,0,1));
 	}
 
 	if ((Flags & EShadowProjectionVertexShaderFlags::DrawingFrustum) != EShadowProjectionVertexShaderFlags::None)
 	{
 		const FVector PreShadowToPreView(View.ViewMatrices.GetPreViewTranslation() - ShadowInfo->PreShadowTranslation);
 		SetShaderValue(RHICmdList, ShaderRHI, InvReceiverInnerMatrix, ShadowInfo->InvReceiverInnerMatrix);
-		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4(PreShadowToPreView, 0));
+		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4f(PreShadowToPreView, 0));
 	}
 	else
 	{
 		SetShaderValue(RHICmdList, ShaderRHI, InvReceiverInnerMatrix, FMatrix44f::Identity);
-		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4(0, 0, 0, 0));
+		SetShaderValue(RHICmdList, ShaderRHI, PreShadowToPreViewTranslation, FVector4f(0, 0, 0, 0));
 	}
 }
 
@@ -762,8 +762,8 @@ public:
 	virtual void InitRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoStencilFrustum"));
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 8, BUF_Static, CreateInfo);
-		FVector4* OutFrustumVertices = reinterpret_cast<FVector4*>(RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 8, RLM_WriteOnly));
+		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4f) * 8, BUF_Static, CreateInfo);
+		FVector4f* OutFrustumVertices = reinterpret_cast<FVector4f*>(RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 8, RLM_WriteOnly));
 		
 		for(uint32 vZ = 0;vZ < 2;vZ++)
 		{
@@ -771,7 +771,7 @@ public:
 			{
 				for(uint32 vX = 0;vX < 2;vX++)
 				{
-					OutFrustumVertices[GetCubeVertexIndex(vX,vY,vZ)] = FVector4(
+					OutFrustumVertices[GetCubeVertexIndex(vX,vY,vZ)] = FVector4f(
 						(vX ? -1.0f : 1.0f),
 						(vY ? -1.0f : 1.0f),
 						(vZ ?  1.0f : 0.0f),
@@ -785,7 +785,7 @@ public:
 };
 TGlobalResource<FFrustumVertexBuffer> GFrustumVertexBuffer;
 
-void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const
+void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4f, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const
 {
 	bOutCameraInsideShadowFrustum = true;
 
@@ -804,8 +804,8 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 			{
 				for(uint32 vX = 0;vX < 2;vX++)
 				{
-					const FVector4 UnprojectedVertex = InvReceiverInnerMatrix.TransformFVector4(
-						FVector4(
+					const FVector4f UnprojectedVertex = InvReceiverInnerMatrix.TransformFVector4(
+						FVector4f(
 							(vX ? -1.0f : 1.0f),
 							(vY ? -1.0f : 1.0f),
 							(vZ ?  1.0f : 0.0f),
@@ -813,7 +813,7 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 						)
 					);
 					const FVector ProjectedVertex = UnprojectedVertex / UnprojectedVertex.W + PreShadowToPreViewTranslation;
-					OutFrustumVertices[GetCubeVertexIndex(vX,vY,vZ)] = FVector4(ProjectedVertex, 0);
+					OutFrustumVertices[GetCubeVertexIndex(vX,vY,vZ)] = FVector4f(ProjectedVertex, 0);
 				}
 			}
 		}
@@ -875,7 +875,7 @@ class FWholeSceneDirectionalShadowStencilVS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FWholeSceneDirectionalShadowStencilVS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, ClipZValues)
+		SHADER_PARAMETER(FVector4f, ClipZValues)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FWholeSceneDirectionalShadowStencilVS, "/Engine/Private/ShadowProjectionVertexShader.usf", "WholeSceneDirectionalShadowStencilVS", SF_Vertex);
@@ -885,7 +885,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 	const FViewInfo* View, 
 	int32 ViewIndex, 
 	const FSceneRenderer* SceneRender,
-	const TArray<FVector4, TInlineAllocator<8>>& FrustumVertices,
+	const TArray<FVector4f, TInlineAllocator<8>>& FrustumVertices,
 	bool bMobileModulatedProjections, 
 	bool bCameraInsideShadowFrustum,
 	const FInstanceCullingDrawParams& InstanceCullingDrawParams) const
@@ -947,8 +947,8 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		checkSlow(bDirectionalLight);
 
 		// Draw 2 fullscreen planes, front facing one at the near subfrustum plane, and back facing one at the far.
-		FVector4 Near = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, CascadeSettings.SplitNear));
-		FVector4 Far = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, CascadeSettings.SplitFar));
+		FVector4f Near = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, CascadeSettings.SplitNear));
+		FVector4f Far = View->ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, CascadeSettings.SplitFar));
 		float StencilNear = Near.Z / Near.W;
 		float StencilFar = Far.Z / Far.W;
 
@@ -960,7 +960,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		FWholeSceneDirectionalShadowStencilVS::FParameters Parameters;
-		Parameters.ClipZValues = FVector4(StencilFar, StencilNear, 0, 0);
+		Parameters.ClipZValues = FVector4f(StencilFar, StencilNear, 0, 0);
 
 		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), Parameters);
 
@@ -1066,7 +1066,7 @@ void FProjectedShadowInfo::RenderProjection(
 	}
 
 	bool bCameraInsideShadowFrustum;
-	TArray<FVector4, TInlineAllocator<8>> FrustumVertices;
+	TArray<FVector4f, TInlineAllocator<8>> FrustumVertices;
 	FPlane OutPlanes[6];
 	SetupFrustumForProjection(View, FrustumVertices, bCameraInsideShadowFrustum, OutPlanes);
 
@@ -1203,7 +1203,7 @@ void FProjectedShadowInfo::RenderProjectionInternal(
 
 	FPlane OutFrustmPlanes[6];
 	bool bCameraInsideShadowFrustum;
-	TArray<FVector4, TInlineAllocator<8>> FrustumVertices;
+	TArray<FVector4f, TInlineAllocator<8>> FrustumVertices;
 	SetupFrustumForProjection(View, FrustumVertices, bCameraInsideShadowFrustum, OutFrustmPlanes);
 
 	const bool bSubPixelSupport = HairStrandsUniformBuffer != nullptr;// HairStrands::HasViewHairStrandsData(*View);
@@ -1587,7 +1587,7 @@ void FProjectedShadowInfo::RenderFrustumWireframe(FPrimitiveDrawInterface* PDI) 
 		);
 }
 
-FVector4 FProjectedShadowInfo::GetClipToShadowBufferUvScaleBias() const
+FVector4f FProjectedShadowInfo::GetClipToShadowBufferUvScaleBias() const
 {
 	const FIntPoint ShadowBufferResolution = GetShadowBufferResolution();
 	const float InvBufferResolutionX = 1.0f / (float)ShadowBufferResolution.X;
@@ -1595,7 +1595,7 @@ FVector4 FProjectedShadowInfo::GetClipToShadowBufferUvScaleBias() const
 	const float InvBufferResolutionY = 1.0f / (float)ShadowBufferResolution.Y;
 	const float ShadowResolutionFractionY = 0.5f * (float)ResolutionY * InvBufferResolutionY;
 	
-	return FVector4(ShadowResolutionFractionX,
+	return FVector4f(ShadowResolutionFractionX,
 		-ShadowResolutionFractionY,
 		(X + BorderSize) * InvBufferResolutionX + ShadowResolutionFractionX,
 		(Y + BorderSize) * InvBufferResolutionY + ShadowResolutionFractionY);
@@ -1660,7 +1660,7 @@ FMatrix FProjectedShadowInfo::GetScreenToShadowMatrix(const FSceneView& View, ui
 	return ScreenToShadow;
 }
 
-FMatrix FProjectedShadowInfo::GetWorldToShadowMatrix(FVector4& ShadowmapMinMax, const FIntPoint* ShadowBufferResolutionOverride) const
+FMatrix FProjectedShadowInfo::GetWorldToShadowMatrix(FVector4f& ShadowmapMinMax, const FIntPoint* ShadowBufferResolutionOverride) const
 {
 	FIntPoint ShadowBufferResolution = ( ShadowBufferResolutionOverride ) ? *ShadowBufferResolutionOverride : GetShadowBufferResolution();
 
@@ -1689,7 +1689,7 @@ FMatrix FProjectedShadowInfo::GetWorldToShadowMatrix(FVector4& ShadowmapMinMax, 
 			)
 		);
 
-	ShadowmapMinMax = FVector4(
+	ShadowmapMinMax = FVector4f(
 		(X + BorderSize) * InvBufferResolutionX, 
 		(Y + BorderSize) * InvBufferResolutionY,
 		(X + BorderSize * 2 + ResolutionX) * InvBufferResolutionX, 
@@ -2425,7 +2425,7 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 {
 	if (ShadowInfo)
 	{
-		FVector4 ShadowmapMinMax;
+		FVector4f ShadowmapMinMax;
 		FMatrix WorldToShadowMatrixValue = ShadowInfo->GetWorldToShadowMatrix(ShadowmapMinMax);
 
 		OutParameters.WorldToShadowMatrix = WorldToShadowMatrixValue;
@@ -2437,7 +2437,7 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 		//@todo - support fading from both views
 		const float FadeAlpha = ShadowInfo->FadeAlphas[0];
 		// Incorporate the diffuse scale of 1 / PI into the light color
-		OutParameters.DirectionalLightColor = FVector4(FVector(LightProxy->GetColor() * FadeAlpha / PI), FadeAlpha);
+		OutParameters.DirectionalLightColor = FVector4f(FVector(LightProxy->GetColor() * FadeAlpha / PI), FadeAlpha);
 
 		OutParameters.Transmission0 = ShadowInfo->RenderTargets.ColorTargets[0]->GetRenderTargetItem().ShaderResourceTexture.GetReference();
 		OutParameters.Transmission1 = ShadowInfo->RenderTargets.ColorTargets[1]->GetRenderTargetItem().ShaderResourceTexture.GetReference();
@@ -2451,7 +2451,7 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 		OutParameters.Transmission0Sampler = GBlackTexture->SamplerStateRHI;
 		OutParameters.Transmission1Sampler = GBlackTexture->SamplerStateRHI;
 		
-		OutParameters.DirectionalLightColor = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+		OutParameters.DirectionalLightColor = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 }
 

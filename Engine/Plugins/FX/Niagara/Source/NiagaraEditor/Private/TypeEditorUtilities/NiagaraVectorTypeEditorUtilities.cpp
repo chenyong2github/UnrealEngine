@@ -241,14 +241,14 @@ FString FNiagaraEditorVector3TypeUtilities::GetPinDefaultStringFromValue(const F
 	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate a default value string for an unallocated variable."));
 
 	// NOTE: We can not use ToString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0' syntax.
-	FVector Value = AllocatedVariable.GetValue<FVector3f>();
+	FVector3f Value = AllocatedVariable.GetValue<FVector3f>();
 	return FString::Printf(TEXT("%3.3f,%3.3f,%3.3f"), Value.X, Value.Y, Value.Z);
 }
 
 bool FNiagaraEditorVector3TypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	// NOTE: We can not use InitFromString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0' syntax.
-	FVector Value = FVector::ZeroVector;
+	FVector3f Value = FVector3f::ZeroVector;
 	if (FDefaultValueHelper::ParseVector(StringValue, Value) || !Variable.IsDataAllocated())
 	{
 		Variable.SetValue<FVector3f>((FVector3f)Value);
@@ -264,7 +264,7 @@ FText FNiagaraEditorVector3TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 
 FText FNiagaraEditorVector3TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
 {
-	FVector Value = Variable.GetValue<FVector3f>();
+	FVector3f Value = Variable.GetValue<FVector3f>();
 	return FText::Format(FText::FromString("({0}, {1}, {2})"), Value.X, Value.Y, Value.Z);
 }
 
@@ -284,13 +284,13 @@ public:
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
 	{
 		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec4Struct(), TEXT("Struct type not supported."));
-		VectorValue = *((FVector4*)Struct->GetStructMemory());
+		VectorValue = *((FVector4f*)Struct->GetStructMemory());
 	}
 
 	virtual void UpdateStructFromInternalValue(TSharedRef<FStructOnScope> Struct) override
 	{
 		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec4Struct(), TEXT("Struct type not supported."));
-		*((FVector4*)Struct->GetStructMemory()) = VectorValue;
+		*((FVector4f*)Struct->GetStructMemory()) = VectorValue;
 	}
 
 protected:
@@ -305,7 +305,7 @@ protected:
 	}
 
 private:
-	FVector4 VectorValue;
+	FVector4f VectorValue;
 };
 
 TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector4TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
@@ -322,17 +322,17 @@ FString FNiagaraEditorVector4TypeUtilities::GetPinDefaultStringFromValue(const F
 {
 	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate a default value string for an unallocated variable."));
 	// NOTE: We can not use ToString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0,W=0' syntax.
-	FVector4 Value = AllocatedVariable.GetValue<FVector4>();
+	FVector4f Value = AllocatedVariable.GetValue<FVector4f>();
 	return FString::Printf(TEXT("%3.3f,%3.3f,%3.3f,%3.3f"), Value.X, Value.Y, Value.Z, Value.W);
 }
 
 bool FNiagaraEditorVector4TypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	// NOTE: We can not use InitFromString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0,W=0' syntax.
-	FVector4 Value(0, 0, 0, 0);
+	FVector4f Value(0, 0, 0, 0);
 	if (FDefaultValueHelper::ParseVector4(StringValue, Value) || !Variable.IsDataAllocated())
 	{
-		Variable.SetValue<FVector4>(Value);
+		Variable.SetValue<FVector4f>(Value);
 		return true;
 	}
 	return false;
@@ -346,7 +346,7 @@ FText FNiagaraEditorVector4TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 
 FText FNiagaraEditorVector4TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
 {
-	FVector4 Value = Variable.GetValue<FVector4>();
+	FVector4f Value = Variable.GetValue<FVector4f>();
 	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);
 }
 
@@ -440,7 +440,7 @@ FString FNiagaraEditorQuatTypeUtilities::GetPinDefaultStringFromValue(const FNia
 bool FNiagaraEditorQuatTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
 	// NOTE: We can not use InitFromString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0,W=0' syntax.
-	FVector4 Value(0, 0, 0, 0);
+	FVector4f Value(0, 0, 0, 0);
 	if (FDefaultValueHelper::ParseVector4(StringValue, Value) || !Variable.IsDataAllocated())
 	{
 		FQuat4f Quat(Value.X, Value.Y, Value.Z, Value.W);

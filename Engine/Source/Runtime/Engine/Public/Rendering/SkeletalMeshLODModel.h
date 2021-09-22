@@ -30,7 +30,7 @@ struct FSoftSkinVertex
 	// Binormal, V-direction
 	FVector3f			TangentY;
 	// Normal
-	FVector4		TangentZ;
+	FVector4f			TangentZ;
 
 	// UVs
 	FVector2D		UVs[MAX_TEXCOORDS];

@@ -74,14 +74,14 @@ static bool HasDeepShadowData(const FLightSceneInfo* LightSceneInfo, const FHair
 	return false;
 }
 
-FVector4 ComputeDeepShadowLayerDepths(float LayerDistribution)
+FVector4f ComputeDeepShadowLayerDepths(float LayerDistribution)
 {
 	// LayerDistribution in [0..1]
 	// Exponent in [1 .. 6.2]
 	// Default LayerDistribution is 0.5, which is mapped onto exponent=3.1, making the last layer at depth 0.5f in clip space
 	// Within this range the last layer's depth goes from 1 to 0.25 in clip space (prior to inverse Z)
 	const float Exponent = FMath::Clamp(LayerDistribution, 0.f, 1.f) * 5.2f + 1;
-	FVector4 Depths;
+	FVector4f Depths;
 	Depths.X = FMath::Pow(0.2f, Exponent);
 	Depths.Y = FMath::Pow(0.4f, Exponent);
 	Depths.Z = FMath::Pow(0.6f, Exponent);
@@ -92,7 +92,7 @@ FVector4 ComputeDeepShadowLayerDepths(float LayerDistribution)
 struct FHairStrandsTransmittanceLightParams
 {
 	FVector LightDirection = FVector::ZeroVector;
-	FVector4 LightPosition = FVector4(0, 0, 0, 0);
+	FVector4f LightPosition = FVector4f(0, 0, 0, 0);
 	uint32 LightChannelMask = 0;
 	float LightRadius = 0;
 };
@@ -186,7 +186,7 @@ class FHairStrandsVoxelTransmittanceMaskCS : public FGlobalShader
 
 		SHADER_PARAMETER(float, LightRadius)
 		SHADER_PARAMETER(FVector3f, LightDirection)
-		SHADER_PARAMETER(FVector4, LightPosition)
+		SHADER_PARAMETER(FVector4f, LightPosition)
 		SHADER_PARAMETER(uint32, LightChannelMask)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ShadowMaskBitsTexture)
@@ -301,9 +301,9 @@ class FHairStrandsDeepShadowTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, DeepShadow_Resolution)
 		SHADER_PARAMETER(float, LightRadius)
 		SHADER_PARAMETER(FVector3f, LightDirection)
-		SHADER_PARAMETER(FVector4, LightPosition)
+		SHADER_PARAMETER(FVector4f, LightPosition)
 		SHADER_PARAMETER(uint32, LightChannelMask)
-		SHADER_PARAMETER(FVector4, DeepShadow_LayerDepths)
+		SHADER_PARAMETER(FVector4f, DeepShadow_LayerDepths)
 		SHADER_PARAMETER(float, DeepShadow_DepthBiasScale)
 		SHADER_PARAMETER(float, DeepShadow_DensityScale)
 		SHADER_PARAMETER(float, DeepShadow_KernelAperture)
@@ -344,7 +344,7 @@ struct FHairStrandsDeepShadowTransmittanceLightParams : FHairStrandsTransmittanc
 	FRDGBufferSRVRef DeepShadow_WorldToLightTransformBuffer = nullptr;
 	FIntPoint DeepShadow_Resolution = FIntPoint(0, 0);
 	bool DeepShadow_bIsGPUDriven = false;
-	FVector4 DeepShadow_LayerDepths = FVector4(0, 0, 0, 0);
+	FVector4f DeepShadow_LayerDepths = FVector4f(0, 0, 0, 0);
 	float DeepShadow_DepthBiasScale = 0;
 	float DeepShadow_DensityScale = 0;
 	FMatrix DeepShadow_ShadowToWorld = FMatrix::Identity;
@@ -422,7 +422,7 @@ class FHairStrandsVoxelShadowMaskPS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 		
-		SHADER_PARAMETER(FVector4, Voxel_LightPosition)
+		SHADER_PARAMETER(FVector4f, Voxel_LightPosition)
 		SHADER_PARAMETER(FVector3f, Voxel_LightDirection)
 		SHADER_PARAMETER(uint32, Voxel_MacroGroupId)
 		SHADER_PARAMETER(uint32, Voxel_RandomType)
@@ -455,7 +455,7 @@ struct FHairStrandsVoxelShadowParams
 {
 	bool			bIsWholeSceneLight = false;
 	FVector			Voxel_LightDirection = FVector::ZeroVector;
-	FVector4		Voxel_LightPosition = FVector4(0, 0, 0, 0);
+	FVector4f		Voxel_LightPosition = FVector4f(0, 0, 0, 0);
 	uint32			Voxel_MacroGroupId;
 };
 
@@ -568,7 +568,7 @@ class FHairStrandsDeepShadowMaskPS : public FGlobalShader
 		SHADER_PARAMETER(float, DeepShadow_DepthBiasScale)
 		SHADER_PARAMETER(float, DeepShadow_DensityScale)
 		SHADER_PARAMETER(uint32, DeepShadow_bIsGPUDriven)
-		SHADER_PARAMETER(FVector4, DeepShadow_LayerDepths)
+		SHADER_PARAMETER(FVector4f, DeepShadow_LayerDepths)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayMarchMaskTexture)
 
@@ -609,7 +609,7 @@ struct FHairStrandsDeepShadowParams
 	float			DeepShadow_DepthBiasScale = 1;
 	float			DeepShadow_DensityScale = 1;
 	uint32			DeepShadow_AtlasSlotIndex = 0;
-	FVector4		DeepShadow_LayerDepths = FVector4(0, 0, 0, 0);
+	FVector4f		DeepShadow_LayerDepths = FVector4f(0, 0, 0, 0);
 };
 
 // Opaque mask with deep shadow
@@ -790,7 +790,7 @@ static FHairStrandsTransmittanceMaskData InternalRenderHairStrandsTransmittanceM
 
 		FHairStrandsTransmittanceLightParams Params;
 		Params.LightDirection = LightSceneInfo->Proxy->GetDirection();
-		Params.LightPosition = FVector4(FVector(LightSceneInfo->Proxy->GetPosition()), LightSceneInfo->Proxy->GetLightType() == ELightComponentType::LightType_Directional ? 0 : 1);
+		Params.LightPosition = FVector4f(FVector(LightSceneInfo->Proxy->GetPosition()), LightSceneInfo->Proxy->GetLightType() == ELightComponentType::LightType_Directional ? 0 : 1);
 		Params.LightChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
 		Params.LightRadius = FMath::Max(LightParameters.SourceLength, LightParameters.SourceRadius);
 
@@ -940,7 +940,7 @@ static void InternalRenderHairStrandsShadowMask(
 
 			FHairStrandsVoxelShadowParams Params;
 			Params.Voxel_LightDirection = LightSceneInfo->Proxy->GetDirection();
-			Params.Voxel_LightPosition = FVector4(FVector(LightSceneInfo->Proxy->GetPosition()), LightSceneInfo->Proxy->GetLightType() == ELightComponentType::LightType_Directional ? 0 : 1);
+			Params.Voxel_LightPosition = FVector4f(FVector(LightSceneInfo->Proxy->GetPosition()), LightSceneInfo->Proxy->GetLightType() == ELightComponentType::LightType_Directional ? 0 : 1);
 			Params.Voxel_MacroGroupId = MacroGroupData.MacroGroupId;
 			Params.bIsWholeSceneLight = bIsWholeSceneLight ? 1 : 0;
 

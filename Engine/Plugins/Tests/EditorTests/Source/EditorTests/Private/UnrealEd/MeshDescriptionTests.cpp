@@ -291,7 +291,7 @@ bool FMeshDescriptionTest::CompareRawMesh(const FString& AssetName, FAutomationT
 template <typename T> FString AttributeValueAsString(const T& Value) { return LexToString(Value); }
 FString AttributeValueAsString(const FVector3f& Value) { return Value.ToString(); }
 FString AttributeValueAsString(const FVector2D& Value) { return Value.ToString(); }
-FString AttributeValueAsString(const FVector4& Value) { return Value.ToString(); }
+FString AttributeValueAsString(const FVector4f& Value) { return Value.ToString(); }
 
 template<typename T, typename U>
 void MeshDescriptionAttributeArrayCompare(const FString& ConversionName, const FString& AssetName, FAutomationTestExecutionInfo& ExecutionInfo, bool& bIsSame, const U& ElementIterator, const FString& ArrayName, const T ReferenceArray, const T ResultArray)
@@ -361,7 +361,7 @@ bool FMeshDescriptionTest::CompareMeshDescription(const FString& AssetName, FAut
 	TVertexInstanceAttributesConstRef<FVector3f> ReferenceVertexInstanceNormals = ReferenceAttributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector3f> ReferenceVertexInstanceTangents = ReferenceAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> ReferenceVertexInstanceBinormalSigns = ReferenceAttributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector4> ReferenceVertexInstanceColors = ReferenceAttributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector4f> ReferenceVertexInstanceColors = ReferenceAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> ReferenceVertexInstanceUVs = ReferenceAttributes.GetVertexInstanceUVs();
 	TEdgeAttributesConstRef<bool> ReferenceEdgeHardnesses = ReferenceAttributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesConstRef<FName> ReferencePolygonGroupMaterialName = ReferenceAttributes.GetPolygonGroupMaterialSlotNames();
@@ -374,7 +374,7 @@ bool FMeshDescriptionTest::CompareMeshDescription(const FString& AssetName, FAut
 	TVertexInstanceAttributesConstRef<FVector3f> ResultVertexInstanceNormals = ResultAttributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector3f> ResultVertexInstanceTangents = ResultAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> ResultVertexInstanceBinormalSigns = ResultAttributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector4> ResultVertexInstanceColors = ResultAttributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector4f> ResultVertexInstanceColors = ResultAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> ResultVertexInstanceUVs = ResultAttributes.GetVertexInstanceUVs();
 	TEdgeAttributesConstRef<bool> ResultEdgeHardnesses = ResultAttributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesConstRef<FName> ResultPolygonGroupMaterialName = ResultAttributes.GetPolygonGroupMaterialSlotNames();
@@ -572,7 +572,7 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 		const TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 		const TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 		const TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-		const TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+		const TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 		const TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 		int32 ExistingUVCount = VertexInstanceUVs.GetNumChannels();
 

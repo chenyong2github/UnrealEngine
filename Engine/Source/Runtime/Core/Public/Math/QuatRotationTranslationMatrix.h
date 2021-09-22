@@ -80,5 +80,10 @@ FORCEINLINE TQuatRotationTranslationMatrix<T>::TQuatRotationTranslationMatrix(co
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(QuatRotationTranslationMatrix, 44);
-DECLARE_LWC_TYPE(QuatRotationMatrix, 44);
+UE_DECLARE_LWC_TYPE(QuatRotationTranslationMatrix, 44);
+UE_DECLARE_LWC_TYPE(QuatRotationMatrix, 44);
+
+template<> struct TIsUECoreVariant<FQuatRotationTranslationMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FQuatRotationTranslationMatrix44d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FQuatRotationMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FQuatRotationMatrix44d> { enum { Value = true }; };

@@ -90,7 +90,7 @@ void FPhysicsDataCollection::CopyGeometryToAggregate()
 		AggGeom.SphereElems.Add(Element);
 	}
 
-	for (FCapsuleShape3d& CapsuleGeom : Geometry.Capsules)
+	for (UE::Geometry::FCapsuleShape3d& CapsuleGeom : Geometry.Capsules)
 	{
 		FKSphylElem Element;
 		UE::Geometry::GetFKElement(CapsuleGeom.Capsule, Element);

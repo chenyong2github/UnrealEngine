@@ -9,56 +9,75 @@
 #include "Math/Transform.h"
 
 /** Dual quaternion class */
-class FDualQuat
+namespace UE 
+{
+namespace Math 
+{
+
+template<typename T>
+struct TDualQuat
 {
 public:
+	using FReal = T;
 
 	/** rotation or real part */
-	FQuat R;
+	TQuat<T> R;
 	/** half trans or dual part */
-	FQuat D;
+	TQuat<T> D;
 
 	// Constructors
-	FDualQuat(const FQuat &InR, const FQuat &InD)
+	TDualQuat(const TQuat<T> &InR, const TQuat<T> &InD)
 		: R(InR)
 		, D(InD)
 	{}
 
-	FDualQuat(const FTransform &T)
+	TDualQuat(const TTransform<T> &Transform)
 	{
-		FVector V = T.GetTranslation()*0.5f;
-		*this = FDualQuat(FQuat(0, 0, 0, 1), FQuat(V.X, V.Y, V.Z, 0.f)) * FDualQuat(T.GetRotation(), FQuat(0, 0, 0, 0));
+		TVector<T> V = Transform.GetTranslation()*0.5f;
+		*this = TDualQuat<T>(TQuat<T>(0, 0, 0, 1), TQuat<T>(V.X, V.Y, V.Z, 0.f)) * TDualQuat<T>(Transform.GetRotation(), TQuat<T>(0, 0, 0, 0));
 	}
 
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TDualQuat(const TDualQuat<FArg>& From) : TDualQuat<T>(TQuat<T>(From.R), TQuat<T>(From.D)) {}
+
 	/** Dual quat addition */
-	FDualQuat operator+(const FDualQuat &B) const
+	TDualQuat<T> operator+(const TDualQuat<T> &B) const
 	{
 		return{ R + B.R, D + B.D };
 	}
 
 	/** Dual quat product */
-	FDualQuat operator*(const FDualQuat &B) const
+	TDualQuat<T> operator*(const TDualQuat<T> &B) const
 	{
 		return{ R*B.R, D*B.R + B.D*R };
 	}
 
 	/** Scale dual quat */
-	FDualQuat operator*(const float S) const
+	TDualQuat<T> operator*(const T S) const
 	{
 		return{ R*S, D*S };
 	}
 
 	/** Return normalized dual quat */
-	FDualQuat Normalized() const
+	TDualQuat<T> Normalized() const
 	{
-		float MinV = 1.0f / FMath::Sqrt(R | R);
+		T MinV = 1.0f / FMath::Sqrt(R | R);
 		return{ R*MinV, D*MinV };
 	}
 
 	/** Convert dual quat to transform */
-	FTransform AsFTransform(FVector Scale = FVector(1.0f, 1.0f, 1.0f))
+	TTransform<T> AsFTransform(TVector<T> Scale = TVector<T>(1.0f, 1.0f, 1.0f))
 	{
-		FQuat TQ = D*FQuat(-R.X, -R.Y, -R.Z, R.W);
-		return FTransform(R, FVector(TQ.X, TQ.Y, TQ.Z)*2.0f, Scale);
+		TQuat<T> TQ = D*TQuat<T>(-R.X, -R.Y, -R.Z, R.W);
+		return TTransform<T>(R, TVector<T>(TQ.X, TQ.Y, TQ.Z)*2.0f, Scale);
 	}
 };
+
+}	// namespace UE::Math
+}	// namespace UE
+
+UE_DECLARE_LWC_TYPE(DualQuat, 4);
+
+template<> struct TIsUECoreVariant<FDualQuat4f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FDualQuat4d> { enum { Value = true }; };

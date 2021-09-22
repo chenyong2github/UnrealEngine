@@ -1364,20 +1364,16 @@ FORCEINLINE bool TQuat<T>::ContainsNaN() const
 } // namespace UE::Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(Quat, 4);
+UE_DECLARE_LWC_TYPE(Quat, 4);
 
 template<> struct TIsPODType<FQuat4f> { enum { Value = true }; };
 template<> struct TIsPODType<FQuat4d> { enum { Value = true }; };
-template<> struct TIsUECoreType<FQuat4f> { enum { Value = true }; };
-template<> struct TIsUECoreType<FQuat4d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FQuat4f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FQuat4d> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FQuat4f> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FQuat4d> { enum { Value = false }; }; // LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
 DECLARE_INTRINSIC_TYPE_LAYOUT(FQuat4f);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FQuat4d);
-
-// ispc doesn't export typedefs in generated headers, so we do it here to keep our code happy.
-DECLARE_LWC_TYPE_ISPC(Quat, 4);
-
 
 /* FMath inline functions
  *****************************************************************************/

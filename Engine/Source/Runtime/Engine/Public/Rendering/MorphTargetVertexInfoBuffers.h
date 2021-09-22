@@ -39,13 +39,13 @@ public:
 		return BatchStartOffsetPerMorph[Index];
 	}
 
-	const FVector4& GetMaximumMorphScale(uint32 Index) const
+	const FVector4f& GetMaximumMorphScale(uint32 Index) const
 	{
 		check(Index < (uint32)MaximumValuePerMorph.Num());
 		return MaximumValuePerMorph[Index];
 	}
 
-	const FVector4& GetMinimumMorphScale(uint32 Index) const
+	const FVector4f& GetMinimumMorphScale(uint32 Index) const
 	{
 		check(Index < (uint32)MinimumValuePerMorph.Num());
 		return MinimumValuePerMorph[Index];
@@ -82,8 +82,8 @@ protected:
 	TArray<uint32> MorphData;
 
 	//x,y,y separate for position and shared w for tangent
-	TArray<FVector4> MaximumValuePerMorph;
-	TArray<FVector4> MinimumValuePerMorph;
+	TArray<FVector4f> MaximumValuePerMorph;
+	TArray<FVector4f> MinimumValuePerMorph;
 	TArray<uint32> BatchStartOffsetPerMorph;
 	TArray<uint32> BatchesPerMorph;
 	

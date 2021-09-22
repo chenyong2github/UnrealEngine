@@ -389,16 +389,16 @@ public:
 		const class ULightMapTexture2D* const* InTextures,
 		const ULightMapTexture2D* InSkyOcclusionTexture,
 		const ULightMapTexture2D* InAOMaterialMaskTexture,
-		const FVector4* InCoefficientScales,
-		const FVector4* InCoefficientAdds,
+		const FVector4f* InCoefficientScales,
+		const FVector4f* InCoefficientAdds,
 		const FVector2D& InCoordinateScale,
 		const FVector2D& InCoordinateBias,
 		bool bAllowHighQualityLightMaps);
 
 	static FLightMapInteraction InitVirtualTexture(
 		const ULightMapVirtualTexture2D* VirtualTexture,
-		const FVector4* InCoefficientScales,
-		const FVector4* InCoefficientAdds,
+		const FVector4f* InCoefficientScales,
+		const FVector4f* InCoefficientAdds,
 		const FVector2D& InCoordinateScale,
 		const FVector2D& InCoordinateBias,
 		bool bAllowHighQualityLightMaps);
@@ -464,7 +464,7 @@ public:
 #endif
 	}
 
-	const FVector4* GetScaleArray() const
+	const FVector4f* GetScaleArray() const
 	{
 #if ALLOW_LQ_LIGHTMAPS && ALLOW_HQ_LIGHTMAPS
 		return AllowsHighQualityLightmaps() ? HighQualityCoefficientScales : LowQualityCoefficientScales;
@@ -475,7 +475,7 @@ public:
 #endif
 	}
 
-	const FVector4* GetAddArray() const
+	const FVector4f* GetAddArray() const
 	{
 #if ALLOW_LQ_LIGHTMAPS && ALLOW_HQ_LIGHTMAPS
 		return AllowsHighQualityLightmaps() ? HighQualityCoefficientAdds : LowQualityCoefficientAdds;
@@ -560,16 +560,16 @@ public:
 private:
 
 #if ALLOW_HQ_LIGHTMAPS
-	FVector4 HighQualityCoefficientScales[NUM_HQ_LIGHTMAP_COEF];
-	FVector4 HighQualityCoefficientAdds[NUM_HQ_LIGHTMAP_COEF];
+	FVector4f HighQualityCoefficientScales[NUM_HQ_LIGHTMAP_COEF];
+	FVector4f HighQualityCoefficientAdds[NUM_HQ_LIGHTMAP_COEF];
 	const class ULightMapTexture2D* HighQualityTexture;
 	const ULightMapTexture2D* SkyOcclusionTexture;
 	const ULightMapTexture2D* AOMaterialMaskTexture;
 #endif
 
 #if ALLOW_LQ_LIGHTMAPS
-	FVector4 LowQualityCoefficientScales[NUM_LQ_LIGHTMAP_COEF];
-	FVector4 LowQualityCoefficientAdds[NUM_LQ_LIGHTMAP_COEF];
+	FVector4f LowQualityCoefficientScales[NUM_LQ_LIGHTMAP_COEF];
+	FVector4f LowQualityCoefficientAdds[NUM_LQ_LIGHTMAP_COEF];
 	const class ULightMapTexture2D* LowQualityTexture;
 #endif
 
@@ -613,7 +613,7 @@ public:
 		const FVector2D& InCoordinateScale,
 		const FVector2D& InCoordinateBias,
 		const bool* InChannelValid,
-		const FVector4& InInvUniformPenumbraSize)
+		const FVector4f& InInvUniformPenumbraSize)
 	{
 		FShadowMapInteraction Result;
 		Result.Type = SMIT_Texture;
@@ -635,7 +635,7 @@ public:
 		const FVector2D& InCoordinateScale,
 		const FVector2D& InCoordinateBias,
 		const bool* InChannelValid,
-		const FVector4& InInvUniformPenumbraSize)
+		const FVector4f& InInvUniformPenumbraSize)
 	{
 		FShadowMapInteraction Result;
 		Result.Type = SMIT_Texture;
@@ -655,7 +655,7 @@ public:
 	FShadowMapInteraction() :
 		ShadowTexture(nullptr),
 		VirtualTexture(nullptr),
-		InvUniformPenumbraSize(FVector4(0, 0, 0, 0)),
+		InvUniformPenumbraSize(FVector4f(0, 0, 0, 0)),
 		Type(SMIT_None)
 	{
 		for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
@@ -697,7 +697,7 @@ public:
 		return bChannelValid[ChannelIndex];
 	}
 
-	inline FVector4 GetInvUniformPenumbraSize() const
+	inline FVector4f GetInvUniformPenumbraSize() const
 	{
 		return InvUniformPenumbraSize;
 	}
@@ -708,7 +708,7 @@ private:
 	FVector2D CoordinateScale;
 	FVector2D CoordinateBias;
 	bool bChannelValid[4];
-	FVector4 InvUniformPenumbraSize;
+	FVector4f InvUniformPenumbraSize;
 	EShadowMapInteractionType Type;
 };
 
@@ -1106,7 +1106,7 @@ inline bool PrimitiveNeedsDistanceFieldSceneData(bool bTrackAllPrimitives,
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters,ENGINE_API)
-	SHADER_PARAMETER(FVector4, Params) // x - inv average brightness, y - sky cubemap max mip, z - Max value for RGBM, w - unused
+	SHADER_PARAMETER(FVector4f, Params) // x - inv average brightness, y - sky cubemap max mip, z - Max value for RGBM, w - unused
 	SHADER_PARAMETER_TEXTURE(TextureCube, Texture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -1277,12 +1277,12 @@ END_SHADER_PARAMETER_STRUCT()
 
 // Movable point light uniform buffer for mobile
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileMovablePointLightUniformShaderParameters,ENGINE_API)
-	SHADER_PARAMETER(FVector4, LightPositionAndInvRadius)
-	SHADER_PARAMETER(FVector4, LightColorAndFalloffExponent)
-	SHADER_PARAMETER(FVector4, SpotLightDirectionAndSpecularScale)
-	SHADER_PARAMETER(FVector4, SpotLightAnglesAndSoftTransitionScaleAndLightShadowType) //xy SpotAngles, z SoftTransitionScale, w LightShadowType if (w&1 == 1) is pointlight, (w&2 == 2) is spotlight, (w&4 == 4) is with shadow
-	SHADER_PARAMETER(FVector4, SpotLightShadowSharpenAndShadowFadeFraction) // x ShadowSharpen, y ShadowFadFraction
-	SHADER_PARAMETER(FVector4, SpotLightShadowmapMinMax)
+	SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
+	SHADER_PARAMETER(FVector4f, LightColorAndFalloffExponent)
+	SHADER_PARAMETER(FVector4f, SpotLightDirectionAndSpecularScale)
+	SHADER_PARAMETER(FVector4f, SpotLightAnglesAndSoftTransitionScaleAndLightShadowType) //xy SpotAngles, z SoftTransitionScale, w LightShadowType if (w&1 == 1) is pointlight, (w&2 == 2) is spotlight, (w&4 == 4) is with shadow
+	SHADER_PARAMETER(FVector4f, SpotLightShadowSharpenAndShadowFadeFraction) // x ShadowSharpen, y ShadowFadFraction
+	SHADER_PARAMETER(FVector4f, SpotLightShadowmapMinMax)
 	SHADER_PARAMETER(FMatrix44f, SpotLightShadowWorldToShadowMatrix)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 

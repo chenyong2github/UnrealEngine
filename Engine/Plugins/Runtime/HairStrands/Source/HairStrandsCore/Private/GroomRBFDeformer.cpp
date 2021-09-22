@@ -34,7 +34,7 @@ void InitMeshSamples(
 void UpdateMeshSamples(
 	uint32 MaxSampleCount,
 	const TArray<float>& InterpolationWeightsBuffer,
-	const TArray<FVector4>& SampleRestPositionsBuffer,
+	const TArray<FVector4f>& SampleRestPositionsBuffer,
 	const TArray<FVector3f>& SampleDeformedPositionsBuffer,
 	TArray<FVector3f>& OutSampleDeformationsBuffer
 )
@@ -60,7 +60,7 @@ void UpdateMeshSamples(
 FVector3f DisplacePosition(
 	const FVector3f& RestControlPoint,
 	uint32 SampleCount,
-	const TArray<FVector4>& RestSamplePositionsBuffer,
+	const TArray<FVector4f>& RestSamplePositionsBuffer,
 	const TArray<FVector3f>& MeshSampleWeightsBuffer
 )
 {
@@ -96,7 +96,7 @@ void DeformStrands(
 	uint32 VertexCount,
 	uint32 SampleCount,
 	const TArray<FVector3f>& RestPosePositionBuffer,
-	const TArray<FVector4>& RestSamplePositionsBuffer,
+	const TArray<FVector4f>& RestSamplePositionsBuffer,
 	const TArray<FVector3f>& MeshSampleWeightsBuffer,
 	TArray<FVector3f>& OutDeformedPositionBuffer
 )
@@ -112,7 +112,7 @@ void DeformStrands(
 
 	// Compute correction for snapping the strands back to the surface, as the RBF introduces low frequency offset
 	const uint32 CurveCount = HairStandsData.GetNumCurves();
-	TArray<FVector4> CorrectionOffsets;
+	TArray<FVector4f> CorrectionOffsets;
 	CorrectionOffsets.SetNum(CurveCount);
 	ParallelFor(CurveCount, [&](uint32 CurveIndex)
 	{
@@ -146,14 +146,14 @@ void DeformStrands(
 		const FVector3f SnappedDeformPosition = Deform_RootPosition + RestOffset;
 		const FVector3f CorrectionOffset = SnappedDeformPosition - Deform_Position;
 
-		CorrectionOffsets[CurveIndex] = FVector4(CorrectionOffset, 0);
+		CorrectionOffsets[CurveIndex] = FVector4f(CorrectionOffset, 0);
 	});
 
 	// Apply correction offset to each control points
 	ParallelFor(VertexCount, [&](uint32 VertexIndex)
 	{
 		const uint32 CurveIndex = VertexToCurveIndexBuffer[VertexIndex];
-		const FVector4 CorrectionOffset = CorrectionOffsets[CurveIndex];
+		const FVector4f CorrectionOffset = CorrectionOffsets[CurveIndex];
 		OutDeformedPositionBuffer[VertexIndex] += CorrectionOffset;
 	});
 }
@@ -220,7 +220,7 @@ TArray<FVector3f> GetDeformedHairStrandsPositions(
 
 	// Update those vertices with the RBF interpolation weights
 	const TArray<float>& InterpolationWeightsBuffer = RestLODData.MeshInterpolationWeightsBuffer;
-	const TArray<FVector4>& SampleRestPositionsBuffer = RestLODData.RestSamplePositionsBuffer;
+	const TArray<FVector4f>& SampleRestPositionsBuffer = RestLODData.RestSamplePositionsBuffer;
 	const TArray<FVector3f>& SampleDeformedPositionsBuffer = OutSamplePositionsBuffer;
 	TArray<FVector3f> OutSampleDeformationsBuffer;
 
@@ -251,7 +251,7 @@ TArray<FVector3f> GetDeformedHairStrandsPositions(
 
 	// Deform the strands vertices with the deformed mesh samples
 	const TArray<FVector3f>& RestPosePositionBuffer = OutPositions;
-	const TArray<FVector4>& RestSamplePositionsBuffer = RestLODData.RestSamplePositionsBuffer;
+	const TArray<FVector4f>& RestSamplePositionsBuffer = RestLODData.RestSamplePositionsBuffer;
 	const TArray<FVector3f>& MeshSampleWeightsBuffer = OutSampleDeformationsBuffer;
 	TArray<FVector3f> OutDeformedPositionBuffer;
 
@@ -452,14 +452,14 @@ void DeformStaticMeshPositions(
 
 	// Update those vertices with the RBF interpolation weights
 	const TArray<float>& InterpolationWeightsBuffer = RestLODData.MeshInterpolationWeightsBuffer;
-	const TArray<FVector4>& SampleRestPositionsBuffer = RestLODData.RestSamplePositionsBuffer;
+	const TArray<FVector4f>& SampleRestPositionsBuffer = RestLODData.RestSamplePositionsBuffer;
 	const TArray<FVector3f>& SampleDeformedPositionsBuffer = OutSamplePositionsBuffer;
 	TArray<FVector3f> OutSampleDeformationsBuffer;
 
 	UpdateMeshSamples(MaxSampleCount, InterpolationWeightsBuffer, SampleRestPositionsBuffer, SampleDeformedPositionsBuffer, OutSampleDeformationsBuffer);
 
 	// Deform the strands vertices with the deformed mesh samples
-	const TArray<FVector4>& RestSamplePositionsBuffer = RestLODData.RestSamplePositionsBuffer;
+	const TArray<FVector4f>& RestSamplePositionsBuffer = RestLODData.RestSamplePositionsBuffer;
 	const TArray<FVector3f>& MeshSampleWeightsBuffer = OutSampleDeformationsBuffer;
 
 	// Raw deformation with RBF

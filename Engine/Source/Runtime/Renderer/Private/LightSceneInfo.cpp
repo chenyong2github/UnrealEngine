@@ -263,7 +263,7 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 	FVector4 SpotLightDirectionAndSpecularScale;
 	FVector4 SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
 	FVector4 SpotLightShadowSharpenAndShadowFadeFraction;
-	FVector4 SpotLightShadowmapMinMax;
+	FVector4f SpotLightShadowmapMinMax;
 	FMatrix SpotLightWorldToShadowMatrix;
 
 	bool bShouldBeRender = false;

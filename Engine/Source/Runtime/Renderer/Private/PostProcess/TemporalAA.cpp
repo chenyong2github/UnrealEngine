@@ -99,8 +99,8 @@ class FTemporalAACS : public FGlobalShader
 		FTAADownsampleDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, ViewportUVToInputBufferUV)
-		SHADER_PARAMETER(FVector4, MaxViewportUVAndSvPositionToViewportUV)
+		SHADER_PARAMETER(FVector4f, ViewportUVToInputBufferUV)
+		SHADER_PARAMETER(FVector4f, MaxViewportUVAndSvPositionToViewportUV)
 		SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 		SHADER_PARAMETER(float, CurrentFrameWeight)
@@ -109,17 +109,17 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(float, SampleWeights, [9])
 		SHADER_PARAMETER_ARRAY(float, PlusWeights, [5])
 
-		SHADER_PARAMETER(FVector4, InputSceneColorSize)
+		SHADER_PARAMETER(FVector4f, InputSceneColorSize)
 		SHADER_PARAMETER(FIntPoint, InputMinPixelCoord)
 		SHADER_PARAMETER(FIntPoint, InputMaxPixelCoord)
-		SHADER_PARAMETER(FVector4, OutputViewportSize)
-		SHADER_PARAMETER(FVector4, OutputViewportRect)
+		SHADER_PARAMETER(FVector4f, OutputViewportSize)
+		SHADER_PARAMETER(FVector4f, OutputViewportRect)
 		SHADER_PARAMETER(FVector3f, OutputQuantizationError)
 
 		// History parameters
-		SHADER_PARAMETER(FVector4, HistoryBufferSize)
-		SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
-		SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
+		SHADER_PARAMETER(FVector4f, HistoryBufferSize)
+		SHADER_PARAMETER(FVector4f, HistoryBufferUVMinMax)
+		SHADER_PARAMETER(FVector4f, ScreenPosToHistoryBufferUV)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, EyeAdaptationBuffer)
@@ -144,7 +144,7 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		// Temporal upsample specific parameters.
-		SHADER_PARAMETER(FVector4, InputViewSize)
+		SHADER_PARAMETER(FVector4f, InputViewSize)
 		SHADER_PARAMETER(FVector2D, InputViewMin)
 		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
 		SHADER_PARAMETER(float, ScreenPercentage)
@@ -585,7 +585,7 @@ FTAAOutputs AddTemporalAAPass(
 
 		// Input buffer shader parameters
 		{
-			PassParameters->InputSceneColorSize = FVector4(
+			PassParameters->InputSceneColorSize = FVector4f(
 				InputExtent.X,
 				InputExtent.Y,
 				1.0f / float(InputExtent.X),
@@ -598,9 +598,9 @@ FTAAOutputs AddTemporalAAPass(
 			PassParameters->InputSceneMetadataSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		}
 
-		PassParameters->OutputViewportSize = FVector4(
+		PassParameters->OutputViewportSize = FVector4f(
 			PracticableDestRect.Width(), PracticableDestRect.Height(), 1.0f / float(PracticableDestRect.Width()), 1.0f / float(PracticableDestRect.Height()));
-		PassParameters->OutputViewportRect = FVector4(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, PracticableDestRect.Max.X, PracticableDestRect.Max.Y);
+		PassParameters->OutputViewportRect = FVector4f(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, PracticableDestRect.Max.X, PracticableDestRect.Max.Y);
 		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(NewHistoryTexture[0]->Desc.Format);
 
 		// Set history shader parameters.
@@ -609,10 +609,10 @@ FTAAOutputs AddTemporalAAPass(
 
 			if (bCameraCut)
 			{
-				PassParameters->ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+				PassParameters->ScreenPosToHistoryBufferUV = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 				PassParameters->ScreenPosAbsMax = FVector2D(0.0f, 0.0f);
-				PassParameters->HistoryBufferUVMinMax = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-				PassParameters->HistoryBufferSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+				PassParameters->HistoryBufferUVMinMax = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+				PassParameters->HistoryBufferSize = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 				for (int32 i = 0; i < FTemporalAAHistory::kRenderTargetCount; i++)
 				{
@@ -631,7 +631,7 @@ FTAAOutputs AddTemporalAAPass(
 				float InvReferenceBufferSizeX = 1.f / float(InputHistory.ReferenceBufferSize.X);
 				float InvReferenceBufferSizeY = 1.f / float(InputHistory.ReferenceBufferSize.Y);
 
-				PassParameters->ScreenPosToHistoryBufferUV = FVector4(
+				PassParameters->ScreenPosToHistoryBufferUV = FVector4f(
 					ReferenceViewportExtent.X * 0.5f * InvReferenceBufferSizeX,
 					-ReferenceViewportExtent.Y * 0.5f * InvReferenceBufferSizeY,
 					(ReferenceViewportExtent.X * 0.5f + ReferenceViewportOffset.X) * InvReferenceBufferSizeX,
@@ -646,13 +646,13 @@ FTAAOutputs AddTemporalAAPass(
 				float InvBufferSizeX = 1.f / float(BufferSize.X);
 				float InvBufferSizeY = 1.f / float(BufferSize.Y);
 
-				PassParameters->HistoryBufferUVMinMax = FVector4(
+				PassParameters->HistoryBufferUVMinMax = FVector4f(
 					(ViewportOffset.X + 0.5f) * InvBufferSizeX,
 					(ViewportOffset.Y + 0.5f) * InvBufferSizeY,
 					(ViewportOffset.X + ViewportExtent.X - 0.5f) * InvBufferSizeX,
 					(ViewportOffset.Y + ViewportExtent.Y - 0.5f) * InvBufferSizeY);
 
-				PassParameters->HistoryBufferSize = FVector4(BufferSize.X, BufferSize.Y, InvBufferSizeX, InvBufferSizeY);
+				PassParameters->HistoryBufferSize = FVector4f(BufferSize.X, BufferSize.Y, InvBufferSizeX, InvBufferSizeY);
 
 				for (int32 i = 0; i < FTemporalAAHistory::kRenderTargetCount; i++)
 				{
@@ -673,7 +673,7 @@ FTAAOutputs AddTemporalAAPass(
 			}
 		}
 
-		PassParameters->MaxViewportUVAndSvPositionToViewportUV = FVector4(
+		PassParameters->MaxViewportUVAndSvPositionToViewportUV = FVector4f(
 			(PracticableDestRect.Width() - 0.5f * ResDivisor) / float(PracticableDestRect.Width()),
 			(PracticableDestRect.Height() - 0.5f * ResDivisor) / float(PracticableDestRect.Height()),
 			ResDivisor / float(DestRect.Width()),
@@ -684,7 +684,7 @@ FTAAOutputs AddTemporalAAPass(
 		{
 			float InvSizeX = 1.0f / float(InputExtent.X);
 			float InvSizeY = 1.0f / float(InputExtent.Y);
-			PassParameters->ViewportUVToInputBufferUV = FVector4(
+			PassParameters->ViewportUVToInputBufferUV = FVector4f(
 				ResDivisorInv * InputViewRect.Width() * InvSizeX,
 				ResDivisorInv * InputViewRect.Height() * InvSizeY,
 				ResDivisorInv * InputViewRect.Min.X * InvSizeX,
@@ -710,7 +710,7 @@ FTAAOutputs AddTemporalAAPass(
 			PassParameters->ScreenPercentage = float(InputViewRect.Width()) / float(OutputViewRect.Width());
 			PassParameters->UpscaleFactor = float(OutputViewRect.Width()) / float(InputViewRect.Width());
 			PassParameters->InputViewMin = InputViewSizeScale * FVector2D(InputViewRect.Min.X, InputViewRect.Min.Y);
-			PassParameters->InputViewSize = FVector4(
+			PassParameters->InputViewSize = FVector4f(
 				InputViewSizeScale * InputViewRect.Width(), InputViewSizeScale * InputViewRect.Height(),
 				InputViewSizeInvScale / InputViewRect.Width(), InputViewSizeInvScale / InputViewRect.Height());
 		}

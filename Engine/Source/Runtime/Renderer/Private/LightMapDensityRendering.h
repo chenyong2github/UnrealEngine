@@ -22,9 +22,9 @@
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapDensityPassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FVector4, LightMapDensity)
-	SHADER_PARAMETER(FVector4, DensitySelectedColor) // The color to apply to selected objects.
-	SHADER_PARAMETER(FVector4, VertexMappedColor) // The color to apply to vertex mapped objects.
+	SHADER_PARAMETER(FVector4f, LightMapDensity)
+	SHADER_PARAMETER(FVector4f, DensitySelectedColor) // The color to apply to selected objects.
+	SHADER_PARAMETER(FVector4f, VertexMappedColor) // The color to apply to vertex mapped objects.
 	SHADER_PARAMETER_TEXTURE(Texture2D, GridTexture) // The "Grid" texture to visualize resolution.
 	SHADER_PARAMETER_SAMPLER(SamplerState, GridTextureSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -158,7 +158,7 @@ public:
 		ShaderBindings.Add(BuiltLightingAndSelectedFlags, ShaderElementData.BuiltLightingAndSelectedFlags);
 		ShaderBindings.Add(LightMapResolutionScale, ShaderElementData.LightMapResolutionScale);
 
-		FVector4 OptionsParameter(
+		FVector4f OptionsParameter(
 			GEngine->bRenderLightMapDensityGrayscale ? GEngine->RenderLightMapDensityGrayscaleScale : 0.0f,
 			GEngine->bRenderLightMapDensityGrayscale ? 0.0f : GEngine->RenderLightMapDensityColorScale,
 			(ShaderElementData.bTextureMapped == true) ? 1.0f : 0.0f,

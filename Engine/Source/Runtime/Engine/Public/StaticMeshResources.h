@@ -983,7 +983,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual bool GetPrimitiveDistance(int32 LODIndex, int32 SectionIndex, const FVector& ViewOrigin, float& PrimitiveDistance) const override;
 	virtual bool GetMeshUVDensities(int32 LODIndex, int32 SectionIndex, FVector4& WorldUVDensities) const override;
-	virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4* OneOverScales, FIntVector4* UVChannelIndices) const override;
+	virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4f* OneOverScales, FIntVector4* UVChannelIndices) const override;
 #endif
 
 #if STATICMESH_ENABLE_DEBUG_RENDERING
@@ -1255,7 +1255,7 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void GetInstanceTransform(int32 InstanceIndex, FRenderTransform& Transform) const
 	{
-		FVector4 TransformVec[3];
+		FVector4f TransformVec[3];
 		if (bUseHalfFloat)
 		{
 			GetInstanceTransformInternal<FFloat16>(InstanceIndex, TransformVec);
@@ -1269,19 +1269,19 @@ public:
 		Transform.TransformRows[1] = FVector3f(TransformVec[1].X, TransformVec[1].Y, TransformVec[1].Z);
 		Transform.TransformRows[2] = FVector3f(TransformVec[2].X, TransformVec[2].Y, TransformVec[2].Z);
 
-		FVector4 Origin;
+		FVector4f Origin;
 		GetInstanceOriginInternal(InstanceIndex, Origin);
 		Transform.Origin = FVector3f(Origin.X, Origin.Y, Origin.Z);
 	}
 
 	FORCEINLINE_DEBUGGABLE void GetInstanceRandomID(int32 InstanceIndex, float& RandomInstanceID) const
 	{
-		FVector4 Origin;
+		FVector4f Origin;
 		GetInstanceOriginInternal(InstanceIndex, Origin);
 		RandomInstanceID = Origin.W;
 	}
 
-	FORCEINLINE_DEBUGGABLE void GetInstanceLightMapData(int32 InstanceIndex, FVector4& InstanceLightmapAndShadowMapUVBias) const
+	FORCEINLINE_DEBUGGABLE void GetInstanceLightMapData(int32 InstanceIndex, FVector4f& InstanceLightmapAndShadowMapUVBias) const
 	{
 		GetInstanceLightMapDataInternal(InstanceIndex, InstanceLightmapAndShadowMapUVBias);
 	}
@@ -1293,13 +1293,13 @@ public:
 	
 	FORCEINLINE_DEBUGGABLE void SetInstance(int32 InstanceIndex, const FMatrix44f& Transform, float RandomInstanceID, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
 	{
-		FVector4 Origin(Transform.M[3][0], Transform.M[3][1], Transform.M[3][2], RandomInstanceID);
+		FVector4f Origin(Transform.M[3][0], Transform.M[3][1], Transform.M[3][2], RandomInstanceID);
 		SetInstanceOriginInternal(InstanceIndex, Origin);
 
-		FVector4 InstanceTransform[3];
-		InstanceTransform[0] = FVector4(Transform.M[0][0], Transform.M[0][1], Transform.M[0][2], 0.0f);
-		InstanceTransform[1] = FVector4(Transform.M[1][0], Transform.M[1][1], Transform.M[1][2], 0.0f);
-		InstanceTransform[2] = FVector4(Transform.M[2][0], Transform.M[2][1], Transform.M[2][2], 0.0f);
+		FVector4f InstanceTransform[3];
+		InstanceTransform[0] = FVector4f(Transform.M[0][0], Transform.M[0][1], Transform.M[0][2], 0.0f);
+		InstanceTransform[1] = FVector4f(Transform.M[1][0], Transform.M[1][1], Transform.M[1][2], 0.0f);
+		InstanceTransform[2] = FVector4f(Transform.M[2][0], Transform.M[2][1], Transform.M[2][2], 0.0f);
 
 		if (bUseHalfFloat)
 		{
@@ -1310,7 +1310,7 @@ public:
 			SetInstanceTransformInternal<float>(InstanceIndex, InstanceTransform);
 		}
 
-		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
+		SetInstanceLightMapDataInternal(InstanceIndex, FVector4f(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
 
 		for (int32 i = 0; i < NumCustomDataFloats; ++i)
 		{
@@ -1327,16 +1327,16 @@ public:
 
 	FORCEINLINE void SetInstance(int32 InstanceIndex, const FMatrix44f& Transform, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
 	{
-		FVector4 OldOrigin;
+		FVector4f OldOrigin;
 		GetInstanceOriginInternal(InstanceIndex, OldOrigin);
 
-		FVector4 NewOrigin(Transform.M[3][0], Transform.M[3][1], Transform.M[3][2], OldOrigin.Component(3));
+		FVector4f NewOrigin(Transform.M[3][0], Transform.M[3][1], Transform.M[3][2], OldOrigin.Component(3));
 		SetInstanceOriginInternal(InstanceIndex, NewOrigin);
 
-		FVector4 InstanceTransform[3];
-		InstanceTransform[0] = FVector4(Transform.M[0][0], Transform.M[0][1], Transform.M[0][2], 0.0f);
-		InstanceTransform[1] = FVector4(Transform.M[1][0], Transform.M[1][1], Transform.M[1][2], 0.0f);
-		InstanceTransform[2] = FVector4(Transform.M[2][0], Transform.M[2][1], Transform.M[2][2], 0.0f);
+		FVector4f InstanceTransform[3];
+		InstanceTransform[0] = FVector4f(Transform.M[0][0], Transform.M[0][1], Transform.M[0][2], 0.0f);
+		InstanceTransform[1] = FVector4f(Transform.M[1][0], Transform.M[1][1], Transform.M[1][2], 0.0f);
+		InstanceTransform[2] = FVector4f(Transform.M[2][0], Transform.M[2][1], Transform.M[2][2], 0.0f);
 
 		if (bUseHalfFloat)
 		{
@@ -1347,7 +1347,7 @@ public:
 			SetInstanceTransformInternal<float>(InstanceIndex, InstanceTransform);
 		}
 
-		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
+		SetInstanceLightMapDataInternal(InstanceIndex, FVector4f(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
 
 		for (int32 i = 0; i < NumCustomDataFloats; ++i)
 		{
@@ -1357,7 +1357,7 @@ public:
 
 	FORCEINLINE void SetInstanceLightMapData(int32 InstanceIndex, const FVector2D& LightmapUVBias, const FVector2D& ShadowmapUVBias)
 	{
-		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
+		SetInstanceLightMapDataInternal(InstanceIndex, FVector4f(LightmapUVBias.X, LightmapUVBias.Y, ShadowmapUVBias.X, ShadowmapUVBias.Y));
 	}
 	
 	FORCEINLINE void SetInstanceCustomData(int32 InstanceIndex, int32 Index, float CustomData)
@@ -1367,12 +1367,12 @@ public:
 	
 	FORCEINLINE_DEBUGGABLE void NullifyInstance(int32 InstanceIndex)
 	{
-		SetInstanceOriginInternal(InstanceIndex, FVector4(0, 0, 0, 0));
+		SetInstanceOriginInternal(InstanceIndex, FVector4f(0, 0, 0, 0));
 
-		FVector4 InstanceTransform[3];
-		InstanceTransform[0] = FVector4(0, 0, 0, 0);
-		InstanceTransform[1] = FVector4(0, 0, 0, 0);
-		InstanceTransform[2] = FVector4(0, 0, 0, 0);
+		FVector4f InstanceTransform[3];
+		InstanceTransform[0] = FVector4f(0, 0, 0, 0);
+		InstanceTransform[1] = FVector4f(0, 0, 0, 0);
+		InstanceTransform[2] = FVector4f(0, 0, 0, 0);
 
 		if (bUseHalfFloat)
 		{
@@ -1383,7 +1383,7 @@ public:
 			SetInstanceTransformInternal<float>(InstanceIndex, InstanceTransform);
 		}
 
-		SetInstanceLightMapDataInternal(InstanceIndex, FVector4(0, 0, 0, 0));
+		SetInstanceLightMapDataInternal(InstanceIndex, FVector4f(0, 0, 0, 0));
 
 		for (int32 i = 0; i < NumCustomDataFloats; ++i)
 		{
@@ -1393,7 +1393,7 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void SetInstanceEditorData(int32 InstanceIndex, FColor HitProxyColor, bool bSelected)
 	{
-		FVector4 InstanceTransform[3];
+		FVector4f InstanceTransform[3];
 		if (bUseHalfFloat)
 		{
 			GetInstanceTransformInternal<FFloat16>(InstanceIndex, InstanceTransform);
@@ -1414,7 +1414,7 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void ClearInstanceEditorData(int32 InstanceIndex)
 	{
-		FVector4 InstanceTransform[3];
+		FVector4f InstanceTransform[3];
 		if (bUseHalfFloat)
 		{
 			GetInstanceTransformInternal<FFloat16>(InstanceIndex, InstanceTransform);
@@ -1463,14 +1463,14 @@ public:
 		}
 		{
 
-			FVector4* ElementData = reinterpret_cast<FVector4*>(InstanceOriginDataPtr);
+			FVector4f* ElementData = reinterpret_cast<FVector4f*>(InstanceOriginDataPtr);
 			uint32 CurrentSize = InstanceOriginData->Num() * InstanceOriginData->GetStride();
 			check((void*)((&ElementData[Index1]) + 1) <= (void*)(InstanceOriginDataPtr + CurrentSize));
 			check((void*)((&ElementData[Index1]) + 0) >= (void*)(InstanceOriginDataPtr));
 			check((void*)((&ElementData[Index2]) + 1) <= (void*)(InstanceOriginDataPtr + CurrentSize));
 			check((void*)((&ElementData[Index2]) + 0) >= (void*)(InstanceOriginDataPtr));
 
-			FVector4 TempStore = ElementData[Index1];
+			FVector4f TempStore = ElementData[Index1];
 			ElementData[Index1] = ElementData[Index2];
 			ElementData[Index2] = TempStore;
 		}
@@ -1592,7 +1592,7 @@ public:
 
 private:
 	template<typename T>
-	FORCEINLINE_DEBUGGABLE void GetInstanceTransformInternal(int32 InstanceIndex, FVector4 (&Transform)[3]) const
+	FORCEINLINE_DEBUGGABLE void GetInstanceTransformInternal(int32 InstanceIndex, FVector4f (&Transform)[3]) const
 	{
 		FInstanceTransformMatrix<T>* ElementData = reinterpret_cast<FInstanceTransformMatrix<T>*>(InstanceTransformDataPtr);
 		uint32 CurrentSize = InstanceTransformData->Num() * InstanceTransformData->GetStride();
@@ -1617,15 +1617,15 @@ private:
 		}
 		else
 		{
-			Transform[0] = FVector4(1.0f, 0.0f, 0.0f, 0.0f);
-			Transform[1] = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
-			Transform[2] = FVector4(0.0f, 0.0f, 1.0f, 0.0f);
+			Transform[0] = FVector4f(1.0f, 0.0f, 0.0f, 0.0f);
+			Transform[1] = FVector4f(0.0f, 1.0f, 0.0f, 0.0f);
+			Transform[2] = FVector4f(0.0f, 0.0f, 1.0f, 0.0f);
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void GetInstanceOriginInternal(int32 InstanceIndex, FVector4 &Origin) const
+	FORCEINLINE_DEBUGGABLE void GetInstanceOriginInternal(int32 InstanceIndex, FVector4f &Origin) const
 	{
-		FVector4* ElementData = reinterpret_cast<FVector4*>(InstanceOriginDataPtr);
+		FVector4f* ElementData = reinterpret_cast<FVector4f*>(InstanceOriginDataPtr);
 		uint32 CurrentSize = InstanceOriginData->Num() * InstanceOriginData->GetStride();
 
 		if (ensure((void*)((&ElementData[InstanceIndex]) + 1) <= (void*)(InstanceOriginDataPtr + CurrentSize))
@@ -1635,11 +1635,11 @@ private:
 		}
 		else
 		{
-			Origin = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+			Origin = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void GetInstanceLightMapDataInternal(int32 InstanceIndex, FVector4 &LightmapData) const
+	FORCEINLINE_DEBUGGABLE void GetInstanceLightMapDataInternal(int32 InstanceIndex, FVector4f &LightmapData) const
 	{
 		FInstanceLightMapVector* ElementData = reinterpret_cast<FInstanceLightMapVector*>(InstanceLightmapDataPtr);
 		uint32 CurrentSize = InstanceLightmapData->Num() * InstanceLightmapData->GetStride();
@@ -1647,7 +1647,7 @@ private:
 		if (ensure((void*)((&ElementData[InstanceIndex]) + 1) <= (void*)(InstanceLightmapDataPtr + CurrentSize))
 			&& ensure((void*)((&ElementData[InstanceIndex]) + 0) >= (void*)(InstanceLightmapDataPtr)))
 		{
-			LightmapData = FVector4
+			LightmapData = FVector4f
 			(
 				float(ElementData[InstanceIndex].InstanceLightmapAndShadowMapUVBias[0]) / 32767.0f, 
 				float(ElementData[InstanceIndex].InstanceLightmapAndShadowMapUVBias[1]) / 32767.0f,
@@ -1657,7 +1657,7 @@ private:
 		}
 		else
 		{
-			LightmapData = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+			LightmapData = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 	}
 
@@ -1681,7 +1681,7 @@ private:
 	}
 
 	template<typename T>
-	FORCEINLINE_DEBUGGABLE void SetInstanceTransformInternal(int32 InstanceIndex, FVector4(Transform)[3]) const
+	FORCEINLINE_DEBUGGABLE void SetInstanceTransformInternal(int32 InstanceIndex, FVector4f(Transform)[3]) const
 	{
 		FInstanceTransformMatrix<T>* ElementData = reinterpret_cast<FInstanceTransformMatrix<T>*>(InstanceTransformDataPtr);
 		uint32 CurrentSize = InstanceTransformData->Num() * InstanceTransformData->GetStride();
@@ -1706,9 +1706,9 @@ private:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetInstanceOriginInternal(int32 InstanceIndex, const FVector4& Origin) const
+	FORCEINLINE_DEBUGGABLE void SetInstanceOriginInternal(int32 InstanceIndex, const FVector4f& Origin) const
 	{
-		FVector4* ElementData = reinterpret_cast<FVector4*>(InstanceOriginDataPtr);
+		FVector4f* ElementData = reinterpret_cast<FVector4f*>(InstanceOriginDataPtr);
 		uint32 CurrentSize = InstanceOriginData->Num() * InstanceOriginData->GetStride();
 
 		if (ensureMsgf((void*)((&ElementData[InstanceIndex]) + 1) <= (void*)(InstanceOriginDataPtr + CurrentSize), TEXT("OOB Instance Set Under: %i, %u, %p, %p"), InstanceIndex, CurrentSize, &ElementData, InstanceOriginDataPtr)
@@ -1718,7 +1718,7 @@ private:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetInstanceLightMapDataInternal(int32 InstanceIndex, const FVector4& LightmapData) const
+	FORCEINLINE_DEBUGGABLE void SetInstanceLightMapDataInternal(int32 InstanceIndex, const FVector4f& LightmapData) const
 	{
 		FInstanceLightMapVector* ElementData = reinterpret_cast<FInstanceLightMapVector*>(InstanceLightmapDataPtr);
 		uint32 CurrentSize = InstanceLightmapData->Num() * InstanceLightmapData->GetStride();
@@ -1769,7 +1769,7 @@ private:
 		delete InstanceCustomData;
 		InstanceCustomData = nullptr;
 		 		
-		InstanceOriginData = new TStaticMeshVertexData<FVector4>();
+		InstanceOriginData = new TStaticMeshVertexData<FVector4f>();
 		InstanceOriginData->ResizeBuffer(InNumInstances, BufferFlags);
 		InstanceLightmapData = new TStaticMeshVertexData<FInstanceLightMapVector>();
 		InstanceLightmapData->ResizeBuffer(InNumInstances, BufferFlags);

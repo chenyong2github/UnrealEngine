@@ -250,7 +250,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 	TResourceArray<FPrimitiveSceneShaderData>	PrimitiveSceneData;
 	TResourceArray<FLightmapSceneShaderData>	LightmapSceneData;
 	TResourceArray<FInstanceSceneShaderData>	InstanceSceneData;
-	TResourceArray<FVector4>					InstancePayloadData; // TODO: Populate this
+	TResourceArray<FVector4f>					InstancePayloadData; // TODO: Populate this
 
 	PrimitiveSceneData.AddZeroed(Scene.StaticMeshInstanceRenderStates.Elements.Num());
 	InstanceSceneData.AddZeroed(Scene.StaticMeshInstanceRenderStates.Elements.Num());
@@ -331,7 +331,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					PrimitiveUniformShaderParameters.LocalToWorld,
 					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
 					FRenderTransform::Identity, /* PrevLocalToPrimitive */
-					FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
+					FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 					0.0f, /* Per instance Random ID */
 					0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 					INVALID_LAST_UPDATE_FRAME
@@ -416,7 +416,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 						InstanceGroup.LocalToWorld,
 						InstanceGroup.LocalToWorld,
 						FRenderTransform::Identity, /* PrevLocalToPrimitive */
-						FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
+						FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 						0.0f, /* Per instance Random ID */
 						0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 						INVALID_LAST_UPDATE_FRAME
@@ -482,7 +482,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				PrimitiveUniformShaderParameters.LocalToWorld,
 				PrimitiveUniformShaderParameters.PreviousLocalToWorld,
 				FRenderTransform::Identity, /* PrevLocalToPrimitive */
-				FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
+				FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 				0.0f, /* Per instance Random ID */
 				0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 				INVALID_LAST_UPDATE_FRAME
@@ -506,7 +506,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				PrimitiveSceneData.Add(FPrimitiveSceneShaderData(GetIdentityPrimitiveParameters()));
 			}
 
-			PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), PrimitiveSceneData.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), PrimitiveSceneData.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			PrimitiveSceneDataBufferSRV = RHICreateShaderResourceView(PrimitiveSceneDataBufferRHI);
 		}
 
@@ -519,14 +519,14 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				LightmapSceneData.Add(FLightmapSceneShaderData());
 			}
 
-			LightmapSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), LightmapSceneData.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			LightmapSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), LightmapSceneData.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			LightmapSceneDataBufferSRV = RHICreateShaderResourceView(LightmapSceneDataBufferRHI);
 		}
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(InstanceSceneData);
 
-			TResourceArray<FVector4> InstanceSceneDataSOA;
+			TResourceArray<FVector4f> InstanceSceneDataSOA;
 			InstanceSceneDataSOA.AddZeroed(FInstanceSceneShaderData::DataStrideInFloat4s * InstanceSceneData.Num());
 			for (int32 ArrayIndex = 0; ArrayIndex < FInstanceSceneShaderData::DataStrideInFloat4s; ArrayIndex++)
 			{
@@ -542,7 +542,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				InstanceSceneDataSOA.AddZeroed(FInstanceSceneShaderData::DataStrideInFloat4s);
 			}
 
-			InstanceSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), InstanceSceneDataSOA.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			InstanceSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), InstanceSceneDataSOA.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			InstanceSceneDataBufferSRV = RHICreateShaderResourceView(InstanceSceneDataBufferRHI);
 			InstanceSceneDataSOAStride = InstanceSceneData.Num();
 		}
@@ -1225,7 +1225,7 @@ void FLightmapRenderer::RenderMeshBatchesIntoGBuffer(
 	const FSceneView* View,
 	int32 GPUScenePrimitiveId,
 	TArray<FMeshBatch>& MeshBatches, 
-	FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias,
+	FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias,
 	int32 RenderPassIndex,
 	FIntPoint ScratchTilePoolOffset)
 {
@@ -1933,7 +1933,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 		{
 			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-			TArray<FVector4, SceneRenderingAllocator> ViewportsToClear;
+			TArray<FVector4f, SceneRenderingAllocator> ViewportsToClear;
 
 			for (auto& Tile : PendingTileRequests)
 			{
@@ -1960,7 +1960,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					ERDGPassFlags::Raster,
 					[LocalViewportsToClear = MoveTemp(ViewportsToClear)](FRHICommandList& RHICmdList)
 				{
-					for (FVector4 Viewport : LocalViewportsToClear)
+					for (FVector4f Viewport : LocalViewportsToClear)
 					{
 						RHICmdList.SetViewport(Viewport.X, Viewport.Y, 0.0f, Viewport.Z, Viewport.W, 1.0f);
 						DrawClearQuad(RHICmdList, FLinearColor(0.0f, 0.0f, 0.0f, 0.0f));
@@ -2106,7 +2106,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									float BiasX = (1.0f * (-Tile.VirtualCoordinates.Position.X * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
 									float BiasY = (1.0f * (-Tile.VirtualCoordinates.Position.Y * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
 
-									FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias = FVector4(ScaleX, ScaleY, BiasX, BiasY);
+									FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias = FVector4f(ScaleX, ScaleY, BiasX, BiasY);
 
 									TArray<FMeshBatch> MeshBatches = Tile.RenderState->GeometryInstanceRef.GetMeshBatchesForGBufferRendering(Tile.VirtualCoordinates);
 
@@ -2537,7 +2537,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 								float BiasX = (1.0f * (-Tile.VirtualCoordinates.Position.X * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
 								float BiasY = (1.0f * (-Tile.VirtualCoordinates.Position.Y * GPreviewLightmapVirtualTileSize) - (-GPreviewLightmapTileBorderSize)) / GPreviewLightmapPhysicalTileSize;
 
-								FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias = FVector4(ScaleX, ScaleY, BiasX, BiasY);
+								FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias = FVector4f(ScaleX, ScaleY, BiasX, BiasY);
 
 								TArray<FMeshBatch> MeshBatches = Tile.RenderState->GeometryInstanceRef.GetMeshBatchesForGBufferRendering(Tile.VirtualCoordinates);
 

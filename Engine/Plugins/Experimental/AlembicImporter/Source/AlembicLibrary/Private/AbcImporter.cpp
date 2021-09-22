@@ -1479,7 +1479,7 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	//Speedtree use UVs to store is data
@@ -1536,11 +1536,11 @@ void FAbcImporter::GenerateMeshDescriptionFromSample(const FAbcMeshSample* Sampl
 
 			if (Sample->Colors.Num())
 			{
-				VertexInstanceColors[VertexInstanceID] = FVector4(Sample->Colors[IndiceIndex]);
+				VertexInstanceColors[VertexInstanceID] = FVector4f(Sample->Colors[IndiceIndex]);
 			}
 			else
 			{
-				VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor::White);
+				VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor::White);
 			}
 
 			for (uint32 UVIndex = 0; UVIndex < Sample->NumUVSets; ++UVIndex)

@@ -4692,7 +4692,7 @@ void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildI
 	}
 	else
 	{
-		ResourceData.SubImageSize = FVector4( 1.0f, 1.0f, 1.0f, 1.0f );
+		ResourceData.SubImageSize = FVector4f( 1.0f, 1.0f, 1.0f, 1.0f );
 	}
 
 	// Store the size-by-speed parameters.

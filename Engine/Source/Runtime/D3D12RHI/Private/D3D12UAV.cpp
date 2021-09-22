@@ -292,7 +292,7 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 	}
 }
 
-void FD3D12CommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values)
+void FD3D12CommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 {
 	TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this, GetGPUMask());
 	ClearUAV(RHICmdList, ResourceCast(UnorderedAccessViewRHI), &Values, true);

@@ -104,7 +104,8 @@ public:
 	 *
 	 * @param V Vector to copy from.
 	 */
-	explicit FORCEINLINE FVector2D(const FVector4& V);
+	explicit FORCEINLINE FVector2D(const UE::Math::TVector4<float>& V);
+	explicit FORCEINLINE FVector2D(const UE::Math::TVector4<double>& V);
 
 public:
 

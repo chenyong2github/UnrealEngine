@@ -172,7 +172,7 @@ public:
 
 		if (TexCoordOffsetParameter.IsBound())
 		{
-			ShaderBindings.Add(TexCoordOffsetParameter, FVector4(ForceInitToZero));
+			ShaderBindings.Add(TexCoordOffsetParameter, FVector4f(ForceInitToZero));
 		}
 	}
 };

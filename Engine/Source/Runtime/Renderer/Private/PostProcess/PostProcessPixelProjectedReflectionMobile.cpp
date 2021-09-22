@@ -67,10 +67,10 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, OutputProjectionTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutputProjectionBuffer)
 		
-		SHADER_PARAMETER(FVector4, ReflectionPlane)
-		SHADER_PARAMETER_EX(FVector4, ViewRectMin, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER(FVector4f, ReflectionPlane)
+		SHADER_PARAMETER_EX(FVector4f, ViewRectMin, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -138,10 +138,10 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ProjectionTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ProjectionTextureSampler)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProjectionBuffer)
-		SHADER_PARAMETER(FVector4, ReflectionPlane)
-		SHADER_PARAMETER_EX(FVector4, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, ViewRectMin, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER(FVector4f, ReflectionPlane)
+		SHADER_PARAMETER_EX(FVector4f, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, ViewRectMin, EShaderPrecisionModifier::Half)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -243,11 +243,11 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 		PassParameters->ReflectionPlane = ReflectionPlaneViewSpace;
 		PassParameters->ReflectionPlane.W = ReflectionPlaneViewSpace.W;
 
-		PassParameters->ViewRectMin = FVector4(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
+		PassParameters->ViewRectMin = FVector4f(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
 
-		PassParameters->BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+		PassParameters->BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 
-		PassParameters->ViewSizeAndInvSize = FVector4(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
+		PassParameters->ViewSizeAndInvSize = FVector4f(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
 
 		PassParameters->OutputProjectionTexture = ProjectionTextureUAV;
 
@@ -303,11 +303,11 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 			PSShaderParameters->ProjectionBuffer = ProjectionBufferSRV;
 		}
 
-		PSShaderParameters->ViewRectMin = FVector4(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
+		PSShaderParameters->ViewRectMin = FVector4f(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
 
-		PSShaderParameters->BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+		PSShaderParameters->BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 
-		PSShaderParameters->ViewSizeAndInvSize = FVector4(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
+		PSShaderParameters->ViewSizeAndInvSize = FVector4f(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
 
 		PSShaderParameters->ReflectionPlane = PlanarReflectionSceneProxy->ReflectionPlane;
 

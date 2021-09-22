@@ -487,25 +487,65 @@ struct FVector
 };
 
 
+/**
+* A 4-D homogeneous vector.
+* @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector4.h
+*/
+USTRUCT(immutable, noexport)
+struct FVector4f
+{
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	float X;
+
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	float Y;
+
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	float Z;
+
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	float W;
+};
 
 /**
 * A 4-D homogeneous vector.
 * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector4.h
 */
-USTRUCT(immutable, noexport, BlueprintType)
+USTRUCT(immutable, noexport)
+struct FVector4d
+{
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	double X;
+
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	double Y;
+
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	double Z;
+
+	UPROPERTY(EditAnywhere, Category = Vector4, SaveGame)
+	double W;
+};
+
+
+/**
+* A 4-D homogeneous vector.
+* @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector4.h
+*/
+USTRUCT(immutable, noexport, BlueprintType, meta = (HasNativeMake = "Engine.KismetMathLibrary.MakeVector4", HasNativeBreak = "Engine.KismetMathLibrary.BreakVector4"))
 struct FVector4
 {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector4, SaveGame)
-	float X;
+	FLargeWorldCoordinatesReal X;		// Alias for float/double depending on LWC status. Note: Will be refactored to double before UE5 ships.
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector4, SaveGame)
-	float Y;
+	FLargeWorldCoordinatesReal Y;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector4, SaveGame)
-	float Z;
+	FLargeWorldCoordinatesReal Z;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector4, SaveGame)
-	float W;
+	FLargeWorldCoordinatesReal W;
 
 };
 
@@ -776,6 +816,43 @@ struct FLinearColor
 };
 
 /**
+ * A point or direction FVector in 3d space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box.h
+ */
+USTRUCT(immutable, noexport)
+struct FBox3f
+{
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
+	FVector3f Min;
+
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
+	FVector3f Max;
+
+	UPROPERTY()
+	uint8 IsValid;
+
+};
+
+
+/**
+ * A point or direction FVector in 3d space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box.h
+ */
+USTRUCT(immutable, noexport)
+struct FBox3d
+{
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
+	FVector3d Min;
+
+	UPROPERTY(EditAnywhere, Category = Box, SaveGame)
+	FVector3d Max;
+
+	UPROPERTY()
+	uint8 IsValid;
+
+};
+
+/**
  * A bounding box.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box.h
  */
@@ -809,6 +886,47 @@ struct FBox2D
 	UPROPERTY()
 	uint8 bIsValid;
 
+};
+
+
+/**
+ * A bounding box and bounding sphere with the same origin.
+ * @note The full C++ class is located here : Engine\Source\Runtime\Core\Public\Math\BoxSphereBounds.h
+ */
+USTRUCT(noexport)
+struct FBoxSphereBounds3f
+{
+	/** Holds the origin of the bounding box and sphere. */
+	UPROPERTY(EditAnywhere, Category = BoxSphereBounds, SaveGame)
+	FVector3f Origin;
+
+	/** Holds the extent of the bounding box, which is half the size of the box in 3D space */
+	UPROPERTY(EditAnywhere, Category = BoxSphereBounds, SaveGame)
+	FVector3f BoxExtent;
+
+	/** Holds the radius of the bounding sphere. */
+	UPROPERTY(EditAnywhere, Category = BoxSphereBounds, SaveGame)
+	float SphereRadius;
+};
+
+/**
+ * A bounding box and bounding sphere with the same origin.
+ * @note The full C++ class is located here : Engine\Source\Runtime\Core\Public\Math\BoxSphereBounds.h
+ */
+USTRUCT(noexport)
+struct FBoxSphereBounds3d
+{
+	/** Holds the origin of the bounding box and sphere. */
+	UPROPERTY(EditAnywhere, Category = BoxSphereBounds, SaveGame)
+	FVector3d Origin;
+
+	/** Holds the extent of the bounding box, which is half the size of the box in 3D space */
+	UPROPERTY(EditAnywhere, Category = BoxSphereBounds, SaveGame)
+	FVector3d BoxExtent;
+
+	/** Holds the radius of the bounding sphere. */
+	UPROPERTY(EditAnywhere, Category = BoxSphereBounds, SaveGame)
+	double SphereRadius;
 };
 
 /**

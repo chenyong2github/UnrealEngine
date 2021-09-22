@@ -18,9 +18,9 @@ class FMaterial;
  * Uniform buffer for particle beam/trail vertex factories.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FParticleBeamTrailUniformParameters, ENGINE_API)
-	SHADER_PARAMETER( FVector4, CameraRight )
-	SHADER_PARAMETER( FVector4, CameraUp )
-	SHADER_PARAMETER( FVector4, ScreenAlignment )
+	SHADER_PARAMETER( FVector4f, CameraRight )
+	SHADER_PARAMETER( FVector4f, CameraUp )
+	SHADER_PARAMETER( FVector4f, ScreenAlignment )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FParticleBeamTrailUniformParameters> FParticleBeamTrailUniformBufferRef;
 

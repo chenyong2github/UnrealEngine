@@ -31,7 +31,7 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 	SCOPE_CYCLE_COUNTER(STAT_SlatePostProcessingRTTime);
 	check(RHICmdList.IsOutsideRenderPass());
 
-	TArray<FVector4> WeightsAndOffsets;
+	TArray<FVector4f> WeightsAndOffsets;
 	const int32 SampleCount = ComputeBlurWeights(Params.KernelSize, Params.Strength, WeightsAndOffsets);
 
 
@@ -117,7 +117,7 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 
 				if (bDownsample)
 				{
-					PixelShader->SetUVBounds(RHICmdList, FVector4(FVector2D::ZeroVector, FVector2D((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
+					PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2D::ZeroVector, FVector2D((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
 					PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2D(1, 0));
 
 					RendererModule.DrawRectangle(
@@ -139,7 +139,7 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 					const FVector2D UVEnd = FVector2D(DestRect.Right, DestRect.Bottom) * InvSrcTetureSize;
 					const FVector2D SizeUV = UVEnd - UVStart;
 
-					PixelShader->SetUVBounds(RHICmdList, FVector4(UVStart, UVEnd));
+					PixelShader->SetUVBounds(RHICmdList, FVector4f(UVStart, UVEnd));
 					PixelShader->SetBufferSizeAndDirection(RHICmdList, InvSrcTetureSize, FVector2D(1, 0));
 
 					RendererModule.DrawRectangle(
@@ -176,7 +176,7 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				PixelShader->SetWeightsAndOffsets(RHICmdList, WeightsAndOffsets, SampleCount);
-				PixelShader->SetUVBounds(RHICmdList, FVector4(FVector2D::ZeroVector, FVector2D((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
+				PixelShader->SetUVBounds(RHICmdList, FVector4f(FVector2D::ZeroVector, FVector2D((float)DownsampleSize.X / DestTextureWidth, (float)DownsampleSize.Y / DestTextureHeight) - HalfTexelOffset));
 				PixelShader->SetTexture(RHICmdList, SourceTexture, BilinearClamp);
 				PixelShader->SetBufferSizeAndDirection(RHICmdList, InvBufferSize, FVector2D(0, 1));
 
@@ -345,7 +345,7 @@ void FSlatePostProcessor::DownsampleRect(FRHICommandListImmediate& RHICmdList, I
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 			PixelShader->SetShaderParams(RHICmdList, FShaderParams::MakePixelShaderParams(FVector4(InvSrcTetureSize.X, InvSrcTetureSize.Y, 0, 0)));
-			PixelShader->SetUVBounds(RHICmdList, FVector4(UVStart, UVEnd));
+			PixelShader->SetUVBounds(RHICmdList, FVector4f(UVStart, UVEnd));
 			PixelShader->SetTexture(RHICmdList, Params.SourceTexture, BilinearClamp);
 
 			RendererModule.DrawRectangle(
@@ -508,7 +508,7 @@ static FVector2D GetWeightAndOffset(float Dist, float Sigma)
 	return FVector2D(TotalWeight, Offset);
 }
 
-static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4>& OutWeightsAndOffsets)
+static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4f>& OutWeightsAndOffsets)
 {
 	int32 NumSamples = FMath::DivideAndRoundUp(KernelSize, 2);
 
@@ -520,7 +520,7 @@ static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4>& Out
 	int32 SampleIndex = 1;
 	for (int32 X = 3; X < KernelSize; X += 4)
 	{
-		OutWeightsAndOffsets[SampleIndex] = FVector4(GetWeightAndOffset(X, Sigma), GetWeightAndOffset(X + 2, Sigma));
+		OutWeightsAndOffsets[SampleIndex] = FVector4f(GetWeightAndOffset(X, Sigma), GetWeightAndOffset(X + 2, Sigma));
 
 		++SampleIndex;
 	}
@@ -530,7 +530,7 @@ static int32 ComputeWeights(int32 KernelSize, float Sigma, TArray<FVector4>& Out
 
 #endif
 
-int32 FSlatePostProcessor::ComputeBlurWeights(int32 KernelSize, float StdDev, TArray<FVector4>& OutWeightsAndOffsets)
+int32 FSlatePostProcessor::ComputeBlurWeights(int32 KernelSize, float StdDev, TArray<FVector4f>& OutWeightsAndOffsets)
 {
 	return ComputeWeights(KernelSize, StdDev, OutWeightsAndOffsets);
 }

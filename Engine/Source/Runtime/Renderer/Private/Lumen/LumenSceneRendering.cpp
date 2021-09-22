@@ -774,7 +774,7 @@ void FLumenCard::SetTransform(const FMatrix44f& LocalToWorld, const FLumenCardOB
 
 FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
 	FLumenCard& InCardData,
-	FVector4 InCardUVRect,
+	FVector4f InCardUVRect,
 	FIntRect InCardCaptureAtlasRect,
 	FIntRect InSurfaceCacheAtlasRect,
 	int32 InPrimitiveGroupIndex,
@@ -819,7 +819,7 @@ void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 	const float ZScale = 1.0f / (FarPlane - NearPlane);
 	const float ZOffset = -NearPlane;
 
-	FVector4 ProjectionRect = FVector4(2.0f, 2.0f, 2.0f, 2.0f) * CardUVRect - FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+	FVector4f ProjectionRect = FVector4f(2.0f, 2.0f, 2.0f, 2.0f) * CardUVRect - FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 
 	FVector2D CardBorderOffset;
 	CardBorderOffset = FVector2D(0.5f * (Lumen::PhysicalPageSize - Lumen::VirtualPageSize));

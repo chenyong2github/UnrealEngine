@@ -13,7 +13,7 @@
 /** Shader parameters needed for deferred passes sampling the ambient cube map. */
 BEGIN_SHADER_PARAMETER_STRUCT(FAmbientCubemapParameters, )
 	SHADER_PARAMETER(FLinearColor, AmbientCubemapColor)
-	SHADER_PARAMETER(FVector4, AmbientCubemapMipAdjust)
+	SHADER_PARAMETER(FVector4f, AmbientCubemapMipAdjust)
 	SHADER_PARAMETER_TEXTURE(TextureCube, AmbientCubemap)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AmbientCubemapSampler)
 END_SHADER_PARAMETER_STRUCT()

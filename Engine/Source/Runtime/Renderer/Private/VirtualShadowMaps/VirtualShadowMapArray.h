@@ -120,7 +120,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
-	SHADER_PARAMETER(FVector4, RecPhysicalPoolSize)
+	SHADER_PARAMETER(FVector4f, RecPhysicalPoolSize)
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSize)
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSizePages)
 

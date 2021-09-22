@@ -51,14 +51,14 @@ void TWaterVertexFactory<bWithWaterSelectionSupport>::InitRHI()
 	// Position stream for per vertex local position 
 	FVertexStream PositionVertexStream;
 	PositionVertexStream.VertexBuffer = VertexBuffer;
-	PositionVertexStream.Stride = sizeof(FVector4);
+	PositionVertexStream.Stride = sizeof(FVector4f);
 	PositionVertexStream.Offset = 0;
 	PositionVertexStream.VertexStreamUsage = EVertexStreamUsage::Default;
 
 	// Simple instancing vertex stream with nullptr vertex buffer to be set at binding time
 	FVertexStream InstanceDataVertexStream;
 	InstanceDataVertexStream.VertexBuffer = nullptr;
-	InstanceDataVertexStream.Stride = sizeof(FVector4);
+	InstanceDataVertexStream.Stride = sizeof(FVector4f);
 	InstanceDataVertexStream.Offset = 0;
 	InstanceDataVertexStream.VertexStreamUsage = EVertexStreamUsage::Instancing;
 

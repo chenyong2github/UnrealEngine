@@ -30,7 +30,7 @@ public:
 	 * bRecreateUniformBuffer must be false if any components have their rendering state created which might reference this!
 	 * The calling code is responsible for issuing a FGlobalComponentRecreateRenderStateContext before modifying.  Otherwise cached mesh draw commands will be left with a dangling pointer.
 	 */
-	void GameThread_UpdateContents(const FGuid& InId, const TArray<FVector4>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer);
+	void GameThread_UpdateContents(const FGuid& InId, const TArray<FVector4f>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer);
 
 	/** Destroy, called from the game thread. */
 	void GameThread_Destroy();
@@ -65,7 +65,7 @@ private:
 
 	FUniformBufferLayoutRHIRef UniformBufferLayout;
 
-	void UpdateContents(const FGuid& InId, const TArray<FVector4>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer);
+	void UpdateContents(const FGuid& InId, const TArray<FVector4f>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer);
 };
 
 // Default instance resources used when rendering a material using a parameter collection but there's no FScene present to get a FMaterialParameterCollectionInstanceResource

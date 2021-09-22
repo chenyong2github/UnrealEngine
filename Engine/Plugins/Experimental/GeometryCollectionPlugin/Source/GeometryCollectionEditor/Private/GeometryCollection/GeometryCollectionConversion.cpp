@@ -100,7 +100,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		TArrayView<const FVector3f> SourceTangent = Attributes.GetVertexInstanceTangents().GetRawArray();
 		TArrayView<const float> SourceBinormalSign = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
 		TArrayView<const FVector3f> SourceNormal = Attributes.GetVertexInstanceNormals().GetRawArray();
-		TArrayView<const FVector4> SourceColor = Attributes.GetVertexInstanceColors().GetRawArray();
+		TArrayView<const FVector4f> SourceColor = Attributes.GetVertexInstanceColors().GetRawArray();
 
 		TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
 		const int32 NumUVLayers = InstanceUVs.GetNumChannels();

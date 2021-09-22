@@ -797,7 +797,7 @@ void FIndirectLightingCache::UpdateTransitionsOverTime(const TArray<FIndirectLig
 
 			const float BentNormalLength = CurrentSkyBentNormal.Size();
 
-			Allocation->CurrentSkyBentNormal = FVector4(CurrentSkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
+			Allocation->CurrentSkyBentNormal = FVector4f(CurrentSkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
 		}
 	}
 }
@@ -908,18 +908,18 @@ void FIndirectLightingCache::UpdateBlock(FScene* Scene, FViewInfo* DebugDrawingV
 	// Record the position that the sample was taken at
 	BlockInfo.Allocation->TargetPosition = BlockInfo.Block.Min + BlockInfo.Block.Size / 2;
 
-	BlockInfo.Allocation->TargetSamplePacked0[0] = FVector4(SingleSample.R.V[0], SingleSample.R.V[1], SingleSample.R.V[2], SingleSample.R.V[3]) / PI;
-	BlockInfo.Allocation->TargetSamplePacked0[1] = FVector4(SingleSample.G.V[0], SingleSample.G.V[1], SingleSample.G.V[2], SingleSample.G.V[3]) / PI;
-	BlockInfo.Allocation->TargetSamplePacked0[2] = FVector4(SingleSample.B.V[0], SingleSample.B.V[1], SingleSample.B.V[2], SingleSample.B.V[3]) / PI;
-	BlockInfo.Allocation->TargetSamplePacked1[0] = FVector4(SingleSample.R.V[4], SingleSample.R.V[5], SingleSample.R.V[6], SingleSample.R.V[7]) / PI;
-	BlockInfo.Allocation->TargetSamplePacked1[1] = FVector4(SingleSample.G.V[4], SingleSample.G.V[5], SingleSample.G.V[6], SingleSample.G.V[7]) / PI;
-	BlockInfo.Allocation->TargetSamplePacked1[2] = FVector4(SingleSample.B.V[4], SingleSample.B.V[5], SingleSample.B.V[6], SingleSample.B.V[7]) / PI;
-	BlockInfo.Allocation->TargetSamplePacked2 = FVector4(SingleSample.R.V[8], SingleSample.G.V[8], SingleSample.B.V[8], 0) / PI;
+	BlockInfo.Allocation->TargetSamplePacked0[0] = FVector4f(SingleSample.R.V[0], SingleSample.R.V[1], SingleSample.R.V[2], SingleSample.R.V[3]) / PI;
+	BlockInfo.Allocation->TargetSamplePacked0[1] = FVector4f(SingleSample.G.V[0], SingleSample.G.V[1], SingleSample.G.V[2], SingleSample.G.V[3]) / PI;
+	BlockInfo.Allocation->TargetSamplePacked0[2] = FVector4f(SingleSample.B.V[0], SingleSample.B.V[1], SingleSample.B.V[2], SingleSample.B.V[3]) / PI;
+	BlockInfo.Allocation->TargetSamplePacked1[0] = FVector4f(SingleSample.R.V[4], SingleSample.R.V[5], SingleSample.R.V[6], SingleSample.R.V[7]) / PI;
+	BlockInfo.Allocation->TargetSamplePacked1[1] = FVector4f(SingleSample.G.V[4], SingleSample.G.V[5], SingleSample.G.V[6], SingleSample.G.V[7]) / PI;
+	BlockInfo.Allocation->TargetSamplePacked1[2] = FVector4f(SingleSample.B.V[4], SingleSample.B.V[5], SingleSample.B.V[6], SingleSample.B.V[7]) / PI;
+	BlockInfo.Allocation->TargetSamplePacked2 = FVector4f(SingleSample.R.V[8], SingleSample.G.V[8], SingleSample.B.V[8], 0) / PI;
 
 	BlockInfo.Allocation->TargetDirectionalShadowing = DirectionalShadowing;
 
 	const float BentNormalLength = SkyBentNormal.Size();
-	BlockInfo.Allocation->TargetSkyBentNormal = FVector4(SkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
+	BlockInfo.Allocation->TargetSkyBentNormal = FVector4f(SkyBentNormal / FMath::Max(BentNormalLength, .0001f), BentNormalLength);
 
 	if (!BlockInfo.Allocation->bHasEverUpdatedSingleSample)
 	{

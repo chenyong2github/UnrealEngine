@@ -2095,13 +2095,13 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 
 	// Create initial bounding box based on expanded version of reference pose for meshes without physics assets
 	const FSkeletalMeshImportData& LowestLOD = LODIndexToSkeletalMeshImportData[0];
-	FBox BoundingBox( LowestLOD.Points.GetData(), LowestLOD.Points.Num() );
-	FBox Temp = BoundingBox;
-	FVector MidMesh = 0.5f*(Temp.Min + Temp.Max);
+	FBox3f BoundingBox( LowestLOD.Points.GetData(), LowestLOD.Points.Num() );
+	FBox3f Temp = BoundingBox;
+	FVector3f MidMesh = 0.5f*(Temp.Min + Temp.Max);
 	BoundingBox.Min = Temp.Min + 1.0f*(Temp.Min - MidMesh);
 	BoundingBox.Max = Temp.Max + 1.0f*(Temp.Max - MidMesh);
 	BoundingBox.Min[2] = Temp.Min[2] + 0.1f*(Temp.Min[2] - MidMesh[2]);
-	const FVector BoundingBoxSize = BoundingBox.GetSize();
+	const FVector3f BoundingBoxSize = BoundingBox.GetSize();
 	if ( LowestLOD.Points.Num() > 2 && BoundingBoxSize.X < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Y < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Z < THRESH_POINTS_ARE_SAME )
 	{
 		return nullptr;
@@ -2171,7 +2171,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 #endif // WITH_EDITOR
 	}
 
-	SkeletalMesh->SetImportedBounds( FBoxSphereBounds( BoundingBox ) );
+	SkeletalMesh->SetImportedBounds( FBoxSphereBounds( (FBox)BoundingBox ) );
 	SkeletalMesh->SetHasVertexColors(bHasVertexColors);
 	SkeletalMesh->SetVertexColorGuid(SkeletalMesh->GetHasVertexColors() ? FGuid::NewGuid() : FGuid());
 	SkeletalMesh->CalculateInvRefMatrices();

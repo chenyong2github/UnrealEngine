@@ -364,7 +364,7 @@ void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 		const VectorRegister ExtentY = VectorLoadAligned( &CurrentBounds4.ExtentY );
 		const VectorRegister ExtentZ = VectorLoadAligned( &CurrentBounds4.ExtentZ );
 		const VectorRegister Radius = VectorLoadAligned( &CurrentBounds4.Radius );
-		const VectorRegister PackedRelativeBox = VectorLoadAligned( reinterpret_cast<const FVector4*>(&CurrentBounds4.PackedRelativeBox) );
+		const VectorRegister PackedRelativeBox = VectorLoadAligned( reinterpret_cast<const FVector4f*>(&CurrentBounds4.PackedRelativeBox) );
 		const VectorRegister MinDistanceSq = VectorLoadAligned( &CurrentBounds4.MinDistanceSq );
 		const VectorRegister MinRangeSq = VectorLoadAligned( &CurrentBounds4.MinRangeSq );
 		const VectorRegister MaxRangeSq = VectorLoadAligned(&CurrentBounds4.MaxRangeSq);

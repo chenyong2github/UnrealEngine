@@ -712,7 +712,7 @@ void FSceneViewState::FEyeAdaptationManager::SwapTextures(FRDGBuilder& GraphBuil
 			RDG_GPU_MASK_SCOPE(GraphBuilder, ReadBackGPUMask);
 
 			// Read the last request results.
-			FVector4* ReadbackData = (FVector4*)ExposureTextureReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4));
+			FVector4f* ReadbackData = (FVector4f*)ExposureTextureReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4f));
 			if (ReadbackData)
 			{
 				LastExposure = ReadbackData->X;
@@ -778,14 +778,14 @@ const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::Ge
 	// Create textures if needed.
 	if (!ExposureBufferData[BufferIndex].IsValid())
 	{
-		FRDGBufferDesc RDGBufferDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), 1);
+		FRDGBufferDesc RDGBufferDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), 1);
 		RDGBufferDesc.Usage |= BUF_SourceCopy;
 		FRDGBufferRef RDGBuffer = GraphBuilder.CreateBuffer(RDGBufferDesc, TEXT("EyeAdaptationBuffer"), ERDGBufferFlags::MultiFrame);
 
 		ExposureBufferData[BufferIndex] = GraphBuilder.ConvertToExternalBuffer(RDGBuffer);
 
-		FVector4* BufferData = (FVector4*)GraphBuilder.RHICmdList.LockBuffer(ExposureBufferData[BufferIndex]->GetRHI(), 0, sizeof(FVector4), RLM_WriteOnly);
-		*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		FVector4f* BufferData = (FVector4f*)GraphBuilder.RHICmdList.LockBuffer(ExposureBufferData[BufferIndex]->GetRHI(), 0, sizeof(FVector4f), RLM_WriteOnly);
+		*BufferData = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		GraphBuilder.RHICmdList.UnlockBuffer(ExposureBufferData[BufferIndex]->GetRHI());
 	}
 
@@ -818,7 +818,7 @@ void FSceneViewState::FEyeAdaptationManager::SwapBuffers(FRDGBuilder& GraphBuild
 			RDG_GPU_MASK_SCOPE(GraphBuilder, ReadBackGPUMask);
 
 			// Read the last request results.
-			FVector4* ReadbackData = (FVector4*)ExposureBufferReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4));
+			FVector4f* ReadbackData = (FVector4f*)ExposureBufferReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4f));
 			if (ReadbackData)
 			{
 				LastExposure = ReadbackData->X;

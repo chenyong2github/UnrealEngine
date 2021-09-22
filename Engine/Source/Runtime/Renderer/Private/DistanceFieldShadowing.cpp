@@ -148,8 +148,8 @@ class FCullObjectsForShadowCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, ObjectBoundingGeometryIndexCount)
 		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
 		SHADER_PARAMETER(uint32, NumShadowHullPlanes)
-		SHADER_PARAMETER(FVector4, ShadowBoundingSphere)
-		SHADER_PARAMETER_ARRAY(FVector4,ShadowConvexHull,[12])
+		SHADER_PARAMETER(FVector4f, ShadowBoundingSphere)
+		SHADER_PARAMETER_ARRAY(FVector4f,ShadowConvexHull,[12])
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FPrimitiveType : SHADER_PERMUTATION_INT("DISTANCEFIELD_PRIMITIVE_TYPE", 2);
@@ -248,7 +248,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER(FVector2D, NumGroups)
 		SHADER_PARAMETER(FVector3f, LightDirection)
-		SHADER_PARAMETER(FVector4, LightPositionAndInvRadius)
+		SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
 		SHADER_PARAMETER(float, LightSourceRadius)
 		SHADER_PARAMETER(float, RayStartOffsetDepthScale)
 		SHADER_PARAMETER(FVector3f, TanLightAngleAndNormalThreshold)
@@ -461,8 +461,8 @@ void AllocateDistanceFieldCulledObjectBuffers(
 		ObjectBoxBoundsStride = GHeightFieldCulledObjectBoxBoundsStride;
 	}
 
-	FRDGBufferRef Bounds = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), MaxObjects * NumBoundsElementsScale), TEXT("FDistanceFieldCulledObjectBuffers_Bounds"));
-	FRDGBufferRef Data = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), MaxObjects * ObjectDataStride), TEXT("FDistanceFieldCulledObjectBuffers_Data"));
+	FRDGBufferRef Bounds = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), MaxObjects * NumBoundsElementsScale), TEXT("FDistanceFieldCulledObjectBuffers_Bounds"));
+	FRDGBufferRef Data = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), MaxObjects * ObjectDataStride), TEXT("FDistanceFieldCulledObjectBuffers_Data"));
 
 	OutParameters.RWObjectIndirectArguments = GraphBuilder.CreateUAV(OutObjectIndirectArguments, PF_R32_UINT);
 	OutParameters.RWCulledObjectBounds = GraphBuilder.CreateUAV(Bounds);
@@ -474,7 +474,7 @@ void AllocateDistanceFieldCulledObjectBuffers(
 
 	if (bWantBoxBounds)
 	{
-		FRDGBufferRef BoxBounds = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), MaxObjects * ObjectBoxBoundsStride), TEXT("FDistanceFieldCulledObjectBuffers_BoxBounds"));
+		FRDGBufferRef BoxBounds = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), MaxObjects * ObjectBoxBoundsStride), TEXT("FDistanceFieldCulledObjectBuffers_BoxBounds"));
 		OutParameters.RWCulledObjectBoxBounds = GraphBuilder.CreateUAV(BoxBounds);
 		OutParameters.CulledObjectBoxBounds = GraphBuilder.CreateSRV(BoxBounds);
 	}
@@ -528,7 +528,7 @@ void CullDistanceFieldObjectsForLight(
 
 		for (int32 i = 0; i < NumPlanes; i++)
 		{
-			PassParameters->ShadowConvexHull[i] = FVector4(PlaneData[i], PlaneData[i].W);
+			PassParameters->ShadowConvexHull[i] = FVector4f(PlaneData[i], PlaneData[i].W);
 		}
 
 		FCullObjectsForShadowCS::FPermutationDomain PermutationVector;
@@ -722,7 +722,7 @@ void RayTraceShadows(
 		LightProxy.GetLightShaderParameters(LightParameters);
 
 		PassParameters->LightDirection = LightParameters.Direction;
-		PassParameters->LightPositionAndInvRadius = FVector4(LightParameters.Position, LightParameters.InvRadius);
+		PassParameters->LightPositionAndInvRadius = FVector4f(LightParameters.Position, LightParameters.InvRadius);
 		// Default light source radius of 0 gives poor results
 		PassParameters->LightSourceRadius = LightParameters.SourceRadius == 0 ? 20 : FMath::Clamp(LightParameters.SourceRadius, .001f, 1.0f / (4 * LightParameters.InvRadius));
 		PassParameters->RayStartOffsetDepthScale = LightProxy.GetRayStartOffsetDepthScale();

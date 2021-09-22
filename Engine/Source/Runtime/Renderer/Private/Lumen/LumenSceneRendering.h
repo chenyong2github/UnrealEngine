@@ -32,7 +32,7 @@ public:
 	const int32 CardIndex = -1;
 	const int32 PageTableIndex = -1;
 	bool bDistantScene = false;
-	FVector4 CardUVRect;
+	FVector4f CardUVRect;
 	FIntRect CardCaptureAtlasRect;
 	FIntRect SurfaceCacheAtlasRect;
 
@@ -53,7 +53,7 @@ public:
 
 	FCardPageRenderData(const FViewInfo& InMainView,
 		FLumenCard& InCardData,
-		FVector4 InCardUVRect,
+		FVector4f InCardUVRect,
 		FIntRect InCardCaptureAtlasRect,
 		FIntRect InSurfaceCacheAtlasRect,
 		int32 InPrimitiveGroupIndex,

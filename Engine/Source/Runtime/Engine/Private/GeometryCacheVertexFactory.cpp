@@ -115,10 +115,10 @@ public:
 	virtual void InitRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("DefaultGeometryCacheVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4) * 2, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		FVector4* DummyContents = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 2, RLM_WriteOnly);
-		DummyContents[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-		DummyContents[1] = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * 2, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 2, RLM_WriteOnly);
+		DummyContents[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		DummyContents[1] = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		RHIUnlockBuffer(VertexBufferRHI);
 
 		SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
@@ -140,10 +140,10 @@ public:
 	virtual void InitRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("DummyTangentBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4) * 2, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		FVector4* DummyContents = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 2, RLM_WriteOnly);
-		DummyContents[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-		DummyContents[1] = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * 2, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 2, RLM_WriteOnly);
+		DummyContents[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		DummyContents[1] = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		RHIUnlockBuffer(VertexBufferRHI);
 
 		SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);

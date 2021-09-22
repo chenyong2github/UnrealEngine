@@ -21,9 +21,9 @@ struct TStaticMeshVertexTangentDatum
 		return TangentX.ToFVector();
 	}
 
-	FORCEINLINE FVector4 GetTangentZ() const
+	FORCEINLINE FVector4f GetTangentZ() const
 	{
-		return TangentZ.ToFVector4();
+		return TangentZ.ToFVector4f();
 	}
 
 	FORCEINLINE FVector3f GetTangentY() const
@@ -34,7 +34,7 @@ struct TStaticMeshVertexTangentDatum
 	FORCEINLINE void SetTangents(FVector3f X, FVector3f Y, FVector3f Z)
 	{
 		TangentX = X;
-		TangentZ = FVector4(Z.X, Z.Y, Z.Z, GetBasisDeterminantSign(X, Y, Z));
+		TangentZ = FVector4f(Z.X, Z.Y, Z.Z, GetBasisDeterminantSign(X, Y, Z));
 	}
 
 	/**
@@ -186,16 +186,16 @@ public:
 	ENGINE_API void operator=(const FStaticMeshVertexBuffer &Other);
 
 	template<EStaticMeshVertexTangentBasisType TangentBasisTypeT>
-	FORCEINLINE_DEBUGGABLE FVector4 VertexTangentX_Typed(uint32 VertexIndex)const
+	FORCEINLINE_DEBUGGABLE FVector4f VertexTangentX_Typed(uint32 VertexIndex)const
 	{
 		typedef TStaticMeshVertexTangentDatum<typename TStaticMeshVertexTangentTypeSelector<TangentBasisTypeT>::TangentTypeT> TangentType;
 		TangentType* ElementData = reinterpret_cast<TangentType*>(TangentsDataPtr);
 		check((void*)((&ElementData[VertexIndex]) + 1) <= (void*)(TangentsDataPtr + TangentsData->GetResourceSize()));
 		check((void*)((&ElementData[VertexIndex]) + 0) >= (void*)(TangentsDataPtr));
-		return FVector4(ElementData[VertexIndex].GetTangentX());
+		return FVector4f(ElementData[VertexIndex].GetTangentX());
 	}
 
-	FORCEINLINE_DEBUGGABLE FVector4 VertexTangentX(uint32 VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVector4f VertexTangentX(uint32 VertexIndex) const
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 
@@ -210,16 +210,16 @@ public:
 	}
 
 	template<EStaticMeshVertexTangentBasisType TangentBasisTypeT>
-	FORCEINLINE_DEBUGGABLE FVector4 VertexTangentZ_Typed(uint32 VertexIndex)const
+	FORCEINLINE_DEBUGGABLE FVector4f VertexTangentZ_Typed(uint32 VertexIndex)const
 	{
 		typedef TStaticMeshVertexTangentDatum<typename TStaticMeshVertexTangentTypeSelector<TangentBasisTypeT>::TangentTypeT> TangentType;
 		TangentType* ElementData = reinterpret_cast<TangentType*>(TangentsDataPtr);
 		check((void*)((&ElementData[VertexIndex]) + 1) <= (void*)(TangentsDataPtr + TangentsData->GetResourceSize()));
 		check((void*)((&ElementData[VertexIndex]) + 0) >= (void*)(TangentsDataPtr));
-		return  FVector4(ElementData[VertexIndex].GetTangentZ());
+		return  FVector4f(ElementData[VertexIndex].GetTangentZ());
 	}
 
-	FORCEINLINE_DEBUGGABLE FVector4 VertexTangentZ(uint32 VertexIndex) const
+	FORCEINLINE_DEBUGGABLE FVector4f VertexTangentZ(uint32 VertexIndex) const
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 
@@ -234,13 +234,13 @@ public:
 	}
 
 	template<EStaticMeshVertexTangentBasisType TangentBasisTypeT>
-	FORCEINLINE_DEBUGGABLE FVector4 VertexTangentY_Typed(uint32 VertexIndex)const
+	FORCEINLINE_DEBUGGABLE FVector4f VertexTangentY_Typed(uint32 VertexIndex)const
 	{
 		typedef TStaticMeshVertexTangentDatum<typename TStaticMeshVertexTangentTypeSelector<TangentBasisTypeT>::TangentTypeT> TangentType;
 		TangentType* ElementData = reinterpret_cast<TangentType*>(TangentsDataPtr);
 		check((void*)((&ElementData[VertexIndex]) + 1) <= (void*)(TangentsDataPtr + TangentsData->GetResourceSize()));
 		check((void*)((&ElementData[VertexIndex]) + 0) >= (void*)(TangentsDataPtr));
-		return FVector4(ElementData[VertexIndex].GetTangentY());
+		return FVector4f(ElementData[VertexIndex].GetTangentY());
 	}
 
 	/**

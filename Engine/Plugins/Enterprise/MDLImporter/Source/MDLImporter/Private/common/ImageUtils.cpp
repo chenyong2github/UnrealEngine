@@ -53,15 +53,15 @@ namespace ImageUtilsImpl
 		return bReadSuccess;
 	}
 
-	void SetImageValue(const FVector4& SrcColor, bool bLinearSpace, float* DstColor, int32 Channels)
+	void SetImageValue(const FVector4f& SrcColor, bool bLinearSpace, float* DstColor, int32 Channels)
 	{
-		static_assert(sizeof(FVector4) == 4 * sizeof(float), "INVALID_VALUE");
+		static_assert(sizeof(FVector4f) == 4 * sizeof(float), "INVALID_VALUE");
 		check(!bLinearSpace);
 
 		memcpy(DstColor, &SrcColor, sizeof(float) * Channels);
 	}
 
-	void SetImageValue(const FVector4& SrcColor, bool bLinearSpace, uint8* DstColor, int32 Channels)
+	void SetImageValue(const FVector4f& SrcColor, bool bLinearSpace, uint8* DstColor, int32 Channels)
 	{
 		if (bLinearSpace)
 		{
@@ -139,7 +139,7 @@ namespace ImageUtilsImpl
 				EndPosX       = FMath::Clamp<int32>(EndPosX, 0, (SrcWidth - 1));
 
 				// Accumulate color
-				FVector4 	LinearStepColor(0.f, 0.f, 0.f, 0.f);
+				FVector4f 	LinearStepColor(0.f, 0.f, 0.f, 0.f);
 				int32 		PixelCount = 0;
 				if (bLinearSpace)
 				{

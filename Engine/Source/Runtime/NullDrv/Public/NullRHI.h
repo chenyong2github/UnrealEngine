@@ -176,7 +176,7 @@ public:
 		return new FRHIShaderResourceView();
 	}
 
-	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values) final override
+	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values) final override
 	{
 
 	}

@@ -15,7 +15,7 @@ extern bool IsReflectionEnvironmentAvailable(ERHIFeatureLevel::Type InFeatureLev
 extern bool IsReflectionCaptureAvailable();
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionUniformParameters,)
-	SHADER_PARAMETER(FVector4, SkyLightParameters)
+	SHADER_PARAMETER(FVector4f, SkyLightParameters)
 	SHADER_PARAMETER(float, SkyLightCubemapBrightness)
 	SHADER_PARAMETER_TEXTURE(TextureCube, SkyLightCubemap)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SkyLightCubemapSampler)

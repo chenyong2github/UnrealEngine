@@ -207,7 +207,7 @@ public:
 		SHADER_PARAMETER(FIntPoint, TileDimensions)
 		SHADER_PARAMETER(FVector2D, NumGroups)
 
-		SHADER_PARAMETER(FVector4, LightPositionAndInvRadius)
+		SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
 		SHADER_PARAMETER(FVector3f, LightDirection)
 		SHADER_PARAMETER(float, LightSourceRadius)
 		SHADER_PARAMETER(FVector3f, LightAngleAndNormalThreshold)
@@ -222,7 +222,7 @@ public:
 		SHADER_PARAMETER(FVector2D, CosFadeStartAngle)
 
 		SHADER_PARAMETER(uint32, NumShadowCapsules)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FCapsuleShape>, ShadowCapsuleShapes)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FCapsuleShape3f>, ShadowCapsuleShapes)
 
 		SHADER_PARAMETER(uint32, NumMeshDistanceFieldCasters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, MeshDistanceFieldCasterIndices)
@@ -427,7 +427,7 @@ void SetupCapsuleShadowingParameters(
 
 		Parameters.LightDirection = LightParameters.Direction;
 
-		FVector4 LightPositionAndInvRadius(LightParameters.Position, LightParameters.InvRadius);
+		FVector4f LightPositionAndInvRadius(LightParameters.Position, LightParameters.InvRadius);
 		Parameters.LightPositionAndInvRadius = LightPositionAndInvRadius;
 
 		// Default light source radius of 0 gives poor results
@@ -509,7 +509,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 		RDG_EVENT_SCOPE(GraphBuilder, "CapsuleShadows");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, CapsuleShadows);
 
-		TArray<FCapsuleShape> CapsuleShapeData;
+		TArray<FCapsuleShape3f> CapsuleShapeData;
 
 		for (int32 ShadowIndex = 0; ShadowIndex < CapsuleShadows.Num(); ShadowIndex++)
 		{
@@ -752,10 +752,10 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 	const float CosFadeStartAngle = FMath::Cos(GCapsuleShadowFadeAngleFromVertical);
 	const FSkyLightSceneProxy* SkyLight = Scene ? Scene->SkyLight : NULL;
 
-	static TArray<FCapsuleShape> CapsuleShapeData;
-	static TArray<FVector4> CapsuleLightSourceData;
+	static TArray<FCapsuleShape3f> CapsuleShapeData;
+	static TArray<FVector4f> CapsuleLightSourceData;
 	static TArray<int32, TInlineAllocator<1>> MeshDistanceFieldCasterIndices;
-	static TArray<FVector4> DistanceFieldCasterLightSourceData;
+	static TArray<FVector4f> DistanceFieldCasterLightSourceData;
 
 	CapsuleShapeData.Reset();
 	MeshDistanceFieldCasterIndices.Reset();
@@ -769,13 +769,13 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 		FPrimitiveSceneInfo* PrimitiveSceneInfo = View.IndirectShadowPrimitives[PrimitiveIndex];
 		const FIndirectLightingCacheAllocation* Allocation = PrimitiveSceneInfo->IndirectLightingCacheAllocation;
 
-		FVector4 PackedLightDirection(0, 0, 1, PI / 16);
+		FVector4f PackedLightDirection(0, 0, 1, PI / 16);
 		float ShapeFadeAlpha = 1;
 
 		if (bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)
 		{
 			// Encode object position for ComputeLightDirectionsFromVolumetricLightmapCS
-			PackedLightDirection = FVector4(PrimitiveSceneInfo->Proxy->GetBounds().Origin, 0);
+			PackedLightDirection = FVector4f(PrimitiveSceneInfo->Proxy->GetBounds().Origin, 0);
 		}
 		else if (SkyLight 
 			&& !SkyLight->bHasStaticLighting
@@ -786,7 +786,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 			// Stationary sky light case
 			// Get the indirect shadow direction from the unoccluded sky direction
 			const float ConeAngle = FMath::Max(Allocation->CurrentSkyBentNormal.W * GCapsuleSkyAngleScale * .5f * PI, GCapsuleMinSkyAngle * PI / 180.0f);
-			PackedLightDirection = FVector4(FVector3f(Allocation->CurrentSkyBentNormal), ConeAngle);
+			PackedLightDirection = FVector4f(FVector3f(Allocation->CurrentSkyBentNormal), ConeAngle);
 		}
 		else if (SkyLight 
 			&& !SkyLight->bHasStaticLighting 
@@ -798,7 +798,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 			const FVector ExtractedMaxDirection = SkyLightingIntensity.GetMaximumDirection();
 
 			// Get the indirect shadow direction from the primary sky lighting direction
-			PackedLightDirection = FVector4(ExtractedMaxDirection, GCapsuleIndirectConeAngle);
+			PackedLightDirection = FVector4f(ExtractedMaxDirection, GCapsuleIndirectConeAngle);
 		}
 		else if (Allocation)
 		{
@@ -811,7 +811,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 			const FVector ExtractedMaxDirection = IndirectLightingIntensity.GetMaximumDirection();
 
 			// Get the indirect shadow direction from the primary indirect lighting direction
-			PackedLightDirection = FVector4(ExtractedMaxDirection, GCapsuleIndirectConeAngle);
+			PackedLightDirection = FVector4f(ExtractedMaxDirection, GCapsuleIndirectConeAngle);
 		}
 
 		if (CosFadeStartAngle < 1 && !bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)
@@ -894,7 +894,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 			const size_t CapsuleLightSourceDataSize = CapsuleLightSourceData.Num() * CapsuleLightSourceData.GetTypeSize();
 			const size_t DistanceFieldCasterLightSourceDataSize = DistanceFieldCasterLightSourceData.Num() * DistanceFieldCasterLightSourceData.GetTypeSize();
 
-			FRDGUploadData<FVector4> TempData(GraphBuilder, NumLightDataElements);
+			FRDGUploadData<FVector4f> TempData(GraphBuilder, NumLightDataElements);
 			FPlatformMemory::Memcpy(TempData.GetData(), CapsuleLightSourceData.GetData(), CapsuleLightSourceDataSize);
 			FPlatformMemory::Memcpy((char*)TempData.GetData() + CapsuleLightSourceDataSize, DistanceFieldCasterLightSourceData.GetData(), DistanceFieldCasterLightSourceDataSize);
 
@@ -906,7 +906,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 
 		if (bComputeLightDataFromVolumetricLightmapOrGpuSkyEnvMapIrradiance)
 		{
-			FRDGBufferRef IndirectShadowVolumetricLightmapDerivedLightDirection = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), NumLightDataElements), TEXT("IndirectShadowVolumetricLightmapDerivedLightDirection"));
+			FRDGBufferRef IndirectShadowVolumetricLightmapDerivedLightDirection = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), NumLightDataElements), TEXT("IndirectShadowVolumetricLightmapDerivedLightDirection"));
 			FRDGBufferUAVRef ComputedLightDirectionUAV = GraphBuilder.CreateUAV(IndirectShadowVolumetricLightmapDerivedLightDirection);
 			Output.IndirectShadowLightDirectionSRV = GraphBuilder.CreateSRV(IndirectShadowVolumetricLightmapDerivedLightDirection);
 

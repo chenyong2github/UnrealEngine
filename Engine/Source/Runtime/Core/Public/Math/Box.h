@@ -7,6 +7,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
 #include "Math/Vector.h"
+#include "Math/Sphere.h"
 
 /**
  * Implements an axis-aligned box.
@@ -14,15 +15,20 @@
  * Boxes describe an axis-aligned extent in three dimensions. They are used for many different things in the
  * Engine and in games, such as bounding volumes, collision detection and visibility calculation.
  */
-struct FBox
+namespace UE {
+namespace Math {
+
+template<typename T>
+struct TBox
 {
 public:
+	using FReal = T;
 
 	/** Holds the box's minimum point. */
-	FVector Min;
+	TVector<T> Min;
 
 	/** Holds the box's maximum point. */
-	FVector Max;
+	TVector<T> Max;
 
 	/** Holds a flag indicating whether this box is valid. */
 	uint8 IsValid;
@@ -30,14 +36,14 @@ public:
 public:
 
 	/** Default constructor (no initialization). */
-	FBox() { }
+	TBox() { }
 
 	/**
 	 * Creates and initializes a new box with zero extent and marks it as invalid.
 	 *
 	 * Use enum value EForceInit::ForceInit to force box initialization.
 	 */
-	explicit FBox( EForceInit )
+	explicit TBox( EForceInit )
 	{
 		Init();
 	}
@@ -48,7 +54,7 @@ public:
 	 * @param InMin The box's minimum point.
 	 * @param InMax The box's maximum point.
 	 */
-	FBox( const FVector& InMin, const FVector& InMax )
+	TBox( const TVector<T>& InMin, const TVector<T>& InMax )
 		: Min(InMin)
 		, Max(InMax)
 		, IsValid(1)
@@ -60,16 +66,24 @@ public:
 	 * @param Points Array of Points to create for the bounding volume.
 	 * @param Count The number of points.
 	 */
-	CORE_API FBox(const FVector3f* Points, int32 Count);
-	CORE_API FBox(const FVector3d* Points, int32 Count);
+	TBox(const TVector<T>* Points, int32 Count) : Min(0, 0, 0), Max(0, 0, 0), IsValid(0)
+	{
+		for (int32 i = 0; i < Count; i++)
+		{
+			*this += Points[i];
+		}
+	}
 
 	/**
 	 * Creates and initializes a new box from an array of points.
 	 *
 	 * @param Points Array of Points to create for the bounding volume.
 	 */
-	CORE_API FBox(const TArray<FVector3f>& Points) : FBox(&Points[0], Points.Num()) {};
-	CORE_API FBox(const TArray<FVector3d>& Points) : FBox(&Points[0], Points.Num()) {};
+	TBox(const TArray<TVector<T>>& Points) : TBox<T>(&Points[0], Points.Num()) {};
+
+	// Conversion from other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TBox(const TBox<FArg>& From) : TBox<T>(TVector<T>(From.Min), TVector<T>(From.Max)) {}
 
 public:
 
@@ -78,7 +92,7 @@ public:
 	 *
 	 * @return true if the boxes are equal, false otherwise.
 	 */
-	FORCEINLINE bool operator==( const FBox& Other ) const
+	FORCEINLINE bool operator==( const TBox<T>& Other ) const
 	{
 		return (Min == Other.Min) && (Max == Other.Max);
 	}
@@ -88,7 +102,7 @@ public:
 	 *
 	 * @return false if the boxes are equal, true otherwise.
 	 */
-	FORCEINLINE bool operator!=( const FBox& Other) const
+	FORCEINLINE bool operator!=( const TBox<T>& Other) const
 	{
 		return (Min != Other.Min) || (Max != Other.Max);
 	}
@@ -100,7 +114,7 @@ public:
 	 * @param Tolerance Error tolerance.
 	 * @return true if the boxes are equal within tolerance limits, false otherwise.
 	 */
-	bool Equals(const FBox& Other, float Tolerance=KINDA_SMALL_NUMBER) const
+	bool Equals(const TBox<T>& Other, T Tolerance=KINDA_SMALL_NUMBER) const
 	{
 		return Min.Equals(Other.Min, Tolerance) && Max.Equals(Other.Max, Tolerance);
 	}
@@ -111,7 +125,7 @@ public:
 	 * @param Other the point to increase the bounding volume to.
 	 * @return Reference to this bounding box after resizing to include the other point.
 	 */
-	FORCEINLINE FBox& operator+=( const FVector &Other );
+	FORCEINLINE TBox<T>& operator+=( const TVector<T> &Other );
 
 	/**
 	 * Gets the result of addition to this bounding volume.
@@ -119,9 +133,9 @@ public:
 	 * @param Other The other point to add to this.
 	 * @return A new bounding volume.
 	 */
-	FORCEINLINE FBox operator+( const FVector& Other ) const
+	FORCEINLINE TBox<T> operator+( const TVector<T>& Other ) const
 	{
-		return FBox(*this) += Other;
+		return TBox<T>(*this) += Other;
 	}
 
 	/**
@@ -130,7 +144,7 @@ public:
 	 * @param Other the bounding volume to increase the bounding volume to.
 	 * @return Reference to this bounding volume after resizing to include the other bounding volume.
 	 */
-	FORCEINLINE FBox& operator+=( const FBox& Other );
+	FORCEINLINE TBox<T>& operator+=( const TBox<T>& Other );
 
 	/**
 	 * Gets the result of addition to this bounding volume.
@@ -138,9 +152,9 @@ public:
 	 * @param Other The other volume to add to this.
 	 * @return A new bounding volume.
 	 */
-	FORCEINLINE FBox operator+( const FBox& Other ) const
+	FORCEINLINE TBox<T> operator+( const TBox<T>& Other ) const
 	{
-		return FBox(*this) += Other;
+		return TBox<T>(*this) += Other;
 	}
 
 	/**
@@ -149,7 +163,7 @@ public:
 	 * @param Index the index into points of the bounding volume.
 	 * @return a reference to a point of the bounding volume.
 	 */
-    FORCEINLINE FVector& operator[]( int32 Index )
+    FORCEINLINE TVector<T>& operator[]( int32 Index )
 	{
 		check((Index >= 0) && (Index < 2));
 
@@ -169,7 +183,7 @@ public:
 	 * @param Point The point.
 	 * @return The distance.
 	 */
-	FORCEINLINE FVector::FReal ComputeSquaredDistanceToPoint( const FVector& Point ) const
+	FORCEINLINE T ComputeSquaredDistanceToPoint( const TVector<T>& Point ) const
 	{
 		return ComputeSquaredDistanceFromBoxToPoint(Min, Max, Point);
 	}
@@ -177,11 +191,11 @@ public:
 	/**
 	 * Calculates squared distance between two boxes.
 	 */
-	FORCEINLINE FVector::FReal ComputeSquaredDistanceToBox(const FBox& Box) const
+	FORCEINLINE T ComputeSquaredDistanceToBox(const TBox<T>& Box) const
 	{
-		FVector AxisDistances = (GetCenter() - Box.GetCenter()).GetAbs() - (GetExtent() + Box.GetExtent());
-		AxisDistances = FVector::Max(AxisDistances, FVector(0.0f, 0.0f, 0.0f));
-		return FVector::DotProduct(AxisDistances, AxisDistances);
+		TVector<T> AxisDistances = (GetCenter() - Box.GetCenter()).GetAbs() - (GetExtent() + Box.GetExtent());
+		AxisDistances = TVector<T>::Max(AxisDistances, TVector<T>(0.0f, 0.0f, 0.0f));
+		return TVector<T>::DotProduct(AxisDistances, AxisDistances);
 	}
 
 	/** 
@@ -190,9 +204,9 @@ public:
 	 * @param W The size to increase the volume by.
 	 * @return A new bounding box.
 	 */
-	FORCEINLINE FBox ExpandBy(float W) const
+	FORCEINLINE TBox<T> ExpandBy(T W) const
 	{
-		return FBox(Min - FVector(W, W, W), Max + FVector(W, W, W));
+		return TBox<T>(Min - TVector<T>(W, W, W), Max + TVector<T>(W, W, W));
 	}
 
 	/**
@@ -201,9 +215,9 @@ public:
 	* @param V The size to increase the volume by.
 	* @return A new bounding box.
 	*/
-	FORCEINLINE FBox ExpandBy(const FVector& V) const
+	FORCEINLINE TBox<T> ExpandBy(const TVector<T>& V) const
 	{
-		return FBox(Min - V, Max + V);
+		return TBox<T>(Min - V, Max + V);
 	}
 
 	/**
@@ -213,9 +227,9 @@ public:
 	* @param Pos The size to increase the volume by in the positive direction (positive values move the bounds outwards)
 	* @return A new bounding box.
 	*/
-	FBox ExpandBy(const FVector& Neg, const FVector& Pos) const
+	TBox<T> ExpandBy(const TVector<T>& Neg, const TVector<T>& Pos) const
 	{
-		return FBox(Min - Neg, Max + Pos);
+		return TBox<T>(Min - Neg, Max + Pos);
 	}
 
 	/** 
@@ -224,9 +238,9 @@ public:
 	 * @param Offset The vector to shift the box by.
 	 * @return A new bounding box.
 	 */
-	FORCEINLINE FBox ShiftBy( const FVector& Offset ) const
+	FORCEINLINE TBox<T> ShiftBy( const TVector<T>& Offset ) const
 	{
-		return FBox(Min + Offset, Max + Offset);
+		return TBox<T>(Min + Offset, Max + Offset);
 	}
 
 	/** 
@@ -235,10 +249,10 @@ public:
 	 * @param Destination The destination point to move center of box to.
 	 * @return A new bounding box.
 	 */
-	FORCEINLINE FBox MoveTo( const FVector& Destination ) const
+	FORCEINLINE TBox<T> MoveTo( const TVector<T>& Destination ) const
 	{
-		const FVector Offset = Destination - GetCenter();
-		return FBox(Min + Offset, Max + Offset);
+		const TVector<T> Offset = Destination - GetCenter();
+		return TBox<T>(Min + Offset, Max + Offset);
 	}
 
 	/**
@@ -247,9 +261,9 @@ public:
 	 * @return The center point.
 	 * @see GetCenterAndExtents, GetExtent, GetSize, GetVolume
 	 */
-	FORCEINLINE FVector GetCenter() const
+	FORCEINLINE TVector<T> GetCenter() const
 	{
-		return FVector((Min + Max) * 0.5f);
+		return TVector<T>((Min + Max) * 0.5f);
 	}
 
 	/**
@@ -259,7 +273,7 @@ public:
 	 * @param Extents [out] Will contain the extent around the center.
 	 * @see GetCenter, GetExtent, GetSize, GetVolume
 	 */
-	FORCEINLINE void GetCenterAndExtents( FVector& Center, FVector& Extents ) const
+	FORCEINLINE void GetCenterAndExtents( TVector<T>& Center, TVector<T>& Extents ) const
 	{
 		Extents = GetExtent();
 		Center = Min + Extents;
@@ -271,7 +285,7 @@ public:
 	 * @param Point The point in space.
 	 * @return The closest point on or inside the box.
 	 */
-	FORCEINLINE FVector GetClosestPointTo( const FVector& Point ) const;
+	FORCEINLINE TVector<T> GetClosestPointTo( const TVector<T>& Point ) const;
 
 	/**
 	 * Gets the extents of this box.
@@ -279,19 +293,19 @@ public:
 	 * @return The box extents.
 	 * @see GetCenter, GetCenterAndExtents, GetSize, GetVolume
 	 */
-	FORCEINLINE FVector GetExtent() const
+	FORCEINLINE TVector<T> GetExtent() const
 	{
 		return 0.5f * (Max - Min);
 	}
 
 	UE_DEPRECATED(4.24, "This method performed unsafe operations and should be replaced with using .Min and .Max directly or using the [] operator on this class instead.")
-	FORCEINLINE FVector& GetExtrema( int PointIndex )
+	FORCEINLINE TVector<T>& GetExtrema( int PointIndex )
 	{
 		return (&Min)[PointIndex];
 	}
 
 	UE_DEPRECATED(4.24, "This method performed unsafe operations and should be replaced with using .Min and .Max directly or using the [] operator on this class instead.")
-	FORCEINLINE const FVector& GetExtrema( int PointIndex ) const
+	FORCEINLINE const TVector<T>& GetExtrema( int PointIndex ) const
 	{
 		return (&Min)[PointIndex];
 	}
@@ -302,7 +316,7 @@ public:
 	 * @return The box size.
 	 * @see GetCenter, GetCenterAndExtents, GetExtent, GetVolume
 	 */
-	FORCEINLINE FVector GetSize() const
+	FORCEINLINE TVector<T> GetSize() const
 	{
 		return (Max - Min);
 	}
@@ -313,7 +327,7 @@ public:
 	 * @return The box volume.
 	 * @see GetCenter, GetCenterAndExtents, GetExtent, GetSize
 	 */
-	FORCEINLINE FVector::FReal GetVolume() const
+	FORCEINLINE T GetVolume() const
 	{
 		return (Max.X - Min.X) * (Max.Y - Min.Y) * (Max.Z - Min.Z);
 	}
@@ -323,7 +337,7 @@ public:
 	 */
 	FORCEINLINE void Init()
 	{
-		Min = Max = FVector::ZeroVector;
+		Min = Max = TVector<T>::ZeroVector;
 		IsValid = 0;
 	}
 
@@ -333,7 +347,7 @@ public:
 	 * @param Other The bounding box to intersect with.
 	 * @return true if the boxes intersect, false otherwise.
 	 */
-	FORCEINLINE bool Intersect( const FBox& Other ) const;
+	FORCEINLINE bool Intersect( const TBox<T>& Other ) const;
 
 	/**
 	 * Checks whether the given bounding box intersects this bounding box in the XY plane.
@@ -341,15 +355,15 @@ public:
 	 * @param Other The bounding box to test intersection.
 	 * @return true if the boxes intersect in the XY Plane, false otherwise.
 	 */
-	FORCEINLINE bool IntersectXY( const FBox& Other ) const;
+	FORCEINLINE bool IntersectXY( const TBox<T>& Other ) const;
 
 	/**
-	 * Returns the overlap FBox of two box
+	 * Returns the overlap TBox<T> of two box
 	 *
 	 * @param Other The bounding box to test overlap
 	 * @return the overlap box. It can be 0 if they don't overlap
 	 */
-	CORE_API FBox Overlap( const FBox& Other ) const;
+	TBox<T> Overlap( const TBox<T>& Other ) const;
 
 	/**
 	  * Gets a bounding volume transformed by an inverted FTransform object.
@@ -357,7 +371,7 @@ public:
 	  * @param M The transformation object to perform the inversely transform this box with.
 	  * @return	The transformed box.
 	  */
-	CORE_API FBox InverseTransformBy( const FTransform& M ) const;
+	TBox<T> InverseTransformBy( const FTransform& M ) const;
 
 	/** 
 	 * Checks whether the given location is inside this box.
@@ -366,7 +380,7 @@ public:
 	 * @return true if location is inside this volume.
 	 * @see IsInsideXY
 	 */
-	FORCEINLINE bool IsInside( const FVector& In ) const
+	FORCEINLINE bool IsInside( const TVector<T>& In ) const
 	{
 		return ((In.X > Min.X) && (In.X < Max.X) && (In.Y > Min.Y) && (In.Y < Max.Y) && (In.Z > Min.Z) && (In.Z < Max.Z));
 	}
@@ -378,7 +392,7 @@ public:
 	 * @return true if location is inside this volume.
 	 * @see IsInsideXY
 	 */
-	FORCEINLINE bool IsInsideOrOn( const FVector& In ) const
+	FORCEINLINE bool IsInsideOrOn( const TVector<T>& In ) const
 	{
 		return ((In.X >= Min.X) && (In.X <= Max.X) && (In.Y >= Min.Y) && (In.Y <= Max.Y) && (In.Z >= Min.Z) && (In.Z <= Max.Z));
 	}
@@ -389,7 +403,7 @@ public:
 	 * @param Other The box to test for encapsulation within the bounding volume.
 	 * @return true if box is inside this volume.
 	 */
-	FORCEINLINE bool IsInside( const FBox& Other ) const
+	FORCEINLINE bool IsInside( const TBox<T>& Other ) const
 	{
 		return (IsInside(Other.Min) && IsInside(Other.Max));
 	}
@@ -401,7 +415,7 @@ public:
 	 * @return true if location is inside this box in the XY plane.
 	 * @see IsInside
 	 */
-	FORCEINLINE bool IsInsideXY( const FVector& In ) const
+	FORCEINLINE bool IsInsideXY( const TVector<T>& In ) const
 	{
 		return ((In.X > Min.X) && (In.X < Max.X) && (In.Y > Min.Y) && (In.Y < Max.Y));
 	}
@@ -412,7 +426,7 @@ public:
 	 * @param Other The box to test for encapsulation within the bounding box.
 	 * @return true if box is inside this box in the XY plane.
 	 */
-	FORCEINLINE bool IsInsideXY( const FBox& Other ) const
+	FORCEINLINE bool IsInsideXY( const TBox<T>& Other ) const
 	{
 		return (IsInsideXY(Other.Min) && IsInsideXY(Other.Max));
 	}
@@ -424,7 +438,7 @@ public:
 	 * @return The transformed box.
 	 * @see TransformProjectBy
 	 */
-	CORE_API FBox TransformBy( const FMatrix& M ) const;
+	TBox<T> TransformBy( const TMatrix<T>& M ) const;
 
 	/**
 	 * Gets a bounding volume transformed by a FTransform object.
@@ -433,7 +447,7 @@ public:
 	 * @return The transformed box.
 	 * @see TransformProjectBy
 	 */
-	CORE_API FBox TransformBy( const FTransform& M ) const;
+	TBox<T> TransformBy( const FTransform& M ) const;
 
 	/** 
 	 * Transforms and projects a world bounding box to screen space
@@ -442,7 +456,7 @@ public:
 	 * @return The transformed box.
 	 * @see TransformBy
 	 */
-	CORE_API FBox TransformProjectBy( const FMatrix& ProjM ) const;
+	TBox<T> TransformProjectBy( const TMatrix<T>& ProjM ) const;
 
 	/**
 	 * Get a textual representation of this box.
@@ -460,9 +474,9 @@ public:
 	 * @param Extent Half size of the bounding box.
 	 * @return A new axis-aligned bounding box.
 	 */
-	static FBox BuildAABB( const FVector& Origin, const FVector& Extent )
+	static TBox<T> BuildAABB( const TVector<T>& Origin, const TVector<T>& Extent )
 	{
-		FBox NewBox(Origin - Extent, Origin + Extent);
+		TBox<T> NewBox(Origin - Extent, Origin + Extent);
 
 		return NewBox;
 	}
@@ -476,7 +490,7 @@ public:
 	 * @param Box The box to serialize.
 	 * @return Reference to the Archive after serialization.
 	 */
-	friend FArchive& operator<<( FArchive& Ar, FBox& Box )
+	friend FArchive& operator<<( FArchive& Ar, TBox<T>& Box )
 	{
 		return Ar << Box.Min << Box.Max << Box.IsValid;
 	}
@@ -487,7 +501,7 @@ public:
 	 * @param Slot The structured archive slot to serialize into.
 	 * @param Box The box to serialize.
 	 */
-	friend void operator<<(FStructuredArchive::FSlot Slot, FBox& Box)
+	friend void operator<<(FStructuredArchive::FSlot Slot, TBox<T>& Box)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
 		Record << SA_VALUE(TEXT("Min"), Box.Min) << SA_VALUE(TEXT("Max"), Box.Max) << SA_VALUE(TEXT("IsValid"), Box.IsValid);
@@ -506,16 +520,11 @@ public:
 	}
 };
 
-
-/**
- * FBox specialization for TIsPODType trait.
- */
-template<> struct TIsPODType<FBox> { enum { Value = true }; };
-
-/* FBox inline functions
+/* TBox<T> inline functions
  *****************************************************************************/
 
-FORCEINLINE FBox& FBox::operator+=( const FVector &Other )
+template<typename T>
+FORCEINLINE TBox<T>& TBox<T>::operator+=( const TVector<T> &Other )
 {
 	if (IsValid)
 	{
@@ -537,7 +546,8 @@ FORCEINLINE FBox& FBox::operator+=( const FVector &Other )
 }
 
 
-FORCEINLINE FBox& FBox::operator+=( const FBox& Other )
+template<typename T>
+FORCEINLINE TBox<T>& TBox<T>::operator+=( const TBox<T>& Other )
 {
 	if (IsValid && Other.IsValid)
 	{
@@ -557,11 +567,11 @@ FORCEINLINE FBox& FBox::operator+=( const FBox& Other )
 	return *this;
 }
 
-
-FORCEINLINE FVector FBox::GetClosestPointTo( const FVector& Point ) const
+template<typename T>
+FORCEINLINE TVector<T> TBox<T>::GetClosestPointTo( const TVector<T>& Point ) const
 {
 	// start by considering the point inside the box
-	FVector ClosestPoint = Point;
+	TVector<T> ClosestPoint = Point;
 
 	// now clamp to inside box if it's outside
 	if (Point.X < Min.X)
@@ -597,7 +607,8 @@ FORCEINLINE FVector FBox::GetClosestPointTo( const FVector& Point ) const
 }
 
 
-FORCEINLINE bool FBox::Intersect( const FBox& Other ) const
+template<typename T>
+FORCEINLINE bool TBox<T>::Intersect( const TBox<T>& Other ) const
 {
 	if ((Min.X > Other.Max.X) || (Other.Min.X > Max.X))
 	{
@@ -618,7 +629,8 @@ FORCEINLINE bool FBox::Intersect( const FBox& Other ) const
 }
 
 
-FORCEINLINE bool FBox::IntersectXY( const FBox& Other ) const
+template<typename T>
+FORCEINLINE bool TBox<T>::IntersectXY( const TBox<T>& Other ) const
 {
 	if ((Min.X > Other.Max.X) || (Other.Min.X > Max.X))
 	{
@@ -634,49 +646,191 @@ FORCEINLINE bool FBox::IntersectXY( const FBox& Other ) const
 }
 
 
-FORCEINLINE FString FBox::ToString() const
+template<typename T>
+FORCEINLINE FString TBox<T>::ToString() const
 {
 	return FString::Printf(TEXT("IsValid=%s, Min=(%s), Max=(%s)"), IsValid ? TEXT("true") : TEXT("false"), *Min.ToString(), *Max.ToString());
 }
 
+
+template<typename T>
+TBox<T> TBox<T>::TransformBy(const TMatrix<T>& M) const
+{
+	// if we are not valid, return another invalid box.
+	if (!IsValid)
+	{
+		return TBox<T>(ForceInit);
+	}
+
+	TBox<T> NewBox;
+
+	const TVectorRegisterType<T> VecMin = VectorLoadFloat3_W0(&Min);
+	const TVectorRegisterType<T> VecMax = VectorLoadFloat3_W0(&Max);
+
+	const TVectorRegisterType<T> m0 = VectorLoadAligned(M.M[0]);
+	const TVectorRegisterType<T> m1 = VectorLoadAligned(M.M[1]);
+	const TVectorRegisterType<T> m2 = VectorLoadAligned(M.M[2]);
+	const TVectorRegisterType<T> m3 = VectorLoadAligned(M.M[3]);
+
+	const TVectorRegisterType<T> Half = VectorSetFloat1((T)0.5f); // VectorSetFloat1() can be faster than SetFloat3(0.5, 0.5, 0.5, 0.0). Okay if 4th element is 0.5, it's multiplied by 0.0 below and we discard W anyway.
+	const TVectorRegisterType<T> Origin = VectorMultiply(VectorAdd(VecMax, VecMin), Half);
+	const TVectorRegisterType<T> Extent = VectorMultiply(VectorSubtract(VecMax, VecMin), Half);
+
+	TVectorRegisterType<T> NewOrigin = VectorMultiply(VectorReplicate(Origin, 0), m0);
+	NewOrigin = VectorMultiplyAdd(VectorReplicate(Origin, 1), m1, NewOrigin);
+	NewOrigin = VectorMultiplyAdd(VectorReplicate(Origin, 2), m2, NewOrigin);
+	NewOrigin = VectorAdd(NewOrigin, m3);
+
+	TVectorRegisterType<T> NewExtent = VectorAbs(VectorMultiply(VectorReplicate(Extent, 0), m0));
+	NewExtent = VectorAdd(NewExtent, VectorAbs(VectorMultiply(VectorReplicate(Extent, 1), m1)));
+	NewExtent = VectorAdd(NewExtent, VectorAbs(VectorMultiply(VectorReplicate(Extent, 2), m2)));
+
+	const TVectorRegisterType<T> NewVecMin = VectorSubtract(NewOrigin, NewExtent);
+	const TVectorRegisterType<T> NewVecMax = VectorAdd(NewOrigin, NewExtent);
+
+	VectorStoreFloat3(NewVecMin, &(NewBox.Min.X));
+	VectorStoreFloat3(NewVecMax, &(NewBox.Max.X));
+
+	NewBox.IsValid = 1;
+
+	return NewBox;
+}
+
+template<typename T>
+TBox<T> TBox<T>::TransformBy(const FTransform& M) const
+{
+	return TransformBy(M.ToMatrixWithScale());
+}
+
+template<typename T>
+TBox<T> TBox<T>::InverseTransformBy(const FTransform& M) const
+{
+	TVector<T> Vertices[8] =
+	{
+		TVector<T>(Min),
+		TVector<T>(Min.X, Min.Y, Max.Z),
+		TVector<T>(Min.X, Max.Y, Min.Z),
+		TVector<T>(Max.X, Min.Y, Min.Z),
+		TVector<T>(Max.X, Max.Y, Min.Z),
+		TVector<T>(Max.X, Min.Y, Max.Z),
+		TVector<T>(Min.X, Max.Y, Max.Z),
+		TVector<T>(Max)
+	};
+
+	TBox<T> NewBox(ForceInit);
+
+	for (int32 VertexIndex = 0; VertexIndex < UE_ARRAY_COUNT(Vertices); VertexIndex++)
+	{
+		FVector4 ProjectedVertex = M.InverseTransformPosition(Vertices[VertexIndex]);
+		NewBox += ProjectedVertex;
+	}
+
+	return NewBox;
+}
+
+template<typename T>
+TBox<T> TBox<T>::TransformProjectBy(const TMatrix<T>& ProjM) const
+{
+	TVector<T> Vertices[8] =
+	{
+		TVector<T>(Min),
+		TVector<T>(Min.X, Min.Y, Max.Z),
+		TVector<T>(Min.X, Max.Y, Min.Z),
+		TVector<T>(Max.X, Min.Y, Min.Z),
+		TVector<T>(Max.X, Max.Y, Min.Z),
+		TVector<T>(Max.X, Min.Y, Max.Z),
+		TVector<T>(Min.X, Max.Y, Max.Z),
+		TVector<T>(Max)
+	};
+
+	TBox<T> NewBox(ForceInit);
+
+	for (int32 VertexIndex = 0; VertexIndex < UE_ARRAY_COUNT(Vertices); VertexIndex++)
+	{
+		FVector4 ProjectedVertex = ProjM.TransformPosition(Vertices[VertexIndex]);
+		NewBox += ((TVector<T>)ProjectedVertex) / ProjectedVertex.W;
+	}
+
+	return NewBox;
+}
+
+template<typename T>
+TBox<T> TBox<T>::Overlap(const TBox<T>& Other) const
+{
+	if (Intersect(Other) == false)
+	{
+		static TBox<T> EmptyBox(ForceInit);
+		return EmptyBox;
+	}
+
+	// otherwise they overlap
+	// so find overlapping box
+	TVector<T> MinVector, MaxVector;
+
+	MinVector.X = FMath::Max(Min.X, Other.Min.X);
+	MaxVector.X = FMath::Min(Max.X, Other.Max.X);
+
+	MinVector.Y = FMath::Max(Min.Y, Other.Min.Y);
+	MaxVector.Y = FMath::Min(Max.Y, Other.Max.Y);
+
+	MinVector.Z = FMath::Max(Min.Z, Other.Min.Z);
+	MaxVector.Z = FMath::Min(Max.Z, Other.Max.Z);
+
+	return TBox<T>(MinVector, MaxVector);
+}
+
+
+} // namespace Math
+} // namespace UE
+
+UE_DECLARE_LWC_TYPE(Box, 3);
+
+//template<> struct TCanBulkSerialize<FBox3f> { enum { Value = true }; };
+template<> struct TIsPODType<FBox3f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FBox3f> { enum { Value = true }; };
+
+//template<> struct TCanBulkSerialize<FBox3d> { enum { Value = false }; };	// LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
+template<> struct TIsPODType<FBox3d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FBox3d> { enum { Value = true }; };
+
 /* FMath inline functions
  *****************************************************************************/
 
+template<typename FReal>
 inline bool FMath::PointBoxIntersection
 	(
-	const FVector&	Point,
-	const FBox&		Box
+	const UE::Math::TVector<FReal>&		Point,
+	const UE::Math::TBox<FReal>&		Box
 	)
 {
-	if(Point.X >= Box.Min.X && Point.X <= Box.Max.X &&
-		Point.Y >= Box.Min.Y && Point.Y <= Box.Max.Y &&
-		Point.Z >= Box.Min.Z && Point.Z <= Box.Max.Z)
-		return 1;
-	else
-		return 0;
+	return (Point.X >= Box.Min.X && Point.X <= Box.Max.X &&
+			Point.Y >= Box.Min.Y && Point.Y <= Box.Max.Y &&
+			Point.Z >= Box.Min.Z && Point.Z <= Box.Max.Z);
 }
 
+template<typename FReal>
 inline bool FMath::LineBoxIntersection
-	( 
-	const FBox& Box, 
-	const FVector& Start, 
-	const FVector& End, 
-	const FVector& StartToEnd
+	(
+	const UE::Math::TBox<FReal>&	Box,
+	const UE::Math::TVector<FReal>&	Start,
+	const UE::Math::TVector<FReal>&	End,
+	const UE::Math::TVector<FReal>&	StartToEnd
 	)
 {
 	return LineBoxIntersection(Box, Start, End, StartToEnd, StartToEnd.Reciprocal());
 }
 
+template<typename FReal>
 inline bool FMath::LineBoxIntersection
 	(
-	const FBox&		Box,
-	const FVector&	Start,
-	const FVector&	End,
-	const FVector&	StartToEnd,
-	const FVector&	OneOverStartToEnd
+	const UE::Math::TBox<FReal>&	Box,
+	const UE::Math::TVector<FReal>&	Start,
+	const UE::Math::TVector<FReal>&	End,
+	const UE::Math::TVector<FReal>&	StartToEnd,
+	const UE::Math::TVector<FReal>&	OneOverStartToEnd
 	)
 {
-	FVector	Time;
+	UE::Math::TVector<FReal>	Time;
 	bool	bStartIsOutside = false;
 
 	if(Start.X < Box.Min.X)
@@ -768,12 +922,12 @@ inline bool FMath::LineBoxIntersection
 
 	if(bStartIsOutside)
 	{
-		const FVector::FReal MaxTime = Max3(Time.X,Time.Y,Time.Z);
+		const FReal MaxTime = Max3(Time.X,Time.Y,Time.Z);
 
 		if(MaxTime >= 0.0f && MaxTime <= 1.0f)
 		{
-			const FVector Hit = Start + StartToEnd * MaxTime;
-			const float BOX_SIDE_THRESHOLD = 0.1f;
+			const UE::Math::TVector<FReal> Hit = Start + StartToEnd * MaxTime;
+			const FReal BOX_SIDE_THRESHOLD = 0.1f;
 			if(	Hit.X > Box.Min.X - BOX_SIDE_THRESHOLD && Hit.X < Box.Max.X + BOX_SIDE_THRESHOLD &&
 				Hit.Y > Box.Min.Y - BOX_SIDE_THRESHOLD && Hit.Y < Box.Max.Y + BOX_SIDE_THRESHOLD &&
 				Hit.Z > Box.Min.Z - BOX_SIDE_THRESHOLD && Hit.Z < Box.Max.Z + BOX_SIDE_THRESHOLD)
@@ -803,10 +957,11 @@ inline bool FMath::LineBoxIntersection
  *
  * @return Whether the sphere/box intersect or not.
  */
-FORCEINLINE bool FMath::SphereAABBIntersection(const FVector& SphereCenter, const double RadiusSquared, const FBox& AABB)
+template<typename FReal>
+inline bool FMath::SphereAABBIntersection(const UE::Math::TVector<FReal>& SphereCenter, const FReal RadiusSquared, const UE::Math::TBox<FReal>& AABB)
 {
 	// Accumulates the distance as we iterate axis
-	FVector::FReal DistSquared = 0.f;
+	FReal DistSquared = 0.f;
 	// Check each axis for min/max and add the distance accordingly
 	// NOTE: Loop manually unrolled for > 2x speed up
 	if (SphereCenter.X < AABB.Min.X)
@@ -835,5 +990,16 @@ FORCEINLINE bool FMath::SphereAABBIntersection(const FVector& SphereCenter, cons
 	}
 	// If the distance is less than or equal to the radius, they intersect
 	return DistSquared <= RadiusSquared;
+}
+
+/**
+ * Converts a sphere into a point plus radius squared for the test above
+ */
+template<typename FReal>
+inline bool FMath::SphereAABBIntersection(const UE::Math::TSphere<FReal>& Sphere, const UE::Math::TBox<FReal>& AABB)
+{
+	FReal RadiusSquared = FMath::Square(Sphere.W);
+	// If the distance is less than or equal to the radius, they intersect
+	return SphereAABBIntersection(Sphere.Center, RadiusSquared, AABB);
 }
 

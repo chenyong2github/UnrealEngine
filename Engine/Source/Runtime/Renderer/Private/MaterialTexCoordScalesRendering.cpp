@@ -32,7 +32,7 @@ void FMaterialTexCoordScaleBaseInterface::GetDebugViewModeShaderBindings(
 {
 	const FMaterialTexCoordScalePS& Shader = static_cast<const FMaterialTexCoordScalePS&>(ShaderBase);
 	const int32 AnalysisIndex = ViewModeParam >= 0 ? FMath::Clamp<int32>(ViewModeParam, 0, TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL - 1) : -1;
-	FVector4 OneOverCPUTexCoordScales[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
+	FVector4f OneOverCPUTexCoordScales[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
 	FIntVector4 TexCoordIndices[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
 	FMemory::Memzero(OneOverCPUTexCoordScales); // 0 remap to irrelevant data.
 	FMemory::Memzero(TexCoordIndices);

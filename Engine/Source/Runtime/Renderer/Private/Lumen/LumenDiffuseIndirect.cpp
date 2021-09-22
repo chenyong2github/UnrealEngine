@@ -198,13 +198,13 @@ void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples
 				{
 					const float CosTheta = FMath::Sqrt(Fraction1);
 					const float SinTheta = FMath::Sqrt(1.0f - CosTheta * CosTheta);
-					SampleDirections.Add(FVector4(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, CosTheta));
+					SampleDirections.Add(FVector4f(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, CosTheta));
 				}
 				else
 				{
 					const float CosTheta = Fraction1;
 					const float SinTheta = FMath::Sqrt(1.0f - CosTheta * CosTheta);
-					SampleDirections.Add(FVector4(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, CosTheta));
+					SampleDirections.Add(FVector4f(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, CosTheta));
 				}
 			}
 		}

@@ -477,7 +477,7 @@ void FAGXRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* Uno
 }
 #endif // UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
 
-void FAGXRHICommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values)
+void FAGXRHICommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 {
 #if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
 	FAGXUnorderedAccessView* UnorderedAccessView = ResourceCast(UnorderedAccessViewRHI);

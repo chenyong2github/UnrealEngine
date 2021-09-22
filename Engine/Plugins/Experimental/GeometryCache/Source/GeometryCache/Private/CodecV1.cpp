@@ -213,10 +213,10 @@ FArchive& operator<<(FArchive &Ar, const TArray<FGeometryCacheMeshBatchInfo>& Ba
 }
 
 // Custom serialization for our const FBox because of the const
-FArchive& operator<<(FArchive &Ar, const FBox& Box)
+FArchive& operator<<(FArchive &Ar, const FBox3f& Box)
 {
 	check(Ar.IsSaving());
-	FBox NonConstBox = Box; // copy
+	FBox3f NonConstBox = Box; // copy
 	Ar << NonConstBox;
 	return Ar;
 }
@@ -274,7 +274,7 @@ void FCodecV1Encoder::EncodePositionStream(const FVector3f* VertexStream, uint64
 	FQuantizerVector3 Quantizer(QuantizationPrecision);
 	
 	// Bounding box and translation
-	const FBox& BoundingBox = EncodingContext.MeshData->BoundingBox;
+	const FBox3f& BoundingBox = EncodingContext.MeshData->BoundingBox;
 	FIntVector QuantizedBoxMin = Quantizer.Quantize(BoundingBox.Min); // Quantize the bounds of the bounding box
 	FIntVector QuantizedBoxMax = Quantizer.Quantize(BoundingBox.Max);
 	FIntVector QuantizedBoxCenter = (QuantizedBoxMax + QuantizedBoxMin) / 2; // Calculate the center of our new quantized bounding box

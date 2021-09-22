@@ -671,7 +671,7 @@ public:
 
 		if (bDynamicallyShadowed)
 		{
-			FVector4 ShadowmapMinMaxValue;
+			FVector4f ShadowmapMinMaxValue;
 			FMatrix44f WorldToShadowMatrixValue = ShadowMap->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
 
 			SetShaderValue(RHICmdList, ShaderRHI, WorldToShadowMatrix, WorldToShadowMatrixValue);
@@ -1399,8 +1399,8 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, SimpleLightPositionAndRadius)
-		SHADER_PARAMETER(FVector4, SimpleLightColorAndExponent)
+		SHADER_PARAMETER(FVector4f, SimpleLightPositionAndRadius)
+		SHADER_PARAMETER(FVector4f, SimpleLightColorAndExponent)
 		SHADER_PARAMETER(uint32, VolumeCascadeIndex)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -1466,8 +1466,8 @@ void InjectSimpleTranslucencyLightingVolumeArray(
 						auto* PassParameters = GraphBuilder.AllocParameters<FSimpleLightTranslucentLightingInjectPS::FParameters>();
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->VolumeCascadeIndex = VolumeCascadeIndex;
-						PassParameters->SimpleLightPositionAndRadius = FVector4(SimpleLightPerViewData.Position, SimpleLight.Radius);
-						PassParameters->SimpleLightColorAndExponent = FVector4(SimpleLight.Color, SimpleLight.Exponent);
+						PassParameters->SimpleLightPositionAndRadius = FVector4f(SimpleLightPerViewData.Position, SimpleLight.Radius);
+						PassParameters->SimpleLightColorAndExponent = FVector4f(SimpleLight.Color, SimpleLight.Exponent);
 						PassParameters->RenderTargets[0] = FRenderTargetBinding(VolumeAmbientTexture, ERenderTargetLoadAction::ELoad);
 						PassParameters->RenderTargets[1] = FRenderTargetBinding(VolumeDirectionalTexture, ERenderTargetLoadAction::ELoad);
 

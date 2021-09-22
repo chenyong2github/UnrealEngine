@@ -68,7 +68,7 @@ public:
 	void SetInstanceTangentSpace(const FVertexInstanceID& InstanceID, const FVector& Normal, const FVector& Tangent, float Sign);
 
 	/** Set the Color of a vertex instance*/
-	void SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4& Color);
+	void SetInstanceColor(const FVertexInstanceID& InstanceID, const FVector4f& Color);
 
 	/** Enable per-triangle integer attribute named PolyTriGroups */
 	void EnablePolyGroups();
@@ -132,7 +132,7 @@ protected:
 	TVertexInstanceAttributesRef<FVector3f> InstanceNormals;
 	TVertexInstanceAttributesRef<FVector3f> InstanceTangents;
 	TVertexInstanceAttributesRef<float> InstanceBiTangentSign;
-	TVertexInstanceAttributesRef<FVector4> InstanceColors;
+	TVertexInstanceAttributesRef<FVector4f> InstanceColors;
 
 	TArray<TUVAttributesRef<FVector2D>> UVCoordinateLayers; 
 	TArray<FVertexID> TempBuffer;

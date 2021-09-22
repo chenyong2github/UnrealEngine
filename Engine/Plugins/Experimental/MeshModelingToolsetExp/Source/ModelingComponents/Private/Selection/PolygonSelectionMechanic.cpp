@@ -418,9 +418,9 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 
 					FIndex3i VertIndices = Mesh->GetTriangle(Tid);
 					DrawnTriangleSetComponent->AddTriangle(FRenderableTriangle(HighlightedFaceMaterial,
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)TriangleNormal, UE::Geometry::ToFColor(Mesh->GetVertexColor(VertIndices.A))),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)TriangleNormal, UE::Geometry::ToFColor(Mesh->GetVertexColor(VertIndices.B))),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)TriangleNormal, UE::Geometry::ToFColor(Mesh->GetVertexColor(VertIndices.C))) ));
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)TriangleNormal, UE::Geometry::ToFColor((FVector4f)Mesh->GetVertexColor(VertIndices.A))),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)TriangleNormal, UE::Geometry::ToFColor((FVector4f)Mesh->GetVertexColor(VertIndices.B))),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)TriangleNormal, UE::Geometry::ToFColor((FVector4f)Mesh->GetVertexColor(VertIndices.C))) ));
 				}
 
 				CurrentlyHighlightedGroups.Add(Gid);

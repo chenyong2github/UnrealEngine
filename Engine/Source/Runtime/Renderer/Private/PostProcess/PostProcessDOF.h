@@ -10,7 +10,7 @@
 #include "RendererInterface.h"
 #include "ScreenPass.h"
 
-FVector4 GetDepthOfFieldParameters(const FPostProcessSettings& PostProcessSettings);
+FVector4f GetDepthOfFieldParameters(const FPostProcessSettings& PostProcessSettings);
 
 struct FMobileDofSetupInputs
 {

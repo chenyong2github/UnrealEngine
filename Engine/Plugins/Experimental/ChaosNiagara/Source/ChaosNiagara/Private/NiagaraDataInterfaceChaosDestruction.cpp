@@ -3878,11 +3878,11 @@ void LoadGPUBufferFromArray(FDynamicReadBuffer& Buffer,
 	Buffer.Lock();
 	if (bIsVector)
 	{
-		FVector4* Data = (FVector4*)Buffer.MappedBuffer;
+		FVector4f* Data = (FVector4f*)Buffer.MappedBuffer;
 		check(Data); // TODO: Handle gracefully.
 
 		for (int32 i = 0; i < Array->Num(); i++) {
-			Data[i] = FVector4((*Array)[i]);
+			Data[i] = FVector4f((*Array)[i]);
 		}
 	}
 	else
@@ -3936,7 +3936,7 @@ static void SetBuffer(FRHICommandList& CmdList,
 	// NOTE: Reading from `Array` is not thread safe since it belongs to the simulation thread.
 	if (bIsVector)
 	{
-		FVector4* Data = (FVector4*)Buffer.MappedBuffer;
+		FVector4f* Data = (FVector4f*)Buffer.MappedBuffer;
 		check(Data); // TODO: Handle gracefully.
 
 		for (int32 i = 0; i < Array.Num(); i++) {

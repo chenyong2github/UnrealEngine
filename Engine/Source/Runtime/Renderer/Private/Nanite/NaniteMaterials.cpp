@@ -378,8 +378,8 @@ void DrawBasePass(
 	FRDGBufferRef MaterialIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(MaxMaterialSlots), TEXT("Nanite.MaterialIndirectArgs"));
 
 	FRDGBufferRef MultiViewIndices = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Nanite.DummyMultiViewIndices"));
-	FRDGBufferRef MultiViewRectScaleOffsets = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), 1), TEXT("Nanite.DummyMultiViewRectScaleOffsets"));
-	FRDGBufferRef ViewsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), 1), TEXT("Nanite.PackedViews"));
+	FRDGBufferRef MultiViewRectScaleOffsets = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), 1), TEXT("Nanite.DummyMultiViewRectScaleOffsets"));
+	FRDGBufferRef ViewsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), 1), TEXT("Nanite.PackedViews"));
 
 	const uint32 HighestMaterialSlot = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHighestMaterialSlot();
 	const uint32 HighestMaterialBin  = FMath::DivideAndRoundUp(HighestMaterialSlot, 32u);
@@ -533,7 +533,7 @@ void DrawBasePass(
 			UniformParams.MaterialConfig.W = 0;
 
 			FIntPoint ScaledSize = PassParameters->GridSize * 64;
-			UniformParams.RectScaleOffset = FVector4(
+			UniformParams.RectScaleOffset = FVector4f(
 				float(ScaledSize.X) / float(View.ViewRect.Max.X - View.ViewRect.Min.X),
 				float(ScaledSize.Y) / float(View.ViewRect.Max.Y - View.ViewRect.Min.Y),
 				0.0f,
@@ -1060,7 +1060,7 @@ void DrawLumenMeshCapturePass(
 			ViewIndices.GetData(),
 			ViewIndices.Num() * ViewIndices.GetTypeSize());
 
-		TArray<FVector4, SceneRenderingAllocator> ViewRectScaleOffsets;
+		TArray<FVector4f, SceneRenderingAllocator> ViewRectScaleOffsets;
 		ViewRectScaleOffsets.Reserve(CardPagesToRender.Num());
 
 		TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
@@ -1074,7 +1074,7 @@ void DrawLumenMeshCapturePass(
 			const FVector2D RectOffset = FVector2D(float(CardPageRenderData.CardCaptureAtlasRect.Min.X), float(CardPageRenderData.CardCaptureAtlasRect.Min.Y)) / ViewportSizeF;
 			const FVector2D RectScale = CardViewportSize / ViewportSizeF;
 
-			ViewRectScaleOffsets.Add(FVector4(RectScale, RectOffset));
+			ViewRectScaleOffsets.Add(FVector4f(RectScale, RectOffset));
 
 			Nanite::FPackedViewParams Params;
 			Params.ViewMatrices = CardPageRenderData.ViewMatrices;
@@ -1165,7 +1165,7 @@ void DrawLumenMeshCapturePass(
 				UniformParams.MaxNodes = PassParameters->MaxNodes;
 				UniformParams.RenderFlags = PassParameters->RenderFlags;
 				UniformParams.MaterialConfig = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
-				UniformParams.RectScaleOffset = FVector4(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
+				UniformParams.RectScaleOffset = FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
 
 				UniformParams.ClusterPageData = PassParameters->ClusterPageData;
 

@@ -48,7 +48,7 @@ class FMobileDirectLightFunctionPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 		SHADER_PARAMETER_STRUCT_REF(FPlanarReflectionUniformParameters, PlanarReflection) // Single global planar reflection.
 		SHADER_PARAMETER(FMatrix44f, WorldToLight)
-		SHADER_PARAMETER(FVector4, LightFunctionParameters)
+		SHADER_PARAMETER(FVector4f, LightFunctionParameters)
 		SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
 		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
@@ -137,7 +137,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FMatrix44f, WorldToLight)
-		SHADER_PARAMETER(FVector4, LightFunctionParameters)
+		SHADER_PARAMETER(FVector4f, LightFunctionParameters)
 		SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
@@ -256,7 +256,7 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	FReflectionUniformParameters ReflectionUniformParameters;
 	SetupReflectionUniformParameters(View, ReflectionUniformParameters);
 	PassParameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
-	PassParameters.LightFunctionParameters = FVector4(1.0f, 1.0f, 0.0f, 0.0f);
+	PassParameters.LightFunctionParameters = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
 
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene.GetForwardPassGlobalPlanarReflection();
 	FPlanarReflectionUniformParameters PlanarReflectionUniformParameters;
@@ -460,7 +460,7 @@ static void RenderLocalLight(
 	PassParameters.IESTexture = IESTextureResource->TextureRHI;
 	PassParameters.IESTextureSampler = IESTextureResource->SamplerStateRHI;
 	const float TanOuterAngle = bIsSpotLight ? FMath::Tan(LightSceneInfo.Proxy->GetOuterConeAngle()) : 1.0f;
-	PassParameters.LightFunctionParameters = FVector4(TanOuterAngle, 1.0f /*ShadowFadeFraction*/, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
+	PassParameters.LightFunctionParameters = FVector4f(TanOuterAngle, 1.0f /*ShadowFadeFraction*/, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
 	PassParameters.LightFunctionParameters2 = FVector(LightSceneInfo.Proxy->GetLightFunctionFadeDistance(), LightSceneInfo.Proxy->GetLightFunctionDisabledBrightness(),	0.0f);
 	const FVector Scale = LightSceneInfo.Proxy->GetLightFunctionScale();
 	// Switch x and z so that z of the user specified scale affects the distance along the light direction

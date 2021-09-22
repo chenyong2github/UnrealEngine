@@ -977,13 +977,13 @@ bool FEmbreeVerifyAggregateMesh::VerifyChecks(const FLightRayIntersection& Embre
 			return false;
 		}
 
-		const_cast<float&>(EmbreeIntersection.IntersectionVertex.WorldPosition.W) = const_cast<float&>(ClosestIntersection.IntersectionVertex.WorldPosition.W) = 1;
+		const_cast<FVector4::FReal&>(EmbreeIntersection.IntersectionVertex.WorldPosition.W) = const_cast<FVector4::FReal&>(ClosestIntersection.IntersectionVertex.WorldPosition.W) = 1;
 		if (!EmbreeIntersection.IntersectionVertex.WorldPosition.Equals(ClosestIntersection.IntersectionVertex.WorldPosition, .1f))
 		{
 			return false;
 		}
 
-		const_cast<float&>(EmbreeIntersection.IntersectionVertex.WorldTangentZ.W) = const_cast<float&>(ClosestIntersection.IntersectionVertex.WorldTangentZ.W) = 0;
+		const_cast<FVector4::FReal&>(EmbreeIntersection.IntersectionVertex.WorldTangentZ.W) = const_cast<FVector4::FReal&>(ClosestIntersection.IntersectionVertex.WorldTangentZ.W) = 0;
 		if (!EmbreeIntersection.IntersectionVertex.WorldTangentZ.Equals(ClosestIntersection.IntersectionVertex.WorldTangentZ, .01f))
 		{
 			return false;

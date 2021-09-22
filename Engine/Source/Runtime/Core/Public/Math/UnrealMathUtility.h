@@ -25,16 +25,16 @@
 -----------------------------------------------------------------------------*/
 
 // Forward declarations.
-DECLARE_LWC_TYPE(Vector, 3);
-struct  FVector4;
-DECLARE_LWC_TYPE(Plane, 4);
-struct  FBox;
+UE_DECLARE_LWC_TYPE(Vector, 3);
+UE_DECLARE_LWC_TYPE(Vector4);
+UE_DECLARE_LWC_TYPE(Plane, 4);
+UE_DECLARE_LWC_TYPE(Box, 3);
 struct  FRotator;
-DECLARE_LWC_TYPE(Matrix, 44);
-DECLARE_LWC_TYPE(Quat, 4);
+UE_DECLARE_LWC_TYPE(Matrix, 44);
+UE_DECLARE_LWC_TYPE(Quat, 4);
 struct  FTwoVectors;
-DECLARE_LWC_TYPE(Transform, 3);
-class  FSphere;
+UE_DECLARE_LWC_TYPE(Transform, 3);
+UE_DECLARE_LWC_TYPE(Sphere, 3);
 struct FVector2D;
 struct FLinearColor;
 template<typename ElementType>
@@ -1577,7 +1577,8 @@ public:
 	// @param CosConeAngle Cos of the cone angle
 	// @param SinConeAngle Sin of the cone angle
 	// @return Minimal bounding sphere encompassing given cone
-	static FSphere ComputeBoundingSphereForCone(FVector const& ConeOrigin, FVector const& ConeDirection, float ConeRadius, float CosConeAngle, float SinConeAngle);
+	template<typename FReal>
+	static UE::Math::TSphere<FReal> ComputeBoundingSphereForCone(UE::Math::TVector<FReal> const& ConeOrigin, UE::Math::TVector<FReal> const& ConeDirection, FReal ConeRadius, FReal CosConeAngle, FReal SinConeAngle);
 
 	/** 
 	 * Determine if a plane and an AABB intersect
@@ -1609,21 +1610,26 @@ public:
 	 *
 	 * @return Whether the sphere/box intersect or not.
 	 */
-	static bool SphereAABBIntersection(const FVector& SphereCenter,const double RadiusSquared,const FBox& AABB);
+	template<typename FReal>
+	static bool SphereAABBIntersection(const UE::Math::TVector<FReal>& SphereCenter,const FReal RadiusSquared,const UE::Math::TBox<FReal>& AABB);
 
 	/**
 	 * Converts a sphere into a point plus radius squared for the test above
 	 */
-	static bool SphereAABBIntersection(const FSphere& Sphere,const FBox& AABB);
+	template<typename FReal>
+	static bool SphereAABBIntersection(const UE::Math::TSphere<FReal>& Sphere, const UE::Math::TBox<FReal>& AABB);
 
 	/** Determines whether a point is inside a box. */
-	static bool PointBoxIntersection( const FVector& Point, const FBox& Box );
+	template<typename FReal>
+	static bool PointBoxIntersection( const UE::Math::TVector<FReal>& Point, const UE::Math::TBox<FReal>& Box );
 
 	/** Determines whether a line intersects a box. */
-	static bool LineBoxIntersection( const FBox& Box, const FVector& Start, const FVector& End, const FVector& Direction );
+	template<typename FReal>
+	static bool LineBoxIntersection( const UE::Math::TBox<FReal>& Box, const UE::Math::TVector<FReal>& Start, const UE::Math::TVector<FReal>& End, const UE::Math::TVector<FReal>& Direction );
 
 	/** Determines whether a line intersects a box. This overload avoids the need to do the reciprocal every time. */
-	static bool LineBoxIntersection( const FBox& Box, const FVector& Start, const FVector& End, const FVector& Direction, const FVector& OneOverDirection );
+	template<typename FReal>
+	static bool LineBoxIntersection( const UE::Math::TBox<FReal>& Box, const UE::Math::TVector<FReal>& Start, const UE::Math::TVector<FReal>& End, const UE::Math::TVector<FReal>& Direction, const UE::Math::TVector<FReal>& OneOverDirection );
 
 	/* Swept-Box vs Box test */
 	static CORE_API bool LineExtentBoxIntersection(const FBox& inBox, const FVector& Start, const FVector& End, const FVector& Extent, FVector& HitLocation, FVector& HitNormal, float& HitTime);

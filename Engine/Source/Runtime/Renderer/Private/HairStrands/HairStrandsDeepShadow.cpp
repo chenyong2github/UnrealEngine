@@ -179,8 +179,8 @@ class FDeepShadowCreateViewInfoCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 
-		SHADER_PARAMETER_ARRAY(FVector4,	LightDirections,	[FHairStrandsDeepShadowData::MaxMacroGroupCount])
-		SHADER_PARAMETER_ARRAY(FVector4,	LightPositions,		[FHairStrandsDeepShadowData::MaxMacroGroupCount])
+		SHADER_PARAMETER_ARRAY(FVector4f,	LightDirections,	[FHairStrandsDeepShadowData::MaxMacroGroupCount])
+		SHADER_PARAMETER_ARRAY(FVector4f,	LightPositions,		[FHairStrandsDeepShadowData::MaxMacroGroupCount])
 		SHADER_PARAMETER_ARRAY(FIntVector4,	MacroGroupIndices,	[FHairStrandsDeepShadowData::MaxMacroGroupCount])
 
 		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
@@ -216,7 +216,7 @@ IMPLEMENT_GLOBAL_SHADER(FDeepShadowCreateViewInfoCS, "/Engine/Private/HairStrand
 float GetDeepShadowMaxFovAngle();
 float GetDeepShadowRasterizationScale();
 float GetDeepShadowAABBScale();
-FVector4 ComputeDeepShadowLayerDepths(float LayerDistribution);
+FVector4f ComputeDeepShadowLayerDepths(float LayerDistribution);
 
 void RenderHairStrandsDeepShadows(
 	FRDGBuilder& GraphBuilder,
@@ -319,7 +319,7 @@ void RenderHairStrandsDeepShadows(
 				FHairStrandsDeepShadowData& DomData = MacroGroup.DeepShadowDatas.AddZeroed_GetRef();
 				ComputeWorldToLightClip(DomData.CPU_WorldToLightTransform, MinStrandRadiusAtDepth1, MacroGroupBounds, *LightProxy, LightType, AtlasSlotResolution);
 				DomData.LightDirection = LightProxy->GetDirection();
-				DomData.LightPosition = FVector4(FVector(LightProxy->GetPosition()), bIsDirectional ? 0 : 1);
+				DomData.LightPosition = FVector4f(FVector(LightProxy->GetPosition()), bIsDirectional ? 0 : 1);
 				DomData.LightLuminance = LightProxy->GetColor();
 				DomData.LayerDistribution = LightProxy->GetDeepShadowLayerDistribution();
 				DomData.bIsLightDirectional = bIsDirectional;
@@ -357,8 +357,8 @@ void RenderHairStrandsDeepShadows(
 			{
 				for (FHairStrandsDeepShadowData& DomData : MacroGroup.DeepShadowDatas)
 				{				
-					Parameters->LightDirections[DomData.AtlasSlotIndex]		= FVector4(DomData.LightDirection.X, DomData.LightDirection.Y, DomData.LightDirection.Z, 0);
-					Parameters->LightPositions[DomData.AtlasSlotIndex]		= FVector4(DomData.LightPosition.X, DomData.LightPosition.Y, DomData.LightPosition.Z, DomData.bIsLightDirectional ? 0 : 1);
+					Parameters->LightDirections[DomData.AtlasSlotIndex]		= FVector4f(DomData.LightDirection.X, DomData.LightDirection.Y, DomData.LightDirection.Z, 0);
+					Parameters->LightPositions[DomData.AtlasSlotIndex]		= FVector4f(DomData.LightPosition.X, DomData.LightPosition.Y, DomData.LightPosition.Z, DomData.bIsLightDirectional ? 0 : 1);
 					Parameters->MacroGroupIndices[DomData.AtlasSlotIndex]	= FIntVector4(DomData.MacroGroupId, 0,0,0);
 				}
 			}
@@ -393,7 +393,7 @@ void RenderHairStrandsDeepShadows(
 			for (FHairStrandsDeepShadowData& DomData : MacroGroup.DeepShadowDatas)
 			{
 				const bool bIsOrtho = DomData.bIsLightDirectional;
-				const FVector4 HairRenderInfo = PackHairRenderInfo(DomData.CPU_MinStrandRadiusAtDepth1.Primary, DomData.CPU_MinStrandRadiusAtDepth1.Stable, DomData.CPU_MinStrandRadiusAtDepth1.Primary, 1);
+				const FVector4f HairRenderInfo = PackHairRenderInfo(DomData.CPU_MinStrandRadiusAtDepth1.Primary, DomData.CPU_MinStrandRadiusAtDepth1.Stable, DomData.CPU_MinStrandRadiusAtDepth1.Primary, 1);
 				const uint32 HairRenderInfoBits = PackHairRenderInfoBits(bIsOrtho, DeepShadowResources.bIsGPUDriven);
 					
 				const bool bDeepShadow = GDeepShadowInjectVoxelDepth == 0;
@@ -423,7 +423,7 @@ void RenderHairStrandsDeepShadows(
 					}
 				}
 					
-				const FVector4 LayerDepths = ComputeDeepShadowLayerDepths(DomData.LayerDistribution);
+				const FVector4f LayerDepths = ComputeDeepShadowLayerDepths(DomData.LayerDistribution);
 				// Front depth
 				if (bDeepShadow)
 				{
@@ -439,7 +439,7 @@ void RenderHairStrandsDeepShadows(
 						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
 
 						UniformParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
-						UniformParameters->SliceValue = FVector4(1, 1, 1, 1);
+						UniformParameters->SliceValue = FVector4f(1, 1, 1, 1);
 						UniformParameters->AtlasRect = DomData.AtlasRect;
 						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
 						UniformParameters->LayerDepths = LayerDepths;
@@ -479,7 +479,7 @@ void RenderHairStrandsDeepShadows(
 						FHairDeepShadowRasterUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FHairDeepShadowRasterUniformParameters>();
 
 						UniformParameters->CPU_WorldToClipMatrix = DomData.CPU_WorldToLightTransform;;
-						UniformParameters->SliceValue = FVector4(1, 1, 1, 1);
+						UniformParameters->SliceValue = FVector4f(1, 1, 1, 1);
 						UniformParameters->AtlasRect = DomData.AtlasRect;
 						UniformParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
 						UniformParameters->LayerDepths = LayerDepths;

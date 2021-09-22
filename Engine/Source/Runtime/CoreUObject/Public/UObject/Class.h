@@ -1126,7 +1126,7 @@ public:
 		virtual bool IsPlainOldData() = 0;
 
 		/** return true if this struct is one of the UE Core types (and is include in CoreMinimal.h) **/
-		virtual bool IsUECoreType() = 0;	// LWC_TODO: This is really only used to identify types that don't need forward declaration in generated.h files. Rename?
+		virtual bool IsUECoreType() = 0;
 
 		/** return true if this struct can copy **/
 		virtual bool HasCopy() = 0;

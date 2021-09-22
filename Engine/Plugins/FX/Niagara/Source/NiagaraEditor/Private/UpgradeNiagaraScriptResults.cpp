@@ -94,9 +94,9 @@ FVector4 UNiagaraPythonScriptModuleInput::AsVec4() const
 {
 	if (IsSet() && Input->InputType == FNiagaraTypeDefinition::GetVec4Def())
 	{
-		return GetValue<FVector4>(Input);
+		return GetValue<FVector4f>(Input);
 	}
-	return FVector4();
+	return FVector4f();
 }
 
 FLinearColor UNiagaraPythonScriptModuleInput::AsColor() const

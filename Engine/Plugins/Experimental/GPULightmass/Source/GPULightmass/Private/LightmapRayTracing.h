@@ -120,8 +120,8 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, FrameNumber)
-		SHADER_PARAMETER(FVector4, VolumeMin)
-		SHADER_PARAMETER(FVector4, VolumeSize)
+		SHADER_PARAMETER(FVector4f, VolumeMin)
+		SHADER_PARAMETER(FVector4f, VolumeSize)
 		SHADER_PARAMETER(FIntVector, IndirectionTextureDim)
 		SHADER_PARAMETER(int32, NumTotalBricks)
 		SHADER_PARAMETER(int32, BrickBatchOffset)

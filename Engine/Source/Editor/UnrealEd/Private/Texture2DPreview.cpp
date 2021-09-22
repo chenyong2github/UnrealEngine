@@ -100,7 +100,7 @@ public:
 		}
 		
 		SetShaderValue(RHICmdList, ShaderRHI,ColorWeights,ColorWeightsValue);
-		FVector4 PackedParametersValue(GammaValue, MipLevel, bIsNormalMap ? 1.0 : -1.0f, bIsSingleVTPhysicalSpace ? 0 : LayerIndex);
+		FVector4f PackedParametersValue(GammaValue, MipLevel, bIsNormalMap ? 1.0 : -1.0f, bIsSingleVTPhysicalSpace ? 0 : LayerIndex);
 		SetShaderValue(RHICmdList, ShaderRHI, PackedParameters, PackedParametersValue);
 
 		// Store slice count for texture array

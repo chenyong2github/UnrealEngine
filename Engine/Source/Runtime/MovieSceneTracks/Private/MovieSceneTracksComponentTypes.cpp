@@ -415,7 +415,7 @@ struct FFloatVectorHandler : TPropertyComponentHandler<FFloatVectorPropertyTrait
 				}
 				else
 				{
-					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get());
+					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get() || (BoundProperty->Struct->GetFName() == NAME_Vector4f) || (BoundProperty->Struct->GetFName() == NAME_Vector4));
 					OutMetaData.NumChannels = 4;
 				}
 			}

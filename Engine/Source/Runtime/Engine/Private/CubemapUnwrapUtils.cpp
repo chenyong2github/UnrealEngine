@@ -125,7 +125,7 @@ void FCubemapTexturePropertiesPS<bHDROutput>::SetParameters( FRHICommandList& RH
 {
 	SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(),CubeTexture,CubeTextureSampler,Texture);
 
-	FVector4 PackedProperties0Value(MipLevel, 0, 0, 0);
+	FVector4f PackedProperties0Value(MipLevel, 0, 0, 0);
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), PackedProperties0, PackedProperties0Value);
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ColorWeights, (FMatrix44f)ColorWeightsValue);
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), Gamma, GammaValue);
@@ -158,8 +158,8 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::ForceApply);
 
-	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, InGamma);
+	VertexShader->SetParameters(RHICmdList, (FMatrix44f)InTransform);
+	PixelShader->SetParameters(RHICmdList, Texture, (FMatrix44f)ColorWeights, MipLevel, InGamma);
 }
 
 void FIESLightProfilePS::SetParameters( FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens )

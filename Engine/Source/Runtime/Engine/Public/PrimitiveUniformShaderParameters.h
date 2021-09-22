@@ -29,12 +29,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FMatrix44f,	PreviousWorldToLocal)									// Rarely used when calculating velocity, if material uses vertex offset along with world->local transform
 	SHADER_PARAMETER_EX(FVector3f,	InvNonUniformScale,  EShaderPrecisionModifier::Half)	// Often needed
 	SHADER_PARAMETER(float,			ObjectBoundsX)											// Only needed for editor/development
-	SHADER_PARAMETER(FVector4,		ObjectWorldPositionAndRadius)							// Needed by some materials
+	SHADER_PARAMETER(FVector4f,		ObjectWorldPositionAndRadius)							// Needed by some materials
 	SHADER_PARAMETER(FVector3f,		ActorWorldPosition)
 	SHADER_PARAMETER(uint32,		LightmapUVIndex)										// Only needed if static lighting is enabled
 	SHADER_PARAMETER_EX(FVector3f,	ObjectOrientation,   EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER(uint32,		LightmapDataIndex)										// Only needed if static lighting is enabled
-	SHADER_PARAMETER_EX(FVector4,	NonUniformScale,     EShaderPrecisionModifier::Half)
+	SHADER_PARAMETER_EX(FVector4f,	NonUniformScale,     EShaderPrecisionModifier::Half)
 	SHADER_PARAMETER(FVector3f,		PreSkinnedLocalBoundsMin)								// Local space min bounds, pre-skinning
 	SHADER_PARAMETER(uint32,		NaniteResourceID)
 	SHADER_PARAMETER(FVector3f,		PreSkinnedLocalBoundsMax)								// Local space bounds, pre-skinning
@@ -47,7 +47,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
 	SHADER_PARAMETER(uint32,		Unused1)
 	SHADER_PARAMETER(uint32,		Unused2)
-	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
+	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 // Must match SceneData.ush
@@ -352,7 +352,7 @@ struct FPrimitiveSceneShaderData
 	// Must match usf
 	enum { DataStrideInFloat4s = 36 };
 
-	TStaticArray<FVector4, DataStrideInFloat4s> Data;
+	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 
 	FPrimitiveSceneShaderData()
 		: Data(InPlace, NoInit)

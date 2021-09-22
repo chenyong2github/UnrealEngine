@@ -54,6 +54,11 @@ FORCEINLINE LmVectorRegister LmMakeVectorRegister( float X, float Y, float Z, fl
 	return _mm_setr_ps( X, Y, Z, W );
 }
 
+FORCEINLINE LmVectorRegister LmMakeVectorRegister( double X, double Y, double Z, double W )
+{
+	return _mm_setr_ps((float)X, (float)Y, (float)Z, (float)W);
+}
+
 /** Vector that represents (1,1,1,1) */
 static const LmVectorRegister LM_SSE_ONE = LmMakeVectorRegister( 1.0f, 1.0f, 1.0f, 1.0f );
 

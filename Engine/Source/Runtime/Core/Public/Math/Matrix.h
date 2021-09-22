@@ -13,7 +13,7 @@
 #include "Math/Axis.h"
 #include <type_traits>
 
-DECLARE_LWC_TYPE(Quat, 4);
+UE_DECLARE_LWC_TYPE(Quat, 4);
 
 #ifdef _MSC_VER
 #pragma warning (push)
@@ -171,10 +171,10 @@ public:
 	inline bool operator!=(const TMatrix<T>& Other) const;
 
 	// Homogeneous transform.
-	FORCEINLINE FVector4 TransformFVector4(const FVector4& V) const;
+	FORCEINLINE TVector4<T> TransformFVector4(const TVector4<T>& V) const;
 
 	/** Transform a location - will take into account translation part of the TMatrix<T>. */
-	FORCEINLINE FVector4 TransformPosition(const TVector<T>& V) const;
+	FORCEINLINE TVector4<T> TransformPosition(const TVector<T>& V) const;
 
 	/** Inverts the matrix and then transforms V - correctly handles scaling in this matrix. */
 	FORCEINLINE TVector<T> InverseTransformPosition(const TVector<T>& V) const;
@@ -183,7 +183,7 @@ public:
 	 *	Transform a direction vector - will not take into account translation part of the TMatrix<T>.
 	 *	If you want to transform a surface normal (or plane) and correctly account for non-uniform scaling you should use TransformByUsingAdjointT.
 	 */
-	FORCEINLINE FVector4 TransformVector(const TVector<T>& V) const;
+	FORCEINLINE TVector4<T> TransformVector(const TVector<T>& V) const;
 
 	/**
 	 *	Transform a direction vector by the inverse of this matrix - will not take into account translation part.
@@ -436,18 +436,6 @@ public:
 		M[3][0] = (T)From.M[3][0]; M[3][1] = (T)From.M[3][1]; M[3][2] = (T)From.M[3][2]; M[3][3] = (T)From.M[3][3];
 		DiagnosticCheckNaN();
 	}
-	// LWC_TODO: Don't want this! Must be explicit!
-	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
-	TMatrix<T>& operator=(const TMatrix<FArg>& From)
-	{
-		// TODO: SIMD this?
-		M[0][0] = (T)From.M[0][0]; M[0][1] = (T)From.M[0][1]; M[0][2] = (T)From.M[0][2]; M[0][3] = (T)From.M[0][3];
-		M[1][0] = (T)From.M[1][0]; M[1][1] = (T)From.M[1][1]; M[1][2] = (T)From.M[1][2]; M[1][3] = (T)From.M[1][3];
-		M[2][0] = (T)From.M[2][0]; M[2][1] = (T)From.M[2][1]; M[2][2] = (T)From.M[2][2]; M[2][3] = (T)From.M[2][3];
-		M[3][0] = (T)From.M[3][0]; M[3][1] = (T)From.M[3][1]; M[3][2] = (T)From.M[3][2]; M[3][3] = (T)From.M[3][3];
-		DiagnosticCheckNaN();
-		return *this;
-	}
 
 private:
 
@@ -521,15 +509,12 @@ inline FArchive& operator<<(FArchive& Ar, TMatrix<double>& M)
 } // namespace UE::Core
 } // namespace UE
 
-DECLARE_LWC_TYPE(Matrix, 44);
+UE_DECLARE_LWC_TYPE(Matrix, 44);
 
 template<> struct TIsPODType<FMatrix44f> { enum { Value = true }; };
-template<> struct TIsUECoreType<FMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FMatrix44f> { enum { Value = true }; };
 template<> struct TIsPODType<FMatrix44d> { enum { Value = true }; };
-template<> struct TIsUECoreType<FMatrix44d> { enum { Value = true }; };
-
-// ispc doesn't export typedefs in generated headers, so we do it here to keep our code happy.
-DECLARE_LWC_TYPE_ISPC(Matrix, 44);
+template<> struct TIsUECoreVariant<FMatrix44d> { enum { Value = true }; };
 
 // Forward declare all explicit specializations (in UnrealMath.cpp)
 template<> CORE_API FRotator FMatrix44f::Rotator() const;

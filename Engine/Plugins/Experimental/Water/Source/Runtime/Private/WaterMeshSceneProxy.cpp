@@ -413,9 +413,9 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 
 				for (int32 StreamIdx = 0; StreamIdx < WaterInstanceDataBuffersType::NumBuffers; ++StreamIdx)
 				{
-					TArrayView<FVector4> BufferMemory = WaterInstanceDataBuffers->GetBufferMemory(StreamIdx);
+					TArrayView<FVector4f> BufferMemory = WaterInstanceDataBuffers->GetBufferMemory(StreamIdx);
 					check(WriteStartOffset + NumFarInstances <= BufferMemory.Num());
-					FMemory::Memcpy(BufferMemory.GetData() + WriteStartOffset, FarDistanceWaterInstanceData.Streams[StreamIdx].GetData(), NumFarInstances * sizeof(FVector4));
+					FMemory::Memcpy(BufferMemory.GetData() + WriteStartOffset, FarDistanceWaterInstanceData.Streams[StreamIdx].GetData(), NumFarInstances * sizeof(FVector4f));
 				}
 			}
 		}

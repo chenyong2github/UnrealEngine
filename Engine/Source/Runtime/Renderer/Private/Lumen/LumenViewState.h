@@ -34,13 +34,13 @@ class FScreenProbeGatherTemporalState
 {
 public:
 	FIntRect DiffuseIndirectHistoryViewRect;
-	FVector4 DiffuseIndirectHistoryScreenPositionScaleBias;
+	FVector4f DiffuseIndirectHistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> DiffuseIndirectHistoryRT[4];
 	TRefCountPtr<IPooledRenderTarget> RoughSpecularIndirectHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> HistoryConvergenceStateRT;
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 	FIntRect ProbeHistoryViewRect;
-	FVector4 ProbeHistoryScreenPositionScaleBias;
+	FVector4f ProbeHistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> HistoryScreenProbeSceneDepth;
 	TRefCountPtr<IPooledRenderTarget> HistoryScreenProbeTranslatedWorldPosition;
 	TRefCountPtr<IPooledRenderTarget> ProbeHistoryScreenProbeRadiance;
@@ -50,9 +50,9 @@ public:
 	FScreenProbeGatherTemporalState()
 	{
 		DiffuseIndirectHistoryViewRect = FIntRect(0, 0, 0, 0);
-		DiffuseIndirectHistoryScreenPositionScaleBias = FVector4(0, 0, 0, 0);
+		DiffuseIndirectHistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
 		ProbeHistoryViewRect = FIntRect(0, 0, 0, 0);
-		ProbeHistoryScreenPositionScaleBias = FVector4(0, 0, 0, 0);
+		ProbeHistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
 	}
 
 	void SafeRelease()
@@ -77,14 +77,14 @@ class FReflectionTemporalState
 {
 public:
 	FIntRect HistoryViewRect;
-	FVector4 HistoryScreenPositionScaleBias;
+	FVector4f HistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> SpecularIndirectHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> ResolveVarianceHistoryRT;
 
 	FReflectionTemporalState()
 	{
 		HistoryViewRect = FIntRect(0, 0, 0, 0);
-		HistoryScreenPositionScaleBias = FVector4(0, 0, 0, 0);
+		HistoryScreenPositionScaleBias = FVector4f(0, 0, 0, 0);
 	}
 
 	void SafeRelease()

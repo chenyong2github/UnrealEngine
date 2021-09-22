@@ -1104,7 +1104,7 @@ void FPerInstanceRenderData::EnsureInstanceDataUpdated()
 	}
 }
 
-const TArray<FVector4>& FPerInstanceRenderData::GetPerInstanceBounds()
+const TArray<FVector4f>& FPerInstanceRenderData::GetPerInstanceBounds()
 {
 	check(bTrackBounds);
 	EnsureInstanceDataUpdated();
@@ -1600,7 +1600,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	// whether to use angular culling instead of distance, angle is halved as it is compared against the projection of the radius rather than the diameter
 	const float CullAngle = FMath::Min(CVarRayTracingInstancesCullAngle.GetValueOnRenderThread(), 179.9f) * 0.5f;
 
-	const TArray<FVector4>& PerInstanceBounds = InstancedRenderData.PerInstanceRenderData->GetPerInstanceBounds();
+	const TArray<FVector4f>& PerInstanceBounds = InstancedRenderData.PerInstanceRenderData->GetPerInstanceBounds();
 	if (CVarRayTracingRenderInstancesCulling.GetValueOnRenderThread() > 0 && PerInstanceBounds.Num())
 	{
 		if (CullAngle < 0.0f)
@@ -4133,12 +4133,12 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 
 	if( InstancingWorldViewOriginOneParameter.IsBound() )
 	{
-		FVector4 InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
-		FVector4 InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
-		FVector4 InstancingViewZConstant(ForceInit);
-		FVector4 InstancingOffset(ForceInit);
-		FVector4 InstancingWorldViewOriginZero(ForceInit);
-		FVector4 InstancingWorldViewOriginOne(ForceInit);
+		FVector4f InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
+		FVector4f InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
+		FVector4f InstancingViewZConstant(ForceInit);
+		FVector4f InstancingOffset(ForceInit);
+		FVector4f InstancingWorldViewOriginZero(ForceInit);
+		FVector4f InstancingWorldViewOriginOne(ForceInit);
 		InstancingWorldViewOriginOne.W = 1.0f;
 		if (InstancingUserData && BatchElement.InstancedLODRange)
 		{
@@ -4176,7 +4176,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 
 			for (int32 SampleIndex = 0; SampleIndex < 2; SampleIndex++)
 			{
-				FVector4& InstancingViewZCompare(SampleIndex ? InstancingViewZCompareOne : InstancingViewZCompareZero);
+				FVector4f& InstancingViewZCompare(SampleIndex ? InstancingViewZCompareOne : InstancingViewZCompareZero);
 
 				float FinalCull = MAX_flt;
 				if (MinSize > 0.0)
@@ -4238,7 +4238,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 
 	if( InstancingFadeOutParamsParameter.IsBound() )
 	{
-		FVector4 InstancingFadeOutParams(MAX_flt,0.f,1.f,1.f);
+		FVector4f InstancingFadeOutParams(MAX_flt,0.f,1.f,1.f);
 		if (InstancingUserData)
 		{
 			const float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;

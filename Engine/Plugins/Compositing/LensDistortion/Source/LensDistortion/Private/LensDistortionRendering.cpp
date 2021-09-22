@@ -100,8 +100,8 @@ public:
 			CompiledCameraModel.OriginalCameraModel.P2);
 
 		SetShaderValue(RHICmdList, ShaderRHI, PixelUVSize, PixelUVSizeValue);
-		SetShaderValue(RHICmdList, ShaderRHI, DistortedCameraMatrix, CompiledCameraModel.DistortedCameraMatrix);
-		SetShaderValue(RHICmdList, ShaderRHI, UndistortedCameraMatrix, CompiledCameraModel.UndistortedCameraMatrix);
+		SetShaderValue(RHICmdList, ShaderRHI, DistortedCameraMatrix, (FVector4f)CompiledCameraModel.DistortedCameraMatrix);
+		SetShaderValue(RHICmdList, ShaderRHI, UndistortedCameraMatrix, (FVector4f)CompiledCameraModel.UndistortedCameraMatrix);
 		SetShaderValue(RHICmdList, ShaderRHI, RadialDistortionCoefs, RadialDistortionCoefsValue);
 		SetShaderValue(RHICmdList, ShaderRHI, TangentialDistortionCoefs, TangentialDistortionCoefsValue);
 		SetShaderValue(RHICmdList, ShaderRHI, OutputMultiplyAndAdd, CompiledCameraModel.OutputMultiplyAndAdd);

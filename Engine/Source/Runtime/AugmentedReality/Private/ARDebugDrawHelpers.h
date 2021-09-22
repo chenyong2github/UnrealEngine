@@ -5,7 +5,7 @@
 #include "Misc/LargeWorldCoordinates.h"
 
 class UWorld;
-DECLARE_LWC_TYPE(Vector, 3);
+UE_DECLARE_LWC_TYPE(Vector, 3);
 class FString;
 struct FColor;
 

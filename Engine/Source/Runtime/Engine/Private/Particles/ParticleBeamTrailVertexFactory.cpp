@@ -72,7 +72,7 @@ public:
 		Offset += sizeof(float) * 4;
 		
 		/** Dynamic parameters come from a second stream */
-		Elements.Add(FVertexElement(1, 0, VET_Float4, 5, bUsesDynamicParameter ? sizeof(FVector4) : 0));
+		Elements.Add(FVertexElement(1, 0, VET_Float4, 5, bUsesDynamicParameter ? sizeof(FVector4f) : 0));
 	}
 
 	virtual void InitDynamicRHI()

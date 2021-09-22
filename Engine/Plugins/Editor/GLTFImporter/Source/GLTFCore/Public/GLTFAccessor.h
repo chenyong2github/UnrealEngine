@@ -107,11 +107,11 @@ namespace GLTF
 		///@note Performs axis conversion for vec3s(i.e. from glTF right-handed and Y-up to left-handed and Z-up).
 		void         GetCoordArray(TArray<FVector3f>& Buffer) const;
 		void         GetCoordArray(FVector3f* Buffer) const;
-		void         GetVec4Array(TArray<FVector4>& Buffer) const;
-		virtual void GetVec4Array(FVector4* Buffer) const;
+		void         GetVec4Array(TArray<FVector4f>& Buffer) const;
+		virtual void GetVec4Array(FVector4f* Buffer) const;
 		///@note Performs axis conversion for quaternion(i.e. from glTF right-handed and Y-up to left-handed and Z-up).
-		void         GetQuatArray(TArray<FVector4>& Buffer) const;
-		void         GetQuatArray(FVector4* Buffer) const;
+		void         GetQuatArray(TArray<FVector4f>& Buffer) const;
+		void         GetQuatArray(FVector4f* Buffer) const;
 		void         GetMat4Array(TArray<FMatrix44f>& Buffer) const;
 		virtual void GetMat4Array(FMatrix44f* Buffer) const;
 	};
@@ -137,7 +137,7 @@ namespace GLTF
 		void GetFloatArray(float* Buffer) const override;
 		void GetVec2Array(FVector2D* Buffer) const override;
 		void GetVec3Array(FVector3f* Buffer) const override;
-		void GetVec4Array(FVector4* Buffer) const override;
+		void GetVec4Array(FVector4f* Buffer) const override;
 		void GetMat4Array(FMatrix44f* Buffer) const override;
 
 	private:
@@ -197,14 +197,14 @@ namespace GLTF
 		GetCoordArray(Buffer.GetData());
 	}
 
-	inline void FAccessor::GetVec4Array(TArray<FVector4>& Buffer) const
+	inline void FAccessor::GetVec4Array(TArray<FVector4f>& Buffer) const
 	{
 		if (IsValid())
 			Buffer.SetNumUninitialized(Count, false);
 		GetVec4Array(Buffer.GetData());
 	}
 
-	inline void FAccessor::GetQuatArray(TArray<FVector4>& Buffer) const
+	inline void FAccessor::GetQuatArray(TArray<FVector4f>& Buffer) const
 	{
 		if (IsValid())
 			Buffer.SetNumUninitialized(Count, false);

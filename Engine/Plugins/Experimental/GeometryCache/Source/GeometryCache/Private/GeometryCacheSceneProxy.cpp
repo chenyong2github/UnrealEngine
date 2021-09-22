@@ -781,9 +781,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 
 					// Unroll 4 times so we can do 4 wide SIMD
 					{
-						const FVector4* PositionAPtr4 = (const FVector4*)PositionAPtr;
-						const FVector4* PositionBPtr4 = (const FVector4*)PositionBPtr;
-						FVector4* InterpolatedPositionsPtr4 = (FVector4*)InterpolatedPositionsPtr;
+						const FVector4f* PositionAPtr4 = (const FVector4f*)PositionAPtr;
+						const FVector4f* PositionBPtr4 = (const FVector4f*)PositionBPtr;
+						FVector4f* InterpolatedPositionsPtr4 = (FVector4f*)InterpolatedPositionsPtr;
 
 						int32 Index = 0;
 						for (; Index + 3 < NumVerts; Index += 4)
@@ -963,9 +963,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 
 					// Unroll 4 times so we can do 4 wide SIMD
 					{
-						const FVector4* MotionVectorsAPtr4 = (const FVector4*)MotionVectorsAPtr;
-						const FVector4* MotionVectorsBPtr4 = (const FVector4*)MotionVectorsBPtr;
-						FVector4* InterpolatedMotionVectorsPtr4 = (FVector4*)InterpolatedMotionVectorsPtr;
+						const FVector4f* MotionVectorsAPtr4 = (const FVector4f*)MotionVectorsAPtr;
+						const FVector4f* MotionVectorsBPtr4 = (const FVector4f*)MotionVectorsBPtr;
+						FVector4f* InterpolatedMotionVectorsPtr4 = (FVector4f*)InterpolatedMotionVectorsPtr;
 
 						int32 Index = 0;
 						for (; Index + 3 < NumVerts; Index += 4)

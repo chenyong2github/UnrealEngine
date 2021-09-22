@@ -108,7 +108,6 @@ namespace UE
 
 namespace UE { namespace PlanarCut {
 
-
 namespace {
 	inline bool IsTriActive(bool bIsVisible, int32 MaterialID, const TSet<int32>& InsideMaterials, bool bActivateInsideTriangles, EUseMaterials MaterialsPattern)
 	{

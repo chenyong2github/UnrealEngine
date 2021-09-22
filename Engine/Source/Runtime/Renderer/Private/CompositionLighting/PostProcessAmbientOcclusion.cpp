@@ -323,7 +323,7 @@ FRDGTextureRef GetScreenSpaceAOFallback(const FRDGSystemTextures& SystemTextures
 static const uint32 kSSAOParametersArraySize = 5;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSAOShaderParameters, )
-	SHADER_PARAMETER_ARRAY(FVector4, ScreenSpaceAOParams, [kSSAOParametersArraySize])
+	SHADER_PARAMETER_ARRAY(FVector4f, ScreenSpaceAOParams, [kSSAOParametersArraySize])
 
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, AOViewport)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, AOSceneViewport)
@@ -384,11 +384,11 @@ static FSSAOShaderParameters GetSSAOShaderParameters(
 	FSSAOShaderParameters Result{};
 
 	// /1000 to be able to define the value in that distance
-	Result.ScreenSpaceAOParams[0] = FVector4(Settings.AmbientOcclusionPower, Settings.AmbientOcclusionBias / 1000.0f, InvAmbientOcclusionDistance, Settings.AmbientOcclusionIntensity);
-	Result.ScreenSpaceAOParams[1] = FVector4(ViewportUVToRandomUV.X, ViewportUVToRandomUV.Y, AORadiusInShader, Ratio);
-	Result.ScreenSpaceAOParams[2] = FVector4(ScaleToFullRes, Settings.AmbientOcclusionMipThreshold / ScaleToFullRes, ScaleRadiusInWorldSpace, Settings.AmbientOcclusionMipBlend);
-	Result.ScreenSpaceAOParams[3] = FVector4(TemporalOffset.X, TemporalOffset.Y, StaticFraction, InvTanHalfFov);
-	Result.ScreenSpaceAOParams[4] = FVector4(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, HzbStepMipLevelFactorValue, Settings.AmbientOcclusionFadeDistance);
+	Result.ScreenSpaceAOParams[0] = FVector4f(Settings.AmbientOcclusionPower, Settings.AmbientOcclusionBias / 1000.0f, InvAmbientOcclusionDistance, Settings.AmbientOcclusionIntensity);
+	Result.ScreenSpaceAOParams[1] = FVector4f(ViewportUVToRandomUV.X, ViewportUVToRandomUV.Y, AORadiusInShader, Ratio);
+	Result.ScreenSpaceAOParams[2] = FVector4f(ScaleToFullRes, Settings.AmbientOcclusionMipThreshold / ScaleToFullRes, ScaleRadiusInWorldSpace, Settings.AmbientOcclusionMipBlend);
+	Result.ScreenSpaceAOParams[3] = FVector4f(TemporalOffset.X, TemporalOffset.Y, StaticFraction, InvTanHalfFov);
+	Result.ScreenSpaceAOParams[4] = FVector4f(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, HzbStepMipLevelFactorValue, Settings.AmbientOcclusionFadeDistance);
 
 	Result.AOViewport = GetScreenPassTextureViewportParameters(OutputViewport);
 	Result.AOSceneViewport = GetScreenPassTextureViewportParameters(SceneViewport);
@@ -401,7 +401,7 @@ static FSSAOShaderParameters GetSSAOShaderParameters(
 static const uint32 kGTAOParametersArraySize = 5;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGTAOShaderParameters, )
-	SHADER_PARAMETER_ARRAY(FVector4, GTAOParams, [kGTAOParametersArraySize])
+	SHADER_PARAMETER_ARRAY(FVector4f, GTAOParams, [kGTAOParametersArraySize])
 END_SHADER_PARAMETER_STRUCT();
 
 static FGTAOShaderParameters GetGTAOShaderParameters(const FViewInfo& View, FIntPoint DestSize)
@@ -427,17 +427,17 @@ static FGTAOShaderParameters GetGTAOShaderParameters(const FViewInfo& View, FInt
 	float SinAngle, CosAngle;
 	FMath::SinCos(&SinAngle, &CosAngle, TemporalAngle);
 
-	Result.GTAOParams[0] = FVector4(CosAngle, SinAngle, Offsets[(Frame / 6) % 4] * 0.25, Offsets[Frame % 4]);
+	Result.GTAOParams[0] = FVector4f(CosAngle, SinAngle, Offsets[(Frame / 6) % 4] * 0.25, Offsets[Frame % 4]);
 
 	// Frame X = number , Y = Thickness param, 
 	float ThicknessBlend = CVarGTAOThicknessBlend.GetValueOnRenderThread();
 	ThicknessBlend = FMath::Clamp(1.0f - (ThicknessBlend * ThicknessBlend), 0.0f, 0.99f);
-	Result.GTAOParams[1] = FVector4(Frame, ThicknessBlend, 0.0f, 0.0f);
+	Result.GTAOParams[1] = FVector4f(Frame, ThicknessBlend, 0.0f, 0.0f);
 
 	// Destination buffer Size and InvSize
 	float Fx = float(DestSize.X);
 	float Fy = float(DestSize.Y);
-	Result.GTAOParams[2] = FVector4(Fx, Fy, 1.0f / Fx, 1.0f / Fy);
+	Result.GTAOParams[2] = FVector4f(Fx, Fy, 1.0f / Fx, 1.0f / Fy);
 
 	// Fall Off Params
 	float FallOffEnd = CVarGTAOFalloffEnd.GetValueOnRenderThread();
@@ -449,7 +449,7 @@ static FGTAOShaderParameters GetGTAOShaderParameters(const FViewInfo& View, FInt
 	float FallOffScale = 1.0f / (FallOffEndSq - FallOffStartSq);
 	float FallOffBias = -FallOffStartSq * FallOffScale;
 
-	Result.GTAOParams[3] = FVector4(FallOffStart, FallOffEnd, FallOffScale, FallOffBias);
+	Result.GTAOParams[3] = FVector4f(FallOffStart, FallOffEnd, FallOffScale, FallOffBias);
 
 	float TemporalBlendWeight = FMath::Clamp(Settings.AmbientOcclusionTemporalBlendWeight, 0.01f, 1.0f);
 
@@ -457,7 +457,7 @@ static FGTAOShaderParameters GetGTAOShaderParameters(const FViewInfo& View, FInt
 	float SinDeltaAngle, CosDeltaAngle;
 	FMath::SinCos(&SinDeltaAngle, &CosDeltaAngle, PI / NumAngles);
 
-	Result.GTAOParams[4] = FVector4(Settings.AmbientOcclusionTemporalBlendWeight, NumAngles, SinDeltaAngle, CosDeltaAngle);
+	Result.GTAOParams[4] = FVector4f(Settings.AmbientOcclusionTemporalBlendWeight, NumAngles, SinDeltaAngle, CosDeltaAngle);
 
 	return Result;
 }
@@ -878,7 +878,7 @@ void AddAmbientOcclusionPass(
 		{
 			const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 			const FMatrix& ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
-			const FVector4 Far = ProjectionMatrix.TransformFVector4(FVector4(0, 0, Settings.AmbientOcclusionFadeDistance));
+			const FVector4f Far = ProjectionMatrix.TransformFVector4(FVector4f(0, 0, Settings.AmbientOcclusionFadeDistance));
 			DepthFar = FMath::Min(1.0f, Far.Z / Far.W);
 
 			static_assert(bool(ERHIZBuffer::IsInverted), "Inverted depth buffer is assumed when setting depth bounds test for AO.");
@@ -1360,7 +1360,7 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGTAOShaderParameters, GTAOParameters)
 
-		SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GTAOTemporalInput)
 		SHADER_PARAMETER_SAMPLER(SamplerState, GTAOTemporalSampler)
@@ -1420,7 +1420,7 @@ FGTAOTemporalOutputs AddGTAOTemporalPass(
 	const FIntPoint ViewportExtent = HistoryViewport.Rect.Size();
 	const FIntPoint BufferSize = HistoryViewport.Extent;
 
-	const FVector4 PrevScreenPositionScaleBiasValue = FVector4(
+	const FVector4f PrevScreenPositionScaleBiasValue = FVector4f(
 		ViewportExtent.X * 0.5f / BufferSize.X,
 		-ViewportExtent.Y * 0.5f / BufferSize.Y,
 		(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
@@ -1497,8 +1497,8 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 
 		SHADER_PARAMETER(FIntPoint, GTAOSpatialFilterExtents)
-		SHADER_PARAMETER(FVector4, GTAOSpatialFilterParams)
-		SHADER_PARAMETER(FVector4, GTAOSpatialFilterWidth)
+		SHADER_PARAMETER(FVector4f, GTAOSpatialFilterParams)
+		SHADER_PARAMETER(FVector4f, GTAOSpatialFilterWidth)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GTAOSpatialFilterTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GTAOSpatialFilterDepthTexture)
@@ -1545,7 +1545,7 @@ FScreenPassTexture AddGTAOSpatialFilter(
 	PassParameters->GTAOSpatialFilterExtents = OutputViewport.Rect.Size();
 
 
-	FVector4 FilterWidthParamsValue(0.0f, 0.0f, 0.0f, 0.0f);
+	FVector4f FilterWidthParamsValue(0.0f, 0.0f, 0.0f, 0.0f);
 	float FilterWidth = CVarGTAOFilterWidth.GetValueOnRenderThread();
 
 	if (FilterWidth == 3.0f)
@@ -1566,7 +1566,7 @@ FScreenPassTexture AddGTAOSpatialFilter(
 	PassParameters->GTAOSpatialFilterWidth = FilterWidthParamsValue;
 
 	float DownsampleFactor = 1.0;
-	FVector4 FilterParamsValue((float)DownsampleFactor, 0.0f, 0.0f, 0.0f); // JDW TODO
+	FVector4f FilterParamsValue((float)DownsampleFactor, 0.0f, 0.0f, 0.0f); // JDW TODO
 	PassParameters->GTAOSpatialFilterParams = FilterParamsValue;
 
 	PassParameters->GTAOSpatialFilterTexture = Input.Texture;

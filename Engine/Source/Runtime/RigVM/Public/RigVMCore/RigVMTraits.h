@@ -57,7 +57,7 @@ template<> struct TRigVMIsBaseStructure<FPlane> { enum { Value = true }; };
 template<> struct TRigVMIsBaseStructure<FVector> { enum { Value = true }; };
 struct FVector2D;
 template<> struct TRigVMIsBaseStructure<FVector2D> { enum { Value = true }; };
-struct FVector4;
+
 template<> struct TRigVMIsBaseStructure<FVector4> { enum { Value = true }; };
 struct FRandomStream;
 template<> struct TRigVMIsBaseStructure<FRandomStream> { enum { Value = true }; };

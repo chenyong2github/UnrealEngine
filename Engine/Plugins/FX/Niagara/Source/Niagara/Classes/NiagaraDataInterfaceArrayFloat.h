@@ -44,7 +44,7 @@ class NIAGARA_API UNiagaraDataInterfaceArrayFloat4 : public UNiagaraDataInterfac
 	GENERATED_UCLASS_BODY()
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Array")
-	TArray<FVector4> FloatData;
+	TArray<FVector4> FloatData;		// LWC_TODO: Should be FVector4f, but only FVector4 is blueprint accessible
 
 	TArray<FVector4>& GetArrayReference() { return FloatData; }
 };

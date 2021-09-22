@@ -39,16 +39,16 @@ public:
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTileIntersectionParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeAxisAndCos)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeDepthRanges)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4f>, RWTileConeAxisAndCos)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4f>, RWTileConeDepthRanges)
 
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWNumCulledTilesArray)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCulledTilesStartOffsetArray)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledTileDataArray)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectTilesIndirectArguments)
 
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVector4>, TileConeAxisAndCos)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVector4>, TileConeDepthRanges)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVector4f>, TileConeAxisAndCos)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVector4f>, TileConeDepthRanges)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, NumCulledTilesArray)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CulledTilesStartOffsetArray)
@@ -79,7 +79,7 @@ END_SHADER_PARAMETER_STRUCT()
 extern void GetSpacedVectors(uint32 FrameNumber, TArray<FVector, TInlineAllocator<9> >& OutVectors);
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAOSampleData2,)
-	SHADER_PARAMETER_ARRAY(FVector4,SampleDirections,[NumConeSampleDirections])
+	SHADER_PARAMETER_ARRAY(FVector4f,SampleDirections,[NumConeSampleDirections])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 inline float GetMaxAOViewDistance()

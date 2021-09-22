@@ -176,7 +176,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -312,7 +312,7 @@ FMobileBloomSetupOutputs AddMobileBloomSetupPass(FRDGBuilder& GraphBuilder, cons
 	FMobileBloomSetupVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	VSShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 
 	auto ShaderPermutationVector = FMobileBloomSetupPS::BuildPermutationVector(Inputs.bUseBloom, Inputs.bUseSun, Inputs.bUseDof, Inputs.bUseEyeAdaptation, Inputs.bUseMetalMSAAHDRDecode);
 
@@ -430,7 +430,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 		SHADER_PARAMETER(float, BloomDownScale)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -457,7 +457,7 @@ FScreenPassTexture AddMobileBloomDownPass(FRDGBuilder& GraphBuilder, const FView
 	FMobileBloomDownVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	VSShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 	VSShaderParameters.BloomDownScale = Inputs.BloomDownScale;
 
 	TShaderMapRef<FMobileBloomDownPS> PixelShader(View.ShaderMap);
@@ -523,8 +523,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FMobileBloomUpPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, BloomTintA)
-		SHADER_PARAMETER(FVector4, BloomTintB)
+		SHADER_PARAMETER(FVector4f, BloomTintA)
+		SHADER_PARAMETER(FVector4f, BloomTintB)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomUpSourceATexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, BloomUpSourceASampler)
@@ -549,8 +549,8 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, BufferASizeAndInvSize)
-		SHADER_PARAMETER(FVector4, BufferBSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferASizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferBSizeAndInvSize)
 		SHADER_PARAMETER(FVector2D, BloomUpScales)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -579,8 +579,8 @@ FScreenPassTexture AddMobileBloomUpPass(FRDGBuilder& GraphBuilder, const FViewIn
 	FMobileBloomUpVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferASizeAndInvSize = FVector4(BufferSizeA.X, BufferSizeA.Y, 1.0f / BufferSizeA.X, 1.0f / BufferSizeA.Y);
-	VSShaderParameters.BufferBSizeAndInvSize = FVector4(BufferSizeB.X, BufferSizeB.Y, 1.0f / BufferSizeB.X, 1.0f / BufferSizeB.Y);
+	VSShaderParameters.BufferASizeAndInvSize = FVector4f(BufferSizeA.X, BufferSizeA.Y, 1.0f / BufferSizeA.X, 1.0f / BufferSizeA.Y);
+	VSShaderParameters.BufferBSizeAndInvSize = FVector4f(BufferSizeB.X, BufferSizeB.Y, 1.0f / BufferSizeB.X, 1.0f / BufferSizeB.Y);
 	VSShaderParameters.BloomUpScales = Inputs.ScaleAB;
 
 	TShaderMapRef<FMobileBloomUpPS> PixelShader(View.ShaderMap);
@@ -666,7 +666,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
-		SHADER_PARAMETER(FVector4, SunColorApertureDiv2)
+		SHADER_PARAMETER(FVector4f, SunColorApertureDiv2)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1029,8 +1029,8 @@ public:
 		FUseSunDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, BloomDirtMaskTint)
-		SHADER_PARAMETER(FVector4, SunColorVignetteIntensity)
+		SHADER_PARAMETER(FVector4f, BloomDirtMaskTint)
+		SHADER_PARAMETER(FVector4f, SunColorVignetteIntensity)
 		SHADER_PARAMETER(FVector3f, BloomColor)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SunBlurTexture)
@@ -1069,8 +1069,8 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(FVector2D, LightShaftCenter)
-		SHADER_PARAMETER(FVector4, BloomUpSizeAndInvSize)
-		SHADER_PARAMETER(FVector4, ViewportSize)
+		SHADER_PARAMETER(FVector4f, BloomUpSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, ViewportSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1104,21 +1104,21 @@ FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewI
 	if (Inputs.BloomUp.IsValid())
 	{
 		const FIntPoint& BloomUpSize = Inputs.BloomUp.Texture->Desc.Extent;
-		VSShaderParameters.BloomUpSizeAndInvSize = FVector4(BloomUpSize.X, BloomUpSize.Y, 1.0f / BloomUpSize.X, 1.0f / BloomUpSize.Y);
+		VSShaderParameters.BloomUpSizeAndInvSize = FVector4f(BloomUpSize.X, BloomUpSize.Y, 1.0f / BloomUpSize.X, 1.0f / BloomUpSize.Y);
 	}
 	else
 	{
-		VSShaderParameters.BloomUpSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		VSShaderParameters.BloomUpSizeAndInvSize = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 
-	VSShaderParameters.ViewportSize = FVector4(OutputSize.X, OutputSize.Y, 1.0f / OutputSize.X, 1.0f / OutputSize.Y);
+	VSShaderParameters.ViewportSize = FVector4f(OutputSize.X, OutputSize.Y, 1.0f / OutputSize.X, 1.0f / OutputSize.Y);
 
 	auto ShaderPermutationVector = FMobileSunMergePS::BuildPermutationVector(Inputs.bUseBloom, Inputs.bUseSun);
 
 	TShaderMapRef<FMobileSunMergePS> PixelShader(View.ShaderMap, ShaderPermutationVector);
 
 	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
-	FVector4 SunColorVignetteIntensityParam(0.0f);
+	FVector4f SunColorVignetteIntensityParam(0.0f);
 	SunColorVignetteIntensityParam.X = MobileLightShaft.ColorApply.R;
 	SunColorVignetteIntensityParam.Y = MobileLightShaft.ColorApply.G;
 	SunColorVignetteIntensityParam.Z = MobileLightShaft.ColorApply.B;
@@ -1202,7 +1202,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1263,7 +1263,7 @@ FMobileDofDownOutputs AddMobileDofDownPass(FRDGBuilder& GraphBuilder, const FVie
 	FMobileDofDownVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	VSShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 
 	auto ShaderPermutationVector = FMobileDofDownPS::BuildPermutationVector(Inputs.bUseSun);
 
@@ -1339,7 +1339,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1394,7 +1394,7 @@ FMobileDofNearOutputs AddMobileDofNearPass(FRDGBuilder& GraphBuilder, const FVie
 	FMobileDofNearVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	VSShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 
 	auto ShaderPermutationVector = FMobileDofNearPS::BuildPermutationVector(Inputs.bUseSun);
 
@@ -1488,7 +1488,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1512,7 +1512,7 @@ FMobileDofBlurOutputs AddMobileDofBlurPass(FRDGBuilder& GraphBuilder, const FVie
 	FMobileDofBlurVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	VSShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 
 	TShaderMapRef<FMobileDofBlurPS> PixelShader(View.ShaderMap);
 
@@ -1604,8 +1604,8 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
-		SHADER_PARAMETER(FVector4, DofBlurSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, DofBlurSizeAndInvSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1628,8 +1628,8 @@ FScreenPassTexture AddMobileIntegrateDofPass(FRDGBuilder& GraphBuilder, const FV
 	FMobileIntegrateDofVS::FParameters VSShaderParameters;
 
 	VSShaderParameters.View = View.ViewUniformBuffer;
-	VSShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
-	VSShaderParameters.DofBlurSizeAndInvSize = FVector4(DofBlurSize.X, DofBlurSize.Y, 1.0f / DofBlurSize.X, 1.0f / DofBlurSize.Y);
+	VSShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	VSShaderParameters.DofBlurSizeAndInvSize = FVector4f(DofBlurSize.X, DofBlurSize.Y, 1.0f / DofBlurSize.X, 1.0f / DofBlurSize.Y);
 
 	TShaderMapRef<FMobileIntegrateDofPS> PixelShader(View.ShaderMap);
 
@@ -1703,7 +1703,7 @@ public:
 	static const FIntPoint TexelsPerThreadGroup;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, SourceSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, SourceSizeAndInvSize)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<half>, InputTexture)
@@ -1754,7 +1754,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER(FVector4, SourceSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, SourceSizeAndInvSize)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<half>, InputTexture)
@@ -1829,7 +1829,7 @@ FMobileEyeAdaptationSetupOutputs AddMobileEyeAdaptationSetupPass(FRDGBuilder& Gr
 	{
 		FMobileAverageLuminanceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileAverageLuminanceCS::FParameters>();
 
-		PassParameters->SourceSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+		PassParameters->SourceSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 		PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->InputTexture = Inputs.BloomSetup_EyeAdaptation.Texture;
 		PassParameters->EyeAdaptation = EyeAdaptationParameters;
@@ -1849,7 +1849,7 @@ FMobileEyeAdaptationSetupOutputs AddMobileEyeAdaptationSetupPass(FRDGBuilder& Gr
 		FMobileHistogram::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileHistogram::FParameters>();
 
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SourceSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+		PassParameters->SourceSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 		PassParameters->InputTexture = Inputs.BloomSetup_EyeAdaptation.Texture;
 		PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RWHistogramBuffer = EyeAdaptationSetupBufferUAV;

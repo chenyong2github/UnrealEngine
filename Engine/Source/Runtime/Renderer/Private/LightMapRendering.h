@@ -21,12 +21,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FIndirectLightingCacheUniformParameters, )
 	SHADER_PARAMETER(FVector3f, IndirectLightingCachePrimitiveScale) // FCachedVolumeIndirectLightingPolicy
 	SHADER_PARAMETER(FVector3f, IndirectLightingCacheMinUV) // FCachedVolumeIndirectLightingPolicy
 	SHADER_PARAMETER(FVector3f, IndirectLightingCacheMaxUV) // FCachedVolumeIndirectLightingPolicy
-	SHADER_PARAMETER(FVector4, PointSkyBentNormal) // FCachedPointIndirectLightingPolicy
+	SHADER_PARAMETER(FVector4f, PointSkyBentNormal) // FCachedPointIndirectLightingPolicy
 	SHADER_PARAMETER_EX(float, DirectionalLightShadowing, EShaderPrecisionModifier::Half) // FCachedPointIndirectLightingPolicy
-	SHADER_PARAMETER_ARRAY(FVector4, IndirectLightingSHCoefficients0, [3]) // FCachedPointIndirectLightingPolicy
-	SHADER_PARAMETER_ARRAY(FVector4, IndirectLightingSHCoefficients1, [3]) // FCachedPointIndirectLightingPolicy
-	SHADER_PARAMETER(FVector4,	IndirectLightingSHCoefficients2) // FCachedPointIndirectLightingPolicy
-	SHADER_PARAMETER_EX(FVector4, IndirectLightingSHSingleCoefficient, EShaderPrecisionModifier::Half) // FCachedPointIndirectLightingPolicy used in forward Translucent
+	SHADER_PARAMETER_ARRAY(FVector4f, IndirectLightingSHCoefficients0, [3]) // FCachedPointIndirectLightingPolicy
+	SHADER_PARAMETER_ARRAY(FVector4f, IndirectLightingSHCoefficients1, [3]) // FCachedPointIndirectLightingPolicy
+	SHADER_PARAMETER(FVector4f,	IndirectLightingSHCoefficients2) // FCachedPointIndirectLightingPolicy
+	SHADER_PARAMETER_EX(FVector4f, IndirectLightingSHSingleCoefficient, EShaderPrecisionModifier::Half) // FCachedPointIndirectLightingPolicy used in forward Translucent
 	SHADER_PARAMETER_TEXTURE(Texture3D, IndirectLightingCacheTexture0) // FCachedVolumeIndirectLightingPolicy
 	SHADER_PARAMETER_TEXTURE(Texture3D, IndirectLightingCacheTexture1) // FCachedVolumeIndirectLightingPolicy
 	SHADER_PARAMETER_TEXTURE(Texture3D, IndirectLightingCacheTexture2) // FCachedVolumeIndirectLightingPolicy

@@ -115,8 +115,8 @@ void FSlateMaterialShaderPS::SetParameters(FRHICommandList& RHICmdList, const FS
 {
 	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-	SetShaderValue(RHICmdList, ShaderRHI, ShaderParams, InShaderParams.PixelParams);
-	SetShaderValue(RHICmdList, ShaderRHI, ShaderParams2, InShaderParams.PixelParams2);
+	SetShaderValue(RHICmdList, ShaderRHI, ShaderParams, (FVector4f)InShaderParams.PixelParams);
+	SetShaderValue(RHICmdList, ShaderRHI, ShaderParams2, (FVector4f)InShaderParams.PixelParams2);
 
 	SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
 	FMaterialShader::SetParameters<FRHIPixelShader>(RHICmdList, ShaderRHI, MaterialRenderProxy, *Material, View);
@@ -129,14 +129,14 @@ void FSlateMaterialShaderPS::SetAdditionalTexture( FRHICommandList& RHICmdList, 
 
 void FSlateMaterialShaderPS::SetDisplayGammaAndContrast(FRHICommandList& RHICmdList, float InDisplayGamma, float InContrast)
 {
-	FVector4 InGammaValues(2.2f / InDisplayGamma, 1.0f / InDisplayGamma, 0.0f, InContrast);
+	FVector4f InGammaValues(2.2f / InDisplayGamma, 1.0f / InDisplayGamma, 0.0f, InContrast);
 
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), GammaAndAlphaValues, InGammaValues);
 }
 
 void FSlateMaterialShaderPS::SetDrawFlags(FRHICommandList& RHICmdList, bool bDrawDisabledEffect)
 {
-	FVector4 InDrawFlags(bDrawDisabledEffect ? 1 : 0, 0, 0, 0);
+	FVector4f InDrawFlags(bDrawDisabledEffect ? 1 : 0, 0, 0, 0);
 
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), DrawFlags, InDrawFlags);
 }

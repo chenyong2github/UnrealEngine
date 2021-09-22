@@ -345,7 +345,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER(FScreenTransform, ColorToBloom)
 	SHADER_PARAMETER(FVector2D, BloomUVViewportBilinearMin)
 	SHADER_PARAMETER(FVector2D, BloomUVViewportBilinearMax)
-	SHADER_PARAMETER(FVector4, BloomMultiply)
+	SHADER_PARAMETER(FVector4f, BloomMultiply)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, BloomApplyParameters)
@@ -362,13 +362,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorGradingLUTSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomDirtMaskSampler)
-
-	SHADER_PARAMETER(FVector4, ColorScale0)
-	SHADER_PARAMETER(FVector4, BloomDirtMaskTint)
-	SHADER_PARAMETER(FVector4, ChromaticAberrationParams)
-	SHADER_PARAMETER(FVector4, TonemapperParams)
-	SHADER_PARAMETER(FVector4, LensPrincipalPointOffsetScale)
-	SHADER_PARAMETER(FVector4, LensPrincipalPointOffsetScaleInverse)
+	SHADER_PARAMETER(FVector4f, ColorScale0)
+	SHADER_PARAMETER(FVector4f, BloomDirtMaskTint)
+	SHADER_PARAMETER(FVector4f, ChromaticAberrationParams)
+	SHADER_PARAMETER(FVector4f, TonemapperParams)
+	SHADER_PARAMETER(FVector4f, LensPrincipalPointOffsetScale)
+	SHADER_PARAMETER(FVector4f, LensPrincipalPointOffsetScaleInverse)
 	SHADER_PARAMETER(float, SwitchVerticalAxis)
 	SHADER_PARAMETER(float, DefaultEyeExposure)
 	SHADER_PARAMETER(float, EditorNITLevel)
@@ -637,7 +636,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 	const float SharpenDiv6 = FMath::Clamp(CVarTonemapperSharpen.GetValueOnRenderThread(), 0.0f, 10.0f) / 6.0f;
 
-	FVector4 ChromaticAberrationParams;
+	FVector4f ChromaticAberrationParams;
 
 	{
 		// for scene color fringe
@@ -661,7 +660,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		// Simple lens chromatic aberration is roughly linear in wavelength
 		float ScaleR = 0.007f * (PrimaryR - PrimaryB);
 		float ScaleG = 0.007f * (PrimaryG - PrimaryB);
-		ChromaticAberrationParams = FVector4(Offset * ScaleR * Multiplier, Offset * ScaleG * Multiplier, StartOffset, 0.f);
+		ChromaticAberrationParams = FVector4f(Offset * ScaleR * Multiplier, Offset * ScaleG * Multiplier, StartOffset, 0.f);
 	}
 
 	float EditorNITLevel = 160.0f;
@@ -760,7 +759,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		if (SupportsFilmGrain(View.GetShaderPlatform()))
 		{
 			FRDGBufferRef DummyFilmGrainTextureConstants = GSystemTextures.GetDefaultStructuredBuffer(
-				GraphBuilder, sizeof(FVector4), FVector4(FLinearColor::White));
+				GraphBuilder, sizeof(FVector4f), FVector4f(FLinearColor::White));
 
 			CommonParameters.FilmGrain.FilmGrainTextureConstants = GraphBuilder.CreateSRV(DummyFilmGrainTextureConstants);
 		}
@@ -788,7 +787,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.ColorScale0 = PostProcessSettings.SceneColorTint;
 	CommonParameters.BloomDirtMaskTint = PostProcessSettings.BloomDirtMaskTint * PostProcessSettings.BloomDirtMaskIntensity;
 	CommonParameters.ChromaticAberrationParams = ChromaticAberrationParams;
-	CommonParameters.TonemapperParams = FVector4(PostProcessSettings.VignetteIntensity, SharpenDiv6, 0.0f, 0.0f);
+	CommonParameters.TonemapperParams = FVector4f(PostProcessSettings.VignetteIntensity, SharpenDiv6, 0.0f, 0.0f);
 	CommonParameters.SwitchVerticalAxis = Inputs.bFlipYAxis;
 	CommonParameters.DefaultEyeExposure = DefaultEyeExposure;
 	CommonParameters.EditorNITLevel = EditorNITLevel;

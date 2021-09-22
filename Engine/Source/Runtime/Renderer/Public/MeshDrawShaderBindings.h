@@ -182,6 +182,8 @@ public:
 	template<class ParameterType>
 	void Add(FShaderParameter Parameter, const ParameterType& Value)
 	{
+		static_assert(!TIsUECoreVariant<ParameterType, double>::Value, "FMeshDrawSingleShaderBindings cannot Add double core variants! Switch to float variant.");
+		static_assert(!TIsUECoreVariant<typename std::remove_pointer<typename TDecay<ParameterType>::Type>::type, double>::Value, "FMeshDrawSingleShaderBindings cannot Add double core variants! Switch to float variant.");
 		static_assert(!TIsPointer<ParameterType>::Value, "Passing by pointer is not valid.");
 		checkfSlow(Parameter.IsInitialized(), TEXT("Parameter was not serialized"));
 

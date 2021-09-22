@@ -311,7 +311,7 @@ private:
 			FVector4 ProjectedVertice = GeometryToFrustum.TransformFVector4(InPoint);
 
 			// Use only points over view plane, ignore backside pts
-			if (isnan(ProjectedVertice.X) || isnan(ProjectedVertice.Y) || isnan(ProjectedVertice.Z) || ProjectedVertice.X <= 0 || FMath::IsNearlyZero(ProjectedVertice.X, 1.e-6f))
+			if (isnan(ProjectedVertice.X) || isnan(ProjectedVertice.Y) || isnan(ProjectedVertice.Z) || ProjectedVertice.X <= 0 || FMath::IsNearlyZero(ProjectedVertice.X, (FVector4::FReal)1.e-6f))
 			{
 				// This point out of view plane
 				return false;

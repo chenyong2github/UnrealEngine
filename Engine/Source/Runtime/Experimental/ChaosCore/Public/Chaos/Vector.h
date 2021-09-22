@@ -366,23 +366,24 @@ namespace Chaos
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 	template<>
-	class TVector<FReal, 4> : public FVector4
+	class TVector<FReal, 4> : public UE::Math::TVector4<FReal>
 	{
 	public:
-		using FElement = decltype(FVector4::X);
-		using FVector4::W;
-		using FVector4::X;
-		using FVector4::Y;
-		using FVector4::Z;
+		using FElement = FReal;
+		using BaseType = UE::Math::TVector4<FReal>;
+		using BaseType::X;
+		using BaseType::Y;
+		using BaseType::Z;
+		using BaseType::W;
 
 		TVector()
-		    : FVector4() {}
+		    : BaseType() {}
 		explicit TVector(const FReal x)
-		    : FVector4((decltype(FVector4::X))x, (decltype(FVector4::X))x, (decltype(FVector4::X))x, (decltype(FVector4::X))x) {}	// LWC_TODO: Remove casts once FVector4 supports variants
+		    : BaseType(x, x, x, x) {}
 		TVector(const FReal x, const FReal y, const FReal z, const FReal w)
-		    : FVector4((decltype(FVector4::X))x, (decltype(FVector4::X))y, (decltype(FVector4::X))z, (decltype(FVector4::X))w) {}
-		TVector(const FVector4& vec)
-		    : FVector4(vec) {}
+		    : BaseType(x, y, z, w) {}
+		TVector(const BaseType& vec)
+		    : BaseType(vec) {}
 	};
 
 	template<>
@@ -404,8 +405,10 @@ namespace Chaos
 		    : UE::Math::TVector<FRealSingle>((UE::Math::TVector<FRealSingle>)vec) {}
 		TVector(const UE::Math::TVector<FRealDouble>& vec)					// LWC_TODO: Precision loss. Make explicit for FRealSingle = FRealSingle?
 			: UE::Math::TVector<FRealSingle>((UE::Math::TVector<FRealSingle>)vec) {}
-		TVector(const FVector4& vec)
+		TVector(const UE::Math::TVector4<FRealSingle>& vec)
 		    : UE::Math::TVector<FRealSingle>(vec.X, vec.Y, vec.Z) {}
+		TVector(const UE::Math::TVector4<FRealDouble>& vec)					// LWC_TODO: Precision loss. Make explicit for FRealSingle = FRealSingle?
+			: UE::Math::TVector<FRealSingle>((UE::Math::TVector4<FRealSingle>)vec) {}
 		TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));

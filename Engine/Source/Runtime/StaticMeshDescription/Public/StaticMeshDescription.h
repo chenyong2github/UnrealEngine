@@ -70,8 +70,8 @@ public:
 	TVertexInstanceAttributesRef<float> GetVertexInstanceBinormalSigns() { return GetRequiredAttributes().GetVertexInstanceBinormalSigns(); }
 	TVertexInstanceAttributesConstRef<float> GetVertexInstanceBinormalSigns() const { return GetRequiredAttributes().GetVertexInstanceBinormalSigns(); }
 
-	TVertexInstanceAttributesRef<FVector4> GetVertexInstanceColors() { return GetRequiredAttributes().GetVertexInstanceColors(); }
-	TVertexInstanceAttributesConstRef<FVector4> GetVertexInstanceColors() const { return GetRequiredAttributes().GetVertexInstanceColors(); }
+	TVertexInstanceAttributesRef<FVector4f> GetVertexInstanceColors() { return GetRequiredAttributes().GetVertexInstanceColors(); }
+	TVertexInstanceAttributesConstRef<FVector4f> GetVertexInstanceColors() const { return GetRequiredAttributes().GetVertexInstanceColors(); }
 
 	TEdgeAttributesRef<bool> GetEdgeHardnesses() { return GetRequiredAttributes().GetEdgeHardnesses(); }
 	TEdgeAttributesConstRef<bool> GetEdgeHardnesses() const { return GetRequiredAttributes().GetEdgeHardnesses(); }

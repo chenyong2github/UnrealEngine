@@ -552,7 +552,7 @@ static bool AllocateProjectedShadowOcclusionQuery(
 	{
 		// The shadow transforms and view transforms are relative to different origins, so the world coordinates need to
 		// be translated.
-		const FVector4 PreShadowToPreViewTranslation(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation,0);
+		const FVector4f PreShadowToPreViewTranslation(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation,0);
 	
 		// If the shadow frustum is farther from the view origin than the near clipping plane,
 		// it can't intersect the near clipping plane.
@@ -645,7 +645,7 @@ static void PrepareProjectedShadowOcclusionQuery(uint32& BaseVertexIndex, FVecto
 {
 	// The shadow transforms and view transforms are relative to different origins, so the world coordinates need to
 	// be translated.
-	const FVector4 PreShadowToPreViewTranslation(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation, 0);
+	const FVector4f PreShadowToPreViewTranslation(View.ViewMatrices.GetPreViewTranslation() - ProjectedShadowInfo.PreShadowTranslation, 0);
 
 	FVector3f* Vertices = &DestinationBuffer[BaseVertexIndex];
 	// Generate vertices for the shadow's frustum.
@@ -655,8 +655,8 @@ static void PrepareProjectedShadowOcclusionQuery(uint32& BaseVertexIndex, FVecto
 		{
 			for (uint32 X = 0; X < 2; X++)
 			{
-				const FVector4 UnprojectedVertex = ProjectedShadowInfo.InvReceiverInnerMatrix.TransformFVector4(
-					FVector4(
+				const FVector4f UnprojectedVertex = ProjectedShadowInfo.InvReceiverInnerMatrix.TransformFVector4(
+					FVector4f(
 						(X ? -1.0f : 1.0f),
 						(Y ? -1.0f : 1.0f),
 						(Z ?  0.0f : 1.0f),
@@ -944,7 +944,7 @@ public:
 			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y),
 			FMath::Max(HZBMipmapCounts - kHZBTestMaxMipmap, 0.0f)
 			);
-		const FVector4 HZBSizeValue(
+		const FVector4f HZBSizeValue(
 			View.HZBMipmap0Size.X,
 			View.HZBMipmap0Size.Y,
 			1.0f / float(View.HZBMipmap0Size.X),

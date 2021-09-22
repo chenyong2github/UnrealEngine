@@ -5,32 +5,37 @@
 #include "CoreTypes.h"
 #include "Math/UnrealMathUtility.h"
 #include "Math/Vector.h"
+#include "Math/Matrix.h"
+#include "Math/Transform.h"
 
 /**
  * Implements a basic sphere.
  */
-class FSphere
+namespace UE {
+namespace Math {
+
+template<typename T>
+struct TSphere
 {
 public:
-	using FReal = FVector::FReal;
+	using FReal = T;
 
 	/** The sphere's center point. */
-	FVector Center;
+	TVector<T> Center;
 
 	/** The sphere's radius. */
-	FReal W;
+	T W;
 
-public:
 
 	/** Default constructor (no initialization). */
-	FSphere() { }
+	TSphere() { }
 
 	/**
 	 * Creates and initializes a new sphere.
 	 *
 	 * @param int32 Passing int32 sets up zeroed sphere.
 	 */
-	FSphere(int32)
+	TSphere(int32)
 		: Center(0.0f, 0.0f, 0.0f)
 		, W(0)
 	{ }
@@ -41,7 +46,7 @@ public:
 	 * @param InV Center of sphere.
 	 * @param InW Radius of sphere.
 	 */
-	FSphere(FVector InV, FReal InW)
+	TSphere(TVector<T> InV, T InW)
 		: Center(InV)
 		, W(InW)
 	{ }
@@ -51,7 +56,7 @@ public:
 	 *
 	 * @param EForceInit Force Init Enum.
 	 */
-	explicit FORCEINLINE FSphere(EForceInit)
+	explicit FORCEINLINE TSphere(EForceInit)
 		: Center(ForceInit)
 		, W(0.0f)
 	{ }
@@ -59,20 +64,24 @@ public:
 	/**
 	 * Constructor.
 	 *
-	 * @param Pts Pointer to list of points this sphere must contain.
+	 * @param Points Pointer to list of points this sphere must contain.
 	 * @param Count How many points are in the list.
 	 */
-	CORE_API FSphere(const FVector* Pts, int32 Count);
+	CORE_API TSphere(const TVector<T>* Points, int32 Count);
+
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Pts Pointer to list of points this sphere must contain.
+	 * @param Spheres Pointer to list of spheres this sphere must contain.
 	 * @param Count How many points are in the list.
 	 */
-	CORE_API FSphere(const FSphere* Spheres, int32 Count);
+	CORE_API TSphere(const TSphere<T>* Spheres, int32 Count);
 
-public:
+	// Conversion from other variant type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TSphere(const TSphere<FArg>& From) : TSphere<T>(TVector<T>(From.Center), T(From.W)) {}
+
 
 	/**
 	 * Check whether two spheres are the same within specified tolerance.
@@ -81,7 +90,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if spheres are equal within specified tolerance, otherwise false.
 	 */
-	bool Equals(const FSphere& Sphere, float Tolerance = KINDA_SMALL_NUMBER) const
+	bool Equals(const TSphere<T>& Sphere, T Tolerance = KINDA_SMALL_NUMBER) const
 	{
 		return Center.Equals(Sphere.Center, Tolerance) && FMath::Abs(W - Sphere.W) <= Tolerance;
 	}
@@ -93,7 +102,7 @@ public:
 	 * @param Tolerance Error Tolerance.
 	 * @return true if sphere is inside another, otherwise false.
 	 */
-	bool IsInside(const FSphere& Other, float Tolerance = KINDA_SMALL_NUMBER) const
+	bool IsInside(const TSphere<T>& Other, T Tolerance = KINDA_SMALL_NUMBER) const
 	{
 		if (W > Other.W + Tolerance)
 		{
@@ -109,7 +118,7 @@ public:
 	* @param In The location to test for inside the bounding volume.
 	* @return true if location is inside this volume.
 	*/
-	bool IsInside(const FVector& In, float Tolerance = KINDA_SMALL_NUMBER) const
+	bool IsInside(const FVector& In, T Tolerance = KINDA_SMALL_NUMBER) const
 	{
 		return (Center - In).SizeSquared() <= FMath::Square(W + Tolerance);
 	}
@@ -121,7 +130,7 @@ public:
 	 * @param  Tolerance Error tolerance.
 	 * @return true if spheres intersect, false otherwise.
 	 */
-	FORCEINLINE bool Intersects(const FSphere& Other, float Tolerance = KINDA_SMALL_NUMBER) const
+	FORCEINLINE bool Intersects(const TSphere<T>& Other, T Tolerance = KINDA_SMALL_NUMBER) const
 	{
 		return (Center - Other.Center).SizeSquared() <= FMath::Square(FMath::Max(0.f, Other.W + W + Tolerance));
 	}
@@ -132,7 +141,7 @@ public:
 	 * @param M Matrix to transform by.
 	 * @return Result of transformation.
 	 */
-	CORE_API FSphere TransformBy(const FMatrix& M) const;
+	TSphere<T> TransformBy(const TMatrix<T>& M) const;
 
 	/**
 	 * Get result of Transforming sphere with Transform.
@@ -140,14 +149,17 @@ public:
 	 * @param M Transform information.
 	 * @return Result of transformation.
 	 */
-	CORE_API FSphere TransformBy(const FTransform& M) const;
+	TSphere<T> TransformBy(const FTransform& M) const;
 
 	/**
 	 * Get volume of the current sphere
 	 *
 	 * @return Volume (in Unreal units).
 	 */
-	CORE_API FReal GetVolume() const;
+	T GetVolume() const
+	{
+		return (4.f / 3.f) * PI * (W * W * W);
+	}
 
 	/**
 	 * Adds to this bounding box to include a new bounding volume.
@@ -155,7 +167,7 @@ public:
 	 * @param Other the bounding volume to increase the bounding volume to.
 	 * @return Reference to this bounding volume after resizing to include the other bounding volume.
 	 */
-	CORE_API FSphere& operator+=(const FSphere& Other);
+	TSphere<T>& operator+=(const TSphere<T>& Other);
 
 	/**
 	 * Gets the result of addition to this bounding volume.
@@ -163,70 +175,168 @@ public:
 	 * @param Other The other volume to add to this.
 	 * @return A new bounding volume.
 	 */
-	FSphere operator+(const FSphere& Other) const
+	TSphere operator+(const TSphere<T>& Other) const
 	{
-		return FSphere(*this) += Other;
-	}
-
-public:
-
-	/**
-	 * Serializes the given sphere from or into the specified archive.
-	 *
-	 * @param Ar The archive to serialize from or into.
-	 * @param Sphere The sphere to serialize.
-	 * @return The archive.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, FSphere& Sphere)
-	{
-		Ar << Sphere.Center;
-
-		// LWC_TODO: Serializer
-		//if (!Ar.IsPersistent())
-		//{
-		//	Ar << Sphere.W;
-		//}
-		//else
-		{
-			float SW = (float)Sphere.W;
-			Ar << SW;
-			if (Ar.IsLoading())
-			{
-				Sphere.W = SW;
-			}
-		}
-
-		return Ar;
+		return TSphere(*this) += Other;
 	}
 };
+
+
+/**
+ * Serializes the given sphere from or into the specified archive.
+ *
+ * @param Ar The archive to serialize from or into.
+ * @param Sphere The sphere to serialize.
+ * @return The archive.
+ */
+
+inline FArchive& operator<<(FArchive& Ar, TSphere<float>& Sphere)
+{
+	Ar << Sphere.Center << Sphere.W;
+	return Ar;
+}
+
+/**
+ * Serializes the given sphere from or into the specified archive.
+ *
+ * @param Ar The archive to serialize from or into.
+ * @param Sphere The sphere to serialize.
+ * @return The archive.
+ */
+
+inline FArchive& operator<<(FArchive& Ar, TSphere<double>& Sphere)
+{
+	Ar << Sphere.Center;
+
+	// LWC_TODO: Serializer
+	//if (!Ar.IsPersistent())
+	//{
+	//	Ar << Sphere.W;
+	//}
+	//else
+	{
+		float SW = (float)Sphere.W;
+		Ar << SW;
+		if (Ar.IsLoading())
+		{
+			Sphere.W = (double)SW;
+		}
+	}
+
+	return Ar;
+}
+
+template<typename T>
+TSphere<T> TSphere<T>::TransformBy(const TMatrix<T>& M) const
+{
+	TSphere<T>	Result;
+
+	FVector4 TransformedCenter = M.TransformPosition(this->Center);
+	Result.Center = TVector<T>(TransformedCenter.X, TransformedCenter.Y, TransformedCenter.Z);
+
+	const TVector<T> XAxis(M.M[0][0], M.M[0][1], M.M[0][2]);
+	const TVector<T> YAxis(M.M[1][0], M.M[1][1], M.M[1][2]);
+	const TVector<T> ZAxis(M.M[2][0], M.M[2][1], M.M[2][2]);
+
+	Result.W = FMath::Sqrt(FMath::Max(XAxis | XAxis, FMath::Max(YAxis | YAxis, ZAxis | ZAxis))) * W;
+
+	return Result;
+}
+
+
+template<typename T>
+TSphere<T> TSphere<T>::TransformBy(const FTransform& M) const
+{
+	TSphere<T>	Result;
+
+	Result.Center = M.TransformPosition(this->Center);
+	Result.W = M.GetMaximumAxisScale() * W;
+
+	return Result;
+}
+
+template<typename T>
+TSphere<T>& TSphere<T>::operator+=(const TSphere<T>& Other)
+{
+	if (W == 0.f)
+	{
+		*this = Other;
+		return *this;
+	}
+
+	TVector<T> ToOther = Other.Center - Center;
+	T DistSqr = ToOther.SizeSquared();
+
+	if (FMath::Square(W - Other.W) + KINDA_SMALL_NUMBER >= DistSqr)
+	{
+		// Pick the smaller
+		if (W < Other.W)
+		{
+			*this = Other;
+		}
+	}
+	else
+	{
+		T Dist = FMath::Sqrt(DistSqr);
+
+		TSphere<T> NewSphere;
+		NewSphere.W = (Dist + Other.W + W) * 0.5f;
+		NewSphere.Center = Center;
+
+		if (Dist > SMALL_NUMBER)
+		{
+			NewSphere.Center += ToOther * ((NewSphere.W - W) / Dist);
+		}
+
+		// make sure both are inside afterwards
+		checkSlow(Other.IsInside(NewSphere, 1.f));
+		checkSlow(IsInside(NewSphere, 1.f));
+
+		*this = NewSphere;
+	}
+
+	return *this;
+}
+
+// Forward declarations for complex constructors.
+template<> CORE_API TSphere<float>::TSphere(const TVector<float>* Points, int32 Count);
+template<> CORE_API TSphere<double>::TSphere(const TVector<double>* Points, int32 Count);
+template<> CORE_API TSphere<float>::TSphere(const TSphere<float>* Spheres, int32 Count);
+template<> CORE_API TSphere<double>::TSphere(const TSphere<double>* Spheres, int32 Count);
+
+} // namespace Math
+} // namespace UE
+
+
+UE_DECLARE_LWC_TYPE(Sphere, 3);
+
+//template<> struct TCanBulkSerialize<FSphere3f> { enum { Value = true }; };
+//template<> struct TIsPODType<FSphere3f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FSphere3f> { enum { Value = true }; };
+
+//template<> struct TCanBulkSerialize<FSphere3d> { enum { Value = false }; };	// LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
+//template<> struct TIsPODType<FSphere3d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FSphere3d> { enum { Value = true }; };
+
 
 /* FMath inline functions
  *****************************************************************************/
 
 /**
- * Converts a sphere into a point plus radius squared for the test above
- */
-FORCEINLINE bool FMath::SphereAABBIntersection(const FSphere& Sphere,const FBox& AABB)
-{
-	FSphere::FReal RadiusSquared = FMath::Square(Sphere.W);
-	// If the distance is less than or equal to the radius, they intersect
-	return SphereAABBIntersection(Sphere.Center,RadiusSquared,AABB);
-}
-
-/**
 * Computes minimal bounding sphere encompassing given cone
 */
-FORCEINLINE FSphere FMath::ComputeBoundingSphereForCone(FVector const& ConeOrigin, FVector const& ConeDirection, float ConeRadius, float CosConeAngle, float SinConeAngle)
+template<typename FReal>
+FORCEINLINE UE::Math::TSphere<FReal> FMath::ComputeBoundingSphereForCone(UE::Math::TVector<FReal> const& ConeOrigin, UE::Math::TVector<FReal> const& ConeDirection, FReal ConeRadius, FReal CosConeAngle, FReal SinConeAngle)
 {
 	// Based on: https://bartwronski.com/2017/04/13/cull-that-cone/
-	const float COS_PI_OVER_4 = 0.70710678118f; // Cos(Pi/4);
+	const FReal COS_PI_OVER_4 = 0.70710678118f; // Cos(Pi/4);		// LWC_TODO: precision improvement possible here
 	if (CosConeAngle < COS_PI_OVER_4)
 	{
-		return FSphere(ConeOrigin + ConeDirection * ConeRadius * CosConeAngle, ConeRadius * SinConeAngle);
+		return UE::Math::TSphere<FReal>(ConeOrigin + ConeDirection * ConeRadius * CosConeAngle, ConeRadius * SinConeAngle);
 	}
 	else
 	{
-		const FSphere::FReal BoundingRadius = ConeRadius / (2.0f * CosConeAngle);
-		return FSphere(ConeOrigin + ConeDirection * BoundingRadius, BoundingRadius);
+		const FReal BoundingRadius = ConeRadius / (2.0f * CosConeAngle);
+		return UE::Math::TSphere<FReal>(ConeOrigin + ConeDirection * BoundingRadius, BoundingRadius);
 	}
 }

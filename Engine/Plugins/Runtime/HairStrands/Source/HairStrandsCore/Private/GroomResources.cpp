@@ -801,7 +801,7 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 		InternalCreateVertexBufferRDG_FromBulkData<FHairStrandsMaterialFormat>(GraphBuilder, BulkData.Materials, PointCount, MaterialBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_MaterialBuffer), ResourceName), EHairResourceUsageType::Static);
 	}
 
-	TArray<FVector4> RestOffset;
+	TArray<FVector4f> RestOffset;
 	RestOffset.Add(BulkData.GetPositionOffset());
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, RestOffset, PositionOffsetBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionOffsetBuffer), ResourceName), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
 	HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
@@ -862,7 +862,7 @@ void FHairStrandsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, BulkData.PointCount, DeformedPositionBuffer[1], ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedPositionBuffer1), ResourceName), EHairResourceUsageType::Dynamic);
 	InternalCreateVertexBufferRDG<FHairStrandsTangentFormat>(GraphBuilder, BulkData.PointCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_TangentBuffer), ResourceName), EHairResourceUsageType::Dynamic);
 
-	TArray<FVector4> DefaultOffsets;
+	TArray<FVector4f> DefaultOffsets;
 	DefaultOffsets.Add(BulkData.GetPositionOffset());
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[0], ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedOffsetBuffer0), ResourceName), EHairResourceUsageType::Dynamic, ERDGInitialDataFlags::None);
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedOffsetBuffer1), ResourceName), EHairResourceUsageType::Dynamic, ERDGInitialDataFlags::None);

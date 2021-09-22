@@ -201,7 +201,7 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 		ShadowMapChannel = INDEX_NONE;
 	}
 
-	Parameters.ShadowMapChannelMask = FVector4(
+	Parameters.ShadowMapChannelMask = FVector4f(
 		ShadowMapChannel == 0 ? 1 : 0,
 		ShadowMapChannel == 1 ? 1 : 0,
 		ShadowMapChannel == 2 ? 1 : 0,
@@ -266,7 +266,7 @@ void SetupSimpleDeferredLightParameters(
 	DeferredLightUniformsValue.LightParameters.SourceTexture = GWhiteTexture->TextureRHI;
 	DeferredLightUniformsValue.ContactShadowLength = 0.0f;
 	DeferredLightUniformsValue.DistanceFadeMAD = FVector2D(0, 0);
-	DeferredLightUniformsValue.ShadowMapChannelMask = FVector4(0, 0, 0, 0);
+	DeferredLightUniformsValue.ShadowMapChannelMask = FVector4f(0, 0, 0, 0);
 	DeferredLightUniformsValue.ShadowedBits = 0;
 	DeferredLightUniformsValue.LightingChannelMask = 0;
 }
@@ -333,13 +333,13 @@ void StencilingGeometry::DrawCone(FRHICommandList& RHICmdList)
 }
 
 /** The stencil sphere vertex buffer. */
-TGlobalResource<StencilingGeometry::TStencilSphereVertexBuffer<18, 12, FVector4> > StencilingGeometry::GStencilSphereVertexBuffer;
+TGlobalResource<StencilingGeometry::TStencilSphereVertexBuffer<18, 12, FVector4f> > StencilingGeometry::GStencilSphereVertexBuffer;
 TGlobalResource<StencilingGeometry::TStencilSphereVertexBuffer<18, 12, FVector> > StencilingGeometry::GStencilSphereVectorBuffer;
 
 /** The stencil sphere index buffer. */
 TGlobalResource<StencilingGeometry::TStencilSphereIndexBuffer<18, 12> > StencilingGeometry::GStencilSphereIndexBuffer;
 
-TGlobalResource<StencilingGeometry::TStencilSphereVertexBuffer<4, 4, FVector4> > StencilingGeometry::GLowPolyStencilSphereVertexBuffer;
+TGlobalResource<StencilingGeometry::TStencilSphereVertexBuffer<4, 4, FVector4f> > StencilingGeometry::GLowPolyStencilSphereVertexBuffer;
 TGlobalResource<StencilingGeometry::TStencilSphereIndexBuffer<4, 4> > StencilingGeometry::GLowPolyStencilSphereIndexBuffer;
 
 /** The (dummy) stencil cone vertex buffer. */

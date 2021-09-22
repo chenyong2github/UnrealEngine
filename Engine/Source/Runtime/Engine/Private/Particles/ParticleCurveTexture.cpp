@@ -592,9 +592,9 @@ void FParticleCurveTexture::RemoveCurve(FTexelAllocation TexelAllocation)
 * @param TexelAllocation - The texel allocation in the texture.
 * @returns the scale and bias needed to sample the curve.
 */
-FVector4 FParticleCurveTexture::ComputeCurveScaleBias(FTexelAllocation TexelAllocation)
+FVector4f FParticleCurveTexture::ComputeCurveScaleBias(FTexelAllocation TexelAllocation)
 {
-	return FVector4(
+	return FVector4f(
 		((float)TexelAllocation.X + 0.5f) / (float)GParticleCurveTextureSizeX,
 		((float)TexelAllocation.Y + 0.5f) / (float)GParticleCurveTextureSizeY,
 		(float)(TexelAllocation.Size - 1) / (float)GParticleCurveTextureSizeX,

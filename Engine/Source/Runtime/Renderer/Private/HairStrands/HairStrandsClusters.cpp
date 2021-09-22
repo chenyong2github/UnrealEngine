@@ -72,7 +72,7 @@ class FHairClusterCullingCS : public FGlobalShader
 		SHADER_PARAMETER(int32, bIsHairGroupVisible)
 		SHADER_PARAMETER(uint32, NumConvexHullPlanes)
 		SHADER_PARAMETER(float, LODBias)
-		SHADER_PARAMETER_ARRAY(FVector4, ViewFrustumConvexHull, [6])
+		SHADER_PARAMETER_ARRAY(FVector4f, ViewFrustumConvexHull, [6])
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ClusterInfoBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, ClusterLODInfoBuffer)

@@ -106,7 +106,7 @@ struct FInstanceSceneShaderData
 	enum { DataStrideInFloat4s = 10 };
 #endif
 
-	TStaticArray<FVector4, DataStrideInFloat4s> Data;
+	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 
 	FInstanceSceneShaderData()
 		: Data(InPlace, NoInit)
@@ -122,7 +122,7 @@ struct FInstanceSceneShaderData
 			FRenderTransform::Identity,  /* LocalToWorld */
 			FRenderTransform::Identity,  /* PrevLocalToWorld */
 			FRenderTransform::Identity, /* PrevLocalToPrimitive */ // TODO: Temporary
-			FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
+			FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
 			0.0f, /* Per Instance Random */ // TODO: Temporary
 			0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 			INVALID_LAST_UPDATE_FRAME
@@ -135,7 +135,7 @@ struct FInstanceSceneShaderData
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
 		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
-		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+		const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 		float RandomID, // TODO: Temporary
 		float CustomDataFloat0, // TODO: Temporary Hack!
 		uint32 LastUpdateFrame
@@ -147,7 +147,7 @@ struct FInstanceSceneShaderData
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
 		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
-		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+		const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 		float RandomID, // TODO: Temporary
 		float CustomDataFloat0, // TODO: Temporary Hack!
 		uint32 LastUpdateFrame

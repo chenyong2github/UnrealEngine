@@ -75,8 +75,8 @@ public:
 			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), 
 			SourceTextureValue);
 
-		const FVector4 Mask0(CoefficientIndex == 0, CoefficientIndex == 1, CoefficientIndex == 2, CoefficientIndex == 3);
-		const FVector4 Mask1(CoefficientIndex == 4, CoefficientIndex == 5, CoefficientIndex == 6, CoefficientIndex == 7);
+		const FVector4f Mask0(CoefficientIndex == 0, CoefficientIndex == 1, CoefficientIndex == 2, CoefficientIndex == 3);
+		const FVector4f Mask1(CoefficientIndex == 4, CoefficientIndex == 5, CoefficientIndex == 6, CoefficientIndex == 7);
 		const float Mask2 = CoefficientIndex == 8;
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), CoefficientMask0, Mask0);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), CoefficientMask1, Mask1);
@@ -136,8 +136,8 @@ public:
 
 		const int32 MipSize = 1 << (NumMips - SourceMipIndexValue - 1);
 		const float HalfSourceTexelSize = .5f / MipSize;
-		const FVector4 Sample01Value(-HalfSourceTexelSize, -HalfSourceTexelSize, HalfSourceTexelSize, -HalfSourceTexelSize);
-		const FVector4 Sample23Value(-HalfSourceTexelSize, HalfSourceTexelSize, HalfSourceTexelSize, HalfSourceTexelSize);
+		const FVector4f Sample01Value(-HalfSourceTexelSize, -HalfSourceTexelSize, HalfSourceTexelSize, -HalfSourceTexelSize);
+		const FVector4f Sample23Value(-HalfSourceTexelSize, HalfSourceTexelSize, HalfSourceTexelSize, HalfSourceTexelSize);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), Sample01, Sample01Value);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), Sample23, Sample23Value);
 	}

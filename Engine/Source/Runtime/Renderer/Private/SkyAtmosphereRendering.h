@@ -55,7 +55,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 // These parameters are shared on the view global uniform buffer and are dynamically changed with cvars.
 struct FSkyAtmosphereViewSharedUniformShaderParameters
 {
-	FVector4 CameraAerialPerspectiveVolumeSizeAndInvSize;
+	FVector4f CameraAerialPerspectiveVolumeSizeAndInvSize;
 	float AerialPerspectiveStartDepthKm;
 	float CameraAerialPerspectiveVolumeDepthResolution;
 	float CameraAerialPerspectiveVolumeDepthResolutionInv;

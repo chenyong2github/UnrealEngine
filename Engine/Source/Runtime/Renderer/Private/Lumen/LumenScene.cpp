@@ -23,15 +23,15 @@ class FLumenCardPageGPUData
 public:
 	// Must match usf
 	enum { DataStrideInFloat4s = 5 };
-	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4) };
+	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4f) };
 
-	static void FillData(const FLumenPageTableEntry& RESTRICT PageTableEntry, uint32 ResLevelPageTableOffset, FIntPoint ResLevelSizeInTiles, FVector2D InvPhysicalAtlasSize, FVector4* RESTRICT OutData)
+	static void FillData(const FLumenPageTableEntry& RESTRICT PageTableEntry, uint32 ResLevelPageTableOffset, FIntPoint ResLevelSizeInTiles, FVector2D InvPhysicalAtlasSize, FVector4f* RESTRICT OutData)
 	{
 		// Layout must match GetLumenCardPageData in usf
 		const float SizeInTexelsX = PageTableEntry.PhysicalAtlasRect.Max.X - PageTableEntry.PhysicalAtlasRect.Min.X;
 		const float SizeInTexelsY = PageTableEntry.PhysicalAtlasRect.Max.Y - PageTableEntry.PhysicalAtlasRect.Min.Y;
 
-		OutData[0] = FVector4(*(float*)&PageTableEntry.CardIndex, *(float*)&ResLevelPageTableOffset, SizeInTexelsX, SizeInTexelsY);
+		OutData[0] = FVector4f(*(float*)&PageTableEntry.CardIndex, *(float*)&ResLevelPageTableOffset, SizeInTexelsX, SizeInTexelsY);
 		OutData[1] = PageTableEntry.CardUVRect;
 
 		OutData[2].X = PageTableEntry.PhysicalAtlasRect.Min.X * InvPhysicalAtlasSize.X;
@@ -45,7 +45,7 @@ public:
 		OutData[3].W = *(float*)&ResLevelSizeInTiles.Y;
 
 		const uint32 LastUpdateFrame = 0;
-		OutData[4] = FVector4(*(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, 0.0f, 0.0f);
+		OutData[4] = FVector4f(*(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, 0.0f, 0.0f);
 
 		static_assert(DataStrideInFloat4s == 5, "Data stride doesn't match");
 	}
@@ -413,7 +413,7 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 	{
 		const FVector2D InvPhysicalAtlasSize = FVector2D(1.0f) / GetPhysicalAtlasSize();
 
-		const int32 NumBytesPerElement = FLumenCardPageGPUData::DataStrideInFloat4s * sizeof(FVector4);
+		const int32 NumBytesPerElement = FLumenCardPageGPUData::DataStrideInFloat4s * sizeof(FVector4f);
 		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, CardPageBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageBuffer"));
 
 		if (NumElementsToUpload > 0)
@@ -428,7 +428,7 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 					uint32 ResLevelPageTableOffset = 0;
 					FIntPoint ResLevelSizeInTiles = FIntPoint(0, 0);
 
-					FVector4* Data = (FVector4*)UploadBuffer.Add_GetRef(PageIndex);
+					FVector4f* Data = (FVector4f*)UploadBuffer.Add_GetRef(PageIndex);
 
 					if (PageTable.IsAllocated(PageIndex) && PageTable[PageIndex].IsMapped())
 					{
@@ -1139,7 +1139,7 @@ void FLumenSceneData::ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, i
 			const int32 LocalPageCoordX = LocalPageIndex % MipMapDesc.SizeInPages.X;
 			const int32 LocalPageCoordY = LocalPageIndex / MipMapDesc.SizeInPages.X;
 
-			FVector4 CardUVRect;
+			FVector4f CardUVRect;
 			CardUVRect.X = float(LocalPageCoordX + 0.0f) / MipMapDesc.SizeInPages.X;
 			CardUVRect.Y = float(LocalPageCoordY + 0.0f) / MipMapDesc.SizeInPages.Y;
 			CardUVRect.Z = float(LocalPageCoordX + 1.0f) / MipMapDesc.SizeInPages.X;

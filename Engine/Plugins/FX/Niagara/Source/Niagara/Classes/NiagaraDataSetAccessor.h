@@ -12,6 +12,7 @@ struct FNiagaraDataSetAccessorTypeInfo;
 template<typename TType>
 struct FNiagaraDataSetAccessor : public FNiagaraDataSetAccessorTypeInfo<TType>::TAccessorBaseClass
 {
+	static_assert(!TIsUECoreVariant<TType, double>::Value, "Double core variant. Must be float type!");
 	FORCEINLINE FNiagaraDataSetAccessor<TType>() {}
 	FORCEINLINE explicit FNiagaraDataSetAccessor<TType>(const FNiagaraDataSet& DataSet, const FName VariableName) { FNiagaraDataSetAccessorTypeInfo<TType>::TAccessorBaseClass::Init(DataSet.GetCompiledData(), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessor<TType>(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { FNiagaraDataSetAccessorTypeInfo<TType>::TAccessorBaseClass::Init(DataSetCompiledData, VariableName); }
@@ -23,6 +24,7 @@ struct FNiagaraDataSetAccessor : public FNiagaraDataSetAccessorTypeInfo<TType>::
 template<typename TType>
 struct FNiagaraDataSetReaderFloat
 {
+	static_assert(!TIsUECoreVariant<TType, double>::Value, "Double core variant. Must be float type!");
 	static constexpr bool bSupportsHalf = FNiagaraDataSetAccessorTypeInfo<TType>::bSupportsHalf;
 
 	FORCEINLINE FNiagaraDataSetReaderFloat() {}
@@ -166,6 +168,7 @@ private:
 template<typename TType>
 struct FNiagaraDataSetAccessorFloat
 {
+	static_assert(!TIsUECoreVariant<TType, double>::Value, "Double core variant. Must be float type!");
 	FORCEINLINE FNiagaraDataSetAccessorFloat() {}
 	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSet& DataSet, const FName VariableName) { Init(DataSet.GetCompiledData(), VariableName); }
 	FORCEINLINE explicit FNiagaraDataSetAccessorFloat(const FNiagaraDataSetCompiledData& DataSetCompiledData, const FName VariableName) { Init(DataSetCompiledData, VariableName); }
@@ -255,9 +258,9 @@ struct FNiagaraDataSetAccessorTypeInfo<FVector3f>
 
 
 template<>
-struct FNiagaraDataSetAccessorTypeInfo<FVector4>
+struct FNiagaraDataSetAccessorTypeInfo<FVector4f>
 {
-	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FVector4>;
+	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FVector4f>;
 
 	static constexpr bool bSupportsHalf = true;
 	static constexpr int32 NumElements = 4;

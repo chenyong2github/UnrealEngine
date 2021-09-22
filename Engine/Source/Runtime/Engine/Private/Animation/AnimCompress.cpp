@@ -354,7 +354,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 			AnimData.CompressedTrackOffsets[TrackIndex * 4 + 1] = NumKeysTrans;
 
 			// Calculate the bounding box of the translation keys
-			FBox PositionBounds(SrcTrans.PosKeys);
+			FBox3f PositionBounds(SrcTrans.PosKeys);
 
 			float TransMins[3] = { (float)PositionBounds.Min.X, (float)PositionBounds.Min.Y, (float)PositionBounds.Min.Z };
 			float TransRanges[3] = { float(PositionBounds.Max.X - PositionBounds.Min.X), float(PositionBounds.Max.Y - PositionBounds.Min.Y), float(PositionBounds.Max.Z - PositionBounds.Min.Z) };
@@ -541,7 +541,7 @@ void UAnimCompress::BitwiseCompressAnimationTracks(
 				AnimData.CompressedScaleOffsets.SetOffsetData(TrackIndex, 1, NumKeysScale);
 
 				// Calculate the bounding box of the Scalelation keys
-				FBox ScaleBoundsBounds(SrcScale.ScaleKeys);
+				FBox3f ScaleBoundsBounds(SrcScale.ScaleKeys);
 
 				float ScaleMins[3] = { (float)ScaleBoundsBounds.Min.X, (float)ScaleBoundsBounds.Min.Y, (float)ScaleBoundsBounds.Min.Z };
 				float ScaleRanges[3] = { float(ScaleBoundsBounds.Max.X - ScaleBoundsBounds.Min.X), float(ScaleBoundsBounds.Max.Y - ScaleBoundsBounds.Min.Y), float(ScaleBoundsBounds.Max.Z - ScaleBoundsBounds.Min.Z) };

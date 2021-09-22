@@ -892,11 +892,11 @@ void FViewInfo::Init()
 	bUsesSceneDepth = false;
 	bFogOnlyOnRenderedOpaque = false;
 
-	ExponentialFogParameters = FVector4(0,1,1,0);
-	ExponentialFogParameters2 = FVector4(0, 1, 0, 0);
+	ExponentialFogParameters = FVector4f(0,1,1,0);
+	ExponentialFogParameters2 = FVector4f(0, 1, 0, 0);
 	ExponentialFogColor = FVector::ZeroVector;
 	FogMaxOpacity = 1;
-	ExponentialFogParameters3 = FVector4(0, 0, 0, 0);
+	ExponentialFogParameters3 = FVector4f(0, 0, 0, 0);
 	SinCosInscatteringColorCubemapRotation = FVector2D(0, 0);
 	FogInscatteringColorCubemap = NULL;
 	FogInscatteringTextureParameters = FVector::ZeroVector;
@@ -1076,7 +1076,7 @@ bool FViewInfo::VerifyMembersChecks() const
 }
 #endif
 
-RENDERER_API void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVector4* OutSkyIrradianceEnvironmentMap, const FSHVectorRGB3 SkyIrradiance)
+RENDERER_API void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVector4f* OutSkyIrradianceEnvironmentMap, const FSHVectorRGB3 SkyIrradiance)
 {
 	const float SqrtPI = FMath::Sqrt(PI);
 	const float Coefficient0 = 1.0f / (2 * SqrtPI);
@@ -1297,7 +1297,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	auto ClearAtmosphereLightData = [&](uint32 Index)
 	{
 		check(Index < NUM_ATMOSPHERE_LIGHTS);
-		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(1.0f);
+		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4f(1.0f);
 		ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index] = FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 0.0f;
@@ -1324,7 +1324,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		FLightSceneInfo* SunLight = Scene->AtmosphereLights[0];	// Atmospheric fog only takes into account the a single sun light with index 0.
 		const float SunLightDiskHalfApexAngleRadian = SunLight ? SunLight->Proxy->GetSunLightHalfApexAngleRadian() : FLightSceneProxy::GetSunOnEarthHalfApexAngleRadian();
 
-		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4(FMath::Cos(SunLightDiskHalfApexAngleRadian));
+		ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[0] = FVector4f(FMath::Cos(SunLightDiskHalfApexAngleRadian));
 		//Added check so atmospheric light color and vector can use a directional light without needing an atmospheric fog actor in the scene
 		ViewUniformShaderParameters.AtmosphereLightDiscLuminance[0] = SunLight ? SunLight->Proxy->GetOuterSpaceLuminance() : FLinearColor::Black;
 		ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[0] = SunLight ? SunLight->Proxy->GetColor() : FLinearColor::Black;
@@ -1378,7 +1378,7 @@ void FViewInfo::SetupUniformBufferParameters(
 			SkyViewLutWidth = float(this->SkyAtmosphereViewLutTexture->GetDesc().GetSize().X);
 			SkyViewLutHeight = float(this->SkyAtmosphereViewLutTexture->GetDesc().GetSize().Y);
 		}
-		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(SkyViewLutWidth, SkyViewLutHeight, 1.0f / SkyViewLutWidth, 1.0f / SkyViewLutHeight);
+		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4f(SkyViewLutWidth, SkyViewLutHeight, 1.0f / SkyViewLutWidth, 1.0f / SkyViewLutHeight);
 
 		// Now initialize remaining view parameters.
 
@@ -1404,7 +1404,7 @@ void FViewInfo::SetupUniformBufferParameters(
 			FLightSceneInfo* Light = Scene->AtmosphereLights[Index];
 			if (Light)
 			{
-				ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(FMath::Cos(Light->Proxy->GetSunLightHalfApexAngleRadian()));
+				ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4f(FMath::Cos(Light->Proxy->GetSunLightHalfApexAngleRadian()));
 				ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = Light->Proxy->GetOuterSpaceLuminance();
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index] = Light->Proxy->GetSunIlluminanceOnGroundPostTransmittance();
 				ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 1.0f; // interactions with HeightFogComponent
@@ -1421,8 +1421,11 @@ void FViewInfo::SetupUniformBufferParameters(
 		// Regular view sampling of the SkyViewLUT. This is only changed when sampled from a sky material for the real time reflection capture around sky light position)
 		FVector SkyWorldCameraOrigin;
 		FMatrix SkyViewLutReferential;
+		FVector4 TempSkyPlanetData;
 		AtmosphereSetup.ComputeViewData(ViewUniformShaderParameters.WorldCameraOrigin, ViewUniformShaderParameters.ViewForward, ViewUniformShaderParameters.ViewRight,
-			SkyWorldCameraOrigin, ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight, SkyViewLutReferential);
+			SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
+		// LWC_TODO: Precision loss
+		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4f(TempSkyPlanetData);
 		ViewUniformShaderParameters.SkyWorldCameraOrigin = SkyWorldCameraOrigin;
 		ViewUniformShaderParameters.SkyViewLutReferential = SkyViewLutReferential;
 	}
@@ -1430,11 +1433,11 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		ViewUniformShaderParameters.SkyAtmospherePresentInScene = 0.0f;
 		ViewUniformShaderParameters.SkyAtmosphereHeightFogContribution = 0.0f;
-		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		ViewUniformShaderParameters.SkyAtmosphereBottomRadiusKm = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereTopRadiusKm = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereSkyLuminanceFactor = FLinearColor::White;
-		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		ViewUniformShaderParameters.SkyAtmosphereAerialPerspectiveStartDepthKm = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv = 1.0f;
@@ -1442,7 +1445,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereApplyCameraAerialPerspectiveVolume = 0.0f;
 		ViewUniformShaderParameters.SkyWorldCameraOrigin = ViewUniformShaderParameters.WorldCameraOrigin;
-		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4(ForceInitToZero);
+		ViewUniformShaderParameters.SkyPlanetCenterAndViewHeight = FVector4f(ForceInitToZero);
 		ViewUniformShaderParameters.SkyViewLutReferential = FMatrix44f::Identity;
 
 		if(Scene)
@@ -1454,7 +1457,7 @@ void FViewInfo::SetupUniformBufferParameters(
 				FLightSceneInfo* Light = Scene->AtmosphereLights[Index];
 				if (Light)
 				{
-					ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4(1.0f);
+					ViewUniformShaderParameters.AtmosphereLightDiscCosHalfApexAngle[Index] = FVector4f(1.0f);
 					ViewUniformShaderParameters.AtmosphereLightDiscLuminance[Index] = FLinearColor::Black;
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index] = Light->Proxy->GetColor();
 					ViewUniformShaderParameters.AtmosphereLightIlluminanceOnGroundPostTransmittance[Index].A = 0.0f; // no interactions with HeightFogComponent
@@ -1561,7 +1564,7 @@ void FViewInfo::SetupUniformBufferParameters(
 			TEXT("TemporalJitterSequenceLength = %i is invalid"), TemporalJitterSequenceLength);
 		ensureMsgf(TemporalJitterIndex >= 0 && TemporalJitterIndex < TemporalJitterSequenceLength,
 			TEXT("TemporalJitterIndex = %i is invalid (TemporalJitterSequenceLength = %i)"), TemporalJitterIndex, TemporalJitterSequenceLength);
-		ViewUniformShaderParameters.TemporalAAParams = FVector4(
+		ViewUniformShaderParameters.TemporalAAParams = FVector4f(
 			TemporalJitterIndex, 
 			TemporalJitterSequenceLength,
 			TemporalJitterPixels.X,
@@ -1611,8 +1614,8 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		const float VolumeVoxelSize = (OutTranslucentCascadeBoundsArray[CascadeIndex].Max.X - OutTranslucentCascadeBoundsArray[CascadeIndex].Min.X) / TranslucencyLightingVolumeDim;
 		const FVector VolumeSize = OutTranslucentCascadeBoundsArray[CascadeIndex].Max - OutTranslucentCascadeBoundsArray[CascadeIndex].Min;
-		ViewUniformShaderParameters.TranslucencyLightingVolumeMin[CascadeIndex] = FVector4(OutTranslucentCascadeBoundsArray[CascadeIndex].Min, 1.0f / TranslucencyLightingVolumeDim);
-		ViewUniformShaderParameters.TranslucencyLightingVolumeInvSize[CascadeIndex] = FVector4(FVector(1.0f) / VolumeSize, VolumeVoxelSize);
+		ViewUniformShaderParameters.TranslucencyLightingVolumeMin[CascadeIndex] = FVector4f(OutTranslucentCascadeBoundsArray[CascadeIndex].Min, 1.0f / TranslucencyLightingVolumeDim);
+		ViewUniformShaderParameters.TranslucencyLightingVolumeInvSize[CascadeIndex] = FVector4f(FVector(1.0f) / VolumeSize, VolumeVoxelSize);
 	}
 	
 	ViewUniformShaderParameters.PreExposure = PreExposure;
@@ -1709,8 +1712,8 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	if (RHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
-		// Make sure there's no padding since we're going to cast to FVector4*
-		static_assert(sizeof(ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap) == sizeof(FVector4) * 7, "unexpected sizeof ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap");
+		// Make sure there's no padding since we're going to cast to FVector4f*
+		static_assert(sizeof(ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap) == sizeof(FVector4f) * 7, "unexpected sizeof ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap");
 
 		const bool bSetupSkyIrradiance = Scene
 			&& Scene->SkyLight
@@ -1721,11 +1724,11 @@ void FViewInfo::SetupUniformBufferParameters(
 		if (bSetupSkyIrradiance)
 		{
 			const FSHVectorRGB3& SkyIrradiance = Scene->SkyLight->IrradianceEnvironmentMap;
-			SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance((FVector4*)&ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap, SkyIrradiance);
+			SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance((FVector4f*)&ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap, SkyIrradiance);
 		}
 		else
 		{
-			FMemory::Memzero((FVector4*)&ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap, sizeof(FVector4) * 7);
+			FMemory::Memzero((FVector4f*)&ViewUniformShaderParameters.MobileSkyIrradianceEnvironmentMap, sizeof(FVector4f) * 7);
 		}
 	}
 	else
@@ -1785,13 +1788,13 @@ void FViewInfo::SetupUniformBufferParameters(
 		TArray<FVector2D> CameraUVs;
 		if (XRCamera.IsValid() && XRCamera->GetPassthroughCameraUVs_RenderThread(CameraUVs) && CameraUVs.Num() == 4)
 		{
-			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4(CameraUVs[0], CameraUVs[1]);
-			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4(CameraUVs[2], CameraUVs[3]);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4f(CameraUVs[0], CameraUVs[1]);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4f(CameraUVs[2], CameraUVs[3]);
 		}
 		else
 		{
-			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4(0, 0, 0, 1);
-			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4(1, 0, 1, 1);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4f(0, 0, 0, 1);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4f(1, 0, 1, 1);
 		}
 	}
 
@@ -1820,9 +1823,9 @@ void FViewInfo::SetupUniformBufferParameters(
 	const uint32 NumPixelsInTile = FMath::Square(VirtualTextureFeedbackScale);
 	ViewUniformShaderParameters.VirtualTextureFeedbackSampleOffset = (FrameIndex % NumPixelsInTile) + (FrameIndex / NumPixelsInTile);
 	
-	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4(ForceInitToZero);
+	ViewUniformShaderParameters.RuntimeVirtualTextureMipLevel = FVector4f(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2D(ForceInitToZero);
-	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4(ForceInitToZero);
+	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4f(ForceInitToZero);
 	
 	if (UseGPUScene(GMaxRHIShaderPlatform, RHIFeatureLevel))
 	{
@@ -4728,7 +4731,7 @@ public:
 	virtual void InitRHI() override
 	{
 		const int32 NumDummyVerts = 3;
-		const uint32 Size = sizeof(FVector4) * NumDummyVerts;
+		const uint32 Size = sizeof(FVector4f) * NumDummyVerts;
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummySceneColorResolveBuffer"));
 		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
@@ -5078,14 +5081,14 @@ void FSceneRenderer::UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHIC
 
 	if (!Scene->SkyIrradianceEnvironmentMap.Buffer)
 	{
-		Scene->SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4), 7);
+		Scene->SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4f), 7);
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSkyIrradianceGpuBuffer);
 
-	FVector4 OutSkyIrradianceEnvironmentMap[7];
-	// Make sure there's no padding since we're going to cast to FVector4*
-	checkSlow(sizeof(OutSkyIrradianceEnvironmentMap) == sizeof(FVector4) * 7);
+	FVector4f OutSkyIrradianceEnvironmentMap[7];
+	// Make sure there's no padding since we're going to cast to FVector4f*
+	checkSlow(sizeof(OutSkyIrradianceEnvironmentMap) == sizeof(FVector4f) * 7);
 	check(Scene);
 	const bool bUploadIrradiance = 
 		Scene->SkyLight

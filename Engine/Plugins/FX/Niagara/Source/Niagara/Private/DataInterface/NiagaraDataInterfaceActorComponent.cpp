@@ -94,9 +94,9 @@ public:
 		FInstanceData_RenderThread* InstanceData = DataInterfaceProxy->SystemInstancesToInstanceData_RT.Find(Context.SystemInstanceID);
 		check(InstanceData != nullptr);
 
-		const FMatrix44f InstanceMatrix = InstanceData->CachedTransform.ToMatrixWithScale();
-		const FQuat InstanceRotation = InstanceData->CachedTransform.GetRotation();
-		const FVector3f InstanceScale = InstanceData->CachedTransform.GetScale3D();
+		const FMatrix44f InstanceMatrix = (FMatrix44f)InstanceData->CachedTransform.ToMatrixWithScale();	// LWC_TODO: Precision loss
+		const FQuat4f InstanceRotation = (FQuat4f)InstanceData->CachedTransform.GetRotation();
+		const FVector3f InstanceScale = (FVector3f)InstanceData->CachedTransform.GetScale3D();
 		SetShaderValue(RHICmdList, ComputeShaderRHI, ValidParam, InstanceData->bCachedValid ? 1 : 0);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, MatrixParam, InstanceMatrix);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, RotationParam, InstanceRotation);
@@ -370,9 +370,9 @@ void UNiagaraDataInterfaceActorComponent::VMGetTransform(FVectorVMExternalFuncti
 	for (int32 i=0; i < Context.GetNumInstances(); ++i)
 	{
 		OutValid.SetAndAdvance(InstanceData->bCachedValid);
-		OutPosition.SetAndAdvance(InstanceData->CachedTransform.GetLocation());
-		OutRotation.SetAndAdvance(FQuat4f(InstanceData->CachedTransform.GetRotation()));
-		OutScale.SetAndAdvance(InstanceData->CachedTransform.GetScale3D());
+		OutPosition.SetAndAdvance((FVector3f)InstanceData->CachedTransform.GetLocation());
+		OutRotation.SetAndAdvance((FQuat4f)InstanceData->CachedTransform.GetRotation());
+		OutScale.SetAndAdvance((FVector3f)InstanceData->CachedTransform.GetScale3D());
 	}
 }
 

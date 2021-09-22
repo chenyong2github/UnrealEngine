@@ -146,5 +146,10 @@ FORCEINLINE TReversedZPerspectiveMatrix<T>::TReversedZPerspectiveMatrix(T HalfFO
 } // namespace Math
 } // namespace UE
 
- DECLARE_LWC_TYPE(PerspectiveMatrix, 44);
- DECLARE_LWC_TYPE(ReversedZPerspectiveMatrix, 44);
+UE_DECLARE_LWC_TYPE(PerspectiveMatrix, 44);
+UE_DECLARE_LWC_TYPE(ReversedZPerspectiveMatrix, 44);
+
+template<> struct TIsUECoreVariant<FPerspectiveMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FPerspectiveMatrix44d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FReversedZPerspectiveMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FReversedZPerspectiveMatrix44d> { enum { Value = true }; };

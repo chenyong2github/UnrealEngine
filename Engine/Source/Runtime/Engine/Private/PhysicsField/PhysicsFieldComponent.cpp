@@ -458,8 +458,8 @@ void FPhysicsFieldResource::InitRHI()
 	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsets);
 
-	InitInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMin);
-	InitInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMax);
+	InitInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMin);
+	InitInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMax);
 
 	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(1, NodesParams);
 	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(1, NodesOffsets);
@@ -580,8 +580,10 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 		{
 			FieldInfos.BoundsOffsets[BoundIndex] = BoundsOffsetsDatas[BoundIndex];
 		}
-		UpdateInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMinDatas.Num(), BoundsMinDatas.GetData(), BoundsMin, true);
-		UpdateInternalBuffer<FVector4, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMaxDatas.Num(), BoundsMaxDatas.GetData(), BoundsMax, true);
+		// LWC_TODO: Perf pessimization
+		// LWC_TODO: Precision loss
+		UpdateInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMinDatas.Num(), LWC::ConvertArrayType<FVector4f>(BoundsMinDatas).GetData(), BoundsMin, true);	
+		UpdateInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMaxDatas.Num(),  LWC::ConvertArrayType<FVector4f>(BoundsMaxDatas).GetData(), BoundsMax, true);
 	}
 
 	if (FieldInfos.bBuildClipmap)

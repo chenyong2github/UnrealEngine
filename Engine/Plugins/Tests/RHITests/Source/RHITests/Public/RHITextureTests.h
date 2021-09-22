@@ -154,7 +154,7 @@ public:
 		// 0.8499  = 0x3f59930c | 0x3acc
 		// 0.00145 = 0x3abe0ded | 0x15f0
 		// 0.417   = 0x3ed58106 | 0x36ac
-		const FVector4 ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
+		const FVector4f ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
 		const FUintVector4 ClearValueUint32(0x01234567, 0x89abcdef, 0x8899aabb, 0xccddeeff);
 
 		RUN_TEST(Test_RHIClearUAV_Texture2D_Impl(RHICmdList, PF_FloatRGBA, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a, 0xac, 0x36, 0xf0, 0x15 }));
@@ -222,7 +222,7 @@ public:
 		// 0.8499  = 0x3f59930c | 0x3acc
 		// 0.00145 = 0x3abe0ded | 0x15f0
 		// 0.417   = 0x3ed58106 | 0x36ac
-		const FVector4 ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
+		const FVector4f ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
 		const FUintVector4 ClearValueUint32(0x01234567, 0x89abcdef, 0x8899aabb, 0xccddeeff);
 
 		RUN_TEST(Test_RHIClearUAV_Texture3D_Impl(RHICmdList, PF_FloatRGBA, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a, 0xac, 0x36, 0xf0, 0x15 }));

@@ -130,8 +130,8 @@ void FLightmap::CreateGameThreadResources()
 
 		for (int32 CoefIndex = 0; CoefIndex < NUM_STORED_LIGHTMAP_COEF; CoefIndex++)
 		{
-			LightmapObject->ScaleVectors[CoefIndex] = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-			LightmapObject->AddVectors[CoefIndex] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+			LightmapObject->ScaleVectors[CoefIndex] = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
+			LightmapObject->AddVectors[CoefIndex] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 	}
 	LightmapObject->VirtualTextures[0] = TextureUObject;
@@ -166,15 +166,15 @@ FLightmapRenderState::FLightmapRenderState(Initializer InInitializer, FGeometryI
 		FPrecomputedLightingUniformParameters Parameters;
 		
 		{
-			Parameters.StaticShadowMapMasks = FVector4(1, 1, 1, 1);
-			Parameters.InvUniformPenumbraSizes = FVector4(0, 0, 0, 0);
-			Parameters.ShadowMapCoordinateScaleBias = FVector4(1, 1, 0, 0);
+			Parameters.StaticShadowMapMasks = FVector4f(1, 1, 1, 1);
+			Parameters.InvUniformPenumbraSizes = FVector4f(0, 0, 0, 0);
+			Parameters.ShadowMapCoordinateScaleBias = FVector4f(1, 1, 0, 0);
 
 			const uint32 NumCoef = FMath::Max<uint32>(NUM_HQ_LIGHTMAP_COEF, NUM_LQ_LIGHTMAP_COEF);
 			for (uint32 CoefIndex = 0; CoefIndex < NumCoef; ++CoefIndex)
 			{
-				Parameters.LightMapScale[CoefIndex] = FVector4(1, 1, 1, 1);
-				Parameters.LightMapAdd[CoefIndex] = FVector4(0, 0, 0, 0);
+				Parameters.LightMapScale[CoefIndex] = FVector4f(1, 1, 1, 1);
+				Parameters.LightMapAdd[CoefIndex] = FVector4f(0, 0, 0, 0);
 			}
 
 			FMemory::Memzero(Parameters.LightmapVTPackedPageTableUniform);

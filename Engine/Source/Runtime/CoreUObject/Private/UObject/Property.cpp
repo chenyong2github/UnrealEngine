@@ -102,7 +102,7 @@ struct TStructOpsTypeTraits<FVector2D> : public TStructOpsTypeTraitsBase2<FVecto
 IMPLEMENT_STRUCT(Vector2D);
 
 template<>
-struct TStructOpsTypeTraits<FVector4> : public TStructOpsTypeTraitsBase2<FVector4>
+struct TStructOpsTypeTraits<FVector4f> : public TStructOpsTypeTraitsBase2<FVector4f>
 {
 	enum 
 	{
@@ -112,7 +112,21 @@ struct TStructOpsTypeTraits<FVector4> : public TStructOpsTypeTraitsBase2<FVector
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Vector4);
+IMPLEMENT_STRUCT(Vector4f);
+
+template<>
+struct TStructOpsTypeTraits<FVector4d> : public TStructOpsTypeTraitsBase2<FVector4d>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithSerializer = true,
+	};
+};
+IMPLEMENT_STRUCT(Vector4d);
+IMPLEMENT_STRUCT(Vector4);	// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FPlane4f> : public TStructOpsTypeTraitsBase2<FPlane4f>
@@ -160,7 +174,7 @@ struct TStructOpsTypeTraits<FRotator> : public TStructOpsTypeTraitsBase2<FRotato
 IMPLEMENT_STRUCT(Rotator);
 
 template<>
-struct TStructOpsTypeTraits<FBox> : public TStructOpsTypeTraitsBase2<FBox>
+struct TStructOpsTypeTraits<FBox3f> : public TStructOpsTypeTraitsBase2<FBox3f>
 {
 	enum 
 	{
@@ -170,7 +184,20 @@ struct TStructOpsTypeTraits<FBox> : public TStructOpsTypeTraitsBase2<FBox>
 		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Box);
+IMPLEMENT_STRUCT(Box3f);
+template<>
+struct TStructOpsTypeTraits<FBox3d> : public TStructOpsTypeTraitsBase2<FBox3d>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithSerializer = true,
+	};
+};
+IMPLEMENT_STRUCT(Box3d);
+IMPLEMENT_STRUCT(Box);		// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FBox2D> : public TStructOpsTypeTraitsBase2<FBox2D>
@@ -211,7 +238,18 @@ IMPLEMENT_STRUCT(Matrix44d);
 IMPLEMENT_STRUCT(Matrix);	// Aliased
 
 template<>
-struct TStructOpsTypeTraits<FBoxSphereBounds> : public TStructOpsTypeTraitsBase2<FBoxSphereBounds>
+struct TStructOpsTypeTraits<FBoxSphereBounds3f> : public TStructOpsTypeTraitsBase2<FBoxSphereBounds3f>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+	};
+};
+IMPLEMENT_STRUCT(BoxSphereBounds3f);
+template<>
+struct TStructOpsTypeTraits<FBoxSphereBounds3d> : public TStructOpsTypeTraitsBase2<FBoxSphereBounds3d>
 {
 	enum 
 	{
@@ -220,7 +258,8 @@ struct TStructOpsTypeTraits<FBoxSphereBounds> : public TStructOpsTypeTraitsBase2
 		WithZeroConstructor = true,
 	};
 };
-IMPLEMENT_STRUCT(BoxSphereBounds);
+IMPLEMENT_STRUCT(BoxSphereBounds3d);
+IMPLEMENT_STRUCT(BoxSphereBounds);	// Aliased
 
 template<>
 struct TStructOpsTypeTraits<FOrientedBox> : public TStructOpsTypeTraitsBase2<FOrientedBox>

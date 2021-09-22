@@ -507,11 +507,11 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 			static_assert(MaxNumReflections == 3, "Update reflection array initializations to match MaxCachedReflectionCaptureProxies");
 			// set reflection parameters
 			FTexture* ReflectionCubemapTextures[MaxNumReflections] = { GBlackTextureCube, GBlackTextureCube, GBlackTextureCube };
-			FVector4 CapturePositions[MaxNumReflections] = { FVector4(0, 0, 0, 0), FVector4(0, 0, 0, 0), FVector4(0, 0, 0, 0) };
-			FVector4 ReflectionParams(0.0f, 0.0f, 0.0f, 0.0f);
-			FVector4 ReflectanceMaxValueRGBMParams(0.0f, 0.0f, 0.0f, 0.0f);
+			FVector4f CapturePositions[MaxNumReflections] = { FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0) };
+			FVector4f ReflectionParams(0.0f, 0.0f, 0.0f, 0.0f);
+			FVector4f ReflectanceMaxValueRGBMParams(0.0f, 0.0f, 0.0f, 0.0f);
 			FMatrix44f CaptureBoxTransformArray[MaxNumReflections] = { FMatrix44f(EForceInit::ForceInitToZero), FMatrix44f(EForceInit::ForceInitToZero), FMatrix44f(EForceInit::ForceInitToZero) };
-			FVector4 CaptureBoxScalesArray[MaxNumReflections] = { FVector4(EForceInit::ForceInitToZero), FVector4(EForceInit::ForceInitToZero), FVector4(EForceInit::ForceInitToZero) };
+			FVector4f CaptureBoxScalesArray[MaxNumReflections] = { FVector4f(EForceInit::ForceInitToZero), FVector4f(EForceInit::ForceInitToZero), FVector4f(EForceInit::ForceInitToZero) };
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy ? PrimitiveSceneProxy->GetPrimitiveSceneInfo() : nullptr;
 			if (PrimitiveSceneInfo)
 			{
@@ -533,7 +533,7 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 						if (ReflectionProxy->Shape == EReflectionCaptureShape::Box)
 						{
 							CaptureBoxTransformArray[i] = ReflectionProxy->BoxTransform;
-							CaptureBoxScalesArray[i] = FVector4(ReflectionProxy->BoxScales, ReflectionProxy->BoxTransitionDistance);
+							CaptureBoxScalesArray[i] = FVector4f(ReflectionProxy->BoxScales, ReflectionProxy->BoxTransitionDistance);
 						}
 					}
 					else if (Scene->SkyLight != nullptr && Scene->SkyLight->ProcessedTexture != nullptr)

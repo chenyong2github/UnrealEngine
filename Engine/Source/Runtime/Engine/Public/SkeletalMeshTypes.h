@@ -58,15 +58,15 @@ enum class ESkinVertexFactoryMode
 struct FMeshToMeshVertData
 {
 	// Barycentric coords and distance along normal for the position of the final vert
-	FVector4 PositionBaryCoordsAndDist;
+	FVector4f PositionBaryCoordsAndDist; 
 
 	// Barycentric coords and distance along normal for the location of the unit normal endpoint
 	// Actual normal = ResolvedNormalPosition - ResolvedPosition
-	FVector4 NormalBaryCoordsAndDist;
+	FVector4f NormalBaryCoordsAndDist;
 
 	// Barycentric coords and distance along normal for the location of the unit Tangent endpoint
 	// Actual normal = ResolvedNormalPosition - ResolvedPosition
-	FVector4 TangentBaryCoordsAndDist;
+	FVector4f TangentBaryCoordsAndDist;
 
 	// Contains the 3 indices for verts in the source mesh forming a triangle, the last element
 	// is a flag to decide how the skinning works, 0xffff uses no simulation, and just normal
@@ -150,7 +150,7 @@ public:
 	virtual bool IsUsingDistanceCullFade() const override;
 	
 	virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
-	virtual void GetShadowShapes(TArray<FCapsuleShape>& CapsuleShapes) const override;
+	virtual void GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleShapes) const override;
 
 	/** Return the bounds for the pre-skinned primitive in local space */
 	virtual void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const override { OutBounds = PreSkinnedLocalBounds; }
@@ -195,7 +195,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual bool GetPrimitiveDistance(int32 LODIndex, int32 SectionIndex, const FVector& ViewOrigin, float& PrimitiveDistance) const override;
 	virtual bool GetMeshUVDensities(int32 LODIndex, int32 SectionIndex, FVector4& WorldUVDensities) const override;
-	virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4* OneOverScales, FIntVector4* UVChannelIndices) const override;
+	virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4f* OneOverScales, FIntVector4* UVChannelIndices) const override;
 #endif
 
 	friend class FSkeletalMeshSectionIter;

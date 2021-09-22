@@ -581,7 +581,7 @@ class FVisualizeTexturePS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector3f, TextureExtent)
-		SHADER_PARAMETER_ARRAY(FVector4, VisualizeParam, [3])
+		SHADER_PARAMETER_ARRAY(FVector4f, VisualizeParam, [3])
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VisualizeTexture2D)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VisualizeTexture2DSampler)
@@ -706,15 +706,15 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 				float FracTime = FApp::GetCurrentTime() * FracTimeScale - floor(FApp::GetCurrentTime() * FracTimeScale);
 				float BlinkState = (FracTime < 1.0f / 16.0f) ? 1.0f : 0.0f;
 
-				FVector4 VisualizeParamValue[3];
+				FVector4f VisualizeParamValue[3];
 
 				float Add = 0.0f;
 				float FracScale = 1.0f;
 
 				// w * almost_1 to avoid frac(1) => 0
-				PassParameters->VisualizeParam[0] = FVector4(Config.RGBMul, Config.SingleChannelMul, Add, FracScale * 0.9999f);
-				PassParameters->VisualizeParam[1] = FVector4(CVarAllowBlinking.GetValueOnRenderThread() ? BlinkState : 1.0f, (Config.ShaderOp == EShaderOp::Saturate) ? 1.0f : 0.0f, Config.ArrayIndex, Config.MipIndex);
-				PassParameters->VisualizeParam[2] = FVector4((float)InputValueMapping, 0.0f, Config.SingleChannel);
+				PassParameters->VisualizeParam[0] = FVector4f(Config.RGBMul, Config.SingleChannelMul, Add, FracScale * 0.9999f);
+				PassParameters->VisualizeParam[1] = FVector4f(CVarAllowBlinking.GetValueOnRenderThread() ? BlinkState : 1.0f, (Config.ShaderOp == EShaderOp::Saturate) ? 1.0f : 0.0f, Config.ArrayIndex, Config.MipIndex);
+				PassParameters->VisualizeParam[2] = FVector4f((float)InputValueMapping, 0.0f, Config.SingleChannel);
 			}
 
 			FRHISamplerState* PointSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

@@ -564,8 +564,8 @@ public:
 	 */
 	CORE_API void		SetToRelativeTransform(const TTransform<T>& ParentTransform);
 
-	FORCEINLINE FVector4	TransformFVector4(const FVector4& V) const;
-	FORCEINLINE FVector4	TransformFVector4NoScale(const FVector4& V) const;
+	FORCEINLINE TVector4<T>	TransformFVector4(const TVector4<T>& V) const;
+	FORCEINLINE TVector4<T>	TransformFVector4NoScale(const TVector4<T>& V) const;
 	FORCEINLINE TVector<T>		TransformPosition(const TVector<T>& V) const;
 	FORCEINLINE TVector<T>		TransformPositionNoScale(const TVector<T>& V) const;
 
@@ -616,10 +616,10 @@ public:
 	}
 
 	/** Calculate the  */
-	FORCEINLINE float GetDeterminant() const
+	FORCEINLINE T GetDeterminant() const
 	{
 		//#todo - vectorized version of this
-		FVector4 OutScale3D;
+		UE::Math::TVector4<T> OutScale3D;
 		VectorStoreAligned(Scale3D, &OutScale3D);
 		return OutScale3D.X * OutScale3D.Y * OutScale3D.Z;
 	}
@@ -1617,7 +1617,7 @@ FORCEINLINE TTransform<T> TTransform<T>::GetScaled(TVector<T> InScale) const
 }
 
 template<typename T>
-FORCEINLINE FVector4 TTransform<T>::TransformFVector4NoScale(const FVector4& V) const
+FORCEINLINE TVector4<T> TTransform<T>::TransformFVector4NoScale(const TVector4<T>& V) const
 {
 	DiagnosticCheckNaN_All();
 
@@ -1638,13 +1638,13 @@ FORCEINLINE FVector4 TTransform<T>::TransformFVector4NoScale(const FVector4& V) 
 	const TransformVectorRegister WWWW = VectorReplicate(InputVector, 3);
 	const TransformVectorRegister TranslatedVec = VectorMultiplyAdd(Translation, WWWW, RotatedVec);
 
-	FVector4 NewVectOutput;
+	TVector4<T> NewVectOutput;
 	VectorStoreAligned(TranslatedVec, &NewVectOutput);
 	return NewVectOutput;
 }
 
 template<typename T>
-FORCEINLINE FVector4 TTransform<T>::TransformFVector4(const FVector4& V) const
+FORCEINLINE TVector4<T> TTransform<T>::TransformFVector4(const TVector4<T>& V) const
 {
 	DiagnosticCheckNaN_All();
 
@@ -1666,7 +1666,7 @@ FORCEINLINE FVector4 TTransform<T>::TransformFVector4(const FVector4& V) const
 	const TransformVectorRegister WWWW = VectorReplicate(InputVector, 3);
 	const TransformVectorRegister TranslatedVec = VectorMultiplyAdd(Translation, WWWW, RotatedVec);
 
-	FVector4 NewVectOutput;
+	TVector4<T> NewVectOutput;
 	VectorStoreAligned(TranslatedVec, &NewVectOutput);
 	return NewVectOutput;
 }

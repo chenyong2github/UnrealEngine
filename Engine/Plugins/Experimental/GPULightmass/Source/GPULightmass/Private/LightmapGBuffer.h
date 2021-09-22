@@ -19,7 +19,7 @@ struct FLightmapElementData : public FMeshMaterialShaderElementData
 {
 	const FLightCacheInterface* LCI;
 
-	FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias;
+	FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias;
 	int32 RenderPassIndex;
 	FIntPoint ScratchTilePoolOffset;
 
@@ -166,7 +166,7 @@ public:
 		const FScene* InScene, 
 		const FSceneView* InView,
 		FMeshPassDrawListContext* InDrawListContext,
-		FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias,
+		FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias,
 		int32 RenderPassIndex,
 		FIntPoint ScratchTilePoolOffset
 	)
@@ -241,7 +241,7 @@ private:
 private:
 	FMeshPassProcessorRenderState DrawRenderState;
 
-	FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias;
+	FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias;
 	int32 RenderPassIndex;
 	FIntPoint ScratchTilePoolOffset;
 };

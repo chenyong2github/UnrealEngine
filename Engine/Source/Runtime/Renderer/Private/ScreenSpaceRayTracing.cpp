@@ -207,7 +207,7 @@ void SetupCommonScreenSpaceRayParameters(
 		// PixelPos *= 0.5 // ReducedSceneColor is half resolution.
 		// float2 ReducedSceneColorUV = PixelPos / ReducedSceneColor->Extent;
 
-		OutParameters->ColorBufferScaleBias = FVector4(
+		OutParameters->ColorBufferScaleBias = FVector4f(
 			0.5f * SceneTextures.SceneDepthTexture->Desc.Extent.X / float(PrevSceneColor.SceneColor->Desc.Extent.X),
 			0.5f * SceneTextures.SceneDepthTexture->Desc.Extent.Y / float(PrevSceneColor.SceneColor->Desc.Extent.Y),
 			-0.5f * View.ViewRect.Min.X / float(PrevSceneColor.SceneColor->Desc.Extent.X),
@@ -231,7 +231,7 @@ void SetupCommonScreenSpaceRayParameters(
 		float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
 	);
 
-	OutParameters->HZBUvFactorAndInvFactor = FVector4(
+	OutParameters->HZBUvFactorAndInvFactor = FVector4f(
 		ViewportUVToHZBBufferUV.X,
 		ViewportUVToHZBBufferUV.Y,
 		1.0f / ViewportUVToHZBBufferUV.X,
@@ -341,8 +341,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSRCommonParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSRPassCommonParameters, )
-	SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
-	SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
+	SHADER_PARAMETER(FVector4f, HZBUvFactorAndInvFactor)
+	SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
 	SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
 	SHADER_PARAMETER(uint32, ShouldReflectOnlyWater)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
@@ -379,8 +379,8 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, PrevBufferBilinearUVMinMax)
-		SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f, PrevBufferBilinearUVMinMax)
+		SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector2D, ViewportUVToHZBBufferUV)
 		SHADER_PARAMETER(FVector2D, ReducedSceneColorSize)
 		SHADER_PARAMETER(FVector2D, ReducedSceneColorTexelSize)
@@ -862,7 +862,7 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 		float InvBufferSizeX = 1.f / float(BufferSize.X);
 		float InvBufferSizeY = 1.f / float(BufferSize.Y);
 
-		PassParameters->PrevBufferBilinearUVMinMax = FVector4(
+		PassParameters->PrevBufferBilinearUVMinMax = FVector4f(
 			(ViewportOffset.X + 0.5f) * InvBufferSizeX,
 			(ViewportOffset.Y + 0.5f) * InvBufferSizeY,
 			(ViewportOffset.X + ViewportExtent.X - 0.5f) * InvBufferSizeX,
@@ -872,7 +872,7 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 		PassParameters->MinimumLuminance = CVarSSGIMinimumLuminance.GetValueOnRenderThread();
 		PassParameters->SkyDistance = CVarSSGISkyDistance.GetValueOnRenderThread();
 
-		PassParameters->PrevScreenPositionScaleBias = FVector4(
+		PassParameters->PrevScreenPositionScaleBias = FVector4f(
 			ViewportExtent.X * 0.5f / BufferSize.X,
 			-ViewportExtent.Y * 0.5f / BufferSize.Y,
 			(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
@@ -1154,7 +1154,7 @@ void RenderScreenSpaceReflections(
 			const FVector2D HZBUvFactor(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
-			PassParameters->HZBUvFactorAndInvFactor = FVector4(
+			PassParameters->HZBUvFactorAndInvFactor = FVector4f(
 				HZBUvFactor.X,
 				HZBUvFactor.Y,
 				1.0f / HZBUvFactor.X,
@@ -1192,7 +1192,7 @@ void RenderScreenSpaceReflections(
 
 			FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
 
-			PassParameters->PrevScreenPositionScaleBias = FVector4(
+			PassParameters->PrevScreenPositionScaleBias = FVector4f(
 				ViewportExtent.X * 0.5f * InvBufferSize.X,
 				-ViewportExtent.Y * 0.5f * InvBufferSize.Y,
 				(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,

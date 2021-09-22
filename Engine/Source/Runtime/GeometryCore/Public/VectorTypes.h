@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Math/Vector.h"
+#include "Math/Vector4.h"
 #include "MathUtil.h"
 #include "Serialization/Archive.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -75,9 +76,6 @@ namespace Math {
 
 	template <typename T>
 	FORCEINLINE uint32 GetTypeHash(const TVector2<T>& Vector) { return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(TVector2<T>)); }
-
-	template <typename RealType>
-	std::ostream& operator<<(std::ostream& os, const TVector2<RealType>& Vec) { os << Vec.X << " " << Vec.Y; return os;	}
 
 }
 }
@@ -659,15 +657,6 @@ constexpr int32 MinAbsElementIndex(const UE::Math::TVector<T>& Vector)
 }
 
 template<typename T>
-constexpr FColor ToFColor(const UE::Math::TVector<T>& Vector)
-{
-	return FColor(
-		FMathf::Clamp((int)((float)Vector.X * 255.0f), 0, 255),
-		FMathf::Clamp((int)((float)Vector.Y * 255.0f), 0, 255),
-		FMathf::Clamp((int)((float)Vector.Z * 255.0f), 0, 255));
-}
-
-template<typename T>
 constexpr FLinearColor ToLinearColor(const UE::Math::TVector<T>& Vector)
 {
 	return FLinearColor((float)Vector.X, (float)Vector.Y, (float)Vector.Z);
@@ -731,39 +720,39 @@ FORCEINLINE uint32 GetTypeHash(const FVector3<T>& Vector)
 
 
 template <typename T>
-struct TVector4
+struct GVector4
 {
 	T X{}, Y{}, Z{}, W{};
 
-	constexpr TVector4()
+	constexpr GVector4()
 		: X(0), Y(0), Z(0), W(0)
 	{
 	}
 
-	constexpr TVector4(T ValX, T ValY, T ValZ, T ValW)
+	constexpr GVector4(T ValX, T ValY, T ValZ, T ValW)
 		: X(ValX), Y(ValY), Z(ValZ), W(ValW)
 	{
 	}
 
-	constexpr TVector4(const TVector4& Vec) = default;
+	constexpr GVector4(const GVector4& Vec) = default;
 
 	template<typename RealType2>
-	explicit constexpr TVector4(const TVector4<RealType2>& Vec)
+	explicit constexpr GVector4(const GVector4<RealType2>& Vec)
 		: X((T)Vec.X), Y((T)Vec.Y), Z((T)Vec.Z), W((T)Vec.W)
 	{
 	}
 
-	static TVector4<T> Zero()
+	static GVector4<T> Zero()
 	{
-		return TVector4<T>((T)0, (T)0, (T)0, (T)0);
+		return GVector4<T>((T)0, (T)0, (T)0, (T)0);
 	}
-	static TVector4<T> One()
+	static GVector4<T> One()
 	{
-		return TVector4<T>((T)1, (T)1, (T)1, (T)1);
+		return GVector4<T>((T)1, (T)1, (T)1, (T)1);
 	}
 
 
-	TVector4<T>& operator=(const TVector4<T>& V2)
+	GVector4<T>& operator=(const GVector4<T>& V2)
 	{
 		X = V2.X;
 		Y = V2.Y;
@@ -781,48 +770,48 @@ struct TVector4
 		return (&X)[Idx];
 	}
 
-	constexpr TVector4<T> operator-() const
+	constexpr GVector4<T> operator-() const
 	{
-		return TVector4<T>(-X, -Y, -Z, -W);
+		return GVector4<T>(-X, -Y, -Z, -W);
 	}
 
-	constexpr TVector4<T> operator+(const TVector4<T>& V2) const
+	constexpr GVector4<T> operator+(const GVector4<T>& V2) const
 	{
-		return TVector4<T>(X + V2.X, Y + V2.Y, Z + V2.Z, W + V2.W);
+		return GVector4<T>(X + V2.X, Y + V2.Y, Z + V2.Z, W + V2.W);
 	}
 
-	constexpr TVector4<T> operator-(const TVector4<T>& V2) const
+	constexpr GVector4<T> operator-(const GVector4<T>& V2) const
 	{
-		return TVector4<T>(X - V2.X, Y - V2.Y, Z - V2.Z, W - V2.W);
+		return GVector4<T>(X - V2.X, Y - V2.Y, Z - V2.Z, W - V2.W);
 	}
 
-	constexpr TVector4<T> operator+(const T& Scalar) const
+	constexpr GVector4<T> operator+(const T& Scalar) const
 	{
-		return TVector4<T>(X + Scalar, Y + Scalar, Z + Scalar, W + Scalar);
+		return GVector4<T>(X + Scalar, Y + Scalar, Z + Scalar, W + Scalar);
 	}
 
-	constexpr TVector4<T> operator-(const T& Scalar) const
+	constexpr GVector4<T> operator-(const T& Scalar) const
 	{
-		return TVector4<T>(X - Scalar, Y - Scalar, Z - Scalar, W - Scalar);
+		return GVector4<T>(X - Scalar, Y - Scalar, Z - Scalar, W - Scalar);
 	}
 
-	constexpr TVector4<T> operator*(const T& Scalar) const
+	constexpr GVector4<T> operator*(const T& Scalar) const
 	{
-		return TVector4<T>(X * Scalar, Y * Scalar, Z * Scalar, W * Scalar);
+		return GVector4<T>(X * Scalar, Y * Scalar, Z * Scalar, W * Scalar);
 	}
 
 	template<typename RealType2>
-	constexpr TVector4<T> operator*(const RealType2& Scalar) const
+	constexpr GVector4<T> operator*(const RealType2& Scalar) const
 	{
-		return TVector4<T>(X * (T)Scalar, Y * (T)Scalar, Z * (T)Scalar, W * (T)Scalar);
+		return GVector4<T>(X * (T)Scalar, Y * (T)Scalar, Z * (T)Scalar, W * (T)Scalar);
 	}
 
-	constexpr TVector4<T> operator/(const T& Scalar) const
+	constexpr GVector4<T> operator/(const T& Scalar) const
 	{
-		return TVector4<T>(X / Scalar, Y / Scalar, Z / Scalar, W / Scalar);
+		return GVector4<T>(X / Scalar, Y / Scalar, Z / Scalar, W / Scalar);
 	}
 
-	constexpr TVector4<T>& operator+=(const TVector4<T>& V2)
+	constexpr GVector4<T>& operator+=(const GVector4<T>& V2)
 	{
 		X += V2.X;
 		Y += V2.Y;
@@ -831,7 +820,7 @@ struct TVector4
 		return *this;
 	}
 
-	constexpr TVector4<T>& operator-=(const TVector4<T>& V2)
+	constexpr GVector4<T>& operator-=(const GVector4<T>& V2)
 	{
 		X -= V2.X;
 		Y -= V2.Y;
@@ -840,7 +829,7 @@ struct TVector4
 		return *this;
 	}
 
-	constexpr TVector4<T>& operator*=(const T& Scalar)
+	constexpr GVector4<T>& operator*=(const T& Scalar)
 	{
 		X *= Scalar;
 		Y *= Scalar;
@@ -849,7 +838,7 @@ struct TVector4
 		return *this;
 	}
 
-	constexpr TVector4<T>& operator/=(const T& Scalar)
+	constexpr GVector4<T>& operator/=(const T& Scalar)
 	{
 		X /= Scalar;
 		Y /= Scalar;
@@ -858,35 +847,35 @@ struct TVector4
 		return *this;
 	}
 
-	T Dot(const TVector4<T>& V2) const
+	T Dot(const GVector4<T>& V2) const
 	{
 		return X * V2.X + Y * V2.Y + Z * V2.Z + W * V2.W;
 	}
 
-	constexpr bool operator==(const TVector4<T>& Other) const
+	constexpr bool operator==(const GVector4<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
 	}
 
-	constexpr bool operator!=(const TVector4<T>& Other) const
+	constexpr bool operator!=(const GVector4<T>& Other) const
 	{
 		return X != Other.X || Y != Other.Y || Z != Other.Z || W != Other.W;
 	}
 
 	/**
-	 * Serialization operator for TVector4.
+	 * Serialization operator for GVector4.
 	 *
 	 * @param Ar Archive to serialize with.
 	 * @param Vec Vector to serialize.
 	 * @returns Passing down serializing archive.
 	 */
-	friend FArchive& operator<<(FArchive& Ar, TVector4& Vec)
+	friend FArchive& operator<<(FArchive& Ar, GVector4& Vec)
 	{
 		Vec.Serialize(Ar);
 		return Ar;
 	}
 
-	/** Serialize TVector4 to an archive. */
+	/** Serialize GVector4 to an archive. */
 	void Serialize(FArchive& Ar)
 	{
 		Ar << X;
@@ -897,13 +886,13 @@ struct TVector4
 };
 
 template <typename T>
-constexpr bool IsNormalized(const TVector4<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
+constexpr bool IsNormalized(const GVector4<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
 {
 	return TMathUtil<T>::Abs((Vector.X*Vector.X + Vector.Y*Vector.Y + Vector.Z*Vector.Z + Vector.W*Vector.W) - 1) < Tolerance;
 }
 
 template<typename T>
-T Normalize(TVector4<T>& Vector, const T Epsilon = 0)
+T Normalize(GVector4<T>& Vector, const T Epsilon = 0)
 {
 	T length = Vector.Length();
 	if (length > Epsilon)
@@ -920,76 +909,118 @@ T Normalize(TVector4<T>& Vector, const T Epsilon = 0)
 }
 
 template<typename T>
-TVector4<T> Normalized(const TVector4<T>& Vector, const T Epsilon = 0)
+GVector4<T> Normalized(const GVector4<T>& Vector, const T Epsilon = 0)
 {
 	T length = Vector.Length();
 	if (length > Epsilon)
 	{
 		T invLength = ((T)1) / length;
-		return TVector4<T>(Vector.X*invLength, Vector.Y*invLength, Vector.Z*invLength, Vector.W*invLength);
+		return GVector4<T>(Vector.X*invLength, Vector.Y*invLength, Vector.Z*invLength, Vector.W*invLength);
 	}
-	return TVector4<T>::Zero();
+	return GVector4<T>::Zero();
 }
 
 template<typename T>
-constexpr FVector3<T> GetXYZ(const TVector4<T>& V)
+constexpr FVector3<T> GetXYZ(const GVector4<T>& V)
 {
 	return FVector3<T>(V.X, V.Y, V.Z);
 }
 
 template<typename T>
-TVector4<T> Lerp(const TVector4<T>& A, const TVector4<T>& B, T Alpha)
+GVector4<T> Lerp(const GVector4<T>& A, const GVector4<T>& B, T Alpha)
 {
 	T OneMinusAlpha = (T)1 - Alpha;
-	return TVector4<T>(OneMinusAlpha * A.X + Alpha * B.X,
+	return GVector4<T>(OneMinusAlpha * A.X + Alpha * B.X,
 		OneMinusAlpha * A.Y + Alpha * B.Y,
 		OneMinusAlpha * A.Z + Alpha * B.Z,
 		OneMinusAlpha * A.W + Alpha * B.W);
 }
 
 template<typename T>
-TVector4<T> Blend3(const TVector4<T>& A, const TVector4<T>& B, const TVector4<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
+GVector4<T> Blend3(const GVector4<T>& A, const GVector4<T>& B, const GVector4<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
 {
-	return TVector4<T>(
+	return GVector4<T>(
 		WeightA * A.X + WeightB * B.X + WeightC * C.X,
 		WeightA * A.Y + WeightB * B.Y + WeightC * C.Y,
 		WeightA * A.Z + WeightB * B.Z + WeightC * C.Z,
 		WeightA * A.W + WeightB * B.W + WeightC * C.W);
 }
 
-template <typename RealType>
-inline TVector4<RealType> operator*(RealType Scalar, const TVector4<RealType>& V)
+template <typename RealType, TEMPLATE_REQUIRES(std::is_arithmetic<RealType>::value)>
+inline GVector4<RealType> operator*(RealType Scalar, const GVector4<RealType>& V)
 {
-	return TVector4<RealType>(Scalar * V.X, Scalar * V.Y, Scalar * V.Z, Scalar * V.W);
+	return GVector4<RealType>(Scalar * V.X, Scalar * V.Y, Scalar * V.Z, Scalar * V.W);
 }
 
 // allow float*Vector4<double> and double*Vector4<float>
-template <typename RealType, typename RealType2>
-inline TVector4<RealType> operator*(RealType2 Scalar, const TVector4<RealType>& V)
+template <typename RealType, typename RealType2, TEMPLATE_REQUIRES(std::is_arithmetic<RealType2>::value)>
+inline GVector4<RealType> operator*(RealType2 Scalar, const GVector4<RealType>& V)
 {
-	return TVector4<RealType>((RealType)Scalar * V.X, (RealType)Scalar * V.Y, (RealType)Scalar * V.Z, (RealType)Scalar * V.W);
+	return GVector4<RealType>((RealType)Scalar * V.X, (RealType)Scalar * V.Y, (RealType)Scalar * V.Z, (RealType)Scalar * V.W);
 }
 
 template<typename T>
-FLinearColor ToLinearColor(const TVector4<T>& V)
+FLinearColor ToLinearColor(const GVector4<T>& V)
 {
 	return FLinearColor((float)V.X, (float)V.Y, (float)V.Z, (float)V.W);
 }
 
 template<typename T>
-TVector4<T> ToVector4(const FLinearColor& Color)
+FLinearColor ToLinearColor(const UE::Math::TVector4<T>& V)
 {
-	return TVector4<T>( (T)Color.R, (T)Color.G, (T)Color.B, (T)Color.A );
+	return FLinearColor((float)V.X, (float)V.Y, (float)V.Z, (float)V.W);
 }
 
 template<typename T>
-FColor ToFColor(const TVector4<T>& V)
+UE::Math::TVector4<T> ToVector4(const FLinearColor& Color)
+{
+	return UE::Math::TVector4<T>( (T)Color.R, (T)Color.G, (T)Color.B, (T)Color.A );
+}
+
+template<typename T>
+FColor ToFColor(const GVector4<T>& V)
 {
 	return FColor(
 		FMathf::Clamp((int)((float)V.X*255.0f), 0, 255),
 		FMathf::Clamp((int)((float)V.Y*255.0f), 0, 255),
 		FMathf::Clamp((int)((float)V.Z*255.0f), 0, 255),
 		FMathf::Clamp((int)((float)V.W*255.0f), 0, 255));
+}
+
+template<typename T>
+constexpr FColor ToFColor(const UE::Math::TVector4<T>& Vector)
+{
+	return FColor(
+		FMathf::Clamp((int)((float)Vector.X * 255.0f), 0, 255),
+		FMathf::Clamp((int)((float)Vector.Y * 255.0f), 0, 255),
+		FMathf::Clamp((int)((float)Vector.Z * 255.0f), 0, 255));
+}
+
+template <typename RealType>
+std::ostream& operator<<(std::ostream& os, const GVector4<RealType>& Vec)
+{
+	os << Vec.X << " " << Vec.Y << " " << Vec.Z << " " << Vec.W;
+	return os;
+}
+
+template <typename T>
+FORCEINLINE uint32 GetTypeHash(const GVector4<T>& Vector)
+{
+	// (this is how FIntVector and all the other FVectors do their hash functions)
+	// Note: this assumes there's no padding that could contain uncompared data.
+	return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(GVector4<T>));
+}
+
+} // end namespace UE::Geometry
+
+namespace Math
+{
+
+template <typename RealType>
+std::ostream& operator<<(std::ostream& os, const TVector2<RealType>& Vec)
+{
+	os << Vec.X << " " << Vec.Y;
+	return os;
 }
 
 template <typename RealType>
@@ -999,20 +1030,11 @@ std::ostream& operator<<(std::ostream& os, const TVector4<RealType>& Vec)
 	return os;
 }
 
+} // end namespace UE::Math
 
-template <typename T>
-FORCEINLINE uint32 GetTypeHash(const TVector4<T>& Vector)
-{
-	// (this is how FIntVector and all the other FVectors do their hash functions)
-	// Note: this assumes there's no padding that could contain uncompared data.
-	return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(TVector4<T>));
-}
-
-
-
-
-} // end namespace UE::Geometry
 } // end namespace UE
+
+
 
 //typedef UE::Geometry::FVector2<float> FVector2f;
 //typedef UE::Geometry::FVector2<double> FVector2d;
@@ -1020,10 +1042,11 @@ FORCEINLINE uint32 GetTypeHash(const TVector4<T>& Vector)
 //typedef UE::Geometry::FVector3<float> FVector3f;
 //typedef UE::Geometry::FVector3<double> FVector3d;
 
-typedef UE::Geometry::TVector4<float> FVector4f;
-typedef UE::Geometry::TVector4<double> FVector4d;
+//typedef UE::Geometry::GVector4<float> FVector4f;
+//typedef UE::Geometry::GVector4<double> FVector4d;
+// 
 //template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
 //template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
 
-template<> struct TCanBulkSerialize<FVector4f> { enum { Value = true }; };
-template<> struct TCanBulkSerialize<FVector4d> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<UE::Geometry::GVector4<float>> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<UE::Geometry::GVector4<double>> { enum { Value = true }; };

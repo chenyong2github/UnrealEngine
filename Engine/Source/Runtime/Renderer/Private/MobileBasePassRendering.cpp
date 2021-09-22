@@ -232,7 +232,7 @@ void SetupMobileBasePassUniformParameters(
 
 	FIntVector SSProfilesTextureSize = BasePassParameters.SSProfilesTexture->GetSizeXYZ();
 
-	BasePassParameters.SSProfilesTextureSizeAndInvSize = FVector4(SSProfilesTextureSize.X, SSProfilesTextureSize.Y, 1.0f / SSProfilesTextureSize.X, 1.0f / SSProfilesTextureSize.Y);
+	BasePassParameters.SSProfilesTextureSizeAndInvSize = FVector4f(SSProfilesTextureSize.X, SSProfilesTextureSize.Y, 1.0f / SSProfilesTextureSize.X, 1.0f / SSProfilesTextureSize.Y);
 
 	BasePassParameters.SSProfilesPreIntegratedTexture = GetSSProfilesPreIntegratedTextureWithFallback();
 	BasePassParameters.SSProfilesPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -263,7 +263,7 @@ void SetupMobileDirectionalLightUniformParameters(
 	if (Light)
 	{
 		Params.DirectionalLightColor = Light->Proxy->GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance() / PI;
-		Params.DirectionalLightDirectionAndShadowTransition = FVector4(-Light->Proxy->GetDirection(), 0.f);
+		Params.DirectionalLightDirectionAndShadowTransition = FVector4f(-Light->Proxy->GetDirection(), 0.f);
 
 		const FVector2D FadeParams = Light->Proxy->GetDirectionalLightDistanceFadeParameters(FeatureLevel, Light->IsPrecomputedLightingValid(), SceneView.MaxShadowCascades);
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.X = FadeParams.Y;
@@ -286,7 +286,7 @@ void SetupMobileDirectionalLightUniformParameters(
 					if (OutShadowIndex == 0)
 					{
 						const FIntPoint ShadowBufferResolution = ShadowInfo->GetShadowBufferResolution();
-						const FVector4 ShadowBufferSizeValue((float)ShadowBufferResolution.X, (float)ShadowBufferResolution.Y, 1.0f / (float)ShadowBufferResolution.X, 1.0f / (float)ShadowBufferResolution.Y);
+						const FVector4f ShadowBufferSizeValue((float)ShadowBufferResolution.X, (float)ShadowBufferResolution.Y, 1.0f / (float)ShadowBufferResolution.X, 1.0f / (float)ShadowBufferResolution.Y);
 
 						Params.DirectionalLightShadowTexture = ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
 						Params.DirectionalLightDirectionAndShadowTransition.W = 1.0f / ShadowInfo->ComputeTransitionSize();
@@ -325,7 +325,7 @@ void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FM
 	}
 	
 	//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
-	Parameters.Params = FVector4(Brightness, SkyMaxMipIndex, 0.f, 0.f);
+	Parameters.Params = FVector4f(Brightness, SkyMaxMipIndex, 0.f, 0.f);
 	Parameters.Texture = CaptureTexture->TextureRHI;
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 }

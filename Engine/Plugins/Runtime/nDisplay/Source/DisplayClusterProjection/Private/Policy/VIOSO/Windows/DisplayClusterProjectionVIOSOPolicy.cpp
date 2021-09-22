@@ -113,7 +113,7 @@ public:
 			DeviceContext->RSSetViewports(1, &RenderViewportData);
 
 			// Clear RTV
-			static FVector4 ClearColor(0, 0, 0, 1);
+			static FVector4f ClearColor(0, 0, 0, 1);
 			DeviceContext->ClearRenderTargetView(DestTextureRTV, &ClearColor[0]);
 
 			DeviceContext->Flush();

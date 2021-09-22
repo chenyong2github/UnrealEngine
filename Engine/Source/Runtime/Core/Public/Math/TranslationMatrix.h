@@ -39,4 +39,7 @@ FORCEINLINE TTranslationMatrix<T>::TTranslationMatrix(const TVector<T>& Delta)
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(TranslationMatrix, 44);
+UE_DECLARE_LWC_TYPE(TranslationMatrix, 44);
+
+template<> struct TIsUECoreVariant<FTranslationMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FTranslationMatrix44d> { enum { Value = true }; };

@@ -39,7 +39,7 @@ FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, const FSkeletalMeshLODRenderData& LODData,
-	const uint32 LODIndex, TArray<uint32>& MatrixOffsets, TArray<FVector4>& BoneMatrices)
+	const uint32 LODIndex, TArray<uint32>& MatrixOffsets, TArray<FVector4f>& BoneMatrices)
 {
 	TArray<FMatrix44f> BoneTransforms;
 	SkeletalMeshComponent->GetCurrentRefToLocalMatrices(BoneTransforms, LODIndex);
@@ -81,7 +81,7 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 		FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[LODIndex];
 
 		TArray<uint32> MatrixOffsets;
-		TArray<FVector4> BoneMatrices;
+		TArray<FVector4f> BoneMatrices;
 		BuildBoneMatrices(SkeletalMeshComponent, LODData, LODIndex, MatrixOffsets, BoneMatrices);
 
 		FRDGBufferRef DeformedPositionsBuffer	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(float), LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() * 3), TEXT("Hair.SkinnedDeformedPositions"));

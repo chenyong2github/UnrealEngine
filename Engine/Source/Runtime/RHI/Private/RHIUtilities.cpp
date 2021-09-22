@@ -52,8 +52,8 @@ void SetDepthBoundsTest(FRHICommandList& RHICmdList, float WorldSpaceDepthNear, 
 	{
 		FVector4 Near = ProjectionMatrix.TransformFVector4(FVector4(0, 0, WorldSpaceDepthNear));
 		FVector4 Far = ProjectionMatrix.TransformFVector4(FVector4(0, 0, WorldSpaceDepthFar));
-		float DepthNear = Near.Z / Near.W;
-		float DepthFar = Far.Z / Far.W;
+		float DepthNear = float(Near.Z / Near.W);
+		float DepthFar = float(Far.Z / Far.W);
 
 		DepthFar = FMath::Clamp(DepthFar, 0.0f, 1.0f);
 		DepthNear = FMath::Clamp(DepthNear, 0.0f, 1.0f);

@@ -306,7 +306,7 @@ struct RENDERCORE_API FVirtualTextureUniformData
 	FVector2D pTextureSize; // The size of the cache texture
 	float MaxAnisotropic;
 	int MaxAssetLevel;
-	FVector4 Transform;
+	FVector4f Transform;
 	FVector2D vOneMinusOneOverTextureSize; // 1 - (1/TextureSize) this rather specific value is needed for clamp texturing.
 										   // We could store something more generically useful at the cost of a few shader ALU instructions?
 

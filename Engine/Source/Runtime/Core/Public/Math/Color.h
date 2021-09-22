@@ -58,7 +58,8 @@ struct FLinearColor
 	CORE_API FLinearColor(const FVector3f& Vector);
 	CORE_API FLinearColor(const FVector3d& Vector);
 
-	CORE_API explicit FLinearColor(const FVector4& Vector);
+	CORE_API explicit FLinearColor(const FVector4f& Vector);
+	CORE_API explicit FLinearColor(const FVector4d& Vector);
 	
 	// use Float16Color::GetFloats() directly
 	CORE_API explicit FLinearColor(const FFloat16Color& C);

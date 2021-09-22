@@ -1714,7 +1714,7 @@ void FMobileSceneRenderer::UpdateMovablePointLightUniformBufferAndShadowInfo()
 						if (MobileMovableSpotLightsShadowInfo.ShadowDepthTexture == nullptr)
 						{
 							MobileMovableSpotLightsShadowInfo.ShadowDepthTexture = ProjectedShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
-							MobileMovableSpotLightsShadowInfo.ShadowBufferSize = FVector4(ShadowBufferResolution.X, ShadowBufferResolution.Y, 1.0f / ShadowBufferResolution.X, 1.0f / ShadowBufferResolution.Y);
+							MobileMovableSpotLightsShadowInfo.ShadowBufferSize = FVector4f(ShadowBufferResolution.X, ShadowBufferResolution.Y, 1.0f / ShadowBufferResolution.X, 1.0f / ShadowBufferResolution.Y);
 						}
 					}
 				}

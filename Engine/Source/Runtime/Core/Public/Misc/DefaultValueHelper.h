@@ -152,7 +152,8 @@ public:
 	*
 	* @return true if the conversion happened, false otherwise
 	*/
-	static bool ParseVector4(const FString& Source, FVector4& OutVal);
+	static bool ParseVector4(const FString& Source, FVector4f& OutVal);
+	static bool ParseVector4(const FString& Source, FVector4d& OutVal);
 
 	/**
 	 * Converts a string into a FRotator. Accepted form: " %f, %f, %f "

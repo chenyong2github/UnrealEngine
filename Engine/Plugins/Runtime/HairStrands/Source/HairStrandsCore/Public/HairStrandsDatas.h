@@ -111,7 +111,7 @@ struct FHairStrandsPositionFormat
 
 struct FHairStrandsPositionOffsetFormat
 {
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
@@ -205,7 +205,7 @@ struct FHairStrandsRootIndexFormat
 
 struct FHairStrandsRaytracingFormat
 {
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -240,8 +240,8 @@ struct FHairStrandsWeightFormat
  */
 struct FHairStrandsMeshTrianglePositionFormat
 {
-	using Type = FVector4;
-	using BulkType = FVector4;
+	using Type = FVector4f;
+	using BulkType = FVector4f;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;

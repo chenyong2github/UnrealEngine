@@ -50,4 +50,7 @@ FORCEINLINE TInverseRotationMatrix<T>::TInverseRotationMatrix(const FRotator& Ro
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(InverseRotationMatrix, 44);
+UE_DECLARE_LWC_TYPE(InverseRotationMatrix, 44);
+
+template<> struct TIsUECoreVariant<FInverseRotationMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FInverseRotationMatrix44d> { enum { Value = true }; };

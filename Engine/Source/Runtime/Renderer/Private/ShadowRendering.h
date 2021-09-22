@@ -194,7 +194,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FMatrix44f, ProjectionMatrix)
 	SHADER_PARAMETER(FMatrix44f, ViewMatrix)
-	SHADER_PARAMETER(FVector4, ShadowParams)
+	SHADER_PARAMETER(FVector4f, ShadowParams)
 	SHADER_PARAMETER(float, bClampToNearPlane)
 	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewProjectionMatrices, [6])
 	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewMatrices, [6])
@@ -210,7 +210,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FMatrix44f, ProjectionMatrix)
 	SHADER_PARAMETER(FMatrix44f, ViewMatrix)
-	SHADER_PARAMETER(FVector4, ShadowParams)
+	SHADER_PARAMETER(FVector4f, ShadowParams)
 	SHADER_PARAMETER(float, bClampToNearPlane)
 	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewProjectionMatrices, [6])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -387,8 +387,8 @@ public:
 	/** The Z offset in shadow light coordinate of the cached shadow bound center and current shadow bound center when scrolling the cached shadow map. */
 	float CSMScrollingZOffset;
 
-	FVector4 OverlappedUVOnCachedShadowMap;
-	FVector4 OverlappedUVOnCurrentShadowMap;
+	FVector4f OverlappedUVOnCachedShadowMap;
+	FVector4f OverlappedUVOnCurrentShadowMap;
 
 	/** The extra culling planes to cull the static meshes which already in the overlapped area when scrolling the cached shadow map. */
 	TArray<FPlane, TInlineAllocator<4>> CSMScrollingExtraCullingPlanes;
@@ -629,7 +629,7 @@ public:
 		return GetScreenToShadowMatrix(View, X, Y, ResolutionX, ResolutionY);
 	}
 
-	FVector4 GetClipToShadowBufferUvScaleBias() const;
+	FVector4f GetClipToShadowBufferUvScaleBias() const;
 
 	/** Returns a matrix that transforms a screen space position into shadow space. 
 		Additional parameters allow overriding of shadow's tile location.
@@ -638,7 +638,7 @@ public:
 	FMatrix GetScreenToShadowMatrix(const FSceneView& View, uint32 TileOffsetX, uint32 TileOffsetY, uint32 TileResolutionX, uint32 TileResolutionY) const;
 
 	/** Returns a matrix that transforms a world space position into shadow space. */
-	FMatrix GetWorldToShadowMatrix(FVector4& ShadowmapMinMax, const FIntPoint* ShadowBufferResolutionOverride = nullptr) const;
+	FMatrix GetWorldToShadowMatrix(FVector4f& ShadowmapMinMax, const FIntPoint* ShadowBufferResolutionOverride = nullptr) const;
 
 	/** Returns the resolution of the shadow buffer used for this shadow, based on the shadow's type. */
 	FIntPoint GetShadowBufferResolution() const
@@ -833,14 +833,14 @@ private:
 		TArray<FMeshBatchAndRelevance,SceneRenderingAllocator>& OutDynamicMeshElements,
 		int32& OutNumDynamicSubjectMeshElements);
 
-	void SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const;
+	void SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4f, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const;
 
 	void SetupProjectionStencilMask(
 		FRHICommandList& RHICmdList,
 		const FViewInfo* View, 
 		int32 ViewIndex,
 		const class FSceneRenderer* SceneRender,
-		const TArray<FVector4, TInlineAllocator<8>>& FrustumVertices,
+		const TArray<FVector4f, TInlineAllocator<8>>& FrustumVertices,
 		bool bMobileModulatedProjections,
 		bool bCameraInsideShadowFrustum,
 		const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
@@ -956,7 +956,7 @@ public:
 		if (ShadowTileOffsetAndSizeParam.IsBound())
 		{
 			FVector2D InverseShadowBufferResolution(1.0f / ShadowBufferResolution.X, 1.0f / ShadowBufferResolution.Y);
-			FVector4 ShadowTileOffsetAndSize(
+			FVector4f ShadowTileOffsetAndSize(
 				(ShadowInfo->BorderSize + ShadowInfo->X) * InverseShadowBufferResolution.X,
 				(ShadowInfo->BorderSize + ShadowInfo->Y) * InverseShadowBufferResolution.Y,
 				ShadowInfo->ResolutionX * InverseShadowBufferResolution.X,
@@ -989,7 +989,7 @@ public:
 			FVector2D ShadowBufferSizeValue(ShadowBufferResolution.X, ShadowBufferResolution.Y);
 
 			SetShaderValue(RHICmdList, ShaderRHI, ShadowBufferSize,
-				FVector4(ShadowBufferSizeValue.X, ShadowBufferSizeValue.Y, 1.0f / ShadowBufferSizeValue.X, 1.0f / ShadowBufferSizeValue.Y));
+				FVector4f(ShadowBufferSizeValue.X, ShadowBufferSizeValue.Y, 1.0f / ShadowBufferSizeValue.X, 1.0f / ShadowBufferSizeValue.Y));
 		}
 
 		FRHITexture* ShadowDepthTextureValue;
@@ -1017,7 +1017,7 @@ public:
 				);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, ProjectionDepthBias, FVector4(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderReceiverDepthBias(), ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
+		SetShaderValue(RHICmdList, ShaderRHI, ProjectionDepthBias, FVector4f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderReceiverDepthBias(), ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ));
 		SetShaderValue(RHICmdList, ShaderRHI, FadePlaneOffset, ShadowInfo->CascadeSettings.FadePlaneOffset);
 
 		if(InvFadePlaneLength.IsBound() && bUseFadePlane)
@@ -1031,7 +1031,7 @@ public:
 			const FVector LightDirection = ShadowInfo->GetLightSceneInfo().Proxy->GetDirection();
 			const FVector LightPosition = ShadowInfo->GetLightSceneInfo().Proxy->GetPosition();
 			const bool bIsDirectional = ShadowInfo->GetLightSceneInfo().Proxy->GetLightType() == LightType_Directional;
-			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, bIsDirectional ? FVector4(LightDirection,0) : FVector4(LightPosition,1));
+			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, bIsDirectional ? FVector4f(LightDirection,0) : FVector4f(LightPosition,1));
 		}
 
 		if (SubPixelShadow)
@@ -1041,8 +1041,8 @@ public:
 			const bool bIsCascadedShadow = ShadowInfo->bDirectionalLight && !(ShadowInfo->bPerObjectOpaqueShadow || ShadowInfo->bPreShadow);
 			if (bIsCascadedShadow)
 			{
-				FVector4 Near = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitNear));
-				FVector4 Far = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(0, 0, ShadowInfo->CascadeSettings.SplitFar));
+				FVector4f Near = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, ShadowInfo->CascadeSettings.SplitNear));
+				FVector4f Far = View.ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4f(0, 0, ShadowInfo->CascadeSettings.SplitFar));
 				DeviceZNear = Near.Z / Near.W;
 				DeviceZFar = Far.Z / Far.W;
 			}
@@ -1145,7 +1145,7 @@ public:
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex] );
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f );
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4(FVector(LightProxy.GetPosition()), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector(LightProxy.GetPosition()), 1.0f / LightProxy.GetRadius()));
 
 		auto DeferredLightParameter = GetUniformBufferParameter<FDeferredLightUniformStruct>();
 
@@ -1217,9 +1217,9 @@ protected:
 /** Translucency shadow projection uniform buffer containing data needed for Fourier opacity maps. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentSelfShadowUniformParameters, )
 	SHADER_PARAMETER(FMatrix44f, WorldToShadowMatrix)
-	SHADER_PARAMETER(FVector4, ShadowUVMinMax)
-	SHADER_PARAMETER(FVector4, DirectionalLightDirection)
-	SHADER_PARAMETER(FVector4, DirectionalLightColor)
+	SHADER_PARAMETER(FVector4f, ShadowUVMinMax)
+	SHADER_PARAMETER(FVector4f, DirectionalLightDirection)
+	SHADER_PARAMETER(FVector4f, DirectionalLightColor)
 	SHADER_PARAMETER_TEXTURE(Texture2D, Transmission0)
 	SHADER_PARAMETER_TEXTURE(Texture2D, Transmission1)
 	SHADER_PARAMETER_SAMPLER(SamplerState, Transmission0Sampler)
@@ -1336,7 +1336,7 @@ public:
 		if (LightPositionOrDirection.IsBound())
 		{
 			const FVector LightPosition = ShadowInfo ? FVector(ShadowInfo->GetLightSceneInfo().Proxy->GetPosition()) : FVector::ZeroVector;
-			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, FVector4(LightPosition, 1));
+			SetShaderValue(RHICmdList, ShaderRHI, LightPositionOrDirection, FVector4f(LightPosition, 1));
 		}
 		
 		if (ShadowDepthCubeComparisonSampler.IsBound())
@@ -1466,7 +1466,7 @@ public:
 
 		const FLightSceneProxy& LightProxy = *(ShadowInfo->GetLightSceneInfo().Proxy);
 
-		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4(FVector3f(LightProxy.GetPosition()), 1.0f / LightProxy.GetRadius()));
+		SetShaderValue(RHICmdList, ShaderRHI, LightPosition, FVector4f(FVector3f(LightProxy.GetPosition()), 1.0f / LightProxy.GetRadius()));
 
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowFadeFraction, ShadowInfo->FadeAlphas[ViewIndex]);
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowSharpen, LightProxy.GetShadowSharpen() * 7.0f + 1.0f);
@@ -1524,7 +1524,7 @@ private:
 // Reversed Z
 struct FShadowProjectionMatrix : FMatrix
 {
-	FShadowProjectionMatrix(float MinZ, float MaxZ, const FVector4& WAxis) :
+	FShadowProjectionMatrix(float MinZ, float MaxZ, const FVector4f& WAxis) :
 		FMatrix(
 			FPlane(1,	0,	0,													WAxis.X),
 			FPlane(0,	1,	0,													WAxis.Y),
@@ -1534,7 +1534,7 @@ struct FShadowProjectionMatrix : FMatrix
 	{}
 
 	// Off center projection
-	FShadowProjectionMatrix( const FVector2D& Min, const FVector2D& Max, const FVector4& WAxis )
+	FShadowProjectionMatrix( const FVector2D& Min, const FVector2D& Max, const FVector4f& WAxis )
 		: FMatrix(
 			FPlane( 2.0f / (Max.X - Min.X),				0.0f,								0.0f, WAxis.X),
 			FPlane( 0.0f,								2.0f / (Max.Y - Min.Y),				0.0f, WAxis.Y),
@@ -1599,7 +1599,7 @@ public:
 		float SW = 2.0 * ShadowInfo->ShadowBounds.W;
 		float SZ = ShadowInfo->MaxSubjectZ - ShadowInfo->MinSubjectZ;
 
-		FVector4 PCSSParameterValues = FVector4(TanLightSourceAngle * SZ / SW, MaxKernelSize / float(ShadowInfo->ResolutionX), 0, 0);
+		FVector4f PCSSParameterValues = FVector4f(TanLightSourceAngle * SZ / SW, MaxKernelSize / float(ShadowInfo->ResolutionX), 0, 0);
 		SetShaderValue(RHICmdList, ShaderRHI, PCSSParameters, PCSSParameterValues);
 	}
 
@@ -1652,7 +1652,7 @@ public:
 		check(CVarMaxSoftShadowKernelSize);
 		int32 MaxKernelSize = CVarMaxSoftShadowKernelSize->GetInt();
 
-		FVector4 PCSSParameterValues = FVector4(0, MaxKernelSize / float(ShadowInfo->ResolutionX), 0, 0);
+		FVector4f PCSSParameterValues = FVector4f(0, MaxKernelSize / float(ShadowInfo->ResolutionX), 0, 0);
 		SetShaderValue(RHICmdList, ShaderRHI, PCSSParameters, PCSSParameterValues);
 	}
 

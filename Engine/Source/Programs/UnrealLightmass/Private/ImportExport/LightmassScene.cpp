@@ -1064,7 +1064,7 @@ FLinearColor FPointLight::GetDirectIntensity(const FVector4& Point, bool bCalcul
 	}
 	else
 	{
-		float RadialAttenuation = FMath::Pow(FMath::Max(1.0f - ((Position - Point) / Radius).SizeSquared3(), 0.0f), FalloffExponent);
+		float RadialAttenuation = FMath::Pow(FMath::Max(1.0f - ((Position - Point) / Radius).SizeSquared3(), 0.0f), (FVector4::FReal)FalloffExponent);
 
 		return FLight::GetDirectIntensity(Point, bCalculateForIndirectLighting) * RadialAttenuation;
 	}
@@ -1085,7 +1085,7 @@ float FPointLight::CustomAttenuation(const FVector4& Point, FLMRandomStream& Ran
 	}
 	else
 	{
-		UnrealAttenuation = FMath::Pow(FMath::Max(1.0f - ((Position - Point) / Radius).SizeSquared3(), 0.0f), FalloffExponent);
+		UnrealAttenuation = FMath::Pow(FMath::Max(1.0f - ((Position - Point) / Radius).SizeSquared3(), 0.0f), (FVector4::FReal)FalloffExponent);
 	}
 
 	// light profile (IES)
@@ -1453,7 +1453,7 @@ bool FSpotLight::AffectsBounds(const FBoxSphereBounds& Bounds) const
 
 FSphere FSpotLight::GetBoundingSphere() const
 {
-	return FMath::ComputeBoundingSphereForCone(Position, Direction, Radius, CosOuterConeAngle, SinOuterConeAngle);
+	return (FSphere)FMath::ComputeBoundingSphereForCone((FVector3f)Position, (FVector3f)Direction, Radius, CosOuterConeAngle, SinOuterConeAngle);
 }
 
 /**
@@ -1494,7 +1494,7 @@ FLinearColor FSpotLight::GetDirectIntensity(const FVector4& Point, bool bCalcula
 	}
 	else
 	{
-		float RadialAttenuation = FMath::Pow( FMath::Max(1.0f - ((Position - Point) / Radius).SizeSquared3(),0.0f), FalloffExponent );
+		float RadialAttenuation = FMath::Pow( FMath::Max(1.0f - ((Position - Point) / Radius).SizeSquared3(),0.0f), (FVector4::FReal)FalloffExponent );
 
 		return FLight::GetDirectIntensity(Point, bCalculateForIndirectLighting) * RadialAttenuation * SpotAttenuation;
 	}
@@ -2322,7 +2322,7 @@ FLinearColor FMeshAreaLight::GetDirectIntensity(const FVector4& Point, bool bCal
 		if (NDotL >= 0)
 		{
 			// Using standard Unreal attenuation for point lights for each primitive
-			const float RadialAttenuation = FMath::Pow(FMath::Max(1.0f - ((PrimitiveCenter - Point) / InfluenceRadius).SizeSquared3(), 0.0f), FalloffExponent);
+			const float RadialAttenuation = FMath::Pow(FMath::Max(1.0f - ((PrimitiveCenter - Point) / InfluenceRadius).SizeSquared3(), 0.0f), (FVector4::FReal)FalloffExponent);
 			// Weight exitant power by the distance attenuation to this primitive and the light's cosine distribution around the primitive's normal
 			//@todo - photon emitting does not take the cosine distribution into account
 			AccumulatedPower += CurrentPrimitive.Power * RadialAttenuation * NDotL;
@@ -2349,7 +2349,7 @@ float FMeshAreaLight::CustomAttenuation(const FVector4& Point, FLMRandomStream& 
 		const float NDotL = Dot3((Point - PrimitiveCenter), CurrentPrimitive.SurfaceNormal);
 		if (NDotL >= 0)
 		{
-			const float RadialAttenuation = FMath::Pow(FMath::Max(1.0f - ((PrimitiveCenter - Point) / InfluenceRadius).SizeSquared3(), 0.0f), FalloffExponent);
+			const float RadialAttenuation = FMath::Pow(FMath::Max(1.0f - ((PrimitiveCenter - Point) / InfluenceRadius).SizeSquared3(), 0.0f), (FVector4::FReal)FalloffExponent);
 			const float PowerWeight = FLinearColorUtils::LinearRGBToXYZ(CurrentPrimitive.Power).G;
 			// Weight the attenuation factors by how much power this primitive emits, and its distance attenuation
 			PowerWeightedAttenuation += PowerWeight * RadialAttenuation;

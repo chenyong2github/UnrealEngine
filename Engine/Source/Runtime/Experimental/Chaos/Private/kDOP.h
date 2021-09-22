@@ -155,8 +155,8 @@ FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End
 	for( int32 SideIndex = 0; SideIndex < 3; SideIndex++ )
 	{
 		const FVector4& SideDirection = Normal ^ (*Verts[(SideIndex + 1) % 3] - *Verts[SideIndex]);
-		const float SideW = Dot3(SideDirection, *Verts[SideIndex]);
-		const float DotW = Dot3(SideDirection, Intersection);
+		const FVector4::FReal SideW = Dot3(SideDirection, *Verts[SideIndex]);
+		const FVector4::FReal DotW = Dot3(SideDirection, Intersection);
 		if ((DotW - SideW) >= 0.001f)
 		{
 			return false;
@@ -445,8 +445,8 @@ struct TkDOPNode
 			bIsLeaf = 0;
 			Occupancy = 0;
 			int32 BestPlane = -1;
-			float BestMean = 0.f;
-			float BestVariance = 0.f;
+			double BestMean = 0.f;
+			double BestVariance = 0.f;
 
 			// Determine how to split using the splatter algorithm
 			{
@@ -494,8 +494,8 @@ struct TkDOPNode
 					if (Variance[nPlane] >= BestVariance)
 					{
 						BestPlane = nPlane;
-						BestVariance = (float)Variance[nPlane];
-						BestMean = (float)Mean[nPlane];
+						BestVariance = Variance[nPlane];
+						BestMean = Mean[nPlane];
 					}
 				}
 			}
@@ -510,7 +510,7 @@ struct TkDOPNode
 				// Loop invariants: (1) Left < Right,
 				// (2) All triangles <= Left belong on the left, all triangles >= Right belong on the right
 				// (3) Left+1 is an untested triangle, Right-1 is an untested triangle
-				float Dot;
+				FVector4::FReal Dot;
 				// Increment Left until it points to triangle that belongs on the right, or Right==Left
 				for (++Left; Left < Right; ++Left)
 				{

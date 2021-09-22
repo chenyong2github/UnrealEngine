@@ -20,7 +20,7 @@ struct FNDISpline_InstanceData_RenderThread
 	FMatrix44f SplineTransform;
 	FMatrix44f SplineTransformRotationMat;
 	FMatrix44f SplineTransformInverseTranspose;
-	FQuat SplineTransformRotation;
+	FQuat4f SplineTransformRotation;
 
 	FVector3f DefaultUpVector;
 
@@ -44,12 +44,12 @@ struct FNDISpline_InstanceData_RenderThread
 		SplineRotationsLUT.Release();
 
 
-		SplineTransform = FMatrix::Identity;
-		SplineTransformRotationMat = FMatrix::Identity;
-		SplineTransformInverseTranspose = FMatrix::Identity;
-		SplineTransformRotation = FQuat::Identity;
+		SplineTransform = FMatrix44f::Identity;
+		SplineTransformRotationMat = FMatrix44f::Identity;
+		SplineTransformInverseTranspose = FMatrix44f::Identity;
+		SplineTransformRotation = FQuat4f::Identity;
 
-		DefaultUpVector = FVector::ZAxisVector;
+		DefaultUpVector = FVector3f::ZAxisVector;
 
 		SplineLength = 0.0f;
 		SplineDistanceStep = 0.0f;

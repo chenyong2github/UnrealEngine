@@ -358,8 +358,8 @@ FLightMapInteraction FLightMapInteraction::Texture(
 	const class ULightMapTexture2D* const* InTextures,
 	const ULightMapTexture2D* InSkyOcclusionTexture,
 	const ULightMapTexture2D* InAOMaterialMaskTexture,
-	const FVector4* InCoefficientScales,
-	const FVector4* InCoefficientAdds,
+	const FVector4f* InCoefficientScales,
+	const FVector4f* InCoefficientAdds,
 	const FVector2D& InCoordinateScale,
 	const FVector2D& InCoordinateBias,
 	bool bUseHighQualityLightMaps)
@@ -416,8 +416,8 @@ FLightMapInteraction FLightMapInteraction::Texture(
 
 FLightMapInteraction FLightMapInteraction::InitVirtualTexture(
 	const ULightMapVirtualTexture2D* VirtualTexture,
-	const FVector4* InCoefficientScales,
-	const FVector4* InCoefficientAdds,
+	const FVector4f* InCoefficientScales,
+	const FVector4f* InCoefficientAdds,
 	const FVector2D& InCoordinateScale,
 	const FVector2D& InCoordinateBias,
 	bool bAllowHighQualityLightMaps)

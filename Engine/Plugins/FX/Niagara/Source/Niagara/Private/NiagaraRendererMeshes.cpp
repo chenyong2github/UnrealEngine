@@ -764,7 +764,7 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultScale, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector3f));
 					break;
 				case ENiagaraMeshVFLayout::Type::Rotation:
-					FMemory::Memcpy(&PerViewUniformParameters.DefaultRotation, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					FMemory::Memcpy(&PerViewUniformParameters.DefaultRotation, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
 					break;
 				case ENiagaraMeshVFLayout::Type::MaterialRandom:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultMatRandom, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(float));
@@ -779,16 +779,16 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultSubImage, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(float));
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam0:
-					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter0, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter0, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam1:
-					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter1, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter1, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam2:
-					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter2, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter2, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
 					break;
 				case ENiagaraMeshVFLayout::Type::DynamicParam3:
-					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter3, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					FMemory::Memcpy(&PerViewUniformParameters.DefaultDynamicMaterialParameter3, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
 					break;
 				case ENiagaraMeshVFLayout::Type::CameraOffset:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultCamOffset, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(float));
@@ -800,7 +800,7 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultPrevScale, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector3f));
 					break;
 				case ENiagaraMeshVFLayout::Type::PrevRotation:
-					FMemory::Memcpy(&PerViewUniformParameters.DefaultPrevRotation, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4));
+					FMemory::Memcpy(&PerViewUniformParameters.DefaultPrevRotation, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(FVector4f));
 					break;
 				case ENiagaraMeshVFLayout::Type::PrevCameraOffset:
 					FMemory::Memcpy(&PerViewUniformParameters.DefaultPrevCamOffset, ParameterBoundData + VFBoundOffsetsInParamStore[i], sizeof(float));
@@ -1235,7 +1235,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 				if (VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Rotation] != INDEX_NONE
 					&& ParticleMeshRenderData.DynamicDataMesh->ParameterDataBound.IsValidIndex(VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Rotation]))
 				{
-					FMemory::Memcpy(&Rot, ParameterBoundData + VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Rotation], sizeof(FVector4));
+					FMemory::Memcpy(&Rot, ParameterBoundData + VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Rotation], sizeof(FVector4f));
 				}
 			}
 

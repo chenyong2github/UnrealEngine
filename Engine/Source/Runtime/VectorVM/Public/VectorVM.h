@@ -568,7 +568,7 @@ namespace VectorVM
 			const uint16 ConstantTableOffset = VariableOffset & VVM_EXT_FUNC_INPUT_LOC_MASK;
 			UserPtrIdx = *Context.GetConstant<int32>(ConstantTableOffset);
 			check(UserPtrIdx != INDEX_NONE);
-
+			
 			Ptr = reinterpret_cast<T*>(Context.GetUserPtrTable(UserPtrIdx));
 #endif
 		}

@@ -18,7 +18,7 @@ class FLumenCardUpdateContext;
 class FHemisphereDirectionSampleGenerator
 {
 public:
-	TArray<FVector4> SampleDirections;
+	TArray<FVector4f> SampleDirections;
 	float ConeHalfAngle = 0;
 	int32 Seed = 0;
 	int32 PowerOfTwoDivisor = 1;
@@ -27,7 +27,7 @@ public:
 
 	void GenerateSamples(int32 TargetNumSamples, int32 InPowerOfTwoDivisor, int32 InSeed, bool bInFullSphere = false, bool bInCosineDistribution = false);
 
-	void GetSampleDirections(const FVector4*& OutDirections, int32& OutNumDirections) const
+	void GetSampleDirections(const FVector4f*& OutDirections, int32& OutNumDirections) const
 	{
 		OutDirections = SampleDirections.GetData();
 		OutNumDirections = SampleDirections.Num();
@@ -36,12 +36,12 @@ public:
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenVoxelTracingParameters, )
 	SHADER_PARAMETER(uint32, NumClipmapLevels)
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSamplingExtent, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapWorldSamplingExtent, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_ARRAY(FVector4f, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
@@ -102,7 +102,7 @@ public:
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldCenter;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldExtent;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldSamplingExtent;
-	TStaticArray<FVector4, MaxVoxelClipmapLevels> ClipmapVoxelSizeAndRadius;
+	TStaticArray<FVector4f, MaxVoxelClipmapLevels> ClipmapVoxelSizeAndRadius;
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
 };
 
@@ -156,11 +156,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenHZBScreenTraceParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevSceneColorTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistorySceneDepth)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ClosestHZBTexture)
-	SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
-	SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
+	SHADER_PARAMETER(FVector4f, HZBUvFactorAndInvFactor)
+	SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
 	SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
 	SHADER_PARAMETER(FVector2D, HZBBaseTexelSize)
-	SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
+	SHADER_PARAMETER(FVector4f, HZBUVToScreenUVScaleBias)
 END_SHADER_PARAMETER_STRUCT()
 
 void VisualizeHardwareRayTracing(

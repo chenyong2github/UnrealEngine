@@ -45,7 +45,7 @@ struct TVectorSectionEditorDataTraits<float>
 		else
 		{
 			ensure(NumChannels == 4);
-			FVector4 Vector = Bindings.GetCurrentValue<FVector4>(InObject);
+			FVector4f Vector = Bindings.GetCurrentValue<FVector4f>(InObject);
 			return FCompositeValue(Vector.X, Vector.Y, Vector.Z, Vector.W);
 		}
 	}

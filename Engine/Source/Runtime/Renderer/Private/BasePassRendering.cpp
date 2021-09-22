@@ -588,7 +588,7 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 	BasePassParameters.DBuffer = GetDBufferParameters(GraphBuilder, DBufferTextures, View.GetShaderPlatform());
 
 	// Single Layer Water
-	BasePassParameters.SceneWithoutSingleLayerWaterMinMaxUV = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+	BasePassParameters.SceneWithoutSingleLayerWaterMinMaxUV = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
 	BasePassParameters.SceneColorWithoutSingleLayerWaterTexture = SystemTextures.Black;
 	BasePassParameters.SceneDepthWithoutSingleLayerWaterTexture = SystemTextures.Black;
 	BasePassParameters.SceneColorWithoutSingleLayerWaterSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();

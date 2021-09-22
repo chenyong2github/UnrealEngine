@@ -116,10 +116,10 @@ FLidarPointCloudBatchElementUserData::FLidarPointCloudBatchElementUserData()
 {
 	for (int32 i = 0; i < 16; ++i)
 	{
-		ClippingVolume[i] = FMatrix(FPlane(FVector::ZeroVector, 0),
-									FPlane(FVector::ForwardVector, FLT_MAX),
-									FPlane(FVector::RightVector, FLT_MAX),
-									FPlane(FVector::UpVector, FLT_MAX));
+		ClippingVolume[i] = FMatrix44f(FPlane4f(FVector3f::ZeroVector, 0),
+									FPlane4f(FVector3f::ForwardVector, FLT_MAX),
+									FPlane4f(FVector3f::RightVector, FLT_MAX),
+									FPlane4f(FVector3f::UpVector, FLT_MAX));
 	}
 
 #if WITH_EDITOR

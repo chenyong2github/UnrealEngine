@@ -26,7 +26,6 @@ class IGizmoStateTarget;
 class UGizmoConstantFrameAxisSource;
 class UGizmoTransformChangeStateTarget;
 class FEditorTransformGizmoTransformChange;
-class FRay;
 
 UCLASS()
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public UInteractiveGizmoBuilder, public IEditorInteractiveGizmoSelectionBuilder

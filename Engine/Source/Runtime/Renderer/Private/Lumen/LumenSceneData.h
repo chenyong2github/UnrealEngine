@@ -217,7 +217,7 @@ struct FLumenPageTableEntry
 	// CardPage for atlas operations
 	int32 CardIndex = -1;
 	uint8 ResLevel = 0;
-	FVector4 CardUVRect;
+	FVector4f CardUVRect;
 
 	FIntPoint SubAllocationSize = FIntPoint(-1, -1);
 

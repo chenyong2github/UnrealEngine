@@ -66,7 +66,7 @@ FArchive& operator<<( FArchive& Ar, FAttributesSetBase& AttributesSet )
 		check( NumAttributeTypes == 7 );
 
 		AttributesSet.Map.Empty();
-		SerializeLegacy<FVector4>( Ar, AttributesSet );
+		SerializeLegacy<FVector4f>( Ar, AttributesSet );
 		SerializeLegacy<FVector3f>( Ar, AttributesSet );
 		SerializeLegacy<FVector2D>( Ar, AttributesSet );
 		SerializeLegacy<float>( Ar, AttributesSet );

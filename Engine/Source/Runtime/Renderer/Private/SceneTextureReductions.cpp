@@ -20,7 +20,7 @@ static TAutoConsoleVariable<int32> CVarHZBBuildUseCompute(
 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSharedHZBParameters, )
-	SHADER_PARAMETER(FVector4, DispatchThreadIdToBufferUV)
+	SHADER_PARAMETER(FVector4f, DispatchThreadIdToBufferUV)
 	SHADER_PARAMETER(FIntVector4, PixelViewPortMinMax)
 	SHADER_PARAMETER(FVector2D, InputViewportMaxBound)
 	SHADER_PARAMETER(FVector2D, InvSize)
@@ -150,7 +150,7 @@ void BuildHZB(
 
 	auto ReduceMips = [&](
 		FRDGTextureSRVRef ParentTextureMip, FIntPoint SrcSize,
-		int32 StartDestMip, FVector4 DispatchThreadIdToBufferUV, FVector2D InputViewportMaxBound,
+		int32 StartDestMip, FVector4f DispatchThreadIdToBufferUV, FVector2D InputViewportMaxBound,
 		FIntVector4 PixelViewPortMinMax, bool bOutputClosest, bool bOutputFurthest)
 	{
 
@@ -231,7 +231,7 @@ void BuildHZB(
 		FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepth));
 		FIntPoint SrcSize = VisBufferTexture ? VisBufferTexture->Desc.Extent : ParentTextureMip->Desc.Texture->Desc.Extent;
 		
-		FVector4 DispatchThreadIdToBufferUV;
+		FVector4f DispatchThreadIdToBufferUV;
 		DispatchThreadIdToBufferUV.X = 2.0f / float(SrcSize.X);
 		DispatchThreadIdToBufferUV.Y = 2.0f / float(SrcSize.Y);
 		DispatchThreadIdToBufferUV.Z = ViewRect.Min.X / float(SrcSize.X);
@@ -255,7 +255,7 @@ void BuildHZB(
 	{
 		FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(HZBSize, 1 << int32(StartDestMip - 1));
 
-		FVector4 DispatchThreadIdToBufferUV;
+		FVector4f DispatchThreadIdToBufferUV;
 		DispatchThreadIdToBufferUV.X = 2.0f / float(SrcSize.X);
 		DispatchThreadIdToBufferUV.Y = 2.0f / float(SrcSize.Y);
 		DispatchThreadIdToBufferUV.Z = 0.0f;

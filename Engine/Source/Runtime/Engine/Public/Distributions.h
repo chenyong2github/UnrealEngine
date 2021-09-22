@@ -480,9 +480,18 @@ public:
 	 * @param OutMin - The minimum value in the distribution.
 	 * @param OutMax - The maximum value in the distribution.
 	 */
-	void GetRange( FVector4* OutMin, FVector4* OutMax )
+	void GetRange( FVector4f* OutMin, FVector4f* OutMax )
 	{
 		LookupTable.GetRange( (float*)OutMin, (float*)OutMax );
+	}
+
+	// LWC_TODO: Precision loss
+	void GetRange(FVector4d* OutMin, FVector4d* OutMax)
+	{
+		FVector4f OutMinFloat, OutMaxFloat;
+		GetRange(&OutMinFloat, &OutMaxFloat);
+		*OutMin = OutMinFloat;
+		*OutMax = OutMaxFloat;
 	}
 
 private:

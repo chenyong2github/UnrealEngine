@@ -1604,10 +1604,10 @@ struct FReflectionCaptureSortData
 	uint32 Guid;
 	int32 CubemapIndex;
 	FVector4 PositionAndRadius;
-	FVector4 CaptureProperties;
+	FVector4f CaptureProperties;
 	FMatrix BoxTransform;
-	FVector4 BoxScales;
-	FVector4 CaptureOffsetAndAverageBrightness;
+	FVector4f BoxScales;
+	FVector4f CaptureOffsetAndAverageBrightness;
 	FReflectionCaptureProxy* CaptureProxy;
 
 	bool operator < (const FReflectionCaptureSortData& Other) const
@@ -1687,11 +1687,11 @@ public:
 class FVolumetricLightmapInterpolation
 {
 public:
-	FVector4 IndirectLightingSHCoefficients0[3];
-	FVector4 IndirectLightingSHCoefficients1[3];
-	FVector4 IndirectLightingSHCoefficients2;
-	FVector4 IndirectLightingSHSingleCoefficient;
-	FVector4 PointSkyBentNormal;
+	FVector4f IndirectLightingSHCoefficients0[3];
+	FVector4f IndirectLightingSHCoefficients1[3];
+	FVector4f IndirectLightingSHCoefficients2;
+	FVector4f IndirectLightingSHSingleCoefficient;
+	FVector4f PointSkyBentNormal;
 	float DirectionalLightShadowing;
 	uint32 LastUsedSceneFrameNumber;
 };

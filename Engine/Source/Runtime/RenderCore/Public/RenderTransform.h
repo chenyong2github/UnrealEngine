@@ -36,6 +36,7 @@ public:
 
 	FORCEINLINE FRenderTransform(const FMatrix44d& M)
 	{
+		// LWC_TODO: Precision loss
 		TransformRows[0] = FVector3f(M.M[0][0], M.M[0][1], M.M[0][2]);
 		TransformRows[1] = FVector3f(M.M[1][0], M.M[1][1], M.M[1][2]);
 		TransformRows[2] = FVector3f(M.M[2][0], M.M[2][1], M.M[2][2]);

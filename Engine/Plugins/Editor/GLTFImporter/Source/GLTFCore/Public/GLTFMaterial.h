@@ -129,7 +129,7 @@ namespace GLTF
 
 		// PBR properties
 		FTextureMap         BaseColor;		 // Used for DiffuseColor on Specular-Glossiness mode
-		FVector4            BaseColorFactor; // Used for DiffuseFactor on Specular-Glossiness mode
+		FVector4f           BaseColorFactor; // Used for DiffuseFactor on Specular-Glossiness mode
 		EShadingModel       ShadingModel;
 		FMetallicRoughness  MetallicRoughness;
 		FSpecularGlossiness SpecularGlossiness;

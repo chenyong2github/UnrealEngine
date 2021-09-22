@@ -65,25 +65,26 @@ void FSplineMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 		FSplineMeshSceneProxy* SplineProxy = BatchElement.SplineMeshSceneProxy;
 		FSplineMeshParams& SplineParams = SplineProxy->SplineParams;
 
-	FVector4 ParamData[10];
-	ParamData[0] = FVector4(SplineParams.StartPos, SplineParams.StartRoll);
-	ParamData[1] = FVector4(SplineParams.StartTangent, SplineParams.EndRoll);
-	ParamData[2] = FVector4(SplineParams.StartScale, SplineParams.StartOffset);
-	ParamData[3] = FVector4(SplineParams.EndPos, (float)(int32)SplineProxy->bSmoothInterpRollScale);
-	ParamData[4] = FVector4(SplineParams.EndTangent, SplineProxy->SplineMeshMinZ);
-	ParamData[5] = FVector4(SplineParams.EndScale, SplineParams.EndOffset);
-	ParamData[6] = FVector4(SplineProxy->SplineUpDir, SplineProxy->SplineMeshScaleZ);
+	FVector4f ParamData[10];
+	// LWC_TODO: Precision loss
+	ParamData[0] = FVector4f(SplineParams.StartPos, SplineParams.StartRoll);
+	ParamData[1] = FVector4f(SplineParams.StartTangent, SplineParams.EndRoll);
+	ParamData[2] = FVector4f(SplineParams.StartScale, SplineParams.StartOffset);
+	ParamData[3] = FVector4f(SplineParams.EndPos, (float)(int32)SplineProxy->bSmoothInterpRollScale);
+	ParamData[4] = FVector4f(SplineParams.EndTangent, SplineProxy->SplineMeshMinZ);
+	ParamData[5] = FVector4f(SplineParams.EndScale, SplineParams.EndOffset);
+	ParamData[6] = FVector4f(SplineProxy->SplineUpDir, SplineProxy->SplineMeshScaleZ);
 
-		FVector DirMask(0, 0, 0);
-	DirMask = FVector::ZeroVector;
+		FVector3f DirMask(0, 0, 0);
+	DirMask = FVector3f::ZeroVector;
 		DirMask[SplineProxy->ForwardAxis] = 1;
-	ParamData[7] = FVector4(DirMask, 0);
-		DirMask = FVector::ZeroVector;
+	ParamData[7] = FVector4f(DirMask, 0);
+		DirMask = FVector3f::ZeroVector;
 		DirMask[(SplineProxy->ForwardAxis + 1) % 3] = 1;
-	ParamData[8] = FVector4(DirMask, 0);
-		DirMask = FVector::ZeroVector;
+	ParamData[8] = FVector4f(DirMask, 0);
+		DirMask = FVector3f::ZeroVector;
 		DirMask[(SplineProxy->ForwardAxis + 2) % 3] = 1;
-	ParamData[9] = FVector4(DirMask, 0);
+	ParamData[9] = FVector4f(DirMask, 0);
 
 	ShaderBindings.Add(SplineMeshParams, ParamData);
 }

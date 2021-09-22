@@ -75,7 +75,7 @@ int32 FSceneRenderer::GetRefractionQuality(const FSceneViewFamily& ViewFamily)
 	return Value;
 }
 
-void SetupDistortionParams(FVector4& DistortionParams, const FViewInfo& View)
+void SetupDistortionParams(FVector4f& DistortionParams, const FViewInfo& View)
 {
 	float Ratio = View.UnscaledViewRect.Width() / (float)View.UnscaledViewRect.Height();
 	DistortionParams.X = View.ViewMatrices.GetProjectionMatrix().M[0][0];
@@ -429,11 +429,11 @@ class FFilterSceneColorCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SampleCount)
 		SHADER_PARAMETER(uint32, SrcMipIndex)
 		SHADER_PARAMETER(FIntPoint, MipResolution)
-		SHADER_PARAMETER(FVector4, BlurDirection)
+		SHADER_PARAMETER(FVector4f, BlurDirection)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SourceTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SourceSampler)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTextureMipColor)
-		SHADER_PARAMETER_ARRAY(FVector4, SampleOffsetsWeights, [MAX_FILTER_SAMPLE_COUNT])
+		SHADER_PARAMETER_ARRAY(FVector4f, SampleOffsetsWeights, [MAX_FILTER_SAMPLE_COUNT])
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -573,10 +573,10 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 					PassParameters->OutTextureMipColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(TempSceneColorMipchainTexture, MipIndex));
 
 					PassParameters->SampleCount = SampleCount;
-					PassParameters->BlurDirection = FVector4(1.0f, 0.0f, 0.0f, 0.0f);
+					PassParameters->BlurDirection = FVector4f(1.0f, 0.0f, 0.0f, 0.0f);
 					for (uint32 i = 0; i < SampleCount; ++i)
 					{
-						PassParameters->SampleOffsetsWeights[i] = FVector4(InverseFilterTextureExtent.X * OffsetAndWeight[i].X, OffsetAndWeight[i].Y);
+						PassParameters->SampleOffsetsWeights[i] = FVector4f(InverseFilterTextureExtent.X * OffsetAndWeight[i].X, OffsetAndWeight[i].Y);
 					}
 
 					AddFilterSceneColorPass(GraphBuilder, PassParameters, View);
@@ -607,10 +607,10 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 					PassParameters->OutTextureMipColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorMipchainTexture, MipIndex));
 
 					PassParameters->SampleCount = SampleCount;
-					PassParameters->BlurDirection = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
+					PassParameters->BlurDirection = FVector4f(0.0f, 1.0f, 0.0f, 0.0f);
 					for (uint32 i = 0; i < SampleCount; ++i)
 					{
-						PassParameters->SampleOffsetsWeights[i] = FVector4(InverseFilterTextureExtent.Y * OffsetAndWeight[i].X, OffsetAndWeight[i].Y);
+						PassParameters->SampleOffsetsWeights[i] = FVector4f(InverseFilterTextureExtent.Y * OffsetAndWeight[i].X, OffsetAndWeight[i].Y);
 					}
 
 					AddFilterSceneColorPass(GraphBuilder, PassParameters, View);

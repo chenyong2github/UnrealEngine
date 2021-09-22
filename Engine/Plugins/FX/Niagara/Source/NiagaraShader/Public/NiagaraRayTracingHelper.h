@@ -198,7 +198,7 @@ public:
 
 			auto ClearFloatBuffer = [&](FRWBuffer& Buffer)
 			{
-				RHICmdList.ClearUAVFloat(Buffer.UAV, FVector4(0.0f));
+				RHICmdList.ClearUAVFloat(Buffer.UAV, FVector4f(0.0f));
 			};
 			ScratchBufferFloat.ForEachBuffer(ClearFloatBuffer);
 
@@ -249,7 +249,7 @@ FORCEINLINE FGPUScratchPad::FAllocation FGPUScratchPad::Alloc<float>(uint32 Size
 	if (bNewBuffer && bClearNew)
 	{
 		RHICmdList.Transition(FRHITransitionInfo(Allocation.Buffer->UAV, ScratchBufferFloat.GetExpectedCurrentAccess(), ERHIAccess::UAVCompute));
-		RHICmdList.ClearUAVFloat(Allocation.Buffer->UAV, FVector4(0.0f));
+		RHICmdList.ClearUAVFloat(Allocation.Buffer->UAV, FVector4f(0.0f));
 		RHICmdList.Transition(FRHITransitionInfo(Allocation.Buffer->UAV, ERHIAccess::UAVCompute, ScratchBufferFloat.GetExpectedCurrentAccess()));
 	}
 	return Allocation;

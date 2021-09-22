@@ -140,7 +140,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, "SkyLight");
 
 struct FSkyLightVisibilityRays
 {
-	FVector4 DirectionAndPdf;
+	FVector4f DirectionAndPdf;
 };
 
 bool SetupSkyLightParameters(

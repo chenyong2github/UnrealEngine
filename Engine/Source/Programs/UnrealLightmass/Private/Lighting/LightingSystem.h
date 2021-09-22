@@ -2742,7 +2742,7 @@ private:
 	int32 VolumeSizeX;
 	int32 VolumeSizeY;
 	int32 VolumeSizeZ;
-	float DistanceFieldVoxelSize;
+	FVector4::FReal DistanceFieldVoxelSize;
 	FBox DistanceFieldVolumeBounds;
 	TArray<FColor> VolumeDistanceField;
 

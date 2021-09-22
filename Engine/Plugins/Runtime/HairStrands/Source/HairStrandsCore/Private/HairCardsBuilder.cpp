@@ -4167,7 +4167,7 @@ protected:
 	TVertexAttributesRef<FVector3f> VertexPositions;
 	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
 	TVertexInstanceAttributesRef<FVector3f> InstanceNormals;
-	TVertexInstanceAttributesRef<FVector4> InstanceColors;
+	TVertexInstanceAttributesRef<FVector4f> InstanceColors;
 
 	TPolygonAttributesRef<int> PolyGroups;
 };
@@ -4183,7 +4183,7 @@ void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
 	this->VertexPositions	= MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 	this->InstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 	this->InstanceNormals	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
-	this->InstanceColors	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+	this->InstanceColors	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4f>(MeshAttribute::VertexInstance::Color);
 }
 
 void FMeshDescriptionBuilder::EnablePolyGroups()

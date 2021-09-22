@@ -1076,7 +1076,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 			FStaticMeshAttributes MeshAttributes(Mesh);
 			TVertexAttributesRef<FVector3f> VertexPositions = MeshAttributes.GetVertexPositions();
 			TVertexInstanceAttributesRef<FVector2D> UVs = MeshAttributes.GetVertexInstanceUVs();
-			TVertexInstanceAttributesRef<FVector4> Colors = MeshAttributes.GetVertexInstanceColors();
+			TVertexInstanceAttributesRef<FVector4f> Colors = MeshAttributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector3f> Normals = MeshAttributes.GetVertexInstanceNormals();
 			TEdgeAttributesRef<bool> EdgeHardnesses = MeshAttributes.GetEdgeHardnesses();
 

@@ -25,10 +25,10 @@ public:
 		FPlatformMemory::Memzero(this, sizeof(FGlobalDistanceFieldParameterData));
 	}
 
-	FVector4 CenterAndExtent[GMaxGlobalDistanceFieldClipmaps];
-	FVector4 WorldToUVAddAndMul[GMaxGlobalDistanceFieldClipmaps];
-	FVector4 MipWorldToUVScale[GMaxGlobalDistanceFieldClipmaps];
-	FVector4 MipWorldToUVBias[GMaxGlobalDistanceFieldClipmaps];
+	FVector4f CenterAndExtent[GMaxGlobalDistanceFieldClipmaps];
+	FVector4f WorldToUVAddAndMul[GMaxGlobalDistanceFieldClipmaps];
+	FVector4f MipWorldToUVScale[GMaxGlobalDistanceFieldClipmaps];
+	FVector4f MipWorldToUVBias[GMaxGlobalDistanceFieldClipmaps];
 	float MipFactor;
 	float MipTransition;
 	FVector PageTableScrollOffset[GMaxGlobalDistanceFieldClipmaps];

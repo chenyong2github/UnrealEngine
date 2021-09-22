@@ -260,7 +260,7 @@ public:
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), MinZ, MinZValue);
 
 		const FVector ViewSpaceBoundingSphereCenter = View.ViewMatrices.GetViewMatrix().TransformPosition(BoundingSphere.Center);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewSpaceBoundingSphere, FVector4(ViewSpaceBoundingSphereCenter, BoundingSphere.W));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewSpaceBoundingSphere, FVector4f(ViewSpaceBoundingSphereCenter, BoundingSphere.W));
 
 		const FMatrix44f ProjectionMatrix = View.ViewMatrices.ComputeProjectionNoAAMatrix();
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewToVolumeClip, ProjectionMatrix);
@@ -354,7 +354,7 @@ public:
 		int32 VirtualShadowMapId,
 		const FMatrix& LightFunctionMatrix,
 		FRDGTextureRef LightFunctionAtlasTexture,
-		FVector4 LightFunctionAtlasTileMinMaxUvBound)
+		FVector4f LightFunctionAtlasTileMinMaxUvBound)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -410,7 +410,7 @@ void GetVolumeShadowingShaderParameters(
 
 	if (bDynamicallyShadowed && ShadowMap != nullptr)
 	{
-		FVector4 ShadowmapMinMaxValue;
+		FVector4f ShadowmapMinMaxValue;
 		FMatrix WorldToShadowMatrixValue = ShadowMap->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
 
 		OutParameters.WorldToShadowMatrix = WorldToShadowMatrixValue;
@@ -423,9 +423,9 @@ void GetVolumeShadowingShaderParameters(
 	}
 
 	// default to ignore the plane
-	FVector4 Planes[2] = { FVector4(0, 0, 0, -1), FVector4(0, 0, 0, -1) };
+	FVector4f Planes[2] = { FVector4f(0, 0, 0, -1), FVector4f(0, 0, 0, -1) };
 	// .zw:DistanceFadeMAD to use MAD for efficiency in the shader, default to ignore the plane
-	FVector4 ShadowInjectParamValue(1, 1, 0, 0);
+	FVector4f ShadowInjectParamValue(1, 1, 0, 0);
 
 	if (InnerSplitIndex >= 0)
 	{
@@ -436,7 +436,7 @@ void GetVolumeShadowingShaderParameters(
 		// near cascade plane
 		{
 			ShadowInjectParamValue.X = ShadowCascadeSettings.SplitNearFadeRegion == 0 ? 1.0f : 1.0f / ShadowCascadeSettings.SplitNearFadeRegion;
-			Planes[0] = FVector4((FVector)(ShadowCascadeSettings.NearFrustumPlane),  -ShadowCascadeSettings.NearFrustumPlane.W);
+			Planes[0] = FVector4f((FVector)(ShadowCascadeSettings.NearFrustumPlane),  -ShadowCascadeSettings.NearFrustumPlane.W);
 		}
 
 		uint32 CascadeCount = LightSceneInfo->Proxy->GetNumViewDependentWholeSceneShadows(View, LightSceneInfo->IsPrecomputedLightingValid());
@@ -445,7 +445,7 @@ void GetVolumeShadowingShaderParameters(
 		if(InnerSplitIndex != CascadeCount - 1)
 		{
 			ShadowInjectParamValue.Y = 1.0f / ShadowCascadeSettings.SplitFarFadeRegion;
-			Planes[1] = FVector4((FVector)(ShadowCascadeSettings.FarFrustumPlane), -ShadowCascadeSettings.FarFrustumPlane.W);
+			Planes[1] = FVector4f((FVector)(ShadowCascadeSettings.FarFrustumPlane), -ShadowCascadeSettings.FarFrustumPlane.W);
 		}
 
 		const FVector2D FadeParams = LightSceneInfo->Proxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), LightSceneInfo->IsPrecomputedLightingValid(), View.MaxShadowCascades);
@@ -465,7 +465,7 @@ void GetVolumeShadowingShaderParameters(
 	OutParameters.ShadowDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	if (bDynamicallyShadowed && ShadowMap)
 	{
-		OutParameters.DepthBiasParameters = FVector4(ShadowMap->GetShaderDepthBias(), ShadowMap->GetShaderSlopeDepthBias(), ShadowMap->GetShaderMaxSlopeDepthBias(), 1.0f / (ShadowMap->MaxSubjectZ - ShadowMap->MinSubjectZ));
+		OutParameters.DepthBiasParameters = FVector4f(ShadowMap->GetShaderDepthBias(), ShadowMap->GetShaderSlopeDepthBias(), ShadowMap->GetShaderMaxSlopeDepthBias(), 1.0f / (ShadowMap->MaxSubjectZ - ShadowMap->MinSubjectZ));
 
 		FRDGTexture* ShadowDepthTextureResource = nullptr;
 		if (LightType == LightType_Point || LightType == LightType_Rect)
@@ -492,7 +492,7 @@ void GetVolumeShadowingShaderParameters(
 	const uint32 bStaticallyShadowedValue = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI ? 1 : 0;
 	FRHITexture* StaticShadowDepthMapTexture = bStaticallyShadowedValue ? StaticShadowDepthMap->TextureRHI : GWhiteTexture->TextureRHI;
 	const FMatrix WorldToStaticShadow = bStaticallyShadowedValue ? StaticShadowDepthMap->Data->WorldToLight : FMatrix::Identity;
-	const FVector4 StaticShadowBufferSizeValue = bStaticallyShadowedValue ? FVector4(StaticShadowDepthMap->Data->ShadowMapSizeX, StaticShadowDepthMap->Data->ShadowMapSizeY, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeX, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeY) : FVector4(0, 0, 0, 0);
+	const FVector4f StaticShadowBufferSizeValue = bStaticallyShadowedValue ? FVector4f(StaticShadowDepthMap->Data->ShadowMapSizeX, StaticShadowDepthMap->Data->ShadowMapSizeY, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeX, 1.0f / StaticShadowDepthMap->Data->ShadowMapSizeY) : FVector4f(0, 0, 0, 0);
 
 	OutParameters.bStaticallyShadowed = bStaticallyShadowedValue;
 
@@ -721,7 +721,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 						FRDGTextureRef LightFunctionTexture = PassParameters->LightFunctionAtlasTexture;
 						FMatrix LightFunctionMatrix = FMatrix::Identity;
-						FVector4 LightFunctionAtlasTileMinMaxUvBound = FVector4(ForceInitToZero);
+						FVector4f LightFunctionAtlasTileMinMaxUvBound = FVector4f(ForceInitToZero);
 						if (bUsesLightFunction)
 						{
 							FVolumetricFogLocalLightFunctionInfo* LightFunctionData = LocalLightFunctionData.Find(LightSceneInfo);
@@ -937,9 +937,9 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, SkyLightVolumetricScatteringIntensity, SkyLight->VolumetricScatteringIntensity);
 
 			const FSHVectorRGB3& SkyIrradiance = SkyLight->IrradianceEnvironmentMap;
-			SetShaderValue(RHICmdList, ShaderRHI, SkySH, (FVector4&)SkyIrradiance.R.V, 0);
-			SetShaderValue(RHICmdList, ShaderRHI, SkySH, (FVector4&)SkyIrradiance.G.V, 1);
-			SetShaderValue(RHICmdList, ShaderRHI, SkySH, (FVector4&)SkyIrradiance.B.V, 2);
+			SetShaderValue(RHICmdList, ShaderRHI, SkySH, (FVector4f&)SkyIrradiance.R.V, 0);
+			SetShaderValue(RHICmdList, ShaderRHI, SkySH, (FVector4f&)SkyIrradiance.G.V, 1);
+			SetShaderValue(RHICmdList, ShaderRHI, SkySH, (FVector4f&)SkyIrradiance.B.V, 2);
 
 			AOParameterData = FDistanceFieldAOParameters(SkyLight->OcclusionMaxDistance, SkyLight->Contrast);
 		}
@@ -947,9 +947,9 @@ public:
 		{
 			SetShaderValue(RHICmdList, ShaderRHI, SkyLightUseStaticShadowing, 0.0f);
 			SetShaderValue(RHICmdList, ShaderRHI, SkyLightVolumetricScatteringIntensity, 0.0f);
-			SetShaderValue(RHICmdList, ShaderRHI, SkySH, FVector4(0, 0, 0, 0), 0);
-			SetShaderValue(RHICmdList, ShaderRHI, SkySH, FVector4(0, 0, 0, 0), 1);
-			SetShaderValue(RHICmdList, ShaderRHI, SkySH, FVector4(0, 0, 0, 0), 2);
+			SetShaderValue(RHICmdList, ShaderRHI, SkySH, FVector4f(0, 0, 0, 0), 0);
+			SetShaderValue(RHICmdList, ShaderRHI, SkySH, FVector4f(0, 0, 0, 0), 1);
+			SetShaderValue(RHICmdList, ShaderRHI, SkySH, FVector4f(0, 0, 0, 0), 2);
 		}
 
 		float StaticLightingScatteringIntensityValue = 0;

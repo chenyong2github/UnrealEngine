@@ -115,7 +115,7 @@ struct DYNAMICMESH_API FSimpleShapeSet3d
 {
 	TArray<FSphereShape3d> Spheres;
 	TArray<FBoxShape3d> Boxes;
-	TArray<FCapsuleShape3d> Capsules;
+	TArray<UE::Geometry::FCapsuleShape3d> Capsules;
 	TArray<FConvexShape3d> Convexes;
 
 	/** @return total number of elements in all sets */

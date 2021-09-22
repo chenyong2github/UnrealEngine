@@ -8,7 +8,6 @@
 
 #include "PlacementBrushToolBase.generated.h"
 
-class FRay;
 struct FHitResult;
 class UAssetPlacementSettings;
 

@@ -38,9 +38,9 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float2>, RadianceCacheProbeOcclusionAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RadianceCacheDepthAtlas)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, ProbeWorldOffset)
-		SHADER_PARAMETER_ARRAY(FVector4, RadianceProbeSettings, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(FVector4, PaddedWorldPositionToRadianceProbeCoordBias, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(FVector4, PaddedRadianceProbeCoordToWorldPositionBias, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector4f, RadianceProbeSettings, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector4f, PaddedWorldPositionToRadianceProbeCoordBias, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector4f, PaddedRadianceProbeCoordToWorldPositionBias, [MaxClipmaps])
 		SHADER_PARAMETER(FVector2D, InvProbeFinalRadianceAtlasResolution)
 		SHADER_PARAMETER(FVector2D, InvProbeFinalIrradianceAtlasResolution)
 		SHADER_PARAMETER(FVector2D, InvProbeDepthAtlasResolution)
@@ -69,11 +69,11 @@ namespace LumenRadianceCache
 	// Must match with LumenRadianceCacheInterpolation.ush
 	inline void SetWorldPositionToRadianceProbeCoordBias(FRadianceCacheInterpolationParameters& RadianceCacheInterpolationParameters, uint32 Index, const FVector3f& Value)
 	{
-		RadianceCacheInterpolationParameters.PaddedWorldPositionToRadianceProbeCoordBias[Index] = FVector4(Value);
+		RadianceCacheInterpolationParameters.PaddedWorldPositionToRadianceProbeCoordBias[Index] = FVector4f(Value);
 	}
 	inline void SetRadianceProbeCoordToWorldPositionBias(FRadianceCacheInterpolationParameters& RadianceCacheInterpolationParameters, uint32 Index, const FVector3f& Value)
 	{
-		RadianceCacheInterpolationParameters.PaddedRadianceProbeCoordToWorldPositionBias[Index] = FVector4(Value);
+		RadianceCacheInterpolationParameters.PaddedRadianceProbeCoordToWorldPositionBias[Index] = FVector4f(Value);
 	}
 
 

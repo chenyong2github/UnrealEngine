@@ -68,7 +68,7 @@ namespace GLTF
 		void GetTangents(TArray<FVector3f>& Buffer) const;
 		bool HasTexCoords(uint32 Index) const;
 		void GetTexCoords(uint32 Index, TArray<FVector2D>& Buffer) const;
-		void GetColors(TArray<FVector4>& Buffer) const;
+		void GetColors(TArray<FVector4f>& Buffer) const;
 		bool HasColors() const;
 		bool HasJointWeights() const;
 		void GetJointInfluences(TArray<FJointInfluence>& Buffer) const;

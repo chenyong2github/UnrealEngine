@@ -1042,7 +1042,7 @@ void UCubeGridTool::OnCtrlMiddleClick(const FInputDeviceRay& ClickPos)
 	FVector3d GridSpaceRayOrigin = CubeGrid->ToGridPoint(ClickPos.WorldRay.Origin);
 	FVector3d GridSpaceRayDirection = CubeGrid->GetFrame().ToFrameVector(FVector3d(ClickPos.WorldRay.Direction));
 	GridSpaceRayDirection.Normalize();
-	FRay3d GizmoSpaceRay(GridSpaceRayOrigin, GridSpaceRayDirection);
+	UE::Geometry::FRay3d GizmoSpaceRay(GridSpaceRayOrigin, GridSpaceRayDirection);
 
 	double MinDistSquared = GizmoSpaceRay.DistanceSquared(Corners[0]);
 	int32 ClosestCornerIndex = 0;
@@ -1243,7 +1243,7 @@ bool UCubeGridTool::GetHitGridFace(const FRay& WorldRay, FCubeGrid::FCubeFace& F
 
 	if (MeshSpatial)
 	{
-		FRay3d LocalRay(CurrentMeshTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		UE::Geometry::FRay3d LocalRay(CurrentMeshTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
 			CurrentMeshTransform.InverseTransformVectorNoScale((FVector3d)WorldRay.Direction));
 
 		int32 Tid;
@@ -1296,7 +1296,7 @@ void UCubeGridTool::OnClickPress(const FInputDeviceRay& PressPos)
 		MouseState = EMouseState::DraggingExtrudeDistance;
 		if (bHaveSelection)
 		{
-			DragProjectionAxis = FRay3d(CubeGrid->GetFrame().FromFramePoint(Selection.Box.Center()),
+			DragProjectionAxis = UE::Geometry::FRay3d(CubeGrid->GetFrame().FromFramePoint(Selection.Box.Center()),
 				CubeGrid->GetFrame().FromFrameVector(FCubeGrid::DirToNormal(Selection.Direction)), true);
 
 			FDistLine3Ray3d DistanceCalculator(UE::Geometry::FLine3d(DragProjectionAxis.Origin, DragProjectionAxis.Direction), PressPos.WorldRay);
@@ -1411,7 +1411,7 @@ void UCubeGridTool::OnTerminateDragSequence()
 	MouseState = EMouseState::NotDragging;
 }
 
-void UCubeGridTool::AttemptToSelectCorner(const FRay3d& WorldRay)
+void UCubeGridTool::AttemptToSelectCorner(const UE::Geometry::FRay3d& WorldRay)
 {
 	TArray<FGeometrySet3::FNearest> HitCorners;
 	CornersGeometrySet.CollectPointsNearRay(WorldRay, HitCorners, [this](const FVector3d& Position1, const FVector3d& Position2) {

@@ -133,7 +133,7 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, PageCoordToVoxelCenterBias)
 		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterScale)
 		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterBias)
-		SHADER_PARAMETER(FVector4, ClipmapVolumeWorldToUVAddAndMul)
+		SHADER_PARAMETER(FVector4f, ClipmapVolumeWorldToUVAddAndMul)
 		SHADER_PARAMETER(float, ClipmapVoxelExtent)
 		SHADER_PARAMETER(float, InfluenceRadius)
 		SHADER_PARAMETER(uint32, PageTableClipmapOffsetZ)

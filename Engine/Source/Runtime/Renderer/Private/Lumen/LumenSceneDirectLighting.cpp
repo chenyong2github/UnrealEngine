@@ -183,7 +183,7 @@ void Lumen::SetDirectLightingDeferredLightUniformBuffer(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightFunctionParameters, )
-	SHADER_PARAMETER(FVector4, LightFunctionParameters)
+	SHADER_PARAMETER(FVector4f, LightFunctionParameters)
 	SHADER_PARAMETER(FMatrix44f, LightFunctionWorldToLight)
 	SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 END_SHADER_PARAMETER_STRUCT()
@@ -392,7 +392,7 @@ void SetupLightFunctionParameters(const FLightSceneInfo* LightSceneInfo, float S
 	const bool bIsPointLight = LightSceneInfo->Proxy->GetLightType() == LightType_Point;
 	const float TanOuterAngle = bIsSpotLight ? FMath::Tan(LightSceneInfo->Proxy->GetOuterConeAngle()) : 1.0f;
 
-	OutParameters.LightFunctionParameters = FVector4(TanOuterAngle, ShadowFadeFraction, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
+	OutParameters.LightFunctionParameters = FVector4f(TanOuterAngle, ShadowFadeFraction, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
 
 	const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 	// Switch x and z so that z of the user specified scale affects the distance along the light direction
@@ -449,7 +449,7 @@ void SetupMeshSDFShadowInitializer(
 	OutInitializer.WorldToLight = FInverseRotationMatrix(LightSceneInfo->Proxy->GetDirection().GetSafeNormal().Rotation());
 	OutInitializer.Scales = FVector2D(1.0f / Bounds.W, 1.0f / Bounds.W);
 	OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
-	OutInitializer.WAxis = FVector4(0, 0, 0, 1);
+	OutInitializer.WAxis = FVector4f(0, 0, 0, 1);
 	OutInitializer.MinLightW = FMath::Min<float>(-HALF_WORLD_MAX, -SubjectBounds.SphereRadius);
 	const float MaxLightW = SubjectBounds.SphereRadius;
 	OutInitializer.MaxDistanceToCastInLightW = MaxLightW - OutInitializer.MinLightW;
@@ -507,7 +507,7 @@ void CullMeshSDFsForLightCards(
 
 	int32 NumPlanes = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.Num();
 	const FPlane* PlaneData = MeshSDFShadowInitializer.CascadeSettings.ShadowBoundsAccurate.Planes.GetData();
-	FVector4 LocalLightShadowBoundingSphereValue(0, 0, 0, 0);
+	FVector4f LocalLightShadowBoundingSphereValue(0, 0, 0, 0);
 
 	WorldToMeshSDFShadowValue = FTranslationMatrix(MeshSDFShadowInitializer.PreShadowTranslation) * SubjectAndReceiverMatrix;
 
@@ -965,7 +965,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 					}
 
 					FCullCardsShapeParameters ShapeParameters;
-					ShapeParameters.InfluenceSphere = FVector4(LightBounds.Center, LightBounds.W);
+					ShapeParameters.InfluenceSphere = FVector4f(LightBounds.Center, LightBounds.W);
 					ShapeParameters.LightPosition = LightSceneInfo->Proxy->GetPosition();
 					ShapeParameters.LightDirection = LightSceneInfo->Proxy->GetDirection();
 					ShapeParameters.LightRadius = LightSceneInfo->Proxy->GetRadius();

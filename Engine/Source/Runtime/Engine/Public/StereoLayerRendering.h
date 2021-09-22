@@ -43,7 +43,7 @@ public:
 
 		if (InUVAdjust.IsBound())
 		{
-			FVector4 UVAdjust;
+			FVector4f UVAdjust;
 			UVAdjust.X = UVRect.Min.X;
 			UVAdjust.Y = UVRect.Min.Y;
 			UVAdjust.Z = UVRect.Max.X - UVRect.Min.X;

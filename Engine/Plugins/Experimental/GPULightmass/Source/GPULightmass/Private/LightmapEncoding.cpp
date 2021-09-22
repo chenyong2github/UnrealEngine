@@ -299,8 +299,8 @@ FQuantizedSignedDistanceFieldShadowSample ConvertToShadowSample(FLinearColor Sha
 {
 	FQuantizedSignedDistanceFieldShadowSample Sample;
 	// Sqrt is already done on GPU
-	Sample.Distance = FVector4(ShadowMask)[ChannelIndex] * 255.0f;
-	Sample.Coverage = FVector4(ShadowMask)[ChannelIndex] >= 0.0f ? 255 : 0;
+	Sample.Distance = FVector4f(ShadowMask)[ChannelIndex] * 255.0f;
+	Sample.Coverage = FVector4f(ShadowMask)[ChannelIndex] >= 0.0f ? 255 : 0;
 	Sample.PenumbraSize = 0;
 	return Sample;
 }

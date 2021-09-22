@@ -3115,12 +3115,12 @@ void FScene::GetWindParameters(const FVector& Position, FVector& OutDirection, f
 	AccumWindData.PrepareForAccumulate();
 
 	int32 NumActiveWindSources = 0;
-	FVector4 AccumulatedDirectionAndSpeed(0,0,0,0);
+	FVector4f AccumulatedDirectionAndSpeed(0,0,0,0);
 	float TotalWeight = 0.0f;
 	for (int32 i = 0; i < WindSources.Num(); i++)
 	{
 		
-		FVector4 CurrentDirectionAndSpeed;
+		FVector4f CurrentDirectionAndSpeed;
 		float Weight;
 		const FWindSourceSceneProxy* CurrentSource = WindSources[i];
 		FWindData CurrentSourceData;
@@ -3185,11 +3185,11 @@ void FScene::GetDirectionalWindParameters(FVector& OutDirection, float& OutSpeed
 	AccumWindData.PrepareForAccumulate();
 
 	int32 NumActiveWindSources = 0;
-	FVector4 AccumulatedDirectionAndSpeed(0,0,0,0);
+	FVector4f AccumulatedDirectionAndSpeed(0,0,0,0);
 	float TotalWeight = 0.0f;
 	for (int32 i = 0; i < WindSources.Num(); i++)
 	{
-		FVector4 CurrentDirectionAndSpeed;
+		FVector4f CurrentDirectionAndSpeed;
 		float Weight;
 		const FWindSourceSceneProxy* CurrentSource = WindSources[i];
 		FWindData CurrentSourceData;
@@ -3268,8 +3268,8 @@ void FScene::RemoveSpeedTreeWind_RenderThread(class FVertexFactory* VertexFactor
 void FScene::UpdateSpeedTreeWind(double CurrentTime)
 {
 #define SET_SPEEDTREE_TABLE_FLOAT4V(name, offset) \
-	UniformParameters.name = *(FVector4*)(WindShaderValues + FSpeedTreeWind::offset); \
-	UniformParameters.Prev##name = *(FVector4*)(WindShaderValues + FSpeedTreeWind::offset + FSpeedTreeWind::NUM_SHADER_VALUES);
+	UniformParameters.name = *(FVector4f*)(WindShaderValues + FSpeedTreeWind::offset); \
+	UniformParameters.Prev##name = *(FVector4f*)(WindShaderValues + FSpeedTreeWind::offset + FSpeedTreeWind::NUM_SHADER_VALUES);
 
 	FScene* Scene = this;
 	ENQUEUE_RENDER_COMMAND(FUpdateSpeedTreeWindCommand)(

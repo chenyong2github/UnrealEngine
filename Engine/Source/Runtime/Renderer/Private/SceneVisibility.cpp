@@ -3703,7 +3703,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 		FReflectionCaptureSortData NewSortEntry;
 
 		NewSortEntry.CubemapIndex = -1;
-		NewSortEntry.CaptureOffsetAndAverageBrightness = FVector4(CurrentCapture->CaptureOffset, 1.0f);
+		NewSortEntry.CaptureOffsetAndAverageBrightness = FVector4f(CurrentCapture->CaptureOffset, 1.0f);
 		NewSortEntry.CaptureProxy = CurrentCapture;
 		if (SupportsTextureCubeArray(Scene->GetFeatureLevel()))
 		{
@@ -3722,7 +3722,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 		NewSortEntry.Guid = CurrentCapture->Guid;
 		NewSortEntry.PositionAndRadius = FVector4(CurrentCapture->Position, CurrentCapture->InfluenceRadius);
 		float ShapeTypeValue = (float)CurrentCapture->Shape;
-		NewSortEntry.CaptureProperties = FVector4(CurrentCapture->Brightness, NewSortEntry.CubemapIndex, ShapeTypeValue, 0);
+		NewSortEntry.CaptureProperties = FVector4f(CurrentCapture->Brightness, NewSortEntry.CubemapIndex, ShapeTypeValue, 0);
 
 		if (CurrentCapture->Shape == EReflectionCaptureShape::Plane)
 		{
@@ -3734,7 +3734,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 				FPlane(0, 0, 0, 0),
 				FPlane(0, 0, 0, 0));
 
-			NewSortEntry.BoxScales = FVector4(0);
+			NewSortEntry.BoxScales = FVector4f(0);
 		}
 		else if (CurrentCapture->Shape == EReflectionCaptureShape::Sphere)
 		{
@@ -3744,7 +3744,7 @@ void UpdateReflectionSceneData(FScene* Scene)
 		{
 			++ReflectionSceneData.NumBoxCaptures;
 			NewSortEntry.BoxTransform = CurrentCapture->BoxTransform;
-			NewSortEntry.BoxScales = FVector4(CurrentCapture->BoxScales, CurrentCapture->BoxTransitionDistance);
+			NewSortEntry.BoxScales = FVector4f(CurrentCapture->BoxScales, CurrentCapture->BoxTransitionDistance);
 		}
 
 		ReflectionSceneData.SortedCaptures.Add(NewSortEntry);

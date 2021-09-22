@@ -60,17 +60,17 @@ static FAutoConsoleVariableRef CVarNumLightsBeforeUsingTiledDeferred(
  * Light data is split into two constant buffers to allow more lights per pass before hitting the d3d11 max constant buffer size of 4096 float4's
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTiledDeferredLightData,)
-	SHADER_PARAMETER_ARRAY(FVector4,LightPositionAndInvRadius,[GMaxNumTiledDeferredLights])
-	SHADER_PARAMETER_ARRAY(FVector4,LightColorAndFalloffExponent,[GMaxNumTiledDeferredLights])
+	SHADER_PARAMETER_ARRAY(FVector4f,LightPositionAndInvRadius,[GMaxNumTiledDeferredLights])
+	SHADER_PARAMETER_ARRAY(FVector4f,LightColorAndFalloffExponent,[GMaxNumTiledDeferredLights])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FTiledDeferredLightData,"TiledDeferred");
 
 /** Second constant buffer of light data for tiled deferred. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTiledDeferredLightData2,)
-	SHADER_PARAMETER_ARRAY(FVector4,LightDirectionAndSpotlightMaskAndSpecularScale,[GMaxNumTiledDeferredLights])
-	SHADER_PARAMETER_ARRAY(FVector4,SpotAnglesAndSourceRadiusAndSimpleLighting,[GMaxNumTiledDeferredLights])
-	SHADER_PARAMETER_ARRAY(FVector4,ShadowMapChannelMask,[GMaxNumTiledDeferredLights])
+	SHADER_PARAMETER_ARRAY(FVector4f,LightDirectionAndSpotlightMaskAndSpecularScale,[GMaxNumTiledDeferredLights])
+	SHADER_PARAMETER_ARRAY(FVector4f,SpotAnglesAndSourceRadiusAndSimpleLighting,[GMaxNumTiledDeferredLights])
+	SHADER_PARAMETER_ARRAY(FVector4f,ShadowMapChannelMask,[GMaxNumTiledDeferredLights])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FTiledDeferredLightData2,"TiledDeferred2");
@@ -186,8 +186,8 @@ public:
 				FLightShaderParameters LightParameters;
 				LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 
-				LightData.LightPositionAndInvRadius[LightIndex] = FVector4(LightParameters.Position, LightParameters.InvRadius);
-				LightData.LightColorAndFalloffExponent[LightIndex] = FVector4(LightParameters.Color, LightParameters.FalloffExponent);
+				LightData.LightPositionAndInvRadius[LightIndex] = FVector4f(LightParameters.Position, LightParameters.InvRadius);
+				LightData.LightColorAndFalloffExponent[LightIndex] = FVector4f(LightParameters.Color, LightParameters.FalloffExponent);
 
 				if (LightSceneInfo->Proxy->IsInverseSquared())
 				{
@@ -202,12 +202,12 @@ public:
 					LightData.LightColorAndFalloffExponent[LightIndex].Z *= LightSceneInfo->Proxy->GetIndirectLightingScale();
 				}
 
-				LightData2.LightDirectionAndSpotlightMaskAndSpecularScale[LightIndex] = FVector4(LightParameters.Direction, LightParameters.SpecularScale);
+				LightData2.LightDirectionAndSpotlightMaskAndSpecularScale[LightIndex] = FVector4f(LightParameters.Direction, LightParameters.SpecularScale);
 
 				// Lights with non-0 length don't support tiled deferred pass, should not have gotten into this list
 				ensure(LightParameters.SourceLength==0.0f);
 
-				LightData2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex] = FVector4(
+				LightData2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex] = FVector4f(
 						LightParameters.SpotAngles.X,
 						LightParameters.SpotAngles.Y,
 						LightParameters.SourceRadius,
@@ -220,7 +220,7 @@ public:
 					ShadowMapChannel = INDEX_NONE;
 				}
 
-				LightData2.ShadowMapChannelMask[LightIndex] = FVector4(
+				LightData2.ShadowMapChannelMask[LightIndex] = FVector4f(
 					ShadowMapChannel == 0 ? 1 : 0,
 					ShadowMapChannel == 1 ? 1 : 0,
 					ShadowMapChannel == 2 ? 1 : 0,
@@ -231,11 +231,11 @@ public:
 				int32 SimpleLightIndex = StartIndex + LightIndex - NumLightsToRenderInSortedLights;
 				const FSimpleLightEntry& SimpleLight = SimpleLights.InstanceData[SimpleLightIndex];
 				const FSimpleLightPerViewEntry& SimpleLightPerViewData = SimpleLights.GetViewDependentData(SimpleLightIndex, ViewIndex, NumViews);
-				LightData.LightPositionAndInvRadius[LightIndex] = FVector4(SimpleLightPerViewData.Position, 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER));
-				LightData.LightColorAndFalloffExponent[LightIndex] = FVector4(SimpleLight.Color, SimpleLight.Exponent);
-				LightData2.LightDirectionAndSpotlightMaskAndSpecularScale[LightIndex] = FVector4(FVector(1, 0, 0), 0);
-				LightData2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex] = FVector4(-2, 1, 0, 1.0f);
-				LightData2.ShadowMapChannelMask[LightIndex] = FVector4(0, 0, 0, 0);
+				LightData.LightPositionAndInvRadius[LightIndex] = FVector4f(SimpleLightPerViewData.Position, 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER));
+				LightData.LightColorAndFalloffExponent[LightIndex] = FVector4f(SimpleLight.Color, SimpleLight.Exponent);
+				LightData2.LightDirectionAndSpotlightMaskAndSpecularScale[LightIndex] = FVector4f(FVector(1, 0, 0), 0);
+				LightData2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex] = FVector4f(-2, 1, 0, 1.0f);
+				LightData2.ShadowMapChannelMask[LightIndex] = FVector4f(0, 0, 0, 0);
 			}
 		}
 

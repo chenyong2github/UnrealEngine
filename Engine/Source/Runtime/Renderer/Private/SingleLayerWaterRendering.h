@@ -13,7 +13,7 @@ struct FSceneWithoutWaterTextures
 	struct FView
 	{
 		FIntRect ViewRect;
-		FVector4 MinMaxUV;
+		FVector4f MinMaxUV;
 	};
 
 	FRDGTextureRef ColorTexture = nullptr;

@@ -153,9 +153,9 @@ namespace IcvfxShaderPermutation
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxVertexShaderParameters, )
-	SHADER_PARAMETER(FVector4, DrawRectanglePosScaleBias)
-	SHADER_PARAMETER(FVector4, DrawRectangleInvTargetSizeAndTextureSize)
-	SHADER_PARAMETER(FVector4, DrawRectangleUVScaleBias)
+	SHADER_PARAMETER(FVector4f, DrawRectanglePosScaleBias)
+	SHADER_PARAMETER(FVector4f, DrawRectangleInvTargetSizeAndTextureSize)
+	SHADER_PARAMETER(FVector4f, DrawRectangleUVScaleBias)
 
 	SHADER_PARAMETER(FMatrix44f, MeshToStageProjectionMatrix)
 END_SHADER_PARAMETER_STRUCT()
@@ -187,10 +187,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 
 	SHADER_PARAMETER(float, AlphaEmbeddedGamma)
 
-	SHADER_PARAMETER(FVector4, InnerCameraSoftEdge)
+	SHADER_PARAMETER(FVector4f, InnerCameraSoftEdge)
 
-	SHADER_PARAMETER(FVector4, ChromakeyColor)
-	SHADER_PARAMETER(FVector4, ChromakeyMarkerColor)
+	SHADER_PARAMETER(FVector4f, ChromakeyColor)
+	SHADER_PARAMETER(FVector4f, ChromakeyMarkerColor)
 
 	SHADER_PARAMETER(float, ChromakeyMarkerScale)
 	SHADER_PARAMETER(float, ChromakeyMarkerDistance)
@@ -410,9 +410,9 @@ public:
 		float USize = WarpBlendParameters.Src.Rect.Width() / (float)WarpDataSrcSize.X;
 		float VSize = WarpBlendParameters.Src.Rect.Height() / (float)WarpDataSrcSize.Y;
 
-		RenderPassData.VSParameters.DrawRectanglePosScaleBias = FVector4(1, 1, 0, 0);
-		RenderPassData.VSParameters.DrawRectangleInvTargetSizeAndTextureSize = FVector4(1, 1, 1, 1);
-		RenderPassData.VSParameters.DrawRectangleUVScaleBias = FVector4(USize, VSize, U, V);
+		RenderPassData.VSParameters.DrawRectanglePosScaleBias = FVector4f(1, 1, 0, 0);
+		RenderPassData.VSParameters.DrawRectangleInvTargetSizeAndTextureSize = FVector4f(1, 1, 1, 1);
+		RenderPassData.VSParameters.DrawRectangleUVScaleBias = FVector4f(USize, VSize, U, V);
 
 		return true;
 	}

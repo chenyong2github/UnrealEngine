@@ -275,7 +275,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 				//Override -> replace the vertex color by the override color
 				{
 					FStaticMeshAttributes Attributes(*LodMeshDescription);
-					TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+					TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 					bool bReplaceVertexColor = false;
 					StaticMeshFactoryNode->GetCustomVertexColorReplace(bReplaceVertexColor);
 					if (!bReplaceVertexColor)
@@ -287,7 +287,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 							//Flush the vertex color, if we re-import we have to fill it with the old data
 							for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription->VertexInstances().GetElementIDs())
 							{
-								VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor::White));
+								VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(FColor::White));
 							}
 						}
 						else
@@ -297,7 +297,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 							{
 								for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription->VertexInstances().GetElementIDs())
 								{
-									VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(OverrideVertexColor));
+									VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor(OverrideVertexColor));
 								}
 							}
 						}

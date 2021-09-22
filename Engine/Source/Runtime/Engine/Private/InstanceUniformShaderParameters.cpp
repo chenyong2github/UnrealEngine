@@ -10,7 +10,7 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 	const FRenderTransform& PrimitiveLocalToWorld,
 	const FRenderTransform& PrimitivePrevLocalToWorld,
 	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
-	const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+	const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 	float RandomID, // TODO: Temporary
 	float CustomDataFloat0, // TODO: Temporary Hack!
 	uint32 LastUpdateFrame
@@ -37,7 +37,7 @@ void FInstanceSceneShaderData::Setup(
 	const FRenderTransform& PrimitiveToWorld,
 	const FRenderTransform& PrevPrimitiveToWorld,
 	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
-	const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+	const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 	float RandomID, // TODO: Temporary
 	float CustomDataFloat0, // TODO: Temporary Hack!
 	uint32 LastUpdateFrame
@@ -107,12 +107,12 @@ void FInstanceSceneShaderData::Setup(
 	Data[8].Z  = *(const     float*)&PayloadDataOffset;
 	Data[8].W  = *(const     float*)&RandomID;
 
-	Data[9]    = *(const  FVector4*)&LightMapShadowMapUVBias;
+	Data[9]    = *(const  FVector4f*)&LightMapShadowMapUVBias;
 #else
-	Data[1]    = *(const FVector4* )&CompressedLocalToWorld.Rotation[0];
+	Data[1]    = *(const FVector4f* )&CompressedLocalToWorld.Rotation[0];
 	Data[2]    = *(const FVector3f*)&CompressedLocalToWorld.Translation;
 
-	Data[3]    = *(const FVector4* )&CompressedPrevLocalToWorld.Rotation[0];
+	Data[3]    = *(const FVector4f* )&CompressedPrevLocalToWorld.Rotation[0];
 	Data[4]    = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
 
 	const FVector3f BoundsOrigin = Instance.LocalBounds.GetCenter();
@@ -126,7 +126,7 @@ void FInstanceSceneShaderData::Setup(
 	Data[6].Z  = *(const     float*)&PayloadDataOffset;
 	Data[6].W  = *(const     float*)&RandomID;
 
-	Data[7]    = *(const  FVector4*)&LightMapShadowMapUVBias;
+	Data[7]    = *(const  FVector4f*)&LightMapShadowMapUVBias;
 #endif
 }
 
@@ -142,7 +142,7 @@ ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 		FRenderTransform::Identity, /* Primitive LocalToWorld */
 		FRenderTransform::Identity,  /* Primitive PrevLocalToWorld */
 		FRenderTransform::Identity,  /* PrevLocalToPrimitive */
-		FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
+		FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
 		0.0f, /* Per instance Random */ // TODO: Temporary
 		0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 		INVALID_LAST_UPDATE_FRAME

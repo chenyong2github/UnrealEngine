@@ -26,7 +26,7 @@
  * Uniform buffer parameters for generating particle sort keys.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FParticleKeyGenParameters, )
-	SHADER_PARAMETER( FVector4, ViewOrigin )
+	SHADER_PARAMETER( FVector4f, ViewOrigin )
 	SHADER_PARAMETER( uint32, ChunksPerGroup )
 	SHADER_PARAMETER( uint32, ExtraChunkCount )
 	SHADER_PARAMETER( uint32, OutputOffset )
@@ -198,7 +198,7 @@ int32 GenerateParticleSortKeys(
 			const uint32 AlignedParticleCount = ((ParticleCount + PARTICLE_KEY_GEN_THREAD_COUNT - 1) & (~(PARTICLE_KEY_GEN_THREAD_COUNT - 1)));
 			const uint32 ChunkCount = AlignedParticleCount / PARTICLE_KEY_GEN_THREAD_COUNT;
 			const uint32 GroupCount = FMath::Clamp<uint32>( ChunkCount, 1, MaxGroupCount );
-			KeyGenParameters.ViewOrigin = SortInfo.ViewOrigin;
+			KeyGenParameters.ViewOrigin = (FVector4f)SortInfo.ViewOrigin;
 			KeyGenParameters.ChunksPerGroup = ChunkCount / GroupCount;
 			KeyGenParameters.ExtraChunkCount = ChunkCount % GroupCount;
 			KeyGenParameters.OutputOffset = SortInfo.AllocationInfo.BufferOffset;

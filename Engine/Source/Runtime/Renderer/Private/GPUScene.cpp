@@ -186,7 +186,7 @@ struct FInstanceUploadInfo
 
 	// Optional per-instance data views
 	TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData;
-	TConstArrayView<FVector4> InstanceLightShadowUVBias;
+	TConstArrayView<FVector4f> InstanceLightShadowUVBias;
 	TConstArrayView<float> InstanceCustomData;
 	TConstArrayView<float> InstanceRandomID;
 	
@@ -319,7 +319,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 				InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 				InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>((FPrimitiveInstanceDynamicData*)nullptr, 0);
-				InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4>((FVector4*)nullptr, 0);
+				InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4f>((FVector4f*)nullptr, 0);
 				InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>((float*)nullptr, 0);
 				InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>((float*)nullptr, 0);
 			}
@@ -495,7 +495,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 		if (GGPUSceneValidateInstanceBuffer && BufferState.InstanceSceneDataBuffer.NumBytes > 0)
 		{
 			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
-			const FVector4* InstanceSceneDataBufferPtr = reinterpret_cast<const FVector4*>(RHILockBuffer(BufferState.InstanceSceneDataBuffer.Buffer, 0, BufferState.InstanceSceneDataBuffer.NumBytes, RLM_ReadOnly));
+			const FVector4f* InstanceSceneDataBufferPtr = reinterpret_cast<const FVector4f*>(RHILockBuffer(BufferState.InstanceSceneDataBuffer.Buffer, 0, BufferState.InstanceSceneDataBuffer.NumBytes, RLM_ReadOnly));
 
 			struct FInstanceSceneDataDebug
 			{
@@ -504,7 +504,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 #if 0
 				// Derived data, not checked: 
 				FMatrix44f  WorldToLocal;
-				FVector4    NonUniformScale;
+				FVector4f    NonUniformScale;
 				FVector3f   InvNonUniformScale;
 				float       DeterminantSign;
 				uint32      NaniteRuntimeResourceID;
@@ -517,14 +517,14 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 				uint32      NaniteRuntimeResourceID;
 				uint32      NaniteHierarchyOffset;
 				float       PerInstanceRandom;
-				FVector4    LightMapAndShadowMapUVBias;
+				FVector4f    LightMapAndShadowMapUVBias;
 				bool        ValidInstance;
 				uint32      Flags;
 			};
 
-			auto GetInstanceSceneData = [](uint32 InstanceId, uint32 SOAStride, const FVector4* InstanceSceneDataBufferInner) -> FInstanceSceneDataDebug
+			auto GetInstanceSceneData = [](uint32 InstanceId, uint32 SOAStride, const FVector4f* InstanceSceneDataBufferInner) -> FInstanceSceneDataDebug
 			{
-				auto LoadInstanceSceneDataElement = [InstanceSceneDataBufferInner](uint32 Index) -> FVector4
+				auto LoadInstanceSceneDataElement = [InstanceSceneDataBufferInner](uint32 Index) -> FVector4f
 				{
 					return InstanceSceneDataBufferInner[Index];
 				};
@@ -536,9 +536,9 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 				auto LoadRenderTransform = [&](uint32 InstanceId, uint32 StartOffset) -> FRenderTransform
 				{
-					FVector4 V0 = LoadInstanceSceneDataElement((StartOffset + 0) * SOAStride + InstanceId);
-					FVector4 V1 = LoadInstanceSceneDataElement((StartOffset + 1) * SOAStride + InstanceId);
-					FVector4 V2 = LoadInstanceSceneDataElement((StartOffset + 2) * SOAStride + InstanceId);
+					FVector4f V0 = LoadInstanceSceneDataElement((StartOffset + 0) * SOAStride + InstanceId);
+					FVector4f V1 = LoadInstanceSceneDataElement((StartOffset + 1) * SOAStride + InstanceId);
+					FVector4f V2 = LoadInstanceSceneDataElement((StartOffset + 2) * SOAStride + InstanceId);
 
 					FRenderTransform Result;
 					Result.TransformRows[0] = FVector3f(V0.X, V1.X, V2.X);
@@ -598,7 +598,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 							FPrimitiveInstance PrimitiveInstance;
 
 							float RandomID = 0.0f; // TODO: Temporary
-							FVector4 LightMapAndShadowMapUVBias = FVector4(ForceInitToZero); // TODO: Temporary
+							FVector4f LightMapAndShadowMapUVBias = FVector4f(ForceInitToZero); // TODO: Temporary
 							FRenderTransform PrevLocalToPrimitive = FRenderTransform::Identity; // TODO: Temporary
 
 							// TODO: Temporary code to de-interleave optional data on the CPU, but prior to doing the same on the GPU
@@ -642,7 +642,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) == 0);
 								}
 
-								const TConstArrayView<FVector4> InstanceLightShadowUVBias = PrimitiveSceneProxy->GetInstanceLightShadowUVBias();
+								const TConstArrayView<FVector4f> InstanceLightShadowUVBias = PrimitiveSceneProxy->GetInstanceLightShadowUVBias();
 								if (InstanceLightShadowUVBias.Num() == InstanceSceneData.Num())
 								{
 									LightMapAndShadowMapUVBias = InstanceLightShadowUVBias[InstanceDataIndex];
@@ -788,7 +788,7 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 	BufferState.InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
 
 	const uint32 PayloadFloat4Count = FMath::Max(InstancePayloadDataAllocator.GetMaxSize(), InitialBufferSize);
-	const uint32 InstancePayloadDataSizeReserve = FMath::RoundUpToPowerOfTwo(PayloadFloat4Count * sizeof(FVector4));
+	const uint32 InstancePayloadDataSizeReserve = FMath::RoundUpToPowerOfTwo(PayloadFloat4Count * sizeof(FVector4f));
 	BufferState.bResizedInstancePayloadData = ResizeResourceIfNeeded(GraphBuilder, InstancePayloadDataBuffer, InstancePayloadDataSizeReserve, TEXT("GPUScene.InstancePayloadData"));
 	BufferState.InstancePayloadDataBuffer = InstancePayloadDataBuffer;
 
@@ -893,7 +893,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 							PrimitiveUploadBufferCS.Unlock();
 						}
 
-						FVector4* DstData = static_cast<FVector4*>(UploadDst);
+						FVector4f* DstData = static_cast<FVector4f*>(UploadDst);
 						for (uint32 VectorIndex = 0; VectorIndex < FPrimitiveSceneShaderData::DataStrideInFloat4s; ++VectorIndex)
 						{
 							DstData[VectorIndex] = UploadInfo.PrimitiveSceneData.Data[VectorIndex];
@@ -1092,7 +1092,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 			// Upload instancing data for the scene.
 			if (NumInstanceSceneDataUploads > 0)
 			{
-				InstanceSceneUploadBuffer.Init(NumInstanceSceneDataUploads * InstanceSceneDataNumArrays, sizeof(FVector4), true, TEXT("InstanceSceneUploadBuffer"));
+				InstanceSceneUploadBuffer.Init(NumInstanceSceneDataUploads * InstanceSceneDataNumArrays, sizeof(FVector4f), true, TEXT("InstanceSceneUploadBuffer"));
 
 				int32 RangeCount = PartitionUpdateRanges(ParallelRanges, InstancesToClear.Num(), bExecuteInParallel);
 
@@ -1125,7 +1125,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 							// TODO: This is silly, use a custom shader to splat the identity shader data over multiple output locations - way more efficient bandwidth and memory usage.
 							for (uint32 RefIndex = 0; RefIndex < InstanceSceneDataNumArrays; ++RefIndex) //TODO: make a SOA version of InstanceUploadBuffer.Add
 							{
-								FVector4* DstVector = static_cast<FVector4*>(DstRefs[RefIndex]);
+								FVector4f* DstVector = static_cast<FVector4f*>(DstRefs[RefIndex]);
 								*DstVector = ClearedShaderData.Data[RefIndex];
 							}
 						}
@@ -1163,7 +1163,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 										// TODO: Temporary
 										const FRenderTransform& PrevLocalToPrimitive = UploadInfo.InstanceDynamicData.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive : FRenderTransform::Identity;
-										FVector4 LightMapShadowMapUVBias = UploadInfo.InstanceLightShadowUVBias.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceLightShadowUVBias[InstanceIndex] : FVector4(ForceInitToZero);
+										FVector4f LightMapShadowMapUVBias = UploadInfo.InstanceLightShadowUVBias.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceLightShadowUVBias[InstanceIndex] : FVector4f(ForceInitToZero);
 										float RandomID = UploadInfo.InstanceRandomID.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
 
 										// TODO: Temporary hack!
@@ -1204,7 +1204,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 										for (uint32 RefIndex = 0; RefIndex < InstanceSceneDataNumArrays; ++RefIndex) //TODO: make a SOA version of InstanceUploadBuffer.Add
 										{
-											FVector4* DstVector = static_cast<FVector4*>(DstRefs[RefIndex]);
+											FVector4f* DstVector = static_cast<FVector4f*>(DstRefs[RefIndex]);
 											*DstVector = InstanceSceneData.Data[RefIndex];
 										}
 									}
@@ -1359,7 +1359,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 
 			InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 			InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>((FPrimitiveInstanceDynamicData*)nullptr, 0);
-			InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4>((FVector4*)nullptr, 0);
+			InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4f>((FVector4f*)nullptr, 0);
 			InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>((float*)nullptr, 0);
 			InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>((float*)nullptr, 0);
 			InstanceUploadInfo.InstanceSceneDataOffset = InstanceIDStartOffset + ItemIndex;
@@ -1858,7 +1858,7 @@ void FGPUSceneCompactInstanceData::Init(const FGPUScenePrimitiveCollector* Primi
 	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
 	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
 	InstanceOriginAndId.W	= *(float*)&DynamicPrimitiveId;
-	InstanceAuxData			= FVector4(0);
+	InstanceAuxData			= FVector4f(0);
 }
 
 void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
@@ -1873,5 +1873,5 @@ void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
 	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
 	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
 	InstanceOriginAndId.W	= *(float*)&PrimitiveId;
-	InstanceAuxData			= FVector4(0);
+	InstanceAuxData			= FVector4f(0);
 }

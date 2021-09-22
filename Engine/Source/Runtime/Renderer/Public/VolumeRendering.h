@@ -74,7 +74,7 @@ public:
 	{
 		const float InvVolumeResolutionX = 1.0f / VolumeResolution.X;
 		const float InvVolumeResolutionY = 1.0f / VolumeResolution.Y;
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), UVScaleBias, FVector4(
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), UVScaleBias, FVector4f(
 			(VolumeBounds.MaxX - VolumeBounds.MinX) * InvVolumeResolutionX,
 			(VolumeBounds.MaxY - VolumeBounds.MinY) * InvVolumeResolutionY,
 			VolumeBounds.MinX * InvVolumeResolutionX,

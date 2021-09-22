@@ -37,9 +37,14 @@ void FFloatVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPr
 			|| StructName == NAME_Vector
 #endif
 			);
-	bool bIsVector4 = StructName == NAME_Vector4;
 
-	FVector4 VectorValues;
+	bool bIsVector4 = (StructName == NAME_Vector4f
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+		|| StructName == NAME_Vector
+#endif
+		);
+
+	FVector4f VectorValues;
 	int32 Channels;
 
 	if ( bIsVector2D )
@@ -59,7 +64,7 @@ void FFloatVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPr
 	}
 	else // if ( bIsVector4 )
 	{
-		VectorValues = PropertyChangedParams.GetPropertyValue<FVector4>();
+		VectorValues = PropertyChangedParams.GetPropertyValue<FVector4f>();
 		Channels = 4;
 	}
 

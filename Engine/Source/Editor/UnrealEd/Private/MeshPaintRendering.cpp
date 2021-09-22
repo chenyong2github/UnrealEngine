@@ -99,19 +99,19 @@ namespace MeshPaintRendering
 
 			SetShaderValue(RHICmdList, ShaderRHI, WorldToBrushMatrixParameter, (FMatrix44f)InShaderParams.WorldToBrushMatrix );
 
-			FVector4 BrushMetrics;
+			FVector4f BrushMetrics;
 			BrushMetrics.X = InShaderParams.BrushRadius;
 			BrushMetrics.Y = InShaderParams.BrushRadialFalloffRange;
 			BrushMetrics.Z = InShaderParams.BrushDepth;
 			BrushMetrics.W = InShaderParams.BrushDepthFalloffRange;
 			SetShaderValue(RHICmdList, ShaderRHI, BrushMetricsParameter, BrushMetrics );
 
-			FVector4 BrushStrength4( InShaderParams.BrushStrength, 0.0f, 0.0f, 0.0f );
+			FVector4f BrushStrength4( InShaderParams.BrushStrength, 0.0f, 0.0f, 0.0f );
 			SetShaderValue(RHICmdList, ShaderRHI, BrushStrengthParameter, BrushStrength4 );
 
 			SetShaderValue(RHICmdList, ShaderRHI, BrushColorParameter, InShaderParams.BrushColor );
 
-			FVector4 ChannelFlags;
+			FVector4f ChannelFlags;
 			ChannelFlags.X = InShaderParams.RedChannelFlag;
 			ChannelFlags.Y = InShaderParams.GreenChannelFlag;
 			ChannelFlags.Z = InShaderParams.BlueChannelFlag;
