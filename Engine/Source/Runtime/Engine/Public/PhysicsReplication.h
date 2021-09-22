@@ -56,7 +56,7 @@ struct FAsyncPhysicsDesiredState
 	FTransform WorldTM;
 	FVector LinearVelocity;
 	FVector AngularVelocity;
-	FSingleParticlePhysicsProxy* Proxy;
+	Chaos::FSingleParticlePhysicsProxy* Proxy;
 	Chaos::EObjectStateType ObjectState;
 	bool bShouldSleep;
 };

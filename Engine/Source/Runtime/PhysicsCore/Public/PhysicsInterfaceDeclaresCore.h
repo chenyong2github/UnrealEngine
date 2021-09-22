@@ -205,7 +205,7 @@ extern FPhysicsActorHandle DefaultPhysicsActorHandle();
 
 #elif WITH_CHAOS
 
-using FPhysicsActorHandle = FSingleParticlePhysicsProxy*;
+using FPhysicsActorHandle = Chaos::FSingleParticlePhysicsProxy*;
 
 class FChaosSceneId;
 class FPhysInterface_Chaos;

@@ -15,6 +15,6 @@ namespace Chaos
 
 	class FRigidBodyHandle_External;
 	class FRigidBodyHandle_Internal;
-}
 
-class FSingleParticlePhysicsProxy;
+	class FSingleParticlePhysicsProxy;
+}

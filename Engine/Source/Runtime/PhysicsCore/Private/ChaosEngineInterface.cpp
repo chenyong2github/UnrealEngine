@@ -1050,8 +1050,8 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateSuspension(const FPhysicsA
 				auto* SuspensionConstraint = new Chaos::FSuspensionConstraint();
 				ConstraintRef.Constraint = SuspensionConstraint;
 
-				SuspensionConstraint->SetParticleProxies({ InActorRef,nullptr });
-			SuspensionConstraint->SetLocation(InLocalFrame);
+				SuspensionConstraint->SetParticleProxy(InActorRef);
+				SuspensionConstraint->SetLocation(InLocalFrame);
 
 				Chaos::FPhysicsSolver* Solver = InActorRef->GetSolver<Chaos::FPhysicsSolver>();
 				Solver->RegisterObject(SuspensionConstraint);
@@ -1145,7 +1145,7 @@ GetParticleFromProxy(IPhysicsProxyBase* ProxyBase)
 	{
 		if (ProxyBase->GetType() == EPhysicsProxyType::SingleParticleProxy)
 		{
-			return ((FSingleParticlePhysicsProxy*)ProxyBase)->GetParticle_LowLevel();
+			return ((Chaos::FSingleParticlePhysicsProxy*)ProxyBase)->GetParticle_LowLevel();
 		}
 	}
 	return nullptr;
@@ -1648,7 +1648,7 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 		Particle = MoveTemp(Rigid);
 	}
 
-	Handle = FSingleParticlePhysicsProxy::Create(MoveTemp(Particle));
+	Handle = Chaos::FSingleParticlePhysicsProxy::Create(MoveTemp(Particle));
 	Chaos::FRigidBodyHandle_External& Body_External = Handle->GetGameThreadAPI();
 
 	// Set up the new particle's game-thread data. This will be sent to physics-thread when

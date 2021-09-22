@@ -31,11 +31,9 @@ enum class EConstraintType
 	void Set##FNAME(TYPE InValue){ PROP.Modify(/*bInvalidate=*/true, DirtyFlags, Proxy, [&InValue](auto& Data) { Data.VNAME = InValue; }); }\
 	TYPE Get##FNAME() const{return PROP.Read().VNAME;}\
 
-
 class CHAOS_API FConstraintBase
 {
 public:
-
 	virtual ~FConstraintBase() {}
 
 	typedef TVector<TGeometryParticleHandle<FReal, 3>*, 2> FParticleHandlePair;
@@ -58,22 +56,6 @@ public:
 
 	void SetProxy(IPhysicsProxyBase* InProxy);
 
-	void SetParticleProxies(const FProxyBasePair& InJointParticles)
-	{
-		ConnectedParticleProxy[0] = InJointParticles[0];
-		ConnectedParticleProxy[1] = InJointParticles[1];
-
-		ConnectedParticleProxy2.Modify(/*bInvalidate=*/true, DirtyFlags, Proxy, [&InJointParticles](FProxyBasePair& Data)
-		{
-			Data[0] = InJointParticles[0];
-			Data[1] = InJointParticles[1];
-		});
-	}
-
-
-	const FProxyBasePair& GetParticleProxies() const { return  ConnectedParticleProxy; }
-	FProxyBasePair& GetParticleProxies() { return  ConnectedParticleProxy; }
-
 	void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData)
 	{
 		RemoteData.SetFlags(DirtyFlags);
@@ -84,17 +66,9 @@ public:
 protected:
 	EConstraintType Type;
 	class IPhysicsProxyBase* Proxy;
-
-	FProxyBasePair ConnectedParticleProxy;	//TODO: remove this once suspension uses chaos property
-
 	FDirtyChaosPropertyFlags DirtyFlags;
-	TChaosProperty<FProxyBasePair, EChaosProperty::JointParticleProxies> ConnectedParticleProxy2;
 
-	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData)
-	{
-		ConnectedParticleProxy2.SyncRemote(Manager, DataIdx, RemoteData);
-	}
-	
+	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) = 0;
 };
 
 } // Chaos

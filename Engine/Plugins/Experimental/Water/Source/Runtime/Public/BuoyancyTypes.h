@@ -317,7 +317,7 @@ struct FBuoyancyComponentAsyncInput
 	const EAsyncBuoyancyComponentDataType Type;
 	const UBuoyancyComponent* BuoyancyComponent;
 
-	FSingleParticlePhysicsProxy* Proxy;
+	Chaos::FSingleParticlePhysicsProxy* Proxy;
 
 	virtual TUniquePtr<struct FBuoyancyComponentAsyncOutput> PreSimulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, FBuoyancyComponentAsyncAux* Aux, const TMap<UWaterBodyComponent*, TUniquePtr<FSolverSafeWaterBodyData>>& WaterBodyComponentData) const = 0;
 

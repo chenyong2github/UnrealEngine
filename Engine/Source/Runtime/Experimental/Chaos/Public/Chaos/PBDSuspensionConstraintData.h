@@ -32,48 +32,29 @@ namespace Chaos
 	class CHAOS_API FSuspensionConstraint : public FConstraintBase
 	{
 	public:
-		typedef FPBDSuspensionSettings FData;
-		typedef FPBDSuspensionConstraintHandle FHandle;
-		friend FData;
-
 		FSuspensionConstraint();
 		virtual ~FSuspensionConstraint() override {}
 
-		bool IsDirty() const { return MDirtyFlags.IsDirty(); }
-		bool IsDirty(const ESuspensionConstraintFlags CheckBits) const { return MDirtyFlags.IsDirty(CheckBits); }
-		void ClearDirtyFlags() { MDirtyFlags.Clear(); }
 
-		const FData& GetSuspensionSettings()const { return SuspensionSettings; }
+		const FPBDSuspensionSettings& GetSuspensionSettings()const { return SuspensionSettings.Read(); }
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, Enabled, ESuspensionConstraintFlags::Enabled, SuspensionSettings.Enabled);
+#define CHAOS_INNER_SUSP_PROPERTY(OuterProp, Name, InnerType)\
+	void Set##Name(InnerType Val){ OuterProp.Modify(/*bInvalidate=*/true, DirtyFlags, Proxy, [&Val](auto& Data) { Data.Name = Val; }); }\
+	InnerType Get##Name() const { return OuterProp.Read().Name;}\
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, Target, ESuspensionConstraintFlags::Target, SuspensionSettings.Target);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, Location, ESuspensionConstraintFlags::Location, Location);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, HardstopStiffness, ESuspensionConstraintFlags::HardstopStiffness, SuspensionSettings.HardstopStiffness);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, HardstopVelocityCompensation, ESuspensionConstraintFlags::HardstopVelocityCompensation, SuspensionSettings.HardstopVelocityCompensation);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SpringPreload, ESuspensionConstraintFlags::SpringPreload, SuspensionSettings.SpringPreload);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SpringStiffness, ESuspensionConstraintFlags::SpringStiffness, SuspensionSettings.SpringStiffness);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, SpringDamping, ESuspensionConstraintFlags::SpringDamping, SuspensionSettings.SpringDamping);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, MinLength, ESuspensionConstraintFlags::MinLength, SuspensionSettings.MinLength);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, MaxLength, ESuspensionConstraintFlags::MaxLength, SuspensionSettings.MaxLength);
-
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(FVec3, Axis, ESuspensionConstraintFlags::Axis, SuspensionSettings.Axis);
-
+#include "SuspensionProperties.inl"
 
 	protected:
-		FSuspensionConstraintDirtyFlags MDirtyFlags;
-		FData SuspensionSettings;
+		TChaosProperty<FPBDSuspensionSettings, EChaosProperty::SuspensionSettings> SuspensionSettings;
+		TChaosProperty<FParticleProxyProperty, EChaosProperty::SuspensionParticleProxy> SuspensionParticleProxy;
+		TChaosProperty<FSuspensionLocation, EChaosProperty::SuspensionLocation> SuspensionLocation; // location = spring local offset
 
-		FVec3 Location;	// spring local offset
-		FVec3 Target;	// target spring (wheel) end position
+		virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) override
+		{
+			SuspensionSettings.SyncRemote(Manager, DataIdx, RemoteData);
+			SuspensionParticleProxy.SyncRemote(Manager, DataIdx, RemoteData);
+			SuspensionLocation.SyncRemote(Manager, DataIdx, RemoteData);
+		}
 	};
 
 

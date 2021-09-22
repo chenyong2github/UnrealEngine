@@ -123,7 +123,7 @@ public:
 	 */
 	void AddObject(UPrimitiveComponent* Component, FSkeletalMeshPhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsProxy* InObject);
-	void AddObject(UPrimitiveComponent* Component, FSingleParticlePhysicsProxy* InObject);
+	void AddObject(UPrimitiveComponent* Component, Chaos::FSingleParticlePhysicsProxy* InObject);
 	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject);
 	
 	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
@@ -135,7 +135,7 @@ public:
 	 */
 	void RemoveObject(FSkeletalMeshPhysicsProxy* InObject);
 	void RemoveObject(FStaticMeshPhysicsProxy* InObject);
-	void RemoveObject(FSingleParticlePhysicsProxy* InObject);
+	void RemoveObject(Chaos::FSingleParticlePhysicsProxy* InObject);
 	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
 
 	FPhysicsReplication* GetPhysicsReplication();

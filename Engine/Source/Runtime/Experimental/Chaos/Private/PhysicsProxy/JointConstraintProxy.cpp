@@ -81,10 +81,10 @@ void FJointConstraintPhysicsProxy::InitializeOnPhysicsThread(FPBDRigidsSolver* I
 	if (Handles.Size())
 	{
 		auto& JointConstraints = InSolver->GetJointConstraints();
-		if(const FProxyBasePair* BasePairs = RemoteData.FindJointParticleProxies(Manager, DataIdx))
+		if(const FProxyBasePairProperty* BasePairs = RemoteData.FindJointParticleProxies(Manager, DataIdx))
 		{
-			FGeometryParticleHandle* Handle0 = GetParticleHandleFromProxy((*BasePairs)[0]);
-			FGeometryParticleHandle* Handle1 = GetParticleHandleFromProxy((*BasePairs)[1]);
+			FGeometryParticleHandle* Handle0 = GetParticleHandleFromProxy(BasePairs->ParticleProxies[0]);
+			FGeometryParticleHandle* Handle1 = GetParticleHandleFromProxy(BasePairs->ParticleProxies[1]);
 			if (Handle0 && Handle1)
 			{
 				if (const FPBDJointSettings* JointSettings = RemoteData.FindJointSettings(Manager, DataIdx))

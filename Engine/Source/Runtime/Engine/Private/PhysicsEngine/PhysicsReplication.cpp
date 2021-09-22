@@ -353,7 +353,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 				AsyncDesiredState.WorldTM = IdealWorldTM;
 				AsyncDesiredState.LinearVelocity = NewState.LinVel;
 				AsyncDesiredState.AngularVelocity = NewState.AngVel;
-				AsyncDesiredState.Proxy = static_cast<FSingleParticlePhysicsProxy*>(BI->GetPhysicsActorHandle());
+				AsyncDesiredState.Proxy = static_cast<Chaos::FSingleParticlePhysicsProxy*>(BI->GetPhysicsActorHandle());
 				AsyncDesiredState.ObjectState = AsyncDesiredState.Proxy->GetGameThreadAPI().ObjectState();
 				AsyncDesiredState.bShouldSleep = bShouldSleep;
 
@@ -579,7 +579,7 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 		for (const FAsyncPhysicsDesiredState& State : AsyncData->Buffer)
 		{
 			//Proxy should exist because we are using latest and any pending deletes would have been enqueued after
-			FSingleParticlePhysicsProxy* Proxy = State.Proxy;
+			Chaos::FSingleParticlePhysicsProxy* Proxy = State.Proxy;
 			auto* Handle = Proxy->GetPhysicsThreadAPI();
 
 

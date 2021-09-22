@@ -52,9 +52,13 @@ void NpResizeForIndex(ArrayType& Array, int32 Index)
 }
 
 class AActor;
-class FSingleParticlePhysicsProxy;
+
+namespace Chaos
+{
+	class FSingleParticlePhysicsProxy;
+}
 
 namespace UE_NP
 {
-	NETWORKPREDICTION_API FSingleParticlePhysicsProxy* FindBestPhysicsProxy(AActor* Owning, FName NamedComponent = NAME_None);
+	NETWORKPREDICTION_API Chaos::FSingleParticlePhysicsProxy* FindBestPhysicsProxy(AActor* Owning, FName NamedComponent = NAME_None);
 }

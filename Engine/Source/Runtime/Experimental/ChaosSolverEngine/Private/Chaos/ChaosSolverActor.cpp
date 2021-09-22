@@ -411,7 +411,7 @@ void AChaosSolverActor::MakeFloor()
 		FilterData.Word1 = 0xFFFF;
 		FilterData.Word3 = 0xFFFF;
 		FloorParticle->SetShapeSimData(0, FilterData);
-		Proxy = FSingleParticlePhysicsProxy::Create(MoveTemp(FloorParticle));
+		Proxy = Chaos::FSingleParticlePhysicsProxy::Create(MoveTemp(FloorParticle));
 		Solver->RegisterObject(Proxy);
 	}
 }

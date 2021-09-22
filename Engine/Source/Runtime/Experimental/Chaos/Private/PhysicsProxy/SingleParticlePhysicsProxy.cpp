@@ -16,11 +16,13 @@
 #include "Chaos/PullPhysicsDataImp.h"
 #include "RewindData.h"
 
+namespace Chaos
+{
+
 // This is a temporary workaround to avoid GT copying position from physics results for kinematics, as they are already at target.
 // Velocity and such is still copied. This will be handled better in the future.
 int32 SyncKinematicOnGameThread = 0;
 FAutoConsoleVariableRef CVar_SyncKinematicOnGameThread(TEXT("P.Chaos.SyncKinematicOnGameThread"), SyncKinematicOnGameThread, TEXT("If set to 1, if a kinematic is flagged to send position back to game thread, move component, if 0, do not."));
-
 
 FSingleParticlePhysicsProxy::FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner)
 	: IPhysicsProxyBase(EPhysicsProxyType::SingleParticleProxy, InOwner)
@@ -377,4 +379,5 @@ void FSingleParticlePhysicsProxy::ClearEvents()
 	{
 		Rigid->ClearEvents();
 	}
+}
 }
