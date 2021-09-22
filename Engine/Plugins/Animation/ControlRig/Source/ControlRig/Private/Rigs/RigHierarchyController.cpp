@@ -1354,10 +1354,10 @@ TArray<FString> URigHierarchyController::GetAddControlPythonCommands(FRigControl
 			case ERigControlType::Position: TypeStr = TEXT("POSITION"); break;
 			case ERigControlType::Rotator: TypeStr = TEXT("POSITION"); break;
 			case ERigControlType::Scale: TypeStr = TEXT("SCALE"); break;
-			case ERigControlType::Transform: TypeStr = TEXT("TRANSFORM"); break;
+			case ERigControlType::Transform: TypeStr = TEXT("EULER_TRANSFORM"); break;
 			case ERigControlType::EulerTransform: TypeStr = TEXT("EULER_TRANSFORM"); break;
 			case ERigControlType::Vector2D: TypeStr = TEXT("VECTOR2D"); break;
-			case ERigControlType::TransformNoScale: TypeStr = TEXT("TRANSFORM_NO_SCALE"); break;
+			case ERigControlType::TransformNoScale: TypeStr = TEXT("EULER_TRANSFORM"); break;
 			default: ensure(false);
 		}
 		Commands.Add(FString::Printf(TEXT("control_settings_%s.control_type = unreal.RigControlType.%s"),
