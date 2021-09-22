@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MediaThumbnailSection.h"
+#include "Sequencer/MediaThumbnailSection.h"
 
 #include "EditorStyleSet.h"
 #include "IMediaCache.h"
@@ -35,7 +35,6 @@ FMediaThumbnailSection::FMediaThumbnailSection(UMovieSceneMediaSection& InSectio
 //	, MediaPlayer(nullptr)
 //	, MediaTexture(nullptr)
 	, SectionPtr(&InSection)
-	, SequencerPtr(InSequencer)
 {
 	TimeSpace = ETimeSpace::Local;
 }

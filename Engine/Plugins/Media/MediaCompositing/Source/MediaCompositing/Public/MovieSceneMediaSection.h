@@ -15,8 +15,8 @@ class UMediaTexture;
 /**
  * Implements a movie scene section for media playback.
  */
-UCLASS(MinimalAPI)
-class UMovieSceneMediaSection
+UCLASS()
+class MEDIACOMPOSITING_API UMovieSceneMediaSection
 	: public UMovieSceneSection
 {
 public:

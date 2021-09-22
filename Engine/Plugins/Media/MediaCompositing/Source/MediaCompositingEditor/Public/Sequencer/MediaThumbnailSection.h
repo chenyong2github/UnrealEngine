@@ -19,7 +19,7 @@ class UMovieSceneMediaSection;
 /**
  * Implements a thumbnail section for media tracks.
  */
-class FMediaThumbnailSection
+class MEDIACOMPOSITINGEDITOR_API FMediaThumbnailSection
 	: public FGCObject
 	, public FThumbnailSection
 	, public ICustomThumbnailClient
@@ -111,9 +111,6 @@ private:
 
 	/** The section object that owns this section. */
 	TWeakObjectPtr<UMovieSceneMediaSection> SectionPtr;
-
-	/** The sequencer object that owns this section. */
-	TWeakPtr<ISequencer> SequencerPtr;
 
 	/** Cached start offset value valid only during resize */
 	FFrameNumber InitialStartOffsetDuringResize;

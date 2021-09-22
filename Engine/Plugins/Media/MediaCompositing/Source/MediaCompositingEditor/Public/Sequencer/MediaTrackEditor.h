@@ -77,6 +77,7 @@ protected:
 
 	void AddNewSectionEnterPressed(const TArray<FAssetData>& Asset, UMovieSceneMediaTrack* Track);
 
+	TSharedPtr<FTrackEditorThumbnailPool> GetThumbnailPool() const { return ThumbnailPool; }
 private:
 
 	/** Callback for executing the "Add Media Track" menu entry. */
