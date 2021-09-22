@@ -478,7 +478,7 @@ void Lumen::CombineLumenSceneLighting(
 
 	FLumenCardCombineLighting* PassParameters = GraphBuilder.AllocParameters<FLumenCardCombineLighting>();
 
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.FinalLightingAtlas, ERenderTargetLoadAction::ELoad);
 	PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
 	PassParameters->VS.CardScatterInstanceIndex = 0;
