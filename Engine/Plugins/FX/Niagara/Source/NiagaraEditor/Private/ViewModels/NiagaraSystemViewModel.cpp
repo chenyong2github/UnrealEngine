@@ -1137,9 +1137,9 @@ void FNiagaraSystemViewModel::RefreshAll()
 
 void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
 {
-	if (ChangedObjects.Num() == 1 && (ChangedObjects[0]->IsA<UNiagaraEmitter>() || ChangedObjects[0]->IsA<UNiagaraSystem>()))
+	if (ChangedObjects.Num() == 1 && ChangedObjects[0]->IsA<UNiagaraSystem>())
 	{
-		// we do nothing on emitter or system changes here, because they will trigger a compile and reset on their own, depending on the changed property
+		// we do nothing on system changes here, because they will trigger a compile and reset on their own, depending on the changed property
 		return;
 	}
 
@@ -1158,6 +1158,16 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 			if(ChangedObject->IsA<UNiagaraDataInterfaceCurveBase>() && ChangeType != ENiagaraDataObjectChange::Changed)
 			{
 				bRefreshCurveSelectionViewModel = true;
+			}
+
+			if(UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(ChangedObject))
+			{
+				UNiagaraStackViewModel* StackViewModel = GetEmitterHandleViewModelForEmitter(Emitter)->GetEmitterStackViewModel();
+
+				if(ensure(StackViewModel))
+				{
+					StackViewModel->Refresh();
+				}
 			}
 		}
 	}
