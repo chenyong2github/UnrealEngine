@@ -6,11 +6,20 @@
 #include "ControlRigEditor.h"
 #include "Slate/Public/Framework/Application/SlateApplication.h"
 
-void UControlRigContextMenuContext::Init(TWeakObjectPtr<UControlRigBlueprint> InControlRigBlueprint, const FControlRigRigHierarchyDragAndDropContext& InDragAndDropContext, const FControlRigGraphNodeContextMenuContext& InGraphNodeContext)
+FString FControlRigRigHierarchyToGraphDragAndDropContext::GetSectionTitle() const
+{
+	TArray<FString> ElementNameStrings;
+	for (const FRigElementKey& Element: DraggedElementKeys)
+	{
+		ElementNameStrings.Add(Element.Name.ToString());
+	}
+	return FString::Join(ElementNameStrings, TEXT(","));
+}
+
+void UControlRigContextMenuContext::Init(TWeakObjectPtr<UControlRigBlueprint> InControlRigBlueprint, const FControlRigMenuSpecificContext& InMenuSpecificContext)
 {
 	ControlRigBlueprint = InControlRigBlueprint;
-	DragAndDropContext = InDragAndDropContext;
-	GraphNodeContextMenuContext = InGraphNodeContext;
+	MenuSpecificContext = InMenuSpecificContext;
 }
 
 UControlRigBlueprint* UControlRigContextMenuContext::GetControlRigBlueprint() const
@@ -37,10 +46,15 @@ bool UControlRigContextMenuContext::IsAltDown() const
 
 FControlRigRigHierarchyDragAndDropContext UControlRigContextMenuContext::GetRigHierarchyDragAndDropContext()
 {
-	return DragAndDropContext;
+	return MenuSpecificContext.RigHierarchyDragAndDropContext;
 }
 
 FControlRigGraphNodeContextMenuContext UControlRigContextMenuContext::GetGraphNodeContextMenuContext()
 {
-	return GraphNodeContextMenuContext;
+	return MenuSpecificContext.GraphNodeContextMenuContext;
+}
+
+FControlRigRigHierarchyToGraphDragAndDropContext UControlRigContextMenuContext::GetRigHierarchyToGraphDragAndDropContext()
+{
+	return MenuSpecificContext.RigHierarchyToGraphDragAndDropContext;
 }

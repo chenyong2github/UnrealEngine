@@ -967,7 +967,9 @@ UToolMenu* SRigHierarchy::GetOrCreateDragDropMenu(const TArray<FRigElementKey>& 
 	}
 
 	UControlRigContextMenuContext* MenuContext = NewObject<UControlRigContextMenuContext>();
-	MenuContext->Init(ControlRigBlueprint, FControlRigRigHierarchyDragAndDropContext(DraggedKeys, TargetKey));
+	FControlRigMenuSpecificContext MenuSpecificContext;
+	MenuSpecificContext.RigHierarchyDragAndDropContext = FControlRigRigHierarchyDragAndDropContext(DraggedKeys, TargetKey);
+	MenuContext->Init(ControlRigBlueprint, MenuSpecificContext);
 	
 	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, FToolMenuContext(MenuContext));
 
