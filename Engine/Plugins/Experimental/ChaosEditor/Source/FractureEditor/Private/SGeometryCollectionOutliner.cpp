@@ -291,6 +291,7 @@ void SGeometryCollectionOutliner::SetBoneSelection(UGeometryCollectionComponent*
 
 	bool bFirstSelection = true;
 
+	FGeometryCollectionTreeItemList NewSelection;
 	for(auto& RootNode : RootNodes)
 	{
 		if (RootNode->GetComponent() == RootComponent)
@@ -305,12 +306,13 @@ void SGeometryCollectionOutliner::SetBoneSelection(UGeometryCollectionComponent*
 						TreeView->RequestScrollIntoView(Item);
 						bFirstSelection = false;
 					}
-					TreeView->SetItemSelection(Item, true);
+					NewSelection.Add(Item);
 				}
 			}
 			break;
 		}
 	}
+	TreeView->SetItemSelection(NewSelection, true);
 }
 
 void SGeometryCollectionOutliner::OnSelectionChanged(FGeometryCollectionTreeItemPtr Item, ESelectInfo::Type SelectInfo)
