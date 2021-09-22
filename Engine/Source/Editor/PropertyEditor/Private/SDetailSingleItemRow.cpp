@@ -484,11 +484,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					.Value(ColumnSizeData.NameColumnWidth)
 					.OnSlotResized(ColumnSizeData.OnNameColumnResized)
 					[
-						SNew(SBox)
-						.MinDesiredHeight(PropertyEditorConstants::PropertyRowHeight)
-						[
-							NameColumnBox
-						]
+						NameColumnBox
 					];
 
 				// create Value column:
@@ -534,11 +530,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					.Value(ColumnSizeData.PropertyColumnWidth)
 					.OnSlotResized(ColumnSizeData.OnPropertyColumnResized)
 					[
-						SNew(SBox)
-						.MinDesiredHeight(PropertyEditorConstants::PropertyRowHeight)
-						[
-							NameColumnBox
-						]
+						NameColumnBox
 					];
 			}
 
@@ -630,33 +622,38 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 		.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
 		.Padding(FMargin(0,0,0,1))
 		[
-			SNew( SHorizontalBox )
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
+			SNew(SBox)
+			.MinDesiredHeight(PropertyEditorConstants::PropertyRowHeight)
 			[
-				SNew( SBorder )
-				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.Highlight"))
-				.Padding_Lambda(GetHighlightBorderPadding)
+				SNew( SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
 				[
 					SNew( SBorder )
-					.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
-					.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
-					.Padding(0)
-					.Clipping(EWidgetClipping::ClipToBounds)
+					.BorderImage(FAppStyle::Get().GetBrush("DetailsView.Highlight"))
+					.Padding_Lambda(GetHighlightBorderPadding)
 					[
-						Widget
+						SNew( SBorder )
+						.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+						.BorderBackgroundColor(this, &SDetailSingleItemRow::GetOuterBackgroundColor)
+						.Padding(0)
+						.Clipping(EWidgetClipping::ClipToBounds)
+						[
+							Widget
+						]
 					]
 				]
-			]
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Fill)
-			.AutoWidth()
-			[
-				SNew( SBorder )
-				.BorderImage_Lambda(GetScrollbarWellBrush)
-				.BorderBackgroundColor_Lambda(GetScrollbarWellTint)
-				.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Fill)
+				.AutoWidth()
+				[
+					SNew( SBorder )
+					.BorderImage_Lambda(GetScrollbarWellBrush)
+					.BorderBackgroundColor_Lambda(GetScrollbarWellTint)
+					.Padding(FMargin(0, 0, SDetailTableRowBase::ScrollBarPadding, 0))
+				]
 			]
 		]
 	];
