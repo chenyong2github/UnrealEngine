@@ -203,7 +203,11 @@ void URigVM::Load(FArchive& Ar)
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	// requesting the memory types will create them
-	ClearMemory();
+	// Cooked platforms will just load the objects and do no need to clear the referenes
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		ClearMemory();
+	}
 	
 	Ar << ExternalPropertyPathDescriptions;
 	Ar << FunctionNamesStorage;
