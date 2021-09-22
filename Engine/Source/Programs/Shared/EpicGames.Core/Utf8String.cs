@@ -156,6 +156,24 @@ namespace EpicGames.Core
 			}
 		}
 
+		/// <inheritdoc cref="String.IndexOf(char, int)"/>
+		public int IndexOf(char Char, int Index) => IndexOf(Char, Index, Length - Index);
+
+		/// <inheritdoc cref="String.IndexOf(char, int, int)"/>
+		public int IndexOf(char Char, int Index, int Count)
+		{
+			int Result;
+			if (Char < 0x80)
+			{
+				Result = Span.Slice(Index, Count).IndexOf((byte)Char);
+			}
+			else
+			{
+				Result = Span.Slice(Index, Count).IndexOf(Encoding.UTF8.GetBytes(new[] { Char }));
+			}
+			return (Result == -1) ? -1 : Result + Index;
+		}
+
 		/// <inheritdoc cref="String.IndexOf(string)"/>
 		public int IndexOf(Utf8String String)
 		{
@@ -173,6 +191,25 @@ namespace EpicGames.Core
 				}
 			}
 			return -1;
+		}
+
+		/// <inheritdoc cref="String.LastIndexOf(char)"/>
+		public int LastIndexOf(byte Char)
+		{
+			return Span.IndexOf(Char);
+		}
+
+		/// <inheritdoc cref="String.LastIndexOf(char)"/>
+		public int LastIndexOf(char Char)
+		{
+			if (Char < 0x80)
+			{
+				return Span.IndexOf((byte)Char);
+			}
+			else
+			{
+				return Span.IndexOf(Encoding.UTF8.GetBytes(new[] { Char }));
+			}
 		}
 
 		/// <summary>
@@ -217,26 +254,24 @@ namespace EpicGames.Core
 			return Length >= Other.Length && Comparer.Equals(Slice(Length - Other.Length), Other);
 		}
 
-		/// <summary>
-		/// Slices this string at the given start position
-		/// </summary>
-		/// <param name="Start">Start position</param>
-		/// <returns>String starting at the given position</returns>
-		public Utf8String Slice(int Start)
+		/// <inheritdoc cref="Substring(int)"/>
+		public Utf8String Slice(int Start) => Substring(Start);
+
+		/// <inheritdoc cref="Substring(int, int)"/>
+		public Utf8String Slice(int Start, int Count) => Substring(Start, Count);
+
+		/// <inheritdoc cref="String.Substring(int)"/>
+		public Utf8String Substring(int Start)
 		{
 			return new Utf8String(Memory.Slice(Start));
 		}
 
-		/// <summary>
-		/// Slices this string at the given start position and length
-		/// </summary>
-		/// <param name="Start">Start position</param>
-		/// <returns>String starting at the given position</returns>
-		public Utf8String Slice(int Start, int Count)
+		/// <inheritdoc cref="String.Substring(int, int)"/>
+		public Utf8String Substring(int Start, int Count)
 		{
 			return new Utf8String(Memory.Slice(Start, Count));
 		}
-
+		
 		/// <summary>
 		/// Tests if this string is equal to the other object
 		/// </summary>
@@ -305,6 +340,15 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public static Utf8String operator +(Utf8String A, Utf8String B)
 		{
+			if (A.Length == 0)
+			{
+				return B;
+			}
+			if (B.Length == 0)
+			{
+				return A;
+			}
+
 			byte[] Buffer = new byte[A.Length + B.Length];
 			A.Span.CopyTo(Buffer);
 			B.Span.CopyTo(Buffer.AsSpan(A.Length));

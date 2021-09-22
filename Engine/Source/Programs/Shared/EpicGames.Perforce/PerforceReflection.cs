@@ -449,6 +449,10 @@ namespace EpicGames.Perforce
 						{
 							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, ParseString(String));
 						}
+						else if (FieldType == typeof(Utf8String))
+						{
+							TagInfo.SetFromString = (Obj, String) => FieldCopy.SetValue(Obj, String.Clone());
+						}
 						else if (FieldType.IsEnum)
 						{
 							CachedEnumInfo EnumInfo = GetCachedEnumInfo(FieldType);

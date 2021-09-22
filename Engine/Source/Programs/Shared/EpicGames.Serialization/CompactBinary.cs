@@ -1402,8 +1402,10 @@ namespace EpicGames.Serialization
 		/// <param name="Hasher"></param>
 		void AppendHash(Blake3.Hasher Hasher)
 		{
-			byte[] Data = new byte[] { (byte)CbFieldUtils.GetSerializedType(TypeWithFlags) };
+			Span<byte> Data = stackalloc byte[1];
+			Data[0] = (byte)CbFieldUtils.GetSerializedType(TypeWithFlags);
 			Hasher.Update(Data);
+
 			Hasher.Update(GetViewNoType().Span);
 		}
 

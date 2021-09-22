@@ -326,7 +326,7 @@ namespace EpicGames.Perforce.Managed
 		/// <returns></returns>
 		public CbObject ToCbObject(CbWriter Writer, Utf8String BasePath)
 		{
-			if (BasePath.EndsWith("/"))
+			if (BasePath.Length > 0 && BasePath[BasePath.Length - 1] == '/')
 			{
 				throw new ArgumentException("BasePath must not end in a slash", nameof(BasePath));
 			}
