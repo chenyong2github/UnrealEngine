@@ -111,9 +111,6 @@ enum EForceInit
 enum ENoInit {NoInit};
 enum EInPlace {InPlace};
 
-// Handle type to stably track users on a specific platform
-typedef int32 FPlatformUserId;
-const FPlatformUserId PLATFORMUSERID_NONE = INDEX_NONE;
 #endif // RC_INVOKED
 
 // When passed to pragma message will result in clickable warning in VS
@@ -278,3 +275,67 @@ struct TStaticDeprecateExpression
 	TypeName& operator=(const TypeName&) = delete; \
 	TypeName& operator=(TypeName&&) = delete;
 
+
+/** 
+ * Handle that defines a local user on this platform.
+ * This used to be just a typedef int32 that was used interchangeably as ControllerId and LocalUserIndex.
+ * Moving forward these will be allocated by the platform application layer.
+ */
+struct FPlatformUserId
+{
+	/** Create a default invalid Id */
+	FORCEINLINE FPlatformUserId() : InternalId(INDEX_NONE) {}
+
+	FPlatformUserId(const FPlatformUserId&) = default;
+	FPlatformUserId& operator=(const FPlatformUserId&) = default;
+
+	/** Sees if this is a valid user */
+	FORCEINLINE bool IsValid() const
+	{
+		return InternalId != INDEX_NONE;
+	}
+
+	/** Returns the internal id for debugging/etc */
+	FORCEINLINE int32 GetInternalId() const
+	{
+		return InternalId;
+	}
+
+	/** Explicit function to create from an internal id */
+	FORCEINLINE static FPlatformUserId CreateFromInternalId(int32 InInternalId)
+	{
+		FPlatformUserId IdToReturn;
+		IdToReturn.InternalId = InInternalId;
+		return IdToReturn;
+	}
+
+	FORCEINLINE bool operator==(const FPlatformUserId& Other) const
+	{
+		return InternalId == Other.InternalId;
+	}
+
+	FORCEINLINE bool operator!=(const FPlatformUserId& Other) const
+	{
+		return InternalId != Other.InternalId;
+	}
+
+	FORCEINLINE friend uint32 GetTypeHash(const FPlatformUserId& UserId)
+	{
+		return UserId.InternalId;
+	}
+
+	// This is needed until input and online code handles FPlatformUserId properly
+	UE_DEPRECATED(5.0, "Implicit conversion from user index is deprecated, use FPlatformMisc::GetPlatformUserForUserIndex")
+	FORCEINLINE constexpr FPlatformUserId(int32 InIndex) : InternalId(InIndex) {}
+
+	// This should be deprecated when the online code uniformly handles FPlatformUserId */
+	// UE_DEPRECATED(5.x, "Implicit conversion to user index is deprecated, use FPlatformMisc::GetUserIndexForPlatformUser")
+	FORCEINLINE constexpr operator int32() const { return InternalId; }
+
+private:
+	/** Raw id, will be allocated by application layer */
+	int32 InternalId;
+};
+
+/** Static invalid platform user */
+const FPlatformUserId PLATFORMUSERID_NONE;

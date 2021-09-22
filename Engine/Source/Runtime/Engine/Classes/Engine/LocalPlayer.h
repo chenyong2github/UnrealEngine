@@ -204,6 +204,10 @@ public:
 	DECLARE_EVENT_TwoParams(ULocalPlayer, FOnControllerIdChanged, int32 /*NewId*/, int32 /*OldId*/);
 	FOnControllerIdChanged& OnControllerIdChanged() const { return OnControllerIdChangedEvent; }
 
+	/** Event called when this local player has been assigned to a new platform-level user */
+	DECLARE_EVENT_TwoParams(ULocalPlayer, FOnPlatformUserIdChanged, FPlatformUserId /*NewId*/, FPlatformUserId /*OldId*/);
+	FOnPlatformUserIdChanged& OnPlatformUserIdChanged() { return OnPlatformUserIdChangedEvent; }
+
 private:
 	TArray<FSceneViewStateReference> ViewStates;
 
@@ -212,6 +216,12 @@ private:
 	int32 ControllerId = INVALID_CONTROLLERID;
 
 	mutable FOnControllerIdChanged OnControllerIdChangedEvent;
+
+	/** The platform user this player is assigned to, could correspond to multiple input devices */
+	FPlatformUserId PlatformUserId;
+
+	/** Event called when platform user id changes */
+	FOnPlatformUserIdChanged OnPlatformUserIdChangedEvent;
 
 	FSubsystemCollection<ULocalPlayerSubsystem> SubsystemCollection;
 
@@ -265,8 +275,8 @@ public:
 	const FReply& GetSlateOperations() const { return SlateOperations; }
 
 	/** Get the SlateUser that this LocalPlayer corresponds to */
-	TSharedPtr<FSlateUser> GetSlateUser();
-	TSharedPtr<const FSlateUser> GetSlateUser() const;
+	virtual TSharedPtr<FSlateUser> GetSlateUser();
+	virtual TSharedPtr<const FSlateUser> GetSlateUser() const;
 
 	/**
 	 * Get the world the players actor belongs to
@@ -340,7 +350,7 @@ public:
 	* @param	StereoPass - whether we are drawing the full viewport, or a stereo left / right pass
 	* @return	true if the view options were filled in. false in various fail conditions.
 	*/
-	bool CalcSceneViewInitOptions(
+	virtual bool CalcSceneViewInitOptions(
 		struct FSceneViewInitOptions& OutInitOptions, 
 		FViewport* Viewport,
 		class FViewElementDrawer* ViewDrawer = NULL,
@@ -410,6 +420,22 @@ public:
 	 */
 	int32 GetControllerId() const { return ControllerId; }
 
+	/**
+	 * Changes the platform user that is assigned to this player
+	 */
+	virtual void SetPlatformUserId(FPlatformUserId InPlatformUserId);
+
+	/**
+	 * Returns the platform user that is assigned to this player
+	 */
+	FPlatformUserId GetPlatformUserId() const { return PlatformUserId; }
+
+	/**
+	 * Returns the logical local player index where 0 is the first player
+	 * By default, this uses index in the game instance array
+	 */
+	virtual int32 GetLocalPlayerIndex() const;
+
 	/** 
 	 * Retrieves this player's name/tag from the online subsystem
 	 * if this function returns a non-empty string, the returned name will replace the "Name" URL parameter
@@ -429,12 +455,16 @@ public:
 	 */
 	virtual FString GetGameLoginOptions() const { return TEXT(""); }
 
-	/** 
-	 * Retrieves this player's unique net ID from the online subsystem 
+	// This should be deprecated when engine code has been changed to expect FPlatformUserId
+	// UE_DEPRECATED(5.x, "Use GetUniqueNetIdForPlatformUser instead")
+	FUniqueNetIdRepl GetUniqueNetIdFromCachedControllerId() const;
+
+	/**
+	 * Retrieves this player's unique net ID from the online subsystem using the platform user Id
 	 *
 	 * @return unique Id associated with this player
 	 */
-	FUniqueNetIdRepl GetUniqueNetIdFromCachedControllerId() const;
+	virtual FUniqueNetIdRepl GetUniqueNetIdForPlatformUser() const;
 
 	/** 
 	 * Retrieves this player's unique net ID that was previously cached
@@ -451,9 +481,9 @@ public:
 	 *
 	 * @return unique Id associated with this player
 	 */
-	FUniqueNetIdRepl GetPreferredUniqueNetId() const;
+	virtual FUniqueNetIdRepl GetPreferredUniqueNetId() const;
 
-	/** Returns true if the cached unique net id, is the one assigned to the controller id from the OSS */
+	UE_DEPRECATED(5.0, "Platform User Id now has priority over ControllerId, these are not expected to be the same")
 	bool IsCachedUniqueNetIdPairedWithControllerId() const;
 
 	/**
@@ -496,7 +526,7 @@ public:
 	/**
 	 * Clear cached view state.  Suitable for calling when cleaning up the world but the view state has some references objects (usually mids) owned by the world (thus preventing GC) 
 	 */
-	void CleanupViewState();
+	virtual void CleanupViewState();
 
 	/** Locked view state needs access to GetViewPoint. */
 	friend class FLockedViewState;

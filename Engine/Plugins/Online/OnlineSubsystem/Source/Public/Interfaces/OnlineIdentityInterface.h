@@ -473,13 +473,31 @@ public:
 	virtual void GetUserPrivilege(const FUniqueNetId& LocalUserId, EUserPrivileges::Type Privilege, const FOnGetUserPrivilegeCompleteDelegate& Delegate) = 0;
 
 	/**
-	 * Temporary hack to get a corresponding FUniqueNetId from a PlatformUserId
+	 * Converts from an online unique id to a PlatformUserId used by application code
 	 *
 	 * @param UniqueNetId The unique id to look up
 	 *
 	 * @return The corresponding id or PLATFORMID_NONE if not found
 	 */
 	virtual FPlatformUserId GetPlatformUserIdFromUniqueNetId(const FUniqueNetId& UniqueNetId) const = 0;
+
+	/**
+	 * Converts from a local user num used by the online system to a PlatformUserId used by application code
+	 *
+	 * @param LocalUserNum the controller number of the associated user
+	 *
+	 * @return The corresponding id or PLATFORMID_NONE if invalid
+	 */
+	ONLINESUBSYSTEM_API virtual FPlatformUserId GetPlatformUserIdFromLocalUserNum(int32 LocalUserNum) const;
+
+	/**
+	 * Converts from a PlatformUserId used by application code to a local user num used by the online system
+	 *
+	 * @param PlatformUserId The application-level platform user id
+	 *
+	 * @return The corresponding user number of INDEX_NONE if invalid
+	 */
+	ONLINESUBSYSTEM_API virtual int32 GetLocalUserNumFromPlatformUserId(FPlatformUserId PlatformUserId) const;
 
 	/**
 	 * Get the auth type associated with accounts for this platform

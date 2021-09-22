@@ -2408,7 +2408,8 @@ bool FEOSVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& A
 		{
 			FString Token = InsecureGetLoginToken(PlayerName);
 
-			Login(0, PlayerName, Token, FOnVoiceChatLoginCompleteDelegate::CreateLambda([this, &Ar](const FString& LoggedInPlayerName, const FVoiceChatResult& Result)
+			FPlatformUserId FirstUser = FPlatformMisc::GetPlatformUserForUserIndex(0);
+			Login(FirstUser, PlayerName, Token, FOnVoiceChatLoginCompleteDelegate::CreateLambda([this, &Ar](const FString& LoggedInPlayerName, const FVoiceChatResult& Result)
 			{
 				EOSVOICECHATUSER_LOG(Display, TEXT("EOS LOGIN playername:%s result:%s"), *LoggedInPlayerName, *LexToString(Result));
 			}));

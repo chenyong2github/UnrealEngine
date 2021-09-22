@@ -227,7 +227,7 @@ FPlatformUserId FOnlineIdentitySteam::GetPlatformUserIdFromUniqueNetId(const FUn
 		auto CurrentUniqueId = GetUniquePlayerId(i);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == UniqueNetId))
 		{
-			return i;
+			return GetPlatformUserIdFromLocalUserNum(i);
 		}
 	}
 

@@ -341,7 +341,7 @@ FPlatformUserId FOnlineIdentityTencent::GetPlatformUserIdFromUniqueNetId(const F
 		auto CurrentUniqueId = GetUniquePlayerId(i);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == UniqueNetId))
 		{
-			return i;
+			return GetPlatformUserIdFromLocalUserNum(i);
 		}
 	}
 

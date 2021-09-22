@@ -11951,6 +11951,41 @@ ULocalPlayer* UEngine::FindFirstLocalPlayerFromControllerId(int32 ControllerId) 
 	return nullptr;
 }
 
+ULocalPlayer* UEngine::FindFirstLocalPlayerFromPlatformUserId(FPlatformUserId PlatformUserId) const
+{
+	for (auto It = WorldList.CreateConstIterator(); It; ++It)
+	{
+		const FWorldContext& Context = *It;
+		if (Context.World() && Context.OwningGameInstance && (Context.WorldType == EWorldType::Game || Context.WorldType == EWorldType::PIE))
+		{
+			const TArray<class ULocalPlayer*>& LocalPlayers = Context.OwningGameInstance->GetLocalPlayers();
+
+			for (ULocalPlayer* LocalPlayer : LocalPlayers)
+			{
+				if (LocalPlayer && (!PlatformUserId.IsValid() || LocalPlayer->GetPlatformUserId() == PlatformUserId))
+				{
+					return LocalPlayer;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+ULocalPlayer* UEngine::GetLocalPlayerFromPlatformUserId(UWorld* InWorld, const FPlatformUserId PlatformUserId) const
+{
+	for (ULocalPlayer* const Player : GetGamePlayers(InWorld))
+	{
+		if (Player && Player->GetPlatformUserId() == PlatformUserId)
+		{
+			return Player;
+		}
+	}
+
+	return nullptr;
+}
+
 int32 UEngine::GetNumGamePlayers(UWorld *InWorld)
 {
 	return GetGamePlayers(InWorld).Num();

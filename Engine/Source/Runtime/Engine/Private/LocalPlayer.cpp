@@ -789,6 +789,8 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 
 	ViewInitOptions.SceneViewStateInterface = ViewStates[ViewIndex].GetReference();
 	ViewInitOptions.ViewActor = PlayerController->GetViewTarget();
+
+	// TODO: Switch to GetLocalPlayerIndex during GetControllerId deprecation, this is only used by MotionControllerComponent
 	ViewInitOptions.PlayerIndex = GetControllerId();
 	ViewInitOptions.ViewElementDrawer = ViewDrawer;
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;
@@ -1528,11 +1530,40 @@ void ULocalPlayer::SetControllerId( int32 NewControllerId )
 		ControllerId = -1;
 
 		// see if another player is already using this ControllerId; if so, swap controllerIds with them
+		// TODO: Re-evaluate if this swap logic makes sense during controller id deprecation
 		GEngine->SwapControllerId(this, CurrentControllerId, NewControllerId);
 		ControllerId = NewControllerId;
 
 		OnControllerIdChanged().Broadcast(NewControllerId, CurrentControllerId);
+
+		if (GEngine->IsControllerIdUsingPlatformUserId())
+		{
+			// This won't recurse back because we've already modified ControllerId
+			SetPlatformUserId(FPlatformMisc::GetPlatformUserForUserIndex(NewControllerId));
+		}
 	}
+}
+
+void ULocalPlayer::SetPlatformUserId(FPlatformUserId InPlatformUserId)
+{
+	if (InPlatformUserId != PlatformUserId)
+	{
+		const FPlatformUserId CurrentPlatformUserId = PlatformUserId;
+
+		PlatformUserId = InPlatformUserId;
+		OnPlatformUserIdChanged().Broadcast(InPlatformUserId, CurrentPlatformUserId);
+
+		if (GEngine->IsControllerIdUsingPlatformUserId())
+		{
+			SetControllerId(FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId));
+		}
+	}
+}
+
+int32 ULocalPlayer::GetLocalPlayerIndex() const
+{
+	// TODO: Add caching
+	return GetIndexInGameInstance();
 }
 
 FString ULocalPlayer::GetNickname() const
@@ -1542,7 +1573,7 @@ FString ULocalPlayer::GetNickname() const
 	{
 		// Try to get platform identity first
 		FString PlatformNickname;
-		if (UOnlineEngineInterface::Get()->GetPlayerPlatformNickname(World, ControllerId, PlatformNickname))
+		if (UOnlineEngineInterface::Get()->GetPlayerPlatformNickname(World, PlatformUserId, PlatformNickname))
 		{
 			return PlatformNickname;
 		}
@@ -1568,6 +1599,17 @@ FUniqueNetIdRepl ULocalPlayer::GetUniqueNetIdFromCachedControllerId() const
 	return FUniqueNetIdRepl();
 }
 
+FUniqueNetIdRepl ULocalPlayer::GetUniqueNetIdForPlatformUser() const
+{
+	UWorld* World = GetWorld();
+	if (World != nullptr)
+	{
+		return FUniqueNetIdRepl(UOnlineEngineInterface::Get()->GetUniquePlayerId(World, PlatformUserId));
+	}
+
+	return FUniqueNetIdRepl();
+}
+
 FUniqueNetIdRepl ULocalPlayer::GetCachedUniqueNetId() const
 {
 	return CachedUniqueNetId;
@@ -1587,8 +1629,8 @@ FUniqueNetIdRepl ULocalPlayer::GetPreferredUniqueNetId() const
 		return GetCachedUniqueNetId();
 	}
 
-	// If the cached unique net id is not valid, then get the one paired with the controller
-	return GetUniqueNetIdFromCachedControllerId();
+	// If the cached unique net id is not valid, then use the platfomr user
+	return GetUniqueNetIdForPlatformUser();
 }
 
 bool ULocalPlayer::IsCachedUniqueNetIdPairedWithControllerId() const

@@ -367,7 +367,7 @@ FPlatformUserId FOnlineIdentityAmazon::GetPlatformUserIdFromUniqueNetId(const FU
 		auto CurrentUniqueId = GetUniquePlayerId(i);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == UniqueNetId))
 		{
-			return i;
+			return GetPlatformUserIdFromLocalUserNum(i);
 		}
 	}
 
