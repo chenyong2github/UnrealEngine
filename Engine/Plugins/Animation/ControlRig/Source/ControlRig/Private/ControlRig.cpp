@@ -2796,9 +2796,14 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 
 	// set up the VM
 	VM = NewObject<URigVM>(this, TEXT("VM"), SubObjectFlags);
-	VM->GetMemoryByType(ERigVMMemoryType::Work, true);
-	VM->GetMemoryByType(ERigVMMemoryType::Literal, true);
-	VM->GetMemoryByType(ERigVMMemoryType::Debug, true);
+
+	// Cooked platforms will load these pointers from disk
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		VM->GetMemoryByType(ERigVMMemoryType::Work, true);
+		VM->GetMemoryByType(ERigVMMemoryType::Literal, true);
+		VM->GetMemoryByType(ERigVMMemoryType::Debug, true);
+	}
 
 	VM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
 	UpdateVMSettings();
