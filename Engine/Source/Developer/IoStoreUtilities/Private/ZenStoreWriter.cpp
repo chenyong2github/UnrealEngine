@@ -261,12 +261,10 @@ FZenStoreWriter::FZenStoreWriter(
 {
 	StaticInit();
 
-	FString HostName = TEXT("localhost");
-	uint16 Port = 1337;
 	FString ProjectId = FApp::GetProjectName();
 	FString OplogId = InTargetPlatform->PlatformName();
 
-	HttpClient = MakeUnique<UE::FZenStoreHttpClient>(HostName, Port);
+	HttpClient = MakeUnique<UE::FZenStoreHttpClient>();
 
 	FString RootDir = FPaths::RootDir();
 	FString EngineDir = FPaths::EngineDir();
@@ -288,8 +286,8 @@ FZenStoreWriter::FZenStoreWriter(
 	PackageStoreOptimizer->Initialize(InTargetPlatform);
 
 	FPackageStoreManifest::FZenServerInfo& ZenServerInfo = PackageStoreManifest.EditZenServerInfo();
-	ZenServerInfo.HostName = HostName;
-	ZenServerInfo.Port = Port;
+	ZenServerInfo.HostName = HttpClient->GetHostName();
+	ZenServerInfo.Port = HttpClient->GetPort();
 	ZenServerInfo.ProjectId = ProjectId;
 	ZenServerInfo.OplogId = OplogId;
 

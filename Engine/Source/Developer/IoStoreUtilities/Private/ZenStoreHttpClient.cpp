@@ -25,17 +25,17 @@ DEFINE_LOG_CATEGORY_STATIC(LogZenStore, Log, All);
 
 namespace UE { 
 
-FZenStoreHttpClient::FZenStoreHttpClient(const FStringView InHostName, uint16 InPort)
-: HostName(InHostName)
-, Port(InPort)
-{
-	TStringBuilder<64> Uri;
-	Uri.AppendAnsi("http://");
-	Uri.Append(InHostName);
-	Uri.AppendAnsi(":");
-	Uri << InPort;
+const uint32 FZenStoreHttpClient::PoolEntryCount = 32;
 
-	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(Uri, 32);
+FZenStoreHttpClient::FZenStoreHttpClient()
+{
+	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
+}
+
+FZenStoreHttpClient::FZenStoreHttpClient(const FStringView InHostName, uint16 InPort)
+: ZenService(InHostName, InPort)
+{
+	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
 }
 
 FZenStoreHttpClient::~FZenStoreHttpClient()
@@ -567,6 +567,10 @@ namespace Zen {
 	struct FZenHttpRequestPool
 	{
 	};
+}
+
+FZenStoreHttpClient::FZenStoreHttpClient()
+{
 }
 
 FZenStoreHttpClient::FZenStoreHttpClient(const FStringView InHostName, uint16 InPort)

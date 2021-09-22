@@ -388,7 +388,6 @@ bool IsIterativeEnabled(FName PackageName)
 TArray<const UTF8CHAR*> FEditorDomainOplog::ReservedOplogKeys;
 
 FEditorDomainOplog::FEditorDomainOplog()
-	: HttpClient(TEXT("localhost"), 1337)
 {
 	StaticInit();
 

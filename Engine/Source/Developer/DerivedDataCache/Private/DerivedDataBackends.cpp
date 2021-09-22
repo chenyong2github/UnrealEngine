@@ -870,11 +870,7 @@ public:
 	{
 #if WITH_ZEN_DDC_BACKEND
 		FString ServiceUrl;
-		if (!FParse::Value(Entry, TEXT("Host="), ServiceUrl))
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Host'."), NodeName);
-			return nullptr;
-		}
+		FParse::Value(Entry, TEXT("Host="), ServiceUrl);
 
 		FString Namespace;
 		if (!FParse::Value(Entry, TEXT("Namespace="), Namespace))
@@ -886,7 +882,7 @@ public:
 		FZenDerivedDataBackend* backend = new FZenDerivedDataBackend(*ServiceUrl, *Namespace);
 		if (!backend->IsUsable())
 		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *ServiceUrl);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *backend->GetName());
 			delete backend;
 			return nullptr;
 		}
