@@ -1154,7 +1154,7 @@ bool FRHIResource::Bypass()
 
 DECLARE_CYCLE_STAT(TEXT("Delete Resources"), STAT_DeleteResources, STATGROUP_RHICMDLIST);
 
-void FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
+int32 FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
 {
 	SCOPE_CYCLE_COUNTER(STAT_DeleteResources);
 
@@ -1177,6 +1177,8 @@ void FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
 	});
 	PendingDeletesHPC.Delete(PendingDeletesPtr);
 
+	const int32 NumDeletes = DeletedResources.Num();
+
 	RHICmdList.EnqueueLambda([DeletedResources = MoveTemp(DeletedResources)](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		if (GDynamicRHI)
@@ -1193,6 +1195,8 @@ void FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
 			}
 		}
 	});
+
+	return NumDeletes;
 }
 
 static_assert(ERHIZBuffer::FarPlane != ERHIZBuffer::NearPlane, "Near and Far planes must be different!");

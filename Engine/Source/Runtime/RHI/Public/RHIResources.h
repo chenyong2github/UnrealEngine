@@ -114,7 +114,7 @@ public:
 		return uint32(CurrentValue);
 	}
 
-	static void FlushPendingDeletes(FRHICommandListImmediate& RHICmdList);
+	static int32 FlushPendingDeletes(FRHICommandListImmediate& RHICmdList);
 
 	static bool Bypass();
 

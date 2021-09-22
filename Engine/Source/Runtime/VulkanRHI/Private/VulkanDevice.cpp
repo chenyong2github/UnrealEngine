@@ -1230,7 +1230,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 	}
 #endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
-	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d Tessellation %d BufferAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, PhysicalFeatures.tessellationShader, OptionalDeviceExtensions.HasBufferAtomicInt64);
+	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasBufferAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
 
 	CreateDevice();
 
@@ -1383,11 +1383,14 @@ void FVulkanDevice::Destroy()
 	}
 
 	// Flush all pending deletes before destroying the device and any Vulkan context objects.
+	// Repeat until no new deletes are added
+	int32 NumDeletes = 0;
+	do
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FRHIResource::FlushPendingDeletes(RHICmdList);
+		NumDeletes = FRHIResource::FlushPendingDeletes(RHICmdList);
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-	}
+	} while (NumDeletes > 0);
 
 	VulkanRHI::vkDestroyImageView(GetInstanceHandle(), DefaultTextureView.View, VULKAN_CPU_ALLOCATOR);
 	DefaultTextureView = {};
