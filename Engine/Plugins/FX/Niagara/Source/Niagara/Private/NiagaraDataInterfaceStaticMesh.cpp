@@ -312,9 +312,20 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	}
 	else if (!Mesh->bAllowCPUAccess)
 	{
-		UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface using a mesh that does not allow CPU access. Interface: %s, Mesh: %s"),
-			*Interface->GetFullName(), *Mesh->GetFullName());
-		Mesh = nullptr; // Disallow usage of this mesh to prevent issues on cooked builds
+		//-TODO: This will be modified with the refactor to allow GPU to be used when CPU is also used
+		if (Interface->IsUsedWithGPUEmitter() && !Interface->IsUsedWithCPUEmitter())
+		{
+			if ( !FNiagaraUtilities::AreBufferSRVsAlwaysCreated(GMaxRHIShaderPlatform) )
+			{
+				UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface used by GPU emitter but does not have SRV access on this platform.  Enable CPU access to fix this issue. Interface: %s, Mesh: %s"), *Interface->GetFullName(), *StaticMesh->GetFullName());
+				Mesh = nullptr;
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface used by CPU emitter and does not allow CPU access. Interface: %s, Mesh: %s"), *Interface->GetFullName(), *StaticMesh->GetFullName());
+			Mesh = nullptr;
+		}
 	}
 
 	if (Mesh != nullptr)
@@ -1538,11 +1549,10 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
 		const FStaticMeshLODResources* GpuMeshLODResource = Inst->CachedLOD;
 
-		if (GpuMeshLODResource && IsUsedWithGPUEmitter(SystemInstance))
+		if (GpuMeshLODResource && IsUsedWithGPUEmitter())
 		{
-			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
-			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?
-			ensure(Inst->StaticMesh->bAllowCPUAccess); // this should have been verified in Init()
+			// This should already have been validated, but to be safe
+			ensureMsgf(Inst->StaticMesh->bAllowCPUAccess || FNiagaraUtilities::AreBufferSRVsAlwaysCreated(GMaxRHIShaderPlatform), TEXT("Creating GPU resources in an invalid case CPUAccess(%d) SRVsAlwaysCreated(%d)"), Inst->StaticMesh->bAllowCPUAccess, FNiagaraUtilities::AreBufferSRVsAlwaysCreated(GMaxRHIShaderPlatform));
 
 			MeshGpuSpawnBuffer = new FStaticMeshGpuSpawnBuffer;
 			MeshGpuSpawnBuffer->Initialise(GpuMeshLODResource, *this, Inst);

@@ -14,6 +14,7 @@
 UNiagaraDataInterface::UNiagaraDataInterface(FObjectInitializer const& ObjectInitializer)
 {
 	bRenderDataDirty = false;
+	bUsedByCPUEmitter = false;
 	bUsedByGPUEmitter = false;
 }
 
@@ -99,7 +100,12 @@ bool UNiagaraDataInterface::Equals(const UNiagaraDataInterface* Other) const
 	return true;
 }
 
-bool UNiagaraDataInterface::IsUsedWithGPUEmitter(FNiagaraSystemInstance* SystemInstance) const
+bool UNiagaraDataInterface::IsUsedWithCPUEmitter() const
+{
+	return bUsedByCPUEmitter;
+}
+
+bool UNiagaraDataInterface::IsUsedWithGPUEmitter() const
 {
 	return bUsedByGPUEmitter;
 }
