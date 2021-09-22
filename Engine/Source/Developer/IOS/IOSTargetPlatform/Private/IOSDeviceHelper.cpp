@@ -510,3 +510,5 @@ void FIOSDeviceHelper::EnableDeviceCheck(bool OnOff)
 {
     QueryTask->Enable(OnOff);
 }
+
+#undef LOCTEXT_NAMESPACE
