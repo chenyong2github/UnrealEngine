@@ -14,6 +14,7 @@
 
 #if WITH_EDITOR
 // Settings
+#include "Editor.h"
 #include "IRemoteControlUIModule.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
@@ -58,6 +59,7 @@
 #include "Templates/UnrealTemplate.h"
 
 #define LOCTEXT_NAMESPACE "WebRemoteControl"
+
 // Boot the server on startup flag
 static TAutoConsoleVariable<int32> CVarWebControlStartOnBoot(TEXT("WebControl.EnableServerOnStartup"), 0, TEXT("Enable the Web Control servers (web and websocket) on startup."));
 
@@ -100,12 +102,25 @@ namespace WebRemoteControl
 
 		return IRemoteControlModule::Get().ResolvePreset(*PresetNameOrId);
 	}
+
+	bool IsWebControlEnabled()
+	{
+		bool bIsEditor = false;
+
+#if WITH_EDITOR
+		bIsEditor = GIsEditor;
+#endif
+
+		// By default, web remote control is disabled in -game and packaged game.
+		return (bIsEditor && FApp::CanEverRender()) || FParse::Param(FCommandLine::Get(), TEXT("RCWebControlEnable"));
+	}
 }
 
 void FWebRemoteControlModule::StartupModule()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("RCWebControlDisable")))
+	if (!WebRemoteControl::IsWebControlEnabled())
 	{
+		UE_LOG(LogRemoteControl, Display, TEXT("Web remote control is disabled by default when running outside the editor. Use the -RCWebControlEnable flag when launching in order to use it."));
 		return;
 	}
 	
@@ -123,14 +138,12 @@ void FWebRemoteControlModule::StartupModule()
 	RegisterConsoleCommands();
 	RegisterRoutes();
 
-	const bool bIsHeadless = !FApp::CanEverRender();
-
-	if (!bIsHeadless && (GetDefault<URemoteControlSettings>()->bAutoStartWebServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0))
+	if (GetDefault<URemoteControlSettings>()->bAutoStartWebServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
 	{
 		StartHttpServer();
 	}
 
-	if (!bIsHeadless && (GetDefault<URemoteControlSettings>()->bAutoStartWebSocketServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0))
+	if (GetDefault<URemoteControlSettings>()->bAutoStartWebSocketServer || CVarWebControlStartOnBoot.GetValueOnAnyThread() > 0)
 	{
 		StartWebSocketServer();
 	}
@@ -138,7 +151,8 @@ void FWebRemoteControlModule::StartupModule()
 
 void FWebRemoteControlModule::ShutdownModule()
 {
-	if (FParse::Param(FCommandLine::Get(), TEXT("RCWebControlDisable")))
+	// By default, web remote control is disabled in -game and packaged game.
+	if (!WebRemoteControl::IsWebControlEnabled())
 	{
 		return;
 	}
