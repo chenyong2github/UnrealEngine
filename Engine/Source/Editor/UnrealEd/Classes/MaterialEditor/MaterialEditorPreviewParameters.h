@@ -66,12 +66,10 @@ protected:
 	/**
 	*  Creates/adds value to group retrieved from parent material .
 	*
-	* @param ParentMaterial		Name of material to search for groups.
 	* @param ParameterValue		Current data to be grouped
-	* @param OptionalGroupName	Optional Group Name that be used directly instead of resolving it from the material
-
+	* @param GroupName			Name of the group
 	*/
-	void AssignParameterToGroup(UMaterial* ParentMaterial, UDEditorParameterValue* ParameterValue, FName* OptionalGroupName = nullptr);
+	void AssignParameterToGroup(UDEditorParameterValue* ParameterValue, const FName& GroupName);
 
 	static FName GlobalGroupPrefix;
 };

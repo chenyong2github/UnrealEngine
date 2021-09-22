@@ -239,201 +239,6 @@ FMaterialResource* UPreviewMaterial::AllocateResource()
 	return new FPreviewMaterial();
 }
 
-// Helper struct to cache data for UMaterialEditorInstanceConstant/UMaterialEditorPreviewParameters::RegenerateArrays()
-struct FMaterialParamExpressionData
-{
-	FName Name = NAME_None;
-	FName Group = NAME_None;
-	UClass* ParamType = nullptr;
-	int32 SortPriority = 32;
-};
-
-// Helper struct to cache data for UMaterialEditorInstanceConstant/UMaterialEditorPreviewParameters::RegenerateArrays()
-struct FMaterialExpressionParameterDataCache
-{
-	TMap<FName, FMaterialParamExpressionData> GlobalParameters;
-	FName LayerParameterName = NAME_None;
-	TArray<TMap<FName, FMaterialParamExpressionData>> LayerParameters;
-	TArray<TMap<FName, FMaterialParamExpressionData>> BlendParameters;
-};
-
-// Helper function for UMaterialEditorInstanceConstant/UMaterialEditorPreviewParameters::RegenerateArrays()
-// Cache material expression parameter for group and sort priority for quick lookup while creating UDEditorParameterValue
-FMaterialExpressionParameterDataCache CacheMaterialExpressionParameterData(const UMaterial* InBaseMaterial, const FStaticParameterSet& InStaticParameters)
-{
-	FMaterialExpressionParameterDataCache ParamCache;
-	ParamCache.GlobalParameters.Reserve(InBaseMaterial->Expressions.Num());
-
-	// Function replicating UMaterialFunctionInterface::GetParameterGroupName & UMaterialFunctionInterface::GetParameterSortPriority behavior 
-	// but caching all the data in one pass
-	auto CacheMaterialFunctionParameterData = [](UMaterialFunctionInterface* ParameterFunction, TMap<FName, FMaterialParamExpressionData>& ParamDatas)
-	{
-		if (ParameterFunction)
-		{
-			TArray<UMaterialFunctionInterface*> Functions;
-			ParameterFunction->GetDependentFunctions(Functions);
-			Functions.AddUnique(ParameterFunction);
-
-			for (UMaterialFunctionInterface* Function : Functions)
-			{
-				for (UMaterialExpression* FunctionExpression : *Function->GetFunctionExpressions())
-				{
-					if (const UMaterialExpressionParameter* Parameter = Cast<const UMaterialExpressionParameter>(FunctionExpression))
-					{
-						FMaterialParamExpressionData ParamData;
-						ParamData.ParamType = UMaterialExpressionParameter::StaticClass();
-
-						ParamData.Name = Parameter->ParameterName;
-						ParamData.SortPriority = Parameter->SortPriority;
-						ParamData.Group = Parameter->Group;
-
-						//ensure(!ParamDatas.Contains(ParamData.Name));
-						ParamDatas.Add(ParamData.Name, ParamData);
-					}
-					else if (const UMaterialExpressionTextureSampleParameter* TexParameter = Cast<const UMaterialExpressionTextureSampleParameter>(FunctionExpression))
-					{
-						FMaterialParamExpressionData ParamData;
-						ParamData.ParamType = UMaterialExpressionTextureSampleParameter::StaticClass();
-
-						ParamData.Name = TexParameter->ParameterName;
-						ParamData.SortPriority = TexParameter->SortPriority;
-						ParamData.Group = TexParameter->Group;
-
-						//ensure(!ParamDatas.Contains(ParamData.Name));
-						ParamDatas.Add(ParamData.Name, ParamData);
-					}
-					else if (const UMaterialExpressionFontSampleParameter* FontParameter = Cast<const UMaterialExpressionFontSampleParameter>(FunctionExpression))
-					{
-						FMaterialParamExpressionData ParamData;
-						ParamData.ParamType = UMaterialExpressionFontSampleParameter::StaticClass();
-
-						ParamData.Name = FontParameter->ParameterName;
-						ParamData.SortPriority = FontParameter->SortPriority;
-						ParamData.Group = FontParameter->Group;
-
-						//ensure(!ParamDatas.Contains(ParamData.Name));
-						ParamDatas.Add(ParamData.Name, ParamData);
-					}
-				}
-			}
-		}
-	};
-
-	for (int32 Index = 0; Index < InBaseMaterial->Expressions.Num(); ++Index)
-	{
-		UMaterialExpression* Expression = InBaseMaterial->Expressions[Index];
-
-		if (UMaterialExpressionParameter* Parameter = Cast<UMaterialExpressionParameter>(Expression))
-		{
-			FMaterialParamExpressionData ParamData;
-			ParamData.ParamType = UMaterialExpressionParameter::StaticClass();
-
-			ParamData.Name = Parameter->GetParameterName();
-			ParamData.SortPriority = Parameter->SortPriority;
-			ParamData.Group = Parameter->Group;
-
-			//ensure(ParamCache.GlobalParameters.Contains(ParamData.Name));
-			ParamCache.GlobalParameters.Add(ParamData.Name, ParamData);
-		}
-		else if (UMaterialExpressionTextureSampleParameter* TexParameter = Cast<UMaterialExpressionTextureSampleParameter>(Expression))
-		{
-			FMaterialParamExpressionData ParamData;
-			ParamData.ParamType = UMaterialExpressionTextureSampleParameter::StaticClass();
-
-			ParamData.Name = TexParameter->GetParameterName();
-			ParamData.SortPriority = TexParameter->SortPriority;
-			ParamData.Group = TexParameter->Group;
-
-			//ensure(!ParamCache.GlobalParameters.Contains(ParamData.Name));
-			ParamCache.GlobalParameters.Add(ParamData.Name, ParamData);
-		}
-		else if (UMaterialExpressionRuntimeVirtualTextureSampleParameter* VTTexParameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(Expression))
-		{
-			FMaterialParamExpressionData ParamData;
-			ParamData.ParamType = UMaterialExpressionRuntimeVirtualTextureSampleParameter::StaticClass();
-
-			ParamData.Name = VTTexParameter->GetParameterName();
-			ParamData.SortPriority = VTTexParameter->SortPriority;
-			ParamData.Group = VTTexParameter->Group;
-
-			//ensure(!ParamCache.GlobalParameters.Contains(ParamData.Name));
-			ParamCache.GlobalParameters.Add(ParamData.Name, ParamData);
-		}
-		else if (UMaterialExpressionFontSampleParameter* FontParameter = Cast<UMaterialExpressionFontSampleParameter>(Expression))
-		{
-			FMaterialParamExpressionData ParamData;
-			ParamData.ParamType = UMaterialExpressionFontSampleParameter::StaticClass();
-
-			ParamData.Name = FontParameter->GetParameterName();
-			ParamData.SortPriority = FontParameter->SortPriority;
-			ParamData.Group = FontParameter->Group;
-
-			//ensure(!ParamCache.GlobalParameters.Contains(ParamData.Name));
-			ParamCache.GlobalParameters.Add(ParamData.Name, ParamData);
-		}
-		else if (UMaterialExpressionMaterialFunctionCall* FuncParameter = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			if (FuncParameter->MaterialFunction)
-			{
-				if (UMaterialFunctionInterface* ParameterFunction = FuncParameter->MaterialFunction->GetBaseFunction())
-				{
-					CacheMaterialFunctionParameterData(ParameterFunction, ParamCache.GlobalParameters);
-				}
-			}
-		}
-		else if (UMaterialExpressionMaterialAttributeLayers* LayerParameter = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
-		{
-			// there should only be one Material attribute layer expression per material
-			check(ParamCache.LayerParameterName == NAME_None);
-			ParamCache.LayerParameterName = LayerParameter->ParameterName;
-
-			// look into the instance static parameters first for overrides
-			UMaterialFunctionInterface* Function = nullptr;
-			const FStaticMaterialLayersParameter* StaticLayers = InStaticParameters.MaterialLayersParameters.FindByPredicate([LayerParameterName = LayerParameter->ParameterName](const FStaticMaterialLayersParameter& Layers)
-			{
-				return LayerParameterName == Layers.ParameterInfo.Name;
-			});
-
-			// If we found one cache those instead of what is on the material itself since they take precedence
-			if (StaticLayers)
-			{
-				// Replicate FStaticMaterialLayersParameter::GetParameterAssociatedFunction behavior while caching all function needed info
-
-				// Cache layer parameters
-				for (UMaterialFunctionInterface* Layer : StaticLayers->Value.Layers)
-				{
-					TMap<FName, FMaterialParamExpressionData>& LayerCache = ParamCache.LayerParameters.AddDefaulted_GetRef();
-					CacheMaterialFunctionParameterData(Layer, LayerCache);
-				}
-
-				// Cache blend parameters
-				for (UMaterialFunctionInterface* Blend : StaticLayers->Value.Blends)
-				{
-					TMap<FName, FMaterialParamExpressionData>& BlendCache = ParamCache.LayerParameters.AddDefaulted_GetRef();
-					CacheMaterialFunctionParameterData(Blend, BlendCache);
-				}
-			}
-			else
-			{
-				// Cache layer parameters
-				for (UMaterialFunctionInterface* Layer : LayerParameter->GetLayers())
-				{
-					TMap<FName, FMaterialParamExpressionData>& LayerCache = ParamCache.LayerParameters.AddDefaulted_GetRef();
-					CacheMaterialFunctionParameterData(Layer, LayerCache);
-				}
-
-				// Cache blend parameters
-				for (UMaterialFunctionInterface* Blend : LayerParameter->GetBlends())
-				{
-					TMap<FName, FMaterialParamExpressionData>& BlendCache = ParamCache.LayerParameters.AddDefaulted_GetRef();
-					CacheMaterialFunctionParameterData(Blend, BlendCache);
-				}
-			}
-		}
-	}
-	return ParamCache;
-}
-
 void UMaterialEditorPreviewParameters::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PreviewMaterial && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
@@ -455,21 +260,11 @@ void UMaterialEditorPreviewParameters::PostEditChangeProperty(FPropertyChangedEv
 	}
 }
 
-void UMaterialEditorPreviewParameters::AssignParameterToGroup(UMaterial* ParentMaterial, UDEditorParameterValue* ParameterValue, FName* OptionalGroupName)
+void UMaterialEditorPreviewParameters::AssignParameterToGroup(UDEditorParameterValue* ParameterValue, const FName& InParameterGroupName)
 {
-	check(ParentMaterial);
 	check(ParameterValue);
 
-	FName ParameterGroupName;
-	if (OptionalGroupName)
-	{
-		ParameterGroupName = *OptionalGroupName;
-	}
-	else
-	{
-		ParentMaterial->GetGroupName(ParameterValue->ParameterInfo, ParameterGroupName);
-	}
-	
+	FName ParameterGroupName = InParameterGroupName;
 	if (ParameterGroupName == TEXT("") || ParameterGroupName == TEXT("None"))
 	{
 		ParameterGroupName = TEXT("None");
@@ -527,10 +322,7 @@ static UDEditorParameterValue* CreateParameter_Vector(UObject* Owner, const FMat
 	{
 		Parameter->ParameterValue = Meta.Value.AsLinearColor();
 		Parameter->bIsUsedAsChannelMask = Meta.bUsedAsChannelMask;
-		Parameter->ChannelNames.R = Meta.ChannelName[0];
-		Parameter->ChannelNames.G = Meta.ChannelName[1];
-		Parameter->ChannelNames.B = Meta.ChannelName[2];
-		Parameter->ChannelNames.A = Meta.ChannelName[3];
+		Parameter->ChannelNames = Meta.ChannelNames;
 	}
 	return Parameter;
 }
@@ -541,10 +333,7 @@ static UDEditorParameterValue* CreateParameter_Texture(UObject* Owner, const FMa
 	if (Meta.Value.Type == EMaterialParameterType::Texture)
 	{
 		Parameter->ParameterValue = Meta.Value.Texture;
-		Parameter->ChannelNames.R = Meta.ChannelName[0];
-		Parameter->ChannelNames.G = Meta.ChannelName[1];
-		Parameter->ChannelNames.B = Meta.ChannelName[2];
-		Parameter->ChannelNames.A = Meta.ChannelName[3];
+		Parameter->ChannelNames = Meta.ChannelNames;
 	}
 	return Parameter;
 }
@@ -613,6 +402,7 @@ UDEditorParameterValue* UDEditorParameterValue::Create(UObject* Owner,
 
 	check(Parameter);
 	Parameter->ParameterInfo = ParameterInfo;
+	Parameter->SortPriority = Meta.SortPriority;
 	Parameter->bOverride = Meta.bOverride;
 	return Parameter;
 }
@@ -625,43 +415,8 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 		// Only operate on base materials
 		UMaterial* ParentMaterial = PreviewMaterial;
 
-		// Use param cache to lookup group and sort priority
-		auto AssignGroupAndSortPriority = [this, ParentMaterial](UDEditorParameterValue* InEditorParamValue, const FMaterialExpressionParameterDataCache& InCachedExpressionData)
-		{
-			const FMaterialParamExpressionData* ParamData = nullptr;
-			if (InEditorParamValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
-			{
-				ParamData = InCachedExpressionData.GlobalParameters.Find(InEditorParamValue->ParameterInfo.Name);
-			}
-			// if the association is not 'global parameter', look into attribute layers if we have a potentially valid index
-			else if (InEditorParamValue->ParameterInfo.Index >= 0)
-			{
-				if (InEditorParamValue->ParameterInfo.Association == EMaterialParameterAssociation::LayerParameter
-					&& InCachedExpressionData.LayerParameters.IsValidIndex(InEditorParamValue->ParameterInfo.Index))
-				{
-					ParamData = InCachedExpressionData.LayerParameters[InEditorParamValue->ParameterInfo.Index].Find(InEditorParamValue->ParameterInfo.Name);
-				}
-				else if (InEditorParamValue->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter
-					&& InCachedExpressionData.BlendParameters.IsValidIndex(InEditorParamValue->ParameterInfo.Index))
-				{
-					ParamData = InCachedExpressionData.BlendParameters[InEditorParamValue->ParameterInfo.Index].Find(InEditorParamValue->ParameterInfo.Name);
-				}
-			}
-			FName GroupName = NAME_None;
-			if (ParamData)
-			{
-				InEditorParamValue->SortPriority = ParamData->SortPriority;
-				GroupName = ParamData->Group;
-			}
-			AssignParameterToGroup(ParentMaterial, InEditorParamValue, &GroupName);
-		};
-
 		// This can run before UMaterial::PostEditChangeProperty has a chance to run, so explicitly call UpdateCachedExpressionData here
 		PreviewMaterial->UpdateCachedExpressionData();
-
-		// Cache relevant material expression data used to resolve editor param value info in RegenerateArrays
-		//@todo FH: can this be/should be part of `UpdateCachedExpressionData`?
-		FMaterialExpressionParameterDataCache ExpressionParameterDataCache = CacheMaterialExpressionParameterData(PreviewMaterial, FStaticParameterSet());
 
 		// Loop through all types of parameters for this material and add them to the parameter arrays.
 		TMap<FMaterialParameterInfo, FMaterialParameterMetadata> ParameterValues;
@@ -674,7 +429,7 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 			{
 				UDEditorParameterValue* Parameter = UDEditorParameterValue::Create(this, ParameterType, It.Key, It.Value);
 				Parameter->bOverride = true;
-				AssignGroupAndSortPriority(Parameter, ExpressionParameterDataCache);
+				AssignParameterToGroup(Parameter, It.Value.Group);
 			}
 		}
 
@@ -695,8 +450,7 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 			{
 				ParameterValue->ParameterValue = Value;
 			}
-
-			AssignGroupAndSortPriority(ParameterValue, ExpressionParameterDataCache);
+			AssignParameterToGroup(ParameterValue, FName());
 		}
 	}
 	// sort contents of groups
@@ -889,20 +643,11 @@ void UMaterialEditorInstanceConstant::PostEditChangeProperty(FPropertyChangedEve
 	}
 }
 
-void  UMaterialEditorInstanceConstant::AssignParameterToGroup(UMaterial*, UDEditorParameterValue* ParameterValue, const FName* OptionalGroupName)
+void  UMaterialEditorInstanceConstant::AssignParameterToGroup(UDEditorParameterValue* ParameterValue, const FName& InParameterGroupName)
 {
 	check(ParameterValue);
 
-	FName ParameterGroupName;
-	if (OptionalGroupName)
-	{
-		ParameterGroupName = *OptionalGroupName;
-	}
-	else
-	{
-		SourceInstance->GetGroupName(ParameterValue->ParameterInfo, ParameterGroupName);
-	}
-
+	FName ParameterGroupName = InParameterGroupName;
 	if (ParameterGroupName == TEXT("") || ParameterGroupName == TEXT("None"))
 	{
 		if (bUseOldStyleMICEditorGroups == true)
@@ -945,114 +690,57 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 
 	if (Parent)
 	{	
-		// Use param cache to lookup group and sort priority
-		auto AssignGroupAndSortPriority = [this](UDEditorParameterValue* InEditorParamValue, const FMaterialExpressionParameterDataCache& InCachedExpressionData)
-		{
-			const FMaterialParamExpressionData* ParamData = nullptr;
-			if (InEditorParamValue->ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter)
-			{
-				ParamData = InCachedExpressionData.GlobalParameters.Find(InEditorParamValue->ParameterInfo.Name);
-			}
-			// if the association is not 'global parameter', look into attribute layers if we have a potentially valid index
-			else if (InEditorParamValue->ParameterInfo.Index >= 0)
-			{
-				if (InEditorParamValue->ParameterInfo.Association == EMaterialParameterAssociation::LayerParameter
-					&& InCachedExpressionData.LayerParameters.IsValidIndex(InEditorParamValue->ParameterInfo.Index))
-				{
-					ParamData = InCachedExpressionData.LayerParameters[InEditorParamValue->ParameterInfo.Index].Find(InEditorParamValue->ParameterInfo.Name);
-				}
-				else if (InEditorParamValue->ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter
-					&& InCachedExpressionData.BlendParameters.IsValidIndex(InEditorParamValue->ParameterInfo.Index))
-				{
-					ParamData = InCachedExpressionData.BlendParameters[InEditorParamValue->ParameterInfo.Index].Find(InEditorParamValue->ParameterInfo.Name);
-				}
-			}
-			if (ParamData)
-			{
-				InEditorParamValue->SortPriority = ParamData->SortPriority;
-			}
-			AssignParameterToGroup(nullptr/*useless param: Parent->GetMaterial()*/, InEditorParamValue, ParamData ? &ParamData->Group : nullptr);
-		};
-
 		// Only operate on base materials
 		UMaterial* ParentMaterial = Parent->GetMaterial();
 		SourceInstance->UpdateParameterNames();	// Update any parameter names that may have changed.
 		SourceInstance->UpdateCachedLayerParameters();
 
-		// Get all static parameters from the source instance.  This will handle inheriting parent values.	
-		FStaticParameterSet SourceStaticParameters;
- 		SourceInstance->GetStaticParameterValues(SourceStaticParameters);
-
-		// Loop through all types of parameters for this material and add them to the parameter arrays.
-		
 		// Need to get layer info first as other params are collected from layers
 		{
 			TArray<FMaterialParameterInfo> OutParameterInfo;
 			TArray<FGuid> Guids;
 			SourceInstance->GetAllMaterialLayersParameterInfo(OutParameterInfo, Guids);
 			// Copy Static Material Layers Parameters
-			for (int32 ParameterIdx = 0; ParameterIdx < SourceStaticParameters.MaterialLayersParameters.Num(); ParameterIdx++)
+			for (int32 ParameterIdx = 0; ParameterIdx < OutParameterInfo.Num(); ParameterIdx++)
 			{
-				FStaticMaterialLayersParameter MaterialLayersParameterParameterValue = FStaticMaterialLayersParameter(SourceStaticParameters.MaterialLayersParameters[ParameterIdx]);
+				FMaterialParameterInfo& ParameterInfo = OutParameterInfo[ParameterIdx];
+				FGuid ExpressionId = Guids[ParameterIdx];
+
 				UDEditorMaterialLayersParameterValue& ParameterValue = *(NewObject<UDEditorMaterialLayersParameterValue>(this));
+				ParameterValue.bOverride = true;
+				ParameterValue.ParameterInfo = ParameterInfo;
+				ParameterValue.ExpressionId = ExpressionId;
 
-				ParameterValue.ParameterValue = MaterialLayersParameterParameterValue.Value;
-				ParameterValue.bOverride = MaterialLayersParameterParameterValue.bOverride;
-				ParameterValue.ParameterInfo = MaterialLayersParameterParameterValue.ParameterInfo;
-				ParameterValue.ExpressionId = MaterialLayersParameterParameterValue.ExpressionGUID;
+				Parent->GetMaterialLayersParameterValue(ParameterInfo, ParameterValue.ParameterValue, ExpressionId);
+				ParameterValue.ParameterValue.LinkAllLayersToParent(); // Set parent guids for layers from parent material
 
-				AssignParameterToGroup(ParentMaterial, &ParameterValue);
+				// If the SourceInstance is overriding this parameter, use its settings
+				for (const FStaticMaterialLayersParameter& LayersParam : SourceInstance->GetStaticParameters().MaterialLayersParameters)
+				{
+					if (ParameterInfo == LayersParam.ParameterInfo)
+					{
+						ParameterValue.bOverride = LayersParam.bOverride;
+						if (LayersParam.bOverride)
+						{
+							ParameterValue.ParameterValue = LayersParam.Value;
+						}
+					}
+				}
+
+				AssignParameterToGroup(&ParameterValue, FName());
 			}
 		}
-
-		// Cache relevant material expression data to resolve editor param value info
-		FMaterialExpressionParameterDataCache ExpressionParameterDataCache = CacheMaterialExpressionParameterData(SourceInstance->GetMaterial(), SourceInstance->GetStaticParameters());
 
 		TMap<FMaterialParameterInfo, FMaterialParameterMetadata> ParameterValues;
 		for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
 		{
 			const EMaterialParameterType ParameterType = (EMaterialParameterType)TypeIndex;
-			if (IsStaticMaterialParameter(ParameterType))
-			{
-				// Logic for static parameters is slightly different, handled both by GetStaticParameterValues above, and code below
-				continue;
-			}
-
 			SourceInstance->GetAllParametersOfType(ParameterType, ParameterValues);
 			for (const auto& It : ParameterValues)
 			{
 				UDEditorParameterValue* Parameter = UDEditorParameterValue::Create(this, ParameterType, It.Key, It.Value);
-				AssignGroupAndSortPriority(Parameter, ExpressionParameterDataCache);
+				AssignParameterToGroup(Parameter, It.Value.Group);
 			}
-		}
-
-		// Copy Static Switch Parameters
-		for(int32 ParameterIdx = 0; ParameterIdx < SourceStaticParameters.StaticSwitchParameters.Num(); ParameterIdx++)
-		{	
-			const FStaticSwitchParameter& StaticSwitchParameterValue = SourceStaticParameters.StaticSwitchParameters[ParameterIdx];
-			UDEditorStaticSwitchParameterValue* ParamValue = NewObject<UDEditorStaticSwitchParameterValue>(this);
-
-			ParamValue->ParameterValue = StaticSwitchParameterValue.Value;
-			ParamValue->bOverride = StaticSwitchParameterValue.bOverride;
-			ParamValue->ParameterInfo = StaticSwitchParameterValue.ParameterInfo;
-			ParamValue->ExpressionId = StaticSwitchParameterValue.ExpressionGUID;
-			AssignGroupAndSortPriority(ParamValue, ExpressionParameterDataCache);
-		}
-
-		// Copy Static Component Mask Parameters
-		for(int32 ParameterIdx=0; ParameterIdx<SourceStaticParameters.StaticComponentMaskParameters.Num(); ParameterIdx++)
-		{
-			const FStaticComponentMaskParameter& StaticComponentMaskParameterValue = SourceStaticParameters.StaticComponentMaskParameters[ParameterIdx];
-			UDEditorStaticComponentMaskParameterValue* ParamValue = NewObject<UDEditorStaticComponentMaskParameterValue>(this);
-
-			ParamValue->ParameterValue.R = StaticComponentMaskParameterValue.R;
-			ParamValue->ParameterValue.G = StaticComponentMaskParameterValue.G;
-			ParamValue->ParameterValue.B = StaticComponentMaskParameterValue.B;
-			ParamValue->ParameterValue.A = StaticComponentMaskParameterValue.A;
-			ParamValue->bOverride = StaticComponentMaskParameterValue.bOverride;
-			ParamValue->ParameterInfo = StaticComponentMaskParameterValue.ParameterInfo;
-			ParamValue->ExpressionId = StaticComponentMaskParameterValue.ExpressionGUID;
-			AssignGroupAndSortPriority(ParamValue, ExpressionParameterDataCache);
 		}
 
 		IMaterialEditorModule* MaterialEditorModule = &FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );

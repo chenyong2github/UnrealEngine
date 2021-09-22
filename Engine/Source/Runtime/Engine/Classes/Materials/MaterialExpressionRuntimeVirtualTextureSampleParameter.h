@@ -53,16 +53,27 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = VirtualTexture;
+		OutMeta.Description = Desc;
 		OutMeta.ExpressionGuid = ExpressionGUID;
+		OutMeta.Group = Group;
+		OutMeta.SortPriority = SortPriority;
 		return true;
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::RuntimeVirtualTexture)
 		{
-			return SetParameterValue(Name, Meta.Value.RuntimeVirtualTexture, Flags);
+			if (SetParameterValue(Name, Meta.Value.RuntimeVirtualTexture, Flags))
+			{
+				if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority))
+				{
+					Group = Meta.Group;
+					SortPriority = Meta.SortPriority;
+				}
+				return true;
+			}
 		}
-		return Super::SetParameterValue(Name, Meta, Flags);
+		return false;
 	}
 #endif
 	virtual FGuid& GetParameterExpressionId() override { return ExpressionGUID; }

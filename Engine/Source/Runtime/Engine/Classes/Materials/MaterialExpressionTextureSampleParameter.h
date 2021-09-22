@@ -54,20 +54,28 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = Texture;
+		OutMeta.Description = Desc;
 		OutMeta.ExpressionGuid = ExpressionGUID;
-		OutMeta.ChannelName[0] = ChannelNames.R;
-		OutMeta.ChannelName[1] = ChannelNames.G;
-		OutMeta.ChannelName[2] = ChannelNames.B;
-		OutMeta.ChannelName[3] = ChannelNames.A;
+		OutMeta.Group = Group;
+		OutMeta.SortPriority = SortPriority;
+		OutMeta.ChannelNames = ChannelNames;
 		return true;
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::Texture)
 		{
-			return SetParameterValue(Name, Meta.Value.Texture, Flags);
+			if (SetParameterValue(Name, Meta.Value.Texture, Flags))
+			{
+				if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority))
+				{
+					Group = Meta.Group;
+					SortPriority = Meta.SortPriority;
+				}
+				return true;
+			}
 		}
-		return Super::SetParameterValue(Name, Meta, Flags);
+		return false;
 	}
 #endif
 	//~ End UMaterialExpression Interface
