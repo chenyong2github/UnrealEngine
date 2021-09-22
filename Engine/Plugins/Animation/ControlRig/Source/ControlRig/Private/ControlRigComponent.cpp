@@ -509,6 +509,7 @@ void UControlRigComponent::AddMappedComponents(TArray<FControlRigComponentMapped
 
 		ElementToMap.ElementName = ComponentToMap.ElementName;
 		ElementToMap.ElementType = ComponentToMap.ElementType;
+		ElementToMap.Direction = ComponentToMap.Direction;
 
 		ElementsToMap.Add(ElementToMap);
 	}
