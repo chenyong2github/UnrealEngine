@@ -11,6 +11,7 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Templates/UniquePtr.h"
+#include "ZenServerInterface.h"
 
 class FCbPackage;
 class FCbObject;
@@ -26,6 +27,7 @@ namespace UE {
 class IOSTOREUTILITIES_API FZenStoreHttpClient
 {
 public:
+	FZenStoreHttpClient();
 	FZenStoreHttpClient(const FStringView InHostName, uint16 InPort);
 	~FZenStoreHttpClient();
 
@@ -49,6 +51,14 @@ public:
 	TIoStatusOr<FIoBuffer> ReadChunk(const FIoChunkId& Id, uint64 Offset = 0, uint64 Size = ~0ull);
 	TIoStatusOr<FIoBuffer> ReadOpLogAttachment(FStringView Id, uint64 Offset = 0, uint64 Size = ~0ull);
 
+#if UE_WITH_ZEN
+	const TCHAR* GetHostName() const { return ZenService.GetInstance().GetHostName(); }
+	uint16 GetPort() const { return ZenService.GetInstance().GetPort(); }
+#else // Default to localhost:1337 for platforms where Zen wouldn't be supported yet
+	const TCHAR* GetHostName() const { return TEXT("localhost"); }
+	uint16 GetPort() const { return 1337; }
+#endif
+
 	TFuture<TIoStatusOr<FCbObject>> GetOplog();
 	TFuture<TIoStatusOr<FCbObject>> GetFiles();
 
@@ -58,8 +68,10 @@ public:
 private:
 	TIoStatusOr<FIoBuffer> ReadOpLogUri(FStringBuilderBase& ChunkUri, uint64 Offset, uint64 Size);
 
-	FString	HostName;
-	uint16 Port;
+	static const uint32 PoolEntryCount;
+#if UE_WITH_ZEN
+	UE::Zen::FScopeZenService ZenService;
+#endif
 	TUniquePtr<Zen::FZenHttpRequestPool> RequestPool;
 	FString OplogPath;
 	FString OplogNewEntryPath;

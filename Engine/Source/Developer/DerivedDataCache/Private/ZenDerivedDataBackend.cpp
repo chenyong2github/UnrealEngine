@@ -37,15 +37,15 @@ namespace UE::DerivedData::Backends {
 FZenDerivedDataBackend::FZenDerivedDataBackend(
 	const TCHAR* InServiceUrl,
 	const TCHAR* InNamespace)
-	: Domain(InServiceUrl)
-	, Namespace(InNamespace)
+	: Namespace(InNamespace)
+	, ZenService(InServiceUrl)
 {
 	if (IsServiceReady())
 	{
-		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(InServiceUrl);
+		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL());
 		bIsUsable = true;
 	}
-	bCacheRecordEndpointEnabled = false;
+ 	bCacheRecordEndpointEnabled = false;
 	GConfig->GetBool(TEXT("Zen"), TEXT("CacheRecordEndpointEnabled"), bCacheRecordEndpointEnabled, GEngineIni);
 }
 
@@ -55,25 +55,12 @@ FZenDerivedDataBackend::~FZenDerivedDataBackend()
 
 FString FZenDerivedDataBackend::GetName() const
 {
-	return Domain;
+	return ZenService.GetInstance().GetURL();
 }
 
 bool FZenDerivedDataBackend::IsServiceReady()
 {
-	Zen::FZenHttpRequest Request(*Domain, false);
-	Zen::FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"_SV), nullptr);
-	
-	if (Result == Zen::FZenHttpRequest::Result::Success && Zen::IsSuccessCode(Request.GetResponseCode()))
-	{
-		UE_LOG(LogDerivedDataCache, Display, TEXT("Z$ HTTP DDC service status: %s."), *Request.GetResponseAsString());
-		return true;
-	}
-	else
-	{
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("Unable to reach Z$ HTTP DDC service at %s. Status: %d . Response: %s"), *Domain, Request.GetResponseCode(), *Request.GetResponseAsString());
-	}
-
-	return false;
+	return ZenService.GetInstance().IsServiceReady();
 }
 
 bool FZenDerivedDataBackend::ShouldRetryOnError(int64 ResponseCode)

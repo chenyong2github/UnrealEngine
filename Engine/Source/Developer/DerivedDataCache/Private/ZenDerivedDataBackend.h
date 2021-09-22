@@ -21,6 +21,7 @@
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "HAL/CriticalSection.h"
+#include "ZenServerInterface.h"
 
 class FCbObject;
 class FCbPackage;
@@ -157,8 +158,8 @@ private:
 	bool ShouldSimulateMiss(const TCHAR* InKey);
 	bool ShouldSimulateMiss(const FCacheKey& InKey);
 private:
-	FString Domain;
 	FString Namespace;
+	UE::Zen::FScopeZenService ZenService;
 	mutable FDerivedDataCacheUsageStats UsageStats;
 	TUniquePtr<UE::Zen::FZenHttpRequestPool> RequestPool;
 	bool bIsUsable = false;
