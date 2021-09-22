@@ -1313,7 +1313,7 @@ ECheckBoxState SDetailsView::IsSectionChecked(FName Section) const
 	return ECheckBoxState::Unchecked;
 }
 
-TMap<FName, FText> SDetailsView::GetAllSections() const 
+TMap<FName, FText> SDetailsView::GetAllSections() const
 {
 	static const FName PropertyEditor("PropertyEditor");
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
@@ -1332,17 +1332,42 @@ TMap<FName, FText> SDetailsView::GetAllSections() const
 			{
 				const UStruct* RootBaseStruct = RootPropertyNode->GetBaseStructure();
 
-				TArray<TSharedPtr<FPropertySection>> SectionsForCategory = PropertyModule.FindSectionsForCategory(RootBaseStruct, CategoryName);
-				for (const TSharedPtr<FPropertySection>& Section : SectionsForCategory)
+				const FName SectionName = PropertyModule.FindSectionForCategory(RootBaseStruct, CategoryName);
+				if (!SectionName.IsNone())
 				{
-					AllSections.Add(Section->GetName(), Section->GetDisplayName());
+					AllSections.Add(SectionName, GetSectionDisplayName(SectionName));
 				}
 			}
 		}
 	}
 
-
 	return MoveTemp(AllSections);
+}
+
+FText SDetailsView::GetSectionDisplayName(FName SectionName) const
+{
+	static const FTextKey SectionLocalizationNamespace = TEXT("UObjectSection");
+	static const FName SectionMetaDataKey = TEXT("Section");
+
+	FText SectionDisplayName;
+
+	const FString SectionString = SectionName.ToString();
+	if (FText::FindText(SectionLocalizationNamespace, SectionString, /*OUT*/SectionDisplayName, &SectionString))
+	{
+		// Category names in English are typically gathered in their non-pretty form (eg "UserInterface" rather than "User Interface"), so skip 
+		// applying the localized variant if the text matches the raw category name, as in this case the pretty printer will do a better job
+		if (SectionString.Equals(SectionDisplayName.ToString(), ESearchCase::CaseSensitive))
+		{
+			SectionDisplayName = FText();
+		}
+	}
+
+	if (SectionDisplayName.IsEmpty())
+	{
+		SectionDisplayName = FText::AsCultureInvariant(FName::NameToDisplayString(SectionString, false));
+	}
+
+	return SectionDisplayName;
 }
 
 #undef LOCTEXT_NAMESPACE
