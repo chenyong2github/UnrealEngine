@@ -1971,7 +1971,15 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 #else
 
-		FString DefaultValue = TempVM->GetWorkMemory()->GetDataAsString(Operand.GetRegisterIndex());
+		FString DefaultValue;
+		if(Operand.GetMemoryType() == ERigVMMemoryType::Work)
+		{
+			DefaultValue = TempVM->GetWorkMemory()->GetDataAsString(Operand.GetRegisterIndex());
+		}
+		else if(Operand.GetMemoryType() == ERigVMMemoryType::Literal)
+		{
+			DefaultValue = TempVM->GetLiteralMemory()->GetDataAsString(Operand.GetRegisterIndex());
+		}
 		if(DefaultValue.IsEmpty())
 		{
 			continue;
