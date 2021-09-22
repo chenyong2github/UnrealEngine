@@ -97,7 +97,7 @@ namespace AutomationTool.Tasks
 			}
 
 			// Get the path to the editor, and check it exists
-			FileReference EditorExe;
+			FileSystemReference EditorExe;
 			if(Parameters.EditorExe == null)
 			{
 				EditorExe = ProjectUtils.GetProjectTarget(ProjectFile, UnrealBuildTool.TargetType.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, true);
@@ -109,12 +109,6 @@ namespace AutomationTool.Tasks
 			else
 			{
 				EditorExe = Parameters.EditorExe;
-			}
-
-			// Make sure the editor exists
-			if(!FileReference.Exists(EditorExe))
-			{
-				throw new AutomationException("{0} does not exist", EditorExe.FullName);
 			}
 
 			// Run the commandlet

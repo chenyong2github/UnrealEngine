@@ -932,7 +932,7 @@ namespace AutomationTool
 		/// <param name="TargetConfiguration">Target build configuration</param>
 		/// <param name="Cmd">Do you want the console subsystem/commandlet executable?</param>
 		/// <returns></returns>
-		public static FileReference GetProjectTarget(FileReference ProjectFile, UnrealBuildTool.TargetType TargetType, UnrealBuildTool.UnrealTargetPlatform TargetPlatform, UnrealBuildTool.UnrealTargetConfiguration TargetConfiguration = UnrealBuildTool.UnrealTargetConfiguration.Development, bool Cmd = false)
+		public static FileSystemReference GetProjectTarget(FileReference ProjectFile, UnrealBuildTool.TargetType TargetType, UnrealBuildTool.UnrealTargetPlatform TargetPlatform, UnrealBuildTool.UnrealTargetConfiguration TargetConfiguration = UnrealBuildTool.UnrealTargetConfiguration.Development, bool Cmd = false)
 		{
 			ProjectProperties Properties = ProjectUtils.GetProjectProperties(ProjectFile);
 			List<SingleTargetProperties> Targets = Properties.Targets.Where(x => x.Rules.Type == TargetType).ToList();
@@ -951,7 +951,19 @@ namespace AutomationTool
 
 			FileReference TargetReceiptFileName = UnrealBuildTool.TargetReceipt.GetDefaultPath(ProjectFile.Directory, TargetName, TargetPlatform, TargetConfiguration, "");
 			UnrealBuildTool.TargetReceipt TargetReceipt = UnrealBuildTool.TargetReceipt.Read(TargetReceiptFileName);
-			return Cmd ? TargetReceipt.LaunchCmd : TargetReceipt.Launch;
+
+			if (Cmd)
+			{
+				return TargetReceipt.LaunchCmd;
+			}
+			
+			if (TargetPlatform == UnrealTargetPlatform.Mac)
+			{
+				// Remove trailing "/Contents/MacOS/UnrealEngine" to get back to .app directory
+				return TargetReceipt.Launch.Directory.ParentDirectory.ParentDirectory;
+			}
+			
+			return TargetReceipt.Launch;
 		}
 	}
 
