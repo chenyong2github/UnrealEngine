@@ -173,7 +173,7 @@ namespace HordeServer.Commits.Impl
 			}
 
 			// Find all the depot roots
-			Dictionary<string, string> DepotRoots = new Dictionary<string, string>(ServerInfo.PathComparer);
+			Dictionary<Utf8String, Utf8String> DepotRoots = new Dictionary<Utf8String, Utf8String>(ServerInfo.Utf8PathComparer);
 			foreach (ViewMap View in StreamInfoList.Select(x => x.View))
 			{
 				foreach (ViewMapEntry Entry in View.Entries)
@@ -181,9 +181,9 @@ namespace HordeServer.Commits.Impl
 					if (Entry.SourcePrefix.Length >= 3)
 					{
 						int SlashIdx = Entry.SourcePrefix.IndexOf('/', 2);
-						string Depot = Entry.SourcePrefix.Substring(0, SlashIdx + 1);
+						Utf8String Depot = Entry.SourcePrefix.Slice(0, SlashIdx + 1);
 
-						string? DepotRoot;
+						Utf8String DepotRoot;
 						if (DepotRoots.TryGetValue(Depot, out DepotRoot))
 						{
 							DepotRoot = GetCommonPrefix(DepotRoot, Entry.SourcePrefix);
@@ -194,7 +194,7 @@ namespace HordeServer.Commits.Impl
 						}
 
 						int LastSlashIdx = DepotRoot.LastIndexOf('/');
-						DepotRoots[Depot] = DepotRoot.Substring(0, LastSlashIdx + 1);
+						DepotRoots[Depot] = DepotRoot.Slice(0, LastSlashIdx + 1);
 					}
 				}
 			}
@@ -208,7 +208,7 @@ namespace HordeServer.Commits.Impl
 				int FirstChange = await Changes.GetByIndexAsync(-1);
 				if (FirstChange == 0)
 				{
-					FirstChange = await GetFirstCommitToReplicateAsync(Connection, StreamInfo.View, ServerInfo.PathComparison);
+					FirstChange = await GetFirstCommitToReplicateAsync(Connection, StreamInfo.View, ServerInfo.Utf8PathComparer);
 				}
 				else
 				{
@@ -223,7 +223,7 @@ namespace HordeServer.Commits.Impl
 
 			// Find all the changes to consider
 			SortedSet<int> ChangeNumbers = new SortedSet<int>();
-			foreach (string DepotRoot in DepotRoots.Values)
+			foreach (Utf8String DepotRoot in DepotRoots.Values)
 			{
 				List<ChangesRecord> Changes = await Connection.GetChangesAsync(ChangesOptions.None, null, MinChange, -1, ChangeStatus.Submitted, null, $"{DepotRoot}...");
 				ChangeNumbers.UnionWith(Changes.Select(x => x.Number));
@@ -238,10 +238,10 @@ namespace HordeServer.Commits.Impl
 				{
 					IStream Stream = StreamInfo.Stream;
 
-					string? BasePath = GetBasePath(DescribeRecord, StreamInfo.View, ServerInfo.PathComparison);
-					if (BasePath != null)
+					Utf8String BasePath = GetBasePath(DescribeRecord, StreamInfo.View, ServerInfo.Utf8PathComparer);
+					if (!BasePath.IsEmpty)
 					{
-						await AddCommitAsync(Stream, DescribeRecord, BasePath);
+						await AddCommitAsync(Stream, DescribeRecord, BasePath.ToString());
 
 						RedisList<int> StreamCommitsKey = RedisStreamChanges(Stream.Id);
 						await StreamCommitsKey.RightPushAsync(DescribeRecord.Number);
@@ -258,14 +258,14 @@ namespace HordeServer.Commits.Impl
 		/// </summary>
 		/// <param name="Connection"></param>
 		/// <param name="View"></param>
-		/// <param name="Comparison"></param>
+		/// <param name="Comparer"></param>
 		/// <returns></returns>
-		static async Task<int> GetFirstCommitToReplicateAsync(IPerforceConnection Connection, ViewMap View, StringComparison Comparison)
+		static async Task<int> GetFirstCommitToReplicateAsync(IPerforceConnection Connection, ViewMap View, Utf8StringComparer Comparer)
 		{
 			int MinChange = 0;
 
-			List<string> RootPaths = View.GetRootPaths(Comparison);
-			foreach (string RootPath in RootPaths)
+			List<Utf8String> RootPaths = View.GetRootPaths(Comparer);
+			foreach (Utf8String RootPath in RootPaths)
 			{
 				IList<ChangesRecord> PathChanges = await Connection.GetChangesAsync(ChangesOptions.None, 20, ChangeStatus.Submitted, $"{RootPath}...");
 				MinChange = Math.Max(MinChange, PathChanges.Min(x => x.Number));
@@ -279,17 +279,17 @@ namespace HordeServer.Commits.Impl
 		/// </summary>
 		/// <param name="Changelist">Information about the changelist</param>
 		/// <param name="View">Mapping from depot syntax to client view</param>
-		/// <param name="Comparison">Path comparison type for the server</param>
+		/// <param name="Comparer">Path comparison type for the server</param>
 		/// <returns>The base path for all files in the change</returns>
-		static string? GetBasePath(DescribeRecord Changelist, ViewMap View, StringComparison Comparison)
+		static Utf8String GetBasePath(DescribeRecord Changelist, ViewMap View, Utf8StringComparer Comparer)
 		{
-			string? BasePath = null;
+			Utf8String BasePath = default;
 			foreach (DescribeFileRecord File in Changelist.Files)
 			{
-				string? StreamFile;
-				if (View.TryMapFile(File.DepotFile, Comparison, out StreamFile))
+				Utf8String StreamFile;
+				if (View.TryMapFile(File.DepotFile, Comparer, out StreamFile))
 				{
-					if (BasePath == null)
+					if (BasePath.IsEmpty)
 					{
 						BasePath = StreamFile;
 					}
@@ -308,7 +308,7 @@ namespace HordeServer.Commits.Impl
 		/// <param name="A"></param>
 		/// <param name="B"></param>
 		/// <returns></returns>
-		static string GetCommonPrefix(string A, string B)
+		static Utf8String GetCommonPrefix(Utf8String A, Utf8String B)
 		{
 			int Index = 0;
 			while (Index < A.Length && Index < B.Length && A[Index] == B[Index])
@@ -593,7 +593,7 @@ namespace HordeServer.Commits.Impl
 					}
 					else if (Commit.TreeRef == null)
 					{
-						TreeRef = await AddTreeRefAsync(Perforce, Stream, View, null, null, Commit, ServerInfo.PathComparison);
+						TreeRef = await AddTreeRefAsync(Perforce, Stream, View, null, null, Commit, ServerInfo.Utf8PathComparer);
 					}
 					else
 					{
@@ -613,7 +613,7 @@ namespace HordeServer.Commits.Impl
 				}
 				else
 				{
-					TreeRef = await AddTreeRefAsync(Perforce, Stream, View, PrevCommit, PrevTreeRef, Commit, ServerInfo.PathComparison);
+					TreeRef = await AddTreeRefAsync(Perforce, Stream, View, PrevCommit, PrevTreeRef, Commit, ServerInfo.Utf8PathComparer);
 				}
 
 				// Remove the first change number from this queue
@@ -637,18 +637,18 @@ namespace HordeServer.Commits.Impl
 			return CbSerializer.Deserialize<StreamTreeRef>(Ref.Value.AsField());
 		}
 
-		async Task<StreamTreeRef?> AddTreeRefAsync(IPerforceConnection Perforce, IStream Stream, ViewMap View, ICommit? PrevCommit, StreamTreeRef? PrevTreeRef, ICommit Commit, StringComparison PathComparison)
+		async Task<StreamTreeRef?> AddTreeRefAsync(IPerforceConnection Perforce, IStream Stream, ViewMap View, ICommit? PrevCommit, StreamTreeRef? PrevTreeRef, ICommit Commit, Utf8StringComparer PathComparer)
 		{
 			StreamTreeRef TreeRef;
 			if (PrevCommit == null || PrevTreeRef == null)
 			{
 				Logger.LogInformation("Performing snapshot of {StreamId} at CL {Change}", Commit.StreamId, Commit.Change);
-				TreeRef = await CreateTreeAsync(Perforce, View, Commit.Change, PathComparison);
+				TreeRef = await CreateTreeAsync(Perforce, View, Commit.Change, PathComparer);
 			}
 			else
 			{
 				Logger.LogInformation("Performing incremental update of {StreamId} from CL {PrevChange} to CL {Change}", Commit.StreamId, PrevCommit.Change, Commit.Change);
-				TreeRef = await UpdateTreeAsync(PrevTreeRef, Perforce, View, Commit.Change, PathComparison);
+				TreeRef = await UpdateTreeAsync(PrevTreeRef, Perforce, View, Commit.Change, PathComparer);
 			}
 
 			string RefName = $"tree_{Commit.StreamId}_{Commit.Change}";
@@ -682,8 +682,8 @@ namespace HordeServer.Commits.Impl
 		/// <param name="Connection">The Perforce repository to mirror</param>
 		/// <param name="View">View for the stream</param>
 		/// <param name="Change">Changelist to replicate</param>
-		/// <param name="Comparison">Comparison type for paths</param>
-		async Task<StreamTreeRef> CreateTreeAsync(IPerforceConnection Connection, ViewMap View, int Change, StringComparison Comparison)
+		/// <param name="PathComparer">Comparison type for paths</param>
+		async Task<StreamTreeRef> CreateTreeAsync(IPerforceConnection Connection, ViewMap View, int Change, Utf8StringComparer PathComparer)
 		{
 			// Optimize the view by removing unnecessary inclusions of the same path
 			View = new ViewMap(View);
@@ -692,7 +692,7 @@ namespace HordeServer.Commits.Impl
 				ViewMapEntry Entry = View.Entries[Idx];
 				if (Entry.Include && Entry.IsPathWildcard())
 				{
-					while (Idx + 1 < View.Entries.Count && View.Entries[Idx + 1].Include && View.Entries[Idx + 1].SourcePrefix.StartsWith(Entry.SourcePrefix, Comparison))
+					while (Idx + 1 < View.Entries.Count && View.Entries[Idx + 1].Include && View.Entries[Idx + 1].SourcePrefix.StartsWith(Entry.SourcePrefix, PathComparer))
 					{
 						View.Entries.RemoveAt(Idx + 1);
 					}
@@ -722,7 +722,7 @@ namespace HordeServer.Commits.Impl
 						ViewMapEntry OtherEntry = View.Entries[OtherIdx];
 						if (!OtherEntry.Include)
 						{
-							if (OtherEntry.SourcePrefix.StartsWith(Entry.SourcePrefix, Comparison) || Entry.SourcePrefix.StartsWith(OtherEntry.SourcePrefix, Comparison))
+							if (OtherEntry.SourcePrefix.StartsWith(Entry.SourcePrefix, PathComparer) || Entry.SourcePrefix.StartsWith(OtherEntry.SourcePrefix, PathComparer))
 							{
 								FilteredView.Entries.Add(OtherEntry);
 							}
@@ -730,7 +730,7 @@ namespace HordeServer.Commits.Impl
 					}
 
 					Logger.LogInformation("Adding {Source}@{Change}", Entry.Source, Change);
-					await AddDepotFilesToSnapshotAsync(Connection, $"{Entry.Source}@{Change}", View, Comparison, TreePath, Writer, WriteObject);
+					await AddDepotFilesToSnapshotAsync(Connection, $"{Entry.Source}@{Change}", View, PathComparer, TreePath, Writer, WriteObject);
 
 					GC.Collect();
 				}
@@ -738,6 +738,30 @@ namespace HordeServer.Commits.Impl
 
 			// Encode the tree
 			return TreePath[0].Encode(Writer, WriteObject);
+		}
+
+		/// <summary>
+		/// Record returned by the fstat command
+		/// </summary>
+		public class Utf8FStatRecord
+		{
+			[PerforceTag("depotFile", Optional = true)]
+			public Utf8String DepotFile;
+
+			[PerforceTag("headType", Optional = true)]
+			public Utf8String HeadType;
+
+			[PerforceTag("headRev", Optional = true)]
+			public int HeadRevision;
+
+			[PerforceTag("digest", Optional = true)]
+			public Utf8String Digest;
+
+			[PerforceTag("fileSize", Optional = true)]
+			public long FileSize;
+
+			[PerforceTag("type", Optional = true)]
+			public Utf8String Type;
 		}
 
 		/// <summary>
@@ -750,7 +774,7 @@ namespace HordeServer.Commits.Impl
 		/// <param name="TreePath">The last computed path through the tree</param>
 		/// <param name="Writer"></param>
 		/// <param name="WriteObject">Delegate to write an object to the store</param>
-		async Task AddDepotFilesToSnapshotAsync(IPerforceConnection Connection, string FileSpec, ViewMap View, StringComparison Comparison, List<StreamTreeBuilder> TreePath, CbWriter Writer, Action<IoHash, CbObject> WriteObject)
+		async Task AddDepotFilesToSnapshotAsync(IPerforceConnection Connection, string FileSpec, ViewMap View, Utf8StringComparer Comparer, List<StreamTreeBuilder> TreePath, CbWriter Writer, Action<IoHash, CbObject> WriteObject)
 		{
 			const string Filter = "^headAction=delete ^headAction=move/delete";
 			const string Fields = "depotFile,fileSize,digest,headType,headRev";
@@ -765,16 +789,18 @@ namespace HordeServer.Commits.Impl
 			Arguments.Add(String.Join(",", Fields));
 			Arguments.Add(FileSpec);
 
-			IAsyncEnumerable<PerforceResponse<FStatRecord>> Responses = Connection.StreamCommandAsync<FStatRecord>("fstat", Arguments);
-			await foreach (PerforceResponse<FStatRecord> Response in Responses)
+			List<Utf8String> Segments = new List<Utf8String>();
+
+			IAsyncEnumerable<PerforceResponse<Utf8FStatRecord>> Responses = Connection.StreamCommandAsync<Utf8FStatRecord>("fstat", Arguments);
+			await foreach (PerforceResponse<Utf8FStatRecord> Response in Responses)
 			{
-				FStatRecord File = Response.Data;
-				if (!String.IsNullOrEmpty(File.Digest))
+				Utf8FStatRecord File = Response.Data;
+				if (File.Digest != Utf8String.Empty)
 				{
-					string? TargetFile;
-					if (File.DepotFile != null && View.TryMapFile(File.DepotFile, Comparison, out TargetFile))
+					Utf8String TargetFile;
+					if (File.DepotFile != Utf8String.Empty && View.TryMapFile(File.DepotFile, Comparer, out TargetFile))
 					{
-						await AddFileAsync(TargetFile, File, TreePath, Writer, WriteObject);
+						await AddFileAsync(TargetFile, File, TreePath, Segments, Writer, WriteObject);
 					}
 				}
 			}
@@ -786,18 +812,33 @@ namespace HordeServer.Commits.Impl
 		/// <param name="Path">The stream path for the file</param>
 		/// <param name="MetaData">The file metadata</param>
 		/// <param name="TreePath">The last computed path through the tree</param>
+		/// <param name="Segments"></param>
 		/// <param name="Writer"></param>
 		/// <param name="WriteObject"></param>
-		async Task AddFileAsync(string Path, FStatRecord MetaData, List<StreamTreeBuilder> TreePath, CbWriter Writer, Action<IoHash, CbObject> WriteObject)
+		async Task AddFileAsync(Utf8String Path, Utf8FStatRecord MetaData, List<StreamTreeBuilder> TreePath, List<Utf8String> Segments, CbWriter Writer, Action<IoHash, CbObject> WriteObject)
 		{
-			string[] Segments = Path.Split('/');
-
 			StreamTreeBuilder Node = TreePath[0];
 
-			int SegmentIdx = 0;
+			// Split the path into segments
+			Segments.Clear();
+			for (int Pos = 0; ;)
+			{
+				int NextPos = Path.IndexOf('/', Pos);
+				if (NextPos == -1)
+				{
+					Segments.Add(Path.Substring(Pos));
+					break;
+				}
+				else
+				{
+					Segments.Add(Path.Substring(Pos, NextPos - Pos));
+					Pos = NextPos + 1;
+				}
+			}
 
 			// Match as many nodes as we can from the existing path
-			for (; SegmentIdx < Segments.Length - 1; SegmentIdx++)
+			int SegmentIdx = 0;
+			for(; SegmentIdx < Segments.Count; SegmentIdx++)
 			{
 				Utf8String Segment = Segments[SegmentIdx];
 				if (!Node.NameToTreeBuilder.TryGetValue(Segment, out StreamTreeBuilder? NextNode))
@@ -811,12 +852,15 @@ namespace HordeServer.Commits.Impl
 			CollapseTree(Node, Writer, WriteObject);
 
 			// Expand the rest of the path
-			for (; SegmentIdx < Segments.Length - 1; SegmentIdx++)
+			for(; SegmentIdx < Segments.Count; SegmentIdx++)
 			{
-				Node = await FindOrAddTreeAsync(Node, Segments[SegmentIdx]);
+				Utf8String Segment = Segments[SegmentIdx];
+				Node = await FindOrAddTreeAsync(Node, Segment);
 			}
 
-			Node.NameToFile[Segments[Segments.Length - 1]] = CreateStreamFile(MetaData);
+			// Add the filename
+			Utf8String FileName = Segments[Segments.Count - 1];
+			Node.NameToFile[FileName] = CreateStreamFile(MetaData);
 		}
 
 		#endregion
@@ -830,12 +874,12 @@ namespace HordeServer.Commits.Impl
 		/// <param name="Perforce"></param>
 		/// <param name="Change"></param>
 		/// <param name="View"></param>
-		/// <param name="Comparison"></param>
+		/// <param name="PathComparer"></param>
 		/// <returns></returns>
-		async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef PrevTreeRef, IPerforceConnection Perforce, ViewMap View, int Change, StringComparison Comparison)
+		async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef PrevTreeRef, IPerforceConnection Perforce, ViewMap View, int Change, Utf8StringComparer PathComparer)
 		{
 			List<FStatRecord> Records = await Perforce.FStatAsync(-1, Change, null, null, -1, FStatOptions.IncludeFileSizes, FileSpecList.Empty);
-			return await UpdateTreeAsync(PrevTreeRef, Records, View, Comparison);
+			return await UpdateTreeAsync(PrevTreeRef, Records, View, PathComparer);
 		}
 
 		/// <summary>
@@ -844,9 +888,9 @@ namespace HordeServer.Commits.Impl
 		/// <param name="PrevTreeRef"></param>
 		/// <param name="Files"></param>
 		/// <param name="View"></param>
-		/// <param name="Comparison"></param>
+		/// <param name="PathComparer"></param>
 		/// <returns></returns>
-		async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef PrevTreeRef, IList<FStatRecord> Files, ViewMap View, StringComparison Comparison)
+		async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef PrevTreeRef, IList<FStatRecord> Files, ViewMap View, Utf8StringComparer PathComparer)
 		{
 			StreamTreeBuilder Tree = await ReadTreeAsync(PrevTreeRef);
 
@@ -856,8 +900,8 @@ namespace HordeServer.Commits.Impl
 			// Update the tree
 			foreach (FStatRecord File in Files)
 			{
-				string? LocalPathStr;
-				if (File.DepotFile != null && View.TryMapFile(File.DepotFile, Comparison, out LocalPathStr))
+				Utf8String LocalPathStr;
+				if (File.DepotFile != null && View.TryMapFile(File.DepotFile, PathComparer, out LocalPathStr))
 				{
 					Utf8String LocalPath = LocalPathStr;
 
@@ -983,6 +1027,25 @@ namespace HordeServer.Commits.Impl
 				Node.NameToTree.Add(Name, ChildRef);
 			}
 			Node.NameToTreeBuilder.Clear();
+		}
+
+		/// <summary>
+		/// Creates a StreamFile from a FileMetaData object
+		/// </summary>
+		/// <param name="MetaData"></param>
+		/// <returns></returns>
+		static StreamFile CreateStreamFile(Utf8FStatRecord MetaData)
+		{
+			Utf8String FileType = Utf8String.Empty;
+			if (MetaData.Type != Utf8String.Empty)
+			{
+				FileType = MetaData.Type;
+			}
+			else if (MetaData.HeadType != Utf8String.Empty)
+			{
+				FileType = MetaData.HeadType;
+			}
+			return new StreamFile(MetaData.DepotFile!, MetaData.FileSize, new FileContentId(Md5Hash.Parse(MetaData.Digest!), FileType), MetaData.HeadRevision);
 		}
 
 		/// <summary>

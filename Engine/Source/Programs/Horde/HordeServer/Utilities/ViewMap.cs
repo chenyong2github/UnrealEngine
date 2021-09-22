@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace HordeServer.Utilities
@@ -18,13 +20,14 @@ namespace HordeServer.Utilities
 		/// <summary>
 		/// List of entries making up the view
 		/// </summary>
-		public List<ViewMapEntry> Entries { get; } = new List<ViewMapEntry>();
+		public List<ViewMapEntry> Entries { get; }
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
 		public ViewMap()
 		{
+			Entries = new List<ViewMapEntry>();
 		}
 
 		/// <summary>
@@ -33,7 +36,7 @@ namespace HordeServer.Utilities
 		/// <param name="Other"></param>
 		public ViewMap(ViewMap Other)
 		{
-			Entries.AddRange(Other.Entries);
+			Entries = new List<ViewMapEntry>(Other.Entries);
 		}
 
 		/// <summary>
@@ -41,6 +44,7 @@ namespace HordeServer.Utilities
 		/// </summary>
 		/// <param name="ViewMap">Peforce viewmap definition</param>
 		public ViewMap(P4.ViewMap ViewMap)
+			: this()
 		{
 			foreach (P4.MapEntry Entry in ViewMap)
 			{
@@ -54,7 +58,7 @@ namespace HordeServer.Utilities
 		/// <param name="File">The file to test</param>
 		/// <param name="Comparison">The comparison type</param>
 		/// <returns>True if the file is included in the view</returns>
-		public bool MatchFile(string File, StringComparison Comparison)
+		public bool MatchFile(Utf8String File, Utf8StringComparer Comparison)
 		{
 			bool Included = false;
 			foreach (ViewMapEntry Entry in Entries)
@@ -74,7 +78,7 @@ namespace HordeServer.Utilities
 		/// <param name="Comparison">The comparison type</param>
 		/// <param name="TargetFile"></param>
 		/// <returns></returns>
-		public bool TryMapFile(string SourceFile, StringComparison Comparison, [NotNullWhen(true)] out string? TargetFile)
+		public bool TryMapFile(Utf8String SourceFile, Utf8StringComparer Comparison, out Utf8String TargetFile)
 		{
 			ViewMapEntry? MapEntry = null;
 			foreach (ViewMapEntry Entry in Entries)
@@ -92,82 +96,24 @@ namespace HordeServer.Utilities
 			}
 			else
 			{
-				TargetFile = null;
+				TargetFile = Utf8String.Empty;
 				return false;
 			}
-		}
-
-		/// <summary>
-		/// Tests whether the view includes any files directly under the given directory (not including any subdirectories).
-		/// </summary>
-		/// <param name="Dir">The directory to test; should end with a Slash.</param>
-		/// <param name="Comparison">The comparison type</param>
-		/// <returns>True if the view may include any files in the given directory</returns>
-		public bool MayMatchAnyFilesInDirectory(string Dir, StringComparison Comparison)
-		{
-			bool MayInclude = false;
-			foreach (ViewMapEntry Entry in Entries)
-			{
-				if (Entry.Include)
-				{
-					if (Entry.MayMatchAnyFilesInDirectory(Dir, Comparison))
-					{
-						MayInclude = true;
-					}
-				}
-				else
-				{
-					if (Entry.MatchAllFilesInDirectory(Dir, Comparison))
-					{
-						MayInclude = false;
-					}
-				}
-			}
-			return MayInclude;
-		}
-
-		/// <summary>
-		/// Tests whether the view may include any files in subdirectories of the given path
-		/// </summary>
-		/// <param name="Dir">The directory to test; should end with a Slash.</param>
-		/// <param name="Comparison">The comparison type</param>
-		/// <returns>True if the pattern may match files under the given directory</returns>
-		public bool MayMatchAnyFilesInSubDirectory(string Dir, StringComparison Comparison)
-		{
-			bool MayInclude = false;
-			foreach (ViewMapEntry Entry in Entries)
-			{
-				if (Entry.Include)
-				{
-					if (Entry.MayMatchAnyFilesInSubDirectory(Dir, Comparison))
-					{
-						MayInclude = true;
-					}
-				}
-				else
-				{
-					if (Entry.MatchAllFilesInDirectory(Dir, Comparison))
-					{
-						MayInclude = false;
-					}
-				}
-			}
-			return MayInclude;
 		}
 
 		/// <summary>
 		/// Gets the root paths from the view entries
 		/// </summary>
 		/// <returns></returns>
-		public List<string> GetRootPaths(StringComparison Comparison)
+		public List<Utf8String> GetRootPaths(Utf8StringComparer Comparison)
 		{
-			List<string> RootPaths = new List<string>();
+			List<Utf8String> RootPaths = new List<Utf8String>();
 			foreach (ViewMapEntry Entry in Entries)
 			{
 				if (Entry.Include)
 				{
 					int LastSlashIdx = Entry.SourcePrefix.LastIndexOf('/');
-					string RootPath = Entry.SourcePrefix.Substring(0, LastSlashIdx + 1);
+					Utf8String RootPath = Entry.SourcePrefix.Slice(0, LastSlashIdx + 1);
 
 					for (int Idx = 0; ; Idx++)
 					{
@@ -205,49 +151,49 @@ namespace HordeServer.Utilities
 		/// <summary>
 		/// The wildcard string - either '*' or '...'
 		/// </summary>
-		public string? Wildcard { get; }
+		public Utf8String Wildcard { get; }
 
 		/// <summary>
 		/// The source part of the pattern before the wildcard
 		/// </summary>
-		public string SourcePrefix { get; }
+		public Utf8String SourcePrefix { get; }
 
 		/// <summary>
 		/// The source part of the pattern after the wildcard. Perforce does not permit a slash to be in this part of the mapping.
 		/// </summary>
-		public string SourceSuffix { get; }
+		public Utf8String SourceSuffix { get; }
 
 		/// <summary>
 		/// The target mapping for the pattern before the wildcard
 		/// </summary>
-		public string TargetPrefix { get; }
+		public Utf8String TargetPrefix { get; }
 
 		/// <summary>
 		/// The target mapping for the pattern after the wildcard
 		/// </summary>
-		public string TargetSuffix { get; }
+		public Utf8String TargetSuffix { get; }
 
 		/// <summary>
-		/// The full source path
+		/// The full source pattern
 		/// </summary>
-		public string Source => (Wildcard == null) ? SourcePrefix : $"{SourcePrefix}{Wildcard}{SourceSuffix}";
+		public Utf8String Source => $"{SourcePrefix}{Wildcard}{SourceSuffix}";
 
 		/// <summary>
-		/// The full target path
+		/// The full target pattern
 		/// </summary>
-		public string Target => (Wildcard == null) ? TargetPrefix : $"{TargetPrefix}{Wildcard}{TargetSuffix}";
+		public Utf8String Target => $"{TargetPrefix}{Wildcard}{TargetSuffix}";
 
 		/// <summary>
 		/// Tests if the entry has a file wildcard ('*')
 		/// </summary>
 		/// <returns>True if the entry has a file wildcard</returns>
-		public bool IsFileWildcard() => Wildcard != null && Wildcard.Length == 1;
+		public bool IsFileWildcard() => Wildcard.Length == 1;
 
 		/// <summary>
 		/// Tests if the entry has a path wildcard ('...')
 		/// </summary>
 		/// <returns>True if the entry has a path wildcard</returns>
-		public bool IsPathWildcard() => Wildcard != null && Wildcard.Length == 3;
+		public bool IsPathWildcard() => Wildcard.Length == 3;
 
 		/// <summary>
 		/// Constructor
@@ -268,23 +214,30 @@ namespace HordeServer.Utilities
 		{
 			this.Include = Include;
 
-			Match Match = Regex.Match(Source, @"^(.*)(\*|\.\.\.)(.*)$");
+			Match Match = Regex.Match(Source, @"^(.*)(\*|\.\.\.|%%1)(.*)$");
 			if (Match.Success)
 			{
+				string WildcardStr = Match.Groups[2].Value;
+
 				SourcePrefix = Match.Groups[1].Value;
 				SourceSuffix = Match.Groups[3].Value;
 				Wildcard = Match.Groups[2].Value;
 
-				int OtherIdx = Target.IndexOf(Wildcard, StringComparison.Ordinal);
+				int OtherIdx = Target.IndexOf(WildcardStr, StringComparison.Ordinal);
 				TargetPrefix = Target.Substring(0, OtherIdx);
 				TargetSuffix = Target.Substring(OtherIdx + Wildcard.Length);
+
+				if (WildcardStr.Equals("%%1", StringComparison.Ordinal))
+				{
+					Wildcard = "*";
+				}
 			}
 			else
 			{
 				SourcePrefix = Source;
-				SourceSuffix = String.Empty;
+				SourceSuffix = Utf8String.Empty;
 				TargetPrefix = Target;
-				TargetSuffix = String.Empty;
+				TargetSuffix = Utf8String.Empty;
 			}
 		}
 
@@ -297,7 +250,7 @@ namespace HordeServer.Utilities
 		/// <param name="SourceSuffix"></param>
 		/// <param name="TargetPrefix"></param>
 		/// <param name="TargetSuffix"></param>
-		public ViewMapEntry(bool Include, string? Wildcard, string SourcePrefix, string SourceSuffix, string TargetPrefix, string TargetSuffix)
+		public ViewMapEntry(bool Include, Utf8String Wildcard, Utf8String SourcePrefix, Utf8String SourceSuffix, Utf8String TargetPrefix, Utf8String TargetSuffix)
 		{
 			this.Include = Include;
 			this.Wildcard = Wildcard;
@@ -321,10 +274,10 @@ namespace HordeServer.Utilities
 		/// </summary>
 		/// <param name="SourceFile"></param>
 		/// <returns></returns>
-		public string MapFile(string SourceFile)
+		public Utf8String MapFile(Utf8String SourceFile)
 		{
 			int Count = SourceFile.Length - SourceSuffix.Length - SourcePrefix.Length;
-			return TargetPrefix + SourceFile.Substring(SourcePrefix.Length, Count) + TargetSuffix;
+			return TargetPrefix + SourceFile.Slice(SourcePrefix.Length, Count) + TargetSuffix;
 		}
 
 		/// <summary>
@@ -333,11 +286,11 @@ namespace HordeServer.Utilities
 		/// <param name="Path">Path to the file</param>
 		/// <param name="Comparison">The comparison type</param>
 		/// <returns>True if the path matches the entry</returns>
-		public bool MatchFile(string Path, StringComparison Comparison)
+		public bool MatchFile(Utf8String Path, Utf8StringComparer Comparison)
 		{
-			if (Wildcard == null)
+			if (Wildcard.Length == 0)
 			{
-				return Path.Equals(SourcePrefix, Comparison);
+				return Comparison.Compare(Path, SourcePrefix) == 0;
 			}
 			else
 			{
@@ -345,7 +298,7 @@ namespace HordeServer.Utilities
 				{
 					return false;
 				}
-				if (IsFileWildcard() && Path.IndexOf('/', SourcePrefix.Length, Path.Length - SourceSuffix.Length - SourcePrefix.Length) != -1)
+				if (IsFileWildcard() && Path.Slice(SourcePrefix.Length, Path.Length - SourceSuffix.Length - SourcePrefix.Length).IndexOf('/') != -1)
 				{
 					return false;
 				}
@@ -353,60 +306,16 @@ namespace HordeServer.Utilities
 			}
 		}
 
-		/// <summary>
-		/// Determine if the pattern may match any files directly under the given directory
-		/// </summary>
-		/// <param name="Dir">The directory to test</param>
-		/// <param name="Comparison">The comparison type</param>
-		/// <returns>True if the pattern may match a file in this directory</returns>
-		public bool MayMatchAnyFilesInDirectory(string Dir, StringComparison Comparison)
+		/// <inheritdoc/>
+		public override string ToString()
 		{
-			Debug.Assert(Dir.EndsWith("/", StringComparison.Ordinal));
-			if (Dir.StartsWith(SourcePrefix, Comparison))
+			StringBuilder Builder = new StringBuilder();
+			if (!Include)
 			{
-				if (IsPathWildcard() || Dir.IndexOf('/', SourcePrefix.Length) == -1)
-				{
-					return true;
-				}
+				Builder.Append("-");
 			}
-			return false;
-		}
-
-		/// <summary>
-		/// Determine if the pattern may match any files in subdirectories of the given directory
-		/// </summary>
-		/// <param name="Dir">The directory to test</param>
-		/// <param name="Comparison">The comparison type</param>
-		/// <returns>True if the pattern may match a file in this directory</returns>
-		public bool MayMatchAnyFilesInSubDirectory(string Dir, StringComparison Comparison)
-		{
-			Debug.Assert(Dir.EndsWith("/", StringComparison.Ordinal));
-			if (Dir.StartsWith(SourcePrefix, Comparison))
-			{
-				if (IsPathWildcard())
-				{
-					return true;
-				}
-			}
-			else
-			{
-				if (SourcePrefix.StartsWith(Dir, Comparison))
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-
-		/// <summary>
-		/// Determine if the pattern matches all files in the given directory
-		/// </summary>
-		/// <param name="Dir">The directory to test</param>
-		/// <param name="Comparison">The comparison type</param>
-		/// <returns>True if the pattern may match a file in this directory</returns>
-		public bool MatchAllFilesInDirectory(string Dir, StringComparison Comparison)
-		{
-			return Wildcard != null && Wildcard.Length == 3 && Dir.StartsWith(SourcePrefix, Comparison);
+			Builder.Append($"{SourcePrefix}{Wildcard}{SourceSuffix} {TargetPrefix}{Wildcard}{TargetSuffix}");
+			return Builder.ToString();
 		}
 	}
 }
