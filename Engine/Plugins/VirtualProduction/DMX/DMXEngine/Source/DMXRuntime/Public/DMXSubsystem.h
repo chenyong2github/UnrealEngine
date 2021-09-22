@@ -169,6 +169,14 @@ public:
 	 * @return	The literal UDMXEntityFixturePatch
 	 */
 	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE"), Category = "DMX")
+	UDMXEntityFixtureType* GetFixtureType(FDMXEntityFixtureTypeRef InFixtureType);
+
+	/**
+	 * Creates a literal UDMXEntityFixturePatch reference
+	 * @param	InFixturePatch	pointer to set the UDMXEntityFixturePatch to
+	 * @return	The literal UDMXEntityFixturePatch
+	 */
+	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "TRUE"), Category = "DMX")
 	UDMXEntityFixturePatch* GetFixturePatch(FDMXEntityFixturePatchRef InFixturePatch);
 
 	/**
