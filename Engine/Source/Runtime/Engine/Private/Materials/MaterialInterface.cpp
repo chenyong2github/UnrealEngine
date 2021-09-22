@@ -63,13 +63,9 @@ bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShader
 		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked);
 }
 
-static EMaterialGetParameterValueFlags MakeParameterValueFlags(bool bOveriddenOnly, bool bCheckParent = true)
+static EMaterialGetParameterValueFlags MakeParameterValueFlags(bool bOveriddenOnly)
 {
 	EMaterialGetParameterValueFlags Result = EMaterialGetParameterValueFlags::CheckInstanceOverrides;
-	if (bCheckParent)
-	{
-		Result |= EMaterialGetParameterValueFlags::CheckParent;
-	}
 	if (!bOveriddenOnly)
 	{
 		Result |= EMaterialGetParameterValueFlags::CheckNonOverrides;
@@ -136,10 +132,10 @@ void UMaterialInterface::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTexture
 }
 
 #if WITH_EDITORONLY_DATA
-bool UMaterialInterface::GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/, bool bCheckParent /*= true*/) const
+bool UMaterialInterface::GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/) const
 {
 	FMaterialParameterMetadata Result;
-	if (GetParameterValue(EMaterialParameterType::StaticSwitch, ParameterInfo, Result, MakeParameterValueFlags(bOveriddenOnly, bCheckParent)))
+	if (GetParameterValue(EMaterialParameterType::StaticSwitch, ParameterInfo, Result, MakeParameterValueFlags(bOveriddenOnly)))
 	{
 		OutExpressionGuid = Result.ExpressionGuid;
 		OutValue = Result.Value.AsStaticSwitch();
@@ -148,10 +144,10 @@ bool UMaterialInterface::GetStaticSwitchParameterValue(const FHashedMaterialPara
 	return false;
 }
 
-bool UMaterialInterface::GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/, bool bCheckParent /*= true*/) const
+bool UMaterialInterface::GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly /*= false*/) const
 {
 	FMaterialParameterMetadata Result;
-	if (GetParameterValue(EMaterialParameterType::StaticSwitch, ParameterInfo, Result, MakeParameterValueFlags(bOveriddenOnly, bCheckParent)))
+	if (GetParameterValue(EMaterialParameterType::StaticSwitch, ParameterInfo, Result, MakeParameterValueFlags(bOveriddenOnly)))
 	{
 		OutExpressionGuid = Result.ExpressionGuid;
 		R = Result.Value.Bool[0];
@@ -428,7 +424,7 @@ bool UMaterialInterface::GetVectorParameterValue(const FHashedMaterialParameterI
 bool UMaterialInterface::IsVectorParameterUsedAsChannelMask(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue) const
 {
 	FMaterialParameterMetadata Result;
-	if (GetParameterValue(EMaterialParameterType::Vector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent))
+	if (GetParameterValue(EMaterialParameterType::Vector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
 		OutValue = Result.bUsedAsChannelMask;
 		return true;
@@ -439,7 +435,7 @@ bool UMaterialInterface::IsVectorParameterUsedAsChannelMask(const FHashedMateria
 bool UMaterialInterface::GetVectorParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
 {
 	FMaterialParameterMetadata Result;
-	if (GetParameterValue(EMaterialParameterType::Vector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent))
+	if (GetParameterValue(EMaterialParameterType::Vector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
 		OutValue = Result.ChannelNames;
 		return true;
@@ -450,7 +446,7 @@ bool UMaterialInterface::GetVectorParameterChannelNames(const FHashedMaterialPar
 bool UMaterialInterface::GetScalarParameterSliderMinMax(const FHashedMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const
 {
 	FMaterialParameterMetadata Result;
-	if (GetParameterValue(EMaterialParameterType::Scalar, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent))
+	if (GetParameterValue(EMaterialParameterType::Scalar, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
 		OutSliderMin = Result.ScalarMin;
 		OutSliderMax = Result.ScalarMax;
@@ -480,7 +476,7 @@ bool UMaterialInterface::GetParameterValue(EMaterialParameterType Type, const FM
 bool UMaterialInterface::IsScalarParameterUsedAsAtlasPosition(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<class UCurveLinearColor>& Curve, TSoftObjectPtr<class UCurveLinearColorAtlas>& Atlas) const
 {
 	FMaterialParameterMetadata Result;
-	if (GetParameterValue(EMaterialParameterType::Scalar, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent))
+	if (GetParameterValue(EMaterialParameterType::Scalar, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
 		OutValue = Result.bUsedAsAtlasPosition;
 		Curve = Result.ScalarCurve;
@@ -517,7 +513,7 @@ bool UMaterialInterface::GetRuntimeVirtualTextureParameterValue(const FHashedMat
 bool UMaterialInterface::GetTextureParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
 {
 	FMaterialParameterMetadata Result;
-	if (GetParameterValue(EMaterialParameterType::Texture, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent))
+	if (GetParameterValue(EMaterialParameterType::Texture, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
 		OutValue = Result.ChannelNames;
 		return true;
@@ -540,7 +536,7 @@ bool UMaterialInterface::GetFontParameterValue(const FHashedMaterialParameterInf
 
 bool UMaterialInterface::GetParameterDefaultValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutValue) const
 {
-	return GetParameterValue(Type, ParameterInfo, OutValue, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent);
+	return GetParameterValue(Type, ParameterInfo, OutValue, EMaterialGetParameterValueFlags::CheckNonOverrides);
 }
 
 

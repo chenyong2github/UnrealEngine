@@ -690,6 +690,7 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 	TArray<FGuid> Guids;
 
 	UMaterial* CurrentMaterial = Cast<UMaterial>(CurrentMaterialInterface);
+	UMaterialInstance* CurrentMaterialInstance = Cast<UMaterialInstance>(CurrentMaterialInterface);
 
 	bool bCanBeOverriden = CurrentMaterial != nullptr;
 
@@ -708,8 +709,6 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 	{
 		float TempValue = 0.0f;
 		bool bIsOverridden = false;
-
-		UMaterialInstance* CurrentMaterialInstance = Cast<UMaterialInstance>(CurrentMaterialInterface);
 
 		if (BasePropertyOverrideName.Key.IsEqual(TEXT("bOverride_OpacityMaskClipValue")))
 		{
@@ -832,8 +831,8 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 	
 	for (int ParameterIndex = 0; ParameterIndex < StaticSwitchParameterInfo.Num(); ++ParameterIndex)
 	{
-		bool bStaticSwitchValue;
-		bool bIsOverridden = CurrentMaterialInterface->GetStaticSwitchParameterValue(StaticSwitchParameterInfo[ParameterIndex], bStaticSwitchValue, StaticSwitchGuids[ParameterIndex], false, false);
+		FMaterialParameterMetadata Meta;
+		bool bIsOverridden = CurrentMaterialInstance->GetParameterOverrideValue(EMaterialParameterType::StaticSwitch, StaticSwitchParameterInfo[ParameterIndex], Meta);
 
 		if (!bIsOverridden)
 		{
@@ -852,7 +851,7 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 		else
 		{
 			CurrentMaterialNode->StaticSwitchParameters.Add(FStaticSwitchParameterNodeRef(
-				new FStaticSwitchParameterNode(StaticSwitchParameterInfo[ParameterIndex].Name, bStaticSwitchValue, true)));
+				new FStaticSwitchParameterNode(StaticSwitchParameterInfo[ParameterIndex].Name, Meta.Value.AsStaticSwitch(), true)));
 		}
 	}
 	
@@ -860,9 +859,8 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 	
 	for (int ParameterIndex = 0; ParameterIndex < StaticMaskParameterInfo.Num(); ++ParameterIndex)
 	{
-		bool R, G, B, A;
-	
-		bool bIsOverridden = CurrentMaterialInterface->GetStaticComponentMaskParameterValue(StaticMaskParameterInfo[ParameterIndex], R, G, B, A, StaticMaskGuids[ParameterIndex], false, false);
+		FMaterialParameterMetadata Meta;
+		bool bIsOverridden = CurrentMaterialInstance->GetParameterOverrideValue(EMaterialParameterType::StaticComponentMask, StaticSwitchParameterInfo[ParameterIndex], Meta);
 
 		if(!bIsOverridden)
 		{
@@ -884,7 +882,12 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 		else
 		{
 			CurrentMaterialNode->StaticComponentMaskParameters.Add(FStaticComponentMaskParameterNodeRef(
-				new FStaticComponentMaskParameterNode(StaticMaskParameterInfo[ParameterIndex].Name, R, G, B, A, true)));
+				new FStaticComponentMaskParameterNode(StaticMaskParameterInfo[ParameterIndex].Name,
+					Meta.Value.Bool[0],
+					Meta.Value.Bool[1],
+					Meta.Value.Bool[2],
+					Meta.Value.Bool[3],
+					true)));
 		}
 	}
 

@@ -58,10 +58,8 @@ enum class EMaterialGetParameterValueFlags : uint32
 	None = 0u,
 	CheckNonOverrides = (1u << 0),
 	CheckInstanceOverrides = (1u << 1),
-	CheckParent = (1u << 2),
-	IsParent = (1u << 3), // automatically set when recursing into a parent
 
-	CheckAll = CheckNonOverrides | CheckInstanceOverrides | CheckParent,
+	CheckAll = CheckNonOverrides | CheckInstanceOverrides,
 };
 ENUM_CLASS_FLAGS(EMaterialGetParameterValueFlags);
 
