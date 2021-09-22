@@ -73,7 +73,7 @@ void UFractureTransformGizmoSettings::TransformChanged(UTransformProxy* Proxy, F
 	}
 }
 
-void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter)
+void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter, ETransformGizmoSubElements GizmoElements)
 {
 	AttachedCutter = Cutter;
 	UInteractiveToolsContext* Context = GLevelEditorModeTools().GetInteractiveToolsContext();
@@ -81,7 +81,7 @@ void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter)
 	{
 		UInteractiveGizmoManager* GizmoManager = Context->GizmoManager;
 		TransformProxy = NewObject<UTransformProxy>(this);
-		TransformGizmo = GizmoManager->CreateCustomTransformGizmo(ETransformGizmoSubElements::StandardTranslateRotate, this);
+		TransformGizmo = GizmoManager->CreateCustomTransformGizmo(GizmoElements, this);
 		TransformGizmo->SetActiveTarget(TransformProxy);
 		TransformProxy->OnTransformChanged.AddUObject(this, &UFractureTransformGizmoSettings::TransformChanged);
 		ResetGizmo();
@@ -247,11 +247,8 @@ void UFractureToolVoronoiCutterBase::Render(const FSceneView* View, FViewport* V
 	}
 }
 
-void UFractureToolVoronoiCutterBase::FractureContextChanged()
+void UFractureToolVoronoiCutterBase::UpdateVisualizations(TArray<FFractureToolContext>& FractureContexts)
 {
-	UpdateDefaultRandomSeed();
-	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
-
 	ClearVisualizations();
 
 	int32 MaxSitesToShowEdges = 100000; // computing all the voronoi diagrams can make the program non-responsive above this
@@ -297,6 +294,13 @@ void UFractureToolVoronoiCutterBase::FractureContextChanged()
 			}
 		}
 	}
+}
+
+void UFractureToolVoronoiCutterBase::FractureContextChanged()
+{
+	UpdateDefaultRandomSeed();
+	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
+	UpdateVisualizations(FractureContexts);
 }
 
 int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext& FractureContext)

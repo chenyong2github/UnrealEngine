@@ -194,6 +194,8 @@ protected:
 		EdgesMappings.Empty();
 	}
 
+	virtual void UpdateVisualizations(TArray<FFractureToolContext>& FractureContexts);
+
 private:
 	TArray<int32> CellMember;
 	TArray<TTuple<FVector, FVector>> VoronoiEdges;
@@ -215,7 +217,7 @@ public:
 
 	UFractureTransformGizmoSettings(const FObjectInitializer & ObjInit);
 
-	void Setup(UFractureToolCutterBase* Cutter);
+	void Setup(UFractureToolCutterBase* Cutter, ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::StandardTranslateRotate);
 	void Shutdown();
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
