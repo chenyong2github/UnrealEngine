@@ -717,7 +717,7 @@ FPlatformUserId FOnlineIdentityTwitch::GetPlatformUserIdFromUniqueNetId(const FU
 		FUniqueNetIdPtr CurrentUniqueId = GetUniquePlayerId(PlayerIdx);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == UniqueNetId))
 		{
-			return PlayerIdx;
+			return GetPlatformUserIdFromLocalUserNum(PlayerIdx);
 		}
 	}
 

@@ -1203,6 +1203,22 @@ public:
 	 */
 	static void GetValidTargetPlatforms(TArray<FString>& TargetPlatformNames);
 
+	/*
+	 * Converts from a local user index to a FPlatformUserId
+	 *
+	 * @param LocalUserIndex	A logical index where 0 should always be a valid user
+	 * @returns					A platform-allocated opaque user id, or PLATFORMUSERID_NONE
+	 */
+	static FPlatformUserId GetPlatformUserForUserIndex(int32 LocalUserIndex);
+
+	/*
+	 * Converts from a FPlatformUserId to local user index
+	 *
+	 * @param LocalUserIndex	A platform-allocated opaque user id
+	 * @returns					A valid logical index, or INDEX_NONE
+	 */
+	static int32 GetUserIndexForPlatformUser(FPlatformUserId PlatformUser);
+
 	/**
 	 * Returns whether the platform wants to use a touch screen for virtual joysticks.
 	 */

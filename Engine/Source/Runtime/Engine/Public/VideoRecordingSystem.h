@@ -56,7 +56,7 @@ struct FVideoRecordingParameters
 		, bAutoStart(false)
 		, bAutoContinue(false)
 		, bExportToLibrary(true)
-		, UserId(0)
+		, UserId(PLATFORMUSERID_NONE)
 	{}
 
 	FVideoRecordingParameters(uint64 InRecordingLengthSeconds, bool bInAutoStart, bool bInAutoContinue, bool bInExportToLibrary, FPlatformUserId InUserId)

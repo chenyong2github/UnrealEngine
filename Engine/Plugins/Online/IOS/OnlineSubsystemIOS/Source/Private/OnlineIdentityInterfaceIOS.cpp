@@ -379,7 +379,7 @@ FPlatformUserId FOnlineIdentityIOS::GetPlatformUserIdFromUniqueNetId(const FUniq
 		auto CurrentUniqueId = GetUniquePlayerId(i);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == InUniqueNetId))
 		{
-			return i;
+			return GetPlatformUserIdFromLocalUserNum(i);
 		}
 	}
 

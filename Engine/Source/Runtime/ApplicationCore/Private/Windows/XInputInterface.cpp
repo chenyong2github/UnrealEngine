@@ -145,11 +145,11 @@ void XInputInterface::SendControllerEvents()
 			// If the controller is connected now but was not before, refresh the information
 			if (!bWasConnected && ControllerState.bIsConnected)
 			{
-				FCoreDelegates::OnControllerConnectionChange.Broadcast(true, -1, ControllerState.ControllerId);
+				FCoreDelegates::OnControllerConnectionChange.Broadcast(true, PLATFORMUSERID_NONE, ControllerState.ControllerId);
 			}
 			else if (bWasConnected && !ControllerState.bIsConnected)
 			{
-				FCoreDelegates::OnControllerConnectionChange.Broadcast(false, -1, ControllerState.ControllerId);
+				FCoreDelegates::OnControllerConnectionChange.Broadcast(false, PLATFORMUSERID_NONE, ControllerState.ControllerId);
 			}
 			
 			bool CurrentStates[MAX_NUM_CONTROLLER_BUTTONS] = {0};

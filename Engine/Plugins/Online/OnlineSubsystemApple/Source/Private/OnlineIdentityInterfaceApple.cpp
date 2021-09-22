@@ -395,7 +395,7 @@ FPlatformUserId FOnlineIdentityApple::GetPlatformUserIdFromUniqueNetId(const FUn
 		FUniqueNetIdPtr CurrentUniqueId = GetUniquePlayerId(i);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == InUniqueNetId))
 		{
-			return i;
+			return GetPlatformUserIdFromLocalUserNum(i);
 		}
 	}
 

@@ -205,6 +205,8 @@ private:
 	static TArray<FInputDeviceScope*> ScopeStack;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /** Interface that defines how to handle interaction with a user via hardware input and output */
 class FGenericApplicationMessageHandler
 {
@@ -291,18 +293,40 @@ public:
 		return false;
 	}
 
-	virtual bool OnControllerAnalog( FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue )
+	/** 
+	 * Return true if this message handler expects FPlatformUserIds. This base class will convert both directions.
+	 * As part of a larger fixup to allow mapping of multiple input devices to the same player, 
+	 * physical device id will be passed as part of the InputScope above and used to compute a logical input user.
+	 */
+	virtual bool ShouldUsePlatformUserId() const
 	{
 		return false;
 	}
 
-	virtual bool OnControllerButtonPressed( FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat )
+	virtual bool OnControllerAnalog(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, float AnalogValue)
 	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnControllerAnalog(KeyName, PlatformUserId.GetInternalId(), AnalogValue);
+		}
 		return false;
 	}
 
-	virtual bool OnControllerButtonReleased( FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat )
+	virtual bool OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, bool IsRepeat)
 	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnControllerButtonPressed(KeyName, PlatformUserId.GetInternalId(), IsRepeat);
+		}
+		return false;
+	}
+
+	virtual bool OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, bool IsRepeat)
+	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnControllerButtonReleased(KeyName, PlatformUserId.GetInternalId(), IsRepeat);
+		}
 		return false;
 	}
 
@@ -319,40 +343,48 @@ public:
     {
     }
 
-	UE_DEPRECATED(4.20, "This function signature is deprecated, use OnTouchStarted that takes a Force")
-	virtual bool OnTouchStarted( const TSharedPtr< FGenericWindow >& Window, const FVector2D& Location, int32 TouchIndex, int32 ControllerId )
+	virtual bool OnTouchStarted( const TSharedPtr< FGenericWindow >& Window, const FVector2D& Location, float Force, int32 TouchIndex, FPlatformUserId PlatformUserId )
 	{
-		return OnTouchStarted(Window, Location, 1.0f, TouchIndex, ControllerId);
-	}
-
-	virtual bool OnTouchStarted( const TSharedPtr< FGenericWindow >& Window, const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId )
-	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnTouchStarted(Window, Location, Force, TouchIndex, PlatformUserId.GetInternalId());
+		}
 		return false;
 	}
 
-	UE_DEPRECATED(4.20, "This function signature is deprecated, use OnTouchMoved that takes a Force")
-	virtual bool OnTouchMoved( const FVector2D& Location, int32 TouchIndex, int32 ControllerId )
+	virtual bool OnTouchMoved( const FVector2D& Location, float Force, int32 TouchIndex, FPlatformUserId PlatformUserId )
 	{
-		return OnTouchMoved(Location, 1.0f, TouchIndex, ControllerId);
-	}
-
-	virtual bool OnTouchMoved( const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId )
-	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnTouchMoved(Location, Force, TouchIndex, PlatformUserId.GetInternalId());
+		}
 		return false;
 	}
 
-	virtual bool OnTouchEnded( const FVector2D& Location, int32 TouchIndex, int32 ControllerId )
+	virtual bool OnTouchEnded( const FVector2D& Location, int32 TouchIndex, FPlatformUserId PlatformUserId )
 	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnTouchEnded(Location, TouchIndex, PlatformUserId.GetInternalId());
+		}
 		return false;
 	}
 
-	virtual bool OnTouchForceChanged(const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
+	virtual bool OnTouchForceChanged(const FVector2D& Location, float Force, int32 TouchIndex, FPlatformUserId PlatformUserId)
 	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnTouchForceChanged(Location, Force, TouchIndex, PlatformUserId.GetInternalId());
+		}
 		return false;
 	}
 
-	virtual bool OnTouchFirstMove(const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
+	virtual bool OnTouchFirstMove(const FVector2D& Location, float Force, int32 TouchIndex, FPlatformUserId PlatformUserId)
 	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnTouchFirstMove(Location, Force, TouchIndex, PlatformUserId.GetInternalId());
+		}
 		return false;
 	}
 
@@ -361,8 +393,12 @@ public:
 
 	}
 
-	virtual bool OnMotionDetected( const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration, int32 ControllerId )
+	virtual bool OnMotionDetected( const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration, FPlatformUserId PlatformUserId )
 	{
+		if (!ShouldUsePlatformUserId())
+		{
+			return OnMotionDetected(Tilt, RotationRate, Gravity, Acceleration, PlatformUserId.GetInternalId());
+		}
 		return false;
 	}
 
@@ -475,4 +511,80 @@ public:
 	{
 
 	}
+
+	// Deprecate these when engine code has been converted to handle platform user id
+	virtual bool OnControllerAnalog(FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnControllerAnalog(KeyName, FPlatformUserId(ControllerId), AnalogValue);
+		}
+		return false;
+	}
+	virtual bool OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnControllerButtonPressed(KeyName, FPlatformUserId(ControllerId), IsRepeat);
+		}
+		return false;
+	}
+	virtual bool OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnControllerButtonReleased(KeyName, FPlatformUserId(ControllerId), IsRepeat);
+		}
+		return false;
+	}
+	virtual bool OnTouchStarted(const TSharedPtr< FGenericWindow >& Window, const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnTouchStarted(Window, Location, Force, TouchIndex, FPlatformUserId(ControllerId));
+		}
+		return false;
+	}
+	virtual bool OnTouchMoved(const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnTouchMoved(Location, Force, TouchIndex, FPlatformUserId(ControllerId));
+		}
+		return false;
+	}
+	virtual bool OnTouchEnded(const FVector2D& Location, int32 TouchIndex, int32 ControllerId)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnTouchEnded(Location, TouchIndex, FPlatformUserId(ControllerId));
+		}
+		return false;
+	}
+	virtual bool OnTouchForceChanged(const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnTouchForceChanged(Location, Force, TouchIndex, FPlatformUserId(ControllerId));
+		}
+		return false;
+	}
+	virtual bool OnTouchFirstMove(const FVector2D& Location, float Force, int32 TouchIndex, int32 ControllerId)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnTouchFirstMove(Location, Force, TouchIndex, FPlatformUserId(ControllerId));
+		}
+		return false;
+	}
+	virtual bool OnMotionDetected(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration, int32 ControllerId)
+	{
+		if (ShouldUsePlatformUserId())
+		{
+			return OnMotionDetected(Tilt, RotationRate, Gravity, Acceleration, FPlatformUserId(ControllerId));
+		}
+		return false;
+	}
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -1288,7 +1288,7 @@ void FUserManagerEOS::RevokeAuthToken(const FUniqueNetId& LocalUserId, const FOn
 
 FPlatformUserId FUserManagerEOS::GetPlatformUserIdFromUniqueNetId(const FUniqueNetId& UniqueNetId) const
 {
-	return GetLocalUserNumFromUniqueNetId(UniqueNetId);
+	return GetPlatformUserIdFromLocalUserNum(GetLocalUserNumFromUniqueNetId(UniqueNetId));
 }
 
 void FUserManagerEOS::GetUserPrivilege(const FUniqueNetId& UserId, EUserPrivileges::Type Privilege, const FOnGetUserPrivilegeCompleteDelegate& Delegate)

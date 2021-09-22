@@ -1474,6 +1474,17 @@ void FGenericPlatformMisc::GetValidTargetPlatforms(class TArray<class FString>& 
 	TargetPlatformNames.Add(FPlatformProperties::PlatformName());
 }
 
+FPlatformUserId FGenericPlatformMisc::GetPlatformUserForUserIndex(int32 LocalUserIndex)
+{
+	// These currently map 1:1 but that could change with the input system rework
+	return FPlatformUserId::CreateFromInternalId(LocalUserIndex);
+}
+
+int32 FGenericPlatformMisc::GetUserIndexForPlatformUser(FPlatformUserId PlatformUser)
+{
+	return PlatformUser.GetInternalId();
+}
+
 TArray<uint8> FGenericPlatformMisc::GetSystemFontBytes()
 {
 	return TArray<uint8>();

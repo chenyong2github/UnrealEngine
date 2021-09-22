@@ -188,7 +188,7 @@ FPlatformUserId FOnlineIdentityGooglePlay::GetPlatformUserIdFromUniqueNetId(cons
 		auto CurrentUniqueId = GetUniquePlayerId(i);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == NetId))
 		{
-			return i;
+			return GetPlatformUserIdFromLocalUserNum(i);
 		}
 	}
 

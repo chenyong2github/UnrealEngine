@@ -2222,7 +2222,27 @@ public:
 	 *	Returns the first ULocalPlayer that matches the given ControllerId. 
 	 *  This will search across all world contexts.
 	 */
-	class ULocalPlayer* FindFirstLocalPlayerFromControllerId(int32 ControllerId) const;
+	ULocalPlayer* FindFirstLocalPlayerFromControllerId(int32 ControllerId) const;
+
+	/** 
+	 * If true, we're running in a backward compatible mode where FPlatformUserId and ControllerId are the same.
+	 * If false, there can be more than one local player with the same platform user id
+	 */
+	virtual bool IsControllerIdUsingPlatformUserId() const { return true; }
+
+	/**
+	 * Returns the first ULocalPlayer that matches the given platform user id, or the first player if the id is invalid
+	 * This will search across all world contexts.
+	 */
+	ULocalPlayer* FindFirstLocalPlayerFromPlatformUserId(FPlatformUserId PlatformUserId) const;
+
+	/**
+	 * Returns the first LocalPlayer that matches the given platform user id
+	 *
+	 * @param	PlatformUserId	Platform user id to search for
+	 * @return	The player that has the PlatformUserId specified, or nullptr if no players have that PlatformUserId
+	 */
+	ULocalPlayer* GetLocalPlayerFromPlatformUserId(UWorld* InWorld, const FPlatformUserId PlatformUserId) const;
 
 	/**
 	 * return the number of entries in the GamePlayers array
