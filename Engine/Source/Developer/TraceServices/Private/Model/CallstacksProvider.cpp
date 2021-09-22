@@ -94,6 +94,14 @@ void FCallstacksProvider::AddCallstack(uint64 InCallstackId, const uint64* InFra
 }
 
 /////////////////////////////////////////////////////////////////////
+void FCallstacksProvider::AddCallstack(uint32 InCallstackId, const uint64* InFrames, uint8 InFrameCount)
+{
+	// In order to maintain backward compatibility to older format where we sent the runtime hash value
+	// we keep the callstack entry key as uint64.
+	AddCallstack(uint64(InCallstackId), InFrames, InFrameCount);
+}
+
+/////////////////////////////////////////////////////////////////////
 const FCallstack* FCallstacksProvider::GetCallstack(uint64 CallstackId) const
 {
 	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);

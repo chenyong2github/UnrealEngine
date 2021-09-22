@@ -110,6 +110,7 @@ private:
 	FReply OnTagViewClicked();
 	FReply OnMemoryPageClicked();
 	FReply OnCallstackViewClicked(bool bIsInverted);
+	FReply OnHeapViewClicked();
 
 	FText GetSymbolResolutionStatus() const;
 	FText GetSymbolResolutionTooltip() const;

@@ -5,6 +5,7 @@
 #include "AnalysisSession.h"
 #include "CoreTypes.h"
 #include "Templates/UniquePtr.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 #include <new>
 
@@ -92,6 +93,8 @@ public:
 		uint32 GetAlignment() const;
 		const struct FCallstack* GetCallstack() const;
 		uint32 GetTag() const;
+		HeapId GetRootHeap() const;
+		bool IsHeap() const;
 	};
 
 	class TRACESERVICES_API FAllocations
@@ -120,6 +123,15 @@ public:
 		mutable UPTRINT Handle;
 	};
 
+	struct TRACESERVICES_API FHeapSpec
+	{
+		HeapId Id;
+		FHeapSpec* Parent;
+		TArray<FHeapSpec*> Children;
+		const TCHAR* Name;
+		EMemoryTraceHeapFlags Flags;
+	};
+
 	typedef UPTRINT FQueryHandle;
 
 public:
@@ -138,6 +150,8 @@ public:
 	// Returns the inclusive index range [StartIndex, EndIndex] for a time range [StartTime, EndTime].
 	// Index values are in range { -1, 0, .. , N-1, N }, where N = GetTimelineNumPoints().
 	virtual void GetTimelineIndexRange(double StartTime, double EndTime, int32& StartIndex, int32& EndIndex) const = 0;
+
+	virtual void EnumerateRootHeaps(TFunctionRef<void(HeapId Id, const FHeapSpec&)> Callback) const = 0;
 
 	// Enumerates the Min Total Allocated Memory timeline points in the inclusive index interval [StartIndex, EndIndex].
 	virtual void EnumerateMinTotalAllocatedMemoryTimeline(int32 StartIndex, int32 EndIndex, TFunctionRef<void(double Time, double Duration, uint64 Value)> Callback) const = 0;

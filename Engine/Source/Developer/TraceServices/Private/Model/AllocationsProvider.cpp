@@ -3,9 +3,11 @@
 #include "AllocationsProvider.h"
 
 #include "AllocationsQuery.h"
+#include "SbTree.h"
+#include "Algo/ForEach.h"
 #include "Common/Utils.h"
 #include "Containers/ArrayView.h"
-#include "SbTree.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 #include "TraceServices/Containers/Allocators.h"
 #include "TraceServices/Model/Callstack.h"
 
@@ -275,6 +277,21 @@ uint32 IAllocationsProvider::FAllocation::GetTag() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+HeapId IAllocationsProvider::FAllocation::GetRootHeap() const
+{
+	const auto* Inner = (const FAllocationItem*)this;
+	return Inner->RootHeap;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+bool IAllocationsProvider::FAllocation::IsHeap() const
+{
+	const auto* Inner = (const FAllocationItem*)this;
+	return Inner->IsHeap();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // IAllocationsProvider::FAllocations
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -487,6 +504,22 @@ void FShortLivingAllocs::Enumerate(TFunctionRef<void(const FAllocationItem& Allo
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+FAllocationItem* FShortLivingAllocs::FindRange(const uint64 Address) const
+{
+	//todo: Can we do better than iterating all the nodes?
+	FNode* Node = LastAddedAllocNode;
+	while (Node != nullptr)
+	{
+		if (Node->Alloc->IsContained(Address))
+		{
+			return Node->Alloc;
+		}
+		Node = Node->Prev;
+	}
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FLiveAllocCollection
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -538,6 +571,37 @@ FAllocationItem* FLiveAllocCollection::FindRef(uint64 Address)
 		INSIGHTS_SLOW_CHECK(FoundLongLivingAlloc->Address == Address);
 		return FoundLongLivingAlloc;
 	}
+
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+///
+FAllocationItem* FLiveAllocCollection::FindParentHeap(uint64 Address)
+{
+#if INSIGHTS_USE_LAST_ALLOC
+	if (LastAlloc && LastAlloc->IsContained(Address))
+	{
+		return LastAlloc;
+	}
+#endif
+
+	for (const auto& Alloc : LongLivingAllocs)
+	{
+		if (Alloc.Value->IsContained(Address))
+		{
+			return Alloc.Value;
+		}
+	}
+	
+#if INSIGHTS_USE_SHORT_LIVING_ALLOCS
+	FAllocationItem* FoundShortLivingAlloc = ShortLivingAllocs.FindRange(Address);
+	if (FoundShortLivingAlloc)
+	{
+		INSIGHTS_SLOW_CHECK(FoundShortLivingAlloc->IsContained(Address));
+		return FoundShortLivingAlloc;
+	}
+#endif
 
 	return nullptr;
 }
@@ -651,7 +715,6 @@ void FLiveAllocCollection::Enumerate(TFunctionRef<void(const FAllocationItem& Al
 
 FAllocationsProvider::FAllocationsProvider(IAnalysisSession& InSession)
 	: Session(InSession)
-	, SbTree(nullptr)
 	, Timeline(Session.GetLinearAllocator(), 1024)
 	, MinTotalAllocatedMemoryTimeline(Session.GetLinearAllocator(), 1024)
 	, MaxTotalAllocatedMemoryTimeline(Session.GetLinearAllocator(), 1024)
@@ -660,24 +723,35 @@ FAllocationsProvider::FAllocationsProvider(IAnalysisSession& InSession)
 	, AllocEventsTimeline(Session.GetLinearAllocator(), 1024)
 	, FreeEventsTimeline(Session.GetLinearAllocator(), 1024)
 {
-	const uint32 ColumnShift = 17; // 1<<17 = 128K
-	SbTree = new FSbTree(Session.GetLinearAllocator(), ColumnShift);
+	
+	FMemory::Memset(EventIndex, 0, sizeof(EventIndex));
+	FMemory::Memset(SbTree, 0, sizeof(SbTree));
+	FMemory::Memset(LiveAllocs, 0, sizeof(LiveAllocs));
+	HeapSpecs.AddZeroed(256);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FAllocationsProvider::~FAllocationsProvider()
 {
-	if (SbTree)
+	for (uint8 RootHeapIdx = 0; RootHeapIdx < MaxRootHeaps; ++RootHeapIdx)
 	{
-		delete SbTree;
-		SbTree = nullptr;
+		if (SbTree[RootHeapIdx])
+		{
+			delete SbTree[RootHeapIdx];
+			SbTree[RootHeapIdx] = nullptr;
+		}
+		if (LiveAllocs[RootHeapIdx])
+		{
+			delete LiveAllocs[RootHeapIdx];
+			LiveAllocs[RootHeapIdx] = nullptr;
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditInit(double InTime, uint8 InMinAlignment, uint8 InSizeShift, uint8 InSummarySizeShift)
+void FAllocationsProvider::EditInit(double InTime, uint8 InMinAlignment)
 {
 	Lock.WriteAccessCheck();
 
@@ -689,8 +763,6 @@ void FAllocationsProvider::EditInit(double InTime, uint8 InMinAlignment, uint8 I
 
 	InitTime = InTime;
 	MinAlignment = InMinAlignment;
-	SizeShift = InSizeShift;
-	SummarySizeShift = InSummarySizeShift;
 
 	bInitialized = true;
 
@@ -698,36 +770,43 @@ void FAllocationsProvider::EditInit(double InTime, uint8 InMinAlignment, uint8 I
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FAllocationsProvider::EditAddCore(double Time, uint64 Owner, uint64 Base, uint32 Size)
+void FAllocationsProvider::EditHeapSpec(HeapId Id, HeapId ParentId, const FStringView& Name, EMemoryTraceHeapFlags Flags)
 {
 	Lock.WriteAccessCheck();
 
-	if (!bInitialized)
+	if (Id < MaxRootHeaps)
 	{
-		return;
+		check(SbTree[Id] == nullptr && LiveAllocs[Id] == nullptr); //Already announced
+		constexpr uint32 ColumnShift = 17; // 1<<17 = 128K
+		SbTree[Id] = new FSbTree(Session.GetLinearAllocator(), ColumnShift);
+		LiveAllocs[Id] = new FLiveAllocCollection();
+		
+		FHeapSpec& RootHeapSpec = HeapSpecs[Id];
+		RootHeapSpec.Name = Session.StoreString(Name);
+		RootHeapSpec.Parent = nullptr;
+		RootHeapSpec.Id = Id;
+		RootHeapSpec.Flags = Flags;
 	}
+	else
+	{
+		FHeapSpec& ParentSpec = HeapSpecs[ParentId];
+		if (ParentSpec.Name == nullptr)
+		{
+			UE_LOG(LogTraceServices, Warning, TEXT("Parent heap id (%u) used before it was announced for heap %s."), ParentId, *FString(Name));
+		}
+		FHeapSpec& NewSpec = HeapSpecs[Id];
+		NewSpec.Name = Session.StoreString(Name);
+		NewSpec.Parent = &ParentSpec;
+		NewSpec.Id = Id;
+		NewSpec.Flags = Flags;
 
-	//TODO
+		ParentSpec.Children.Add(&NewSpec);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditRemoveCore(double Time, uint64 Owner, uint64 Base, uint32 Size)
-{
-	Lock.WriteAccessCheck();
-
-	if (!bInitialized)
-	{
-		return;
-	}
-
-	//TODO
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, uint32 InSize, uint8 InAlignmentAndSizeLower, uint32 ThreadId, uint8 Tracker)
+void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, uint64 InSize, uint32 InAlignment, uint32 ThreadId, uint8 Tracker, HeapId RootHeap)
 {
 	Lock.WriteAccessCheck();
 
@@ -741,13 +820,11 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 		return;
 	}
 
-	SbTree->SetTimeForEvent(EventIndex, Time);
+	check(RootHeap < MaxRootHeaps && HeapSpecs[RootHeap].Name != nullptr);
+	SbTree[RootHeap]->SetTimeForEvent(EventIndex[RootHeap], Time);
 
 	AdvanceTimelines(Time);
 
-	const uint8 SizeLowerMask = ((1 << SizeShift) - 1);
-	const uint8 AlignmentMask = ~SizeLowerMask;
-	const uint64 Size = (static_cast<uint64>(InSize) << SizeShift) | static_cast<uint64>(InAlignmentAndSizeLower & SizeLowerMask);
 
 	const uint32 Tag = TagTracker.GetCurrentTag(ThreadId, Tracker);
 
@@ -770,27 +847,29 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 
 	if (!AllocationPtr)
 	{
-		AllocationPtr = LiveAllocs.AddNewChecked(Address);
+		AllocationPtr = LiveAllocs[RootHeap]->AddNewChecked(Address);
 		INSIGHTS_SLOW_CHECK(Allocation.Address == Address)
 
 		FAllocationItem& Allocation = *AllocationPtr;
-		Allocation.StartEventIndex = EventIndex;
+		Allocation.StartEventIndex = EventIndex[RootHeap];
 		Allocation.EndEventIndex = (uint32)-1;
 		Allocation.StartTime = Time;
 		Allocation.EndTime = std::numeric_limits<double>::infinity();
 		Allocation.Owner = Owner;
 		//Allocation.Address = Address;
-		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(Size, InAlignmentAndSizeLower & AlignmentMask);
+		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(InSize, InAlignment);
 		Allocation.Callstack = nullptr;
 		Allocation.Tag = Tag;
-		Allocation.Reserved1 = 0;
+		Allocation.Flags = EMemoryTraceHeapAllocationFlags::None;
+		Allocation.RootHeap = RootHeap;
 
-		UpdateHistogramByAllocSize(Size);
+		UpdateHistogramByAllocSize(InSize);
 
 		// Update stats for the current timeline sample.
-		TotalAllocatedMemory += Size;
+		TotalAllocatedMemory += InSize;
+		++TotalLiveAllocations;
 		SampleMaxTotalAllocatedMemory = FMath::Max(SampleMaxTotalAllocatedMemory, TotalAllocatedMemory);
-		SampleMaxLiveAllocations = FMath::Max(SampleMaxLiveAllocations, (uint32)LiveAllocs.Num());
+		SampleMaxLiveAllocations = FMath::Max(SampleMaxLiveAllocations, TotalLiveAllocations); 
 		++SampleAllocEvents;
 	}
 #if INSIGHTS_VALIDATE_ALLOC_EVENTS
@@ -805,12 +884,12 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 #endif
 
 	++AllocCount;
-	++EventIndex;
+	++EventIndex[RootHeap];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditFree(double Time, uint64 Address)
+void FAllocationsProvider::EditFree(double Time, uint64 Address, HeapId RootHeap)
 {
 	Lock.WriteAccessCheck();
 
@@ -824,7 +903,8 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address)
 		return;
 	}
 
-	SbTree->SetTimeForEvent(EventIndex, Time);
+	check(RootHeap < MaxRootHeaps && HeapSpecs[RootHeap].Name != nullptr);
+	SbTree[RootHeap]->SetTimeForEvent(EventIndex[RootHeap], Time);
 
 	AdvanceTimelines(Time);
 
@@ -839,24 +919,28 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address)
 	}
 #endif // INSIGHTS_DEBUG_WATCH
 
-	FAllocationItem* AllocationPtr = LiveAllocs.Remove(Address); // we take ownership of AllocationPtr
+	FAllocationItem* AllocationPtr = LiveAllocs[RootHeap]->Remove(Address); // we take ownership of AllocationPtr
 	if (AllocationPtr)
 	{
-		check(EventIndex > AllocationPtr->StartEventIndex);
-		AllocationPtr->EndEventIndex = EventIndex;
+		check(EventIndex[RootHeap] > AllocationPtr->StartEventIndex);
+		AllocationPtr->EndEventIndex = EventIndex[RootHeap];
 		AllocationPtr->EndTime = Time;
 
 		const uint64 OldSize = AllocationPtr->GetSize();
 
-		SbTree->AddAlloc(AllocationPtr); // SbTree takes ownership of AllocationPtr
+		SbTree[RootHeap]->AddAlloc(AllocationPtr); // SbTree takes ownership of AllocationPtr
 
 		uint32 EventDistance = AllocationPtr->EndEventIndex - AllocationPtr->StartEventIndex;
 		UpdateHistogramByEventDistance(EventDistance);
 
-		// Update stats for the current timeline sample.
-		TotalAllocatedMemory -= OldSize;
-		SampleMinTotalAllocatedMemory = FMath::Min(SampleMinTotalAllocatedMemory, TotalAllocatedMemory);
-		SampleMinLiveAllocations = FMath::Min(SampleMinLiveAllocations, (uint32)LiveAllocs.Num());
+		// Update stats for the current timeline sample. (Heap allocations are already excluded)
+		if (!AllocationPtr->IsHeap())
+		{
+			TotalAllocatedMemory -= OldSize;
+			--TotalLiveAllocations;
+			SampleMinTotalAllocatedMemory = FMath::Min(SampleMinTotalAllocatedMemory, TotalAllocatedMemory);
+			SampleMinLiveAllocations = FMath::Min(SampleMinLiveAllocations, TotalLiveAllocations);
+		}
 		++SampleFreeEvents;
 	}
 	else
@@ -869,7 +953,65 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address)
 	}
 
 	++FreeCount;
-	++EventIndex;
+	++EventIndex[RootHeap];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAllocationsProvider::EditUnmarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap)
+{
+	Lock.WriteAccessCheck();
+	
+	HeapId RootHeap = FindRootHeap(Heap);
+	
+	// Find allocation in Live allocs and mark as a heap allocation
+	FAllocationItem* Alloc = LiveAllocs[RootHeap]->FindRef(Address);
+	if (!Alloc)
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Could not find matching allocation for address %0x%llX while unmarking as heap."), Address);
+		return;
+	}
+
+	const uint64 Size = Alloc->GetSize();
+	const uint32 Alignment = Alloc->GetAlignment();
+	const uint32 Owner = Alloc->Owner;
+	const uint32 ThreadId = 0;
+	const uint8 Tracker = 1;
+
+	// We cannot just unmark the allocation as heap, there is no timestamp support, instead fake a free
+	// and allocation. Make sure the new allocation retains the tag from the original.
+	EditPushRealloc(ThreadId, Tracker, Address);
+	EditFree(Time, Address, RootHeap);
+	EditAlloc(Time, Address, Owner, Size, Alignment, 0, 1, RootHeap);
+	EditPopRealloc(ThreadId, Tracker);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAllocationsProvider::EditMarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags)
+{
+	Lock.WriteAccessCheck();
+	
+	HeapId RootHeap = FindRootHeap(Heap);
+	
+	// Find allocation in Live allocs and mark as a heap allocation
+	FAllocationItem* Alloc = LiveAllocs[RootHeap]->FindRef(Address);
+	if (Alloc)
+	{
+		check(EnumHasAnyFlags(Flags, EMemoryTraceHeapAllocationFlags::Heap));
+		Alloc->Flags = Flags;
+		Alloc->RootHeap = RootHeap;
+
+		// Remove this allocation from the total
+		TotalAllocatedMemory -= Alloc->GetSize();
+		--TotalLiveAllocations;
+		SampleMinTotalAllocatedMemory = FMath::Min(SampleMinTotalAllocatedMemory, TotalAllocatedMemory);
+		SampleMinLiveAllocations = FMath::Min(SampleMinLiveAllocations, TotalLiveAllocations);
+	}
+	else
+	{
+		UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Could not find matching allocation for address %0x%llX while marking as heap."), Address);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -934,11 +1076,10 @@ void FAllocationsProvider::AdvanceTimelines(double Time)
 
 		// Start a new sample.
 		SampleStartTimestamp = Time;
-		const uint32 NumLiveAllocs = (uint32)LiveAllocs.Num();
 		SampleMinTotalAllocatedMemory = TotalAllocatedMemory;
 		SampleMaxTotalAllocatedMemory = TotalAllocatedMemory;
-		SampleMinLiveAllocations = NumLiveAllocs;
-		SampleMaxLiveAllocations = NumLiveAllocs;
+		SampleMinLiveAllocations = TotalLiveAllocations;
+		SampleMaxLiveAllocations = TotalLiveAllocations;
 		SampleAllocEvents = 0;
 		SampleFreeEvents = 0;
 
@@ -949,8 +1090,8 @@ void FAllocationsProvider::AdvanceTimelines(double Time)
 			Timeline.EmplaceBack(SampleEndTimestamp);
 			MinTotalAllocatedMemoryTimeline.EmplaceBack(TotalAllocatedMemory);
 			MaxTotalAllocatedMemoryTimeline.EmplaceBack(TotalAllocatedMemory);
-			MinLiveAllocationsTimeline.EmplaceBack(NumLiveAllocs);
-			MaxLiveAllocationsTimeline.EmplaceBack(NumLiveAllocs);
+			MinLiveAllocationsTimeline.EmplaceBack(TotalLiveAllocations);
+			MaxLiveAllocationsTimeline.EmplaceBack(TotalLiveAllocations);
 			AllocEventsTimeline.EmplaceBack(0);
 			FreeEventsTimeline.EmplaceBack(0);
 		}
@@ -961,14 +1102,24 @@ void FAllocationsProvider::AdvanceTimelines(double Time)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+HeapId FAllocationsProvider::FindRootHeap(HeapId Heap) const
+{
+	const FHeapSpec* RootHeap = &HeapSpecs[Heap];
+	while (RootHeap->Parent != nullptr)
+	{
+		RootHeap = RootHeap->Parent;
+	}
+	return RootHeap->Id;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FAllocationsProvider::EditPushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr)
 {
 	EditAccessCheck();
-	int32 Tag(0); // If ptr is not found use "Untagged"
-	if (FAllocationItem* Alloc = LiveAllocs.FindRef(Ptr))
-	{
-		Tag = Alloc->Tag;
-	}
+	// todo: Currently only system root heap is affected by reallocs so limit search
+	FAllocationItem* Alloc = LiveAllocs[EMemoryTraceRootHeap::SystemMemory]->FindRef(Ptr);
+	const int32 Tag = Alloc ? Alloc->Tag : 0; // If ptr is not found use "Untagged"
 	TagTracker.PushRealloc(ThreadId, Tracker, Tag);
 }
 
@@ -1017,7 +1168,7 @@ void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 	{
 		AdvanceTimelines(Time + 10 * DefaultTimelineSampleGranularity);
 
-		const uint32 LiveAllocsTotalCount = (uint32)LiveAllocs.Num();
+		const uint32 LiveAllocsTotalCount = TotalLiveAllocations;
 		LiveAllocs.Empty();
 
 		// Update stats for the last timeline sample (reset to zero).
@@ -1035,7 +1186,21 @@ void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 	DebugPrint();
 #endif
 
-	SbTree->Validate();
+	for (const FSbTree* Tree : SbTree)
+	{
+		if (Tree)
+		{
+			Tree->Validate();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAllocationsProvider::EnumerateRootHeaps(TFunctionRef<void(HeapId Id, const FHeapSpec&)> Callback) const
+{
+	Algo::ForEachIf(HeapSpecs, [](const FHeapSpec& Spec) { return Spec.Parent == nullptr && Spec.Name != nullptr; },
+	                [&](const FHeapSpec& Spec) { Callback(Spec.Id, Spec); });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1297,7 +1462,13 @@ void FAllocationsProvider::EnumerateFreeEventsTimeline(int32 StartIndex, int32 E
 
 void FAllocationsProvider::DebugPrint() const
 {
-	SbTree->DebugPrint();
+	for(const FSbTree* Tree : SbTree)
+	{
+		if (Tree)
+		{
+			Tree->DebugPrint();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1326,11 +1497,30 @@ const IAllocationsProvider::FQueryStatus FAllocationsProvider::PollQuery(FQueryH
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+void FAllocationsProvider::EnumerateLiveAllocs(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const
+{
+	ReadAccessCheck();
+	for (const FLiveAllocCollection* Allocs : LiveAllocs)
+	{
+		if (Allocs)
+		{
+			Allocs->Enumerate(Callback);
+		}
+	}
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 FName GetAllocationsProviderName()
 {
 	static FName Name(TEXT("AllocationsProvider"));
 	return Name;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+uint32 FAllocationsProvider::GetNumLiveAllocs() const
+{
+	ReadAccessCheck();
+	return TotalLiveAllocations;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

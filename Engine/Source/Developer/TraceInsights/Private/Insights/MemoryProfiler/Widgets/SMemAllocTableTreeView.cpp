@@ -31,6 +31,8 @@
 
 #include <limits>
 
+#include "Insights/MemoryProfiler/ViewModels/MemAllocGroupingByHeap.h"
+
 #define LOCTEXT_NAMESPACE "SMemAllocTableTreeView"
 
 using namespace TraceServices;
@@ -138,14 +140,26 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 				}
 				TableTreeNodes.Reserve(TotalAllocCount);
 
-				FName BaseNodeName(TEXT("alloc"));
+				uint32 HeapAllocCount(0);
+				const FName BaseNodeName(TEXT("alloc"));
+				const FName BaseHeapName(TEXT("heap"));
 				for (int32 AllocIndex = TableTreeNodes.Num(); AllocIndex < TotalAllocCount; ++AllocIndex)
 				{
-					FName NodeName(BaseNodeName, AllocIndex + 1);
+					const FMemoryAlloc* Alloc = MemAllocTable->GetMemAlloc(AllocIndex);
+					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, AllocIndex + 1);
 					FMemAllocNodePtr NodePtr = MakeShared<FMemAllocNode>(NodeName, MemAllocTable, AllocIndex);
+
+					// Until we have an UX story around heap allocations
+					// remove them from the list
+					if (Alloc->bIsBlock)
+					{
+						++HeapAllocCount;
+						continue;
+					}
+					
 					TableTreeNodes.Add(NodePtr);
 				}
-				ensure(TableTreeNodes.Num() == TotalAllocCount);
+				ensure(TableTreeNodes.Num() == TotalAllocCount - HeapAllocCount);
 			}
 		}
 	}
@@ -341,6 +355,8 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Size = Allocation->GetSize();
 					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
 					Alloc.Callstack = Allocation->GetCallstack();
+					Alloc.RootHeap = Allocation->GetRootHeap();
+					Alloc.bIsBlock = Allocation->IsHeap();
 					check(Alloc.Callstack != nullptr);
 				}
 
@@ -477,8 +493,18 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 			.Text(LOCTEXT("ByInvertedCallstackBtn_Text", "By Inverted Callstack"))
 			.ToolTipText(LOCTEXT("ByInvertedCallstackBtn_Tooltip", "Inverted Callstack Breakdown View\nConfigure the tree view to show a breakdown of allocations by inverted callstack."))
 			.OnClicked(this, &SMemAllocTableTreeView::OnCallstackViewClicked, true)
-		]
+		]	
 
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("ByHeapTypeBtn_Text", "By Heap"))
+			.ToolTipText(LOCTEXT("ByHeapBtn_Tooltip", "Heap type breakdown."))
+			.OnClicked(this, &SMemAllocTableTreeView::OnHeapViewClicked)
+		]
+	
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
@@ -777,6 +803,46 @@ FReply SMemAllocTableTreeView::OnCallstackViewClicked(bool bIsInverted)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FReply SMemAllocTableTreeView::OnHeapViewClicked()
+{
+	ColumnBeingSorted = FMemAllocTableColumns::SizeColumnId;
+	ColumnSortMode = EColumnSortMode::Type::Descending;
+	UpdateCurrentSortingByColumn();
+
+	PreChangeGroupings();
+
+	CurrentGroupings.Reset();
+
+	TSharedPtr<FTreeNodeGrouping>* CallstackGrouping = AvailableGroupings.FindByPredicate(
+		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+		{
+			return Grouping->Is<FMemAllocGroupingByHeap>();
+		});
+	if (CallstackGrouping)
+	{
+		CurrentGroupings.Add(*CallstackGrouping);
+	}
+
+	PostChangeGroupings();
+
+	FColumnConfig Preset[] =
+	{
+		{ FTable::GetHierarchyColumnId(),           true,  400.0f },
+		{ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f },
+		{ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f },
+		{ FMemAllocTableColumns::DurationColumnId,  false, 0.0f },
+		{ FMemAllocTableColumns::AddressColumnId,   false, 0.0f },
+		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
+		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
+		{ FMemAllocTableColumns::TagColumnId,       true,  200.0f },
+		{ FMemAllocTableColumns::FunctionColumnId,  true,  200.0f },
+	};
+	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
+
+	return FReply::Handled();
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SMemAllocTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset)
 {
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
@@ -908,6 +974,9 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(false, bIsCallstackGroupingByFunction), Index++);
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(true, bIsCallstackGroupingByFunction), Index++);
+	
+	const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
+	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByHeap>(*AllocationsProvider), Index++);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

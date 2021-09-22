@@ -2,6 +2,7 @@
 
 #include "AllocationsAnalysis.h"
 #include "Model/AllocationsProvider.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
@@ -32,14 +33,17 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	FInterfaceBuilder& Builder = Context.InterfaceBuilder;
 
 	Builder.RouteEvent(RouteId_Init,         "Memory", "Init");
-	Builder.RouteEvent(RouteId_CoreAdd,      "Memory", "CoreAdd");
-	Builder.RouteEvent(RouteId_CoreRemove,   "Memory", "CoreRemove");
 	Builder.RouteEvent(RouteId_Alloc,        "Memory", "Alloc");
+	Builder.RouteEvent(RouteId_AllocSystem,  "Memory", "AllocSystem");
+	Builder.RouteEvent(RouteId_AllocVideo,   "Memory", "AllocVideo");
 	Builder.RouteEvent(RouteId_Free,         "Memory", "Free");
 	Builder.RouteEvent(RouteId_ReallocAlloc, "Memory", "ReallocAlloc");
 	Builder.RouteEvent(RouteId_ReallocFree,  "Memory", "ReallocFree");
 	Builder.RouteEvent(RouteId_Marker,       "Memory", "Marker");
 	Builder.RouteEvent(RouteId_TagSpec,      "Memory", "TagSpec");
+	Builder.RouteEvent(RouteId_HeapSpec,	 "Memory", "HeapSpec");
+	Builder.RouteEvent(RouteId_HeapMarkAlloc,	 "Memory", "HeapMarkAlloc");
+	Builder.RouteEvent(RouteId_HeapUnmarkAlloc, "Memory", "HeapUnmarkAlloc");
 
 	Builder.RouteLoggerEvents(RouteId_MemScope, "Memory", true);
 }
@@ -68,70 +72,123 @@ void FAllocationsAnalyzer::OnAnalysisEnd()
 bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	const auto& EventData = Context.EventData;
+	HeapId RootHeap = 0;
+	
 	switch (RouteId)
 	{
 		case RouteId_Init:
 		{
 			const double Time = GetCurrentTime();
 			const uint8 MinAlignment = EventData.GetValue<uint8>("MinAlignment");
-			const uint8 SizeShift = EventData.GetValue<uint8>("SizeShift");
-			const uint8 SummarySizeShift = EventData.GetValue<uint8>("SummarySizeShift");
+			SizeShift = EventData.GetValue<uint8>("SizeShift");
 
 			BaseCycle = EventData.GetValue<uint64>("BaseCycle", 0);
 			MarkerPeriod = EventData.GetValue<uint32>("MarkerPeriod");
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditInit(Time, MinAlignment, SizeShift, SummarySizeShift);
+			AllocationsProvider.EditInit(Time, MinAlignment);
 			break;
 		}
-		case RouteId_CoreAdd:
+		case RouteId_HeapSpec:
 		{
-			const double Time = GetCurrentTime();
-			const uint64 Owner = EventData.GetValue<uint64>("Owner");
-			const uint64 Base = EventData.GetValue<uint64>("Base");
-			const uint32 Size = EventData.GetValue<uint32>("Size");
+			const HeapId Id = EventData.GetValue<uint16>("Id");
+			const HeapId ParentId = EventData.GetValue<uint16>("ParentId");
+			const EMemoryTraceHeapFlags Flags = EventData.GetValue<EMemoryTraceHeapFlags>("Flags");
+			FStringView Name;
+			EventData.GetString("Name", Name);
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditAddCore(Time, Owner, Base, Size);
+			AllocationsProvider.EditHeapSpec(Id, ParentId, Name, Flags);
 			break;
 		}
-		case RouteId_CoreRemove:
+		case RouteId_AllocSystem:
+		case RouteId_AllocVideo:
+		case RouteId_ReallocAllocSystem:
 		{
-			const double Time = GetCurrentTime();
-			const uint64 Owner = EventData.GetValue<uint64>("Owner");
-			const uint64 Base = EventData.GetValue<uint64>("Base");
-			const uint32 Size = EventData.GetValue<uint32>("Size");
-
-			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditRemoveCore(Time, Owner, Base, Size);
-			break;
+			RootHeap = RouteId == RouteId_AllocVideo ? EMemoryTraceRootHeap::VideoMemory : EMemoryTraceRootHeap::SystemMemory;
 		}
+		// intentional fallthrough
 		case RouteId_Alloc:
 		case RouteId_ReallocAlloc:
 		{
 			// TODO: Can we have a struct mapping over the EventData?
 			//       something like: const auto& Ev = (const AllocEvent&)EventData.Get();
 			const double Time = GetCurrentTime();
-			const uint64 Owner = EventData.GetValue<uint64>("Owner");
-			const uint64 Address = EventData.GetValue<uint64>("Address");
-			const uint32 Size = EventData.GetValue<uint32>("Size");
+			uint64 Owner = EventData.GetValue<uint32>("CallstackId");
+			if (!Owner)
+			{
+				// Legeacy format of sending the hash value
+				Owner = EventData.GetValue<uint64>("Owner");
+			}
+			uint64 Address = EventData.GetValue<uint64>("Address");
+			RootHeap = EventData.GetValue<uint8>("RootHeap", RootHeap);
+			uint64 SizeUpper = EventData.GetValue<uint32>("Size");
+			const uint8 SizeLowerMask = ((1 << SizeShift) - 1);
+			const uint8 AlignmentMask = ~SizeLowerMask;
+			uint64 Size = 0;
+			uint32 Alignment = 0;
 			const uint8 Alignment_SizeLower = EventData.GetValue<uint8>("Alignment_SizeLower");
-
+			if (Alignment_SizeLower)
+			{
+				Size = SizeUpper << SizeShift | static_cast<uint64>(Alignment_SizeLower & SizeLowerMask);
+				Alignment = Alignment_SizeLower & AlignmentMask;
+			}
+			else
+			{
+				const uint8 AlignmentPow2_SizeLower = EventData.GetValue<uint8>("AlignmentPow2_SizeLower");
+				Size = SizeUpper << SizeShift | static_cast<uint64>(AlignmentPow2_SizeLower & SizeLowerMask);
+				Alignment = 1 << (AlignmentPow2_SizeLower >> SizeShift);
+			}
 			const uint32 ThreadId = Context.ThreadInfo.GetSystemId();
-			const uint8 Tracker = 0; // We only care about the default tracker for now.
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditAlloc(Time, Owner, Address, Size, Alignment_SizeLower, ThreadId, Tracker);
+			AllocationsProvider.EditAlloc(Time, Owner, Address, Size, Alignment, ThreadId, 0, RootHeap);
 			break;
 		}
+
+		case RouteId_FreeSystem:
+		case RouteId_FreeVideo:
+		{
+			RootHeap = RouteId == RouteId_FreeSystem ? EMemoryTraceRootHeap::SystemMemory : EMemoryTraceRootHeap::VideoMemory;
+		}
+		// intentional fallthrough
 		case RouteId_Free:
 		case RouteId_ReallocFree:
 		{
 			const double Time = GetCurrentTime();
-			const uint64 Address = EventData.GetValue<uint64>("Address");
+			uint64 Address = EventData.GetValue<uint64>("Address");
+			if (Address == 0) //@todo: Check that this isn't intentional for reallocs?
+			{
+				constexpr uint32 HeapShift = 60;
+				constexpr uint64 RootHeapMask = uint64(0xF) << HeapShift;
+				const uint64 Address_RootHeap = EventData.GetValue<uint64>("Address_RootHeap");
+				Address = Address_RootHeap & ~RootHeapMask;
+				RootHeap = (Address_RootHeap & RootHeapMask) >> HeapShift;	
+			}
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
-			AllocationsProvider.EditFree(Time, Address);
+			AllocationsProvider.EditFree(Time, Address, RootHeap);
+			break;
+		}
+		case RouteId_HeapMarkAlloc:
+		{
+			const double Time = GetCurrentTime();
+			const uint64 Address = EventData.GetValue<uint64>("Address");
+			const HeapId Heap = EventData.GetValue<uint16>("Heap", 0);
+			const EMemoryTraceHeapAllocationFlags Flags = EventData.GetValue<EMemoryTraceHeapAllocationFlags>("Flags");
+			
+			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			AllocationsProvider.EditMarkAllocationAsHeap(Time, Address, Heap, Flags);
+			break;
+		}
+		case RouteId_HeapUnmarkAlloc:
+		{
+			const double Time = GetCurrentTime();
+			const uint64 Address = EventData.GetValue<uint64>("Address");
+			const HeapId Heap = EventData.GetValue<uint16>("Heap", 0);
+			
+			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
+			AllocationsProvider.EditUnmarkAllocationAsHeap(Time, Address, Heap);
 			break;
 		}
 		case RouteId_Marker:
@@ -185,7 +242,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
 					AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
 				}
-				else // "MemoryScopeRealloc"
+				else // "MemoryScopeRealloc or MemoryScopePtr"
 				{
 					const uint64 Ptr = Context.EventData.GetValue<uint64>("Ptr");
 					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
