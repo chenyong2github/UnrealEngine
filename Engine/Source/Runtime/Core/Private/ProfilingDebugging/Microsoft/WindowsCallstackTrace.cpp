@@ -117,7 +117,7 @@ public:
 	static FBacktracer*		Get();
 	void					AddModule(UPTRINT Base, const TCHAR* Name);
 	void					RemoveModule(UPTRINT Base);
-	void*					GetBacktraceId(void* AddressOfReturnAddress) const;
+	uint32					GetBacktraceId(void* AddressOfReturnAddress) const;
 	int32					GetFrameSize(void* FunctionAddress) const;
 
 private:
@@ -557,7 +557,7 @@ const FBacktracer::FFunction* FBacktracer::LookupFunction(UPTRINT Address, FLook
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
+uint32 FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 {
 	FLookupState LookupState;
 	FCallstackTracer::FBacktraceEntry BacktraceEntry;
@@ -576,7 +576,7 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 	uint32 NumBacktrace = 0;
 #endif
 
-	uint64 BacktraceId = 0;
+	uint64 BacktraceHash = 0;
 	uint32 FrameIdx = 0;
 
 #if BACKTRACE_LOCK_FREE
@@ -593,8 +593,8 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 		BacktraceEntry.FrameCount = FrameIdx;
 
 		// This is a simple order-dependent LCG. Should be sufficient enough
-		BacktraceId += RetAddr;
-		BacktraceId *= 0x30be8efa499c249dull;
+		BacktraceHash += RetAddr;
+		BacktraceHash *= 0x30be8efa499c249dull;
 
 #if BACKTRACE_LOCK_FREE
 		int32 RspBias;
@@ -659,7 +659,7 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 	while (*StackPointer && FrameIdx < FCallstackTracer::FBacktraceEntry::MaxStackDepth);
 
 	// Save the collected id
-	BacktraceEntry.Id = BacktraceId;
+	BacktraceEntry.Hash = BacktraceHash;
 
 #if BACKTRACE_DBGLVL >= 3
 	for (uint32 i = 0; i < NumBacktrace; ++i)
@@ -680,8 +680,7 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 #endif
 	// Add to queue to be processed. This might block until there is room in the
 	// queue (i.e. the processing thread has caught up processing).
-	CallstackTracer->AddCallstack(BacktraceEntry);
-	return (void*)BacktraceId;
+	return CallstackTracer->AddCallstack(BacktraceEntry);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -756,14 +755,14 @@ int32 Backtracer_GetFrameSize(void* FunctionAddress)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void* Backtracer_GetBacktraceId(void* AddressOfReturnAddress)
+uint32 Backtracer_GetBacktraceId(void* AddressOfReturnAddress)
 {
 	if (FBacktracer* Instance = FBacktracer::Get())
 	{
 		return Instance->GetBacktraceId(AddressOfReturnAddress);
 	}
 
-	return nullptr;
+	return 0;
 }
 
 #endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK)

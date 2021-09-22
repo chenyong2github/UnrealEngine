@@ -103,7 +103,7 @@ class FAutoDeleteAsyncTask
 	void DoWork()
 	{
 		LLM_SCOPE(InheritedLLMTag);
-		UE_MEMSCOPE(InheritedTraceTag, ELLMTracker::Default);
+		UE_MEMSCOPE(InheritedTraceTag);
 		FScopeCycleCounter Scope(Task.GetStatId(), true);
 
 		Task.DoWork();
@@ -297,7 +297,7 @@ class FAsyncTask
 	void DoWork()
 	{	
 		LLM_SCOPE(InheritedLLMTag);
-		UE_MEMSCOPE(InheritedTraceTag, ELLMTracker::Default);
+		UE_MEMSCOPE(InheritedTraceTag);
 		FScopeCycleCounter Scope(Task.GetStatId(), true); 
 
 		Task.DoWork();		

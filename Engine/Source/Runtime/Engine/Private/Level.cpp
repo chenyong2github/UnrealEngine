@@ -76,6 +76,7 @@ Level.cpp: Level-related functions
 #include "Algo/Copy.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ObjectTrace.h"
+#include "ProfilingDebugging/TagTrace.h"
 
 #define LOCTEXT_NAMESPACE "ULevel"
 DEFINE_LOG_CATEGORY(LogLevel);
@@ -717,6 +718,7 @@ void ULevel::SortActorList()
 		return;
 	}
 	LLM_REALLOC_SCOPE(Actors.GetData());
+	UE_MEMSCOPE_PTR(Actors.GetData());
 
 	TArray<AActor*> NewActors;
 	TArray<AActor*> NewNetActors;

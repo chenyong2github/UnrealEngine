@@ -925,7 +925,7 @@ void FIoRequestImpl::CreateBuffer(uint64 Size)
 	else
 	{
 		LLM_SCOPE(InheritedLLMTag);
-		UE_MEMSCOPE(InheritedTraceTag, ELLMTracker::Default);
+		UE_MEMSCOPE(InheritedTraceTag);
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
 		Buffer.Emplace(Size);
 	}
