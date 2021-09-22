@@ -145,8 +145,11 @@ void SControlRigGraphNodeComment::MoveTo(const FVector2D& NewPosition, FNodeSet&
 				{
 					const FVector2D OldPosition = RigSchema->GetNodePositionAtStartOfInteraction(NodeToMove);
 
-					if((NodeToMove == GraphNode) || IsNodeUnderComment(CommentOldPosition, OldPosition))
-					{
+					// Don't drag note content if either of the shift keys are down.
+					FModifierKeysState KeysState = FSlateApplication::Get().GetModifierKeys();
+
+					if((NodeToMove == GraphNode) || (IsNodeUnderComment(CommentOldPosition, OldPosition) && !KeysState.IsShiftDown()))
+					{ 
 						const FVector2D AccumulatedPosition = OldPosition + Delta; 
 						RigSchema->SetNodePosition(NodeToMove, AccumulatedPosition, false);
 					}
