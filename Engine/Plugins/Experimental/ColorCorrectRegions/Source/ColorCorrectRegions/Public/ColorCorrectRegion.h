@@ -124,6 +124,14 @@ public:
 		InOutBoxExtent = BoxExtent;
 	};
 
+	/**
+	* This method is used on render thread, and not atomic on purpose to avoid stalling Render thread even for a little bit.
+	*/
+	const FPrimitiveComponentId& GetFirstPrimitiveId() const
+	{
+		return FirstPrimitiveId;
+	};
+
 private:
 	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem;
 
@@ -131,4 +139,5 @@ private:
 	FVector BoxExtent;
 
 	FTransform PreviousFrameTransform;
+	FPrimitiveComponentId FirstPrimitiveId;
 };
