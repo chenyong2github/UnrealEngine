@@ -1632,7 +1632,6 @@ public:
 	 * @return	true if the expression is a parameter with a name.
 	 */
 	static bool GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName);
-#endif // WITH_EDITOR
 
 	/**
 	 * Return whether the provided expression node is a parameter.
@@ -1647,6 +1646,7 @@ public:
 	 * @param	Expression	The expression node to inspect.
 	 */
 	ENGINE_API static bool IsDynamicParameter(const UMaterialExpression* Expression);
+#endif // WITH_EDITOR
 
 	/** Returns an array of the guids of functions used in this material, with the call hierarchy flattened. */
 	void AppendReferencedFunctionIdsTo(TArray<FGuid>& OutIds) const;
