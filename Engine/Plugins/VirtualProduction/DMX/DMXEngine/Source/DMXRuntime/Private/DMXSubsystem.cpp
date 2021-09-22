@@ -425,6 +425,11 @@ void UDMXSubsystem::GetFixtureAttributes(const UDMXEntityFixturePatch* InFixture
 	}
 }
 
+UDMXEntityFixtureType* UDMXSubsystem::GetFixtureType(FDMXEntityFixtureTypeRef InFixtureType)
+{
+	return InFixtureType.GetFixtureType();
+}
+
 UDMXEntityFixturePatch* UDMXSubsystem::GetFixturePatch(FDMXEntityFixturePatchRef InFixturePatch)
 {
 	return InFixturePatch.GetFixturePatch();
