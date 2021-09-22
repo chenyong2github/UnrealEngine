@@ -21,8 +21,8 @@ CORE_API int32	MemoryTrace_GetActiveTag();
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#if !defined(USE_MEMORY_TRACE_TAGS) && UE_TRACE_ENABLED && UE_BUILD_DEVELOPMENT
-	#if PLATFORM_WINDOWS
+#if !defined(USE_MEMORY_TRACE_TAGS) && UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
+	#if PLATFORM_WINDOWS || PLATFORM_PS4 || defined(__PS5__)
 		#define USE_MEMORY_TRACE_TAGS 1
 	#endif
 #endif
@@ -62,25 +62,25 @@ private:
 /**
  * Used order to keep the tag for memory that is being reallocated.
  */
-class FMemScopeRealloc
+class FMemScopePtr
 {
 public:
-	CORE_API FMemScopeRealloc(uint64 InPtr);
-	CORE_API ~FMemScopeRealloc();
+	CORE_API FMemScopePtr(uint64 InPtr);
+	CORE_API ~FMemScopePtr();
 private:
 	UE::Trace::Private::FScopedLogScope Inner;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define UE_MEMSCOPE(InTag, InTracker)				FMemScope PREPROCESSOR_JOIN(MemScope,__LINE__)(InTag);
-#define UE_MEMSCOPE_REALLOC(InPtr, InTracker)		FMemScopeRealloc PREPROCESSOR_JOIN(MemReallocScope,__LINE__)((uint64)InPtr);
+#define UE_MEMSCOPE(InTag)				FMemScope PREPROCESSOR_JOIN(MemScope,__LINE__)(InTag);
+#define UE_MEMSCOPE_PTR(InPtr)			FMemScopePtr PREPROCESSOR_JOIN(MemPtrScope,__LINE__)((uint64)InPtr);
 
 #else // USE_MEMORY_TRACE_TAGS
 
 ////////////////////////////////////////////////////////////////////////////////
 #define UE_MEMSCOPE(...)
-#define UE_MEMSCOPE_REALLOC(...)
+#define UE_MEMSCOPE_PTR(...)
 
 #endif // USE_MEMORY_TRACE_TAGS
 

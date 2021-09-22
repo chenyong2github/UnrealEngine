@@ -582,7 +582,7 @@ private:
 	FORCEINLINE void Execute(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion)
 	{
 		LLM_SCOPE(InheritedLLMTag);
-		UE_MEMSCOPE(InheritedTraceTag, ELLMTracker::Default);
+		UE_MEMSCOPE(InheritedTraceTag);
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Executing));
 		ExecuteTask(NewTasks, CurrentThread, bDeleteOnCompletion);
 	}

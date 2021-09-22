@@ -23,18 +23,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 void	Backtracer_Create(FMalloc*);
 void	Backtracer_Initialize();
-void*	Backtracer_GetBacktraceId(void*);
+uint32	Backtracer_GetBacktraceId(void*);
 void 	MemoryTrace_InitTags(FMalloc*);
 
 ////////////////////////////////////////////////////////////////////////////////
-FORCEINLINE void* GetOwner(bool bLight)
+FORCEINLINE uint32 GetOwner()
 {
 	void* RetAddrAddr = PLATFORM_RETURN_ADDRESS_POINTER();
-	if (bLight)
-	{
-		return *(void**)RetAddrAddr;
-	}
-
 	return Backtracer_GetBacktraceId(RetAddrAddr);
 }
 
@@ -47,6 +42,12 @@ public:
 	void Construct(ArgTypes... Args)
 	{
 		::new (Buffer) T(Args...);
+		bIsConstructed = true;
+	}
+
+	bool IsConstructed() const
+	{
+		return bIsConstructed;
 	}
 
 	T* operator & ()	{ return (T*)Buffer; }
@@ -54,6 +55,7 @@ public:
 
 protected:
 	uint8 Buffer[sizeof(T)];
+	bool bIsConstructed;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,7 +78,7 @@ class FMallocWrapper
 	: public FMalloc
 {
 public:
-							FMallocWrapper(FMalloc* InMalloc, bool bInLight);
+							FMallocWrapper(FMalloc* InMalloc);
 
 private:
 	struct FCookie
@@ -99,13 +101,11 @@ private:
 	virtual void			SetupTLSCachesOnCurrentThread() override					{ return InnerMalloc->SetupTLSCachesOnCurrentThread(); }
 
 	FMalloc*				InnerMalloc;
-	bool					bLight;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-FMallocWrapper::FMallocWrapper(FMalloc* InMalloc, bool bInLight)
+FMallocWrapper::FMallocWrapper(FMalloc* InMalloc)
 : InnerMalloc(InMalloc)
-, bLight(bInLight)
 {
 }
 
@@ -128,7 +128,7 @@ void* FMallocWrapper::Malloc(SIZE_T Size, uint32 Alignment)
 	uint32 ActualAlignment = GetActualAlignment(Size, Alignment);
 	void* Address = InnerMalloc->Malloc(Size, Alignment);
 
-	void* Owner = GetOwner(bLight);
+	const uint32 Owner = GetOwner();
 	GAllocationTrace->Alloc(Address, Size, ActualAlignment, Owner);
 
 	return Address;
@@ -153,7 +153,7 @@ void* FMallocWrapper::Realloc(void* PrevAddress, SIZE_T NewSize, uint32 Alignmen
 
 	void* RetAddress = InnerMalloc->Realloc(PrevAddress, NewSize, Alignment);
 
-	void* Owner = GetOwner(bLight);
+	const uint32 Owner = GetOwner();
 	Alignment = GetActualAlignment(NewSize, Alignment);
 	GAllocationTrace->ReallocAlloc(RetAddress, NewSize, Alignment, Owner);
 
@@ -355,8 +355,9 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc(LPVOID Address, SIZE_T Size, DWORD Ty
 	LPVOID Ret = VmAllocOrig(Address, Size, Type, Protect);
 	if (Ret != nullptr && (Type & MEM_COMMIT))
 	{
-		void* Owner = GetOwner(bLight);
-		GAllocationTrace->CoreAdd(Ret, Size, Owner);
+		const uint32 Owner = GetOwner();
+		GAllocationTrace->Alloc(Ret, Size, 0, Owner, EMemoryTraceRootHeap::SystemMemory);
+		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
 
 	return Ret;
@@ -365,8 +366,7 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc(LPVOID Address, SIZE_T Size, DWORD Ty
 ////////////////////////////////////////////////////////////////////////////////
 BOOL WINAPI FVirtualWinApiHooks::VmFree(LPVOID Address, SIZE_T Size, DWORD Type)
 {
-	void* Owner = GetOwner(bLight);
-	GAllocationTrace->CoreRemove(Address, Size, Owner);
+	GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
 	return VmFreeOrig(Address, Size, Type);
 }
 
@@ -376,8 +376,9 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAllocEx(HANDLE Process, LPVOID Address, SIZ
 	LPVOID Ret = VmAllocExOrig(Process, Address, Size, Type, Protect);
 	if (Process == GetCurrentProcess() && Ret != nullptr && (Type & MEM_COMMIT))
 	{
-		void* Owner = GetOwner(bLight);
-		GAllocationTrace->CoreAdd(Ret, Size, Owner);
+		const uint32 Owner = GetOwner();
+		GAllocationTrace->Alloc(Ret, Size, 0, Owner);
+		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
 
 	return Ret;
@@ -388,8 +389,7 @@ BOOL WINAPI FVirtualWinApiHooks::VmFreeEx(HANDLE Process, LPVOID Address, SIZE_T
 {
 	if (Process == GetCurrentProcess())
 	{
-		void* Owner = GetOwner(bLight);
-		GAllocationTrace->CoreRemove(Address, Size, Owner);
+		GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
 	}
 
 	return VmFreeExOrig(Process, Address, Size, Type);
@@ -447,7 +447,7 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 #endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 
 		static FUndestructed<FMallocWrapper> MemoryTrace;
-		MemoryTrace.Construct(InMalloc, false);
+		MemoryTrace.Construct(InMalloc);
 
 		return &MemoryTrace;
 	}
@@ -463,21 +463,80 @@ void MemoryTrace_Initialize()
 	Backtracer_Initialize();
 }
 
-#if 0
+
 ////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_CoreAdd(void* Base, SIZE_T Size)
+HeapId MemoryTrace_HeapSpec(HeapId ParentId, const TCHAR* Name, EMemoryTraceHeapFlags Flags)
 {
-	void* Owner = GetOwner(bLight);
-	GAllocationTrace->CoreAdd(Base, Size, Owner);
+	if (GAllocationTrace.IsConstructed())
+	{
+		return GAllocationTrace->HeapSpec(ParentId, Name, Flags);
+	}
+	return ~0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_CoreRemove(void* Base, SIZE_T Size)
+HeapId MemoryTrace_RootHeapSpec(const TCHAR* Name)
 {
-	void* Owner = GetOwner(bLight);
-	GAllocationTrace->CoreRemove(Base, Size, Owner);
+	if (GAllocationTrace.IsConstructed())
+	{
+		return GAllocationTrace->RootHeapSpec(Name);
+	}
+	return ~0;
 }
-#endif // 0
+
+////////////////////////////////////////////////////////////////////////////////
+void MemoryTrace_MarkAllocAsHeap(uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags)
+{
+	if (GAllocationTrace.IsConstructed())
+	{
+		GAllocationTrace->MarkAllocAsHeap((void*)Address, Heap, Flags);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MemoryTrace_UnmarkAllocAsHeap(uint64 Address, HeapId Heap)
+{
+	if (GAllocationTrace.IsConstructed())
+	{
+		GAllocationTrace->UnmarkAllocAsHeap((void*)Address, Heap);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MemoryTrace_Alloc(uint64 Address, uint64 Size, uint32 Alignment, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
+{
+	if (GAllocationTrace.IsConstructed())
+	{
+		GAllocationTrace->Alloc((void*)Address, Size, Alignment, GetOwner(), RootHeap);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MemoryTrace_Free(uint64 Address, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
+{
+	if (GAllocationTrace.IsConstructed())
+	{
+		GAllocationTrace->Free((void*)Address, RootHeap);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MemoryTrace_ReallocFree(uint64 Address, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
+{
+	if (GAllocationTrace.IsConstructed())
+	{
+		GAllocationTrace->ReallocFree((void*)Address, RootHeap);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MemoryTrace_ReallocAlloc(uint64 Address, uint64 NewSize, uint32 Alignment, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
+{
+	if (GAllocationTrace.IsConstructed())
+	{
+		GAllocationTrace->ReallocAlloc((void*)Address, NewSize, Alignment, GetOwner(), RootHeap);
+	}
+}
 
 #include "Windows/HideWindowsPlatformTypes.h"
 

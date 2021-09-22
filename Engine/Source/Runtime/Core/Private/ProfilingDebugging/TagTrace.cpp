@@ -4,7 +4,7 @@
 #include "Experimental/Containers/GrowOnlyLockFreeHash.h"
 #include "Containers/Set.h"
 #include "CoreTypes.h"
-#include "MemoryTrace.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Trace/Trace.inl"
@@ -26,7 +26,7 @@ UE_TRACE_EVENT_BEGIN(Memory, MemoryScope)
 	UE_TRACE_EVENT_FIELD(int32, Tag)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(Memory, MemoryScopeRealloc)
+UE_TRACE_EVENT_BEGIN(Memory, MemoryScopePtr)
 	UE_TRACE_EVENT_FIELD(uint64, Ptr)
 UE_TRACE_EVENT_END()
 
@@ -96,13 +96,13 @@ FMemScope::~FMemScope()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FMemScopeRealloc::FMemScopeRealloc(uint64 InPtr)
+FMemScopePtr::FMemScopePtr(uint64 InPtr)
 {
 	if (InPtr != 0 && TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(MemAllocChannel))
 	{
-		if (auto LogScope = FMemoryMemoryScopeReallocFields::LogScopeType::ScopedEnter<FMemoryMemoryScopeReallocFields>())
+		if (auto LogScope = FMemoryMemoryScopePtrFields::LogScopeType::ScopedEnter<FMemoryMemoryScopePtrFields>())
 		{
-			if (const auto& __restrict MemoryScope = *(FMemoryMemoryScopeReallocFields*)(&LogScope))
+			if (const auto& __restrict MemoryScope = *(FMemoryMemoryScopePtrFields*)(&LogScope))
 			{
 				Inner.SetActive(), LogScope += LogScope << MemoryScope.Ptr(InPtr);
 			}
@@ -110,12 +110,10 @@ FMemScopeRealloc::FMemScopeRealloc(uint64 InPtr)
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-FMemScopeRealloc::~FMemScopeRealloc()
+/////////////////////////////////////////////////////////////////////////////////
+FMemScopePtr::~FMemScopePtr()
 {
 }
-
-
 
 /////////////////////////////////////////////////////////////////////////////////
 
