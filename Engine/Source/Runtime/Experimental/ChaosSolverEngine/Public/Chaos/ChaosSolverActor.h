@@ -170,5 +170,5 @@ private:
 	TObjectPtr<UChaosGameplayEventDispatcher> GameplayEventDispatcherComponent;
 
 	/** If floor is enabled - this will point to the solver particle for it */
-	FSingleParticlePhysicsProxy* Proxy;
+	Chaos::FSingleParticlePhysicsProxy* Proxy;
 };

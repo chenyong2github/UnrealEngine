@@ -103,7 +103,7 @@ struct FSimpleLocalState
 {
 	GENERATED_BODY()
 
-	FSingleParticlePhysicsProxy* Proxy = nullptr;
+	Chaos::FSingleParticlePhysicsProxy* Proxy = nullptr;
 };
 
 // Debug/Testing component

@@ -7,7 +7,6 @@ namespace Chaos
 	FConstraintBase::FConstraintBase(EConstraintType InType)
 		: Type(InType)
 		, Proxy(nullptr)
-		, ConnectedParticleProxy({ nullptr, nullptr })
 	{
 	}
 

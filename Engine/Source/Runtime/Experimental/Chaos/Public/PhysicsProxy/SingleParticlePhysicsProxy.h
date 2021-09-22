@@ -19,14 +19,13 @@
 
 
 
-extern CHAOS_API int32 SyncKinematicOnGameThread;
-
 namespace Chaos
 {
-	class FPBDRigidsEvolutionGBF;
+extern CHAOS_API int32 SyncKinematicOnGameThread;
 
-	struct FDirtyRigidParticleData;
-}
+class FPBDRigidsEvolutionGBF;
+
+struct FDirtyRigidParticleData;
 
 class FInitialState
 {
@@ -37,19 +36,19 @@ public:
 	    , InertiaTensor(1.f)
 	{}
 
-	FInitialState(Chaos::FReal MassIn, Chaos::FReal InvMassIn, FVector InertiaTensorIn)
+	FInitialState(FReal MassIn, FReal InvMassIn, FVector InertiaTensorIn)
 	    : Mass(MassIn)
 	    , InvMass(InvMassIn)
 	    , InertiaTensor(InertiaTensorIn)
 	{}
 
-	Chaos::FReal GetMass() const { return Mass; }
-	Chaos::FReal GetInverseMass() const { return InvMass; }
+	FReal GetMass() const { return Mass; }
+	FReal GetInverseMass() const { return InvMass; }
 	FVector GetInertiaTensor() const { return InertiaTensor; }
 
 private:
-	Chaos::FReal Mass;
-	Chaos::FReal InvMass;
+	FReal Mass;
+	FReal InvMass;
 	FVector InertiaTensor;
 };
 
@@ -59,10 +58,10 @@ class FRigidBodyHandle_Internal;
 class CHAOS_API FSingleParticlePhysicsProxy : public IPhysicsProxyBase
 {
 public:
-	using PARTICLE_TYPE = Chaos::FGeometryParticle;
-	using FParticleHandle = Chaos::FGeometryParticleHandle;
+	using PARTICLE_TYPE = FGeometryParticle;
+	using FParticleHandle = FGeometryParticleHandle;
 
-	static FSingleParticlePhysicsProxy* Create(TUniquePtr<Chaos::FGeometryParticle>&& Particle);
+	static FSingleParticlePhysicsProxy* Create(TUniquePtr<FGeometryParticle>&& Particle);
 
 	FSingleParticlePhysicsProxy() = delete;
 	FSingleParticlePhysicsProxy(const FSingleParticlePhysicsProxy&) = delete;
@@ -76,26 +75,26 @@ public:
 
 	int32 GetPullDataInterpIdx_External() const { return PullDataInterpIdx_External; }
 
-	FORCEINLINE Chaos::FRigidBodyHandle_External& GetGameThreadAPI()
+	FORCEINLINE FRigidBodyHandle_External& GetGameThreadAPI()
 	{
-		return (Chaos::FRigidBodyHandle_External&)*this;
+		return (FRigidBodyHandle_External&)*this;
 	}
 
-	FORCEINLINE const Chaos::FRigidBodyHandle_External& GetGameThreadAPI() const
+	FORCEINLINE const FRigidBodyHandle_External& GetGameThreadAPI() const
 	{
-		return (const Chaos::FRigidBodyHandle_External&)*this;
-	}
-
-	//Note this is a pointer because the internal handle may have already been deleted
-	FORCEINLINE Chaos::FRigidBodyHandle_Internal* GetPhysicsThreadAPI()
-	{
-		return GetHandle_LowLevel() == nullptr ? nullptr : (Chaos::FRigidBodyHandle_Internal*)this;
+		return (const FRigidBodyHandle_External&)*this;
 	}
 
 	//Note this is a pointer because the internal handle may have already been deleted
-	FORCEINLINE const Chaos::FRigidBodyHandle_Internal* GetPhysicsThreadAPI() const
+	FORCEINLINE FRigidBodyHandle_Internal* GetPhysicsThreadAPI()
 	{
-		return GetHandle_LowLevel() == nullptr ? nullptr : (const Chaos::FRigidBodyHandle_Internal*)this;
+		return GetHandle_LowLevel() == nullptr ? nullptr : (FRigidBodyHandle_Internal*)this;
+	}
+
+	//Note this is a pointer because the internal handle may have already been deleted
+	FORCEINLINE const FRigidBodyHandle_Internal* GetPhysicsThreadAPI() const
+	{
+		return GetHandle_LowLevel() == nullptr ? nullptr : (const FRigidBodyHandle_Internal*)this;
 	}
 
 	//Returns the underlying physics thread particle. Note this should only be needed for internal book keeping type tasks. API may change, use GetPhysicsThreadAPI instead
@@ -122,26 +121,26 @@ public:
 
 	// Threading API
 
-	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::FPBDRigidsEvolutionGBF& Evolution, Chaos::FReal ExternalDt);
+	void PushToPhysicsState(const FDirtyPropertiesManager& Manager,int32 DataIdx,const FDirtyProxy& Dirty,FShapeDirtyData* ShapesData, FPBDRigidsEvolutionGBF& Evolution, FReal ExternalDt);
 
 	/**/
 	void ClearAccumulatedData();
 
 	/**/
-	void BufferPhysicsResults(Chaos::FDirtyRigidParticleData&);
+	void BufferPhysicsResults(FDirtyRigidParticleData&);
 
 	/**/
-	void BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData&);
+	void BufferPhysicsResults_External(FDirtyRigidParticleData&);
 
 	/**/
-	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData = nullptr, const Chaos::FRealSingle* Alpha = nullptr, const Chaos::FRealSingle* LeashAlpha = nullptr);
+	bool PullFromPhysicsState(const FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const FDirtyRigidParticleData* NextPullData = nullptr, const FRealSingle* Alpha = nullptr, const FRealSingle* LeashAlpha = nullptr);
 
 	/**/
 	bool IsDirty();
 
 
 	/**/
-	Chaos::EWakeEventEntry GetWakeEvent() const;
+	EWakeEventEntry GetWakeEvent() const;
 
 	/**/
 	void ClearEvents();
@@ -158,14 +157,14 @@ public:
 		return Particle.Get();
 	}
 
-	Chaos::FPBDRigidParticle* GetRigidParticleUnsafe()
+	FPBDRigidParticle* GetRigidParticleUnsafe()
 	{
-		return static_cast<Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
+		return static_cast<FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
 
-	const Chaos::FPBDRigidParticle* GetRigidParticleUnsafe() const
+	const FPBDRigidParticle* GetRigidParticleUnsafe() const
 	{
-		return static_cast<const Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
+		return static_cast<const FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
 
 protected:
@@ -180,9 +179,6 @@ private:
 	//use static Create
 	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr);
 };
-
-namespace Chaos
-{
 
 /** Wrapper class that routes all reads and writes to the appropriate particle data. This is helpful for cases where we want to both write to a particle and a network buffer for example*/
 template <bool bExternal>
@@ -1221,11 +1217,10 @@ public:
 
 static_assert(sizeof(FRigidBodyHandle_Internal) == sizeof(FSingleParticlePhysicsProxy), "Derived types only used to constrain API, all data lives in base class ");
 
-}
-
-inline FSingleParticlePhysicsProxy* FSingleParticlePhysicsProxy::Create(TUniquePtr<Chaos::FGeometryParticle>&& Particle)
+inline FSingleParticlePhysicsProxy* FSingleParticlePhysicsProxy::Create(TUniquePtr<FGeometryParticle>&& Particle)
 {
 	ensure(Particle->GetProxy() == nullptr);	//not already owned by another proxy. TODO: use TUniquePtr
 	auto Proxy = new FSingleParticlePhysicsProxy(MoveTemp(Particle), nullptr);
 	return Proxy;
+}
 }

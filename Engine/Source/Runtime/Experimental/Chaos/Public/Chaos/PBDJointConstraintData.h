@@ -72,14 +72,27 @@ namespace Chaos
 
 		virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) override
 		{
-			Base::SyncRemoteDataImp(Manager, DataIdx, RemoteData);
+			JointProxies.SyncRemote(Manager, DataIdx, RemoteData);
 			JointSettings.SyncRemote(Manager, DataIdx, RemoteData);
 		}
+
+		void SetParticleProxies(const FProxyBasePair& InJointParticles)
+		{
+			JointProxies.Modify(/*bInvalidate=*/true, DirtyFlags, Proxy, [&InJointParticles](FProxyBasePairProperty& Data)
+			{
+				Data.ParticleProxies[0] = InJointParticles[0];
+				Data.ParticleProxies[1] = InJointParticles[1];
+			});
+		}
+
+
+		const FProxyBasePair& GetParticleProxies() const { return  JointProxies.Read().ParticleProxies; }
 
 	protected:
 
 		void ReleaseKinematicEndPoint(FPBDRigidsSolver* Solver);
 		
+		TChaosProperty<FProxyBasePairProperty, EChaosProperty::JointParticleProxies> JointProxies;
 		TChaosProperty<FPBDJointSettings, EChaosProperty::JointSettings> JointSettings;
 
 

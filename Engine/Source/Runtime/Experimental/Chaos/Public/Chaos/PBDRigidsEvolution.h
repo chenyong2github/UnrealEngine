@@ -26,11 +26,10 @@ extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
 extern int32 ChaosNumPushOutIterationsOverride;
 extern int32 ChaosNumContactIterationsOverride;
 
-extern CHAOS_API int32 ForceNoCollisionIntoSQ;
-
-
 namespace Chaos
 {
+extern CHAOS_API int32 ForceNoCollisionIntoSQ;
+
 namespace Collisions
 {
 	void CHAOS_API ResetChaosCollisionCounters();

@@ -13,6 +13,17 @@ namespace Chaos
 
 	class FPBDSuspensionConstraintHandle;
 
+	struct FSuspensionLocation
+	{
+		FVec3 Location = FVec3::ZeroVector;
+	};
+
+	class FSingleParticlePhysicsProxy;
+	struct FParticleProxyProperty
+	{
+		FSingleParticlePhysicsProxy* ParticleProxy = nullptr;
+	};
+
 	class CHAOS_API FPBDSuspensionSettings
 	{
 	public:

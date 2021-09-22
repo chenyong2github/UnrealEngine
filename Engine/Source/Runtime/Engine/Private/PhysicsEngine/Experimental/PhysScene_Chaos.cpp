@@ -500,7 +500,7 @@ void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FStaticMeshPhys
 	ensure(false);
 }
 
-void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, FSingleParticlePhysicsProxy* InObject)
+void FPhysScene_Chaos::AddObject(UPrimitiveComponent* Component, Chaos::FSingleParticlePhysicsProxy* InObject)
 {
 	AddToComponentMaps(Component, InObject);
 	ensure(false);
@@ -576,7 +576,7 @@ void FPhysScene_Chaos::RemoveObject(FStaticMeshPhysicsProxy* InObject)
 #endif
 }
 
-void FPhysScene_Chaos::RemoveObject(FSingleParticlePhysicsProxy* InObject)
+void FPhysScene_Chaos::RemoveObject(Chaos::FSingleParticlePhysicsProxy* InObject)
 {
 	ensure(false);
 #if 0
@@ -646,7 +646,7 @@ FBodyInstance* FPhysScene_Chaos::GetBodyInstanceFromProxy(const IPhysicsProxyBas
 	FBodyInstance* BodyInstance = nullptr;
 	if (PhysicsProxy && PhysicsProxy->GetType() == EPhysicsProxyType::SingleParticleProxy)
 	{
-		const Chaos::FRigidBodyHandle_External& RigidBodyHandle = static_cast<const FSingleParticlePhysicsProxy*>(PhysicsProxy)->GetGameThreadAPI();
+		const Chaos::FRigidBodyHandle_External& RigidBodyHandle = static_cast<const Chaos::FSingleParticlePhysicsProxy*>(PhysicsProxy)->GetGameThreadAPI();
 		BodyInstance = FPhysicsUserData::Get<FBodyInstance>(RigidBodyHandle.UserData());
 	}
 	// found none, let's see if there's an owning component in the scene
@@ -1618,7 +1618,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 	FPhysicsCommand::ExecuteWrite(this, [&Solver, &PendingTransforms](FPhysScene* PhysScene)
 	{
-		auto RigidLambda = [&PhysScene, &PendingTransforms](FSingleParticlePhysicsProxy* Proxy)
+		auto RigidLambda = [&PhysScene, &PendingTransforms](Chaos::FSingleParticlePhysicsProxy* Proxy)
 		{
 			FPBDRigidParticle* DirtyParticle = Proxy->GetRigidParticleUnsafe();
 
@@ -1626,7 +1626,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 			{
 				if(BodyInstance->OwnerComponent.IsValid())
 				{
-					if (SyncKinematicOnGameThread == 0 && BodyInstance->IsInstanceSimulatingPhysics() == false)
+					if (Chaos::SyncKinematicOnGameThread == 0 && BodyInstance->IsInstanceSimulatingPhysics() == false)
 					{
 						return;
 					}

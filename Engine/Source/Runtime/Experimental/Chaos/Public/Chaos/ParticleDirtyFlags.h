@@ -17,6 +17,7 @@
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Framework/PhysicsProxyBase.h"
 #include "PBDJointConstraintTypes.h"
+#include "PBDSuspensionConstraintTypes.h"
 
 #ifndef CHAOS_DEBUG_NAME
 #define CHAOS_DEBUG_NAME 0
@@ -185,6 +186,11 @@ private:
 };
 
 typedef TVector<IPhysicsProxyBase*, 2> FProxyBasePair;
+
+struct FProxyBasePairProperty
+{
+	FProxyBasePair ParticleProxies = { nullptr, nullptr };
+};
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar, FParticleDynamics& Data)
 {

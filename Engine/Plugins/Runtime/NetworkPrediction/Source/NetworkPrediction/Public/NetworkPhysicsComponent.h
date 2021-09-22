@@ -30,7 +30,7 @@ public:
 
 protected:
 	
-	FSingleParticlePhysicsProxy* GetManagedProxy() const { return NetworkPhysicsStateArray.Num() > 0 ? NetworkPhysicsStateArray[0].Proxy : nullptr; }
+	Chaos::FSingleParticlePhysicsProxy* GetManagedProxy() const { return NetworkPhysicsStateArray.Num() > 0 ? NetworkPhysicsStateArray[0].Proxy : nullptr; }
 	
 private:
 

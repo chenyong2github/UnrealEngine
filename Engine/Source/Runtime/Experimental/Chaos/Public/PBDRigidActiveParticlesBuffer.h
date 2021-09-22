@@ -6,10 +6,10 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 
-class FSingleParticlePhysicsProxy;
-
 namespace Chaos
 {
+	class FSingleParticlePhysicsProxy;
+
 	/**
 	 * Solver specific data buffered for use on Game thread
 	 */

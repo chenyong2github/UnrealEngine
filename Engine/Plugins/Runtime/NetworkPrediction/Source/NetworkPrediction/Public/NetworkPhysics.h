@@ -16,7 +16,10 @@ NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPhysics, Log, All);
 
 struct FNetworkPhysicsRewindCallback;
 class FMockObjectManager;
-class FSingleParticlePhysicsProxy;
+namespace Chaos
+{
+	class FSingleParticlePhysicsProxy;
+}
 
 namespace Chaos { struct FSimCallbackInputAndObject; }
 
@@ -55,7 +58,7 @@ struct FNetworkPhysicsState
 	GENERATED_BODY()
 	
 	// Local proxy we are working with. Must be set locally on initialization.
-	FSingleParticlePhysicsProxy* Proxy = nullptr;
+	Chaos::FSingleParticlePhysicsProxy* Proxy = nullptr;
 
 	// Local handle used by UNetworkPhysicsManager for registering/unregistering
 	int32 LocalManagedHandle = INDEX_NONE;
@@ -206,7 +209,7 @@ private:
 	int32 LastFreeIndex = 0;
 	int32 UniqueHandleCounter = 0;
 
-	TMap<FSingleParticlePhysicsProxy*, TUniqueFunction<void(const FDrawDebugParams&)>> DrawDebugMap;
+	TMap<Chaos::FSingleParticlePhysicsProxy*, TUniqueFunction<void(const FDrawDebugParams&)>> DrawDebugMap;
 	
 	TArray<TPair<FName, TUniquePtr<INetworkPhysicsSubsystem>>> SubSystems;
 

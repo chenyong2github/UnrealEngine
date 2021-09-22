@@ -632,6 +632,7 @@ namespace Chaos
 		GTConstraint->SetProxy(static_cast<FSuspensionConstraintPhysicsProxy*>(nullptr));
 
 		FParticlesType* InParticles = &GetParticles();
+		SuspensionProxy->DestroyOnGameThread();	//destroy the game thread portion of the proxy
 
 		// Finish registration on the physics thread...
 		EnqueueCommandImmediate([InParticles, SuspensionProxy, this]()
@@ -881,7 +882,8 @@ namespace Chaos
 			case EPhysicsProxyType::SuspensionConstraintType:
 			{
 				auto Proxy = static_cast<FSuspensionConstraintPhysicsProxy*>(Dirty.Proxy);
-				Proxy->PushStateOnGameThread(this);
+				Proxy->PushStateOnGameThread(*Manager, DataIdx, Dirty.PropertyData);
+				Proxy->ResetDirtyIdx();
 				break;
 			}
 
@@ -1063,10 +1065,10 @@ namespace Chaos
 				const bool bIsNew = !SuspensionProxy->IsInitialized();
 				if (bIsNew)
 				{
-					SuspensionProxy->InitializeOnPhysicsThread(this);
+					SuspensionProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 					SuspensionProxy->SetInitialized();
 				}
-				SuspensionProxy->PushStateOnPhysicsThread(this);
+				SuspensionProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 				Dirty.Proxy->ResetDirtyIdx();
 				break;
 			}

@@ -7,7 +7,7 @@
 
 namespace UE_NP
 {
-	FSingleParticlePhysicsProxy* FindBestPhysicsProxy(AActor* Owner, FName NamedComponent)
+	Chaos::FSingleParticlePhysicsProxy* FindBestPhysicsProxy(AActor* Owner, FName NamedComponent)
 	{
 		// Test is component is valid for Network Physics. Needs a valid physics ActorHandle
 		auto ValidComponent = [](UActorComponent* Component)
@@ -35,7 +35,7 @@ namespace UE_NP
 			return Pc;
 		};
 
-		FSingleParticlePhysicsProxy* Proxy = nullptr;
+		Chaos::FSingleParticlePhysicsProxy* Proxy = nullptr;
 		UPrimitiveComponent* PrimitiveComponent = nullptr;
 		
 		// Explicitly tagged component

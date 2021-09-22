@@ -10,133 +10,82 @@
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
+#include "Chaos/PBDConstraintBaseData.h"
 
 namespace Chaos
 {
 	class FSuspensionConstraint;
 
 	class FPBDRigidsEvolutionGBF;
-}
 
-class CHAOS_API FSuspensionConstraintPhysicsProxy : public TPhysicsProxy<FSuspensionConstraintPhysicsProxy,void>
+class CHAOS_API FSuspensionConstraintPhysicsProxy : public IPhysicsProxyBase
 {
-	typedef TPhysicsProxy<FSuspensionConstraintPhysicsProxy, void> Base;
-
 public:
-	using FReal = Chaos::FReal;
-	using FConstraintHandle = typename Chaos::FSuspensionConstraint::FHandle;
-	using FConstraintData = typename Chaos::FSuspensionConstraint::FData;
-	using FSuspensionConstraints = Chaos::FPBDSuspensionConstraints;
-	using FSuspensionConstraintDirtyFlags = Chaos::FSuspensionConstraintDirtyFlags;
-	using FParticlePair = Chaos::TVector<Chaos::FGeometryParticle*, 2>;
-	using FParticleHandlePair = Chaos::TVector<Chaos::FGeometryParticleHandle*, 2>;
-
-	FSuspensionConstraintPhysicsProxy() = delete;
-	FSuspensionConstraintPhysicsProxy(Chaos::FSuspensionConstraint* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr);
-
-	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::SuspensionConstraintType; }
+	using Base = IPhysicsProxyBase;
 	
-	bool IsValid() { return Constraint != nullptr && Constraint->IsValid(); }
+	FSuspensionConstraintPhysicsProxy() = delete;
+	FSuspensionConstraintPhysicsProxy(FSuspensionConstraint* InConstraint, FPBDSuspensionConstraintHandle* InHandle, UObject* InOwner = nullptr);
 
 	bool IsInitialized() const { return bInitialized; }
 	void SetInitialized() { bInitialized = true; }
 
-	static Chaos::FGeometryParticleHandle* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
+	static FGeometryParticleHandle* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
 
 	//
 	//  Lifespan Management
 	//
 
-	void InitializeOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
+	void InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver, FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
 	// Merge to perform a remote sync
-	void PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver);
+	void PushStateOnGameThread(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
-	void PushStateOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
+	void PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver, const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData);
 	// Merge to perform a remote sync - END
 
-	void DestroyOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
+	void DestroyOnGameThread();
+	void DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver);
 
-	void UpdateTargetOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver, const FVector& TargetPos, bool Enabled);
-
-	void SyncBeforeDestroy() {}
-	void OnRemoveFromScene() {}
+	void UpdateTargetOnPhysicsThread(FPBDRigidsSolver* InSolver, const FVector& TargetPos, bool Enabled);
 
 
 	//
 	// Member Access
 	//
 
-	FConstraintHandle* GetHandle()
+	FPBDSuspensionConstraintHandle* GetHandle()
 	{
-		return Handle;
+		return Constraint_PT;
 	}
 
-	const FConstraintHandle* GetHandle() const
+	const FPBDSuspensionConstraintHandle* GetHandle() const
 	{
-		return Handle;
+		return Constraint_PT;
 	}
 
 	virtual void* GetHandleUnsafe() const override
 	{
-		return Handle;
+		return Constraint_PT;
 	}
 
-	void SetHandle(FConstraintHandle* InHandle)
+	void SetHandle(FPBDSuspensionConstraintHandle* InHandle)
 	{
-		Handle = InHandle;
+		Constraint_PT = InHandle;
 	}
 
-	Chaos::FSuspensionConstraint* GetConstraint()
+	FSuspensionConstraint* GetConstraint()
 	{
-		return Constraint;
+		return Constraint_GT;
 	}
 
-	const Chaos::FSuspensionConstraint* GetConstraint() const
+	const FSuspensionConstraint* GetConstraint() const
 	{
-		return Constraint;
+		return Constraint_GT;
 	}
-
-	//
-	// Threading API
-	//
-
-	/**/
-	void FlipBuffer() { }
-
-	void PushToPhysicsState(Chaos::FPBDRigidsEvolutionGBF& Evolution) {}
-
-	/**/
-	void ClearAccumulatedData() {}
-
-	/**/
-	void BufferPhysicsResults() {}
-
-	/**/
-	void PullFromPhysicsState() {}
-
-	/**/
-	bool IsDirty() { return Constraint->IsDirty(); }
 	
 private:
-
-	FConstraintData SuspensionSettingsBuffer;
-	FSuspensionConstraintDirtyFlags DirtyFlagsBuffer;
-
-	Chaos::FSuspensionConstraint* Constraint;
-	FConstraintHandle* Handle;
+	FSuspensionConstraint* Constraint_GT;
+	FPBDSuspensionConstraintHandle* Constraint_PT;
 	bool bInitialized;
-
-
-public:
-	void AddForceCallback(FParticlesType& InParticles, const FReal InDt, const int32 InIndex) {}
-	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) {}
-	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32>& ParticleIDReverseMap) {}
-	void EndFrameCallback(const FReal InDt) {}
-	void ParameterUpdateCallback(FParticlesType& InParticles, const FReal InTime) {}
-	void CreateRigidBodyCallback(FParticlesType& InOutParticles) {}
-	bool IsSimulating() const { return true; }
-	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const FReal InDt, const FReal InTime, FKinematicProxy& InKinematicProxy) {}
-	void StartFrameCallback(const FReal InDt, const FReal InTime) {}
-
 };
+}

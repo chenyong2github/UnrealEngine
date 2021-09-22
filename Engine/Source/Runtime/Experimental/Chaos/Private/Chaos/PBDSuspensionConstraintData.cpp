@@ -6,7 +6,6 @@ namespace Chaos
 {
 	FSuspensionConstraint::FSuspensionConstraint()
 		: FConstraintBase(EConstraintType::SuspensionConstraintType)
-		, Location({ FVector::ZeroVector })
 
 	{
 	}

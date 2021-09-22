@@ -18,6 +18,10 @@ CHAOS_PROPERTY(MassProps, FParticleMassProps, EPhysicsProxyType::SingleParticleP
 CHAOS_PROPERTY(KinematicTarget,FKinematicTarget, EPhysicsProxyType::SingleParticleProxy)
 
 CHAOS_PROPERTY(JointSettings, FPBDJointSettings, EPhysicsProxyType::JointConstraintType)
-CHAOS_PROPERTY(JointParticleProxies, FProxyBasePair, EPhysicsProxyType::JointConstraintType)
+CHAOS_PROPERTY(JointParticleProxies, FProxyBasePairProperty, EPhysicsProxyType::JointConstraintType)
+
+CHAOS_PROPERTY(SuspensionSettings, FPBDSuspensionSettings, EPhysicsProxyType::SuspensionConstraintType)
+CHAOS_PROPERTY(SuspensionParticleProxy, FParticleProxyProperty, EPhysicsProxyType::SuspensionConstraintType)
+CHAOS_PROPERTY(SuspensionLocation, FSuspensionLocation, EPhysicsProxyType::SuspensionConstraintType)
 
 #undef CHAOS_PROPERTY

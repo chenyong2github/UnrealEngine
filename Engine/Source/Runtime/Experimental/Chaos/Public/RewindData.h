@@ -475,7 +475,7 @@ private:
 	decltype(auto) Get##FUNC_NAME() const\
 	{\
 		const auto Data = State ? State->PROP.Read(FrameAndPhase, Pool) : nullptr;\
-		return Data ? Data->NAME : Head.GetSettings().NAME;\
+		return Data ? Data->NAME : Head.Get##PROP().NAME;\
 	}\
 
 inline int32 ComputeCircularSize(int32 NumFrames) { return NumFrames * FFrameAndPhase::NumPhases; }
@@ -652,7 +652,7 @@ struct FJointStateBase
 {
 	explicit FJointStateBase(int32 NumFrames)
 		: JointSettings(ComputeCircularSize(NumFrames))
-		, ProxyPair(ComputeCircularSize(NumFrames))
+		, JointProxies(ComputeCircularSize(NumFrames))
 	{
 	}
 
@@ -663,31 +663,31 @@ struct FJointStateBase
 	void Release(FDirtyPropertiesPool& Manager)
 	{
 		JointSettings.Release(Manager);
-		ProxyPair.Release(Manager);
+		JointProxies.Release(Manager);
 	}
 
 	void Reset()
 	{
 		JointSettings.Reset();
-		ProxyPair.Reset();
+		JointProxies.Reset();
 	}
 
 	void ClearEntryAndFuture(const FFrameAndPhase FrameAndPhase)
 	{
 		JointSettings.ClearEntryAndFuture(FrameAndPhase);
-		ProxyPair.ClearEntryAndFuture(FrameAndPhase);
+		JointProxies.ClearEntryAndFuture(FrameAndPhase);
 	}
 
 	bool IsClean(const FFrameAndPhase FrameAndPhase) const
 	{
-		return JointSettings.IsClean(FrameAndPhase) && ProxyPair.IsClean(FrameAndPhase);
+		return JointSettings.IsClean(FrameAndPhase) && JointProxies.IsClean(FrameAndPhase);
 	}
 
 	template <bool bSkipDynamics>
 	bool IsInSync(const FPBDJointConstraintHandle& Handle, const FFrameAndPhase FrameAndPhase, const FDirtyPropertiesPool& Pool) const;
 
 	TParticlePropertyBuffer<FPBDJointSettings, EChaosProperty::JointSettings> JointSettings;
-	TParticlePropertyBuffer<FProxyBasePair, EChaosProperty::JointParticleProxies> ProxyPair;
+	TParticlePropertyBuffer<FProxyBasePairProperty, EChaosProperty::JointParticleProxies> JointProxies;
 };
 
 class FJointState

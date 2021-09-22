@@ -245,7 +245,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 			for (FNetworkPhysicsState& Obj : Snapshot.Objects)
 			{
-				FSingleParticlePhysicsProxy* Proxy = Obj.Proxy;
+				Chaos::FSingleParticlePhysicsProxy* Proxy = Obj.Proxy;
 				check(Proxy);
 
 				if (Obj.Frame < EarliestFrame || Obj.Frame > LastCompletedStep)
@@ -422,7 +422,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 			FSnapshot Snapshot;
 			Snapshot.SimulationFrame = PhysicsStep - this->LastLocalOffset;
 			Snapshot.LocalFrameOffset = this->LastLocalOffset;
-			for (FSingleParticlePhysicsProxy* Proxy : Request.Proxies)
+			for (Chaos::FSingleParticlePhysicsProxy* Proxy : Request.Proxies)
 			{
 				if (auto* PT = Proxy->GetPhysicsThreadAPI())
 				{
@@ -552,7 +552,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	// GT -> PT. "These are the proxies I want you to populate DataFromPhysics with". Is there a better way to do it?
 	struct FRequest
 	{
-		TArray<FSingleParticlePhysicsProxy*> Proxies;
+		TArray<Chaos::FSingleParticlePhysicsProxy*> Proxies;
 	};
 
 	TQueue<FRequest> DataRequested;
@@ -579,7 +579,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 	{
 		struct FCorrection
 		{
-			FSingleParticlePhysicsProxy* Proxy = nullptr;
+			Chaos::FSingleParticlePhysicsProxy* Proxy = nullptr;
 			FBasePhysicsState LocalState;
 			FBasePhysicsState AuthorityState;
 			int32 LocalFrame = 0;

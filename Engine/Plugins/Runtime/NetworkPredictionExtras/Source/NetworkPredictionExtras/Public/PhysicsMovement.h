@@ -204,7 +204,7 @@ struct FPhysicsMovementLocalState
 {
 	GENERATED_BODY()
 
-	FSingleParticlePhysicsProxy* Proxy = nullptr;
+	Chaos::FSingleParticlePhysicsProxy* Proxy = nullptr;
 
 	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
 };

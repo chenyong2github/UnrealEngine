@@ -49,6 +49,7 @@ namespace Chaos
 		FVec3 GetAngularImpulse() const;
 
 		const FPBDJointSettings& GetSettings() const;
+		const FPBDJointSettings& GetJointSettings() const { return GetSettings(); }	//needed for property macros
 
 		void SetSettings(const FPBDJointSettings& Settings);
 		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;

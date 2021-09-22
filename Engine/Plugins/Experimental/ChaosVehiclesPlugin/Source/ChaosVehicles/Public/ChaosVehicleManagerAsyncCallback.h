@@ -97,7 +97,7 @@ struct FChaosVehicleAsyncInput
 	const EChaosAsyncVehicleDataType Type;
 	UChaosVehicleMovementComponent* Vehicle;
 	
-	FSingleParticlePhysicsProxy* Proxy;
+	Chaos::FSingleParticlePhysicsProxy* Proxy;
 
 	/** 
 	* Vehicle simulation running on the Physics Thread
