@@ -50,7 +50,7 @@ namespace EpicGames.Perforce.Managed
 		public StreamSnapshotFromMemory(StreamTreeBuilder Builder)
 		{
 			Dictionary<IoHash, CbObject> HashToTree = new Dictionary<IoHash, CbObject>();
-			this.Root = Builder.Encode(HashToTree);
+			this.Root = Builder.Encode(new CbWriter(), (Hash, Object) => HashToTree[Hash] = Object);
 			this.HashToTree = HashToTree;
 		}
 

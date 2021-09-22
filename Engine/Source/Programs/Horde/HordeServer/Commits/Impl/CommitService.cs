@@ -677,11 +677,6 @@ namespace HordeServer.Commits.Impl
 		#region Snapshot generation
 
 		/// <summary>
-		/// Number of files to query at a time before recursing down the tree. Tuning this value allows finding a threshold between request/response lengths and memory usage.
-		/// </summary>
-		const int BatchSize = 256 * 1024;
-
-		/// <summary>
 		/// Creates a snapshot of a stream at a particular changelist
 		/// </summary>
 		/// <param name="Connection">The Perforce repository to mirror</param>
@@ -690,89 +685,96 @@ namespace HordeServer.Commits.Impl
 		/// <param name="Comparison">Comparison type for paths</param>
 		async Task<StreamTreeRef> CreateTreeAsync(IPerforceConnection Connection, ViewMap View, int Change, StringComparison Comparison)
 		{
+			// Optimize the view by removing unnecessary inclusions of the same path
+			View = new ViewMap(View);
+			for (int Idx = 0; Idx < View.Entries.Count; Idx++)
+			{
+				ViewMapEntry Entry = View.Entries[Idx];
+				if (Entry.Include && Entry.IsPathWildcard())
+				{
+					while (Idx + 1 < View.Entries.Count && View.Entries[Idx + 1].Include && View.Entries[Idx + 1].SourcePrefix.StartsWith(Entry.SourcePrefix, Comparison))
+					{
+						View.Entries.RemoveAt(Idx + 1);
+					}
+				}
+			}
+
+			// Delegate to write an object
+			CbWriter Writer = new CbWriter();
+			Action<IoHash, CbObject> WriteObject = (x, y) => { };
+
 			// In order to optimize for the common case where we're adding multiple files to the same directory, we keep an open list of
 			// StreamTreeBuilder objects down to the last modified node. Whenever we need to move to a different node, we write the 
 			// previous path to the object store.
 			List<StreamTreeBuilder> TreePath = new List<StreamTreeBuilder>();
 			TreePath.Add(new StreamTreeBuilder());
 
-			// Generate a snapshot using all the root paths
-			List<string> RootPaths = View.GetRootPaths(Comparison);
-			foreach (string RootPath in RootPaths)
+			for(int Idx = 0; Idx < View.Entries.Count; Idx++)
 			{
-				ViewMap FilteredView = new ViewMap();
-				foreach (ViewMapEntry Entry in View.Entries)
+				ViewMapEntry Entry = View.Entries[Idx];
+				if (Entry.Include)
 				{
-					if (Entry.SourcePrefix.StartsWith(RootPath, Comparison))
+					ViewMap FilteredView = new ViewMap();
+					FilteredView.Entries.Add(Entry);
+
+					for (int OtherIdx = Idx + 1; OtherIdx < View.Entries.Count; OtherIdx++)
 					{
-						FilteredView.Entries.Add(Entry);
+						ViewMapEntry OtherEntry = View.Entries[OtherIdx];
+						if (!OtherEntry.Include)
+						{
+							if (OtherEntry.SourcePrefix.StartsWith(Entry.SourcePrefix, Comparison) || Entry.SourcePrefix.StartsWith(OtherEntry.SourcePrefix, Comparison))
+							{
+								FilteredView.Entries.Add(OtherEntry);
+							}
+						}
 					}
+
+					Logger.LogInformation("Adding {Source}@{Change}", Entry.Source, Change);
+					await AddDepotFilesToSnapshotAsync(Connection, $"{Entry.Source}@{Change}", View, Comparison, TreePath, Writer, WriteObject);
+
+					GC.Collect();
 				}
-				await AddDepotDirToSnapshotAsync(Connection, RootPath, Change, FilteredView, Comparison, TreePath);
 			}
 
 			// Encode the tree
-			return await EncodeTreeAsync(TreePath[0]);
-		}
-
-		/// <summary>
-		/// Adds all files under a directory in the depot to a snapshot
-		/// </summary>
-		/// <param name="Connection">The perforce connection</param>
-		/// <param name="DepotDir">Depot directory to recurse through, with a trailing slash</param>
-		/// <param name="Change">Changelist number to capture</param>
-		/// <param name="View">View for the stream</param>
-		/// <param name="Comparison">Comparison type to use for names</param>
-		/// <param name="TreePath">The last computed path through the tree</param>
-		async Task AddDepotDirToSnapshotAsync(IPerforceConnection Connection, string DepotDir, int Change, ViewMap View, StringComparison Comparison, List<StreamTreeBuilder> TreePath)
-		{
-			const string Filter = "^headAction=delete ^headAction=move/delete";
-			const string Fields = "depotFile,fileSize,digest,headType,headRev";
-
-			if (View.MayMatchAnyFilesInSubDirectory(DepotDir, Comparison))
-			{
-				List<FStatRecord> Files = await Connection.FStatAsync(-1, -1, Filter, Fields, BatchSize, FStatOptions.IncludeFileSizes, $"{DepotDir}...@{Change}");
-				if (Files.Count < BatchSize)
-				{
-					Logger.LogInformation("Added {DepotDir}... to snapshot", DepotDir);
-					await AddDepotFilesToSnapshotAsync(Files, View, Comparison, TreePath);
-					return;
-				}
-
-				Files.Clear(); // Don't keep around in memory
-				Logger.LogInformation("Querying subdirectories of {DepotDir} (wasted results)", DepotDir);
-
-				IList<DirsRecord> Dirs = await Connection.GetDirsAsync(DirsOptions.None, null, $"{DepotDir}*@{Change}");
-				foreach (DirsRecord Dir in Dirs)
-				{
-					await AddDepotDirToSnapshotAsync(Connection, Dir.Dir + "/", Change, View, Comparison, TreePath);
-				}
-			}
-
-			if (View.MayMatchAnyFilesInDirectory(DepotDir, Comparison))
-			{
-				List<FStatRecord> Files = await Connection.FStatAsync(-1, -1, Filter, Fields, -1, FStatOptions.IncludeFileSizes, $"{DepotDir}*@{Change}");
-				await AddDepotFilesToSnapshotAsync(Files, View, Comparison, TreePath);
-			}
+			return TreePath[0].Encode(Writer, WriteObject);
 		}
 
 		/// <summary>
 		/// Adds a set of files in the depot to a snapshot
 		/// </summary>
-		/// <param name="Files">The files to add</param>
+		/// <param name="Connection"></param>
+		/// <param name="FileSpec">The files to add</param>
 		/// <param name="View">View for the stream</param>
-		/// <param name="Comparison">Comparison type to use for names</param>
+		/// <param name="Comparer">Comparison type to use for names</param>
 		/// <param name="TreePath">The last computed path through the tree</param>
-		async Task AddDepotFilesToSnapshotAsync(List<FStatRecord> Files, ViewMap View, StringComparison Comparison, List<StreamTreeBuilder> TreePath)
+		/// <param name="Writer"></param>
+		/// <param name="WriteObject">Delegate to write an object to the store</param>
+		async Task AddDepotFilesToSnapshotAsync(IPerforceConnection Connection, string FileSpec, ViewMap View, StringComparison Comparison, List<StreamTreeBuilder> TreePath, CbWriter Writer, Action<IoHash, CbObject> WriteObject)
 		{
-			foreach (FStatRecord File in Files)
+			const string Filter = "^headAction=delete ^headAction=move/delete";
+			const string Fields = "depotFile,fileSize,digest,headType,headRev";
+
+			List<string> Arguments = new List<string>();
+			Arguments.Add("-Ol");
+			Arguments.Add("-Op");
+			Arguments.Add("-Os");
+			Arguments.Add("-F");
+			Arguments.Add(Filter);
+			Arguments.Add("-T");
+			Arguments.Add(String.Join(",", Fields));
+			Arguments.Add(FileSpec);
+
+			IAsyncEnumerable<PerforceResponse<FStatRecord>> Responses = Connection.StreamCommandAsync<FStatRecord>("fstat", Arguments);
+			await foreach (PerforceResponse<FStatRecord> Response in Responses)
 			{
+				FStatRecord File = Response.Data;
 				if (!String.IsNullOrEmpty(File.Digest))
 				{
 					string? TargetFile;
 					if (File.DepotFile != null && View.TryMapFile(File.DepotFile, Comparison, out TargetFile))
 					{
-						await AddFileAsync(TargetFile, File, TreePath);
+						await AddFileAsync(TargetFile, File, TreePath, Writer, WriteObject);
 					}
 				}
 			}
@@ -784,26 +786,34 @@ namespace HordeServer.Commits.Impl
 		/// <param name="Path">The stream path for the file</param>
 		/// <param name="MetaData">The file metadata</param>
 		/// <param name="TreePath">The last computed path through the tree</param>
-		async Task AddFileAsync(string Path, FStatRecord MetaData, List<StreamTreeBuilder> TreePath)
+		/// <param name="Writer"></param>
+		/// <param name="WriteObject"></param>
+		async Task AddFileAsync(string Path, FStatRecord MetaData, List<StreamTreeBuilder> TreePath, CbWriter Writer, Action<IoHash, CbObject> WriteObject)
 		{
 			string[] Segments = Path.Split('/');
 
 			StreamTreeBuilder Node = TreePath[0];
-			for (int Idx = 0; Idx < Segments.Length - 1; Idx++)
+
+			int SegmentIdx = 0;
+
+			// Match as many nodes as we can from the existing path
+			for (; SegmentIdx < Segments.Length - 1; SegmentIdx++)
 			{
-				Utf8String Segment = Segments[Idx];
-
-				StreamTreeBuilder NextNode = await FindOrAddTreeAsync(Node, Segment);
-				if (Idx + 1 < TreePath.Count && TreePath[Idx + 1] != NextNode)
+				Utf8String Segment = Segments[SegmentIdx];
+				if (!Node.NameToTreeBuilder.TryGetValue(Segment, out StreamTreeBuilder? NextNode))
 				{
-					await CollapseTreeAsync(Node, TreePath[Idx + 1]);
+					break;
 				}
-				if (Idx + 1 >= TreePath.Count)
-				{
-					TreePath.Add(NextNode);
-				}
-
 				Node = NextNode;
+			}
+
+			// Collapse the rest of the current path
+			CollapseTree(Node, Writer, WriteObject);
+
+			// Expand the rest of the path
+			for (; SegmentIdx < Segments.Length - 1; SegmentIdx++)
+			{
+				Node = await FindOrAddTreeAsync(Node, Segments[SegmentIdx]);
 			}
 
 			Node.NameToFile[Segments[Segments.Length - 1]] = CreateStreamFile(MetaData);
@@ -839,6 +849,9 @@ namespace HordeServer.Commits.Impl
 		async Task<StreamTreeRef> UpdateTreeAsync(StreamTreeRef PrevTreeRef, IList<FStatRecord> Files, ViewMap View, StringComparison Comparison)
 		{
 			StreamTreeBuilder Tree = await ReadTreeAsync(PrevTreeRef);
+
+			// Delegate to write an object
+			Action<IoHash, CbObject> WriteObject = (x, y) => { };
 
 			// Update the tree
 			foreach (FStatRecord File in Files)
@@ -879,7 +892,7 @@ namespace HordeServer.Commits.Impl
 				}
 			}
 
-			return await EncodeTreeAsync(Tree);
+			return Tree.Encode(new CbWriter(), WriteObject);
 		}
 
 #endregion
@@ -958,39 +971,18 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Collapse a subtree under a given child
 		/// </summary>
-		/// <param name="Parent"></param>
-		/// <param name="Child"></param>
-		/// <returns></returns>
-		async Task CollapseTreeAsync(StreamTreeBuilder Parent, StreamTreeBuilder Child)
+		/// <param name="Node">The node to collapse</param>
+		/// <param name="Writer"></param>
+		/// <param name="WriteObject"></param>
+		static void CollapseTree(StreamTreeBuilder Node, CbWriter Writer, Action<IoHash, CbObject> WriteObject)
 		{
-			foreach ((Utf8String Name, StreamTreeBuilder Node) in Parent.NameToTreeBuilder)
+			foreach ((Utf8String Name, StreamTreeBuilder Child) in Node.NameToTreeBuilder)
 			{
-				if (Node == Child)
-				{
-					StreamTreeRef ChildRef = await EncodeTreeAsync(Child);
-					Parent.NameToTreeBuilder.Remove(Name);
-					Parent.NameToTree.Add(Name, ChildRef);
-					break;
-				}
+				CollapseTree(Child, Writer, WriteObject);
+				StreamTreeRef ChildRef = Child.Encode(Writer, WriteObject);
+				Node.NameToTree.Add(Name, ChildRef);
 			}
-		}
-
-		/// <summary>
-		/// Writes a subtree to the object store
-		/// </summary>
-		/// <param name="TreeBuilder">Root of the tree to write</param>
-		/// <returns>New tree reference for the serialized tree</returns>
-		async Task<StreamTreeRef> EncodeTreeAsync(StreamTreeBuilder TreeBuilder)
-		{
-			Dictionary<IoHash, CbObject> Objects = new Dictionary<IoHash, CbObject>();
-			StreamTreeRef Ref = TreeBuilder.Encode(Objects);
-
-			foreach ((IoHash Hash, CbObject Object) in Objects)
-			{
-				await ObjectCollection.AddAsync(NamespaceId, Hash, Object);
-			}
-
-			return Ref;
+			Node.NameToTreeBuilder.Clear();
 		}
 
 		/// <summary>

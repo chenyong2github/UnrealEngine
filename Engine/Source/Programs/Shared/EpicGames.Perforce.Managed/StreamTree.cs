@@ -324,14 +324,14 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="BasePath"></param>
 		/// <returns></returns>
-		public CbObject ToCbObject(Utf8String BasePath)
+		public CbObject ToCbObject(CbWriter Writer, Utf8String BasePath)
 		{
 			if (BasePath.EndsWith("/"))
 			{
 				throw new ArgumentException("BasePath must not end in a slash", nameof(BasePath));
 			}
 
-			CbWriter Writer = new CbWriter();
+			Writer.Clear();
 			Writer.BeginObject();
 			Write(Writer, BasePath);
 			Writer.EndObject();

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -152,6 +153,64 @@ namespace EpicGames.Perforce
 				}
 			}
 			return Result.ToString();
+		}
+
+		/// <summary>
+		/// Read a list of responses from the child process
+		/// </summary>
+		/// <param name="Perforce">The response to read from</param>
+		/// <param name="StatRecordType">The type of stat record to parse</param>
+		/// <param name="CancellationToken">Cancellation token for the read</param>
+		/// <returns>Async task</returns>
+		public static async IAsyncEnumerable<PerforceResponse> ReadStreamingResponsesAsync(this IPerforceOutput Perforce, Type? StatRecordType, [EnumeratorCancellation] CancellationToken CancellationToken)
+		{
+			CachedRecordInfo? StatRecordInfo = (StatRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(StatRecordType);
+
+			List<PerforceResponse> Responses = new List<PerforceResponse>();
+
+			// Read all the records into a list
+			long ParsedLen = 0;
+			long MaxParsedLen = 0;
+			while (await Perforce.ReadAsync(CancellationToken))
+			{
+				// Check for the whole message not being a marshalled python object, and produce a better response in that scenario
+				ReadOnlyMemory<byte> Data = Perforce.Data;
+				if (Data.Length > 0 && Responses.Count == 0 && Data.Span[0] != '{')
+				{
+					throw new PerforceException("Unexpected response from server (expected '{'):{0}", FormatDataAsString(Data.Span));
+				}
+
+				// Parse the responses from the current buffer
+				int BufferPos = 0;
+				for (; ; )
+				{
+					int NewBufferPos = BufferPos;
+					if (!TryReadResponse(Data.Span, ref NewBufferPos, StatRecordInfo, out PerforceResponse? Response))
+					{
+						MaxParsedLen = ParsedLen + NewBufferPos;
+						break;
+					}
+					if (Response.Error == null || Response.Error.Generic != PerforceGenericCode.Empty)
+					{
+						yield return Response;
+					}
+					BufferPos = NewBufferPos;
+				}
+
+				// Discard all the data that we've processed
+				Perforce.Discard(BufferPos);
+				ParsedLen += BufferPos;
+			}
+
+			// If the stream is complete but we couldn't parse a response from the server, treat it as an error
+			if (Perforce.Data.Length > 0)
+			{
+				long DumpOffset = Math.Max(MaxParsedLen - 32, ParsedLen);
+				int SliceOffset = (int)(DumpOffset - ParsedLen);
+				string StrDump = FormatDataAsString(Perforce.Data.Span.Slice(SliceOffset));
+				string HexDump = FormatDataAsHexDump(Perforce.Data.Span.Slice(SliceOffset, Math.Min(1024, Perforce.Data.Length - SliceOffset)));
+				throw new PerforceException("Unparsable data at offset {0}+{1}/{2}.\nString data from offset {3}:{4}\nHex data from offset {3}:{5}", ParsedLen, MaxParsedLen - ParsedLen, ParsedLen + Perforce.Data.Length, DumpOffset, StrDump, HexDump);
+			}
 		}
 
 		/// <summary>
