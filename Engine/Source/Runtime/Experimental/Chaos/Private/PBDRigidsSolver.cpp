@@ -1155,6 +1155,7 @@ namespace Chaos
 			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded_Internal(LastStep);
 			if(ResimStep != INDEX_NONE)
 			{
+				FResimDebugInfo DebugInfo;
 				QUICK_SCOPE_CYCLE_COUNTER(ChaosRewindAndResim);
 				if(ensure(MRewindData->RewindToFrame(ResimStep)))
 				{
@@ -1163,6 +1164,8 @@ namespace Chaos
 					const int32 NumResimSteps = LastStep - ResimStep + 1;
 					TArray<FPushPhysicsData*> RecordedPushData = MarshallingManager.StealHistory_Internal(NumResimSteps);
 					bool bFirst = true;
+
+					FDurationTimer ResimTimer(DebugInfo.ResimTime);
 					// Do rollback as necessary
 					for (int32 Step = ResimStep; Step <= LastStep; ++Step)
 					{
@@ -1181,8 +1184,12 @@ namespace Chaos
 					}
 
 					GetEvolution()->SetResim(false);
+
+					ResimTimer.Stop();
+					MRewindCallback->SetResimDebugInfo(DebugInfo);
 				}
 			}
+
 		}
 	}
 
