@@ -5,11 +5,10 @@
 #include "CoreMinimal.h"
 #include "AssetSelection.h"
 #include "IDetailsView.h"
-#include "PropertyNode.h"
-#include "SDetailsViewBase.h"
-
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
+#include "PropertyNode.h"
+#include "SDetailsViewBase.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SScrollBar.h"
 
@@ -164,6 +163,12 @@ private:
 	/** Called when show hidden properties while playing is clicked */
 	void OnShowHiddenPropertiesWhilePlayingClicked();
 
+	/** @return true if Show Sections is checked. */
+	bool IsShowSectionsChecked() const { return DetailsViewArgs.bShowSectionSelector; }
+
+	/** Called when Show Sections is clicked */
+	void OnShowSectionsClicked();
+
 	/** Get the color of the toggle favorites button. */
 	FSlateColor GetToggleFavoritesColor() const;
 
@@ -173,20 +178,17 @@ private:
 	/** Called after an undo or redo operation occurs in the editor. */
 	void OnPostUndoRedo();
 
-	/** Get all section names for the objects currently selected in the view. */
-	TSet<FName> GetAllSectionNames() const;
+	/** Get all section names and display names for the objects currently selected in the view. */
+	TMap<FName, FText> GetAllSections() const;
 
-	/** Get a display name for the given section. */
-	FText GetSectionDisplayName(FName SectionName) const;
-	
 	/** Rebuild the section selector widget after a selection has been changed. */
 	void RebuildSectionSelector();
 
 	/** Refilter the details view after the user has selected a new section. */
-	void OnSectionSelectionChanged(FName NewSelection);
+	void OnSectionCheckedChanged(ECheckBoxState State, FName NewSelection);
 
 	/** Get the currently selected section. */
-	FName GetSelectedSection() const;
+	ECheckBoxState IsSectionChecked(FName Section) const;
 
 private:
 	/** The filter for objects viewed by this details panel */
@@ -217,5 +219,5 @@ private:
 	/** Delegate handle for unregistering from the PostUndoRedo event. */
 	FDelegateHandle PostUndoRedoDelegateHandle;
 	/** The section selector widget to show if DetailsViewArgs.bShowSectionSelector is true. */
-	TSharedPtr<SBox> SectionSelectorBox;
+	TSharedPtr<class SWrapBox> SectionSelectorBox;
 };
