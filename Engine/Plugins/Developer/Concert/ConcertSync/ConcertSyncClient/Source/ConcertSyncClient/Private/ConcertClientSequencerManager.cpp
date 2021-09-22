@@ -407,9 +407,9 @@ void FConcertClientSequencerManager::ApplyTransportOpenEvent(const FString& Sequ
 	{
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceObjectPath);
 	}
-#endif
 
-	if (CVarEnableSequencePlayer.GetValueOnAnyThread() > 0)
+#endif
+	if (!GIsEditor && CVarEnableSequencePlayer.GetValueOnAnyThread() > 0)
 	{
 		CreateNewSequencePlayerIfNotExists(*SequenceObjectPath);
 	}
