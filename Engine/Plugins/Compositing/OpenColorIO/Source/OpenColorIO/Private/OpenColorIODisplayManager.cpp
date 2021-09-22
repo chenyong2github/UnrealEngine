@@ -6,14 +6,15 @@
 
 FOpenColorIODisplayConfiguration& FOpenColorIODisplayManager::FindOrAddDisplayConfiguration(FViewportClient* InViewportClient)
 {
-	FOpenColorIODisplayConfiguration* Config = nullptr;
 	const TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe>* Extension = DisplayExtensions.FindByPredicate([InViewportClient](const TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe>& Other) { return  Other.IsValid() && InViewportClient == Other->GetAssociatedViewportClient(); });
 	if (Extension)
 	{
 		FOpenColorIODisplayExtension* ExtensionPtr = Extension->Get();
 		check(ExtensionPtr);
 
-		return ExtensionPtr->GetDisplayConfiguration();
+		FOpenColorIODisplayConfiguration& DisplayConfiguration = ExtensionPtr->GetDisplayConfiguration();
+		DisplayConfiguration.ColorConfiguration.ValidateColorSpaces();
+		return DisplayConfiguration;
 	}
 	
 	// Extension not found, create it and return its config
@@ -30,7 +31,9 @@ const FOpenColorIODisplayConfiguration* FOpenColorIODisplayManager::GetDisplayCo
 		FOpenColorIODisplayExtension* ExtensionPtr = Extension->Get();
 		check(ExtensionPtr);
 
-		return &ExtensionPtr->GetDisplayConfiguration();
+		FOpenColorIODisplayConfiguration& DisplayConfiguration = ExtensionPtr->GetDisplayConfiguration();
+		DisplayConfiguration.ColorConfiguration.ValidateColorSpaces();
+		return &DisplayConfiguration;
 	}
 
 	return nullptr;

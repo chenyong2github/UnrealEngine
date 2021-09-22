@@ -81,6 +81,11 @@ bool UOpenColorIOConfiguration::HasTransform(const FString& InSourceColorSpace, 
 	return (TransformData != nullptr);
 }
 
+bool UOpenColorIOConfiguration::HasDesiredColorSpace(const FOpenColorIOColorSpace& ColorSpace) const
+{
+	return DesiredColorSpaces.Find(ColorSpace) != INDEX_NONE;
+}
+
 bool UOpenColorIOConfiguration::Validate() const
 {
 #if WITH_EDITOR 

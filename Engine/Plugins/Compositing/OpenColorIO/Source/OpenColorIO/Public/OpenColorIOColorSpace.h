@@ -58,6 +58,9 @@ public:
 	/** Return true if the index and name have been set properly */
 	bool IsValid() const;
 
+	/** Reset members to default/empty values. */
+	void Reset();
+
 	/** 
 	 * Return the family name at the desired depth level 
 	 * @param InDepth Desired depth in the family string. 0 == First layer. 
@@ -81,7 +84,7 @@ public:
 
 	/** The source color space name. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
-	UOpenColorIOConfiguration* ConfigurationSource;
+	TObjectPtr<UOpenColorIOConfiguration> ConfigurationSource;
 
 	/** The source color space name. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ColorSpace)
@@ -103,6 +106,11 @@ public:
 	 * Returns true if the source and destination color spaces are found in the configuration file
 	 */
 	bool IsValid() const;
+
+	/**
+	* Ensure that the selected source and destination color spaces are valid, resets them otherwise.
+	*/
+	void ValidateColorSpaces();
 };
 
 /**
