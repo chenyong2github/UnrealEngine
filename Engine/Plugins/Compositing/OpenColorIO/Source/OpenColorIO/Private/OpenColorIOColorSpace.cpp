@@ -34,6 +34,13 @@ bool FOpenColorIOColorSpace::IsValid() const
 	return ColorSpaceIndex != INDEX_NONE && !ColorSpaceName.IsEmpty();
 }
 
+void FOpenColorIOColorSpace::Reset()
+{
+	ColorSpaceIndex = INDEX_NONE;
+	ColorSpaceName.Reset();
+	FamilyName.Reset();
+}
+
 FString FOpenColorIOColorSpace::GetFamilyNameAtDepth(int32 InDepth) const
 {
 	FString ReturnName;
@@ -83,4 +90,25 @@ bool FOpenColorIOColorConversionSettings::IsValid() const
 	}
 
 	return false;
+}
+
+void FOpenColorIOColorConversionSettings::ValidateColorSpaces()
+{
+	if (ConfigurationSource)
+	{
+		if (!ConfigurationSource->HasDesiredColorSpace(SourceColorSpace))
+		{
+			SourceColorSpace.Reset();
+		}
+
+		if (!ConfigurationSource->HasDesiredColorSpace(DestinationColorSpace))
+		{
+			DestinationColorSpace.Reset();
+		}
+	}
+	else
+	{
+		SourceColorSpace.Reset();
+		DestinationColorSpace.Reset();
+	}
 }

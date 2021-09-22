@@ -51,6 +51,8 @@ void FOpenColorIOColorConversionSettingsCustomization::CustomizeHeader(TSharedRe
 							FOpenColorIOColorConversionSettings* Conversion = reinterpret_cast<FOpenColorIOColorConversionSettings*>(RawData[0]);
 							if (Conversion != nullptr)
 							{
+								Conversion->ValidateColorSpaces();
+
 								return FText::FromString(*Conversion->ToString());
 							}
 							else
