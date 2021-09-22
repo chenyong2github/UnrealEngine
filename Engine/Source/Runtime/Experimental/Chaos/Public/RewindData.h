@@ -1073,6 +1073,11 @@ private:
 	void DesyncIfNecessary(TDirtyInfo& Info, const FFrameAndPhase FrameAndPhase);
 };
 
+struct FResimDebugInfo
+{
+	double ResimTime = 0.0;
+};
+
 /** Used by user code to determine when rewind should occur and gives it the opportunity to record any additional data */
 class IRewindCallback
 {
@@ -1106,5 +1111,8 @@ public:
 	virtual void PostResimStep_Internal(int32 PhysicsStep){}
 
 	virtual void RegisterRewindableSimCallback_Internal(ISimCallbackObject* Callback) { ensure(false); }
+
+	/** Called When resim is finished with debug information about the resim */
+	virtual void SetResimDebugInfo(const FResimDebugInfo& ResimDebugInfo){}
 };
 }
