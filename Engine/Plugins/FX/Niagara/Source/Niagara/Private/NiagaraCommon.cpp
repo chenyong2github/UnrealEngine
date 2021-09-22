@@ -14,6 +14,7 @@
 #include "NiagaraWorldManager.h"
 #include "String/ParseTokens.h"
 #include "UObject/Class.h"
+#include "GPUSkinCache.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters"), STAT_Niagara_Utilities_PrepareRapidIterationParameters, STATGROUP_Niagara);
 
@@ -934,6 +935,11 @@ bool FNiagaraUtilities::AllowGPUSorting(EShaderPlatform ShaderPlatform)
 bool FNiagaraUtilities::AllowGPUCulling(EShaderPlatform ShaderPlatform)
 {
 	return GNiagaraGPUCulling && AllowGPUSorting(ShaderPlatform) && AllowComputeShaders(ShaderPlatform);
+}
+
+bool FNiagaraUtilities::AreBufferSRVsAlwaysCreated(EShaderPlatform ShaderPlatform)
+{
+	return RHISupportsManualVertexFetch(ShaderPlatform) || IsGPUSkinCacheAvailable(ShaderPlatform);
 }
 
 ENiagaraCompileUsageStaticSwitch FNiagaraUtilities::ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage)

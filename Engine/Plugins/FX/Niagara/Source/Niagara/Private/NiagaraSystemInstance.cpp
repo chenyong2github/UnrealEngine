@@ -1394,7 +1394,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	//Now the interfaces in the simulations are all correct, we can build the per instance data table.
 	int32 InstanceDataSize = 0;
 	DataInterfaceInstanceDataOffsets.Empty();
-	auto CalcInstDataSize = [&](const FNiagaraParameterStore& ParamStore, bool bIsGPUSimulation, bool bSearchInstanceParams)
+	auto CalcInstDataSize = [&](const FNiagaraParameterStore& ParamStore, bool bIsCPUSimulation, bool bIsGPUSimulation, bool bSearchInstanceParams)
 	{
 		const TArrayView<const FNiagaraVariableWithOffset> Params = ParamStore.ReadParameterVariables();
 		const TArray<UNiagaraDataInterface*>& Interfaces = ParamStore.GetDataInterfaces();
@@ -1446,25 +1446,29 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 							Proxy->SourceDIName = Var.GetName();
 						}
 					}
+					else if (bIsCPUSimulation)
+					{
+						Interface->SetUsedByCPUEmitter(true);
+					}
 				}
 			}
 		}
 	};
 
-	CalcInstDataSize(InstanceParameters, false, false);//This probably should be a proper exec context.
+	CalcInstDataSize(InstanceParameters, false, false, false);//This probably should be a proper exec context.
 
 	if (SystemSimulation->GetIsSolo() && FNiagaraSystemSimulation::UseLegacySystemSimulationContexts())
 	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, false, false);
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, false);
 		SystemSimulation->GetSpawnExecutionContext()->DirtyDataInterfaces();
 
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, false, false);
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, false);
 		SystemSimulation->GetUpdateExecutionContext()->DirtyDataInterfaces();
 	}
 	else
 	{
-		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, false, true);
-		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, false, true);
+		CalcInstDataSize(SystemSimulation->GetSpawnExecutionContext()->Parameters, true, false, true);
+		CalcInstDataSize(SystemSimulation->GetUpdateExecutionContext()->Parameters, true, false, true);
 	}
 
 	//Iterate over interfaces to get size for table and clear their interface bindings.
@@ -1478,16 +1482,16 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 
 		const bool bGPUSimulation = Sim.GetCachedEmitter() && (Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim);
 
-		CalcInstDataSize(Sim.GetSpawnExecutionContext().Parameters, bGPUSimulation, false);
-		CalcInstDataSize(Sim.GetUpdateExecutionContext().Parameters, bGPUSimulation, false);
+		CalcInstDataSize(Sim.GetSpawnExecutionContext().Parameters, !bGPUSimulation, bGPUSimulation, false);
+		CalcInstDataSize(Sim.GetUpdateExecutionContext().Parameters, !bGPUSimulation, bGPUSimulation, false);
 		for (int32 i = 0; i < Sim.GetEventExecutionContexts().Num(); i++)
 		{
-			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].Parameters, bGPUSimulation, false);
+			CalcInstDataSize(Sim.GetEventExecutionContexts()[i].Parameters, !bGPUSimulation, bGPUSimulation, false);
 		}
 
 		if (Sim.GetCachedEmitter() && Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetGPUContext())
 		{
-			CalcInstDataSize(Sim.GetGPUContext()->CombinedParamStore, bGPUSimulation, false);
+			CalcInstDataSize(Sim.GetGPUContext()->CombinedParamStore, !bGPUSimulation, bGPUSimulation, false);
 		}
 
 		//Also force a rebind while we're here.

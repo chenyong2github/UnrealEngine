@@ -382,8 +382,11 @@ public:
 	virtual bool HasTickGroupPrereqs() const { return false; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const { return NiagaraFirstTickGroup; }
 
+	/** Used to determine if we need to create CPU resources for the emitter. */
+	bool IsUsedWithCPUEmitter() const;
+
 	/** Used to determine if we need to create GPU resources for the emitter. */
-	bool IsUsedWithGPUEmitter(class FNiagaraSystemInstance* SystemInstance) const;
+	bool IsUsedWithGPUEmitter() const;
 
 	/** Determines if this type definition matches to a known data interface type.*/
 	static bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);
@@ -481,6 +484,12 @@ public:
 		PushToRenderThread();
 	}
 
+	void SetUsedByCPUEmitter(bool bUsed = true)
+	{
+		check(IsInGameThread());
+		bUsedByCPUEmitter = bUsed;
+	}
+
 	void SetUsedByGPUEmitter(bool bUsed = true)
 	{
 		check(IsInGameThread());
@@ -510,6 +519,7 @@ protected:
 	TUniquePtr<FNiagaraDataInterfaceProxy> Proxy;
 
 	uint32 bRenderDataDirty : 1;
+	uint32 bUsedByCPUEmitter : 1;
 	uint32 bUsedByGPUEmitter : 1;
 
 private:

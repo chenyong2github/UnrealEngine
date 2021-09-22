@@ -1208,6 +1208,9 @@ namespace FNiagaraUtilities
 	// Are we able to use the GPU for sorting?
 	bool AllowGPUSorting(EShaderPlatform ShaderPlatform);
 
+	// Helper function to detect if SRVs are always created for buffers or not
+	bool AreBufferSRVsAlwaysCreated(EShaderPlatform ShaderPlatform);
+
 	ENiagaraCompileUsageStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage);
 	ENiagaraScriptContextStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchContext(ENiagaraScriptUsage ScriptUsage);
 	
