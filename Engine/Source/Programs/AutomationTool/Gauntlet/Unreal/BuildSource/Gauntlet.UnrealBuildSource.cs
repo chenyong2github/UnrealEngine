@@ -639,7 +639,7 @@ namespace Gauntlet
 
 			if (TargetRole.UsesEditor())
 			{
-				FileReference EditorExe = ProjectUtils.GetProjectTarget(ProjectPath, UnrealBuildTool.TargetType.Editor, TargetPlatform, TargetConfiguration);
+				FileSystemReference EditorExe = ProjectUtils.GetProjectTarget(ProjectPath, UnrealBuildTool.TargetType.Editor, TargetPlatform, TargetConfiguration);
 				if (EditorExe != null)
 				{
 					ExePath = EditorExe.FullName;
