@@ -367,6 +367,18 @@ private:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, class FMeshElementCollector& Collector) const override
 	{
+#if PLATFORM_HOLOLENS
+		if (MaterialToUse == UMaterial::GetDefaultMaterial(MD_Surface))
+		{
+			// On HoloLens, the default surface material does not render efficiently.
+			// When used with scene understanding, which creates more meshes than spatial mapping,
+			// rendering with this material will cause a significant performance hit.
+			// Since the ARSessionConfig defaults to this surface, and ommitting a default material or setting
+			// the material to null will also default to this surface, short-circuit here if we are on a HoloLens.
+			return;
+		}
+#endif
+
 		static const FBoxSphereBounds InfiniteBounds(FSphere(FVector::ZeroVector, HALF_WORLD_MAX));
 
 #ifdef DEBUG_BRICK_CULLING
@@ -1045,6 +1057,9 @@ void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRota
 	SetRelativeLocationAndRotation(InLocation, InRotation);
 	SetRelativeScale3D(Scale);
 
+	// Set a valid bounding box so meshes get correctly culled.
+	FBox bounds = FBox(Vertices).TransformBy(FTransform(InRotation.Rotator(), InLocation, Scale));
+
 	// Create our struct that will hold the data until the render thread is done with it
 	TSharedPtr<FMeshArrayHolder, ESPMode::ThreadSafe> MeshHolder(new FMeshArrayHolder(Vertices, Indices, UVData, TangentXZData, ColorData));
 	// NOTE: Vertices and Indices are empty due to MoveTemp()!!!
@@ -1057,7 +1072,8 @@ void UMRMeshComponent::UpdateMesh(const FVector& InLocation, const FQuat& InRota
 			MeshHolder->BogusUVs,
 			MeshHolder->BogusTangents,
 			MeshHolder->BogusColors,
-			MeshHolder->Indices
+			MeshHolder->Indices,
+			bounds
 		}
 	);
 }
