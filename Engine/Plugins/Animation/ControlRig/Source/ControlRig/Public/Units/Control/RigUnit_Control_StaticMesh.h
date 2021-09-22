@@ -9,7 +9,7 @@ class UStaticMesh;
 class UMaterialInterface;
 
 /** A control unit used to drive a transform from an external source */
-USTRUCT(meta=(DisplayName="Static Mesh Control", Category="Controls", ShowVariableNameInTitle))
+USTRUCT(meta=(DisplayName="Static Mesh Control", Category="Controls", ShowVariableNameInTitle, Deprecated="5.0"))
 struct CONTROLRIG_API FRigUnit_Control_StaticMesh : public FRigUnit_Control
 {
 	GENERATED_BODY()
