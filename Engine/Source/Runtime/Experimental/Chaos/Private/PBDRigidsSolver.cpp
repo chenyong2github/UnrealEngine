@@ -1186,7 +1186,7 @@ namespace Chaos
 					GetEvolution()->SetResim(false);
 
 					ResimTimer.Stop();
-					MRewindCallback->SetResimDebugInfo(DebugInfo);
+					MRewindCallback->SetResimDebugInfo_Internal(DebugInfo);
 				}
 			}
 
