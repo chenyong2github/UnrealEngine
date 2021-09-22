@@ -87,8 +87,8 @@ enum class ERigControlType : uint8
     Position,
     Scale,
     Rotator,
-    Transform,
-    TransformNoScale,
+    Transform UMETA(Hidden),
+    TransformNoScale UMETA(Hidden),
     EulerTransform,
 };
 
