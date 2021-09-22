@@ -14,7 +14,7 @@
 // Texture data is assumed to be in tiled representation where:
 // 1) Dimensions.xy represents a single blue-noise tile
 // 2) Dimensions.z represents the number of slices available
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FBlueNoise, )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FBlueNoise, RENDERER_API)
 SHADER_PARAMETER(FIntVector, Dimensions)
 SHADER_PARAMETER_TEXTURE(Texture2D, Texture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
