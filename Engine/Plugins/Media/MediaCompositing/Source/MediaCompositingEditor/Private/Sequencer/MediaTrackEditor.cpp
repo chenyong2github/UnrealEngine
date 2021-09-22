@@ -22,7 +22,7 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "LevelSequence.h"
 
-#include "MediaThumbnailSection.h"
+#include "Sequencer/MediaThumbnailSection.h"
 
 
 #define LOCTEXT_NAMESPACE "FMediaTrackEditor"

@@ -15,8 +15,8 @@ class UMediaSource;
 /**
  * Implements a movie scene track for media playback.
  */
-UCLASS(MinimalAPI)
-class UMovieSceneMediaTrack
+UCLASS()
+class MEDIACOMPOSITING_API UMovieSceneMediaTrack
 	: public UMovieSceneNameableTrack
 	, public IMovieSceneTrackTemplateProducer
 {
