@@ -1113,6 +1113,6 @@ public:
 	virtual void RegisterRewindableSimCallback_Internal(ISimCallbackObject* Callback) { ensure(false); }
 
 	/** Called When resim is finished with debug information about the resim */
-	virtual void SetResimDebugInfo(const FResimDebugInfo& ResimDebugInfo){}
+	virtual void SetResimDebugInfo_Internal(const FResimDebugInfo& ResimDebugInfo){}
 };
 }
