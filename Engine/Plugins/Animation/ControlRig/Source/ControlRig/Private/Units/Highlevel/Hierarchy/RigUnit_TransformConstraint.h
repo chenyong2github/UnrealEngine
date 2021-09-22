@@ -114,7 +114,7 @@ private:
 /**
  * Constrains an item's transform to multiple items' transforms
  */
-USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms", Keywords = "Parent,Orient,Scale"))
+USTRUCT(meta=(DisplayName="Transform Constraint", Category="Transforms", Keywords = "Parent,Orient,Scale", Deprecated="5.0"))
 struct CONTROLRIG_API FRigUnit_TransformConstraintPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
