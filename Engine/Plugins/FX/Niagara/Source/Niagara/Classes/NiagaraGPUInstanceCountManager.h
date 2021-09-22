@@ -77,6 +77,11 @@ public:
 
 	uint32 AcquireEntry();
 
+	bool CanAcquireCulledEntry() const
+	{
+		return !bAcquiredCulledCounts;
+	}
+
 	uint32 AcquireCulledEntry()
 	{
 		check(!bAcquiredCulledCounts);
