@@ -1581,7 +1581,15 @@ public:
 	 * the expression nodes will not accurately display the final compiled material.
 	 * @param	Parameter	Pointer to the expression node whose state needs to be propagated.
 	 */
-	ENGINE_API virtual void PropagateExpressionParameterChanges(UMaterialExpression* Parameter);
+	ENGINE_API virtual void PropagateExpressionParameterChanges(const UMaterialExpression* Parameter);
+
+	/**
+	 * A parameter with duplicates has to update its peers so that they all have the same value. If this step isn't performed then
+	 * the expression nodes will not accurately display the final compiled material.
+	 * @param	ParameterName	Name of the parameter to update
+	 * @param	Meta			New value of the parameter
+	 */
+	ENGINE_API virtual void PropagateExpressionParameterChanges(const FName& ParameterName, const FMaterialParameterMetadata& Meta);
 
 	/**
 	 * Remove the expression from the editor parameters list (if it exists) and then re-adds it.
@@ -1624,14 +1632,6 @@ public:
 	 * @return	true if the expression is a parameter with a name.
 	 */
 	static bool GetExpressionParameterName(const UMaterialExpression* Expression, FName& OutName);
-
-	/**
-	 * Copy the values of an expression parameter to another expression parameter of the same class.
-	 *
-	 * @param	Source			The source parameter.
-	 * @param	Destination		The destination parameter that will receive Source's values.
-	 */
-	static bool CopyExpressionParameters(UMaterialExpression* Source, UMaterialExpression* Destination);
 #endif // WITH_EDITOR
 
 	/**

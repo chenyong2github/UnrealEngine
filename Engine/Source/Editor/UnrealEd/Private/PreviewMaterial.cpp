@@ -402,6 +402,7 @@ UDEditorParameterValue* UDEditorParameterValue::Create(UObject* Owner,
 
 	check(Parameter);
 	Parameter->ParameterInfo = ParameterInfo;
+	Parameter->ExpressionId = Meta.ExpressionGuid;
 	Parameter->SortPriority = Meta.SortPriority;
 	Parameter->bOverride = Meta.bOverride;
 	return Parameter;

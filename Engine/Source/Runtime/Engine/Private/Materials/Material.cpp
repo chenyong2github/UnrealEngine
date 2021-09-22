@@ -1335,12 +1335,12 @@ bool UMaterial::IsCompilingOrHadCompileError(ERHIFeatureLevel::Type InFeatureLev
 #if WITH_EDITOR
 bool UMaterial::SetParameterValueEditorOnly(const FName& ParameterName, const FMaterialParameterMetadata& Meta)
 {
-	// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
+	bool bResult = false;
 	for (TObjectPtr<UMaterialExpression>& Expression : Expressions)
 	{
 		if (Expression && Expression->SetParameterValue(ParameterName, Meta, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
 		{
-			return true;
+			bResult = true;
 		}
 		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
@@ -1359,7 +1359,7 @@ bool UMaterial::SetParameterValueEditorOnly(const FName& ParameterName, const FM
 						{
 							if (FunctionExpression && FunctionExpression->SetParameterValue(ParameterName, Meta, EMaterialExpressionSetParameterValueFlags::SendPostEditChangeProperty))
 							{
-								return true;
+								bResult = true;
 							}
 						}
 					}
@@ -1368,7 +1368,7 @@ bool UMaterial::SetParameterValueEditorOnly(const FName& ParameterName, const FM
 		}
 	}
 
-	return false;
+	return bResult;
 }
 
 bool UMaterial::SetVectorParameterValueEditorOnly(FName ParameterName, FLinearColor InValue)
@@ -4073,25 +4073,29 @@ void UMaterial::UpdateExpressionDynamicParameters(const UMaterialExpression* Exp
 	}
 }
 
-void UMaterial::PropagateExpressionParameterChanges(UMaterialExpression* Parameter)
+void UMaterial::PropagateExpressionParameterChanges(const UMaterialExpression* Parameter)
 {
-	FName ParmName;
-	bool bRet = GetExpressionParameterName(Parameter, ParmName);
-
-	if(bRet)
+	FMaterialParameterMetadata Meta;
+	if (Parameter->GetParameterValue(Meta))
 	{
-		TArray<UMaterialExpression*>* ExpressionList = EditorParameters.Find(ParmName);
+		PropagateExpressionParameterChanges(Parameter->GetParameterName(), Meta);
+	}
+}
 
-		if(ExpressionList && ExpressionList->Num() > 1)
+void UMaterial::PropagateExpressionParameterChanges(const FName& ParameterName, const FMaterialParameterMetadata& Meta)
+{
+	TArray<UMaterialExpression*>* ExpressionList = EditorParameters.Find(ParameterName);
+	if (ExpressionList && ExpressionList->Num() > 1)
+	{
+		for (UMaterialExpression* Expression : *ExpressionList)
 		{
-			for(int32 Index = 0; Index < ExpressionList->Num(); ++Index)
+			const EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::NoUpdateExpressionGuid | EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority;
+			if (Expression->SetParameterValue(ParameterName, Meta, Flags))
 			{
-				CopyExpressionParameters(Parameter, (*ExpressionList)[Index]);
+				Expression->Modify();
+				Expression->Desc = Meta.Description;
+				Expression->GraphNode->OnUpdateCommentText(Meta.Description);
 			}
-		}
-		else if(!ExpressionList)
-		{
-			bRet = false;
 		}
 	}
 }
@@ -4277,31 +4281,6 @@ bool UMaterial::GetExpressionParameterName(const UMaterialExpression* Expression
 		bRet = true;
 	}
 	return bRet;
-}
-
-bool UMaterial::CopyExpressionParameters(UMaterialExpression* Source, UMaterialExpression* Destination)
-{
-	if(!Source || !Destination || Source == Destination || Source->GetClass() != Destination->GetClass())
-	{
-		return false;
-	}
-
-	bool bResult = false;
-	FMaterialParameterMetadata Meta;
-	if (Source->GetParameterValue(Meta))
-	{
-		const FName ParameterName = Destination->GetParameterName();
-		Destination->Modify();
-
-		const EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::NoUpdateExpressionGuid | EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority;
-		verify(Destination->SetParameterValue(ParameterName, Meta, Flags));
-
-		Destination->Desc = Source->Desc;
-		Destination->GraphNode->OnUpdateCommentText(Destination->Desc);
-		bResult = true;
-	}
-
-	return bResult;
 }
 #endif // WITH_EDITOR
 
