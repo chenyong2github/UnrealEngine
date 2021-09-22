@@ -73,6 +73,27 @@ enum class EMaterialSetParameterValueFlags : uint32
 ENUM_CLASS_FLAGS(EMaterialSetParameterValueFlags);
 
 USTRUCT()
+struct FParameterChannelNames
+{
+	GENERATED_USTRUCT_BODY()
+
+	FParameterChannelNames() = default;
+	FParameterChannelNames(const FText& InR, const FText& InG, const FText& InB, const FText& InA) : R(InR), G(InG), B(InB), A(InA) {}
+
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+	FText R;
+
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+	FText G;
+
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+	FText B;
+
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
+	FText A;
+};
+
+USTRUCT()
 struct FStaticComponentMaskValue
 {
 	GENERATED_USTRUCT_BODY();
@@ -184,15 +205,24 @@ struct FMaterialParameterMetadata
 
 #if WITH_EDITORONLY_DATA
 	/** Name of channels, for Vectors/Textures */
-	FText ChannelName[4];
+	FParameterChannelNames ChannelNames;
 
 	/** Curve/Atlas used to generate scalar value */
 	TSoftObjectPtr<class UCurveLinearColor> ScalarCurve;
 	TSoftObjectPtr<class UCurveLinearColorAtlas> ScalarAtlas;
 
+	/** Description of the parameter, typically taken from the 'Desc' field of the parameter's UMaterialExpression */
+	FString Description;
+
+	/** Name of the parameter's group */
+	FName Group;
+
 	/** UI range for scalar values */
 	float ScalarMin = 0.0f;
 	float ScalarMax = 0.0f;
+
+	/** Used for sorting parameter within the group, in the UI */
+	int32 SortPriority = 0;
 
 	/** GUID of the UMaterialExpression this parameter came from */
 	FGuid ExpressionGuid;

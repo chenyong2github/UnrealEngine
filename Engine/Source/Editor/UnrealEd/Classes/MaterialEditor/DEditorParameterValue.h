@@ -42,6 +42,7 @@ class UNREALED_API UDEditorParameterValue : public UObject
 	virtual bool GetValue(FMaterialParameterMetadata& OutResult) const
 	{
 		OutResult.ExpressionGuid = ExpressionId;
+		OutResult.SortPriority = SortPriority;
 		OutResult.bOverride = bOverride;
 		return false;
 	}

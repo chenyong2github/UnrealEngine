@@ -1864,56 +1864,6 @@ void UMaterialInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-bool UMaterialInstance::GetGroupName(const FHashedMaterialParameterInfo& ParameterInfo, FName& OutGroup) const
-{
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// @TODO: Alter to match sort priority behavior?
-	for (const FStaticMaterialLayersParameter& Param : StaticParameters.MaterialLayersParameters)
-	{
-		if (Param.bOverride)
-		{
-			if (ParameterInfo.Association == EMaterialParameterAssociation::LayerParameter)
-			{
-				if(Param.Value.Layers.IsValidIndex(ParameterInfo.Index))
-				{
-					UMaterialFunctionInterface* Layer = Param.Value.Layers[ParameterInfo.Index];
-
-					if (Layer && Layer->GetParameterGroupName(ParameterInfo, OutGroup))
-					{
-						return true;
-					}
-				}
-			}
-			else if (ParameterInfo.Association == EMaterialParameterAssociation::BlendParameter)
-			{
-				if(Param.Value.Blends.IsValidIndex(ParameterInfo.Index))
-				{
-					UMaterialFunctionInterface* Blend = Param.Value.Blends[ParameterInfo.Index];
-
-					if (Blend && Blend->GetParameterGroupName(ParameterInfo, OutGroup))
-					{
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		Parent->GetGroupName(ParameterInfo, OutGroup);
-	}
-
-	return false;
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
 void UMaterialInstance::ForceRecompileForRendering()
 {
 	UpdateCachedLayerParameters();
@@ -3536,28 +3486,6 @@ float UMaterialInstance::GetExportResolutionScale() const
 }
 
 #if WITH_EDITOR
-bool UMaterialInstance::GetParameterDesc(const FHashedMaterialParameterInfo& ParameterInfo, FString& OutDesc, const TArray<struct FStaticMaterialLayersParameter>*) const
-{
-	const UMaterial* BaseMaterial = GetMaterial();
-	if (BaseMaterial && BaseMaterial->GetParameterDesc(ParameterInfo, OutDesc, &StaticParameters.MaterialLayersParameters))
-	{
-		return true;
-	}
-
-	return false;
-}
-
-bool UMaterialInstance::GetParameterSortPriority(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutSortPriority, const TArray<struct FStaticMaterialLayersParameter>*) const
-{
-	const UMaterial* BaseMaterial = GetMaterial();
-	if (BaseMaterial && BaseMaterial->GetParameterSortPriority(ParameterInfo, OutSortPriority, &StaticParameters.MaterialLayersParameters))
-	{
-		return true;
-	}
-
-	return false;
-}
-
 bool UMaterialInstance::GetGroupSortPriority(const FString& InGroupName, int32& OutSortPriority) const
 {
 	// @TODO: This needs to handle overridden functions, layers and blends
@@ -3569,7 +3497,6 @@ bool UMaterialInstance::GetGroupSortPriority(const FString& InGroupName, int32& 
 
 	return false;
 }
-
 bool UMaterialInstance::GetTexturesInPropertyChain(EMaterialProperty InProperty, TArray<UTexture*>& OutTextures,  
 	TArray<FName>* OutTextureParamNames, struct FStaticParameterSet* InStaticParameterSet,
 	ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality)

@@ -441,10 +441,7 @@ bool UMaterialInterface::GetVectorParameterChannelNames(const FHashedMaterialPar
 	FMaterialParameterMetadata Result;
 	if (GetParameterValue(EMaterialParameterType::Vector, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent))
 	{
-		OutValue.R = Result.ChannelName[0];
-		OutValue.G = Result.ChannelName[1];
-		OutValue.B = Result.ChannelName[2];
-		OutValue.A = Result.ChannelName[3];
+		OutValue = Result.ChannelNames;
 		return true;
 	}
 	return false;
@@ -522,10 +519,7 @@ bool UMaterialInterface::GetTextureParameterChannelNames(const FHashedMaterialPa
 	FMaterialParameterMetadata Result;
 	if (GetParameterValue(EMaterialParameterType::Texture, ParameterInfo, Result, EMaterialGetParameterValueFlags::CheckNonOverrides | EMaterialGetParameterValueFlags::CheckParent))
 	{
-		OutValue.R = Result.ChannelName[0];
-		OutValue.G = Result.ChannelName[1];
-		OutValue.B = Result.ChannelName[2];
-		OutValue.A = Result.ChannelName[3];
+		OutValue = Result.ChannelNames;
 		return true;
 	}
 	return false;
@@ -680,13 +674,45 @@ bool UMaterialInterface::GetRefractionSettings(float& OutBiasValue) const
 }
 
 #if WITH_EDITOR
-bool UMaterialInterface::GetParameterDesc(const FHashedMaterialParameterInfo& ParameterInfo, FString& OutDesc, const TArray<struct FStaticMaterialLayersParameter>* MaterialLayersParameters) const
+bool UMaterialInterface::GetParameterDesc(const FHashedMaterialParameterInfo& ParameterInfo, FString& OutDesc) const
 {
+	for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
+	{
+		FMaterialParameterMetadata Meta;
+		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckAll))
+		{
+			OutDesc = Meta.Description;
+			return true;
+		}
+	}
 	return false;
 }
 
 bool UMaterialInterface::GetGroupName(const FHashedMaterialParameterInfo& ParameterInfo, FName& OutDesc) const
 {
+	for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
+	{
+		FMaterialParameterMetadata Meta;
+		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckAll))
+		{
+			OutDesc = Meta.Group;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMaterialInterface::GetParameterSortPriority(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutSortPriority) const
+{
+	for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
+	{
+		FMaterialParameterMetadata Meta;
+		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckAll))
+		{
+			OutSortPriority = Meta.SortPriority;
+			return true;
+		}
+	}
 	return false;
 }
 #endif // WITH_EDITOR

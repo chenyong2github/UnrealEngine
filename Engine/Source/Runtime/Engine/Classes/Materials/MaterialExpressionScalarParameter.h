@@ -47,18 +47,25 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = DefaultValue;
-		OutMeta.ExpressionGuid = ExpressionGUID;
 		OutMeta.ScalarMin = SliderMin;
 		OutMeta.ScalarMax = SliderMax;
-		return true;
+		return Super::GetParameterValue(OutMeta);
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::Scalar)
 		{
-			return SetParameterValue(Name, Meta.Value.AsScalar(), Flags);
+			if (SetParameterValue(Name, Meta.Value.AsScalar(), Flags))
+			{
+				if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority))
+				{
+					Group = Meta.Group;
+					SortPriority = Meta.SortPriority;
+				}
+				return true;
+			}
 		}
-		return Super::SetParameterValue(Name, Meta, Flags);
+		return false;
 	}
 #endif
 	//~ End UMaterialExpression Interface

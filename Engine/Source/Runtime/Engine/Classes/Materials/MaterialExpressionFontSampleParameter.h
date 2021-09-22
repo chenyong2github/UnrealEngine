@@ -51,16 +51,27 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = FMaterialParameterValue(Font, FontTexturePage);
+		OutMeta.Description = Desc;
 		OutMeta.ExpressionGuid = ExpressionGUID;
+		OutMeta.Group = Group;
+		OutMeta.SortPriority = SortPriority;
 		return true;
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::Font)
 		{
-			return SetParameterValue(Name, Meta.Value.Font.Value, Meta.Value.Font.Page, Flags);
+			if (SetParameterValue(Name, Meta.Value.Font.Value, Meta.Value.Font.Page, Flags))
+			{
+				if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority))
+				{
+					Group = Meta.Group;
+					SortPriority = Meta.SortPriority;
+				}
+				return true;
+			}
 		}
-		return Super::SetParameterValue(Name, Meta, Flags);
+		return false;
 	}
 #endif
 	//~ End UMaterialExpression Interface

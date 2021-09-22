@@ -56,21 +56,30 @@ struct FMaterialParameterCollectionInfo
 };
 
 USTRUCT()
-struct FParameterChannelNames
+struct FMaterialCachedParameterEditorInfo
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-	FText R;
+	FMaterialCachedParameterEditorInfo() = default;
+	FMaterialCachedParameterEditorInfo(const FGuid& InGuid) : ExpressionGuid(InGuid) {}
+	FMaterialCachedParameterEditorInfo(const FGuid& InGuid, const FString& InDescription, const FName& InGroup, int32 InSortPriority)
+		: Description(InDescription)
+		, Group(InGroup)
+		, SortPriority(InSortPriority)
+		, ExpressionGuid(InGuid)
+	{}
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-	FText G;
+	UPROPERTY()
+	FString Description;
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-	FText B;
+	UPROPERTY()
+	FName Group;
 
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionVectorParameter)
-	FText A;
+	UPROPERTY()
+	int32 SortPriority = 0;
+
+	UPROPERTY()
+	FGuid ExpressionGuid;
 };
 
 USTRUCT()
@@ -88,8 +97,9 @@ struct FMaterialCachedParameterEntry
 	TSet<FMaterialParameterInfo> ParameterInfoSet;
 
 #if WITH_EDITORONLY_DATA
+	// Editor-only information for each parameter
 	UPROPERTY()
-	TArray<FGuid> ExpressionGuids;
+	TArray<FMaterialCachedParameterEditorInfo> EditorInfo;
 #endif // WITH_EDITORONLY_DATA
 
 };

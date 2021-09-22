@@ -29,10 +29,7 @@ class UNREALED_API UDEditorVectorParameterValue : public UDEditorParameterValue
 		UDEditorParameterValue::GetValue(OutResult);
 		OutResult.Value = ParameterValue;
 		OutResult.bUsedAsChannelMask = bIsUsedAsChannelMask;
-		OutResult.ChannelName[0] = ChannelNames.R;
-		OutResult.ChannelName[1] = ChannelNames.G;
-		OutResult.ChannelName[2] = ChannelNames.B;
-		OutResult.ChannelName[3] = ChannelNames.A;
+		OutResult.ChannelNames = ChannelNames;
 		return true;
 	}
 

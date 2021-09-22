@@ -41,22 +41,29 @@ public:
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = FMaterialParameterValue(DefaultR, DefaultG, DefaultB, DefaultA);
-		OutMeta.ExpressionGuid = ExpressionGUID;
-		return true;
+		return Super::GetParameterValue(OutMeta);
 	}
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags) override
 	{
 		if (Meta.Value.Type == EMaterialParameterType::StaticComponentMask)
 		{
-			return SetParameterValue(Name,
+			if (SetParameterValue(Name,
 				Meta.Value.Bool[0],
 				Meta.Value.Bool[1],
 				Meta.Value.Bool[2],
 				Meta.Value.Bool[3],
 				Meta.ExpressionGuid,
-				Flags);
+				Flags))
+			{
+				if (EnumHasAnyFlags(Flags, EMaterialExpressionSetParameterValueFlags::AssignGroupAndSortPriority))
+				{
+					Group = Meta.Group;
+					SortPriority = Meta.SortPriority;
+				}
+				return true;
+			}
 		}
-		return Super::SetParameterValue(Name, Meta, Flags);
+		return false;
 	}
 #endif
 	//~ End UMaterialExpression Interface
