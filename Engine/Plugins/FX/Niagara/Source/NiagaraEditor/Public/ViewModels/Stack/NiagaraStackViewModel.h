@@ -140,6 +140,7 @@ public:
 
 	bool HasIssues() const;
 
+	void Refresh() { bRefreshPending = true; }
 private:
 	/** Recursively Expands all groups and collapses all items in the stack. */
 	void CollapseToHeadersRecursive(TArray<UNiagaraStackEntry*> Entries);
