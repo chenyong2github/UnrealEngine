@@ -13019,12 +13019,12 @@ bool UMaterialFunction::HasFlippedCoordinates() const
 
 bool UMaterialFunction::SetParameterValueEditorOnly(const FName& ParameterName, const FMaterialParameterMetadata& Meta)
 {
+	bool bResult = false;
 	for (UMaterialExpression* Expression : FunctionExpressions)
 	{
 		if (Expression->SetParameterValue(ParameterName, Meta))
 		{
-			return true;
-			// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
+			bResult = true;
 		}
 		else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
 		{
@@ -13043,7 +13043,7 @@ bool UMaterialFunction::SetParameterValueEditorOnly(const FName& ParameterName, 
 						{
 							if (FunctionExpression->SetParameterValue(ParameterName, Meta))
 							{
-								return true;
+								bResult = true;
 							}
 						}
 					}
@@ -13051,7 +13051,7 @@ bool UMaterialFunction::SetParameterValueEditorOnly(const FName& ParameterName, 
 			}
 		}
 	}
-	return false;
+	return bResult;
 }
 
 bool UMaterialFunction::SetVectorParameterValueEditorOnly(FName ParameterName, FLinearColor InValue)
