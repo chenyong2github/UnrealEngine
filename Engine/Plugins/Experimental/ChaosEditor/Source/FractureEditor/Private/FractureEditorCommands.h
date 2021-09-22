@@ -59,6 +59,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > Uniform;
 		TSharedPtr< FUICommandInfo > Radial;
 		TSharedPtr< FUICommandInfo > Clustered;
+		TSharedPtr< FUICommandInfo > CustomVoronoi;
 		TSharedPtr< FUICommandInfo > Planar;
 		TSharedPtr< FUICommandInfo > Slice;
 		TSharedPtr< FUICommandInfo > Brick;
