@@ -71,6 +71,16 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 		PreviousFrameTransform = CurrentFrameTransform;
 		GetActorBounds(true, BoxOrigin, BoxExtent);
 	}
+
+	// Display Cluster uses HiddenPrimitives to hide Primitive components from view. Store component id to be used
+	// on render thread.
+	if (const UPrimitiveComponent* FirstPrimitiveComponent = FindComponentByClass<UPrimitiveComponent>())
+	{
+		if (!(FirstPrimitiveId == FirstPrimitiveComponent->ComponentId))
+		{
+			FirstPrimitiveId = FirstPrimitiveComponent->ComponentId;
+		}
+	}
 }
 
 void AColorCorrectRegion::Cleanup()

@@ -377,7 +377,9 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 #if WITH_EDITOR
 				Region->IsHiddenEd() ||
 #endif
-				Region->GetWorld() != ViewFamily.Scene->GetWorld())
+				Region->GetWorld() != ViewFamily.Scene->GetWorld() ||
+				// Display Cluster uses HiddenPrimitives to hide Primitive components from view.
+				View.HiddenPrimitives.Contains(Region->GetFirstPrimitiveId()))
 			{
 				continue;
 			}
