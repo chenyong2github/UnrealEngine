@@ -1228,7 +1228,11 @@ int32 MergeBones(
 	}
 
 	// remove transforms for all geometry that was merged in
-	Collection.RemoveElements(FGeometryCollection::TransformGroup, AllRemoveIndices);
+	FManagedArrayCollection::FProcessingParameters ProcessingParams;
+#if !UE_BUILD_DEBUG
+	ProcessingParams.bDoValidation = false;
+#endif
+	Collection.RemoveElements(FGeometryCollection::TransformGroup, AllRemoveIndices, ProcessingParams);
 
 	return INDEX_NONE; // TODO: consider tracking smallest index of updated groups?  but no reason to do so currently
 }
