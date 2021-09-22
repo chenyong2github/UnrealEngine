@@ -41,11 +41,12 @@ public:
 	UPROPERTY()
 	bool bShowOnlyModified { false };
 
+	/** Show sections. */
 	UPROPERTY()
-	float ValueColumnWidth { 0 };
+	bool bShowSections { true };
 
 	UPROPERTY()
-	float RightColumnWidth { 0 };
+	float ValueColumnWidth { 0 };
 };
 
 UCLASS(EditorConfig="DetailsView")

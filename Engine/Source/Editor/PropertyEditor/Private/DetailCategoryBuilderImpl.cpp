@@ -986,7 +986,8 @@ void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 		return;
 	}
 
-	if (!InFilter.VisibleSections.IsEmpty())
+	// only apply the section filter if the user hasn't typed anything
+	if (InFilter.FilterStrings.IsEmpty() && !InFilter.VisibleSections.IsEmpty())
 	{
 		const UStruct* BaseStruct = GetParentBaseStructure();
 		if (BaseStruct != nullptr)
@@ -994,8 +995,29 @@ void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 			static FName PropertyEditor("PropertyEditor");
 			const FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 
-			FName SectionName = PropertyModule.FindSectionForCategory(BaseStruct, CategoryName);
-			if (SectionName.IsNone() || !InFilter.VisibleSections.Contains(SectionName))
+			TArray<TSharedPtr<FPropertySection>> PropertySections = PropertyModule.FindSectionsForCategory(BaseStruct, CategoryName);
+			if (PropertySections.IsEmpty())
+			{
+				return;
+			}
+
+			// if this property is not in any visible section, hide it
+			bool bFound = false;
+			for (FName VisibleSection : InFilter.VisibleSections)
+			{
+				auto Predicate = [VisibleSection](const TSharedPtr<FPropertySection>& Elem)
+				{
+					return Elem->GetName() == VisibleSection;
+				};
+
+				if (PropertySections.ContainsByPredicate(Predicate))
+				{
+					bFound = true;
+					break;
+				}
+			}
+
+			if (!bFound)
 			{
 				return;
 			}

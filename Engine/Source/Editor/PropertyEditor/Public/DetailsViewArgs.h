@@ -48,7 +48,7 @@ struct FDetailsViewArgs
 	class FNotifyHook* NotifyHook;
 	/** Settings for displaying the name area (@see ENameAreaSettings) */
 	int32 NameAreaSettings;
-	/** The default column width */
+	/** The default value column width, as a percentage, 0-1. */
 	float ColumnWidth;
 	/** The minimum width of the right column in Slate units. */
 	float RightColumnMinWidth;
