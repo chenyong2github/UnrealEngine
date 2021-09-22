@@ -19,6 +19,7 @@ public:
 		: ParentCategory(InParentCategory.Get())
 		, IsEnabled(InEnabled)
 		, IsExpanded(InExpanded)
+		, IsVisible(bIsVisible)
 	{
 		SetParentNode(InParentCategory);
 	}
@@ -48,4 +49,5 @@ private:
 	FDetailCategoryImpl& ParentCategory;
 	TAttribute<bool> IsEnabled;
 	TAttribute<bool> IsExpanded;
+	bool IsVisible;
 };
