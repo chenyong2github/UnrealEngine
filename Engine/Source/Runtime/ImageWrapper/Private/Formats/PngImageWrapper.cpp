@@ -440,7 +440,19 @@ bool FPngImageWrapper::LoadPNGHeader()
 			ColorType = info_ptr->color_type;
 			BitDepth = info_ptr->bit_depth;
 			Channels = info_ptr->channels;
-			Format = (ColorType & PNG_COLOR_MASK_COLOR) ? ERGBFormat::RGBA : ERGBFormat::Gray;
+			if (info_ptr->valid & PNG_INFO_tRNS)
+			{
+				Format = ERGBFormat::RGBA;
+			}
+			else
+			{
+				Format = (ColorType & PNG_COLOR_MASK_COLOR || ColorType & PNG_COLOR_MASK_ALPHA) ? ERGBFormat::RGBA : ERGBFormat::Gray;
+			}
+
+			if (Format == ERGBFormat::RGBA && BitDepth <= 8)
+			{
+				Format = ERGBFormat::BGRA;
+			}
 		}
 
 		return true;
