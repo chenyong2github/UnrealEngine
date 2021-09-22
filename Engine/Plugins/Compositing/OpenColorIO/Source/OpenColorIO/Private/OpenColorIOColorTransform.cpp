@@ -514,17 +514,27 @@ void UOpenColorIOColorTransform::PostLoad()
 		}
 	}
 
+	if (!ConfigurationOwner && GetOuter())
+	{
+		UE_LOG(LogOpenColorIO, Verbose, TEXT("ConfigurationOwner is null. Assigning Outer to ConfigurationOwner."));
+		ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
+	}
+
 	//To be able to fetch OCIO data, make sure our config owner has been postloaded.
 	if (ConfigurationOwner)
 	{
 		ConfigurationOwner->ConditionalPostLoad();
+		CacheResourceTextures();
+		CacheResourceShadersForRendering(false);
+	}
+	else
+	{
+		UE_LOG(LogOpenColorIO, Warning, TEXT("Outer is not an UOpenColorIOConfiguration. Outer class: %s, Outer name: %s. "), *GetOuter()->GetClass()->GetName(), *GetOuter()->GetName());
 	}
 
 	// Empty the list of loaded resources, we don't need it anymore
 	LoadedTransformResources.Empty();
 
-	CacheResourceTextures();
-	CacheResourceShadersForRendering(false);
 }
 
 void UOpenColorIOColorTransform::BeginDestroy()
