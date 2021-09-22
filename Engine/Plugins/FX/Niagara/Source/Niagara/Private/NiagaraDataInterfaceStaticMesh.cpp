@@ -10,7 +10,6 @@
 #include "Internationalization/Internationalization.h"
 #include "NiagaraScript.h"
 #include "ShaderParameterUtils.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceStaticMesh"
@@ -834,7 +833,7 @@ void FNiagaraDataInterfaceProxyStaticMesh::InitializePerInstanceData(const FNiag
 	Data.MeshGpuSpawnBuffer = MeshGPUSpawnBuffer;
 }
 
-void FNiagaraDataInterfaceProxyStaticMesh::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
+void FNiagaraDataInterfaceProxyStaticMesh::DestroyPerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 	//check(SystemInstancesToMeshData.Contains(SystemInstance));
@@ -1591,9 +1590,9 @@ void UNiagaraDataInterfaceStaticMesh::DestroyPerInstanceData(void* PerInstanceDa
 	{
 		FNiagaraDataInterfaceProxyStaticMesh* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyStaticMesh>();
 		ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
-			[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
+			[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 			{
-				ThisProxy->DestroyPerInstanceData(Batcher, InstanceID);
+				ThisProxy->DestroyPerInstanceData(InstanceID);
 			}
 		);
 	}

@@ -5,7 +5,6 @@
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "ShaderParameterUtils.h"
 #include "Field/FieldSystemNodes.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
@@ -214,7 +213,7 @@ void FNDIPhysicsFieldProxy::InitializePerInstanceData(const FNiagaraSystemInstan
 	TargetData = &SystemInstancesToProxyData.Add(SystemInstance);
 }
 
-void FNDIPhysicsFieldProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance)
+void FNDIPhysicsFieldProxy::DestroyPerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
 {
 	check(IsInRenderingThread());
 	SystemInstancesToProxyData.Remove(SystemInstance);
@@ -249,7 +248,7 @@ void UNiagaraDataInterfacePhysicsField::DestroyPerInstanceData(void* PerInstance
 
 	FNDIPhysicsFieldProxy* ThisProxy = GetProxyAs<FNDIPhysicsFieldProxy>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
-		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
+		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 	{
 		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
 	}

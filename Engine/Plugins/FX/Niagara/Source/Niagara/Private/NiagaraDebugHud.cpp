@@ -2,8 +2,9 @@
 
 #include "NiagaraDebugHud.h"
 #include "NiagaraComponent.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraFunctionLibrary.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraScript.h"
 #include "NiagaraSystem.h"
 #include "NiagaraWorldManager.h"
@@ -755,9 +756,9 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 			GpuCachedData->PendingEmitterData[iEmitter]->Frame.Init(&AllEmittersCompiledData[iEmitter]->DataSetCompiledData);
 
 			ENQUEUE_RENDER_COMMAND(NiagaraReadbackGpuSim)(
-				[RT_Batcher=SystemInstance->GetBatcher(), RT_InstanceID=SystemInstance->GetId(), RT_DebugInfo=GpuCachedData->PendingEmitterData[iEmitter], RT_Context=GPUExecContext](FRHICommandListImmediate& RHICmdList)
+				[RT_ComputeDispatchInterface=SystemInstance->GetComputeDispatchInterface(), RT_InstanceID=SystemInstance->GetId(), RT_DebugInfo=GpuCachedData->PendingEmitterData[iEmitter], RT_Context=GPUExecContext](FRHICommandListImmediate& RHICmdList)
 				{
-					RT_Batcher->AddDebugReadback(RT_InstanceID, RT_DebugInfo, RT_Context);
+					RT_ComputeDispatchInterface->AddDebugReadback(RT_InstanceID, RT_DebugInfo, RT_Context);
 				}
 			);
 		}

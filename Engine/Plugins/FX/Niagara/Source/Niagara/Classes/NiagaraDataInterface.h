@@ -252,10 +252,10 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) {}
 
 	virtual bool RequiresPreStageFinalize() const { return false; }
-	virtual void FinalizePreStage(FRHICommandList& RHICmdList, const NiagaraEmitterInstanceBatcher* Batcher) {}
+	virtual void FinalizePreStage(FRHICommandList& RHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface) {}
 
 	virtual bool RequiresPostStageFinalize() const { return false; }
-	virtual void FinalizePostStage(FRHICommandList& RHICmdList, const NiagaraEmitterInstanceBatcher* Batcher) {}
+	virtual void FinalizePostStage(FRHICommandList& RHICmdList, const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface) {}
 
 	virtual FNiagaraDataInterfaceProxyRW* AsIterationProxy() { return nullptr; }
 };

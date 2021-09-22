@@ -16,7 +16,7 @@ class FNiagaraSystemInstance;
 struct FNiagaraEmitterHandle;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
-class NiagaraEmitterInstanceBatcher;
+class FNiagaraGpuComputeDispatchInterface;
 struct FNiagaraEmitterCompiledData;
 
 /**
@@ -210,7 +210,7 @@ private:
 
 	FNiagaraSystemInstanceID OwnerSystemInstanceID;
 
-	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = nullptr;
 
 	/** particle simulation data. Must be a shared ref as various things on the RT can have direct ref to it. */
 	FNiagaraDataSet* ParticleDataSet = nullptr;

@@ -4,10 +4,10 @@
 #include "ParticleResources.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSortingGPU.h"
 #include "NiagaraComponent.h"
 #include "NiagaraCutoutVertexBuffer.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
@@ -178,9 +178,9 @@ void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 #endif
 }
 
-void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraRendererSprites::CreateRenderThreadResources()
 {
-	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
+	FNiagaraRenderer::CreateRenderThreadResources();
 	CutoutVertexBuffer.InitResource();
 
 #if RHI_RAYTRACING
@@ -203,7 +203,7 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRenderData& ParticleSpriteRenderData, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const
 {
 	ParticleSpriteRenderData.DynamicDataSprites = static_cast<FNiagaraDynamicDataSprites*>(InDynamicData);
-	if (!ParticleSpriteRenderData.DynamicDataSprites || !SceneProxy->GetBatcher())
+	if (!ParticleSpriteRenderData.DynamicDataSprites || !SceneProxy->GetComputeDispatchInterface())
 	{
 		ParticleSpriteRenderData.SourceParticleData = nullptr;
 		return;
@@ -244,7 +244,7 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 	// Particle source mode
 	if (SourceMode == ENiagaraRendererSourceDataMode::Particles)
 	{
-		const EShaderPlatform ShaderPlatform = SceneProxy->GetBatcher()->GetShaderPlatform();
+		const EShaderPlatform ShaderPlatform = SceneProxy->GetComputeDispatchInterface()->GetShaderPlatform();
 
 		// Determine if we need sorting
 		ParticleSpriteRenderData.bNeedsSort = SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout || BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent);
@@ -395,7 +395,7 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 
 	if (ParticleSpriteRenderData.bSortCullOnGpu)
 	{
-		NiagaraEmitterInstanceBatcher* Batcher = SceneProxy.GetBatcher();
+		FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = SceneProxy.GetComputeDispatchInterface();
 
 		OutSortInfo.ParticleDataFloatSRV = ParticleSpriteRenderData.ParticleFloatSRV;
 		OutSortInfo.ParticleDataHalfSRV = ParticleSpriteRenderData.ParticleHalfSRV;
@@ -403,7 +403,7 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 		OutSortInfo.FloatDataStride = ParticleSpriteRenderData.ParticleFloatDataStride;
 		OutSortInfo.HalfDataStride = ParticleSpriteRenderData.ParticleHalfDataStride;
 		OutSortInfo.IntDataStride = ParticleSpriteRenderData.ParticleIntDataStride;
-		OutSortInfo.GPUParticleCountSRV = GetSrvOrDefaultUInt(Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer());
+		OutSortInfo.GPUParticleCountSRV = GetSrvOrDefaultUInt(ComputeDispatchInterface->GetGPUInstanceCounterManager().GetInstanceCountBuffer());
 		OutSortInfo.GPUParticleCountOffset = ParticleSpriteRenderData.SourceParticleData->GetGPUInstanceCountBufferOffset();
 	}
 
@@ -761,10 +761,10 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	FNiagaraGPUInstanceCountManager::FIndirectArgSlot IndirectDraw;
 	if ((SourceMode == ENiagaraRendererSourceDataMode::Particles) && (GPUCountBufferOffset != INDEX_NONE))
 	{
-		NiagaraEmitterInstanceBatcher* Batcher = SceneProxy.GetBatcher();
-		check(Batcher);
+		FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = SceneProxy.GetComputeDispatchInterface();
+		check(ComputeDispatchInterface);
 
-		IndirectDraw = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(
+		IndirectDraw = ComputeDispatchInterface->GetGPUInstanceCounterManager().AddDrawIndirect(
 			GPUCountBufferOffset,
 			NumIndicesPerInstance,
 			0,
@@ -913,13 +913,13 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 			uint32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? ParticleSpriteRenderData.SourceParticleData->GetNumInstances() : 1;
 
 			VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
-			NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
+			FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = SceneProxy->GetComputeDispatchInterface();
 			if (ParticleSpriteRenderData.bNeedsCull || ParticleSpriteRenderData.bNeedsSort)
 			{
 				if (ParticleSpriteRenderData.bSortCullOnGpu)
 				{
-					SortInfo.CulledGPUParticleCountOffset = ParticleSpriteRenderData.bNeedsCull ? Batcher->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
-					if (Batcher->AddSortedGPUSimulation(SortInfo))
+					SortInfo.CulledGPUParticleCountOffset = ParticleSpriteRenderData.bNeedsCull ? ComputeDispatchInterface->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
+					if (ComputeDispatchInterface->AddSortedGPUSimulation(SortInfo))
 					{
 						VertexFactory.SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 					}
@@ -1004,13 +1004,13 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	uint32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? ParticleSpriteRenderData.SourceParticleData->GetNumInstances() : 1;
 
 	VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
-	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
+	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = SceneProxy->GetComputeDispatchInterface();
 	if (ParticleSpriteRenderData.bNeedsCull || ParticleSpriteRenderData.bNeedsSort)
 	{
 		if (ParticleSpriteRenderData.bSortCullOnGpu)
 		{
-			SortInfo.CulledGPUParticleCountOffset = ParticleSpriteRenderData.bNeedsCull ? Batcher->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
-			if (Batcher->AddSortedGPUSimulation(SortInfo))
+			SortInfo.CulledGPUParticleCountOffset = ParticleSpriteRenderData.bNeedsCull ? ComputeDispatchInterface->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
+			if (ComputeDispatchInterface->AddSortedGPUSimulation(SortInfo))
 			{
 				VertexFactory.SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 			}

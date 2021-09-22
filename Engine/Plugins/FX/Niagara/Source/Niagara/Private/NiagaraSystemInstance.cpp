@@ -4,14 +4,16 @@
 #include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraConstants.h"
 #include "NiagaraCommon.h"
+#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraGPUSystemTick.h"
 #include "NiagaraStats.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraGpuComputeDebug.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraCrashReporterHandler.h"
 
 #include "Async/Async.h"
@@ -128,15 +130,8 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 		InstanceParameters.SetOwner(InAttachComponent);
 	}
 
-	if (World->Scene)
-	{
-		FFXSystemInterface*  FXSystemInterface = World->Scene->GetFXSystem();
-		if (FXSystemInterface)
-		{
-			Batcher = static_cast<NiagaraEmitterInstanceBatcher*>(FXSystemInterface->GetInterface(NiagaraEmitterInstanceBatcher::Name));
-		}
-		FeatureLevel = World->FeatureLevel;
-	}
+	ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World);
+	FeatureLevel = World->FeatureLevel;
 
 	// In some cases the system may have already stated that you should ignore dependencies and tick as early as possible.
 	if (!InAsset.bRequireCurrentFrameData)
@@ -499,7 +494,7 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 {
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	UNiagaraSystem* System  = GetSystem();
-	if (Batcher == nullptr || System == nullptr)
+	if (ComputeDispatchInterface == nullptr || System == nullptr)
 	{
 		return;
 	}
@@ -522,9 +517,9 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 
 		ENQUEUE_RENDER_COMMAND(NiagaraAddGPUSystemDebug)
 		(
-			[RT_Batcher=Batcher, RT_InstanceID=GetId(), RT_SystemName=SystemName](FRHICommandListImmediate& RHICmdList)
+			[RT_ComputeDispatchInterface=ComputeDispatchInterface, RT_InstanceID=GetId(), RT_SystemName=SystemName](FRHICommandListImmediate& RHICmdList)
 			{
-				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_Batcher->GetGpuComputeDebug())
+				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebug())
 				{
 					GpuComputeDebug->AddSystemInstance(RT_InstanceID, RT_SystemName);
 				}
@@ -535,9 +530,9 @@ void FNiagaraSystemInstance::SetGpuComputeDebug(bool bEnableDebug)
 	{
 		ENQUEUE_RENDER_COMMAND(NiagaraRemoveGPUSystemDebug)
 		(
-			[RT_Batcher=Batcher, RT_InstanceID=GetId()](FRHICommandListImmediate& RHICmdList)
+			[RT_ComputeDispatchInterface=ComputeDispatchInterface, RT_InstanceID=GetId()](FRHICommandListImmediate& RHICmdList)
 			{
-				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_Batcher->GetGpuComputeDebug())
+				if (FNiagaraGpuComputeDebug* GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebug())
 				{
 					GpuComputeDebug->RemoveSystemInstance(RT_InstanceID);
 				}
@@ -634,7 +629,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(FNiagaraSystemInstancePtr&
 		if (SystemInstanceAllocation->SystemGpuComputeProxy)
 		{
 			FNiagaraSystemGpuComputeProxy* Proxy = SystemInstanceAllocation->SystemGpuComputeProxy.Release();
-			Proxy->RemoveFromBatcher(SystemInstanceAllocation->GetBatcher(), true);
+			Proxy->RemoveFromRenderThread(SystemInstanceAllocation->GetComputeDispatchInterface(), true);
 		}
 
 		// Queue deferred deletion from the WorldManager
@@ -687,7 +682,7 @@ void FNiagaraSystemInstance::Complete(bool bExternalCompletion)
 	if (SystemGpuComputeProxy)
 	{
 		FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
-		Proxy->RemoveFromBatcher(GetBatcher(), true);
+		Proxy->RemoveFromRenderThread(GetComputeDispatchInterface(), true);
 	}
 
 	if (!bPooled)
@@ -783,14 +778,14 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		Mode = EResetMode::ReInit;
 	}
 
-	// Remove any existing proxy from the batcher
+	// Remove any existing proxy from the diaptcher
 	// This MUST be done before the emitters array is re-initialized
 	if (SystemGpuComputeProxy.IsValid())
 	{
 		if (IsComplete() || (Mode != EResetMode::ResetSystem))
 		{
 			FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
-			Proxy->RemoveFromBatcher(GetBatcher(), true);
+			Proxy->RemoveFromRenderThread(GetComputeDispatchInterface(), true);
 		}
 	}
 
@@ -846,11 +841,11 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		//Interface init can disable the system.
 		if (!IsComplete())
 		{
-			// Create the shared context for the batcher if we have a single active GPU emitter in the system
+			// Create the shared context for the dispatcher if we have a single active GPU emitter in the system
 			if (bHasGPUEmitters && !SystemGpuComputeProxy.IsValid())
 			{
 				SystemGpuComputeProxy.Reset(new FNiagaraSystemGpuComputeProxy(this));
-				SystemGpuComputeProxy->AddToBatcher(GetBatcher());
+				SystemGpuComputeProxy->AddToRenderThread(GetComputeDispatchInterface());
 			}
 
 			// Create new random seed
@@ -1158,7 +1153,7 @@ void FNiagaraSystemInstance::Cleanup()
 	if (SystemGpuComputeProxy)
 	{
 		FNiagaraSystemGpuComputeProxy* Proxy = SystemGpuComputeProxy.Release();
-		Proxy->RemoveFromBatcher(GetBatcher(), true);
+		Proxy->RemoveFromRenderThread(GetComputeDispatchInterface(), true);
 	}
 
 	UnbindParameters();

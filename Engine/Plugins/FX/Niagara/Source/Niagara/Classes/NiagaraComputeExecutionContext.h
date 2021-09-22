@@ -2,11 +2,12 @@
 
 #pragma once
 
+#include "NiagaraSimStageData.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "RHIGPUReadback.h"
 
 class FNiagaraGPUInstanceCountManager;
-class NiagaraEmitterInstanceBatcher;
+class FNiagaraGpuComputeDispatchInterface;
 class FNiagaraGPUSystemTick;
 struct FNiagaraComputeInstanceData;
 struct FNiagaraComputeExecutionContext;
@@ -18,34 +19,6 @@ public:
 		: FRHIUniformBufferLayout(FRHIUniformBufferLayoutInitializer(LayoutName, ConstantBufferSize))
 	{
 	}
-};
-
-struct FNiagaraSimStageData
-{
-	FNiagaraSimStageData()
-	{
-		bFirstStage = false;
-		bLastStage = false;
-		bSetDataToRender = false;
-	}
-
-	uint32 bFirstStage : 1;
-	uint32 bLastStage : 1;
-	uint32 bSetDataToRender : 1;
-
-	uint32 StageIndex = INDEX_NONE;
-	uint32 IterationIndex = 0;
-
-	FNiagaraDataBuffer* Source = nullptr;
-	uint32 SourceCountOffset = INDEX_NONE;
-	uint32 SourceNumInstances = 0;
-
-	FNiagaraDataBuffer* Destination = nullptr;
-	uint32 DestinationCountOffset = INDEX_NONE;
-	uint32 DestinationNumInstances = 0;
-
-	FNiagaraDataInterfaceProxyRW* AlternateIterationSource = nullptr;
-	const FSimulationStageMetaData* StageMetaData = nullptr;
 };
 
 struct FNiagaraGpuDispatchInstance
@@ -123,7 +96,7 @@ struct FNiagaraComputeExecutionContext
 	FNiagaraComputeExecutionContext();
 	~FNiagaraComputeExecutionContext();
 
-	void Reset(NiagaraEmitterInstanceBatcher* Batcher);
+	void Reset(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface);
 
 	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget);
 	void DirtyDataInterfaces();
@@ -154,7 +127,7 @@ struct FNiagaraComputeExecutionContext
 #endif
 
 //-TOOD:private:
-	void ResetInternal(NiagaraEmitterInstanceBatcher* Batcher);
+	void ResetInternal(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface);
 
 public:
 	static uint32 TickCounter;

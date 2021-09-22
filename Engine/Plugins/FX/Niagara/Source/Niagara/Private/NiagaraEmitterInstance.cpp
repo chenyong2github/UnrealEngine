@@ -6,8 +6,9 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemGpuComputeProxy.h"
+#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraWorldManager.h"
@@ -128,8 +129,8 @@ FNiagaraEmitterInstance::FNiagaraEmitterInstance(FNiagaraSystemInstance* InParen
 {
 	ParticleDataSet = new FNiagaraDataSet();
 
-	Batcher = ParentSystemInstance ? ParentSystemInstance->GetBatcher() : nullptr;
-	check(Batcher != nullptr);
+	ComputeDispatchInterface = ParentSystemInstance ? ParentSystemInstance->GetComputeDispatchInterface() : nullptr;
+	check(ComputeDispatchInterface != nullptr);
 }
 
 FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
@@ -147,9 +148,8 @@ FNiagaraEmitterInstance::~FNiagaraEmitterInstance()
 		GPUExecContext->CombinedParamStore.UnbindAll();
 
 		/** We defer the deletion of the particle dataset and the compute context to the RT to be sure all in-flight RT commands have finished using it.*/
-		NiagaraEmitterInstanceBatcher* Batcher_RT = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
 		ENQUEUE_RENDER_COMMAND(FDeleteContextCommand)(
-			[Batcher_RT, ExecContext=GPUExecContext, DataSet= ParticleDataSet](FRHICommandListImmediate& RHICmdList)
+			[ExecContext=GPUExecContext, DataSet=ParticleDataSet](FRHICommandListImmediate& RHICmdList)
 			{
 				if ( ExecContext != nullptr )
 				{
@@ -234,7 +234,7 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		//-TODO: Could replace with CPU side sim in some cases
-		if ( !Batcher || !FNiagaraUtilities::AllowGPUParticles(Batcher->GetShaderPlatform()) )
+		if ( !ComputeDispatchInterface || !FNiagaraUtilities::AllowGPUParticles(ComputeDispatchInterface->GetShaderPlatform()) )
 		{
 			return false;
 		}
@@ -973,7 +973,7 @@ void FNiagaraEmitterInstance::CalculateFixedBounds(const FTransform& ToWorldSpac
 			return;
 		}
 
-		ScopedGPUReadback.ReadbackData(Batcher, GPUExecContext->MainDataSet);
+		ScopedGPUReadback.ReadbackData(ComputeDispatchInterface, GPUExecContext->MainDataSet);
 		NumInstances = ScopedGPUReadback.GetNumInstances();
 	}
 	else
@@ -1081,7 +1081,7 @@ bool FNiagaraEmitterInstance::HandleCompletion(bool bForce)
 	{
 		if( GPUExecContext )
 		{
-			GPUExecContext->Reset(Batcher);
+			GPUExecContext->Reset(ComputeDispatchInterface);
 		}
 		ParticleDataSet->ResetBuffers();
 		if (EventInstanceData.IsValid())
@@ -1177,7 +1177,7 @@ void FNiagaraEmitterInstance::PreTick()
 		UpdateExecContext.PostTick();
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 		{
-			//We PostTick the GPUExecContext here to prime crucial PREV parameters (such as PREV_Engine.Owner.Position). This PostTick call is necessary as the GPUExecContext has not been sent to the batcher yet.
+			//We PostTick the GPUExecContext here to prime crucial PREV parameters (such as PREV_Engine.Owner.Position). This PostTick call is necessary as the GPUExecContext has not been sent to the dispatch interface yet.
 			GPUExecContext->PostTick();
 		}
 
@@ -1225,7 +1225,7 @@ bool FNiagaraEmitterInstance::WaitForDebugInfo()
 	FNiagaraComputeExecutionContext* DebugContext = GPUExecContext;
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && DebugContext)
 	{
-		ENQUEUE_RENDER_COMMAND(CaptureCommand)([=](FRHICommandListImmediate& RHICmdList) { Batcher->ProcessDebugReadbacks(RHICmdList, true); });
+		ENQUEUE_RENDER_COMMAND(CaptureCommand)([=](FRHICommandListImmediate& RHICmdList) { ComputeDispatchInterface->ProcessDebugReadbacks(RHICmdList, true); });
 		FlushRenderingCommands(); 
 		return true;
 	}
@@ -1297,7 +1297,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		if (GPUExecContext)
 		{
-			GPUExecContext->Reset(Batcher);
+			GPUExecContext->Reset(ComputeDispatchInterface);
 		}
 		Data.ResetBuffers();
 		ExecutionState = ENiagaraExecutionState::Inactive;
@@ -1404,7 +1404,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		EmitterParameters.EmitterInstanceSeed = InstanceSeed;
 	}
 
-	/* GPU simulation -  we just create an FNiagaraComputeExecutionContext, queue it, and let the batcher take care of the rest
+	/* GPU simulation -  we just create an FNiagaraComputeExecutionContext, queue it, and let the dispatch interface take care of the rest
 	 */
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 	{
@@ -1415,7 +1415,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		if (ParentSystemInstance->ShouldCaptureThisFrame())
 		{
 			TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = ParentSystemInstance->GetActiveCaptureWrite(CachedIDName, ENiagaraScriptUsage::ParticleGPUComputeScript, FGuid());
-			if (DebugInfo && Batcher != nullptr)
+			if (DebugInfo && ComputeDispatchInterface != nullptr)
 			{
 				//Data.Dump(DebugInfo->Frame, true, 0, OrigNumParticles);
 				//DebugInfo->Frame.Dump(true, 0, OrigNumParticles);
@@ -1426,9 +1426,9 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 				// Execute a readback
 				ENQUEUE_RENDER_COMMAND(NiagaraReadbackGpuSim)(
-					[RT_Batcher=Batcher, RT_InstanceID=OwnerSystemInstanceID, RT_DebugInfo=DebugInfo, RT_Context=GPUExecContext](FRHICommandListImmediate& RHICmdList)
+					[RT_ComputeDispatchInterface = ComputeDispatchInterface, RT_InstanceID=OwnerSystemInstanceID, RT_DebugInfo=DebugInfo, RT_Context=GPUExecContext](FRHICommandListImmediate& RHICmdList)
 					{
-						RT_Batcher->AddDebugReadback(RT_InstanceID, RT_DebugInfo, RT_Context);
+						RT_ComputeDispatchInterface->AddDebugReadback(RT_InstanceID, RT_DebugInfo, RT_Context);
 					}
 				);
 			}
@@ -1538,7 +1538,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		SpawnExecContext.PostTick();
 		UpdateExecContext.PostTick();
 
-		// At this stage GPU execution is being handled by the batcher so we do not need to call PostTick() for it
+		// At this stage GPU execution is being handled by the dispatch interface so we do not need to call PostTick() for it
 		for (FNiagaraScriptExecutionContext& EventContext : GetEventExecutionContexts())
 		{
 			EventContext.PostTick();
@@ -2072,7 +2072,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 	SpawnExecContext.PostTick();
 	UpdateExecContext.PostTick();
-	// At this stage GPU execution is being handled by the batcher so we do not need to call PostTick() for it
+	// At this stage GPU execution is being handled by the dispatch interface so we do not need to call PostTick() for it
 
 	for (FNiagaraScriptExecutionContext& EventContext : GetEventExecutionContexts())
 	{

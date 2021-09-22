@@ -2,7 +2,7 @@
 #include "NiagaraDataInterfaceRasterizationGrid3D.h"
 #include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderParticleID.h"
@@ -79,7 +79,7 @@ public:
 
 			if (OutputIntGridParam.IsUAVBound())
 			{
-				RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputIntGridParam.GetUAVIndex(), Context.Batcher->GetEmptyUAVFromPool(RHICmdList, PF_R32_SINT, ENiagaraEmptyUAVType::Buffer));
+				RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputIntGridParam.GetUAVIndex(), Context.ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, PF_R32_SINT, ENiagaraEmptyUAVType::Buffer));
 			}
 
 			return;
@@ -99,7 +99,7 @@ public:
 
 			if (OutputIntGridParam.IsUAVBound())
 			{
-				RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputIntGridParam.GetUAVIndex(), Context.Batcher->GetEmptyUAVFromPool(RHICmdList, PF_R32_SINT, ENiagaraEmptyUAVType::Buffer));
+				RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputIntGridParam.GetUAVIndex(), Context.ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, PF_R32_SINT, ENiagaraEmptyUAVType::Buffer));
 			}
 		}
 		else
@@ -730,7 +730,7 @@ void UNiagaraDataInterfaceRasterizationGrid3D::DestroyPerInstanceData(void* PerI
 		return;
 
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
-		[ThisProxy, InstanceID = SystemInstance->GetId(), Batcher = SystemInstance->GetBatcher()](FRHICommandListImmediate& CmdList)
+		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
 	{
 		//check(ThisProxy->SystemInstancesToProxyData.Contains(InstanceID));
 		ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
@@ -745,7 +745,7 @@ void FNiagaraDataInterfaceProxyRasterizationGrid3D::PreStage(FRHICommandList& RH
 		RasterizationGrid3DRWInstanceData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		SCOPED_DRAW_EVENT(RHICmdList, NiagaraRasterizationGrid3DClearNeighborInfo);
-		ERHIFeatureLevel::Type FeatureLevel = Context.Batcher->GetFeatureLevel();
+		ERHIFeatureLevel::Type FeatureLevel = Context.ComputeDispatchInterface->GetFeatureLevel();
 
 		FRHITransitionInfo TransitionInfos[] =
 		{			

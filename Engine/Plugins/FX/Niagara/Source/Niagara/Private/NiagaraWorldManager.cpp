@@ -15,11 +15,11 @@
 #include "GameFramework/PlayerController.h"
 #include "EngineModule.h"
 #include "NiagaraStats.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraComponentPool.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraDebugHud.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Particles/FXBudget.h"
 #include "NiagaraFunctionLibrary.h"
@@ -509,11 +509,11 @@ void FNiagaraWorldManager::OnSystemPostChange(UNiagaraSystem* System)
 }
 #endif//WITH_EDITOR
 
-void FNiagaraWorldManager::OnBatcherDestroyed_Internal(NiagaraEmitterInstanceBatcher* InBatcher)
+void FNiagaraWorldManager::OnComputeDispatchInterfaceDestroyed_Internal(FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface)
 {
-	// Process the deferred deletion queue before deleting the batcher of this world.
-	// This is required because the batcher is accessed in FNiagaraEmitterInstance::~FNiagaraEmitterInstance
-	if (World && World->FXSystem && World->FXSystem->GetInterface(NiagaraEmitterInstanceBatcher::Name) == InBatcher)
+	// Process the deferred deletion queue before deleting the ComputeDispatchInterface of this world.
+	// This is required because the ComputeDispatchInterface is accessed in FNiagaraEmitterInstance::~FNiagaraEmitterInstance
+	if (FNiagaraGpuComputeDispatchInterface::Get(World) == InComputeDispatchInterface)
 	{
 		DeferredDeletionQueue.Empty();
 	}
@@ -650,11 +650,11 @@ void FNiagaraWorldManager::OnWorldBeginTearDown(UWorld* World)
 // 	}
 }
 
-void FNiagaraWorldManager::OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InBatcher)
+void FNiagaraWorldManager::OnComputeDispatchInterfaceDestroyed(FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface)
 {
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
 	{
-		Pair.Value->OnBatcherDestroyed_Internal(InBatcher);
+		Pair.Value->OnComputeDispatchInterfaceDestroyed_Internal(InComputeDispatchInterface);
 	}
 }
 

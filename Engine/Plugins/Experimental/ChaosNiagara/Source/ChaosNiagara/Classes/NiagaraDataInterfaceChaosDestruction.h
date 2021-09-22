@@ -770,7 +770,7 @@ struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterface
 
 	void CreatePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
-	void DestroyInstanceData(NiagaraEmitterInstanceBatcher* Batcher, const FNiagaraSystemInstanceID& SystemInstance);
+	void DestroyInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	float SolverTime;
 	int32 LastSpawnedPointID;

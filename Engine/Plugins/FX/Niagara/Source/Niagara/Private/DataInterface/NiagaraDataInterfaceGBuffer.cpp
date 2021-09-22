@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceGBuffer.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraTypes.h"
 #include "NiagaraRenderViewDataManager.h"
 #include "NiagaraWorldManager.h"
@@ -124,7 +125,7 @@ public:
 
 		FRHISamplerState* VelocitySamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		FRHITexture* VelocityRHITexture = GBlackTexture->TextureRHI;
-		if ( FNiagaraSceneTextureParameters* NiagaraSceneTextures = Context.Batcher->GetNiagaraSceneTextures() )
+		if ( FNiagaraSceneTextureParameters* NiagaraSceneTextures = static_cast<const FNiagaraGpuComputeDispatch*>(Context.ComputeDispatchInterface)->GetNiagaraSceneTextures() )	//-BATCHERTODO:
 		{
 			if ( FRDGTexture* VelocityRDGTexture = NiagaraSceneTextures->Velocity.GetTexture() )
 			{

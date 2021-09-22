@@ -2,13 +2,14 @@
 
 #include "NiagaraDataInterfaceDebugDraw.h"
 #include "NiagaraTypes.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDebug.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraSystemInstance.h"
 
 #include "Async/Async.h"
 #include "DrawDebugHelpers.h"
+#include "ShaderParameterUtils.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -3241,11 +3242,11 @@ bool UNiagaraDataInterfaceDebugDraw::InitPerInstanceData(void* PerInstanceData, 
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	ENQUEUE_RENDER_COMMAND(NDIDebugDrawInit)(
-		[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_Batcher=SystemInstance->GetBatcher()](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_ComputeDispatchInterface=SystemInstance->GetComputeDispatchInterface()](FRHICommandListImmediate& RHICmdList)
 		{
 			check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(RT_InstanceID));
 			FNDIDebugDrawInstanceData_RenderThread* RT_InstanceData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
-			RT_InstanceData->GpuComputeDebug = RT_Batcher->GetGpuComputeDebug();
+			RT_InstanceData->GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebug();
 		}
 	);
 #endif

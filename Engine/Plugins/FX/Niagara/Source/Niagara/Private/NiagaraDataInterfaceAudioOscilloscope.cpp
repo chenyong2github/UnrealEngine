@@ -9,7 +9,6 @@
 #include "ClearQuad.h"
 #include "TextureResource.h"
 #include "Engine/Texture2D.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraSystemInstance.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Engine.h"

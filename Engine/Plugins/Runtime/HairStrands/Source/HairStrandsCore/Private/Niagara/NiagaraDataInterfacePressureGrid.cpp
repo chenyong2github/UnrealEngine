@@ -3,9 +3,10 @@
 #include "Niagara/NiagaraDataInterfacePressureGrid.h"
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSimStageData.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraEmitterInstanceBatcher.h"
 
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
@@ -538,7 +539,7 @@ void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 	{
 		if (Context.SimStageData->bFirstStage)
 		{
-			ClearBuffer(RHICmdList, Context.Batcher->GetFeatureLevel(), ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
+			ClearBuffer(RHICmdList, Context.ComputeDispatchInterface->GetFeatureLevel(), ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
 		}
 	}
 }

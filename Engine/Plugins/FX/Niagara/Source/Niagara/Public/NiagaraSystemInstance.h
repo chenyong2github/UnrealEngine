@@ -14,7 +14,7 @@
 class FNiagaraWorldManager;
 class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
-class NiagaraEmitterInstanceBatcher;
+class FNiagaraGpuComputeDispatchInterface;
 class FNiagaraGPUSystemTick;
 class FNiagaraSystemGpuComputeProxy;
 
@@ -338,7 +338,7 @@ public:
 	/** Dumps information about the instances tick to the log */
 	void DumpTickInfo(FOutputDevice& Ar);
 
-	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
+	FNiagaraGpuComputeDispatchInterface* GetComputeDispatchInterface() const { return ComputeDispatchInterface; }
 
 	static bool AllocateSystemInstance(FNiagaraSystemInstancePtr& OutSystemInstanceAllocation, UWorld& InWorld, UNiagaraSystem& InAsset,
 		FNiagaraUserRedirectionParameterStore* InOverrideParameters = nullptr, USceneComponent* InAttachComponent = nullptr,
@@ -557,7 +557,7 @@ private:
 	/** Copy of simulations internal state so that it can be passed to emitters etc. */
 	ENiagaraExecutionState ActualExecutionState;
 
-	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = nullptr;
 	TUniquePtr<FNiagaraSystemGpuComputeProxy> SystemGpuComputeProxy;
 
 	/** Tag we feed into crash reporter for this instance. */

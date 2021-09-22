@@ -31,13 +31,13 @@ FNiagaraSystemRenderData::~FNiagaraSystemRenderData()
 	}
 }
 
-void FNiagaraSystemRenderData::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher& Batcher)
+void FNiagaraSystemRenderData::CreateRenderThreadResources()
 {
 	for (auto Renderer : EmitterRenderers_RT)
 	{
 		if (Renderer)
 		{
-			Renderer->CreateRenderThreadResources(&Batcher);
+			Renderer->CreateRenderThreadResources();
 		}
 	}
 }

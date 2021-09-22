@@ -22,7 +22,7 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraShaderModule.h"
 #include "UObject/CoreRedirects.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraGpuComputeDispatch.h"
 #include "Misc/CoreDelegates.h"
 #include "NiagaraDebuggerClient.h"
 #include "Particles/FXBudget.h"
@@ -332,10 +332,10 @@ void INiagaraModule::StartupModule()
 	}));
 
 	FFXSystemInterface::RegisterCustomFXSystem(
-		NiagaraEmitterInstanceBatcher::Name, 
+		FNiagaraGpuComputeDispatch::Name,
 		FCreateCustomFXSystemDelegate::CreateLambda([](ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager) -> FFXSystemInterface*
 	{
-		return new NiagaraEmitterInstanceBatcher(InFeatureLevel, InShaderPlatform, InGPUSortManager);
+		return new FNiagaraGpuComputeDispatch(InFeatureLevel, InShaderPlatform, InGPUSortManager);
 	}));
 
 	// Needed for NiagaraDataInterfaceAudioSpectrum
@@ -420,7 +420,7 @@ void INiagaraModule::OnWorldBeginTearDown(UWorld* World)
 
 void INiagaraModule::ShutdownRenderingResources()
 {
-	FFXSystemInterface::UnregisterCustomFXSystem(NiagaraEmitterInstanceBatcher::Name);
+	FFXSystemInterface::UnregisterCustomFXSystem(FNiagaraGpuComputeDispatch::Name);
 
 	FNiagaraRenderViewDataManager::Shutdown();
 }

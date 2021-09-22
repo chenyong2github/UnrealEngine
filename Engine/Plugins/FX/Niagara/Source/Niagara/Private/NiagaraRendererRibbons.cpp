@@ -235,9 +235,9 @@ void FNiagaraRendererRibbons::ReleaseRenderThreadResources()
 }
 
 // FPrimitiveSceneProxy interface.
-void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraRendererRibbons::CreateRenderThreadResources()
 {
-	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
+	FNiagaraRenderer::CreateRenderThreadResources();
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
@@ -1436,8 +1436,8 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	check(SceneProxy);
 
 	FNiagaraDynamicDataRibbon *DynamicDataRibbon = static_cast<FNiagaraDynamicDataRibbon*>(DynamicDataRender);
-	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
-	if (!DynamicDataRibbon || !Batcher)
+	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = SceneProxy->GetComputeDispatchInterface();
+	if (!DynamicDataRibbon || !ComputeDispatchInterface)
 	{
 		return;
 	}

@@ -9,7 +9,7 @@
 #include "NiagaraComponent.h"
 #include "Engine/Engine.h"
 #include "DynamicBufferAllocator.h"
-#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGPUSortInfo.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstanceController.h"
