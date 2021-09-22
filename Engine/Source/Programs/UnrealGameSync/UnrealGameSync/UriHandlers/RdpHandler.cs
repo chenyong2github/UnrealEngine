@@ -65,19 +65,24 @@ namespace UnrealGameSync
 			IntPtr Buffer = IntPtr.Zero;
 			try
 			{
-				if (CredRead(Name, Type, 0, out Buffer))
-				{
-					CREDENTIAL Credential = Marshal.PtrToStructure<CREDENTIAL>(Buffer);
-					UserName = Credential.UserName;
-					Password = Marshal.PtrToStringUni(Credential.CredentialBlob, Credential.CredentialBlobSize / sizeof(char));
-					return true;
-				}
-				else
+				if (!CredRead(Name, Type, 0, out Buffer))
 				{
 					UserName = null;
 					Password = null;
 					return false;
 				}
+
+				CREDENTIAL Credential = Marshal.PtrToStructure<CREDENTIAL>(Buffer);
+				if (Credential.CredentialBlob == IntPtr.Zero)
+				{
+					UserName = null;
+					Password = null;
+					return false;
+				}
+
+				UserName = Credential.UserName;
+				Password = Marshal.PtrToStringUni(Credential.CredentialBlob, Credential.CredentialBlobSize / sizeof(char));
+				return true;
 			}
 			finally
 			{
