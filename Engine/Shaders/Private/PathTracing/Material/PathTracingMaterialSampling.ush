@@ -20,6 +20,7 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingTwoSidedFoliage.ush"
 #include "PathTracingCloth.ush"
 #include "PathTracingSubsurfaceProfile.ush"
+#include "PathTracingEye.ush"
 #include "../../BurleyNormalizedSSSCommon.ush"
 
 // Simplified material shaders for GPU Lightmass, supporting Lambert, Two Sided Foliage and Thin Translucent
@@ -37,20 +38,12 @@ bool IsNeeValidMaterial(FPathTracingPayload Payload)
 		return false;
 	}
 
-	switch (Payload.ShadingModelID)
+	if (Payload.ShadingModelID == SHADINGMODELID_UNLIT)
 	{
-		case SHADINGMODELID_UNLIT:
-			return false;
-		case SHADINGMODELID_DEFAULT_LIT:		
-		case SHADINGMODELID_CLEAR_COAT:			
-		case SHADINGMODELID_TWOSIDED_FOLIAGE:	
-		case SHADINGMODELID_THIN_TRANSLUCENT:
-		case SHADINGMODELID_CLOTH:
-		case SHADINGMODELID_SUBSURFACE:
-		case SHADINGMODELID_PREINTEGRATED_SKIN:
-		default:
-			return true;
+		return false;
 	}
+
+	return true;
 }
 
 float3 GetMaterialTransparency(FPathTracingPayload Payload, float3 RayDirection)
@@ -154,6 +147,7 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 			break;
 		case SHADINGMODELID_DEFAULT_LIT:
 		case SHADINGMODELID_CLEAR_COAT:
+		case SHADINGMODELID_EYE:
 			// TODO: include clearcoat albedo as well
 			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor);
 			break;
@@ -237,6 +231,7 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 		break;
 	case SHADINGMODELID_DEFAULT_LIT:
 	case SHADINGMODELID_CLEAR_COAT:
+	case SHADINGMODELID_EYE:
 		Albedo += BrdfWeight * PathThroughput * (Payload.DiffuseColor + RoughnessWeight * Payload.SpecularColor);
 		Normal += Luminance(BrdfWeight * PathThroughput) * Payload.WorldNormal;
 		break;
@@ -280,6 +275,7 @@ void AdjustMaterialRoughness(inout FPathTracingPayload Payload, float PathRoughn
 		case SHADINGMODELID_CLOTH:
 		case SHADINGMODELID_SUBSURFACE:
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
+		case SHADINGMODELID_EYE:
 			Payload.Roughness = max(Payload.Roughness, PathRoughness);
 			break;
 		case SHADINGMODELID_SUBSURFACE_PROFILE:
@@ -534,6 +530,9 @@ FMaterialSample SampleMaterial(
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 			Result = TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
+		case SHADINGMODELID_EYE:
+			Result = Eye_SampleMaterial(RayDirection, Payload, RandSample);
+			break;
 		default:
 			Result = Lambert_SampleMaterial(Payload, RandSample);
 			break;
@@ -626,6 +625,9 @@ FMaterialEval EvalMaterial(
 			break;
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 			Result = TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
+			break;
+		case SHADINGMODELID_EYE:
+			Result = Eye_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		default:
 			Result = Lambert_EvalMaterial(OutgoingDirection, Payload);
