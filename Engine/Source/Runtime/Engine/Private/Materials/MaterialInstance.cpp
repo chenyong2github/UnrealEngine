@@ -768,21 +768,33 @@ UMaterial* UMaterialInstance::GetMaterial()
 	}
 }
 
-bool UMaterialInstance::GetParameterOverrideValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult, EMaterialGetParameterValueFlags Flags) const
+const UMaterial* UMaterialInstance::GetMaterialInheritanceChain(FMaterialParentInstanceArray& OutInstances) const
 {
-	// If we're not a parent, set the flag to signify this parameter was a MI override
-	const bool bSetOverride = !EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::IsParent);
+	if (!OutInstances.Contains(this))
+	{
+		OutInstances.Add(this);
+		if (Parent)
+		{
+			return Parent->GetMaterialInheritanceChain(OutInstances);
+		}
+	}
+
+	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+bool UMaterialInstance::GetParameterOverrideValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult) const
+{
 	bool bResult = false;
 	switch (Type)
 	{
-	case EMaterialParameterType::Scalar: bResult = GameThread_GetParameterValue(ScalarParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-	case EMaterialParameterType::Vector: bResult = GameThread_GetParameterValue(VectorParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-	case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-	case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-	case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+	case EMaterialParameterType::Scalar: bResult = GameThread_GetParameterValue(ScalarParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::Vector: bResult = GameThread_GetParameterValue(VectorParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, OutResult); break;
 #if WITH_EDITORONLY_DATA
-	case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticParameters.StaticSwitchParameters, ParameterInfo, bSetOverride, OutResult); break;
-	case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticParameters.StaticComponentMaskParameters, ParameterInfo, bSetOverride, OutResult); break;
+	case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticParameters.StaticSwitchParameters, ParameterInfo, OutResult); break;
+	case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticParameters.StaticComponentMaskParameters, ParameterInfo, OutResult); break;
 #endif // WITH_EDITORONLY_DATA
 	default: checkNoEntry(); break;
 	}
@@ -791,48 +803,46 @@ bool UMaterialInstance::GetParameterOverrideValue(EMaterialParameterType Type, c
 
 bool UMaterialInstance::GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult, EMaterialGetParameterValueFlags Flags) const
 {
-	bool bFoundAValue = false;
+	FMaterialParentInstanceArray InstanceChain;
+	const UMaterial* Material = GetMaterialInheritanceChain(InstanceChain);
 
-	if (GetReentrantFlag())
+	bool bResult = false;
+	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckNonOverrides))
 	{
-		return false;
-	}
-
-	// Instance override
-	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckInstanceOverrides))
-	{
-		if (GetParameterOverrideValue(Type, ParameterInfo, OutResult, Flags))
+		// First get value from base material, properly fill in any relevant metadata
+		if (Material && Material->GetParameterValue(Type, ParameterInfo, OutResult, Flags))
 		{
-			return true;
+			bResult = true;
+		}
+		// Apply layer parameter overrides from this instance
+		if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter &&
+			CachedData &&
+			CachedData->Parameters.GetParameterValue(Type, ParameterInfo, OutResult))
+		{
+			bResult = true;
 		}
 	}
 
-	// Instance-included default
-	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckNonOverrides) &&
-		ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter &&
-		CachedData)
+	// This instance is at index 0.  So we start from 0 if checking overrides, otherwise we start at our first parent (at index 1)
+	int32 ParentIndex = EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckInstanceOverrides) ? 0 : 1;
+	while (ParentIndex < InstanceChain.Num())
 	{
-		if (CachedData->Parameters.GetParameterValue(Type, ParameterInfo, OutResult))
+		if (InstanceChain[ParentIndex]->GetParameterOverrideValue(Type, ParameterInfo, OutResult))
 		{
-			return true;
+#if WITH_EDITORONLY_DATA
+			if (ParentIndex == 0)
+			{
+				// If value was set on this instance, set the override flag
+				OutResult.bOverride = true;
+			}
+#endif
+			bResult = true;
+			break;
 		}
+		ParentIndex++;
 	}
 
-	// Next material in hierarchy
-	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckParent) && Parent)
-	{
-		EMaterialGetParameterValueFlags ParentFlags = Flags | EMaterialGetParameterValueFlags::IsParent;
-		if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckNonOverrides))
-		{
-			// Parent's instance overrides are non-overrides relative to this material
-			ParentFlags |= EMaterialGetParameterValueFlags::CheckInstanceOverrides;
-		}
-
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetParameterValue(Type, ParameterInfo, OutResult, ParentFlags);
-	}
-
-	return false;
+	return bResult;
 }
 
 bool UMaterialInstance::GetRefractionSettings(float& OutBiasValue) const
@@ -1713,7 +1723,9 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 
 void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const
 {
-	const UMaterial* Material = GetMaterial_Concurrent();
+	FMaterialParentInstanceArray InstanceChain;
+	const UMaterial* Material = GetMaterialInheritanceChain(InstanceChain);
+
 	int32 NumParameters = 0;
 	if (CachedData)
 	{
@@ -1732,26 +1744,6 @@ void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TMap
 	if (Material)
 	{
 		Material->GetCachedExpressionData().Parameters.GetAllParametersOfType(Type, OutParameters);
-	}
-
-	TArray<const UMaterialInstance*> InstanceChain;
-	InstanceChain.Add(this);
-	{
-		const UMaterialInterface* CurrentParent = Parent;
-		while (CurrentParent)
-		{
-			const UMaterialInstance* ParentInstance = Cast<UMaterialInstance>(CurrentParent);
-			if (ParentInstance)
-			{
-				InstanceChain.Add(ParentInstance);
-				CurrentParent = ParentInstance->Parent;
-			}
-			else
-			{
-				check(CurrentParent == Material);
-				CurrentParent = nullptr;
-			}
-		}
 	}
 
 	for (int32 i = InstanceChain.Num() - 1; i >= 0; --i)

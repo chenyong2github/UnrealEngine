@@ -275,7 +275,7 @@ const ParameterType* GameThread_FindParameterByIndex(const TArray<ParameterType>
 }
 
 template <typename ParameterType>
-FORCEINLINE bool GameThread_GetParameterValue(const TArray<ParameterType>& Parameters, const FHashedMaterialParameterInfo& ParameterInfo, bool bSetOverride, FMaterialParameterMetadata& OutResult)
+FORCEINLINE bool GameThread_GetParameterValue(const TArray<ParameterType>& Parameters, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult)
 {
 	for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ParameterIndex++)
 	{
@@ -283,12 +283,6 @@ FORCEINLINE bool GameThread_GetParameterValue(const TArray<ParameterType>& Param
 		if (Parameter->IsOverride() && Parameter->ParameterInfo == ParameterInfo)
 		{
 			Parameter->GetValue(OutResult);
-#if WITH_EDITORONLY_DATA
-			if (bSetOverride)
-			{
-				OutResult.bOverride = true;
-			}
-#endif // WITH_EDITORONLY_DATA
 			return true;
 		}
 	}

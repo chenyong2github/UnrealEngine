@@ -1858,6 +1858,11 @@ const UMaterial* UMaterial::GetMaterial_Concurrent(TMicRecursionGuard) const
 	return this;
 }
 
+const UMaterial* UMaterial::GetMaterialInheritanceChain(FMaterialParentInstanceArray& OutInstances) const
+{
+	return this;
+}
+
 #if WITH_EDITOR
 void UMaterial::UpdateCachedExpressionData()
 {
