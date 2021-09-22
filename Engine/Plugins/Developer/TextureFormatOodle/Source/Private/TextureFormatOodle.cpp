@@ -659,11 +659,11 @@ public:
 			default:
 			case TLCA_Default: break;         // "Default"
 			case TLCA_None:    RDOLambda = 0; break;    // "No lossy compression"
-			case TLCA_Lowest:  RDOLambda = 5; break;    // "Lowest (Best Image quality, largest filesize)"
-			case TLCA_Low:     RDOLambda = 15; break;   // "Low"
-			case TLCA_Medium:  RDOLambda = 30; break;   // "Medium"
-			case TLCA_High:    RDOLambda = 40; break;   // "High"
-			case TLCA_Highest: RDOLambda = 60; break;   // "Highest (Worst Image quality, smallest filesize)"
+			case TLCA_Lowest:  RDOLambda = 1; break;   // "Lowest (Best Image quality, largest filesize)"
+			case TLCA_Low:     RDOLambda = 10; break;   // "Low"
+			case TLCA_Medium:  RDOLambda = 20; break;   // "Medium"
+			case TLCA_High:    RDOLambda = 30; break;   // "High"
+			case TLCA_Highest: RDOLambda = 40; break;   // "Highest (Worst Image quality, smallest filesize)"
 		}
 
 		if ( RDOLambda == -1 )
