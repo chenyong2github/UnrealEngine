@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Callstack.h"
 
 namespace Insights
@@ -15,7 +17,7 @@ class FMemoryAlloc
 	friend class SMemAllocTableTreeView;
 
 public:
-	FMemoryAlloc(double InStartTime, double InEndTime, uint64 InAddress, uint64 InSize, const TCHAR* InTag, const TraceServices::FCallstack* InCallstack);
+	FMemoryAlloc(double InStartTime, double InEndTime, uint64 InAddress, uint64 InSize, const TCHAR* InTag, const TraceServices::FCallstack* InCallstack, HeapId InRootHeap);
 	~FMemoryAlloc();
 
 	double GetStartTime() const { return StartTime; }
@@ -27,6 +29,7 @@ public:
 	const TCHAR* GetTag() const { return Tag; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
 	FText GetFullCallstack() const;
+	HeapId GetRootHeap() const { return RootHeap; };
 
 private:
 	double StartTime;
@@ -35,6 +38,8 @@ private:
 	uint64 Size;
 	const TCHAR* Tag;
 	const TraceServices::FCallstack* Callstack;
+	HeapId RootHeap;
+	bool bIsBlock;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

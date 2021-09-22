@@ -107,71 +107,79 @@ void FAllocationsQuery::Run()
 
 	AllocationsProvider.BeginRead();
 
-	const FSbTree* SbTree = AllocationsProvider.GetSbTree();
-	if (SbTree)
+	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Processing %d live allocs..."), AllocationsProvider.GetNumLiveAllocs());
+
+	FAllocationsImpl* LiveAllocsResult = new FAllocationsImpl();
+	QueryLiveAllocs(LiveAllocsResult->Items);
+
+	const uint32 NumLiveAllocs = static_cast<uint32>(LiveAllocsResult->Items.Num());
+	if (NumLiveAllocs != 0)
 	{
-		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Processing %d live allocs..."), AllocationsProvider.GetNumLiveAllocs());
+		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u live allocs..."), NumLiveAllocs);
+		TotalAllocationCount += NumLiveAllocs;
 
-		FAllocationsImpl* LiveAllocsResult = new FAllocationsImpl();
-		QueryLiveAllocs(LiveAllocsResult->Items);
+		QueryCallstacks(LiveAllocsResult);
+		Results.Enqueue(LiveAllocsResult);
+	}
+	else
+	{
+		delete LiveAllocsResult;
+	}
 
-		const uint32 NumLiveAllocs = static_cast<uint32>(LiveAllocsResult->Items.Num());
-		if (NumLiveAllocs != 0)
+	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Detecting cells..."));
+
+	TArray<HeapId> Heaps;
+	TArray<const FSbTreeCell*> Cells;
+
+	AllocationsProvider.EnumerateRootHeaps([&Heaps](HeapId Heap, const IAllocationsProvider::FHeapSpec& Spec)
+	{
+		Heaps.Add(Heap);
+	});
+
+	for (HeapId Heap : Heaps)
+	{
+		if (!IsCanceling)
 		{
-			UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u live allocs..."), NumLiveAllocs);
-			TotalAllocationCount += NumLiveAllocs;
+			const FSbTree* SbTree = AllocationsProvider.GetSbTreeUnchecked(Heap);
+			SbTree->Query(Cells, Params);
+		}
+	}
+		
+	CellCount += Cells.Num();
 
-			QueryCallstacks(LiveAllocsResult);
-			Results.Enqueue(LiveAllocsResult);
+	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] %d cells to process"), Cells.Num());
+	uint32 CellIndex = 0;
+
+	for (const FSbTreeCell* Cell : Cells)
+	{
+		if (IsCanceling)
+		{
+			break;
+		}
+
+		++CellIndex;
+		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Processing cell %u (%u allocs)..."), CellIndex, Cell->GetAllocCount());
+
+		FAllocationsImpl* CellResult = new FAllocationsImpl();
+			
+		Cell->Query(CellResult->Items, Params);
+
+		const uint32 NumAllocs = static_cast<uint32>(CellResult->Items.Num());
+		if (NumAllocs != 0)
+		{
+			UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u allocs..."), NumAllocs);
+			TotalAllocationCount += NumAllocs;
+
+			QueryCallstacks(CellResult);
+			Results.Enqueue(CellResult);
 		}
 		else
 		{
-			delete LiveAllocsResult;
+			delete CellResult;
 		}
-
-		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Detecting cells..."));
-
-		TArray<const FSbTreeCell*> Cells;
-
-		if (!IsCanceling)
-		{
-			SbTree->Query(Cells, Params);
-			CellCount += Cells.Num();
-		}
-
-		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] %d cells to process"), Cells.Num());
-		uint32 CellIndex = 0;
-
-		for (const FSbTreeCell* Cell : Cells)
-		{
-			if (IsCanceling)
-			{
-				break;
-			}
-
-			++CellIndex;
-			UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Processing cell %u (%u allocs)..."), CellIndex, Cell->GetAllocCount());
-
-			FAllocationsImpl* CellResult = new FAllocationsImpl();
-			Cell->Query(CellResult->Items, Params);
-
-			const uint32 NumAllocs = static_cast<uint32>(CellResult->Items.Num());
-			if (NumAllocs != 0)
-			{
-				UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u allocs..."), NumAllocs);
-				TotalAllocationCount += NumAllocs;
-
-				QueryCallstacks(CellResult);
-				Results.Enqueue(CellResult);
-			}
-			else
-			{
-				delete CellResult;
-			}
-		}
-
-		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Done"));
 	}
+
+	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Done"));
 
 	AllocationsProvider.EndRead();
 

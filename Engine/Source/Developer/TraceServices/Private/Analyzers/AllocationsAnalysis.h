@@ -17,15 +17,21 @@ private:
 	enum : uint16
 	{
 		RouteId_Init,
-		RouteId_CoreAdd,
-		RouteId_CoreRemove,
 		RouteId_Alloc,
+		RouteId_AllocSystem,
+		RouteId_AllocVideo,
 		RouteId_Free,
+		RouteId_FreeSystem,
+		RouteId_FreeVideo,
 		RouteId_ReallocAlloc,
+		RouteId_ReallocAllocSystem,
 		RouteId_ReallocFree,
 		RouteId_Marker,
 		RouteId_TagSpec,
 		RouteId_MemScope,
+		RouteId_HeapSpec,
+		RouteId_HeapMarkAlloc,
+		RouteId_HeapUnmarkAlloc,
 	};
 
 public:
@@ -43,6 +49,7 @@ private:
 	uint32 MarkerPeriod;
 	uint64 LastMarkerCycle;
 	double LastMarkerSeconds;
+	uint8 SizeShift;
 };
 
 } // namespace TraceServices
