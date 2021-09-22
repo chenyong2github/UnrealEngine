@@ -30,6 +30,15 @@ namespace HordeServer.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="Other"></param>
+		public ViewMap(ViewMap Other)
+		{
+			Entries.AddRange(Other.Entries);
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="ViewMap">Peforce viewmap definition</param>
 		public ViewMap(P4.ViewMap ViewMap)
 		{
@@ -219,6 +228,16 @@ namespace HordeServer.Utilities
 		public string TargetSuffix { get; }
 
 		/// <summary>
+		/// The full source path
+		/// </summary>
+		public string Source => (Wildcard == null) ? SourcePrefix : $"{SourcePrefix}{Wildcard}{SourceSuffix}";
+
+		/// <summary>
+		/// The full target path
+		/// </summary>
+		public string Target => (Wildcard == null) ? TargetPrefix : $"{TargetPrefix}{Wildcard}{TargetSuffix}";
+
+		/// <summary>
 		/// Tests if the entry has a file wildcard ('*')
 		/// </summary>
 		/// <returns>True if the entry has a file wildcard</returns>
@@ -229,6 +248,15 @@ namespace HordeServer.Utilities
 		/// </summary>
 		/// <returns>True if the entry has a path wildcard</returns>
 		public bool IsPathWildcard() => Wildcard != null && Wildcard.Length == 3;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Other"></param>
+		public ViewMapEntry(ViewMapEntry Other)
+			: this(Other.Include, Other.Wildcard, Other.SourcePrefix, Other.SourceSuffix, Other.TargetPrefix, Other.TargetSuffix)
+		{
+		}
 
 		/// <summary>
 		/// Constructor

@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -332,6 +333,50 @@ namespace EpicGames.Perforce
 			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData))
 			{
 				return await Response.ReadResponsesAsync(StatRecordType, CancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Execute a command and parse the response
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Command">Command to execute</param>
+		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="FileArguments">File arguments for the command</param>
+		/// <param name="InputData">Input data to pass to Perforce</param>
+		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of objects returned by the server</returns>
+		public static async IAsyncEnumerable<PerforceResponse> StreamCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, Type? StatRecordType, [EnumeratorCancellation] CancellationToken CancellationToken)
+		{
+			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData))
+			{
+				await foreach (PerforceResponse Response in Output.ReadStreamingResponsesAsync(StatRecordType, CancellationToken))
+				{
+					yield return Response;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Execute a command and parse the response
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Command">Command to execute</param>
+		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="FileArguments">File arguments for the command</param>
+		/// <param name="InputData">Input data to pass to Perforce</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of objects returned by the server</returns>
+		public static async IAsyncEnumerable<PerforceResponse<T>> StreamCommandAsync<T>(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments = null, byte[]? InputData = null, [EnumeratorCancellation] CancellationToken CancellationToken = default) where T : class
+		{
+			await using (IPerforceOutput Output = await Perforce.CommandAsync(Command, Arguments, FileArguments, InputData))
+			{
+				Type StatRecordType = typeof(T);
+				await foreach (PerforceResponse Response in Output.ReadStreamingResponsesAsync(StatRecordType, CancellationToken))
+				{
+					yield return new PerforceResponse<T>(Response);
+				}
 			}
 		}
 

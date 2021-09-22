@@ -57,16 +57,17 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Encodes the current tree state and returns a reference to it
 		/// </summary>
-		/// <param name="Objects">Dictionary of encoded objects</param>
+		/// <param name="Writer">A writer instance to use to create the object</param>
+		/// <param name="WriteObject"></param>
 		/// <returns></returns>
-		public StreamTreeRef Encode(Dictionary<IoHash, CbObject> Objects)
+		public StreamTreeRef Encode(CbWriter Writer, Action<IoHash, CbObject> WriteObject)
 		{
-			StreamTreeRef? Ref = EncodeInternal(Objects);
+			StreamTreeRef? Ref = EncodeInternal(Writer, WriteObject);
 			if (Ref == null)
 			{
-				CbObject Object = new StreamTree().ToCbObject(Utf8String.Empty);
+				CbObject Object = new StreamTree().ToCbObject(Writer, Utf8String.Empty);
 				IoHash ObjectHash = Object.GetHash();
-				Objects[ObjectHash] = Object;
+				WriteObject(ObjectHash, Object);
 				Ref = new StreamTreeRef(Utf8String.Empty, ObjectHash);
 			}
 			return Ref;
@@ -77,12 +78,12 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="Objects">Dictionary of encoded objects</param>
 		/// <returns></returns>
-		public StreamTreeRef? EncodeInternal(Dictionary<IoHash, CbObject> Objects)
+		public StreamTreeRef? EncodeInternal(CbWriter Writer, Action<IoHash, CbObject> WriteObject)
 		{
 			// Recursively serialize all the child items
 			foreach ((Utf8String SubTreeName, StreamTreeBuilder SubTree) in NameToTreeBuilder)
 			{
-				StreamTreeRef? SubTreeRef = SubTree.EncodeInternal(Objects);
+				StreamTreeRef? SubTreeRef = SubTree.EncodeInternal(Writer, WriteObject);
 				if (SubTreeRef == null)
 				{
 					NameToTreeBuilder.Remove(SubTreeName);
@@ -103,10 +104,10 @@ namespace EpicGames.Perforce.Managed
 			// Find the common base path for all items in this tree.
 			StreamTree Tree = new StreamTree(NameToFile, NameToTree);
 			Utf8String BasePath = Tree.FindBasePath();
-			CbObject PackedObject = Tree.ToCbObject(BasePath);
+			CbObject PackedObject = Tree.ToCbObject(Writer, BasePath);
 
 			IoHash ObjectHash = PackedObject.GetHash();
-			Objects[ObjectHash] = PackedObject;
+			WriteObject(ObjectHash, PackedObject);
 
 			return new StreamTreeRef(BasePath, ObjectHash);
 		}

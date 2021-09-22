@@ -51,14 +51,23 @@ namespace EpicGames.Serialization
 			public int Offset; // Offset to insert the length/count
 			public int Length; // Excludes the size of this field's headers, and child fields' headers.
 			public int Count;
-			public List<Scope>? Children;
+			public List<Scope> Children = new List<Scope>();
 			public int SizeOfChildHeaders; // Sum of additional headers for child items, recursively.
 
 			public Scope(CbFieldType FieldType, CbFieldType UniformFieldType, int Offset)
 			{
+				Reset(FieldType, UniformFieldType, Offset);
+			}
+
+			public void Reset(CbFieldType FieldType, CbFieldType UniformFieldType, int Offset)
+			{
 				this.FieldType = FieldType;
 				this.UniformFieldType = UniformFieldType;
 				this.Offset = Offset;
+				this.Length = 0;
+				this.Count = 0;
+				this.Children.Clear();
+				this.SizeOfChildHeaders = 0;
 			}
 		}
 
@@ -74,8 +83,15 @@ namespace EpicGames.Serialization
 
 			public Chunk(int Offset, int MaxLength)
 			{
-				this.Offset = Offset;
 				this.Data = new byte[MaxLength];
+				Reset(Offset);
+			}
+
+			public void Reset(int Offset)
+			{
+				this.Offset = Offset;
+				this.Length = 0;
+				this.Scopes.Clear();
 			}
 		}
 
@@ -86,6 +102,8 @@ namespace EpicGames.Serialization
 		Chunk CurrentChunk => Chunks[Chunks.Count - 1];
 		Scope CurrentScope => OpenScopes.Peek();
 		int CurrentOffset;
+		List<Chunk> FreeChunks = new List<Chunk>();
+		List<Scope> FreeScopes = new List<Scope>();
 
 		/// <summary>
 		/// Constructor
@@ -106,6 +124,86 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// 
+		/// </summary>
+		public void Clear()
+		{
+			foreach (Chunk Chunk in Chunks)
+			{
+				FreeChunk(Chunk);
+			}
+
+			CurrentOffset = 0;
+
+			Chunks.Clear();
+			Chunks.Add(AllocChunk(0, DefaultChunkSize));
+
+			OpenScopes.Clear();
+			OpenScopes.Push(AllocScope(CbFieldType.Array, CbFieldType.None, 0));
+		}
+
+		/// <summary>
+		/// Allocate a new chunk object
+		/// </summary>
+		/// <param name="Offset">Offset of the chunk</param>
+		/// <param name="MaxLength">Maximum length of the chunk</param>
+		/// <returns>New chunk object</returns>
+		Chunk AllocChunk(int Offset, int MaxLength)
+		{
+			for(int Idx = FreeChunks.Count - 1; Idx >= 0; Idx--)
+			{
+				Chunk Chunk = FreeChunks[Idx];
+				if (Chunk.Data.Length >= MaxLength)
+				{
+					FreeChunks.RemoveAt(Idx);
+					Chunk.Reset(Offset);
+					return Chunk;
+				}
+			}
+			return new Chunk(Offset, MaxLength);
+		}
+
+		/// <summary>
+		/// Adds a chunk to the free list
+		/// </summary>
+		/// <param name="Chunk"></param>
+		void FreeChunk(Chunk Chunk)
+		{
+			// Add the scopes to the free list
+			FreeScopes.AddRange(Chunk.Scopes);
+			Chunk.Scopes.Clear();
+
+			// Insert it into the free list, sorted by descending size
+			for (int Idx = 0; ; Idx++)
+			{
+				if (Idx == FreeChunks.Count || Chunk.Data.Length >= FreeChunks[Idx].Data.Length)
+				{
+					FreeChunks.Insert(Idx, Chunk);
+					break;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Allocate a scope object
+		/// </summary>
+		/// <param name="FieldType"></param>
+		/// <param name="UniformFieldType"></param>
+		/// <param name="Offset"></param>
+		/// <returns></returns>
+		Scope AllocScope(CbFieldType FieldType, CbFieldType UniformFieldType, int Offset)
+		{
+			if (FreeScopes.Count > 0)
+			{
+				Scope Scope = FreeScopes[FreeScopes.Count - 1];
+				Scope.Reset(FieldType, UniformFieldType, Offset);
+				FreeScopes.RemoveAt(FreeScopes.Count - 1);
+				return Scope;
+			}
+			return new Scope(FieldType, UniformFieldType, Offset);
+		}
+
+		/// <summary>
 		/// Ensure that a block of contiguous memory of the given length is available in the output buffer
 		/// </summary>
 		/// <param name="Length"></param>
@@ -116,7 +214,7 @@ namespace EpicGames.Serialization
 			if (LastChunk.Length + Length > LastChunk.Data.Length)
 			{
 				int ChunkSize = Math.Max(Length, DefaultChunkSize);
-				LastChunk = new Chunk(CurrentOffset, ChunkSize);
+				LastChunk = AllocChunk(CurrentOffset, ChunkSize);
 				Chunks.Add(LastChunk);
 			}
 
@@ -133,8 +231,7 @@ namespace EpicGames.Serialization
 		/// <param name="UniformFieldType"></param>
 		void PushScope(CbFieldType FieldType, CbFieldType UniformFieldType)
 		{
-			Scope NewScope = new Scope(FieldType, UniformFieldType, CurrentOffset);
-			CurrentScope.Children ??= new List<Scope>();
+			Scope NewScope = AllocScope(FieldType, UniformFieldType, CurrentOffset);
 			CurrentScope.Children.Add(NewScope);
 			OpenScopes.Push(NewScope);
 
@@ -682,24 +779,21 @@ namespace EpicGames.Serialization
 		static int ComputeSizeOfChildHeaders(Scope Scope)
 		{
 			int SizeOfChildHeaders = 0;
-			if (Scope.Children != null)
+			foreach (Scope ChildScope in Scope.Children)
 			{
-				foreach (Scope ChildScope in Scope.Children)
+				switch (ChildScope.FieldType)
 				{
-					switch (ChildScope.FieldType)
-					{
-						case CbFieldType.Object:
-						case CbFieldType.UniformObject:
-							SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders);
-							break;
-						case CbFieldType.Array:
-						case CbFieldType.UniformArray:
-							int ArrayCountLength = VarInt.Measure(ChildScope.Count);
-							SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders + ArrayCountLength) + ArrayCountLength;
-							break;
-						default:
-							throw new InvalidOperationException();
-					}
+					case CbFieldType.Object:
+					case CbFieldType.UniformObject:
+						SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders);
+						break;
+					case CbFieldType.Array:
+					case CbFieldType.UniformArray:
+						int ArrayCountLength = VarInt.Measure(ChildScope.Count);
+						SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders + ArrayCountLength) + ArrayCountLength;
+						break;
+					default:
+						throw new InvalidOperationException();
 				}
 			}
 			return SizeOfChildHeaders;
