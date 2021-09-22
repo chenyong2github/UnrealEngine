@@ -154,6 +154,7 @@ enum class EMaterialExpressionSetParameterValueFlags : uint32
 	None = 0u,
 	SendPostEditChangeProperty = (1u << 0), // Send PostEditChangeProperty events for all properties that are modified
 	NoUpdateExpressionGuid = (1u << 1), // By default ExpressionGUI will be updated for static parameters
+	AssignGroupAndSortPriority  = (1u << 2), //  Update the Group and SortPriority along with parameter value
 };
 ENUM_CLASS_FLAGS(EMaterialExpressionSetParameterValueFlags);
 
