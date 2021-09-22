@@ -2,6 +2,9 @@
 
 #include "DatasmithMaxExporter.h"
 
+#ifndef NEW_DIRECTLINK_PLUGIN
+
+
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
@@ -10,6 +13,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
+
 
 #include "DatasmithCore.h"
 #include "DatasmithExporterManager.h"
@@ -1142,3 +1146,5 @@ bool FDatasmithExportImpl::Export(const TCHAR* Filename, BOOL bSuppressWarnings)
 }
 
 #include "Windows/HideWindowsPlatformTypes.h"
+
+#endif // NEW_DIRECTLINK_PLUGIN

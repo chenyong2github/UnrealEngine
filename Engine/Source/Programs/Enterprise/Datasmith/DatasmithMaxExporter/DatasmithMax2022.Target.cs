@@ -10,6 +10,8 @@ public class DatasmithMax2022Target : DatasmithMaxBaseTarget
 		LaunchModuleName = "DatasmithMax2022";
 		ExeBinariesSubFolder = @"3DSMax\2022";
 
+
+
 		AddCopyPostBuildStep(Target);
 	}
 }
