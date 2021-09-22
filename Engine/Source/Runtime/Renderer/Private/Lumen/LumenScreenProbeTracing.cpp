@@ -331,7 +331,7 @@ void SetupVisualizeTraces(
 
 	if (!VisualizeTracesData || VisualizeTracesData->Desc.NumElements != VisualizeBufferNumElements)
 	{
-		VisualizeTracesData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), VisualizeBufferNumElements), TEXT("VisualizeTracesData"));
+		VisualizeTracesData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), VisualizeBufferNumElements), TEXT("VisualizeTracesData"));
 		bShouldUpdate = true;
 	}
 

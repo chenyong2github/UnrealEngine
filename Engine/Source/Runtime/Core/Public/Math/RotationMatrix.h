@@ -36,7 +36,7 @@ public:
 	}
 
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
-	static TMatrix<T> Make(FQuat const& Rot);
+	static TMatrix<T> Make(TQuat<T> const& Rot);
 
 	/** Builds a rotation matrix given only a XAxis. Y and Z are unspecified but will be orthonormal. XAxis need not be normalized. */
 	static TMatrix<T> MakeFromX(TVector<T> const& XAxis);
@@ -67,7 +67,7 @@ public:
 };
 
 template<typename T>
-TMatrix<T> TRotationMatrix<T>::Make(FQuat const& Rot)	// LWC_TODO: FQuat -> TQuat<T>
+TMatrix<T> TRotationMatrix<T>::Make(TQuat<T> const& Rot)
 {
 	return TQuatRotationTranslationMatrix<T>(Rot, TVector<T>::ZeroVector);
 }
@@ -231,4 +231,7 @@ TMatrix<T> TRotationMatrix<T>::MakeFromZY(TVector<T> const& ZAxis, TVector<T> co
 } // namespace Math
 } // namespace UE
 
- DECLARE_LWC_TYPE(RotationMatrix, 44);
+UE_DECLARE_LWC_TYPE(RotationMatrix, 44);
+
+template<> struct TIsUECoreVariant<FRotationMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FRotationMatrix44d> { enum { Value = true }; };

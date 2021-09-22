@@ -83,7 +83,7 @@ void UGeometryCacheTrackAbcFile::Reset()
 	MatrixSampleTimes.Reset();
 
 	MeshData = FGeometryCacheMeshData();
-	MeshData.BoundingBox = FBox(ForceInit);
+	MeshData.BoundingBox = FBox3f(ForceInit);
 }
 
 void UGeometryCacheTrackAbcFile::ShowNotification(const FText& Text)
@@ -210,7 +210,7 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackAbcFile::GetSampleInfo(f
 
 	SampleInfo = FGeometryCacheTrackSampleInfo(
 		SampleTime,
-		MeshData.BoundingBox,
+		(FBox)MeshData.BoundingBox,
 		MeshData.Positions.Num(),
 		MeshData.Indices.Num()
 	);

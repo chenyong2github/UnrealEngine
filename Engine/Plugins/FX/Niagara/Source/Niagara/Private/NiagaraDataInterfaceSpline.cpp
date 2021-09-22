@@ -631,7 +631,7 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 				TargetData->SplineTransformRotationMat = Transform.RemoveTranslation();
 				TargetData->SplineTransformRotationMat.RemoveScaling();
 				TargetData->SplineTransformInverseTranspose = TransformInverseTranspose;
-				TargetData->SplineTransformRotation = TransformRot;
+				TargetData->SplineTransformRotation = (FQuat4f)TransformRot;	 // LWC_TODO: Precision loss
 					
 				TargetData->DefaultUpVector = DefaultUp;
 					

@@ -260,7 +260,7 @@ void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 			float OccluderDistanceFraction = (WorldStepOffset + DistanceToOccluder) * InvAOGlobalMaxOcclusionDistance;
 
 			// Fade out occlusion based on distance to occluder to avoid a discontinuity at the max AO distance
-			Visibility = max(Visibility, saturate(OccluderDistanceFraction * OccluderDistanceFraction * .6f));
+			Visibility = max(Visibility, saturate(OccluderDistanceFraction * OccluderDistanceFraction * 0.6f));
 			
 			MinVisibility = min(MinVisibility, Visibility);
 

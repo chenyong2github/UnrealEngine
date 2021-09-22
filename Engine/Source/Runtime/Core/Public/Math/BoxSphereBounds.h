@@ -13,33 +13,39 @@
 /**
  * Structure for a combined axis aligned bounding box and bounding sphere with the same origin. (28 bytes).
  */
-struct FBoxSphereBounds
+namespace UE
 {
-	using FReal = FVector::FReal;
+namespace Math
+{
+
+template<typename T>
+struct TBoxSphereBounds
+{
+	using FReal = T;
 
 	/** Holds the origin of the bounding box and sphere. */
-	FVector	Origin;
+	TVector<T>	Origin;
 
 	/** Holds the extent of the bounding box. */
-	FVector BoxExtent;
+	TVector<T> BoxExtent;
 
 	/** Holds the radius of the bounding sphere. */
-	FReal SphereRadius;
+	T SphereRadius;
 
 public:
 
 	/** Default constructor. */
-	FBoxSphereBounds() { }
+	TBoxSphereBounds() { }
 
 	/**
 	 * Creates and initializes a new instance.
 	 *
 	 * @param EForceInit Force Init Enum.
 	 */
-	explicit FORCEINLINE FBoxSphereBounds( EForceInit ) 
+	explicit FORCEINLINE TBoxSphereBounds( EForceInit ) 
 		: Origin(ForceInit)
 		, BoxExtent(ForceInit)
-		, SphereRadius(0.f)
+		, SphereRadius(0)
 	{
 		DiagnosticCheckNaN();
 	}
@@ -51,7 +57,7 @@ public:
 	 * @param InBoxExtent half size of box.
 	 * @param InSphereRadius radius of the sphere.
 	 */
-	FBoxSphereBounds( const FVector& InOrigin, const FVector& InBoxExtent, FReal InSphereRadius )
+	TBoxSphereBounds( const TVector<T>& InOrigin, const TVector<T>& InBoxExtent, T InSphereRadius )
 		: Origin(InOrigin)
 		, BoxExtent(InBoxExtent)
 		, SphereRadius(InSphereRadius)
@@ -65,7 +71,7 @@ public:
 	 * @param Box The bounding box.
 	 * @param Sphere The bounding sphere.
 	 */
-	FBoxSphereBounds( const FBox& Box, const FSphere& Sphere )
+	TBoxSphereBounds( const TBox<T>& Box, const TSphere<T>& Sphere )
 	{
 		Box.GetCenterAndExtents(Origin,BoxExtent);
 		SphereRadius = FMath::Min(BoxExtent.Size(), (Sphere.Center - Origin).Size() + Sphere.W);
@@ -80,7 +86,7 @@ public:
 	 *
 	 * @param Box The bounding box.
 	 */
-	FBoxSphereBounds( const FBox& Box )
+	TBoxSphereBounds( const TBox<T>& Box )
 	{
 		Box.GetCenterAndExtents(Origin,BoxExtent);
 		SphereRadius = BoxExtent.Size();
@@ -91,10 +97,10 @@ public:
 	/**
 	 * Creates and initializes a new instance for the given sphere.
 	 */
-	FBoxSphereBounds( const FSphere& Sphere )
+	TBoxSphereBounds( const TSphere<T>& Sphere )
 	{
 		Origin = Sphere.Center;
-		BoxExtent = FVector(Sphere.W);
+		BoxExtent = TVector<T>(Sphere.W);
 		SphereRadius = Sphere.W;
 
 		DiagnosticCheckNaN();
@@ -108,8 +114,11 @@ public:
 	 * @param Points The points to be considered for the bounding box.
 	 * @param NumPoints Number of points in the Points array.
 	 */
-	FBoxSphereBounds( const FVector* Points, uint32 NumPoints );
+	TBoxSphereBounds( const TVector<T>* Points, uint32 NumPoints );
 
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TBoxSphereBounds(const TBoxSphereBounds<FArg>& From) : TBoxSphereBounds<T>(TVector<T>(From.Origin), TVector<T>(From.BoxExtent), (T)From.SphereRadius) {}
 
 public:
 
@@ -119,7 +128,7 @@ public:
 	 * @param Other The other bounding volume.
 	 * @return The combined bounding volume.
 	 */
-	FORCEINLINE FBoxSphereBounds operator+( const FBoxSphereBounds& Other ) const;
+	FORCEINLINE TBoxSphereBounds<T> operator+( const TBoxSphereBounds<T>& Other ) const;
 
 	/**
 	 * Compare bounding volume this and Other.
@@ -127,7 +136,7 @@ public:
 	 * @param Other The other bounding volume.
 	 * @return true of they match.
 	 */
-	FORCEINLINE bool operator==(const FBoxSphereBounds& Other) const;
+	FORCEINLINE bool operator==(const TBoxSphereBounds<T>& Other) const;
 	
 	/**
 	 * Compare bounding volume this and Other.
@@ -135,7 +144,7 @@ public:
 	 * @param Other The other bounding volume.
 	 * @return true of they do not match.
 	 */	
-	FORCEINLINE bool operator!=(const FBoxSphereBounds& Other) const;
+	FORCEINLINE bool operator!=(const TBoxSphereBounds<T>& Other) const;
 
 public:
 
@@ -145,10 +154,10 @@ public:
 	 * @param Point The point.
 	 * @return The distance.
 	 */
-	FORCEINLINE FReal ComputeSquaredDistanceFromBoxToPoint( const FVector& Point ) const
+	FORCEINLINE T ComputeSquaredDistanceFromBoxToPoint( const TVector<T>& Point ) const
 	{
-		FVector Mins = Origin - BoxExtent;
-		FVector Maxs = Origin + BoxExtent;
+		TVector<T> Mins = Origin - BoxExtent;
+		TVector<T> Maxs = Origin + BoxExtent;
 
 		return ::ComputeSquaredDistanceFromBoxToPoint(Mins, Maxs, Point);
 	}
@@ -161,9 +170,9 @@ public:
 	 * @param  Tolerance Error tolerance added to test distance.
 	 * @return true if spheres intersect, false otherwise.
 	 */
-	FORCEINLINE static bool SpheresIntersect(const FBoxSphereBounds& A, const FBoxSphereBounds& B, float Tolerance = KINDA_SMALL_NUMBER)
+	FORCEINLINE static bool SpheresIntersect(const TBoxSphereBounds<T>& A, const TBoxSphereBounds<T>& B, T Tolerance = KINDA_SMALL_NUMBER)
 	{
-		return (A.Origin - B.Origin).SizeSquared() <= FMath::Square(FMath::Max<FReal>(0.f, A.SphereRadius + B.SphereRadius + Tolerance));
+		return (A.Origin - B.Origin).SizeSquared() <= FMath::Square(FMath::Max<T>(0.f, A.SphereRadius + B.SphereRadius + Tolerance));
 	}
 
 	/**
@@ -173,7 +182,7 @@ public:
 	 * @param  B Second BoxSphereBounds to test.
 	 * @return true if boxes intersect, false otherwise.
 	 */
-	FORCEINLINE static bool BoxesIntersect(const FBoxSphereBounds& A, const FBoxSphereBounds& B)
+	FORCEINLINE static bool BoxesIntersect(const TBoxSphereBounds<T>& A, const TBoxSphereBounds<T>& B)
 	{
 		return A.GetBox().Intersect(B.GetBox());
 	}
@@ -183,9 +192,9 @@ public:
 	 *
 	 * @return The bounding box.
 	 */
-	FORCEINLINE FBox GetBox() const
+	FORCEINLINE TBox<T> GetBox() const
 	{
-		return FBox(Origin - BoxExtent,Origin + BoxExtent);
+		return TBox<T>(Origin - BoxExtent,Origin + BoxExtent);
 	}
 
 	/**
@@ -194,7 +203,7 @@ public:
 	 * @param Extrema 1 for positive extrema from the origin, else negative
 	 * @return The boxes extrema
 	 */
-	FVector GetBoxExtrema( uint32 Extrema ) const
+	TVector<T> GetBoxExtrema( uint32 Extrema ) const
 	{
 		if (Extrema)
 		{
@@ -209,9 +218,9 @@ public:
 	 *
 	 * @return The bounding sphere.
 	 */
-	FORCEINLINE FSphere GetSphere() const
+	FORCEINLINE TSphere<T> GetSphere() const
 	{
-		return FSphere(Origin,SphereRadius);
+		return TSphere<T>(Origin,SphereRadius);
 	}
 
 	/**
@@ -220,9 +229,9 @@ public:
 	 * @param ExpandAmount The size to increase by.
 	 * @return A new box with the expanded size.
 	 */
-	FORCEINLINE FBoxSphereBounds ExpandBy( FReal ExpandAmount ) const
+	FORCEINLINE TBoxSphereBounds<T> ExpandBy( T ExpandAmount ) const
 	{
-		return FBoxSphereBounds(Origin, BoxExtent + ExpandAmount, SphereRadius + ExpandAmount);
+		return TBoxSphereBounds(Origin, BoxExtent + ExpandAmount, SphereRadius + ExpandAmount);
 	}
 
 	/**
@@ -231,7 +240,7 @@ public:
 	 * @param M The matrix.
 	 * @return The transformed volume.
 	 */
-	CORE_API FBoxSphereBounds TransformBy( const FMatrix& M ) const;
+	TBoxSphereBounds<T> TransformBy( const TMatrix<T>& M ) const;
 
 	/**
 	 * Gets a bounding volume transformed by a FTransform object.
@@ -239,7 +248,7 @@ public:
 	 * @param M The FTransform object.
 	 * @return The transformed volume.
 	 */
-	CORE_API FBoxSphereBounds TransformBy( const FTransform& M ) const;
+	TBoxSphereBounds<T> TransformBy( const TTransform<T>& M ) const;
 
 	/**
 	 * Get a textual representation of this bounding box.
@@ -253,7 +262,7 @@ public:
 	 *
 	 * This is a legacy version of the function used to compute primitive bounds, to avoid the need to rebuild lighting after the change.
 	 */
-	friend FBoxSphereBounds Union( const FBoxSphereBounds& A,const FBoxSphereBounds& B )
+	friend TBoxSphereBounds<T> Union( const TBoxSphereBounds<T>& A,const TBoxSphereBounds<T>& B )
 	{
 		return A + B;
 	}
@@ -264,17 +273,17 @@ public:
 		if (Origin.ContainsNaN())
 		{
 			logOrEnsureNanError(TEXT("Origin contains NaN: %s"), *Origin.ToString());
-			const_cast<FBoxSphereBounds*>(this)->Origin = FVector::ZeroVector;
+			const_cast<TBoxSphereBounds*>(this)->Origin = TVector<T>::ZeroVector;
 		}
 		if (BoxExtent.ContainsNaN())
 		{
 			logOrEnsureNanError(TEXT("BoxExtent contains NaN: %s"), *BoxExtent.ToString());
-			const_cast<FBoxSphereBounds*>(this)->BoxExtent = FVector::ZeroVector;
+			const_cast<TBoxSphereBounds*>(this)->BoxExtent = TVector<T>::ZeroVector;
 		}
 		if (FMath::IsNaN(SphereRadius) || !FMath::IsFinite(SphereRadius))
 		{
 			logOrEnsureNanError(TEXT("SphereRadius contains NaN: %f"), SphereRadius);
-			const_cast<FBoxSphereBounds*>(this)->SphereRadius = 0.f;
+			const_cast<TBoxSphereBounds*>(this)->SphereRadius = 0.f;
 		}
 	}
 #else
@@ -285,45 +294,57 @@ public:
 	{
 		return Origin.ContainsNaN() || BoxExtent.ContainsNaN() || !FMath::IsFinite(SphereRadius);
 	}
-
-public:
-
-	/**
-	 * Serializes the given bounding volume from or into the specified archive.
-	 *
-	 * @param Ar The archive to serialize from or into.
-	 * @param Bounds The bounding volume to serialize.
-	 * @return The archive..
-	 */
-	friend FArchive& operator<<( FArchive& Ar, FBoxSphereBounds& Bounds )
-	{
-		Ar << Bounds.Origin << Bounds.BoxExtent;
-		// LWC_TODO: Serializer
-		//if(!Ar.IsPersistent())
-		//{
-		//	Ar << Bounds.SphereRadius;
-		//}
-		//else
-		{
-			float Radius = (float)Bounds.SphereRadius;
-			Ar << Radius;
-			if(Ar.IsLoading())
-			{
-				Bounds.SphereRadius = Radius;
-			}
-		}
-
-		return Ar;
-	}
 };
 
 
-/* FBoxSphereBounds inline functions
+/* TBoxSphereBounds<T> inline functions
  *****************************************************************************/
 
-FORCEINLINE FBoxSphereBounds::FBoxSphereBounds( const FVector* Points, uint32 NumPoints )
+/**
+ * Serializes the given bounding volume from or into the specified archive.
+ *
+ * @param Ar The archive to serialize from or into.
+ * @param Bounds The bounding volume to serialize.
+ * @return The archive..
+ */
+inline FArchive& operator<<(FArchive& Ar, TBoxSphereBounds<float>& Bounds)
 {
-	FBox BoundingBox(ForceInit);
+	Ar << Bounds.Origin << Bounds.BoxExtent << Bounds.SphereRadius;
+	return Ar;
+}
+
+/**
+ * Serializes the given bounding volume from or into the specified archive.
+ *
+ * @param Ar The archive to serialize from or into.
+ * @param Bounds The bounding volume to serialize.
+ * @return The archive..
+ */
+inline FArchive& operator<<(FArchive& Ar, TBoxSphereBounds<double>& Bounds)
+{
+	Ar << Bounds.Origin << Bounds.BoxExtent;
+	// LWC_TODO: Serializer
+	//if(!Ar.IsPersistent())
+	//{
+	//	Ar << Bounds.SphereRadius;
+	//}
+	//else
+	{
+		float Radius = (float)Bounds.SphereRadius;
+		Ar << Radius;
+		if (Ar.IsLoading())
+		{
+			Bounds.SphereRadius = Radius;
+		}
+	}
+
+	return Ar;
+}
+
+template<typename T>
+FORCEINLINE TBoxSphereBounds<T>::TBoxSphereBounds( const TVector<T>* Points, uint32 NumPoints )
+{
+	TBox<T> BoundingBox(ForceInit);
 
 	// find an axis aligned bounding box for the points.
 	for (uint32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
@@ -334,11 +355,11 @@ FORCEINLINE FBoxSphereBounds::FBoxSphereBounds( const FVector* Points, uint32 Nu
 	BoundingBox.GetCenterAndExtents(Origin, BoxExtent);
 
 	// using the center of the bounding box as the origin of the sphere, find the radius of the bounding sphere.
-	float SquaredSphereRadius = 0.0f;
+	T SquaredSphereRadius = 0.0f;
 
 	for (uint32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
 	{
-		SquaredSphereRadius = (float)FMath::Max<FReal>(SquaredSphereRadius, (Points[PointIndex] - Origin).SizeSquared());	// LWC_TODO: Precision loss
+		SquaredSphereRadius = FMath::Max(SquaredSphereRadius, (Points[PointIndex] - Origin).SizeSquared());	// LWC_TODO: Precision loss
 	}
 
 	SphereRadius = FMath::Sqrt(SquaredSphereRadius);
@@ -346,10 +367,10 @@ FORCEINLINE FBoxSphereBounds::FBoxSphereBounds( const FVector* Points, uint32 Nu
 	DiagnosticCheckNaN();
 }
 
-
-FORCEINLINE FBoxSphereBounds FBoxSphereBounds::operator+( const FBoxSphereBounds& Other ) const
+template<typename T>
+FORCEINLINE TBoxSphereBounds<T> TBoxSphereBounds<T>::operator+( const TBoxSphereBounds<T>& Other ) const
 {
-	FBox BoundingBox(ForceInit);
+	TBox<T> BoundingBox(ForceInit);
 
 	BoundingBox += (this->Origin - this->BoxExtent);
 	BoundingBox += (this->Origin + this->BoxExtent);
@@ -357,27 +378,104 @@ FORCEINLINE FBoxSphereBounds FBoxSphereBounds::operator+( const FBoxSphereBounds
 	BoundingBox += (Other.Origin + Other.BoxExtent);
 
 	// build a bounding sphere from the bounding box's origin and the radii of A and B.
-	FBoxSphereBounds Result(BoundingBox);
+	TBoxSphereBounds<T> Result(BoundingBox);
 
-	Result.SphereRadius = FMath::Min<FReal>(Result.SphereRadius, FMath::Max((Origin - Result.Origin).Size() + SphereRadius, (Other.Origin - Result.Origin).Size() + Other.SphereRadius));
+	Result.SphereRadius = FMath::Min(Result.SphereRadius, FMath::Max((Origin - Result.Origin).Size() + SphereRadius, (Other.Origin - Result.Origin).Size() + Other.SphereRadius));
 	Result.DiagnosticCheckNaN();
 
 	return Result;
 }
 
-FORCEINLINE bool FBoxSphereBounds::operator==(const FBoxSphereBounds& Other) const
+template<typename T>
+FORCEINLINE bool TBoxSphereBounds<T>::operator==(const TBoxSphereBounds<T>& Other) const
 {
 	return Origin == Other.Origin && BoxExtent == Other.BoxExtent &&  SphereRadius == Other.SphereRadius;
 }
 
-FORCEINLINE bool FBoxSphereBounds::operator!=(const FBoxSphereBounds& Other) const
+template<typename T>
+FORCEINLINE bool TBoxSphereBounds<T>::operator!=(const TBoxSphereBounds<T>& Other) const
 {
 	return !(*this == Other);
 }
 
-FORCEINLINE FString FBoxSphereBounds::ToString() const
+template<typename T>
+FORCEINLINE FString TBoxSphereBounds<T>::ToString() const
 {
 	return FString::Printf(TEXT("Origin=%s, BoxExtent=(%s), SphereRadius=(%f)"), *Origin.ToString(), *BoxExtent.ToString(), SphereRadius);
 }
 
-template <> struct TIsPODType<FBoxSphereBounds> { enum { Value = true }; };
+template<typename T>
+TBoxSphereBounds<T> TBoxSphereBounds<T>::TransformBy(const TMatrix<T>& M) const
+{
+#if ENABLE_NAN_DIAGNOSTIC
+	if (M.ContainsNaN())
+	{
+		logOrEnsureNanError(TEXT("Input Matrix contains NaN/Inf! %s"), *M.ToString());
+		(const_cast<TMatrix<T>*>(&M))->SetIdentity();
+	}
+#endif
+
+	TBoxSphereBounds<T> Result;
+
+	const TVectorRegisterType<T> VecOrigin = VectorLoadFloat3(&Origin);
+	const TVectorRegisterType<T> VecExtent = VectorLoadFloat3(&BoxExtent);
+
+	const TVectorRegisterType<T> m0 = VectorLoadAligned(M.M[0]);
+	const TVectorRegisterType<T> m1 = VectorLoadAligned(M.M[1]);
+	const TVectorRegisterType<T> m2 = VectorLoadAligned(M.M[2]);
+	const TVectorRegisterType<T> m3 = VectorLoadAligned(M.M[3]);
+
+	TVectorRegisterType<T> NewOrigin = VectorMultiply(VectorReplicate(VecOrigin, 0), m0);
+	NewOrigin = VectorMultiplyAdd(VectorReplicate(VecOrigin, 1), m1, NewOrigin);
+	NewOrigin = VectorMultiplyAdd(VectorReplicate(VecOrigin, 2), m2, NewOrigin);
+	NewOrigin = VectorAdd(NewOrigin, m3);
+
+	TVectorRegisterType<T> NewExtent = VectorAbs(VectorMultiply(VectorReplicate(VecExtent, 0), m0));
+	NewExtent = VectorAdd(NewExtent, VectorAbs(VectorMultiply(VectorReplicate(VecExtent, 1), m1)));
+	NewExtent = VectorAdd(NewExtent, VectorAbs(VectorMultiply(VectorReplicate(VecExtent, 2), m2)));
+
+	VectorStoreFloat3(NewExtent, &(Result.BoxExtent.X));
+	VectorStoreFloat3(NewOrigin, &(Result.Origin.X));
+
+	TVectorRegisterType<T> MaxRadius = VectorMultiply(m0, m0);
+	MaxRadius = VectorMultiplyAdd(m1, m1, MaxRadius);
+	MaxRadius = VectorMultiplyAdd(m2, m2, MaxRadius);
+	MaxRadius = VectorMax(VectorMax(MaxRadius, VectorReplicate(MaxRadius, 1)), VectorReplicate(MaxRadius, 2));
+	Result.SphereRadius = FMath::Sqrt(VectorGetComponent(MaxRadius, 0)) * SphereRadius;
+
+	// For non-uniform scaling, computing sphere radius from a box results in a smaller sphere.
+	T const BoxExtentMagnitude = FMath::Sqrt(VectorDot3Scalar(NewExtent, NewExtent));
+	Result.SphereRadius = FMath::Min(Result.SphereRadius, BoxExtentMagnitude);
+
+	Result.DiagnosticCheckNaN();
+	return Result;
+}
+
+/**
+ * Gets a bounding volume transformed by a FTransform object.
+ *
+ * @param M The FTransform object.
+ * @return The transformed volume.
+ */
+ template<typename T>
+TBoxSphereBounds<T> TBoxSphereBounds<T>::TransformBy(const TTransform<T>& M) const
+{
+#if ENABLE_NAN_DIAGNOSTIC
+	M.DiagnosticCheckNaN_All();
+#endif
+
+	const TMatrix<T> Mat = M.ToMatrixWithScale();
+	TBoxSphereBounds<T> Result = TransformBy(Mat);
+	return Result;
+}
+
+
+} // namespace UE::Math
+} // namespace UE
+
+UE_DECLARE_LWC_TYPE(BoxSphereBounds, 3);
+
+template <> struct TIsPODType<FBoxSphereBounds3f> { enum { Value = true }; };
+template <> struct TIsPODType<FBoxSphereBounds3d> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FBoxSphereBounds3f> { enum { Value = true }; };
+template <> struct TIsUECoreVariant<FBoxSphereBounds3d> { enum { Value = true }; };

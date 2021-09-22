@@ -88,4 +88,7 @@ FORCEINLINE TRotationTranslationMatrix<T>::TRotationTranslationMatrix(const FRot
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(RotationTranslationMatrix, 44);
+UE_DECLARE_LWC_TYPE(RotationTranslationMatrix, 44);
+
+template<> struct TIsUECoreVariant<FRotationTranslationMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FRotationTranslationMatrix44d> { enum { Value = true }; };

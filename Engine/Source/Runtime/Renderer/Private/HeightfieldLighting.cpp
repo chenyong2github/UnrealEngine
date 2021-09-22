@@ -206,7 +206,7 @@ private:
 
 int32 UploadSubsectionHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor)
 {
-	TArray<FVector4, SceneRenderingAllocator> HeightfieldDescriptionData;
+	TArray<FVector4f, SceneRenderingAllocator> HeightfieldDescriptionData;
 	HeightfieldDescriptionData.Empty(HeightfieldDescriptions.Num() * GSubsectionHeightfieldDescriptions.Data.Stride);
 
 	for (int32 DescriptionIndex = 0; DescriptionIndex < HeightfieldDescriptions.Num(); DescriptionIndex++)
@@ -217,12 +217,12 @@ int32 UploadSubsectionHeightfieldDescriptions(const TArray<FHeightfieldComponent
 		{
 			for (int32 SubsectionX = 0; SubsectionX < Description.NumSubsections; SubsectionX++)
 			{
-				HeightfieldDescriptionData.Add(FVector4(SubsectionX, SubsectionY, 0, 0));
+				HeightfieldDescriptionData.Add(FVector4f(SubsectionX, SubsectionY, 0, 0));
 				HeightfieldDescriptionData.Add(Description.SubsectionScaleAndBias);
 				HeightfieldDescriptionData.Add(Description.HeightfieldScaleBias);
 
 				// GlobalUVScaleBias = SubsectionSizeQuads / AtlasSize, (SubsectionBase + SubsectionId * SubsectionSizeQuads - AtlasMin) / AtlasSize
-				const FVector4 GlobalUVScaleBias(
+				const FVector4f GlobalUVScaleBias(
 					Description.SubsectionScaleAndBias.X * InvLightingAtlasSize.X * InvDownsampleFactor,
 					Description.SubsectionScaleAndBias.Y * InvLightingAtlasSize.Y * InvDownsampleFactor,
 					(Description.LightingAtlasLocation.X + SubsectionX * Description.SubsectionScaleAndBias.X * InvDownsampleFactor) * InvLightingAtlasSize.X,
@@ -603,7 +603,7 @@ FRHIShaderResourceView* GetHeightfieldDescriptionsSRV()
 void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, 
 	FVector2D InvLightingAtlasSize, 
 	float InvDownsampleFactor,
-	TArray<FVector4, SceneRenderingAllocator>& HeightfieldDescriptionData)
+	TArray<FVector4f, SceneRenderingAllocator>& HeightfieldDescriptionData)
 {
 	HeightfieldDescriptionData.Empty(HeightfieldDescriptions.Num() * GHeightfieldDescriptions.Data.Stride);
 
@@ -611,7 +611,7 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 	{
 		const FHeightfieldComponentDescription& Description = HeightfieldDescriptions[DescriptionIndex];
 
-		FVector4 HeightfieldScaleBias = Description.HeightfieldScaleBias;
+		FVector4f HeightfieldScaleBias = Description.HeightfieldScaleBias;
 		check(HeightfieldScaleBias.X > 0);
 
 		// CalculateHeightfieldOcclusionCS needs to be fixed up if other values are ever supported
@@ -623,7 +623,7 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 		HeightfieldDescriptionData.Add(HeightfieldScaleBias);
 		HeightfieldDescriptionData.Add(Description.MinMaxUV);
 
-		const FVector4 LightingUVScaleBias(
+		const FVector4f LightingUVScaleBias(
 			InvLightingAtlasSize.X * InvDownsampleFactor,
 			InvLightingAtlasSize.Y * InvDownsampleFactor,
 			Description.LightingAtlasLocation.X * InvLightingAtlasSize.X,
@@ -631,21 +631,21 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 
 		HeightfieldDescriptionData.Add(LightingUVScaleBias);
 
-		HeightfieldDescriptionData.Add(FVector4(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f / Description.HeightfieldRect.Size().X, 1.f / Description.HeightfieldRect.Size().Y));
-		HeightfieldDescriptionData.Add(FVector4(InvLightingAtlasSize.X, InvLightingAtlasSize.Y, 0.f, 0.f));
+		HeightfieldDescriptionData.Add(FVector4f(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f / Description.HeightfieldRect.Size().X, 1.f / Description.HeightfieldRect.Size().Y));
+		HeightfieldDescriptionData.Add(FVector4f(InvLightingAtlasSize.X, InvLightingAtlasSize.Y, 0.f, 0.f));
 
 		const FMatrix44f LocalToWorldT = Description.LocalToWorld.GetTransposed();
 		const FMatrix44f WorldToLocalT = Description.LocalToWorld.Inverse().GetTransposed();
 
-		HeightfieldDescriptionData.Add(*(FVector4*)&WorldToLocalT.M[0]);
-		HeightfieldDescriptionData.Add(*(FVector4*)&WorldToLocalT.M[1]);
-		HeightfieldDescriptionData.Add(*(FVector4*)&WorldToLocalT.M[2]);
+		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[0]);
+		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[1]);
+		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[2]);
 
-		HeightfieldDescriptionData.Add(*(FVector4*)&LocalToWorldT.M[0]);
-		HeightfieldDescriptionData.Add(*(FVector4*)&LocalToWorldT.M[1]);
-		HeightfieldDescriptionData.Add(*(FVector4*)&LocalToWorldT.M[2]);
+		HeightfieldDescriptionData.Add(*(FVector4f*)&LocalToWorldT.M[0]);
+		HeightfieldDescriptionData.Add(*(FVector4f*)&LocalToWorldT.M[1]);
+		HeightfieldDescriptionData.Add(*(FVector4f*)&LocalToWorldT.M[2]);
 
-		FVector4 ChannelMask(0.f, 0.f, 0.f, 0.f);
+		FVector4f ChannelMask(0.f, 0.f, 0.f, 0.f);
 		if (Description.VisibilityChannel >= 0 && Description.VisibilityChannel < 4)
 		{
 			ChannelMask.Component(Description.VisibilityChannel) = 1.f;
@@ -658,7 +658,7 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 
 void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor)
 {
-	TArray<FVector4, SceneRenderingAllocator> HeightfieldDescriptionData;
+	TArray<FVector4f, SceneRenderingAllocator> HeightfieldDescriptionData;
 
 	FillHeightfieldDescriptionData(HeightfieldDescriptions,
 		InvLightingAtlasSize,
@@ -683,7 +683,7 @@ FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TAr
 {
 	const uint32 BufferStride = GHeightfieldDescriptions.Data.Stride;
 
-	TArray<FVector4, SceneRenderingAllocator> HeightfieldDescriptionData;
+	TArray<FVector4f, SceneRenderingAllocator> HeightfieldDescriptionData;
 
 	FillHeightfieldDescriptionData(HeightfieldDescriptions,
 		InvLightingAtlasSize,
@@ -692,7 +692,7 @@ FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TAr
 
 	FRDGBufferRef HeightfieldDescriptionsBuffer =
 		CreateUploadBuffer(GraphBuilder, TEXT("HeightfieldDescriptionsBuffer"),
-			sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(HeightfieldDescriptionData.Num(), 1)),
+			sizeof(FVector4f), FMath::RoundUpToPowerOfTwo(FMath::Max(HeightfieldDescriptionData.Num(), 1)),
 			HeightfieldDescriptionData.GetData(), HeightfieldDescriptionData.Num() * HeightfieldDescriptionData.GetTypeSize());
 
 	return HeightfieldDescriptionsBuffer;
@@ -805,7 +805,7 @@ public:
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
 		GlobalHeightfieldParameters.Set(RHICmdList, ShaderRHI, Atlas);
 
-		FVector4 ShadowmapMinMaxValue;
+		FVector4f ShadowmapMinMaxValue;
 		FMatrix44f WorldToShadowMatrixValue = ProjectedShadowInfo->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
 
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToShadow, WorldToShadowMatrixValue);
@@ -1153,7 +1153,7 @@ public:
 
 		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
 		{
-			AOSampleData.SampleDirections[SampleIndex] = FVector4(SampleDirections[SampleIndex]);
+			AOSampleData.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
 		}
 
 		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FAOSampleData2>(), AOSampleData);

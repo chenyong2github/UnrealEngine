@@ -2660,26 +2660,26 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 	// Generate per-attribute data
 	if (ProxyData->PerAttributeData.NumBytes == 0)
 	{
-		TResourceArray<FVector4> PerAttributeData;
+		TResourceArray<FVector4f> PerAttributeData;
 		PerAttributeData.AddUninitialized((ProxyData->TotalNumAttributes * 2) + 1);
 		for (int32 iAttribute = 0; iAttribute < ProxyData->TotalNumAttributes; ++iAttribute)
 		{
 			const FIntVector AttributeTileIndex(iAttribute % ProxyData->NumTiles.X, (iAttribute / ProxyData->NumTiles.X) % ProxyData->NumTiles.Y, iAttribute / (ProxyData->NumTiles.X * ProxyData->NumTiles.Y));
-			PerAttributeData[iAttribute] = FVector4(
+			PerAttributeData[iAttribute] = FVector4f(
 				AttributeTileIndex.X * ProxyData->NumCells.X,
 				AttributeTileIndex.Y * ProxyData->NumCells.Y,
 				AttributeTileIndex.Z * ProxyData->NumCells.Z,
 				0
 			);
-			PerAttributeData[iAttribute + ProxyData->TotalNumAttributes] = FVector4(
+			PerAttributeData[iAttribute + ProxyData->TotalNumAttributes] = FVector4f(
 				(1.0f / ProxyData->NumTiles.X) * float(AttributeTileIndex.X),
 				(1.0f / ProxyData->NumTiles.Y) * float(AttributeTileIndex.Y),
 				(1.0f / ProxyData->NumTiles.Z) * float(AttributeTileIndex.Z),
 				0.0f
 			);
 		}
-		PerAttributeData[ProxyData->TotalNumAttributes * 2] = FVector4(65535, 65535, 65535, 65535);
-		ProxyData->PerAttributeData.Initialize(TEXT("Grid3D::PerAttributeData"), sizeof(FVector4), PerAttributeData.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &PerAttributeData);
+		PerAttributeData[ProxyData->TotalNumAttributes * 2] = FVector4f(65535, 65535, 65535, 65535);
+		ProxyData->PerAttributeData.Initialize(TEXT("Grid3D::PerAttributeData"), sizeof(FVector4f), PerAttributeData.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &PerAttributeData);
 	}
 
 	// #todo(dmp): Context doesnt need to specify if a stage is output or not since we moved pre/post stage to the DI itself.  Not sure which design is better for the future
@@ -2711,7 +2711,7 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(FRHICommandList& 
 			}
 
 			check(ProxyData->DestinationData);
-			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4(ForceInitToZero));
+			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridBuffer.UAV, FVector4f(ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		}
 	}
@@ -2801,7 +2801,7 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(FRHICommandList&
 				AccessAfter = ERHIAccess::SRVMask;
 			}
 
-			RHICmdList.ClearUAVFloat(Buffer->GridBuffer.UAV, FVector4(ForceInitToZero));
+			RHICmdList.ClearUAVFloat(Buffer->GridBuffer.UAV, FVector4f(ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(Buffer->GridBuffer.UAV, ERHIAccess::UAVCompute, AccessAfter));
 		}
 	}

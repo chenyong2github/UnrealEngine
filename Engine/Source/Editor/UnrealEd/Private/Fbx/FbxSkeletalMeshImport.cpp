@@ -1737,8 +1737,8 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	
 
 	// Create initial bounding box based on expanded version of reference pose for meshes without physics assets. Can be overridden by artist.
-	FBox BoundingBox(SkelMeshImportDataPtr->Points.GetData(), SkelMeshImportDataPtr->Points.Num());
-	const FVector BoundingBoxSize = BoundingBox.GetSize();
+	FBox3f BoundingBox(SkelMeshImportDataPtr->Points.GetData(), SkelMeshImportDataPtr->Points.Num());
+	const FVector3f BoundingBoxSize = BoundingBox.GetSize();
 
 	if (SkelMeshImportDataPtr->Points.Num() > 2 && BoundingBoxSize.X < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Y < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Z < THRESH_POINTS_ARE_SAME)
 	{
@@ -1848,7 +1848,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	NewLODInfo.ReductionSettings.MaxDeviationPercentage = 0.0f;
 	NewLODInfo.LODHysteresis = 0.02f;
 
-	SkeletalMesh->SetImportedBounds(FBoxSphereBounds(BoundingBox));
+	SkeletalMesh->SetImportedBounds(FBoxSphereBounds((FBox)BoundingBox));
 
 	// Store whether or not this mesh has vertex colors
 	SkeletalMesh->SetHasVertexColors(SkelMeshImportDataPtr->bHasVertexColors);

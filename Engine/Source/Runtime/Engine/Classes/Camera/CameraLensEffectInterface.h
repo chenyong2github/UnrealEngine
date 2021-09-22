@@ -10,9 +10,6 @@
 
 class AActor;
 class APlayerCameraManager;
-
-DECLARE_LWC_TYPE(Vector, 3);
-struct FRotator;
 class UFXSystemComponent;
 
 UINTERFACE(meta=(CannotImplementInterfaceInBlueprint), MinimalAPI, BlueprintType)

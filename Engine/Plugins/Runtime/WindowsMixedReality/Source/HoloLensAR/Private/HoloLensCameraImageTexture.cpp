@@ -38,7 +38,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
-		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4)));
+		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4f)));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
@@ -88,12 +88,12 @@ public:
 	virtual void InitRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4) * 4, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FVector4* DummyContents = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 4, RLM_WriteOnly);
-		DummyContents[0] = FVector4(0.f, 0.f, 0.f, 0.f);
-		DummyContents[1] = FVector4(1.f, 0.f, 0.f, 0.f);
-		DummyContents[2] = FVector4(0.f, 1.f, 0.f, 0.f);
-		DummyContents[3] = FVector4(1.f, 1.f, 0.f, 0.f);
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * 4, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 4, RLM_WriteOnly);
+		DummyContents[0] = FVector4f(0.f, 0.f, 0.f, 0.f);
+		DummyContents[1] = FVector4f(1.f, 0.f, 0.f, 0.f);
+		DummyContents[2] = FVector4f(0.f, 1.f, 0.f, 0.f);
+		DummyContents[3] = FVector4f(1.f, 1.f, 0.f, 0.f);
 		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };

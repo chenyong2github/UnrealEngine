@@ -101,7 +101,7 @@ public:
 		TVertexInstanceAttributesConstRef<FVector3f> InVertexNormals = InMeshAttribute.GetVertexInstanceNormals();
 		TVertexInstanceAttributesConstRef<FVector3f> InVertexTangents = InMeshAttribute.GetVertexInstanceTangents();
 		TVertexInstanceAttributesConstRef<float> InVertexBinormalSigns = InMeshAttribute.GetVertexInstanceBinormalSigns();
-		TVertexInstanceAttributesConstRef<FVector4> InVertexColors = InMeshAttribute.GetVertexInstanceColors();
+		TVertexInstanceAttributesConstRef<FVector4f> InVertexColors = InMeshAttribute.GetVertexInstanceColors();
 		TVertexInstanceAttributesConstRef<FVector2D> InVertexUVs = InMeshAttribute.GetVertexInstanceUVs();
 		TPolygonGroupAttributesConstRef<FName> InPolygonGroupMaterialNames = InMeshAttribute.GetPolygonGroupMaterialSlotNames();
 
@@ -467,7 +467,7 @@ public:
 			TVertexInstanceAttributesRef<FVector3f> OutVertexNormals = Attributes.GetVertexInstanceNormals();
 			TVertexInstanceAttributesRef<FVector3f> OutVertexTangents = Attributes.GetVertexInstanceTangents();
 			TVertexInstanceAttributesRef<float> OutVertexBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-			TVertexInstanceAttributesRef<FVector4> OutVertexColors = Attributes.GetVertexInstanceColors();
+			TVertexInstanceAttributesRef<FVector4f> OutVertexColors = Attributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector2D> OutVertexUVs = Attributes.GetVertexInstanceUVs();
 
 			//Specify the number of texture coords in this mesh description

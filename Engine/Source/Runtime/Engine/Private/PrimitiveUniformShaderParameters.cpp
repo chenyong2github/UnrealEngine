@@ -15,7 +15,7 @@ void FSinglePrimitiveStructured::InitRHI()
 		FRHIResourceCreateInfo CreateInfo(TEXT("PrimitiveSceneDataBuffer"));
 
 		{	
-			PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+			PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 			PrimitiveSceneDataBufferSRV = RHICreateShaderResourceView(PrimitiveSceneDataBufferRHI);
 		}
 
@@ -26,19 +26,19 @@ void FSinglePrimitiveStructured::InitRHI()
 		}
 
 		CreateInfo.DebugName = TEXT("LightmapSceneDataBuffer");
-		LightmapSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FLightmapSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+		LightmapSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), FLightmapSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 		LightmapSceneDataBufferSRV = RHICreateShaderResourceView(LightmapSceneDataBufferRHI);
 
 		CreateInfo.DebugName = TEXT("InstanceSceneDataBuffer");
-		InstanceSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+		InstanceSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 		InstanceSceneDataBufferSRV = RHICreateShaderResourceView(InstanceSceneDataBufferRHI);
 
 		CreateInfo.DebugName = TEXT("InstancePayloadDataBuffer");
-		InstancePayloadDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), 1 /* unused dummy */ * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+		InstancePayloadDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4f), 1 /* unused dummy */ * sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 		InstancePayloadDataBufferSRV = RHICreateShaderResourceView(InstancePayloadDataBufferRHI);
 
 		CreateInfo.DebugName = TEXT("SkyIrradianceEnvironmentMap");
-		SkyIrradianceEnvironmentMapRHI = RHICreateStructuredBuffer(sizeof(FVector4), sizeof(FVector4) * 8, BUF_Static | BUF_ShaderResource, CreateInfo);
+		SkyIrradianceEnvironmentMapRHI = RHICreateStructuredBuffer(sizeof(FVector4f), sizeof(FVector4f) * 8, BUF_Static | BUF_ShaderResource, CreateInfo);
 		SkyIrradianceEnvironmentMapSRV = RHICreateShaderResourceView(SkyIrradianceEnvironmentMapRHI);
 	}
 
@@ -51,20 +51,20 @@ void FSinglePrimitiveStructured::UploadToGPU()
 	{
 		void* LockedData = nullptr;
 
-		LockedData = RHILockBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data.GetData(), FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4));
+		LockedData = RHILockBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), RLM_WriteOnly);
+		FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data.GetData(), FPrimitiveSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f));
 		RHIUnlockBuffer(PrimitiveSceneDataBufferRHI);
 
-		LockedData = RHILockBuffer(LightmapSceneDataBufferRHI, 0, FLightmapSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(LockedData, LightmapSceneData.Data.GetData(), FLightmapSceneShaderData::DataStrideInFloat4s * sizeof(FVector4));
+		LockedData = RHILockBuffer(LightmapSceneDataBufferRHI, 0, FLightmapSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), RLM_WriteOnly);
+		FPlatformMemory::Memcpy(LockedData, LightmapSceneData.Data.GetData(), FLightmapSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f));
 		RHIUnlockBuffer(LightmapSceneDataBufferRHI);
 
-		LockedData = RHILockBuffer(InstanceSceneDataBufferRHI, 0, FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(LockedData, InstanceSceneData.Data.GetData(), FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4));
+		LockedData = RHILockBuffer(InstanceSceneDataBufferRHI, 0, FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f), RLM_WriteOnly);
+		FPlatformMemory::Memcpy(LockedData, InstanceSceneData.Data.GetData(), FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4f));
 		RHIUnlockBuffer(InstanceSceneDataBufferRHI);
 
-		LockedData = RHILockBuffer(InstancePayloadDataBufferRHI, 0, 1 /* unused dummy */ * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memset(LockedData, 0x00, sizeof(FVector4));
+		LockedData = RHILockBuffer(InstancePayloadDataBufferRHI, 0, 1 /* unused dummy */ * sizeof(FVector4f), RLM_WriteOnly);
+		FPlatformMemory::Memset(LockedData, 0x00, sizeof(FVector4f));
 		RHIUnlockBuffer(InstancePayloadDataBufferRHI);
 	}
 
@@ -177,45 +177,45 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[0].Z	= *(const float*)&PrimitiveUniformShaderParameters.NumInstanceSceneDataEntries;
 	Data[0].W	= *(const float*)&PrimitiveUniformShaderParameters.SingleCaptureIndex;
 
-	Data[1]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[0][0];
-	Data[2]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[1][0];
-	Data[3]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[2][0];
-	Data[4]		= *(const FVector4*)&PrimitiveUniformShaderParameters.LocalToWorld.M[3][0];
+	Data[1]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.LocalToWorld.M[0][0];
+	Data[2]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.LocalToWorld.M[1][0];
+	Data[3]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.LocalToWorld.M[2][0];
+	Data[4]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.LocalToWorld.M[3][0];
 
-	Data[5]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[0][0];
-	Data[6]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[1][0];
-	Data[7]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[2][0];
-	Data[8]		= *(const FVector4*)&PrimitiveUniformShaderParameters.WorldToLocal.M[3][0];
+	Data[5]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.WorldToLocal.M[0][0];
+	Data[6]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.WorldToLocal.M[1][0];
+	Data[7]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.WorldToLocal.M[2][0];
+	Data[8]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.WorldToLocal.M[3][0];
 
-	Data[9]		= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[0][0];
-	Data[10]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[1][0];
-	Data[11]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[2][0];
-	Data[12]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[3][0];
+	Data[9]		= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[0][0];
+	Data[10]	= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[1][0];
+	Data[11]	= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[2][0];
+	Data[12]	= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousLocalToWorld.M[3][0];
 
-	Data[13]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[0][0];
-	Data[14]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[1][0];
-	Data[15]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[2][0];
-	Data[16]	= *(const FVector4*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[3][0];
+	Data[13]	= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[0][0];
+	Data[14]	= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[1][0];
+	Data[15]	= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[2][0];
+	Data[16]	= *(const FVector4f*)&PrimitiveUniformShaderParameters.PreviousWorldToLocal.M[3][0];
 
-	Data[17]	= FVector4(PrimitiveUniformShaderParameters.InvNonUniformScale, PrimitiveUniformShaderParameters.ObjectBoundsX);
+	Data[17]	= FVector4f(PrimitiveUniformShaderParameters.InvNonUniformScale, PrimitiveUniformShaderParameters.ObjectBoundsX);
 	Data[18]	= PrimitiveUniformShaderParameters.ObjectWorldPositionAndRadius;
 
-	Data[19]	= FVector4(PrimitiveUniformShaderParameters.ActorWorldPosition, 0.0f);
+	Data[19]	= FVector4f(PrimitiveUniformShaderParameters.ActorWorldPosition, 0.0f);
 	Data[19].W	= *(const float*)&PrimitiveUniformShaderParameters.LightmapUVIndex;
 
-	Data[20]	= FVector4(PrimitiveUniformShaderParameters.ObjectOrientation, 0.0f);
+	Data[20]	= FVector4f(PrimitiveUniformShaderParameters.ObjectOrientation, 0.0f);
 	Data[20].W	= *(const float*)&PrimitiveUniformShaderParameters.LightmapDataIndex;
 
 	Data[21]	= PrimitiveUniformShaderParameters.NonUniformScale;
 
-	Data[22]	= FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMin, 0.0f);
+	Data[22]	= FVector4f(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMin, 0.0f);
 	Data[22].W	= *(const float*)&PrimitiveUniformShaderParameters.NaniteResourceID;
 
-	Data[23]	= FVector4(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMax, 0.0f);
+	Data[23]	= FVector4f(PrimitiveUniformShaderParameters.PreSkinnedLocalBoundsMax, 0.0f);
 	Data[23].W	= *(const float*)&PrimitiveUniformShaderParameters.NaniteHierarchyOffset;
 
-	Data[24]	= FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.ObjectBoundsY);
-	Data[25]	= FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, PrimitiveUniformShaderParameters.ObjectBoundsZ);
+	Data[24]	= FVector4f(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.ObjectBoundsY);
+	Data[25]	= FVector4f(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, PrimitiveUniformShaderParameters.ObjectBoundsZ);
 
 	Data[26].X = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataOffset;
 	Data[26].Y = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataStride;

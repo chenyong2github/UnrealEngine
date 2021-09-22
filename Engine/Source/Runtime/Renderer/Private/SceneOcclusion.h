@@ -73,7 +73,7 @@ public:
 
 		FVector4 StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, BoundingSphere, View.ViewMatrices.GetPreViewTranslation());
-		StencilingGeometryParameters.Set(RHICmdList, this, StencilingSpherePosAndScale);
+		StencilingGeometryParameters.Set(RHICmdList, this, FVector4f(StencilingSpherePosAndScale)); // LWC_TODO: Precision loss
 
 		if (GEngine && GEngine->StereoRenderingDevice)
 		{
@@ -86,7 +86,7 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(),View.ViewUniformBuffer);
 
 		// Don't transform if rendering frustum
-		StencilingGeometryParameters.Set(RHICmdList, this, FVector4(0,0,0,1));
+		StencilingGeometryParameters.Set(RHICmdList, this, FVector4f(0,0,0,1));
 
 		if (GEngine && GEngine->StereoRenderingDevice)
 		{

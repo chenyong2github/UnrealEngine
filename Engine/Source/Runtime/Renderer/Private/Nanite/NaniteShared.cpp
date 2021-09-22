@@ -48,8 +48,8 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.ViewToClip					= Params.ViewMatrices.GetProjectionMatrix();
 	PackedView.ClipToWorld					= Params.ViewMatrices.GetInvViewProjectionMatrix();
 	PackedView.PreViewTranslation			= Params.ViewMatrices.GetPreViewTranslation();
-	PackedView.WorldCameraOrigin			= FVector4(Params.ViewMatrices.GetViewOrigin(), 0.0f);
-	PackedView.ViewForwardAndNearPlane		= FVector4(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2), Params.ViewMatrices.ComputeNearPlane());
+	PackedView.WorldCameraOrigin			= FVector4f(Params.ViewMatrices.GetViewOrigin(), 0.0f);
+	PackedView.ViewForwardAndNearPlane		= FVector4f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2), Params.ViewMatrices.ComputeNearPlane());
 
 	PackedView.PrevTranslatedWorldToView	= Params.PrevViewMatrices.GetOverriddenTranslatedViewMatrix();
 	PackedView.PrevTranslatedWorldToClip	= Params.PrevViewMatrices.GetTranslatedViewProjectionMatrix();
@@ -58,14 +58,14 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.PrevPreViewTranslation		= Params.PrevViewMatrices.GetPreViewTranslation();
 
 	const FIntRect &ViewRect = Params.ViewRect;
-	const FVector4 ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));
+	const FVector4f ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));
 
 	PackedView.ViewRect = FIntVector4(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
 	PackedView.ViewSizeAndInvSize = ViewSizeAndInvSize;
 
 	// Transform clip from full screen to viewport.
 	FVector2D RcpRasterContextSize = FVector2D(1.0f / Params.RasterContextSize.X, 1.0f / Params.RasterContextSize.Y);
-	PackedView.ClipSpaceScaleOffset = FVector4(	ViewSizeAndInvSize.X * RcpRasterContextSize.X,
+	PackedView.ClipSpaceScaleOffset = FVector4f(	ViewSizeAndInvSize.X * RcpRasterContextSize.X,
 												ViewSizeAndInvSize.Y * RcpRasterContextSize.Y,
 												 ( ViewSizeAndInvSize.X + 2.0f * ViewRect.Min.X) * RcpRasterContextSize.X - 1.0f,
 												-( ViewSizeAndInvSize.Y + 2.0f * ViewRect.Min.Y) * RcpRasterContextSize.Y + 1.0f );

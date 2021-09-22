@@ -273,7 +273,7 @@ struct FModelVertex
 {
 	FVector3f Position;
 	FVector3f TangentX;
-	FVector4 TangentZ;
+	FVector4f TangentZ;
 	FVector2D TexCoord;
 	FVector2D ShadowTexCoord;
 

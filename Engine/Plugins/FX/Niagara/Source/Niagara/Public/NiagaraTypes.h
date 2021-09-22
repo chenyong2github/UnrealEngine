@@ -146,16 +146,16 @@ struct FNiagaraMatrix
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category=NiagaraMatrix)
-	FVector4 Row0 = FVector4(EForceInit::ForceInitToZero);
+	FVector4f Row0 = FVector4f(EForceInit::ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4 Row1 = FVector4(EForceInit::ForceInitToZero);
+	FVector4f Row1 = FVector4f(EForceInit::ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4 Row2 = FVector4(EForceInit::ForceInitToZero);
+	FVector4f Row2 = FVector4f(EForceInit::ForceInitToZero);
 
 	UPROPERTY(EditAnywhere, Category = NiagaraMatrix)
-	FVector4 Row3 = FVector4(EForceInit::ForceInitToZero);
+	FVector4f Row3 = FVector4f(EForceInit::ForceInitToZero);
 };
 
 USTRUCT()
@@ -1059,7 +1059,7 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 	if (TIsSame<T, float>::Value) { return FNiagaraTypeDefinition::GetFloatDef(); }
 	if (TIsSame<T, FVector2D>::Value) { return FNiagaraTypeDefinition::GetVec2Def(); }
 	if (TIsSame<T, FVector3f>::Value) { return FNiagaraTypeDefinition::GetVec3Def(); }	
-	if (TIsSame<T, FVector4>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
+	if (TIsSame<T, FVector4f>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
 	if (TIsSame<T, int32>::Value) { return FNiagaraTypeDefinition::GetIntDef(); }
 	if (TIsSame<T, FNiagaraBool>::Value) { return FNiagaraTypeDefinition::GetBoolDef(); }
 	if (TIsSame<T, FQuat4f>::Value) { return FNiagaraTypeDefinition::GetQuatDef(); }
@@ -1726,12 +1726,12 @@ struct alignas(16) FNiagaraOwnerParameters
 	FMatrix44f EngineLocalToWorldNoScale = FMatrix44f::Identity;
 	FMatrix44f EngineWorldToLocalNoScale = FMatrix44f::Identity;
 	FQuat4f EngineRotation = FQuat4f::Identity;
-	FVector4 EnginePosition = FVector4(EForceInit::ForceInitToZero);
-	FVector4 EngineVelocity = FVector4(EForceInit::ForceInitToZero);
-	FVector4 EngineXAxis = FVector4(1.0f, 0.0f, 0.0f, 0.0f);
-	FVector4 EngineYAxis = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
-	FVector4 EngineZAxis = FVector4(0.0f, 0.0f, 1.0f, 0.0f);
-	FVector4 EngineScale = FVector4(1.0f, 1.0f, 1.0f, 0.0f);
+	FVector4f EnginePosition = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f EngineVelocity = FVector4f(EForceInit::ForceInitToZero);
+	FVector4f EngineXAxis = FVector4f(1.0f, 0.0f, 0.0f, 0.0f);
+	FVector4f EngineYAxis = FVector4f(0.0f, 1.0f, 0.0f, 0.0f);
+	FVector4f EngineZAxis = FVector4f(0.0f, 0.0f, 1.0f, 0.0f);
+	FVector4f EngineScale = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we

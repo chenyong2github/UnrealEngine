@@ -225,16 +225,16 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, )
 	SHADER_PARAMETER(float, FastSkySampleCountMax)
 	SHADER_PARAMETER(float, FastSkyDistanceToSampleCountMaxInv)
 
-	SHADER_PARAMETER(FVector4, CameraAerialPerspectiveVolumeSizeAndInvSize)
+	SHADER_PARAMETER(FVector4f, CameraAerialPerspectiveVolumeSizeAndInvSize)
 	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolution)		// Also on View UB
 	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolutionInv)	// Also on View UB
 	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLengthKm)	// Also on View UB
 	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLengthKmInv)	// Also on View UB
 	SHADER_PARAMETER(float, CameraAerialPerspectiveSampleCountPerSlice)
 
-	SHADER_PARAMETER(FVector4, TransmittanceLutSizeAndInvSize)
-	SHADER_PARAMETER(FVector4, MultiScatteredLuminanceLutSizeAndInvSize)
-	SHADER_PARAMETER(FVector4, SkyViewLutSizeAndInvSize)						// Also on View UB
+	SHADER_PARAMETER(FVector4f, TransmittanceLutSizeAndInvSize)
+	SHADER_PARAMETER(FVector4f, MultiScatteredLuminanceLutSizeAndInvSize)
+	SHADER_PARAMETER(FVector4f, SkyViewLutSizeAndInvSize)						// Also on View UB
 
 	SHADER_PARAMETER(float, TransmittanceSampleCount)
 	SHADER_PARAMETER(float, MultiScatteringSampleCount)
@@ -366,7 +366,7 @@ static auto GetSizeAndInvSize = [](int32 Width, int32 Height)
 {
 	float FWidth = float(Width);
 	float FHeight = float(Height);
-	return FVector4(FWidth, FHeight, 1.0f / FWidth, 1.0f / FHeight);
+	return FVector4f(FWidth, FHeight, 1.0f / FWidth, 1.0f / FHeight);
 };
 
 void SetupSkyAtmosphereViewSharedUniformShaderParameters(const FViewInfo& View, const FSkyAtmosphereSceneProxy& SkyAtmosphereProxy, FSkyAtmosphereViewSharedUniformShaderParameters& OutParameters)
@@ -784,8 +784,8 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, TransmittanceLutTextureSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, MultiScatteredLuminanceLutTextureSampler)
 		SHADER_PARAMETER_SRV(Buffer<float4>, UniformSphereSamplesBuffer)
-		SHADER_PARAMETER(FVector4, AtmosphereLightDirection0)
-		SHADER_PARAMETER(FVector4, AtmosphereLightDirection1)
+		SHADER_PARAMETER(FVector4f, AtmosphereLightDirection0)
+		SHADER_PARAMETER(FVector4f, AtmosphereLightDirection1)
 		SHADER_PARAMETER(FLinearColor, AtmosphereLightIlluminanceOuterSpace0)
 		SHADER_PARAMETER(FLinearColor, AtmosphereLightIlluminanceOuterSpace1)
 		SHADER_PARAMETER(float, DistantSkyLightSampleAltitude)
@@ -1028,8 +1028,8 @@ public:
 		const uint32 GroupSize = GetSampletCount();
 		const float GroupSizeInv = 1.0f / float(GroupSize);
 
-		UniformSphereSamplesBuffer.Initialize(TEXT("UniformSphereSamplesBuffer"), sizeof(FVector4), GroupSize * GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
-		FVector4* Dest = (FVector4*)RHILockBuffer(UniformSphereSamplesBuffer.Buffer, 0, sizeof(FVector4)*GroupSize*GroupSize, RLM_WriteOnly);
+		UniformSphereSamplesBuffer.Initialize(TEXT("UniformSphereSamplesBuffer"), sizeof(FVector4f), GroupSize * GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
+		FVector4f* Dest = (FVector4f*)RHILockBuffer(UniformSphereSamplesBuffer.Buffer, 0, sizeof(FVector4f)*GroupSize*GroupSize, RLM_WriteOnly);
 
 		FMath::SRandInit(0xDE4DC0DE);
 		for (uint32 i = 0; i < GroupSize; ++i)
@@ -1349,7 +1349,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		}
 		else
 		{
-			PassParameters->AtmosphereLightDirection0 = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+			PassParameters->AtmosphereLightDirection0 = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
 			PassParameters->AtmosphereLightIlluminanceOuterSpace0 = FLinearColor::Black;
 		}
 		if (Light1)
@@ -1359,7 +1359,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		}
 		else
 		{
-			PassParameters->AtmosphereLightDirection1 = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+			PassParameters->AtmosphereLightDirection1 = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
 			PassParameters->AtmosphereLightIlluminanceOuterSpace1 = FLinearColor::Black;
 		}
 		PassParameters->DistantSkyLightSampleAltitude = CVarSkyAtmosphereDistantSkyLightLUTAltitude.GetValueOnAnyThread();
@@ -1410,8 +1410,11 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		const FVector SkyViewLutReferentialRight = FVector(0.0f, 1.0f, 0.0f);
 		FVector SkyWorldCameraOrigin;
 		FMatrix SkyViewLutReferential;
+		FVector4 TempSkyPlanetData;
 		AtmosphereSetup.ComputeViewData(Scene->SkyLight->CapturePosition, SkyViewLutReferentialForward, SkyViewLutReferentialRight,
-			SkyWorldCameraOrigin, ReflectionViewParameters.SkyPlanetCenterAndViewHeight, SkyViewLutReferential);
+			SkyWorldCameraOrigin, TempSkyPlanetData, SkyViewLutReferential);
+		// LWC_TODO: Precision loss
+		ReflectionViewParameters.SkyPlanetCenterAndViewHeight = TempSkyPlanetData;
 		ReflectionViewParameters.SkyWorldCameraOrigin = SkyWorldCameraOrigin;
 		ReflectionViewParameters.SkyViewLutReferential = SkyViewLutReferential;
 
@@ -1751,7 +1754,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 			float HalfVerticalFOV = FMath::Atan(1.0f / ProjectionMatrix.M[1][1]);
 			float StartDepthViewCm = FMath::Cos(FMath::Max(HalfHorizontalFOV, HalfVerticalFOV)) * AerialPerspectiveStartDepthInCm;
 			StartDepthViewCm = FMath::Max(StartDepthViewCm, SkyRC.NearClippingDistance); // In any case, we need to limit the distance to frustum near plane to not be clipped away.
-			const FVector4 Projected = ProjectionMatrix.TransformFVector4(FVector4(0.0f, 0.0f, StartDepthViewCm, 1.0f));
+			const FVector4f Projected = ProjectionMatrix.TransformFVector4(FVector4f(0.0f, 0.0f, StartDepthViewCm, 1.0f));
 			StartDepthZ = Projected.Z / Projected.W;
 		}
 

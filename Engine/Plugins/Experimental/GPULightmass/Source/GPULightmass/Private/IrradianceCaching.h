@@ -25,9 +25,9 @@ struct FIrradianceCache
 		// When used as a cache entry, 
 		// WorldPosition.w == FrameLastTouched
 		// WorldNormal.w == NumAccumulatedSamples
-		FVector4 WorldPosition;
-		FVector4 WorldNormal;
-		FVector4 Irradiance;
+		FVector4f WorldPosition;
+		FVector4f WorldNormal;
+		FVector4f Irradiance;
 	};
 
 	const int32 IrradianceCacheMaxSize = 1048576;

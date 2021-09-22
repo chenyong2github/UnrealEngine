@@ -16,7 +16,7 @@ class FPrimitiveDrawInterface;
 class FSceneView;
 class FViewport;
 struct FConvexVolume;
-DECLARE_LWC_TYPE(Matrix, 44);
+UE_DECLARE_LWC_TYPE(Matrix, 44);
 
 enum EModeTools : int8;
 class HHitProxy;

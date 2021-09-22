@@ -129,7 +129,7 @@ protected:
 	uint32 NumTexCoord;
 	FShaderResourceViewRHIRef MeshColorBufferSRV;
 
-	TResourceArray<FVector4> SocketTransformsResourceArray;
+	TResourceArray<FVector4f> SocketTransformsResourceArray;
 	FBufferRHIRef SocketTransformsBuffer;
 	FShaderResourceViewRHIRef SocketTransformsSRV;
 

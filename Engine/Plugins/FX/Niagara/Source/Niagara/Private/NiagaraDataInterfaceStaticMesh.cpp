@@ -149,9 +149,9 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, c
 		for (const FTransform3f& SocketTransform : InstanceData->CachedSockets)
 		{
 			const FQuat4f SocketRotation = SocketTransform.GetRotation();
-			SocketTransformsResourceArray.Add(FVector4(SocketTransform.GetTranslation(), 0.0f));
-			SocketTransformsResourceArray.Add(FVector4(SocketRotation.X, SocketRotation.Y, SocketRotation.Z, SocketRotation.W));
-			SocketTransformsResourceArray.Add(FVector4(SocketTransform.GetScale3D(), 0.0f));
+			SocketTransformsResourceArray.Add(FVector4f(SocketTransform.GetTranslation(), 0.0f));
+			SocketTransformsResourceArray.Add(FVector4f(SocketRotation.X, SocketRotation.Y, SocketRotation.Z, SocketRotation.W));
+			SocketTransformsResourceArray.Add(FVector4f(SocketTransform.GetScale3D(), 0.0f));
 		}
 
 		NumFilteredSockets = InstanceData->NumFilteredSockets;
@@ -708,11 +708,11 @@ public:
 				const float InvDeltaTime = Data->DeltaSeconds > 0.0f ? 1.0f / Data->DeltaSeconds : 0.0f;
 				const FVector3f DeltaPosition = Data->Transform.GetOrigin() - Data->PrevTransform.GetOrigin();
 
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, (FMatrix44f)Data->Transform);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, (FMatrix44f)Data->Transform);		// LWC_TODO: Precision loss
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, (FMatrix44f)Data->Transform.Inverse().GetTransposed());
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, (FMatrix44f)Data->PrevTransform);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, Data->Rotation);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, Data->PrevRotation);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, (FQuat4f)Data->Rotation);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, (FQuat4f)Data->PrevRotation);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, InvDeltaTime);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceWorldVelocity, DeltaPosition * InvDeltaTime);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, AreaWeightedSampling, Data->bIsGpuUniformlyDistributedSampling ? 1 : 0);
@@ -722,8 +722,8 @@ public:
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix44f::Identity);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposed, FMatrix44f::Identity);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, FMatrix44f::Identity);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat::Identity);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, FQuat::Identity);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat4f::Identity);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, FQuat4f::Identity);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, 1.0f);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceWorldVelocity, FVector3f::ZeroVector);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, AreaWeightedSampling, 0);

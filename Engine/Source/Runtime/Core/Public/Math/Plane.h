@@ -28,7 +28,7 @@ namespace Math
 {
 
 template<typename T>
-struct MS_ALIGN(16) TPlane
+struct alignas(16) TPlane
 	: public TVector<T>
 {
 public:
@@ -65,7 +65,7 @@ public:
 	 *
 	 * @param V 4D vector to set up plane.
 	 */
-	FORCEINLINE TPlane(const FVector4& V);
+	FORCEINLINE TPlane(const TVector4<T>& V);
 
 	/**
 	 * Constructor.
@@ -328,7 +328,7 @@ public:
 	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
 	TPlane(const TPlane<FArg>& From) : TPlane<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
 
-} GCC_ALIGN(16);
+};
 
 
 /**
@@ -386,7 +386,7 @@ FORCEINLINE TPlane<T>::TPlane()
 
 
 template<typename T>
-FORCEINLINE TPlane<T>::TPlane(const FVector4& V)
+FORCEINLINE TPlane<T>::TPlane(const TVector4<T>& V)
 	: TVector<T>(V)
 	, W(V.W)
 {}
@@ -421,7 +421,7 @@ template<typename T>
 FORCEINLINE TPlane<T>::TPlane(TVector<T> A, TVector<T> B, TVector<T> C)
 	: TVector<T>(((B - A) ^ (C - A)).GetSafeNormal())
 {
-	W = A | (FVector)(*this);
+	W = A | (TVector<T>)(*this);
 	DiagnosticCheckNaN();
 }
 
@@ -607,7 +607,7 @@ inline TVector<T> TVector<T>::PointPlaneProject(const TVector<T>& Point, const T
 	return Point - Plane.PlaneDot(Point) * Plane;
 }
 
-}	// namespace UE::Core
+}	// namespace UE::Math
 }	// namespace UE
 
 
@@ -681,12 +681,12 @@ inline bool FMath::IntersectPlanes2(UE::Math::TVector<T>& I, UE::Math::TVector<T
 }
 
 
-DECLARE_LWC_TYPE(Plane,4);
+UE_DECLARE_LWC_TYPE(Plane,4);
 template<> struct TIsPODType<FPlane4f> { enum { Value = true }; };
-template<> struct TIsUECoreType<FPlane4f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FPlane4f> { enum { Value = true }; };
 
 template<> struct TIsPODType<FPlane4d> { enum { Value = true }; };
-template<> struct TIsUECoreType<FPlane4d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FPlane4d> { enum { Value = true }; };
 
 #ifdef _MSC_VER
 #pragma warning (pop)

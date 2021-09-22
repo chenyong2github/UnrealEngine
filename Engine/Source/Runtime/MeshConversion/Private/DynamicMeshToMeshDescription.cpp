@@ -317,7 +317,7 @@ void FDynamicMeshToMeshDescription::UpdateVertexColors(const FDynamicMesh3* Mesh
 {
 
 	FStaticMeshAttributes Attributes(MeshOut);
-	TVertexInstanceAttributesRef<FVector4> InstanceColorsAttrib = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector4f> InstanceColorsAttrib = Attributes.GetVertexInstanceColors();
 
 	if (!ensureMsgf(MeshIn->IsCompactT(), TEXT("Trying to update MeshDescription Colors from a non-compact DynamicMesh"))) return;
 	if (!ensureMsgf(MeshIn->TriangleCount() == MeshOut.Triangles().Num(), TEXT("Trying to update MeshDescription Colors from Mesh that does not have same triangle count"))) return;
@@ -359,7 +359,7 @@ void FDynamicMeshToMeshDescription::UpdateVertexColors(const FDynamicMesh3* Mesh
 		TArrayView<const FVertexInstanceID> InstanceIDs = MeshOut.GetTriangleVertexInstances(FTriangleID(t));
 		for (int32 i = 0; i < 3; ++i)
 		{
-			FVector4 InstanceColor4(TriColors[i].X, TriColors[i].Y, TriColors[i].Z, TriColors[i].W);
+			FVector4f InstanceColor4(TriColors[i].X, TriColors[i].Y, TriColors[i].Z, TriColors[i].W);
 			InstanceColorsAttrib.Set(InstanceIDs[i], 0, InstanceColor4);
 		}
 
@@ -785,12 +785,12 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 			FIndex3i ColorTri = ColorOverlay->GetTriangle(TriID);
 			for (int32 j = 0; j < 3; ++j)
 			{
-				FVector4 DstColor(1,1,1,1);
+				FVector4f DstColor(1,1,1,1);
 				const FVertexInstanceID CornerInstanceID = TriVertInstances[j];
 				if (ColorOverlay->IsElement(ColorTri[j]))
 				{
 					FVector4f TriVertColor4 = ColorOverlay->GetElement(ColorTri[j]);
-					DstColor = FVector4(TriVertColor4.X, TriVertColor4.Y, TriVertColor4.Z, TriVertColor4.W);
+					DstColor = FVector4f(TriVertColor4.X, TriVertColor4.Y, TriVertColor4.Z, TriVertColor4.W);
 				}
 				Builder.SetInstanceColor(CornerInstanceID, DstColor);
 			}

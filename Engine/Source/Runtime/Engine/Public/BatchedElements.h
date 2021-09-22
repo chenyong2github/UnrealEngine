@@ -33,7 +33,7 @@ namespace EBlendModeFilter
 /** The type used to store batched line vertices. */
 struct FSimpleElementVertex
 {
-	FVector4 Position;
+	FVector4f Position;
 	FVector2D TextureCoordinate;
 	FLinearColor Color;
 	FColor HitProxyIdColor;
@@ -41,7 +41,7 @@ struct FSimpleElementVertex
 	FSimpleElementVertex() {}
 
 	FSimpleElementVertex(const FVector4& InPosition,const FVector2D& InTextureCoordinate,const FLinearColor& InColor,FHitProxyId InHitProxyId):
-		Position(InPosition),
+		Position((FVector4f)InPosition),	// LWC_TODO: Precision loss
 		TextureCoordinate(InTextureCoordinate),
 		Color(InColor),
 		HitProxyIdColor(InHitProxyId.GetColor())

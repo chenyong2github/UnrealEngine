@@ -568,7 +568,7 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 	}
 }
 
-void FVulkanCommandListContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values)
+void FVulkanCommandListContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 {
 	TRHICommandList_RecursiveHazardous<FVulkanCommandListContext> RHICmdList(this);
 	ClearUAV(RHICmdList, ResourceCast(UnorderedAccessViewRHI), &Values, true);

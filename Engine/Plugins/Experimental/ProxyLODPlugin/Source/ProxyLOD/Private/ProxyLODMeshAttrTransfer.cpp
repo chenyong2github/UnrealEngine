@@ -68,7 +68,7 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 	TArrayView<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
 	TArrayView<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
 	TArrayView<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
-	TArrayView<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
+	TArrayView<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
 
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -105,7 +105,7 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 					// NB: might replace with something more sophisticated later.
 
 					// Compute the average color
-					VertexInstanceColors[Idx] = FVector4(FLinearColor(AverageColor(RawPoly.WedgeColors)));
+					VertexInstanceColors[Idx] = FVector4f(FLinearColor(AverageColor(RawPoly.WedgeColors)));
 
 					// The average Tangent Vectors
 					VertexInstanceTangents[Idx] = AverageUnitVector(RawPoly.WedgeTangentX);
@@ -197,7 +197,7 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 	TArrayView<const FVector3f> VertexPositions = InOutMesh.GetVertexPositions().GetRawArray();
 
 	FStaticMeshAttributes Attributes(InOutMesh);
-	TArrayView<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
+	TArrayView<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
 
 	const uint32 NumWedges = InOutMesh.VertexInstances().Num();
 
@@ -223,7 +223,7 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 			const FMeshDescriptionArrayAdapter::FRawPoly  RawPoly = PolyAccessor.Get(openvdb::Vec3d(Pos.X, Pos.Y, Pos.Z), bSuccess);
 			
 			// default to white
-			VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor::White);
+			VertexInstanceColors[VertexInstanceID] = FVector4f(FLinearColor::White);
 			if (bSuccess)
 			{
 
@@ -253,7 +253,7 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 
 					// fix up the intensity.
 
-					VertexInstanceColors[VertexInstanceID] = FVector4(InterpolatedColor);
+					VertexInstanceColors[VertexInstanceID] = FVector4f(InterpolatedColor);
 				}
 			}
 			

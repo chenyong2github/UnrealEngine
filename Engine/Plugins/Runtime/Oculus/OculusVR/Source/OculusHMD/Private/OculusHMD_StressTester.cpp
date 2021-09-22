@@ -22,7 +22,7 @@ DECLARE_CYCLE_STAT(TEXT("GPUStressRendering"), STAT_GPUStressRendering, STATGROU
 
 //This buffer should contain variables that never, or rarely change
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOculusPixelShaderConstantParameters, )
-//SHADER_PARAMETER(FVector4, Name)
+//SHADER_PARAMETER(FVector4f, Name)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FOculusPixelShaderConstantParameters, "PSConstants");
@@ -49,7 +49,7 @@ namespace OculusHMD
 
 struct FTextureVertex
 {
-	FVector4	Position;
+	FVector4f	Position;
 	FVector2D	UV;
 };
 
@@ -60,10 +60,10 @@ inline FBufferRHIRef CreateTempOcculusVertexBuffer()
 	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FTextureVertex) * 4, RLM_WriteOnly);
 
 	FTextureVertex* Vertices = (FTextureVertex*)VoidPtr;
-	Vertices[0].Position = FVector4(-1.0f, 1.0f, 0, 1.0f);
-	Vertices[1].Position = FVector4(1.0f, 1.0f, 0, 1.0f);
-	Vertices[2].Position = FVector4(-1.0f, -1.0f, 0, 1.0f);
-	Vertices[3].Position = FVector4(1.0f, -1.0f, 0, 1.0f);
+	Vertices[0].Position = FVector4f(-1.0f, 1.0f, 0, 1.0f);
+	Vertices[1].Position = FVector4f(1.0f, 1.0f, 0, 1.0f);
+	Vertices[2].Position = FVector4f(-1.0f, -1.0f, 0, 1.0f);
+	Vertices[3].Position = FVector4f(1.0f, -1.0f, 0, 1.0f);
 	Vertices[0].UV = FVector2D(0, 0);
 	Vertices[1].UV = FVector2D(1, 0);
 	Vertices[2].UV = FVector2D(0, 1);

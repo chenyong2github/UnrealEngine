@@ -1957,13 +1957,16 @@ void UPrimitiveComponent::SetCustomPrimitiveDataVector2(int32 DataIndex, FVector
 
 void UPrimitiveComponent::SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
 {
+	// LWC_TODO: precision loss
 	FVector3f ValueFlt(Value);
 	SetCustomPrimitiveDataInternal(DataIndex, {ValueFlt.X, ValueFlt.Y, ValueFlt.Z});
 }
 
 void UPrimitiveComponent::SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)
 {
-	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y, Value.Z, Value.W});
+	// LWC_TODO: precision loss
+	FVector4f ValueFlt(Value);
+	SetCustomPrimitiveDataInternal(DataIndex, {ValueFlt.X, ValueFlt.Y, ValueFlt.Z, ValueFlt.W});
 }
 
 void UPrimitiveComponent::SetDefaultCustomPrimitiveDataFloat(int32 DataIndex, float Value)
@@ -1984,7 +1987,8 @@ void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector3(int32 DataIndex, 
 
 void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value)
 {
-	SetDefaultCustomPrimitiveData(DataIndex, { Value.X, Value.Y, Value.Z, Value.W });
+	FVector4f ValueFlt(Value);
+	SetDefaultCustomPrimitiveData(DataIndex, { ValueFlt.X, ValueFlt.Y, ValueFlt.Z, ValueFlt.W });
 }
 
 UMaterialInterface* UPrimitiveComponent::GetMaterialFromCollisionFaceIndex(int32 FaceIndex, int32& SectionIndex) const

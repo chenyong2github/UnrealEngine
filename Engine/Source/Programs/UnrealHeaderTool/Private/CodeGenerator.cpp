@@ -1718,9 +1718,16 @@ static bool IsAlwaysAccessible(FUnrealScriptStructDefinitionInfo& ScriptDef)
 		return false; // special case, the C++ FMatrix does not have the same members.
 	}
 	bool Result = ScriptDef.HasDefaults(); // if we have cpp struct ops in it for UHT, then we can assume it is always accessible
+
+	// LWC_TODO: 
+	//UScriptStruct::ICppStructOps* StructOps = UScriptStruct::FindDeferredCppStructOps(ToTest);
+	//check(StructOps || !ToTest_falls_within_UnrealNames.inl_SpecialTypes);
+	//return StructOps != nullptr;
+
 	if( ToTest == NAME_Plane || ToTest == NAME_Plane4f || ToTest == NAME_Plane4d
-		||	ToTest == NAME_Vector || ToTest == NAME_Vector3f || ToTest == NAME_Vector3d
-		||	ToTest == NAME_Vector4
+		|| ToTest == NAME_Vector || ToTest == NAME_Vector3f || ToTest == NAME_Vector3d
+		|| ToTest == NAME_Vector4 || ToTest == NAME_Vector4f || ToTest == NAME_Vector4d
+		|| ToTest == NAME_Box || ToTest == NAME_Box3f || ToTest == NAME_Box3d
 		||	ToTest == NAME_Quat || ToTest == NAME_Quat4f || ToTest == NAME_Quat4d
 		||	ToTest == NAME_Color
 		)

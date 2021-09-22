@@ -334,10 +334,10 @@ public:
 	ULightMapVirtualTexture2D *VirtualTextures[2];
 
 	/** A scale to apply to the coefficients. */
-	FVector4 ScaleVectors[NUM_STORED_LIGHTMAP_COEF];
+	FVector4f ScaleVectors[NUM_STORED_LIGHTMAP_COEF];
 
 	/** Bias value to apply to the coefficients. */
-	FVector4 AddVectors[NUM_STORED_LIGHTMAP_COEF];
+	FVector4f AddVectors[NUM_STORED_LIGHTMAP_COEF];
 
 	/** The scale which is applied to the light-map coordinates before sampling the light-map textures. */
 	FVector2D CoordinateScale;
@@ -346,7 +346,7 @@ public:
 	FVector2D CoordinateBias;
 
 	/** Stores the inverse of the penumbra size, normalized.  Stores 1 to interpret the shadowmap as a shadow factor directly, instead of as a distance field. */
-	FVector4 InvUniformPenumbraSize;
+	FVector4f InvUniformPenumbraSize;
 
 	/** Tracks which of the 4 channels has valid texture data. */
 	bool bShadowChannelValid[4];

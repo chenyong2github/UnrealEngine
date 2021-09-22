@@ -444,10 +444,10 @@ struct FMeshParticleInstanceVertex
 	FLinearColor Color;
 
 	/** The instance to world transform of the particle. Translation vector is packed into W components. */
-	FVector4 Transform[3];
+	FVector4f Transform[3];
 
 	/** The velocity of the particle, XYZ: direction, W: speed. */
-	FVector4 Velocity;
+	FVector4f Velocity;
 
 	/** The sub-image texture offsets for the particle. */
 	int16 SubUVParams[4];
@@ -467,9 +467,9 @@ struct FMeshParticleInstanceVertexDynamicParameter
 
 struct FMeshParticleInstanceVertexPrevTransform
 {
-	FVector4 PrevTransform0;
-	FVector4 PrevTransform1;
-	FVector4 PrevTransform2;
+	FVector4f PrevTransform0;
+	FVector4f PrevTransform1;
+	FVector4f PrevTransform2;
 };
 
 //
@@ -1014,7 +1014,7 @@ struct FEmitterDynamicParameterPayload
  *	@param	InParticle					The particle being processed
  *	@param	OutDynamicData				The dynamic data from the particle
  */
-FORCEINLINE void GetDynamicValueFromPayload(int32 InDynamicPayloadOffset, const FBaseParticle& InParticle, FVector4& OutDynamicData)
+FORCEINLINE void GetDynamicValueFromPayload(int32 InDynamicPayloadOffset, const FBaseParticle& InParticle, FVector4f& OutDynamicData)
 {
 	checkSlow(InDynamicPayloadOffset > 0);
 	const FEmitterDynamicParameterPayload* DynPayload = ((const FEmitterDynamicParameterPayload*)((uint8*)(&InParticle) + InDynamicPayloadOffset));

@@ -40,4 +40,7 @@ FMatrix(
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(MirrorMatrix, 44);
+UE_DECLARE_LWC_TYPE(MirrorMatrix, 44);
+
+template<> struct TIsUECoreVariant<FMirrorMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FMirrorMatrix44d> { enum { Value = true }; };

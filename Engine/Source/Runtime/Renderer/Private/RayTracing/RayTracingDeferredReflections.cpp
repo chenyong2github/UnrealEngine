@@ -202,7 +202,7 @@ class FRayTracingReflectionResolveCS : public FGlobalShader
 		SHADER_PARAMETER(float, ReflectionMaxRoughness)
 		SHADER_PARAMETER(float, ReflectionSmoothBias)
 		SHADER_PARAMETER(float, ReflectionHistoryWeight)
-		SHADER_PARAMETER(FVector4, HistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f, HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(uint32, ThreadIdOffset)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -342,7 +342,7 @@ static void AddReflectionResolvePass(
 	const FViewInfo& View,
 	const FRayTracingDeferredReflectionsRGS::FParameters& CommonParameters,
 	FRDGTextureRef DepthBufferHistory,
-	FRDGTextureRef ReflectionHistory, float ReflectionHistoryWeight, const FVector4& HistoryScreenPositionScaleBias,
+	FRDGTextureRef ReflectionHistory, float ReflectionHistoryWeight, const FVector4f& HistoryScreenPositionScaleBias,
 	FRDGTextureRef RawReflectionColor,
 	FRDGTextureRef ReflectionDenoiserData,
 	FIntPoint RayTracingBufferSize,
@@ -677,7 +677,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 
 		FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
 
-		FVector4 HistoryScreenPositionScaleBias = FVector4(
+		FVector4f HistoryScreenPositionScaleBias = FVector4f(
 			ViewportExtent.X * 0.5f * InvBufferSize.X,
 			-ViewportExtent.Y * 0.5f * InvBufferSize.Y,
 			(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,

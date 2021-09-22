@@ -85,7 +85,7 @@ public:
 	 *
 	 * @param ShaderParams	The shader params to be used
 	 */
-	void SetShaderParameters(FRHICommandList& RHICmdList, const FVector4& ShaderParams );
+	void SetShaderParameters(FRHICommandList& RHICmdList, const FVector4f& ShaderParams );
 
 	/**
 	 * Sets the vertical axis multiplier to use depending on graphics api
@@ -152,8 +152,8 @@ public:
 	 */
 	void SetShaderParams(FRHICommandList& RHICmdList, const FShaderParams& InShaderParams)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ShaderParams, InShaderParams.PixelParams);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ShaderParams2, InShaderParams.PixelParams2);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ShaderParams, (FVector4f)InShaderParams.PixelParams);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ShaderParams2, (FVector4f)InShaderParams.PixelParams2);
 	}
 
 	/**
@@ -163,7 +163,7 @@ public:
 	 */
 	void SetDisplayGammaAndInvertAlphaAndContrast(FRHICommandList& RHICmdList, float InDisplayGamma, float bInvertAlpha, float InContrast)
 	{
-		FVector4 Values( 2.2f / InDisplayGamma, 1.0f/InDisplayGamma, bInvertAlpha, InContrast);
+		FVector4f Values( 2.2f / InDisplayGamma, 1.0f/InDisplayGamma, bInvertAlpha, InContrast);
 
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), GammaAndAlphaValues, Values);
 	}
@@ -303,17 +303,17 @@ public:
 
 	void SetBufferSizeAndDirection(FRHICommandList& RHICmdList, const FVector2D& InBufferSize, const FVector2D& InDir)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), BufferSizeAndDirection, FVector4(InBufferSize, InDir));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), BufferSizeAndDirection, FVector4f(InBufferSize, InDir));
 	}
 
-	void SetWeightsAndOffsets(FRHICommandList& RHICmdList, const TArray<FVector4>& InWeightsAndOffsets, int32 NumSamples )
+	void SetWeightsAndOffsets(FRHICommandList& RHICmdList, const TArray<FVector4f>& InWeightsAndOffsets, int32 NumSamples )
 	{
 		check(InWeightsAndOffsets.Num() <= MAX_BLUR_SAMPLES);
-		SetShaderValueArray<FRHIPixelShader*, FVector4>(RHICmdList, RHICmdList.GetBoundPixelShader(), WeightAndOffsets, InWeightsAndOffsets.GetData(), InWeightsAndOffsets.Num() );
+		SetShaderValueArray<FRHIPixelShader*, FVector4f>(RHICmdList, RHICmdList.GetBoundPixelShader(), WeightAndOffsets, InWeightsAndOffsets.GetData(), InWeightsAndOffsets.Num() );
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), SampleCount, NumSamples);
 	}
 
-	void SetUVBounds(FRHICommandList& RHICmdList, const FVector4& InUVBounds)
+	void SetUVBounds(FRHICommandList& RHICmdList, const FVector4f& InUVBounds)
 	{
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UVBounds, InUVBounds);
 	}
@@ -347,7 +347,7 @@ public:
 		UVBounds.Bind(Initializer.ParameterMap, TEXT("UVBounds"));
 	}
 
-	void SetUVBounds(FRHICommandList& RHICmdList, const FVector4& InUVBounds)
+	void SetUVBounds(FRHICommandList& RHICmdList, const FVector4f& InUVBounds)
 	{
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UVBounds, InUVBounds);
 	}

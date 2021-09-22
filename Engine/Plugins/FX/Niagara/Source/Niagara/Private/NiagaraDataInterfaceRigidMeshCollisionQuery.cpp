@@ -92,8 +92,8 @@ void FillCurrentTransforms(const FTransform& ElementTransform, uint32& ElementCo
 	TStaticArray<FVector4,RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS>& OutCurrentTransform, TStaticArray<FVector4, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS>& OutCurrentInverse)
 {
 	const uint32 ElementOffset = 3 * ElementCount;
-	const FMatrix44f ElementMatrix = ElementTransform.ToMatrixWithScale();
-	const FMatrix44f ElementInverse = ElementMatrix.Inverse();
+	const FMatrix ElementMatrix = ElementTransform.ToMatrixWithScale();
+	const FMatrix ElementInverse = ElementMatrix.Inverse();
 
 	ElementMatrix.To3x4MatrixTranspose(&OutCurrentTransform[ElementOffset].X);
 	ElementInverse.To3x4MatrixTranspose(&OutCurrentInverse[ElementOffset].X);

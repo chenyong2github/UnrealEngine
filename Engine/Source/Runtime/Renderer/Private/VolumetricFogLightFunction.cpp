@@ -252,7 +252,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 			ShadowInitializer.WorldToLight = FInverseRotationMatrix(LightDirection.Rotation());
 			ShadowInitializer.Scales = FVector2D(1.0f / Bounds.W, 1.0f / Bounds.W);
 			ShadowInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector, SubjectBounds.BoxExtent, SubjectBounds.SphereRadius);
-			ShadowInitializer.WAxis = FVector4(0, 0, 0, 1);
+			ShadowInitializer.WAxis = FVector4f(0, 0, 0, 1);
 			ShadowInitializer.MinLightW = -HALF_WORLD_MAX;
 			// Reduce casting distance on a directional light
 			// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
@@ -370,7 +370,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 				0
 			);
 
-			FVector4 ShadowmapMinMaxValue;
+			FVector4f ShadowmapMinMaxValue;
 			WorldToShadowMatrix = ProjectedShadowInfo.GetWorldToShadowMatrix(ShadowmapMinMaxValue, &LightFunctionResolution);
 		}
 
@@ -498,7 +498,7 @@ FTransientLightFunctionTextureAtlasTile FTransientLightFunctionTextureAtlas::All
 		const float MinY = float(AtlasTile.RectBound.Min.Y) * InvAtlasTextureWidthFloat + HalfTexelSize;
 		const float MaxX = float(AtlasTile.RectBound.Max.X) * InvAtlasTextureWidthFloat - HalfTexelSize;
 		const float MaxY = float(AtlasTile.RectBound.Max.Y) * InvAtlasTextureWidthFloat - HalfTexelSize;
-		AtlasTile.MinMaxUvBound = FVector4(MinX, MinY, MaxX, MaxY);
+		AtlasTile.MinMaxUvBound = FVector4f(MinX, MinY, MaxX, MaxY);
 
 		AllocatedAtlasTiles++;
 	}
@@ -507,7 +507,7 @@ FTransientLightFunctionTextureAtlasTile FTransientLightFunctionTextureAtlas::All
 		AtlasTile.bIsDefault = true;
 		AtlasTile.Texture = DefaultLightFunctionAtlasItemTexture;
 		AtlasTile.RectBound = FIntRect(0, 0, 1, 1);
-		AtlasTile.MinMaxUvBound = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
+		AtlasTile.MinMaxUvBound = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
 	}
 
 	return AtlasTile;

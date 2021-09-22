@@ -61,7 +61,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
-		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4)));
+		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4f)));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
@@ -85,13 +85,13 @@ public:
 	virtual void InitRHI() override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4) * 4, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FVector4* DummyContents = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector) * 4, RLM_WriteOnly);
+		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * 4, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector3f) * 4, RLM_WriteOnly);
 //@todo - joeg do I need a quad's worth?
-		DummyContents[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-		DummyContents[1] = FVector4(1.0f, 0.0f, 0.0f, 0.0f);
-		DummyContents[2] = FVector4(0.0f, 1.0f, 0.0f, 0.0f);
-		DummyContents[3] = FVector4(1.0f, 1.0f, 0.0f, 0.0f);
+		DummyContents[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+		DummyContents[1] = FVector4f(1.0f, 0.0f, 0.0f, 0.0f);
+		DummyContents[2] = FVector4f(0.0f, 1.0f, 0.0f, 0.0f);
+		DummyContents[3] = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
 		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
@@ -105,7 +105,7 @@ void FPointCloudVertexFactory::InitRHI()
 	check( Streams.Num() == 0 );
 
 	Stream.VertexBuffer = &GDummyPointCloudVertexBuffer;
-	Stream.Stride = sizeof(FVector4);
+	Stream.Stride = sizeof(FVector4f);
 	Stream.Offset = 0;
 	Streams.Add(Stream);
 

@@ -15,7 +15,7 @@
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 
-FVector4 GetDepthOfFieldParameters(const FPostProcessSettings& PostProcessSettings)
+FVector4f GetDepthOfFieldParameters(const FPostProcessSettings& PostProcessSettings)
 {
 	const float SkyFocusDistance = PostProcessSettings.DepthOfFieldSkyFocusDistance;
 
@@ -28,7 +28,7 @@ FVector4 GetDepthOfFieldParameters(const FPostProcessSettings& PostProcessSettin
 	const float DepthOfFieldVignetteMul = 1.0f / DepthOfFieldVignetteFeather;
 	const float DepthOfFieldVignetteAdd = (0.5f - DepthOfFieldVignetteSize) * DepthOfFieldVignetteMul;
 
-	return FVector4(
+	return FVector4f(
 		(SkyFocusDistance > 0) ? SkyFocusDistance : 100000000.0f, // very large if <0 to not mask out skybox, can be optimized to disable feature completely
 		DepthOfFieldVignetteMul,
 		DepthOfFieldVignetteAdd,
@@ -47,8 +47,8 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FNearBlurCountDim, FFarBlurCountDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, DepthOfFieldParams)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, DepthOfFieldParams)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
@@ -118,7 +118,7 @@ FMobileDofSetupOutputs AddMobileDofSetupPass(FRDGBuilder& GraphBuilder, const FV
 	PassParameters->RenderTargets[0] = DestRenderTarget0.GetRenderTargetBinding();
 	PassParameters->RenderTargets[1] = DestRenderTarget1.GetRenderTargetBinding();
 	PassParameters->DepthOfFieldParams = GetDepthOfFieldParameters(View.FinalPostProcessSettings);
-	PassParameters->BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	PassParameters->BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Clamp>::GetRHI();
@@ -150,8 +150,8 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FNearBlurCountDim, FFarBlurCountDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, DepthOfFieldUVLimit)
-		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, DepthOfFieldUVLimit)
+		SHADER_PARAMETER(FVector4f, BufferSizeAndInvSize)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
@@ -205,7 +205,7 @@ FScreenPassTexture AddMobileDofRecombinePass(FRDGBuilder& GraphBuilder, const FV
 
 	TShaderMapRef<FMobileDOFRecombinePS> PixelShader(View.ShaderMap, ShaderPermutationVector);
 
-	FVector4 Bounds;
+	FVector4f Bounds;
 	Bounds.X = (((float)((View.ViewRect.Min.X + 1) & (~1))) + 3.0f) / ((float)(BufferSize.X));
 	Bounds.Y = (((float)((View.ViewRect.Min.Y + 1) & (~1))) + 3.0f) / ((float)(BufferSize.Y));
 	Bounds.Z = (((float)(View.ViewRect.Max.X & (~1))) - 3.0f) / ((float)(BufferSize.X));
@@ -214,7 +214,7 @@ FScreenPassTexture AddMobileDofRecombinePass(FRDGBuilder& GraphBuilder, const FV
 	FMobileDOFRecombinePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileDOFRecombinePS::FParameters>();
 	PassParameters->RenderTargets[0] = DofRecombinOutput.GetRenderTargetBinding();
 	PassParameters->DepthOfFieldUVLimit = Bounds;
-	PassParameters->BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+	PassParameters->BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

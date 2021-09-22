@@ -421,7 +421,7 @@ void FNiagaraParameterStore::CheckForNaNs()const
 		}
 		else if (Var.GetType() == FNiagaraTypeDefinition::GetVec4Def())
 		{
-			FVector4 Val = *(FVector4*)GetParameterData(Offset);
+			FVector4f Val = *(FVector4f*)GetParameterData(Offset);
 			bContainsNans = Val.ContainsNaN();
 		}
 		else if (Var.GetType() == FNiagaraTypeDefinition::GetMatrix4Def())

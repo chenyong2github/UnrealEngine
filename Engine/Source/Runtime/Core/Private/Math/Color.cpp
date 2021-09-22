@@ -59,11 +59,18 @@ FLinearColor::FLinearColor(const FVector3d& Vector) :
 	A(1.0f)
 {}
 
-FLinearColor::FLinearColor(const FVector4& Vector) :
+FLinearColor::FLinearColor(const FVector4f& Vector) :
 	R(Vector.X),
 	G(Vector.Y),
 	B(Vector.Z),
 	A(Vector.W)
+{}
+
+FLinearColor::FLinearColor(const FVector4d& Vector) :
+	R((float)Vector.X),
+	G((float)Vector.Y),
+	B((float)Vector.Z),
+	A((float)Vector.W)
 {}
 
 FLinearColor::FLinearColor(const FFloat16Color& C)

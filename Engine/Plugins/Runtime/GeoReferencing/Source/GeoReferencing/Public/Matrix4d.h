@@ -12,10 +12,10 @@ namespace Geometry
 template <typename RealType>
 struct TMatrix4
 {
-	TVector4<RealType> Row0;
-	TVector4<RealType> Row1;
-	TVector4<RealType> Row2;
-	TVector4<RealType> Row3;
+	GVector4<RealType> Row0;
+	GVector4<RealType> Row1;
+	GVector4<RealType> Row2;
+	GVector4<RealType> Row3;
 
 	TMatrix4()
 	{
@@ -23,7 +23,7 @@ struct TMatrix4
 
 	TMatrix4(RealType ConstantValue)
 	{
-		Row0 = TVector4<RealType>(ConstantValue, ConstantValue, ConstantValue, ConstantValue);
+		Row0 = GVector4<RealType>(ConstantValue, ConstantValue, ConstantValue, ConstantValue);
 		Row1 = Row0;
 		Row2 = Row0;
 		Row3 = Row0;
@@ -31,17 +31,17 @@ struct TMatrix4
 
 	TMatrix4(RealType Diag0, RealType Diag1, RealType Diag2, RealType Diag3)
 	{
-		Row0 = TVector4<RealType>(Diag0, 0, 0, 0);
-		Row1 = TVector4<RealType>(0, Diag1, 0, 0);
-		Row2 = TVector4<RealType>(0, 0, Diag2, 0);
-		Row3 = TVector4<RealType>(0, 0, 0, Diag3);
+		Row0 = GVector4<RealType>(Diag0, 0, 0, 0);
+		Row1 = GVector4<RealType>(0, Diag1, 0, 0);
+		Row2 = GVector4<RealType>(0, 0, Diag2, 0);
+		Row3 = GVector4<RealType>(0, 0, 0, Diag3);
 	}
 
 	/**
 	 * Construct outer-product of U*transpose(V) of U and V
 	 * result is that Mij = u_i * v_j
 	 */
-	TMatrix4<RealType>(const TVector4<RealType>& U, const TVector4<RealType>& V)
+	TMatrix4<RealType>(const GVector4<RealType>& U, const GVector4<RealType>& V)
 		: Row0(U.X* V.X, U.X* V.Y, U.X* V.Z, U.X* V.W),
 		Row1(U.Y* V.X, U.Y* V.Y, U.Y* V.Z, U.Y* V.W),
 		Row2(U.Z* V.X, U.Z* V.Y, U.Z* V.Z, U.Z* V.W),
@@ -57,7 +57,7 @@ struct TMatrix4
 	{
 	}
 
-	TMatrix4(const TVector4<RealType>& V1, const TVector4<RealType>& V2, const TVector4<RealType>& V3, const TVector4<RealType>& V4, bool bRows)
+	TMatrix4(const GVector4<RealType>& V1, const GVector4<RealType>& V2, const GVector4<RealType>& V3, const GVector4<RealType>& V4, bool bRows)
 	{
 		if (bRows)
 		{
@@ -68,10 +68,10 @@ struct TMatrix4
 		}
 		else
 		{
-			Row0 = TVector4<RealType>(V1.X, V2.X, V3.X, V4.X);
-			Row1 = TVector4<RealType>(V1.Y, V2.Y, V3.Y, V4.Y);
-			Row2 = TVector4<RealType>(V1.Z, V2.Z, V3.Z, V4.Z);
-			Row3 = TVector4<RealType>(V1.W, V2.W, V3.W, V4.W);
+			Row0 = GVector4<RealType>(V1.X, V2.X, V3.X, V4.X);
+			Row1 = GVector4<RealType>(V1.Y, V2.Y, V3.Y, V4.Y);
+			Row2 = GVector4<RealType>(V1.Z, V2.Z, V3.Z, V4.Z);
+			Row3 = GVector4<RealType>(V1.W, V2.W, V3.W, V4.W);
 		}
 	}
 
@@ -114,9 +114,9 @@ struct TMatrix4
 			Row3.X * Scale, Row3.Y * Scale, Row3.Z * Scale, Row3.W * Scale);
 	}
 
-	TVector4<RealType> operator*(const TVector4<RealType>& V) const
+	GVector4<RealType> operator*(const GVector4<RealType>& V) const
 	{
-		return TVector4<RealType>(
+		return GVector4<RealType>(
 			Row0.X * V.X + Row0.Y * V.Y + Row0.Z * V.Z + Row0.W * V.W,
 			Row1.X * V.X + Row1.Y * V.Y + Row1.Z * V.Z + Row1.W * V.W,
 			Row2.X * V.X + Row2.Y * V.Y + Row2.Z * V.Z + Row2.W * V.W,

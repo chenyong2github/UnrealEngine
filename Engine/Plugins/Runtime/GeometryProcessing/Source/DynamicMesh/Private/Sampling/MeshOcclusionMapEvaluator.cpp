@@ -152,7 +152,7 @@ void FMeshOcclusionMapEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 	if constexpr (WANT_BENT_NORMAL(ComputeType))
 	{
 		const FVector3d& DefaultNormal = ComputeSpace == ESpace::Tangent ? DefaultTangentNormal : DefaultObjectNormal;
-		WriteToBuffer(Out, DefaultNormal);
+		WriteToBuffer(Out, (FVector3f)DefaultNormal);
 	}
 }
 

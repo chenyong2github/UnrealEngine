@@ -98,7 +98,7 @@ void FSlateInstancedVertexDeclaration::InitRHI()
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, Position), VET_Float2, 2, Stride));
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, Color), VET_Color, 3, Stride));
 	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FSlateVertex, SecondaryColor), VET_Color, 4, Stride));
-	Elements.Add(FVertexElement(1, 0, VET_Float4, 5, sizeof(FVector4), true));
+	Elements.Add(FVertexElement(1, 0, VET_Float4, 5, sizeof(FVector4f), true));
 	
 	VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 }
@@ -145,7 +145,7 @@ void FSlateElementVS::SetViewProjection(FRHICommandList& RHICmdList, const FMatr
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewProjection, InViewProjection );
 }
 
-void FSlateElementVS::SetShaderParameters(FRHICommandList& RHICmdList, const FVector4& ShaderParams )
+void FSlateElementVS::SetShaderParameters(FRHICommandList& RHICmdList, const FVector4f& ShaderParams )
 {
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), VertexShaderParams, ShaderParams );
 }

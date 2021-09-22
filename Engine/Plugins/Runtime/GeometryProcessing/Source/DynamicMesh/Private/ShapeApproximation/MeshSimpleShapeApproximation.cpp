@@ -94,7 +94,7 @@ namespace Geometry {
 struct FSimpleShapeFitsResult
 {
 	bool bHaveSphere = false;
-	FSphere3d Sphere;
+	UE::Geometry::FSphere3d Sphere;
 
 	bool bHaveBox = false;
 	FOrientedBox3d Box;
@@ -267,7 +267,7 @@ void FMeshSimpleShapeApproximation::Generate_Capsules(FSimpleShapeSet3d& ShapeSe
 		if (FitResult.bHaveCapsule)
 		{
 			GeometryLock.Lock();
-			ShapeSetOut.Capsules.Add(FCapsuleShape3d(FitResult.Capsule));
+			ShapeSetOut.Capsules.Add(UE::Geometry::FCapsuleShape3d(FitResult.Capsule));
 			GeometryLock.Unlock();
 		}
 	});
@@ -420,7 +420,7 @@ void FMeshSimpleShapeApproximation::Generate_MinVolume(FSimpleShapeSet3d& ShapeS
 				ShapeSetOut.Spheres.Add(FSphereShape3d(FitResult.Sphere));
 				break;
 			case 3:
-				ShapeSetOut.Capsules.Add(FCapsuleShape3d(FitResult.Capsule));
+				ShapeSetOut.Capsules.Add(UE::Geometry::FCapsuleShape3d(FitResult.Capsule));
 				break;
 			}
 			GeometryLock.Unlock();

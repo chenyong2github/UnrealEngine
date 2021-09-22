@@ -137,7 +137,7 @@ public:
 
 		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
 		{
-			AOSampleData.SampleDirections[SampleIndex] = FVector4(SampleDirections[SampleIndex]);
+			AOSampleData.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
 		}
 
 		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FAOSampleData2>(), AOSampleData);
@@ -181,7 +181,7 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, DistanceFieldCulledObjectBuffers)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAOScreenGridParameters, AOScreenGridParameters)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector4>, TileConeDepthRanges)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector4f>, TileConeDepthRanges)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVCompute)
 	END_SHADER_PARAMETER_STRUCT()
@@ -244,7 +244,7 @@ public:
 
 		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
 		{
-			AOSampleData.SampleDirections[SampleIndex] = FVector4(SampleDirections[SampleIndex]);
+			AOSampleData.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
 		}
 
 		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FAOSampleData2>(), AOSampleData);
@@ -332,7 +332,7 @@ public:
 
 		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
 		{
-			AOSampleData.SampleDirections[SampleIndex] = FVector4(SampleDirections[SampleIndex]);
+			AOSampleData.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
 		}
 
 		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FAOSampleData2>(), AOSampleData);

@@ -119,7 +119,7 @@ public:
 
 		extern FIntPoint GetBufferSizeForConeTracing();
 		const FIntPoint ConeTracingBufferSize = GetBufferSizeForConeTracing();
-		const FVector4 BentNormalBufferAndTexelSizeValue(ConeTracingBufferSize.X, ConeTracingBufferSize.Y, 1.0f / ConeTracingBufferSize.X, 1.0f / ConeTracingBufferSize.Y);
+		const FVector4f BentNormalBufferAndTexelSizeValue(ConeTracingBufferSize.X, ConeTracingBufferSize.Y, 1.0f / ConeTracingBufferSize.X, 1.0f / ConeTracingBufferSize.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, BentNormalBufferAndTexelSize, BentNormalBufferAndTexelSizeValue);
 
 		extern int32 GConeTraceDownsampleFactor;
@@ -254,14 +254,14 @@ public:
 			const float InvBufferSizeX = 1.0f / HistoryBufferSize.X;
 			const float InvBufferSizeY = 1.0f / HistoryBufferSize.Y;
 
-			const FVector4 HistoryScreenPositionScaleBiasValue(
+			const FVector4f HistoryScreenPositionScaleBiasValue(
 				HistoryViewRect.Width() * InvBufferSizeX / +2.0f,
 				HistoryViewRect.Height() * InvBufferSizeY / (-2.0f * GProjectionSignY),
 				(HistoryViewRect.Height() / 2.0f + HistoryViewRect.Min.Y) * InvBufferSizeY,
 				(HistoryViewRect.Width() / 2.0f + HistoryViewRect.Min.X) * InvBufferSizeX);
 
 			// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
-			const FVector4 HistoryUVMinMaxValue(
+			const FVector4f HistoryUVMinMaxValue(
 				(HistoryViewRect.Min.X + 0.5f) * InvBufferSizeX,
 				(HistoryViewRect.Min.Y + 0.5f) * InvBufferSizeY,
 				(HistoryViewRect.Max.X - 0.5f) * InvBufferSizeX,

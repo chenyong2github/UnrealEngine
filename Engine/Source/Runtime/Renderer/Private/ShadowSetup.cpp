@@ -775,7 +775,7 @@ bool FProjectedShadowInfo::SetupPerObjectProjection(
 	for (int32 PointIndex = 0; PointIndex < BoundsPoints.Num(); PointIndex++)
 	{
 		const FVector TransformedBoundsPoint = Initializer.WorldToLight.TransformPosition(BoundsPoints[PointIndex]);
-		const float TransformedBoundsPointW = Dot4(FVector4(0, 0, TransformedBoundsPoint.X,1), Initializer.WAxis);
+		const FVector4::FReal TransformedBoundsPointW = Dot4(FVector4(0, 0, TransformedBoundsPoint.X,1), Initializer.WAxis);
 		if (TransformedBoundsPointW >= DELTA)
 		{
 			ProjectedBoundsPoints.Add(TransformedBoundsPoint / TransformedBoundsPointW);
@@ -3895,7 +3895,7 @@ void FSceneRenderer::InitProjectedShadowVisibility()
 
 								const FMatrix ViewMatrix = View.ViewMatrices.GetViewMatrix();
 								const FMatrix ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
-								const FVector4 ViewOrigin = View.ViewMatrices.GetViewOrigin();
+								const FVector4f ViewOrigin = View.ViewMatrices.GetViewOrigin();
 
 								float AspectRatio = ProjectionMatrix.M[1][1] / ProjectionMatrix.M[0][0];
 								float ActualFOV = (ViewOrigin.W > 0.0f) ? FMath::Atan(1.0f / ProjectionMatrix.M[0][0]) : PI/4.0f;
@@ -4784,14 +4784,14 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 										float CachedViewportWidth = CachedViewport.Max.X - CachedViewport.Min.X;
 										float CachedViewportHeight = CachedViewport.Max.Y - CachedViewport.Min.Y;
-										ProjectedShadowInfo->OverlappedUVOnCachedShadowMap = FVector4((OverlappedViewport.Min.X - CachedViewport.Min.X) / CachedViewportWidth
+										ProjectedShadowInfo->OverlappedUVOnCachedShadowMap = FVector4f((OverlappedViewport.Min.X - CachedViewport.Min.X) / CachedViewportWidth
 											, (CachedViewport.Max.Y - OverlappedViewport.Max.Y) / CachedViewportHeight
 											, (OverlappedViewport.Max.X - CachedViewport.Min.X) / CachedViewportWidth
 											, (CachedViewport.Max.Y - OverlappedViewport.Min.Y) / CachedViewportHeight);
 
 										float CurrentViewportWidth = CurrentViewport.Max.X - CurrentViewport.Min.X;
 										float CurrentViewportHeight = CurrentViewport.Max.Y - CurrentViewport.Min.Y;
-										ProjectedShadowInfo->OverlappedUVOnCurrentShadowMap = FVector4((OverlappedViewport.Min.X - CurrentViewport.Min.X) / CurrentViewportWidth
+										ProjectedShadowInfo->OverlappedUVOnCurrentShadowMap = FVector4f((OverlappedViewport.Min.X - CurrentViewport.Min.X) / CurrentViewportWidth
 											, (CurrentViewport.Max.Y - OverlappedViewport.Max.Y) / CurrentViewportHeight
 											, (OverlappedViewport.Max.X - CurrentViewport.Min.X) / CurrentViewportWidth
 											, (CurrentViewport.Max.Y - OverlappedViewport.Min.Y) / CurrentViewportHeight);

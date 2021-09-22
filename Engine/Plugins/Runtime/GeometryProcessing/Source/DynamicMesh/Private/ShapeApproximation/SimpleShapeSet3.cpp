@@ -72,7 +72,7 @@ static void FilterContained(const FSimpleShapeSet3d& Geometry, const FSphereShap
 
 
 
-static void FilterContained(const FSimpleShapeSet3d& Geometry, const FCapsuleShape3d& Capsule, const TArray<FSimpleShapeElementKey>& Elements, int32 k, TArray<bool>& RemovedInOut)
+static void FilterContained(const FSimpleShapeSet3d& Geometry, const UE::Geometry::FCapsuleShape3d& Capsule, const TArray<FSimpleShapeElementKey>& Elements, int32 k, TArray<bool>& RemovedInOut)
 {
 	int32 N = Elements.Num();
 	for (int32 j = k + 1; j < N; ++j)
@@ -322,7 +322,7 @@ static void TransformBoxShape(FBoxShape3d& BoxShape, const UE::Geometry::FTransf
 	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
 	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
 }
-static void TransformCapsuleShape(FCapsuleShape3d& CapsuleShape, const UE::Geometry::FTransform3d& Transform)
+static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, const UE::Geometry::FTransform3d& Transform)
 {
 	FVector3d P0 = Transform.TransformPosition(CapsuleShape.Capsule.Segment.StartPoint());
 	FVector3d P1 = Transform.TransformPosition(CapsuleShape.Capsule.Segment.EndPoint());
@@ -363,7 +363,7 @@ static void TransformBoxShape(FBoxShape3d& BoxShape, const TArray<UE::Geometry::
 	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
 	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
 }
-static void TransformCapsuleShape(FCapsuleShape3d& CapsuleShape, const TArray<UE::Geometry::FTransform3d>& TransformSequence)
+static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, const TArray<UE::Geometry::FTransform3d>& TransformSequence)
 {
 	FVector3d P0 = CapsuleShape.Capsule.Segment.StartPoint();
 	FVector3d P1 = CapsuleShape.Capsule.Segment.EndPoint();
@@ -402,7 +402,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet)
 		Boxes.Add(BoxShape);
 	}
 
-	for (FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
+	for (UE::Geometry::FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
 	{
 		Capsules.Add(CapsuleShape);
 	}
@@ -429,7 +429,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const UE:
 		Boxes.Add(BoxShape);
 	}
 
-	for (FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
+	for (UE::Geometry::FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
 	{
 		TransformCapsuleShape(CapsuleShape, Transform);
 		Capsules.Add(CapsuleShape);
@@ -459,7 +459,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TAr
 		Boxes.Add(BoxShape);
 	}
 
-	for (FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
+	for (UE::Geometry::FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
 	{
 		TransformCapsuleShape(CapsuleShape, TransformSequence);
 		Capsules.Add(CapsuleShape);
@@ -530,7 +530,7 @@ void FSimpleShapeSet3d::ApplyTransform(const UE::Geometry::FTransform3d& Transfo
 		TransformBoxShape(BoxShape, Transform);
 	}
 
-	for (FCapsuleShape3d& CapsuleShape : Capsules)
+	for (UE::Geometry::FCapsuleShape3d& CapsuleShape : Capsules)
 	{
 		TransformCapsuleShape(CapsuleShape, Transform);
 	}

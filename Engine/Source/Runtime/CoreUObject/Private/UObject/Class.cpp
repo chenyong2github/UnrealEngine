@@ -6525,13 +6525,16 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UDynamicClass, UClass,
 
 bool UScriptStruct::CanSerializeAsAlias(const FPropertyTag& Tag) const
 {
-	// LWC_TODO: Do core types via STRUCT_SerializeFromMismatchedTag for speed? Not supported for TArrays.	
+	// LWC_TODO: Do core types via STRUCT_SerializeFromMismatchedTag for speed and free conversion between float/double types! Check this works properly for containers.
 	return (
 		(Tag.StructName == NAME_Vector && (GetFName() == NAME_Vector3f || GetFName() == NAME_Vector3d)) ||
+		(Tag.StructName == NAME_Vector4 && (GetFName() == NAME_Vector4f || GetFName() == NAME_Vector4d)) ||
 		(Tag.StructName == NAME_Plane && (GetFName() == NAME_Plane4f || GetFName() == NAME_Plane4d)) ||
 		(Tag.StructName == NAME_Matrix && (GetFName() == NAME_Matrix44f || GetFName() == NAME_Matrix44d)) ||
 		(Tag.StructName == NAME_Quat && (GetFName() == NAME_Quat4f || GetFName() == NAME_Quat4d)) ||
-		(Tag.StructName == NAME_Transform && (GetFName() == NAME_Transform4f || GetFName() == NAME_Transform4d))
+		(Tag.StructName == NAME_Transform && (GetFName() == NAME_Transform4f || GetFName() == NAME_Transform4d)) ||
+		(Tag.StructName == NAME_Box && (GetFName() == NAME_Box3f || GetFName() == NAME_Box3d)) ||
+		(Tag.StructName == NAME_BoxSphereBounds && (GetFName() == NAME_BoxSphereBounds3f || GetFName() == NAME_BoxSphereBounds3d))
 		);
 }
 

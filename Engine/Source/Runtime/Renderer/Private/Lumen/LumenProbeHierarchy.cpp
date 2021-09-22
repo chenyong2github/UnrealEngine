@@ -1203,7 +1203,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 		TStaticArray<FRDGTextureRef, kProbeMaxHierarchyDepth> ProbeListsPerEmitTile;
 		{
 			FRDGBufferRef ProbeArray = GraphBuilder.CreateBuffer(
-				FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4) * 2, ProbeHierachyParameters.MaxProbeCount),
+				FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f) * 2, ProbeHierachyParameters.MaxProbeCount),
 				TEXT("ProbeHierarchy.ProbeArray"));
 
 			FRDGBufferUAVRef ProbeArrayOutput = GraphBuilder.CreateUAV(ProbeArray, ERDGUnorderedAccessViewFlags::SkipBarrier);

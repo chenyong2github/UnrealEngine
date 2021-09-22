@@ -142,8 +142,8 @@ class FScreenProbeTemporallyAccumulateTraceRadianceCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
-		SHADER_PARAMETER(FVector4, HistoryScreenPositionScaleBias)
-		SHADER_PARAMETER(FVector4, HistoryUVMinMax)
+		SHADER_PARAMETER(FVector4f, HistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f, HistoryUVMinMax)
 		SHADER_PARAMETER(float, ProbeTemporalFilterHistoryWeight)
 		SHADER_PARAMETER(float, HistoryDistanceThreshold)
 		SHADER_PARAMETER(float, PrevInvPreExposure)
@@ -470,7 +470,7 @@ void FilterScreenProbes(
 		const FVector2D InvBufferSize(1.0f / SceneTexturesExtent.X, 1.0f / SceneTexturesExtent.Y);
 
 		// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
-		PassParameters->HistoryUVMinMax = FVector4(
+		PassParameters->HistoryUVMinMax = FVector4f(
 			(ScreenProbeGatherState.ProbeHistoryViewRect.Min.X + 0.5f) * InvBufferSize.X,
 			(ScreenProbeGatherState.ProbeHistoryViewRect.Min.Y + 0.5f) * InvBufferSize.Y,
 			(ScreenProbeGatherState.ProbeHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,

@@ -1923,17 +1923,18 @@ void UNiagaraComponent::SetNiagaraVariableLinearColor(const FString& InVariableN
 
 void UNiagaraComponent::SetVariableQuat(FName InVariableName, const FQuat& InValue)
 {
+	FQuat4f AsFloat = (FQuat4f)InValue;
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetQuatDef(), InVariableName);
 	if (SystemInstanceController.IsValid())
 	{
-		SystemInstanceController->SetVariable_Deferred(InVariableName, InValue);
+		SystemInstanceController->SetVariable_Deferred(InVariableName, AsFloat);
 	}
 	else
 	{
-		OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
+		OverrideParameters.SetParameterValue(AsFloat, VariableDesc, true);
 	}
 #if WITH_EDITOR
-	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FQuat)));
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&AsFloat, sizeof(FQuat4f)));
 #endif
 }
 
@@ -1944,17 +1945,18 @@ void UNiagaraComponent::SetNiagaraVariableQuat(const FString& InVariableName, co
 
 void UNiagaraComponent::SetVariableVec4(FName InVariableName, const FVector4& InValue)
 {
+	FVector4f AsFloat = (FVector4f)InValue;
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec4Def(), InVariableName);
 	if (SystemInstanceController.IsValid())
 	{
-		SystemInstanceController->SetVariable_Deferred(InVariableName, InValue);
+		SystemInstanceController->SetVariable_Deferred(InVariableName, AsFloat);
 	}
 	else
 	{
-		OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
+		OverrideParameters.SetParameterValue(AsFloat, VariableDesc, true);
 	}
 #if WITH_EDITOR
-	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FVector4)));
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&AsFloat, sizeof(FVector4f)));
 #endif
 }
 
@@ -1965,7 +1967,7 @@ void UNiagaraComponent::SetNiagaraVariableVec4(const FString& InVariableName, co
 
 void UNiagaraComponent::SetVariableVec3(FName InVariableName, FVector InValue)
 {
-	FVector3f AsFloat = InValue;
+	FVector3f AsFloat = (FVector3f)InValue;
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec3Def(), InVariableName);
 	if (SystemInstanceController.IsValid())
 	{

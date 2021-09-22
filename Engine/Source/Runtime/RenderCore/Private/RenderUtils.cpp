@@ -223,14 +223,14 @@ public:
 		// Create the texture RHI.  		
 		FRHIResourceCreateInfo CreateInfo(TEXT("WhiteVertexBuffer"));
 
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 
-		FVector4* BufferData = (FVector4*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4), RLM_WriteOnly);
-		*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+		FVector4f* BufferData = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f), RLM_WriteOnly);
+		*BufferData = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		RHIUnlockBuffer(VertexBufferRHI);
 
 		// Create a view of the buffer
-		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F);
+		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
 	}
 };
 
@@ -248,10 +248,10 @@ public:
 		if (!Buffer.IsValid())
 		{
 			FRHICommandList* UnusedCmdList = new FRHICommandList(FRHIGPUMask::All());
-			GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), 1), Buffer, TEXT("WhiteVertexBufferWithRDG"));
+			GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), 1), Buffer, TEXT("WhiteVertexBufferWithRDG"));
 
-			FVector4* BufferData = (FVector4*)RHILockBuffer(Buffer->GetRHI(), 0, sizeof(FVector4), RLM_WriteOnly);
-			*BufferData = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+			FVector4f* BufferData = (FVector4f*)RHILockBuffer(Buffer->GetRHI(), 0, sizeof(FVector4f), RLM_WriteOnly);
+			*BufferData = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 			RHIUnlockBuffer(Buffer->GetRHI());
 			delete UnusedCmdList;
 			UnusedCmdList = nullptr;
@@ -1013,7 +1013,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
-		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4)));
+		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4f)));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 	virtual void ReleaseRHI() override
@@ -1022,11 +1022,11 @@ public:
 	}
 };
 
-TGlobalResource<FVector4VertexDeclaration> GVector4VertexDeclaration;
+TGlobalResource<FVector4VertexDeclaration> FVector4VertexDeclaration;
 
 RENDERCORE_API FVertexDeclarationRHIRef& GetVertexDeclarationFVector4()
 {
-	return GVector4VertexDeclaration.VertexDeclarationRHI;
+	return FVector4VertexDeclaration.VertexDeclarationRHI;
 }
 
 class FVector3VertexDeclaration : public FRenderResource
@@ -1541,7 +1541,7 @@ public:
 	void InitRHI() override
 	{
 		const int32 NumVerts = 8;
-		TResourceArray<FVector4, VERTEXBUFFER_ALIGNMENT> Verts;
+		TResourceArray<FVector4f, VERTEXBUFFER_ALIGNMENT> Verts;
 		Verts.SetNumUninitialized(NumVerts);
 
 		for (uint32 Z = 0; Z < 2; Z++)
@@ -1550,7 +1550,7 @@ public:
 			{
 				for (uint32 X = 0; X < 2; X++)
 				{
-					const FVector4 Vertex = FVector4(
+					const FVector4f Vertex = FVector4f(
 					  (X ? -1 : 1),
 					  (Y ? -1 : 1),
 					  (Z ? -1 : 1),

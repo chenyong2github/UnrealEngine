@@ -203,7 +203,7 @@ public:
 
 	FVector3f GetWedgeNormal(WedgeIDType WID) const
 	{
-		const FVector4& TangentZ = GetWedgeVertexInstance(WID).TangentZ;
+		const FVector4f& TangentZ = GetWedgeVertexInstance(WID).TangentZ;
 		return FVector3f(TangentZ.X, TangentZ.Y, TangentZ.Z);
 	}
 

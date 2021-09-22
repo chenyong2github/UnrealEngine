@@ -115,7 +115,7 @@ struct FNiagaraDynamicDataRibbon : public FNiagaraDynamicDataBase
 	/** The list of all particle (instance) indices. Converts raw indices to particles indices. Ordered along each ribbons, from head to tail. */
 	TArray<int32> SortedIndices;
 	/** The tangent and distance between segments, for each raw index (raw VS particle indices). */
-	TArray<FVector4> TangentAndDistances;
+	TArray<FVector4f> TangentAndDistances;
 	/** The multi ribbon index, for each raw index. (raw VS particle indices). */
 	TArray<uint32> MultiRibbonIndices;
 	/** Data for each multi ribbon. There are several entries per ribbon. */
@@ -512,7 +512,7 @@ int FNiagaraRendererRibbons::GetDynamicDataSize()const
 void CalculateUVScaleAndOffsets(
 	const FNiagaraRibbonUVSettings& UVSettings,
 	const TArray<int32>& RibbonIndices,
-	const TArray<FVector4>& RibbonTangentsAndDistances,
+	const TArray<FVector4f>& RibbonTangentsAndDistances,
 	const FNiagaraDataSetReaderFloat<float>& NormalizedAgeReader,
 	int32 StartIndex, int32 EndIndex,
 	int32 NumSegments, float TotalLength,
@@ -816,7 +816,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 				// Add the first point. Tangent follows first segment.
 				DynamicData->SortedIndices.Add(RibbonIndices[0]);
 				MaxParticleIndex = FMath::Max(RibbonIndices[0], MaxParticleIndex);
-				DynamicData->TangentAndDistances.Add(FVector4(LastToCurrVec.X, LastToCurrVec.Y, LastToCurrVec.Z, 0));
+				DynamicData->TangentAndDistances.Add(FVector4f(LastToCurrVec.X, LastToCurrVec.Y, LastToCurrVec.Z, 0));
 				DynamicData->MultiRibbonIndices.Add(RibbonIndex);
 				break;
 			}
@@ -857,7 +857,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 				// Add the current point, which tangent is computed from neighbors
 				DynamicData->SortedIndices.Add(RibbonIndices[CurrentIndex]);
 				MaxParticleIndex = FMath::Max(RibbonIndices[CurrentIndex], MaxParticleIndex);
-				DynamicData->TangentAndDistances.Add(FVector4(Tangent.X, Tangent.Y, Tangent.Z, TotalDistance));
+				DynamicData->TangentAndDistances.Add(FVector4f(Tangent.X, Tangent.Y, Tangent.Z, TotalDistance));
 				DynamicData->MultiRibbonIndices.Add(RibbonIndex);
 
 				// Assumed equal to dot(Tangent, CurrToNextVec)
@@ -889,7 +889,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			// Add the last point, which tangent follows the last segment.
 			DynamicData->SortedIndices.Add(RibbonIndices[CurrentIndex]);
 			MaxParticleIndex = FMath::Max(RibbonIndices[CurrentIndex], MaxParticleIndex);
-			DynamicData->TangentAndDistances.Add(FVector4(LastToCurrVec.X, LastToCurrVec.Y, LastToCurrVec.Z, TotalDistance));
+			DynamicData->TangentAndDistances.Add(FVector4f(LastToCurrVec.X, LastToCurrVec.Y, LastToCurrVec.Z, TotalDistance));
 			DynamicData->MultiRibbonIndices.Add(RibbonIndex);
 		}
 
@@ -1076,7 +1076,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	return DynamicData;
 }
 
-void FNiagaraRendererRibbons::AddDynamicParam(TArray<FNiagaraRibbonVertexDynamicParameter>& ParamData, const FVector4& DynamicParam)
+void FNiagaraRendererRibbons::AddDynamicParam(TArray<FNiagaraRibbonVertexDynamicParameter>& ParamData, const FVector4f& DynamicParam)
 {
 	FNiagaraRibbonVertexDynamicParameter Param;
 	Param.DynamicValue[0] = DynamicParam.X;
@@ -1131,9 +1131,9 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	// pass in the CPU generated total segment distance (for tiling distance modes); needs to be a buffer so we can fetch them in the correct order based on Draw Direction (front->back or back->front)
 	//	otherwise UVs will pop when draw direction changes based on camera view point
 	FReadBuffer TangentsAndDistancesBuffer;
-	TangentsAndDistancesBuffer.Initialize(TEXT("TangentsAndDistancesBuffer"), sizeof(FVector4), DynamicDataRibbon->TangentAndDistances.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Volatile);
-	void *TangentsAndDistancesPtr = RHILockBuffer(TangentsAndDistancesBuffer.Buffer, 0, DynamicDataRibbon->TangentAndDistances.Num() * sizeof(FVector4), RLM_WriteOnly);
-	FMemory::Memcpy(TangentsAndDistancesPtr, DynamicDataRibbon->TangentAndDistances.GetData(), DynamicDataRibbon->TangentAndDistances.Num() * sizeof(FVector4));
+	TangentsAndDistancesBuffer.Initialize(TEXT("TangentsAndDistancesBuffer"), sizeof(FVector4f), DynamicDataRibbon->TangentAndDistances.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Volatile);
+	void *TangentsAndDistancesPtr = RHILockBuffer(TangentsAndDistancesBuffer.Buffer, 0, DynamicDataRibbon->TangentAndDistances.Num() * sizeof(FVector4f), RLM_WriteOnly);
+	FMemory::Memcpy(TangentsAndDistancesPtr, DynamicDataRibbon->TangentAndDistances.GetData(), DynamicDataRibbon->TangentAndDistances.Num() * sizeof(FVector4f));
 	RHIUnlockBuffer(TangentsAndDistancesBuffer.Buffer);
 	CollectorResources.VertexFactory.SetTangentAndDistances(TangentsAndDistancesBuffer.Buffer, TangentsAndDistancesBuffer.SRV);
 	// Copy a buffer which has the per particle multi ribbon index.
@@ -1379,7 +1379,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;
 	PerViewUniformParameters.CameraUp = View->GetViewUp(); // FVector4(0.0f, 0.0f, 1.0f, 0.0f);
 	PerViewUniformParameters.CameraRight = View->GetViewRight();//	FVector4(1.0f, 0.0f, 0.0f, 0.0f);
-	PerViewUniformParameters.ScreenAlignment = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+	PerViewUniformParameters.ScreenAlignment = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 	PerViewUniformParameters.TotalNumInstances = SourceParticleData->GetNumInstances();
 	PerViewUniformParameters.InterpCount = SegmentTessellation;
 	PerViewUniformParameters.OneOverInterpCount = 1.f / (float)SegmentTessellation;
@@ -1418,7 +1418,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 
 	PerViewUniformParameters.U0DistributionMode = (int32)UV0Settings.DistributionMode;
 	PerViewUniformParameters.U1DistributionMode = (int32)UV1Settings.DistributionMode;
-	PerViewUniformParameters.PackedVData = FVector4(UV0Settings.Scale.Y, UV0Settings.Offset.Y, UV1Settings.Scale.Y, UV1Settings.Offset.Y);
+	PerViewUniformParameters.PackedVData = FVector4f(UV0Settings.Scale.Y, UV0Settings.Offset.Y, UV1Settings.Scale.Y, UV1Settings.Offset.Y);
 
 	OutUniformBuffer = FNiagaraRibbonUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
 

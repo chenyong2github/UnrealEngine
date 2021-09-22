@@ -1321,7 +1321,7 @@ public:
 			{
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureWorldToUvTransformParam, (FMatrix44f)ProxyData.CachedHeightTextureWorldToUvTransform);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvToWorldTransformParam, (FMatrix44f)ProxyData.CachedHeightTextureUvToWorldTransform);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvScaleBiasParam, ProxyData.CachedHeightTextureUvScaleBias);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvScaleBiasParam, (FVector4f)ProxyData.CachedHeightTextureUvScaleBias);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureGridSizeParam, ProxyData.CachedHeightTextureGridSize);
 
 				if (HeightTextureSrv)
@@ -1360,7 +1360,7 @@ public:
 
 	void SetCachedHeightTextureParameters_Defaults(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI) const
 	{
-		FVector4 DummyVector4(ForceInitToZero);
+		FVector4f DummyVector4(ForceInitToZero);
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, CachedHeightTextureParam, GBlackTextureWithSRV->ShaderResourceViewRHI);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureWorldToUvTransformParam, FMatrix44f::Identity);

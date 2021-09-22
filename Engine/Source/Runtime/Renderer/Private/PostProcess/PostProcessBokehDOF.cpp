@@ -24,9 +24,9 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
-		SHADER_PARAMETER(FVector4, DepthOfFieldParams)
-		SHADER_PARAMETER(FVector4, NearColor)
-		SHADER_PARAMETER(FVector4, FarColor)
+		SHADER_PARAMETER(FVector4f, DepthOfFieldParams)
+		SHADER_PARAMETER(FVector4f, NearColor)
+		SHADER_PARAMETER(FVector4f, FarColor)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };

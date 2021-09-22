@@ -27,7 +27,7 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	// Splitting a quad doesn't introduce any new verts.
@@ -83,7 +83,7 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
 																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
 																							 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
-			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4(0.0f);
+			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(0.0f);
 			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2D(0.0f, 0.0f));
 		}
 
@@ -142,7 +142,7 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const uint32 DstNumPositions = AOSMesh.GetNumVertexes();
@@ -196,7 +196,7 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 			VertexInstanceBinormalSigns[VertexInstanceIDs[Corner]] = GetBasisDeterminantSign(VertexInstanceTangents[VertexInstanceIDs[Corner]].GetSafeNormal(),
 																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
 																							 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
-			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4(1.0f);
+			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(1.0f);
 			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2D(0.0f, 0.0f));
 		}
 
@@ -233,7 +233,7 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const uint32 DstNumPositions = SrcVertexDataMesh.Points.Num();
@@ -308,11 +308,11 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 			//Color
 			if (SrcVertexDataMesh.FaceColors.Num() == 0)
 			{
-				VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4(1.0f);
+				VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(1.0f);
 			}
 			else
 			{
-				VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4(FLinearColor(SrcVertexDataMesh.FaceColors[TriangleIndex]));
+				VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(FLinearColor(SrcVertexDataMesh.FaceColors[TriangleIndex]));
 			}
 
 			//UVs

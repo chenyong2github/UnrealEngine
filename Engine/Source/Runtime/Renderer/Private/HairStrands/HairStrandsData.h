@@ -224,7 +224,7 @@ struct FHairStrandsDeepShadowData
 	uint32 LightId = ~0;
 	bool bIsLightDirectional = false;
 	FVector  LightDirection;
-	FVector4 LightPosition;
+	FVector4f LightPosition;
 	FLinearColor LightLuminance;
 	float LayerDistribution;
 

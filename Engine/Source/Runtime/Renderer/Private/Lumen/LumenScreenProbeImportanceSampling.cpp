@@ -110,8 +110,8 @@ class FScreenProbeComputeLightingProbabilityDensityFunctionCS : public FGlobalSh
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER(FVector4, ProbeHistoryScreenPositionScaleBias)
-		SHADER_PARAMETER(FVector4, ImportanceSamplingHistoryUVMinMax)
+		SHADER_PARAMETER(FVector4f, ProbeHistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f, ImportanceSamplingHistoryUVMinMax)
 		SHADER_PARAMETER(float, ImportanceSamplingHistoryDistanceThreshold)
 		SHADER_PARAMETER(float, PrevInvPreExposure)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, HistoryScreenProbeRadiance)
@@ -331,7 +331,7 @@ void GenerateImportanceSamplingRays(
 				const FVector2D InvBufferSize(1.0f / SceneTexturesExtent.X, 1.0f / SceneTexturesExtent.Y);
 
 				// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
-				PassParameters->ImportanceSamplingHistoryUVMinMax = FVector4(
+				PassParameters->ImportanceSamplingHistoryUVMinMax = FVector4f(
 					(ScreenProbeGatherState.ProbeHistoryViewRect.Min.X + 0.5f) * InvBufferSize.X,
 					(ScreenProbeGatherState.ProbeHistoryViewRect.Min.Y + 0.5f) * InvBufferSize.Y,
 					(ScreenProbeGatherState.ProbeHistoryViewRect.Max.X - 0.5f) * InvBufferSize.X,

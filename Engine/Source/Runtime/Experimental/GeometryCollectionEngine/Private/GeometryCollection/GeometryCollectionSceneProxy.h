@@ -69,7 +69,7 @@ public:
 
 		// #note: This differs from instanced static mesh in that we are storing the entire transform in the buffer rather than
 		// splitting out the translation.  This is to simplify transferring data at runtime as a memcopy
-		VertexBufferRHI = RHICreateVertexBuffer(NumTransforms * sizeof(FVector4) * 4, BUF_Dynamic | BUF_ShaderResource, CreateInfo);		
+		VertexBufferRHI = RHICreateVertexBuffer(NumTransforms * sizeof(FVector4f) * 4, BUF_Dynamic | BUF_ShaderResource, CreateInfo);		
 		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, 16, PF_A32B32G32R32F);
 	}
 

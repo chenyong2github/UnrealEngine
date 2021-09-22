@@ -45,12 +45,12 @@ extern int32 GIndirectLightingCache;
 class FForwardLocalLightData
 {
 public:
-	FVector4 LightPositionAndInvRadius;
-	FVector4 LightColorAndFalloffExponent;
-	FVector4 LightDirectionAndShadowMapChannelMask;
-	FVector4 SpotAnglesAndSourceRadiusPacked;
-	FVector4 LightTangentAndSoftSourceRadius;
-	FVector4 RectBarnDoor;
+	FVector4f LightPositionAndInvRadius;
+	FVector4f LightColorAndFalloffExponent;
+	FVector4f LightDirectionAndShadowMapChannelMask;
+	FVector4f SpotAnglesAndSourceRadiusPacked;
+	FVector4f LightTangentAndSoftSourceRadius;
+	FVector4f RectBarnDoor;
 };
 
 struct FForwardBasePassTextures
@@ -88,8 +88,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthWithoutSingleLayerWaterSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGFTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
-	SHADER_PARAMETER(FVector4, SceneWithoutSingleLayerWaterMinMaxUV)
-	SHADER_PARAMETER(FVector4, DistortionParams)
+	SHADER_PARAMETER(FVector4f, SceneWithoutSingleLayerWaterMinMaxUV)
+	SHADER_PARAMETER(FVector4f, DistortionParams)
 	// Misc
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -99,8 +99,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, Strata)
 	// Material SSR
-	SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
-	SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
+	SHADER_PARAMETER(FVector4f, HZBUvFactorAndInvFactor)
+	SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
 	SHADER_PARAMETER(float, PrevSceneColorPreExposureInv)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
@@ -154,7 +154,7 @@ public:
 
 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("LOCAL_LIGHT_DATA_STRIDE"), FMath::DivideAndRoundUp<int32>(sizeof(FForwardLocalLightData), sizeof(FVector4)));
+		OutEnvironment.SetDefine(TEXT("LOCAL_LIGHT_DATA_STRIDE"), FMath::DivideAndRoundUp<int32>(sizeof(FForwardLocalLightData), sizeof(FVector4f)));
 		extern int32 NumCulledLightsGridStride;
 		OutEnvironment.SetDefine(TEXT("NUM_CULLED_LIGHTS_GRID_STRIDE"), NumCulledLightsGridStride);
 		extern int32 NumCulledGridPrimitiveTypes;

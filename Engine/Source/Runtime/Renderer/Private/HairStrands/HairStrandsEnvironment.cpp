@@ -237,7 +237,7 @@ public:
 		SHADER_PARAMETER(float, TransmissionDensityScaleFactor)
 		SHADER_PARAMETER(float, HairDistanceThreshold)
 
-		SHADER_PARAMETER(FVector4, SkyLight_OcclusionTintAndMinOcclusion)
+		SHADER_PARAMETER(FVector4f, SkyLight_OcclusionTintAndMinOcclusion)
 
 		SHADER_PARAMETER(uint32, SkyLight_OcclusionCombineMode)
 		SHADER_PARAMETER(float, SkyLight_OcclusionExponent)
@@ -355,12 +355,12 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 
 	float SkyLightContrast = 0.01f;
 	float SkyLightOcclusionExponent = 1.0f;
-	FVector4 SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
+	FVector4f SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
 	EOcclusionCombineMode SkyLightOcclusionCombineMode = EOcclusionCombineMode::OCM_MAX;
 	if (FSkyLightSceneProxy* SkyLight = Scene->SkyLight)
 	{
 		SkyLightOcclusionExponent = SkyLight->OcclusionExponent;
-		SkyLightOcclusionTintAndMinOcclusion = FVector4(SkyLight->OcclusionTint);
+		SkyLightOcclusionTintAndMinOcclusion = FVector4f(SkyLight->OcclusionTint);
 		SkyLightOcclusionTintAndMinOcclusion.W = SkyLight->MinOcclusion;
 		SkyLightOcclusionCombineMode = SkyLight->OcclusionCombineMode;
 	}

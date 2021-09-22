@@ -27,5 +27,5 @@ void RenderHairStrandsVisibilityBuffer(
 	FRDGTextureRef SceneVelocityTexture,
 	FInstanceCullingManager& InstanceCullingManager);
 
-void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);
+void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4f& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);
 

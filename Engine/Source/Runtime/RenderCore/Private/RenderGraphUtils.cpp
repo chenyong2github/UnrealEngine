@@ -351,7 +351,7 @@ void AddClearUAVFloatPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV,
 		ERDGPassFlags::Compute,
 		[&Parameters, BufferUAV, Value](FRHIComputeCommandList& RHICmdList)
 		{
-			RHICmdList.ClearUAVFloat(BufferUAV->GetRHI(), FVector4(Value, Value, Value, Value));
+			RHICmdList.ClearUAVFloat(BufferUAV->GetRHI(), FVector4f(Value, Value, Value, Value));
 			BufferUAV->MarkResourceAsUsed();
 		});
 }
@@ -388,7 +388,7 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 	});
 }
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector4& ClearValues)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector4f& ClearValues)
 {
 	check(TextureUAV);
 
@@ -419,12 +419,12 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 
 void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const float(&ClearValues)[4])
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
+	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(ClearValues[0], ClearValues[1], ClearValues[2], ClearValues[3]));
 }
 
 void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FLinearColor& ClearColor)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
+	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(ClearColor.R, ClearColor.G, ClearColor.B, ClearColor.A));
 }
 
 void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, uint32 Value)
@@ -745,7 +745,7 @@ class FClearUAVFloatCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, UAVFloat)
-		SHADER_PARAMETER(FVector4, ClearValueFloat)
+		SHADER_PARAMETER(FVector4f, ClearValueFloat)
 		SHADER_PARAMETER(uint32, NumEntries)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -771,7 +771,7 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FClearUAVFloatCS, "/Engine/Private/Tools/ClearUAV.usf", "ClearUAVFloatCS", SF_Compute);
 
-void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, FVector4 ClearValue)
+void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, FVector4f ClearValue)
 {
 	FClearUAVFloatCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearUAVFloatCS::FParameters>();
 	PassParameters->UAVFloat = UAV;

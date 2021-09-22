@@ -196,7 +196,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TVertexInstanceAttributesConstRef<FVector3f> InstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
 
-	TVertexInstanceAttributesConstRef<FVector4> InstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector4f> InstanceColors = Attributes.GetVertexInstanceColors();
 
 
 	TPolygonAttributesConstRef<int> PolyGroups =
@@ -727,7 +727,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		{
 			auto ColorFuture = Async(EAsyncExecution::ThreadPool, [&]()
 			{
-				const FVector4 DefaultColor4 = InstanceColors.GetDefaultValue();
+				const FVector4f DefaultColor4 = InstanceColors.GetDefaultValue();
 
 				FColorWelder ColorWelder(ColorOverlay);
 				for (int32 TriangleID : MeshOut.TriangleIndicesItr())
@@ -737,7 +737,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					FIndex3i TriVector;
 					for (int j = 0; j < 3; ++j)
 					{
-						const FVector4 InstanceColor4 = InstanceColors.Get(TriData.TriInstances[j], 0);
+						const FVector4f InstanceColor4 = InstanceColors.Get(TriData.TriInstances[j], 0);
 						const FVector4f OverlayColor(InstanceColor4.X, InstanceColor4.Y, InstanceColor4.Z, InstanceColor4.W);
 						TriVector[j] = ColorWelder.FindOrAddUnique(OverlayColor, Tri[j]);
 

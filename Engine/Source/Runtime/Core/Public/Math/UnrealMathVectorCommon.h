@@ -35,9 +35,10 @@ FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TQuat<T>* Ptr)
 	return VectorLoad((const T*)(Ptr));
 }
 
-FORCEINLINE VectorRegister4Float VectorLoad(const FVector4* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TVector4<T>* Ptr)
 {
-	return VectorLoad((const float*)(Ptr));
+	return VectorLoad((const T*)(Ptr));
 }
 
 template<typename T>
@@ -53,13 +54,11 @@ FORCEINLINE VectorRegister4Float VectorLoad(const FVector2D* Ptr)
 
 FORCEINLINE VectorRegister4Float VectorLoad(const VectorRegister4Float* Ptr)
 {
-	//return VectorLoad((const float*)(Ptr));
 	return *Ptr;
 }
 
 FORCEINLINE VectorRegister4Double VectorLoad(const VectorRegister4Double* Ptr)
 {
-	//return VectorLoad((const double*)(Ptr));
 	return *Ptr;
 }
 
@@ -74,9 +73,10 @@ FORCEINLINE TVectorRegisterType<T> VectorLoadAligned(const UE::Math::TQuat<T>* P
 	return VectorLoadAligned((const T*)(Ptr));
 }
 
-FORCEINLINE VectorRegister4Float VectorLoadAligned(const FVector4* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoadAligned(const UE::Math::TVector4<T>* Ptr)
 {
-	return VectorLoadAligned((const float*)(Ptr));
+	return VectorLoadAligned((const T*)(Ptr));
 }
 
 template<typename T>
@@ -208,6 +208,56 @@ FORCEINLINE VectorRegister4Double VectorLoadFloat1(const double* Ptr)
 	return VectorLoadDouble1(Ptr);
 }
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// VectorStoreAligned
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO: this is lossy, would rather not implement.
+#if SUPPORT_DOUBLE_TO_FLOAT_VECTOR_CONVERSION
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, float* Dst)
+{
+	VectorStoreAligned(MakeVectorRegisterFloatFromDouble(Vec), Dst);
+}
+#endif
+
+template<typename T>
+FORCEINLINE void VectorStoreAligned(const TVectorRegisterType<T>& Vec, UE::Math::TVector4<T>* Dst)
+{
+	VectorStoreAligned(Vec, (T*)Dst);
+}
+
+// Specific overload to support promoting float->double vector and storing in TVector4<double>
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, struct UE::Math::TVector4<double>* Dst)
+{
+	VectorRegister4Double DoubleVec(Vec);
+	VectorStoreAligned(DoubleVec, Dst);
+}
+
+template<typename T>
+FORCEINLINE void VectorStoreAligned(const TVectorRegisterType<T>& Vec, struct UE::Math::TQuat<T>* Dst)
+{
+	VectorStoreAligned(Vec, (T*)Dst);
+}
+
+// Specific overload to support promoting float->double vector and storing in TQuat<double>
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, struct UE::Math::TQuat<double>* Dst)
+{
+	VectorRegister4Double DoubleVec(Vec);
+	VectorStoreAligned(DoubleVec, Dst);
+}
+
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, VectorRegister4Float* Dst)
+{
+	*Dst = Vec;
+}
+
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, VectorRegister4Double* Dst)
+{
+	*Dst = Vec;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// VectorStore
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,88 +282,37 @@ FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, UE::Math::TVector
 	VectorStore(Vec, (T*)Dst);
 }
 
-FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, FVector4* Dst)
+template<typename T>
+FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, UE::Math::TVector4<T>* Dst)
 {
-	VectorStore(Vec, (float*)Dst); // TODO: LWC: convert once templated.
+	VectorStoreAligned(Vec, Dst);
+}
+
+template<typename T>
+FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, UE::Math::TVector4<T>* Dst)
+{
+	VectorStoreAligned(Vec, Dst);
 }
 
 template<typename T>
 FORCEINLINE void VectorStore(const TVectorRegisterType<T>& Vec, struct UE::Math::TQuat<T>* Dst)
 {
-	VectorStore(Vec, (T*)Dst);
+	VectorStoreAligned(Vec, Dst);
 }
 
 // Specific overload to support promoting float->double vector and storing in TQuat<double>
 FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, struct UE::Math::TQuat<double>* Dst)
 {
 	VectorRegister4Double DoubleVec(Vec);
-	VectorStore(DoubleVec, Dst);
+	VectorStoreAligned(DoubleVec, Dst);
 }
 
 FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, VectorRegister4Float* Dst)
 {
-	//VectorStore(Vec, (float*)Dst);
 	*Dst = Vec;
 }
 
 FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, VectorRegister4Double* Dst)
-{
-	//VectorStore(Vec, (double*)Dst);
-	*Dst = Vec;
-}
-
-#if SUPPORT_DOUBLE_TO_FLOAT_VECTOR_CONVERSION
-FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, FVector4* Dst)
-{
-	VectorStore(MakeVectorRegisterFloatFromDouble(Vec), (float*)Dst); // TODO: LWC: convert once templated.
-}
-#endif
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// VectorStoreAligned
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TODO: this is lossy, would rather not implement.
-#if SUPPORT_DOUBLE_TO_FLOAT_VECTOR_CONVERSION
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, float* Dst)
-{
-	const VectorRegister4Float FloatXYZW = MakeVectorRegisterFloatFromDouble(Vec);
-	VectorStoreAligned(FloatXYZW, Dst);
-}
-#endif
-
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, FVector4* Dst)
-{
-	VectorStoreAligned(Vec, (float*)Dst); // TODO: LWC: convert once templated.
-}
-
-#if SUPPORT_DOUBLE_TO_FLOAT_VECTOR_CONVERSION
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, FVector4* Dst)
-{
-	VectorStoreAligned(MakeVectorRegisterFloatFromDouble(Vec), (float*)Dst); // TODO: LWC: convert once templated.
-}
-#endif
-
-template<typename T>
-FORCEINLINE void VectorStoreAligned(const TVectorRegisterType<T>& Vec, struct UE::Math::TQuat<T>* Dst)
-{
-	VectorStoreAligned(Vec, (T*)Dst);
-}
-
-// Specific overload to support promoting float->double vector and storing in TQuat<double>
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, struct UE::Math::TQuat<double>* Dst)
-{
-	VectorRegister4Double DoubleVec(Vec);
-	VectorStoreAligned(DoubleVec, Dst);
-}
-
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, VectorRegister4Float* Dst)
-{
-	*Dst = Vec;
-}
-
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, VectorRegister4Double* Dst)
 {
 	*Dst = Vec;
 }

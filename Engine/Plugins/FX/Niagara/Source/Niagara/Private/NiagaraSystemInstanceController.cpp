@@ -372,7 +372,7 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector
 	}
 }
 
-void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector4 InValue)
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector4f InValue)
 {
 	if (OverrideParameters)
 	{
@@ -390,7 +390,7 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FLinear
 	}
 }
 
-void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FQuat InValue)
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FQuat4f InValue)
 {
 	if (OverrideParameters)
 	{

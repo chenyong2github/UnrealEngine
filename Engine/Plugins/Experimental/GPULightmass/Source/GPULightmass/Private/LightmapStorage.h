@@ -102,7 +102,7 @@ public:
 		FIntPoint Size { EForceInit::ForceInitToZero };
 		int32 MaxLevel = -1;
 		FLightmapResourceCluster* ResourceCluster = nullptr;
-		FVector4 LightmapCoordinateScaleBias { EForceInit::ForceInitToZero };
+		FVector4f LightmapCoordinateScaleBias { EForceInit::ForceInitToZero };
 
 		bool IsValid()
 		{
@@ -228,7 +228,7 @@ public:
 
 	FString Name;
 	TUniquePtr<FLightmapResourceCluster> ResourceCluster;
-	FVector4 LightmapCoordinateScaleBias;
+	FVector4f LightmapCoordinateScaleBias;
 	uint32 DistributionPrefixSum = 0;
 
 	// The virtual texture & producer that handles actual rendering

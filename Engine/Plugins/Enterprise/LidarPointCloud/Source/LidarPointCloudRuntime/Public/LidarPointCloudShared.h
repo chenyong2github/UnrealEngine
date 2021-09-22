@@ -345,7 +345,7 @@ struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudPoint
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
-	FVector Location;
+	FVector Location;			// LWC_TODO: FVector3f. Currently copied to RHI buffer as a double!
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Cloud Point")
 	FColor Color;

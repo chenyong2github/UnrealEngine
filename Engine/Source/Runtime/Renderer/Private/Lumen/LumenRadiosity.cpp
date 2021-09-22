@@ -203,7 +203,7 @@ enum ERadiosityIndirectArgs
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenRadiosityTexelTraceParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardTileParameters)
-	SHADER_PARAMETER_ARRAY(FVector4, RadiosityRayDirections, [LumenRadiosity::NumRayDirections])
+	SHADER_PARAMETER_ARRAY(FVector4f, RadiosityRayDirections, [LumenRadiosity::NumRayDirections])
 	SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
 	SHADER_PARAMETER(uint32, NumTracesPerTexel)
 	SHADER_PARAMETER(uint32, NumTracesPerTexelModMask)
@@ -464,7 +464,7 @@ void LumenRadiosity::AddRadiosityPass(
 		RadiosityTexelTraceParameters.NumTracesPerTexelDivShift = FMath::FloorLog2(RadiosityTexelTraceParameters.NumTracesPerTexel);
 
 		int32 NumSampleDirections = 0;
-		const FVector4* SampleDirections = nullptr;
+		const FVector4f* SampleDirections = nullptr;
 		LumenRadiosity::RayDirections.GetSampleDirections(SampleDirections, NumSampleDirections);
 		for (int32 i = 0; i < NumSampleDirections; i++)
 		{

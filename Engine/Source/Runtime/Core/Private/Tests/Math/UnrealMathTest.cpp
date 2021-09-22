@@ -939,8 +939,8 @@ FORCENOINLINE void LogTest<float>(const TCHAR* TestName, bool bHasPassed)
 {
 	if (bHasPassed == false)
 	{
-		UE_LOG(LogUnrealMathTest, Log, TEXT("%s <float>: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName);
-		UE_LOG(LogUnrealMathTest, Log, TEXT("Bad(%.8f): (%.8f %.8f %.8f %.8f) (%.8f %.8f %.8f %.8f)"), GSum, GScratch[0], GScratch[1], GScratch[2], GScratch[3], GScratch[4], GScratch[5], GScratch[6], GScratch[7]);
+		UE_LOG(LogUnrealMathTest, Warning, TEXT("%s <float>: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName);
+		UE_LOG(LogUnrealMathTest, Warning, TEXT("Bad(%.8f): (%.8f %.8f %.8f %.8f) (%.8f %.8f %.8f %.8f)"), GSum, GScratch[0], GScratch[1], GScratch[2], GScratch[3], GScratch[4], GScratch[5], GScratch[6], GScratch[7]);
 		CheckPassing(false);
 	}
 }
@@ -951,8 +951,8 @@ FORCENOINLINE void LogTest<double>(const TCHAR* TestName, bool bHasPassed)
 {
 	if (bHasPassed == false)
 	{
-		UE_LOG(LogUnrealMathTest, Log, TEXT("%s <double>: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName);
-		UE_LOG(LogUnrealMathTest, Log, TEXT("Bad(%.8f): (%.8f %.8f %.8f %.8f) (%.8f %.8f %.8f %.8f)"), GSumDouble, GScratchDouble[0], GScratchDouble[1], GScratchDouble[2], GScratchDouble[3], GScratchDouble[4], GScratchDouble[5], GScratchDouble[6], GScratchDouble[7]);
+		UE_LOG(LogUnrealMathTest, Warning, TEXT("%s <double>: %s"), bHasPassed ? TEXT("PASSED") : TEXT("FAILED"), TestName);
+		UE_LOG(LogUnrealMathTest, Warning, TEXT("Bad(%.8f): (%.8f %.8f %.8f %.8f) (%.8f %.8f %.8f %.8f)"), GSumDouble, GScratchDouble[0], GScratchDouble[1], GScratchDouble[2], GScratchDouble[3], GScratchDouble[4], GScratchDouble[5], GScratchDouble[6], GScratchDouble[7]);
 		CheckPassing(false);
 	}
 }
@@ -1388,6 +1388,17 @@ bool RunDoubleVectorTest()
 	VectorRegister4Double V2, V3;
 	double Double0, Double1, Double2, Double3;
 
+	// Using a union as we need to do a bitwise cast of 0xFFFFFFFFFFFFFFFF into a double for NaN.
+	typedef union
+	{
+		uint64 IntNaN;
+		double DoubleNaN;
+	} Int64DoubleUnion;
+	Int64DoubleUnion NaNU;
+	NaNU.IntNaN = 0xFFFFFFFFFFFFFFFF;
+	const double NaN = NaNU.DoubleNaN;
+	const VectorRegister4Double VectorNaN = MakeVectorRegisterDouble(NaN, NaN, NaN, NaN);
+
 	V0 = MakeVectorRegisterDouble(U1, U1, U1, U1);
 	V1 = MakeVectorRegisterDouble(F1, F1, F1, F1);
 	LogTest<double>(TEXT("MakeVectorRegister"), TestVectorsEqual(V0, V1));
@@ -1580,30 +1591,83 @@ bool RunDoubleVectorTest()
 	V0 = MakeVectorRegisterDouble(-3.0, 6.0, -3.0, 0.0);
 	LogTest<double>(TEXT("VectorCross"), TestVectorsEqual(V0, V1));
 
+	// Vector component comparisons
+
+	// VectorCompareGT
+	const VectorRegister4Double VectorZeroMaskDouble = MakeVectorRegisterDoubleMask((uint64)0, (uint64)0, (uint64)0, (uint64)0);
 	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
 	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
 	V2 = VectorCompareGT(V0, V1);
 	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)0, (uint64)-1);
 	LogTest<double>(TEXT("VectorCompareGT"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareGT(V0, VectorNaN);
+	V3 = VectorZeroMaskDouble;
+	LogTest<double>(TEXT("VectorCompareGT (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
+	// VectorCompareGE
 	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
 	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
 	V2 = VectorCompareGE(V0, V1);
 	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)-1, (uint64)-1);
 	LogTest<double>(TEXT("VectorCompareGE"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareGE(V0, VectorNaN);
+	V3 = VectorZeroMaskDouble;
+	LogTest<double>(TEXT("VectorCompareGE (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
+	// VectorCompareLT
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
+	V2 = VectorCompareLT(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)0, (uint64)-1);
+	LogTest<double>(TEXT("VectorCompareLT"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareLT(V0, VectorNaN);
+	V3 = VectorZeroMaskDouble;
+	LogTest<double>(TEXT("VectorCompareLT (NaN)"), TestVectorsEqualBitwise(V2, V3));
+
+	// VectorCompareLE
+	V0 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
+	V2 = VectorCompareLE(V0, V1);
+	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)-1, (uint64)-1);
+	LogTest<double>(TEXT("VectorCompareLE"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareLE(V0, VectorNaN);
+	V3 = VectorZeroMaskDouble;
+	LogTest<double>(TEXT("VectorCompareLE (NaN)"), TestVectorsEqualBitwise(V2, V3));
+
+	// VectorCompareEQ
 	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
 	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
 	V2 = VectorCompareEQ(V0, V1);
 	V3 = MakeVectorRegisterDouble((uint64)0, (uint64)0, (uint64)-1, (uint64)0);
 	LogTest<double>(TEXT("VectorCompareEQ"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareEQ(V0, VectorNaN);
+	V3 = VectorZeroMaskDouble;
+	LogTest<double>(TEXT("VectorCompareEQ (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
+	/*
+	V2 = VectorCompareEQ(VectorNaN, VectorNaN);
+	V3 = VectorZeroMaskDouble;
+	LogTest<double>(TEXT("VectorCompareEQ (NaN:NaN)"), TestVectorsEqualBitwise(V2, V3));
+	*/
 
+	// VectorCompareNE
 	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
 	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 2.0f, 1.0f);
 	V2 = VectorCompareNE(V0, V1);
 	V3 = MakeVectorRegisterDouble((uint64)(0xFFFFFFFFFFFFFFFFU), (uint64)(0xFFFFFFFFFFFFFFFFU), (uint64)(0), (uint64)(0xFFFFFFFFFFFFFFFFU));
 	LogTest<double>(TEXT("VectorCompareNE"), TestVectorsEqualBitwise(V2, V3));
+	// VectorCompareNE should return true if either argument is NaN
+	V2 = VectorCompareNE(V0, VectorNaN);
+	V3 = GlobalVectorConstants::DoubleAllMask;
+	LogTest<double>(TEXT("VectorCompareNE (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
+	/*
+	V2 = VectorCompareNE(VectorNaN, VectorNaN);
+	V3 = GlobalVectorConstants::DoubleAllMask;
+	LogTest<double>(TEXT("VectorCompareNE (NaN:NaN)"), TestVectorsEqualBitwise(V2, V3));
+	*/
 
+	// VectorSelect
 	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 5.0f, 7.0f);
 	V1 = MakeVectorRegisterDouble(2.0f, 4.0f, 6.0f, 8.0f);
 	V2 = MakeVectorRegisterDouble((uint64)-1, (uint64)0, (uint64)0, (uint64)-1);
@@ -1618,6 +1682,7 @@ bool RunDoubleVectorTest()
 	V3 = MakeVectorRegisterDouble(2.0f, 3.0f, 5.0f, 8.0f);
 	LogTest<double>(TEXT("VectorSelect"), TestVectorsEqual(V2, V3));
 
+	// Vector bitwise operations
 	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 0.0f, 0.0f);
 	V1 = MakeVectorRegisterDouble(0.0f, 0.0f, 2.0f, 1.0f);
 	V2 = VectorBitwiseOr(V0, V1);
@@ -1915,15 +1980,6 @@ bool RunDoubleVectorTest()
 
 
 	// NaN / Inf tests
-	// Using a union as we need to do a bitwise cast of 0xFFFFFFFF into a float.
-	typedef union
-	{
-		uint64 IntNaN;
-		double DoubleNaN;
-	} Int64DoubleUnion;
-	Int64DoubleUnion NaNU;
-	NaNU.IntNaN = 0xFFFFFFFFFFFFFFFF;
-	const double NaN = NaNU.DoubleNaN;
 	SetScratch(0.0, 0.0, 0.0, 0.0);
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite false"), !VectorContainsNaNOrInfinite(MakeVectorRegisterDouble(0.0, 1.0, -1.0, 0.0)));
 	LogTest<double>(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegisterDouble(NaN, NaN, NaN, NaN)));
@@ -1959,6 +2015,17 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	uint32 D1 = *(uint32 *)&F1;
 	VectorRegister4Float V0, V1, V2, V3;
 	float Float0, Float1, Float2, Float3;
+
+	// Using a union as we need to do a bitwise cast of 0xFFFFFFFF into a float for NaN.
+	typedef union
+	{
+		unsigned int IntNaN;
+		float FloatNaN;
+	} IntFloatUnion;
+	IntFloatUnion NaNU;
+	NaNU.IntNaN = 0xFFFFFFFF;
+	const float NaN = NaNU.FloatNaN;
+	const VectorRegister4Float VectorNaN = MakeVectorRegisterFloat(NaN, NaN, NaN, NaN);
 
 	ResetPassing();
 
@@ -2235,6 +2302,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V1 = VectorLoadByte4( Bytes );
 	LogTest<float>( TEXT("VectorStoreByte4"), TestVectorsEqual( V0, V1 ) );
 
+	// Vector Any/All comparisons
 	V0 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
 	V1 = MakeVectorRegister( 4.0f, 3.0f, 2.0f, 1.0f );
 	bool bIsVAGT_TRUE = VectorAnyGreaterThan( V0, V1 ) != 0;
@@ -2274,36 +2342,88 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V1 = MakeVectorRegister( 2.0f, 4.0f, 6.0f, 8.0f );
 	LogTest<float>( TEXT("VectorAllLesserThan-false"), VectorAllLesserThan( V0, V1 ) == 0 );
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 8.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 2.0f, 1.0f );
-	V2 = VectorCompareGT( V0, V1 );
-	V3 = MakeVectorRegister( (uint32)0, (uint32)0, (uint32)0, (uint32)-1 );
-	LogTest<float>( TEXT("VectorCompareGT"), TestVectorsEqualBitwise( V2, V3 ) );
+	// Vector component comparisons
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 8.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 2.0f, 1.0f );
-	V2 = VectorCompareGE( V0, V1 );
-	V3 = MakeVectorRegister( (uint32)0, (uint32)0, (uint32)-1, (uint32)-1 );
-	LogTest<float>( TEXT("VectorCompareGE"), TestVectorsEqualBitwise( V2, V3 ) );
+	// VectorCompareGT
+	const VectorRegister4Float VectorZeroMaskFloat = MakeVectorRegisterFloatMask((uint32)0, (uint32)0, (uint32)0, (uint32)0);
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareGT(V0, V1);
+	V3 = MakeVectorRegister((uint32)0, (uint32)0, (uint32)0, (uint32)-1);
+	LogTest<float>(TEXT("VectorCompareGT"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareGT(V0, VectorNaN);
+	V3 = VectorZeroMaskFloat;
+	LogTest<float>(TEXT("VectorCompareGT (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 8.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 2.0f, 1.0f );
-	V2 = VectorCompareEQ( V0, V1 );
-	V3 = MakeVectorRegister( (uint32)0, (uint32)0, (uint32)-1, (uint32)0 );
-	LogTest<float>( TEXT("VectorCompareEQ"), TestVectorsEqualBitwise( V2, V3 ) );
+	// VectorCompareGE
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareGE(V0, V1);
+	V3 = MakeVectorRegister((uint32)0, (uint32)0, (uint32)-1, (uint32)-1);
+	LogTest<float>(TEXT("VectorCompareGE"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareGE(V0, VectorNaN);
+	V3 = VectorZeroMaskFloat;
+	LogTest<float>(TEXT("VectorCompareGE (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 8.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 2.0f, 1.0f );
-	V2 = VectorCompareNE( V0, V1 );
-	V3 = MakeVectorRegister( (uint32)(0xFFFFFFFFU), (uint32)(0xFFFFFFFFU), (uint32)(0), (uint32)(0xFFFFFFFFU) );
-	LogTest<float>( TEXT("VectorCompareNE"), TestVectorsEqualBitwise( V2, V3 ) );
-	
-	V0 = MakeVectorRegister( 1.0f, 3.0f, 2.0f, 8.0f );
-	V1 = MakeVectorRegister( 2.0f, 4.0f, 2.0f, 1.0f );
-	V2 = MakeVectorRegister( (uint32)-1, (uint32)0, (uint32)0, (uint32)-1 );
-	V2 = VectorSelect( V2, V0, V1 );
-	V3 = MakeVectorRegister( 1.0f, 4.0f, 2.0f, 8.0f );
-	LogTest<float>( TEXT("VectorSelect"), TestVectorsEqual( V2, V3 ) );
+	// VectorCompareLT
+	V0 = MakeVectorRegister(2.0f, 4.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
+	V2 = VectorCompareLT(V0, V1);
+	V3 = MakeVectorRegister((uint32)0, (uint32)0, (uint32)0, (uint32)-1);
+	LogTest<float>(TEXT("VectorCompareLT"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareLT(V0, VectorNaN);
+	V3 = VectorZeroMaskFloat;
+	LogTest<float>(TEXT("VectorCompareLT (NaN)"), TestVectorsEqualBitwise(V2, V3));
+
+	// VectorCompareLE
+	V0 = MakeVectorRegister(2.0f, 4.0f, 2.0f, 1.0f);
+	V1 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
+	V2 = VectorCompareLE(V0, V1);
+	V3 = MakeVectorRegister((uint32)0, (uint32)0, (uint32)-1, (uint32)-1);
+	LogTest<float>(TEXT("VectorCompareLE"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareLE(V0, VectorNaN);
+	V3 = VectorZeroMaskFloat;
+	LogTest<float>(TEXT("VectorCompareLE (NaN)"), TestVectorsEqualBitwise(V2, V3));
+
+	// VectorCompareEQ
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareEQ(V0, V1);
+	V3 = MakeVectorRegister((uint32)0, (uint32)0, (uint32)-1, (uint32)0);
+	LogTest<float>(TEXT("VectorCompareEQ"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareEQ(V0, VectorNaN);
+	V3 = VectorZeroMaskFloat;
+	LogTest<float>(TEXT("VectorCompareEQ (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
+	/*
+	V2 = VectorCompareEQ(VectorNaN, VectorNaN);
+	V3 = VectorZeroMaskFloat;
+	LogTest<float>(TEXT("VectorCompareEQ (NaN:NaN)"), TestVectorsEqualBitwise(V2, V3));
+	*/
+
+	// VectorCompareNE
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = VectorCompareNE(V0, V1);
+	V3 = MakeVectorRegister((uint32)(0xFFFFFFFFU), (uint32)(0xFFFFFFFFU), (uint32)(0), (uint32)(0xFFFFFFFFU));
+	LogTest<float>(TEXT("VectorCompareNE"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareNE(V0, VectorNaN);
+	V3 = GlobalVectorConstants::AllMask;
+	LogTest<float>(TEXT("VectorCompareNE (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
+	/*
+	V2 = VectorCompareNE(VectorNaN, VectorNaN);
+	V3 = GlobalVectorConstants::AllMask;
+	LogTest<float>(TEXT("VectorCompareNE (NaN:NaN)"), TestVectorsEqualBitwise(V2, V3));
+	*/
+
+	// VectorSelect
+	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
+	V1 = MakeVectorRegister(2.0f, 4.0f, 2.0f, 1.0f);
+	V2 = MakeVectorRegister((uint32)-1, (uint32)0, (uint32)0, (uint32)-1);
+	V2 = VectorSelect(V2, V0, V1);
+	V3 = MakeVectorRegister(1.0f, 4.0f, 2.0f, 8.0f);
+	LogTest<float>(TEXT("VectorSelect"), TestVectorsEqual(V2, V3));
 
 	V0 = MakeVectorRegister(1.0f, 3.0f, 5.0f, 7.0f);
 	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);
@@ -2312,6 +2432,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V3 = MakeVectorRegister(2.0f, 3.0f, 5.0f, 8.0f);
 	LogTest<float>(TEXT("VectorSelect"), TestVectorsEqual(V2, V3));
 
+	// Vector bitwise operations
 	V0 = MakeVectorRegister( 1.0f, 3.0f, 0.0f, 0.0f );
 	V1 = MakeVectorRegister( 0.0f, 0.0f, 2.0f, 1.0f );
 	V2 = VectorBitwiseOr( V0, V1 );
@@ -2509,16 +2630,6 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
 
 	// NaN / Inf tests
-	// Using a union as we need to do a bitwise cast of 0xFFFFFFFF into a float.
-	typedef union
-	{
-		unsigned int IntNaN;
-		float FloatNaN;
-	} IntFloatUnion;
-	IntFloatUnion NaNU;
-	NaNU.IntNaN = 0xFFFFFFFF;
-	const float NaN = NaNU.FloatNaN;
-
 	SetScratch(0.0f, 0.0f, 0.0f, 0.0f);
 	LogTest<float>(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegister(NaN, NaN, NaN, NaN)));
 	LogTest<float>(TEXT("VectorContainsNaNOrInfinite true"), VectorContainsNaNOrInfinite(MakeVectorRegister(NaN, 0.f, 0.f, 0.f)));

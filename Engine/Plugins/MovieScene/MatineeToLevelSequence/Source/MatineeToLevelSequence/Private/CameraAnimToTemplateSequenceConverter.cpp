@@ -181,7 +181,7 @@ void SetDefaultPPSettingPropertyChannels<UMovieSceneFloatVectorSection, FVector3
 }
 
 template<>
-void SetDefaultPPSettingPropertyChannels<UMovieSceneFloatVectorSection, FVector4>(UMovieSceneFloatVectorSection* Section, const FVector4 Value)
+void SetDefaultPPSettingPropertyChannels<UMovieSceneFloatVectorSection, FVector4f>(UMovieSceneFloatVectorSection* Section, const FVector4f Value)
 {
 	Section->SetChannelsUsed(4);
 
@@ -666,9 +666,13 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 				CreateDefaultPPSettingPropertyValueTrack<UMovieSceneFloatVectorTrack, UMovieSceneFloatVectorSection, FVector3f>(
 						*NewMovieScene, CameraComponentBindingID, BasePPSettings, *OverridenFieldProperty);
 			}
-			else if (OverridenFieldProperty->Struct == TBaseStructure<FVector4>::Get())
+			else if (OverridenFieldProperty->Struct->GetFName() == NAME_Vector4f
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+				|| OverridenFieldProperty->Struct->GetFName() == NAME_Vector4
+#endif
+				)
 			{
-				CreateDefaultPPSettingPropertyValueTrack<UMovieSceneFloatVectorTrack, UMovieSceneFloatVectorSection, FVector4>(
+				CreateDefaultPPSettingPropertyValueTrack<UMovieSceneFloatVectorTrack, UMovieSceneFloatVectorSection, FVector4f>(
 						*NewMovieScene, CameraComponentBindingID, BasePPSettings, *OverridenFieldProperty);
 			}
 			else if (OverridenFieldProperty->Struct == TBaseStructure<FLinearColor>::Get())

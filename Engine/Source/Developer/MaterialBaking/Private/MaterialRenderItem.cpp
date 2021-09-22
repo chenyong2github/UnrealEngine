@@ -189,7 +189,7 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	TArrayView<const FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals().GetRawArray();
 	TArrayView<const FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents().GetRawArray();
 	TArrayView<const float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns().GetRawArray();
-	TArrayView<const FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
+	TArrayView<const FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors().GetRawArray();
 
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	const int32 NumVerts = RawMesh->Vertices().Num();

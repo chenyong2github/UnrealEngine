@@ -735,7 +735,7 @@ void FGPUMorphUpdateCS::SetParameters(FRHICommandList& RHICmdList, const FVector
 
 	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
 
-	SetShaderValue(RHICmdList, CS, PositionScaleParameter, LocalScale);
+	SetShaderValue(RHICmdList, CS, PositionScaleParameter, (FVector4f)LocalScale);
 	FVector2D Precision = { MorphTargetVertexInfoBuffers.GetPositionPrecision(), MorphTargetVertexInfoBuffers.GetTangentZPrecision() };
 	SetShaderValue(RHICmdList, CS, PrecisionParameter, Precision);
 
@@ -769,7 +769,7 @@ void FGPUMorphNormalizeCS::SetParameters(FRHICommandList& RHICmdList, const FVec
 {
 	FRHIComputeShader* CS = RHICmdList.GetBoundComputeShader();
 	SetUAVParameter(RHICmdList, CS, MorphVertexBufferParameter, MorphVertexBuffer.GetUAV());
-	SetShaderValue(RHICmdList, CS, PositionScaleParameter, InvLocalScale);
+	SetShaderValue(RHICmdList, CS, PositionScaleParameter, (FVector4f)InvLocalScale);
 }
 
 void FGPUMorphNormalizeCS::Dispatch(FRHICommandList& RHICmdList, uint32 NumVertices)
@@ -818,18 +818,18 @@ static void CalculateMorphDeltaBounds(const TArray<float>& MorphTargetWeights, c
 
 	MorphScale = FVector4
 	(
-		float(ScaleToInt24 / (MaxScale[0])),
-		float(ScaleToInt24 / (MaxScale[1])),
-		float(ScaleToInt24 / (MaxScale[2])),
-		float(ScaleToInt24 / (MaxScale[3]))
+		ScaleToInt24 / (MaxScale[0]),
+		ScaleToInt24 / (MaxScale[1]),
+		ScaleToInt24 / (MaxScale[2]),
+		ScaleToInt24 / (MaxScale[3])
 	);
 
 	InvMorphScale = FVector4
 	(
-		float(MaxScale[0] / ScaleToInt24),
-		float(MaxScale[1] / ScaleToInt24),
-		float(MaxScale[2] / ScaleToInt24),
-		float(MaxScale[3] / ScaleToInt24)
+		MaxScale[0] / ScaleToInt24,
+		MaxScale[1] / ScaleToInt24,
+		MaxScale[2] / ScaleToInt24,
+		MaxScale[3] / ScaleToInt24
 	);
 }
 

@@ -421,10 +421,10 @@ public:
 	FNiagaraDataSetAccessor<float>		SizeDataSetAccessor;
 	FNiagaraDataSetAccessor<float>		TwistDataSetAccessor;
 	FNiagaraDataSetAccessor<FVector3f>	FacingDataSetAccessor;
-	FNiagaraDataSetAccessor<FVector4>	MaterialParam0DataSetAccessor;
-	FNiagaraDataSetAccessor<FVector4>	MaterialParam1DataSetAccessor;
-	FNiagaraDataSetAccessor<FVector4>	MaterialParam2DataSetAccessor;
-	FNiagaraDataSetAccessor<FVector4>	MaterialParam3DataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4f>	MaterialParam0DataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4f>	MaterialParam1DataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4f>	MaterialParam2DataSetAccessor;
+	FNiagaraDataSetAccessor<FVector4f>	MaterialParam3DataSetAccessor;
 	bool								DistanceFromStartIsBound;
 	bool								U0OverrideIsBound;
 	bool								U1OverrideIsBound;

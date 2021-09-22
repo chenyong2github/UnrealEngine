@@ -270,7 +270,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 
 		// Sky light parameters.
-		SHADER_PARAMETER(FVector4, OcclusionTintAndMinOcclusion)
+		SHADER_PARAMETER(FVector4f, OcclusionTintAndMinOcclusion)
 		SHADER_PARAMETER(FVector3f, ContrastAndNormalizeMulAdd)
 		SHADER_PARAMETER(float, ApplyBentNormalAO)
 		SHADER_PARAMETER(float, InvSkySpecularOcclusionStrength)
@@ -472,7 +472,7 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 	OutParameters.SkyLightCubemapSampler = SkyLightCubemapSampler;
 	OutParameters.SkyLightBlendDestinationCubemap = SkyLightBlendDestinationTextureResource->TextureRHI;
 	OutParameters.SkyLightBlendDestinationCubemapSampler = SkyLightBlendDestinationTextureResource->SamplerStateRHI;
-	OutParameters.SkyLightParameters = FVector4(SkyMipCount - 1.0f, ApplySkyLightMask, bSkyLightIsDynamic ? 1.0f : 0.0f, BlendFraction);
+	OutParameters.SkyLightParameters = FVector4f(SkyMipCount - 1.0f, ApplySkyLightMask, bSkyLightIsDynamic ? 1.0f : 0.0f, BlendFraction);
 	OutParameters.SkyLightCubemapBrightness = SkyAverageBrightness;
 
 	// Note: GBlackCubeArrayTexture has an alpha of 0, which is needed to represent invalid data so the sky cubemap can still be applied
@@ -1167,14 +1167,14 @@ static void AddSkyReflectionPass(
 
 			float SkyLightContrast = 0.01f;
 			float SkyLightOcclusionExponent = 1.0f;
-			FVector4 SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
+			FVector4f SkyLightOcclusionTintAndMinOcclusion(0.0f, 0.0f, 0.0f, 0.0f);
 			EOcclusionCombineMode SkyLightOcclusionCombineMode = EOcclusionCombineMode::OCM_MAX;
 			if (SkyLight)
 			{
 				FDistanceFieldAOParameters Parameters(SkyLight->OcclusionMaxDistance, SkyLight->Contrast);
 				SkyLightContrast = Parameters.Contrast;
 				SkyLightOcclusionExponent = SkyLight->OcclusionExponent;
-				SkyLightOcclusionTintAndMinOcclusion = FVector4(SkyLight->OcclusionTint);
+				SkyLightOcclusionTintAndMinOcclusion = FVector4f(SkyLight->OcclusionTint);
 				SkyLightOcclusionTintAndMinOcclusion.W = SkyLight->MinOcclusion;
 				SkyLightOcclusionCombineMode = SkyLight->OcclusionCombineMode;
 			}

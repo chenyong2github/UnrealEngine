@@ -755,14 +755,14 @@ struct FNDIInputParam<FVector3f>
 
 
 template<>
-struct FNDIInputParam<FVector4>
+struct FNDIInputParam<FVector4f>
 {
 	VectorVM::FExternalFuncInputHandler<float> X;
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	VectorVM::FExternalFuncInputHandler<float> W;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
-	FORCEINLINE FVector4 GetAndAdvance() { return FVector4(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
+	FORCEINLINE FVector4f GetAndAdvance() { return FVector4f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
 };
 
 template<>
@@ -857,7 +857,7 @@ struct FNDIOutputParam<FVector3f>
 
 
 template<>
-struct FNDIOutputParam<FVector4>
+struct FNDIOutputParam<FVector4f>
 {
 	VectorVM::FExternalFuncRegisterHandler<float> X;
 	VectorVM::FExternalFuncRegisterHandler<float> Y;
@@ -865,7 +865,7 @@ struct FNDIOutputParam<FVector4>
 	VectorVM::FExternalFuncRegisterHandler<float> W;
 	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
 	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid() || Z.IsValid() || W.IsValid(); }
-	FORCEINLINE void SetAndAdvance(FVector4 Val)
+	FORCEINLINE void SetAndAdvance(FVector4f Val)
 	{
 		*X.GetDestAndAdvance() = Val.X;
 		*Y.GetDestAndAdvance() = Val.Y;

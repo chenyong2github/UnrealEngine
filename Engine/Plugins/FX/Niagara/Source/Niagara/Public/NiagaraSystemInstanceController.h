@@ -153,9 +153,9 @@ private:
 	void SetVariable(FName InVariableName, float InValue);
 	void SetVariable(FName InVariableName, FVector2D InValue);
 	void SetVariable(FName InVariableName, FVector3f InValue);
-	void SetVariable(FName InVariableName, FVector4 InValue);
+	void SetVariable(FName InVariableName, FVector4f InValue);
 	void SetVariable(FName InVariableName, FLinearColor InValue);
-	void SetVariable(FName InVariableName, FQuat InValue);
+	void SetVariable(FName InVariableName, FQuat4f InValue);
 	void SetVariable(FName InVariableName, TWeakObjectPtr<UObject> Object);
 	void SetVariable(FName InVariableName, TWeakObjectPtr<UMaterialInterface> Object);
 	void SetVariable(FName InVariableName, TWeakObjectPtr<UStaticMesh> Object);

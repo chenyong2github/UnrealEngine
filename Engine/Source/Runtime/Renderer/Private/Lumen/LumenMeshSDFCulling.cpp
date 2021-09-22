@@ -43,7 +43,7 @@ class FCullMeshSDFObjectsForViewCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, DistanceFieldObjectBuffers)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(uint32, NumConvexHullPlanes)
-		SHADER_PARAMETER_ARRAY(FVector4, ViewFrustumConvexHull, [6])
+		SHADER_PARAMETER_ARRAY(FVector4f, ViewFrustumConvexHull, [6])
 		SHADER_PARAMETER(uint32, ObjectBoundingGeometryIndexCount)
 		SHADER_PARAMETER(float, CardTraceEndDistanceFromCamera)
 		SHADER_PARAMETER(float, MaxMeshSDFInfluenceRadius)
@@ -334,7 +334,7 @@ void CullMeshSDFObjectsForView(
 
 		for (int32 i = 0; i < View.ViewFrustum.Planes.Num(); i++)
 		{
-			PassParameters->ViewFrustumConvexHull[i] = FVector4(View.ViewFrustum.Planes[i], View.ViewFrustum.Planes[i].W);
+			PassParameters->ViewFrustumConvexHull[i] = FVector4f(View.ViewFrustum.Planes[i], View.ViewFrustum.Planes[i].W);
 		}
 
 		PassParameters->ObjectBoundingGeometryIndexCount = StencilingGeometry::GLowPolyStencilSphereIndexBuffer.GetIndexCount();

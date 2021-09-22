@@ -580,7 +580,7 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 	OutCluster.SetPosBitsZ(InCluster.QuantizedPosBits.Z);
 
 	// 2
-	OutCluster.LODBounds				= FVector4((float)InCluster.LODBounds.Center.X, (float)InCluster.LODBounds.Center.Y, (float)InCluster.LODBounds.Center.Z, (float)InCluster.LODBounds.W);	// LWC_TODO: Precision loss. Nanite packed cluster LODBounds.
+	OutCluster.LODBounds				= FVector4f((float)InCluster.LODBounds.Center.X, (float)InCluster.LODBounds.Center.Y, (float)InCluster.LODBounds.Center.Z, (float)InCluster.LODBounds.W);	// LWC_TODO: Precision loss. Nanite packed cluster LODBounds.
 
 	// 3
 	OutCluster.BoxBoundsCenter			= (InCluster.Bounds.Min + InCluster.Bounds.Max) * 0.5f;
@@ -617,7 +617,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 	static_assert( MAX_RESOURCE_PAGES_BITS + MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS <= 32, "" );
 	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
 	{
-		OutNode.LODBounds[i] = FVector4(InNode.LODBounds[i].Center, InNode.LODBounds[i].W);
+		OutNode.LODBounds[i] = FVector4f(InNode.LODBounds[i].Center, InNode.LODBounds[i].W);
 
 		const FBounds& Bounds = InNode.Bounds[i];
 		OutNode.Misc0[i].BoxBoundsCenter = Bounds.GetCenter();

@@ -115,7 +115,7 @@ public:
 		const FSceneView* View,
 		int32 GPUScenePrimitiveId,
 		TArray<FMeshBatch>& MeshBatches,
-		FVector4 VirtualTexturePhysicalTileCoordinateScaleAndBias,
+		FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias,
 		int32 RenderPassIndex,
 		FIntPoint ScratchTilePoolOffset);
 

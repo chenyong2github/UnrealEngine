@@ -8,24 +8,31 @@
 #endif
 
 // Forward declaration of LWC supported core types
+#define UE_DECLARE_LWC_TYPE_EX(TYPE, CC, DEFAULT_TYPENAME, COMPONENT_TYPE)				\
+namespace UE { namespace Math { template<typename T> struct T##TYPE; } }				\
+typedef UE::Math::T##TYPE<float> F##TYPE##CC##f;					/* FVector3f */		\
+typedef UE::Math::T##TYPE<double> F##TYPE##CC##d;					/* FVector3d */		\
+typedef UE::Math::T##TYPE<COMPONENT_TYPE> DEFAULT_TYPENAME;			/* FVector */		\
+namespace ispc { struct DEFAULT_TYPENAME; }							/* ISPC forward declaration */	
 
-#define DECLARE_LWC_TYPE_EX(TYPE, CC, DEFAULT_TYPENAME, DEFAULT_COMPONENT_TYPE)	\
-namespace UE { namespace Math { template<typename FReal> struct T##TYPE; } }	\
-typedef UE::Math::T##TYPE<float> F##TYPE##CC##f;								\
-typedef UE::Math::T##TYPE<double> F##TYPE##CC##d;								\
-typedef UE::Math::T##TYPE<DEFAULT_COMPONENT_TYPE> DEFAULT_TYPENAME;
+// TODO: Need to fix various UE::Geometry name collisions to support this!
+//typedef UE::Math::T##TYPE<COMPONENT_TYPE> F##TYPE##CC;				/* FVector3 */
 
-//#define DECLARE_LWC_TYPE_EX_ISPC(TYPE, CC, DEFAULT_TYPENAME, DEFAULT_COMPONENT_TYPE) namespace ispc { struct F##TYPE##CC##f; struct F##TYPE##CC##d; typedef F##TYPE##CC##f DEFAULT_TYPENAME; }	// LWC_TODO: May not be necessary depending on final ispc approach.
-#define DECLARE_LWC_TYPE_EX_ISPC(TYPE, CC, DEFAULT_TYPENAME, DEFAULT_COMPONENT_TYPE) namespace ispc { struct DEFAULT_TYPENAME; }
 
 #if UE_LARGE_WORLD_COORDINATES_DISABLED
-
-#define DECLARE_LWC_TYPE(TYPE, CC)		DECLARE_LWC_TYPE_EX(TYPE, CC, F##TYPE, float)
-#define DECLARE_LWC_TYPE_ISPC(TYPE, CC) DECLARE_LWC_TYPE_EX_ISPC(TYPE, CC, F##TYPE, float)
-
+#define UE_DECLARE_LWC_TYPE_3(TYPE, DIM, UE_TYPENAME)			UE_DECLARE_LWC_TYPE_EX(TYPE, DIM, UE_TYPENAME, float)
 #else
-
-#define DECLARE_LWC_TYPE(TYPE, CC)		DECLARE_LWC_TYPE_EX(TYPE, CC, F##TYPE, double)
-#define DECLARE_LWC_TYPE_ISPC(TYPE, CC) DECLARE_LWC_TYPE_EX_ISPC(TYPE, CC, F##TYPE, double)
-
+#define UE_DECLARE_LWC_TYPE_3(TYPE, DIM, UE_TYPENAME)			UE_DECLARE_LWC_TYPE_EX(TYPE, DIM, UE_TYPENAME, double)
 #endif
+
+#define UE_DECLARE_LWC_TYPE_2(TYPE, DIM)						UE_DECLARE_LWC_TYPE_3(TYPE, DIM, F##TYPE)
+#define UE_DECLARE_LWC_TYPE_1(TYPE)								UE_DECLARE_LWC_TYPE_2(TYPE,)
+
+// Necessary to convince the MSVC preprocessor to play ball with variadic args - https://stackoverflow.com/questions/5134523/msvc-doesnt-expand-va-args-correctly
+#define FORCE_EXPAND(X) X
+#define UE_LWC_MACRO_SELECT(PAD1, PAD2, PAD3, PAD4, MACRO, ...)	MACRO
+#define UE_DECLARE_LWC_TYPE_SELECT(...)							FORCE_EXPAND(UE_LWC_MACRO_SELECT(__VA_ARGS__, UE_DECLARE_LWC_TYPE_EX, UE_DECLARE_LWC_TYPE_3, UE_DECLARE_LWC_TYPE_2, UE_DECLARE_LWC_TYPE_1 ))
+
+// Args - TYPE, DIMENSION, [UE_TYPENAME], [COMPONENT_TYPE]. e.g. Vector, 3, FVector, double		// LWC_TODO: Remove COMPONENT_TYPE
+#define UE_DECLARE_LWC_TYPE(...)								FORCE_EXPAND(UE_DECLARE_LWC_TYPE_SELECT(__VA_ARGS__)(__VA_ARGS__))
+

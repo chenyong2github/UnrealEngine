@@ -411,7 +411,7 @@ void UMaterialParameterCollection::CreateBufferStruct()
 
 	const uint32 NumVectors = FMath::DivideAndRoundUp(ScalarParameters.Num(), 4) + VectorParameters.Num();
 	new(Members) FShaderParametersMetadata::FMember(TEXT("Vectors"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4,NumVectors, nullptr);
-	const uint32 VectorArraySize = NumVectors * sizeof(FVector4);
+	const uint32 VectorArraySize = NumVectors * sizeof(FVector4f);
 	NextMemberOffset += VectorArraySize;
 	const uint32 StructSize = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
@@ -432,7 +432,7 @@ void UMaterialParameterCollection::CreateBufferStruct()
 		);
 }
 
-void UMaterialParameterCollection::GetDefaultParameterData(TArray<FVector4>& ParameterData) const
+void UMaterialParameterCollection::GetDefaultParameterData(TArray<FVector4f>& ParameterData) const
 {
 	// The memory layout created here must match the index assignment in UMaterialParameterCollection::GetParameterIndex
 
@@ -445,10 +445,10 @@ void UMaterialParameterCollection::GetDefaultParameterData(TArray<FVector4>& Par
 		// Add a new vector for each packed vector
 		if (ParameterIndex % 4 == 0)
 		{
-			ParameterData.Add(FVector4(0, 0, 0, 0));
+			ParameterData.Add(FVector4f(0, 0, 0, 0));
 		}
 
-		FVector4& CurrentVector = ParameterData.Last();
+		FVector4f& CurrentVector = ParameterData.Last();
 		// Pack into the appropriate component of this packed vector
 		CurrentVector[ParameterIndex % 4] = Parameter.DefaultValue;
 	}
@@ -463,7 +463,7 @@ void UMaterialParameterCollection::GetDefaultParameterData(TArray<FVector4>& Par
 void UMaterialParameterCollection::UpdateDefaultResource(bool bRecreateUniformBuffer)
 {
 	// Propagate the new values to the rendering thread
-	TArray<FVector4> ParameterData;
+	TArray<FVector4f> ParameterData;
 	GetDefaultParameterData(ParameterData);
 	DefaultResource->GameThread_UpdateContents(StateId, ParameterData, GetFName(), bRecreateUniformBuffer);
 
@@ -626,7 +626,7 @@ void UMaterialParameterCollectionInstance::DeferredUpdateRenderState(bool bRecre
 	if (bNeedsRenderStateUpdate && World.IsValid())
 	{
 		// Propagate the new values to the rendering thread
-		TArray<FVector4> ParameterData;
+		TArray<FVector4f> ParameterData;
 		GetParameterData(ParameterData);
 		Resource->GameThread_UpdateContents(Collection ? Collection->StateId : FGuid(), ParameterData, GetFName(), bRecreateUniformBuffer);
 	}
@@ -634,7 +634,7 @@ void UMaterialParameterCollectionInstance::DeferredUpdateRenderState(bool bRecre
 	bNeedsRenderStateUpdate = false;
 }
 
-void UMaterialParameterCollectionInstance::GetParameterData(TArray<FVector4>& ParameterData) const
+void UMaterialParameterCollectionInstance::GetParameterData(TArray<FVector4f>& ParameterData) const
 {
 	// The memory layout created here must match the index assignment in UMaterialParameterCollection::GetParameterIndex
 
@@ -649,10 +649,10 @@ void UMaterialParameterCollectionInstance::GetParameterData(TArray<FVector4>& Pa
 			// Add a new vector for each packed vector
 			if (ParameterIndex % 4 == 0)
 			{
-				ParameterData.Add(FVector4(0, 0, 0, 0));
+				ParameterData.Add(FVector4f(0, 0, 0, 0));
 			}
 
-			FVector4& CurrentVector = ParameterData.Last();
+			FVector4f& CurrentVector = ParameterData.Last();
 			const float* InstanceData = ScalarParameterValues.Find(Parameter.ParameterName);
 			// Pack into the appropriate component of this packed vector
 			CurrentVector[ParameterIndex % 4] = InstanceData ? *InstanceData : Parameter.DefaultValue;
@@ -678,7 +678,7 @@ void UMaterialParameterCollectionInstance::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-void FMaterialParameterCollectionInstanceResource::GameThread_UpdateContents(const FGuid& InGuid, const TArray<FVector4>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer)
+void FMaterialParameterCollectionInstanceResource::GameThread_UpdateContents(const FGuid& InGuid, const TArray<FVector4f>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer)
 {
 	FMaterialParameterCollectionInstanceResource* Resource = this;
 	ENQUEUE_RENDER_COMMAND(UpdateCollectionCommand)(
@@ -715,7 +715,7 @@ FMaterialParameterCollectionInstanceResource::~FMaterialParameterCollectionInsta
 	check(!UniformBuffer.IsValid());
 }
 
-void FMaterialParameterCollectionInstanceResource::UpdateContents(const FGuid& InId, const TArray<FVector4>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer)
+void FMaterialParameterCollectionInstanceResource::UpdateContents(const FGuid& InId, const TArray<FVector4f>& Data, const FName& InOwnerName, bool bRecreateUniformBuffer)
 {
 	Id = InId;
 	OwnerName = InOwnerName;

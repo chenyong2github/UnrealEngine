@@ -141,7 +141,7 @@ public:
 	}
 
 	virtual const void* FindNearestHitTriangle(
-		const FRay3d& Ray,
+		const UE::Geometry::FRay3d& Ray,
 		double& NearestT,
 		int& TriId,
 		FVector3d& TriBaryCoords,
@@ -162,7 +162,7 @@ public:
 	}
 
 	virtual bool TestAnyHitTriangle(
-		const FRay3d& Ray,
+		const UE::Geometry::FRay3d& Ray,
 		const IMeshSpatial::FQueryOptions& Options = IMeshSpatial::FQueryOptions()) const override
 	{
 		// TODO: Add proper test any hit triangle support (for Occlusion)

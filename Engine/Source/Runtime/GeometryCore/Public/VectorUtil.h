@@ -170,7 +170,7 @@ namespace VectorUtil
 
 	/** @return true if all coordinates of V0 and V1 are within Epsilon of each other */
 	template <typename RealType>
-	inline bool EpsilonEqual(const TVector4<RealType>& V0, const TVector4<RealType>& V1, RealType Epsilon)
+	inline bool EpsilonEqual(const UE::Math::TVector4<RealType>& V0, const UE::Math::TVector4<RealType>& V1, RealType Epsilon)
 	{
 		return EpsilonEqual(V0.X, V1.X, Epsilon) && EpsilonEqual(V0.Y, V1.Y, Epsilon) && EpsilonEqual(V0.Z, V1.Z, Epsilon) && EpsilonEqual(V0.W, V1.W, Epsilon);
 	}

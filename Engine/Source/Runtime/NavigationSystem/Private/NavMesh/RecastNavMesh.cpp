@@ -2761,7 +2761,7 @@ bool ARecastNavMesh::HasCompleteDataInRadius(const FVector& TestLocation, float 
 	const int32 MinTileY = FMath::FloorToInt((RcBounds.Min.Z - RcNavOrigin.Z) / NavTileSize);
 	const int32 MaxTileY = FMath::CeilToInt((RcBounds.Max.Z - RcNavOrigin.Z) / NavTileSize);
 	const FVector RcTileExtent2D(NavTileSize * 0.5f, 0.f, NavTileSize * 0.5f);
-	const float RadiusSq = FMath::Square(TestRadius);
+	const FVector::FReal RadiusSq = FMath::Square(TestRadius);
 
 	for (int32 TileX = MinTileX; TileX <= MaxTileX; TileX++)
 	{

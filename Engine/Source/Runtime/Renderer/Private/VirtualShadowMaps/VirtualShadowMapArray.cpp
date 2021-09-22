@@ -270,7 +270,7 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	UniformParameters.MaxPhysicalPages = PhysicalPagesX * PhysicalPagesY;
 	UniformParameters.PhysicalPageRowMask = (PhysicalPagesX - 1);
 	UniformParameters.PhysicalPageRowShift = FMath::FloorLog2( PhysicalPagesX );
-	UniformParameters.RecPhysicalPoolSize = FVector4( 1.0f / PhysicalX, 1.0f / PhysicalY, 1.0f, 1.0f );
+	UniformParameters.RecPhysicalPoolSize = FVector4f( 1.0f / PhysicalX, 1.0f / PhysicalY, 1.0f, 1.0f );
 	UniformParameters.PhysicalPoolSize = FIntPoint( PhysicalX, PhysicalY );
 	UniformParameters.PhysicalPoolSizePages = FIntPoint( PhysicalPagesX, PhysicalPagesY );
 
@@ -742,7 +742,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 					// NOTE: Virtual shadow maps are never atlased, but verify our assumptions
 					{
-						const FVector4 ClipToShadowUV = ProjectedShadowInfo->GetClipToShadowBufferUvScaleBias();
+						const FVector4f ClipToShadowUV = ProjectedShadowInfo->GetClipToShadowBufferUvScaleBias();
 						check(ProjectedShadowInfo->BorderSize == 0);
 						check(ProjectedShadowInfo->X == 0);
 						check(ProjectedShadowInfo->Y == 0);
@@ -1285,7 +1285,7 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 				FIntPoint ViewSize = FIntPoint::DivideAndRoundUp( FIntPoint( PrimaryView.ViewSizeAndInvSize.X + 0.5f, PrimaryView.ViewSizeAndInvSize.Y + 0.5f ), 1U <<  MipLevel );
 				FIntPoint ViewMin = FIntPoint(MipView.ViewRect.X, MipView.ViewRect.Y) / (1U <<  MipLevel);
 
-				MipView.ViewSizeAndInvSize = FVector4(ViewSize.X, ViewSize.Y, 1.0f / float(ViewSize.X), 1.0f / float(ViewSize.Y));
+				MipView.ViewSizeAndInvSize = FVector4f(ViewSize.X, ViewSize.Y, 1.0f / float(ViewSize.X), 1.0f / float(ViewSize.Y));
 				MipView.ViewRect = FIntVector4(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y);
 
 				MipView.UpdateLODScales();
@@ -1299,7 +1299,7 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 				RcpExtXY = 1.0f / ( FVirtualShadowMap::PageSize * FVirtualShadowMap::RasterWindowPages );
 
 			// Transform clip from virtual address space to viewport.
-			MipView.ClipSpaceScaleOffset = FVector4(
+			MipView.ClipSpaceScaleOffset = FVector4f(
 				MipView.ViewSizeAndInvSize.X * RcpExtXY,
 				MipView.ViewSizeAndInvSize.Y * RcpExtXY,
 				(MipView.ViewSizeAndInvSize.X + 2.0f * MipView.ViewRect.X) * RcpExtXY - 1.0f,
@@ -1751,7 +1751,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			// TODO: These are not used for this case anyway
 			ShadowDepthPassParameters->ProjectionMatrix = FMatrix::Identity;
 			ShadowDepthPassParameters->ViewMatrix = FMatrix::Identity;
-			ShadowDepthPassParameters->ShadowParams = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
+			ShadowDepthPassParameters->ShadowParams = FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
 			ShadowDepthPassParameters->bRenderToVirtualShadowMap = true;
 			
 			ShadowDepthPassParameters->VirtualSmPageTable	= GraphBuilder.CreateSRV( PageTableRDG );

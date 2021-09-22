@@ -529,7 +529,7 @@ namespace UsdGeomMeshTranslatorImpl
 			FStaticMeshLODResources& LODResources = StaticMesh.GetRenderData()->LODResources[ LODIndex ];
 
 			FMeshDescription& MeshDescription = LODIndexToMeshDescription[ LODIndex ];
-			TVertexInstanceAttributesConstRef< FVector4 > MeshDescriptionColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>( MeshAttribute::VertexInstance::Color );
+			TVertexInstanceAttributesConstRef< FVector4f > MeshDescriptionColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4f>( MeshAttribute::VertexInstance::Color );
 
 			// Compute normals here if necessary because they're not going to be computed via the regular static mesh build pipeline at runtime
 			// (i.e. StaticMeshBuilder is not available at runtime)
@@ -722,7 +722,7 @@ namespace UsdGeomMeshTranslatorImpl
 		TVertexInstanceAttributesConstRef< FVector3f > VertexInstanceNormals = MeshDescriptionAttributes.GetVertexInstanceNormals();
 		TVertexInstanceAttributesConstRef< FVector3f > VertexInstanceTangents = MeshDescriptionAttributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesConstRef< float > VertexInstanceBinormalSigns = MeshDescriptionAttributes.GetVertexInstanceBinormalSigns();
-		TVertexInstanceAttributesConstRef< FVector4 > VertexInstanceColors = MeshDescriptionAttributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesConstRef< FVector4f > VertexInstanceColors = MeshDescriptionAttributes.GetVertexInstanceColors();
 		TVertexInstanceAttributesConstRef< FVector2D > VertexInstanceUVs = MeshDescriptionAttributes.GetVertexInstanceUVs();
 
 		const int32 NumVertices = MeshDescription.Vertices().Num();
@@ -780,7 +780,7 @@ namespace UsdGeomMeshTranslatorImpl
 				}
 			}
 
-			OutMeshData.BoundingBox = BoundingBox;
+			OutMeshData.BoundingBox = (FBox3f)BoundingBox;
 
 			BatchInfo.NumTriangles = TriangleCount;
 			OutMeshData.BatchesInfo.Add( BatchInfo );

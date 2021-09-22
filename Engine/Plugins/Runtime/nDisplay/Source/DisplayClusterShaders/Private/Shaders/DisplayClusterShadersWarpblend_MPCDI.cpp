@@ -82,9 +82,9 @@ namespace MpcdiShaderPermutation
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMpcdiVertexShaderParameters, )
-	SHADER_PARAMETER(FVector4, DrawRectanglePosScaleBias)
-	SHADER_PARAMETER(FVector4, DrawRectangleInvTargetSizeAndTextureSize)
-	SHADER_PARAMETER(FVector4, DrawRectangleUVScaleBias)
+	SHADER_PARAMETER(FVector4f, DrawRectanglePosScaleBias)
+	SHADER_PARAMETER(FVector4f, DrawRectangleInvTargetSizeAndTextureSize)
+	SHADER_PARAMETER(FVector4f, DrawRectangleUVScaleBias)
 
 	SHADER_PARAMETER(FMatrix44f, MeshToStageProjectionMatrix)
 END_SHADER_PARAMETER_STRUCT()

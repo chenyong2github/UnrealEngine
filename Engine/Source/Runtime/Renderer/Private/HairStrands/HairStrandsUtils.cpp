@@ -331,13 +331,13 @@ FIntVector ComputeDispatchCount(uint32 GroupCount)
 	return FIntVector(DispatchCountX, DispatchCountY, 1);
 }
 
-FVector4 PackHairRenderInfo(
+FVector4f PackHairRenderInfo(
 	float PrimaryRadiusAtDepth1,
 	float StableRadiusAtDepth1,
 	float VelocityRadiusAtDepth1,
 	float VelocityMagnitudeScale)
 {
-	FVector4 Out;
+	FVector4f Out;
 	Out.X = PrimaryRadiusAtDepth1;
 	Out.Y = StableRadiusAtDepth1;
 	Out.Z = VelocityRadiusAtDepth1;

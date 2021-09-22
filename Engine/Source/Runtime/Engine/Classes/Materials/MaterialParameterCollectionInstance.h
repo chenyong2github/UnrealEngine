@@ -101,7 +101,7 @@ protected:
 	FOnVectorParameterUpdated VectorParameterUpdatedDelegate;
 
 	/** Boils down the instance overrides and default values into data to be set on the uniform buffer. */
-	void GetParameterData(TArray<FVector4>& ParameterData) const;
+	void GetParameterData(TArray<FVector4f>& ParameterData) const;
 	
 	/** Tracks whether this instance needs to update the render state from the game thread */
 	bool bNeedsRenderStateUpdate;

@@ -365,7 +365,7 @@ public:
 		TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals;
 		TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents;
 		TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns;
-		TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors;
+		TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors;
 		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs;
 		int32 TriangleCount;
 		TArray<uint32> FaceSmoothingMasks;

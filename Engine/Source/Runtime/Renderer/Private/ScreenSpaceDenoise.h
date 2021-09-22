@@ -23,9 +23,9 @@ namespace Denoiser
 
 /** Public shader parameter structure to be able to execute bilateral kernel of the denoiser in external shaders. */
 BEGIN_SHADER_PARAMETER_STRUCT(FCommonShaderParameters, )
-	SHADER_PARAMETER(FVector4, DenoiserBufferSizeAndInvSize)
-	SHADER_PARAMETER(FVector4, DenoiserBufferBilinearUVMinMax)
-	SHADER_PARAMETER(FVector4, SceneBufferUVToScreenPosition) // TODO: move to view uniform buffer
+	SHADER_PARAMETER(FVector4f, DenoiserBufferSizeAndInvSize)
+	SHADER_PARAMETER(FVector4f, DenoiserBufferBilinearUVMinMax)
+	SHADER_PARAMETER(FVector4f, SceneBufferUVToScreenPosition) // TODO: move to view uniform buffer
 	SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
 END_SHADER_PARAMETER_STRUCT()
 

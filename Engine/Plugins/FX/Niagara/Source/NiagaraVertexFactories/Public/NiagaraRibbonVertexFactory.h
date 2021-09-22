@@ -26,9 +26,9 @@ struct FNiagaraRibbonVertexDynamicParameter
 * Uniform buffer for particle beam/trail vertex factories.
 */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVERTEXFACTORIES_API)
-	SHADER_PARAMETER(FVector4, CameraRight)
-	SHADER_PARAMETER(FVector4, CameraUp)
-	SHADER_PARAMETER(FVector4, ScreenAlignment)
+	SHADER_PARAMETER(FVector4f, CameraRight)
+	SHADER_PARAMETER(FVector4f, CameraUp)
+	SHADER_PARAMETER(FVector4f, ScreenAlignment)
 	SHADER_PARAMETER(int, PositionDataOffset)
 	SHADER_PARAMETER(int, VelocityDataOffset)
 	SHADER_PARAMETER(int, WidthDataOffset)
@@ -58,7 +58,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVER
 	SHADER_PARAMETER(int, ShouldFlipNormalToView)
 	SHADER_PARAMETER(int, U0DistributionMode)
 	SHADER_PARAMETER(int, U1DistributionMode)
-	SHADER_PARAMETER(FVector4, PackedVData)
+	SHADER_PARAMETER(FVector4f, PackedVData)
 	SHADER_PARAMETER(uint32, bLocalSpace)
 	SHADER_PARAMETER_EX(float, DeltaSeconds, EShaderPrecisionModifier::Half)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()

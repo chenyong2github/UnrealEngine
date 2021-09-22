@@ -16,7 +16,7 @@
 struct FFilterVertex
 {
 public:
-	FVector4 Position;
+	FVector4f Position;
 	FVector2D UV;
 };
 

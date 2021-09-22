@@ -9,7 +9,6 @@ class USceneComponent;
 class FJsonObject;
 class FString;
 class AActor;
-struct FBox;
 
 namespace DatasmithImportFactoryHelper
 {

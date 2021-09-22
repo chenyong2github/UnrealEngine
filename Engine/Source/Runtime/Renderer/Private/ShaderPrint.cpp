@@ -81,7 +81,7 @@ namespace ShaderPrint
 		const float SpaceWidth = (float)FMath::Max(CVarFontSpacingX.GetValueOnRenderThread(), 1) / (float)FMath::Max(View.UnconstrainedViewRect.Size().X, 1);
 		const float SpaceHeight = (float)FMath::Max(CVarFontSpacingY.GetValueOnRenderThread(), 1) / (float)FMath::Max(View.UnconstrainedViewRect.Size().Y, 1);
 
-		OutParameters.FontSize = FVector4(FontWidth, FontHeight, SpaceWidth + FontWidth, SpaceHeight + FontHeight);
+		OutParameters.FontSize = FVector4f(FontWidth, FontHeight, SpaceWidth + FontWidth, SpaceHeight + FontHeight);
 
 		OutParameters.MaxValueCount = GetMaxValueCount();
 		OutParameters.MaxSymbolCount = GetMaxSymbolCount();

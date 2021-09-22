@@ -121,11 +121,11 @@ namespace DatasmithGLTFImporterImpl
 
 		void ResampleRotation(
 			GLTF::FAnimation::EInterpolation Interpolation,
-			const FQuat* FrameSourceBuffer)
+			const FQuat4f* FrameSourceBuffer)
 		{
-			ResampleTrack<FQuat>(FrameRate, 
+			ResampleTrack<FQuat4f>(FrameRate, 
 				FrameTimeBuffer, FrameSourceBuffer, Interpolation,
-				[](const FQuat& Quat) { return Quat.Euler(); },
+				[](const FQuat4f& Quat) { return Quat.Euler(); },
 				AnimationElement, EDatasmithTransformType::Rotation);
 		}
 
@@ -242,9 +242,9 @@ uint32 FDatasmithGLTFAnimationImporter::ResampleAnimationFrames(const GLTF::FAni
 		{
 			FrameDataBuffer.SetNumUninitialized(Sampler.Output.Count * 4);
 			// GTFL Accessor public api returns quaternions into FVector4 array
-			Sampler.Output.GetQuatArray(reinterpret_cast<FVector4*>(FrameDataBuffer.GetData()));
+			Sampler.Output.GetQuatArray(reinterpret_cast<FVector4f*>(FrameDataBuffer.GetData()));
 
-			Resampler.ResampleRotation(Sampler.Interpolation, reinterpret_cast<FQuat*>(FrameDataBuffer.GetData()));
+			Resampler.ResampleRotation(Sampler.Interpolation, reinterpret_cast<FQuat4f*>(FrameDataBuffer.GetData()));
 
 			ActiveChannels = ActiveChannels | FDatasmithAnimationUtils::SetChannelTypeComponents(ETransformChannelComponents::All, TransformType);
 			break;

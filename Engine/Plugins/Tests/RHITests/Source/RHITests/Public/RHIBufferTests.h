@@ -213,7 +213,7 @@ public:
 			// 0.8499  = 0x3f59930c | 0x3acc
 			// 0.00145 = 0x3abe0ded | 0x15f0
 			// 0.417   = 0x3ed58106 | 0x36ac
-			const FVector4 ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
+			const FVector4f ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
 
 			// Half precision float tests
 			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16F, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33 }));
@@ -287,7 +287,7 @@ public:
 			// 0.8499  = 0x3f59930c
 			// 0.00145 = 0x3abe0ded
 			// 0.417   = 0x3ed58106
-			const FVector4 ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
+			const FVector4f ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
 
 			// Full precision float tests
 			RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 4, 256, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));

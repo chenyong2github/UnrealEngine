@@ -42,7 +42,7 @@ void FMeshTexCoordSizeAccuracyInterface::GetDebugViewModeShaderBindings(
 		FMemory::Memzero(WorldUVDensities);
 	}
 
-	ShaderBindings.Add(Shader.CPUTexelFactorParameter, WorldUVDensities);
+	ShaderBindings.Add(Shader.CPUTexelFactorParameter, FVector4f(WorldUVDensities));
 	ShaderBindings.Add(Shader.PrimitiveAlphaParameter, (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
 	ShaderBindings.Add(Shader.TexCoordAnalysisIndexParameter, AnalysisIndex);
 }

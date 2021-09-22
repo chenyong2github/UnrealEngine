@@ -1100,7 +1100,7 @@ void RenderRadianceCache(
 			ProbeFreeListAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("Lumen.RadianceCache.ProbeFreeListAllocator"));
 			ProbeFreeList = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumProbes), TEXT("Lumen.RadianceCache.ProbeFreeList"));
 			ProbeLastUsedFrame = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumProbes), TEXT("Lumen.RadianceCache.ProbeLastUsedFrame"));
-			ProbeWorldOffset = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), MaxNumProbes), TEXT("Lumen.RadianceCache.ProbeWorldOffset"));
+			ProbeWorldOffset = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), MaxNumProbes), TEXT("Lumen.RadianceCache.ProbeWorldOffset"));
 		}
 
 		FRDGBufferUAVRef ProbeFreeListAllocatorUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeFreeListAllocator, PF_R32_SINT));
@@ -1185,7 +1185,7 @@ void RenderRadianceCache(
 			FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, ProbeAllocatorUAV, 0);
 		}
 
-		FRDGBufferRef ProbeTraceData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), MaxNumProbes), TEXT("Lumen.RadianceCache.ProbeTraceData"));
+		FRDGBufferRef ProbeTraceData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), MaxNumProbes), TEXT("Lumen.RadianceCache.ProbeTraceData"));
 
 		FRDGTextureRef RadianceProbeAtlasTextureSource = nullptr;
 

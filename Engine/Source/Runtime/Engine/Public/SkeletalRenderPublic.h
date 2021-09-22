@@ -223,7 +223,7 @@ public:
 
 	TArray<FSkelMeshObjectLODInfo> LODInfo;
 
-	TArray<FCapsuleShape> ShadowCapsuleShapes;
+	TArray<FCapsuleShape3f> ShadowCapsuleShapes;
 
 	/** 
 	 *	Lowest (best) LOD that was desired for rendering this SkeletalMesh last frame. 

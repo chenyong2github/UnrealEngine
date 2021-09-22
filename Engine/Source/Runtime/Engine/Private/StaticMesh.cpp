@@ -5796,7 +5796,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = MeshDescriptionAttributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = MeshDescriptionAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = MeshDescriptionAttributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = MeshDescriptionAttributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = MeshDescriptionAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshDescriptionAttributes.GetVertexInstanceUVs();
 
 	for (FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
@@ -7342,7 +7342,7 @@ void UStaticMesh::ConvertLegacyLODDistance()
 				FVector4 ScreenPosition = ProjMatrix.TransformFVector4(PointToTest);
 				// Convert to a percentage of the screen
 				const float ScreenMultiple = ScreenWidth / 2.0f * ProjMatrix.M[0][0];
-				const float ScreenRadius = ScreenMultiple * GetBounds().SphereRadius / FMath::Max(ScreenPosition.W, 1.0f);
+				const float ScreenRadius = ScreenMultiple * GetBounds().SphereRadius / FMath::Max(float(ScreenPosition.W), 1.0f);
 				const float ScreenArea = ScreenWidth * ScreenHeight;
 				const float BoundsArea = PI * ScreenRadius * ScreenRadius;
 				SrcModel.ScreenSize.Default = FMath::Clamp(BoundsArea / ScreenArea, 0.0f, 1.0f);

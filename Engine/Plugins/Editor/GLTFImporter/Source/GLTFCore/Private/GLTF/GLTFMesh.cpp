@@ -45,7 +45,7 @@ namespace GLTF
 		}
 	}
 
-	void FPrimitive::GetColors(TArray<FVector4>& Buffer) const
+	void FPrimitive::GetColors(TArray<FVector4f>& Buffer) const
 	{
 		if (Color0.Type == FAccessor::EType::Vec4)
 		{

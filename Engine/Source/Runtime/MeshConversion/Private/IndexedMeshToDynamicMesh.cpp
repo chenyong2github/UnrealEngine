@@ -47,7 +47,7 @@ void UE::Conversion::RenderBuffersToDynamicMesh(
 		int32 vid = MeshOut.AppendVertex(FVector3d(Position));
 		ensure(vid == vi);
 
-		FVector4 Normal = VertexBuffer.VertexTangentZ(vi);
+		FVector4f Normal = VertexBuffer.VertexTangentZ(vi);
 		int32 nid = Normals->AppendElement(&Normal.X);
 		ensure(nid == vi);
 

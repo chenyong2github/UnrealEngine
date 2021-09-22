@@ -124,7 +124,7 @@ public:
 
 	virtual FSphere GetBoundingSphere() const override
 	{
-		return FMath::ComputeBoundingSphereForCone(GetOrigin(), GetDirection(), Radius, CosOuterCone, SinOuterCone);
+		return FMath::ComputeBoundingSphereForCone(GetOrigin(), GetDirection(), (FSphere::FReal)Radius, (FSphere::FReal)CosOuterCone, (FSphere::FReal)SinOuterCone);
 	}
 
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const override
@@ -276,10 +276,10 @@ FLightSceneProxy* USpotLightComponent::CreateSceneProxy() const
 
 FSphere USpotLightComponent::GetBoundingSphere() const
 {
-	float ConeAngle = GetHalfConeAngle();
-	float CosConeAngle = FMath::Cos(ConeAngle);
-	float SinConeAngle = FMath::Sin(ConeAngle);
-	return FMath::ComputeBoundingSphereForCone(GetComponentTransform().GetLocation(), GetDirection(), AttenuationRadius, CosConeAngle, SinConeAngle);
+	FSphere::FReal ConeAngle = GetHalfConeAngle();
+	FSphere::FReal CosConeAngle = FMath::Cos(ConeAngle);
+	FSphere::FReal SinConeAngle = FMath::Sin(ConeAngle);
+	return FMath::ComputeBoundingSphereForCone(GetComponentTransform().GetLocation(), GetDirection(), (FSphere::FReal)AttenuationRadius, CosConeAngle, SinConeAngle);
 }
 
 bool USpotLightComponent::AffectsBounds(const FBoxSphereBounds& InBounds) const

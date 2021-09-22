@@ -124,7 +124,7 @@ static uint32 GetTraceDownsampleFactor(int32 Mode)
 	return 2;
 }
 
-static void GetTextureSafeUvCoordBound(FRDGTextureRef Texture, FUintVector4& TextureValidCoordRect, FVector4& TextureValidUvRect)
+static void GetTextureSafeUvCoordBound(FRDGTextureRef Texture, FUintVector4& TextureValidCoordRect, FVector4f& TextureValidUvRect)
 {
 	FIntVector TexSize = Texture->Desc.GetSize();
 	TextureValidCoordRect.X = 0;
@@ -441,16 +441,16 @@ class FReconstructVolumetricRenderTargetPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HalfResDepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LinearTextureSampler)
 		RENDER_TARGET_BINDING_SLOTS()
-		SHADER_PARAMETER(FVector4, DstVolumetricTextureSizeAndInvSize)
-		SHADER_PARAMETER(FVector4, PreviousVolumetricTextureSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, DstVolumetricTextureSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, PreviousVolumetricTextureSizeAndInvSize)
 		SHADER_PARAMETER(FIntPoint, CurrentTracingPixelOffset)
 		SHADER_PARAMETER(FIntPoint, ViewViewRectMin)
 		SHADER_PARAMETER(int32, DownSampleFactor)
 		SHADER_PARAMETER(int32, VolumetricRenderTargetMode)
 		SHADER_PARAMETER(FUintVector4, TracingVolumetricTextureValidCoordRect)
-		SHADER_PARAMETER(FVector4, TracingVolumetricTextureValidUvRect)
+		SHADER_PARAMETER(FVector4f, TracingVolumetricTextureValidUvRect)
 		SHADER_PARAMETER(FUintVector4, PreviousFrameVolumetricTextureValidCoordRect)
-		SHADER_PARAMETER(FVector4, PreviousFrameVolumetricTextureValidUvRect)
+		SHADER_PARAMETER(FVector4f, PreviousFrameVolumetricTextureValidUvRect)
 		SHADER_PARAMETER(float, TemporalFactor)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -541,8 +541,8 @@ void ReconstructVolumetricRenderTarget(
 		FIntVector DstVolumetricSize = DstVolumetric->Desc.GetSize();
 		FVector2D DstVolumetricTextureSize = FVector2D(float(DstVolumetricSize.X), float(DstVolumetricSize.Y));
 		FVector2D PreviousVolumetricTextureSize = FVector2D(float(PreviousFrameVolumetricTexture->Desc.GetSize().X), float(PreviousFrameVolumetricTexture->Desc.GetSize().Y));
-		PassParameters->DstVolumetricTextureSizeAndInvSize = FVector4(DstVolumetricTextureSize.X, DstVolumetricTextureSize.Y, 1.0f / DstVolumetricTextureSize.X, 1.0f / DstVolumetricTextureSize.Y);
-		PassParameters->PreviousVolumetricTextureSizeAndInvSize = FVector4(PreviousVolumetricTextureSize.X, PreviousVolumetricTextureSize.Y, 1.0f / PreviousVolumetricTextureSize.X, 1.0f / PreviousVolumetricTextureSize.Y);
+		PassParameters->DstVolumetricTextureSizeAndInvSize = FVector4f(DstVolumetricTextureSize.X, DstVolumetricTextureSize.Y, 1.0f / DstVolumetricTextureSize.X, 1.0f / DstVolumetricTextureSize.Y);
+		PassParameters->PreviousVolumetricTextureSizeAndInvSize = FVector4f(PreviousVolumetricTextureSize.X, PreviousVolumetricTextureSize.Y, 1.0f / PreviousVolumetricTextureSize.X, 1.0f / PreviousVolumetricTextureSize.Y);
 
 		FPixelShaderUtils::AddFullscreenPass<FReconstructVolumetricRenderTargetPS>(
 			GraphBuilder, ViewInfo.ShaderMap, RDG_EVENT_NAME("VolumetricReconstruct"), PixelShader, PassParameters,
@@ -572,12 +572,12 @@ class FComposeVolumetricRTOverScenePS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 		SHADER_PARAMETER(float, UvOffsetScale)
 		SHADER_PARAMETER(float, UvOffsetSampleAcceptanceWeight)
-		SHADER_PARAMETER(FVector4, VolumetricTextureSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, VolumetricTextureSizeAndInvSize)
 		SHADER_PARAMETER(FVector2D, FullResolutionToVolumetricBufferResolutionScale)
 		SHADER_PARAMETER(FVector2D, FullResolutionToWaterBufferScale)
-		SHADER_PARAMETER(FVector4, SceneWithoutSingleLayerWaterViewRect)
+		SHADER_PARAMETER(FVector4f, SceneWithoutSingleLayerWaterViewRect)
 		SHADER_PARAMETER(FUintVector4, VolumetricTextureValidCoordRect)
-		SHADER_PARAMETER(FVector4, VolumetricTextureValidUvRect)
+		SHADER_PARAMETER(FVector4f, VolumetricTextureValidUvRect)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -657,12 +657,12 @@ void ComposeVolumetricRenderTargetOverScene(
 		{
 			const FSceneWithoutWaterTextures::FView& WaterPassViewData = WaterPassData.Views[ViewIndex];
 			PassParameters->FullResolutionToWaterBufferScale = FVector2D(1.0f / WaterPassData.RefractionDownsampleFactor, WaterPassData.RefractionDownsampleFactor);
-			PassParameters->SceneWithoutSingleLayerWaterViewRect = FVector4(WaterPassViewData.ViewRect.Min.X, WaterPassViewData.ViewRect.Min.Y,
+			PassParameters->SceneWithoutSingleLayerWaterViewRect = FVector4f(WaterPassViewData.ViewRect.Min.X, WaterPassViewData.ViewRect.Min.Y,
 				WaterPassViewData.ViewRect.Max.X, WaterPassViewData.ViewRect.Max.Y);
 		}
 
 		FVector2D VolumetricTextureSize = FVector2D(float(VolumetricTexture->Desc.GetSize().X), float(VolumetricTexture->Desc.GetSize().Y));
-		PassParameters->VolumetricTextureSizeAndInvSize = FVector4(VolumetricTextureSize.X, VolumetricTextureSize.Y, 1.0f / VolumetricTextureSize.X, 1.0f / VolumetricTextureSize.Y);
+		PassParameters->VolumetricTextureSizeAndInvSize = FVector4f(VolumetricTextureSize.X, VolumetricTextureSize.Y, 1.0f / VolumetricTextureSize.X, 1.0f / VolumetricTextureSize.Y);
 
 		FPixelShaderUtils::AddFullscreenPass<FComposeVolumetricRTOverScenePS>(
 			GraphBuilder, ViewInfo.ShaderMap, RDG_EVENT_NAME("VolumetricComposeOverScene"), PixelShader, PassParameters, ViewInfo.ViewRect,
@@ -720,13 +720,13 @@ void ComposeVolumetricRenderTargetOverSceneUnderWater(
 		PassParameters->UvOffsetSampleAcceptanceWeight = GetUvNoiseSampleAcceptanceWeight();
 		PassParameters->FullResolutionToVolumetricBufferResolutionScale = FVector2D(1.0f / float(GetMainDownsampleFactor(VRTMode)), float(GetMainDownsampleFactor(VRTMode)));
 		PassParameters->FullResolutionToWaterBufferScale = FVector2D(1.0f / WaterPassData.RefractionDownsampleFactor, WaterPassData.RefractionDownsampleFactor);
-		PassParameters->SceneWithoutSingleLayerWaterViewRect = FVector4(WaterPassViewData.ViewRect.Min.X, WaterPassViewData.ViewRect.Min.Y,
+		PassParameters->SceneWithoutSingleLayerWaterViewRect = FVector4f(WaterPassViewData.ViewRect.Min.X, WaterPassViewData.ViewRect.Min.Y,
 																		WaterPassViewData.ViewRect.Max.X, WaterPassViewData.ViewRect.Max.Y);
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 		GetTextureSafeUvCoordBound(PassParameters->VolumetricTexture, PassParameters->VolumetricTextureValidCoordRect, PassParameters->VolumetricTextureValidUvRect);
 
 		FVector2D VolumetricTextureSize = FVector2D(float(VolumetricTexture->Desc.GetSize().X), float(VolumetricTexture->Desc.GetSize().Y));
-		PassParameters->VolumetricTextureSizeAndInvSize = FVector4(VolumetricTextureSize.X, VolumetricTextureSize.Y, 1.0f / VolumetricTextureSize.X, 1.0f / VolumetricTextureSize.Y);
+		PassParameters->VolumetricTextureSizeAndInvSize = FVector4f(VolumetricTextureSize.X, VolumetricTextureSize.Y, 1.0f / VolumetricTextureSize.X, 1.0f / VolumetricTextureSize.Y);
 
 		FPixelShaderUtils::AddFullscreenPass<FComposeVolumetricRTOverScenePS>(
 			GraphBuilder, ViewInfo.ShaderMap, RDG_EVENT_NAME("VolumetricComposeOverScene"), PixelShader, PassParameters, WaterPassViewData.ViewRect,
@@ -782,7 +782,7 @@ void ComposeVolumetricRenderTargetOverSceneForVisualization(
 		PassParameters->WaterLinearDepthTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 
 		FVector2D VolumetricTextureSize = FVector2D(float(VolumetricTexture->Desc.GetSize().X), float(VolumetricTexture->Desc.GetSize().Y));
-		PassParameters->VolumetricTextureSizeAndInvSize = FVector4(VolumetricTextureSize.X, VolumetricTextureSize.Y, 1.0f / VolumetricTextureSize.X, 1.0f / VolumetricTextureSize.Y);
+		PassParameters->VolumetricTextureSizeAndInvSize = FVector4f(VolumetricTextureSize.X, VolumetricTextureSize.Y, 1.0f / VolumetricTextureSize.X, 1.0f / VolumetricTextureSize.Y);
 
 		FPixelShaderUtils::AddFullscreenPass<FComposeVolumetricRTOverScenePS>(
 			GraphBuilder, ViewInfo.ShaderMap, RDG_EVENT_NAME("VolumetricComposeOverSceneForVisualization"), PixelShader, PassParameters, ViewInfo.ViewRect);

@@ -16,9 +16,9 @@
 
 /** Uniform buffer for computing the vertex positional and UV adjustments in the vertex shader. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FDrawRectangleParameters, RENDERER_API)
-	SHADER_PARAMETER( FVector4, PosScaleBias )
-	SHADER_PARAMETER( FVector4, UVScaleBias )
-	SHADER_PARAMETER( FVector4, InvTargetSizeAndTextureSize )
+	SHADER_PARAMETER( FVector4f, PosScaleBias )
+	SHADER_PARAMETER( FVector4f, UVScaleBias )
+	SHADER_PARAMETER( FVector4f, InvTargetSizeAndTextureSize )
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /**
@@ -139,7 +139,7 @@ public:
 		float InvDisplayGamma = 1.f / FMath::Max<float>(DisplayGamma,KINDA_SMALL_NUMBER);
 		float OneMinusOverlayBlend = 1.f - ColorOverlay.A;
 
-		FVector4 ColorScaleAndInverse;
+		FVector4f ColorScaleAndInverse;
 
 		ColorScaleAndInverse.X = ColorScale.R * OneMinusOverlayBlend;
 		ColorScaleAndInverse.Y = ColorScale.G * OneMinusOverlayBlend;
@@ -155,7 +155,7 @@ public:
 
 		// GammaOverlayColor
 
-		FVector4 OverlayColor;
+		FVector4f OverlayColor;
 
 		OverlayColor.X = ColorOverlay.R * ColorOverlay.A;
 		OverlayColor.Y = ColorOverlay.G * ColorOverlay.A;
@@ -175,7 +175,7 @@ public:
 		float InvBufferSizeX = 1.0f / BufferSizeX;
 		float InvBufferSizeY = 1.0f / BufferSizeY;
 
-		const FVector4 vRenderTargetExtent(BufferSizeX, BufferSizeY,  InvBufferSizeX, InvBufferSizeY);
+		const FVector4f vRenderTargetExtent(BufferSizeX, BufferSizeY,  InvBufferSizeX, InvBufferSizeY);
 
 		SetShaderValue(
 			RHICmdList,

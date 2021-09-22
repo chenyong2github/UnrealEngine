@@ -70,5 +70,10 @@ FORCEINLINE TReversedZOrthoMatrix<T>::TReversedZOrthoMatrix(T Left, T Right, T B
  } // namespace Math
  } // namespace UE
 
- DECLARE_LWC_TYPE(OrthoMatrix, 44);
- DECLARE_LWC_TYPE(ReversedZOrthoMatrix, 44);
+UE_DECLARE_LWC_TYPE(OrthoMatrix, 44);
+UE_DECLARE_LWC_TYPE(ReversedZOrthoMatrix, 44);
+
+template<> struct TIsUECoreVariant<FOrthoMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FOrthoMatrix44d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FReversedZOrthoMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FReversedZOrthoMatrix44d> { enum { Value = true }; };

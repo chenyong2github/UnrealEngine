@@ -801,8 +801,8 @@ class FScreenProbeTemporalReprojectionDepthRejectionCS : public FGlobalShader
 		SHADER_PARAMETER(float,InvFractionOfLightingMovingForFastUpdateMode)
 		SHADER_PARAMETER(float,MaxFastUpdateModeAmount)
 		SHADER_PARAMETER(FVector2D,InvDiffuseIndirectBufferSize)
-		SHADER_PARAMETER(FVector4,HistoryScreenPositionScaleBias)
-		SHADER_PARAMETER(FVector4,HistoryUVMinMax)
+		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER(FIntVector4,HistoryViewportMinMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
@@ -1046,7 +1046,7 @@ void UpdateHistoryScreenProbeGather(
 		TRefCountPtr<IPooledRenderTarget>* DiffuseIndirectHistoryState0 = &ScreenProbeGatherState.DiffuseIndirectHistoryRT[0];
 		TRefCountPtr<IPooledRenderTarget>* RoughSpecularIndirectHistoryState = &ScreenProbeGatherState.RoughSpecularIndirectHistoryRT;
 		FIntRect* DiffuseIndirectHistoryViewRect = &ScreenProbeGatherState.DiffuseIndirectHistoryViewRect;
-		FVector4* DiffuseIndirectHistoryScreenPositionScaleBias = &ScreenProbeGatherState.DiffuseIndirectHistoryScreenPositionScaleBias;
+		FVector4f* DiffuseIndirectHistoryScreenPositionScaleBias = &ScreenProbeGatherState.DiffuseIndirectHistoryScreenPositionScaleBias;
 		TRefCountPtr<IPooledRenderTarget>* HistoryConvergenceState = &ScreenProbeGatherState.HistoryConvergenceStateRT;
 
 		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
@@ -1105,7 +1105,7 @@ void UpdateHistoryScreenProbeGather(
 				PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
 
 				// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
-				PassParameters->HistoryUVMinMax = FVector4(
+				PassParameters->HistoryUVMinMax = FVector4f(
 					(DiffuseIndirectHistoryViewRect->Min.X + 0.5f) * InvBufferSize.X,
 					(DiffuseIndirectHistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
 					(DiffuseIndirectHistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,

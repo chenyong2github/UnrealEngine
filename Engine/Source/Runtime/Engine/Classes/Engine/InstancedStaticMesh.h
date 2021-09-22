@@ -93,7 +93,7 @@ public:
 		InstanceData->GetInstanceRandomID(InstanceIndex, RandomInstanceID);
 	}
 
-	FORCEINLINE void GetInstanceLightMapData(int32 InstanceIndex, FVector4& InstanceLightmapAndShadowMapUVBias) const
+	FORCEINLINE void GetInstanceLightMapData(int32 InstanceIndex, FVector4f& InstanceLightmapAndShadowMapUVBias) const
 	{
 		InstanceData->GetInstanceLightMapData(InstanceIndex, InstanceLightmapAndShadowMapUVBias);
 	}
@@ -413,7 +413,7 @@ struct FPerInstanceRenderData
 	TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> InstanceBuffer_GameThread;
 
 	/** Get data for culling ray tracing instances */
-	const TArray<FVector4>& GetPerInstanceBounds();
+	const TArray<FVector4f>& GetPerInstanceBounds();
 
 	/** Get cached CPU-friendly instance transforms */
 	const TArray<FRenderTransform>& GetPerInstanceTransforms();
@@ -426,7 +426,7 @@ private:
 	void UpdateBoundsTransforms();
 	void EnsureInstanceDataUpdated();
 
-	TArray<FVector4> PerInstanceBounds;
+	TArray<FVector4f> PerInstanceBounds;
 	TArray<FRenderTransform> PerInstanceTransforms;
 	FGraphEventRef UpdateBoundsTask;
 	const FBox InstanceLocalBounds;

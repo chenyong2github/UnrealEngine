@@ -18,7 +18,7 @@ FLightmapSceneShaderData::FLightmapSceneShaderData(const class FLightCacheInterf
 
 void FLightmapSceneShaderData::Setup(const FPrecomputedLightingUniformParameters& ShaderParameters)
 {
-	static_assert(sizeof(FPrecomputedLightingUniformParameters) == sizeof(FVector4) * 15, "The FLightmapSceneShaderData manual layout below and in usf must match FPrecomputedLightingUniformParameters.  Update this assert when adding a new member.");
+	static_assert(sizeof(FPrecomputedLightingUniformParameters) == sizeof(FVector4f) * 15, "The FLightmapSceneShaderData manual layout below and in usf must match FPrecomputedLightingUniformParameters.  Update this assert when adding a new member.");
 	// Note: layout must match GetLightmapData in usf
 
 	Data[0] = ShaderParameters.StaticShadowMapMasks;
@@ -30,25 +30,25 @@ void FLightmapSceneShaderData::Setup(const FPrecomputedLightingUniformParameters
 	Data[6] = ShaderParameters.LightMapAdd[0];
 	Data[7] = ShaderParameters.LightMapAdd[1];
 	
-	// bitcast FUintVector4 -> FVector4
-	FMemory::Memcpy(&Data[8], &ShaderParameters.LightmapVTPackedPageTableUniform[0], sizeof(FVector4) * 2u);
+	// bitcast FUintVector4 -> FVector4f
+	FMemory::Memcpy(&Data[8], &ShaderParameters.LightmapVTPackedPageTableUniform[0], sizeof(FVector4f) * 2u);
 
-	// bitcast FUintVector4 -> FVector4
-	FMemory::Memcpy(&Data[10], &ShaderParameters.LightmapVTPackedUniform[0], sizeof(FVector4) * 5u);
+	// bitcast FUintVector4 -> FVector4f
+	FMemory::Memcpy(&Data[10], &ShaderParameters.LightmapVTPackedUniform[0], sizeof(FVector4f) * 5u);
 }
 
 void GetDefaultPrecomputedLightingParameters(FPrecomputedLightingUniformParameters& Parameters)
 {
-	Parameters.StaticShadowMapMasks = FVector4(1, 1, 1, 1);
-	Parameters.InvUniformPenumbraSizes = FVector4(0, 0, 0, 0);
-	Parameters.LightMapCoordinateScaleBias = FVector4(1, 1, 0, 0);
-	Parameters.ShadowMapCoordinateScaleBias = FVector4(1, 1, 0, 0);
+	Parameters.StaticShadowMapMasks = FVector4f(1, 1, 1, 1);
+	Parameters.InvUniformPenumbraSizes = FVector4f(0, 0, 0, 0);
+	Parameters.LightMapCoordinateScaleBias = FVector4f(1, 1, 0, 0);
+	Parameters.ShadowMapCoordinateScaleBias = FVector4f(1, 1, 0, 0);
 	 
 	const uint32 NumCoef = FMath::Max<uint32>(NUM_HQ_LIGHTMAP_COEF, NUM_LQ_LIGHTMAP_COEF);
 	for (uint32 CoefIndex = 0; CoefIndex < NumCoef; ++CoefIndex)
 	{
-		Parameters.LightMapScale[CoefIndex] = FVector4(1, 1, 1, 1);
-		Parameters.LightMapAdd[CoefIndex] = FVector4(0, 0, 0, 0);
+		Parameters.LightMapScale[CoefIndex] = FVector4f(1, 1, 1, 1);
+		Parameters.LightMapAdd[CoefIndex] = FVector4f(0, 0, 0, 0);
 	}
 
 	FMemory::Memzero(Parameters.LightmapVTPackedPageTableUniform);
@@ -72,15 +72,15 @@ void GetPrecomputedLightingParameters(
 	const FShadowMapInteraction ShadowMapInteraction = LCI ? LCI->GetShadowMapInteraction(FeatureLevel) : FShadowMapInteraction();
 	if (ShadowMapInteraction.GetType() == SMIT_Texture)
 	{
-		Parameters.ShadowMapCoordinateScaleBias = FVector4(ShadowMapInteraction.GetCoordinateScale(), ShadowMapInteraction.GetCoordinateBias());
-		Parameters.StaticShadowMapMasks = FVector4(ShadowMapInteraction.GetChannelValid(0), ShadowMapInteraction.GetChannelValid(1), ShadowMapInteraction.GetChannelValid(2), ShadowMapInteraction.GetChannelValid(3));
+		Parameters.ShadowMapCoordinateScaleBias = FVector4f(ShadowMapInteraction.GetCoordinateScale(), ShadowMapInteraction.GetCoordinateBias());
+		Parameters.StaticShadowMapMasks = FVector4f(ShadowMapInteraction.GetChannelValid(0), ShadowMapInteraction.GetChannelValid(1), ShadowMapInteraction.GetChannelValid(2), ShadowMapInteraction.GetChannelValid(3));
 		Parameters.InvUniformPenumbraSizes = ShadowMapInteraction.GetInvUniformPenumbraSize();
 	}
 	else
 	{
-		Parameters.ShadowMapCoordinateScaleBias = FVector4(1, 1, 0, 0);
-		Parameters.StaticShadowMapMasks = FVector4(1, 1, 1, 1);
-		Parameters.InvUniformPenumbraSizes = FVector4(0, 0, 0, 0);
+		Parameters.ShadowMapCoordinateScaleBias = FVector4f(1, 1, 0, 0);
+		Parameters.StaticShadowMapMasks = FVector4f(1, 1, 1, 1);
+		Parameters.InvUniformPenumbraSizes = FVector4f(0, 0, 0, 0);
 	}
 
 
@@ -93,7 +93,7 @@ void GetPrecomputedLightingParameters(
 		// Vertex Shader
 		const FVector2D LightmapCoordinateScale = LightMapInteraction.GetCoordinateScale();
 		const FVector2D LightmapCoordinateBias = LightMapInteraction.GetCoordinateBias();
-		Parameters.LightMapCoordinateScaleBias = FVector4(LightmapCoordinateScale.X, LightmapCoordinateScale.Y, LightmapCoordinateBias.X, LightmapCoordinateBias.Y);
+		Parameters.LightMapCoordinateScaleBias = FVector4f(LightmapCoordinateScale.X, LightmapCoordinateScale.Y, LightmapCoordinateBias.X, LightmapCoordinateBias.Y);
 
 		uint32 NumLightmapVTLayers = 0u;
 		if (bUseVirtualTextures)
@@ -123,8 +123,8 @@ void GetPrecomputedLightingParameters(
 		}
 
 		const uint32 NumCoef = bAllowHighQualityLightMaps ? NUM_HQ_LIGHTMAP_COEF : NUM_LQ_LIGHTMAP_COEF;
-		const FVector4* Scales = LightMapInteraction.GetScaleArray();
-		const FVector4* Adds = LightMapInteraction.GetAddArray();
+		const FVector4f* Scales = LightMapInteraction.GetScaleArray();
+		const FVector4f* Adds = LightMapInteraction.GetAddArray();
 		for (uint32 CoefIndex = 0; CoefIndex < NumCoef; ++CoefIndex)
 		{
 			Parameters.LightMapScale[CoefIndex] = Scales[CoefIndex];
@@ -134,14 +134,14 @@ void GetPrecomputedLightingParameters(
 	else
 	{
 		// Vertex Shader
-		Parameters.LightMapCoordinateScaleBias = FVector4(1, 1, 0, 0);
+		Parameters.LightMapCoordinateScaleBias = FVector4f(1, 1, 0, 0);
 
 		// Pixel Shader
 		const uint32 NumCoef = FMath::Max<uint32>(NUM_HQ_LIGHTMAP_COEF, NUM_LQ_LIGHTMAP_COEF);
 		for (uint32 CoefIndex = 0; CoefIndex < NumCoef; ++CoefIndex)
 		{
-			Parameters.LightMapScale[CoefIndex] = FVector4(1, 1, 1, 1);
-			Parameters.LightMapAdd[CoefIndex] = FVector4(0, 0, 0, 0);
+			Parameters.LightMapScale[CoefIndex] = FVector4f(1, 1, 1, 1);
+			Parameters.LightMapAdd[CoefIndex] = FVector4f(0, 0, 0, 0);
 		}
 	}
 }

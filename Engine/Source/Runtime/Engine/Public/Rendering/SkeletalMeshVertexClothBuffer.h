@@ -135,7 +135,7 @@ public:
 		{
 			check(VertexBufferSRV);
 			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-			Batcher.QueueUpdateRequest(VertexBufferSRV, VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F);
+			Batcher.QueueUpdateRequest(VertexBufferSRV, VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
 		}
 	}
 

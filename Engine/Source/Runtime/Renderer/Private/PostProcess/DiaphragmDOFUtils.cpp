@@ -44,12 +44,12 @@ float DiaphragmDOF::ComputeFocalLengthFromFov(const FSceneView& View)
 
 // Convert f-stop and focal distance into projected size in half resolution pixels.
 // Setup depth based blur.
-FVector4 DiaphragmDOF::CircleDofHalfCoc(const FViewInfo& View)
+FVector4f DiaphragmDOF::CircleDofHalfCoc(const FViewInfo& View)
 {
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DepthOfFieldQuality"));
 	bool bDepthOfField = View.Family->EngineShowFlags.DepthOfField && CVar->GetValueOnRenderThread() > 0 && View.FinalPostProcessSettings.DepthOfFieldFstop > 0 && View.FinalPostProcessSettings.DepthOfFieldFocalDistance > 0;
 
-	FVector4 Ret(0, 1, 0, 0);
+	FVector4f Ret(0, 1, 0, 0);
 
 	if(bDepthOfField)
 	{
@@ -87,7 +87,7 @@ FVector4 DiaphragmDOF::CircleDofHalfCoc(const FViewInfo& View)
 
 		// The DepthOfFieldDepthBlurAmount = km at which depth blur is 50%.
 		// Need to convert to cm here.
-		Ret = FVector4(
+		Ret = FVector4f(
 			Radius, 
 			1.0f / (View.FinalPostProcessSettings.DepthOfFieldDepthBlurAmount * 100000.0f),
 			View.FinalPostProcessSettings.DepthOfFieldDepthBlurRadius * Width / 1920.0f,

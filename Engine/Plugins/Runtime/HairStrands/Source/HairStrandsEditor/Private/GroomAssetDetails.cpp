@@ -1223,7 +1223,7 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 			SNew(SColorBlock)
 			.Color(GroupColor)
 			.Size(FVector2D(8,8))
-			.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
+			.CornerRadius(FVector4f(4.0f, 4.0f, 4.0f, 4.0f))
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()

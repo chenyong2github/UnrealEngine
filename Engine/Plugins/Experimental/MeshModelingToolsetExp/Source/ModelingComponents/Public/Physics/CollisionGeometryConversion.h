@@ -95,7 +95,7 @@ namespace UE
 		/**
 		 * Convert FKSphylElem to FCapsuleShape3d
 		 */
-		void GetShape(const FKSphylElem& CapsuleElem, FCapsuleShape3d& CapsuleShapeOut)
+		void GetShape(const FKSphylElem& CapsuleElem, UE::Geometry::FCapsuleShape3d& CapsuleShapeOut)
 		{
 			FQuaterniond CapsuleRotation(CapsuleElem.Rotation.Quaternion());
 			CapsuleShapeOut.Capsule.Segment.Center = (FVector3d)CapsuleElem.Center;
@@ -152,7 +152,7 @@ namespace UE
 
 			for (const FKSphylElem& CapsuleElem : AggGeom.SphylElems)
 			{
-				FCapsuleShape3d CapsuleShape;
+				UE::Geometry::FCapsuleShape3d CapsuleShape;
 				GetShape(CapsuleElem, CapsuleShape);
 				ShapeSetOut.Capsules.Add(CapsuleShape);
 			}

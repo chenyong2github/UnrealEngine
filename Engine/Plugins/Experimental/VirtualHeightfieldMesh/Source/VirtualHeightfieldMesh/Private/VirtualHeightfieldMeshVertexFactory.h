@@ -23,7 +23,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryParamet
 	SHADER_PARAMETER(FUintVector4, VTPackedUniform)
 	SHADER_PARAMETER(FUintVector4, VTPackedPageTableUniform0)
 	SHADER_PARAMETER(FUintVector4, VTPackedPageTableUniform1)
-	SHADER_PARAMETER(FVector4, PageTableSize)
+	SHADER_PARAMETER(FVector4f, PageTableSize)
 	SHADER_PARAMETER(FVector2D, PhysicalTextureSize)
 	SHADER_PARAMETER(FMatrix44f, VirtualHeightfieldToLocal)
 	SHADER_PARAMETER(FMatrix44f, VirtualHeightfieldToWorld)
@@ -40,7 +40,7 @@ struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 {
 	FRHIShaderResourceView* InstanceBufferSRV;
 	FVector3f LodViewOrigin;
-	FVector4 LodDistances;
+	FVector4f LodDistances;
 };
 
 /**

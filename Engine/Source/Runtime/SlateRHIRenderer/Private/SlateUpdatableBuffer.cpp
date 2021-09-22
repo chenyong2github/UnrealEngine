@@ -64,5 +64,5 @@ void FSlateUpdatableInstanceBuffer::FRenderProxy::Update(FRHICommandListImmediat
 
 void FSlateUpdatableInstanceBuffer::FRenderProxy::BindStreamSource(FRHICommandList& RHICmdList, int32 StreamIndex, uint32 InstanceOffset)
 {
-	RHICmdList.SetStreamSource(StreamIndex, InstanceBufferResource.VertexBufferRHI, InstanceOffset * sizeof(FVector4));
+	RHICmdList.SetStreamSource(StreamIndex, InstanceBufferResource.VertexBufferRHI, InstanceOffset * sizeof(FVector4f));
 }

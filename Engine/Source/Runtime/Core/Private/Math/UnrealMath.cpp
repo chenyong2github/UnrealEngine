@@ -226,18 +226,20 @@ FRotator FVector3d::Rotation() const
 	return ToOrientationRotator();
 }
 
-FRotator FVector4::ToOrientationRotator() const
+template<>
+FRotator FVector4f::ToOrientationRotator() const
 {
 	FRotator R;
+	using FRotatorReal = decltype(FRotator::Yaw);
 
 	// Find yaw.
-	R.Yaw = FMath::Atan2(Y,X) * (180.f / PI);
+	R.Yaw = FRotatorReal(FMath::Atan2(Y,X) * (180.f / PI));
 
 	// Find pitch.
-	R.Pitch = FMath::Atan2(Z,FMath::Sqrt(X*X+Y*Y)) * (180.f / PI);
+	R.Pitch = FRotatorReal(FMath::Atan2(Z,FMath::Sqrt(X*X+Y*Y)) * (180.f / PI));
 
 	// Find roll.
-	R.Roll = 0;
+	R.Roll = FRotatorReal(0);
 
 #if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
 	if (R.ContainsNaN())
@@ -250,7 +252,40 @@ FRotator FVector4::ToOrientationRotator() const
 	return R;
 }
 
-FRotator FVector4::Rotation() const
+template<>
+FRotator FVector4d::ToOrientationRotator() const
+{
+	FRotator R;
+	using FRotatorReal = decltype(FRotator::Yaw);
+
+	// Find yaw.
+	R.Yaw = FRotatorReal(FMath::Atan2(Y, X) * (180.f / PI));
+
+	// Find pitch.
+	R.Pitch = FRotatorReal(FMath::Atan2(Z, FMath::Sqrt(X * X + Y * Y)) * (180.f / PI));
+
+	// Find roll.
+	R.Roll = FRotatorReal(0);
+
+#if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
+	if (R.ContainsNaN())
+	{
+		logOrEnsureNanError(TEXT("FVector4::Rotation(): Rotator result %s contains NaN! Input FVector4 = %s"), *R.ToString(), *this->ToString());
+		R = FRotator::ZeroRotator;
+	}
+#endif
+
+	return R;
+}
+
+template<>
+FRotator FVector4f::Rotation() const
+{
+	return ToOrientationRotator();
+}
+
+template<>
+FRotator FVector4d::Rotation() const
 {
 	return ToOrientationRotator();
 }
@@ -301,8 +336,8 @@ FQuat4d FVector3d::ToOrientationQuat() const
 	return RotationQuat;
 }
 
-
-FQuat FVector4::ToOrientationQuat() const
+template<>
+FQuat4f FVector4f::ToOrientationQuat() const
 {
 	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
 	// This is done to avoid adding any roll (which our API states as a constraint).
@@ -316,11 +351,34 @@ FQuat FVector4::ToOrientationQuat() const
 	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
 	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
 
-	FQuat RotationQuat;
+	FQuat4f RotationQuat;
 	RotationQuat.X =  SP*SY;
 	RotationQuat.Y = -SP*CY;
 	RotationQuat.Z =  CP*SY;
 	RotationQuat.W =  CP*CY;
+	return RotationQuat;
+}
+
+template<>
+FQuat4d FVector4d::ToOrientationQuat() const
+{
+	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
+	// This is done to avoid adding any roll (which our API states as a constraint).
+	const double YawRad = FMath::Atan2(Y, X);
+	const double PitchRad = FMath::Atan2(Z, FMath::Sqrt(X * X + Y * Y));
+
+	const double DIVIDE_BY_2 = 0.5f;
+	double SP, SY;
+	double CP, CY;
+
+	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
+	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
+
+	FQuat4d RotationQuat;
+	RotationQuat.X = SP * SY;
+	RotationQuat.Y = -SP * CY;
+	RotationQuat.Z = CP * SY;
+	RotationQuat.W = CP * CY;
 	return RotationQuat;
 }
 
@@ -1897,7 +1955,7 @@ FVector4 FMath::ComputeBaryCentric3D(const FVector& Point, const FVector& A, con
 	//The point V can be expressed as Ax=v where x is the vector containing the weights {w1...wn}
 	//Solve for x by multiplying both sides by AInv   (AInv * A)x = AInv * v ==> x = AInv * v
 	const FMatrix InvSolvMat = SolvMat.Inverse();
-	const FPlane4f BaryCoords = (FPlane4f)InvSolvMat.TransformVector(V);		// LWC_TODO: Precision loss
+	const FPlane BaryCoords = (FPlane)InvSolvMat.TransformVector(V);
 
 	//Reorder the weights to be a, b, c, d
 	return FVector4(1.0f - BaryCoords.X - BaryCoords.Y - BaryCoords.Z, BaryCoords.X, BaryCoords.Y, BaryCoords.Z);

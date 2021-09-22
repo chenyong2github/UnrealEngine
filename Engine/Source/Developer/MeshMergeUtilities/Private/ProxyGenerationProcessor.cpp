@@ -224,11 +224,11 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		if (!Data->MergeData->InProxySettings.bAllowVertexColors)
 		{
 			//We cannot remove the vertex color with the mesh description so we assign a white value to all color
-			TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = FStaticMeshAttributes(Data->RawMesh).GetVertexInstanceColors();
+			TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = FStaticMeshAttributes(Data->RawMesh).GetVertexInstanceColors();
 			//set all value to white
 			for (const FVertexInstanceID VertexInstanceID : Data->RawMesh.VertexInstances().GetElementIDs())
 			{
-				VertexInstanceColors[VertexInstanceID] = FVector4(1.0f, 1.0f, 1.0f);
+				VertexInstanceColors[VertexInstanceID] = FVector4f(1.0f, 1.0f, 1.0f);
 			}
 		}
 

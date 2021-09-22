@@ -832,7 +832,7 @@ void UpdateVoxelVisBuffer(
 
 		TracingInputs.ClipmapWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Extent);
 		TracingInputs.ClipmapWorldToUVBias[ClipmapIndex] = -(Clipmap.Center - Clipmap.Extent) * TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-		TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4(Clipmap.VoxelSize, Clipmap.VoxelRadius);
+		TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex] = FVector4f(Clipmap.VoxelSize, Clipmap.VoxelRadius);
 		TracingInputs.ClipmapWorldCenter[ClipmapIndex] = Clipmap.Center;
 		TracingInputs.ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
 		TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
@@ -892,14 +892,14 @@ void UpdateVoxelVisBuffer(
 			uint32 NumUpdateBounds = 0;
 			{
 				const uint32 BufferStrideInFloat4 = 2;
-				FRDGUploadData<FVector4> UpdateBoundsData(GraphBuilder, BufferStrideInFloat4 * UpdateBounds.Num());
+				FRDGUploadData<FVector4f> UpdateBoundsData(GraphBuilder, BufferStrideInFloat4 * UpdateBounds.Num());
 
 				for (int32 UpdateBoundsIndex = 0; UpdateBoundsIndex < UpdateBounds.Num(); ++UpdateBoundsIndex)
 				{
 					const FClipmapUpdateBounds& Bounds = UpdateBounds[UpdateBoundsIndex];
 
-					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4(Bounds.Center, 0.0f);
-					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4(Bounds.Extent, 0.0f);
+					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4f(Bounds.Center, 0.0f);
+					UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4f(Bounds.Extent, 0.0f);
 					++NumUpdateBounds;
 				}
 
@@ -907,7 +907,7 @@ void UpdateVoxelVisBuffer(
 
 				UpdateBoundsBuffer =
 					CreateUploadBuffer(GraphBuilder, TEXT("Lumen.UpdateBoundsBuffer"),
-						sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2)),
+						sizeof(FVector4f), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2)),
 						UpdateBoundsData);
 			}
 

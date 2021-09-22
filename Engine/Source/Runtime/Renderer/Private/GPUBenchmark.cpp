@@ -133,11 +133,11 @@ IMPLEMENT_SHADER_TYPE(template<>,FPostProcessBenchmarkVS2,TEXT("/Engine/Private/
 
 struct FBenchmarkVertex
 {
-	FVector4 Arg0;
-	FVector4 Arg1;
-	FVector4 Arg2;
-	FVector4 Arg3;
-	FVector4 Arg4;
+	FVector4f Arg0;
+	FVector4f Arg1;
+	FVector4f Arg2;
+	FVector4f Arg3;
+	FVector4f Arg4;
 
 	FBenchmarkVertex(uint32 VertexID)
 		: Arg0(VertexID, 0.0f, 0.0f, 0.0f)
@@ -156,11 +156,11 @@ struct FVertexThroughputDeclaration : public FRenderResource
 	{
 		FVertexDeclarationElementList Elements = 
 		{
-			{ 0, 0 * sizeof(FVector4), VET_Float4, 0, sizeof(FBenchmarkVertex) },
-			{ 0, 1 * sizeof(FVector4), VET_Float4, 1, sizeof(FBenchmarkVertex) },
-			{ 0, 2 * sizeof(FVector4), VET_Float4, 2, sizeof(FBenchmarkVertex) },
-			{ 0, 3 * sizeof(FVector4), VET_Float4, 3, sizeof(FBenchmarkVertex) },
-			{ 0, 4 * sizeof(FVector4), VET_Float4, 4, sizeof(FBenchmarkVertex) },
+			{ 0, 0 * sizeof(FVector4f), VET_Float4, 0, sizeof(FBenchmarkVertex) },
+			{ 0, 1 * sizeof(FVector4f), VET_Float4, 1, sizeof(FBenchmarkVertex) },
+			{ 0, 2 * sizeof(FVector4f), VET_Float4, 2, sizeof(FBenchmarkVertex) },
+			{ 0, 3 * sizeof(FVector4f), VET_Float4, 3, sizeof(FBenchmarkVertex) },
+			{ 0, 4 * sizeof(FVector4f), VET_Float4, 4, sizeof(FBenchmarkVertex) },
 		};
 
 		DeclRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);

@@ -300,7 +300,7 @@ void FSkyLightRenderState::PrepareSkyTexture(FRHICommandListImmediate& RHICmdLis
 	Parameters.SkyLightCubemapSampler = ProcessedTextureSampler;
 	Parameters.SkyLightBlendDestinationCubemap = ProcessedTexture;
 	Parameters.SkyLightBlendDestinationCubemapSampler = ProcessedTextureSampler;
-	Parameters.SkyLightParameters = FVector4(1, 1, 0, 0);
+	Parameters.SkyLightParameters = FVector4f(1, 1, 0, 0);
 
 	FLinearColor SkyColor = Color;
 	// since we are resampled into an octahedral layout, we multiply the cubemap resolution by 2 to get roughly the same number of texels

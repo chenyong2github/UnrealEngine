@@ -12,12 +12,12 @@
 #include "VolumetricFog.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters,)
-	SHADER_PARAMETER(FVector4, ExponentialFogParameters)
-	SHADER_PARAMETER(FVector4, ExponentialFogParameters2)
-	SHADER_PARAMETER(FVector4, ExponentialFogColorParameter)
-	SHADER_PARAMETER(FVector4, ExponentialFogParameters3)
-	SHADER_PARAMETER(FVector4, InscatteringLightDirection) // non negative DirectionalInscatteringStartDistance in .W
-	SHADER_PARAMETER(FVector4, DirectionalInscatteringColor)
+	SHADER_PARAMETER(FVector4f, ExponentialFogParameters)
+	SHADER_PARAMETER(FVector4f, ExponentialFogParameters2)
+	SHADER_PARAMETER(FVector4f, ExponentialFogColorParameter)
+	SHADER_PARAMETER(FVector4f, ExponentialFogParameters3)
+	SHADER_PARAMETER(FVector4f, InscatteringLightDirection) // non negative DirectionalInscatteringStartDistance in .W
+	SHADER_PARAMETER(FVector4f, DirectionalInscatteringColor)
 	SHADER_PARAMETER(FVector2D, SinCosInscatteringColorCubemapRotation)
 	SHADER_PARAMETER(FVector3f, FogInscatteringTextureParameters)
 	SHADER_PARAMETER(float, ApplyVolumetricFog)

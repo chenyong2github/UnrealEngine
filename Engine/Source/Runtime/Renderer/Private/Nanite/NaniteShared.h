@@ -55,12 +55,12 @@ struct FPackedView
 	FMatrix44f	PrevClipToWorld;
 
 	FIntVector4	ViewRect;
-	FVector4	ViewSizeAndInvSize;
-	FVector4	ClipSpaceScaleOffset;
-	FVector4	PreViewTranslation;
-	FVector4	PrevPreViewTranslation;
-	FVector4	WorldCameraOrigin;
-	FVector4	ViewForwardAndNearPlane;
+	FVector4f	ViewSizeAndInvSize;
+	FVector4f	ClipSpaceScaleOffset;
+	FVector4f	PreViewTranslation;
+	FVector4f	PrevPreViewTranslation;
+	FVector4f	WorldCameraOrigin;
+	FVector4f	ViewForwardAndNearPlane;
 	
 	FVector2D	LODScales;
 	float		MinBoundsRadiusSq;
@@ -126,7 +126,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER(uint32,						MaxNodes)
 	SHADER_PARAMETER(uint32,						MaxVisibleClusters)
 	SHADER_PARAMETER(uint32,						RenderFlags)
-	SHADER_PARAMETER(FVector4,						RectScaleOffset) // xy: scale, zw: offset
+	SHADER_PARAMETER(FVector4f,						RectScaleOffset) // xy: scale, zw: offset
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			ClusterPageData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,			VisibleClustersSWHW)
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>,	MaterialTileRemap)

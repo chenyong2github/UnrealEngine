@@ -932,7 +932,7 @@ class FUploadLandscapeTextureToAtlasCS : public FGlobalShader
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FSharedParameters, )
 		SHADER_PARAMETER(FUintVector4, UpdateRegionOffsetAndSize)
-		SHADER_PARAMETER(FVector4, SourceScaleBias)
+		SHADER_PARAMETER(FVector4f, SourceScaleBias)
 		SHADER_PARAMETER(uint32, SourceMipBias)
 		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SourceTextureSampler)
@@ -984,7 +984,7 @@ class FUploadVisibilityToAtlasCS : public FUploadLandscapeTextureToAtlasCS
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FUploadLandscapeTextureToAtlasCS::FSharedParameters, SharedParams)
-		SHADER_PARAMETER(FVector4, VisibilityChannelMask)
+		SHADER_PARAMETER(FVector4f, VisibilityChannelMask)
 		SHADER_PARAMETER_UAV(RWTexture2D<float>, RWVisibilityAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 };

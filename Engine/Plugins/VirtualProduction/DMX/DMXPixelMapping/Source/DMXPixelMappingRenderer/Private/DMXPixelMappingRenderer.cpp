@@ -53,9 +53,9 @@ public:
 
 	using FPermutationDomain = TShaderPermutationDomain<FDMXPixelBlendingQualityDimension, FDMXVertexUVDimension>;
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, DrawRectanglePosScaleBias)
-		SHADER_PARAMETER(FVector4, DrawRectangleInvTargetSizeAndTextureSize)
-		SHADER_PARAMETER(FVector4, DrawRectangleUVScaleBias)
+		SHADER_PARAMETER(FVector4f, DrawRectanglePosScaleBias)
+		SHADER_PARAMETER(FVector4f, DrawRectangleInvTargetSizeAndTextureSize)
+		SHADER_PARAMETER(FVector4f, DrawRectangleUVScaleBias)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
@@ -78,7 +78,7 @@ public:
 
 		SHADER_PARAMETER(FIntPoint, InputTextureSize)
 		SHADER_PARAMETER(FIntPoint, OutputTextureSize)
-		SHADER_PARAMETER(FVector4, PixelFactor)
+		SHADER_PARAMETER(FVector4f, PixelFactor)
 		SHADER_PARAMETER(FIntVector4, InvertPixel)
 		SHADER_PARAMETER(FVector2D, UVCellSize)
 	END_SHADER_PARAMETER_STRUCT()

@@ -60,4 +60,7 @@ FORCEINLINE TRotationAboutPointMatrix<T>::TRotationAboutPointMatrix(const FRotat
 } // namespace Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(RotationAboutPointMatrix, 44);
+UE_DECLARE_LWC_TYPE(RotationAboutPointMatrix, 44);
+
+template<> struct TIsUECoreVariant<FRotationAboutPointMatrix44f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FRotationAboutPointMatrix44d> { enum { Value = true }; };

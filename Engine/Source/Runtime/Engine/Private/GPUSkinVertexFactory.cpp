@@ -169,7 +169,7 @@ FVertexBufferAndSRV FBoneBufferPoolPolicy::CreateResource(CreationArguments Args
 	FVertexBufferAndSRV Buffer;
 	FRHIResourceCreateInfo CreateInfo(TEXT("FBoneBufferPoolPolicy"));
 	Buffer.VertexBufferRHI = RHICreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
-	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F );
+	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F );
 	return Buffer;
 }
 
@@ -252,7 +252,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 		static FSharedPoolPolicyData PoolPolicy;
 		uint32 NumVectors = NumBones*3;
 		check(NumVectors <= (MaxGPUSkinBones*3));
-		uint32 VectorArraySize = NumVectors * sizeof(FVector4);
+		uint32 VectorArraySize = NumVectors * sizeof(FVector4f);
 		uint32 PooledArraySize = BoneBufferPool.PooledSizeForCreationArguments(VectorArraySize);
 
 		if(!IsValidRef(*CurrentBoneBuffer) || PooledArraySize != CurrentBoneBuffer->VertexBufferRHI->GetSize())

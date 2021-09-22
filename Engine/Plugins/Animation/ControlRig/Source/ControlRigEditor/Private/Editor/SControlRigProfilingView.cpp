@@ -326,9 +326,9 @@ FText SControlRigProfilingItem::GetToolTipText() const
 
 FSlateColor SControlRigProfilingItem::GetTextColor() const
 {
-	static FVector4 Green(FLinearColor::Green);
-	static FVector4 Red(FLinearColor::Red);
-	FVector4 Color = FMath::Lerp<FVector4>(Green, Red, FMath::Clamp<float>((float)WeakTreeElement.Pin()->Contribution(true /* against max */), 0.f, 1.f));
+	static FVector4f Green(FLinearColor::Green);
+	static FVector4f Red(FLinearColor::Red);
+	FVector4f Color = FMath::Lerp<FVector4f>(Green, Red, FMath::Clamp<float>((float)WeakTreeElement.Pin()->Contribution(true /* against max */), 0.f, 1.f));
 	return FSlateColor(FLinearColor(Color));
 }
 

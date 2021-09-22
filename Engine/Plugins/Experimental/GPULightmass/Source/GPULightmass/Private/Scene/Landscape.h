@@ -29,8 +29,8 @@ public:
 		UTexture2D* HeightmapTexture;
 		float       HeightmapSubsectionOffsetU;
 		float       HeightmapSubsectionOffsetV;
-		FVector4    HeightmapScaleBias;
-		FVector4    WeightmapScaleBias;
+		FVector4f    HeightmapScaleBias;
+		FVector4f    WeightmapScaleBias;
 		float       WeightmapSubsectionOffset;
 	};
 

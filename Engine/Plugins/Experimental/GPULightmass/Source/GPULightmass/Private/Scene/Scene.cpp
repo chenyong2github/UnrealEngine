@@ -28,7 +28,7 @@
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
-extern RENDERER_API void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVector4* OutSkyIrradianceEnvironmentMap, const FSHVectorRGB3 SkyIrradiance);
+extern RENDERER_API void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVector4f* OutSkyIrradianceEnvironmentMap, const FSHVectorRGB3 SkyIrradiance);
 extern ENGINE_API bool GCompressLightmaps;
 
 extern float GetTerrainExpandPatchCount(float LightMapRes, int32& X, int32& Y, int32 ComponentSize, int32 LightmapSize, int32& DesiredSize, uint32 LightingLOD);
@@ -608,13 +608,13 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 		NewSkyLightRenderState.ProcessedTexture = ProcessedSkyTexture->TextureRHI;
 		NewSkyLightRenderState.ProcessedTextureSampler = ProcessedSkyTexture->SamplerStateRHI;
 
-		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4), 7);
+		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4f), 7);
 
 		NewSkyLightRenderState.PrepareSkyTexture(RHICmdList);
 
 		// Set the captured environment map data
 		void* DataPtr = RHICmdList.LockBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer, 0, NewSkyLightRenderState.SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
-		SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance((FVector4*)DataPtr, NewSkyLightRenderState.IrradianceEnvironmentMap);
+		SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance((FVector4f*)DataPtr, NewSkyLightRenderState.IrradianceEnvironmentMap);
 		RHICmdList.UnlockBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer);
 
 		RenderState.LightSceneRenderState.SkyLight = MoveTemp(NewSkyLightRenderState);
@@ -762,7 +762,7 @@ void FScene::AddGeometryInstanceFromComponent(UStaticMeshComponent* InComponent)
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
 				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
-				FVector4(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
+				FVector4f(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(MoveTemp(Initializer));
@@ -1006,7 +1006,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
 				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
-				FVector4(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
+				FVector4f(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(Initializer);
@@ -1223,7 +1223,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 				Lightmap->Size,
 				FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(Lightmap->GetPaddedSizeInTiles().X, Lightmap->GetPaddedSizeInTiles().Y)), GPreviewLightmapMipmapMaxLevel),
 				ResourceCluster, // temporarily promote unique ptr to raw ptr to make it copyable
-				FVector4(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
+				FVector4f(Lightmap->LightmapObject->CoordinateScale, Lightmap->LightmapObject->CoordinateBias)
 			};
 
 			InstanceLightmapRenderStateInitializers.Add(Initializer);
@@ -1327,7 +1327,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 		{
 			InstanceRenderStateRef->LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource();
 			FLandscapeFixedGridUniformShaderParameters Parameters;
-			Parameters.LodValues = FVector4(
+			Parameters.LodValues = FVector4f(
 				LodIndex,
 				0.f,
 				(float)((InstanceRenderStateRef->SubsectionSizeVerts >> LodIndex) - 1),
@@ -1361,24 +1361,24 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			LandscapeParams.WeightmapUVScaleBias = Initializer.WeightmapScaleBias;
 			LandscapeParams.LocalToWorldNoScaling = InstanceRenderState.LocalToWorldNoScaling;
 
-			LandscapeParams.LandscapeLightmapScaleBias = FVector4(
+			LandscapeParams.LandscapeLightmapScaleBias = FVector4f(
 				LightmapScaleX,
 				LightmapScaleY,
 				LightmapBiasY,
 				LightmapBiasX);
-			LandscapeParams.SubsectionSizeVertsLayerUVPan = FVector4(
+			LandscapeParams.SubsectionSizeVertsLayerUVPan = FVector4f(
 				Initializer.SubsectionSizeQuads + 1,
 				1.f / (float)Initializer.SubsectionSizeQuads,
 				Initializer.SectionBase.X,
 				Initializer.SectionBase.Y
 			);
-			LandscapeParams.SubsectionOffsetParams = FVector4(
+			LandscapeParams.SubsectionOffsetParams = FVector4f(
 				Initializer.HeightmapSubsectionOffsetU,
 				Initializer.HeightmapSubsectionOffsetV,
 				Initializer.WeightmapSubsectionOffset,
 				Initializer.SubsectionSizeQuads
 			);
-			LandscapeParams.LightmapSubsectionOffsetParams = FVector4(
+			LandscapeParams.LightmapSubsectionOffsetParams = FVector4f(
 				LightmapExtendFactorX,
 				LightmapExtendFactorY,
 				0,

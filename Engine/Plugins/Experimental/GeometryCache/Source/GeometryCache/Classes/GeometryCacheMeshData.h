@@ -129,7 +129,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	/** Array of per-batch info structs*/
 	TArray<FGeometryCacheMeshBatchInfo> BatchesInfo;
 	/** Bounding box for this sample in the track */
-	FBox BoundingBox;
+	FBox3f BoundingBox;
 	/** Indices for this sample, used for drawing the mesh */
 	TArray<uint32> Indices;	
 	/** Info on the vertex attributes */

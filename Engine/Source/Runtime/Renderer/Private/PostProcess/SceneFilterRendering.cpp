@@ -126,10 +126,10 @@ static inline void InternalDrawRectangle(
 	// Note: Use DrawRectangle in the vertex shader to calculate the correct vertex position and uv.
 
 	FDrawRectangleParameters Parameters;
-	Parameters.PosScaleBias = FVector4(SizeX, SizeY, X, Y);
-	Parameters.UVScaleBias = FVector4(SizeU, SizeV, U, V);
+	Parameters.PosScaleBias = FVector4f(SizeX, SizeY, X, Y);
+	Parameters.UVScaleBias = FVector4f(SizeU, SizeV, U, V);
 
-	Parameters.InvTargetSizeAndTextureSize = FVector4(
+	Parameters.InvTargetSizeAndTextureSize = FVector4f(
 		1.0f / TargetSize.X, 1.0f / TargetSize.Y,
 		1.0f / TextureSize.X, 1.0f / TextureSize.Y);
 
@@ -209,10 +209,10 @@ void DrawTransformedRectangle(
 
 	FFilterVertex* Vertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 
-	Vertices[0].Position = PosTransform.TransformFVector4(FVector4(X,			Y,			ClipSpaceQuadZ,	1));
-	Vertices[1].Position = PosTransform.TransformFVector4(FVector4(X + SizeX,	Y,			ClipSpaceQuadZ,	1));
-	Vertices[2].Position = PosTransform.TransformFVector4(FVector4(X,			Y + SizeY,	ClipSpaceQuadZ,	1));
-	Vertices[3].Position = PosTransform.TransformFVector4(FVector4(X + SizeX,	Y + SizeY,	ClipSpaceQuadZ,	1));
+	Vertices[0].Position = PosTransform.TransformFVector4(FVector4f(X,			Y,			ClipSpaceQuadZ,	1));
+	Vertices[1].Position = PosTransform.TransformFVector4(FVector4f(X + SizeX,	Y,			ClipSpaceQuadZ,	1));
+	Vertices[2].Position = PosTransform.TransformFVector4(FVector4f(X,			Y + SizeY,	ClipSpaceQuadZ,	1));
+	Vertices[3].Position = PosTransform.TransformFVector4(FVector4f(X + SizeX,	Y + SizeY,	ClipSpaceQuadZ,	1));
 
 	Vertices[0].UV = FVector2D(TexTransform.TransformFVector4(FVector(U,			V,         0)));
 	Vertices[1].UV = FVector2D(TexTransform.TransformFVector4(FVector(U + SizeU,	V,         0)));
@@ -251,10 +251,10 @@ void DrawHmdMesh(
 	)
 {
 	FDrawRectangleParameters Parameters;
-	Parameters.PosScaleBias = FVector4(SizeX, SizeY, X, Y);
-	Parameters.UVScaleBias = FVector4(SizeU, SizeV, U, V);
+	Parameters.PosScaleBias = FVector4f(SizeX, SizeY, X, Y);
+	Parameters.UVScaleBias = FVector4f(SizeU, SizeV, U, V);
 
-	Parameters.InvTargetSizeAndTextureSize = FVector4(
+	Parameters.InvTargetSizeAndTextureSize = FVector4f(
 		1.0f / TargetSize.X, 1.0f / TargetSize.Y,
 		1.0f / TextureSize.X, 1.0f / TextureSize.Y);
 

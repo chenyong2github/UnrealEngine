@@ -2014,7 +2014,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 
 			const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
-			auto AddBloomUpPass = [&GraphBuilder, &View](FScreenPassTexture& BloomUpSourceA, FScreenPassTexture& BloomUpSourceB, float BloomSourceScale, const FVector4& TintA, const FVector4& TintB)
+			auto AddBloomUpPass = [&GraphBuilder, &View](FScreenPassTexture& BloomUpSourceA, FScreenPassTexture& BloomUpSourceB, float BloomSourceScale, const FVector4f& TintA, const FVector4f& TintB)
 			{
 				FMobileBloomUpInputs BloomUpInputs;
 				BloomUpInputs.BloomUpSourceA = BloomUpSourceA;
@@ -2029,8 +2029,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 			float BloomUpScale = 0.66f * 2.0f;
 			// Upsample by 2
 			{
-				FVector4 TintA = FVector4(Settings.Bloom4Tint.R, Settings.Bloom4Tint.G, Settings.Bloom4Tint.B, 0.0f);
-				FVector4 TintB = FVector4(Settings.Bloom5Tint.R, Settings.Bloom5Tint.G, Settings.Bloom5Tint.B, 0.0f);
+				FVector4f TintA = FVector4f(Settings.Bloom4Tint.R, Settings.Bloom4Tint.G, Settings.Bloom4Tint.B, 0.0f);
+				FVector4f TintB = FVector4f(Settings.Bloom5Tint.R, Settings.Bloom5Tint.G, Settings.Bloom5Tint.B, 0.0f);
 				TintA *= Settings.BloomIntensity;
 				TintB *= Settings.BloomIntensity;
 
@@ -2039,20 +2039,20 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 
 			// Upsample by 2
 			{
-				FVector4 TintA = FVector4(Settings.Bloom3Tint.R, Settings.Bloom3Tint.G, Settings.Bloom3Tint.B, 0.0f);
+				FVector4f TintA = FVector4f(Settings.Bloom3Tint.R, Settings.Bloom3Tint.G, Settings.Bloom3Tint.B, 0.0f);
 				TintA *= Settings.BloomIntensity;
-				FVector4 TintB = FVector4(1.0f, 1.0f, 1.0f, 0.0f);
+				FVector4f TintB = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
 
 				BloomUpOutputs = AddBloomUpPass(PostProcessDownsample_Bloom[1], BloomUpOutputs, BloomUpScale, TintA, TintB);
 			}
 
 			// Upsample by 2
 			{
-				FVector4 TintA = FVector4(Settings.Bloom2Tint.R, Settings.Bloom2Tint.G, Settings.Bloom2Tint.B, 0.0f);
+				FVector4f TintA = FVector4f(Settings.Bloom2Tint.R, Settings.Bloom2Tint.G, Settings.Bloom2Tint.B, 0.0f);
 				TintA *= Settings.BloomIntensity;
 				// Scaling Bloom2 by extra factor to match filter area difference between PC default and mobile.
 				TintA *= 0.5;
-				FVector4 TintB = FVector4(1.0f, 1.0f, 1.0f, 0.0f);
+				FVector4f TintB = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
 
 				BloomUpOutputs = AddBloomUpPass(PostProcessDownsample_Bloom[0], BloomUpOutputs, BloomUpScale, TintA, TintB);
 			}

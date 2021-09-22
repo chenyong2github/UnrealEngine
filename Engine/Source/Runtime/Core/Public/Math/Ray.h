@@ -8,23 +8,30 @@
 /**
  * 3D Ray represented by Origin and (normalized) Direction
  */
-class FRay
+namespace UE
+{
+namespace Math
+{
+
+template<typename T>
+struct TRay
 {
 public:
+	using FReal = T;
 
 	/** Ray origin point */
-	FVector Origin;
+	TVector<T> Origin;
 
 	/** Ray direction vector (always normalized) */
-	FVector Direction;
+	TVector<T> Direction;
 
 public:
 
 	/** Default constructor initializes ray to Zero origin and Z-axis direction */
-	FRay()
+	TRay()
 	{
-		Origin = FVector::ZeroVector;
-		Direction = FVector(0, 0, 1);
+		Origin = TVector<T>::ZeroVector;
+		Direction = TVector<T>(0, 0, 1);
 	}
 
 	/** 
@@ -34,7 +41,7 @@ public:
 	  * @param Direction Ray Direction Vector
 	  * @param bDirectionIsNormalized Direction will be normalized unless this is passed as true (default false)
 	  */
-	FRay(const FVector& Origin, const FVector& Direction, bool bDirectionIsNormalized = false)
+	TRay(const TVector<T>& Origin, const TVector<T>& Direction, bool bDirectionIsNormalized = false)
 	{
 		this->Origin = Origin;
 		this->Direction = Direction;
@@ -44,6 +51,9 @@ public:
 		}
 	}
 
+	// Conversion to other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TRay(const TRay<FArg>& From) : TRay<T>(TVector<T>(From.Origin), TVector<T>(From.Direction), true) {}
 
 public:
 
@@ -53,7 +63,7 @@ public:
 	 * @param RayParameter Scalar distance along Ray
 	 * @return Point on Ray
 	 */
-	FVector PointAt(FVector::FReal RayParameter) const
+	TVector<T> PointAt(T RayParameter) const
 	{
 		return Origin + RayParameter * Direction;
 	}
@@ -64,9 +74,9 @@ public:
 	 * @param Point query Point
 	 * @return distance along ray from origin to closest point
 	 */
-	FVector::FReal GetParameter(const FVector& Point) const
+	T GetParameter(const TVector<T>& Point) const
 	{
-		return FVector::DotProduct((Point - Origin), Direction);
+		return TVector<T>::DotProduct((Point - Origin), Direction);
 	}
 
 	/**
@@ -75,17 +85,17 @@ public:
 	 * @param Point query Point
 	 * @return squared distance to Ray
 	 */
-	FVector::FReal DistSquared(const FVector& Point) const
+	T DistSquared(const TVector<T>& Point) const
 	{
-		FVector::FReal RayParameter = FVector::DotProduct((Point - Origin), Direction);
+		T RayParameter = TVector<T>::DotProduct((Point - Origin), Direction);
 		if (RayParameter < 0)
 		{
-			return FVector::DistSquared(Origin, Point);
+			return TVector<T>::DistSquared(Origin, Point);
 		}
 		else 
 		{
-			FVector ProjectionPt = Origin + RayParameter * Direction;
-			return FVector::DistSquared(ProjectionPt, Point);
+			TVector<T> ProjectionPt = Origin + RayParameter * Direction;
+			return TVector<T>::DistSquared(ProjectionPt, Point);
 		}
 	}
 
@@ -94,9 +104,9 @@ public:
 	 * @param Point query point
 	 * @return closest point on Ray
 	 */
-	FVector ClosestPoint(const FVector& Point) const
+	TVector<T> ClosestPoint(const TVector<T>& Point) const
 	{
-		FVector::FReal RayParameter = FVector::DotProduct((Point - Origin), Direction);
+		T RayParameter = TVector<T>::DotProduct((Point - Origin), Direction);
 		if (RayParameter < 0) 
 		{
 			return Origin;
@@ -109,4 +119,12 @@ public:
 
 
 };
+
+}	// namespace UE::Math
+}	// namespace UE
+
+UE_DECLARE_LWC_TYPE(Ray, 3);
+
+template<> struct TIsUECoreVariant<FRay3f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FRay3d> { enum { Value = true }; };
 

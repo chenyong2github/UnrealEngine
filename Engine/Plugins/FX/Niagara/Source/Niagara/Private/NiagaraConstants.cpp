@@ -357,22 +357,22 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM, TEXT("1.0,1.0,1.0,1.0"));
 		Var = SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM;
-		Var.SetValue<FVector4>(FVector4(1.0f, 1.0f, 1.0f, 1.0f));
+		Var.SetValue<FVector4f>(FVector4f(1.0f, 1.0f, 1.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1, TEXT("1.0,1.0,1.0,1.0"));
 		Var = SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1;
-		Var.SetValue<FVector4>(FVector4(1.0f, 1.0f, 1.0f, 1.0f));
+		Var.SetValue<FVector4f>(FVector4f(1.0f, 1.0f, 1.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_1, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2, TEXT("1.0,1.0,1.0,1.0"));
 		Var = SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2;
-		Var.SetValue<FVector4>(FVector4(1.0f, 1.0f, 1.0f, 1.0f));
+		Var.SetValue<FVector4f>(FVector4f(1.0f, 1.0f, 1.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_2, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_3, TEXT("1.0,1.0,1.0,1.0"));
 		Var = SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_3;
-		Var.SetValue<FVector4>(FVector4(1.0f, 1.0f, 1.0f, 1.0f));
+		Var.SetValue<FVector4f>(FVector4f(1.0f, 1.0f, 1.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_DYNAMIC_MATERIAL_PARAM_3, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_SCALE, TEXT("1.0,1.0,1.0"));

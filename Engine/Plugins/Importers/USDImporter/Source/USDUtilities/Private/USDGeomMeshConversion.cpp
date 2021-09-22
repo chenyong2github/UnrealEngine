@@ -374,7 +374,7 @@ namespace UE
 				TVertexAttributesConstRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 				TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 				TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-				TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+				TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 				TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 				const int32 VertexCount = VertexPositions.GetNumElements();
@@ -718,7 +718,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 		MeshDescription.ReserveNewEdges( FaceCounts.size() * 2 );
 
 		// Vertex color
-		TVertexInstanceAttributesRef< FVector4 > MeshDescriptionColors = StaticMeshAttributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesRef< FVector4f > MeshDescriptionColors = StaticMeshAttributes.GetVertexInstanceColors();
 
 		UsdGeomPrimvar ColorPrimvar = UsdMesh.GetDisplayColorPrimvar();
 		pxr::TfToken ColorInterpolation = UsdGeomTokens->constant;

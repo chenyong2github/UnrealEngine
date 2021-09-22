@@ -367,14 +367,14 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 	if (UniformVectorPreshaders.Num())
 	{
 		new(Members) FShaderParametersMetadata::FMember(TEXT("VectorExpressions"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4, UniformVectorPreshaders.Num(),NULL);
-		const uint32 VectorArraySize = UniformVectorPreshaders.Num() * sizeof(FVector4);
+		const uint32 VectorArraySize = UniformVectorPreshaders.Num() * sizeof(FVector4f);
 		NextMemberOffset += VectorArraySize;
 	}
 
 	if (UniformScalarPreshaders.Num())
 	{
 		new(Members) FShaderParametersMetadata::FMember(TEXT("ScalarExpressions"),TEXT(""),__LINE__,NextMemberOffset,UBMT_FLOAT32,EShaderPrecisionModifier::Half,1,4,(UniformScalarPreshaders.Num() + 3) / 4,NULL);
-		const uint32 ScalarArraySize = (UniformScalarPreshaders.Num() + 3) / 4 * sizeof(FVector4);
+		const uint32 ScalarArraySize = (UniformScalarPreshaders.Num() + 3) / 4 * sizeof(FVector4f);
 		NextMemberOffset += ScalarArraySize;
 	}
 

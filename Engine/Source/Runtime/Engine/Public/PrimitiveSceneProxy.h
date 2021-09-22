@@ -254,7 +254,7 @@ public:
 	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const {}
 
 	/** Gathers shadow shapes from this proxy. */
-	virtual void GetShadowShapes(TArray<FCapsuleShape>& CapsuleShapes) const {}
+	virtual void GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleShapes) const {}		// LWC_TODO: Precision loss? Forcing float variant of FCapsuleShape3f.
 
 #if RHI_RAYTRACING
 	// TODO: remove these individual functions in favor of ERayTracingPrimitiveFlags
@@ -755,7 +755,7 @@ public:
 		return InstanceRandomID;
 	}
 
-	TConstArrayView<FVector4> GetInstanceLightShadowUVBias() const
+	TConstArrayView<FVector4f> GetInstanceLightShadowUVBias() const
 	{
 		return InstanceLightShadowUVBias;
 	}
@@ -873,7 +873,7 @@ public:
 	 * @param UVChannelIndices (OUT)	The related index for each (array size = TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4)
 	 * @return							Whether scales were computed or not.
 	 */
-	ENGINE_API virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const class FMaterialRenderProxy* MaterialRenderProxy, FVector4* OneOverScales, struct FIntVector4* UVChannelIndices) const;
+	ENGINE_API virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const class FMaterialRenderProxy* MaterialRenderProxy, FVector4f* OneOverScales, struct FIntVector4* UVChannelIndices) const;
 #endif
 
 	/**
@@ -1190,7 +1190,7 @@ protected:
 	TArray<FPrimitiveInstanceDynamicData> InstanceDynamicData;
 	TArray<float> InstanceCustomData;
 	TArray<float> InstanceRandomID;
-	TArray<FVector4> InstanceLightShadowUVBias;
+	TArray<FVector4f> InstanceLightShadowUVBias;
 
 	/** Quality of interpolated indirect lighting for Movable components. */
 	TEnumAsByte<EIndirectLightingCacheQuality> IndirectLightingCacheQuality;

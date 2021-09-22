@@ -9,7 +9,7 @@
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVoxelizeVolumePassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FMatrix44f, ViewToVolumeClip)
-	SHADER_PARAMETER(FVector4, FrameJitterOffset0)
+	SHADER_PARAMETER(FVector4f, FrameJitterOffset0)
 	SHADER_PARAMETER_STRUCT(FVolumetricFogGlobalData, VolumetricFog)
 	SHADER_PARAMETER(FVector3f, RenderVolumetricCloudParametersCloudLayerCenterKm)
 	SHADER_PARAMETER(float, RenderVolumetricCloudParametersPlanetRadiusKm)
@@ -26,7 +26,7 @@ struct FVolumetricFogIntegrationParameterData
 	{}
 
 	bool bTemporalHistoryIsValid;
-	TArray<FVector4, TInlineAllocator<16>> FrameJitterOffsetValues;
+	TArray<FVector4f, TInlineAllocator<16>> FrameJitterOffsetValues;
 	FRDGTexture* VBufferA;
 	FRDGTexture* VBufferB;
 	FRDGTextureUAV* VBufferA_UAV;

@@ -66,7 +66,7 @@ enum class  EHairStrandsCompositionType : uint8
 
 EHairStrandsCompositionType GetHairStrandsComposition();
 
-FVector4 PackHairRenderInfo(
+FVector4f PackHairRenderInfo(
 	float PrimaryRadiusAtDepth1,
 	float StableRadiusAtDepth1,
 	float VelocityRadiusAtDepth1,

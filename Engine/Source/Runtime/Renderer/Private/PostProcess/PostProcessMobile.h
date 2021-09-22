@@ -102,8 +102,8 @@ struct FMobileBloomUpInputs
 	FScreenPassTexture BloomUpSourceB;
 
 	FVector2D ScaleAB;
-	FVector4 TintA;
-	FVector4 TintB;
+	FVector4f TintA;
+	FVector4f TintB;
 };
 
 FScreenPassTexture AddMobileBloomUpPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileBloomUpInputs& Inputs);

@@ -36,8 +36,8 @@ struct FTiledScreenSpaceReflection
 BEGIN_SHADER_PARAMETER_STRUCT(FCommonScreenSpaceRayParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(HybridIndirectLighting::FCommonParameters, CommonDiffuseParameters)
 
-	SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
-	SHADER_PARAMETER(FVector4, ColorBufferScaleBias)
+	SHADER_PARAMETER(FVector4f, HZBUvFactorAndInvFactor)
+	SHADER_PARAMETER(FVector4f, ColorBufferScaleBias)
 	SHADER_PARAMETER(FVector2D, ReducedColorUVMax)
 	SHADER_PARAMETER(FVector2D, FullResPixelOffset)
 

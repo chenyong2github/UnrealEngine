@@ -510,18 +510,30 @@ bool FDefaultValueHelper::ParseVector2D(const FString& Source, FVector2D& OutVal
 }
 
 
-bool FDefaultValueHelper::ParseVector4(const FString& Source, FVector4& OutVal)
+bool FDefaultValueHelper::ParseVector4(const FString& Source, FVector4f& OutVal)
 {
-	float X, Y, Z, W;
+	// LWC_TODO: Perf pessimization, especially if LWC is disabled!
+	FVector4d TempVec;
+	if (ParseVector4(Source, TempVec))
+	{
+		OutVal = FVector4f((float)TempVec.X, (float)TempVec.Y, (float)TempVec.Z, (float)TempVec.W);
+		return true;
+	}
+	return false;
+}
+
+bool FDefaultValueHelper::ParseVector4(const FString& Source, FVector4d& OutVal)
+{
+	double X, Y, Z, W;
 	TArray<FString> SourceParts;
 
 	if (Source.ParseIntoArray(SourceParts, TEXT(",")) == 4 &&
-		ParseFloat(SourceParts[0], X) &&
-		ParseFloat(SourceParts[1], Y) && 
-		ParseFloat(SourceParts[2], Z) &&
-		ParseFloat(SourceParts[3], W))
+		ParseDouble(SourceParts[0], X) &&
+		ParseDouble(SourceParts[1], Y) && 
+		ParseDouble(SourceParts[2], Z) &&
+		ParseDouble(SourceParts[3], W))
 	{
-		OutVal = FVector4(X, Y, Z, W);
+		OutVal = FVector4d(X, Y, Z, W);
 		return true;
 	}
 

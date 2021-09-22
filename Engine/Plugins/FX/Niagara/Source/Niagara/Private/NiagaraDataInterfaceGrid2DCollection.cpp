@@ -2555,7 +2555,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(FRHICommandList& 
 		if (!Context.IsIterationStage)
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, Grid2DCollection_PreStage);
-			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridUAV, FVector4(ForceInitToZero));
+			RHICmdList.ClearUAVFloat(ProxyData->DestinationData->GridUAV, FVector4f(ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(ProxyData->DestinationData->GridUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		}
 	}
@@ -2635,7 +2635,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::ResetData(FRHICommandList&
 				AccessAfter = ERHIAccess::SRVMask;
 			}
 
-			RHICmdList.ClearUAVFloat(Buffer->GridUAV, FVector4(ForceInitToZero));
+			RHICmdList.ClearUAVFloat(Buffer->GridUAV, FVector4f(ForceInitToZero));
 			RHICmdList.Transition(FRHITransitionInfo(Buffer->GridUAV, ERHIAccess::UAVCompute, AccessAfter));
 		}
 	}

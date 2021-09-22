@@ -31,11 +31,11 @@ namespace GLTF
 			const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceTangents,
 			const TVertexInstanceAttributesRef<float>&     VertexInstanceBinormalSigns,
 			const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
-			const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,
+			const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 			const TEdgeAttributesRef<bool>&                EdgeHardnesses,
 			FMeshDescription* MeshDescription);
 
-		inline TArray<FVector4>& GetVector4dBuffer(int32 Index)
+		inline TArray<FVector4f>& GetVector4dBuffer(int32 Index)
 		{
 			check(Index < (sizeof(Vector4dBuffers) / sizeof(Vector4dBuffers[0])));
 			uint32 ReserveSize = Vector4dBuffers[Index].Num() + Vector4dBuffers[Index].GetSlack();
@@ -90,7 +90,7 @@ namespace GLTF
 
 		TArray<FVector2D>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 1];
 		TArray<FVector3f>                       VectorBuffers[VectorBufferCount];
-		TArray<FVector4>                        Vector4dBuffers[Vector4dBufferCount];
+		TArray<FVector4f>                       Vector4dBuffers[Vector4dBufferCount];
 		TArray<uint32>                          IntBuffer;
 		TArray<FVertexInstanceID>				CornerVertexInstanceIDs;
 		uint32                                  MaxReserveSize;
@@ -170,7 +170,7 @@ namespace GLTF
 		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = StaticMeshAttributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = StaticMeshAttributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
-		TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = StaticMeshAttributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = StaticMeshAttributes.GetVertexInstanceColors();
 		VertexInstanceUVs.SetNumChannels(NumUVs);
 
 		MaterialIndicesUsed.Empty(10);
@@ -249,7 +249,7 @@ namespace GLTF
 		const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceTangents,
 		const TVertexInstanceAttributesRef<float>&     VertexInstanceBinormalSigns,
 		const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
-		const TVertexInstanceAttributesRef<FVector4>&  VertexInstanceColors,
+		const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 		const TEdgeAttributesRef<bool>&                EdgeHardnesses,
 		FMeshDescription* MeshDescription)
 	{
@@ -294,10 +294,10 @@ namespace GLTF
 			Tangents.Init(FVector(0.0f, 0.0f, 1.0f), Primitive.VertexCount());
 		}
 
-		TArray<FVector4>& Colors = GetVector4dBuffer(ColorBufferIndex);
+		TArray<FVector4f>& Colors = GetVector4dBuffer(ColorBufferIndex);
 		if (Primitive.HasColors())
 		{
-			TArray<FVector4>& ReindexBuffer = GetVector4dBuffer(Reindex4dBufferIndex);
+			TArray<FVector4f>& ReindexBuffer = GetVector4dBuffer(Reindex4dBufferIndex);
 			Primitive.GetColors(Colors);
 			ReIndex(Colors, Indices, ReindexBuffer);
 			Swap(Colors, ReindexBuffer);
@@ -305,7 +305,7 @@ namespace GLTF
 		else if (bMeshHasColors)
 		{
 			// If other primitives in this mesh have colors, generate filler ones for this primitive, to avoid gaps.
-			Colors.Init(FVector4(1.0f), Primitive.VertexCount());
+			Colors.Init(FVector4f(1.0f), Primitive.VertexCount());
 		}
 
 		int32_t            AvailableBufferIndex = 0;
@@ -410,7 +410,7 @@ namespace GLTF
 			TArray<FVector2D>& Array = Vector2dBuffers[Index];
 			Array.Empty();
 		}
-		for (TArray<FVector4>& Array : Vector4dBuffers)
+		for (TArray<FVector4f>& Array : Vector4dBuffers)
 		{
 			Array.Empty();
 		}

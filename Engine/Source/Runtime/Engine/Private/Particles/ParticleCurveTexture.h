@@ -153,7 +153,7 @@ public:
 	 * @param TexelAllocation - The texel allocation in the texture.
 	 * @returns the scale and bias needed to sample the curve.
 	 */
-	FVector4 ComputeCurveScaleBias( FTexelAllocation TexelAllocation );
+	FVector4f ComputeCurveScaleBias( FTexelAllocation TexelAllocation );
 
 	/**
 	 * Retrieves the curve texture from which shaders can sample.

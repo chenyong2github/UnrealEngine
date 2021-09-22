@@ -82,7 +82,7 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackUsd::GetSampleInfo(float
 
 		CurrentSampleInfo = FGeometryCacheTrackSampleInfo(
 			Time,
-			MeshData.BoundingBox,
+			(FBox)MeshData.BoundingBox,
 			MeshData.Positions.Num(),
 			MeshData.Indices.Num()
 		);

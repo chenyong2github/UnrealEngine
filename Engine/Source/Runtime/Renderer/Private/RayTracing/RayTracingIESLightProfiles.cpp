@@ -44,7 +44,7 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(DefaultTexture, 0);
 
 		RHICmdList.Transition(FRHITransitionInfo(DefaultTexture, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		RHICmdList.ClearUAVFloat(UAV, FVector4(1.0f, 1.0f, 1.0f, 1.0f));
+		RHICmdList.ClearUAVFloat(UAV, FVector4f(1.0f, 1.0f, 1.0f, 1.0f));
 		RHICmdList.Transition(FRHITransitionInfo(DefaultTexture, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 	}
 

@@ -99,12 +99,12 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_EX(FVector4, ViewRectMin, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, DepthBufferSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER(FVector4, FadeRadiusMulAdd_FadeDistance_AttenFactor)
-		SHADER_PARAMETER(FVector4, WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness)
+		SHADER_PARAMETER_EX(FVector4f, ViewRectMin, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, DepthBufferSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER(FVector4f, FadeRadiusMulAdd_FadeDistance_AttenFactor)
+		SHADER_PARAMETER(FVector4f, WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthSampler)
@@ -139,7 +139,7 @@ public:
 		return PermutationVector;
 	}
 
-	static void SetupShaderParameters(FParameters& ShaderParameters, FRDGBuilder& GraphBuilder, const FViewInfo& View, const FIntRect& ViewRect, const FIntPoint& DepthBufferSize, const FIntPoint& BufferSize, const FVector4& FallOffStartEndScaleBias, const FVector4& WorldRadiusAdjSinCosDeltaAngleThickness, FRDGTextureRef SceneDepthTexture)
+	static void SetupShaderParameters(FParameters& ShaderParameters, FRDGBuilder& GraphBuilder, const FViewInfo& View, const FIntRect& ViewRect, const FIntPoint& DepthBufferSize, const FIntPoint& BufferSize, const FVector4f& FallOffStartEndScaleBias, const FVector4f& WorldRadiusAdjSinCosDeltaAngleThickness, FRDGTextureRef SceneDepthTexture)
 	{
 		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
@@ -147,11 +147,11 @@ public:
 		float InvFadeRadius = 1.0f / FadeRadius;
 
 		ShaderParameters.View = View.ViewUniformBuffer;
-		ShaderParameters.ViewRectMin = FVector4(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
-		ShaderParameters.DepthBufferSizeAndInvSize = FVector4(DepthBufferSize.X, DepthBufferSize.Y, 1.0f / DepthBufferSize.X, 1.0f / DepthBufferSize.Y);
-		ShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
-		ShaderParameters.ViewSizeAndInvSize = FVector4(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
-		ShaderParameters.FadeRadiusMulAdd_FadeDistance_AttenFactor = FVector4(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, Settings.AmbientOcclusionFadeDistance, 2.0f / (FallOffStartEndScaleBias.Y * FallOffStartEndScaleBias.Y));
+		ShaderParameters.ViewRectMin = FVector4f(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
+		ShaderParameters.DepthBufferSizeAndInvSize = FVector4f(DepthBufferSize.X, DepthBufferSize.Y, 1.0f / DepthBufferSize.X, 1.0f / DepthBufferSize.Y);
+		ShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+		ShaderParameters.ViewSizeAndInvSize = FVector4f(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
+		ShaderParameters.FadeRadiusMulAdd_FadeDistance_AttenFactor = FVector4f(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, Settings.AmbientOcclusionFadeDistance, 2.0f / (FallOffStartEndScaleBias.Y * FallOffStartEndScaleBias.Y));
 		ShaderParameters.WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness = WorldRadiusAdjSinCosDeltaAngleThickness;
 
 		ShaderParameters.SceneDepthTexture = SceneDepthTexture;
@@ -189,7 +189,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGTAOMobile_HorizonSearchIntegral::FParameters, Common)
-		SHADER_PARAMETER_EX(FVector4, Power_Intensity_ScreenPixelsToSearch, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, Power_Intensity_ScreenPixelsToSearch, EShaderPrecisionModifier::Half)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<half4>, OutTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -282,10 +282,10 @@ class FGTAOMobile_SpatialFilter : public FGlobalShader
 public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_EX(FVector4, ViewRectMin, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
-		SHADER_PARAMETER_EX(FVector4, Power_Intensity_ScreenPixelsToSearch, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, ViewRectMin, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, BufferSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, ViewSizeAndInvSize, EShaderPrecisionModifier::Half)
+		SHADER_PARAMETER_EX(FVector4f, Power_Intensity_ScreenPixelsToSearch, EShaderPrecisionModifier::Half)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AOInputTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, AOInputSampler)
 	END_SHADER_PARAMETER_STRUCT()
@@ -306,10 +306,10 @@ public:
 	{
 		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
-		ShaderParameters.ViewRectMin = FVector4(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
-		ShaderParameters.BufferSizeAndInvSize = FVector4(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
-		ShaderParameters.ViewSizeAndInvSize = FVector4(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
-		ShaderParameters.Power_Intensity_ScreenPixelsToSearch = FVector4(Settings.AmbientOcclusionPower * 0.5f, Settings.AmbientOcclusionIntensity, 0.0f, 0.0f);
+		ShaderParameters.ViewRectMin = FVector4f(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, 0.0f);
+		ShaderParameters.BufferSizeAndInvSize = FVector4f(BufferSize.X, BufferSize.Y, 1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+		ShaderParameters.ViewSizeAndInvSize = FVector4f(ViewRect.Width(), ViewRect.Height(), 1.0f / ViewRect.Width(), 1.0f / ViewRect.Height());
+		ShaderParameters.Power_Intensity_ScreenPixelsToSearch = FVector4f(Settings.AmbientOcclusionPower * 0.5f, Settings.AmbientOcclusionIntensity, 0.0f, 0.0f);
 
 		ShaderParameters.AOInputTexture = HorizonSearchIntegralTexture;
 		ShaderParameters.AOInputSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -476,7 +476,7 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 	float FallOffScale = 1.0f / (FallOffEndSq - FallOffStartSq);
 	float FallOffBias = -FallOffStartSq * FallOffScale;
 
-	FVector4 FallOffStartEndScaleBias(FallOffStart, FallOffEnd, FallOffScale, FallOffBias);
+	FVector4f FallOffStartEndScaleBias(FallOffStart, FallOffEnd, FallOffScale, FallOffBias);
 
 	float ThicknessBlend = GTAOThicknessBlendCVar ? GTAOThicknessBlendCVar->GetValueOnRenderThread() : 0.5f;
 	ThicknessBlend = FMath::Clamp(1.0f - (ThicknessBlend*ThicknessBlend), 0.0f, 0.99f);
@@ -497,14 +497,14 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 
 		const FIntRect& ViewRect = FIntRect::DivideAndRoundUp(View.ViewRect, DownsampleFactor);
 
-		FVector4 WorldRadiusAdjSinCosDeltaAngleThickness(FallOffStartEndScaleBias.Y * DepthBufferSize.Y * View.ViewMatrices.GetProjectionMatrix().M[0][0], SinDeltaAngle, CosDeltaAngle, ThicknessBlend);
+		FVector4f WorldRadiusAdjSinCosDeltaAngleThickness(FallOffStartEndScaleBias.Y * DepthBufferSize.Y * View.ViewMatrices.GetProjectionMatrix().M[0][0], SinDeltaAngle, CosDeltaAngle, ThicknessBlend);
 
 		if (GetMaxWorkGroupInvocations() >= 1024 && CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread() == 0)
 		{
 			FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::FParameters* HorizonSearchIntegralSpatialFilterParameters = GraphBuilder.AllocParameters<FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::FParameters>();
 			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralSpatialFilterParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture);
 			
-			HorizonSearchIntegralSpatialFilterParameters->Power_Intensity_ScreenPixelsToSearch = FVector4(Settings.AmbientOcclusionPower * 0.5f, Settings.AmbientOcclusionIntensity, 0.0f, 0.0f);
+			HorizonSearchIntegralSpatialFilterParameters->Power_Intensity_ScreenPixelsToSearch = FVector4f(Settings.AmbientOcclusionPower * 0.5f, Settings.AmbientOcclusionIntensity, 0.0f, 0.0f);
 
 			HorizonSearchIntegralSpatialFilterParameters->OutTexture = AmbientOcclusionTextureUAV;
 
@@ -670,7 +670,7 @@ struct FMobileSSAOCommonParameters
 static const uint32 kMobileSSAOParametersArraySize = 5; 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMobileSSAOShaderParameters, )
-	SHADER_PARAMETER_ARRAY(FVector4, ScreenSpaceAOParams, [kMobileSSAOParametersArraySize])
+	SHADER_PARAMETER_ARRAY(FVector4f, ScreenSpaceAOParams, [kMobileSSAOParametersArraySize])
 
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, AOViewport)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, AOSceneViewport)
@@ -792,11 +792,11 @@ static FMobileSSAOShaderParameters GetMobileSSAOShaderParameters(
 	FMobileSSAOShaderParameters Result{};
 
 	// /1000 to be able to define the value in that distance
-	Result.ScreenSpaceAOParams[0] = FVector4(Settings.AmbientOcclusionPower, Settings.AmbientOcclusionBias / 1000.0f, InvAmbientOcclusionDistance, Settings.AmbientOcclusionIntensity);
-	Result.ScreenSpaceAOParams[1] = FVector4(ViewportUVToRandomUV.X, ViewportUVToRandomUV.Y, AORadiusInShader, Ratio);
-	Result.ScreenSpaceAOParams[2] = FVector4(ScaleToFullRes, Settings.AmbientOcclusionMipThreshold / ScaleToFullRes, ScaleRadiusInWorldSpace, Settings.AmbientOcclusionMipBlend);
-	Result.ScreenSpaceAOParams[3] = FVector4(TemporalOffset.X, TemporalOffset.Y, StaticFraction, InvTanHalfFov);
-	Result.ScreenSpaceAOParams[4] = FVector4(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, HzbStepMipLevelFactorValue, Settings.AmbientOcclusionFadeDistance);
+	Result.ScreenSpaceAOParams[0] = FVector4f(Settings.AmbientOcclusionPower, Settings.AmbientOcclusionBias / 1000.0f, InvAmbientOcclusionDistance, Settings.AmbientOcclusionIntensity);
+	Result.ScreenSpaceAOParams[1] = FVector4f(ViewportUVToRandomUV.X, ViewportUVToRandomUV.Y, AORadiusInShader, Ratio);
+	Result.ScreenSpaceAOParams[2] = FVector4f(ScaleToFullRes, Settings.AmbientOcclusionMipThreshold / ScaleToFullRes, ScaleRadiusInWorldSpace, Settings.AmbientOcclusionMipBlend);
+	Result.ScreenSpaceAOParams[3] = FVector4f(TemporalOffset.X, TemporalOffset.Y, StaticFraction, InvTanHalfFov);
+	Result.ScreenSpaceAOParams[4] = FVector4f(InvFadeRadius, -(Settings.AmbientOcclusionFadeDistance - FadeRadius) * InvFadeRadius, HzbStepMipLevelFactorValue, Settings.AmbientOcclusionFadeDistance);
 
 	Result.AOViewport = GetScreenPassTextureViewportParameters(OutputViewport);
 	Result.AOSceneViewport = GetScreenPassTextureViewportParameters(SceneViewport);
@@ -833,7 +833,7 @@ static void AddMobileAmbientOcclusionPass(
 	{
 		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 		const FMatrix& ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
-		const FVector4 Far = ProjectionMatrix.TransformFVector4(FVector4(0, 0, Settings.AmbientOcclusionFadeDistance));
+		const FVector4f Far = ProjectionMatrix.TransformFVector4(FVector4f(0, 0, Settings.AmbientOcclusionFadeDistance));
 		DepthFar = FMath::Min(1.0f, Far.Z / Far.W);
 
 		static_assert(bool(ERHIZBuffer::IsInverted), "Inverted depth buffer is assumed when setting depth bounds test for AO.");

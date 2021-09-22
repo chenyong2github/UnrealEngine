@@ -104,6 +104,8 @@ private:
 template<typename TBufferStruct>
 class TUniformBufferRef : public FUniformBufferRHIRef
 {
+	static_assert(!TIsUECoreVariant<TBufferStruct, double>::Value, "UniformBufferRHIRef cannot be double core variants! Switch to float variant.");
+
 public:
 	/** Initializes the reference to null. */
 	TUniformBufferRef()
@@ -911,7 +913,7 @@ struct TShaderParameterTypeInfo<FVector3f>
 };
 
 template<>
-struct TShaderParameterTypeInfo<FVector4>
+struct TShaderParameterTypeInfo<FVector4f>
 {
 	static constexpr EUniformBufferBaseType BaseType = UBMT_FLOAT32;
 	static constexpr int32 NumRows = 1;
@@ -920,7 +922,7 @@ struct TShaderParameterTypeInfo<FVector4>
 	static constexpr int32 Alignment = 16;
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
-	using TAlignedType = TAlignedTypedef<FVector4, Alignment>::Type;
+	using TAlignedType = TAlignedTypedef<FVector4f, Alignment>::Type;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
@@ -1618,7 +1620,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
  *
  * Example:
  *	BEGIN_UNIFORM_BUFFER_STRUCT(FGlobalViewParameters,)
- *		SHADER_PARAMETER(FVector4, ViewSizeAndInvSize)
+ *		SHADER_PARAMETER(FVector4f, ViewSizeAndInvSize)
  *		// ...
  *	END_UNIFORM_BUFFER_STRUCT()
  *

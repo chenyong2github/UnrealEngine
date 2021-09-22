@@ -765,12 +765,12 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundingBoxOffsets, FIntVector4(0,1,2,3));
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldTransform, FMatrix44f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldInverse, FMatrix44f::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldRotation, FQuat::Identity);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldRotation, FQuat4f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumStrands, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, StrandSize, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneTransform, FMatrix44f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneInverse, FMatrix44f::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneRotation, FQuat::Identity);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoneRotation, FQuat4f::Identity);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ResetSimulation, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InterpolationMode, 0);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, RestUpdate, 0);

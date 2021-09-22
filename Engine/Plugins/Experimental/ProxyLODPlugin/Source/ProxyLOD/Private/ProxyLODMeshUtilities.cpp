@@ -1646,7 +1646,7 @@ void ProxyLOD::ColorPartitions(FMeshDescription& InOutRawMesh, const std::vector
 		FColor(153, 102, 0), FColor(249, 129, 162), FColor(29, 143, 177), FColor(118, 42, 145),
 		FColor(255, 121, 75), FColor(102, 204, 51), FColor(153, 153, 255), FColor(255, 255, 255) };
 
-	TArrayView<FVector4> VertexInstanceColors = FStaticMeshAttributes(InOutRawMesh).GetVertexInstanceColors().GetRawArray();
+	TArrayView<FVector4f> VertexInstanceColors = FStaticMeshAttributes(InOutRawMesh).GetVertexInstanceColors().GetRawArray();
 
 	//Remap the vertex instance
 	int32 TriangleIndex = 0;
@@ -1701,7 +1701,7 @@ void ProxyLOD::AddWedgeColors(FMeshDescription& RawMesh)
 		FColor(153, 102, 0), FColor(249, 129, 162), FColor(29, 143, 177), FColor(118, 42, 145),
 		FColor(255, 121, 75), FColor(102, 204, 51), FColor(153, 153, 255), FColor(255, 255, 255) };
 
-	TArrayView<FVector4> VertexInstanceColors = FStaticMeshAttributes(RawMesh).GetVertexInstanceColors().GetRawArray();
+	TArrayView<FVector4f> VertexInstanceColors = FStaticMeshAttributes(RawMesh).GetVertexInstanceColors().GetRawArray();
 
 	//Recolor the vertex instances
 	int32 TriangleIndex = 0;

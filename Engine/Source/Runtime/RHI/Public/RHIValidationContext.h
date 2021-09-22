@@ -96,7 +96,7 @@ public:
 		RHIContext->RHIEndTransitions(Transitions);
 	}
 
-	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values) override final
+	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values) override final
 	{
 		Tracker->Assert(UnorderedAccessViewRHI->ViewIdentity, ERHIAccess::UAVCompute);
 		RHIContext->RHIClearUAVFloat(UnorderedAccessViewRHI, Values);
@@ -289,7 +289,7 @@ public:
 		RHIContext->RHISetMultipleViewports(Count, Data);
 	}
 
-	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4& Values) final override
+	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values) final override
 	{
 		// @todo should we assert here? If the base RHI uses a compute shader via
 		// FRHICommandList_RecursiveHazardous then we might double-assert which breaks the tracking

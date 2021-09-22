@@ -40,7 +40,7 @@ namespace GLTF
 			Expression->GetColor() = FLinearColor(Color);
 		}
 
-		inline void SetExpresisonValue(const FVector4& Color, FMaterialExpressionColor* Expression)
+		inline void SetExpresisonValue(const FVector4f& Color, FMaterialExpressionColor* Expression)
 		{
 			Expression->GetColor() = FLinearColor(Color);
 		}
@@ -109,7 +109,7 @@ namespace GLTF
 		return CreateMap<FMaterialExpressionColor>(Map, CoordinateIndex, Color, MapName, ValueName, TextureMode, MaterialInput);
 	}
 
-	FMaterialExpression* FPBRMapFactory::CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector4& Color, const TCHAR* MapName,
+	FMaterialExpression* FPBRMapFactory::CreateColorMap(const GLTF::FTexture& Map, int CoordinateIndex, const FVector4f& Color, const TCHAR* MapName,
 	                                                    const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput)
 	{
 		return CreateMap<FMaterialExpressionColor>(Map, CoordinateIndex, Color, MapName, ValueName, TextureMode, MaterialInput);

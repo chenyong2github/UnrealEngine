@@ -20,7 +20,7 @@ void FCodecGeometryCachePreprocessor::AddMeshSample(const FGeometryCacheMeshData
 	Track->Codec->CodeFrame(Args);
 	Track->Samples.Add(FGeometryCacheTrackStreamableSampleInfo(
 		SampleTime,
-		MeshData.BoundingBox,
+		(FBox)MeshData.BoundingBox,
 		MeshData.Positions.Num(),
 		MeshData.Indices.Num()
 	));
@@ -332,7 +332,7 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 			NewMesh.MotionVectors.SetNumUninitialized(NewVerticesReordered.Num());
 		}
 
-		FBox Bounds(EForceInit::ForceInit);
+		FBox3f Bounds(EForceInit::ForceInit);
 		for (int32 i = 0; i < NewMesh.Positions.Num(); i++)
 		{
 			NewMesh.Positions[i] = OldMesh.Positions[NewVerticesReordered[i]];

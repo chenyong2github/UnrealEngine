@@ -391,7 +391,7 @@ public:
 	bool bPlaceCellsOnlyAlongCameraTracks;
 
 	/** World space size of visibility cells in the x and y dimensions. */
-	float CellSize;
+	FVector4::FReal CellSize;
 
 	/** Number of tasks that visibility cells are being split up into. */
 	int32 NumCellDistributionBuckets;

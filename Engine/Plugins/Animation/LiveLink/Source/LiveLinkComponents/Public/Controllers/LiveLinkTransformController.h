@@ -7,7 +7,7 @@
 #include "LiveLinkTransformController.generated.h"
 
 struct FLiveLinkTransformStaticData;
-DECLARE_LWC_TYPE(Transform, 3);
+UE_DECLARE_LWC_TYPE(Transform, 3);
 class USceneComponent;
 
 USTRUCT(BlueprintType)

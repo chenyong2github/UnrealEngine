@@ -617,7 +617,7 @@ void FStaticMeshOperations::ConvertToRawMesh(const FMeshDescription& SourceMeshD
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	TPolygonGroupAttributesConstRef<FName> PolygonGroupMaterialSlotName = Attributes.GetPolygonGroupMaterialSlotNames();
 
@@ -797,7 +797,7 @@ void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FM
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = DestinationMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = DestinationMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent);
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = DestinationMeshDescription.VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = DestinationMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = DestinationMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4f>(MeshAttribute::VertexInstance::Color);
 	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = DestinationMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = DestinationMeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
@@ -959,7 +959,7 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 	TVertexInstanceAttributesRef<FVector3f> TargetVertexInstanceNormals = TargetAttributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector3f> TargetVertexInstanceTangents = TargetAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> TargetVertexInstanceBinormalSigns = TargetAttributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector4> TargetVertexInstanceColors = TargetAttributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector4f> TargetVertexInstanceColors = TargetAttributes.GetVertexInstanceColors();
 	TVertexInstanceAttributesRef<FVector2D> TargetVertexInstanceUVs = TargetAttributes.GetVertexInstanceUVs();
 
 	TargetMesh.SuspendVertexInstanceIndexing();
@@ -1035,7 +1035,7 @@ void FStaticMeshOperations::AppendMeshDescriptions(const TArray<const FMeshDescr
 		TVertexInstanceAttributesConstRef<FVector3f> SourceVertexInstanceNormals = SourceAttributes.GetVertexInstanceNormals();
 		TVertexInstanceAttributesConstRef<FVector3f> SourceVertexInstanceTangents = SourceAttributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesConstRef<float> SourceVertexInstanceBinormalSigns = SourceAttributes.GetVertexInstanceBinormalSigns();
-		TVertexInstanceAttributesConstRef<FVector4> SourceVertexInstanceColors = SourceAttributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesConstRef<FVector4f> SourceVertexInstanceColors = SourceAttributes.GetVertexInstanceColors();
 		TVertexInstanceAttributesConstRef<FVector2D> SourceVertexInstanceUVs = SourceAttributes.GetVertexInstanceUVs();
 
 		//PolygonGroups
@@ -1945,7 +1945,7 @@ struct FUniqueUVMeshDescriptionView final : FLayoutUV::IMeshView
 		Normals = Attributes.GetVertexInstanceNormals();
 		TexCoords = Attributes.GetVertexInstanceUVs();
 
-		TVertexInstanceAttributesConstRef<FVector4> VertexColors = Attributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesConstRef<FVector4f> VertexColors = Attributes.GetVertexInstanceColors();
 
 		NumIndices = MeshDescription.VertexInstances().Num();
 
@@ -2379,7 +2379,7 @@ void FStaticMeshOperations::SwapPolygonPolygonGroup(FMeshDescription& MeshDescri
 
 bool FStaticMeshOperations::HasVertexColor(const FMeshDescription& MeshDescription)
 {
-	TVertexInstanceAttributesConstRef<FVector4> VertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
+	TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4f>(MeshAttribute::VertexInstance::Color);
 	bool bHasVertexColor = false;
 	FVector4 WhiteColor(FLinearColor::White);
 	for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
@@ -2534,13 +2534,13 @@ void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, co
 
 	for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 	{
-		FVector Tangent = VertexInstanceTangents[VertexInstanceID];
-		FVector Normal = VertexInstanceNormals[VertexInstanceID];
+		FVector3f Tangent = VertexInstanceTangents[VertexInstanceID];
+		FVector3f Normal = VertexInstanceNormals[VertexInstanceID];
 		float BinormalSign = VertexInstanceBinormalSigns[VertexInstanceID];
 
-		VertexInstanceTangents[VertexInstanceID] = AdjointT.TransformVector(Tangent) * MulBy;
+		VertexInstanceTangents[VertexInstanceID] = FVector3f(FVector(AdjointT.TransformVector(Tangent) * MulBy)); // LWC_TODO: precision loss
 		VertexInstanceBinormalSigns[VertexInstanceID] = BinormalSign * MulBy;
-		VertexInstanceNormals[VertexInstanceID] = AdjointT.TransformVector(Normal) * MulBy;
+		VertexInstanceNormals[VertexInstanceID] = FVector3f(FVector(AdjointT.TransformVector(Normal) * MulBy)); // LWC_TODO: precision loss
 	}
 
 	if (bIsMirrored)

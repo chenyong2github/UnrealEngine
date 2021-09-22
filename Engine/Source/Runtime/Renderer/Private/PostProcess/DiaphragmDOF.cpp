@@ -617,7 +617,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDOFCocModelShaderParameters, )
-	SHADER_PARAMETER(FVector4, CocModelParameters)
+	SHADER_PARAMETER(FVector4f, CocModelParameters)
 	SHADER_PARAMETER(FVector2D, DepthBlurParameters)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -775,7 +775,7 @@ class FDiaphragmDOFDownsampleCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER(FVector2D, MaxBufferUV)
 		SHADER_PARAMETER(float, OutputCocRadiusMultiplier)
 
-		SHADER_PARAMETER(FVector4, GatherInputSize)
+		SHADER_PARAMETER(FVector4f, GatherInputSize)
 		SHADER_PARAMETER_STRUCT(FDOFGatherInputTextures, GatherInput)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
@@ -865,10 +865,10 @@ class FDiaphragmDOFReduceCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 
-		SHADER_PARAMETER(FVector4, GatherInputSize)
+		SHADER_PARAMETER(FVector4f, GatherInputSize)
 		SHADER_PARAMETER_STRUCT(FDOFGatherInputSRVs, GatherInput)
 		
-		SHADER_PARAMETER(FVector4, QuarterResGatherInputSize)
+		SHADER_PARAMETER(FVector4f, QuarterResGatherInputSize)
 		SHADER_PARAMETER_STRUCT(FDOFGatherInputTextures, QuarterResGatherInput)
 
 		SHADER_PARAMETER_STRUCT_ARRAY(FDOFGatherInputUAVs, OutputMips, [kMaxMipLevelCount])
@@ -1076,7 +1076,7 @@ class FDiaphragmDOFGatherCS : public FDiaphragmDOFShader
 
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, ViewportSize)
+		SHADER_PARAMETER(FVector4f, ViewportSize)
 		SHADER_PARAMETER(FIntRect, ViewportRect)
 		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
 		SHADER_PARAMETER(FVector2D, DispatchThreadIdToInputBufferUV)
@@ -1090,7 +1090,7 @@ class FDiaphragmDOFGatherCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFTileDecisionParameters, TileDecisionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 
-		SHADER_PARAMETER(FVector4, GatherInputSize)
+		SHADER_PARAMETER(FVector4f, GatherInputSize)
 		SHADER_PARAMETER(FVector2D, GatherInputViewportSize)
 		SHADER_PARAMETER_STRUCT(FDOFGatherInputTextures, GatherInput)
 
@@ -1138,7 +1138,7 @@ class FDiaphragmDOFPostfilterCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFTileDecisionParameters, TileDecisionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 
-		SHADER_PARAMETER(FVector4, ConvolutionInputSize)
+		SHADER_PARAMETER(FVector4f, ConvolutionInputSize)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, ConvolutionInput)
 
 		SHADER_PARAMETER_STRUCT(FDOFTileClassificationTextures, TileClassification)
@@ -1148,13 +1148,13 @@ class FDiaphragmDOFPostfilterCS : public FDiaphragmDOFShader
 }; // class FDiaphragmDOFPostfilterCS
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDOFHybridScatterParameters, )
-	SHADER_PARAMETER(FVector4, ViewportSize)
+	SHADER_PARAMETER(FVector4f, ViewportSize)
 	SHADER_PARAMETER(float, CocRadiusToCircumscribedRadius)
 	SHADER_PARAMETER(float, ScatteringScaling)
 	
 	SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 	
-	SHADER_PARAMETER(FVector4, ScatterOcclusionSize)
+	SHADER_PARAMETER(FVector4f, ScatterOcclusionSize)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScatterOcclusion)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BokehLUT)
@@ -1255,10 +1255,10 @@ class FDiaphragmDOFRecombineCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCocModelShaderParameters, CocModel)
 
 		SHADER_PARAMETER(FIntRect, ViewportRect)
-		SHADER_PARAMETER(FVector4, ViewportSize)
+		SHADER_PARAMETER(FVector4f, ViewportSize)
 		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
 		SHADER_PARAMETER(FVector2D, DOFBufferUVMax)
-		SHADER_PARAMETER(FVector4, SeparateTranslucencyBilinearUVMinMax)
+		SHADER_PARAMETER(FVector4f, SeparateTranslucencyBilinearUVMinMax)
 		SHADER_PARAMETER(int32, SeparateTranslucencyUpscaling)
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BokehLUT)
@@ -1273,7 +1273,7 @@ class FDiaphragmDOFRecombineCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, FullResDepthTexture)
 
 		// Half res convolution textures.
-		SHADER_PARAMETER(FVector4, ConvolutionInputSize)
+		SHADER_PARAMETER(FVector4f, ConvolutionInputSize)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, ForegroundConvolution)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, ForegroundHoleFillingConvolution)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, SlightOutOfFocusConvolution)
@@ -1902,7 +1902,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				(PreprocessViewSize.Y - 0.5f) / float(SrcSize.Y));
 			PassParameters->OutputCocRadiusMultiplier = PreProcessingToProcessingCocRadiusFactor;
 
-			PassParameters->GatherInputSize = FVector4(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
+			PassParameters->GatherInputSize = FVector4f(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 			PassParameters->GatherInput = HalfResGatherInputTextures;
 
 			PassParameters->OutDownsampledGatherInput = CreateUAVs(GraphBuilder, QuarterResGatherInputTextures);
@@ -1956,10 +1956,10 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 			PassParameters->CommonParameters = CommonParameters;
 
-			PassParameters->GatherInputSize = FVector4(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
+			PassParameters->GatherInputSize = FVector4f(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 			PassParameters->GatherInput = CreateSRVs(GraphBuilder, HalfResGatherInputTextures);
 			
-			PassParameters->QuarterResGatherInputSize = FVector4(SrcSize.X / 2, SrcSize.Y / 2, 2.0f / SrcSize.X, 2.0f / SrcSize.Y);
+			PassParameters->QuarterResGatherInputSize = FVector4f(SrcSize.X / 2, SrcSize.Y / 2, 2.0f / SrcSize.X, 2.0f / SrcSize.Y);
 			PassParameters->QuarterResGatherInput = QuarterResGatherInputTextures;
 
 			for (int32 MipLevel = 0; MipLevel < ProcessingMipLevelCount; MipLevel++)
@@ -2017,7 +2017,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->CommonParameters = CommonParameters;
 
 			float InputMipLevelPow2 = 1 << InputMipLevel;
-			PassParameters->GatherInputSize = FVector4(SrcSize.X / InputMipLevelPow2, SrcSize.Y / InputMipLevelPow2, InputMipLevelPow2 / SrcSize.X, InputMipLevelPow2 / SrcSize.Y);
+			PassParameters->GatherInputSize = FVector4f(SrcSize.X / InputMipLevelPow2, SrcSize.Y / InputMipLevelPow2, InputMipLevelPow2 / SrcSize.X, InputMipLevelPow2 / SrcSize.Y);
 			PassParameters->GatherInput = CreateSRVs(GraphBuilder, ReducedGatherInputTextures, InputMipLevel);
 
 			for (int32 MipLevel = 0; MipLevel < ProcessingMipLevelCount; MipLevel++)
@@ -2271,7 +2271,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			}
 
 			FDiaphragmDOFGatherCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFGatherCS::FParameters>();
-			PassParameters->ViewportSize = FVector4(GatheringViewSize.X, GatheringViewSize.Y, 1.0f / GatheringViewSize.X, 1.0f / GatheringViewSize.Y);
+			PassParameters->ViewportSize = FVector4f(GatheringViewSize.X, GatheringViewSize.Y, 1.0f / GatheringViewSize.X, 1.0f / GatheringViewSize.Y);
 			PassParameters->ViewportRect = FIntRect(0, 0, GatheringViewSize.X, GatheringViewSize.Y);
 			PassParameters->TemporalJitterPixels = View.TemporalJitterPixels;
 			PassParameters->DispatchThreadIdToInputBufferUV = FVector2D(
@@ -2290,7 +2290,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->TileDecisionParameters.SlightOutOfFocusRadiusBoundary = float(kMaxSlightOutOfFocusCocRadius) / PreProcessingToProcessingCocRadiusFactor;
 			PassParameters->CommonParameters = CommonParameters;
 		
-			PassParameters->GatherInputSize = FVector4(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
+			PassParameters->GatherInputSize = FVector4f(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
 			PassParameters->GatherInputViewportSize = FVector2D(PreprocessViewSize.X, PreprocessViewSize.Y);
 			PassParameters->GatherInput = ReducedGatherInputTextures;
 		
@@ -2370,7 +2370,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->TileDecisionParameters.MinGatherRadius = MaxRecombineAbsCocRadius - 1;
 			PassParameters->CommonParameters = CommonParameters;
 
-			PassParameters->ConvolutionInputSize = FVector4(RefBufferSize.X, RefBufferSize.Y, 1.0f / RefBufferSize.X, 1.0f / RefBufferSize.Y);
+			PassParameters->ConvolutionInputSize = FVector4f(RefBufferSize.X, RefBufferSize.Y, 1.0f / RefBufferSize.X, 1.0f / RefBufferSize.Y);
 			PassParameters->ConvolutionInput = *ConvolutionTextures;
 
 			PassParameters->TileClassification = TileClassificationTextures;
@@ -2426,13 +2426,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			TShaderMapRef<FDiaphragmDOFHybridScatterPS> PixelShader(View.ShaderMap, PermutationVector);
 
 			FDOFHybridScatterParameters* PassParameters = GraphBuilder.AllocParameters<FDOFHybridScatterParameters>();
-			PassParameters->ViewportSize = FVector4(GatheringViewSize.X, GatheringViewSize.Y, 1.0f / GatheringViewSize.X, 1.0f / GatheringViewSize.Y);
+			PassParameters->ViewportSize = FVector4f(GatheringViewSize.X, GatheringViewSize.Y, 1.0f / GatheringViewSize.X, 1.0f / GatheringViewSize.Y);
 			PassParameters->CocRadiusToCircumscribedRadius = BokehModel.CocRadiusToCircumscribedRadius;
 			PassParameters->ScatteringScaling = float(GatheringViewSize.X) / float(PreprocessViewSize.X);
 			PassParameters->CommonParameters = CommonParameters;
 			if (bEnableScatterBokehSettings)
 				PassParameters->BokehLUT = ScatteringBokehLUT;
-			PassParameters->ScatterOcclusionSize = FVector4(RefBufferSize.X, RefBufferSize.Y, 1.0f / RefBufferSize.X, 1.0f / RefBufferSize.Y);
+			PassParameters->ScatterOcclusionSize = FVector4f(RefBufferSize.X, RefBufferSize.Y, 1.0f / RefBufferSize.X, 1.0f / RefBufferSize.Y);
 			PassParameters->ScatterOcclusion = ScatterOcclusionTexture;
 			PassParameters->IndirectDrawParameter = DrawIndirectParametersBuffer;
 			PassParameters->ScatterDrawList = GraphBuilder.CreateSRV(ScatterDrawList);
@@ -2628,7 +2628,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		SetCocModelParameters(&PassParameters->CocModel, CocModel, /* CocRadiusBasis = */ PassViewRect.Width() * 0.5f);
 
 		PassParameters->ViewportRect = PassViewRect;
-		PassParameters->ViewportSize = FVector4(PassViewRect.Width(), PassViewRect.Height(), 1.0f / PassViewRect.Width(), 1.0f / PassViewRect.Height());
+		PassParameters->ViewportSize = FVector4f(PassViewRect.Width(), PassViewRect.Height(), 1.0f / PassViewRect.Width(), 1.0f / PassViewRect.Height());
 		PassParameters->TemporalJitterPixels = View.TemporalJitterPixels;
 		PassParameters->DOFBufferUVMax = FVector2D(
 			(GatheringViewSize.X - 0.5f) / float(RefBufferSize.X),
@@ -2646,7 +2646,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		PassParameters->SceneSeparateTranslucency = SeparateTranslucency;
 		PassParameters->SceneSeparateTranslucencyModulateColor = SeparateTranslucencyModulateColor;
 		
-		PassParameters->ConvolutionInputSize = FVector4(RefBufferSize.X, RefBufferSize.Y, 1.0f / RefBufferSize.X, 1.0f / RefBufferSize.Y);
+		PassParameters->ConvolutionInputSize = FVector4f(RefBufferSize.X, RefBufferSize.Y, 1.0f / RefBufferSize.X, 1.0f / RefBufferSize.Y);
 		PassParameters->ForegroundConvolution = ForegroundConvolutionTextures;
 		PassParameters->ForegroundHoleFillingConvolution = ForegroundHoleFillingConvolutionTextures;
 		PassParameters->SlightOutOfFocusConvolution = SlightOutOfFocusConvolutionTextures;

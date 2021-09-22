@@ -19,7 +19,7 @@ struct FUIntPoint
 
 struct FHairCardsPositionFormat
 {
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
@@ -28,7 +28,7 @@ struct FHairCardsPositionFormat
 
 struct FHairCardsStrandsAttributeFormat
 {
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
@@ -38,7 +38,7 @@ struct FHairCardsStrandsAttributeFormat
 struct FHairCardsUVFormat
 {
 	// Store atlas UV and (approximated) root UV
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
@@ -85,7 +85,7 @@ struct FHairCardsDimensionFormat
 
 struct FHairCardsStrandsPositionFormat
 {
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
@@ -103,7 +103,7 @@ struct FHairCardsOffsetAndCount
 
 struct FHairCardsBoundsFormat
 {
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 	static const uint32 ComponentCount = 4;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
@@ -121,7 +121,7 @@ struct FHairCardsVoxelDensityFormat
 
 struct FHairCardsVoxelTangentFormat
 {
-	typedef FVector4 Type;
+	typedef FVector4f Type;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;

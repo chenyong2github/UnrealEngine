@@ -157,7 +157,7 @@ void SetupShadowDepthPassUniformBuffer(
 	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->TranslatedWorldToView;
 
 	// Disable the SlopeDepthBias because we couldn't reconstruct the depth offset if it is not 0.0f when scrolling the cached shadow map.
-	ShadowDepthPassParameters.ShadowParams = FVector4(ShadowInfo->GetShaderDepthBias(), bCSMCachingEnabled ? 0.0f : ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->bOnePassPointLightShadow ? 1 : ShadowInfo->InvMaxSubjectDepth);
+	ShadowDepthPassParameters.ShadowParams = FVector4f(ShadowInfo->GetShaderDepthBias(), bCSMCachingEnabled ? 0.0f : ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->bOnePassPointLightShadow ? 1 : ShadowInfo->InvMaxSubjectDepth);
 	ShadowDepthPassParameters.bClampToNearPlane = ShadowInfo->ShouldClampToNearPlane() ? 1.0f : 0.0f;
 
 	if (ShadowInfo->bOnePassPointLightShadow)
@@ -195,7 +195,7 @@ void SetupShadowDepthPassUniformBuffer(
 	ShadowDepthPassParameters.ProjectionMatrix = FTranslationMatrix(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * ShadowInfo->TranslatedWorldToClipOuterMatrix;
 	ShadowDepthPassParameters.ViewMatrix = ShadowInfo->TranslatedWorldToView;
 
-	ShadowDepthPassParameters.ShadowParams = FVector4(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->InvMaxSubjectDepth);
+	ShadowDepthPassParameters.ShadowParams = FVector4f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias(), ShadowInfo->InvMaxSubjectDepth);
 	ShadowDepthPassParameters.bClampToNearPlane = ShadowInfo->ShouldClampToNearPlane() ? 1.0f : 0.0f;
 }
 
@@ -895,7 +895,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ShadowDepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowDepthSampler)
-		SHADER_PARAMETER(FVector4, DepthOffsetScale)
+		SHADER_PARAMETER(FVector4f, DepthOffsetScale)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1055,7 +1055,7 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 			float MaxZ1MinusMinZ1 = MaxSubjectZ - MinSubjectZ;
 			float MaxZ0PlusZOffsetMinusMaxZ1 = CachedShadowMapData.MaxSubjectZ + CSMScrollingZOffset - MaxSubjectZ;
 			float C1 = 1 + GetShaderDepthBias();
-			PassParameters->DepthOffsetScale = FVector4((InvMaxSubjectDepth * MaxZ0PlusZOffsetMinusMaxZ1 - C1 * MaxZ0MinusMinZ0) / MaxZ1MinusMinZ1 + C1, MaxZ0MinusMinZ0 / MaxZ1MinusMinZ1, 0.0f, 0.0f);
+			PassParameters->DepthOffsetScale = FVector4f((InvMaxSubjectDepth * MaxZ0PlusZOffsetMinusMaxZ1 - C1 * MaxZ0MinusMinZ0) / MaxZ1MinusMinZ1 + C1, MaxZ0MinusMinZ0 / MaxZ1MinusMinZ1, 0.0f, 0.0f);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ScrollingCachedWholeSceneDirectionalShadowMap"),
@@ -1063,8 +1063,8 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 				ERDGPassFlags::Raster,
 				[this, ScreenVertexShader, PixelShader, GraphicsPSOInit, PassParameters, ShadowDepthExtent, StencilRef](FRHICommandList& RHICmdList) mutable
 			{
-				checkSlow(OverlappedUVOnCachedShadowMap != FVector4(-1.0f, -1.0f, -1.0f, -1.0f));
-				checkSlow(OverlappedUVOnCurrentShadowMap != FVector4(-1.0f, -1.0f, -1.0f, -1.0f));
+				checkSlow(OverlappedUVOnCachedShadowMap != FVector4f(-1.0f, -1.0f, -1.0f, -1.0f));
+				checkSlow(OverlappedUVOnCurrentShadowMap != FVector4f(-1.0f, -1.0f, -1.0f, -1.0f));
 
 				FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
 

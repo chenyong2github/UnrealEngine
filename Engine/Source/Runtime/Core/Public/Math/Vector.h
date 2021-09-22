@@ -165,7 +165,8 @@ public:
      *
      * @param V 4D Vector to copy from.
      */
-    FORCEINLINE TVector(const FVector4& V);
+    FORCEINLINE TVector(const UE::Math::TVector4<float>& V);
+	FORCEINLINE TVector(const UE::Math::TVector4<double>& V);
 
     /**
      * Constructs a vector from an FLinearColor.
@@ -402,7 +403,7 @@ public:
      * @param Scale Amount to scale this vector by.
      * @return Copy of the vector after scaling.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, float>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
 	FORCEINLINE TVector<T> operator*=(FArg Scale)
 	{
 		X *= Scale; Y *= Scale; Z *= Scale;
@@ -416,7 +417,7 @@ public:
      * @param V What to divide this vector by.
      * @return Copy of the vector after division.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, float>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
 	TVector<T> operator/=(FArg Scale)
 	{
 		const T RV = (T)1 / Scale;
@@ -1124,7 +1125,7 @@ public:
 		return true;
 	}
 
-	// Conversion to other type. TODO: explicit!
+	// Conversion from other type. TODO: explicit!
 	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
 	TVector(const TVector<FArg>& From) : TVector<T>((T)From.X, (T)From.Y, (T)From.Z) {}
 };
@@ -2391,7 +2392,7 @@ template<typename T> inline const TVector<T> TVector<T>::ZAxisVector(0, 0, 1);
  * @param V Vector to scale.
  * @return Result of multiplication.
  */
-template<typename T, typename T2, TEMPLATE_REQUIRES(std::is_fundamental<T2>::value)>
+template<typename T, typename T2, TEMPLATE_REQUIRES(std::is_arithmetic<T2>::value)>
 FORCEINLINE TVector<T> operator*(T2 Scale, const TVector<T>& V)
 {
 	return V.operator*(Scale);
@@ -2413,20 +2414,17 @@ FORCEINLINE uint32 GetTypeHash(const TVector<T>& Vector)
 } // namespace UE::Math
 } // namespace UE
 
-DECLARE_LWC_TYPE(Vector, 3);
+UE_DECLARE_LWC_TYPE(Vector, 3);
 
 template<> struct TCanBulkSerialize<FVector3f> { enum { Value = true }; };
 template<> struct TIsPODType<FVector3f> { enum { Value = true }; };
-template<> struct TIsUECoreType<FVector3f> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FVector3f> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector3f);
 
 template<> struct TCanBulkSerialize<FVector3d> { enum { Value = false }; };	// LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
 template<> struct TIsPODType<FVector3d> { enum { Value = true }; };
-template<> struct TIsUECoreType<FVector3d> { enum { Value = true }; };
+template<> struct TIsUECoreVariant<FVector3d> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector3d);
-
-// ispc doesn't export typedefs in generated headers, so we do it here to keep our code happy.
-DECLARE_LWC_TYPE_ISPC(Vector, 3);
  
 // Forward declare all explicit specializations (in UnrealMath.cpp)
 template<> CORE_API FRotator FVector3f::ToOrientationRotator() const;

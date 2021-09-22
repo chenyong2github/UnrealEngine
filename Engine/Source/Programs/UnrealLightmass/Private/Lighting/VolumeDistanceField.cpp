@@ -19,9 +19,9 @@ void FStaticLightingSystem::BeginCalculateVolumeDistanceField()
 
 	FBox UnclampedDistanceFieldVolumeBounds = DistanceFieldVolumeBounds;
 	FVector4 DoubleExtent = UnclampedDistanceFieldVolumeBounds.GetExtent() * 2;
-	DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
-	DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
-	DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
+	DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, (FVector4::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
+	DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, (FVector4::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
+	DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, (FVector4::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
 	// Round the max up to the next step boundary
 	UnclampedDistanceFieldVolumeBounds.Max = UnclampedDistanceFieldVolumeBounds.Min + DoubleExtent;
 
@@ -42,9 +42,9 @@ void FStaticLightingSystem::BeginCalculateVolumeDistanceField()
 		DistanceFieldVoxelSize = VolumeDistanceFieldSettings.VoxelSize * SingleDimensionScale;
 
 		DoubleExtent = DistanceFieldVolumeBounds.GetExtent() * 2;
-		DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
-		DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
-		DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
+		DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, (FVector4::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
+		DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, (FVector4::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
+		DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, (FVector4::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
 		// Round the max up to the next step boundary with the clamped voxel size
 		DistanceFieldVolumeBounds.Max = DistanceFieldVolumeBounds.Min + DoubleExtent;
 

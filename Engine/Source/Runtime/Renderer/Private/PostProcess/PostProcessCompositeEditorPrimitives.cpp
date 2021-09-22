@@ -101,7 +101,7 @@ public:
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
-		SHADER_PARAMETER_ARRAY(FVector4, SampleOffsetArray, [FEditorPrimitiveShader::kEditorMSAASampleCountMax])
+		SHADER_PARAMETER_ARRAY(FVector4f, SampleOffsetArray, [FEditorPrimitiveShader::kEditorMSAASampleCountMax])
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesColor)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)

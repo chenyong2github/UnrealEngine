@@ -70,7 +70,7 @@ int32 GetLightShaftDownsampleFactor()
 	return FMath::Clamp(GLightShaftDownsampleFactor, 1, 8);
 }
 
-FVector4 GetLightScreenPosition(const FViewInfo& View, const FLightSceneProxy& LightSceneProxy)
+FVector4f GetLightScreenPosition(const FViewInfo& View, const FLightSceneProxy& LightSceneProxy)
 {
 	return View.WorldToScreen(LightSceneProxy.GetLightPositionForLightShafts(View.ViewMatrices.GetViewOrigin()));
 }
@@ -79,7 +79,7 @@ FMobileLightShaftInfo GetMobileLightShaftInfo(const FViewInfo& View, const FLigh
 {
 	const FLightSceneProxy& LightSceneProxy = *LightSceneInfo.Proxy;
 	const FLinearColor BloomScale(LightSceneInfo.BloomScale, LightSceneInfo.BloomScale, LightSceneInfo.BloomScale, 1.0f);
-	const FVector4 LightScreenPosition = GetLightScreenPosition(View, LightSceneProxy);
+	const FVector4f LightScreenPosition = GetLightScreenPosition(View, LightSceneProxy);
 
 	FMobileLightShaftInfo LightShaft;
 	LightShaft.Center = FVector2D(LightScreenPosition.X / LightScreenPosition.W, LightScreenPosition.Y / LightScreenPosition.W);
@@ -131,10 +131,10 @@ enum class ELightShaftTechnique
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightShaftPixelShaderParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER(FVector4, UVMinMax)
-	SHADER_PARAMETER(FVector4, AspectRatioAndInvAspectRatio)
-	SHADER_PARAMETER(FVector4, LightShaftParameters)
-	SHADER_PARAMETER(FVector4, BloomTintAndThreshold)
+	SHADER_PARAMETER(FVector4f, UVMinMax)
+	SHADER_PARAMETER(FVector4f, AspectRatioAndInvAspectRatio)
+	SHADER_PARAMETER(FVector4f, LightShaftParameters)
+	SHADER_PARAMETER(FVector4f, BloomTintAndThreshold)
 	SHADER_PARAMETER(FVector2D, TextureSpaceBlurOrigin)
 	SHADER_PARAMETER(float, BloomMaxBrightness)
 END_SHADER_PARAMETER_STRUCT()
@@ -155,10 +155,10 @@ FLightShaftPixelShaderParameters GetLightShaftParameters(
 
 	FLightShaftPixelShaderParameters Parameters;
 	Parameters.View = View.ViewUniformBuffer;
-	Parameters.AspectRatioAndInvAspectRatio = FVector4(LightShaftAspectRatio, LightShaftAspectRatioInverse);
+	Parameters.AspectRatioAndInvAspectRatio = FVector4f(LightShaftAspectRatio, LightShaftAspectRatioInverse);
 
 	{
-		const FVector4 LightScreenPosition = GetLightScreenPosition(View, LightSceneProxy);
+		const FVector4f LightScreenPosition = GetLightScreenPosition(View, LightSceneProxy);
 		const float InvW = 1.0f / LightScreenPosition.W;
 		const float Y = (GProjectionSignY > 0.0f) ? LightScreenPosition.Y : 1.0f - LightScreenPosition.Y;
 		const FVector2D ScreenSpaceBlurOrigin(
@@ -168,17 +168,17 @@ FLightShaftPixelShaderParameters GetLightShaftParameters(
 		Parameters.TextureSpaceBlurOrigin = ScreenSpaceBlurOrigin * SceneViewportParameters.ExtentInverse * LightShaftAspectRatioInverse;
 	}
 
-	Parameters.UVMinMax = FVector4(LightShaftParameters.UVViewportBilinearMin, LightShaftParameters.UVViewportBilinearMax);
+	Parameters.UVMinMax = FVector4f(LightShaftParameters.UVViewportBilinearMin, LightShaftParameters.UVViewportBilinearMax);
 
 	const FLinearColor BloomTint = LightSceneInfo.BloomTint;
-	Parameters.BloomTintAndThreshold = FVector4(BloomTint.R, BloomTint.G, BloomTint.B, LightSceneInfo.BloomThreshold);
+	Parameters.BloomTintAndThreshold = FVector4f(BloomTint.R, BloomTint.G, BloomTint.B, LightSceneInfo.BloomThreshold);
 	Parameters.BloomMaxBrightness = LightSceneInfo.BloomMaxBrightness;
 
 	float OcclusionMaskDarkness;
 	float OcclusionDepthRange;
 	LightSceneProxy.GetLightShaftOcclusionParameters(OcclusionMaskDarkness, OcclusionDepthRange);
 
-	Parameters.LightShaftParameters = FVector4(1.0f / OcclusionDepthRange, LightSceneInfo.BloomScale, 1, OcclusionMaskDarkness);
+	Parameters.LightShaftParameters = FVector4f(1.0f / OcclusionDepthRange, LightSceneInfo.BloomScale, 1, OcclusionMaskDarkness);
 
 	return Parameters;
 }
@@ -233,7 +233,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightShaftPixelShaderParameters, LightShafts)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceTexture)
-		SHADER_PARAMETER(FVector4, RadialBlurParameters)
+		SHADER_PARAMETER(FVector4f, RadialBlurParameters)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -376,7 +376,7 @@ FScreenPassTexture AddRadialBlurPass(
 		auto* PassParameters = GraphBuilder.AllocParameters<FBlurLightShaftsPixelShader::FParameters>();
 		PassParameters->LightShafts = LightShaftParameters;
 		PassParameters->SourceTexture = LightShafts.Texture;
-		PassParameters->RadialBlurParameters = FVector4(GLightShaftBlurNumSamples, GLightShaftFirstPassDistance, PassIndex);
+		PassParameters->RadialBlurParameters = FVector4f(GLightShaftBlurNumSamples, GLightShaftFirstPassDistance, PassIndex);
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
 		TShaderMapRef<FBlurLightShaftsPixelShader> PixelShader(View.ShaderMap);

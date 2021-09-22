@@ -156,7 +156,7 @@ public:
 		FNDIIntRenderTarget2DInstanceData_RenderThread* InstanceData = DataInterfaceProxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		check(InstanceData);
 
-		const FVector4 TextureSizeAndInvSize(InstanceData->Size.X, InstanceData->Size.Y, 1.0f / float(InstanceData->Size.X), 1.0f / float(InstanceData->Size.Y));
+		const FVector4f TextureSizeAndInvSize(InstanceData->Size.X, InstanceData->Size.Y, 1.0f / float(InstanceData->Size.X), 1.0f / float(InstanceData->Size.Y));
 		SetShaderValue(RHICmdList, ComputeShaderRHI, TextureSizeAndInvSizeParam, TextureSizeAndInvSize);
 	
 		if (TextureUAVParam.IsUAVBound())

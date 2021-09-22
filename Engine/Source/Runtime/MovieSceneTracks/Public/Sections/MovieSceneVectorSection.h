@@ -86,7 +86,7 @@ struct FMovieSceneVector4KeyStruct
 
 	/** They key's vector value. */
 	UPROPERTY(EditAnywhere, Category = Key)
-	FVector4 Vector = FVector4(FVector::ZeroVector);
+	FVector4f Vector = FVector4f(FVector3f::ZeroVector);
 
 	//~ FMovieSceneFloatVectorKeyStructBase interface
 	virtual float* GetPropertyChannelByIndex(int32 Index) override { return &Vector[Index]; }

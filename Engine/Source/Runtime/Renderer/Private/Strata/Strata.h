@@ -114,8 +114,8 @@ class FStrataTilePassVS : public FGlobalShader
 		// It would be possible to use the ViewUniformBuffer instead of copying the data here, 
 		// but we would have to make sure the view UB is added to all passes using this parameter structure.
 		// We should not add it here to now have duplicated input UB.
-		SHADER_PARAMETER(FVector4, OutputViewSizeAndInvSize)
-		SHADER_PARAMETER(FVector4, OutputBufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, OutputViewSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, OutputBufferSizeAndInvSize)
 		SHADER_PARAMETER(FMatrix44f, ViewScreenToTranslatedWorld)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBuffer)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)

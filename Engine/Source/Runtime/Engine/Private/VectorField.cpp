@@ -424,7 +424,7 @@ void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 		// because of vector implementations in VectorLoadHalf we want to make sure that our buffer
 		// is padded out to support reading the last element
 		constexpr int32 DestComponentCount = 3;
-		CPUData.Reset(Align(SampleCount * DestComponentCount * sizeof(FFloat16), sizeof(FVector4)));
+		CPUData.Reset(Align(SampleCount * DestComponentCount * sizeof(FFloat16), sizeof(FVector4f)));
 
 		for (size_t SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 		{
@@ -530,7 +530,7 @@ FORCEINLINE static FVector SampleInternalData(TConstArrayView<FFloat16> Samples,
 		HalfData += SampleOffset;
 	}
 
-	FVector4 Result;
+	FVector4f Result;
 	FPlatformMath::VectorLoadHalf(reinterpret_cast<float*>(&Result), reinterpret_cast<const uint16*>(HalfData));
 	return FVector(Result);
 }
@@ -931,8 +931,8 @@ void UVectorFieldComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 ------------------------------------------------------------------------------*/
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FCompositeAnimatedVectorFieldUniformParameters, )
-	SHADER_PARAMETER( FVector4, FrameA )
-	SHADER_PARAMETER( FVector4, FrameB )
+	SHADER_PARAMETER( FVector4f, FrameA )
+	SHADER_PARAMETER( FVector4f, FrameB )
 	SHADER_PARAMETER( FVector3f, VoxelSize )
 	SHADER_PARAMETER( float, FrameLerp )
 	SHADER_PARAMETER( float, NoiseScale )
@@ -1154,12 +1154,12 @@ public:
 			const FVector2D AtlasScale(
 				1.0f / AnimatedVectorField->SubImagesX,
 				1.0f / AnimatedVectorField->SubImagesY);
-			Parameters.FrameA = FVector4(
+			Parameters.FrameA = FVector4f(
 				AtlasScale.X,
 				AtlasScale.Y,
 				FrameA_X * AtlasScale.X,
 				FrameA_Y * AtlasScale.Y );
-			Parameters.FrameB = FVector4(
+			Parameters.FrameB = FVector4f(
 				AtlasScale.X,
 				AtlasScale.Y,
 				FrameB_X * AtlasScale.X,

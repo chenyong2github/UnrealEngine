@@ -49,10 +49,10 @@ public:
 		AllocationTexelSize(0),
 		TargetPosition(FVector(0, 0, 0)),
 		TargetDirectionalShadowing(1),
-		TargetSkyBentNormal(FVector4(0, 0, 1, 1)),
+		TargetSkyBentNormal(FVector4f(0, 0, 1, 1)),
 		SingleSamplePosition(FVector(0, 0, 0)),
 		CurrentDirectionalShadowing(1),
-		CurrentSkyBentNormal(FVector4(0, 0, 1, 1)),
+		CurrentSkyBentNormal(FVector4f(0, 0, 1, 1)),
 		bHasEverUpdatedSingleSample(false),
 		bPointSample(true),
 		bIsDirty(false),
@@ -60,13 +60,13 @@ public:
 	{
 		for (int32 VectorIndex = 0; VectorIndex < 3; VectorIndex++) // RGB
 		{
-			TargetSamplePacked0[VectorIndex] = FVector4(0, 0, 0, 0);
-			SingleSamplePacked0[VectorIndex] = FVector4(0, 0, 0, 0);
-			TargetSamplePacked1[VectorIndex] = FVector4(0, 0, 0, 0);
-			SingleSamplePacked1[VectorIndex] = FVector4(0, 0, 0, 0);
+			TargetSamplePacked0[VectorIndex] = FVector4f(0, 0, 0, 0);
+			SingleSamplePacked0[VectorIndex] = FVector4f(0, 0, 0, 0);
+			TargetSamplePacked1[VectorIndex] = FVector4f(0, 0, 0, 0);
+			SingleSamplePacked1[VectorIndex] = FVector4f(0, 0, 0, 0);
 		}
-		TargetSamplePacked2 = FVector4(0, 0, 0, 0);
-		SingleSamplePacked2 = FVector4(0, 0, 0, 0);
+		TargetSamplePacked2 = FVector4f(0, 0, 0, 0);
+		SingleSamplePacked2 = FVector4f(0, 0, 0, 0);
 	}
 
 	/** Add factor for calculating UVs from position. */
@@ -91,29 +91,29 @@ public:
 	FVector TargetPosition;
 
 	/** SH sample at the new single lighting sample position. Used for interpolation over time. */
-	FVector4 TargetSamplePacked0[3];	// { { R.C0, R.C1, R.C2, R.C3 }, { G.C0, G.C1, G.C2, G.C3 }, { B.C0, B.C1, B.C2, B.C3 } }
-	FVector4 TargetSamplePacked1[3];	// { { R.C4, R.C5, R.C6, R.C7 }, { G.C4, G.C5, G.C6, G.C7 }, { B.C4, B.C5, B.C6, B.C7 } }
-	FVector4 TargetSamplePacked2;		// { R.C8, R.C8, R.C8, R.C8 }
+	FVector4f TargetSamplePacked0[3];	// { { R.C0, R.C1, R.C2, R.C3 }, { G.C0, G.C1, G.C2, G.C3 }, { B.C0, B.C1, B.C2, B.C3 } }
+	FVector4f TargetSamplePacked1[3];	// { { R.C4, R.C5, R.C6, R.C7 }, { G.C4, G.C5, G.C6, G.C7 }, { B.C4, B.C5, B.C6, B.C7 } }
+	FVector4f TargetSamplePacked2;		// { R.C8, R.C8, R.C8, R.C8 }
 
 	/** Target shadowing of the stationary directional light. */
 	float TargetDirectionalShadowing;
 
 	/** Target directional occlusion of the sky. */
-	FVector4 TargetSkyBentNormal;
+	FVector4f TargetSkyBentNormal;
 
 	/** Current position of the single lighting sample.  Used for interpolation over time. */
 	FVector SingleSamplePosition;
 
 	/** Current SH sample used when lighting the entire object with one sample. */
-	FVector4 SingleSamplePacked0[3];	// { { R.C0, R.C1, R.C2, R.C3 }, { G.C0, G.C1, G.C2, G.C3 }, { B.C0, B.C1, B.C2, B.C3 } }
-	FVector4 SingleSamplePacked1[3];	// { { R.C4, R.C5, R.C6, R.C7 }, { G.C4, G.C5, G.C6, G.C7 }, { B.C4, B.C5, B.C6, B.C7 } }
-	FVector4 SingleSamplePacked2;		// { R.C8, R.C8, R.C8, R.C8 }
+	FVector4f SingleSamplePacked0[3];	// { { R.C0, R.C1, R.C2, R.C3 }, { G.C0, G.C1, G.C2, G.C3 }, { B.C0, B.C1, B.C2, B.C3 } }
+	FVector4f SingleSamplePacked1[3];	// { { R.C4, R.C5, R.C6, R.C7 }, { G.C4, G.C5, G.C6, G.C7 }, { B.C4, B.C5, B.C6, B.C7 } }
+	FVector4f SingleSamplePacked2;		// { R.C8, R.C8, R.C8, R.C8 }
 
 	/** Current shadowing of the stationary directional light. */
 	float CurrentDirectionalShadowing;
 
 	/** Current directional occlusion of the sky. */
-	FVector4 CurrentSkyBentNormal;
+	FVector4f CurrentSkyBentNormal;
 
 	/** Whether SingleSamplePacked has ever been populated with valid results, used to initialize. */
 	bool bHasEverUpdatedSingleSample;

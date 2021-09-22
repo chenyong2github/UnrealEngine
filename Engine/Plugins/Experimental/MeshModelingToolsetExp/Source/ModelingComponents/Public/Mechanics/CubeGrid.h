@@ -8,14 +8,14 @@
 #include "FrameTypes.h"
 #include "InteractionMechanic.h"
 
-class FRay;
+UE_DECLARE_LWC_TYPE(Ray, 3);
 
 namespace UE {
 namespace Geometry {
 
 /**
  * Class representing an adjustable and resizable power-of-two grid in which faces can be
- * selected.
+ * selected. 
  */
 class MODELINGCOMPONENTS_API FCubeGrid
 {

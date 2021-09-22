@@ -112,10 +112,10 @@ void AGeoReferencingSystem::Initialize()
 	Impl->InitPROJLibrary();
 
 	Impl->WorldFrameToUEFrame = FMatrix4d(
-		FVector4d(1.0, 0.0, 0.0, 0.0),
-		FVector4d(0.0, -1.0, 0.0, 0.0),
-		FVector4d(0.0, 0.0, 1.0, 0.0),
-		FVector4d(0.0, 0.0, 0.0, 1.0), true);
+		UE::Geometry::GVector4(1.0, 0.0, 0.0, 0.0),
+		UE::Geometry::GVector4(0.0, -1.0, 0.0, 0.0),
+		UE::Geometry::GVector4(0.0, 0.0, 1.0, 0.0),
+		UE::Geometry::GVector4(0.0, 0.0, 0.0, 1.0), true);
 	Impl->UEFrameToWorldFrame = Impl->WorldFrameToUEFrame.Inverse();
 
 	ApplySettings();
@@ -836,6 +836,8 @@ PJ* AGeoReferencingSystem::FGeoReferencingSystemInternals::GetPROJProjection(FSt
 
 FMatrix4d AGeoReferencingSystem::FGeoReferencingSystemInternals::GetWorldFrameToECEFFrame(const FEllipsoid& Ellipsoid, const FCartesianCoordinates& ECEFLocation)
 {
+	using UE::Geometry::GVector4;
+
 	// See ECEF standard : https://commons.wikimedia.org/wiki/File:ECEF_ENU_Longitude_Latitude_right-hand-rule.svg
 	if (FMath::Abs(ECEFLocation.X) < FMathd::Epsilon &&
 		FMath::Abs(ECEFLocation.Y) < FMathd::Epsilon)
@@ -845,10 +847,10 @@ FMatrix4d AGeoReferencingSystem::FGeoReferencingSystemInternals::GetWorldFrameTo
 		{
 			// At origin - Should not happen, but consider it's the same as north pole
 			return FMatrix4d(
-				FVector4d(0.0, 1.0, 0.0, 0.0),    // East = Y
-				FVector4d(-1.0, 0.0, 0.0, 0.0), // North = -X
-				FVector4d(0.0, 0.0, 1.0, 0.0),    // Up = Z
-				FVector4d(ECEFLocation.X, ECEFLocation.Y, ECEFLocation.Z, 1.0), // Location
+				GVector4(0.0, 1.0, 0.0, 0.0),    // East = Y
+				GVector4(-1.0, 0.0, 0.0, 0.0), // North = -X
+				GVector4(0.0, 0.0, 1.0, 0.0),    // Up = Z
+				GVector4(ECEFLocation.X, ECEFLocation.Y, ECEFLocation.Z, 1.0), // Location
 				false); // Expressed in columns
 		}
 		else
@@ -856,10 +858,10 @@ FMatrix4d AGeoReferencingSystem::FGeoReferencingSystemInternals::GetWorldFrameTo
 			// At South or North pole - Axis are set to be continuous with other points
 			int Sign = FMathd::SignNonZero(ECEFLocation.Z);
 			return FMatrix4d(
-				FVector4d(0.0, 1.0, 0.0, 0.0),    // East = Y
-				FVector4d(-1.0 * Sign, 0.0, 0.0, 0.0), // North = -X
-				FVector4d(0.0, 0.0, 1.0 * Sign, 0.0),    // Up = Z
-				FVector4d(ECEFLocation.X, ECEFLocation.Y, ECEFLocation.Z, 1.0), // Location
+				GVector4(0.0, 1.0, 0.0, 0.0),    // East = Y
+				GVector4(-1.0 * Sign, 0.0, 0.0, 0.0), // North = -X
+				GVector4(0.0, 0.0, 1.0 * Sign, 0.0),    // Up = Z
+				GVector4(ECEFLocation.X, ECEFLocation.Y, ECEFLocation.Z, 1.0), // Location
 				false); // Expressed in columns
 		}
 	}
@@ -870,10 +872,10 @@ FMatrix4d AGeoReferencingSystem::FGeoReferencingSystemInternals::GetWorldFrameTo
 		FVector3d North = Up.Cross(East);
 
 		return FMatrix4d(
-			FVector4d(East.X, East.Y, East.Z, 0.0),        // East
-			FVector4d(North.X, North.Y, North.Z, 0.0),    // North
-			FVector4d(Up.X, Up.Y, Up.Z, 0.0),            // Up
-			FVector4d(ECEFLocation.X, ECEFLocation.Y, ECEFLocation.Z, 1.0), // Location
+			GVector4(East.X, East.Y, East.Z, 0.0),        // East
+			GVector4(North.X, North.Y, North.Z, 0.0),    // North
+			GVector4(Up.X, Up.Y, Up.Z, 0.0),            // Up
+			GVector4(ECEFLocation.X, ECEFLocation.Y, ECEFLocation.Z, 1.0), // Location
 			false); // Expressed in columns
 	}
 }

@@ -794,7 +794,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(Denoiser::FCommonShaderParameters, PublicCommonParameters)
 	SHADER_PARAMETER(FIntPoint, ViewportMin)
 	SHADER_PARAMETER(FIntPoint, ViewportMax)
-	SHADER_PARAMETER(FVector4, ThreadIdToBufferUV)
+	SHADER_PARAMETER(FVector4f, ThreadIdToBufferUV)
 	SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
 	SHADER_PARAMETER(FMatrix44f, ScreenToView)
 	SHADER_PARAMETER(FVector2D, BufferUVBilinearCorrection)
@@ -820,8 +820,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 /** Shader parameter structure to have all information to spatial filtering. */
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDConvolutionMetaData, )
-	SHADER_PARAMETER_ARRAY(FVector4, LightPositionAndRadius, [IScreenSpaceDenoiser::kMaxBatchSize])
-	SHADER_PARAMETER_ARRAY(FVector4, LightDirectionAndLength, [IScreenSpaceDenoiser::kMaxBatchSize])
+	SHADER_PARAMETER_ARRAY(FVector4f, LightPositionAndRadius, [IScreenSpaceDenoiser::kMaxBatchSize])
+	SHADER_PARAMETER_ARRAY(FVector4f, LightDirectionAndLength, [IScreenSpaceDenoiser::kMaxBatchSize])
 	SHADER_PARAMETER_ARRAY(float, HitDistanceToWorldBluringRadius, [IScreenSpaceDenoiser::kMaxBatchSize])
 	SHADER_PARAMETER_ARRAY(uint32, LightType, [IScreenSpaceDenoiser::kMaxBatchSize])
 END_SHADER_PARAMETER_STRUCT()
@@ -1115,7 +1115,7 @@ class FSSDSpatialAccumulationCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_ARRAY(FVector4, InputBufferUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
+		SHADER_PARAMETER_ARRAY(FVector4f, InputBufferUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
 
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 		SHADER_PARAMETER(uint32, PreviousCumulativeMaxSampleCount)
@@ -1170,11 +1170,11 @@ class FSSDTemporalAccumulationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_ARRAY(int32, bCameraCut, [IScreenSpaceDenoiser::kMaxBatchSize])
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
-		SHADER_PARAMETER(FVector4, ScreenPosToHistoryBufferUV)
-		SHADER_PARAMETER(FVector4, HistoryBufferSizeAndInvSize)
-		SHADER_PARAMETER(FVector4, HistoryBufferUVMinMax)
-		SHADER_PARAMETER_ARRAY(FVector4, HistoryBufferScissorUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
-		SHADER_PARAMETER(FVector4, PrevSceneBufferUVToScreenPosition)
+		SHADER_PARAMETER(FVector4f, ScreenPosToHistoryBufferUV)
+		SHADER_PARAMETER(FVector4f, HistoryBufferSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, HistoryBufferUVMinMax)
+		SHADER_PARAMETER_ARRAY(FVector4f, HistoryBufferScissorUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
+		SHADER_PARAMETER(FVector4f, PrevSceneBufferUVToScreenPosition)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDConvolutionMetaData, ConvolutionMetaData)
@@ -1292,7 +1292,7 @@ void Denoiser::SetupCommonShaderParameters(
 		DenoiserViewport = FIntRect::DivideAndRoundUp(DenoiserViewport, 2);
 	}
 
-	OutPublicCommonParameters->DenoiserBufferSizeAndInvSize = FVector4(
+	OutPublicCommonParameters->DenoiserBufferSizeAndInvSize = FVector4f(
 		float(DenoiserBufferExtent.X),
 		float(DenoiserBufferExtent.Y),
 		1.0f / float(DenoiserBufferExtent.X),
@@ -1303,7 +1303,7 @@ void Denoiser::SetupCommonShaderParameters(
 	OutPublicCommonParameters->SceneBufferUVToScreenPosition.Z = float(View.ViewRect.Min.X) / float(View.ViewRect.Width()) * 2.0f - 1.0f;
 	OutPublicCommonParameters->SceneBufferUVToScreenPosition.W = -float(View.ViewRect.Min.Y) / float(View.ViewRect.Height()) * 2.0f + 1.0f;
 
-	OutPublicCommonParameters->DenoiserBufferBilinearUVMinMax = FVector4(
+	OutPublicCommonParameters->DenoiserBufferBilinearUVMinMax = FVector4f(
 		float(DenoiserViewport.Min.X + 0.5f) / float(DenoiserBufferExtent.X),
 		float(DenoiserViewport.Min.Y + 0.5f) / float(DenoiserBufferExtent.Y),
 		float(DenoiserViewport.Max.X - 0.5f) / float(DenoiserBufferExtent.X),
@@ -1584,9 +1584,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 			FLightShaderParameters Parameters;
 			LightSceneProxy->GetLightShaderParameters(Parameters);
 
-			ConvolutionMetaData.LightPositionAndRadius[BatchedSignalId] = FVector4(
+			ConvolutionMetaData.LightPositionAndRadius[BatchedSignalId] = FVector4f(
 				Parameters.Position, Parameters.SourceRadius);
-			ConvolutionMetaData.LightDirectionAndLength[BatchedSignalId] = FVector4(
+			ConvolutionMetaData.LightDirectionAndLength[BatchedSignalId] = FVector4f(
 				Parameters.Direction, Parameters.SourceLength);
 			ConvolutionMetaData.HitDistanceToWorldBluringRadius[BatchedSignalId] =
 				FMath::Tan(0.5 * FMath::DegreesToRadians(LightSceneProxy->GetLightSourceAngle()) * LightSceneProxy->GetShadowSourceAngleFactor());
@@ -1688,7 +1688,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 		{
 			FIntRect SignalScissor = Settings.SignalScissor[BatchedSignalId];
-			PassParameters->InputBufferUVMinMax[BatchedSignalId] = FVector4(
+			PassParameters->InputBufferUVMinMax[BatchedSignalId] = FVector4f(
 				float(SignalScissor.Min.X + 0.5f) / float(BufferExtent.X),
 				float(SignalScissor.Min.Y + 0.5f) / float(BufferExtent.Y),
 				float(SignalScissor.Max.X - 0.5f) / float(BufferExtent.X),
@@ -1889,9 +1889,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 		FIntPoint PrevFrameBufferExtent;
 		if (bGlobalCameraCut)
 		{
-			PassParameters->ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-			PassParameters->HistoryBufferUVMinMax = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-			PassParameters->HistoryBufferSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+			PassParameters->ScreenPosToHistoryBufferUV = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
+			PassParameters->HistoryBufferUVMinMax = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+			PassParameters->HistoryBufferSizeAndInvSize = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 			PrevFrameBufferExtent = FIntPoint(1, 1);
 		}
 		else
@@ -1911,19 +1911,19 @@ static void DenoiseSignalAtConstantPixelDensity(
 			float InvBufferSizeX = 1.f / float(PrevFrameBufferExtent.X);
 			float InvBufferSizeY = 1.f / float(PrevFrameBufferExtent.Y);
 
-			PassParameters->ScreenPosToHistoryBufferUV = FVector4(
+			PassParameters->ScreenPosToHistoryBufferUV = FVector4f(
 				ViewportExtent.X * 0.5f * InvBufferSizeX,
 				-ViewportExtent.Y * 0.5f * InvBufferSizeY,
 				(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSizeX,
 				(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSizeY);
 
-			PassParameters->HistoryBufferUVMinMax = FVector4(
+			PassParameters->HistoryBufferUVMinMax = FVector4f(
 				(ViewportOffset.X + 0.5f) * InvBufferSizeX,
 				(ViewportOffset.Y + 0.5f) * InvBufferSizeY,
 				(ViewportOffset.X + ViewportExtent.X - 0.5f) * InvBufferSizeX,
 				(ViewportOffset.Y + ViewportExtent.Y - 0.5f) * InvBufferSizeY);
 
-			PassParameters->HistoryBufferSizeAndInvSize = FVector4(PrevFrameBufferExtent.X, PrevFrameBufferExtent.Y, InvBufferSizeX, InvBufferSizeY);
+			PassParameters->HistoryBufferSizeAndInvSize = FVector4f(PrevFrameBufferExtent.X, PrevFrameBufferExtent.Y, InvBufferSizeX, InvBufferSizeY);
 
 			PassParameters->PrevSceneBufferUVToScreenPosition.X = float(PrevFrameBufferExtent.X) / float(ViewportExtent.X) * 2.0f;
 			PassParameters->PrevSceneBufferUVToScreenPosition.Y = -float(PrevFrameBufferExtent.Y) / float(ViewportExtent.Y) * 2.0f;
@@ -1933,9 +1933,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		if (bGlobalCameraCut)
 		{
-			PassParameters->ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-			PassParameters->HistoryBufferUVMinMax = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-			PassParameters->HistoryBufferSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
+			PassParameters->ScreenPosToHistoryBufferUV = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
+			PassParameters->HistoryBufferUVMinMax = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+			PassParameters->HistoryBufferSizeAndInvSize = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 			PrevFrameBufferExtent = FIntPoint(1, 1);
 		}
 		else
@@ -1955,19 +1955,19 @@ static void DenoiseSignalAtConstantPixelDensity(
 			float InvBufferSizeX = 1.f / float(PrevFrameBufferExtent.X);
 			float InvBufferSizeY = 1.f / float(PrevFrameBufferExtent.Y);
 
-			PassParameters->ScreenPosToHistoryBufferUV = FVector4(
+			PassParameters->ScreenPosToHistoryBufferUV = FVector4f(
 				ViewportExtent.X * 0.5f * InvBufferSizeX,
 				-ViewportExtent.Y * 0.5f * InvBufferSizeY,
 				(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSizeX,
 				(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSizeY);
 
-			PassParameters->HistoryBufferUVMinMax = FVector4(
+			PassParameters->HistoryBufferUVMinMax = FVector4f(
 				(ViewportOffset.X + 0.5f) * InvBufferSizeX,
 				(ViewportOffset.Y + 0.5f) * InvBufferSizeY,
 				(ViewportOffset.X + ViewportExtent.X - 0.5f) * InvBufferSizeX,
 				(ViewportOffset.Y + ViewportExtent.Y - 0.5f) * InvBufferSizeY);
 
-			PassParameters->HistoryBufferSizeAndInvSize = FVector4(PrevFrameBufferExtent.X, PrevFrameBufferExtent.Y, InvBufferSizeX, InvBufferSizeY);
+			PassParameters->HistoryBufferSizeAndInvSize = FVector4f(PrevFrameBufferExtent.X, PrevFrameBufferExtent.Y, InvBufferSizeX, InvBufferSizeY);
 
 			PassParameters->PrevSceneBufferUVToScreenPosition.X = float(PrevFrameBufferExtent.X) / float(ViewportExtent.X) * 2.0f;
 			PassParameters->PrevSceneBufferUVToScreenPosition.Y = -float(PrevFrameBufferExtent.Y) / float(ViewportExtent.Y) * 2.0f;
@@ -1996,7 +1996,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 					GraphBuilder, PrevFrameHistory->RT[BufferId], GSystemTextures.BlackDummy);
 			}
 
-			PassParameters->HistoryBufferScissorUVMinMax[BatchedSignalId] = FVector4(
+			PassParameters->HistoryBufferScissorUVMinMax[BatchedSignalId] = FVector4f(
 				float(PrevFrameHistory->Scissor.Min.X + 0.5f) / float(PrevFrameBufferExtent.X),
 				float(PrevFrameHistory->Scissor.Min.Y + 0.5f) / float(PrevFrameBufferExtent.Y),
 				float(PrevFrameHistory->Scissor.Max.X - 0.5f) / float(PrevFrameBufferExtent.X),
@@ -2479,7 +2479,7 @@ public:
 			ComposePassParameters->CommonParameters.SceneTextures = SceneTextures;
 			ComposePassParameters->CommonParameters.ViewportMin = View.ViewRect.Min;
 			ComposePassParameters->CommonParameters.ViewportMax = View.ViewRect.Max;
-			ComposePassParameters->CommonParameters.PublicCommonParameters.DenoiserBufferBilinearUVMinMax = FVector4(
+			ComposePassParameters->CommonParameters.PublicCommonParameters.DenoiserBufferBilinearUVMinMax = FVector4f(
 				float(View.ViewRect.Min.X + 0.5f) / float(BufferExtent.X),
 				float(View.ViewRect.Min.Y + 0.5f) / float(BufferExtent.Y),
 				float(View.ViewRect.Max.X - 0.5f) / float(BufferExtent.X),

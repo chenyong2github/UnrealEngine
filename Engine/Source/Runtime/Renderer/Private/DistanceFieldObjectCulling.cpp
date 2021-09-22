@@ -47,7 +47,7 @@ public:
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(uint32, NumConvexHullPlanes)
-		SHADER_PARAMETER_ARRAY(FVector4, ViewFrustumConvexHull, [6])
+		SHADER_PARAMETER_ARRAY(FVector4f, ViewFrustumConvexHull, [6])
 		SHADER_PARAMETER(uint32, ObjectBoundingGeometryIndexCount)
 		SHADER_PARAMETER(float, AOObjectMaxDistance)
 		SHADER_PARAMETER(float, AOMaxViewDistance)
@@ -84,7 +84,7 @@ void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 
 		for (int32 i = 0; i < View.ViewFrustum.Planes.Num(); i++)
 		{
-			PassParameters->ViewFrustumConvexHull[i] = FVector4(View.ViewFrustum.Planes[i], View.ViewFrustum.Planes[i].W);
+			PassParameters->ViewFrustumConvexHull[i] = FVector4f(View.ViewFrustum.Planes[i], View.ViewFrustum.Planes[i].W);
 		}
 
 		PassParameters->ObjectBoundingGeometryIndexCount = StencilingGeometry::GLowPolyStencilSphereIndexBuffer.GetIndexCount();
@@ -110,8 +110,8 @@ class FBuildTileConesCS : public FGlobalShader
 public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeAxisAndCos)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeDepthRanges)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4f>, RWTileConeAxisAndCos)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4f>, RWTileConeDepthRanges)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistanceFieldNormalTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldNormalSampler)

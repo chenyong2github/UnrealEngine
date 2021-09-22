@@ -790,7 +790,7 @@ void FDistanceFieldSceneData::GenerateStreamingRequests(
 	}
 }
 
-void EncodeAssetData(const FDistanceFieldAssetState& AssetState, const int32 ReversedMipIndex, FVector4* OutAssetData)
+void EncodeAssetData(const FDistanceFieldAssetState& AssetState, const int32 ReversedMipIndex, FVector4f* OutAssetData)
 {
 	const FDistanceFieldAssetMipState& MipState = AssetState.ReversedMips[ReversedMipIndex];
 	const int32 MipIndex = AssetState.BuiltData->Mips.Num() - ReversedMipIndex - 1;
@@ -812,19 +812,19 @@ void EncodeAssetData(const FDistanceFieldAssetState& AssetState, const int32 Rev
 		0
 	};
 
-	// Bypass NaN checks in FVector4 ctors
-	FVector4 FloatVector0;
+	// Bypass NaN checks in FVector4f ctors
+	FVector4f FloatVector0;
 	FloatVector0.X = *(const float*)&IntVector0[0];
 	FloatVector0.Y = *(const float*)&IntVector0[1];
 	FloatVector0.Z = *(const float*)&IntVector0[2];
 	FloatVector0.W = *(const float*)&IntVector0[3];
 
-	FVector4 VolumeToIndirectionScale = FVector4(MipBuiltData.VolumeToVirtualUVScale, DistanceFieldToVolumeScaleBias.X);
+	FVector4f VolumeToIndirectionScale = FVector4f(MipBuiltData.VolumeToVirtualUVScale, DistanceFieldToVolumeScaleBias.X);
 	VolumeToIndirectionScale.X *= MipBuiltData.IndirectionDimensions.X;
 	VolumeToIndirectionScale.Y *= MipBuiltData.IndirectionDimensions.Y;
 	VolumeToIndirectionScale.Z *= MipBuiltData.IndirectionDimensions.Z;
 
-	FVector4 VolumeToIndirectionAdd = FVector4(MipBuiltData.VolumeToVirtualUVAdd, DistanceFieldToVolumeScaleBias.Y);
+	FVector4f VolumeToIndirectionAdd = FVector4f(MipBuiltData.VolumeToVirtualUVAdd, DistanceFieldToVolumeScaleBias.Y);
 	VolumeToIndirectionAdd.X *= MipBuiltData.IndirectionDimensions.X;
 	VolumeToIndirectionAdd.Y *= MipBuiltData.IndirectionDimensions.Y;
 	VolumeToIndirectionAdd.Z *= MipBuiltData.IndirectionDimensions.Z;
@@ -848,7 +848,7 @@ void FDistanceFieldSceneData::UploadAssetData(
 	for (FDistanceFieldAssetMipId AssetMipUpload : AssetDataUploads)
 	{
 		const int32 ReversedMipIndex = AssetMipUpload.ReversedMipIndex;
-		FVector4* UploadAssetData = (FVector4*)AssetDataUploadBuffer.Add_GetRef(AssetMipUpload.AssetId.AsInteger() * DistanceField::NumMips + ReversedMipIndex);
+		FVector4f* UploadAssetData = (FVector4f*)AssetDataUploadBuffer.Add_GetRef(AssetMipUpload.AssetId.AsInteger() * DistanceField::NumMips + ReversedMipIndex);
 
 		if (AssetStateArray.IsValidId(AssetMipUpload.AssetId))
 		{
@@ -858,9 +858,9 @@ void FDistanceFieldSceneData::UploadAssetData(
 		else
 		{
 			// Clear invalid entries to zero
-			UploadAssetData[0] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-			UploadAssetData[1] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
-			UploadAssetData[2] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+			UploadAssetData[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+			UploadAssetData[1] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
+			UploadAssetData[2] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		}
 	}
 
@@ -959,7 +959,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 	const uint32 NumAssets = AssetStateArray.GetMaxIndex();
 	const int32 AssetDataStrideFloat4s = DistanceField::NumMips * AssetDataMipStrideFloat4s;
 
-	const uint32 AssetDataSizeBytes = FMath::RoundUpToPowerOfTwo(NumAssets) * AssetDataStrideFloat4s * sizeof(FVector4);
+	const uint32 AssetDataSizeBytes = FMath::RoundUpToPowerOfTwo(NumAssets) * AssetDataStrideFloat4s * sizeof(FVector4f);
 	ResizeResourceIfNeeded(GraphBuilder.RHICmdList, AssetDataBuffer, AssetDataSizeBytes, TEXT("DistanceFields.DFAssetData"));
 	const uint32 IndirectionTableSizeBytes = FMath::Max<uint32>(FMath::RoundUpToPowerOfTwo(IndirectionTableAllocator.GetMaxSize()) * sizeof(uint32), 16);
 	ResizeResourceIfNeeded(GraphBuilder.RHICmdList, IndirectionTable, IndirectionTableSizeBytes, TEXT("DistanceFields.DFIndirectionTable"));

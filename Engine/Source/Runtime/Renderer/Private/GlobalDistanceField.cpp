@@ -366,13 +366,13 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 			if (ClipmapIndex < Clipmaps.Num())
 			{
 				const FGlobalDistanceFieldClipmap& Clipmap = Clipmaps[ClipmapIndex];
-				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4(Clipmap.Bounds.GetCenter(), Clipmap.Bounds.GetExtent().X);
+				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4f(Clipmap.Bounds.GetCenter(), Clipmap.Bounds.GetExtent().X);
 
 				// GlobalUV = (WorldPosition - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f;
 				// WorldToUVMul = 1.0f / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2)
 				// WorldToUVAdd = (GlobalVolumeScollOffset[ClipmapIndex].xyz - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f
 				const FVector WorldToUVAdd = (Clipmap.ScrollOffset - Clipmap.Bounds.GetCenter()) / (Clipmap.Bounds.GetExtent().X * 2) + FVector(.5f);
-				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2));
+				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2));
 
 				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector(1.0f) / (2.0f * Clipmap.Bounds.GetExtent());
 				ParameterData.MipWorldToUVBias[ClipmapIndex] = (-Clipmap.Bounds.Min) / (2.0f * Clipmap.Bounds.GetExtent());
@@ -384,8 +384,8 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 			}
 			else
 			{
-				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4(0);
-				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4(0);
+				ParameterData.CenterAndExtent[ClipmapIndex] = FVector4f(0);
+				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f(0);
 				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector(0);
 				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector(0);
 				ParameterData.PageTableScrollOffset[ClipmapIndex] = FVector(0);
@@ -1023,10 +1023,10 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 	// Initialize global distance field members to defaults, because View.GlobalDistanceFieldInfo is not valid yet
 	for (int32 Index = 0; Index < GMaxGlobalDistanceFieldClipmaps; Index++)
 	{
-		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = FVector4(0);
-		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = FVector4(0);
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = FVector4(0);
-		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = FVector4(0);
+		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = FVector4f(0);
+		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = FVector4f(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = FVector4f(0);
+		ViewUniformShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = FVector4f(0);
 	}
 	ViewUniformShaderParameters.GlobalDistanceFieldMipFactor = 1.0f;
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTransition = 0.0f;
@@ -1262,7 +1262,7 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, PageCoordToVoxelCenterBias)
 		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterScale)
 		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterBias)
-		SHADER_PARAMETER(FVector4, ClipmapVolumeWorldToUVAddAndMul)
+		SHADER_PARAMETER(FVector4f, ClipmapVolumeWorldToUVAddAndMul)
 		SHADER_PARAMETER(FVector3f, ComposeTileWorldExtent)
 		SHADER_PARAMETER(FVector3f, ClipmapMinBounds)
 		SHADER_PARAMETER(uint32, PageTableClipmapOffsetZ)
@@ -1351,7 +1351,7 @@ class FAllocatePagesCS : public FGlobalShader
 		SHADER_PARAMETER(float, ClipmapInfluenceRadius)
 		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterScale)
 		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterBias)
-		SHADER_PARAMETER(FVector4, ClipmapVolumeWorldToUVAddAndMul)
+		SHADER_PARAMETER(FVector4f, ClipmapVolumeWorldToUVAddAndMul)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CullGridObjectHeader)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CullGridObjectArray)
 		SHADER_PARAMETER(FIntVector, CullGridResolution)
@@ -1677,9 +1677,9 @@ void UpdateGlobalDistanceFieldVolume(
 					const float ClipmapVoxelRadius = ClipmapVoxelExtent.Size();
 					const float ClipmapInfluenceRadius = (GGlobalDistanceFieldInfluenceRangeInVoxels * ClipmapSize.X) / ClipmapResolution;
 
-					FVector4 ClipmapVolumeWorldToUVAddAndMul;
+					FVector4f ClipmapVolumeWorldToUVAddAndMul;
 					const FVector WorldToUVAdd = (Clipmap.ScrollOffset - Clipmap.Bounds.GetCenter()) / (Clipmap.Bounds.GetExtent().X * 2.0f) + FVector(0.5f);
-					ClipmapVolumeWorldToUVAddAndMul = FVector4(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2.0f));
+					ClipmapVolumeWorldToUVAddAndMul = FVector4f(WorldToUVAdd, 1.0f / (Clipmap.Bounds.GetExtent().X * 2.0f));
 
 					int32 MaxSDFMeshObjects = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
 					FRDGBufferRef ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("ObjectIndices"));
@@ -1690,16 +1690,16 @@ void UpdateGlobalDistanceFieldVolume(
 					uint32 NumUpdateBounds = 0;
 					{
 						const uint32 BufferStrideInFloat4 = 2;
-						const uint32 BufferStride = BufferStrideInFloat4 * sizeof(FVector4);
+						const uint32 BufferStride = BufferStrideInFloat4 * sizeof(FVector4f);
 
-						FRDGUploadData<FVector4> UpdateBoundsData(GraphBuilder, BufferStrideInFloat4 * Clipmap.UpdateBounds.Num());
+						FRDGUploadData<FVector4f> UpdateBoundsData(GraphBuilder, BufferStrideInFloat4 * Clipmap.UpdateBounds.Num());
 
 						for (int32 UpdateBoundsIndex = 0; UpdateBoundsIndex < Clipmap.UpdateBounds.Num(); ++UpdateBoundsIndex)
 						{
 							const FClipmapUpdateBounds& UpdateBounds = Clipmap.UpdateBounds[UpdateBoundsIndex];
 
-							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4(UpdateBounds.Center, UpdateBounds.bExpandByInfluenceRadius ? 1.0f : 0.0f);
-							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4(UpdateBounds.Extent, 0.0f);
+							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 0] = FVector4f(UpdateBounds.Center, UpdateBounds.bExpandByInfluenceRadius ? 1.0f : 0.0f);
+							UpdateBoundsData[NumUpdateBounds * BufferStrideInFloat4 + 1] = FVector4f(UpdateBounds.Extent, 0.0f);
 							++NumUpdateBounds;
 						}
 
@@ -1707,7 +1707,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 						UpdateBoundsBuffer =
 							CreateUploadBuffer(GraphBuilder, TEXT("UpdateBoundsBuffer"),
-								sizeof(FVector4), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2)),
+								sizeof(FVector4f), FMath::RoundUpToPowerOfTwo(FMath::Max(UpdateBoundsData.Num(), 2)),
 								UpdateBoundsData);
 					}
 

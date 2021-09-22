@@ -24,7 +24,7 @@ namespace ShaderPrint
 {
 	// ShaderPrint uniform buffer layout
 	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, )
-		SHADER_PARAMETER(FVector4, FontSize)
+		SHADER_PARAMETER(FVector4f, FontSize)
 		SHADER_PARAMETER(int32, MaxValueCount)
 		SHADER_PARAMETER(int32, MaxSymbolCount)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()

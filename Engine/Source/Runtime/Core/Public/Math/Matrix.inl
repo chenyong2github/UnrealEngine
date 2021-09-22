@@ -177,12 +177,11 @@ inline bool TMatrix<T>::operator!=(const TMatrix<T>& Other) const
 // Homogeneous transform.
 
 template<typename T>
-FORCEINLINE FVector4 TMatrix<T>::TransformFVector4(const FVector4& P) const
+FORCEINLINE TVector4<T> TMatrix<T>::TransformFVector4(const TVector4<T>& P) const
 {
-	//TMatrix<float> AsFloat = (TMatrix<float>)*this;	// LWC_TODO: Perf pessimization. Precision loss. Forcing float matrix transform until double vectorization support is available and FVector4 supports doubles.
-	FVector4 Result;
-	VectorRegister4Float VecP = VectorLoadAligned(&P);
-	VectorRegister4Float VecR = VectorTransformVector(VecP, this);
+	TVector4<T> Result;
+	TVectorRegisterType<T> VecP = VectorLoadAligned(&P);
+	TVectorRegisterType<T> VecR = VectorTransformVector(VecP, this);
 	VectorStoreAligned(VecR, &Result);
 	return Result;
 }
@@ -192,10 +191,9 @@ FORCEINLINE FVector4 TMatrix<T>::TransformFVector4(const FVector4& P) const
 
 /** Transform a location - will take into account translation part of the TMatrix<T>. */
 template<typename T>
-FORCEINLINE FVector4 TMatrix<T>::TransformPosition(const TVector<T>& V) const
+FORCEINLINE TVector4<T> TMatrix<T>::TransformPosition(const TVector<T>& V) const
 {
-	using FVec4Real = decltype(FVector4::X);
-	return TransformFVector4(FVector4((FVec4Real)V.X, (FVec4Real)V.Y, (FVec4Real)V.Z, 1.0f));
+	return TransformFVector4(TVector4<T>(V.X, V.Y, V.Z, 1.0f));
 }
 
 /** Inverts the matrix and then transforms V - correctly handles scaling in this matrix. */
@@ -213,10 +211,9 @@ FORCEINLINE TVector<T> TMatrix<T>::InverseTransformPosition(const TVector<T>& V)
  *	If you want to transform a surface normal (or plane) and correctly account for non-uniform scaling you should use TransformByUsingAdjointT.
  */
 template<typename T>
-FORCEINLINE FVector4 TMatrix<T>::TransformVector(const TVector<T>& V) const
+FORCEINLINE TVector4<T> TMatrix<T>::TransformVector(const TVector<T>& V) const
 {
-	using FVec4Real = decltype(FVector4::X);
-	return TransformFVector4(FVector4((FVec4Real)V.X, (FVec4Real)V.Y, (FVec4Real)V.Z, 0.0f));
+	return TransformFVector4(TVector4<T>(V.X, V.Y, V.Z, 0.0f));
 }
 
 /** Faster version of InverseTransformVector that assumes no scaling. WARNING: Will NOT work correctly if there is scaling in the matrix. */

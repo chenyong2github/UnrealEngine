@@ -26,18 +26,21 @@ struct FPackedNormal
 	FPackedNormal() { Vector.Packed = 0; }
 	FPackedNormal(const FVector3f& InVector) { *this = InVector; }
 	FPackedNormal(const FVector3d& InVector) { *this = InVector; }
-	FPackedNormal(const FVector4& InVector) { *this = InVector; }
+	FPackedNormal(const FVector4f& InVector) { *this = InVector; }
+	FPackedNormal(const FVector4d& InVector) { *this = InVector; }
 
 	// Conversion operators.
 
 	void operator=(const FVector3f& InVector);
 	void operator=(const FVector3d& InVector);
-	void operator=(const FVector4& InVector);
+	void operator=(const FVector4f& InVector);
+	void operator=(const FVector4d& InVector);
 	VectorRegister4Float GetVectorRegister() const;
 
 	FVector ToFVector() const;
 	FVector3f ToFVector3f() const;
 	FVector4 ToFVector4() const;
+	FVector4f ToFVector4f() const;
 
 	// Set functions.
 	void Set(const FVector& InVector) { *this = InVector; }
@@ -89,16 +92,22 @@ public:
 		return AsFloat;
 	}
 
-	operator FVector4() const
+	operator FVector4f() const
 	{
 		// Rescale [0..255] range to [-1..1]
 		VectorRegister4Float VectorToUnpack = VectorLoadByte4(this);
 		VectorToUnpack = VectorMultiplyAdd(VectorToUnpack, VectorSetFloat1(1.0f / 127.5f), VectorSetFloat1(-1.0f));
 
-		FVector4 UnpackedVector;
+		FVector4f UnpackedVector;
 		VectorStore(VectorToUnpack, &UnpackedVector);
 
 		return UnpackedVector;
+	}
+
+	operator FVector4d() const
+	{
+		FVector4f AsFloat = *this;
+		return AsFloat;
 	}
 
 	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FDeprecatedSerializedPackedNormal& N);
@@ -122,7 +131,16 @@ FORCEINLINE void FPackedNormal::operator=(const FVector3d& InVector)
 	Vector.W = MAX_int8;
 }
 
-FORCEINLINE void FPackedNormal::operator=(const FVector4& InVector)
+FORCEINLINE void FPackedNormal::operator=(const FVector4f& InVector)
+{
+	const float Scale = MAX_int8;
+	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int8, MAX_int8);
+	Vector.Y = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int8, MAX_int8);
+	Vector.Z = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int8, MAX_int8);
+	Vector.W = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.W * Scale), MIN_int8, MAX_int8);
+}
+
+FORCEINLINE void FPackedNormal::operator=(const FVector4d& InVector)
 {
 	const float Scale = MAX_int8;
 	Vector.X = (int8)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int8, MAX_int8);
@@ -158,9 +176,15 @@ FORCEINLINE FVector3f FPackedNormal::ToFVector3f() const
 
 FORCEINLINE FVector4 FPackedNormal::ToFVector4() const
 {
+	// LWC_TODO: Support FVector4d
+	return FVector4(ToFVector4f());
+}
+
+FORCEINLINE FVector4f FPackedNormal::ToFVector4f() const
+{
 	VectorRegister4Float VectorToUnpack = GetVectorRegister();
-	// Write to FVector4 and return it.
-	FVector4 UnpackedVector;
+	// Write to FVector4f and return it.
+	FVector4f UnpackedVector;
 	VectorStore(VectorToUnpack, &UnpackedVector);
 	return UnpackedVector;
 }
@@ -205,20 +229,20 @@ struct FPackedRGB10A2N
 	FPackedRGB10A2N() { Vector.Packed = 0; }
 	FPackedRGB10A2N(const FVector3f& InVector) { *this = InVector; }
 	FPackedRGB10A2N(const FVector3d& InVector) { *this = InVector; }
-	FPackedRGB10A2N(const FVector4& InVector) { *this = InVector; }
+	FPackedRGB10A2N(const FVector4f& InVector) { *this = InVector; }
 
 	// Conversion operators.
 
 	void operator=(const FVector3f& InVector);
 	void operator=(const FVector3d& InVector);
-	void operator=(const FVector4& InVector);
+	void operator=(const FVector4f& InVector);
 
 	VectorRegister4Float GetVectorRegister() const;
 
 	// Set functions.
 	void Set(const FVector3f& InVector) { *this = InVector; }
 	void Set(const FVector3d& InVector) { *this = InVector; }
-	void Set(const FVector4& InVector) { *this = InVector; }
+	void Set(const FVector4f& InVector) { *this = InVector; }
 
 	// Equality operator.
 
@@ -253,7 +277,7 @@ FORCEINLINE void FPackedRGB10A2N::operator=(const FVector3d& InVector)
 	Vector.W = 3;
 }
 
-FORCEINLINE void FPackedRGB10A2N::operator=(const FVector4& InVector)
+FORCEINLINE void FPackedRGB10A2N::operator=(const FVector4f& InVector)
 {
 	Vector.X = FMath::Clamp(FMath::TruncToInt(InVector.X * 511.5f + 511.5f), 0, 1023);
 	Vector.Y = FMath::Clamp(FMath::TruncToInt(InVector.Y * 511.5f + 511.5f), 0, 1023);
@@ -296,25 +320,27 @@ struct FPackedRGBA16N
 	FPackedRGBA16N() { X = 0; Y = 0; Z = 0; W = 0; }
 	FPackedRGBA16N(const FVector3d& InVector) { *this = InVector; }
 	FPackedRGBA16N(const FVector3f& InVector) { *this = InVector; }
-	FPackedRGBA16N(const FVector4& InVector) { *this = InVector; }
+	FPackedRGBA16N(const FVector4f& InVector) { *this = InVector; }
 	//FPackedRGBA16N(uint16 InX, uint16 InY, uint16 InZ, uint16 InW) { X = InX; Y = InY; Z = InZ; W = InW; }
 
 	// Conversion operators.
 
 	void operator=(const FVector3d& InVector);
 	void operator=(const FVector3f& InVector);
-	void operator=(const FVector4& InVector);
+	void operator=(const FVector4f& InVector);
+	void operator=(const FVector4d& InVector);
 
 	FVector ToFVector() const;
 	FVector3f ToFVector3f() const;
-	FVector4 ToFVector4() const;
+	FVector4f ToFVector4() const;
+	FVector4f ToFVector4f() const;
 
 	VectorRegister4Float GetVectorRegister() const;
 
 	// Set functions.
 	void Set(const FVector3d& InVector) { *this = InVector; }
 	void Set(const FVector3f& InVector) { *this = InVector; }
-	void Set(const FVector4& InVector) { *this = InVector; }
+	void Set(const FVector4f& InVector) { *this = InVector; }
 
 	// Equality operator.
 
@@ -349,7 +375,16 @@ FORCEINLINE void FPackedRGBA16N::operator=(const FVector3d& InVector)
 	W = MAX_int16;
 }
 
-FORCEINLINE void FPackedRGBA16N::operator=(const FVector4& InVector)
+FORCEINLINE void FPackedRGBA16N::operator=(const FVector4f& InVector)
+{
+	const float Scale = MAX_int16;
+	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int16, MAX_int16);
+	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int16, MAX_int16);
+	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int16, MAX_int16);
+	W = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.W * Scale), MIN_int16, MAX_int16);
+}
+
+FORCEINLINE void FPackedRGBA16N::operator=(const FVector4d& InVector)
 {
 	const float Scale = MAX_int16;
 	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int16, MAX_int16);
@@ -383,11 +418,17 @@ FORCEINLINE FVector3f FPackedRGBA16N::ToFVector3f() const
 	return UnpackedVector;
 }
 
-FORCEINLINE FVector4 FPackedRGBA16N::ToFVector4() const
+FORCEINLINE FVector4f FPackedRGBA16N::ToFVector4() const
+{
+	// LWC_TODO: Support FVector4d
+	return FVector4f(ToFVector4f());
+}
+
+FORCEINLINE FVector4f FPackedRGBA16N::ToFVector4f() const
 {
 	VectorRegister4Float VectorToUnpack = GetVectorRegister();
-	// Write to FVector4 and return it.
-	FVector4 UnpackedVector;
+	// Write to FVector4f and return it.
+	FVector4f UnpackedVector;
 	VectorStore(VectorToUnpack, &UnpackedVector);
 	return UnpackedVector;
 }

@@ -65,14 +65,14 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 			PlanarReflectionScreenBoundValue = FVector2D(1, 1);
 		}
 
-		FVector4 ScreenScaleBiasValue[2] = {
-			FVector4(0, 0, 0, 0),
-			FVector4(0, 0, 0, 0),
+		FVector4f ScreenScaleBiasValue[2] = {
+			FVector4f(0, 0, 0, 0),
+			FVector4f(0, 0, 0, 0),
 		};
 		for (int32 ViewIndex = 0; ViewIndex < FMath::Min(View.Family->Views.Num(), GMaxPlanarReflectionViews); ViewIndex++)
 		{
 			FIntRect ViewRect = ReflectionSceneProxy->ViewRect[ViewIndex];
-			ScreenScaleBiasValue[ViewIndex] = FVector4(
+			ScreenScaleBiasValue[ViewIndex] = FVector4f(
 				ViewRect.Width() * InvBufferSizeX / +2.0f,
 				ViewRect.Height() * InvBufferSizeY / (-2.0f * GProjectionSignY),
 				(ViewRect.Width() / 2.0f + ViewRect.Min.X) * InvBufferSizeX,
@@ -118,7 +118,7 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 			OutParameters.ProjectionWithExtraFOV[0] = ReflectionSceneProxy->ProjectionWithExtraFOV[ViewIndex];
 			OutParameters.ProjectionWithExtraFOV[1] = FMatrix::Identity;
 			OutParameters.PlanarReflectionScreenScaleBias[0] = ScreenScaleBiasValue[ViewIndex];
-			OutParameters.PlanarReflectionScreenScaleBias[1] = FVector4(0, 0, 0, 0);
+			OutParameters.PlanarReflectionScreenScaleBias[1] = FVector4f(0, 0, 0, 0);
 		}
 	}
 	else

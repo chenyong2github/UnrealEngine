@@ -997,15 +997,15 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 				//Add the bound to the skeletal mesh
 				if (SkeletalMesh->GetImportedBounds().BoxExtent.IsNearlyZero())
 				{
-					FBox BoundingBox(SkeletalMeshImportData.Points.GetData(), SkeletalMeshImportData.Points.Num());
-					const FVector BoundingBoxSize = BoundingBox.GetSize();
+					FBox3f BoundingBox(SkeletalMeshImportData.Points.GetData(), SkeletalMeshImportData.Points.Num());
+					const FVector3f BoundingBoxSize = BoundingBox.GetSize();
 
 					if (SkeletalMeshImportData.Points.Num() > 2 && BoundingBoxSize.X < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Y < THRESH_POINTS_ARE_SAME && BoundingBoxSize.Z < THRESH_POINTS_ARE_SAME)
 					{
 						//TODO log a user error
 						//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_ErrorMeshTooSmall", "Cannot import this mesh, the bounding box of this mesh is smaller than the supported threshold[{0}]."), FText::FromString(FString::Printf(TEXT("%f"), THRESH_POINTS_ARE_SAME)))), FFbxErrors::SkeletalMesh_FillImportDataFailed);
 					}
-					SkeletalMesh->SetImportedBounds(FBoxSphereBounds(BoundingBox));
+					SkeletalMesh->SetImportedBounds(FBoxSphereBounds((FBox)BoundingBox));
 				}
 
 				CurrentLodIndex++;
