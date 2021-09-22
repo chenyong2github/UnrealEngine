@@ -188,17 +188,17 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	else
 #endif
 
-#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE
+#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE
 	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
 		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
 		Payload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
-		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE |
-		Payload.ShadingModelID == SHADINGMODELID_EYE)
+		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 	{
 		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
 	}
 	else
 #endif
+
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 	{
@@ -206,9 +206,52 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	}
 	else
 #endif
+
+#if MATERIAL_SHADINGMODEL_EYE
+	if (Payload.ShadingModelID == SHADINGMODELID_EYE)
+	{
+		// This is all based on logic from ShadingModelsMaterial.ush
+		const float IrisMask     = saturate(GetMaterialCustomData0(MaterialParameters));
+		const float IrisDistance = saturate(GetMaterialCustomData1(MaterialParameters));
+		Payload.Anisotropy = IrisMask;
+		Payload.CustomData.a = GetMaterialSubsurfaceData(PixelMaterialInputs).a; // SubsurfaceProfile (NOTE: this is not used, EyeBxDF leaves Diffuse=0, so does not actually apply SSS?)
+		Payload.Metallic = 0.0;
+#if NUM_MATERIAL_OUTPUTS_GETTANGENTOUTPUT > 0
+		// Blend in the negative intersection normal to create some concavity
+		// Not great as it ties the concavity to the convexity of the cornea surface
+		// No good justification for that. On the other hand, if we're just looking to
+		// introduce some concavity, this does the job.
+		const float3 PlaneNormal = normalize(GetTangentOutput0(MaterialParameters));
+		const float3 CausticNormal = normalize(lerp(PlaneNormal, -Payload.WorldNormal, IrisMask * IrisDistance));
+		Payload.CustomVector = CausticNormal;
+#else
+		const float3 PlaneNormal = Payload.WorldNormal;
+		Payload.CustomVector = Payload.WorldNormal;
+#endif
+
+#if IRIS_NORMAL // on
+		Payload.Specular = 0.25;
+
+	#if NUM_MATERIAL_OUTPUTS_CLEARCOATBOTTOMNORMAL > 0
+		float3 IrisNormal = normalize( ClearCoatBottomNormal0(MaterialParameters) );
+		#if MATERIAL_TANGENTSPACENORMAL
+		IrisNormal = normalize( TransformTangentVectorToWorld( MaterialParameters.TangentToWorld, IrisNormal ) );
+		#endif
+	#else
+		float3 IrisNormal = PlaneNormal;
+	#endif
+		Payload.WorldTangent = IrisNormal;
+#else
+		// IRIS_NORMAL off
+		Payload.WorldTangent = PlaneNormal;
+#endif
+	}
+	else
+#endif
 	{
 		// terminal case for when none of the above worked
 	}
+
 
 #else // SIMPLIFIED_MATERIAL_SHADER
 
