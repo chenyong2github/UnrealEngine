@@ -29,5 +29,10 @@ public class CoreUObject : ModuleRules
 		{
 			PublicDependencyModuleNames.Add("CookOnTheFly");
 		}
+
+		if (Target.bBuildWithEditorOnlyData)
+		{
+			PrivateDependencyModuleNames.Add("DerivedDataCache");
+		}
 	}
 }
