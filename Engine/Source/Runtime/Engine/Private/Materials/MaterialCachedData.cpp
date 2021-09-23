@@ -479,6 +479,7 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 				case EMaterialParameterType::Scalar:
 					Parameters.ScalarValues.Insert(ParameterMeta.Value.AsScalar(), Index);
 					Parameters.ScalarMinMaxValues.Insert(FVector2D(ParameterMeta.ScalarMin, ParameterMeta.ScalarMax), Index);
+					Parameters.ScalarPrimitiveDataIndexValues.Insert(ParameterMeta.PrimitiveDataIndex, Index);
 					if (ParameterMeta.bUsedAsAtlasPosition)
 					{
 						Parameters.ScalarCurveValues.Insert(ParameterMeta.ScalarCurve.Get(), Index);
@@ -494,6 +495,7 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 					Parameters.VectorValues.Insert(ParameterMeta.Value.AsLinearColor(), Index);
 					Parameters.VectorChannelNameValues.Insert(ParameterMeta.ChannelNames, Index);
 					Parameters.VectorUsedAsChannelMaskValues.Insert(ParameterMeta.bUsedAsChannelMask, Index);
+					Parameters.VectorPrimitiveDataIndexValues.Insert(ParameterMeta.PrimitiveDataIndex, Index);
 					break;
 				case EMaterialParameterType::Texture:
 					Parameters.TextureValues.Insert(ParameterMeta.Value.Texture, Index);
