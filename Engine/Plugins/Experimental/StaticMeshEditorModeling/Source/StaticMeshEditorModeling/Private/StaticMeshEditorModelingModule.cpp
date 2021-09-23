@@ -80,9 +80,9 @@ void FStaticMeshEditorModelingModule::RegisterMenusAndToolbars()
 		{
 			InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
 				FStaticMeshEditorModelingCommands::Get().ToggleStaticMeshEditorModelingMode,
-				LOCTEXT("StaticMeshEditorModelingMode", "Mesh Modeling Tools"),
+				LOCTEXT("StaticMeshEditorModelingMode", "Modeling Tools"),
 				FText(),
-				FSlateIcon()));
+				FSlateIcon("ModelingToolsStyle", "LevelEditor.ModelingToolsMode")));
 		}));
 	}
 }
