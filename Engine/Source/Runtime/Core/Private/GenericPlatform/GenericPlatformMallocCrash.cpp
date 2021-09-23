@@ -5,6 +5,7 @@
 #include "HAL/PlatformTLS.h"
 #include "Templates/AlignmentTemplates.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/MemoryTrace.h"
 
 /** Describes a pool. */
 struct FPoolDesc
@@ -215,6 +216,9 @@ FGenericPlatformMallocCrash::FGenericPlatformMallocCrash( FMalloc* MainMalloc ) 
 
 	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, LargeMemoryPool, LargeMemoryPoolSize));
 	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, SmallMemoryPool, GetSmallPoolTotalSize()));
+
+	MemoryTrace_Alloc((uint64)LargeMemoryPool, LargeMemoryPoolSize, alignof(uint8), EMemoryTraceRootHeap::SystemMemory);
+	MemoryTrace_Alloc((uint64)SmallMemoryPool, GetSmallPoolTotalSize(), alignof(uint8), EMemoryTraceRootHeap::SystemMemory);
 
 	if( !SmallMemoryPool || !LargeMemoryPool )
 	{
