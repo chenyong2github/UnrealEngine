@@ -114,7 +114,7 @@ void FAllocationTrace::Initialize() const
 
 	const HeapId SystemRootHeap = RootHeapSpec(TEXT("System memory"));
 	check(SystemRootHeap == EMemoryTraceRootHeap::SystemMemory);
-	const HeapId VideoRootHeap = RootHeapSpec(TEXT("VideoMemory"));
+	const HeapId VideoRootHeap = RootHeapSpec(TEXT("Video memory"));
 	check(VideoRootHeap == EMemoryTraceRootHeap::VideoMemory);
 
 	static_assert((1 << SizeShift) - 1 <= MIN_ALIGNMENT, "Not enough bits to pack size fields");
