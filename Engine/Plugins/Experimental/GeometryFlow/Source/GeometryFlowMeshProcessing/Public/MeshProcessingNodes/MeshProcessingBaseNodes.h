@@ -40,14 +40,16 @@ protected:
 	virtual void ProcessMesh(
 		const FNamedDataMap& DatasIn,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut)
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 	{
 		check(false);		// subclass must implement ProcessMesh()
 	}
 
 	virtual void ProcessMeshInPlace(
 		const FNamedDataMap& DatasIn,
-		FDynamicMesh3& MeshInOut)
+		FDynamicMesh3& MeshInOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 	{
 		ensureMsgf(false, TEXT("TProcessMeshBaseNode::ProcessMeshInPlace called but not defined!"));
 	}
@@ -82,7 +84,7 @@ public:
 
 						FDynamicMesh3 EditableMesh;
 						MeshArg->GiveTo<FDynamicMesh3>(EditableMesh, (int)EMeshProcessingDataTypes::DynamicMesh);
-						ProcessMeshInPlace(DatasIn, EditableMesh);
+						ProcessMeshInPlace(DatasIn, EditableMesh, EvaluationInfo);
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();
@@ -98,7 +100,7 @@ public:
 
 						// run mesh processing
 						FDynamicMesh3 ResultMesh;
-						ProcessMesh(DatasIn, SourceMesh, ResultMesh);
+						ProcessMesh(DatasIn, SourceMesh, ResultMesh, EvaluationInfo);
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();
@@ -133,19 +135,19 @@ public:
 		ConfigureInputFlags(InParamMesh(), FNodeInputFlags::Transformable());
 	}
 
-	virtual void ProcessMesh( const FNamedDataMap& DatasIn, const FDynamicMesh3& MeshIn, FDynamicMesh3& MeshOut) override
+	virtual void ProcessMesh( const FNamedDataMap& DatasIn, const FDynamicMesh3& MeshIn, FDynamicMesh3& MeshOut, TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		MeshOut = MeshIn;
-		ApplyNodeToMesh(MeshOut);
+		ApplyNodeToMesh(MeshOut, EvaluationInfo);
 	}
 
-	virtual void ProcessMeshInPlace( const FNamedDataMap& DatasIn, FDynamicMesh3& MeshInOut) override
+	virtual void ProcessMeshInPlace( const FNamedDataMap& DatasIn, FDynamicMesh3& MeshInOut, TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
-		ApplyNodeToMesh(MeshInOut);
+		ApplyNodeToMesh(MeshInOut, EvaluationInfo);
 	}
 
 	// subclasses only have to implement this
-	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut) = 0;
+	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut, TUniquePtr<FEvaluationInfo>& EvaluationInfo) = 0;
 
 };
 
@@ -178,14 +180,16 @@ protected:
 		const FNamedDataMap& DatasIn,
 		const SettingsType& SettingsIn,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut)
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 	{
 	}
 
 	virtual void ProcessMeshInPlace(
 		const FNamedDataMap& DatasIn,
 		const SettingsType& SettingsIn,
-		FDynamicMesh3& MeshInOut)
+		FDynamicMesh3& MeshInOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 	{
 		ensureMsgf(false, TEXT("TProcessMeshWithSettingsBaseNode::ProcessMeshInPlace called but not defined!"));
 	}
@@ -225,7 +229,7 @@ public:
 
 						FDynamicMesh3 EditableMesh;
 						MeshArg->GiveTo<FDynamicMesh3>(EditableMesh, (int)EMeshProcessingDataTypes::DynamicMesh);
-						ProcessMeshInPlace(DatasIn, Settings, EditableMesh);
+						ProcessMeshInPlace(DatasIn, Settings, EditableMesh, EvaluationInfo);
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();
@@ -241,7 +245,7 @@ public:
 
 						// run mesh processing
 						FDynamicMesh3 ResultMesh;
-						ProcessMesh(DatasIn, Settings, SourceMesh, ResultMesh);
+						ProcessMesh(DatasIn, Settings, SourceMesh, ResultMesh, EvaluationInfo);
 
 						// store new result
 						TSafeSharedPtr<FDataDynamicMesh> Result = MakeSafeShared<FDataDynamicMesh>();

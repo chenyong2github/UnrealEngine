@@ -58,7 +58,8 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FMeshNormalsSettings& Settings,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		MeshOut = MeshIn;
 		ComputeNormals(Settings, MeshOut);
@@ -67,7 +68,8 @@ public:
 	virtual void ProcessMeshInPlace(
 		const FNamedDataMap& DatasIn,
 		const FMeshNormalsSettings& Settings,
-		FDynamicMesh3& MeshInOut)
+		FDynamicMesh3& MeshInOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 	{
 		ComputeNormals(Settings, MeshInOut);
 	}
@@ -128,7 +130,7 @@ public:
 class FComputeMeshPerVertexOverlayNormalsNode : public FSimpleInPlaceProcessMeshBaseNode
 {
 public:
-	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut)
+	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut, TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		if (MeshInOut.HasAttributes() == false)
 		{
@@ -152,7 +154,7 @@ public:
 class FComputeMeshPerVertexNormalsNode : public FSimpleInPlaceProcessMeshBaseNode
 {
 public:
-	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut)
+	virtual void ApplyNodeToMesh(FDynamicMesh3& MeshInOut, TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		FMeshNormals::QuickComputeVertexNormals(MeshInOut, false);
 	}

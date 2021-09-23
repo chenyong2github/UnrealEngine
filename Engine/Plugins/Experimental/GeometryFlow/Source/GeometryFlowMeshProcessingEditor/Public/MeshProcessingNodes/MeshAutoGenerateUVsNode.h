@@ -59,12 +59,16 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FMeshAutoGenerateUVsSettings& Settings,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
-		GenerateUVs(MeshIn, Settings, MeshOut);
+		GenerateUVs(MeshIn, Settings, MeshOut, EvaluationInfo);
 	}
 
-	virtual void GenerateUVs(const FDynamicMesh3& MeshIn, const FMeshAutoGenerateUVsSettings& Settings, FDynamicMesh3& MeshOut);
+	virtual void GenerateUVs(const FDynamicMesh3& MeshIn, 
+		const FMeshAutoGenerateUVsSettings& Settings, 
+		FDynamicMesh3& MeshOut, 
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo);
 
 };
 

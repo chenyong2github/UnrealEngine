@@ -9,7 +9,8 @@ using namespace UE::GeometryFlow;
 
 EGeometryFlowResult FGenerateConvexHullMeshNode::MakeConvexHullMesh(const FDynamicMesh3& MeshIn,
 	const FGenerateConvexHullMeshSettings& Settings, 
-	FDynamicMesh3& MeshOut)
+	FDynamicMesh3& MeshOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	FMeshConvexHull Hull(&MeshIn);
 
@@ -20,11 +21,17 @@ EGeometryFlowResult FGenerateConvexHullMeshNode::MakeConvexHullMesh(const FDynam
 
 	Hull.bPostSimplify = false;		// Mesh can be simplified later
 
-	FProgressCancel* Progress = nullptr;	// TODO: Add ProgressCancel
-	if (Hull.Compute(Progress))
+	if (Hull.Compute(EvaluationInfo->Progress))
 	{
 		MeshOut = MoveTemp(Hull.ConvexHull);
 	}
+
+	if (EvaluationInfo->Progress->Cancelled())
+	{
+		return EGeometryFlowResult::OperationCancelled;
+	}
+
+	// TODO: What if Hull.Compute() fails but not because of cancellation? Should we have a EGeometryFlowResult::Failed?
 
 	return EGeometryFlowResult::Ok;
 }

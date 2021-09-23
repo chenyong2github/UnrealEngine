@@ -31,12 +31,16 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FGenerateConvexHullMeshSettings& SettingsIn,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
-		MakeConvexHullMesh(MeshIn, SettingsIn, MeshOut);
+		MakeConvexHullMesh(MeshIn, SettingsIn, MeshOut, EvaluationInfo);
 	}
 
-	EGeometryFlowResult MakeConvexHullMesh(const FDynamicMesh3& MeshIn, const FGenerateConvexHullMeshSettings& Settings, FDynamicMesh3& MeshOut);
+	EGeometryFlowResult MakeConvexHullMesh(const FDynamicMesh3& MeshIn,
+		const FGenerateConvexHullMeshSettings& Settings,
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo);
 
 };
 

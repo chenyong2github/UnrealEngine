@@ -46,12 +46,14 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FMeshNormalFlowSettings& SettingsIn,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override;
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override;
 
 	void ProcessMeshInPlace(
 		const FNamedDataMap& DatasIn,
 		const FMeshNormalFlowSettings& SettingsIn,
-		FDynamicMesh3& MeshInOut) override;
+		FDynamicMesh3& MeshInOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override;
 
 	void CheckAdditionalInputs(const FNamedDataMap& DatasIn, 
 							   bool& bRecomputeRequired, 

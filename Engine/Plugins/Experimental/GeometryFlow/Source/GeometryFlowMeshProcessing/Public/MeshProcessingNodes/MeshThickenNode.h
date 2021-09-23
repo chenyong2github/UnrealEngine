@@ -42,12 +42,14 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FMeshThickenSettings& SettingsIn,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override;
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override;
 
 	void ProcessMeshInPlace(
 		const FNamedDataMap& DatasIn,
 		const FMeshThickenSettings& Settings,
-		FDynamicMesh3& MeshInOut) override;
+		FDynamicMesh3& MeshInOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override;
 
 protected:
 

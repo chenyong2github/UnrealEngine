@@ -16,7 +16,8 @@ void FMeshMakeCleanGeometryNode::ProcessMesh(
 	const FNamedDataMap& DatasIn,
 	const FMeshMakeCleanGeometrySettings& SettingsIn,
 	const FDynamicMesh3& MeshIn,
-	FDynamicMesh3& MeshOut) 
+	FDynamicMesh3& MeshOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	MeshOut = MeshIn;
 	ApplyMakeCleanGeometry(MeshOut, SettingsIn);
@@ -26,7 +27,8 @@ void FMeshMakeCleanGeometryNode::ProcessMesh(
 void FMeshMakeCleanGeometryNode::ProcessMeshInPlace(
 	const FNamedDataMap& DatasIn,
 	const FMeshMakeCleanGeometrySettings& Settings,
-	FDynamicMesh3& MeshInOut) 
+	FDynamicMesh3& MeshInOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	ApplyMakeCleanGeometry(MeshInOut, Settings);
 }

@@ -41,7 +41,8 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FVoxMorphologyOpSettings& SettingsIn,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		ApplyMorphology(MeshIn, SettingsIn, MeshOut);
 	}
