@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "StaticMeshCompiler.h"
 #include "Logging/LogMacros.h"
 
 #include "WorldPartition/WorldPartition.h"
@@ -34,6 +35,8 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FBox
 		NavigationDataChunkActorPackages.Add(ItActor->GetPackage());
 	}
 
+	FStaticMeshCompilingManager::Get().FinishAllCompilation();
+	
 	// Rebuild ANavigationDataChunkActor for the whole world
 	WorldPartition->GenerateNavigationData();
 
@@ -77,12 +80,23 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FBox
 	{
 		// Checkout packages to save
 		UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
-		for (UPackage* Package : PackagesToSave)
+		if (PackageHelper.UseSourceControl())
 		{
-			if (!PackageHelper.Checkout(Package))
+			FEditorFileUtils::CheckoutPackages(PackagesToSave, /*OutPackagesCheckedOut*/nullptr, /*bErrorIfAlreadyCheckedOut*/false);
+		}
+		else
+		{
+			for (const UPackage* Package : PackagesToSave)
 			{
-				UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error checking out package %s."), *Package->GetName());
-				return 1;
+				const FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
+				if (IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename))
+				{
+					if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackageFilename, /*bNewReadOnlyValue*/false))
+					{
+						UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error setting %s writable"), *PackageFilename);
+						return 1;
+					}
+				}
 			}
 		}
 

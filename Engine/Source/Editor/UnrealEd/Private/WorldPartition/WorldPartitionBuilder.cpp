@@ -76,7 +76,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld*
 	}
 
 	// Setup the world if needed
-	bool bWorldWasInitialized = World->bIsWorldInitialized;
+	const bool bWorldWasInitialized = World->bIsWorldInitialized;
 	if (!bWorldWasInitialized)
 	{
 		World->WorldType = EWorldType::Editor;
