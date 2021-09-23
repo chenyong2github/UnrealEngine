@@ -134,6 +134,12 @@ struct FMaterialCachedParameters
 	FMaterialCachedParameterEntry RuntimeEntries[NumMaterialRuntimeParameterTypes];
 
 	UPROPERTY()
+	TArray<int32> ScalarPrimitiveDataIndexValues;
+
+	UPROPERTY()
+	TArray<int32> VectorPrimitiveDataIndexValues;
+
+	UPROPERTY()
 	TArray<float> ScalarValues;
 
 	UPROPERTY()

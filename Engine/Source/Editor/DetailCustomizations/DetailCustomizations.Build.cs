@@ -63,7 +63,8 @@ public class DetailCustomizations : ModuleRules
                 "DataTableEditor",
 				"ToolMenus",
 				"PhysicsCore",
-				"RenderCore"
+				"RenderCore",
+				"MaterialEditor",
 			}
 		);
 

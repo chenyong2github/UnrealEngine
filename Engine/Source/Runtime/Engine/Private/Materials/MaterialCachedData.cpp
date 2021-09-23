@@ -736,6 +736,8 @@ void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType 
 	{
 	case EMaterialParameterType::Scalar:
 		OutResult.Value = ScalarValues[ParameterIndex];
+		OutResult.PrimitiveDataIndex = ScalarPrimitiveDataIndexValues[ParameterIndex];
+
 #if WITH_EDITORONLY_DATA
 		OutResult.ScalarMin = ScalarMinMaxValues[ParameterIndex].X;
 		OutResult.ScalarMax = ScalarMinMaxValues[ParameterIndex].Y;
@@ -753,6 +755,8 @@ void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType 
 		break;
 	case EMaterialParameterType::Vector:
 		OutResult.Value = VectorValues[ParameterIndex];
+		OutResult.PrimitiveDataIndex = VectorPrimitiveDataIndexValues[ParameterIndex];
+
 #if  WITH_EDITORONLY_DATA
 		OutResult.ChannelNames = VectorChannelNameValues[ParameterIndex];
 		OutResult.bUsedAsChannelMask = VectorUsedAsChannelMaskValues[ParameterIndex];

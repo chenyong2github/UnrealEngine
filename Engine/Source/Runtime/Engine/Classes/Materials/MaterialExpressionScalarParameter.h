@@ -47,6 +47,12 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = DefaultValue;
+		
+		if (bUseCustomPrimitiveData)
+		{
+			OutMeta.PrimitiveDataIndex = PrimitiveDataIndex;
+		}
+
 		OutMeta.ScalarMin = SliderMin;
 		OutMeta.ScalarMax = SliderMax;
 		return Super::GetParameterValue(OutMeta);
