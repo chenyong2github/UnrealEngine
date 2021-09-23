@@ -488,7 +488,7 @@ public:
 protected:
 
 	UPROPERTY()
-	UStaticMesh* SourceStaticMesh;
+	TObjectPtr<UStaticMesh> SourceStaticMesh;
 
 	FString SourceAssetPath;
 	FString SourceAssetFolder;
@@ -568,17 +568,17 @@ protected:
 	// This list is for accumulating derived UTexture2D's created during WriteDerivedTextures(). We have to
 	// maintain uproperty references to these or they may be garbage collected
 	UPROPERTY()
-	TSet<UTexture2D*> AllDerivedTextures;
+	TSet<TObjectPtr<UTexture2D>> AllDerivedTextures;
 
 	// Derived Normal Map
 	UPROPERTY()
-	UTexture2D* DerivedNormalMapTex;
+	TObjectPtr<UTexture2D> DerivedNormalMapTex;
 
 	// For each material participating in multi-texture baking, the parameter name of the texture
 	TMap<int32, FName> MultiTextureParameterName;
 
 	UPROPERTY()
-	UTexture2D* DerivedMultiTextureBakeResult;
+	TObjectPtr<UTexture2D> DerivedMultiTextureBakeResult;
 
 
 	TUniquePtr<FGenerateMeshLODGraph> Generator;			// active LODGenerator Graph

@@ -1527,23 +1527,29 @@ void UGenerateStaticMeshLODProcess::WriteDerivedMaterials(bool bCreatingNewStati
 			}
 		}
 
-		// set metadata tag so we can identify this material later
-		GeneratedMIC->GetOutermost()->GetMetaData()->SetValue(GeneratedMIC, TEXT("StaticMeshLOD.IsGeneratedMaterial"), TEXT("true"));
-		GeneratedMIC->GetOutermost()->GetMetaData()->SetValue(GeneratedMIC, TEXT("StaticMeshLOD.SourceAssetPath"), *GetSourceAssetPath());
-		GeneratedMIC->GetOutermost()->GetMetaData()->SetValue(GeneratedMIC, TEXT("StaticMeshLOD.GenerationGUID"), *DerivedAssetGUIDKey);
+		if (GeneratedMIC != nullptr)
+		{
+			// set metadata tag so we can identify this material later
+			GeneratedMIC->GetOutermost()->GetMetaData()->SetValue(GeneratedMIC, TEXT("StaticMeshLOD.IsGeneratedMaterial"), TEXT("true"));
+			GeneratedMIC->GetOutermost()->GetMetaData()->SetValue(GeneratedMIC, TEXT("StaticMeshLOD.SourceAssetPath"), *GetSourceAssetPath());
+			GeneratedMIC->GetOutermost()->GetMetaData()->SetValue(GeneratedMIC, TEXT("StaticMeshLOD.GenerationGUID"), *DerivedAssetGUIDKey);
 
-		// rewrite texture parameters to new textures
-		UpdateMaterialTextureParameters(GeneratedMIC, DerivedMaterialInfo);
+			// rewrite texture parameters to new textures
+			UpdateMaterialTextureParameters(GeneratedMIC, DerivedMaterialInfo);
+		}
 
 		// update StaticMaterial
 		DerivedMaterialInfo.DerivedMaterial.MaterialInterface = GeneratedMIC;
 		DerivedMaterialInfo.DerivedMaterial.MaterialSlotName = FName(FString::Printf(TEXT("GeneratedMat%d"), mi));
 		DerivedMaterialInfo.DerivedMaterial.ImportedMaterialSlotName = DerivedMaterialInfo.DerivedMaterial.MaterialSlotName;
 
-		if (CurrentSettings_Texture.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
+		if (GeneratedMIC != nullptr)
 		{
-			FMaterialParameterInfo ParamInfo(MultiTextureParameterName[mi]);
-			GeneratedMIC->SetTextureParameterValueEditorOnly(ParamInfo, DerivedMultiTextureBakeResult);
+			if (CurrentSettings_Texture.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
+			{
+				FMaterialParameterInfo ParamInfo(MultiTextureParameterName[mi]);
+				GeneratedMIC->SetTextureParameterValueEditorOnly(ParamInfo, DerivedMultiTextureBakeResult);
+			}
 		}
 
 	}

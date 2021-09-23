@@ -533,6 +533,7 @@ void UGenerateStaticMeshLODAssetTool::RequestPresetAction(EGenerateLODAssetToolP
 	{
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("GenerateStaticMeshLODAssetTool_NoPresetSelected", "No Preset Asset is currently set in the Preset Settings"), EToolMessageLevel::UserError);
+		return;
 	}
 
 	if (ActionType == EGenerateLODAssetToolPresetAction::ReadFromPreset)
