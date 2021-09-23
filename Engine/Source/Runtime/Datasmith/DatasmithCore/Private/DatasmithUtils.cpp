@@ -38,26 +38,16 @@ void FDatasmithUtils::SanitizeNameInplace(FString& InString)
 	static const TCHAR Modified[] = TEXT("AAAAAAECEEEEIIIIDNOOOOOx0UUUUYPsaaaaaaeceeeeiiiiOnoooood0uuuuypyBbVvGgDdEeJjZzIiYyKkLlMmNnOoPpRrSsTtUuFfJjTtCcSsSs__ii__EeYyYy__");
 	static_assert(!PLATFORM_DESKTOP || GetArrayLength(Original) == GetArrayLength(Modified), "array size mismatch");
 
-	for (TCHAR& InChar : InString)
+	for (int32 i = 0; i < GetArrayLength(Original); i++)
 	{
-		if (FChar::IsPrint(InChar))
-		{
-			for (int32 i = 0; i < GetArrayLength(Original); i++)
-			{
-				const TCHAR SearchChar = Original[i];
-				const TCHAR ReplacementChar = Modified[i];
-
-				//InChar = InChar == SearchChar ? ReplacementChar : InChar;
-				// The arithmetic is equivalent to the ternary operator but removes branches. Some compilers will replace the math by conditional moves which is even better.
-				InChar = InChar + (InChar == SearchChar) * (ReplacementChar - InChar);
-			}
-		}
-		else
-		{
-			InChar = TEXT('_');
-		}
+		InString.ReplaceCharInline(Original[i], Modified[i], ESearchCase::CaseSensitive);
 	}
 
+	// Also remove control character and other oddities
+	for (TCHAR& InChar : InString)
+	{
+		InChar = FChar::IsPrint(InChar) ? InChar : TEXT('_');
+	}
 }
 
 void FDatasmithUtils::SanitizeStringInplace(FString& InString)
