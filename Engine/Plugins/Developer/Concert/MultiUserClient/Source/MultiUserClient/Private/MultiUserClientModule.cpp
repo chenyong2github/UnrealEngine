@@ -49,6 +49,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 
+
 #include "Widgets/SConcertBrowser.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SBox.h"
@@ -56,10 +57,13 @@
 #include "Widgets/Input/SEditableTextBox.h"
 
 #if WITH_EDITOR
+	#include "FileHelpers.h"
 	#include "ISettingsModule.h"
 	#include "ISettingsSection.h"
+	
 	#include "LevelEditor.h"
-	#include "FileHelpers.h"
+	#include "ToolMenuEntry.h"
+	#include "ToolMenus.h"
 	#include "WorkspaceMenuStructure.h"
 	#include "WorkspaceMenuStructureModule.h"
 #endif
@@ -1179,7 +1183,7 @@ private:
 
 			// Register command list
 			FConcertUICommands::Register();
-			TSharedPtr<FUICommandList> CommandList = MakeShared<FUICommandList>();
+			const TSharedPtr<FUICommandList> CommandList = MakeShared<FUICommandList>();
 
 			// Connect to the default server and session
 			CommandList->MapAction(FConcertUICommands::Get().TriggerToolbarButtonCmd,
@@ -1202,31 +1206,29 @@ private:
 				FExecuteAction::CreateRaw(this, &FMultiUserClientModule::LaunchConcertServer)
 			);
 
-			TSharedPtr<FExtender> ToolbarExtender = MakeShared<FExtender>();
-			ToolbarExtender->AddToolBarExtension("Play", EExtensionHook::Before, CommandList, FToolBarExtensionDelegate::CreateLambda([this, CommandList](FToolBarBuilder& ToolbarBuilder)
-			{
-				ToolbarBuilder.AddToolBarButton
-				(
-					FConcertUICommands::Get().TriggerToolbarButtonCmd,
-					NAME_None,
-					TAttribute<FText>::Create([this]() { return GetToolbarButtonIconTitle(); }),
-					TAttribute<FText>::Create([this]() { return GetToolbarButtonTooltip(); }),
-					TAttribute<FSlateIcon>::Create([this]() { return GetToolbarButtonIcon(); })
-				);
+			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
+			FToolMenuSection& Section = Menu->FindOrAddSection("Concert");
 
-				// Add a simple drop-down menu (no label, no icon for the drop-down button itself) to list
-				ToolbarBuilder.AddComboButton(
-					FUIAction(),
-					FOnGetContent::CreateStatic(&GenerateConcertMenuContent, CommandList.ToSharedRef()),
-					LOCTEXT("ConcertToolbarMenu_Label", "Multi-User Utilities"),
-					LOCTEXT("ConcertToolbarMenu_Tooltip", "Multi-User Commands"),
-					FSlateIcon(),
-					true
-				);
-			}));
+			FToolMenuEntry ConcertButtonEntry = FToolMenuEntry::InitToolBarButton(
+				FConcertUICommands::Get().TriggerToolbarButtonCmd,
+				TAttribute<FText>::Create([this]() { return GetToolbarButtonIconTitle(); }),
+				TAttribute<FText>::Create([this]() { return GetToolbarButtonTooltip(); }),
+				TAttribute<FSlateIcon>::Create([this]() { return GetToolbarButtonIcon(); })
+			);
+			ConcertButtonEntry.SetCommandList(CommandList);
 
-			LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(ToolbarExtender);
-			WeakToolbarExtender = ToolbarExtender;
+			const FToolMenuEntry ConcertComboEntry = FToolMenuEntry::InitComboButton(
+			"ConcertToolbarMenu",
+			FUIAction(),
+			FOnGetContent::CreateStatic(&GenerateConcertMenuContent, CommandList.ToSharedRef()),
+			LOCTEXT("ConcertToolbarMenu_Label", "Multi-User Utilities"),
+			LOCTEXT("ConcertToolbarMenu_Tooltip", "Multi-User Commands"),
+			FSlateIcon(),
+			true //bInSimpleComboBox
+			);
+
+			Section.AddEntry(ConcertButtonEntry);
+			Section.AddEntry(ConcertComboEntry);
 		}
 	}
 
@@ -1234,10 +1236,12 @@ private:
 	{
 		if (GIsEditor)
 		{
-			FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-			LevelEditorModule.GetToolBarExtensibilityManager()->RemoveExtender(WeakToolbarExtender.Pin());
+			if (UObjectInitialized())
+			{
+				UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.User", "Concert");
+			}
+			
 			FConcertUICommands::Unregister();
-			WeakToolbarExtender.Reset();
 		}
 	}
 
@@ -1350,9 +1354,6 @@ private:
 
 	/** Tracks whether the client has enabled a transport plugin compatible with the server, so they can communicate. */
 	bool bHasRequiredCommunicationPluginEnabled = true;
-
-	/** Pointer to the Toolbar extender. */
-	TWeakPtr<FExtender> WeakToolbarExtender;
 
 	/** UI view and commands on the Concert client workspace. */
 	TSharedPtr<FConcertWorkspaceUI> WorkspaceFrontend;

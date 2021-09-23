@@ -83,7 +83,7 @@ struct FMediaProfileMenuEntryImpl
 
 	~FMediaProfileMenuEntryImpl()
 	{
-		if (!IsEngineExitRequested())
+		if (!IsEngineExitRequested() && UObjectInitialized())
 		{
 			UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.User", "MediaProfile");
 		}

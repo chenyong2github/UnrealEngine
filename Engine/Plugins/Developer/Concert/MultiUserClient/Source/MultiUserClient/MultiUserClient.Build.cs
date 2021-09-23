@@ -42,6 +42,7 @@ namespace UnrealBuildTool.Rules
 						"EditorFramework",
 						"UnrealEd",
 						"Sequencer",
+						"ToolMenus",
 						"WorkspaceMenuStructure",
 					}
 				);
