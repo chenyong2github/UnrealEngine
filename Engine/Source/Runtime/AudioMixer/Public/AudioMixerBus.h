@@ -91,7 +91,7 @@ namespace Audio
 
 		// The mixed source data. This is double-buffered to allow buses to send audio to themselves.
 		// Buses feed audio to each other by storing their previous buffer. Current buses mix in previous other buses (including themselves)
-		TArray<float> MixedSourceData[2];
+		FAlignedFloatBuffer MixedSourceData[2];
 
 		// The index of the bus data currently being rendered
 		int32 CurrentBufferIndex;
