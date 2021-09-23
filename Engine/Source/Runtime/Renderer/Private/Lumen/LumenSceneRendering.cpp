@@ -292,6 +292,11 @@ bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& Vi
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
 }
 
+bool DoesRuntimePlatformSupportLumen()
+{
+	return GDynamicRHI->RHIIsTypedUAVLoadSupported(PF_R16_UINT);
+}
+
 bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily& ViewFamily, bool bSkipProjectCheck)
 {
 	return Scene
@@ -308,6 +313,7 @@ bool Lumen::IsSoftwareRayTracingSupported()
 bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck, bool bSkipProjectCheck)
 {
 	return View.Family
+		&& DoesRuntimePlatformSupportLumen()
 		&& ShouldRenderLumenForViewFamily(Scene, *View.Family, bSkipProjectCheck)
 		// Don't update scene lighting for secondary views
 		&& !View.bIsPlanarReflection
