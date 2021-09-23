@@ -103,12 +103,6 @@ protected:
 
 private:
 
-	/** Internal media player used to generate the thumbnail images. */
-//	UMediaPlayer* MediaPlayer;
-
-	/** Media texture that receives the thumbnail image frames. */
-//	UMediaTexture* MediaTexture;
-
 	/** The section object that owns this section. */
 	TWeakObjectPtr<UMovieSceneMediaSection> SectionPtr;
 
