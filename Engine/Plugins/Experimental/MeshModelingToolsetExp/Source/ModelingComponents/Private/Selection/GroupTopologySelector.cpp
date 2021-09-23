@@ -629,7 +629,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 				}
 
 				// Check whether any of the component segments intersect the rectangle
-				const TArray<FVector3<double>>& Verts = Curve.GetVertices();
+				const TArray<FVector3d>& Verts = Curve.GetVertices();
 				FVector3d CurrentVert = TargetTransform.TransformPosition(Verts[0]);
 				for (int32 i = 1; i < Verts.Num(); ++i)
 				{

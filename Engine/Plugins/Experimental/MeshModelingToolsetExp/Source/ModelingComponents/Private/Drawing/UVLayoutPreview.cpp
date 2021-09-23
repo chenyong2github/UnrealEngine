@@ -149,7 +149,7 @@ void UUVLayoutPreview::UpdateUVMesh(const FDynamicMesh3* SourceMesh, int32 Sourc
 			{
 				NewUVTri[j] = NewUVOverlay->AppendElement(UVs[j]);
 				NewTri[j] = UVMesh.AppendVertex(FVector3d(UVs[j].X, UVs[j].Y, 0));
-				NewNormalTri[j] = NewNormalOverlay->AppendElement( FVector3<float>::UnitZ() );
+				NewNormalTri[j] = NewNormalOverlay->AppendElement( FVector3f::UnitZ() );
 			}
 
 			FVector2f EdgeUV1 = UVs[1] - UVs[0];

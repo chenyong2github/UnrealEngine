@@ -14,6 +14,8 @@ namespace UE
 namespace Geometry 
 {
 
+using namespace UE::Math;
+
 /*
  * 3D Capsule stored as Line Segment and Radius
  */
@@ -31,18 +33,18 @@ public:
 	TCapsule3(const TSegment3<T>& SegmentIn, T RadiusIn)
 		: Segment(SegmentIn), Radius(RadiusIn) {}
 
-	TCapsule3(const FVector3<T>& StartPoint, const FVector3<T>& EndPoint, T RadiusIn)
+	TCapsule3(const TVector<T>& StartPoint, const TVector<T>& EndPoint, T RadiusIn)
 		: Segment(StartPoint, EndPoint), Radius(RadiusIn) {}
 
 
 	/** @return Center of capsule line segment */
-	const FVector3<T>& Center() const
+	const TVector<T>& Center() const
 	{
 		return Segment.Center;
 	}
 
 	/** @return Direction of capsule line segment */
-	const FVector3<T>& Direction() const
+	const TVector<T>& Direction() const
 	{
 		return Segment.Direction;
 	}
@@ -76,11 +78,11 @@ public:
 	{
 		return TOrientedBox3<T>(
 			TFrame3<T>(Segment.Center, Segment.Direction),
-			FVector3<T>(Radius, Radius, Segment.Extent));
+			TVector<T>(Radius, Radius, Segment.Extent));
 	}
 
 	/** @return true if Capsule contains the given Point */
-	bool Contains(const FVector3<T>& Point) const
+	bool Contains(const TVector<T>& Point) const
 	{
 		T DistSqr = Segment.DistanceSquared(Point);
 		return DistSqr <= Radius * Radius;
@@ -90,7 +92,7 @@ public:
 	/**
 	 * @return minimum squared distance from Point to Capsule surface for points outside capsule, 0 for points inside
 	 */
-	inline T DistanceSquared(const FVector3<T>& Point) const
+	inline T DistanceSquared(const TVector<T>& Point) const
 	{
 		const T PosDistance = TMathUtil<T>::Max(SignedDistance(Point), (T)0);
 		return PosDistance * PosDistance;
@@ -99,7 +101,7 @@ public:
 	/**
 	 * @return signed distance from Point to Capsule surface. Points inside capsule return negative distance.
 	 */
-	inline T SignedDistance(const FVector3<T>& Point) const
+	inline T SignedDistance(const TVector<T>& Point) const
 	{
 		T SqrDist = Segment.DistanceSquared(Point);
 		return TMathUtil<T>::Sqrt(SqrDist) - Radius;

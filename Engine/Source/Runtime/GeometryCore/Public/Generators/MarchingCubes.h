@@ -22,6 +22,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 enum class /*GEOMETRYCORE_API*/ ERootfindingModes
 {
 	SingleLerp,
@@ -35,7 +37,7 @@ public:
 	/**
 	*  this is the function we will evaluate
 	*/
-	TFunction<double(FVector3<double>)> Implicit;
+	TFunction<double(TVector<double>)> Implicit;
 
 	/**
 	*  mesh surface will be at this isovalue. Normally 0 unless you want
@@ -97,7 +99,7 @@ public:
 
 	FMarchingCubes()
 	{
-		Bounds = TAxisAlignedBox3<double>(FVector3<double>::Zero(), 8);
+		Bounds = TAxisAlignedBox3<double>(TVector<double>::Zero(), 8);
 		CubeSize = 0.25;
 	}
 
@@ -149,7 +151,7 @@ public:
 	}
 
 
-	FMeshShapeGenerator& GenerateContinuation(TArrayView<const FVector3<double>> Seeds)
+	FMeshShapeGenerator& GenerateContinuation(TArrayView<const FVector3d> Seeds)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_MCMesh_GenerateContinuation);
 
@@ -237,19 +239,19 @@ protected:
 		CellDimensions = FVector3i(NX, NY, NZ);
 	}
 
-	void corner_pos(const FVector3i& IJK, FVector3<double>& Pos)
+	void corner_pos(const FVector3i& IJK, TVector<double>& Pos)
 	{
 		Pos.X = Bounds.Min.X + CubeSize * IJK.X;
 		Pos.Y = Bounds.Min.Y + CubeSize * IJK.Y;
 		Pos.Z = Bounds.Min.Z + CubeSize * IJK.Z;
 	}
-	FVector3<double> corner_pos(const FVector3i& IJK)
+	TVector<double> corner_pos(const FVector3i& IJK)
 	{
-		return FVector3<double>(Bounds.Min.X + CubeSize * IJK.X,
+		return TVector<double>(Bounds.Min.X + CubeSize * IJK.X,
 			Bounds.Min.Y + CubeSize * IJK.Y,
 			Bounds.Min.Z + CubeSize * IJK.Z);
 	}
-	FVector3i cell_index(const FVector3<double>& Pos)
+	FVector3i cell_index(const TVector<double>& Pos)
 	{
 		checkSlow(Bounds.Contains(Pos));
 		return FVector3i(
@@ -316,7 +318,7 @@ protected:
 		return (Found != nullptr) ? *Found : IndexConstants::InvalidID;
 	}
 
-	int AppendOrFindVertexID(int64 hash, FVector3<double> Pos)
+	int AppendOrFindVertexID(int64 hash, TVector<double> Pos)
 	{
 		int32 SectionIndex = (int32)(hash % (NumEdgeVertexSections - 1));
 		FScopeLock Lock(&EdgeVertexSectionLocks[SectionIndex]);
@@ -347,10 +349,10 @@ protected:
 		// re-acquire the lock we need to check again that we have not already
 		// computed this edge, otherwise we will end up with duplicate vertices!
 
-		FVector3<double> pa = FVector3<double>::Zero(), pb = FVector3<double>::Zero();
+		TVector<double> pa = TVector<double>::Zero(), pb = TVector<double>::Zero();
 		corner_pos(Idx1, pa);
 		corner_pos(Idx2, pb);
-		FVector3<double> Pos = FVector3<double>::Zero();
+		TVector<double> Pos = TVector<double>::Zero();
 		find_iso(pa, pb, F1, F2, Pos);
 
 		return AppendOrFindVertexID(hash, Pos);
@@ -376,7 +378,7 @@ protected:
 		double* findval = corner_values.Find(hash);
 		if (findval == nullptr)
 		{
-			FVector3<double> V = corner_pos(Idx);
+			TVector<double> V = corner_pos(Idx);
 			value = Implicit(V);
 			corner_values.Add(hash, value);
 		} 
@@ -436,7 +438,7 @@ protected:
 			return (double)val;
 		}
 
-		FVector3<double> V = corner_pos(Idx);
+		TVector<double> V = corner_pos(Idx);
 		val = (float)Implicit(V);
 
 		{
@@ -459,7 +461,7 @@ protected:
 			return (double)val;
 		}
 
-		FVector3<double> V = corner_pos(Idx);
+		TVector<double> V = corner_pos(Idx);
 		val = (float)Implicit(V);
 		corner_values_grid[Idx] = val;
 		return (double)val;
@@ -492,7 +494,7 @@ protected:
 
 	double corner_value_nohash(const FVector3i& Idx) 
 	{
-		FVector3<double> V = corner_pos(Idx);
+		TVector<double> V = corner_pos(Idx);
 		return Implicit(V);
 	}
 	void initialize_cell_values_nohash(FGridCell& Cell, bool Shift)
@@ -657,7 +659,7 @@ protected:
 	/**
 	*  fully sequential version, no threading
 	*/
-	void generate_continuation(TArrayView<const FVector3<double>> Seeds)
+	void generate_continuation(TArrayView<const FVector3d> Seeds)
 	{
 		FGridCell Cell;
 		int vertTArray[12];
@@ -666,7 +668,7 @@ protected:
 
 		TArray<FVector3i> stack;
 
-		for (FVector3<double> seed : Seeds)
+		for (FVector3d seed : Seeds)
 		{
 			FVector3i seed_idx = cell_index(seed);
 			if (!done_cells.IsValidIndex(seed_idx) || done_cells[seed_idx] == 1)
@@ -708,13 +710,13 @@ protected:
 	/**
 	*  parallel seed evaluation
 	*/
-	void generate_continuation_parallel(TArrayView<const FVector3<double>> Seeds)
+	void generate_continuation_parallel(TArrayView<const FVector3d> Seeds)
 	{
 		parallel_mesh_access = true;
 
 		ParallelFor(Seeds.Num(), [this, &Seeds](int32 Index)
 		{
-			FVector3<double> Seed = Seeds[Index];
+			FVector3d Seed = Seeds[Index];
 			FVector3i seed_idx = cell_index(Seed);
 			if (!done_cells.IsValidIndex(seed_idx) || set_cell_if_not_done(seed_idx) == false)
 			{
@@ -821,7 +823,7 @@ protected:
 		// have a crossing on that edge. Look up the indices of this
 		// edge and find the intersection point along it
 		Shift = 1;
-		FVector3<double> pa = FVector3<double>::Zero(), pb = FVector3<double>::Zero();
+		TVector<double> pa = TVector<double>::Zero(), pb = TVector<double>::Zero();
 		for (int i = 0; i <= 11; i++)
 		{
 			if ((EdgeTable[cubeindex] & Shift) != 0)
@@ -878,7 +880,7 @@ protected:
 	/**
 	*  add vertex to mesh, with locking if we are computing in parallel
 	*/
-	int append_vertex(FVector3<double> V, int64 CellHash)
+	int append_vertex(TVector<double> V, int64 CellHash)
 	{
 		int SectionIndex = GetVertexSectionIndex(CellHash);
 		int32 NewIndex = VertexCounter++;
@@ -975,7 +977,7 @@ protected:
 	/**
 	*  root-find the intersection along edge from f(P1)=ValP1 to f(P2)=ValP2
 	*/
-	void find_iso(const FVector3<double>& P1, const FVector3<double>& P2, double ValP1, double ValP2, FVector3<double>& PIso)
+	void find_iso(const TVector<double>& P1, const TVector<double>& P2, double ValP1, double ValP2, TVector<double>& PIso)
 	{
 		// Ok, this is a bit hacky but seems to work? If both isovalues
 		// are the same, we just return the midpoint. If one is nearly zero, we can
@@ -1003,7 +1005,7 @@ protected:
 
 		// Note: if we don't maintain min/max order here, then numerical error means
 		//   that hashing on point x/y/z doesn't work
-		FVector3<double> a = P1, b = P2;
+		TVector<double> a = P1, b = P2;
 		double fa = ValP1, fb = ValP2;
 		if (ValP2 < ValP1)
 		{

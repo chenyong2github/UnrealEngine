@@ -15,9 +15,9 @@ using namespace UE::Math;
 template <typename RealType>
 struct TMatrix3
 {
-	FVector3<RealType> Row0;
-	FVector3<RealType> Row1;
-	FVector3<RealType> Row2;
+	TVector<RealType> Row0;
+	TVector<RealType> Row1;
+	TVector<RealType> Row2;
 
 	TMatrix3()
 	{
@@ -25,16 +25,16 @@ struct TMatrix3
 
 	TMatrix3(RealType ConstantValue)
 	{
-		Row0 = FVector3<RealType>(ConstantValue, ConstantValue, ConstantValue);
+		Row0 = TVector<RealType>(ConstantValue, ConstantValue, ConstantValue);
 		Row1 = Row0;
 		Row2 = Row0;
 	}
 
 	TMatrix3(RealType Diag0, RealType Diag1, RealType Diag2)
 	{
-		Row0 = FVector3<RealType>(Diag0, 0, 0);
-		Row1 = FVector3<RealType>(0, Diag1, 0);
-		Row2 = FVector3<RealType>(0, 0, Diag2);
+		Row0 = TVector<RealType>(Diag0, 0, 0);
+		Row1 = TVector<RealType>(0, Diag1, 0);
+		Row2 = TVector<RealType>(0, 0, Diag2);
 	}
 
 	/**
@@ -65,17 +65,17 @@ struct TMatrix3
 		}
 		else
 		{
-			Row0 = FVector3<RealType>(V1.X, V2.X, V3.X);
-			Row1 = FVector3<RealType>(V1.Y, V2.Y, V3.Y);
-			Row2 = FVector3<RealType>(V1.Z, V2.Z, V3.Z);
+			Row0 = TVector<RealType>(V1.X, V2.X, V3.X);
+			Row1 = TVector<RealType>(V1.Y, V2.Y, V3.Y);
+			Row2 = TVector<RealType>(V1.Z, V2.Z, V3.Z);
 		}
 	}
 
 	template<typename RealType2>
 	explicit constexpr TMatrix3(const TMatrix3<RealType2>& Mat) :
-		Row0(FVector3<RealType>{Mat.Row0}),
-		Row1(FVector3<RealType>{Mat.Row1}),
-		Row2(FVector3<RealType>{Mat.Row2})
+		Row0(TVector<RealType>{Mat.Row0}),
+		Row1(TVector<RealType>{Mat.Row1}),
+		Row2(TVector<RealType>{Mat.Row2})
 	{
 	}
 
@@ -113,9 +113,9 @@ struct TMatrix3
 			Row2.X * Scale, Row2.Y * Scale, Row2.Z * Scale);
 	}
 
-	FVector3<RealType> operator*(const UE::Math::TVector<RealType>& V) const
+	TVector<RealType> operator*(const UE::Math::TVector<RealType>& V) const
 	{
-		return FVector3<RealType>(
+		return TVector<RealType>(
 			Row0.X * V.X + Row0.Y * V.Y + Row0.Z * V.Z,
 			Row1.X * V.X + Row1.Y * V.Y + Row1.Z * V.Z,
 			Row2.X * V.X + Row2.Y * V.Y + Row2.Z * V.Z);

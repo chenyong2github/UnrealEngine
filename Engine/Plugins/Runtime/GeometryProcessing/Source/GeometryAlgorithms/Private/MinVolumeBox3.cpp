@@ -26,6 +26,7 @@ THIRD_PARTY_INCLUDES_END
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
+using namespace UE::Math;
 
 namespace UE {
 namespace Geometry {
@@ -43,7 +44,7 @@ struct TMinVolumeBox3Internal
 	TOrientedBox3<RealType> Result;
 	bool bSolutionOK;
 
-	void SetPoint(int32 Index, const FVector3<RealType>& Point)
+	void SetPoint(int32 Index, const TVector<RealType>& Point)
 	{
 		DoubleInput[Index] = DVector3{ {(double)Point.X, (double)Point.Y, (double)Point.Z} };
 	}
@@ -99,11 +100,11 @@ struct TMinVolumeBox3Internal
 		}
 
 		Result.Frame = TFrame3<RealType>(
-			FVector3<RealType>((RealType)MinimalBox.center[0], (RealType)MinimalBox.center[1], (RealType)MinimalBox.center[2]),
-			FVector3<RealType>((RealType)MinimalBox.axis[0][0], (RealType)MinimalBox.axis[0][1], (RealType)MinimalBox.axis[0][2]),
-			FVector3<RealType>((RealType)MinimalBox.axis[1][0], (RealType)MinimalBox.axis[1][1], (RealType)MinimalBox.axis[1][2]),
-			FVector3<RealType>((RealType)MinimalBox.axis[2][0], (RealType)MinimalBox.axis[2][1], (RealType)MinimalBox.axis[2][2]) );
-		Result.Extents = FVector3<RealType>((RealType)MinimalBox.extent[0], (RealType)MinimalBox.extent[1], (RealType)MinimalBox.extent[2]);
+			TVector<RealType>((RealType)MinimalBox.center[0], (RealType)MinimalBox.center[1], (RealType)MinimalBox.center[2]),
+			TVector<RealType>((RealType)MinimalBox.axis[0][0], (RealType)MinimalBox.axis[0][1], (RealType)MinimalBox.axis[0][2]),
+			TVector<RealType>((RealType)MinimalBox.axis[1][0], (RealType)MinimalBox.axis[1][1], (RealType)MinimalBox.axis[1][2]),
+			TVector<RealType>((RealType)MinimalBox.axis[2][0], (RealType)MinimalBox.axis[2][1], (RealType)MinimalBox.axis[2][2]) );
+		Result.Extents = TVector<RealType>((RealType)MinimalBox.extent[0], (RealType)MinimalBox.extent[1], (RealType)MinimalBox.extent[2]);
 
 		return true;
 	}
@@ -114,14 +115,14 @@ struct TMinVolumeBox3Internal
 } // end namespace UE
 
 template<typename RealType>
-bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox, FProgressCancel* Progress )
+bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, bool bUseExactBox, FProgressCancel* Progress )
 {
 	Initialize(NumPoints, bUseExactBox);
 	check(Internal);
 
 	for (int32 k = 0; k < NumPoints; ++k)
 	{
-		FVector3<RealType> Point = GetPointFunc(k);
+		TVector<RealType> Point = GetPointFunc(k);
 		Internal->SetPoint(k, Point);
 	}
 	
@@ -130,7 +131,7 @@ bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<Real
 
 
 template<typename RealType>
-bool TMinVolumeBox3<RealType>::SolveSubsample(int32 NumPoints, int32 MaxPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox, FProgressCancel* Progress)
+bool TMinVolumeBox3<RealType>::SolveSubsample(int32 NumPoints, int32 MaxPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, bool bUseExactBox, FProgressCancel* Progress)
 {
 	if (NumPoints <= MaxPoints)
 	{
@@ -145,7 +146,7 @@ bool TMinVolumeBox3<RealType>::SolveSubsample(int32 NumPoints, int32 MaxPoints, 
 	int32 Index;
 	while (Iter.GetNextIndex(Index) && k < MaxPoints)
 	{
-		FVector3<RealType> Point = GetPointFunc(Index);
+		TVector<RealType> Point = GetPointFunc(Index);
 		Internal->SetPoint(k, Point);
 		k++;
 	}

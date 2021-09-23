@@ -31,15 +31,15 @@ UE::Math::TVector2<Real> Convert(const gte::Vector2<Real>& Vec)
 }
 
 template<typename Real>
-gte::Vector3<Real> Convert(const FVector3<Real>& Vec)
+gte::Vector3<Real> Convert(const UE::Math::TVector<Real>& Vec)
 {
 	return gte::Vector3<Real>({ Vec.X, Vec.Y, Vec.Z });
 }
 
 template<typename Real>
-FVector3<Real> Convert(const gte::Vector3<Real>& Vec)
+UE::Math::TVector<Real> Convert(const gte::Vector3<Real>& Vec)
 {
-	return FVector3<Real>(Vec[0], Vec[1], Vec[2]);
+	return UE::Math::TVector<Real>(Vec[0], Vec[1], Vec[2]);
 }
 
 template<typename Real>

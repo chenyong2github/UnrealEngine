@@ -1544,10 +1544,10 @@ void UEditMeshPolygonsTool::ApplyFillHole()
 				// Compute normals and UVs
 				if (Mesh->HasAttributes())
 				{
-					TArray<FVector3<double>> VertexPositions;
+					TArray<FVector3d> VertexPositions;
 					Loop.GetVertices(VertexPositions);
-					FVector3<double> PlaneOrigin;
-					FVector3<double> PlaneNormal;
+					FVector3d PlaneOrigin;
+					FVector3d PlaneNormal;
 					PolygonTriangulation::ComputePolygonPlane<double>(VertexPositions, PlaneNormal, PlaneOrigin);
 
 					FDynamicMeshEditor Editor(Mesh);

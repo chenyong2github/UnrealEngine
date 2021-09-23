@@ -165,7 +165,7 @@ public:
 		// FSegment2d Direction should always be normalized unless Extent is 0 (handled above)
 		checkSlow(IsNormalized(Segment.Direction));
 
-		FVector3<Real> dist;
+		TVector<Real> dist;
 		FVector3i sign;
 		int positive = 0, negative = 0, zero = 0;
 		TIntrLine2Triangle2<Real>::TriangleLineRelations(Segment.Center, Segment.Direction, Triangle,

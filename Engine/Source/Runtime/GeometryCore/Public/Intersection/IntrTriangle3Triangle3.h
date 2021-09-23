@@ -51,7 +51,7 @@ public:
 	// intersection points (for point, line, polygon)
 	// only first Quantity elements are relevant
 	int Quantity = 0;
-	FVector3<Real> Points[6];
+	TVector<Real> Points[6];
 
 	TIntrTriangle3Triangle3()
 	{}
@@ -64,7 +64,7 @@ public:
 	/**
 	 * Store an externally-computed segment intersection result
 	 */
-	inline void SetResult(const FVector3<Real>& A, const FVector3<Real>& B)
+	inline void SetResult(const TVector<Real>& A, const TVector<Real>& B)
 	{
 		Result = EIntersectionResult::Intersects;
 		Type = EIntersectionType::Segment;
@@ -155,12 +155,12 @@ public:
 		// Get the plane of Triangle0.
 		TPlane3<Real> Plane0(Triangle0.V[0], Triangle0.V[1], Triangle0.V[2]);
 
-		if (Plane0.Normal == FVector3<Real>::Zero())
+		if (Plane0.Normal == TVector<Real>::Zero())
 		{
 			// This function was written assuming triangle 0 has a valid normal;
 			//  if it's degenerate, try swapping the triangles
 			TPlane3<Real> Plane1(Triangle1.V[0], Triangle1.V[1], Triangle1.V[2]);
-			if (Plane1.Normal != FVector3<Real>::Zero())
+			if (Plane1.Normal != TVector<Real>::Zero())
 			{
 				// Find the intersection with the triangles swapped
 				TIntrTriangle3Triangle3<Real> SwappedTrisIntr(Triangle1, Triangle0);
@@ -188,7 +188,7 @@ public:
 		// an epsilon-thick plane test.
 		int pos1, neg1, zero1;
 		FIndex3i sign1;
-		FVector3<Real> dist1;
+		TVector<Real> dist1;
 		TrianglePlaneRelations(Triangle1, Plane0, dist1, sign1, pos1, neg1, zero1, Tolerance);
 
 		if (pos1 == 3 || neg1 == 3)
@@ -240,7 +240,7 @@ public:
 		// line segment of intersection.  Then test for intersection between this
 		// segment and triangle 0.
 		Real t;
-		FVector3<Real> intr0, intr1;
+		TVector<Real> intr0, intr1;
 		if (zero1 == 0)
 		{
 			int iSign = (pos1 == 1 ? +1 : -1);
@@ -281,13 +281,13 @@ public:
 	bool Test()
 	{
 		// Get edge vectors for Triangle0.
-		FVector3<Real> E0[3];
+		TVector<Real> E0[3];
 		E0[0] = Triangle0.V[1] - Triangle0.V[0];
 		E0[1] = Triangle0.V[2] - Triangle0.V[1];
 		E0[2] = Triangle0.V[0] - Triangle0.V[2];
 
 		// Get normal vector of Triangle0.
-		FVector3<Real> N0 = UnitCross(E0[0], E0[1]);
+		TVector<Real> N0 = UnitCross(E0[0], E0[1]);
 
 		// Project Triangle1 onto normal line of Triangle0, test for separation.
 		Real N0dT0V0 = N0.Dot(Triangle0.V[0]);
@@ -299,19 +299,19 @@ public:
 		}
 
 		// Get edge vectors for Triangle1.
-		FVector3<Real> E1[3];
+		TVector<Real> E1[3];
 		E1[0] = Triangle1.V[1] - Triangle1.V[0];
 		E1[1] = Triangle1.V[2] - Triangle1.V[1];
 		E1[2] = Triangle1.V[0] - Triangle1.V[2];
 
 		// Get normal vector of Triangle1.
-		FVector3<Real> N1 = UnitCross(E1[0], E1[1]);
+		TVector<Real> N1 = UnitCross(E1[0], E1[1]);
 
-		FVector3<Real> dir;
+		TVector<Real> dir;
 		Real min0, max0;
 		int i0, i1;
 
-		FVector3<Real> N0xN1 = UnitCross(N0, N1);
+		TVector<Real> N0xN1 = UnitCross(N0, N1);
 		if (N0xN1.Dot(N0xN1) >= Tolerance)
 		{
 			// Triangles are not parallel.
@@ -386,13 +386,13 @@ public:
 	static bool Intersects(const TTriangle3<Real>& Triangle0, const TTriangle3<Real>& Triangle1, Real Tolerance = TMathUtil<Real>::ZeroTolerance)
 	{
 		// Get edge vectors for Triangle0.
-		FVector3<Real> E0[3];
+		TVector<Real> E0[3];
 		E0[0] = Triangle0.V[1] - Triangle0.V[0];
 		E0[1] = Triangle0.V[2] - Triangle0.V[1];
 		E0[2] = Triangle0.V[0] - Triangle0.V[2];
 
 		// Get normal vector of Triangle0.
-		FVector3<Real> N0 = UnitCross(E0[0], E0[1]);
+		TVector<Real> N0 = UnitCross(E0[0], E0[1]);
 
 		// Project Triangle1 onto normal line of Triangle0, test for separation.
 		Real N0dT0V0 = N0.Dot(Triangle0.V[0]);
@@ -403,19 +403,19 @@ public:
 		}
 
 		// Get edge vectors for Triangle1.
-		FVector3<Real> E1[3];
+		TVector<Real> E1[3];
 		E1[0] = Triangle1.V[1] - Triangle1.V[0];
 		E1[1] = Triangle1.V[2] - Triangle1.V[1];
 		E1[2] = Triangle1.V[0] - Triangle1.V[2];
 
 		// Get normal vector of Triangle1.
-		FVector3<Real> N1 = UnitCross(E1[0], E1[1]);
+		TVector<Real> N1 = UnitCross(E1[0], E1[1]);
 
-		FVector3<Real> dir;
+		TVector<Real> dir;
 		Real min0, max0;
 		int i0, i1;
 
-		FVector3<Real> N0xN1 = UnitCross(N0, N1);
+		TVector<Real> N0xN1 = UnitCross(N0, N1);
 		if (N0xN1.Dot(N0xN1) >= Tolerance) {
 			// Triangles are not parallel.
 
@@ -468,7 +468,7 @@ public:
 
 
 
-	static void ProjectOntoAxis(const TTriangle3<Real>& triangle, const FVector3<Real>& axis, Real& fmin, Real& fmax)
+	static void ProjectOntoAxis(const TTriangle3<Real>& triangle, const TVector<Real>& axis, Real& fmin, Real& fmax)
 	{
 		Real dot0 = axis.Dot(triangle.V[0]);
 		Real dot1 = axis.Dot(triangle.V[1]);
@@ -499,7 +499,7 @@ public:
 
 
 	static void TrianglePlaneRelations(const TTriangle3<Real>& triangle, const TPlane3<Real>& plane,
-									   FVector3<Real>& distance, FIndex3i& sign, int& positive, int& negative, int& zero,
+									   TVector<Real>& distance, FIndex3i& sign, int& positive, int& negative, int& zero,
 									   Real Tolerance)
 	{
 		// Compute the signed distances of triangle vertices to the plane.  Use
@@ -543,8 +543,8 @@ public:
 	 * @return Number of points representing the intersection result (0 for none, 1 for point, 2 for segment)
 	 */
 	static int IntersectTriangleWithCoplanarSegment(
-		const TPlane3<Real>& plane, const TTriangle3<Real>& triangle, const FVector3<Real>& end0, const FVector3<Real>& end1,
-		FVector3<Real>& OutA, FVector3<Real>& OutB, Real Tolerance)
+		const TPlane3<Real>& plane, const TTriangle3<Real>& triangle, const TVector<Real>& end0, const TVector<Real>& end1,
+		TVector<Real>& OutA, TVector<Real>& OutB, Real Tolerance)
 	{
 		// Compute the 2D representations of the triangle vertices and the
 		// segment endpoints relative to the plane of the triangle.  Then
@@ -630,7 +630,7 @@ public:
 			intr[0] = calc.Point0;
 		}
 
-		FVector3<Real>* OutPts[2]{ &OutA, &OutB };
+		TVector<Real>* OutPts[2]{ &OutA, &OutB };
 
 		// Unproject the segment of intersection.
 		if (maxNormal == 0)
@@ -641,7 +641,7 @@ public:
 				Real y = intr[i].X;
 				Real z = intr[i].Y;
 				Real x = invNX * (plane.Constant - plane.Normal.Y * y - plane.Normal.Z * z);
-				*OutPts[i] = FVector3<Real>(x, y, z);
+				*OutPts[i] = TVector<Real>(x, y, z);
 			}
 		}
 		else if (maxNormal == 1)
@@ -652,7 +652,7 @@ public:
 				Real x = intr[i].X;
 				Real z = intr[i].Y;
 				Real y = invNY * (plane.Constant - plane.Normal.X * x - plane.Normal.Z * z);
-				*OutPts[i] = FVector3<Real>(x, y, z);
+				*OutPts[i] = TVector<Real>(x, y, z);
 			}
 		}
 		else
@@ -663,7 +663,7 @@ public:
 				Real x = intr[i].X;
 				Real y = intr[i].Y;
 				Real z = invNZ * (plane.Constant - plane.Normal.X * x - plane.Normal.Y * y);
-				*OutPts[i] = FVector3<Real>(x, y, z);
+				*OutPts[i] = TVector<Real>(x, y, z);
 			}
 		}
 
@@ -674,7 +674,7 @@ public:
 protected:
 
 
-	bool ContainsPoint(const TTriangle3<Real>& triangle, const TPlane3<Real>& plane, const FVector3<Real>& point)
+	bool ContainsPoint(const TTriangle3<Real>& triangle, const TPlane3<Real>& plane, const TVector<Real>& point)
 	{
 		// Generate a coordinate system for the plane.  The incoming triangle has
 		// vertices <V0,V1,V2>.  The incoming plane has unit-length normal N.
@@ -683,15 +683,15 @@ protected:
 		// constructed so that {U0,U1,N} is an orthonormal set.  Any point Q
 		// in the plane may be written as Q = V0 + x0*U0 + x1*U1.  The coordinates
 		// are computed as x0 = Dot(U0,Q-V0) and x1 = Dot(U1,Q-V0).
-		FVector3<Real> U0, U1;
+		TVector<Real> U0, U1;
 		VectorUtil::MakePerpVectors(plane.Normal, U0, U1);
 
 		// Compute the planar coordinates for the points P, V1, and V2.  To
 		// simplify matters, the origin is subtracted from the points, in which
 		// case the planar coordinates are for P-V0, V1-V0, and V2-V0.
-		FVector3<Real> PmV0 = point - triangle.V[0];
-		FVector3<Real> V1mV0 = triangle.V[1] - triangle.V[0];
-		FVector3<Real> V2mV0 = triangle.V[2] - triangle.V[0];
+		TVector<Real> PmV0 = point - triangle.V[0];
+		TVector<Real> V1mV0 = triangle.V[1] - triangle.V[0];
+		TVector<Real> V2mV0 = triangle.V[2] - triangle.V[0];
 
 		// The planar representation of P-V0.
 		TVector2<Real> ProjP(U0.Dot(PmV0), U1.Dot(PmV0));
@@ -713,7 +713,7 @@ protected:
 	}
 
 
-	bool IntersectsSegment(const TPlane3<Real>& plane, const TTriangle3<Real>& triangle, const FVector3<Real>& end0, const FVector3<Real>& end1)
+	bool IntersectsSegment(const TPlane3<Real>& plane, const TTriangle3<Real>& triangle, const TVector<Real>& end0, const TVector<Real>& end1)
 	{
 		Quantity = IntersectTriangleWithCoplanarSegment(plane, triangle, end0, end1, Points[0], Points[1], Tolerance);
 		if (Quantity > 0)
@@ -820,7 +820,7 @@ protected:
 				Real y = intr.Points[i].X;
 				Real z = intr.Points[i].Y;
 				Real x = invNX * (plane.Constant - plane.Normal.Y * y - plane.Normal.Z * z);
-				Points[i] = FVector3<Real>(x, y, z);
+				Points[i] = TVector<Real>(x, y, z);
 			}
 		}
 		else if (maxNormal == 1)
@@ -831,7 +831,7 @@ protected:
 				Real x = intr.Points[i].X;
 				Real z = intr.Points[i].Y;
 				Real y = invNY * (plane.Constant - plane.Normal.X * x - plane.Normal.Z * z);
-				Points[i] = FVector3<Real>(x, y, z);
+				Points[i] = TVector<Real>(x, y, z);
 			}
 		}
 		else
@@ -842,7 +842,7 @@ protected:
 				Real x = intr.Points[i].X;
 				Real y = intr.Points[i].Y;
 				Real z = invNZ * (plane.Constant - plane.Normal.X * x - plane.Normal.Y * y);
-				Points[i] = FVector3<Real>(x, y, z);
+				Points[i] = TVector<Real>(x, y, z);
 			}
 		}
 

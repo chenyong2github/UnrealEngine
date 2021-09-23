@@ -57,12 +57,12 @@ struct TTriangle2
 		return Bary0 * V[0] + Bary1 * V[1] + Bary2 * V[2];
 	}
 
-	TVector2<RealType> BarycentricPoint(const FVector3<RealType>& BaryCoords) const
+	TVector2<RealType> BarycentricPoint(const TVector<RealType>& BaryCoords) const
 	{
 		return BaryCoords[0] * V[0] + BaryCoords[1] * V[1] + BaryCoords[2] * V[2];
 	}
 
-	FVector3<RealType> GetBarycentricCoords(const TVector2<RealType>& Point) const
+	TVector<RealType> GetBarycentricCoords(const TVector2<RealType>& Point) const
 	{
 		return VectorUtil::BarycentricCoords(Point, V[0], V[1], V[2]);
 	}
@@ -183,50 +183,50 @@ typedef TTriangle2<double> FTriangle2d;
 template<typename RealType>
 struct TTriangle3
 {
-	FVector3<RealType> V[3];
+	TVector<RealType> V[3];
 
 	TTriangle3() {}
 
-	TTriangle3(const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	TTriangle3(const TVector<RealType>& V0, const TVector<RealType>& V1, const TVector<RealType>& V2)
 	{
 		V[0] = V0;
 		V[1] = V1;
 		V[2] = V2;
 	}
 
-	TTriangle3(const FVector3<RealType> VIn[3])
+	TTriangle3(const TVector<RealType> VIn[3])
 	{
 		V[0] = VIn[0];
 		V[1] = VIn[1];
 		V[2] = VIn[2];
 	}
 
-	FVector3<RealType> BarycentricPoint(RealType Bary0, RealType Bary1, RealType Bary2) const
+	TVector<RealType> BarycentricPoint(RealType Bary0, RealType Bary1, RealType Bary2) const
 	{
 		return Bary0*V[0] + Bary1*V[1] + Bary2*V[2];
 	}
 
-	FVector3<RealType> BarycentricPoint(const FVector3<RealType> & BaryCoords) const
+	TVector<RealType> BarycentricPoint(const TVector<RealType> & BaryCoords) const
 	{
 		return BaryCoords[0]*V[0] + BaryCoords[1]*V[1] + BaryCoords[2]*V[2];
 	}
 
-	FVector3<RealType> GetBarycentricCoords(const FVector3<RealType>& Point) const
+	TVector<RealType> GetBarycentricCoords(const TVector<RealType>& Point) const
 	{
 		return VectorUtil::BarycentricCoords(Point, V[0], V[1], V[2]);
 	}
 
 	/** @return vector that is perpendicular to the plane of this triangle */
-	FVector3<RealType> Normal() const
+	TVector<RealType> Normal() const
 	{
 		return VectorUtil::Normal(V[0], V[1], V[2]);
 	}
 
 	/** @return centroid of this triangle */
-	FVector3<RealType> Centroid() const
+	TVector<RealType> Centroid() const
 	{
 		constexpr RealType f = 1.0 / 3.0;
-		return FVector3<RealType>(
+		return TVector<RealType>(
 			(V[0].X + V[1].X + V[2].X) * f,
 			(V[0].Y + V[1].Y + V[2].Y) * f,
 			(V[0].Z + V[1].Z + V[2].Z) * f
@@ -236,7 +236,7 @@ struct TTriangle3
 	/** grow the triangle around the centroid */
 	void Expand(RealType Delta)
 	{
-		FVector3<RealType> Centroid(Centroid());
+		TVector<RealType> Centroid(Centroid());
 		V[0] += Delta * ((V[0] - Centroid).Normalized());
 		V[1] += Delta * ((V[1] - Centroid).Normalized());
 		V[2] += Delta * ((V[2] - Centroid).Normalized());

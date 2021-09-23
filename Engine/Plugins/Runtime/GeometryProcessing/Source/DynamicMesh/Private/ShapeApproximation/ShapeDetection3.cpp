@@ -62,7 +62,7 @@ bool UE::Geometry::IsSphereMesh(const FDynamicMesh3& Mesh, FSphere3d& SphereOut,
 		SphereOut.Center = Centroid + AvgLen * AvgLenDeriv;
 		SphereOut.Radius = AvgLen;
 
-		if (SphereOut.Center.DistanceSquared(PrevCenter) < UseFitTolerance)
+		if (DistanceSquared(SphereOut.Center, PrevCenter) < UseFitTolerance)
 		{
 			break;
 		}

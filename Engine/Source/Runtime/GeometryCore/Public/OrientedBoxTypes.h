@@ -13,6 +13,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 /**
  * TOrientedBox3 is a non-axis-aligned 3D box defined by a 3D frame and extents along the axes of that frame
@@ -27,14 +28,14 @@ struct TOrientedBox3
 	/** 3D position (center) and orientation (axes) of the box */
 	TFrame3<RealType> Frame;
 	/** Half-dimensions of box measured along the three axes */
-	FVector3<RealType> Extents;
+	TVector<RealType> Extents;
 
 	TOrientedBox3() : Extents(1,1,1) {}
 
 	/**
 	 * Create axis-aligned box with given Origin and Extents
 	 */
-	TOrientedBox3(const FVector3<RealType>& Origin, const FVector3<RealType> & ExtentsIn)
+	TOrientedBox3(const TVector<RealType>& Origin, const TVector<RealType> & ExtentsIn)
 		: Frame(Origin), Extents(ExtentsIn)
 	{
 	}
@@ -42,7 +43,7 @@ struct TOrientedBox3
 	/**
 	 * Create oriented box with given Frame and Extents
 	 */
-	TOrientedBox3(const TFrame3<RealType>& FrameIn, const FVector3<RealType> & ExtentsIn)
+	TOrientedBox3(const TFrame3<RealType>& FrameIn, const TVector<RealType> & ExtentsIn)
 		: Frame(FrameIn), Extents(ExtentsIn)
 	{
 	}
@@ -57,26 +58,26 @@ struct TOrientedBox3
 
 
 	/** @return box with unit dimensions centered at origin */
-	static TOrientedBox3<RealType> UnitZeroCentered() { return TOrientedBox3<RealType>(FVector3<RealType>::Zero(), (RealType)0.5*FVector3<RealType>::One()); }
+	static TOrientedBox3<RealType> UnitZeroCentered() { return TOrientedBox3<RealType>(TVector<RealType>::Zero(), (RealType)0.5*TVector<RealType>::One()); }
 
 	/** @return box with unit dimensions where minimum corner is at origin */
-	static TOrientedBox3<RealType> UnitPositive() { return TOrientedBox3<RealType>((RealType)0.5*FVector3<RealType>::One(), (RealType)0.5*FVector3<RealType>::One()); }
+	static TOrientedBox3<RealType> UnitPositive() { return TOrientedBox3<RealType>((RealType)0.5*TVector<RealType>::One(), (RealType)0.5*TVector<RealType>::One()); }
 
 
 	/** @return center of the box */
-	FVector3<RealType> Center() const { return Frame.Origin; }
+	TVector<RealType> Center() const { return Frame.Origin; }
 
 	/** @return X axis of the box */
-	FVector3<RealType> AxisX() const { return Frame.X(); }
+	TVector<RealType> AxisX() const { return Frame.X(); }
 
 	/** @return Y axis of the box */
-	FVector3<RealType> AxisY() const { return Frame.Y(); }
+	TVector<RealType> AxisY() const { return Frame.Y(); }
 
 	/** @return Z axis of the box */
-	FVector3<RealType> AxisZ() const { return Frame.Z(); }
+	TVector<RealType> AxisZ() const { return Frame.Z(); }
 
 	/** @return an axis of the box */
-	FVector3<RealType> GetAxis(int AxisIndex) const { return Frame.GetAxis(AxisIndex); }
+	TVector<RealType> GetAxis(int AxisIndex) const { return Frame.GetAxis(AxisIndex); }
 
 	/** @return maximum extent of box */
 	inline RealType MaxExtent() const
@@ -91,7 +92,7 @@ struct TOrientedBox3
 	}
 
 	/** @return vector from minimum-corner to maximum-corner of box */
-	inline FVector3<RealType> Diagonal() const
+	inline TVector<RealType> Diagonal() const
 	{
 		return Frame.PointAt(Extents.X, Extents.Y, Extents.Z) - Frame.PointAt(-Extents.X, -Extents.Y, -Extents.Z);
 	}
@@ -103,9 +104,9 @@ struct TOrientedBox3
 	}
 
 	/** @return true if box contains point */
-	inline bool Contains(const FVector3<RealType>& Point) const
+	inline bool Contains(const TVector<RealType>& Point) const
 	{
-		FVector3<RealType> InFramePoint = Frame.ToFramePoint(Point);
+		TVector<RealType> InFramePoint = Frame.ToFramePoint(Point);
 		return (TMathUtil<RealType>::Abs(InFramePoint.X) <= Extents.X) &&
 			(TMathUtil<RealType>::Abs(InFramePoint.Y) <= Extents.Y) &&
 			(TMathUtil<RealType>::Abs(InFramePoint.Z) <= Extents.Z);
@@ -128,7 +129,7 @@ struct TOrientedBox3
 	 * @param Index corner index in range 0-7
 	 * @return Corner point on the box identified by the given index. See diagram in OrientedBoxTypes.h for index/corner mapping.
 	 */
-	FVector3<RealType> GetCorner(int Index) const
+	TVector<RealType> GetCorner(int Index) const
 	{
 		check(Index >= 0 && Index <= 7);
 		RealType dx = (((Index & 1) != 0) ^ ((Index & 2) != 0)) ? (Extents.X) : (-Extents.X);
@@ -146,14 +147,14 @@ struct TOrientedBox3
 	{
 		TMatrix3<RealType> RotMatrix = Frame.Rotation.ToRotationMatrix();
 		RealType X = Extents.X, Y = Extents.Y, Z = Extents.Z;
-		CornerPointFunc( RotMatrix*FVector3<RealType>(-X,-Y,-Z) + Frame.Origin );
-		CornerPointFunc( RotMatrix*FVector3<RealType>( X,-Y,-Z) + Frame.Origin );
-		CornerPointFunc( RotMatrix*FVector3<RealType>( X, Y,-Z) + Frame.Origin );
-		CornerPointFunc( RotMatrix*FVector3<RealType>(-X, Y,-Z) + Frame.Origin );
-		CornerPointFunc( RotMatrix*FVector3<RealType>(-X,-Y, Z) + Frame.Origin );
-		CornerPointFunc( RotMatrix*FVector3<RealType>( X,-Y, Z) + Frame.Origin );
-		CornerPointFunc( RotMatrix*FVector3<RealType>( X, Y, Z) + Frame.Origin );
-		CornerPointFunc( RotMatrix*FVector3<RealType>(-X, Y, Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>(-X,-Y,-Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>( X,-Y,-Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>( X, Y,-Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>(-X, Y,-Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>(-X,-Y, Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>( X,-Y, Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>( X, Y, Z) + Frame.Origin );
+		CornerPointFunc( RotMatrix*TVector<RealType>(-X, Y, Z) + Frame.Origin );
 	}
 
 
@@ -166,14 +167,14 @@ struct TOrientedBox3
 	{
 		TMatrix3<RealType> RotMatrix = Frame.Rotation.ToRotationMatrix();
 		RealType X = Extents.X, Y = Extents.Y, Z = Extents.Z;
-		return CornerPointPredicate(RotMatrix * FVector3<RealType>(-X, -Y, -Z) + Frame.Origin) &&
-			CornerPointPredicate(RotMatrix * FVector3<RealType>(X, -Y, -Z) + Frame.Origin) &&
-			CornerPointPredicate(RotMatrix * FVector3<RealType>(X, Y, -Z) + Frame.Origin) &&
-			CornerPointPredicate(RotMatrix * FVector3<RealType>(-X, Y, -Z) + Frame.Origin) &&
-			CornerPointPredicate(RotMatrix * FVector3<RealType>(-X, -Y, Z) + Frame.Origin) &&
-			CornerPointPredicate(RotMatrix * FVector3<RealType>(X, -Y, Z) + Frame.Origin) &&
-			CornerPointPredicate(RotMatrix * FVector3<RealType>(X, Y, Z) + Frame.Origin) &&
-			CornerPointPredicate(RotMatrix * FVector3<RealType>(-X, Y, Z) + Frame.Origin);
+		return CornerPointPredicate(RotMatrix * TVector<RealType>(-X, -Y, -Z) + Frame.Origin) &&
+			CornerPointPredicate(RotMatrix * TVector<RealType>(X, -Y, -Z) + Frame.Origin) &&
+			CornerPointPredicate(RotMatrix * TVector<RealType>(X, Y, -Z) + Frame.Origin) &&
+			CornerPointPredicate(RotMatrix * TVector<RealType>(-X, Y, -Z) + Frame.Origin) &&
+			CornerPointPredicate(RotMatrix * TVector<RealType>(-X, -Y, Z) + Frame.Origin) &&
+			CornerPointPredicate(RotMatrix * TVector<RealType>(X, -Y, Z) + Frame.Origin) &&
+			CornerPointPredicate(RotMatrix * TVector<RealType>(X, Y, Z) + Frame.Origin) &&
+			CornerPointPredicate(RotMatrix * TVector<RealType>(-X, Y, Z) + Frame.Origin);
 	}
 
 
@@ -200,7 +201,7 @@ struct TOrientedBox3
 	 * @param Point input point
 	 * @return squared distance from point to box, or 0 if point is inside box
 	 */
-	RealType DistanceSquared(FVector3<RealType> Point)
+	RealType DistanceSquared(TVector<RealType> Point)
 	{
 		 // Ported from WildMagic5 Wm5DistPoint3Box3.cpp
 			 
@@ -210,7 +211,7 @@ struct TOrientedBox3
 		// Compute squared distance and closest point on box.
 		RealType sqrDistance = 0;
 		RealType delta;
-		FVector3<RealType> closest(0, 0, 0);
+		TVector<RealType> closest(0, 0, 0);
 		for (int i = 0; i < 3; ++i) 
 		{
 			closest[i] = Point.Dot(GetAxis(i));
@@ -239,7 +240,7 @@ struct TOrientedBox3
 	  * @param Point input point
 	  * @return closest point on box. Input point is returned if it is inside box.
 	  */
-	 FVector3<RealType> ClosestPoint(FVector3<RealType> Point)
+	 TVector<RealType> ClosestPoint(TVector<RealType> Point)
 	 {
 		 // Work in the box's coordinate system.
 		 Point -= Frame.Origin;
@@ -247,8 +248,8 @@ struct TOrientedBox3
 		 // Compute squared distance and closest point on box.
 		 RealType sqrDistance = 0;
 		 RealType delta;
-		 FVector3<RealType> closest;
-		 FVector3<RealType> Axes[3];
+		 TVector<RealType> closest;
+		 TVector<RealType> Axes[3];
 		 for (int i = 0; i < 3; ++i) 
 		 {
 			 Axes[i] = GetAxis(i);

@@ -20,6 +20,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TDynamicPointSet3 implements a dynamic 3D point set, templated on real-value type (float or double).
  * The points are indexed and the class allows for gaps in the index space.
@@ -118,7 +120,7 @@ public:
 
 
 	/** Append vertex at position, returns vid */
-	int AppendVertex(const FVector3<RealType>& Position)
+	int AppendVertex(const TVector<RealType>& Position)
 	{
 		int vid = VertexRefCounts.Allocate();
 		int i = 3 * vid;
@@ -152,7 +154,7 @@ public:
 	 * If bUnsafe, we use fast id allocation that does not update free list.
 	 * You should only be using this between BeginUnsafeVerticesInsert() / EndUnsafeVerticesInsert() calls
 	 */
-	EMeshResult InsertVertex(int VertexID, const FVector3<RealType>& Position, bool bUnsafe = false)
+	EMeshResult InsertVertex(int VertexID, const TVector<RealType>& Position, bool bUnsafe = false)
 	{
 		if (VertexRefCounts.IsValid(VertexID))
 		{
@@ -187,15 +189,15 @@ public:
 public:
 
 	/** @return the vertex position */
-	inline FVector3<RealType> GetVertex(int VertexID) const
+	inline TVector<RealType> GetVertex(int VertexID) const
 	{
 		check(IsVertex(VertexID));
 		int i = 3 * VertexID;
-		return FVector3<RealType>(Vertices[i], Vertices[i + 1], Vertices[i + 2]);
+		return TVector<RealType>(Vertices[i], Vertices[i + 1], Vertices[i + 2]);
 	}
 
 	/** Set vertex position */
-	inline void SetVertex(int VertexID, const FVector3<RealType>& vNewPos)
+	inline void SetVertex(int VertexID, const TVector<RealType>& vNewPos)
 	{
 		//check(VectorUtil::IsFinite(vNewPos));
 		check(IsVertex(VertexID));
@@ -219,11 +221,11 @@ public:
 	}
 
 	/** Enumerate positions of all points */
-	FRefCountVector::MappedEnumerable<FVector3<RealType>> VerticesItr() const
+	FRefCountVector::MappedEnumerable<TVector<RealType>> VerticesItr() const
 	{
-		return VertexRefCounts.MappedIndices<FVector3<RealType>>([this](int VertexID) {
+		return VertexRefCounts.MappedIndices<TVector<RealType>>([this](int VertexID) {
 			int i = 3 * VertexID;
-			return FVector3<RealType>(Vertices[i], Vertices[i + 1], Vertices[i + 2]);
+			return TVector<RealType>(Vertices[i], Vertices[i + 1], Vertices[i + 2]);
 		});
 	}
 
@@ -260,7 +262,7 @@ public:
 		for (int vi : VertexIndicesItr())
 		{
 			int k = 3 * vi;
-			Box.Contain( FVector3<RealType>(Vertices[k], Vertices[k + 1], Vertices[k + 2]) );
+			Box.Contain( TVector<RealType>(Vertices[k], Vertices[k + 1], Vertices[k + 2]) );
 		}
 		return Box;
 	}

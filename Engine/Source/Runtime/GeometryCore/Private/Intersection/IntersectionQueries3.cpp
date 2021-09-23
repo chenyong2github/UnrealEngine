@@ -28,7 +28,7 @@ template<typename RealType>
 bool UE::Geometry::TestIntersection(const THalfspace3<RealType>& Halfspace, const TOrientedBox3<RealType>& Box)
 {
 	RealType Center = Halfspace.Normal.Dot(Box.Frame.Origin) - Halfspace.Constant;
-	FVector3<RealType> X, Y, Z;
+	TVector<RealType> X, Y, Z;
 	Box.Frame.GetAxes(X, Y, Z);
 	RealType Radius =
 		TMathUtil<RealType>::Abs(Box.Extents.X * Halfspace.Normal.Dot(X)) +

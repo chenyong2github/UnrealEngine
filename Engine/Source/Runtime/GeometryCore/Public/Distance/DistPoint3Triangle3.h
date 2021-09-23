@@ -23,15 +23,15 @@ class TDistPoint3Triangle3
 {
 public:
 	// Input
-	FVector3<Real> Point;
+	TVector<Real> Point;
 	TTriangle3<Real> Triangle;
 
 	// Results
-	FVector3<Real> TriangleBaryCoords;
-	FVector3<Real> ClosestTrianglePoint;  // do we need this just use Triangle.BarycentricPoint
+	TVector<Real> TriangleBaryCoords;
+	TVector<Real> ClosestTrianglePoint;  // do we need this just use Triangle.BarycentricPoint
 
 
-	TDistPoint3Triangle3(const FVector3<Real>& PointIn, const TTriangle3<Real>& TriangleIn)
+	TDistPoint3Triangle3(const TVector<Real>& PointIn, const TTriangle3<Real>& TriangleIn)
 	{
 		Point = PointIn;
 		Triangle = TriangleIn;
@@ -48,9 +48,9 @@ public:
 
 	Real ComputeResult()
 	{
-		FVector3<Real> diff = Point - Triangle.V[0];
-		FVector3<Real> edge0 = Triangle.V[1] - Triangle.V[0];
-		FVector3<Real> edge1 = Triangle.V[2] - Triangle.V[0];
+		TVector<Real> diff = Point - Triangle.V[0];
+		TVector<Real> edge0 = Triangle.V[1] - Triangle.V[0];
+		TVector<Real> edge1 = Triangle.V[2] - Triangle.V[0];
 		Real a00 = edge0.SquaredLength();
 		Real a01 = edge0.Dot(edge1);
 		Real a11 = edge1.SquaredLength();
@@ -190,9 +190,9 @@ public:
 			}
 		}
 
-		TriangleBaryCoords = FVector3<Real>((Real)1 - p[0] - p[1], p[0], p[1]);
+		TriangleBaryCoords = TVector<Real>((Real)1 - p[0] - p[1], p[0], p[1]);
 		ClosestTrianglePoint = Triangle.V[0] + p[0] * edge0 + p[1] * edge1;
-		return Point.DistanceSquared(ClosestTrianglePoint);
+		return DistanceSquared(Point, ClosestTrianglePoint);
 	}
 
 private:

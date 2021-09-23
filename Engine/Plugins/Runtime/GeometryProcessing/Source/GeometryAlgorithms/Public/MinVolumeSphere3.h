@@ -10,6 +10,8 @@
 namespace UE {
 namespace Geometry {
 
+using namespace UE::Math;
+
 template <typename RealType> struct TMinVolumeSphere3Internal;
 
 /**
@@ -26,7 +28,7 @@ public:
 	 * @param bUseExactComputation If true, high-precision Rational number types are used for the calculation, rather than doubles. This is slower but more precise.
 	 * @return true if minimal sphere was found
 	 */
-	bool Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactComputation = false);
+	bool Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, bool bUseExactComputation = false);
 
 	/** @return true if minimal box is available */
 	bool IsSolutionAvailable() const;

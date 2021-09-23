@@ -476,7 +476,7 @@ namespace MeshCut
 			int BestIdx = -1;
 			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
 			{
-				double DSq = Tri.V[SubIdx].DistanceSquared(V);
+				double DSq = DistanceSquared(Tri.V[SubIdx], V);
 				if (DSq < BestDSq)
 				{
 					BestIdx = SubIdx;

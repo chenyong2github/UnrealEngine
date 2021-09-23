@@ -15,6 +15,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
 * Compute unsigned distance between 3D line and 3D triangle
 */
@@ -29,7 +31,7 @@ public:
 	// Output
 	Real DistanceSquared = -1.0;
 	Real LineParam;
-	FVector3<Real> LineClosest, TriangleClosest, TriangleBaryCoords;
+	TVector<Real> LineClosest, TriangleClosest, TriangleBaryCoords;
 
 
 	TDistLine3Triangle3(const TLine3<Real>& LineIn, const TTriangle3<Real>& TriangleIn) : Line(LineIn), Triangle(TriangleIn)
@@ -53,17 +55,17 @@ public:
 		}
 
 		// Test if Line intersects Triangle.  If so, the squared distance is zero.
-		FVector3<Real> edge0 = Triangle.V[1] - Triangle.V[0];
-		FVector3<Real> edge1 = Triangle.V[2] - Triangle.V[0];
-		FVector3<Real> normal = edge0.Cross(edge1);
+		TVector<Real> edge0 = Triangle.V[1] - Triangle.V[0];
+		TVector<Real> edge1 = Triangle.V[2] - Triangle.V[0];
+		TVector<Real> normal = edge0.Cross(edge1);
 		Normalize(normal);
 		Real NdD = normal.Dot(Line.Direction);
 		if (TMathUtil<Real>::Abs(NdD) > TMathUtil<Real>::ZeroTolerance)
 		{
 			// The line and triangle are not parallel, so the line intersects
 			// the plane of the triangle.
-			FVector3<Real> diff = Line.Origin - Triangle.V[0];
-			FVector3<Real> U, V;
+			TVector<Real> diff = Line.Origin - Triangle.V[0];
+			TVector<Real> U, V;
 			VectorUtil::MakePerpVectors(Line.Direction, U, V);
 			Real UdE0 = U.Dot(edge0);
 			Real UdE1 = U.Dot(edge1);
@@ -87,7 +89,7 @@ public:
 				LineParam = b1 * DdE0 + b2 * DdE1 - DdDiff;
 
 				// Barycentric coordinates for the point of intersection.
-				TriangleBaryCoords = FVector3<Real>(b0, b1, b2);
+				TriangleBaryCoords = TVector<Real>(b0, b1, b2);
 
 				// The intersection point is inside or on the Triangle.
 				LineClosest = Line.Origin + LineParam * Line.Direction;

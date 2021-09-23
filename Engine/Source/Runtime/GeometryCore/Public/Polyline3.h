@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TPolyline3 represents a 3D polyline stored as a list of Vertices.
  *
@@ -23,7 +25,7 @@ class TPolyline3
 {
 protected:
 	/** The list of vertices of the polyline */
-	TArray<FVector3<T>> Vertices;
+	TArray<TVector<T>> Vertices;
 
 	/** A counter that is incremented every time the polyline vertices are modified */
 	int Timestamp;
@@ -45,14 +47,14 @@ public:
 	/**
 	 * Construct polyline with given list of vertices
 	 */
-	TPolyline3(const TArray<FVector3<T>>& VertexList) : Vertices(VertexList), Timestamp(0)
+	TPolyline3(const TArray<TVector<T>>& VertexList) : Vertices(VertexList), Timestamp(0)
 	{
 	}
 
 	/**
 	 * Construct a single-segment polyline
 	 */
-	TPolyline3(const FVector3<T>& Point0, const FVector3<T>& Point1) : Timestamp(0)
+	TPolyline3(const TVector<T>& Point0, const TVector<T>& Point1) : Timestamp(0)
 	{
 		Vertices.Add(Point0);
 		Vertices.Add(Point1);
@@ -73,7 +75,7 @@ public:
 	/**
 	 * Get the vertex at a given index
 	 */
-	const FVector3<T>& operator[](int Index) const
+	const TVector<T>& operator[](int Index) const
 	{
 		return Vertices[Index];
 	}
@@ -82,7 +84,7 @@ public:
 	 * Get the vertex at a given index
 	 * @warning changing the vertex via this operator does not update Timestamp!
 	 */
-	FVector3<T>& operator[](int Index)
+	TVector<T>& operator[](int Index)
 	{
 		return Vertices[Index];
 	}
@@ -91,7 +93,7 @@ public:
 	/**
 	 * @return first vertex of polyline
 	 */
-	const FVector3<T>& Start() const
+	const TVector<T>& Start() const
 	{
 		return Vertices[0];
 	}
@@ -99,7 +101,7 @@ public:
 	/**
 	 * @return last vertex of polyline
 	 */
-	const FVector3<T>& End() const
+	const TVector<T>& End() const
 	{
 		return Vertices[Vertices.Num()-1];
 	}
@@ -108,7 +110,7 @@ public:
 	/**
 	 * @return list of Vertices of polyline
 	 */
-	const TArray<FVector3<T>>& GetVertices() const
+	const TArray<TVector<T>>& GetVertices() const
 	{
 		return Vertices;
 	}
@@ -140,7 +142,7 @@ public:
 	/**
 	 * Add a vertex to the polyline
 	 */
-	void AppendVertex(const FVector3<T>& Position)
+	void AppendVertex(const TVector<T>& Position)
 	{
 		Vertices.Add(Position);
 		Timestamp++;
@@ -149,7 +151,7 @@ public:
 	/**
 	 * Add a list of Vertices to the polyline
 	 */
-	void AppendVertices(const TArray<FVector3<T>>& NewVertices)
+	void AppendVertices(const TArray<TVector<T>>& NewVertices)
 	{
 		Vertices.Append(NewVertices);
 		Timestamp++;
@@ -165,7 +167,7 @@ public:
 		Vertices.Reserve(Vertices.Num() + NumV);
 		for (int32 k = 0; k < NumV; ++k)
 		{
-			Vertices.Append( (FVector3<T>)NewVertices[k] );
+			Vertices.Append( (TVector<T>)NewVertices[k] );
 		}
 		Timestamp++;
 	}
@@ -173,7 +175,7 @@ public:
 	/**
 	 * Set vertex at given index to a new Position
 	 */
-	void Set(int VertexIndex, const FVector3<T>& Position)
+	void Set(int VertexIndex, const TVector<T>& Position)
 	{
 		Vertices[VertexIndex] = Position;
 		Timestamp++;
@@ -191,7 +193,7 @@ public:
 	/**
 	 * Replace the list of Vertices with a new list
 	 */
-	void SetVertices(const TArray<FVector3<T>>& NewVertices)
+	void SetVertices(const TArray<TVector<T>>& NewVertices)
 	{
 		int NumVerts = NewVertices.Num();
 		Vertices.SetNum(NumVerts, false);
@@ -221,7 +223,7 @@ public:
 	 * Get the tangent vector at a vertex of the polyline, which is the normalized
 	 * vector from the previous vertex to the next vertex
 	 */
-	FVector3<T> GetTangent(int VertexIndex) const
+	TVector<T> GetTangent(int VertexIndex) const
 	{
 		if (VertexIndex == 0)
 		{
@@ -251,7 +253,7 @@ public:
 	 * @param SegmentParam parameter in range [-Extent,Extent] along segment
 	 * @return point on the segment at the given parameter value
 	 */
-	FVector3<T> GetSegmentPoint(int SegmentIndex, T SegmentParam) const
+	TVector<T> GetSegmentPoint(int SegmentIndex, T SegmentParam) const
 	{
 		TSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
 		return seg.PointAt(SegmentParam);
@@ -263,7 +265,7 @@ public:
 	 * @param SegmentParam parameter in range [0,1] along segment
 	 * @return point on the segment at the given parameter value
 	 */
-	FVector3<T> GetSegmentPointUnitParam(int SegmentIndex, T SegmentParam) const
+	TVector<T> GetSegmentPointUnitParam(int SegmentIndex, T SegmentParam) const
 	{
 		TSegment3<T> seg(Vertices[SegmentIndex], Vertices[SegmentIndex + 1]);
 		return seg.PointBetween(SegmentParam);
@@ -377,7 +379,7 @@ public:
 	 * @param NearestSegParamOut the parameter value of the nearest point on the segment
 	 * @return squared distance to the polyline
 	 */
-	T DistanceSquared(const FVector3<T>& QueryPoint, int& NearestSegIndexOut, T& NearestSegParamOut) const
+	T DistanceSquared(const TVector<T>& QueryPoint, int& NearestSegIndexOut, T& NearestSegParamOut) const
 	{
 		NearestSegIndexOut = -1;
 		NearestSegParamOut = TNumericLimits<T>::Max();
@@ -418,7 +420,7 @@ public:
 	 * @param QueryPoint the query point
 	 * @return squared distance to the polyline
 	 */
-	T DistanceSquared(const FVector3<T>& QueryPoint) const
+	T DistanceSquared(const TVector<T>& QueryPoint) const
 	{
 		int seg; T segt;
 		return DistanceSquared(QueryPoint, seg, segt);
@@ -455,9 +457,9 @@ public:
 		int k = 1;
 		for (int i = 1; i < N; ++i)
 		{
-			const FVector3<T>& Prev = Vertices[i-1];
-			const FVector3<T>& Cur = Vertices[i];
-			const FVector3<T>& Next = Vertices[i+1];
+			const TVector<T>& Prev = Vertices[i-1];
+			const TVector<T>& Cur = Vertices[i];
+			const TVector<T>& Next = Vertices[i+1];
 			NewPolyline.Vertices[k++] = Alpha * Prev + OneMinusAlpha * Cur;
 			NewPolyline.Vertices[k++] = OneMinusAlpha * Cur + Alpha * Next;
 		}

@@ -12,6 +12,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute distance between two 3D lines
  */
@@ -27,9 +29,9 @@ public:
 	Real DistanceSquared = -1.0;
 
 	bool bIsParallel = false;
-	FVector3<Real> Line1ClosestPoint;
+	TVector<Real> Line1ClosestPoint;
 	Real Line1Parameter;
-	FVector3<Real> Line2ClosestPoint;
+	TVector<Real> Line2ClosestPoint;
 	Real Line2Parameter;
 
 	TDistLine3Line3(const TLine3<Real>& Line1In, const TLine3<Real>& Line2In)
@@ -54,7 +56,7 @@ public:
 			return DistanceSquared;
 		}
 
-		FVector3<Real> kDiff = Line1.Origin - Line2.Origin;
+		TVector<Real> kDiff = Line1.Origin - Line2.Origin;
 		Real a01 = -Line1.Direction.Dot(Line2.Direction);
 		Real b0 = kDiff.Dot(Line1.Direction);
 		Real c = kDiff.SquaredLength();

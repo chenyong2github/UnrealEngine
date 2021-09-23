@@ -11,6 +11,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
 * FElementLinearization maps a potentially-sparse index list into a linear array.
 * Used linearize things like VtxIds of a mesh as a single array and allow bidirectional mapping between array offset and mesh VtxId.
@@ -176,19 +178,19 @@ public:
 		ZVector[i] = Value;
 	}
 
-	void SetXYZ(int32 i, const FVector3<RealType>& Value)
+	void SetXYZ(int32 i, const TVector<RealType>& Value)
 	{
 		XVector[i] = Value.X;
 		YVector[i] = Value.Y;
 		ZVector[i] = Value.Z;
 	}
 
-	FVector3<RealType> Get(int32 i)
+	TVector<RealType> Get(int32 i)
 	{
-		return FVector3<RealType>(XVector[i], YVector[i], ZVector[i]);
+		return TVector<RealType>(XVector[i], YVector[i], ZVector[i]);
 	}
 
-	void Set(int32 i, const FVector3<RealType>& Value)
+	void Set(int32 i, const TVector<RealType>& Value)
 	{
 		XVector[i] = Value.X;
 		YVector[i] = Value.Y;

@@ -212,29 +212,29 @@ typedef TInterval1<double> FInterval1d;
 template <typename RealType>
 struct TAxisAlignedBox3
 {
-	FVector3<RealType> Min;
-	FVector3<RealType> Max;
+	TVector<RealType> Min;
+	TVector<RealType> Max;
 
 	TAxisAlignedBox3() : 
 		TAxisAlignedBox3(TAxisAlignedBox3<RealType>::Empty())
 	{
 	}
 
-	TAxisAlignedBox3(const FVector3<RealType>& Min, const FVector3<RealType>& Max)
+	TAxisAlignedBox3(const TVector<RealType>& Min, const TVector<RealType>& Max)
 	{
 		this->Min = Min;
 		this->Max = Max;
 	}
 
-	TAxisAlignedBox3(const FVector3<RealType>& A, const FVector3<RealType>& B, const FVector3<RealType>& C)
+	TAxisAlignedBox3(const TVector<RealType>& A, const TVector<RealType>& B, const TVector<RealType>& C)
 	{
 		// TMathUtil::MinMax could be used here, but it generates worse code because the Min3's below will be
 		// turned into SSE instructions by the optimizer, while MinMax will not
-		Min = FVector3<RealType>(
+		Min = TVector<RealType>(
 			TMathUtil<RealType>::Min3(A.X, B.X, C.X),
 			TMathUtil<RealType>::Min3(A.Y, B.Y, C.Y),
 			TMathUtil<RealType>::Min3(A.Z, B.Z, C.Z));
-		Max = FVector3<RealType>(
+		Max = TVector<RealType>(
 			TMathUtil<RealType>::Max3(A.X, B.X, C.X),
 			TMathUtil<RealType>::Max3(A.Y, B.Y, C.Y),
 			TMathUtil<RealType>::Max3(A.Z, B.Z, C.Z));
@@ -245,18 +245,18 @@ struct TAxisAlignedBox3
 	template<typename OtherRealType>
 	explicit TAxisAlignedBox3(const TAxisAlignedBox3<OtherRealType>& OtherBox)
 	{
-		this->Min = FVector3<RealType>(OtherBox.Min);
-		this->Max = FVector3<RealType>(OtherBox.Max);
+		this->Min = TVector<RealType>(OtherBox.Min);
+		this->Max = TVector<RealType>(OtherBox.Max);
 	}
 
-	TAxisAlignedBox3(const FVector3<RealType>& Center, RealType HalfWidth)
+	TAxisAlignedBox3(const TVector<RealType>& Center, RealType HalfWidth)
 	{
-		this->Min = FVector3<RealType>(Center.X-HalfWidth, Center.Y-HalfWidth, Center.Z-HalfWidth);
-		this->Max = FVector3<RealType>(Center.X+HalfWidth, Center.Y+HalfWidth, Center.Z+HalfWidth);
+		this->Min = TVector<RealType>(Center.X-HalfWidth, Center.Y-HalfWidth, Center.Z-HalfWidth);
+		this->Max = TVector<RealType>(Center.X+HalfWidth, Center.Y+HalfWidth, Center.Z+HalfWidth);
 	}
 
 
-	TAxisAlignedBox3(const TAxisAlignedBox3& Box, const TFunction<FVector3<RealType>(const FVector3<RealType>&)> TransformF)
+	TAxisAlignedBox3(const TAxisAlignedBox3& Box, const TFunction<TVector<RealType>(const TVector<RealType>&)> TransformF)
 	{
 		if (TransformF == nullptr)
 		{
@@ -265,7 +265,7 @@ struct TAxisAlignedBox3
 			return;
 		}
 
-		FVector3<RealType> C0 = TransformF(Box.GetCorner(0));
+		TVector<RealType> C0 = TransformF(Box.GetCorner(0));
 		Min = C0;
 		Max = C0;
 		for (int i = 1; i < 8; ++i)
@@ -276,7 +276,7 @@ struct TAxisAlignedBox3
 
 	TAxisAlignedBox3(const TAxisAlignedBox3& Box, const FTransform3d& Transform)
 	{
-		FVector3<RealType> C0 = Transform.TransformPosition(Box.GetCorner(0));
+		TVector<RealType> C0 = Transform.TransformPosition(Box.GetCorner(0));
 		Min = C0;
 		Max = C0;
 		for (int i = 1; i < 8; ++i)
@@ -303,35 +303,35 @@ struct TAxisAlignedBox3
 	}
 	TAxisAlignedBox3(const FBox& Box)
 	{
-		Min = FVector3<RealType>(Box.Min);
-		Max = FVector3<RealType>(Box.Max);
+		Min = TVector<RealType>(Box.Min);
+		Max = TVector<RealType>(Box.Max);
 	}
 
 	/**
 	* @param Index corner index in range 0-7
 	* @return Corner point on the box identified by the given index. See diagram in OrientedBoxTypes.h for index/corner mapping.
 	*/
-	FVector3<RealType> GetCorner(int Index) const
+	TVector<RealType> GetCorner(int Index) const
 	{
 		check(Index >= 0 && Index <= 7);
 		RealType X = (((Index & 1) != 0) ^ ((Index & 2) != 0)) ? (Max.X) : (Min.X);
 		RealType Y = ((Index / 2) % 2 == 0) ? (Min.Y) : (Max.Y);
 		RealType Z = (Index < 4) ? (Min.Z) : (Max.Z);
-		return FVector3<RealType>(X, Y, Z);
+		return TVector<RealType>(X, Y, Z);
 	}
 
 	static TAxisAlignedBox3<RealType> Empty()
 	{
 		return TAxisAlignedBox3(
-			FVector3<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()),
-			FVector3<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()));
+			TVector<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()),
+			TVector<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()));
 	}
 
 	static TAxisAlignedBox3<RealType> Infinite()
 	{
 		return TAxisAlignedBox3(
-			FVector3<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()),
-			FVector3<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()) );
+			TVector<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()),
+			TVector<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()) );
 	}
 
 	/**
@@ -363,20 +363,20 @@ struct TAxisAlignedBox3
 	}
 
 
-	FVector3<RealType> Center() const
+	TVector<RealType> Center() const
 	{
-		return FVector3<RealType>(
+		return TVector<RealType>(
 			(Min.X + Max.X) * (RealType)0.5,
 			(Min.Y + Max.Y) * (RealType)0.5,
 			(Min.Z + Max.Z) * (RealType)0.5);
 	}
 
-	FVector3<RealType> Extents() const
+	TVector<RealType> Extents() const
 	{
 		return (Max - Min) * (RealType).5;
 	}
 
-	void Contain(const FVector3<RealType>& V)
+	void Contain(const TVector<RealType>& V)
 	{
 		if (V.X < Min.X)
 		{
@@ -414,7 +414,7 @@ struct TAxisAlignedBox3
 		Max.Z = Max.Z > Other.Max.Z ? Max.Z : Other.Max.Z;
 	}
 
-	bool Contains(const FVector3<RealType>& V) const
+	bool Contains(const TVector<RealType>& V) const
 	{
 		return (Min.X <= V.X) && (Min.Y <= V.Y) && (Min.Z <= V.Z) && (Max.X >= V.X) && (Max.Y >= V.Y) && (Max.Z >= V.Z);
 	}
@@ -427,8 +427,8 @@ struct TAxisAlignedBox3
 	TAxisAlignedBox3<RealType> Intersect(const TAxisAlignedBox3<RealType>& Box) const
 	{
 		TAxisAlignedBox3<RealType> Intersection(
-			FVector3<RealType>(TMathUtil<RealType>::Max(Min.X, Box.Min.X), TMathUtil<RealType>::Max(Min.Y, Box.Min.Y), TMathUtil<RealType>::Max(Min.Z, Box.Min.Z)),
-			FVector3<RealType>(TMathUtil<RealType>::Min(Max.X, Box.Max.X), TMathUtil<RealType>::Min(Max.Y, Box.Max.Y), TMathUtil<RealType>::Min(Max.Z, Box.Max.Z)));
+			TVector<RealType>(TMathUtil<RealType>::Max(Min.X, Box.Min.X), TMathUtil<RealType>::Max(Min.Y, Box.Min.Y), TMathUtil<RealType>::Max(Min.Z, Box.Min.Z)),
+			TVector<RealType>(TMathUtil<RealType>::Min(Max.X, Box.Max.X), TMathUtil<RealType>::Min(Max.Y, Box.Max.Y), TMathUtil<RealType>::Min(Max.Z, Box.Max.Z)));
 		if (Intersection.Height() <= 0 || Intersection.Width() <= 0 || Intersection.Depth() <= 0)
 		{
 			return TAxisAlignedBox3<RealType>::Empty();
@@ -444,7 +444,7 @@ struct TAxisAlignedBox3
 		return !((Box.Max.X <= Min.X) || (Box.Min.X >= Max.X) || (Box.Max.Y <= Min.Y) || (Box.Min.Y >= Max.Y) || (Box.Max.Z <= Min.Z) || (Box.Min.Z >= Max.Z));
 	}
 
-	RealType DistanceSquared(const FVector3<RealType>& V) const
+	RealType DistanceSquared(const TVector<RealType>& V) const
 	{
 		RealType dx = (V.X < Min.X) ? Min.X - V.X : (V.X > Max.X ? V.X - Max.X : 0);
 		RealType dy = (V.Y < Min.Y) ? Min.Y - V.Y : (V.Y > Max.Y ? V.Y - Max.Y : 0);
@@ -516,9 +516,9 @@ struct TAxisAlignedBox3
 		return TMathUtil<RealType>::Min(Width(), TMathUtil<RealType>::Min(Height(), Depth()));
 	}
 
-	FVector3<RealType> Diagonal() const
+	TVector<RealType> Diagonal() const
 	{
-		return FVector3<RealType>(Max.X - Min.X, Max.Y - Min.Y, Max.Z - Min.Z);
+		return TVector<RealType>(Max.X - Min.X, Max.Y - Min.Y, Max.Z - Min.Z);
 	}
 
 	inline bool IsEmpty() const

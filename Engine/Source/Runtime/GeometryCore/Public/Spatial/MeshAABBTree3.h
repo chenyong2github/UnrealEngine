@@ -50,6 +50,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 template <class TriangleMeshType>
 class TFastWindingTree;
 
@@ -730,7 +732,7 @@ public:
 			if (TransformF != nullptr)
 			{
 				TestMeshBounds = FAxisAlignedBox3d(TestMeshBounds,
-					[&](const FVector3<double>& P) { return TransformF(P); });
+					[&](const FVector3d& P) { return TransformF(P); });
 			}
 			if (box_box_intersect(RootIndex, TestMeshBounds) == false)
 			{
@@ -915,7 +917,7 @@ protected:
 		{
 			FAxisAlignedBox3d box = GetBox(iBox);
 			return FAxisAlignedBox3d(box, 
-				[&](const FVector3<double>& P) { return TransformF(P); });
+				[&](const FVector3d& P) { return TransformF(P); });
 		}
 		else
 		{

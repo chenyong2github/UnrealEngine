@@ -29,12 +29,12 @@ struct TExtremePoints3
 	int Extreme[4]{ 0, 0, 0, 0 };
 
 	// Coordinate frame spanned by input points
-	FVector3<RealType> Origin{ 0,0,0 };
-	FVector3<RealType> Basis[3]{ {0,0,0}, {0,0,0}, {0,0,0} };
+	TVector<RealType> Origin{ 0,0,0 };
+	TVector<RealType> Basis[3]{ {0,0,0}, {0,0,0}, {0,0,0} };
 
-	TExtremePoints3(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon = 0)
+	TExtremePoints3(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, double Epsilon = 0)
 	{
-		FVector3<RealType> FirstPoint;
+		TVector<RealType> FirstPoint;
 		int FirstPtIdx = -1;
 		for (FirstPtIdx = 0; FirstPtIdx < NumPoints; FirstPtIdx++)
 		{
@@ -51,7 +51,7 @@ struct TExtremePoints3
 			return;
 		}
 
-		FVector3<RealType> Min = GetPointFunc(FirstPtIdx), Max = GetPointFunc(FirstPtIdx);
+		TVector<RealType> Min = GetPointFunc(FirstPtIdx), Max = GetPointFunc(FirstPtIdx);
 		FIndex3i IndexMin(FirstPtIdx, FirstPtIdx, FirstPtIdx), IndexMax(FirstPtIdx, FirstPtIdx, FirstPtIdx);
 		for (int Idx = FirstPtIdx + 1; Idx < NumPoints; Idx++)
 		{
@@ -258,7 +258,7 @@ struct FHullConnectivity
 	/**
 	 * Set triangle positions to prep for IsVisible calls
 	 */
-	void SetTriPts(const FIndex3i& Tri, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc,  FVector3d TriPtsOut[3])
+	void SetTriPts(const FIndex3i& Tri, TFunctionRef<TVector<RealType>(int32)> GetPointFunc,  FVector3d TriPtsOut[3])
 	{
 		TriPtsOut[0] = (FVector3d)GetPointFunc(Tri[0]);
 		TriPtsOut[1] = (FVector3d)GetPointFunc(Tri[1]);
@@ -268,7 +268,7 @@ struct FHullConnectivity
 	/**
 	 * Bucket all points based on which triangles can see them
 	 */
-	void InitVisibility(const TArray<FIndex3i>& Triangles, int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
+	void InitVisibility(const TArray<FIndex3i>& Triangles, int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
 	{
 		VisiblePoints.SetNum(Triangles.Num());
 
@@ -490,7 +490,7 @@ struct FHullConnectivity
 	 * @param CrossedEdgeFirstVertex The first vertex of the edge that was 'crossed over' to traverse to this TriIdx, or -1 for the initial call
 	 * @return false if triangle is beyond horizon (so we don't need to search through it / remove it), true otherwise
 	 */
-	bool HorizonHelper(const TArray<FIndex3i>& Triangles, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, const FVector3d& Pt, TArray<int32>& NewlyUnclaimed, TSet<int32>& ToDelete, TArray<FNewTriangle>& ToAdd, int32 TriIdx, int32 CrossedEdgeFirstVertex)
+	bool HorizonHelper(const TArray<FIndex3i>& Triangles, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, const FVector3d& Pt, TArray<int32>& NewlyUnclaimed, TSet<int32>& ToDelete, TArray<FNewTriangle>& ToAdd, int32 TriIdx, int32 CrossedEdgeFirstVertex)
 	{
 		// if it's not the first triangle, crossed edge should be set and we should check if the triangle is visible / actually needs to be replaced
 		if (CrossedEdgeFirstVertex != -1)
@@ -542,7 +542,7 @@ struct FHullConnectivity
 		return true;
 	}
 
-	void UpdateHullWithNewPoint(TArray<FIndex3i>& Triangles, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, int32 StartTriIdx, int32 PtIdx)
+	void UpdateHullWithNewPoint(TArray<FIndex3i>& Triangles, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, int32 StartTriIdx, int32 PtIdx)
 	{
 		//ValidateConnectivity(Triangles);
 
@@ -603,7 +603,7 @@ struct FHullConnectivity
 
 
 template<class RealType>
-bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
+bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
 {
 	Hull.Reset();
 	NumHullPoints = 0;

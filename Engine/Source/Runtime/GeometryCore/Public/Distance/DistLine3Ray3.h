@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute distance between 3D line and 3D ray
  */
@@ -27,9 +29,9 @@ public:
 	// Results
 	Real DistanceSquared = -1.0;
 
-	FVector3<Real> LineClosestPoint;
+	TVector<Real> LineClosestPoint;
 	Real LineParameter;
-	FVector3<Real> RayClosestPoint;
+	TVector<Real> RayClosestPoint;
 	Real RayParameter;
 
 
@@ -55,7 +57,7 @@ public:
 			return DistanceSquared;
 		}
 
-		FVector3<Real> kDiff = Line.Origin - Ray.Origin;
+		TVector<Real> kDiff = Line.Origin - Ray.Origin;
 		Real a01 = -Line.Direction.Dot(Ray.Direction);
 		Real b0 = kDiff.Dot(Line.Direction);
 		Real c = kDiff.SquaredLength();

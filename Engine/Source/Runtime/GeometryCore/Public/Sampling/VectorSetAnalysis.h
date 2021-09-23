@@ -10,6 +10,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TVectorSetAnalysis3 computes various analyses of a set of input Vectors (currently mainly clustering.
  */
@@ -21,7 +23,7 @@ public:
 	// Input data
 	//
 
-	TArray<FVector3<RealType>> Vectors;
+	TArray<TVector<RealType>> Vectors;
 	TArray<int32> VectorIDs;
 	bool bNormalized = false;
 
@@ -30,7 +32,7 @@ public:
 	//
 
 	/** Set of vectors that represent centers of clusters */
-	TArray<FVector3<RealType>> ClusterVectors;
+	TArray<TVector<RealType>> ClusterVectors;
 	/** Mapping from Vector index to ClusterVectors index */
 	TArray<int32> VectorToClusterMap;
 
@@ -41,7 +43,7 @@ public:
 	 * @param bIsNormalizedHint indicate whether vectors are normalized
 	 */
 	template<typename EnumerableIDType>
-	void Initialize(EnumerableIDType EnumerableIDs, TFunctionRef<FVector3<RealType>(int32)> GetVectorFunc, int32 NumVectorsHint = 0, bool bIsNormalizedHint = false)
+	void Initialize(EnumerableIDType EnumerableIDs, TFunctionRef<TVector<RealType>(int32)> GetVectorFunc, int32 NumVectorsHint = 0, bool bIsNormalizedHint = false)
 	{
 		Vectors.Reserve(NumVectorsHint);
 		VectorIDs.Reserve(NumVectorsHint);

@@ -153,8 +153,8 @@ protected:
 				CornerToVert[RightUp] = AppendVertex(Box.GetCorner(RightUp));
 			}
 
-			FaceWidth = Box.GetCorner(LeftCorner).Distance(Box.GetCorner(RightCorner));
-			FaceHeight = Box.GetCorner(LeftCorner).Distance(Box.GetCorner(LeftUp));
+			FaceWidth = Distance(Box.GetCorner(LeftCorner), Box.GetCorner(RightCorner));
+			FaceHeight = Distance(Box.GetCorner(LeftCorner), Box.GetCorner(LeftUp));
 
 			// The bottom two vertices will definitely need uv/normal elements
 			MakeUVsAndNormals(0, SideFaceBoxSpaceNormals[LeftCorner], CornerToVert[LeftCorner]);
@@ -209,8 +209,8 @@ protected:
 
 		// Triangulate the bottom:
 		// Prep for UVs
-		FaceWidth = Box.GetCorner(0).Distance(Box.GetCorner(1));
-		FaceHeight = Box.GetCorner(0).Distance(Box.GetCorner(3));
+		FaceWidth = Distance(Box.GetCorner(0), Box.GetCorner(1));
+		FaceHeight = Distance(Box.GetCorner(0), Box.GetCorner(3));
 
 		MakeUVsAndNormals(DiagFaceIdx1, -Box.Frame.Z(), CornerToVert[DiagFaceIdx1]);
 		MakeUVsAndNormals(DiagFaceIdx2, -Box.Frame.Z(), CornerToVert[DiagFaceIdx2]);

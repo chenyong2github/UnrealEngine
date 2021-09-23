@@ -14,6 +14,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute intersection between 3D ray and 3D triangle
  */
@@ -44,10 +46,10 @@ public:
 	bool Test()
 	{
 		// Compute the offset origin, edges, and normal.
-		FVector3<Real> diff = Ray.Origin - Triangle.V[0];
-		FVector3<Real> edge1 = Triangle.V[1] - Triangle.V[0];
-		FVector3<Real> edge2 = Triangle.V[2] - Triangle.V[0];
-		FVector3<Real> normal = edge1.Cross(edge2);
+		TVector<Real> diff = Ray.Origin - Triangle.V[0];
+		TVector<Real> edge1 = Triangle.V[1] - Triangle.V[0];
+		TVector<Real> edge2 = Triangle.V[2] - Triangle.V[0];
+		TVector<Real> normal = edge1.Cross(edge2);
 
 		// Solve Q + t*D = b1*E1 + b2*E2 (Q = kDiff, D = ray direction,
 		// E1 = kEdge1, E2 = kEdge2, N = Cross(E1,E2)) by
@@ -109,10 +111,10 @@ public:
 	bool Find()
 	{
 		// Compute the offset origin, edges, and normal.
-		FVector3<Real> diff = Ray.Origin - Triangle.V[0];
-		FVector3<Real> edge1 = Triangle.V[1] - Triangle.V[0];
-		FVector3<Real> edge2 = Triangle.V[2] - Triangle.V[0];
-		FVector3<Real> normal = edge1.Cross(edge2);
+		TVector<Real> diff = Ray.Origin - Triangle.V[0];
+		TVector<Real> edge1 = Triangle.V[1] - Triangle.V[0];
+		TVector<Real> edge2 = Triangle.V[2] - Triangle.V[0];
+		TVector<Real> normal = edge1.Cross(edge2);
 
 		// Solve Q + t*D = b1*E1 + b2*E2 (Q = kDiff, D = ray direction,
 		// E1 = kEdge1, E2 = kEdge2, N = Cross(E1,E2)) by

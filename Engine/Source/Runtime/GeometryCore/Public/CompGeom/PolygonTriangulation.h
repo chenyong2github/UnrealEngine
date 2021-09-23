@@ -20,7 +20,7 @@ namespace PolygonTriangulation
 
 
 	template<typename RealType>
-	void GEOMETRYCORE_API ComputePolygonPlane(const TArray<FVector3<RealType>>& VertexPositions, FVector3<RealType>& PlaneNormalOut, FVector3<RealType>& PlanePointOut );
+	void GEOMETRYCORE_API ComputePolygonPlane(const TArray<TVector<RealType>>& VertexPositions, TVector<RealType>& PlaneNormalOut, TVector<RealType>& PlanePointOut );
 
 
 	/**
@@ -29,6 +29,6 @@ namespace PolygonTriangulation
 	 * @param OutTriangles computed triangulation. Each triangle is a tuple of indices into VertexPositions.
 	 */
 	template<typename RealType>
-	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<FVector3<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<TVector<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
 
 }

@@ -26,10 +26,14 @@ enum class EIntersectionType
 	Unknown
 };
 
+namespace UE
+{
+namespace Geometry
+{
+	using namespace UE::Math;
+
 namespace VectorUtil
 {
-	using namespace UE::Geometry;
-	using namespace UE::Math;
 
 	/**
 	 * @return true if all components of V are finite
@@ -44,7 +48,7 @@ namespace VectorUtil
 	 * @return true if all components of V are finite
 	 */
 	template <typename RealType>
-	inline bool IsFinite(const UE::Math::TVector<RealType>& V)
+	inline bool IsFinite(const TVector<RealType>& V)
 	{
 		return TMathUtil<RealType>::IsFinite(V.X) && TMathUtil<RealType>::IsFinite(V.Y) && TMathUtil<RealType>::IsFinite(V.Z);
 	}
@@ -63,15 +67,15 @@ namespace VectorUtil
 	 * @return normalized vector that is perpendicular to triangle V0,V1,V2  (triangle normal)
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> Normal(const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2)
+	inline TVector<RealType> Normal(const TVector<RealType>& V0, const TVector<RealType>& V1, const TVector<RealType>& V2)
 	{
-		FVector3<RealType> edge1(V1 - V0);
-		FVector3<RealType> edge2(V2 - V0);
+		TVector<RealType> edge1(V1 - V0);
+		TVector<RealType> edge2(V2 - V0);
 		Normalize(edge1);
 		Normalize(edge2);
 		// Unreal has Left-Hand Coordinate System so we need to reverse this cross-product to get proper triangle normal
-		FVector3<RealType> vCross(edge2.Cross(edge1));
-		//FVector3<RealType> vCross(edge1.Cross(edge2));
+		TVector<RealType> vCross(edge2.Cross(edge1));
+		//TVector<RealType> vCross(edge1.Cross(edge2));
 		return Normalized(vCross);
 	}
 
@@ -79,7 +83,7 @@ namespace VectorUtil
 	 * @return un-normalized direction that is parallel to normal of triangle V0,V1,V2
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> NormalDirection(const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2)
+	inline TVector<RealType> NormalDirection(const TVector<RealType>& V0, const TVector<RealType>& V1, const TVector<RealType>& V2)
 	{
 		// Unreal has Left-Hand Coordinate System so we need to reverse this cross-product to get proper triangle normal
 		return (V2 - V0).Cross(V1 - V0);
@@ -90,11 +94,11 @@ namespace VectorUtil
 	 * @return area of 3D triangle V0,V1,V2
 	 */
 	template <typename RealType>
-	inline RealType Area(const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2)
+	inline RealType Area(const TVector<RealType>& V0, const TVector<RealType>& V1, const TVector<RealType>& V2)
 	{
-		FVector3<RealType> Edge1(V1 - V0);
-		FVector3<RealType> Edge2(V2 - V0);
-		FVector3<RealType> Cross = Edge2.Cross(Edge1);
+		TVector<RealType> Edge1(V1 - V0);
+		TVector<RealType> Edge2(V2 - V0);
+		TVector<RealType> Cross = Edge2.Cross(Edge1);
 		return (RealType)0.5 * Cross.Length();
 	}
 
@@ -123,7 +127,7 @@ namespace VectorUtil
 	 * @return true if triangle V1,V2,V3 is obtuse
 	 */
 	template <typename RealType>
-	inline bool IsObtuse(const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2, const UE::Math::TVector<RealType>& V3)
+	inline bool IsObtuse(const TVector<RealType>& V1, const TVector<RealType>& V2, const TVector<RealType>& V3)
 	{
 		RealType a2 = DistanceSquared(V1, V2);
 		RealType b2 = DistanceSquared(V1, V3);
@@ -136,10 +140,10 @@ namespace VectorUtil
 	 * @return triangle normal
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> NormalArea(const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2, RealType& AreaOut)
+	inline TVector<RealType> NormalArea(const TVector<RealType>& V0, const TVector<RealType>& V1, const TVector<RealType>& V2, RealType& AreaOut)
 	{
-		FVector3<RealType> edge1(V1 - V0);
-		FVector3<RealType> edge2(V2 - V0);
+		TVector<RealType> edge1(V1 - V0);
+		TVector<RealType> edge2(V2 - V0);
 		// Unreal has Left-Hand Coordinate System so we need to reverse this cross-product to get proper triangle normal
 		FVector3d vCross = edge2.Cross(edge1);
 		//FVector3d vCross = edge1.Cross(edge2);
@@ -163,14 +167,14 @@ namespace VectorUtil
 
 	/** @return true if all coordinates of V0 and V1 are within Epsilon of eachother */
 	template <typename RealType>
-	inline bool EpsilonEqual(const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, RealType Epsilon)
+	inline bool EpsilonEqual(const TVector<RealType>& V0, const TVector<RealType>& V1, RealType Epsilon)
 	{
 		return EpsilonEqual(V0.X, V1.X, Epsilon) && EpsilonEqual(V0.Y, V1.Y, Epsilon) && EpsilonEqual(V0.Z, V1.Z, Epsilon);
 	}
 
 	/** @return true if all coordinates of V0 and V1 are within Epsilon of each other */
 	template <typename RealType>
-	inline bool EpsilonEqual(const UE::Math::TVector4<RealType>& V0, const UE::Math::TVector4<RealType>& V1, RealType Epsilon)
+	inline bool EpsilonEqual(const TVector4<RealType>& V0, const TVector4<RealType>& V1, RealType Epsilon)
 	{
 		return EpsilonEqual(V0.X, V1.X, Epsilon) && EpsilonEqual(V0.Y, V1.Y, Epsilon) && EpsilonEqual(V0.Z, V1.Z, Epsilon) && EpsilonEqual(V0.W, V1.W, Epsilon);
 	}
@@ -195,7 +199,7 @@ namespace VectorUtil
 	 * Calculates two vectors perpendicular to input Normal, as efficiently as possible.
 	 */
 	template <typename RealType>
-	inline void MakePerpVectors(const UE::Math::TVector<RealType>& Normal, UE::Math::TVector<RealType>& OutPerp1, UE::Math::TVector<RealType>& OutPerp2)
+	inline void MakePerpVectors(const TVector<RealType>& Normal, TVector<RealType>& OutPerp1, TVector<RealType>& OutPerp2)
 	{
 		// Duff et al method, from https://graphics.pixar.com/library/OrthonormalB/paper.pdf
 		if (Normal.Z < (RealType)0)
@@ -226,7 +230,7 @@ namespace VectorUtil
 	 * Calculates one vector perpendicular to input Normal, as efficiently as possible.
 	 */
 	template <typename RealType>
-	inline void MakePerpVector(const FVector3<RealType>& Normal, FVector3<RealType>& OutPerp1)
+	inline void MakePerpVector(const TVector<RealType>& Normal, TVector<RealType>& OutPerp1)
 	{
 		// Duff et al method, from https://graphics.pixar.com/library/OrthonormalB/paper.pdf
 		if (Normal.Z < (RealType)0)
@@ -253,13 +257,13 @@ namespace VectorUtil
 	 * @return angle in degrees
 	 */
 	template <typename RealType>
-	inline RealType PlaneAngleSignedD(const UE::Math::TVector<RealType>& VFrom, const UE::Math::TVector<RealType>& VTo, const UE::Math::TVector<RealType>& PlaneN)
+	inline RealType PlaneAngleSignedD(const TVector<RealType>& VFrom, const TVector<RealType>& VTo, const TVector<RealType>& PlaneN)
 	{
-		FVector3<RealType> vFrom = VFrom - VFrom.Dot(PlaneN) * PlaneN;
-		FVector3<RealType> vTo = VTo - VTo.Dot(PlaneN) * PlaneN;
+		TVector<RealType> vFrom = VFrom - VFrom.Dot(PlaneN) * PlaneN;
+		TVector<RealType> vTo = VTo - VTo.Dot(PlaneN) * PlaneN;
 		Normalize(vFrom);
 		Normalize(vTo);
-		FVector3<RealType> C = vFrom.Cross(vTo);
+		TVector<RealType> C = vFrom.Cross(vTo);
 		if (C.SquaredLength() < TMathUtil<RealType>::ZeroTolerance)
 		{ // vectors are parallel
 			return vFrom.Dot(vTo) < 0 ? (RealType)180 : (RealType)0;
@@ -273,7 +277,7 @@ namespace VectorUtil
 	 * @return positive value of tan(theta/2) where theta is angle between normalized vectors A and B
 	 */
 	template <typename RealType>
-	RealType VectorTanHalfAngle(const UE::Math::TVector<RealType>& A, const UE::Math::TVector<RealType>& B)
+	RealType VectorTanHalfAngle(const TVector<RealType>& A, const TVector<RealType>& B)
 	{
 		RealType cosAngle = A.Dot(B);
 		RealType sqr = ((RealType)1 - cosAngle) / ((RealType)1 + cosAngle);
@@ -287,7 +291,7 @@ namespace VectorUtil
 	 * @return cotangent of angle between V1 and V2, or zero if result would be unstable (eg infinity)
 	 */ 
 	template <typename RealType>
-	RealType VectorCot(const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2)
+	RealType VectorCot(const TVector<RealType>& V1, const TVector<RealType>& V2)
 	{
 		// formula from http://www.geometry.caltech.edu/pubs/DMSB_III.pdf
 		RealType fDot = V1.Dot(V2);
@@ -311,11 +315,11 @@ namespace VectorUtil
 	 * TODO: make robust to degenerate triangles?
 	 */
 	template <typename RealType>
-	FVector3<RealType> BarycentricCoords(const UE::Math::TVector<RealType>& Point, const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2)
+	TVector<RealType> BarycentricCoords(const TVector<RealType>& Point, const TVector<RealType>& V0, const TVector<RealType>& V1, const TVector<RealType>& V2)
 	{
-		FVector3<RealType> kV02 = V0 - V2;
-		FVector3<RealType> kV12 = V1 - V2;
-		FVector3<RealType> kPV2 = Point - V2;
+		TVector<RealType> kV02 = V0 - V2;
+		TVector<RealType> kV12 = V1 - V2;
+		TVector<RealType> kPV2 = Point - V2;
 		RealType fM00 = kV02.Dot(kV02);
 		RealType fM01 = kV02.Dot(kV12);
 		RealType fM11 = kV12.Dot(kV12);
@@ -326,7 +330,7 @@ namespace VectorUtil
 		RealType fBary1 = (fM11 * fR0 - fM01 * fR1) * fInvDet;
 		RealType fBary2 = (fM00 * fR1 - fM01 * fR0) * fInvDet;
 		RealType fBary3 = 1.0 - fBary1 - fBary2;
-		return FVector3<RealType>(fBary1, fBary2, fBary3);
+		return TVector<RealType>(fBary1, fBary2, fBary3);
 	}
 
 	/**
@@ -336,7 +340,7 @@ namespace VectorUtil
 	* TODO: make robust to degenerate triangles?
 	*/
 	template <typename RealType>
-	FVector3<RealType> BarycentricCoords(const TVector2<RealType>& Point, const TVector2<RealType>& V0, const TVector2<RealType>& V1, const TVector2<RealType>& V2)
+	TVector<RealType> BarycentricCoords(const TVector2<RealType>& Point, const TVector2<RealType>& V0, const TVector2<RealType>& V1, const TVector2<RealType>& V2)
 	{
 		TVector2<RealType> kV02 = V0 - V2;
 		TVector2<RealType> kV12 = V1 - V2;
@@ -351,14 +355,14 @@ namespace VectorUtil
 		RealType fBary1 = (fM11 * fR0 - fM01 * fR1) * fInvDet;
 		RealType fBary2 = (fM00 * fR1 - fM01 * fR0) * fInvDet;
 		RealType fBary3 = 1.0 - fBary1 - fBary2;
-		return FVector3<RealType>(fBary1, fBary2, fBary3);
+		return TVector<RealType>(fBary1, fBary2, fBary3);
 	}
 
 	/**
 	 * @return solid angle at point P for triangle A,B,C
 	 */
 	template <typename RealType>
-	inline RealType TriSolidAngle(UE::Math::TVector<RealType> A, UE::Math::TVector<RealType> B, UE::Math::TVector<RealType> C, const UE::Math::TVector<RealType>& P)
+	inline RealType TriSolidAngle(TVector<RealType> A, TVector<RealType> B, TVector<RealType> C, const TVector<RealType>& P)
 	{
 		// Formula from https://igl.ethz.ch/projects/winding-number/
 		A -= P;
@@ -378,14 +382,14 @@ namespace VectorUtil
 	 * @return gradient (3D vector) lying in plane of triangle.
 	 */
 	template <typename RealType>
-	inline FVector3<RealType> TriGradient(UE::Math::TVector<RealType> Vi, UE::Math::TVector<RealType> Vj, UE::Math::TVector<RealType> Vk, RealType fi, RealType fj, RealType fk)
+	inline TVector<RealType> TriGradient(TVector<RealType> Vi, TVector<RealType> Vj, TVector<RealType> Vk, RealType fi, RealType fj, RealType fk)
 	{
 		// recenter (better for precision)
-		FVector3<RealType> Centroid = (Vi + Vj + Vk) / (RealType)3;
+		TVector<RealType> Centroid = (Vi + Vj + Vk) / (RealType)3;
 		Vi -= Centroid; Vj -= Centroid; Vk -= Centroid;
 		// calculate tangent-normal frame
-		FVector3<RealType> Normal = VectorUtil::Normal<RealType>(Vi, Vj, Vk);
-		FVector3<RealType> Perp0, Perp1;
+		TVector<RealType> Normal = VectorUtil::Normal<RealType>(Vi, Vj, Vk);
+		TVector<RealType> Perp0, Perp1;
 		VectorUtil::MakePerpVectors<RealType>(Normal, Perp0, Perp1);
 		// project points to triangle plane coordinates
 		TVector2<RealType> vi(Vi.Dot(Perp0), Vi.Dot(Perp1));
@@ -404,7 +408,7 @@ namespace VectorUtil
 	 * @return angle between vectors (A-CornerPt) and (B-CornerPt)
 	 */
 	template<typename RealType>
-	inline RealType OpeningAngleD(UE::Math::TVector<RealType> A, UE::Math::TVector<RealType> B, const UE::Math::TVector<RealType>& P)
+	inline RealType OpeningAngleD(TVector<RealType> A, TVector<RealType> B, const TVector<RealType>& P)
 	{
 		A -= P; 
 		Normalize(A);
@@ -419,7 +423,7 @@ namespace VectorUtil
 	 * @return sign of Bitangent relative to Normal and Tangent
 	 */
 	template<typename RealType>
-	inline RealType BitangentSign(const UE::Math::TVector<RealType>& NormalIn, const UE::Math::TVector<RealType>& TangentIn, const UE::Math::TVector<RealType>& BitangentIn)
+	inline RealType BitangentSign(const TVector<RealType>& NormalIn, const TVector<RealType>& TangentIn, const TVector<RealType>& BitangentIn)
 	{
 		// following math from RenderUtils.h::GetBasisDeterminantSign()
 		RealType Cross00 = BitangentIn.Y*NormalIn.Z - BitangentIn.Z*NormalIn.Y;
@@ -433,9 +437,9 @@ namespace VectorUtil
 	 * @return Bitangent vector based on given Normal, Tangent, and Sign value (+1/-1)
 	 */
 	template<typename RealType>
-	inline FVector3<RealType> Bitangent(const UE::Math::TVector<RealType>& NormalIn, const UE::Math::TVector<RealType>& TangentIn, RealType BitangentSign)
+	inline TVector<RealType> Bitangent(const TVector<RealType>& NormalIn, const TVector<RealType>& TangentIn, RealType BitangentSign)
 	{
-		return BitangentSign * FVector3<RealType>(
+		return BitangentSign * TVector<RealType>(
 			NormalIn.Y*TangentIn.Z - NormalIn.Z*TangentIn.Y,
 			NormalIn.Z*TangentIn.X - NormalIn.X*TangentIn.Z,
 			NormalIn.X*TangentIn.Y - NormalIn.Y*TangentIn.X);
@@ -445,7 +449,7 @@ namespace VectorUtil
 	 * @return Tangent-Space vector based on given Normal and Bitangent
 	 */
 	template<typename RealType>
-	inline FVector3<RealType> TangentFromBitangent(const UE::Math::TVector<RealType>& NormalIn, const UE::Math::TVector<RealType>& BitangentIn)
+	inline TVector<RealType> TangentFromBitangent(const TVector<RealType>& NormalIn, const TVector<RealType>& BitangentIn)
 	{
 		return BitangentIn.Cross(NormalIn);
 	}
@@ -454,7 +458,7 @@ namespace VectorUtil
 	 * @return Bitangent vector based on given Normal and Tangent
 	 */
 	template<typename RealType>
-	inline FVector3<RealType> BitangentFromTangent(const UE::Math::TVector<RealType>& NormalIn, const UE::Math::TVector<RealType>& TangentIn)
+	inline TVector<RealType> BitangentFromTangent(const TVector<RealType>& NormalIn, const TVector<RealType>& TangentIn)
 	{
 		return NormalIn.Cross(TangentIn);
 	}
@@ -469,3 +473,7 @@ namespace VectorUtil
 
 
 }; // namespace VectorUtil
+
+
+}  // end namespace Geometry
+}  // end namespace UE

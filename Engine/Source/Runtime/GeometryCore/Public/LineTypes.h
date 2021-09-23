@@ -147,24 +147,24 @@ template<typename T>
 struct TLine3
 {
 	/** Origin / Center Point of Line */
-	FVector3<T> Origin;
+	TVector<T> Origin;
 
 	/** Direction of Line, Normalized */
-	FVector3<T> Direction;
+	TVector<T> Direction;
 
 	/**
 	 * Construct default line along X axis
 	 */
 	TLine3()
 	{
-		Origin = FVector3<T>::Zero();
-		Direction = FVector3<T>::UnitX();
+		Origin = TVector<T>::Zero();
+		Direction = TVector<T>::UnitX();
 	}
 
 	/**
 	 * Construct line with given Origin and Direction
 	 */
-	TLine3(const FVector3<T>& OriginIn, const FVector3<T>& DirectionIn)
+	TLine3(const TVector<T>& OriginIn, const TVector<T>& DirectionIn)
 		: Origin(OriginIn), Direction(DirectionIn)
 	{
 	}
@@ -173,7 +173,7 @@ struct TLine3
 	/**
 	 * @return line between two points
 	 */
-	static TLine3<T> FromPoints(const FVector3<T>& Point0, const FVector3<T>& Point1)
+	static TLine3<T> FromPoints(const TVector<T>& Point0, const TVector<T>& Point1)
 	{
 		return TLine3<T>(Point0, Normalized(Point1 - Point0) );
 	}
@@ -182,7 +182,7 @@ struct TLine3
 	/**
 	 * @return point on line at given line parameter value (distance along line from origin)
 	 */
-	inline FVector3<T> PointAt(T LineParameter) const
+	inline TVector<T> PointAt(T LineParameter) const
 	{
 		return Origin + LineParameter * Direction;
 	}
@@ -191,7 +191,7 @@ struct TLine3
 	/**
 	 * @return line parameter (ie distance from Origin) at nearest point on line to QueryPoint
 	 */
-	inline T Project(const FVector3<T>& QueryPoint) const
+	inline T Project(const TVector<T>& QueryPoint) const
 	{
 		return (QueryPoint - Origin).Dot(Direction);
 	}
@@ -199,17 +199,17 @@ struct TLine3
 	/**
 	 * @return smallest squared distance from line to QueryPoint
 	 */
-	inline T DistanceSquared(const FVector3<T>& QueryPoint) const
+	inline T DistanceSquared(const TVector<T>& QueryPoint) const
 	{
 		T t = (QueryPoint - Origin).Dot(Direction);
-		FVector3<T> proj = Origin + t * Direction;
+		TVector<T> proj = Origin + t * Direction;
 		return (proj - QueryPoint).SquaredLength();
 	}
 
 	/**
 	 * @return nearest point on line to QueryPoint
 	 */
-	inline FVector3<T> NearestPoint(const FVector3<T>& QueryPoint) const
+	inline TVector<T> NearestPoint(const TVector<T>& QueryPoint) const
 	{
 		T ParameterT = (QueryPoint - Origin).Dot(Direction);
 		return Origin + ParameterT * Direction;

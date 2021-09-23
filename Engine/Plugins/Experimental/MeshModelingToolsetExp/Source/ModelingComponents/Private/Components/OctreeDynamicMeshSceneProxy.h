@@ -69,7 +69,7 @@ public:
 	{
 		return [](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY) -> void
 		{
-			VectorUtil::MakePerpVectors(Normal, TangentX, TangentY);
+			UE::Geometry::VectorUtil::MakePerpVectors(Normal, TangentX, TangentY);
 		};
 	}
 

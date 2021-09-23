@@ -12,11 +12,11 @@ namespace PolygonTriangulation
 	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<TVector2<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
 	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<TVector2<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
 
-	template GEOMETRYCORE_API void ComputePolygonPlane<float>(const TArray<FVector3<float>>& VertexPositions, FVector3<float>& NormalOut, FVector3<float>& PlanePointOut);
-	template GEOMETRYCORE_API void ComputePolygonPlane<double>(const TArray<FVector3<double>>& VertexPositions, FVector3<double>& NormalOut, FVector3<double>& PlanePointOut);
+	template GEOMETRYCORE_API void ComputePolygonPlane<float>(const TArray<TVector<float>>& VertexPositions, TVector<float>& NormalOut, TVector<float>& PlanePointOut);
+	template GEOMETRYCORE_API void ComputePolygonPlane<double>(const TArray<TVector<double>>& VertexPositions, TVector<double>& NormalOut, TVector<double>& PlanePointOut);
 
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<FVector3<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<FVector3<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<TVector<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<TVector<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
 }
 
 
@@ -169,13 +169,13 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& V
 
 
 template<typename T>
-void PolygonTriangulation::ComputePolygonPlane(const TArray<FVector3<T>>& VertexPositions, FVector3<T>& PlaneNormalOut, FVector3<T>& PlanePointOut)
+void PolygonTriangulation::ComputePolygonPlane(const TArray<TVector<T>>& VertexPositions, TVector<T>& PlaneNormalOut, TVector<T>& PlanePointOut)
 {
 	// NOTE: This polygon plane computation code is partially based on the implementation of "Newell's method" from Real-Time
 	//       Collision Detection by Christer Ericson, published by Morgan Kaufmann Publishers, (c) 2005 Elsevier Inc
 
-	PlaneNormalOut = FVector3<T>::Zero();
-	PlanePointOut = FVector3<T>::Zero();
+	PlaneNormalOut = TVector<T>::Zero();
+	PlanePointOut = TVector<T>::Zero();
 
 	int32 NumVertices = VertexPositions.Num();
 	if (NumVertices == 3)
@@ -187,8 +187,8 @@ void PolygonTriangulation::ComputePolygonPlane(const TArray<FVector3<T>>& Vertex
 	// Use 'Newell's Method' to compute a robust 'best fit' plane from the vertices of this polygon
 	for (int32 VertexNumberI = NumVertices - 1, VertexNumberJ = 0; VertexNumberJ < NumVertices; VertexNumberI = VertexNumberJ, VertexNumberJ++)
 	{
-		const FVector3<T>& PositionI = VertexPositions[VertexNumberI];
-		const FVector3<T>& PositionJ = VertexPositions[VertexNumberJ];
+		const TVector<T>& PositionI = VertexPositions[VertexNumberI];
+		const TVector<T>& PositionJ = VertexPositions[VertexNumberJ];
 		PlanePointOut += PositionJ;
 		PlaneNormalOut.X += (PositionJ.Y - PositionI.Y) * (PositionI.Z + PositionJ.Z);
 		PlaneNormalOut.Y += (PositionJ.Z - PositionI.Z) * (PositionI.X + PositionJ.X);
@@ -229,25 +229,25 @@ static bool PointInTriangle(const FVector& A, const FVector& B, const FVector& C
 // This is based on the 3D triangulation code from MeshDescription.cpp, simplified for 2D polygons
 // 
 template<typename T>
-void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector3<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles)
+void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles)
 {
 	struct Local3
 	{
-		static bool IsTriangleFlipped(const FVector3<T>& ReferenceNormal, const FVector3<T>& VertexPositionA, const FVector3<T>& VertexPositionB, const FVector3<T>& VertexPositionC)
+		static bool IsTriangleFlipped(const TVector<T>& ReferenceNormal, const TVector<T>& VertexPositionA, const TVector<T>& VertexPositionB, const TVector<T>& VertexPositionC)
 		{
-			FVector3<T> TriangleNormal = VectorUtil::Normal(VertexPositionA, VertexPositionB, VertexPositionC);
+			TVector<T> TriangleNormal = VectorUtil::Normal(VertexPositionA, VertexPositionB, VertexPositionC);
 			return TriangleNormal.Dot(ReferenceNormal) <= (T)0;
 		}
 
-		static bool VectorsOnSameSide(const FVector3<T>& Vec, const FVector3<T>& A, const FVector3<T>& B, T SameSideDotProductEpsilon)
+		static bool VectorsOnSameSide(const TVector<T>& Vec, const TVector<T>& A, const TVector<T>& B, T SameSideDotProductEpsilon)
 		{
-			FVector3<T> CrossA = Vec.Cross(A);
-			FVector3<T> CrossB = Vec.Cross(B);
+			TVector<T> CrossA = Vec.Cross(A);
+			TVector<T> CrossB = Vec.Cross(B);
 			T DotWithEpsilon = SameSideDotProductEpsilon + CrossA.Dot(CrossB);
 			return DotWithEpsilon >= 0; // !FMath::IsNegativeFloat(DotWithEpsilon);
 		}
 
-		static bool PointInTriangle(const FVector3<T>& A, const FVector3<T>& B, const FVector3<T>& C, const FVector3<T>& P, const T InsideTriangleDotProductEpsilon)
+		static bool PointInTriangle(const TVector<T>& A, const TVector<T>& B, const TVector<T>& C, const TVector<T>& P, const T InsideTriangleDotProductEpsilon)
 		{
 			return (VectorsOnSameSide(B - A, P - A, C - A, InsideTriangleDotProductEpsilon) &&
 				VectorsOnSameSide(C - B, P - B, A - B, InsideTriangleDotProductEpsilon) &&
@@ -270,7 +270,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector3<T>>& V
 
 	// First figure out the polygon normal.  We need this to determine which triangles are convex, so that
 	// we can figure out which ears to clip
-	FVector3<T> PolygonNormal, PolygonCentroid;
+	TVector<T> PolygonNormal, PolygonCentroid;
 	ComputePolygonPlane(VertexPositions, PolygonNormal, PolygonCentroid);
 
 	// Make a simple linked list array of the previous and next vertex numbers, for each vertex number
@@ -300,9 +300,9 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector3<T>>& V
 		// vertices are collinear or other degenerate cases.
 		if (RemainingVertexCount > 3 && EarTestCount < RemainingVertexCount)
 		{
-			const FVector3<T>& PrevVertexPosition = VertexPositions[PrevVertexNumbers[EarVertexNumber]];
-			const FVector3<T>& EarVertexPosition = VertexPositions[EarVertexNumber];
-			const FVector3<T>& NextVertexPosition = VertexPositions[NextVertexNumbers[EarVertexNumber]];
+			const TVector<T>& PrevVertexPosition = VertexPositions[PrevVertexNumbers[EarVertexNumber]];
+			const TVector<T>& EarVertexPosition = VertexPositions[EarVertexNumber];
+			const TVector<T>& NextVertexPosition = VertexPositions[NextVertexNumbers[EarVertexNumber]];
 
 			// Figure out whether the potential ear triangle is facing the same direction as the polygon
 			// itself.  If it's facing the opposite direction, then we're dealing with a concave triangle
@@ -316,7 +316,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector3<T>>& V
 				{
 					// Test every other remaining vertex to make sure that it doesn't lie inside our potential ear
 					// triangle.  If we find a vertex that's inside the triangle, then it cannot actually be an ear.
-					const FVector3<T>& TestVertexPosition = VertexPositions[TestVertexNumber];
+					const TVector<T>& TestVertexPosition = VertexPositions[TestVertexNumber];
 					if (Local3::PointInTriangle(PrevVertexPosition, EarVertexPosition, NextVertexPosition, TestVertexPosition, SMALL_NUMBER))
 					{
 						bIsEar = false;

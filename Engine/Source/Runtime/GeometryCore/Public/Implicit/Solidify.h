@@ -12,6 +12,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 /**
  * Use marching cubes to remesh a triangle mesh to a solid surface
@@ -130,7 +131,7 @@ public:
 			};
 		}
 
-		TArray<FVector3<double>> MCSeeds;
+		TArray<FVector3d> MCSeeds;
 		for ( int32 VertIdx : Source->VertexIndicesItr() )
 		{
 			MCSeeds.Add(Source->GetVertex(VertIdx));
@@ -271,7 +272,7 @@ public:
 			};
 		}
 
-		TArray<FVector3<double>> MCSeeds;
+		TArray<TVector<double>> MCSeeds;
 		for ( const FVector3d& SeedPoint : SeedPoints )
 		{
 			MCSeeds.Add(SeedPoint);

@@ -6,9 +6,10 @@
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
+using namespace UE::Math;
 
 template<typename RealType>
-bool TFitCapsule3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc)
+bool TFitCapsule3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc)
 {
 	using ComputeType = double;
 
@@ -16,7 +17,7 @@ bool TFitCapsule3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealTy
 	PointList.SetNum(NumPoints);
 	for (int32 k = 0; k < NumPoints; ++k)
 	{
-		FVector3<RealType> Point = GetPointFunc(k);
+		TVector<RealType> Point = GetPointFunc(k);
 		PointList[k] = { {(ComputeType)Point.X, (ComputeType)Point.Y, (ComputeType)Point.Z} };
 	}
 
@@ -29,8 +30,8 @@ bool TFitCapsule3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealTy
 		FitCapsule.segment.GetCenteredForm(Center, Direction, Extent);
 
 		Capsule.Segment = TSegment3<RealType>(
-			FVector3<RealType>((RealType)Center[0], (RealType)Center[1], (RealType)Center[2]),
-			FVector3<RealType>((RealType)Direction[0], (RealType)Direction[1], (RealType)Direction[2]),
+			TVector<RealType>((RealType)Center[0], (RealType)Center[1], (RealType)Center[2]),
+			TVector<RealType>((RealType)Direction[0], (RealType)Direction[1], (RealType)Direction[2]),
 			(RealType)Extent);
 
 		Capsule.Radius = (RealType)FitCapsule.radius;

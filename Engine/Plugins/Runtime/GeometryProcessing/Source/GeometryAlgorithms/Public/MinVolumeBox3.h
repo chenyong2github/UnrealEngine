@@ -12,6 +12,8 @@ class FProgressCancel;
 namespace UE {
 namespace Geometry {
 
+using namespace UE::Math;
+
 template <typename RealType> struct TMinVolumeBox3Internal;
 
 /**
@@ -31,7 +33,7 @@ public:
 	 * @param bUseExactBox If true, high-precision number types are used for the minimal-box calculation, rather than doubles. This is *much* slower but more accurate (but not recommended).
 	 * @return true if minimal box was found
 	 */
-	bool Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox = false, FProgressCancel* Progress = nullptr);
+	bool Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, bool bUseExactBox = false, FProgressCancel* Progress = nullptr);
 
 	/**
 	 * Calculate the minimal box for a Subsampling of MaxPoints points of a point set
@@ -41,7 +43,7 @@ public:
 	 * @param bUseExactBox If true, high-precision number types are used for the minimal-box calculation, rather than doubles. This is *much* slower but more accurate (but not recommended).
 	 * @return true if minimal box was found
 	 */
-	bool SolveSubsample(int32 NumPoints, int32 NumSamplePoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox = false, FProgressCancel* Progress = nullptr);
+	bool SolveSubsample(int32 NumPoints, int32 NumSamplePoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, bool bUseExactBox = false, FProgressCancel* Progress = nullptr);
 
 
 	/** @return true if minimal box is available */

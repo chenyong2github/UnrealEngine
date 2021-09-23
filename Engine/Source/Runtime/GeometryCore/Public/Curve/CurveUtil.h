@@ -16,11 +16,13 @@ namespace Geometry
 namespace CurveUtil
 {
 
+using namespace UE::Math;
+
 /**
  * Curve utility functions
  */
 	template<typename RealType, typename VectorType>
-	FVector3<RealType> Tangent(const TArrayView<const VectorType>& Vertices, int32 Idx, bool bLoop = false)
+	TVector<RealType> Tangent(const TArrayView<const VectorType>& Vertices, int32 Idx, bool bLoop = false)
 	{
 		int32 EndIdx = Idx + 1;
 		int32 StartIdx = Idx - 1;
@@ -89,8 +91,8 @@ namespace CurveUtil
 					int i = (ii % N);
 					int iPrev = (ii == 0) ? N - 1 : ii - 1;
 					int iNext = (ii + 1) % N;
-					FVector3<RealType> prev = Vertices[iPrev], next = Vertices[iNext];
-					FVector3<RealType> c = (prev + next) * 0.5f;
+					TVector<RealType> prev = Vertices[iPrev], next = Vertices[iNext];
+					TVector<RealType> c = (prev + next) * 0.5f;
 					Vertices[i] = (1 - Alpha) * Vertices[i] + (Alpha) * c;
 				}
 			}
@@ -105,8 +107,8 @@ namespace CurveUtil
 					{
 						continue;
 					}
-					FVector3<RealType> prev = Vertices[i - 1], next = Vertices[i + 1];
-					FVector3<RealType> c = (prev + next) * 0.5f;
+					TVector<RealType> prev = Vertices[i - 1], next = Vertices[i + 1];
+					TVector<RealType> c = (prev + next) * 0.5f;
 					Vertices[i] = (1 - Alpha) * Vertices[i] + (Alpha) * c;
 				}
 			}
@@ -122,7 +124,7 @@ namespace CurveUtil
 	void IterativeSmooth(TArrayView<VectorType> Vertices, int StartIdx, int EndIdx, double Alpha, int NumIterations, bool bClosed)
 	{
 		int N = Vertices.Num();
-		TArray<FVector3<RealType>> Buffer;
+		TArray<TVector<RealType>> Buffer;
 		Buffer.SetNumZeroed(N);
 
 		if (bClosed)
@@ -134,8 +136,8 @@ namespace CurveUtil
 					int i = (ii % N);
 					int iPrev = (ii == 0) ? N - 1 : ii - 1;
 					int iNext = (ii + 1) % N;
-					FVector3<RealType> prev = Vertices[iPrev], next = Vertices[iNext];
-					FVector3<RealType> c = (prev + next) * 0.5f;
+					TVector<RealType> prev = Vertices[iPrev], next = Vertices[iNext];
+					TVector<RealType> c = (prev + next) * 0.5f;
 					Buffer[i] = (1 - Alpha) * Vertices[i] + (Alpha) * c;
 				}
 				for (int ii = StartIdx; ii < EndIdx; ++ii)
@@ -155,8 +157,8 @@ namespace CurveUtil
 					{
 						continue;
 					}
-					FVector3<RealType> prev = Vertices[i - 1], next = Vertices[i + 1];
-					FVector3<RealType> c = (prev + next) * 0.5f;
+					TVector<RealType> prev = Vertices[i - 1], next = Vertices[i + 1];
+					TVector<RealType> c = (prev + next) * 0.5f;
 					Buffer[i] = (1 - Alpha) * Vertices[i] + (Alpha) * c;
 				}
 				for (int i = StartIdx; i < EndIdx && i < N; ++i)

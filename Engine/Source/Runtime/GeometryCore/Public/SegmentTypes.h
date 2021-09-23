@@ -336,9 +336,9 @@ struct TSegment3
 {
 public:
 	/** Center point of segment */
-	FVector3<T> Center = FVector3<T>::Zero();
+	TVector<T> Center = TVector<T>::Zero();
 	/** normalized Direction vector of segment */
-	FVector3<T> Direction = FVector3<T>::UnitX();
+	TVector<T> Direction = TVector<T>::UnitX();
 	/** Extent of segment, which is half the total length */
 	T Extent = (T)0;
 
@@ -347,7 +347,7 @@ public:
 	/**
 	 * Construct a Segment from two Points
 	 */
-	TSegment3(const FVector3<T>& Point0, const FVector3<T>& Point1)
+	TSegment3(const TVector<T>& Point0, const TVector<T>& Point1)
 	{
 		// set from endpoints 
 		Center = T(.5) * (Point0 + Point1);
@@ -358,7 +358,7 @@ public:
 	/**
 	 * Construct a segment from a Center Point, normalized Direction, and scalar Extent
 	 */
-	TSegment3(const FVector3<T>& CenterIn, const FVector3<T>& DirectionIn, T ExtentIn)
+	TSegment3(const TVector<T>& CenterIn, const TVector<T>& DirectionIn, T ExtentIn)
 	{
 		Center = CenterIn;
 		Direction = DirectionIn;
@@ -368,13 +368,13 @@ public:
 
 
 	/** Update the Segment with a new start point */
-	inline void SetStartPoint(const FVector3<T>& Point)
+	inline void SetStartPoint(const TVector<T>& Point)
 	{
 		update_from_endpoints(Point, EndPoint());
 	}
 
 	/** Update the Segment with a new end point */
-	inline void SetEndPoint(const FVector3<T>& Point)
+	inline void SetEndPoint(const TVector<T>& Point)
 	{
 		update_from_endpoints(StartPoint(), Point);
 	}
@@ -389,13 +389,13 @@ public:
 
 
 	/** @return start point of segment */
-	inline FVector3<T> StartPoint() const
+	inline TVector<T> StartPoint() const
 	{
 		return Center - Extent * Direction;
 	}
 
 	/** @return end point of segment */
-	inline FVector3<T> EndPoint() const
+	inline TVector<T> EndPoint() const
 	{
 		return Center + Extent * Direction;
 	}
@@ -408,7 +408,7 @@ public:
 	}
 
 	/** @return first (i == 0) or second (i == 1) endpoint of the Segment  */
-	inline FVector3<T> GetPointFromIndex(int i) const
+	inline TVector<T> GetPointFromIndex(int i) const
 	{
 		return (i == 0) ? (Center - Extent * Direction) : (Center + Extent * Direction);
 	}
@@ -416,7 +416,7 @@ public:
 	/**
 	 * @return point on segment at given (signed) Distance from the segment Origin
 	 */
-	inline FVector3<T> PointAt(T DistanceParameter) const
+	inline TVector<T> PointAt(T DistanceParameter) const
 	{
 		return Center + DistanceParameter * Direction;
 	}
@@ -425,7 +425,7 @@ public:
 	 * @param UnitParameter value in range [0,1]
 	 * @return point on segment at that linearly interpolates between start and end based on Unit Parameter
 	 */
-	inline FVector3<T> PointBetween(T UnitParameter) const
+	inline TVector<T> PointBetween(T UnitParameter) const
 	{
 		return Center + ((T)2 * UnitParameter - (T)1) * Extent * Direction;
 	}
@@ -433,7 +433,7 @@ public:
 	/**
 	 * @return minimum squared distance from Point to segment
 	 */
-	inline T DistanceSquared(const FVector3<T>& Point) const
+	inline T DistanceSquared(const TVector<T>& Point) const
 	{
 		T DistParameter;
 		return DistanceSquared(Point, DistParameter);
@@ -446,7 +446,7 @@ public:
 	 * @param DistParameterOut calculated distance parameter in range [-Extent,Extent]
 	 * @return minimum squared distance from Point to Segment
 	 */
-	T DistanceSquared(const FVector3<T>& Point, T& DistParameterOut) const
+	T DistanceSquared(const TVector<T>& Point, T& DistParameterOut) const
 	{
 		DistParameterOut = (Point - Center).Dot(Direction);
 		if (DistParameterOut >= Extent)
@@ -459,7 +459,7 @@ public:
 			DistParameterOut = -Extent;
 			return UE::Geometry::DistanceSquared(Point, StartPoint());
 		}
-		FVector3<T> ProjectedPt = Center + DistParameterOut * Direction;
+		TVector<T> ProjectedPt = Center + DistParameterOut * Direction;
 		return UE::Geometry::DistanceSquared(ProjectedPt, Point);
 	}
 
@@ -467,7 +467,7 @@ public:
 	/**
 	 * @return nearest point on segment to QueryPoint
 	 */
-	inline FVector3<T> NearestPoint(const FVector3<T>& QueryPoint) const
+	inline TVector<T> NearestPoint(const TVector<T>& QueryPoint) const
 	{
 		T t = (QueryPoint - Center).Dot(Direction);
 		if (t >= Extent)
@@ -485,7 +485,7 @@ public:
 	/**
 	 * @return scalar projection of QueryPoint onto line of Segment (not clamped to Extents)
 	 */
-	inline T Project(const FVector3<T>& QueryPoint) const
+	inline T Project(const TVector<T>& QueryPoint) const
 	{
 		return (QueryPoint - Center).Dot(Direction);
 	}
@@ -494,7 +494,7 @@ public:
 	/**
 	 * @return scalar projection of QueryPoint onto line of Segment, mapped to [0,1] range along segment
 	 */
-	inline T ProjectUnitRange(const FVector3<T>& QueryPoint) const
+	inline T ProjectUnitRange(const TVector<T>& QueryPoint) const
 	{
 		T ProjT = (QueryPoint - Center).Dot(Direction);
 		T Alpha = ((ProjT / Extent) + (T)1) * (T)0.5;
@@ -531,7 +531,7 @@ public:
 protected:
 
 	// update segment based on new endpoints
-	inline void update_from_endpoints(const FVector3<T>& p0, const FVector3<T>& p1)
+	inline void update_from_endpoints(const TVector<T>& p0, const TVector<T>& p1)
 	{
 		Center = 0.5 * (p0 + p1);
 		Direction = p1 - p0;

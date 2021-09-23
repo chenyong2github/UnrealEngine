@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /*
  * 3D Ray stored as Origin point and normalized Direction vector
  */
@@ -21,15 +23,15 @@ class TRay3
 {
 public:
 	/** Origin point */
-	FVector3<RealType> Origin;
+	TVector<RealType> Origin;
 	/** Direction vector, always normalized */
-	FVector3<RealType> Direction;
+	TVector<RealType> Direction;
 
 	/** Construct ray at origin pointed down Z axis */
 	TRay3()
 	{
-		Origin = FVector3<RealType>::Zero();
-		Direction = FVector3<RealType>::UnitZ();
+		Origin = TVector<RealType>::Zero();
+		Direction = TVector<RealType>::UnitZ();
 	}
 
 	/**
@@ -38,7 +40,7 @@ public:
 	 * @param Direction direction vector. Must be normalized if bIsNormalized=true
 	 * @param bIsNormalized if true, Direction will not be re-normalized
 	 */
-	TRay3(const FVector3<RealType>& Origin, const FVector3<RealType>& Direction, bool bIsNormalized = false)
+	TRay3(const TVector<RealType>& Origin, const TVector<RealType>& Direction, bool bIsNormalized = false)
 	{
 		this->Origin = Origin;
 		this->Direction = Direction;
@@ -51,7 +53,7 @@ public:
 	/**
 	 * @return point on ray at given (signed) Distance from the ray Origin
 	 */
-	FVector3<RealType> PointAt(RealType Distance) const
+	TVector<RealType> PointAt(RealType Distance) const
 	{
 		return Origin + Distance * Direction;
 	}
@@ -60,7 +62,7 @@ public:
 	/**
 	 * @return ray parameter (ie positive distance from Origin) at nearest point on ray to QueryPoint
 	 */
-	inline RealType Project(const FVector3<RealType>& QueryPoint) const
+	inline RealType Project(const TVector<RealType>& QueryPoint) const
 	{
 		RealType LineParam = (QueryPoint - Origin).Dot(Direction);
 		return (LineParam < 0) ? 0 : LineParam;
@@ -69,24 +71,24 @@ public:
 	/**
 	 * @return smallest squared distance from ray to QueryPoint
 	 */
-	inline RealType DistanceSquared(const FVector3<RealType>& QueryPoint) const
+	inline RealType DistanceSquared(const TVector<RealType>& QueryPoint) const
 	{
 		RealType LineParam = (QueryPoint - Origin).Dot(Direction);
 		if (LineParam < 0)
 		{
-			return Origin.DistanceSquared(QueryPoint);
+			return UE::Geometry::DistanceSquared(Origin, QueryPoint);
 		}
 		else
 		{
-			FVector3<RealType> NearestPt = Origin + LineParam * Direction;
-			return NearestPt.DistanceSquared(QueryPoint);
+			TVector<RealType> NearestPt = Origin + LineParam * Direction;
+			return UE::Geometry::DistanceSquared(NearestPt, QueryPoint);
 		}
 	}
 
 	/**
 	 * @return smallest squared distance from ray to QueryPoint
 	 */
-	inline RealType Distance(const FVector3<RealType>& QueryPoint) const
+	inline RealType Distance(const TVector<RealType>& QueryPoint) const
 	{
 		return TMathUtil<RealType>::Sqrt(DistanceSquared(QueryPoint));
 	}
@@ -94,7 +96,7 @@ public:
 	/**
 	 * @return nearest point on line to QueryPoint
 	 */
-	inline FVector3<RealType> NearestPoint(const FVector3<RealType>& QueryPoint) const
+	inline TVector<RealType> NearestPoint(const TVector<RealType>& QueryPoint) const
 	{
 		RealType LineParam = (QueryPoint - Origin).Dot(Direction);
 		if (LineParam < 0)
@@ -117,8 +119,8 @@ public:
 	}
 	inline TRay3(const FRay & RayIn)
 	{
-		Origin = FVector3<RealType>(RayIn.Origin);
-		Direction = FVector3<RealType>(RayIn.Direction);
+		Origin = TVector<RealType>(RayIn.Origin);
+		Direction = TVector<RealType>(RayIn.Direction);
 	}
 
 

@@ -82,7 +82,7 @@ bool FSimpleHoleFiller::Fill_Fan(int GroupID)
 
 bool FSimpleHoleFiller::Fill_EarClip(int GroupID)
 {
-	TArray<FVector3<double>> Vertices;
+	TArray<FVector3d> Vertices;
 	int32 NumVertices = Loop.GetVertexCount();
 	for (int32 i = 0; i < NumVertices; ++i)
 	{

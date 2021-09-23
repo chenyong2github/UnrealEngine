@@ -9,6 +9,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TPointSetAdapter provides a very generic interface to an indexable list of points.
  * The list may be sparse, ie some indices may be invalid.
@@ -23,7 +25,7 @@ struct TPointSetAdapter
 	/** Returns true if this index valid */
 	TFunction<bool(int32)> IsPoint;
 	/** Get point at this index */
-	TFunction<FVector3<RealType>(int32)> GetPoint;
+	TFunction<TVector<RealType>(int32)> GetPoint;
 
 	/** Returns true if this point set has per-point normals */
 	TFunction<bool()> HasNormals;

@@ -571,7 +571,7 @@ protected:
 	/** Set the value at an Element to be a linear interpolation of two other Elements */
 	void SetElementFromLerp(int SetElement, int ElementA, int ElementB, double Alpha);
 	/** Set the value at an Element to be a barycentric interpolation of three other Elements */
-	void SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3<double>& BaryCoords);
+	void SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3d& BaryCoords);
 
 	/** updates the triangles array and optionally the element reference counts */
 	void InternalSetTriangle(int TriangleID, const FIndex3i& TriElements, bool bUpdateRefCounts, bool bAllowElementFreeing = true);
