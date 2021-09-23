@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
         public AbilitySystemGameFeatureActions(ReadOnlyTargetRules Target) : base(Target)
 		{
+			ShortName = "AbilitySysGFAs";
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
                 {
