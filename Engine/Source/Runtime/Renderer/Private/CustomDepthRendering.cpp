@@ -96,7 +96,7 @@ FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIn
 		const float DepthFar = (float)ERHIZBuffer::FarPlane;
 		const FClearValueBinding DepthFarColor = FClearValueBinding(FLinearColor(DepthFar, DepthFar, DepthFar, DepthFar));
 
-		ETextureCreateFlags MobileCustomDepthFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_Memoryless;
+		ETextureCreateFlags MobileCustomDepthFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
 		ETextureCreateFlags MobileCustomStencilFlags = MobileCustomDepthFlags;
 
 		if (!bWritesCustomStencil)
