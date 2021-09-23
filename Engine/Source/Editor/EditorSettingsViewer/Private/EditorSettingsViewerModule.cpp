@@ -210,10 +210,10 @@ protected:
 			GetMutableDefault<ULevelEditorPlaySettings>()
 		);
 
-		// view port settings
+		// viewport settings
 		SettingsModule.RegisterSettings("Editor", "LevelEditor", "Viewport",
 			LOCTEXT("LevelEditorViewportSettingsName", "Viewports"),
-			LOCTEXT("LevelEditorViewportSettingsDescription", "Configure the look and feel of the Level Editor view ports."),
+			LOCTEXT("LevelEditorViewportSettingsDescription", "Configure the look and feel of the Level Editor viewports."),
 			GetMutableDefault<ULevelEditorViewportSettings>()
 		);
 	}
