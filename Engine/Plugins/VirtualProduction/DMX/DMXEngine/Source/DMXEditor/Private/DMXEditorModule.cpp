@@ -77,6 +77,12 @@ void FDMXEditorModule::StartupModule()
 void FDMXEditorModule::ShutdownModule()
 {
 	FDMXEditorStyle::Shutdown();
+
+	if(UObjectInitialized())
+	{
+		UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.User", "DMX");
+	}
+	
 	FDMXEditorCommands::Unregister();
 
 	MenuExtensibilityManager.Reset();
@@ -141,7 +147,7 @@ void FDMXEditorModule::BindDMXEditorCommands()
 
 void FDMXEditorModule::ExtendLevelEditorToolbar()
 {
-	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.ModesToolBar");
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
 
 	FToolMenuSection& Section = Menu->FindOrAddSection("DMX");
 

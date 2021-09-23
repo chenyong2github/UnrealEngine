@@ -83,6 +83,8 @@ void FLevelSnapshotsEditorModule::ShutdownModule()
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomClassLayout(UNegatableFilter::StaticClass()->GetFName());
+
+		UToolMenus::Get()->RemoveSection("LevelEditor.LevelEditorToolBar.User", "LevelSnapshots");
 	}
 	
 	FLevelSnapshotsEditorCommands::Unregister();
@@ -189,7 +191,7 @@ void FLevelSnapshotsEditorModule::RegisterMenuItem()
 			return;
 		}
 		
-		TSharedRef<FUICommandList> MenuItemCommandList = MakeShareable(new FUICommandList);
+		const TSharedRef<FUICommandList> MenuItemCommandList = MakeShared<FUICommandList>();
 
 		MenuItemCommandList->MapAction(
 			FLevelSnapshotsEditorCommands::Get().OpenLevelSnapshotsEditorMenuItem,
@@ -267,25 +269,37 @@ void FLevelSnapshotsEditorModule::RegisterEditorToolbar()
 		return;
 	}
 	
-	// Get the Level Editor so we can insert our combo button into the Level Editor's toolbar
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	
 	MapEditorToolbarActions();
 
-	// Create a toolbar extension instance that will insert our toolbar button after the 'Settings' horizontal box in the toolbar
-	TSharedPtr<FExtender> NewToolbarExtender = MakeShareable(new FExtender);
-	NewToolbarExtender->AddToolBarExtension("Settings",
-		EExtensionHook::After,
-		EditorToolbarButtonCommandList,
-		FToolBarExtensionDelegate::CreateRaw(this, &FLevelSnapshotsEditorModule::CreateEditorToolbarButton));
-	
-	// Now insert the button into the main toolbar using the extension
-	LevelEditorModule.GetToolBarExtensibilityManager()->AddExtender(NewToolbarExtender);
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
+	FToolMenuSection& Section = Menu->FindOrAddSection("LevelSnapshots");
+
+	FToolMenuEntry LevelSnapshotsButtonEntry = FToolMenuEntry::InitToolBarButton(
+		"TakeSnapshotAction",
+		FUIAction(FExecuteAction::CreateStatic(&SnapshotEditor::TakeSnapshotWithOptionalForm)),
+		NSLOCTEXT("LevelSnapshots", "LevelSnapshots", "Level Snapshots"), // Set Text under image
+		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsToolbarButtonTooltip", "Take snapshot with optional form"), //  Set tooltip
+		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton", "LevelSnapshots.ToolbarButton.Small") // Set image
+	);
+	LevelSnapshotsButtonEntry.SetCommandList(EditorToolbarButtonCommandList);
+
+	 FToolMenuEntry LevelSnapshotsComboEntry = FToolMenuEntry::InitComboButton(
+		"LevelSnapshotsMenu",
+		FUIAction(),
+		FOnGetContent::CreateRaw(this, &FLevelSnapshotsEditorModule::FillEditorToolbarComboButtonMenuOptions, EditorToolbarButtonCommandList),
+		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsOptions_Label", "Level Snapshots Options"), // Set text seen when the Level Editor Toolbar is truncated and the flyout is clicked
+		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsToolbarComboButtonTooltip", "Open Level Snapshots Options"), //  Set tooltip
+		FSlateIcon(),
+		true //bInSimpleComboBox
+	);
+
+	Section.AddEntry(LevelSnapshotsButtonEntry);
+	Section.AddEntry(LevelSnapshotsComboEntry);
 }
 
 void FLevelSnapshotsEditorModule::MapEditorToolbarActions()
 {
-	EditorToolbarButtonCommandList = MakeShareable(new FUICommandList);
+	EditorToolbarButtonCommandList = MakeShared<FUICommandList>();
 
 	EditorToolbarButtonCommandList->MapAction(
 		FLevelSnapshotsEditorCommands::Get().UseCreationFormToggle,
@@ -305,24 +319,6 @@ void FLevelSnapshotsEditorModule::MapEditorToolbarActions()
 		FLevelSnapshotsEditorCommands::Get().LevelSnapshotsSettings,
 		FExecuteAction::CreateStatic(&FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings)
 	);
-}
-
-void FLevelSnapshotsEditorModule::CreateEditorToolbarButton(FToolBarBuilder& Builder)
-{
-	Builder.AddToolBarButton(
-		FUIAction(FExecuteAction::CreateStatic(&SnapshotEditor::TakeSnapshotWithOptionalForm)),
-		NAME_None,
-		NSLOCTEXT("LevelSnapshots", "LevelSnapshots", "Level Snapshots"), // Set Text under image
-		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsToolbarButtonTooltip", "Take snapshot with optional form"), //  Set tooltip
-		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton", "LevelSnapshots.ToolbarButton.Small") // Set image
-	);
-	
-	Builder.AddComboButton(
-		FUIAction(),
-		FOnGetContent::CreateRaw(this, &FLevelSnapshotsEditorModule::FillEditorToolbarComboButtonMenuOptions, EditorToolbarButtonCommandList), // Add combo button subcommands menu
-		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsOptions_Label", "Level Snapshots Options"), // Set text seen when the Level Editor Toolbar is truncated and the flyout is clicked
-		NSLOCTEXT("LevelSnapshots", "LevelSnapshotsToolbarComboButtonTooltip", "Open Level Snapshots Options"), FSlateIcon(), true //  Set tooltip
-	); 
 }
 
 TSharedRef<SWidget> FLevelSnapshotsEditorModule::FillEditorToolbarComboButtonMenuOptions(TSharedPtr<class FUICommandList> Commands)

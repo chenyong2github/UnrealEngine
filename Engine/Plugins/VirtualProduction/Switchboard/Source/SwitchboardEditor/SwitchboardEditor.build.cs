@@ -19,6 +19,7 @@ public class SwitchboardEditor : ModuleRules
 				"Settings",
 				"Slate",
 				"SlateCore",
+				"ToolMenus",
 				"UnrealEd",
 			});
 	}
