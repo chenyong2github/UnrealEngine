@@ -16,7 +16,7 @@ const FEditorModeID UStaticMeshEditorModelingMode::Id("StaticMeshEditorModelingM
 
 UStaticMeshEditorModelingMode::UStaticMeshEditorModelingMode()
 {
-	Info = FEditorModeInfo(Id, LOCTEXT("StaticMeshEditorModelingMode", "StaticMeshEditorModelingMode"), FSlateIcon(), true);
+	Info = FEditorModeInfo(Id, LOCTEXT("StaticMeshEditorModelingMode", "Modeling"), FSlateIcon("ModelingToolsStyle", "LevelEditor.ModelingToolsMode"), true);
 }
 
 void UStaticMeshEditorModelingMode::Enter()
