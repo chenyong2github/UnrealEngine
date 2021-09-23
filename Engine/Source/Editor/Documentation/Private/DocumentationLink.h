@@ -50,7 +50,7 @@ public:
 		FString Anchor;
 		FString QueryString;
 		SplitLink(Link, Path, QueryString, Anchor);
-		const FString PartialPath = FString::Printf(TEXT("%sindex.html"), *Path);
+		const FString PartialPath = FString::Printf(TEXT("%s/index.html"), *Path);
 		
 		AddSourceInfoToQueryString(QueryString, Source);
 		FString URLRoot = GetUrlRoot();
