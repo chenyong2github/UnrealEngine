@@ -189,16 +189,16 @@ public:
 protected:
 
 	UPROPERTY()
-	ULODManagerLODProperties* LODInfoProperties;
+	TObjectPtr<ULODManagerLODProperties> LODInfoProperties;
 
 	UPROPERTY()
-	ULODManagerPreviewLODProperties* LODPreviewProperties;
+	TObjectPtr<ULODManagerPreviewLODProperties> LODPreviewProperties;
 
 	UPROPERTY()
-	ULODManagerHiResSourceModelActions* HiResSourceModelActions;
+	TObjectPtr<ULODManagerHiResSourceModelActions> HiResSourceModelActions;
 
 	UPROPERTY()
-	ULODManagerMaterialActions* MaterialActions;
+	TObjectPtr<ULODManagerMaterialActions> MaterialActions;
 
 
 
@@ -244,10 +244,10 @@ protected:
 	TMap<FString, TUniquePtr<FLODMeshInfo>> LODMeshCache;
 
 	UPROPERTY()
-	UPreviewMesh* LODPreview;
+	TObjectPtr<UPreviewMesh> LODPreview;
 
 	UPROPERTY()
-	UPreviewGeometry* LODPreviewLines;
+	TObjectPtr<UPreviewGeometry> LODPreviewLines;
 
 	bool bPreviewLODValid = false;
 	void UpdatePreviewLOD();

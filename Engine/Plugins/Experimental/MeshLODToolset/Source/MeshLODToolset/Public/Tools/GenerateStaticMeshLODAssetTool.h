@@ -201,7 +201,7 @@ struct MESHLODTOOLSET_API FGenerateStaticMeshLOD_TextureConfig
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = Texture)
-	UTexture2D* Texture = nullptr;
+	TObjectPtr<UTexture2D> Texture = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Texture)
 	EGenerateStaticMeshLOD_BakeConstraint Constraint = EGenerateStaticMeshLOD_BakeConstraint::NoConstraint;
@@ -219,7 +219,7 @@ struct MESHLODTOOLSET_API FGenerateStaticMeshLOD_MaterialConfig
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = Material)
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Texture)
 	EGenerateStaticMeshLOD_BakeConstraint Constraint = EGenerateStaticMeshLOD_BakeConstraint::NoConstraint;
@@ -244,7 +244,7 @@ public:
 	TArray<FGenerateStaticMeshLOD_TextureConfig> Textures;
 
 	UPROPERTY(VisibleAnywhere, Category = "Baked Texture Previews")
-	TArray<UTexture2D*> PreviewTextures;
+	TArray<TObjectPtr<UTexture2D>> PreviewTextures;
 };
 
 
@@ -299,10 +299,10 @@ protected:
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> PreviewWithBackgroundCompute = nullptr;
 
 	UPROPERTY()
-	TArray<UTexture2D*> PreviewTextures;
+	TArray<TObjectPtr<UTexture2D>> PreviewTextures;
 
 	UPROPERTY()
-	TArray<UMaterialInterface*> PreviewMaterials;
+	TArray<TObjectPtr<UMaterialInterface>> PreviewMaterials;
 
 
 protected:
