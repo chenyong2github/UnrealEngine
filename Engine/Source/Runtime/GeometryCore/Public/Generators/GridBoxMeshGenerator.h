@@ -193,6 +193,8 @@ public:
 
 				FVector3f Normal(0, 0, 0);
 				Normal[Dim] = (2 * Side - 1);
+				Normal = (FVector3f)Box.Frame.FromFrameVector((FVector3d)Normal);
+
 				int MajorFaceInd = FaceIdxBase + Side;
 
 				int FaceUVStartInd = CurrentUVIdx;

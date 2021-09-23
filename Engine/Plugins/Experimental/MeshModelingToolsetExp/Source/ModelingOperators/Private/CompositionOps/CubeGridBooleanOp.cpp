@@ -184,7 +184,12 @@ protected:
 		// corner results in a pyramid with a square (rather than triangular) base, and
 		// a checkerboard raised/lowered state results in a raised ridge. In the crosswise
 		// case we flip the diagonal.
-		int DiagFaceIdx1 = (CornerInfo.WeldedAtBase[0] && CornerInfo.WeldedAtBase[2]) ? 1 : 0;
+		int DiagFaceIdx1 = 0;
+		if (CornerInfo.WeldedAtBase[1] != CornerInfo.WeldedAtBase[3] || 
+			(!CornerInfo.WeldedAtBase[1] && CornerInfo.WeldedAtBase[0] && CornerInfo.WeldedAtBase[2]))
+		{
+			DiagFaceIdx1 = 1;
+		}
 		DiagFaceIdx1 = bCrosswiseDiagonal ? 1 - DiagFaceIdx1 : DiagFaceIdx1;
 
 		int DiagFaceIdx2 = DiagFaceIdx1 + 2;
