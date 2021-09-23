@@ -109,6 +109,12 @@ namespace AlembicHairTranslatorUtils
 		}
 	}
 
+	template <typename AttributeType>
+	void SetGroomAttribute(FHairDescription& HairDescription, FName AttributeName, AttributeType AttributeValue)
+	{
+		SetGroomAttribute(HairDescription, FGroomID(0), AttributeName, AttributeValue);
+	}
+
 	void SetGroomAttributes(FHairDescription& HairDescription, const Alembic::AbcGeom::ICompoundProperty& Parameters)
 	{
 		for (int Index = 0; Index < Parameters.getNumProperties(); ++Index)
@@ -201,6 +207,80 @@ namespace AlembicHairTranslatorUtils
 				}
 			}
 		}
+	}
+
+	EGroomBasisType MapAlembicEnumToUe(Alembic::AbcGeom::BasisType AlembicBasisType, bool& bSuccess)
+	{
+		bSuccess = true;
+		switch (AlembicBasisType)
+		{
+		case Alembic::AbcGeom::kNoBasis:
+			return EGroomBasisType::NoBasis;
+		case Alembic::AbcGeom::kBezierBasis:
+			return EGroomBasisType::BezierBasis;
+		case Alembic::AbcGeom::kBsplineBasis:
+			return EGroomBasisType::BsplineBasis;
+		case Alembic::AbcGeom::kCatmullromBasis:
+			return EGroomBasisType::CatmullromBasis;
+		case Alembic::AbcGeom::kHermiteBasis:
+			return EGroomBasisType::HermiteBasis;
+		case Alembic::AbcGeom::kPowerBasis:
+			return EGroomBasisType::PowerBasis;
+		default:
+			ensureMsgf(false, TEXT("Unsupported basis type: %d"), AlembicBasisType);
+			break;
+		}
+
+		bSuccess = false;
+		return EGroomBasisType::NoBasis;
+	}
+
+	EGroomCurveType MapAlembicEnumToUe(Alembic::AbcGeom::CurveType AlembicCurveType, bool& bSuccess)
+	{
+		bSuccess = true;
+		switch (AlembicCurveType)
+		{
+		case Alembic::AbcGeom::kCubic:
+			return EGroomCurveType::Cubic;
+		case Alembic::AbcGeom::kLinear:
+			return EGroomCurveType::Linear;
+		case Alembic::AbcGeom::kVariableOrder:
+			return EGroomCurveType::VariableOrder;
+		default:
+			ensureMsgf(false, TEXT("Unsupported curve type: %d"), AlembicCurveType);
+			break;
+		}
+
+		bSuccess = false;
+		return EGroomCurveType::Linear;
+	}
+
+	template<typename AlembicEnumType>
+	bool ConvertAlembicEnumToStrandAttribute(FHairDescription& HairDescription, FStrandID StrandID, AlembicEnumType AlembicEnumValue, FName AttributeName)
+	{
+		bool bSuccess = false;
+		auto UeValue = MapAlembicEnumToUe(AlembicEnumValue, bSuccess);
+		if (bSuccess)
+		{
+			UEnum* UeEnum = StaticEnum<decltype(UeValue)>();
+			if (ensure(UeEnum))
+			{
+				FName ValueName = *UeEnum->GetNameStringByValue((int)UeValue);
+				if (ValueName.IsNone())
+				{
+					bSuccess = false;
+				}
+				else
+				{
+					SetHairStrandAttribute(HairDescription, StrandID, AttributeName, ValueName);
+				}
+			}
+			else
+			{
+				bSuccess = false;
+			}
+		}
+		return bSuccess;
 	}
 
 	template <typename AbcParamType, typename AbcArraySampleType, typename AttributeType>
@@ -496,10 +576,16 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, float FrameTime, 
 		Alembic::Abc::FloatArraySamplePtr Widths = Curves.getSchema().getWidthsParam() ? Curves.getSchema().getWidthsParam().getExpandedValue(SampleSelector).getVals() : nullptr;
 		Alembic::Abc::P3fArraySamplePtr Positions = Sample.getPositions();
 		Alembic::Abc::Int32ArraySamplePtr NumVertices = Sample.getCurvesNumVertices();
+		Alembic::Abc::FloatArraySamplePtr Knots = Sample.getKnots();
+		Alembic::Abc::UcharArraySamplePtr Orders = Sample.getOrders();
+
+		Alembic::AbcGeom::BasisType BasisType = Sample.getBasis();
+		Alembic::AbcGeom::CurveType CurveType = Sample.getType();
 
 		const int32 NumWidths = Widths ? Widths->size() : 0;
 		uint32 NumPoints = Positions ? Positions->size() : 0;
 		uint32 NumCurves = NumVertices ? NumVertices->size() : 0; // equivalent to Sample.getNumCurves()
+		const uint32 NumKnots = Knots ? Knots->size() : 0;
 
 		// Get the starting strand and vertex IDs for this group of ICurves
 		int32 StartStrandID = HairDescription.GetNumStrands();
@@ -528,6 +614,9 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, float FrameTime, 
 			FStrandID StrandID = HairDescription.AddStrand();
 
 			SetHairStrandAttribute(HairDescription, StrandID, HairAttribute::Strand::VertexCount, (int) CurveNumVertices);
+
+			AlembicHairTranslatorUtils::ConvertAlembicEnumToStrandAttribute(HairDescription, StrandID, BasisType, HairAttribute::Strand::BasisType);
+			AlembicHairTranslatorUtils::ConvertAlembicEnumToStrandAttribute(HairDescription, StrandID, CurveType, HairAttribute::Strand::CurveType);
 
 			for (uint32 PointIndex = 0; PointIndex < CurveNumVertices; ++PointIndex, ++GlobalIndex)
 			{
@@ -577,6 +666,53 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, float FrameTime, 
 			{
 				VertexAttributeRef[FVertexID(StartVertexID + Index)] = (*Widths)[Index] * Scale;
 			}
+		}
+
+		if (BasisType != Alembic::AbcGeom::kNoBasis && Knots)
+		{
+			TStrandAttributesRef<TArrayAttribute<float>> KnotsStrandAttributeRef = HairDescription.StrandAttributes().GetAttributesRef<TArrayAttribute<float>>(HairAttribute::Strand::Knots);
+			if (!KnotsStrandAttributeRef.IsValid())
+			{
+				HairDescription.StrandAttributes().RegisterAttribute<float[]>(HairAttribute::Strand::Knots);
+				KnotsStrandAttributeRef = HairDescription.StrandAttributes().GetAttributesRef<TArrayAttribute<float>>(HairAttribute::Strand::Knots);
+			}		
+
+			uint32 GlobalKnotIndex = 0;
+			for (uint32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
+			{
+				uint32 DegreeOfCurve = 1;
+				if (CurveType == Alembic::AbcGeom::kCubic)
+				{
+					DegreeOfCurve = 3;
+				}
+				else if (CurveType == Alembic::AbcGeom::kVariableOrder)
+				{
+					if (ensureMsgf(Orders && CurveIndex < Orders->size(), TEXT("`Orders` index out of bounds, skipping knots for this strand.")))
+					{
+						DegreeOfCurve = (*Orders)[CurveIndex];
+					}
+					else
+					{
+						continue;
+					}
+				}
+
+				TArrayAttribute<float> KnotsArrayAttribute = KnotsStrandAttributeRef[FStrandID(StartStrandID + CurveIndex)];
+
+				uint32 CurveNumKnots = (*NumVertices)[CurveIndex] + DegreeOfCurve + 1;
+				if (!ensureMsgf(GlobalKnotIndex + CurveNumKnots <= NumKnots, TEXT("Computed number of knots would exceed the number available from the groom.")))
+				{
+					CurveNumKnots = NumKnots - GlobalKnotIndex;
+				}
+				KnotsArrayAttribute.SetNum(CurveNumKnots);
+
+				for (uint32 KnotIndex = 0; KnotIndex < CurveNumKnots; ++KnotIndex, ++GlobalKnotIndex)
+				{
+					KnotsArrayAttribute[KnotIndex] = (*Knots)[GlobalKnotIndex];
+				}
+			}
+
+			ensureMsgf(GlobalKnotIndex == NumKnots, TEXT("Failed to translate all knots for the groom."));
 		}
 
 		// Extract the arbitrary GeomParams here, only need to do it once per ICurves

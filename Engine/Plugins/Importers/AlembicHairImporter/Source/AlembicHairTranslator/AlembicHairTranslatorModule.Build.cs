@@ -13,7 +13,8 @@ namespace UnrealBuildTool.Rules
                     "Core",
                     "Engine",
                     "HairStrandsCore",
-                    "HairStrandsEditor"
+                    "HairStrandsEditor",
+					"CoreUObject"
                 });
         }
 	}

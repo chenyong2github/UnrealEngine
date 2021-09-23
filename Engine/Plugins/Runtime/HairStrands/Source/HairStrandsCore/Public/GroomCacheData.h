@@ -71,6 +71,25 @@ enum class EGroomCacheType : uint8
 	Guides
 };
 
+UENUM(BlueprintType)
+enum class EGroomBasisType : uint8
+{
+	NoBasis,
+	BezierBasis,
+	BsplineBasis,
+	CatmullromBasis,
+	HermiteBasis,
+	PowerBasis,
+};
+
+UENUM(BlueprintType)
+enum class EGroomCurveType : uint8
+{
+	Cubic,
+	Linear,
+	VariableOrder,
+};
+
 /** Information about the GroomCache itself */
 USTRUCT()
 struct FGroomCacheInfo
