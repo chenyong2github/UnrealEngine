@@ -993,119 +993,136 @@ namespace EpicGames.Perforce.Managed
 		public async Task PopulateAsync(List<PopulateRequest> Requests, bool bFakeSync, CancellationToken CancellationToken)
 		{
 			Logger.LogInformation("Populating with {NumStreams} streams", Requests.Count);
-			using(Logger.BeginIndentScope("  "))
+			using (Logger.BeginIndentScope("  "))
 			{
-				// Revert all changes in each of the unique clients
-				foreach (PopulateRequest Request in Requests)
-				{
-					PerforceConnection Perforce = Request.PerforceClient.WithoutClient();
+				Tuple<int, StreamSnapshot>[] StreamState = await PopulateCleanAsync(Requests, bFakeSync, CancellationToken);
+				await PopulateSyncAsync(Requests, StreamState, bFakeSync, CancellationToken);
+			}
+		}
 
-					PerforceResponse<ClientRecord> Response = await Perforce.TryGetClientAsync(Request.PerforceClient.ClientName, CancellationToken);
-					if (Response.Succeeded)
-					{
-						await RevertInternalAsync(Request.PerforceClient, CancellationToken);
-					}
+		/// <summary>
+		/// Perform the clean part of a populate command
+		/// </summary>
+		public async Task<Tuple<int, StreamSnapshot>[]> PopulateCleanAsync(List<PopulateRequest> Requests, bool bFakeSync, CancellationToken CancellationToken)
+		{
+			// Revert all changes in each of the unique clients
+			foreach (PopulateRequest Request in Requests)
+			{
+				PerforceConnection Perforce = Request.PerforceClient.WithoutClient();
+
+				PerforceResponse<ClientRecord> Response = await Perforce.TryGetClientAsync(Request.PerforceClient.ClientName, CancellationToken);
+				if (Response.Succeeded)
+				{
+					await RevertInternalAsync(Request.PerforceClient, CancellationToken);
 				}
+			}
 
-				// Clean the current workspace
-				await CleanAsync(true, CancellationToken);
+			// Clean the current workspace
+			await CleanAsync(true, CancellationToken);
 
-				// Update the list of files in each stream
-				Tuple<int, StreamSnapshot>[] StreamState = new Tuple<int, StreamSnapshot>[Requests.Count];
-				for(int Idx = 0; Idx < Requests.Count; Idx++)
+			// Update the list of files in each stream
+			Tuple<int, StreamSnapshot>[] StreamState = new Tuple<int, StreamSnapshot>[Requests.Count];
+			for (int Idx = 0; Idx < Requests.Count; Idx++)
+			{
+				PopulateRequest Request = Requests[Idx];
+				string StreamName = Request.StreamName;
+				Logger.LogInformation("Finding contents of {StreamName}:", StreamName);
+
+				using (Logger.BeginIndentScope("  "))
 				{
-					PopulateRequest Request = Requests[Idx];
-					string StreamName = Request.StreamName;
-					Logger.LogInformation("Finding contents of {StreamName}:", StreamName);
+					await DeleteClientAsync(Request.PerforceClient, CancellationToken);
+					await UpdateClientAsync(Request.PerforceClient, StreamName, CancellationToken);
 
-					using(Logger.BeginIndentScope("  "))
-					{
-						await DeleteClientAsync(Request.PerforceClient, CancellationToken);
-						await UpdateClientAsync(Request.PerforceClient, StreamName, CancellationToken);
+					int ChangeNumber = await GetLatestClientChangeAsync(Request.PerforceClient, CancellationToken);
+					Logger.LogInformation("Latest change is CL {CL}", ChangeNumber);
 
-						int ChangeNumber = await GetLatestClientChangeAsync(Request.PerforceClient, CancellationToken);
-						Logger.LogInformation("Latest change is CL {CL}", ChangeNumber);
+					await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Request.View, CancellationToken);
 
-						await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Request.View, CancellationToken);
-
-						StreamSnapshot Contents = await FindClientContentsAsync(Request.PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
-						StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
-
-						GC.Collect();
-					}
-				}
-
-				// Remove any files from the workspace not referenced by the first stream. This ensures we can purge things from the cache that we no longer need.
-				if(Requests.Count > 0)
-				{
-					await RemoveFilesFromWorkspaceAsync(StreamState[0].Item2, CancellationToken);
-				}
-
-				// Shrink the contents of the cache
-				using (Trace("UpdateCache"))
-				using (ILoggerProgress Status = Logger.BeginProgressScope("Updating cache..."))
-				{
-					Stopwatch Timer = Stopwatch.StartNew();
-
-					HashSet<FileContentId> CommonContentIds = new HashSet<FileContentId>();
-					Dictionary<FileContentId, long> ContentIdToLength = new Dictionary<FileContentId, long>();
-					for(int Idx = 0; Idx < Requests.Count; Idx++)
-					{
-						List<StreamFile> Files = StreamState[Idx].Item2.GetFiles();
-						foreach(StreamFile File in Files)
-						{
-							ContentIdToLength[File.ContentId] = File.Length;
-						}
-
-						if(Idx == 0)
-						{
-							CommonContentIds.UnionWith(Files.Select(x => x.ContentId));
-						}
-						else
-						{
-							CommonContentIds.IntersectWith(Files.Select(x => x.ContentId));
-						}
-					}
-
-					List<CachedFileInfo> TrackedFiles = ContentIdToTrackedFile.Values.ToList();
-					foreach(CachedFileInfo TrackedFile in TrackedFiles)
-					{
-						if(!ContentIdToLength.ContainsKey(TrackedFile.ContentId))
-						{
-							RemoveTrackedFile(TrackedFile);
-						}
-					}
+					StreamSnapshot Contents = await FindClientContentsAsync(Request.PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
+					StreamState[Idx] = Tuple.Create(ChangeNumber, Contents);
 
 					GC.Collect();
-
-					double TotalSize = ContentIdToLength.Sum(x => x.Value) / (1024.0 * 1024.0);
-					Status.Progress = String.Format("{0:n1}mb total, {1:n1}mb differences ({2:0.0}s)", TotalSize, TotalSize - CommonContentIds.Sum(x => ContentIdToLength[x]) / (1024.0 * 1024.0), Timer.Elapsed.TotalSeconds);
 				}
+			}
 
-				// Sync all the new files
-				for(int Idx = 0; Idx < Requests.Count; Idx++)
+			// Remove any files from the workspace not referenced by the first stream. This ensures we can purge things from the cache that we no longer need.
+			if (Requests.Count > 0)
+			{
+				await RemoveFilesFromWorkspaceAsync(StreamState[0].Item2, CancellationToken);
+			}
+
+			// Shrink the contents of the cache
+			using (Trace("UpdateCache"))
+			using (ILoggerProgress Status = Logger.BeginProgressScope("Updating cache..."))
+			{
+				Stopwatch Timer = Stopwatch.StartNew();
+
+				HashSet<FileContentId> CommonContentIds = new HashSet<FileContentId>();
+				Dictionary<FileContentId, long> ContentIdToLength = new Dictionary<FileContentId, long>();
+				for (int Idx = 0; Idx < Requests.Count; Idx++)
 				{
-					PopulateRequest Request = Requests[Idx];
-					string StreamName = Request.StreamName;
-					Logger.LogInformation("Syncing files for {StreamName}:", StreamName);
-
-					using(Logger.BeginIndentScope("  "))
+					List<StreamFile> Files = StreamState[Idx].Item2.GetFiles();
+					foreach (StreamFile File in Files)
 					{
-						await DeleteClientAsync(Request.PerforceClient, CancellationToken);
-						await UpdateClientAsync(Request.PerforceClient, StreamName, CancellationToken);
+						ContentIdToLength[File.ContentId] = File.Length;
+					}
 
-						int ChangeNumber = StreamState[Idx].Item1;
-						await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Requests[Idx].View, CancellationToken);
-
-						StreamSnapshot Contents = StreamState[Idx].Item2;
-						await RemoveFilesFromWorkspaceAsync(Contents, CancellationToken);
-						await AddFilesToWorkspaceAsync(Request.PerforceClient, Contents, bFakeSync, CancellationToken);
+					if (Idx == 0)
+					{
+						CommonContentIds.UnionWith(Files.Select(x => x.ContentId));
+					}
+					else
+					{
+						CommonContentIds.IntersectWith(Files.Select(x => x.ContentId));
 					}
 				}
 
-				// Save the new repo state
-				await SaveAsync(TransactionState.Clean, CancellationToken);
+				List<CachedFileInfo> TrackedFiles = ContentIdToTrackedFile.Values.ToList();
+				foreach (CachedFileInfo TrackedFile in TrackedFiles)
+				{
+					if (!ContentIdToLength.ContainsKey(TrackedFile.ContentId))
+					{
+						RemoveTrackedFile(TrackedFile);
+					}
+				}
+
+				GC.Collect();
+
+				double TotalSize = ContentIdToLength.Sum(x => x.Value) / (1024.0 * 1024.0);
+				Status.Progress = String.Format("{0:n1}mb total, {1:n1}mb differences ({2:0.0}s)", TotalSize, TotalSize - CommonContentIds.Sum(x => ContentIdToLength[x]) / (1024.0 * 1024.0), Timer.Elapsed.TotalSeconds);
 			}
+
+			return StreamState;
+		}
+
+		/// <summary>
+		/// Perform the sync part of a populate command
+		/// </summary>
+		public async Task PopulateSyncAsync(List<PopulateRequest> Requests, Tuple<int, StreamSnapshot>[] StreamState, bool bFakeSync, CancellationToken CancellationToken)
+		{
+			// Sync all the new files
+			for (int Idx = 0; Idx < Requests.Count; Idx++)
+			{
+				PopulateRequest Request = Requests[Idx];
+				string StreamName = Request.StreamName;
+				Logger.LogInformation("Syncing files for {StreamName}:", StreamName);
+
+				using(Logger.BeginIndentScope("  "))
+				{
+					await DeleteClientAsync(Request.PerforceClient, CancellationToken);
+					await UpdateClientAsync(Request.PerforceClient, StreamName, CancellationToken);
+
+					int ChangeNumber = StreamState[Idx].Item1;
+					await UpdateClientHaveTableAsync(Request.PerforceClient, ChangeNumber, Requests[Idx].View, CancellationToken);
+
+					StreamSnapshot Contents = StreamState[Idx].Item2;
+					await RemoveFilesFromWorkspaceAsync(Contents, CancellationToken);
+					await AddFilesToWorkspaceAsync(Request.PerforceClient, Contents, bFakeSync, CancellationToken);
+				}
+			}
+
+			// Save the new repo state
+			await SaveAsync(TransactionState.Clean, CancellationToken);
 		}
 
 		#endregion
