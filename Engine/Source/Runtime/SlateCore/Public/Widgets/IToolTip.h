@@ -62,6 +62,16 @@ public:
 	 */
 	virtual void OnClosed( ) = 0;
 
+	/**
+	 * Allows an interactive tooltip to adjust and/or change its window location on open,
+	 * as interactive tooltips don't update the tooltip window to follow the cursor position.
+	 * 
+	 * @param InOutDesiredLocation	On input, contains the previous cursor position (in screen coordinates) plus the standard
+	 *								tooltip offset (SlateDefs::TooltipOffsetFromMouse). This position can be modified and/or
+	 *								reset to either adjust the offset or otherwise set to a new position as the output value.
+	 */
+	virtual void OnSetInteractiveWindowLocation(FVector2D& InOutDesiredLocation) const {}
+
 public:
 
 	/** Virtual destructor. */

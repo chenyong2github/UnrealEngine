@@ -26,6 +26,7 @@ void SToolTip::Construct( const FArguments& InArgs )
 	ColorAndOpacity = InArgs._ColorAndOpacity;
 	TextMargin = InArgs._TextMargin;
 	BorderImage = InArgs._BorderImage;
+	OnSetInteractiveWindowLocationDelegate = InArgs._OnSetInteractiveWindowLocation;
 	
 	SetContentWidget(InArgs._Content.Widget);
 }
@@ -96,4 +97,12 @@ bool SToolTip::IsEmpty() const
 bool SToolTip::IsInteractive() const
 {
 	return bIsInteractive.Get();
+}
+
+void SToolTip::OnSetInteractiveWindowLocation(FVector2D& InOutDesiredLocation) const
+{
+	if (OnSetInteractiveWindowLocationDelegate.IsBound())
+	{
+		OnSetInteractiveWindowLocationDelegate.Execute(InOutDesiredLocation);
+	}
 }

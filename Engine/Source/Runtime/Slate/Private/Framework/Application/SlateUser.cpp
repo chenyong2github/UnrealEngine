@@ -1258,6 +1258,12 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 	{
 		// Keep track of where we want tooltips to be positioned
 		DesiredLocation = GetPreviousCursorPosition() + SlateDefs::TooltipOffsetFromMouse;
+
+		// Allow interactive tooltips to adjust the window location
+		if (NewTooltip && NewTooltip->IsInteractive() && !NewTooltipVisualizer.IsValid())
+		{
+			NewTooltip->OnSetInteractiveWindowLocation(DesiredLocation);
+		}
 	}
 
 	if (TooltipWindowPtr.IsValid())
