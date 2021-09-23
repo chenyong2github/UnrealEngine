@@ -280,8 +280,6 @@ private:
 	{
 		float  Prob;
 		uint32 Alias;
-		uint32 pad0;
-		uint32 pad1;
 	};
 
 	FBufferRHIRef BufferSectionTriangleRHI = nullptr;

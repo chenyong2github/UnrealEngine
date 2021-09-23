@@ -229,7 +229,7 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
 		{
 			TriangleCount += (*Samplers)[i].GetNumEntries();
 		}
-		uint32 SizeByte = TriangleCount * sizeof(SectionTriangleInfo);
+		const uint32 SizeByte = TriangleCount * sizeof(SectionTriangleInfo);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("StaticMeshSectionAreaWeightedTriangleSamplerBuffer"));
 		BufferSectionTriangleRHI = RHICreateBuffer(SizeByte, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
@@ -245,14 +245,14 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
 
 			for (uint32 t = 0; t < NumTriangle; ++t)
 			{
-				SectionTriangleInfo NewTriangleInfo = { ProbTris[t], (uint32)AliasTris[t], 0, 0 };
+				SectionTriangleInfo NewTriangleInfo = { ProbTris[t], (uint32)AliasTris[t] };
 				*SectionTriangleInfoBuffer = NewTriangleInfo;
 				SectionTriangleInfoBuffer++;
 			}
 		}
 		RHIUnlockBuffer(BufferSectionTriangleRHI);
 
-		BufferSectionTriangleSRV = RHICreateShaderResourceView(BufferSectionTriangleRHI, sizeof(SectionTriangleInfo), PF_R32G32B32A32_UINT);
+		BufferSectionTriangleSRV = RHICreateShaderResourceView(BufferSectionTriangleRHI, sizeof(SectionTriangleInfo), PF_R32G32_UINT);
 	}
 }
 
@@ -1307,7 +1307,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 		BeginInitResource(&AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer);
 	}
 
-	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && Parent->bAllowCPUAccess)
+	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && (AreaWeightedSampler.GetNumEntries() > 0))
 	{
 		AreaWeightedSectionSamplersBuffer.Init(&AreaWeightedSectionSamplers);
 		BeginInitResource(&AreaWeightedSectionSamplersBuffer);
