@@ -1597,7 +1597,16 @@ void UCubeGridTool::UpdateCornerModeLineSet()
 			CornerWelded[i] = !CornerSelectedFlags[i];
 		}
 
-		int DiagStartIdx = (CornerWelded[0] && CornerWelded[2]) ? 1 : 0;
+		// The choice of diagonal here lines up with the generator in CubeGridBooleanOp. The
+		// indices look a little different because we're accounting for mirroring that happens in
+		// subtract mode, though we would have actually gotten the same results either way in
+		// the cases we care about (the nonplanar ones)
+		int DiagStartIdx = 1;
+		if (CornerWelded[0] != CornerWelded[2] ||
+			(!CornerWelded[0] && CornerWelded[1] && CornerWelded[3]))
+		{
+			DiagStartIdx = 0;
+		}
 		DiagStartIdx = Settings->bCrosswiseDiagonal ? 1 - DiagStartIdx : DiagStartIdx;
 		
 		bool bDiagonalWelded = CornerWelded[DiagStartIdx] && CornerWelded[DiagStartIdx + 2];
