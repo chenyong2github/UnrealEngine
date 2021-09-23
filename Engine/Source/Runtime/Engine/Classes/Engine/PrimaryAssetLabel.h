@@ -50,7 +50,7 @@ public:
 	/** Set to editor only if this is not available in a cooked build */
 	virtual bool IsEditorOnly() const
 	{
-		return !bIsRuntimeLabel;
+		return !bIsRuntimeLabel && !IsTemplate();
 	}
 
 #if WITH_EDITORONLY_DATA
