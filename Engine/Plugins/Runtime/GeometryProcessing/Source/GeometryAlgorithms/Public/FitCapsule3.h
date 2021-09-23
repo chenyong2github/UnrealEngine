@@ -9,7 +9,7 @@
 namespace UE {
 namespace Geometry {
 
-
+using namespace UE::Math;
 
 /**
  * Fit a Capsule to a set of 3D points.
@@ -36,13 +36,13 @@ public:
 	  * Calculate a Capsule that contains the given Point Set and store in Output variables
 	  * @return true if capsule was found
 	  */
-	bool Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc);
+	bool Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc);
 
 	/**
 	 * Calculate a Capsule that contains the given Point Set and return in CapsuleOut
 	 * @return true if capsule was found
 	 */
-	static bool Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc,
+	static bool Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc,
 		TCapsule3<RealType>& CapsuleOut)
 	{
 		TFitCapsule3<RealType> Compute;

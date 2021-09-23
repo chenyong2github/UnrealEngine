@@ -13,7 +13,7 @@
 namespace UE {
 namespace Geometry {
 
-
+using namespace UE::Math;
 
 template <typename RealType> struct TConvexHull3Internal;
 
@@ -35,7 +35,7 @@ public:
 	 * @param Filter Optional filter to include only a subset of the points in the output hull
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
+	bool Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
 
 	/**
 	 * Generate convex hull as long as input is not degenerate

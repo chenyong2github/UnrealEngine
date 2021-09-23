@@ -10,6 +10,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 /**
  * 1D Gaussian
@@ -168,13 +169,13 @@ public:
 
 	TGaussian3(RealType SigmaIn = 1.0) : Sigma(SigmaIn) {}
 
-	RealType Evaluate(const FVector3<RealType>& XYZ) const
+	RealType Evaluate(const TVector<RealType>& XYZ) const
 	{
 		RealType InvTwoSigmaSqr = 1.0 / (2.0 * Sigma * Sigma);
 		return TMathUtil<RealType>::InvPi * InvTwoSigmaSqr * TMathUtil<RealType>::Exp( -XYZ.SquaredLength() * InvTwoSigmaSqr );
 	}
 
-	RealType EvaluateSqrUnscaled(const FVector3<RealType>& XYZ) const
+	RealType EvaluateSqrUnscaled(const TVector<RealType>& XYZ) const
 	{
 		RealType InvTwoSigmaSqr = 1.0 / (2.0 * Sigma * Sigma);
 		return TMathUtil<RealType>::Exp(-XYZ.SquaredLength() * InvTwoSigmaSqr);

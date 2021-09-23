@@ -11,6 +11,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 /**
  * TNormalHistogram calculates/represents a histogram on a 3D sphere. The histogram bins
@@ -41,7 +42,7 @@ public:
 	 * Count a Normal in the histogram, ie find the Bin it should be included in and add the Weight to that Bin (The Normal does not strictly need to be normalized)
 	 * @param Weight optional weight for this normal
 	 */
-	void Count(const FVector3<RealType>& Normal, RealType Weight = 1)
+	void Count(const TVector<RealType>& Normal, RealType Weight = 1)
 	{
 		int32 BinIndex = BinPoints.FindIndex(Normal);
 		WeightedCounts[BinIndex] += Weight;
@@ -50,7 +51,7 @@ public:
 	/**
 	 * @return the normal direction for the Histogram bin that contains the most points / largest mass
 	 */
-	FVector3<RealType> FindMaxNormal() const
+	TVector<RealType> FindMaxNormal() const
 	{
 		int MaxIndex = 0;
 		for (int k = 1; k < Bins; ++k)

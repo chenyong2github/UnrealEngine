@@ -11,6 +11,8 @@ namespace UE
 {
 	namespace Geometry
 	{
+		using namespace UE::Math;
+
 		/**
 		 * call EmitLineFunc for the 12 line segments defined by the given box parameters
 		 * @param HalfDimensions X/Y/Z dimensions of box
@@ -22,13 +24,13 @@ namespace UE
 		 */
 		template<typename RealType>
 		void GenerateBoxSegments(
-			const FVector3<RealType>& HalfDimensions, 
-			const FVector3<RealType>& Center, 
-			const FVector3<RealType>& AxisX, 
-			const FVector3<RealType>& AxisY, 
-			const FVector3<RealType>& AxisZ,
+			const TVector<RealType>& HalfDimensions, 
+			const TVector<RealType>& Center, 
+			const TVector<RealType>& AxisX, 
+			const TVector<RealType>& AxisY, 
+			const TVector<RealType>& AxisZ,
 			const TTransform3<RealType>& Transform,
-			TFunctionRef<void(const FVector3<RealType>& A, const FVector3<RealType>& B)> EmitLineFunc);
+			TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc);
 
 		/**
 		 * call EmitLineFunc for the line segments that make up the Circle defined by the given parameters and sampled with NumSteps vertices
@@ -43,11 +45,11 @@ namespace UE
 		void GenerateCircleSegments(
 			int32 NumSteps, 
 			RealType Radius, 
-			const FVector3<RealType>& Center,
-			const FVector3<RealType>& AxisX,
-			const FVector3<RealType>& AxisY,
+			const TVector<RealType>& Center,
+			const TVector<RealType>& AxisX,
+			const TVector<RealType>& AxisY,
 			const TTransform3<RealType>& Transform,
-			TFunctionRef<void(const FVector3<RealType>& A, const FVector3<RealType>& B)> EmitLineFunc);
+			TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc);
 
 		/**
 		 * call EmitLineFunc for the line segments that make up the Circular Arc defined by the given parameters and sampled with NumSteps vertices
@@ -65,11 +67,11 @@ namespace UE
 			RealType Radius,
 			RealType StartAngle, 
 			RealType EndAngle,
-			const FVector3<RealType>& Center,
-			const FVector3<RealType>& AxisX,
-			const FVector3<RealType>& AxisY,
+			const TVector<RealType>& Center,
+			const TVector<RealType>& AxisX,
+			const TVector<RealType>& AxisY,
 			const TTransform3<RealType>& Transform,
-			TFunctionRef<void(const FVector3<RealType>& A, const FVector3<RealType>& B)> EmitLineFunc);
+			TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc);
 	}
 }
 
@@ -79,16 +81,16 @@ namespace UE
 
 template<typename RealType>
 void UE::Geometry::GenerateBoxSegments(
-	const FVector3<RealType>& HalfDimensions,
-	const FVector3<RealType>& Center,
-	const FVector3<RealType>& AxisX,
-	const FVector3<RealType>& AxisY,
-	const FVector3<RealType>& AxisZ,
+	const TVector<RealType>& HalfDimensions,
+	const TVector<RealType>& Center,
+	const TVector<RealType>& AxisX,
+	const TVector<RealType>& AxisY,
+	const TVector<RealType>& AxisZ,
 	const TTransform3<RealType>& Transform,
-	TFunctionRef<void(const FVector3<RealType>& A, const FVector3<RealType>& B)> EmitLineFunc)
+	TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc)
 {
 	// B is box max/min, P and Q are used to store the start and endpoints of the segments we create
-	FVector3<RealType>	B[2], P, Q;
+	TVector<RealType>	B[2], P, Q;
 	B[0] = HalfDimensions; // max
 	B[1] = -B[0]; // min
 
@@ -120,20 +122,20 @@ void UE::Geometry::GenerateBoxSegments(
 template<typename RealType>
 void UE::Geometry::GenerateCircleSegments(
 	int32 NumSteps, RealType Radius,
-	const FVector3<RealType>& Center,
-	const FVector3<RealType>& AxisX,
-	const FVector3<RealType>& AxisY,
+	const TVector<RealType>& Center,
+	const TVector<RealType>& AxisX,
+	const TVector<RealType>& AxisY,
 	const TTransform3<RealType>& Transform,
-	TFunctionRef<void(const FVector3<RealType>& A, const FVector3<RealType>& B)> EmitLineFunc)
+	TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc)
 {
-	FVector3<RealType> PrevPos = FVector3<RealType>::Zero();
+	TVector<RealType> PrevPos = TVector<RealType>::Zero();
 	for (int32 i = 0; i <= NumSteps; ++i)
 	{
 		RealType t = (RealType)i / (RealType)NumSteps;
 		RealType Angle = (RealType)2.0 * TMathUtil<RealType>::Pi * t;
 		RealType PlaneX = Radius * TMathUtil<RealType>::Cos(Angle);
 		RealType PlaneY = Radius * TMathUtil<RealType>::Sin(Angle);
-		FVector3<RealType> CurPos = Transform.TransformPosition(Center + PlaneX * AxisX + PlaneY * AxisY);
+		TVector<RealType> CurPos = Transform.TransformPosition(Center + PlaneX * AxisX + PlaneY * AxisY);
 		if (i > 0)
 		{
 			EmitLineFunc(PrevPos, CurPos);
@@ -150,20 +152,20 @@ void UE::Geometry::GenerateArcSegments(
 	RealType Radius,
 	RealType StartAngle,
 	RealType EndAngle,
-	const FVector3<RealType>& Center,
-	const FVector3<RealType>& AxisX,
-	const FVector3<RealType>& AxisY,
+	const TVector<RealType>& Center,
+	const TVector<RealType>& AxisX,
+	const TVector<RealType>& AxisY,
 	const TTransform3<RealType>& Transform,
-	TFunctionRef<void(const FVector3<RealType>& A, const FVector3<RealType>& B)> EmitLineFunc)
+	TFunctionRef<void(const TVector<RealType>& A, const TVector<RealType>& B)> EmitLineFunc)
 {
-	FVector3<RealType> PrevPos = FVector3<RealType>::Zero();
+	TVector<RealType> PrevPos = TVector<RealType>::Zero();
 	for (int32 i = 0; i <= NumSteps; ++i)
 	{
 		RealType t = (RealType)i / (RealType)NumSteps;
 		RealType Angle = ((RealType)1 - t) * StartAngle + (t)*EndAngle;
 		RealType PlaneX = Radius * TMathUtil<RealType>::Cos(Angle);
 		RealType PlaneY = Radius * TMathUtil<RealType>::Sin(Angle);
-		FVector3<RealType> CurPos = Transform.TransformPosition(Center + PlaneX * AxisX + PlaneY * AxisY);
+		TVector<RealType> CurPos = Transform.TransformPosition(Center + PlaneX * AxisX + PlaneY * AxisY);
 		if (i > 0)
 		{
 			EmitLineFunc(PrevPos, CurPos);

@@ -1279,7 +1279,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnPokeTriangle(const FDynamicMe
 
 	// create new element at barycentric position
 	int CenterElemID = AppendElement((RealType)0);
-	FVector3<double> BaryCoords((double)PokeInfo.BaryCoords.X, (double)PokeInfo.BaryCoords.Y, (double)PokeInfo.BaryCoords.Z);
+	FVector3d BaryCoords((double)PokeInfo.BaryCoords.X, (double)PokeInfo.BaryCoords.Y, (double)PokeInfo.BaryCoords.Z);
 	SetElementFromBary(CenterElemID, Triangle[0], Triangle[1], Triangle[2], BaryCoords);
 
 	// update orig triangle and two new ones. Winding orders here mirror FDynamicMesh3::PokeTriangle
@@ -1379,7 +1379,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromLerp(int SetEleme
 }
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3<double>& BaryCoords)
+void TDynamicMeshOverlay<RealType, ElementSize>::SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3d& BaryCoords)
 {
 	int IndexSet = ElementSize * SetElement;
 	int IndexA = ElementSize * ElementA;

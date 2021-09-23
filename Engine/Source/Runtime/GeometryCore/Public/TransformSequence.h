@@ -10,6 +10,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 /**
  * TTransformSequence3 represents a sequence of 3D transforms. 
@@ -67,9 +68,9 @@ public:
 	/**
 	 * @return Cumulative scale across Transforms.
 	 */
-	FVector3<RealType> GetAccumulatedScale() const
+	TVector<RealType> GetAccumulatedScale() const
 	{
-		FVector3<RealType> FinalScale = FVector3<RealType>::One();
+		TVector<RealType> FinalScale = TVector<RealType>::One();
 		for (const TTransform3<RealType>& Transform : Transforms)
 		{
 			FinalScale = FinalScale * Transform.GetScale();
@@ -84,14 +85,14 @@ public:
 	{
 		for (TTransform3<RealType>& Transform : Transforms)
 		{
-			Transform.SetScale(FVector3<RealType>::One());
+			Transform.SetScale(TVector<RealType>::One());
 		}
 	}
 
 	/**
 	 * @return point P with transform sequence applied
 	 */
-	FVector3<RealType> TransformPosition(UE::Math::TVector<RealType> P) const
+	TVector<RealType> TransformPosition(UE::Math::TVector<RealType> P) const
 	{
 		for (const TTransform3<RealType>& Transform : Transforms)
 		{
@@ -103,7 +104,7 @@ public:
 	/**
 	 * @return point P with inverse transform sequence applied
 	 */
-	FVector3<RealType> InverseTransformPosition(UE::Math::TVector<RealType> P) const
+	TVector<RealType> InverseTransformPosition(UE::Math::TVector<RealType> P) const
 	{
 		int32 N = Transforms.Num();
 		for (int32 k = N - 1; k >= 0; k--)
@@ -116,7 +117,7 @@ public:
 	/**
 	 * @return Vector V with transform sequence applied
 	 */
-	FVector3<RealType> TransformVector(UE::Math::TVector<RealType> V) const
+	TVector<RealType> TransformVector(UE::Math::TVector<RealType> V) const
 	{
 		for (const TTransform3<RealType>& Transform : Transforms)
 		{
@@ -129,7 +130,7 @@ public:
 	/**
 	 * @return Normal with transform sequence applied
 	 */
-	FVector3<RealType> TransformNormal(UE::Math::TVector<RealType> Normal) const
+	TVector<RealType> TransformNormal(UE::Math::TVector<RealType> Normal) const
 	{
 		for (const TTransform3<RealType>& Transform : Transforms)
 		{

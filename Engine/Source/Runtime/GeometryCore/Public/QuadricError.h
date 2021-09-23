@@ -12,6 +12,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 /**
  * QuadricError represents a quadratic function that evaluates distance to plane.
@@ -37,7 +38,7 @@ struct TQuadricError
 	/**
 	 * Construct TQuadricError a plane with the given normal and a point on plane
 	 */
-	TQuadricError(const FVector3<RealType>& Normal, const FVector3<RealType>& Point) 
+	TQuadricError(const TVector<RealType>& Normal, const TVector<RealType>& Point) 
 	{
 		Axx = Normal.X * Normal.X;
 		Axy = Normal.X * Normal.Y;
@@ -46,7 +47,7 @@ struct TQuadricError
 		Ayz = Normal.Y * Normal.Z;
 		Azz = Normal.Z * Normal.Z;
 		bx = by = bz = c = 0;
-		FVector3<RealType> v = MultiplyA(Point);
+		TVector<RealType> v = MultiplyA(Point);
 		bx = -v.X; by = -v.Y; bz = -v.Z; // b = -Normal.Dot(Point) Normal
 		c = Point.Dot(v); // note this is the same as Normal.Dot(Point) ^2
 	}
@@ -173,12 +174,12 @@ struct TQuadricError
 	/**
 	 * 
 	 */
-	FVector3<RealType> MultiplyA(const UE::Math::TVector<RealType>& pt) const
+	TVector<RealType> MultiplyA(const UE::Math::TVector<RealType>& pt) const
 	{
 		RealType x = Axx * pt.X + Axy * pt.Y + Axz * pt.Z;
 		RealType y = Axy * pt.X + Ayy * pt.Y + Ayz * pt.Z;
 		RealType z = Axz * pt.X + Ayz * pt.Y + Azz * pt.Z;
-		return FVector3<RealType>(x, y, z);
+		return TVector<RealType>(x, y, z);
 	}
 
 
@@ -202,7 +203,7 @@ struct TQuadricError
 			RealType x = a11 * bvecx + a12 * bvecy + a13 * bvecz;
 			RealType y = a12 * bvecx + a22 * bvecy + a23 * bvecz;
 			RealType z = a13 * bvecx + a23 * bvecy + a33 * bvecz;
-			OutResult = FVector3<RealType>(x, y, z);
+			OutResult = TVector<RealType>(x, y, z);
 			return true;
 		}
 		else 
@@ -236,16 +237,16 @@ struct TQuadricError
 		return Result;
 	}
 
-	static FVector3<RealType> MultiplySymmetricMatrix(const RealType SM[6], const RealType vec[3])
+	static TVector<RealType> MultiplySymmetricMatrix(const RealType SM[6], const RealType vec[3])
 	{
 		
 		RealType a =  SM[0] * vec[0] + SM[1] * vec[1] + SM[2] * vec[2];
 		RealType b =  SM[1] * vec[0] + SM[3] * vec[1] + SM[4] * vec[2];
 		RealType c =  SM[2] * vec[0] + SM[4] * vec[1] + SM[5] * vec[2];
 
-		return FVector3<RealType>(a, b, c);
+		return TVector<RealType>(a, b, c);
 	}
-	static FVector3<RealType> MultiplySymmetricMatrix(const RealType SM[6], const UE::Math::TVector<RealType>& vec)
+	static TVector<RealType> MultiplySymmetricMatrix(const RealType SM[6], const UE::Math::TVector<RealType>& vec)
 	{
 		RealType vectmp[3] = { vec.X, vec.Y, vec.Z };
 		return MultiplySymmetricMatrix(SM, vectmp);
@@ -278,7 +279,7 @@ public:
 
 	struct FPlaneData
 	{
-		FPlaneData(const FVector3<RealType>& Normal, const FVector3<RealType>& Point)
+		FPlaneData(const TVector<RealType>& Normal, const TVector<RealType>& Point)
 		{
 			N    = Normal;
 			Dist = -Normal.Dot(Point);
@@ -298,7 +299,7 @@ public:
 
 		FPlaneData() 
 		{
-			N    = FVector3<RealType>::Zero(); 
+			N    = TVector<RealType>::Zero(); 
 			Dist = RealType(0);
 		}
 
@@ -325,7 +326,7 @@ public:
 			return *this;
 		}
 
-		FVector3<RealType> N;
+		TVector<RealType> N;
 		RealType Dist;
 	};
 
@@ -339,7 +340,7 @@ public:
 	{
 	}
 
-	TVolPresQuadricError(const FVector3<RealType>& Normal, const FVector3<RealType>& Point)
+	TVolPresQuadricError(const TVector<RealType>& Normal, const TVector<RealType>& Point)
 		: BaseStruct(Normal, Point)
 		, PlaneData(Normal, Point)
 	{ }
@@ -403,7 +404,7 @@ public:
 		RealType Tol = minThresh; //(1.e-7);  NB: using minThresh here to better compare with the attribute version..
 		//constexpr RealType Tol = (1.e-7);  //NB: using minThresh here to better compare with the attribute version..
 		
-		FVector3<RealType> Ainv_g;
+		TVector<RealType> Ainv_g;
 		if (BaseStruct::SolveAxEqualsb(Ainv_g, gvol.N.X, gvol.N.Y, gvol.N.Z, Tol))
 		{
 
@@ -447,9 +448,9 @@ public:
 	typedef TQuadricError<RealType>  BaseStruct;
 
 	// Triangle Quadric constructor.  Take vertex locations, vertex normals, face normal, and center of face.
-	TAttrBasedQuadricError(const FVector3<RealType>& P0, const FVector3<RealType>& P1, const FVector3<RealType>& P2,
-		const FVector3<RealType>& N0, const FVector3<RealType>& N1, const FVector3<RealType>& N2,
-		const FVector3<RealType>& NFace, const FVector3<RealType>& CenterPoint, RealType AttrWeight)
+	TAttrBasedQuadricError(const TVector<RealType>& P0, const TVector<RealType>& P1, const TVector<RealType>& P2,
+		const TVector<RealType>& N0, const TVector<RealType>& N1, const TVector<RealType>& N2,
+		const TVector<RealType>& NFace, const TVector<RealType>& CenterPoint, RealType AttrWeight)
 		: BaseClass(NFace, CenterPoint),
 		a(0),
 		attrweight(AttrWeight)
@@ -518,7 +519,7 @@ public:
 		{
 			for (int i = 0; i < 3; ++i)
 			{
-				grad[i] = FVector3<RealType>::Zero();
+				grad[i] = TVector<RealType>::Zero();
 				d[i] = AttrWeight * (N0[i] + N1[i] + N2[i]) / 3.; // just average the attribute.
 			}
 		}
@@ -529,10 +530,9 @@ public:
 		a(0.),
 		attrweight(1.)
 	{
-		const RealType zero[3] = { RealType(0), RealType(0), RealType(0) };
-		grad[0] = FVector3<RealType>(zero);
-		grad[1] = FVector3<RealType>(zero);
-		grad[2] = FVector3<RealType>(zero);
+		grad[0] = TVector<RealType>::Zero();
+		grad[1] = TVector<RealType>::Zero();
+		grad[2] = TVector<RealType>::Zero();
 
 		d[0] = RealType(0);
 		d[1] = RealType(0);
@@ -641,7 +641,7 @@ public:
 			OptPoint = BaseStruct::MultiplySymmetricMatrix(InvSM, b);
 			//SolveAxEqualsb(OptPoint, b[0], b[1], b[2]);
 
-			FVector3<RealType> InvSMgvol = BaseStruct::MultiplySymmetricMatrix(InvSM, gvol.N);
+			TVector<RealType> InvSMgvol = BaseStruct::MultiplySymmetricMatrix(InvSM, gvol.N);
 			//SolveAxEqualsb(InvSMgvol, gvol.N.X, gvol.N.Y, gvol.N.Z);
 
 			RealType gvolDotInvSMgvol = gvol.N.Dot(InvSMgvol);
@@ -664,7 +664,7 @@ public:
 		
 	}
 
-	RealType Evaluate(const FVector3<RealType>& point, const FVector3<RealType>& InAttr) const
+	RealType Evaluate(const TVector<RealType>& point, const TVector<RealType>& InAttr) const
 	{
 		// 6x6 symmetric matrix   (    A      -grad[0], -grad[1], -grad[2] )
 		//                        ( -grad[0]^T                             ) 
@@ -677,11 +677,11 @@ public:
 		//                            ( attr  )
 		//
 
-		const FVector3<RealType> attr = attrweight * InAttr;
+		const TVector<RealType> attr = attrweight * InAttr;
 
 		RealType ptAp = point.Dot(BaseStruct::MultiplyA(point));
 		RealType attrDotattr = attr.Dot(attr);
-		FVector3<RealType> Gradattr(grad[0].X * attr[0] + grad[1].X * attr[1] + grad[2].X * attr[2],
+		TVector<RealType> Gradattr(grad[0].X * attr[0] + grad[1].X * attr[1] + grad[2].X * attr[2],
 			                        grad[0].Y * attr[0] + grad[1].Y * attr[1] + grad[2].Y * attr[2],
 			                        grad[0].Z * attr[0] + grad[1].Z * attr[1] + grad[2].Z * attr[2]);
 		RealType ptGradattr = point.Dot(Gradattr);
@@ -700,7 +700,7 @@ public:
 		return QuadricError;
 	}
 
-	void ComputeAttributes(const FVector3<RealType>& point, FVector3<RealType>& attr) const
+	void ComputeAttributes(const TVector<RealType>& point, TVector<RealType>& attr) const
 	{
 		if (FMath::Abs(a) > 1.e-5)
 		{
@@ -723,9 +723,9 @@ public:
 		attr *= 1. / attrweight;
 	}
 
-	RealType Evaluate(const FVector3<RealType>& point) const
+	RealType Evaluate(const TVector<RealType>& point) const
 	{
-		FVector3<RealType> attr;
+		TVector<RealType> attr;
 		ComputeAttributes(point, attr);
 
 		return Evaluate(point, attr);
@@ -741,7 +741,7 @@ public:
 	RealType           attrweight = 1.;
 
 	// Additional planes for the attributes.
-	FVector3<RealType> grad[3];
+	TVector<RealType> grad[3];
 	RealType           d[3];
 
 
@@ -755,7 +755,7 @@ typedef TAttrBasedQuadricError<double> FAttrBasedQuadricErrord;
 * On return the quadric has been weighted by the length of the (p1-p0).
 */
 template<typename RealType>
-TQuadricError<RealType>  CreateSeamQuadric(const FVector3<RealType>& p0, const FVector3<RealType>& p1, const FVector3<RealType>& AdjFaceNormal)
+TQuadricError<RealType>  CreateSeamQuadric(const TVector<RealType>& p0, const TVector<RealType>& p1, const TVector<RealType>& AdjFaceNormal)
 {
 
 	RealType LenghtSqrd = AdjFaceNormal.SquaredLength();
@@ -767,7 +767,7 @@ TQuadricError<RealType>  CreateSeamQuadric(const FVector3<RealType>& p0, const F
 	}
 
 
-	FVector3<RealType> Edge = p1 - p0;
+	TVector<RealType> Edge = p1 - p0;
 
 	// Weight scaled on edge length 
 
@@ -787,7 +787,7 @@ TQuadricError<RealType>  CreateSeamQuadric(const FVector3<RealType>& p0, const F
 
 	// Normal that is perpendicular to the edge, and face Normal. - i.e. in the face plane and perpendicular to the edge.
 	// The constraint should try to keep points on the plane associated with this constraint plane.
-	FVector3<RealType> ConstraintNormal = Edge.Cross(AdjFaceNormal);
+	TVector<RealType> ConstraintNormal = Edge.Cross(AdjFaceNormal);
 
 
 	TQuadricError<RealType> SeamQuadric(ConstraintNormal, p0);

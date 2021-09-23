@@ -16,6 +16,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /*
  * Blocked array with fixed, power-of-two sized blocks.
  *
@@ -652,14 +654,14 @@ public:
 	{
 		return Data[TopIndex * N + SubIndex];
 	}
-	inline void SetVector2(unsigned int TopIndex, const UE::Math::TVector2<Type>& V)
+	inline void SetVector2(unsigned int TopIndex, const TVector2<Type>& V)
 	{
 		check(N >= 2);
 		unsigned int i = TopIndex * N;
 		Data[i] = V.X;
 		Data[i + 1] = V.Y;
 	}
-	inline void SetVector3(unsigned int TopIndex, const FVector3<Type>& V)
+	inline void SetVector3(unsigned int TopIndex, const TVector<Type>& V)
 	{
 		check(N >= 3);
 		unsigned int i = TopIndex * N;
@@ -667,17 +669,17 @@ public:
 		Data[i + 1] = V.Y;
 		Data[i + 2] = V.Z;
 	}
-	inline UE::Math::TVector2<Type> AsVector2(unsigned int TopIndex) const
+	inline TVector2<Type> AsVector2(unsigned int TopIndex) const
 	{
 		check(N >= 2);
-		return UE::Math::TVector2<Type>(
+		return TVector2<Type>(
 			Data[TopIndex * N + 0],
 			Data[TopIndex * N + 1]);
 	}
-	inline FVector3<Type> AsVector3(unsigned int TopIndex) const
+	inline TVector<Type> AsVector3(unsigned int TopIndex) const
 	{
 		check(N >= 3);
-		return FVector3<Type>(
+		return TVector<Type>(
 			Data[TopIndex * N + 0],
 			Data[TopIndex * N + 1],
 			Data[TopIndex * N + 2]);

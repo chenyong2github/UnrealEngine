@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute intersection between 3D ray and 3D axis-aligned box
  */
@@ -34,14 +36,14 @@ public:
 	 */
 	static bool TestIntersection(const TRay3<RealType>& Ray, const TAxisAlignedBox3<RealType>& Box, RealType ExpandExtents = 0)
 	{
-		FVector3<RealType> WdU = FVector3<RealType>::Zero();
-		FVector3<RealType> AWdU = FVector3<RealType>::Zero();
-		FVector3<RealType> DdU = FVector3<RealType>::Zero();
-		FVector3<RealType> ADdU = FVector3<RealType>::Zero();
+		TVector<RealType> WdU = TVector<RealType>::Zero();
+		TVector<RealType> AWdU = TVector<RealType>::Zero();
+		TVector<RealType> DdU = TVector<RealType>::Zero();
+		TVector<RealType> ADdU = TVector<RealType>::Zero();
 		RealType RHS;
 
-		FVector3<RealType> diff = Ray.Origin - Box.Center();
-		FVector3<RealType> extent = Box.Extents() + ExpandExtents;
+		TVector<RealType> diff = Ray.Origin - Box.Center();
+		TVector<RealType> extent = Box.Extents() + ExpandExtents;
 
 		WdU.X = Ray.Direction.X;
 		AWdU.X = FMath::Abs(WdU.X);
@@ -70,8 +72,8 @@ public:
 			return false;
 		}
 
-		FVector3<RealType> WxD = Ray.Direction.Cross(diff);
-		FVector3<RealType> AWxDdU = FVector3<RealType>::Zero();
+		TVector<RealType> WxD = Ray.Direction.Cross(diff);
+		TVector<RealType> AWxDdU = TVector<RealType>::Zero();
 
 		AWxDdU.X = FMath::Abs(WxD.X);
 		RHS = extent.Y * AWdU.Z + extent.Z * AWdU.Y;
@@ -111,8 +113,8 @@ public:
 		RealType RayParam0 = 0.0;
 		RealType RayParam1 = TNumericLimits<RealType>::Max();
 		int Quantity = 0;
-		FVector3<RealType> Point0 = FVector3<RealType>::Zero();
-		FVector3<RealType> Point1 = FVector3<RealType>::Zero();
+		TVector<RealType> Point0 = TVector<RealType>::Zero();
+		TVector<RealType> Point1 = TVector<RealType>::Zero();
 		EIntersectionType Type = EIntersectionType::Empty;
 		DoClipping(RayParam0, RayParam1, Ray.Origin, Ray.Direction, Box,
 			true, Quantity, Point0, Point1, Type);
@@ -137,12 +139,12 @@ protected:
 	// internal functions
 
 	static bool DoClipping(RealType t0, RealType t1,
-		const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection,
+		const TVector<RealType>& RayOrigin, const TVector<RealType>& RayDirection,
 		const TAxisAlignedBox3<RealType>& Box, bool solid, 
-		int& quantity, FVector3<RealType>& Point0, FVector3<RealType>& Point1, EIntersectionType& intrType)
+		int& quantity, TVector<RealType>& Point0, TVector<RealType>& Point1, EIntersectionType& intrType)
 	{
-		FVector3<RealType> BOrigin = RayOrigin - Box.Center();
-		FVector3<RealType> extent = Box.Extents();
+		TVector<RealType> BOrigin = RayOrigin - Box.Center();
+		TVector<RealType> extent = Box.Extents();
 
 		RealType saveT0 = t0, saveT1 = t1;
 		bool notAllClipped =

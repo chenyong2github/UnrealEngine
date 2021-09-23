@@ -95,8 +95,8 @@ void TMeshTangents<RealType>::SetTangentCount(int Count, bool bClearToZero)
 	{
 		for (int i = 0; i < Count; ++i)
 		{
-			Tangents[i] = FVector3<RealType>::Zero();
-			Bitangents[i] = FVector3<RealType>::Zero();
+			Tangents[i] = TVector<RealType>::Zero();
+			Bitangents[i] = TVector<RealType>::Zero();
 		}
 	}
 }
@@ -127,8 +127,8 @@ bool TMeshTangents<RealType>::CopyTriVertexTangents(const FDynamicMesh3& SourceM
 			int32 k = 3 * tid;
 			for (int32 j = 0; j < 3; ++j )
 			{
-				Tangents[k+j] = FVector3<RealType>(TriTangents[j]);
-				Bitangents[k+j] = FVector3<RealType>(TriBiTangents[j]);
+				Tangents[k+j] = TVector<RealType>(TriTangents[j]);
+				Bitangents[k+j] = TVector<RealType>(TriBiTangents[j]);
 			}
 		}
 	}
@@ -241,8 +241,8 @@ void TMeshTangents<RealType>::ComputeTriangleTangents(const FDynamicMeshUVOverla
 			DegenerateTriLock.Lock();
 			AllDegenerateTris.Add(TriangleID);
 			DegenerateTriLock.Unlock();
-			Tangents[TriangleID] = (FVector3<RealType>)Tangent;
-			Bitangents[TriangleID] = (FVector3<RealType>)Bitangent;
+			Tangents[TriangleID] = (TVector<RealType>)Tangent;
+			Bitangents[TriangleID] = (TVector<RealType>)Bitangent;
 			return;
 		}
 
@@ -253,8 +253,8 @@ void TMeshTangents<RealType>::ComputeTriangleTangents(const FDynamicMeshUVOverla
 			Normalize(Bitangent);
 		}
 
-		Tangents[TriangleID] = (FVector3<RealType>)Tangent;
-		Bitangents[TriangleID] = (FVector3<RealType>)Bitangent;
+		Tangents[TriangleID] = (TVector<RealType>)Tangent;
+		Bitangents[TriangleID] = (TVector<RealType>)Bitangent;
 	});
 }
 
@@ -270,12 +270,12 @@ bool TMeshTangents<RealType>::CopyToOverlays(FDynamicMesh3& MeshToSet)
 
 	// Set aliases to make iterating over tangents and bitangents easier
 	FDynamicMeshNormalOverlay* TangentOverlays[2] = { MeshToSet.Attributes()->PrimaryTangents(), MeshToSet.Attributes()->PrimaryBiTangents() };
-	TArray<FVector3<RealType>>* TangentValues[2] = { &Tangents, &Bitangents };
+	TArray<TVector<RealType>>* TangentValues[2] = { &Tangents, &Bitangents };
 	
 	for (int Idx = 0; Idx < 2; Idx++)
 	{
 		// Create overlay topology
-		TArray<FVector3<RealType>>& TV = *TangentValues[Idx];
+		TArray<TVector<RealType>>& TV = *TangentValues[Idx];
 		TangentOverlays[Idx]->CreateFromPredicate([&MeshToSet, &TV](int ParentVertexIdx, int TriIDA, int TriIDB) -> bool
 		{
 			FIndex3i TriA = MeshToSet.GetTriangle(TriIDA);
@@ -283,7 +283,9 @@ bool TMeshTangents<RealType>::CopyToOverlays(FDynamicMesh3& MeshToSet)
 			int SubA = TriA.IndexOf(ParentVertexIdx);
 			int SubB = TriB.IndexOf(ParentVertexIdx);
 			checkSlow(SubA > -1 && SubB > -1);
-			return TV[TriIDA * 3 + SubA].DistanceSquared(TV[TriIDB * 3 + SubB]) < TMathUtil<RealType>::ZeroTolerance;
+			const TVector<RealType>& A = TV[TriIDA * 3 + SubA];
+			const TVector<RealType>& B = TV[TriIDB * 3 + SubB];
+			return DistanceSquared(A,B) < TMathUtil<RealType>::ZeroTolerance;
 		}, 0);
 
 		// Write tangent values out for each wedge value
@@ -345,8 +347,8 @@ void TMeshTangents<RealType>::ComputeSeparatePerTriangleTangents(const FDynamicM
 			FVector3d ReconsBitangent = VectorUtil::Bitangent(VtxNormal, ProjectedTangent, BitangentSign);
 
 			SetPerTriangleTangent(TriangleID, j, 
-				Normalized((FVector3<RealType>)ProjectedTangent),
-				Normalized((FVector3<RealType>)ReconsBitangent) );
+				Normalized((TVector<RealType>)ProjectedTangent),
+				Normalized((TVector<RealType>)ReconsBitangent) );
 		}
 
 	} /*, EParallelForFlags::ForceSingleThread */);
@@ -532,7 +534,7 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 
 			// todo: catch failures here?
 
-			Tangents[TriVertIndex] = Normalized((FVector3<RealType>)Tangent);
+			Tangents[TriVertIndex] = Normalized((TVector<RealType>)Tangent);
 
 			FIndex3i NormTriangle = NormalOverlay->GetTriangle(TriangleID);
 			FVector3d TriVertNormal = NormalOverlay->IsSetTriangle(TriangleID) ?
@@ -541,10 +543,10 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 			// convert bitangent
 			double BinormalSign = VectorUtil::BitangentSign(TriVertNormal, Tangent, Bitangent);
 			FVector3d ReconsBitangent = VectorUtil::Bitangent(TriVertNormal, Tangent, BinormalSign);
-			Bitangents[TriVertIndex] = Normalized((FVector3<RealType>)ReconsBitangent);
+			Bitangents[TriVertIndex] = Normalized((TVector<RealType>)ReconsBitangent);
 
 			//FVector3d OrigBitangent = AccumBitangent[UniqueIndex];
-			//FVector3<RealType> BTResult = Bitangents[3 * TriangleID + TriIndex];
+			//TVector<RealType> BTResult = Bitangents[3 * TriangleID + TriIndex];
 			//if (BTResult.SquaredLength() < 0.99)
 			//{
 			//	UE_LOG(LogTemp, Warning, TEXT("TriVertNormal is %f %f %f"), TriVertNormal.X, TriVertNormal.Y, TriVertNormal.Z);

@@ -13,16 +13,18 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 template<typename RealType>
 struct TImplicitFunction3
 {
-	TUniqueFunction<RealType(FVector3<RealType>)> Value();
+	TUniqueFunction<RealType(TVector<RealType>)> Value();
 };
 
 template<typename RealType>
 struct TBoundedImplicitFunction3
 {
-	TUniqueFunction<RealType(FVector3<RealType>)> Value();
+	TUniqueFunction<RealType(TVector<RealType>)> Value();
 	TUniqueFunction<TAxisAlignedBox3<RealType>> Bounds();
 };
 
@@ -34,10 +36,10 @@ struct TBoundedImplicitFunction3
 template<typename RealType>
 struct TImplicitPoint3
 {
-	FVector3<RealType> Position;
+	TVector<RealType> Position;
 	RealType Radius;
 
-	RealType Value(const FVector3<RealType>& Point) const
+	RealType Value(const TVector<RealType>& Point) const
 	{
 		return Position.Distance(Point) - Radius;
 	}
@@ -61,7 +63,7 @@ struct TImplicitLine3
 	TSegment3<RealType> Segment;
 	RealType Radius;
 
-	RealType Value(const FVector3<RealType>& Point) const
+	RealType Value(const TVector<RealType>& Point) const
 	{
 		RealType DistanceSqr = Segment.DistanceSquared(Point);
 		return TMathUtil<RealType>::Sqrt(DistanceSqr) - Radius;
@@ -101,7 +103,7 @@ struct TSkeletalImplicitLine3
 		return Scale * DefaultIsoValue;
 	}
 
-	RealType Value(const FVector3<RealType>& Point) const
+	RealType Value(const TVector<RealType>& Point) const
 	{
 		RealType DistanceSqr = Segment.DistanceSquared(Point);
 		DistanceSqr /= (Scale * Scale);
@@ -149,7 +151,7 @@ struct TDistanceFieldToSkeletalField
 		return B;
 	}
 
-	RealType Value(const FVector3<RealType> Pt)
+	RealType Value(const TVector<RealType> Pt)
 	{
 		checkSlow(DistanceField != nullptr);
 		RealType Dist = DistanceField->Value(Pt);
@@ -177,7 +179,7 @@ struct TSkeletalRicciNaryBlend3
 	RealType BlendPower = 2.0;
 	bool bSubtract = false;
 
-	RealType Value(const FVector3<RealType> Pt)
+	RealType Value(const TVector<RealType> Pt)
 	{
 		int N = Children.Num();
 		checkSlow(N > 0);

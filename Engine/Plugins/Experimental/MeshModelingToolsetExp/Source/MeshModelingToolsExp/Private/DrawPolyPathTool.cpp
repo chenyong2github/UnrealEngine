@@ -487,7 +487,7 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 			CurPathPoints[j].ConstrainedAlignAxis(0, TangentDir, PlaneNormal);
 		}
 	}
-	ArcLengths[NumPoints-1] = ArcLengths[NumPoints-2] + CurPathPoints[NumPoints-1].Origin.Distance(CurPathPoints[NumPoints - 2].Origin);
+	ArcLengths[NumPoints-1] = ArcLengths[NumPoints-2] + Distance(CurPathPoints[NumPoints-1].Origin, CurPathPoints[NumPoints - 2].Origin);
 
 	CurPolyLine.Reset();
 	for (const FFrame3d& Point : SurfacePathMechanic->HitPath)
@@ -593,7 +593,7 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 			CurPathLength = 0;
 			for (int32 k = 1; k < NumPoints; ++k)
 			{
-				CurPathLength += CurPathPoints[k].Origin.Distance(CurPathPoints[k - 1].Origin);
+				CurPathLength += Distance(CurPathPoints[k].Origin, CurPathPoints[k - 1].Origin);
 			}
 
 			FRectangleMeshGenerator MeshGen;

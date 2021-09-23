@@ -14,6 +14,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
 * Compute unsigned distance between 3D line and 3D segment
 */
@@ -28,7 +30,7 @@ public:
 	// Output
 	Real DistanceSquared = -1.0;
 	Real LineParameter, SegmentParameter;
-	FVector3<Real> LineClosest, SegmentClosest;
+	TVector<Real> LineClosest, SegmentClosest;
 
 
 	TDistLine3Segment3(const TLine3<Real>& LineIn, const TSegment3<Real>& SegmentIn) : Line(LineIn), Segment(SegmentIn)
@@ -51,7 +53,7 @@ public:
 			return DistanceSquared;
 		}
 
-		FVector3<Real> diff = Line.Origin - Segment.Center;
+		TVector<Real> diff = Line.Origin - Segment.Center;
 		Real a01 = -Line.Direction.Dot(Segment.Direction);
 		Real b0 = diff.Dot(Line.Direction);
 		Real c = diff.SquaredLength();

@@ -462,8 +462,8 @@ namespace AugmentedDynamicMesh
 		FMeshTangentsf Tangents(&Mesh);
 		Tangents.ComputeTriVertexTangents(Normals, UVs, Options);
 
-		const TArray<FVector3<float>>& TanU = Tangents.GetTangents();
-		const TArray<FVector3<float>>& TanV = Tangents.GetBitangents();
+		const TArray<FVector3f>& TanU = Tangents.GetTangents();
+		const TArray<FVector3f>& TanV = Tangents.GetBitangents();
 		FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
 		for (int TID : Mesh.TriangleIndicesItr())
 		{
@@ -571,7 +571,7 @@ namespace AugmentedDynamicMesh
 						E2Bary[SecondLongestSecondEdgeIdx] = Along;
 
 						// Choose number of samples between the two edge points based on their distance
-						double AcrossDist = Triangle.BarycentricPoint(E1Bary).Distance(Triangle.BarycentricPoint(E2Bary));
+						double AcrossDist = Distance( Triangle.BarycentricPoint(E1Bary), Triangle.BarycentricPoint(E2Bary) );
 						int DivisionsAcross = FMathd::Ceil(AcrossDist / Spacing);
 						double FactorAcross = 1.0 / double(DivisionsAcross + 1);
 						for (int DivJ = 0; DivJ < DivisionsAcross; DivJ++)
@@ -883,7 +883,7 @@ namespace AugmentedDynamicMesh
 			check(ChainLen > 2 && EndIdx <= AllBoundaryVerts.Num());
 
 			TArray<FIndex3i> Triangles;
-			TArray<UE::Geometry::FVector3<double>> VertexPositions;
+			TArray<FVector3d> VertexPositions;
 			for (int Idx = BIdx + 1; Idx < EndIdx; Idx++)
 			{
 				VertexPositions.Add(Mesh.GetVertex(AllBoundaryVerts[Idx]));
@@ -1059,7 +1059,7 @@ namespace
 	{
 		FVector3d Origin = (FVector3d)Plane.GetOrigin();
 		FVector3d Normal = (FVector3d)Plane.GetNormal();
-		int32 MinIdx = VectorUtil::MinAbsElementIndex(Normal);
+		int32 MinIdx = UE::Geometry::MinAbsElementIndex(Normal);
 		FFrame3d Frame(Origin, Normal);
 		FVector3d Target(0, 0, 0);
 		Target[MinIdx] = 1;

@@ -3,6 +3,7 @@
 #include "Intersection/ContainmentQueries3.h"
 
 using namespace UE::Geometry;
+using namespace UE::Math;
 
 template<typename RealType>
 bool UE::Geometry::IsInside(const TSphere3<RealType>& OuterSphere, const TSphere3<RealType>& InnerSphere)
@@ -20,7 +21,7 @@ bool UE::Geometry::IsInside(const TSphere3<RealType>& OuterSphere, const TCapsul
 template<typename RealType>
 bool UE::Geometry::IsInside(const TSphere3<RealType>& OuterSphere, const TOrientedBox3<RealType>& InnerBox)
 {
-	return InnerBox.TestCorners([&](const FVector3<RealType>& Point) {
+	return InnerBox.TestCorners([&](const TVector<RealType>& Point) {
 		return OuterSphere.Contains(Point);
 	});
 }
@@ -56,7 +57,7 @@ bool UE::Geometry::IsInside(const TCapsule3<RealType>& OuterCapsule, const TOrie
 	// todo: possibly more efficient to do this by calculating distance to box center and then adding on box radius?
 	// not sure if this would an exact test though, or just a bound
 
-	return InnerBox.TestCorners([&](const FVector3<RealType>& Point) {
+	return InnerBox.TestCorners([&](const TVector<RealType>& Point) {
 		return OuterCapsule.Contains(Point);
 	});
 }
@@ -69,8 +70,8 @@ template<typename RealType>
 bool UE::Geometry::IsInside(const TOrientedBox3<RealType>& OuterBox, const TOrientedBox3<RealType>& InnerBox)
 {
 	const TFrame3<RealType>& Frame = OuterBox.Frame;
-	const FVector3<RealType>& Extents = OuterBox.Extents;
-	FVector3<RealType> Axes[3];
+	const TVector<RealType>& Extents = OuterBox.Extents;
+	TVector<RealType> Axes[3];
 	OuterBox.Frame.GetAxes(Axes[0], Axes[1], Axes[2]);
 	for (int32 k = 0; k < 3; ++k)
 	{
@@ -91,8 +92,8 @@ template<typename RealType>
 bool UE::Geometry::IsInside(const TOrientedBox3<RealType>& OuterBox, const TSphere3<RealType>& InnerSphere)
 {
 	const TFrame3<RealType>& Frame = OuterBox.Frame;
-	const FVector3<RealType>& Extents = OuterBox.Extents;
-	FVector3<RealType> Axes[3];
+	const TVector<RealType>& Extents = OuterBox.Extents;
+	TVector<RealType> Axes[3];
 	OuterBox.Frame.GetAxes(Axes[0], Axes[1], Axes[2]);
 	for (int32 k = 0; k < 3; ++k)
 	{
@@ -114,8 +115,8 @@ template<typename RealType>
 bool UE::Geometry::IsInside(const TOrientedBox3<RealType>& OuterBox, const TCapsule3<RealType>& InnerCapsule)
 {
 	const TFrame3<RealType>& Frame = OuterBox.Frame;
-	const FVector3<RealType>& Extents = OuterBox.Extents;
-	FVector3<RealType> Axes[3];
+	const TVector<RealType>& Extents = OuterBox.Extents;
+	TVector<RealType> Axes[3];
 	OuterBox.Frame.GetAxes(Axes[0], Axes[1], Axes[2]);
 	for (int32 k = 0; k < 3; ++k)
 	{

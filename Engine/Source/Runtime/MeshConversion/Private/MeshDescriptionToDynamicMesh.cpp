@@ -859,10 +859,10 @@ static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDyn
 			FVector Normal = InstanceNormals[InstanceTri[j]];
 			FVector Tangent = InstanceTangents[InstanceTri[j]];
 			float BitangentSign = InstanceSigns[InstanceTri[j]];
-			FVector3<RealType> Bitangent = VectorUtil::Bitangent((FVector3<RealType>)Normal, (FVector3<RealType>)Tangent, (RealType)BitangentSign);
+			TVector<RealType> Bitangent = VectorUtil::Bitangent((TVector<RealType>)Normal, (TVector<RealType>)Tangent, (RealType)BitangentSign);
 			Tangent.Normalize();
 			UE::Geometry::Normalize(Bitangent);
-			TangentsOut->SetPerTriangleTangent(TriID, j, (FVector3<RealType>)Tangent, (FVector3<RealType>)Bitangent);
+			TangentsOut->SetPerTriangleTangent(TriID, j, (TVector<RealType>)Tangent, (TVector<RealType>)Bitangent);
 		}
 	}
 }

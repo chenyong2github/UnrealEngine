@@ -548,7 +548,7 @@ retry_frame_update:
 		LastBrushFrameWorld = NewFrame;
 	}
 
-	ActiveStrokePathArcLen += LastBrushFrameWorld.Origin.Distance(PrevBrushFrameWorld.Origin);
+	ActiveStrokePathArcLen += Distance(LastBrushFrameWorld.Origin, PrevBrushFrameWorld.Origin);
 
 	LastBrushFrameLocal = LastBrushFrameWorld;
 	LastBrushFrameLocal.Transform(CurTargetTransform.Inverse());
@@ -748,7 +748,7 @@ FFrame3d UMeshSculptToolBase::ComputeStampRegionPlane(const FFrame3d& StampFrame
 			continue;
 		}
 
-		double Distance = StampFrame.Origin.Distance(Centroid);
+		double Distance = UE::Geometry::Distance(StampFrame.Origin, Centroid);
 		double NormalizedDistance = (Distance / FalloffRadius) + 0.0001;
 
 		double Weight = Area;

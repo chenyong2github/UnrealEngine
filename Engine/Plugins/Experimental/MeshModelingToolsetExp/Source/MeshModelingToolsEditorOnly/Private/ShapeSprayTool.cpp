@@ -184,7 +184,7 @@ void UShapeSprayTool::SplatShape(const FFrame3d& LocalFrame, double Scale, FDyna
 		FVector3f Normal = Rotationf * ShapeMesh.GetVertexNormal(vid);
 		TargetMesh->SetVertexNormal(VertexMap[vid], Normal);
 
-		TargetMesh->SetVertexColor(VertexMap[vid], (FVector3<float>)UseColor);
+		TargetMesh->SetVertexColor(VertexMap[vid], (FVector3f)UseColor);
 	}
 	for (int tid : ShapeMesh.TriangleIndicesItr())
 	{

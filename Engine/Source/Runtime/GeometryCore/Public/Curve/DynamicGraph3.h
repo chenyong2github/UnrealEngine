@@ -20,23 +20,25 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 template <typename T>
 class FDynamicGraph3 : public FDynamicGraph
 {
 	TDynamicVectorN<T, 3> Vertices;
 
 public:
-	static FVector3<T> InvalidVertex()
+	static TVector<T> InvalidVertex()
 	{
-		return FVector3<T>(TNumericLimits<T>::Max(), 0, 0);
+		return TVector<T>(TNumericLimits<T>::Max(), 0, 0);
 	}
 
-	FVector3<T> GetVertex(int VID) const
+	TVector<T> GetVertex(int VID) const
 	{
 		return vertices_refcount.IsValid(VID) ? Vertices.AsVector3(VID) : InvalidVertex();
 	}
 
-	void SetVertex(int VID, FVector3<T> VNewPos)
+	void SetVertex(int VID, TVector<T> VNewPos)
 	{
 		check(VectorUtil::IsFinite(VNewPos)); // this will really catch a lot of bugs...
 		if (vertices_refcount.IsValid(VID))
@@ -47,7 +49,7 @@ public:
 	}
 
 	using FDynamicGraph::GetEdgeV;
-	bool GetEdgeV(int EID, FVector3<T>& A, FVector3<T>& B) const
+	bool GetEdgeV(int EID, TVector<T>& A, TVector<T>& B) const
 	{
 		if (edges_refcount.IsValid(EID))
 		{
@@ -67,14 +69,14 @@ public:
 			Vertices.AsVector3(e.B));
 	}
 
-	FVector3<T> GetEdgeCenter(int EID) const
+	TVector<T> GetEdgeCenter(int EID) const
 	{
 		checkfSlow(edges_refcount.IsValid(EID), TEXT("FDynamicGraph3.GetEdgeCenter: invalid segment with id %d"), EID);
 		const FEdge& e = edges[EID];
 		return 0.5 * (Vertices.AsVector3(e.A) + Vertices.AsVector3(e.B));
 	}
 
-	int AppendVertex(FVector3<T> V)
+	int AppendVertex(TVector<T> V)
 	{
 		int vid = append_vertex_internal();
 		Vertices.InsertAt({{V.X, V.Y, V.Z}}, vid);
@@ -87,9 +89,9 @@ public:
 	}
 
 	/** Enumerate positions of all Vertices in graph */
-	value_iteration<FVector3<T>> VerticesItr() const
+	value_iteration<TVector<T>> VerticesItr() const
 	{
-		return vertices_refcount.MappedIndices<FVector3<T>>(
+		return vertices_refcount.MappedIndices<TVector<T>>(
 			[=](int vid) {
 				return Vertices.template AsVector3<T>(vid);
 			});
@@ -100,7 +102,7 @@ public:
 	FAxisAlignedBox2d GetBounds() const
 	{
 		TAxisAlignedBox2<T> AABB;
-		for (const FVector3<T>& V : Vertices())
+		for (const TVector<T>& V : Vertices())
 		{
 			AABB.Contain(V);
 		}
@@ -112,7 +114,7 @@ protected:
 	// internal used in SplitEdge
 	virtual int append_new_split_vertex(int A, int B) override
 	{
-		FVector3<T> vNew = 0.5 * (GetVertex(A) + GetVertex(B));
+		TVector<T> vNew = 0.5 * (GetVertex(A) + GetVertex(B));
 		int f = AppendVertex(vNew);
 		return f;
 	}
@@ -121,7 +123,7 @@ protected:
 	{
 		for (int VID : VertexIndices())
 		{
-			FVector3<T> V = GetVertex(VID);
+			TVector<T> V = GetVertex(VID);
 			CheckOrFailF(VectorUtil::IsFinite(V));
 		}
 	}

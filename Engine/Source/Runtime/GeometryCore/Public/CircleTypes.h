@@ -153,7 +153,7 @@ struct TCircle3
 		Radius = RadiusIn;
 	}
 
-	TCircle3(const FVector3<RealType>& CenterIn, const RealType& RadiusIn)
+	TCircle3(const TVector<RealType>& CenterIn, const RealType& RadiusIn)
 	{
 		Frame.Origin = CenterIn;
 		Radius = RadiusIn;
@@ -166,12 +166,12 @@ struct TCircle3
 	}
 
 
-	const FVector3<RealType>& GetCenter() const
+	const TVector<RealType>& GetCenter() const
 	{
 		return Frame.Origin;
 	}
 
-	FVector3<RealType> GetNormal() const
+	TVector<RealType> GetNormal() const
 	{
 		return Frame.Z();
 	}
@@ -217,18 +217,18 @@ struct TCircle3
 	}
 
 
-	FVector3<RealType> GetPointFromAngleD(RealType AngleDeg) const
+	TVector<RealType> GetPointFromAngleD(RealType AngleDeg) const
 	{
 		return GetPointFromAngleR(AngleDeg * TMathUtil<RealType>::DegToRad);
 	}
 
-	FVector3<RealType> GetPointFromAngleR(RealType AngleRad) const
+	TVector<RealType> GetPointFromAngleR(RealType AngleRad) const
 	{
 		RealType c = TMathUtil<RealType>::Cos(AngleRad), s = TMathUtil<RealType>::Sin(AngleRad);
 		return Frame.FromPlaneUV(TVector2<RealType>(Radius*c, Radius*s), 2);
 	}
 
-	FVector3<RealType> GetPointFromUnitParameter(RealType UnitParam) const
+	TVector<RealType> GetPointFromUnitParameter(RealType UnitParam) const
 	{
 		RealType AngleRad = ((bIsReversed) ? (-UnitParam) : (UnitParam)) * TMathUtil<RealType>::TwoPi;
 		return GetPointFromAngleR(AngleRad);
@@ -237,13 +237,13 @@ struct TCircle3
 
 
 
-	FVector3<RealType> ClosestPoint(const FVector3<RealType>& QueryPoint) const
+	TVector<RealType> ClosestPoint(const TVector<RealType>& QueryPoint) const
 	{
-		const FVector3<RealType>& Center = Frame.Origin;
-		FVector3<RealType> Normal = Frame.GetAxis(2);
+		const TVector<RealType>& Center = Frame.Origin;
+		TVector<RealType> Normal = Frame.GetAxis(2);
 
-		FVector3<RealType> PointDelta = QueryPoint - Center;
-		FVector3<RealType> DeltaInPlane = PointDelta - Normal.Dot(PointDelta)*Normal;
+		TVector<RealType> PointDelta = QueryPoint - Center;
+		TVector<RealType> DeltaInPlane = PointDelta - Normal.Dot(PointDelta)*Normal;
 		RealType OriginDist = DeltaInPlane.Length();
 		if (OriginDist > (RealType)0)
 		{
@@ -256,19 +256,19 @@ struct TCircle3
 	}
 
 
-	RealType DistanceSquared(const FVector3<RealType>& Point) const
+	RealType DistanceSquared(const TVector<RealType>& Point) const
 	{
 		return Point.DistanceSquared(ClosestPoint(Point));
 	}
 	
-	RealType Distance(const FVector3<RealType>& Point) const
+	RealType Distance(const TVector<RealType>& Point) const
 	{
 		return TMathUtil<RealType>::Sqrt(DistanceSquared(Point));
 	}
 
 	TOrientedBox3<RealType> GetBoundingBox() const
 	{
-		return TOrientedBox3<RealType>(Frame, FVector3<RealType>(Radius, Radius, 0));
+		return TOrientedBox3<RealType>(Frame, TVector<RealType>(Radius, Radius, 0));
 	}
 
 };

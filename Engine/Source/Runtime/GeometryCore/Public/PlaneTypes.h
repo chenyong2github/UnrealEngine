@@ -12,10 +12,12 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 template<typename RealType>
 struct TPlane3
 {
-	FVector3<RealType> Normal;
+	TVector<RealType> Normal;
 	RealType Constant;
 
 	TPlane3() {}
@@ -84,7 +86,7 @@ struct TPlane3
 	 * Compute intersection of Line with Plane
 	 * @param LineOrigin origin of line
 	 * @param LineDirection direction of line
-	 * @param HitPointOut intersection point, or FVector3::MaxVector() if line is parallel to plane
+	 * @param HitPointOut intersection point, or invalid point if line is parallel to plane
 	 * @return true if Line intersects Plane and IntersectionPointOut is valid
 	 */
 	bool FindLineIntersection(
@@ -95,7 +97,7 @@ struct TPlane3
 		RealType NormalDot = LineDirection.Dot(Normal);
 		if ( TMathUtil<RealType>::Abs(NormalDot) < TMathUtil<RealType>::ZeroTolerance )
 		{
-			IntersectionPointOut = FVector3<RealType>::MaxVector();
+			IntersectionPointOut = TVector<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max());
 			return false;
 		}
 		RealType t = -(LineOrigin.Dot(Normal) - Constant) / NormalDot;
@@ -125,8 +127,8 @@ struct TPlane3
 			return 2;
 		}
 
-		FVector3<RealType> DirectionVec = Point1 - Point0;
-		FVector3<RealType> Direction = Normalized(DirectionVec);
+		TVector<RealType> DirectionVec = Point1 - Point0;
+		TVector<RealType> Direction = Normalized(DirectionVec);
 		RealType Length = DirectionVec.Dot(Direction);
 
 		// test if segment is parallel to plane, if so, no intersection

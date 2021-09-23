@@ -119,7 +119,7 @@ void UPolygonSelectionMechanic::Initialize(
 			// dividing our field of view into 90 visual angle degrees, we divide the plane into 90 units).
 			float OrthoTolerance = ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * CameraState.OrthoWorldCoordinateWidth / 90.0;
 			OrthoTolerance *= TolScale;
-			return TargetTransform.TransformPosition(Position1).DistanceSquared(TargetTransform.TransformPosition(Position2)) < OrthoTolerance * OrthoTolerance;
+			return DistanceSquared( TargetTransform.TransformPosition(Position1), TargetTransform.TransformPosition(Position2) ) < OrthoTolerance * OrthoTolerance;
 		}
 		else
 		{

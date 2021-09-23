@@ -17,6 +17,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 template<typename TriangleMeshType>
 class TImplicitBlend 
@@ -215,7 +216,7 @@ protected:
 			return;
 		}
 
-		TArray<FVector3<double>> Seeds;
+		TArray<FVector3d> Seeds;
 		for (const TriangleMeshType* Source : Sources)
 		{
 			for (int VID = 0; VID < Source->MaxVertexID(); VID++)

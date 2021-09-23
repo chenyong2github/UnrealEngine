@@ -12,6 +12,7 @@
 namespace UE {
 namespace Geometry {
 
+using namespace UE::Math;
 
 /**
 * Compute unsigned distance and closest-points between 3D line and 3D circle
@@ -28,8 +29,8 @@ public:
 	Real DistanceSquared = -1.0;
 
 	int NumClosestPairs = 0;
-	FVector3<Real> LineClosest[2];
-	FVector3<Real> CircleClosest[2];
+	TVector<Real> LineClosest[2];
+	TVector<Real> CircleClosest[2];
 	bool bIsEquiDistant;
 
 	TDistLine3Circle3(const TLine3<Real>& LineIn, const TCircle3<Real>& CircleIn) : Line(LineIn), Circle(CircleIn)

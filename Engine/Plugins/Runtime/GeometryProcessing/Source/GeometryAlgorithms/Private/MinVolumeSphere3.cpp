@@ -10,7 +10,7 @@
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
-
+using namespace UE::Math;
 
 namespace UE {
 namespace Geometry {
@@ -25,12 +25,12 @@ struct TMinVolumeSphere3Internal
 	bool bUseExact;
 	TArray<DVector3> DoubleInput;
 
-	FVector3<RealType> Center;
+	TVector<RealType> Center;
 	RealType Radius;
 	bool bIsMinimalSphere;
 	bool bSolutionOK;
 
-	void SetPoint(int32 Index, const FVector3<RealType>& Point)
+	void SetPoint(int32 Index, const TVector<RealType>& Point)
 	{
 		DoubleInput[Index] = DVector3{ {(double)Point.X, (double)Point.Y, (double)Point.Z} };
 	}
@@ -53,7 +53,7 @@ struct TMinVolumeSphere3Internal
 			bSolutionOK = true;
 		}
 
-		Center = FVector3<RealType>((RealType)MinimalSphere.center[0], (RealType)MinimalSphere.center[1], (RealType)MinimalSphere.center[2]);
+		Center = TVector<RealType>((RealType)MinimalSphere.center[0], (RealType)MinimalSphere.center[1], (RealType)MinimalSphere.center[2]);
 		Radius = (RealType)MinimalSphere.radius;
 
 		return true;
@@ -67,14 +67,14 @@ struct TMinVolumeSphere3Internal
 
 
 template<typename RealType>
-bool TMinVolumeSphere3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactComputation)
+bool TMinVolumeSphere3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, bool bUseExactComputation)
 {
 	Initialize(NumPoints, bUseExactComputation);
 	check(Internal);
 
 	for (int32 k = 0; k < NumPoints; ++k)
 	{
-		FVector3<RealType> Point = GetPointFunc(k);
+		TVector<RealType> Point = GetPointFunc(k);
 		Internal->SetPoint(k, Point);
 	}
 	

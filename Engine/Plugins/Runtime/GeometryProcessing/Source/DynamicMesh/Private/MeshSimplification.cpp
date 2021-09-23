@@ -1664,7 +1664,7 @@ void DYNAMICMESH_API TMeshSimplification<FAttrBasedQuadricErrord>::OnEdgeCollaps
 	FAttrBasedQuadricErrord& Quadric = EdgeQuadrics[edgeID].q;
 	FVector3d collapse_pt = EdgeQuadrics[edgeID].collapse_pt;
 
-	FVector3<double> UpdatedNormald;
+	FVector3d UpdatedNormald;
 	Quadric.ComputeAttributes(collapse_pt, UpdatedNormald);
 
 	FVector3f UpdatedNormal((float)UpdatedNormald.X, (float)UpdatedNormald.Y, (float)UpdatedNormald.Z);

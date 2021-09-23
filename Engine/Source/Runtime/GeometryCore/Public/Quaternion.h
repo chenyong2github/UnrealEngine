@@ -14,6 +14,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 
 template<typename RealType>
 struct TQuaternion
@@ -30,14 +32,14 @@ struct TQuaternion
 	TQuaternion(const TQuaternion& Copy);
 	template<typename RealType2>
 	explicit TQuaternion(const TQuaternion<RealType2>& Copy);
-	TQuaternion(const FVector3<RealType>& Axis, RealType Angle, bool bAngleIsDegrees);
-	TQuaternion(const FVector3<RealType>& From, const FVector3<RealType>& To);
+	TQuaternion(const TVector<RealType>& Axis, RealType Angle, bool bAngleIsDegrees);
+	TQuaternion(const TVector<RealType>& From, const TVector<RealType>& To);
 	TQuaternion(const TQuaternion<RealType>& From, const TQuaternion<RealType>& To, RealType InterpT);
 	TQuaternion(const TMatrix3<RealType>& RotationMatrix);
 
-	void SetAxisAngleD(const FVector3<RealType>& Axis, RealType AngleDeg);
-	void SetAxisAngleR(const FVector3<RealType>& Axis, RealType AngleRad);
-	void SetFromTo(const FVector3<RealType>& From, const FVector3<RealType>& To);
+	void SetAxisAngleD(const TVector<RealType>& Axis, RealType AngleDeg);
+	void SetAxisAngleR(const TVector<RealType>& Axis, RealType AngleRad);
+	void SetFromTo(const TVector<RealType>& From, const TVector<RealType>& To);
 	void SetToSlerp(TQuaternion<RealType> From, TQuaternion<RealType> To, RealType InterpT);
 	void SetFromRotationMatrix(const TMatrix3<RealType>& RotationMatrix);
 
@@ -52,10 +54,10 @@ struct TQuaternion
 	RealType Length() const { return (RealType)sqrt(X*X + Y*Y + Z*Z + W*W); }
 	RealType SquaredLength() const { return X*X + Y*Y + Z*Z + W*W; }
 
-	FVector3<RealType> AxisX() const;
-	FVector3<RealType> AxisY() const;
-	FVector3<RealType> AxisZ() const;
-	void GetAxes(FVector3<RealType>& X, FVector3<RealType>& Y, FVector3<RealType>& Z) const;
+	TVector<RealType> AxisX() const;
+	TVector<RealType> AxisY() const;
+	TVector<RealType> AxisZ() const;
+	void GetAxes(TVector<RealType>& X, TVector<RealType>& Y, TVector<RealType>& Z) const;
 
 	RealType Normalize(const RealType epsilon = 0);
 	TQuaternion<RealType> Normalized(const RealType epsilon = 0) const;
@@ -63,7 +65,7 @@ struct TQuaternion
 	RealType Dot(const TQuaternion<RealType>& Other) const;
 
 	TQuaternion<RealType> Inverse() const;
-	FVector3<RealType> InverseMultiply(const FVector3<RealType>& Other) const;
+	TVector<RealType> InverseMultiply(const TVector<RealType>& Other) const;
 
 	TMatrix3<RealType> ToRotationMatrix() const;
 
@@ -148,14 +150,14 @@ TQuaternion<RealType>::TQuaternion(const TQuaternion& Copy)
 }
 
 template<typename RealType>
-TQuaternion<RealType>::TQuaternion(const FVector3<RealType>& Axis, RealType Angle, bool bAngleIsDegrees)
+TQuaternion<RealType>::TQuaternion(const TVector<RealType>& Axis, RealType Angle, bool bAngleIsDegrees)
 {
 	X = Y = Z = 0; W = 1;
 	SetAxisAngleR(Axis, Angle * (bAngleIsDegrees ? TMathUtil<RealType>::DegToRad : (RealType)1));
 }
 
 template<typename RealType>
-TQuaternion<RealType>::TQuaternion(const FVector3<RealType>& From, const FVector3<RealType>& To)
+TQuaternion<RealType>::TQuaternion(const TVector<RealType>& From, const TVector<RealType>& To)
 {
 	X = Y = Z = 0; W = 1;
 	SetFromTo(From, To);
@@ -232,7 +234,7 @@ TQuaternion<RealType> operator -(const TQuaternion<RealType>& A, const TQuaterni
 }
 
 template<typename RealType>
-FVector3<RealType> operator*(const TQuaternion<RealType>& Q, const UE::Math::TVector<RealType>& V)
+TVector<RealType> operator*(const TQuaternion<RealType>& Q, const UE::Math::TVector<RealType>& V)
 {
 	//return q.ToRotationMatrix() * v;
 	// inline-expansion of above:
@@ -240,7 +242,7 @@ FVector3<RealType> operator*(const TQuaternion<RealType>& Q, const UE::Math::TVe
 	RealType twoWX = twoX * Q.W; RealType twoWY = twoY * Q.W; RealType twoWZ = twoZ * Q.W;
 	RealType twoXX = twoX * Q.X; RealType twoXY = twoY * Q.X; RealType twoXZ = twoZ * Q.X;
 	RealType twoYY = twoY * Q.Y; RealType twoYZ = twoZ * Q.Y; RealType twoZZ = twoZ * Q.Z;
-	return FVector3<RealType>(
+	return TVector<RealType>(
 		V.X * ((RealType)1 - (twoYY + twoZZ)) + V.Y * (twoXY - twoWZ) + V.Z * (twoXZ + twoWY),
 		V.X * (twoXY + twoWZ) + V.Y * ((RealType)1 - (twoXX + twoZZ)) + V.Z * (twoYZ - twoWX),
 		V.X * (twoXZ - twoWY) + V.Y * (twoYZ + twoWX) + V.Z * ((RealType)1 - (twoXX + twoYY))); ;
@@ -248,7 +250,7 @@ FVector3<RealType> operator*(const TQuaternion<RealType>& Q, const UE::Math::TVe
 
 
 template<typename RealType>
-FVector3<RealType> TQuaternion<RealType>::InverseMultiply(const FVector3<RealType>& V) const
+TVector<RealType> TQuaternion<RealType>::InverseMultiply(const TVector<RealType>& V) const
 {
 	RealType norm = SquaredLength();
 	if (norm > 0) 
@@ -259,53 +261,53 @@ FVector3<RealType> TQuaternion<RealType>::InverseMultiply(const FVector3<RealTyp
 		RealType twoWX = twoX * qW; RealType twoWY = twoY * qW; RealType twoWZ = twoZ * qW;
 		RealType twoXX = twoX * qX; RealType twoXY = twoY * qX; RealType twoXZ = twoZ * qX;
 		RealType twoYY = twoY * qY; RealType twoYZ = twoZ * qY; RealType twoZZ = twoZ * qZ;
-		return FVector3<RealType>(
+		return TVector<RealType>(
 			V.X * ((RealType)1 - (twoYY + twoZZ)) + V.Y * (twoXY - twoWZ) + V.Z * (twoXZ + twoWY),
 			V.X * (twoXY + twoWZ) + V.Y * ((RealType)1 - (twoXX + twoZZ)) + V.Z * (twoYZ - twoWX),
 			V.X * (twoXZ - twoWY) + V.Y * (twoYZ + twoWX) + V.Z * ((RealType)1 - (twoXX + twoYY)));
 	}
-	return FVector3<RealType>::Zero();
+	return TVector<RealType>::Zero();
 }
 
 
 template<typename RealType>
-FVector3<RealType> TQuaternion<RealType>::AxisX() const
+TVector<RealType> TQuaternion<RealType>::AxisX() const
 {
 	RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
 	RealType twoWY = twoY * W; RealType twoWZ = twoZ * W;
 	RealType twoXY = twoY * X; RealType twoXZ = twoZ * X;
 	RealType twoYY = twoY * Y; RealType twoZZ = twoZ * Z;
-	return FVector3<RealType>((RealType)1 - (twoYY + twoZZ), twoXY + twoWZ, twoXZ - twoWY);
+	return TVector<RealType>((RealType)1 - (twoYY + twoZZ), twoXY + twoWZ, twoXZ - twoWY);
 }
 
 template<typename RealType>
-FVector3<RealType> TQuaternion<RealType>::AxisY() const
+TVector<RealType> TQuaternion<RealType>::AxisY() const
 {
 	RealType twoX = (RealType)2 * X; RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
 	RealType twoWX = twoX * W; RealType twoWZ = twoZ * W; RealType twoXX = twoX * X;
 	RealType twoXY = twoY * X; RealType twoYZ = twoZ * Y; RealType twoZZ = twoZ * Z;
-	return FVector3<RealType>(twoXY - twoWZ, (RealType)1 - (twoXX + twoZZ), twoYZ + twoWX);
+	return TVector<RealType>(twoXY - twoWZ, (RealType)1 - (twoXX + twoZZ), twoYZ + twoWX);
 }
 
 template<typename RealType>
-FVector3<RealType> TQuaternion<RealType>::AxisZ() const
+TVector<RealType> TQuaternion<RealType>::AxisZ() const
 {
 	RealType twoX = (RealType)2 * X; RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
 	RealType twoWX = twoX * W; RealType twoWY = twoY * W; RealType twoXX = twoX * X;
 	RealType twoXZ = twoZ * X; RealType twoYY = twoY * Y; RealType twoYZ = twoZ * Y;
-	return FVector3<RealType>(twoXZ + twoWY, twoYZ - twoWX, (RealType)1 - (twoXX + twoYY));
+	return TVector<RealType>(twoXZ + twoWY, twoYZ - twoWX, (RealType)1 - (twoXX + twoYY));
 }
 
 template<typename RealType>
-void TQuaternion<RealType>::GetAxes(FVector3<RealType>& XOut, FVector3<RealType>& YOut, FVector3<RealType>& ZOut) const
+void TQuaternion<RealType>::GetAxes(TVector<RealType>& XOut, TVector<RealType>& YOut, TVector<RealType>& ZOut) const
 {
 	RealType twoX = (RealType)2 * X; RealType twoY = (RealType)2 * Y; RealType twoZ = (RealType)2 * Z;
 	RealType twoWX = twoX * W; RealType twoWY = twoY * W; RealType twoWZ = twoZ * W;
 	RealType twoXX = twoX * X; RealType twoXY = twoY * X; RealType twoXZ = twoZ * X;
 	RealType twoYY = twoY * Y; RealType twoYZ = twoZ * Y; RealType twoZZ = twoZ * Z;
-	XOut = FVector3<RealType>((RealType)1 - (twoYY + twoZZ), twoXY + twoWZ, twoXZ - twoWY);
-	YOut = FVector3<RealType>(twoXY - twoWZ, (RealType)1 - (twoXX + twoZZ), twoYZ + twoWX);
-	ZOut = FVector3<RealType>(twoXZ + twoWY, twoYZ - twoWX, (RealType)1 - (twoXX + twoYY));
+	XOut = TVector<RealType>((RealType)1 - (twoYY + twoZZ), twoXY + twoWZ, twoXZ - twoWY);
+	YOut = TVector<RealType>(twoXY - twoWZ, (RealType)1 - (twoXX + twoZZ), twoYZ + twoWX);
+	ZOut = TVector<RealType>(twoXZ + twoWY, twoYZ - twoWX, (RealType)1 - (twoXX + twoYY));
 }
 
 
@@ -324,13 +326,13 @@ TQuaternion<RealType> TQuaternion<RealType>::Inverse() const
 
 
 template<typename RealType>
-void TQuaternion<RealType>::SetAxisAngleD(const FVector3<RealType>& Axis, RealType AngleDeg) 
+void TQuaternion<RealType>::SetAxisAngleD(const TVector<RealType>& Axis, RealType AngleDeg) 
 {
 	SetAxisAngleR(Axis, TMathUtil<RealType>::DegToRad * AngleDeg);
 }
 
 template<typename RealType>
-void TQuaternion<RealType>::SetAxisAngleR(const FVector3<RealType>& Axis, RealType AngleRad)
+void TQuaternion<RealType>::SetAxisAngleR(const TVector<RealType>& Axis, RealType AngleRad)
 {
 	RealType halfAngle = (RealType)0.5 * AngleRad;
 	RealType sn = (RealType)sin(halfAngle);
@@ -344,7 +346,7 @@ void TQuaternion<RealType>::SetAxisAngleR(const FVector3<RealType>& Axis, RealTy
 
 // this function can take non-normalized vectors vFrom and vTo (normalizes internally)
 template<typename RealType>
-void TQuaternion<RealType>::SetFromTo(const FVector3<RealType>& From, const FVector3<RealType>& To)
+void TQuaternion<RealType>::SetFromTo(const TVector<RealType>& From, const TVector<RealType>& To)
 {
 	// [TODO] this page seems to have optimized version:
 	//    http://lolengine.net/blog/2013/09/18/beautiful-maths-quaternion-from-vectors
@@ -352,12 +354,12 @@ void TQuaternion<RealType>::SetFromTo(const FVector3<RealType>& From, const FVec
 	// [RMS] not ideal to explicitly normalize here, but if we don't,
 	//   output TQuaternion is not normalized and this causes problems,
 	//   eg like drift if we do repeated SetFromTo()
-	FVector3<RealType> from = UE::Geometry::Normalized(From), to = UE::Geometry::Normalized(To);
-	FVector3<RealType> bisector = UE::Geometry::Normalized(from + to);
+	TVector<RealType> from = UE::Geometry::Normalized(From), to = UE::Geometry::Normalized(To);
+	TVector<RealType> bisector = UE::Geometry::Normalized(from + to);
 	W = from.Dot(bisector);
 	if (W != 0) 
 	{
-		FVector3<RealType> cross = from.Cross(bisector);
+		TVector<RealType> cross = from.Cross(bisector);
 		X = cross.X;
 		Y = cross.Y;
 		Z = cross.Z;
@@ -465,7 +467,7 @@ void TQuaternion<RealType>::SetFromRotationMatrix(const TMatrix3<RealType>& Rota
 
 		root = (RealType)sqrt(RotationMatrix(i, i) - RotationMatrix(j, j) - RotationMatrix(k, k) + (RealType)1);
 
-		FVector3<RealType> quat(X, Y, Z);
+		TVector<RealType> quat(X, Y, Z);
 		quat[i] = ((RealType)0.5) * root;
 		root = ((RealType)0.5) / root;
 		W = (RotationMatrix(k, j) - RotationMatrix(j, k)) * root;
@@ -488,9 +490,9 @@ TMatrix3<RealType> TQuaternion<RealType>::ToRotationMatrix() const
 	RealType twoXX = twoX * X; RealType twoXY = twoY * X; RealType twoXZ = twoZ * X;
 	RealType twoYY = twoY * Y; RealType twoYZ = twoZ * Y; RealType twoZZ = twoZ * Z;
 	TMatrix3<RealType> m = TMatrix3<RealType>::Zero();
-	m.Row0 = FVector3<RealType>(1 - (twoYY + twoZZ), twoXY - twoWZ, twoXZ + twoWY);
-	m.Row1 = FVector3<RealType>(twoXY + twoWZ, 1 - (twoXX + twoZZ), twoYZ - twoWX);
-	m.Row2 = FVector3<RealType>(twoXZ - twoWY, twoYZ + twoWX, 1 - (twoXX + twoYY));
+	m.Row0 = TVector<RealType>(1 - (twoYY + twoZZ), twoXY - twoWZ, twoXZ + twoWY);
+	m.Row1 = TVector<RealType>(twoXY + twoWZ, 1 - (twoXX + twoZZ), twoYZ - twoWX);
+	m.Row2 = TVector<RealType>(twoXZ - twoWY, twoYZ + twoWX, 1 - (twoXX + twoYY));
 	return m;
 }
 

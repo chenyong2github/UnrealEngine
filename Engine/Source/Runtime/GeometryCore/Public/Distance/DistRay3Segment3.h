@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute distance between 3D ray and 3D segment
  */
@@ -27,9 +29,9 @@ public:
 	// Results
 	Real DistanceSquared = -1.0;
 
-	FVector3<Real> RayClosestPoint;
+	TVector<Real> RayClosestPoint;
 	Real RayParameter;
-	FVector3<Real> SegmentClosestPoint;
+	TVector<Real> SegmentClosestPoint;
 	Real SegmentParameter;
 
 
@@ -224,7 +226,7 @@ public:
 	static double SquaredDistance(const TRay3<Real>& Ray, const TSegment3<Real>& Segment,
 		Real& RayParam, Real& SegParam)
 	{
-		FVector3<Real> diff = Ray.Origin - Segment.Center;
+		TVector<Real> diff = Ray.Origin - Segment.Center;
 		double a01 = -Ray.Direction.Dot(Segment.Direction);
 		double b0 = diff.Dot(Ray.Direction);
 		double b1 = -diff.Dot(Segment.Direction);

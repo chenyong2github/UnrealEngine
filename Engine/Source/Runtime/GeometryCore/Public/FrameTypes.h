@@ -29,7 +29,7 @@ struct TFrame3
 	/**
 	 * Origin of the frame
 	 */
-	FVector3<RealType> Origin;
+	TVector<RealType> Origin;
 
 	/**
 	 * Rotation of the frame. Think of this as the rotation of the unit X/Y/Z axes to the 3D frame axes.
@@ -41,14 +41,14 @@ struct TFrame3
 	 */
 	TFrame3()
 	{
-		Origin = FVector3<RealType>::Zero();
+		Origin = TVector<RealType>::Zero();
 		Rotation = TQuaternion<RealType>::Identity();
 	}
 
 	/**
 	 * Construct a frame at the given Origin aligned to the unit axes
 	 */
-	explicit TFrame3(const FVector3<RealType>& OriginIn)
+	explicit TFrame3(const TVector<RealType>& OriginIn)
 	{
 		Origin = OriginIn;
 		Rotation = TQuaternion<RealType>::Identity();
@@ -57,7 +57,7 @@ struct TFrame3
 	/**
 	 * Construct a Frame from the given Origin and Rotation
 	 */
-	TFrame3(const FVector3<RealType>& OriginIn, const TQuaternion<RealType> RotationIn)
+	TFrame3(const TVector<RealType>& OriginIn, const TQuaternion<RealType> RotationIn)
 	{
 		Origin = OriginIn;
 		Rotation = RotationIn;
@@ -68,10 +68,10 @@ struct TFrame3
 	 * @param OriginIn origin of frame
 	 * @param SetZ target Z axis
 	 */
-	TFrame3(const FVector3<RealType>& OriginIn, const FVector3<RealType>& SetZ)
+	TFrame3(const TVector<RealType>& OriginIn, const TVector<RealType>& SetZ)
 	{
 		Origin = OriginIn;
-		Rotation.SetFromTo(FVector3<RealType>::UnitZ(), SetZ);
+		Rotation.SetFromTo(TVector<RealType>::UnitZ(), SetZ);
 	}
 
 	/**
@@ -81,7 +81,7 @@ struct TFrame3
 	 * @param Y desired Y axis of frame
 	 * @param Z desired Z axis of frame
 	 */
-	TFrame3(const FVector3<RealType>& OriginIn, const FVector3<RealType>& X, const FVector3<RealType>& Y, const FVector3<RealType>& Z)
+	TFrame3(const TVector<RealType>& OriginIn, const TVector<RealType>& X, const TVector<RealType>& Y, const TVector<RealType>& Z)
 	{
 		Origin = OriginIn;
 		Rotation = TQuaternion<RealType>( TMatrix3<RealType>(X, Y, Z, false) );
@@ -90,7 +90,7 @@ struct TFrame3
 	/** Construct a Frame from an FTransform */
 	explicit TFrame3(const FTransform& Transform)
 	{
-		Origin = FVector3<RealType>(Transform.GetTranslation());
+		Origin = TVector<RealType>(Transform.GetTranslation());
 		Rotation = TQuaternion<RealType>(Transform.GetRotation());
 	}
 
@@ -98,15 +98,15 @@ struct TFrame3
 	explicit TFrame3(const FPlane& Plane)
 	{
 		FVector Normal(Plane.X, Plane.Y, Plane.Z);
-		Origin = (RealType)Plane.W * FVector3<RealType>(Normal);
-		Rotation.SetFromTo(FVector3<RealType>::UnitZ(), (FVector3<RealType>)Normal);
+		Origin = (RealType)Plane.W * TVector<RealType>(Normal);
+		Rotation.SetFromTo(TVector<RealType>::UnitZ(), (TVector<RealType>)Normal);
 	}
 
 
 	/** Construct a Frame from an FVector and FQuat */
 	explicit TFrame3(const FVector& OriginIn, const FQuat& RotationIn)
 	{
-		Origin = FVector3<RealType>(OriginIn);
+		Origin = TVector<RealType>(OriginIn);
 		Rotation = TQuaternion<RealType>(RotationIn);
 	}
 
@@ -114,7 +114,7 @@ struct TFrame3
 	template<typename RealType2>
 	explicit TFrame3(const TFrame3<RealType2>& OtherFrame)
 	{
-		Origin = static_cast<FVector3<RealType>>(OtherFrame.Origin);
+		Origin = static_cast<TVector<RealType>>(OtherFrame.Origin);
 		Rotation = static_cast<TQuaternion<RealType>>(OtherFrame.Rotation);
 	}
 
@@ -123,7 +123,7 @@ struct TFrame3
 	 * @param AxisIndex index of axis of frame, either 0, 1, or 2
 	 * @return axis vector
 	 */
-	FVector3<RealType> GetAxis(int AxisIndex) const
+	TVector<RealType> GetAxis(int AxisIndex) const
 	{
 		switch (AxisIndex)
 		{
@@ -135,32 +135,32 @@ struct TFrame3
 			return Rotation.AxisZ();
 		default:
 			checkNoEntry();
-			return FVector3<RealType>::Zero(); // compiler demands a return value
+			return TVector<RealType>::Zero(); // compiler demands a return value
 		}
 	}
 
 	/**
 	 * @return X/Y/Z axes of frame. This is more efficient than calculating each axis separately.
 	 */
-	void GetAxes(FVector3<RealType>& X, FVector3<RealType>& Y, FVector3<RealType>& Z) const
+	void GetAxes(TVector<RealType>& X, TVector<RealType>& Y, TVector<RealType>& Z) const
 	{
 		Rotation.GetAxes(X, Y, Z);
 	}
 
 	/** @return X axis of frame (axis 0) */
-	FVector3<RealType> X() const
+	TVector<RealType> X() const
 	{
 		return Rotation.AxisX();
 	}
 
 	/** @return Y axis of frame (axis 1) */
-	FVector3<RealType> Y() const
+	TVector<RealType> Y() const
 	{
 		return Rotation.AxisY();
 	}
 
 	/** @return Z axis of frame (axis 2) */
-	FVector3<RealType> Z() const
+	TVector<RealType> Z() const
 	{
 		return Rotation.AxisZ();
 	}
@@ -184,36 +184,36 @@ struct TFrame3
 	}
 
 	/** @return point at distances along frame axes */
-	FVector3<RealType> PointAt(RealType X, RealType Y, RealType Z) const
+	TVector<RealType> PointAt(RealType X, RealType Y, RealType Z) const
 	{
-		return Rotation * FVector3<RealType>(X,Y,Z) + Origin;
+		return Rotation * TVector<RealType>(X,Y,Z) + Origin;
 	}
 
 	/** @return point at distances along frame axes */
-	FVector3<RealType> PointAt(const FVector3<RealType>& Point) const
+	TVector<RealType> PointAt(const TVector<RealType>& Point) const
 	{
-		return Rotation * FVector3<RealType>(Point.X, Point.Y, Point.Z) + Origin;
+		return Rotation * TVector<RealType>(Point.X, Point.Y, Point.Z) + Origin;
 	}
 	
 	/** @return input Point transformed into local coordinate system of Frame */
-	FVector3<RealType> ToFramePoint(const FVector3<RealType>& Point) const
+	TVector<RealType> ToFramePoint(const TVector<RealType>& Point) const
 	{
 		return Rotation.InverseMultiply((Point-Origin));
 	}
 	/** @return input Point transformed from local coordinate system of Frame into "World" coordinate system */
-	FVector3<RealType> FromFramePoint(const FVector3<RealType>& Point) const
+	TVector<RealType> FromFramePoint(const TVector<RealType>& Point) const
 	{
 		return Rotation * Point + Origin;
 	}
 
 
 	/** @return input Vector transformed into local coordinate system of Frame */
-	FVector3<RealType> ToFrameVector(const FVector3<RealType>& Vector) const
+	TVector<RealType> ToFrameVector(const TVector<RealType>& Vector) const
 	{
 		return Rotation.InverseMultiply(Vector);
 	}
 	/** @return input Vector transformed from local coordinate system of Frame into "World" coordinate system */
-	FVector3<RealType> FromFrameVector(const FVector3<RealType>& Vector) const
+	TVector<RealType> FromFrameVector(const TVector<RealType>& Vector) const
 	{
 		return Rotation * Vector;
 	}
@@ -263,7 +263,7 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 2D coordinates in UV plane, relative to origin
 	 */
-	TVector2<RealType> ToPlaneUV(const FVector3<RealType>& Pos, int PlaneNormalAxis = 2) const
+	TVector2<RealType> ToPlaneUV(const TVector<RealType>& Pos, int PlaneNormalAxis = 2) const
 	{
 		int Axis0 = 0, Axis1 = 1;
 		if (PlaneNormalAxis == 0)
@@ -274,7 +274,7 @@ struct TFrame3
 		{
 			Axis1 = 2;
 		}
-		FVector3<RealType> LocalPos = Pos - Origin;
+		TVector<RealType> LocalPos = Pos - Origin;
 		RealType U = LocalPos.Dot(GetAxis(Axis0));
 		RealType V = LocalPos.Dot(GetAxis(Axis1));
 		return TVector2<RealType>(U, V);
@@ -288,9 +288,9 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to map to, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 3D coordinates in frame's plane (including Origin translation)
 	 */
-	FVector3<RealType> FromPlaneUV(const TVector2<RealType>& PosUV, int PlaneNormalAxis = 2) const
+	TVector<RealType> FromPlaneUV(const TVector2<RealType>& PosUV, int PlaneNormalAxis = 2) const
 	{
-		FVector3<RealType> PlanePos(PosUV[0], PosUV[1], 0);
+		TVector<RealType> PlanePos(PosUV[0], PosUV[1], 0);
 		if (PlaneNormalAxis == 0)
 		{
 			PlanePos[0] = 0; PlanePos[2] = PosUV[0];
@@ -310,10 +310,10 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 3D coordinate in the plane
 	 */
-	FVector3<RealType> ToPlane(const FVector3<RealType>& Pos, int PlaneNormalAxis = 2) const
+	TVector<RealType> ToPlane(const TVector<RealType>& Pos, int PlaneNormalAxis = 2) const
 	{
-		FVector3<RealType> Normal = GetAxis(PlaneNormalAxis);
-		FVector3<RealType> LocalVec = Pos - Origin;
+		TVector<RealType> Normal = GetAxis(PlaneNormalAxis);
+		TVector<RealType> LocalVec = Pos - Origin;
 		RealType SignedDist = LocalVec.Dot(Normal);
 		return Pos - SignedDist * Normal;
 	}
@@ -343,7 +343,7 @@ struct TFrame3
 	 */
 	void Transform(const FTransform& XForm)
 	{
-		Origin = FVector3<RealType>(XForm.TransformPosition((FVector)Origin));
+		Origin = TVector<RealType>(XForm.TransformPosition((FVector)Origin));
 		Rotate(TQuaternion<RealType>(XForm.GetRotation()));
 	}
 
@@ -363,7 +363,7 @@ struct TFrame3
 	 * @param AxisIndex which axis to align
 	 * @param ToDirection target direction
 	 */
-	void AlignAxis(int AxisIndex, const FVector3<RealType>& ToDirection)
+	void AlignAxis(int AxisIndex, const TVector<RealType>& ToDirection)
 	{
 		TQuaternion<RealType> RelRotation(GetAxis(AxisIndex), ToDirection);
 		Rotate(RelRotation);
@@ -376,10 +376,10 @@ struct TFrame3
 	 * @param ToDirection target direction
 	 * @param AroundVector rotation is constrained to be around this vector (ie this direction in frame stays constant)
 	 */
-	void ConstrainedAlignAxis(int AxisIndex, const FVector3<RealType>& ToDirection, const FVector3<RealType>& AroundVector)
+	void ConstrainedAlignAxis(int AxisIndex, const TVector<RealType>& ToDirection, const TVector<RealType>& AroundVector)
 	{
 		//@todo PlaneAngleSigned does acos() and then SetAxisAngleD() does cos/sin...can we optimize this?
-		FVector3<RealType> AxisVec = GetAxis(AxisIndex);
+		TVector<RealType> AxisVec = GetAxis(AxisIndex);
 		RealType AngleDeg = VectorUtil::PlaneAngleSignedD(AxisVec, ToDirection, AroundVector);
 		TQuaternion<RealType> RelRotation;
 		RelRotation.SetAxisAngleD(AroundVector, AngleDeg);
@@ -401,15 +401,15 @@ struct TFrame3
 	 * @param UpDotTolerance defaults to cos(45), ie flip between regions happens roughly half way to poles
 	 */
 	void ConstrainedAlignPerpAxes(int PerpAxis1 = 0, int PerpAxis2 = 1, int NormalAxis = 2, 
-		const FVector3<RealType>& UpAxis = FVector3<RealType>::UnitZ(),
-		const FVector3<RealType>& FallbackAxis = FVector3<RealType>::UnitX(),
+		const TVector<RealType>& UpAxis = TVector<RealType>::UnitZ(),
+		const TVector<RealType>& FallbackAxis = TVector<RealType>::UnitX(),
 		RealType UpDotTolerance = (RealType)0.707)
 	{
 		check(PerpAxis1 != PerpAxis2 && PerpAxis1 != NormalAxis && PerpAxis2 != NormalAxis);
-		const FVector3<RealType> NormalVec = GetAxis(NormalAxis);
+		const TVector<RealType> NormalVec = GetAxis(NormalAxis);
 
 		// decide if we should use Fallback (polar-cap) axis or main (equator-region) axis
-		const FVector3<RealType>& TargetAxis =
+		const TVector<RealType>& TargetAxis =
 			(TMathUtil<RealType>::Abs(NormalVec.Dot(UpAxis)) > UpDotTolerance) ?
 			FallbackAxis : UpAxis;
 
@@ -426,23 +426,23 @@ struct TFrame3
 	 * @param RayOrigin origin of ray
 	 * @param RayDirection direction of ray
 	 * @param PlaneNormalAxis which axis of frame to use as plane normal
-	 * @param HitPointOut intersection point, or FVector3::Max() if ray does not hit plane or is parallel to plane
+	 * @param HitPointOut intersection point, or invalid point if ray does not hit plane or is parallel to plane
 	 * @return true if ray intersects plane and HitPointOut is valid
 	 */
-	bool RayPlaneIntersection(const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection, int PlaneNormalAxis, UE::Math::TVector<RealType>& HitPointOut) const
+	bool RayPlaneIntersection(const TVector<RealType>& RayOrigin, const TVector<RealType>& RayDirection, int PlaneNormalAxis, UE::Math::TVector<RealType>& HitPointOut) const
 	{
-		FVector3<RealType> Normal = GetAxis(PlaneNormalAxis);
+		TVector<RealType> Normal = GetAxis(PlaneNormalAxis);
 		RealType PlaneD = -Origin.Dot(Normal);
 		RealType NormalDot = RayDirection.Dot(Normal);
 		if (VectorUtil::EpsilonEqual(NormalDot, (RealType)0, TMathUtil<RealType>::ZeroTolerance))
 		{
-			HitPointOut = FVector3<RealType>::MaxVector();
+			HitPointOut = TVector<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max());
 			return false;
 		}
 		RealType t = -( RayOrigin.Dot(Normal) + PlaneD) / NormalDot;
 		if (t < 0)
 		{
-			HitPointOut = FVector3<RealType>::MaxVector();
+			HitPointOut = TVector<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max());
 			return false;
 		}
 		HitPointOut = RayOrigin + t * RayDirection;

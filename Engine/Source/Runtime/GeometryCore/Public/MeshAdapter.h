@@ -14,6 +14,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Most generic / lazy example of a triangle mesh adapter; possibly useful for prototyping / building on top of (but slower than making a more specific-case adapter)
  */
@@ -28,7 +30,7 @@ struct TTriangleMeshAdapter
 	TFunction<int32()> VertexCount;
 	TFunction<uint64()> GetChangeStamp;
 	TFunction<FIndex3i(int32)> GetTriangle;
-	TFunction<FVector3<RealType>(int32)> GetVertex;
+	TFunction<TVector<RealType>(int32)> GetVertex;
 
 	inline void GetTriVertices(int TID, UE::Math::TVector<RealType>& V0, UE::Math::TVector<RealType>& V1, UE::Math::TVector<RealType>& V2) const
 	{
@@ -127,17 +129,17 @@ struct TIndexMeshArrayAdapter
 		return FIndex3i((int)(*SourceTriangles)[Start], (int)(*SourceTriangles)[Start+1], (int)(*SourceTriangles)[Start+2]);
 	}
 
-	FORCEINLINE FVector3<OutRealType> GetVertex(int32 Index) const
+	FORCEINLINE TVector<OutRealType> GetVertex(int32 Index) const
 	{
-		return FVector3<OutRealType>((*SourceVertices)[Index]);
+		return TVector<OutRealType>((*SourceVertices)[Index]);
 	}
 
 	FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Math::TVector<OutRealType>& V0, UE::Math::TVector<OutRealType>& V1, UE::Math::TVector<OutRealType>& V2) const
 	{
 		int32 Start = TriIndex * 3;
-		V0 = FVector3<OutRealType>((*SourceVertices)[(*SourceTriangles)[Start]]);
-		V1 = FVector3<OutRealType>((*SourceVertices)[(*SourceTriangles)[Start+1]]);
-		V2 = FVector3<OutRealType>((*SourceVertices)[(*SourceTriangles)[Start+2]]);
+		V0 = TVector<OutRealType>((*SourceVertices)[(*SourceTriangles)[Start]]);
+		V1 = TVector<OutRealType>((*SourceVertices)[(*SourceTriangles)[Start+1]]);
+		V2 = TVector<OutRealType>((*SourceVertices)[(*SourceTriangles)[Start+2]]);
 	}
 
 };
@@ -209,17 +211,17 @@ struct TIndexVectorMeshArrayAdapter
 		return FIndex3i((int)Tri[0], (int)Tri[1], (int)Tri[2]);
 	}
 
-	FORCEINLINE FVector3<OutRealType> GetVertex(int32 Index) const
+	FORCEINLINE TVector<OutRealType> GetVertex(int32 Index) const
 	{
-		return FVector3<OutRealType>((*SourceVertices)[Index]);
+		return TVector<OutRealType>((*SourceVertices)[Index]);
 	}
 
 	FORCEINLINE void GetTriVertices(int32 TriIndex, UE::Math::TVector<OutRealType>& V0, UE::Math::TVector<OutRealType>& V1, UE::Math::TVector<OutRealType>& V2) const
 	{
 		const IndexVectorType& Tri = (*SourceTriangles)[TriIndex];
-		V0 = FVector3<OutRealType>((*SourceVertices)[Tri[0]]);
-		V1 = FVector3<OutRealType>((*SourceVertices)[Tri[1]]);
-		V2 = FVector3<OutRealType>((*SourceVertices)[Tri[2]]);
+		V0 = TVector<OutRealType>((*SourceVertices)[Tri[0]]);
+		V1 = TVector<OutRealType>((*SourceVertices)[Tri[1]]);
+		V2 = TVector<OutRealType>((*SourceVertices)[Tri[2]]);
 	}
 
 };

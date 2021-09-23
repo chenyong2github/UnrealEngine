@@ -31,18 +31,19 @@ struct FLinearIntersection
  */
 namespace IntersectionUtil
 {
+	using namespace UE::Math;
 	using namespace UE::Geometry;
 
 	template<typename RealType>
-	bool RayTriangleTest(const UE::Math::TVector<RealType>& RayOrigin, const UE::Math::TVector<RealType>& RayDirection, const UE::Math::TVector<RealType>& V0, const UE::Math::TVector<RealType>& V1, const UE::Math::TVector<RealType>& V2)
+	bool RayTriangleTest(const TVector<RealType>& RayOrigin, const TVector<RealType>& RayDirection, const TVector<RealType>& V0, const TVector<RealType>& V1, const TVector<RealType>& V2)
 	{
 		// same code as IntrRay3Triangle3, but can be called w/o constructing additional data structures
 			
 		// Compute the offset origin, edges, and normal.
-		FVector3<RealType> diff = RayOrigin - V0;
-		FVector3<RealType> edge1 = V1 - V0;
-		FVector3<RealType> edge2 = V2 - V0;
-		FVector3<RealType> normal = edge1.Cross(edge2);
+		TVector<RealType> diff = RayOrigin - V0;
+		TVector<RealType> edge1 = V1 - V0;
+		TVector<RealType> edge2 = V2 - V0;
+		TVector<RealType> normal = edge1.Cross(edge2);
 
 		// Solve Q + t*D = b1*E1 + b2*E2 (Q = kDiff, D = ray direction,
 		// E1 = kEdge1, E2 = kEdge2, N = Cross(E1,E2)) by
@@ -101,9 +102,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool LineSphereTest(
-		const UE::Math::TVector<RealType>& LineOrigin,
-		const UE::Math::TVector<RealType>& LineDirection,
-		const UE::Math::TVector<RealType>& SphereCenter,
+		const TVector<RealType>& LineOrigin,
+		const TVector<RealType>& LineDirection,
+		const TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		// adapted from GeometricTools GTEngine
@@ -114,7 +115,7 @@ namespace IntersectionUtil
 		// quadratic equation Q(t) = t^2 + 2*a1*t + a0 = 0, where a1 = D^T*(P-C),
 		// and a0 = (P-C)^T*(P-C)-1.
 
-		FVector3<RealType> diff = LineOrigin - SphereCenter;
+		TVector<RealType> diff = LineOrigin - SphereCenter;
 		RealType a0 = diff.SquaredLength() - SphereRadius * SphereRadius;
 		RealType a1 = LineDirection.Dot(diff);
 
@@ -130,9 +131,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool LineSphereIntersection(
-		const UE::Math::TVector<RealType>& LineOrigin,
-		const UE::Math::TVector<RealType>& LineDirection,
-		const UE::Math::TVector<RealType>& SphereCenter,
+		const TVector<RealType>& LineOrigin,
+		const TVector<RealType>& LineDirection,
+		const TVector<RealType>& SphereCenter,
 		RealType SphereRadius,
 		FLinearIntersection& ResultOut)
 	{
@@ -143,7 +144,7 @@ namespace IntersectionUtil
 		// Substitute the line equation into the sphere equation to obtain a
 		// quadratic equation Q(t) = t^2 + 2*a1*t + a0 = 0, where a1 = D^T*(P-C),
 		// and a0 = (P-C)^T*(P-C)-1.
-		FVector3<RealType> diff = LineOrigin - SphereCenter;
+		TVector<RealType> diff = LineOrigin - SphereCenter;
 		RealType a0 = diff.SquaredLength() - SphereRadius * SphereRadius;
 		RealType a1 = LineDirection.Dot(diff);
 
@@ -174,9 +175,9 @@ namespace IntersectionUtil
 
 	template<typename RealType>
 	FLinearIntersection LineSphereIntersection(
-		const UE::Math::TVector<RealType>& LineOrigin,
-		const UE::Math::TVector<RealType>& LineDirection,
-		const UE::Math::TVector<RealType>& SphereCenter,
+		const TVector<RealType>& LineOrigin,
+		const TVector<RealType>& LineDirection,
+		const TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		FLinearIntersection result;
@@ -191,9 +192,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool RaySphereTest(
-		const UE::Math::TVector<RealType>& RayOrigin,
-		const UE::Math::TVector<RealType>& RayDirection,
-		const UE::Math::TVector<RealType>& SphereCenter,
+		const TVector<RealType>& RayOrigin,
+		const TVector<RealType>& RayDirection,
+		const TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		// adapted from GeometricTools GTEngine
@@ -204,7 +205,7 @@ namespace IntersectionUtil
 		// quadratic equation Q(t) = t^2 + 2*a1*t + a0 = 0, where a1 = D^T*(P-C),
 		// and a0 = (P-C)^T*(P-C)-1.
 
-		FVector3<RealType> diff = RayOrigin - SphereCenter;
+		TVector<RealType> diff = RayOrigin - SphereCenter;
 		RealType a0 = diff.SquaredLength() - SphereRadius * SphereRadius;
 		if (a0 <= 0)
 		{
@@ -229,9 +230,9 @@ namespace IntersectionUtil
 	 */
 	template<typename RealType>
 	bool RaySphereIntersection(
-		const UE::Math::TVector<RealType>& RayOrigin,
-		const UE::Math::TVector<RealType>& RayDirection,
-		const UE::Math::TVector<RealType>& SphereCenter,
+		const TVector<RealType>& RayOrigin,
+		const TVector<RealType>& RayDirection,
+		const TVector<RealType>& SphereCenter,
 		RealType SphereRadius, 
 		FLinearIntersection& Result)
 	{
@@ -260,9 +261,9 @@ namespace IntersectionUtil
 
 	template<typename RealType>
 	FLinearIntersection RaySphereIntersection(
-		const UE::Math::TVector<RealType>& RayOrigin,
-		const UE::Math::TVector<RealType>& RayDirection,
-		const UE::Math::TVector<RealType>& SphereCenter,
+		const TVector<RealType>& RayOrigin,
+		const TVector<RealType>& RayDirection,
+		const TVector<RealType>& SphereCenter,
 		RealType SphereRadius)
 	{
 		FLinearIntersection result;

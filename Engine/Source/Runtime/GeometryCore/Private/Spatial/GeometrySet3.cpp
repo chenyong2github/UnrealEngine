@@ -237,7 +237,7 @@ bool FGeometrySet3::FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut
 			{
 				bTakePoint = true;
 			}
-			else if (Ray.PointAt(MinRayParamT).Distance(CurveNearestPosition) < NearestWithinTolDist && CurveNearestDist < NearestWithinTolDist)
+			else if ( Distance(Ray.PointAt(MinRayParamT), CurveNearestPosition) < NearestWithinTolDist && CurveNearestDist < NearestWithinTolDist)
 			{
 				bTakePoint = true;
 			}

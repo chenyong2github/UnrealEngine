@@ -11,6 +11,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * FDynamicMeshTangents is a helper object for accessing tangents stored in the AttributeSet of a FDynamicMesh3.
  */
@@ -65,9 +67,9 @@ protected:
 	/** Target Mesh */
 	const FDynamicMesh3* Mesh;
 	/** Set of computed tangents */
-	TArray<FVector3<RealType>> Tangents;
+	TArray<TVector<RealType>> Tangents;
 	/** Set of computed bitangents */
-	TArray<FVector3<RealType>> Bitangents;
+	TArray<TVector<RealType>> Bitangents;
 	/** Indices of degenerate triangles. This may be useful to know externally, as those tangets are often meaningless */
 	TArray<int32> AllDegenerateTris;
 
@@ -87,9 +89,9 @@ public:
 		this->Mesh = MeshIn;
 	}
 
-	const TArray<FVector3<RealType>>& GetTangents() const { return Tangents; }
+	const TArray<TVector<RealType>>& GetTangents() const { return Tangents; }
 
-	const TArray<FVector3<RealType>>& GetBitangents() const { return Bitangents; }
+	const TArray<TVector<RealType>>& GetBitangents() const { return Bitangents; }
 
 	const TArray<int32>& GetDegenerateTris() const { return AllDegenerateTris; }
 
@@ -181,8 +183,8 @@ public:
 		}
 		else
 		{
-			TangentOut = FVector3<RealType>::UnitX();
-			BitangentOut = FVector3<RealType>::UnitY();
+			TangentOut = TVector<RealType>::UnitX();
+			BitangentOut = TVector<RealType>::UnitY();
 		}
 	}
 
@@ -192,7 +194,7 @@ public:
 	 * @param TriangleID triangle index in mesh
 	 * @param TriVertIdx vertex index in range 0,1,2
 	 */
-	void SetPerTriangleTangent(int TriangleID, int TriVertIdx, const FVector3<RealType>& Tangent, const FVector3<RealType>& Bitangent)
+	void SetPerTriangleTangent(int TriangleID, int TriVertIdx, const TVector<RealType>& Tangent, const TVector<RealType>& Bitangent)
 	{
 		int k = TriangleID * 3 + TriVertIdx;
 		Tangents[k] = Tangent;
@@ -260,16 +262,16 @@ template<typename RealType>
 template<typename OtherRealType>
 void TMeshTangents<RealType>::CopyTriVertexTangents(const TMeshTangents<OtherRealType>& OtherMeshTangents)
 {
-	const TArray<FVector3<OtherRealType>>& OtherTangents = OtherMeshTangents.GetTangents();
-	const TArray<FVector3<OtherRealType>>& OtherBitangents = OtherMeshTangents.GetBitangents();
+	const TArray<TVector<OtherRealType>>& OtherTangents = OtherMeshTangents.GetTangents();
+	const TArray<TVector<OtherRealType>>& OtherBitangents = OtherMeshTangents.GetBitangents();
 
 	int32 Num = OtherTangents.Num();
 	check(Mesh->MaxTriangleID() * 3 == Num);
 	InitializeTriVertexTangents(false);
 	for (int32 k = 0; k < Num; ++k)
 	{
-		Tangents[k] = FVector3<RealType>(OtherTangents[k]);
-		Bitangents[k] = FVector3<RealType>(OtherBitangents[k]);
+		Tangents[k] = TVector<RealType>(OtherTangents[k]);
+		Bitangents[k] = TVector<RealType>(OtherBitangents[k]);
 	}
 	AllDegenerateTris = OtherMeshTangents.GetDegenerateTris();
 }

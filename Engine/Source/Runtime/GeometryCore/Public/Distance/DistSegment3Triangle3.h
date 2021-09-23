@@ -16,6 +16,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
 * Compute unsigned distance between 3D segment and 3D triangle
 */
@@ -30,7 +32,7 @@ public:
 	// Output
 	Real DistanceSquared = -1.0;
 	Real SegmentParameter;
-	FVector3<Real> TriangleClosest, TriangleBaryCoords, SegmentClosest;
+	TVector<Real> TriangleClosest, TriangleBaryCoords, SegmentClosest;
 	
 	TDistSegment3Triangle3(const TSegment3<Real>& SegmentIn, const TTriangle3<Real>& TriangleIn) : Segment(SegmentIn), Triangle(TriangleIn)
 	{

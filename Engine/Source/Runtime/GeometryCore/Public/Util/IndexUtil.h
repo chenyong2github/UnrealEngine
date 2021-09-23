@@ -12,6 +12,7 @@
 
 namespace IndexUtil
 {
+	using namespace UE::Math;
 	using namespace UE::Geometry;
 	using UE::Geometry::FIndex2i;
 
@@ -252,7 +253,7 @@ namespace IndexUtil
 	 * Replace Val with MapFunc[Val] using index operator
 	 */
 	template<typename T, typename Func>
-	void ApplyMap(FVector3<T> & Val, Func MapFunc)
+	void ApplyMap(TVector<T> & Val, Func MapFunc)
 	{
 		Val[0] = MapFunc[Val[0]];
 		Val[1] = MapFunc[Val[1]];
@@ -274,9 +275,9 @@ namespace IndexUtil
 	 * @return MapFunc[Val] using index operator
 	 */
 	template<typename T, typename Func>
-	FVector3<T> ApplyMap(const FVector3<T> & Val, Func MapFunc)
+	TVector<T> ApplyMap(const TVector<T> & Val, Func MapFunc)
 	{
-		return FVector3<T>(MapFunc[Val[0]], MapFunc[Val[1]], MapFunc[Val[2]]);
+		return TVector<T>(MapFunc[Val[0]], MapFunc[Val[1]], MapFunc[Val[2]]);
 	}
 	
 	/**

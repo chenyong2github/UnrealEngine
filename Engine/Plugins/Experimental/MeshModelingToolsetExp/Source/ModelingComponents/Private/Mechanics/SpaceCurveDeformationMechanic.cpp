@@ -310,7 +310,7 @@ void USpaceCurveDeformationMechanic::GizmoTransformChanged(UTransformProxy* Prox
 		double AccumDist = 0;
 		for (int32 k = 1; k < NumPoints; ++k)
 		{
-			double Dist = CurveStartPositions[OrderedPoints[k]].Origin.Distance(CurveStartPositions[OrderedPoints[k-1]].Origin);
+			double Dist = Distance( CurveStartPositions[OrderedPoints[k]].Origin, CurveStartPositions[OrderedPoints[k-1]].Origin );
 			AccumDist += Dist;
 			Distances[k] = AccumDist;
 			if (OrderedPoints[k] == CenterID)

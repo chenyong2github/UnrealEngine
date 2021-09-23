@@ -41,7 +41,7 @@ public:
 	 * @param Index point index in range [0,Num()-1]
 	 * @return sphere point for given Index
 	 */
-	FVector3<RealType> Point(int32 Index) const
+	TVector<RealType> Point(int32 Index) const
 	{
 		static const RealType PHI = ( TMathUtil<RealType>::Sqrt(5.0) + 1.0) / 2.0;
 
@@ -54,7 +54,7 @@ public:
 		RealType theta = TMathUtil<RealType>::ACos(z);
 		RealType sin_theta = TMathUtil<RealType>::Sin(theta);
 
-		return FVector3<RealType>(cos_phi * sin_theta, sin_phi * sin_theta, z);
+		return TVector<RealType>(cos_phi * sin_theta, sin_phi * sin_theta, z);
 	}
 
 
@@ -62,7 +62,7 @@ public:
 	 * @param Index point index in range [0,Num()-1]
 	 * @return sphere point for given Index
 	 */
-	FVector3<RealType> operator[](int32 Index) const
+	TVector<RealType> operator[](int32 Index) const
 	{
 		return Point(Index);
 	}
@@ -71,7 +71,7 @@ public:
 	/**
 	 * @return Index of the sphere point closest to the given point P
 	 */
-	int32 FindIndex(const FVector3<RealType>& P)
+	int32 FindIndex(const TVector<RealType>& P)
 	{
 		static const RealType PHI = (TMathUtil<RealType>::Sqrt(5.0) + 1.0) / 2.0;
 
@@ -105,11 +105,11 @@ public:
 			phi = 2.0 * TMathUtil<RealType>::Pi * MultiplyAddFrac(i, PHI - 1);
 			cosTheta = 1.0 - (2.0 * i + 1.0) * (1.0 / N); // rcp(n);
 			RealType sinTheta = TMathUtil<RealType>::Sqrt(1.0 - cosTheta * cosTheta);
-			FVector3<RealType> q( 
+			TVector<RealType> q( 
 				TMathUtil<RealType>::Cos(phi) * sinTheta, 
 				TMathUtil<RealType>::Sin(phi) * sinTheta, 
 				cosTheta );
-			RealType SquaredDistance = q.DistanceSquared(P);
+			RealType SquaredDistance = DistanceSquared(q, P);
 			if (SquaredDistance < d)
 			{
 				d = SquaredDistance;
@@ -243,11 +243,11 @@ public:
 	 * @param Index point index in range [0,Num()-1]
 	 * @return sphere point for given Index
 	 */
-	FVector3<RealType> Point(int32 Index) const
+	TVector<RealType> Point(int32 Index) const
 	{
 		checkSlow(Index >= 0 && Index < N);
 
-		FVector3<RealType> Point;
+		TVector<RealType> Point;
 		switch (Distribution)
 		{
 		case EDistribution::Uniform:
@@ -270,7 +270,7 @@ public:
 			// Reference: Physically Based Rendering: From Theory to Implementation
 			// http://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations.html#Cosine-WeightedHemisphereSampling
 			RealType Z = TMathUtil<RealType>::Sqrt(TMathUtil<RealType>::Max(0.0, 1.0 - Pt.X * Pt.X - Pt.Y * Pt.Y));
-			Point = FVector3<RealType>(Pt.X, Pt.Y, Z);
+			Point = TVector<RealType>(Pt.X, Pt.Y, Z);
 			break;
 		}
 		}
@@ -281,7 +281,7 @@ public:
 	 * @param Index point index in range [0,Num()-1]
 	 * @return sphere point for given Index
 	 */
-	FVector3<RealType> operator[](int32 Index) const
+	TVector<RealType> operator[](int32 Index) const
 	{
 		return Point(Index);
 	}

@@ -95,7 +95,7 @@ public:
 			return false;
 		}
 
-		FVector3<Real> Dist;
+		TVector<Real> Dist;
 		FVector3i Sign;
 		int Positive = 0, Negative = 0, Zero = 0;
 		TriangleLineRelations(Line.Origin, Line.Direction, Triangle, Dist, Sign, Positive, Negative, Zero);
@@ -147,7 +147,7 @@ public:
 
 	static void TriangleLineRelations(
 		const TVector2<Real>& Origin, const TVector2<Real>& Direction, const TTriangle2<Real>& Tri,
-		FVector3<Real>& Dist, FVector3i& Sign, int& Positive, int& Negative, int& Zero, Real Tolerance = TMathUtil<Real>::ZeroTolerance)
+		TVector<Real>& Dist, FVector3i& Sign, int& Positive, int& Negative, int& Zero, Real Tolerance = TMathUtil<Real>::ZeroTolerance)
 	{
 		Positive = 0;
 		Negative = 0;
@@ -177,10 +177,10 @@ public:
 
 
 	static bool GetInterval(const TVector2<Real>& Origin, const TVector2<Real>& Direction, const TTriangle2<Real>& Tri,
-							const FVector3<Real>& Dist, const FVector3i& Sign, TVector2<Real>& param)
+							const TVector<Real>& Dist, const FVector3i& Sign, TVector2<Real>& param)
 	{
 		// Project Triangle onto Line.
-		FVector3<Real> proj;
+		TVector<Real> proj;
 		int i;
 		for (i = 0; i < 3; ++i)
 		{

@@ -10,6 +10,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /*
  * 3D Sphere stored as Center point and Radius
  */
@@ -18,13 +20,13 @@ struct TSphere3
 {
 public:
 	/** Center of the sphere */
-	FVector3<T> Center = FVector3<T>::Zero();
+	TVector<T> Center = TVector<T>::Zero();
 	/** Radius of the sphere */
 	T Radius = (T)0;
 
 	TSphere3() = default;
 
-	TSphere3(const FVector3<T>& CenterIn, T RadiusIn)
+	TSphere3(const TVector<T>& CenterIn, T RadiusIn)
 		: Center(CenterIn), Radius(RadiusIn) {}
 
 	/** @return Diameter of sphere */
@@ -52,16 +54,16 @@ public:
 	}
 
 	/** @return true if Sphere contains given Point */
-	bool Contains(const FVector3<T>& Point) const
+	bool Contains(const TVector<T>& Point) const
 	{
-		T DistSqr = Center.DistanceSquared(Point);
+		T DistSqr = UE::Geometry::DistanceSquared(Center, Point);
 		return DistSqr <= Radius * Radius;
 	}
 
 	/** @return true if Sphere contains given OtherSphere */
 	bool Contains(const TSphere3<T>& OtherSphere) const
 	{
-		T CenterDist = Center.Distance(OtherSphere.Center);
+		T CenterDist = Distance(Center, OtherSphere.Center);
 		return (CenterDist + OtherSphere.Radius) <= Radius;
 	}
 
@@ -69,7 +71,7 @@ public:
 	/**
 	 * @return minimum squared distance from Point to Sphere surface for points outside sphere, 0 for points inside
 	 */
-	inline T DistanceSquared(const FVector3<T>& Point) const
+	inline T DistanceSquared(const TVector<T>& Point) const
 	{
 		const T PosDistance = TMathUtil<T>::Max(SignedDistance(Point), (T)0);
 		return PosDistance * PosDistance;
@@ -78,9 +80,9 @@ public:
 	/**
 	 * @return signed distance from Point to Sphere surface. Points inside sphere return negative distance.
 	 */
-	inline T SignedDistance(const FVector3<T>& Point) const
+	inline T SignedDistance(const TVector<T>& Point) const
 	{
-		return Center.Distance(Point) - Radius;
+		return UE::Geometry::Distance(Center, Point) - Radius;
 	}
 
 

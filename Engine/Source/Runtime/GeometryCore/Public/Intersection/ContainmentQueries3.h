@@ -35,7 +35,7 @@ namespace UE
 		template<typename RealType, typename EnumerablePointsType, typename E = decltype(DeclVal<EnumerablePointsType>().begin())>
 		bool IsInside(const TSphere3<RealType>& OuterSphere, EnumerablePointsType EnumerablePts)
 		{
-			for (FVector3<RealType> Point : EnumerablePts)
+			for (TVector<RealType> Point : EnumerablePts)
 			{
 				if (OuterSphere.Contains(Point) == false)
 				{
@@ -67,7 +67,7 @@ namespace UE
 		template<typename RealType, typename EnumerablePointsType, typename E = decltype(DeclVal<EnumerablePointsType>().begin())>
 		bool IsInside(const TCapsule3<RealType>& OuterCapsule, EnumerablePointsType EnumerablePts)
 		{
-			for (FVector3<RealType> Point : EnumerablePts)
+			for (TVector<RealType> Point : EnumerablePts)
 			{
 				if (OuterCapsule.Contains(Point) == false)
 				{
@@ -99,7 +99,7 @@ namespace UE
 		template<typename RealType, typename EnumerablePointsType, typename E = decltype(DeclVal<EnumerablePointsType>().begin())>
 		bool IsInside(const TOrientedBox3<RealType>& OuterBox, EnumerablePointsType EnumerablePts)
 		{
-			for (FVector3<RealType> Point : EnumerablePts)
+			for (TVector<RealType> Point : EnumerablePts)
 			{
 				if (OuterBox.Contains(Point) == false)
 				{
@@ -200,7 +200,7 @@ bool UE::Geometry::IsInsideHull(TArrayView<THalfspace3<RealType>> Halfspaces, En
 {
 	for (const THalfspace3<RealType>& Halfspace : Halfspaces)
 	{
-		for (FVector3<RealType> Point : EnumerablePts)
+		for (TVector<RealType> Point : EnumerablePts)
 		{
 			if (Halfspace.Contains(Point))
 			{
