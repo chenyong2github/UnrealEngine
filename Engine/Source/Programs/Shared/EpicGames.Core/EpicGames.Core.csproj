@@ -9,6 +9,7 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <Configurations>Debug;Release;Development</Configurations>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DocumentationFile></DocumentationFile>
@@ -26,6 +27,18 @@
       <Link>Properties\MetaData.cs</Link>
     </Compile>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\..\Restricted\*\Source\Programs\Shared\EpicGames.Core\ScopeProfiler\*.cs">
+      <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^.+?[\\/]EpicGames.Core[\\/]', ''))</Link>
+    </Compile>
+  </ItemGroup>
+  <Choose>
+    <When Condition="Exists('..\..\..\..\Restricted\NoRedist\Source\Programs\Shared\EpicGames.Core\ScopeProfiler\')">
+      <PropertyGroup>
+        <DefineConstants>$(DefineConstants);__SCOPEPROFILER_AVAILABLE__</DefineConstants>
+      </PropertyGroup>
+    </When>
+  </Choose>
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="2021.2.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
