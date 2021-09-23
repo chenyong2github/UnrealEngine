@@ -1750,6 +1750,14 @@ namespace Metasound
 			MetasoundGraphEditor->NotifyGraphChanged();
 		}
 
+		void FEditor::RefreshDetails()
+		{
+			if (MetasoundDetails.IsValid())
+			{
+				MetasoundDetails->ForceRefresh();
+			}
+		}
+
 		void FEditor::RefreshInterface()
 		{
 			if (MetasoundInterfaceMenu.IsValid())
@@ -1939,7 +1947,8 @@ namespace Metasound
 				.OnClosedCallback(InOnMenuClosed);
 // 				.OnCloseReason(this, &FEditor::OnGraphActionMenuClosed);
 
-			return FActionMenuContent(ActionMenu, ActionMenu->GetFilterTextBox());
+			TSharedPtr<SWidget> FilterTextBox = StaticCastSharedRef<SWidget>(ActionMenu->GetFilterTextBox());
+			return FActionMenuContent(StaticCastSharedRef<SWidget>(ActionMenu), FilterTextBox);
 		}
 
 		void FEditor::OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType)
