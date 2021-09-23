@@ -346,11 +346,23 @@ bool CompareValueArraysByExpressionGUID(const TArray<T>& InA, const TArray<T>& I
 	return AA == BB;
 }
 
+enum class EMaterialInstanceClearParameterFlag
+{
+	None = 0u,
+	Numeric = (1u << 0),
+	Texture = (1u << 1),
+	Static = (1u << 2),
+
+	AllNonStatic = Numeric | Texture,
+	All = AllNonStatic | Static,
+};
+ENUM_CLASS_FLAGS(EMaterialInstanceClearParameterFlag);
+
 #if WITH_EDITORONLY_DATA
 class FMaterialInstanceParameterUpdateContext
 {
 public:
-	ENGINE_API explicit FMaterialInstanceParameterUpdateContext(UMaterialInstance* InInstance);
+	ENGINE_API explicit FMaterialInstanceParameterUpdateContext(UMaterialInstance* InInstance, EMaterialInstanceClearParameterFlag ClearFlags = EMaterialInstanceClearParameterFlag::None);
 	ENGINE_API ~FMaterialInstanceParameterUpdateContext();
 
 	inline FStaticParameterSet& GetStaticParameters() { return StaticParameters; }
@@ -826,7 +838,7 @@ protected:
 	void SetTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, class UTexture* Value);
 	void SetRuntimeVirtualTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, class URuntimeVirtualTexture* Value);
 	void SetFontParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, class UFont* FontValue, int32 FontPage);
-	void ClearParameterValuesInternal(const bool bAllParameters = true);
+	void ClearParameterValuesInternal(EMaterialInstanceClearParameterFlag Flags = EMaterialInstanceClearParameterFlag::AllNonStatic);
 
 	/** Initialize the material instance's resources. */
 	ENGINE_API void InitResources();

@@ -891,10 +891,8 @@ void UMaterialEditorInstanceConstant::CopyToSourceInstance(const bool bForceStat
 			SourceInstance->MarkPackageDirty();
 		}
 
-		SourceInstance->ClearParameterValuesEditorOnly();
-
 		{
-			FMaterialInstanceParameterUpdateContext UpdateContext(SourceInstance);
+			FMaterialInstanceParameterUpdateContext UpdateContext(SourceInstance, EMaterialInstanceClearParameterFlag::All);
 			UpdateContext.SetBasePropertyOverrides(BasePropertyOverrides);
 			UpdateContext.SetForceStaticPermutationUpdate(bForceStaticPermutationUpdate);
 
@@ -999,7 +997,7 @@ void UMaterialEditorInstanceConstant::SetSourceInstance(UMaterialInstanceConstan
 	RegenerateArrays();
 
 	//propagate changes to the base material so the instance will be updated if it has a static permutation resource
-	FMaterialInstanceParameterUpdateContext UpdateContext(SourceInstance);
+	FMaterialInstanceParameterUpdateContext UpdateContext(SourceInstance, EMaterialInstanceClearParameterFlag::Static);
 	for (int32 GroupIdx = 0; GroupIdx < ParameterGroups.Num(); GroupIdx++)
 	{
 		FEditorParameterGroup& Group = ParameterGroups[GroupIdx];
