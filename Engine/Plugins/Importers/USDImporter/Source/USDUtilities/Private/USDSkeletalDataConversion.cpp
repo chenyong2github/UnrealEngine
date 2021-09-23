@@ -1065,7 +1065,35 @@ bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery
 		ParentJointIndices.Add(ParentIndex);
 	}
 
-	if (JointNames.Num() == 0 || JointNames.Num() > MAX_BONES)
+	// Skeleton has no joints: Generate a dummy single "Root" bone skeleton
+	if ( JointNames.Num() == 0 )
+	{
+		FString SkeletonPrimPath = UsdToUnreal::ConvertPath( SkeletonQuery.GetPrim().GetPath() );
+
+		FUsdLogManager::LogMessage(
+			EMessageSeverity::Warning,
+			FText::Format( LOCTEXT( "NoBonesInSkeleton", "Skeleton prim '{0}' has no joints! "
+				"A new skeleton with a single 'Root' bone will be generated as USkeletalMeshes require valid skeletons. "
+				"Note that this new skeleton may be written back to the USD stage when exporting the corresponding asset." ),
+				FText::FromString( SkeletonPrimPath )
+			)
+		);
+
+		SkelMeshImportData.RefBonesBinary.AddZeroed( 1 );
+
+		SkeletalMeshImportData::FBone& Bone = SkelMeshImportData.RefBonesBinary.Last();
+		Bone.Name = TEXT("Root");
+		Bone.ParentIndex = INDEX_NONE;
+		Bone.NumChildren = 0;
+		Bone.BonePos.Transform = FTransform::Identity;
+		Bone.BonePos.Length = 1.0f;
+		Bone.BonePos.XSize = 100.0f;
+		Bone.BonePos.YSize = 100.0f;
+		Bone.BonePos.ZSize = 100.0f;
+		return true;
+	}
+
+	if ( JointNames.Num() > MAX_BONES )
 	{
 		return false;
 	}
