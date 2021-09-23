@@ -136,7 +136,7 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, c
 
 	if (InstanceData->bIsGpuUniformlyDistributedSampling)
 	{
-		BufferUniformTriangleSamplingSRV = Res->AreaWeightedSectionSamplersBuffer.GetBufferSRV(); // Cache that SRV for later
+		BufferUniformTriangleSamplingSRV = Res->AreaWeightedSectionSamplersBuffer.GetBufferSRV();
 	}
 
 	// Init socket data
@@ -2797,7 +2797,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FNiagaraDataInterfac
 				{
 					// Uniform area weighted position selection (using alias method from Alias method from FWeightedRandomSampler)
 					uint TriangleIndex = min(uint(RandT0*float(SectionTriangleCount)), SectionTriangleCount-1);
-					uint4 TriangleData = {MeshTriangleBufferName}[SectionFirstTriangle + TriangleIndex];
+					uint2 TriangleData = {MeshTriangleBufferName}[SectionFirstTriangle + TriangleIndex];
 
 					// Alias check
 					float RandT1 = NiagaraInternalNoise(1, 2, 3);
@@ -2850,7 +2850,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FNiagaraDataInterfac
 				{
 					// Uniform area weighted position selection (using alias method from Alias method from FWeightedRandomSampler)
 					uint TriangleIndex = min(uint(RandT0*float(SectionTriangleCount)), SectionTriangleCount-1);
-					uint4 TriangleData = {MeshTriangleBufferName}[SectionFirstTriangle + TriangleIndex];
+					uint2 TriangleData = {MeshTriangleBufferName}[SectionFirstTriangle + TriangleIndex];
 
 					// Alias check
 					float RandT1 = NiagaraInternalNoise(1, 2, 3);
@@ -3429,7 +3429,7 @@ void UNiagaraDataInterfaceStaticMesh::GetParameterDefinitionHLSL(const FNiagaraD
 	OutHLSL += TEXT("Buffer<float2> ") + ParamNames.MeshTexCoordBufferName + TEXT(";\n");
 	OutHLSL += TEXT("Buffer<float4> ") + ParamNames.MeshColorBufferName + TEXT(";\n");
 	OutHLSL += TEXT("Buffer<uint4> ") + ParamNames.MeshSectionBufferName + TEXT(";\n");
-	OutHLSL += TEXT("Buffer<uint4> ") + ParamNames.MeshTriangleBufferName + TEXT(";\n");
+	OutHLSL += TEXT("Buffer<uint2> ") + ParamNames.MeshTriangleBufferName + TEXT(";\n");
 	OutHLSL += TEXT("uint ") + ParamNames.UseColorBufferName + TEXT(";\n");
 	OutHLSL += TEXT("uint ") + ParamNames.SectionCountName + TEXT(";\n");
 	OutHLSL += TEXT("float4x4 ") + ParamNames.InstanceTransformName + TEXT(";\n");
