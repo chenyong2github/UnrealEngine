@@ -72,39 +72,34 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 				return;
 			}
 
-			const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = GridLevelHelper.GetCell(CellCoord);
+			 //@todo_ow: Properly handle data layers
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.bDeferConstruction = true;
+			SpawnParams.bCreateActorPackage = true;
+			ANavigationDataChunkActor* DataChunkActor = World->SpawnActor<ANavigationDataChunkActor>(SpawnParams);
+			ActorCount++;
 
-			//@todo_ow: Properly handle data layers
-			if (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk* GridCellDataChunk = GridCell.GetNoDataLayersDataChunk())
-			{
-				FActorSpawnParameters SpawnParams;
-				SpawnParams.bDeferConstruction = true;
-				SpawnParams.bCreateActorPackage = true;
-				ANavigationDataChunkActor* DataChunkActor = World->SpawnActor<ANavigationDataChunkActor>(SpawnParams);
-				ActorCount++;
+			const FVector2D CellCenter = CellBounds.GetCenter();
+			DataChunkActor->SetActorLocation(FVector(CellCenter.X, CellCenter.Y, 0.f));
 
-				const FVector2D CellCenter = CellBounds.GetCenter();
-				DataChunkActor->SetActorLocation(FVector(CellCenter.X, CellCenter.Y, 0.f));
+			FBox TilesBounds(EForceInit::ForceInit);
+			DataChunkActor->CollectNavData(QueryBounds, TilesBounds);
 
-				FBox TilesBounds(EForceInit::ForceInit);
-				DataChunkActor->CollectNavData(QueryBounds, TilesBounds);
+			FBox ChunkActorBounds(FVector(QueryBounds.Min.X, QueryBounds.Min.Y, TilesBounds.Min.Z), FVector(QueryBounds.Max.X, QueryBounds.Max.Y, TilesBounds.Max.Z));
+			ChunkActorBounds = ChunkActorBounds.ExpandBy(FVector(-1.f, -1.f, 1.f)); //reduce XY by 1cm to avoid precision issues causing potential overflow on neighboring cell, add 1cm in Z to have a minimum of volume.
+			UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, VeryVerbose, TEXT("Setting ChunkActorBounds to %s"), *ChunkActorBounds.ToString());
+			DataChunkActor->SetDataChunkActorBounds(ChunkActorBounds);
 
-				FBox ChunkActorBounds(FVector(QueryBounds.Min.X, QueryBounds.Min.Y, TilesBounds.Min.Z), FVector(QueryBounds.Max.X, QueryBounds.Max.Y, TilesBounds.Max.Z));
-				ChunkActorBounds = ChunkActorBounds.ExpandBy(FVector(-1.f, -1.f, 1.f)); //reduce XY by 1cm to avoid precision issues causing potential overflow on neighboring cell, add 1cm in Z to have a minimum of volume.
-				UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, VeryVerbose, TEXT("Setting ChunkActorBounds to %s"), *ChunkActorBounds.ToString());
-				DataChunkActor->SetDataChunkActorBounds(ChunkActorBounds);
+			FIntVector CellGlobalCoord;
+			verify(GridHelper.GetCellGlobalCoords(FIntVector(CellCoord.X, CellCoord.Y, GridLevel), CellGlobalCoord));
+			const FName CellName = GetCellName(RuntimeGrid.GridName, CellGlobalCoord, FDataLayersID());
+			DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s_%s"), *GetName(), *CellName.ToString()));
 
-				FIntVector CellGlobalCoord;
-				verify(GridHelper.GetCellGlobalCoords(FIntVector(CellCoord.X, CellCoord.Y, GridLevel), CellGlobalCoord));
-				const FName CellName = GetCellName(RuntimeGrid.GridName, CellGlobalCoord, GridCellDataChunk->GetDataLayersID());
-				DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s_%s"), *GetName(), *CellName.ToString()));
+			// Set target grid
+			DataChunkActor->SetRuntimeGrid(RuntimeGrid.GridName);
+			ValidNavigationDataChunkActors.Add(DataChunkActor);
 
-				// Set target grid
-				DataChunkActor->SetRuntimeGrid(RuntimeGrid.GridName);
-				ValidNavigationDataChunkActors.Add(DataChunkActor);
-
-				UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Verbose, TEXT("%i) %s added."), ActorCount, *DataChunkActor->GetName());
-			}
+			UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Verbose, TEXT("%i) %s added."), ActorCount, *DataChunkActor->GetName());
 		});
 
 	// Destroy all invalid navigation data chunk actors
