@@ -4,6 +4,7 @@
 
 #include "USDMemory.h"
 
+#include "Modules/ModuleManager.h"
 
 class FUsdStageEditorViewModelsModule : public IUsdStageEditorViewModelsModule
 {
