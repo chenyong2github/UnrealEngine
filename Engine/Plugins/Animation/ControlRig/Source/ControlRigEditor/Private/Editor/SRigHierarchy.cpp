@@ -594,6 +594,11 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 
 void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
+	if (!InElement)
+	{
+		return;
+	}
+
 	if(!ControlRigBlueprint.IsValid())
 	{
 		return;
