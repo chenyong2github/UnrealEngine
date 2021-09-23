@@ -329,7 +329,7 @@ FZenServiceInstance::AutoLaunch()
 			(::DWORD)CW_USEDEFAULT,
 			(::DWORD)0, (::DWORD)0, (::DWORD)0,
 			(::DWORD) STARTF_USESHOWWINDOW,
-			Settings.AutoLaunchSettings.bHidden ? SW_HIDE : SW_SHOWMINNOACTIVE,
+			(::WORD)(Settings.AutoLaunchSettings.bHidden ? SW_HIDE : SW_SHOWMINNOACTIVE),
 			0, NULL,
 			HANDLE(nullptr),
 			HANDLE(nullptr),
