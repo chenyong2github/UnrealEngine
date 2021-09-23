@@ -21,6 +21,7 @@ class SLATE_API SToolTip
 	, public IToolTip
 {
 public:
+	DECLARE_DELEGATE_OneParam(FOnSetInteractiveWindowLocation, FVector2D&);
 
 	SLATE_BEGIN_ARGS( SToolTip )
 		: _Text()
@@ -30,6 +31,7 @@ public:
 		, _TextMargin(FMargin(8.0f))
 		, _BorderImage(FCoreStyle::Get().GetBrush("ToolTip.Background"))
 		, _IsInteractive(false)
+		, _OnSetInteractiveWindowLocation()
 	{ }
 
 		/** The text displayed in this tool tip */
@@ -52,6 +54,9 @@ public:
 
 		/** Whether the tooltip should be considered interactive */
 		SLATE_ATTRIBUTE(bool, IsInteractive)
+
+		/** Hook to modify or override the desired location (in screen space) for interactive tooltip windows. By default, the previous frame's cursor position will be used. */
+		SLATE_EVENT(FOnSetInteractiveWindowLocation, OnSetInteractiveWindowLocation)
 
 	SLATE_END_ARGS()
 
@@ -83,7 +88,7 @@ public:
 	virtual bool IsInteractive( ) const override;
 	virtual void OnOpening() override { }
 	virtual void OnClosed() override { }
-
+	virtual void OnSetInteractiveWindowLocation(FVector2D& InOutDesiredLocation) const override;
 
 	virtual const FText& GetTextTooltip() const
 	{
@@ -119,4 +124,7 @@ private:
 	
 	// Whether the tooltip should be considered interactive.
 	TAttribute<bool> bIsInteractive;
+
+	// Optional delegate to modify or override the desired location for an interactive tooltip.
+	FOnSetInteractiveWindowLocation OnSetInteractiveWindowLocationDelegate;
 };
