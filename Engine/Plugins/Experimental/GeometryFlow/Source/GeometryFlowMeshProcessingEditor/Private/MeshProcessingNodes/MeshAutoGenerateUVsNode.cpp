@@ -8,7 +8,10 @@
 using namespace UE::GeometryFlow;
 
 
-void FMeshAutoGenerateUVsNode::GenerateUVs(const FDynamicMesh3& MeshIn, const FMeshAutoGenerateUVsSettings& Settings, FDynamicMesh3& MeshOut)
+void FMeshAutoGenerateUVsNode::GenerateUVs(const FDynamicMesh3& MeshIn, 
+	const FMeshAutoGenerateUVsSettings& Settings, 
+	FDynamicMesh3& MeshOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	// this is horrible - have to copy input mesh so that we can pass a TSharedPtr
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(MeshIn);
@@ -42,9 +45,13 @@ void FMeshAutoGenerateUVsNode::GenerateUVs(const FDynamicMesh3& MeshIn, const FM
 		ParameterizeMeshOp.Method = UE::Geometry::EParamOpBackend::PatchBuilder;
 	}
 
-	FProgressCancel Progress;
-	ParameterizeMeshOp.CalculateResult(&Progress);
-	TUniquePtr<FDynamicMesh3> ResultMesh = ParameterizeMeshOp.ExtractResult();
+	ParameterizeMeshOp.CalculateResult(EvaluationInfo->Progress);
 
+	if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+	{
+		return;
+	}
+
+	TUniquePtr<FDynamicMesh3> ResultMesh = ParameterizeMeshOp.ExtractResult();
 	MeshOut = MoveTemp(*ResultMesh);
 }

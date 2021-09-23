@@ -12,7 +12,8 @@ void FMeshThickenNode::ProcessMesh(
 	const FNamedDataMap& DatasIn,
 	const FMeshThickenSettings& SettingsIn,
 	const FDynamicMesh3& MeshIn,
-	FDynamicMesh3& MeshOut) 
+	FDynamicMesh3& MeshOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	TSafeSharedPtr<IData> WeightMapMeshArg = DatasIn.FindData(InParamWeightMap());
 	FWeightMap WeightMap;
@@ -26,7 +27,8 @@ void FMeshThickenNode::ProcessMesh(
 void FMeshThickenNode::ProcessMeshInPlace(
 	const FNamedDataMap& DatasIn,
 	const FMeshThickenSettings& Settings,
-	FDynamicMesh3& MeshInOut) 
+	FDynamicMesh3& MeshInOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	TSafeSharedPtr<IData> WeightMapMeshArg = DatasIn.FindData(InParamWeightMap());
 	FWeightMap WeightMap;

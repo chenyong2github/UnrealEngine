@@ -35,7 +35,8 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FMeshSolidifySettings& SettingsIn,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		ApplySolidify(MeshIn, SettingsIn, MeshOut);
 	}

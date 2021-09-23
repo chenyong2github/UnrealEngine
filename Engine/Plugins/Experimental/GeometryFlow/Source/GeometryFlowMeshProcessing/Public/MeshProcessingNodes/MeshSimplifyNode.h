@@ -70,7 +70,8 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FMeshSimplifySettings& Settings,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		MeshOut.Copy(MeshIn, true, true, true, !Settings.bDiscardAttributes);
 		ApplySimplify(Settings, MeshOut);
@@ -79,7 +80,8 @@ public:
 	virtual void ProcessMeshInPlace(
 		const FNamedDataMap& DatasIn,
 		const FMeshSimplifySettings& Settings,
-		FDynamicMesh3& MeshInOut)
+		FDynamicMesh3& MeshInOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 	{
 		ApplySimplify(Settings, MeshInOut);
 	}

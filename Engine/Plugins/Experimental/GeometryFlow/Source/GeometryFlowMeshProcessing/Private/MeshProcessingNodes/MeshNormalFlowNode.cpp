@@ -97,7 +97,8 @@ void FMeshNormalFlowNode::ProcessMesh(
 	const FNamedDataMap& DatasIn,
 	const FMeshNormalFlowSettings& SettingsIn,
 	const FDynamicMesh3& MeshIn,
-	FDynamicMesh3& MeshOut)
+	FDynamicMesh3& MeshOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	TSafeSharedPtr<IData> ProjectionTargetMeshArg = DatasIn.FindData(InParamTargetMesh());
 	FDynamicMesh3 ProjectionTargetMesh;
@@ -113,7 +114,8 @@ void FMeshNormalFlowNode::ProcessMesh(
 void FMeshNormalFlowNode::ProcessMeshInPlace(
 	const FNamedDataMap& DatasIn,
 	const FMeshNormalFlowSettings& SettingsIn,
-	FDynamicMesh3& MeshInOut)
+	FDynamicMesh3& MeshInOut,
+	TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 {
 	// TODO: In this case, can we call IData::GiveTo instead of GetDataCopy for the projection target?
 	TSafeSharedPtr<IData> ProjectionTargetMeshArg = DatasIn.FindData(InParamTargetMesh());

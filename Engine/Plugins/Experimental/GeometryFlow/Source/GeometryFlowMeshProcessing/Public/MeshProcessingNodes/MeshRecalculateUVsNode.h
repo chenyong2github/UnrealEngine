@@ -43,7 +43,8 @@ public:
 		const FNamedDataMap& DatasIn,
 		const FMeshRecalculateUVsSettings& Settings,
 		const FDynamicMesh3& MeshIn,
-		FDynamicMesh3& MeshOut) override
+		FDynamicMesh3& MeshOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo) override
 	{
 		MeshOut = MeshIn;
 		RecalculateUVsOnMesh(MeshOut, Settings);
@@ -52,7 +53,8 @@ public:
 	virtual void ProcessMeshInPlace(
 		const FNamedDataMap& DatasIn,
 		const FMeshRecalculateUVsSettings& Settings,
-		FDynamicMesh3& MeshInOut)
+		FDynamicMesh3& MeshInOut,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo)
 	{
 		RecalculateUVsOnMesh(MeshInOut, Settings);
 	}
