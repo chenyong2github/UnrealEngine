@@ -329,6 +329,12 @@ public:
 		RHIUnlockBuffer(PageUploadBuffer.Buffer);
 
 		const uint32 NumPages = AddedPageInfos.Num();
+		if (NumPages == 0)	// This can end up getting called with NumPages = 0 when NumReadyPages > 0 and all pages early out.
+		{
+			ResetState();
+			return;
+		}
+
 		uint32 InstallInfoAllocationSize = FMath::RoundUpToPowerOfTwo(NumPages * sizeof(FPageInstallInfo));
 		if (InstallInfoAllocationSize > InstallInfoUploadBuffer.NumBytes)
 		{
