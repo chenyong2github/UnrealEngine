@@ -443,6 +443,16 @@ bool FNiagaraEditorUtilities::PODPropertyAppendCompileHash(const void* Container
 	}
 	else if (Property->IsA(FBoolProperty::StaticClass()))
 	{
+		//@HACK (ng) 4.27.1 avoid these specific properties in FNiagaraEditorUtilities::PODPropertyAppendCompileHash as we cannot mark them up as SkipForCompileHash without breaking ABI.
+		static const FString ScriptVarPropSubscribedToParameterDefinitionsNameString("bSubscribedToParameterDefinitions");
+		static const FString ScriptVarPropOverrideParameterDefinitionsDefaultValueNameString("bOverrideParameterDefinitionsDefaultValue");
+		const FString& PropertyNameString = Property->GetName();
+
+		if (PropertyNameString == ScriptVarPropSubscribedToParameterDefinitionsNameString || PropertyNameString == ScriptVarPropOverrideParameterDefinitionsDefaultValueNameString)
+		{
+			return true;
+		}
+
 		FBoolProperty* CastProp = CastFieldChecked<FBoolProperty>(Property);
 		bool Value = CastProp->GetPropertyValue_InContainer(Container, 0);
 		InVisitor->UpdatePOD(*PropertyName, Value);
