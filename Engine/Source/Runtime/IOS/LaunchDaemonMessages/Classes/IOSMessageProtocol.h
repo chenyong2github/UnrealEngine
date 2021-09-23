@@ -49,6 +49,7 @@ struct FIOSLaunchDaemonPong
 	FIOSLaunchDaemonPong()
 		: bCanPowerOff(false)
 		, bCanPowerOn(false)
+		, bIsAuthorized(false)
 		, bCanReboot(false)
 	{}
 
