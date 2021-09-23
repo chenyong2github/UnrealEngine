@@ -89,7 +89,7 @@ void __attribute__ ((destructor)) DllShutdown() {
   DxcSetThreadMallocToDefault();
   ::hlsl::options::cleanupHlslOptTable();
   ::llvm::sys::fs::CleanupPerThreadFileSystem();
-  ::llvm::llvm_shutdown();
+  //::llvm::llvm_shutdown(); //WORKAROUND: causes deadlocks on exit
   DxcClearThreadMalloc();
   DxcCleanupThreadMalloc();
 }
