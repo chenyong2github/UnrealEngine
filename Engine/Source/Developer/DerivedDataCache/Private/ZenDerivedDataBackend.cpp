@@ -434,7 +434,10 @@ FZenDerivedDataBackend::GetSpeedClass() const
 
 TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats() const
 {
-	return MakeShared<FDerivedDataCacheStatsNode>(this, "foo");
+	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("ZenDDC"), *GetName()));
+	Usage->Stats.Add(TEXT(""), UsageStats);
+
+	return Usage;
 }
 
 bool FZenDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
