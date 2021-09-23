@@ -9,7 +9,7 @@
 #include "FractureEditorModeToolkit.h"
 #include "FractureToolContext.h"
 
-#define LOCTEXT_NAMESPACE "FractureFixTinyGeo"
+#define LOCTEXT_NAMESPACE "FractureGeoMerge"
 
 
 UFractureToolFixTinyGeo::UFractureToolFixTinyGeo(const FObjectInitializer& ObjInit) 
@@ -21,12 +21,12 @@ UFractureToolFixTinyGeo::UFractureToolFixTinyGeo(const FObjectInitializer& ObjIn
 
 FText UFractureToolFixTinyGeo::GetDisplayText() const
 {
-	return FText(NSLOCTEXT("FixTinyGeo", "FractureToolFixTinyGeo", "Fix Too-Small Geometry")); 
+	return FText(NSLOCTEXT("FixTinyGeo", "FractureToolFixTinyGeo", "Geometry Merge Tool")); 
 }
 
 FText UFractureToolFixTinyGeo::GetTooltipText() const 
 {
-	return FText(NSLOCTEXT("FixTinyGeo", "FractureToolFixTinyGeoTooltip", "The TinyGeo tool glues \"too small\" pieces of geometry onto their neighbors."));
+	return FText(NSLOCTEXT("FixTinyGeo", "FractureToolFixTinyGeoTooltip", "The GeoMrg tool glues pieces of geometry onto their neighbors -- use it to, for example, clean up \"too small\" pieces of geometry."));
 }
 
 FSlateIcon UFractureToolFixTinyGeo::GetToolIcon() const 
@@ -36,7 +36,7 @@ FSlateIcon UFractureToolFixTinyGeo::GetToolIcon() const
 
 void UFractureToolFixTinyGeo::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, UICommandInfo, "FixTinyGeo", "TinyGeo", "FixTinyGeo", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "FixTinyGeo", "GeoMrg", "Geometry Merge Tool", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->FixTinyGeo = UICommandInfo;
 }
 
