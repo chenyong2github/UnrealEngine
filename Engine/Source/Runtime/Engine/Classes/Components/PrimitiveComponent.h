@@ -675,7 +675,7 @@ public:
 
 private:
 	/** Optional user defined default values for the custom primitive data of this primitive */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering, meta = (DisplayName = "Custom Primitive Data Defaults"))
+	UPROPERTY(EditAnywhere, Category=Rendering, meta = (DisplayName = "Custom Primitive Data Defaults"))
 	FCustomPrimitiveData CustomPrimitiveData;
 
 	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
@@ -921,6 +921,38 @@ public:
 	/** Get the mask filter checked when others move into us. */
 	FMaskFilter GetMaskFilterOnBodyInstance(FMaskFilter InMaskFilter) const { return BodyInstance.GetMaskFilter(); }
 
+	/**
+	 * Gets the index of the scalar parameter for the custom primitive data array
+	 * @param	ParameterName	The parameter name of the custom primitive
+	 * @return	The index of the custom primitive, INDEX_NONE (-1) if not found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	int32 GetCustomPrimitiveDataIndexForScalarParameter(FName ParameterName) const;
+
+	/**
+	 * Gets the index of the vector parameter for the custom primitive data array
+	 * @param	ParameterName	The parameter name of the custom primitive
+	 * @return	The index of the custom primitive, INDEX_NONE (-1) if not found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	int32 GetCustomPrimitiveDataIndexForVectorParameter(FName ParameterName) const;
+
+	/**
+	 * Set a scalar parameter for custom primitive data. This sets the run-time data only, so it doesn't serialize.
+	 * @param	ParameterName	The parameter name of the custom primitive
+	 * @param	Value			The new value of the custom primitive
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetScalarParameterForCustomPrimitiveData(FName ParameterName, float Value);
+
+	/**
+	 * Set a vector parameter for custom primitive data. This sets the run-time data only, so it doesn't serialize.
+	 * @param	ParameterName	The parameter name of the custom primitive
+	 * @param	Value			The new value of the custom primitive
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetVectorParameterForCustomPrimitiveData(FName ParameterName, FVector4 Value);
+
 	/** Set custom primitive data at index DataIndex. This sets the run-time data only, so it doesn't serialize. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataFloat(int32 DataIndex, float Value);
@@ -942,6 +974,22 @@ public:
 	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
 	 */
 	const FCustomPrimitiveData& GetCustomPrimitiveData() const { return CustomPrimitiveDataInternal; }
+
+	/**
+	 * Set a scalar parameter for default custom primitive data. This will be serialized and is useful in construction scripts.
+	 * @param	ParameterName	The parameter name of the custom primitive
+	 * @param	Value			The new value of the custom primitive
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetScalarParameterForDefaultCustomPrimitiveData(FName ParameterName, float Value);
+
+	/**
+	 * Set a vector parameter for default custom primitive data. This will be serialized and is useful in construction scripts.
+	 * @param	ParameterName	The parameter name of the custom primitive
+	 * @param	Value			The new value of the custom primitive
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
+	void SetVectorParameterForDefaultCustomPrimitiveData(FName ParameterName, FVector4 Value);
 
 	/** Set default custom primitive data at index DataIndex, and marks the render state dirty */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")

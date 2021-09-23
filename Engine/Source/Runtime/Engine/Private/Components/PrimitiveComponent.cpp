@@ -1945,6 +1945,65 @@ void UPrimitiveComponent::SetDefaultCustomPrimitiveData(int32 DataIndex, const T
 	}
 }
 
+int32 UPrimitiveComponent::GetCustomPrimitiveDataIndexForScalarParameter(FName ParameterName) const
+{
+	const int32 NumMaterials = GetNumMaterials();
+
+	for (int32 i = 0; i < NumMaterials; ++i)
+	{
+		if (UMaterialInterface* Material = GetMaterial(i))
+		{
+			FMaterialParameterMetadata ParameterMetadata;
+			if (Material->GetParameterValue(EMaterialParameterType::Scalar, FMemoryImageMaterialParameterInfo(ParameterName), ParameterMetadata, EMaterialGetParameterValueFlags::CheckAll))
+			{
+				return ParameterMetadata.PrimitiveDataIndex;
+			}
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+int32 UPrimitiveComponent::GetCustomPrimitiveDataIndexForVectorParameter(FName ParameterName) const
+{
+	const int32 NumMaterials = GetNumMaterials();
+
+	for (int32 i = 0; i < NumMaterials; ++i)
+	{
+		if (UMaterialInterface* Material = GetMaterial(i))
+		{
+			FMaterialParameterMetadata ParameterMetadata;
+			if (Material->GetParameterValue(EMaterialParameterType::Vector, FMemoryImageMaterialParameterInfo(ParameterName), ParameterMetadata, EMaterialGetParameterValueFlags::CheckAll))
+			{
+				return ParameterMetadata.PrimitiveDataIndex;
+			}
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+void UPrimitiveComponent::SetScalarParameterForCustomPrimitiveData(FName ParameterName, float Value)
+{
+	int32 PrimitiveDataIndex = GetCustomPrimitiveDataIndexForScalarParameter(ParameterName);
+
+	if (PrimitiveDataIndex > INDEX_NONE)
+	{
+		SetCustomPrimitiveDataInternal(PrimitiveDataIndex, {Value});
+	}
+}
+
+void UPrimitiveComponent::SetVectorParameterForCustomPrimitiveData(FName ParameterName, FVector4 Value)
+{
+	const int32 PrimitiveDataIndex = GetCustomPrimitiveDataIndexForVectorParameter(ParameterName);
+
+	if (PrimitiveDataIndex > INDEX_NONE)
+	{	// LWC_TODO: precision loss
+		FVector4f ValueFlt(Value);
+		SetCustomPrimitiveDataInternal(PrimitiveDataIndex, { ValueFlt.X, ValueFlt.Y, ValueFlt.Z, ValueFlt.W });
+	}
+}
+
 void UPrimitiveComponent::SetCustomPrimitiveDataFloat(int32 DataIndex, float Value)
 {
 	SetCustomPrimitiveDataInternal(DataIndex, {Value});
@@ -1967,6 +2026,28 @@ void UPrimitiveComponent::SetCustomPrimitiveDataVector4(int32 DataIndex, FVector
 	// LWC_TODO: precision loss
 	FVector4f ValueFlt(Value);
 	SetCustomPrimitiveDataInternal(DataIndex, {ValueFlt.X, ValueFlt.Y, ValueFlt.Z, ValueFlt.W});
+}
+
+void UPrimitiveComponent::SetScalarParameterForDefaultCustomPrimitiveData(FName ParameterName, float Value)
+{
+	int32 PrimitiveDataIndex = GetCustomPrimitiveDataIndexForScalarParameter(ParameterName);
+
+	if (PrimitiveDataIndex > INDEX_NONE)
+	{
+		SetDefaultCustomPrimitiveData(PrimitiveDataIndex, { Value });
+	}
+}
+
+void UPrimitiveComponent::SetVectorParameterForDefaultCustomPrimitiveData(FName ParameterName, FVector4 Value)
+{
+	const int32 PrimitiveDataIndex = GetCustomPrimitiveDataIndexForVectorParameter(ParameterName);
+
+	if (PrimitiveDataIndex > INDEX_NONE)
+	{
+		// LWC_TODO: precision loss
+		FVector4f ValueFlt(Value);
+		SetDefaultCustomPrimitiveData(PrimitiveDataIndex, { ValueFlt.X, ValueFlt.Y, ValueFlt.Z, ValueFlt.W });
+	}
 }
 
 void UPrimitiveComponent::SetDefaultCustomPrimitiveDataFloat(int32 DataIndex, float Value)

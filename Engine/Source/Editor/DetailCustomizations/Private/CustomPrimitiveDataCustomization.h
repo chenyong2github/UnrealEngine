@@ -1,0 +1,105 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "IPropertyTypeCustomization.h"
+#include "IDetailChildrenBuilder.h"
+
+class UMaterialExpressionVectorParameter;
+class UMaterialInterface;
+
+class FDetailWidgetRow;
+class SColorBlock;
+
+class IPropertyHandleArray;
+
+class FCustomPrimitiveDataCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	~FCustomPrimitiveDataCustomization();
+
+	/** IPropertyTypeCustomization interface */
+	void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+
+private:
+	struct FParameterData
+	{
+	public:
+		TWeakObjectPtr<UPrimitiveComponent> Component;
+		TWeakObjectPtr<UMaterialInterface> Material;
+		FMaterialParameterInfo Info;
+		FGuid ExpressionID;
+		uint8 IndexOffset;
+	};
+
+	TSharedPtr<IPropertyUtilities> PropertyUtils;
+	TSharedPtr<IPropertyHandleArray> DataArrayHandle;
+
+	TSet<TWeakObjectPtr<UObject>> ComponentsToWatch;
+	TSet<TSoftObjectPtr<UMaterialInterface>> MaterialsToWatch;
+
+	TMap<uint8, TArray<FParameterData>> VectorParameterData;
+	TMap<uint8, TArray<FParameterData>> ScalarParameterData;
+	TMap<uint8, TSharedPtr<SColorBlock>> ColorBlocks;
+
+	/**
+	 * Creates a group for the specified vector parameter, with a header that contains the vector parameter name and
+	 * a color block that opens a color picker when clicked. Also contains add, delete and reset to default buttons to
+	 * quickly populate a vector parameter
+	 */
+	IDetailGroup* CreateVectorGroup(IDetailChildrenBuilder& ChildBuilder, uint8 PrimIdx, bool bDataEditable, int32 NumElements);
+
+	/**
+	 * Creates a row for the specified primitive index. Will create hyperlinks for each parameter, to take the user to the parameter's node.
+	 * If there are multiple unique parameters for the one row, it will fill the name content with each individual parameter name, or 
+	 * mention that the row is undefined for a component.
+	 * 
+	 * If the parameter doesn't have an element yet, provides an add button for the user to quickly add elements up until that parameter.
+	 */
+	void CreateParameterRow(IDetailChildrenBuilder& ChildBuilder, uint8 PrimIdx, TSharedPtr<IPropertyHandle> ElementHandle, int32 NumSelectedComponents, bool bDataEditable, IDetailGroup* VectorGroup, IPropertyTypeCustomizationUtils& CustomizationUtils);
+
+	template<typename Predicate>
+	void ForEachSelectedComponent(Predicate Pred);
+
+	void Cleanup();
+
+	/** Populates our parameter data for scalar and vector parameters. Updates the max primitive index if necessary. */
+	void PopulateParameterData(UPrimitiveComponent* PrimitiveComponent, int32& MaxPrimitiveDataIndex);
+
+	void OnUpdated();
+	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
+	void OnMaterialCompiled(UMaterialInterface* Material);
+
+	/** Will open the material editor to the specified parameter expression when a user clicks a hyperlink */
+	void OnNavigate(TWeakObjectPtr<UMaterialInterface> Material, FGuid ExpressionID);
+
+	/** Adds elements to the primitive data array up until and including the specified PrimIdx. Also initializes elements with defaults from material interface */
+	void OnAddedDesiredPrimitiveData(uint8 PrimIdx);
+
+	/** Remove all elements up until and including this primitive index */
+	void OnRemovedPrimitiveData(uint8 PrimIdx);
+
+	FLinearColor GetVectorColor( uint8 PrimIdx) const;
+	void SetVectorColor(FLinearColor NewColor, uint8 PrimIdx);
+
+	/** Iterates through each parameter, and sets their values to the material interface's defaults on a per-component basis */
+	void SetDefaultValue(TSharedPtr<IPropertyHandle> Handle, uint8 PrimIdx);
+
+	/** Helper method to SetDefaultValue for vectors, but makes one transaction for all edits */
+	void SetDefaultVectorValue(uint8 PrimIdx);
+
+	FReply OnMouseButtonDownColorBlock(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, uint8 PrimIdx);
+	void OnColorPickerCancelled(FLinearColor OriginalColor, uint8 PrimIdx);
+	void OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window);
+
+	/** Hyperlink that's used for navigating to parameters */
+	TSharedRef<class SHyperlink> CreateHyperlink(FText Text, TWeakObjectPtr<UMaterialInterface> Material, const FGuid& ExpressionId);
+
+	/** Default widget that's used when a component is missing defined parameters for the specified primitive index */
+	TSharedRef<class SWidget> GetUndefinedParameterWidget(int32 PrimIdx, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
+};
+

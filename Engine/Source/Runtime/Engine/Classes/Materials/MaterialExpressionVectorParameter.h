@@ -36,6 +36,12 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = DefaultValue;
+
+		if (bUseCustomPrimitiveData)
+		{
+			OutMeta.PrimitiveDataIndex = PrimitiveDataIndex;
+		}
+
 		OutMeta.ChannelNames = ChannelNames;
 		return Super::GetParameterValue(OutMeta);
 	}
