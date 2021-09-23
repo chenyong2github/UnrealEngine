@@ -4,6 +4,7 @@
 
 #include "AutomationAnalytics.h"
 #include "AutomationWorkerMessages.h"
+#include "AutomationTestExcludelist.h"
 #include "HAL/FileManager.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
@@ -42,8 +43,6 @@ void FAutomationWorkerModule::StartupModule()
 
 	FAutomationTestFramework::Get().PreTestingEvent.AddRaw(this, &FAutomationWorkerModule::HandlePreTestingEvent);
 	FAutomationTestFramework::Get().PostTestingEvent.AddRaw(this, &FAutomationWorkerModule::HandlePostTestingEvent);
-
-	FAutomationTestFramework::Get().BuildTestBlacklistFromConfig();
 }
 
 void FAutomationWorkerModule::ShutdownModule()
@@ -237,7 +236,7 @@ void FAutomationWorkerModule::ReportTestComplete()
 
 			Message->TestName = TestName;
 			Message->ExecutionCount = ExecutionCount;
-			Message->Success = bSuccess;
+			Message->State = bSuccess ? EAutomationState::Success : EAutomationState::Fail;
 			Message->Duration = ExecutionInfo.Duration;
 			Message->Entries = ExecutionInfo.GetEntries();
 			Message->WarningTotal = ExecutionInfo.GetWarningTotal();
@@ -339,6 +338,7 @@ void FAutomationWorkerModule::SendWorkerFound(const FMessageAddress& ControllerA
 	Response->GPUName = FPlatformMisc::GetPrimaryGPUBrand();
 	Response->CPUModelName = CPUModelString;
 	Response->RAMInGB = FPlatformMemory::GetPhysicalGBRam();
+	Response->RHIName = FApp::GetGraphicsRHI();
 #if WITH_ENGINE && WITH_AUTOMATION_TESTS
 	Response->RenderModeName = AutomationCommon::GetRenderDetailsString();
 #else
@@ -536,9 +536,36 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 		FAutomationWorkerRunTestsReply* OutMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
 		OutMessage->TestName = Message.TestName;
 		OutMessage->ExecutionCount = Message.ExecutionCount;
-		OutMessage->Success = false;
+		OutMessage->State = EAutomationState::Skipped;
 		OutMessage->Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EAutomationEventType::Error, LogMessage)));
 		OutMessage->ErrorTotal = 1;
+		MessageEndpoint->Send(OutMessage, Context->GetSender());
+
+		return;
+	}
+
+	// Do we need to skip the test
+	FName SkipReason;
+	bool bWarn(false);
+	UAutomationTestExcludelist* Excludelist = UAutomationTestExcludelist::Get();
+	if (Excludelist->IsTestExcluded(Message.FullTestPath, FApp::GetGraphicsRHI(), &SkipReason, &bWarn))
+	{
+		FString SkippingMessage = FString::Format(TEXT("Test Skipped. Name={{0}} Reason={{1}} Path={{2}}"),
+			{ *Message.BeautifiedTestName, *SkipReason.ToString(), *Message.FullTestPath });
+		if (bWarn)
+		{
+			UE_LOG(LogAutomationWorker, Warning, TEXT("%s"), *SkippingMessage);
+		}
+		else
+		{
+			UE_LOG(LogAutomationWorker, Display, TEXT("%s"), *SkippingMessage);
+		}
+
+		FAutomationWorkerRunTestsReply* OutMessage = FMessageEndpoint::MakeMessage<FAutomationWorkerRunTestsReply>();
+		OutMessage->TestName = Message.TestName;
+		OutMessage->ExecutionCount = Message.ExecutionCount;
+		OutMessage->State = EAutomationState::Skipped;
+		OutMessage->Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EAutomationEventType::Info, FString::Printf(TEXT("Skipping test because of exclude list: %s"), *SkipReason.ToString()))));
 		MessageEndpoint->Send(OutMessage, Context->GetSender());
 
 		return;

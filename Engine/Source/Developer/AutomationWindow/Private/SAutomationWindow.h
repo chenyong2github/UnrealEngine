@@ -38,6 +38,7 @@ namespace AutomationTestWindowConstants
 	const FName RequiredDeviceCount( TEXT("RequiredDeviceCount") );
 	const FName Status( TEXT("Status") );
 	const FName Timing( TEXT("Timing") );
+	const FName IsToBeSkipped(TEXT("ToBeSkipped"));
 }
 
 
@@ -283,10 +284,16 @@ private:
 	
 	/** Returns if we're considering tests on content within the developer folders */
 	bool IsDeveloperDirectoryIncluded() const;
-	
+
 	/** Toggles the consideration of tests within developer folders */
 	void OnToggleDeveloperDirectoryIncluded();
-	
+
+	/** Returns if we're considering tests from exclude list only */
+	bool IsExcludedTestsFilterOn() const;
+
+	/** Toggles the consideration of tests from exclude list only */
+	void OnToggleExcludedTestsFilter();
+
 	/** Returns if we're filtering based on if the test is a "smoke" test */
 	bool IsSmokeTestFilterOn() const;
 	

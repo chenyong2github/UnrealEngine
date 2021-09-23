@@ -36,6 +36,9 @@ public:
 	UPROPERTY()
 	EAutomationState State;
 
+	UPROPERTY()
+	FString DeviceInstance;
+
 	FAutomatedTestResult()
 	{
 		Warnings = 0;
@@ -100,8 +103,7 @@ struct FAutomatedTestPassResults
 
 public:
 	FAutomatedTestPassResults()
-		: ClientDescriptor()
-		, ReportCreatedOn(0)
+		: ReportCreatedOn(0)
 		, Succeeded(0)
 		, SucceededWithWarnings(0)
 		, Failed(0)
@@ -111,24 +113,10 @@ public:
 		, ComparisonExported(false)
 		, IsRequired(false)
 	{
-		if (FEngineVersion::Current().HasChangelist())
-		{
-			ClientDescriptor = FEngineVersion::Current().GetBranch()
-				+ TEXT(" - ")
-				+ FString::FromInt(FEngineVersion::Current().GetChangelist())
-				+ TEXT(" - ");
-		}
-
-		if (FPlatformProperties::RequiresCookedData())
-		{
-			ClientDescriptor += TEXT("Cooked ");
-		}
-
-		ClientDescriptor += FPlatformProperties::IniPlatformName();
 	}
 
 	UPROPERTY()
-	FString ClientDescriptor;
+	TArray<FAutomationDeviceInfo> Devices;
 
 	UPROPERTY()
 	FDateTime ReportCreatedOn;
@@ -181,6 +169,7 @@ public:
 
 	void ClearAllEntries()
 	{
+		Devices.Empty();
 		Succeeded = 0;
 		SucceededWithWarnings = 0;
 		Failed = 0;

@@ -3,9 +3,60 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 #include "IAutomationReport.h"
 #include "AutomationWorkerMessages.h"
 #include "IMessageContext.h"
+#include "AutomationDeviceClusterManager.generated.h"
+
+/**
+* Hold information about the Device
+*/
+USTRUCT()
+struct FAutomationDeviceInfo
+{
+	GENERATED_BODY()
+public:
+	/** The name of device */
+	UPROPERTY()
+	FString DeviceName;
+
+	/** The instance name */
+	UPROPERTY()
+	FString Instance;
+
+	/** The name of the platform */
+	UPROPERTY()
+	FString Platform;
+
+	/** The name of the operating system version */
+	UPROPERTY()
+	FString OSVersion;
+
+	/** The name of the device model */
+	UPROPERTY()
+	FString Model;
+
+	/** The name of the GPU */
+	UPROPERTY()
+	FString GPU;
+
+	/** The name of the CPU model */
+	UPROPERTY()
+	FString CPUModel;
+
+	/** The amount of RAM this device has in gigabytes */
+	UPROPERTY()
+	uint32 RAMInGB = 0;
+
+	/** The name of the current render mode */
+	UPROPERTY()
+	FString RenderMode;
+
+	/** The name of the current RHI */
+	UPROPERTY()
+	FString RHI;
+};
 
 /**
  * Managers groups of devices for job distribution
@@ -48,6 +99,9 @@ public:
 
 	/** Returns the name of a device within a cluster. */
 	FString GetClusterDeviceName(const int32 ClusterIndex, const int32 DeviceIndex) const;
+
+	/** Returns the name of a device within a cluster. */
+	const FAutomationDeviceInfo& GetDeviceInfo(const int32 ClusterIndex, const int32 DeviceIndex) const;
 
 	/** 
 	 * Finds the cluster/device index for a particular GUID.
@@ -139,48 +193,25 @@ private:
 		FDeviceState(FMessageAddress NewMessageAddress, const FAutomationWorkerFindWorkersResponse& Message )
 		{
 			DeviceMessageAddress = NewMessageAddress;
-			DeviceName = Message.DeviceName;
-			PlatformName = Message.Platform;
-			OSVersionName = Message.OSVersionName;
-			ModelName = Message.ModelName;
-			GPUName = Message.GPUName;
-			CPUModelName = Message.CPUModelName;
-			RAMInGB = Message.RAMInGB;
-			RenderModeName = Message.RenderModeName;
+			Info.DeviceName = Message.DeviceName;
+			Info.Platform = Message.Platform;
+			Info.OSVersion = Message.OSVersionName;
+			Info.Model = Message.ModelName;
+			Info.GPU = Message.GPUName;
+			Info.CPUModel = Message.CPUModelName;
+			Info.RAMInGB = Message.RAMInGB;
+			Info.RenderMode = Message.RenderModeName;
+			Info.RHI = Message.RHIName;
+			Info.Instance = Message.InstanceName;
 			Report.Reset();
-			GameInstanceName = Message.InstanceName;
 			IsDeviceAvailable = true;
 		}
 
 		/** Network address for device */
 		FMessageAddress DeviceMessageAddress;
 
-		/** The instance name */
-		FString GameInstanceName;
-
-		/** The name of device */
-		FString DeviceName;
-
-		/** The name of the platform */
-		FString PlatformName;
-
-		/** The name of the operating system version */
-		FString OSVersionName;
-
-		/** The name of the device model */
-		FString ModelName;
-
-		/** The name of the GPU */
-		FString GPUName;
-
-		/** The name of the CPU model */
-		FString CPUModelName;
-
-		/** The amount of RAM this device has in gigabytes */
-		uint32 RAMInGB;
-
-		/** The name of the current render mode */
-		FString RenderModeName;
+		/** The Device full info */
+		FAutomationDeviceInfo Info;
 
 		/** NULL if this device is available to do work*/
 		TSharedPtr <IAutomationReport> Report;

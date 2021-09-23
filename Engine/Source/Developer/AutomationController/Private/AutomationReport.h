@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "AutomationTestExcludelist.h"
 #include "IAutomationReport.h"
 
 /**
@@ -69,6 +70,10 @@ public:
 	virtual void ResetNetworkCommandResponses() override;
 	virtual const bool ExpandInUI() const override;
 	virtual void StopRunningTest() override;
+	virtual bool IsToBeSkipped(FName* OutReason = nullptr, bool* OutWarn = nullptr) const override;
+	virtual bool IsToBeSkippedByPropagation() const override;
+	virtual void SetSkipFlag(bool bEnableSkip, const FAutomationTestExcludelistEntry* Template = nullptr, bool bFromPropagation = false) override;
+	virtual TSharedPtr<FAutomationTestExcludeOptions> GetExcludeOptions() override;
 
 private:
 
@@ -104,4 +109,10 @@ private:
 
 	/** Structure holding the test info */
 	FAutomationTestInfo TestInfo;
+
+	/** Structure holding the info on the exclude test */
+	FAutomationTestExcludelistEntry ExcludeTestInfo;
+	
+	/** True if this item is inside the exclude list */
+	bool bNeedToSkip = false;
 };

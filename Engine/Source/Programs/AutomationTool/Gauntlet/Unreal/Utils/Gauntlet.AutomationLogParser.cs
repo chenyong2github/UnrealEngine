@@ -80,10 +80,10 @@ namespace Gauntlet
 		/// <returns></returns>
 		public IEnumerable<UnrealAutomatedTestResult> GetResults()
 		{
-			IEnumerable<Match> TestStarts = Parser.GetAllMatches(@"LogAutomationController.+Test Started. Name={(.+?)}");
+			IEnumerable<Match> TestStarts = Parser.GetAllMatches(@"LogAutomationController.+Test Started. Name={(.+?)}\s+Path={(.+?)}");
 
 			// Find all automation results that succeeded/failed
-			// [00:10:54.148]   LogAutomationController: Display: Test Started. Name={ST_PR04}
+			// [00:10:54.148]   LogAutomationController: Display: Test Started. Name={ST_PR04} Path={Project.Functional Tests./Game/Tests/Rendering/PlanarReflection.ST_PR04}
 			// [2019.04.30-18.49.51:329][244]LogAutomationController: Display: Test Completed With Success. Name={ST_PR04} Path={Project.Functional Tests./Game/Tests/Rendering/PlanarReflection.ST_PR04}
 			// [2019.04.30-18.49.51:330] [244] LogAutomationController: BeginEvents: Project.Functional Tests./Game/Tests/Rendering/PlanarReflection.ST_PR04
 			// [2019.04.30 - 18.49.51:331][244] LogAutomationController: Screenshot 'ST_PR04' was similar!  Global Difference = 0.001377, Max Local Difference = 0.037953
@@ -106,17 +106,25 @@ namespace Gauntlet
 			{
 				UnrealAutomatedTestResult Result = new UnrealAutomatedTestResult();
 				string DisplayName = TestMatch.Groups[1].ToString();
-				string LongName = "";
-				bool Completed = false;
-				bool Passed = false;
+				string LongName = TestMatch.Groups[2].ToString(); ;
+				TestStateType State = TestStateType.InProcess;
 				
-				Match ResultMatch = TestResults.Where(M => M.Groups[2].ToString() == DisplayName).FirstOrDefault();
+				Match ResultMatch = TestResults.Where(M => M.Groups[3].ToString() == LongName).FirstOrDefault();
 
 				if (ResultMatch != null)
 				{
-					Completed = true;
-					Passed = ResultMatch.Groups[1].ToString().ToLower() == "passed" ? true : false;
-					LongName = ResultMatch.Groups[3].ToString();					
+					switch(ResultMatch.Groups[1].ToString().ToLower())
+					{
+					case "skipped":
+						State = TestStateType.Skipped;
+						break;
+					case "success":
+						State = TestStateType.Success;
+						break;
+					default:
+						State = TestStateType.Fail;
+						break;
+					}
 
 					string EventName = string.Format("BeginEvents: {0}", LongName);
 					int EventIndex = Array.FindIndex(AutomationChannel, S => S.Contains(EventName)) + 1;
@@ -145,7 +153,7 @@ namespace Gauntlet
 
 				Result.TestDisplayName = DisplayName;
 				Result.FullTestPath = LongName;
-				Result.State = Passed ? TestStateType.Success : Completed ? TestStateType.Fail : TestStateType.InProcess;
+				Result.State = State;
 
 				return Result;
 			});

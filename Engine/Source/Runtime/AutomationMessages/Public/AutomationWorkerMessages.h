@@ -6,6 +6,7 @@
 #include "Containers/UnrealString.h"
 #include "Misc/Guid.h"
 #include "Misc/AutomationTest.h"
+#include "AutomationState.h"
 #include "UObject/ObjectMacros.h"
 
 #include "AutomationWorkerMessages.generated.h"
@@ -98,6 +99,10 @@ struct FAutomationWorkerFindWorkersResponse
 	/** Holds the worker's application session identifier. */
 	UPROPERTY(EditAnywhere, Category="Message")
 	FGuid SessionId;
+
+	/** Holds the name of the current RHI. */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FString RHIName;
 
 	/** Default constructor. */
 	FAutomationWorkerFindWorkersResponse() : RAMInGB(0) { }
@@ -287,6 +292,10 @@ struct FAutomationWorkerRunTests
 	UPROPERTY()
 	FString BeautifiedTestName;
 
+	/** Holds the full test path of the test to run. */
+	UPROPERTY()
+	FString FullTestPath;
+
 	/** If true, send results to analytics when complete */
 	UPROPERTY()
 	bool bSendAnalytics;
@@ -295,11 +304,12 @@ struct FAutomationWorkerRunTests
 	FAutomationWorkerRunTests( ) :ExecutionCount(0), RoleIndex(0), bSendAnalytics(false) { }
 
 	/** Creates and initializes a new instance. */
-	FAutomationWorkerRunTests( uint32 InExecutionCount, int32 InRoleIndex, FString InTestName, FString InBeautifiedTestName, bool InSendAnalytics)
+	FAutomationWorkerRunTests( uint32 InExecutionCount, int32 InRoleIndex, FString InTestName, FString InBeautifiedTestName, FString InFullTestPath, bool InSendAnalytics)
 		: ExecutionCount(InExecutionCount)
 		, RoleIndex(InRoleIndex)
 		, TestName(InTestName)
 		, BeautifiedTestName(InBeautifiedTestName)
+		, FullTestPath(InFullTestPath)
 		, bSendAnalytics(InSendAnalytics)
 	{ }
 };
@@ -339,7 +349,7 @@ public:
 
 	/** */
 	UPROPERTY(EditAnywhere, Category="Message")
-	bool Success = false;
+	EAutomationState State = EAutomationState::NotRun;
 };
 
 

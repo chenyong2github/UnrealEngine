@@ -9,6 +9,19 @@ using System.Linq;
 
 namespace Gauntlet
 {
+	public class UnrealAutomationDevice
+	{
+		public string DeviceName { get; set; }
+		public string Instance { get; set; }
+		public string Platform { get; set; }
+		public string OSVersion { get; set; }
+		public string Model { get; set; }
+		public string GPU { get; set; }
+		public string CPUModel { get; set; }
+		public int RAMInGB { get; set; }
+		public string RenderMode { get; set; }
+		public string RHI { get; set; }
+	}
 	public class UnrealAutomationComparisonFiles
 	{
 		public string Difference { get; set; }
@@ -70,6 +83,7 @@ namespace Gauntlet
 		public string FullTestPath { get; set; }
 		public string ArtifactName { get; set; }
 		public TestStateType State { get; set; }
+		public String DeviceInstance { get; set; }
 		public int Warnings { get; set; }
 		public int Errors { get; set; }
 		public List<UnrealAutomationArtifact> Artifacts { get; set; }
@@ -117,7 +131,7 @@ namespace Gauntlet
 		{
 			get
 			{
-				return State != TestStateType.InProcess;
+				return State != TestStateType.InProcess && State != TestStateType.NotRun;
 			}
 		}
 		[JsonIgnore]
@@ -126,6 +140,22 @@ namespace Gauntlet
 			get
 			{
 				return State == TestStateType.Success;
+			}
+		}
+		[JsonIgnore]
+		public bool HasFailed
+		{
+			get
+			{
+				return State == TestStateType.Fail;
+			}
+		}
+		[JsonIgnore]
+		public bool WasSkipped
+		{
+			get
+			{
+				return State == TestStateType.Skipped;
 			}
 		}
 		[JsonIgnore]
@@ -163,7 +193,7 @@ namespace Gauntlet
 	}
 	public class UnrealAutomatedTestPassResults
 	{
-		public string ClientDescriptor { get; set; }
+		public List<UnrealAutomationDevice> Devices { get; set; }
 		public string ReportCreatedOn { get; set; }
 		public int Succeeded { get; set; }
 		public int SucceededWithWarnings { get; set; }
@@ -177,6 +207,7 @@ namespace Gauntlet
 
 		public UnrealAutomatedTestPassResults()
 		{
+			Devices = new List<UnrealAutomationDevice>();
 			Tests = new List<UnrealAutomatedTestResult>();
 		}
 

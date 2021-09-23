@@ -1182,6 +1182,9 @@ namespace Gauntlet
 					}
 				}
 			}
+			// Metadata
+			SetReportMetadata(HordeTestReport, GetConfiguration().RequiredRoles.Values.SelectMany(V => V));
+
 			return HordeTestReport;
 		}
 
@@ -1261,6 +1264,10 @@ namespace Gauntlet
 				// Convert test results for Horde
 				HordeReport.UnrealEngineTestPassResults HordeTestPassResults = HordeReport.UnrealEngineTestPassResults.FromUnrealAutomatedTests(JsonTestPassResults, UnrealAutomatedTestReportPath, ReportURL);
 				HordeTestPassResults.CopyTestResultsArtifacts(HordeArtifactPath);
+				// Metadata
+				// With UE Test Automation, we care only for one role.
+				var MainRole = new List<UnrealTestRole>() { GetConfiguration().GetMainRequiredRole() };
+				SetReportMetadata(HordeTestPassResults, MainRole);
 				// Attached test Artifacts
 				if (SessionArtifacts != null)
 				{
@@ -1277,6 +1284,20 @@ namespace Gauntlet
 				Log.Warning("Could not find Unreal Automated test report at {0}. Reverting to base report.", JsonReportPath);
 				return CreateSimpleReportForHorde(GetTestResult());
 			}
+		}
+
+		/// <summary>
+		/// Set Metadata on ITestReport
+		/// </summary>
+		/// <param name="Report"></param>
+		protected virtual void SetReportMetadata(ITestReport Report, IEnumerable<UnrealTestRole> Roles)
+		{
+			var AllRoleTypes = Roles.Select(R =>  R.Type);
+			var AllRoleContexts = Roles.Select(R => Context.GetRoleContext(R.Type));
+			Report.SetMetadata("Platform", string.Join("+", AllRoleContexts.Select(R => R.Platform.ToString()).Distinct().OrderBy(P => P)));
+			Report.SetMetadata("BuildType", string.Join("+", AllRoleTypes.Select(R => R.ToString()).Distinct().OrderBy(B => B)));
+			Report.SetMetadata("Configuration", string.Join("+", AllRoleContexts.Select(R => R.Configuration.ToString()).Distinct().OrderBy(C => C)));
+			Report.SetMetadata("Project", Context.BuildInfo.ProjectName);
 		}
 
 		/// <summary>

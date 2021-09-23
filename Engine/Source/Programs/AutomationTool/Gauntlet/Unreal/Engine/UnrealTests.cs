@@ -76,7 +76,7 @@ namespace Gauntlet
 					{
 						AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 						AllErrors.AddRange(
-							Parser.GetResults().Where(R => !R.HasSucceeded)
+							Parser.GetResults().Where(R => R.HasFailed)
 							.SelectMany(R => R.Entries
 								.Where(E => E.Event.Type == EventType.Error).Select(E => string.Format("[test={0}] {1}", R.TestDisplayName, E))
 								)
@@ -220,7 +220,7 @@ namespace Gauntlet
 						AutomationLogParser Parser = new AutomationLogParser(InLog.FullLogContent);
 
 						IEnumerable<UnrealAutomatedTestResult> TotalTests = Parser.GetResults();
-						IEnumerable<UnrealAutomatedTestResult> FailedTests = TotalTests.Where(R => !R.HasSucceeded);
+						IEnumerable<UnrealAutomatedTestResult> FailedTests = TotalTests.Where(R => R.HasFailed);
 
 						// Tests failed so list that as our primary cause of failure
 						if (FailedTests.Any())
@@ -258,7 +258,7 @@ namespace Gauntlet
 					AutomationLogParser Parser = new AutomationLogParser(EditorRole.LogSummary.FullLogContent);
 
 					IEnumerable<UnrealAutomatedTestResult> AllTests = Parser.GetResults();
-					IEnumerable<UnrealAutomatedTestResult> FailedTests = AllTests.Where(R => R.IsComplete && !R.HasSucceeded);
+					IEnumerable<UnrealAutomatedTestResult> FailedTests = AllTests.Where(R => R.IsComplete && R.HasFailed);
 					IEnumerable<UnrealAutomatedTestResult> IncompleteTests = AllTests.Where(R => !R.IsComplete);
 
 					if (AllTests.Count() == 0)

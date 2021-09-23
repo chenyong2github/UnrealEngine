@@ -34,7 +34,7 @@ namespace Gauntlet
 		InProcess,
 		Fail,
 		Success,
-		NotEnoughParticipants
+		Skipped
 	}
 
 	/// <summary>
@@ -48,12 +48,20 @@ namespace Gauntlet
 		string Type { get; }
 
 		/// <summary>
-		/// Set a property of the test report type
+		/// Set a property of the test report
 		/// </summary>
 		/// <param name="Property"></param>
 		/// <param name="Value"></param>
 		/// <returns></returns>
 		void SetProperty(string Property, object Value);
+
+		/// <summary>
+		/// Set a metadata key/value to the test report
+		/// </summary>
+		/// <param name="Key"></param>
+		/// <param name="Value"></param>
+		/// <returns></returns>
+		void SetMetadata(string Key, string Value);
 
 		/// <summary>
 		/// Add event to the test report
@@ -123,6 +131,15 @@ namespace Gauntlet
 	/// </summary>
 	public abstract class BaseTestReport : ITestReport, ITelemetryReport
 	{
+		public BaseTestReport()
+		{
+			Metadata = new Dictionary<string, string>();
+		}
+		/// <summary>
+		/// Metadata blackboard
+		/// </summary>
+		public Dictionary<string, string> Metadata { get; set; }
+
 		/// <summary>
 		/// Return report type
 		/// </summary>
@@ -134,7 +151,7 @@ namespace Gauntlet
 		protected List<TelemetryData> TelemetryDataList;
 
 		/// <summary>
-		/// Set a property of the test report type
+		/// Set a property of the test report
 		/// </summary>
 		/// <param name="Property"></param>
 		/// <param name="Value"></param>
@@ -143,6 +160,17 @@ namespace Gauntlet
 		{
 			PropertyInfo PropertyInstance = GetType().GetProperty(Property);
 			PropertyInstance.SetValue(this, Convert.ChangeType(Value, PropertyInstance.PropertyType));
+		}
+
+		/// <summary>
+		/// Set a metadata key/value to the test report
+		/// </summary>
+		/// <param name="Key"></param>
+		/// <param name="Value"></param>
+		/// <returns></returns>
+		public virtual void SetMetadata(string Key, string Value)
+		{
+			Metadata[Key] = Value;
 		}
 
 		/// <summary>

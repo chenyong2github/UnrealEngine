@@ -132,6 +132,23 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Contains detailed information about device that run tests
+		/// </summary>
+		public class Device
+		{
+			public string DeviceName { get; set; }
+			public string Instance { get; set; }
+			public string Platform { get; set; }
+			public string OSVersion { get; set; }
+			public string Model { get; set; }
+			public string GPU { get; set; }
+			public string CPUModel { get; set; }
+			public int RAMInGB { get; set; }
+			public string RenderMode { get; set; }
+			public string RHI { get; set; }
+		}
+
+		/// <summary>
 		/// Contains reference to files used or generated for file comparison
 		/// </summary>
 		public class ComparisonFiles
@@ -194,6 +211,7 @@ namespace Gauntlet
 			public string TestDisplayName { get; set; }
 			public string FullTestPath { get; set; }
 			public TestStateType State { get; set; }
+			public string DeviceInstance { get; set; }
 			public int Warnings { get; set; }
 			public int Errors { get; set; }
 			public List<Artifact> Artifacts { get; set; }
@@ -246,6 +264,11 @@ namespace Gauntlet
 				get { return TestDetailed.State; }
 				set { TestDetailed.State = value; }
 			}
+			public string DeviceInstance
+			{
+				get { return TestDetailed.DeviceInstance; }
+				set { TestDetailed.DeviceInstance = value; }
+			}
 			public int Errors
 			{
 				get { return TestDetailed.Errors; }
@@ -288,12 +311,13 @@ namespace Gauntlet
 				get { return "Unreal Automated Tests"; }
 			}
 
-			public UnrealEngineTestPassResults()
+			public UnrealEngineTestPassResults() : base()
 			{
+				Devices = new List<Device>();
 				Tests = new List<TestResult>();
 			}
 
-			public string ClientDescriptor { get; set; }
+			public List<Device> Devices { get; set; }
 			public string ReportCreatedOn { get; set; }
 			public string ReportURL { get; set; }
 			public int SucceededCount { get; set; }
@@ -303,6 +327,17 @@ namespace Gauntlet
 			public int InProcessCount { get; set; }
 			public float TotalDurationSeconds { get; set; }
 			public List<TestResult> Tests { get; set; }
+
+			/// <summary>
+			/// Add a new Device to the pass results and return it 
+			/// </summary>
+			private Device AddNewDevice()
+			{
+				Device NewDevice = new Device();
+				Devices.Add(NewDevice);
+
+				return NewDevice;
+			}
 
 			/// <summary>
 			/// Add a new TestResult to the pass results and return it 
@@ -329,7 +364,23 @@ namespace Gauntlet
 			public static UnrealEngineTestPassResults FromUnrealAutomatedTests(UnrealAutomatedTestPassResults InTestPassResults, string ReportPath, string ReportURL)
 			{
 				UnrealEngineTestPassResults OutTestPassResults = new UnrealEngineTestPassResults();
-				OutTestPassResults.ClientDescriptor = InTestPassResults.ClientDescriptor;
+				if (InTestPassResults.Devices != null)
+				{
+					foreach (UnrealAutomationDevice InDevice in InTestPassResults.Devices)
+					{
+						Device ConvertedDevice = OutTestPassResults.AddNewDevice();
+						ConvertedDevice.DeviceName = InDevice.DeviceName;
+						ConvertedDevice.Instance = InDevice.Instance;
+						ConvertedDevice.Platform = InDevice.Platform;
+						ConvertedDevice.OSVersion = InDevice.OSVersion;
+						ConvertedDevice.Model = InDevice.Model;
+						ConvertedDevice.GPU = InDevice.GPU;
+						ConvertedDevice.CPUModel = InDevice.CPUModel;
+						ConvertedDevice.RAMInGB = InDevice.RAMInGB;
+						ConvertedDevice.RenderMode = InDevice.RenderMode;
+						ConvertedDevice.RHI = InDevice.RHI;
+					}
+				}
 				OutTestPassResults.ReportCreatedOn = InTestPassResults.ReportCreatedOn;
 				OutTestPassResults.ReportURL = ReportURL;
 				OutTestPassResults.SucceededCount = InTestPassResults.Succeeded;
@@ -346,6 +397,7 @@ namespace Gauntlet
 						ConvertedTestResult.TestDisplayName = InTestResult.TestDisplayName;
 						ConvertedTestResult.FullTestPath = InTestResult.FullTestPath;
 						ConvertedTestResult.State = InTestResult.State;
+						ConvertedTestResult.DeviceInstance = InTestResult.DeviceInstance;
 						Guid TestGuid = Guid.NewGuid();
 						ConvertedTestResult.ArtifactName = TestGuid + ".json";
 						InTestResult.ArtifactName = ConvertedTestResult.ArtifactName;
@@ -429,7 +481,7 @@ namespace Gauntlet
 			{
 				get { return "Simple Report"; }
 			}
-			public SimpleTestReport()
+			public SimpleTestReport() : base()
 			{
 				Logs = new List<String>();
 				Errors = new List<String>();
