@@ -332,7 +332,8 @@ namespace HordeAgent.Execution
 				}
 			}
 
-			// Sync all the branches
+			// Sync all the branches.
+			List<Func<Task>> SyncFuncs = new List<Func<Task>>();
 			foreach (IGrouping<DirectoryReference, WorkspaceInfo> WorkspaceGroup in Workspaces.GroupBy(x => x.MetadataDir).OrderBy(x => x.Key.FullName))
 			{
 				List<PopulateRequest> PopulateRequests = new List<PopulateRequest>();
@@ -341,7 +342,14 @@ namespace HordeAgent.Execution
 					PerforceClientConnection PerforceClient = new PerforceClientConnection(Workspace.PerforceClient, Workspace.ClientName);
 					PopulateRequests.Add(new PopulateRequest(PerforceClient, Workspace.StreamName, Workspace.View));
 				}
-				await WorkspaceGroup.First().Repository.PopulateAsync(PopulateRequests, false, CancellationToken);
+
+				ManagedWorkspace Repository = WorkspaceGroup.First().Repository;
+				Tuple<int, StreamSnapshot>[] StreamStates = await Repository.PopulateCleanAsync(PopulateRequests, false, CancellationToken);
+				SyncFuncs.Add(() => Repository.PopulateSyncAsync(PopulateRequests, StreamStates, false, CancellationToken));
+			}
+			foreach (Func<Task> SyncFunc in SyncFuncs)
+			{
+				await SyncFunc();
 			}
 		}
 	}
