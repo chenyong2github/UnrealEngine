@@ -448,6 +448,7 @@ public:
 		{
 			// Cache the current source level
 			ULevel* CurrentSrcLevel = SrcLevel->OwningWorld->GetCurrentLevel();
+			SrcLevel->OwningWorld->SetCurrentLevel(SrcLevel);
 			GUnrealEd->CopyActors(Actors, SrcLevel->OwningWorld, &ScratchData);
 			SrcLevel->OwningWorld->SetCurrentLevel(CurrentSrcLevel);
 		}
