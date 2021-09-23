@@ -130,14 +130,15 @@
 	#include "EngineStats.h"
 	#include "EngineGlobals.h"
 	#include "AudioThread.h"
-#if WITH_ENGINE && !UE_BUILD_SHIPPING
+#if !UE_BUILD_SHIPPING
 	#include "IAutomationControllerModule.h"
-#endif // WITH_ENGINE && !UE_BUILD_SHIPPING
+#endif // !UE_BUILD_SHIPPING
 #if WITH_EDITORONLY_DATA
 	#include "DerivedDataBuild.h"
 	#include "DerivedDataCache.h"
 #endif // WITH_EDITORONLY_DATA
 	#include "DerivedDataCacheInterface.h"
+	#include "Serialization/DerivedData.h"
 	#include "ShaderCompiler.h"
 	#include "DistanceFieldAtlas.h"
 	#include "MeshCardRepresentation.h"
@@ -2550,6 +2551,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FPlatformMemory::Init();
 	}
 
+#if WITH_ENGINE
+	{
+		SCOPED_BOOT_TIMING("InitDerivedData");
+		UE::DerivedData::IoStore::InitializeIoDispatcher();
+	}
+#endif // WITH_ENGINE
+
 #if USE_IO_DISPATCHER
 	{
 		SCOPED_BOOT_TIMING("InitIoDispatcher");
@@ -2852,10 +2860,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 #if WITH_EDITORONLY_DATA
-		// Ensure that DDC is initialized from the game thread.
-		UE::DerivedData::GetBuild();
-		UE::DerivedData::GetCache();
-		GetDerivedDataCacheRef();
+		{
+			// Ensure that DDC is initialized from the game thread.
+			SCOPED_BOOT_TIMING("InitDerivedData");
+			UE::DerivedData::GetBuild();
+			UE::DerivedData::GetCache();
+			GetDerivedDataCacheRef();
+		}
 #endif
 
 #if WITH_EDITOR
@@ -4554,11 +4565,13 @@ void FEngineLoop::Exit()
 	// Close shader code map, if any
 	FShaderCodeLibrary::Shutdown();
 
+	// Stop IoDispatcher after FShaderCodeLibrary, as it holds on to file requests
+#if WITH_ENGINE
+	UE::DerivedData::IoStore::TearDownIoDispatcher();
+#endif
 #if USE_IO_DISPATCHER
-	// has to happen after the FShaderCodeLibrary, as it holds on to file requests
 	FIoDispatcher::Shutdown();
 #endif
-
 
 #if !PLATFORM_ANDROID // UnloadModules doesn't work on Android
 #if WITH_ENGINE

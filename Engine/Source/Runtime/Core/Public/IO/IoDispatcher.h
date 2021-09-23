@@ -654,7 +654,9 @@ enum class EIoChunkType : uint8
 	ExternalFile = 7,
 	ShaderCodeLibrary = 8,
 	ShaderCode = 9,
-	PackageStoreEntry = 10
+	PackageStoreEntry = 10,
+	DerivedData = 11,
+	EditorDerivedData = 12,
 };
 
 /**
