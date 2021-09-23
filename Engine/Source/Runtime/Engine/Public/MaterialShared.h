@@ -2355,11 +2355,18 @@ public:
 	ENGINE_API virtual void ReleaseDynamicRHI() override;
 	ENGINE_API virtual void ReleaseResource() override;
 
+#if WITH_EDITOR
 	ENGINE_API static const TSet<FMaterialRenderProxy*>& GetMaterialRenderProxyMap() 
 	{
 		check(!FPlatformProperties::RequiresCookedData());
 		return MaterialRenderProxyMap;
 	}
+
+	ENGINE_API static FCriticalSection& GetMaterialRenderProxyMapLock()
+	{
+		return MaterialRenderProxyMapLock;
+	}
+#endif
 
 	void SetSubsurfaceProfileRT(const USubsurfaceProfile* Ptr) { SubsurfaceProfileRT = Ptr; }
 	const USubsurfaceProfile* GetSubsurfaceProfileRT() const { return SubsurfaceProfileRT; }
@@ -2389,11 +2396,18 @@ private:
 	/** If any VT producer destroyed callbacks have been registered */
 	mutable int8 HasVirtualTextureCallbacks : 1;
 
+#if WITH_EDITOR
 	/** 
-	 * Tracks all material render proxies in all scenes, can only be accessed on the rendering thread.
+	 * Tracks all material render proxies in all scenes.
 	 * This is used to propagate new shader maps to materials being used for rendering.
 	 */
 	ENGINE_API static TSet<FMaterialRenderProxy*> MaterialRenderProxyMap;
+
+	/**
+	 * Lock that guards the access to the render proxy map
+	 */
+	ENGINE_API static FCriticalSection MaterialRenderProxyMapLock;
+#endif
 
 	ENGINE_API static TSet<FMaterialRenderProxy*> DeferredUniformExpressionCacheRequests;
 };
