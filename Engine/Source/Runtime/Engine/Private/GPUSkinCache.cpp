@@ -533,7 +533,6 @@ protected:
 	FRHIShaderResourceView* MorphBuffer;
 	FShaderResourceViewRHIRef ClothBuffer;
 	int32 LOD;
-	bool bMultipleClothSkinInfluences;
 
 	friend class FGPUSkinCache;
 	friend class FBaseGPUSkinCacheCS;
@@ -1667,16 +1666,6 @@ bool FGPUSkinCache::ProcessEntry(
         InOutEntry->DispatchData[Section].ClothBlendWeight = ClothBlendWeight;
         InOutEntry->DispatchData[Section].ClothLocalToWorld = ClothLocalToWorld;
         InOutEntry->DispatchData[Section].ClothWorldToLocal = ClothLocalToWorld.Inverse();
-
-		const int32 NumWrapWeights = InOutEntry->DispatchData[Section].Section->ClothMappingData.Num();
-		if (NumWrapWeights > NumVertices)
-		{
-			InOutEntry->bMultipleClothSkinInfluences = true;
-		}
-		else
-		{
-			InOutEntry->bMultipleClothSkinInfluences = false;
-		}
     }
     InOutEntry->DispatchData[Section].SkinType = ClothVertexBuffer ? 2 : (bMorph ? 1 : 0);
 
@@ -1996,6 +1985,9 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	FGPUSkinCacheEntry::FSectionDispatchData& DispatchData = Entry->DispatchData[Section];
 	FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = DispatchData.SourceVertexFactory->GetShaderData();
 	const FString RayTracingTag = (Entry->Mode == EGPUSkinCacheEntryMode::RayTracing ? TEXT("[RT]") : TEXT(""));
+	
+	const uint32 NumWrapDeformerWeights = DispatchData.Section->ClothMappingData.Num();
+	const bool bMultipleWrapDeformerInfluences = (DispatchData.NumVertices < NumWrapDeformerWeights);
 
 	SCOPED_DRAW_EVENTF(RHICmdList, SkinCacheDispatch,
 		TEXT("%sSkinning%d%d%d Mesh=%s LOD=%d Chunk=%d InStreamStart=%d OutStart=%d Vert=%d Morph=%d/%d"),
@@ -2061,7 +2053,7 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 		}
 		break;
 	case 2:
-		if (Entry->bMultipleClothSkinInfluences)
+		if (bMultipleWrapDeformerInfluences)
 		{
 			// Multiple influences for cloth skinning
 			if (Entry->BoneInfluenceType == 0)
