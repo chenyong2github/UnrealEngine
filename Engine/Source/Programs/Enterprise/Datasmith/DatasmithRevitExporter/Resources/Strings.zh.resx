@@ -118,16 +118,28 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="ButtonConnections" xml:space="preserve">
-    <value>Connections</value>
+    <value>连接</value>
+  </data>
+  <data name="ButtonConnectionsHint" xml:space="preserve">
+    <value>管理连接</value>
   </data>
   <data name="ButtonExport3DView" xml:space="preserve">
-    <value>Export 3D View</value>
+    <value>导出</value>
+  </data>
+  <data name="ButtonExport3DViewHint" xml:space="preserve">
+    <value>导出到Datasmith文件</value>
   </data>
   <data name="ButtonMessages" xml:space="preserve">
-    <value>Messages</value>
+    <value>日志</value>
+  </data>
+  <data name="ButtonMessagesHint" xml:space="preserve">
+    <value>显示信息</value>
   </data>
   <data name="ButtonSync" xml:space="preserve">
-    <value>Synchronize</value>
+    <value>同步</value>
+  </data>
+  <data name="ButtonSyncHint" xml:space="preserve">
+    <value>使用Direct Link同步</value>
   </data>
   <data name="DatasmithTabName" xml:space="preserve">
     <value>Datasmith</value>

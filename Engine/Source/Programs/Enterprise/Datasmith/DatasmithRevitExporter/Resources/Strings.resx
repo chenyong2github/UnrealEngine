@@ -120,14 +120,26 @@
   <data name="ButtonConnections" xml:space="preserve">
     <value>Connections</value>
   </data>
+  <data name="ButtonConnectionsHint" xml:space="preserve">
+    <value>Manage Connections</value>
+  </data>
   <data name="ButtonExport3DView" xml:space="preserve">
-    <value>Export 3D View</value>
+    <value>Export to Datasmith file</value>
+  </data>
+  <data name="ButtonExport3DViewHint" xml:space="preserve">
+    <value>Export to Datasmith file</value>
   </data>
   <data name="ButtonMessages" xml:space="preserve">
-    <value>Messages</value>
+    <value>Datasmith Messages</value>
+  </data>
+  <data name="ButtonMessagesHint" xml:space="preserve">
+    <value>Show Messages</value>
   </data>
   <data name="ButtonSync" xml:space="preserve">
     <value>Synchronize</value>
+  </data>
+  <data name="ButtonSyncHint" xml:space="preserve">
+    <value>Synchronize with Direct Link</value>
   </data>
   <data name="DatasmithTabName" xml:space="preserve">
     <value>Datasmith</value>

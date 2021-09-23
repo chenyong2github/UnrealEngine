@@ -53,22 +53,22 @@ namespace DatasmithRevitExporter
 			string DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithIcon");
 			ExportPushButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
 			ExportPushButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
-			ExportPushButton.ToolTip = "Export an active 3D View to Unreal Datasmith";
+			ExportPushButton.ToolTip = DatasmithRevitResources.Strings.ButtonExport3DViewHint;
 
 			DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithSyncIcon");
 			SyncPushButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
 			SyncPushButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
-			SyncPushButton.ToolTip = "Sync an active 3D View with DirectLink";
+			SyncPushButton.ToolTip = DatasmithRevitResources.Strings.ButtonSyncHint;
 
 			DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithManageConnectionsIcon");
 			ManageConnectionsButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
 			ManageConnectionsButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
-			ManageConnectionsButton.ToolTip = "Manage connections";
+			ManageConnectionsButton.ToolTip = DatasmithRevitResources.Strings.ButtonConnectionsHint;
 
 			DatasmithIconBase = Path.Combine(Path.GetDirectoryName(AssemblyPath), "DatasmithLogIcon");
 			ShowLogButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
 			ShowLogButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
-			ShowLogButton.ToolTip = "Show messages";
+			ShowLogButton.ToolTip = DatasmithRevitResources.Strings.ButtonMessagesHint;
 
 			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
 			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;

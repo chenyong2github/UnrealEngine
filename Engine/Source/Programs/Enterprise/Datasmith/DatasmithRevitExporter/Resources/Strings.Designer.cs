@@ -70,7 +70,16 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Export 3D View.
+        ///   Looks up a localized string similar to Manage Connections.
+        /// </summary>
+        public static string ButtonConnectionsHint {
+            get {
+                return ResourceManager.GetString("ButtonConnectionsHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Export to Datasmith file.
         /// </summary>
         public static string ButtonExport3DView {
             get {
@@ -79,11 +88,29 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Messages.
+        ///   Looks up a localized string similar to Export to Datasmith file.
+        /// </summary>
+        public static string ButtonExport3DViewHint {
+            get {
+                return ResourceManager.GetString("ButtonExport3DViewHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Datasmith Messages.
         /// </summary>
         public static string ButtonMessages {
             get {
                 return ResourceManager.GetString("ButtonMessages", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show Messages.
+        /// </summary>
+        public static string ButtonMessagesHint {
+            get {
+                return ResourceManager.GetString("ButtonMessagesHint", resourceCulture);
             }
         }
         
@@ -93,6 +120,15 @@ namespace DatasmithRevitResources {
         public static string ButtonSync {
             get {
                 return ResourceManager.GetString("ButtonSync", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Synchronize with Direct Link.
+        /// </summary>
+        public static string ButtonSyncHint {
+            get {
+                return ResourceManager.GetString("ButtonSyncHint", resourceCulture);
             }
         }
         

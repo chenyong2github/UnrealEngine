@@ -118,16 +118,28 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="ButtonConnections" xml:space="preserve">
-    <value>Connections</value>
+    <value>연결</value>
+  </data>
+  <data name="ButtonConnectionsHint" xml:space="preserve">
+    <value>연결 관리</value>
   </data>
   <data name="ButtonExport3DView" xml:space="preserve">
-    <value>Export 3D View</value>
+    <value>익스포트</value>
+  </data>
+  <data name="ButtonExport3DViewHint" xml:space="preserve">
+    <value>데이터스미스 파일로 익스포트</value>
   </data>
   <data name="ButtonMessages" xml:space="preserve">
-    <value>Messages</value>
+    <value>로그</value>
+  </data>
+  <data name="ButtonMessagesHint" xml:space="preserve">
+    <value>메시지 보기</value>
   </data>
   <data name="ButtonSync" xml:space="preserve">
-    <value>Synchronize</value>
+    <value>동기화</value>
+  </data>
+  <data name="ButtonSyncHint" xml:space="preserve">
+    <value>다이렉트 링크로 동기화</value>
   </data>
   <data name="DatasmithTabName" xml:space="preserve">
     <value>Datasmith</value>
