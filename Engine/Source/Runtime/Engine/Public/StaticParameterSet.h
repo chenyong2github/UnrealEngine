@@ -401,6 +401,14 @@ struct FStaticParameterSet
 		return StaticSwitchParameters.Num() == 0 && StaticComponentMaskParameters.Num() == 0 && TerrainLayerWeightParameters.Num() == 0 && MaterialLayersParameters.Num() == 0;
 	}
 
+	void Empty()
+	{
+		StaticSwitchParameters.Empty();
+		StaticComponentMaskParameters.Empty();
+		TerrainLayerWeightParameters.Empty();
+		MaterialLayersParameters.Empty();
+	}
+
 	void Serialize(FArchive& Ar)
 	{
 		Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);

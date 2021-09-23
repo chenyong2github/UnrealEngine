@@ -1440,7 +1440,7 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 	if (MaterialResource)
 	{
 		// first, clear out all the parameter values
-		ClearParameterValuesInternal(false);
+		ClearParameterValuesInternal(EMaterialInstanceClearParameterFlag::Numeric);
 
 		TArrayView<const FMaterialNumericParameterInfo> Array = MaterialResource->GetUniformNumericParameterExpressions();
 		for (int32 i = 0, Count = Array.Num(); i < Count; ++i)
@@ -2839,13 +2839,25 @@ bool UMaterialInstance::SetVectorParameterByIndexInternal(int32 ParameterIndex, 
 }
 
 #if WITH_EDITORONLY_DATA
-FMaterialInstanceParameterUpdateContext::FMaterialInstanceParameterUpdateContext(UMaterialInstance* InInstance)
+FMaterialInstanceParameterUpdateContext::FMaterialInstanceParameterUpdateContext(UMaterialInstance* InInstance, EMaterialInstanceClearParameterFlag InFlags)
 	: Instance(InInstance)
 	, bForceStaticPermutationUpdate(false)
 {
 	check(InInstance);
-	StaticParameters = InInstance->GetStaticParameters();
+	EMaterialInstanceClearParameterFlag Flags = InFlags;
+	if (EnumHasAnyFlags(Flags, EMaterialInstanceClearParameterFlag::Static))
+	{
+		// If we ask to clear static parameters, simply avoid copying them
+		Flags &= ~EMaterialInstanceClearParameterFlag::Static;
+	}
+	else
+	{
+		StaticParameters = InInstance->GetStaticParameters();
+	}
+
 	BasePropertyOverrides = InInstance->BasePropertyOverrides;
+
+	InInstance->ClearParameterValuesInternal(Flags);
 }
 
 FMaterialInstanceParameterUpdateContext::~FMaterialInstanceParameterUpdateContext()
@@ -3155,19 +3167,30 @@ void UMaterialInstance::SetFontParameterValueInternal(const FMaterialParameterIn
 	}
 }
 
-void UMaterialInstance::ClearParameterValuesInternal(const bool bAllParameters)
+void UMaterialInstance::ClearParameterValuesInternal(EMaterialInstanceClearParameterFlag Flags)
 {
-	ScalarParameterValues.Empty();
-	VectorParameterValues.Empty();
+	bool bUpdateResource = false;
+	if (EnumHasAnyFlags(Flags, EMaterialInstanceClearParameterFlag::Numeric))
+	{
+		ScalarParameterValues.Empty();
+		VectorParameterValues.Empty();
+		bUpdateResource = true;
+	}
 
-	if(bAllParameters)
+	if (EnumHasAnyFlags(Flags, EMaterialInstanceClearParameterFlag::Texture))
 	{
 		TextureParameterValues.Empty();
 		RuntimeVirtualTextureParameterValues.Empty();
 		FontParameterValues.Empty();
+		bUpdateResource = true;
 	}
 
-	if (Resource)
+	if (EnumHasAnyFlags(Flags, EMaterialInstanceClearParameterFlag::Static))
+	{
+		StaticParameters.Empty();
+	}
+
+	if (Resource && bUpdateResource)
 	{
 		FMaterialInstanceResource* InResource = Resource;
 		ENQUEUE_RENDER_COMMAND(FClearMIParametersCommand)(
