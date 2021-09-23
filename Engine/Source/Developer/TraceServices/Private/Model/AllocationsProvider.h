@@ -277,6 +277,7 @@ private:
 	void UpdateHistogramByAllocSize(uint64 Size);
 	void UpdateHistogramByEventDistance(uint32 EventDistance);
 	void AdvanceTimelines(double Time);
+	void AddHeapSpec(HeapId Id, HeapId ParentId, const FStringView& Name, EMemoryTraceHeapFlags Flags);
 	HeapId FindRootHeap(HeapId Heap) const;
 
 private:
