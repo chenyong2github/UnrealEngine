@@ -3030,8 +3030,9 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateTextureFromResource(b
 	});
 
 	FD3D12ResourceLocation& Location = Texture2D->ResourceLocation;
-	Location.AsStandAlone(TextureResource);
 	Location.SetType(FD3D12ResourceLocation::ResourceLocationType::eAliased);
+	Location.SetResource(TextureResource);
+	Location.SetGPUVirtualAddress(TextureResource->GetGPUVirtualAddress());
 
 	uint32 RTVIndex = 0;
 
