@@ -67,7 +67,8 @@ public:
 		UI_COMMAND( ErrorFilter, "Errors", "Toggle Error Filter", EUserInterfaceActionType::ToggleButton, FInputChord() );
 		UI_COMMAND( WarningFilter, "Warnings", "Toggle Warning Filter", EUserInterfaceActionType::ToggleButton, FInputChord() );
 		UI_COMMAND( DeveloperDirectoryContent, "Dev Content", "Developer Directory Content Filter (when enabled, developer directories are also included)", EUserInterfaceActionType::ToggleButton, FInputChord() );
-		
+		UI_COMMAND( ExcludedTestsFilter, "Excluded Tests", "Toggle Excluded Tests only", EUserInterfaceActionType::ToggleButton, FInputChord());
+
 #if WITH_EDITOR
 		// Added button for running the currently open level test.
 		UI_COMMAND(RunLevelTest, "Run Level Test", "Run Level Test", EUserInterfaceActionType::Button, FInputChord());
@@ -79,6 +80,7 @@ public:
 	TSharedPtr<FUICommandInfo> ErrorFilter;
 	TSharedPtr<FUICommandInfo> WarningFilter;
 	TSharedPtr<FUICommandInfo> DeveloperDirectoryContent;
+	TSharedPtr<FUICommandInfo> ExcludedTestsFilter;
 
 #if WITH_EDITOR
 	TSharedPtr<FUICommandInfo> RunLevelTest;
@@ -248,11 +250,15 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 		.DefaultLabel(LOCTEXT("TestDurationRange", "Duration"))
 
 		+ SHeaderRow::Column( AutomationTestWindowConstants::Status )
-		.FillWidth(0.20f)
+		.FixedWidth(50.0f)
 		[
 			//platform header placeholder
 			PlatformsHBox.ToSharedRef()
 		]
+
+		+ SHeaderRow::Column(AutomationTestWindowConstants::IsToBeSkipped)
+		.FillWidth(0.10f)
+		.DefaultLabel(LOCTEXT("Excluded", "Excluded"))
 
 		);
 
@@ -606,6 +612,12 @@ void SAutomationWindow::CreateCommands()
 		FIsActionChecked::CreateRaw( this, &SAutomationWindow::IsDeveloperDirectoryIncluded )
 		);
 
+	ActionList.MapAction( Commands.ExcludedTestsFilter,
+		FExecuteAction::CreateRaw( this, &SAutomationWindow::OnToggleExcludedTestsFilter ),
+		FCanExecuteAction::CreateRaw( this, &SAutomationWindow::IsAutomationControllerIdle ),
+		FIsActionChecked::CreateRaw( this, &SAutomationWindow::IsExcludedTestsFilterOn )
+		);
+
 	// Added button for running the currently open level test.
 #if WITH_EDITOR
 	ActionList.MapAction(Commands.RunLevelTest,
@@ -658,6 +670,7 @@ TSharedRef< SWidget > SAutomationWindow::MakeAutomationWindowToolBar( const TSha
 				ToolbarBuilder.AddToolBarButton( FAutomationWindowCommands::Get().ErrorFilter );
 				ToolbarBuilder.AddToolBarButton( FAutomationWindowCommands::Get().WarningFilter );
 				ToolbarBuilder.AddToolBarButton( FAutomationWindowCommands::Get().DeveloperDirectoryContent );
+				ToolbarBuilder.AddToolBarButton( FAutomationWindowCommands::Get().ExcludedTestsFilter);
 			}
 			ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("GroupFlags");
@@ -1936,6 +1949,18 @@ void SAutomationWindow::OnToggleDeveloperDirectoryIncluded()
 	ListTests();
 }
 
+bool SAutomationWindow::IsExcludedTestsFilterOn() const
+{
+	return AutomationGeneralFilter->ShouldShowOnlyExcludedTests();
+}
+
+
+void SAutomationWindow::OnToggleExcludedTestsFilter()
+{
+	AutomationGeneralFilter->SetShowOnlyExcludedTests(!IsExcludedTestsFilterOn());
+	OnRefreshTestCallback();
+}
+
 
 bool SAutomationWindow::IsSmokeTestFilterOn() const
 {
@@ -2119,7 +2144,6 @@ void SAutomationWindow::ChangeTheSelectionToThisRow(TSharedPtr< IAutomationRepor
 {
 	TestTable->SetSelection(ThisRow, ESelectInfo::Direct);
 }
-
 
 bool SAutomationWindow::IsRowSelected(TSharedPtr< IAutomationReport >  ThisRow)
 {

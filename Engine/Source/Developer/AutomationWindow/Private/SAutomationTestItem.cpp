@@ -12,6 +12,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "EditorStyleSet.h"
+#include "AutomationTestExcludelist.h"
 #include "SAutomationWindow.h"
 
 #if WITH_EDITOR
@@ -19,6 +20,8 @@
 	#include "EngineGlobals.h"
 	#include "Editor.h"
 	#include "AssetRegistryModule.h"
+	#include "Dialogs/Dialogs.h"
+	#include "SKismetInspector.h"
 #endif
 
 #include "Widgets/Input/SHyperlink.h"
@@ -249,6 +252,37 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		return SNew( STextBlock )
 		.Text( this, &SAutomationTestItem::ItemStatus_DurationText);
 	}
+	else if (ColumnName == AutomationTestWindowConstants::IsToBeSkipped)
+	{
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &SAutomationTestItem::IsToBeSkipped)
+				.IsEnabled(this, &SAutomationTestItem::IsDirectlyExcluded)
+				.OnCheckStateChanged(this, &SAutomationTestItem::SetSkipFlag)
+				.ToolTipText(this, &SAutomationTestItem::GetExcludeReason)
+#if WITH_EDITOR
+			]
+		+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.Visibility(this, &SAutomationTestItem::IsDirectlyExcluded_GetVisibility)
+				.ToolTipText(LOCTEXT("EditExcludeOptions", "Edit exclude options"))
+				.OnClicked(FOnClicked::CreateSP(this, &SAutomationTestItem::OnEditExcludeOptionsClicked))
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Edit"))
+				]
+#endif
+			];
+	}
 
 
 	return SNullWidget::NullWidget;
@@ -286,9 +320,9 @@ FText SAutomationTestItem::GetTestToolTip( int32 ClusterIndex ) const
 	{
 		TestToolTip = LOCTEXT("TestToolTipNotRun", "Not Run");
 	}
-	else if( TestState == EAutomationState::NotEnoughParticipants )
+	else if( TestState == EAutomationState::Skipped )
 	{
-		TestToolTip = LOCTEXT("ToolTipNotEnoughParticipants", "This test could not be completed as there were not enough participants.");
+		TestToolTip = LOCTEXT("ToolTipSkipped", "This test was skipped.");
 	}
 	else
 	{
@@ -317,6 +351,63 @@ ECheckBoxState SAutomationTestItem::IsTestEnabled() const
 	return TestStatus->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
+ECheckBoxState SAutomationTestItem::IsToBeSkipped() const
+{
+	return TestStatus->IsToBeSkipped() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool SAutomationTestItem::IsDirectlyExcluded() const
+{
+	return WITH_EDITOR && !TestStatus->IsToBeSkippedByPropagation();
+}
+
+EVisibility SAutomationTestItem::IsDirectlyExcluded_GetVisibility() const
+{
+	return  TestStatus->IsToBeSkipped() && IsDirectlyExcluded() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FText SAutomationTestItem::GetExcludeReason() const
+{
+	FName Reason;
+	bool IsToBeSkipped = TestStatus->IsToBeSkipped(&Reason);
+
+	return IsToBeSkipped ? FText::FromName(Reason) : LOCTEXT("", "");
+}
+
+void SAutomationTestItem::SetSkipFlag(ECheckBoxState Enable)
+{
+#if WITH_EDITOR
+	if (Enable == ECheckBoxState::Checked)
+	{
+		OnEditExcludeOptionsClicked();
+	}
+	else
+	{
+		TestStatus->SetSkipFlag(false);
+	}
+#endif
+}
+
+FReply SAutomationTestItem::OnEditExcludeOptionsClicked()
+{
+#if WITH_EDITOR
+	TSharedPtr<FAutomationTestExcludeOptions> Options = TestStatus->GetExcludeOptions();
+	TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FAutomationTestExcludeOptions::StaticStruct(), (uint8*)Options.Get()));
+
+	TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
+	KismetInspector->ShowSingleStruct(StructToDisplay);
+
+	SGenericDialogWidget::FArguments DialogArguments;
+	DialogArguments.OnOkPressed_Lambda([Options, this]()
+		{
+			auto Entry = FAutomationTestExcludelistEntry(*Options);
+			TestStatus->SetSkipFlag(true, &Entry, false);
+		});
+
+	SGenericDialogWidget::OpenDialog(LOCTEXT("ExcludeTestOptions", "Exclude Test Options"), KismetInspector, DialogArguments, true);
+#endif
+	return FReply::Handled();
+}
 
 FSlateColor SAutomationTestItem::ItemStatus_BackgroundColor(const int32 ClusterIndex) const
 {
@@ -485,8 +576,8 @@ const FSlateBrush* SAutomationTestItem::ItemStatus_StatusImage(const int32 Clust
 		}
 		break;
 
-	case EAutomationState::NotEnoughParticipants:
-		ImageToUse = FEditorStyle::GetBrush("Automation.NotEnoughParticipants");
+	case EAutomationState::Skipped:
+		ImageToUse = FEditorStyle::GetBrush("Automation.Skipped");
 		break;
 
 	default:
@@ -497,7 +588,6 @@ const FSlateBrush* SAutomationTestItem::ItemStatus_StatusImage(const int32 Clust
 
 	return ImageToUse;
 }
-
 
 /* SAutomationTestitem event handlers
  *****************************************************************************/

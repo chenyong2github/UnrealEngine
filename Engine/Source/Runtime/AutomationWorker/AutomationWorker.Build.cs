@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"AutomationMessages",
+					"AutomationTest",
 					"CoreUObject",
                     "Analytics",
     				"AnalyticsET",

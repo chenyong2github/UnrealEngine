@@ -81,6 +81,46 @@ protected:
 	ECheckBoxState IsTestEnabled( ) const;
 
 	/**
+	* Is the test inside exclude list. This info is taken from Config/DefaultEngine.ini, section [AutomationTestExcludelist].
+	*
+	* @return true if the test is inside the exclude list.
+	*/
+	ECheckBoxState IsToBeSkipped() const;
+
+	/**
+	* Is the test inside exclude list through direct exclusion (not through propagation).
+	*
+	* @return true if the test is inside the exclude list by direct exclusion.
+	*/
+	bool IsDirectlyExcluded() const;
+
+	/**
+	* Return the visibility state based on exclude state.
+	*/
+	EVisibility IsDirectlyExcluded_GetVisibility() const;
+
+	/**
+	* Reason for the exclusion
+	*
+	* @return the exclusion reason
+	*/
+	FText GetExcludeReason() const;
+
+	/**
+	* Add or remove test from exclude list. It will change Config/DefaultEngine.ini, section [AutomationTestExcludelist].
+	*
+	* @param if true, add this item to exclude list, remove otherwise.
+	*/
+	void SetSkipFlag(ECheckBoxState Enable);
+
+	/**
+	* Open Exclude test options editor
+	*
+	* @return respond of dialog
+	*/
+	FReply OnEditExcludeOptionsClicked();
+
+	/**
 	 * Returns color that indicates test status per cluster.
 	 *
 	 * @param ClusterIndex The cluster index.

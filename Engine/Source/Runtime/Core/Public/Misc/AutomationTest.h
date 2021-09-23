@@ -881,11 +881,6 @@ public:
 	void LoadTestModules();
 
 	/**
-	 * Load the test Blacklist from the config.
-	 */
-	void BuildTestBlacklistFromConfig();
-
-	/**
 	 * Populates the provided array with the names of all tests in the framework that are valid to run for the current
 	 * application settings.
 	 *
@@ -1051,19 +1046,6 @@ private:
 		 std::atomic<FFeedbackContext*> DestinationContext;
 	 };
 
-	//** Store information about blacklisted test */
-	struct FBlacklistEntry
-	{
-		FBlacklistEntry() :
-			bWarn(false) {}
-
-		FString Map;
-		FString Test;
-		FString Reason;
-		TArray<FString> RHIs;
-		bool bWarn;
-	};
-
 	friend class FAutomationTestOutputDevice;
 	/** Helper method called to prepare settings for automation testing to follow */
 	void PrepForAutomationTests();
@@ -1094,17 +1076,6 @@ private:
 	 *			the current application settings
 	 */
 	bool InternalStopTest(FAutomationTestExecutionInfo& OutExecutionInfo);
-
-
-	/**
-	 * Internal helper method that verify if a test is black listed.
-	 *
-	 * @param	TestName		Beautified test name to be checked
-	 * @param	OutReason		Output the reason for the test being blacklisted
-	 * @param	OutWarn			Output true if the config ask for a warning message
-	 * @return	true if the TestName is part of the blacklist.
-	 */
-	bool IsBlacklisted(const FString& TestName, FString* OutReason = nullptr, bool* OutWarn = nullptr) const;
 
 	/** Constructor */
 	FAutomationTestFramework();
@@ -1164,8 +1135,6 @@ private:
 	bool bForceSmokeTests;
 
 	bool bCaptureStack;
-
-	TMap<FString, FBlacklistEntry> TestBlacklist;
 };
 
 

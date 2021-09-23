@@ -607,9 +607,9 @@ namespace UE
 				UnrealAutomatedTestPassResults JsonTestPassResults = GetTestPassResults(EditorRole.LogSummary);
 
 				// Filter our tests into categories
-				IEnumerable<UnrealAutomatedTestResult> AllTests = JsonTestPassResults.Tests;
+				IEnumerable<UnrealAutomatedTestResult> AllTests = JsonTestPassResults.Tests.Where(T => !T.WasSkipped);
 				IEnumerable<UnrealAutomatedTestResult> IncompleteTests = AllTests.Where(T => !T.IsComplete);
-				IEnumerable<UnrealAutomatedTestResult> FailedTests = AllTests.Where(T => T.IsComplete && !T.HasSucceeded);
+				IEnumerable<UnrealAutomatedTestResult> FailedTests = AllTests.Where(T => T.IsComplete && T.HasFailed);
 				IEnumerable<UnrealAutomatedTestResult> TestsWithWarnings = AllTests.Where(T => T.HasSucceeded && T.HasWarnings);
 
 				Func<string, string> ErrorLineForHorde = (L) => string.Format("Err: {0}", L);
@@ -791,7 +791,7 @@ namespace UE
 				{
 					AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 					AllErrors.AddRange(
-						Parser.GetResults().Where(R => !R.HasSucceeded)
+						Parser.GetResults().Where(R => R.HasFailed)
 							.SelectMany(R => R.Entries
 								.Where(E => E.Event.Type == EventType.Error)
 								.Distinct().Select(E => string.Format("[test={0}] {1}", R.TestDisplayName, E))

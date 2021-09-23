@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "AutomationTestExcludelist.h"
+#include "AutomationState.h"
 #include "UObject/ObjectMacros.h"
 #include "IAutomationReport.generated.h"
 
@@ -20,50 +22,6 @@ typedef TSharedPtr<class IAutomationReport> IAutomationReportPtr;
 
 typedef TSharedRef<class IAutomationReport> IAutomationReportRef;
 
-
-/** Enumeration of unit test status for special dialog */
-UENUM()
-enum class EAutomationState : uint8
-{
-	NotRun,					// Automation test was not run
-	InProcess,				// Automation test is running now
-	Fail,					// Automation test was run and failed
-	Success,				// Automation test was run and succeeded
-	NotEnoughParticipants,	// Automation test was not run due to number of participants
-};
-
-
-inline const TCHAR* ToString(EAutomationState InType)
-{
-	switch (InType)
-	{
-		case (EAutomationState::NotRun) :
-		{
-			return TEXT("NotRun");
-		}
-		case (EAutomationState::Fail) :
-		{
-			return TEXT("Fail");
-		}
-		case (EAutomationState::Success) :
-		{
-			return TEXT("Pass");
-		}
-		case (EAutomationState::InProcess) :
-		{
-			return TEXT("InProgress");
-		}
-		case (EAutomationState::NotEnoughParticipants) :
-		{
-			return TEXT("NotEnoughParticipants");
-		}
-		default:
-		{
-			return TEXT("Invalid");
-		}
-	}
-	return TEXT("Invalid");
-}
 
 UENUM()
 enum class EAutomationArtifactType : uint8
@@ -521,6 +479,35 @@ public:
 
 	/** Stop the test which is creating this report. */
 	virtual void StopRunningTest() = 0;
+
+	/**
+	* Is the test need to be skipped.
+	*
+	* @return true if the test is inside exclude list.
+	*/
+	virtual bool IsToBeSkipped(FName* OutReason = nullptr, bool* OutWarn = nullptr) const = 0;
+
+	/**
+	* Is the test is to be skipped through propagation.
+	*
+	* @return true if the test is inside exclude list via a propagation.
+	*/
+	virtual bool IsToBeSkippedByPropagation() const = 0;
+	
+	/**
+	* Add or remove test from exclude list.
+	*
+	* @param if true, add this item to the exclude list, remove otherwise.
+	*/
+	virtual void SetSkipFlag(bool bEnableSkip, const FAutomationTestExcludelistEntry* Template = nullptr, bool bFromPropagation = false) = 0;
+
+	/**
+	* Produce exclude options .
+	*
+	* @return exclude options based on report exclude info.
+	*/
+	virtual TSharedPtr<FAutomationTestExcludeOptions> GetExcludeOptions() = 0;
+
 
 	// Event that allows log to refresh once a test has finished
 	DECLARE_DELEGATE_OneParam(FOnSetResultsEvent, TSharedPtr<IAutomationReport>);

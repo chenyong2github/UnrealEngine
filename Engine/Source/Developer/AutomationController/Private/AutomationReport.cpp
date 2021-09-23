@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AutomationReport.h"
+#include "AutomationTestExcludelist.h"
 #include "Misc/FilterCollection.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -18,6 +19,13 @@ FAutomationReport::FAutomationReport(FAutomationTestInfo& InTestInfo, bool InIsP
 	if ( TestInfo.GetTestFlags() == EAutomationTestFlags::SmokeFilter )
 	{
 		bEnabled = true;
+	}
+	// Get exclude test info from Config/DefaultEngine.ini
+	if (auto Entry = UAutomationTestExcludelist::Get()->GetExcludeTestEntry(TestInfo.GetFullTestPath()))
+	{
+		ExcludeTestInfo = *Entry;
+		ExcludeTestInfo.SetPropagation(TestInfo.GetFullTestPath());
+		bNeedToSkip = true;
 	}
 }
 
@@ -444,7 +452,7 @@ void FAutomationReport::GetCompletionStatus(const int32 ClusterIndex, const int3
 		{
 			IsEnabled() ? OutCompletionState.NumEnabledTestsFailed++ : OutCompletionState.NumDisabledTestsFailed++;
 		}
-		else if( CurrentState == EAutomationState::NotEnoughParticipants )
+		else if( CurrentState == EAutomationState::Skipped )
 		{
 			IsEnabled() ? OutCompletionState.NumEnabledTestsCouldntBeRun++ : OutCompletionState.NumDisabledTestsCouldntBeRun++;
 		}
@@ -518,6 +526,7 @@ TSharedPtr<IAutomationReport> FAutomationReport::EnsureReportExists(FAutomationT
 {
 	//Split New Test Name by the first "." found
 	FString NameToMatch = InTestInfo.GetDisplayName();
+	FString FullPath = InTestInfo.GetFullTestPath();
 	FString NameRemainder;
 	//if this is a leaf test (no ".")
 	if (!InTestInfo.GetDisplayName().Split(TEXT("."), &NameToMatch, &NameRemainder))
@@ -529,6 +538,13 @@ TSharedPtr<IAutomationReport> FAutomationReport::EnsureReportExists(FAutomationT
 	{
 		// Set the test info name to be the remaining string
 		InTestInfo.SetDisplayName( NameRemainder );
+		// Update the fullpath
+		int32 Pos = FullPath.Find(NameToMatch + TEXT("."));
+		if (Pos >= 0)
+		{
+			FullPath.LeftChopInline(FullPath.Len() - Pos);
+		}
+		FullPath += NameToMatch;
 	}
 
 	uint32 NameToMatchHash = GetTypeHash(NameToMatch);
@@ -561,7 +577,7 @@ TSharedPtr<IAutomationReport> FAutomationReport::EnsureReportExists(FAutomationT
 		else
 		{
 			// Create a parent node
-			FAutomationTestInfo ParentTestInfo(NameToMatch, TEXT(""), TEXT(""), InTestInfo.GetTestFlags(), InTestInfo.GetNumParticipantsRequired());
+			FAutomationTestInfo ParentTestInfo(NameToMatch, FullPath, TEXT(""), InTestInfo.GetTestFlags(), InTestInfo.GetNumParticipantsRequired());
 			MatchTest = MakeShareable(new FAutomationReport(ParentTestInfo, true));
 		}
 
@@ -632,7 +648,7 @@ TSharedPtr<IAutomationReport> FAutomationReport::GetNextReportToExecute(bool& bO
 		{
 			EAutomationState TestState = GetState(ClusterIndex,PassIndex);
 			//if any enabled test hasn't been run yet or is in process
-			if ((TestState != EAutomationState::Success) && (TestState != EAutomationState::Fail) && (TestState != EAutomationState::NotEnoughParticipants))
+			if (TestState == EAutomationState::NotRun || TestState == EAutomationState::InProcess)
 			{
 				//make sure we announce we are NOT done with all tests
 				bOutAllTestsComplete = false;
@@ -812,3 +828,95 @@ void FAutomationReport::StopRunningTest()
 		ChildReports[ChildIndex]->StopRunningTest();
 	}
 }
+
+bool FAutomationReport::IsToBeSkipped(FName* OutReason, bool* OutWarn) const
+{
+	if (bNeedToSkip)
+	{
+		if (OutReason != nullptr)
+		{
+			*OutReason = ExcludeTestInfo.Reason;
+		}
+
+		if (OutWarn != nullptr)
+		{
+			*OutWarn = ExcludeTestInfo.Warn;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FAutomationReport::IsToBeSkippedByPropagation() const
+{
+	return bNeedToSkip && ExcludeTestInfo.bIsPropagated;
+}
+
+void FAutomationReport::SetSkipFlag(bool bEnableSkip, const FAutomationTestExcludelistEntry* Template, bool bFromPropagation)
+{
+	if (IsToBeSkipped() == bEnableSkip)
+	{
+		if (!bEnableSkip || Template == nullptr)
+			return;
+
+		if (!bFromPropagation)
+		{
+			// Remove previous entry in the config
+			UAutomationTestExcludelist::Get()->RemoveFromExcludeTest(TestInfo.GetFullTestPath());
+		}
+	}
+
+	if (!bFromPropagation && !ExcludeTestInfo.IsEmpty() && ExcludeTestInfo.bIsPropagated)
+		return; // Propagated exclusion can't be changed directly
+
+	bNeedToSkip = bEnableSkip;
+
+	if (Template != nullptr)
+	{
+		// Update the entry
+		ExcludeTestInfo = *Template;
+		ExcludeTestInfo.bIsPropagated = bFromPropagation;
+	}
+
+	if (bFromPropagation)
+	{
+		if (!bNeedToSkip)
+		{
+			ExcludeTestInfo.Reset();
+		}
+	}
+	else
+	{
+		auto ExcludedTestCached = UAutomationTestExcludelist::Get();
+		if (bNeedToSkip)
+		{
+			check(Template != nullptr);
+			ExcludedTestCached->AddToExcludeTest(TestInfo.GetFullTestPath(), *Template);
+		}
+		else
+		{
+			ExcludedTestCached->RemoveFromExcludeTest(TestInfo.GetFullTestPath());
+		}
+
+		ExcludedTestCached->SaveConfig();
+	}
+
+	// Propagate to children
+	if (IsParent())
+	{
+		for (IAutomationReportPtr Child : GetChildReports())
+		{
+			Child->SetSkipFlag(bNeedToSkip, Template, true);
+		}
+	}
+
+}
+
+TSharedPtr<FAutomationTestExcludeOptions> FAutomationReport::GetExcludeOptions()
+{
+	ExcludeTestInfo.Test = *TestInfo.GetFullTestPath();
+	return ExcludeTestInfo.GetOptions();
+}
+

@@ -201,9 +201,9 @@ void FAutomationReportManager::AddResultReport(TSharedPtr< IAutomationReport > I
 				{
 					Status = "Success";
 				}
-				else if( InReport->GetState( ClusterIndex,CurrentTestPass ) == EAutomationState::NotEnoughParticipants )
+				else if( InReport->GetState( ClusterIndex,CurrentTestPass ) == EAutomationState::Skipped )
 				{
-					Status = TEXT( "Could not run." );
+					Status = TEXT( "Skipped." );
 				}
 				else
 				{

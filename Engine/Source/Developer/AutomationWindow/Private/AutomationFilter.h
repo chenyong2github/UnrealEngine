@@ -16,6 +16,7 @@ public:
 		: OnlySmokeTests( false )
 		, ShowErrors( false )
 		, ShowWarnings( false )
+		, OnlyExcludedTests ( false )
 	{ }
 
 public:
@@ -85,6 +86,27 @@ public:
 		return OnlySmokeTests;
 	}
 
+	/**
+	 * Should we only show excluded tests.
+	 *
+	 * @return True if we should be showing only excluded tests.
+	 * @see SetOnlyShowSmokeTests, ShouldShowErrors, ShouldShowWarnings
+	 */
+	const bool ShouldShowOnlyExcludedTests() const
+	{
+		return OnlyExcludedTests;
+	}
+
+	/**
+	 * Set if we should only show excluded tests.
+	 *
+	 * @param InOnlyExcludedTests If we should show excluded tests.
+	 */
+	void SetShowOnlyExcludedTests(const bool InOnlyExcludedTests)
+	{
+		OnlyExcludedTests = InOnlyExcludedTests;
+	}
+
 public:
 
 	// IFilter interface
@@ -95,17 +117,26 @@ public:
 	virtual bool PassesFilter( const TSharedPtr< IAutomationReport >& InReport ) const override
 	{
 		bool FilterPassed = true;
+
 		if (OnlySmokeTests)
 		{
 			//if we only want smoke tests and this isn't one
 			if (!InReport->IsSmokeTest())
 			{
-				FilterPassed = false;
+				return false;
 			}
 			//Leaf Nodes dictate this matching, not root nodes
 			if (InReport->GetTotalNumChildren())
 			{
-				FilterPassed = false;
+				return false;
+			}
+		}
+
+		if (OnlyExcludedTests)
+		{
+			if (!InReport->IsToBeSkipped())
+			{
+				return false;
 			}
 		}
 
@@ -139,4 +170,7 @@ private:
 
 	/** Only warnings will pass the test. */
 	bool ShowWarnings;
+
+	/** Only exclude tests. */
+	bool OnlyExcludedTests;
 };

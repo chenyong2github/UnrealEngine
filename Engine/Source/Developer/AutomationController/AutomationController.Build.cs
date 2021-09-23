@@ -10,7 +10,8 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"CoreUObject"
+					"CoreUObject",
+					"AutomationTest",
 				}
 			); 
 			
@@ -18,7 +19,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
                     "AssetRegistry",
-                    "AutomationMessages",
+					"AutomationMessages",
 					"UnrealEdMessages",
                     "MessageLog",
                     "Json",
@@ -40,16 +41,17 @@ namespace UnrealBuildTool.Rules
                 );
             }
 
-            PrivateIncludePathModuleNames.AddRange(
+			PublicIncludePathModuleNames.AddRange(
 				new string[]
 				{
-					"MessagingCommon",
+					"AutomationTest"
 				}
 			);
 
-			PrivateIncludePaths.AddRange(
+			PrivateIncludePathModuleNames.AddRange(
 				new string[]
 				{
+					"MessagingCommon"
 				}
 			);
 
