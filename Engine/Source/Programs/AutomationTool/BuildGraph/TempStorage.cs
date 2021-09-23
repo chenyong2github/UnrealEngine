@@ -1085,6 +1085,9 @@ namespace AutomationTool
 								{
 									throw new AutomationException(Ex, "Failed to unzip '{0}' to '{1}'.", ZipFile.FullName, RootDir.FullName);
 								}
+
+								Log.TraceLog("Exception encountered while unzipped '{0}', {1} retries remain: {2}", ZipFile.FullName, Retries, Ex);
+								Thread.Sleep(TimeSpan.FromSeconds(5));
 							}
 						}
 					});
