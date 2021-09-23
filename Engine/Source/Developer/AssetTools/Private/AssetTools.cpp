@@ -1149,7 +1149,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsAutomated(const UAutomatedAssetImp
 	Params.bAutomated = true;
 	Params.bForceOverrideExisting = ImportData->bReplaceExisting;
 	Params.bSyncToBrowser = false;
-	Params.SpecifiedFactory = ImportData->Factory;
+	Params.SpecifiedFactory = TStrongObjectPtr<UFactory>(ImportData->Factory);
 	Params.ImportData = ImportData;
 
 	return ImportAssetsInternal(ImportData->Filenames, ImportData->DestinationPath, nullptr, Params);
@@ -1179,7 +1179,7 @@ void UAssetToolsImpl::ImportAssetTasks(const TArray<UAssetImportTask*>& ImportTa
 		Params.AssetImportTask = ImportTask;
 		Params.bForceOverrideExisting = ImportTask->bReplaceExisting;
 		Params.bAutomated = ImportTask->bAutomated;
-		Params.SpecifiedFactory = ImportTask->Factory;
+		Params.SpecifiedFactory = TStrongObjectPtr<UFactory>(ImportTask->Factory);
 		Filenames[0] = ImportTask->Filename;
 		TArray<UObject*> ImportedObjects = ImportAssetsInternal(Filenames, ImportTask->DestinationPath, nullptr, Params);
 
@@ -1298,7 +1298,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssets(const TArray<FString>& Files, con
 	Params.bAutomated = false;
 	Params.bForceOverrideExisting = false;
 	Params.bSyncToBrowser = bSyncToBrowser;
-	Params.SpecifiedFactory = ChosenFactory;
+	Params.SpecifiedFactory = TStrongObjectPtr<UFactory>(ChosenFactory);
 
 	return ImportAssetsInternal(Files, DestinationPath, FilesAndDestinations, Params);
 }
@@ -1678,18 +1678,29 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, GIsRunningUnattendedScript || Params.bAutomated);
 
-	UFactory* SpecifiedFactory = Params.SpecifiedFactory;
+	UFactory* SpecifiedFactory = Params.SpecifiedFactory.Get();
 	const bool bForceOverrideExisting = Params.bForceOverrideExisting;
 	const bool bSyncToBrowser = Params.bSyncToBrowser;
 	const bool bAutomatedImport = Params.bAutomated || GIsAutomationTesting;
 
 	TArray<UObject*> ReturnObjects;
+	TArray<FString> ValidFiles;
+	ValidFiles.Reserve(Files.Num());
+	for (int32 FileIndex = 0; FileIndex < Files.Num(); ++FileIndex)
+	{
+		if (!Files[FileIndex].IsEmpty())
+		{
+			FString InputFile = Files[FileIndex];
+			FPaths::NormalizeDirectoryName(InputFile);
+			ValidFiles.Add(InputFile);
+		}
+	}
 	TMap< FString, TArray<UFactory*> > ExtensionToFactoriesMap;
 
-	FScopedSlowTask SlowTask(Files.Num(), LOCTEXT("ImportSlowTask", "Importing"));
-	if (Files.Num() > 1)
+	FScopedSlowTask SlowTask(ValidFiles.Num(), LOCTEXT("ImportSlowTask", "Importing"));
+	if (ValidFiles.Num() > 1)
 	{	
-		//Always allow user to cancel the import task if they are importing multiple files.
+		//Always allow user to cancel the import task if they are importing multiple ValidFiles.
 		//If we're importing a single file, then the factory policy will dictate if the import if cancelable.
 		SlowTask.MakeDialog(true);
 	}
@@ -1698,7 +1709,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	TArray<TPair<FString, FString>> FilesAndDestinations;
 	if (FilesAndDestinationsPtr == nullptr)
 	{
-		ExpandDirectories(Files, RootDestinationPath, FilesAndDestinations);
+		ExpandDirectories(ValidFiles, RootDestinationPath, FilesAndDestinations);
 	}
 	else
 	{
@@ -1769,7 +1780,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		TArray<FString> FactoryExtensions;
 		SpecifiedFactory->GetSupportedFileExtensions(FactoryExtensions);
 
-		for(auto FileIt = Files.CreateConstIterator(); FileIt; ++FileIt)
+		for(auto FileIt = ValidFiles.CreateConstIterator(); FileIt; ++FileIt)
 		{
 			const FString FileExtension = FPaths::GetExtension(*FileIt);
 
