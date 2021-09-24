@@ -9,13 +9,13 @@
 #include "AssetRenameManager.h"
 #include "Misc/BlacklistNames.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Factories/Factory.h"
 #include "AssetTools.generated.h"
 
 class FAssetFixUpRedirectors;
 class UToolMenu;
 class IClassTypeActions;
 class UAutomatedAssetImportData;
-class UFactory;
 class UAssetImportTask;
 struct ReportPackageData;
 
