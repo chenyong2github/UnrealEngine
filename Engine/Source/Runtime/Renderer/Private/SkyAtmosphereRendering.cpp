@@ -336,7 +336,7 @@ void GetSkyAtmosphereLightsUniformBuffers(
 
 bool ShouldRenderSkyAtmosphere(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
 {
-	if (Scene && Scene->HasSkyAtmosphere() && EngineShowFlags.Atmosphere && EngineShowFlags.Lighting)
+	if (Scene && Scene->HasSkyAtmosphere() && EngineShowFlags.Atmosphere)
 	{
 		EShaderPlatform ShaderPlatform = Scene->GetShaderPlatform();
 		const FSkyAtmosphereRenderSceneInfo* SkyAtmosphere = Scene->GetSkyAtmosphereSceneInfo();
@@ -1887,7 +1887,7 @@ void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRDGBuilder& GraphBu
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
-		if (View.bSceneHasSkyMaterial && View.Family->EngineShowFlags.Atmosphere && View.Family->EngineShowFlags.Lighting)
+		if (View.bSceneHasSkyMaterial && View.Family->EngineShowFlags.Atmosphere)
 		{
 			RenderSkyAtmosphereEditorHudPS::FPermutationDomain PermutationVector;
 			TShaderMapRef<RenderSkyAtmosphereEditorHudPS> PixelShader(View.ShaderMap, PermutationVector);
