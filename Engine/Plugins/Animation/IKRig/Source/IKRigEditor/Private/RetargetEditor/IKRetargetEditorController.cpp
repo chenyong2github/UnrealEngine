@@ -28,7 +28,7 @@ USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
 	return Asset->TargetIKRigAsset->PreviewSkeletalMesh;
 }
 
-FTransform FIKRetargetEditorController::GetTargetBoneTransform(const FName& BoneName) const
+FTransform FIKRetargetEditorController::GetTargetBoneTransform(const int32& TargetBoneIndex) const
 {
 	UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get();
 	check(AnimInstance);
@@ -37,55 +37,90 @@ FTransform FIKRetargetEditorController::GetTargetBoneTransform(const FName& Bone
 	check(CurrentRetargeter)
 
 	// get transform of root of chain
-	FTransform BoneTransform = CurrentRetargeter->GetTargetBoneRetargetPoseGlobalTransform(BoneName);
+	FTransform BoneTransform = CurrentRetargeter->GetTargetBoneRetargetPoseGlobalTransform(TargetBoneIndex);
 
+	// scale and offset
 	BoneTransform.ScaleTranslation(Asset->TargetActorScale);
-
-	// add the target translation offset
-	const FVector TargetOffset(Asset->TargetActorOffset, 0.f, 0.f);
-	BoneTransform.AddToTranslation(TargetOffset);
+	BoneTransform.AddToTranslation(FVector(Asset->TargetActorOffset, 0.f, 0.f));
 
 	return BoneTransform;
 }
 
-void FIKRetargetEditorController::GetTargetBoneStartAndEnd(const FName& BoneName, FVector& Start, FVector& End) const
+bool FIKRetargetEditorController::GetTargetBoneLineSegments(
+	const int32& TargetBoneIndex,
+	FVector& OutStart,
+	TArray<FVector>& OutChildren) const
 {
 	UIKRetargeter* CurrentRetargeter = GetCurrentlyRunningRetargeter();
-	check(CurrentRetargeter)
-
-	// get line of chain
-	CurrentRetargeter->GetTargetBoneStartAndEnd(BoneName, Start, End);
-
-	// add the target translation offset
-	const FVector TargetOffset(Asset->TargetActorOffset, 0.f, 0.f);
-
-	Start *= Asset->TargetActorScale;
-	End *= Asset->TargetActorScale;
+	check(CurrentRetargeter && CurrentRetargeter->bIsLoadedAndValid)
+	check(CurrentRetargeter->TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
 	
-	Start += TargetOffset;
-	End += TargetOffset;
+	// get the target skeleton we want to draw
+	const FTargetSkeleton& TargetSkeleton = CurrentRetargeter->TargetSkeleton;
+
+	// get the origin of the bone chain
+	OutStart = TargetSkeleton.RetargetGlobalPose[TargetBoneIndex].GetTranslation();
+
+	// get children
+	TArray<int32> ChildIndices;
+	TargetSkeleton.GetChildrenIndices(TargetBoneIndex, ChildIndices);
+	for (const int32& ChildIndex : ChildIndices)
+	{
+		OutChildren.Emplace(TargetSkeleton.RetargetGlobalPose[ChildIndex].GetTranslation());
+	}
+
+	// add the target translation offset and scale
+	const FVector TargetOffset(Asset->TargetActorOffset, 0.f, 0.f);
+	OutStart *= Asset->TargetActorScale;
+	OutStart += TargetOffset;
+	for (FVector& ChildPoint : OutChildren)
+	{
+		ChildPoint *= Asset->TargetActorScale;
+		ChildPoint += TargetOffset;
+	}
+	
+	return true;
+}
+
+bool FIKRetargetEditorController::IsTargetBoneRetargeted(const int32& TargetBoneIndex)
+{
+	UIKRetargeter* CurrentRetargeter = GetCurrentlyRunningRetargeter();
+	check(CurrentRetargeter && CurrentRetargeter->bIsLoadedAndValid)
+	check(CurrentRetargeter->TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
+
+	return CurrentRetargeter->TargetSkeleton.IsBoneRetargeted[TargetBoneIndex];
 }
 
 UIKRetargeter* FIKRetargetEditorController::GetCurrentlyRunningRetargeter() const
-{
-	UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get();
-	if(!AnimInstance)
+{	
+	if(UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get())
 	{
-		return nullptr;
+		return AnimInstance->GetCurrentlyUsedRetargeter();
 	}
 
-	UIKRetargeter* CurrentRetargeter = AnimInstance->GetCurrentlyUsedRetargeter();
-	if (!CurrentRetargeter)
-	{
-		return nullptr;
-	}
-
-	return CurrentRetargeter;
+	return nullptr;	
 }
 
 void FIKRetargetEditorController::RefreshAllViews()
 {
 	ChainsView.Get()->RefreshView();
+}
+
+void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
+{
+	if (AssetToPlay && SourceAnimInstance)
+	{
+		SourceAnimInstance->SetAnimationAsset(AssetToPlay);
+		PreviousAsset = AssetToPlay;
+	}
+}
+
+void FIKRetargetEditorController::PlayPreviousAnimationAsset()
+{
+	if (PreviousAsset)
+	{
+		SourceAnimInstance->SetAnimationAsset(PreviousAsset);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

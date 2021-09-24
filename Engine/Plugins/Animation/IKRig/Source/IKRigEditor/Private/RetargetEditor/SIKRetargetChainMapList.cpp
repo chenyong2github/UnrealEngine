@@ -122,11 +122,6 @@ FText SIKRetargetChainMapRow::GetSourceChainName() const
 	return FText::FromName(Mapping.SourceChain);
 }
 
-SIKRetargetChainMapList::~SIKRetargetChainMapList()
-{
-	
-}
-
 void SIKRetargetChainMapList::Construct(
 	const FArguments& InArgs,
 	TSharedRef<FIKRetargetEditorController> InEditorController)
@@ -136,12 +131,10 @@ void SIKRetargetChainMapList::Construct(
 
 	ChildSlot
     [
-        SNew(SVerticalBox)
-        
-        +SVerticalBox::Slot()
-        .AutoHeight()
-        .VAlign(VAlign_Top)
-        [
+	    SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -155,6 +148,7 @@ void SIKRetargetChainMapList::Construct(
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
+			.Padding(5, 0)
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			[
@@ -162,13 +156,7 @@ void SIKRetargetChainMapList::Construct(
 				.Text(this, &SIKRetargetChainMapList::GetSourceRootBone)
 				.IsEnabled(false)
 			]
-        ]
-
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SHorizontalBox)
+				
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
@@ -181,6 +169,7 @@ void SIKRetargetChainMapList::Construct(
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
+			.Padding(5, 0)
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			[
@@ -190,10 +179,11 @@ void SIKRetargetChainMapList::Construct(
 			]
 		]
 
-		+ SVerticalBox::Slot()
+		+SVerticalBox::Slot()
 		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Fill)
+		.Padding(5)
 		[
 			SNew(SEditorHeaderButton)
 			.Visibility(this, &SIKRetargetChainMapList::IsAutoMapButtonVisible)
@@ -202,8 +192,9 @@ void SIKRetargetChainMapList::Construct(
 			.ToolTipText(LOCTEXT("AutoMapButtonToolTip", "Automatically assign source chains based on fuzzy string match"))
 			.OnClicked(this, &SIKRetargetChainMapList::OnAutoMapButtonClicked)
 		]
-		
+	    
         +SVerticalBox::Slot()
+        .AutoHeight()
         [
 			SAssignNew(ListView, SRetargetChainMapListViewType )
 			.SelectionMode(ESelectionMode::Multi)

@@ -6,6 +6,7 @@
 #include "PersonaModule.h"
 #include "Modules/ModuleManager.h"
 #include "PersonaTabs.h"
+#include "RetargetEditor/IKRetargetAssetBrowserTabSummoner.h"
 
 #include "RetargetEditor/IKRetargetChainTabSummoner.h"
 #include "RetargetEditor/IKRetargetEditor.h"
@@ -32,13 +33,13 @@ FIKRetargetMode::FIKRetargetMode(
 	TabFactories.RegisterFactory(PersonaModule.CreatePersonaViewportTabFactory(InHostingApp, ViewportArgs));
 	TabFactories.RegisterFactory(PersonaModule.CreateAdvancedPreviewSceneTabFactory(InHostingApp, InPreviewScene));
 	TabFactories.RegisterFactory(PersonaModule.CreateDetailsTabFactory(InHostingApp, FOnDetailsCreated::CreateSP(&IKRetargetEditor.Get(), &FIKRetargetEditor::HandleDetailsCreated)));
-	TabFactories.RegisterFactory(PersonaModule.CreateAnimationAssetBrowserTabFactory(InHostingApp, IKRetargetEditor->GetPersonaToolkit(), FOnOpenNewAsset::CreateSP(&IKRetargetEditor.Get(), &FIKRetargetEditor::HandleOpenNewAsset), FOnAnimationSequenceBrowserCreated::CreateSP(&IKRetargetEditor.Get(), &FIKRetargetEditor::HandleAnimationSequenceBrowserCreated), true));
 
 	// register custom tabs
 	TabFactories.RegisterFactory(MakeShared<FIKRetargetChainTabSummoner>(IKRetargetEditor));
+	TabFactories.RegisterFactory(MakeShared<FIKRetargetAssetBrowserTabSummoner>(IKRetargetEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.005")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.006")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -73,7 +74,7 @@ FIKRetargetMode::FIKRetargetMode(
 					FTabManager::NewStack()
 						->SetSizeCoefficient(0.6f)
 						->AddTab(FIKRetargetChainTabSummoner::TabID, ETabState::OpenedTab)
-						->AddTab(FPersonaTabs::AssetBrowserID, ETabState::OpenedTab)
+						->AddTab(FIKRetargetAssetBrowserTabSummoner::TabID, ETabState::OpenedTab)
 						->SetForegroundTab(FIKRetargetChainTabSummoner::TabID)
 					)
 					

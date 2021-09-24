@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimNodes/AnimNode_IKRetargeter.h"
+#include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
 #include "Animation/AnimInstanceProxy.h"
 
 
-void FAnimNode_IKRetargeter::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+void FAnimNode_RetargetPoseFromMesh::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
     FAnimNode_Base::Initialize_AnyThread(Context);
@@ -13,12 +13,12 @@ void FAnimNode_IKRetargeter::Initialize_AnyThread(const FAnimationInitializeCont
 	GetEvaluateGraphExposedInputs().Execute(Context);
 }
 
-void FAnimNode_IKRetargeter::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+void FAnimNode_RetargetPoseFromMesh::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 }
 
-void FAnimNode_IKRetargeter::Update_AnyThread(const FAnimationUpdateContext& Context)
+void FAnimNode_RetargetPoseFromMesh::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	FAnimNode_Base::Update_AnyThread(Context);
@@ -26,7 +26,7 @@ void FAnimNode_IKRetargeter::Update_AnyThread(const FAnimationUpdateContext& Con
     // but we cannot do the work to extract transforms on a worker thread as it is not thread safe.
     GetEvaluateGraphExposedInputs().Execute(Context);
 }
-void FAnimNode_IKRetargeter::Evaluate_AnyThread(FPoseContext& Output)
+void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 
@@ -51,7 +51,7 @@ void FAnimNode_IKRetargeter::Evaluate_AnyThread(FPoseContext& Output)
 	FCSPose<FCompactPose>::ConvertComponentPosesToLocalPoses(ComponentPose, Output.Pose);
 }
 
-void FAnimNode_IKRetargeter::PreUpdate(const UAnimInstance* InAnimInstance)
+void FAnimNode_RetargetPoseFromMesh::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(PreUpdate)
 	EnsureInitialized(InAnimInstance);
@@ -61,12 +61,12 @@ void FAnimNode_IKRetargeter::PreUpdate(const UAnimInstance* InAnimInstance)
 	}
 }
 
-UIKRetargeter* FAnimNode_IKRetargeter::GetCurrentlyUsedRetargeter() const
+UIKRetargeter* FAnimNode_RetargetPoseFromMesh::GetCurrentlyUsedRetargeter() const
 {
 	return CurrentlyUsedRetargeter.Get();
 }
 
-void FAnimNode_IKRetargeter::EnsureInitialized(const UAnimInstance* InAnimInstance)
+void FAnimNode_RetargetPoseFromMesh::EnsureInitialized(const UAnimInstance* InAnimInstance)
 {
 	// has user supplied a retargeter asset?
 	if (!IKRetargeterAsset)
@@ -102,7 +102,7 @@ void FAnimNode_IKRetargeter::EnsureInitialized(const UAnimInstance* InAnimInstan
 	}
 }
 
-void FAnimNode_IKRetargeter::InitializeRetargetData(const UAnimInstance* InAnimInstance)
+void FAnimNode_RetargetPoseFromMesh::InitializeRetargetData(const UAnimInstance* InAnimInstance)
 {
 	// assume we fail until we don't
 	bIsInitialized = false;
@@ -150,7 +150,7 @@ void FAnimNode_IKRetargeter::InitializeRetargetData(const UAnimInstance* InAnimI
 	bIsInitialized = CurrentlyUsedRetargeter->bIsLoadedAndValid;
 }
 
-void FAnimNode_IKRetargeter::CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent)
+void FAnimNode_RetargetPoseFromMesh::CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent)
 {
 	if (!CurrentlyUsedSourceMeshComponent.IsValid())
 	{
@@ -199,7 +199,7 @@ void FAnimNode_IKRetargeter::CopyBoneTransformsFromSource(USkeletalMeshComponent
 	CurrentlyUsedSourceMesh = SourceMeshComp->SkeletalMesh;
 }
 
-USkeletalMeshComponent* FAnimNode_IKRetargeter::GetSourceMesh() const
+USkeletalMeshComponent* FAnimNode_RetargetPoseFromMesh::GetSourceMesh() const
 {
 	return nullptr;
 }

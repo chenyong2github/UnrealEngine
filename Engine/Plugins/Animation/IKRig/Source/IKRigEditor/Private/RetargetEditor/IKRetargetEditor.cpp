@@ -220,17 +220,6 @@ void FIKRetargetEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Refresh"));
 	}
 	ToolbarBuilder.EndSection();
-
-	ToolbarBuilder.BeginSection("Export");
-	{
-		ToolbarBuilder.AddToolBarButton(
-			FIKRetargetCommands::Get().ExportAnimation,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Save"));
-	}
-	ToolbarBuilder.EndSection();	
 }
 
 FName FIKRetargetEditor::GetToolkitFName() const
@@ -311,7 +300,10 @@ void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 
 	// apply mesh to the preview scene
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorController->SourceSkelMeshComponent);
+	InPersonaPreviewScene->SetAllowMeshHitProxies(false);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
+	EditorController->SourceSkelMeshComponent->bSelectable = false;
+	EditorController->TargetSkelMeshComponent->bSelectable = false;
 	InPersonaPreviewScene->SetPreviewMesh(SourceMesh);
 	InPersonaPreviewScene->AddComponent(EditorController->SourceSkelMeshComponent, FTransform::Identity);
 	InPersonaPreviewScene->AddComponent(EditorController->TargetSkelMeshComponent, FTransform::Identity);
@@ -327,21 +319,6 @@ void FIKRetargetEditor::SetupAnimInstance()
 
 	EditorController->SourceAnimInstance->InitializeAnimation();
 	EditorController->TargetAnimInstance->InitializeAnimation();
-}
-
-void FIKRetargetEditor::HandleOpenNewAsset(UObject* InNewAsset)
-{
-	if (UAnimationAsset* NewAnimationAsset = Cast<UAnimationAsset>(InNewAsset))
-	{
-		EditorController->SourceAnimInstance->SetAnimationAsset(NewAnimationAsset);
-		PreviousAsset = NewAnimationAsset;
-	}
-}
-
-void FIKRetargetEditor::HandleAnimationSequenceBrowserCreated(
-	const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser)
-{
-	EditorController->SequenceBrowser = InSequenceBrowser;
 }
 
 FText FIKRetargetEditor::GetCurrentPoseName() const
@@ -419,10 +396,7 @@ void FIKRetargetEditor::HandleEditPose() const
 	else
 	{
 		GetEditorModeManager().DeactivateMode(FIKRetargetEditMode::ModeName);
-		if (PreviousAsset)
-		{
-			EditorController->SourceSkelMeshComponent->EnablePreview(true, PreviousAsset);
-		}
+		EditorController->PlayPreviousAnimationAsset();
 	}
 
 	Asset->Modify();

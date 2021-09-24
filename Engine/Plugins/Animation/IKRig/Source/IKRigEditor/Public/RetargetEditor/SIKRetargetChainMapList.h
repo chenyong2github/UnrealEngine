@@ -79,8 +79,6 @@ public:
 	SLATE_BEGIN_ARGS(SIKRetargetChainMapList) {}
 	SLATE_END_ARGS()
 
-    virtual ~SIKRetargetChainMapList() override;
-
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRetargetEditorController> InEditorController);
 
 private:

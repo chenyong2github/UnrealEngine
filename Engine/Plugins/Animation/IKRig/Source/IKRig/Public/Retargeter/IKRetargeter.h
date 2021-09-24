@@ -96,6 +96,8 @@ struct IKRIG_API FRetargetSkeleton
 		const int32 BoneIndex,
 		TArray<FTransform>& OutLocalPose,
 		TArray<FTransform>& InGlobalPose) const;
+
+	void GetChildrenIndices(const int32 BoneIndex, TArray<int32>& OutChildren) const;
 };
 
 struct FTargetSkeleton : public FRetargetSkeleton
@@ -112,42 +114,41 @@ struct FTargetSkeleton : public FRetargetSkeleton
 	void UpdateGlobalTransformsAllNonRetargetedBones(TArray<FTransform>& InOutGlobalPose);
 };
 
-struct FEncodedRoot
+struct FRootSource
 {
-	FVector NormalizedPosition;
-	
-	FQuat Rotation;
+	int32 BoneIndex;
 
 	FQuat InitialRotation;
+
+	float InitialHeightInverse;
+
+	FVector CurrentPositionNormalized;
+	
+	FQuat CurrentRotation;
 };
 
-struct FRootEncoder
+struct FRootTarget
 {
 	int32 BoneIndex;
-
-	float InvInitialHeight;
-
-	FEncodedRoot EncodedResult;
-
-	bool Initialize(const FName RootBoneName, const FRetargetSkeleton& SourceSkeleton);
-
-	void EncodePose(const TArray<FTransform> &InputGlobalPose);
-};
-
-struct FRootDecoder
-{
-	int32 BoneIndex;
+	
+	FQuat InitialRotation;
 	
 	float InitialHeight;
+};
 
-	FQuat InitialRotation;
+struct FRootRetargeter
+{
+	FRootSource Source;
+	
+	FRootTarget Target;
 
-	bool Initialize(const FName RootBoneName, const FTargetSkeleton& TargetSkeleton);
+	bool InitializeSource(const FName SourceRootBoneName, const FRetargetSkeleton& SourceSkeleton);
+	
+	bool InitializeTarget(const FName TargetRootBoneName, const FTargetSkeleton& TargetSkeleton);
 
-	void DecodePose(
-        const FEncodedRoot& EncodedResult,
-        TArray<FTransform> &InOutTargetBoneTransforms,
-        const float StrideScale) const;
+	void EncodePose(const TArray<FTransform> &SourceGlobalPose);
+	
+	void DecodePose( TArray<FTransform> &OutTargetGlobalPose, const float StrideScale) const;
 };
 
 struct FChainFK
@@ -201,40 +202,6 @@ private:
 	TArray<int32> IntermediateParentIndices;
 };
 
-struct FEncodedIKChain
-{
-	FVector EndDirectionNormalized;
-	
-	FQuat EndRotation;
-	
-	FQuat EndRotationOrig;
-	
-	float HeightFromGroundNormalized;
-	
-	FVector PoleVectorDirection;
-};
-
-struct FChainEncoderIK
-{
-	int32 BoneIndexA;
-	
-	int32 BoneIndexB;
-	
-	int32 BoneIndexC;
-
-	FVector EndPositionOrig;
-	
-	FQuat EndRotationOrig;
-	
-	float InverseLength;
-
-	FEncodedIKChain EncodedResult;
-
-	bool Initialize(const TArray<int32>& BoneIndices, const TArray<FTransform> &InitialGlobalPose);
-
-	void EncodePose(const TArray<FTransform> &InputGlobalPose);
-};
-
 struct FDecodedIKChain
 {
 	FVector EndEffectorPosition;
@@ -244,24 +211,55 @@ struct FDecodedIKChain
 	FVector PoleVectorPosition;
 };
 
-struct FChainDecoderIK
+struct FSourceChainIK
 {
 	int32 BoneIndexA;
-
-	float Length;
-
-	FVector EndPositionOrig;
 	
-	FQuat EndRotationOrig;
-
-	FDecodedIKChain DecodedResults;
-
-	bool Initialize(const TArray<int32>& BoneIndices, const TArray<FTransform> &InitialGlobalPose);
+	int32 BoneIndexB;
 	
-	void DecodePose(
-		const FEncodedIKChain& EncodedChain,
-		const TArray<FTransform>& OutGlobalPose,
-		FDecodedIKChain& OutResults) const;
+	int32 BoneIndexC;
+	
+	FVector InitialEndPosition;
+	
+	FQuat InitialEndRotation;
+	
+	float InvInitialLength;
+
+	// results after encoding...
+	
+	FVector CurrentEndDirectionNormalized;
+	
+	FQuat CurrentEndRotation;
+	
+	float CurrentHeightFromGroundNormalized;
+	
+	FVector PoleVectorDirection;
+};
+
+struct FTargetChainIK
+{
+	int32 BoneIndexA;
+	
+	float InitialLength;
+	
+	FVector InitialEndPosition;
+	
+	FQuat InitialEndRotation;
+};
+
+struct FChainRetargeterIK
+{
+	FSourceChainIK Source;
+	
+	FTargetChainIK Target;
+
+	bool InitializeSource(const TArray<int32>& BoneIndices, const TArray<FTransform> &SourceInitialGlobalPose);
+	
+	bool InitializeTarget(const TArray<int32>& BoneIndices, const TArray<FTransform> &TargetInitialGlobalPose);
+
+	void EncodePose(const TArray<FTransform> &SourceInputGlobalPose);
+	
+	void DecodePose(const TArray<FTransform>& OutGlobalPose, FDecodedIKChain& OutResults) const;
 };
 
 struct FRetargetChainPair
@@ -304,10 +302,8 @@ struct FRetargetChainPairFK : FRetargetChainPair
 };
 
 struct FRetargetChainPairIK : FRetargetChainPair
-{
-	FChainEncoderIK IKEncoder;
-	
-	FChainDecoderIK IKDecoder;
+{	
+	FChainRetargeterIK IKChainRetargeter;
 	
 	FName IKGoalName;
 	
@@ -359,12 +355,12 @@ public:
 	TArray<FRetargetChainMap> ChainMapping;
 
 	/** The set of retarget poses available as options for retargeting.*/
-	UPROPERTY(EditAnywhere, Category = RetargetPose)
-	FName CurrentRetargetPose = NAME_None;
+	UPROPERTY()
+	FName CurrentRetargetPose = DefaultPoseName;
 	static const FName DefaultPoseName;
 	
 	/** The set of retarget poses available as options for retargeting.*/
-	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	UPROPERTY(VisibleAnywhere, Category = RetargetPose)
 	TMap<FName, FIKRetargetPose> RetargetPoses;
 
 	/** When false, translational motion of skeleton root is not copied. Useful for debugging.*/
@@ -379,27 +375,37 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bRetargetIK = true;
 
-	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (UIMin = "-500.0", UIMax = "500.0"))
+	/** Move the target actor in the viewport for easier visualization next to the source actor.*/
+	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (UIMin = "-2000.0", UIMax = "2000.0"))
 	float TargetActorOffset = 150.0f;
 
-	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (UIMin = "0.01", UIMax = "2.0"))
+	/** Scale the target actor in the viewport for easier visualization next to the source actor.*/
+	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (UIMin = "0.01", UIMax = "10.0"))
 	float TargetActorScale = 1.0f;
 
+	/** The visual size of the bones in the viewport when editing the retarget pose.*/
 	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
-	float BoneGizmoSize = 8.0f;
-	
-	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
-	float BoneGizmoThickness = 1.0f;
+	float BoneDrawSize = 8.0f;
 
+	/** The visual thickness of the bones in the viewport when editing the retarget pose.*/
+	UPROPERTY(EditAnywhere, Category = DebugPreview, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
+	float BoneDrawThickness = 1.0f;
+
+	/** The internal data structures used to represent the SOURCE skeleton / pose during retargeter.*/
 	FRetargetSkeleton SourceSkeleton;
-	
+
+	/** The internal data structures used to represent the TARGET skeleton / pose during retargeter.*/
 	FTargetSkeleton TargetSkeleton;
-	
+
+	/** Only true once Initialize() has successfully completed.*/
 	bool bIsLoadedAndValid = false;
 
+	/** A special editor-only mode which forces the retargeter to output the current retarget reference pose,
+	 * rather than actually running the retarget and outputting the retargeted pose. Used in Edit-Pose mode.*/
 	UPROPERTY()
 	bool bEditReferencePoseMode = false;
-
+	/** Used in-editor to force reinitialization when the asset version of the source asset differs from the currently
+	 *running asset version.*/
 	UPROPERTY()
 	int32 AssetVersion = 0;
 
@@ -421,12 +427,23 @@ public:
 	 */
 	TArray<FTransform>& RunRetargeter(const TArray<FTransform>& InSourceGlobalPose);
 
-	FTransform GetTargetBoneRetargetPoseGlobalTransform(const FName& ChainName) const;
+	/**
+	* Get the Global transform, in the currently used retarget pose, for a bone in the target skeletal mesh
+	* @param TargetBoneIndex - The index of a bone in the target skeleton.
+	* @return The Global space transform for the bone or Identity if bone not found.
+	* @warning This function is only valid to call after the retargeter has been initialized (which generates global retarget pose)
+	*/
+	FTransform GetTargetBoneRetargetPoseGlobalTransform(const int32& TargetBoneIndex) const;
 
-	void GetTargetBoneStartAndEnd(const FName& TargetBoneName, FVector& OutStart, FVector& OutEnd) const;
-
+	/**
+	* Get the mapping (between source/target) for a given target chain
+	* @param TargetChainName - The name of chain on the target IK Rig
+	* @return The mapping between the target chain and the source
+	*/
 	FRetargetChainMap* GetChainMap(const FName& TargetChainName);
 
+	void CleanPoseList();
+	
 #if WITH_EDITOR
 	
 	// UObject
@@ -442,7 +459,6 @@ public:
 	void GetSourceChainNames(TArray<FName>& OutNames) const;
 
 	void CleanChainMapping();
-	void CleanPoseList();
 	void AutoMapChains();
 
 	USkeleton* GetSourceSkeletonAsset() const;
@@ -463,10 +479,8 @@ private:
 	TArray<FRetargetChainPairFK> ChainPairsFK;
 	
 	TArray<FRetargetChainPairIK> ChainPairsIK;
-
-	FRootEncoder RootEncoder;
 	
-	FRootDecoder RootDecoder;
+	FRootRetargeter RootRetargeter;
 
 	bool InitializeRoots();
 		

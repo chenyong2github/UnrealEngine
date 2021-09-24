@@ -21,7 +21,11 @@ class UDebugSkelMeshComponent;
 class FIKRigEditorController
 {
 public:
-	
+
+	/** create goals */
+	void AddNewGoals(const TArray<FName>& GoalNames, const TArray<FName>& BoneNames);
+	/** delete goals */
+	void DeleteGoal(const FName& GoalToDelete);
 	/** get array of the names of currently selected goals */
 	const TArray<FName>& GetSelectedGoals() const {return SelectedGoals;};
 	/** return true if a goal with the given name is selected */

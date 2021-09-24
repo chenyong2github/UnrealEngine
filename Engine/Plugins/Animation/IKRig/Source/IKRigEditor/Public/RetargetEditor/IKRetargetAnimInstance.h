@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AnimPreviewInstance.h"
-#include "AnimNodes/AnimNode_IKRetargeter.h"
+#include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
 
 #include "IKRetargetAnimInstance.generated.h"
 
@@ -26,5 +26,5 @@ protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 
 	UPROPERTY(Transient)
-	FAnimNode_IKRetargeter IKRetargeterNode;
+	FAnimNode_RetargetPoseFromMesh IKRetargeterNode;
 };

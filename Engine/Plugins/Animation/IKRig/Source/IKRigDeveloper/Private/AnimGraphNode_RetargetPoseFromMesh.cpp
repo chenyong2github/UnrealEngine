@@ -1,68 +1,53 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimGraphNode_IKRetargeter.h"
+#include "AnimGraphNode_RetargetPoseFromMesh.h"
 #include "Animation/AnimInstance.h"
 #include "Kismet2/CompilerResultsLog.h"
 
-//#pragma optimize("", off)
-
 #define LOCTEXT_NAMESPACE "AnimGraphNode_IKRig"
-const FName UAnimGraphNode_IKRetargeter::AnimModeName(TEXT("IKRig.IKRigEditor.IKRigEditMode"));
+const FName UAnimGraphNode_RetargetPoseFromMesh::AnimModeName(TEXT("IKRig.IKRigEditor.IKRigEditMode"));
 
-void UAnimGraphNode_IKRetargeter::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const
+void UAnimGraphNode_RetargetPoseFromMesh::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent* PreviewSkelMeshComp) const
 {
 }
 
-FText UAnimGraphNode_IKRetargeter::GetNodeTitle(ENodeTitleType::Type TitleType) const
+FText UAnimGraphNode_RetargetPoseFromMesh::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("AnimGraphNode_IKRetargeter_Title", "IK Retargeter");
+	return LOCTEXT("AnimGraphNode_IKRetargeter_Title", "Retarget Pose From Mesh");
 }
 
-void UAnimGraphNode_IKRetargeter::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode)
+void UAnimGraphNode_RetargetPoseFromMesh::CopyNodeDataToPreviewNode(FAnimNode_Base* InPreviewNode)
 {
-	FAnimNode_IKRetargeter* IKRetargeterNode = static_cast<FAnimNode_IKRetargeter*>(InPreviewNode);
+	FAnimNode_RetargetPoseFromMesh* IKRetargeterNode = static_cast<FAnimNode_RetargetPoseFromMesh*>(InPreviewNode);
 }
 
-FEditorModeID UAnimGraphNode_IKRetargeter::GetEditorMode() const
+FEditorModeID UAnimGraphNode_RetargetPoseFromMesh::GetEditorMode() const
 {
 	return AnimModeName;
 }
 
-void UAnimGraphNode_IKRetargeter::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
+void UAnimGraphNode_RetargetPoseFromMesh::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
 {
 	Super::CustomizePinData(Pin, SourcePropertyName, ArrayIndex);
-
-	// hide the Source Mesh Component input pin when bAutoFindSourceMeshByTag is true
-	const FString SourceMeshPropertyName = GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRetargeter, SourceMeshComponent);
-	const FString SourcePropertyString = SourcePropertyName.ToString();
-	if (SourcePropertyString == SourceMeshPropertyName)
-	{
-		Pin->bHidden = Node.bUseAttachedParent;	
-	}
 }
 
-void UAnimGraphNode_IKRetargeter::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UAnimGraphNode_RetargetPoseFromMesh::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = (PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None);
-	if ((PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRetargeter, bUseAttachedParent)))
+	if ((PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RetargetPoseFromMesh, bUseAttachedParent)))
 	{
 		ReconstructNode();
 	}
 }
 
-void UAnimGraphNode_IKRetargeter::PostLoad()
-{
-	Super::PostLoad();
-}
-
-void UAnimGraphNode_IKRetargeter::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton,	FCompilerResultsLog& MessageLog)
+void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton,	FCompilerResultsLog& MessageLog)
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
 	// validate source mesh component is not null
 	if (!Node.bUseAttachedParent)
 	{
-		if (!IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRetargeter, SourceMeshComponent)))
+		if (!IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RetargetPoseFromMesh, SourceMeshComponent)))
 		{
 			MessageLog.Warning(TEXT("@@ is missing a Source Skeletal Mesh Component reference."), this);
 			return;
@@ -110,7 +95,7 @@ void UAnimGraphNode_IKRetargeter::ValidateAnimNodeDuringCompilation(USkeleton* F
     }
 }
 
-void UAnimGraphNode_IKRetargeter::PreloadRequiredAssets()
+void UAnimGraphNode_RetargetPoseFromMesh::PreloadRequiredAssets()
 {
 	Super::PreloadRequiredAssets();
 	

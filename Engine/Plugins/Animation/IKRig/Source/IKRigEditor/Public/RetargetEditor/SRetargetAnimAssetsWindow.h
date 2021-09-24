@@ -3,94 +3,11 @@
 #pragma once
 
 #include "EditorAnimUtils.h"
+#include "IKRetargetBatchOperation.h"
 #include "SEditorViewport.h"
 #include "Settings/SkeletalMeshEditorSettings.h"
 
 class UIKRetargeter;
-
-//** Data needed to initiate a batch duplicate and retarget of animation assets */
-struct FIKRetargetAnimAssetsContext
-{
-	/** The selected assets when batch process was initiated */
-	TArray<TWeakObjectPtr<UObject>> AssetsToRetarget;
-
-	/** Source mesh to use to copy animation FROM. */
-	USkeletalMesh* SourceMesh = nullptr;
-
-	/** Target mesh to use to copy animation TO. */
-	USkeletalMesh* TargetMesh = nullptr;
-
-	/** The retargeter used to copy animation */
-	UIKRetargeter* IKRetargetAsset = nullptr;
-
-	/** Whether we are remapping assets that are referenced by the assets the user selects to remap */
-	bool bRemapReferencedAssets = true;
-
-	/* Rename rules for duplicated assets */
-	EditorAnimUtils::FNameDuplicationRule NameRule;
-
-	/* The base folder path to put newly duplicated assets */
-	FString FolderPath = "";
-
-	/* Reset all data (called when window re-opened */
-	void Reset();
-
-	/* Is the data configured in such a way that we could run the retarget? */
-	bool IsValid() const;
-
-	/* Actually run the process to duplicate and retarget the assets. */
-	void RunRetarget();
-
-private:
-
-
-	/**
-	* Initialize set of referenced assets to retarget.
-	* @return	Number of assets that need retargeting.
-	*/
-	int32 GenerateAssetLists();
-
-	/* Duplicate all the assets to retarget */
-	void DuplicateRetargetAssets();
-
-	/* Retarget skeleton and animation on all the duplicates */
-	void RetargetAssets();
-
-	/* Convert animation on all the duplicates */
-	void ConvertAnimation();
-
-	/* Output notifications of results */
-	void NotifyUserOfResults() const;
-
-	void GetNewAssets(TArray<UObject*>& NewAssets) const;
-
-	/**
-	* Duplicates the supplied AssetsToDuplicate and returns a map of original asset to duplicate. Templated wrapper that calls DuplicateAssetInternal.
-	*
-	* @param	AssetsToDuplicate	The animations to duplicate
-	* @param	DestinationPackage	The package that the duplicates should be placed in
-	*
-	* @return	TMap of original animation to duplicate
-	*/
-	template<class AssetType>
-	static TMap<AssetType*, AssetType*> DuplicateAssets(
-		const TArray<AssetType*>& AssetsToDuplicate,
-		UPackage* DestinationPackage,
-		const EditorAnimUtils::FNameDuplicationRule* NameRule);
-	
-	/** Lists of assets to retarget. Populated from selection during init */
-	TArray<UAnimationAsset*>	AnimationAssetsToRetarget;
-	TArray<UAnimBlueprint*>		AnimBlueprintsToRetarget;
-
-	/** Lists of original assets map to duplicate assets */
-	TMap<UAnimationAsset*, UAnimationAsset*>	DuplicatedAnimAssets;
-	TMap<UAnimBlueprint*, UAnimBlueprint*>		DuplicatedBlueprints;
-
-	TMap<UAnimationAsset*, UAnimationAsset*>	RemappedAnimAssets;
-
-	/** If we only chose one object to retarget store it here */
-	UObject* SingleTargetObject = nullptr;
-};
 
 //** Viewport in retarget dialog that shows source / target retarget pose */
 class SRetargetPoseViewport: public SEditorViewport
@@ -262,7 +179,7 @@ private:
 	FText GetFolderPath() const;
 
 	/** Necessary data collected from UI to run retarget. */
-	FIKRetargetAnimAssetsContext RetargetContext;
+	FIKRetargetBatchOperationContext BatchContext;
 
 	/** The rename rule sample text */
 	FText ExampleText;

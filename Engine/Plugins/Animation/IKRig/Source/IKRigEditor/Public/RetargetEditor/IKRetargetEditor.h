@@ -84,16 +84,10 @@ private:
 	void SetupAnimInstance();
 	/** END preview scene setup */
 
-	/** animation asset browser */
-	void HandleOpenNewAsset(UObject* InNewAsset);
-	void HandleAnimationSequenceBrowserCreated(const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser);
-	/* END animation asset browser */
-
 	/** edit retarget pose */
 	void HandleEditPose() const;
 	bool CanEditPose() const;
 	bool IsEditingPose() const;
-	UAnimationAsset* PreviousAsset = nullptr;
 	/** END edit retarget pose*/
 
 	/** new/delete retarget pose */

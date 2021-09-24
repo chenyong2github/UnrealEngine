@@ -4,7 +4,7 @@
 
 #include "AnimPreviewInstance.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
-#include "AnimNodes/AnimNode_IKRetargeter.h"
+#include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
 
 #include "IKRetargetAnimInstanceProxy.generated.h"
 
@@ -17,7 +17,7 @@ struct FIKRetargetAnimInstanceProxy : public FAnimPreviewInstanceProxy
 public:
 	
 	FIKRetargetAnimInstanceProxy() = default;
-	FIKRetargetAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_IKRetargeter* IKRetargeterNode);
+	FIKRetargetAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_RetargetPoseFromMesh* IKRetargeterNode);
 	virtual ~FIKRetargetAnimInstanceProxy() override = default;
 
 	/** FAnimPreviewInstanceProxy interface */
@@ -36,5 +36,5 @@ public:
 		UIKRetargeter* InIKRetargetAsset,
 		TWeakObjectPtr<USkeletalMeshComponent> InSourceMeshComponent) const;
 
-	FAnimNode_IKRetargeter* IKRetargetNode;
+	FAnimNode_RetargetPoseFromMesh* IKRetargetNode;
 };

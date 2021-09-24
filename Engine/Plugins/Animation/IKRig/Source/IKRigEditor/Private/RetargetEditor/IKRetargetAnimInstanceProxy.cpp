@@ -4,7 +4,7 @@
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 
 
-FIKRetargetAnimInstanceProxy::FIKRetargetAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_IKRetargeter* InNode)
+FIKRetargetAnimInstanceProxy::FIKRetargetAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_RetargetPoseFromMesh* InNode)
 	: FAnimPreviewInstanceProxy(InAnimInstance),
 	IKRetargetNode(InNode)
 {
