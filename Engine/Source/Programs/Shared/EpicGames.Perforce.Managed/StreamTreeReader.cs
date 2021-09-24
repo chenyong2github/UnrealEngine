@@ -47,7 +47,7 @@ namespace EpicGames.Perforce.Managed
 		/// <inheritdoc/>
 		public override Task<StreamTree> ReadAsync(StreamTreeRef Ref)
 		{
-			return Task.FromResult(new StreamTree(HashToTree[Ref.Hash], Ref.Path));
+			return Task.FromResult(new StreamTree(Ref.Path, HashToTree[Ref.Hash]));
 		}
 	}
 }

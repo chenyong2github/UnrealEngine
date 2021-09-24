@@ -158,6 +158,11 @@ namespace EpicGames.Perforce.Managed
 	public class StreamTree
 	{
 		/// <summary>
+		/// The path to this tree
+		/// </summary>
+		public Utf8String Path { get; }
+
+		/// <summary>
 		/// Map of name to file within the directory
 		/// </summary>
 		public Dictionary<Utf8String, StreamFile> NameToFile { get; } = new Dictionary<Utf8String, StreamFile>();
@@ -184,8 +189,11 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public StreamTree(Dictionary<Utf8String, StreamFile> NameToFile, Dictionary<Utf8String, StreamTreeRef> NameToTree)
+		public StreamTree(Utf8String Path, Dictionary<Utf8String, StreamFile> NameToFile, Dictionary<Utf8String, StreamTreeRef> NameToTree)
 		{
+			CheckPath(Path);
+			this.Path = Path;
+
 			this.NameToFile = NameToFile;
 			this.NameToTree = NameToTree;
 		}
@@ -193,18 +201,19 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Deserialize a tree from a compact binary object
 		/// </summary>
-		/// <param name="Object"></param>
-		/// <param name="BasePath"></param>
-		public StreamTree(CbObject Object, Utf8String BasePath)
+		public StreamTree(Utf8String Path, CbObject Object)
 		{
+			CheckPath(Path);
+			this.Path = Path;
+
 			CbArray FileArray = Object[FilesField].AsArray();
 			foreach (CbField FileField in FileArray)
 			{
 				CbObject FileObject = FileField.AsObject();
 
 				Utf8String Name = FileObject[NameField].AsString();
-				Utf8String Path = ReadPath(FileObject, BasePath, Name);
-				StreamFile File = new StreamFile(Path, FileObject);
+				Utf8String FilePath = ReadPath(FileObject, Path, Name);
+				StreamFile File = new StreamFile(FilePath, FileObject);
 
 				NameToFile.Add(Name, File);
 			}
@@ -215,74 +224,19 @@ namespace EpicGames.Perforce.Managed
 				CbObject TreeObject = TreeField.AsObject();
 
 				Utf8String Name = TreeObject[NameField].AsString();
-				Utf8String Path = ReadPath(TreeObject, BasePath, Name);
-				StreamTreeRef Tree = new StreamTreeRef(Path, TreeObject);
+				Utf8String TreePath = ReadPath(TreeObject, Path, Name);
+				StreamTreeRef Tree = new StreamTreeRef(TreePath, TreeObject);
 
 				NameToTree.Add(Name, Tree);
 			}
 		}
 
 		/// <summary>
-		/// Finds the most common base path for items in this tree
-		/// </summary>
-		/// <returns>The most common base path</returns>
-		public Utf8String FindBasePath()
-		{
-			Dictionary<Utf8String, int> BasePathToCount = new Dictionary<Utf8String, int>();
-			foreach ((Utf8String Name, StreamFile File) in NameToFile)
-			{
-				AddBasePath(BasePathToCount, File.Path, Name);
-			}
-			foreach ((Utf8String Name, StreamTreeRef Tree) in NameToTree)
-			{
-				AddBasePath(BasePathToCount, Tree.Path, Name);
-			}
-			return (BasePathToCount.Count == 0) ? Utf8String.Empty : BasePathToCount.MaxBy(x => x.Value).Key;
-		}
-
-		/// <summary>
-		/// Adds the base path of the given item to the count of similar items
-		/// </summary>
-		/// <param name="BasePathToCount"></param>
-		/// <param name="Path"></param>
-		/// <param name="Name"></param>
-		static void AddBasePath(Dictionary<Utf8String, int> BasePathToCount, Utf8String Path, Utf8String Name)
-		{
-			if (Path.EndsWith(Name) && Path[^(Name.Length + 1)] == '/')
-			{
-				Utf8String BasePath = Path[..^(Name.Length + 1)];
-				BasePathToCount.TryGetValue(BasePath, out int Count);
-				BasePathToCount[BasePath] = Count + 1;
-			}
-		}
-
-		/// <summary>
-		/// Gets the default path for a child path
-		/// </summary>
-		/// <param name="BasePath"></param>
-		/// <param name="Name"></param>
-		/// <returns></returns>
-		static Utf8String GetDefaultPath(Utf8String BasePath, Utf8String Name)
-		{
-			byte[] Data = new byte[BasePath.Length + 1 + Name.Length];
-			BasePath.Span.CopyTo(Data);
-			Data[BasePath.Length] = (byte)'/';
-			Name.Span.CopyTo(Data.AsSpan(BasePath.Length + 1));
-			return new Utf8String(Data);
-		}
-
-		/// <summary>
 		/// Serialize to a compact binary object
 		/// </summary>
 		/// <param name="Writer"></param>
-		/// <param name="BasePath"></param>
-		public void Write(CbWriter Writer, Utf8String BasePath)
+		public void Write(CbWriter Writer)
 		{
-			if (BasePath.Length > 0 && BasePath[BasePath.Length - 1] == '/')
-			{
-				throw new ArgumentException("BasePath must not end in a slash", nameof(BasePath));
-			}
-
 			if (NameToFile.Count > 0)
 			{
 				Writer.BeginArray(FilesField);
@@ -290,7 +244,7 @@ namespace EpicGames.Perforce.Managed
 				{
 					Writer.BeginObject();
 					Writer.WriteString(NameField, Name);
-					WritePath(Writer, File.Path, BasePath, Name);
+					WritePath(Writer, File.Path, Path, Name);
 					File.Write(Writer);
 					Writer.EndObject();
 				}
@@ -304,7 +258,7 @@ namespace EpicGames.Perforce.Managed
 				{
 					Writer.BeginObject();
 					Writer.WriteString(NameField, Name);
-					WritePath(Writer, Tree.Path, BasePath, Name);
+					WritePath(Writer, Tree.Path, Path, Name);
 					Tree.Write(Writer);
 					Writer.EndObject();
 				}
@@ -349,20 +303,27 @@ namespace EpicGames.Perforce.Managed
 		}
 
 		/// <summary>
-		/// Serialize to a compact binary object
+		/// Checks that a base path does not have a trailing slash
 		/// </summary>
-		/// <param name="BasePath"></param>
-		/// <returns></returns>
-		public CbObject ToCbObject(CbWriter Writer, Utf8String BasePath)
+		/// <param name="Path"></param>
+		/// <exception cref="ArgumentException"></exception>
+		static void CheckPath(Utf8String Path)
 		{
-			if (BasePath.Length > 0 && BasePath[BasePath.Length - 1] == '/')
+			if (Path.Length > 0 && Path[Path.Length - 1] == '/')
 			{
-				throw new ArgumentException("BasePath must not end in a slash", nameof(BasePath));
+				throw new ArgumentException("BasePath must not end in a slash", nameof(Path));
 			}
+		}
 
-			Writer.Clear();
+		/// <summary>
+		/// Convert to a compact binary object
+		/// </summary>
+		/// <returns></returns>
+		public CbObject ToCbObject()
+		{
+			CbWriter Writer = new CbWriter();
 			Writer.BeginObject();
-			Write(Writer, BasePath);
+			Write(Writer);
 			Writer.EndObject();
 			return Writer.ToObject();
 		}

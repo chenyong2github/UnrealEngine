@@ -50,14 +50,29 @@ namespace EpicGames.Perforce.Managed
 		public StreamSnapshotFromMemory(StreamTreeBuilder Builder)
 		{
 			Dictionary<IoHash, CbObject> HashToTree = new Dictionary<IoHash, CbObject>();
-			this.Root = Builder.Encode(new CbWriter(), (Hash, Object) => HashToTree[Hash] = Object);
+			this.Root = Builder.EncodeRef(Tree => EncodeObject(Tree, HashToTree));
 			this.HashToTree = HashToTree;
+		}
+
+		/// <summary>
+		/// Serialize to a compact binary object
+		/// </summary>
+		/// <param name="BasePath"></param>
+		/// <returns></returns>
+		static IoHash EncodeObject(StreamTree Tree, Dictionary<IoHash, CbObject> HashToTree)
+		{
+			CbObject Object = Tree.ToCbObject();
+
+			IoHash Hash = Object.GetHash();
+			HashToTree[Hash] = Object;
+
+			return Hash;
 		}
 
 		/// <inheritdoc/>
 		public override StreamTree Lookup(StreamTreeRef Ref)
 		{
-			return new StreamTree(HashToTree[Ref.Hash], Ref.Path);
+			return new StreamTree(Ref.Path, HashToTree[Ref.Hash]);
 		}
 
 		/// <summary>
