@@ -44,7 +44,7 @@ bool FInheritedSubobjectData::CanEdit() const
 
 bool FInheritedSubobjectData::CanDelete() const
 {
-	if(IsInheritedComponent() || IsDefaultSceneRoot() || (GetSCSNode() != nullptr && IsInstancedInheritedComponent()) || IsChildActorSubtreeObject())
+	if(IsInheritedComponent() || (IsDefaultSceneRoot() && SceneRootHasDefaultName()) || (GetSCSNode() != nullptr && IsInstancedInheritedComponent()) || IsChildActorSubtreeObject())
 	{
 		return false;
 	}
