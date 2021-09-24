@@ -60,6 +60,11 @@ namespace KismetDebugViewConstants
 
 uint16 FDebugLineItem::ActiveTypeBitset = TNumericLimits<uint16>::Max(); // set all to active by default
 
+FText FDebugLineItem::GetName() const
+{
+	return FText::GetEmpty();
+}
+
 FText FDebugLineItem::GetDisplayName() const
 {
 	return FText::GetEmpty();
@@ -141,11 +146,14 @@ void FDebugLineItem::MakeMenu(FMenuBuilder& MenuBuilder)
 	);
 }
 
-void FDebugLineItem::UpdateSearchFlags(bool bIsRootNode)
+void FDebugLineItem::UpdateSearchFlags(bool bIsRootNode, bool bIsContainerElement)
 {
 	const FString SearchString = SearchBox->GetText().ToString();
 	
-	bVisible = GetDisplayName().ToString().Contains(SearchString) || GetDescription().ToString().Contains(SearchString);
+	// Container elements share their parent's property name, so we shouldn't search them by name
+	bVisible = (!bIsContainerElement && GetName().ToString().Contains(SearchString)) ||
+		GetDisplayName().ToString().Contains(SearchString) || 
+		GetDescription().ToString().Contains(SearchString);
 
 	// for root nodes, bParentsMatchSearch always matches bVisible
 	if(bVisible || bIsRootNode)
@@ -276,12 +284,13 @@ public:
 	* O( number of recursive children )
 	*/
 	bool SearchRecursive(TArray<FLineItemWithChildren*>& Parents,
-		TSharedPtr<STreeView<FDebugTreeItemPtr>> DebugTreeView)
+		TSharedPtr<STreeView<FDebugTreeItemPtr>> DebugTreeView,
+		bool bIsContainerElement = false)
 	{
 		TSharedPtr<ITableRow> Row = DebugTreeView->WidgetFromItem(SharedThis(this));
 		bVisible = false;
 
-		UpdateSearchFlags();
+		UpdateSearchFlags(/*bIsRootNode =*/ false, bIsContainerElement);
 
 		bool bChildMatch = false;
 		Parents.Push(this);
@@ -308,7 +317,7 @@ public:
                 }
 
 				// if any children need to expand, so should this
-				if(Child->SearchRecursive(Parents, DebugTreeView))
+				if(Child->SearchRecursive(Parents, DebugTreeView, IsContainer()))
 				{
 					bVisible = true;
 					bChildMatch = true;
@@ -323,7 +332,7 @@ public:
 			}
 			else
 			{
-				ChildRef->UpdateSearchFlags();
+				ChildRef->UpdateSearchFlags(/*bIsRootNode =*/ false, IsContainer());
 				
 				// if any children need to expand, so should this
 				if(ChildRef->IsVisible())
@@ -407,6 +416,12 @@ protected:
 	TSet<FDebugTreeItemPtr, FDebugTreeItemKeyFuncs> PrevChildrenMirrors;
 	// This frames children
 	TSet<FDebugTreeItemPtr, FDebugTreeItemKeyFuncs> ChildrenMirrors;
+
+	/** @returns whether this item represents a container property */
+	virtual bool IsContainer() const 
+	{
+		return false;
+	}
 
 	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren, bool bRespectSearch) {}
 	
@@ -627,6 +642,11 @@ public:
 	{
 		return HashCombine(GetTypeHash(Data.Property), GetTypeHash(Data.DisplayName.ToString()));
 	}
+
+	virtual FText GetName() const override
+	{
+		return Data.Name;
+	}
 	
 	virtual FText GetDescription() const override
 	{
@@ -754,6 +774,12 @@ public:
         {
             EnsureChildIsAdded(OutChildren, FWatchChildLineItem(*ChildData, SearchBox), bRespectSearch);
         }
+	}
+
+protected:
+	virtual bool IsContainer() const override
+	{
+		return Data.Property->IsA<FSetProperty>() || Data.Property->IsA<FArrayProperty>() || Data.Property->IsA<FMapProperty>();
 	}
 };
 

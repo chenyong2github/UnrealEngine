@@ -78,6 +78,7 @@ struct FPropertyInstanceInfo
 	void PopulateChildren(FPropertyInstance PropertyInstance,
 		TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>> &VisitedNodes);
 	
+	FText Name;
 	FText DisplayName;
 	FText Value;
 	FText Type;
