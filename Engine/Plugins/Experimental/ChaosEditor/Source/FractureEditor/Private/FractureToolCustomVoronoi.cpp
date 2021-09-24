@@ -226,6 +226,14 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(int32 RandomSeed)
 		}
 	}
 
+	// randomly remove points based on the skip fraction
+	int32 TargetNumSites = Sites.Num() - int32(Sites.Num() * CustomVoronoiSettings->SkipFraction);
+	while (TargetNumSites < Sites.Num())
+	{
+		int32 ToRemoveIdx = RandStream.RandHelper(Sites.Num());
+		Sites.RemoveAtSwap(ToRemoveIdx, 1, false);
+	}
+
 	// Convert newly generated points from world space to local (unscaled) gizmo space
 	FTransform ReferenceFrame = GetGizmoTransform();
 	ReferenceFrame.RemoveScaling();
