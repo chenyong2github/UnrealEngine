@@ -53,11 +53,11 @@ private:
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;
 
-	void DrawBoneGizmo(
+	void DrawBoneProxy(
 		FPrimitiveDrawInterface* PDI,
 		const FTransform& BoneTransform,
 		const FVector& Start,
-		const FVector& End,
+		const TArray<FVector>& ChildPoints,
 		float Size,
 		float Thickness,
 		bool bIsSelected) const;

@@ -5,26 +5,25 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "AnimGraphNode_Base.h"
-#include "AnimNodes/AnimNode_IKRetargeter.h"
-#include "AnimGraphNode_IKRetargeter.generated.h"
+#include "AnimNodes/AnimNode_RetargetPoseFromMesh.h"
+#include "AnimGraphNode_RetargetPoseFromMesh.generated.h"
 
 class FPrimitiveDrawInterface;
 class USkeletalMeshComponent;
 
 // Editor node for IKRig 
 UCLASS()
-class IKRIGDEVELOPER_API UAnimGraphNode_IKRetargeter : public UAnimGraphNode_Base
+class IKRIGDEVELOPER_API UAnimGraphNode_RetargetPoseFromMesh : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Settings)
-	FAnimNode_IKRetargeter Node;
+	FAnimNode_RetargetPoseFromMesh Node;
 
 public:
 	// UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog);
 	// End of UEdGraphNode interface
 

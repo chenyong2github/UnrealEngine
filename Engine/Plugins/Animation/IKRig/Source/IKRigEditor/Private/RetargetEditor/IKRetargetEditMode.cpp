@@ -49,29 +49,39 @@ void FIKRetargetEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 	}
 	
 	UIKRetargeter* Retargeter = Controller->Asset;
-	for (const FName& BoneName : Retargeter->TargetIKRigAsset->Skeleton.BoneNames)
+	
+	for (int32 BoneIndex = 0; BoneIndex<Retargeter->TargetIKRigAsset->Skeleton.BoneNames.Num(); ++BoneIndex)
 	{
+		// filter out bones that are not part of a retargeted chain
+		if (!Controller->IsTargetBoneRetargeted(BoneIndex))
+		{
+			continue;
+		}
+		
+		const FName BoneName = Retargeter->TargetIKRigAsset->Skeleton.BoneNames[BoneIndex];
+
 		// is this chain currently selected?
 		const bool bIsSelected = IsBoneSelected(BoneName);
 
 		// get the location of the bone on the currently initialized target skeletal mesh
-		const FTransform BoneTransform = Controller->GetTargetBoneTransform(BoneName);
+		const FTransform BoneTransform = Controller->GetTargetBoneTransform(BoneIndex);
 
 		FVector Start;
-		FVector End;
-		Controller->GetTargetBoneStartAndEnd(BoneName, Start, End);
-
-		// draw the chain rotation gizmo
-		PDI->SetHitProxy(new HIKRetargetEditorBoneProxy(BoneName));
-		DrawBoneGizmo(
-			PDI,
-			BoneTransform,
-			Start,
-			End,
-			Retargeter->BoneGizmoSize,
-			Retargeter->BoneGizmoThickness,
-			bIsSelected);
-		PDI->SetHitProxy(NULL);
+		TArray<FVector> End;
+		if (Controller->GetTargetBoneLineSegments(BoneIndex, Start, End))
+		{
+			// draw the chain rotation gizmo
+			PDI->SetHitProxy(new HIKRetargetEditorBoneProxy(BoneName));
+			DrawBoneProxy(
+				PDI,
+				BoneTransform,
+				Start,
+				End,
+				Retargeter->BoneDrawSize,
+				Retargeter->BoneDrawThickness,
+				bIsSelected);
+			PDI->SetHitProxy(NULL);
+		}
 	}
 }
 
@@ -107,8 +117,14 @@ FVector FIKRetargetEditMode::GetWidgetLocation() const
 	{
 		return FVector::ZeroVector; 
 	}
+
+	const int32 BoneIndex = Controller->GetCurrentlyRunningRetargeter()->TargetSkeleton.FindBoneIndexByName(SelectedBones.Last());
+	if (BoneIndex == INDEX_NONE)
+	{
+		return FVector::ZeroVector;
+	}
 	
-	return Controller->GetTargetBoneTransform(SelectedBones.Last()).GetTranslation();
+	return Controller->GetTargetBoneTransform(BoneIndex).GetTranslation();
 }
 
 bool FIKRetargetEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
@@ -203,7 +219,8 @@ bool FIKRetargetEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, vo
 		return false; 
 	}
 
-	const FTransform CurrentTransform = Controller->GetTargetBoneTransform(SelectedBones[0]);
+	const int32 BoneIndex = Controller->Asset->TargetIKRigAsset->Skeleton.GetBoneIndexFromName(SelectedBones[0]);
+	const FTransform CurrentTransform = Controller->GetTargetBoneTransform(BoneIndex);
 	InMatrix = CurrentTransform.ToMatrixNoScale().RemoveTranslation();
 	return true;
 }
@@ -213,11 +230,11 @@ bool FIKRetargetEditMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, void
 	return GetCustomDrawingCoordinateSystem(InMatrix, InData);
 }
 
-void FIKRetargetEditMode::DrawBoneGizmo(
+void FIKRetargetEditMode::DrawBoneProxy(
 	FPrimitiveDrawInterface* PDI,
 	const FTransform& BoneTransform,
 	const FVector& Start,
-	const FVector& End,
+	const TArray<FVector>& ChildPoints,
 	float Size,
 	float Thickness,
 	bool bIsSelected) const
@@ -226,10 +243,14 @@ void FIKRetargetEditMode::DrawBoneGizmo(
 	Size = FMath::Clamp(Size, 0.1f, 1000.0f);
 	Thickness = FMath::Clamp(Thickness, 0.1f, 1000.0f);
 
-	// draw a thick line along length of the limb
-	PDI->DrawLine(Start, End, Color, SDPG_Foreground, Thickness * 2.0f);
-	// draw a coordinate frame at the tip of the limb
-	DrawCoordinateSystem(PDI, End, BoneTransform.GetRotation().Rotator(), Size, SDPG_Foreground, Thickness);
+	// draw a line to each child
+	for (const FVector& ChildPosition : ChildPoints)
+	{
+		PDI->DrawLine(Start, ChildPosition, Color, SDPG_Foreground, Thickness * 1.0f);
+	}
+	
+	// draw a coordinate frame at the bone
+	DrawCoordinateSystem(PDI, Start, BoneTransform.GetRotation().Rotator(), Size, SDPG_Foreground, Thickness);
 }
 
 void FIKRetargetEditMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)

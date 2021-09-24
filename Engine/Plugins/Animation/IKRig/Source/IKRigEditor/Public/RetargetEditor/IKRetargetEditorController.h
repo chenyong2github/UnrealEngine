@@ -36,9 +36,6 @@ public:
 	/** Preview scene to be supplied by IHasPersonaToolkit::GetPersonaToolkit */
 	TSharedPtr<IPersonaToolkit> PersonaToolkit;
 
-	/** Sequence Browser **/
-	TWeakPtr<class IAnimationSequenceBrowser> SequenceBrowser;
-
 	/** the persona toolkit */
 	TWeakPtr<FIKRetargetEditor> Editor;
 
@@ -47,11 +44,19 @@ public:
 	USkeletalMesh* GetTargetSkeletalMesh() const;
 
 	/** get current chain pose */
-	FTransform GetTargetBoneTransform(const FName& BoneName) const;
-	void GetTargetBoneStartAndEnd(const FName& BoneName, FVector& Start, FVector& End) const;
+	FTransform GetTargetBoneTransform(const int32& TargetBoneIndex) const;
+	/** get the line segments to draw from this bone to each child */
+	bool GetTargetBoneLineSegments(const int32& TargetBoneIndex, FVector& OutStart, TArray<FVector>& OutChildren) const;
+	/** get if the target bone is being retargeted or not */
+	bool IsTargetBoneRetargeted(const int32& TargetBoneIndex);
 
 	/** get the retargeter that is running in the viewport (which is a duplicate of the source asset) */
 	UIKRetargeter* GetCurrentlyRunningRetargeter() const;
+
+	/** Sequence Browser and Edit Pose mode **/
+	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
+	void PlayPreviousAnimationAsset();
+	UAnimationAsset* PreviousAsset = nullptr;
 
 	void RefreshAllViews();
 };

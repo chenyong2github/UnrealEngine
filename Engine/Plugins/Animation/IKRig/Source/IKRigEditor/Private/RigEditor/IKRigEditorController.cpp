@@ -30,6 +30,59 @@ void FIKRigEditorController::RefreshAllViews() const
 	RetargetingView->RefreshView();
 }
 
+void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const TArray<FName>& BoneNames)
+{
+	check(GoalNames.Num() == BoneNames.Num());
+
+	// add a default solver if there isn't one already
+	if (AssetController->GetNumSolvers() == 0)
+	{
+		PromptToAddSolver();	
+	}
+
+	// get selected solvers
+	TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
+	GetSelectedSolvers(SelectedSolvers);
+
+	// create goals
+	FName LastCreatedGoalName = NAME_None;
+	for (int32 I=0; I<GoalNames.Num(); ++I)
+	{
+		const FName& GoalName = GoalNames[I];
+		const FName& BoneName = BoneNames[I];
+
+		// create a new goal
+		UIKRigEffectorGoal* NewGoal = AssetController->AddNewGoal(GoalName, BoneName);
+		if (!NewGoal)
+		{
+			continue; // already exists
+		}
+		
+		// connect the new goal to all the selected solvers
+		for (const TSharedPtr<FSolverStackElement>& SolverElement : SelectedSolvers)
+		{
+			AssetController->ConnectGoalToSolver(*NewGoal, SolverElement->IndexInStack);	
+		}
+
+		LastCreatedGoalName = GoalName;
+	}
+	
+	// were any goals created?
+	if (LastCreatedGoalName != NAME_None)
+	{
+		// show last created goal in details view
+		ShowDetailsForGoal(LastCreatedGoalName);
+		// update all views
+		RefreshAllViews();
+	}
+}
+
+void FIKRigEditorController::DeleteGoal(const FName& GoalToDelete)
+{
+	AssetController->RemoveGoal(GoalToDelete);
+	SelectedGoals.Remove(GoalToDelete);
+}
+
 bool FIKRigEditorController::IsGoalSelected(const FName& GoalName)
 {
 	return SelectedGoals.Contains(GoalName);

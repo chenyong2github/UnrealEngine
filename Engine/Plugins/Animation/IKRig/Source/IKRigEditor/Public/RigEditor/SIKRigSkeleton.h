@@ -162,8 +162,8 @@ private:
 	void HandleNewGoal();
 	bool CanAddNewGoal();
 	void HandleRenameElement() const;
-	void HandleDeleteItem();
-	bool CanDeleteItem() const;
+	void HandleDeleteGoal();
+	bool CanDeleteGoal() const;
 	/** END creating / renaming / deleting goals */
 
 	/** connecting/disconnecting goals to solvers */

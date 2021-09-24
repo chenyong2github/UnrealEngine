@@ -76,7 +76,6 @@ void FIKRigEditorToolkit::InitAssetEditor(
 	SetCurrentMode(IKRigEditorModes::IKRigEditorMode);
 
 	GetEditorModeManager().SetDefaultMode(FIKRigEditMode::ModeName);
-	GetEditorModeManager().ActivateMode(FPersonaEditModes::SkeletonSelection);
 	GetEditorModeManager().ActivateMode(FIKRigEditMode::ModeName);
 	static_cast<FIKRigEditMode*>(GetEditorModeManager().GetActiveMode(FIKRigEditMode::ModeName))->SetEditorController(EditorController);
 
@@ -221,7 +220,9 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 	// apply mesh to the preview scene
 	InPersonaPreviewScene->SetPreviewMeshComponent(EditorController->SkelMeshComponent);
+	InPersonaPreviewScene->SetAllowMeshHitProxies(false);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
+	EditorController->SkelMeshComponent->bSelectable = false;
 	InPersonaPreviewScene->SetPreviewMesh(Mesh);
 	InPersonaPreviewScene->AddComponent(EditorController->SkelMeshComponent, FTransform::Identity);
 }

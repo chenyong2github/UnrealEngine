@@ -21,7 +21,7 @@ public:
 	/** create new goal on selected bone */
 	TSharedPtr< FUICommandInfo > NewGoal;
 	/** delete selected goal */
-	TSharedPtr< FUICommandInfo > Delete;
+	TSharedPtr< FUICommandInfo > DeleteGoal;
 	/** add goal to selected solvers */
 	TSharedPtr< FUICommandInfo > ConnectGoalToSolvers;
 	/** remove goal to selected solvers */

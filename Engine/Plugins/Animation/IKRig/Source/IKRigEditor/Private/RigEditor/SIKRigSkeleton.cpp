@@ -308,9 +308,9 @@ void SIKRigSkeleton::BindCommands()
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleNewGoal),
         FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanAddNewGoal));
 	
-	CommandList->MapAction(Commands.Delete,
-        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleDeleteItem),
-        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanDeleteItem));
+	CommandList->MapAction(Commands.DeleteGoal,
+        FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleDeleteGoal),
+        FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanDeleteGoal));
 
 	CommandList->MapAction(Commands.ConnectGoalToSolvers,
         FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleConnectGoalToSolver),
@@ -361,7 +361,7 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("AddRemoveGoals", LOCTEXT("AddRemoveGoalOperations", "Goals"));
 	MenuBuilder.AddMenuEntry(Actions.NewGoal);
-	MenuBuilder.AddMenuEntry(Actions.Delete);
+	MenuBuilder.AddMenuEntry(Actions.DeleteGoal);
 	MenuBuilder.EndSection();
 	
 	MenuBuilder.BeginSection("ConnectGoals", LOCTEXT("ConnectGoalOperations", "Connect Goals To Solvers"));
@@ -394,14 +394,9 @@ void SIKRigSkeleton::HandleNewGoal()
 		return; 
 	}
 
-	// add a default solver if there isn't one already
-	if (Controller->AssetController->GetNumSolvers() == 0)
-	{
-		Controller->PromptToAddSolver();	
-	}
-	
-	// create goal for each selected bone
-	FName LastCreatedGoalName = NAME_None;
+	// get names of selected bones and default goal names for them
+	TArray<FName> GoalNames;
+	TArray<FName> BoneNames;
 	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView.Get()->GetSelectedItems();
 	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
 	{
@@ -410,37 +405,16 @@ void SIKRigSkeleton::HandleNewGoal()
 			continue; // can only add goals to bones
 		}
 
-		UIKRigController* AssetController = Controller->AssetController;
-
 		// build default name for the new goal
 		const FName BoneName = Item->Key;
 		const FName NewGoalName = FName(BoneName.ToString() + "_Goal");
-
-		// create a new goal
-		UIKRigEffectorGoal* NewGoal = AssetController->AddNewGoal(NewGoalName, BoneName);
-		if (NewGoal)
-		{
-			// get selected solvers
-			TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
-			Controller->GetSelectedSolvers(SelectedSolvers);
-			// connect the new goal to all the selected solvers
-			for (const TSharedPtr<FSolverStackElement>& SolverElement : SelectedSolvers)
-			{
-				AssetController->ConnectGoalToSolver(*NewGoal, SolverElement->IndexInStack);	
-			}
-
-			LastCreatedGoalName = NewGoalName;
-		}
+		
+		GoalNames.Add(NewGoalName);
+		BoneNames.Add(BoneName);
 	}
-
-	// were any goals created?
-	if (LastCreatedGoalName != NAME_None)
-	{
-		// show last created goal in details view
-		Controller->ShowDetailsForGoal(LastCreatedGoalName);
-		// update all views
-		Controller->RefreshAllViews();
-	}
+	
+	// add new goals
+	Controller->AddNewGoals(GoalNames, BoneNames);
 }
 
 bool SIKRigSkeleton::CanAddNewGoal()
@@ -464,22 +438,21 @@ bool SIKRigSkeleton::CanAddNewGoal()
 	return true;
 }
 
-void SIKRigSkeleton::HandleDeleteItem()
+void SIKRigSkeleton::HandleDeleteGoal()
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
 		return; 
 	}
-	
+
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 	TSharedPtr<FIKRigTreeElement> ParentOfDeletedGoal;
 	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedItems)
 	{
 		if (Item->ElementType == IKRigTreeElementType::GOAL)
 		{
-			Controller->AssetController->RemoveGoal(Item->Key);
-			
+			Controller->DeleteGoal(Item->Key);
 		}
 		else if (Item->ElementType == IKRigTreeElementType::EFFECTOR)
 		{
@@ -491,7 +464,7 @@ void SIKRigSkeleton::HandleDeleteItem()
 	// update all views
 	Controller->RefreshAllViews();
 }
-bool SIKRigSkeleton::CanDeleteItem() const
+bool SIKRigSkeleton::CanDeleteGoal() const
 {
 	// is anything selected?
 	TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
@@ -1310,25 +1283,25 @@ FReply SIKRigSkeleton::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 		return FReply::Handled();
 	}
 
-	// handle deleting selected goals
+	// handle deleting selected items
 	if (Key == EKeys::Delete)
 	{
 		TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 		for (const TSharedPtr<FIKRigTreeElement>& SelectedItem : SelectedItems)
 		{
-			if (SelectedItem->ElementType == IKRigTreeElementType::GOAL)
+			switch(SelectedItem->ElementType)
 			{
-				Controller->AssetController->RemoveGoal(SelectedItem->Key);
-			}
-
-			if (SelectedItem->ElementType == IKRigTreeElementType::EFFECTOR)
-			{
-				Controller->AssetController->DisconnectGoalFromSolver(SelectedItem->EffectorGoalName, SelectedItem->EffectorSolverIndex);
-			}
-			
-			if (SelectedItem->ElementType == IKRigTreeElementType::BONE_SETTINGS)
-			{
-				Controller->AssetController->RemoveBoneSetting(SelectedItem->BoneSettingBoneName, SelectedItem->BoneSettingsSolverIndex);
+				case IKRigTreeElementType::GOAL:
+					Controller->DeleteGoal(SelectedItem->Key);
+					break;
+				case IKRigTreeElementType::EFFECTOR:
+					Controller->AssetController->DisconnectGoalFromSolver(SelectedItem->EffectorGoalName, SelectedItem->EffectorSolverIndex);
+					break;
+				case IKRigTreeElementType::BONE_SETTINGS:
+					Controller->AssetController->RemoveBoneSetting(SelectedItem->BoneSettingBoneName, SelectedItem->BoneSettingsSolverIndex);
+					break;
+				default:
+					checkNoEntry()
 			}
 		}
 

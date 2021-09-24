@@ -6,10 +6,10 @@
 
 #include "Animation/AnimNodeBase.h"
 #include "Retargeter/IKRetargeter.h"
-#include "AnimNode_IKRetargeter.generated.h"
+#include "AnimNode_RetargetPoseFromMesh.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)
-struct IKRIG_API FAnimNode_IKRetargeter : public FAnimNode_Base
+struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 {
 	GENERATED_BODY()
 

@@ -234,7 +234,7 @@ bool FIKRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewpo
 	{
 		for (const FName& GoalName : SelectedGoalNames)
 		{
-			FTransform CurrentTransform = AssetController->GetGoal(GoalName)->CurrentTransform;
+			FTransform CurrentTransform = AssetController->GetGoalCurrentTransform(GoalName);
 			CurrentTransform.AddToTranslation(InDrag);
 			AssetController->SetGoalCurrentTransform(GoalName, CurrentTransform);
 		}
@@ -245,7 +245,7 @@ bool FIKRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewpo
 	{
 		for (const FName& GoalName : SelectedGoalNames)
 		{
-			FTransform CurrentTransform = AssetController->GetGoal(GoalName)->CurrentTransform;
+			FTransform CurrentTransform = AssetController->GetGoalCurrentTransform(GoalName);
 			FQuat CurrentRotation = CurrentTransform.GetRotation();
 			CurrentRotation = (InRot.Quaternion() * CurrentRotation);
 			CurrentTransform.SetRotation(CurrentRotation);
