@@ -57,59 +57,72 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Encodes the current tree state and returns a reference to it
 		/// </summary>
-		/// <param name="Writer">A writer instance to use to create the object</param>
-		/// <param name="WriteObject"></param>
+		/// <param name="Objects">Dictionary of encoded objects</param>
 		/// <returns></returns>
-		public StreamTreeRef Encode(CbWriter Writer, Action<IoHash, CbObject> WriteObject)
+		public StreamTree Encode(Func<StreamTree, IoHash> WriteTree)
 		{
-			StreamTreeRef? Ref = EncodeInternal(Writer, WriteObject);
-			if (Ref == null)
+			// Recursively serialize all the child items
+			EncodeChildren(WriteTree);
+
+			// Find the common base path for all items in this tree.
+			Dictionary<Utf8String, int> BasePathToCount = new Dictionary<Utf8String, int>();
+			foreach ((Utf8String Name, StreamFile File) in NameToFile)
 			{
-				CbObject Object = new StreamTree().ToCbObject(Writer, Utf8String.Empty);
-				IoHash ObjectHash = Object.GetHash();
-				WriteObject(ObjectHash, Object);
-				Ref = new StreamTreeRef(Utf8String.Empty, ObjectHash);
+				AddBasePath(BasePathToCount, File.Path, Name);
 			}
-			return Ref;
+			foreach ((Utf8String Name, StreamTreeRef Tree) in NameToTree)
+			{
+				AddBasePath(BasePathToCount, Tree.Path, Name);
+			}
+
+			// Create the new tree
+			Utf8String BasePath = (BasePathToCount.Count == 0) ? Utf8String.Empty : BasePathToCount.MaxBy(x => x.Value).Key;
+			return new StreamTree(BasePath, NameToFile, NameToTree);
 		}
 
 		/// <summary>
-		/// Encodes the current tree state and returns a reference to it
+		/// Encodes a StreamTreeRef from this tree
 		/// </summary>
-		/// <param name="Objects">Dictionary of encoded objects</param>
-		/// <returns></returns>
-		public StreamTreeRef? EncodeInternal(CbWriter Writer, Action<IoHash, CbObject> WriteObject)
+		/// <param name="WriteTree"></param>
+		/// <returns>The new tree ref</returns>
+		public StreamTreeRef EncodeRef(Func<StreamTree, IoHash> WriteTree)
 		{
-			// Recursively serialize all the child items
-			foreach ((Utf8String SubTreeName, StreamTreeBuilder SubTree) in NameToTreeBuilder)
+			StreamTree Tree = Encode(WriteTree);
+			return new StreamTreeRef(Tree.Path, WriteTree(Tree));
+		}
+
+		/// <summary>
+		/// Collapses all of the builders underneath this node
+		/// </summary>
+		/// <param name="WriteTree"></param>
+		public void EncodeChildren(Func<StreamTree, IoHash> WriteTree)
+		{
+			foreach ((Utf8String SubTreeName, StreamTreeBuilder SubTreeBuilder) in NameToTreeBuilder)
 			{
-				StreamTreeRef? SubTreeRef = SubTree.EncodeInternal(Writer, WriteObject);
-				if (SubTreeRef == null)
+				StreamTree SubTree = SubTreeBuilder.Encode(WriteTree);
+				if (SubTree.NameToFile.Count > 0 || SubTree.NameToTree.Count > 0)
 				{
-					NameToTreeBuilder.Remove(SubTreeName);
-				}
-				else
-				{
-					NameToTree[SubTreeName] = SubTreeRef;
+					IoHash Hash = WriteTree(SubTree);
+					NameToTree[SubTreeName] = new StreamTreeRef(SubTree.Path, Hash);
 				}
 			}
 			NameToTreeBuilder.Clear();
+		}
 
-			// If if's empty, don't create this tree at all
-			if (IsEmpty)
+		/// <summary>
+		/// Adds the base path of the given item to the count of similar items
+		/// </summary>
+		/// <param name="BasePathToCount"></param>
+		/// <param name="Path"></param>
+		/// <param name="Name"></param>
+		static void AddBasePath(Dictionary<Utf8String, int> BasePathToCount, Utf8String Path, Utf8String Name)
+		{
+			if (Path.EndsWith(Name) && Path[^(Name.Length + 1)] == '/')
 			{
-				return null;
+				Utf8String BasePath = Path[..^(Name.Length + 1)];
+				BasePathToCount.TryGetValue(BasePath, out int Count);
+				BasePathToCount[BasePath] = Count + 1;
 			}
-
-			// Find the common base path for all items in this tree.
-			StreamTree Tree = new StreamTree(NameToFile, NameToTree);
-			Utf8String BasePath = Tree.FindBasePath();
-			CbObject PackedObject = Tree.ToCbObject(Writer, BasePath);
-
-			IoHash ObjectHash = PackedObject.GetHash();
-			WriteObject(ObjectHash, PackedObject);
-
-			return new StreamTreeRef(BasePath, ObjectHash);
 		}
 	}
 }
