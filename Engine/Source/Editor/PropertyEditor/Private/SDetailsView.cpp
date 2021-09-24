@@ -36,8 +36,6 @@ SDetailsView::~SDetailsView()
 		SaveExpandedItems(RootNode.ToSharedRef());
 	}
 
-	SaveViewConfig();
-
 	FEditorDelegates::PostUndoRedo.Remove(PostUndoRedoDelegateHandle);
 };
 
