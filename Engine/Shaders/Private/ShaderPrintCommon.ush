@@ -17,7 +17,7 @@ struct FShaderPrintItem
 	float2 ScreenPos; // Position in normalized coordinates
 	int Value;        // Cast to value or symbol
 	int Type;         // SHADER_PRINT_TYPE_* defines how to read Value
-	float3 Color;	  // Color
+	float3 Color;	  // Color 
 };
 
 struct FPackedShaderPrintItem
@@ -466,7 +466,7 @@ float2 ShaderPrintSetCursorPos(in float2 ScreenPos)
 
 float2 ShaderPrintGetPos(in uint2 PixelCoord)
 {
-	return float2(PixelCoord) / ShaderPrintUniform.Resolution;
+	return float2(PixelCoord) / float2(ShaderPrintUniform.Resolution);
 }
 
 // --------------------------------------------------------------------------

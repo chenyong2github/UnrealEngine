@@ -1933,3 +1933,14 @@ void FPrimitiveSceneInfo::UpdateComponentLastRenderTime(float CurrentWorldTime, 
 		*OwnerLastRenderTime = CurrentWorldTime; // Sets OwningActor->LastRenderTime
 	}
 }
+
+FString FPrimitiveSceneInfo::GetFullnameForDebuggingOnly() const
+{
+	// This is not correct to access component from rendering thread, but this is for debugging only
+	if (ComponentForDebuggingOnly)
+	{	
+		return ComponentForDebuggingOnly->GetFullGroupName(false);
+	}
+	return FString(TEXT("Unknown Object"));
+}
+

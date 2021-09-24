@@ -3,6 +3,7 @@
 #include "Common.ush"
 #include "SceneData.ush"
 #include "ShaderDrawDebug.ush"
+#include "ShaderPrintCommon.ush"
 
 int NumInstances;
 int NumScenePrimitives;
@@ -15,8 +16,82 @@ float3 PickingRayStart;
 float3 PickingRayEnd;
 float DrawRange;
 
-StructuredBuffer<uint> SelectedPrimitiveFlags;
+//////////////////////////////////////////////////////////////////////////////////////////
+#define INVALID_PRIMITIVEID ~0
 
+uint					SelectedNameInfoCount;
+uint					SelectedNameCharacterCount;
+StructuredBuffer<uint2> SelectedPrimitiveNameInfos;
+Buffer<uint>			SelectedPrimitiveNames;
+
+struct FPrimitiveSceneDebugNameInfo
+{
+	uint PrimitiveID;
+	uint Length;
+	uint Offset;
+	uint Pad0;
+	uint Pad1;
+};
+
+FPrimitiveSceneDebugNameInfo UnpackDebugNameInfo(uint2 In)
+{
+	FPrimitiveSceneDebugNameInfo Out = (FPrimitiveSceneDebugNameInfo)0;
+	Out.PrimitiveID = In.x;
+	Out.Offset = (In.y) & 0xFFFF;
+	Out.Length = (In.y>>16) & 0xFF;
+
+	return Out;
+}
+
+FPrimitiveSceneDebugNameInfo FindNameInfo(uint PrimitiveID)
+{
+	FPrimitiveSceneDebugNameInfo Out = (FPrimitiveSceneDebugNameInfo)0;
+	Out.PrimitiveID = INVALID_PRIMITIVEID;
+	for (uint It = 0; It < SelectedNameInfoCount; ++It)
+	{
+		if (SelectedPrimitiveNameInfos[It].x == PrimitiveID)
+		{
+			return UnpackDebugNameInfo(SelectedPrimitiveNameInfos[It]);
+		}
+	}
+	return Out;
+}
+
+float2 PrintInstanceName(float2 InPos, uint PrimitiveID, FFontColor InColor)
+{
+	const FPrimitiveSceneDebugNameInfo Info = FindNameInfo(PrimitiveID);
+	if (Info.PrimitiveID != INVALID_PRIMITIVEID && (Info.Length + Info.Offset) <= SelectedNameCharacterCount)
+	{
+		for (uint It = 0; It < Info.Length; ++It)
+		{
+			const uint Char = SelectedPrimitiveNames[It + Info.Offset];
+			InPos = ShaderPrintSymbol(InPos, Char, InColor);
+		}
+	}
+	return InPos;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+StructuredBuffer<uint> SelectedPrimitiveFlags;
+RWBuffer<uint> RWDrawCounter;
+
+void AddNewLine(float2 OriginalPos, inout float2 Pos)
+{
+	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
+}
+
+void AddFlag(inout float2 Pos, bool bEnabled)
+{
+	if (bEnabled)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("On     "), FontGreen);
+	}
+	else
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Off    "), FontRed);
+	}
+}
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
 void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 {
@@ -59,25 +134,60 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 
 	//float4 InstanceBoundColor = InstanceData.PrimitiveId < NumScenePrimitives ? float4(0.3f, 1.0f, 0.5f, 1.0f) : float4(0.3f, 0.3f, 0.3f, 0.5f);
-	float4 InstanceBoundColor = float4(0.3f, 0.3f, 0.3f, 0.5f);
+	float4 InstanceBoundColor = float4(ColorSilver.xyz, 0.5f);
 
-	if (bIsSelected || bDrawAll)
+	if (bDrawAll)
 	{
-		InstanceBoundColor = float4(0.5f, 0.75f, 0.5f, 1.0f);
+		InstanceBoundColor = ColorLightGreen;
 	}
 	
 	if (bIsMouseOver)
 	{
-		InstanceBoundColor = float4(0.75f, 1.0f, 0.75f, 1.0f);
+		InstanceBoundColor = ColorYellow;
 	}
 	
+	if (bIsSelected)
+	{
+		InstanceBoundColor = ColorOrange;
+	}
+
 	if (bDrawUpdatedOnly)
 	{
-		InstanceBoundColor.x = 1.0f;
-		InstanceBoundColor.z = 1.0f;
+		InstanceBoundColor = ColorRed;
 	}
 	if (bIsMouseOver || bIsSelected || bDrawAll != 0)
 	{
 		AddOBB(InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent, InstanceBoundColor, InstanceData.LocalToWorld);
+		AddReferential(InstanceData.LocalToWorld, 1);
+	}
+
+	uint StartOffsetX = 10;
+	uint StartOffsetY = 30;
+	uint SlotHeight = 8;
+	if (InstanceID == 0 && SelectedNameInfoCount>0)
+	{
+		float2 OriginalPos = ShaderPrintGetPos(uint2(StartOffsetX, StartOffsetY + SlotHeight));
+		float2 Pos = OriginalPos;
+		Pos = ShaderPrintText(Pos, TEXT("Prim.ID     Inst.ID     Shadow Veloc. CusDat DynDat Name"), FontWhite);
+	}
+
+	if (bIsSelected)
+	{	
+		uint SlotIndex = 0;
+		InterlockedAdd(RWDrawCounter[0], 1, SlotIndex);
+
+		float2 OriginalPos = ShaderPrintGetPos(uint2(StartOffsetX, StartOffsetY + 2*SlotHeight + SlotIndex * SlotHeight));
+		float2 Pos = OriginalPos;
+
+		Pos = ShaderPrint(Pos, InstanceData.PrimitiveId, FontYellow);
+		Pos = ShaderPrint(Pos, InstanceID, FontOrange);
+
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		AddFlag(Pos, 0u != (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS));
+		AddFlag(Pos, 0u != (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY));
+		AddFlag(Pos, 0u != (PrimitiveData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA));
+		AddFlag(Pos, 0u != (PrimitiveData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA));
+		
+		Pos = PrintInstanceName(Pos, InstanceData.PrimitiveId, FontSilver); AddNewLine(OriginalPos, Pos);
 	}
 }
