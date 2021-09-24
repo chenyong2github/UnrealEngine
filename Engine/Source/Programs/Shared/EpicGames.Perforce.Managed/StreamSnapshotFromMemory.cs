@@ -77,7 +77,8 @@ namespace EpicGames.Perforce.Managed
 			CbObject RootObj = new CbObject(Data.AsMemory(CurrentSignature.Length));
 
 			CbObject RootObj2 = RootObj["root"].AsObject();
-			StreamTreeRef Root = new StreamTreeRef(RootObj2, BasePath);
+			Utf8String RootPath = RootObj2["path"].AsString(BasePath);
+			StreamTreeRef Root = new StreamTreeRef(RootPath, RootObj2);
 
 			CbArray Array = RootObj["items"].AsArray();
 
@@ -103,7 +104,11 @@ namespace EpicGames.Perforce.Managed
 			Writer.BeginObject();
 						
 			Writer.BeginObject("root");
-			Root.Write(Writer, BasePath);
+			if (Root.Path != BasePath)
+			{
+				Writer.WriteString("path", Root.Path);
+			}
+			Root.Write(Writer);
 			Writer.EndObject();
 			
 			Writer.BeginArray("items");
