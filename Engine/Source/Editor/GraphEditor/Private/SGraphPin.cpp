@@ -3,6 +3,7 @@
 
 #include "SGraphPin.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
@@ -19,6 +20,7 @@
 #include "ScopedTransaction.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "SPinTypeSelector.h"
+#include "SPinValueInspector.h"
 #include "Animation/AnimNodeBase.h"
 
 /////////////////////////////////////////////////////
@@ -310,8 +312,12 @@ void SGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 		]
 	);
 
-	TAttribute<FText> ToolTipAttribute = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SGraphPin::GetTooltipText));
-	SetToolTipText(ToolTipAttribute);
+	TSharedPtr<IToolTip> TooltipWidget = SNew(SToolTip)
+		.Text(this, &SGraphPin::GetTooltipText)
+		.IsInteractive(this, &SGraphPin::IsTooltipInteractive)
+		.OnSetInteractiveWindowLocation(this, &SGraphPin::OnSetInteractiveTooltipLocation);
+
+	SetToolTip(TooltipWidget);
 }
 
 TSharedRef<SWidget>	SGraphPin::GetDefaultValueWidget()
@@ -1192,6 +1198,39 @@ void SGraphPin::SetOnlyShowDefaultValue(bool bNewOnlyShowDefaultValue)
 	bOnlyShowDefaultValue = bNewOnlyShowDefaultValue;
 }
 
+TSharedPtr<IToolTip> SGraphPin::GetToolTip()
+{
+	TSharedPtr<IToolTip> CurrentTooltip = SBorder::GetToolTip();
+	if (CurrentTooltip.IsValid())
+	{
+		const UEdGraphPin* GraphPin = GetPinObj();
+		if (GraphPin && FKismetDebugUtilities::CanInspectPinValue(GraphPin) && !ValueInspectorWidget.IsValid())
+		{
+			ValueInspectorWidget = SNew(SPinValueInspector, GraphPin);
+
+			CurrentTooltip->SetContentWidget(ValueInspectorWidget.ToSharedRef());
+		}
+	}
+
+	return CurrentTooltip;
+}
+
+void SGraphPin::OnToolTipClosing()
+{
+	if (ValueInspectorWidget.IsValid())
+	{
+		TSharedPtr<IToolTip> CurrentTooltip = SBorder::GetToolTip();
+		if (CurrentTooltip.IsValid())
+		{
+			CurrentTooltip->ResetContentWidget();
+		}
+
+		ValueInspectorWidget.Reset();
+	}
+
+	SBorder::OnToolTipClosing();
+}
+
 FText SGraphPin::GetTooltipText() const
 {
 	if(!ensure(!bGraphDataInvalid))
@@ -1214,6 +1253,52 @@ FText SGraphPin::GetTooltipText() const
 	}
 
 	return HoverText;
+}
+
+bool SGraphPin::IsTooltipInteractive() const
+{
+	return ValueInspectorWidget.IsValid();
+}
+
+void SGraphPin::OnSetInteractiveTooltipLocation(FVector2D& InOutDesiredLocation) const
+{
+	TSharedPtr<SGraphNode> OwnerNode = OwnerNodePtr.Pin();
+	if (OwnerNode.IsValid())
+	{
+		TSharedPtr<SGraphPanel> GraphPanel = OwnerNode->GetOwnerPanel();
+		if (GraphPanel.IsValid())
+		{
+			// Reset to the pin's location in graph space.
+			InOutDesiredLocation = OwnerNode->GetPosition() + CachedNodeOffset;
+			
+			// Shift the desired location to the right edge of the pin's geometry.
+			InOutDesiredLocation.X += GetTickSpaceGeometry().Size.X;
+
+			// Align to the first entry in the inspector's tree view.
+			if (ValueInspectorWidget.IsValid())
+			{
+				// @todo - Find a way to calculate these at runtime, e.g. based off of actual child widget geometry?
+				static const float VerticalOffsetWithSearchFilter = 41.0f;
+				static const float VerticalOffsetWithoutSearchFilter = 19.0f;
+
+				if (ValueInspectorWidget->ShouldShowSearchFilter())
+				{
+					InOutDesiredLocation.Y -= VerticalOffsetWithSearchFilter;
+				}
+				else
+				{
+					InOutDesiredLocation.Y -= VerticalOffsetWithoutSearchFilter;
+				}
+			}
+
+			// Convert our desired location from graph coordinates into panel space.
+			InOutDesiredLocation -= GraphPanel->GetViewOffset();
+			InOutDesiredLocation *= GraphPanel->GetZoomAmount();
+
+			// Finally, convert the modified location from panel space into screen space.
+			InOutDesiredLocation = GraphPanel->GetTickSpaceGeometry().LocalToAbsolute(InOutDesiredLocation);
+		}
+	}
 }
 
 bool SGraphPin::IsEditingEnabled() const

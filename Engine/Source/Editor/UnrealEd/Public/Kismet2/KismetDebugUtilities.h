@@ -300,6 +300,9 @@ public:
 	// Is there debugging data available for this blueprint?
 	static bool HasDebuggingData(const UBlueprint* Blueprint);
 
+	/** Determines if the given pin's value can be inspected */
+	static bool CanInspectPinValue(const UEdGraphPin* Pin);
+
 	/** Returns the breakpoint associated with a node, or NULL */
 	static FBlueprintBreakpoint* FindBreakpointForNode(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint, bool bCheckSubLocations = false);
 

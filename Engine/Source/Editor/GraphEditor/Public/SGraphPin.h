@@ -20,6 +20,7 @@ class SGraphPin;
 class SHorizontalBox;
 class SImage;
 class SWrapBox;
+class SPinValueInspector;
 
 #define NAME_DefaultPinLabelStyle TEXT("Graph.Node.PinName")
 
@@ -118,6 +119,8 @@ public:
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	virtual TSharedPtr<IToolTip> GetToolTip() override;
+	virtual void OnToolTipClosing() override;
 	// End of SWidget interface
 
 public:
@@ -251,6 +254,12 @@ protected:
 	/** @return The tooltip to display for this pin */
 	FText GetTooltipText() const;
 
+	/** @return Whether the tooltip should be considered interactive */
+	bool IsTooltipInteractive() const;
+
+	/** Delegate to modify or reset the given window location (in screen coords) for an interactive tooltip (e.g. pin value inspector) */
+	void OnSetInteractiveTooltipLocation(FVector2D& InOutDesiredLocation) const;
+
 	TOptional<EMouseCursor::Type> GetPinCursor() const;
 
 	/** Spawns a FDragConnection or similar class for the pin drag event */
@@ -277,6 +286,9 @@ protected:
 
 	/** Value widget for the pin, created with GetDefaultValueWidget() */
 	TSharedPtr<SWidget> ValueWidget;
+
+	/** Value inspector widget hosted inside the tooltip while debugging */
+	TSharedPtr<SPinValueInspector> ValueInspectorWidget;
 
 	/** The GraphPin that this widget represents. */
 	class UEdGraphPin* GraphPinObj;
