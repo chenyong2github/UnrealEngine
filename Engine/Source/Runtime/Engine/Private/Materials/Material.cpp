@@ -2384,7 +2384,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	bool bSavedCachedExpressionData = false;
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::MaterialSavedCachedData)
 	{
-		if (Ar.IsCooking())
+		if (Ar.IsCooking() || (FPlatformProperties::RequiresCookedData() && Ar.IsSaving() && (Ar.GetPortFlags() & PPF_Duplicate)))
 		{
 			if (CachedExpressionData)
 			{
