@@ -160,9 +160,9 @@ FName FLinker::GetExportClassName( int32 i )
 	return NAME_Class;
 }
 
-uint32 FLinkerTables::GetAllocatedSize() const
+SIZE_T FLinkerTables::GetAllocatedSize() const
 {
-	uint32 Result = 0;
+	SIZE_T Result = 0;
 	Result += ImportMap.GetAllocatedSize();
 	Result += ExportMap.GetAllocatedSize();
 	Result += DependsMap.GetAllocatedSize();

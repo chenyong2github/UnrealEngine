@@ -7046,7 +7046,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 	}
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
+EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, double TimeLimit)
 {
 	if (!IsAsyncLoadingPackages())
 	{
@@ -7058,10 +7058,10 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadingUntilComplete(TFunct
 	// Flushing async loading while loading is suspend will result in infinite stall
 	UE_CLOG(IsAsyncLoadingSuspendedInternal(), LogStreaming, Fatal, TEXT("Cannot Flush Async Loading while async loading is suspended (%d)"), GetAsyncLoadingSuspendedCount());
 
-	if (TimeLimit <= 0.0f)
+	if (TimeLimit <= 0.0)
 	{
 		// Set to one hour if no time limit
-		TimeLimit = 60 * 60;
+		TimeLimit = 60.0 * 60.0;
 	}
 
 	while (IsAsyncLoadingPackages() && TimeLimit > 0 && !CompletionPredicate())
@@ -7082,10 +7082,10 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadingUntilComplete(TFunct
 		TimeLimit -= (FPlatformTime::Seconds() - TickStartTime);
 	}
 
-	return TimeLimit <= 0 ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
+	return TimeLimit <= 0.0 ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
+EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AsyncLoadingTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncLoading);
@@ -7455,7 +7455,7 @@ void FAsyncArchive::Seek(int64 InPos)
 #endif
 }
 
-bool FAsyncArchive::WaitRead(float TimeLimit)
+bool FAsyncArchive::WaitRead(double TimeLimit)
 {
 	if (ReadRequestPtr)
 	{
@@ -7545,7 +7545,7 @@ void FAsyncArchive::CancelRead()
 	ReadRequestSize = 0;
 }
 
-bool FAsyncArchive::WaitForIntialPhases(float InTimeLimit)
+bool FAsyncArchive::WaitForIntialPhases(double InTimeLimit)
 {
 	if (SizeRequestPtr 
 		|| GEventDrivenLoaderEnabled || SummaryRequestPtr || SummaryPrecacheRequestPtr
@@ -7570,8 +7570,8 @@ bool FAsyncArchive::WaitForIntialPhases(float InTimeLimit)
 		{
 			if (SummaryRequestPtr)
 			{
-				float TimeLimit = 0.0f;
-				if (InTimeLimit > 0.0f)
+				double TimeLimit = 0.0;
+				if (InTimeLimit > 0.0)
 				{
 					TimeLimit = InTimeLimit - (FPlatformTime::Seconds() - StartTime);
 					if (TimeLimit < MIN_REMAIN_TIME)
@@ -7586,14 +7586,14 @@ bool FAsyncArchive::WaitForIntialPhases(float InTimeLimit)
 				}
 				else
 				{
-					check(InTimeLimit > 0.0f);
+					check(InTimeLimit > 0.0);
 					return false;
 				}
 			}
 			if (SummaryPrecacheRequestPtr)
 			{
-				float TimeLimit = 0.0f;
-				if (InTimeLimit > 0.0f)
+				double TimeLimit = 0.0;
+				if (InTimeLimit > 0.0)
 				{
 					TimeLimit = InTimeLimit - (FPlatformTime::Seconds() - StartTime);
 					if (TimeLimit < MIN_REMAIN_TIME)
@@ -7608,7 +7608,7 @@ bool FAsyncArchive::WaitForIntialPhases(float InTimeLimit)
 				}
 				else
 				{
-					check(InTimeLimit > 0.0f);
+					check(InTimeLimit > 0.0);
 					return false;
 				}
 			}
@@ -7800,7 +7800,7 @@ IAsyncReadRequest* FAsyncArchive::MakeEventDrivenPrecacheRequest(int64 Offset, i
 }
 
 
-bool FAsyncArchive::PrecacheWithTimeLimit(int64 RequestOffset, int64 RequestSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit)
+bool FAsyncArchive::PrecacheWithTimeLimit(int64 RequestOffset, int64 RequestSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit)
 {
 #if defined(ASYNC_WATCH_FILE)
 	if (FileName.Contains(TEXT(ASYNC_WATCH_FILE)) && RequestOffset == 878129)
@@ -7824,7 +7824,7 @@ bool FAsyncArchive::PrecacheWithTimeLimit(int64 RequestOffset, int64 RequestSize
 	bool bResult = PrecacheInternal(RequestOffset, RequestSize);
 	if (!bResult && bUseFullTimeLimit)
 	{
-		float RemainingTime = TimeLimit - float(FPlatformTime::Seconds() - TickStartTime);
+		double RemainingTime = TimeLimit - (FPlatformTime::Seconds() - TickStartTime);
 		if (RemainingTime > MIN_REMAIN_TIME && WaitRead(RemainingTime))
 		{
 			bResult = true;
@@ -7881,7 +7881,7 @@ void FAsyncArchive::EndReadingHeader()
 	}
 }
 
-bool FAsyncArchive::ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit)
+bool FAsyncArchive::ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit)
 {
 	if (SummaryReadTime == 0.0)
 	{
@@ -7895,7 +7895,7 @@ bool FAsyncArchive::ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullT
 	{
 		if (bUseFullTimeLimit)
 		{
-			float RemainingTime = TimeLimit - float(FPlatformTime::Seconds() - TickStartTime);
+			double RemainingTime = TimeLimit - (FPlatformTime::Seconds() - TickStartTime);
 			if (RemainingTime < MIN_REMAIN_TIME || !WaitForIntialPhases(RemainingTime))
 			{
 				return false; // not ready

@@ -612,7 +612,7 @@ void FArchiveStackTrace::CompareWithInternal(const FPackageData& SourcePackage, 
 					if (SourceSize == DestSize && ShouldDumpPropertyValueState(SerProp))
 					{
 						// Walk backwards until we find a callstack which wasn't from the given property
-						int32 OffsetX = DestAbsoluteOffset;
+						int64 OffsetX = DestAbsoluteOffset;
 						for (;;)
 						{
 							if (OffsetX == 0)
@@ -868,7 +868,7 @@ void FArchiveStackTrace::CompareWith(const TCHAR* InFilename, const int64 TotalH
 bool FArchiveStackTrace::GenerateDiffMapInternal(const FPackageData& SourcePackage, const FPackageData& DestPackage, int32 MaxDiffsToFind, FArchiveDiffMap& OutDiffMap)
 {
 	bool bIdentical = true;
-	int32 LastDifferenceCallstackOffsetIndex = -1;
+	int64 LastDifferenceCallstackOffsetIndex = -1;
 	FCallstackData* DifferenceCallstackData = nullptr;
 
 	const int64 SourceSize = SourcePackage.Size - SourcePackage.StartOffset;
@@ -884,7 +884,7 @@ bool FArchiveStackTrace::GenerateDiffMapInternal(const FPackageData& SourcePacka
 			bIdentical = false;
 			if (OutDiffMap.Num() < MaxDiffsToFind)
 			{
-				int64 DifferenceCallstackoffsetIndex = GetCallstackAtOffset(DestAbsoluteOffset, FMath::Max(LastDifferenceCallstackOffsetIndex, 0));
+				int64 DifferenceCallstackoffsetIndex = GetCallstackAtOffset(DestAbsoluteOffset, FMath::Max<int64>(LastDifferenceCallstackOffsetIndex, 0));
 				if (DifferenceCallstackoffsetIndex >= 0 && DifferenceCallstackoffsetIndex != LastDifferenceCallstackOffsetIndex)
 				{
 					const FCallstactAtOffset& CallstackAtOffset = CallstackAtOffsetMap[DifferenceCallstackoffsetIndex];

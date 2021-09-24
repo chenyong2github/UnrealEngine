@@ -137,7 +137,7 @@ public:
 	 * @param bUseFullTimeLimit	
 	 * @param TimeLimit				Time limit
 	 */
-	virtual EAsyncPackageState::Type ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit) = 0;
+	virtual EAsyncPackageState::Type ProcessLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit) = 0;
 	
 	/**
 	 * Process all loading package requests until completion predicate is satisfied.
@@ -145,7 +145,7 @@ public:
 	 * @param CompletionPredicate		Completion predicate
 	 * @param TimeLimit					Time limit
 	 */
-	virtual EAsyncPackageState::Type ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit) = 0;
+	virtual EAsyncPackageState::Type ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, double TimeLimit) = 0;
 
 	/**
 	* Cancels streaming.

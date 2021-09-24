@@ -183,7 +183,7 @@ struct TConvertIntToEnumProperty
 		OldIntType OldValue;
 		Slot << OldValue;
 
-		uint8 NewValue = OldValue;
+		uint8 NewValue = (uint8)OldValue;
 		if (OldValue > (OldIntType)TNumericLimits<uint8>::Max() || !Enum->IsValidEnumValue(NewValue))
 		{
 			UE_LOG(
@@ -350,8 +350,8 @@ void FByteProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue
 		if (Enum)
 		{
 			const int32 ActualValue = *(const uint8*)PropertyValue;
-			const int32 MaxValue = Enum->GetMaxEnumValue();
-			const int32 GoodValue = Enum->IsValidEnumValue(ActualValue) ? ActualValue : MaxValue;
+			const int64 MaxValue = Enum->GetMaxEnumValue();
+			const int64 GoodValue = Enum->IsValidEnumValue(ActualValue) ? ActualValue : MaxValue;
 			const bool bNonNativeEnum = Enum->GetClass() != UEnum::StaticClass();
 			ensure(!bNonNativeEnum || Enum->CppType.IsEmpty());
 			const FString FullyQualifiedEnumName = bNonNativeEnum ? ::UnicodeToCPPIdentifier(Enum->GetName(), false, TEXT("E__"))

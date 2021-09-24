@@ -657,7 +657,7 @@ void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 	}
 }
 
-EAsyncPackageState::Type ProcessAsyncLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
+EAsyncPackageState::Type ProcessAsyncLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, double TimeLimit)
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	return GetAsyncPackageLoader().ProcessLoadingUntilComplete(CompletionPredicate, TimeLimit);
@@ -668,7 +668,7 @@ int32 GetNumAsyncPackages()
 	return GetAsyncPackageLoader().GetNumAsyncPackages();
 }
 
-EAsyncPackageState::Type ProcessAsyncLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
+EAsyncPackageState::Type ProcessAsyncLoading(bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit)
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessAsyncLoading);
@@ -1096,10 +1096,10 @@ void IsTimeLimitExceededPrint(
 		(CurrentTime - InTickStartTime) > GTimeLimitExceededMinTime &&
 		(CurrentTime - InTickStartTime) > (GTimeLimitExceededMultiplier * InTimeLimit))
 	{
-		float EstimatedTimeForThisStep = (CurrentTime - InTickStartTime) * 1000;
+		double EstimatedTimeForThisStep = (CurrentTime - InTickStartTime) * 1000.0;
 		if (LastTestTime > InTickStartTime)
 		{
-			EstimatedTimeForThisStep = (CurrentTime - LastTestTime) * 1000;
+			EstimatedTimeForThisStep = (CurrentTime - LastTestTime) * 1000.0;
 		}
 		LastPrintStartTime = InTickStartTime;
 		UE_LOG(LogStreaming, Warning, TEXT("IsTimeLimitExceeded: %s %s Load Time %5.2fms   Last Step Time %5.2fms"),

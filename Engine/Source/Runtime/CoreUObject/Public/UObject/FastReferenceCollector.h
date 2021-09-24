@@ -98,7 +98,7 @@ public:
 		checkSlow(CheckUsedArrays == 0);
 #endif // UE_BUILD_DEBUG
 
-		uint32 FreedMemory = 0;
+		SIZE_T FreedMemory = 0;
 		TArray<FGCArrayStruct*> AllArrays;
 		Pool.PopAll(AllArrays);
 		for (FGCArrayStruct* ArrayStruct : AllArrays)
@@ -109,7 +109,7 @@ public:
 			FreedMemory += ArrayStruct->WeakReferences.GetAllocatedSize();
 			delete ArrayStruct;
 		}
-		UE_LOG(LogGarbage, Log, TEXT("Freed %ub from %d GC array pools."), FreedMemory, AllArrays.Num());
+		UE_LOG(LogGarbage, Log, TEXT("Freed %" SIZE_T_FMT "b from %d GC array pools."), FreedMemory, AllArrays.Num());
 	}
 
 	/**

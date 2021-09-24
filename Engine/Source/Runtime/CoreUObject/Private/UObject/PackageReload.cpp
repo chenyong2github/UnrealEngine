@@ -488,7 +488,7 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 	}
 	UE_LOG(LogUObjectGlobals, Log, TEXT("%s"), *Msg);
 
-	FScopedSlowTask ReloadingPackagesSlowTask(InPackagesToReload.Num(), NSLOCTEXT("CoreUObject", "ReloadingPackages", "Reloading Packages"));
+	FScopedSlowTask ReloadingPackagesSlowTask((float)InPackagesToReload.Num(), NSLOCTEXT("CoreUObject", "ReloadingPackages", "Reloading Packages"));
 	ReloadingPackagesSlowTask.MakeDialogDelayed(3.0f);
 
 	// Cache the current dirty state of all packages so we can restore it after the reload
@@ -506,7 +506,7 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 	PackageReloadInternal::FExistingPackageReferences ExistingPackages;
 	ExistingPackages.Refs.Reserve(InPackagesToReload.Num());
 	{
-		FScopedSlowTask PreparingPackagesForReloadSlowTask(InPackagesToReload.Num(), NSLOCTEXT("CoreUObject", "PreparingPackagesForReload", "Preparing Packages for Reload"));
+		FScopedSlowTask PreparingPackagesForReloadSlowTask((float)InPackagesToReload.Num(), NSLOCTEXT("CoreUObject", "PreparingPackagesForReload", "Preparing Packages for Reload"));
 
 		for (const FReloadPackageData& PackageToReloadData : InPackagesToReload)
 		{
@@ -562,7 +562,7 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 
 			const int32 NumPackagesInBatch = PackageIndex - BatchStartIndex;
 
-			FScopedSlowTask FixingUpReferencesSlowTask((NumPackagesInBatch * 4) + GUObjectArray.GetObjectArrayNum(), NSLOCTEXT("CoreUObject", "FixingUpReferences", "Fixing-Up References"));
+			FScopedSlowTask FixingUpReferencesSlowTask((float)((NumPackagesInBatch * 4) + GUObjectArray.GetObjectArrayNum()), NSLOCTEXT("CoreUObject", "FixingUpReferences", "Fixing-Up References"));
 
 			// Pre-pass to notify things that the package old package is about to be fixed-up
 			TMap<UObject*, PackageReloadInternal::FObjectAndPackageIndex> OldObjectToNewData;

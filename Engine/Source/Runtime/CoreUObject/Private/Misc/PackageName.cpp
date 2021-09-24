@@ -451,7 +451,7 @@ void FPackageName::InternalFilenameToLongPackageName(FStringView InFilename, FSt
 	// between /Path/.ext and /Path/
 	if (!SplitOutName.IsEmpty() || SplitOutExtension.IsEmpty())
 	{
-		Result = FStringView(SplitOutPath.GetData(), SplitOutName.GetData() + SplitOutName.Len() - SplitOutPath.GetData());
+		Result = FStringView(SplitOutPath.GetData(), UE_PTRDIFF_TO_INT32(SplitOutName.GetData() + SplitOutName.Len() - SplitOutPath.GetData()));
 	}
 
 	if (bIsValidLongPackageName && Result.Len() != Filename.Len())
@@ -1682,7 +1682,7 @@ bool FPackageName::SearchForPackageOnDisk(const FString& PackageName, FString* O
 			}
 		}
 	}
-	float ThisTime = FPlatformTime::Seconds() - StartTime;
+	const double ThisTime = FPlatformTime::Seconds() - StartTime;
 
 	if ( bResult )
 	{
@@ -1818,7 +1818,7 @@ FString FPackageName::GetSourcePackagePath(const FString& InLocalizedPackagePath
 		if (FCString::Strnicmp(CurChar, TEXT("L10N/"), 5) == 0) // StartsWith "L10N/"
 		{
 			CurChar -= 1; // -1 because we need to eat the slash before L10N
-			OutL10NStart = (CurChar - *InPath);
+			OutL10NStart = UE_PTRDIFF_TO_INT32(CurChar - *InPath);
 			OutL10NLength = 6; // "/L10N/"
 
 			// Walk to the next slash as that will be the end of the culture code
@@ -1830,7 +1830,7 @@ FString FPackageName::GetSourcePackagePath(const FString& InLocalizedPackagePath
 		else if (FCString::Stricmp(CurChar, TEXT("L10N")) == 0) // Is "L10N"
 		{
 			CurChar -= 1; // -1 because we need to eat the slash before L10N
-			OutL10NStart = (CurChar - *InPath);
+			OutL10NStart = UE_PTRDIFF_TO_INT32(CurChar - *InPath);
 			OutL10NLength = 5; // "/L10N"
 
 			return true;
@@ -2250,7 +2250,7 @@ bool FPackageName::IsLocalizedPackage(FStringView InPackageName)
 	}
 
 	// Are we part of the L10N folder?
-	FStringView Remaining(CurChar, EndChar - CurChar);
+	FStringView Remaining(CurChar, UE_PTRDIFF_TO_INT32(EndChar - CurChar));
 	// Is "L10N" or StartsWith "L10N/" 
 	return Remaining.StartsWith(TEXT("L10N"_SV), ESearchCase::IgnoreCase) && (Remaining.Len() == 4 || Remaining[4] == '/');
 }

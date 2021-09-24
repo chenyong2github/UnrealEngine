@@ -543,13 +543,13 @@ struct FObjectSearchPath
 		const TCHAR* End = FAsciiSet::FindFirstOrEnd(Begin, DotColon);
 		while (*End != '\0')
 		{
-			Outers.Add(FName(End - Begin, Begin));
+			Outers.Add(FName(UE_PTRDIFF_TO_INT32(End - Begin), Begin));
 
 			Begin = End + 1;
 			End = FAsciiSet::FindFirstOrEnd(Begin, DotColon);
 		}
 
-		Inner = Outers.Num() == 0 ? InPath : FName(FStringView(Begin, End - Begin), InPath.GetNumber());
+		Inner = Outers.Num() == 0 ? InPath : FName(FStringView(Begin, UE_PTRDIFF_TO_INT32(End - Begin)), InPath.GetNumber());
 	}
 
 	bool MatchOuterNames(UObject* Outer) const
