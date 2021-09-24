@@ -1072,6 +1072,15 @@ struct FRHIUniformBufferLayout : public FRHIResource
 	const bool bHasNonGraphOutputs;
 };
 
+/** Compare two uniform buffer layouts. */
+inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBufferLayout& B)
+{
+	return A.ConstantBufferSize == B.ConstantBufferSize
+		&& A.StaticSlot == B.StaticSlot
+		&& A.BindingFlags == B.BindingFlags
+		&& A.Resources == B.Resources;
+}
+
 class FRHIUniformBuffer : public FRHIResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FUniformBufferResource
