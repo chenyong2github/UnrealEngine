@@ -366,6 +366,31 @@ namespace Audio
 		return NumChannels;
 	}
 
+	float FEnvelopeFollower::GetSampleRate() const
+	{
+		return Smoother.GetSampleRate();
+	}
+
+	float FEnvelopeFollower::GetAttackTime() const
+	{
+		return Smoother.GetAttackTimeSamples() / Smoother.GetSampleRate();
+	}
+
+	float FEnvelopeFollower::GetReleaseTime() const
+	{
+		return Smoother.GetReleaseTimeSamples() / Smoother.GetSampleRate();
+	}
+
+	bool FEnvelopeFollower::GetAnalog() const
+	{
+		return Smoother.GetAnalog();
+	}
+
+	EPeakMode::Type FEnvelopeFollower::GetMode() const
+	{
+		return EnvMode;
+	}
+
 	void FEnvelopeFollower::SetNumChannels(int32 InNumChannels)
 	{
 		if (InNumChannels != NumChannels)
