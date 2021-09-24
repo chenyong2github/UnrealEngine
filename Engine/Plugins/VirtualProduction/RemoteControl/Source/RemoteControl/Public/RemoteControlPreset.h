@@ -776,6 +776,18 @@ public:
 
 	virtual void Serialize(FArchive& Ar) override;
 
+	/**
+	* Get entity name from given Desired or UObject + Field Path 
+	* @param InDesiredName		Given name, it might be none
+	* @param InObject			Bound object input
+	* @param InFieldPath		Bound field path
+	* @return Computing name of the entity
+	*/
+	FName GetEntityName(const FName InDesiredName, UObject* InObject, const FRCFieldPathInfo& InFieldPath) const;
+
+	/** Generate label from Registry */
+	FName GenerateUniqueLabel(const FName InDesiredName) const;
+
 public:
 	/** The visual layout for this preset. */
 	UPROPERTY()
@@ -850,11 +862,14 @@ private:
 	TArray<TSharedPtr<FRemoteControlEntity>> GetEntities(UScriptStruct* EntityType);
 	TArray<TSharedPtr<const FRemoteControlEntity>> GetEntities(UScriptStruct* EntityType) const;
 
+public:	
 	/** Expose an entity in the registry. */
 	TSharedPtr<FRemoteControlEntity> Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId);
-	
+
+
 	/** Try to get a binding and creates a new one if it doesn't exist. */
 	URemoteControlBinding* FindOrAddBinding(const TSoftObjectPtr<UObject>& Object);
+private:
 
 	/** Handler called upon an entity being modified. */
 	void OnEntityModified(const FGuid& EntityId);
@@ -879,6 +894,9 @@ private:
 
 	/** Create property watchers for exposed properties that need them. */
 	void CreatePropertyWatchers();
+
+	/** Call post load function for exposed properties. */
+	void PostLoadProperties();
 	
 private:
 	/** Preset unique ID */

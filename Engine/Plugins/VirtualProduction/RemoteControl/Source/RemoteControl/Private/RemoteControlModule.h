@@ -42,6 +42,9 @@ public:
 	virtual bool RegisterDefaultEntityMetadata(FName MetadataKey, FEntityMetadataInitializer MetadataInitializer) override;
 	virtual void UnregisterDefaultEntityMetadata(FName MetadataKey) override;
 	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property, UClass* OwnerClass = nullptr) const override;
+	virtual void RegisterEntityFactory( const FName InFactoryName, const TSharedRef<IRemoteControlPropertyFactory>& InFactory) override;
+	virtual void UnregisterEntityFactory( const FName InFactoryName ) override;
+	virtual const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& GetEntityFactories() const override { return EntityFactories; };
 	//~ End IRemoteControlModule
 
 private:
@@ -124,6 +127,9 @@ private:
 	/** Delay before we check if a modification is no longer ongoing. */
 	static constexpr float SecondsBetweenOngoingChangeCheck = 0.2f;
 #endif
+
+	/** Map of the factories which is responsible for the Remote Control property creation */
+	TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>> EntityFactories;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
