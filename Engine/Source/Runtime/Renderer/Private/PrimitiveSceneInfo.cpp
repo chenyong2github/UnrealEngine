@@ -912,9 +912,14 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 	}
 
 	{
+		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
+
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddStaticMeshes_UpdateSceneArrays, FColor::Blue);
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
+			// Allocate OIT index buffer where needed
+			const bool bAllocateSortedTriangles = OIT::IsEnabled(GMaxRHIShaderPlatform) && SceneInfo->Proxy->SupportsSortedTriangles();
+
 			for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
 			{
 				FStaticMeshBatchRelevance& MeshRelevance = SceneInfo->StaticMeshRelevances[MeshIndex];
@@ -925,6 +930,12 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 				Scene->StaticMeshes[SceneArrayAllocation.Index] = &Mesh;
 				Mesh.Id = SceneArrayAllocation.Index;
 				MeshRelevance.Id = SceneArrayAllocation.Index;
+
+				if (bAllocateSortedTriangles && OIT::IsCompatible(Mesh, FeatureLevel))
+				{
+					FSortedTriangleData Allocation = Scene->OITSceneData.Allocate(Mesh.Elements[0].IndexBuffer, EPrimitiveType(Mesh.Type), Mesh.Elements[0].FirstIndex, Mesh.Elements[0].NumPrimitives);
+					OIT::ConvertSortedIndexToDynamicIndex(&Allocation, &Mesh.Elements[0].DynamicIndexBuffer);
+				}
 			}
 		}
 	}
@@ -1339,6 +1350,19 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 
 void FPrimitiveSceneInfo::RemoveStaticMeshes()
 {
+	// Deallocate potential OIT dynamic index buffer
+	if (OIT::IsEnabled(GMaxRHIShaderPlatform))
+	{
+		for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
+		{
+			FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
+			if (Mesh.Elements.Num() > 0 && Mesh.Elements[0].DynamicIndexBuffer.IsValid())
+			{
+				Scene->OITSceneData.Deallocate(Mesh.Elements[0].DynamicIndexBuffer.IndexBuffer);
+			}
+		}
+	}
+
 	// Remove static meshes from the scene.
 	StaticMeshes.Empty();
 	StaticMeshRelevances.Empty();

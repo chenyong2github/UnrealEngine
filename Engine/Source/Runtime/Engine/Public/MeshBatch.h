@@ -42,6 +42,22 @@ enum EPrimitiveIdMode
 // Flag used to mark a primtive ID as dynamic, and thus needing translation (by adding the offset from the dynamic primitive collector).
 static constexpr int32 GPrimIDDynamicFlag = 1 << 31;
 
+struct FMeshBatchElementDynamicIndexBuffer
+{
+	/** The vertex buffer to bind for draw calls. */
+	FIndexBuffer* IndexBuffer = nullptr;
+	/** The offset in to the index buffer (arbitrary limit to 16M indices so that FirstIndex|PrimitiveType fits into 32bits. */
+	uint32 FirstIndex : 24;
+	/** The offset in to the index buffer. */
+	uint32 PrimitiveType : PT_NumBits;
+
+	/** Returns true if the allocation is valid. */
+	FORCEINLINE bool IsValid() const
+	{
+		return IndexBuffer != NULL;
+	}
+};
+
 /**
  * A batch mesh element definition.
  */
@@ -60,6 +76,12 @@ struct FMeshBatchElement
 	const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource;
 
 	const FIndexBuffer* IndexBuffer;
+
+	/**
+	 * Store dynamic index buffer
+	 * This is used for objects whose triangles are dynamically sorted for a particular view (i.e., per-object order-independent-transparency)
+	*/
+	FMeshBatchElementDynamicIndexBuffer DynamicIndexBuffer;
 
 	union 
 	{

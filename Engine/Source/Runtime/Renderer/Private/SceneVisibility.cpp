@@ -1949,6 +1949,7 @@ struct FRelevancePacket
 	TArray<FMeshDecalBatch> MeshDecalBatches;
 	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
 	TArray<FSkyMeshBatch> SkyMeshBatches;
+	TArray<FSortedTrianglesMeshBatch> SortedTrianglesMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
 
 	struct FPrimitiveLODMask
@@ -2492,6 +2493,14 @@ struct FRelevancePacket
 							BatchAndProxy.bVisibleInRealTimeSkyCapture = PrimitiveSceneInfo->bVisibleInRealTimeSkyCapture;
 						}
 
+						if (ViewRelevance.HasTranslucency() && PrimitiveSceneInfo->Proxy->SupportsSortedTriangles()) // Need to check material as well
+						{
+							SortedTrianglesMeshBatches.AddUninitialized(1);
+							FSortedTrianglesMeshBatch& BatchAndProxy = SortedTrianglesMeshBatches.Last();
+							BatchAndProxy.Mesh = &StaticMesh;
+							BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+						}
+
 						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
 						{
 							MeshDecalBatches.AddUninitialized(1);
@@ -2575,6 +2584,7 @@ struct FRelevancePacket
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
 		WriteView.VolumetricMeshBatches.Append(VolumetricMeshBatches);
 		WriteView.SkyMeshBatches.Append(SkyMeshBatches);
+		WriteView.SortedTrianglesMeshBatches.Append(SortedTrianglesMeshBatches);
 
 		for (int32 Index = 0; Index < RecachedReflectionCapturePrimitives.NumPrims; ++Index)
 		{
@@ -2959,6 +2969,14 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
 		BatchAndProxy.bVisibleInMainPass = ViewRelevance.bRenderInMainPass;
 		BatchAndProxy.bVisibleInRealTimeSkyCapture = PrimitiveSceneInfo->bVisibleInRealTimeSkyCapture;
+	}
+	
+	if (ViewRelevance.HasTranslucency() && PrimitiveSceneInfo->Proxy->SupportsSortedTriangles())
+	{
+		View.SortedTrianglesMeshBatches.AddUninitialized(1);
+		FSortedTrianglesMeshBatch& BatchAndProxy = View.SortedTrianglesMeshBatches.Last();
+		BatchAndProxy.Mesh = MeshBatch.Mesh;
+		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
 	}
 
 	if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)

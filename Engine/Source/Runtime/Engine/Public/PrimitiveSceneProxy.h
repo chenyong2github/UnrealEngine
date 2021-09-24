@@ -635,6 +635,7 @@ public:
 	inline bool SupportsMeshCardRepresentation() const { return bSupportsMeshCardRepresentation; }
 	inline bool SupportsHeightfieldRepresentation() const { return bSupportsHeightfieldRepresentation; }
 	inline bool SupportsInstanceDataBuffer() const { return bSupportsInstanceDataBuffer; }
+	inline bool SupportsSortedTriangles() const { return bSupportsSortedTriangles; }
 	inline bool TreatAsBackgroundForOcclusion() const { return bTreatAsBackgroundForOcclusion; }
 	inline bool ShouldNotifyOnWorldAddRemove() const { return bShouldNotifyOnWorldAddRemove; }
 	inline bool IsForceHidden() const {return bForceHidden;}
@@ -1122,6 +1123,9 @@ protected:
 
 	/** Whether the primitive implements GetHeightfieldRepresentation() */
 	uint8 bSupportsHeightfieldRepresentation : 1;
+
+	/** Whether the object support triangles when rendered with translucent material */
+	uint8 bSupportsSortedTriangles : 1;
 
 	/** Whether this primitive requires notification when its level is added to the world and made visible for the first time. */
 	uint8 bShouldNotifyOnWorldAddRemove : 1;
