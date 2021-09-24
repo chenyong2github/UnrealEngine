@@ -28,8 +28,8 @@ namespace Audio
 		// Time constants indicate how quickly the envelope follower responds to changes in input
 		static constexpr float AnalogTimeConstant = 1.00239343f;
 		static constexpr float DigitalTimeConstant = 4.60517019f;
-	public:
 
+	public:
 		/** Construct an FAttackRelease object.
 		 *
 		 * @param InSampleRate - The number of frames per a second.
@@ -42,6 +42,9 @@ namespace Audio
 		void SetAnalog(bool bInIsAnalog);
 		void SetAttackTime(float InAttackTimeMsec);
 		void SetReleaseTime(float InReleaseTimeMsec);
+
+		/** Get whether set to analog or digital time constant. (True is analog, false is digital) */
+		FORCEINLINE bool GetAnalog() const { return bIsAnalog; }
 
 		/** Get the attack time in samples. */
 		FORCEINLINE float GetAttackTimeSamples() const { return AttackTimeSamples; }
@@ -223,7 +226,23 @@ namespace Audio
 		/** Initialize the envelope follower. */
 		void Init(const FEnvelopeFollowerInitParams& InParams);
 
+		/** Returns the number of channels per an input frame */
 		int32 GetNumChannels() const;
+
+		/** Returns the number of frames per a second set on initialization */
+		float GetSampleRate() const;
+
+		/** Returns the envelope follower attack time (how fast the envelope responds to input) */
+		float GetAttackTime() const;
+
+		/** Returns the envelope follower release time (how slow the envelope dampens from input) */
+		float GetReleaseTime() const;
+
+		/** Returns whether or not to use analog or digital time constants */
+		bool GetAnalog() const;
+
+		/** Returns the input mode of the envelope follower */
+		EPeakMode::Type GetMode() const;
 
 		/** Set the number of channels per an input frame. */
 		void SetNumChannels(int32 InNumChannels);
