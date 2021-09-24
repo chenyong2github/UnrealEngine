@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "RemoteControlFieldPath.generated.h"
 
+
 /** Small container for the resolved data of a remote control field segment */
 struct REMOTECONTROL_API FRCFieldResolvedData
 {
@@ -134,6 +135,16 @@ public:
 	 * Builds a path info from a property.
 	 */
 	FRCFieldPathInfo(FProperty* Property);
+
+	bool operator == (const FRCFieldPathInfo& Other) const
+	{
+		return PathHash == Other.PathHash;
+	}
+
+	bool operator != (const FRCFieldPathInfo& Other) const
+	{
+		return PathHash != Other.PathHash;
+	}
 
 public:
 	/** Go through each segment and finds the property associated + container address for a given UObject owner */

@@ -11,6 +11,7 @@
 #include "PropertyHandle.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
+#include "RemoteControlInstanceMaterial.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlSettings.h"
 #include "AssetEditor/RemoteControlPresetEditorToolkit.h"
@@ -48,6 +49,11 @@ namespace RemoteControlUIModule
 	{
 		TSharedRef<FRemoteControlPresetEditorToolkit> Toolkit = FRemoteControlPresetEditorToolkit::CreateEditor(Mode, EditWithinLevelEditor,  Preset);
 		Toolkit->InitRemoteControlPresetEditor(Mode, EditWithinLevelEditor, Preset);
+	}
+
+	bool IsWhitelistedTransientObject(UObject* Object)
+	{
+		return Object && Object->IsA<UDEditorParameterValue>();
 	}
 }
 
@@ -336,7 +342,7 @@ bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyH
 				}
 
 				// Don't display an expose icon for transient objects such as material editor parameters.
-				if (OuterObjects[0]->GetOutermost()->HasAnyFlags(RF_Transient))
+				if (OuterObjects[0]->GetOutermost()->HasAnyFlags(RF_Transient) && !RemoteControlUIModule::IsWhitelistedTransientObject(OuterObjects[0]))
 				{
 					return false;
 				}
@@ -421,6 +427,7 @@ void FRemoteControlUIModule::RegisterWidgetFactories()
 	RegisterWidgetFactoryForType(FRemoteControlActor::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedActor::MakeInstance));
 	RegisterWidgetFactoryForType(FRemoteControlProperty::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedField::MakeInstance));
 	RegisterWidgetFactoryForType(FRemoteControlFunction::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedField::MakeInstance));
+	RegisterWidgetFactoryForType(FRemoteControlInstanceMaterial::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedField::MakeInstance));
 }
 
 TSharedPtr<SRCPanelTreeNode> FRemoteControlUIModule::GenerateEntityWidget(const FGenerateWidgetArgs& Args)

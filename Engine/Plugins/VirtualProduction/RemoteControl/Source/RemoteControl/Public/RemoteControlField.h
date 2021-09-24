@@ -8,6 +8,7 @@
 #include "RemoteControlField.generated.h"
 
 class IRemoteControlPropertyHandle;
+struct FPropertyChangedEvent;
 
 /**
  * The type of the exposed field.
@@ -126,6 +127,33 @@ public:
 	virtual UClass* GetSupportedBindingClass() const override;
 	virtual bool IsBound() const override;
 	//~ End FRemoteControlEntity interface
+
+	/**
+	 * Check whether given property path is bound to the property 
+	 * @param InPropertyPath Given Property Path
+	 * return true if the property bound to given path
+	 */
+	virtual bool CheckIsBoundToPropertyPath(const FString& InPropertyPath) const;
+
+	/**
+	 * Check whether any of the given objects are bound to this property
+	 * @param InObjects Objects to check
+	 * return true if at least one object is bound to the property
+	 */
+	virtual bool ContainsBoundObjects(TArray<UObject*> InObjects) const;
+
+	/**
+	 * Called on Post Load on Owner UObject.
+	 * Useful to initialize specific functionality of the inherit property classes
+	 */
+	virtual void PostLoad() {}
+
+	/**
+	 * Should be called when property chanced on bound object
+	 * @param InObject Edited object
+	 * @param InEvent  Change Event
+	 */
+	virtual void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)  {};
 
 	/**
 	 * Get the underlying property.

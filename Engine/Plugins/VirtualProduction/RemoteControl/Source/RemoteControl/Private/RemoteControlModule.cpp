@@ -12,6 +12,7 @@
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlInterceptionHelpers.h"
 #include "RemoteControlInterceptionProcessor.h"
+#include "RemoteControlInstanceMaterial.h"
 #include "RemoteControlPreset.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
@@ -345,6 +346,9 @@ void FRemoteControlModule::StartupModule()
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::HandleEnginePostInit);
 #endif
+
+	// Register Property Factories
+	RegisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName(), FRemoteControlInstanceMaterialFactory::MakeInstance());
 }
 
 void FRemoteControlModule::ShutdownModule()
@@ -364,6 +368,9 @@ void FRemoteControlModule::ShutdownModule()
 
 	// Unregister the interceptor feature on module shutdown
 	IModularFeatures::Get().UnregisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
+
+	// Unregister Property Factories
+	UnregisterEntityFactory(FRemoteControlInstanceMaterial::StaticStruct()->GetFName());
 }
 
 IRemoteControlModule::FOnPresetRegistered& FRemoteControlModule::OnPresetRegistered()
@@ -901,7 +908,10 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 			MutableObjectReference.Object->PostEditChangeProperty(PropertyEvent);
 		}
 #endif
-		return bSuccess;
+		for (const TPair<FName, TSharedPtr<IRemoteControlPropertyFactory>>& EntityFactoryPair : EntityFactories)
+		{
+			EntityFactoryPair.Value->PostSetObjectProperties(ObjectAccess.Object.Get(), bSuccess);
+		}
 	}
 	return false;
 }
@@ -1098,6 +1108,24 @@ bool FRemoteControlModule::PropertySupportsRawModificationWithoutEditor(FPropert
 {
 	constexpr bool bInGameOrPackage = true;
 	return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlPropertyUtilities::FindSetterFunction(Property, OwnerClass));
+}
+
+void FRemoteControlModule::RegisterEntityFactory(const FName InFactoryName, const TSharedRef<IRemoteControlPropertyFactory>& InFactory)
+{
+	if( InFactoryName != NAME_None )
+	{
+		EntityFactories.Add(InFactoryName, InFactory);
+	}
+	else
+	{
+		UE_LOG(LogRemoteControl, Error, TEXT("Factory should have a name"));
+		ensure(false);
+	}
+}
+
+void FRemoteControlModule::UnregisterEntityFactory(const FName InFactoryName)
+{
+	EntityFactories.Remove(InFactoryName);
 }
 
 void FRemoteControlModule::CachePresets()

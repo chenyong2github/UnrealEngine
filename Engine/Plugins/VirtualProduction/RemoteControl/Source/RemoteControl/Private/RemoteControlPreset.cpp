@@ -16,8 +16,10 @@
 #include "RemoteControlFieldPath.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlBinding.h"
+#include "RemoteControlEntityFactory.h"
 #include "RemoteControlObjectVersion.h"
 #include "RemoteControlPresetRebindingManager.h"
+
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #if WITH_EDITOR
@@ -689,6 +691,8 @@ void URemoteControlPreset::PostLoad()
 	RegisterEntityDelegates();
 
 	CreatePropertyWatchers();
+
+	PostLoadProperties();
 }
 
 void URemoteControlPreset::PostDuplicate(bool bDuplicateForPIE)
@@ -739,6 +743,12 @@ TWeakPtr<FRemoteControlActor> URemoteControlPreset::ExposeActor(AActor* Actor, F
 	return StaticCastSharedPtr<FRemoteControlActor>(Expose(MoveTemp(RCActor), FRemoteControlActor::StaticStruct(), Args.GroupId));
 }
 
+
+FName URemoteControlPreset::GenerateUniqueLabel(const FName InDesiredName) const
+{
+	return Registry->GenerateUniqueLabel(InDesiredName);
+}
+
 TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath, FRemoteControlPresetExposeArgs Args)
 {
 	if (!Object)
@@ -746,48 +756,36 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 		return nullptr;
 	}
 
-	if (!FieldPath.Resolve(Object))
+	TSharedPtr<FRemoteControlProperty> RCPropertyPtr;
+	const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& PropertyFactories = IRemoteControlModule::Get().GetEntityFactories();
+	for (const TPair<FName, TSharedPtr<IRemoteControlPropertyFactory>>& EntityFactoryPair : PropertyFactories)
+	{
+		if (EntityFactoryPair.Value->SupportExposedClass(Object->GetClass()))
+		{
+			RCPropertyPtr = EntityFactoryPair.Value->CreateRemoteControlProperty(this, Object, FieldPath, Args);
+			break;
+		}
+	}
+
+	// Create default one
+	if (!RCPropertyPtr)
+	{
+		if (!FieldPath.Resolve(Object))
+		{
+			return nullptr;
+		}
+
+		const FName FieldName = GetEntityName(*Args.Label, Object, FieldPath);
+
+		FRemoteControlProperty RCProperty{ this, Registry->GenerateUniqueLabel(FieldName), MoveTemp(FieldPath), { FindOrAddBinding(Object) } };
+
+		RCPropertyPtr = StaticCastSharedPtr<FRemoteControlProperty>(Expose(MoveTemp(RCProperty), FRemoteControlProperty::StaticStruct(), Args.GroupId));
+	}
+
+	if (!RCPropertyPtr)
 	{
 		return nullptr;
 	}
-
-	FProperty* Property = FieldPath.GetResolvedData().Field;
-	check(Property);
-
-	FString FieldName;
-
-#if WITH_EDITOR
-	FieldName = Property->GetDisplayNameText().ToString();
-#else
-	FieldName = FieldPath.GetFieldName().ToString();
-#endif
-
-	FName DesiredName = *Args.Label;
-
-	if (DesiredName == NAME_None)
-	{
-		FString ObjectName;
-#if WITH_EDITOR
-		if (AActor* Actor = Cast<AActor>(Object))
-		{
-			ObjectName = Actor->GetActorLabel();
-		}
-		else if(UActorComponent* Component = Cast<UActorComponent>(Object))
-		{
-			ObjectName = Component->GetOwner()->GetActorLabel();
-		}
-		else
-#endif
-		{
-			ObjectName = Object->GetName();
-		}
-
-		DesiredName = *FString::Printf(TEXT("%s (%s)"), *FieldName, *ObjectName);
-	}
-
-	FRemoteControlProperty RCProperty{ this, Registry->GenerateUniqueLabel(DesiredName), MoveTemp(FieldPath), { FindOrAddBinding(Object) } };
-
-	TSharedPtr<FRemoteControlProperty> RCPropertyPtr = StaticCastSharedPtr<FRemoteControlProperty>(Expose(MoveTemp(RCProperty), FRemoteControlProperty::StaticStruct(), Args.GroupId));
 
 	RCPropertyPtr->EnableEditCondition();
 
@@ -1042,6 +1040,53 @@ void URemoteControlPreset::CreatePropertyWatchers()
 			CreatePropertyWatcher(ExposedProperty);
 		}
 	}
+}
+
+void URemoteControlPreset::PostLoadProperties()
+{
+	for (const TSharedPtr<FRemoteControlProperty>& ExposedProperty : Registry->GetExposedEntities<FRemoteControlProperty>())
+	{
+		ExposedProperty->PostLoad();
+	}
+}
+
+FName URemoteControlPreset::GetEntityName(const FName InDesiredName, UObject* InObject, const FRCFieldPathInfo& InFieldPath) const
+{
+	FName DesiredName = InDesiredName;
+	
+	if (DesiredName == NAME_None)
+	{
+		FString ObjectName;
+#if WITH_EDITOR
+		if (AActor* Actor = Cast<AActor>(InObject))
+		{
+			ObjectName = Actor->GetActorLabel();
+		}
+		else if(UActorComponent* Component = Cast<UActorComponent>(InObject))
+		{
+			ObjectName = Component->GetOwner()->GetActorLabel();
+		}
+		else
+#endif
+		{
+			ObjectName = InObject->GetName();
+		}
+
+		FProperty* Property = InFieldPath.GetResolvedData().Field;
+		check(Property);
+
+		FString FieldPath;
+
+#if WITH_EDITOR
+		FieldPath = Property->GetDisplayNameText().ToString();
+#else
+		FieldPath = InFieldPath.GetFieldName().ToString();
+#endif
+			
+		DesiredName = *FString::Printf(TEXT("%s (%s)"), *FieldPath, *ObjectName);
+	}
+
+	return DesiredName;
 }
 
 TOptional<FRemoteControlFunction> URemoteControlPreset::GetFunction(FName FunctionLabel) const
@@ -1631,6 +1676,7 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 				{
 					UE_LOG(LogRemoteControl, VeryVerbose, TEXT("(%s) Change detected on %s::%s"), *GetName(), *Object->GetName(), *Event.Property->GetName());
 					PerFrameModifiedProperties.Add(Property->GetId());
+					Property->OnObjectPropertyChanged(Object, Event);
 					Iter.RemoveCurrent();
 				}
 			}

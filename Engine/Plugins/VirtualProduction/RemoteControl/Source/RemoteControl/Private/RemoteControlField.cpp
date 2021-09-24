@@ -298,6 +298,31 @@ bool FRemoteControlProperty::IsBound() const
 	return !!GetProperty();
 }
 
+bool FRemoteControlProperty::CheckIsBoundToPropertyPath(const FString& InPath) const
+{
+	return FieldPathInfo.ToPathPropertyString() == InPath;
+}
+
+bool FRemoteControlProperty::ContainsBoundObjects(TArray<UObject*> InObjects) const
+{
+	const TArray<UObject*> BoundObjects = GetBoundObjects();
+
+	if (BoundObjects.Num() == 0 || InObjects.Num() == 0)
+	{
+		return false;
+	}
+
+	for (UObject* BoundObject : BoundObjects)
+	{
+		if (InObjects.Contains(BoundObject))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
 void FRemoteControlProperty::InitializeMetadata()
 {
 #if WITH_EDITOR

@@ -18,6 +18,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FExposedProperty;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 struct FRemoteControlProperty;
+class IRemoteControlPropertyFactory;
 
 /**
  * Delegate called to initialize an exposed entity metadata entry registered with the RegisterDefaultEntityMetadata method.
@@ -105,6 +106,9 @@ enum class ERCAccess : uint8
  */
 struct FRCObjectReference
 {
+	/** Callback type for post set object properties */
+	using FPostSetObjectPropertyCallback = TFunction<bool(UObject* /*InObject*/, const FRCFieldPathInfo& /*InPathInfo*/, bool /*bInSuccess*/)>;
+	
 	FRCObjectReference() = default;
 
 	FRCObjectReference(ERCAccess InAccessType, UObject* InObject)
@@ -340,4 +344,20 @@ public:
 	 * Returns whether the property can be modified through SetObjectProperties when running without an editor.
 	 */
 	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property, UClass* OwnerClass = nullptr) const = 0;
+
+	/**
+	 * Register factory 
+	 * @param InFactoryName the factory unique name
+	 * @param InFactory Factory instance
+	 */
+	virtual void RegisterEntityFactory( const FName InFactoryName, const TSharedRef<IRemoteControlPropertyFactory>& InFactory) = 0;
+
+	/**
+	 * Remove factory by name
+	 * @param InFactoryName the factory unique name
+	 */
+	virtual void UnregisterEntityFactory( const FName InFactoryName ) = 0;
+
+	/** Get map of the factories which is responsible for the Remote Control property creation */
+	virtual const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& GetEntityFactories() const = 0;
 };
