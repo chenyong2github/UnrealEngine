@@ -2365,7 +2365,8 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	bool bSavedCachedData = false;
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::MaterialSavedCachedData)
 	{
-		if (Ar.IsCooking())
+		// we want to save the cached data when cooking or duplicating the object in a cooked game
+		if (Ar.IsCooking() || (FPlatformProperties::RequiresCookedData() && Ar.IsSaving() && (Ar.GetPortFlags() & PPF_Duplicate)))
 		{
 			if (CachedData)
 			{
