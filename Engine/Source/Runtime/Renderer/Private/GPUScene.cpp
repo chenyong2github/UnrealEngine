@@ -21,6 +21,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
 #include "ShaderDebug.h"
+#include "ShaderPrint.h"
 
 int32 GGPUSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarGPUSceneUploadEveryFrame(
@@ -451,7 +452,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 	PrimitivesToUpdate.Reset();
 	PrimitiveDirtyState.Init(EPrimitiveDirtyState::None, PrimitiveDirtyState.Num());
 
-	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSceneUpdate"), 
+	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::Update"), 
 		[this, &Scene, Adapter = MoveTemp(Adapter), BufferState = MoveTemp(BufferState)](FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_NAMED_EVENT(STAT_UpdateGPUScene, FColor::Green);
@@ -1416,7 +1417,7 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 		FUploadDataSourceAdapterDynamicPrimitives UploadAdapter(Collector.UploadData->PrimitiveShaderData, UploadIdStart, Collector.UploadData->InstanceSceneDataOffset, SceneFrameNumber);
 		FGPUSceneBufferState BufferState = UpdateBufferState(GraphBuilder, Scene, UploadAdapter);
 
-		AddPass(GraphBuilder, RDG_EVENT_NAME("UploadDynamicPrimitiveShaderDataForView"),
+		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::UploadDynamicPrimitiveShaderDataForView"),
 			[this, Scene, UploadAdapter, BufferState = MoveTemp(BufferState)](FRHICommandListImmediate& RHICmdList)
 		{
 			UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(RHICmdList, Scene, UploadAdapter, BufferState);
@@ -1574,6 +1575,14 @@ void FGPUScene::FreeInstancePayloadDataSlots(int32 InstancePayloadDataOffset, in
 	}
 }
 
+struct FPrimitiveSceneDebugNameInfo
+{
+	uint32 PrimitiveID;
+	uint16 Offset;
+	uint8  Length;
+	uint8  Pad0;
+};
+
 class FGPUSceneDebugRenderCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FGPUSceneDebugRenderCS);
@@ -1581,6 +1590,7 @@ class FGPUSceneDebugRenderCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
@@ -1589,10 +1599,15 @@ class FGPUSceneDebugRenderCS : public FGlobalShader
 		SHADER_PARAMETER(int32, NumScenePrimitives)
 		SHADER_PARAMETER(int32, bDrawAll)
 		SHADER_PARAMETER(int32, bDrawUpdatedOnly)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, SelectedPrimitiveFlags)
+		SHADER_PARAMETER(int32, SelectedNameInfoCount)
+		SHADER_PARAMETER(int32, SelectedNameCharacterCount)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, SelectedPrimitiveFlags)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, SelectedPrimitiveNameInfos)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, SelectedPrimitiveNames)
 		SHADER_PARAMETER(FVector3f, PickingRayStart)
 		SHADER_PARAMETER(FVector3f, PickingRayEnd)
 		SHADER_PARAMETER(float, DrawRange)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint32>, RWDrawCounter)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1625,15 +1640,25 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 	if (DebugMode > 0)
 	{
 		ShaderDrawDebug::SetEnabled(true);
+		if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
 
 		int32 NumInstances = InstanceSceneDataAllocator.GetMaxSize();
-		if (ShaderDrawDebug::IsEnabled(View) && NumInstances > 0)
+		if (ShaderDrawDebug::IsEnabled(View) && ShaderPrint::IsEnabled(View) && NumInstances > 0)
 		{
 			// This lags by one frame, so may miss some in one frame, also overallocates since we will cull a lot.
 			ShaderDrawDebug::RequestSpaceForElements(NumInstances * 12);
 
-			FGPUSceneDebugRenderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGPUSceneDebugRenderCS::FParameters>();
+			FRDGBufferRef DrawCounterBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1), TEXT("GPUScene.DebugCounter"));
+			FRDGBufferUAVRef DrawCounterUAV = GraphBuilder.CreateUAV(DrawCounterBuffer, PF_R32_UINT);
+			AddClearUAVPass(GraphBuilder, DrawCounterUAV, 0u);
 
+			const uint32 MaxPrimitiveNameCount = 128u;
+			check(sizeof(FPrimitiveSceneDebugNameInfo) == 8);
+			TArray<FPrimitiveSceneDebugNameInfo> SelectedNameInfos;
+			TArray<uint8> SelectedNames;
+			SelectedNames.Reserve(MaxPrimitiveNameCount * 30u);
+
+			uint32 SelectedCount = 0;
 			TArray<uint32> SelectedPrimitiveFlags;
 			const int32 BitsPerWord = (sizeof(uint32) * 8U);
 			SelectedPrimitiveFlags.Init(0U, FMath::DivideAndRoundUp(Scene.Primitives.Num(), BitsPerWord));
@@ -1642,11 +1667,49 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 				if (Scene.PrimitiveSceneProxies[PrimitiveID]->IsSelected())
 				{
 					SelectedPrimitiveFlags[PrimitiveID / BitsPerWord] |= 1U << uint32(PrimitiveID % BitsPerWord);
+
+					// Collect Names
+					if (SelectedNameInfos.Num() < MaxPrimitiveNameCount)
+					{
+						const FString OwnerName = Scene.Primitives[PrimitiveID]->GetFullnameForDebuggingOnly();
+						const uint32 NameOffset = SelectedNames.Num();
+						const uint32 NameLength = OwnerName.Len();
+						for (TCHAR C : OwnerName)
+						{
+							SelectedNames.Add(uint8(C));
+						}
+
+						FPrimitiveSceneDebugNameInfo& NameInfo = SelectedNameInfos.AddDefaulted_GetRef();
+						NameInfo.PrimitiveID= PrimitiveID;
+						NameInfo.Length		= NameLength;
+						NameInfo.Offset		= NameOffset;
+						++SelectedCount;
+					}
 				}
 			}
-			FRDGBufferRef SelectedPrimitiveFlagsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("GPUScene.Debug.SelectedPrimitiveFlags"), SelectedPrimitiveFlags);
 
+			if (SelectedNameInfos.IsEmpty())
+			{
+				FPrimitiveSceneDebugNameInfo& NameInfo = SelectedNameInfos.AddDefaulted_GetRef();
+				NameInfo.PrimitiveID= ~0;
+				NameInfo.Length		= 4;
+				NameInfo.Offset		= 0;
+				SelectedNames.Add(uint8('N'));
+				SelectedNames.Add(uint8('o'));
+				SelectedNames.Add(uint8('n'));
+				SelectedNames.Add(uint8('e'));
+			}
+
+			// Request more characters for printing if needed
+			ShaderPrint::RequestSpaceForCharacters(SelectedNames.Num() + SelectedCount * 48u);
+
+			FRDGBufferRef SelectedPrimitiveNames	 = CreateVertexBuffer(GraphBuilder, TEXT("GPUScene.Debug.SelectedPrimitiveNames"), FRDGBufferDesc::CreateBufferDesc(1, SelectedNames.Num()), SelectedNames.GetData(), SelectedNames.Num());
+			FRDGBufferRef SelectedPrimitiveNameInfos = CreateStructuredBuffer(GraphBuilder, TEXT("GPUScene.Debug.SelectedPrimitiveNameInfos"), SelectedNameInfos);
+			FRDGBufferRef SelectedPrimitiveFlagsRDG  = CreateStructuredBuffer(GraphBuilder, TEXT("GPUScene.Debug.SelectedPrimitiveFlags"), SelectedPrimitiveFlags);
+
+			FGPUSceneDebugRenderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGPUSceneDebugRenderCS::FParameters>();
 			ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawUniformBuffer);
+			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
 			PassParameters->GPUSceneInstanceSceneData = InstanceSceneDataBuffer.SRV;
 			PassParameters->GPUScenePrimitiveSceneData = PrimitiveBuffer.SRV;
 			PassParameters->InstanceDataSOAStride = InstanceSceneDataSOAStride;
@@ -1654,9 +1717,14 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 			PassParameters->bDrawUpdatedOnly = DebugMode == 3;
 			PassParameters->bDrawAll = DebugMode != 2;
 			PassParameters->NumInstances = NumInstances;
+			PassParameters->SelectedNameInfoCount = SelectedCount;
+			PassParameters->SelectedNameCharacterCount = SelectedCount > 0 ? SelectedNames.Num() : 0;
 			PassParameters->SelectedPrimitiveFlags = GraphBuilder.CreateSRV(SelectedPrimitiveFlagsRDG);
+			PassParameters->SelectedPrimitiveNameInfos = GraphBuilder.CreateSRV(SelectedPrimitiveNameInfos);
+			PassParameters->SelectedPrimitiveNames = GraphBuilder.CreateSRV(SelectedPrimitiveNames, PF_R8_UINT);
 			PassParameters->NumScenePrimitives = NumScenePrimitives;
 			PassParameters->DrawRange = CVarGPUSceneDebugDrawRange.GetValueOnRenderThread();
+			PassParameters->RWDrawCounter = DrawCounterUAV;
 
 			FVector PickingRayStart(ForceInit);
 			FVector PickingRayDir(ForceInit);
@@ -1669,7 +1737,7 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("GPUSceneDebugRender"),
+				RDG_EVENT_NAME("GPUScene::DebugRender"),
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(NumInstances, FGPUSceneDebugRenderCS::NumThreadsPerGroup)
@@ -1730,7 +1798,7 @@ bool FGPUScene::BeginReadWriteAccess(FRDGBuilder& GraphBuilder)
 	if (IsEnabled())
 	{
 		// TODO: Remove this when everything is properly RDG'd
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionInstanceSceneDataBuffer"), [this](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionInstanceSceneDataBuffer"), [this](FRHICommandList& RHICmdList)
 		{
 			FRHITransitionInfo 	Transitions[2] =
 			{
@@ -1768,7 +1836,7 @@ void FGPUScene::EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAc
 	if (IsEnabled())
 	{
 		// TODO: Remove this when everything is properly RDG'd
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionInstanceSceneDataBuffer"), [this, FinalAccessState](FRHICommandList& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionInstanceSceneDataBuffer"), [this, FinalAccessState](FRHICommandList& RHICmdList)
 		{
 			FRHITransitionInfo 	Transitions[2] =
 			{
@@ -1830,7 +1898,7 @@ void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGP
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("GPUSceneSetInstancePrimitiveIdCS"),
+			RDG_EVENT_NAME("GPUScene::SetInstancePrimitiveIdCS"),
 			ComputeShader,
 			PassParameters,
 			IdOnlyUpdateItems.GetWrappedCsGroupCount()

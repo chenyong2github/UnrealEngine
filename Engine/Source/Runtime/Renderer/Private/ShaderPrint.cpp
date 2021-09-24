@@ -23,7 +23,7 @@ namespace ShaderPrint
 
 	static TAutoConsoleVariable<int32> CVarFontSize(
 		TEXT("r.ShaderPrintFontSize"),
-		16,
+		8,
 		TEXT("ShaderPrint font size.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
@@ -45,6 +45,7 @@ namespace ShaderPrint
 		TEXT("ShaderPrint output buffer size.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
+	static uint32 GCharacterRequestCount = 0;
 
 	// Structure used by shader buffers to store values and symbols
 	struct ShaderPrintItem
@@ -56,15 +57,15 @@ namespace ShaderPrint
 
 	// Get value buffer size
 	// Note that if the ShaderPrint system is disabled we still want to bind a minimal buffer
-	int32 GetMaxValueCount()
+	static int32 GetMaxValueCount()
 	{
-		int32 MaxValueCount = FMath::Max(CVarMaxValueCount.GetValueOnRenderThread(), 0);
+		int32 MaxValueCount = FMath::Max(CVarMaxValueCount.GetValueOnRenderThread() + int32(GCharacterRequestCount), 0);
 		return IsEnabled() ? MaxValueCount : 0;
 	}
 
 	// Get symbol buffer size
 	// This is some multiple of the value buffer size to allow for maximum value->symbol expansion
-	int32 GetMaxSymbolCount()
+	static int32 GetMaxSymbolCount()
 	{
 		return GetMaxValueCount() * 12;
 	}
@@ -79,6 +80,7 @@ namespace ShaderPrint
 	{		
 		FUniformBufferParameters Out;
 		Out.FontSize = Data.FontSize;
+		Out.Resolution = Data.Resolution;
 		Out.MaxValueCount = Data.MaxValueCount;
 		Out.MaxSymbolCount = Data.MaxSymbolCount;
 		return FUniformBufferRef::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
@@ -118,6 +120,11 @@ namespace ShaderPrint
 	{
 		CVarMaxValueCount->Set(FMath::Max(256, InMaxCount));
 	}	
+
+	void RequestSpaceForCharacters(uint32 MaxElementCount)
+	{
+		GCharacterRequestCount += MaxElementCount;
+	}
 
 	bool IsEnabled()
 	{
@@ -283,11 +290,11 @@ namespace ShaderPrint
 		View.ShaderPrintData.Resolution = Resolution;
 		View.ShaderPrintData.MaxValueCount = GetMaxValueCount();
 		View.ShaderPrintData.MaxSymbolCount = GetMaxSymbolCount();
-		View.ShaderPrintData.MaxSymbolCount = GetMaxSymbolCount();
+		GCharacterRequestCount = 0;
 
 		// Initialize output buffer and store in the view info
 		// Values buffer contains Count + 1 elements. The first element is only used as a counter.
-		View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxValueCount() + 1), TEXT("ShaderPrintValueBuffer"));
+		View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), View.ShaderPrintData.MaxValueCount + 1), TEXT("ShaderPrintValueBuffer"));
 
 		// Early out if system is disabled
 		// Note that we still prepared a minimal ShaderPrintValueBuffer 

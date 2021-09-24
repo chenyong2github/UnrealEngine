@@ -19,7 +19,7 @@ class FViewInfo;
 
 struct FShaderPrintData
 {
-	FVector4 FontSize;
+	FVector4f FontSize;
 	FIntPoint Resolution;
 	int32 MaxValueCount = -1;
 	int32 MaxSymbolCount = -1;
@@ -45,4 +45,11 @@ namespace ShaderPrint
 	// Call this to fill the FShaderParameters
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters);
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters);
+
+	/**
+	 * Call to ensure enough space for some number of characters, is added cumulatively each frame, to make it possible for several systems to request a certain number independently.
+	 * Is used to grow the max element count for subsequent frames (as the allocation happens early in the frame).
+	 * @param The number of elements requested, an element corresponds to a line, so a cube, for example, needs 12 elements.
+	 */
+	RENDERER_API void RequestSpaceForCharacters(uint32 MaxElementCount);
 }

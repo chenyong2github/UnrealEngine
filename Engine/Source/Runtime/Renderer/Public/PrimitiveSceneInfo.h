@@ -578,6 +578,9 @@ public:
 	RENDERER_API FRHIRayTracingGeometry* GetStaticRayTracingGeometryInstance(int LodLevel) const;
 #endif
 
+	/** Return primitive fullname (for debugging only). */
+	FString GetFullnameForDebuggingOnly() const;
+
 private:
 
 	/** Let FScene have direct access to the Id. */
