@@ -363,8 +363,27 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnEndLoadPackage.AddUObject(this, &UMovieSceneControlRigParameterTrack::HandlePackageDone);
+#else
+	ReconstructControlRig();
+#endif
+}
+
+#if WITH_EDITOR
+void UMovieSceneControlRigParameterTrack::HandlePackageDone(TConstArrayView<UPackage*> InPackages)
+{
+	if (!InPackages.Contains(GetPackage()))
+	{
+		return;
+	}
+
+	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
+
 	ReconstructControlRig();
 }
+#endif
+
 
 void UMovieSceneControlRigParameterTrack::PostEditImport()
 {

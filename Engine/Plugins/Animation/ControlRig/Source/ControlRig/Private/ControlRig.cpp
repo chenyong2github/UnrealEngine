@@ -200,6 +200,8 @@ void UControlRig::InitializeFromCDO()
 
 		// copy hierarchy
 		{
+			PostInitInstanceIfRequired();
+			
 			TGuardValue<bool> Guard(GetHierarchy()->GetSuspendNotificationsFlag(), true);
 			GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
 			GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
