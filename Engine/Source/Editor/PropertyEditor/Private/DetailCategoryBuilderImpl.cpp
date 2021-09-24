@@ -904,13 +904,17 @@ void FDetailCategoryImpl::GenerateNodesFromCustomizations(const TArray<FDetailLa
 
 void FDetailCategoryImpl::GenerateChildrenForLayouts()
 {
-	for (const FDetailLayout& Layout : LayoutMap)
+	// note: this can't be a ranged-for, because the map may have items added to it by customizations during iteration
+	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
 	{
+		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
 		GenerateNodesFromCustomizations(Layout.GetSimpleLayouts(), SimpleChildNodes);
 	}
 
-	for (const FDetailLayout& Layout : LayoutMap)
+	// note: this can't be a ranged-for, because the map may have items added to it by customizations during iteration
+	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
 	{
+		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
 		GenerateNodesFromCustomizations(Layout.GetAdvancedLayouts(), AdvancedChildNodes);
 	}
 
