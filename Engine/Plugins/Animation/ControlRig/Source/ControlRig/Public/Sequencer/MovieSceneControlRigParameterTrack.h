@@ -49,6 +49,10 @@ public:
 	virtual TArray<FFBXNodeAndChannels>* GetNodeAndChannelMappings()  override;
 	virtual void GetSelectedNodes(TArray<FName>& OutSelectedNodes) override;
 
+#if WITH_EDITOR
+	void HandlePackageDone(TConstArrayView<UPackage*> InPackages);
+#endif
+
 public:
 	/** Add a section at that start time*/
 	CONTROLRIG_API UMovieSceneSection* CreateControlRigSection(FFrameNumber StartTime, UControlRig* InControlRig, bool bInOwnsControlRig);

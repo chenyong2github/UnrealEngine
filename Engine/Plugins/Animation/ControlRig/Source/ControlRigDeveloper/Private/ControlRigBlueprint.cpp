@@ -403,8 +403,6 @@ void UControlRigBlueprint::PostLoad()
 			GetHierarchyController()->ImportFromHierarchyContainer(HierarchyContainer_DEPRECATED, false);
 		}
 
-		PropagateHierarchyFromBPToInstances();
-		
 		// remove all non-controlrig-graphs
 		TArray<UEdGraph*> NewUberGraphPages;
 		for (UEdGraph* Graph : UbergraphPages)
