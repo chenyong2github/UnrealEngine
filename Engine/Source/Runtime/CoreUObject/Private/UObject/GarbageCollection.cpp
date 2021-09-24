@@ -1440,7 +1440,7 @@ struct FConditionalGCLock
 	}
 };
 
-static bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit);
+static bool IncrementalDestroyGarbage(bool bUseTimeLimit, double TimeLimit);
 
 /**
  * Incrementally purge garbage by deleting all unreferenced objects after routing Destroy.
@@ -1451,7 +1451,7 @@ static bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit);
  * @param	bUseTimeLimit	whether the time limit parameter should be used
  * @param	TimeLimit		soft time limit for this function call
  */
-void IncrementalPurgeGarbage(bool bUseTimeLimit, float TimeLimit)
+void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 {
 #if !UE_WITH_GC
 	return;
@@ -1545,7 +1545,7 @@ static FAutoConsoleVariableRef CVarAdditionalFinishDestroyTimeGC(
 	ECVF_Default
 );
 
-bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
+bool IncrementalDestroyGarbage(bool bUseTimeLimit, double TimeLimit)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(IncrementalDestroyGarbage);
 	const bool bMultithreadedPurge = !ShouldForceSingleThreadedGC() && GMultithreadedDestructionEnabled;
@@ -2158,7 +2158,7 @@ bool IsIncrementalUnhashPending()
 	return GUnrechableObjectIndex < GUnreachableObjects.Num();
 }
 
-bool UnhashUnreachableObjects(bool bUseTimeLimit, float TimeLimit)
+bool UnhashUnreachableObjects(bool bUseTimeLimit, double TimeLimit)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UnhashUnreachableObjects);
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UnhashUnreachableObjects"), STAT_UnhashUnreachableObjects, STATGROUP_GC);

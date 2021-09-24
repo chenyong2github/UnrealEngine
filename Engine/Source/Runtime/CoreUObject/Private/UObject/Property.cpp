@@ -579,7 +579,7 @@ FORCEINLINE constexpr FStringView ParsePropertyToken(const TCHAR* Str, bool Dott
 	FAsciiSet CurrentNonTokenChars = DottedNames ? DottedNonTokenChars : RegularNonTokenChars;
 
 	const TCHAR* TokenEnd = FAsciiSet::FindFirstOrEnd(Str, CurrentNonTokenChars);
-	return FStringView(Str, TokenEnd - Str);
+	return FStringView(Str, UE_PTRDIFF_TO_INT32(TokenEnd - Str));
 }
 
 //
@@ -1301,7 +1301,7 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 	if (*Str)
 	{
 		// strip trailing whitespace
-		int32 Len = Str - Start;
+		int32 Len = UE_PTRDIFF_TO_INT32(Str - Start);
 		while (Len > 0 && Whitespaces.Contains(Start[Len - 1]))
 		{
 			--Len;

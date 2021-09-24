@@ -1187,7 +1187,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				// and decompress it.
 				static int64 MinimumReadSize = 32 * 1024;
 				checkSlow(MinimumReadSize >= 2048 && MinimumReadSize <= 1024 * 1024); // not a hard limit, but we should be loading at least a reasonable amount of data
-				int32 PrecacheSize = FMath::Min(MinimumReadSize, Size);
+				int64 PrecacheSize = FMath::Min(MinimumReadSize, Size);
 				check( PrecacheSize > 0 );
 				// Wait till we're finished precaching before executing the next step.
 				bExecuteNextStep = Loader->Precache(0, PrecacheSize);

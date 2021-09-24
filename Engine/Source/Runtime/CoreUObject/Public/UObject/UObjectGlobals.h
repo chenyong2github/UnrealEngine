@@ -559,7 +559,7 @@ COREUOBJECT_API bool TryCollectGarbage(EObjectFlags KeepFlags, bool bPerformFull
 *
 * @return true if the time limit passed and there's still objects pending to be unhashed
 */
-COREUOBJECT_API bool UnhashUnreachableObjects(bool bUseTimeLimit, float TimeLimit = 0.0f);
+COREUOBJECT_API bool UnhashUnreachableObjects(bool bUseTimeLimit, double TimeLimit = 0.0);
 
 /**
 * Checks if there's objects pending to be unhashed when running incremental purge
@@ -591,7 +591,7 @@ COREUOBJECT_API void GatherUnreachableObjects(bool bForceSingleThreaded);
  * @param	bUseTimeLimit	whether the time limit parameter should be used
  * @param	TimeLimit		soft time limit for this function call
  */
-COREUOBJECT_API void IncrementalPurgeGarbage( bool bUseTimeLimit, float TimeLimit = 0.002f );
+COREUOBJECT_API void IncrementalPurgeGarbage( bool bUseTimeLimit, double TimeLimit = 0.002 );
 
 /**
  * Create a unique name by combining a base name and an arbitrary number string.
@@ -684,7 +684,7 @@ namespace EAsyncPackageState
  * @param	TimeLimit		Soft limit of time this function is allowed to consume
  * @return The minimum state of any of the queued packages.
  */
-COREUOBJECT_API EAsyncPackageState::Type ProcessAsyncLoading( bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit);
+COREUOBJECT_API EAsyncPackageState::Type ProcessAsyncLoading( bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit);
 
 /**
  * Blocks and runs ProcessAsyncLoading until the time limit is hit, the completion predicate returns true, or all async loading is done
@@ -693,7 +693,7 @@ COREUOBJECT_API EAsyncPackageState::Type ProcessAsyncLoading( bool bUseTimeLimit
  * @param	TimeLimit			Hard time limit. 0 means infinite length
  * @return The minimum state of any of the queued packages.
  */
-COREUOBJECT_API EAsyncPackageState::Type ProcessAsyncLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, float TimeLimit);
+COREUOBJECT_API EAsyncPackageState::Type ProcessAsyncLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, double TimeLimit);
 
 /** UObjects are being loaded between these calls */
 COREUOBJECT_API void BeginLoad(FUObjectSerializeContext* LoadContext, const TCHAR* DebugContext = nullptr);

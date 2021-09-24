@@ -2273,7 +2273,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 
 	COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SerializeBulkDataTimeSec));
 
-	FScopedSlowTask BulkDataFeedback(Linker->BulkDataToAppend.Num());
+	FScopedSlowTask BulkDataFeedback((float)Linker->BulkDataToAppend.Num());
 
 	TUniquePtr<FLargeMemoryWriterWithRegions> BulkArchive;
 	TUniquePtr<FLargeMemoryWriterWithRegions> OptionalBulkArchive;

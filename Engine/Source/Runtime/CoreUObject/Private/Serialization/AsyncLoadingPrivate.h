@@ -45,10 +45,10 @@ public:
 	}
 
 	/** AsyncArchive interface */
-	bool PrecacheWithTimeLimit(int64 PrecacheOffset, int64 PrecacheSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit);
+	bool PrecacheWithTimeLimit(int64 PrecacheOffset, int64 PrecacheSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit);
 	bool PrecacheForEvent(IAsyncReadRequest* Read, int64 PrecacheOffset, int64 PrecacheSize);
 	void FlushPrecacheBlock();
-	bool ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit);
+	bool ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit);
 	void StartReadingHeader();
 	void EndReadingHeader();
 	IAsyncReadRequest* MakeEventDrivenPrecacheRequest(int64 Offset, int64 BytesToRead, FAsyncFileCallBack* CompleteCallback);
@@ -70,11 +70,11 @@ private:
 
 #endif
 	void FirstExportStarting();
-	bool WaitRead(float TimeLimit = 0.0f);
+	bool WaitRead(double TimeLimit = 0.0);
 	void CompleteRead();
 	void CancelRead();
 	void CompleteCancel();
-	bool WaitForIntialPhases(float TimeLimit = 0.0f);
+	bool WaitForIntialPhases(double TimeLimit = 0.0);
 	void ReadCallback(bool bWasCancelled, IAsyncReadRequest*);
 	bool PrecacheInternal(int64 PrecacheOffset, int64 PrecacheSize, bool bApplyMinReadSize = true, IAsyncReadRequest* Read = nullptr);
 	
