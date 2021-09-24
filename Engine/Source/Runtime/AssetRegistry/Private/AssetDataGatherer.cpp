@@ -1324,7 +1324,7 @@ bool FAssetDataDiscovery::Init()
 
 uint32 FAssetDataDiscovery::Run()
 {
-	constexpr double IdleSleepTime = 0.1;
+	constexpr float IdleSleepTime = 0.1f;
 	{
 		FGathererScopeLock ResultsScopeLock(&ResultsLock);
 		DiscoverStartTime = FPlatformTime::Seconds();
