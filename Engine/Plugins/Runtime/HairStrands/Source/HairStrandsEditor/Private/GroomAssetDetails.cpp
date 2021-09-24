@@ -1145,6 +1145,15 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameButtonCustomization(int
 	return SNullWidget::NullWidget;
 }
 
+FName FGroomRenderingDetails::GetGroupName(int32 GroupIndex) const
+{
+	if (GroomAsset && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsInfo.Num())
+	{
+		return GroomAsset->HairGroupsInfo[GroupIndex].GroupName;
+	}
+	return NAME_None;
+}
+
 TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 GroupIndex)
 {
 	switch (PanelType)
@@ -1167,10 +1176,21 @@ TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameCustomization(int32 Gro
 	break;
 	default:
 	{
-		return SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.ColorAndOpacity(HairGroupColor)
-			.Text(FText::Format(LOCTEXT("Group", "Group ID {0} "), FText::AsNumber(GroupIndex)));
+		FName GroupName = GetGroupName(GroupIndex);
+		if (GroupName != NAME_None)
+		{
+			return SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.ColorAndOpacity(HairGroupColor)
+				.Text(FText::Format(LOCTEXT("Group", "Group ID {0} - {1}"), FText::AsNumber(GroupIndex), FText::FromName(GroupName)));
+		}
+		else
+		{
+			return SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.ColorAndOpacity(HairGroupColor)
+				.Text(FText::Format(LOCTEXT("Group", "Group ID {0}"), FText::AsNumber(GroupIndex)));
+		}
 	}
 	break;
 	}
