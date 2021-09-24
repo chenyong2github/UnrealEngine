@@ -364,6 +364,9 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 #endif
 
 	AddSpeedTreeWind();
+
+	// Enable dynamic triangle reordering to remove/reduce sorting issue when rendered with a translucent material (i.e., order-independent-transparency)
+	bSupportsSortedTriangles = InComponent->bSortTriangles;
 }
 
 void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue)
@@ -1113,7 +1116,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 			// Draw the static mesh elements.
 			for(int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
-#if WITH_EDITOR
+			#if WITH_EDITOR
 				if (GIsEditor)
 				{
 					const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];

@@ -2934,6 +2934,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			EnumRemoveFlags(TranslucencyViewsToRender, ETranslucencyView::RayTracing);
 		}
 #endif
+		// Sort objects' triangles
+		for (FViewInfo& View : Views)
+		{
+			if (OIT::IsEnabled(View))
+			{
+				OIT::AddSortTrianglesPass(GraphBuilder, View, Scene->OITSceneData, FOITSortingType::BackToFront);
+			}
+		}
 
 		// Render all remaining translucency views.
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Translucency));

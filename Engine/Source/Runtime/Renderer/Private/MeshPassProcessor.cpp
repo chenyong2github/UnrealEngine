@@ -772,6 +772,15 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	NumPrimitives = BatchElement.NumPrimitives;
 	NumInstances = BatchElement.NumInstances;
 
+	// If the mesh batch has a valid dynamic index buffer, use it instead
+	if (BatchElement.DynamicIndexBuffer.IsValid())
+	{
+		check(!BatchElement.DynamicIndexBuffer.IndexBuffer || (BatchElement.DynamicIndexBuffer.IndexBuffer && BatchElement.DynamicIndexBuffer.IndexBuffer->IsInitialized() && BatchElement.DynamicIndexBuffer.IndexBuffer->IndexBufferRHI));
+		IndexBuffer = BatchElement.DynamicIndexBuffer.IndexBuffer ? BatchElement.DynamicIndexBuffer.IndexBuffer->IndexBufferRHI.GetReference() : nullptr;
+		FirstIndex = BatchElement.DynamicIndexBuffer.FirstIndex;
+		PrimitiveType = EPrimitiveType(BatchElement.DynamicIndexBuffer.PrimitiveType);
+	}
+
 	if (NumPrimitives > 0)
 	{
 		VertexParams.BaseVertexIndex = BatchElement.BaseVertexIndex;

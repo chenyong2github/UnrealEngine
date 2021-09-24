@@ -329,6 +329,10 @@ public:
 	uint8 bDisplayNaniteProxyMesh:1;
 #endif
 
+	/** Enable dynamic sort mesh's triangles to remove ordering issue when rendered with a translucent material */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (UIMin = "0", UIMax = "1", DisplayName = "Sort Triangles (Experimental)"))
+	uint8 bSortTriangles : 1;
+
 	/**
 	 * Controls whether the static mesh component's backface culling should be reversed
 	 */

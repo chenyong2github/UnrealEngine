@@ -836,6 +836,12 @@ struct FSkyMeshBatch
 	bool bVisibleInRealTimeSkyCapture : 1;
 };
 
+struct FSortedTrianglesMeshBatch
+{
+	const FMeshBatch* Mesh = nullptr;
+	const FPrimitiveSceneProxy* Proxy = nullptr;
+};
+
 struct FMeshDecalBatch
 {
 	const FMeshBatch* Mesh;
@@ -1235,6 +1241,9 @@ public:
 
 	/** Mesh batches with a sky material. */
 	TArray<FSkyMeshBatch, SceneRenderingAllocator> SkyMeshBatches;
+
+	/** Mesh batches with a triangle sorting. */
+	TArray<FSortedTrianglesMeshBatch, SceneRenderingAllocator> SortedTrianglesMeshBatches;
 
 	/** A map from light ID to a boolean visibility value. */
 	TArray<FVisibleLightViewInfo,SceneRenderingAllocator> VisibleLightInfos;
