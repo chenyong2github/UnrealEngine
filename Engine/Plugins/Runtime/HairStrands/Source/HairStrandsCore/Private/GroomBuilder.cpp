@@ -1500,6 +1500,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	TStrandAttributesConstRef<int> StrandGuides = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::Guide);
 	TStrandAttributesConstRef<int> GroupIDs = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::GroupID);
 	TStrandAttributesConstRef<int> StrandIDs = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::ID);
+	TStrandAttributesConstRef<FName> GroupNames = HairDescription.StrandAttributes().GetAttributesRef<FName>(HairAttribute::Strand::GroupName);
 
 	bool bImportGuides = true;
 
@@ -1510,7 +1511,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	// must include StrandID attribute since ClosestGuides references those IDs
 	const bool bCanUseClosestGuidesAndWeights = bImportGuides && StrandIDs.IsValid() && ClosestGuides.IsValid() && GuideWeights.IsValid();
 
-	auto FindOrAdd = [&Out](int32 GroupID) -> FHairDescriptionGroup&
+	auto FindOrAdd = [&Out](int32 GroupID, FName GroupName) -> FHairDescriptionGroup&
 	{
 		for (FHairDescriptionGroup& Group : Out.HairGroups)
 		{
@@ -1521,6 +1522,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		}
 		FHairDescriptionGroup& Group = Out.HairGroups.AddDefaulted_GetRef();
 		Group.Info.GroupID = GroupID;
+		Group.Info.GroupName = GroupName;
 		return Group;
 	};
 
@@ -1546,13 +1548,15 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		}
 
 		int32 GroupID = 0;
+		FName GroupName = NAME_None;
 		if (GroupIDs.IsValid())
 		{
 			GroupID = GroupIDs[StrandID];
+			GroupName = GroupNames[StrandID];
 		}
 
 		FHairStrandsDatas* CurrentHairStrandsDatas = nullptr;
-		FHairDescriptionGroup& Group = FindOrAdd(GroupID);
+		FHairDescriptionGroup& Group = FindOrAdd(GroupID, GroupName);
 		check(Group.Info.GroupID == GroupID);
 		if (!bIsGuide)
 		{

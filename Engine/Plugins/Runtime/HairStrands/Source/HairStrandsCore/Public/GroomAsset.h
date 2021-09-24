@@ -40,6 +40,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInfo
 	UPROPERTY(VisibleAnywhere, Category = "Info")
 	int32 GroupID = 0;
 
+	UPROPERTY(VisibleAnywhere, Category = "Info")
+	FName GroupName = NAME_None;
+
 	UPROPERTY(VisibleAnywhere, Category = "Info", meta = (DisplayName = "Curve Count"))
 	int32 NumCurves = 0;
 
