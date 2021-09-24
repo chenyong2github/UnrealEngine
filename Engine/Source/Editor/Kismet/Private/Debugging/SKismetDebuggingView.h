@@ -91,7 +91,7 @@ public:
 	static void OnDebugLineTypeActiveChanged(ECheckBoxState CheckState, EDebugLineType Type);
 
 	// updates bVisible and bParentsMatchSearch based on this node alone
-	void UpdateSearchFlags(bool bIsRootNode = false);
+	void UpdateSearchFlags(bool bIsRootNode = false, bool bIsContainerElement = false);
 
 	bool IsVisible();
 	bool DoParentsMatchSearch();
@@ -116,6 +116,9 @@ protected:
 	// Used to update the state of a line item rather than replace it.
 	// called after Compare returns true
 	[[maybe_unused]] virtual void UpdateData(const FDebugLineItem& NewerData) {}
+
+	// @return The actual underlying name of the item, for search compatibility
+	virtual FText GetName() const;
 
 	// @return The text to display in the name column, unless GenerateNameWidget is overridden
 	virtual FText GetDisplayName() const;

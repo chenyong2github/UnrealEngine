@@ -1797,6 +1797,7 @@ void FKismetDebugUtilities::GetDebugInfoInternal(TSharedPtr<FPropertyInstanceInf
 }
 
 FPropertyInstanceInfo::FPropertyInstanceInfo(FPropertyInstance PropertyInstance) :
+	Name(FText::FromString(PropertyInstance.Property->GetName())),
 	DisplayName(PropertyInstance.Property->GetDisplayNameText()),
 	Type(UEdGraphSchema_K2::TypeToText(PropertyInstance.Property)),
 	Property(PropertyInstance.Property)
