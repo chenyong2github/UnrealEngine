@@ -150,7 +150,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 		FString DerivedDataKey = BuildSkeletalMeshDerivedDataKey(TargetPlatform, Owner);
 
 		TArray<uint8> DerivedData;
-		if (GetDerivedDataCacheRef().GetSynchronous(*DerivedDataKey, DerivedData, Owner->GetPathName()))
+		if (0)
 		{
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			

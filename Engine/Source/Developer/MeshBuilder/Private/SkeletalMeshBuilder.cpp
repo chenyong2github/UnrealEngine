@@ -57,6 +57,12 @@ FSkeletalMeshBuilder::FSkeletalMeshBuilder()
 
 bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs)
 {
+	int32 LODIndex_RemoveBones = LODIndex;
+
+	// Set LODIndex to 0
+	int32* pLODIndex = (int32*)&LODIndex;
+	*pLODIndex = 0;
+
 	check(SkeletalMesh->GetImportedModel());
 	check(SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex));
 	check(SkeletalMesh->GetLODInfo(LODIndex) != nullptr);
@@ -183,15 +189,16 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		}
 		else
 		{
-			if (LODInfo->BonesToRemove.Num() > 0)
+			FSkeletalMeshLODInfo* LODInfo_RemoveBones = SkeletalMesh->GetLODInfo(LODIndex_RemoveBones);
+			if (LODInfo_RemoveBones->BonesToRemove.Num() > 0)
 			{
 				TArray<FName> BonesToRemove;
-				BonesToRemove.Reserve(LODInfo->BonesToRemove.Num());
-				for (const FBoneReference& BoneReference : LODInfo->BonesToRemove)
+				BonesToRemove.Reserve(LODInfo_RemoveBones->BonesToRemove.Num());
+				for (const FBoneReference& BoneReference : LODInfo_RemoveBones->BonesToRemove)
 				{
 					BonesToRemove.Add(BoneReference.BoneName);
 				}
-				MeshUtilities.RemoveBonesFromMesh(SkeletalMesh, LODIndex, &BonesToRemove);
+				MeshUtilities.RemoveBonesFromMesh(SkeletalMesh, LODIndex_RemoveBones, &BonesToRemove);
 			}
 		}
 	}

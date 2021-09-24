@@ -30,6 +30,7 @@ void FSkeletalMeshLODSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& Lay
 		// we want to hide index 0 element
 		if (LODChildHandle->IsValidHandle())
 		{
+			/*
 			if (LODChildHandle->GetIndexInArray() == 0)
 			{
 				static const TArray<FName> HiddenProperties = { GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODGroupSettings, BoneFilterActionOption),
@@ -40,6 +41,7 @@ void FSkeletalMeshLODSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& Lay
 					LayoutBuilder.HideProperty(ChildHandle);
 				}
 			}
+			*/
 			if(!bAutoMeshReductionAvailable)
 			{
 				static const TArray<FName> HiddenProperties = { GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODGroupSettings, ReductionSettings) };

@@ -3440,6 +3440,10 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 					}
 				}
 			}
+			else
+			{
+				FbxMeshUtils::ImportMeshLODDialog(SkelMesh, LODIndex);
+			}
 
 			RestoreNonReducedLOD(LODIndex);
 		}
