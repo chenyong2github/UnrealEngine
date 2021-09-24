@@ -3197,7 +3197,9 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 
 		if (IsValidRef(OutUniformExpressionCache.UniformBuffer))
 		{
-			check(OutUniformExpressionCache.UniformBuffer->GetLayoutPtr() == UniformBufferLayout);
+			// The actual pointer may not match because there are cases (in the editor, during the shader compilation) when material's shader map gets updated without proxy's cache
+			// getting invalidated, but the layout contents must match.
+			check(OutUniformExpressionCache.UniformBuffer->GetLayoutPtr() == UniformBufferLayout || *OutUniformExpressionCache.UniformBuffer->GetLayoutPtr() == *UniformBufferLayout);
 			RHIUpdateUniformBuffer(OutUniformExpressionCache.UniformBuffer, TempBuffer);
 		}
 		else
@@ -3304,27 +3306,10 @@ FMaterialRenderProxy::FMaterialRenderProxy()
 	, DeletedFlag(0)
 	, HasVirtualTextureCallbacks(0)
 {
-#if WITH_EDITOR
-	// We need to register ourselves in MaterialRenderProxyMap early as sometimes (during the shader compilation) we need to be updated even before InitDynamicRHI (see e.g. UE-117842)
-	if (!FPlatformProperties::RequiresCookedData())
-	{
-		FScopeLock Locker(&MaterialRenderProxyMapLock);
-		FMaterialRenderProxy::MaterialRenderProxyMap.Add(this);
-	}
-#endif // WITH_EDITOR
 }
 
 FMaterialRenderProxy::~FMaterialRenderProxy()
 {
-#if WITH_EDITOR
-	// this may also be removed in the ReleaseDynamicRHI, but leaving it here in case we never get the state created
-	if (!FPlatformProperties::RequiresCookedData())
-	{
-		FScopeLock Locker(&MaterialRenderProxyMapLock);
-		FMaterialRenderProxy::MaterialRenderProxyMap.Remove(this);
-	}
-#endif // WITH_EDITOR
-
 	if(IsInitialized())
 	{
 		check(IsInRenderingThread());
@@ -3341,10 +3326,21 @@ FMaterialRenderProxy::~FMaterialRenderProxy()
 	DeletedFlag = 1;
 }
 
+void FMaterialRenderProxy::InitDynamicRHI()
+{
+#if WITH_EDITOR
+	// MaterialRenderProxyMap is only used by shader compiling
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		FScopeLock Locker(&MaterialRenderProxyMapLock);
+		FMaterialRenderProxy::MaterialRenderProxyMap.Add(this);
+	}
+#endif // WITH_EDITOR
+}
+
 void FMaterialRenderProxy::ReleaseDynamicRHI()
 {
 #if WITH_EDITOR
-	// unregister ourselves early to prevent getting updates from the shader compilation when the parent has already got BeginDestroy()ed
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		FScopeLock Locker(&MaterialRenderProxyMapLock);

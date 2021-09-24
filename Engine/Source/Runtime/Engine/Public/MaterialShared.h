@@ -2352,6 +2352,7 @@ public:
 	}
 
 	// FRenderResource interface.
+	ENGINE_API virtual void InitDynamicRHI() override;
 	ENGINE_API virtual void ReleaseDynamicRHI() override;
 	ENGINE_API virtual void ReleaseResource() override;
 
