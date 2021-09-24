@@ -129,6 +129,11 @@ public:
 	FORCEINLINE RangedForIteratorType      end()         { return Layouts.end(); }
 	FORCEINLINE RangedForConstIteratorType end()   const { return Layouts.end(); }
 
+	FDetailLayout& operator[](int32 Index) { return Layouts[Index]; }
+	const FDetailLayout& operator[](int32 Index) const { return Layouts[Index]; }
+
+	int32 Num() const { return Layouts.Num(); }
+
 	/**
 	 * @return Whether or not we need to display a group border around a list of details.
 	 */
