@@ -525,7 +525,7 @@ public:
 	virtual void AppendState(const FAssetRegistryState& InState) = 0;
 
 	/** Returns memory size of entire registry, optionally logging sizes */
-	virtual uint32 GetAllocatedSize(bool bLogDetailed = false) const = 0;
+	virtual SIZE_T GetAllocatedSize(bool bLogDetailed = false) const = 0;
 
 	/**
 	 * Fills in a AssetRegistryState with a copy of the data in the internal cache, overriding some

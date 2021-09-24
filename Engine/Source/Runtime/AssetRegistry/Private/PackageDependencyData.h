@@ -59,9 +59,9 @@ public:
 	}
 
 	/** Returns the amount of memory allocated by this container, not including sizeof(*this). */
-	uint32 GetAllocatedSize() const
+	SIZE_T GetAllocatedSize() const
 	{
-		uint32 Result = FLinkerTables::GetAllocatedSize();
+		SIZE_T Result = FLinkerTables::GetAllocatedSize();
 		Result += ImportUsedInGame.GetAllocatedSize();
 		Result += SoftPackageUsedInGame.GetAllocatedSize();
 		return Result;

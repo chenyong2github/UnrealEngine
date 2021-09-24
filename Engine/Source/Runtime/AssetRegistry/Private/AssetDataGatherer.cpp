@@ -86,7 +86,7 @@ void FDiscoveredPathData::Assign(FStringView InLocalAbsPath, FStringView InLongP
 	PackageTimestamp = InPackageTimestamp;
 }
 
-uint32 FDiscoveredPathData::GetAllocatedSize() const
+SIZE_T FDiscoveredPathData::GetAllocatedSize() const
 {
 	return LocalAbsPath.GetAllocatedSize() + LongPackageName.GetAllocatedSize() + RelPath.GetAllocatedSize();
 }
@@ -122,7 +122,7 @@ void FGatheredPathData::Assign(const FDiscoveredPathData& DiscoveredData)
 	Assign(DiscoveredData.LocalAbsPath, DiscoveredData.LongPackageName, DiscoveredData.PackageTimestamp);
 }
 
-uint32 FGatheredPathData::GetAllocatedSize() const
+SIZE_T FGatheredPathData::GetAllocatedSize() const
 {
 	return LocalAbsPath.GetAllocatedSize() + LongPackageName.GetAllocatedSize();
 }
@@ -331,9 +331,9 @@ bool FScanDir::IsComplete() const
 	return bIsComplete;
 }
 
-uint32 FScanDir::GetAllocatedSize() const
+SIZE_T FScanDir::GetAllocatedSize() const
 {
-	uint32 Result = 0;
+	SIZE_T Result = 0;
 	Result += SubDirs.GetAllocatedSize();
 	for (const TRefCountPtr<FScanDir>& Value : SubDirs)
 	{
@@ -629,7 +629,7 @@ void FScanDir::OnChildPriorityChanged(EPriority InPriority, int32 Delta)
 	}
 	else
 	{
-		PriorityRefCount += Delta;
+		PriorityRefCount = (uint8)(PriorityRefCount + Delta);
 	}
 	UpdateAccumulatedPriority();
 }
@@ -1003,9 +1003,9 @@ FScanDir* FMountDir::GetControllingDir(FStringView InLocalAbsPath, bool bIsDirec
 		OutData, OutRelPath);
 }
 
-uint32 FMountDir::GetAllocatedSize() const
+SIZE_T FMountDir::GetAllocatedSize() const
 {
-	uint32 Result = sizeof(*Root);
+	SIZE_T Result = sizeof(*Root);
 	Result += Root->GetAllocatedSize();
 	Result += ChildMountPaths.GetAllocatedSize();
 	for (const FString& Value : ChildMountPaths)
@@ -1907,11 +1907,11 @@ bool FAssetDataDiscovery::IsMonitored(FStringView LocalAbsPath) const
 	return MountDir && MountDir->IsMonitored(LocalAbsPath);
 }
 
-uint32 FAssetDataDiscovery::GetAllocatedSize() const
+SIZE_T FAssetDataDiscovery::GetAllocatedSize() const
 {
 	auto GetArrayRecursiveAllocatedSize = [](auto Container)
 	{
-		int32 Result = Container.GetAllocatedSize();
+		SIZE_T Result = Container.GetAllocatedSize();
 		for (const auto& Value : Container)
 		{
 			Result += Value.GetAllocatedSize();
@@ -1926,7 +1926,7 @@ uint32 FAssetDataDiscovery::GetAllocatedSize() const
 	FGathererScopeLock TreeScopeLock(&TreeLock);
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 
-	uint32 Result = 0;
+	SIZE_T Result = 0;
 	Result += GetArrayRecursiveAllocatedSize(BlacklistLongPackageNames);
 	Result += GetArrayRecursiveAllocatedSize(BlacklistMountRelativePaths);
 	Result += GetArrayRecursiveAllocatedSize(DirLongPackageNamesToNotReport);
@@ -1951,7 +1951,7 @@ uint32 FAssetDataDiscovery::GetAllocatedSize() const
 	return Result;
 }
 
-uint32 FAssetDataDiscovery::FDirectoryResult::GetAllocatedSize() const
+SIZE_T FAssetDataDiscovery::FDirectoryResult::GetAllocatedSize() const
 {
 	return DirAbsPath.GetAllocatedSize() + Files.GetAllocatedSize();
 }
@@ -3434,7 +3434,7 @@ void FAssetDataGatherer::SerializeCacheLoad(FAssetRegistryReader& Ar)
 	Ar << LocalNumAssets;
 
 	const int32 MinAssetEntrySize = sizeof(int32);
-	int32 MaxPossibleNumAssets = (Ar.TotalSize() - Ar.Tell()) / MinAssetEntrySize;
+	const int64 MaxPossibleNumAssets = (Ar.TotalSize() - Ar.Tell()) / MinAssetEntrySize;
 	if (Ar.IsError() || LocalNumAssets < 0 || MaxPossibleNumAssets < LocalNumAssets)
 	{
 		Ar.SetError();
@@ -3479,12 +3479,12 @@ void FAssetDataGatherer::SerializeCacheLoad(FAssetRegistryReader& Ar)
 	UE_LOG(LogAssetRegistry, Verbose, TEXT("Asset data gatherer serialized in %0.6f seconds"), FPlatformTime::Seconds() - SerializeStartTime);
 }
 
-uint32 FAssetDataGatherer::GetAllocatedSize() const
+SIZE_T FAssetDataGatherer::GetAllocatedSize() const
 {
 	using namespace UE::AssetDataGather::Private;
 	auto GetArrayRecursiveAllocatedSize = [](auto Container)
 	{
-		int32 Result = Container.GetAllocatedSize();
+		SIZE_T Result = Container.GetAllocatedSize();
 		for (const auto& Value : Container)
 		{
 			Result += Value.GetAllocatedSize();
@@ -3492,7 +3492,7 @@ uint32 FAssetDataGatherer::GetAllocatedSize() const
 		return Result;
 	};
 
-	uint32 Result = 0;
+	SIZE_T Result = 0;
 	if (Thread)
 	{
 		// TODO: Add size of Thread->GetAllocatedSize()
@@ -3871,9 +3871,9 @@ int32 FFilesToSearch::GetNumAvailable() const
 	return BlockingFiles.Num() + Root.NumFiles();
 }
 
-uint32 FFilesToSearch::GetAllocatedSize() const
+SIZE_T FFilesToSearch::GetAllocatedSize() const
 {
-	uint32 Size = 0;
+	SIZE_T Size = 0;
 	Size += BlockingFiles.GetAllocatedSize();
 	for (const FGatheredPathData& PathData : BlockingFiles)
 	{
@@ -4067,9 +4067,9 @@ void FFilesToSearch::FTreeNode::Shrink()
 	}
 }
 
-uint32 FFilesToSearch::FTreeNode::GetAllocatedSize() const
+SIZE_T FFilesToSearch::FTreeNode::GetAllocatedSize() const
 {
-	uint32 Size = 0;
+	SIZE_T Size = 0;
 	Size = Files.GetAllocatedSize();
 	for (const FGatheredPathData& File : Files)
 	{

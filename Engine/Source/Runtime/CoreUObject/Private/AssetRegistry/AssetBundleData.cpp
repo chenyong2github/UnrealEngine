@@ -75,7 +75,7 @@ bool FAssetBundleEntry::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UO
 	{
 		if (const TCHAR* BundleNameEnd = FCString::Strchr(BundleNameBegin, TCHAR('"')))
 		{
-			FName Name(BundleNameEnd - BundleNameBegin, BundleNameBegin);
+			FName Name(UE_PTRDIFF_TO_INT32(BundleNameEnd - BundleNameBegin), BundleNameBegin);
 
 			const TCHAR* PathIt = BundleNameEnd + 1;
 			if (SkipPrefix(/* in-out */ PathIt, BundleAssetsPrefix))

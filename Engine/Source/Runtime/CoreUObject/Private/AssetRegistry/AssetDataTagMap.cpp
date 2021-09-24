@@ -1388,9 +1388,9 @@ bool operator==(const FAssetDataTagMapSharedView& A, const FAssetDataTagMapShare
 	}
 }
 
-static uint32 GetLooseMapMemoryUsage(const FAssetDataTagMap& Map)
+static SIZE_T GetLooseMapMemoryUsage(const FAssetDataTagMap& Map)
 {
-	uint32 Out = sizeof(FAssetDataTagMap) + Map.GetAllocatedSize();
+	SIZE_T Out = sizeof(FAssetDataTagMap) + Map.GetAllocatedSize();
 	for (const TPair<FName, FString> & Pair : Map)
 	{
 		Out += Pair.Value.GetAllocatedSize();
@@ -1411,9 +1411,9 @@ void FAssetDataTagMapSharedView::FMemoryCounter::Include(const FAssetDataTagMapS
 	}
 }
 
-uint32 FAssetDataTagMapSharedView::FMemoryCounter::GetFixedSize() const
+SIZE_T FAssetDataTagMapSharedView::FMemoryCounter::GetFixedSize() const
 {
-	uint32 Out = 0;
+	SIZE_T Out = 0;
 	for (uint32 StoreIndex : FixedStoreIndices)
 	{
 		Out += sizeof(FixedTagPrivate::FStore);

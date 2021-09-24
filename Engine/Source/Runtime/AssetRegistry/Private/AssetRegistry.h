@@ -93,7 +93,7 @@ public:
 	virtual void ScanModifiedAssetFiles(const TArray<FString>& InFilePaths) override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void AppendState(const FAssetRegistryState& InState) override;
-	virtual uint32 GetAllocatedSize(bool bLogDetailed = false) const override;
+	virtual SIZE_T GetAllocatedSize(bool bLogDetailed = false) const override;
 	virtual void LoadPackageRegistryData(FArchive& Ar, FLoadPackageRegistryData& InOutData) const override;
 	virtual void LoadPackageRegistryData(const FString& PackageFilename, FLoadPackageRegistryData& InOutData) const override;
 	virtual void InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting = false, const TMap<FName, FAssetData*>& OverrideData = TMap<FName, FAssetData*>()) const override;
