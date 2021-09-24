@@ -15,16 +15,23 @@
 #include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
 
-class FArchive;
-class FRHICommandListImmediate;
-class FShaderParameterMap;
 class FViewInfo;
+
+struct FShaderPrintData
+{
+	FVector4 FontSize;
+	FIntPoint Resolution;
+	int32 MaxValueCount = -1;
+	int32 MaxSymbolCount = -1;
+	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
+};
 
 namespace ShaderPrint
 {
 	// ShaderPrint uniform buffer layout
-	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, )
+	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FUniformBufferParameters, RENDERER_API)
 		SHADER_PARAMETER(FVector4f, FontSize)
+		SHADER_PARAMETER(FIntPoint, Resolution)
 		SHADER_PARAMETER(int32, MaxValueCount)
 		SHADER_PARAMETER(int32, MaxSymbolCount)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()
@@ -36,5 +43,6 @@ namespace ShaderPrint
 	END_SHADER_PARAMETER_STRUCT()
 
 	// Call this to fill the FShaderParameters
-	void SetParameters(FRDGBuilder& GraphBuilder, FViewInfo const& View, FShaderParameters& OutParameters);
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters);
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters);
 }

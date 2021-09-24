@@ -74,32 +74,28 @@ namespace ShaderPrint
 	typedef TUniformBufferRef<FUniformBufferParameters> FUniformBufferRef;
 
 	// Fill the uniform buffer parameters
-	void SetUniformBufferParameters(FViewInfo const& View, FUniformBufferParameters& OutParameters)
-	{
-		const float FontWidth = (float)FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1) / (float)FMath::Max(View.UnconstrainedViewRect.Size().X, 1);
-		const float FontHeight = (float)FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1) / (float)FMath::Max(View.UnconstrainedViewRect.Size().Y, 1);
-		const float SpaceWidth = (float)FMath::Max(CVarFontSpacingX.GetValueOnRenderThread(), 1) / (float)FMath::Max(View.UnconstrainedViewRect.Size().X, 1);
-		const float SpaceHeight = (float)FMath::Max(CVarFontSpacingY.GetValueOnRenderThread(), 1) / (float)FMath::Max(View.UnconstrainedViewRect.Size().Y, 1);
-
-		OutParameters.FontSize = FVector4f(FontWidth, FontHeight, SpaceWidth + FontWidth, SpaceHeight + FontHeight);
-
-		OutParameters.MaxValueCount = GetMaxValueCount();
-		OutParameters.MaxSymbolCount = GetMaxSymbolCount();
-	}
-
 	// Return a uniform buffer with values filled and with single frame lifetime
-	FUniformBufferRef CreateUniformBuffer(FViewInfo const& View)
-	{
-		FUniformBufferParameters Parameters;
-		SetUniformBufferParameters(View, Parameters);
-		return FUniformBufferRef::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleFrame);
+	static FUniformBufferRef CreateUniformBuffer(const FShaderPrintData& Data)
+	{		
+		FUniformBufferParameters Out;
+		Out.FontSize = Data.FontSize;
+		Out.MaxValueCount = Data.MaxValueCount;
+		Out.MaxSymbolCount = Data.MaxSymbolCount;
+		return FUniformBufferRef::CreateUniformBufferImmediate(Out, UniformBuffer_SingleFrame);
 	}
 
 	// Fill the FShaderParameters parameters
-	void SetParameters(FRDGBuilder& GraphBuilder, FViewInfo const& View, FShaderParameters& OutParameters)
+	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters)
 	{
-		OutParameters.UniformBufferParameters = CreateUniformBuffer(View);
-		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintValueBuffer);
+		OutParameters.UniformBufferParameters = CreateUniformBuffer(View.ShaderPrintData);
+		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintValueBuffer);
+	}
+
+	// Fill the FShaderParameters parameters
+	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters)
+	{
+		OutParameters.UniformBufferParameters = CreateUniformBuffer(Data);
+		OutParameters.RWValuesBuffer = GraphBuilder.CreateUAV(Data.ShaderPrintValueBuffer);
 	}
 
 	// Supported platforms
@@ -270,14 +266,28 @@ namespace ShaderPrint
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ShaderPrint::BeginView);
+
+		View.ShaderPrintData = FShaderPrintData();
 		if (!IsSupported(View.GetShaderPlatform()))
 		{
 			return;
 		}
 
+		const FIntPoint Resolution(FMath::Max(View.UnconstrainedViewRect.Size().X, 1), FMath::Max(View.UnconstrainedViewRect.Size().Y, 1));
+
+		const float FontWidth = (float)FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1) / (float)Resolution.X;
+		const float FontHeight = (float)FMath::Max(CVarFontSize.GetValueOnRenderThread(), 1) / (float)Resolution.Y;
+		const float SpaceWidth = (float)FMath::Max(CVarFontSpacingX.GetValueOnRenderThread(), 1) / (float)Resolution.X;
+		const float SpaceHeight = (float)FMath::Max(CVarFontSpacingY.GetValueOnRenderThread(), 1) / (float)Resolution.Y;
+		View.ShaderPrintData.FontSize = FVector4f(FontWidth, FontHeight, SpaceWidth + FontWidth, SpaceHeight + FontHeight);
+		View.ShaderPrintData.Resolution = Resolution;
+		View.ShaderPrintData.MaxValueCount = GetMaxValueCount();
+		View.ShaderPrintData.MaxSymbolCount = GetMaxSymbolCount();
+		View.ShaderPrintData.MaxSymbolCount = GetMaxSymbolCount();
+
 		// Initialize output buffer and store in the view info
 		// Values buffer contains Count + 1 elements. The first element is only used as a counter.
-		View.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxValueCount() + 1), TEXT("ShaderPrintValueBuffer"));
+		View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), GetMaxValueCount() + 1), TEXT("ShaderPrintValueBuffer"));
 
 		// Early out if system is disabled
 		// Note that we still prepared a minimal ShaderPrintValueBuffer 
@@ -293,7 +303,7 @@ namespace ShaderPrint
 		TShaderMapRef< FShaderInitValueBufferCS > ComputeShader(GlobalShaderMap);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FShaderInitValueBufferCS::FParameters>();
-		PassParameters->RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintValueBuffer);
+		PassParameters->RWValuesBuffer = GraphBuilder.CreateUAV(View.ShaderPrintData.ShaderPrintValueBuffer);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -316,8 +326,8 @@ namespace ShaderPrint
 		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrintIndirectDrawArgs"));
 
 		// Non graph managed resources
-		FUniformBufferRef UniformBuffer = CreateUniformBuffer(View);
-		FRDGBufferSRVRef ValuesBuffer = GraphBuilder.CreateSRV(View.ShaderPrintValueBuffer);
+		FUniformBufferRef UniformBuffer = CreateUniformBuffer(View.ShaderPrintData);
+		FRDGBufferSRVRef ValuesBuffer = GraphBuilder.CreateSRV(View.ShaderPrintData.ShaderPrintValueBuffer);
 		FTextureRHIRef FontTexture = GSystemTextures.AsciiTexture->GetRenderTargetItem().ShaderResourceTexture;
 
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
@@ -416,6 +426,6 @@ namespace ShaderPrint
 
 	void EndView(FViewInfo& View)
 	{
-		View.ShaderPrintValueBuffer = nullptr;
+		View.ShaderPrintData = FShaderPrintData();
 	}
 }
