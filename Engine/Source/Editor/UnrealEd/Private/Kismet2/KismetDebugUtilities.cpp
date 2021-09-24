@@ -45,6 +45,14 @@
 
 #define LOCTEXT_NAMESPACE "BlueprintDebugging"
 
+// Temporary console variable to toggle pin value inspection in PIE.
+// @todo - Migrate this to a user-facing editor setting at some point.
+static TAutoConsoleVariable<bool> CVarBPEnablePinValueInspectionDuringPIE(
+	TEXT("BP.EnablePinValueInspectionDuringPIE"),
+	false,
+	TEXT("Enables pin value inspection tooltips during PIE (experimental).")
+);
+
 /** Per-thread data for use by FKismetDebugUtilities functions */
 class FKismetDebugUtilitiesData : public TThreadSingleton<FKismetDebugUtilitiesData>
 {
@@ -1549,6 +1557,49 @@ FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetWatchText(FStr
 	}
 
 	return Result;
+}
+
+bool FKismetDebugUtilities::CanInspectPinValue(const UEdGraphPin* Pin)
+{
+	if (!CVarBPEnablePinValueInspectionDuringPIE.GetValueOnGameThread())
+	{
+		return false;
+	}
+
+	// Can't inspect the value on an invalid pin object.
+	if (!Pin || Pin->IsPendingKill())
+	{
+		return false;
+	}
+
+	// Can't inspect the value on an orphaned pin object.
+	if (Pin->bOrphanedPin)
+	{
+		return false;
+	}
+
+	// Can't inspect the value on an unknown pin object or if the owning node is disabled.
+	const UEdGraphNode* OwningNode = Pin->GetOwningNodeUnchecked();
+	if (!OwningNode || !OwningNode->IsNodeEnabled())
+	{
+		return false;
+	}
+
+	// Can't inspect exec pins or delegate pins; their values are not defined.
+	const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(OwningNode->GetSchema());
+	if (!ensureMsgf(K2Schema, TEXT("Invalid or missing schema.")) || K2Schema->IsExecPin(*Pin) || K2Schema->IsDelegateCategory(Pin->PinType.PinCategory))
+	{
+		return false;
+	}
+
+	// Can't inspect the value if there is no active debug context.
+	const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(OwningNode);
+	if (!Blueprint || !Blueprint->GetObjectBeingDebugged())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 FKismetDebugUtilities::EWatchTextResult FKismetDebugUtilities::GetDebugInfo(TSharedPtr<FPropertyInstanceInfo> &OutDebugInfo, UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin)
