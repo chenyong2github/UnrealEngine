@@ -16,9 +16,9 @@ struct FNiagaraSimulationDebugDrawData
 {
 	struct FGpuLine
 	{
-		FVector	Start;
-		FVector	End;
-		uint32	Color;
+		FVector3f	Start;
+		FVector3f	End;
+		uint32		Color;
 	};
 
 	bool				bRequiresUpdate = true;
