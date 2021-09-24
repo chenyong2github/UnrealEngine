@@ -95,7 +95,7 @@ static FAssetRegistryConsoleCommands ConsoleCommands; // Registers its various c
 namespace UE::AssetRegistry::Impl
 {
 	/** The max time to spend in UAssetRegistryImpl::Tick */
-	const float MaxSecondsPerFrame = 0.04;
+	const float MaxSecondsPerFrame = 0.04f;
 }
 
 /**

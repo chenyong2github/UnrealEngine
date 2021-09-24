@@ -2580,7 +2580,7 @@ bool FAssetDataGatherer::Init()
 
 uint32 FAssetDataGatherer::Run()
 {
-	constexpr double IdleSleepTime = 0.1;
+	constexpr float IdleSleepTime = 0.1f;
 	while (!IsStopped)
 	{
 		InnerTickLoop(false /* bInIsSynchronousTick */, true /* bContributeToCacheSave */);
