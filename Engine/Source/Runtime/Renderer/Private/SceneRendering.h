@@ -31,6 +31,7 @@
 #include "RenderGraphUtils.h"
 #include "MeshDrawCommands.h"
 #include "ShaderDebug.h"
+#include "ShaderPrintParameters.h"
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "Nanite/Nanite.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
@@ -1474,8 +1475,7 @@ public:
 	FTexture2DRHIRef PrimitiveSceneDataTextureOverrideRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 
-	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
-
+	FShaderPrintData ShaderPrintData;
 	FShaderDrawDebugData ShaderDrawData;
 	FLumenTranslucencyGIVolume LumenTranslucencyGIVolume;
 

@@ -464,6 +464,11 @@ float2 ShaderPrintSetCursorPos(in float2 ScreenPos)
 	return PrevScreenPos;
 }
 
+float2 ShaderPrintGetPos(in uint2 PixelCoord)
+{
+	return float2(PixelCoord) / ShaderPrintUniform.Resolution;
+}
+
 // --------------------------------------------------------------------------
 // Filter helpers
 // Use these to restrict ShaderPrint to a subset of active threads
