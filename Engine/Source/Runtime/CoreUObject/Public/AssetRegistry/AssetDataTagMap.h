@@ -456,11 +456,11 @@ public:
 	class COREUOBJECT_API FMemoryCounter
 	{
 		TSet<uint32> FixedStoreIndices;
-		uint32 LooseBytes = 0;
+		SIZE_T LooseBytes = 0;
 	public:
 		void Include(const FAssetDataTagMapSharedView& Tags);
-		uint32 GetLooseSize() const { return LooseBytes; }
-		uint32 GetFixedSize() const;		
+		SIZE_T GetLooseSize() const { return LooseBytes; }
+		SIZE_T GetFixedSize() const;		
 	};
 };
 

@@ -80,7 +80,7 @@ static TArray<FNameEntryId> FlattenIndex(const TMap<FNameEntryId, uint32>& Names
 FAssetRegistryWriter::~FAssetRegistryWriter()
 {
 	// Save store data and collect FNames
-	int32 BodySize = MemWriter.TotalSize();
+	int64 BodySize = MemWriter.TotalSize();
 	SaveStore(Tags.Finalize(), *this);
 
 	// Save in load-friendly order - names, store then body / tag maps

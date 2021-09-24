@@ -384,7 +384,7 @@ public:
 	bool Load(FArchive& Ar, const FAssetRegistryLoadOptions& Options = FAssetRegistryLoadOptions());
 
 	/** Returns memory size of entire registry, optionally logging sizes */
-	uint32 GetAllocatedSize(bool bLogDetailed = false) const;
+	SIZE_T GetAllocatedSize(bool bLogDetailed = false) const;
 
 	/** Checks a filter to make sure there are no illegal entries */
 	static bool IsFilterValid(const FARCompiledFilter& Filter);

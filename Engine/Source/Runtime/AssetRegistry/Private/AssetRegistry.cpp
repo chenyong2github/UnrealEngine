@@ -3101,11 +3101,11 @@ void FAssetRegistryImpl::CachePathsFromState(Impl::FEventContext& EventContext, 
 
 }
 
-uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
+SIZE_T UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 {
-	uint32 StateSize = 0;
-	uint32 StaticSize = 0;
-	uint32 SearchSize = 0;
+	SIZE_T StateSize = 0;
+	SIZE_T StaticSize = 0;
+	SIZE_T SearchSize = 0;
 	{
 		FReadScopeLock InterfaceScopeLock(InterfaceLock);
 		GuardedData.GetAllocatedSize(bLogDetailed, StateSize, StaticSize, SearchSize);
@@ -3117,8 +3117,8 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 
 	if (bLogDetailed)
 	{
-		UE_LOG(LogAssetRegistry, Log, TEXT("AssetRegistry Static Size: %dk"), StaticSize / 1024);
-		UE_LOG(LogAssetRegistry, Log, TEXT("AssetRegistry Search Size: %dk"), SearchSize / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("AssetRegistry Static Size: %" SIZE_T_FMT "k"), StaticSize / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("AssetRegistry Search Size: %" SIZE_T_FMT "k"), SearchSize / 1024);
 	}
 
 	return StateSize + StaticSize + SearchSize;
@@ -3127,7 +3127,7 @@ uint32 UAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed) const
 namespace UE::AssetRegistry
 {
 
-void FAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed, uint32& StateSize, uint32& StaticSize, uint32& SearchSize) const
+void FAssetRegistryImpl::GetAllocatedSize(bool bLogDetailed, SIZE_T& StateSize, SIZE_T& StaticSize, SIZE_T& SearchSize) const
 {
 	StateSize = State.GetAllocatedSize(bLogDetailed);
 

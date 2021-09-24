@@ -85,7 +85,7 @@ struct FDiscoveredPathData
 	void Assign(FStringView InLocalAbsPath, FStringView InLongPackageName, FStringView InRelPath);
 
 	/** Return the total amount of heap memory used by the gatherer (including not-yet-claimed search results). */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 };
 
 /** Information needed about a discovered asset file or path that is needed by the Gatherer */
@@ -109,7 +109,7 @@ struct FGatheredPathData
 	 * Return the total amount of heap memory used by the gatherer (including not-yet-claimed search results).
 	 * Used for performance metrics.
 	 */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 };
 
 /** A container to efficiently receive files from discovery and search the container to raise priority of a path */
@@ -151,7 +151,7 @@ public:
 	/** How many files are returnable from PopFront. */
 	int32 GetNumAvailable() const;
 	/** How much memory is used by the container, not counting sizeof(*this). */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 private:
 	/** A directory-search-tree structure; each node has a list of direct files and subdirectories. */
 	struct FTreeNode
@@ -195,7 +195,7 @@ private:
 		/** Reduce memory used in buffers. */
 		void Shrink();
 		/** How much memory is used by *this, not counting sizeof(*this). */
-		uint32 GetAllocatedSize() const;
+		SIZE_T GetAllocatedSize() const;
 		/** Number of files in *this and its child nodes. */
 		int32 NumFiles() const;
 	private:
@@ -320,7 +320,7 @@ public:
 	bool IsComplete() const;
 
 	/** Return the memory used by the tree under this ScanDir; excludes sizeof(*this). */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 	/**
 	 * Find the Direct parent of InRelPath, or a fallback. Will return null only if !bIsDirectory and InRelPath is empty.
 	 * The fallback is returned if InRelPath has already completed and been deleted, or if InRelPath is not monitored.
@@ -464,7 +464,7 @@ public:
 	/** Find the direct parent of InRelPath, or the lowest fallback. See FScanDir::GetControllingDir. */
 	FScanDir* GetControllingDir(FStringView LocalAbsPath, bool bIsDirectory, FScanDir::FInherited& OutParentData, FString& OutRelPath);
 	/** Return the memory used by the tree under this MountDir, except that sizeof(*this) is excluded. */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 
 	/** Report whether this MountDir is complete: all ScanDirs under it either have scanned or should not scan. */
 	bool IsComplete() const;
@@ -597,7 +597,7 @@ public:
 	/** Return whether the given path should or has been scanned because it is whitelisted and not blacklisted. */
 	bool IsMonitored(FStringView LocalAbsPath) const;
 	/** Return the memory used by *this. sizeof(*this) is not included. */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 
 	// Events and setting of properties (possibly while tick is running)
 	/**
@@ -745,7 +745,7 @@ private:
 		FDirectoryResult(FStringView InDirAbsPath, TConstArrayView<FDiscoveredPathData> InFiles);
 		FString DirAbsPath;
 		TArray<FGatheredPathData> Files;
-		uint32 GetAllocatedSize() const;
+		SIZE_T GetAllocatedSize() const;
 	};
 	TArray<FDirectoryResult> DiscoveredFiles;
 	TArray<FGatheredPathData> DiscoveredSingleFiles;

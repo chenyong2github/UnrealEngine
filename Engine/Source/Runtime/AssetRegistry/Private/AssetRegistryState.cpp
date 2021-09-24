@@ -1307,9 +1307,9 @@ void FAssetRegistryState::LoadDependencies_BeforeFlags(FArchive& Ar, bool bSeria
 	}
 }
 
-uint32 FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
+SIZE_T FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 {
-	uint32 MapMemory = CachedAssetsByObjectPath.GetAllocatedSize();
+	SIZE_T MapMemory = CachedAssetsByObjectPath.GetAllocatedSize();
 	MapMemory += CachedAssetsByPackageName.GetAllocatedSize();
 	MapMemory += CachedAssetsByPath.GetAllocatedSize();
 	MapMemory += CachedAssetsByClass.GetAllocatedSize();
@@ -1320,7 +1320,7 @@ uint32 FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 	MapMemory += PreallocatedDependsNodeDataBuffers.GetAllocatedSize();
 	MapMemory += PreallocatedPackageDataBuffers.GetAllocatedSize();
 
-	uint32 MapArrayMemory = 0;
+	SIZE_T MapArrayMemory = 0;
 	auto SubArray = 
 		[&MapArrayMemory](const auto& A)
 	{
@@ -1336,10 +1336,10 @@ uint32 FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 
 	if (bLogDetailed)
 	{
-		UE_LOG(LogAssetRegistry, Log, TEXT("Index Size: %dk"), MapMemory / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("Index Size: %" SIZE_T_FMT "k"), MapMemory / 1024);
 	}
 
-	uint32 AssetDataSize = 0;
+	SIZE_T AssetDataSize = 0;
 	FAssetDataTagMapSharedView::FMemoryCounter TagMemoryUsage;
 
 	for (const TPair<FName, FAssetData*>& AssetDataPair : CachedAssetsByObjectPath)
@@ -1354,13 +1354,13 @@ uint32 FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 	if (bLogDetailed)
 	{
 		UE_LOG(LogAssetRegistry, Log, TEXT("AssetData Count: %d"), CachedAssetsByObjectPath.Num());
-		UE_LOG(LogAssetRegistry, Log, TEXT("AssetData Static Size: %dk"), AssetDataSize / 1024);
-		UE_LOG(LogAssetRegistry, Log, TEXT("Loose Tags: %dk"), TagMemoryUsage.GetLooseSize() / 1024);
-		UE_LOG(LogAssetRegistry, Log, TEXT("Fixed Tags: %dk"), TagMemoryUsage.GetFixedSize() / 1024);
-		UE_LOG(LogAssetRegistry, Log, TEXT("TArray<FAssetData*>: %dk"), MapArrayMemory / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("AssetData Static Size: %" SIZE_T_FMT "k"), AssetDataSize / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("Loose Tags: %" SIZE_T_FMT "k"), TagMemoryUsage.GetLooseSize() / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("Fixed Tags: %" SIZE_T_FMT "k"), TagMemoryUsage.GetFixedSize() / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("TArray<FAssetData*>: %" SIZE_T_FMT "k"), MapArrayMemory / 1024);
 	}
 
-	uint32 DependNodesSize = 0, DependenciesSize = 0;
+	SIZE_T DependNodesSize = 0, DependenciesSize = 0;
 
 	for (const TPair<FAssetIdentifier, FDependsNode*>& DependsNodePair : CachedDependsNodes)
 	{
@@ -1373,19 +1373,19 @@ uint32 FAssetRegistryState::GetAllocatedSize(bool bLogDetailed) const
 	if (bLogDetailed)
 	{
 		UE_LOG(LogAssetRegistry, Log, TEXT("Dependency Node Count: %d"), CachedDependsNodes.Num());
-		UE_LOG(LogAssetRegistry, Log, TEXT("Dependency Node Static Size: %dk"), DependNodesSize / 1024);
-		UE_LOG(LogAssetRegistry, Log, TEXT("Dependency Arrays Size: %dk"), DependenciesSize / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("Dependency Node Static Size: %" SIZE_T_FMT "k"), DependNodesSize / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("Dependency Arrays Size: %" SIZE_T_FMT "k"), DependenciesSize / 1024);
 	}
 
-	uint32 PackageDataSize = CachedPackageData.Num() * sizeof(FAssetPackageData);
+	SIZE_T PackageDataSize = CachedPackageData.Num() * sizeof(FAssetPackageData);
 
-	uint32 TotalBytes = MapMemory + AssetDataSize + TagMemoryUsage.GetFixedSize()  + TagMemoryUsage.GetLooseSize() + DependNodesSize + DependenciesSize + PackageDataSize + MapArrayMemory;
+	SIZE_T TotalBytes = MapMemory + AssetDataSize + TagMemoryUsage.GetFixedSize()  + TagMemoryUsage.GetLooseSize() + DependNodesSize + DependenciesSize + PackageDataSize + MapArrayMemory;
 
 	if (bLogDetailed)
 	{
 		UE_LOG(LogAssetRegistry, Log, TEXT("PackageData Count: %d"), CachedPackageData.Num());
-		UE_LOG(LogAssetRegistry, Log, TEXT("PackageData Static Size: %dk"), PackageDataSize / 1024);
-		UE_LOG(LogAssetRegistry, Log, TEXT("Total State Size: %dk"), TotalBytes / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("PackageData Static Size: %" SIZE_T_FMT "k"), PackageDataSize / 1024);
+		UE_LOG(LogAssetRegistry, Log, TEXT("Total State Size: %" SIZE_T_FMT "k"), TotalBytes / 1024);
 	}
 
 	return TotalBytes;
@@ -2038,7 +2038,7 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 			}
 			if (WinningLineEnd != BufferEnd)
 			{
-				PageEndIndex = WinningLineEnd - PageBuffer.GetData();
+				PageEndIndex = UE_PTRDIFF_TO_INT32(WinningLineEnd - PageBuffer.GetData());
 				NumOverflowLines = WinningSearchIndex;
 			}
 		}

@@ -73,7 +73,7 @@ public:
 	/** Returns number of connections this node has, both references and dependencies */
 	int32 GetConnectionCount() const;
 	/** Returns amount of memory used by the arrays */
-	uint32 GetAllocatedSize(void) const
+	SIZE_T GetAllocatedSize(void) const
 	{
 		return PackageDependencies.GetAllocatedSize() + PackageFlags.GetAllocatedSize() + NameDependencies.GetAllocatedSize() + ManageDependencies.GetAllocatedSize() + ManageFlags.GetAllocatedSize() + Referencers.GetAllocatedSize();
 	}

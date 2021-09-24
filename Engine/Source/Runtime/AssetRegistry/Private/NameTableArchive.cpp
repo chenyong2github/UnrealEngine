@@ -52,8 +52,8 @@ bool FNameTableArchiveReader::SerializeNameMap()
 		}
 		
 		const int32 MinFNameEntrySize = sizeof(int32);
-		int32 MaxReservation = (TotalSize() - Tell()) / MinFNameEntrySize;
-		NameMap.Reserve(FMath::Min(NameCount, MaxReservation));
+		const int64 MaxReservation = ((TotalSize() - Tell()) / MinFNameEntrySize);
+		NameMap.Reserve((int32)FMath::Min<int64>(NameCount, MaxReservation));
 		for ( int32 NameMapIdx = 0; NameMapIdx < NameCount; ++NameMapIdx )
 		{
 			// Read the name entry from the file.

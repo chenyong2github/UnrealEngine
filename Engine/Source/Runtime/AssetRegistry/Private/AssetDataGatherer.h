@@ -123,7 +123,7 @@ public:
 	/** Attempt to read the cache file at the given LocalPath, and store all of its results in the in-memory cache. */
 	void LoadCacheFile(FStringView CacheFilename);
 	/** Return the total amount of heap memory used by the gatherer (including not-yet-claimed search results). Used for performance metrics. */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 
 
 	// Configuring mount points (possibly while tick is running)

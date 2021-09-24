@@ -20,5 +20,7 @@ public class AssetRegistry : ModuleRules
 			PrivateIncludePathModuleNames.AddRange(new string[] { "DirectoryWatcher" });
 			DynamicallyLoadedModuleNames.AddRange(new string[] { "DirectoryWatcher" });
 		}
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 	}
 }
