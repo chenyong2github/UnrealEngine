@@ -481,7 +481,7 @@ namespace HordeServer.Services
 		{
 			lock (P4LogLock)
 			{
-				Serilog.Log.Information("Perforce: " + Log);
+				Serilog.Log.Information("Perforce: {Message}", Log);
 			}
 
 		}
