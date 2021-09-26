@@ -112,15 +112,15 @@ namespace HordeServerTests
 
 			if (await _channel.Reader.WaitToReadAsync())
 			{
-				_channel.Reader.TryRead(out var message);
-				Current = message;
-				return true;
+				if (_channel.Reader.TryRead(out var message))
+				{
+					Current = message;
+					return true;
+				}
 			}
-			else
-			{
-				Current = null!;
-				return false;
-			}
+
+			Current = null!;
+			return false;
 		}
 	}
 }

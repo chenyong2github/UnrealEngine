@@ -97,7 +97,7 @@ namespace HordeServer.Controllers
 			{
 				ModelId = new string(DeviceRequest.ModelId);
 
-				if (Platform.Models.FirstOrDefault(x => x == ModelId) == null)
+				if (Platform.Models?.FirstOrDefault(x => x == ModelId) == null)
 				{
 					return BadRequest($"Bad model id {ModelId} for platform {Platform.Id} on request");
 				}
@@ -219,7 +219,7 @@ namespace HordeServer.Controllers
 			{
 				ModelIdValue = new string(Update.ModelId);
 
-				if (Platform.Models.FirstOrDefault(x => x == ModelIdValue) == null)
+				if (Platform.Models?.FirstOrDefault(x => x == ModelIdValue) == null)
 				{
 					return BadRequest($"Bad model id {Update.ModelId} for platform {Platform.Id} on request");
 				}
@@ -379,7 +379,7 @@ namespace HordeServer.Controllers
 			foreach (IDevicePlatform Platform in Platforms)
 			{
 				// @todo: ACL per platform
-				Responses.Add(new GetDevicePlatformResponse(Platform.Id.ToString(), Platform.Name, Platform.Models.ToArray()));
+				Responses.Add(new GetDevicePlatformResponse(Platform.Id.ToString(), Platform.Name, Platform.Models?.ToArray() ?? Array.Empty<string>()));
 			}
 
 			return Responses;
@@ -485,7 +485,7 @@ namespace HordeServer.Controllers
 				{
 					foreach (string Model in DeviceRequest.IncludeModels)
 					{
-						if (Platform.Models.FirstOrDefault(x => x == Model) == null)
+						if (Platform.Models?.FirstOrDefault(x => x == Model) == null)
 						{
 							return BadRequest($"Unknown model {Model} for platform {DeviceRequest.PlatformId} on device reservation request");
 						}
@@ -498,7 +498,7 @@ namespace HordeServer.Controllers
 				{
 					foreach (string Model in DeviceRequest.ExcludeModels)
 					{
-						if (Platform.Models.FirstOrDefault(x => x == Model) == null)
+						if (Platform.Models?.FirstOrDefault(x => x == Model) == null)
 						{
 							return BadRequest($"Unknown model {Model} for platform {DeviceRequest.PlatformId} on device reservation request");
 						}

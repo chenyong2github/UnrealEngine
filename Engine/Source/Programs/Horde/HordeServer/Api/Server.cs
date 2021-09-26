@@ -34,7 +34,7 @@ namespace HordeServer.Api
         {
 
             FileVersionInfo VersionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);		
-			ServerVersion = VersionInfo.ProductVersion;			
+			ServerVersion = VersionInfo.ProductVersion ?? String.Empty;			
 			OSDescription = RuntimeInformation.OSDescription;
 			this.SingleInstance = SingleInstance;
 		}

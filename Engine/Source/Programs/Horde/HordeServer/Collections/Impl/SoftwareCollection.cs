@@ -113,13 +113,16 @@ namespace HordeServer.Collections.Impl
 							using MemoryStream MemoryStream = new MemoryStream();
 							InputEntryStream.CopyTo(MemoryStream);
 
-							Dictionary<string, Dictionary<string, object>> Document = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(MemoryStream.ToArray());
-							Document["Horde"]["Version"] = Version;
+							Dictionary<string, Dictionary<string, object>>? Document = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(MemoryStream.ToArray());
+							if (Document != null)
+							{
+								Document["Horde"]["Version"] = Version;
 
-							using Utf8JsonWriter Writer = new Utf8JsonWriter(OutputEntryStream, new JsonWriterOptions { Indented = true });
-							JsonSerializer.Serialize<Dictionary<string, Dictionary<string, object>>>(Writer, Document, new JsonSerializerOptions { WriteIndented = true });
+								using Utf8JsonWriter Writer = new Utf8JsonWriter(OutputEntryStream, new JsonWriterOptions { Indented = true });
+								JsonSerializer.Serialize<Dictionary<string, Dictionary<string, object>>>(Writer, Document, new JsonSerializerOptions { WriteIndented = true });
 
-							bWrittenClientId = true;
+								bWrittenClientId = true;
+							}
 						}
 						else
 						{

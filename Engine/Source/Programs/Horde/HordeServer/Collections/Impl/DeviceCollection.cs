@@ -559,7 +559,7 @@ namespace HordeServer.Collections.Impl
 
 			foreach (DeviceRequestData Data in Request)
 			{
-				DeviceDocument Device = PoolDevices.FirstOrDefault(A =>
+				DeviceDocument? Device = PoolDevices.FirstOrDefault(A =>
 				{
 
 					if (Allocated.Contains(A.Id) || A.PlatformId != Data.PlatformId)

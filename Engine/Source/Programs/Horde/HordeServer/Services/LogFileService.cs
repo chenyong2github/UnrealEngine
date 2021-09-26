@@ -841,7 +841,7 @@ namespace HordeServer.Services
 				JsonElement MessageElement;
 				if (Data.TryGetProperty("renderedMessage", out MessageElement) || Data.TryGetProperty("message", out MessageElement))
 				{
-					Message = MessageElement.GetString();
+					Message = MessageElement.GetString() ?? "(Invalid)";
 				}
 				else
 				{

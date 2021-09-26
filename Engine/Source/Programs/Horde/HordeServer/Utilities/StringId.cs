@@ -211,7 +211,7 @@ namespace HordeServer.Utilities
 		/// <inheritdoc/>
 		public override StringId<T> Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
 		{
-			return new StringId<T>(Reader.GetString());
+			return new StringId<T>(Reader.GetString()!);
 		}
 
 		/// <inheritdoc/>

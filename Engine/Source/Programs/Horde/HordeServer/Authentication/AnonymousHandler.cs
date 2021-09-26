@@ -37,11 +37,13 @@ namespace HordeServer.Authentication
 
 		protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
 		{
-			Claim[] Claims =
+			List<Claim> Claims = new List<Claim>();
+			Claims.Add(new Claim(ClaimTypes.Name, AuthenticationScheme));
+
+			if (Options.AdminClaimType != null && Options.AdminClaimValue != null)
 			{
-				new Claim(ClaimTypes.Name, AuthenticationScheme),
-				new Claim(Options.AdminClaimType, Options.AdminClaimValue)
-			};
+				Claims.Add(new Claim(Options.AdminClaimType, Options.AdminClaimValue));
+			}
 
 			IUser User = await UserCollection.FindOrAddUserByLoginAsync("anonymous", "Anonymous", "anonymous@epicgames.com");
 

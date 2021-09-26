@@ -478,7 +478,7 @@ namespace HordeServer.Services
 			}
 
 			List<string> HostNames = new List<string>();
-			if (!Server.ResolveDns || IPAddress.TryParse(InitialHostName, out IPAddress HostAddress))
+			if (!Server.ResolveDns || IPAddress.TryParse(InitialHostName, out IPAddress? HostAddress))
 			{
 				HostNames.Add(InitialHostName);
 			}
@@ -576,7 +576,7 @@ namespace HordeServer.Services
 				{
 					if (Element.TryGetProperty("output", out JsonElement Output))
 					{
-						string Status = Output.GetString();
+						string Status = Output.GetString() ?? String.Empty;
 						switch(Status)
 						{
 							case "green":

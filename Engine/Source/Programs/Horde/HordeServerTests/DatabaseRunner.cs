@@ -120,7 +120,7 @@ namespace HordeServerTests
 		
 		private string GetBinaryPath()
 		{
-			FileReference File = new FileReference(new Uri(Assembly.GetExecutingAssembly().CodeBase!).LocalPath);
+			FileReference File = new FileReference(new Uri(Assembly.GetExecutingAssembly().Location).LocalPath);
 			FileReference BinPath = FileReference.Combine(File.Directory, BinName);
 			return BinPath.FullName;
 		}

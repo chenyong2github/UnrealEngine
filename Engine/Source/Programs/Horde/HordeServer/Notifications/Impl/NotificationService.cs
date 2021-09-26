@@ -150,7 +150,7 @@ namespace HordeServer.Notifications.Impl
 			ObjectId? UserId = User.GetUserId();
 			if (UserId == null)
 			{
-				Logger.LogWarning("Unable to find username for principal {User}", User.Identity.Name);
+				Logger.LogWarning("Unable to find username for principal {User}", User.Identity?.Name);
 				return false;
 			}
 

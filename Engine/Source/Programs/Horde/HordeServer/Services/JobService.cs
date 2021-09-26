@@ -669,7 +669,7 @@ namespace HordeServer.Services
 
 			foreach (IJobStepRef Step in Steps)
 			{
-				if (Step.StartTimeUtc != null && Step.FinishTimeUtc != null)
+				if (Step.FinishTimeUtc != null)
 				{
 					WaitTimeSum += Step.BatchWaitTime;
 					InitTimeSum += Step.BatchInitTime;

@@ -100,7 +100,7 @@ namespace HordeServer.Utilities
 			JsonElement Property;
 			if (Element.TryGetProperty(Name, out Property) && Property.ValueKind == JsonValueKind.String)
 			{
-				Value = Property.GetString();
+				Value = Property.GetString()!;
 				return true;
 			}
 			else

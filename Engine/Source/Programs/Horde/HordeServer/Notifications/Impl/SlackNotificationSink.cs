@@ -823,7 +823,7 @@ namespace HordeServer.Notifications.Impl
 				return;
 			}
 
-			Match Match = Regex.Match(Action.Value, @"^issue_(\d+)_([a-zA-Z]+)_([a-fA-F0-9]{24})$");
+			Match Match = Regex.Match(Action.Value ?? String.Empty, @"^issue_(\d+)_([a-zA-Z]+)_([a-fA-F0-9]{24})$");
 			if (!Match.Success)
 			{
 				Logger.LogWarning("Could not match format of button action: {Action}", Action.Value);
@@ -1104,7 +1104,7 @@ namespace HordeServer.Notifications.Impl
 			HttpResponseMessage ResponseMessage = await Client.SendAsync(GetUserIdRequest);
 			byte[] ResponseData = await ResponseMessage.Content.ReadAsByteArrayAsync();
 
-			UserResponse UserResponse = JsonSerializer.Deserialize<UserResponse>(ResponseData);
+			UserResponse UserResponse = JsonSerializer.Deserialize<UserResponse>(ResponseData)!;
 			if(!UserResponse.Ok || UserResponse.User == null)
 			{
 				Logger.LogWarning("Unable to find Slack user id for {Email}: {Response}", Email, Encoding.UTF8.GetString(ResponseData));
@@ -1211,7 +1211,7 @@ namespace HordeServer.Notifications.Impl
 						HttpResponseMessage Response = await Client.SendAsync(SendMessageRequest);
 						byte[] ResponseBytes = await Response.Content.ReadAsByteArrayAsync();
 
-						TResponse ResponseObject = JsonSerializer.Deserialize<TResponse>(ResponseBytes);
+						TResponse ResponseObject = JsonSerializer.Deserialize<TResponse>(ResponseBytes)!;
 						if(!ResponseObject.Ok)
 						{
 							Logger.LogError("Failed to send Slack message ({Error}). Request: {Request}. Response: {Response}", ResponseObject.Error, RequestJson, Encoding.UTF8.GetString(ResponseBytes));
@@ -1263,12 +1263,12 @@ namespace HordeServer.Notifications.Impl
 			using HttpClient Client = new HttpClient();
 			Client.DefaultRequestHeaders.Add("Authorization", $"Bearer {Settings.SlackSocketToken}");
 
-			using FormUrlEncodedContent Content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string, string>>());
+			using FormUrlEncodedContent Content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string?, string?>>());
 			HttpResponseMessage Response = await Client.PostAsync(new Uri("https://slack.com/api/apps.connections.open"), Content, StoppingToken);
 
 			byte[] ResponseData = await Response.Content.ReadAsByteArrayAsync();
 
-			SocketResponse SocketResponse = JsonSerializer.Deserialize<SocketResponse>(ResponseData);
+			SocketResponse SocketResponse = JsonSerializer.Deserialize<SocketResponse>(ResponseData)!;
 			if (!SocketResponse.Ok)
 			{
 				Logger.LogWarning("Unable to get websocket url: {Response}", Encoding.UTF8.GetString(ResponseData));
@@ -1316,7 +1316,7 @@ namespace HordeServer.Notifications.Impl
 
 				// Get the message data
 				Logger.LogInformation("Slack event: {Message}", Encoding.UTF8.GetString(Buffer, 0, Length));
-				EventMessage EventMessage = JsonSerializer.Deserialize<EventMessage>(Buffer.AsSpan(0, Length));
+				EventMessage EventMessage = JsonSerializer.Deserialize<EventMessage>(Buffer.AsSpan(0, Length))!;
 
 				// Acknowledge the message
 				if (EventMessage.EnvelopeId != null)

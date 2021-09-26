@@ -253,7 +253,7 @@ namespace HordeServer.Models
 		/// <param name="StepId">The step id</param>
 		/// <param name="Step">On success, receives the step object</param>
 		/// <returns>True if the step was found</returns>
-		public static bool TryGetStep(this IJobStepBatch Batch, SubResourceId StepId, [NotNullWhen(true)] out IJobStep Step)
+		public static bool TryGetStep(this IJobStepBatch Batch, SubResourceId StepId, [NotNullWhen(true)] out IJobStep? Step)
 		{
 			Step = Batch.Steps.FirstOrDefault(x => x.Id == StepId);
 			return Step != null;

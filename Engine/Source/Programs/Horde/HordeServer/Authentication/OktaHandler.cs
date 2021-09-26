@@ -43,15 +43,15 @@ namespace HordeServer.Authentication
 			{
 				if (Identity.FindFirst(ClaimTypes.Name) == null)
 				{
-					Identity.AddClaim(new Claim(ClaimTypes.Name, UserElement.ToString()));
+					Identity.AddClaim(new Claim(ClaimTypes.Name, UserElement.ToString()!));
 				}
 				if (Identity.FindFirst(HordeClaimTypes.User) == null)
 				{
-					Identity.AddClaim(new Claim(HordeClaimTypes.User, UserElement.ToString()));
+					Identity.AddClaim(new Claim(HordeClaimTypes.User, UserElement.ToString()!));
 				}
 				if (Identity.FindFirst(HordeClaimTypes.PerforceUser) == null)
 				{
-					Identity.AddClaim(new Claim(HordeClaimTypes.PerforceUser, UserElement.ToString()));
+					Identity.AddClaim(new Claim(HordeClaimTypes.PerforceUser, UserElement.ToString()!));
 				}
 			}
 
@@ -60,14 +60,14 @@ namespace HordeServer.Authentication
 			{
 				for (int Idx = 0; Idx < GroupsElement.GetArrayLength(); Idx++)
 				{
-					Identity.AddClaim(new Claim(ClaimTypes.Role, GroupsElement[Idx].ToString()));
+					Identity.AddClaim(new Claim(ClaimTypes.Role, GroupsElement[Idx].ToString()!));
 				}
 			}
 
 			JsonElement EmailElement;
 			if (UserInfo.TryGetProperty("email", out EmailElement) && Identity.FindFirst(ClaimTypes.Email) == null)
 			{
-				Identity.AddClaim(new Claim(ClaimTypes.Email, EmailElement.GetString()));
+				Identity.AddClaim(new Claim(ClaimTypes.Email, EmailElement.ToString()!));
 			}
 		}
 
@@ -80,7 +80,11 @@ namespace HordeServer.Authentication
 				return Result;
 			}
 
-			ClaimsIdentity Identity = (ClaimsIdentity)Result.Principal.Identity;
+			ClaimsIdentity? Identity = (ClaimsIdentity?)Result.Principal?.Identity;
+			if (Identity == null)
+			{
+				return HandleRequestResult.Fail("No identity specified");
+			}
 
 			string Login = Identity.FindFirst(ClaimTypes.Name)!.Value;
 			string? Name = Identity.FindFirst("name")?.Value;
