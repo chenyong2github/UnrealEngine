@@ -4029,7 +4029,10 @@ void FLevelOfDetailSettingsLayout::OnImportLOD(TSharedPtr<FString> NewValue, ESe
 			{
 				//Ask the user to change the LODGroup to None, if the user cancel do not re-import the LOD
 				//We can have a LODGroup with custom LOD only if custom LOD are after the generated LODGroup LODs
-				EAppReturnType::Type ReturnResult = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Ok, FText::Format(LOCTEXT("LODImport_LODGroupVersusCustomLODConflict", "This static mesh uses the LOD group \"{0}\" which generates the LOD {1}. To import a custom LOD at index {1}, the LODGroup must be cleared to \"None\"."), FText::FromName(StaticMesh->LODGroup), FText::AsNumber(LODIndex)));
+				EAppReturnType::Type ReturnResult = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Ok, 
+					FText::Format(LOCTEXT("LODImport_LODGroupVersusCustomLODConflict",
+										  "This static mesh uses the LOD group \"{0}\" which controls generated LODs. Continuing this process will reset the LOD group, clear all existing LODs, and import the selected file."),
+										  FText::FromName(StaticMesh->LODGroup)));
 				if (ReturnResult == EAppReturnType::Cancel)
 				{
 					StaticMeshEditor.RefreshTool();
