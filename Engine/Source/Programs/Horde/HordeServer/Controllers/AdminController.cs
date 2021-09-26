@@ -198,7 +198,7 @@ namespace HordeServer.Controllers
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity.Name ?? "Unknown"));
+			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			Claims.Add(AclService.AgentRegistrationClaim);
 
 			return AclService.IssueBearerToken(Claims, null);
@@ -218,7 +218,7 @@ namespace HordeServer.Controllers
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity.Name ?? "Unknown"));
+			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			Claims.Add(AclService.UploadSoftwareClaim);
 
 			return AclService.IssueBearerToken(Claims, null);
@@ -238,7 +238,7 @@ namespace HordeServer.Controllers
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity.Name ?? "Unknown"));
+			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			Claims.Add(AclService.DownloadSoftwareClaim);
 
 			return AclService.IssueBearerToken(Claims, null);
@@ -258,7 +258,7 @@ namespace HordeServer.Controllers
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity.Name ?? "Unknown"));
+			Claims.Add(new AclClaim(ClaimTypes.Name, User.Identity?.Name ?? "Unknown"));
 			Claims.Add(AclService.ConfigureProjectsClaim);
 
 			return AclService.IssueBearerToken(Claims, null);

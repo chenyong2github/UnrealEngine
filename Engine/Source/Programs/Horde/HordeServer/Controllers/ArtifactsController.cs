@@ -408,7 +408,7 @@ namespace HordeServer.Controllers
 								{
 									foreach (IJobStepBatch Batch in Job.Batches)
 									{
-										IJobStep Step;
+										IJobStep? Step;
 										if (Batch.TryGetStep(Artifact.StepId.Value, out Step))
 										{
 											StepName = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx].Name;

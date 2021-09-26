@@ -61,7 +61,7 @@ namespace HordeServerTests
 		{
 			public override ConnectionInfo Connection { get; } = null!;
 			public override IFeatureCollection Features { get; } = null!;
-			public override IDictionary<object, object> Items { get; set; } = null!;
+			public override IDictionary<object, object?> Items { get; set; } = null!;
 			public override HttpRequest Request { get; } = null!;
 			public override CancellationToken RequestAborted { get; set; }
 			public override IServiceProvider RequestServices { get; set; } = null!;
@@ -278,15 +278,15 @@ namespace HordeServerTests
 				
 				if (await Channel.Reader.WaitToReadAsync(CancellationToken))
 				{
-					Channel.Reader.TryRead(out var Message);
-					Current = Message;
-					return true;
+					if (Channel.Reader.TryRead(out var Message))
+					{
+						Current = Message;
+						return true;
+					}
 				}
-				else
-				{
-					Current = null!;
-					return false;
-				}
+
+				Current = null!;
+				return false;
 			}
 
 			public T Current { get; private set; } = null!;

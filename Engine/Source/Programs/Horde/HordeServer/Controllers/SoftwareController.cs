@@ -64,7 +64,7 @@ namespace HordeServer.Controllers
 			ObjectId Id;
 			using (System.IO.Stream Stream = File.OpenReadStream())
 			{
-				Id = await SoftwareService.CreateSoftwareAsync(Stream, User.Identity.Name, Default);
+				Id = await SoftwareService.CreateSoftwareAsync(Stream, User.Identity?.Name, Default);
 			}
 			return new CreateSoftwareResponse(Id.ToString());
 		}

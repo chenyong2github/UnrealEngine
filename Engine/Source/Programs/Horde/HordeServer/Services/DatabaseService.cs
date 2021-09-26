@@ -570,7 +570,7 @@ namespace HordeServer.Services
 		/// <param name="Chain"></param>
 		/// <param name="SslPolicyErrors"></param>
 		/// <returns>True if the certificate is allowed, false otherwise</returns>
-		bool CertificateValidationCallBack(object Sender, X509Certificate Certificate, X509Chain Chain, SslPolicyErrors SslPolicyErrors)
+		bool CertificateValidationCallBack(object Sender, X509Certificate? Certificate, X509Chain? Chain, SslPolicyErrors SslPolicyErrors)
 		{
 			// If the certificate is a valid, signed certificate, return true.
 			if (SslPolicyErrors == SslPolicyErrors.None)

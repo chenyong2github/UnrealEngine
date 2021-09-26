@@ -65,7 +65,7 @@ namespace HordeServerTests
         {
 	        return new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
 	        {
-		        new Claim(HordeClaimTypes.AgentSessionId, Agent.SessionId.ToString()),
+		        new Claim(HordeClaimTypes.AgentSessionId, Agent.SessionId.ToString()!),
 	        }, "TestAuthType"));
         }
     }

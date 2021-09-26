@@ -292,7 +292,7 @@ namespace HordeServer.Services
 							IGraph Graph = await JobService.GetGraphAsync(Job)!;
 
 							SubResourceId StepIdValue = SubResourceId.Parse(StepId);
-							IJobStepBatch Batch = Job.Batches.FirstOrDefault(B => B.Steps.FirstOrDefault(S => S.Id == StepIdValue) != null);
+							IJobStepBatch? Batch = Job.Batches.FirstOrDefault(B => B.Steps.FirstOrDefault(S => S.Id == StepIdValue) != null);
 							if (Batch != null)
 							{
 								Step = Batch.Steps.FirstOrDefault(S => S.Id == StepIdValue)!;

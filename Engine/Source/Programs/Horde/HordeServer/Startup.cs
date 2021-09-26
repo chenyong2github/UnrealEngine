@@ -224,7 +224,12 @@ namespace HordeServer
 		{
 			public override ObjectId Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
 			{
-				return Reader.GetString().ToObjectId();
+				string? String = Reader.GetString();
+				if (String == null)
+				{
+					throw new InvalidDataException("Unable to parse object id");
+				}
+				return String.ToObjectId();
 			}
 
 			public override void Write(Utf8JsonWriter Writer, ObjectId ObjectId, JsonSerializerOptions Options)
@@ -238,7 +243,13 @@ namespace HordeServer
 			public override DateTime Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
 			{
 				Debug.Assert(TypeToConvert == typeof(DateTime));
-				return DateTime.Parse(Reader.GetString(), CultureInfo.CurrentCulture);
+
+				string? String = Reader.GetString();
+				if (String == null)
+				{
+					throw new InvalidDataException("Unable to parse DateTime");
+				}
+				return DateTime.Parse(String, CultureInfo.CurrentCulture);
 			}
 
 			public override void Write(Utf8JsonWriter Writer, DateTime DateTime, JsonSerializerOptions Options)
@@ -458,7 +469,7 @@ namespace HordeServer
 				 {
 					 Options.Events.OnValidatePrincipal = Context =>
 					 {
-						 if (Context.Principal.FindFirst(HordeClaimTypes.UserId) == null)
+						 if (Context.Principal?.FindFirst(HordeClaimTypes.UserId) == null)
 						 {
 							 Context.RejectPrincipal();
 						 }

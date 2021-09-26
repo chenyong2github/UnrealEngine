@@ -60,7 +60,7 @@ namespace HordeServer.IssueHandlers.Impl
 					{
 						if (Property.NameEquals("file") && Property.Value.ValueKind == JsonValueKind.String)
 						{
-							AddSourceFile(SourceFiles, Property.Value.GetString());
+							AddSourceFile(SourceFiles, Property.Value.GetString()!);
 						}
 						if (Property.Value.HasStringProperty("type", "SourceFile") && Property.Value.TryGetStringProperty("relativePath", out string? Value))
 						{

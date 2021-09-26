@@ -890,7 +890,7 @@ namespace HordeServer.Services
 
 				foreach (string Path in Paths)
 				{
-					P4.FileMetaData Meta = Files.FirstOrDefault(File => File.DepotPath.Path == Path);
+					P4.FileMetaData? Meta = Files.FirstOrDefault(File => File.DepotPath?.Path == Path);
 
 					if (Meta == null)
 					{

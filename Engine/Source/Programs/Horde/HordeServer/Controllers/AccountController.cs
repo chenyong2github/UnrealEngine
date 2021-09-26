@@ -60,9 +60,9 @@ namespace HordeServer.Controllers
 		{
 			StringBuilder Content = new StringBuilder();
 			Content.Append($"<html><style>{StyleSheet}</style><h1>Horde Server</h1>");
-			if (User.Identity.IsAuthenticated)
+			if (User.Identity?.IsAuthenticated ?? false)
 			{
-				Content.Append($"<p>User <b>{User.Identity.Name}</b> is logged in. <a href=\"/account/logout\">Log out</a></p>");
+				Content.Append($"<p>User <b>{User.Identity?.Name}</b> is logged in. <a href=\"/account/logout\">Log out</a></p>");
 				if (await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 				{
 					Content.Append("<p>");
@@ -74,7 +74,7 @@ namespace HordeServer.Controllers
 					Content.Append("<a href=\"/api/v1/admin/chainedjobtoken\">Get chained job token</a><br/>");
 					Content.Append("</p>");
 				}
-				Content.Append($"<p>Claims for {User.Identity.Name}:");
+				Content.Append($"<p>Claims for {User.Identity?.Name}:");
 				Content.Append("<table>");
 				foreach (System.Security.Claims.Claim Claim in User.Claims)
 				{

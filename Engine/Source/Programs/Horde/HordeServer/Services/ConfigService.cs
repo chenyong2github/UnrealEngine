@@ -452,7 +452,7 @@ namespace HordeServer.Services
 			JsonSerializerOptions Options = new JsonSerializerOptions();
 			Startup.ConfigureJsonSerializer(Options);
 
-			return JsonSerializer.Deserialize<T>(Data, Options);
+			return JsonSerializer.Deserialize<T>(Data, Options)!;
 		}
 
 		Task<byte[]> ReadDataAsync(Uri ConfigPath)

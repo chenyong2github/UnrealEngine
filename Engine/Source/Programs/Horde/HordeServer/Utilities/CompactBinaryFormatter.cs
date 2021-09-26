@@ -75,7 +75,7 @@ namespace HordeServer.Utilities
 				}
 				throw new Exception($"Unable to parse compact binary request: {FormatHexDump(Data, 256)}", Ex);
 			}
-			return await InputFormatterResult.SuccessAsync(CbSerializer.Deserialize(new CbField(Data), Context.ModelType));
+			return await InputFormatterResult.SuccessAsync(CbSerializer.Deserialize(new CbField(Data), Context.ModelType)!);
 		}
 
 		static string FormatHexDump(byte[] Data, int MaxLength)
@@ -123,7 +123,7 @@ namespace HordeServer.Utilities
 			}
 			else
 			{
-				Data = CbSerializer.Serialize(Context.ObjectType, Context.Object).GetView();
+				Data = CbSerializer.Serialize(Context.ObjectType!, Context.Object!).GetView();
 			}
 			await Context.HttpContext.Response.BodyWriter.WriteAsync(Data);
 		}

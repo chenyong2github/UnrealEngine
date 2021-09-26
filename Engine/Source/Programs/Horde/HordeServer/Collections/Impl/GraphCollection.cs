@@ -425,8 +425,8 @@ namespace HordeServer.Collections.Impl
 				// Trim the cache
 				while (CachedGraphs.Count > MaxGraphs)
 				{
-					ContentHash RemoveHash = CachedGraphs.OrderBy(x => x.Value.LastAccessTime).Select(x => x.Key).FirstOrDefault();
-					if (RemoveHash == ContentHash.Empty)
+					ContentHash? RemoveHash = CachedGraphs.OrderBy(x => x.Value.LastAccessTime).Select(x => x.Key).FirstOrDefault();
+					if (RemoveHash == null || RemoveHash == ContentHash.Empty)
 					{
 						break;
 					}

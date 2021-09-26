@@ -97,10 +97,10 @@ namespace HordeServerTests
 			ServiceAccountAuthHandler Handler = await GetAuthHandlerAsync("ServiceAccount mytoken");
 			AuthenticateResult Result = await Handler.AuthenticateAsync();
 			Assert.IsTrue(Result.Succeeded);
-			Assert.AreEqual(3, Result.Ticket.Principal.Claims.Count());
-			Assert.AreEqual(ServiceAccountAuthHandler.AuthenticationScheme, Result.Ticket.Principal.FindFirst(ClaimTypes.Name).Value);
-			Assert.AreEqual("myvalue", Result.Ticket.Principal.FindFirst("myclaim").Value);
-			Assert.AreEqual("bar", Result.Ticket.Principal.FindFirst("foo").Value);
+			Assert.AreEqual(3, Result.Ticket!.Principal.Claims.Count());
+			Assert.AreEqual(ServiceAccountAuthHandler.AuthenticationScheme, Result.Ticket.Principal.FindFirst(ClaimTypes.Name)!.Value);
+			Assert.AreEqual("myvalue", Result.Ticket!.Principal.FindFirst("myclaim")!.Value);
+			Assert.AreEqual("bar", Result.Ticket!.Principal.FindFirst("foo")!.Value);
 		}
 	}
 }

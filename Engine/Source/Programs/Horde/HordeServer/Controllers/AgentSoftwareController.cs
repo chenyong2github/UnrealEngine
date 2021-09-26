@@ -123,7 +123,7 @@ namespace HordeServer.Controllers
 				Data = MemoryStream.ToArray();
 			}
 
-			await AgentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(Name), User.Identity.Name, Data);
+			await AgentSoftwareService.SetArchiveAsync(new AgentSoftwareChannelName(Name), User.Identity?.Name, Data);
 			return Ok();
 		}
 

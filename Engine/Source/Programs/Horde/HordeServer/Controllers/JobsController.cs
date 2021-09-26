@@ -298,7 +298,7 @@ namespace HordeServer.Controllers
 			string? AbortedByUser = null;
 			if (Request.Aborted ?? false)
 			{
-				AbortedByUser = User.Identity.Name;
+				AbortedByUser = User.Identity?.Name;
 			}
 
 			if (!await JobService.UpdateJobAsync(Job, Name: Request.Name, Priority: Request.Priority, AutoSubmit: Request.AutoSubmit, AbortedByUser: AbortedByUser, Arguments: Request.Arguments))
@@ -825,7 +825,7 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			IJobStepBatch Batch = Job.Batches.FirstOrDefault(x => x.Id == BatchIdValue);
+			IJobStepBatch? Batch = Job.Batches.FirstOrDefault(x => x.Id == BatchIdValue);
 			if (Batch == null)
 			{
 				return NotFound();
@@ -947,7 +947,7 @@ namespace HordeServer.Controllers
 			// Check permissions for updating this step. Only the agent executing the step can modify the state of it.
 			if (Request.State != JobStepState.Unspecified || Request.Outcome != JobStepOutcome.Unspecified)
 			{
-				IJobStepBatch Batch = Job.Batches.FirstOrDefault(x => x.Id == BatchIdValue);
+				IJobStepBatch? Batch = Job.Batches.FirstOrDefault(x => x.Id == BatchIdValue);
 				if (Batch == null)
 				{
 					return NotFound();
@@ -972,8 +972,8 @@ namespace HordeServer.Controllers
 				}
 			}
 
-			string? RetryByUser = (Request.Retry.HasValue && Request.Retry.Value) ? (User.Identity.Name ?? "Anonymous") : null;
-			string? AbortByUser = (Request.AbortRequested.HasValue && Request.AbortRequested.Value) ? (User.Identity.Name ?? "Anonymous") : null;
+			string? RetryByUser = (Request.Retry.HasValue && Request.Retry.Value) ? (User.Identity?.Name ?? "Anonymous") : null;
+			string? AbortByUser = (Request.AbortRequested.HasValue && Request.AbortRequested.Value) ? (User.Identity?.Name ?? "Anonymous") : null;
 
 			try
 			{
@@ -1405,7 +1405,7 @@ namespace HordeServer.Controllers
 			}
 
 			INotificationSubscription? Subscription;
-			if (!Job.LabelIdxToTriggerId.ContainsKey(LabelIndex) || Job.LabelIdxToTriggerId[LabelIndex] == null)
+			if (!Job.LabelIdxToTriggerId.ContainsKey(LabelIndex))
 			{
 				Subscription = null;
 			}
