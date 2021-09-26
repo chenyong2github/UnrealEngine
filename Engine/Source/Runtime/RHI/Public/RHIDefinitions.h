@@ -1641,6 +1641,8 @@ enum class ETextureCreateFlags : uint64
     Transient                         = 1ull << 32,
     /** Texture needs to support atomic operations */
     AtomicCompatible                  = 1ull << 33,
+	/** Texture should be allocated for external access. Vulkan only */
+	External                		  = 1ull << 34,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
 
@@ -1680,6 +1682,7 @@ ENUM_CLASS_FLAGS(ETextureCreateFlags);
 #define TexCreate_ReduceMemoryWithTilingMode     ETextureCreateFlags::ReduceMemoryWithTilingMode
 #define TexCreate_Transient                      ETextureCreateFlags::Transient
 #define TexCreate_AtomicCompatible               ETextureCreateFlags::AtomicCompatible
+#define TexCreate_External               		 ETextureCreateFlags::External
 
 enum EAsyncComputePriority
 {

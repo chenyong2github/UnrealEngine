@@ -242,6 +242,8 @@ FString GetTextureCreateFlagsName(ETextureCreateFlags TextureCreateFlags)
 		case TexCreate_AFRManual:						return TEXT("TexCreate_AFRManual");
 		case TexCreate_ReduceMemoryWithTilingMode:		return TEXT("TexCreate_ReduceMemoryWithTilingMode");
 		case TexCreate_Transient:						return TEXT("TexCreate_Transient");
+		case TexCreate_AtomicCompatible:				return TEXT("TexCreate_AtomicCompatible");
+		case TexCreate_External:						return TEXT("TexCreate_External");
 		}
 	});
 }
