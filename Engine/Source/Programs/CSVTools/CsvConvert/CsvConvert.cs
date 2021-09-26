@@ -13,7 +13,7 @@ namespace CSVInfo
 {
     class Version
     {
-        private static string VersionString = "1.01";
+        private static string VersionString = "1.02";
 
         public static string Get() { return VersionString; }
     };
@@ -62,9 +62,11 @@ namespace CSVInfo
 				"  -outFormat=<csv|bin|csvNoMetadata>\n" +
 				"  [-binCompress=<0|1|2>] (0=none)\n" +
 				"  [-o outFilename]\n" +
-				"  [-force]\n"+
-				"  [-verify]\n"+
-				"  [-dontFixMissingID] - doesn't generate a CsvID if it's not found in the metadata\n";
+				"  [-force] - overwrite even if output file exists already\n" +
+				"  [-inPlace] - overwrite the input file (implies -force)\n" +
+				"  [-verify]\n" +
+				"  [-dontFixMissingID] - doesn't generate a CsvID if it's not found in the metadata\n" +
+				"  [-setMetadata key0=value0;key1=value1;...]\n";
 
 
 			// Read the command line
@@ -74,7 +76,7 @@ namespace CSVInfo
                 return;
             }
 
-
+			bool bInPlace = false;
             ReadCommandLine(args);
 
 			string inFilename;
@@ -99,35 +101,23 @@ namespace CSVInfo
 			}
 			else
 			{
-				// Advanced mode. Output format is required
+				// Advanced mode
 				inFilename = GetArg("in",true);
 				outFormat = GetArg("outformat", true);
-				if (outFormat == "" || inFilename == "")
+				if (inFilename == "")
 				{
-					return;
+					throw new Exception("Need to specify an input filename");
 				}
 				outFilename = GetArg("o", GetArg("out", null));
-			}
-
-			outFormat = outFormat.ToLower();
-			bool bBinOut=false;
-			bool bWriteMetadata = true;
-			if (outFormat == "bin")
-			{
-				bBinOut = true;
-			}
-			else if (outFormat=="csv")
-			{
-				bBinOut = false;
-			}
-			else if (outFormat == "csvnometadata")
-			{
-				bBinOut = false;
-				bWriteMetadata = false;
-			}
-			else
-			{
-				throw new Exception("Unknown output format!");
+				bInPlace = GetBoolArg("inPlace");
+				if (bInPlace)
+				{
+					if (outFilename != null)
+					{
+						throw new Exception("Output filename specified with -inPlace");
+					}
+					outFilename = inFilename;
+				}
 			}
 
 			string inFilenameWithoutExtension;
@@ -143,32 +133,101 @@ namespace CSVInfo
 			{
 				throw new Exception("Unexpected input filename extension!");
 			}
-			
+
+			Console.WriteLine("Converting "+inFilename+" to "+outFormat+" format.");
+			Console.WriteLine("Reading input file...");
+
+			bool bFixMissingCsvId = !GetBoolArg("dontFixMissingID");
+			CsvFileInfo inFileInfo = new CsvFileInfo();
+			CsvStats csvStats = CsvStats.ReadCSVFile(inFilename, null, 0, bFixMissingCsvId, inFileInfo);
+
+			// If output format is not set, determine it automatically
+			if (outFormat.Length == 0)
+			{
+				outFormat = inFileInfo.bIsCsvBin ? "bin" : "csv";
+			}
+
+			// Figure out the output format
+			outFormat = outFormat.ToLower();
+			bool bBinOut = false;
+			bool bWriteMetadata = true;
+			if (outFormat == "bin")
+			{
+				bBinOut = true;
+			}
+			else if (outFormat == "csv")
+			{
+				bBinOut = false;
+			}
+			else if (outFormat == "csvnometadata")
+			{
+				bBinOut = false;
+				bWriteMetadata = false;
+			}
+			else
+			{
+				throw new Exception("Unknown output format!");
+			}
+
 			if (outFilename == null)
 			{
 				outFilename = inFilenameWithoutExtension + (bBinOut ? ".csv.bin" : ".csv");
 			}
-
-			if (outFilename.ToLowerInvariant() == inFilename.ToLowerInvariant())
+			if (outFilename.ToLowerInvariant() == inFilename.ToLowerInvariant() && bInPlace == false)
 			{
-				throw new Exception("Input and output filenames can't match!");
+				throw new Exception("Input and output filenames can't match! Specify -inPlace to override");
 			}
-
-			if (System.IO.File.Exists(outFilename) && !GetBoolArg("force"))
+			if (System.IO.File.Exists(outFilename) && !GetBoolArg("force") && !bInPlace)
 			{
 				throw new Exception("Output file already exists! Use -force to overwrite anyway.");
 			}
 
-			Console.WriteLine("Converting "+inFilename+" to "+outFormat+" format. Output filename: "+outFilename);
-			Console.WriteLine("Reading input file...");
+			Console.WriteLine("Output filename: " + outFilename);
 
-			bool bFixMissingCsvId = !GetBoolArg("dontFixMissingID");
-			CsvStats csvStats = CsvStats.ReadCSVFile(inFilename, null, 0, bFixMissingCsvId);
+
+			// Set metadata if requested
+			string SetMetadataStr = GetArg("setMetadata");
+			if (SetMetadataStr != null && SetMetadataStr.Length > 0)
+			{
+				bool bModified = false;
+				if (csvStats.metaData == null)
+				{
+					throw new Exception("File has no metadata, so can't set it");
+				}
+				string[] KeyValuePairs = SetMetadataStr.Split(';');
+				foreach (string KeyValueStr in KeyValuePairs)
+				{
+					string[] KeyValue = KeyValueStr.Split('=');
+					if (KeyValue.Length == 2)
+					{
+						string Key = KeyValue[0].ToLower().Trim();
+						string Value = KeyValue[1].Trim();
+						Console.WriteLine("Setting metadata: " + Key+"="+Value);
+						csvStats.metaData.Values[Key] = Value;
+						bModified = true;
+					}
+					else
+					{
+						Console.WriteLine("Bad metadata pair: " + KeyValueStr);
+					}
+				}
+				if ( bModified )
+				{
+					csvStats.metaData.Values["metadatamodified"] = "1";
+				}
+			}
+
 			Console.WriteLine("Writing output file...");
 			if (bBinOut)
 			{
-				int binCompression = GetIntArg("binCompress", 0);
-				CompressionLevel[] compressionLevels = { CompressionLevel.NoCompression, CompressionLevel.Fastest, CompressionLevel.Optimal };
+				int binCompression = GetIntArg("binCompress", -1);
+
+				// If compression is not set, determine it automatically
+				if (binCompression == -1 )
+				{
+					binCompression = (int)inFileInfo.BinCompressionLevel;
+				}
+
 				if (binCompression < 0 || binCompression > 2)
 				{
 					throw new Exception("Bad compression level specified! Must be 0, 1 or 2");
@@ -179,6 +238,7 @@ namespace CSVInfo
 			{
 				csvStats.WriteToCSV(outFilename, bWriteMetadata);
 			}
+
 
 			if (GetBoolArg("verify"))
 			{

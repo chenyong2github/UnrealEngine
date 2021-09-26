@@ -16,7 +16,7 @@ using System.Security.Cryptography;
 
 namespace CSVStats
 {
-	enum CsvBinVersion
+	public enum CsvBinVersion
 	{
 		PreRelease = 1,
 		InitialRelease,
@@ -40,6 +40,14 @@ namespace CSVStats
 		None,
 		Min,
 		Max
+	};
+
+
+	public class CsvFileInfo
+	{
+		public bool bIsCsvBin;
+		public CsvBinVersion BinVersion = CsvBinVersion.COUNT;
+		public CsvBinCompressionLevel BinCompressionLevel = CsvBinCompressionLevel.None;
 	};
 
 
@@ -791,7 +799,7 @@ namespace CSVStats
 		}
 
 
-		public static CsvStats ReadBinFile(string filename, string[] statNamesToRead=null, int numRowsToSkip=0, bool justHeader=false)
+		public static CsvStats ReadBinFile(string filename, string[] statNamesToRead=null, int numRowsToSkip=0, bool justHeader=false, CsvFileInfo FileInfoOut=null)
 		{
 			System.IO.FileStream fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
 			System.IO.BinaryReader fileReader = new System.IO.BinaryReader(fileStream);
@@ -855,6 +863,14 @@ namespace CSVStats
 			if (statNamesToRead != null)
 			{
 				statNamesToReadDict = csvStatsOut.GetStatNamesMatchingStringList_Dict(statNamesToRead);
+			}
+
+			// Fill in the file info
+			if (FileInfoOut != null)
+			{
+				FileInfoOut.bIsCsvBin = true;
+				FileInfoOut.BinVersion = (CsvBinVersion)version;
+				FileInfoOut.BinCompressionLevel = compressionLevel;
 			}
 
 			if (justHeader)
@@ -1061,7 +1077,10 @@ namespace CSVStats
             if (metaData != null && bWriteMetadataRow )
             {
                 int index = 0;
-                foreach (System.Collections.Generic.KeyValuePair<string, string> pair in metaData.Values)
+				bool bFoundCommandline = false;
+				KeyValuePair<string, string> commandlinePair = new KeyValuePair<string,string>();
+
+				foreach (KeyValuePair<string, string> pair in metaData.Values)
                 {
                     if (index > 0)
                     {
@@ -1076,12 +1095,26 @@ namespace CSVStats
 					}
 					if (pair.Key.ToLower() == "commandline")
 					{
-						value = "\"" + value + "\"";
+						// Defer commandline to last
+						bFoundCommandline = true;
+						commandlinePair = pair;
+						continue;
 					}
 					sb.Append("["+pair.Key + "]," + value);
                     index++;
                 }
-            }
+
+				// Force the commandline to be output last
+				if (bFoundCommandline)
+				{
+					if (index > 0)
+					{
+						sb.Append(",");
+					}
+					string value = "\"" + commandlinePair.Value + "\"";
+					sb.Append("[" + commandlinePair.Key + "]," + value);
+				}
+			}
             csvOutFile.WriteLine(sb);
             csvOutFile.Close();
 
@@ -1500,17 +1533,21 @@ namespace CSVStats
 		}
 
 
-		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0, bool bGenerateCsvIdIfMissing=false)
+		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0, bool bGenerateCsvIdIfMissing=false, CsvFileInfo FileInfoOut=null)
         {
 			CsvStats statsOut;
 			if (csvFilename.EndsWith(".csv.bin"))
 			{
-				statsOut = ReadBinFile(csvFilename, statNames, numRowsToSkip);
+				statsOut = ReadBinFile(csvFilename, statNames, numRowsToSkip, false, FileInfoOut);
 			}
 			else
 			{
 				string[] lines = ReadLinesFromFile(csvFilename);
 				statsOut = ReadCSVFromLines(lines, statNames, numRowsToSkip);
+				if ( FileInfoOut != null )
+				{
+					FileInfoOut.bIsCsvBin = false;
+				}
 			}
 			if (bGenerateCsvIdIfMissing)
 			{
