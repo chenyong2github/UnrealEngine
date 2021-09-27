@@ -33,6 +33,7 @@
 #include "PipelineStateCache.h"
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
+#include "Renderer/Private/ScenePrivate.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
@@ -1877,6 +1878,17 @@ const FGlobalDistanceFieldParameterData* FNiagaraGpuComputeDispatch::GetGlobalDi
 { 
 	check(CurrentPassViews.Num() > 0); 
 	return &CurrentPassViews[0].GlobalDistanceFieldInfo.ParameterData; 
+}
+
+const FDistanceFieldSceneData* FNiagaraGpuComputeDispatch::GetMeshDistanceFieldParameters() const
+{
+	check(CurrentPassViews.Num() > 0);
+	if (CurrentPassViews[0].Family == nullptr || CurrentPassViews[0].Family->Scene == nullptr || CurrentPassViews[0].Family->Scene->GetRenderScene() == nullptr)
+	{
+		return nullptr;
+	}
+
+	return &CurrentPassViews[0].Family->Scene->GetRenderScene()->DistanceFieldSceneData;
 }
 
 void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
