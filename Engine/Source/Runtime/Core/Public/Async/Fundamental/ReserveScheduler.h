@@ -41,6 +41,7 @@ namespace LowLevelTasks
 
 	private:
 		TEventStack<FYieldedWork> 				EventStack;
+		TArray<TUniquePtr<FYieldedWork>> ReserveEvents;
 		FCriticalSection 						WorkerThreadsCS;
 		TArray<FSchedulerTls::FLocalQueueType>	WorkerLocalQueues;
 		TArray<TUniquePtr<FThread>>				WorkerThreads;
