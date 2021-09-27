@@ -136,8 +136,6 @@ namespace Utils
 	bool FFiltering::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags)
 	{
 #if WITH_ENGINE && WITH_EDITOR
-		TRACE_CPUPROFILER_EVENT_SCOPE(AssetRegistry::FFiltering::ShouldSkipAsset)
-
 		// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
 		// an asset; the content browser does not handle the multiple assets correctly and displays this
 		// class asset as if it is in a separate package. Revisit when we have removed the UBlueprint as an asset

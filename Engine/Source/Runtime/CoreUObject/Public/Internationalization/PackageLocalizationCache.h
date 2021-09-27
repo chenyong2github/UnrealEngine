@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/CriticalSection.h"
 #include "Internationalization/IPackageLocalizationCache.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "UObject/NameTypes.h"
 
 class FPackageLocalizationCache;
 
@@ -112,11 +118,12 @@ protected:
 	/**
 	 * Find all of the localized packages under the given roots, and update the map with the result.
 	 *
-	 * @param InSourceRoot		The root package path that contains the source packages we're finding localized packages for, eg) /Game
-	 * @param InLocalizedRoot	The root package path to search for localized packages in, eg) /Game/L10N/fr
-	 * @param InOutSourcePackagesToLocalizedPackages The map to update. This will be passed to multiple calls of FindLocalizedPackages in order to build a mapping between a source package, and an array of prioritized localized packages.
+	 * @param NewSourceToLocalizedPaths Map containing a key for each of the the source root paths we're finding localized packages for, e.g. /Game
+	 *                                  The value for each key is an array of the roots to search for localized packages for that source, e.g. { /Game/L10/hu, /Game/L10/fr }
+	 * @param InOutSourcePackagesToLocalizedPackages The map to update. This will accumulate results from each root in order to build
+	 *                          a mapping between each source package and its array of prioritized localized packages.
 	 */
-	virtual void FindLocalizedPackages(const FString& InSourceRoot, const FString& InLocalizedRoot, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages) = 0;
+	virtual void FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages) = 0;
 
 	/**
 	 * Find all of the packages using the given asset group class, and update the PackageNameToAssetGroup map with the result.
