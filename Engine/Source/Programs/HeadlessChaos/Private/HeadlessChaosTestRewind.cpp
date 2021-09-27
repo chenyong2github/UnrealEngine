@@ -3730,7 +3730,7 @@ namespace ChaosTest {
 		}
 
 		static void ComputeMaxErrors(const FSimComparisonHelper& A, const FSimComparisonHelper& B, FReal& OutMaxLinearError,
-			FReal& OutMaxAngularError, int32 HistoryMultiple = 1)
+			FReal& OutMaxAngularError, int32 HistoryMultiple = 1, const TArray<int32>* BMapping = nullptr)
 		{
 			ensure(B.History.Num() == (A.History.Num() * HistoryMultiple));
 
@@ -3744,7 +3744,7 @@ namespace ChaosTest {
 				const FEntry& OtherEntry = B.History[OtherIdx];
 
 				FReal MaxLinearError, MaxAngularError;
-				FEntry::CompareEntry(Entry, OtherEntry, MaxLinearError, MaxAngularError);
+				FEntry::CompareEntry(Entry, OtherEntry, MaxLinearError, MaxAngularError, BMapping);
 
 				MaxLinearError2 = FMath::Max(MaxLinearError2, MaxLinearError * MaxLinearError);
 				MaxAngularError2 = FMath::Max(MaxAngularError2, MaxAngularError * MaxAngularError);
@@ -3760,23 +3760,28 @@ namespace ChaosTest {
 			TArray<FVec3> X;
 			TArray<FRotation3> R;
 
-			static void CompareEntry(const FEntry& A, const FEntry& B, FReal& OutMaxLinearError, FReal& OutMaxAngularError)
+			static void CompareEntry(const FEntry& A, const FEntry& B, FReal& OutMaxLinearError, FReal& OutMaxAngularError, const TArray<int32>* BMapping = nullptr)
 			{
 				FReal MaxLinearError2 = 0;
 				FReal MaxAngularError2 = 0;
+				
+				auto BMappingHelper = [BMapping](const int32 Idx)
+				{
+					return BMapping ? (*BMapping)[Idx] : Idx;
+				};
 
 				check(A.X.Num() == A.R.Num());
 				check(A.X.Num() == B.X.Num());
 				for (int32 Idx = 0; Idx < A.X.Num(); ++Idx)
 				{
-					const FReal LinearError2 = (A.X[Idx] - B.X[Idx]).SizeSquared();
+					const FReal LinearError2 = (A.X[Idx] - B.X[BMappingHelper(Idx)]).SizeSquared();
 					MaxLinearError2 = FMath::Max(LinearError2, MaxLinearError2);
 
 					//if exactly the same we want 0 for testing purposes, inverse does not get that so just skip it
-					if (B.R[Idx] != A.R[Idx])
+					if (B.R[BMappingHelper(Idx)] != A.R[Idx])
 					{
 						//For angular error we look at the rotation needed to go from B to A
-						const FRotation3 Delta = B.R[Idx] * A.R[Idx].Inverse();
+						const FRotation3 Delta = B.R[BMappingHelper(Idx)] * A.R[Idx].Inverse();
 
 						FVec3 Axis;
 						FReal Angle;
@@ -3795,7 +3800,7 @@ namespace ChaosTest {
 	};
 
 	template <typename InitLambda>
-	void RunHelper(FSimComparisonHelper& SimComparison, int32 NumSteps, FReal Dt, const InitLambda& InitFunc)
+	void RunHelper(FSimComparisonHelper& SimComparison, int32 NumSteps, FReal Dt, const InitLambda& InitFunc, const TArray<int32>* Mapping = nullptr)
 	{
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
@@ -3803,7 +3808,7 @@ namespace ChaosTest {
 		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 
-		TArray<FPhysicsActorHandle> Storage = InitFunc(Solver);
+		TArray<FPhysicsActorHandle> Storage = InitFunc(Solver, Mapping);
 
 		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
@@ -3818,7 +3823,7 @@ namespace ChaosTest {
 	{
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
-		const auto InitLambda = [&Box](auto& Solver)
+		const auto InitLambda = [&Box](auto& Solver, auto)
 		{
 			TArray<FPhysicsActorHandle> Storage;
 			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -3853,7 +3858,7 @@ namespace ChaosTest {
 		FVec3 StartPos(0);
 		FRotation3 StartRotation = FRotation3::FromIdentity();
 
-		const auto InitLambda = [&Box, &StartPos, &StartRotation](auto& Solver)
+		const auto InitLambda = [&Box, &StartPos, &StartRotation](auto& Solver, auto)
 		{
 			TArray<FPhysicsActorHandle> Storage;
 			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -3903,7 +3908,7 @@ namespace ChaosTest {
 	{
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
-		const auto InitLambda = [&Box](auto& Solver)
+		const auto InitLambda = [&Box](auto& Solver, auto)
 		{
 			TArray<FPhysicsActorHandle> Storage;
 			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -3938,7 +3943,7 @@ namespace ChaosTest {
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 		const FReal Gravity = -980;
 
-		const auto InitLambda = [&Box, Gravity](auto& Solver)
+		const auto InitLambda = [&Box, Gravity](auto& Solver, auto)
 		{
 			TArray<FPhysicsActorHandle> Storage;
 			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -3992,7 +3997,7 @@ namespace ChaosTest {
 	{
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 50));
 
-		const auto InitLambda = [&Sphere](auto& Solver)
+		const auto InitLambda = [&Sphere](auto& Solver, auto)
 		{
 			TArray<FPhysicsActorHandle> Storage;
 			auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -4039,7 +4044,7 @@ namespace ChaosTest {
 		auto SmallBox = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-50, -50, -50), FVec3(50, 50, 50)));
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-1000, -1000, -1000), FVec3(1000, 1000, 0)));
 
-		const auto InitLambda = [&SmallBox, &Box](auto& Solver)
+		const auto InitLambda = [&SmallBox, &Box](auto& Solver, auto)
 		{
 			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -980));
 			TArray<FPhysicsActorHandle> Storage;
@@ -4097,6 +4102,77 @@ namespace ChaosTest {
 		RunHelper(ThirdRun, NumSteps * 2, 1 / 60.f, InitLambda);
 
 		FSimComparisonHelper::ComputeMaxErrors(FirstRun, ThirdRun, MaxLinearError, MaxAngularError, 2);
+	}
+	
+	GTEST_TEST(AllTraits, DeterministicSim_DifferentCreationOrder)
+	{
+		auto SmallBox = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-50, -50, -50), FVec3(50, 50, 50)));
+		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-1000, -1000, -1000), FVec3(1000, 1000, 0)));
+
+		const int32 NumParticles = 50;
+		const auto InitLambda = [&SmallBox, &Box, NumParticles](auto& Solver, const TArray<int32>* Mapping)
+		{
+			auto MappingHelper = [Mapping](const int32 Idx) { return Mapping ? (*Mapping)[Idx] : Idx; };
+			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -980));
+			TArray<FPhysicsActorHandle> Storage;
+			for (int Idx = 0; Idx < NumParticles; ++Idx)
+			{
+				auto DynamicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+				auto& Dynamic = DynamicProxy->GetGameThreadAPI();
+
+				Dynamic.SetGeometry(SmallBox);
+				Solver->RegisterObject(DynamicProxy);
+				Dynamic.SetObjectState(EObjectStateType::Dynamic);
+				Dynamic.SetGravityEnabled(true);
+				Dynamic.SetParticleID(FParticleID{ MappingHelper(Idx), INDEX_NONE });
+				Dynamic.SetX(FVec3(0, 5 * MappingHelper(Idx), 100 * MappingHelper(Idx) + 50));	//slightly offset
+				Dynamic.SetI(FMatrix33(1000, 1000, 1000));
+				Dynamic.SetInvI(FMatrix33(1/1000.0, 1/1000.0, 1/1000.0));
+
+				Storage.Add(DynamicProxy);
+			}
+
+			auto KinematicProxy = FSingleParticlePhysicsProxy::Create(Chaos::FKinematicGeometryParticle::CreateParticle());
+			auto& Kinematic = KinematicProxy->GetGameThreadAPI();
+
+			Kinematic.SetGeometry(Box);
+			Solver->RegisterObject(KinematicProxy);
+			Kinematic.SetX(FVec3(0, 0, 0));
+
+			Storage.Add(KinematicProxy);
+
+			for (int i = 0; i < Storage.Num(); ++i)
+			{
+				for (int j = i + 1; j < Storage.Num(); ++j)
+				{
+					ChaosTest::SetParticleSimDataToCollide({ Storage[i]->GetParticle_LowLevel(),Storage[j]->GetParticle_LowLevel() });
+				}
+			}
+
+			return Storage;
+		};
+
+		const int32 NumSteps = 20;
+		FSimComparisonHelper FirstRun;
+
+		RunHelper(FirstRun, NumSteps, 1 / 30.f, InitLambda);
+
+		//tick twice as often
+
+		TArray<int32> Mapping;
+		for (int32 Idx = 0; Idx < NumParticles; ++Idx)
+		{
+			Mapping.Add(NumParticles - Idx - 1);
+		}
+
+		FSimComparisonHelper SecondRun;
+		RunHelper(SecondRun, NumSteps, 1 / 30.f, InitLambda, &Mapping);
+
+		//make sure deterministic
+		FReal MaxLinearError, MaxAngularError;
+		FSimComparisonHelper::ComputeMaxErrors(FirstRun, SecondRun, MaxLinearError, MaxAngularError, 1, &Mapping);
+		EXPECT_EQ(MaxLinearError, 0);
+		EXPECT_EQ(MaxAngularError, 0);
 	}
 
 }

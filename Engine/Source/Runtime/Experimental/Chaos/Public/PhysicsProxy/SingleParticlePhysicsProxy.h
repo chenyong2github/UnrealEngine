@@ -862,6 +862,12 @@ public:
 	void SetShapeQueryCollisionEnabled(int32 InShapeIndex, bool bInEnabled) { VerifyContext(); GetParticle_LowLevel()->SetShapeQueryCollisionEnabled(InShapeIndex, bInEnabled); }
 	void SetShapeSimData(int32 InShapeIndex, const FCollisionFilterData& SimData) { VerifyContext(); GetParticle_LowLevel()->SetShapeSimData(InShapeIndex, SimData); }
 
+	void SetParticleID(const FParticleID& ParticleID)
+	{
+		VerifyContext();
+		GetParticle_LowLevel()->SetParticleID(ParticleID);
+	}
+
 	void SetX(const FVec3& InX, bool bInvalidate = true)
 	{
 		VerifyContext();

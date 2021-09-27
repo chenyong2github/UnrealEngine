@@ -485,6 +485,7 @@ public:
 		SetUniqueIdx(InData.UniqueIdx());
 		SetSpatialIdx(InData.SpatialIdx());
 		SetResimType(InData.ResimType());
+		SetParticleID(InData.ParticleID());
 
 #if CHAOS_DEBUG_NAME
 		SetDebugName(InData.DebugName());
@@ -589,7 +590,21 @@ public:
 
 #if CHAOS_DETERMINISTIC
 	FParticleID ParticleID() const { return GeometryParticles->ParticleID(ParticleIdx); }
-	FParticleID& ParticleID() { return GeometryParticles->ParticleID(ParticleIdx); }
+	void SetParticleID(const FParticleID& ParticleID)
+	{
+		//When particles are created they are assigned a unique local index
+		//This index cannot be used for replicated particles (which use a global index)
+		//The global index (if used) is set on the game thread and comes over in the NonFrequent data
+		//However, it's possible that the particle id was never set (not used), so it will come over as -1,-1
+		//In this case we should continue to use the local index
+
+		//TODO: find a better way to deal with this, shouldn't be at such a low level API
+
+		if (ParticleID.GlobalID != INDEX_NONE || ParticleID.LocalID != INDEX_NONE)
+		{
+			GeometryParticles->ParticleID(ParticleIdx) = ParticleID;
+		}
+	}
 #endif
 
 	void MoveToSOA(TGeometryParticles<T, d>& ToSOA)
@@ -1758,6 +1773,12 @@ public:
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx, bool bInvalidate = true)
 	{
 		MNonFrequentData.Modify(bInvalidate,MDirtyFlags,Proxy,[UniqueIdx](auto& Data){ Data.SetUniqueIdx(UniqueIdx);});
+	}
+
+	const FParticleID& ParticleID() const { return MNonFrequentData.Read().ParticleID(); }
+	void SetParticleID(const FParticleID& ParticleID, bool bInvalidate = true)
+	{
+		MNonFrequentData.Modify(bInvalidate, MDirtyFlags, Proxy, [ParticleID](auto& Data) { Data.SetParticleID(ParticleID); });
 	}
 
 	const TRotation<T, d>& R() const { return MXR.Read().R(); }
