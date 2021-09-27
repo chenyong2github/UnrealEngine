@@ -5,12 +5,11 @@
 #include "Containers/Array.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestTypes.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "HAL/CriticalSection.h"
-#include "HAL/Event.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeRWLock.h"
 #include "Templates/RefCounting.h"
-#include <atomic>
 
 namespace UE::DerivedData::Private
 {
@@ -18,7 +17,7 @@ namespace UE::DerivedData::Private
 /** A one-time-use event to work around the lack of condition variables. */
 struct FRequestBarrierEvent : public FRefCountBase
 {
-	FEventRef Event{EEventMode::ManualReset};
+	FLazyEvent Event{EEventMode::ManualReset};
 };
 
 class FRequestOwnerShared final : public IRequestOwner, public FRequestBase
@@ -136,7 +135,7 @@ void FRequestOwnerShared::EndBarrier(ERequestBarrierFlags Flags)
 	}
 	if (LocalBarrierEvent)
 	{
-		LocalBarrierEvent->Event->Trigger();
+		LocalBarrierEvent->Event.Trigger();
 	}
 }
 
@@ -195,7 +194,7 @@ void FRequestOwnerShared::Cancel()
 		}
 		else
 		{
-			LocalBarrierEvent->Event->Wait();
+			LocalBarrierEvent->Event.Wait();
 		}
 	}
 }
@@ -234,7 +233,7 @@ void FRequestOwnerShared::Wait()
 		}
 		else
 		{
-			LocalBarrierEvent->Event->Wait();
+			LocalBarrierEvent->Event.Wait();
 		}
 	}
 }

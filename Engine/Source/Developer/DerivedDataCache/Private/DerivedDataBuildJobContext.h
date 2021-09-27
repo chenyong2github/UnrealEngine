@@ -9,7 +9,7 @@
 #include "DerivedDataBuildFunction.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataRequest.h"
-#include "HAL/Event.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "Memory/MemoryFwd.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/Function.h"
@@ -82,7 +82,7 @@ private:
 	FBuildOutputBuilder& OutputBuilder;
 	TMap<FString, FCbObject> Constants;
 	TMap<FString, FCompressedBuffer> Inputs;
-	FEventRef BuildCompleteEvent{EEventMode::ManualReset};
+	UE::FLazyEvent BuildCompleteEvent{EEventMode::ManualReset};
 	TUniqueFunction<void ()> OnEndBuild;
 	IRequestOwner* Owner{};
 	uint64 RequiredMemory{};

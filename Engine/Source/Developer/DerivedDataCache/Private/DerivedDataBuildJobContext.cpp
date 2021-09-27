@@ -130,7 +130,7 @@ void FBuildJobContext::BeginBuild(IRequestOwner& InOwner, TUniqueFunction<void (
 void FBuildJobContext::EndBuild()
 {
 	OnEndBuild();
-	BuildCompleteEvent->Trigger();
+	BuildCompleteEvent.Trigger();
 	Owner = nullptr;
 }
 
@@ -203,7 +203,7 @@ void FBuildJobContext::Cancel()
 
 void FBuildJobContext::Wait()
 {
-	BuildCompleteEvent->Wait();
+	BuildCompleteEvent.Wait();
 }
 
 } // UE::DerivedData::Private

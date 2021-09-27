@@ -7,7 +7,7 @@
 #include "DerivedDataBuildFunctionRegistry.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
-#include "HAL/Event.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopeLock.h"
 #include "Tasks/Task.h"
@@ -38,73 +38,6 @@ static void ScheduleAsyncStep(IBuildJob& Job, IRequestOwner& Owner, const TCHAR*
 	Owner.Begin(Request);
 	TaskEvent.Trigger();
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static FEvent* GPretriggeredEvent;
-
-/** On-demand allocated event to reduce total event allocation */
-class FLazyManualResetEvent
-{
-public:
-	static void Init()
-	{
-		static FEventRef PretriggeredEvent(EEventMode::ManualReset);
-		PretriggeredEvent->Trigger();
-		GPretriggeredEvent = PretriggeredEvent.Get();
-	}
-
-	~FLazyManualResetEvent()
-	{
-		// Sequential consistency might not be needed here in case performance matters
-		FEvent* Event = AtomicEvent.load();
-		if ((Event != nullptr) & (Event != GPretriggeredEvent))
-		{
-			FPlatformProcess::ReturnSynchEventToPool(Event);
-		}
-	}
-
-	void Wait()
-	{
-		FEvent* Event = AtomicEvent.load(std::memory_order_relaxed);
-
-		if (Event == nullptr)
-		{
-			FEvent* NewEvent = FPlatformProcess::GetSynchEventFromPool(/* manual reset */ true);
-			if (AtomicEvent.compare_exchange_strong(/* out */ Event, NewEvent))
-			{
-				Event = NewEvent;
-			}
-			else
-			{
-				FPlatformProcess::ReturnSynchEventToPool(NewEvent);
-			}
-		}
-
-		Event->Wait();
-	}
-
-	void Trigger()
-	{
-		FEvent* Event = AtomicEvent.load(std::memory_order_relaxed);
-
-		if (Event == nullptr)
-		{
-			if (AtomicEvent.compare_exchange_strong(/* out */ Event, GPretriggeredEvent))
-			{
-				return;
-			}
-		}
-
-		if (Event != GPretriggeredEvent)
-		{
-			Event->Trigger();
-		}
-	}
-
-private:
-	std::atomic<FEvent*> AtomicEvent{nullptr};
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -140,7 +73,7 @@ private:
 		IBuildJob& Job;
 		IRequestOwner& Owner;
 		const uint64 MemoryEstimate;
-		FLazyManualResetEvent Event;
+		UE::FLazyEvent Event{EEventMode::ManualReset};
 		std::atomic_flag bClaimed = ATOMIC_FLAG_INIT;
 	};
 
@@ -366,7 +299,6 @@ class FBuildScheduler final : public IBuildScheduler
 
 IBuildScheduler* CreateBuildScheduler()
 {
-	FLazyManualResetEvent::Init();
 	return new FBuildScheduler();
 }
 

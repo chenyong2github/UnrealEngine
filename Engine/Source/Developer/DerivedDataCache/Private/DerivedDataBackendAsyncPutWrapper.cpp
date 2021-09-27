@@ -5,9 +5,9 @@
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "Experimental/Async/LazyEvent.h"
 #include "MemoryDerivedDataBackend.h"
 #include "Tasks/Task.h"
-#include <atomic>
 
 namespace UE::DerivedData::Backends
 {
@@ -352,13 +352,7 @@ public:
 	inline FDerivedDataAsyncWrapperRequest(IRequestOwner& InOwner, TUniqueFunction<void (bool bCancel)>&& InFunction)
 		: Owner(InOwner)
 		, Function(MoveTemp(InFunction))
-		, DoneEvent(FPlatformProcess::GetSynchEventFromPool(true))
 	{
-	}
-
-	inline ~FDerivedDataAsyncWrapperRequest() final
-	{
-		FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
 	}
 
 	inline void Start(EPriority Priority)
@@ -366,8 +360,7 @@ public:
 		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(1);
 		Owner.Begin(this);
 
-		DoneEvent->Reset();
-		WorkNotFinishedCounter.fetch_add(1, std::memory_order_relaxed);
+		DoneEvent.Reset();
 		GDDCIOThreadPool->AddQueuedWork(this, GetPriority(Priority));
 	}
 
@@ -377,8 +370,7 @@ public:
 		Owner.End(this, [this, bCancel]
 		{
 			Function(bCancel);
-			WorkNotFinishedCounter.fetch_sub(1, std::memory_order_release);
-			DoneEvent->Trigger();
+			DoneEvent.Trigger();
 		});
 		// DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
 		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
@@ -396,7 +388,7 @@ public:
 
 	inline void Cancel() final
 	{
-		if (WorkNotFinishedCounter.load(std::memory_order_acquire) > 0)
+		if (!DoneEvent.Wait(0))
 		{
 			if (GDDCIOThreadPool->RetractQueuedWork(this))
 			{
@@ -404,14 +396,15 @@ public:
 			}
 			else
 			{
-				Wait();
+				FScopeCycleCounter Scope(GetStatId());
+				DoneEvent.Wait();
 			}
 		}
 	}
 
 	inline void Wait() final
 	{
-		if (WorkNotFinishedCounter.load(std::memory_order_acquire) > 0)
+		if (!DoneEvent.Wait(0))
 		{
 			if (GDDCIOThreadPool->RetractQueuedWork(this))
 			{
@@ -420,7 +413,7 @@ public:
 			else
 			{
 				FScopeCycleCounter Scope(GetStatId());
-				DoneEvent->Wait();
+				DoneEvent.Wait();
 			}
 		}
 	}
@@ -458,10 +451,9 @@ private:
 	}
 
 private:
-	std::atomic<uint32> WorkNotFinishedCounter{0};
 	IRequestOwner& Owner;
 	TUniqueFunction<void (bool bCancel)> Function;
-	FEvent* DoneEvent;
+	FLazyEvent DoneEvent{EEventMode::ManualReset};
 };
 
 void FDerivedDataBackendAsyncPutWrapper::Put(
