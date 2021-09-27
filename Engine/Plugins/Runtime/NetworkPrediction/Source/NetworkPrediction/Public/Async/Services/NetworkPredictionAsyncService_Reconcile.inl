@@ -87,7 +87,7 @@ public:
 							CorrectionData.Instances.Reset();
 						}
 
-						TAsyncCorrectionData<AsyncModelDef>::FInstance& CorrectionInstance = CorrectionData.Instances.AddDefaulted_GetRef();
+						typename TAsyncCorrectionData<AsyncModelDef>::FInstance& CorrectionInstance = CorrectionData.Instances.AddDefaulted_GetRef();
 						CorrectionInstance.Index = idx;
 						CorrectionInstance.InputCmd = RecvData.InputCmd;
 						CorrectionInstance.NetState = RecvData.NetState;
