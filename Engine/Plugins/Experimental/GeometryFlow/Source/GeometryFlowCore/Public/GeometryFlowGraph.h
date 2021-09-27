@@ -39,6 +39,8 @@ class GEOMETRYFLOWCORE_API FGraph
 {
 public:
 
+	~FGraph();
+
 	struct FHandle
 	{
 		static const int32 InvalidHandle = -1;
@@ -80,22 +82,50 @@ public:
 	TSet<FHandle> GetNodesWithNoConnectedInputs() const;
 
 	template<typename T>
-	EGeometryFlowResult EvaluateResult(FHandle Node, 
-									   FString OutputName, 
-									   T& Storage, 
-									   int32 StorageTypeIdentifier,
-									   FProgressCancel* Progress)
+	EGeometryFlowResult EvaluateResult(
+		FHandle Node,
+		FString OutputName,
+		T& Storage,
+		int32 StorageTypeIdentifier,
+		TUniquePtr<FEvaluationInfo>& EvaluationInfo,
+		bool bTryTakeResult)
 	{
-		TUniquePtr<FEvaluationInfo> EvalInfo = MakeUnique<FEvaluationInfo>();
-		EvalInfo->Progress = Progress;
-		return EvaluateResult(Node, OutputName, Storage, StorageTypeIdentifier, EvalInfo);
+		EvaluateLock.Lock();
+		EGeometryFlowResult Result;
+		Result = EvaluateResultInternal(Node, OutputName, Storage, StorageTypeIdentifier, EvaluationInfo, bTryTakeResult);
+		EvaluateLock.Unlock();
+		return Result;
 	}
 
+	template<typename NodeType>
+	EGeometryFlowResult ApplyToNodeOfType(
+		FHandle NodeHandle, 
+		TFunctionRef<void(NodeType&)> ApplyFunc)
+	{
+		TSafeSharedPtr<FNode> FoundNode = FindNode(NodeHandle);
+		if (FoundNode)
+		{
+			NodeType* Value = static_cast<NodeType*>(FoundNode.Get());
+			ApplyFunc(*Value);
+			return EGeometryFlowResult::Ok;
+		}
+		return EGeometryFlowResult::NodeDoesNotExist;
+	}
+
+
+
+	void ConfigureCachingStrategy(ENodeCachingStrategy NewStrategy);
+	EGeometryFlowResult SetNodeCachingStrategy(FHandle NodeHandle, ENodeCachingStrategy Strategy);
+
+	FString DebugDumpGraph(TFunction<bool(TSafeSharedPtr<FNode>)> IncludeNodeFn) const;
+
+protected:
+
 	template<typename T>
-	EGeometryFlowResult EvaluateResult(
-		FHandle Node, 
-		FString OutputName, 
-		T& Storage, 
+	EGeometryFlowResult EvaluateResultInternal(
+		FHandle Node,
+		FString OutputName,
+		T& Storage,
 		int32 StorageTypeIdentifier,
 		TUniquePtr<FEvaluationInfo>& EvaluationInfo,
 		bool bTryTakeResult)
@@ -132,30 +162,6 @@ public:
 	}
 
 
-	template<typename NodeType>
-	EGeometryFlowResult ApplyToNodeOfType(
-		FHandle NodeHandle, 
-		TFunctionRef<void(NodeType&)> ApplyFunc)
-	{
-		TSafeSharedPtr<FNode> FoundNode = FindNode(NodeHandle);
-		if (FoundNode)
-		{
-			NodeType* Value = static_cast<NodeType*>(FoundNode.Get());
-			ApplyFunc(*Value);
-			return EGeometryFlowResult::Ok;
-		}
-		return EGeometryFlowResult::NodeDoesNotExist;
-	}
-
-
-
-	void ConfigureCachingStrategy(ENodeCachingStrategy NewStrategy);
-	EGeometryFlowResult SetNodeCachingStrategy(FHandle NodeHandle, ENodeCachingStrategy Strategy);
-
-	FString DebugDumpGraph(TFunction<bool(TSafeSharedPtr<FNode>)> IncludeNodeFn) const;
-
-protected:
-
 	friend class FGeometryFlowExecutor;
 
 	int32 NodeCounter = 0;
@@ -188,6 +194,8 @@ protected:
 		FString OutputName, 
 		TUniquePtr<FEvaluationInfo>& EvaluationInfo,
 		bool bStealOutputData = false);
+
+	FCriticalSection EvaluateLock;
 };
 
 

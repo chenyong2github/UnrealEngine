@@ -16,6 +16,11 @@ namespace
 	// Can't seem to use threadpool in GeometryProcessingUnitTests. GThreadPool is null.
 }
 
+FGraph::~FGraph()
+{
+	EvaluateLock.Lock();    // Wait for any EvaluateResult to finish and also prevent any new evals from happening while destructing
+}
+
 TSafeSharedPtr<FNode> FGraph::FindNode(FHandle NodeHandle) const
 {
 	const FNodeInfo* Found = AllNodes.Find(NodeHandle);
@@ -311,15 +316,19 @@ TSafeSharedPtr<IData> FGraph::ComputeOutputData(
 	FNamedDataMap DataOut;
 	DataOut.Add(OutputName);
 	
-	FindNodeLock(NodeHandle)->WriteLock();
+	TSafeSharedPtr<FRWLock> NodeLock = FindNodeLock(NodeHandle);
+	NodeLock->WriteLock();
 	Node->Evaluate(DataIn, DataOut, EvaluationInfo);
-	FindNodeLock(NodeHandle)->WriteUnlock();
+	NodeLock->WriteUnlock();
 
-	EvaluationInfo->CountEvaluation(Node.Get());
-
-	if (EvaluationInfo && EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+	if (EvaluationInfo)
 	{
-		return nullptr;
+		EvaluationInfo->CountEvaluation(Node.Get());
+
+		if (EvaluationInfo->Progress && EvaluationInfo->Progress->Cancelled())
+		{
+			return nullptr;
+		}
 	}
 
 	// collect (and optionally take/steal) desired Output data
