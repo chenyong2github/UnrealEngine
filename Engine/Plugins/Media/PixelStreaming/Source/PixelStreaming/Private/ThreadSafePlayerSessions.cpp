@@ -66,17 +66,17 @@ bool FThreadSafePlayerSessions::IsInSignallingThread() const
 
 int FThreadSafePlayerSessions::GetNumPlayers() const
 {
-    SUBMIT_TASK_WITH_RETURN(int, GetNumPlayers_Internal);
+    SUBMIT_TASK_WITH_RETURN(int, GetNumPlayers_SignallingThread);
 }
 
 IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink(FPlayerId PlayerId) const
 {
-    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(IPixelStreamingAudioSink*, GetAudioSink_Internal, PlayerId)
+    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(IPixelStreamingAudioSink*, GetAudioSink_SignallingThread, PlayerId)
 }
 
 IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink() const
 {
-    SUBMIT_TASK_WITH_RETURN(IPixelStreamingAudioSink*, GetUnlistenedAudioSink_Internal)
+    SUBMIT_TASK_WITH_RETURN(IPixelStreamingAudioSink*, GetUnlistenedAudioSink_SignallingThread)
 }
 
 bool FThreadSafePlayerSessions::IsQualityController(FPlayerId PlayerId) const
@@ -90,33 +90,37 @@ bool FThreadSafePlayerSessions::IsQualityController(FPlayerId PlayerId) const
 
 void FThreadSafePlayerSessions::SetQualityController(FPlayerId PlayerId)
 {
-    FScopeLock Lock(&QualityControllerCS);
-    this->QualityControllingPlayer = PlayerId;
+    {
+        FScopeLock Lock(&QualityControllerCS);
+        this->QualityControllingPlayer = PlayerId;
+    }
+
+    SUBMIT_TASK_WITH_PARAMS(SetQualityController_SignallingThread, PlayerId)
 }
 
 bool FThreadSafePlayerSessions::SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
 {
-    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(bool, SendMessage_Internal, PlayerId, Type, Descriptor)
+    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(bool, SendMessage_SignallingThread, PlayerId, Type, Descriptor)
 }
 
 void FThreadSafePlayerSessions::SendLatestQP(FPlayerId PlayerId, int LatestQP) const
 {
-    SUBMIT_TASK_WITH_PARAMS(SendLatestQP_Internal, PlayerId, LatestQP)
+    SUBMIT_TASK_WITH_PARAMS(SendLatestQP_SignallingThread, PlayerId, LatestQP)
 }
 
 void FThreadSafePlayerSessions::SendFreezeFrameTo(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const
 {
-    SUBMIT_TASK_WITH_PARAMS(SendFreezeFrameTo_Internal, PlayerId, JpegBytes)
+    SUBMIT_TASK_WITH_PARAMS(SendFreezeFrameTo_SignallingThread, PlayerId, JpegBytes)
 }
 
 void FThreadSafePlayerSessions::SendFreezeFrame(const TArray64<uint8>& JpegBytes)
 {
-    SUBMIT_TASK_WITH_PARAMS(SendFreezeFrame_Internal, JpegBytes)
+    SUBMIT_TASK_WITH_PARAMS(SendFreezeFrame_SignallingThread, JpegBytes)
 }
 
 void FThreadSafePlayerSessions::SendUnfreezeFrame()
 {
-    SUBMIT_TASK_NO_PARAMS(SendUnfreezeFrame_Internal)
+    SUBMIT_TASK_NO_PARAMS(SendUnfreezeFrame_SignallingThread)
 }
 
 webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession(FPlayerId PlayerId, 
@@ -124,53 +128,53 @@ webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession(
     webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
     FSignallingServerConnection* SignallingServerConnection)
 {
-    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(webrtc::PeerConnectionInterface*, CreatePlayerSession_Internal, PlayerId, PeerConnectionFactory, PeerConnectionConfig, SignallingServerConnection)
+    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(webrtc::PeerConnectionInterface*, CreatePlayerSession_SignallingThread, PlayerId, PeerConnectionFactory, PeerConnectionConfig, SignallingServerConnection)
 }
 
 void FThreadSafePlayerSessions::DeleteAllPlayerSessions()
 {
-    SUBMIT_TASK_NO_PARAMS(DeleteAllPlayerSessions_Internal)
+    SUBMIT_TASK_NO_PARAMS(DeleteAllPlayerSessions_SignallingThread)
 }
 
 int FThreadSafePlayerSessions::DeletePlayerSession(FPlayerId PlayerId)
 {
-    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(int, DeletePlayerSession_Internal, PlayerId)
+    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(int, DeletePlayerSession_SignallingThread, PlayerId)
 }
 
 void FThreadSafePlayerSessions::DisconnectPlayer(FPlayerId PlayerId, const FString& Reason)
 {
-    SUBMIT_TASK_WITH_PARAMS(DisconnectPlayer_Internal, PlayerId, Reason)
+    SUBMIT_TASK_WITH_PARAMS(DisconnectPlayer_SignallingThread, PlayerId, Reason)
 }
 
 FPixelStreamingDataChannelObserver* FThreadSafePlayerSessions::GetDataChannelObserver(FPlayerId PlayerId)
 {
-    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(FPixelStreamingDataChannelObserver*, GetDataChannelObserver_Internal, PlayerId)
+    SUBMIT_TASK_WITH_PARAMS_AND_RETURN(FPixelStreamingDataChannelObserver*, GetDataChannelObserver_SignallingThread, PlayerId)
 }
 
 void FThreadSafePlayerSessions::SendMessageAll(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
 {
-    SUBMIT_TASK_WITH_PARAMS(SendMessageAll_Internal, Type, Descriptor)
+    SUBMIT_TASK_WITH_PARAMS(SendMessageAll_SignallingThread, Type, Descriptor)
 }
 
 void FThreadSafePlayerSessions::SendLatestQPAllPlayers(int LatestQP) const
 {
-    SUBMIT_TASK_WITH_PARAMS(SendLatestQPAllPlayers_Internal, LatestQP)
+    SUBMIT_TASK_WITH_PARAMS(SendLatestQPAllPlayers_SignallingThread, LatestQP)
 }
 
 void FThreadSafePlayerSessions::OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
 {
-    SUBMIT_TASK_WITH_PARAMS(OnRemoteIceCandidate_Internal, PlayerId, SdpMid, SdpMLineIndex, Sdp)
+    SUBMIT_TASK_WITH_PARAMS(OnRemoteIceCandidate_SignallingThread, PlayerId, SdpMid, SdpMLineIndex, Sdp)
 }
 
 /////////////////////////
 // Internal methods
 /////////////////////////
 
-void FThreadSafePlayerSessions::OnRemoteIceCandidate_Internal(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
+void FThreadSafePlayerSessions::OnRemoteIceCandidate_SignallingThread(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
-    FPlayerSession* Player = this->GetPlayerSession_Internal(PlayerId);
+    FPlayerSession* Player = this->GetPlayerSession_SignallingThread(PlayerId);
 	if(Player)
 	{
 		Player->OnRemoteIceCandidate(SdpMid, SdpMLineIndex, Sdp);
@@ -181,7 +185,7 @@ void FThreadSafePlayerSessions::OnRemoteIceCandidate_Internal(FPlayerId PlayerId
 	}
 }
 
-IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink_Internal() const
+IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink_SignallingThread() const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -198,11 +202,11 @@ IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink_Inte
 	return nullptr;
 }
 
-IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink_Internal(FPlayerId PlayerId) const
+IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink_SignallingThread(FPlayerId PlayerId) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
-    FPlayerSession* PlayerSession = this->GetPlayerSession_Internal(PlayerId);
+    FPlayerSession* PlayerSession = this->GetPlayerSession_SignallingThread(PlayerId);
 
     if(PlayerSession)
     {
@@ -212,7 +216,7 @@ IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetAudioSink_Internal(FPlay
     return nullptr;
 }
 
-void FThreadSafePlayerSessions::SendLatestQPAllPlayers_Internal(int LatestQP) const
+void FThreadSafePlayerSessions::SendLatestQPAllPlayers_SignallingThread(int LatestQP) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -222,11 +226,11 @@ void FThreadSafePlayerSessions::SendLatestQPAllPlayers_Internal(int LatestQP) co
     }
 }
 
-void FThreadSafePlayerSessions::SendLatestQP_Internal(FPlayerId PlayerId, int LatestQP) const
+void FThreadSafePlayerSessions::SendLatestQP_SignallingThread(FPlayerId PlayerId, int LatestQP) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
-	FPlayerSession* Session = this->GetPlayerSession_Internal(PlayerId);
+	FPlayerSession* Session = this->GetPlayerSession_SignallingThread(PlayerId);
 	if(Session)
 	{
 		return Session->SendVideoEncoderQP(LatestQP);
@@ -237,13 +241,13 @@ void FThreadSafePlayerSessions::SendLatestQP_Internal(FPlayerId PlayerId, int La
 	}
 }
 
-bool FThreadSafePlayerSessions::SendMessage_Internal(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
+bool FThreadSafePlayerSessions::SendMessage_SignallingThread(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
     UE_LOG(PixelStreamer, Log, TEXT("SendMessage to: %s | Type: %d | Message: %s"), *PlayerId, static_cast<int32>(Type), *Descriptor);
 
-    FPlayerSession* PlayerSession = this->GetPlayerSession_Internal(PlayerId);
+    FPlayerSession* PlayerSession = this->GetPlayerSession_SignallingThread(PlayerId);
 
     if(PlayerSession)
     {
@@ -256,7 +260,7 @@ bool FThreadSafePlayerSessions::SendMessage_Internal(FPlayerId PlayerId, PixelSt
     }
 }
 
-void FThreadSafePlayerSessions::SendMessageAll_Internal(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
+void FThreadSafePlayerSessions::SendMessageAll_SignallingThread(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -268,11 +272,11 @@ void FThreadSafePlayerSessions::SendMessageAll_Internal(PixelStreamingProtocol::
     }
 }
 
-FPixelStreamingDataChannelObserver* FThreadSafePlayerSessions::GetDataChannelObserver_Internal(FPlayerId PlayerId)
+FPixelStreamingDataChannelObserver* FThreadSafePlayerSessions::GetDataChannelObserver_SignallingThread(FPlayerId PlayerId)
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
-    FPlayerSession* Player = this->GetPlayerSession_Internal(PlayerId);
+    FPlayerSession* Player = this->GetPlayerSession_SignallingThread(PlayerId);
     if(Player)
     {
         return &Player->GetDataChannelObserver();
@@ -284,11 +288,11 @@ FPixelStreamingDataChannelObserver* FThreadSafePlayerSessions::GetDataChannelObs
     }
 }
 
-void FThreadSafePlayerSessions::DisconnectPlayer_Internal(FPlayerId PlayerId, const FString& Reason)
+void FThreadSafePlayerSessions::DisconnectPlayer_SignallingThread(FPlayerId PlayerId, const FString& Reason)
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
-    FPlayerSession* Player = this->GetPlayerSession_Internal(PlayerId);
+    FPlayerSession* Player = this->GetPlayerSession_SignallingThread(PlayerId);
     if(Player != nullptr)
     {
         Player->DisconnectPlayer(Reason);
@@ -299,14 +303,14 @@ void FThreadSafePlayerSessions::DisconnectPlayer_Internal(FPlayerId PlayerId, co
     }
 }
 
-int FThreadSafePlayerSessions::GetNumPlayers_Internal() const
+int FThreadSafePlayerSessions::GetNumPlayers_SignallingThread() const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
     return this->Players.Num();
 }
 
-void FThreadSafePlayerSessions::SendFreezeFrame_Internal(const TArray64<uint8>& JpegBytes)
+void FThreadSafePlayerSessions::SendFreezeFrame_SignallingThread(const TArray64<uint8>& JpegBytes)
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -319,7 +323,7 @@ void FThreadSafePlayerSessions::SendFreezeFrame_Internal(const TArray64<uint8>& 
 	}
 }
 
-void FThreadSafePlayerSessions::SendUnfreezeFrame_Internal()
+void FThreadSafePlayerSessions::SendUnfreezeFrame_SignallingThread()
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -331,11 +335,11 @@ void FThreadSafePlayerSessions::SendUnfreezeFrame_Internal()
     }
 }
 
-void FThreadSafePlayerSessions::SendFreezeFrameTo_Internal(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const
+void FThreadSafePlayerSessions::SendFreezeFrameTo_SignallingThread(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
-    FPlayerSession* Player = this->GetPlayerSession_Internal(PlayerId);
+    FPlayerSession* Player = this->GetPlayerSession_SignallingThread(PlayerId);
 
     if(Player != nullptr)
     {
@@ -347,7 +351,7 @@ void FThreadSafePlayerSessions::SendFreezeFrameTo_Internal(FPlayerId PlayerId, c
     }
 }
 
-FPlayerSession* FThreadSafePlayerSessions::GetPlayerSession_Internal(FPlayerId PlayerId) const
+FPlayerSession* FThreadSafePlayerSessions::GetPlayerSession_SignallingThread(FPlayerId PlayerId) const
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -358,7 +362,7 @@ FPlayerSession* FThreadSafePlayerSessions::GetPlayerSession_Internal(FPlayerId P
     return nullptr;
 }
 
-void FThreadSafePlayerSessions::DeleteAllPlayerSessions_Internal()
+void FThreadSafePlayerSessions::DeleteAllPlayerSessions_SignallingThread()
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -376,6 +380,9 @@ void FThreadSafePlayerSessions::DeleteAllPlayerSessions_Internal()
         {
             Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
         }
+
+        // Player deleted, tell all our C++ listeners.
+        this->OnPlayerDeleted.Broadcast(PlayerId);
     }
 
     this->Players.Empty();
@@ -389,15 +396,15 @@ void FThreadSafePlayerSessions::DeleteAllPlayerSessions_Internal()
 
 
 
-int FThreadSafePlayerSessions::DeletePlayerSession_Internal(FPlayerId PlayerId)
+int FThreadSafePlayerSessions::DeletePlayerSession_SignallingThread(FPlayerId PlayerId)
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
-    FPlayerSession* Player = this->GetPlayerSession_Internal(PlayerId);
+    FPlayerSession* Player = this->GetPlayerSession_SignallingThread(PlayerId);
 	if (!Player)
 	{
 		UE_LOG(PixelStreamer, VeryVerbose, TEXT("Failed to delete player %s - that player was not found."), *PlayerId);
-		return this->GetNumPlayers_Internal();
+		return this->GetNumPlayers_SignallingThread();
 	}
 
 	bool bWasQualityController = this->IsQualityController(PlayerId);
@@ -411,6 +418,9 @@ int FThreadSafePlayerSessions::DeletePlayerSession_Internal(FPlayerId PlayerId)
 	{
 		Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
 	}
+
+    // Player deleted, tell all our C++ listeners.
+    this->OnPlayerDeleted.Broadcast(PlayerId);
 
 	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	if (Players.Num() == 0)
@@ -427,16 +437,16 @@ int FThreadSafePlayerSessions::DeletePlayerSession_Internal(FPlayerId PlayerId)
 		// Quality Controller session has been just removed, set quality control to any of remaining sessions
 		for(auto& Entry : this->Players)
         {
-            this->SetQualityController_Internal(Entry.Key);
+            this->SetQualityController_SignallingThread(Entry.Key);
             break;
         }
 		
 	}
 
-    return this->GetNumPlayers_Internal();
+    return this->GetNumPlayers_SignallingThread();
 }
 
-webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession_Internal(FPlayerId PlayerId, 
+webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession_SignallingThread(FPlayerId PlayerId, 
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory, 
     webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
     FSignallingServerConnection* SignallingServerConnection)
@@ -475,7 +485,7 @@ webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession_
 
 	if(bMakeQualityController)
 	{
-        this->SetQualityController_Internal(PlayerId);
+        this->SetQualityController_SignallingThread(PlayerId);
 	}
 
 	if (UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates())
@@ -486,7 +496,7 @@ webrtc::PeerConnectionInterface* FThreadSafePlayerSessions::CreatePlayerSession_
     return PeerConnection.get();
 }
 
-void FThreadSafePlayerSessions::SetQualityController_Internal(FPlayerId PlayerId)
+void FThreadSafePlayerSessions::SetQualityController_SignallingThread(FPlayerId PlayerId)
 {
     checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
 
@@ -499,6 +509,8 @@ void FThreadSafePlayerSessions::SetQualityController_Internal(FPlayerId PlayerId
             this->QualityControllingPlayer = PlayerId;
         }
 		
+        // Let any listeners know the quality controller has changed
+        this->OnQualityControllerChanged.Broadcast(PlayerId);
 
 		UE_LOG(PixelStreamer, Log, TEXT("Quality controller is now PlayerId=%s."), *PlayerId);
 

@@ -40,11 +40,6 @@ void FPixelStreamingDataChannelObserver::OnStateChange()
 	if (State == webrtc::DataChannelInterface::DataState::kOpen)
 	{
 		this->OnDataChannelOpen.Broadcast(this->PlayerId, this->DataChannel.get());
-
-		// Once the data channel is opened, we check to see if we have any
-		// freeze frame chunks cached. If so then we send them immediately
-		// to the browser for display, without waiting for the video.
-		//this->Streamer.SendCachedFreezeFrameTo(this->PlayerId);
 	}
 }
         

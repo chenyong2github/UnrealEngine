@@ -13,6 +13,7 @@
 #include "PixelStreamingAudioDeviceModule.h"
 #include "PixelStreamingAudioSink.h"
 #include "WebRtcObservers.h"
+#include "PixelStreamingVideoSources.h"
 
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
@@ -39,6 +40,9 @@ FStreamer::FStreamer(const FString& InSignallingServerUrl, const FString& InStre
 
 	StartWebRtcSignallingThread();
 	ConnectToSignallingServer();
+
+	this->PlayerSessions.OnQualityControllerChanged.AddRaw(this, &FStreamer::OnQualityControllerChanged);
+	this->PlayerSessions.OnPlayerDeleted.AddRaw(this, &FStreamer::PostPlayerDeleted);
 }
 
 FStreamer::~FStreamer()
@@ -124,10 +128,20 @@ void FStreamer::ConnectToSignallingServer()
 
 void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
 {
-	if (bStreamingStarted && VideoSource)
+	if (bStreamingStarted)
 	{
-		VideoSource->OnFrameReady(FrameBuffer);
+		this->VideoSources.OnFrameReady(FrameBuffer);
 	}
+}
+
+void FStreamer::OnQualityControllerChanged(FPlayerId PlayerId)
+{
+	this->VideoSources.SetQualityController(PlayerId);
+}
+
+void FStreamer::PostPlayerDeleted(FPlayerId PlayerId)
+{
+	this->VideoSources.DeleteVideoSource(PlayerId);
 }
 
 void FStreamer::OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
@@ -154,12 +168,12 @@ void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptio
 	
 	if(PeerConnection != nullptr)
 	{
-		// Bind to the on data channel open delegate (we use this as the earliest time peer is ready for freeze frame)
+		// Bind to the OnDataChannelOpen delegate (we use this as the earliest time peer is ready for freeze frame)
 		FPixelStreamingDataChannelObserver* DataChannelObserver = this->PlayerSessions.GetDataChannelObserver(PlayerId);
 		check(DataChannelObserver);
 		DataChannelObserver->OnDataChannelOpen.AddRaw(this, &FStreamer::OnDataChannelOpen );
 
-		this->AddStreams(PeerConnection);
+		this->AddStreams(PlayerId, PeerConnection);
 		this->HandleOffer(PlayerId, PeerConnection, MoveTemp(Sdp));
 		this->ForceKeyFrame();
 	}
@@ -189,21 +203,15 @@ void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface*
 
 	auto OnCreateAnswerSuccess = [this, PlayerId, PeerConnection, SetLocalDescriptionObserver](webrtc::SessionDescriptionInterface* SDP)
 	{
-		// #REFACTOR : With WebRTC branch-heads/66, the sink of video capturer will be added as a direct result
+		// Note from Luke about WebRTC: the sink of video capturer will be added as a direct result
 		// of `PeerConnection->SetLocalDescription()` call but video encoder will be created later on
-		// the first frame pushed into the pipeline (by capturer).
-		// We need to associate this `FPlayerSession` instance with the right instance of `FVideoEncoder` for quality
-		// control, the problem is that `FVideoEncoder` is created asynchronously on demand and there's no
-		// clean way to give it the right instance of `FPlayerSession`.
-		// The plan is to assume that encoder instances are created in the same order as we call
-		// `PeerConnection->SetLocalDescription()`, as these calls are done from the same thread and internally
-		// WebRTC uses `std::vector` for capturer's sinks and then iterates over it to create encoder instances,
-		// and there's no obvious reason why it can be replaced by an unordered container in the future.
-		// So before adding a new sink to the capturer (`PeerConnection->SetLocalDescription()`) we push
-		// this `FPlayerSession` into encoder factory queue and pop it out of the queue when encoder instance
-		// is created. Unfortunately I (Andriy) don't see a way to put `check`s to verify it works correctly.
-		
-		this->VideoEncoderFactory->QueueNextEncoderOwner(PlayerId);
+		// when the first frame is pushed into the WebRTC pipeline (by the capturer calling `OnFrame`).
+
+		// Note from Luke about Pixel Streaming: Internally we associate `FPlayerId` with each `FVideoCapturer` and 
+		// pass an "initialisation frame" that contains `FPlayerId` through `OnFrame` to the encoder. 
+		// This initialization frame establishes the correct association between the player and `FPixelStreamingVideoEncoder`. 
+		// The reason we want this association between encoder<->peer is is so that the quality controlling peer 
+		// can change encoder bitrate etc, while the other peers cannot.
 
 		PeerConnection->SetLocalDescription(SetLocalDescriptionObserver, SDP);
 
@@ -409,13 +417,14 @@ void FStreamer::DeleteAllPlayerSessions()
 void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 {
 	int NumRemainingPlayers = this->PlayerSessions.DeletePlayerSession(PlayerId);
+
 	if(NumRemainingPlayers == 0)
 	{
 		this->bStreamingStarted = false;
 	}
 }
 
-void FStreamer::AddStreams(webrtc::PeerConnectionInterface* PeerConnection)
+void FStreamer::AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection)
 {
 	check(PeerConnection);
 
@@ -434,19 +443,15 @@ void FStreamer::AddStreams(webrtc::PeerConnectionInterface* PeerConnection)
 	// Use PeerConnection's transceiver API to add create audio/video tracks will correct directionality.
 	// These tracks are only thin wrappers around the underlying sources (the sources are shared among all peer's tracks).
 	// As per the WebRTC source: "The same source can be used by multiple VideoTracks."
-	this->SetupVideoTrack(PeerConnection, VideoStreamId, VideoTrackLabel);
+	this->SetupVideoTrack(PlayerId, PeerConnection, VideoStreamId, VideoTrackLabel);
 	this->SetupAudioTrack(PeerConnection, AudioStreamId, AudioTrackLabel);
 
 }
 
-void FStreamer::SetupVideoTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel)
+void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel)
 {
-	// Create one and only one VideoCapturer for Pixel Streaming.
-	// Video capturuer is actually a "VideoSource" in WebRTC terminology.
-	if (!VideoSource)
-	{
-		VideoSource = new FVideoCapturer();
-	}
+	// Create a video source for this player
+	webrtc::VideoTrackSourceInterface* VideoSource = this->VideoSources.CreateVideoSource(PlayerId);
 
 	// Create video track
 	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = PeerConnectionFactory->CreateVideoTrack(TCHAR_TO_UTF8(*VideoTrackLabel), VideoSource);

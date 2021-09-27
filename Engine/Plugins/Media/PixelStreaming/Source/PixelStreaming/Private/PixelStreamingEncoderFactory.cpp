@@ -18,22 +18,20 @@ FPixelStreamingVideoEncoderFactory::~FPixelStreamingVideoEncoderFactory()
 {
 }
 
-void FPixelStreamingVideoEncoderFactory::QueueNextEncoderOwner(FPlayerId OwnerPlayer)
-{
-	// Lock during adding a new player
-	FScopeLock FactoryLock(&this->FactoryCS);
-	PendingPlayerSessions.Enqueue(OwnerPlayer);
-}
-
 std::vector<webrtc::SdpVideoFormat> FPixelStreamingVideoEncoderFactory::GetSupportedFormats() const
 {
 	const bool bForceVP8 = PixelStreamingSettings::IsForceVP8();
 
 	std::vector<webrtc::SdpVideoFormat> video_formats;
 	if (bForceVP8)
+	{
 		video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
+	}
 	else
+	{
 		video_formats.push_back(CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
+	}
+
 	return video_formats;
 }
 
@@ -53,15 +51,10 @@ std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::Create
 	{
 		// Lock during encoder creation
 		FScopeLock FactoryLock(&this->FactoryCS);
-
-		FPlayerId AssociatedPlayerId = INVALID_PLAYER_ID;
-		bool bHasSession = PendingPlayerSessions.Dequeue(AssociatedPlayerId);
-		checkf(bHasSession && AssociatedPlayerId != INVALID_PLAYER_ID, TEXT("No player session associated with encoder instance."));
-
-		UE_LOG(PixelStreamer, Log, TEXT("Encoder factory addded encoder for PlayerId=%s"), *AssociatedPlayerId);
-
-		auto VideoEncoder = std::make_unique<FPixelStreamingVideoEncoder>(AssociatedPlayerId, this->PixelStreamingSessions, &EncoderContext);
+		auto VideoEncoder = std::make_unique<FPixelStreamingVideoEncoder>(this->PixelStreamingSessions, &EncoderContext);
 		this->ActiveEncoders.Add(VideoEncoder.get());
+		
+		UE_LOG(PixelStreamer, Log, TEXT("Encoder factory addded new encoder - soon to be associated with a player."));
 		return VideoEncoder;
 	}
 }

@@ -5,12 +5,116 @@
 #include "WebRTCIncludes.h"
 #include "VideoEncoderInput.h"
 #include "RHI.h"
+#include "PlayerId.h"
 
-class FPixelStreamingFrameBuffer : public webrtc::VideoFrameBuffer
+/*
+* FPixelStreamingFrameBufferWrapper
+* Wraps the WebRTC VideoFrameBuffer and adds some general Pixel Streaming methods such as an encoder usage hint.
+*/
+
+class FPixelStreamingFrameBufferWrapper : public webrtc::VideoFrameBuffer
 {
+	public:
+
+	// How the encoder should use this frame buffer.
+	enum class EncoderUsageHint
+	{
+		Initialize,
+		Encode
+	};
+	
+	public:
+		virtual EncoderUsageHint GetUsageHint() const = 0;
+
+ protected:
+ 	virtual ~FPixelStreamingFrameBufferWrapper() override = default;
+
+};
+
+/*
+* ----------------------------------------------------------------------------------
+*/
+
+/*
+* FPixelStreamingInitFrameBuffer
+* A special frame that is only sent to initialize the encoder with PixelStreaming specific information such as the player id.
+*/
+class FPixelStreamingInitFrameBuffer : public FPixelStreamingFrameBufferWrapper
+{
+    public:
+        FPixelStreamingInitFrameBuffer(FPlayerId InPlayerId, int InWidth, int InHeight)
+            : PlayerId(InPlayerId)
+            , Width(InWidth)
+            , Height(InHeight)
+        {}
+        
+        virtual ~FPixelStreamingInitFrameBuffer() = default;
+
+		EncoderUsageHint GetUsageHint() const override
+		{
+			return EncoderUsageHint::Initialize;
+		}
+
+        // Begin webrtc::VideoFrameBuffer interface
+        virtual webrtc::VideoFrameBuffer::Type type() const
+        {
+            return webrtc::VideoFrameBuffer::Type::kNative;
+        }
+
+        virtual int width() const
+        {
+            return this->Width;
+        }
+
+        virtual int height() const
+        {
+            return this->Height;
+        }
+
+        virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420()
+        {
+            return webrtc::I420Buffer::Create(this->Width, this->Height);
+        }
+
+        virtual const webrtc::I420BufferInterface* GetI420() const
+        {
+            return nullptr;
+        }
+
+        // End webrtc::VideoFrameBuffer interface
+
+        FPlayerId GetPlayerId()
+        {
+            return this->PlayerId;
+        }
+
+	public:
+		DECLARE_DELEGATE(FOnEncoderInitialized)
+	    FOnEncoderInitialized OnEncoderInitialized;
+
+    private:
+        FPlayerId PlayerId;
+        int Width;
+        int Height;
+};
+
+/*
+* ----------------------------------------------------------------------------------
+*/
+
+/*
+* FPixelStreamingFrameBuffer
+* A WebRTC framebuffer that we use to pass along the UE texture we wish to encode.
+*/
+
+class FPixelStreamingFrameBuffer : public FPixelStreamingFrameBufferWrapper
+{
+
 public:
 	explicit FPixelStreamingFrameBuffer(FTexture2DRHIRef SourceTexture, AVEncoder::FVideoEncoderInputFrame* InputFrame, TSharedPtr<AVEncoder::FVideoEncoderInput> InputVideoEncoderInput)
-		: TextureRef(SourceTexture), Frame(InputFrame), VideoEncoderInput(InputVideoEncoderInput)
+		: TextureRef(SourceTexture)
+		, Frame(InputFrame)
+		, VideoEncoderInput(InputVideoEncoderInput)
 	{
 		Frame->Obtain();
 	}
@@ -18,6 +122,11 @@ public:
 	~FPixelStreamingFrameBuffer()
 	{
 		Frame->Release();
+	}
+
+	EncoderUsageHint GetUsageHint() const override
+	{
+		return EncoderUsageHint::Encode;
 	}
 
 	//

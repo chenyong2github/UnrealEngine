@@ -19,7 +19,8 @@ class FPixelStreamingVideoEncoder;
 // A. WebRTC wants an encoder per peer, so it can change the bitrate for each underlying encoder based on that peer's network
 // conditions. However, in Pixel Streaming we have one "controlling peer" and the other peers simply get the video
 // quality of the controlling peer. For this reason we need the video encoders that WebRTC creates to all point
-// to the same underlying encoder. We could give an encoder per peer; however, this is slow and uses up NVENC sessions.
+// to the same underlying encoder. 
+// Note: We could give an encoder per peer; however, this uses up our limited hardware encoder sessions (e.g. typically you can run only 3 encoding sessions on NVIDIA Geforce cards).
 struct FEncoderContext
 {
 	FPixelStreamingVideoEncoderFactory* Factory;
@@ -33,13 +34,6 @@ class FPixelStreamingVideoEncoderFactory : public webrtc::VideoEncoderFactory
 public:
 	FPixelStreamingVideoEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions);
 	virtual ~FPixelStreamingVideoEncoderFactory() override;
-
-	/**
-	* This is used from the FPlayerSession::OnSuccess to let the factory know
-	* what session the next created encoder should belong to.
-	* It allows us to get the right FPlayerSession <-> FVideoEncoder relationship
-	*/
-	void QueueNextEncoderOwner(FPlayerId OwnerPlayer);
 
 	virtual std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;
 
@@ -57,7 +51,6 @@ public:
 
 private:
 	FEncoderContext EncoderContext;
-	TQueue<FPlayerId> PendingPlayerSessions;
 
 	// Each encoder is associated with a particular player (peer).
 	TArray<FPixelStreamingVideoEncoder*> ActiveEncoders;

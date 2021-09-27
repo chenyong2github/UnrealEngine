@@ -9,6 +9,7 @@
 #include "HAL/Thread.h"
 #include "IPixelStreamingSessions.h"
 #include "ThreadSafePlayerSessions.h"
+#include "PixelStreamingVideoSources.h"
 
 
 class FVideoCapturer;
@@ -27,7 +28,6 @@ public:
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
 	void SendUnfreezeFrame();
 	void ForceKeyFrame();
-	void OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterface* DataChannel);
 
 	bool IsStreaming() const { return bStreamingStarted; }
 	void SetStreamingStarted(bool started) { bStreamingStarted = started; }
@@ -71,10 +71,13 @@ private:
 	void ModifyAudioTransceiverDirection(webrtc::PeerConnectionInterface* PeerConnection);
 	void DeletePlayerSession(FPlayerId PlayerId);
 	void DeleteAllPlayerSessions();
-	void AddStreams(webrtc::PeerConnectionInterface* PeerConnection);
-	void SetupVideoTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel);
+	void AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection);
+	void SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel);
 	void SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const AudioStreamId, FString const AudioTrackLabel);
 	void HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp);
+	void OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterface* DataChannel);
+	void OnQualityControllerChanged(FPlayerId PlayerId);
+	void PostPlayerDeleted(FPlayerId PlayerId);
 
 private:
 	FString SignallingServerUrl;
@@ -89,12 +92,11 @@ private:
 	webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
 
 	FPixelStreamingVideoEncoderFactory* VideoEncoderFactory;
-	rtc::scoped_refptr<FVideoCapturer> VideoSource;
+	FPixelStreamingVideoSources VideoSources;
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
 	cricket::AudioOptions AudioSourceOptions;
 	
-	// When we send a freeze frame we retain the data to handle connection
-	// scenarios.
+	// When we send a freeze frame we retain the data so we send freeze frame to new peers if they join during a freeze frame.
 	TArray64<uint8> CachedJpegBytes;
 
 	FThreadSafeBool bStreamingStarted = false;
