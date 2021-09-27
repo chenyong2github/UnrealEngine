@@ -154,6 +154,71 @@ void UMorphTarget::RemoveEmptyMorphTargets()
 	}
 }
 
+TUniquePtr<FFinishBuildMorphTargetData> UMorphTarget::CreateFinishBuildMorphTargetData() const
+{
+	return MakeUnique<FFinishBuildMorphTargetData>();
+}
+
+void FFinishBuildMorphTargetData::ApplyEditorData(USkeletalMesh * SkeletalMesh) const
+{
+	check(IsInGameThread());
+	//Return if we do not need to apply data
+	if (!bApplyMorphTargetsData)
+	{
+		return;
+	}
+	
+	FSkeletalMeshModel * SkelMeshModel = SkeletalMesh->GetImportedModel();
+	check(SkelMeshModel);
+	
+	TMap<FName, UMorphTarget*> ExistingMorphTargets;
+	for (UMorphTarget* MorphTarget : SkeletalMesh->GetMorphTargets())
+	{
+		ExistingMorphTargets.Add(MorphTarget->GetFName(), MorphTarget);
+	}
+	
+	int32 MorphTargetNumber = MorphLODModelsPerTargetName.Num();
+	TArray<UMorphTarget*> ToDeleteMorphTargets;
+	ToDeleteMorphTargets.Append(SkeletalMesh->GetMorphTargets());
+	SkeletalMesh->GetMorphTargets().Empty();
+	//Rebuild the MorphTarget object
+	for (const TPair<FName, TArray<FMorphTargetLODModel>>& TargetNameAndMorphLODModels : MorphLODModelsPerTargetName)
+	{
+		FName MorphTargetName = TargetNameAndMorphLODModels.Key;
+		UMorphTarget * MorphTarget = ExistingMorphTargets.FindRef(MorphTargetName);
+		if (!MorphTarget)
+		{
+			MorphTarget = NewObject<UMorphTarget>(SkeletalMesh, MorphTargetName);
+			check(MorphTarget);
+		}
+		else
+		{
+			ToDeleteMorphTargets.Remove(MorphTarget);
+		}
+		MorphTarget->EmptyMorphLODModels();
+		SkeletalMesh->GetMorphTargets().Add(MorphTarget);
+		const TArray<FMorphTargetLODModel>&MorphTargetLODModels = TargetNameAndMorphLODModels.Value;
+		int32 MorphLODModelNumber = MorphTargetLODModels.Num();
+		MorphTarget->GetMorphLODModels().AddDefaulted(MorphLODModelNumber);
+		for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
+		{
+			MorphTarget->GetMorphLODModels()[MorphDataIndex] = MorphTargetLODModels[MorphDataIndex];
+		}
+	}
+	//Rebuild the mapping and rehook the curve data
+	SkeletalMesh->InitMorphTargets();
+	
+	for (UMorphTarget* ToDeleteMorphTarget : ToDeleteMorphTargets)
+	{
+		ToDeleteMorphTarget->BaseSkelMesh = nullptr;
+		ToDeleteMorphTarget->EmptyMorphLODModels();
+		
+		//Move the unused asset in the transient package and mark it pending kill
+		ToDeleteMorphTarget->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		ToDeleteMorphTarget->MarkPendingKill();
+	}
+}
+
 #endif // WITH_EDITOR
 
 

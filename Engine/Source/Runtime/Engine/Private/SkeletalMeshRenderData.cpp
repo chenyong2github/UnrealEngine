@@ -376,31 +376,19 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 
 				//Get the morph target data, we put it in the compilation context to apply them in the game thread before the InitResources
 				{
-					if (!ensureMsgf(!ContextPtr->FinishBuildInternalData.bApplyMorphTargetsData, TEXT("Error in FSkeletalMeshRenderData::Cache. The compilation context morph targets data was already set.")))
+					if (Owner->GetMorphTargets().Num() > 0)
 					{
-						ContextPtr->FinishBuildInternalData.MorphLODModelsPerTargetName.Empty();
-						ContextPtr->FinishBuildInternalData.bApplyMorphTargetsData = false;
+						ContextPtr->FinishBuildInternalData.MorphTargetData = Owner->GetMorphTargets()[0]->CreateFinishBuildMorphTargetData();
 					}
-
-					int32 MorphTargetNumber = 0;
-					Ar << MorphTargetNumber;
-					ContextPtr->FinishBuildInternalData.MorphLODModelsPerTargetName.Reserve(MorphTargetNumber);
-					ContextPtr->FinishBuildInternalData.bApplyMorphTargetsData = true;
-					//We cannot serialize directly the UMorphTarget with a FMemoryArchive. This is not supported.
-					for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
+					else
 					{
-						FName MorphTargetName = NAME_None;
-						Ar << MorphTargetName;
-						TArray<FMorphTargetLODModel>& MorphTargetLODModels = ContextPtr->FinishBuildInternalData.MorphLODModelsPerTargetName.FindOrAdd(MorphTargetName);
-						int32 MorphLODModelNumber = 0;
-						Ar << MorphLODModelNumber;
-						MorphTargetLODModels.Empty(MorphLODModelNumber);
-						MorphTargetLODModels.AddDefaulted(MorphLODModelNumber);
-						for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
-						{
-							Ar << MorphTargetLODModels[MorphDataIndex];
-						}
+						// Create transient MorphTarget to initialize the FinishBuildInternalData
+						UMorphTarget * DefaultMorphTarget = NewObject<UMorphTarget>();
+						ContextPtr->FinishBuildInternalData.MorphTargetData = DefaultMorphTarget->CreateFinishBuildMorphTargetData();
+						DefaultMorphTarget->Rename(nullptr, GetTransientPackage());
+						DefaultMorphTarget->MarkPendingKill();
 					}
+					ContextPtr->FinishBuildInternalData.MorphTargetData->LoadFromMemoryArchive(Ar);
 				}
 
 				//Serialize the LODModel sections since they are dependent on the reduction
@@ -490,8 +478,6 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				Ar << MorphTargetNumber;
 				for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
 				{
-					FName MorphTargetName = Owner->GetMorphTargets()[MorphTargetIndex]->GetFName();
-					Ar << MorphTargetName;
 					Owner->GetMorphTargets()[MorphTargetIndex]->SerializeMemoryArchive(Ar);
 				}
 				//No need to serialize the morph target mapping since we will rebuild the mapping when loading a ddc
