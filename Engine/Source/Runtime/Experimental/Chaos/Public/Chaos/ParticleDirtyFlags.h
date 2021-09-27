@@ -28,6 +28,26 @@ class FName;
 namespace Chaos
 {
 
+struct FParticleID
+{
+	int32 GlobalID = INDEX_NONE; //Set by global ID system
+	int32 LocalID = INDEX_NONE;	//Set by local client. This can only be used in cases where the LocalID will be set in the same way (for example we always spawn N client only particles)
+
+	bool operator<(const FParticleID& Other) const
+	{
+		if (GlobalID == Other.GlobalID)
+		{
+			return LocalID < Other.LocalID;
+		}
+		return GlobalID < Other.GlobalID;
+	}
+
+	bool operator==(const FParticleID& Other) const
+	{
+		return GlobalID == Other.GlobalID && LocalID == Other.LocalID;
+	}
+};
+
 using FKinematicTarget = TKinematicTarget<FReal, 3>;
 
 enum class EResimType: uint8;
@@ -482,6 +502,13 @@ public:
 		MResimType = InType;
 	}
 
+	void SetParticleID(const FParticleID& ParticleID)
+	{
+		MParticleID = ParticleID;
+	}
+
+	const FParticleID& ParticleID() const { return MParticleID; }
+
 	bool EnabledDuringResim() const { return MEnabledDuringResim; }
 	void SetEnabledDuringResim(bool bEnabledDuringResim) { MEnabledDuringResim = bEnabledDuringResim; }
 
@@ -493,6 +520,7 @@ private:
 	TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe> MGeometry;
 	FUniqueIdx MUniqueIdx;
 	FSpatialAccelerationIdx MSpatialIdx;
+	FParticleID MParticleID;
 	EResimType MResimType;
 	bool MEnabledDuringResim;
 #if CHAOS_DEBUG_NAME

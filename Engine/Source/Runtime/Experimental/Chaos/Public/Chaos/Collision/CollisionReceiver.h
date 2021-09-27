@@ -77,29 +77,34 @@ namespace Chaos
 		 */
 		void ProcessCollisions()
 		{
-			FPBDCollisionConstraints::FConstraintAppendScope AppendHelper = CollisionConstraints.BeginAppendScope();
-
 			{
-				AppendHelper.ReserveSingle(NumSingle.load(std::memory_order_relaxed));
-				AppendHelper.ReserveSingleSwept(NumSingleSwept.load(std::memory_order_relaxed));
-			}
 
-			{
-				for(FPerParticleData& Data : ParticleCache)
+				FPBDCollisionConstraints::FConstraintAppendScope AppendHelper = CollisionConstraints.BeginAppendScope();
+
 				{
-					AppendHelper.Append(MoveTemp(Data.Single));
-					AppendHelper.Append(MoveTemp(Data.SingleSwept));
-					Data.Reset();
+					AppendHelper.ReserveSingle(NumSingle.load(std::memory_order_relaxed));
+					AppendHelper.ReserveSingleSwept(NumSingleSwept.load(std::memory_order_relaxed));
+				}
+
+				{
+					for (FPerParticleData& Data : ParticleCache)
+					{
+						AppendHelper.Append(MoveTemp(Data.Single));
+						AppendHelper.Append(MoveTemp(Data.SingleSwept));
+						Data.Reset();
+					}
+				}
+
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(QSTAT_ResetParticleCache);
+					ParticleCache.Reset();
+
+					NumSingle.store(0, std::memory_order_relaxed);
+					NumSingleSwept.store(0, std::memory_order_relaxed);
 				}
 			}
 
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(QSTAT_ResetParticleCache);
-				ParticleCache.Reset();
-
-				NumSingle.store(0, std::memory_order_relaxed);
-				NumSingleSwept.store(0, std::memory_order_relaxed);
-			}
+			CollisionConstraints.SortConstraints();
 
 			if(ResimCache)
 			{

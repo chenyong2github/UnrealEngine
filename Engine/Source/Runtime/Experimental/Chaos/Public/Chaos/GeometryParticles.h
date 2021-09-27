@@ -254,34 +254,6 @@ namespace Chaos
 
 	void CHAOS_API UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy);
 
-
-	struct FParticleID
-	{
-		int32 GlobalID;	//Set by global ID system
-		int32 LocalID;		//Set by local client. This can only be used in cases where the LocalID will be set in the same way (for example we always spawn N client only particles)
-
-		bool operator<(const FParticleID& Other) const
-		{
-			if(GlobalID == Other.GlobalID)
-			{
-				return LocalID < Other.LocalID;
-			}
-			return GlobalID < Other.GlobalID;
-		}
-
-		bool operator==(const FParticleID& Other) const
-		{
-			return GlobalID == Other.GlobalID && LocalID == Other.LocalID;
-		}
-
-		FParticleID()
-		: GlobalID(INDEX_NONE)
-		, LocalID(INDEX_NONE)
-		{
-		}
-	};
-
-
 	FORCEINLINE uint32 GetTypeHash(const FParticleID& Unique)
 	{
 		return ::GetTypeHash(Unique.GlobalID);
