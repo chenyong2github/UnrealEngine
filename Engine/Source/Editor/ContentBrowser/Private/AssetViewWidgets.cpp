@@ -256,8 +256,10 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 			.SmallView(!InTileOrListItem->CanDisplayPrimitiveTools())
 			.Visibility(InTileOrListItem, &T::GetThumbnailEditModeUIVisibility)
 		];
-	}
 
+		InTileOrListItem->HandleSourceControlStateChanged();
+	}
+	
 	return ItemContentsOverlay;
 }
 
@@ -2235,6 +2237,8 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 			.ToolTipText( TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateSP(this, &SAssetColumnItem::GetAssetTagText, ColumnName) ) )
 			.Text( TAttribute<FText>::Create( TAttribute<FText>::FGetter::CreateSP(this, &SAssetColumnItem::GetAssetTagText, ColumnName) ) );
 	}
+
+	HandleSourceControlStateChanged();
 
 	return SNew(SBox)
 		.Padding( ColumnItemPadding )
