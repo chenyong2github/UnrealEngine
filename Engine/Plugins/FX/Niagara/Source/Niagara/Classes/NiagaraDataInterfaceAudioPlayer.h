@@ -91,6 +91,8 @@ public:
 	/** If true then this data interface only processes sounds during active gameplay. This is useful when you are working in the preview window and the sounds annoy you. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
 	bool bOnlyActiveDuringGameplay = false;
+
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
 	
 	//UObject Interface
