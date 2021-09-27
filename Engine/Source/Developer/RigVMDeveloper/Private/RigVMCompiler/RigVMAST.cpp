@@ -2937,13 +2937,16 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 					}
 					else if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ChildPin->GetNode()))
 					{
-						const FRigVMASTProxy ChildPinProxy = InPinProxy.GetSibling(ChildPin); 
-						if (ShouldRecursePin(ChildPinProxy))
+						if(ChildPin != InPinProxy.GetSubject<URigVMPin>())
 						{
-							FRigVMASTProxy SourceSourcePinProxy = FindSourcePin(ChildPinProxy, OutTraversalInfo);
-							if(SourceSourcePinProxy.IsValid())
+							const FRigVMASTProxy ChildPinProxy = InPinProxy.GetSibling(ChildPin); 
+							if (ShouldRecursePin(ChildPinProxy))
 							{
-								SourcePinProxy = SourceSourcePinProxy;
+								FRigVMASTProxy SourceSourcePinProxy = FindSourcePin(ChildPinProxy, OutTraversalInfo);
+								if(SourceSourcePinProxy.IsValid())
+								{
+									SourcePinProxy = SourceSourcePinProxy;
+								}
 							}
 						}
 					}

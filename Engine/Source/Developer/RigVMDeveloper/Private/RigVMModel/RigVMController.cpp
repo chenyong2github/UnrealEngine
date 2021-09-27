@@ -11223,6 +11223,7 @@ void URigVMController::RemovePinsDuringRepopulate(URigVMNode* InNode, TArray<URi
 			{
 				Pin->Rename(nullptr, OrphanedRootPin, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 				RootPin->SubPins.Remove(Pin);
+				EnsurePinValidity(Pin, false);
 				AddSubPin(OrphanedRootPin, Pin);
 			}
 		}
