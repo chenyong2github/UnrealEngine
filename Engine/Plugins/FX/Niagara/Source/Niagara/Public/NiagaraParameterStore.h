@@ -664,6 +664,12 @@ FORCEINLINE bool FNiagaraParameterStore::SetParameterValue(const FVector3d& InVa
 }
 
 template<>
+FORCEINLINE bool FNiagaraParameterStore::SetParameterValue(const FVector4d& InValue, const FNiagaraVariable& Param, bool bAdd)
+{
+	return SetParameterValue((FVector4f)InValue, Param, bAdd);
+}
+
+template<>
 FORCEINLINE bool FNiagaraParameterStore::SetParameterValue(const FQuat4d& InValue, const FNiagaraVariable& Param, bool bAdd)
 {
 	return SetParameterValue((FQuat4f)InValue, Param, bAdd);
