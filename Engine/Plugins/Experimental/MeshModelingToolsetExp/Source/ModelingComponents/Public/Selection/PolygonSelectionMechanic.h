@@ -19,7 +19,7 @@ class FPolygonSelectionMechanicSelectionChange;
 class UPersistentMeshSelection;
 class UMouseHoverBehavior;
 class URectangleMarqueeMechanic;
-class USingleClickInputBehavior;
+class USingleClickOrDragInputBehavior;
 
 using UE::Geometry::FDynamicMeshAABBTree3;
 PREDECLARE_USE_GEOMETRY_CLASS(FCompactMaps);
@@ -339,7 +339,7 @@ protected:
 	TObjectPtr<UMouseHoverBehavior> HoverBehavior;
 
 	UPROPERTY()
-	TObjectPtr<USingleClickInputBehavior> ClickBehavior;
+	TObjectPtr<USingleClickOrDragInputBehavior> ClickOrDragBehavior;
 
 	UPROPERTY()
 	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic;
