@@ -25,7 +25,7 @@ public:
 	virtual bool ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy, const uint32 Channel) override;
 
 protected:
-	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int ContextNum, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures);
+	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int ContextNum, const uint32 Channel, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures);
 
 private:
 	float ZNear;
@@ -34,12 +34,9 @@ private:
 	class FViewData
 	{
 	public:
-		FViewData() = default;
-		~FViewData()
-		{ Release(); }
+		bool Initialize(const FString& InFile, FCriticalSection& DllAccessCS);
+		void Release(FCriticalSection& DllAccessCS);
 
-		bool Initialize(const FString& InFile);
-		void Release();
 	public:
 		dpCamera   Camera;
 		// unique context for each eye (hold warp settings, different for each eye)
