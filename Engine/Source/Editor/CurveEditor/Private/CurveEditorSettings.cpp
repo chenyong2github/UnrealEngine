@@ -66,3 +66,77 @@ void UCurveEditorSettings::SetZoomPosition(ECurveEditorZoomPosition InZoomPositi
 	}
 }
 
+TOptional<FLinearColor> UCurveEditorSettings::GetCustomColor(UClass* InClass, const FString& InPropertyName) const
+{
+	TOptional<FLinearColor> Color;
+	for (const FCustomColorForChannel& CustomColor : CustomColors)
+	{
+		UClass* Class = CustomColor.Object.LoadSynchronous();
+		if (Class == InClass && CustomColor.PropertyName == InPropertyName)
+		{
+			Color = CustomColor.Color;
+			break;
+		}
+	}
+	return Color;
+}
+void UCurveEditorSettings::SetCustomColor(UClass* InClass, const FString& InPropertyName, FLinearColor InColor)
+{
+	TOptional<FLinearColor> Color;
+	for (FCustomColorForChannel& CustomColor : CustomColors)
+	{
+		UClass* Class = CustomColor.Object.LoadSynchronous();
+		if (Class == InClass && CustomColor.PropertyName == InPropertyName)
+		{
+			CustomColor.Color = InColor;
+			SaveConfig(); 
+			return;
+		}
+	}
+	FCustomColorForChannel NewColor;
+	NewColor.Object = InClass;
+	NewColor.PropertyName = InPropertyName;
+	NewColor.Color = InColor;
+	CustomColors.Add(NewColor);
+	SaveConfig();
+}
+
+void UCurveEditorSettings::DeleteCustomColor(UClass* InClass, const FString& InPropertyName)
+{
+	TOptional<FLinearColor> Color;
+	for (int32 Index = 0;Index < CustomColors.Num(); ++Index)
+	{
+		FCustomColorForChannel& CustomColor = CustomColors[Index];
+		UClass* Class = CustomColor.Object.LoadSynchronous();
+		if (Class == InClass && CustomColor.PropertyName == InPropertyName)
+		{
+			CustomColors.RemoveAt(Index);
+			SaveConfig();
+			return;
+		}
+	}
+}
+
+FLinearColor UCurveEditorSettings::GetNextRandomColor()
+{
+	static TArray<FLinearColor> IndexedColor;
+	static int32 NextIndex = 0;
+	if (IndexedColor.Num() == 0)
+	{
+		IndexedColor.Add(FLinearColor(FColor::Magenta));
+		IndexedColor.Add(FLinearColor(FColor::Cyan));
+		IndexedColor.Add(FLinearColor(FColor::Turquoise));
+		IndexedColor.Add(FLinearColor(FColor::Orange));
+		IndexedColor.Add(FLinearColor(FColor::Yellow));
+		IndexedColor.Add(FLinearColor(FColor::Purple));
+		IndexedColor.Add(FLinearColor(FColor::Silver));
+		IndexedColor.Add(FLinearColor(FColor::Emerald));
+		IndexedColor.Add(FLinearColor(FColor::White));
+		IndexedColor.Add(FLinearColor(FColor::Red));
+		IndexedColor.Add(FLinearColor(FColor::Green));
+		IndexedColor.Add(FLinearColor(FColor::Blue));
+	}
+	FLinearColor Color = IndexedColor[NextIndex];
+	NextIndex = (++NextIndex) % IndexedColor.Num();
+	return Color;
+}

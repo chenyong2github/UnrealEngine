@@ -28,6 +28,7 @@
 #include "Factories.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SCurveEditor.h" // for access to LogCurveEditor
+#include "Widgets/Colors/SColorPicker.h"
 
 #define LOCTEXT_NAMESPACE "CurveEditor"
 
@@ -373,6 +374,11 @@ void FCurveEditor::BindCommands()
 		CommandList->MapAction(FCurveEditorCommands::Get().StraightenTangents, FExecuteAction::CreateSP(this, &FCurveEditor::StraightenSelection), FCanExecuteAction::CreateSP(this, &FCurveEditor::CanFlattenOrStraightenSelection) );
 	}
 
+	// Curve Colors
+	{
+		CommandList->MapAction(FCurveEditorCommands::Get().SetRandomCurveColorsForSelected, FExecuteAction::CreateSP(this, &FCurveEditor::SetRandomCurveColorsForSelected), FCanExecuteAction());
+		CommandList->MapAction(FCurveEditorCommands::Get().SetCurveColorsForSelected, FExecuteAction::CreateSP(this, &FCurveEditor::SetCurveColorsForSelected), FCanExecuteAction());
+	}
 
 	// Tangent Visibility
 	{
@@ -405,7 +411,7 @@ void FCurveEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FCurveEditor::MakeToolActive, FCurveEditorToolID::Unset()),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda( [this]{ return ActiveTool.IsSet() == false; } ) );
-		
+
 	// Bind commands for Editor Extensions
 	for (TSharedRef<ICurveEditorExtension> Extension : EditorExtensions)
 	{
@@ -1544,6 +1550,54 @@ void FCurveEditor::StraightenSelection()
 bool FCurveEditor::CanFlattenOrStraightenSelection() const
 {
 	return Selection.Count() > 0;
+}
+
+void FCurveEditor::SetRandomCurveColorsForSelected()
+{
+	for (TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveData)
+	{
+		if (FCurveModel* Curve = CurvePair.Value.Get())
+		{
+			UObject* Object = nullptr;
+			FString Name;
+			Curve->GetCurveColorObjectAndName(&Object, Name);
+			if (Object)
+			{
+				FLinearColor Color = UCurveEditorSettings::GetNextRandomColor();
+				Settings->SetCustomColor(Object->GetClass(), Name, Color);
+				Curve->SetColor(Color);
+			}
+		}
+	}
+}
+
+void FCurveEditor::SetCurveColorsForSelected()
+{
+	if (CurveData.Num() > 0)
+	{
+		TMap<FCurveModelID, TUniquePtr<FCurveModel>>::TIterator It = CurveData.CreateIterator();
+		FColorPickerArgs PickerArgs;
+		PickerArgs.bUseAlpha = false;
+		PickerArgs.InitialColorOverride = It->Value->GetColor();
+		PickerArgs.OnColorCommitted.BindLambda([this](FLinearColor NewColor) {
+			for (TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveData)
+			{
+				if (FCurveModel* Curve = CurvePair.Value.Get())
+				{
+					UObject* Object = nullptr;
+					FString Name;
+					Curve->GetCurveColorObjectAndName(&Object, Name);
+					if (Object)
+					{
+						Settings->SetCustomColor(Object->GetClass(), Name, NewColor);
+						Curve->SetColor(NewColor);
+					}
+				}
+			}
+		});
+		
+		OpenColorPicker(PickerArgs);
+	}
 }
 
 bool FCurveEditor::IsToolActive(const FCurveEditorToolID InToolID) const

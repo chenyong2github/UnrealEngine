@@ -46,6 +46,7 @@ public:
 	{
 		return WeakSection.Get();
 	}
+	virtual void GetCurveColorObjectAndName(UObject** OutObject, FString& OutName) const override;
 
 protected:
 

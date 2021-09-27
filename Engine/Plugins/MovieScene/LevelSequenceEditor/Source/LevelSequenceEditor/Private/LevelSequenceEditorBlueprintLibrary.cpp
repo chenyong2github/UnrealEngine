@@ -16,6 +16,9 @@
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+//For custom colors on channels, stored in editor pref's
+#include "CurveEditorSettings.h"
+
 namespace
 {
 	static TWeakPtr<ISequencer> CurrentSequencer;
@@ -405,6 +408,82 @@ void ULevelSequenceEditorBlueprintLibrary::SetLockLevelSequence(bool bLock)
 			}
 
 			Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::Unknown);
+		}
+	}
+}
+
+bool ULevelSequenceEditorBlueprintLibrary::HasCustomColorForChannel(UClass* Class, const FString& Identifier)
+{
+	const UCurveEditorSettings* Settings = GetDefault<UCurveEditorSettings>();
+	if (Settings)
+	{
+		TOptional<FLinearColor> OptColor = Settings->GetCustomColor(Class, Identifier);
+		return OptColor.IsSet();
+	}
+	return false;
+}
+
+FLinearColor ULevelSequenceEditorBlueprintLibrary::GetCustomColorForChannel(UClass* Class, const FString& Identifier)
+{
+	FLinearColor Color(FColor::White);
+	const UCurveEditorSettings* Settings = GetDefault<UCurveEditorSettings>();
+	if (Settings)
+	{
+		TOptional<FLinearColor> OptColor = Settings->GetCustomColor(Class, Identifier);
+		if (OptColor.IsSet())
+		{
+			return OptColor.GetValue();
+		}
+	}
+	return Color;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetCustomColorForChannel(UClass* Class, const FString& Identifier, const FLinearColor& NewColor)
+{
+	UCurveEditorSettings* Settings = GetMutableDefault<UCurveEditorSettings>();
+	if (Settings)
+	{
+		Settings->SetCustomColor(Class, Identifier, NewColor);
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetCustomColorForChannels(UClass* Class, const TArray<FString>& Identifiers, const TArray<FLinearColor>& NewColors)
+{
+	if (Identifiers.Num() != NewColors.Num())
+	{
+		return;
+	}
+	UCurveEditorSettings* Settings = GetMutableDefault<UCurveEditorSettings>();
+	if (Settings)
+	{
+		for (int32 Index = 0; Index < Identifiers.Num(); ++Index)
+		{
+			const FString& Identifier = Identifiers[Index];
+			const FLinearColor& NewColor = NewColors[Index];
+			Settings->SetCustomColor(Class, Identifier, NewColor);
+		}
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::DeleteColorForChannels(UClass* Class, FString& Identifier)
+{
+	UCurveEditorSettings* Settings = GetMutableDefault<UCurveEditorSettings>();
+	if (Settings)
+	{
+		Settings->DeleteCustomColor(Class, Identifier);
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetRandomColorForChannels(UClass* Class, const TArray<FString>& Identifiers)
+{
+	UCurveEditorSettings* Settings = GetMutableDefault<UCurveEditorSettings>();
+	if (Settings)
+	{
+		for (int32 Index = 0; Index < Identifiers.Num(); ++Index)
+		{
+			const FString& Identifier = Identifiers[Index];
+			FLinearColor NewColor = UCurveEditorSettings::GetNextRandomColor();
+			Settings->SetCustomColor(Class, Identifier, NewColor);
 		}
 	}
 }

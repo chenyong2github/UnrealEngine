@@ -237,7 +237,10 @@ public:
 
 	UMovieSceneControlRigParameterSection();
 
+	//UMovieSceneSection virtuals
 	virtual void SetBlendType(EMovieSceneBlendType InBlendType) override;
+	virtual UObject* GetImplicitObjectOwner() override;
+
 #if WITH_EDITOR
 	//Function to save control rig key when recording.
 	void RecordControlRigKey(FFrameNumber FrameNumber, bool bSetDefault, bool bDoAutoKey);

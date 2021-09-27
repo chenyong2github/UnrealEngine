@@ -66,6 +66,9 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleAutoFrameCurveEditor;
 	TSharedPtr<FUICommandInfo> ToggleShowCurveEditorCurveToolTips;
 
+	TSharedPtr<FUICommandInfo> SetRandomCurveColorsForSelected;
+	TSharedPtr<FUICommandInfo> SetCurveColorsForSelected;
+
 	TSharedPtr<FUICommandInfo> AddKeyHovered;
 	TSharedPtr<FUICommandInfo> PasteKeysHovered;
 

@@ -571,6 +571,32 @@ UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTi
 	return nullptr;
 }
 
+UObject* UMovieSceneSection::GetImplicitObjectOwner()
+{
+	if (UMovieSceneTrack* Track = GetTypedOuter<UMovieSceneTrack>())
+	{
+		if (UMovieScene* MovieScene = Track->GetTypedOuter<UMovieScene>())
+		{
+			FGuid Guid;
+			if (MovieScene->FindTrackBinding(*Track, Guid))
+			{
+				if (FMovieSceneSpawnable* MovieSceneSpanwable = MovieScene->FindSpawnable(Guid))
+				{
+					return MovieSceneSpanwable->GetObjectTemplate();
+				}
+				else if (FMovieScenePossessable* MovieScenePossessable = MovieScene->FindPossessable(Guid))
+				{
+					if (MovieScenePossessable->GetPossessedObjectClass() && MovieScenePossessable->GetPossessedObjectClass()->GetDefaultObject())
+					{
+						return MovieScenePossessable->GetPossessedObjectClass()->GetDefaultObject();
+					}
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
 
 void UMovieSceneSection::TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys)
 {

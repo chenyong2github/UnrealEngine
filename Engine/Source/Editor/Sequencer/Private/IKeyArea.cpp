@@ -13,6 +13,7 @@
 #include "ISequencer.h"
 #include "ISequencerSection.h"
 #include "MovieSceneSequence.h"
+#include "CurveEditorSettings.h"
 
 IKeyArea::IKeyArea(TWeakPtr<ISequencerSection> InSection, FMovieSceneChannelHandle InChannel)
 	: TreeSerialNumber(0)
@@ -292,10 +293,23 @@ TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> 
 			CurveModel->SetShortDisplayName(DisplayText);
 			CurveModel->SetLongDisplayName(LongDisplayName);
 			CurveModel->SetIntentionName(IntentName);
-
 			if (Color.IsSet())
 			{
 				CurveModel->SetColor(Color.GetValue());
+			}
+
+			//Use editor preference color if it's been set, this function is const so we can't set just Color optional
+			const UCurveEditorSettings* Settings = GetDefault<UCurveEditorSettings>();
+			UObject* Object = nullptr;
+			FString Name;
+			CurveModel->GetCurveColorObjectAndName(&Object, Name);
+			if (Object)
+			{
+				TOptional<FLinearColor> SettingColor = Settings->GetCustomColor(Object->GetClass(), Name);
+				if (SettingColor.IsSet())
+				{
+					CurveModel->SetColor(SettingColor.GetValue());
+				}
 			}
 		}
 		return CurveModel;

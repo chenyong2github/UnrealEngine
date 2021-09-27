@@ -2572,6 +2572,17 @@ void UMovieSceneControlRigParameterSection::ClearAllParameters()
 	EnumParameterNamesAndCurves.SetNum(0);
 	IntegerParameterNamesAndCurves.SetNum(0);
 }
+
+
+UObject* UMovieSceneControlRigParameterSection::GetImplicitObjectOwner()
+{
+	if (GetControlRig())
+	{
+		return GetControlRig();
+	}
+	return Super::GetImplicitObjectOwner();
+}
+
 FEnumParameterNameAndCurve::FEnumParameterNameAndCurve(FName InParameterName)
 {
 	ParameterName = InParameterName;

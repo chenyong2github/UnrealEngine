@@ -561,6 +561,15 @@ public:
 	*/
 	MOVIESCENE_API virtual float GetTotalWeightValue(FFrameTime InTime) const { return EvaluateEasing(InTime); }
 
+
+	/**
+	*  Get the implicit owner of this section, usually this will be the section's outer possessable or spawnable,
+	*  but some sections, like Control Rig, this will be the Control Rig object instead.
+	*
+	**/
+	MOVIESCENE_API virtual UObject* GetImplicitObjectOwner();
+
+
 #if WITH_EDITOR
 	MOVIESCENE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

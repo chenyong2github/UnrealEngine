@@ -9,12 +9,13 @@ public class CurveEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
                 "ApplicationCore",
+                "AppFramework",
                 "Core",
 				"CoreUObject",
 				"EditorFramework",
 				"Engine",
 				"EditorStyle",
-				"InputCore",
+                "InputCore",
 				"Slate",
 				"SlateCore",
 				"TimeManagement",

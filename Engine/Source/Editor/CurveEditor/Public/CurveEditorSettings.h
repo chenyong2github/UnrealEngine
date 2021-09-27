@@ -30,6 +30,24 @@ enum class ECurveEditorZoomPosition : uint8
 	MousePosition,
 };
 
+/** Custom Color Object*/
+USTRUCT()
+struct FCustomColorForChannel
+{
+	GENERATED_BODY()
+
+	FCustomColorForChannel() : Object(nullptr), Color(1.0f, 1.0f, 1.0f, 1.0f) {};
+
+	UPROPERTY(EditAnywhere, Category = "Custom Colors")
+	TSoftClassPtr<UObject>	Object;
+	UPROPERTY(EditAnywhere, Category = "Custom Colors")
+	FString PropertyName;
+	UPROPERTY(EditAnywhere, Category = "Custom Colors")
+	FLinearColor Color;
+
+
+};
+
 /** Serializable options for curve editor. */
 UCLASS(config=EditorPerProjectUserSettings)
 class CURVEEDITOR_API UCurveEditorSettings : public UObject
@@ -59,6 +77,16 @@ public:
 	/** Set zoom in/out position (mouse position or current time). */
 	void SetZoomPosition(ECurveEditorZoomPosition InZoomPosition);
 
+	/** Get custom color for object and property if it exists, if it doesn't the optional won't be set */
+	TOptional<FLinearColor> GetCustomColor(UClass* InClass, const FString& InPropertyName) const;
+	/** Set Custom Color for the specified parameters. */
+	void SetCustomColor(UClass* InClass, const FString& InPropertyName, FLinearColor InColor);
+	/** Delete Custom Color for the specified parameters. */
+	void DeleteCustomColor(UClass* InClass, const FString& InPropertyName);
+
+	/** Helper function to get next random linear color*/
+	static FLinearColor GetNextRandomColor();
+
 protected:
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
 	bool bAutoFrameCurveEditor;
@@ -71,4 +99,7 @@ protected:
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor")
 	ECurveEditorZoomPosition ZoomPosition;
+
+	UPROPERTY(config, EditAnywhere, Category="Curve Editor")
+	TArray<FCustomColorForChannel> CustomColors;
 };

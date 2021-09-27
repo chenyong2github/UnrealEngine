@@ -425,6 +425,19 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::FixupCurve()
 		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FChannelCurveModel<ChannelType, ChannelValue, KeyType>::FixupCurve);
 	}
 }
+template <class ChannelType, class ChannelValue, class KeyType>
+void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetCurveColorObjectAndName(UObject** OutObject, FString& OutName) const
+{
+	if (UMovieSceneSection* Section = WeakSection.Get())
+	{
+
+		*OutObject = Section->GetImplicitObjectOwner();
+		OutName = GetIntentionName();
+	}
+	// Just call base if it doesn't work
+	FCurveModel::GetCurveColorObjectAndName(OutObject, OutName);
+}
+
 
 // Explicit template instantiation
 template class FChannelCurveModel<FMovieSceneDoubleChannel, FMovieSceneDoubleValue, double>;

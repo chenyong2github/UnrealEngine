@@ -440,6 +440,16 @@ public:
 	void StraightenSelection();
 
 	/**
+	 * Set random curve colors
+	 */
+	void SetRandomCurveColorsForSelected();
+
+	/**
+	 * Pick a curve color and set on selected
+	 */	
+	void SetCurveColorsForSelected();
+
+	/**
 	* Do we currently have keys to flatten or straighten?
 	*/
 	bool CanFlattenOrStraightenSelection() const;
