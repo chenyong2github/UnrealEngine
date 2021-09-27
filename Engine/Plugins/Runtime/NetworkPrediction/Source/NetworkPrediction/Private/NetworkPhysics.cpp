@@ -24,6 +24,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Misc/FileHelper.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Async/NetworkPredictionAsyncDefines.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkPhysics);
 
@@ -568,7 +569,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		TArray<FPhysicsObjectCorrectionState> RecvData;
 	};
 
-	TStaticArray<FCorrectionSnapshot, 64> CorrectionData_Internal;
+	TStaticArray<FCorrectionSnapshot, UE_NP::NumFramesStorage> CorrectionData_Internal;
 
 	// ----------------------------------------------------------------------------------
 
