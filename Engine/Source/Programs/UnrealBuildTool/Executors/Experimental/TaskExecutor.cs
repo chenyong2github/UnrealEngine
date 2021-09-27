@@ -36,19 +36,25 @@ namespace UnrealBuildTool
 		/// Set to 0 to disable free memory checking.
 		/// </summary>
 		[XmlConfigFile]
-		private static readonly double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
+		private static double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
 		/// </summary>
 		[XmlConfigFile]
-		private static readonly bool bStopCompilationAfterErrors = false;
+		private static bool bStopCompilationAfterErrors = false;
 
 		/// <summary>
 		/// Whether to show compilation times along with worst offenders or not.
 		/// </summary>
 		[XmlConfigFile]
-		private static readonly bool bShowCompilationTimes = false;
+		private static bool bShowCompilationTimes = false;
+
+		/// <summary>
+		/// Whether to show compilation times for each executed action
+		/// </summary>
+		[XmlConfigFile]
+		private static bool bShowPerActionCompilationTimes = false;
 
 		/// <summary>
 		/// How many processes that will be executed in parallel
@@ -262,10 +268,15 @@ namespace UnrealBuildTool
 		{
 			List<string> LogLines = new List<string>();
 			int ExitCode = int.MaxValue;
+			TimeSpan ExecutionTime = TimeSpan.Zero;
+			TimeSpan ProcessorTime = TimeSpan.Zero;
 			if (ExecuteTask.Status == TaskStatus.RanToCompletion)
 			{
-				LogLines = ExecuteTask.Result.LogLines;
-				ExitCode = ExecuteTask.Result.ExitCode;
+				ExecuteResults ExecuteTaskResult = ExecuteTask.Result;
+				LogLines = ExecuteTaskResult.LogLines;
+				ExitCode = ExecuteTaskResult.ExitCode; 
+				ExecutionTime = ExecuteTaskResult.ExecutionTime;
+				ProcessorTime = ExecuteTaskResult.ProcessorTime;
 			}
 
 			// Write it to the log
@@ -292,7 +303,14 @@ namespace UnrealBuildTool
 					return;
 				}
 
-				Log.TraceInformation("[{0}/{1}] {2}", CompletedActions, TotalActions, Description);
+				string CompilationTimes = "";
+
+				if (bShowPerActionCompilationTimes)
+				{
+					CompilationTimes = $" (Wall: {ExecutionTime.TotalSeconds:0.00}s CPU: {ProcessorTime.TotalSeconds:0.00}s)";
+				}
+
+				Log.TraceInformation("[{0}/{1}]{2} {3}", CompletedActions, TotalActions, CompilationTimes, Description);
 				foreach (string Line in LogLines.Skip(Action.bShouldOutputStatusDescription ? 0 : 1))
 				{
 					Log.TraceInformation(Line);

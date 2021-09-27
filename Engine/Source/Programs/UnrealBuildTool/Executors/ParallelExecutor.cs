@@ -73,6 +73,12 @@ namespace UnrealBuildTool
 		bool bShowCompilationTimes = false;
 
 		/// <summary>
+		/// Whether to show compilation times for each executed action
+		/// </summary>
+		[XmlConfigFile]
+		bool bShowPerActionCompilationTimes = false;
+
+		/// <summary>
 		/// How many processes that will be executed in parallel
 		/// </summary>
 		public int NumParallelProcesses { get; private set; }
@@ -248,7 +254,13 @@ namespace UnrealBuildTool
 											Description = $"{(CompletedAction.Inner.CommandDescription != null ? CompletedAction.Inner.CommandDescription : CompletedAction.Inner.CommandPath.GetFileNameWithoutExtension())} {CompletedAction.LogLines[0]}".Trim();
 										}
 
-										Log.TraceInformation("[{0}/{1}] {2}", NumCompletedActions, InputActions.Count, Description);
+										string CompilationTimes = "";
+										if (bShowPerActionCompilationTimes)
+										{
+											CompilationTimes = $" (Wall: {CompletedAction.ExecutionTime.TotalSeconds:0.00}s CPU: {CompletedAction.ProcessorTime.TotalSeconds:0.00}s)";
+										}
+											
+										Log.TraceInformation("[{0}/{1}]{2} {3}", NumCompletedActions, InputActions.Count, CompilationTimes, Description);
 										foreach (string Line in CompletedAction.LogLines.Skip(CompletedAction.Inner.bShouldOutputStatusDescription ? 0 : 1))
 										{
 											Log.TraceInformation(Line);
