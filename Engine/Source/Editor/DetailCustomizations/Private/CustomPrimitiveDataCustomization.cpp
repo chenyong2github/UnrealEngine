@@ -556,11 +556,14 @@ void FCustomPrimitiveDataCustomization::OnUpdated()
 	
 void FCustomPrimitiveDataCustomization::OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const bool bIsCustomPrimitiveDataProperty = PropertyChangedEvent.GetPropertyName() == "CustomPrimitiveData"
-		|| (PropertyChangedEvent.MemberProperty != NULL && PropertyChangedEvent.MemberProperty->GetFName() == "CustomPrimitiveData");
-	if (ComponentsToWatch.Contains(Object) && !bIsCustomPrimitiveDataProperty)
+	if(PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive )
 	{
-		OnUpdated();
+		const bool bIsCustomPrimitiveDataProperty = PropertyChangedEvent.GetPropertyName() == "CustomPrimitiveData"
+			|| (PropertyChangedEvent.MemberProperty != NULL && PropertyChangedEvent.MemberProperty->GetFName() == "CustomPrimitiveData");
+		if (ComponentsToWatch.Contains(Object) && !bIsCustomPrimitiveDataProperty)
+		{
+			OnUpdated();
+		}
 	}
 }
 
