@@ -373,7 +373,7 @@ public:
 			break;
 		}
 		case ECbFieldType::ObjectId:
-			Builder << '"' << Accessor.AsUuid() << '"';
+			Builder << '"' << Accessor.AsObjectId() << '"';
 			break;
 		case ECbFieldType::CustomById:
 		{
