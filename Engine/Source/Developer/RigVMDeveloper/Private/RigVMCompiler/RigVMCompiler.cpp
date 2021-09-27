@@ -2784,14 +2784,18 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 	// Get all possible pins that lead to the same operand
 
-	if(Settings.ASTSettings.bFoldAssignments && !bIsDebugValue)
+	if(Settings.ASTSettings.bFoldAssignments)
 	{
-		TArray<const URigVMPin*> VirtualPins;
-		Pin->GetExposedPinChain(VirtualPins);
-		for (const URigVMPin* VirtualPin : VirtualPins)
+		const TMap<FRigVMASTProxy, FRigVMASTProxy>& SharedOperandPins = InVarExpr->GetParser()->SharedOperandPins;
+		TArray<FRigVMASTProxy> PinProxies = FindProxiesWithSharedOperand(InVarExpr);
+
+		for (const FRigVMASTProxy& Proxy : PinProxies)
 		{
-			FString VirtualPinHash = GetPinHash(VirtualPin, InVarExpr, bIsDebugValue);
-			WorkData.PinPathToOperand->Add(VirtualPinHash, Operand);	
+			if (URigVMPin* VirtualPin = Cast<URigVMPin>(Proxy.GetSubject()))
+			{
+				FString VirtualPinHash = GetPinHash(VirtualPin, InVarExpr, bIsDebugValue);
+				WorkData.PinPathToOperand->Add(VirtualPinHash, Operand);
+			}	
 		}
 	}
 	else
@@ -2809,6 +2813,59 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	}
 
 	return Operand;
+}
+
+TArray<FRigVMASTProxy> URigVMCompiler::FindProxiesWithSharedOperand(const FRigVMVarExprAST* InVarExpr)
+{
+	TArray<FRigVMASTProxy> PinProxies, PinProxiesToProcess;
+	const TMap<FRigVMASTProxy, FRigVMASTProxy>& SharedOperandPins = InVarExpr->GetParser()->SharedOperandPins;
+	PinProxiesToProcess.Add(InVarExpr->GetProxy());
+	while(!PinProxiesToProcess.IsEmpty())
+	{
+		FRigVMASTProxy Proxy = PinProxiesToProcess.Pop();
+
+		if (Proxy.IsValid())
+		{
+			if (URigVMPin* Pin = Cast<URigVMPin>(Proxy.GetSubject()))
+			{
+				if (Pin->GetNode()->IsA<URigVMVariableNode>() || Pin->GetNode()->IsA<URigVMParameterNode>())
+				{
+					if (Pin->GetDirection() == ERigVMPinDirection::Input)
+					{
+						continue;
+					}
+				}
+			}
+			
+			PinProxies.Add(Proxy);
+		}
+
+		for (TPair<FRigVMASTProxy, FRigVMASTProxy> Pair : SharedOperandPins)
+		{
+			FRigVMASTProxy* Other = nullptr;
+			if (PinProxies.Contains(Pair.Key))
+			{
+				Other = &Pair.Value;
+			}
+			else if (PinProxies.Contains(Pair.Value))
+			{
+				Other = &Pair.Key;
+			}
+
+			if (Other)
+			{
+				if (Other->IsValid())
+				{
+					if (!PinProxies.Contains(*Other) && !PinProxiesToProcess.Contains(*Other))
+					{
+						PinProxiesToProcess.Add(*Other);
+					}
+				}
+			}
+		}
+	}
+
+	return PinProxies;
 }
 
 bool URigVMCompiler::ValidateNode(URigVMNode* InNode)

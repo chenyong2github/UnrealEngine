@@ -1415,6 +1415,7 @@ private:
 	FRigVMBlockExprAST* ObsoleteBlock;
 
 	TArray<FRigVMASTProxy> NodeProxies;
+	TMap<FRigVMASTProxy, FRigVMASTProxy> SharedOperandPins;
 	TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>> TargetLinks;
 	TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>> SourceLinks;
 	static const TArray<FRigVMASTProxy> EmptyProxyArray;

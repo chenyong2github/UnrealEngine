@@ -173,6 +173,7 @@ private:
 	void InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 
 	FRigVMOperand FindOrAddRegister(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData, bool bIsDebugValue = false);
+	TArray<FRigVMASTProxy> FindProxiesWithSharedOperand(const FRigVMVarExprAST* InVarExpr);
 
 	bool ValidateNode(URigVMNode* InNode);
 	
