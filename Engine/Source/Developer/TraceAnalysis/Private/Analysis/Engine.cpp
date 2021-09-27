@@ -1465,8 +1465,13 @@ public:
 	void				OnNewType(const FTypeRegistry::FTypeInfo* TypeInfo);
 	void				OnEvent(const FEventDataInfo& EventDataInfo);
 	virtual void		OnThreadInfo(const FThreads::FInfo& InThreadInfo) override;
-	void				EnterScope(uint64 Timestamp=0);
-	void				LeaveScope(uint64 Timestamp=0);
+	void				EnterScope();
+	void				EnterScope(uint64 Timestamp);
+	void				LeaveScope();
+	void				LeaveScope(uint64 Timestamp);
+
+private:
+	void				DispatchLeaveScope();
 
 private:
 	FAnalysisState		State;
@@ -1553,26 +1558,37 @@ void FAnalysisBridge::OnThreadInfo(const FThreads::FInfo& InThreadInfo)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void FAnalysisBridge::EnterScope()
+{
+	ThreadInfo->ScopeRoutes.Push(~0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void FAnalysisBridge::EnterScope(uint64 Timestamp)
 {
-    if (Timestamp)
-    {
-	    Timestamp = ThreadInfo->PrevTimestamp += Timestamp;
-    }
+	Timestamp = ThreadInfo->PrevTimestamp += Timestamp;
+	ThreadInfo->ScopeRoutes.Push(~Timestamp);
+}
 
-    ThreadInfo->ScopeRoutes.Push(~Timestamp);
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisBridge::LeaveScope()
+{
+	State.Timing.EventTimestamp = 0;
+	DispatchLeaveScope();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisBridge::LeaveScope(uint64 Timestamp)
 {
-    if (Timestamp)
-    {
-	    Timestamp = ThreadInfo->PrevTimestamp += Timestamp;
-    }
-
+	Timestamp = ThreadInfo->PrevTimestamp += Timestamp;
 	State.Timing.EventTimestamp = Timestamp;
+	DispatchLeaveScope();
+	State.Timing.EventTimestamp = 0;
+}
 
+////////////////////////////////////////////////////////////////////////////////
+void FAnalysisBridge::DispatchLeaveScope()
+{
 	if (ThreadInfo->ScopeRoutes.Num() > 0)
 	{
 		PTRINT TypeInfoPtr = ThreadInfo->ScopeRoutes.Pop(false);
@@ -1591,8 +1607,6 @@ void FAnalysisBridge::LeaveScope(uint64 Timestamp)
 
 		AnalyzerHub.OnEvent(*TypeInfo, IAnalyzer::EStyle::LeaveScope, Context);
 	}
-
-	State.Timing.EventTimestamp = 0;
 }
 
 
