@@ -33,14 +33,16 @@ struct FElementOffset
 struct FNDIRigidMeshCollisionArrays
 {
 	FElementOffset ElementOffsets;
-	TStaticArray<FVector4, 2 * RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> WorldTransform;
-	TStaticArray<FVector4, 2 * RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> InverseTransform;
-	TStaticArray<FVector4, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> CurrentTransform;
-	TStaticArray<FVector4, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> CurrentInverse;
-	TStaticArray<FVector4, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> PreviousTransform;
-	TStaticArray<FVector4, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> PreviousInverse;
-	TStaticArray<FVector4, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> ElementExtent;
+	TStaticArray<FVector4f, 2 * RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> WorldTransform;
+	TStaticArray<FVector4f, 2 * RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> InverseTransform;
+	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> CurrentTransform;
+	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> CurrentInverse;
+	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> PreviousTransform;
+	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_TRANSFORMS> PreviousInverse;
+	TStaticArray<FVector4f, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> ElementExtent;
 	TStaticArray<uint32, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> PhysicsType;
+	TStaticArray<uint32, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> DFIndex;
+	TStaticArray<FPrimitiveSceneProxy*, RIGID_MESH_COLLISION_QUERY_MAX_PRIMITIVES> SourceSceneProxy;
 };
 
 /** Render buffers that will be used in hlsl functions */
@@ -66,6 +68,9 @@ struct FNDIRigidMeshCollisionBuffer : public FRenderResource
 
 	/** Physics type buffer */
 	FRWBuffer PhysicsTypeBuffer;
+
+	/** Distance field index buffer */
+	FRWBuffer DFIndexBuffer;
 };
 
 /** Data stored per physics asset instance*/
@@ -130,11 +135,15 @@ public:
 	virtual bool HasTickGroupPrereqs() const override { return true; }
 	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 
+	virtual bool RequiresDistanceFieldData() const override { return true; }
+
 	/** GPU simulation  functionality */
 #if WITH_EDITORONLY_DATA
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+
+	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
@@ -152,6 +161,9 @@ public:
 
 	/** Name of the physics type buffer */
 	static const FString PhysicsTypeBufferName;
+
+	/** Name of the DF Index type buffer */
+	static const FString DFIndexBufferName;
 
 protected:
 	/** Copy one niagara DI to this */
@@ -182,4 +194,3 @@ struct FNDIRigidMeshCollisionProxy : public FNiagaraDataInterfaceProxy
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIRigidMeshCollisionData> SystemInstancesToProxyData;
 };
-

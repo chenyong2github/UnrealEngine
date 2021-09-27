@@ -7,7 +7,7 @@ NiagaraDataInterfaceRigidMeshCollisionQuery.ush
 #pragma once
 
 /* -----------------------------------------------------------------
- * Physics Asset constants and context
+ * static mesh constants and context
  * -----------------------------------------------------------------
  */
 
@@ -29,6 +29,7 @@ struct FDIRigidMeshCollisionContext
 	Buffer<float4>		InverseTransformBuffer;
 	Buffer<float4>		ElementExtentBuffer;
 	Buffer<uint>		PhysicsTypeBuffer;
+	Buffer<uint>		DFIndexBuffer;
 }; 
 
 #define DIRIGIDMESHCOLLISIONQUERY_DECLARE_CONSTANTS(NAME)\
@@ -37,6 +38,7 @@ Buffer<float4>		WorldTransformBuffer_##NAME;\
 Buffer<float4>		InverseTransformBuffer_##NAME;\
 Buffer<float4>		ElementExtentBuffer_##NAME;\
 Buffer<uint>		PhysicsTypeBuffer_##NAME;\
+Buffer<uint>		DFIndexBuffer_##NAME;\
 
 
 #define DIRIGIDMESHCOLLISIONQUERY_MAKE_CONTEXT(NAME)\
@@ -46,6 +48,7 @@ DIContext.WorldTransformBuffer = WorldTransformBuffer_##NAME;\
 DIContext.InverseTransformBuffer = InverseTransformBuffer_##NAME;\
 DIContext.ElementExtentBuffer = ElementExtentBuffer_##NAME;\
 DIContext.PhysicsTypeBuffer = PhysicsTypeBuffer_##NAME;\
+DIContext.DFIndexBuffer = DFIndexBuffer_##NAME;\
 
 
 /* -----------------------------------------------------------------
@@ -116,7 +119,7 @@ float3x4 DIRigidMeshCollision_GetPreviousInverse(in FDIRigidMeshCollisionContext
  * -----------------------------------------------------------------
  */
 
-// Given a world space position (NodePosition) compute the sphere closest point (position,normal,velocity)
+// Given a world space position (WorldPosition) compute the sphere closest point (position,normal,velocity)
 float DIRigidMeshCollision_GetSphereProjection(in float3 LocalPosition, in float3 SphereCenter, in float SphereRadius, in int SphereIndex,
 			inout float3 OutClosestPosition, inout float3 OutClosestNormal, inout int OutElementIndex, inout float OutMinDistance)
 {
@@ -135,7 +138,7 @@ float DIRigidMeshCollision_GetSphereProjection(in float3 LocalPosition, in float
 	return SphereDistance;
 }
 
-// Given a world space position (NodePosition) compute the sphere closest point (position,normal,velocity)
+// Given a world space position (WorldPosition) compute the sphere closest point (position,normal,velocity)
 float DIRigidMeshCollision_GetCapsuleProjection(in float3 LocalPosition, in float2 CapsuleSize, in int CapsuleIndex,
 			inout float3 OutClosestPosition, inout float3 OutClosestNormal, inout int OutElementIndex, inout float OutMinDistance)
 {
@@ -146,7 +149,7 @@ float DIRigidMeshCollision_GetCapsuleProjection(in float3 LocalPosition, in floa
 			OutClosestPosition,OutClosestNormal,OutElementIndex,OutMinDistance);
 }
 
-// Given a world space position (NodePosition) compute the sphere closest point (position,normal,velocity)
+// Given a world space position (WorldPosition) compute the sphere closest point (position,normal,velocity)
 float DIRigidMeshCollision_GetBoxProjection(in float3 LocalPosition, in float3 BoxExtent, in int BoxIndex, 
 			inout float3 OutClosestPosition, inout float3 OutClosestNormal, inout int OutElementIndex, inout float OutMinDistance)
 {
@@ -195,20 +198,20 @@ float DIRigidMeshCollision_GetBoxProjection(in float3 LocalPosition, in float3 B
 
 
 /* -----------------------------------------------------------------
- * Get the closest element to the node position
+ * Get the closest element to the world position
  * -----------------------------------------------------------------
  */
 
-float3 DIRigidMeshCollision_GetLocalPosition(in FDIRigidMeshCollisionContext DIContext, in float3 NodePosition, in int ElementIndex, in float TimeFraction )
+float3 DIRigidMeshCollision_GetLocalPosition(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in int ElementIndex, in float TimeFraction )
 {
-	const float3 CurrentLocal = mul(DIRigidMeshCollision_GetInverseTransform(DIContext,ElementIndex), float4(NodePosition,1.0)).xyz;
-	const float3 PreviousLocal = mul(DIRigidMeshCollision_GetPreviousInverse(DIContext,ElementIndex), float4(NodePosition,1.0)).xyz;
+	const float3 CurrentLocal = mul(DIRigidMeshCollision_GetInverseTransform(DIContext,ElementIndex), float4(WorldPosition,1.0)).xyz;
+	const float3 PreviousLocal = mul(DIRigidMeshCollision_GetPreviousInverse(DIContext,ElementIndex), float4(WorldPosition,1.0)).xyz;
 
 	return PreviousLocal + TimeFraction * (CurrentLocal-PreviousLocal);
 }
 
-// Given a world space position (NodePosition) compute the sphere closest point (position,normal,velocity)
-int DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DIContext, in float3 NodePosition, out float3 OutClosestPosition, 
+// Given a world space position (WorldPosition) compute the sphere closest point (position,normal,velocity)
+int DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, out float3 OutClosestPosition, 
 										  out float3 OutClosestNormal, out float OutMinDistance, in float TimeFraction)
 {	
 	float MinDistance = MAX_DISTANCE;
@@ -220,7 +223,7 @@ int DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DICon
 	const int SpheresEnd = DIContext.ElementOffsets[SPHERE_INDEX+1];
 	for (int SphereIndex = SpheresBegin; SphereIndex < SpheresEnd; ++SphereIndex)
 	{
-		const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,NodePosition,SphereIndex,TimeFraction);
+		const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,WorldPosition,SphereIndex,TimeFraction);
 
 		DIRigidMeshCollision_GetSphereProjection(LocalPosition, float3(0,0,0), DIContext.ElementExtentBuffer[SphereIndex].x, SphereIndex,
 				CollisionPosition, CollisionNormal, ElementIndex, MinDistance);
@@ -230,7 +233,7 @@ int DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DICon
 	const int CapsulesEnd = DIContext.ElementOffsets[CAPSULE_INDEX+1];
 	for (int CapsuleIndex = CapsulesBegin; CapsuleIndex < CapsulesEnd; ++CapsuleIndex)
 	{
-		const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,NodePosition,CapsuleIndex,TimeFraction);
+		const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,WorldPosition,CapsuleIndex,TimeFraction);
 
 		DIRigidMeshCollision_GetCapsuleProjection(LocalPosition, DIContext.ElementExtentBuffer[CapsuleIndex].xy, CapsuleIndex,
 				CollisionPosition, CollisionNormal, ElementIndex, MinDistance);
@@ -240,7 +243,7 @@ int DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DICon
 	const int BoxesEnd = DIContext.ElementOffsets[BOX_INDEX+1];
 	for (int BoxIndex = BoxesBegin; BoxIndex < BoxesEnd; ++BoxIndex)
 	{
-		const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,NodePosition,BoxIndex,TimeFraction);
+		const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,WorldPosition,BoxIndex,TimeFraction);
 
 		DIRigidMeshCollision_GetBoxProjection(LocalPosition, DIContext.ElementExtentBuffer[BoxIndex].xyz, BoxIndex,
 				CollisionPosition, CollisionNormal, ElementIndex, MinDistance);
@@ -252,15 +255,15 @@ int DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DICon
 }
 
 /* -----------------------------------------------------------------
- * Get the closest point to the physics asset 
+ * Get the closest point to the static mesh 
  * -----------------------------------------------------------------
  */
 
-// Given a world space position (NodePosition) and an element index compute the physics asset closest point (position,normal,velocity)
-void DIRigidMeshCollision_GetElementPoint(in FDIRigidMeshCollisionContext DIContext, in float3 NodePosition, in float DeltaTime, in float TimeFraction, in int ElementIndex, out float3 OutClosestPosition, 
+// Given a world space position (WorldPosition) and an element index compute the static mesh closest point (position,normal,velocity)
+void DIRigidMeshCollision_GetElementPoint(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, in int ElementIndex, out float3 OutClosestPosition, 
 										  out float3 OutClosestNormal, out float3 OutClosestVelocity)
 {	
-	const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,NodePosition,ElementIndex,TimeFraction);
+	const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,WorldPosition,ElementIndex,TimeFraction);
 
 	float MinDistance = MAX_DISTANCE;
 	int OutputIndex = -1;
@@ -302,10 +305,10 @@ void DIRigidMeshCollision_GetElementPoint(in FDIRigidMeshCollisionContext DICont
 	}
 }
 
-// Given a world space position (NodePosition) and an element index compute the physics asset closest distance
-void DIRigidMeshCollision_GetElementDistance(in FDIRigidMeshCollisionContext DIContext, in float3 NodePosition, in float TimeFraction, in int ElementIndex, out float OutClosestDistance)
+// Given a world space position (WorldPosition) and an element index compute the static mesh closest distance
+void DIRigidMeshCollision_GetElementDistance(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float TimeFraction, in int ElementIndex, out float OutClosestDistance)
 {	
-	const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,NodePosition,ElementIndex,TimeFraction);
+	const float3 LocalPosition = DIRigidMeshCollision_GetLocalPosition(DIContext,WorldPosition,ElementIndex,TimeFraction);
 
 	float MinDistance = MAX_DISTANCE;
 	int OutputIndex = -1;
@@ -336,24 +339,24 @@ void DIRigidMeshCollision_GetElementDistance(in FDIRigidMeshCollisionContext DIC
 	}
 }
 
- // Given a world space position (NodePosition) compute the physics asset closest element
-void DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DIContext, in float3 NodePosition, in float TimeFraction, out int OutElementIndex)
+ // Given a world space position (WorldPosition) compute the static mesh closest element
+void DIRigidMeshCollision_GetClosestElement(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float TimeFraction, out int OutElementIndex)
 {	
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
 	float MinDistance = 0.0;
 
-	OutElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
+	OutElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,WorldPosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
 }
 
-// Given a world space position (NodePosition) compute the physics asset closest point (position,normal,velocity)
-void DIRigidMeshCollision_GetClosestPoint(in FDIRigidMeshCollisionContext DIContext, in float3 NodePosition, in float DeltaTime, in float TimeFraction, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestNormal, out float3 OutClosestVelocity)
+// Given a world space position (WorldPosition) compute the static mesh closest point (position,normal,velocity)
+void DIRigidMeshCollision_GetClosestPoint(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestNormal, out float3 OutClosestVelocity)
 {	
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
 	OutClosestDistance = 0.0;
 
-	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,OutClosestDistance,TimeFraction);
+	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,WorldPosition,CollisionPosition,CollisionNormal,OutClosestDistance,TimeFraction);
 
 	OutClosestNormal = float3(0,0,0);
 	OutClosestPosition = float3(0,0,0);
@@ -374,19 +377,66 @@ void DIRigidMeshCollision_GetClosestPoint(in FDIRigidMeshCollisionContext DICont
 	}
 }
 
-// Given a world space position (NodePosition) compute the physics asset closest distance
-void DIRigidMeshCollision_GetClosestDistance(in FDIRigidMeshCollisionContext DIContext, in float3 NodePosition, in float TimeFraction, out float OutClosestDistance)
+// Given a world space position (WorldPosition) compute the static mesh closest distance
+void DIRigidMeshCollision_GetClosestDistance(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float TimeFraction, out float OutClosestDistance)
 {	
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
 	float MinDistance = 0.0;
 
-	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,NodePosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
+	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,WorldPosition,CollisionPosition,CollisionNormal,MinDistance,TimeFraction);
 
 	OutClosestDistance = 0.0;
 
 	if (ElementIndex != -1)
 	{
 		OutClosestDistance = (DIContext.PhysicsTypeBuffer[ElementIndex] == 1) ? MinDistance : 0;
+	}
+}
+
+// Given a world space position (WorldPosition) compute the static mesh closest point (position,normal,velocity)
+void DIRigidMeshCollision_GetClosestPointMeshDistanceField(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestNormal, out float3 OutClosestVelocity)
+{	
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+	OutClosestDistance = MAX_DISTANCE;	
+
+	OutClosestNormal = float3(0,0,0);
+	OutClosestPosition = float3(0,0,0);
+	OutClosestVelocity = float3(0,0,0);
+
+	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,WorldPosition,CollisionPosition,CollisionNormal,OutClosestDistance,TimeFraction);
+
+	if (ElementIndex != -1)
+	{
+		int DFIndex = DIContext.DFIndexBuffer[ElementIndex];
+
+		if (DFIndex >= 0 && DFIndex < NumSceneObjects)
+		{
+			// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
+			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, 1e-3);
+		}
+
+		// #todo(dmp): figure out calculating SDF gradient so we can get more accurate collision velocities and collision normal
+		/*		
+		if (OutClosestDistance < 1e-5)
+		{
+			FDFObjectData DFObjectData = LoadDFObjectData(ElementIndex);
+			uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
+			FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, NumMips - 1);
+			float3 VolumeGradient = CalculateMeshSDFGradient(WorldPosition, DFAssetData);
+			float VolumeGradientLength = length(VolumeGradient);
+			float3 VolumeNormal = VolumeGradientLength > 0.0f ? VolumeGradient / VolumeGradientLength : 0;
+			// Transform by transposed inverse to handle non-uniform scaling
+			float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume));
+			float WorldGradientLength = length(WorldGradient);
+			OutClosestNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
+		}
+		*/
+
+		const float3 PreviousPosition = mul(DIRigidMeshCollision_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+		const float3 CurrentPosition = mul(DIRigidMeshCollision_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+		OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
+		OutClosestPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);
 	}
 }

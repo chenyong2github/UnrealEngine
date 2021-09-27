@@ -28,6 +28,7 @@ the same VectorVM byte code / compute shader code
 
 class FGPUSortManager;
 class FNiagaraRayTracingHelper;
+class FDistanceFieldSceneData;
 
 class FNiagaraGpuComputeDispatch : public FNiagaraGpuComputeDispatchInterface
 {
@@ -91,6 +92,7 @@ public:
 	virtual bool AddSortedGPUSimulation(FNiagaraGPUSortInfo& SortInfo) override;
 
 	const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameters() const;
+	const FDistanceFieldSceneData* GetMeshDistanceFieldParameters() const;
 
 	void SetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData) const;
 	void UnsetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData) const;
