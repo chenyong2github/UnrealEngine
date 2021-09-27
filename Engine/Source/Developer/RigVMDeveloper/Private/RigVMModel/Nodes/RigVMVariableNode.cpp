@@ -58,6 +58,26 @@ bool URigVMVariableNode::IsLocalVariable() const
 	return false;
 }
 
+bool URigVMVariableNode::IsInputArgument() const
+{
+	const FName CurrentVariableName = GetVariableName();
+	
+	if(URigVMGraph* Graph = GetGraph())
+	{
+		if (URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode())
+		{
+			for (const URigVMPin* Pin : EntryNode->GetPins())
+			{
+				if(Pin->GetFName() == CurrentVariableName)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 FString URigVMVariableNode::GetCPPType() const
 {
 	URigVMPin* ValuePin = FindPin(ValueName);

@@ -2813,6 +2813,11 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 		{
 			URigVMPin* Pin = InPinProxy.GetSubjectChecked<URigVMPin>();
 			URigVMNode* Node = Pin->GetNode();
+			if (URigVMVariableNode* VarNode = Cast<URigVMVariableNode>(Node))
+			{
+				return VarNode->IsInputArgument();
+			}
+			
 			return Node->IsA<URigVMRerouteNode>() ||
 				Node->IsA<URigVMLibraryNode>() ||
 				Node->IsA<URigVMFunctionEntryNode>() ||
@@ -2858,6 +2863,23 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 									return SourcePinProxy;
 
 								}
+							}
+						}
+					}
+					else if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+					{
+						if (VariableNode->IsInputArgument())
+						{
+							if (URigVMFunctionEntryNode* EntryNode = VariableNode->GetGraph()->GetEntryNode())
+							{
+								if (URigVMPin* EntryPin = EntryNode->FindPin(VariableNode->GetVariableName().ToString()))
+								{
+									FRigVMASTProxy EntryPinProxy = InPinProxy.GetSibling(EntryPin);
+									FRigVMASTProxy SourcePinProxy = FindSourcePin(EntryPinProxy, OutTraversalInfo);
+									SourcePinProxy = SourcePinProxy.IsValid() ? SourcePinProxy : EntryPinProxy;
+									OutTraversalInfo.SourcePins.FindOrAdd(InPinProxy) = SourcePinProxy;
+									return SourcePinProxy;
+								} 
 							}
 						}
 					}

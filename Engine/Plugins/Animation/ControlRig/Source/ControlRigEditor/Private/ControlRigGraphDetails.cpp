@@ -159,8 +159,11 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 						OutErrorMessage = LOCTEXT("ArgumentNameTooLong", "Name of argument is too long.");
 						return false;
 					}
-					
-					return true;
+
+					EValidatorResult Result = NameValidator.IsValid(InNewText.ToString(), false);
+					OutErrorMessage = INameValidatorInterface::GetErrorText(InNewText.ToString(), Result);	
+
+					return Result == EValidatorResult::Ok || Result == EValidatorResult::ExistingName;
 				})
 			]
 		]
@@ -422,7 +425,7 @@ void FControlRigArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinType)
 				}
 
 				bool bSetupUndoRedo = true;
-				Controller->ChangeExposedPinType(Pin->GetFName(), CPPType, CPPTypeObjectName, bSetupUndoRedo, true, true);
+				Controller->ChangeExposedPinType(Pin->GetFName(), CPPType, CPPTypeObjectName, bSetupUndoRedo, false, true);
 
 				// If the controller has identified this as a bulk change, it has not added the actions to the action stack
 				// We need to disable the transaction from the UI as well to keep them synced

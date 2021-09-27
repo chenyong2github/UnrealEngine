@@ -1277,6 +1277,20 @@ void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlu
 				}
 			}
 		}
+
+		for (URigVMGraph* Graph : CRB->GetAllModels())
+		{
+			if (Graph->GetEntryNode())
+			{
+				FText NodeCategory = LOCTEXT("InputArguments", "Input Arguments");
+				for (const FRigVMGraphVariableDescription& InputArgument : Graph->GetInputArguments())
+				{
+					FText MenuDesc = FText::FromName(InputArgument.Name);
+					FText ToolTip = FText::FromString(FString::Printf(TEXT("Get the value of input %s"), *InputArgument.Name.ToString()));
+					ActionRegistrar.AddBlueprintAction(GeneratedClass, UControlRigVariableNodeSpawner::CreateFromLocalVariable(CRB, Graph, InputArgument, true, MenuDesc, NodeCategory, ToolTip));
+				}			
+			}
+		}
 	}
 }
 

@@ -279,6 +279,36 @@ TArray<FRigVMExternalVariable> URigVMGraph::GetExternalVariables() const
 	return Variables;
 }
 
+TArray<FRigVMGraphVariableDescription> URigVMGraph::GetLocalVariables(bool bIncludeInputArguments) const
+{
+	if (bIncludeInputArguments)
+	{
+		TArray<FRigVMGraphVariableDescription> Variables;
+		Variables.Append(LocalVariables);
+		Variables.Append(GetInputArguments());
+		return Variables;
+	}
+	
+	return LocalVariables;
+}
+
+TArray<FRigVMGraphVariableDescription> URigVMGraph::GetInputArguments() const
+{
+	TArray<FRigVMGraphVariableDescription> Inputs;
+	if (URigVMFunctionEntryNode* EntryNode = GetEntryNode())
+	{
+		for (URigVMPin* Pin : EntryNode->GetPins())
+		{			
+			FRigVMGraphVariableDescription Description;
+			Description.Name = Pin->GetFName();
+			Description.CPPType = Pin->GetCPPType();
+			Description.CPPTypeObject = Pin->GetCPPTypeObject();
+			Inputs.Add(Description);			
+		}
+	}
+	return Inputs;
+}
+
 FRigVMGraphModifiedEvent& URigVMGraph::OnModified()
 {
 	return ModifiedEvent;
