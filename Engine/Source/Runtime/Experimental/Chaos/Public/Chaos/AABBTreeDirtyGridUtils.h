@@ -41,10 +41,11 @@ namespace Chaos
 		return HashCell(X, Y);
 	}
 
-	FORCEINLINE_DEBUGGABLE bool TooManyOverlapQueryCells(const TAABB<FReal, 3>& AABB, FReal DirtyElementGridCellSizeInv, int32 MaximumOverlap)
+	template <typename T>
+	FORCEINLINE_DEBUGGABLE bool TooManyOverlapQueryCells(const TAABB<T, 3>& AABB, FReal DirtyElementGridCellSizeInv, int32 MaximumOverlap)
 	{
-		int32 XsampleCount = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv) + 1;
-		int32 YsampleCount = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv) + 1;
+		int32 XsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().X, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().X, DirtyElementGridCellSizeInv) + 1;
+		int32 YsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().Y, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().Y, DirtyElementGridCellSizeInv) + 1;
 
 		if (XsampleCount * YsampleCount <= MaximumOverlap)
 		{
@@ -53,8 +54,8 @@ namespace Chaos
 		return true;
 	}
 
-	template <typename FunctionType>
-	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCells(const TAABB<FReal, 3>& AABB, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
+	template <typename T, typename FunctionType>
+	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCells(const TAABB<T, 3>& AABB, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
 	{
 		int32 CellStartX = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv);
 		int32 CellStartY = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv);
@@ -76,21 +77,21 @@ namespace Chaos
 	}
 
 	// Only execute function for new Cells not covered in old (Set difference: {Cells spanned by AABB} - { Cells spanned by AABBExclude})
-	template <typename FunctionType>
-	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCellsExclude(const TAABB<FReal, 3>& AABB, const TAABB<FReal, 3>& AABBExclude, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
+	template <typename T, typename FunctionType>
+	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCellsExclude(const TAABB<T, 3>& AABB, const TAABB<T, 3>& AABBExclude, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
 	{
 
-		int32 NewCellStartX = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv);
-		int32 NewCellStartY = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv);
+		int32 NewCellStartX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().X, DirtyElementGridCellSizeInv);
+		int32 NewCellStartY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().Y, DirtyElementGridCellSizeInv);
 
-		int32 NewCellEndX = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv);
-		int32 NewCellEndY = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv);
+		int32 NewCellEndX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().X, DirtyElementGridCellSizeInv);
+		int32 NewCellEndY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().Y, DirtyElementGridCellSizeInv);
 
-		int32 OldCellStartX = GetDirtyCellIndexFromWorldCoordinate(AABBExclude.Min().X, DirtyElementGridCellSizeInv);
-		int32 OldCellStartY = GetDirtyCellIndexFromWorldCoordinate(AABBExclude.Min().Y, DirtyElementGridCellSizeInv);
+		int32 OldCellStartX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Min().X, DirtyElementGridCellSizeInv);
+		int32 OldCellStartY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Min().Y, DirtyElementGridCellSizeInv);
 
-		int32 OldCellEndX = GetDirtyCellIndexFromWorldCoordinate(AABBExclude.Max().X, DirtyElementGridCellSizeInv);
-		int32 OldCellEndY = GetDirtyCellIndexFromWorldCoordinate(AABBExclude.Max().Y, DirtyElementGridCellSizeInv);
+		int32 OldCellEndX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Max().X, DirtyElementGridCellSizeInv);
+		int32 OldCellEndY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Max().Y, DirtyElementGridCellSizeInv);
 
 		// Early out here
 		if (OldCellStartX <= NewCellStartX &&
@@ -412,7 +413,7 @@ namespace Chaos
 	}
 
 	template <typename FunctionType>
-	FORCEINLINE_DEBUGGABLE void DoForSweepIntersectCells(const TVec3<FReal>& QueryHalfExtents, const FVec3& StartPoint, const FVec3& Dir, FReal Length, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType InFunction)
+	FORCEINLINE_DEBUGGABLE void DoForSweepIntersectCells(const FVec3 QueryHalfExtents, const FVec3& StartPoint, const FVec3& Dir, FReal Length, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType InFunction)
 	{
 		FReal AbsDx = FMath::Abs(Dir.X);
 		FReal AbsDy = FMath::Abs(Dir.Y);
@@ -426,7 +427,7 @@ namespace Chaos
 		else
 		{
 			// Swap Y and X
-			DoForSweepIntersectCellsImp(QueryHalfExtents.Y, QueryHalfExtents.X, StartPoint.Y, StartPoint.X, Dir.Y * Length, Dir.X * Length, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](FReal X, FReal Y) {InFunction(Y, X); });
+			DoForSweepIntersectCellsImp(QueryHalfExtents.Y, QueryHalfExtents.X, StartPoint.Y, StartPoint.X, Dir.Y * Length, Dir.X * Length, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](auto X, auto Y) {InFunction(Y, X); });
 		}
 
 	}

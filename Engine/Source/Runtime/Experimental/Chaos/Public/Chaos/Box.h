@@ -146,7 +146,8 @@ namespace Chaos
 		// Extents
 		FORCEINLINE const TAABB<FReal, 3> BoundingBox() const
 		{
-			return AABB;
+			// LWC - necessary if T is different from FReal
+			return TAABB<FReal, 3>(AABB.Min(), AABB.Max());
 		}
 
 		// Apply a limit to the specified margin that prevents the box inverting
@@ -157,12 +158,12 @@ namespace Chaos
 		}
 
 		// Return the distance and normal is the closest point on the surface to Pos. Negative for penetration.
-		virtual T PhiWithNormal(const TVector<T, d>& Pos, TVector<T, d>& Normal) const override
+		virtual FReal PhiWithNormal(const FVec3& Pos, FVec3& Normal) const override
 		{
 			return AABB.PhiWithNormal(Pos, Normal);
 		}
 
-		virtual T PhiWithNormalScaled(const TVector<T, d>& Pos, const TVector<T, d>& Scale, TVector<T, d>& Normal) const override
+		virtual FReal PhiWithNormalScaled(const FVec3& Pos, const FVec3& Scale, FVec3& Normal) const override
 		{
 			return TAABB<T, d>(Scale * AABB.Min(), Scale * AABB.Max()).PhiWithNormal(Pos, Normal);
 		}
@@ -172,7 +173,7 @@ namespace Chaos
 			return TAABB<T, d>(InMin, InMax).RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvLength, OutTime, OutPosition);
 		}
 
-		virtual bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const override
+		virtual bool CHAOS_API Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
 		{
 			if (AABB.Raycast(StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex))
 			{
@@ -186,12 +187,12 @@ namespace Chaos
 			return AABB.FindClosestPoint(StartPoint, Thickness);
 		}
 
-		virtual Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const override
+		virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 		{
 			return AABB.FindClosestIntersectionImp(StartPoint, EndPoint, Thickness);
 		}
 
-		virtual TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const override
+		virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override
 		{
 			return AABB.FindGeometryOpposingNormal(DenormDir, FaceIndex, OriginalNormal);
 		}
@@ -328,11 +329,11 @@ namespace Chaos
 		int32 NumVertices() const { return SVertices.Num(); }
 
 		// Get the plane at the specified index (e.g., indices from FindVertexPlanes)
-		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+		const TPlaneConcrete<FReal> GetPlane(int32 FaceIndex) const
 		{
 			const FVec3& PlaneN = SNormals[FaceIndex];
 			const FVec3 PlaneX = AABB.Center() + 0.5f * (PlaneN * AABB.Extents());
-			return TPlaneConcrete<FReal, 3>(PlaneX, PlaneN);
+			return TPlaneConcrete<FReal>(PlaneX, PlaneN);
 		}
 
 		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)

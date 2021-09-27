@@ -140,18 +140,18 @@ struct TAABBTreeIntersectionHelper<FQueryFastDataVoid, EAABBQueryType::Overlap>
 	}
 };
 
-template <typename TPayloadType, bool bComputeBounds>
+template <typename TPayloadType, typename T, bool bComputeBounds>
 struct TBoundsWrapperHelper
 {
 
 };
 
-template <typename TPayloadType>
-struct TBoundsWrapperHelper<TPayloadType, true>
+template <typename TPayloadType, typename T>
+struct TBoundsWrapperHelper<TPayloadType, T, true>
 {
-	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, FReal>>& Elems)
+	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, T>>& Elems)
 	{
-		Bounds = FAABB3::EmptyAABB();
+		Bounds = TAABB<T, 3>::EmptyAABB();
 
 		for (const auto& Elem : Elems)
 		{
@@ -159,37 +159,37 @@ struct TBoundsWrapperHelper<TPayloadType, true>
 		}
 	}
 
-	const FAABB3& GetBounds() const { return Bounds; }
+	const TAABB<T, 3>& GetBounds() const { return Bounds; }
 
 private:
-	FAABB3 Bounds;
+	TAABB<T, 3> Bounds;
 };
 
-template <typename TPayloadType>
-struct TBoundsWrapperHelper<TPayloadType, false>
+template <typename TPayloadType, typename T>
+struct TBoundsWrapperHelper<TPayloadType, T, false>
 {
-	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, FReal>>&)
+	void ComputeBounds(const TArray<TPayloadBoundsElement<TPayloadType, T>>&)
 	{
 	}
 
-	const FAABB3 GetBounds() const
+	const TAABB<T, 3> GetBounds() const
 	{
-		return FAABB3::EmptyAABB();
+		return TAABB<T, 3>::EmptyAABB();
 	}
 };
 
-template <typename TPayloadType, bool bComputeBounds = true>
-struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBounds>
+template <typename TPayloadType, bool bComputeBounds = true, typename T = FReal>
+struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComputeBounds>
 {
 	TAABBTreeLeafArray() {}
 	//todo: avoid copy?
-	TAABBTreeLeafArray(const TArray<TPayloadBoundsElement<TPayloadType, FReal>>& InElems)
+	TAABBTreeLeafArray(const TArray<TPayloadBoundsElement<TPayloadType, T>>& InElems)
 		: Elems(InElems)
 	{
 		this->ComputeBounds(Elems);
 	}
 
-	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, FReal>>& OutElements)
+	void GatherElements(TArray<TPayloadBoundsElement<TPayloadType, T>>& OutElements)
 	{
 		OutElements.Append(Elems);
 	}
@@ -201,14 +201,14 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 	}
 
 	template <typename TSQVisitor, typename TQueryFastData>
-	FORCEINLINE_DEBUGGABLE bool RaycastFast(const FVec3& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
+	FORCEINLINE_DEBUGGABLE bool RaycastFast(const TVec3<T>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor, const TVec3<T>& Dir, const TVec3<T> InvDir, const bool bParallel[3]) const
 	{
-		return RaycastSweepImp</*bSweep=*/false>(Start, QueryFastData, FVec3(), Visitor, Dir, InvDir, bParallel);
+		return RaycastSweepImp</*bSweep=*/false>(Start, QueryFastData, TVec3<T>(), Visitor, Dir, InvDir, bParallel);
 	}
 
 	template <typename TSQVisitor, typename TQueryFastData>
-	FORCEINLINE_DEBUGGABLE bool SweepFast(const FVec3& Start, TQueryFastData& QueryFastData, const FVec3& QueryHalfExtents, TSQVisitor& Visitor,
-			const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
+	FORCEINLINE_DEBUGGABLE bool SweepFast(const TVec3<T>& Start, TQueryFastData& QueryFastData, const TVec3<T>& QueryHalfExtents, TSQVisitor& Visitor,
+			const TVec3<T>& Dir, const TVec3<T> InvDir, const bool bParallel[3]) const
 	{
 		return RaycastSweepImp</*bSweep=*/true>(Start, QueryFastData, QueryHalfExtents, Visitor, Dir, InvDir, bParallel);
 	}
@@ -227,7 +227,7 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 
 			if (Elem.Bounds.Intersects(QueryBounds))
 			{
-				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, Elem.Bounds);
+				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, FAABB3(Elem.Bounds.Min(), Elem.Bounds.Max()));
 				if (Visitor.VisitOverlap(VisitData) == false)
 				{
 					return false;
@@ -239,7 +239,7 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 	}
 
 	template <bool bSweep, typename TQueryFastData, typename TSQVisitor>
-	FORCEINLINE_DEBUGGABLE bool RaycastSweepImp(const FVec3& Start, TQueryFastData& QueryFastData, const FVec3& QueryHalfExtents, TSQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
+	FORCEINLINE_DEBUGGABLE bool RaycastSweepImp(const TVec3<T>& Start, TQueryFastData& QueryFastData, const TVec3<T>& QueryHalfExtents, TSQVisitor& Visitor, const TVec3<T>& Dir, const TVec3<T> InvDir, const bool bParallel[3]) const
 	{
 		FVec3 TmpPosition;
 		FReal TOI;
@@ -252,7 +252,7 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 				continue;
 			}
 
-			const auto& InstanceBounds = Elem.Bounds;
+			const FAABB3 InstanceBounds(Elem.Bounds.Min(), Elem.Bounds.Max());
 			if (TAABBTreeIntersectionHelper<TQueryFastData, bSweep ? EAABBQueryType::Sweep :
 					EAABBQueryType::Raycast>::Intersects(Start, QueryFastData, TOI, TmpPosition, InstanceBounds, FAABB3(), QueryHalfExtents, Dir, InvDir, bParallel))
 			{
@@ -280,7 +280,7 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 		}
 	}
 
-	void UpdateElement(const TPayloadType& Payload, const FAABB3& NewBounds, bool bHasBounds)
+	void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bHasBounds)
 	{
 		if (!bHasBounds)
 			return;
@@ -301,24 +301,25 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 		Ar << Elems;
 	}
 
-	TArray<TPayloadBoundsElement<TPayloadType, FReal>> Elems;
+	TArray<TPayloadBoundsElement<TPayloadType, T>> Elems;
 };
 
-template <typename TPayloadType, bool bComputeBounds>
-FChaosArchive& operator<<(FChaosArchive& Ar, TAABBTreeLeafArray<TPayloadType, bComputeBounds>& LeafArray)
+template <typename TPayloadType, bool bComputeBounds, typename T>
+FChaosArchive& operator<<(FChaosArchive& Ar, TAABBTreeLeafArray<TPayloadType, bComputeBounds, T>& LeafArray)
 {
 	LeafArray.Serialize(Ar);
 	return Ar;
 }
 
-struct FAABBTreeNode
+template <typename T>
+struct TAABBTreeNode
 {
-	FAABBTreeNode()
+	TAABBTreeNode()
 	{
-		ChildrenBounds[0] = FAABB3();
-		ChildrenBounds[1] = FAABB3();
+		ChildrenBounds[0] = TAABB<T, 3>();
+		ChildrenBounds[1] = TAABB<T, 3>();
 	}
-	FAABB3 ChildrenBounds[2];
+	TAABB<T, 3> ChildrenBounds[2];
 	int32 ChildrenNodes[2] = { 0, 0 };
 	bool bLeaf = false;
 
@@ -326,7 +327,7 @@ struct FAABBTreeNode
 	{
 		for (auto& Bounds : ChildrenBounds)
 		{
-			TBox<FReal, 3>::SerializeAsAABB(Ar, Bounds);
+			TBox<T, 3>::SerializeAsAABB(Ar, Bounds);
 		}
 
 		for (auto& Node : ChildrenNodes)
@@ -338,7 +339,8 @@ struct FAABBTreeNode
 	}
 };
 
-FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, FAABBTreeNode& Node)
+template <typename T>
+FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TAABBTreeNode<T>& Node)
 {
 	Node.Serialize(Ar);
 	return Ar;
@@ -393,21 +395,21 @@ struct DirtyGridHashEntry
 	int32 Count;  // Number of valid entries from Index in FlattenedCellArrayOfDirtyIndices
 };
 
-template <typename TPayloadType, typename TLeafType, bool bMutable = true>
-class TAABBTree final : public ISpatialAcceleration<TPayloadType, FReal, 3>
+template <typename TPayloadType, typename TLeafType, bool bMutable = true, typename T = FReal>
+class TAABBTree final : public ISpatialAcceleration<TPayloadType, T, 3> 
 {
 public:
 	using PayloadType = TPayloadType;
 	static constexpr int D = 3;
-	using TType = FReal;
-	static constexpr FReal DefaultMaxPayloadBounds = 100000;
+	using TType = T;
+	static constexpr T DefaultMaxPayloadBounds = 100000;
 	static constexpr int32 DefaultMaxChildrenInLeaf = 12;
 	static constexpr int32 DefaultMaxTreeDepth = 16;
 	static constexpr int32 DefaultMaxNumToProcess = 0; // 0 special value for processing all without timeslicing
 	static constexpr ESpatialAcceleration StaticType = TIsSame<TAABBTreeLeafArray<TPayloadType>, TLeafType>::Value ? ESpatialAcceleration::AABBTree : 
 		(TIsSame<TBoundingVolume<TPayloadType>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
-		: ISpatialAcceleration<TPayloadType, FReal, 3>(StaticType)
+		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, MaxChildrenInLeaf(DefaultMaxChildrenInLeaf)
 		, MaxTreeDepth(DefaultMaxTreeDepth)
 		, MaxPayloadBounds(DefaultMaxPayloadBounds)
@@ -452,8 +454,8 @@ public:
 	}
 
 	template <typename TParticles>
-	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, FReal InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess )
-		: ISpatialAcceleration<TPayloadType, FReal, 3>(StaticType)
+	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess )
+		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, MaxChildrenInLeaf(InMaxChildrenInLeaf)
 		, MaxTreeDepth(InMaxTreeDepth)
 		, MaxPayloadBounds(InMaxPayloadBounds)
@@ -471,7 +473,7 @@ public:
 
 	virtual TArray<TPayloadType> FindAllIntersections(const FAABB3& Box) const override { return FindAllIntersectionsImp(Box); }
 
-	bool GetAsBoundsArray(TArray<FAABB3>& AllBounds, int32 NodeIdx, int32 ParentNode, FAABB3& Bounds)
+	bool GetAsBoundsArray(TArray<TAABB<T, 3>>& AllBounds, int32 NodeIdx, int32 ParentNode, TAABB<T, 3>& Bounds)
 	{
 		if (Nodes[NodeIdx].bLeaf)
 		{
@@ -488,14 +490,14 @@ public:
 
 	virtual ~TAABBTree() {}
 
-	void CopyFrom(const TAABBTree<TPayloadType, TLeafType, bMutable>& Other)
+	void CopyFrom(const TAABBTree<TPayloadType, TLeafType, bMutable, T>& Other)
 	{
 		(*this) = Other;
 	}
 
-	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, FReal, 3>> Copy() const override
+	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>> Copy() const override
 	{
-		return TUniquePtr<ISpatialAcceleration<TPayloadType, FReal, 3>>(new TAABBTree<TPayloadType, TLeafType, bMutable>(*this));
+		return TUniquePtr<ISpatialAcceleration<TPayloadType, T, 3>>(new TAABBTree<TPayloadType, TLeafType, bMutable, T>(*this));
 	}
 
 	virtual void Raycast(const FVec3& Start, const FVec3& Dir, const FReal Length, ISpatialVisitor<TPayloadType, FReal>& Visitor) const override
@@ -514,7 +516,7 @@ public:
 	template <typename SQVisitor>
 	bool RaycastFast(const FVec3& Start, FQueryFastData& CurData, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
-		return QueryImp<EAABBQueryType::Raycast>(Start, CurData, FVec3(), FAABB3(), Visitor, Dir, InvDir, bParallel);
+		return QueryImp<EAABBQueryType::Raycast>(Start, CurData, TVec3<T>(), TAABB<T, 3>(), Visitor, Dir, InvDir, bParallel);
 	}
 
 	void Sweep(const FVec3& Start, const FVec3& Dir, const FReal Length, const FVec3 QueryHalfExtents, ISpatialVisitor<TPayloadType, FReal>& Visitor) const override
@@ -559,7 +561,7 @@ public:
 	// This is to make sure important parameters are not changed during inopportune times
 	void GetCVars()
 	{
-		DirtyElementGridCellSize = (FReal) FAABBTreeDirtyGridCVars::DirtyElementGridCellSize;
+		DirtyElementGridCellSize = (T) FAABBTreeDirtyGridCVars::DirtyElementGridCellSize;
 		if (DirtyElementGridCellSize > SMALL_NUMBER)
 		{
 			DirtyElementGridCellSizeInv = 1.0f / DirtyElementGridCellSize;
@@ -693,7 +695,7 @@ public:
 		DirtyElements.RemoveAtSwap(DeleteDirtyParticleIdx);
 	}
 
-	FORCEINLINE_DEBUGGABLE int32 AddDirtyElementToGrid(const TAABB<FReal, 3>& NewBounds, int32 NewDirtyElement)
+	FORCEINLINE_DEBUGGABLE int32 AddDirtyElementToGrid(const TAABB<T, 3>& NewBounds, int32 NewDirtyElement)
 	{
 		bool bAddToGrid = !TooManyOverlapQueryCells(NewBounds, DirtyElementGridCellSizeInv, DirtyElementMaxPhysicalSizeInCells);
 		if (!bAddToGrid)
@@ -729,11 +731,11 @@ public:
 		return INDEX_NONE;
 	}
 
-	FORCEINLINE_DEBUGGABLE int32 UpdateDirtyElementInGrid(const TAABB<FReal, 3>& NewBounds, int32 DirtyElementIndex, int32 DirtyGridOverflowIdx)
+	FORCEINLINE_DEBUGGABLE int32 UpdateDirtyElementInGrid(const TAABB<T, 3>& NewBounds, int32 DirtyElementIndex, int32 DirtyGridOverflowIdx)
 	{
 		if (DirtyGridOverflowIdx == INDEX_NONE)
 		{
-			const TAABB<FReal, 3>& OldBounds = DirtyElements[DirtyElementIndex].Bounds;
+			const TAABB<T, 3>& OldBounds = DirtyElements[DirtyElementIndex].Bounds;
 
 			// Delete element in cells that are no longer overlapping
 			DoForOverlappedCellsExclude(OldBounds, NewBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) -> bool {
@@ -803,7 +805,7 @@ public:
 		}
 	}
 
-	virtual void UpdateElement(const TPayloadType& Payload, const FAABB3& NewBounds, bool bHasBounds) override
+	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bHasBounds) override
 	{
 		//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBTreeUpdateElement)
 		if (ensure(bMutable))
@@ -814,9 +816,9 @@ public:
 				if (PayloadInfo->LeafIdx != INDEX_NONE)
 				{
 					//If we are still within the same leaf bounds, do nothing
-					if (bHasBounds)
+					if (bHasBounds) 
 					{
-						const FAABB3& LeafBounds = Leaves[PayloadInfo->LeafIdx].GetBounds();
+						const TAABB<T, 3>& LeafBounds = Leaves[PayloadInfo->LeafIdx].GetBounds();
 						if (LeafBounds.Contains(NewBounds.Min()) && LeafBounds.Contains(NewBounds.Max()))
 						{
 							// We still need to update the constituent bounds
@@ -882,7 +884,7 @@ public:
 			}
 			else
 			{
-				FAABB3 GlobalBounds = bTooBig ? NewBounds : FAABB3(FVec3(TNumericLimits<FReal>::Lowest()), FVec3(TNumericLimits<FReal>::Max()));
+				TAABB<T, 3> GlobalBounds = bTooBig ? NewBounds : TAABB<T, 3>(TVec3<T>(TNumericLimits<T>::Lowest()), TVec3<T>(TNumericLimits<T>::Max()));
 				if (PayloadInfo->GlobalPayloadIdx == INDEX_NONE)
 				{
 					PayloadInfo->GlobalPayloadIdx = GlobalPayloads.Add(FElement{ Payload, GlobalBounds });
@@ -936,7 +938,7 @@ public:
 		return TreeStats;
 	}
 
-	const TArray<TPayloadBoundsElement<TPayloadType, FReal>>& GlobalObjects() const
+	const TArray<TPayloadBoundsElement<TPayloadType, T>>& GlobalObjects() const
 	{
 		return GlobalPayloads;
 	}
@@ -948,8 +950,8 @@ public:
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::RemovedAABBTreeFullBounds)
 		{
 			// Serialize out unused aabb for earlier versions
-			FAABB3 Dummy(FVec3((FReal)0), FVec3((FReal)0));
-			TBox<FReal, 3>::SerializeAsAABB(Ar, Dummy);
+			TAABB<T, 3> Dummy(TVec3<T>((T)0), TVec3<T>((T)0));
+			TBox<T, 3>::SerializeAsAABB(Ar, Dummy);
 		}
 		Ar << Nodes;
 		Ar << Leaves;
@@ -990,8 +992,8 @@ public:
 
 private:
 
-	using FElement = TPayloadBoundsElement<TPayloadType, FReal>;
-	using FNode = FAABBTreeNode;
+	using FElement = TPayloadBoundsElement<TPayloadType, T>;
+	using FNode = TAABBTreeNode<T>;
 
 	void ReoptimizeTree()
 	{
@@ -1014,7 +1016,7 @@ private:
 			Leaf.GatherElements(AllElements);
 		}
 
-		TAABBTree<TPayloadType,TLeafType,bMutable> NewTree(AllElements);
+		TAABBTree<TPayloadType,TLeafType,bMutable, T> NewTree(AllElements);
 		*this = NewTree;
 	}
 
@@ -1098,7 +1100,7 @@ private:
 	
 
 	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
-	bool QueryImp(const FVec3& RESTRICT Start, TQueryFastData& CurData, const FVec3 QueryHalfExtents, const FAABB3& QueryBounds, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
+	bool QueryImp(const FVec3& RESTRICT Start, TQueryFastData& CurData, const FVec3& QueryHalfExtents, const FAABB3& QueryBounds, SQVisitor& Visitor, const FVec3& Dir, const FVec3& InvDir, const bool bParallel[3]) const
 	{
 		//QUICK_SCOPE_CYCLE_COUNTER(AABBTreeQueryImp);
 		FVec3 TmpPosition;
@@ -1115,10 +1117,10 @@ private:
 					continue;
 				}
 
-				const auto& InstanceBounds = Elem.Bounds;
+				const FAABB3 InstanceBounds(Elem.Bounds.Min(), Elem.Bounds.Max());
 				if(TAABBTreeIntersectionHelper<TQueryFastData,Query>::Intersects(Start, CurData, TOI, TmpPosition, InstanceBounds, QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel))
 				{
-					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload,true);
+					TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload,true, InstanceBounds);
 					bool bContinue;
 					if(Query == EAABBQueryType::Overlap)
 					{
@@ -1140,7 +1142,7 @@ private:
 		{	// Returns true if we should continue
 			auto IntersectAndVisit = [&](const FElement& Elem) -> bool
 			{
-				const auto& InstanceBounds = Elem.Bounds;
+				const FAABB3 InstanceBounds(Elem.Bounds.Min(), Elem.Bounds.Max());
 				if (PrePreFilterHelper(Elem.Payload, QueryData, SimData))
 				{
 					return true;
@@ -1285,9 +1287,9 @@ private:
 			else
 			{
 				int32 Idx = 0;
-				for (const FAABB3& AABB : Node.ChildrenBounds)
+				for (const TAABB<T, 3>& AABB : Node.ChildrenBounds)
 				{
-					if(TAABBTreeIntersectionHelper<TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, AABB, QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel))
+					if(TAABBTreeIntersectionHelper<TQueryFastData, Query>::Intersects(Start, CurData, TOI, TmpPosition, FAABB3(AABB.Min(), AABB.Max()), QueryBounds, QueryHalfExtents, Dir, InvDir, bParallel))
 					{
 						NodeStack.Add(FNodeQueueEntry{ Node.ChildrenNodes[Idx], TOI });
 					}
@@ -1349,7 +1351,7 @@ private:
 		NumProcessedThisSlice = 0;
 		GetCVars();  // Safe to copy CVARS here
 
-		WorkSnapshot.Bounds = FAABB3::EmptyAABB();
+		WorkSnapshot.Bounds = TAABB<T, 3>::EmptyAABB();
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AABBTreeTimeSliceSetup);
@@ -1357,13 +1359,13 @@ private:
 			int32 Idx = 0;
 
 			//TODO: we need a better way to time-slice this case since there can be a huge number of Particles. Can't do it right now without making full copy
-			FVec3 CenterSum(0);
+			TVec3<T> CenterSum(0);
 
 			for (auto& Particle : Particles)
 			{
 				bool bHasBoundingBox = HasBoundingBox(Particle);
 				auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
-				FAABB3 ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (FReal)0);
+				TAABB<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
 				if (bHasBoundingBox)
 				{
 					if (ElemBounds.Extents().Max() > MaxPayloadBounds)
@@ -1379,7 +1381,7 @@ private:
 				}
 				else
 				{
-					ElemBounds = FAABB3(FVec3(TNumericLimits<FReal>::Lowest()), FVec3(TNumericLimits<FReal>::Max()));
+					ElemBounds = TAABB<T, 3>(TVec3<T>(TNumericLimits<T>::Lowest()), TVec3<T>(TNumericLimits<T>::Max()));
 				}
 
 				if (!bHasBoundingBox)
@@ -1397,11 +1399,11 @@ private:
 
 			if(WorkSnapshot.Elems.Num())
 			{
-				WorkSnapshot.AverageCenter = CenterSum * ((FReal)1 / (FReal)WorkSnapshot.Elems.Num());
+				WorkSnapshot.AverageCenter = CenterSum * ((T)1 / (T)WorkSnapshot.Elems.Num());
 			}
 			else
 			{
-				WorkSnapshot.AverageCenter = FVec3(0);
+				WorkSnapshot.AverageCenter = TVec3<T>(0);
 			}
 		}
 
@@ -1456,10 +1458,10 @@ private:
 
 	struct FSplitInfo
 	{
-		FAABB3 SplitBounds;	//Even split of parent bounds
-		FAABB3 RealBounds;	//Actual bounds as children are added
+		TAABB<T, 3> SplitBounds;	//Even split of parent bounds
+		TAABB<T, 3> RealBounds;	//Actual bounds as children are added
 		int32 WorkSnapshotIdx;	//Idx into work snapshot pool
-		FReal SplitBoundsSize2;
+		T SplitBoundsSize2;
 	};
 
 	struct FWorkSnapshot
@@ -1472,8 +1474,8 @@ private:
 
 		eTimeSlicePhase TimeslicePhase;
 
-		FAABB3 Bounds;
-		FVec3 AverageCenter;
+		TAABB<T, 3> Bounds;
+		TVec3<T> AverageCenter;
 		TArray<FElement> Elems;
 
 		int32 NodeLevel;
@@ -1491,13 +1493,13 @@ private:
 		{
 			const FElement& Elem = CurrentSnapshot.Elems[ElemIdx];
 			int32 MinBoxIdx = INDEX_NONE;
-			FReal MinDelta2 = TNumericLimits<FReal>::Max();
+			T MinDelta2 = TNumericLimits<T>::Max();
 			int32 BoxIdx = 0;
 			for (const FSplitInfo& SplitInfo : CurrentSnapshot.SplitInfos)
 			{
-				FAABB3 NewBox = SplitInfo.SplitBounds;
+				TAABB<T, 3> NewBox = SplitInfo.SplitBounds;
 				NewBox.GrowToInclude(Elem.Bounds);
-				const FReal Delta2 = NewBox.Extents().SizeSquared() - SplitInfo.SplitBoundsSize2;
+				const T Delta2 = NewBox.Extents().SizeSquared() - SplitInfo.SplitBoundsSize2;
 				if (Delta2 < MinDelta2)
 				{
 					MinDelta2 = Delta2;
@@ -1580,7 +1582,7 @@ private:
 
 			if (WorkPool[CurIdx].TimeslicePhase == eTimeSlicePhase::PreFindBestBounds)
 			{
-				const FVec3 Extents = WorkPool[CurIdx].Bounds.Extents();
+				const TVec3<T> Extents = WorkPool[CurIdx].Bounds.Extents();
 				const int32 MaxAxis = WorkPool[CurIdx].Bounds.LargestAxis();	//todo: use variance instead
 
 				//Add two children, remember this invalidates any pointers to current snapshot
@@ -1592,18 +1594,18 @@ private:
 				WorkPool[CurIdx].SplitInfos[1].WorkSnapshotIdx = SecondChildIdx;
 
 				//these are the hypothetical bounds for the perfect 50/50 split
-				WorkPool[CurIdx].SplitInfos[0].SplitBounds = FAABB3(WorkPool[CurIdx].Bounds.Min(), WorkPool[CurIdx].Bounds.Min());
-				WorkPool[CurIdx].SplitInfos[1].SplitBounds = FAABB3(WorkPool[CurIdx].Bounds.Max(), WorkPool[CurIdx].Bounds.Max());
+				WorkPool[CurIdx].SplitInfos[0].SplitBounds = TAABB<T, 3>(WorkPool[CurIdx].Bounds.Min(), WorkPool[CurIdx].Bounds.Min());
+				WorkPool[CurIdx].SplitInfos[1].SplitBounds = TAABB<T, 3>(WorkPool[CurIdx].Bounds.Max(), WorkPool[CurIdx].Bounds.Max());
 
-				const FVec3 Center = WorkPool[CurIdx].AverageCenter;
+				const TVec3<T> Center = WorkPool[CurIdx].AverageCenter;
 				for (FSplitInfo& SplitInfo : WorkPool[CurIdx].SplitInfos)
 				{
-					SplitInfo.RealBounds = FAABB3::EmptyAABB();
+					SplitInfo.RealBounds = TAABB<T, 3>::EmptyAABB();
 
 					for (int32 Axis = 0; Axis < 3; ++Axis)
 					{
-						FVec3 NewPt0 = Center;
-						FVec3 NewPt1 = Center;
+						TVec3<T> NewPt0 = Center;
+						TVec3<T> NewPt1 = Center;
 						if (Axis != MaxAxis)
 						{
 							NewPt0[Axis] = WorkPool[CurIdx].Bounds.Min()[Axis];
@@ -1623,8 +1625,8 @@ private:
 					WorkPool[FirstChildIdx].Elems.Reserve(ExpectedNumPerChild);
 					WorkPool[SecondChildIdx].Elems.Reserve(ExpectedNumPerChild);
 
-					WorkPool[FirstChildIdx].AverageCenter = FVec3(0);
-					WorkPool[SecondChildIdx].AverageCenter = FVec3(0);
+					WorkPool[FirstChildIdx].AverageCenter = TVec3<T>(0);
+					WorkPool[SecondChildIdx].AverageCenter = TVec3<T>(0);
 				}
 			}
 
@@ -1666,8 +1668,8 @@ private:
 				WorkPool[FirstChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[0];
 				WorkPool[SecondChildIdx].NewNodeIdx = Nodes[NewNodeIdx].ChildrenNodes[1];
 
-				WorkPool[FirstChildIdx].AverageCenter *= ((FReal)1 / (FReal)WorkPool[FirstChildIdx].Elems.Num());
-				WorkPool[SecondChildIdx].AverageCenter *= ((FReal)1 / (FReal)WorkPool[SecondChildIdx].Elems.Num());
+				WorkPool[FirstChildIdx].AverageCenter *= ((T)1 / (T)WorkPool[FirstChildIdx].Elems.Num());
+				WorkPool[SecondChildIdx].AverageCenter *= ((T)1 / (T)WorkPool[SecondChildIdx].Elems.Num());
 
 				//push these two new nodes onto the stack
 				WorkStack.Add(SecondChildIdx);
@@ -1728,8 +1730,8 @@ private:
 	}
 
 
-	TAABBTree(const TAABBTree<TPayloadType, TLeafType, bMutable>& Other)
-		: ISpatialAcceleration<TPayloadType, FReal, 3>(StaticType)
+	TAABBTree(const TAABBTree<TPayloadType, TLeafType, bMutable, T>& Other)
+		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
 		, Nodes(Other.Nodes)
 		, Leaves(Other.Leaves)
 		, DirtyElements(Other.DirtyElements)
@@ -1753,7 +1755,7 @@ private:
 
 	}
 
-	TAABBTree<TPayloadType,TLeafType, bMutable>& operator=(const TAABBTree<TPayloadType,TLeafType,bMutable>& Rhs)
+	TAABBTree<TPayloadType,TLeafType, bMutable, T>& operator=(const TAABBTree<TPayloadType,TLeafType,bMutable, T>& Rhs)
 	{
 		ensure(Rhs.WorkStack.Num() == 0);
 		//ensure(Rhs.WorkPool.Num() == 0);
@@ -1799,8 +1801,8 @@ private:
 	TArray<int32> FlattenedCellArrayOfDirtyIndices; // Array of indices into dirty Elements array, indices are always sorted within a 2D cell
 	TArray<int32> DirtyElementsGridOverflow; // Array of indices of DirtyElements that is not in the grid for some reason
 	// Copy of CVARS
-	FReal DirtyElementGridCellSize;
-	FReal DirtyElementGridCellSizeInv;
+	T DirtyElementGridCellSize;
+	T DirtyElementGridCellSizeInv;
 	int32 DirtyElementMaxGridCellQueryCount;
 	int32 DirtyElementMaxPhysicalSizeInCells;
 	int32 DirtyElementMaxCellCapacity;
@@ -1812,7 +1814,7 @@ private:
 
 	int32 MaxChildrenInLeaf;
 	int32 MaxTreeDepth;
-	FReal MaxPayloadBounds;
+	T MaxPayloadBounds;
 	int32 MaxNumToProcess;
 
 	int32 NumProcessedThisSlice;
@@ -1821,8 +1823,8 @@ private:
 	TArray<FWorkSnapshot> WorkPool;
 };
 
-template<typename TPayloadType, typename TLeafType, bool bMutable>
-FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, bMutable>& AABBTree)
+template<typename TPayloadType, typename TLeafType, bool bMutable, typename T>
+FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, bMutable, T>& AABBTree)
 {
 	AABBTree.Serialize(Ar);
 	return Ar;
