@@ -105,6 +105,7 @@ struct DYNAMICMESH_API FGroupTopologySelection
 		return SelectedCornerIDs.Num() == Selection.SelectedCornerIDs.Num()
 			&& SelectedEdgeIDs.Num() == Selection.SelectedEdgeIDs.Num()
 			&& SelectedGroupIDs.Num() == Selection.SelectedGroupIDs.Num()
+			// No need to also check Selection.Contains(*this) here since counts match and sets contain unique elements
 			&& Contains(Selection);
 	}
 

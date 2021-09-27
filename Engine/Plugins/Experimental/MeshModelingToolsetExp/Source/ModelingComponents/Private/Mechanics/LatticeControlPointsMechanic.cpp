@@ -2,7 +2,7 @@
 
 #include "Mechanics/LatticeControlPointsMechanic.h"
 
-#include "BaseBehaviors/SingleClickBehavior.h"
+#include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
@@ -38,6 +38,18 @@ namespace LatticeControlPointMechanicLocals
 			}
 		}
 	}
+
+	// TODO Move to SetUtil namespace and call it in FGroupTopologySelection::operator==
+	bool IsEqual(const TSet<int32>& A, const TSet<int32>& B)
+	{
+		if (A.Num() != B.Num())
+		{
+			return false;
+		}
+
+		// No need to also check B.Includes(A) here since counts match and sets contain unique elements
+		return A.Includes(B);
+	}
 }
 
 
@@ -46,19 +58,20 @@ void ULatticeControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	UInteractionMechanic::Setup(ParentToolIn);
 
 	MarqueeMechanic = NewObject<URectangleMarqueeMechanic>(this);
+	MarqueeMechanic->bUseExternalClickDragBehavior = true;
 	MarqueeMechanic->Setup(ParentToolIn);
 	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &ULatticeControlPointsMechanic::OnDragRectangleStarted);
 	MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &ULatticeControlPointsMechanic::OnDragRectangleChanged);
 	MarqueeMechanic->OnDragRectangleFinished.AddUObject(this, &ULatticeControlPointsMechanic::OnDragRectangleFinished);
 
-	USingleClickInputBehavior* ClickBehavior = NewObject<USingleClickInputBehavior>();
-	ClickBehavior->Initialize(this);
-	ParentTool->AddInputBehavior(ClickBehavior);
+	USingleClickOrDragInputBehavior* ClickOrDragBehavior = NewObject<USingleClickOrDragInputBehavior>();
+	ClickOrDragBehavior->Initialize(this, MarqueeMechanic);
+	ClickOrDragBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
+	ClickOrDragBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
+	ParentTool->AddInputBehavior(ClickOrDragBehavior);
 
 	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>();
 	HoverBehavior->Initialize(this);
-	HoverBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
-	HoverBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
 	ParentTool->AddInputBehavior(HoverBehavior);
 
 	DrawnControlPoints = NewObject<UPointSetComponent>();
@@ -394,86 +407,65 @@ bool ULatticeControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FIn
 FInputRayHit ULatticeControlPointsMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	FInputRayHit Result;
-	HitTest(ClickPos, Result);
-	return Result;
+	if (HitTest(ClickPos, Result))
+	{
+		return Result;
+	}
+
+	// Return a hit so we always capture and can clear the selection
+	return FInputRayHit(TNumericLimits<float>::Max());
 }
 
 void ULatticeControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 {
+	using namespace LatticeControlPointMechanicLocals;
+	
+	ParentTool->GetToolManager()->BeginUndoTransaction(LatticePointSelectionTransactionText);
+	
+	const TSet<int32> PreClickSelection = SelectedPointIDs;
+	
 	FGeometrySet3::FNearest Nearest;
-
 	if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
-		ParentTool->GetToolManager()->BeginUndoTransaction(LatticePointSelectionTransactionText);
-		// TODO: Have the modifier keys for single-select match the behavior of marquee select
-		ChangeSelection(Nearest.ID, ShouldAddToSelectionFunc());
-		ParentTool->GetToolManager()->EndUndoTransaction();
-	}
-
-}
-
-void ULatticeControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddToSelection)
-{
-	// If not adding to selection, clear it
-	bool bAnyChange = false;
-	if (!bAddToSelection && SelectedPointIDs.Num() > 0)
-	{
-		TSet<int32> PointsToDeselect;
-
-		for (int32 PointID : SelectedPointIDs)
+		if (ShouldAddToSelectionFunc())
 		{
-			// We check for validity here because we'd like to be able to use this function to deselect points after
-			// deleting them.
-			if (DrawnControlPoints->IsPointValid(PointID))
+			if (ShouldRemoveFromSelectionFunc())
 			{
-				PointsToDeselect.Add(PointID);
-				DrawnControlPoints->SetPointColor(PointID, NormalPointColor);
+				Toggle(SelectedPointIDs, TSet<int>{Nearest.ID});
+			}
+			else
+			{
+				SelectedPointIDs.Add(Nearest.ID);
 			}
 		}
-
-		FTransform PreviousTransform = PointTransformProxy->GetTransform();
-		SelectedPointIDs.Empty();
-		UpdateGizmoLocation();
-		FTransform NewTransform = PointTransformProxy->GetTransform();
-
-		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-			PointsToDeselect, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
-		bAnyChange = true;
-	}
-
-	for (const TPair<int32, FColor>& Override : ColorOverrides)
-	{
-		DrawnControlPoints->SetPointColor(Override.Key, Override.Value);
-	}
-
-	// We check for validity here because giving an invalid id (such as -1) with bAddToSelection == false
-	// is an easy way to clear the selection.
-	if ((NewPointID >= 0)  && (NewPointID < ControlPoints.Num()))
-	{
-		FTransform PreviousTransform = PointTransformProxy->GetTransform();
-
-		if (bAddToSelection && DeselectPoint(NewPointID))
+		else if (ShouldRemoveFromSelectionFunc())
 		{
-			UpdateGizmoLocation();
-			FTransform NewTransform = PointTransformProxy->GetTransform();
-			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-				NewPointID, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
+			SelectedPointIDs.Remove(Nearest.ID);
 		}
 		else
 		{
-			SelectPoint(NewPointID);
-			UpdateGizmoLocation();
-			FTransform NewTransform = PointTransformProxy->GetTransform();
-			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-				NewPointID, true, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointSelectionTransactionText);
+			// Neither key pressed.
+			SelectedPointIDs = TSet<int>{Nearest.ID};
 		}
-		bAnyChange = true;
 	}
-
-	if (bAnyChange)
+	else
 	{
+		SelectedPointIDs.Empty();
+	}
+	
+	if (!IsEqual(PreClickSelection, SelectedPointIDs))
+	{
+		const FTransform Transform = PointTransformProxy->GetTransform();
+		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
+			PreClickSelection, false, Transform, Transform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
+		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
+			SelectedPointIDs, true, Transform, Transform, CurrentChangeStamp), LatticePointSelectionTransactionText);
 		OnSelectionChanged.Broadcast();
 	}
+
+	ParentTool->GetToolManager()->EndUndoTransaction();
+	
+	UpdateDrawables();
 }
 
 void ULatticeControlPointsMechanic::UpdateGizmoLocation()
@@ -541,11 +533,6 @@ void ULatticeControlPointsMechanic::SelectPoint(int32 PointID)
 	{
 		DrawnControlPoints->SetPointColor(PointID, SelectedColor);
 	}
-}
-
-void ULatticeControlPointsMechanic::ClearSelection()
-{
-	ChangeSelection(-1, false);
 }
 
 FInputRayHit ULatticeControlPointsMechanic::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
@@ -628,6 +615,8 @@ void ULatticeControlPointsMechanic::OnDragRectangleStarted()
 
 void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangle& Rectangle)
 {
+	using namespace LatticeControlPointMechanicLocals;
+	
 	TSet<int> DragSelection;
 	for (int32 PointID = 0; PointID < ControlPoints.Num(); ++PointID)
 	{
@@ -643,7 +632,7 @@ void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangl
 		SelectedPointIDs = PreDragSelection;
 		if (ShouldRemoveFromSelectionFunc())
 		{
-			LatticeControlPointMechanicLocals::Toggle(SelectedPointIDs, DragSelection);
+			Toggle(SelectedPointIDs, DragSelection);
 		}
 		else
 		{
@@ -665,36 +654,21 @@ void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangl
 
 void ULatticeControlPointsMechanic::OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
 {
+	using namespace LatticeControlPointMechanicLocals;
+	
 	ParentTool->GetToolManager()->BeginUndoTransaction(LatticePointSelectionTransactionText);
 
-	FTransform PreviousTransform = PointTransformProxy->GetTransform();
-	
-	UpdateGizmoLocation();
-
-	FTransform NewTransform = PointTransformProxy->GetTransform();
-
-	bool bAnyChange = false;
-
-	if (PreDragSelection.Num() > 0)
+	if (!IsEqual(PreDragSelection, SelectedPointIDs))
 	{
+		const FTransform Transform = PointTransformProxy->GetTransform();
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-			PreDragSelection, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
-		bAnyChange = true;
-	}
-
-	if (SelectedPointIDs.Num() > 0)
-	{
+			PreDragSelection, false, Transform, Transform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
-			SelectedPointIDs, true, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointSelectionTransactionText);
-		bAnyChange = true;
+			SelectedPointIDs, true, Transform, Transform, CurrentChangeStamp), LatticePointSelectionTransactionText);
+		OnSelectionChanged.Broadcast();
 	}
 
 	ParentTool->GetToolManager()->EndUndoTransaction();
-
-	if (bAnyChange)
-	{
-		OnSelectionChanged.Broadcast();
-	}
 
 	UpdateDrawables();
 }

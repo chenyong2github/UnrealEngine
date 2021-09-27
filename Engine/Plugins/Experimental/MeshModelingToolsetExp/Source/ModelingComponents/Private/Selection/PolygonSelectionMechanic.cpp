@@ -2,7 +2,7 @@
 
 #include "Selection/PolygonSelectionMechanic.h"
 
-#include "BaseBehaviors/ClickDragBehavior.h"
+#include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "InteractiveToolManager.h"
@@ -27,12 +27,8 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 	TopoSelector = MakeShared<FGroupTopologySelector, ESPMode::ThreadSafe>();
 
-	ClickBehavior = NewObject<USingleClickInputBehavior>();
-	ClickBehavior->Initialize(this);
-	ClickBehavior->SetDefaultPriority(BasePriority);
-	ParentToolIn->AddInputBehavior(ClickBehavior, this);
-
 	HoverBehavior = NewObject<UMouseHoverBehavior>();
+	// We use modifiers on hover to change the highlighting according to what can be selected  	
 	HoverBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
 	HoverBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
 	HoverBehavior->Initialize(this);
@@ -40,11 +36,19 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ParentToolIn->AddInputBehavior(HoverBehavior, this);
 
 	MarqueeMechanic = NewObject<URectangleMarqueeMechanic>();
+	MarqueeMechanic->bUseExternalClickDragBehavior = true;
 	MarqueeMechanic->Setup(ParentToolIn);
 	MarqueeMechanic->OnDragRectangleStarted.AddUObject(this, &UPolygonSelectionMechanic::OnDragRectangleStarted);
 	MarqueeMechanic->OnDragRectangleChanged.AddUObject(this, &UPolygonSelectionMechanic::OnDragRectangleChanged);
 	MarqueeMechanic->OnDragRectangleFinished.AddUObject(this, &UPolygonSelectionMechanic::OnDragRectangleFinished);
 	MarqueeMechanic->SetBasePriority(BasePriority.MakeLower());
+
+	ClickOrDragBehavior = NewObject<USingleClickOrDragInputBehavior>();
+	ClickOrDragBehavior->Initialize(this, MarqueeMechanic);
+	ClickOrDragBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
+	ClickOrDragBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
+	ClickOrDragBehavior->SetDefaultPriority(BasePriority);
+	ParentTool->AddInputBehavior(ClickOrDragBehavior);
 
 	Properties = NewObject<UPolygonSelectionMechanicProperties>(this);
 	if (bAddSelectionFilterPropertiesToParentTool)
@@ -178,9 +182,9 @@ void UPolygonSelectionMechanic::SetIsEnabled(bool bOn)
 void UPolygonSelectionMechanic::SetBasePriority(const FInputCapturePriority &Priority)
 {
 	BasePriority = Priority;
-	if (ClickBehavior)
+	if (ClickOrDragBehavior)
 	{
-		ClickBehavior->SetDefaultPriority(Priority);
+		ClickOrDragBehavior->SetDefaultPriority(Priority);
 	}
 	if (HoverBehavior)
 	{
@@ -341,6 +345,7 @@ FGroupTopologySelector::FSelectionSettings UPolygonSelectionMechanic::GetTopoSel
 
 	if (!PersistentSelection.IsEmpty() && (ShouldAddToSelectionFunc() || ShouldRemoveFromSelectionFunc()))
 	{
+		// If we have a selection and we're adding/removing/toggling elements make sure we only hit elements with compatible types
 		Settings.bEnableFaceHits = Settings.bEnableFaceHits && PersistentSelection.SelectedGroupIDs.Num() > 0;
 		Settings.bEnableEdgeHits = Settings.bEnableEdgeHits && PersistentSelection.SelectedEdgeIDs.Num() > 0;
 		Settings.bEnableCornerHits = Settings.bEnableCornerHits && PersistentSelection.SelectedCornerIDs.Num() > 0;
@@ -416,11 +421,12 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 					// We use the triangle normals because the normal overlay isn't guaranteed to be valid as we edit the mesh
 					FVector3d TriangleNormal = Mesh->GetTriNormal(Tid);
 
+					// The UV's and colors here don't currently get used by HighlightedFaceMaterial, but we set them anyway
 					FIndex3i VertIndices = Mesh->GetTriangle(Tid);
 					DrawnTriangleSetComponent->AddTriangle(FRenderableTriangle(HighlightedFaceMaterial,
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)TriangleNormal, UE::Geometry::ToFColor((FVector4f)Mesh->GetVertexColor(VertIndices.A))),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)TriangleNormal, UE::Geometry::ToFColor((FVector4f)Mesh->GetVertexColor(VertIndices.B))),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)TriangleNormal, UE::Geometry::ToFColor((FVector4f)Mesh->GetVertexColor(VertIndices.C))) ));
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)TriangleNormal, FLinearColor(Mesh->GetVertexColor(VertIndices.A)).ToFColor(true)),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)TriangleNormal, FLinearColor(Mesh->GetVertexColor(VertIndices.B)).ToFColor(true)),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)TriangleNormal, FLinearColor(Mesh->GetVertexColor(VertIndices.C)).ToFColor(true)) ));
 				}
 
 				CurrentlyHighlightedGroups.Add(Gid);
@@ -446,7 +452,8 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 		TargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 	UE::Geometry::Normalize(LocalRay.Direction);
 
-	bool bSelectionModified = false;
+	const FGroupTopologySelection PreviousSelection = PersistentSelection;
+
 	FVector3d LocalPosition, LocalNormal;
 	FGroupTopologySelection Selection;
 	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings(CameraState.bIsOrthographic);
@@ -483,22 +490,20 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 		{
 			PersistentSelection = Selection;
 		}
-
-		bSelectionModified = true;
 	}
 	else
 	{
-		bSelectionModified = (PersistentSelection.IsEmpty() == false);
 		PersistentSelection.Clear();
 	}
 
-	if (bSelectionModified)
+	if (PersistentSelection != PreviousSelection)
 	{
 		SelectionTimestamp++;
 		OnSelectionChanged.Broadcast();
+		return true;
 	}
 
-	return bSelectionModified;
+	return false;
 }
 
 
@@ -534,11 +539,8 @@ FInputRayHit UPolygonSelectionMechanic::IsHitByClick(const FInputDeviceRay& Clic
 		return FInputRayHit(OutHit.Distance);
 	}
 
-	// We didn't hit selectable geometry. If we're using the marquee mechanic, give it a
-	// chance to capture. Otherwise still capture ourselves so that we are able to clear selections.
-	return MarqueeMechanic->IsEnabled() ?
-		FInputRayHit() // bHit is false
-		: FInputRayHit(TNumericLimits<float>::Max()); // bHit is true
+	// Return a hit so we always capture and can clear the selection
+	return FInputRayHit(TNumericLimits<float>::Max());
 }
 
 void UPolygonSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
@@ -600,8 +602,6 @@ void UPolygonSelectionMechanic::OnDragRectangleStarted()
 	PreDragPersistentSelection = PersistentSelection;
 	PreDragTopoSelectorSettings = GetTopoSelectorSettings(false);
 	PreDragTopoSelectorSettings.bIgnoreOcclusion = Properties->bMarqueeIgnoreOcclusion; // uses a separate setting for marquee
-	
-	PersistentSelection.Clear();
 }
 
 void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle)
@@ -637,7 +637,7 @@ void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& C
 
 void UPolygonSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
 {
-	if (!(PersistentSelection == PreDragPersistentSelection))
+	if (PersistentSelection != PreDragPersistentSelection)
 	{
 		SelectionTimestamp++;
 		OnSelectionChanged.Broadcast();

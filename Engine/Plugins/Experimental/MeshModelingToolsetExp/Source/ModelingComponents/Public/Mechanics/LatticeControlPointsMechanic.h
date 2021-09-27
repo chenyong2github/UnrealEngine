@@ -187,10 +187,6 @@ protected:
 	FQuat	GizmoStartRotation;
 	FVector GizmoStartScale;
 
-	// These issue undo/redo change objects, and must therefore not be called in undo/redo code.
-	void ChangeSelection(int32 NewPointID, bool AddToSelection);
-	void ClearSelection();
-
 	// All of the following do not issue undo/redo change objects.
 	bool HitTest(const FInputDeviceRay& ClickPos, FInputRayHit& ResultOut);
 	void SelectPoint(int32 PointID);
