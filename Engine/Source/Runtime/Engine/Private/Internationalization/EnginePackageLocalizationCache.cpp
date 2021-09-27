@@ -32,17 +32,38 @@ FEnginePackageLocalizationCache::~FEnginePackageLocalizationCache()
 	}
 }
 
-void FEnginePackageLocalizationCache::FindLocalizedPackages(const FString& InSourceRoot, const FString& InLocalizedRoot, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages)
+void FEnginePackageLocalizationCache::FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages)
 {
+	if (NewSourceToLocalizedPaths.Num() == 0)
+	{
+		return;
+	}
+
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	int32 NumElementsPerKeyGuess = NewSourceToLocalizedPaths.CreateConstIterator()->Value.Num();
+	int32 SizeGuess = NewSourceToLocalizedPaths.Num() * NumElementsPerKeyGuess;
+#if WITH_EDITOR
+	TArray<FString> LocalizedPackagePaths;
+	LocalizedPackagePaths.Reserve(SizeGuess);
+#endif
+	TArray<FName> LocalizedPackagePathFNames;
+	LocalizedPackagePathFNames.Reserve(SizeGuess);
+	for (const TPair<FString, TArray<FString>>& Pair : NewSourceToLocalizedPaths)
+	{
+		for (const FString& LocalizedRoot : Pair.Value)
+		{
+#if WITH_EDITOR
+			LocalizedPackagePaths.Add(LocalizedRoot);
+#endif
+			LocalizedPackagePathFNames.Add(*LocalizedRoot);
+		}
+	}
 
 #if WITH_EDITOR
 	// Make sure the asset registry has the data we need
 	{
-		TArray<FString> LocalizedPackagePaths;
-		LocalizedPackagePaths.Add(InLocalizedRoot);
-
 		// Set bIsScanningPath to avoid us processing newly added assets from this scan
 		TGuardValue<bool> SetIsScanningPath(bIsScanningPath, true);
 		AssetRegistry.ScanPathsSynchronous(LocalizedPackagePaths);
@@ -52,7 +73,7 @@ void FEnginePackageLocalizationCache::FindLocalizedPackages(const FString& InSou
 	TArray<FAssetData> LocalizedAssetDataArray;
 	bool bIncludeOnlyOnDiskAssets = !GIsEditor;
 	bool bRecursive = true;
-	AssetRegistry.GetAssetsByPath(*InLocalizedRoot, LocalizedAssetDataArray, bRecursive, bIncludeOnlyOnDiskAssets);
+	AssetRegistry.GetAssetsByPaths(MoveTemp(LocalizedPackagePathFNames), LocalizedAssetDataArray, bRecursive, bIncludeOnlyOnDiskAssets);
 
 	for (const FAssetData& LocalizedAssetData : LocalizedAssetDataArray)
 	{

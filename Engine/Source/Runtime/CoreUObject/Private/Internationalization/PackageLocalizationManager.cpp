@@ -17,30 +17,37 @@ public:
 
 protected:
 	//~ FPackageLocalizationCache interface
-	virtual void FindLocalizedPackages(const FString& InSourceRoot, const FString& InLocalizedRoot, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages) override;
+	virtual void FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages) override;
 	virtual void FindAssetGroupPackages(const FName InAssetGroupName, const FName InAssetClassName) override;
 };
 
-void FDefaultPackageLocalizationCache::FindLocalizedPackages(const FString& InSourceRoot, const FString& InLocalizedRoot, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages)
+void FDefaultPackageLocalizationCache::FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages)
 {
 	// Convert the package path to a filename with no extension (directory)
-	FString LocalizedPackageFilePath;
-	if (!FPackageName::TryConvertLongPackageNameToFilename(InLocalizedRoot / TEXT(""), LocalizedPackageFilePath))
+	for (const TPair<FString, TArray<FString>>& Pair : NewSourceToLocalizedPaths)
 	{
-		return;
+		const FString& SourceRoot = Pair.Key;
+		for (const FString& LocalizedRoot : Pair.Value)
+		{
+			FString LocalizedPackageFilePath;
+			if (!FPackageName::TryConvertLongPackageNameToFilename(LocalizedRoot / TEXT(""), LocalizedPackageFilePath))
+			{
+				continue;
+			}
+
+			FPackageName::IteratePackagesInDirectory(LocalizedPackageFilePath, FPackageName::FPackageNameVisitor([&](const TCHAR* InPackageFileName) -> bool
+			{
+				const FString PackageSubPath = FPaths::ChangeExtension(InPackageFileName + LocalizedPackageFilePath.Len(), FString());
+				const FName SourcePackageName = *(SourceRoot / PackageSubPath);
+				const FName LocalizedPackageName = *(LocalizedRoot / PackageSubPath);
+
+				TArray<FName>& PrioritizedLocalizedPackageNames = InOutSourcePackagesToLocalizedPackages.FindOrAdd(SourcePackageName);
+				PrioritizedLocalizedPackageNames.AddUnique(LocalizedPackageName);
+
+				return true;
+			}));
+		}
 	}
-
-	FPackageName::IteratePackagesInDirectory(LocalizedPackageFilePath, FPackageName::FPackageNameVisitor([&](const TCHAR* InPackageFileName) -> bool
-	{
-		const FString PackageSubPath = FPaths::ChangeExtension(InPackageFileName + LocalizedPackageFilePath.Len(), FString());
-		const FName SourcePackageName = *(InSourceRoot / PackageSubPath);
-		const FName LocalizedPackageName = *(InLocalizedRoot / PackageSubPath);
-
-		TArray<FName>& PrioritizedLocalizedPackageNames = InOutSourcePackagesToLocalizedPackages.FindOrAdd(SourcePackageName);
-		PrioritizedLocalizedPackageNames.AddUnique(LocalizedPackageName);
-
-		return true;
-	}));
 }
 
 void FDefaultPackageLocalizationCache::FindAssetGroupPackages(const FName InAssetGroupName, const FName InAssetClassName)

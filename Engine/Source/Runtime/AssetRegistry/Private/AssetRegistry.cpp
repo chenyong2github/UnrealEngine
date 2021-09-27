@@ -1176,6 +1176,15 @@ bool UAssetRegistryImpl::GetAssetsByPath(FName PackagePath, TArray<FAssetData>& 
 	return GetAssets(Filter, OutAssetData);
 }
 
+bool UAssetRegistryImpl::GetAssetsByPaths(TArray<FName> PackagePaths, TArray<FAssetData>& OutAssetData, bool bRecursive, bool bIncludeOnlyOnDiskAssets) const
+{
+	FARFilter Filter;
+	Filter.bRecursivePaths = bRecursive;
+	Filter.PackagePaths = MoveTemp(PackagePaths);
+	Filter.bIncludeOnlyOnDiskAssets = bIncludeOnlyOnDiskAssets;
+	return GetAssets(Filter, OutAssetData);
+}
+
 namespace UE::AssetRegistry
 {
 

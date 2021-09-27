@@ -142,6 +142,16 @@ public:
 	virtual bool GetAssetsByPath(FName PackagePath, TArray<FAssetData>& OutAssetData, bool bRecursive = false, bool bIncludeOnlyOnDiskAssets = false) const = 0;
 
 	/**
+	 * Gets asset data for all assets in any of the supplied folder paths
+	 *
+	 * @param PackagePaths the paths to query asset data in (eg, /Game/MyFolder)
+	 * @param OutAssetData the list of assets in this path
+	 * @param bRecursive if true, all supplied paths will be searched recursively
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "AssetRegistry")
+	virtual bool GetAssetsByPaths(TArray<FName> PackagePaths, TArray<FAssetData>& OutAssetData, bool bRecursive = false, bool bIncludeOnlyOnDiskAssets = false) const = 0;
+
+	/**
 	 * Gets asset data for all assets with the supplied class
 	 *
 	 * @param ClassName the class name of the assets requested

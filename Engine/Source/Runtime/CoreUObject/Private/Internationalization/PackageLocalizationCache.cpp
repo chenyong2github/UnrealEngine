@@ -37,6 +37,7 @@ void FPackageLocalizationCultureCache::ConditionalUpdateCache_NoLock()
 	SCOPED_BOOT_TIMING("FPackageLocalizationCultureCache::ConditionalUpdateCache_NoLock");
 	const double CacheStartTime = FPlatformTime::Seconds();
 
+	TMap<FString, TArray<FString>> NewSourceToLocalizedPaths;
 	for (const FString& SourceRootPath : PendingSourceRootPathsToSearch)
 	{
 		TArray<FString>& LocalizedRootPaths = SourcePathsToLocalizedPaths.FindOrAdd(SourceRootPath);
@@ -46,10 +47,11 @@ void FPackageLocalizationCultureCache::ConditionalUpdateCache_NoLock()
 			if (!LocalizedRootPaths.Contains(LocalizedRootPath))
 			{
 				LocalizedRootPaths.Add(LocalizedRootPath);
-				OwnerCache->FindLocalizedPackages(SourceRootPath, LocalizedRootPath, SourcePackagesToLocalizedPackages);
+				NewSourceToLocalizedPaths.FindOrAdd(SourceRootPath).Add(LocalizedRootPath);
 			}
 		}
 	}
+	OwnerCache->FindLocalizedPackages(NewSourceToLocalizedPaths, SourcePackagesToLocalizedPackages);
 
 	UE_LOG(LogPackageLocalizationCache, Log, TEXT("Processed %d localized package path(s) for %d prioritized culture(s) in %0.6f seconds"), PendingSourceRootPathsToSearch.Num(), PrioritizedCultureNames.Num(), FPlatformTime::Seconds() - CacheStartTime);
 
