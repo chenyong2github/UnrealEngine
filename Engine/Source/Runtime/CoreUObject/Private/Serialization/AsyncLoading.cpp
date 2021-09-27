@@ -5376,6 +5376,7 @@ void FAsyncPackage::DetachLinker()
 
 void FAsyncPackage::FlushObjectLinkerCache()
 {
+	TSet<FLinkerLoad*> Linkers;
 	for (UObject* Obj : PackageObjLoaded)
 	{
 		if (Obj)
@@ -5383,9 +5384,13 @@ void FAsyncPackage::FlushObjectLinkerCache()
 			FLinkerLoad* ObjLinker = Obj->GetLinker();
 			if (ObjLinker)
 			{
-				ObjLinker->FlushCache();
+				Linkers.Add(ObjLinker);
 			}
 		}
+	}
+	for (FLinkerLoad* LocalLinker : Linkers)
+	{
+		LocalLinker->FlushCache();
 	}
 }
 
