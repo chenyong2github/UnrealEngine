@@ -208,6 +208,31 @@ public:
 	static void SetLockCameraCutToViewport(bool bLock);
 
 public:
+	/** Get if a custom color for specified channel idendified by it's class and identifier exists */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static bool HasCustomColorForChannel(UClass* Class, const FString& Identifier);
+	
+	/** Get custom color for specified channel idendified by it's class and identifier,if none exists will return white*/
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static FLinearColor GetCustomColorForChannel(UClass* Class, const FString& Identifier);
+	
+	/** Set Custom Color for specified channel idendified by it's class and identifier. This will be stored in editor user preferences.*/
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetCustomColorForChannel(UClass* Class, const FString& Identifier, const FLinearColor& NewColor);
+	
+	/** Set Custom Color for specified channels idendified by it's class and identifiers. This will be stored in editor user preferences.*/
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetCustomColorForChannels(UClass* Class, const TArray<FString>& Identifiers, const TArray<FLinearColor>& NewColors);
+	
+	/** Set Random Colors for specified channels idendified by it's class and identifiers. This will be stored in editor user preferences.*/
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetRandomColorForChannels(UClass* Class, const TArray<FString>& Identifiers);
+	
+	/** Delete for specified channel idendified by it's class and identifier.*/
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void DeleteColorForChannels(UClass* Class, FString& Identifier);
+
+public:
 
 	/*
 	 * Callbacks

@@ -240,6 +240,16 @@ public:
 	{
 		return nullptr;
 	}
+
+	/**
+	* Get the Object and the name to be used to store the curve model color (see UCurveEditorSettings). By default
+	* this is the owning object and the intent name, but it can be overriden, for example for Sequencer it may be the bound object
+	*/
+	virtual void GetCurveColorObjectAndName(UObject** OutObject, FString& OutName) const
+	{
+		*OutObject = GetOwningObject();
+		OutName = GetIntentionName();
+	}
 	/**
 	 * Helper function for assigning a the same attributes to a number of keys
 	 */

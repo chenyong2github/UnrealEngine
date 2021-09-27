@@ -21,6 +21,7 @@ public class LevelSequenceEditor : ModuleRules
                 "CinematicCamera",
 				"Core",
 				"CoreUObject",
+				"CurveEditor",
 				"EditorFramework",
                 "EditorStyle",
                 "Engine",
