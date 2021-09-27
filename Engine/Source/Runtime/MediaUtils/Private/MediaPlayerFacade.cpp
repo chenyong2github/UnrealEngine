@@ -936,6 +936,10 @@ bool FMediaPlayerFacade::Open(const FString& Url, const IMediaOptions* Options, 
 
 	// find a player factory for the intended playback
 	IMediaPlayerFactory* PlayerFactory = GetPlayerFactoryForUrl(Url, Options);
+	if (PlayerFactory == nullptr)
+	{
+		return false;
+	}
 
 	IMediaPlayerFactory* OldFactory(Player.IsValid() ? MediaModule->GetPlayerFactory(Player->GetPlayerPluginGUID()) : nullptr);
 
