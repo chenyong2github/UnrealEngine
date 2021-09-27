@@ -47,10 +47,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 	bInitializeOnce = true;
 
 	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
-	// so we can extend it by our projection related functionality/components/etc.
-
-	// Find origin component if it exists
-	InitializeOriginComponent(InViewport, OriginCompId);
+	// so we can extend it by our projection related functionality/components/etc.	
 
 	// Read easyblend config data from nDisplay config file
 	FString FilePath;
@@ -59,6 +56,9 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't read EasyBlend configuration from the config file"));
 		return false;
 	}
+
+	// Find origin component if it exists
+	InitializeOriginComponent(InViewport, OriginCompId);
 
 	FString FullPath = DisplayClusterHelpers::filesystem::GetFullPathForConfigResource(FilePath);
 	if (!FPaths::FileExists(FullPath))
