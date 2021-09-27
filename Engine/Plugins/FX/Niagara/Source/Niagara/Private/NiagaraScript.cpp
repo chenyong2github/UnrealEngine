@@ -1407,6 +1407,7 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 	const int32 NiagaraVer = Ar.CustomVer(FNiagaraCustomVersion::GUID);
 
 	FNiagaraParameterStore TemporaryStore;
+	TArray<FNiagaraBoundParameter> TemporaryBindings;
 	int32 NumRemoved = 0;
 	if (Ar.IsCooking())
 	{
@@ -1439,6 +1440,7 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		{
 			// Copy off the parameter store for now..
 			TemporaryStore = RapidIterationParameters;
+			TemporaryBindings = ScriptExecutionBoundParameters;
 
 			auto ParameterVariables = TemporaryStore.ReadParameterVariables();
 
@@ -1449,6 +1451,10 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 				if (Var.IsDataInterface() || Var.IsUObject())
 					continue;
 				RapidIterationParameters.RemoveParameter(Var);
+				
+				//Also remove the binding for this RI parameter.
+				ScriptExecutionBoundParameters.RemoveAll([&Var](FNiagaraBoundParameter& BoundParam){ return BoundParam.Parameter == Var; });
+
 				NumRemoved++;
 			}
 
@@ -1498,6 +1504,7 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 	if (Ar.IsCooking() && NumRemoved > 0)
 	{
 		RapidIterationParameters = TemporaryStore;
+		ScriptExecutionBoundParameters = TemporaryBindings;
 	}
 
 	bool IsValidShaderScript = false;

@@ -47,10 +47,6 @@
 #define USE_CRASH_REPORTER_MONITOR WITH_EDITOR
 #endif
 
-#ifndef ALLOW_NON_INTERNAL_UNATTENDED_CRASH_REPORTS
-#define ALLOW_NON_INTERNAL_UNATTENDED_CRASH_REPORTS 0
-#endif
-
 #ifndef NOINITCRASHREPORTER
 #define NOINITCRASHREPORTER 0
 #endif
@@ -712,8 +708,10 @@ int32 ReportCrashForMonitor(
 		}
 	}
 
-#if !UE_EDITOR && !ALLOW_NON_INTERNAL_UNATTENDED_CRASH_REPORTS
-	if (!FEngineBuildSettings::IsInternalBuild())
+#if !UE_EDITOR
+	// NOTE: A blueprint-only game packaged from a vanilla engine downloaded from Epic Game Store isn't considered a 'Licensee' version because the engine was built by Epic.
+	//       There is no way at the moment do distinguish this case properly.
+	if (BuildSettings::IsLicenseeVersion())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
@@ -895,8 +893,10 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
 	}
 
-#if !UE_EDITOR && !ALLOW_NON_INTERNAL_UNATTENDED_CRASH_REPORTS
-	if (!FEngineBuildSettings::IsInternalBuild())
+#if !UE_EDITOR
+	// NOTE: A blueprint-only game packaged from a vanilla engine downloaded from Epic Game Store isn't considered a 'Licensee' version because the engine was built by Epic.
+	//       There is no way at the moment do distinguish this case properly.
+	if (BuildSettings::IsLicenseeVersion())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;

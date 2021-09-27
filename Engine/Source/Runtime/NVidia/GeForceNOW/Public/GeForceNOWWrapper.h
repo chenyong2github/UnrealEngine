@@ -72,6 +72,8 @@ public:
 	GfnRuntimeError RegisterSaveCallback(SaveCallbackSig SaveCallback, void* Context) const;
 	/** Registers an application callback to be called when a GeforceNOW user has connected to the game seat. */
 	GfnRuntimeError RegisterSessionInitCallback(SessionInitCallbackSig SessionInitCallback, void* Context) const;
+	/** Registers an application callback with GFN to be called when client info changes. */
+	GfnRuntimeError RegisterClientInfoCallback(ClientInfoCallbackSig ClientInfoCallback, void* Context) const;
 
 	/** Gets user client's IP address. */
 	GfnRuntimeError GetClientIpV4(FString& OutIpv4) const;
@@ -79,6 +81,8 @@ public:
 	GfnRuntimeError GetClientLanguageCode(FString& OutLanguageCode) const;
 	/** Gets user’s client country code using ISO 3166-1 Alpha-2 country code. */
 	GfnRuntimeError GetClientCountryCode(FString& OutCountryCode) const;
+	/** Gets user's client data. */
+	GfnRuntimeError GetClientInfo(GfnClientInfo& OutClientInfo) const;
 	/** Retrieves custom data passed in by the client in the StartStream call. */
 	GfnRuntimeError GetCustomData(FString& OutCustomData) const;
 	/** Retrieves custom authorization passed in by the client in the StartStream call. */

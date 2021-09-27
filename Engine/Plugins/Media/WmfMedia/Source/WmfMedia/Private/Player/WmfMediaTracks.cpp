@@ -204,8 +204,15 @@ FTimespan FWmfMediaTracks::GetDuration() const
 	}
 
 	UINT64 PresentationDuration = 0;
-	PresentationDescriptor->GetUINT64(MF_PD_DURATION, &PresentationDuration);
+	HRESULT Result = PresentationDescriptor->GetUINT64(MF_PD_DURATION, &PresentationDuration);
 #if WMFMEDIA_PLAYER_VERSION >= 2
+	if (SUCCEEDED(Result) == false)
+	{
+		// Live streams like webcam do not have a duration.
+		// Return max value to signify this.
+		return FTimespan::MaxValue();
+	}
+	
 	// The duration reported here for HAP videos can be larger than they really are be by this amount.
 	PresentationDuration -= 10000;
 #endif

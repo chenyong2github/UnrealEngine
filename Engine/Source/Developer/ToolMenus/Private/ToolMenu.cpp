@@ -249,6 +249,11 @@ void UToolMenu::AddDynamicSectionScript(const FName SectionName, UToolMenuSectio
 void UToolMenu::AddMenuEntryObject(UToolMenuEntryScript* InObject)
 {
 	FindOrAddSection(InObject->Data.Section).AddEntryObject(InObject);
+
+	if (MenuType == EMultiBoxType::MenuBar || MenuType == EMultiBoxType::ToolBar)
+	{
+		UToolMenus::Get()->RefreshAllWidgets();
+	}
 }
 
 UToolMenu* UToolMenu::AddSubMenuScript(const FName InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)

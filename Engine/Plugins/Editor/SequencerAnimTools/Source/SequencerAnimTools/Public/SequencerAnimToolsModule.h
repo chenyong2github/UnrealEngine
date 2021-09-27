@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Modules/ModuleManager.h"
 
 class ILevelEditor;

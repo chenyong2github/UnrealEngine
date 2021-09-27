@@ -4,6 +4,7 @@
 
 // Includes
 #include "Net/Core/Analytics/NetAnalytics.h"
+#include "Net/Core/Connection/NetCloseResult.h"
 
 
 /**
@@ -11,6 +12,8 @@
  */
 struct FNetConnAnalyticsVars
 {
+	using FNetResult = UE::Net::FNetResult;
+
 public:
 	/** Default constructor */
 	FNetConnAnalyticsVars();
@@ -19,12 +22,34 @@ public:
 
 	void CommitAnalytics(FNetConnAnalyticsVars& AggregatedData);
 
+
 public:
 	/** The number of packets that were exclusively ack packets */
 	uint64 OutAckOnlyCount;
 
 	/** The number of packets that were just keep-alive packets */
 	uint64 OutKeepAliveCount;
+
+	/** The result/reason for triggering NetConnection Close (local) */
+	TUniquePtr<FNetResult> CloseReason;
+
+	/** The remotely-communicated result/reason for triggering NetConnection Close (remote, server only) */
+	TArray<FString> ClientCloseReasons;
+
+	/** NetConnection faults that were recovered from, and the number of times they were recovered from */
+	TMap<FString, int32> RecoveredFaults;
+
+
+	/** Aggregation variables */
+
+	struct FPerNetConnData
+	{
+		TUniquePtr<FNetResult> CloseReason;
+		TArray<FString> ClientCloseReasons;
+	};
+
+	/** (Not filled until final commit) Contains Per-NetConnection data which can't be aggregated until final commit */
+	TArray<FPerNetConnData> PerConnectionData;
 };
 
 

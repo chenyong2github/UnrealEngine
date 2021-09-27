@@ -16,90 +16,18 @@
 #include "ToolMenus.h"
 #include "AssetFolderContextMenu.h"
 #include "AssetFileContextMenu.h"
+#include "ContentBrowserDataUtils.h"
 #include "Settings/ContentBrowserSettings.h"
-#include "Interfaces/IPluginManager.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
 namespace ContentBrowserAssetData
 {
 
-bool IsTopLevelFolder(const FStringView InFolderPath)
-{
-	int32 SlashCount = 0;
-	for (const TCHAR PathChar : InFolderPath)
-	{
-		if (PathChar == TEXT('/'))
-		{
-			if (++SlashCount > 1)
-			{
-				break;
-			}
-		}
-	}
-
-	return SlashCount == 1;
-}
-
-bool IsTopLevelFolder(const FName InFolderPath)
-{
-	return IsTopLevelFolder(FNameBuilder(InFolderPath));
-}
-
 FContentBrowserItemData CreateAssetFolderItem(UContentBrowserDataSource* InOwnerDataSource, const FName InVirtualPath, const FName InFolderPath)
 {
-	static const FName GameRootPath = "/Game";
-	static const FName EngineRootPath = "/Engine";
-
 	const FString FolderItemName = FPackageName::GetShortName(InFolderPath);
-
-	FText FolderDisplayNameOverride;
-	if (InFolderPath == GameRootPath)
-	{
-		FolderDisplayNameOverride = LOCTEXT("GameFolderDisplayName", "Content");
-	}
-	else if (InFolderPath == EngineRootPath)
-	{
-		if (GetDefault<UContentBrowserSettings>()->bOrganizeFolders)
-		{
-			FolderDisplayNameOverride = LOCTEXT("EngineOrganizedFolderDisplayName", "Content");
-		}
-		else
-		{
-			FolderDisplayNameOverride = LOCTEXT("EngineFolderDisplayName", "Engine Content");
-		}
-	}
-	else
-	{
-		FNameBuilder FolderPathBuilder(InFolderPath);
-		if (IsTopLevelFolder(FStringView(FolderPathBuilder)))
-		{
-			FString NameToUse = FolderItemName;
-			if (GetDefault<UContentBrowserSettings>()->bDisplayFriendlyNameForPluginFolders)
-			{
-				FStringView PluginName(FolderPathBuilder);
-				PluginName.RightChopInline(1);
-
-				if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
-				{
-					if (Plugin->GetFriendlyName().Len() > 0)
-					{
-						NameToUse = Plugin->GetFriendlyName();
-					}
-				}
-			}
-
-			if (GetDefault<UContentBrowserSettings>()->bDisplayContentFolderSuffix)
-			{
-				FolderDisplayNameOverride = FText::Format(LOCTEXT("ContentFolderDisplayNameFmt", "{0} Content"), FText::AsCultureInvariant(NameToUse));
-			}
-			else
-			{
-				FolderDisplayNameOverride = FText::AsCultureInvariant(NameToUse);
-			}
-		}
-	}
-
+	FText FolderDisplayNameOverride = ContentBrowserDataUtils::GetFolderItemDisplayNameOverride(InFolderPath, FolderItemName, /*bIsClassesFolder*/ false);
 	return FContentBrowserItemData(InOwnerDataSource, EContentBrowserItemFlags::Type_Folder | EContentBrowserItemFlags::Category_Asset, InVirtualPath, *FolderItemName, MoveTemp(FolderDisplayNameOverride), MakeShared<FContentBrowserAssetFolderItemDataPayload>(InFolderPath));
 }
 
@@ -583,7 +511,7 @@ bool CanDeleteAssetFolderItem(IAssetTools* InAssetTools, IAssetRegistry* InAsset
 		return false;
 	}
 
-	if (IsTopLevelFolder(InFolderPayload.GetInternalPath()))
+	if (ContentBrowserDataUtils::IsTopLevelFolder(InFolderPayload.GetInternalPath()))
 	{
 		ContentBrowserAssetData::SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotDeleteRootFolders", "Cannot delete root folders"));
 		return false;
@@ -713,7 +641,7 @@ bool CanRenameAssetFolderItem(IAssetTools* InAssetTools, const FContentBrowserAs
 		return false;
 	}
 
-	if (IsTopLevelFolder(InFolderPayload.GetInternalPath()))
+	if (ContentBrowserDataUtils::IsTopLevelFolder(InFolderPayload.GetInternalPath()))
 	{
 		ContentBrowserAssetData::SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotRenameRootFolders", "Cannot rename root folders"));
 		return false;

@@ -56,4 +56,30 @@ void MainPS(
 }
 
 #endif //NIAGARA_2DARRAY_ATTRIBUTE_PS
+
+////////////////////////////////////////////////////////////////////////////////////
+
+#if NIAGARA_SIMPLE_PS
+
+void MainPS(
+	in float2 InTextureCoordinate : TEXCOORD0,
+	in float4 InColor : TEXCOORD1,
+	in float4 InHitProxyId : TEXCOORD2,
+	in float4 InPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0
+#if WRITE_TO_GBUFFER
+	,out float4 OutWorldNormal : SV_Target1 
+#endif
+	)
+{
+	OutColor = RETURN_COLOR(1);
+
+#if WRITE_TO_GBUFFER
+	// Set the G buffer bits that indicate that deferred lighting and image reflections are not enabled
+	OutWorldNormal = 0;
+#endif
+}
+
+#endif //NIAGARA_SIMPLE_PS
+
 ////////////////////////////////////////////////////////////////////////////////////

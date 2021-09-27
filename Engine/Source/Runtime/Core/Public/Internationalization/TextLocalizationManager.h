@@ -68,6 +68,14 @@ private:
 			, bIsLocalized(InIsLocalized)
 		{
 		}
+
+		/** 
+		* Returns true if the display string entry contains valid display string data. 
+		*/
+		bool IsEmpty() const
+		{
+			return !bIsLocalized && (SourceStringHash == 0) && DisplayString->IsEmpty();
+		}
 	};
 
 	/** Manages the currently loaded or registered text localizations. */

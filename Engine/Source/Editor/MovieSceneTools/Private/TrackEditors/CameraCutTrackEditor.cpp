@@ -186,6 +186,7 @@ void FCameraCutTrackEditor::HandleToggleCanBlendExecute(UMovieSceneCameraCutTrac
 
 TSharedPtr<SWidget> FCameraCutTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)
 {
+	const FCameraCutTrackCommands& Commands = FCameraCutTrackCommands::Get();
 	// Create a container edit box
 	return SNew(SHorizontalBox)
 
@@ -206,6 +207,7 @@ TSharedPtr<SWidget> FCameraCutTrackEditor::BuildOutlinerEditWidget(const FGuid& 
 		SNew(SCheckBox)
         .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
 		.Type(ESlateCheckBoxType::CheckBox)
+		.Padding(FMargin(0.f))
 		.IsFocusable(false)
 		.IsChecked(this, &FCameraCutTrackEditor::IsCameraLocked)
 		.OnCheckStateChanged(this, &FCameraCutTrackEditor::OnLockCameraClicked)
@@ -592,9 +594,17 @@ void FCameraCutTrackEditor::ToggleLockCamera()
 
 FText FCameraCutTrackEditor::GetLockCameraToolTip() const
 {
-	return IsCameraLocked() == ECheckBoxState::Checked ?
+	const TSharedRef<const FInputChord> FirstActiveChord = FCameraCutTrackCommands::Get().ToggleLockCamera->GetFirstValidChord();
+
+	FText Tooltip = IsCameraLocked() == ECheckBoxState::Checked ?
 		LOCTEXT("UnlockCamera", "Unlock Viewport from Camera Cuts") :
 		LOCTEXT("LockCamera", "Lock Viewport to Camera Cuts");
+	
+	if (FirstActiveChord->IsValidChord())
+	{
+		return FText::Join(FText::FromString(TEXT(" ")), Tooltip, FirstActiveChord->GetInputText());
+	}
+	return Tooltip;
 }
 
 #undef LOCTEXT_NAMESPACE

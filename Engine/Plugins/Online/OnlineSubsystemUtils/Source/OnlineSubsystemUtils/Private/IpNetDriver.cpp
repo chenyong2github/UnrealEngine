@@ -1486,6 +1486,8 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 							RecentlyDisconnectedClients.RemoveAt(RecentDisconnectIdx);
 						}
 
+						// Reinitialize the stateless handshake component with the current address, to allow challenge ack retries
+						CurComp->InitFromConnectionless(StatelessConnect.Get());
 
 						ReturnVal = FoundConn;
 

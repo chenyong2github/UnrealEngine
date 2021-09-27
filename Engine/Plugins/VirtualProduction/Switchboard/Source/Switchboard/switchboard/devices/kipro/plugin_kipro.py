@@ -1,21 +1,23 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+from functools import wraps
+import os
+
+from PySide2 import QtCore
+
 from switchboard import recording
-from switchboard.config import CONFIG, Setting
+from switchboard.config import BoolSetting
 from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.switchboard_logging import LOGGER
 import switchboard.switchboard_utils as utils
 
-from PySide2 import QtCore, QtWidgets
 from .thirdparty.aja.embedded.rest import kipro
-
-from functools import wraps
-import os
 
 
 def unresponsive_kipro(f):
     """
-    Decorator to gracefully disconnect if a KiPro command comes back with kipro.UnresponsiveTargetError
+    Decorator to gracefully disconnect if a KiPro command comes back with
+    kipro.UnresponsiveTargetError.
     """
     @wraps(f)
     def wrapped(self, *args, **kwargs):
@@ -26,7 +28,9 @@ def unresponsive_kipro(f):
             self.device_qt_handler.signal_device_connect_failed.emit(self)
             return None
         except ModuleNotFoundError:
-            LOGGER.error('Could not connect to KiPro because the module was not installed')
+            LOGGER.error(
+                'Could not connect to KiPro because the module was not '
+                'installed')
             return None
 
     return wrapped
@@ -34,7 +38,8 @@ def unresponsive_kipro(f):
 
 class DeviceKiPro(Device):
     def __init__(self, name, ip_address, **kwargs):
-        self.setting_auto_play = Setting("auto_play", "Auto Play After Stop", False)
+        self.setting_auto_play = BoolSetting(
+            "auto_play", "Auto Play After Stop", False)
 
         super().__init__(name, ip_address, **kwargs)
 
@@ -87,7 +92,7 @@ class DeviceKiPro(Device):
 
         self.set_media_state_for_record_play()
 
-        # Set Slate/Take        
+        # Set Slate/Take
         self.set_slate(slate)
         self.set_take(take)
 
@@ -96,15 +101,19 @@ class DeviceKiPro(Device):
         self.device_recording.device_name = self.name
         self.device_recording.device_type = self.device_type
 
-        # If there is already a repeating function trying to record/stop/play, stop it
+        # If there is already a repeating function trying to record/stop/play,
+        # stop it.
         if self.repeat_function:
             self.repeat_function.stop()
             self.repeat_function = None
 
         # Start device Recording
-        self.repeat_function = utils.RepeatFunction(self._interval, self._timeout, self.record)
-        self.repeat_function.add_finish_callback(self.record_start_confirm, None) # TODO: Don't bake
-        self.repeat_function.start(results_function=lambda results: results[-1] == 'Recording')
+        self.repeat_function = utils.RepeatFunction(
+            self._interval, self._timeout, self.record)
+        self.repeat_function.add_finish_callback(
+            self.record_start_confirm, None)  # TODO: Don't bake
+        self.repeat_function.start(
+            results_function=lambda results: results[-1] == 'Recording')
 
     @unresponsive_kipro
     def record_stop(self):
@@ -113,16 +122,19 @@ class DeviceKiPro(Device):
             self.repeat_function.stop()
             self.repeat_function = None
 
-        self.repeat_function = utils.RepeatFunction(self._interval, self._timeout, self.stop)
-        self.repeat_function.add_finish_callback(self.record_stop_confirm, self.timecode()) # TODO: Don't bake TC
-        self.repeat_function.start(results_function=lambda results: results[-1] == 'Idle')
+        self.repeat_function = utils.RepeatFunction(
+            self._interval, self._timeout, self.stop)
+        self.repeat_function.add_finish_callback(
+            self.record_stop_confirm, self.timecode())  # TODO: Don't bake TC
+        self.repeat_function.start(
+            results_function=lambda results: results[-1] == 'Idle')
 
     @unresponsive_kipro
     def record_stop_confirm(self, timecode, paths=None):
-        #storage_path = self.client.getParameter('eParamID_StoragePath')
+        # storage_path = self.client.getParameter('eParamID_StoragePath')
         try:
             clip_name = self.client.getCurrentClipName()
-            self.device_recording.paths = [os.path.join(f'media/', clip_name)]
+            self.device_recording.paths = [os.path.join('media/', clip_name)]
             self.device_recording.status = recording.RecordingStatus.ON_DEVICE
             self.device_recording.timecode_out = timecode
         except Exception as e:
@@ -133,18 +145,24 @@ class DeviceKiPro(Device):
             self.repeat_function = None
 
         if self.auto_play:
-            self.repeat_function = utils.RepeatFunction(self._interval, self._timeout, self.play)
-            self.repeat_function.start(results_function=lambda results: results[-1] == 'Playing Forward')
+            self.repeat_function = utils.RepeatFunction(
+                self._interval, self._timeout, self.play)
+            self.repeat_function.start(
+                results_function=lambda results:
+                    results[-1] == 'Playing Forward')
 
-        #self.transport_file(self.device_recording.paths[0], 'C:/Users/jacob.buck/Downloads/Test/test.mov')
+        # self.transport_file(
+        #     self.device_recording.paths[0],
+        #     'C:/Users/jacob.buck/Downloads/Test/test.mov')
 
         self.status = DeviceStatus.READY
 
     @unresponsive_kipro
     def timecode(self):
         """
-        Figure out issues with timecode. When going into playback mode it will report the timecode
-        for the playback and not reset to the current timecode until some time after start/stop occurs
+        Figure out issues with timecode. When going into playback mode it will
+        report the timecode for the playback and not reset to the current
+        timecode until some time after start/stop occurs.
         """
         return self.client.getTimecodeWithSynchronousCall()
 
@@ -160,8 +178,8 @@ class DeviceKiPro(Device):
 
     @unresponsive_kipro
     def stop(self):
-        #if self.is_disconnected:
-        #    return
+        # if self.is_disconnected:
+        #     return
 
         self.set_media_state_for_record_play()
         self.client.stop()
@@ -201,17 +219,20 @@ class DeviceKiPro(Device):
     @unresponsive_kipro
     def set_media_state_for_record_play(self):
         """
-        KiPro can be put into a state to download videos. When in this mode it will no longer accept
-        Record or Play functions. This function makes sure the state is set back to accept record/play
+        KiPro can be put into a state to download videos. When in this mode it
+        will no longer accept Record or Play functions. This function makes
+        sure the state is set back to accept record/play.
         """
         _, description = self.client.getParameter('eParamID_MediaState')
 
         if description == 'Data - LAN':
             self.client.setParameter('eParamID_MediaState', 0)
 
-        #{'eParamID_MediaState': 'Define whether the Ki Pro device is in normal Record-Play or Data Transfer mode.'}
-        #(200, 'Data - LAN') client.setParameter('eParamID_MediaState', 1)
-        #(200, 'Record-Play') client.setParameter('eParamID_MediaState', 0)
+        # {'eParamID_MediaState':
+        #     'Define whether the Ki Pro device is in normal Record-Play or '
+        #     'Data Transfer mode.'}
+        # (200, 'Data - LAN') client.setParameter('eParamID_MediaState', 1)
+        # (200, 'Record-Play') client.setParameter('eParamID_MediaState', 0)
 
     def transport_file(self, device_path, output_dir):
         self.client.setParameter('eParamID_MediaState', 1)
@@ -234,35 +255,38 @@ class DeviceWidgetKiPro(DeviceWidget):
         super()._add_control_buttons()
 
         # Play Button
-        self.play_button = self.add_control_button(':/icons/images/icon_play.png',
-                                           icon_hover=':/icons/images/icon_play_hover.png',
-                                        icon_disabled=':/icons/images/icon_play_disabled.png',
-                                              icon_on=':/icons/images/icon_play.png',
-                                        icon_hover_on=':/icons/images/icon_play_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_play_disabled.png',
-                                             tool_tip='Connect/Disconnect from listener')
+        self.play_button = self.add_control_button(
+            ':/icons/images/icon_play.png',
+            icon_hover=':/icons/images/icon_play_hover.png',
+            icon_disabled=':/icons/images/icon_play_disabled.png',
+            icon_on=':/icons/images/icon_play.png',
+            icon_hover_on=':/icons/images/icon_play_hover.png',
+            icon_disabled_on=':/icons/images/icon_play_disabled.png',
+            tool_tip='Connect/Disconnect from listener')
 
         self.play_button.clicked.connect(self.play_button_clicked)
 
         # Stop Button
-        self.stop_button = self.add_control_button(':/icons/images/icon_stop.png',
-                                           icon_hover=':/icons/images/icon_stop_hover.png',
-                                        icon_disabled=':/icons/images/icon_stop_disabled.png',
-                                              icon_on=':/icons/images/icon_stop.png',
-                                        icon_hover_on=':/icons/images/icon_stop_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_stop_disabled.png',
-                                             tool_tip='Connect/Disconnect from listener')
+        self.stop_button = self.add_control_button(
+            ':/icons/images/icon_stop.png',
+            icon_hover=':/icons/images/icon_stop_hover.png',
+            icon_disabled=':/icons/images/icon_stop_disabled.png',
+            icon_on=':/icons/images/icon_stop.png',
+            icon_hover_on=':/icons/images/icon_stop_hover.png',
+            icon_disabled_on=':/icons/images/icon_stop_disabled.png',
+            tool_tip='Connect/Disconnect from listener')
 
         self.stop_button.clicked.connect(self.stop_button_clicked)
 
         # Connect Button
-        self.connect_button = self.add_control_button(':/icons/images/icon_connect.png',
-                                           icon_hover=':/icons/images/icon_connect_hover.png',
-                                        icon_disabled=':/icons/images/icon_connect_disabled.png',
-                                              icon_on=':/icons/images/icon_connected.png',
-                                        icon_hover_on=':/icons/images/icon_connected_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_connected_disabled.png',
-                                             tool_tip='Connect/Disconnect from listener')
+        self.connect_button = self.add_control_button(
+            ':/icons/images/icon_connect.png',
+            icon_hover=':/icons/images/icon_connect_hover.png',
+            icon_disabled=':/icons/images/icon_connect_disabled.png',
+            icon_on=':/icons/images/icon_connected.png',
+            icon_hover_on=':/icons/images/icon_connected_hover.png',
+            icon_disabled_on=':/icons/images/icon_connected_disabled.png',
+            tool_tip='Connect/Disconnect from listener')
 
         self.connect_button.clicked.connect(self.connect_button_clicked)
 

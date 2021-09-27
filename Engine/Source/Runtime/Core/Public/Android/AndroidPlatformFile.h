@@ -11,10 +11,6 @@
 #include <jni.h>
 #endif
 
-#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
-#include "HAL/IPlatformFileManagedStorageWrapper.h"
-#endif //PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
-
 /**
 	Android File I/O implementation with additional utilities to deal
 	with Java side access.
@@ -56,12 +52,4 @@ public:
 
 	virtual FString ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename) override;
 	virtual FString ConvertToAbsolutePathForExternalAppForWrite(const TCHAR* Filename) override;
-
-#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
-	//Special Initialize to handle the very early initialize needed by Android to pass it into the underlying FAndroidPlatformFile 
-	//layer instead of trying to handle it on the PerstentStorageManager
-	void EarlyInitializeForStorageWrapper(const TCHAR* CommandLineParam);
-
-	static FManagedStoragePlatformFile& GetManagedStorageWrapper();
-#endif // PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
 };

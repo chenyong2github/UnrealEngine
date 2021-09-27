@@ -56,8 +56,16 @@ void FRemoteControlField::BindObject(UObject* InObjectToBind)
 		}
 		else if (AActor* Actor = Cast<AActor>(InObjectToBind))
 		{
-			// Attempt finding a matching component if the object is an actor.
-			FRemoteControlEntity::BindObject(Actor->GetComponentByClass(ResolvedOwnerClass));
+			// Attempt to bind to the root component since it is a very common case.
+			if (Actor->GetRootComponent()->GetClass() == ResolvedOwnerClass)
+			{
+				FRemoteControlEntity::BindObject(Actor->GetRootComponent());
+			}
+			else
+			{
+				// Search for a matching component if the root component was not a match.
+				FRemoteControlEntity::BindObject(Actor->GetComponentByClass(ResolvedOwnerClass));
+			}
 		}
 	}
 }
@@ -588,7 +596,7 @@ FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 			RCFunction.FunctionPath = RCFunction.Function_DEPRECATED;
 		}
 #endif
-		
+
 		int32 CustomVersion = Ar.CustomVer(FReleaseObjectVersion::GUID);
 		int64 NumSerializedBytesFromArchive = 0;
 
@@ -609,8 +617,8 @@ FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 			{
 				UE_LOG(LogRemoteControl, Warning, TEXT("Arguments size mismatch from size serialized in asset. Expected %d, Actual: %d"), NumSerializedBytesFromArchive, Ar.Tell() - ArgsBegin);
 				Ar.SetError();
+			}
 		}
-	}
 		else
 		{
 			UE_LOG(LogRemoteControl, Warning, TEXT("%s could not be loaded while deserialzing a Remote Control Function."), *RCFunction.FunctionPath.ToString());
@@ -635,7 +643,7 @@ FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 
 		// Then serialize the arguments in order to get its size.
 		const int64 ArgsBegin = Ar.Tell();
-		RCFunction.CachedFunction->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.CachedFunction.Get(), nullptr);	
+		RCFunction.CachedFunction->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.CachedFunction.Get(), nullptr);
 
 		// Only go back and serialize the number of argument bytes if there is actually an underlying buffer to seek to.
 		if (ArgumentsSizePos != INDEX_NONE)

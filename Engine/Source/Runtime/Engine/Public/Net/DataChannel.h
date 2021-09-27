@@ -165,6 +165,7 @@ DEFINE_CONTROL_CHANNEL_MESSAGE(SecurityViolation, 19, FString); // server tells 
 DEFINE_CONTROL_CHANNEL_MESSAGE(GameSpecific, 20, uint8, FString); // custom game-specific message routed to UGameInstance for processing
 DEFINE_CONTROL_CHANNEL_MESSAGE(EncryptionAck, 21);
 DEFINE_CONTROL_CHANNEL_MESSAGE(DestructionInfo, 22);
+DEFINE_CONTROL_CHANNEL_MESSAGE(CloseReason, 23, FString); // Reason for client NetConnection Close, for analytics/logging
 
 // 			Beacon control channel flow
 // Client												Server

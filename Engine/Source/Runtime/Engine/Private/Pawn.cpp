@@ -84,6 +84,7 @@ APawn::APawn(const FObjectInitializer& ObjectInitializer)
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 	bGenerateOverlapEventsDuringLevelStreaming = true;
 	bProcessingOutsideWorldBounds = false;
+	bIsLocalViewTarget = false;
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -378,6 +379,64 @@ void APawn::BecomeViewTarget(APlayerController* PC)
 	{
 		PC->ForceSingleNetUpdateFor(this);
 	}
+
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		bIsLocalViewTarget = GetLocalViewingPlayerController() != nullptr;
+	}
+}
+
+void APawn::EndViewTarget(APlayerController* PC)
+{
+	Super::EndViewTarget(PC);
+
+	if (GetNetMode() != NM_DedicatedServer)
+	{
+		// are any other PCs viewing this pawn before we set it to false
+		bIsLocalViewTarget = GetLocalViewingPlayerController() != nullptr;
+	}
+}
+
+bool APawn::IsLocallyViewed() const
+{
+	return bIsLocalViewTarget;
+}
+
+bool APawn::IsLocalPlayerControllerViewingAPawn() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		{
+			APlayerController* PlayerController = Iterator->Get();
+			if (PlayerController &&
+				PlayerController->IsLocalController() &&
+				PlayerController->GetViewTarget() != nullptr &&
+				PlayerController->GetViewTarget() != PlayerController)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+APlayerController* APawn::GetLocalViewingPlayerController() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		{
+			APlayerController* PlayerController = Iterator->Get();
+			if (PlayerController && PlayerController->IsLocalController() && PlayerController->GetViewTarget() == this)
+			{
+				return PlayerController;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 void APawn::PawnClientRestart()

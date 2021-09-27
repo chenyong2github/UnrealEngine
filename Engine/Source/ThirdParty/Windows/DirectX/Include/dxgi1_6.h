@@ -81,7 +81,9 @@ extern "C"{
 // Copyright (c) Microsoft Corporation.  All Rights Reserved
 #include <winapifamily.h>
 #pragma region App Family
+// UE CHANGE START - Removing newer WINAPI usage.
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+// UE CHANGE END
 HRESULT WINAPI DXGIDeclareAdapterRemovalSupport();
 typedef 
 enum DXGI_ADAPTER_FLAG3

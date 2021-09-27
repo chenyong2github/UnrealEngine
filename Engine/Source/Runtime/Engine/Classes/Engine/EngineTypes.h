@@ -1340,6 +1340,27 @@ namespace ECollisionEnabled
 	}; 
 } 
 
+struct ENGINE_API FCollisionEnabledMask
+{
+	int8 Bits;
+
+	FCollisionEnabledMask(const FCollisionEnabledMask&) = default;
+	FCollisionEnabledMask(int8 InBits = 0);
+	FCollisionEnabledMask(ECollisionEnabled::Type CollisionEnabled);
+
+	operator int8() const;
+	operator bool() const;
+	FCollisionEnabledMask operator&(const FCollisionEnabledMask Other) const;
+	FCollisionEnabledMask operator&(const ECollisionEnabled::Type Other) const;
+	FCollisionEnabledMask operator|(const FCollisionEnabledMask Other) const;
+	FCollisionEnabledMask operator|(const ECollisionEnabled::Type Other) const;
+};
+
+extern FCollisionEnabledMask ENGINE_API operator&(const ECollisionEnabled::Type A, const ECollisionEnabled::Type B);
+extern FCollisionEnabledMask ENGINE_API operator&(const ECollisionEnabled::Type A, const FCollisionEnabledMask B);
+extern FCollisionEnabledMask ENGINE_API operator|(const ECollisionEnabled::Type A, const ECollisionEnabled::Type B);
+extern FCollisionEnabledMask ENGINE_API operator|(const ECollisionEnabled::Type A, const FCollisionEnabledMask B);
+
 FORCEINLINE bool CollisionEnabledHasPhysics(ECollisionEnabled::Type CollisionEnabled)
 {
 	return (CollisionEnabled == ECollisionEnabled::PhysicsOnly) ||

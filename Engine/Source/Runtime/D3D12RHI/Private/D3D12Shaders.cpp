@@ -306,9 +306,9 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 		BoundShaderStateInput.VertexDeclarationRHI,
 		BoundShaderStateInput.VertexShaderRHI,
 		BoundShaderStateInput.PixelShaderRHI,
-		BoundShaderStateInput.GeometryShaderRHI,
-		BoundShaderStateInput.MeshShaderRHI,
-		BoundShaderStateInput.AmplificationShaderRHI
+		BoundShaderStateInput.GetGeometryShader(),
+		BoundShaderStateInput.GetMeshShader(),
+		BoundShaderStateInput.GetAmplificationShader()
 	);
 	if (CachedBoundShaderState.GetReference())
 	{
@@ -322,9 +322,9 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 		BoundShaderStateInput.VertexDeclarationRHI,
 		BoundShaderStateInput.VertexShaderRHI,
 		BoundShaderStateInput.PixelShaderRHI,
-		BoundShaderStateInput.GeometryShaderRHI,
-		BoundShaderStateInput.MeshShaderRHI,
-		BoundShaderStateInput.AmplificationShaderRHI
+		BoundShaderStateInput.GetGeometryShader(),
+		BoundShaderStateInput.GetMeshShader(),
+		BoundShaderStateInput.GetAmplificationShader()
 	);
 	if (CachedBoundShaderStateLink)
 	{
@@ -337,11 +337,11 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 		SCOPE_CYCLE_COUNTER(STAT_D3D12NewBoundShaderStateTime);
 
 #if PLATFORM_SUPPORTS_MESH_SHADERS
-		if (BoundShaderStateInput.MeshShaderRHI)
+		if (BoundShaderStateInput.GetMeshShader())
 		{
 			return new FD3D12BoundShaderState(
-				BoundShaderStateInput.MeshShaderRHI,
-				BoundShaderStateInput.AmplificationShaderRHI,
+				BoundShaderStateInput.GetMeshShader(),
+				BoundShaderStateInput.GetAmplificationShader(),
 				BoundShaderStateInput.PixelShaderRHI,
 				&GetAdapter());
 		}
@@ -352,7 +352,7 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoun
 				BoundShaderStateInput.VertexDeclarationRHI,
 				BoundShaderStateInput.VertexShaderRHI,
 				BoundShaderStateInput.PixelShaderRHI,
-				BoundShaderStateInput.GeometryShaderRHI,
+				BoundShaderStateInput.GetGeometryShader(),
 				&GetAdapter());
 		}
 	}

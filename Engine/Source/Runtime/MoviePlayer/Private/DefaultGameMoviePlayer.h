@@ -98,6 +98,7 @@ public:
 
 	virtual FOnPrepareLoadingScreen& OnPrepareLoadingScreen() override { return OnPrepareLoadingScreenDelegate; }
 	virtual FOnMoviePlaybackStarted& OnMoviePlaybackStarted() override { return OnMoviePlaybackStartedDelegate; }
+	virtual FOnMoviePlaybackTick& OnMoviePlaybackTick() override { return OnMoviePlaybackTickDelegate; }
 	virtual FOnMoviePlaybackFinished& OnMoviePlaybackFinished() override { return OnMoviePlaybackFinishedDelegate; }
 	virtual FOnMovieClipFinished& OnMovieClipFinished() override { return OnMovieClipFinishedDelegate; }
 
@@ -105,6 +106,7 @@ public:
 	virtual void BlockingStarted() override;
 	virtual void BlockingTick() override;
 	virtual void BlockingFinished() override;
+	virtual void SetIsSlateThreadAllowed(bool bInIsSlateThreadAllowed) override;
 
 	/** FTickableObjectRenderThread interface */
 	virtual void Tick( float DeltaTime ) override;
@@ -204,6 +206,9 @@ private:
 	
 	FOnMoviePlaybackStarted OnMoviePlaybackStartedDelegate;
 
+	/** Called periodically when the game thread is blocked and a movie is playing. */
+	FOnMoviePlaybackTick OnMoviePlaybackTickDelegate;
+
 	FOnMoviePlaybackFinished OnMoviePlaybackFinishedDelegate;
 
 	FOnMovieClipFinished OnMovieClipFinishedDelegate;
@@ -216,6 +221,8 @@ private:
 
 	/** If true then play movie when blocking starts, if false then play movie on loadmap. */
 	bool bIsPlayOnBlockingEnabled;
+	/** If true then we can use the Slate thread. */
+	bool bIsSlateThreadAllowed;
 
 	/** Critical section to allow the slate loading thread and the render thread to safely utilize the synchronization mechanism for ticking Slate. */
 	FCriticalSection SyncMechanismCriticalSection;

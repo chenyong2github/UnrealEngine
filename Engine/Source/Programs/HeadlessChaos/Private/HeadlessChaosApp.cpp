@@ -172,6 +172,8 @@ TEST(RaycastTests, Raycast) {
 	//ChaosTest::CylinderRaycast();
 	//ChaosTest::TaperedCylinderRaycast();
 	ChaosTest::CapsuleRaycast();
+	ChaosTest::CapsuleRaycastFastLargeDistance();
+	ChaosTest::CapsuleRaycastMissWithEndPointOnBounds();
 	ChaosTest::TriangleRaycast();
 	ChaosTest::BoxRaycast();
 	ChaosTest::ScaledRaycast();

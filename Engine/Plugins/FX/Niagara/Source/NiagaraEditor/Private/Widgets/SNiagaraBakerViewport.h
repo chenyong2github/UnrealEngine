@@ -32,7 +32,13 @@ public:
 	virtual void OnFloatingButtonClicked() override;
 	// ICommonEditorViewportToolbarInfoProvider interface
 
-	void RefreshView(const float CurrentTime, const float DeltaTime);
+	void RefreshView(const float RelativeTime, const float DeltaTime);
+
+	bool IsAlphaBlendEnabled() const;
+	void SetAlphaBlendEnabled(bool bEnabled);
+
+	bool IsCheckerboardEnabled() const;
+	void SetCheckerboardEnabled(bool bEnabled);
 
 	bool IsInfoTextEnabled() const;
 	void SetInfoTextEnabled(bool bEnabled);
@@ -54,6 +60,6 @@ public:
 	const struct FSlateBrush* GetActiveCameraModeIcon() const;
 
 private:
-	TWeakPtr<FNiagaraBakerViewModel>			WeakViewModel;
+	TWeakPtr<FNiagaraBakerViewModel>		WeakViewModel;
 	TSharedPtr<FNiagaraBakerViewportClient>	ViewportClient;
 };

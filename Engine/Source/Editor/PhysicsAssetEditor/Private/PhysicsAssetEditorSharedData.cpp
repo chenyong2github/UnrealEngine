@@ -1532,8 +1532,11 @@ void FPhysicsAssetEditorSharedData::PasteBodiesAndConstraintsFromClipboard(int32
 				Factory.ProcessBuffer(TempPackage, RF_Transactional, TextToImport);
 
 				// transaction block 
+				if (Factory.NewBodySetups.Num() > 0 || Factory.NewConstraintTemplates.Num() > 0)
 				{
 					const FScopedTransaction Transaction(NSLOCTEXT("PhysicsAssetEditor", "PasteBodiesAndConstraintsFromClipboard", "Paste Bodies And Constraints From Clipboard"));
+
+					PhysicsAsset->Modify();
 
 					// let's first process the bodies
 					OutNumPastedBodies = 0;

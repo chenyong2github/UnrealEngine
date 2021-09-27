@@ -3928,6 +3928,12 @@ bool FBodyInstance::OverlapMulti(TArray<struct FOverlapResult>& InOutOverlaps, c
 			TArray<struct FOverlapResult> TempOverlaps;
 			for (int32 ShapeIdx = 0; ShapeIdx < NumShapes; ShapeIdx++)
 			{
+				// Skip this shape if it's CollisionEnabled setting was masked out
+				if (Params.ShapeCollisionMask && !(Params.ShapeCollisionMask & GetShapeCollisionEnabled(ShapeIdx)))
+				{
+					continue;
+				}
+
 				FPhysicsShapeHandle& ShapeRef = PShapes[ShapeIdx];
 
 				FPhysicsGeometryCollection GeomCollection = FPhysicsInterface::GetGeometryCollection(ShapeRef);

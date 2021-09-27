@@ -679,6 +679,52 @@ namespace EOnlineCachedResult
 	}
 }
 
+/** Permissions for who can send invites to a user. */
+enum class EFriendInvitePolicy : uint8
+{
+	/** Anyone can send a friend invite. */
+	Public,
+	/** Only friends of friends can send a friend invite. */
+	Friends_of_Friends,
+	/** No one can send a friend invite. */
+	Private,
+	/** Invalid enum type, may be used as a number of enumerations. */
+	InvalidOrMax
+};
+
+inline const TCHAR* LexToString(EFriendInvitePolicy EnumVal)
+{
+	switch (EnumVal)
+	{
+	case EFriendInvitePolicy::Public: return TEXT("PUBLIC");
+	case EFriendInvitePolicy::Friends_of_Friends: return TEXT("FRIENDS_OF_FRIENDS");
+	case EFriendInvitePolicy::Private: return TEXT("PRIVATE");
+	default: return TEXT("Invalid");
+	}
+}
+
+inline void LexFromString(EFriendInvitePolicy& Value, const TCHAR* String)
+{
+	if (FCString::Stricmp(String, TEXT("PUBLIC")) == 0)
+	{
+		Value = EFriendInvitePolicy::Public;			
+	}
+	else if (FCString::Stricmp(String, TEXT("FRIENDS_OF_FRIENDS")) == 0)
+	{
+		Value = EFriendInvitePolicy::Friends_of_Friends;
+	}
+	else if (FCString::Stricmp(String, TEXT("PRIVATE")) == 0)
+	{
+		Value = EFriendInvitePolicy::Private;
+	}
+	else
+	{
+		Value = EFriendInvitePolicy::InvalidOrMax;
+	}
+}
+
+
+
 /*
  *	Base class for anything meant to be opaque so that the data can be passed around 
  *  without consideration for the data it contains.

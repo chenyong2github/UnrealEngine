@@ -87,3 +87,6 @@ void UEReportAssertWithPayload(uint AssertID, uint4 Payload)
 
 	#define MESH_SHADER_WRITE_PRIMITIVE(InPrimitiveIndex, Value) OutPrimitives[InPrimitiveIndex] = Value;
 #endif
+
+// Workaround for a potential shader compiler bug. Some triangles may get incorrectly clipped in the ShadowDepths pass if the output z is not precise
+#define PLATFORM_NEEDS_PRECISE_SHADOW_DEPTH 1

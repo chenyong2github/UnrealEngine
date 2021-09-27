@@ -404,6 +404,16 @@ bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 M
 							OnBeaconConnectedDelegate->ExecuteIfBound(ClientActor, Connection);
 						}
 		break;
+	case NMT_CloseReason:
+		{
+			FString CloseReasonList;
+
+			if (FNetControlMessage<NMT_CloseReason>::Receive(Bunch, CloseReasonList) && !CloseReasonList.IsEmpty())
+			{
+				Connection->HandleReceiveCloseReason(CloseReasonList);
+			}
+		}
+		break;
 	default:
 						{
 			static const FText ErrorTxt = NSLOCTEXT("NetworkErrors", "BeaconSpawnUnexpectedError", "Join failure, unexpected control message.");

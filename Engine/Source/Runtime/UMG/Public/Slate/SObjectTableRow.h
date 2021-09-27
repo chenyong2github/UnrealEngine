@@ -49,7 +49,10 @@ template <typename ItemType>
 class SObjectTableRow : public SObjectWidget, public IObjectTableRow
 {
 public:
-	SLATE_BEGIN_ARGS(SObjectTableRow<ItemType>) {}
+	SLATE_BEGIN_ARGS(SObjectTableRow<ItemType>)
+		:_bAllowDragging(true)
+	{}
+		SLATE_ARGUMENT(bool, bAllowDragging)
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 		SLATE_EVENT(FOnRowHovered, OnHovered)
 		SLATE_EVENT(FOnRowHovered, OnUnhovered)
@@ -67,6 +70,7 @@ public:
 			OwnerListView = InOwnerListView;
 			OwnerTablePtr = StaticCastSharedRef<SListView<ItemType>>(InOwnerTableView);
 
+			bAllowDragging = InArgs._bAllowDragging;
 			OnHovered = InArgs._OnHovered;
 			OnUnhovered = InArgs._OnUnhovered;
 			ContentWidget = InArgs._Content.Widget;
@@ -304,19 +308,25 @@ public:
 
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		if (bProcessingSelectionTouch)
+		if (bAllowDragging)
 		{
-			bProcessingSelectionTouch = false;
-			return FReply::Handled().CaptureMouse(OwnerTablePtr.Pin()->AsWidget());
-		}
-		//@todo DanH TableRow: does this potentially trigger twice? If not, why does an unhandled drag detection result in not calling mouse up?
-		else if (HasMouseCapture() && bChangedSelectionOnMouseDown)
-		{
-			TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
-			OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+			if (bProcessingSelectionTouch)
+			{
+				bProcessingSelectionTouch = false;
+				return FReply::Handled().CaptureMouse(OwnerTablePtr.Pin()->AsWidget());
+			}
+			//@todo DanH TableRow: does this potentially trigger twice? If not, why does an unhandled drag detection result in not calling mouse up?
+			else if (HasMouseCapture() && bChangedSelectionOnMouseDown)
+			{
+				TSharedRef<ITypedTableView<ItemType>> OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
+				OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+			}
+
+			return SObjectWidget::OnDragDetected(MyGeometry, MouseEvent);
 		}
 
-		return SObjectWidget::OnDragDetected(MyGeometry, MouseEvent);
+		bProcessingSelectionTouch = false;
+		return FReply::Unhandled();
 	}
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
@@ -505,6 +515,9 @@ private:
 	bool bIsAppearingSelected = false;
 
 	bool bProcessingSelectionTouch = false;
+
+	/** Whether to allow dragging of this item */
+	bool bAllowDragging;
 };
 
 template <>

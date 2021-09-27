@@ -40,7 +40,16 @@
 
 #include <utility>
 
-
+// Enable/Disable ClearTexture for RTT after resolving to the backbuffer
+static TAutoConsoleVariable<int32> CVarClearTextureEnabled(
+	TEXT("nDisplay.render.ClearTextureEnabled"),
+	1,
+	TEXT("Enables RTT cleaning for left / mono eye at end of frame.\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
+	ECVF_RenderThreadSafe
+);
 
 FDisplayClusterDeviceBase::FDisplayClusterDeviceBase(EDisplayClusterRenderFrameMode InRenderFrameMode)
 	: RenderFrameMode(InRenderFrameMode)
@@ -462,19 +471,23 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 
 			RHICmdList.CopyToResolveTarget(SrcTexture, BackBuffer, CopyParams);
 		}
-	
-	if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)
-	{
-		// QuadBufStereo: Copy RIGHT_EYE to backbuffer
-		ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
+
+		if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)
+		{
+			// QuadBufStereo: Copy RIGHT_EYE to backbuffer
+			ViewportManagerProxyPtr->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 1, 1, BackBuffer, WindowSize);
+		}
+
+		const bool bClearTextureEnabled = CVarClearTextureEnabled.GetValueOnRenderThread() != 0;
+		if (bClearTextureEnabled)
+		{
+			// Clear render target before out frame resolving, help to make things look better visually for console/resize, etc.
+			FRHIRenderPassInfo RPInfo(SrcTexture, ERenderTargetActions::Clear_Store);
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
+			RHICmdList.EndRenderPass();
+		}
 	}
-	
-		// Clear render target before out frame resolving, help to make things look better visually for console/resize, etc.
-	FRHIRenderPassInfo RPInfo(SrcTexture, ERenderTargetActions::Clear_Store);
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
-	RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
-	RHICmdList.EndRenderPass();
-}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

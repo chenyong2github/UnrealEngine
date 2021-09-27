@@ -407,9 +407,7 @@ void FEdModeLandscape::Enter()
 
 	if (!CurrentGizmoActor.IsValid())
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.ObjectFlags |= RF_Transient;
-		CurrentGizmoActor = GetWorld()->SpawnActor<ALandscapeGizmoActiveActor>(SpawnParams);
+		CurrentGizmoActor = GetWorld()->SpawnActor<ALandscapeGizmoActiveActor>();
 		CurrentGizmoActor->ImportFromClipboard();
 	}
 

@@ -391,7 +391,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 
 	// Attach the external particles to the gamethread collection
 	if (GameThreadCollection.HasAttribute(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup))
-	{
+	{ 
 		GameThreadCollection.RemoveAttribute(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup);
 	}
 		
@@ -2220,28 +2220,11 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					}
 					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 					{
-						const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
-						const Chaos::FReal Radius = BBoxExtent.GetAbsMin();
-						const Chaos::FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
-
-						if (Length < SMALL_NUMBER)
-						{
-							// make a more optimized shape : sphere
-							CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-								FCollisionStructureManager::NewImplicitSphere(
-									Radius,
-									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-									SizeSpecificData.CollisionShapesData[0].CollisionType));
-						}
-						else
-						{
-							CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
-								FCollisionStructureManager::NewImplicitCapsule(
-									Radius,
-									Length,
-									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-									SizeSpecificData.CollisionShapesData[0].CollisionType));
-						}
+						CollectionImplicits[TransformGroupIndex] = FGeometryDynamicCollection::FSharedImplicit(
+							FCollisionStructureManager::NewImplicitCapsule(
+								InstanceBoundingBox,
+								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+								SizeSpecificData.CollisionShapesData[0].CollisionType));
 					}
 					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_None)
 					{
@@ -2502,28 +2485,12 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					}
 					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
 					{
-						const FVector BBoxExtent = InstanceBoundingBox.GetExtent(); // FBox's extents are 1/2 (Max - Min)
-						const FReal Radius = BBoxExtent.GetAbsMin();
-						const FReal Length = (BBoxExtent.GetAbsMax() - Radius) * 2.f;
+						CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
+							FCollisionStructureManager::NewImplicitCapsule(
+								InstanceBoundingBox,
+								SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
+								SizeSpecificData.CollisionShapesData[0].CollisionType));
 
-						if (Length < SMALL_NUMBER)
-						{
-							// make a more optimized shape : sphere
-							CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
-								FCollisionStructureManager::NewImplicitSphere(
-									Radius, 
-									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-									SizeSpecificData.CollisionShapesData[0].CollisionType));
-						}
-						else
-						{
-							CollectionImplicits[ClusterTransformIdx] = FGeometryDynamicCollection::FSharedImplicit(
-								FCollisionStructureManager::NewImplicitCapsule(
-									Radius,
-									Length,
-									SizeSpecificData.CollisionShapesData[0].CollisionObjectReductionPercentage,
-									SizeSpecificData.CollisionShapesData[0].CollisionType));
-						}
 						CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
 							FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),
 								SharedParams.MaximumCollisionParticleCount));

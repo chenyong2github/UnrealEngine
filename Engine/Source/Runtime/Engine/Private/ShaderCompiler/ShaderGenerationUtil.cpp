@@ -37,6 +37,15 @@ static TAutoConsoleVariable<int32> CVarShaderUseGBufferRefactor(
 
 #define SET_COMPILE_BOOL_FORCE(X) OutEnvironment.SetDefine(TEXT(#X),SrcDefines.X ? TEXT("1") : TEXT("0"))
 
+
+bool NeedsVelocityDepth(EShaderPlatform TargetPlatform)
+{
+	return (DoesProjectSupportDistanceFields() && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(TargetPlatform))
+		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(TargetPlatform);
+}
+
+#if WITH_EDITOR
+
 static int FetchCompileInt(FShaderCompilerEnvironment& OutEnvironment, const char* SrcName)
 {
 	int32 Ret = 0;
@@ -244,12 +253,6 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 
 // if we change the logic, increment this number to force a DDC key change
 static const int32 GBufferGeneratorVersion = 4;
-
-bool NeedsVelocityDepth(EShaderPlatform TargetPlatform)
-{
-	return (DoesProjectSupportDistanceFields() && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(TargetPlatform)) 
-		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(TargetPlatform);
-}
 
 static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatform)
 {
@@ -2045,24 +2048,6 @@ void FShaderCompileUtilities::GenerateBrdfHeaders(const FName& ShaderFormat)
 	FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
 }
 
-ENGINE_API FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatform Platform)
-{
-
-	FGBufferParams Ret = {};
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-	Ret.bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
-
-	Ret.bHasVelocity = IsUsingBasePassVelocity(Platform) ? 1 : 0;
-	Ret.bHasTangent = false;//BasePassCanOutputTangent(ShaderPlatform) ? 1 : 0;
-
-	Ret.bUsesVelocityDepth = NeedsVelocityDepth(Platform);
-
-	static const auto CVarFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
-	Ret.LegacyFormatIndex = CVarFormat->GetValueOnAnyThread();
-
-	return Ret;
-}
-
 FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatform Platform)
 {
 	FGBufferParams Ret = {};
@@ -2088,6 +2073,26 @@ FGBufferParams FShaderCompileUtilities::FetchGBufferParamsPipeline(EShaderPlatfo
 	check(0);
 #endif
 
+
+	return Ret;
+}
+
+#endif
+
+FGBufferParams FShaderCompileUtilities::FetchGBufferParamsRuntime(EShaderPlatform Platform)
+{
+
+	FGBufferParams Ret = {};
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	Ret.bHasPrecShadowFactor = (CVar ? (CVar->GetValueOnAnyThread() != 0) : 1);
+
+	Ret.bHasVelocity = IsUsingBasePassVelocity(Platform) ? 1 : 0;
+	Ret.bHasTangent = false;//BasePassCanOutputTangent(ShaderPlatform) ? 1 : 0;
+
+	Ret.bUsesVelocityDepth = NeedsVelocityDepth(Platform);
+
+	static const auto CVarFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GBufferFormat"));
+	Ret.LegacyFormatIndex = CVarFormat->GetValueOnAnyThread();
 
 	return Ret;
 }

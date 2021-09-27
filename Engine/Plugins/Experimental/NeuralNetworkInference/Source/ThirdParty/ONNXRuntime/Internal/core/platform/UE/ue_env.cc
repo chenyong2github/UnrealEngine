@@ -68,10 +68,16 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #include "core/platform/EigenNonBlockingThreadPool.h"
 
 #endif
- 
+
+NNI_THIRD_PARTY_INCLUDES_END
+
+#undef Yield
+
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "CoreMinimal.h"
+#include "Misc/AssertionMacros.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 
@@ -951,5 +957,3 @@ Env& Env::Default() {
 }
 
 }  // namespace onnxruntime
-
-NNI_THIRD_PARTY_INCLUDES_END

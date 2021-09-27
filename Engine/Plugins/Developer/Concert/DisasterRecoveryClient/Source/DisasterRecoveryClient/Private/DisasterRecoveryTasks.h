@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IConcertModule.h"
 #include "ConcertMessages.h"
+#include "Containers/Ticker.h"
 
 class IConcertSyncClient;
 class IConcertClientSession;

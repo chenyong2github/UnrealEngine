@@ -5,6 +5,8 @@
 #include "SPluginBrowser.h"
 #include "SPluginTile.h"
 #include "Interfaces/IPluginManager.h"
+#include "Widgets/Layout/SScrollBorder.h"
+#include "PluginBrowserModule.h"
 
 
 #define LOCTEXT_NAMESPACE "PluginList"
@@ -22,16 +24,20 @@ void SPluginTileList::Construct( const FArguments& Args, const TSharedRef< SPlug
 
 	// @todo plugedit: Have optional compact version with only plugin icon + name + version?  Only expand selected?
 
-	PluginListView = 
+	PluginListView =
 		SNew( SListView<TSharedRef<IPlugin>> )
-
 		.SelectionMode( ESelectionMode::None )		// No need to select plugins!
-
 		.ListItemsSource( &PluginListItems )
 		.OnGenerateRow( this, &SPluginTileList::PluginListView_OnGenerateRow )
-		;
+		.ListViewStyle( FAppStyle::Get(), "SimpleListView" );
 
-	ChildSlot.AttachWidget( PluginListView.ToSharedRef() );
+	TSharedPtr<SScrollBorder> ChildWidget = SNew(SScrollBorder, PluginListView.ToSharedRef())
+		.BorderFadeDistance(this, &SPluginTileList::GetListBorderFadeDistance)
+		[
+			PluginListView.ToSharedRef()
+		];
+
+	ChildSlot.AttachWidget(ChildWidget.ToSharedRef());
 }
 
 
@@ -126,5 +132,12 @@ void SPluginTileList::SetNeedsRefresh()
 	}
 }
 
+FVector2D SPluginTileList::GetListBorderFadeDistance() const
+{
+	// Negative fade distance when there is no restart editor warning to make the shadow disappear
+	FVector2D ReturnVal = FPluginBrowserModule::Get().HasPluginsPendingEnable() ? FVector2D(0.01f, 0.01f) : FVector2D(-1.0f, -1.0f);
+
+	return ReturnVal;
+}
 
 #undef LOCTEXT_NAMESPACE

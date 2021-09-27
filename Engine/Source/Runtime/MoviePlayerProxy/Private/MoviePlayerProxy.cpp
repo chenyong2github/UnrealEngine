@@ -36,6 +36,14 @@ void FMoviePlayerProxy::BlockingForceFinished()
 	}
 }
 
+void FMoviePlayerProxy::SetIsSlateThreadAllowed(bool bInIsSlateThreadAllowed)
+{
+	if (Server != nullptr)
+	{
+		Server->SetIsSlateThreadAllowed(bInIsSlateThreadAllowed);
+	}
+}
+
 void FMoviePlayerProxy::RegisterServer(IMoviePlayerProxyServer* InServer)
 {
 	Server = InServer;

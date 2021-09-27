@@ -430,9 +430,15 @@
 #ifndef GET_DEVICE_ID_UNAVAILABLE
 	#define GET_DEVICE_ID_UNAVAILABLE 0
 #endif
-// Controls whether to enable loading cooked packages from I/O store in editor builds
+
+// Controls whether the executable is compiled with cooked editor functionality
+#ifndef UE_IS_COOKED_EDITOR
+#define UE_IS_COOKED_EDITOR 0
+#endif
+// Controls whether to enable loading cooked packages from I/O store in editor builds. Defaults to UE_IS_COOKED_EDITOR
+// but can be defined separately if needed
 #ifndef WITH_IOSTORE_IN_EDITOR
-#define WITH_IOSTORE_IN_EDITOR 0
+#define WITH_IOSTORE_IN_EDITOR UE_IS_COOKED_EDITOR
 #endif
 
 // Controls whether or not to make a global object to load COnfig.bin as soon as possible

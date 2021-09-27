@@ -56,15 +56,19 @@ void FTSTicker::Tick(float DeltaTime)
 	const uint64 CurrentThreadId = ((uint64)FPlatformTLS::GetCurrentThreadId()) << 32; // already prepared to be used in `FElement::State`
 
 	// take in all new elements
-	while (TOptional<FElementPtr> AddedElement = AddedElements.Dequeue())
-	{
-		uint64 State = AddedElement.GetValue()->State.load(std::memory_order_relaxed);
-		checkf(GetThreadId(State) == 0, TEXT("Invalid state %u"), State);
-		if (State == FElement::DefaultState)
+	auto PumpAddedElementsQueue = [this]() {
+		while (TOptional<FElementPtr> AddedElement = AddedElements.Dequeue())
 		{
-			Elements.Add(MoveTemp(AddedElement.GetValue()));
+			uint64 State = AddedElement.GetValue()->State.load(std::memory_order_relaxed);
+			checkf(GetThreadId(State) == 0, TEXT("Invalid state %u"), State);
+			if (State == FElement::DefaultState)
+			{
+				Elements.Add(MoveTemp(AddedElement.GetValue()));
+			}
 		}
-	}
+	};
+
+	PumpAddedElementsQueue();
 
 	if (!Elements.Num())
 	{
@@ -74,45 +78,55 @@ void FTSTicker::Tick(float DeltaTime)
 	CurrentTime += DeltaTime;
 
 	TArray<FElementPtr> TickedElements;
-	for (FElementPtr& Element : Elements)
+	int32 ElementIdx = 0;
+	// ticking delegates can add more tickers that must be executed in the same tick call to be backward compatible with the old
+	// implementation. keep transfering new tickers to the main list and executing them
+	do
 	{
-		// set the execution state
-		uint64 PrevState = Element->State.fetch_add(CurrentThreadId, std::memory_order_acquire); // "acquire" to prevent anything between this and `ClearExecutionFlag()` to be reordered outside of this scope, is coupled with "release" in `ClearExecutionFlag`
-		checkf(GetThreadId(PrevState) == 0, TEXT("Invalid state %u"), PrevState);
-		auto ClearExecutionFlag = [CurrentThreadId](FElementPtr& Element) 
+		for (; ElementIdx < Elements.Num(); ++ElementIdx)
 		{
-			return (uint8)(Element->State.fetch_sub(CurrentThreadId, std::memory_order_release) - CurrentThreadId); 
-		};
-
-		if (PrevState == FElement::RemovedState)
-		{
-			ClearExecutionFlag(Element);
-			continue;
-		}
-
-		if (Element->FireTime > CurrentTime)
-		{
-			ClearExecutionFlag(Element);
-			TickedElements.Add(MoveTemp(Element));
-			continue;
-		}
-
-		if (Element->Fire(DeltaTime))
-		{
-			PrevState = ClearExecutionFlag(Element); // it can be removed during execution
-			if (PrevState != FElement::RemovedState)
+			FElementPtr& Element = Elements[ElementIdx];
+			// set the execution state
+			uint64 PrevState = Element->State.fetch_add(CurrentThreadId, std::memory_order_acquire); // "acquire" to prevent anything between this and `ClearExecutionFlag()` to be reordered outside of this scope, is coupled with "release" in `ClearExecutionFlag`
+			checkf(GetThreadId(PrevState) == 0, TEXT("Invalid state %u"), PrevState);
+			auto ClearExecutionFlag = [CurrentThreadId](FElementPtr& Element)
 			{
-				checkf(PrevState == FElement::DefaultState, TEXT("Invalid state %u"), PrevState);
-				Element->FireTime = CurrentTime + Element->DelayTime;
+				return (uint8)(Element->State.fetch_sub(CurrentThreadId, std::memory_order_release) - CurrentThreadId);
+			};
+
+			if (PrevState == FElement::RemovedState)
+			{
+				ClearExecutionFlag(Element);
+				continue;
+			}
+
+			if (Element->FireTime > CurrentTime)
+			{
+				ClearExecutionFlag(Element);
 				TickedElements.Add(MoveTemp(Element));
+				continue;
+			}
+
+			if (Element->Fire(DeltaTime))
+			{
+				PrevState = ClearExecutionFlag(Element); // it can be removed during execution
+				if (PrevState != FElement::RemovedState)
+				{
+					checkf(PrevState == FElement::DefaultState, TEXT("Invalid state %u"), PrevState);
+					Element->FireTime = CurrentTime + Element->DelayTime;
+					TickedElements.Add(MoveTemp(Element));
+				}
+			}
+			else
+			{
+				PrevState = ClearExecutionFlag(Element);
+				checkf(PrevState == FElement::DefaultState || PrevState == FElement::RemovedState, TEXT("Invalid state %u"), PrevState);
 			}
 		}
-		else
-		{
-			PrevState = ClearExecutionFlag(Element);
-			checkf(PrevState == FElement::DefaultState || PrevState == FElement::RemovedState, TEXT("Invalid state %u"), PrevState);
-		}
-	}
+
+		// See if there were new elements added while ticking. If so, tick them this frame as well
+		PumpAddedElementsQueue();
+	} while (ElementIdx < Elements.Num());
 
 	Elements.Reset();
 	Exchange(TickedElements, Elements);

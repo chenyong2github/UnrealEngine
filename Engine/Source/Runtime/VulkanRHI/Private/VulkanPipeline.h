@@ -42,7 +42,7 @@ inline uint64 GetShaderKeyForGfxStage(const FBoundShaderStateInput& BSI, ShaderS
 		return GetShaderKey<FVulkanPixelShader>(BSI.PixelShaderRHI);
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 	case ShaderStage::Geometry:
-		return GetShaderKey<FVulkanGeometryShader>(BSI.GeometryShaderRHI);
+		return GetShaderKey<FVulkanGeometryShader>(BSI.GetGeometryShader());
 #endif
 #if RHI_RAYTRACING
 	case ShaderStage::RayGen:

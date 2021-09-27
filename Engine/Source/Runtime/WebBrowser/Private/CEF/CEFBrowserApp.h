@@ -9,6 +9,8 @@
 
 #include "CEFLibCefIncludes.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogCEFBrowser, Log, All);
+
 /**
  * Implements CEF App and other Process level interfaces
  */

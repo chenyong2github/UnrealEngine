@@ -578,7 +578,7 @@ void FConcertClientSequencerManager::ApplyEventToSequencers(const FConcertSequen
 
 	// Update all opened sequencer with this root sequence
 	for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(EventState))
-	{	
+	{
 		ISequencer* Sequencer = OpenSequencer->WeakSequencer.Pin().Get();
 		// If the entry is driving playback (PlaybackMode == Master) then we never respond to external transport events
 		if (!Sequencer || OpenSequencer->PlaybackMode == EPlaybackMode::Master)

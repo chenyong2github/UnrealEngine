@@ -292,19 +292,19 @@ public:
 	void DumpStatsToFile();
 
 #if WITH_PARTICLE_PERF_STATS
-	FAccumulatedParticlePerfStats* GetStats(UWorld* World);
+	FAccumulatedParticlePerfStats* GetStats(const UWorld* World);
 #else
-	FAccumulatedParticlePerfStats* GetStats(UWorld* World) { return nullptr; }
+	FAccumulatedParticlePerfStats* GetStats(const UWorld* World) { return nullptr; }
 #endif
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
-	FAccumulatedParticlePerfStats* GetStats(UFXSystemAsset* System);
+	FAccumulatedParticlePerfStats* GetStats(const UFXSystemAsset* System);
 #else
-	FAccumulatedParticlePerfStats* GetStats(UFXSystemAsset* System){ return nullptr; }
+	FAccumulatedParticlePerfStats* GetStats(const UFXSystemAsset* System){ return nullptr; }
 #endif
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
-	FAccumulatedParticlePerfStats* GetStats(UFXSystemComponent* Component);
+	FAccumulatedParticlePerfStats* GetStats(const UFXSystemComponent* Component);
 #else
-	FAccumulatedParticlePerfStats* GetStats(UFXSystemComponent* Component){ return nullptr; }
+	FAccumulatedParticlePerfStats* GetStats(const UFXSystemComponent* Component){ return nullptr; }
 #endif
 
 protected:

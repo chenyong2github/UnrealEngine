@@ -48,8 +48,8 @@ public:
 	/**
 	 * Get the element interface from the given handle.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List", meta=(ScriptMethod, DeterminesOutputType = "BaseInterfaceType"))
-	static UObject* GetElementInterface(const FTypedElementListProxy ElementList, const FTypedElementHandle& ElementHandle, const TSubclassOf<UInterface>& BaseInterfaceType)
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|List", meta=(ScriptMethod))
+	static UObject* GetElementInterface(const FTypedElementListProxy ElementList, const FTypedElementHandle& ElementHandle, const TSubclassOf<UInterface> BaseInterfaceType)
 	{
 		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->GetElementInterface(ElementHandle, BaseInterfaceType) : nullptr;
@@ -59,7 +59,7 @@ public:
 	 * Test whether there are elements in this list, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static bool HasElements(const FTypedElementListProxy ElementList, const TSubclassOf<UInterface>& BaseInterfaceType = nullptr)
+	static bool HasElements(const FTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType = nullptr)
 	{
 		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr && ElementListPtr->HasElements(BaseInterfaceType);
@@ -69,7 +69,7 @@ public:
 	 * Count the number of elements in this list, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static int32 CountElements(const FTypedElementListProxy ElementList, const TSubclassOf<UInterface>& BaseInterfaceType = nullptr)
+	static int32 CountElements(const FTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType = nullptr)
 	{
 		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->CountElements(BaseInterfaceType) : 0;
@@ -99,7 +99,7 @@ public:
 	 * Get the handle of every element in this list, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
-	static TArray<FTypedElementHandle> GetElementHandles(const FTypedElementListProxy ElementList, const TSubclassOf<UInterface>& BaseInterfaceType = nullptr)
+	static TArray<FTypedElementHandle> GetElementHandles(const FTypedElementListProxy ElementList, const TSubclassOf<UInterface> BaseInterfaceType)
 	{
 		FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList();
 		return ElementListPtr ? ElementListPtr->GetElementHandles(BaseInterfaceType) : TArray<FTypedElementHandle>();

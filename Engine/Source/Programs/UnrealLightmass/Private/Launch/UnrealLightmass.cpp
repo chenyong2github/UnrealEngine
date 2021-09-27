@@ -72,9 +72,11 @@ int LightmassMain(int argc, ANSICHAR* argv[])
 	GWarn = FPlatformApplicationMisc::GetFeedbackContext();
 
 #if USE_LOCAL_SWARM_INTERFACE
+	bool bMessagingMode = false;
 	FString CommandLine = FCommandLine::Get();
 	if (!FParse::Param(*CommandLine, TEXT("-Messaging")))
 	{
+		bMessagingMode = true;
 		CommandLine += TEXT(" -Messaging");
 	}
 
@@ -230,6 +232,17 @@ int LightmassMain(int argc, ANSICHAR* argv[])
 	BuildStaticLighting(SceneGuid, NumThreads, bDumpTextures);
 
 #if USE_LOCAL_SWARM_INTERFACE
+	if (bMessagingMode)
+	{
+		float StartTime = FPlatformTime::Seconds();
+
+		do
+		{
+			FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+			FPlatformProcess::Sleep(1.0f);
+		} while (FPlatformTime::Seconds() - StartTime < 5.0f);
+	}
+
 	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();
 

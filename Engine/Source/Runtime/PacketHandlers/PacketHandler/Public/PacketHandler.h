@@ -22,6 +22,14 @@ class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
 class PacketHandler;
 
+namespace UE
+{
+	namespace Net
+	{
+		class FNetConnectionFaultRecoveryBase;
+	}
+}
+
 
 /**
  * Delegates
@@ -35,6 +43,13 @@ DECLARE_DELEGATE_ThreeParams(FPacketHandlerLowLevelSend, void* /* Data */, int32
 // Delegate for allowing adding of packet handlers without defining them in an ini file
 DECLARE_DELEGATE_OneParam(FPacketHandlerAddComponentByNameDelegate, TArray<FString>& /* HandlerComponentNames */);
 DECLARE_DELEGATE_OneParam(FPacketHandlerAddComponentDelegate, TArray<TSharedPtr<HandlerComponent>>& /* HandlerComponents*/ );
+
+/**
+ * Callback for notifying that a new HandlerComponent was added (to e.g. perform additional initialization)
+ *
+ * @param NewHandler	The newly added HandlerComponent
+ */
+DECLARE_DELEGATE_OneParam(FPacketHandlerNotifyAddHandler, TSharedPtr<HandlerComponent>& /*NewHandler*/);
 
 /**
  * Callback for notifying higher-level code that handshaking has completed, and that packets are now ready to send without buffering
@@ -218,7 +233,7 @@ enum class EIncomingResult : uint8
 /**
  * This class maintains an array of all PacketHandler Components and forwards incoming and outgoing packets the each component
  */
-class PACKETHANDLER_API PacketHandler : public FVirtualDestructor
+class PACKETHANDLER_API PacketHandler
 {
 public:
 	/**
@@ -227,6 +242,8 @@ public:
 	 * @param InDDoS			Reference to the owning net drivers DDoS detection handler
 	 */
 	PacketHandler(FDDoSDetection* InDDoS=nullptr);
+
+	virtual ~PacketHandler() = default;
 
 	/**
 	 * Handles initialization of manager
@@ -245,11 +262,17 @@ public:
 	 * Used for external initialization of delegates
 	 *
 	 * @param InLowLevelSendDel		The delegate the PacketHandler should use for triggering packet sends
+	 * @param InAddHandlerDel		Callback for notifying of new HandlerComponent's
 	 */
-	void InitializeDelegates(FPacketHandlerLowLevelSendTraits InLowLevelSendDel)
-	{
-		LowLevelSendDel = InLowLevelSendDel;
-	}
+	void InitializeDelegates(FPacketHandlerLowLevelSendTraits InLowLevelSendDel,
+								FPacketHandlerNotifyAddHandler InAddHandlerDel=FPacketHandlerNotifyAddHandler());
+
+	/**
+	 * Initializes a reference to the NetConnection fault recovery interface (does not require Engine dependency)
+	 *
+	 * @param InFaultRecovery	A reference to the fault recovery interface
+	 */
+	void InitFaultRecovery(UE::Net::FNetConnectionFaultRecoveryBase* InFaultRecovery);
 
 	/**
 	 * Notification that the NetDriver analytics provider has been updated (NOT called on first initialization)
@@ -626,6 +649,9 @@ private:
 	/** Delegate used for notifying that handshaking has completed */
 	FPacketHandlerHandshakeComplete HandshakeCompleteDel;
 
+	/** Delegate used for notifying that a new HandlerComponent has been added */
+	FPacketHandlerNotifyAddHandler AddHandlerDel;
+
 	/** Used for packing outgoing packets */
 	FBitWriter OutgoingPacket;
 
@@ -734,13 +760,23 @@ public:
 		return bRequiresReliability;
 	}
 	
+	// Delay deprecation for initial checkin
+	//UE_DEPRECATED(5.0, "Use the version of 'HandlerComponent::Incoming' which takes 'FIncomingPacketRef' instead")
+	virtual void Incoming(FBitReader& Packet)
+	{
+	}
+
 	/**
 	 * Handles incoming packets
 	 *
-	 * @param Packet	The packet to be handled
+	 * @param PacketRef		Reference of the packet being processed
 	 */
-	virtual void Incoming(FBitReader& Packet)
+	virtual void Incoming(FIncomingPacketRef PacketRef)
 	{
+		// By default, call the deprecated version unless overridden (derived classes should NOT call the parent Incoming function)
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Incoming(PacketRef.Packet);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
@@ -795,6 +831,15 @@ public:
 	 * Initialization functionality should be placed here
 	 */
 	virtual void Initialize() = 0;
+
+	/**
+	 * Initializes a reference to the NetConnection fault recovery interface (does not require Engine dependency)
+	 *
+	 * @param InFaultRecovery	A reference to the fault recovery interface
+	 */
+	virtual void InitFaultRecovery(UE::Net::FNetConnectionFaultRecoveryBase* InFaultRecovery)
+	{
+	}
 
 	/**
 	 * Notification to this component that it is ready to begin handshaking

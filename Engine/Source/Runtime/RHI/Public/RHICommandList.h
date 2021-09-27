@@ -685,10 +685,10 @@ protected:
 
 	FORCEINLINE void ValidateBoundShader(FRHIVertexShader* ShaderRHI) { checkSlow(BoundShaderInput.VertexShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIPixelShader* ShaderRHI) { checkSlow(BoundShaderInput.PixelShaderRHI == ShaderRHI); }
-	FORCEINLINE void ValidateBoundShader(FRHIGeometryShader* ShaderRHI) { checkSlow(BoundShaderInput.GeometryShaderRHI == ShaderRHI); }
+	FORCEINLINE void ValidateBoundShader(FRHIGeometryShader* ShaderRHI) { checkSlow(BoundShaderInput.GetGeometryShader() == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIComputeShader* ShaderRHI) { checkSlow(BoundComputeShaderRHI == ShaderRHI); }
-	FORCEINLINE void ValidateBoundShader(FRHIMeshShader* ShaderRHI) { checkSlow(BoundShaderInput.MeshShaderRHI == ShaderRHI); }
-	FORCEINLINE void ValidateBoundShader(FRHIAmplificationShader* ShaderRHI) { checkSlow(BoundShaderInput.AmplificationShaderRHI == ShaderRHI); }
+	FORCEINLINE void ValidateBoundShader(FRHIMeshShader* ShaderRHI) { checkSlow(BoundShaderInput.GetMeshShader() == ShaderRHI); }
+	FORCEINLINE void ValidateBoundShader(FRHIAmplificationShader* ShaderRHI) { checkSlow(BoundShaderInput.GetAmplificationShader() == ShaderRHI); }
 
 	FORCEINLINE void ValidateBoundShader(FRHIGraphicsShader* ShaderRHI)
 	{
@@ -696,10 +696,10 @@ protected:
 		switch (ShaderRHI->GetFrequency())
 		{
 		case SF_Vertex: checkSlow(BoundShaderInput.VertexShaderRHI == ShaderRHI); break;
-		case SF_Mesh: checkSlow(BoundShaderInput.MeshShaderRHI == ShaderRHI); break;
-		case SF_Amplification: checkSlow(BoundShaderInput.AmplificationShaderRHI == ShaderRHI); break;
+		case SF_Mesh: checkSlow(BoundShaderInput.GetMeshShader() == ShaderRHI); break;
+		case SF_Amplification: checkSlow(BoundShaderInput.GetAmplificationShader() == ShaderRHI); break;
 		case SF_Pixel: checkSlow(BoundShaderInput.PixelShaderRHI == ShaderRHI); break;
-		case SF_Geometry: checkSlow(BoundShaderInput.GeometryShaderRHI == ShaderRHI); break;
+		case SF_Geometry: checkSlow(BoundShaderInput.GetGeometryShader() == ShaderRHI); break;
 		default: checkfSlow(false, TEXT("Unexpected graphics shader type %d"), ShaderRHI->GetFrequency());
 		}
 #endif // DO_GUARD_SLOW
@@ -1346,6 +1346,22 @@ FRHICOMMAND_MACRO(FRHICommandSetGraphicsPipelineState)
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
+
+#if PLATFORM_USE_FALLBACK_PSO
+FRHICOMMAND_MACRO(FRHICommandSetGraphicsPipelineStateFromInitializer)
+{
+	FGraphicsPipelineStateInitializer PsoInit;
+	uint32 StencilRef;
+	bool bApplyAdditionalState;
+	FORCEINLINE_DEBUGGABLE FRHICommandSetGraphicsPipelineStateFromInitializer(const FGraphicsPipelineStateInitializer& InPsoInit, uint32 InStencilRef, bool bInApplyAdditionalState)
+		: PsoInit(InPsoInit)
+		, StencilRef(InStencilRef)
+		, bApplyAdditionalState(bInApplyAdditionalState)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+#endif
 
 struct FRHICommandDispatchComputeShaderString
 {
@@ -3049,10 +3065,10 @@ public:
 	void operator delete(void *RawMemory);
 	
 	inline FRHIVertexShader* GetBoundVertexShader() const { return BoundShaderInput.VertexShaderRHI; }
-	inline FRHIMeshShader* GetBoundMeshShader() const { return BoundShaderInput.MeshShaderRHI; }
-	inline FRHIAmplificationShader* GetBoundAmplificationShader() const { return BoundShaderInput.AmplificationShaderRHI; }
+	inline FRHIMeshShader* GetBoundMeshShader() const { return BoundShaderInput.GetMeshShader(); }
+	inline FRHIAmplificationShader* GetBoundAmplificationShader() const { return BoundShaderInput.GetAmplificationShader(); }
 	inline FRHIPixelShader* GetBoundPixelShader() const { return BoundShaderInput.PixelShaderRHI; }
-	inline FRHIGeometryShader* GetBoundGeometryShader() const { return BoundShaderInput.GeometryShaderRHI; }
+	inline FRHIGeometryShader* GetBoundGeometryShader() const { return BoundShaderInput.GetGeometryShader(); }
 
 	template <typename LAMBDA>
 	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
@@ -3441,6 +3457,20 @@ public:
 	{
 		SetGraphicsPipelineState(GraphicsPipelineState, ShaderInput, 0, bApplyAdditionalState);
 	}
+
+#if PLATFORM_USE_FALLBACK_PSO
+	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState)
+	{
+		//check(IsOutsideRenderPass());
+		BoundShaderInput = PsoInit.BoundShaderState;
+		if (Bypass())
+		{
+			GetContext().RHISetGraphicsPipelineState(PsoInit, StencilRef, bApplyAdditionalState);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineStateFromInitializer)(PsoInit, StencilRef, bApplyAdditionalState);
+	}
+#endif
 
 	FORCEINLINE_DEBUGGABLE void DrawPrimitiveIndirect(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
 	{

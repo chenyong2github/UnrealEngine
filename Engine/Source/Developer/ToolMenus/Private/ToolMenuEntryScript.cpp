@@ -155,6 +155,19 @@ void UToolMenuEntryScript::ToMenuEntry(FToolMenuEntry& Output)
 				Data.Advanced.TutorialHighlight
 			);
 		}
+		else if (Data.Advanced.EntryType == EMultiBlockType::ToolBarComboButton)
+		{
+			Output = FToolMenuEntry::InitComboButton(
+				Data.Name,
+				FToolUIActionChoice(), // Action will be handled by 'ScriptObject'
+				FNewToolMenuChoice(), // Menu will be opened by string: 'Menu' + '.' + 'Name'
+				Data.Label,
+				Data.ToolTip,
+				Data.Icon,
+				Data.Advanced.bSimpleComboBox,
+				Data.Advanced.TutorialHighlight
+			);
+		}
 		else
 		{
 			Output = FToolMenuEntry::InitMenuEntry(Data.Name, Data.Label, Data.ToolTip, Data.Icon, FUIAction());
@@ -167,6 +180,8 @@ void UToolMenuEntryScript::ToMenuEntry(FToolMenuEntry& Output)
 	{
 		Output.InsertPosition = Data.InsertPosition;
 	}
+
+	Output.StyleNameOverride = Data.Advanced.StyleNameOverride;
 
 	Output.ScriptObject = this;
 

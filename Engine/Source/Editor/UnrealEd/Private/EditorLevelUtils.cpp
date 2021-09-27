@@ -805,15 +805,7 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 				UWorld* TheWorld = UWorld::FindWorldInPackage(LevelPackage->GetOutermost());
 				if (TheWorld != nullptr)
 				{
-					FReferenceChainSearch RefChainSearch(TheWorld, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-					if (bFatal)
-					{
-						UE_LOG(LogStreaming, Fatal, TEXT("Removed world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *TheWorld->GetPathName(), *RefChainSearch.GetRootPath());
-					}
-					else
-					{
-						UE_LOG(LogStreaming, Log, TEXT("Removed world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *TheWorld->GetPathName(), *RefChainSearch.GetRootPath());
-					}
+					UEngine::FindAndPrintStaleReferencesToObject(TheWorld, bFatal ? ELogVerbosity::Fatal : ELogVerbosity::Log);
 					return false;
 				}
 			}

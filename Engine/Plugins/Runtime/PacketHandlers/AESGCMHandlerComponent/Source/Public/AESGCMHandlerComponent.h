@@ -6,6 +6,7 @@
 #include "PacketHandler.h"
 #include "IPlatformCrypto.h"
 #include "EncryptionComponent.h"
+#include "AESGCMFaultHandler.h"
 
 /*
 * AES256 GCM block encryption component.
@@ -43,8 +44,9 @@ public:
 
 	// HandlerComponent interface
 	virtual void Initialize() override;
+	virtual void InitFaultRecovery(UE::Net::FNetConnectionFaultRecoveryBase* InFaultRecovery) override;
 	virtual bool IsValid() const override;
-	virtual void Incoming(FBitReader& Packet) override;
+	virtual void Incoming(FIncomingPacketRef PacketRef) override;
 	virtual void Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits) override;
 	virtual int32 GetReservedPacketBits() const override;
 	virtual void CountBytes(FArchive& Ar) const override;
@@ -60,6 +62,9 @@ private:
 	TArray<uint8> AuthTag;
 
 	bool bEncryptionEnabled;
+
+	/** Fault handler for AESGCM-specific errors, that may trigger NetConnection Close */
+	FAESGCMFaultHandler AESGCMFaultHandler;
 };
 
 

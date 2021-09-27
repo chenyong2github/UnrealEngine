@@ -772,13 +772,20 @@ bool IPlatformFile::CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRe
 	while (Size)
 	{
 		int64 ThisSize = FMath::Min<int64>(AllocSize, Size);
-		FromFile->Read(Buffer, ThisSize);
-		ToFile->Write(Buffer, ThisSize);
+		if (!FromFile->Read(Buffer, ThisSize))
+		{
+			break;
+		}
+		if (!ToFile->Write(Buffer, ThisSize))
+		{
+			break;
+		}
 		Size -= ThisSize;
 		check(Size >= 0);
 	}
 	FMemory::Free(Buffer);
-	return true;
+	check(Size >= 0);
+	return Size == 0;
 }
 
 bool IPlatformFile::CopyDirectoryTree(const TCHAR* DestinationDirectory, const TCHAR* Source, bool bOverwriteAllExisting)

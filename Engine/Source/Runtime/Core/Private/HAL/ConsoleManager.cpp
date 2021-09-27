@@ -2230,6 +2230,14 @@ static TAutoConsoleVariable<int32> CVarMobileAllowPixelDepthOffset(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarMobileAllowPerPixelShadingModels(
+	TEXT("r.Mobile.AllowPerPixelShadingModels"),
+	1,
+	TEXT("Whether to allow 'Per-Pixel Shader Models (From Material Expression)' in materials for ES3.1 feature level."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
+
 static TAutoConsoleVariable<int32> CVarMobileSupportGPUScene(
 	TEXT("r.Mobile.SupportGPUScene"),
 	0,

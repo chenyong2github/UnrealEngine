@@ -80,6 +80,7 @@ static FString DetectSubversionPath()
 #elif PLATFORM_MAC
 	const TCHAR* Command[] = { TEXT("/usr/bin/which"), TEXT("svn") };
 	const FString DefaultPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/svn") / FPlatformProcess::GetBinariesSubdirectory() / TEXT("bin/svn");
+	const FString UsrLocalPath = TEXT("/usr/local/bin/svn");
 #else
 	const TCHAR* Command[] = { TEXT("/usr/bin/which"), TEXT("svn") };
 	const FString DefaultPath = TEXT("/usr/bin/svn");
@@ -110,6 +111,14 @@ static FString DetectSubversionPath()
 	bool bPathIsValid = !SVNPath.IsEmpty() && FPaths::FileExists(SVNPath);
 
 #if PLATFORM_MAC
+	/* On mac some SVN Package can update shell's path without exporting to global path. This binary should be preferred if existing since using keychain for authentication.
+	   Hence we will piggyback on the same authentication mechanism the user will use to init their repository. */
+	if (!bPathIsValid && (FPaths::FileExists(UsrLocalPath)))
+	{
+		SVNPath = UsrLocalPath;
+		bPathIsValid = true;
+	}
+
 	// On mac we need to check is /usr/bin/svn valid (it can exists but invoking it tells that it is not distributed with XCode anymore)
 	if (SVNPath == TEXT("/usr/bin/svn"))
 	{

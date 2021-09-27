@@ -3536,9 +3536,9 @@ void UNetDriver::ForceNetUpdate(AActor* Actor)
 	}
 	
 	// Legacy implementation
-	if ( FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(Actor) )
+	if (FNetworkObjectInfo* NetActor = FindNetworkObjectInfo(Actor))
 	{
-		NetActor->NextUpdateTime = World->TimeSeconds - 0.01f;
+		NetActor->NextUpdateTime = World ? (World->TimeSeconds - 0.01f) : 0.0;
 	}
 }
 

@@ -115,7 +115,8 @@ protected:
 		const FContentBrowserItemData* BItemData = B->GetItem().GetPrimaryInternalItem();
 		// TODO: Have an option to sort by display name? It's slower, but more correct for non-English languages
 		//const int32 Result = (AItemData && BItemData) ? AItemData->GetDisplayName().CompareTo(BItemData->GetDisplayName()) : 0;
-		const int32 Result = (AItemData && BItemData) ? FAssetViewSortManager::CompareWithNumericSuffix(FNameBuilder(AItemData->GetItemName()).ToView(), FNameBuilder(BItemData->GetItemName()).ToView()) : 0;
+		//const int32 Result = (AItemData && BItemData) ? FAssetViewSortManager::CompareWithNumericSuffix(FNameBuilder(AItemData->GetItemName()).ToView(), FNameBuilder(BItemData->GetItemName()).ToView()) : 0;
+		const int32 Result = (AItemData && BItemData) ? FAssetViewSortManager::CompareWithNumericSuffix(AItemData->GetDisplayName().ToString(), BItemData->GetDisplayName().ToString()) : 0;
 		if (Result < 0)
 		{
 			return bAscending;

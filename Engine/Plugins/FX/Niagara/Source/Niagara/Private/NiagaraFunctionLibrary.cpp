@@ -183,9 +183,13 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 				bool bShouldCull = false;
 				if (bPreCullCheck)
 				{
-					FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
-					//TODO: For now using the attach parent location and ignoring the emitters relative location which is clearly going to be a bit wrong in some cases.
-					bShouldCull = WorldManager->ShouldPreCull(SystemTemplate, AttachToComponent->GetComponentLocation());
+					//Don't precull if this is a local player linked effect and the system doesn't allow us to cull those.
+					if (SystemTemplate->AllowCullingForLocalPlayers() || FNiagaraWorldManager::IsComponentLocalPlayerLinked(AttachToComponent) == false)
+					{
+						FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+						//TODO: For now using the attach parent location and ignoring the emitters relative location which is clearly going to be a bit wrong in some cases.
+						bShouldCull = WorldManager->ShouldPreCull(SystemTemplate, AttachToComponent->GetComponentLocation());
+					}
 				}
 
 				if (!bShouldCull)

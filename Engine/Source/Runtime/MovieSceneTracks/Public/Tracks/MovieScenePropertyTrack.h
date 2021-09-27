@@ -37,6 +37,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDefaultDisplayName() const override;
+	virtual FText GetDisplayNameToolTipText() const override;
 	virtual bool CanRename() const override { return false; }
 	virtual FName GetTrackName() const override;
 #endif

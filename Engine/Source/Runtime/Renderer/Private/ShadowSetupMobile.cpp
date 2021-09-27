@@ -15,6 +15,7 @@ ShadowSetupMobile.cpp: Shadow setup implementation for mobile specific features.
 #include "SceneRendering.h"
 #include "DynamicPrimitiveDrawing.h"
 #include "ScenePrivate.h"
+#include "MeshPassProcessor.h"
 
 static TAutoConsoleVariable<int32> CVarCsmShaderCullingDebugGfx(
 	TEXT("r.Mobile.Shadow.CSMShaderCullingDebugGfx"),
@@ -31,8 +32,52 @@ static TAutoConsoleVariable<int32> CVarsCsmShaderCullingMethod(
 	TEXT("1 - Light frustum, all primitives whose bounding box is within CSM receiving distance. (default)\n")
 	TEXT("2 - Combined caster bounds, all primitives whose bounds are within CSM receiving distance and the capsule of the combined bounds of all casters.\n")
 	TEXT("3 - Light frustum + caster bounds, all primitives whose bounds are within CSM receiving distance and capsule of at least one caster. (slowest)\n")
+	TEXT("4 - Cull all. Prevent primitives from receiving CSM shadows.\n")
+	TEXT("5 - Disable culling if mobile distance field shadowing is used for all views.\n")
 	TEXT("Combine with 16 to change primitive bounding test to spheres instead of box. (i.e. 18 == combined casters + sphere test)")
 	,ECVF_RenderThreadSafe);
+
+static void OnCsmShaderCullingMethodChanged()
+{
+	// Cannot do this in editors because feature levels can change
+#if !WITH_EDITOR
+	static int32 PrevValue = CSMShaderCullingMethodDefault;
+	const int32 CurValue = (CVarsCsmShaderCullingMethod.GetValueOnGameThread() & 0xF);
+	
+	if (CurValue != PrevValue && (CurValue == 5 || PrevValue == 5))
+	{
+		PrevValue = CurValue;
+
+		if (CurValue == 5)
+		{
+			TArray<ERHIFeatureLevel::Type> UsedFeatureLevels;
+			for (TObjectIterator<UWorld> It; It; ++It)
+			{
+				const UWorld* World = *It;
+				if (World && World->Scene)
+				{
+					UsedFeatureLevels.AddUnique(World->Scene->GetFeatureLevel());
+				}
+			}
+
+			bool bBasePassAlwaysUseCSM = UsedFeatureLevels.Num() > 0;
+			for (ERHIFeatureLevel::Type FeatureLevel : UsedFeatureLevels)
+			{
+				bBasePassAlwaysUseCSM = bBasePassAlwaysUseCSM && MobileBasePassAlwaysUsesCSM(GetFeatureLevelShaderPlatform(FeatureLevel));
+			}
+
+			const EMeshPassFlags NewFlags = bBasePassAlwaysUseCSM ? EMeshPassFlags::MainView : (EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
+			FPassProcessorManager::SetPassFlags(EShadingPath::Mobile, EMeshPass::MobileBasePassCSM, NewFlags);
+		}
+		else
+		{
+			FPassProcessorManager::SetPassFlags(EShadingPath::Mobile, EMeshPass::MobileBasePassCSM, EMeshPassFlags::CachedMeshCommands | EMeshPassFlags::MainView);
+		}
+	}
+#endif
+}
+
+static FAutoConsoleVariableSink CVarsCsmShaderCullingMethodSink(FConsoleCommandDelegate::CreateStatic(&OnCsmShaderCullingMethodChanged));
 
 static bool CouldStaticMeshEverReceiveCSMFromStationaryLight(ERHIFeatureLevel::Type FeatureLevel, const FPrimitiveSceneInfo* PrimitiveSceneInfo, const FStaticMeshBatch& StaticMesh)
 {
@@ -259,23 +304,33 @@ void FMobileSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdLi
 	}
 
 	FSceneRenderer::InitDynamicShadows(RHICmdList, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer, InstanceCullingManager);
-	PrepareViewVisibilityLists();
 
 	bool bAlwaysUseCSM = false;
-	for (FLightSceneInfo* MobileDirectionalLightSceneInfo : Scene->MobileDirectionalLights)
+	const bool bSkipCSMShaderCulling = MobileBasePassAlwaysUsesCSM(Scene->GetShaderPlatform());
+
+	if (bSkipCSMShaderCulling)
 	{
-		const FLightSceneProxy* LightSceneProxy = MobileDirectionalLightSceneInfo ? MobileDirectionalLightSceneInfo->Proxy : nullptr;
-		if (LightSceneProxy)
+		bAlwaysUseCSM = true;
+	}
+	else
+	{
+		PrepareViewVisibilityLists();
+
+		for (FLightSceneInfo* MobileDirectionalLightSceneInfo : Scene->MobileDirectionalLights)
 		{
-			bool bLightHasCombinedStaticAndCSMEnabled = bCombinedStaticAndCSMEnabled && LightSceneProxy->UseCSMForDynamicObjects();
-			bool bMovableLightUsingCSM = bMobileEnableMovableLightCSMShaderCulling && LightSceneProxy->IsMovable() && MobileDirectionalLightSceneInfo->ShouldRenderViewIndependentWholeSceneShadows();
-			
-			// non-csm culling movable light will force all draws to use CSM shaders.
-			// TODO: Cases in which a light channel uses a shadow casting non-csm culled movable light we only really need to use CSM on primitives that match the light channel.
-			bAlwaysUseCSM = bAlwaysUseCSM || (!bMobileEnableMovableLightCSMShaderCulling && LightSceneProxy->IsMovable() && MobileDirectionalLightSceneInfo->ShouldRenderViewIndependentWholeSceneShadows());
-			if (bLightHasCombinedStaticAndCSMEnabled || bMovableLightUsingCSM)
+			const FLightSceneProxy* LightSceneProxy = MobileDirectionalLightSceneInfo ? MobileDirectionalLightSceneInfo->Proxy : nullptr;
+			if (LightSceneProxy)
 			{
-				BuildCSMVisibilityState(MobileDirectionalLightSceneInfo);
+				bool bLightHasCombinedStaticAndCSMEnabled = bCombinedStaticAndCSMEnabled && LightSceneProxy->UseCSMForDynamicObjects();
+				bool bMovableLightUsingCSM = bMobileEnableMovableLightCSMShaderCulling && LightSceneProxy->IsMovable() && MobileDirectionalLightSceneInfo->ShouldRenderViewIndependentWholeSceneShadows();
+
+				// non-csm culling movable light will force all draws to use CSM shaders.
+				// TODO: Cases in which a light channel uses a shadow casting non-csm culled movable light we only really need to use CSM on primitives that match the light channel.
+				bAlwaysUseCSM = bAlwaysUseCSM || (!bMobileEnableMovableLightCSMShaderCulling && LightSceneProxy->IsMovable() && MobileDirectionalLightSceneInfo->ShouldRenderViewIndependentWholeSceneShadows());
+				if (bLightHasCombinedStaticAndCSMEnabled || bMovableLightUsingCSM)
+				{
+					BuildCSMVisibilityState(MobileDirectionalLightSceneInfo);
+				}
 			}
 		}
 	}
@@ -284,6 +339,10 @@ void FMobileSceneRenderer::InitDynamicShadows(FRHICommandListImmediate& RHICmdLi
 	{
 		FMobileCSMVisibilityInfo& MobileCSMVisibilityInfo = View.MobileCSMVisibilityInfo;
 		MobileCSMVisibilityInfo.bAlwaysUseCSM = bAlwaysUseCSM;
+		if (bSkipCSMShaderCulling)
+		{
+			MobileCSMVisibilityInfo.bMobileDynamicCSMInUse = true;
+		}
 	}
 
 	{

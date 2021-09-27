@@ -94,6 +94,10 @@ namespace Metasound
 
 			/** FGCObject interface */
 			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+			virtual FString GetReferencerName() const override
+			{
+				return TEXT("Metasound::Editor::FEditor");
+			}
 
 			//~ Begin FEditorUndoClient Interface
 			virtual void PostUndo(bool bSuccess) override;

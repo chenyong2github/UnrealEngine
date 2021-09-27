@@ -15,6 +15,7 @@
 #include "Misc/FilterCollection.h"
 #include "Framework/Views/ITypedTableView.h"
 #include "AssetThumbnail.h"
+#include "ContentBrowserItemPath.h"
 #include "Misc/BlacklistNames.h"
 
 class FViewport;
@@ -627,7 +628,11 @@ public:
 	virtual void GetSelectedPathViewFolders(TArray<FString>& SelectedFolders) = 0;
 
 	/** Gets the current path if one exists, otherwise returns empty string. */
+	UE_DEPRECATED(5.0, "This function is deprecated. Use GetCurrentPath without argument instead.")
 	virtual FString GetCurrentPath(const EContentBrowserPathType PathType) = 0;
+
+	/** Gets the current path if one exists, otherwise returns empty string. */
+	virtual FContentBrowserItemPath GetCurrentPath() = 0;
 
 	/**
 	 * Capture active viewport to thumbnail and assigns that thumbnail to incoming assets
@@ -676,4 +681,7 @@ public:
 	 * @param PathPickerWidget The path picker widget where we want to add an folder
 	*/
 	virtual void RefreshPathView(TSharedPtr<SWidget> PathPickerWidget) = 0;
+
+	/** Returns InPath if can be written to, otherwise picks a default path that can be written to */
+	virtual FContentBrowserItemPath GetInitialPathToSaveAsset(const FContentBrowserItemPath& InPath) = 0;
 };

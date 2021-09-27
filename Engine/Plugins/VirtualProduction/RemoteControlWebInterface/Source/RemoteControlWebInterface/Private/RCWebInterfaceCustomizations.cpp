@@ -253,7 +253,7 @@ FReply FRCWebInterfaceCustomizations::OpenWebApp() const
 		FString ActivePreset;
 		if (URemoteControlPreset* Preset = IRemoteControlUIModule::Get().GetActivePreset())
 		{
-			ActivePreset = Preset->GetName();	
+			ActivePreset = Preset->GetPresetId().ToString();	
 		}
 		else
 		{

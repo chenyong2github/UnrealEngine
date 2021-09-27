@@ -14,10 +14,23 @@
 #include "UObject/SoftObjectPath.h"
 #include "UObject/Field.h"
 #include "Trace/Config.h"
+#include "Templates/PimplPtr.h"
 
+
+// Forward declarations
 class FOutBunch;
 class INetDeltaBaseState;
 class FNetTraceCollector;
+class UPackageMap;
+
+namespace UE
+{
+	namespace Net
+	{
+		struct FNetResult;
+	}
+}
+
 
 DECLARE_DELEGATE_RetVal_OneParam( bool, FNetObjectIsDynamic, const UObject*);
 
@@ -365,9 +378,14 @@ public:
 class COREUOBJECT_API FNetBitReader : public FBitReader
 {
 public:
-	FNetBitReader( UPackageMap* InPackageMap=NULL, uint8* Src=NULL, int64 CountBits=0 );
+	UPackageMap*													PackageMap		= nullptr;
 
-	class UPackageMap * PackageMap;
+	/** Stores additional error information. Avoid using to modify control flow, where bunches with errors may be copied/cached/queued. */
+	TPimplPtr<UE::Net::FNetResult, EPimplPtrMode::DeepCopy>	ExtendedError;
+
+
+public:
+	FNetBitReader(UPackageMap* InPackageMap=nullptr, uint8* Src=nullptr, int64 CountBits=0);
 
 	virtual FArchive& operator<<(FName& Name) override;
 	virtual FArchive& operator<<(UObject*& Object) override;

@@ -836,8 +836,13 @@ public:
 	FSlateColor GetBorderColor() const;
 	FMargin GetBorderPadding() const;
 
+	/** Begin FGCObject Interface */
 	void AddReferencedObjects(FReferenceCollector& Collector);
-
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SMaterialEditorUIPreviewZoomer");
+	}
+	/** End FGCObject Interface */
 private:
 
 	FSimpleDelegate OnZoomed;

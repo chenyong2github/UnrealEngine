@@ -1599,6 +1599,20 @@ bool FKismetDebugUtilities::CanInspectPinValue(const UEdGraphPin* Pin)
 		return false;
 	}
 
+	// Can't inspect if a debug object isn't selected
+	const UObject* Object = Blueprint->GetObjectBeingDebugged();
+	if (!Object)
+	{
+		return false;
+	}
+
+	// Can't inspect if not in PIE
+	const UWorld* OwningWorld = Object->GetTypedOuter<UWorld>();
+	if (!OwningWorld || !OwningWorld->IsPlayInEditor())
+	{
+		return false;
+	}
+
 	return true;
 }
 

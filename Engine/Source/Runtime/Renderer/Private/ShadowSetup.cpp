@@ -4430,30 +4430,33 @@ struct FGatherShadowPrimitivesPrepareTask
 		if (const int32 NumPackets = TaskData.Packets.Num(); NumPackets > 0)
 		{
 			const int32 NumTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads(), NumPackets);
-			const int32 PacketsPerTask = NumPackets / NumTasks;
+			const int32 PacketsPerTask = FMath::DivideAndRoundUp(NumPackets, NumTasks);
 
 			for (int32 TaskIndex = 0; TaskIndex < NumTasks; TaskIndex++)
 			{
 				FDynamicShadowsTaskData* pTaskData = &TaskData;
 				const int32 FirstPacketToProcess = TaskIndex * PacketsPerTask;
-				const int32 NumPacketsToProcess = PacketsPerTask;
+				const int32 NumPacketsToProcess = FMath::Min(PacketsPerTask, FMath::Max(0, NumPackets - FirstPacketToProcess));
 
-				FGraphEventRef NewTask = FFunctionGraphTask::CreateAndDispatchWhenReady([pTaskData, FirstPacketToProcess, NumPacketsToProcess]()
-					{
-						SCOPED_NAMED_EVENT_TEXT("FGatherShadowPrimitivesTask", FColor::Green);
-						for (int32 PacketIndex = 0; PacketIndex < NumPacketsToProcess; PacketIndex++)
+				if (NumPacketsToProcess > 0)
+				{
+					FGraphEventRef NewTask = FFunctionGraphTask::CreateAndDispatchWhenReady([pTaskData, FirstPacketToProcess, NumPacketsToProcess]()
 						{
-							if (int32 PacketToProcess = FirstPacketToProcess + PacketIndex; PacketToProcess < pTaskData->Packets.Num())
+							SCOPED_NAMED_EVENT_TEXT("FGatherShadowPrimitivesTask", FColor::Green);
+							for (int32 PacketIndex = 0; PacketIndex < NumPacketsToProcess; PacketIndex++)
 							{
-								pTaskData->Packets[PacketToProcess]->AnyThreadTask(*pTaskData);
+								if (int32 PacketToProcess = FirstPacketToProcess + PacketIndex; PacketToProcess < pTaskData->Packets.Num())
+								{
+									pTaskData->Packets[PacketToProcess]->AnyThreadTask(*pTaskData);
+								}
 							}
-						}
-					},
-					GET_STATID(STAT_ParallelForTask),
-						nullptr,
-						CPrio_GatherShadowPrimitives.Get());
+						},
+						GET_STATID(STAT_ParallelForTask),
+							nullptr,
+							CPrio_GatherShadowPrimitives.Get());
 
-				MyCompletionGraphEvent->DontCompleteUntil(NewTask);
+					MyCompletionGraphEvent->DontCompleteUntil(NewTask);
+				}
 			}
 		}
 	}

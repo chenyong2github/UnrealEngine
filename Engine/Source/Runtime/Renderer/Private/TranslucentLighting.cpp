@@ -832,11 +832,11 @@ public:
 
 				if (bLight0CloudPerPixelTransmittance)
 				{
-					SetShaderValue(RHICmdList, ShaderRHI, VolumetricCloudShadowmapStrength, AtmosphereLight0Proxy->GetCloudShadowOnAtmosphereStrength());
+					SetShaderValue(RHICmdList, ShaderRHI, VolumetricCloudShadowmapStrength, AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength());
 				}
 				else if(bLight1CloudPerPixelTransmittance)
 				{
-					SetShaderValue(RHICmdList, ShaderRHI, VolumetricCloudShadowmapStrength, AtmosphereLight1Proxy->GetCloudShadowOnAtmosphereStrength());
+					SetShaderValue(RHICmdList, ShaderRHI, VolumetricCloudShadowmapStrength, AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength());
 				}
 			}
 			else
@@ -1077,9 +1077,7 @@ void InjectTranslucencyLightingVolumeAmbientCubemap(
 					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
 					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
 					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-					GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-#endif
+					GraphicsPSOInit.BoundShaderState.SetGeometryShader(GeometryShader.GetGeometryShader());
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
@@ -1295,9 +1293,7 @@ static void InjectTranslucentLightArray(
 	
 					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
 					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-					GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-				#endif
+					GraphicsPSOInit.BoundShaderState.SetGeometryShader(GeometryShader.GetGeometryShader());
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
@@ -1494,9 +1490,7 @@ void InjectSimpleTranslucencyLightingVolumeArray(
 
 							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
 							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-							GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-#endif
+							GraphicsPSOInit.BoundShaderState.SetGeometryShader(GeometryShader.GetGeometryShader());
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
@@ -1579,9 +1573,7 @@ void FilterTranslucencyLightingVolume(
 				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-				GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-#endif
+				GraphicsPSOInit.BoundShaderState.SetGeometryShader(GeometryShader.GetGeometryShader());
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);

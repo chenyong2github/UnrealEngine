@@ -148,10 +148,18 @@ void UBTTask_RotateToFaceBBEntry::TickTask(UBehaviorTreeComponent& OwnerComp, ui
 		const FVector PawnDirection = AIController->GetPawn()->GetActorForwardVector();				
 		const FVector FocalPoint = AIController->GetFocalPointForPriority(EAIFocusPriority::Gameplay);
 
-		if (CalculateAngleDifferenceDot(PawnDirection, FocalPoint - AIController->GetPawn()->GetActorLocation()) >= PrecisionDot)
+		if (FocalPoint != FAISystem::InvalidLocation)
+		{
+			if (CalculateAngleDifferenceDot(PawnDirection, FocalPoint - AIController->GetPawn()->GetActorLocation()) >= PrecisionDot)
+			{
+				CleanUp(*AIController, NodeMemory);
+				FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+			}
+		}
+		else
 		{
 			CleanUp(*AIController, NodeMemory);
-			FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+			FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
 		}
 	}
 }

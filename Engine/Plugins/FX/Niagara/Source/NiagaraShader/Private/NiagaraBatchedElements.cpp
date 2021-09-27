@@ -6,7 +6,9 @@
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"
 
-class NIAGARASHADER_API FNiagaraSimpleElement2DArrayAttribute : public FGlobalShader
+//////////////////////////////////////////////////////////////////////////
+
+class FNiagaraSimpleElement2DArrayAttribute : public FGlobalShader
 {
 public:
 	DECLARE_SHADER_TYPE(FNiagaraSimpleElement2DArrayAttribute, Global);
@@ -57,7 +59,8 @@ void FBatchedElementNiagara2DArrayAttribute::BindShaders(FRHICommandList& RHICmd
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::ForceApply);
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
 
@@ -67,5 +70,50 @@ void FBatchedElementNiagara2DArrayAttribute::BindShaders(FRHICommandList& RHICmd
 	PassParameters.InGamma = InGamma;
 	PassParameters.InTexture = RHITexture ? RHITexture : GWhiteTexture->TextureRHI.GetReference();
 	PassParameters.InTextureSampler = RHISamplerState ? RHISamplerState : TStaticSamplerState<SF_Bilinear>::GetRHI();
+	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+class FNiagaraSimpleElementPS : public FGlobalShader
+{
+public:
+	DECLARE_SHADER_TYPE(FNiagaraSimpleElementPS, Global);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraSimpleElementPS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NIAGARA_SIMPLE_PS"), 1);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FNiagaraSimpleElementPS, "/Plugin/FX/Niagara/Private/NiagaraBatchedElements.usf", "MainPS", SF_Pixel);
+
+void FBatchedElementNiagaraInvertColorChannel::BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture)
+{
+	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(InFeatureLevel));
+	TShaderMapRef<FNiagaraSimpleElementPS> PixelShader(GetGlobalShaderMap(InFeatureLevel));
+
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSimpleElementVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+	GraphicsPSOInit.BlendState = TStaticBlendState<CW_ALPHA, BO_Subtract, BF_One, BF_DestColor, BO_Subtract, BF_One, BF_DestAlpha>::GetRHI();
+
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+	VertexShader->SetParameters(RHICmdList, InTransform);
+
+	FNiagaraSimpleElementPS::FParameters PassParameters;
 	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
 }

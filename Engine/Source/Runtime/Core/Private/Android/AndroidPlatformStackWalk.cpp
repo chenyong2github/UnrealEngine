@@ -32,6 +32,18 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeExit.h"
 
+bool FAndroidPlatformStackWalk::InitStackWalking()
+{
+#if HAS_LIBUNWIND
+	// first call to unw_backtrace will trigger some initial large allocations and if it happens during stack capturing on an exception we might get another out of memory exception
+	const uint32 Depth = 16;
+	void* Stack[Depth];
+	unw_backtrace((void**)Stack, Depth);
+#endif
+
+	return 1;
+}
+
 void FAndroidPlatformStackWalk::NotifyPlatformVersionInit()
 {
 #if HAS_LIBUNWIND
@@ -198,7 +210,7 @@ uint32 FAndroidPlatformStackWalk::CaptureStackBackTrace(uint64* BackTrace, uint3
 		// Code taken from https://android.googlesource.com/platform/system/core/+/jb-dev/libcorkscrew/arch-arm/backtrace-arm.c
 		return unwind_backtrace_signal(Context, BackTrace, MaxDepth);
 	}
-#elif HAS_LIBUNWIND 
+#elif HAS_LIBUNWIND
 	if (Context)
 	{
 		// Android signal handlers always catch signals before user handlers and passes it down to user later

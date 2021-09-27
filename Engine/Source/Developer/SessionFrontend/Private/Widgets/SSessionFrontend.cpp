@@ -16,12 +16,15 @@
 #include "Interfaces/IScreenShotToolsModule.h"
 #include "Interfaces/IScreenShotComparisonModule.h"
 #include "ISessionServicesModule.h"
-#include "IProfilerModule.h"
 #include "Widgets/Browser/SSessionBrowser.h"
 #include "Widgets/Console/SSessionConsole.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+
+#if STATS
+#include "IProfilerModule.h"
+#endif
 
 
 #define LOCTEXT_NAMESPACE "SSessionFrontend"
@@ -193,11 +196,13 @@ TSharedRef<SDockTab> SSessionFrontend::HandleTabManagerSpawnTab( const FSpawnTab
 
 		AutomationWindowModule.OnShutdown().BindSP(const_cast<SSessionFrontend*>(this), &SSessionFrontend::HandleAutomationModuleShutdown);
 	}
+#if STATS
 	else if (TabIdentifier == ProfilerTabId)
 	{
 		IProfilerModule& ProfilerModule = FModuleManager::LoadModuleChecked<IProfilerModule>(TEXT("Profiler"));
 		TabWidget = ProfilerModule.CreateProfilerWindow(SessionManager.ToSharedRef(), DockTab);
 	}
+#endif
 	else if (TabIdentifier == SessionBrowserTabId)
 	{
 		TabWidget = SNew(SSessionBrowser, SessionManager.ToSharedRef());

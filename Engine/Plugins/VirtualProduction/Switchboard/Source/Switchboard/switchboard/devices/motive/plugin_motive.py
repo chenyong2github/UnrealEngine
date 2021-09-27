@@ -1,17 +1,18 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-from switchboard.config import Setting
+from collections import deque
+import datetime
+import select
+import socket
+import struct
+from threading import Thread
+import time
+
+from switchboard.config import IntSetting
 from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.switchboard_logging import LOGGER
 import switchboard.switchboard_utils as utils
-
-from PySide2 import QtWidgets
-
-import datetime, select, socket, struct, time
-from collections import deque
-from functools import wraps
-from threading import Thread
 
 
 class DeviceMotive(Device):
@@ -32,7 +33,8 @@ class DeviceMotive(Device):
     NAT_DISCOVERY = 14
     NAT_UNRECOGNIZED_REQUEST = 100
 
-    setting_motive_port = Setting("motive_port", "Motive Command Port", 1510)
+    setting_motive_port = IntSetting(
+        "motive_port", "Motive Command Port", 1510)
 
     def __init__(self, name, ip_address, **kwargs):
         super().__init__(name, ip_address, **kwargs)
@@ -45,7 +47,8 @@ class DeviceMotive(Device):
         self._slate = 'slate'
         self._take = 1
 
-        self.message_queue = deque() # stores pairs of (queued message, command name)
+        # Stores pairs of (queued message, command name).
+        self.message_queue = deque()
 
         self.socket = None
         self.close_socket = False
@@ -71,11 +74,16 @@ class DeviceMotive(Device):
             message_str += ',' + ','.join(args)
 
         message_str_len = len(message_str) + 1
-        data = struct.pack(f"HH{message_str_len}s", self.NAT_REQUEST, 4+message_str_len, message_str.encode('utf-8'))
+        data = struct.pack(
+            f"HH{message_str_len}s", self.NAT_REQUEST,
+            4 + message_str_len, message_str.encode('utf-8'))
         self.message_queue.appendleft((data, request))
 
     def send_echo_request(self):
-        """ Sends an echo request to Motive if not already waiting for an echo response. """
+        """
+        Sends an echo request to Motive if not already waiting for an echo
+        response.
+        """
         if self.awaiting_echo_response:
             return
 
@@ -93,7 +101,9 @@ class DeviceMotive(Device):
         self.message_queue.appendleft((data, "Echo"))
 
     def on_motive_echo_response(self, response):
-        """ Callback that is exectued when Motive has responded to an echo request. """
+        """
+        Callback that is exectued when Motive has responded to an echo request.
+        """
         self.awaiting_echo_response = False
 
     @property
@@ -104,7 +114,7 @@ class DeviceMotive(Device):
         """ Connect to Motive's socket """
         self.close_socket = False
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
         self.socket.bind(('', 0))
 
         self.last_activity = datetime.datetime.now()
@@ -114,26 +124,29 @@ class DeviceMotive(Device):
 
         self.awaiting_echo_response = False
 
-        connect_message = struct.pack(f"HH", self.NAT_CONNECT, 0)
+        connect_message = struct.pack("HH", self.NAT_CONNECT, 0)
         self.message_queue.appendleft((connect_message, "Connect"))
 
     def on_motive_connect_response(self, response):
-        """ Callback executed when a response to a connect message is received. """
+        """
+        Callback executed when a response to a connect message is received.
+        """
         message_id = int.from_bytes(response[0:2], byteorder='little')
         if message_id != self.NAT_SERVERINFO:
             LOGGER.error(f"Unexpected connect response {message_id}")
             return
 
-        # because the socket is UDP, we can only be sure that a "connection" has been established
-        # when the connect response has beeen received. that's why the connection state is updated
-        # here instead of in connect_listener().
+        # Because the socket is UDP, we can only be sure that a "connection"
+        # has been established when the connect response has beeen received.
+        # That's why the connection state is updated here instead of in
+        # connect_listener().
         if self.is_disconnected:
             self.status = DeviceStatus.CLOSED
 
     def disconnect_listener(self):
         """ Disconnect from Motive """
         if self.is_connected:
-            disconnect_message = struct.pack(f"HH", self.NAT_DISCONNECT, 0)
+            disconnect_message = struct.pack("HH", self.NAT_DISCONNECT, 0)
             self.message_queue.appendleft((disconnect_message, "Disconnect"))
 
             self.close_socket = True
@@ -143,7 +156,9 @@ class DeviceMotive(Device):
             super().disconnect_listener()
 
     def motive_connection(self):
-        """ Thread procedure for socket connection between Switchboard and Motive. """
+        """
+        Thread procedure for socket connection between Switchboard and Motive.
+        """
         ping_interval = 1.0
         disconnect_timeout = 3.0
 
@@ -158,9 +173,13 @@ class DeviceMotive(Device):
                     message_bytes, cmd_name = self.message_queue.pop()
 
                     self._flush_read_sockets()
-                    self.socket.sendto(message_bytes, (self.ip_address, self.setting_motive_port.get_value()))
+                    self.socket.sendto(
+                        message_bytes,
+                        (self.ip_address,
+                         self.setting_motive_port.get_value()))
 
-                    read_sockets, _, _ = select.select(rlist, wlist, xlist, read_timeout)
+                    read_sockets, _, _ = select.select(
+                        rlist, wlist, xlist, read_timeout)
                     for rs in read_sockets:
                         received_data = rs.recv(4096)
                         self.process_message(received_data, cmd_name)
@@ -182,7 +201,8 @@ class DeviceMotive(Device):
 
             except Exception as e:
                 LOGGER.warning(f"{self.name}: Disconnecting due to: {e}")
-                self.device_qt_handler.signal_device_client_disconnected.emit(self)
+                self.device_qt_handler.signal_device_client_disconnected.emit(
+                    self)
                 break
 
     def _flush_read_sockets(self):
@@ -210,32 +230,41 @@ class DeviceMotive(Device):
         self.last_activity = datetime.datetime.now()
         message_id = int.from_bytes(data[0:2], byteorder='little')
 
-        if message_id in (self.NAT_SERVERINFO, self.NAT_RESPONSE, self.NAT_ECHORESPONSE):
+        if message_id in (
+                self.NAT_SERVERINFO, self.NAT_RESPONSE, self.NAT_ECHORESPONSE):
             if cmd_name in self.command_response_callbacks:
                 self.command_response_callbacks[cmd_name](data)
             else:
-                LOGGER.error(f"{self.name}: Could not find callback for {cmd_name} request")
+                LOGGER.error(
+                    f"{self.name}: Could not find callback for "
+                    f"{cmd_name} request")
                 assert(False)
         elif message_id == self.NAT_UNRECOGNIZED_REQUEST:
-            LOGGER.error(f"{self.name}: Server did not recognize {cmd_name} request")
+            LOGGER.error(
+                f"{self.name}: Server did not recognize {cmd_name} request")
             assert(False)
 
     def set_slate(self, value):
         """ Notify Motive when slate name was changed. """
         self._slate = value
-        self.send_request_to_motive("SetRecordTakeName", utils.capture_name(self._slate, self._take))
+        self.send_request_to_motive(
+            "SetRecordTakeName", utils.capture_name(self._slate, self._take))
 
     def set_take(self, value):
         """ Notify Motive when Take number was changed. """
         self._take = value
-        self.send_request_to_motive("SetRecordTakeName", utils.capture_name(self._slate, self._take))
+        self.send_request_to_motive(
+            "SetRecordTakeName", utils.capture_name(self._slate, self._take))
 
     def on_motive_record_take_name_set(self, response):
         """ Callback that is executed when the take name was set in Motive. """
         pass
 
     def record_start(self, slate, take, description):
-        """ Called by switchboard_dialog when recording was started, will start recording in Motive. """
+        """
+        Called by switchboard_dialog when recording was started, will start
+        recording in Motive.
+        """
         if self.is_disconnected or not self.trigger_start:
             return
 
@@ -249,7 +278,10 @@ class DeviceMotive(Device):
         self.record_start_confirm(self.timecode())
 
     def record_stop(self):
-        """ Called by switchboard_dialog when recording was stopped, will stop recording in Motive. """
+        """
+        Called by switchboard_dialog when recording was stopped, will stop
+        recording in Motive.
+        """
         if self.is_disconnected or not self.trigger_stop:
             return
 
@@ -269,31 +301,34 @@ class DeviceWidgetMotive(DeviceWidget):
 
     def _add_control_buttons(self):
         super()._add_control_buttons()
-        self.trigger_start_button = self.add_control_button(':/icons/images/icon_trigger_start_disabled.png',
-                                           icon_hover=':/icons/images/icon_trigger_start_hover.png',
-                                        icon_disabled=':/icons/images/icon_trigger_start_disabled.png',
-                                              icon_on=':/icons/images/icon_trigger_start.png',
-                                        icon_hover_on=':/icons/images/icon_trigger_start_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_trigger_start_disabled.png',
-                                             tool_tip='Trigger when recording starts',
-                                             checkable=True, checked=True)
+        self.trigger_start_button = self.add_control_button(
+            ':/icons/images/icon_trigger_start_disabled.png',
+            icon_hover=':/icons/images/icon_trigger_start_hover.png',
+            icon_disabled=':/icons/images/icon_trigger_start_disabled.png',
+            icon_on=':/icons/images/icon_trigger_start.png',
+            icon_hover_on=':/icons/images/icon_trigger_start_hover.png',
+            icon_disabled_on=':/icons/images/icon_trigger_start_disabled.png',
+            tool_tip='Trigger when recording starts',
+            checkable=True, checked=True)
 
-        self.trigger_stop_button = self.add_control_button(':/icons/images/icon_trigger_stop_disabled.png',
-                                           icon_hover=':/icons/images/icon_trigger_stop_hover.png',
-                                        icon_disabled=':/icons/images/icon_trigger_stop_disabled.png',
-                                              icon_on=':/icons/images/icon_trigger_stop.png',
-                                        icon_hover_on=':/icons/images/icon_trigger_stop_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_trigger_stop_disabled.png',
-                                             tool_tip='Trigger when recording stops',
-                                             checkable=True, checked=True)
+        self.trigger_stop_button = self.add_control_button(
+            ':/icons/images/icon_trigger_stop_disabled.png',
+            icon_hover=':/icons/images/icon_trigger_stop_hover.png',
+            icon_disabled=':/icons/images/icon_trigger_stop_disabled.png',
+            icon_on=':/icons/images/icon_trigger_stop.png',
+            icon_hover_on=':/icons/images/icon_trigger_stop_hover.png',
+            icon_disabled_on=':/icons/images/icon_trigger_stop_disabled.png',
+            tool_tip='Trigger when recording stops',
+            checkable=True, checked=True)
 
-        self.connect_button = self.add_control_button(':/icons/images/icon_connect.png',
-                                           icon_hover=':/icons/images/icon_connect_hover.png',
-                                        icon_disabled=':/icons/images/icon_connect_disabled.png',
-                                              icon_on=':/icons/images/icon_connected.png',
-                                        icon_hover_on=':/icons/images/icon_connected_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_connected_disabled.png',
-                                             tool_tip='Connect/Disconnect from listener')
+        self.connect_button = self.add_control_button(
+            ':/icons/images/icon_connect.png',
+            icon_hover=':/icons/images/icon_connect_hover.png',
+            icon_disabled=':/icons/images/icon_connect_disabled.png',
+            icon_on=':/icons/images/icon_connected.png',
+            icon_hover_on=':/icons/images/icon_connected_hover.png',
+            icon_disabled_on=':/icons/images/icon_connected_disabled.png',
+            tool_tip='Connect/Disconnect from listener')
 
         self.trigger_start_button.clicked.connect(self.trigger_start_clicked)
         self.trigger_stop_button.clicked.connect(self.trigger_stop_clicked)

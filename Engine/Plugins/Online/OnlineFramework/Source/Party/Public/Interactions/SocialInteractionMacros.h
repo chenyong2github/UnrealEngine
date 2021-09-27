@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../SocialTypes.h"
+#include "../User/SocialUser.h"
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCustomIsInteractionAvailable, const USocialUser&);
 
@@ -21,6 +21,7 @@ public:
 
 	virtual bool IsAvailable(const USocialUser& User) const = 0;
 	virtual void ExecuteInteraction(USocialUser& User) const = 0;
+	virtual void ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext) const = 0;
 };
 
 template <typename InteractionT>
@@ -33,6 +34,7 @@ public:
 
 	virtual bool IsAvailable(const USocialUser& User) const override final { return InteractionT::IsAvailable(User); }
 	virtual void ExecuteInteraction(USocialUser& User) const override final { InteractionT::ExecuteInteraction(User); }
+	virtual void ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext) const override final { InteractionT::ExecuteInteractionWithContext(User, AnalyticsContext); };
 
 private:
 	friend InteractionT;
@@ -68,6 +70,13 @@ public:	\
 			return OnCustomIsInteractionAvailable().IsBound() ? OnCustomIsInteractionAvailable().Execute(User) : true;	\
 		}	\
 		return false;	\
+	}	\
+	\
+	static void ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext)	\
+	{	\
+		User.WithContext(AnalyticsContext, [](USocialUser& InUser) {	\
+			ExecuteInteraction(InUser);	\
+		});	\
 	}	\
 	\
 	static void ExecuteInteraction(USocialUser& User);	\

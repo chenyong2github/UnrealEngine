@@ -117,6 +117,7 @@ FDefaultGameMoviePlayer::FDefaultGameMoviePlayer()
 	, LastPlayTime(0.0)
 	, bInitialized(false)
 	, bIsPlayOnBlockingEnabled(false)
+	, bIsSlateThreadAllowed(true)
 	, ViewportDPIScale(1.0f)
 	, BlockingRefCount(0)
 	, LastBlockingTickTime(0.0)
@@ -461,6 +462,10 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
         {
             VirtualRenderWindow->SetContent(SNullWidget::NullWidget);
         }
+		if (UserWidgetHolder.IsValid())
+		{
+			UserWidgetHolder->SetContent(SNullWidget::NullWidget);
+		}
 
 		const bool bAutoCompleteWhenLoadingCompletes = LoadingScreenAttributes.bAutoCompleteWhenLoadingCompletes;
 		const bool bWaitForManualStop = LoadingScreenAttributes.bWaitForManualStop;
@@ -622,7 +627,7 @@ bool FDefaultGameMoviePlayer::IsMovieStreamingFinished() const
 
 void FDefaultGameMoviePlayer::BlockingStarted()
 {
-	if (bIsPlayOnBlockingEnabled)
+	if ((bIsPlayOnBlockingEnabled) && (bIsSlateThreadAllowed))
 	{
 	UE_LOG(LogMoviePlayer, Verbose, TEXT("BlockingStarted %d"), BlockingRefCount);
 	BlockingRefCount++;
@@ -642,8 +647,14 @@ void FDefaultGameMoviePlayer::BlockingTick()
 		{
 			// Yes. Time for another tick.
 			LastBlockingTickTime = Time;
+			
+			// Call HTTP manager.
 			FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
 			HttpManager.Tick(0.0f);
+
+			// Callbacks.
+			OnMoviePlaybackTick().Broadcast(DeltaTime);
+
 			UE_LOG(LogMoviePlayer, VeryVerbose, TEXT("BlockingTick deltatime:%f"), DeltaTime);
 		}
 	}
@@ -663,6 +674,21 @@ void FDefaultGameMoviePlayer::BlockingFinished()
 		}
 		
 		BlockingRefCount = 0;
+	}
+}
+
+void FDefaultGameMoviePlayer::SetIsSlateThreadAllowed(bool bInIsSlateThreadAllowed)
+{
+	if (bIsSlateThreadAllowed != bInIsSlateThreadAllowed)
+	{
+		bIsSlateThreadAllowed = bInIsSlateThreadAllowed;
+
+		// Can we use the Slate thread?
+		if (bIsSlateThreadAllowed == false)
+		{
+			// Nope. Make sure its no longer running.
+			BlockingFinished();
+		}
 	}
 }
 

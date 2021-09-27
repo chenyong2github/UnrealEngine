@@ -23,6 +23,7 @@
 #include "Async/ParallelFor.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "UObject/FastReferenceCollector.h"
+#include <atomic>
 
 /*-----------------------------------------------------------------------------
    Garbage collection verification code.
@@ -336,6 +337,44 @@ void VerifyClustersAssumptions()
 
 	UE_CLOG(NumErrors.GetValue() > 0, LogGarbage, Fatal, TEXT("Encountered %d object(s) breaking GC Clusters assumptions. Please check log for details."), NumErrors.GetValue());
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void VerifyObjectFlagMirroring()
+{
+	int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNum();
+	int32 NumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
+	int32 NumberOfObjectsPerThread = (MaxNumberOfObjects / NumThreads) + 1;
+	std::atomic<uint32> NumErrors(0);
+
+	ParallelFor(NumThreads, [&NumErrors, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
+	{
+		int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread;
+		int32 NumObjects = (ThreadIndex < (NumThreads - 1)) ? NumberOfObjectsPerThread : (MaxNumberOfObjects - (NumThreads - 1) * NumberOfObjectsPerThread);
+
+		for (int32 ObjectIndex = 0; ObjectIndex < NumObjects && (FirstObjectIndex + ObjectIndex) < MaxNumberOfObjects; ++ObjectIndex)
+		{
+			FUObjectItem& ObjectItem = GUObjectArray.GetObjectItemArrayUnsafe()[FirstObjectIndex + ObjectIndex];
+			if (ObjectItem.Object)
+			{
+				UObjectBaseUtility* Object = (UObjectBaseUtility*)ObjectItem.Object;				
+				bool bHasObjectFlag = Object->HasAnyFlags(RF_PendingKill);				
+				bool bHasInternalFlag = ObjectItem.HasAnyFlags(EInternalObjectFlags::PendingKill);
+				if (bHasObjectFlag != bHasInternalFlag)
+				{
+					UE_LOG(LogGarbage, Warning, TEXT("RF_PendingKill (%d) and EInternalObjectFlags::PendingKill (%d) flag mismatch on object %s"),
+						(int32)bHasObjectFlag,
+						(int32)bHasInternalFlag,
+						*Object->GetFullName());
+
+					++NumErrors;
+				}
+			}
+		}
+	});
+
+	UE_CLOG(NumErrors > 0, LogGarbage, Fatal, TEXT("Encountered %d object(s) breaking Object and Internal flag mirroring assumptions. Please check log for details."), (uint32)NumErrors);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif // VERIFY_DISREGARD_GC_ASSUMPTIONS
 #if PROFILE_GCConditionalBeginDestroy

@@ -657,6 +657,11 @@ void STakeRecorderCockpit::CacheMetaData()
 
 void STakeRecorderCockpit::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	Refresh();
+}
+
+void STakeRecorderCockpit::Refresh()
+{
 	CacheMetaData();
 	UpdateTakeError();
 	UpdateRecordError();

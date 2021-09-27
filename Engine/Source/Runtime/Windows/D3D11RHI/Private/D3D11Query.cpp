@@ -60,12 +60,16 @@ public:
 
 	inline void Add(FRenderQueryRHIRef NewQuery)
 	{
-		if(!ActiveBatches.Num())
+		const uint32 Id = CurrentId;
+		FRenderQueryBatch* CurrentBatch = ActiveBatches.FindByPredicate([Id](const FRenderQueryBatch& Batch){ return Batch.Id == Id; });
+
+		if (CurrentBatch == nullptr)
 		{
 			StartNewBatch();
+			CurrentBatch = &ActiveBatches.Last();
 		}
-		FRenderQueryBatch& CurrentBatch = ActiveBatches.Last();
-		CurrentBatch.Queries.Add(NewQuery);
+
+		CurrentBatch->Queries.Add(NewQuery);
 	}
 
 	void PollQueryResults()

@@ -51,8 +51,8 @@ bool UDatasmithRuntimeLibrary::LoadFileFromExplorer(ADatasmithRuntimeActor* Data
 	}
 
 	TArray<FString> OutFilenames;
-	// #ue_dsruntime Fill up FileTypes from available translators.
-	FString	FileTypes;
+
+	FString	FileTypes = TEXT("All Files (*.udatasmith;*.gltf;*.glb)|*.udatasmith;*.gltf;*.glb|Datasmith files (*.udatasmith)|*.udatasmith|GL Transmission Format (*.gltf;*.glb)|*.gltf;*.glb");
 
 #if WITH_EDITOR
 	if (GEngine && GEngine->GameViewport)

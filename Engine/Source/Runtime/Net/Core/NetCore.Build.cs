@@ -13,7 +13,8 @@ public class NetCore : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"TraceLog"
+				"TraceLog",
+				"NetCommon"
 			}
 		);
 	}

@@ -1354,28 +1354,24 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 		PSO.GraphicsDesc.VertexShader = Init.BoundShaderState.VertexShaderRHI->GetHash();
 	}
 
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	if (Init.BoundShaderState.MeshShaderRHI)
+	if (Init.BoundShaderState.GetMeshShader())
 	{
-		PSO.GraphicsDesc.MeshShader = Init.BoundShaderState.MeshShaderRHI->GetHash();
+		PSO.GraphicsDesc.MeshShader = Init.BoundShaderState.GetMeshShader()->GetHash();
 	}
-	if (Init.BoundShaderState.AmplificationShaderRHI)
+	if (Init.BoundShaderState.GetAmplificationShader())
 	{
-		PSO.GraphicsDesc.AmplificationShader = Init.BoundShaderState.AmplificationShaderRHI->GetHash();
+		PSO.GraphicsDesc.AmplificationShader = Init.BoundShaderState.GetAmplificationShader()->GetHash();
 	}
-#endif
 	
 	if (Init.BoundShaderState.PixelShaderRHI)
 	{
 		PSO.GraphicsDesc.FragmentShader = Init.BoundShaderState.PixelShaderRHI->GetHash();
 	}
 	
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	if (Init.BoundShaderState.GeometryShaderRHI)
+	if (Init.BoundShaderState.GetGeometryShader())
 	{
-		PSO.GraphicsDesc.GeometryShader = Init.BoundShaderState.GeometryShaderRHI->GetHash();
+		PSO.GraphicsDesc.GeometryShader = Init.BoundShaderState.GetGeometryShader()->GetHash();
 	}
-#endif
 	
 	check (Init.BlendState);
 	{

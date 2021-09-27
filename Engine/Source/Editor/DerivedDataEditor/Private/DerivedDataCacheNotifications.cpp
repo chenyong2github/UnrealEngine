@@ -17,7 +17,7 @@
 DEFINE_LOG_CATEGORY_STATIC(DerivedDataCacheNotifications, Log, All);
 
 FDerivedDataCacheNotifications::FDerivedDataCacheNotifications() :
-	bShowSharedDDCNotification(true),
+	bShowSharedDDCNotification(false),
 	bSubscribed(false)
 {
 	Subscribe(true);

@@ -14,6 +14,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/CoreMisc.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Net/Core/Connection/NetEnums.h"
 
 #include "EngineBaseTypes.generated.h"
 
@@ -514,70 +515,6 @@ struct TStructOpsTypeTraits<FActorComponentTickFunction> : public TStructOpsType
 	};
 };
 
-/** Types of network failures broadcast from the engine */
-UENUM(BlueprintType)
-namespace ENetworkFailure
-{
-	enum Type
-	{
-		/** A relevant net driver has already been created for this service */
-		NetDriverAlreadyExists,
-		/** The net driver creation failed */
-		NetDriverCreateFailure,
-		/** The net driver failed its Listen() call */
-		NetDriverListenFailure,
-		/** A connection to the net driver has been lost */
-		ConnectionLost,
-		/** A connection to the net driver has timed out */
-		ConnectionTimeout,
-		/** The net driver received an NMT_Failure message */
-		FailureReceived,
-		/** The client needs to upgrade their game */
-		OutdatedClient,
-		/** The server needs to upgrade their game */
-		OutdatedServer,
-		/** There was an error during connection to the game */
-		PendingConnectionFailure,
-		/** NetGuid mismatch */
-		NetGuidMismatch,
-		/** Network checksum mismatch */
-		NetChecksumMismatch
-	};
-}
-
-
-namespace ENetworkFailure
-{
-	inline const TCHAR* ToString(ENetworkFailure::Type FailureType)
-	{
-		switch (FailureType)
-		{
-		case NetDriverAlreadyExists:
-			return TEXT("NetDriverAlreadyExists");
-		case NetDriverCreateFailure:
-			return TEXT("NetDriverCreateFailure");
-		case NetDriverListenFailure:
-			return TEXT("NetDriverListenFailure");
-		case ConnectionLost:
-			return TEXT("ConnectionLost");
-		case ConnectionTimeout:
-			return TEXT("ConnectionTimeout");
-		case FailureReceived:
-			return TEXT("FailureReceived");
-		case OutdatedClient:
-			return TEXT("OutdatedClient");
-		case OutdatedServer:
-			return TEXT("OutdatedServer");
-		case PendingConnectionFailure:
-			return TEXT("PendingConnectionFailure");
-		case NetGuidMismatch:
-			return TEXT("NetGuidMismatch");
-		case NetChecksumMismatch:
-			return TEXT("NetChecksumMismatch");
-		}
-		return TEXT("Unknown ENetworkFailure error occurred.");
-	}
-}
 
 UENUM()
 namespace ENetworkLagState

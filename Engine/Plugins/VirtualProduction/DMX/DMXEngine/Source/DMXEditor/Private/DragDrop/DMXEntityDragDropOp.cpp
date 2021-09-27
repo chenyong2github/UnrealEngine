@@ -10,7 +10,9 @@
 #include "Dialogs/Dialogs.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"

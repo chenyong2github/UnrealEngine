@@ -3,6 +3,25 @@
 #include "ContentBrowserItemPath.h"
 #include "IContentBrowserDataModule.h"
 
+FContentBrowserItemPath::FContentBrowserItemPath()
+{
+}
+
+FContentBrowserItemPath::FContentBrowserItemPath(const FStringView InPath, const EContentBrowserPathType InPathType)
+{
+	SetPathFromString(InPath, InPathType);
+}
+
+FContentBrowserItemPath::FContentBrowserItemPath(const TCHAR* InPath, const EContentBrowserPathType InPathType)
+{
+	SetPathFromString(FStringView(InPath), InPathType);
+}
+
+FContentBrowserItemPath::FContentBrowserItemPath(const FName InPath, const EContentBrowserPathType InPathType)
+{
+	SetPathFromName(InPath, InPathType);
+}
+
 FName FContentBrowserItemPath::GetVirtualPathName() const
 {
 	return VirtualPath;
@@ -10,6 +29,7 @@ FName FContentBrowserItemPath::GetVirtualPathName() const
 
 FName FContentBrowserItemPath::GetInternalPathName() const
 {
+	check(!InternalPath.IsNone());
 	return InternalPath;
 }
 
@@ -20,6 +40,7 @@ FString FContentBrowserItemPath::GetVirtualPathString() const
 
 FString FContentBrowserItemPath::GetInternalPathString() const
 {
+	check(!InternalPath.IsNone());
 	return InternalPath.ToString();
 }
 

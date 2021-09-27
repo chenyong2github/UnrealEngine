@@ -71,12 +71,13 @@ namespace DatasmithRuntime
 				return nullptr;
 			}
 
+			FString TextureName = FString::Printf(TEXT("T_%s_%d"), TextureElement->GetName(), TextureElement->GetNodeId());
 #ifdef ASSET_DEBUG
-			FString TextureName = TEXT("T_") + FString(TextureElement->GetName()) + TEXT("_LU_") + FString::FromInt(TextureElement->GetNodeId());
-			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Textures"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Game/Runtime/Textures"), TextureName));
 			Texture2D->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture2D->SetFlags(RF_Public);
+#else
+			Texture2D->Rename(*TextureName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional);
 #endif
 		}
 
@@ -123,12 +124,14 @@ namespace DatasmithRuntime
 				return nullptr;
 			}
 
+			FString TextureName = FString::Printf(TEXT("T_%s_%d"), TextureElement->GetName(), TextureElement->GetNodeId());
 #ifdef ASSET_DEBUG
-			FString TextureName = TEXT("T_") + FString(TextureElement->GetName()) + TEXT("_LU_") + FString::FromInt(TextureElement->GetNodeId());
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
-			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Textures"), TextureName));
+			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Game/Runtime/Textures"), TextureName));
 			Texture->Rename(*TextureName, Package, REN_DontCreateRedirectors | REN_NonTransactional);
 			Texture->SetFlags(RF_Public);
+#else
+			Texture->Rename(*TextureName, nullptr, REN_DontCreateRedirectors | REN_NonTransactional);
 #endif
 		}
 

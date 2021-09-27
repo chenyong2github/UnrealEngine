@@ -19,9 +19,6 @@ static bool GIsRefreshingExtensions = false;
 
 UAnimBlueprintExtension* UAnimBlueprintExtension::RequestExtension(UAnimBlueprint* InAnimBlueprint, TSubclassOf<UAnimBlueprintExtension> InExtensionType)
 {
-	// Do not use RequestExtension when a blueprint is being compiled. Extensions should be consistent throughout all compilation stages.
-	check(!InAnimBlueprint->bBeingCompiled);
-
 	if(GIsRefreshingExtensions)
 	{
 		RefreshSet.Add(InExtensionType);
@@ -32,6 +29,9 @@ UAnimBlueprintExtension* UAnimBlueprintExtension::RequestExtension(UAnimBlueprin
 	{
 		return ExistingExtension;
 	}
+
+	// Do not use RequestExtension when a blueprint is being compiled. Extensions should be consistent throughout all compilation stages.
+	ensure(!InAnimBlueprint->bBeingCompiled);
 
 	// Not found, create one
 	UAnimBlueprintExtension* NewExtension = NewObject<UAnimBlueprintExtension>(InAnimBlueprint, InExtensionType.Get());

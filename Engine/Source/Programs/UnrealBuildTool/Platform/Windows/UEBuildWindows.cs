@@ -1010,6 +1010,10 @@ namespace UnrealBuildTool
 					{
 						return WindowsCompiler.VisualStudio2019;
 					}
+					else if (Format == ProjectFileFormat.VisualStudio2022)
+					{
+						return WindowsCompiler.VisualStudio2022;
+					}
 				} 
 			}
 
@@ -1022,6 +1026,10 @@ namespace UnrealBuildTool
 				{
 					return WindowsCompiler.VisualStudio2019;
 				}
+				else if (ProjectFormat == VCProjectFileFormat.VisualStudio2022)
+				{
+					return WindowsCompiler.VisualStudio2022;
+				}
 			}
 
 			// Check the editor settings too
@@ -1032,6 +1040,10 @@ namespace UnrealBuildTool
 			    {
 				    return WindowsCompiler.VisualStudio2019;
 			    }
+				else if (PreferredAccessor == ProjectFileFormat.VisualStudio2022)
+				{
+					return WindowsCompiler.VisualStudio2022;
+				}
 			}
 
 			// Second, default based on what's installed, test for 2015 first
@@ -1039,7 +1051,10 @@ namespace UnrealBuildTool
 			{
 				return WindowsCompiler.VisualStudio2019;
 			}
-
+			else if (HasCompiler(WindowsCompiler.VisualStudio2022))
+			{
+				return WindowsCompiler.VisualStudio2022;
+			}
 			// If we do have a Visual Studio installation, but we're missing just the C++ parts, warn about that.
 			DirectoryReference? VSInstallDir;
 			if (TryGetVSInstallDir(WindowsCompiler.VisualStudio2019, out VSInstallDir))

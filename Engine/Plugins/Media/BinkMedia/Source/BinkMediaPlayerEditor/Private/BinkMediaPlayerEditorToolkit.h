@@ -42,7 +42,11 @@ struct FBinkMediaPlayerEditorToolkit : public FAssetEditorToolkit, public FEdito
 	// FGCObject interface
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override { Collector.AddReferencedObject(MediaPlayer); }
-	
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FBinkMediaPlayerEditorToolkit");
+	}
+
 	// FEditorUndoClient interface
 
 	virtual void PostUndo( bool bSuccess ) override { }

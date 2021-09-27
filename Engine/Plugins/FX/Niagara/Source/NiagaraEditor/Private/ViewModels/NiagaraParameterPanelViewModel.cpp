@@ -1366,7 +1366,7 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 		.OnAddParameter_Lambda(AddParameterLambda)
 		.OnAddScriptVar_Lambda(AddScriptVarLambda)
 		.OnAddParameterDefinitions(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameterDefinitions)
-		.OnAllowMakeType_UObject(AssignmentNode, &UNiagaraNodeWithDynamicPins::AllowNiagaraTypeForAddPin)
+		.OnAllowMakeType_Static(&INiagaraParameterPanelViewModel::CanMakeNewParameterOfType)
 		.AllowCreatingNew(true)
 		.NamespaceId(FNiagaraEditorUtilities::GetNamespaceIdForUsage(FNiagaraStackGraphUtilities::GetOutputNodeUsage(*AssignmentNode)))
 		.ShowNamespaceCategory(false)
@@ -2617,7 +2617,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraScriptToolkitParameterPanelViewModel:
 				// This variable has not been registered, prepare the FNiagaraParameterPanelItem.
 				// -First lookup the script variable.
 				TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var);
-				UNiagaraScriptVariable* ScriptVar = ScriptVarPtr != nullptr ? *ScriptVarPtr : nullptr;
+				TObjectPtr<UNiagaraScriptVariable> ScriptVar = ScriptVarPtr != nullptr ? *ScriptVarPtr : nullptr;
 				if (!ScriptVar)
 				{
 					// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.

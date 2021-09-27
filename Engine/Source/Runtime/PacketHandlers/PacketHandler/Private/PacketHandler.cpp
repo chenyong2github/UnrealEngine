@@ -176,6 +176,21 @@ void PacketHandler::Initialize(Handler::Mode InMode, uint32 InMaxPacketBits, boo
 	}
 }
 
+void PacketHandler::InitializeDelegates(FPacketHandlerLowLevelSendTraits InLowLevelSendDel,
+										FPacketHandlerNotifyAddHandler InAddHandlerDel/*=FPacketHandlerNotifyAddHandler()*/)
+{
+	LowLevelSendDel = InLowLevelSendDel;
+	AddHandlerDel = InAddHandlerDel;
+}
+
+void PacketHandler::InitFaultRecovery(UE::Net::FNetConnectionFaultRecoveryBase* InFaultRecovery)
+{
+	for (TSharedPtr<HandlerComponent>& CurComponent : HandlerComponents)
+	{
+		CurComponent->InitFaultRecovery(InFaultRecovery);
+	}
+}
+
 void PacketHandler::NotifyAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider, TSharedPtr<FNetAnalyticsAggregator> InAggregator)
 {
 	Provider = InProvider;
@@ -271,6 +286,8 @@ void PacketHandler::AddHandler(TSharedPtr<HandlerComponent>& NewHandler, bool bD
 
 	HandlerComponents.Add(NewHandler);
 	NewHandler->Handler = this;
+
+	AddHandlerDel.ExecuteIfBound(NewHandler);
 
 	if (!bDeferInitialize)
 	{
@@ -576,7 +593,7 @@ EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView
 				}
 				else
 				{
-					CurComponent.Incoming(ProcessedPacketReader);
+					CurComponent.Incoming(PacketRef);
 				}
 			}
 		}

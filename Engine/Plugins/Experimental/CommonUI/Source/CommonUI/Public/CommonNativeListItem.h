@@ -34,6 +34,7 @@ public:
 		return TSharedPtr<ListItemT>();
 	}
 
+	virtual FString GetStaticItemTypeName() const { return StaticItemType().ToString(); }
 protected:
 	static FName StaticItemType() { return TEXT("CommonNativeListItem"); }
 	virtual bool IsDerivedInternal(FName ItemTypeName) const { return ItemTypeName == StaticItemType(); }
@@ -46,6 +47,7 @@ protected:
 protected:	\
 	virtual bool IsDerivedInternal(FName ItemTypeName) const override { return StaticItemType() == ItemTypeName || ParentItemType::IsDerivedInternal(ItemTypeName); }	\
 public:	\
+	virtual FString GetStaticItemTypeName() const override { return StaticItemType().ToString(); } \
 	static FName StaticItemType() { return FName(#ItemType); }	\
 private: //
 

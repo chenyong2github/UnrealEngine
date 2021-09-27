@@ -1087,6 +1087,12 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 				if ( Weights.size() > 0 )
 				{
+					// All of these seem required, or else it won't e.g. update morph targets unless there's also a joint animation update
+					PoseableMeshComponent->RefreshBoneTransforms();
+					PoseableMeshComponent->RefreshSlaveComponents();
+					PoseableMeshComponent->UpdateComponentToWorld();
+					PoseableMeshComponent->FinalizeBoneTransform();
+					PoseableMeshComponent->MarkRenderTransformDirty();
 					PoseableMeshComponent->MarkRenderDynamicDataDirty();
 				}
 			}

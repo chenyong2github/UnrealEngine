@@ -306,20 +306,10 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 
 	ClassViewer = StaticCastSharedRef<SClassViewer>(ClassViewerModule.CreateClassViewer(ClassViewerOptions, FOnClassPicked::CreateSP(this, &SSCreateBlueprintPicker::OnClassPicked)));
 
-	FString PackageName;
+	AssetPath = ContentBrowserModule.Get().GetCurrentPath();
 
-	FString PathString = ContentBrowserModule.Get().GetCurrentPath(EContentBrowserPathType::Virtual);
-	if (!PathString.IsEmpty())
-	{
-		AssetPath.SetPathFromString(PathString, EContentBrowserPathType::Virtual);
-	}
-	else
-	{
-		static const FString DefaultInvariantPath = TEXT("/Game");
-		FName DefaultVirtualPath;
-		IContentBrowserDataModule::Get().GetSubsystem()->ConvertInternalPathToVirtual(FStringView(DefaultInvariantPath), DefaultVirtualPath);
-		AssetPath.SetPathFromName(DefaultVirtualPath, EContentBrowserPathType::Virtual);
-	}
+	// Change path if cannot write to it
+	AssetPath = ContentBrowserModule.Get().GetInitialPathToSaveAsset(AssetPath);
 
 	ECreateBlueprintFromActorMode ValidCreateMethods = FCreateBlueprintFromActorDialog::GetValidCreationMethods();
 
@@ -340,6 +330,7 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 
 	AssetName = UPackageTools::SanitizePackageName(AssetName + TEXT("Blueprint"));
 
+	FString PackageName;
 	AssetToolsModule.Get().CreateUniqueAssetName(AssetPath.GetInternalPathString() / AssetName, TEXT(""), PackageName, AssetName);
 
 	TSharedPtr<SGridPanel> CreationMethodSection;

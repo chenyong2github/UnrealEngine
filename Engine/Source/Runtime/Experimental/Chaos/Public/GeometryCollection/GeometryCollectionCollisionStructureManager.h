@@ -106,6 +106,11 @@ public:
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
+	static FImplicit* NewImplicitCapsule(
+		const FBox& CollisionBounds,
+		const float CollisionObjectReduction,
+		const ECollisionTypeEnum CollisionType);
+
 	static FImplicit* NewImplicitConvex(
 		const TArray<int32>& ConvexIndices,
 		const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry,

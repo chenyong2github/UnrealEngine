@@ -23,6 +23,7 @@
 #endif
 
 uint ObjectBoundingGeometryIndexCount;
+float ObjectExpandScale;
 
 void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 {
@@ -72,6 +73,8 @@ void CopyCulledObjectData(uint DestIndex, uint SourceIndex)
 	float3 ObjectYAxis = (ViewSpaceBoundsVertices[2] - ViewSpaceBoundsVertices[0]) / 2.0f;
 	float3 ObjectZAxis = (ViewSpaceBoundsVertices[4] - ViewSpaceBoundsVertices[0]) / 2.0f;
 
+	MinViewSpacePosition.xy -= ObjectExpandScale * MAX_TRACE_SPHERE_RADIUS;
+	MaxViewSpacePosition.xy += ObjectExpandScale * MAX_TRACE_SPHERE_RADIUS;
 	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 0] = float4(MinViewSpacePosition, 0);
 	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 1] = float4(MaxViewSpacePosition, 0);
 	RWCulledObjectBoxBounds[DestIndex * CULLED_OBJECT_BOX_BOUNDS_STRIDE + 2] = float4(ObjectXAxis / max(dot(ObjectXAxis, ObjectXAxis), .0001f), 0);
@@ -288,9 +291,9 @@ void ShadowObjectCullVS(
 	OutPosition = mul(float4(WorldPosition, 1.0), WorldToShadow);
 
 	// Clamp the vertex to the near plane if it is in front of the near plane
-	if (OutPosition.z < 0)
+	if (OutPosition.z > 1)
 	{
-		OutPosition.z = 0.000001f;
+		OutPosition.z = 0.999999f;
 		OutPosition.w = 1.0f;
 	}
 
@@ -332,8 +335,8 @@ void ShadowObjectCullPS(
 	ShadowTileMax.xy = (TilePositionForCulling + 1.0f) / (float2)ShadowTileListGroupSize * 2 - 1;
 
 	// Extrude toward light to avoid culling objects between the light and the shadow frustum
-	ShadowTileMin.z = -1000;
-	ShadowTileMax.z = 1;
+	ShadowTileMin.z = 0;
+	ShadowTileMax.z = 1000;
 
 	float3 ObjectViewSpaceMin;
 	float3 ObjectViewSpaceMax;
@@ -342,7 +345,7 @@ void ShadowObjectCullPS(
 	BRANCH
 	// Separating axis test on the AABB
 	// Note: don't clip by near plane, objects closer to the light can still cast into the frustum
-	if (all(ObjectViewSpaceMax.xy > ShadowTileMin.xy) && all(ObjectViewSpaceMin < ShadowTileMax))
+	if (all(ObjectViewSpaceMax > ShadowTileMin) && all(ObjectViewSpaceMin.xy < ShadowTileMax.xy))
 	{
 		float3 ObjectCenter = .5f * (ObjectViewSpaceMin + ObjectViewSpaceMax);
 		float3 MinProjections = 500000;

@@ -496,7 +496,7 @@ void FAssetTypeActions_SkeletalMesh::FillCreateMenu(UToolMenu* Menu, TArray<TWea
 	{
 		FToolMenuSection& Section = Menu->AddSection("CreatePhysicsAsset", LOCTEXT("CreatePhysicsAssetMenuHeading", "Physics Asset"));
 		Section.AddSubMenu(
-            "NewPhysicsAssetMenu",
+			"NewPhysicsAssetMenu",
 			LOCTEXT("SkeletalMesh_NewPhysicsAssetMenu", "Physics Asset"),
 			LOCTEXT("SkeletalMesh_NewPhysicsAssetMenu_ToolTip", "Options for creating new physics assets from the selected meshes."),
 			FNewMenuDelegate::CreateSP(const_cast<FAssetTypeActions_SkeletalMesh*>(this), &FAssetTypeActions_SkeletalMesh::GetPhysicsAssetMenu, Meshes));

@@ -909,6 +909,18 @@ void FShaderCodeArchive::ReleasePreloadedShader(int32 ShaderIndex)
 TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 {
 	LLM_SCOPE(ELLMTag::Shaders);
+#if STATS
+	double TimeFunctionEntered = FPlatformTime::Seconds();
+	ON_SCOPE_EXIT
+	{
+		if (IsInRenderingThread())
+		{
+			double ShaderCreationTime = FPlatformTime::Seconds() - TimeFunctionEntered;
+			INC_FLOAT_STAT_BY(STAT_Shaders_TotalRTShaderInitForRenderingTime, ShaderCreationTime);
+		}
+	};
+#endif
+
 	TRefCountPtr<FRHIShader> Shader;
 
 	FMemStackBase& MemStack = FMemStack::Get();
@@ -998,6 +1010,7 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 
 	if (Shader)
 	{
+		INC_DWORD_STAT(STAT_Shaders_NumShadersUsedForRendering);
 		Shader->SetHash(ShaderHash);
 	}
 

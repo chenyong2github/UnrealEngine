@@ -86,6 +86,10 @@ private:
 	/** Used to prevent re-entry of OutsideWorldBounds event. */
 	uint32 bProcessingOutsideWorldBounds : 1;
 
+protected:
+	UPROPERTY(Transient)
+	uint32 bIsLocalViewTarget : 1;
+
 public:
 	/** Base eye height above collision center. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
@@ -131,6 +135,19 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=AI)
 	void PawnMakeNoise(float Loudness, FVector NoiseLocation, bool bUseNoiseMakerLocation = true, AActor* NoiseMaker = nullptr);
+	
+	/** Returns local Player Controller viewing this pawn, whether it is controlling or spectating */
+	UFUNCTION(BlueprintCallable, Category = "Pawn")
+	APlayerController* GetLocalViewingPlayerController() const;
+
+	// Is this pawn the ViewTarget of a local PlayerController?  Helpful for determining whether the pawn is
+	// visible/critical for any VFX.  NOTE: Technically there may be some cases where locally controlled pawns return
+	// false for this, such as if you are using a remote camera view of some sort.  But generally it will be true for
+	// locally controlled pawns, and it will always be true for pawns that are being spectated in-game or in Replays.
+	UFUNCTION(BlueprintCallable, Category = "Pawn")
+	bool IsLocallyViewed() const;
+
+	bool IsLocalPlayerControllerViewingAPawn() const;
 
 private:
 	/** If Pawn is possessed by a player, points to its Player State.  Needed for network play as controllers are not replicated to clients. */
@@ -251,6 +268,7 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	virtual void BecomeViewTarget(APlayerController* PC) override;
+	virtual void EndViewTarget(APlayerController* PC) override;
 	virtual void EnableInput(APlayerController* PlayerController) override;
 	virtual void DisableInput(APlayerController* PlayerController) override;
 	virtual void TeleportSucceeded(bool bIsATest) override;

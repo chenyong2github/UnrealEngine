@@ -725,6 +725,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 			// Something may have messed with the viewport size so set it back to the full target.
 			RHICmdList.SetViewport(0, 0, 0, BackBuffer.GetSizeXY().X, BackBuffer.GetSizeXY().Y, 0.0f);
+
+			// Re-apply render target states to the PSO initializer, since we've changed the depth/stencil target.
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 		}
 				
 #if WITH_SLATE_VISUALIZERS

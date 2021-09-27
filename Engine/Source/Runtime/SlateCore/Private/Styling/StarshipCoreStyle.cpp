@@ -36,6 +36,8 @@ FStyleFonts::FStyleFonts()
 	, NormalBold(FONT(10, "Bold"))
 	, Small(FONT(8,  "Regular"))
 	, SmallBold(FONT(8,  "Bold"))
+	, Large(FONT(14, "Regular"))
+	, LargeBold(FONT(14, "Bold"))
 	, HeadingMedium(FONT(33, "BoldCondensed"))
 	, HeadingSmall(FONT(21, "BoldCondensed"))
 	, HeadingExtraSmall(FONT(15, "BoldCondensed"))
@@ -382,6 +384,9 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.Unlink", new IMAGE_BRUSH_SVG("Starship/Common/Unlinked", Icon16x16));
 
 		Style->Set("Icons.BulletPoint", new IMAGE_BRUSH_SVG("Starship/Common/bullet-point", Icon8x8));
+
+		// Toolbar Size Icons
+		Style->Set("Icons.Toolbar.Settings", new IMAGE_BRUSH_SVG("Starship/Common/settings", Icon20x20));
 	}
 
 	// Tool panels
@@ -942,8 +947,10 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 
 	Style->Set("NormalFont", StyleFonts.Normal);
 	Style->Set("SmallFont", StyleFonts.Small);
+	Style->Set("Font.Large", StyleFonts.Large);
 	Style->Set("NormalFontBold", StyleFonts.NormalBold);
 	Style->Set("SmallFontBold", StyleFonts.SmallBold);
+	Style->Set("Font.Large.Bold", StyleFonts.Small);
 
 	Style->Set("HeadingMedium", StyleFonts.HeadingMedium);
 	Style->Set("HeadingSmall", StyleFonts.HeadingSmall);
@@ -979,6 +986,13 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 	const FTextBlockStyle SmallUnderlinedText = FTextBlockStyle(SmallText)
 		.SetUnderlineBrush(*DefaultTextUnderlineBrush);
 
+	const FTextBlockStyle LargeText = FTextBlockStyle(NormalText)
+		.SetFont(StyleFonts.Large);
+
+	const FTextBlockStyle LargeUnderlinedText = FTextBlockStyle(LargeText)
+		.SetUnderlineBrush(*DefaultTextUnderlineBrush);
+
+
 	// Embossed Text
 	Style->Set("EmbossedText", FTextBlockStyle(NormalText)
 		.SetFont(DEFAULT_FONT("Regular", 24))
@@ -1006,6 +1020,9 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 
 		Style->Set("SmallText", SmallText);
 		Style->Set("SmallUnderlinedText", SmallUnderlinedText);
+
+		Style->Set("Text.Large", LargeText);
+		Style->Set("Text.Large.Underlined", LargeUnderlinedText);
 	}
 
 

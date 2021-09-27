@@ -1138,7 +1138,6 @@ public:
 	static UUserWidget* CreateWidgetInstance(APlayerController& OwnerPC, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName);
 	static UUserWidget* CreateWidgetInstance(UGameInstance& GameInstance, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName);
 	static UUserWidget* CreateWidgetInstance(UWorld& World, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName);
-	static UUserWidget* CreateWidgetInstance(UPackage& Package, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName);
 
 private:
 	static UUserWidget* CreateInstanceInternal(UObject* Outer, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName, UWorld* World, ULocalPlayer* LocalPlayer);
@@ -1475,9 +1474,7 @@ WidgetT* CreateWidget(OwnerT* OwningObject, TSubclassOf<UUserWidget> UserWidgetC
 		|| TIsDerivedFrom<OwnerT, UWidgetTree>::IsDerived
 		|| TIsDerivedFrom<OwnerT, APlayerController>::IsDerived
 		|| TIsDerivedFrom<OwnerT, UGameInstance>::IsDerived
-		|| TIsDerivedFrom<OwnerT, UWorld>::IsDerived 
-		|| TIsDerivedFrom<OwnerT, UPackage>::IsDerived, // We want to support using the Transient package for a Editor Utility Widget.
-		"The given OwningObject is not of a supported type for use with CreateWidget.");
+		|| TIsDerivedFrom<OwnerT, UWorld>::IsDerived, "The given OwningObject is not of a supported type for use with CreateWidget.");
 
 	SCOPE_CYCLE_COUNTER(STAT_CreateWidget);
 

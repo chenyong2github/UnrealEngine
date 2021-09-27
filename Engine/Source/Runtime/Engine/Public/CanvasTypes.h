@@ -712,7 +712,8 @@ public:
 	* @param Texture - Texture to draw
 	* @param AlphaBlend - true to alphablend
 	*/
-	ENGINE_API void DrawTile( float X, float Y, float SizeX, float SizeY, float U, float V,  float SizeU, float SizeV, const FLinearColor& Color, const FTexture* Texture = NULL, bool AlphaBlend = true );
+	ENGINE_API void DrawTile(float X, float Y, float SizeX, float SizeY, float U, float V,  float SizeU, float SizeV, const FLinearColor& Color, const FTexture* Texture = NULL, bool AlphaBlend = true);
+	ENGINE_API void DrawTile(float X, float Y, float SizeX, float SizeY, float U, float V, float SizeU, float SizeV, const FLinearColor& Color, const FTexture* Texture, ESimpleElementBlendMode BlendMode);
 
 	/** 
 	* Draw an string centered on given location. 

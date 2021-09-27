@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "WidgetBlueprint.h"
+#include "Input/Reply.h"
 
 /** UI customization for WidgetBlueprint thumbnail */
 class FWidgetThumbnailCustomization : public IDetailCustomization

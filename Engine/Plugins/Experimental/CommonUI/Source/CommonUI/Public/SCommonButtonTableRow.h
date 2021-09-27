@@ -13,7 +13,10 @@ template <typename ItemType>
 class SCommonButtonTableRow : public SObjectTableRow<ItemType>
 {
 public:
-	SLATE_BEGIN_ARGS(SCommonButtonTableRow<ItemType>) {}
+	SLATE_BEGIN_ARGS(SCommonButtonTableRow<ItemType>)
+		:_bAllowDragging(true)
+	{}
+		SLATE_ARGUMENT(bool, bAllowDragging)
 		SLATE_EVENT(FOnRowHovered, OnHovered)
 		SLATE_EVENT(FOnRowHovered, OnUnhovered)
 		SLATE_DEFAULT_SLOT(FArguments, Content)
@@ -24,6 +27,7 @@ public:
 	{
 		SObjectTableRow<ItemType>::Construct(
 			typename SObjectTableRow<ItemType>::FArguments()
+			.bAllowDragging(InArgs._bAllowDragging)
 			.OnHovered(InArgs._OnHovered)
 			.OnUnhovered(InArgs._OnUnhovered)
 			[

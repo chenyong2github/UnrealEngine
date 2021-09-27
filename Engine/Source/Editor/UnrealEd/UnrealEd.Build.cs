@@ -134,6 +134,7 @@ public class UnrealEd : ModuleRules
 				"BlueprintGraph",
 				"CinematicCamera",
 				"CurveEditor",
+				"ContentBrowserData",
 				"DerivedDataCache",
 				"DesktopPlatform",
 				"LauncherPlatform",

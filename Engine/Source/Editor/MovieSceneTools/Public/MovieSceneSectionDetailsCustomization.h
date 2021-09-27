@@ -31,10 +31,22 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder);
 
+private:
+	enum class ERangeBoundValueType
+	{
+		Finite,
+		Infinite,
+		MultipleValues
+	};
 
 private:
+	/** Get the range start value */
+	ERangeBoundValueType GetRangeStartValue(FFrameNumber& OutValue) const;
+
 	/** Convert the range start into an FText for display */
 	FText OnGetRangeStartText() const;
+	/** Convert the range start into an FText for tooltip display */
+	FText OnGetRangeStartToolTipText() const;
 	/** Convert the text into a new range start */
 	void OnRangeStartTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
 	/** Should the textbox be editable? False if we have an infinite range.  */
@@ -50,9 +62,15 @@ private:
 	FText GetRangeStartButtonIcon() const;
 	/** Called by the UI when the button is pressed to toggle the current state. */
 	FReply ToggleRangeStartBounded();
+
 private:
+	/** Get the range end value */
+	ERangeBoundValueType GetRangeEndValue(FFrameNumber& OutValue) const;
+
 	/** Convert the range end into an FText for display */
 	FText OnGetRangeEndText() const;
+	/** Convert the range end into an FText for tooltip display */
+	FText OnGetRangeEndToolTipText() const;
 	/** Convert the text into a new range start */
 	void OnRangeEndTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
 	/** Should the textbox be editable? False if we have an infinite range.  */

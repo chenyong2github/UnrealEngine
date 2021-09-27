@@ -2,6 +2,7 @@
 
 #include "SRigSpacePickerWidget.h"
 #include "DetailLayoutBuilder.h"
+#include "Editor.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"

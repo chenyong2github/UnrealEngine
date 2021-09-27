@@ -235,6 +235,9 @@ public:
 	{
 		AssetPtr = InAsset;
 
+		AssetDisplayName = AssetPtr->GetDisplayName().ToString();
+		AssetDisplayName.ToUpperInline();
+
 		if (bIncludeAssetPath)
 		{
 			// Get the full asset path, and also split it so we can compare each part in the filter
@@ -292,6 +295,7 @@ public:
 		AssetExportTextName.Reset();
 		AssetSplitPath.Reset();
 		AssetCollectionNames.Reset();
+		AssetDisplayName.Reset();
 	}
 
 	void SetIncludeClassName(const bool InIncludeClassName)
@@ -327,6 +331,11 @@ public:
 	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
 	{
 		if (InValue.CompareName(AssetPtr->GetItemName(), InTextComparisonMode))
+		{
+			return true;
+		}
+
+		if (InValue.CompareFString(AssetDisplayName, InTextComparisonMode))
 		{
 			return true;
 		}
@@ -482,6 +491,9 @@ private:
 
 	/** The export text name of the current asset */
 	FString AssetExportTextName;
+
+	/** Display name of the current asset */
+	FString AssetDisplayName;
 
 	/** Split path of the current asset */
 	TArray<FString> AssetSplitPath;

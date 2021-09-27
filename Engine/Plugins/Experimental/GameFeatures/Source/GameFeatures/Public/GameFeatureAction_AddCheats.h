@@ -43,5 +43,5 @@ private:
 	FDelegateHandle CheatManagerRegistrationHandle;
 
 	UPROPERTY(Transient)
-	TArray<UCheatManagerExtension*> SpawnedCheatManagers;
+	TArray<TWeakObjectPtr<UCheatManagerExtension>> SpawnedCheatManagers;
 };

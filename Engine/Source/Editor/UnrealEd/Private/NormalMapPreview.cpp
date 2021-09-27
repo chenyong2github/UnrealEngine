@@ -80,7 +80,8 @@ void FNormalMapBatchedElementParameters::BindShaders(
 
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::ForceApply);
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
 	PixelShader->SetParameters(RHICmdList, Texture);

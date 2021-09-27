@@ -56,7 +56,7 @@ static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsWaitQueue(
 
 static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsCompletion(
 	TEXT("nDisplay.sync.nvidia.diag.completion"),
-	0,
+	1,
 	TEXT("NVAPI diagnostics: frame completion\n")
 	TEXT("0 : disabled\n")
 	TEXT("1 : enabled\n")
@@ -73,11 +73,25 @@ static TAutoConsoleVariable<int32> CVarNvidiaSyncDiagnosticsCompletion(
 // HUD that option 8 in ConfigureDriver.exe provides.
 static TAutoConsoleVariable<int32> CVarNvidiaPresentBarrierCountLimit(
 	TEXT("nDisplay.sync.nvidia.barriercountlimit"),
-	240,
+	120,
 	TEXT("Sets a limit to the number of times a sync barrier is enforced before calling nvidia presentation.\n")
-	TEXT("Defaults to 240, which corresponds to 10s@24fps or 4s@60fps\n")
+	TEXT("Defaults to 120, which corresponds to 5s@24fps or 2s@60fps\n")
 	TEXT("    N <= 0 : No limit\n")
 	TEXT("    N >= 1 : The presentation sync barrier will only happen N times\n")
+	,
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
+// Used to help the cluster start up in sync at the expense of performance, but remove the completion
+// flag after the specified number of frames to that it can run without the performance hit.
+// Requires nDisplay.sync.nvidia.diag.completion to be 1 in order to have an effect.
+static TAutoConsoleVariable<int32> CVarNvidiaCompletionCountLimit(
+	TEXT("nDisplay.sync.nvidia.completioncountlimit"),
+	120,
+	TEXT("Sets a limit to the number of frames it waits for GPU completion.\n")
+	TEXT("Defaults to 120, which corresponds to 5s@24fps or 2s@60fps\n")
+	TEXT("    N <= 0 : No limit\n")
+	TEXT("    N >= 1 : The completion will only happen for N frames\n")
 	,
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
@@ -135,14 +149,17 @@ bool FDisplayClusterRenderSyncPolicyNvidia::SynchronizeClusterRendering(int32& I
 		bNvDiagCompletion = (CVarNvidiaSyncDiagnosticsCompletion.GetValueOnRenderThread() != 0);
 
 		NvPresentBarrierCountLimit = CVarNvidiaPresentBarrierCountLimit.GetValueOnRenderThread();
+		NvCompletionCountLimit = CVarNvidiaCompletionCountLimit.GetValueOnRenderThread();
+
 
 		UE_LOG(LogDisplayClusterRenderSync, Log, 
-			TEXT("NVAPI DIAG: init=%d present=%d waitqueue=%d completion=%d barriercountlimit=%d"), 
+			TEXT("NVAPI DIAG: init=%d present=%d waitqueue=%d completion=%d barriercountlimit=%d completioncountdownlimit=%d"), 
 			bNvDiagInit ? 1 : 0, 
 			bNvDiagPresent ? 1 : 0, 
 			bNvDiagWaitQueue ? 1 : 0, 
 			bNvDiagCompletion ? 1 : 0, 
-			NvPresentBarrierCountLimit
+			NvPresentBarrierCountLimit,
+			NvCompletionCountLimit
 		);
 
 		// Set up NVIDIA swap barrier
@@ -161,7 +178,20 @@ bool FDisplayClusterRenderSyncPolicyNvidia::SynchronizeClusterRendering(int32& I
 	// Wait unless frame rendering is finished
 	if (bNvDiagCompletion)
 	{
+		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: completion start"));
 		WaitForFrameCompletion();
+		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: completion end"));
+
+		// Disable completion when it reaches the set limit.
+		if ((NvCompletionCountLimit > 0) && (++NvCompletionCount >= NvCompletionCountLimit))
+		{
+			bNvDiagCompletion = false;
+
+			UE_LOG(LogDisplayClusterRenderSync, VeryVerbose,
+				TEXT("NVAPI DIAG: Disabled completion after %d frames"),
+				NvCompletionCount
+			);
+		}
 	}
 
 	// NVAPI Diagnostics: present

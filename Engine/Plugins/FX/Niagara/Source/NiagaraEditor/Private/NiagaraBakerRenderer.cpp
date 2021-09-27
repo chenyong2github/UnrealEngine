@@ -4,51 +4,48 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraBatchedElements.h"
 
 #include "Niagara/Classes/NiagaraDataInterfaceRenderTarget2D.h"
 #include "Niagara/Classes/NiagaraDataInterfaceGrid2DCollection.h"
 
-#include "Modules/ModuleManager.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "BufferVisualizationData.h"
 #include "CanvasTypes.h"
+#include "CanvasItem.h"
 #include "EngineModule.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "PackageTools.h"
 
 namespace NiagaraBakerRendererLocal
 {
+	const FString STRING_SceneCaptureSource("SceneCaptureSource");
 	const FString STRING_BufferVisualization("BufferVisualization");
 	const FString STRING_EmitterDI("EmitterDI");
 	const FString STRING_EmitterParticles("EmitterParticles");
 }
 
-FNiagaraBakerRenderer::FNiagaraBakerRenderer(UNiagaraComponent* InPreviewComponent, float InWorldTime)
-	: PreviewComponent(InPreviewComponent)
-	, WorldTime(InWorldTime)
+FNiagaraBakerRenderer::FNiagaraBakerRenderer()
 {
-	if ( PreviewComponent && PreviewComponent->GetAsset() )
-	{
-		BakerSettings = PreviewComponent->GetAsset()->GetBakerSettings();
-	}
+	SceneCaptureComponent = NewObject<USceneCaptureComponent2D>(GetTransientPackage(), NAME_None, RF_Transient);
+	SceneCaptureComponent->bTickInEditor = false;
+	SceneCaptureComponent->SetComponentTickEnabled(false);
+	SceneCaptureComponent->SetVisibility(true);
+	SceneCaptureComponent->bCaptureEveryFrame = false;
+	SceneCaptureComponent->bCaptureOnMovement = false;
 }
 
-FNiagaraBakerRenderer::FNiagaraBakerRenderer(UNiagaraComponent* InPreviewComponent, UNiagaraBakerSettings* InBakerSettings, float InWorldTime)
-	: PreviewComponent(InPreviewComponent)
-	, BakerSettings(InBakerSettings)
-	, WorldTime(InWorldTime)
+FNiagaraBakerRenderer::~FNiagaraBakerRenderer()
 {
 }
 
-bool FNiagaraBakerRenderer::IsValid() const
+bool FNiagaraBakerRenderer::RenderView(UNiagaraComponent* PreviewComponent, const UNiagaraBakerSettings* BakerSettings, float WorldTime, UTextureRenderTarget2D* RenderTarget, int32 iOutputTextureIndex) const
 {
-	return PreviewComponent && BakerSettings;
-}
-
-bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, int32 iOutputTextureIndex) const
-{
-	if (!IsValid())
+	if (!PreviewComponent || !BakerSettings || !RenderTarget)
 	{
 		return false;
 	}
@@ -60,24 +57,24 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, int
 	}
 
 	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, WorldTime, FApp::GetDeltaTime(), WorldTime, World->Scene->GetFeatureLevel());
-	Canvas.Clear(FLinearColor::Transparent);
+	Canvas.Clear(FLinearColor::Black);
 
 	bool bRendered = false;
 	if (BakerSettings->OutputTextures.IsValidIndex(iOutputTextureIndex))
 	{
 		const FNiagaraBakerTextureSettings& OutputTextureSettings = BakerSettings->OutputTextures[iOutputTextureIndex];
 		const FIntRect ViewRect = FIntRect(0, 0, OutputTextureSettings.FrameSize.X, OutputTextureSettings.FrameSize.Y);
-		bRendered = RenderView(RenderTarget, &Canvas, iOutputTextureIndex, ViewRect);
+		bRendered = RenderView(PreviewComponent, BakerSettings, WorldTime, RenderTarget, &Canvas, iOutputTextureIndex, ViewRect);
 	}
 	Canvas.Flush_GameThread();
 	return bRendered;
 }
 
-bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCanvas* Canvas, int32 iOutputTextureIndex, FIntRect ViewRect) const
+bool FNiagaraBakerRenderer::RenderView(UNiagaraComponent* PreviewComponent, const UNiagaraBakerSettings* BakerSettings, float WorldTime, UTextureRenderTarget2D* RenderTarget, FCanvas* Canvas, int32 iOutputTextureIndex, FIntRect ViewRect) const
 {
 	using namespace NiagaraBakerRendererLocal;
 
-	if (!IsValid())
+	if (!PreviewComponent || !BakerSettings || !RenderTarget)
 	{
 		return false;
 	}
@@ -95,6 +92,14 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCa
 	UWorld* World = PreviewComponent->GetWorld();
 	check(World);
 
+	// We need any GPU sims to flush pending ticks
+	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = FNiagaraGpuComputeDispatchInterface::Get(World);
+	ensureMsgf(ComputeDispatchInterface, TEXT("The batcher was not valid on the world this may result in incorrect baking"));
+	if (ComputeDispatchInterface)
+	{
+		ComputeDispatchInterface->FlushPendingTicks_GameThread();
+	}
+	
 	const FNiagaraBakerTextureSettings& OutputTextureSettings = BakerSettings->OutputTextures[iOutputTextureIndex];
 
 	// Validate the rect
@@ -110,8 +115,59 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCa
 	auto RenderType = GetRenderType(OutputTextureSettings.SourceBinding.SourceName, SourceName);
 	switch ( RenderType )
 	{
+		case ERenderType::SceneCapture:
+		{
+			// Setup capture component
+			SceneCaptureComponent->RegisterComponentWithWorld(World);
+			SceneCaptureComponent->TextureTarget = RenderTarget;
+
+			// Translate source to enum
+			static UEnum* SceneCaptureOptions = StaticEnum<ESceneCaptureSource>();
+			const int32 CaptureSource = SceneCaptureOptions->GetIndexByName(SourceName);
+			SceneCaptureComponent->CaptureSource = (CaptureSource == INDEX_NONE) ? ESceneCaptureSource::SCS_SceneColorHDR : ESceneCaptureSource(CaptureSource);
+
+			// Set view location
+			if (BakerSettings->IsOrthographic())
+			{
+				SceneCaptureComponent->ProjectionType = ECameraProjectionMode::Orthographic;
+				SceneCaptureComponent->OrthoWidth = BakerSettings->CameraOrthoWidth;
+			}
+			else
+			{
+				SceneCaptureComponent->ProjectionType = ECameraProjectionMode::Perspective;
+				SceneCaptureComponent->FOVAngle = BakerSettings->CameraFOV;
+			}
+
+			const FMatrix SceneCaptureMatrix = FMatrix(FPlane(0, 0, 1, 0), FPlane(1, 0, 0, 0), FPlane(0, 1, 0, 0), FPlane(0, 0, 0, 1));
+			FMatrix ViewMatrix = SceneCaptureMatrix * BakerSettings->GetViewportMatrix().Inverse() * FRotationTranslationMatrix(BakerSettings->GetCameraRotation(), BakerSettings->GetCameraLocation());
+			SceneCaptureComponent->SetWorldLocationAndRotation(ViewMatrix.GetOrigin(), ViewMatrix.Rotator());
+
+			SceneCaptureComponent->bUseCustomProjectionMatrix = true;
+			SceneCaptureComponent->CustomProjectionMatrix = BakerSettings->GetProjectionMatrixForTexture(iOutputTextureIndex);
+
+			SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+			SceneCaptureComponent->ShowOnlyComponents.Empty(1);
+			SceneCaptureComponent->ShowOnlyComponents.Add(PreviewComponent);
+
+			SceneCaptureComponent->CaptureScene();
+
+			SceneCaptureComponent->TextureTarget = nullptr;
+			SceneCaptureComponent->UnregisterComponent();
+
+			// Alpha from a scene capture is 1- so we need to invert
+			if ( SceneCaptureComponent->CaptureSource == ESceneCaptureSource::SCS_SceneColorHDR )
+			{
+				FCanvasTileItem TileItem(FVector2D(ViewRect.Min.X, ViewRect.Min.Y), FVector2D(ViewRect.Width(), ViewRect.Height()), FLinearColor::White);
+				TileItem.BlendMode = SE_BLEND_Opaque;
+				TileItem.BatchedElementParameters = new FBatchedElementNiagaraInvertColorChannel(0);
+				Canvas->DrawItem(TileItem);
+			}
+
+			return true;
+		}
+
 		// Regular render
-		case ERenderType::View:
+		case ERenderType::BufferVisualization:
 		{
 			// Create View Family
 			FSceneViewFamilyContext ViewFamily(
@@ -140,6 +196,7 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCa
 			ViewInitOptions.ViewOrigin = BakerSettings->GetCameraLocation();
 			ViewInitOptions.ViewRotationMatrix = BakerSettings->GetViewMatrix();
 			ViewInitOptions.ProjectionMatrix = BakerSettings->GetProjectionMatrixForTexture(iOutputTextureIndex);
+			ViewInitOptions.BackgroundColor = FLinearColor::Black;
 			if (BakerSettings->bRenderComponentOnly)
 			{
 				ViewInitOptions.ShowOnlyPrimitives.Emplace();
@@ -290,6 +347,11 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCa
 	return false;
 }
 
+void FNiagaraBakerRenderer::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(SceneCaptureComponent);
+}
+
 FNiagaraBakerRenderer::ERenderType FNiagaraBakerRenderer::GetRenderType(FName SourceName, FName& OutName)
 {
 	using namespace NiagaraBakerRendererLocal;
@@ -297,7 +359,7 @@ FNiagaraBakerRenderer::ERenderType FNiagaraBakerRenderer::GetRenderType(FName So
 	OutName = FName();
 	if (SourceName.IsNone())
 	{
-		return ERenderType::View;
+		return ERenderType::SceneCapture;
 	}
 
 	FString SourceBindingString = SourceName.ToString();
@@ -309,6 +371,18 @@ FNiagaraBakerRenderer::ERenderType FNiagaraBakerRenderer::GetRenderType(FName So
 		return ERenderType::None;
 	}
 
+	// Scene Capture mode
+	if ( SplitNames[0] == STRING_SceneCaptureSource )
+	{
+		if (!ensure(SplitNames.Num() == 2))
+		{
+			return ERenderType::None;
+		}
+
+		OutName = FName(SplitNames[1]);
+		return ERenderType::SceneCapture;
+	}
+
 	// Buffer Visualization Mode
 	if (SplitNames[0] == STRING_BufferVisualization)
 	{
@@ -317,7 +391,7 @@ FNiagaraBakerRenderer::ERenderType FNiagaraBakerRenderer::GetRenderType(FName So
 			return ERenderType::None;
 		}
 		OutName = FName(SplitNames[1]);
-		return ERenderType::View;
+		return ERenderType::BufferVisualization;
 	}
 
 	// Emitter Data Interface
@@ -341,6 +415,13 @@ TArray<FName> FNiagaraBakerRenderer::GatherAllRenderOptions(UNiagaraSystem* Niag
 	using namespace NiagaraBakerRendererLocal;
 
 	TArray<FName> RendererOptions;
+
+	// Put all scene capture options
+	static UEnum* SceneCaptureOptions = StaticEnum<ESceneCaptureSource>();
+	for ( int i=0; i < SceneCaptureOptions->GetMaxEnumValue(); ++i )
+	{
+		RendererOptions.Emplace(STRING_SceneCaptureSource + TEXT(".") + SceneCaptureOptions->GetNameStringByIndex(i));
+	}
 
 	// Gather all buffer visualization options
 	struct FIterator

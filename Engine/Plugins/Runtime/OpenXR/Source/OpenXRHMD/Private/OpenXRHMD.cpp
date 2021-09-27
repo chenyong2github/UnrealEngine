@@ -269,7 +269,7 @@ void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControlle
 
 float FOpenXRHMD::GetWorldToMetersScale() const
 {
-	return WorldToMetersScale;
+	return IsInRenderingThread() ? PipelinedFrameStateRendering.WorldToMetersScale : PipelinedFrameStateGame.WorldToMetersScale;
 }
 
 FVector2D FOpenXRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
@@ -413,15 +413,15 @@ bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVect
 	}
 
 	const XrSpaceLocation& Location = PipelineState.DeviceLocations[DeviceId];
-	if (Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT &&
-		Location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
+	if (Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)
 	{
 		CurrentOrientation = ToFQuat(Location.pose.orientation);
-		CurrentPosition = ToFVector(Location.pose.position, GetWorldToMetersScale());
-		return true;
 	}
-
-	return false;
+	if (Location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
+	{
+		CurrentPosition = ToFVector(Location.pose.position, GetWorldToMetersScale());
+	}
+	return true;
 }
 
 bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orientation, FVector& Position, bool& bProvidedLinearVelocity, FVector& LinearVelocity, bool& bProvidedAngularVelocity, FVector& AngularVelocityRadPerSec)

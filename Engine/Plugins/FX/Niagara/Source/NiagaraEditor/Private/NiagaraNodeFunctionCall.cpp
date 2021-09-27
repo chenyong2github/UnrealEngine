@@ -769,7 +769,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 
 			Translator->Warning(DeprecationMessage, this, nullptr);
 		}
-
+		
 		FPinCollectorArray CallerInputPins;
 		GetInputPins(CallerInputPins);
 		
@@ -1240,6 +1240,15 @@ bool UNiagaraNodeFunctionCall::ScriptIsValid() const
 
 void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
+	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+	const UEdGraphPin* ParamMapPin = GetInputPin(0);
+	bool bHasParamMapPin = ParamMapPin && Schema->PinToTypeDefinition(ParamMapPin) == FNiagaraTypeDefinition::GetParameterMapDef();
+	if (bHasParamMapPin && ParamMapPin->LinkedTo.Num() == 0)
+	{
+		// Looks like this function call is not yet hooked up. Skip it to prevent cascading errors in the compilation
+		return;
+	}
+	
 	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
 	{
@@ -1247,7 +1256,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		return;
 	}
 
-	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+	
 	UNiagaraScriptSource* Source = GetFunctionScriptSource();
 	if (Source)
 	{
@@ -1276,13 +1285,10 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
-		const UEdGraphPin* CandidateParamMapPin = GetInputPin(0);
-		if (CandidateParamMapPin && CandidateParamMapPin->LinkedTo.Num() != 0 && Schema->PinToTypeDefinition(CandidateParamMapPin) == FNiagaraTypeDefinition::GetParameterMapDef())
+		
+		if (bHasParamMapPin && bRecursive)
 		{
-			if (bRecursive)
-			{
-				ParamMapIdx = OutHistory.TraceParameterMapOutputPin(UNiagaraNode::TraceOutputPin(GetInputPin(0)->LinkedTo[0]));
-			}
+			ParamMapIdx = OutHistory.TraceParameterMapOutputPin(UNiagaraNode::TraceOutputPin(GetInputPin(0)->LinkedTo[0]));
 		}
 
 		OutHistory.EnterFunction(GetFunctionName(), FunctionScript, FunctionGraph, this);

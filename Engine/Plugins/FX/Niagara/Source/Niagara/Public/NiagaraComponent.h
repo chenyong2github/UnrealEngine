@@ -307,13 +307,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set whether or not to lock the desired age delta time to the seek delta."))
 	void SetLockDesiredAgeDeltaTimeToSeekDelta(bool bLock);
 
-	/** Sets the maximum time that you can jump within a tick which is used when seeking from the current age, to the desired age.  This is only relevant
-	when using the DesiredAge age update mode. */
+	/**
+	Get the maximum CPU time in seconds we will simulate to the desired age, when we go beyond this limit ticks will be processed in the next frame.
+	This is only relevant when using the DesiredAge age update mode.
+	Note: The componet will not be visibile if we have ticks to process and SetCanRenderWhileSeeking is set to true
+	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Max Desired Age Tick Delta"))
 	float GetMaxSimTime() const;
 
-	/** Sets the maximum time that you can jump within a tick which is used when seeking from the current age, to the desired age.  This is only relevant
-	when using the DesiredAge age update mode. */
+	/**
+	Sets the maximum CPU time in seconds we will simulate to the desired age, when we go beyond this limit ticks will be processed in the next frame.
+	This is only relevant when using the DesiredAge age update mode.
+	Note: The componet will not be visibile if we have ticks to process and SetCanRenderWhileSeeking is set to true
+	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Max Desired Age Tick Delta"))
 	void SetMaxSimTime(float InMaxTime);
 
@@ -590,6 +596,9 @@ public:
 	/** Removes all local overrides and replaces them with the values from the source System - note: this also removes the editor overrides from the component as it is used by the pooling mechanism to prevent values leaking between different instances. */
 	void SetUserParametersToDefaultValues();
 
+	/** Is this an effect on or linked to the local player. */
+	bool IsLocalPlayerEffect()const;
+
 private:
 	/** Compare local overrides with the source System. Remove any that have mismatched types or no longer exist on the System.*/
 	void SynchronizeWithSourceSystem();
@@ -673,8 +682,11 @@ public:
 #endif
 
 	/** Set whether this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
-	UFUNCTION(BlueprintCallable, Category = Scalability, meta = (Keywords = "LOD scalability"))
+	UFUNCTION(BlueprintSetter, Category = Scalability, meta = (Keywords = "LOD scalability"))
 	void SetAllowScalability(bool bAllow);
+	
+	UFUNCTION(BlueprintGetter)
+	bool GetAllowScalability()const;
 
 	FORCEINLINE bool IsRegisteredWithScalabilityManager()const { return ScalabilityManagerHandle != INDEX_NONE; }
 	FORCEINLINE int32 GetScalabilityManagerHandle()const { return ScalabilityManagerHandle; }
@@ -689,6 +701,8 @@ public:
 
 	FORCEINLINE bool IsUsingCullProxy()const { return CullProxy != nullptr; }
 
+	bool ResolveOwnerAllowsScalability(bool bRegister=true);
+
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
 	uint32 bAwaitingActivationDueToNotReady : 1;
@@ -698,8 +712,12 @@ private:
 	/** Did we auto attach during activation? Used to determine if we should restore the relative transform during detachment. */
 	uint32 bDidAutoAttach : 1;
 
-	/** True if this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
+	/** Controls whether we allow scalability culling for this component. If enabled, this component's FX may be culled due to things such as distance, visibility, instance counts and performance. */
+	UPROPERTY(EditAnywhere, Category=Niagara, BlueprintGetter=GetAllowScalability, BlueprintSetter=SetAllowScalability)
 	uint32 bAllowScalability : 1;
+
+	/** Whether the owner of this component allows it to be scalability culled. We optionally do not allow scalability culling for components on or attached to the local player. */
+	uint32 bOwnerAllowsScalabiltiy : 1;
 
 	/** True if this component has been culled by the scalability manager. */
 	uint32 bIsCulledByScalability : 1;

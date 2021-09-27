@@ -102,23 +102,12 @@ FReply FGameplayTagQueryCustomization::OnClearAllButtonClicked()
 {
 	if (StructPropertyHandle.IsValid())
 	{
-		StructPropertyHandle->NotifyPreChange();
-	}
-
-	for (auto& EQ : EditableQueries)
-	{
-		if (EQ.TagQuery)
-		{
-			EQ.TagQuery->Clear();
-		}
+		FString EmptyQueryAsString;
+    	FGameplayTagQuery::StaticStruct()->ExportText(EmptyQueryAsString, &FGameplayTagQuery::EmptyQuery, &FGameplayTagQuery::EmptyQuery, /*OwnerObject*/nullptr, PPF_None, /*ExportRootScope*/nullptr);
+    	StructPropertyHandle->SetValueFromFormattedString(EmptyQueryAsString);
 	}
 
 	RefreshQueryDescription();
-
-	if (StructPropertyHandle.IsValid())
-	{
-		StructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-	}
 
 	return FReply::Handled();
 }
@@ -198,11 +187,11 @@ FReply FGameplayTagQueryCustomization::OnEditButtonClicked()
 				.HasCloseButton(false)
 				.ClientSize(FVector2D(600, 400))
 				[
-					SNew(SGameplayTagQueryWidget, EditableQueries)
+					SNew(SGameplayTagQueryWidget, EditableQueries, StructPropertyHandle)
 					.OnClosePreSave(this, &FGameplayTagQueryCustomization::PreSave)
-				.OnSaveAndClose(this, &FGameplayTagQueryCustomization::CloseWidgetWindow, false)
-				.OnCancel(this, &FGameplayTagQueryCustomization::CloseWidgetWindow, true)
-				.ReadOnly(bReadOnly)
+					.OnSaveAndClose(this, &FGameplayTagQueryCustomization::CloseWidgetWindow, false)
+					.OnCancel(this, &FGameplayTagQueryCustomization::CloseWidgetWindow, true)
+					.ReadOnly(bReadOnly)
 				];
 
 			// NOTE: FGlobalTabmanager::Get()-> is actually dereferencing a SharedReference, not a SharedPtr, so it cannot be null.
@@ -246,7 +235,7 @@ void FGameplayTagQueryCustomization::BuildEditableQueryList()
 			// Null outer objects may mean that we are inside a UDataTable. This is ok though. We can still dirty the data table via FNotify Hook. (see ::CloseWidgetWindow). However undo will not work.
 			UObject* Obj = OuterObjects.IsValidIndex(Idx) ? OuterObjects[Idx] : nullptr;
 
-			EditableQueries.Add(SGameplayTagQueryWidget::FEditableGameplayTagQueryDatum(Obj, (FGameplayTagQuery*)RawStructData[Idx], StructPropertyHandle));
+			EditableQueries.Add(SGameplayTagQueryWidget::FEditableGameplayTagQueryDatum(Obj, (FGameplayTagQuery*)RawStructData[Idx]));
 		}
 	}	
 }

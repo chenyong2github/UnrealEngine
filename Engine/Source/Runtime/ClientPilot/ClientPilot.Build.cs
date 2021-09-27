@@ -13,5 +13,14 @@ public class ClientPilot : ModuleRules
                 "InputCore",
             }
         );
-    }
+
+		PublicIncludePathModuleNames.AddRange(new string[] {
+				"AutomationController"
+		});
+
+		if (Target.bCompileAgainstEngine && Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			DynamicallyLoadedModuleNames.AddRange(new string[] { "AutomationController" });
+		}
+	}
 }

@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Channels/MovieSceneEvent.h"
 
 #include "MovieSceneEventTrackExtensions.generated.h"
 
@@ -40,4 +41,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta = (ScriptMethod))
 	static UMovieSceneEventTriggerSection* AddEventTriggerSection(UMovieSceneEventTrack* InTrack);
 	
+	/*
+	 * Return the class of the bound object property
+	 *
+	 * @param EventKey    The event key to get the bound object property from
+	 * @return The class of the bound object property
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Event", meta = (ScriptMethod))
+	static UClass* GetBoundObjectPropertyClass(const FMovieSceneEvent& EventKey) { return EventKey.GetBoundObjectPropertyClass(); }
 };

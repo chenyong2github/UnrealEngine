@@ -1010,7 +1010,7 @@ void FParticlePerfStatsListener_GatherAll::DumpStatsToFile()
 
 
 #if WITH_PARTICLE_PERF_STATS
-FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(UWorld* World)
+FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(const UWorld* World)
 {
 	if (TUniquePtr<FAccumulatedParticlePerfStats>* StatsPtr = AccumulatedWorldStats.Find(World))
 	{
@@ -1020,7 +1020,7 @@ FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(UW
 }
 #endif
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
-FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(UFXSystemAsset* System) 
+FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(const UFXSystemAsset* System)
 {
 	if (TUniquePtr<FAccumulatedParticlePerfStats>* StatsPtr = AccumulatedSystemStats.Find(System))
 	{
@@ -1030,7 +1030,7 @@ FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(UF
 }
 #endif
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
-FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(UFXSystemComponent* Component) 
+FAccumulatedParticlePerfStats* FParticlePerfStatsListener_GatherAll::GetStats(const UFXSystemComponent* Component) 
 {
 	if (TUniquePtr<FAccumulatedParticlePerfStats>* StatsPtr = AccumulatedComponentStats.Find(Component))
 	{

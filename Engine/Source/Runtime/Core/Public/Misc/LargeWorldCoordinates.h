@@ -36,3 +36,5 @@ namespace ispc { struct DEFAULT_TYPENAME; }							/* ISPC forward declaration */
 // Args - TYPE, DIMENSION, [UE_TYPENAME], [COMPONENT_TYPE]. e.g. Vector, 3, FVector, double		// LWC_TODO: Remove COMPONENT_TYPE
 #define UE_DECLARE_LWC_TYPE(...)								FORCE_EXPAND(UE_DECLARE_LWC_TYPE_SELECT(__VA_ARGS__)(__VA_ARGS__))
 
+// Use to make any narrowing casts searchable in code when it is updated to work with a 64 bit count/range
+#define UE_REAL_TO_FLOAT(argument) static_cast<float>(argument)

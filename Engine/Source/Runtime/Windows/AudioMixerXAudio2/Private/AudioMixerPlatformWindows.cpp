@@ -17,10 +17,12 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
 
+THIRD_PARTY_INCLUDES_START
 #define INITGUID
 #include <mmdeviceapi.h>
 #include <audiopolicy.h>
 #include <functiondiscoverykeys_devpkey.h>
+THIRD_PARTY_INCLUDES_END
 
 #if !NO_LOGGING
 // PSStringFromPropertyKey needs this lib, which we use for logging the Property GUIDs.

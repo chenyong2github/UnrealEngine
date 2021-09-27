@@ -78,4 +78,19 @@ COREUOBJECT_API void ForcePackageNamespace(UObject* InObject, const FString& InN
 
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
+/**
+ * Make a copy of the given text that's valid to use with the given package, optionally preserving its existing key.
+ * @note Returns the result verbatim if there is no change when applying the package namespace to the text.
+ *
+ * @param InText						The current FText instance.
+ * @param InPackage/InObject			The package (or object to get the owner package from) to get the namespace for (will call EnsurePackageNamespace).
+ * @param InCopyMethod					The method that should be used to copy the FText instance.
+ * @param bAlwaysApplyPackageNamespace	If true, this will always apply the package namespace to the text namespace (always treated as Verbatim when USE_STABLE_LOCALIZATION_KEYS is false).
+ *										If false, this will only apply the package namespace if the text namespace already contains package namespace makers.
+ *
+ * @return A copy of the given text that's valid to use with the given package.
+ */
+COREUOBJECT_API FText CopyTextToPackage(const FText& InText, UPackage* InPackage, const ETextCopyMethod InCopyMethod = ETextCopyMethod::NewKey, const bool bAlwaysApplyPackageNamespace = false);
+COREUOBJECT_API FText CopyTextToPackage(const FText& InText, UObject* InObject, const ETextCopyMethod InCopyMethod = ETextCopyMethod::NewKey, const bool bAlwaysApplyPackageNamespace = false);
+
 }

@@ -1738,50 +1738,50 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, double TimeLimit)
 						{
 							if (GEnableTimeoutOnPendingDestroyedObjectGC)
 							{
-							UE_LOG(LogGarbage, Warning, TEXT("Spent more than %.2fs on routing FinishDestroy to objects (objects in queue: %d)"), MaxTimeForFinishDestroy, GGCObjectsPendingDestructionCount);
-							UObject* LastObjectNotReadyForFinishDestroy = nullptr;
-							for (int32 ObjectIndex = 0; ObjectIndex < GGCObjectsPendingDestructionCount; ++ObjectIndex)
-							{
-								UObject* Obj = GGCObjectsPendingDestruction[ObjectIndex];
-								bool bReady = Obj->IsReadyForFinishDestroy();
-								UE_LOG(LogGarbage, Warning, TEXT("  [%d]: %s, IsReadyForFinishDestroy: %s"),
-									ObjectIndex,
-									*GetFullNameSafe(Obj),
-									bReady ? TEXT("true") : TEXT("false"));
-								if (!bReady)
+								UE_LOG(LogGarbage, Warning, TEXT("Spent more than %.2fs on routing FinishDestroy to objects (objects in queue: %d)"), MaxTimeForFinishDestroy, GGCObjectsPendingDestructionCount);
+								UObject* LastObjectNotReadyForFinishDestroy = nullptr;
+								for (int32 ObjectIndex = 0; ObjectIndex < GGCObjectsPendingDestructionCount; ++ObjectIndex)
 								{
-									LastObjectNotReadyForFinishDestroy = Obj;
+									UObject* Obj = GGCObjectsPendingDestruction[ObjectIndex];
+									bool bReady = Obj->IsReadyForFinishDestroy();
+									UE_LOG(LogGarbage, Warning, TEXT("  [%d]: %s, IsReadyForFinishDestroy: %s"),
+										ObjectIndex,
+										*GetFullNameSafe(Obj),
+										bReady ? TEXT("true") : TEXT("false"));
+									if (!bReady)
+									{
+										LastObjectNotReadyForFinishDestroy = Obj;
+									}
 								}
-							}
 
 #if PLATFORM_DESKTOP
-							ensureMsgf(0, TEXT("Spent to much time waiting for FinishDestroy for %d object(s) (last object: %s), check log for details"),
-								GGCObjectsPendingDestructionCount,
-								*GetFullNameSafe(LastObjectNotReadyForFinishDestroy));
+								ensureMsgf(0, TEXT("Spent to much time waiting for FinishDestroy for %d object(s) (last object: %s), check log for details"),
+									GGCObjectsPendingDestructionCount,
+									*GetFullNameSafe(LastObjectNotReadyForFinishDestroy));
 #else
-							//for non-desktop platforms, make this a warning so that we can die inside of an object member call.
-							//this will give us a greater chance of getting useful memory inside of the platform minidump.
-							UE_LOG(LogGarbage, Warning, TEXT("Spent to much time waiting for FinishDestroy for %d object(s) (last object: %s), check log for details"),
-								GGCObjectsPendingDestructionCount,
-								*GetFullNameSafe(LastObjectNotReadyForFinishDestroy));
-							if (LastObjectNotReadyForFinishDestroy)
-							{
-								LastObjectNotReadyForFinishDestroy->AbortInsideMemberFunction();
-							}
-							else
-							{
-								//go through the standard fatal error path if LastObjectNotReadyForFinishDestroy is null.
-								//this could happen in the current code flow, in the odd case where an object finished readying just in time for the loop above.
-								UE_LOG(LogGarbage, Fatal, TEXT("LastObjectNotReadyForFinishDestroy is NULL."));
-							}
+								//for non-desktop platforms, make this a warning so that we can die inside of an object member call.
+								//this will give us a greater chance of getting useful memory inside of the platform minidump.
+								UE_LOG(LogGarbage, Warning, TEXT("Spent to much time waiting for FinishDestroy for %d object(s) (last object: %s), check log for details"),
+									GGCObjectsPendingDestructionCount,
+									*GetFullNameSafe(LastObjectNotReadyForFinishDestroy));
+								if (LastObjectNotReadyForFinishDestroy)
+								{
+									LastObjectNotReadyForFinishDestroy->AbortInsideMemberFunction();
+								}
+								else
+								{
+									//go through the standard fatal error path if LastObjectNotReadyForFinishDestroy is null.
+									//this could happen in the current code flow, in the odd case where an object finished readying just in time for the loop above.
+									UE_LOG(LogGarbage, Fatal, TEXT("LastObjectNotReadyForFinishDestroy is NULL."));
+								}
 #endif
-						}
+							}
 							else if (!GWarningTimeOutHasBeenDisplayedGC)
 							{
 								UE_LOG(LogGarbage, Warning, TEXT("Spent more than %.2fs on routing FinishDestroy to objects (objects in queue: %d) - Skipping FATAL - GC Time out is disabled"), MaxTimeForFinishDestroy, GGCObjectsPendingDestructionCount);
 								GWarningTimeOutHasBeenDisplayedGC = true;
 							}
-					}
+						}
 
 					}
 					// Sleep before the next pass to give the render thread some time to release fences.
@@ -2063,12 +2063,19 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 
 #if VERIFY_DISREGARD_GC_ASSUMPTIONS
 		// Only verify assumptions if option is enabled. This avoids false positives in the Editor or commandlets.
-		if ((GUObjectArray.DisregardForGCEnabled() || GUObjectClusters.GetNumAllocatedClusters()) && GShouldVerifyGCAssumptions)
+		if (GShouldVerifyGCAssumptions)
 		{
 			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CollectGarbageInternal.VerifyGCAssumptions"), STAT_CollectGarbageInternal_VerifyGCAssumptions, STATGROUP_GC);
 			const double StartTime = FPlatformTime::Seconds();
-			VerifyGCAssumptions();
-			VerifyClustersAssumptions();
+			if (GUObjectArray.DisregardForGCEnabled())
+			{
+				VerifyGCAssumptions();
+			}
+			if (GUObjectClusters.GetNumAllocatedClusters())
+			{
+				VerifyClustersAssumptions();
+			}
+			VerifyObjectFlagMirroring();
 			UE_LOG(LogGarbage, Log, TEXT("%f ms for Verify GC Assumptions"), (FPlatformTime::Seconds() - StartTime) * 1000);
 		}
 #endif
@@ -2440,12 +2447,12 @@ struct FGCReferenceFixedArrayTokenHelper
 	{
 		if( InCount > 1 )
 		{
-			OwnerClass.EmitObjectReference(InOffset, InProperty.GetFName(), GCRT_FixedArray);
+			OwnerClass.EmitObjectReference(InOffset, *StackSizeHelper.GetPropertyPath(), GCRT_FixedArray);
 
 			OwnerClass.ReferenceTokenStream.EmitStride(InStride);
 			OwnerClass.ReferenceTokenStream.EmitCount(InCount);
 			// GCRT_FixedArray pushes a new stack frame in TFastReferenceCollector
-			StackSizeHelper.Push();
+			StackSizeHelper.Push(&InProperty);
 		}
 	}
 
@@ -2484,33 +2491,33 @@ void FProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<c
 void FObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(UObject*), *this, StackSizeHelper);
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Object);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_Object);
 }
 
 void FWeakObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FWeakObjectPtr), *this, StackSizeHelper);
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_WeakObject);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_WeakObject);
 }
 void FLazyObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FLazyObjectPtr), *this, StackSizeHelper);
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_LazyObject);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_LazyObject);
 }
 void FSoftObjectProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FSoftObjectPtr), *this, StackSizeHelper);
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_SoftObject);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_SoftObject);
 }
 void FDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this, StackSizeHelper);
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Delegate);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_Delegate);
 }
 void FMulticastDelegateProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, this->ElementSize, *this, StackSizeHelper);
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_MulticastDelegate);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_MulticastDelegate);
 }
 
 /**
@@ -2523,12 +2530,15 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 	{
 		bool bUsesFreezableAllocator = EnumHasAnyFlags(ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator);
 
-		if( Inner->IsA(FStructProperty::StaticClass()) )
+		// Structs and nested arrays share the same implementation on the Garbage Collector side
+		// as arrays of structs already push the array memory into the GC stack and process its tokens
+		// which is exactly what is required for nested arrays to work
+		if( Inner->IsA(FStructProperty::StaticClass()) || Inner->IsA(FArrayProperty::StaticClass()) )
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
 
 			// GCRT_ArrayStruct and GCRT_ArrayStructFreezable push a new stack frame in TFastReferenceCollector
-			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
+			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Inner);
 
 			OwnerClass.ReferenceTokenStream.EmitStride(Inner->ElementSize);
 			const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
@@ -2538,46 +2548,46 @@ void FArrayProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TAr
 		}
 		else if( Inner->IsA(FObjectProperty::StaticClass()) || Inner->IsA(FObjectPtrProperty::StaticClass()) )
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayObjectFreezable : GCRT_ArrayObject);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), bUsesFreezableAllocator ? GCRT_ArrayObjectFreezable : GCRT_ArrayObject);
 		}
 		else if( Inner->IsA(FInterfaceProperty::StaticClass()) )
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
 
 			// GCRT_ArrayStruct and GCRT_ArrayStructFreezable push a new stack frame in TFastReferenceCollector
-			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
+			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Inner);
 
 			OwnerClass.ReferenceTokenStream.EmitStride(Inner->ElementSize);
 			const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
 
-			OwnerClass.EmitObjectReference(0, GetFName(), GCRT_Object);
+			OwnerClass.EmitObjectReference(0, *StackSizeHelper.GetPropertyPath(), GCRT_Object);
 
 			const uint32 SkipIndex = OwnerClass.ReferenceTokenStream.EmitReturn();
 			OwnerClass.ReferenceTokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
 		}
 		else if (Inner->IsA(FFieldPathProperty::StaticClass()))
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayAddFieldPathReferencedObject);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayAddFieldPathReferencedObject);
 		}
 		else if (Inner->IsA(FWeakObjectProperty::StaticClass()))
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayWeakObject);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayWeakObject);
 		}
 		else if (Inner->IsA(FLazyObjectProperty::StaticClass()))
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayLazyObject);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayLazyObject);
 		}
 		else if (Inner->IsA(FSoftObjectProperty::StaticClass()))
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArraySoftObject);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArraySoftObject);
 		}
 		else if (Inner->IsA(FDelegateProperty::StaticClass()))
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayDelegate);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayDelegate);
 		}
 		else if (Inner->IsA(FMulticastDelegateProperty::StaticClass()))
 		{
-			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_ArrayMulticastDelegate);
+			OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayMulticastDelegate);
 		}
 		else
 		{
@@ -2596,19 +2606,20 @@ void FMapProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
 	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 	{
 		// TMap reference tokens are processed by GC in a similar way to an array of structs
-		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddTMapReferencedObjects);
+		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddTMapReferencedObjects);
 		OwnerClass.ReferenceTokenStream.EmitPointer((const void*)this);
 		const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
 
-		// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
-		FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
-
 		if (KeyProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 		{
+			// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
+			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, KeyProp);
 			KeyProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps, StackSizeHelper);
 		}
 		if (ValueProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 		{
+			// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
+			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, ValueProp);
 			ValueProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps, StackSizeHelper);
 		}
 
@@ -2626,11 +2637,11 @@ void FSetProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArra
 	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
 	{
 		// TSet reference tokens are processed by GC in a similar way to an array of structs
-		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddTSetReferencedObjects);
+		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddTSetReferencedObjects);
 		OwnerClass.ReferenceTokenStream.EmitPointer((const void*)this);
 
 		// GCRT_AddTSetReferencedObjects pushes a new stack frame in TFastReferenceCollector
-		FGCStackSizeHelperScope StackSizeScope(StackSizeHelper);
+		FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, ElementProp);
 
 		const uint32 SkipIndexIndex = OwnerClass.ReferenceTokenStream.EmitSkipIndexPlaceholder();
 		ElementProp->EmitReferenceInfo(OwnerClass, 0, EncounteredStructProps, StackSizeHelper);
@@ -2653,7 +2664,7 @@ void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
 		check(CppStructOps); // else should not have STRUCT_AddStructReferencedObjects
 		FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this, StackSizeHelper);
 
-		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddStructReferencedObjects);
+		OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddStructReferencedObjects);
 
 		void *FunctionPtr = (void*)CppStructOps->AddStructReferencedObjects();
 		OwnerClass.ReferenceTokenStream.EmitPointer(FunctionPtr);
@@ -2679,6 +2690,7 @@ void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
 		FProperty* Property = Struct->PropertyLink;
 		while (Property)
 		{
+			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Property);
 			Property->EmitReferenceInfo(OwnerClass, BaseOffset + GetOffset_ForGC(), EncounteredStructProps, StackSizeHelper);
 			Property = Property->PropertyLinkNext;
 		}
@@ -2693,14 +2705,14 @@ void FInterfaceProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset,
 {
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FScriptInterface), *this, StackSizeHelper);
 
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_Object);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_Object);
 }
 
 void FFieldPathProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
 {
 	static_assert(sizeof(FFieldPath) == sizeof(TFieldPath<FProperty>), "TFieldPath should have the same size as the underlying FFieldPath");
 	FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FFieldPath), *this, StackSizeHelper);
-	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), GetFName(), GCRT_AddFieldPathReferencedObject);
+	OwnerClass.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddFieldPathReferencedObject);
 }
 
 void UClass::EmitObjectReference(int32 Offset, const FName& DebugName, EGCReferenceType Kind)
@@ -2803,18 +2815,18 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 		
 		{
 			FGCStackSizeHelper StackSizeHelper;
-			// We require at least one stack frame for token stream traversing
-			StackSizeHelper.Push();			
 
 			// Iterate over properties defined in this class
 			for (TFieldIterator<FProperty> It(this, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 			{
 				FProperty* Property = *It;
+				FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Property);
 				Property->EmitReferenceInfo(*this, 0, EncounteredStructProps, StackSizeHelper);
 			}
 
-			StackSizeHelper.Pop();
-			ReferenceTokenStream.SetStackSize(StackSizeHelper.GetMaxStackSize());
+			// The fact we set min to 1 is because we always emit noexport (non FProperty exposed) references for 
+			// UObject's Outer and ClassPrivate members in EmitBaseReferences (see below)
+			ReferenceTokenStream.SetStackSize(FMath::Max(1, StackSizeHelper.GetMaxStackSize()));
 		}
 
 		if (UClass* SuperClass = GetSuperClass())
@@ -3055,6 +3067,7 @@ int32 FGCReferenceTokenStream::EmitReferenceInfo(FGCReferenceInfo ReferenceInfo,
 	int32 TokenIndex = Tokens.Add(ReferenceInfo);
 #if ENABLE_GC_OBJECT_CHECKS
 	check(TokenDebugInfo.Num() == TokenIndex);
+	check(DebugName != NAME_None);
 	TokenDebugInfo.Add(DebugName);
 #endif
 	return TokenIndex;

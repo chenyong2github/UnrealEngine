@@ -196,7 +196,8 @@ void FBatchedElementVolumeTexturePreviewParameters::BindShaders(
 		ColorWeights.M[3][2] = ZWeight * OneOverWeightSum;
 	}
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::ForceApply);
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
 	PixelShader->SetParameters(RHICmdList, Texture, SizeZ, ColorWeights, InGamma, MipLevel, Opacity, TraceOrientation);

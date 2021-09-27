@@ -109,7 +109,9 @@ TWeakObjectPtr<ACompositingElement> FCompElementManager::CreateElement(const FNa
 		FScopedWorldLevelContext ScopedLevelContext(TargetWorld, LevelContext);
 
 		FActorSpawnParameters SpawnParams;
-		SpawnParams.ObjectFlags |= ObjectFlags; 
+		SpawnParams.Name = ElementName;
+		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+		SpawnParams.ObjectFlags |= ObjectFlags;
 		SpawnedActor = TargetWorld->SpawnActor<ACompositingElement>(ClassType, FTransform::Identity, SpawnParams);
 
 		if (SpawnedActor)

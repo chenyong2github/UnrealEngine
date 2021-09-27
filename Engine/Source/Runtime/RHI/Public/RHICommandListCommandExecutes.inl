@@ -283,6 +283,14 @@ void FRHICommandSetGraphicsPipelineState::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHISetGraphicsPipelineState)(RHIGraphicsPipelineState, StencilRef, bApplyAdditionalState);
 }
 
+#if PLATFORM_USE_FALLBACK_PSO
+void FRHICommandSetGraphicsPipelineStateFromInitializer::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(SetGraphicsPipelineStateFromInitializer);
+	INTERNAL_DECORATOR(RHISetGraphicsPipelineState)(PsoInit, StencilRef, bApplyAdditionalState);
+}
+#endif
+
 void FRHICommandDispatchComputeShader::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(DispatchComputeShader);

@@ -3449,6 +3449,11 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 
 #if WITH_EDITOR
 	ApplyFinishBuildInternalData(&Context);
+	//If we do not have a valid LOD import data for base LOD, init the morph target. Asset imported in 4.23 or before will not have available build data for the base LOD
+	if (!IsLODImportedDataBuildAvailable(0))
+	{
+		InitMorphTargets();
+	}
 #endif
 	// should do this before InitResources.
 	InitMorphTargets();

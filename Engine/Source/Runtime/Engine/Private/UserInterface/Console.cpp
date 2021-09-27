@@ -61,7 +61,7 @@ static TAutoConsoleVariable<int32> CVarConsoleYPos(
 
 static TAutoConsoleVariable<bool> CVarConsoleLegacySearch(
 	TEXT("console.searchmode.legacy"),
-	true,
+	false,
 	TEXT("Use the legacy search behaviour for console commands \n"),
 	ECVF_Default);
 

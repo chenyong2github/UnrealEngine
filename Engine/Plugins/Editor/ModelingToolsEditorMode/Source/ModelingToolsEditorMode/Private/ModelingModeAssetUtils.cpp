@@ -79,7 +79,8 @@ FString GetWorldRelativeAssetRootPath(const UWorld* World)
 FString GetActiveAssetFolderPath()
 {
 	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-	return ContentBrowser.GetCurrentPath(EContentBrowserPathType::Internal);
+	const FContentBrowserItemPath CurrentPath = ContentBrowser.GetCurrentPath();
+	return CurrentPath.HasInternalPath() ? CurrentPath.GetInternalPathString() : FString();
 }
 
 

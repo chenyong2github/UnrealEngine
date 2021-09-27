@@ -12,6 +12,7 @@ public class ReplicationGraph : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"NetCore",
 				"Engine",
 				"EngineSettings",
 				"PerfCounters"

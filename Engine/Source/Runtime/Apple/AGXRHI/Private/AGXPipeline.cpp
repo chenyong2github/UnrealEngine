@@ -762,7 +762,7 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 	
 	check(Init.BoundShaderState.VertexShaderRHI != nullptr);
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	check(Init.BoundShaderState.GeometryShaderRHI == nullptr);
+	check(Init.BoundShaderState.GetGeometryShader() == nullptr);
 #endif
 	
 	if( RenderPipelineDesc.GetDepthAttachmentPixelFormat() == mtlpp::PixelFormat::Invalid &&

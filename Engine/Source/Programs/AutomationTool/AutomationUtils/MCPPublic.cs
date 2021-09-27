@@ -1396,6 +1396,62 @@ namespace EpicGames.MCP.Automation
 			public ManifestDiff Differential;
 		}
 
+		public class BinaryDiffOptions
+		{
+			/// <summary>
+			/// The id of the artifact.
+			/// </summary>
+			public string ArtifactId;
+			/// <summary>
+			/// The install tags to use for ManifestA.
+			/// </summary
+			public HashSet<string> InstallTagsA;
+			/// <summary>
+			/// The build version to generate optimized deltas from 
+			/// </summary>
+			public string BuildVersionA;
+			/// <summary>
+			/// The install tags to use for ManifestB.
+			/// </summary>
+			public HashSet<string> InstallTagsB;
+			/// <summary>
+			/// The build version to generate optimized deltas to 
+			/// </summary>
+			public string BuildVersionB;
+			/// <summary>
+			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientId;
+			/// <summary>
+			/// Specifies the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecret;
+			/// <summary>
+			/// Specifies the name of an environment variable containing the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecretEnvVar;
+			/// <summary>
+			/// Specifies the id of the organization that this product belongs to.
+			/// </summary>
+			public string OrganizationId;
+			/// <summary>
+			/// Specifies the id of the product being uploaded.
+			/// </summary>
+			public string ProductId;
+			/// <summary>
+			/// File path to a file containing parameters for bpt to use (can be used in combination with parameters above, no duplicates)
+			/// </summary>
+			public string CommandLineFile;
+			/// <summary>
+			/// Tag sets to be compared between manifests 
+			/// </summary>
+			public List<HashSet<string>> CompareTagSets;
+			/// <summary>
+			/// Specifies in quotes the file path where the diff will be exported as a JSON object.
+			/// </summary>
+			public string OutputFile;
+		}
+
 		public class AutomationTestsOptions
 		{
 			/// <summary>
@@ -1585,6 +1641,14 @@ namespace EpicGames.MCP.Automation
 		/// <param name="Output">Will receive the data back for the diff.</param>
 		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
 		public abstract void Execute(ManifestDiffOptions Opts, out ManifestDiffOutput Output, ToolVersion Version = ToolVersion.Live);
+
+		/// <summary>
+		/// Runs the Build Patch Tool executable to diff two binaries files logging out details.
+		/// </summary>
+		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool manifest diff process.</param>
+		/// <param name="Output">Will receive the data back for the diff.</param>
+		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
+		public abstract void Execute(BinaryDiffOptions Opts, out ManifestDiffOutput Output, ToolVersion Version = ToolVersion.Live);
 
 		/// <summary>
 		/// Runs the Build Patch Tool executable to evaluate built in automation testing.

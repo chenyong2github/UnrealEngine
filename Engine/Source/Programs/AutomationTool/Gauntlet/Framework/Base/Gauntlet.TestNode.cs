@@ -60,6 +60,44 @@ namespace Gauntlet
 	};
 
 	/// <summary>
+	/// Describes the severity level of an event
+	/// </summary>
+	public enum EventSeverity
+	{
+		Info,
+		Warning,
+		Error,
+		Fatal
+	}
+
+	/// <summary>
+	/// Interface for test event that provides must-have information
+	/// </summary>
+	public interface ITestEvent
+	{
+		/// <summary>
+		/// Level of severity that descrives this event
+		/// </summary>
+		EventSeverity Severity { get; }
+
+		/// <summary>
+		/// High level single-line summary of what occurred. Should neber be null
+		/// </summary>
+		string Summary { get; }
+
+		/// <summary>
+		/// Details for this event. E.g this could be a list of error messages or warnings for a failed test.
+		/// May be empty, should never be null
+		/// </summary>
+		IEnumerable<string> Details { get; }
+
+		/// <summary>
+		/// Callstack for this event if that information is available. May be empty, should never be null
+		/// </summary>
+		IEnumerable<string> Callstack { get; }
+	};
+
+	/// <summary>
 	/// The interface that all Gauntlet rests are required to implement. How these are
 	/// implemented and whether responsibilities are handed off to other systems (e.g. Launch)
 	/// is left to the implementor. It's expected that tests for major systems (e.g. Unreal)

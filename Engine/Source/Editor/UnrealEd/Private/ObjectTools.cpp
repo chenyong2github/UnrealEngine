@@ -39,6 +39,7 @@
 #include "Engine/Texture.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "ThumbnailRendering/TextureThumbnailRenderer.h"
+#include "ThumbnailExternalCache.h"
 #include "Engine/StaticMesh.h"
 #include "Factories/Factory.h"
 #include "AssetToolsModule.h"
@@ -4870,7 +4871,7 @@ namespace ThumbnailTools
 
 
 	/** Loads thumbnails from the specified package file name */
-	bool LoadThumbnailsFromPackage( const FString& InPackageFileName, const TSet< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails )
+	bool LoadThumbnailsFromPackageInternal( const FString& InPackageFileName, const TSet< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails )
 	{
 		// Create a file reader to load the file
 		TUniquePtr< FArchive > FileReader( IFileManager::Get().CreateFileReader( *InPackageFileName ) );
@@ -5027,6 +5028,23 @@ namespace ThumbnailTools
 
 
 		return true;
+	}
+
+
+
+	/** Loads thumbnails from the specified package file name, try loading from external cache file if not found in package file */
+	bool LoadThumbnailsFromPackage( const FString& InPackageFileName, const TSet< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails )
+	{
+		if (LoadThumbnailsFromPackageInternal(InPackageFileName, InObjectFullNames, InOutThumbnails))
+		{
+			return true;
+		}
+		else if (FThumbnailExternalCache::Get().LoadThumbnailsFromExternalCache(InObjectFullNames, InOutThumbnails))
+		{
+			return true;
+		}
+
+		return false;
 	}
 
 

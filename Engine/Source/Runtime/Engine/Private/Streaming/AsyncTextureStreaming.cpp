@@ -1079,6 +1079,17 @@ void FRenderAssetStreamingMipCalcTask::UpdateCSVOnlyStats_Async()
 	Stats.CachedMips = 0;
 	Stats.WantedMips = 0;
 
+	Stats.NumStreamedMeshes = 0;
+	Stats.AvgNumStreamedLODs = 0.f;
+	Stats.AvgNumResidentLODs = 0.f;
+	Stats.AvgNumEvictedLODs = 0.f;
+	Stats.StreamedMeshMem = 0;
+	Stats.ResidentMeshMem = 0;
+	Stats.EvictedMeshMem = 0;
+	int32 TotalNumStreamedLODs = 0;
+	int32 TotalNumResidentLODs = 0;
+	int32 TotalNumEvictedLODs = 0;
+
 	for (const FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 	{
 		if (IsAborted()) break;
@@ -1098,5 +1109,30 @@ void FRenderAssetStreamingMipCalcTask::UpdateCSVOnlyStats_Async()
 
 		Stats.WantedMips += UsedSize;
 		Stats.CachedMips += FMath::Max<int64>(ResidentSize - UsedSize, 0);
+
+		if (StreamingRenderAsset.IsMesh())
+		{
+			const int32 NumStreamedLODs = StreamingRenderAsset.MaxAllowedMips - StreamingRenderAsset.MinAllowedMips;
+			const int32 NumResidentLODs = StreamingRenderAsset.ResidentMips;
+			const int32 NumEvictedLODs = StreamingRenderAsset.MaxAllowedMips - NumResidentLODs;
+			const int64 TotalSize = StreamingRenderAsset.GetSize(StreamingRenderAsset.MaxAllowedMips);
+			const int64 StreamedSize = TotalSize - StreamingRenderAsset.GetSize(StreamingRenderAsset.MinAllowedMips);
+			const int64 EvictedSize = TotalSize - ResidentSize;
+
+			++Stats.NumStreamedMeshes;
+			TotalNumStreamedLODs += NumStreamedLODs;
+			TotalNumResidentLODs += NumResidentLODs;
+			TotalNumEvictedLODs += NumEvictedLODs;
+			Stats.StreamedMeshMem += StreamedSize;
+			Stats.ResidentMeshMem += ResidentSize;
+			Stats.EvictedMeshMem += EvictedSize;
+		}
+	}
+
+	if (Stats.NumStreamedMeshes > 0)
+	{
+		Stats.AvgNumStreamedLODs = (float)TotalNumStreamedLODs / Stats.NumStreamedMeshes;
+		Stats.AvgNumResidentLODs = (float)TotalNumResidentLODs / Stats.NumStreamedMeshes;
+		Stats.AvgNumEvictedLODs = (float)TotalNumEvictedLODs / Stats.NumStreamedMeshes;
 	}
 }

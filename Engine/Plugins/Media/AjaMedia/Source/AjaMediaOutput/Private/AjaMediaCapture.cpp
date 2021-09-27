@@ -55,7 +55,7 @@ namespace AjaMediaCaptureAnalytics
 			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionWidth"), FString::Printf(TEXT("%d"), Resolution.X)));
 			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("ResolutionHeight"), FString::Printf(TEXT("%d"), Resolution.Y)));
 			EventAttributes.Add(FAnalyticsEventAttribute(TEXT("FrameRate"), FrameRate.ToPrettyText().ToString()));
-			FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.BlackmagicCaptureStarted"), EventAttributes);
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.AjaCaptureStarted"), EventAttributes);
 		}
 	}
 }

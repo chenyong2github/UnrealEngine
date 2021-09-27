@@ -286,6 +286,60 @@ namespace ChaosTest
 		EXPECT_FALSE(bHit);
 	}
 
+	void CapsuleRaycastFastLargeDistance()
+	{
+		// This ray is 35k units from origin, and casts towards a 13 unit radius capsule at origin.
+		// Precision issues lead to incorrect normal, in this case we previously got a zero normal, otherwise we may also have gotten normals of non-unit length.
+		// Fix was to make RaycastFast clip ray against bounds near capsule, to avoid precision issues with ray start far from capsule when solving quadratic.
+
+
+		Chaos::FReal InMRadius = 13.0000000;
+		Chaos::FReal InMHeight = 10.0000000;
+		Chaos::FVec3 InMVector(0.00000000, 0.00000000, 1.00000000);
+		Chaos::FVec3 InX1(0.00000000, 0.00000000, -5.00000000);
+		Chaos::FVec3 InX2(0.00000000, 0.00000000, 5.00000000);
+		Chaos::FVec3 InStartPoint(-18115.0938, 30080.6074, -1756.17285);
+		Chaos::FVec3 InDir(0.515248418, -0.855584025, 0.0499509014);
+		Chaos::FReal InLength = 35157.9805;
+		Chaos::FReal InThickness = 0.00000000;
+
+		Chaos::FReal TestTime;
+		Chaos::FVec3 TestPosition;
+		Chaos::FVec3 TestNormal;
+		int32 TestFaceIndex;
+
+		const bool bHit = Chaos::FCapsule::RaycastFast(InMRadius, InMHeight, InMVector, InX1, InX2, InStartPoint, InDir, InLength, InThickness, TestTime, TestPosition, TestNormal, TestFaceIndex);
+
+ 		EXPECT_NEAR(TestNormal.Size(), 1.0f, KINDA_SMALL_NUMBER);
+		EXPECT_TRUE(bHit);
+	}
+	
+	void CapsuleRaycastMissWithEndPointOnBounds()
+	{
+		// Ray goes towards cap of capsule from x axis, endpoint of ray is exactly on bounds of capsule, but short of hitting the cap.
+		// This caused an edge case in which ray is clipped against bounds, and tried to continue calculation with clipped ray length of zero.
+		// This previously triggered ensure on Length > 0 when casting against spheres for cap test.
+		// This should miss.
+
+		Chaos::FReal InMRadius = 10.0000000;
+		Chaos::FReal InMHeight = 10.0000000;
+		Chaos::FVec3 InMVector(0.00000000, 0.00000000, 1.00000000);
+		Chaos::FVec3 InX1(0.00000000, 0.00000000, -5.00000000);
+		Chaos::FVec3 InX2(0.00000000, 0.00000000, 5.00000000);
+		Chaos::FVec3 InStartPoint(100,0,8);
+		Chaos::FVec3 InDir(-1,0,0);
+		Chaos::FReal InLength = 90;
+		Chaos::FReal InThickness = 0.00000000;
+
+		Chaos::FReal TestTime;
+		Chaos::FVec3 TestPosition;
+		Chaos::FVec3 TestNormal;
+		int32 TestFaceIndex;
+
+		const bool bHit = Chaos::FCapsule::RaycastFast(InMRadius, InMHeight, InMVector, InX1, InX2, InStartPoint, InDir, InLength, InThickness, TestTime, TestPosition, TestNormal, TestFaceIndex);
+		EXPECT_FALSE(bHit);
+	}
+
 	void TriangleRaycast()
 	{
 		FReal Time;

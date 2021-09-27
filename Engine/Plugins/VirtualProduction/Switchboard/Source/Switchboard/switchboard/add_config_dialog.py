@@ -66,14 +66,12 @@ class AddConfigDialog(QtWidgets.QDialog):
                 addConfigDialog.p4_group.setChecked(self.p4Enabled)
 
 
-    def __init__(self, stylesheet, uproject_search_path, previous_engine_dir, parent):
+    def __init__(self, uproject_search_path, previous_engine_dir, parent):
         super().__init__(parent=parent, f=QtCore.Qt.WindowCloseButtonHint)
 
         self.config_path = None
         self.uproject = ''
         self.engine_dir = None
-
-        self.setStyleSheet(stylesheet)
 
         self.setWindowTitle("Add new Switchboard Configuration")
 

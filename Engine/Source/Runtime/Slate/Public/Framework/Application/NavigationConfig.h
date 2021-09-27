@@ -9,12 +9,34 @@
 struct FKeyEvent;
 enum class EUINavigation : uint8;
 
-/**
- * 
- */
+/* Since we now support multiple analog values driving the same navigation axis,
+ * we need to key their repeat-state by both FKey and EUINavigation */
+struct FAnalogNavigationKey
+{
+	FKey AnalogKey;
+	EUINavigation NavigationDir;
+
+	FAnalogNavigationKey(const FKey& InKey, const EUINavigation InNavDir)
+		: AnalogKey(InKey)
+		, NavigationDir(InNavDir)
+	{}
+
+	bool operator==(const FAnalogNavigationKey& Rhs) const
+	{
+		return     AnalogKey == Rhs.AnalogKey
+		    && NavigationDir == Rhs.NavigationDir;
+	}
+
+	friend uint32 GetTypeHash(const FAnalogNavigationKey& InAnalogNavKey)
+	{
+		const uint32 KeyHash = GetTypeHash(InAnalogNavKey.AnalogKey);
+		const uint32 NavDirHash = GetTypeHash(InAnalogNavKey.NavigationDir);
+		return HashCombine(KeyHash, NavDirHash);
+	}
+};
+
 struct FAnalogNavigationState
 {
-public:
 	double LastNavigationTime;
 	int32 Repeats;
 
@@ -29,7 +51,7 @@ public:
 struct FUserNavigationState
 {
 public:
-	TMap<EUINavigation, FAnalogNavigationState> AnalogNavigationState;
+	TMap<FAnalogNavigationKey, FAnalogNavigationState> AnalogNavigationState;
 };
 
 /**
@@ -98,6 +120,9 @@ protected:
 	 */
 	virtual EUINavigation GetNavigationDirectionFromAnalogInternal(const FAnalogInputEvent& InAnalogEvent);
 
+	virtual bool IsAnalogHorizontalKey(const FKey& InKey) const { return InKey == AnalogHorizontalKey; }
+	virtual bool IsAnalogVerticalKey  (const FKey& InKey) const { return InKey == AnalogVerticalKey;   }
+
 	/** Navigation state that we store per user. */
 	TMap<int, FUserNavigationState> UserNavigationState;
 };
@@ -113,4 +138,26 @@ public:
 		bKeyNavigation = false;
 		bAnalogNavigation = false;
 	}
+};
+
+/** A Navigation config that supports UI Navigation with both analog sticks + D-Pad. */
+class SLATE_API FTwinStickNavigationConfig : public FNavigationConfig
+{
+public:
+	FTwinStickNavigationConfig()
+	{
+		bTabNavigation = false;
+
+		KeyEventRules =
+		{
+			{EKeys::Gamepad_DPad_Left, EUINavigation::Left},
+			{EKeys::Gamepad_DPad_Right, EUINavigation::Right},
+			{EKeys::Gamepad_DPad_Up, EUINavigation::Up},
+			{EKeys::Gamepad_DPad_Down, EUINavigation::Down}
+		};
+	}
+	
+protected:
+	virtual bool IsAnalogHorizontalKey(const FKey& InKey) const override { return InKey == EKeys::Gamepad_LeftX || InKey == EKeys::Gamepad_RightX; }
+	virtual bool IsAnalogVerticalKey  (const FKey& InKey) const override { return InKey == EKeys::Gamepad_LeftY || InKey == EKeys::Gamepad_RightY; }
 };

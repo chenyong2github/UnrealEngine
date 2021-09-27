@@ -204,6 +204,10 @@ char* FVectorVMCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* 
 			progress = do_mat_op_to_vec(ir);
 			progress = do_vec_op_to_scalar(ir, state) || progress;
 			progress = do_vec_index_to_swizzle(ir) || progress;
+
+			// slip in this call to extract scalar constants out of swizzled constant vectors
+			progress = vm_extract_scalar_ops(ir, state) || progress;
+
 			progress = do_optimization_pass(ir, state, true) || progress;
 			vm_debug_print("======== Optimization Pass ==============\n");
 			vm_debug_dump(ir, state);

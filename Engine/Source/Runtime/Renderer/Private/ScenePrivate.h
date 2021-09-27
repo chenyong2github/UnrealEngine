@@ -28,7 +28,6 @@
 #include "ScenePrivateBase.h"
 #include "RenderTargetPool.h"
 #include "SceneCore.h"
-#include "Containers/AllocatorFixedSizeFreeList.h"
 #include "PrimitiveSceneInfo.h"
 #include "LightSceneInfo.h"
 #include "DepthRendering.h"
@@ -2926,8 +2925,6 @@ public:
 
 	const FReadOnlyCVARCache& ReadOnlyCVARCache;
 
-	TAllocatorFixedSizeFreeList<sizeof(FLightPrimitiveInteraction), 16384 / sizeof(FLightPrimitiveInteraction)> LightPrimitiveInteractionAllocator;
-
 #if WITH_EDITOR
 	/** Editor Pixel inspector */
 	FPixelInspectorData PixelInspectorData;
@@ -2991,7 +2988,6 @@ public:
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
 	virtual void GetRuntimeVirtualTextureHidePrimitiveMask(uint8& bHideMaskEditor, uint8& bHideMaskGame) const override;
 	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) override;
-	virtual void InvalidatePathTracedOutput() override;
 	virtual void GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex, bool& bOutputVelocity) const override;
 	virtual void UpdateLightTransform(ULightComponent* Light) override;
 	virtual void UpdateLightColorAndBrightness(ULightComponent* Light) override;

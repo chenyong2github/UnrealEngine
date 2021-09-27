@@ -135,3 +135,21 @@ void TextNamespaceUtil::ForcePackageNamespace(UObject* InObject, const FString& 
 }
 
 #endif // USE_STABLE_LOCALIZATION_KEYS
+
+FText TextNamespaceUtil::CopyTextToPackage(const FText& InText, UPackage* InPackage, const ETextCopyMethod InCopyMethod, const bool bAlwaysApplyPackageNamespace)
+{
+#if USE_STABLE_LOCALIZATION_KEYS
+	return CopyTextToPackage(InText, EnsurePackageNamespace(InPackage), InCopyMethod, bAlwaysApplyPackageNamespace);
+#else	// USE_STABLE_LOCALIZATION_KEYS
+	return CopyTextToPackage(InText, FString(), InCopyMethod, bAlwaysApplyPackageNamespace);
+#endif	// USE_STABLE_LOCALIZATION_KEYS
+}
+
+FText TextNamespaceUtil::CopyTextToPackage(const FText& InText, UObject* InObject, const ETextCopyMethod InCopyMethod, const bool bAlwaysApplyPackageNamespace)
+{
+#if USE_STABLE_LOCALIZATION_KEYS
+	return CopyTextToPackage(InText, EnsurePackageNamespace(InObject), InCopyMethod, bAlwaysApplyPackageNamespace);
+#else	// USE_STABLE_LOCALIZATION_KEYS
+	return CopyTextToPackage(InText, FString(), InCopyMethod, bAlwaysApplyPackageNamespace);
+#endif	// USE_STABLE_LOCALIZATION_KEYS
+}

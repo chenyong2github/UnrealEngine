@@ -34,6 +34,8 @@
 
 namespace DatasmithRuntime
 {
+	extern void RenameObject(UObject* Object, const TCHAR* DesiredName);
+
 	bool FSceneImporter::ProcessMeshData(FAssetData& MeshData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::ProcessMeshData);
@@ -80,13 +82,13 @@ namespace DatasmithRuntime
 			}
 			else
 			{
+				FString MeshName = FString::Printf(TEXT("SM_%s_%d"), MeshElement->GetName(), MeshData.ElementId);
 #ifdef ASSET_DEBUG
-				FString MeshName = TEXT("S_") + FString(MeshElement->GetName()) + TEXT("_LU_") + FString::FromInt(MeshData.ElementId);
 				MeshName = FDatasmithUtils::SanitizeObjectName(MeshName);
-				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/DatasmithContent/Meshes"), MeshName));
+				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Game/Runtime/Meshes"), MeshName));
 				StaticMesh = NewObject< URuntimeMesh >(Package, *MeshName, RF_Public);
 #else
-				StaticMesh = NewObject< URuntimeMesh >(GetTransientPackage());
+				StaticMesh = NewObject< URuntimeMesh >(GetTransientPackage(), *MeshName);
 #endif
 				check(StaticMesh);
 
@@ -476,7 +478,7 @@ namespace DatasmithRuntime
 				AStaticMeshActor* Actor = Cast<AStaticMeshActor>(RootComponent->GetOwner()->GetWorld()->SpawnActor(AStaticMeshActor::StaticClass(), nullptr, nullptr));
 				check(Actor != nullptr);
 
-				Actor->Rename(MeshActorElement->GetName(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+				RenameObject(Actor, MeshActorElement->GetName());
 #if WITH_EDITOR
 				Actor->SetActorLabel( MeshActorElement->GetLabel() );
 #endif

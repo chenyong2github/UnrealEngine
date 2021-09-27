@@ -150,6 +150,50 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 		FTSTicker::RemoveTicker(DelegateHandle);
 	}
 
+	{	// demonstrate that the old ticker calls a delegate in the same tick that it was added
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+
+		FTicker Ticker;
+		bool bTicked = false;
+		Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f,
+			[&Ticker, &bTicked](float)
+			{
+				Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f,
+					[&bTicked](float)
+					{
+						bTicked = true;
+						return false;
+					}
+				);
+				return false;
+			}
+		);
+		Ticker.Tick(0.0f);
+		check(bTicked);
+
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	}
+
+	{	// check that delegate is called in the same tick that it was added, for backward compatibility with the previous implementation
+		FTSTicker Ticker;
+		bool bTicked = false;
+		Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f, 
+			[&Ticker, &bTicked](float)
+			{ 
+				Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f, 
+					[&bTicked](float) 
+					{
+						bTicked = true;
+						return false;
+					}
+				);
+				return false; 
+			}
+		);
+		Ticker.Tick(0.0f);
+		check(bTicked);
+	}
+
 	// multithreaded stress test
 	{
 		using namespace UE::Tasks;

@@ -93,6 +93,10 @@ namespace GenerateStaticMeshLODAssetLocals
 		{
 			Collector.AddReferencedObject(GenerateProcess);
 		}
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorOp");
+		}
 
 		void CalculateResult(FProgressCancel* Progress) override
 		{

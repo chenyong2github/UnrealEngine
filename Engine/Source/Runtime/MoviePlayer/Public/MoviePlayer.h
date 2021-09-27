@@ -237,6 +237,10 @@ public:
 	DECLARE_EVENT(IGameMoviePlayer, FOnMoviePlaybackStarted)
 	virtual FOnMoviePlaybackStarted& OnMoviePlaybackStarted() = 0;
 
+	/** Callback for when the game thread is blocked but you want to do some ticking. */
+	DECLARE_EVENT_OneParam(IGameMoviePlayer, FOnMoviePlaybackTick, float DeltaTime)
+	virtual FOnMoviePlaybackTick& OnMoviePlaybackTick() = 0;
+
 	DECLARE_EVENT(IGameMoviePlayer, FOnMoviePlaybackFinished)
 	virtual FOnMoviePlaybackFinished& OnMoviePlaybackFinished() = 0;
 

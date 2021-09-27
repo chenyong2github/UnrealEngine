@@ -8,7 +8,7 @@
 #include "OptimusDataType.h"
 #include "OptimusNode.h"
 #include "OptimusNodePin.h"
-
+#include "Logging/TokenizedMessage.h"
 
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 {

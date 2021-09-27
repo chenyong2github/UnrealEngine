@@ -62,6 +62,8 @@ struct FNiagaraScalabilityManager
 
 	float LastUpdateTime;
 
+	bool bRefreshOwnerAllowsScalability = false;
+
 	FNiagaraScalabilityManager();
 	~FNiagaraScalabilityManager();
 	void Update(FNiagaraWorldManager* Owner, float DeltaSeconds, bool bNewOnly);
@@ -70,6 +72,8 @@ struct FNiagaraScalabilityManager
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 	void PreGarbageCollectBeginDestroy();
+
+	void OnRefreshOwnerAllowsScalability();
 
 #if DEBUG_SCALABILITY_STATE
 	void Dump();

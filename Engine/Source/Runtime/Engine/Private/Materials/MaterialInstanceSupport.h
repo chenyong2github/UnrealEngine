@@ -125,8 +125,6 @@ public:
 		LLM_SCOPE(ELLMTag::MaterialInstance);
 
 		InvalidateUniformExpressionCache(false);
-		RenderThread_SignalParameterChange();
-
 		TArray<TNamedParameter<ValueType> >& ValueArray = GetValueArray<ValueType>();
 		const int32 ParameterCount = ValueArray.Num();
 		for (int32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
@@ -153,7 +151,7 @@ public:
 		const TArray<TNamedParameter<ValueType>>& ValueArray = GetValueArray<ValueType>();
 		for (const TNamedParameter<ValueType>& Parameter : ValueArray)
 		{
-			if (Parameter.Info == ParameterInfo)
+			if (Parameter.Info == ParameterInfo && IsValidParameterValue(Parameter.Value))
 			{
 				OutValue = Parameter.Value;
 				return true;
@@ -169,7 +167,10 @@ private:
 	template <typename ValueType> TArray<TNamedParameter<ValueType> >& GetValueArray() { return ScalarParameterArray; }
 	template <typename ValueType> const TArray<TNamedParameter<ValueType> >& GetValueArray() const { return ScalarParameterArray; }
 
-	void RenderThread_SignalParameterChange() const;
+	static bool IsValidParameterValue(float) { return true; }
+	static bool IsValidParameterValue(const FLinearColor&) { return true; }
+	static bool IsValidParameterValue(const UTexture* Value) { return Value != nullptr; }
+	static bool IsValidParameterValue(const URuntimeVirtualTexture* Value) { return Value != nullptr; }
 
 	/** The parent of the material instance. */
 	UMaterialInterface* Parent;

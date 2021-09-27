@@ -23,6 +23,9 @@ void VerifyGCAssumptions();
 /** Verifies GC Cluster assumptions */
 void VerifyClustersAssumptions();
 
+/** Verifies Object and Internal flag mirroring assumptions */
+void VerifyObjectFlagMirroring();
+
 #endif // VERIFY_DISREGARD_GC_ASSUMPTIONS
 
 

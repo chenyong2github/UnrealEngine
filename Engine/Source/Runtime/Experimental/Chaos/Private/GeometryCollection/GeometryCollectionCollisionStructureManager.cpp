@@ -291,8 +291,58 @@ FCollisionStructureManager::NewImplicitCapsule(
 	const float CollisionObjectReduction,
 	const ECollisionTypeEnum CollisionType)
 {
+	if (Length < SMALL_NUMBER)
+	{
+		// make a more optimized shape : sphere
+		return FCollisionStructureManager::NewImplicitSphere(Radius, CollisionObjectReduction, CollisionType);
+	}
+	
 	const Chaos::FReal HalfLength = (Chaos::FReal)Length * (Chaos::FReal)0.5;
 	Chaos::FImplicitObject* Implicit = new Chaos::FCapsule(Chaos::FVec3(0, 0, -HalfLength), Chaos::FVec3(0, 0, +HalfLength), Radius * (1 - CollisionObjectReduction / 100.f));
+	UpdateImplicitFlags(Implicit, CollisionType);
+	return Implicit;
+}
+
+FCollisionStructureManager::FImplicit*
+FCollisionStructureManager::NewImplicitCapsule(
+	const FBox& CollisionBounds,
+	const float CollisionObjectReduction,
+	const ECollisionTypeEnum CollisionType)
+{
+	const FVector BBoxCenter = CollisionBounds.GetCenter(); 
+	const FVector BBoxExtent = CollisionBounds.GetExtent(); // FBox's extents are 1/2 (Max - Min)
+	const Chaos::FReal XExtent = FMath::Abs(BBoxExtent.X);
+	const Chaos::FReal YExtent = FMath::Abs(BBoxExtent.Y);
+	const Chaos::FReal ZExtent = FMath::Abs(BBoxExtent.Z);
+	Chaos::FVec3 HalfLengthVector;
+
+	Chaos::FReal Radius = 0;
+	if (XExtent > YExtent && XExtent > ZExtent)
+	{
+		Radius = FMath::Min(YExtent, ZExtent);
+		HalfLengthVector = Chaos::FVec3((XExtent - Radius), 0, 0);
+	}
+	else if (YExtent > XExtent && YExtent > ZExtent)
+	{
+		Radius = FMath::Min(XExtent, ZExtent);
+		HalfLengthVector = Chaos::FVec3(0, (YExtent - Radius), 0);
+	}
+	else
+	{
+		Radius = FMath::Min(XExtent, YExtent);
+		HalfLengthVector = Chaos::FVec3(0, 0, (ZExtent - Radius));
+	}
+
+	if (HalfLengthVector.Size() < SMALL_NUMBER)
+	{
+		// make a more optimized shape : sphere
+		return FCollisionStructureManager::NewImplicitSphere(Radius, CollisionObjectReduction, CollisionType);
+	}
+
+	Chaos::FVec3 X1 = BBoxCenter - HalfLengthVector;
+	Chaos::FVec3 X2 = BBoxCenter + HalfLengthVector;
+
+	Chaos::FImplicitObject* Implicit = new Chaos::FCapsule(X1, X2, Radius * (1 - CollisionObjectReduction / 100.f));
 	UpdateImplicitFlags(Implicit, CollisionType);
 	return Implicit;
 }

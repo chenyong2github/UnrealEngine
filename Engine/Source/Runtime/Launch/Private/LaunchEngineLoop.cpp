@@ -5323,7 +5323,9 @@ void FEngineLoop::Tick()
 		// We split separate this action from the one above to permit running network replication concurrent with slate widget ticking and painting.
 		if (FSlateApplication::IsInitialized() && !bIdleMode)
 		{
+			FMoviePlayerProxy::SetIsSlateThreadAllowed(false);
 			FSlateApplication::Get().Tick(ESlateTickType::TimeAndWidgets);
+			FMoviePlayerProxy::SetIsSlateThreadAllowed(true);
 		}
 
 #if WITH_ENGINE

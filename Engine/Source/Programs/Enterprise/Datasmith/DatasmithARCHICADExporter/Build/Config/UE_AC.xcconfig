@@ -15,7 +15,7 @@ UE_INCLUDES_PATH = "$(UE_Core)" "$(UE_Core)/Internationalization" "$(UE_Core)/As
 
 USER_HEADER_SEARCH_PATHS = "." $(AC_INCLUDES_PATH) $(UE_INCLUDES_PATH)
 
-AUTO_SYNC = 0
+AUTO_SYNC = 1
 
 VMajor = 1
 VMinor = 0

@@ -160,11 +160,12 @@ void UConversationRegistry::Initialize(FSubsystemCollectionBase& Collection)
 
 void UConversationRegistry::Deinitialize()
 {
-	Super::Deinitialize();
-	if (GEngine->GetEngineSubsystem<UGameFeaturesSubsystem>()) 
+	if (UGameFeaturesSubsystem* GameFeaturesSubsystem = GEngine ? GEngine->GetEngineSubsystem<UGameFeaturesSubsystem>() : nullptr)
 	{
-		UGameFeaturesSubsystem::Get().RemoveObserver(this);
+		GameFeaturesSubsystem->RemoveObserver(this);
 	}
+
+	Super::Deinitialize();
 }
 
 void UConversationRegistry::GameFeatureStateModified()

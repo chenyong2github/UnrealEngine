@@ -313,6 +313,7 @@ class Localize : BuildCommand
 				EditorArguments += " -BuildMachine";
 			}
 			EditorArguments += " -Unattended";
+			EditorArguments += " -NoShaderCompile";
 			//EditorArguments += " -LogLocalizationConflicts";
 			if (EnableParallelGather)
 			{

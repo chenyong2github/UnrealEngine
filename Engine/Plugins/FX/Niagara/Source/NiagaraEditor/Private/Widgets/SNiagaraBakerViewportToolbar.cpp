@@ -114,6 +114,60 @@ TSharedRef<SWidget> SNiagaraBakerViewportToolbar::GenerateOptionsMenu() const
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ShowOptions", "Show Options"));
 	{
 		MenuBuilder.AddMenuEntry(
+			FText(LOCTEXT("AlphaBlend", "Alpha Blend")),
+			FText(LOCTEXT("AlphaBlendTooltip", "If we should use alpha blend or opaque to render previews.")),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda(
+					[WeakViewport=WeakViewport]()
+					{
+						if ( auto Viewport = WeakViewport.Pin() )
+						{
+							Viewport->SetAlphaBlendEnabled(!Viewport->IsAlphaBlendEnabled());
+						}
+					}
+				),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda(
+					[WeakViewport = WeakViewport]()
+					{
+						auto Viewport = WeakViewport.Pin();
+						return Viewport && Viewport->IsAlphaBlendEnabled();
+					}
+				)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			FText(LOCTEXT("Checkerboard", "Checkboard")),
+			FText(LOCTEXT("CheckerboardTooltip", "Should the background be a checkerboard or not.")),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda(
+					[WeakViewport=WeakViewport]()
+					{
+						if ( auto Viewport = WeakViewport.Pin() )
+						{
+							Viewport->SetCheckerboardEnabled(!Viewport->IsCheckerboardEnabled());
+						}
+					}
+				),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda(
+					[WeakViewport = WeakViewport]()
+					{
+						auto Viewport = WeakViewport.Pin();
+						return Viewport && Viewport->IsCheckerboardEnabled();
+					}
+				)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
 			FText(LOCTEXT("ShowInfoText", "Info Text")),
 			FText(LOCTEXT("ShowInfoTextTooltip", "When enabled information will be overlaid on each display.")),
 			FSlateIcon(),

@@ -4616,7 +4616,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			return EAsyncPackageState::TimeOut;
 		}
 	}
-
 	for (;;)
 	{
 		FPlatformMisc::PumpEssentialAppMessages();

@@ -378,7 +378,7 @@ namespace
 #endif
 		}
 
-		const FName NewName = MakeUniqueObjectName(ActorToDespawn->GetWorld(), ActorToDespawn->GetClass());
+		const FName NewName = MakeUniqueObjectName(ActorToDespawn->GetLevel(), ActorToDespawn->GetClass());
 		ActorToDespawn->Rename(*NewName.ToString(), nullptr, REN_NonTransactional);
 	}
 }
@@ -420,11 +420,9 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 		UObject* UncastWorld = PathToOwningWorldAsset.ResolveObject();
 		if (!UncastWorld)
 		{
-			UncastWorld = PathToOwningWorldAsset.TryLoad();
-		}
-		if (!ensure(UncastWorld))
-		{
-			UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to resolve world '%s'. The world should be loaded?"), *PathToOwningWorldAsset.ToString());
+			// Do not TryLoad. If the respective level is loaded, the world must already exist.
+			// User has most likely removed the level from the world. We don't want to load that level and modify it by accident. 
+			UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to resolve world '%s'"), *PathToOwningWorldAsset.ToString());
 			continue;
 		}
 

@@ -8,6 +8,7 @@
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
+#include "Containers/Queue.h"
 #include "Misc/DefaultValueHelper.h"
 
 

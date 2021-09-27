@@ -23,41 +23,62 @@ class SettingsDialog(QtCore.QObject):
         loader = QtUiTools.QUiLoader()
         self.ui = loader.load(os.path.join(RELATIVE_PATH, "ui/settings.ui"))
 
-        # Load qss file for dark styling
-        qss_file = os.path.join(RELATIVE_PATH, "ui/switchboard.qss")
-        with open(qss_file, "r") as styling:
-            self.ui.setStyleSheet(styling.read())
-
         self.ui.setWindowTitle("Settings")
 
         self.ui.finished.connect(self._on_finished)
 
         max_port = (1 << 16) - 1
-        self.ui.osc_server_port_line_edit.setValidator(QtGui.QIntValidator(0, max_port))
-        self.ui.osc_client_port_line_edit.setValidator(QtGui.QIntValidator(0, max_port))
+        self.ui.osc_server_port_line_edit.setValidator(
+            QtGui.QIntValidator(0, max_port))
+        self.ui.osc_client_port_line_edit.setValidator(
+            QtGui.QIntValidator(0, max_port))
 
         # Store the current config paths so we can warn about overwriting an
         # existing config.
         self._config_paths = config.list_config_paths()
         self.set_config_path(SETTINGS.CONFIG)
 
-        self.ui.config_path_line_edit.textChanged.connect(self.config_path_text_changed)
-        self.ui.uproject_browse_button.clicked.connect(self.uproject_browse_button_clicked)
-        self.ui.engine_dir_browse_button.clicked.connect(self.engine_dir_browse_button_clicked)
+        self.ui.config_path_line_edit.textChanged.connect(
+            self.config_path_text_changed)
+        self.ui.uproject_browse_button.clicked.connect(
+            self.uproject_browse_button_clicked)
+        self.ui.engine_dir_browse_button.clicked.connect(
+            self.engine_dir_browse_button_clicked)
 
         # update settings in CONFIG when they are changed in the SettingsDialog
-        self.ui.engine_dir_line_edit.editingFinished.connect(lambda widget=self.ui.engine_dir_line_edit: CONFIG.ENGINE_DIR.update_value(widget.text()))
-        self.ui.build_engine_checkbox.stateChanged.connect(lambda state: CONFIG.BUILD_ENGINE.update_value(True if state == QtCore.Qt.Checked else False))
-        self.ui.uproject_line_edit.editingFinished.connect(lambda widget=self.ui.uproject_line_edit: CONFIG.UPROJECT_PATH.update_value(widget.text()))
-        self.ui.map_path_line_edit.editingFinished.connect(lambda widget=self.ui.map_path_line_edit: CONFIG.MAPS_PATH.update_value(widget.text()))
-        self.ui.map_filter_line_edit.editingFinished.connect(lambda widget=self.ui.map_filter_line_edit: CONFIG.MAPS_FILTER.update_value(widget.text()))
+        self.ui.engine_dir_line_edit.editingFinished.connect(
+            lambda widget=self.ui.engine_dir_line_edit:
+                CONFIG.ENGINE_DIR.update_value(widget.text()))
+        self.ui.build_engine_checkbox.stateChanged.connect(
+            lambda state:
+                CONFIG.BUILD_ENGINE.update_value(
+                    True if state == QtCore.Qt.Checked else False))
+        self.ui.uproject_line_edit.editingFinished.connect(
+            lambda widget=self.ui.uproject_line_edit:
+                CONFIG.UPROJECT_PATH.update_value(widget.text()))
+        self.ui.map_path_line_edit.editingFinished.connect(
+            lambda widget=self.ui.map_path_line_edit:
+                CONFIG.MAPS_PATH.update_value(widget.text()))
+        self.ui.map_filter_line_edit.editingFinished.connect(
+            lambda widget=self.ui.map_filter_line_edit:
+                CONFIG.MAPS_FILTER.update_value(widget.text()))
 
-        self.ui.osc_server_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_server_port_line_edit: CONFIG.OSC_SERVER_PORT.update_value(int(widget.text())))
-        self.ui.osc_client_port_line_edit.editingFinished.connect(lambda widget=self.ui.osc_client_port_line_edit: CONFIG.OSC_CLIENT_PORT.update_value(int(widget.text())))
+        self.ui.osc_server_port_line_edit.editingFinished.connect(
+            lambda widget=self.ui.osc_server_port_line_edit:
+                CONFIG.OSC_SERVER_PORT.update_value(int(widget.text())))
+        self.ui.osc_client_port_line_edit.editingFinished.connect(
+            lambda widget=self.ui.osc_client_port_line_edit:
+                CONFIG.OSC_CLIENT_PORT.update_value(int(widget.text())))
 
-        self.ui.p4_project_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_project_path_line_edit: CONFIG.P4_PROJECT_PATH.update_value(widget.text()))
-        self.ui.p4_engine_path_line_edit.editingFinished.connect(lambda widget=self.ui.p4_engine_path_line_edit: CONFIG.P4_ENGINE_PATH.update_value(widget.text()))
-        self.ui.source_control_workspace_line_edit.editingFinished.connect(lambda widget=self.ui.source_control_workspace_line_edit: CONFIG.SOURCE_CONTROL_WORKSPACE.update_value(widget.text()))
+        self.ui.p4_project_path_line_edit.editingFinished.connect(
+            lambda widget=self.ui.p4_project_path_line_edit:
+                CONFIG.P4_PROJECT_PATH.update_value(widget.text()))
+        self.ui.p4_engine_path_line_edit.editingFinished.connect(
+            lambda widget=self.ui.p4_engine_path_line_edit:
+                CONFIG.P4_ENGINE_PATH.update_value(widget.text()))
+        self.ui.source_control_workspace_line_edit.editingFinished.connect(
+            lambda widget=self.ui.source_control_workspace_line_edit:
+                CONFIG.SOURCE_CONTROL_WORKSPACE.update_value(widget.text()))
 
         self._device_groupbox = {}
 
@@ -72,7 +93,8 @@ class SettingsDialog(QtCore.QObject):
             # Show the confirmation dialog using a relative path to the config.
             rel_config_path = config.get_relative_config_path(
                 self._changed_config_path)
-            reply = QtWidgets.QMessageBox.question(self.ui, 'Confirm Overwrite',
+            reply = QtWidgets.QMessageBox.question(
+                self.ui, 'Confirm Overwrite',
                 ('Are you sure you would like to change the config path and '
                  f'overwrite the existing config file "{rel_config_path}"?'),
                 QtWidgets.QMessageBox.Yes, QtWidgets.QMessageBox.No)
@@ -120,7 +142,8 @@ class SettingsDialog(QtCore.QObject):
         self._changed_config_path = config_path
 
     def uproject_browse_button_clicked(self):
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self.ui, filter='*.uproject')
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(
+            parent=self.ui, filter='*.uproject')
         if file_name:
             file_name = os.path.normpath(file_name)
             self.set_uproject(file_name)
@@ -222,6 +245,12 @@ class SettingsDialog(QtCore.QObject):
     def set_mu_server_name(self, value):
         self.ui.mu_server_name_line_edit.setText(value)
 
+    def mu_server_endpoint(self):
+        return self.ui.mu_server_endpoint_line_edit.text()
+
+    def set_mu_server_endpoint(self, endpoint):
+        self.ui.mu_server_endpoint_line_edit.setText(str(endpoint))
+
     def mu_cmd_line_args(self):
         return self.ui.mu_cmd_line_args_line_edit.text()
 
@@ -258,14 +287,24 @@ class SettingsDialog(QtCore.QObject):
     def set_mu_server_auto_build(self, value: bool):
         self.ui.muserver_auto_build_check_box.setChecked(value)
 
+    def mu_server_auto_endpoint(self) -> bool:
+        return self.ui.muserver_auto_endpoint_check_box.isChecked()
+
+    def set_mu_server_auto_endpoint(self, value: bool):
+        self.ui.muserver_auto_endpoint_check_box.setChecked(value)
+
     # Devices
-    def add_section_for_plugin(self, plugin_name, plugin_settings, device_settings):
-        any_device_settings = any([device[1] for device in device_settings]) or any([device[2] for device in device_settings])
+    def add_section_for_plugin(
+            self, plugin_name, plugin_settings, device_settings):
+        any_device_settings = (
+            any([device[1] for device in device_settings]) or
+            any([device[2] for device in device_settings]))
         if not any_device_settings:
-            return # no settings to show
+            return  # no settings to show
 
         # Create a group box per plugin
-        device_override_group_box = self._device_groupbox.setdefault(plugin_name, QtWidgets.QGroupBox())
+        device_override_group_box = self._device_groupbox.setdefault(
+            plugin_name, QtWidgets.QGroupBox())
         if device_override_group_box.parent() is None:
             device_override_group_box.setTitle(f'{plugin_name} Settings')
             device_override_group_box.setLayout(QtWidgets.QVBoxLayout())
@@ -276,19 +315,7 @@ class SettingsDialog(QtCore.QObject):
 
         # add widgets for settings shared by all devices of a plugin
         for setting in plugin_settings:
-            if not setting.show_ui:
-                continue
-
-            value_type = type(setting.get_value())
-
-            if value_type is list:
-                self.create_device_setting_multiselect_combobox(setting, plugin_layout)
-            elif len(setting.possible_values) > 0:
-                self.create_device_setting_combobox(setting, plugin_layout)
-            elif value_type in [str, int]:
-                self.create_device_setting_line_edit(setting, plugin_layout)
-            elif value_type == bool:
-                self.create_device_setting_checkbox(setting, plugin_layout)
+            setting.create_ui(form_layout=plugin_layout)
 
         # add widgets for settings and overrides of individual devices
         for device_name, settings, overrides in device_settings:
@@ -303,234 +330,8 @@ class SettingsDialog(QtCore.QObject):
 
             # regular "instance" settings
             for setting in settings:
-                if not setting.show_ui:
-                    continue
-
-                value_type = type(setting.get_value(device_name))
-
-                if value_type is list:
-                    self.create_device_setting_multiselect_combobox(setting, layout)
-                elif len(setting.possible_values) > 0:
-                    self.create_device_setting_combobox(setting, layout)
-                elif value_type in [str, int]:
-                    self.create_device_setting_line_edit(setting, layout)
-                elif value_type == bool:
-                    self.create_device_setting_checkbox(setting, layout)
+                setting.create_ui(form_layout=layout)
 
             for setting in overrides:
-                if not setting.show_ui:
-                    continue
-
-                value_type = type(setting.get_value(device_name))
-
-                if value_type in [str, int]:
-                    self.create_device_setting_override_line_edit(setting, device_name, layout)
-                elif value_type == bool:
-                    self.create_device_setting_override_checkbox(setting, device_name, layout)
-
-    def create_device_setting_multiselect_combobox(self, setting, layout):
-        label = QtWidgets.QLabel()
-        label.setText(setting.nice_name)
-
-        combo = sb_widgets.MultiSelectionComboBox()
-        selected_values = setting.get_value()
-        possible_values = setting.possible_values if len(setting.possible_values) > 0 else selected_values
-        combo.add_items(selected_values, possible_values)
-
-        layout.addRow(label, combo)
-
-        if setting.tool_tip:
-            label.setToolTip(setting.tool_tip)
-            combo.setToolTip(setting.tool_tip)
-
-        combo.signal_selection_changed.connect(lambda entries, setting=setting: setting.update_value(entries))
-
-    def create_device_setting_combobox(self, setting, layout):
-        label = QtWidgets.QLabel()
-        label.setText(setting.nice_name)
-
-        combo = sb_widgets.NonScrollableComboBox()
-
-        for value in setting.possible_values:
-            combo.addItem(str(value), value)
-
-        combo.setCurrentIndex(combo.findData(setting.get_value()))
-
-        # update the widget if the setting changes, but only when the value is actually different (to avoid endless recursion)
-        # this is useful for settings that will change their value based on the input of the widget of another setting
-        def on_setting_changed(new_value, combo):
-            if combo.currentText() != new_value:
-                combo.setCurrentIndex(combo.findText(new_value))
-        setting.signal_setting_changed.connect(lambda old, new, widget=combo: on_setting_changed(new, widget))
-
-        layout.addRow(label, combo)
-
-        if setting.tool_tip:
-            label.setToolTip(setting.tool_tip)
-            combo.setToolTip(setting.tool_tip)
-
-        combo.currentTextChanged.connect(lambda text, setting=setting: setting.update_value(text))
-
-    _str_attr_path_filters = {
-        'ndisplay_cfg_file': 'nDisplay Config (*.ndisplay;*.uasset)',
-        'executable_filename': 'Programs (*.exe;*.bat)'
-    }
-    def path_filter_for_setting(self, setting):
-        return self._str_attr_path_filters.get(setting.attr_name)
-
-    def add_browse_button(self, layout, setting, filter_str):
-        browse_btn = QtWidgets.QPushButton('Browse')
-        layout.addWidget(browse_btn)
-
-        def browse_clicked():
-            start_path = str(pathlib.Path.home())
-            if SETTINGS.LAST_BROWSED_PATH and os.path.exists(SETTINGS.LAST_BROWSED_PATH):
-                start_path = SETTINGS.LAST_BROWSED_PATH
-
-            file_path, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self.ui, dir=start_path, filter=filter_str)
-            if len(file_path) > 0 and os.path.exists(file_path):
-                file_path = os.path.normpath(file_path)
-                setting.update_value(file_path)
-                SETTINGS.LAST_BROWSED_PATH = os.path.dirname(file_path)
-                SETTINGS.save()
-
-        browse_btn.clicked.connect(browse_clicked)
-
-    def create_device_setting_line_edit(self, setting, layout):
-        edit_layout = QtWidgets.QHBoxLayout()
-        label = QtWidgets.QLabel(setting.nice_name)
-        line_edit = QtWidgets.QLineEdit()
-
-        value = setting.get_value()
-        value_type = type(value)
-
-        if value_type == int:
-            value = str(value)
-
-        line_edit.setText(value)
-        line_edit.setCursorPosition(0)
-        edit_layout.addWidget(line_edit)
-        layout.addRow(label, edit_layout)
-
-        if setting.tool_tip:
-            label.setToolTip(setting.tool_tip)
-            line_edit.setToolTip(setting.tool_tip)
-
-        if value_type == str:
-            line_edit.editingFinished.connect(lambda field=line_edit, setting=setting: setting.update_value(field.text()))
-
-            # If this setting is recognized as a path, add a "Browse" button.
-            path_filter = self.path_filter_for_setting(setting)
-            if path_filter:
-                self.add_browse_button(edit_layout, setting, path_filter)
-
-        elif value_type == int:
-            def le_int_editingFinished(field, setting):
-                try:
-                    text = field.text()
-                    setting.update_value(int(text))
-                except ValueError:
-                    field.setText(str(setting.get_value()))
-
-            line_edit.editingFinished.connect(lambda field=line_edit, setting=setting : le_int_editingFinished(field=line_edit, setting=setting))
-
-        def on_setting_changed(new_value, line_edit):
-            if line_edit.text() != new_value:
-                line_edit.setText(str(new_value))
-                line_edit.setCursorPosition(0)
-
-        setting.signal_setting_changed.connect(lambda old, new, widget=line_edit: on_setting_changed(new, widget))
-
-    def create_device_setting_checkbox(self, setting, layout):
-        check_box = QtWidgets.QCheckBox()
-        check_box.setChecked(setting.get_value())
-        layout.addRow(f"{setting.nice_name}", check_box)
-
-        if setting.tool_tip:
-            check_box.setToolTip(setting.tool_tip)
-
-        check_box.stateChanged.connect(lambda state, setting=setting: setting.update_value(bool(state)))
-
-    def create_device_setting_override_line_edit(self, setting, device_name, layout):
-        label = QtWidgets.QLabel()
-        label.setText(setting.nice_name)
-        line_edit = QtWidgets.QLineEdit()
-
-        if setting.is_overriden(device_name):
-            sb_widgets.set_qt_property(line_edit, "override", True)
-
-        value = setting.get_value(device_name)
-        line_edit.setText(str(value))
-        line_edit.setCursorPosition(0)
-        layout.addRow(label, line_edit)
-
-        if setting.tool_tip:
-            label.setToolTip(setting.tool_tip)
-            line_edit.setToolTip(setting.tool_tip)
-
-        line_edit.editingFinished.connect(lambda field=line_edit, setting=setting, device_name=device_name: self._on_line_edit_override_editingFinished(field, setting, device_name))
-
-        def on_base_value_changed(setting, device_name, line_edit):
-            new_base_value = setting.get_value()
-            if not setting.is_overriden(device_name):
-                line_edit.setText(str(new_base_value))
-                line_edit.setCursorPosition(0)
-                if new_base_value == setting.get_value(device_name):
-                    # if the setting was overriden but the new base value happens to be the same as the override we can remove the override
-                    sb_widgets.set_qt_property(line_edit, "override", False)
-                    setting.remove_override(device_name)
-
-        setting.signal_setting_changed.connect(lambda old, new, setting=setting, device_name=device_name, widget=line_edit: on_base_value_changed(setting, device_name, widget))
-
-    def _on_line_edit_override_editingFinished(self, widget, setting, device_name):
-        old_value = setting.get_value(device_name)
-        new_value = widget.text()
-
-        if type(old_value) == int:
-            try:
-                new_value = int(new_value)
-            except ValueError:
-                new_value = setting._original_value
-
-        if new_value != old_value:
-            setting.override_value(device_name, new_value)
-
-        if setting.is_overriden(device_name):
-            sb_widgets.set_qt_property(widget, "override", True)
-        else:
-            sb_widgets.set_qt_property(widget, "override", False)
-            setting.remove_override(device_name)
-
-    def create_device_setting_override_checkbox(self, setting, device_name, layout):
-        check_box = QtWidgets.QCheckBox()
-        check_box.setChecked(setting.get_value(device_name))
-
-        if setting.is_overriden(device_name):
-            sb_widgets.set_qt_property(check_box, "override", True)
-
-        layout.addRow(f"{setting.nice_name}", check_box)
-
-        if setting.tool_tip:
-            check_box.setToolTip(setting.tool_tip)
-
-        check_box.stateChanged.connect(lambda state, widget=check_box, setting=setting, device_name=device_name: self._on_checkbox_override_stateChanged(widget, setting, device_name))
-
-        def on_base_value_changed(new_value, check_box):
-            check_box.setChecked(new_value)
-            # reset checkbox override state, as the checkbox has only two states there is no override anymore when the base value changes
-            sb_widgets.set_qt_property(check_box, "override", False)
-            setting.remove_override(device_name)
-
-        setting.signal_setting_changed.connect(lambda old, new, widget=check_box: on_base_value_changed(new, widget))
-
-    def _on_checkbox_override_stateChanged(self, widget, setting, device_name):
-        old_value = setting.get_value(device_name)
-        new_value = bool(widget.checkState())
-        if new_value != old_value:
-            setting.override_value(device_name, new_value)
-
-        if setting.is_overriden(device_name):
-            sb_widgets.set_qt_property(widget, "override", True)
-        else:
-            sb_widgets.set_qt_property(widget, "override", False)
-            setting.remove_override(device_name)
+                setting.create_ui(
+                    form_layout=layout, override_device_name=device_name)

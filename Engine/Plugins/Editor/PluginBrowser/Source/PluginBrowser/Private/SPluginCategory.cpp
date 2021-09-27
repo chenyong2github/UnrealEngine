@@ -12,7 +12,7 @@
 #define LOCTEXT_NAMESPACE "PluginCategoryTreeItem"
 
 
-void SPluginCategory::Construct(const FArguments& Args, const TSharedRef<FPluginCategory>& InCategory)
+void SPluginCategory::Construct(const FArguments& Args, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedRef<FPluginCategory>& InCategory)
 {
 	Category = InCategory;
 
@@ -21,16 +21,18 @@ void SPluginCategory::Construct(const FArguments& Args, const TSharedRef<FPlugin
 
 	// Figure out which font size to use
 	const auto bIsRootItem = !Category->ParentCategory.IsValid();
+	const auto bIsAllPlugins = bIsRootItem && !Category->SubCategories.Num();
 
 	auto PluginCountLambda = [&]() -> FText {
-		return FText::Format(LOCTEXT("NumberOfPluginsWrapper", "({0})"), FText::AsNumber(Category->Plugins.Num()));
+		return FText::Format(LOCTEXT("NumberOfPluginsWrapper", "{0}"), FText::AsNumber(Category->Plugins.Num()));
 	};
 
-	ChildSlot
-	[ 
+	FName BorderPadding = (bIsRootItem ? (bIsAllPlugins ? "CategoryTreeItem.Root.AllPluginsBackgroundPadding" : "CategoryTreeItem.Root.BackgroundPadding") : "CategoryTreeItem.BackgroundPadding");
+
+	TSharedRef<SWidget> WidgetContent = 
 		SNew( SBorder )
 		.BorderImage( FPluginStyle::Get()->GetBrush(bIsRootItem ? "CategoryTreeItem.Root.BackgroundBrush" : "CategoryTreeItem.BackgroundBrush") )
-		.Padding(FPluginStyle::Get()->GetMargin(bIsRootItem ? "CategoryTreeItem.Root.BackgroundPadding" : "CategoryTreeItem.BackgroundPadding") )
+		.Padding(FPluginStyle::Get()->GetMargin(BorderPadding) )
 		[
 			SNew( SHorizontalBox )
 
@@ -62,7 +64,7 @@ void SPluginCategory::Construct(const FArguments& Args, const TSharedRef<FPlugin
 			// Plugin count
 			+SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding( PaddingAmount )
+			.Padding( PaddingAmount, PaddingAmount, PaddingAmount + 8.f, PaddingAmount) // Extra padding on the right
 			.VAlign(VAlign_Center)
 			[
 				SNew( STextBlock )
@@ -73,24 +75,45 @@ void SPluginCategory::Construct(const FArguments& Args, const TSharedRef<FPlugin
 				.Text_Lambda( PluginCountLambda )
 				.TextStyle( FPluginStyle::Get(), bIsRootItem ? "CategoryTreeItem.Root.PluginCountText" : "CategoryTreeItem.PluginCountText" )
 			]
+		];
+
+	this->ChildSlot
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Fill)
+		[
+			SNew(SExpanderArrow, SharedThis(this) )
+			.IndentAmount(0)
+		]
+
+		+ SHorizontalBox::Slot()
+		.FillWidth(1)
+		[
+			WidgetContent
 		]
 	];
+
+	STableRow< TSharedPtr<FPluginCategory> >::ConstructInternal(
+		STableRow::FArguments().Style(&FAppStyle::Get(), "SimpleTableView.Row")
+		.ShowSelection(true),
+		InOwnerTableView
+		);
 }
 
 
 const FSlateBrush* SPluginCategory::GetIconBrush() const
 {
-	if(Category->ParentCategory.IsValid())
+	if(Category->Name == TEXT("All"))
 	{
-		return FPluginStyle::Get()->GetBrush( "CategoryTreeItem.LeafItemWithPlugin" );
-	}
-	else if (Category->Name == TEXT("Installed"))
-	{
-		return FPluginStyle::Get()->GetBrush( "CategoryTreeItem.Installed");
+		return FPluginStyle::Get()->GetBrush("Plugins.TabIcon");
 	}
 	else
 	{
-		return FPluginStyle::Get()->GetBrush( "CategoryTreeItem.BuiltIn" );
+		return nullptr;
 	}
 }
 

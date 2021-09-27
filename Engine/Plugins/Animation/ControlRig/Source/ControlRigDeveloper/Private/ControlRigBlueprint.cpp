@@ -1303,29 +1303,6 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 		}
 		return FRigVMController_BulkEditResult();
 	});
-
-	Controller->RequestNewExternalVariableDelegate.BindLambda([WeakThis](FRigVMGraphVariableDescription InVariable, bool bInIsPublic, bool bInIsReadOnly) -> FName
-	{
-		if (WeakThis.IsValid())
-		{
-			for (FBPVariableDescription& ExistingVariable : WeakThis->NewVariables)
-			{
-				if (ExistingVariable.VarName == InVariable.Name)
-				{
-					return FName();
-				}
-			}
-
-			FRigVMExternalVariable ExternalVariable = InVariable.ToExternalVariable();
-			return WeakThis->AddMemberVariable(InVariable.Name,
-				ExternalVariable.TypeObject ? ExternalVariable.TypeObject->GetPathName() : ExternalVariable.TypeName.ToString(),
-				bInIsPublic,
-				bInIsReadOnly,
-				InVariable.DefaultValue);
-		}
-		
-		return FName();
-	});
 	
 #endif
 
@@ -1812,7 +1789,6 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 				return;
 			}
 
-			Status = BS_Dirty;
 			PropagateHierarchyFromBPToInstances();
 
 			// make sure the bone name list is up 2 date for the editor graph

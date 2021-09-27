@@ -158,7 +158,7 @@ static inline FSHAHash GetShaderHashForStage(const FGraphicsPipelineStateInitial
 	case ShaderStage::Vertex:		return GetShaderHash<FRHIVertexShader, FVulkanVertexShader>(PSOInitializer.BoundShaderState.VertexShaderRHI);
 	case ShaderStage::Pixel:		return GetShaderHash<FRHIPixelShader, FVulkanPixelShader>(PSOInitializer.BoundShaderState.PixelShaderRHI);
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
-	case ShaderStage::Geometry:		return GetShaderHash<FRHIGeometryShader, FVulkanGeometryShader>(PSOInitializer.BoundShaderState.GeometryShaderRHI);
+	case ShaderStage::Geometry:		return GetShaderHash<FRHIGeometryShader, FVulkanGeometryShader>(PSOInitializer.BoundShaderState.GetGeometryShader());
 #endif
 	default:			check(0);	break;
 	}
@@ -205,7 +205,7 @@ FVulkanComputePipeline::~FVulkanComputePipeline()
 	{
 		ComputeShader->Release();
 	}
-
+	
 	DEC_DWORD_STAT(STAT_VulkanNumComputePSOs);
 }
 
@@ -1357,7 +1357,7 @@ FVulkanShaderHashes::FVulkanShaderHashes(const FGraphicsPipelineStateInitializer
 	Stages[ShaderStage::Vertex] = GetShaderHash<FRHIVertexShader, FVulkanVertexShader>(PSOInitializer.BoundShaderState.VertexShaderRHI);
 	Stages[ShaderStage::Pixel] = GetShaderHash<FRHIPixelShader, FVulkanPixelShader>(PSOInitializer.BoundShaderState.PixelShaderRHI);
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
-	Stages[ShaderStage::Geometry] = GetShaderHash<FRHIGeometryShader, FVulkanGeometryShader>(PSOInitializer.BoundShaderState.GeometryShaderRHI);
+	Stages[ShaderStage::Geometry] = GetShaderHash<FRHIGeometryShader, FVulkanGeometryShader>(PSOInitializer.BoundShaderState.GetGeometryShader());
 #endif
 	Finalize();
 }
@@ -1644,7 +1644,7 @@ FVulkanRHIGraphicsPipelineState::FVulkanRHIGraphicsPipelineState(FVulkanDevice* 
 	FMemory::Memset(VulkanShaders, 0, sizeof(VulkanShaders));
 	VulkanShaders[ShaderStage::Vertex] = static_cast<FVulkanVertexShader*>(PSOInitializer_.BoundShaderState.VertexShaderRHI);
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	VulkanShaders[ShaderStage::Geometry] = static_cast<FVulkanGeometryShader*>(PSOInitializer_.BoundShaderState.GeometryShaderRHI);
+	VulkanShaders[ShaderStage::Geometry] = static_cast<FVulkanGeometryShader*>(PSOInitializer_.BoundShaderState.GetGeometryShader());
 #endif
 	VulkanShaders[ShaderStage::Pixel] = static_cast<FVulkanPixelShader*>(PSOInitializer_.BoundShaderState.PixelShaderRHI);
 
@@ -2049,16 +2049,14 @@ void GetVulkanShaders(const FBoundShaderStateInput& BSI, FVulkanShader* OutShade
 		OutShaders[ShaderStage::Pixel] = ResourceCast(BSI.PixelShaderRHI);
 	}
 
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	if (BSI.GeometryShaderRHI)
+	if (BSI.GetGeometryShader())
 	{
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
-		OutShaders[ShaderStage::Geometry] = ResourceCast(BSI.GeometryShaderRHI);
+		OutShaders[ShaderStage::Geometry] = ResourceCast(BSI.GetGeometryShader());
 #else
 		ensureMsgf(0, TEXT("Geometry not supported!"));
 #endif
 	}
-#endif
 }
 
 void GetVulkanShaders(FVulkanDevice* Device, const FVulkanRHIGraphicsPipelineState& GfxPipelineState, FVulkanShader* OutShaders[ShaderStage::NumStages])

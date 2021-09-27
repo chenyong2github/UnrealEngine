@@ -1,0 +1,184 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CookedEditorPackageManager.h"
+#include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
+#include "AssetRegistryModule.h"
+#include "IAssetRegistry.h"
+#include "AssetRegistryModule.h"
+#include "Engine/AssetManager.h"
+#include "GameDelegates.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogCookedEditorTargetPlatform, Log, All)
+
+
+
+
+TUniquePtr<ICookedEditorPackageManager> ICookedEditorPackageManager::FactoryForTargetPlatform(ITargetPlatform* TP)
+{
+	if (FGameDelegates::Get().GetCookedEditorPackageManagerFactoryDelegate().IsBound())
+	{
+		return FGameDelegates::Get().GetCookedEditorPackageManagerFactoryDelegate().Execute();
+	}
+	return TUniquePtr<ICookedEditorPackageManager>(new FIniCookedEditorPackageManager);
+}
+
+
+
+void ICookedEditorPackageManager::AddPackagesFromPath(TArray<FName>& Packages, const TCHAR* Path, EPackageSearchMode SearchMode) const
+{
+	UAssetManager& AssetManager = UAssetManager::Get();
+	IAssetRegistry& AssetRegistry = AssetManager.GetAssetRegistry();
+
+	TArray<FAssetData> AssetDatas;
+	// look up the path in the asset registry, so we can use it to make sure the asset can be cooked
+	AssetRegistry.GetAssetsByPath(Path, AssetDatas, SearchMode == EPackageSearchMode::Recurse, true);
+	for (const FAssetData& AssetData : AssetDatas)
+	{
+		if (AssetData.IsUAsset() && AssetManager.VerifyCanCookPackage(AssetData.PackageName, false))
+		{
+			if (AllowAssetToBeGathered(AssetData))
+			{
+				Packages.Add(AssetData.PackageName);
+				UE_LOG(LogCookedEditorTargetPlatform, Verbose, TEXT("  Adding asset %s to be cooked"), *AssetData.PackageName.ToString());
+			}
+		}
+		else
+		{
+			UE_LOG(LogCookedEditorTargetPlatform, Verbose, TEXT("  skipping asset package %s"), *AssetData.PackageName.ToString());
+		}
+	}
+}
+
+void ICookedEditorPackageManager::GatherAllPackages(TArray<FName>& PackageNames) const
+{
+	GetEnginePackagesToCook(PackageNames);
+	GetProjectPackagesToCook(PackageNames);
+
+	TArray<FString> CookedEditorDisabledPluginsArray;
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisabledPlugins"), CookedEditorDisabledPluginsArray, GGameIni);
+
+	// copy to set for faster contains calls
+	TSet<FString> CookedEditorDisabledPlugins;
+	CookedEditorDisabledPlugins.Append(CookedEditorDisabledPluginsArray);
+
+	// walk over plugins and cook their content
+	for (TSharedRef<IPlugin> Plugin : IPluginManager::Get().GetEnabledPluginsWithContent())
+	{
+		if (!CookedEditorDisabledPlugins.Contains(Plugin->GetName()))
+		{
+			// check if this engine or project plugin shuold be cooked
+			bool bShouldCook = (Plugin->GetLoadedFrom() == EPluginLoadedFrom::Engine) ? AllowEnginePluginContentToBeCooked(Plugin) :
+				AllowProjectPluginContentToBeCooked(Plugin);
+
+			if (bShouldCook)
+			{
+				UE_LOG(LogCookedEditorTargetPlatform, Display, TEXT("Adding enabled plugin with content: %s"), *Plugin->GetName());
+//				AddPackagesFromPath(PackageNames, *FString::Printf(TEXT("/%s"), *Plugin->GetName()), EPackageSearchMode::Recurse);
+				AddPackagesFromPath(PackageNames, *Plugin->GetMountedAssetPath(), EPackageSearchMode::Recurse);
+				
+			}
+		}
+	}
+}
+
+
+
+FIniCookedEditorPackageManager::FIniCookedEditorPackageManager()
+{
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("EngineAssetPaths"), EngineAssetPaths, GGameIni);
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("ProjectAssetPaths"), ProjectAssetPaths, GGameIni);
+
+	TArray<FString> DisallowedObjectClassNamesToLoad;
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisallowedObjectClassesToLoad"), DisallowedObjectClassNamesToLoad, GGameIni);
+	for (const FString& ClassName : DisallowedObjectClassNamesToLoad)
+	{
+		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+		check(Class);
+
+		DisallowedObjectClassesToLoad.Add(Class);
+	}
+
+	TArray<FString> DisallowedAssetClassNamesToGather;
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("DisallowedAssetClassesToGather"), DisallowedAssetClassNamesToGather, GGameIni);
+	for (const FString& ClassName : DisallowedAssetClassNamesToGather)
+	{
+		UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+		check(Class);
+
+		DisallowedAssetClassesToGather.Add(Class);
+	}
+}
+
+
+void FIniCookedEditorPackageManager::GetEnginePackagesToCook(TArray<FName>& PackagesToCook) const
+{
+	for (const FString& Path : EngineAssetPaths)
+	{
+		AddPackagesFromPath(PackagesToCook, *Path, EPackageSearchMode::Recurse);
+	}
+
+
+	TArray<FString> SpecificAssets;
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("EngineSpecificAssetsToCook"), SpecificAssets, GGameIni);
+	PackagesToCook.Append(SpecificAssets);
+}
+
+void FIniCookedEditorPackageManager::GetProjectPackagesToCook(TArray<FName>& PackagesToCook) const
+{
+	for (const FString& Path : ProjectAssetPaths)
+	{
+		AddPackagesFromPath(PackagesToCook, *Path, EPackageSearchMode::Recurse);
+	}
+
+	// make sure editor startup map is cooked
+	FString EditorStartupMap;
+	if (GConfig->GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("EditorStartupMap"), EditorStartupMap, GEngineIni))
+	{
+		PackagesToCook.Add(*EditorStartupMap);
+	}
+
+
+	// specific assets to cook
+	TArray<FString> SpecificAssets;
+	GConfig->GetArray(TEXT("CookedEditorSettings"), TEXT("ProjectSpecificAssetsToCook"), SpecificAssets, GGameIni);
+	PackagesToCook.Append(SpecificAssets);
+}
+
+bool FIniCookedEditorPackageManager::AllowObjectToBeCooked(const class UObject* Obj) const
+{
+	for (UClass* Class : DisallowedObjectClassesToLoad)
+	{
+		if (Obj->IsA(Class))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool FIniCookedEditorPackageManager::AllowAssetToBeGathered(const struct FAssetData& AssetData) const
+{
+	for (UClass* Class : DisallowedAssetClassesToGather)
+	{
+		if (AssetData.GetClass()->IsChildOf(Class))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FIniCookedEditorPackageManager::AllowEnginePluginContentToBeCooked(const TSharedRef<IPlugin>) const
+{
+	return true;
+}
+
+bool FIniCookedEditorPackageManager::AllowProjectPluginContentToBeCooked(const TSharedRef<IPlugin>) const
+{
+	return true;
+}
+
+
+

@@ -406,6 +406,7 @@ public class MacPlatform : Platform
 			IProcessResult CommandResult = Run("otool", "-l \"" + ExePath + "\"", null, ERunOptions.None);
 			if (CommandResult.ExitCode == 0)
 			{
+				bool bModifiedWithInstallNameTool = false;
 				StringReader Reader = new StringReader(CommandResult.Output);
 				Regex RPathPattern = new Regex(@"^\s+path (?<rpath>.+)\s\(offset");
 				string ToRemovePattern = Params.CreateAppBundle ? "/../../../" : "@loader_path/../UE4/";
@@ -423,10 +424,18 @@ public class MacPlatform : Platform
 							string RPath = RPathMatch.Groups["rpath"].Value;
 							if (RPath.Contains(ToRemovePattern))
 							{
-								Run("xcrun", "install_name_tool -delete_rpath \"" + RPath + "\" \"" + ExePath + "\"", null, ERunOptions.None);
+								Run("xcrun", "install_name_tool -delete_rpath \"" + RPath + "\" \"" + ExePath + "\"", null, ERunOptions.NoStdOutCapture);
+								bModifiedWithInstallNameTool = true;
 							}
 						}
 					}
+				}
+
+				// Now re-sign the exectuables if they were previously signed during staging. Modifying the binaries
+				// via install_name_tool _after_ signing them invalidates the signature.
+				if (bModifiedWithInstallNameTool && (Params.bCodeSign && !Params.SkipStage))
+				{
+					SC.StageTargetPlatform.SignExecutables(SC, Params);
 				}
 			}
 		}

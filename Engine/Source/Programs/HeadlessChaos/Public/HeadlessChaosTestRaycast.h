@@ -17,6 +17,10 @@ namespace ChaosTest {
 
 	void CapsuleRaycast();
 
+	void CapsuleRaycastFastLargeDistance();
+
+	void CapsuleRaycastMissWithEndPointOnBounds();
+
 	void TriangleRaycast();
 
 	void BoxRaycast();

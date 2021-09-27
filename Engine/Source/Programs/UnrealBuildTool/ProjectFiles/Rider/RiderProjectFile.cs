@@ -568,6 +568,28 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteValue(Name, (double) Field.Item2);
 			}
+			else if (Field.Item2 is CppStandardVersion version)
+			{
+				// Do not use version.ToString(). See: https://youtrack.jetbrains.com/issue/RIDER-68030
+				switch (version)
+				{
+					case CppStandardVersion.Cpp14:
+						Writer.WriteValue(Name, "Cpp14");
+						break;
+					case CppStandardVersion.Cpp17:
+						Writer.WriteValue(Name, "Cpp17");
+						break;
+					case CppStandardVersion.Cpp20:
+						Writer.WriteValue(Name, "Cpp20");
+						break;
+					case CppStandardVersion.Latest:
+						Writer.WriteValue(Name, "Latest");
+						break;
+					default:
+						Log.TraceError("Unsupported C++ standard type: {0}", version);
+						break;
+				}
+			}
 			else if (Field.Item2 is Enum)
 			{
 				Writer.WriteValue(Name, Field.Item2.ToString());

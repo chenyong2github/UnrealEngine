@@ -1,21 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelEditorSubsystem.h"
-#include "LevelEditor.h"
-#include "IAssetViewport.h"
-#include "SLevelViewport.h"
-#include "UnrealEdGlobals.h"
+
+#include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Subsystems/UnrealEditorSubsystem.h"
-#include "FileHelpers.h"
-#include "Engine/MapBuildDataRegistry.h"
 #include "EditorScriptingHelpers.h"
-#include "LevelEditor.h"
-#include "Modules/ModuleManager.h"
-#include "ToolMenus.h"
-#include "LevelEditorMenuContext.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Engine/MapBuildDataRegistry.h"
+#include "FileHelpers.h"
+#include "IAssetViewport.h"
+#include "LevelEditor.h"
+#include "LevelEditor.h"
+#include "LevelEditorMenuContext.h"
+#include "Modules/ModuleManager.h"
+#include "SLevelViewport.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
 #include "ToolMenuDelegates.h"
+#include "ToolMenus.h"
+#include "UnrealEdGlobals.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
 
@@ -605,6 +607,16 @@ ULevel* ULevelEditorSubsystem::GetCurrentLevel()
 	}
 
 	return World->GetCurrentLevel();
+}
+
+UTypedElementSelectionSet* ULevelEditorSubsystem::GetSelectionSet()
+{
+	if (TSharedPtr<ILevelEditor> LevelEditor = GCurrentLevelEditingViewportClient->ParentLevelEditor.Pin())
+	{
+		return LevelEditor->GetMutableElementSelectionSet();
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

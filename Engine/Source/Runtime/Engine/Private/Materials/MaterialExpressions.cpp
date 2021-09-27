@@ -12305,6 +12305,7 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 #if WITH_EDITOR
 void UMaterialFunctionInterface::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if (false) // temporary to unblock people, tracked as UE-109810
 	{
 		FMaterialUpdateContext UpdateContext;
 		ForceRecompileForRendering(UpdateContext, nullptr);

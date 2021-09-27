@@ -540,7 +540,7 @@ void AWaterBody::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
 
-	if (Ar.IsLoading())
+	if (Ar.IsLoading() && !Ar.IsTransacting())
 	{
 		InitializeBody();
 

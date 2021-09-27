@@ -304,8 +304,16 @@ AActor* UEditorUtilityLibrary::GetActorReference(FString PathToActor)
 bool UEditorUtilityLibrary::GetCurrentContentBrowserPath(FString& OutPath)
 {
 	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
-	OutPath = ContentBrowser.GetCurrentPath(EContentBrowserPathType::Internal);
-	return !OutPath.IsEmpty();
+	const FContentBrowserItemPath CurrentPath = ContentBrowser.GetCurrentPath();
+	if (CurrentPath.HasInternalPath())
+	{
+		OutPath = CurrentPath.GetInternalPathString();
+		return !OutPath.IsEmpty();
+	}
+	else
+	{
+		return false;
+	}
 }
 
 #endif

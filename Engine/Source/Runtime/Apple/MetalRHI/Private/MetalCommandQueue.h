@@ -148,6 +148,9 @@ public:
 	*/
 	static inline bool SupportsSeparateMSAAAndResolveTarget() { return (PLATFORM_MAC != 0 || GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5); }
 
+	/** @returns True on UMA system; false otherwise.  */
+	static inline bool IsUMASystem() { return (GRHIVendorId == 0x106B); }
+
 #pragma mark - Public Debug Support -
 
 	/** Inserts a boundary that marks the end of a frame for the debug capture tool. */

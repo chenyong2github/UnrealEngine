@@ -1,82 +1,150 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-from PySide2 import QtWidgets, QtCore
-from PySide2.QtWidgets import QHBoxLayout, QVBoxLayout, QTableView, QSizePolicy, QHeaderView, QPushButton, QSpacerItem
-from PySide2.QtCore import Qt
- 
-class nDisplayMonitorUI(QtWidgets.QWidget):
+from typing import Dict, Optional
 
-    def __init__(self, parent, monitor):
-        QtWidgets.QWidget.__init__(self, parent)
+from PySide2.QtCore import QSortFilterProxyModel, Qt
+from PySide2.QtWidgets import QComboBox, QCompleter, QHBoxLayout, \
+    QHeaderView, QLabel, QPushButton, QSizePolicy, QStyledItemDelegate, \
+    QTableView, QVBoxLayout, QWidget
 
-        # create button row
-        #
-        self.labelConsoleExec = QtWidgets.QLabel("Console:")
+from switchboard.devices.ndisplay.ndisplay_monitor import nDisplayMonitor
 
-        self.cmbConsoleExec = QtWidgets.QComboBox()
-        self.cmbConsoleExec.setEditable(True)
-        self.cmbConsoleExec.lineEdit().returnPressed.connect(lambda: monitor.do_console_exec(self.cmbConsoleExec.lineEdit().text()))
+
+class nDisplayMonitorUI(QWidget):
+
+    def __init__(self, parent: QWidget, monitor: nDisplayMonitor):
+        QWidget.__init__(self, parent)
+
+        self.monitor = monitor
+
+        # Console exec combo entries; key is lowercased, value is as-entered.
+        # TODO: Persist across launches? Frecency sorting?
+        self.exec_history: Dict[str, str] = {}
+
+        self.cmb_console_exec = QComboBox()
+        self.exec_model = QSortFilterProxyModel(self.cmb_console_exec)
+        self.exec_completer = QCompleter(self.exec_model)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(self.create_button_row_layout())
+        layout.addWidget(self.create_table_view())
+
+    def create_button_row_layout(self) -> QHBoxLayout:
+        layout_buttons = QHBoxLayout()
+
+        # Create console exec label/combo/button
+        self.cmb_console_exec.setEditable(True)
+        self.cmb_console_exec.setInsertPolicy(
+            QComboBox.NoInsert)  # done manually
+        self.cmb_console_exec.lineEdit().returnPressed.connect(
+            self.on_console_return_pressed)
         size = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         size.setHorizontalStretch(3)
-        self.cmbConsoleExec.setSizePolicy(size)
-        self.cmbConsoleExec.setMinimumWidth(150)
+        self.cmb_console_exec.setSizePolicy(size)
+        self.cmb_console_exec.setMinimumWidth(150)
 
-        self.btnConsoleExec = QPushButton("Exec")
-        self.btnConsoleExec.setToolTip("Issues a console command via nDisplay cluster event")
-        self.btnConsoleExec.clicked.connect(lambda: monitor.do_console_exec(self.cmbConsoleExec.lineEdit().text()))
+        # Set up auto-completion
+        self.exec_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
+        self.exec_model.setSourceModel(self.cmb_console_exec.model())
+        self.exec_completer.setCompletionMode(QCompleter.PopupCompletion)
+        self.exec_completer.popup().setItemDelegate(QStyledItemDelegate())
+        self.exec_completer.activated.connect(
+            lambda: self.try_issue_console_exec(),
+            Qt.QueuedConnection)  # Queued to work around edit clear timing.
+        self.cmb_console_exec.setCompleter(self.exec_completer)
+        self.cmb_console_exec.lineEdit().textEdited.connect(
+            self.exec_model.setFilterFixedString)
 
-        monitor.console_exec_issued.connect(lambda: self.cmbConsoleExec.lineEdit().clear())
+        btn_console_exec = QPushButton('Exec')
+        btn_console_exec.setToolTip(
+            'Issues a console command via nDisplay cluster event')
+        btn_console_exec.clicked.connect(
+            lambda: self.try_issue_console_exec())
 
-        self.btnRefreshMosaics = QPushButton("Refresh Mosaics")
-        self.btnRefreshMosaics.setToolTip("Updates the cached mosaic topologies.")
-        self.btnRefreshMosaics.clicked.connect(monitor.btnRefreshMosaics_clicked)
+        # Create remaining buttons
+        btn_refresh_mosaics = QPushButton('Refresh Mosaics')
+        btn_refresh_mosaics.setToolTip(
+            'Updates the cached mosaic topologies.')
+        btn_refresh_mosaics.clicked.connect(
+            self.monitor.on_refresh_mosaics_clicked)
 
-        self.btnFixExeFlags = QPushButton("Fix ExeFlags")
-        self.btnFixExeFlags.setToolTip("Disables fullscreen optimizations on the executable.")
-        self.btnFixExeFlags.clicked.connect(monitor.btnFixExeFlags_clicked)
+        btn_fix_exe_flags = QPushButton('Fix ExeFlags')
+        btn_fix_exe_flags.setToolTip(
+            'Disables fullscreen optimizations on the executable.')
+        btn_fix_exe_flags.clicked.connect(
+            self.monitor.on_fix_exe_flags_clicked)
 
-        self.btnSoftKill = QPushButton("Soft Kill")
-        self.btnSoftKill.setToolTip(
-            "Sends a message to the master node to terminate the session.\n"
-            "This is preferable to the normal kill button because it ensures the nodes exit properly")
-        self.btnSoftKill.clicked.connect(monitor.btnSoftKill_clicked)
+        btn_soft_kill = QPushButton('Soft Kill')
+        btn_soft_kill.setToolTip(
+            'Sends a message to the master node to terminate the session.\n'
+            'This is preferable to the normal kill button because it ensures '
+            'the nodes exit properly')
+        btn_soft_kill.clicked.connect(self.monitor.on_soft_kill_clicked)
 
-        self.btnMinimizeWindows = QPushButton("Minimize")
-        self.btnMinimizeWindows.setToolTip("Minimizes all windows in the nodes.")
-        self.btnMinimizeWindows.clicked.connect(monitor.btnMinimizeWindows_clicked)
+        btn_minimize_windows = QPushButton('Minimize')
+        btn_minimize_windows.setToolTip(
+            'Minimizes all windows in the nodes.')
+        btn_minimize_windows.clicked.connect(
+            self.monitor.on_minimize_windows_clicked)
 
-
-        # arrange them in a horizontal layout
-        layout_buttons = QHBoxLayout()
-        layout_buttons.addWidget(self.labelConsoleExec)
-        layout_buttons.addWidget(self.cmbConsoleExec)
-        layout_buttons.addWidget(self.btnConsoleExec)
+        layout_buttons.addWidget(QLabel('Console:'))
+        layout_buttons.addWidget(self.cmb_console_exec)
+        layout_buttons.addWidget(btn_console_exec)
         layout_buttons.addStretch(1)
-        layout_buttons.addWidget(self.btnRefreshMosaics)
-        layout_buttons.addWidget(self.btnFixExeFlags)
-        layout_buttons.addWidget(self.btnMinimizeWindows)
-        layout_buttons.addWidget(self.btnSoftKill)
+        layout_buttons.addWidget(btn_refresh_mosaics)
+        layout_buttons.addWidget(btn_fix_exe_flags)
+        layout_buttons.addWidget(btn_minimize_windows)
+        layout_buttons.addWidget(btn_soft_kill)
 
-        # create table
-        #
-        self.tableview = QTableView()
-        self.tableview.setModel(monitor) # the monitor is the model of this tableview.
+        return layout_buttons
+
+    def create_table_view(self) -> QTableView:
+        tableview = QTableView()
+
+        # the monitor is the model of this tableview.
+        tableview.setModel(self.monitor)
 
         size = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         size.setHorizontalStretch(1)
-        self.tableview.setSizePolicy(size)
+        tableview.setSizePolicy(size)
 
         # configure resize modes on headers
-        self.tableview.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tableview.horizontalHeader().setStretchLastSection(False)
-        self.tableview.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.tableview.verticalHeader().setVisible(False)
+        tableview.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeToContents)
+        tableview.horizontalHeader().setStretchLastSection(False)
+        tableview.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeToContents)
+        tableview.verticalHeader().setVisible(False)
 
-        # create layout
-        #
-        layout = QVBoxLayout()
+        return tableview
 
-        layout.addLayout(layout_buttons)
-        layout.addWidget(self.tableview)
+    def on_console_return_pressed(self):
+        # If accepting from the autocomplete popup, don't exec twice.
+        is_completion = self.exec_completer.popup().currentIndex().isValid()
+        if not is_completion:
+            self.try_issue_console_exec()
 
-        self.setLayout(layout)
+    def try_issue_console_exec(self, exec_str: Optional[str] = None):
+        if exec_str is None:
+            exec_str = self.cmb_console_exec.currentText().strip()
+
+        if not exec_str:
+            return
+
+        self.update_exec_history(exec_str)
+        issued = self.monitor.try_issue_console_exec(exec_str)
+        if issued:
+            self.cmb_console_exec.clearEditText()
+            self.cmb_console_exec.setCurrentIndex(-1)
+
+    def update_exec_history(self, exec_str: str):
+        # Reinsert (case-insensitive) duplicates as most recent.
+        exec_str_lower = exec_str.lower()
+        if exec_str_lower in self.exec_history:
+            del self.exec_history[exec_str_lower]
+        self.exec_history[exec_str_lower] = exec_str
+
+        # Most recently used at the top.
+        self.cmb_console_exec.clear()
+        self.cmb_console_exec.addItems(
+            reversed(list(self.exec_history.values())))

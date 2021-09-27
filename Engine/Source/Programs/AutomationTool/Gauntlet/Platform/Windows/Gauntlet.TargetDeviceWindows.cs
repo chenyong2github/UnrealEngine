@@ -350,6 +350,38 @@ namespace Gauntlet
 			return new WindowsAppInstance(WinApp, Result, ProcessLogFile);
 		}
 
+		private void CopyAdditionalFiles(UnrealAppConfig AppConfig)
+		{
+			if (AppConfig.FilesToCopy != null)
+			{
+				foreach (UnrealFileToCopy FileToCopy in AppConfig.FilesToCopy)
+				{
+					string PathToCopyTo = Path.Combine(LocalDirectoryMappings[FileToCopy.TargetBaseDirectory], FileToCopy.TargetRelativeLocation);
+					if (File.Exists(FileToCopy.SourceFileLocation))
+					{
+						FileInfo SrcInfo = new FileInfo(FileToCopy.SourceFileLocation);
+						SrcInfo.IsReadOnly = false;
+						string DirectoryToCopyTo = Path.GetDirectoryName(PathToCopyTo);
+						if (!Directory.Exists(DirectoryToCopyTo))
+						{
+							Directory.CreateDirectory(DirectoryToCopyTo);
+						}
+						if (File.Exists(PathToCopyTo))
+						{
+							FileInfo ExistingFile = new FileInfo(PathToCopyTo);
+							ExistingFile.IsReadOnly = false;
+						}
+						SrcInfo.CopyTo(PathToCopyTo, true);
+						Log.Info("Copying {0} to {1}", FileToCopy.SourceFileLocation, PathToCopyTo);
+					}
+					else
+					{
+						Log.Warning("File to copy {0} not found", FileToCopy);
+					}
+				}
+			}
+		}
+
 		protected IAppInstall InstallStagedBuild(UnrealAppConfig AppConfig, StagedBuild InBuild)
 		{
 			bool SkipDeploy = Globals.Params.ParseParam("SkipDeploy");
@@ -403,34 +435,7 @@ namespace Gauntlet
                 PopulateDirectoryMappings(Path.Combine(BuildPath, AppConfig.ProjectName), UserDir);
             }
 
-            if (AppConfig.FilesToCopy != null)
-            {
-                foreach (UnrealFileToCopy FileToCopy in AppConfig.FilesToCopy)
-                {
-                    string PathToCopyTo = Path.Combine(LocalDirectoryMappings[FileToCopy.TargetBaseDirectory], FileToCopy.TargetRelativeLocation);
-                    if (File.Exists(FileToCopy.SourceFileLocation))
-                    {
-                        FileInfo SrcInfo = new FileInfo(FileToCopy.SourceFileLocation);
-                        SrcInfo.IsReadOnly = false;
-                        string DirectoryToCopyTo = Path.GetDirectoryName(PathToCopyTo);
-                        if (!Directory.Exists(DirectoryToCopyTo))
-                        {
-                            Directory.CreateDirectory(DirectoryToCopyTo);
-                        }
-                        if (File.Exists(PathToCopyTo))
-                        {
-                            FileInfo ExistingFile = new FileInfo(PathToCopyTo);
-                            ExistingFile.IsReadOnly = false;
-                        }
-                        SrcInfo.CopyTo(PathToCopyTo, true);
-                        Log.Info("Copying {0} to {1}", FileToCopy.SourceFileLocation, PathToCopyTo);
-                    }
-                    else
-                    {
-                        Log.Warning("File to copy {0} not found", FileToCopy);
-                    }
-                }
-            }
+			CopyAdditionalFiles(AppConfig);
 
             if (Path.IsPathRooted(InBuild.ExecutablePath))
 			{
@@ -496,6 +501,8 @@ namespace Gauntlet
 			{
 				PopulateDirectoryMappings(AppConfig.ProjectFile.Directory.FullName, AppConfig.ProjectFile.Directory.FullName);
 			}
+
+			CopyAdditionalFiles(AppConfig);
 
 			return WinApp;
 		}

@@ -17,9 +17,9 @@
 
 THIRD_PARTY_INCLUDES_START
 #include <mfapi.h>
-THIRD_PARTY_INCLUDES_END
 #include <d3d12.h>
 #include <dxgi1_4.h>
+THIRD_PARTY_INCLUDES_END
 #ifdef ELECTRA_HAVE_DX11
 #pragma comment(lib, "D3D11.lib")
 #endif

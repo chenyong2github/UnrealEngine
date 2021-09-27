@@ -3,6 +3,7 @@
 #include "GoogleARCoreResources.h"
 #include "ARTrackable.h"
 #include "ARSessionConfig.h"
+#include "GoogleARCoreBaseLogCategory.h"
 #include "GoogleARCoreXRTrackingSystem.h"
 #include "ARBlueprintLibrary.h"
 
@@ -93,14 +94,48 @@ void FGoogleARCoreTrackedPlaneResource::UpdateGeometryData()
 		}
 	}
 
+	ArPlaneType PlaneType = ArPlaneType::AR_PLANE_HORIZONTAL_UPWARD_FACING;
+	ArPlane_getType(SessionPtr->GetHandle(), GetPlaneHandle(), &PlaneType);
+
+	switch (PlaneType)
+	{
+		// TODO: Do we actually want to set the object classification? ARCore docs
+		// says this is ok, but the other AR APIs are explicit about the plane classification
+		case ArPlaneType::AR_PLANE_HORIZONTAL_UPWARD_FACING:
+		{
+			PlaneGeometry->SetOrientation(EARPlaneOrientation::Horizontal);
+			//PlaneGeometry->SetObjectClassification(EARObjectClassification::Floor);
+			break;
+		}
+		case ArPlaneType::AR_PLANE_HORIZONTAL_DOWNWARD_FACING:
+		{
+			PlaneGeometry->SetOrientation(EARPlaneOrientation::Horizontal);
+			//PlaneGeometry->SetObjectClassification(EARObjectClassification::Ceiling);
+			break;
+		}
+		case ArPlaneType::AR_PLANE_VERTICAL:
+		{
+			PlaneGeometry->SetOrientation(EARPlaneOrientation::Vertical);
+			//PlaneGeometry->SetObjectClassification(EARObjectClassification::Wall);
+			break;
+		}
+		default:
+		{
+			UE_LOG(LogGoogleARCore, Warning, TEXT("Unsupported ArPlaneType: %d."), PlaneType);
+			PlaneGeometry->SetOrientation(EARPlaneOrientation::Horizontal);
+			//PlaneGeometry->SetObjectClassification(EARObjectClassification::Floor);
+			break;
+		}
+	}
+
 	ArPlane* SubsumedByPlaneHandle = nullptr;
 	ArPlane_acquireSubsumedBy(SessionPtr->GetHandle(), GetPlaneHandle(), &SubsumedByPlaneHandle);
 	ArTrackable* TrackableHandle = reinterpret_cast<ArTrackable*>(SubsumedByPlaneHandle);
 
 	UARPlaneGeometry* SubsumedByPlane = SubsumedByPlaneHandle  == nullptr? nullptr : SessionPtr->GetUObjectManager()->GetTrackableFromHandle<UARPlaneGeometry>(TrackableHandle, SessionPtr.Get());
 
-	uint32 FrameNum = SessionPtr->GetFrameNum();
-	int64 TimeStamp = SessionPtr->GetLatestFrame()->GetCameraTimestamp();
+	const uint32 FrameNum = SessionPtr->GetFrameNum();
+	const int64 TimeStamp = SessionPtr->GetLatestFrame()->GetCameraTimestamp();
 
 	PlaneGeometry->UpdateTrackedGeometry(SessionPtr->GetARSystem(), FrameNum, static_cast<double>(TimeStamp), LocalToTrackingTransform, SessionPtr->GetARSystem()->GetAlignmentTransform(), FVector::ZeroVector, Extent, BoundaryPolygon, SubsumedByPlane);
 	PlaneGeometry->SetDebugName(FName(TEXT("ARCorePlane")));

@@ -32,11 +32,11 @@ static inline uint32 GetTypeHash(const FBoundShaderStateInput& Input)
 		^ GetTypeHash(Input.VertexShaderRHI)
 		^ GetTypeHash(Input.PixelShaderRHI)
 #if PLATFORM_SUPPORTS_MESH_SHADERS
-		^ GetTypeHash(Input.MeshShaderRHI)
-		^ GetTypeHash(Input.AmplificationShaderRHI)
+		^ GetTypeHash(Input.GetMeshShader())
+		^ GetTypeHash(Input.GetAmplificationShader())
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		^ GetTypeHash(Input.GeometryShaderRHI)
+		^ GetTypeHash(Input.GetGeometryShader())
 #endif
 		;
 }
@@ -106,22 +106,18 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 	{
 		UE_LOG(LogRHI, Error, TEXT("Vertex: %s"), *Init.BoundShaderState.VertexShaderRHI->ShaderName);
 	}
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	if (Init.BoundShaderState.MeshShaderRHI)
+	if (Init.BoundShaderState.GetMeshShader())
 	{
-		UE_LOG(LogRHI, Error, TEXT("Mesh: %s"), *Init.BoundShaderState.MeshShaderRHI->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Mesh: %s"), *Init.BoundShaderState.GetMeshShader()->ShaderName);
 	}
-	if (Init.BoundShaderState.AmplificationShaderRHI)
+	if (Init.BoundShaderState.GetAmplificationShader())
 	{
-		UE_LOG(LogRHI, Error, TEXT("Amplification: %s"), *Init.BoundShaderState.AmplificationShaderRHI->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Amplification: %s"), *Init.BoundShaderState.GetAmplificationShader()->ShaderName);
 	}
-#endif
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	if(Init.BoundShaderState.GeometryShaderRHI)
+	if(Init.BoundShaderState.GetGeometryShader())
 	{
-		UE_LOG(LogRHI, Error, TEXT("Geometry: %s"), *Init.BoundShaderState.GeometryShaderRHI->ShaderName);
+		UE_LOG(LogRHI, Error, TEXT("Geometry: %s"), *Init.BoundShaderState.GetGeometryShader()->ShaderName);
 	}
-#endif
 	if(Init.BoundShaderState.PixelShaderRHI)
 	{
 		UE_LOG(LogRHI, Error, TEXT("Pixel: %s"), *Init.BoundShaderState.PixelShaderRHI->ShaderName);
@@ -346,6 +342,9 @@ int32 FindRayTracingHitGroupIndex(FRayTracingPipelineState* Pipeline, FRHIRayTra
 
 void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& Initializer, uint32 StencilRef, EApplyRendertargetOption ApplyFlags, bool bApplyAdditionalState)
 {
+#if PLATFORM_USE_FALLBACK_PSO
+	RHICmdList.SetGraphicsPipelineState(Initializer, StencilRef, bApplyAdditionalState);
+#else
 	FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, Initializer, ApplyFlags);
 	if (PipelineState && (PipelineState->RHIPipeline || !Initializer.bFromPSOFileCache))
 	{
@@ -356,6 +355,7 @@ void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipeli
 		check(IsInRenderingThread() || IsInParallelRenderingThread());
 		RHICmdList.SetGraphicsPipelineState(PipelineState, Initializer.BoundShaderState, StencilRef, bApplyAdditionalState);
 	}
+#endif
 }
 
 /* TSharedPipelineStateCache
@@ -872,16 +872,14 @@ public:
 	{
 		if (!Pipeline->IsCompute())
 		{
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-			if (Initializer.BoundShaderState.MeshShaderRHI)
+			if (Initializer.BoundShaderState.GetMeshShader())
 			{
-				Initializer.BoundShaderState.MeshShaderRHI->AddRef();
+				Initializer.BoundShaderState.GetMeshShader()->AddRef();
 			}
-			if (Initializer.BoundShaderState.AmplificationShaderRHI)
+			if (Initializer.BoundShaderState.GetAmplificationShader())
 			{
-				Initializer.BoundShaderState.AmplificationShaderRHI->AddRef();
+				Initializer.BoundShaderState.GetAmplificationShader()->AddRef();
 			}
-#endif
 			if (Initializer.BoundShaderState.VertexDeclarationRHI)
 			{
 				Initializer.BoundShaderState.VertexDeclarationRHI->AddRef();
@@ -894,12 +892,10 @@ public:
 			{
 				Initializer.BoundShaderState.PixelShaderRHI->AddRef();
 			}
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			if (Initializer.BoundShaderState.GeometryShaderRHI)
+			if (Initializer.BoundShaderState.GetGeometryShader())
 			{
-				Initializer.BoundShaderState.GeometryShaderRHI->AddRef();
+				Initializer.BoundShaderState.GetGeometryShader()->AddRef();
 			}
-#endif
 			if (Initializer.BlendState)
 			{
 				Initializer.BlendState->AddRef();
@@ -944,7 +940,7 @@ public:
 		{
 			if (GRHISupportsMeshShadersTier0)
 			{
-				if (!Initializer.BoundShaderState.VertexShaderRHI && !Initializer.BoundShaderState.MeshShaderRHI)
+				if (!Initializer.BoundShaderState.VertexShaderRHI && !Initializer.BoundShaderState.GetMeshShader())
 				{
 					UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex or Mesh Shader"));
 				}
@@ -969,16 +965,14 @@ public:
 				HandlePipelineCreationFailure(Initializer);
 			}
 
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-			if (Initializer.BoundShaderState.MeshShaderRHI)
+			if (Initializer.BoundShaderState.GetMeshShader())
 			{
-				Initializer.BoundShaderState.MeshShaderRHI->Release();
+				Initializer.BoundShaderState.GetMeshShader()->Release();
 			}
-			if (Initializer.BoundShaderState.AmplificationShaderRHI)
+			if (Initializer.BoundShaderState.GetAmplificationShader())
 			{
-				Initializer.BoundShaderState.AmplificationShaderRHI->Release();
+				Initializer.BoundShaderState.GetAmplificationShader()->Release();
 			}
-#endif
 			if (Initializer.BoundShaderState.VertexDeclarationRHI)
 			{
 				Initializer.BoundShaderState.VertexDeclarationRHI->Release();
@@ -991,12 +985,10 @@ public:
 			{
 				Initializer.BoundShaderState.PixelShaderRHI->Release();
 			}
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			if (Initializer.BoundShaderState.GeometryShaderRHI)
+			if (Initializer.BoundShaderState.GetGeometryShader())
 			{
-				Initializer.BoundShaderState.GeometryShaderRHI->Release();
+				Initializer.BoundShaderState.GetGeometryShader()->Release();
 			}
-#endif
 			if (Initializer.BlendState)
 			{
 				Initializer.BlendState->Release();
@@ -1478,52 +1470,39 @@ FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* 
 	return ComputePipelineState->RHIPipeline;
 }
 
-FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& OriginalInitializer, EApplyRendertargetOption ApplyFlags)
+FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& Initializer, EApplyRendertargetOption ApplyFlags)
 {
 	LLM_SCOPE(ELLMTag::PSO);
 
-#if PLATFORM_SUPPORTS_MESH_SHADERS
 	if (GRHISupportsMeshShadersTier0)
 	{
-		checkf(OriginalInitializer.BoundShaderState.VertexShaderRHI || OriginalInitializer.BoundShaderState.MeshShaderRHI, TEXT("GraphicsPipelineState must include a vertex or mesh shader"));
+		checkf(Initializer.BoundShaderState.VertexShaderRHI || Initializer.BoundShaderState.GetMeshShader(), TEXT("GraphicsPipelineState must include a vertex or mesh shader"));
 	}
 	else
-#endif
 	{
-		checkf(OriginalInitializer.BoundShaderState.VertexShaderRHI, TEXT("GraphicsPipelineState must include a vertex shader"));
+		checkf(Initializer.BoundShaderState.VertexShaderRHI, TEXT("GraphicsPipelineState must include a vertex shader"));
 
 	}
 
-	FGraphicsPipelineStateInitializer NewInitializer;
-	const FGraphicsPipelineStateInitializer* Initializer = &OriginalInitializer;
-
-	check(OriginalInitializer.DepthStencilState && OriginalInitializer.BlendState && OriginalInitializer.RasterizerState);
-
-	if (!!(ApplyFlags & EApplyRendertargetOption::ForceApply))
-	{
-		// Copy original initializer first, then apply the render targets
-		NewInitializer = OriginalInitializer;
-		RHICmdList.ApplyCachedRenderTargets(NewInitializer);
-		Initializer = &NewInitializer;
-	}
+	check(Initializer.DepthStencilState && Initializer.BlendState && Initializer.RasterizerState);
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
-	else if (!!(ApplyFlags & EApplyRendertargetOption::CheckApply))
+	if (ApplyFlags == EApplyRendertargetOption::CheckApply)
 	{
 		// Catch cases where the state does not match
-		NewInitializer = OriginalInitializer;
+		FGraphicsPipelineStateInitializer NewInitializer = Initializer;
 		RHICmdList.ApplyCachedRenderTargets(NewInitializer);
 
-		int AnyFailed = 0;
-		AnyFailed |= (NewInitializer.RenderTargetsEnabled != OriginalInitializer.RenderTargetsEnabled) << 0;
+		int32 AnyFailed = 0;
+		AnyFailed |= (NewInitializer.RenderTargetsEnabled != Initializer.RenderTargetsEnabled) << 0;
 
 		if (AnyFailed == 0)
 		{
-			for (int i = 0; i < (int)NewInitializer.RenderTargetsEnabled; i++)
+			for (int32 i = 0; i < (int32)NewInitializer.RenderTargetsEnabled; i++)
 			{
-				AnyFailed |= (NewInitializer.RenderTargetFormats[i] != OriginalInitializer.RenderTargetFormats[i]) << 1;
+				AnyFailed |= (NewInitializer.RenderTargetFormats[i] != Initializer.RenderTargetFormats[i]) << 1;
 				// as long as RT formats match, the flags shouldn't matter. We only store format-influencing flags in the recorded PSOs, so the check would likely fail.
-				//AnyFailed |= (NewInitializer.RenderTargetFlags[i] != OriginalInitializer.RenderTargetFlags[i]) << 2;
+				//AnyFailed |= (NewInitializer.RenderTargetFlags[i] != Initializer.RenderTargetFlags[i]) << 2;
 				if (AnyFailed)
 				{
 					AnyFailed |= i << 24;
@@ -1532,20 +1511,14 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 			}
 		}
 
-		AnyFailed |= (NewInitializer.DepthStencilTargetFormat != OriginalInitializer.DepthStencilTargetFormat) << 3;
-		AnyFailed |= (NewInitializer.DepthStencilTargetFlag != OriginalInitializer.DepthStencilTargetFlag) << 4;
-		AnyFailed |= (NewInitializer.DepthTargetLoadAction != OriginalInitializer.DepthTargetLoadAction) << 5;
-		AnyFailed |= (NewInitializer.DepthTargetStoreAction != OriginalInitializer.DepthTargetStoreAction) << 6;
-		AnyFailed |= (NewInitializer.StencilTargetLoadAction != OriginalInitializer.StencilTargetLoadAction) << 7;
-		AnyFailed |= (NewInitializer.StencilTargetStoreAction != OriginalInitializer.StencilTargetStoreAction) << 8;
+		AnyFailed |= (NewInitializer.DepthStencilTargetFormat != Initializer.DepthStencilTargetFormat) << 3;
+		AnyFailed |= (NewInitializer.DepthStencilTargetFlag != Initializer.DepthStencilTargetFlag) << 4;
+		AnyFailed |= (NewInitializer.DepthTargetLoadAction != Initializer.DepthTargetLoadAction) << 5;
+		AnyFailed |= (NewInitializer.DepthTargetStoreAction != Initializer.DepthTargetStoreAction) << 6;
+		AnyFailed |= (NewInitializer.StencilTargetLoadAction != Initializer.StencilTargetLoadAction) << 7;
+		AnyFailed |= (NewInitializer.StencilTargetStoreAction != Initializer.StencilTargetStoreAction) << 8;
 
-		static double LastTime = 0;
-		if (AnyFailed != 0 && (FPlatformTime::Seconds() - LastTime) >= 10.0f)
-		{
-			LastTime = FPlatformTime::Seconds();
-			UE_LOG(LogRHI, Error, TEXT("GetAndOrCreateGraphicsPipelineState RenderTarget check failed with: %i !"), AnyFailed);
-		}
-		Initializer = (AnyFailed != 0) ? &NewInitializer : &OriginalInitializer;
+		checkf(!AnyFailed, TEXT("GetAndOrCreateGraphicsPipelineState RenderTarget check failed with: %i !"), AnyFailed);
 	}
 #endif
 
@@ -1553,17 +1526,17 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 
 	FGraphicsPipelineState* OutCachedState = nullptr;
 
-	bool bWasFound = GGraphicsPipelineCache.Find(*Initializer, OutCachedState);
+	bool bWasFound = GGraphicsPipelineCache.Find(Initializer, OutCachedState);
 
 	if (bWasFound == false)
 	{
-		FPipelineFileCache::CacheGraphicsPSO(GetTypeHash(*Initializer), *Initializer);
+		FPipelineFileCache::CacheGraphicsPSO(GetTypeHash(Initializer), Initializer);
 
 		// create new graphics state
 		OutCachedState = new FGraphicsPipelineState();
-		OutCachedState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(*Initializer));
+		OutCachedState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(Initializer));
 
-		if (!Initializer->bFromPSOFileCache)
+		if (!Initializer.bFromPSOFileCache)
 		{
 			GraphicsPipelineCacheMisses++;
 		}
@@ -1571,24 +1544,24 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 		// create a compilation task, or just do it now...
 		if (DoAsyncCompile)
 		{
-			OutCachedState->CompletionEvent = TGraphTask<FCompilePipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(OutCachedState, *Initializer);
+			OutCachedState->CompletionEvent = TGraphTask<FCompilePipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(OutCachedState, Initializer);
 			RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
 		}
 		else
 		{
-			OutCachedState->RHIPipeline = RHICreateGraphicsPipelineState(*Initializer);
+			OutCachedState->RHIPipeline = RHICreateGraphicsPipelineState(Initializer);
 			if (OutCachedState->RHIPipeline)
 			{
 				OutCachedState->SortKey = OutCachedState->RHIPipeline->GetSortKey();
 			}
 			else
 			{
-				HandlePipelineCreationFailure(*Initializer);
+				HandlePipelineCreationFailure(Initializer);
 			}
 		}
 
 		// GGraphicsPipelineCache.Add(*Initializer, OutCachedState, LockFlags);
-		GGraphicsPipelineCache.Add(*Initializer, OutCachedState);
+		GGraphicsPipelineCache.Add(Initializer, OutCachedState);
 	}
 	else
 	{

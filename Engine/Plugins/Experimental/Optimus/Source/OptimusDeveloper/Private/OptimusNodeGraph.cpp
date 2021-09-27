@@ -265,6 +265,7 @@ bool UOptimusNodeGraph::DuplicateNodes(
 			return false;
 		}
 	}
+	
 
 	if (!ensure(SourceGraph != nullptr))
 	{

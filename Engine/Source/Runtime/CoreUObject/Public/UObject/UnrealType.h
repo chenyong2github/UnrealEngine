@@ -103,8 +103,9 @@ namespace UEProperty_Private { class FProperty_DoNotUse; }
 class COREUOBJECT_API FGCStackSizeHelper
 {
 	int32 MaxStackSize = 0;
-	int32 CurrentStackSize = 0;
-
+	/** Current property stack. Includes properties nested inside of struct member variables */
+	TArray<const FProperty*> PropertyStack;
+	
 public:
 
 	FGCStackSizeHelper() = default;
@@ -114,20 +115,27 @@ public:
 	~FGCStackSizeHelper()
 	{
 		// Sanity check to make sure every Push() was followed by a Pop()
-		check(CurrentStackSize == 0);
+		check(PropertyStack.Num() == 0);
 	}
 
-	void Push()
+	void Push(const FProperty* InProperty)
 	{
-		CurrentStackSize++;
-		MaxStackSize = FMath::Max(CurrentStackSize, MaxStackSize);
+		PropertyStack.Push(InProperty);
+		MaxStackSize = FMath::Max(PropertyStack.Num(), MaxStackSize);
 	}
 
 	void Pop()
 	{
-		CurrentStackSize--;
-		check(CurrentStackSize >= 0);
+		PropertyStack.Pop();
 	}
+
+	const TArray<const FProperty*>& GetPropertyStack() const
+	{
+		return PropertyStack;
+	}
+
+	/** Converts the interal property stack to a string representing the current property path (Member.StructMember.InnerStructMember) */
+	FString GetPropertyPath() const;
 
 	int32 GetMaxStackSize() const
 	{
@@ -140,10 +148,10 @@ class FGCStackSizeHelperScope
 {
 	FGCStackSizeHelper& StackSizeHelper;
 public:
-	explicit FGCStackSizeHelperScope(FGCStackSizeHelper& InHelper)
+	explicit FGCStackSizeHelperScope(FGCStackSizeHelper& InHelper, FProperty* InProperty)
 		: StackSizeHelper(InHelper)
 	{		
-		StackSizeHelper.Push();
+		StackSizeHelper.Push(InProperty);
 	}
 
 	FGCStackSizeHelperScope(const FGCStackSizeHelperScope& Other) = delete;

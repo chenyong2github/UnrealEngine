@@ -213,16 +213,19 @@ struct ENGINE_API FComponentQueryParams : public FCollisionQueryParams
 	{
 	}
 
-	FComponentQueryParams(FName InTraceTag, const AActor* InIgnoreActor=NULL)
-	: FComponentQueryParams(InTraceTag, GetUnknownStatId(), InIgnoreActor)
+	FComponentQueryParams(FName InTraceTag, const AActor* InIgnoreActor=NULL, const FCollisionEnabledMask InShapeCollisionMask = 0)
+	: FComponentQueryParams(InTraceTag, GetUnknownStatId(), InIgnoreActor, InShapeCollisionMask)
 	{
 	}
 #endif
 
-	FComponentQueryParams(FName InTraceTag, const TStatId& InStatId, const AActor* InIgnoreActor = NULL)
-		: FCollisionQueryParams(InTraceTag, InStatId, false, InIgnoreActor)
+	FComponentQueryParams(FName InTraceTag, const TStatId& InStatId, const AActor* InIgnoreActor = NULL, const FCollisionEnabledMask InShapeCollisionMask = 0)
+		: FCollisionQueryParams(InTraceTag, InStatId, false, InIgnoreActor), ShapeCollisionMask(InShapeCollisionMask)
 	{
 	}
+
+	/** Only use query shapes which remain unmasked by this collision mask (if mask is nonzero) **/
+	FCollisionEnabledMask ShapeCollisionMask;
 
 	/** static variable for default data to be used without reconstructing everytime **/
 	static FComponentQueryParams DefaultComponentQueryParams;

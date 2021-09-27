@@ -147,6 +147,7 @@ class FCullObjectsForShadowCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER(uint32, ObjectBoundingGeometryIndexCount)
 		SHADER_PARAMETER(FMatrix44f, WorldToShadow)
+		SHADER_PARAMETER(float, ObjectExpandScale)
 		SHADER_PARAMETER(uint32, NumShadowHullPlanes)
 		SHADER_PARAMETER(FVector4f, ShadowBoundingSphere)
 		SHADER_PARAMETER_ARRAY(FVector4f,ShadowConvexHull,[12])
@@ -172,7 +173,7 @@ IMPLEMENT_GLOBAL_SHADER(FCullObjectsForShadowCS, "/Engine/Private/DistanceFieldS
 
 /**  */
 class FShadowObjectCullVS : public FGlobalShader
-{
+	{
 	DECLARE_GLOBAL_SHADER(FShadowObjectCullVS);
 	SHADER_USE_PARAMETER_STRUCT(FShadowObjectCullVS, FGlobalShader);
 
@@ -195,7 +196,7 @@ class FShadowObjectCullVS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FShadowObjectCullVS, "/Engine/Private/DistanceFieldShadowing.usf", "ShadowObjectCullVS", SF_Vertex);
 
 class FShadowObjectCullPS : public FGlobalShader
-{
+	{
 	DECLARE_GLOBAL_SHADER(FShadowObjectCullPS);
 	SHADER_USE_PARAMETER_STRUCT(FShadowObjectCullPS, FGlobalShader);
 
@@ -290,7 +291,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FDistanceFieldShadowingCS, "/Engine/Private/DistanceFieldShadowing.usf", "DistanceFieldShadowingCS", SF_Compute);
 
 class FDistanceFieldShadowingUpsamplePS : public FGlobalShader
-{
+	{
 	DECLARE_GLOBAL_SHADER(FDistanceFieldShadowingUpsamplePS);
 	SHADER_USE_PARAMETER_STRUCT(FDistanceFieldShadowingUpsamplePS, FGlobalShader);
 
@@ -521,6 +522,7 @@ void CullDistanceFieldObjectsForLight(
 		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->ObjectBoundingGeometryIndexCount = UE_ARRAY_COUNT(GCubeIndices);
 		PassParameters->WorldToShadow = WorldToShadowValue;
+		PassParameters->ObjectExpandScale = bIsHeightfield ? 0.f : WorldToShadowValue.GetMaximumAxisScale();
 		PassParameters->NumShadowHullPlanes = NumPlanes;
 		PassParameters->ShadowBoundingSphere = ShadowBoundingSphereValue;
 
@@ -933,7 +935,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 {
 	check(ScissorRect.Area() > 0);
 
-	BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View);
+	BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View); 
 
 	if (RayTracedShadowsTexture)
 	{

@@ -3789,6 +3789,8 @@ void UParticleSystemComponent::BeginDestroy()
 			*GetPathName(), Template ? *Template->GetPathName() : TEXT("NULL"));
 	}
 
+	// Call delegate to ensure we unregister from Significance Manager regardless if this PSC is active or not
+	OnSystemPreActivationChange.Broadcast(this, false);
 	ResetParticles(true);
 }
 

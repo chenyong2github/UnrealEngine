@@ -660,7 +660,7 @@ void EmitCubemapShadow(
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			if (GeometryShader.GetGeometryShader())
 			{
-				GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
+				GraphicsPSOInit.BoundShaderState.SetGeometryShader(GeometryShader.GetGeometryShader());
 			}
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);

@@ -994,6 +994,14 @@ FString USocialUser::ToDebugString() const
 #endif
 }
 
+void USocialUser::WithContext(const FString& InAnalyticsContext, void(*Func)(USocialUser&))
+{
+	const FString PreviousContext = AnalyticsContext;
+	AnalyticsContext = InAnalyticsContext;
+	Func(*this);
+	AnalyticsContext = PreviousContext;
+}
+
 bool USocialUser::SendFriendInvite(ESocialSubsystem SubsystemType)
 {
 	return GetOwningToolkit().TrySendFriendInvite(*this, SubsystemType);

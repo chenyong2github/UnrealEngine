@@ -378,6 +378,10 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 #endif
 	//UObject Interface END
 
+	/** Controls whether or not culling is allowed for FX that are owned by, attached to or instigated by a locally controlled pawn. */
+	UPROPERTY(EditAnywhere, Category = "Scalability")
+	bool bAllowCullingForLocalPlayers = false;
+
 	/** How regularly effects of this type are checked for scalability. */
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	ENiagaraScalabilityUpdateFrequency UpdateFrequency;

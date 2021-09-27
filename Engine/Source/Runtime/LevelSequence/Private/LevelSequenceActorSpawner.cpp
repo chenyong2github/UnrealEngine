@@ -102,23 +102,14 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 			}
 			else
 			{
-				// Avoid spamming output, warning only once per level
-				if (!ErrorLevels.Contains(DesiredLevelName))
-				{
-					UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into, defaulting to Persistent level"), *DesiredLevelName.ToString(), *Spawnable.GetName());
-					ErrorLevels.Add(DesiredLevelName);
-				}
+				UE_LOG(LogMovieScene, Warning, TEXT("Can't find sublevel '%s' to spawn '%s' into, defaulting to Persistent level"), *DesiredLevelName.ToString(), *Spawnable.GetName());
 			}
 		}
 	}
 
 	if (WorldContext == nullptr)
 	{
-		if (!ErrorLevels.Contains(DesiredLevelName))
-		{
-			UE_LOG(LogMovieScene, Warning, TEXT("Can't find world to spawn '%s' into, defaulting to Persistent level"), *Spawnable.GetName());
-			ErrorLevels.Add(DesiredLevelName);
-		}
+		UE_LOG(LogMovieScene, Warning, TEXT("Can't find world to spawn '%s' into, defaulting to Persistent level"), *Spawnable.GetName());
 
 		WorldContext = GWorld;
 	}

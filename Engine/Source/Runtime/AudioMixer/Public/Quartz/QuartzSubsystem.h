@@ -19,6 +19,7 @@ namespace Audio
 	class FQuartzClockManager;
 	class FShareableQuartzCommandQueue;
 }
+class FQuartzTickableObject;
 
 using MetronomeCommandQueuePtr = TSharedPtr<Audio::FShareableQuartzCommandQueue, ESPMode::ThreadSafe>;
 
@@ -44,6 +45,7 @@ public:
 
 	//~ Begin UWorldSubsystem Interface
 	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
+	void BeginDestroy() override;
 	//~ End UWorldSubsystem Interface
 
 	//~ Begin FTickableGameObject Interface
@@ -54,8 +56,8 @@ public:
 
 	// if we have another stakeholder later we can use polymorphism here.
 	// in the mean time, we are avoiding the virtual overhead
-	void SubscribeToQuartzTick(UQuartzClockHandle* InObjectToTick);
-	void UnsubscribeFromQuartzTick(UQuartzClockHandle* InObjectToTick);
+	void SubscribeToQuartzTick(FQuartzTickableObject* InObjectToTick);
+	void UnsubscribeFromQuartzTick(FQuartzTickableObject* InObjectToTick);
 
 	// static methods
 	static UQuartzSubsystem* Get(UWorld* World);
@@ -152,7 +154,7 @@ private:
 	Audio::FQuartzClockManager SubsystemClockManager;
 
 	// list of objects needing to be ticked by Quartz
-	TArray<UQuartzClockHandle*> QuartzTickSubscribers;
+	TArray<FQuartzTickableObject *> QuartzTickSubscribers;
 
 	// index to track the next clock handle to tick (if updates are being amortized across multiple UObject Ticks)
 	int32 UpdateIndex{ 0 };

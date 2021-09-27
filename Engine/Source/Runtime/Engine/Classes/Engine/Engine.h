@@ -3068,6 +3068,13 @@ public:
 	/** Verify any remaining World(s) are valid after ::LoadMap destroys a world */
 	virtual void VerifyLoadMapWorldCleanup();
 
+	/**
+	 * Attempts to find what is referencing a world that should have been garbage collected
+	 * @param ObjectToFindReferencesTo World or its package (or any object from the world package that should've been destroyed)
+	 * @param Verbosity Verbosity (can be fatal or non-fatal) with which to print the error message with
+	 */
+	static void FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity);
+
 	FWorldContext& CreateNewWorldContext(EWorldType::Type WorldType);
 
 	virtual void DestroyWorldContext(UWorld * InWorld);

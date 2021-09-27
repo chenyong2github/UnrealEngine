@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Misc/Guid.h"
 #include "InputCoreTypes.h"
 #include "HitProxies.h"
@@ -359,6 +360,9 @@ private:
 
 	/** Screen size cached when we draw */
 	float CachedScreenSize;
+
+	/* Member use to unregister OnPhysicsCreatedDelegate */
+	FDelegateHandle OnPhysicsCreatedDelegateHandle;
 
 private:
 

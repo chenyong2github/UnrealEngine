@@ -327,6 +327,7 @@ public:
 
 	Audio::IProxyDataPtr Clone() const override
 	{
+		LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 		return MakeUnique<FSoundWaveProxy>(*this);
 	}
 
@@ -350,7 +351,7 @@ public:
 	bool UseBinkAudio() const { return *bUseBinkAudioPtr; }
 	bool IsStreaming() const { return *bIsStreamingPtr; }
 	bool IsSeekableStreaming() const { return *bIsStreamingPtr && *bSeekableStreamingPtr; }
-	bool IsRetainingAudio() const { return FirstChunk.IsValid(); }
+	bool IsRetainingAudio() const { return FirstChunkPtr.IsValid() && FirstChunkPtr->IsValid(); }
 	bool WasLoadingBehaviorOverridden() const { return *bLoadingBehaviorOverriddenPtr; }
 	ESoundWaveLoadingBehavior GetLoadingBehavior() const { return LoadingBehavior; }
 
@@ -388,7 +389,7 @@ private:
 	uint32 NumChunks;
 	float Duration;
 	int32 NumFrames;
-	FAudioChunkHandle FirstChunk;
+	TSharedPtr<FAudioChunkHandle, ESPMode::ThreadSafe> FirstChunkPtr;
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
 	// These hold a reference to shared memory containing flags that need to get
@@ -764,7 +765,7 @@ protected:
 	TObjectPtr<class UCurveTable> InternalCurves;
 
 	/** Potential strong handle to the first chunk of audio data. Can be released via ReleaseCompressedAudioData. */
-	FAudioChunkHandle FirstChunk;
+	TSharedPtr<FAudioChunkHandle, ESPMode::ThreadSafe> FirstChunkPtr{ MakeShared<FAudioChunkHandle>() };
 
 private:
 

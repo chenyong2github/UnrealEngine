@@ -255,26 +255,26 @@ public:
 			if (OutputIteratorByteSizeRemaining >= 2)
 			{
 				*(OutputIterator++) = (ToType)((Codepoint >> 6)         | 128 | 64);
-				*(OutputIterator++) = (ToType) (Codepoint       & 0x3F) | 128;
+				*(OutputIterator++) = (ToType)((Codepoint       & 0x3F) | 128);
 			}
 		}
 		else if (Codepoint < 0x10000)
 		{
 			if (OutputIteratorByteSizeRemaining >= 3)
 			{
-				*(OutputIterator++) = (ToType)((Codepoint >> 12)        | 128 | 64 | 32);
-				*(OutputIterator++) = (ToType)((Codepoint >> 6) & 0x3F) | 128;
-				*(OutputIterator++) = (ToType) (Codepoint       & 0x3F) | 128;
+				*(OutputIterator++) = (ToType) ((Codepoint >> 12)        | 128 | 64 | 32);
+				*(OutputIterator++) = (ToType)(((Codepoint >> 6) & 0x3F) | 128);
+				*(OutputIterator++) = (ToType) ((Codepoint       & 0x3F) | 128);
 			}
 		}
 		else
 		{
 			if (OutputIteratorByteSizeRemaining >= 4)
 			{
-				*(OutputIterator++) = (ToType)((Codepoint >> 18)         | 128 | 64 | 32 | 16);
-				*(OutputIterator++) = (ToType)((Codepoint >> 12) & 0x3F) | 128;
-				*(OutputIterator++) = (ToType)((Codepoint >> 6 ) & 0x3F) | 128;
-				*(OutputIterator++) = (ToType) (Codepoint        & 0x3F) | 128;
+				*(OutputIterator++) = (ToType) ((Codepoint >> 18)         | 128 | 64 | 32 | 16);
+				*(OutputIterator++) = (ToType)(((Codepoint >> 12) & 0x3F) | 128);
+				*(OutputIterator++) = (ToType)(((Codepoint >> 6 ) & 0x3F) | 128);
+				*(OutputIterator++) = (ToType) ((Codepoint        & 0x3F) | 128);
 			}
 		}
 

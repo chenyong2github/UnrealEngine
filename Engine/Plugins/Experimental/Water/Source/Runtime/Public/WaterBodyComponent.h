@@ -107,6 +107,7 @@ public:
 	virtual bool IsBodyDynamic() const { return false; }
 	
 	/** Returns body's collision components */
+	UFUNCTION(BlueprintCallable, Category = Collision)
 	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const { return TArray<UPrimitiveComponent*>(); }
 
 	/** Returns the body's collision component bounds */
@@ -436,8 +437,8 @@ protected:
 	UPROPERTY(Transient, DuplicateTransient, NonTransactional, VisibleAnywhere, BlueprintReadOnly, Category = Water)
 	int32 WaterBodyIndex = INDEX_NONE;
 
-	// TODO [jonathan.bard] : make sure override water mesh works for all types and remove the bool (WaterMeshOverride is already a pointer
-	UPROPERTY(Category = Rendering, BlueprintReadOnly)
+	// TODO [jonathan.bard] : make sure override water mesh works for all types 
+	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly)
 	bool bOverrideWaterMesh;
 
 	UPROPERTY(Category = Rendering, EditAnywhere, AdvancedDisplay, BlueprintReadOnly)

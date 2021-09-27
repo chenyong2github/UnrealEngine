@@ -204,12 +204,23 @@ public:
 	virtual void PostReinitProperties();
 
 	/**
-	* Called after the C++ constructor has run on the CDO for a class. This is an obscure routine used to deal with the recursion 
+	* Called after the C++ constructor has run on the Class Default Object (CDO) for a class. This is an obscure routine used to deal with the recursion 
 	* in the construction of the default materials
 	*/
 	virtual void PostCDOContruct()
 	{
 	}
+
+#if WITH_EDITOR
+	/**
+	 * Called after the Blueprint compiler has finished generating the Class Default Object (CDO) for a class. This can only happen in the editor.
+	 * This is called when the CDO and its associated class structure have been fully generated and populated, and allows the assignment of cached/derived data, 
+	 * eg) caching the name/count of properties of a certain type, or inspecting the properties on the class and using their meta-data and CDO default values to derive game data.
+	 */
+	virtual void PostCDOCompiled()
+	{
+	}
+#endif
 
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
 	virtual bool PreSaveRoot(const TCHAR* Filename);

@@ -14,12 +14,12 @@ class UK2Node_FunctionEntry;
 class UMovieSceneEventSectionBase;
 
 /** Value definition for any type-agnostic variable (exported as text) */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FMovieSceneEventPayloadVariable
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Sequencer|Event")
 	FString Value;
 };
 
@@ -42,7 +42,7 @@ struct FMovieSceneEventPtrs
 };
 
 USTRUCT(BlueprintType)
-struct FMovieSceneEvent
+struct MOVIESCENETRACKS_API FMovieSceneEvent
 {
 	GENERATED_BODY()
 
@@ -55,20 +55,23 @@ struct FMovieSceneEvent
 
 public:
 
+	/** Return the class of the bound object property */
+	UClass* GetBoundObjectPropertyClass() const;
+
 #if WITH_EDITORONLY_DATA
 
 	/** Array of payload variables to be added to the generated function */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Sequencer|Event")
 	TMap<FName, FMovieSceneEventPayloadVariable> PayloadVariables;
 
 	UPROPERTY(transient)
 	FName CompiledFunctionName;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Sequencer|Event")
 	FName BoundObjectPinName;
 
 	/** Serialized weak pointer to the function entry (UK2Node_FunctionEntry) or custom event node (UK2Node_CustomEvent) within the blueprint graph for this event. Stored as an editor-only UObject so UHT can parse it when building for non-editor. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Sequencer|Event")
 	TWeakObjectPtr<UObject> WeakEndpoint;
 
 	/** (deprecated) The UEdGraph::GraphGuid property that relates the graph within which our endpoint lives. */

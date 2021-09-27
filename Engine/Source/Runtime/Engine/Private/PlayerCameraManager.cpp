@@ -25,6 +25,7 @@
 #include "TimerManager.h"
 #include "Camera/CameraLensEffectInterface.h"
 #include "UObject/ScriptInterface.h"
+#include "GameDelegates.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayerCameraManager, Log, All);
 
@@ -224,6 +225,8 @@ void APlayerCameraManager::AssignViewTarget(AActor* NewTarget, FTViewTarget& VT,
 	{
 		PCOwner->ClientSetViewTarget(VT.Target, TransitionParams);
 	}
+
+	FGameDelegates::Get().GetViewTargetChangedDelegate().Broadcast(PCOwner, OldViewTarget, NewTarget);
 }
 
 AActor* APlayerCameraManager::GetViewTarget() const

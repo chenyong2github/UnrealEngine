@@ -127,7 +127,6 @@ void UExternalRpcRegistry::RegisterNewRoute(FExternalRouteInfo InRouteInfo, cons
 #endif
 }
 
-
 void UExternalRpcRegistry::CleanUpRoute(FName RouteName, bool bFailIfUnbound /* = false */)
 {
 #if WITH_RPC_REGISTRY
@@ -135,12 +134,16 @@ void UExternalRpcRegistry::CleanUpRoute(FName RouteName, bool bFailIfUnbound /* 
 	{
 		TSharedPtr<IHttpRouter> HttpRouter = FHttpServerModule::Get().GetHttpRouter(PortToUse);
 		HttpRouter->UnbindRoute(RegisteredRoutes[RouteName].Handle);
+		RegisteredRoutes.Remove(RouteName);
+		UE_LOG(LogExternalRpcRegistry, Log, TEXT("Route name %s was unbound!"), *RouteName.ToString());
+
 	}
 	else
 	{
 		UE_LOG(LogExternalRpcRegistry, Warning, TEXT("Route name %s does not exist, could not unbind."), *RouteName.ToString());
 		check(!bFailIfUnbound);
 	}
+
 #endif
 }
 

@@ -737,6 +737,8 @@ void CopyRowsToTable(const TMap<FName, CurveType*>& SourceRows, TMap<FName, FRea
 
 TArray<FString> UCurveTable::CreateTableFromOtherTable(const UCurveTable* InTable)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCurveTable::CreateTableFromOtherTable);
+
 	CURVETABLE_CHANGE_SCOPE();
 
 	// Array used to store problems about table creation
@@ -767,7 +769,8 @@ TArray<FString> UCurveTable::CreateTableFromOtherTable(const UCurveTable* InTabl
 
 	CurveTableMode = InTable->CurveTableMode;
 
-	OnCurveTableChanged().Broadcast();
+	// This is already called when getting out of scope because of CURVETABLE_CHANGE_SCOPE() above.
+	// OnCurveTableChanged().Broadcast();
 
 	return OutProblems;
 }

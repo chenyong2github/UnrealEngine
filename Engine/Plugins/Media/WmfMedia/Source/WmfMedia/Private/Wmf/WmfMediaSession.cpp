@@ -925,8 +925,8 @@ bool FWmfMediaSession::CommitTime(FTimespan Time)
 
 	// start session at requested time
 	PROPVARIANT StartPosition;
-
-	if (!CanControl(EMediaControl::Seek))
+	const bool bCanSeek = CanControl(EMediaControl::Seek);
+	if (!bCanSeek)
 	{
 		UE_LOG(LogWmfMedia, Verbose, TEXT("Session %p: Starting from <current>, because media can't seek"), this);
 		Time = WmfMediaSession::RequestedTimeCurrent;
@@ -965,7 +965,7 @@ bool FWmfMediaSession::CommitTime(FTimespan Time)
 
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	// If this is not a loop, then tell the tracks about the seek.
-	if (bIsRequestedTimeLoop == false)
+	if ((bIsRequestedTimeLoop == false) && (bCanSeek))
 	{
 		TSharedPtr<FWmfMediaTracks, ESPMode::ThreadSafe> TracksPinned = Tracks.Pin();
 		if (TracksPinned.IsValid())

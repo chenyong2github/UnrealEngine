@@ -10,6 +10,7 @@
 #include "UObject/CoreNet.h"
 #include "OodleNetworkAnalytics.h"
 #include "OodleNetworkArchives.h"
+#include "OodleNetworkFaultHandler.h"
 
 #include "oodle2net.h"
 
@@ -352,15 +353,11 @@ public:
 	bool IsCompressionActive() const;
 
 	virtual void Initialize() override;
-
+	virtual void InitFaultRecovery(UE::Net::FNetConnectionFaultRecoveryBase* InFaultRecovery) override;
 	virtual bool IsValid() const override;
-
-	virtual void Incoming(FBitReader& Packet) override;
-
+	virtual void Incoming(FIncomingPacketRef PacketRef) override;
 	virtual void Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits) override;
-	
 	virtual int32 GetReservedPacketBits() const override;
-
 	virtual void NotifyAnalyticsProvider() override;
 
 
@@ -409,6 +406,11 @@ public:
 
 	/** Whether or not InitializeDictionaries was ever called */
 	bool bInitializedDictionaries;
+
+
+private:
+	/** Fault handler for Oodle-Network-specific errors, that may trigger NetConnection Close */
+	FOodleNetworkFaultHandler OodleNetworkFaultHandler;
 };
 
 

@@ -497,11 +497,15 @@ RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool AllowPerPixelShadingModels(const FStaticShaderPlatform Platform);
+
 RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPlatform Platform);
+
+RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform);
 

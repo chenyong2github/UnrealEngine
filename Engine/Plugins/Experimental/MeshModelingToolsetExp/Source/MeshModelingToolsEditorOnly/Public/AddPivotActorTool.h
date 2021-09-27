@@ -6,12 +6,14 @@
 
 #include "InteractiveToolBuilder.h"
 #include "MultiSelectionTool.h"
+#include "GameFramework/Actor.h"
 
 #include "AddPivotActorTool.generated.h"
 
 class UDragAlignmentMechanic;
 class UTransformGizmo;
 class UTransformProxy;
+
 
 UCLASS()
 class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorToolBuilder : public UInteractiveToolBuilder

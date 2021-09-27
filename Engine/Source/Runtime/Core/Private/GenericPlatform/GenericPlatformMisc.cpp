@@ -1837,3 +1837,10 @@ int FGenericPlatformMisc::GetMobilePropagateAlphaSetting()
 	}
 	return PropagateAlpha;
 }
+
+void FGenericPlatformMisc::ShowConsoleWindow()
+{
+#if !UE_BUILD_SHIPPING
+	UE_LOG(LogGenericPlatformMisc, Log, TEXT("Show console is not supported or implemented in current platform"));
+#endif
+}

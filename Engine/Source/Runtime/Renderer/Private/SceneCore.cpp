@@ -33,7 +33,6 @@ FAutoConsoleVariableRef CVarUnbuiltPreviewShadowsInGame(
  */
 #define FREE_LIST_GROW_SIZE ( 16384 / sizeof(FLightPrimitiveInteraction) )
 TAllocatorFixedSizeFreeList<sizeof(FLightPrimitiveInteraction), FREE_LIST_GROW_SIZE> GLightPrimitiveInteractionAllocator;
-static FCriticalSection GLightPrimitiveInteractionAllocatorCS;
 
 
 uint32 FRendererModule::GetNumDynamicLightsAffectingPrimitive(const FPrimitiveSceneInfo* PrimitiveSceneInfo,const FLightCacheInterface* LCI)
@@ -69,12 +68,40 @@ uint32 FRendererModule::GetNumDynamicLightsAffectingPrimitive(const FPrimitiveSc
 -----------------------------------------------------------------------------*/
 
 /**
+ * Custom new
+ */
+void* FLightPrimitiveInteraction::operator new(size_t Size)
+{
+	// doesn't support derived classes with a different size
+	checkSlow(Size == sizeof(FLightPrimitiveInteraction));
+	return GLightPrimitiveInteractionAllocator.Allocate();
+	//return FMemory::Malloc(Size);
+}
+
+/**
+ * Custom delete
+ */
+void FLightPrimitiveInteraction::operator delete(void* RawMemory)
+{
+	GLightPrimitiveInteractionAllocator.Free(RawMemory);
+	//FMemory::Free(RawMemory);
+}
+
+/**
  * Initialize the memory pool with a default size from the ini file.
  * Called at render thread startup. Since the render thread is potentially
  * created/destroyed multiple times, must make sure we only do it once.
  */
 void FLightPrimitiveInteraction::InitializeMemoryPool()
 {
+	static bool bAlreadyInitialized = false;
+	if (!bAlreadyInitialized)
+	{
+		bAlreadyInitialized = true;
+		int32 InitialBlockSize = 0;
+		GConfig->GetInt(TEXT("MemoryPools"), TEXT("FLightPrimitiveInteractionInitialBlockSize"), InitialBlockSize, GEngineIni);
+		GLightPrimitiveInteractionAllocator.Grow(InitialBlockSize);
+	}
 }
 
 /**
@@ -114,21 +141,14 @@ void FLightPrimitiveInteraction::Create(FLightSceneInfo* LightSceneInfo,FPrimiti
 		if (LightSceneInfo->Proxy->GetLightType() != LightType_Directional || LightSceneInfo->Proxy->HasStaticShadowing() || bTranslucentObjectShadow || bInsetObjectShadow)
 		{
 			// Create the light interaction.
-			void* Ptr;
-			{
-				FScopeLock Lock(&GLightPrimitiveInteractionAllocatorCS);
-				Ptr = GLightPrimitiveInteractionAllocator.Allocate();
-			}
-			new (Ptr) FLightPrimitiveInteraction(LightSceneInfo, PrimitiveSceneInfo, bDynamic, bIsLightMapped, bShadowMapped, bTranslucentObjectShadow, bInsetObjectShadow);
+			FLightPrimitiveInteraction* Interaction = new FLightPrimitiveInteraction(LightSceneInfo, PrimitiveSceneInfo, bDynamic, bIsLightMapped, bShadowMapped, bTranslucentObjectShadow, bInsetObjectShadow);
 		} //-V773
 	}
 }
 
 void FLightPrimitiveInteraction::Destroy(FLightPrimitiveInteraction* LightPrimitiveInteraction)
 {
-	LightPrimitiveInteraction->~FLightPrimitiveInteraction();
-	FScopeLock Lock(&GLightPrimitiveInteractionAllocatorCS);
-	GLightPrimitiveInteractionAllocator.Free(LightPrimitiveInteraction);
+	delete LightPrimitiveInteraction;
 }
 
 extern bool ShouldCreateObjectShadowForStationaryLight(const FLightSceneInfo* LightSceneInfo, const FPrimitiveSceneProxy* PrimitiveSceneProxy, bool bInteractionShadowMapped);

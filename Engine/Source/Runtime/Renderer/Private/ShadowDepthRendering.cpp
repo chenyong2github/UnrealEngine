@@ -950,7 +950,7 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 					TShaderMapRef<TScreenVSForGS<false>> VertexShader(View.ShaderMap);
 					TShaderMapRef<FCopyShadowMapsCubeGS> GeometryShader(View.ShaderMap);
 					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-					GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
+					GraphicsPSOInit.BoundShaderState.SetGeometryShader(GeometryShader.GetGeometryShader());
 					ScreenVertexShader = VertexShader;
 				}
 				else

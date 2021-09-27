@@ -23,8 +23,8 @@ void Chaos::PhysicsParallelFor(int32 InNum, TFunctionRef<void(int32)> InCallable
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Chaos_PhysicsParallelFor);
 	using namespace Chaos;
+
 	// Passthrough for now, except with global flag to disable parallel
-	
 #if PHYSICS_THREAD_CONTEXT
 	const bool bIsInPhysicsSimContext = IsInPhysicsThreadContext();
 	const bool bIsInGameThreadContext = IsInGameThreadContext();

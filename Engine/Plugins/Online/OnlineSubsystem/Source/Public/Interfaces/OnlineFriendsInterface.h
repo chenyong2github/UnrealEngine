@@ -7,6 +7,7 @@
 #include "OnlineDelegateMacros.h"
 
 struct FOnlineError;
+enum class EFriendInvitePolicy : uint8;
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineFriend, Log, All);
 
@@ -332,15 +333,27 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFriendRemoved, const FUniqueNetId& /*Use
 typedef FOnFriendRemoved::FDelegate FOnFriendRemovedDelegate;
 
 /**
-* Delegate used when the friends settings are read / updated
+* Delegate used when the friends settings are read 
 *
 * @param UserId id of the local user that requested settings operation
 * @param bWasSuccessful true if the async action completed without error, false if there was an error
 * @param bWasUpdate true if the operation was an "update" operation (vs a passive read)
-* @param Settings settings retrieved / updated
+* @param Settings settings retrieved 
 * @param ErrorStr string representing the error condition
 */
 DECLARE_DELEGATE_FiveParams(FOnSettingsOperationComplete, const FUniqueNetId& /*UserId*/, bool /*bWasSuccessful*/, bool /*bWasUpdate*/, const FFriendSettings& /*Settings*/, const FString& /*ErrorStr*/);
+
+/**
+* Delegate used when the friends settings are updated
+*
+* @param UserId id of the local user that had their settings updated
+* @param bWasSuccessful true if the async action completed without error, false if there was an error
+* @param bWasUpdate true if the operation was an "update" operation (vs a passive read)
+* @param Settings settings updated
+* @param ErrorStr string representing the error condition
+*/
+DECLARE_MULTICAST_DELEGATE_FiveParams(FOnFriendSettingsUpdated, const FUniqueNetId& /*UserId*/, bool /*bWasSuccessful*/, bool /*bWasUpdate*/, const FFriendSettings& /*Settings*/, const FString& /*ErrorStr*/);
+typedef FOnFriendSettingsUpdated::FDelegate FOnFriendSettingsUpdatedDelegate;
 
 /**
  * Interface definition for the online services friends services 
@@ -681,6 +694,17 @@ public:
 	virtual void DumpBlockedPlayers() const = 0;
 
 	/**
+	* Delegate used when the friends settings are updated
+	*
+	* @param UserId id of the local user that had their settings updated
+	* @param bWasSuccessful true if the async action completed without error, false if there was an error
+	* @param bWasUpdate true if the operation was an "update" operation (vs a passive read)
+	* @param Settings settings updated
+	* @param ErrorStr string representing the error condition
+	*/
+	DEFINE_ONLINE_DELEGATE_FIVE_PARAM(OnFriendSettingsUpdated, const FUniqueNetId& /*UserId*/, bool /*bWasSuccessful*/, bool /*bWasUpdate*/, const FFriendSettings& /*Settings*/, const FString& /*ErrorStr*/);
+
+	/**
 	 * Query the current friend settings
 	 *
 	 * @param LocalUserId user to retrieve friend settings for
@@ -718,6 +742,15 @@ public:
 	 * @return true if blocked players list was found for the given user
 	 */
 	virtual bool GetFriendSettings(const FUniqueNetId& UserId, TMap<FString, TSharedRef<FOnlineFriendSettingsSourceData> >& OutSettings) { check(false); return false; }
+
+	/**
+	 * Gets the FriendInvitePolicy info that defines who can send friend invites to the user. (Public = Anyone, Friends_of_Friends = Only mutual friends, Private = No one)
+	 *
+	 * @param LocalUserId user to retrieve friendInvitePolicy settings for
+	 *
+	 * @return the permission setting from the UserState
+	 */
+	virtual EFriendInvitePolicy GetFriendInvitePolicy(const FUniqueNetId& UserId) const  { return EFriendInvitePolicy::InvalidOrMax; }
 
 	/**
 	 * Set information we want to store for a third party source

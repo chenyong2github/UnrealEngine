@@ -987,7 +987,7 @@ void FControlRigEditorModule::ExtendAnimSequenceMenu()
 		}
 
 		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-		Section.AddDynamicEntry("GetActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		Section.AddDynamicEntry("ControlRigOpenLevelSequence", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
 				UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
 				if (Context)

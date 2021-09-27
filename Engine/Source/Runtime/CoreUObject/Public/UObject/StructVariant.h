@@ -95,6 +95,11 @@ public:
 	}
 
 	/**
+	 * Return all objects that will be Preload()ed when this is serialized at load time.
+	 */
+	void GetPreloadDependencies(TArray<UObject*>& OutDeps);
+
+	/**
 	 * Serialize the type and instance for this struct.
 	 * @note Uses the standard struct serializer for the instance.
 	 */
@@ -156,6 +161,7 @@ struct TStructOpsTypeTraits<FStructVariant> : public TStructOpsTypeTraitsBase2<F
 	{
 		WithIdentical = true,
 		WithStructuredSerializer = true,
+		WithGetPreloadDependencies = true,
 	};
 };
 

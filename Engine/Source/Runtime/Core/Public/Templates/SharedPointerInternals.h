@@ -120,7 +120,13 @@ namespace SharedPointerInternals
 				// Incrementing a reference count with relaxed ordering is always safe because no other action is taken
 				// in response to the increment, so there's nothing to order with.
 
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+				// We do a regular SC increment here because it maps to an _InterlockedIncrement (lock inc).
+				// The codegen for a relaxed fetch_add is actually much worse under MSVC (lock xadd).
+				++SharedReferenceCount;
+#else
 				SharedReferenceCount.fetch_add(1, std::memory_order_relaxed);
+#endif
 			}
 			else
 			{
@@ -230,7 +236,13 @@ namespace SharedPointerInternals
 			{
 				// See AddSharedReference for the same reasons that std::memory_order_relaxed is used in this function.
 
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+				// We do a regular SC increment here because it maps to an _InterlockedIncrement (lock inc).
+				// The codegen for a relaxed fetch_add is actually much worse under MSVC (lock xadd).
+				++WeakReferenceCount;
+#else
 				WeakReferenceCount.fetch_add(1, std::memory_order_relaxed);
+#endif
 			}
 			else
 			{

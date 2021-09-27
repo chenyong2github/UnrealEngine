@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/Breakpoint.h"
-#if WITH_EDITOR
-#include "EdGraph/EdGraphNode.h"
-#endif
 
 FBlueprintBreakpoint::FBlueprintBreakpoint()
 {

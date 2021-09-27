@@ -39,7 +39,11 @@ void FWidgetGFNActionZone::UpdateActionZone(TArray<TSharedRef<SWindow>>& SlateWi
 	const bool bRectChanged = ActionZoneRect != LayoutBoundingRect;
 	ActionZoneRect = LayoutBoundingRect;
 
-	FWidgetPath WidgetPath = FSlateApplication::Get().LocateWindowUnderMouse(LayoutBoundingRect.GetCenter(), SlateWindows);
+	const FVector2D AbsolutePosition = Widget->GetPaintSpaceGeometry().GetAbsolutePosition();
+	const FVector2D AbsoluteSize = Widget->GetPaintSpaceGeometry().GetAbsoluteSize();
+	const FVector2D AbsoluteMiddle = FVector2D(AbsolutePosition.X + (AbsoluteSize.X * 0.5f), AbsolutePosition.Y + (AbsoluteSize.Y * 0.5f));
+	FWidgetPath WidgetPath = FSlateApplication::Get().LocateWindowUnderMouse(AbsoluteMiddle, SlateWindows);
+
 	const bool bIsInteractable = WidgetPath.IsValid() && &WidgetPath.GetLastWidget().Get() == Widget;
 
 	if (bIsInteractable)

@@ -31,6 +31,10 @@ protected:
 	virtual void Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData) override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FLevelInstanceActorDesc");
+	}
 	virtual void OnUnregister();
 
 	FName LevelPackage;

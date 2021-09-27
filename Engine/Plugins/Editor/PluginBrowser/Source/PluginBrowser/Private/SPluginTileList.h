@@ -49,6 +49,7 @@ private:
 	/** One-off active timer to trigger a full refresh when something has changed with either our filtering or the loaded plugin set */
 	EActiveTimerReturnType TriggerListRebuild(double InCurrentTime, float InDeltaTime);
 
+	FVector2D GetListBorderFadeDistance() const;
 private:
 
 	/** Weak pointer back to its owner */

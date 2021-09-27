@@ -268,7 +268,7 @@ public:
 	 * Test whether there selected elements, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
-	bool HasSelectedElements(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
+	bool HasSelectedElements(const TSubclassOf<UInterface> InBaseInterfaceType = nullptr) const
 	{
 		return ElementList->HasElements(InBaseInterfaceType);
 	}
@@ -277,7 +277,7 @@ public:
 	 * Count the number of selected elements, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
-	int32 CountSelectedElements(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
+	int32 CountSelectedElements(const TSubclassOf<UInterface> InBaseInterfaceType = nullptr) const
 	{
 		return ElementList->CountElements(InBaseInterfaceType);
 	}
@@ -286,7 +286,7 @@ public:
 	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
-	TArray<FTypedElementHandle> GetSelectedElementHandles(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
+	TArray<FTypedElementHandle> GetSelectedElementHandles(const TSubclassOf<UInterface> InBaseInterfaceType = nullptr) const
 	{
 		return ElementList->GetElementHandles(InBaseInterfaceType);
 	}

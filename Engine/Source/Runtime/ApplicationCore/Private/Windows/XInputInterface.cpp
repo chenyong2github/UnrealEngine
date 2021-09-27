@@ -13,6 +13,13 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #pragma pack (pop)
 
+static int32 ForceControllerStateUpdate = 0;
+FAutoConsoleVariableRef CVarForceControllerStateUpdate(
+	TEXT("XInput.ForceControllerStateUpdate"),
+	ForceControllerStateUpdate,
+	TEXT("Force XInput refresh of controller state on each frame.\n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
 
 TSharedRef< XInputInterface > XInputInterface::Create(  const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler )
 {
@@ -113,7 +120,7 @@ void XInputInterface::SendControllerEvents()
 
 		bWereConnected[ControllerIndex] = ControllerState.bIsConnected;
 
-		if( ControllerState.bIsConnected || bNeedsControllerStateUpdate )
+		if (ControllerState.bIsConnected || bNeedsControllerStateUpdate || ForceControllerStateUpdate != 0)
 		{
 			XINPUT_STATE& XInputState = XInputStates[ControllerIndex];
 			FMemory::Memzero( &XInputState, sizeof(XINPUT_STATE) );
