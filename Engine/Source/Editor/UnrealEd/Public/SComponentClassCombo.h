@@ -34,7 +34,6 @@ namespace EComponentCreateAction
 }
 
 
-DECLARE_DELEGATE_OneParam(FOnComponentCreated, UActorComponent*);
 DECLARE_DELEGATE_OneParam(FOnSubobjectCreated, FSubobjectDataHandle);
 
 DECLARE_DELEGATE_RetVal_ThreeParams( UActorComponent*, FComponentClassSelected, TSubclassOf<UActorComponent>, EComponentCreateAction::Type, UObject*);
@@ -46,10 +45,9 @@ struct FComponentEntryCustomizationArgs
 	TWeakObjectPtr<UObject> AssetOverride;
 	/** Custom name to display */
 	FString ComponentNameOverride;
-	/** Callback when a new component is created */
-	FOnComponentCreated OnComponentCreated;
+	
 	/** Callback when a new subobject is created */
-	FOnSubobjectCreated OnOnSubobjectCreated;
+	FOnSubobjectCreated OnSubobjectCreated;
 	/** Brush icon to use instead of the class icon */
 	FName IconOverrideBrushName;
 	/** Custom sort priority to use (smaller means sorted first) */
@@ -58,7 +56,6 @@ struct FComponentEntryCustomizationArgs
 	FComponentEntryCustomizationArgs()
 		: AssetOverride( nullptr )
 		, ComponentNameOverride()
-		, OnComponentCreated()
 		, IconOverrideBrushName( NAME_None )
 		, SortPriority(0)
 	{
@@ -138,15 +135,10 @@ public:
 	{
 		return ComponentCreateAction;
 	}
-
-	FOnComponentCreated& GetOnComponentCreated()
-	{
-		return CustomizationArgs.OnComponentCreated;
-	}
 	
 	FOnSubobjectCreated& GetOnSubobjectCreated()
     {
-    	return CustomizationArgs.OnOnSubobjectCreated;
+    	return CustomizationArgs.OnSubobjectCreated;
     }
 	
 	FString GetClassName() const;

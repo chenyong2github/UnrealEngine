@@ -82,9 +82,11 @@ void FComponentTypeRegistryData::AddBasicShapeComponents(TArray<FComponentClassC
 {
 	FString BasicShapesHeading = LOCTEXT("BasicShapesHeading", "Basic Shapes").ToString();
 
-	const auto OnBasicShapeCreated = [](UActorComponent* Component)
+	const auto OnBasicShapeCreated = [](FSubobjectDataHandle ComponentHandle)
 	{
-		UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(Component);
+		FSubobjectData* Data = ComponentHandle.GetData();
+		// TODO const cast is bad practice, but until the subobject refactor it is only way for internal stuff to get mutable components
+		UStaticMeshComponent* SMC = const_cast<UStaticMeshComponent*>(Cast<UStaticMeshComponent>(Data->GetComponentTemplate()));
 		if (SMC)
 		{
 			const FString MaterialName = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
@@ -108,7 +110,7 @@ void FComponentTypeRegistryData::AddBasicShapeComponents(TArray<FComponentClassC
 	{
 		FComponentEntryCustomizationArgs Args;
 		Args.AssetOverride = FindOrLoadObject<UStaticMesh>(UActorFactoryBasicShape::BasicCube.ToString());
-		Args.OnComponentCreated = FOnComponentCreated::CreateStatic(OnBasicShapeCreated);
+		Args.OnSubobjectCreated = FOnSubobjectCreated::CreateStatic(OnBasicShapeCreated);
 		Args.ComponentNameOverride = LOCTEXT("BasicCubeShapeDisplayName", "Cube").ToString();
 		Args.IconOverrideBrushName = FName("ClassIcon.Cube");
 		Args.SortPriority = 2;
@@ -128,7 +130,7 @@ void FComponentTypeRegistryData::AddBasicShapeComponents(TArray<FComponentClassC
 	{
 		FComponentEntryCustomizationArgs Args;
 		Args.AssetOverride = FindOrLoadObject<UStaticMesh>(UActorFactoryBasicShape::BasicPlane.ToString());
-		Args.OnComponentCreated = FOnComponentCreated::CreateStatic(OnBasicShapeCreated);
+		Args.OnSubobjectCreated = FOnSubobjectCreated::CreateStatic(OnBasicShapeCreated);
 		Args.ComponentNameOverride = LOCTEXT("BasicPlaneShapeDisplayName", "Plane").ToString();
 		Args.IconOverrideBrushName = FName("ClassIcon.Plane");
 		Args.SortPriority = 2;
@@ -148,7 +150,7 @@ void FComponentTypeRegistryData::AddBasicShapeComponents(TArray<FComponentClassC
 	{
 		FComponentEntryCustomizationArgs Args;
 		Args.AssetOverride = FindOrLoadObject<UStaticMesh>(UActorFactoryBasicShape::BasicSphere.ToString());
-		Args.OnComponentCreated = FOnComponentCreated::CreateStatic(OnBasicShapeCreated);
+		Args.OnSubobjectCreated = FOnSubobjectCreated::CreateStatic(OnBasicShapeCreated);
 		Args.ComponentNameOverride = LOCTEXT("BasicSphereShapeDisplayName", "Sphere").ToString();
 		Args.IconOverrideBrushName = FName("ClassIcon.Sphere");
 		Args.SortPriority = 2;
@@ -167,7 +169,7 @@ void FComponentTypeRegistryData::AddBasicShapeComponents(TArray<FComponentClassC
 	{
 		FComponentEntryCustomizationArgs Args;
 		Args.AssetOverride = FindOrLoadObject<UStaticMesh>(UActorFactoryBasicShape::BasicCylinder.ToString());
-		Args.OnComponentCreated = FOnComponentCreated::CreateStatic(OnBasicShapeCreated);
+		Args.OnSubobjectCreated = FOnSubobjectCreated::CreateStatic(OnBasicShapeCreated);
 		Args.ComponentNameOverride = LOCTEXT("BasicCylinderShapeDisplayName", "Cylinder").ToString();
 		Args.IconOverrideBrushName = FName("ClassIcon.Cylinder");
 		Args.SortPriority = 3;
@@ -178,7 +180,7 @@ void FComponentTypeRegistryData::AddBasicShapeComponents(TArray<FComponentClassC
 	{
 		FComponentEntryCustomizationArgs Args;
 		Args.AssetOverride = FindOrLoadObject<UStaticMesh>(UActorFactoryBasicShape::BasicCone.ToString());
-		Args.OnComponentCreated = FOnComponentCreated::CreateStatic(OnBasicShapeCreated);
+		Args.OnSubobjectCreated = FOnSubobjectCreated::CreateStatic(OnBasicShapeCreated);
 		Args.ComponentNameOverride = LOCTEXT("BasicConeShapeDisplayName", "Cone").ToString();
 		Args.IconOverrideBrushName = FName("ClassIcon.Cone");
 		Args.SortPriority = 4;

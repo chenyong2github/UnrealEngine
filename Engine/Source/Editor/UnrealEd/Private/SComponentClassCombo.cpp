@@ -253,22 +253,12 @@ void SComponentClassCombo::OnAddComponentSelectionChanged( FComponentClassComboE
 					UBlueprint* LoadedObject = LoadObject<UBlueprint>(nullptr, *InItem->GetComponentPath(), nullptr, LoadFlags, nullptr);
 					ComponentClass = GetAuthoritativeBlueprintClass(LoadedObject);
 				}
-
-				UActorComponent* NewActorComponent =
-					OnComponentClassSelected.IsBound() ?
-					OnComponentClassSelected.Execute(ComponentClass, InItem->GetComponentCreateAction(), InItem->GetAssetOverride())
-					: nullptr;
 				
 				FSubobjectDataHandle NewActorCompHandle =
 					OnSubobjectClassSelected.IsBound() ?
 					OnSubobjectClassSelected.Execute(ComponentClass, InItem->GetComponentCreateAction(), InItem->GetAssetOverride())
 					: FSubobjectDataHandle::InvalidHandle;
-				
-				if(NewActorComponent)
-				{
-					InItem->GetOnComponentCreated().ExecuteIfBound(NewActorComponent);
-				}
-				
+
 				if(NewActorCompHandle.IsValid())
 				{
 					InItem->GetOnSubobjectCreated().ExecuteIfBound(NewActorCompHandle);
