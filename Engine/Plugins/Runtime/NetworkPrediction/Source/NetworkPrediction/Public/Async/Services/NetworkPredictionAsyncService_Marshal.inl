@@ -174,7 +174,7 @@ public:
 			return;
 		}
 
-		for (TAsyncCorrectionData<AsyncModelDef>::FInstance& CorrectionInstance : CorrectionData.Instances)
+		for (typename TAsyncCorrectionData<AsyncModelDef>::FInstance& CorrectionInstance : CorrectionData.Instances)
 		{
 			TAsncFrameSnapshot<AsyncModelDef>& Snapshot = DataStore->Frames[LocalFrame];
 
