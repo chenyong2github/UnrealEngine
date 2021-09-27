@@ -87,15 +87,21 @@ public:
 	void ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& RemovedPackages);
 
 	/**
-	 * GenerateChunkManifest 
-	 * generate chunk manifest for the packages passed in using the asset registry to determine dependencies
+	 * FinalizeChunkIDs 
+	 * Create the list of packages to store in each Chunk; each Chunk corresponds to a pak file, or group of pak files if the chunk is split.
+	 * Each package may be in multiple chunks. The selection of chunks for each package is based on
+	 * ChunkIds explicitly assigned to the package in the editor (UPackage::GetChunkIds()) and
+	 * on assignment rules defined by the AssetManager
 	 *
 	 * @param CookedPackages list of packages which were cooked
 	 * @param DevelopmentOnlyPackages list of packages that were specifically not cooked, but to add to the development asset registry
 	 * @param InSandboxFile sandbox to load/save data
-	 * @param bGenerateStreamingInstallManifest should we build a streaming install manifest 
+	 * @param bGenerateStreamingInstallManifest should we build a streaming install manifest
+	 *        If false, no manifest is written and all packages are implicitly assigned to chunk 0 by the automation tool.
+	 *        If true, packages are assigned to chunks based on settings (possibly all in chunk 0 if settings are empty)
+	 *        and a manifest of packagenames is written for each chunk
 	 */
-	void BuildChunkManifest(const TSet<FName>& CookedPackages, const TSet<FName>& DevelopmentOnlyPackages,
+	void FinalizeChunkIDs(const TSet<FName>& CookedPackages, const TSet<FName>& DevelopmentOnlyPackages,
 		FSandboxPlatformFile& InSandboxFile, bool bGenerateStreamingInstallManifest);
 
 	/**
@@ -139,9 +145,13 @@ public:
 	 * Saves all generated manifests for each target platform.
 	 * 
 	 * @param InSandboxFile the InSandboxFile used during cook
-	 * @param InExtraFlavorChunkSize the ChunkSize used during cooking for InExtraFlavor, value greater than 0 will trigger a cook for extra flavor with specified chunk size
+	 * @param InOverrideChunkSize the ChunkSize used during chunk division.
+	 *        If greater than 0, this overrides the default chunksize derived from the platform.
+	 * @param InManifestSubDir If non-null, the manifests are written into this subpath
+	 *        of the usual location.
 	 */
-	bool SaveManifests(FSandboxPlatformFile& InSandboxFile, int64 InExtraFlavorChunkSize = 0);
+	bool SaveManifests(FSandboxPlatformFile& InSandboxFile, int64 InOverrideChunkSize = 0,
+		const TCHAR* InManifestSubDir = nullptr);
 
 	/**
 	* Saves generated asset registry data for each platform.
@@ -229,8 +239,8 @@ private:
 	const ITargetPlatform* TargetPlatform;
 	/** List of all asset packages that were created while loading the last package in the cooker. */
 	TSet<FName> AssetsLoadedWithLastPackage;
-	/** Lookup for the original ChunkID Mappings */
-	TMap<FName, TArray<int32> > PackageChunkIDMap;
+	/** Lookup for the ChunkIDs that were explicitly set by the user in the editor */
+	TMap<FName, TArray<int32>> ExplicitChunkIDs;
 	/** Set of packages containing a map */
 	TSet<FName> PackagesContainingMaps;
 	/** Should the chunks be generated or only asset registry */
@@ -330,21 +340,25 @@ private:
 	/** Returns an array of chunks ID for a package name that have been assigned during the cook process. */
 	TArray<int32> GetExistingPackageChunkAssignments(FName PackageFName);
 
-	/** Returns an array of chunks IDs for a package that have been assigned in the editor. */
-	TArray<int32> GetAssetRegistryChunkAssignments(const FName& PackageFName);
+	/**
+	 * Get chunks IDs for a package that were assigned to the package in the editor from AssetFileContextMenu.
+	 * These explicit chunkids are unioned with the chunkids calculated by the AssetManager.
+	 */
+	TArray<int32> GetExplicitChunkIDs(const FName& PackageFName);
 
-	/** Generate manifest for a single package */
-	void GenerateChunkManifestForPackage(const FName& PackageFName, const FString& PackagePathName,
+	/** Calculate the final ChunkIds used by the package and store the package in the manifest for each of those chunks. */
+	void CalculateChunkIdsAndAssignToManifest(const FName& PackageFName, const FString& PackagePathName,
 		const FString& SandboxFilename, const FString& LastLoadedMapName, FSandboxPlatformFile& InSandboxFile);
 
 	/** Deletes the temporary packaging directory for the specified platform */
 	bool CleanTempPackagingDirectory(const FString& Platform) const;
 
-	/** Returns true if the specific platform desires a chunk manifest */
+	/** Returns true if the specific platform desires multiple chunks suitable for streaming install */
 	bool ShouldPlatformGenerateStreamingInstallManifest(const ITargetPlatform* Platform) const;
 
 	/** Generates and saves streaming install chunk manifest */
-	bool GenerateStreamingInstallManifest(int64 InExtraFlavorChunkSize, FSandboxPlatformFile& InSandboxFile);
+	bool GenerateStreamingInstallManifest(int64 InOverrideChunkSize, const TCHAR* InManifestSubDir,
+		FSandboxPlatformFile& InSandboxFile);
 
 	/** Gather a list of dependencies required by to completely load this package */
 	bool GatherAllPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames);
@@ -364,9 +378,9 @@ private:
 	/** Helper function for FindShortestReferenceChain */
 	FString	GetShortestReferenceChain(FName PackageName, int32 ChunkID);
 
-	/** Deprecated method to remove redundant chunks */
-	void ResolveChunkDependencyGraph(const FChunkDependencyTreeNode& Node,
-		const TSet<FName>& BaseAssetSet, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks);
+	/** Recursively remove redundant packages from child chunks based on the chunk dependency tree. */
+	void SubtractParentChunkPackagesFromChildChunks(const FChunkDependencyTreeNode& Node,
+		const TSet<FName>& CumulativeParentPackages, TArray<TArray<FName>>& OutPackagesMovedBetweenChunks);
 
 	/** Helper function to verify Chunk asset assignment is valid */
 	bool CheckChunkAssetsAreNotInChild(const FChunkDependencyTreeNode& Node);

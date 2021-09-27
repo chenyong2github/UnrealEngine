@@ -6888,25 +6888,25 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				}
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(BuildChunkManifest);
-					Generator.BuildChunkManifest(CookedPackageNames, IgnorePackageNames, *SandboxFile, CookByTheBookOptions->bGenerateStreamingInstallManifests);
+					Generator.FinalizeChunkIDs(CookedPackageNames, IgnorePackageNames, *SandboxFile,
+						CookByTheBookOptions->bGenerateStreamingInstallManifests);
 				}
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(SaveManifests);
-					// Always try to save the manifests, this is required to make the asset registry work, but doesn't necessarily write a file
 					if (!Generator.SaveManifests(*SandboxFile))
 					{
 						UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
 					}
 
 					int64 ExtraFlavorChunkSize;
-					if (FParse::Value(FCommandLine::Get(), TEXT("ExtraFlavorChunkSize="), ExtraFlavorChunkSize))
+					if (FParse::Value(FCommandLine::Get(), TEXT("ExtraFlavorChunkSize="), ExtraFlavorChunkSize) && ExtraFlavorChunkSize > 0)
 					{
-						if (ExtraFlavorChunkSize > 0)
+						// ExtraFlavor is a legacy term for this override; etymology unknown. Override the chunksize specified by the platform,
+						// and write the manifest files created with that chunksize into a separate subdirectory.
+						const TCHAR* ManifestSubDir = TEXT("ExtraFlavor");
+						if (!Generator.SaveManifests(*SandboxFile, ExtraFlavorChunkSize, ManifestSubDir))
 						{
-							if (!Generator.SaveManifests(*SandboxFile, ExtraFlavorChunkSize))
-							{
-								UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
-							}
+							UE_LOG(LogCook, Warning, TEXT("Failed to save chunk manifest"));
 						}
 					}
 				}
