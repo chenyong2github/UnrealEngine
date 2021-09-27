@@ -2691,7 +2691,7 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnDataNormal(const FMachineContext& Co
 	EventDescs.Reset();
 	bool bNotEnoughData = false;
 
-	struct FEventDescStream
+	struct alignas(16) FEventDescStream
 	{
 		uint32				ThreadId;
 		uint32				Index;
