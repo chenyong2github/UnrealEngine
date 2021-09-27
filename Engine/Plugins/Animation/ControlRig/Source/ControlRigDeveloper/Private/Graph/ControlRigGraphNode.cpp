@@ -106,6 +106,10 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 						SubTitle = FString::Printf(TEXT("%s\nDefault %s"), *LocalVariableString, *DefaultValue);
 					}
 				}
+				else if (VariableNode->IsInputArgument())
+				{
+					SubTitle = TEXT("Input parameter");
+				}
 				else
 				{
 					if(UBlueprint* Blueprint = GetBlueprint())

@@ -121,8 +121,13 @@ public:
 
 	TArray<FRigVMExternalVariable> GetExternalVariables() const;
 
+	// Returns the local variables of this function
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
-	TArray<FRigVMGraphVariableDescription> GetLocalVariables() const { return LocalVariables; }
+	TArray<FRigVMGraphVariableDescription> GetLocalVariables(bool bIncludeInputArguments = false) const;
+
+	// Returns the input arguments of this graph
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+	TArray<FRigVMGraphVariableDescription> GetInputArguments() const;
 
 	// Returns the modified event, which can be used to 
 	// subscribe to changes happening within the Graph.

@@ -188,7 +188,7 @@ public:
 
 	// Refreshes the variable node with the new data
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bDetachAndReattachLinks = true);
+	void RefreshVariableNode(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bSetupOrphanPins = true);
 
 	// Removes all nodes related to a given variable
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -868,8 +868,8 @@ private:
 	static bool EnsurePinValidity(URigVMPin* InPin, bool bRecursive);
 	static void ValidatePin(URigVMPin* InPin);
 
-	FRigVMExternalVariable GetVariableByName(const FName& InExternalVariableName);
-	TArray<FRigVMExternalVariable> GetAllVariables();
+	FRigVMExternalVariable GetVariableByName(const FName& InExternalVariableName, const bool bIncludeInputArguments = false);
+	TArray<FRigVMExternalVariable> GetAllVariables(const bool bIncludeInputArguments = false);
 
 	void RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo);
 

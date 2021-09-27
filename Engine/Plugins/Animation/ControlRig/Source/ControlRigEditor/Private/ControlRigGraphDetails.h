@@ -13,6 +13,7 @@
 #include "Graph/SControlRigGraphNode.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "DetailsViewWrapperObject.h"
+#include "Graph/ControlRigGraphSchema.h"
 
 class IDetailLayoutBuilder;
 
@@ -56,6 +57,7 @@ public:
 		: PinPtr(InPin)
 		, GraphPtr(InGraph)
 		, ControlRigBlueprintPtr(InBlueprint)
+		, NameValidator(InBlueprint, InGraph, InPin->GetFName())
 	{}
 
 private:
@@ -102,6 +104,9 @@ private:
 
 	/** Holds a weak pointer to the argument name widget, used for error notifications */
 	TWeakPtr<SEditableTextBox> ArgumentNameWidget;
+
+	/** The validator to check if a name for an argument is valid */
+	FControlRigLocalVariableNameValidator NameValidator;
 };
 
 class FControlRigArgumentDefaultNode : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentDefaultNode>

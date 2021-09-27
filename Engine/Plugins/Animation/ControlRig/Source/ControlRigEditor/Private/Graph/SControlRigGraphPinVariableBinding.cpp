@@ -117,7 +117,7 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 				return  FLinearColor::Red;
 			}
 
-			const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables();
+			const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables(true);
 			for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
 			{
 				const FRigVMExternalVariable ExternalVariable = LocalVariable.ToExternalVariable();
@@ -249,7 +249,7 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 	}
 
 	int32 ValidLocalVariables = 0;
-	const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables();
+	const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables(true);
 	for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
 	{
 		const FRigVMExternalVariable ExternalVariable = LocalVariable.ToExternalVariable();

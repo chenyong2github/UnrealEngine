@@ -62,6 +62,11 @@ FControlRigLocalVariableNameValidator::FControlRigLocalVariableNameValidator(con
 		{
 			Names.Add(LocalVariable.Name.ToString());
 		}
+
+		for (const FRigVMGraphVariableDescription& InputArgument : Graph->GetInputArguments())
+		{
+			Names.Add(InputArgument.Name.ToString());
+		}
 	}
 }
 
@@ -70,6 +75,14 @@ FEdGraphPinType FControlRigGraphSchemaAction_LocalVar::GetPinType() const
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
 	{
 		for (FRigVMGraphVariableDescription Variable : Graph->GetModel()->GetLocalVariables())
+		{
+			if (Variable.Name == GetVariableName())
+			{
+				return Variable.ToPinType();
+			}
+		}
+
+		for (FRigVMGraphVariableDescription Variable : Graph->GetModel()->GetInputArguments())
 		{
 			if (Variable.Name == GetVariableName())
 			{
