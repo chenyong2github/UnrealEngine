@@ -32,6 +32,7 @@
 	#define NIAGARASCRIPT_DERIVEDDATA_VER		TEXT("179023FDDDD444DE97F61296909C2990")
 #endif
 
+#include "NiagaraDataInterfaceAudioPlayer.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
@@ -659,6 +660,11 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 					{
 						if (DataInterface->HasInternalAttributeReads(OtherEmitter, Emitter))
 						{
+							return false;
+						}
+						if (DataInterface->IsA(UNiagaraDataInterfaceAudioPlayer::StaticClass()))
+						{
+							// Fix for audio not playing any more due to attribute trimming. For 4.27 only, in UE5 this is fixed correctly by changing the DI.
 							return false;
 						}
 					}
