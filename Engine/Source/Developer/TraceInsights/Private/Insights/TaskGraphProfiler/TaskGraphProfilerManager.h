@@ -16,6 +16,7 @@ namespace TraceServices
 	class ITasksProvider;
 }
 
+class FThreadTimingTrack;
 class FThreadTrackEvent;
 
 namespace Insights
@@ -125,6 +126,7 @@ private:
 	void GetSingleTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, const FThreadTrackEvent* InSelectedEvent);
 
 	void InitializeColorCode();
+	int32 GetRelationDisplayDepth(TSharedPtr<const FThreadTimingTrack> Track, double Time, int32 KnownDepth);
 
 private:
 	bool bIsInitialized;
