@@ -136,7 +136,7 @@ void FVisualLogger::AddWhitelistedObject(const UObject& InObject)
 
 void FVisualLogger::ClearObjectWhitelist()
 {
-	for (const UObject* It : ObjectWhitelist)
+	for (FObjectKey It : ObjectWhitelist)
 	{
 		FVisualLogEntry* CurrentEntry = CurrentEntryPerObject.Find(It);
 		if (CurrentEntry)
@@ -187,7 +187,7 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, float Tim
 					{
 						for (FVisualLogDevice* Device : OutputDevices)
 						{
-							Device->Serialize(CurrentPair.Key, ObjectToNameMap[CurrentPair.Key], ObjectToClassNameMap[CurrentPair.Key], *Entry);
+							Device->Serialize(CurrentPair.Key.ResolveObjectPtrEvenIfPendingKill(), ObjectToNameMap[CurrentPair.Key], ObjectToClassNameMap[CurrentPair.Key], *Entry);
 						}
 						Entry->Reset();
 					}
@@ -205,7 +205,6 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, float Tim
 			: *FString::Printf(TEXT("%s"), *LogOwner->GetName()));
 		ObjectToNameMap.Add(LogOwner, LogName);
 		ObjectToClassNameMap.Add(LogOwner, *(LogOwner->GetClass()->GetName()));
-		ObjectToPointerMap.Add(LogOwner, LogOwner);
 		ObjectToWorldMap.Add(LogOwner, World);
 
 		// IsClassWhitelisted isn't super fast, but this gets calculated only once for every
@@ -231,7 +230,7 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, float Tim
 		FOwnerToChildrenRedirectionMap& RedirectionMap = GetRedirectionMap(LogOwner);
 		if (RedirectionMap.Contains(LogOwner))
 		{
-			if (ObjectToPointerMap.Contains(LogOwner) && ObjectToPointerMap[LogOwner].IsValid())
+			if (CurrentEntryPerObject.Contains(LogOwner) && LogOwner->IsValidLowLevel())
 			{
 				const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(LogOwner);
 				if (DebugSnapshotInterface)
@@ -273,7 +272,7 @@ void FVisualLogger::Flush()
 		{
 			for (FVisualLogDevice* Device : OutputDevices)
 			{
-				Device->Serialize(CurrentEntry.Key, ObjectToNameMap[CurrentEntry.Key], ObjectToClassNameMap[CurrentEntry.Key], CurrentEntry.Value);
+				Device->Serialize(CurrentEntry.Key.ResolveObjectPtrEvenIfPendingKill(), ObjectToNameMap[CurrentEntry.Key], ObjectToClassNameMap[CurrentEntry.Key], CurrentEntry.Value);
 			}
 			CurrentEntry.Value.Reset();
 		}
@@ -417,40 +416,38 @@ void FVisualLogger::Cleanup(UWorld* OldWorld, bool bReleaseMemory)
 		// perform cleanup only if provided world is valid and was registered
 		if (WorldToRedirectionMap.Remove(OldWorld))
 		{
-		    if (WorldToRedirectionMap.Num() == 0)
-            {
-                WorldToRedirectionMap.Reset();
-                ObjectToWorldMap.Reset();
-                ChildToOwnerMap.Reset();
-                CurrentEntryPerObject.Reset();
-                ObjectToNameMap.Reset();
-                ObjectToClassNameMap.Reset();
-                ObjectToPointerMap.Reset();
-            }
-            else
-            {
-                for (auto It = ObjectToWorldMap.CreateIterator(); It; ++It)
-                {
-                    if (It.Value() == OldWorld)
-                    {
-                        const UObject* Obj = It.Key();
-                        ObjectToWorldMap.Remove(Obj);
-                        CurrentEntryPerObject.Remove(Obj);
-                        ObjectToNameMap.Remove(Obj);
-                        ObjectToClassNameMap.Remove(Obj);
-                        ObjectToPointerMap.Remove(Obj);
-                    }
-                }
-
-                for (FChildToOwnerRedirectionMap::TIterator It = ChildToOwnerMap.CreateIterator(); It; ++It)
-                {
-                    if (It->Key.IsValid() == false
-                        || It->Key->GetWorld() == OldWorld)
-                    {
-                        It.RemoveCurrent();
-                    }
-                }
-            }
+			if (WorldToRedirectionMap.Num() == 0)
+			{
+				WorldToRedirectionMap.Reset();
+				ObjectToWorldMap.Reset();
+				ChildToOwnerMap.Reset();
+				CurrentEntryPerObject.Reset();
+				ObjectToNameMap.Reset();
+				ObjectToClassNameMap.Reset();
+			}
+			else
+			{
+				for (auto It = ObjectToWorldMap.CreateIterator(); It; ++It)
+				{
+					if (It.Value() == OldWorld)
+					{
+						FObjectKey Obj = It.Key();
+						ObjectToWorldMap.Remove(Obj);
+						CurrentEntryPerObject.Remove(Obj);
+						ObjectToNameMap.Remove(Obj);
+						ObjectToClassNameMap.Remove(Obj);
+					}
+				}
+	
+				for (FChildToOwnerRedirectionMap::TIterator It = ChildToOwnerMap.CreateIterator(); It; ++It)
+				{
+					UObject* Object = It->Key.ResolveObjectPtrEvenIfPendingKill();
+					if (Object == nullptr || Object->GetWorld() == OldWorld)
+					{
+						It.RemoveCurrent();
+					}
+				}
+			}
 		}
 	}
 	else
@@ -461,7 +458,6 @@ void FVisualLogger::Cleanup(UWorld* OldWorld, bool bReleaseMemory)
 		CurrentEntryPerObject.Reset();
 		ObjectToNameMap.Reset();
 		ObjectToClassNameMap.Reset();
-		ObjectToPointerMap.Reset();
 	}
 
 	LastUniqueIds.Reset();
@@ -518,7 +514,7 @@ void FVisualLogger::Redirect(const UObject* FromObject, const UObject* ToObject)
 	}
 
 	FChildToOwnerRedirectionMap& ChildToOwnerMap = FVisualLogger::Get().GetChildToOwnerRedirectionMap();
-	ChildToOwnerMap.FindOrAdd(FromWeakPtr) = ToObject;
+	ChildToOwnerMap.FindOrAdd(FromWeakPtr.Get(true/*bEvenIfPendingKill*/)) = ToObject;
 
 	UE_CVLOG(FromObject != nullptr, FromObject, LogVisual, Log, TEXT("Redirected '%s' to '%s'"), *FromObject->GetName(), *NewRedirection->GetName());
 }
@@ -532,7 +528,7 @@ UObject* FVisualLogger::FindRedirection(const UObject* Object)
 
 	while (Parent)
 	{
-		Parent = Map.Find(TargetWeakPtr);
+		Parent = Map.Find(TargetWeakPtr.Get(/*bEvenIfPendingKill*/true));
 		if (Parent)
 		{
 			if (Parent->IsValid())
@@ -542,12 +538,12 @@ UObject* FVisualLogger::FindRedirection(const UObject* Object)
 			else
 			{
 				Parent = nullptr;
-				Map.Remove(TargetWeakPtr);
+				Map.Remove(TargetWeakPtr.Get(/*bEvenIfPendingKill*/true));
 			}
 		}
 	}
 
-	return const_cast<UObject*>(TargetWeakPtr.Get());
+	return const_cast<UObject*>(TargetWeakPtr.Get(/*bEvenIfPendingKill*/true));
 }
 
 void FVisualLogger::SetIsRecording(bool InIsRecording)
