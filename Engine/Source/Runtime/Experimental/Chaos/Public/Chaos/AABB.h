@@ -90,13 +90,14 @@ namespace Chaos
 		CHAOS_API TAABB<T, d> TransformedAABB(const FMatrix&) const;
 		CHAOS_API TAABB<T, d> TransformedAABB(const Chaos::PMatrix<FReal, 4, 4>&) const;
 
-		CHAOS_API TAABB<T, d> InverseTransformedAABB(const Chaos::TRigidTransform<T, 3>&) const;
+		CHAOS_API TAABB<T, d> InverseTransformedAABB(const Chaos::FRigidTransform3&) const;
 
-		FORCEINLINE bool Intersects(const TAABB<T, d>& Other) const
+		template <typename TReal>
+		FORCEINLINE bool Intersects(const TAABB<TReal, d>& Other) const
 		{
 			for (int32 i = 0; i < d; ++i)
 			{
-				if (Other.MMax[i] < MMin[i] || Other.MMin[i] > MMax[i])
+				if (Other.Max()[i] < MMin[i] || Other.Min()[i] > MMax[i])
 					return false;
 			}
 			return true;
@@ -136,21 +137,22 @@ namespace Chaos
 
 		FORCEINLINE uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
-		FORCEINLINE T SignedDistance(const TVector<T, d>& x) const
+		FORCEINLINE FReal SignedDistance(const TVector<FReal, d>& x) const
 		{
-			TVector<T, d> Normal;
+			TVector<FReal, d> Normal;
 			return PhiWithNormal(x, Normal);
 		}
 
-
-		FORCEINLINE T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const 
+		FORCEINLINE FReal PhiWithNormal(const TVector<FReal, d>& X, TVector<FReal, d>& Normal) const
 		{
-			const TVector<T, d> MaxDists = X - MMax;
-			const TVector<T, d> MinDists = MMin - X;
-			if (X <= MMax && X >= MMin)
+			const TVector<FReal, d> MaxDists = X - MMax;
+			const TVector<FReal, d> MinDists = MMin - X;
+			const TVector<FReal, d> MinAsTVecReal(MMin);
+			const TVector<FReal, d> MaxAsTVecReal(MMax);
+			if (X <= MaxAsTVecReal && X >= MinAsTVecReal)
 			{
-				const Pair<T, int32> MaxAndAxis = TVector<T, d>::MaxAndAxis(MinDists, MaxDists);
-				Normal = MaxDists[MaxAndAxis.Second] > MinDists[MaxAndAxis.Second] ? TVector<T, d>::AxisVector(MaxAndAxis.Second) : -TVector<T, d>::AxisVector(MaxAndAxis.Second);
+				const Pair<FReal, int32> MaxAndAxis = TVector<FReal, d>::MaxAndAxis(MinDists, MaxDists);
+				Normal = MaxDists[MaxAndAxis.Second] > MinDists[MaxAndAxis.Second] ? TVector<FReal, d>::AxisVector(MaxAndAxis.Second) : -TVector<FReal, d>::AxisVector(MaxAndAxis.Second);
 				return MaxAndAxis.First;
 			}
 			else
@@ -170,7 +172,7 @@ namespace Chaos
 						Normal[i] = 0;
 					}
 				}
-				T Phi = Normal.SafeNormalize();
+				FReal Phi = Normal.SafeNormalize();
 				if (Phi < KINDA_SMALL_NUMBER)
 				{
 					for (int i = 0; i < d; ++i)
@@ -190,21 +192,21 @@ namespace Chaos
 			}
 		}
 
-		bool CHAOS_API Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const;
+		bool CHAOS_API Raycast(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, TVector<FReal, d>& OutPosition, TVector<FReal, d>& OutNormal, int32& OutFaceIndex) const;
 
 
-		FORCEINLINE bool RaycastFast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition) const
+		FORCEINLINE bool RaycastFast(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& Dir, const TVector<FReal, d>& InvDir, const bool* bParallel, const FReal Length, const FReal InvLength, FReal& OutTime, TVector<FReal, d>& OutPosition) const
 		{
-			const TVector<T, d> StartToMin = MMin - StartPoint;
-			const TVector<T, d> StartToMax = MMax - StartPoint;
+			const TVector<FReal, d> StartToMin = TVector<FReal, d>(MMin) - StartPoint;
+			const TVector<FReal, d> StartToMax = TVector<FReal, d>(MMax) - StartPoint;
 
 			//For each axis record the start and end time when ray is in the box. If the intervals overlap the ray is inside the box
-			T LatestStartTime = 0;
-			T EarliestEndTime = FLT_MAX;
+			FReal LatestStartTime = 0;
+			FReal EarliestEndTime = TNumericLimits<FReal>::Max();
 
 			for (int Axis = 0; Axis < d; ++Axis)
 			{
-				T Time1, Time2;
+				FReal Time1, Time2;
 				if (bParallel[Axis])
 				{
 					if (StartToMin[Axis] > 0 || StartToMax[Axis] < 0)
@@ -214,7 +216,7 @@ namespace Chaos
 					else
 					{
 						Time1 = 0;
-						Time2 = FLT_MAX;
+						Time2 = TNumericLimits<FReal>::Max();
 					}
 				}
 				else
@@ -281,13 +283,13 @@ namespace Chaos
 				for (int32 i = 0; i < d; ++i)
 				{
 					auto PlaneIntersection = TPlane<T, d>(MMin - Thickness, -TVector<T, d>::AxisVector(i)).FindClosestPoint(Result, 0);
-					Intersections.Add(MakePair((FReal)(PlaneIntersection - Result).Size(), -TVector<T, d>::AxisVector(i)));
+					Intersections.Add(MakePair((T)(PlaneIntersection - Result).Size(), -TVector<T, d>::AxisVector(i)));
 					PlaneIntersection = TPlane<T, d>(MMax + Thickness, TVector<T, d>::AxisVector(i)).FindClosestPoint(Result, 0);
-					Intersections.Add(MakePair((FReal)(PlaneIntersection - Result).Size(), TVector<T, d>::AxisVector(i)));
+					Intersections.Add(MakePair((T)(PlaneIntersection - Result).Size(), TVector<T, d>::AxisVector(i)));
 				}
 				Intersections.Sort([](const Pair<T, TVector<T, d>>& Elem1, const Pair<T, TVector<T, d>>& Elem2) { return Elem1.First < Elem2.First; });
 
-				if (!FMath::IsNearlyEqual(Intersections[0].First, (FReal)0.))
+				if (!FMath::IsNearlyEqual(Intersections[0].First, (T)0.))
 				{
 					T SmallestDistance = Intersections[0].First;
 					Result += Intersections[0].Second * Intersections[0].First;
@@ -300,19 +302,19 @@ namespace Chaos
 			return Result;
 		}
 
-		FORCEINLINE Pair<TVector<T, d>, bool> FindClosestIntersectionImp(const TVector<T, d>& StartPoint, const TVector<T, d>& EndPoint, const T Thickness) const 
+		FORCEINLINE Pair<TVector<FReal, d>, bool> FindClosestIntersectionImp(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& EndPoint, const FReal Thickness) const
 		{
-			TArray<Pair<T, TVector<T, d>>> Intersections;
+			TArray<Pair<FReal, TVector<FReal, d>>> Intersections;
 			for (int32 i = 0; i < d; ++i)
 			{
-				auto PlaneIntersection = TPlane<T, d>(MMin - Thickness, -TVector<T, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
+				auto PlaneIntersection = TPlane<FReal, d>(TVector<FReal, d>(MMin) - Thickness, -TVector<FReal, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
 				if (PlaneIntersection.Second)
 					Intersections.Add(MakePair((FReal)(PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
-				PlaneIntersection = TPlane<T, d>(MMax + Thickness, TVector<T, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
+				PlaneIntersection = TPlane<FReal, d>(TVector<FReal, d>(MMax) + Thickness, TVector<FReal, d>::AxisVector(i)).FindClosestIntersection(StartPoint, EndPoint, 0);
 				if (PlaneIntersection.Second)
 					Intersections.Add(MakePair((FReal)(PlaneIntersection.First - StartPoint).Size(), PlaneIntersection.First));
 			}
-			Intersections.Sort([](const Pair<T, TVector<T, d>>& Elem1, const Pair<T, TVector<T, d>>& Elem2) { return Elem1.First < Elem2.First; });
+			Intersections.Sort([](const Pair<FReal, TVector<FReal, d>>& Elem1, const Pair<FReal, TVector<FReal, d>>& Elem2) { return Elem1.First < Elem2.First; });
 			for (const auto& Elem : Intersections)
 			{
 				if (SignedDistance(Elem.Second) < (Thickness + 1e-4))
@@ -320,7 +322,7 @@ namespace Chaos
 					return MakePair(Elem.Second, true);
 				}
 			}
-			return MakePair(TVector<T, d>(0), false);
+			return MakePair(TVector<FReal, d>(0), false);
 		}
 
 		FORCEINLINE TVector<T, d> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 FaceIndex, const TVector<T, d>& OriginalNormal) const 
@@ -384,9 +386,9 @@ namespace Chaos
 		}
 
 		// Support vertex in the specified direction, assuming each face has been moved inwards by InMargin
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
+		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, FReal InMargin) const
 		{
-			TVector<T, d> ChosenPt;
+			FVec3 ChosenPt;
 			for (int Axis = 0; Axis < d; ++Axis)
 			{
 				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] + InMargin : MMax[Axis] - InMargin;
@@ -505,20 +507,20 @@ namespace Chaos
 			return HashCombine(UE::Math::GetTypeHash(MMin), UE::Math::GetTypeHash(MMax));
 		}
 
-		FORCEINLINE PMatrix<T, d, d> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, Extents()); }
-		FORCEINLINE static PMatrix<T, 3, 3> GetInertiaTensor(const T Mass, const TVector<T, 3>& Dim)
+		FORCEINLINE PMatrix<FReal, d, d> GetInertiaTensor(const FReal Mass) const { return GetInertiaTensor(Mass, Extents()); }
+		FORCEINLINE static PMatrix<FReal, 3, 3> GetInertiaTensor(const FReal Mass, const TVector<FReal, 3>& Dim)
 		{
 			// https://www.wolframalpha.com/input/?i=cuboid
-			const T M = Mass / 12;
-			const T WW = Dim[0] * Dim[0];
-			const T HH = Dim[1] * Dim[1];
-			const T DD = Dim[2] * Dim[2];
-			return PMatrix<T, 3, 3>(M * (HH + DD), M * (WW + DD), M * (WW + HH));
+			const FReal M = Mass / 12;
+			const FReal WW = Dim[0] * Dim[0];
+			const FReal HH = Dim[1] * Dim[1];
+			const FReal DD = Dim[2] * Dim[2];
+			return PMatrix<FReal, 3, 3>(M * (HH + DD), M * (WW + DD), M * (WW + HH));
 		}
 
-		FORCEINLINE static TRotation<T, d> GetRotationOfMass()
+		FORCEINLINE static TRotation<FReal, d> GetRotationOfMass()
 		{
-			return TRotation<T, d>::FromIdentity();
+			return TRotation<FReal, d>::FromIdentity();
 		}
 
 		FORCEINLINE constexpr bool IsConvex() const { return true; }

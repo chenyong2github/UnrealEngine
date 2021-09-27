@@ -307,7 +307,7 @@ namespace Chaos
 		TUniquePtr<TArray<int32>> ExternalVertexIndexMap;
 		bool bCullsBackFaceRaycast;
 
-		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/false>, /*bMutable=*/false>;
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/false, FRealSingle>, /*bMutable=*/false, FRealSingle>;
 
 		// Initialising constructor privately declared for use in CopySlow to copy the underlying BVH
 		template <typename IdxType>
@@ -339,11 +339,11 @@ namespace Chaos
 
 			bool HasBoundingBox() const { return true; }
 
-			FAABB3 BoundingBox() const
+			TAABB<FRealSingle, 3> BoundingBox() const
 			{
 				auto LambdaHelper = [&](const auto& Elements)
 				{
-					TAABB<FReal,3> Bounds(TmData->MParticles.X(Elements[Index][0]), TmData->MParticles.X(Elements[Index][0]));
+					TAABB<FRealSingle,3> Bounds(TmData->MParticles.X(Elements[Index][0]), TmData->MParticles.X(Elements[Index][0]));
 
 					Bounds.GrowToInclude(TmData->MParticles.X(Elements[Index][1]));
 					Bounds.GrowToInclude(TmData->MParticles.X(Elements[Index][2]));
