@@ -33,9 +33,12 @@ public:
 	{
 		TAsncInstanceStaticData<AsyncModelDef>& InstanceData = DataStore->Instances.FindChecked(ID);
 
-		DataStore->PendingNetRecv.MarkIndexDirty(InstanceData.Index);
+		if (DataStore->PendingNetRecv.NetRecvInstances.IsValidIndex(InstanceData.Index) == false)
+		{
+			DataStore->PendingNetRecv.NetRecvInstances.Insert(InstanceData.Index, TAsyncNetRecvData<AsyncModelDef>::FInstance());
+		}
 
-		typename TAsyncNetRecvData<AsyncModelDef>::FInstance& NetRecvData = DataStore->PendingNetRecv.NetRecvInstances[InstanceData.Index];
+		typename TAsyncNetRecvData<AsyncModelDef>::FInstance& NetRecvData = DataStore->PendingNetRecv.NetRecvInstances[InstanceData.Index]; //DataStore->PendingNetRecv.NetRecvInstances[InstanceData.Index];
 		NetRecvData.Frame = ThisFrame;
 		NetRecvData.Flags = Flags;
 		NetRecvData.InputCmd.NetSerialize(Ar);

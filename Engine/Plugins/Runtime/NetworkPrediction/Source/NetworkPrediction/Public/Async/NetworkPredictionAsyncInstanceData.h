@@ -112,23 +112,28 @@ struct TAsyncNetRecvData
 		InputCmdType LatestInputCmd; // latest, unprocessed InputCmd from server
 	};
 
-
-	TArray<FInstance> NetRecvInstances;
-	TBitArray<> NetRecvDirtyMask;
-	TBitArray<> PendingCorrectionMask;
+	TSparseArray<FInstance>	NetRecvInstances;
 
 	void Reset()
 	{
 		NetRecvInstances.Reset();
-		NetRecvDirtyMask.Reset();
-		PendingCorrectionMask.Reset();
 	}
+};
 
-	void MarkIndexDirty(const int32 idx)
+template<typename AsyncModelDef>
+struct TAsyncCorrectionData
+{
+	HOIST_ASYNCMODELDEF_TYPES()
+
+	struct FInstance
 	{
-		NpResizeForIndex(NetRecvInstances, idx);
-		NpResizeAndSetBit(NetRecvDirtyMask, idx, true);
-	}
+		int32 Index = INDEX_NONE;
+		InputCmdType InputCmd;
+		NetStateType NetState;
+	};
+
+	int32 Frame;
+	TArray<FInstance> Instances;
 };
 
 template<typename AsyncModelDef>
@@ -225,12 +230,12 @@ struct TAsyncModelDataStore_Internal
 	TFrameStorage<TAsncFrameSnapshot<AsyncModelDef>> Frames;
 
 	TQueue<TAsyncNetRecvData<AsyncModelDef>> NetRecvQueue;
-	TAsyncNetRecvData<AsyncModelDef> NetRecvData;
+
+	TStaticArray<TAsyncCorrectionData<AsyncModelDef>, UE_NP::NumFramesStorage> Corrections;
 
 	void Reset()
 	{
 		Instances.Reset();
-		NetRecvData.Reset();
 	}
 };
 

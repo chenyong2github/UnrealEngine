@@ -168,25 +168,25 @@ public:
 
 	void ApplyCorrections(int32 LocalFrame)
 	{
-		for (TConstSetBitIterator<> BitIt(DataStore->NetRecvData.PendingCorrectionMask); BitIt; ++BitIt)
+		TAsyncCorrectionData<AsyncModelDef>& CorrectionData = DataStore->Corrections[LocalFrame % DataStore->Corrections.Num()];
+		if (CorrectionData.Frame != LocalFrame)
 		{
-			const int32 idx = BitIt.GetIndex();
-			const typename TAsyncNetRecvData<AsyncModelDef>::FInstance& RecvData = DataStore->NetRecvData.NetRecvInstances[idx];
-			if (RecvData.Frame == LocalFrame)
-			{
-				TAsncFrameSnapshot<AsyncModelDef>& Snapshot = DataStore->Frames[LocalFrame];
+			return;
+		}
 
-				NpResizeForIndex(Snapshot.InputCmds, idx);
-				NpResizeForIndex(Snapshot.NetStates, idx);
+		for (TAsyncCorrectionData<AsyncModelDef>::FInstance& CorrectionInstance : CorrectionData.Instances)
+		{
+			TAsncFrameSnapshot<AsyncModelDef>& Snapshot = DataStore->Frames[LocalFrame];
+
+			const int32 idx = CorrectionInstance.Index;
+
+			NpResizeForIndex(Snapshot.InputCmds, idx);
+			NpResizeForIndex(Snapshot.NetStates, idx);
 				
-				Snapshot.InputCmds[idx] = RecvData.InputCmd;
-				Snapshot.NetStates[idx] = RecvData.NetState;
-
-				DataStore->NetRecvData.PendingCorrectionMask[idx] = false;
-			}
+			Snapshot.InputCmds[idx] = CorrectionInstance.InputCmd;
+			Snapshot.NetStates[idx] = CorrectionInstance.NetState;
 		}
 	}
-	
 
 protected:
 
@@ -245,7 +245,7 @@ public:
 		//	Network
 		// ---------------------------------------------------------------------
 
-		if (DataStore_External->PendingNetRecv.NetRecvDirtyMask.Contains(true))
+		if (DataStore_External->PendingNetRecv.NetRecvInstances.Num() > 0)
 		{
 			DataStore_Internal->NetRecvQueue.Enqueue(MoveTemp(DataStore_External->PendingNetRecv));
 			DataStore_External->PendingNetRecv.Reset();
