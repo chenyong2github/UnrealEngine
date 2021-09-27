@@ -2803,7 +2803,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 	struct LocalPinTraversalInfo
 	{
 		URigVMPin::FPinOverrideMap* PinOverrides;
-		TMap<FRigVMASTProxy, FRigVMASTProxy> SourcePins;
+		TMap<FRigVMASTProxy, FRigVMASTProxy>* SourcePins;
 		TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>>* TargetLinks;
 		TMap<FRigVMASTProxy, TArray<FRigVMASTProxy>>* SourceLinks;
 		TArray<FRigVMASTProxy> LibraryNodeCallstack;
@@ -2853,7 +2853,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 									FRigVMASTProxy ReturnPinProxy = LibraryNodeProxy.GetChild(ReturnPin);
 									FRigVMASTProxy SourcePinProxy = FindSourcePin(ReturnPinProxy, OutTraversalInfo);
 									SourcePinProxy = SourcePinProxy.IsValid() ? SourcePinProxy : ReturnPinProxy;
-									OutTraversalInfo.SourcePins.FindOrAdd(InPinProxy) = SourcePinProxy;
+									OutTraversalInfo.SourcePins->FindOrAdd(InPinProxy) = SourcePinProxy;
 									OutTraversalInfo.LibraryNodeCallstack.Pop();
 									return SourcePinProxy;
 
@@ -2879,7 +2879,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 									FRigVMASTProxy LibraryPinProxy = LibraryNodeProxy.GetSibling(LibraryPin);
 									FRigVMASTProxy SourcePinProxy = FindSourcePin(LibraryPinProxy, OutTraversalInfo);
 									SourcePinProxy = SourcePinProxy.IsValid() ? SourcePinProxy : LibraryPinProxy;
-									OutTraversalInfo.SourcePins.FindOrAdd(InPinProxy) = SourcePinProxy;
+									OutTraversalInfo.SourcePins->FindOrAdd(InPinProxy) = SourcePinProxy;
 									return SourcePinProxy;
 								}
 							}
@@ -2908,7 +2908,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 			{
 				// note: this map isn't going to work for functions which are referenced.
 				// (since the pin objects are shared between multiple invocation nodes)
-				if (const FRigVMASTProxy* SourcePinProxy = OutTraversalInfo.SourcePins.Find(InPinProxy))
+				if (const FRigVMASTProxy* SourcePinProxy = OutTraversalInfo.SourcePins->Find(InPinProxy))
 				{
 					return *SourcePinProxy;
 				}
@@ -2977,7 +2977,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 					FRigVMASTProxy ParentPinProxy = InPinProxy.GetSibling(ParentPin);
 
 					// if we found a parent pin which has a source that is not a reroute
-					if (FRigVMASTProxy* ParentSourcePinProxyPtr = OutTraversalInfo.SourcePins.Find(ParentPinProxy))
+					if (FRigVMASTProxy* ParentSourcePinProxyPtr = OutTraversalInfo.SourcePins->Find(ParentPinProxy))
 					{
 						FRigVMASTProxy& ParentSourcePinProxy = *ParentSourcePinProxyPtr;
 						if (ParentSourcePinProxy.IsValid())
@@ -3026,7 +3026,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 
 			if (!bIOPinOnLeftOfLibraryNode)
 			{
-				OutTraversalInfo.SourcePins.FindOrAdd(InPinProxy) = SourcePinProxy;
+				OutTraversalInfo.SourcePins->FindOrAdd(InPinProxy) = SourcePinProxy;
 			}
 			return SourcePinProxy;
 		}
@@ -3139,6 +3139,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 	//    also traverse links along reroutes and flatten them
 	LocalPinTraversalInfo TraversalInfo;
 	TraversalInfo.PinOverrides = &PinOverrides;
+	TraversalInfo.SourcePins = &SharedOperandPins;
 	TraversalInfo.TargetLinks = &TargetLinks;
 	TraversalInfo.SourceLinks = &SourceLinks;
 	TraversalInfo.Settings = &Settings;
