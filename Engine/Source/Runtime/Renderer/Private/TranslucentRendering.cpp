@@ -170,6 +170,33 @@ static bool IsSeparateTranslucencyEnabled(ETranslucencyPass::Type TranslucencyPa
 	return false;
 }
 
+static int GetSSRQuality()
+{
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SSR.Quality"));
+	int SSRQuality = CVar ? (CVar->GetInt()) : 0;
+	return SSRQuality;
+}
+
+static bool ShouldRenderTranslucencyScreenSpaceReflections(const FViewInfo& View)
+{
+	// The screenspace reflection of translucency is not controlled by the postprocessing setting
+	// or the raytracing overlay setting. It needs to be turned on/off dynamically to support
+	// diffuse only
+	if (!View.Family->EngineShowFlags.ScreenSpaceReflections)
+	{
+		return false;
+	}
+
+	int SSRQuality = GetSSRQuality();
+
+	if (SSRQuality <= 0)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 static void AddBeginTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
 #if STATS
@@ -861,6 +888,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 
 		BasePassParameters.PrevScreenPositionScaleBias = ScreenPosToPixelValue;
 		BasePassParameters.PrevSceneColorPreExposureInv = PrevSceneColorPreExposureInvValue;
+		BasePassParameters.SSRQuality = ShouldRenderTranslucencyScreenSpaceReflections(View) ? GetSSRQuality() : 0;
 	}
 
 	// Translucency Lighting Volume

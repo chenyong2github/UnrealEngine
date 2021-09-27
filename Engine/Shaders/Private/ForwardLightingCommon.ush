@@ -439,7 +439,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	}
 
 #if MATERIAL_SSR && !FORWARD_SHADING
-	if( View.CameraCut == 0 )
+	if( View.CameraCut == 0 && TranslucentBasePass.SSRQuality > 0)
 	{
 		float StepOffset = InterleavedGradientNoise( MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8 );
 		StepOffset -= 0.5;
