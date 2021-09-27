@@ -39,7 +39,7 @@ int32 GVulkanCPURenderThreadFramePacer = 1;
 static FAutoConsoleVariableRef CVarVulkanCPURenderThreadFramePacer(
 	TEXT("r.Vulkan.CPURenderthreadFramePacer"),
 	GVulkanCPURenderThreadFramePacer,
-	TEXT("Whether to enable the simple RHI thread CPU Framepacer for Vulkan"),
+	TEXT("Whether to enable the simple Render thread CPU Framepacer for Vulkan"),
 	ECVF_RenderThreadSafe
 );
 
@@ -809,7 +809,7 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 				FPlatformProcess::SleepNoStats(static_cast<float>(TimeToSleep));
 				if (GPrintVulkanVsyncDebug)
 				{
-					UE_LOG(LogVulkanRHI, Log, TEXT("CurrentID: %i, CPU TimeToSleep: %f, TargetWEps: %f"), TimeToSleep * 1000.0, TargetIntervalWithEpsilon * 1000.0);
+					UE_LOG(LogVulkanRHI, Log, TEXT("CurrentID: %i, CPU TimeToSleep: %f, TargetWEps: %f"), PresentID, TimeToSleep * 1000.0, TargetIntervalWithEpsilon * 1000.0);
 				}
 
 				uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
