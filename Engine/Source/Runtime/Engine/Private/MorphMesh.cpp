@@ -36,24 +36,35 @@ void UMorphTarget::Serialize( FArchive& Ar )
 	}
 }
 
-void UMorphTarget::SerializeMemoryArchive(FMemoryArchive& Ar)
+namespace
 {
-	int32 MorphLODModelNumber = 0;
-	if (Ar.IsLoading())
+	void SerializeMorphLODModels(FMemoryArchive& Ar, TArray<FMorphTargetLODModel>& MorphLODModels)
 	{
-		Ar << MorphLODModelNumber;
-		MorphLODModels.AddDefaulted(MorphLODModelNumber);
-	}
-	else
-	{
-		MorphLODModelNumber = MorphLODModels.Num();
-		Ar << MorphLODModelNumber;
-	}
+		int32 MorphLODModelNumber = 0;
+		if (Ar.IsLoading())
+		{
+			Ar << MorphLODModelNumber;
+			MorphLODModels.Empty(MorphLODModelNumber);
+			MorphLODModels.AddDefaulted(MorphLODModelNumber);
+		}
+		else
+		{
+			MorphLODModelNumber = MorphLODModels.Num();
+			Ar << MorphLODModelNumber;
+		}
 
-	for (int32 MorphIndex = 0; MorphIndex < MorphLODModelNumber; ++MorphIndex)
-	{
-		Ar << MorphLODModels[MorphIndex];
+		for (int32 MorphIndex = 0; MorphIndex < MorphLODModelNumber; ++MorphIndex)
+		{
+			Ar << MorphLODModels[MorphIndex];
+		}
 	}
+}
+
+void UMorphTarget::SerializeMemoryArchive(FMemoryArchive & Ar)
+{
+	FName MorphTargetName = GetFName();
+	Ar << MorphTargetName;
+	SerializeMorphLODModels(Ar, MorphLODModels);
 }
 
 void UMorphTarget::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
@@ -114,3 +125,30 @@ void FMorphTargetLODModel::GetResourceSizeEx(FResourceSizeEx& CumulativeResource
 {
 	CumulativeResourceSize.AddUnknownMemoryBytes(Vertices.GetAllocatedSize() + sizeof(int32));
 }
+
+#if WITH_EDITOR
+
+void FFinishBuildMorphTargetData::LoadFromMemoryArchive(FMemoryArchive & Ar)
+{
+	check(Ar.IsLoading());
+	
+	if (!ensureMsgf(!bApplyMorphTargetsData, TEXT("Error in FFinishBuildMorphTargetData::LoadFromMemoryArchive. The compilation context morph targets data was already set.")))
+	{
+		MorphLODModelsPerTargetName.Empty();
+		bApplyMorphTargetsData = false;
+	}
+	bApplyMorphTargetsData = true;
+	
+	int32 MorphTargetNumber = 0;
+	Ar << MorphTargetNumber;
+	MorphLODModelsPerTargetName.Reserve(MorphTargetNumber);
+	for (int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargetNumber; ++MorphTargetIndex)
+	{
+		FName MorphTargetName = NAME_None;
+		Ar << MorphTargetName;
+		TArray<FMorphTargetLODModel>&MorphLODModels = MorphLODModelsPerTargetName.FindOrAdd(MorphTargetName);
+		SerializeMorphLODModels(Ar, MorphLODModels);
+	}
+}
+
+#endif // WITH_EDITOR
