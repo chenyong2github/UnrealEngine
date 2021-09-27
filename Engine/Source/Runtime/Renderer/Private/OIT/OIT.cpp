@@ -99,7 +99,7 @@ public:
 
 static bool IsOITSupported(EShaderPlatform InShaderPlatform)
 {
-	return RHISupportsComputeShaders(InShaderPlatform);
+	return RHISupportsComputeShaders(InShaderPlatform) && !IsMobilePlatform(InShaderPlatform) && !FDataDrivenShaderPlatformInfo::GetIsHlslcc(InShaderPlatform);
 }
 
 static void RemoveAllocation(FSortedIndexBuffer* InBuffer)
