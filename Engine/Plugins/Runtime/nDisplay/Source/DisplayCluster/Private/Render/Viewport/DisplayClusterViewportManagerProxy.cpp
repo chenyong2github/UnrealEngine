@@ -214,12 +214,20 @@ void FDisplayClusterViewportManagerProxy::UpdateDeferredResources_RenderThread(F
 		}
 	}
 
-	// Update deffered viewports after all
+	// Update deferred viewports after all
 	for (FDisplayClusterViewportProxy* ViewportProxy : OverridedViewports)
 	{
 		ViewportProxy->UpdateDeferredResources(RHICmdList);
 	}
 }
+
+enum class EWarpPass : uint8
+{
+	Begin = 0,
+	Render,
+	End,
+	COUNT
+};
 
 void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, bool bWarpBlendEnabled) const
 {
@@ -228,16 +236,28 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 	// Do postprocess before warp&blend
 	PostProcessManager->PerformPostProcessBeforeWarpBlend_RenderThread(RHICmdList, this);
 
-	// Update deffered resources and collect viewports for WarpBlend
-	TArray<IDisplayClusterViewportProxy*> WarpBlendViewports;
+	// Support viewport overlap order sorting:
+	TArray<FDisplayClusterViewportProxy*> SortedViewportProxy = ImplGetViewportProxies_RenderThread();
+	SortedViewportProxy.Sort(
+		[](const FDisplayClusterViewportProxy& VP1, const FDisplayClusterViewportProxy& VP2)
+		{
+			return  VP1.GetRenderSettings_RenderThread().OverlapOrder < VP2.GetRenderSettings_RenderThread().OverlapOrder;
+		}
+	);
+
+	// Handle warped viewport projection policy logic:
+	for (uint8 WarpPass = 0; WarpPass < (uint8)EWarpPass::COUNT; WarpPass++)
 	{
-		for (IDisplayClusterViewportProxy* ViewportProxy : GetViewports_RenderThread())
+		// Update deffered resources for viewports
+		for (IDisplayClusterViewportProxy* ViewportProxy : SortedViewportProxy)
 		{
 			if (ViewportProxy)
 			{
 				// Iterate over visible viewports:
 				if (ViewportProxy->GetRenderSettings_RenderThread().bVisible)
 				{
+					const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
+
 					bool bShouldApplyWarpBlend = bWarpBlendEnabled;
 					if (bShouldApplyWarpBlend)
 					{
@@ -251,52 +271,43 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 						{
 							
 							// Projection policy must support warp blend op
-							const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
 							bShouldApplyWarpBlend = PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
 						}
 					}
 
 					if (bShouldApplyWarpBlend)
 					{
-						WarpBlendViewports.Add(ViewportProxy);
+						switch ((EWarpPass)WarpPass)
+						{
+						case EWarpPass::Begin:
+							PrjPolicy->BeginWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+							break;
+
+						case EWarpPass::Render:
+							PrjPolicy->ApplyWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+							break;
+
+						case EWarpPass::End:
+							PrjPolicy->EndWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+							break;
+
+						default:
+							break;
+						}
 					}
 					else
 					{
-						// just resolve not warped viewports to frame target texture
-						ViewportProxy->ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, ViewportProxy->GetOutputResourceType());
+						switch ((EWarpPass)WarpPass)
+						{
+						case EWarpPass::Render:
+							// just resolve not warped viewports to frame target texture
+							ViewportProxy->ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, ViewportProxy->GetOutputResourceType());
+							break;
+
+						default:
+							break;
+						}
 					}
-				}
-			}
-		}
-	}
-
-	// Perform warp&blend
-	if (WarpBlendViewports.Num() > 0)
-	{
-		// Colllect warped viewports:
-
-		// Handle warped viewport projection policy logic in 3 pass:
-		for (int WarpPass = 0; WarpPass < 3; WarpPass++)
-		{
-			for (IDisplayClusterViewportProxy* ViewportProxy : WarpBlendViewports)
-			{
-				const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
-				switch (WarpPass)
-				{
-				case 0:
-					PrjPolicy->BeginWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-					break;
-
-				case 1:
-					PrjPolicy->ApplyWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-					break;
-
-				case 2:
-					PrjPolicy->EndWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-					break;
-
-				default:
-					break;
 				}
 			}
 		}
