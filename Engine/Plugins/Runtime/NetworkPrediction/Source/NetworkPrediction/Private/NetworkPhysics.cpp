@@ -1203,27 +1203,22 @@ void UNetworkPhysicsManager::RegisterPhysicsProxy(FNetworkPhysicsState* State)
 		return;
 	}
 
-	State->LocalManagedHandle = ++UniqueHandleCounter;
-	ManagedHandleToIndexMap.Add(UniqueHandleCounter) = ManagedPhysicsStates.EmplaceAtLowestFreeIndex(LastFreeIndex, State);
+	ManagedPhysicsStates.Add(State);
+
+	UWorld* World = GetWorld();
+	checkSlow(World);
+
+	const bool bIsServer = World->GetNetMode() != NM_Client;
+	if (bIsServer)
+	{
+		State->NetworkHandle = ++UniqueHandleCounter;
+	}
 }
 
 void UNetworkPhysicsManager::UnregisterPhysicsProxy(FNetworkPhysicsState* State)
 {
 	checkSlow(State);
-	const int32 LocalHandle = State->LocalManagedHandle;
-
-	if (LocalHandle != INDEX_NONE)
-	{
-		int32 LocalIndex;
-		if (ensure(ManagedHandleToIndexMap.RemoveAndCopyValue(LocalHandle, LocalIndex)))
-		{
-			ManagedPhysicsStates.RemoveAt(LocalIndex);
-			LastFreeIndex = FMath::Min(LastFreeIndex, LocalIndex);
-		}
-		
-		State->LocalManagedHandle = INDEX_NONE;
-	}
-
+	ManagedPhysicsStates.Remove(State);
 	DrawDebugMap.Remove(State->Proxy);
 }
 
