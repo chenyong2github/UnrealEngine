@@ -60,16 +60,13 @@ struct FNetworkPhysicsState
 	// Local proxy we are working with. Must be set locally on initialization.
 	Chaos::FSingleParticlePhysicsProxy* Proxy = nullptr;
 
-	// Local handle used by UNetworkPhysicsManager for registering/unregistering
-	int32 LocalManagedHandle = INDEX_NONE;
+	// Networked ID
+	int32 NetworkHandle = INDEX_NONE;
 
 	// The actual physics properties
 	FBasePhysicsState Physics;
 
 	// Frame number associated with this data
-	//				GT		PT
-	//	Client:	   Remote	Local	
-	//	Server:	   Local	Local
 	int32 Frame = 0;
 
 	// This is what networking will diff to tell if things have changed
@@ -90,6 +87,10 @@ struct FNetworkPhysicsState
 		Ar << Physics.Rotation;
 		Ar << Physics.LinearVelocity;
 		Ar << Physics.AngularVelocity;
+
+		uint32 UnsignedHandle = (uint32)NetworkHandle;
+		Ar.SerializeIntPacked(UnsignedHandle);
+		NetworkHandle = (int32)UnsignedHandle;
 
 #if NETWORK_PHYSICS_REPLICATE_EXTRAS
 		for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
@@ -203,10 +204,8 @@ private:
 	int32 LocalOffset = 0; // Calculated client/server frame offset. ClientFrame = ServerFrame + LocalOffset
 
 	int32 ClientServerMaxFrameDelta = 0;
-
-	TSortedMap<int32, int32> ManagedHandleToIndexMap;
-	TSparseArray<FNetworkPhysicsState*> ManagedPhysicsStates;
-	int32 LastFreeIndex = 0;
+	
+	TSet<FNetworkPhysicsState*> ManagedPhysicsStates;	
 	int32 UniqueHandleCounter = 0;
 
 	TMap<Chaos::FSingleParticlePhysicsProxy*, TUniqueFunction<void(const FDrawDebugParams&)>> DrawDebugMap;
