@@ -44,6 +44,19 @@ bool FStreamReader::IsEmpty() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FStreamReader::Backtrack(const uint8* To)
+{
+	uint32 BacktrackedCursor = uint32(UPTRINT(To - Buffer));
+	if (BacktrackedCursor > End)
+	{
+		return false;
+	}
+
+	Cursor = BacktrackedCursor;
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 struct FMark* FStreamReader::SaveMark() const
 {
 	return (FMark*)(UPTRINT(Cursor));
