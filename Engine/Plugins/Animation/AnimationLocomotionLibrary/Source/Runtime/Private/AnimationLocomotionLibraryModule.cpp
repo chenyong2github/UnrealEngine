@@ -4,16 +4,16 @@
 
 #define LOCTEXT_NAMESPACE "AnimationLocomotionModule"
 
-void FAnimationLocomotionLibraryModule::StartupModule()
+void FAnimationLocomotionLibraryRuntimeModule::StartupModule()
 {
 
 }
 
-void FAnimationLocomotionLibraryModule::ShutdownModule()
+void FAnimationLocomotionLibraryRuntimeModule::ShutdownModule()
 {
 
 }
 
 #undef LOCTEXT_NAMESPACE
 
-IMPLEMENT_MODULE(FAnimationLocomotionLibraryModule, AnimationLocomotionLibrary)
+IMPLEMENT_MODULE(FAnimationLocomotionLibraryRuntimeModule, AnimationLocomotionLibraryRuntime)
