@@ -37,6 +37,7 @@
 	#include "pxr/usd/sdf/types.h"
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/prim.h"
+	#include "pxr/usd/usd/primRange.h"
 	#include "pxr/usd/usdGeom/mesh.h"
 	#include "pxr/usd/usdGeom/primvarsAPI.h"
 	#include "pxr/usd/usdGeom/subset.h"
@@ -1319,6 +1320,47 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	{
 		Result.Slots.Emplace();
 	}
+	return Result;
+}
+
+TArray<FString> UsdUtils::GetMaterialUsers( const UE::FUsdPrim& MaterialPrim )
+{
+	TArray<FString> Result;
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdMaterialPrim{ MaterialPrim };
+	if ( !UsdMaterialPrim || !UsdMaterialPrim.IsA<pxr::UsdShadeMaterial>() )
+	{
+		return Result;
+	}
+
+	pxr::UsdStageRefPtr UsdStage = UsdMaterialPrim.GetStage();
+
+	pxr::UsdPrimRange PrimRange = pxr::UsdPrimRange::Stage( UsdStage, pxr::UsdTraverseInstanceProxies() );
+	for ( pxr::UsdPrimRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt )
+	{
+		pxr::UsdPrim Prim = *PrimRangeIt;
+
+		if ( !Prim.HasAPI<pxr::UsdShadeMaterialBindingAPI>() )
+		{
+			continue;
+		}
+
+		pxr::UsdShadeMaterialBindingAPI BindingAPI( Prim );
+		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
+		if ( !ShadeMaterial )
+		{
+			continue;
+		}
+
+		pxr::UsdPrim ShadeMaterialPrim = ShadeMaterial.GetPrim();
+		if ( ShadeMaterialPrim == UsdMaterialPrim )
+		{
+			Result.Add( UsdToUnreal::ConvertPath( Prim.GetPrimPath() ) );
+		}
+	}
+
 	return Result;
 }
 

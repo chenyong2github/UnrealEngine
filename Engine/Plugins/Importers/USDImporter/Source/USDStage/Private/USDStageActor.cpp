@@ -8,6 +8,7 @@
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDErrorUtils.h"
+#include "USDGeomMeshConversion.h"
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomXformableTranslator.h"
 #include "USDLayerUtils.h"
@@ -865,6 +866,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 	{
 		RefreshStageTask.EnterProgressFrame();
 
+		const FString& PrimPath = PrimChangedInfo.Key;
 		const bool bIsResync = PrimChangedInfo.Value;
 
 		if ( bIsResync && !bDeselected )
@@ -899,19 +901,58 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 			return !PathToProcess.IsEmpty() && PathsProcessed.Contains( PathToProcess );
 		};
 
-		// Reload assets
+		auto UpdateComponents = [&]( const FString& InPrimPath, const bool bInResync )
 		{
-			UE::FSdfPath AssetsPrimPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, PrimChangedInfo.Key, FUsdSchemaTranslator::ECollapsingType::Assets );
+			UE::FSdfPath ComponentsPrimPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, InPrimPath, FUsdSchemaTranslator::ECollapsingType::Components );
 
-			TSet< FString >& RefreshedAssets = bIsResync ? ResyncedAssets : UpdatedAssets;
+			TSet< FString >& RefreshedComponents = bInResync ? ResyncedComponents : UpdatedComponents;
+
+			if ( !IsPathAlreadyProcessed( RefreshedComponents, ComponentsPrimPath.GetString() ) )
+			{
+				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, ComponentsPrimPath.GetString() );
+				UpdatePrim( ComponentsPrimPath, bInResync, *TranslationContext );
+				TranslationContext->CompleteTasks();
+
+				RefreshedComponents.Add( ComponentsPrimPath.GetString() );
+
+				if ( bInResync )
+				{
+					// Consider that the path has been updated in the case of a resync
+					UpdatedComponents.Add( ComponentsPrimPath.GetString() );
+				}
+			}
+		};
+
+		auto ReloadAssets = [&]( const FString& InPrimPath, const bool bInResync )
+		{
+			UE::FSdfPath AssetsPrimPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, InPrimPath, FUsdSchemaTranslator::ECollapsingType::Assets );
+
+			TSet< FString >& RefreshedAssets = bInResync ? ResyncedAssets : UpdatedAssets;
 
 			if ( !IsPathAlreadyProcessed( RefreshedAssets, AssetsPrimPath.GetString() ) )
 			{
 				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, AssetsPrimPath.GetString() );
 
-				if ( bIsResync )
+				if ( bInResync )
 				{
-					LoadAssets( *TranslationContext, GetOrLoadUsdStage().GetPrimAtPath( AssetsPrimPath ) );
+					UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>( AssetCache->GetAssetForPrim( AssetsPrimPath.GetString() ) );
+
+					UE::FUsdPrim PrimToResync = GetOrLoadUsdStage().GetPrimAtPath( AssetsPrimPath );
+					LoadAssets( *TranslationContext, PrimToResync );
+
+					UMaterialInterface* NewMaterial = Cast<UMaterialInterface>( AssetCache->GetAssetForPrim( AssetsPrimPath.GetString() ) );
+
+					// For UE-120185: If we recreated a material for a prim path we also need to update all components that were using it.
+					// This could be fleshed out further if other asset types require this refresh of "dependent components" but materials
+					// seem to be the only ones that do at the moment
+					if ( ExistingMaterial && ( ExistingMaterial != NewMaterial ) )
+					{
+						for ( const FString& MaterialUserPrim : UsdUtils::GetMaterialUsers( PrimToResync ) )
+						{
+							const bool bResyncComponent = true; // We need to force resync to reassign materials
+							UpdateComponents( MaterialUserPrim, bResyncComponent );
+						}
+					}
 
 					// Resyncing also includes "updating" the prim
 					UpdatedAssets.Add( AssetsPrimPath.GetString() );
@@ -923,29 +964,10 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 
 				RefreshedAssets.Add( AssetsPrimPath.GetString() );
 			}
-		}
+		};
 
-		// Update components
-		{
-			UE::FSdfPath ComponentsPrimPath = FUsdStageActorImpl::UnwindToNonCollapsedPrim( this, PrimChangedInfo.Key, FUsdSchemaTranslator::ECollapsingType::Components );
-
-			TSet< FString >& RefreshedComponents = bIsResync ? ResyncedComponents : UpdatedComponents;
-
-			if ( !IsPathAlreadyProcessed( RefreshedComponents, ComponentsPrimPath.GetString() ) )
-			{
-				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( this, ComponentsPrimPath.GetString() );
-				UpdatePrim( ComponentsPrimPath, bIsResync, *TranslationContext );
-				TranslationContext->CompleteTasks();
-
-				RefreshedComponents.Add( ComponentsPrimPath.GetString() );
-
-				if ( bIsResync )
-				{
-					// Consider that the path has been updated in the case of a resync
-					UpdatedComponents.Add( ComponentsPrimPath.GetString() );
-				}
-			}
-		}
+		ReloadAssets( PrimPath, bIsResync );
+		UpdateComponents( PrimPath, bIsResync );
 
 		if ( HasAuthorityOverStage() )
 		{
