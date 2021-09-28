@@ -95,7 +95,7 @@ void FNiagaraDebuggerClient::UpdateClientInfo()
 		{
 			if (Actor)
 			{
-				NewInfo->Actors.Add(Actor->GetName());
+				NewInfo->Actors.Add(Actor->GetActorNameOrLabel());
 			}
 		}
 
