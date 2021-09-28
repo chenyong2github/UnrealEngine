@@ -21,6 +21,7 @@ struct FDetailFilter
 	{
 		return FilterStrings.Num() == 0
 			&& VisibleSections.Num() == 0
+			&& bShowOnlyModified == false
 			&& bShowAllAdvanced == false
 			&& bShowOnlyWhitelisted == false
 			&& bShowAllChildrenIfCategoryMatches == false
