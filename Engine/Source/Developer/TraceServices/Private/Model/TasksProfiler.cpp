@@ -117,8 +117,6 @@ namespace TraceServices
 			return;
 		}
 
-		checkf(Task->CreatedTimestamp == FTaskInfo::InvalidTimestamp, TEXT("%d"), TaskId);
-
 		Task->Id = TaskId;
 		Task->CreatedTimestamp = Timestamp;
 		Task->CreatedThreadId = ThreadId;
