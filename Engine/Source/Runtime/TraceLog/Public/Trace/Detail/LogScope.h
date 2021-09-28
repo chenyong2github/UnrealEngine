@@ -36,6 +36,7 @@ public:
 
 protected:
 	void					Commit() const;
+	void					Commit(FWriteBuffer* __restrict LatestBuffer) const;
 
 private:
 	template <uint32 Flags>

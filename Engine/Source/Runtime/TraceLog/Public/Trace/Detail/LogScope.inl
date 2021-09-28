@@ -26,6 +26,17 @@ inline void FLogScope::Commit() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+inline void FLogScope::Commit(FWriteBuffer* __restrict LatestBuffer) const
+{
+	if (LatestBuffer != Buffer)
+	{
+		AtomicStoreRelease((uint8**) &(LatestBuffer->Committed), LatestBuffer->Cursor);
+	}
+
+	Commit();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 template <uint32 Flags>
 inline auto FLogScope::EnterImpl(uint32 Uid, uint32 Size)
 {
@@ -95,7 +106,7 @@ inline void TLogScope<true>::operator += (const FLogScope&) const
 	LatestBuffer->Cursor[0] = uint8(EKnownEventUids::AuxDataTerminal << EKnownEventUids::_UidShift);
 	LatestBuffer->Cursor++;
 
-	Commit();
+	Commit(LatestBuffer);
 }
 
 
