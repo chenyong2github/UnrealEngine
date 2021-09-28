@@ -31,6 +31,10 @@ namespace UsdUtils
 	struct FDisplayColorMaterial;
 	struct FUsdPrimMaterialAssignmentInfo;
 }
+namespace UE
+{
+	class FUsdPrim;
+}
 
 namespace UsdToUnreal
 {
@@ -160,6 +164,12 @@ namespace UsdUtils
 	 */
 	USDUTILITIES_API FUsdPrimMaterialAssignmentInfo GetPrimMaterialAssignments( const pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime(),
 		bool bProvideMaterialIndices = true, const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext );
+
+	/**
+	 * Returns an array of prim paths to prims within MaterialPrim's stage that have a UsdShadeMaterialBindingAPI, and whose computed material binding points to MaterialPrim.
+	 * The user prim's schema is not even checked, so this list will naturally include regular UsdGeomMesh prims, UsdGeomSubset prims, and any other with the UsdShadeMaterialBindingAPI.
+	 */
+	USDUTILITIES_API TArray<FString> GetMaterialUsers( const UE::FUsdPrim& MaterialPrim );
 
 	/** Returns whether this UsdMesh can be interpreted as a LOD of a mesh with multiple LODs */
 	USDUTILITIES_API bool IsGeomMeshALOD( const pxr::UsdPrim& UsdMeshPrim );
