@@ -660,13 +660,16 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			}
 		}
 
-		if (GRHISupportsDynamicResolution)
 		{
-			float ResolutionFraction = DynamicResolutionStateInfos.ResolutionFractionApproximation;
-			float ScreenPercentage = ResolutionFraction * 100.0f;
+			const float ResolutionFraction = DynamicResolutionStateInfos.ResolutionFractionApproximation;
+			const float ScreenPercentage = ResolutionFraction * 100.0f;
 
 			InCanvas->DrawShadowedString(X1, InY, TEXT("DynRes:"), Font, bShowUnitTimeGraph ? FColor(255, 160, 100) : FColor::White);
-			if (DynamicResolutionStateInfos.Status == EDynamicResolutionStatus::Enabled)
+			if (!GRHISupportsDynamicResolution || (DynamicResolutionStateInfos.Status == EDynamicResolutionStatus::Unsupported))
+			{
+				InCanvas->DrawShadowedString(X2, InY, TEXT("Unsupported"), Font, FColor(160, 160, 160));
+			}
+			else if (DynamicResolutionStateInfos.Status == EDynamicResolutionStatus::Enabled)
 			{
 				FColor Color = (ResolutionFraction < AlertResolutionFraction) ? FColor::Red : ((ResolutionFraction < FMath::Min(ResolutionFraction * 0.97f, 1.0f)) ? FColor::Yellow : FColor::Green);
 				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%3.1f%% x %3.1f%%"), ScreenPercentage, ScreenPercentage), Font, Color);
@@ -683,10 +686,6 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			{
 				InCanvas->DrawShadowedString(X2, InY, TEXT("OFF"), Font, FColor(160, 160, 160));
 			}
-			else if (DynamicResolutionStateInfos.Status == EDynamicResolutionStatus::Unsupported)
-			{
-				InCanvas->DrawShadowedString(X2, InY, TEXT("Unsupported"), Font, FColor(160, 160, 160));
-			}
 			else
 			{
 				check(0);
@@ -694,33 +693,33 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			InY += RowHeight;
 		}
 
-			// Draw calls
-			{
-				// Assume we don't have more than 1 GPU in mobile.
-				int32 NumDrawCalls = GNumDrawCallsRHI[0];
-				InCanvas->DrawShadowedString(X1, InY, TEXT("Draws:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
-				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumDrawCalls), Font, FColor::Green);
-				InY += RowHeight;
-			}
-			
-			// Primitives
-			{
-				// Assume we don't have more than 1 GPU in mobile.
-				int32 NumPrimitives = GNumPrimitivesDrawnRHI[0];
-				InCanvas->DrawShadowedString(X1, InY, TEXT("Prims:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
-				if (NumPrimitives < 10000)
-				{
-					InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumPrimitives), Font, FColor::Green);
-				}
-				else
-				{
-					float NumPrimitivesK = NumPrimitives/1000.f;
-					InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%.1fK"), NumPrimitivesK), Font, FColor::Green);
-				}
-				
-				InY += RowHeight;
-			}
+		// Draw calls
+		{
+			// Assume we don't have more than 1 GPU in mobile.
+			int32 NumDrawCalls = GNumDrawCallsRHI[0];
+			InCanvas->DrawShadowedString(X1, InY, TEXT("Draws:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
+			InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumDrawCalls), Font, FColor::Green);
+			InY += RowHeight;
 		}
+			
+		// Primitives
+		{
+			// Assume we don't have more than 1 GPU in mobile.
+			int32 NumPrimitives = GNumPrimitivesDrawnRHI[0];
+			InCanvas->DrawShadowedString(X1, InY, TEXT("Prims:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
+			if (NumPrimitives < 10000)
+			{
+				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumPrimitives), Font, FColor::Green);
+			}
+			else
+			{
+				float NumPrimitivesK = NumPrimitives/1000.f;
+				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%.1fK"), NumPrimitivesK), Font, FColor::Green);
+			}
+				
+			InY += RowHeight;
+		}
+	}
 
 #if !UE_BUILD_SHIPPING
 	// Draw simple unit time graph
