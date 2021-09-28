@@ -122,7 +122,16 @@ void UFractureToolMeshCut::GenerateMeshTransforms(const FFractureToolContext& Co
 		FVector Position(Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
 		FVector::FReal Scale = RandStream.FRandRange(MeshCutSettings->MinScaleFactor, MeshCutSettings->MaxScaleFactor);
 		FVector ScaleVec(Scale, Scale, Scale);
-		MeshTransforms.Emplace(FTransform(FRotator(RandStream.FRand() * 360.0f, RandStream.FRand() * 360.0f, RandStream.FRand() * 360.0f), Position, ScaleVec));
+		FRotator Orientation = FRotator::ZeroRotator;
+		if (MeshCutSettings->bRandomOrientation)
+		{
+			Orientation = FRotator(
+				RandStream.FRandRange(-MeshCutSettings->PitchRange, MeshCutSettings->PitchRange),
+				RandStream.FRandRange(-MeshCutSettings->YawRange, MeshCutSettings->YawRange),
+				RandStream.FRandRange(-MeshCutSettings->RollRange, MeshCutSettings->RollRange)
+			);
+		}
+		MeshTransforms.Emplace(FTransform(Orientation, Position, ScaleVec));
 	}
 }
 
