@@ -173,7 +173,7 @@ public:
 
 			// Check if the server knows this worker
 
-			UE::Zen::FZenHttpRequest::Result WorkerGetResult = WorkerRequest->PerformBlockingDownload(WorkerUri, nullptr);
+			UE::Zen::FZenHttpRequest::Result WorkerGetResult = WorkerRequest->PerformBlockingDownload(WorkerUri, nullptr, Zen::EContentType::CbObject);
 
 			if (WorkerGetResult == Zen::FZenHttpRequest::Result::Failed)
 			{

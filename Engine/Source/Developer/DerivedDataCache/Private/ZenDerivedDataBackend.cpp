@@ -99,7 +99,7 @@ bool FZenDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
 	{
 		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-		Zen::FZenHttpRequest::Result Result = Request->PerformBlockingHead(*Uri);
+		Zen::FZenHttpRequest::Result Result = Request->PerformBlockingHead(*Uri, Zen::EContentType::Binary);
 		ResponseCode = Request->GetResponseCode();
 
 		if (Zen::IsSuccessCode(ResponseCode) || ResponseCode == 404)
@@ -138,7 +138,7 @@ bool FZenDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>&
 	double StartTime = FPlatformTime::Seconds();
 
 	TArray64<uint8> ArrayBuffer;
-	EGetResult Result = GetZenData(MakeLegacyZenKey(CacheKey), &ArrayBuffer);
+	EGetResult Result = GetZenData(MakeLegacyZenKey(CacheKey), &ArrayBuffer, Zen::EContentType::Binary);
 	check(ArrayBuffer.Num() <= UINT32_MAX);
 	OutData = MoveTemp(ArrayBuffer);
 	if (Result != EGetResult::Success)
@@ -167,7 +167,7 @@ bool FZenDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>&
 }
 
 FZenDerivedDataBackend::EGetResult
-FZenDerivedDataBackend::GetZenData(FStringView Uri, TArray64<uint8>* OutData) const
+FZenDerivedDataBackend::GetZenData(FStringView Uri, TArray64<uint8>* OutData, Zen::EContentType ContentType) const
 {
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	EGetResult GetResult = EGetResult::NotFound;
@@ -179,11 +179,11 @@ FZenDerivedDataBackend::GetZenData(FStringView Uri, TArray64<uint8>* OutData) co
 			Zen::FZenHttpRequest::Result Result;
 			if (OutData)
 			{
-				Result = Request->PerformBlockingDownload(Uri, OutData);
+				Result = Request->PerformBlockingDownload(Uri, OutData, ContentType);
 			}
 			else
 			{
-				Result = Request->PerformBlockingHead(Uri);
+				Result = Request->PerformBlockingHead(Uri, ContentType);
 			}
 			int64 ResponseCode = Request->GetResponseCode();
 
@@ -633,7 +633,7 @@ void FZenDerivedDataBackend::GetPayload(
 			else
 			{
 				TArray64<uint8> PayloadData;
-				GetResult = GetZenData(QueryUri, &PayloadData);
+				GetResult = GetZenData(QueryUri, &PayloadData, Zen::EContentType::CompressedBinary);
 				if (GetResult == EGetResult::Success)
 				{
 					CompressedBuffer = FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(PayloadData)));
@@ -719,7 +719,7 @@ bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringV
 	TStringBuilder<256> Uri;
 	AppendZenUri(Record.GetKey(), Uri);
 	AppendPolicyQueryString(Policy, Uri);
-	if (PutZenData(Uri.ToString(), Buffer, Zen::EContentType::CompactBinaryPackage)
+	if (PutZenData(Uri.ToString(), Buffer, Zen::EContentType::CbPackage)
 		!= FDerivedDataBackendInterface::EPutStatus::Cached)
 	{
 		return false;
@@ -796,7 +796,7 @@ bool FZenDerivedDataBackend::LegacyPutCacheRecord(const FCacheRecord& Record, FS
 	Writer.Save(Buffer);
 	TStringBuilder<256> Uri;
 	LegacyMakeZenKey(Key, Uri);
-	if (PutZenData(Uri.ToString(), FCompositeBuffer(Buffer.MoveToShared()), Zen::EContentType::CompactBinary)
+	if (PutZenData(Uri.ToString(), FCompositeBuffer(Buffer.MoveToShared()), Zen::EContentType::CbObject)
 		!= FDerivedDataBackendInterface::EPutStatus::Cached)
 	{
 		return false;
@@ -817,7 +817,7 @@ bool FZenDerivedDataBackend::LegacyPutCachePayload(const FCacheKey& Key, FString
 		LegacyMakePayloadKey(Key, RawHash, Uri);
 		if (Payload.HasData())
 		{
-			if (PutZenData(Uri.ToString(), CompressedBuffer, Zen::EContentType::Binary) != FDerivedDataBackendInterface::EPutStatus::Cached)
+			if (PutZenData(Uri.ToString(), CompressedBuffer, Zen::EContentType::CompressedBinary) != FDerivedDataBackendInterface::EPutStatus::Cached)
 			{
 				return false;
 			}
@@ -825,7 +825,7 @@ bool FZenDerivedDataBackend::LegacyPutCachePayload(const FCacheKey& Key, FString
 		else
 		{
 			// Put of a record with payloads-with-no-data should succeed iff the payload data is available in the CacheStore
-			if (GetZenData(Uri.ToString(), nullptr) != EGetResult::Success)
+			if (GetZenData(Uri.ToString(), nullptr, Zen::EContentType::CompressedBinary) != EGetResult::Success)
 			{
 				return false;
 			}
@@ -855,7 +855,7 @@ FOptionalCacheRecord FZenDerivedDataBackend::LegacyGetCacheRecord(const FCacheKe
 	TStringBuilder<256> Uri;
 	LegacyMakeZenKey(Key, Uri);
 	TArray64<uint8> Buffer;
-	EGetResult Result = GetZenData(Uri.ToString(), &Buffer);
+	EGetResult Result = GetZenData(Uri.ToString(), &Buffer, Zen::EContentType::CbObject);
 	if (Result != EGetResult::Success)
 	{
 		return FOptionalCacheRecord();
@@ -885,7 +885,7 @@ FPayload FZenDerivedDataBackend::LegacyGetCachePayload(const FCacheKey& Key, FSt
 	bool bSkipData = EnumHasAllFlags(Policy, ECachePolicy::SkipData);
 	EGetResult GetResult;
 	TArray64<uint8> ArrayBuffer;
-	GetResult = GetZenData(Uri.ToString(), bSkipData ? nullptr : &ArrayBuffer);
+	GetResult = GetZenData(Uri.ToString(), bSkipData ? nullptr : &ArrayBuffer, Zen::EContentType::CompressedBinary);
 	if (GetResult != EGetResult::Success)
 	{
 		switch (GetResult)
