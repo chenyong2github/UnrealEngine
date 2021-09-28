@@ -32,12 +32,14 @@ namespace UnrealBuildTool.Rules
 					"JsonUtilities",
 					"Landscape",
 					"LevelSequence",
+					"LevelSequenceEditor", // For LevelSequenceEditorSpawnRegister, which we need to use when exporting level sequences with spawnables
 					"MaterialBaking", // So that we can use some of the export option properties
 					"MaterialUtilities",
 					"MeshDescription",
 					"MeshUtilities",
 					"MessageLog",
 					"MovieScene",
+					"MovieSceneTracks",
 					"PropertyEditor",
 					"PythonScriptPlugin",
 					"RawMesh",

@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"Foliage",
 					"GeometryCache", // Just so that we can fetch its AssetImportData
 					"IntelTBB",
+					"Landscape", // So that GetSchemaNameForComponent knows what to do with landscape proxies
 					"MeshDescription",
 					"MovieScene",
 					"MovieSceneTracks",

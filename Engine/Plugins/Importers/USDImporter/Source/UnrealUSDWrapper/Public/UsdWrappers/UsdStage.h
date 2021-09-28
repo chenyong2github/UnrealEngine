@@ -89,6 +89,8 @@ namespace UE
 		void SetFramesPerSecond( double FramesPerSecond );
 
 		void SetDefaultPrim( const FUsdPrim& Prim );
+
+		FUsdPrim OverridePrim( const FSdfPath& Path );
 		FUsdPrim DefinePrim( const FSdfPath& Path, const TCHAR* TypeName = TEXT("") );
 		bool RemovePrim( const FSdfPath& Path );
 

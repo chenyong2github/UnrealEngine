@@ -135,7 +135,7 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 			// There is a dedicated "Export selected" option that sets this, so let's sync to it
 			if ( ExportTask )
 			{
-				Options->bSelectionOnly = ExportTask->bSelected;
+				Options->Inner.bSelectionOnly = ExportTask->bSelected;
 			}
 
 			const bool bIsImport = false;
@@ -154,9 +154,9 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 
 	// The more robust thing is to force-stream-in all levels that are currently invisible/unloaded but we check to export.
 	// Not only to force actors to spawn, but also to make sure that when we want to bake a landscape it is visible
-	TArray<ULevel*> StreamedInLevels = UE::LevelExporterUSD::Private::StreamInRequiredLevels( World, Options->LevelsToIgnore );
+	TArray<ULevel*> StreamedInLevels = UE::LevelExporterUSD::Private::StreamInRequiredLevels( World, Options->Inner.LevelsToIgnore );
 
-	if ( Options->bIgnoreSequencerAnimations )
+	if ( Options->Inner.bIgnoreSequencerAnimations )
 	{
 		for ( const TWeakPtr<ISequencer>& Sequencer : FLevelEditorSequencerIntegration::Get().GetSequencers() )
 		{
@@ -177,7 +177,7 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 	}
 	Options->CurrentTask = nullptr;
 
-	if ( Options->bIgnoreSequencerAnimations )
+	if ( Options->Inner.bIgnoreSequencerAnimations )
 	{
 		for ( const TWeakPtr<ISequencer>& Sequencer : FLevelEditorSequencerIntegration::Get().GetSequencers() )
 		{

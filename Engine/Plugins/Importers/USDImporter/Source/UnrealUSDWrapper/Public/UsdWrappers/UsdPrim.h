@@ -30,6 +30,15 @@ namespace UE
 		class FUsdPrimImpl;
 	}
 
+	/** Corresponds to pxr::SdfSpecifier, refer to the USD SDK documentation */
+	enum class ESdfSpecifier
+	{
+		Def,	// Defines a concrete prim
+		Over,	// Overrides an existing prim
+		Class,	// Defines an abstract prim
+		Num		// The number of specifiers
+	};
+
 	/**
 	 * Minimal pxr::UsdPrim wrapper for Unreal that can be used from no-rtti modules.
 	 */
@@ -64,6 +73,8 @@ namespace UE
 
 	// Wrapped pxr::UsdPrim functions, refer to the USD SDK documentation
 	public:
+		bool SetSpecifier( ESdfSpecifier Specifier );
+
 		bool IsActive() const;
 		bool SetActive( bool bActive );
 

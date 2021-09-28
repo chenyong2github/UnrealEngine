@@ -406,7 +406,7 @@ namespace UE
 #if USE_USD_SDK
 		if ( PtrType& Ptr = Impl->GetInner() )
 		{
-			if ( !FMath::IsNearlyEqual( TimeCode, Ptr->GetStartTimeCode() ) )
+			if ( !FMath::IsNearlyEqual( TimeCode, Ptr->GetStartTimeCode() ) || !Ptr->HasAuthoredTimeCodeRange() )
 			{
 				Ptr->SetStartTimeCode( TimeCode );
 			}
@@ -420,7 +420,7 @@ namespace UE
 #if USE_USD_SDK
 		if ( PtrType& Ptr = Impl->GetInner() )
 		{
-			if ( !FMath::IsNearlyEqual( TimeCode, Ptr->GetEndTimeCode() ) )
+			if ( !FMath::IsNearlyEqual( TimeCode, Ptr->GetEndTimeCode() ) || !Ptr->HasAuthoredTimeCodeRange() )
 			{
 				Ptr->SetEndTimeCode( TimeCode );
 			}
@@ -491,6 +491,19 @@ namespace UE
 			Ptr->SetDefaultPrim( Prim );
 		}
 #endif // #if USE_USD_SDK
+	}
+
+	template<typename PtrType>
+	FUsdPrim FUsdStageBase<PtrType>::OverridePrim( const FSdfPath& Path )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			return FUsdPrim( Ptr->OverridePrim( Path ) );
+		}
+#endif // #if USE_USD_SDK
+
+		return FUsdPrim();
 	}
 
 	template<typename PtrType>

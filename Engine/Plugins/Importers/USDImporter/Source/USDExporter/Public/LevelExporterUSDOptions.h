@@ -12,26 +12,10 @@
 
 #include "LevelExporterUSDOptions.generated.h"
 
-/**
- * Options for exporting levels to USD format.
- */
-UCLASS( Config = Editor, Blueprintable, HideCategories=Hidden )
-class USDEXPORTER_API ULevelExporterUSDOptions : public UObject
+USTRUCT( BlueprintType )
+struct USDEXPORTER_API FLevelExporterUSDOptionsInner
 {
 	GENERATED_BODY()
-
-public:
-	/** Basic options about the stage to export */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options", meta = ( ShowOnlyInnerProperties ) )
-	FUsdStageOptions StageOptions;
-
-	/** StartTimeCode to be used for all exported layers */
-    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options" )
-    float StartTimeCode;
-
-	/** EndTimeCode to be used for all exported layers */
-    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options" )
-    float EndTimeCode;
 
 	/** Whether to export only the selected actors, and assets used by them */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
@@ -95,6 +79,32 @@ public:
 	/** Names of levels that should be ignored when collecting actors to export (e.g. "Persistent Level", "Level1", "MySubLevel", etc.) */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
     TSet<FString> LevelsToIgnore;
+};
+
+/**
+ * Options for exporting levels to USD format.
+ */
+UCLASS( Config = Editor, Blueprintable, HideCategories=Hidden )
+class USDEXPORTER_API ULevelExporterUSDOptions : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** Basic options about the stage to export */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options", meta = ( ShowOnlyInnerProperties ) )
+	FUsdStageOptions StageOptions;
+
+	/** StartTimeCode to be used for all exported layers */
+    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options" )
+    float StartTimeCode;
+
+	/** EndTimeCode to be used for all exported layers */
+    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options" )
+    float EndTimeCode;
+
+	/** Inner struct that actually contains most of the export options */
+    UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ShowOnlyInnerProperties ) )
+    FLevelExporterUSDOptionsInner Inner;
 
 public:
 	// We temporarily stash our export task here as a way of passing our options down to
