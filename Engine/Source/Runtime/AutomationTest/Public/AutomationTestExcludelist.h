@@ -168,7 +168,8 @@ public:
 	bool IsTestExcluded(const FString& TestName, const FString& RHI = TEXT(""), FName* OutReason = nullptr, bool* OutWarn = nullptr);
 	FAutomationTestExcludelistEntry* GetExcludeTestEntry(const FString& TestName);
 
-	void SaveConfig() { UObject::UpdateDefaultConfigFile(); }
+	void SaveConfig();
+	FString GetConfigFilename() { return UObject::GetDefaultConfigFilename(); } const
 	// It is called automatically when CDO is created, usually you don't need to call LoadConfig manually
 	void LoadConfig() { UObject::LoadConfig(GetClass()); }
 

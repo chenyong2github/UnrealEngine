@@ -17,6 +17,15 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 				});
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[] {
+						"SourceControl",
+						"TargetPlatform",
+					});
+			}
 		}
 	}
 }
