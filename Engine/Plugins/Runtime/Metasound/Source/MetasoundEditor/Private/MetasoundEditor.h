@@ -114,9 +114,6 @@ namespace Metasound
 			void PasteNodes(const FVector2D* InLocation = nullptr);
 			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);
 
-			/** Forces all UX pertaining to the root graph's details panel to be refreshed. */
-			void RefreshDetails();
-
 			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
 			void RefreshInterface();
 
