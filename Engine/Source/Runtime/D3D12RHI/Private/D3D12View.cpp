@@ -1,10 +1,115 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	D3D12View.cpp: 
-=============================================================================*/
-
 #include "D3D12RHIPrivate.h"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FD3D12ViewDescriptorHandle
+
+FD3D12ViewDescriptorHandle::FD3D12ViewDescriptorHandle(FD3D12Device* InParentDevice, ED3D12DescriptorHeapType InHeapType)
+	: FD3D12DeviceChild(InParentDevice)
+	, HeapType(InHeapType)
+{
+	AllocateDescriptorSlot();
+}
+
+FD3D12ViewDescriptorHandle::~FD3D12ViewDescriptorHandle()
+{
+	FreeDescriptorSlot();
+	check(OfflineHandle.ptr == 0);
+	check(OfflineIndex == UINT_MAX);
+	check(ResourceIndex == UINT_MAX);
+}
+
+void FD3D12ViewDescriptorHandle::CreateView(const D3D12_RENDER_TARGET_VIEW_DESC& Desc, ID3D12Resource* Resource)
+{
+	check(HeapType == ED3D12DescriptorHeapType::RenderTarget);
+
+	GetParentDevice()->GetDevice()->CreateRenderTargetView(Resource, &Desc, OfflineHandle);
+}
+
+void FD3D12ViewDescriptorHandle::CreateView(const D3D12_DEPTH_STENCIL_VIEW_DESC& Desc, ID3D12Resource* Resource)
+{
+	check(HeapType == ED3D12DescriptorHeapType::DepthStencil);
+
+	GetParentDevice()->GetDevice()->CreateDepthStencilView(Resource, &Desc, OfflineHandle);
+}
+
+void FD3D12ViewDescriptorHandle::CreateView(const D3D12_CONSTANT_BUFFER_VIEW_DESC& Desc)
+{
+	check(HeapType == ED3D12DescriptorHeapType::Standard);
+
+	GetParentDevice()->GetDevice()->CreateConstantBufferView(&Desc, OfflineHandle);
+}
+
+void FD3D12ViewDescriptorHandle::CreateView(const D3D12_SHADER_RESOURCE_VIEW_DESC& Desc, ID3D12Resource* Resource)
+{
+	check(HeapType == ED3D12DescriptorHeapType::Standard);
+
+#if D3D12_RHI_RAYTRACING
+	// NOTE (from D3D Debug runtime): When ViewDimension is D3D12_SRV_DIMENSION_RAYTRACING_ACCELLERATION_STRUCTURE, pResource must be NULL, since the resource location comes from a GPUVA in pDesc
+	if (Desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		Resource = nullptr;
+	}
+#endif // D3D12_RHI_RAYTRACING
+
+	GetParentDevice()->GetDevice()->CreateShaderResourceView(Resource, &Desc, OfflineHandle);
+
+	if (IsResourceHandle())
+	{
+		GetParentDevice()->GetDevice()->CopyDescriptorsSimple(1, GetResourceHandle(), GetOfflineHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+}
+
+void FD3D12ViewDescriptorHandle::CreateView(const D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc, ID3D12Resource* Resource, ID3D12Resource* CounterResource)
+{
+	check(HeapType == ED3D12DescriptorHeapType::Standard);
+
+	GetParentDevice()->GetDevice()->CreateUnorderedAccessView(Resource, CounterResource, &Desc, OfflineHandle);
+
+	if (IsResourceHandle())
+	{
+		GetParentDevice()->GetDevice()->CopyDescriptorsSimple(1, GetResourceHandle(), GetOfflineHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE FD3D12ViewDescriptorHandle::GetResourceHandle() const
+{
+	return GetParentDevice()->GetResourceDescriptorManager().GetResourceHandle(ResourceIndex);
+}
+
+void FD3D12ViewDescriptorHandle::AllocateDescriptorSlot()
+{
+	if (FD3D12Device* Device = GetParentDevice())
+	{
+		OfflineHandle = Device->GetOfflineDescriptorManager(HeapType).AllocateHeapSlot(OfflineIndex);
+		check(OfflineHandle.ptr != 0);
+
+		if (HeapType == ED3D12DescriptorHeapType::Standard)
+		{
+			Device->GetResourceDescriptorManager().AllocateDescriptor(ResourceIndex);
+		}
+	}
+}
+
+void FD3D12ViewDescriptorHandle::FreeDescriptorSlot()
+{
+	if (FD3D12Device* Device = GetParentDevice())
+	{
+		Device->GetOfflineDescriptorManager(HeapType).FreeHeapSlot(OfflineHandle, OfflineIndex);
+		OfflineIndex = UINT_MAX;
+		OfflineHandle.ptr = 0;
+
+		if (IsResourceHandle())
+		{
+			Device->GetResourceDescriptorManager().FreeDescriptor(ResourceIndex);
+			ResourceIndex = UINT_MAX;
+		}
+	}
+	check(OfflineHandle.ptr == 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static FORCEINLINE D3D12_SHADER_RESOURCE_VIEW_DESC GetVertexBufferSRVDesc(FD3D12Buffer* VertexBuffer, uint32& CreationStride, uint8 Format, uint32 StartOffsetBytes, uint32 NumElements)
 {
@@ -460,31 +565,15 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceViewWriteMask
 	return RHICreateShaderResourceViewWriteMask(Texture2D);
 }
 
-#if USE_STATIC_ROOT_SIGNATURE
-void FD3D12ConstantBufferView::AllocateHeapSlot()
+FD3D12ConstantBufferView::FD3D12ConstantBufferView(FD3D12Device* InParent)
+	: FD3D12DeviceChild(InParent)
+	, Descriptor(InParent, ED3D12DescriptorHeapType::Standard)
 {
-	if (!OfflineDescriptorHandle.ptr)
-	{
-	    FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetViewDescriptorAllocator<D3D12_CONSTANT_BUFFER_VIEW_DESC>();
-	    OfflineDescriptorHandle = DescriptorAllocator.AllocateHeapSlot(OfflineHeapIndex);
-	    check(OfflineDescriptorHandle.ptr != 0);
-	}
-}
-
-void FD3D12ConstantBufferView::FreeHeapSlot()
-{
-	if (OfflineDescriptorHandle.ptr)
-	{
-		FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetViewDescriptorAllocator<D3D12_CONSTANT_BUFFER_VIEW_DESC>();
-		DescriptorAllocator.FreeHeapSlot(OfflineDescriptorHandle, OfflineHeapIndex);
-		OfflineDescriptorHandle.ptr = 0;
-	}
 }
 
 void FD3D12ConstantBufferView::Create(D3D12_GPU_VIRTUAL_ADDRESS GPUAddress, const uint32 AlignedSize)
 {
 	Desc.BufferLocation = GPUAddress;
 	Desc.SizeInBytes = AlignedSize;
-	GetParentDevice()->GetDevice()->CreateConstantBufferView(&Desc, OfflineDescriptorHandle);
+	Descriptor.CreateView(Desc);
 }
-#endif

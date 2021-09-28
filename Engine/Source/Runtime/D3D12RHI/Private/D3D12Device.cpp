@@ -1,21 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-D3D12Device.cpp: D3D device RHI implementation.
-=============================================================================*/
 #include "D3D12RHIPrivate.h"
 #include "D3D12RayTracing.h"
 
-namespace D3D12RHI
-{
-	extern void EmptyD3DSamplerStateCache();
-}
-using namespace D3D12RHI;
-
 FD3D12Device::FD3D12Device() :
 	FD3D12Device(FRHIGPUMask::GPU0(), nullptr)
-	{
-	}
+{
+}
 
 FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	FD3D12SingleNodeGPUObject(InGPUMask),
@@ -24,16 +15,16 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	CopyCommandListManager(nullptr),
 	AsyncCommandListManager(nullptr),
 	TextureStreamingCommandAllocatorManager(this, D3D12_COMMAND_LIST_TYPE_COPY),
-	RTVAllocator(InGPUMask, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 256),
-	DSVAllocator(InGPUMask, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 256),
-	SRVAllocator(InGPUMask, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024),
-	UAVAllocator(InGPUMask, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1024),
-#if USE_STATIC_ROOT_SIGNATURE
-	CBVAllocator(InGPUMask, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2048),
-#endif
-	SamplerAllocator(InGPUMask, FD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 128),
-	GlobalSamplerHeap(this, InGPUMask),
-	GlobalViewHeap(this, InGPUMask),
+	DescriptorHeapManager(this),
+	ResourceDescriptorManager(this),
+	OfflineDescriptorManagers{
+		FD3D12OfflineDescriptorManager(this),
+		FD3D12OfflineDescriptorManager(this),
+		FD3D12OfflineDescriptorManager(this),
+		FD3D12OfflineDescriptorManager(this),
+	},
+	GlobalSamplerHeap(this),
+	OnlineDescriptorManager(this),
 	OcclusionQueryHeap(this, D3D12_QUERY_TYPE_OCCLUSION, 65536, 4 /*frames to keep results */ * 1 /*batches per frame*/),
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	CmdListExecTimeQueryHeap(new FD3D12LinearQueryHeap(this, D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 8192)),
@@ -322,21 +313,6 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	}
 #endif // (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
-	// Init offline descriptor allocators
-	RTVAllocator.Init(Direct3DDevice);
-	DSVAllocator.Init(Direct3DDevice);
-	SRVAllocator.Init(Direct3DDevice);
-	UAVAllocator.Init(Direct3DDevice);
-#if USE_STATIC_ROOT_SIGNATURE
-	CBVAllocator.Init(Direct3DDevice);
-#endif
-	SamplerAllocator.Init(Direct3DDevice);
-
-	GlobalSamplerHeap.Init(NUM_SAMPLER_DESCRIPTORS);
-
-	// This value can be tuned on a per app basis. I.e. most apps will never run into descriptor heap pressure so
-	// can make this global heap smaller
-	uint32 NumGlobalViewDesc = GGlobalViewHeapSize;
 
 	const D3D12_RESOURCE_BINDING_TIER Tier = GetParentAdapter()->GetResourceBindingTier();
 	uint32 MaximumSupportedHeapSize = NUM_VIEW_DESCRIPTORS_TIER_1;
@@ -354,9 +330,25 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		MaximumSupportedHeapSize = NUM_VIEW_DESCRIPTORS_TIER_3;
 		break;
 	}
-	check(NumGlobalViewDesc <= MaximumSupportedHeapSize);
-		
-	GlobalViewHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, NumGlobalViewDesc);
+
+	// This value can be tuned on a per app basis. I.e. most apps will never run into descriptor heap pressure so
+	// can make this global heap smaller
+	check((uint32)GGlobalDescriptorHeapSize <= MaximumSupportedHeapSize);
+	check(GOnlineDescriptorHeapSize <= GGlobalDescriptorHeapSize);
+	check(GResourceDescriptorHeapSize <= GGlobalDescriptorHeapSize);
+
+	DescriptorHeapManager.Init(GGlobalDescriptorHeapSize);
+	ResourceDescriptorManager.Init(GResourceDescriptorHeapSize);
+
+	// Init offline descriptor managers
+	for (uint32 Index = 0; Index < static_cast<uint32>(ED3D12DescriptorHeapType::count); Index++)
+	{
+		OfflineDescriptorManagers[Index].Init(static_cast<ED3D12DescriptorHeapType>(Index));
+	}
+
+	GlobalSamplerHeap.Init(NUM_SAMPLER_DESCRIPTORS);
+
+	OnlineDescriptorManager.Init(GOnlineDescriptorHeapSize, GOnlineDescriptorHeapBlockSize);
 
 	// Init the occlusion and timestamp query heaps
 	OcclusionQueryHeap.Init();

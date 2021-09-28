@@ -515,12 +515,7 @@ class FD3D12FastConstantAllocator : public FD3D12DeviceChild, public FD3D12Multi
 public:
 	FD3D12FastConstantAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask);
 
-#if USE_STATIC_ROOT_SIGNATURE
 	void* Allocate(uint32 Bytes, class FD3D12ResourceLocation& OutLocation, FD3D12ConstantBufferView* OutCBView);
-#else
-	void* Allocate(uint32 Bytes, class FD3D12ResourceLocation& OutLocation);
-#endif
-
 
 private:
 	FD3D12ResourceLocation UnderlyingResource;

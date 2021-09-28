@@ -11,6 +11,24 @@
 #include <emmintrin.h>
 #endif
 
+// This value defines how many descriptors will be in the device global descriptor heap. This heap contains all shader visible view descriptors.
+// Other shader visible descriptor heaps (e.g. OnlineViewHeap) are allocated from this pool. Non-visible heaps (e.g. LocalViewHeap) are allocated as standalone.
+int32 GGlobalDescriptorHeapSize = 1000 * 1000;
+static FAutoConsoleVariableRef CVarGlobalDescriptorHeapSize(
+	TEXT("D3D12.GlobalDescriptorHeapSize"),
+	GGlobalDescriptorHeapSize,
+	TEXT("Global descriptor heap size"),
+	ECVF_ReadOnly
+);
+
+int32 GResourceDescriptorHeapSize = 0;// 500 * 1000;
+static FAutoConsoleVariableRef CVarResourceDescriptorHeapSize(
+	TEXT("D3D12.ResourceDescriptorHeapSize"),
+	GResourceDescriptorHeapSize,
+	TEXT("Resource descriptor heap size"),
+	ECVF_ReadOnly
+);
+
 // This value defines how many descriptors will be in the device local view heap which
 // This should be tweaked for each title as heaps require VRAM. The default value of 512k takes up ~16MB
 int32 GLocalViewHeapSize = 500 * 1000;
@@ -21,14 +39,22 @@ static FAutoConsoleVariableRef CVarLocalViewHeapSize(
 	ECVF_ReadOnly
 );
 
-// This value defines how many descriptors will be in the device global view heap which
+// This value defines how many descriptors will be in the device online view heap which
 // is shared across contexts to allow the driver to eliminate redundant descriptor heap sets.
 // This should be tweaked for each title as heaps require VRAM. The default value of 512k takes up ~16MB
-int32 GGlobalViewHeapSize = 500 * 1000;
-static FAutoConsoleVariableRef CVarGlobalViewHeapSize(
-	TEXT("D3D12.GlobalViewHeapSize"),
-	GGlobalViewHeapSize,
-	TEXT("Global view heap size"),
+int32 GOnlineDescriptorHeapSize = 500 * 1000;
+static FAutoConsoleVariableRef CVarOnlineDescriptorHeapSize(
+	TEXT("D3D12.OnlineDescriptorHeapSize"),
+	GOnlineDescriptorHeapSize,
+	TEXT("Online descriptor heap size"),
+	ECVF_ReadOnly
+);
+
+int32 GOnlineDescriptorHeapBlockSize = 2000;
+static FAutoConsoleVariableRef CVarOnlineDescriptorHeapBlockSize(
+	TEXT("D3D12.OnlineDescriptorHeapBlockSize"),
+	GOnlineDescriptorHeapBlockSize,
+	TEXT("Block size for sub allocations on the global view descriptor heap."),
 	ECVF_ReadOnly
 );
 
@@ -102,8 +128,10 @@ void FD3D12StateCacheBase::Init(FD3D12Device* InParent, FD3D12CommandContext* In
 		ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_2 ? NUM_VIEW_DESCRIPTORS_TIER_2 :
 		NUM_VIEW_DESCRIPTORS_TIER_1;
 
+	check(GGlobalDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
+	check(GResourceDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
 	check(GLocalViewHeapSize <= (int32)MaxDescriptorsForTier);
-	check(GGlobalViewHeapSize <= (int32)MaxDescriptorsForTier);
+	check(GOnlineDescriptorHeapSize <= (int32)MaxDescriptorsForTier);
 
 	const uint32 NumSamplerDescriptors = NUM_SAMPLER_DESCRIPTORS;
 	DescriptorCache.Init(InParent, InCmdContext, GLocalViewHeapSize, NumSamplerDescriptors);
@@ -1060,11 +1088,7 @@ void FD3D12StateCacheBase::SetUAVs(uint32 UAVStartSlot, uint32 NumSimultaneousUA
 				FD3D12Device* Device = CounterResource->GetParentDevice();
 				FD3D12ResourceLocation UploadBufferLocation(Device);
 
-#if USE_STATIC_ROOT_SIGNATURE
 				uint32* CounterUploadHeapData = static_cast<uint32*>(CmdContext->ConstantsAllocator.Allocate(sizeof(uint32), UploadBufferLocation, nullptr));
-#else
-				uint32* CounterUploadHeapData = static_cast<uint32*>(CmdContext->ConstantsAllocator.Allocate(sizeof(uint32), UploadBufferLocation));
-#endif
 
 				// Initialize the counter to 0 if it's not been previously initialized and the UAVInitialCount is -1, if not use the value that was passed.
 				*CounterUploadHeapData = (!UAV->IsCounterResourceInitialized() && UAVInitialCountArray[i] == -1) ? 0 : UAVInitialCountArray[i];
