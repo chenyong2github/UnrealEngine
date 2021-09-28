@@ -372,7 +372,7 @@ void FSubmixCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float*
 	Audio::TSampleBuffer<int16> Buffer(AudioData, NumSamples, NumChannels, SampleRate);
 	
 	// Mix to our target number of channels if the source does not already match.
-	if (Buffer.GetNumChannels() != NumChannels)
+	if (Buffer.GetNumChannels() != this->TargetNumChannels)
 	{
 		Buffer.MixBufferToChannels(this->TargetNumChannels);
 	}
