@@ -20,6 +20,10 @@
 #include "Templates/Atomic.h"
 #include "WebRTCIncludes.h"
 #include <string>
+#include "CommonRenderResources.h"
+#include "ScreenRendering.h"
+#include "RHIStaticStates.h"
+#include "Modules/ModuleManager.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 inline bool IsWindows7Plus()
@@ -171,4 +175,60 @@ public:
 private:
 	TAtomic<double> Value{ 0 };
 };
+
+
+inline void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture)
+{
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	IRendererModule* RendererModule = &FModuleManager::GetModuleChecked<IRendererModule>("Renderer");
+
+	// #todo-renderpasses there's no explicit resolve here? Do we need one?
+	FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
+
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyBackbuffer"));
+
+	{
+		RHICmdList.SetViewport(0, 0, 0.0f, DestinationTexture->GetSizeX(), DestinationTexture->GetSizeY(), 1.0f);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+		// New engine version...
+		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
+		TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+		if(DestinationTexture->GetSizeX() != SourceTexture->GetSizeX() || DestinationTexture->GetSizeY() != SourceTexture->GetSizeY())
+		{
+			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Bilinear>::GetRHI(), SourceTexture);
+		}
+		else
+		{
+			PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), SourceTexture);
+		}
+
+		RendererModule->DrawRectangle(RHICmdList, 0, 0,                // Dest X, Y
+		                              DestinationTexture->GetSizeX(),  // Dest Width
+		                              DestinationTexture->GetSizeY(),  // Dest Height
+		                              0, 0,                            // Source U, V
+		                              1, 1,                            // Source USize, VSize
+		                              DestinationTexture->GetSizeXY(), // Target buffer size
+		                              FIntPoint(1, 1),                 // Source texture size
+		                              VertexShader, EDRF_Default);
+	}
+
+	RHICmdList.EndRenderPass();
+}
 

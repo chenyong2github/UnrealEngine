@@ -292,21 +292,28 @@ const TArray<UPixelStreamerInputComponent*> FPixelStreamingModule::GetInputCompo
 void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 {
 	if (Texture)
-	{
-		// A frame is supplied so immediately read its data and send as a JPEG.
-		FTexture2DRHIRef Texture2DRHI = Texture->Resource && Texture->Resource->TextureRHI ? Texture->Resource->TextureRHI->GetTexture2D() : nullptr;
-		if (!Texture2DRHI)
+	{		
+		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)([this, Texture](FRHICommandListImmediate& RHICmdList)
 		{
-			UE_LOG(PixelStreamer, Error, TEXT("Attempting freeze frame with texture %s with no texture 2D RHI"), *Texture->GetName());
-			return;
-		}
+			// A frame is supplied so immediately read its data and send as a JPEG.
+			FTexture2DRHIRef Texture2DRHI = (Texture->Resource && Texture->Resource->TextureRHI) ? Texture->Resource->TextureRHI->GetTexture2D() : nullptr;
+			if (!Texture2DRHI)
+			{
+				UE_LOG(PixelStreamer, Error, TEXT("Attempting freeze frame with texture %s with no texture 2D RHI"), *Texture->GetName());
+				return;
+			}
+			uint32 Width = Texture2DRHI->GetSizeX();
+			uint32 Height = Texture2DRHI->GetSizeY();
+			// Create empty texture
+			FRHIResourceCreateInfo CreateInfo(TEXT("FreezeFrameTexture"));
+			FTexture2DRHIRef DestTexture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Present, CreateInfo);
+			// Copy freeze frame texture to empty texture
+			CopyTexture(Texture2DRHI, DestTexture);
 
-		ENQUEUE_RENDER_COMMAND(ReadSurfaceCommand)([this, Texture2DRHI](FRHICommandListImmediate& RHICmdList)
-		{
 			TArray<FColor> Data;
-			FIntRect Rect{ {0, 0}, Texture2DRHI->GetSizeXY() };
-			RHICmdList.ReadSurfaceData(Texture2DRHI, Rect, Data, FReadSurfaceDataFlags());
-			SendJpeg(MoveTemp(Data), Rect);
+			FIntRect Rect(0, 0, Width, Height);
+			RHICmdList.ReadSurfaceData(DestTexture, Rect, Data, FReadSurfaceDataFlags());
+			this->SendJpeg(MoveTemp(Data), Rect);
 		});
 	}
 	else
@@ -323,7 +330,7 @@ void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 void FPixelStreamingModule::UnfreezeFrame()
 {
 	Streamer->SendUnfreezeFrame();
-
+	
 	// Resume streaming.
 	bFrozen = false;
 }

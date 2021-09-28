@@ -56,7 +56,6 @@ public:
 	}
 
 private:
-	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const;
 	bool AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution);
 	void SetCaptureResolution(int width, int height);
 	void OnEncoderInitialized();

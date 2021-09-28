@@ -21,27 +21,29 @@
 				<div id="overlayButton">+</div>
 			</div>
 			<div id="overlaySettings">
-				<div id="KickOthers">
+				<div id="kickOthers">
 					<div class="settings-text">Kick all other players</div>
 					<label class="btn-overlay">
 						<input type="button" id="kick-other-players-button" class="overlay-button btn-flat" value="Kick">
 					</label>
 				</div>
-				<div id="FillWindow">
+				<div id="fillWindow">
 					<div class="settings-text">Enlarge Display to Fill Window</div>
 					<label class="tgl-switch">
 						<input type="checkbox" id="enlarge-display-to-fill-window-tgl" class="tgl tgl-flat" checked>
 						<div class="tgl-slider"></div>
 					</label>
 				</div>
-				<div id="QualityControlOwnership">
+				<div id="qualityControlOwnership">
 					<div class="settings-text">Quality control ownership</div>
 					<label class="tgl-switch">
 						<input type="checkbox" id="quality-control-ownership-tgl" class="tgl tgl-flat">
 						<div class="tgl-slider"></div>
 					</label>
 				</div>
-				<div id="EncoderSettings">
+				<br>
+
+				<section id="encoderSettings">
 					<div class="settings-text">Encoder Settings</div>
 					<div id="encoderParamsContainer" class="collapse">
 						<div class="form-group">
@@ -50,7 +52,8 @@
 								<option value="CBR" selected>CBR</option>
 								<option value="VBR">VBR</option>
 								<option value="ConstQP">ConstQP</option>
-							</select><br>
+							</select>
+							<br>
 							<label for="encoder-target-bitrate-text">Target Bitrate (kbps)</label>
 							<input type="number" class="form-control" id="encoder-target-bitrate-text" value="0" min="0" max="100000" /><br>
 							<label for="encoder-max-bitrate-text">Max Bitrate (kbps)</label>
@@ -63,7 +66,8 @@
 							<label class="tgl-switch">
 								<input type="checkbox" id="encoder-filler-data-tgl" class="tgl tgl-flat">
 								<div class="tgl-slider"></div>
-							</label><br>
+							</label>
+							<br>
 							<label for="encoder-multipass" class="settings-text">Multipass</label>
 							<select id="encoder-multipass">
 								<option value="DISABLED" selected>DISABLED</option>
@@ -73,8 +77,10 @@
 							<input id="encoder-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
 						</div>
 					</div>
-				</div>
-				<div id="WebRTCSettings">
+					<br>
+				</section>
+
+				<section id="webRTCSettings">
 					<div class="settings-text">WebRTC Settings</div>
 					<div id="webrtcParamsContainer" class="collapse">
 						<div class="form-group">
@@ -97,21 +103,24 @@
 							<input id="webrtc-params-submit" class="btn btn-primary btn-lg mt-3" type="button" value="Apply">
 						</div>
 					</div>
-				</div>
-				<div id="ShowFPS">
+				</section>
+				<br>
+
+				<div id="showFPS">
 					<div class="settings-text">Show FPS</div>
 					<label class="btn-overlay">
 						<input type="button" id="show-fps-button" class="overlay-button btn-flat" value="Toggle">
 					</label>
 				</div>
-				<div id="MatchViewportResolution">
+				<div id="matchViewportResolution">
 					<div class="settings-text">Match Viewport Resolution</div>
 					<label class="tgl-switch">
 						<input type="checkbox" id="match-viewport-res-tgl" class="tgl tgl-flat">
 						<div class="tgl-slider"></div>
 					</label>
 				</div>
-				<div id="Stats">
+
+				<div id="statsPanel">
 					<div class="settings-text">Show Stats</div>
 					<label class="tgl-switch">
 						<input type="checkbox" id="show-stats-tgl" class="tgl tgl-flat" checked>
@@ -120,10 +129,15 @@
 					<div id="statsContainer" class="statsContainer">
 						<div id="stats" class="stats"></div>
 					</div>
+					<br>
 				</div>
-				<div id="LatencyTest">
-					<Button onclick="sendStartLatencyTest()">Test Latency</Button>
-					<div id="LatencyStatsContainer" class="statsContainer">
+				
+				<div id="latencyTest">
+					<div class="settings-text">Latency Stats</div>
+					<label class="btn-overlay">
+						<input type="button" id="test-latency-button" class="overlay-button btn-flat" value="Test Latency">
+					</label>
+					<div id="latencyStatsContainer" class="statsContainer">
 						<div id=LatencyStats class="stats">No stats yet...</div>
 					</div>
 				</div>

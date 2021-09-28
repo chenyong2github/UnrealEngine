@@ -15,7 +15,7 @@
 body{
     margin: 0px;
     background-color: black;
-}
+}	
 
 #playerUI {
 	width: 100%;
@@ -29,6 +29,7 @@ body{
 	background-color: rgba(0,0,0,0.8);
 	text-align: left;
 	display: block;
+	margin-top: 5px;
 }
 
 .stats {
@@ -243,7 +244,7 @@ img#playButton{
 	font-size: 10px;
 	color: var(--colour5);
 	border-radius: 5px;
-	height: 17px;
+	height: 20px;
 }
 
 .btn-flat:disabled{
@@ -336,3 +337,45 @@ img#playButton{
   background: var(--colour5);
 }
 /*** Toggle Switch styles ***/
+
+#encoderSettings, #webRTCSettings {
+	margin: 10px 0px;
+}
+
+#encoderParamsContainer, #webrtcParamsContainer {
+	padding-left: 5%;
+}
+
+select {
+	float: right;
+	text-align: right;
+}
+
+input {
+	float: right;
+	text-align: right;
+}
+
+.form-group label {
+	color: var(--colour4);
+	vertical-align: middle;
+	font-size: 18px;
+	font-weight: normal;
+}
+
+#latencyTest {
+	display: block;
+}
+
+#latencyTest button {
+	float: right;
+	margin: 30px 0px;
+}
+
+#freezeFrameOverlay {
+	background-color: transparent;
+}
+
+.freezeframeBackground {
+	background-color: #000 !important;
+}

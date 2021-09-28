@@ -1,37 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 // Window events for a gamepad connecting
-var haveEvents = 'GamepadEvent' in window;
-var haveWebkitEvents = 'WebKitGamepadEvent' in window;
-var controllers = {};
-var rAF = window.mozRequestAnimationFrame ||
+let haveEvents = 'GamepadEvent' in window;
+let haveWebkitEvents = 'WebKitGamepadEvent' in window;
+let controllers = {};
+let rAF = window.mozRequestAnimationFrame ||
     window.webkitRequestAnimationFrame ||
     window.requestAnimationFrame;
-var kbEvent = document.createEvent("KeyboardEvent");
-var initMethod = typeof kbEvent.initKeyboardEvent !== 'undefined' ? "initKeyboardEvent" : "initKeyEvent";
+let kbEvent = document.createEvent("KeyboardEvent");
+let initMethod = typeof kbEvent.initKeyboardEvent !== 'undefined' ? "initKeyboardEvent" : "initKeyEvent";
 
-var webRtcPlayerObj = null;
-var print_stats = false;
-var print_inputs = false;
-var connect_on_load = false;
+let webRtcPlayerObj = null;
+let print_stats = false;
+let print_inputs = false;
+let connect_on_load = false;
 
-var is_reconnection = false;
-var ws;
+let is_reconnection = false;
+let ws;
 const WS_OPEN_STATE = 1;
 
-var qualityControlOwnershipCheckBox;
-var matchViewportResolution;
+let qualityControlOwnershipCheckBox;
+let matchViewportResolution;
 // TODO: Remove this - workaround because of bug causing UE to crash when switching resolutions too quickly
-var lastTimeResized = new Date().getTime();
-var resizeTimeout;
+let lastTimeResized = new Date().getTime();
+let resizeTimeout;
 
-var onDataChannelConnected;
-var responseEventListeners = new Map();
+let onDataChannelConnected;
+let responseEventListeners = new Map();
 
-var freezeFrameOverlay = null;
-var shouldShowPlayOverlay = true;
+let freezeFrameOverlay = null;
+let shouldShowPlayOverlay = true;
 // A freeze frame is a still JPEG image shown instead of the video.
-var freezeFrame = {
+let freezeFrame = {
 	receiving: false,
     size: 0,
     jpeg: undefined,
@@ -41,7 +41,7 @@ var freezeFrame = {
 };
 
 // Optionally detect if the user is not interacting (AFK) and disconnect them.
-var afk = {
+let afk = {
 	enabled: false,   // Set to true to enable the AFK system.
     warnTimeout: 120,   // The time to elapse before warning the user they are inactive.
     closeTimeout: 10,   // The time after the warning when we disconnect the user.
@@ -56,21 +56,21 @@ var afk = {
 // If the user focuses on a UE4 input widget then we show them a button to open
 // the on-screen keyboard. JavaScript security means we can only show the
 // on-screen keyboard in response to a user interaction.
-var editTextButton = undefined;
+let editTextButton = undefined;
 
 // A hidden input text box which is used only for focusing and opening the
 // on-screen keyboard.
-var hiddenInput = undefined;
+let hiddenInput = undefined;
 
-var t0 = Date.now();
+let t0 = Date.now();
 
 function log(str) {
     console.log(`${Math.floor(Date.now() - t0)}: ` + str);
 }
 
 function scanGamepads() {
-    var gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
-    for (var i = 0; i < gamepads.length; i++) {
+    let gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
+    for (let i = 0; i < gamepads.length; i++) {
         if (gamepads[i] && (gamepads[i].index in controllers)) {
             controllers[gamepads[i].index].currentState = gamepads[i];
         }
@@ -82,13 +82,13 @@ function updateStatus() {
     scanGamepads();
     // Iterate over multiple controllers in the case the mutiple gamepads are connected
     for (j in controllers) {
-        var controller = controllers[j];
-        var currentState = controller.currentState;
-        var prevState = controller.prevState;
+        let controller = controllers[j];
+        let currentState = controller.currentState;
+        let prevState = controller.prevState;
 		// Iterate over buttons
-        for (var i = 0; i < currentState.buttons.length; i++) {
-            var currButton = currentState.buttons[i];
-            var prevButton = prevState.buttons[i];
+        for (let i = 0; i < currentState.buttons.length; i++) {
+            let currButton = currentState.buttons[i];
+            let prevButton = prevState.buttons[i];
             // Button 6 is actually the left trigger, send it to UE as an analog axis
             // Button 7 is actually the right trigger, send it to UE as an analog axis
             // The rest are normal buttons. Treat as such
@@ -123,10 +123,10 @@ function updateStatus() {
             // Last case is button isn't currently pressed and wasn't pressed before. This doesn't need an else block
         }
         // Iterate over gamepad axes
-        for (var i = 0; i < currentState.axes.length; i += 2) {
-            var x = parseFloat(currentState.axes[i].toFixed(4));
+        for (let i = 0; i < currentState.axes.length; i += 2) {
+            let x = parseFloat(currentState.axes[i].toFixed(4));
             // https://w3c.github.io/gamepad/#remapping Gamepad broweser side standard mapping has positive down, negative up. This is downright disgusting. So we fix it.
-            var y = -parseFloat(currentState.axes[i + 1].toFixed(4));
+            let y = -parseFloat(currentState.axes[i + 1].toFixed(4));
             if (i === 0) {
                 // left stick
                 // axis 1 = left horizontal
@@ -283,13 +283,20 @@ function setupHtmlEvents() {
         };
     }
 
-    var kickButton = document.getElementById('kick-other-players-button');
+    let kickButton = document.getElementById('kick-other-players-button');
     if (kickButton) {
         kickButton.onclick = function (event) {
             console.log(`-> SS: kick`);
             ws.send(JSON.stringify({
                 type: 'kick'
             }));
+        };
+    }
+
+    let latencyButton = document.getElementById('test-latency-button');
+    if (latencyButton) {
+        latencyButton.onclick = () => {
+            sendStartLatencyTest();
         };
     }
 }
@@ -311,9 +318,9 @@ function sendStartLatencyTest() {
 }
 
 function setOverlay(htmlClass, htmlElement, onClickFunction) {
-    var videoPlayOverlay = document.getElementById('videoPlayOverlay');
+    let videoPlayOverlay = document.getElementById('videoPlayOverlay');
     if (!videoPlayOverlay) {
-        var playerDiv = document.getElementById('player');
+        let playerDiv = document.getElementById('player');
         videoPlayOverlay = document.createElement('div');
         videoPlayOverlay.id = 'videoPlayOverlay';
         playerDiv.appendChild(videoPlayOverlay);
@@ -335,8 +342,8 @@ function setOverlay(htmlClass, htmlElement, onClickFunction) {
     }
 
     // Remove existing html classes so we can set the new one
-    var cl = videoPlayOverlay.classList;
-    for (var i = cl.length - 1; i >= 0; i--) {
+    let cl = videoPlayOverlay.classList;
+    for (let i = cl.length - 1; i >= 0; i--) {
         cl.remove(cl[i]);
     }
 
@@ -344,7 +351,7 @@ function setOverlay(htmlClass, htmlElement, onClickFunction) {
 }
 
 function showConnectOverlay() {
-    var startText = document.createElement('div');
+    let startText = document.createElement('div');
     startText.id = 'playButton';
     startText.innerHTML = 'Click to start';
 
@@ -355,7 +362,7 @@ function showConnectOverlay() {
 }
 
 function showTextOverlay(text) {
-    var textOverlay = document.createElement('div');
+    let textOverlay = document.createElement('div');
     textOverlay.id = 'messageOverlay';
     textOverlay.innerHTML = text ? text : '';
     setOverlay('textDisplayState', textOverlay);
@@ -374,7 +381,7 @@ function playVideoStream() {
 }
 
 function showPlayOverlay() {
-    var img = document.createElement('img');
+    let img = document.createElement('img');
     img.id = 'playButton';
     img.src = '/images/Play.png';
     img.alt = 'Start Streaming';
@@ -485,7 +492,7 @@ const ToClientMessageType = {
     InitialSettings: 7
 };
 
-var VideoEncoderQP = "N/A";
+let VideoEncoderQP = "N/A";
 
 function setupWebRtcPlayer(htmlElement, config) {
     webRtcPlayerObj = new webRtcPlayer(config);
@@ -533,10 +540,11 @@ function setupWebRtcPlayer(htmlElement, config) {
 
     function showFreezeFrame() {
         let base64 = btoa(freezeFrame.jpeg.reduce((data, byte) => data + String.fromCharCode(byte), ''));
-        freezeFrameOverlay.src = 'data:image/jpeg;base64,' + base64;
-        freezeFrameOverlay.onload = function() {
-            freezeFrame.height = freezeFrameOverlay.naturalHeight;
-            freezeFrame.width = freezeFrameOverlay.naturalWidth;
+        let freezeFrameImage = document.getElementById("freezeFrameOverlay").childNodes[0];
+        freezeFrameImage.src = 'data:image/jpeg;base64,' + base64;
+        freezeFrameImage.onload = function() {
+            freezeFrame.height = freezeFrameImage.naturalHeight;
+            freezeFrame.width = freezeFrameImage.naturalWidth;
             resizeFreezeFrameOverlay();
             if (shouldShowPlayOverlay) {
                 showPlayOverlay();
@@ -596,7 +604,7 @@ function setupWebRtcPlayer(htmlElement, config) {
     }
 
     webRtcPlayerObj.onDataChannelMessage = function(data) {
-        var view = new Uint8Array(data);
+        let view = new Uint8Array(data);
 
         if (view[0] === ToClientMessageType.QualityControlOwnership) {
             let ownership = view[1] === 0 ? false : true;
@@ -833,12 +841,12 @@ function onWebRtcIce(iceCandidate) {
         webRtcPlayerObj.handleCandidateFromServer(iceCandidate);
 }
 
-var styleWidth;
-var styleHeight;
-var styleTop;
-var styleLeft;
-var styleCursor = 'default';
-var styleAdditional;
+let styleWidth;
+let styleHeight;
+let styleTop;
+let styleLeft;
+let styleCursor = 'default';
+let styleAdditional;
 
 const ControlSchemeType = {
     // A mouse can lock inside the WebRTC player so the user can simply move the
@@ -851,7 +859,7 @@ const ControlSchemeType = {
     HoveringMouse: 1
 };
 
-var inputOptions = {
+let inputOptions = {
     // The control scheme controls the behaviour of the mouse when it interacts
     // with the WebRTC player.
     controlScheme: ControlSchemeType.LockedMouse,
@@ -909,8 +917,10 @@ function resizePlayerStyleToActualSize(playerElement) {
         // Display image in its actual size
         styleWidth = videoElement[0].videoWidth;
         styleHeight = videoElement[0].videoHeight;
-        styleTop = Math.floor((window.innerHeight - styleHeight) * 0.5);
-        styleLeft = Math.floor((window.innerWidth - styleWidth) * 0.5);
+        let Top = Math.floor((window.innerHeight - styleHeight) * 0.5);
+        let Left = Math.floor((window.innerWidth - styleWidth) * 0.5);
+        styleTop = (Top > 0) ? Top : 0;
+        styleLeft = (Left > 0) ? Left : 0;
         //Video is now 100% of the playerElement, so set the playerElement style
         playerElement.style = "top: " + styleTop + "px; left: " + styleLeft + "px; width: " + styleWidth + "px; height: " + styleHeight + "px; cursor: " + styleCursor + "; " + styleAdditional;
     }
@@ -923,16 +933,21 @@ function resizePlayerStyleToArbitrarySize(playerElement) {
 }
 
 function setupFreezeFrameOverlay() {
-    freezeFrameOverlay = document.createElement('img');
+    freezeFrameOverlay = document.createElement('div');
     freezeFrameOverlay.id = 'freezeFrameOverlay';
     freezeFrameOverlay.style.display = 'none';
     freezeFrameOverlay.style.pointerEvents = 'none';
     freezeFrameOverlay.style.position = 'absolute';
     freezeFrameOverlay.style.zIndex = '20';
+
+    let freezeFrameImage = document.createElement('img');
+    freezeFrameImage.style.position = 'absolute';
+    freezeFrameOverlay.appendChild(freezeFrameImage);
 }
 
 function showFreezeFrameOverlay() {
     if (freezeFrame.valid) {
+        freezeFrameOverlay.classList.add("freezeframeBackground");
         freezeFrameOverlay.style.display = 'block';
     }
 }
@@ -940,6 +955,8 @@ function showFreezeFrameOverlay() {
 function invalidateFreezeFrameOverlay() {
     freezeFrameOverlay.style.display = 'none';
     freezeFrame.valid = false;
+    freezeFrameOverlay.classList.remove("freezeframeBackground");
+    
     if (webRtcPlayerObj) {
         webRtcPlayerObj.setVideoEnabled(true);
     }
@@ -952,7 +969,9 @@ function resizeFreezeFrameOverlay() {
         let displayTop = 0;
         let displayLeft = 0;
         let checkBox = document.getElementById('enlarge-display-to-fill-window-tgl');
+        let playerElement = document.getElementById('player');
         if (checkBox !== null && checkBox.checked) {
+            // We are fitting video to screen, we care about the screen (window) size
             let windowAspectRatio = window.innerWidth / window.innerHeight;
             let videoAspectRatio = freezeFrame.width / freezeFrame.height;
             if (windowAspectRatio < videoAspectRatio) {
@@ -967,20 +986,36 @@ function resizeFreezeFrameOverlay() {
                 displayLeft = Math.floor((window.innerWidth - displayWidth) * 0.5);
             }
         } else {
-            displayWidth = freezeFrame.width;
-            displayHeight = freezeFrame.height;
-            displayTop = 0;
-            displayLeft = 0;
+            // Video is coming in at native resolution, we care more about the player size
+            let playerAspectRatio = playerElement.offsetWidth / playerElement.offsetHeight;
+            let videoAspectRatio = freezeFrame.width / freezeFrame.height;
+            if (playerAspectRatio < videoAspectRatio) {
+                displayWidth = playerElement.offsetWidth;
+                displayHeight = Math.floor(playerElement.offsetWidth / videoAspectRatio);
+                displayTop = Math.floor((playerElement.offsetHeight - displayHeight) * 0.5);
+                displayLeft = 0;
+            } else {
+                displayWidth = Math.floor(playerElement.offsetHeight * videoAspectRatio);
+                displayHeight = playerElement.offsetHeight;
+                displayTop = 0;
+                displayLeft = Math.floor((playerElement.offsetWidth - displayWidth) * 0.5);
+            }
         }
-        freezeFrameOverlay.style.width = displayWidth + 'px';
-        freezeFrameOverlay.style.height = displayHeight + 'px';
-        freezeFrameOverlay.style.left = displayLeft + 'px';
-        freezeFrameOverlay.style.top = displayTop + 'px';
+        let freezeFrameImage = document.getElementById("freezeFrameOverlay").childNodes[0];
+        freezeFrameOverlay.style.width = playerElement.offsetWidth + 'px';
+        freezeFrameOverlay.style.height = playerElement.offsetHeight + 'px';
+        freezeFrameOverlay.style.left = 0 + 'px';
+        freezeFrameOverlay.style.top = 0 + 'px';
+
+        freezeFrameImage.style.width = displayWidth + 'px';
+        freezeFrameImage.style.height = displayHeight + 'px';
+        freezeFrameImage.style.left = displayLeft + 'px';
+        freezeFrameImage.style.top = displayTop + 'px';
     }
 }
 
 function resizePlayerStyle(event) {
-    var playerElement = document.getElementById('player');
+    let playerElement = document.getElementById('player');
 
     if (!playerElement)
         return;
@@ -1021,9 +1056,9 @@ function updateVideoStreamSize() {
         return;
     }
 
-    var now = new Date().getTime();
+    let now = new Date().getTime();
     if (now - lastTimeResized > 1000) {
-        var playerElement = document.getElementById('player');
+        let playerElement = document.getElementById('player');
         if (!playerElement)
             return;
 
@@ -1042,7 +1077,7 @@ function updateVideoStreamSize() {
 
 // Fix for bug in iOS where windowsize is not correct at instance or orientation change
 // https://github.com/dimsemenov/PhotoSwipe/issues/1315
-var _orientationChangeTimeout;
+let _orientationChangeTimeout;
 
 function onOrientationChange(event) {
     clearTimeout(_orientationChangeTimeout);
@@ -1153,9 +1188,9 @@ function requestQualityControl() {
     sendInputData(new Uint8Array([MessageType.RequestQualityControl]).buffer);
 }
 
-var playerElementClientRect = undefined;
-var normalizeAndQuantizeUnsigned = undefined;
-var normalizeAndQuantizeSigned = undefined;
+let playerElementClientRect = undefined;
+let normalizeAndQuantizeUnsigned = undefined;
+let normalizeAndQuantizeSigned = undefined;
 
 function setupNormalizeAndQuantize() {
     let playerElement = document.getElementById('player');
@@ -1264,7 +1299,7 @@ function emitMouseMove(x, y, deltaX, deltaY) {
     }
     let coord = normalizeAndQuantizeUnsigned(x, y);
     let delta = normalizeAndQuantizeSigned(deltaX, deltaY);
-    var Data = new DataView(new ArrayBuffer(9));
+    let Data = new DataView(new ArrayBuffer(9));
     Data.setUint8(0, MessageType.MouseMove);
     Data.setUint16(1, coord.x, true);
     Data.setUint16(3, coord.y, true);
@@ -1278,7 +1313,7 @@ function emitMouseDown(button, x, y) {
         console.log(`mouse button ${button} down at (${x}, ${y})`);
     }
     let coord = normalizeAndQuantizeUnsigned(x, y);
-    var Data = new DataView(new ArrayBuffer(6));
+    let Data = new DataView(new ArrayBuffer(6));
     Data.setUint8(0, MessageType.MouseDown);
     Data.setUint8(1, button);
     Data.setUint16(2, coord.x, true);
@@ -1291,7 +1326,7 @@ function emitMouseUp(button, x, y) {
         console.log(`mouse button ${button} up at (${x}, ${y})`);
     }
     let coord = normalizeAndQuantizeUnsigned(x, y);
-    var Data = new DataView(new ArrayBuffer(6));
+    let Data = new DataView(new ArrayBuffer(6));
     Data.setUint8(0, MessageType.MouseUp);
     Data.setUint8(1, button);
     Data.setUint16(2, coord.x, true);
@@ -1304,7 +1339,7 @@ function emitMouseWheel(delta, x, y) {
         console.log(`mouse wheel with delta ${delta} at (${x}, ${y})`);
     }
     let coord = normalizeAndQuantizeUnsigned(x, y);
-    var Data = new DataView(new ArrayBuffer(7));
+    let Data = new DataView(new ArrayBuffer(7));
     Data.setUint8(0, MessageType.MouseWheel);
     Data.setInt16(1, delta, true);
     Data.setUint16(3, coord.x, true);
@@ -1421,7 +1456,7 @@ function registerMouseEnterAndLeaveEvents(playerElement) {
         if (print_inputs) {
             console.log('mouse enter');
         }
-        var Data = new DataView(new ArrayBuffer(1));
+        let Data = new DataView(new ArrayBuffer(1));
         Data.setUint8(0, MessageType.MouseEnter);
         sendInputData(Data.buffer);
         playerElement.pressMouseButtons(e);
@@ -1431,7 +1466,7 @@ function registerMouseEnterAndLeaveEvents(playerElement) {
         if (print_inputs) {
             console.log('mouse leave');
         }
-        var Data = new DataView(new ArrayBuffer(1));
+        let Data = new DataView(new ArrayBuffer(1));
         Data.setUint8(0, MessageType.MouseLeave);
         sendInputData(Data.buffer);
         playerElement.releaseMouseButtons(e);
@@ -1442,8 +1477,8 @@ function registerMouseEnterAndLeaveEvents(playerElement) {
 // cursor disappears and is locked. The user moves the cursor and the camera
 // moves, for example. The user presses escape to free the mouse.
 function registerLockedMouseEvents(playerElement) {
-    var x = playerElement.width / 2;
-    var y = playerElement.height / 2;
+    let x = playerElement.width / 2;
+    let y = playerElement.height / 2;
 
     playerElement.requestPointerLock = playerElement.requestPointerLock || playerElement.mozRequestPointerLock;
     document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
@@ -1563,8 +1598,8 @@ function registerTouchEvents(playerElement) {
 
     // We need to assign a unique identifier to each finger.
     // We do this by mapping each Touch object to the identifier.
-    var fingers = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
-    var fingerIds = {};
+    let fingers = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+    let fingerIds = {};
 
     function rememberTouch(touch) {
         let finger = fingers.pop();
@@ -1606,7 +1641,7 @@ function registerTouchEvents(playerElement) {
 
     if (inputOptions.fakeMouseWithTouches) {
 
-        var finger = undefined;
+        let finger = undefined;
 
         playerElement.ontouchstart = function(e) {
             if (finger === undefined) {
@@ -1789,7 +1824,7 @@ function start() {
 }
 
 function updateKickButton(playersCount) {
-    var kickButton = document.getElementById('kick-other-players-button');
+    let kickButton = document.getElementById('kick-other-players-button');
     if (kickButton)
         kickButton.value = `Kick (${playersCount})`;
 }
@@ -1808,7 +1843,7 @@ function connect() {
 
     ws.onmessage = function(event) {
         console.log(`<- SS: ${event.data}`);
-        var msg = JSON.parse(event.data);
+        let msg = JSON.parse(event.data);
         if (msg.type === 'config') {
             onConfig(msg);
         } else if (msg.type === 'playerCount') {
@@ -1840,7 +1875,7 @@ function connect() {
         }
 
         showTextOverlay(`Disconnected: ${event.reason}`);
-        var reclickToStart = setTimeout(start, 4000);
+        let reclickToStart = setTimeout(start, 4000);
     };
 }
 
