@@ -388,6 +388,11 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 	{
 		CollectEngineNamespaceParameterActions();
 		CollectMakeNew(Collector, NamespaceId);
+
+		// Special case; collect DataInstance.Alive so that it is an option if we are selecting a parameter from a map node in a script.
+		TArray<FNiagaraVariable> Variables;
+		Variables.Add(SYS_PARAM_INSTANCE_ALIVE);
+		AddParameterGroup(Collector, Variables, FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid, FText(), 3, FString(), false);
 	}
 
 	// Any other "unreserved" namespace
