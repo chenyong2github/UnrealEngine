@@ -163,6 +163,10 @@ struct FVertexFactoryInput
 	uint InstanceId	: SV_InstanceID;
 #endif
 
+#if GPUSKIN_PASS_THROUGH && !MANUAL_VERTEX_FETCH
+	float4	PreSkinPosition	: ATTRIBUTE14;
+#endif
+
 #if NEEDS_LIGHTMAP_COORDINATE && !MANUAL_VERTEX_FETCH
 	float2	LightMapCoordinate : ATTRIBUTE15;
 #endif
@@ -931,10 +935,14 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif	// USE_INSTANCING
 
 #if GPUSKIN_PASS_THROUGH
-	uint PreSkinVertexOffset = LocalVF.PreSkinBaseVertexIndex + Input.VertexId * 3;
-	Intermediates.PreSkinPosition.x = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 0];
-	Intermediates.PreSkinPosition.y = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 1];
-	Intermediates.PreSkinPosition.z = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 2];
+	#if MANUAL_VERTEX_FETCH
+		uint PreSkinVertexOffset = LocalVF.PreSkinBaseVertexIndex + Input.VertexId * 3;
+		Intermediates.PreSkinPosition.x = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 0];
+		Intermediates.PreSkinPosition.y = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 1];
+		Intermediates.PreSkinPosition.z = LocalVF.VertexFetch_PreSkinPositionBuffer[PreSkinVertexOffset + 2];
+	#else
+		Intermediates.PreSkinPosition = Input.PreSkinPosition.xyz;
+	#endif
 #else
 	Intermediates.PreSkinPosition = Input.Position.xyz;
 #endif

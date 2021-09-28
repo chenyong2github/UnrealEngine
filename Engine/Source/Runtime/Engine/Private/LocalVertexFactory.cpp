@@ -356,6 +356,12 @@ void FLocalVertexFactory::InitRHI()
 		}
 	}
 
+	// Only used with FGPUSkinPassthroughVertexFactory on platforms that do not use ManualVertexFetch
+	if (Data.PreSkinPositionComponent.VertexBuffer != nullptr)
+	{
+		Elements.Add(AccessStreamComponent(Data.PreSkinPositionComponent,14));
+	}
+
 	if (Data.LightMapCoordinateComponent.VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent,15));
