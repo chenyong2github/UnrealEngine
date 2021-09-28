@@ -247,6 +247,8 @@ $ bStopCompilationAfterErrors : When enabled, will stop compiling targets after 
 
 $ bShowCompilationTimes : Whether to show compilation times along with worst offenders or not.
 
+$ bShowPerActionCompilationTimes : Whether to show compilation times for each executed action
+
 ### HybridExecutor
 
 $ MaxLocalActions : Maximum number of actions to execute locally.
@@ -256,6 +258,8 @@ $ MaxLocalActions : Maximum number of actions to execute locally.
 $ bStopCompilationAfterErrors : When enabled, will stop compiling targets after a compile error occurs.
 
 $ bShowCompilationTimes : Whether to show compilation times along with worst offenders or not.
+
+$ bShowPerActionCompilationTimes : Whether to show compilation times for each executed action
 
 $ MaxProcessorCount : Maximum processor count for local execution.
 
