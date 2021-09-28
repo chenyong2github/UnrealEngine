@@ -709,7 +709,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, FVulkanEvictable* Owner,
 	}
 }
 
-void FVulkanSurface::InternalMoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& DestAllocation, bool bSwapAllocation)
+void FVulkanSurface::InternalMoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& DestAllocation)
 {
 	FImageCreateInfo ImageCreateInfo;
 	FVulkanSurface::GenerateImageCreateInfo(ImageCreateInfo,
@@ -812,14 +812,6 @@ void FVulkanSurface::InternalMoveSurface(FVulkanDevice& InDevice, FVulkanCommand
 	}
 
 	Image = MovedImage;
-
-	if (bSwapAllocation)
-	{
-		const uint64 Size = GetMemorySize();
-		VulkanTextureDestroyed(Size, ViewType, bRenderTarget);
-
-		Allocation.Swap(DestAllocation);
-	}
 }
 
 void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, FVulkanAllocation& NewAllocation)
@@ -829,7 +821,10 @@ void FVulkanSurface::MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListCont
 	checkf(bRenderTarget || bUAV, TEXT("Surface must be a RenderTarget or a UAV in order to be moved.  UEFlags=0x%x"), (int32)UEFlags);
 	checkf(Tiling == VK_IMAGE_TILING_OPTIMAL, TEXT("Tiling [%d] is not supported for move, only VK_IMAGE_TILING_OPTIMAL"), (int32)Tiling);
 
-	InternalMoveSurface(InDevice, Context, NewAllocation, true);
+	InternalMoveSurface(InDevice, Context, NewAllocation);
+
+	// Swap in the new allocation for this surface
+	Allocation.Swap(NewAllocation);
 }
 
 
@@ -841,7 +836,7 @@ void FVulkanSurface::OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListCon
 	checkf(Tiling == VK_IMAGE_TILING_OPTIMAL, TEXT("Tiling [%d] is not supported for defrag, only VK_IMAGE_TILING_OPTIMAL"), (int32)Tiling);
 
 	Allocation.Offset = NewOffset;
-	InternalMoveSurface(InDevice, Context, Allocation, false);
+	InternalMoveSurface(InDevice, Context, Allocation);
 
 	//note: this exploits that the unmoved image is still bound to the old allocation, which is freed by the caller in this case.
 }
@@ -865,6 +860,7 @@ void FVulkanSurface::EvictSurface(FVulkanDevice& InDevice)
 
 	MemProps = InDevice.GetDeviceMemoryManager().GetEvictedMemoryProperties();
 
+	// Create a new host allocation to move the surface to
 	FVulkanAllocation HostAllocation;
 	const EVulkanAllocationMetaType MetaType = EVulkanAllocationMetaImageOther;
 	if (!InDevice.GetMemoryManager().AllocateImageMemory(HostAllocation, this, MemoryRequirements, MemProps, MetaType, false, __FILE__, __LINE__))
@@ -872,12 +868,12 @@ void FVulkanSurface::EvictSurface(FVulkanDevice& InDevice)
 		InDevice.GetMemoryManager().HandleOOM();
 		checkNoEntry();
 	}
-	VulkanTextureAllocated(MemoryRequirements.size, ViewType, bRenderTarget);
 
-	InternalMoveSurface(InDevice, Context, HostAllocation, true);
+	InternalMoveSurface(InDevice, Context, HostAllocation);
 
-	// Since the allocations were swapped, HostAllocation now contains the original allocation to be freed
-	Device->GetMemoryManager().FreeVulkanAllocation(HostAllocation);
+	// Delete the original allocation and swap in the new host allocation
+	Device->GetMemoryManager().FreeVulkanAllocation(Allocation);
+	Allocation.Swap(HostAllocation);
 
 	VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, Image, TEXT("(FVulkanSurface*)0x%p [hostimage]"), this);
 }
@@ -2256,7 +2252,7 @@ void FVulkanTextureBase::Move(FVulkanDevice& Device, FVulkanCommandListContext& 
 	if (GVulkanLogDefrag)
 	{
 		UE_LOG(LogVulkanRHI, Display, TEXT("Moving Surface, %p <<-- %p    :::: %s\n"), NewAllocation.Offset, 42, *Tex->GetName().ToString());
-		UE_LOG(LogVulkanRHI, Display, TEXT("Evicted %8.4fkb %8.4fkb   TB %p // %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, &Surface, Surface.Image, *GetResourceFName().ToString());
+		UE_LOG(LogVulkanRHI, Display, TEXT("Moved %8.4fkb %8.4fkb   TB %p // %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, &Surface, Surface.Image, *GetResourceFName().ToString());
 	}
 
 	Surface.MoveSurface(Device, Context, NewAllocation);
@@ -2272,7 +2268,7 @@ void FVulkanTextureBase::OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListC
 	if (GVulkanLogDefrag)
 	{
 		UE_LOG(LogVulkanRHI, Display, TEXT("Moving Surface, %p <<-- %p    :::: %s\n"), NewOffset, 42, *Tex->GetName().ToString());
-		UE_LOG(LogVulkanRHI, Display, TEXT("Evicted %8.4fkb %8.4fkb   TB %p // %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, &Surface, Surface.Image, *GetResourceFName().ToString());
+		UE_LOG(LogVulkanRHI, Display, TEXT("Defragged %8.4fkb %8.4fkb   TB %p // %p  :: IMG %p   %-40s\n"), Size / (1024.f), TotalSize / (1024.f), this, &Surface, Surface.Image, *GetResourceFName().ToString());
 	}
 
 	Surface.OnFullDefrag(Device, Context, NewOffset);
