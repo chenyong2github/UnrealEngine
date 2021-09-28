@@ -83,17 +83,20 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("Toolbar.Icon.Small", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", Icon16x16));
 
 	//////////////////////////////////////////////////
-	// Start Page buttons
+	// Trace Store, Connection, Launcher
 
-	Style.Set("StartPage.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Home", Icon32x32));
-	Style.Set("StartPage.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Home", Icon16x16));
+	Style.Set("TraceStore.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Home", Icon32x32));
+	Style.Set("TraceStore.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Home", Icon16x16));
 
-	Style.Set("Open.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/Profiler_LoadMultiple_Profiler_40x", Icon32x32));
-	Style.Set("Open.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/Profiler_Load_Profiler_40x", Icon16x16));
+	Style.Set("Connection.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("Connection.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("OpenFile.Icon.Large", new IMAGE_BRUSH("Icons/LV_Load", Icon32x32));
-	Style.Set("OpenFile.Icon.Small", new IMAGE_BRUSH("Icons/LV_Load", Icon16x16));
-	
+	Style.Set("Launcher.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
+	Style.Set("Launcher.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
+
+	Style.Set("FolderExplore.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/ContentBrowser", Icon32x32));
+	Style.Set("FolderExplore.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/ContentBrowser", Icon16x16));
+
 	//////////////////////////////////////////////////
 	// Timing Insights
 
@@ -157,8 +160,9 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("MemTagTreeView.Icon.Large", new TODO_IMAGE_BRUSH(Icon32x32));
 	Style.Set("MemTagTreeView.Icon.Small", new TODO_IMAGE_BRUSH(Icon16x16));
 
-	Style.Set("Mem.Add.Small", new IMAGE_BRUSH("Icons/icon_Cascade_AddLOD2_40x", Icon20x20));
-	Style.Set("Mem.Remove.Small", new IMAGE_BRUSH("Icons/icon_Cascade_DeleteLOD_40x", Icon20x20));
+	Style.Set("Mem.Add.Small", new CORE_IMAGE_BRUSH_SVG("Starship/Common/plus-circle", Icon16x16));
+	Style.Set("Mem.Remove.Small", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Delete", Icon16x16));
+	Style.Set("Mem.LoadXML.Small", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-open", Icon16x16));
 
 	//////////////////////////////////////////////////
 
@@ -177,8 +181,11 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("Icon.Filter", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon24x24));
 	Style.Set("Icon.Find", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/TraceDataFiltering", Icon24x24));
 
-	Style.Set("FolderExplore.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/ContentBrowser", Icon32x32));
-	Style.Set("FolderExplore.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/ContentBrowser", Icon16x16));
+	Style.Set("Icon.FolderExplore", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/ContentBrowser", Icon24x24));
+	Style.Set("Icon.FolderOpen", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-open", Icon24x24));
+
+	Style.Set("Icon.TestAutomation", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/TestAutomation", Icon24x24));
+	Style.Set("Icon.Test", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Test", Icon24x24));
 
 	Style.Set("Icon.Bug", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/bug", Icon24x24));
 

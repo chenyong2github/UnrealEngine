@@ -203,14 +203,17 @@ void FTraceInsightsModule::CreateSessionBrowser(const FCreateSessionBrowserParam
 	//////////////////////////////////////////////////
 	// Setup the window's content.
 
-	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("TraceSessionBrowserLayout_v1.0");
+	TSharedRef<FTabManager::FLayout> DefaultLayout = FTabManager::NewLayout("TraceSessionBrowserLayout_v1.1");
 	DefaultLayout->AddArea
 	(
 		FTabManager::NewPrimaryArea()
 		->Split
 		(
 			FTabManager::NewStack()
-			->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::OpenedTab)
+			->AddTab(FInsightsManagerTabs::TraceStoreTabId, ETabState::OpenedTab)
+			->AddTab(FInsightsManagerTabs::ConnectionTabId, ETabState::OpenedTab)
+			//->AddTab(FInsightsManagerTabs::LauncherTabId, ETabState::ClosedTab)
+			->SetForegroundTab(FInsightsManagerTabs::TraceStoreTabId)
 		)
 	);
 
@@ -234,12 +237,12 @@ void FTraceInsightsModule::CreateSessionBrowser(const FCreateSessionBrowserParam
 	//////////////////////////////////////////////////
 	// Set up command line parameter forwarding.
 
-	TSharedPtr<class SStartPageWindow> StartPageWnd = FInsightsManager::Get()->GetStartPageWindow();
-	if (StartPageWnd.IsValid())
+	TSharedPtr<class STraceStoreWindow> TraceStoreWnd = FInsightsManager::Get()->GetTraceStoreWindow();
+	if (TraceStoreWnd.IsValid())
 	{
-		StartPageWnd->SetEnableAutomaticTesting(Params.bInitializeTesting);
-		StartPageWnd->SetEnableDebugTools(Params.bAllowDebugTools);
-		StartPageWnd->SetStartProcessWithStompMalloc(Params.bStartProcessWithStompMalloc);
+		TraceStoreWnd->SetEnableAutomaticTesting(Params.bInitializeTesting);
+		TraceStoreWnd->SetEnableDebugTools(Params.bAllowDebugTools);
+		TraceStoreWnd->SetStartProcessWithStompMalloc(Params.bStartProcessWithStompMalloc);
 	}
 }
 
@@ -324,7 +327,6 @@ void FTraceInsightsModule::AddAreaForSessionViewer(TSharedRef<FTabManager::FLayo
 
 #if WITH_EDITOR
 	// In editor, we default to all tabs closed.
-	Stack->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::ClosedTab);
 	Stack->AddTab(FInsightsManagerTabs::SessionInfoTabId, ETabState::ClosedTab);
 	Stack->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::ClosedTab);
 	Stack->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab);
@@ -340,7 +342,6 @@ void FTraceInsightsModule::AddAreaForSessionViewer(TSharedRef<FTabManager::FLayo
 		->Split(Stack)
 	);
 #else
-	Stack->AddTab(FInsightsManagerTabs::StartPageTabId, ETabState::ClosedTab);
 	Stack->AddTab(FInsightsManagerTabs::SessionInfoTabId, ETabState::OpenedTab);
 	Stack->AddTab(FInsightsManagerTabs::TimingProfilerTabId, ETabState::OpenedTab);
 	Stack->AddTab(FInsightsManagerTabs::LoadingProfilerTabId, ETabState::ClosedTab);

@@ -29,7 +29,10 @@ namespace TraceServices
 /** Major tab IDs for Insights tools */
 struct TRACEINSIGHTS_API FInsightsManagerTabs
 {
-	static const FName StartPageTabId;
+	static const FName StartPageTabId; // DEPRECATED
+	static const FName TraceStoreTabId;
+	static const FName ConnectionTabId;
+	static const FName LauncherTabId;
 	static const FName SessionInfoTabId;
 	static const FName TimingProfilerTabId;
 	static const FName LoadingProfilerTabId;
