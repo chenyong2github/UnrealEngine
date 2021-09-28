@@ -276,7 +276,13 @@ void FExrImgMediaReaderGpu::PreAllocateMemoryPool(int32 NumFrames, const FImgMed
 
 void FExrImgMediaReaderGpu::OnTick()
 {
-	TransferFromStagingBuffer();
+	// Only tick once per frame.
+	if (LastTickedFrameCounter != GFrameCounter)
+	{
+		LastTickedFrameCounter = GFrameCounter;
+
+		TransferFromStagingBuffer();
+	}
 }
 
 /* FExrImgMediaReaderGpu implementation

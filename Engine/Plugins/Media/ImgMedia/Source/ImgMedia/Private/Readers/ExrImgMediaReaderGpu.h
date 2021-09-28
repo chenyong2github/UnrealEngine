@@ -48,7 +48,8 @@ class FExrImgMediaReaderGpu : public FExrImgMediaReader
 public:
 
 	/** Default constructor. */
-	FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader):FExrImgMediaReader(InLoader), bIsShuttingDown(false) {};
+	FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader):FExrImgMediaReader(InLoader),
+		LastTickedFrameCounter((uint64)-1), bIsShuttingDown(false) {};
 	virtual ~FExrImgMediaReaderGpu();
 
 public:
@@ -102,6 +103,9 @@ private:
 	* and those buffers that are ready to be used returned back to Main memory pool
 	*/
 	TMultiMap<uint32, FStructuredBufferPoolItem*> StagingMemoryPool;
+
+	/** Frame that was last ticked so we don't tick more than once. */
+	uint64 LastTickedFrameCounter;
 
 	/** A flag indicating this reader is being destroyed, therefore memory should not be returned. */
 	bool bIsShuttingDown;
