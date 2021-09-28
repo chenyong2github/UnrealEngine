@@ -8,6 +8,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Internationalization/PackageLocalizationManager.h"
+#include "Misc/ScopeLock.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
