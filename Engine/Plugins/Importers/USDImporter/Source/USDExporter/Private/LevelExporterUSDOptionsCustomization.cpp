@@ -3,6 +3,7 @@
 #include "LevelExporterUSDOptionsCustomization.h"
 
 #include "LevelExporterUSDOptions.h"
+#include "LevelSequenceExporterUSDOptions.h"
 
 #include "CoreMinimal.h"
 #include "DetailCategoryBuilder.h"
@@ -30,7 +31,7 @@ namespace UE
 				SLATE_BEGIN_ARGS(SLevelPickerRow) {}
 				SLATE_END_ARGS()
 
-				void Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, TWeakPtr<FString> InEntry, ULevelExporterUSDOptions* Options )
+				void Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, TWeakPtr<FString> InEntry, FLevelExporterUSDOptionsInner* Inner )
 				{
 					STableRow::Construct( STableRow::FArguments(), OwnerTableView );
 
@@ -49,28 +50,28 @@ namespace UE
 						.MaxWidth(20)
 						[
 							SNew( SCheckBox )
-							.IsChecked_Lambda( [ LevelName, Options ]()
+							.IsChecked_Lambda( [ LevelName, Inner ]()
 							{
-								if ( Options )
+								if ( Inner )
 								{
-									return Options->LevelsToIgnore.Contains( LevelName )
+									return Inner->LevelsToIgnore.Contains( LevelName )
 										? ECheckBoxState::Unchecked
 										: ECheckBoxState::Checked;
 								}
 
 								return ECheckBoxState::Undetermined;
 							})
-							.OnCheckStateChanged_Lambda( [ LevelName, Options ]( ECheckBoxState State )
+							.OnCheckStateChanged_Lambda( [ LevelName, Inner ]( ECheckBoxState State )
 							{
-								if ( Options )
+								if ( Inner )
 								{
 									if ( State == ECheckBoxState::Checked )
 									{
-										Options->LevelsToIgnore.Remove( LevelName );
+										Inner->LevelsToIgnore.Remove( LevelName );
 									}
 									else if ( State == ECheckBoxState::Unchecked )
 									{
-										Options->LevelsToIgnore.Add( LevelName );
+										Inner->LevelsToIgnore.Add( LevelName );
 									}
 								}
 							})
@@ -91,42 +92,42 @@ namespace UE
 			class SLevelPickerList : public SListView<TSharedRef<FString>>
 			{
 			public:
-				void Construct( const FArguments& InArgs, ULevelExporterUSDOptions* Options )
+				void Construct( const FArguments& InArgs, FLevelExporterUSDOptionsInner* Inner )
 				{
-					// We'll be writing directly to its LevelsToIgnore, so keep it alive while we're alive
-					OptionsPtr.Reset( Options );
-
-					Options->LevelsToIgnore.Reset();
-
-					if ( UWorld* EditorWorld = GEditor->GetEditorWorldContext().World() )
+					if ( Inner )
 					{
-						// Make sure all streamed levels are loaded so we can query their names and export them
-						const bool bForce = true;
-						EditorWorld->LoadSecondaryLevels( bForce );
+						Inner->LevelsToIgnore.Reset();
 
-						if ( ULevel* PersistentLevel = EditorWorld->PersistentLevel )
+						if ( UWorld* EditorWorld = GEditor->GetEditorWorldContext().World() )
 						{
-							const FString LevelName = TEXT( "Persistent Level" );
-							RootItems.Add( MakeShared< FString >( LevelName ) );
+							// Make sure all streamed levels are loaded so we can query their names and export them
+							const bool bForce = true;
+							EditorWorld->LoadSecondaryLevels( bForce );
 
-							if ( !PersistentLevel->bIsVisible )
+							if ( ULevel* PersistentLevel = EditorWorld->PersistentLevel )
 							{
-								Options->LevelsToIgnore.Add( LevelName );
-							}
-						}
+								const FString LevelName = TEXT( "Persistent Level" );
+								RootItems.Add( MakeShared< FString >( LevelName ) );
 
-						for ( ULevelStreaming* StreamingLevel : EditorWorld->GetStreamingLevels() )
-						{
-							if ( StreamingLevel )
-							{
-								if ( ULevel* Level = StreamingLevel->GetLoadedLevel() )
+								if ( !PersistentLevel->bIsVisible )
 								{
-									const FString LevelName = Level->GetTypedOuter<UWorld>()->GetName();
-									RootItems.Add( MakeShared< FString >( *LevelName ) );
+									Inner->LevelsToIgnore.Add( LevelName );
+								}
+							}
 
-									if ( !Level->bIsVisible )
+							for ( ULevelStreaming* StreamingLevel : EditorWorld->GetStreamingLevels() )
+							{
+								if ( StreamingLevel )
+								{
+									if ( ULevel* Level = StreamingLevel->GetLoadedLevel() )
 									{
-										Options->LevelsToIgnore.Add( LevelName );
+										const FString LevelName = Level->GetTypedOuter<UWorld>()->GetName();
+										RootItems.Add( MakeShared< FString >( *LevelName ) );
+
+										if ( !Level->bIsVisible )
+										{
+											Inner->LevelsToIgnore.Add( LevelName );
+										}
 									}
 								}
 							}
@@ -138,17 +139,16 @@ namespace UE
 						SListView::FArguments()
 						.ListItemsSource( &RootItems )
 						.SelectionMode( ESelectionMode::None )
-						.OnGenerateRow( this, &SLevelPickerList::OnGenerateRow, Options )
+						.OnGenerateRow( this, &SLevelPickerList::OnGenerateRow, Inner )
 					);
 				}
 
 			private:
-				TSharedRef< ITableRow > OnGenerateRow( TSharedRef<FString> InEntry, const TSharedRef<STableViewBase>& OwnerTable, ULevelExporterUSDOptions* Options ) const
+				TSharedRef< ITableRow > OnGenerateRow( TSharedRef<FString> InEntry, const TSharedRef<STableViewBase>& OwnerTable, FLevelExporterUSDOptionsInner* Inner ) const
 				{
-					return SNew( SLevelPickerRow, OwnerTable, InEntry, Options );
+					return SNew( SLevelPickerRow, OwnerTable, InEntry, Inner );
 				}
 
-				TStrongObjectPtr<ULevelExporterUSDOptions> OptionsPtr;
 				TArray< TSharedRef<FString> > RootItems;
 			};
 		}
@@ -169,16 +169,37 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 		return;
 	}
 
-	ULevelExporterUSDOptions* Options = Cast< ULevelExporterUSDOptions>( SelectedObjects[ 0 ].Get() );
-	if ( !Options )
+	TSharedPtr< LevelExporterUSDImpl::SLevelPickerList > PickerTree = nullptr;
+	TStrongObjectPtr<UObject> OptionsPtr;
+	FName LevelFilterPropName;
+	FName ExportSublayersPropName;
+	if ( ULevelExporterUSDOptions* Options = Cast< ULevelExporterUSDOptions>( SelectedObjects[ 0 ].Get() ) )
+	{
+		OptionsPtr.Reset( Options );
+
+		PickerTree = SNew( LevelExporterUSDImpl::SLevelPickerList, &Options->Inner );
+		LevelFilterPropName = TEXT( "Inner.LevelsToIgnore" );
+		ExportSublayersPropName = TEXT( "Inner.bExportSublayers" );
+	}
+	else if ( ULevelSequenceExporterUsdOptions* LevelSequenceOptions = Cast< ULevelSequenceExporterUsdOptions>( SelectedObjects[ 0 ].Get() ) )
+	{
+		OptionsPtr.Reset( LevelSequenceOptions );
+
+		// For now there is no easy way of fetching the level to export from a ULevelSequence... we could potentially try to guess what it is
+		// by looking at the soft object paths, but even those aren't exposed, so here we just default to using the current level as the export level.
+		LevelSequenceOptions->Level = GWorld;
+
+		PickerTree = SNew( LevelExporterUSDImpl::SLevelPickerList, &LevelSequenceOptions->LevelExportOptions );
+		LevelFilterPropName = TEXT( "LevelExportOptions.LevelsToIgnore" );
+		ExportSublayersPropName = TEXT( "LevelExportOptions.bExportSublayers" );
+	}
+	else
 	{
 		return;
 	}
 
-	TSharedPtr< LevelExporterUSDImpl::SLevelPickerList > PickerTree = SNew( LevelExporterUSDImpl::SLevelPickerList, Options );
-
-	TSharedRef<IPropertyHandle> LevelFilterProp = DetailLayoutBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( ULevelExporterUSDOptions, LevelsToIgnore ) );
-	TSharedRef<IPropertyHandle> ExportSublayersProp = DetailLayoutBuilder.GetProperty( GET_MEMBER_NAME_CHECKED( ULevelExporterUSDOptions, bExportSublayers ) );
+	TSharedRef<IPropertyHandle> LevelFilterProp = DetailLayoutBuilder.GetProperty( LevelFilterPropName );
+	TSharedRef<IPropertyHandle> ExportSublayersProp = DetailLayoutBuilder.GetProperty( ExportSublayersPropName );
 
 	// Touch these properties and categories to enforce this ordering
 	DetailLayoutBuilder.EditCategory( TEXT( "Stage options" ) );

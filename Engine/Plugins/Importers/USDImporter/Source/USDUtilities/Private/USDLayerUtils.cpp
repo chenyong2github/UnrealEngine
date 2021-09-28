@@ -44,7 +44,7 @@ namespace UsdUtils
 	}
 }
 
-bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index )
+bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index, double OffsetTimeCodes, double TimeCodesScale )
 {
 	if ( !ParentLayer )
 	{
@@ -66,6 +66,16 @@ bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCH
 	FScopedUsdAllocs UsdAllocs;
 
 	ParentLayer->InsertSubLayerPath( UnrealToUsd::ConvertString( *RelativeSubLayerPath ).Get(), Index );
+
+	if ( !FMath::IsNearlyZero( OffsetTimeCodes ) || !FMath::IsNearlyEqual( TimeCodesScale, 1.0 ) )
+	{
+		if ( Index == -1 )
+		{
+			Index = ParentLayer->GetNumSubLayerPaths() - 1;
+		}
+
+		ParentLayer->SetSubLayerOffset( pxr::SdfLayerOffset{ OffsetTimeCodes, TimeCodesScale }, Index );
+	}
 
 	return true;
 }

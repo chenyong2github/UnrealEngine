@@ -145,6 +145,20 @@ namespace UE
 	}
 #endif // #if USE_USD_SDK
 
+	bool FUsdPrim::SetSpecifier( ESdfSpecifier Specifier )
+	{
+#if USE_USD_SDK
+		static_assert( ( int32 ) ESdfSpecifier::Def == ( int32 ) pxr::SdfSpecifierDef, "ESdfSpecifier enum doesn't match USD!" );
+		static_assert( ( int32 ) ESdfSpecifier::Over == ( int32 ) pxr::SdfSpecifierOver, "ESdfSpecifier enum doesn't match USD!" );
+		static_assert( ( int32 ) ESdfSpecifier::Class == ( int32 ) pxr::SdfSpecifierClass, "ESdfSpecifier enum doesn't match USD!" );
+		static_assert( ( int32 ) ESdfSpecifier::Num == ( int32 ) pxr::SdfNumSpecifiers, "ESdfSpecifier enum doesn't match USD!" );
+
+		return Impl->PxrUsdPrim.Get().SetSpecifier( static_cast< pxr::SdfSpecifier > ( Specifier ) );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
 	bool FUsdPrim::IsActive() const
 	{
 #if USE_USD_SDK

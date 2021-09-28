@@ -1026,21 +1026,6 @@ namespace UnrealToUsdImpl
 			OutFullPaths[BoneIndex] = FString::Printf(TEXT("%s/%s"), *OutFullPaths[ BoneInfo.ParentIndex ], *SanitizedBoneName );
 		}
 	}
-
-	// Sets the JointsAttr value based on the bone paths of ReferenceSkeleton
-	void SetJoinsAttr( const FReferenceSkeleton& ReferenceSkeleton, pxr::UsdAttribute JointsAttr )
-	{
-		TArray<FString> FullBonePaths;
-		UnrealToUsdImpl::CreateFullBonePaths( ReferenceSkeleton.GetRefBoneInfo(), FullBonePaths );
-
-		pxr::VtArray<pxr::TfToken> Joints;
-		Joints.reserve( FullBonePaths.Num() );
-		for ( const FString& BonePath : FullBonePaths )
-		{
-			Joints.push_back( UnrealToUsd::ConvertToken( *BonePath ).Get() );
-		}
-		JointsAttr.Set( Joints );
-	}
 }
 
 bool UsdToUnreal::ConvertSkeleton(const pxr::UsdSkelSkeletonQuery& SkeletonQuery, FSkeletalMeshImportData& SkelMeshImportData)
@@ -2301,7 +2286,8 @@ bool UnrealToUsd::ConvertSkeleton( const FReferenceSkeleton& ReferenceSkeleton, 
 
 	// Joints
 	{
-		UnrealToUsdImpl::SetJoinsAttr( ReferenceSkeleton, UsdSkeleton.CreateJointsAttr() );
+		pxr::UsdAttribute JointsAttr = UsdSkeleton.CreateJointsAttr();
+		UnrealToUsd::ConvertJointsAttribute( ReferenceSkeleton, JointsAttr );
 	}
 
 	pxr::VtArray<pxr::GfMatrix4d> LocalSpaceJointTransforms;
@@ -2337,6 +2323,27 @@ bool UnrealToUsd::ConvertSkeleton( const FReferenceSkeleton& ReferenceSkeleton, 
 		BindTransformsAttr.Set( WorldSpaceJointTransforms );
 	}
 
+	return true;
+}
+
+bool UnrealToUsd::ConvertJointsAttribute( const FReferenceSkeleton& ReferenceSkeleton, pxr::UsdAttribute& JointsAttribute )
+{
+	if ( !JointsAttribute )
+	{
+		return false;
+	}
+
+	TArray<FString> FullBonePaths;
+	UnrealToUsdImpl::CreateFullBonePaths( ReferenceSkeleton.GetRefBoneInfo(), FullBonePaths );
+
+	pxr::VtArray<pxr::TfToken> Joints;
+	Joints.reserve( FullBonePaths.Num() );
+	for ( const FString& BonePath : FullBonePaths )
+	{
+		Joints.push_back( UnrealToUsd::ConvertToken( *BonePath ).Get() );
+	}
+
+	JointsAttribute.Set( Joints );
 	return true;
 }
 
@@ -2682,7 +2689,8 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 
 	// Joints
 	{
-		UnrealToUsdImpl::SetJoinsAttr( RefSkeleton, UsdSkelAnim.CreateJointsAttr() );
+		pxr::UsdAttribute JointsAttr = UsdSkelAnim.CreateJointsAttr();
+		UnrealToUsd::ConvertJointsAttribute( RefSkeleton, JointsAttr );
 	}
 
 	// Translations, Rotations & Scales

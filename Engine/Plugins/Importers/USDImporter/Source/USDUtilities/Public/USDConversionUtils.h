@@ -37,6 +37,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 #endif // #if USE_USD_SDK
 
 class UUsdAssetImportData;
+class USceneComponent;
 enum class EUsdUpAxis : uint8;
 namespace UE
 {
@@ -93,8 +94,22 @@ namespace UsdUtils
 	USDUTILITIES_API bool HasCompositionArcs( const pxr::UsdPrim& Prim );
 
 	USDUTILITIES_API UClass* GetActorTypeForPrim( const pxr::UsdPrim& Prim );
-
 	USDUTILITIES_API UClass* GetComponentTypeForPrim( const pxr::UsdPrim& Prim );
+
+	/** Returns the USD schema name that should be used when exporting Component (e.g. "Xform", "Mesh", "Camera", etc.) */
+	USDUTILITIES_API FString GetSchemaNameForComponent( const USceneComponent& Component );
+
+	/**
+	 * Returns a prim path to use when exporting a given ActorOrComponent, assuming we're exporting according to the component attachment hierarchy.
+	 * e.g. We have a top-level actor with label "Actor" with an attached child actor "Child" that has a component "Comp1" attached to its root, and "Comp2"
+	 * attached to "Comp1". If Comp2 is provided to this function, it will return "/Root/Actor/Child/Comp1/Comp2".
+	 *
+	 * The actor label is always used in place of the root component name.
+	 *
+	 * ParentPrimPath is optional, and without it the function will recurse upwards and build the full path all the way to the root. Actor folders
+	 * are handled just like if they were actors/components
+	 */
+	USDUTILITIES_API FString GetPrimPathForObject( const UObject* ActorOrComponent, const FString& ParentPrimPath = TEXT(""), bool bUseActorFolders = false );
 
 	USDUTILITIES_API TUsdStore< pxr::TfToken > GetUVSetName( int32 UVChannelIndex );
 

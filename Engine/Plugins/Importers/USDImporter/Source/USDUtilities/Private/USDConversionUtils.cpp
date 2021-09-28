@@ -34,6 +34,8 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "GeometryCache.h"
+#include "InstancedFoliageActor.h"
+#include "LandscapeProxy.h"
 
 #if WITH_EDITOR
 #include "ObjectTools.h"
@@ -359,6 +361,153 @@ UClass* UsdUtils::GetComponentTypeForPrim( const pxr::UsdPrim& Prim )
 	{
 		return nullptr;
 	}
+}
+
+FString UsdUtils::GetSchemaNameForComponent( const USceneComponent& Component )
+{
+	AActor* OwnerActor = Component.GetOwner();
+	if ( OwnerActor->IsA<AInstancedFoliageActor>() )
+	{
+		return TEXT( "PointInstancer" );
+	}
+	else if ( OwnerActor->IsA<ALandscapeProxy>() )
+	{
+		return TEXT( "Mesh" );
+	}
+
+	if ( Component.IsA<USkinnedMeshComponent>() )
+	{
+		return TEXT( "SkelRoot" );
+	}
+	else if ( Component.IsA<UHierarchicalInstancedStaticMeshComponent>() )
+	{
+		// The original HISM component becomes just a regular Xform prim, so that we can handle
+		// its children correctly. We'll manually create a new child PointInstancer prim to it
+		// however, and convert the HISM data onto that prim.
+		return TEXT( "Xform" );
+	}
+	else if ( const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>( &Component ) )
+	{
+		UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
+		if ( Mesh && Mesh->GetNumLODs() > 1 )
+		{
+			// Don't export 'Mesh' if we're going to export LODs, as those will also be Mesh prims.
+			// We need at least an Xform schema though as this component may still have a transform of its own
+			return TEXT( "Xform" );
+		}
+		return TEXT( "Mesh" );
+	}
+	else if ( Component.IsA<UCineCameraComponent>() )
+	{
+		return TEXT( "Camera" );
+	}
+	else if ( Component.IsA<UDirectionalLightComponent>() )
+	{
+		return TEXT( "DistantLight" );
+	}
+	else if ( Component.IsA<URectLightComponent>() )
+	{
+		return TEXT( "RectLight" );
+	}
+	else if ( Component.IsA<UPointLightComponent>() )
+	{
+		return TEXT( "SphereLight" );
+	}
+	else if ( Component.IsA<USkyLightComponent>() )
+	{
+		return TEXT( "DomeLight" );
+	}
+
+	return TEXT( "Xform" );
+}
+
+FString UsdUtils::GetPrimPathForObject( const UObject* ActorOrComponent, const FString& ParentPrimPath, bool bUseActorFolders )
+{
+	if ( !ActorOrComponent )
+	{
+		return {};
+	}
+
+	// Get component and its owner actor
+	const USceneComponent* Component = Cast<const USceneComponent>( ActorOrComponent );
+	const AActor* Owner = nullptr;
+	if ( Component )
+	{
+		Owner = Component->GetOwner();
+	}
+	else
+	{
+		Owner = Cast<AActor>( ActorOrComponent );
+		if ( Owner )
+		{
+			Component = Owner->GetRootComponent();
+		}
+	}
+	if ( !Component || !Owner )
+	{
+		return {};
+	}
+
+	// Get component name. Use actor label if the component is its root component
+	FString Path;
+	if ( Component == Owner->GetRootComponent() )
+	{
+		Path = Owner->GetActorLabel();
+	}
+	else
+	{
+		Path = Component->GetName();
+	}
+	Path = UsdUtils::SanitizeUsdIdentifier( *Path );
+
+	// Get a clean folder path string if we have and need one
+	FString FolderPathString;
+	if ( bUseActorFolders && Component == Owner->GetRootComponent() )
+	{
+		const FName& FolderPath = Owner->GetFolderPath();
+		if ( !FolderPath.IsNone() )
+		{
+			FolderPathString = FolderPath.ToString();
+
+			TArray<FString> FolderSegments;
+			FolderPathString.ParseIntoArray( FolderSegments, TEXT( "/" ) );
+
+			for ( FString& Segment : FolderSegments )
+			{
+				Segment = UsdUtils::SanitizeUsdIdentifier( *Segment );
+			}
+
+			FolderPathString = FString::Join( FolderSegments, TEXT( "/" ) );
+
+			if ( !FolderPathString.IsEmpty() )
+			{
+				Path = FolderPathString / Path;
+			}
+		}
+	}
+
+	// Get parent prim path if we need to
+	if ( !ParentPrimPath.IsEmpty() )
+	{
+		Path = ParentPrimPath / Path;
+	}
+	else
+	{
+		FString FoundParentPath;
+
+		if ( USceneComponent* ParentComp = Component->GetAttachParent() )
+		{
+			FoundParentPath = GetPrimPathForObject( ParentComp, TEXT( "" ), bUseActorFolders );
+		}
+		else
+		{
+			FoundParentPath = TEXT( "/Root" );
+		}
+
+		Path = FoundParentPath / Path;
+	}
+
+	return Path;
 }
 
 TUsdStore< pxr::TfToken > UsdUtils::GetUVSetName( int32 UVChannelIndex )

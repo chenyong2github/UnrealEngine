@@ -5,17 +5,27 @@
 #include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
+#include "USDLightConversion.h"
+#include "USDSkeletalDataConversion.h"
 #include "USDTypesConversion.h"
+
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
+#include "Components/DirectionalLightComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/MeshComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/RectLightComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "InstancedFoliageActor.h"
@@ -42,6 +52,7 @@
 #include "pxr/usd/usdGeom/xformable.h"
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
 #include "pxr/usd/usdLux/light.h"
+#include "pxr/usd/usdSkel/animation.h"
 #include "pxr/usd/usdSkel/root.h"
 
 #include "USDIncludesEnd.h"
@@ -620,7 +631,7 @@ bool UnrealToUsd::ConvertHierarchicalInstancedStaticMeshComponent( const UHierar
 	return true;
 }
 
-bool UnrealToUsd::ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, const UCineCameraComponent* CameraComponent, pxr::UsdPrim& UsdPrim )
+bool UnrealToUsd::ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, const UCineCameraComponent* CameraComponent, pxr::UsdPrim& UsdPrim, double TimeCode )
 {
 	if ( !UsdPrim || !CameraComponent )
 	{
@@ -639,27 +650,27 @@ bool UnrealToUsd::ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, cons
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocalLengthAttr() )
 	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->CurrentFocalLength ) );
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->CurrentFocalLength ), TimeCode );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocusDistanceAttr() )
 	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->FocusSettings.ManualFocusDistance ) );
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->FocusSettings.ManualFocusDistance ), TimeCode );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFStopAttr() )
 	{
-		Attr.Set<float>( CameraComponent->CurrentAperture );
+		Attr.Set<float>( CameraComponent->CurrentAperture, TimeCode );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateHorizontalApertureAttr() )
 	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorWidth ) );
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorWidth ), TimeCode );
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateVerticalApertureAttr() )
 	{
-		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorHeight ) );
+		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent->Filmback.SensorHeight ), TimeCode );
 	}
 
 	return true;
@@ -813,6 +824,356 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 #else
 	return false;
 #endif // WITH_EDITOR
+}
+
+bool UnrealToUsd::CreateComponentPropertyBaker( UE::FUsdPrim& Prim, const USceneComponent& Component, const FString& PropertyPath, FComponentBaker& OutBaker )
+{
+	EBakingType BakerType = EBakingType::None;
+	TFunction<void(double)> BakerFunction;
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
+	FUsdStageInfo StageInfo{ UsdStage };
+
+	// SceneComponent
+	{
+		if ( PropertyPath == TEXT( "Transform" ) )
+		{
+			pxr::UsdGeomXformable Xformable( UsdPrim );
+			if ( !Xformable )
+			{
+				return false;
+			}
+
+			Xformable.CreateXformOpOrderAttr();
+
+			// Clear existing transform data and leave just one Transform op there
+			pxr::UsdGeomXformOp TransformOp = Xformable.MakeMatrixXform();
+			if ( !TransformOp )
+			{
+				return false;
+			}
+
+			pxr::UsdAttribute Attr = TransformOp.GetAttr();
+			if ( !Attr )
+			{
+				return false;
+			}
+
+			Attr.Clear();
+
+			// Compensate different orientation for light or camera components
+			FTransform AdditionalRotation = FTransform::Identity;
+			if ( UsdPrim.IsA< pxr::UsdGeomCamera >() || UsdPrim.IsA< pxr::UsdLuxLight >() )
+			{
+				AdditionalRotation = FTransform( FRotator( 0.0f, 90.0f, 0.0f ) );
+
+				if ( StageInfo.UpAxis == EUsdUpAxis::ZAxis )
+				{
+					AdditionalRotation *= FTransform( FRotator( 90.0f, 0.0f, 0.0f ) );
+				}
+			}
+
+			BakerType = EBakingType::Transform;
+			BakerFunction = [&Component, AdditionalRotation, StageInfo, Attr]( double UsdTimeCode )
+			{
+				FScopedUsdAllocs Allocs;
+
+				FTransform FinalUETransform = AdditionalRotation * Component.GetRelativeTransform();
+				pxr::GfMatrix4d UsdTransform = UnrealToUsd::ConvertTransform( StageInfo, FinalUETransform );
+				Attr.Set< pxr::GfMatrix4d>( UsdTransform, UsdTimeCode );
+			};
+		}
+		// bHidden is for the actor, and bHiddenInGame is for a component
+		// A component is only visible when it's not hidden and its actor is not hidden
+		// A bHidden is just handled like a bHiddenInGame for the actor's root component
+		// Whenever we handle a bHiddenInGame, we always combine it with the actor's bHidden
+		else if ( PropertyPath == TEXT( "bHidden" ) || PropertyPath == TEXT( "bHiddenInGame" ) )
+		{
+			pxr::UsdGeomImageable Imageable( UsdPrim );
+			if ( !Imageable )
+			{
+				return false;
+			}
+
+			pxr::UsdAttribute Attr = Imageable.CreateVisibilityAttr();
+			Attr.Clear();
+
+			BakerType = EBakingType::Visibility;
+			BakerFunction = [&Component, Imageable]( double UsdTimeCode )
+			{
+				if ( Component.bHiddenInGame || Component.GetOwner()->IsHidden() )
+				{
+					Imageable.MakeInvisible( UsdTimeCode );
+				}
+				else
+				{
+					Imageable.MakeVisible( UsdTimeCode );
+				}
+			};
+		}
+	}
+
+	if ( const UCineCameraComponent* CameraComponent = Cast<UCineCameraComponent>( &Component ) )
+	{
+		static TSet<FString> RelevantProperties = {
+			TEXT( "CurrentFocalLength" ),
+			TEXT( "FocusSettings.ManualFocusDistance" ),
+			TEXT( "CurrentAperture" ),
+			TEXT( "Filmback.SensorWidth" ),
+			TEXT( "Filmback.SensorHeight" )
+		};
+
+		if ( RelevantProperties.Contains( PropertyPath ) )
+		{
+			BakerType = EBakingType::Camera;
+			BakerFunction = [UsdStage, CameraComponent, UsdPrim]( double UsdTimeCode ) mutable
+			{
+				UnrealToUsd::ConvertCameraComponent( UsdStage, CameraComponent, UsdPrim, UsdTimeCode );
+			};
+		}
+	}
+	else if ( const ULightComponentBase* LightComponentBase = Cast<ULightComponentBase>( &Component ) )
+	{
+		if ( const URectLightComponent* RectLightComponent = Cast<URectLightComponent>( LightComponentBase ) )
+		{
+			static TSet<FString> RelevantProperties = {
+				TEXT( "SourceHeight" ),
+				TEXT( "SourceWidth" ),
+				TEXT( "Temperature" ),
+				TEXT( "bUseTemperature" ),
+				TEXT( "LightColor" ),
+				TEXT( "Intensity" )
+			};
+
+			if ( RelevantProperties.Contains( PropertyPath ) )
+			{
+				BakerType = EBakingType::Light;
+				BakerFunction = [UsdStage, RectLightComponent, UsdPrim]( double UsdTimeCode ) mutable
+				{
+					UnrealToUsd::ConvertLightComponent( *RectLightComponent, UsdPrim, UsdTimeCode );
+					UnrealToUsd::ConvertRectLightComponent( *RectLightComponent, UsdPrim, UsdTimeCode );
+				};
+			}
+		}
+		else if ( const USpotLightComponent* SpotLightComponent = Cast<USpotLightComponent>( LightComponentBase ) )
+		{
+			static TSet<FString> RelevantProperties = {
+				TEXT( "OuterConeAngle" ),
+				TEXT( "InnerConeAngle" ),
+				TEXT( "Temperature" ),
+				TEXT( "bUseTemperature" ),
+				TEXT( "LightColor" ),
+				TEXT( "Intensity" )
+			};
+
+			if ( RelevantProperties.Contains( PropertyPath ) )
+			{
+				BakerType = EBakingType::Light;
+				BakerFunction = [UsdStage, SpotLightComponent, UsdPrim]( double UsdTimeCode ) mutable
+				{
+					UnrealToUsd::ConvertLightComponent( *SpotLightComponent, UsdPrim, UsdTimeCode );
+					UnrealToUsd::ConvertPointLightComponent( *SpotLightComponent, UsdPrim, UsdTimeCode );
+					UnrealToUsd::ConvertSpotLightComponent( *SpotLightComponent, UsdPrim, UsdTimeCode );
+				};
+			}
+		}
+		else if ( const UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>( LightComponentBase ) )
+		{
+			static TSet<FString> RelevantProperties = {
+				TEXT( "SourceRadius" ),
+				TEXT( "Temperature" ),
+				TEXT( "bUseTemperature" ),
+				TEXT( "LightColor" ),
+				TEXT( "Intensity" )
+			};
+
+			if ( RelevantProperties.Contains( PropertyPath ) )
+			{
+				BakerType = EBakingType::Light;
+				BakerFunction = [UsdStage, PointLightComponent, UsdPrim]( double UsdTimeCode ) mutable
+				{
+					UnrealToUsd::ConvertLightComponent( *PointLightComponent, UsdPrim, UsdTimeCode );
+					UnrealToUsd::ConvertPointLightComponent( *PointLightComponent, UsdPrim, UsdTimeCode );
+				};
+			}
+		}
+		else if ( const UDirectionalLightComponent* DirectionalLightComponent = Cast<UDirectionalLightComponent>( LightComponentBase ) )
+		{
+			static TSet<FString> RelevantProperties = {
+				TEXT( "LightSourceAngle" ),
+				TEXT( "Temperature" ),
+				TEXT( "bUseTemperature" ),
+				TEXT( "LightColor" ),
+				TEXT( "Intensity" )
+			};
+
+			if ( RelevantProperties.Contains( PropertyPath ) )
+			{
+				BakerType = EBakingType::Light;
+				BakerFunction = [UsdStage, DirectionalLightComponent, UsdPrim]( double UsdTimeCode ) mutable
+				{
+					UnrealToUsd::ConvertLightComponent( *DirectionalLightComponent, UsdPrim, UsdTimeCode );
+					UnrealToUsd::ConvertDirectionalLightComponent( *DirectionalLightComponent, UsdPrim, UsdTimeCode );
+				};
+			}
+		}
+	}
+
+	if ( BakerType != EBakingType::None && BakerFunction)
+	{
+		OutBaker.BakerType = BakerType;
+		OutBaker.BakerFunction = BakerFunction;
+		return true;
+	}
+
+	return false;
+}
+
+bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsdPrim& SkelAnimation, USkeletalMeshComponent& Component, FComponentBaker& OutBaker )
+{
+	USkeletalMesh* SkeletalMesh = Component.SkeletalMesh;
+	if ( !SkeletalMesh )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdSkelRoot UsdSkelRoot{ SkelRoot };
+	pxr::UsdSkelAnimation UsdSkelAnimation{ SkelAnimation };
+	if ( !SkelRoot || !SkelAnimation )
+	{
+		return false;
+	}
+
+	// Make sure that the skel root is using our animation
+	pxr::UsdPrim SkelRootPrim = UsdSkelRoot.GetPrim();
+	pxr::UsdPrim SkelAnimPrim = UsdSkelAnimation.GetPrim();
+	UsdUtils::BindAnimationSource( SkelRootPrim, SkelAnimPrim );
+
+	FUsdStageInfo StageInfo{ SkelRoot.GetStage() };
+
+	pxr::UsdAttribute JointsAttr			= UsdSkelAnimation.CreateJointsAttr();
+	pxr::UsdAttribute TranslationsAttr		= UsdSkelAnimation.CreateTranslationsAttr();
+	pxr::UsdAttribute RotationsAttr			= UsdSkelAnimation.CreateRotationsAttr();
+	pxr::UsdAttribute ScalesAttr			= UsdSkelAnimation.CreateScalesAttr();
+
+	// Joints
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+	const int32 NumBones = RefSkeleton.GetRefBoneInfo().Num();
+	UnrealToUsd::ConvertJointsAttribute( RefSkeleton, JointsAttr );
+
+	// Build active morph targets array if it isn't setup already
+	TArray<UMorphTarget*>& MorphTargets = SkeletalMesh->GetMorphTargets();
+	if ( Component.ActiveMorphTargets.Num() != Component.MorphTargetWeights.Num() && MorphTargets.Num() != 0 )
+	{
+		for ( int32 MorphTargetIndex = 0; MorphTargetIndex < MorphTargets.Num(); ++MorphTargetIndex )
+		{
+			FActiveMorphTarget ActiveMorphTarget;
+			ActiveMorphTarget.MorphTarget = MorphTargets[ MorphTargetIndex ];
+			ActiveMorphTarget.WeightIndex = MorphTargetIndex;
+
+			Component.ActiveMorphTargets.Add( ActiveMorphTarget );
+		}
+	}
+
+	// Blend shape names
+	// Here we have to export UMorphTarget FNames in some order, then the weights in that same order. That is all.
+	// Those work out as "channels", and USD will resolve those to match the right thing on each mesh.
+	// We sort them in weight index order so that within the Baker we just write out weights in the order they are in.
+	pxr::UsdAttribute BlendShapeWeightsAttr;
+	pxr::UsdAttribute BlendShapesAttr;
+	const int32 NumMorphTargets = Component.MorphTargetWeights.Num();
+	if ( NumMorphTargets > 0 )
+	{
+		BlendShapeWeightsAttr = UsdSkelAnimation.CreateBlendShapeWeightsAttr();
+		BlendShapesAttr = UsdSkelAnimation.CreateBlendShapesAttr();
+
+		TArray<FActiveMorphTarget> SortedMorphTargets = Component.ActiveMorphTargets;
+		SortedMorphTargets.Sort([](const FActiveMorphTarget& Left, const FActiveMorphTarget& Right)
+		{
+			return Left.WeightIndex < Right.WeightIndex;
+		});
+
+		pxr::VtArray< pxr::TfToken > BlendShapeNames;
+		BlendShapeNames.reserve(SortedMorphTargets.Num());
+
+		for ( const FActiveMorphTarget& ActiveMorphTarget : SortedMorphTargets )
+		{
+			FString BlendShapeName;
+			if ( UMorphTarget* MorphTarget = ActiveMorphTarget.MorphTarget )
+			{
+				BlendShapeName = MorphTarget->GetFName().ToString();
+			}
+
+			BlendShapeNames.push_back( UnrealToUsd::ConvertToken( *BlendShapeName ).Get() );
+		}
+
+		BlendShapesAttr.Set( BlendShapeNames );
+	}
+
+	pxr::VtVec3fArray Translations;
+	pxr::VtQuatfArray Rotations;
+	pxr::VtVec3hArray Scales;
+	pxr::VtArray< float > BlendShapeWeights;
+
+	OutBaker.BakerType = EBakingType::Skeletal;
+	OutBaker.BakerFunction =
+		[&Component, StageInfo, Translations, Rotations, Scales, BlendShapeWeights, TranslationsAttr, RotationsAttr, ScalesAttr, BlendShapeWeightsAttr, NumBones, NumMorphTargets]
+		( double UsdTimeCode ) mutable
+		{
+			FScopedUsdAllocs InnerAllocs;
+
+			Translations.resize( NumBones );
+			Rotations.resize( NumBones );
+			Scales.resize( NumBones );
+
+			// This whole incantation is required or else the component will really not update until the next frame.
+			// Note: This will also cause the update of morph target weights.
+			Component.TickAnimation( 0.f, false );
+			Component.UpdateLODStatus();
+			Component.RefreshBoneTransforms();
+			Component.RefreshSlaveComponents();
+			Component.UpdateComponentToWorld();
+			Component.FinalizeBoneTransform();
+			Component.MarkRenderTransformDirty();
+			Component.MarkRenderDynamicDataDirty();
+
+			const TArray< FTransform >& LocalBoneTransforms = Component.GetBoneSpaceTransforms();
+			for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
+			{
+				FTransform BoneTransform = LocalBoneTransforms[ BoneIndex ];
+				BoneTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, BoneTransform );
+
+				Translations[ BoneIndex ] = UnrealToUsd::ConvertVector( BoneTransform.GetTranslation() ) * ( 0.01f / StageInfo.MetersPerUnit );
+				Rotations[ BoneIndex ] = UnrealToUsd::ConvertQuat( BoneTransform.GetRotation() ).GetNormalized();
+				Scales[ BoneIndex ] = pxr::GfVec3h( UnrealToUsd::ConvertVector( BoneTransform.GetScale3D() ) );
+			}
+
+			if ( Translations.size() > 0 )
+			{
+				TranslationsAttr.Set( Translations, UsdTimeCode );
+				RotationsAttr.Set( Rotations, UsdTimeCode );
+				ScalesAttr.Set( Scales, UsdTimeCode );
+			}
+
+			if ( NumMorphTargets > 0 && BlendShapeWeightsAttr )
+			{
+				BlendShapeWeights.resize( NumMorphTargets );
+
+				for ( int32 MorphTargetIndex = 0; MorphTargetIndex < NumMorphTargets; ++MorphTargetIndex )
+				{
+					BlendShapeWeights[ MorphTargetIndex ] = Component.MorphTargetWeights[ MorphTargetIndex ];
+				}
+
+				BlendShapeWeightsAttr.Set( BlendShapeWeights, UsdTimeCode );
+			}
+		};
+
+	return true;
 }
 
 bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieSceneTrack, pxr::UsdPrim& UsdPrim, const FMovieSceneSequenceTransform& SequenceTransform )

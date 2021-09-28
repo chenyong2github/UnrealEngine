@@ -25,4 +25,10 @@ public:
 
 	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
 	static void AddPayload( const FString& ReferencingStagePath, const FString& ReferencingPrimPath, const FString& TargetStagePath );
+
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static FString GetPrimPathForObject( const UObject* ActorOrComponent, const FString& ParentPrimPath = TEXT(""), bool bUseActorFolders = false );
+
+	UFUNCTION( BlueprintCallable, Category = "Prim utils" )
+	static FString GetSchemaNameForComponent( const USceneComponent* Component );
 };
