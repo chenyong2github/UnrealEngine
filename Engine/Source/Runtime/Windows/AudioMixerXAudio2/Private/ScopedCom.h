@@ -69,6 +69,13 @@ namespace Audio
 			InObj.Obj = nullptr;
 			return *this;
 		}
+
+		// Equality operator
+		bool operator==(const ThisType& InObj) const
+		{
+			return InObj.Obj == Obj;
+		}
+
 	private:
 		void SafeAddRef()
 		{
