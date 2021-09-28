@@ -30,7 +30,9 @@ namespace TraceServices
 	class IModuleService;
 }
 
-class SStartPageWindow;
+class STraceStoreWindow;
+class SConnectionWindow;
+class SLauncherWindow;
 class SSessionInfoWindow;
 class FInsightsTestRunner;
 class FInsightsMenuBuilder;
@@ -125,25 +127,69 @@ public:
 	static FInsightsSettings& GetSettings();
 
 	//////////////////////////////////////////////////
-	// StartPage (Trace Store Browser)
+	// Trace Store
 
-	void AssignStartPageWindow(const TSharedRef<SStartPageWindow>& InStartPageWindow)
+	void AssignTraceStoreWindow(const TSharedRef<STraceStoreWindow>& InTraceStoreWindow)
 	{
-		StartPageWindow = InStartPageWindow;
+		TraceStoreWindow = InTraceStoreWindow;
 	}
 
-	void RemoveStartPageWindow()
+	void RemoveTraceStoreWindow()
 	{
-		StartPageWindow.Reset();
+		TraceStoreWindow.Reset();
 	}
 
 	/**
-	 * Converts profiler window weak pointer to a shared pointer and returns it.
+	 * Converts Trace Store window weak pointer to a shared pointer and returns it.
 	 * Make sure the returned pointer is valid before trying to dereference it.
 	 */
-	TSharedPtr<class SStartPageWindow> GetStartPageWindow() const
+	TSharedPtr<class STraceStoreWindow> GetTraceStoreWindow() const
 	{
-		return StartPageWindow.Pin();
+		return TraceStoreWindow.Pin();
+	}
+
+	//////////////////////////////////////////////////
+	// Connection
+
+	void AssignConnectionWindow(const TSharedRef<SConnectionWindow>& InConnectionWindow)
+	{
+		ConnectionWindow = InConnectionWindow;
+	}
+
+	void RemoveConnectionWindow()
+	{
+		ConnectionWindow.Reset();
+	}
+
+	/**
+	 * Converts Connection window weak pointer to a shared pointer and returns it.
+	 * Make sure the returned pointer is valid before trying to dereference it.
+	 */
+	TSharedPtr<class SConnectionWindow> GetConnectionWindow() const
+	{
+		return ConnectionWindow.Pin();
+	}
+
+	//////////////////////////////////////////////////
+	// Launcher
+
+	void AssignLauncherWindow(const TSharedRef<SLauncherWindow>& InLauncherWindow)
+	{
+		LauncherWindow = InLauncherWindow;
+	}
+
+	void RemoveLauncherWindow()
+	{
+		LauncherWindow.Reset();
+	}
+
+	/**
+	 * Converts Launcher window weak pointer to a shared pointer and returns it.
+	 * Make sure the returned pointer is valid before trying to dereference it.
+	 */
+	TSharedPtr<class SLauncherWindow> GetLauncherWindow() const
+	{
+		return LauncherWindow.Pin();
 	}
 
 	//////////////////////////////////////////////////
@@ -237,11 +283,23 @@ private:
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
 
-	/** Called to spawn the Start Page major tab. */
-	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
+	/** Called to spawn the Trace Store major tab. */
+	TSharedRef<SDockTab> SpawnTraceStoreTab(const FSpawnTabArgs& Args);
 
-	/** Callback called when the Start Page major tab is closed. */
-	void OnStartPageTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+	/** Callback called when the Trace Store major tab is closed. */
+	void OnTraceStoreTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	/** Called to spawn the Connection major tab. */
+	TSharedRef<SDockTab> SpawnConnectionTab(const FSpawnTabArgs& Args);
+
+	/** Callback called when the Connection major tab is closed. */
+	void OnConnectionTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	/** Called to spawn the Launcher major tab. */
+	TSharedRef<SDockTab> SpawnLauncherTab(const FSpawnTabArgs& Args);
+
+	/** Callback called when the Launcher major tab is closed. */
+	void OnLauncherTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	/** Called to spawn the Session Info major tab. */
 	TSharedRef<SDockTab> SpawnSessionInfoTab(const FSpawnTabArgs& Args);
@@ -306,8 +364,14 @@ private:
 	/** An instance of the main settings. */
 	FInsightsSettings Settings;
 
-	/** A weak pointer to the Start Page window. */
-	TWeakPtr<class SStartPageWindow> StartPageWindow;
+	/** A weak pointer to the Trace Store window. */
+	TWeakPtr<class STraceStoreWindow> TraceStoreWindow;
+
+	/** A weak pointer to the Connection window. */
+	TWeakPtr<class SConnectionWindow> ConnectionWindow;
+
+	/** A weak pointer to the Launcher window. */
+	TWeakPtr<class SLauncherWindow> LauncherWindow;
 
 	/** A weak pointer to the Session Info window. */
 	TWeakPtr<class SSessionInfoWindow> SessionInfoWindow;

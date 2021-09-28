@@ -90,8 +90,14 @@ protected:
 	/** Callback called when a major tab is closed. */
 	void OnTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	/** Start Page */
-	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
+	/** Trace Store */
+	TSharedRef<SDockTab> SpawnTraceStoreTab(const FSpawnTabArgs& Args);
+
+	/** Connection */
+	TSharedRef<SDockTab> SpawnConnectionTab(const FSpawnTabArgs& Args);
+
+	/** Launcher */
+	TSharedRef<SDockTab> SpawnLauncherTab(const FSpawnTabArgs& Args);
 
 	/** Session Info */
 	TSharedRef<SDockTab> SpawnSessionInfoTab(const FSpawnTabArgs& Args);

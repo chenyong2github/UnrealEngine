@@ -76,7 +76,7 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenStarshipSuite", "Starship Test Suite"),
 			LOCTEXT("OpenStarshipSuiteDesc", "Opens the Starship UX test suite."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Test"),
 			OpenStarshipSuiteAction,
 			NAME_None,
 			EUserInterfaceActionType::Button

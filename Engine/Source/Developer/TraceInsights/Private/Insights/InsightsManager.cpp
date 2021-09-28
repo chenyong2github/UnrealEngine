@@ -32,9 +32,25 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Special tab type, that cannot be dragged/undocked from the tab bar
+ */
+class SLockedTab : public SDockTab
+{
+	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		return FReply::Handled();
+	}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #define LOCTEXT_NAMESPACE "InsightsManager"
 
-const FName FInsightsManagerTabs::StartPageTabId(TEXT("StartPage"));
+const FName FInsightsManagerTabs::StartPageTabId(TEXT("TraceStore")); // DEPRECATED
+const FName FInsightsManagerTabs::TraceStoreTabId(TEXT("TraceStore"));
+const FName FInsightsManagerTabs::ConnectionTabId(TEXT("Connection"));
+const FName FInsightsManagerTabs::LauncherTabId(TEXT("Launcher"));
 const FName FInsightsManagerTabs::SessionInfoTabId(TEXT("SessionInfo"));
 const FName FInsightsManagerTabs::TimingProfilerTabId(TEXT("TimingProfiler"));
 const FName FInsightsManagerTabs::LoadingProfilerTabId(TEXT("LoadingProfiler"));
@@ -214,17 +230,45 @@ void FInsightsManager::BindCommands()
 
 void FInsightsManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsModule)
 {
-	const FInsightsMajorTabConfig& StartPageConfig = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::StartPageTabId);
-	if (StartPageConfig.bIsAvailable)
+	const FInsightsMajorTabConfig& TraceStoreConfig = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::TraceStoreTabId);
+	if (TraceStoreConfig.bIsAvailable)
 	{
-		// Register tab spawner for the Start Page.
-		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId,
-			FOnSpawnTab::CreateRaw(this, &FInsightsManager::SpawnStartPageTab))
-			.SetDisplayName(StartPageConfig.TabLabel.IsSet() ? StartPageConfig.TabLabel.GetValue() : LOCTEXT("StartPageTabTitle", "Trace Store"))
-			.SetTooltipText(StartPageConfig.TabTooltip.IsSet() ? StartPageConfig.TabTooltip.GetValue() : LOCTEXT("StartPageTooltipText", "Open the Trace Store Browser."))
-			.SetIcon(StartPageConfig.TabIcon.IsSet() ? StartPageConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "StartPage.Icon.Small"));
+		// Register tab spawner for the Trace Store tab.
+		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::TraceStoreTabId,
+			FOnSpawnTab::CreateRaw(this, &FInsightsManager::SpawnTraceStoreTab))
+			.SetDisplayName(TraceStoreConfig.TabLabel.IsSet() ? TraceStoreConfig.TabLabel.GetValue() : LOCTEXT("TraceStoreTabTitle", "Trace Store"))
+			.SetTooltipText(TraceStoreConfig.TabTooltip.IsSet() ? TraceStoreConfig.TabTooltip.GetValue() : LOCTEXT("TraceStoreTooltipText", "Open the Trace Store Browser."))
+			.SetIcon(TraceStoreConfig.TabIcon.IsSet() ? TraceStoreConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "TraceStore.Icon.Small"));
 
-		TSharedRef<FWorkspaceItem> Group = StartPageConfig.WorkspaceGroup.IsValid() ? StartPageConfig.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
+		TSharedRef<FWorkspaceItem> Group = TraceStoreConfig.WorkspaceGroup.IsValid() ? TraceStoreConfig.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
+		TabSpawnerEntry.SetGroup(Group);
+	}
+
+	const FInsightsMajorTabConfig& ConnectionConfig = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::ConnectionTabId);
+	if (ConnectionConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Connection tab.
+		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::ConnectionTabId,
+			FOnSpawnTab::CreateRaw(this, &FInsightsManager::SpawnConnectionTab))
+			.SetDisplayName(ConnectionConfig.TabLabel.IsSet() ? ConnectionConfig.TabLabel.GetValue() : LOCTEXT("ConnectionTabTitle", "Connection"))
+			.SetTooltipText(ConnectionConfig.TabTooltip.IsSet() ? ConnectionConfig.TabTooltip.GetValue() : LOCTEXT("ConnectionTooltipText", "Open the Connection tab."))
+			.SetIcon(ConnectionConfig.TabIcon.IsSet() ? ConnectionConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "Connection.Icon.Small"));
+
+		TSharedRef<FWorkspaceItem> Group = ConnectionConfig.WorkspaceGroup.IsValid() ? ConnectionConfig.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
+		TabSpawnerEntry.SetGroup(Group);
+	}
+
+	const FInsightsMajorTabConfig& LauncherConfig = InsightsModule.FindMajorTabConfig(FInsightsManagerTabs::LauncherTabId);
+	if (LauncherConfig.bIsAvailable)
+	{
+		// Register tab spawner for the Launcher tab.
+		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::LauncherTabId,
+			FOnSpawnTab::CreateRaw(this, &FInsightsManager::SpawnLauncherTab))
+			.SetDisplayName(LauncherConfig.TabLabel.IsSet() ? LauncherConfig.TabLabel.GetValue() : LOCTEXT("LauncherTabTitle", "Launcher"))
+			.SetTooltipText(LauncherConfig.TabTooltip.IsSet() ? LauncherConfig.TabTooltip.GetValue() : LOCTEXT("LauncherTooltipText", "Open the Launcher tab."))
+			.SetIcon(LauncherConfig.TabIcon.IsSet() ? LauncherConfig.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "Launcher.Icon.Small"));
+
+		TSharedRef<FWorkspaceItem> Group = LauncherConfig.WorkspaceGroup.IsValid() ? LauncherConfig.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory();
 		TabSpawnerEntry.SetGroup(Group);
 	}
 
@@ -253,25 +297,25 @@ void FInsightsManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsModule)
 void FInsightsManager::UnregisterMajorTabs()
 {
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::SessionInfoTabId);
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::StartPageTabId);
+
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::TraceStoreTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::ConnectionTabId);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FInsightsManagerTabs::LauncherTabId);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SDockTab> FInsightsManager::SpawnStartPageTab(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FInsightsManager::SpawnTraceStoreTab(const FSpawnTabArgs& Args)
 {
-	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab);
-		//.OnCanCloseTab_Lambda([]() { return false; })
-		//.ContentPadding(FMargin(2.0f, 20.0f, 2.0f, 2.0f));
+	const TSharedRef<SDockTab> DockTab = SNew(SLockedTab)
+		.TabRole(ETabRole::MajorTab);
 
-	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FInsightsManager::OnStartPageTabClosed));
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FInsightsManager::OnTraceStoreTabClosed));
 
-	// Create the SStartPageWindow widget.
-	TSharedRef<SStartPageWindow> Window = SNew(SStartPageWindow);
+	TSharedRef<STraceStoreWindow> Window = SNew(STraceStoreWindow);
 	DockTab->SetContent(Window);
 
-	AssignStartPageWindow(Window);
+	AssignTraceStoreWindow(Window);
 
 	if (!bIsMainTabSet)
 	{
@@ -284,9 +328,77 @@ TSharedRef<SDockTab> FInsightsManager::SpawnStartPageTab(const FSpawnTabArgs& Ar
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::OnStartPageTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+void FInsightsManager::OnTraceStoreTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 {
-	RemoveStartPageWindow();
+	RemoveTraceStoreWindow();
+
+	// Disable TabClosed delegate.
+	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FInsightsManager::SpawnConnectionTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SLockedTab)
+		.TabRole(ETabRole::MajorTab)
+		.OnCanCloseTab_Lambda([]() { return false; }); // can't close this tab
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FInsightsManager::OnConnectionTabClosed));
+
+	TSharedRef<SConnectionWindow> Window = SNew(SConnectionWindow);
+	DockTab->SetContent(Window);
+
+	AssignConnectionWindow(Window);
+
+	//if (!bIsMainTabSet)
+	//{
+	//	FGlobalTabmanager::Get()->SetMainTab(DockTab);
+	//	bIsMainTabSet = true;
+	//}
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OnConnectionTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	RemoveConnectionWindow();
+
+	// Disable TabClosed delegate.
+	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> FInsightsManager::SpawnLauncherTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SLockedTab)
+		.TabRole(ETabRole::NomadTab)
+		.OnCanCloseTab_Lambda([]() { return false; }); // can't close this tab
+
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FInsightsManager::OnLauncherTabClosed));
+
+	TSharedRef<SLauncherWindow> Window = SNew(SLauncherWindow);
+	DockTab->SetContent(Window);
+
+	AssignLauncherWindow(Window);
+
+	//if (!bIsMainTabSet)
+	//{
+	//	FGlobalTabmanager::Get()->SetMainTab(DockTab);
+	//	bIsMainTabSet = true;
+	//}
+
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::OnLauncherTabClosed(TSharedRef<SDockTab> TabBeingClosed)
+{
+	RemoveLauncherWindow();
 
 	// Disable TabClosed delegate.
 	TabBeingClosed->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
@@ -688,7 +800,7 @@ void FInsightsManager::LoadTraceFile(const FString& InTraceFilename, bool InAuto
 
 void FInsightsManager::OpenSettings()
 {
-	TSharedPtr<SStartPageWindow> Wnd = GetStartPageWindow();
+	TSharedPtr<STraceStoreWindow> Wnd = GetTraceStoreWindow();
 	if (Wnd.IsValid())
 	{
 		Wnd->OpenSettings();
