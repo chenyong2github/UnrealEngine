@@ -3383,7 +3383,10 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	#endif
 
-	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || bGroomCacheChanged || bEnableLengthScaleOverrideChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
+	// If material is assigned to the groom from the viewport (i.e., drag&drop a material from the content brown onto the groom geometry, it results into a unknown property). There is other case 
+	const bool bIsUnknown = PropertyThatChanged == nullptr;
+
+	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || bGroomCacheChanged || bEnableLengthScaleOverrideChanged || bIsUnknown || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
 	if (bRecreateResources)
 	{
 		// Release the resources before Super::PostEditChangeProperty so that they get
@@ -3432,6 +3435,11 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		UpdateHairGroupsDescAndInvalidateRenderState();
 		bIsEventProcess = true;
+	}
+
+	if (bIsUnknown)
+	{
+		InitResources(false);
 	}
 
 	// Always call parent PostEditChangeProperty as parent expect such a call (would crash in certain case otherwise)

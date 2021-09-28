@@ -388,6 +388,8 @@ RENDERER_API bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPla
 RENDERER_API bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform = EShaderPlatform::SP_NumPlatforms);
 RENDERER_API void SetHairStrandsEnabled(bool In);
 
+RENDERER_API bool IsHairStrandsCompatible(const FMeshBatch* Mesh);
+
 RENDERER_API bool IsHairRayTracingEnabled();
 
 // Return true if hair simulation is enabled.
