@@ -11,7 +11,7 @@ void UAnimSequenceLevelSequenceLink::SetLevelSequence(ULevelSequence* InLevelSeq
 
 ULevelSequence* UAnimSequenceLevelSequenceLink::ResolveLevelSequence()
 {
-	UObject *Object = PathToLevelSequence.ResolveObject();
+	UObject *Object = PathToLevelSequence.TryLoad();
 	return Cast<ULevelSequence>(Object);
 }
 

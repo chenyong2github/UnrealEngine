@@ -11,7 +11,7 @@ void FLevelSequenceAnimSequenceLinkItem::SetAnimSequence(UAnimSequence* InAnimSe
 
 UAnimSequence* FLevelSequenceAnimSequenceLinkItem::ResolveAnimSequence()
 {
-	UObject *Object = PathToAnimSequence.ResolveObject();
+	UObject *Object = PathToAnimSequence.TryLoad();
 	return Cast<UAnimSequence>(Object);
 }
 
