@@ -7245,7 +7245,7 @@ void UEditorEngine::HandleTravelFailure(UWorld* InWorld, ETravelFailure::Type Fa
 	}
 }
 
-void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
+void UEditorEngine::AutomationLoadMap(const FString& MapName, bool bForceReload, FString* OutError)
 {
 #if WITH_AUTOMATION_TESTS
 	struct FFailedGameStartHandler
@@ -7300,7 +7300,7 @@ void UEditorEngine::AutomationLoadMap(const FString& MapName, FString* OutError)
 		}
 	}
 
-	if (bNeedLoadEditorMap)
+	if (bNeedLoadEditorMap || bForceReload)
 	{
 		if (bPieRunning)
 		{

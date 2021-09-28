@@ -16,7 +16,7 @@ class SWindow;
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogEditorAutomationTests, Log, All);
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogEngineAutomationTests, Log, All);
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEditorAutomationMapLoad, const FString&, FString*);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnEditorAutomationMapLoad, const FString&, bool, FString*);
 
 #endif
 
@@ -69,7 +69,7 @@ struct WindowScreenshotParameters
 /**
  * If Editor, Opens map and PIES.  If Game, transitions to map and waits for load
  */
-ENGINE_API bool AutomationOpenMap(const FString& MapName);
+ENGINE_API bool AutomationOpenMap(const FString& MapName, bool bForceReload = false);
 
 /**
  * Wait for the given amount of time
