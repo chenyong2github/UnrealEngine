@@ -11,6 +11,7 @@ class UMaterialExpressionVectorParameter;
 class UMaterialInterface;
 
 class FDetailWidgetRow;
+class SWidget;
 class SColorBlock;
 
 class IPropertyHandleArray;
@@ -97,10 +98,12 @@ private:
 	void OnColorPickerCancelled(FLinearColor OriginalColor, uint8 PrimIdx);
 	void OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window);
 
+	TSharedRef<SWidget> CreateNameWidget(int32 PrimIdx, TSharedRef<SWidget> ParameterName, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
+
 	/** Hyperlink that's used for navigating to parameters */
 	TSharedRef<class SHyperlink> CreateHyperlink(FText Text, TWeakObjectPtr<UMaterialInterface> Material, const FGuid& ExpressionId);
 
-	/** Default widget that's used when a component is missing defined parameters for the specified primitive index */
-	TSharedRef<class SWidget> GetUndefinedParameterWidget(int32 PrimIdx, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
+	/** Default widget that's used when a component is missing declared parameters for the specified primitive index */
+	TSharedRef<SWidget> GetUndeclaredParameterWidget(int32 PrimIdx, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
 };
 
