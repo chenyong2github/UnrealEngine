@@ -264,10 +264,6 @@ private:
 
 	FReply LoadReportXML_OnClicked();
 
-	FReply AllTracksSmallHeight_OnClicked();
-	FReply AllTracksMediumHeight_OnClicked();
-	FReply AllTracksLargeHeight_OnClicked();
-
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Create memory graph tracks for selected LLM tag(s)
