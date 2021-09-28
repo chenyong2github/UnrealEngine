@@ -484,6 +484,7 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::CopyDataTypeForPassthroughFactory
 	DestDataType.TangentBasisComponents[1] = Data.TangentBasisComponents[1];
 	DestDataType.TextureCoordinates = Data.TextureCoordinates;
 	DestDataType.ColorComponent = Data.ColorComponent;
+	DestDataType.PreSkinPositionComponent = Data.PositionComponent;
 	DestDataType.PositionComponentSRV = Data.PositionComponentSRV;
 	DestDataType.PreSkinPositionComponentSRV = Data.PositionComponentSRV;
 	DestDataType.TangentsSRV = Data.TangentsSRV;
@@ -852,8 +853,6 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 		Data.TangentBasisComponents[1].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
 	}
 
-	int32 PrevNumStreams = Streams.Num();
-
 	//hack to allow us to release the alias pointers properly in ReleaseRHI.
 	//To be cleaned up in UE-68826
 	FLocalVertexFactory::ReleaseRHI();
@@ -861,8 +860,6 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 	FLocalVertexFactory::InitDynamicRHI();
 	FLocalVertexFactory::InitRHI();
 
-	// Verify no additional stream was created
-	check(Streams.Num() == PrevNumStreams);
 	// Find the added stream (usually at 0)
 	PositionStreamIndex = -1;
 	TangentStreamIndex = -1;

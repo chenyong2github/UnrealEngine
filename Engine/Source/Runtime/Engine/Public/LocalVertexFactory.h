@@ -52,6 +52,7 @@ public:
 
 	struct FDataType : public FStaticMeshDataType
 	{
+		FVertexStreamComponent PreSkinPositionComponent;
 		FRHIShaderResourceView* PreSkinPositionComponentSRV = nullptr;
 	};
 
