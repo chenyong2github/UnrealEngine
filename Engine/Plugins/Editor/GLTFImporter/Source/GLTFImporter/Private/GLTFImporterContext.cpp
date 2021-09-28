@@ -46,7 +46,8 @@ bool FGLTFImporterContext::OpenFile(const FString& FilePath)
 	                                                             GLTF::EExtension::KHR_MaterialsUnlit,
 																 GLTF::EExtension::KHR_MaterialsClearCoat,
 																 GLTF::EExtension::KHR_MaterialsTransmission,
-																 GLTF::EExtension::KHR_MaterialsSheen};
+																 GLTF::EExtension::KHR_MaterialsSheen,
+																 GLTF::EExtension::KHR_MaterialsVariants};
 
 	for (GLTF::EExtension Extension : Asset.ExtensionsUsed)
 	{

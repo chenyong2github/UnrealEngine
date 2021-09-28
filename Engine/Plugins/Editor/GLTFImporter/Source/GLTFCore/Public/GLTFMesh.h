@@ -35,6 +35,12 @@ namespace GLTF
 		}
 	};
 
+	struct GLTFCORE_API FVariantMapping
+	{
+		int32 MaterialIndex;
+		TArray<int32> VariantIndices;
+	};
+
 	struct GLTFCORE_API FPrimitive
 	{
 		enum class EMode
@@ -53,6 +59,7 @@ namespace GLTF
 
 		const EMode Mode;
 		const int32 MaterialIndex;
+		TArray<FVariantMapping>	VariantMappings;
 
 		FPrimitive(EMode InMode, int32 InMaterial, const FAccessor& InIndices, const FAccessor& InPosition, const FAccessor& InNormal,
 		           const FAccessor& InTangent, const FAccessor& InTexCoord0, const FAccessor& InTexCoord1, const FAccessor& InColor0,
@@ -95,11 +102,12 @@ namespace GLTF
 		const FAccessor& Weights0;
 	};
 
+
 	struct GLTFCORE_API FMesh
 	{
-		FString            Name;
-		TArray<FPrimitive> Primitives;
-
+		FString				Name;
+		TArray<FPrimitive>	Primitives;
+	
 		bool HasNormals() const;
 		bool HasTangents() const;
 		bool HasTexCoords(uint32 Index) const;

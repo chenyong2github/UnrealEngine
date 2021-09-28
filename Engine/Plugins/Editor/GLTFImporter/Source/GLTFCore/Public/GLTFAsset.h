@@ -20,6 +20,7 @@ namespace GLTF
 		KHR_MaterialsClearCoat,
 		KHR_MaterialsTransmission,
 		KHR_MaterialsSheen,
+		KHR_MaterialsVariants,
 		KHR_TextureTransform,
 		KHR_DracoMeshCompression,
 		KHR_LightsPunctual,
@@ -77,6 +78,8 @@ namespace GLTF
 		TArray<FSampler>  Samplers;
 		TArray<FTexture>  Textures;
 		TArray<FMaterial> Materials;
+
+		TArray<FString>   Variants;
 
 		TSet<EExtension> ExtensionsUsed;
 		FMetadata        Metadata;
