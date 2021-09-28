@@ -134,6 +134,16 @@ public:
 	/** Unloads the data (if possible) but leaves it in a state where the data can be reloaded */
 	void UnloadData();
 
+	/** 
+	 * Removes the ability for the bulkdata object to load it's payload from disk (if it was doing so) 
+	 * 
+	 * @param Ar						The archive that the bulkdata is being detached from. This should match AttachedAr.
+	 * @param bEnsurePayloadIsLoaded	If true and the bulkdata currently is storing it's payload as a package on disk then
+	 *									the payload should be loaded into memory so that it can be accessed in the future.
+	 *									If false then the payload is not important and does not need to be loaded.
+	 */
+	void DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded);
+
 	/** Returns a unique identifier for the object itself. */
 	FGuid GetIdentifier() const;
 
@@ -343,6 +353,9 @@ private:
 	void Register(UObject* Owner);
 	void Unregister();
 
+	/** Utility to return an apt error message if a payload loaded from this object is considered corrupt. Handles the formatting depending on the various payload flags etc. */
+	FString GetCorruptedPayloadErrorMessage() const;
+
 	/** Unique identifier for the bulkdata object itself */
 	FGuid BulkDataId;
 
@@ -357,6 +370,9 @@ private:
 
 	//---- The remaining members are used when the payload is not virtualized.
 	
+	/** The archive representing the file on disk containing the payload (if there is one), we keep the pointer so that the bulkdata object can be detached if needed. */
+	FArchive* AttachedAr = nullptr;
+
 	/** Offset of the payload in the file that contains it (INDEX_NONE if the payload does not come from a file)*/
 	int64 OffsetInFile = INDEX_NONE;
 

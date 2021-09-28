@@ -20,6 +20,23 @@
 
 //#if WITH_EDITORONLY_DATA
 
+/** When enabled the non-virtualized bulkdata objects will attach to the FLinkerLoader for the package that they are loaded from */
+#if WITH_EDITOR
+	#define VBD_ALLOW_LINKERLOADER_ATTACHMENT 1
+#else
+	#define VBD_ALLOW_LINKERLOADER_ATTACHMENT 0
+#endif //WITH_EDITOR
+
+/** When enabled we will fatal log if we detect corrupted data rather than logging an error and returning a null FCompressedBuffer/FSharedBuffer. */
+#define VBD_CORRUPTED_PAYLOAD_IS_FATAL 1
+
+
+#if VBD_CORRUPTED_PAYLOAD_IS_FATAL
+	#define VBD_CORRUPTED_DATA_SEVERITY Fatal
+#else
+	#define VBD_CORRUPTED_DATA_SEVERITY Error
+#endif // VBD_CORRUPTED_PAYLOAD_IS_FATAL
+
 namespace UE::Virtualization
 {
 
@@ -72,6 +89,27 @@ void LogPackageOpenFailureMessage(const FPackagePath& PackagePath, EPackageSegme
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Could not open (%s) to read FVirtualizedUntypedBulkData with an unknown error"), *PackagePath.GetDebugNameWithExtension(PackageSegment));
 	}
+}
+
+/** Utility for checking if a payload (in FCompressedBuffer format) matches the expectations of a bulkdata's members or not. */
+bool IsValid(const FVirtualizedUntypedBulkData& BulkData, const FCompressedBuffer& Payload)
+{
+	if (Payload.IsNull() && BulkData.GetPayloadSize() > 0)
+	{
+		return false;
+	}
+
+	if (!BulkData.HasPlaceholderPayloadId() && BulkData.GetPayloadId() != FIoHash(Payload.GetRawHash()))
+	{
+		return false;
+	}
+
+	if (Payload.GetRawSize() != BulkData.GetPayloadSize())
+	{
+		return false;
+	}
+
+	return true;
 }
 
 /** Utility for accessing IVirtualizationSourceControlUtilities from the modular feature system. */
@@ -248,6 +286,11 @@ FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(const FVirtu
 
 FVirtualizedUntypedBulkData::~FVirtualizedUntypedBulkData()
 {
+	if (AttachedAr != nullptr)
+	{
+		AttachedAr->DetachBulkData(this, false);
+	}
+
 	Unregister();
 }
 
@@ -320,6 +363,14 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 		*InBulkData.GetPackagePath().GetDebugName());
 
 	Reset();
+
+#if VBD_ALLOW_LINKERLOADER_ATTACHMENT
+	AttachedAr = InBulkData.AttachedAr;
+	if (AttachedAr != nullptr)
+	{
+		AttachedAr->AttachBulkData(this);
+	}
+#endif //VBD_ALLOW_LINKERLOADER_ATTACHMENT
 
 	// We only need to set up the bulkdata/content identifiers if we have a valid payload
 	bool bWasKeyGuidDerived = false;
@@ -621,7 +672,8 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			{
 				// If we can lazy load then find the PackagePath, otherwise we will want
 				// to serialize immediately.
-				if (Ar.IsAllowingLazyLoading())
+				FArchive* CacheableArchive = Ar.GetCacheableArchive();
+				if (Ar.IsAllowingLazyLoading() && CacheableArchive != nullptr)
 				{
 					PackagePath = GetPackagePathFromOwner(Owner, PackageSegment);
 				}
@@ -634,7 +686,17 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 				OffsetInFile = INDEX_NONE;
 				Ar << OffsetInFile;
 
-				if (PackagePath.IsEmpty())
+				if (!PackagePath.IsEmpty())
+				{
+#if VBD_ALLOW_LINKERLOADER_ATTACHMENT
+					AttachedAr = CacheableArchive;
+					if (AttachedAr != nullptr)
+					{
+						AttachedAr->AttachBulkData(this);
+					}
+#endif //VBD_ALLOW_LINKERLOADER_ATTACHMENT
+				}
+				else
 				{
 					// If we have no packagepath then we need to load the data immediately
 					// as we will not be able to load it on demand.
@@ -1014,6 +1076,11 @@ bool FVirtualizedUntypedBulkData::IsMemoryOnlyPayload() const
 void FVirtualizedUntypedBulkData::Reset()
 {
 	// Note that we do not reset the BulkDataId
+	if (AttachedAr != nullptr)
+	{
+		AttachedAr->DetachBulkData(this, false);
+	}
+
 	Unregister();
 	PayloadContentId.Reset();
 	Payload.Reset();
@@ -1034,6 +1101,30 @@ void FVirtualizedUntypedBulkData::UnloadData()
 	}
 }
 
+void FVirtualizedUntypedBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
+{
+	check(Ar);
+	check(Ar == AttachedAr || AttachedAr == nullptr || AttachedAr->IsProxyOf(Ar));
+
+	if (bEnsurePayloadIsLoaded && !IsDataVirtualized() && !PackagePath.IsEmpty())
+	{
+		if (Payload.IsNull())
+		{
+			FCompressedBuffer CompressedPayload = GetDataInternal();
+
+			UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+
+			FSharedBuffer DecompressedPayload = CompressedPayload.Decompress();
+
+			AttachedAr = nullptr; // Prevent UpdatePayloadImpl from sending more detach notifications to AttachedAr
+
+			UpdatePayloadImpl(MoveTemp(DecompressedPayload), MoveTemp(PayloadContentId));
+		}
+	}
+
+	AttachedAr = nullptr;	
+}
+
 FGuid FVirtualizedUntypedBulkData::GetIdentifier() const
 {
 	checkf(GetPayloadSize() == 0 || BulkDataId.IsValid(), TEXT("If bulkdata has a valid payload then it should have a valid BulkDataId"));
@@ -1045,6 +1136,13 @@ void FVirtualizedUntypedBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, F
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::UpdatePayloadImpl);
 
 	UnloadData();
+
+	if (AttachedAr != nullptr)
+	{
+		AttachedAr->DetachBulkData(this, false);
+	}
+
+	check(AttachedAr == nullptr);
 
 	// Make sure that we own the memory in the shared buffer
 	Payload = MoveTemp(InPayload).MakeOwned();
@@ -1087,20 +1185,27 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 	// Check if we already have the data in memory
 	if (Payload)
 	{
+		// Note that this doesn't actually compress the data!
 		return FCompressedBuffer::Compress(Payload, ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
 	}
 
 	if (IsDataVirtualized())
 	{
-		FCompressedBuffer Buffer = PullData();
+		FCompressedBuffer CompressedPayload = PullData();
+		
 		checkf(Payload.IsNull(), TEXT("Pulling data somehow assigned it to the bulk data object!")); //Make sure that we did not assign the buffer internally
-		return Buffer;
+		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+		
+		return CompressedPayload;
 	}
 	else
 	{
-		FCompressedBuffer Buffer = LoadFromDisk();
+		FCompressedBuffer CompressedPayload = LoadFromDisk();
+		
 		check(Payload.IsNull()); //Make sure that we did not assign the buffer internally
-		return Buffer;
+		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+		
+		return CompressedPayload;
 	}
 }
 
@@ -1115,10 +1220,12 @@ TFuture<FSharedBuffer> FVirtualizedUntypedBulkData::GetPayload() const
 	}
 	else
 	{
-		FSharedBuffer UncompressedPayload = GetDataInternal().Decompress();
+		FCompressedBuffer CompressedPayload = GetDataInternal();
 
+		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+		
 		// TODO: Not actually async yet!
-		Promise.SetValue(MoveTemp(UncompressedPayload));
+		Promise.SetValue(CompressedPayload.Decompress());
 	}
 
 	return Promise.GetFuture();
@@ -1297,6 +1404,25 @@ FVirtualizedUntypedBulkData::EFlags FVirtualizedUntypedBulkData::BuildFlagsForSe
 	}
 }
 
+FString FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMessage() const
+{
+	TStringBuilder<512> Message;
+	
+	if (IsDataVirtualized())
+	{
+		Message << TEXT("Virtualized payload '") << PayloadContentId << TEXT("' is corrupt! Check the backend storage.");
+	}
+	else
+	{
+		Message << TEXT("Payload ' ") << PayloadContentId << TEXT(" loaded from '") << *PackagePath.GetDebugName() << TEXT("' is corrupt! Check the file on disk.");
+	}
+
+	return Message.ToString();
+}
+
 } // namespace UE::Virtualization
+
+#undef VBD_ALLOW_LINKERLOADER_ATTACHMENT
+#undef VBD_CORRUPTED_DATA_SEVERITY
 
 //#endif //WITH_EDITORONLY_DATA

@@ -28,6 +28,10 @@ class ITargetPlatform;
 class UObject;
 class FProperty;
 struct FUntypedBulkData;
+namespace UE::Virtualization
+{
+class FVirtualizedUntypedBulkData;
+}
 struct FArchiveSerializedPropertyChain;
 template<class TEnum> class TEnumAsByte;
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
@@ -1614,6 +1618,7 @@ public:
 	 * @param	BulkData	Bulk data object to associate
 	 */
 	virtual void AttachBulkData(UObject* Owner, FUntypedBulkData* BulkData) { }
+	virtual void AttachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData) {}
 
 	/**
 	 * Detaches the passed in bulk data object from the linker.
@@ -1622,6 +1627,7 @@ public:
 	 * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
 	 */
 	virtual void DetachBulkData(FUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) { }
+	virtual void DetachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) {}
 
 	/**
 	* Determine if the given archive is a valid "child" of this archive. In general, this means "is exactly the same" but

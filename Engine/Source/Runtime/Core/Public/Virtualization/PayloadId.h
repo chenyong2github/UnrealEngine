@@ -53,8 +53,22 @@ public:
 	{
 		return Identifier;
 	}
+
 	bool operator == (const FPayloadId& InPayloadId) const;
-	bool operator != (const FPayloadId& InPayloadId) const { return !(*this == InPayloadId); }
+	bool operator != (const FPayloadId& InPayloadId) const 
+	{ 
+		return !(*this == InPayloadId); 
+	}
+
+	bool operator == (const FIoHash& IoHash) const
+	{
+		return GetIdentifier() == IoHash;
+	}
+
+	bool operator != (const FIoHash& IoHash) const 
+	{ 
+		return !(*this == IoHash); 
+	}
 
 	/** Serialization specialization */
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FPayloadId& PayloadId);

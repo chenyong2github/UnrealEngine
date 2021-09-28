@@ -46,6 +46,7 @@
 #include "Misc/StringBuilder.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Internationalization/GatherableTextData.h"
+#include "Virtualization/VirtualizedBulkData.h"
 
 class FTexture2DResourceMem;
 
@@ -5582,6 +5583,12 @@ void FLinkerLoad::AttachBulkData( UObject* Owner, FUntypedBulkData* BulkData )
 	BulkDataLoaders.Add( BulkData );
 }
 
+void FLinkerLoad::AttachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData)
+{
+	check(VirtualizedBulkDataLoaders.Find(BulkData) == INDEX_NONE);
+	VirtualizedBulkDataLoaders.Add(BulkData);	
+}
+
 /**
  * Detaches the passed in bulk data object from the linker.
  *
@@ -5598,6 +5605,16 @@ void FLinkerLoad::DetachBulkData( FUntypedBulkData* BulkData, bool bEnsureBulkDa
 	BulkData->DetachFromArchive( this, bEnsureBulkDataIsLoaded );
 }
 
+void FLinkerLoad::DetachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded)
+{
+	int32 RemovedCount = VirtualizedBulkDataLoaders.Remove(BulkData);
+	if (RemovedCount != 1)
+	{
+		UE_LOG(LogLinker, Fatal, TEXT("Detachment inconsistency: %i (%s)"), RemovedCount, *GetDebugName());
+	}
+	BulkData->DetachFromDisk(this, bEnsureBulkDataIsLoaded);
+}
+
 /**
  * Detaches all attached bulk  data objects.
  *
@@ -5605,13 +5622,27 @@ void FLinkerLoad::DetachBulkData( FUntypedBulkData* BulkData, bool bEnsureBulkDa
  */
 void FLinkerLoad::DetachAllBulkData(bool bEnsureAllBulkDataIsLoaded)
 {
-	auto BulkDataToDetach = BulkDataLoaders;
-	for (auto BulkData : BulkDataToDetach)
+	// Old style bulkdata first
 	{
-		check( BulkData );
-		BulkData->DetachFromArchive(this, bEnsureAllBulkDataIsLoaded);
+		TArray<FUntypedBulkData*> BulkDataToDetach = BulkDataLoaders;
+		for (FUntypedBulkData* BulkData : BulkDataToDetach)
+		{
+			check(BulkData != nullptr);
+			BulkData->DetachFromArchive(this, bEnsureAllBulkDataIsLoaded);
+		}
+		BulkDataLoaders.Empty();
 	}
-	BulkDataLoaders.Empty();
+
+	// Then virtualized bulkdata
+	{
+		TArray<UE::Virtualization::FVirtualizedUntypedBulkData*> BulkDataToDetach = VirtualizedBulkDataLoaders;
+		for (UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : BulkDataToDetach)
+		{
+			check(BulkData != nullptr);
+			BulkData->DetachFromDisk(this, bEnsureAllBulkDataIsLoaded);
+		}
+		VirtualizedBulkDataLoaders.Empty();
+	}
 }
 
 #endif // WITH_EDITOR
