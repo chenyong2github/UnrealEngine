@@ -61,7 +61,7 @@ FZenStoreHttpClient::Initialize(FStringView InProjectId,
 		TStringBuilder<128> ProjectUri;
 		ProjectUri << "/prj/" << InProjectId;
 		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ProjectUri, &GetBuffer);
+		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ProjectUri, &GetBuffer, Zen::EContentType::CbObject);
 
 		// TODO: how to handle failure here? This is probably the most likely point of failure
 		// if the service is not up or not responding
@@ -127,7 +127,7 @@ void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStrin
 	}
 
 	TArray64<uint8> GetBuffer;
-	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer);
+	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer, Zen::EContentType::CbObject);
 	FCbObjectView OplogInfo;
 
 	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
@@ -162,7 +162,7 @@ void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStrin
 
 		GetBuffer.Reset();
 		Request->Reset();
-		Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer);
+		Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer, Zen::EContentType::CbObject);
 
 		if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 		{
@@ -185,7 +185,7 @@ void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringVie
 		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 
 		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(WriteToString<128>("/prj/", InProjectId), &GetBuffer);
+		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(WriteToString<128>("/prj/", InProjectId), &GetBuffer, Zen::EContentType::CbObject);
 
 		// TODO: how to handle failure here? This is probably the most likely point of failure
 		// if the service is not up or not responding
@@ -210,7 +210,7 @@ void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringVie
 		OplogPath = WriteToString<128>("/prj/", InProjectId, "/oplog/", InOplogId);
 
 		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer);
+		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer, Zen::EContentType::CbObject);
 
 		if (Res != Zen::FZenHttpRequest::Result::Success || Request->GetResponseCode() != 200)
 		{
@@ -398,7 +398,7 @@ TIoStatusOr<uint64> FZenStoreHttpClient::GetChunkSize(const FIoChunkId& Id)
 	TArray64<uint8> GetBuffer;
 	TStringBuilder<128> ChunkUri;
 	ChunkUri << OplogPath << '/' << Id;
-	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingHead(ChunkUri);
+	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingHead(ChunkUri, Zen::EContentType::Binary);
 	FString ContentLengthStr;
 	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200 && Request->GetHeader("Content-Length", ContentLengthStr))
 	{
@@ -457,7 +457,7 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogUri(FStringBuilderBase& Chu
 	}
 
 
-	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ChunkUri, &GetBuffer);
+	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ChunkUri, &GetBuffer, Zen::EContentType::Binary);
 
 	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 	{
@@ -481,7 +481,7 @@ TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetOplog()
 		Uri << OplogPath << "/entries";
 
 		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(Uri, &GetBuffer);
+		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(Uri, &GetBuffer, Zen::EContentType::CbObject);
 
 		if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 		{
@@ -510,7 +510,7 @@ TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetFiles()
 		Uri << OplogPath << "/files";
 
 		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(Uri, &GetBuffer);
+		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(Uri, &GetBuffer, Zen::EContentType::CbObject);
 
 		if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 		{

@@ -23,10 +23,42 @@ static bool IsSuccessCode(int ResponseCode)
 
 enum class EContentType
 {
-	Binary,
-	CompactBinary,
-	CompactBinaryPackage
+	Binary				= 0,
+	Text				= 1,
+	JSON				= 2,
+	CbObject			= 3,
+	CbPackage			= 4,
+	YAML				= 5,
+	CbPackageOffer		= 6,
+	CompressedBinary	= 7,
+	UnknownContentType	= 8,
+	Count
 };
+
+inline FStringView GetMimeType(EContentType Type)
+{
+	switch (Type)
+	{
+		case EContentType::Binary:
+			return TEXT("application/octet-stream"_SV);
+		case EContentType::Text:
+			return TEXT("text/plain"_SV);
+		case EContentType::JSON:
+			return TEXT("application/json"_SV);
+		case EContentType::CbObject:
+			return TEXT("application/x-ue-cb"_SV);
+		case EContentType::CbPackage:
+			return TEXT("application/x-ue-cbpkg"_SV);
+		case EContentType::YAML:
+			return TEXT("text/yaml"_SV);
+		case EContentType::CbPackageOffer:
+			return TEXT("application/x-ue-offer"_SV);
+		case EContentType::CompressedBinary:
+			return TEXT("application/x-ue-comp"_SV);
+		default:
+			return TEXT("unknown"_SV);
+	}
+}
 
 /** Minimal HTTP request type wrapping CURL without the need for managers. This request
   * is written to allow reuse of request objects, in order to allow connections to be reused.
@@ -76,6 +108,7 @@ public:
 		* Upload buffer using the request, using PUT verb
 		* @param Uri Url to use.
 		* @param Buffer Data to upload
+		* @param ContentType The content MIME type.
 		* @return Result of the request
 		*/
 	DERIVEDDATACACHE_API Result PerformBlockingPut(const TCHAR* Uri, const FCompositeBuffer& Buffer, EContentType ContentType);
@@ -85,9 +118,10 @@ public:
 	* @param Uri Url to use.
 	* @param Buffer Optional buffer where data should be downloaded to. If this is null then
 	* downloaded data will be stored in an internal buffer and accessed via GetResponseAsString
+	* @param ContentType The MIME type to accept.
 	* @return Result of the request
 	*/
-	DERIVEDDATACACHE_API Result PerformBlockingDownload(FStringView Uri, TArray64<uint8>* Buffer);
+	DERIVEDDATACACHE_API Result PerformBlockingDownload(FStringView Uri, TArray64<uint8>* Buffer, EContentType AcceptType);
 
 	/**
 		* Download an url into a buffer using the request.
@@ -100,9 +134,10 @@ public:
 	/**
 		* Query an url using the request. Queries can use either "Head" or "Delete" verbs.
 		* @param Uri Url to use.
+		* @param ContentType The MIME type to accept.
 		* @return Result of the request
 		*/
-	DERIVEDDATACACHE_API Result PerformBlockingHead(FStringView Uri);
+	DERIVEDDATACACHE_API Result PerformBlockingHead(FStringView Uri, EContentType AcceptType);
 
 	/**
 		* Query an url using the request. Queries can use either "Head" or "Delete" verbs.
@@ -156,8 +191,7 @@ private:
 	TArray<FString>			Headers;
 	FString					Domain;
 
-	void AddHeadersForContentType(EContentType ContentType);
-	void AddHeadersForAcceptType(EContentType ContentType);
+	void AddHeader(FStringView Header, FStringView Value);
 
 	/**
 	  * Supported request verb

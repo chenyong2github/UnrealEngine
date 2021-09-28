@@ -21,6 +21,7 @@
 
 #include "Compression/CompressedBuffer.h"
 #include "Compression/OodleDataCompression.h"
+#include "Containers/StringFwd.h"
 #include "Memory/CompositeBuffer.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
@@ -98,42 +99,11 @@ namespace UE::Zen {
 #endif
 	}
 
-	void FZenHttpRequest::AddHeadersForContentType(EContentType ContentType)
+	void FZenHttpRequest::AddHeader(FStringView Header, FStringView Value)
 	{
-		switch (ContentType)
-		{
-		case EContentType::Binary:
-			Headers.Add(FString(TEXT("Content-Type: application/octet-stream")));
-			break;
-		case EContentType::CompactBinary:
-			Headers.Add(FString(TEXT("Content-Type: application/x-ue-cb")));
-			break;
-		case EContentType::CompactBinaryPackage:
-			Headers.Add(FString(TEXT("Content-Type: application/x-ue-cbpkg")));
-			break;
-		default:
-			checkNoEntry();
-			break;
-		}
-	}
-
-	void FZenHttpRequest::AddHeadersForAcceptType(EContentType ContentType)
-	{
-		switch (ContentType)
-		{
-		case EContentType::Binary:
-			Headers.Add(FString(TEXT("Accept: application/octet-stream")));
-			break;
-		case EContentType::CompactBinary:
-			Headers.Add(FString(TEXT("Accept: application/x-ue-cb")));
-			break;
-		case EContentType::CompactBinaryPackage:
-			Headers.Add(FString(TEXT("Accept: application/x-ue-cbpkg")));
-			break;
-		default:
-			checkNoEntry();
-			break;
-		}
+		TStringBuilder<128> Sb;
+		Sb << Header << TEXT(": "_SV) << Value;
+		Headers.Emplace(Sb.ToString());
 	}
 
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingPut(const TCHAR* Uri, const FCompositeBuffer& Buffer, EContentType ContentType)
@@ -146,7 +116,7 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_READDATA, this);
 		curl_easy_setopt(Curl, CURLOPT_READFUNCTION, &FZenHttpRequest::FStatics::StaticReadFn);
 
-		AddHeadersForContentType(ContentType);
+		AddHeader(TEXT("Content-Type"_SV), GetMimeType(ContentType));
 
 		ReadDataView = &Buffer;
 
@@ -158,7 +128,7 @@ namespace UE::Zen {
 		FLargeMemoryWriter Out;
 		Obj.CopyTo(Out);
 
-		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CompactBinary);
+		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CbObject);
 	}
 
 	struct CbPackageHeader
@@ -279,7 +249,7 @@ namespace UE::Zen {
 			}
 		}
 
-		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CompactBinaryPackage);
+		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CbPackage);
 	}
 
 	FCbPackage FZenHttpRequest::GetResponseAsPackage() const
@@ -359,6 +329,8 @@ namespace UE::Zen {
 
 		FCompositeBuffer Buffer(FSharedBuffer::MakeView(FMemoryView{ reinterpret_cast<const uint8*>(Payload.GetData()), Payload.GetSize() }));
 		ReadDataView = &Buffer;
+		
+		AddHeader(TEXT("Content-Type"_SV), GetMimeType(EContentType::Binary));
 
 		return PerformBlocking(Uri, RequestVerb::Post, ContentLength);
 	}
@@ -372,7 +344,7 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_READDATA, this);
 		curl_easy_setopt(Curl, CURLOPT_READFUNCTION, &FZenHttpRequest::FStatics::StaticReadFn);
 
-		AddHeadersForContentType(ContentType);
+		AddHeader(TEXT("Content-Type"_SV), GetMimeType(ContentType));
 
 		ContentLength = Payload.GetSize();
 
@@ -382,10 +354,12 @@ namespace UE::Zen {
 		return PerformBlocking(Uri, RequestVerb::Post, ContentLength);
 	}
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingDownload(FStringView Uri, TArray64<uint8>* Buffer)
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingDownload(FStringView Uri, TArray64<uint8>* Buffer, EContentType AcceptType)
 	{
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
 		WriteDataBufferPtr = Buffer;
+		
+		AddHeader(TEXT("Accept"_SV), GetMimeType(AcceptType));
 
 		return PerformBlocking(Uri, RequestVerb::Get, 0u);
 	}
@@ -395,7 +369,7 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
 		OutPackage.Reset();
 
-		AddHeadersForAcceptType(EContentType::CompactBinaryPackage);
+		AddHeader(TEXT("Accept"_SV), GetMimeType(EContentType::CbPackage));
 
 		// TODO: When PackageBytes can be written in segments directly, set the WritePtr to the OutPackage and use that
 		TArray64<uint8> PackageBytes;
@@ -409,9 +383,11 @@ namespace UE::Zen {
 		return LocalResult;
 	}
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingHead(FStringView Uri)
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingHead(FStringView Uri, EContentType AcceptType)
 	{
 		curl_easy_setopt(Curl, CURLOPT_NOBODY, 1L);
+		
+		AddHeader(TEXT("Accept"_SV), GetMimeType(AcceptType));
 
 		return PerformBlocking(Uri, RequestVerb::Head, 0u);
 	}
