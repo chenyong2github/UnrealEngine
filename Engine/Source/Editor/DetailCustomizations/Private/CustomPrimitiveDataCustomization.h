@@ -40,7 +40,7 @@ private:
 	TSharedPtr<IPropertyUtilities> PropertyUtils;
 	TSharedPtr<IPropertyHandleArray> DataArrayHandle;
 
-	TSet<TWeakObjectPtr<UObject>> ComponentsToWatch;
+	TMap<TWeakObjectPtr<UObject>, TSet<TSoftObjectPtr<UMaterial>>> ComponentsToWatch;
 	TSet<TSoftObjectPtr<UMaterialInterface>> MaterialsToWatch;
 
 	TMap<uint8, TArray<FParameterData>> VectorParameterData;
