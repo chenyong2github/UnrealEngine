@@ -442,6 +442,10 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	Out.ViewUniqueID			= View.ViewState ? View.ViewState->UniqueID : ~0;
 	Out.SceneColorTexture		= nullptr;
 	Out.bStrandsGeometryEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands, View.GetShaderPlatform());
+
+	// Sanity check
+	check(Out.Instances->Num() >= Out.VisibleInstances.Num());
+
 	if (GHairStrandsParameterFunction)
 	{
 		GHairStrandsParameterFunction(Out);
@@ -463,3 +467,16 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 
 	return Out;
 }
+
+bool IsHairStrandsCompatible(const FMeshBatch* Mesh)
+{
+	if (Mesh)
+	{
+		static const FHashedName& VFType0 = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"))->GetHashedName();
+		static const FHashedName& VFType1 = FVertexFactoryType::GetVFByName(TEXT("FHairCardsVertexFactory"))->GetHashedName();
+		const FHashedName& VFType = Mesh->VertexFactory->GetType()->GetHashedName();
+		return VFType == VFType0 || VFType == VFType1;
+	}
+	return false;
+}
+
