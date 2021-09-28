@@ -9,6 +9,7 @@
 #include "LevelEditorMenuContext.generated.h"
 
 class SLevelEditor;
+class ILevelEditor;
 class UActorComponent;
 class SLevelViewport;
 class SLevelViewportToolBar;
@@ -28,10 +29,12 @@ public:
 UENUM()
 enum class ELevelEditorMenuContext : uint8
 {
-	/** This context menu is applicable to a viewport */
+	/** This context menu is applicable to a viewport (limited subset of entries) */
 	Viewport,
 	/** This context menu is applicable to the Scene Outliner (disables click-position-based menu items) */
 	SceneOutliner,
+	/** This is the replica of the context menu that appears in the main menu bar (lists all entries) */
+	MainMenu,
 };
 
 UCLASS()
@@ -40,7 +43,7 @@ class LEVELEDITOR_API ULevelEditorContextMenuContext : public UObject
 	GENERATED_BODY()
 public:
 
-	TWeakPtr<SLevelEditor> LevelEditor;
+	TWeakPtr<ILevelEditor> LevelEditor;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	ELevelEditorMenuContext ContextType;

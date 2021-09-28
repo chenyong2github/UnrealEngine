@@ -69,6 +69,7 @@ public:
 	virtual const UTypedElementSelectionSet* GetElementSelectionSet() const override;
 	virtual UTypedElementSelectionSet* GetMutableElementSelectionSet() override;
 	virtual void SummonLevelViewportContextMenu(const FTypedElementHandle& HitProxyElement = FTypedElementHandle()) override;
+	virtual FText GetLevelViewportContextMenuTitle() const override;
 	virtual void SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption) override;
 	virtual const TArray< TSharedPtr< class IToolkit > >& GetHostedToolkits() const override;
 	virtual TArray< TSharedPtr< SLevelViewport > > GetViewports() const override;
@@ -331,4 +332,6 @@ private:
 
 	TSharedPtr<FLevelEditorModeUILayer> ModeUILayer;
 
+	/** Viewport context menu title, cached each time the element selection set changes */
+	FText CachedViewportContextMenuTitle;
 };
