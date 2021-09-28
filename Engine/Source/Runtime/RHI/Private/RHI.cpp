@@ -1798,18 +1798,12 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 			static int32 MaxShaderVersion = -1;
 			if (MaxShaderVersion < 0)
 			{
-				MaxShaderVersion = 6;
+				MaxShaderVersion = 7;
 				int32 MinShaderVersion = 5;
 				if(!GConfig->GetInt(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("MaxShaderLanguageVersion"), MaxShaderVersion, GEngineIni))
 				{
 					MaxShaderVersion = 0;
 				}
-                
-                // If we are using Mobile desktop rendering, we need a minimum of Metal 2.1
-                if(IsMetalSM5Platform(Platform))
-                {
-                    MinShaderVersion = 4;
-                }
                 
 				MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
 			}
