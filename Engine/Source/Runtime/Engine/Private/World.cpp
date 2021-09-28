@@ -4667,6 +4667,13 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegist
 
 void UWorld::BeginPlay()
 {
+	const TArray<UWorldSubsystem*>& WorldSubsystems = SubsystemCollection.GetSubsystemArray<UWorldSubsystem>(UWorldSubsystem::StaticClass());
+
+	for (UWorldSubsystem* WorldSubsystem : WorldSubsystems)
+	{
+		WorldSubsystem->OnWorldBeginPlay(*this);
+	}
+
 	AGameModeBase* const GameMode = GetAuthGameMode();
 	if (GameMode)
 	{

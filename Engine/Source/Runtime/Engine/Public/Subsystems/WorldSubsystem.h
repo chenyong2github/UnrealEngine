@@ -10,9 +10,7 @@
 /**
  * UWorldSubsystem
  * Base class for auto instanced and initialized systems that share the lifetime of a UWorld
-
  */
-
 UCLASS(Abstract)
 class ENGINE_API UWorldSubsystem : public USubsystem
 {
@@ -26,6 +24,9 @@ public:
 
 	/** Called once all UWorldSubsystems have been initialized */
 	virtual void PostInitialize() {}
+	
+	/** Called when world is ready to start gameplay before the game mode transitions to the correct state and call BeginPlay on all actors */
+	virtual void OnWorldBeginPlay(UWorld& InWorld) {};
 
 	/** Updates sub-system required streaming levels (called by world's UpdateStreamingState function) */
 	virtual void UpdateStreamingState() {}
@@ -37,9 +38,7 @@ protected:
 /**
  * UTickableWorldSubsystem
  * Base class for auto instanced and initialized systems that share the lifetime of a UWorld and are ticking along with it
-
  */
-
 UCLASS(Abstract)
 class ENGINE_API UTickableWorldSubsystem : public UWorldSubsystem, public FTickableGameObject
 {
