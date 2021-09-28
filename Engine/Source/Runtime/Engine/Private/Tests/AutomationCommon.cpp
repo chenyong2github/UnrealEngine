@@ -301,14 +301,14 @@ namespace AutomationCommon
 	}
 }
 
-bool AutomationOpenMap(const FString& MapName)
+bool AutomationOpenMap(const FString& MapName, bool bForceReload)
 {
 	bool bCanProceed = true;
 	FString OutString = TEXT("");
 #if WITH_EDITOR
 	if (GIsEditor && AutomationCommon::OnEditorAutomationMapLoad.IsBound())
 	{
-		AutomationCommon::OnEditorAutomationMapLoad.Broadcast(MapName, &OutString);
+		AutomationCommon::OnEditorAutomationMapLoad.Broadcast(MapName, bForceReload, &OutString);
 	}
 	else
 #endif
@@ -324,7 +324,7 @@ bool AutomationOpenMap(const FString& MapName)
 			FString PIEPrefix = FString::Printf(PLAYWORLD_PACKAGE_PREFIX TEXT("_%d_"), TestWorld->GetOutermost()->PIEInstanceID);
 			ShortWorldMapName.ReplaceInline(*PIEPrefix, TEXT(""));
 		}
-		if (ShortMapName != ShortWorldMapName)
+		if (ShortMapName != ShortWorldMapName || bForceReload)
 		{
 			FString OpenCommand = FString::Printf(TEXT("Open %s"), *MapName);
 			GEngine->Exec(TestWorld, *OpenCommand);
