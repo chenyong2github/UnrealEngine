@@ -522,12 +522,6 @@ namespace NiagaraDebugLocal
 			}
 		}
 	}
-
-	FString GetHudActorName(AActor* Actor)
-	{
-		FString Name = Actor->GetActorNameOrLabel();
-		return Name.Len() == 0 ? GetNameSafe(Actor) : Name;
-	}
 }
 
 FNiagaraDebugHud::FNiagaraDebugHud(UWorld* World)
@@ -692,7 +686,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 			if ( Settings.bActorFilterEnabled )
 			{
 				AActor* Actor = NiagaraComponent->GetOwner();
-				bIsMatch &= (Actor != nullptr) && GetHudActorName(Actor).MatchesWildcard(Settings.ActorFilter);
+				bIsMatch &= (Actor != nullptr) && Actor->GetActorNameOrLabel().MatchesWildcard(Settings.ActorFilter);
 			}
 
 			// Filter by component
@@ -1938,7 +1932,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 				StringBuilder.Append(TEXT("Component - "));
 				if ( OwnerActor )
 				{
-					StringBuilder.Append(*GetHudActorName(OwnerActor));
+					StringBuilder.Append(*OwnerActor->GetActorNameOrLabel());
 					StringBuilder.Append(TEXT("/"));
 				}
 				StringBuilder.Append(*GetNameSafe(NiagaraComponent));
