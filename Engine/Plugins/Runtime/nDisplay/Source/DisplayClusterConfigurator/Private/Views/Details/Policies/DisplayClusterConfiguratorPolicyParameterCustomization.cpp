@@ -174,17 +174,16 @@ void FPolicyParameterInfo::UpdateCustomParameterValueText(const FString& NewValu
 		
 		uint8* MapContainer = StructProperty->ContainerPtrToValuePtr<uint8>(ConfigurationViewport);
 		DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, PropertyHandle, Key, NewValue);
-
-		if (bNotify)
-		{
-			if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
-			{
-				BlueprintEditor->ClusterChanged(true);
-				BlueprintEditor->RefreshDisplayClusterPreviewActor();
-			}
-		}
 	}
 
+	if (bNotify && bHasChanged)
+	{
+		if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
+		{
+			BlueprintEditor->ClusterChanged(true);
+			BlueprintEditor->RefreshDisplayClusterPreviewActor();
+		}
+	}
 	if (!bHasChanged)
 	{
 		Transaction.Cancel();

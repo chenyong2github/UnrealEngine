@@ -203,7 +203,8 @@ public:
 		{
 			NumberValue = InDefaultValue;
 			GetOrAddCustomParameterValueText();
-			UpdateCustomParameterValueText(FString::SanitizeFloat(static_cast<float>(NumberValue)));
+			UpdateCustomParameterValueText(FString::SanitizeFloat(static_cast<float>(NumberValue)),
+				/*bNotify*/ false); // Notify only necessary on a change. Calling during construction could potentially crash when details is refreshed.
 		}
 	}
 
