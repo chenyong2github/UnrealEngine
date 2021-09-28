@@ -231,11 +231,16 @@ namespace UnrealBuildTool
  				{
  					InputFiles.Add(new InputFile(NotForLicenseesConfigLocation, "NotForLicensees"));
  				}
+                else
+                {
+	                Log.TraceLog($"No config file at {NotForLicenseesConfigLocation}");
+                }
 
 				// Check for the user config file under /Engine/Saved/UnrealBuildTool
 				FileReference UserConfigLocation = FileReference.Combine(Unreal.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
 				if(!FileReference.Exists(UserConfigLocation))
 				{
+					Log.TraceLog($"Creating default config file at {UserConfigLocation}");
 					CreateDefaultConfigFile(UserConfigLocation);
 				}
 				InputFiles.Add(new InputFile(UserConfigLocation, "User"));
@@ -248,6 +253,7 @@ namespace UnrealBuildTool
 				FileReference AppDataConfigLocation = FileReference.Combine(new DirectoryReference(AppDataFolder), "Unreal Engine", "UnrealBuildTool", "BuildConfiguration.xml");
 				if(!FileReference.Exists(AppDataConfigLocation))
 				{
+					Log.TraceLog($"Creating default config file at {AppDataConfigLocation}");
 					CreateDefaultConfigFile(AppDataConfigLocation);
 				}
 				InputFiles.Add(new InputFile(AppDataConfigLocation, "Global (AppData)"));
@@ -262,8 +268,18 @@ namespace UnrealBuildTool
 				{
 					InputFiles.Add(new InputFile(PersonalConfigLocation, "Global (Documents)"));
 				}
+				else
+				{
+					Log.TraceLog($"No config file at {PersonalConfigLocation}");
+				}
 			}
 
+			Log.TraceLog("Configuration will be read from:");
+			foreach (InputFile InputFile in InputFiles)
+			{
+				Log.TraceLog($"  {InputFile.Location.FullName}");
+			}
+			
 			return InputFiles;
 		}
 
