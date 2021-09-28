@@ -306,6 +306,7 @@ void UpdateInternalArrays(const TArray<AStaticMeshActor*> &StaticMeshActors, FND
 				{
 					if (CollisionEnabledHasPhysics(BoxElem.GetCollisionEnabled()))
 					{
+						OutAssetArrays->SourceSceneProxy[BoxCount] = StaticMeshComponent->SceneProxy;
 						const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * MeshTransform;
 						FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 					}
@@ -315,6 +316,7 @@ void UpdateInternalArrays(const TArray<AStaticMeshActor*> &StaticMeshActors, FND
 				{
 					if (CollisionEnabledHasPhysics(SphereElem.GetCollisionEnabled()))
 					{
+						OutAssetArrays->SourceSceneProxy[SphereCount] = StaticMeshComponent->SceneProxy;
 						const FTransform ElementTransform = FTransform(SphereElem.Center) * MeshTransform;
 						FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 					}
@@ -324,6 +326,7 @@ void UpdateInternalArrays(const TArray<AStaticMeshActor*> &StaticMeshActors, FND
 				{
 					if (CollisionEnabledHasPhysics(CapsuleElem.GetCollisionEnabled()))
 					{
+						OutAssetArrays->SourceSceneProxy[CapsuleCount] = StaticMeshComponent->SceneProxy;
 						const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * MeshTransform;
 						FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 					}
