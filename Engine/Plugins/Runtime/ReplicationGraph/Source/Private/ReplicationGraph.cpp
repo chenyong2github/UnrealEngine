@@ -830,9 +830,9 @@ void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy Ol
 		for (UNetReplicationGraphConnection* ConnectionManager: Connections)
 		{
 			ConnectionManager->SetActorNotDormantOnConnection(Actor);
-			}
 		}
 	}
+}
 
 FORCEINLINE bool ReadyForNextReplication(FConnectionReplicationActorInfo& ConnectionData, FGlobalActorReplicationInfo& GlobalData, const uint32 FrameNum)
 {
@@ -2671,9 +2671,9 @@ void UNetReplicationGraphConnection::NotifyClientVisibleLevelNamesAdd(FName Leve
 			if (Actor && (Actor->NetDormancy == DORM_DormantAll || (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() == false)))
 			{
 				SetActorNotDormantOnConnection(Actor);
-				}
 			}
 		}
+	}
 
 	OnClientVisibleLevelNameAdd.Broadcast(LevelName, StreamingWorld);
 	if (FOnClientVisibleLevelNamesAdd* MapDelegate = OnClientVisibleLevelNameAddMap.Find(LevelName))

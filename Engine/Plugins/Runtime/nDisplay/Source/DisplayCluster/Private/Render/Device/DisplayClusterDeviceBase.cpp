@@ -459,8 +459,8 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 
 	if (SrcTexture && BackBuffer)
 	{
-	// SrcTexture contain MONO/LEFT eye with debug canvas
-	// copy the render target texture to the MONO/LEFT_EYE back buffer  (MONO = mono, side_by_side, top_bottom)
+		// SrcTexture contain MONO/LEFT eye with debug canvas
+		// copy the render target texture to the MONO/LEFT_EYE back buffer  (MONO = mono, side_by_side, top_bottom)
 		{
 			const FIntPoint SrcSize = SrcTexture->GetSizeXY();
 			const FIntPoint DstSize = BackBuffer->GetSizeXY();

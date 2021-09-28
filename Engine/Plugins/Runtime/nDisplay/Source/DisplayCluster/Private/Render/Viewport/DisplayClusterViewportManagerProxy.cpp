@@ -240,7 +240,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 	TArray<FDisplayClusterViewportProxy*> SortedViewportProxy = ImplGetViewportProxies_RenderThread();
 	SortedViewportProxy.Sort(
 		[](const FDisplayClusterViewportProxy& VP1, const FDisplayClusterViewportProxy& VP2)
-	{
+		{
 			return  VP1.GetRenderSettings_RenderThread().OverlapOrder < VP2.GetRenderSettings_RenderThread().OverlapOrder;
 		}
 	);
@@ -278,23 +278,23 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 					if (bShouldApplyWarpBlend)
 					{
 						switch ((EWarpPass)WarpPass)
-					{
+						{
 						case EWarpPass::Begin:
-					PrjPolicy->BeginWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-					break;
+							PrjPolicy->BeginWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+							break;
 
 						case EWarpPass::Render:
-					PrjPolicy->ApplyWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-					break;
+							PrjPolicy->ApplyWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+							break;
 
 						case EWarpPass::End:
-					PrjPolicy->EndWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-					break;
+							PrjPolicy->EndWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+							break;
 
-				default:
-					break;
-				}
-			}
+						default:
+							break;
+						}
+					}
 					else
 					{
 						switch ((EWarpPass)WarpPass)

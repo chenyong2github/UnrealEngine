@@ -242,11 +242,11 @@ public:
 			if (TotalSize < 0)
 			{
 				return FString::Printf(TEXT("Category %s: %.3f MiB (%" INT64_FMT ") / unlimited used"), *CategoryName, (float)UsedSize / 1024.f / 1024.f, UsedSize);
-		}
-		else
-		{
+			}
+			else
+			{
 				return FString::Printf(TEXT("Category %s: %.3f MiB (%" INT64_FMT ") / %.3f MiB used"), *CategoryName, (float)UsedSize / 1024.f / 1024.f, UsedSize, (float)TotalSize / 1024.f / 1024.f);
-		}
+			}
 		}
 
 		FString CategoryName;
@@ -280,19 +280,19 @@ private:
 		if (EnumHasAnyFlags(Flags, EPersistentStorageManagerFileSizeFlags::OnlyUpdateIfLess))
 		{
 			return EPersistentStorageManagerFileSizeFlags::OnlyUpdateIfLess;
-	}
+		}
 
 		if (EnumHasAnyFlags(Flags, EPersistentStorageManagerFileSizeFlags::RespectQuota) && StorageQuota >= 0)
 		{
 			int64 OldUsedQuota = UsedQuota;
 			int64 NewUsedQuota;
 			do
-	{
+			{
 				NewUsedQuota = OldUsedQuota + (NewFileSize - OldFileSize);
 				if (NewUsedQuota > StorageQuota)
-		{
+				{
 					return EPersistentStorageManagerFileSizeFlags::RespectQuota;
-		}
+				}
 			} while (!UsedQuota.compare_exchange_weak(OldUsedQuota, NewUsedQuota));
 
 			return EPersistentStorageManagerFileSizeFlags::None;
@@ -370,26 +370,26 @@ public:
 					{
 						FPersistentStorageManager& Man = FPersistentStorageManager::Get();
 						if (FPersistentManagedFile File = Man.TryManageFile(FilenameOrDirectory))
-	{
+						{
 							FManagedStorageScopeFileLock ScopeFileLock(File);
 
 							// This must be done under the lock because another thread may be modifying or deleting the file while we scan
 							FFileStatData StatData = IPlatformFile::GetPlatformPhysical().GetStatData(FilenameOrDirectory);
 							if (ensure(StatData.bIsValid))
-		{
+							{
 								Man.AddOrUpdateFile(File, StatData.FileSize);
 							}
 						}
-		}
+					}
 
-				return true;
-			}
+					return true;
+				}
 			};
 
 			FInitStorageVisitor Visitor;
 
 			for (const FString& RootDir : FPersistentStorageManager::Get().GetRootDirectories())
-		{
+			{
 				UE_LOG(LogPlatformFileManagedStorage, Log, TEXT("Scan directory %s"), *RootDir);
 
 				IPlatformFile::GetPlatformPhysical().IterateDirectoryRecursively(*RootDir, Visitor);
@@ -410,14 +410,14 @@ public:
 	}
 
 	FPersistentManagedFile TryManageFile(FString&& Filename)
-		{
+	{
 		FPersistentManagedFile OutFile;
 		OutFile.FullFilename = FPaths::ConvertRelativePathToFull(MoveTemp(Filename));
 
 		TryManageFileInternal(OutFile);
 
 		return OutFile;
-		}
+	}
 
 private:
 	void TryManageFileInternal(FPersistentManagedFile& OutFile)
@@ -431,11 +431,11 @@ private:
 				return;
 			}
 			++CategoryIndex;
-	}
+		}
 
 		bool bIsUnderRootDir = !!Algo::FindByPredicate(RootDirectories.GetRootDirectories(), [&OutFile](const FString& RootDir) { return ManagedStorageInternal::IsUnderDirectory(OutFile.FullFilename, RootDir); });
 		if (bIsUnderRootDir)
-	{
+		{
 			OutFile.Category = Categories.GetDefaultCategoryIndex();
 		}
 	}
@@ -453,7 +453,7 @@ public:
 	}
 
 	bool RemoveFileFromManager(FPersistentManagedFile& File)
-		{
+	{
 		if (!File)
 		{
 			return false;
@@ -564,23 +564,23 @@ public:
 		}
 
 		return CategoryStats;
-				}
+	}
 
 	TOptional<FPersistentStorageCategory::CategoryStat> GetCategoryStat(const FString& InCategory) const
-			{
+	{
 		TOptional<FPersistentStorageCategory::CategoryStat> Result;
 
 		for (const FPersistentStorageCategory& Category : Categories.GetCategories())
-				{
+		{
 			if (Category.GetCategoryName() == InCategory)
-					{
+			{
 				Result.Emplace(Category.GetStat());
 				break;
-				}
 			}
+		}
 
 		return Result;
-			}
+	}
 
 	TArrayView<const FString> GetRootDirectories() const { return RootDirectories.GetRootDirectories(); }
 
@@ -592,8 +592,8 @@ private:
 	// Top level of all managed storage
 	// Wrapper to prevent changing or resizing after init
 	struct FRootDirInfo
-		{
-private:
+	{
+	private:
 		TArray<FString> RootDirectories;
 
 	public:
@@ -624,33 +624,33 @@ private:
 
 	static FCategoryInfo InitCategories();
 };
-					
+
 // Only write handle 
 class CORE_API FManagedStorageFileWriteHandle : public IFileHandle
-					{
+{
 private:
 	static bool IsReady()
-					{
+	{
 		// FManagedStoragePlatformFile will just pass through to LowerLevel until FPersistentStorageManager is ready
 		return FPersistentStorageManager::IsReady();
-					}
+	}
 
 	bool TryManageFile()
-					{
+	{
 		if (!File && IsReady())
-						{
+		{
 			File = FPersistentStorageManager::Get().TryManageFile(File.FullFilename);
-						}
+		}
 
 		return File.IsValid();
-					}
+	}
 
 public:
 	FManagedStorageFileWriteHandle(IFileHandle* InFileHandle, FPersistentManagedFile InFile)
 		: FileHandle(InFileHandle)
 		, File(MoveTemp(InFile))
-			{
-			}
+	{
+	}
 
 	virtual ~FManagedStorageFileWriteHandle()
 	{
@@ -662,7 +662,7 @@ public:
 		FManagedStorageScopeFileLock ScopeFileLock(File);
 
 		FPersistentStorageManager::Get().AddOrUpdateFile(File, FileHandle->Size());
-		}
+	}
 
 	virtual int64 Tell() override
 	{
@@ -699,13 +699,13 @@ public:
 
 		EPersistentStorageManagerFileSizeFlags Result = Manager.AddOrUpdateFile(File, NewSize, EPersistentStorageManagerFileSizeFlags::RespectQuota);
 		bool bIsFileCategoryFull = Result != EPersistentStorageManagerFileSizeFlags::None;
-			if (bIsFileCategoryFull)
-			{
+		if (bIsFileCategoryFull)
+		{
 			UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to write to file %s.  The category of the file has reach quota limit in peristent storage."), *File.FullFilename);
-				return false;
-			}
+			return false;
+		}
 
-			bool bSuccess = FileHandle->Write(Source, BytesToWrite);
+		bool bSuccess = FileHandle->Write(Source, BytesToWrite);
 		if (!bSuccess)
 		{
 			int64 FileSize = FileHandle->Size();
@@ -816,25 +816,25 @@ public:
 		bool bUsingGenericDeleteDirectoryRecursively = (&BaseClass::DeleteDirectoryRecursively == &IPlatformFile::DeleteDirectoryRecursively);
 		check(bUsingGenericDeleteDirectoryRecursively);
 		if (!bUsingGenericDeleteDirectoryRecursively)
-	{
+		{
 			LowLevelFatalError(TEXT("TManagedStoragePlatformFile cannot track all deletes!"));
-	}
+		}
 
 		// Book keeping is handled by DeleteFile() and CopyFile() which will be called by the base implementation
 		bool bUsingGenericCopyDirectoryTree = (&BaseClass::CopyDirectoryTree == &IPlatformFile::CopyDirectoryTree);
 		check(bUsingGenericCopyDirectoryTree);
 		if (!bUsingGenericCopyDirectoryTree)
-	{
+		{
 			LowLevelFatalError(TEXT("TManagedStoragePlatformFile cannot track all deletes and copies!"));
-	}
+		}
 	}
 
 	virtual bool DeleteFile(const TCHAR* Filename) override
 	{
 		if (!IsReady())
-	{
+		{
 			return BaseClass::DeleteFile(Filename);
-	}
+		}
 
 		FPersistentStorageManager& Manager = FPersistentStorageManager::Get();
 
@@ -868,27 +868,27 @@ public:
 
 		int64 Size = this->FileSize(From);
 		if (Size < 0)
-	{
+		{
 			return false;
-	}
+		}
 
 		EPersistentStorageManagerFileSizeFlags Result = Manager.AddOrUpdateFile(ManagedTo, Size, EPersistentStorageManagerFileSizeFlags::OnlyUpdateIfLess | EPersistentStorageManagerFileSizeFlags::RespectQuota);
 		if (EnumHasAnyFlags(Result, EPersistentStorageManagerFileSizeFlags::RespectQuota))
-	{
+		{
 			UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to move file to %s.  The target category of the destination has reach quota limit in peristent storage."), To);
 			return false;
-	}
+		}
 
 		bool bSuccess = BaseClass::MoveFile(To, From);
 		if (bSuccess)
-	{
+		{
 			Manager.RemoveFileFromManager(ManagedFrom);
 			Manager.AddOrUpdateFile(ManagedTo, Size);
-	}
+		}
 		else
-	{
+		{
 			Manager.RemoveFileFromManager(ManagedTo);
-	}
+		}
 
 		return bSuccess;
 	}
@@ -900,10 +900,10 @@ public:
 			// Always wrap handle if not ready.  FManagedStorageFileWriteHandle will start managing the file
 			// internally when we become ready.
 			IFileHandle* InnerHandle = BaseClass::OpenWrite(Filename, bAppend, bAllowRead);
-		if (!InnerHandle)
-		{
-			return nullptr;
-		}
+			if (!InnerHandle)
+			{
+				return nullptr;
+			}
 
 			FPersistentManagedFile ManagedFile;
 			ManagedFile.FullFilename = FPaths::ConvertRelativePathToFull(Filename);
@@ -915,36 +915,36 @@ public:
 		FPersistentManagedFile ManagedFile = Manager.TryManageFile(Filename);
 
 		if (Manager.IsCategoryForFileFull(ManagedFile))
-	{
+		{
 			UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to open file %s for write.  The category of the file has reach quota limit in peristent storage."), Filename);
 			return nullptr;
-	}
+		}
 
 		FManagedStorageScopeFileLock ScopeFileLock(ManagedFile);
 
 		IFileHandle* InnerHandle = BaseClass::OpenWrite(Filename, bAppend, bAllowRead);
 		if (!InnerHandle)
-	{
+		{
 			return nullptr;
-	}
+		}
 
 		Manager.AddOrUpdateFile(ManagedFile, InnerHandle->Size());
 		if (ManagedFile)
-	{
+		{
 			return new FManagedStorageFileWriteHandle(InnerHandle, MoveTemp(ManagedFile));
-	}
+		}
 		else
-	{
+		{
 			return InnerHandle;
-	}
+		}
 	}
 
 	virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override
 	{
 		if (!IsReady())
-	{
+		{
 			return BaseClass::CopyFile(To, From, ReadFlags, WriteFlags);
-	}
+		}
 
 		FPersistentStorageManager& Manager = FPersistentStorageManager::Get();
 
@@ -956,7 +956,7 @@ public:
 
 		int64 Size = this->FileSize(From);
 		if (Size < 0)
-	{
+		{
 			return false;
 		}
 
@@ -973,24 +973,24 @@ public:
 			Manager.AddOrUpdateFile(ManagedTo, Size);
 		}
 		else
-	{
+		{
 			if (!this->FileExists(To))
-	{
+			{
 				Manager.RemoveFileFromManager(ManagedTo);
-	}
+			}
 			else
-	{
+			{
 				Size = this->FileSize(To);
 				if (Size < 0)
-	{
+				{
 					Manager.RemoveFileFromManager(ManagedTo);
-	}
+				}
 				else
-	{
+				{
 					Manager.AddOrUpdateFile(ManagedTo, Size);
-	}
-	}
-	}
+				}
+			}
+		}
 
 		return bSuccess;
 	}
