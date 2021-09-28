@@ -3081,7 +3081,10 @@ void FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(UN
 	}
 
 	// Set the value on the FNiagaraVariable from the UNiagaraScriptVariable.
-	ScriptVarToSync->Variable.SetData(ScriptVarToSync->GetDefaultValueData());
+	if (ScriptVarToSync->GetDefaultValueData() != nullptr)
+	{
+		ScriptVarToSync->Variable.SetData(ScriptVarToSync->GetDefaultValueData());
+	}
 	const FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(ScriptVarToSync->Variable);
 
 	// Set the value on the graph pins.

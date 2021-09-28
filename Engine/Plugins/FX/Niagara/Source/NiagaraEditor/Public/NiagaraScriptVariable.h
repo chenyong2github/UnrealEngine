@@ -68,7 +68,11 @@ public:
 
 	const uint8* GetDefaultValueData() const
 	{
-		return DefaultValueVariant.GetBytes();
+		if(DefaultValueVariant.GetMode() == ENiagaraVariantMode::Bytes)
+		{ 
+			return DefaultValueVariant.GetBytes();
+		}
+		return nullptr;
 	}
 
 	void CopyDefaultValueDataTo(uint8* Dest) const

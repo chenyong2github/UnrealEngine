@@ -76,7 +76,10 @@ void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
 		if (TypeUtilityStaticSwitchValue && ParameterEditorStaticSwitchValue)
 		{
 			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-			Variable->Variable.SetData(Variable->GetDefaultValueData());
+			if (Variable->GetDefaultValueData() != nullptr)
+			{
+				Variable->Variable.SetData(Variable->GetDefaultValueData());
+			}
 			Variable->Variable.CopyTo(ParameterValue->GetStructMemory());
 			ParameterEditorStaticSwitchValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
 		}
@@ -200,7 +203,10 @@ void FNiagaraScriptVariableDetails::CustomizeDetailsStaticSwitchScriptVariable(I
 		ParameterEditorStaticSwitchValue = TypeUtilityStaticSwitchValue->CreateParameterEditor(Variable->Variable.GetType());
 
 		TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-		Variable->Variable.SetData(Variable->GetDefaultValueData());
+		if (Variable->GetDefaultValueData() != nullptr)
+		{
+			Variable->Variable.SetData(Variable->GetDefaultValueData());
+		}
 		Variable->Variable.CopyTo(ParameterValue->GetStructMemory());
 		ParameterEditorStaticSwitchValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
 		ParameterEditorStaticSwitchValue->SetOnValueChanged(SNiagaraParameterEditor::FOnValueChange::CreateSP(this, &FNiagaraScriptVariableDetails::OnStaticSwitchValueChanged));
