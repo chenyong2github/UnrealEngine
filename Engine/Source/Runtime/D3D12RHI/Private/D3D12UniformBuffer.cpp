@@ -36,7 +36,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 
 #if USE_STATIC_ROOT_SIGNATURE
 			// Create an offline CBV descriptor
-			NewUniformBuffer->View = new FD3D12ConstantBufferView(Device, nullptr);
+			NewUniformBuffer->View = new FD3D12ConstantBufferView(Device);
 #endif
 			void* MappedData = nullptr;
 			if (Usage == EUniformBufferUsage::UniformBuffer_MultiFrame)
@@ -49,11 +49,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 			{
 				// Uniform buffers which will live for 1 frame at the max can be allocated very efficiently from a ring buffer
 				FD3D12FastConstantAllocator& Allocator = GetAdapter().GetTransientUniformBufferAllocator();
-#if USE_STATIC_ROOT_SIGNATURE
 				MappedData = Allocator.Allocate(NumBytesActualData, NewUniformBuffer->ResourceLocation, nullptr);
-#else
-				MappedData = Allocator.Allocate(NumBytesActualData, NewUniformBuffer->ResourceLocation);
-#endif
 			}
 			check(NewUniformBuffer->ResourceLocation.GetOffsetFromBaseOfResource() % 16 == 0);
 
@@ -181,11 +177,7 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 			{
 				FD3D12FastConstantAllocator& Allocator = GetAdapter().GetTransientUniformBufferAllocator();
 
-#if USE_STATIC_ROOT_SIGNATURE
 				MappedData = Allocator.Allocate(NumBytes, UpdatedResourceLocation, nullptr);
-#else
-				MappedData = Allocator.Allocate(NumBytes, UpdatedResourceLocation);
-#endif
 			}
 
 			check(MappedData != nullptr);

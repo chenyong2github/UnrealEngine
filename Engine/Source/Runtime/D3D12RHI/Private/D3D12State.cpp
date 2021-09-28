@@ -540,7 +540,7 @@ FD3D12SamplerState::FD3D12SamplerState(FD3D12Device* InParent, const D3D12_SAMPL
 	, ID(SamplerID)
 {
 	Descriptor.ptr = 0;
-	FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetSamplerDescriptorAllocator();
+	FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetOfflineDescriptorManager(ED3D12DescriptorHeapType::Sampler);
 	Descriptor = DescriptorAllocator.AllocateHeapSlot(DescriptorHeapIndex);
 
 	GetParentDevice()->CreateSamplerInternal(Desc, Descriptor);
@@ -550,7 +550,7 @@ FD3D12SamplerState::~FD3D12SamplerState()
 {
 	if (Descriptor.ptr)
 	{
-		FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetSamplerDescriptorAllocator();
+		FD3D12OfflineDescriptorManager& DescriptorAllocator = GetParentDevice()->GetOfflineDescriptorManager(ED3D12DescriptorHeapType::Sampler);
 		DescriptorAllocator.FreeHeapSlot(Descriptor, DescriptorHeapIndex);
 		Descriptor.ptr = 0;
 	}

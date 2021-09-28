@@ -7,6 +7,7 @@ D3D12Device.h: D3D12 Device Interfaces
 #pragma once
 
 #include "CoreMinimal.h"
+#include "D3D12Descriptors.h"
 
 class FD3D12DynamicRHI;
 class FD3D12BasicRayTracingPipeline;
@@ -68,25 +69,21 @@ public:
 	inline FD3D12QueryHeap* GetTimestampQueryHeap(ED3D12CommandQueueType inQueueType) { return TimestampQueryHeaps[(uint32)inQueueType]; }
 	FD3D12LinearQueryHeap* GetCmdListExecTimeQueryHeap();
 
-	template <typename TViewDesc> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator();
-	template<> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator<D3D12_SHADER_RESOURCE_VIEW_DESC>() { return SRVAllocator; }
-	template<> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator<D3D12_RENDER_TARGET_VIEW_DESC>() { return RTVAllocator; }
-	template<> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator<D3D12_DEPTH_STENCIL_VIEW_DESC>() { return DSVAllocator; }
-	template<> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator<D3D12_UNORDERED_ACCESS_VIEW_DESC>() { return UAVAllocator; }
-#if USE_STATIC_ROOT_SIGNATURE
-	template<> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator<D3D12_CONSTANT_BUFFER_VIEW_DESC>() { return CBVAllocator; }
-#else
-	template<> FD3D12OfflineDescriptorManager& GetViewDescriptorAllocator<D3D12_CONSTANT_BUFFER_VIEW_DESC>() { check(false); abort(); }
-#endif
+	inline FD3D12DescriptorHeapManager& GetDescriptorHeapManager() { return DescriptorHeapManager; }
+	inline FD3D12ResourceDescriptorManager& GetResourceDescriptorManager() { return ResourceDescriptorManager; }
+	inline FD3D12OfflineDescriptorManager& GetOfflineDescriptorManager(ED3D12DescriptorHeapType InType)
+	{
+		check(InType < ED3D12DescriptorHeapType::count);
+		return OfflineDescriptorManagers[static_cast<int>(InType)];
+	}
 
-	inline FD3D12OfflineDescriptorManager& GetSamplerDescriptorAllocator() { return SamplerAllocator; }
 	inline FD3D12CommandListManager& GetCommandListManager() { return *CommandListManager; }
 	inline FD3D12CommandListManager& GetCopyCommandListManager() { return *CopyCommandListManager; }
 	inline FD3D12CommandListManager& GetAsyncCommandListManager() { return *AsyncCommandListManager; }
 	inline FD3D12CommandAllocatorManager& GetTextureStreamingCommandAllocatorManager() { return TextureStreamingCommandAllocatorManager; }
 	inline FD3D12DefaultBufferAllocator& GetDefaultBufferAllocator() { return DefaultBufferAllocator; }
 	inline FD3D12GlobalOnlineSamplerHeap& GetGlobalSamplerHeap() { return GlobalSamplerHeap; }
-	inline FD3D12GlobalHeap& GetGlobalViewHeap() { return GlobalViewHeap; }
+	inline FD3D12OnlineDescriptorManager& GetOnlineDescriptorManager() { return OnlineDescriptorManager; }
 
 	bool IsGPUIdle();
 
@@ -147,17 +144,12 @@ protected:
 	FD3D12CommandAllocatorManager TextureStreamingCommandAllocatorManager;
 
 	// Must be before the StateCache so that destructor ordering is valid
-	FD3D12OfflineDescriptorManager RTVAllocator;
-	FD3D12OfflineDescriptorManager DSVAllocator;
-	FD3D12OfflineDescriptorManager SRVAllocator;
-	FD3D12OfflineDescriptorManager UAVAllocator;
-#if USE_STATIC_ROOT_SIGNATURE
-	FD3D12OfflineDescriptorManager CBVAllocator;
-#endif
-	FD3D12OfflineDescriptorManager SamplerAllocator;
+	FD3D12DescriptorHeapManager DescriptorHeapManager;
+	FD3D12ResourceDescriptorManager ResourceDescriptorManager;
+	FD3D12OfflineDescriptorManager OfflineDescriptorManagers[static_cast<int>(ED3D12DescriptorHeapType::count)];
 
 	FD3D12GlobalOnlineSamplerHeap GlobalSamplerHeap;
-	FD3D12GlobalHeap GlobalViewHeap;
+	FD3D12OnlineDescriptorManager OnlineDescriptorManager;
 
 	FD3D12QueryHeap OcclusionQueryHeap;
 	FD3D12QueryHeap* TimestampQueryHeaps[(uint32)ED3D12CommandQueueType::Count];
@@ -218,59 +210,3 @@ protected:
 
 	D3D12RHI::FD3DGPUProfiler GPUProfilingData;
 };
-template <typename TDesc> 
-void TD3D12ViewDescriptorHandle<TDesc>::AllocateDescriptorSlot()
-{
-	if (Parent)
-	{
-		FD3D12Device* Device = GetParentDevice();
-		FD3D12OfflineDescriptorManager& DescriptorAllocator = Device->template GetViewDescriptorAllocator<TDesc>();
-		Handle = DescriptorAllocator.AllocateHeapSlot(Index);
-		check(Handle.ptr != 0);
-	}
-}
-
-template <typename TDesc> 
-void TD3D12ViewDescriptorHandle<TDesc>::FreeDescriptorSlot()
-{
-	if (Parent)
-	{
-		FD3D12Device* Device = GetParentDevice();
-		FD3D12OfflineDescriptorManager& DescriptorAllocator = Device->template GetViewDescriptorAllocator<TDesc>();
-		DescriptorAllocator.FreeHeapSlot(Handle, Index);
-		Handle.ptr = 0;
-	}
-	check(!Handle.ptr);
-}
-
-template<>
-inline void FD3D12DescriptorHandleSRV::CreateView(const D3D12_SHADER_RESOURCE_VIEW_DESC& Desc, ID3D12Resource* Resource)
-{
-#if D3D12_RHI_RAYTRACING
-	// NOTE (from D3D Debug runtime): When ViewDimension is D3D12_SRV_DIMENSION_RAYTRACING_ACCELLERATION_STRUCTURE, pResource must be NULL, since the resource location comes from a GPUVA in pDesc
-	if (Desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
-	{
-		Resource = nullptr;
-	}
-#endif // D3D12_RHI_RAYTRACING
-
-	GetParentDevice()->GetDevice()->CreateShaderResourceView(Resource, &Desc, Handle);
-}
-
-template<>
-inline void FD3D12DescriptorHandleRTV::CreateView(const D3D12_RENDER_TARGET_VIEW_DESC& Desc, ID3D12Resource* Resource)
-{
-	GetParentDevice()->GetDevice()->CreateRenderTargetView(Resource, &Desc, Handle);
-}
-
-template<>
-inline void FD3D12DescriptorHandleDSV::CreateView(const D3D12_DEPTH_STENCIL_VIEW_DESC& Desc, ID3D12Resource* Resource)
-{
-	GetParentDevice()->GetDevice()->CreateDepthStencilView(Resource, &Desc, Handle);
-}
-
-template<>
-inline void FD3D12DescriptorHandleUAV::CreateViewWithCounter(const D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc, ID3D12Resource* Resource, ID3D12Resource* CounterResource)
-{
-	GetParentDevice()->GetDevice()->CreateUnorderedAccessView(Resource, CounterResource, &Desc, Handle);
-}

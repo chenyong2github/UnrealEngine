@@ -1,0 +1,598 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "D3D12RHIPrivate.h"
+#include "D3D12Descriptors.h"
+
+const TCHAR* ToString(ED3D12DescriptorHeapType InHeapType)
+{
+	switch (InHeapType)
+	{
+	default: checkNoEntry();                     return TEXT("UnknownDescriptorHeapType");
+	case ED3D12DescriptorHeapType::Standard:     return TEXT("Standard");
+	case ED3D12DescriptorHeapType::RenderTarget: return TEXT("RenderTarget");
+	case ED3D12DescriptorHeapType::DepthStencil: return TEXT("DepthStencil");
+	case ED3D12DescriptorHeapType::Sampler:      return TEXT("Sampler");
+	}
+}
+
+inline D3D12_DESCRIPTOR_HEAP_TYPE Translate(ED3D12DescriptorHeapType InHeapType)
+{
+	switch (InHeapType)
+	{
+	default: checkNoEntry();
+	case ED3D12DescriptorHeapType::Standard:     return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	case ED3D12DescriptorHeapType::RenderTarget: return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	case ED3D12DescriptorHeapType::DepthStencil: return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	case ED3D12DescriptorHeapType::Sampler:      return FD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FD3D12DescriptorHeap
+
+FD3D12DescriptorHeap::FD3D12DescriptorHeap(FD3D12Device* InDevice, ID3D12DescriptorHeap* InHeap, uint32 InNumDescriptors, ED3D12DescriptorHeapType InType, D3D12_DESCRIPTOR_HEAP_FLAGS InFlags, bool bInIsGlobal)
+	: FD3D12DeviceChild(InDevice)
+	, Heap(InHeap)
+	, CpuBase(InHeap->GetCPUDescriptorHandleForHeapStart())
+	, GpuBase((InFlags& D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ? InHeap->GetGPUDescriptorHandleForHeapStart() : D3D12_GPU_DESCRIPTOR_HANDLE{})
+	, Offset(0)
+	, NumDescriptors(InNumDescriptors)
+	, DescriptorSize(InDevice->GetDevice()->GetDescriptorHandleIncrementSize(Translate(InType)))
+	, Type(InType)
+	, Flags(InFlags)
+	, bIsGlobal(bInIsGlobal)
+	, bIsSuballocation(false)
+{
+}
+
+FD3D12DescriptorHeap::FD3D12DescriptorHeap(FD3D12DescriptorHeap* SubAllocateSourceHeap, uint32 InOffset, uint32 InNumDescriptors)
+	: FD3D12DeviceChild(SubAllocateSourceHeap->GetParentDevice())
+	, Heap(SubAllocateSourceHeap->Heap)
+	, CpuBase(SubAllocateSourceHeap->CpuBase, InOffset, SubAllocateSourceHeap->DescriptorSize)
+	, GpuBase(SubAllocateSourceHeap->GpuBase, InOffset, SubAllocateSourceHeap->DescriptorSize)
+	, Offset(InOffset)
+	, NumDescriptors(InNumDescriptors)
+	, DescriptorSize(SubAllocateSourceHeap->DescriptorSize)
+	, Type(SubAllocateSourceHeap->GetType())
+	, Flags(SubAllocateSourceHeap->GetFlags())
+	, bIsGlobal(SubAllocateSourceHeap->IsGlobal())
+	, bIsSuballocation(true)
+{
+}
+
+FD3D12DescriptorHeap::~FD3D12DescriptorHeap() = default;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FDescriptorAllocator
+
+struct FDescriptorAllocatorRange
+{
+	FDescriptorAllocatorRange(uint32 InFirst, uint32 InLast) : First(InFirst), Last(InLast) {}
+	uint32 First;
+	uint32 Last;
+};
+
+FDescriptorAllocator::FDescriptorAllocator()
+{
+}
+
+FDescriptorAllocator::~FDescriptorAllocator()
+{
+}
+
+void FDescriptorAllocator::Init(uint32 InNumDescriptors)
+{
+	Capacity = InNumDescriptors;
+	Ranges.Emplace(0, InNumDescriptors - 1);
+}
+
+bool FDescriptorAllocator::Allocate(uint32 NumDescriptors, uint32& OutSlot)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	if (const uint32 NumRanges = Ranges.Num(); NumRanges > 0)
+	{
+		uint32 Index = 0;
+		do
+		{
+			FDescriptorAllocatorRange& CurrentRange = Ranges[Index];
+			const uint32 Size = 1 + CurrentRange.Last - CurrentRange.First;
+			if (NumDescriptors <= Size)
+			{
+				uint32 First = CurrentRange.First;
+				if (NumDescriptors == Size && Index + 1 < NumRanges)
+				{
+					// Range is full and a new range exists, so move on to that one
+					Ranges.RemoveAt(Index);
+				}
+				else
+				{
+					CurrentRange.First += NumDescriptors;
+				}
+				OutSlot = First;
+				return true;
+			}
+			++Index;
+		} while (Index < NumRanges);
+	}
+
+	OutSlot = UINT_MAX;
+	return false;
+}
+
+void FDescriptorAllocator::Free(uint32 Offset, uint32 NumDescriptors)
+{
+	if (Offset == UINT_MAX || NumDescriptors == 0)
+	{
+		return;
+	}
+
+	FScopeLock Lock(&CriticalSection);
+
+	const uint32 End = Offset + NumDescriptors;
+	// Binary search of the range list
+	uint32 Index0 = 0;
+	uint32 Index1 = Ranges.Num() -1;
+	for (;;)
+	{
+		const uint32 Index = (Index0 + Index1) / 2;
+		if (Offset < Ranges[Index].First)
+		{
+			// Before current range, check if neighboring
+			if (End >= Ranges[Index].First)
+			{
+				check(End == Ranges[Index].First); // Can't overlap a range of free IDs
+				// Neighbor id, check if neighboring previous range too
+				if (Index > Index0 && Offset - 1 == Ranges[Index - 1].Last)
+				{
+					// Merge with previous range
+					Ranges[Index - 1].Last = Ranges[Index].Last;
+					Ranges.RemoveAt(Index);
+				}
+				else
+				{
+					// Just grow range
+					Ranges[Index].First = Offset;
+				}
+				return;
+			}
+			else
+			{
+				// Non-neighbor id
+				if (Index != Index0)
+				{
+					// Cull upper half of list
+					Index1 = Index - 1;
+				}
+				else
+				{
+					// Found our position in the list, insert the deleted range here
+					Ranges.EmplaceAt(Index, Offset, End -1);
+					return;
+				}
+			}
+		}
+		else if (Offset > Ranges[Index].Last)
+		{
+			// After current range, check if neighboring
+			if (Offset - 1 == Ranges[Index].Last)
+			{
+				// Neighbor id, check if neighboring next range too
+				if (Index < Index1 && End == Ranges[Index + 1].First)
+				{
+					// Merge with next range
+					Ranges[Index].Last = Ranges[Index + 1].Last;
+					Ranges.RemoveAt(Index);
+				}
+				else
+				{
+					// Just grow range
+					Ranges[Index].Last += NumDescriptors;
+				}
+				return;
+			}
+			else
+			{
+				// Non-neighbor id
+				if (Index != Index1)
+				{
+					// Cull bottom half of list
+					Index0 = Index + 1;
+				}
+				else
+				{
+					// Found our position in the list, insert the deleted range here
+					Ranges.EmplaceAt(Index + 1, Offset, End - 1);
+					return;
+				}
+			}
+		}
+		else
+		{
+			// Inside a free block, not a valid offset
+			checkNoEntry();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FD3D12ResourceDescriptorManager
+
+FD3D12ResourceDescriptorManager::FD3D12ResourceDescriptorManager(FD3D12Device* Device)
+	: FD3D12DeviceChild(Device)
+{
+}
+
+FD3D12ResourceDescriptorManager::~FD3D12ResourceDescriptorManager() = default;
+
+void FD3D12ResourceDescriptorManager::Init(uint32 InTotalSize)
+{
+	if (InTotalSize > 0)
+	{
+		Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
+			TEXT("ResourceDescriptorHeap"),
+			ED3D12DescriptorHeapType::Standard,
+			InTotalSize,
+			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+		);
+
+		Allocator.Init(InTotalSize);
+	}
+}
+
+void FD3D12ResourceDescriptorManager::Destroy()
+{
+	if (Heap)
+	{
+		GetParentDevice()->GetDescriptorHeapManager().FreeHeap(Heap);
+		Heap.SafeRelease();
+	}
+}
+
+bool FD3D12ResourceDescriptorManager::AllocateDescriptor(uint32& OutSlot)
+{
+	return Allocator.Allocate(1, OutSlot);
+}
+
+bool FD3D12ResourceDescriptorManager::AllocateDescriptors(uint32 NumDescriptors, uint32& OutSlot)
+{
+	return Allocator.Allocate(NumDescriptors, OutSlot);
+}
+
+void FD3D12ResourceDescriptorManager::FreeDescriptor(uint32 Slot)
+{
+	Allocator.Free(Slot, 1);
+}
+
+void FD3D12ResourceDescriptorManager::FreeDescriptors(uint32 Slot, uint32 NumDescriptors)
+{
+	Allocator.Free(Slot, NumDescriptors);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FD3D12OnlineDescriptorManager
+
+FD3D12OnlineDescriptorManager::FD3D12OnlineDescriptorManager(FD3D12Device* Device)
+	: FD3D12DeviceChild(Device)
+{
+}
+
+FD3D12OnlineDescriptorManager::~FD3D12OnlineDescriptorManager() = default;
+
+/** Allocate and initialize the online heap */
+void FD3D12OnlineDescriptorManager::Init(uint32 InTotalSize, uint32 InBlockSize)
+{
+	Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
+		TEXT("Device Global - Online View Heap"),
+		ED3D12DescriptorHeapType::Standard,
+		InTotalSize,
+		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+
+	// Update the stats
+	INC_DWORD_STAT(STAT_NumViewOnlineDescriptorHeaps);
+	INC_MEMORY_STAT_BY(STAT_ViewOnlineDescriptorHeapMemory, Heap->GetMemorySize());
+	INC_DWORD_STAT_BY(STAT_GlobalViewHeapFreeDescriptors, InTotalSize);
+
+	// Compute amount of free blocks
+	uint32 BlockCount = InTotalSize / InBlockSize;
+	ReleasedBlocks.Reserve(BlockCount);
+
+	// Allocate the free blocks
+	uint32 CurrentBaseSlot = 0;
+	for (uint32 BlockIndex = 0; BlockIndex < BlockCount; ++BlockIndex)
+	{
+		// Last entry take the rest
+		uint32 ActualBlockSize = (BlockIndex == (BlockCount - 1)) ? InTotalSize - CurrentBaseSlot : InBlockSize;
+		FreeBlocks.Enqueue(new FD3D12OnlineDescriptorBlock(CurrentBaseSlot, ActualBlockSize));
+		CurrentBaseSlot += ActualBlockSize;
+	}
+}
+
+/** Allocate a new heap block - will also check if released blocks can be freed again */
+FD3D12OnlineDescriptorBlock* FD3D12OnlineDescriptorManager::AllocateHeapBlock()
+{
+	SCOPED_NAMED_EVENT(FD3D12OnlineViewHeap_AllocateHeapBlock, FColor::Silver);
+
+	FScopeLock Lock(&CriticalSection);
+
+	// Check if certain released blocks are free again
+	UpdateFreeBlocks();
+
+	// Free block
+	FD3D12OnlineDescriptorBlock* Result = nullptr;
+	FreeBlocks.Dequeue(Result);
+
+	if (Result)
+	{
+		// Update stats
+		INC_DWORD_STAT(STAT_GlobalViewHeapBlockAllocations);
+		DEC_DWORD_STAT_BY(STAT_GlobalViewHeapFreeDescriptors, Result->Size);
+		INC_DWORD_STAT_BY(STAT_GlobalViewHeapReservedDescriptors, Result->Size);
+	}
+
+	return Result;
+}
+
+/** Free given block - can still be used by the GPU (SyncPoint needs to be setup by the caller and will be used to check if the block can be reused again) */
+void FD3D12OnlineDescriptorManager::FreeHeapBlock(FD3D12OnlineDescriptorBlock * InHeapBlock)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	// Update stats
+	DEC_DWORD_STAT_BY(STAT_GlobalViewHeapReservedDescriptors, InHeapBlock->Size);
+	INC_DWORD_STAT_BY(STAT_GlobalViewHeapUsedDescriptors, InHeapBlock->SizeUsed);
+	INC_DWORD_STAT_BY(STAT_GlobalViewHeapWastedDescriptors, InHeapBlock->Size - InHeapBlock->SizeUsed);
+
+	ReleasedBlocks.Add(InHeapBlock);
+}
+
+/** Find all the blocks which are not used by the GPU anymore */
+void FD3D12OnlineDescriptorManager::UpdateFreeBlocks()
+{
+	for (int32 BlockIndex = 0; BlockIndex < ReleasedBlocks.Num(); )
+	{
+		// Check if GPU is ready consuming the block data
+		FD3D12OnlineDescriptorBlock* ReleasedBlock = ReleasedBlocks[BlockIndex];
+		if (ReleasedBlock->SyncPoint.IsComplete())
+		{
+			// Update stats
+			DEC_DWORD_STAT_BY(STAT_GlobalViewHeapUsedDescriptors, ReleasedBlock->SizeUsed);
+			DEC_DWORD_STAT_BY(STAT_GlobalViewHeapWastedDescriptors, ReleasedBlock->Size - ReleasedBlock->SizeUsed);
+			INC_DWORD_STAT_BY(STAT_GlobalViewHeapFreeDescriptors, ReleasedBlock->Size);
+
+			ReleasedBlock->SizeUsed = 0;
+			FreeBlocks.Enqueue(ReleasedBlock);
+
+			// don't want to resize, but optional parameter is missing
+			ReleasedBlocks.RemoveAtSwap(BlockIndex);
+		}
+		else
+		{
+			BlockIndex++;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FD3D12OfflineDescriptorManager
+
+static uint32 GetOfflineDescriptorHeapDefaultSize(ED3D12DescriptorHeapType InHeapType)
+{
+	switch (InHeapType)
+	{
+	default: checkNoEntry();
+#if USE_STATIC_ROOT_SIGNATURE
+	case ED3D12DescriptorHeapType::Standard:     return 4096;
+#else
+	case ED3D12DescriptorHeapType::Standard:     return 2048;
+#endif
+	case ED3D12DescriptorHeapType::RenderTarget: return 256;
+	case ED3D12DescriptorHeapType::DepthStencil: return 256;
+	case ED3D12DescriptorHeapType::Sampler:      return 128;
+	}
+}
+
+struct FD3D12OfflineHeapFreeRange
+{
+	size_t Start;
+	size_t End;
+};
+
+struct FD3D12OfflineHeapEntry
+{
+	FD3D12OfflineHeapEntry(FD3D12DescriptorHeap* InHeap, const D3D12_CPU_DESCRIPTOR_HANDLE& InHeapBase, size_t InSize)
+		: Heap(InHeap)
+	{
+		FreeList.AddTail({ InHeapBase.ptr, InHeapBase.ptr + InSize });
+	}
+
+	TRefCountPtr<FD3D12DescriptorHeap> Heap;
+	TDoubleLinkedList<FD3D12OfflineHeapFreeRange> FreeList;
+};
+
+FD3D12OfflineDescriptorManager::FD3D12OfflineDescriptorManager(FD3D12Device* InDevice)
+	: FD3D12DeviceChild(InDevice)
+{
+}
+
+FD3D12OfflineDescriptorManager::~FD3D12OfflineDescriptorManager() = default;
+
+void FD3D12OfflineDescriptorManager::Init(ED3D12DescriptorHeapType InHeapType)
+{
+	HeapType = InHeapType;
+	DescriptorSize = GetParentDevice()->GetDevice()->GetDescriptorHandleIncrementSize(Translate(InHeapType));
+	NumDescriptorsPerHeap = GetOfflineDescriptorHeapDefaultSize(InHeapType);
+}
+
+void FD3D12OfflineDescriptorManager::AllocateHeap()
+{
+	checkf(NumDescriptorsPerHeap != 0, TEXT("Init() needs to be called before allocating heaps."));
+	TRefCountPtr<FD3D12DescriptorHeap> Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
+		TEXT("FD3D12OfflineDescriptorManager"),
+		HeapType,
+		NumDescriptorsPerHeap,
+		D3D12_DESCRIPTOR_HEAP_FLAG_NONE
+	);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE HeapBase = Heap->GetCPUSlotHandle(0);
+	check(HeapBase.ptr != 0);
+
+	// Allocate and initialize a single new entry in the map
+	const uint32 NewHeapIndex = Heaps.Num();
+
+	Heaps.Emplace(Heap, HeapBase, NumDescriptorsPerHeap * DescriptorSize);
+	FreeHeaps.AddTail(NewHeapIndex);
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE FD3D12OfflineDescriptorManager::AllocateHeapSlot(uint32& OutIndex)
+{
+	FScopeLock Lock(&CriticalSection);
+	if (FreeHeaps.Num() == 0)
+	{
+		AllocateHeap();
+	}
+
+	check(FreeHeaps.Num() != 0);
+
+	auto Head = FreeHeaps.GetHead();
+	OutIndex = Head->GetValue();
+
+	FD3D12OfflineHeapEntry& HeapEntry = Heaps[OutIndex];
+	check(0 != HeapEntry.FreeList.Num());
+	FD3D12OfflineHeapFreeRange& Range = HeapEntry.FreeList.GetHead()->GetValue();
+
+	const D3D12_CPU_DESCRIPTOR_HANDLE Ret{ Range.Start };
+	Range.Start += DescriptorSize;
+
+	if (Range.Start == Range.End)
+	{
+		HeapEntry.FreeList.RemoveNode(HeapEntry.FreeList.GetHead());
+		if (HeapEntry.FreeList.Num() == 0)
+		{
+			FreeHeaps.RemoveNode(Head);
+		}
+	}
+	return Ret;
+}
+
+void FD3D12OfflineDescriptorManager::FreeHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE Offset, uint32 InIndex)
+{
+	FScopeLock Lock(&CriticalSection);
+	FD3D12OfflineHeapEntry& HeapEntry = Heaps[InIndex];
+
+	const FD3D12OfflineHeapFreeRange NewRange{ Offset.ptr, Offset.ptr + DescriptorSize };
+
+	bool bFound = false;
+	for (auto Node = HeapEntry.FreeList.GetHead();
+		Node != nullptr && !bFound;
+		Node = Node->GetNextNode())
+	{
+		FD3D12OfflineHeapFreeRange& Range = Node->GetValue();
+		check(Range.Start < Range.End);
+		if (Range.Start == Offset.ptr + DescriptorSize)
+		{
+			Range.Start = Offset.ptr;
+			bFound = true;
+		}
+		else if (Range.End == Offset.ptr)
+		{
+			Range.End += DescriptorSize;
+			bFound = true;
+		}
+		else
+		{
+			check(Range.End < Offset.ptr || Range.Start > Offset.ptr);
+			if (Range.Start > Offset.ptr)
+			{
+				HeapEntry.FreeList.InsertNode(NewRange, Node);
+				bFound = true;
+			}
+		}
+	}
+
+	if (!bFound)
+	{
+		if (HeapEntry.FreeList.Num() == 0)
+		{
+			FreeHeaps.AddTail(InIndex);
+		}
+		HeapEntry.FreeList.AddTail(NewRange);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FD3D12DescriptorHeapManager
+
+FD3D12DescriptorHeapManager::FD3D12DescriptorHeapManager(FD3D12Device* InDevice)
+	: FD3D12DeviceChild(InDevice)
+{
+}
+
+FD3D12DescriptorHeapManager::~FD3D12DescriptorHeapManager()
+{
+	Destroy();
+}
+
+static FD3D12DescriptorHeap* CreateDescriptorHeap(FD3D12Device* Device, const TCHAR* DebugName, ED3D12DescriptorHeapType HeapType, uint32 NumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS Flags, bool bIsGlobal)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC Desc{};
+	Desc.Type = Translate(HeapType);
+	Desc.NumDescriptors = NumDescriptors;
+	Desc.Flags = Flags;
+	Desc.NodeMask = Device->GetGPUMask().GetNative();
+
+	TRefCountPtr<ID3D12DescriptorHeap> Heap;
+	VERIFYD3D12RESULT(Device->GetDevice()->CreateDescriptorHeap(&Desc, IID_PPV_ARGS(Heap.GetInitReference())));
+
+	SetName(Heap, DebugName);
+
+	return new FD3D12DescriptorHeap(Device, Heap, NumDescriptors, HeapType, Flags, bIsGlobal);
+}
+
+void FD3D12DescriptorHeapManager::Init(uint32 InNumGlobalDescriptors)
+{
+	if (InNumGlobalDescriptors > 0)
+	{
+		GlobalHeap = CreateDescriptorHeap(
+			GetParentDevice(),
+			TEXT("ViewDescriptorHeap"),
+			ED3D12DescriptorHeapType::Standard,
+			InNumGlobalDescriptors,
+			D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+			true /* bIsGlobal */
+		);
+
+		Allocator.Init(InNumGlobalDescriptors);
+	}
+}
+
+void FD3D12DescriptorHeapManager::Destroy()
+{
+}
+
+FD3D12DescriptorHeap* FD3D12DescriptorHeapManager::AllocateHeap(const TCHAR* InDebugName, ED3D12DescriptorHeapType InHeapType, uint32 InNumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS InHeapFlags)
+{
+	if (GlobalHeap && InHeapType == GlobalHeap->GetType() && InHeapFlags == GlobalHeap->GetFlags())
+	{
+		uint32 Offset = 0;
+		if (Allocator.Allocate(InNumDescriptors, Offset))
+		{
+			return new FD3D12DescriptorHeap(GlobalHeap, Offset, InNumDescriptors);
+		}
+
+		// TODO: handle running out of space
+		checkNoEntry();
+	}
+
+	return CreateDescriptorHeap(GetParentDevice(), InDebugName, InHeapType, InNumDescriptors, InHeapFlags, false);
+}
+
+void FD3D12DescriptorHeapManager::FreeHeap(FD3D12DescriptorHeap* InHeap)
+{
+	if (InHeap->IsGlobal())
+	{
+		check(InHeap->GetHeap() == GlobalHeap->GetHeap());
+		Allocator.Free(InHeap->GetOffset(), InHeap->GetNumDescriptors());
+	}
+}

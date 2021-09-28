@@ -47,8 +47,10 @@ extern bool GD3D12SkipStateCaching;
 static const bool GD3D12SkipStateCaching = false;
 #endif
 
-extern int32 GGlobalViewHeapSize;
-
+extern int32 GGlobalDescriptorHeapSize;
+extern int32 GResourceDescriptorHeapSize;
+extern int32 GOnlineDescriptorHeapSize;
+extern int32 GOnlineDescriptorHeapBlockSize;
 
 enum ED3D12PipelineType
 {
@@ -670,7 +672,7 @@ public:
 			}
 
 #if USE_STATIC_ROOT_SIGNATURE
-			CBVCache.CBHandles[ShaderFrequency][SlotIndex] = UniformBuffer->View->OfflineDescriptorHandle;
+			CBVCache.CBHandles[ShaderFrequency][SlotIndex] = UniformBuffer->View->GetView();
 #endif
 		}
 		else if (CurrentGPUVirtualAddress != 0)
@@ -708,7 +710,7 @@ public:
 			FD3D12ConstantBufferCache::DirtySlot(CBVCache.DirtySlotMask[ShaderFrequency], SlotIndex);
 
 #if USE_STATIC_ROOT_SIGNATURE
-			CBVCache.CBHandles[ShaderFrequency][SlotIndex] = Buffer.View->OfflineDescriptorHandle;
+			CBVCache.CBHandles[ShaderFrequency][SlotIndex] = Buffer.GetView();
 #endif
 		}
 	}

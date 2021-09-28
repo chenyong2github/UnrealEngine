@@ -230,8 +230,8 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 				}
 
 				// Scoped descriptor handle will free the offline CPU handle once we return
-				FD3D12DescriptorHandleUAV UAVHandle(ParentDevice);
-				UAVHandle.CreateViewWithCounter(R32UAVDesc, Resource, nullptr);
+				FD3D12ViewDescriptorHandle UAVHandle(ParentDevice, ED3D12DescriptorHeapType::Standard);
+				UAVHandle.CreateView(R32UAVDesc, Resource, nullptr);
 
 				// Check if the view heap is full and needs to rollover.
 				if (!Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->CanReserveSlots(1))
@@ -240,7 +240,7 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 				}
 
 				uint32 ReservedSlot = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->ReserveSlots(1);
-				D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle = UAVHandle.GetHandle();
+				D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle = UAVHandle.GetOfflineHandle();
 				D3D12_CPU_DESCRIPTOR_HANDLE DestSlot = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetCPUSlotHandle(ReservedSlot);
 				D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetGPUSlotHandle(ReservedSlot);
 

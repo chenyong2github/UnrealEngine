@@ -4404,10 +4404,10 @@ struct FD3D12RayTracingLocalResourceBinder
 #if USE_STATIC_ROOT_SIGNATURE
 	D3D12_CPU_DESCRIPTOR_HANDLE CreateTransientConstantBufferView(D3D12_GPU_VIRTUAL_ADDRESS Address, uint32 DataSize)
 	{
-		FD3D12ConstantBufferView* BufferView = new FD3D12ConstantBufferView(GetDevice(), nullptr);
+		FD3D12ConstantBufferView* BufferView = new FD3D12ConstantBufferView(GetDevice());
 		BufferView->Create(Address, DataSize);
 		ShaderTable.TransientCBVs.Add(BufferView);
-		return BufferView->OfflineDescriptorHandle;
+		return BufferView->GetView();
 	}
 #endif // USE_STATIC_ROOT_SIGNATURE
 
@@ -4420,11 +4420,7 @@ struct FD3D12RayTracingLocalResourceBinder
 		FD3D12FastConstantAllocator& Allocator = Device.GetParentAdapter()->GetTransientUniformBufferAllocator();
 		FD3D12ResourceLocation ResourceLocation(&Device);
 
-	#if USE_STATIC_ROOT_SIGNATURE
 		void* MappedData = Allocator.Allocate(DataSize, ResourceLocation, nullptr);
-	#else // USE_STATIC_ROOT_SIGNATURE
-		void* MappedData = Allocator.Allocate(DataSize, ResourceLocation);
-	#endif // USE_STATIC_ROOT_SIGNATURE
 
 		FMemory::Memcpy(MappedData, Data, DataSize);
 
@@ -4539,7 +4535,7 @@ static bool SetRayTracingShaderResources(
 		{
 			FD3D12UniformBuffer* CBV = FD3D12CommandContext::RetrieveObject<FD3D12UniformBuffer>(Resource, GPUIndex);
 		#if USE_STATIC_ROOT_SIGNATURE
-			LocalCBVs[CBVIndex] = CBV->View->OfflineDescriptorHandle;
+			LocalCBVs[CBVIndex] = CBV->View->GetView();
 		#else // USE_STATIC_ROOT_SIGNATURE
 			LocalCBVs[CBVIndex] = CBV->ResourceLocation.GetGPUVirtualAddress();
 		#endif // USE_STATIC_ROOT_SIGNATURE
