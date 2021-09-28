@@ -18,6 +18,9 @@ class IDatasmithActorElement;
 class IDatasmithMeshActorElement;
 class IDatasmithBaseMaterialElement;
 class IDatasmithMeshElement;
+class IDatasmithVariantElement;
+class IDatasmithLevelVariantSetsElement;
+class IDatasmithVariantSetElement;
 class UDatasmithGLTFImportOptions;
 class FDatasmithGLTFAnimationImporter;
 class IDatasmithLevelSequenceElement;
@@ -78,6 +81,7 @@ private:
 	TSharedPtr<IDatasmithActorElement> CreateCameraActor(int32 CameraIndex) const;
 	TSharedPtr<IDatasmithActorElement> CreateLightActor(int32 CameraIndex) const;
 	TSharedPtr<IDatasmithMeshActorElement> CreateStaticMeshActor(int32 MeshIndex);
+	void CreateMaterialVariants(TSharedPtr<IDatasmithMeshActorElement> MeshActorElement, int32 MeshIndex);
 
 	TSharedPtr<IDatasmithActorElement> ConvertNode(int32 NodeIndex);
 
@@ -101,6 +105,9 @@ private:
 
 	TMap<IDatasmithMeshElement*, int32> MeshElementToGLTFMeshIndex; // track where Datasmith element originated from to extract data later
 	TMap<int32, TSharedRef<IDatasmithMeshElement>> GLTFMeshIndexToMeshElement;
+	TMap<FString, TSharedRef<IDatasmithVariantElement>> VariantNameToVariantElement;
+	TSharedPtr<IDatasmithLevelVariantSetsElement> VariantSets;
+	TSharedPtr<IDatasmithVariantSetElement> VariantSet;
 
 	const bool bTransformIsLocal = true; // GLTF nodes define transform in local space https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#transformations
 };
