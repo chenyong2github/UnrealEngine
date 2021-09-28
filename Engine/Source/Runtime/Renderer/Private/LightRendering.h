@@ -126,6 +126,7 @@ namespace StencilingGeometry
 	class TStencilSphereVertexBuffer : public FVertexBuffer
 	{
 	public:
+		static_assert(std::is_same_v<typename VectorType::FReal, float>, "Must be a float vector type");
 
 		int32 GetNumRings() const
 		{
@@ -357,7 +358,7 @@ namespace StencilingGeometry
 	};
 
 	extern TGlobalResource<TStencilSphereVertexBuffer<18, 12, FVector4f> >	GStencilSphereVertexBuffer;
-	extern TGlobalResource<TStencilSphereVertexBuffer<18, 12, FVector> >	GStencilSphereVectorBuffer;
+	extern TGlobalResource<TStencilSphereVertexBuffer<18, 12, FVector3f> >	GStencilSphereVectorBuffer;
 	extern TGlobalResource<TStencilSphereIndexBuffer<18, 12> >				GStencilSphereIndexBuffer;
 	extern TGlobalResource<TStencilSphereVertexBuffer<4, 4, FVector4f> >		GLowPolyStencilSphereVertexBuffer;
 	extern TGlobalResource<TStencilSphereIndexBuffer<4, 4> >				GLowPolyStencilSphereIndexBuffer;
