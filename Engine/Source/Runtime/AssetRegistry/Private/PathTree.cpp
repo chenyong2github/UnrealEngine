@@ -222,6 +222,17 @@ bool FPathTree::GetSubPaths(FName BasePath, TSet<FName>& OutPaths, bool bRecurse
 	}, bRecurse) && OutPaths.Num() > OutPathsOriginalNum;
 }
 
+FName FPathTree::NormalizePackagePath(FName In)
+{
+	FNameBuilder InStr(In);
+	if (InStr.Len() == 0 || InStr.LastChar() != TEXT('/'))
+	{
+		return In;
+	}
+	InStr.RemoveSuffix(1);
+	return FName(InStr);
+}
+
 bool FPathTree::EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Callback, bool bRecurse) const
 {
 	if (BasePath.IsNone())
@@ -233,14 +244,11 @@ bool FPathTree::EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Call
 	if (!ChildPathsPtr)
 	{
 		// Paths are cached without their trailing slash, so if the given path has a trailing slash, test it again now as it may already be cached
-		// We do this after the initial map test as: a) Most paths are well formed, b) This avoids string allocations until we know we need them
-		FNameBuilder BasePathStr(BasePath);
-		if (BasePathStr.LastChar() == TEXT('/'))
+		// We do this after the initial map test as: a) Most paths are well formed, b) This avoids string tests until we know it's possibly needed
+		FName NormalizedBasePath = NormalizePackagePath(BasePath);
+		if (NormalizedBasePath != BasePath)
 		{
-			BasePathStr.RemoveSuffix(1);
-			BasePath = *BasePathStr;
-
-			ChildPathsPtr = ParentPathToChildPaths.Find(BasePath);
+			ChildPathsPtr = ParentPathToChildPaths.Find(NormalizedBasePath);
 			if (!ChildPathsPtr)
 			{
 				return false;

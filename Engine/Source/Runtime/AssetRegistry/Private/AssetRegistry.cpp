@@ -2299,7 +2299,11 @@ void FAssetRegistryImpl::CompileFilter(Impl::FClassInheritanceContext& Inheritan
 {
 	OutCompiledFilter.Clear();
 	OutCompiledFilter.PackageNames.Append(InFilter.PackageNames);
-	OutCompiledFilter.PackagePaths.Append(InFilter.PackagePaths);
+	OutCompiledFilter.PackagePaths.Reserve(InFilter.PackagePaths.Num());
+	for (FName PackagePath : InFilter.PackagePaths)
+	{
+		OutCompiledFilter.PackagePaths.Add(FPathTree::NormalizePackagePath(PackagePath));
+	}
 	OutCompiledFilter.ObjectPaths.Append(InFilter.ObjectPaths);
 	OutCompiledFilter.ClassNames.Append(InFilter.ClassNames);
 	OutCompiledFilter.TagsAndValues = InFilter.TagsAndValues;

@@ -45,6 +45,9 @@ public:
 		return AllocatedSize;
 	}
 
+	/** Normalize the given PackagePath (/Game/SubDir) by removing a trailing slash if it exists. */
+	static FName NormalizePackagePath(FName In);
+
 private:
 	/** A one-to-many mapping between a parent path and its child paths. */
 	TMap<FName, TSet<FName>> ParentPathToChildPaths;
