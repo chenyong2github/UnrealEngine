@@ -25,13 +25,9 @@ namespace UnrealBuildTool.Rules
 				{
 					"Analytics",
 					"AnalyticsBlueprintLibrary",
-					"EditorStyle",
-                    "GeometryCache",
-                    "PropertyEditor",
-                    "RawMesh",
-                    "RenderCore",
-                    "RHI",
 					"CinematicCamera",
+					"EditorStyle",
+					"GeometryCache",
 					"InputCore",
 					"JsonUtilities",
 					"Landscape",
@@ -41,7 +37,13 @@ namespace UnrealBuildTool.Rules
 					"MeshDescription",
 					"MeshUtilities",
 					"MessageLog",
+					"MovieScene",
+					"PropertyEditor",
 					"PythonScriptPlugin",
+					"RawMesh",
+					"RenderCore",
+					"RHI",
+					"Sequencer",
 					"Slate",
 					"SlateCore",
 					"StaticMeshDescription",
@@ -49,7 +51,7 @@ namespace UnrealBuildTool.Rules
 					"USDClasses",
 					"USDStageImporter", // For USDOptionsWindow
 					"USDUtilities",
-                }
+				}
 			);
 		}
 	}

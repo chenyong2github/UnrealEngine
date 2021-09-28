@@ -19,6 +19,8 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
 #include "IPythonScriptPlugin.h"
+#include "ISequencer.h"
+#include "LevelEditorSequencerIntegration.h"
 
 namespace UE
 {
@@ -154,6 +156,18 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 	// Not only to force actors to spawn, but also to make sure that when we want to bake a landscape it is visible
 	TArray<ULevel*> StreamedInLevels = UE::LevelExporterUSD::Private::StreamInRequiredLevels( World, Options->LevelsToIgnore );
 
+	if ( Options->bIgnoreSequencerAnimations )
+	{
+		for ( const TWeakPtr<ISequencer>& Sequencer : FLevelEditorSequencerIntegration::Get().GetSequencers() )
+		{
+			if ( TSharedPtr<ISequencer> PinnedSequencer = Sequencer.Pin() )
+			{
+				PinnedSequencer->EnterSilentMode();
+				PinnedSequencer->RestorePreAnimatedState();
+			}
+		}
+	}
+
 	// Note how we don't explicitly pass the Options down to Python here: We stash our desired export options on the CDO, and
 	// those are read from Python by executing export_with_cdo_options().
 	Options->CurrentTask = ExportTask;
@@ -162,6 +176,19 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 		IPythonScriptPlugin::Get()->ExecPythonCommand( TEXT( "import usd_unreal.level_exporter; usd_unreal.level_exporter.export_with_cdo_options()" ) );
 	}
 	Options->CurrentTask = nullptr;
+
+	if ( Options->bIgnoreSequencerAnimations )
+	{
+		for ( const TWeakPtr<ISequencer>& Sequencer : FLevelEditorSequencerIntegration::Get().GetSequencers() )
+		{
+			if ( TSharedPtr<ISequencer> PinnedSequencer = Sequencer.Pin() )
+			{
+				PinnedSequencer->InvalidateCachedData();
+				PinnedSequencer->ForceEvaluate();
+				PinnedSequencer->ExitSilentMode();
+			}
+		}
+	}
 
 	// Return the newly streamed in levels to their old visibilities
 	UE::LevelExporterUSD::Private::StreamOutLevels( StreamedInLevels );

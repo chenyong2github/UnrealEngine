@@ -84,6 +84,10 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ClampMin = "1" ) )
 	FIntPoint LandscapeBakeResolution = FIntPoint( 1024, 1024 );
 
+	/** If true, and if we have a level sequence animating the level during export, it will revert any actor or component to its unanimated state before writing to USD */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
+	bool bIgnoreSequencerAnimations = false;
+
 	/** If true, will export sub-levels as separate layers (referenced as sublayers). If false, will collapse all sub-levels in a single exported root layer */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
     bool bExportSublayers;
