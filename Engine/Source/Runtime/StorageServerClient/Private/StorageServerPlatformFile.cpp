@@ -12,6 +12,7 @@
 #include "Algo/Replace.h"
 #include "StorageServerPackageStore.h"
 #include "CookOnTheFlyPackageStore.h"
+#include "Misc/CoreDelegates.h"
 
 #if WITH_COTF
 #include "Modules/ModuleManager.h"
