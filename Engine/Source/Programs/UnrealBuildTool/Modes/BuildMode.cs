@@ -414,10 +414,10 @@ namespace UnrealBuildTool
 									ModuleOutputs[ProducedModule] = CppModulesAction.CompiledModuleInterfaceFile;
 								}
 
-								List<string>? ImportedModules;
+								List<(string Name, string BMI)>? ImportedModules;
 								if (CppDependencies.TryGetImportedModules(ModuleDependencyAction.DependencyListFile!, out ImportedModules))
 								{
-									ModuleImports[CppModulesAction.CompiledModuleInterfaceFile] = ImportedModules;
+									ModuleImports[CppModulesAction.CompiledModuleInterfaceFile] = ImportedModules.Select(x => x.Name).ToList();
 								}
 
 								CompiledModuleInterfaces.Add(CppModulesAction.CompiledModuleInterfaceFile);
