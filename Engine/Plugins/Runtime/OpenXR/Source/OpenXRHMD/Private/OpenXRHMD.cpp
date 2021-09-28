@@ -3080,11 +3080,10 @@ void FOpenXRHMD::DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdL
 	check(StereoPass != eSSP_FULL);
 
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
-	check(ViewIndex < (uint32)VisibleAreaMeshes.Num());
-	const FHMDViewMesh& Mesh = VisibleAreaMeshes[ViewIndex];
-
-	if (Mesh.IsValid())
+	if (ViewIndex < (uint32)VisibleAreaMeshes.Num() && VisibleAreaMeshes[ViewIndex].IsValid())
 	{
+		const FHMDViewMesh& Mesh = VisibleAreaMeshes[ViewIndex];
+
 		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
 		RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
 	}
