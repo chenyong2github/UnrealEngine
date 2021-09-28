@@ -73,6 +73,16 @@ public:
 
 	bool RegisterForSessionNotifications(const Audio::TScopeComObject<IMMDevice>& InDevice)
 	{
+		FScopeLock ScopeLock(&MutationCs);
+
+		// If we're already listening to this device, we can early out.
+		if (DeviceListeningToSessionEvents == InDevice)
+		{
+			return true;
+		}
+
+		DeviceListeningToSessionEvents = InDevice;
+				
 		// Unregister for any device we're already listening to.
 		if (SessionControls)
 		{
@@ -129,7 +139,7 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow InFlow, ERole InRole, LPCWSTR pwstrDeviceId) override
 	{
-		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+		FScopeLock ScopeLock(&MutationCs);
 
 		if (Audio::IAudioMixer::ShouldLogDeviceSwaps())
 		{
@@ -204,7 +214,7 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR pwstrDeviceId) override
 	{
-		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+		FScopeLock ScopeLock(&MutationCs);
 
 		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Verbose, TEXT("OnDeviceAdded: %s"), *GetFriendlyName(pwstrDeviceId));
 			
@@ -224,7 +234,7 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR pwstrDeviceId) override
 	{
-		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+		FScopeLock ScopeLock(&MutationCs);
 
 		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(),LogAudioMixer, Verbose, TEXT("OnDeviceRemoved: %s"), *GetFriendlyName(pwstrDeviceId));
 
@@ -243,7 +253,7 @@ public:
 
 	HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR pwstrDeviceId, DWORD dwNewState) override
 	{
-		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+		FScopeLock ScopeLock(&MutationCs);
 
 		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Verbose, TEXT("OnDeviceStateChanged: %s, %d"), *GetFriendlyName(pwstrDeviceId), dwNewState);
 
@@ -384,7 +394,7 @@ public:
 							FormatChanged.ChannelConfig = WaveFormatEx->wFormatTag == WAVE_FORMAT_EXTENSIBLE ?
 								((const WAVEFORMATEXTENSIBLE*)WaveFormatEx)->dwChannelMask : 0;
 
-							FScopeLock ScopeLock(&ListenerArrayMutationLock);
+							FScopeLock ScopeLock(&MutationCs);
 							for (Audio::IAudioMixerDeviceChangedListener* i : Listeners)
 							{
 								i->OnFormatChanged(DeviceId, FormatChanged);
@@ -395,7 +405,7 @@ public:
 					{
 						if (SUCCEEDED(PropertyStore->GetValue(PKEY_AudioEndpoint_PhysicalSpeakers, &Prop)))
 						{
-							FScopeLock ScopeLock(&ListenerArrayMutationLock);
+							FScopeLock ScopeLock(&MutationCs);
 							for (Audio::IAudioMixerDeviceChangedListener* i : Listeners)
 			{
 								i->OnSpeakerConfigChanged(DeviceId, Prop.uintVal);
@@ -464,13 +474,13 @@ public:
 
 	void RegisterDeviceChangedListener(Audio::IAudioMixerDeviceChangedListener* DeviceChangedListener)
 	{
-		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+		FScopeLock ScopeLock(&MutationCs);
 		Listeners.Add(DeviceChangedListener);
 	}
 
 	void UnRegisterDeviceDeviceChangedListener(Audio::IAudioMixerDeviceChangedListener* DeviceChangedListener)
 	{
-		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+		FScopeLock ScopeLock(&MutationCs);
 		Listeners.Remove(DeviceChangedListener);
 	}
 
@@ -525,7 +535,7 @@ public:
 		UE_CLOG(Audio::IAudioMixer::ShouldLogDeviceSwaps(), LogAudioMixer, Log, TEXT("Session Disconnect: %s"), GetDisconnectReasonString(InDisconnectReason));
 
 		Audio::IAudioMixerDeviceChangedListener::EDisconnectReason Reason = AudioSessionDisconnectToEDisconnectReason(InDisconnectReason);
-		FScopeLock ScopeLock(&ListenerArrayMutationLock);
+		FScopeLock ScopeLock(&MutationCs);
 		for (Audio::IAudioMixerDeviceChangedListener* i : Listeners)
 		{
 			i->OnSessionDisconnect(Reason);
@@ -575,10 +585,11 @@ public:
 private:
 	LONG Ref;
 	TSet<Audio::IAudioMixerDeviceChangedListener*> Listeners;
-	FCriticalSection ListenerArrayMutationLock;
+	FCriticalSection MutationCs;
 	Audio::TScopeComObject<IMMDeviceEnumerator> DeviceEnumerator;
 	Audio::TScopeComObject<IAudioSessionManager> SessionManager;
 	Audio::TScopeComObject<IAudioSessionControl> SessionControls;
+	Audio::TScopeComObject<IMMDevice> DeviceListeningToSessionEvents;
 	bool bComInitialized;
 };
 
