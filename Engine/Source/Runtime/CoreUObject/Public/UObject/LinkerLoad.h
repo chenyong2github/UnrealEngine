@@ -17,6 +17,10 @@ class IPakFile;
 class ULinkerPlaceholderExportObject;
 struct FScopedSlowTask;
 struct FUntypedBulkData;
+namespace UE::Virtualization
+{
+class FVirtualizedUntypedBulkData;
+}
 
 /*----------------------------------------------------------------------------
 	FLinkerLoad.
@@ -220,6 +224,7 @@ public:
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
 	TArray<FUntypedBulkData*> BulkDataLoaders;
+	TArray<UE::Virtualization::FVirtualizedUntypedBulkData*> VirtualizedBulkDataLoaders;
 #endif // WITH_EDITOR
 
 	/** Hash table for exports.																								*/
@@ -819,6 +824,7 @@ private:
 	 * @param	BulkData	Bulk data object to associate
 	 */
 	virtual void AttachBulkData(UObject* Owner, FUntypedBulkData* BulkData) override;
+	virtual void AttachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData) override;
 	/**
 	 * Detaches the passed in bulk data object from the linker.
 	 *
@@ -826,6 +832,7 @@ private:
 	 * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
 	 */
 	virtual void DetachBulkData(FUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override;
+	virtual void DetachBulkData(UE::Virtualization::FVirtualizedUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override;
 	/**
 	 * Detaches all attached bulk  data objects.
 	 *
