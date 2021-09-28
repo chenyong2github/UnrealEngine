@@ -116,15 +116,21 @@ void UUsdConversionBlueprintLibrary::AddPayload( const FString& ReferencingStage
 
 FString UUsdConversionBlueprintLibrary::GetPrimPathForObject( const UObject* ActorOrComponent, const FString& ParentPrimPath, bool bUseActorFolders )
 {
+#if USE_USD_SDK
 	return UsdUtils::GetPrimPathForObject( ActorOrComponent, ParentPrimPath, bUseActorFolders );
+#else
+	return {};
+#endif // USE_USD_SDK
 }
 
 FString UUsdConversionBlueprintLibrary::GetSchemaNameForComponent( const USceneComponent* Component )
 {
-	if ( !Component )
+#if USE_USD_SDK
+	if ( Component )
 	{
-		return {};
+		return UsdUtils::GetSchemaNameForComponent( *Component );
 	}
+#endif // USE_USD_SDK
 
-	return UsdUtils::GetSchemaNameForComponent( *Component );
+	return {};
 }

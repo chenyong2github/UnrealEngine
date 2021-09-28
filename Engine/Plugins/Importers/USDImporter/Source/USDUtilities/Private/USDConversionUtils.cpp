@@ -450,11 +450,13 @@ FString UsdUtils::GetPrimPathForObject( const UObject* ActorOrComponent, const F
 
 	// Get component name. Use actor label if the component is its root component
 	FString Path;
+#if WITH_EDITOR
 	if ( Component == Owner->GetRootComponent() )
 	{
 		Path = Owner->GetActorLabel();
 	}
 	else
+#endif // WITH_EDITOR
 	{
 		Path = Component->GetName();
 	}
@@ -462,6 +464,7 @@ FString UsdUtils::GetPrimPathForObject( const UObject* ActorOrComponent, const F
 
 	// Get a clean folder path string if we have and need one
 	FString FolderPathString;
+#if WITH_EDITOR
 	if ( bUseActorFolders && Component == Owner->GetRootComponent() )
 	{
 		const FName& FolderPath = Owner->GetFolderPath();
@@ -485,6 +488,7 @@ FString UsdUtils::GetPrimPathForObject( const UObject* ActorOrComponent, const F
 			}
 		}
 	}
+#endif // WITH_EDITOR
 
 	// Get parent prim path if we need to
 	if ( !ParentPrimPath.IsEmpty() )
