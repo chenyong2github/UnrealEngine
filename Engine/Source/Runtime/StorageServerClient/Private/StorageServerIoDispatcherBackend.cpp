@@ -110,11 +110,6 @@ uint32 FStorageServerIoDispatcherBackend::Run()
 	return 0;
 }
 
-void FStorageServerIoDispatcherBackend::AppendMountedContainers(TSet<FIoContainerId>& Containers)
-{
-	Containers.Add(FIoContainerId::FromName(TEXT("global")));
-}
-
 bool FStorageServerIoDispatcherBackend::Resolve(FIoRequestImpl* Request)
 {
 	check(Request);

@@ -28,7 +28,6 @@
 #include "Serialization/AsyncLoading2.h"
 #include "Serialization/ArrayReader.h"
 #include "IO/PackageStore.h"
-#include "Serialization/FilePackageStore.h"
 #include "UObject/Class.h"
 #include "UObject/NameBatchSerialization.h"
 #include "UObject/PackageFileSummary.h"
@@ -56,6 +55,7 @@
 #include "ZenStoreHttpClient.h"
 #include "IPlatformFilePak.h"
 #include "ZenStoreWriter.h"
+#include "IO/IoContainerHeader.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
@@ -387,7 +387,7 @@ public:
 			}
 
 			FMemoryReaderView Ar(MakeArrayView(HeaderBuffer.ValueOrDie().Data(), HeaderBuffer.ValueOrDie().DataSize()));
-			FContainerHeader ContainerHeader;
+			FIoContainerHeader ContainerHeader;
 			Ar << ContainerHeader;
 
 			PackageEntries.Reserve(ContainerHeader.PackageCount);
@@ -631,7 +631,7 @@ struct FIoStoreArguments
 struct FContainerTargetSpec
 {
 	FIoContainerId ContainerId;
-	FContainerHeader Header;
+	FIoContainerHeader Header;
 	FName Name;
 	FGuid EncryptionKeyGuid;
 	FString OutputPath;
@@ -2597,6 +2597,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			
 			FIoWriteOptions WriteOptions;
 			WriteOptions.DebugName = TEXT("ContainerHeader");
+			WriteOptions.bForceUncompressed = true;
 			ContainerTarget->IoStoreWriter->Append(
 				CreateIoChunkId(ContainerTarget->ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
 				ContainerHeaderBuffer,
@@ -3177,7 +3178,7 @@ int32 Describe(
 		TArray<FPackageDesc*> Packages;
 		FIoStoreReader* Reader = nullptr;
 		FCulturePackageMap RawCulturePackageMap;
-		TArray<FContainerHeaderPackageRedirect> RawPackageRedirects;
+		TArray<FIoContainerHeaderPackageRedirect> RawPackageRedirects;
 	};
 
 	TArray<FLoadContainerHeaderJob> LoadContainerHeaderJobs;
@@ -3220,7 +3221,7 @@ int32 Describe(
 		if (IoBuffer.IsOk())
 		{
 			FMemoryReaderView Ar(MakeArrayView(IoBuffer.ValueOrDie().Data(), IoBuffer.ValueOrDie().DataSize()));
-			FContainerHeader ContainerHeader;
+			FIoContainerHeader ContainerHeader;
 			Ar << ContainerHeader;
 
 			Job.RawCulturePackageMap = ContainerHeader.CulturePackageMap;
@@ -4246,7 +4247,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 	{
 		FIoBuffer ContainerHeaderBuffer = ContainerHeaderChunk.Key->Read(ContainerHeaderChunk.Value, FIoReadOptions()).ValueOrDie();
 		FMemoryReaderView Ar(MakeArrayView(ContainerHeaderBuffer.Data(), ContainerHeaderBuffer.DataSize()));
-		FContainerHeader ContainerHeader;
+		FIoContainerHeader ContainerHeader;
 		Ar << ContainerHeader;
 		
 		const FFilePackageStoreEntry* StoreEntry = reinterpret_cast<const FFilePackageStoreEntry*>(ContainerHeader.StoreEntries.GetData());

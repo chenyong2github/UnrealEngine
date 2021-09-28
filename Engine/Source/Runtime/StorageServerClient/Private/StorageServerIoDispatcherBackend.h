@@ -18,7 +18,6 @@ public:
 	~FStorageServerIoDispatcherBackend();
 
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
-	void AppendMountedContainers(TSet<FIoContainerId>& Containers) override;
 	bool Resolve(FIoRequestImpl* Request) override;
 	void CancelIoRequest(FIoRequestImpl* Request) override {};
 	void UpdatePriorityForIoRequest(FIoRequestImpl* Request) override {};

@@ -10,6 +10,8 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/StringBuilder.h"
 #include "Algo/Replace.h"
+#include "StorageServerPackageStore.h"
+#include "CookOnTheFlyPackageStore.h"
 
 #if WITH_COTF
 #include "Modules/ModuleManager.h"
@@ -281,14 +283,23 @@ bool FStorageServerPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* C
 				FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
 				TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
 				IoDispatcher.Mount(IoDispatcherBackend);
-#if WITH_COTF
-				if (IsRunningCookOnTheFly())
-				{
-					UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-					CookOnTheFlyModule.GetServerConnection().OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
-				}
-#endif
 				bResult = true;
+				FCoreDelegates::CreatePackageStore.BindLambda([this]() -> TSharedPtr<IPackageStore>
+				{
+#if WITH_COTF
+					if (IsRunningCookOnTheFly())
+					{
+						UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+						UE::Cook::ICookOnTheFlyServerConnection& CotfConnection = CookOnTheFlyModule.GetServerConnection();
+						CotfConnection.OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
+						return MakeCookOnTheFlyPackageStore(CotfConnection);
+					}
+					else
+#endif
+					{
+						return MakeShared<FStorageServerPackageStore>(*Connection.Get());
+					}
+				});
 			}
 			else
 			{

@@ -4,7 +4,7 @@
 #include "CookOnTheFlyServerInterface.h"
 #include "CookOnTheFly.h"
 #include "Modules/ModuleManager.h"
-#include "Serialization/CookOnTheFlyPackageStore.h"
+#include "CookOnTheFlyPackageStore.h"
 #include "PackageStoreWriter.h"
 #include "ShaderCompiler.h"
 #include "HAL/PlatformTime.h"

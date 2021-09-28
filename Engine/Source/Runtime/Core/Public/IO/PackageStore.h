@@ -186,8 +186,13 @@ public:
 	/* Destructor. */
 	virtual ~IPackageStore() { }
 
-	/* Initialize the package store. */
 	virtual void Initialize() = 0;
+
+	/** Lock the package store for reading */
+	virtual void Lock() = 0;
+
+	/** Unlock the package store */
+	virtual void Unlock() = 0;
 
 	/* Returns whether the package exists. */
 	virtual bool DoesPackageExist(FPackageId PackageId) = 0;
@@ -200,4 +205,21 @@ public:
 
 	/* Returns the redirected package ID and source package name for the specified package ID if it's being redirected. */
 	virtual bool GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId) = 0;
+
+	/* Event broadcasted when pending entries are completed and added to the package store */
+	DECLARE_EVENT(IPackageStore, FEntriesAddedEvent);
+	virtual FEntriesAddedEvent& OnPendingEntriesAdded() = 0;
+};
+
+class FPackageStoreBase
+	: public IPackageStore
+{
+public:
+	virtual FEntriesAddedEvent& OnPendingEntriesAdded() override
+	{
+		return PendingEntriesAdded;
+	}
+
+protected:
+	FEntriesAddedEvent PendingEntriesAdded;
 };

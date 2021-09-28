@@ -24,11 +24,6 @@ public class CoreUObject : ModuleRules
 
 		PrivateDependencyModuleNames.Add("Projects");
         PrivateDependencyModuleNames.Add("Json");
-		
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Type != TargetType.Program)
-		{
-			PublicDependencyModuleNames.Add("CookOnTheFly");
-		}
 
 		//@TODO: UE-127233
 		// UnsafeTypeCastWarningLevel = WarningLevel.Warning;

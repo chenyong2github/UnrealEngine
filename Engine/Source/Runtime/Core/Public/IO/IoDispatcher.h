@@ -941,7 +941,6 @@ public:
 	CORE_API						~FIoDispatcher();
 
 	CORE_API void					Mount(TSharedRef<IIoDispatcherBackend> Backend);
-	CORE_API FIoStatus				Unmount(const TCHAR* ContainerPath);
 
 	CORE_API FIoBatch				NewBatch();
 
@@ -950,13 +949,10 @@ public:
 	// Polling methods
 	CORE_API bool					DoesChunkExist(const FIoChunkId& ChunkId) const;
 	CORE_API TIoStatusOr<uint64>	GetSizeForChunk(const FIoChunkId& ChunkId) const;
-	CORE_API TSet<FIoContainerId>	GetMountedContainers() const;
 	CORE_API int64					GetTotalLoaded() const;
 
 
 	// Events
-	CORE_API FIoContainerMountedDelegate& OnContainerMounted();
-	CORE_API FIoContainerUnmountedEvent& OnContainerUnmounted();
 	CORE_API FIoSignatureErrorDelegate& OnSignatureError();
 
 	FIoDispatcher(const FIoDispatcher&) = default;

@@ -46,10 +46,11 @@ public:
 	const FGuid& GetEncryptionKeyGuid() const { return ContainerFile.EncryptionKeyGuid; }
 	void SetEncryptionKey(const FAES::FAESKey& Key) { ContainerFile.EncryptionKey = Key; }
 	const FAES::FAESKey& GetEncryptionKey() const { return ContainerFile.EncryptionKey; }
+	TIoStatusOr<FIoContainerHeader> ReadContainerHeader() const;
 
 private:
 	const FIoOffsetAndLength* FindChunkInternal(const FIoChunkId& ChunkId) const;
-
+	
 	IPlatformFileIoStore& PlatformImpl;
 	
 	struct FPerfectHashMap
@@ -101,8 +102,8 @@ public:
 	FFileIoStore(TUniquePtr<IPlatformFileIoStore>&& PlatformImpl);
 	~FFileIoStore();
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
-	TIoStatusOr<FIoContainerId> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) override;
-	TIoStatusOr<FIoContainerId> Unmount(const TCHAR* ContainerPath) override;
+	TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) override;
+	bool Unmount(const TCHAR* ContainerPath) override;
 	bool Resolve(FIoRequestImpl* Request) override;
 	void CancelIoRequest(FIoRequestImpl* Request) override;
 	void UpdatePriorityForIoRequest(FIoRequestImpl* Request) override;
@@ -110,7 +111,6 @@ public:
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const;
 	FIoRequestImpl* GetCompletedRequests() override;
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options) override;
-	void AppendMountedContainers(TSet<FIoContainerId>& OutContainers) override;
 
 	virtual bool Init() override;
 	virtual uint32 Run() override;

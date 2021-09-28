@@ -25,21 +25,21 @@ struct FPackageStoreData
 	int32 TotalCookedPackages = 0;
 	int32 TotalFailedPackages = 0;
 
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreData& PackageStoreData);
+	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreData& PackageStoreData);
 };
 
 struct FCookPackageRequest
 {
 	FName PackageName;
 	
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FCookPackageRequest& Request);
+	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCookPackageRequest& Request);
 };
 
 struct FCookPackageResponse
 {
 	EPackageStoreEntryStatus Status = EPackageStoreEntryStatus::None;
 
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response);
+	COOKONTHEFLY_API friend FArchive& operator<<(FArchive& Ar, FCookPackageResponse& Response);
 };
 
 struct FPackagesCookedMessage
@@ -64,9 +64,6 @@ struct FGetCookedPackagesResponse
 
 }}} // namesapce UE::PackageStore::Messaging
 
-TUniquePtr<IPackageStore> MakeCookOnTheFlyPackageStore(
-	FIoDispatcher& IoDispatcher,
-	UE::Cook::ICookOnTheFlyServerConnection& CookOnTheFlyServerConnection,
-	TFunction<void()>&& EntriesAddedCallback);
+COOKONTHEFLY_API TSharedPtr<IPackageStore> MakeCookOnTheFlyPackageStore(UE::Cook::ICookOnTheFlyServerConnection& CookOnTheFlyServerConnection);
 
 #endif // WITH_COTF

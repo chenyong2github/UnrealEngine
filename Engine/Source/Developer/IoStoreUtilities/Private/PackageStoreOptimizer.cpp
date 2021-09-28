@@ -8,7 +8,6 @@
 #include "UObject/NameBatchSerialization.h"
 #include "Containers/Map.h"
 #include "UObject/UObjectHash.h"
-#include "Serialization/FilePackageStore.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/Object.h"
 #include "Serialization/MemoryReader.h"
@@ -1726,9 +1725,9 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 	return Result;
 }
 
-FContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const
+FIoContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const
 {
-	FContainerHeader Header;
+	FIoContainerHeader Header;
 	Header.ContainerId = ContainerId;
 	Header.PackageCount = PackageStoreEntries.Num();
 	int32 StoreTocSize = Header.PackageCount * sizeof(FFilePackageStoreEntry);

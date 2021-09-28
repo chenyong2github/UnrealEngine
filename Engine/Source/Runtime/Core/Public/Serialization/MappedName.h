@@ -83,7 +83,7 @@ public:
 		return Index != Other.Index || Number != Other.Number;
 	}
 
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FMappedName& MappedName);
+	CORE_API friend FArchive& operator<<(FArchive& Ar, FMappedName& MappedName);
 
 private:
 	inline FMappedName(const uint32 InIndex, const uint32 InNumber)
@@ -105,7 +105,7 @@ public:
 		return NameEntries.Num();
 	}
 
-	void Load(FArchive& Ar, FMappedName::EType NameMapType);
+	CORE_API void Load(FArchive& Ar, FMappedName::EType NameMapType);
 
 	FName GetName(const FMappedName& MappedName) const
 	{
