@@ -106,6 +106,11 @@ struct CORE_API FCoreTexts
 	// Non-copyable
 	FCoreTexts(const FCoreTexts&) = delete;
 	FCoreTexts& operator=(const FCoreTexts&) = delete;
+
+	FCoreTexts(const FText& InTrue, const FText& InFalse, const FText& InYes, const FText& InNo, const FText& InNone)
+		: True(InTrue), False(InFalse), Yes(InYes), No(InNo), None(InNone)
+	{
+	}
 };
 
 #if !defined(DISABLE_LEGACY_CORE_TEXTS) || DISABLE_LEGACY_CORE_TEXTS == 0
