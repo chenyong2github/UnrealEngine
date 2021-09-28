@@ -11,6 +11,7 @@
 
 class FStorageServerFileHandle;
 class FStorageServerConnection;
+class IPackageStore;
 
 #if WITH_COTF
 namespace UE::Cook

@@ -21,6 +21,8 @@
 #include "Templates/Greater.h"
 #include "Containers/Ticker.h"
 #include "Modules/ModuleManager.h"
+#include "IO/IoContainerHeader.h"
+#include "Serialization/MemoryReader.h"
 
 TRACE_DECLARE_INT_COUNTER(IoDispatcherLatencyCircuitBreaks, TEXT("IoDispatcher/LatencyCircuitBreaks"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherSeekDistanceCircuitBreaks, TEXT("IoDispatcher/SeekDistanceCircuitBreaks"));
@@ -821,6 +823,82 @@ IMappedFileHandle* FFileIoStoreReader::GetMappedContainerFileHandle(uint64 TocOf
 	return new FMappedFileProxy(Partition.MappedFileHandle.Get(), Partition.FileSize);
 }
 
+TIoStatusOr<FIoContainerHeader> FFileIoStoreReader::ReadContainerHeader() const
+{
+	LLM_SCOPE(ELLMTag::AsyncLoading);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ReadContainerHeader);
+	FIoChunkId HeaderChunkId = CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader);
+	const FIoOffsetAndLength* OffsetAndLength = FindChunkInternal(HeaderChunkId);
+	if (!OffsetAndLength)
+	{
+		return FIoStatus(EIoErrorCode::NotFound);
+	}
+	
+	const uint64 CompressionBlockSize = ContainerFile.CompressionBlockSize;
+	const uint64 Offset = OffsetAndLength->GetOffset();
+	const uint64 Size = OffsetAndLength->GetLength();
+	const uint64 RequestEndOffset = Offset + Size;
+	const int32 RequestBeginBlockIndex = int32(Offset / CompressionBlockSize);
+	const int32 RequestEndBlockIndex = int32((RequestEndOffset - 1) / CompressionBlockSize);
+	
+	// Assumes that the container header is uncompressed and placed in its own blocks in the same partition without padding
+	const FIoStoreTocCompressedBlockEntry* CompressionBlockEntry = &ContainerFile.CompressionBlocks[RequestBeginBlockIndex];
+	const int32 PartitionIndex = int32(CompressionBlockEntry->GetOffset() / ContainerFile.PartitionSize);
+	const FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
+	const uint64 RawOffset = CompressionBlockEntry->GetOffset() % ContainerFile.PartitionSize;
+
+	FIoBuffer IoBuffer(Align(Size, FAES::AESBlockSize));
+	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
+	TUniquePtr<IFileHandle> ContainerFileHandle(Ipf.OpenRead(*Partition.FilePath));
+	if (!ContainerFileHandle)
+	{
+		return FIoStatus(EIoErrorCode::FileOpenFailed);
+	}
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ReadFromContainerFile);
+		if (!ContainerFileHandle->Seek(RawOffset))
+		{
+			return FIoStatus(EIoErrorCode::ReadError);
+		}
+		if (!ContainerFileHandle->Read(IoBuffer.Data(), IoBuffer.DataSize()))
+		{
+			return FIoStatus(EIoErrorCode::ReadError);
+		}
+	}
+
+	const bool bSigned = EnumHasAnyFlags(ContainerFile.ContainerFlags, EIoContainerFlags::Signed);
+	const bool bEncrypted = ContainerFile.EncryptionKey.IsValid();
+	if (bSigned || bEncrypted)
+	{
+		uint8* BlockData = IoBuffer.Data();
+		for (int32 CompressedBlockIndex = RequestBeginBlockIndex; CompressedBlockIndex <= RequestEndBlockIndex; ++CompressedBlockIndex)
+		{
+			CompressionBlockEntry = &ContainerFile.CompressionBlocks[CompressedBlockIndex];
+			check(ContainerFile.CompressionMethods[CompressionBlockEntry->GetCompressionMethodIndex()].IsNone());
+			const uint64 BlockSize = Align(CompressionBlockEntry->GetCompressedSize(), FAES::AESBlockSize);
+			if (bSigned)
+			{
+				const FSHAHash& SignatureHash = ContainerFile.BlockSignatureHashes[CompressedBlockIndex];
+				FSHAHash BlockHash;
+				FSHA1::HashBuffer(BlockData, BlockSize, BlockHash.Hash);
+				if (SignatureHash != BlockHash)
+				{
+					return FIoStatus(EIoErrorCode::SignatureError);
+				}
+			}
+			if (bEncrypted)
+			{
+				FAES::DecryptData(BlockData, uint32(BlockSize), ContainerFile.EncryptionKey);
+			}
+			BlockData += BlockSize;
+		}
+	}
+	FMemoryReaderView Ar(MakeArrayView(IoBuffer.Data(), static_cast<int32>(IoBuffer.DataSize())));
+	FIoContainerHeader ContainerHeader;
+	Ar << ContainerHeader;
+	return ContainerHeader;
+}
+
 FFileIoStoreResolvedRequest::FFileIoStoreResolvedRequest(
 	FIoRequestImpl& InDispatcherRequest,
 	const FFileIoStoreContainerFile& InContainerFile,
@@ -1108,7 +1186,7 @@ void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InCo
 	FFileIoStats::SetFileIoStoreThreadId(Thread ? Thread->GetThreadID() : 0);
 }
 
-TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
+TIoStatusOr<FIoContainerHeader> FFileIoStore::Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
 {
 	TUniquePtr<FFileIoStoreReader> Reader(new FFileIoStoreReader(*PlatformImpl));
 	FIoStatus IoStatus = Reader->Initialize(ContainerPath, Order);
@@ -1130,8 +1208,18 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int3
 		}
 	}
 
+	TIoStatusOr<FIoContainerHeader> ContainerHeaderReadResult = Reader->ReadContainerHeader();
+	FIoContainerHeader ContainerHeader;
+	if (ContainerHeaderReadResult.IsOk())
+	{
+		ContainerHeader = ContainerHeaderReadResult.ConsumeValueOrDie();
+	}
+	else if (EIoErrorCode::NotFound != ContainerHeaderReadResult.Status().GetErrorCode())
+	{
+		return ContainerHeaderReadResult;
+	}
+
 	int32 InsertionIndex;
-	FIoContainerId ContainerId = Reader->GetContainerId();
 	{
 		FWriteScopeLock _(IoStoreReadersLock);
 		InsertionIndex = Algo::UpperBound(IoStoreReaders, Reader, [](const TUniquePtr<FFileIoStoreReader>& A, const TUniquePtr<FFileIoStoreReader>& B)
@@ -1145,14 +1233,11 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Mount(const TCHAR* ContainerPath, int3
 		IoStoreReaders.Insert(MoveTemp(Reader), InsertionIndex);
 		UE_LOG(LogIoDispatcher, Display, TEXT("Mounting container '%s' in location slot %d"), ContainerPath, InsertionIndex);
 	}
-	if (BackendContext && BackendContext->ContainerMountedDelegate.IsBound())
-	{
-		BackendContext->ContainerMountedDelegate.Broadcast(ContainerId);
-	}
-	return ContainerId;
+
+	return ContainerHeader;
 }
 
-TIoStatusOr<FIoContainerId> FFileIoStore::Unmount(const TCHAR* ContainerPath)
+bool FFileIoStore::Unmount(const TCHAR* ContainerPath)
 {
 	FWriteScopeLock _(IoStoreReadersLock);
 	
@@ -1173,13 +1258,13 @@ TIoStatusOr<FIoContainerId> FFileIoStore::Unmount(const TCHAR* ContainerPath)
 			FIoContainerId ContainerId = IoStoreReaders[Idx]->GetContainerId();
 			IoStoreReaders.RemoveAt(Idx);
 			
-			return TIoStatusOr<FIoContainerId>(ContainerId);
+			return true;
 		}
 	}
 
 	UE_LOG(LogIoDispatcher, Display, TEXT("Failed to unmount container '%s'"), *FPaths::GetBaseFilename(ContainerPath));
 	
-	return FIoStatus(EIoErrorCode::NotFound);
+	return false;
 }
 
 bool FFileIoStore::Resolve(FIoRequestImpl* Request)
@@ -1649,15 +1734,6 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 	FIoRequestImpl* Result = CompletedRequestsHead;
 	CompletedRequestsHead = CompletedRequestsTail = nullptr;
 	return Result;
-}
-
-void FFileIoStore::AppendMountedContainers(TSet<FIoContainerId>& OutContainers)
-{
-	FReadScopeLock _(IoStoreReadersLock);
-	for (TUniquePtr<FFileIoStoreReader>& Reader : IoStoreReaders)
-	{
-		OutContainers.Add(Reader->GetContainerId());
-	}
 }
 
 TIoStatusOr<FIoMappedRegion> FFileIoStore::OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)

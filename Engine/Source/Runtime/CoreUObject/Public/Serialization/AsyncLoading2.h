@@ -11,37 +11,11 @@
 #include "IO/PackageId.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MappedName.h"
-#include "IO/IoContainerId.h"
 
 class FArchive;
 class IAsyncPackageLoader;
 class FIoDispatcher;
 class IEDLBootNotificationManager;
-
-struct FContainerHeaderPackageRedirect
-{
-	FPackageId SourcePackageId;
-	FPackageId TargetPackageId;
-	FMappedName SourcePackageName;
-
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeaderPackageRedirect& PackageRedirect);
-};
-
-using FSourceToLocalizedPackageIdMap = TArray<FContainerHeaderPackageRedirect>;
-using FCulturePackageMap = TMap<FString, FSourceToLocalizedPackageIdMap>;
-
-struct FContainerHeader
-{
-	FIoContainerId ContainerId;
-	uint32 PackageCount = 0;
-	TArray<FPackageId> PackageIds;
-	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
-	TArray<FNameEntryId> RedirectsNameMap;
-	FCulturePackageMap CulturePackageMap;
-	TArray<FContainerHeaderPackageRedirect> PackageRedirects;
-
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader);
-};
 
 class FPackageImportReference
 {

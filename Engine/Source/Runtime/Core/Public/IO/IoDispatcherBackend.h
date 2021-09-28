@@ -7,6 +7,8 @@
 #include "Misc/Optional.h"
 #include "ProfilingDebugging/TagTrace.h"
 
+struct FIoContainerHeader;
+
 class FIoRequestImpl
 {
 public:
@@ -87,7 +89,6 @@ DECLARE_DELEGATE(FWakeUpIoDispatcherThreadDelegate);
 struct FIoDispatcherBackendContext
 {
 	FWakeUpIoDispatcherThreadDelegate WakeUpDispatcherThreadDelegate;
-	FIoContainerMountedDelegate ContainerMountedDelegate;
 	FIoSignatureErrorDelegate SignatureErrorDelegate;
 	bool bIsMultiThreaded;
 };
@@ -102,14 +103,13 @@ struct IIoDispatcherBackend
 	virtual TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const = 0;
 	virtual FIoRequestImpl* GetCompletedRequests() = 0;
 	virtual TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options) = 0;
-	virtual void AppendMountedContainers(TSet<FIoContainerId>& OutContainers) = 0;
 };
 
 struct IIoDispatcherFileBackend
 	: public IIoDispatcherBackend
 {
-	virtual TIoStatusOr<FIoContainerId> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) = 0;
-	virtual TIoStatusOr<FIoContainerId> Unmount(const TCHAR* ContainerPath) = 0;
+	virtual TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) = 0;
+	virtual bool Unmount(const TCHAR* ContainerPath) = 0;
 };
 
 CORE_API TSharedRef<IIoDispatcherFileBackend> CreateIoDispatcherFileBackend();

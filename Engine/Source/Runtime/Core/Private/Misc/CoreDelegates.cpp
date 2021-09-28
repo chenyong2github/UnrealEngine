@@ -196,6 +196,8 @@ FCoreDelegates::FPreloadPackageShaderMaps FCoreDelegates::PreloadPackageShaderMa
 FCoreDelegates::FReleasePreloadedPackageShaderMaps FCoreDelegates::ReleasePreloadedPackageShaderMaps;
 FCoreDelegates::FOnLogVerbosityChanged FCoreDelegates::OnLogVerbosityChanged;
 
+FCoreDelegates::FCreatePackageStore FCoreDelegates::CreatePackageStore;
+
 FCoreDelegates::FApplicationNetworkInitializationChanged FCoreDelegates::ApplicationNetworkInitializationChanged;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

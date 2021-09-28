@@ -274,29 +274,6 @@ public:
 		}
 	}
 
-	FIoStatus Unmount(const TCHAR* ContainerPath)
-	{
-		/*
-		TODO: @Per.Larsson to fixup after unbackported UE5 ioStore changes.
-		TIoStatusOr<FIoContainerId> UnmountedContainerId = FileIoStore.Unmount(ContainerPath);
-
-		if (UnmountedContainerId.IsOk())
-		{
-			if (ContainerUnmountedEvent.IsBound())
-			{
-				FIoDispatcherMountedContainer UnmountedContainer;
-				UnmountedContainer.ContainerId = UnmountedContainerId.ValueOrDie();
-				UnmountedContainer.Environment.InitializeFileEnvironment(ContainerPath);
-
-				ContainerUnmountedEvent.Broadcast(UnmountedContainer);
-			}
-		}
-		*/
-
-		TIoStatusOr<FIoContainerId> UnmountedContainerId;
-		return UnmountedContainerId.Status();
-	}
-
 	bool DoesChunkExist(const FIoChunkId& ChunkId) const
 	{
 		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
@@ -328,26 +305,6 @@ public:
 		{
 			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("FIoChunkId is not valid"));
 		}	
-	}
-
-	TSet<FIoContainerId> GetMountedContainers() const
-	{
-		TSet<FIoContainerId> Result;
-		for (const TSharedRef<IIoDispatcherBackend>& Backend : Backends)
-		{
-			Backend->AppendMountedContainers(Result);
-		}
-		return Result;
-	}
-
-	FIoContainerMountedDelegate& OnContainerMounted()
-	{
-		return BackendContext->ContainerMountedDelegate;
-	}
-
-	FIoDispatcher::FIoContainerUnmountedEvent& OnContainerUnmounted()
-	{
-		return ContainerUnmountedEvent;
 	}
 
 	FIoSignatureErrorDelegate& OnSignatureError()
@@ -698,11 +655,6 @@ FIoDispatcher::Mount(TSharedRef<IIoDispatcherBackend> Backend)
 	Impl->Mount(Backend);
 }
 
-FIoStatus FIoDispatcher::Unmount(const TCHAR* ContainerPath)
-{
-	return Impl->Unmount(ContainerPath);
-}
-
 FIoBatch
 FIoDispatcher::NewBatch()
 {
@@ -728,28 +680,10 @@ FIoDispatcher::GetSizeForChunk(const FIoChunkId& ChunkId) const
 	return Impl->GetSizeForChunk(ChunkId);
 }
 
-TSet<FIoContainerId>
-FIoDispatcher::GetMountedContainers() const
-{
-	return Impl->GetMountedContainers();
-}
-
 int64
 FIoDispatcher::GetTotalLoaded() const
 {
 	return Impl->GetTotalLoaded();
-}
-
-FIoContainerMountedDelegate&
-FIoDispatcher::OnContainerMounted()
-{
-	return Impl->OnContainerMounted();
-}
-
-FIoDispatcher::FIoContainerUnmountedEvent&
-FIoDispatcher::OnContainerUnmounted()
-{
-	return Impl->OnContainerUnmounted();
 }
 
 FIoSignatureErrorDelegate&

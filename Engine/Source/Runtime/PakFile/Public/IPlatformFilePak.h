@@ -16,11 +16,14 @@
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "Serialization/MemoryImage.h"
 #include "Templates/RefCounting.h"
+#include "IO/IoContainerId.h"
 #include "Containers/Ticker.h"
 
 class FChunkCacheWorker;
 class IAsyncReadFileHandle;
 struct IIoDispatcherFileBackend;
+class FFilePackageStore;
+struct FIoContainerHeader;
 
 PAKFILE_API DECLARE_LOG_CATEGORY_EXTERN(LogPakFile, Log, All);
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Total pak file read time"), STAT_PakFile_Read, STATGROUP_PakFile, PAKFILE_API);
@@ -792,6 +795,8 @@ private:
 	bool UnderlyingCacheTrimDisabled;
 	/** Record of whether the pak file is still mounted, so PakPrecacher can reject requests to register it. */
 	bool bIsMounted;
+
+	TUniquePtr<FIoContainerHeader> IoContainerHeader;
 
 	static inline int32 CDECL CompareFilenameHashes(const void* Left, const void* Right)
 	{
@@ -2027,6 +2032,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	/** The filename for the gameusersettings ini file, used for excluding ini files, but not gameusersettings */
 	FString GameUserSettingsIniFilename;
 	TSharedPtr<IIoDispatcherFileBackend> IoDispatcherFileBackend;
+	TSharedPtr<FFilePackageStore> FilePackageStore;
 
 	FTSTicker::FDelegateHandle RetireReadersHandle;
 

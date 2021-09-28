@@ -1054,7 +1054,7 @@ void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageO
 			FIoBuffer HeaderBuffer;
 
 			{
-				FContainerHeader Header = PackageStoreOptimizer->CreateContainerHeader(ContainerId, PackageStoreEntries);
+				FIoContainerHeader Header = PackageStoreOptimizer->CreateContainerHeader(ContainerId, PackageStoreEntries);
 				FLargeMemoryWriter HeaderAr(0, true);
 				HeaderAr << Header;
 				int64 DataSize = HeaderAr.TotalSize();

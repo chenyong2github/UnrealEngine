@@ -158,7 +158,6 @@ public:
 	TIoStatusOr<uint64> GetSizeForChunk(const FIoChunkId& ChunkId) const final;
 	FIoRequestImpl* GetCompletedRequests() final;
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options) final;
-	void AppendMountedContainers(TSet<FIoContainerId>& OutContainers) final;
 
 	FIoChunkId AddData(const Private::FEditorDerivedData* Data) final;
 	const Private::FEditorDerivedData* RemoveData(const FIoChunkId& ChunkId) final;
@@ -246,10 +245,6 @@ FIoRequestImpl* FEditorDerivedDataIoStore::GetCompletedRequests()
 TIoStatusOr<FIoMappedRegion> FEditorDerivedDataIoStore::OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
 {
 	return FIoStatus(EIoErrorCode::NotFound);
-}
-
-void FEditorDerivedDataIoStore::AppendMountedContainers(TSet<FIoContainerId>& OutContainers)
-{
 }
 
 FIoChunkId FEditorDerivedDataIoStore::AddData(const Private::FEditorDerivedData* Data)

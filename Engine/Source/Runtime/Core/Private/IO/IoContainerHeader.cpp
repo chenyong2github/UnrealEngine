@@ -1,0 +1,37 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "IO/IoContainerHeader.h"
+#include "UObject/NameBatchSerialization.h"
+
+FArchive& operator<<(FArchive& Ar, FIoContainerHeaderPackageRedirect& Redirect)
+{
+	Ar << Redirect.SourcePackageId;
+	Ar << Redirect.TargetPackageId;
+	Ar << Redirect.SourcePackageName;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FIoContainerHeader& ContainerHeader)
+{
+	Ar << ContainerHeader.ContainerId;
+	Ar << ContainerHeader.PackageCount;
+	Ar << ContainerHeader.PackageIds;
+	Ar << ContainerHeader.StoreEntries;
+	if (Ar.IsLoading())
+	{
+		ContainerHeader.RedirectsNameMap = LoadNameBatch(Ar);
+	}
+	else
+	{
+#if ALLOW_NAME_BATCH_SAVING
+		SaveNameBatch(ContainerHeader.RedirectsNameMap, Ar);
+#else
+		check(false);
+#endif
+	}
+	Ar << ContainerHeader.CulturePackageMap;
+	Ar << ContainerHeader.PackageRedirects;
+
+	return Ar;
+}

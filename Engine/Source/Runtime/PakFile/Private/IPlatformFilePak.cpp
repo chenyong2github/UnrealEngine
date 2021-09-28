@@ -37,6 +37,8 @@
 #include "IO/IoDispatcherBackend.h"
 
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "IO/IoContainerHeader.h"
+#include "FilePackageStore.h"
 #include "Compression/OodleDataCompression.h"
 
 DEFINE_LOG_CATEGORY(LogPakFile);
@@ -7324,7 +7326,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 		FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
 		IoDispatcherFileBackend = CreateIoDispatcherFileBackend();
 		IoDispatcher.Mount(IoDispatcherFileBackend.ToSharedRef());
-		TIoStatusOr<FIoContainerId> IoDispatcherMountStatus = IoDispatcherFileBackend->Mount(*FPaths::ChangeExtension(GlobalUTocPath, TEXT("")), 0, FGuid(), FAES::FAESKey());
+		TIoStatusOr<FIoContainerHeader> IoDispatcherMountStatus = IoDispatcherFileBackend->Mount(*FPaths::ChangeExtension(GlobalUTocPath, TEXT("")), 0, FGuid(), FAES::FAESKey());
 		if (IoDispatcherMountStatus.IsOk())
 		{
 			UE_LOG(LogPakFile, Display, TEXT("Initialized I/O dispatcher"));
@@ -7336,6 +7338,11 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 				FailedData.ReceivedHash = Error.ActualHash;
 #endif
 				FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(FailedData);
+			});
+			FilePackageStore = MakeShared<FFilePackageStore>();
+			FCoreDelegates::CreatePackageStore.BindLambda([this]()
+			{
+				return FilePackageStore;
 			});
 		}
 		else
@@ -7606,15 +7613,17 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 			}
 
 			FString ContainerPath = FPaths::ChangeExtension(InPakFilename, FString());
-			TIoStatusOr<FIoContainerId> IoStatus = IoDispatcherFileBackend->Mount(*ContainerPath, PakOrder, EncryptionKeyGuid, EncryptionKey);
-			if (IoStatus.IsOk())
+			TIoStatusOr<FIoContainerHeader> MountResult = IoDispatcherFileBackend->Mount(*ContainerPath, PakOrder, EncryptionKeyGuid, EncryptionKey);
+			if (MountResult.IsOk())
 			{
 				UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore container \"%s\""), *ContainerPath);
+				Pak->IoContainerHeader = MakeUnique<FIoContainerHeader>(MountResult.ConsumeValueOrDie());
+				FilePackageStore->Mount(Pak->IoContainerHeader.Get(), PakOrder);
 			}
 			else
 			{
 				bIoStoreSuccess = false;
-				UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore container \"%s\" [%s]"), *ContainerPath, *IoStatus.Status().ToString());
+				UE_LOG(LogPakFile, Warning, TEXT("Failed to mount IoStore container \"%s\" [%s]"), *ContainerPath, *MountResult.Status().ToString());
 			}
 		}
 
@@ -7666,9 +7675,12 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 
 		if (IoDispatcherFileBackend.IsValid())
 		{
+			if (UnmountedPak)
+			{
+				FilePackageStore->Unmount(UnmountedPak->IoContainerHeader.Get());
+			}
 			FString ContainerPath = FPaths::ChangeExtension(InPakFilename, FString());
-			FIoStatus Status = FIoDispatcher::Get().Unmount(*ContainerPath);
-			bRemovedContainerFile = Status.IsOk();
+			bRemovedContainerFile = IoDispatcherFileBackend->Unmount(*ContainerPath);
 		}
 
 		if (UnmountedPak)
