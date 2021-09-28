@@ -137,6 +137,8 @@ FLinearColor UCurveEditorSettings::GetNextRandomColor()
 		IndexedColor.Add(FLinearColor(FColor::Blue));
 	}
 	FLinearColor Color = IndexedColor[NextIndex];
-	NextIndex = (++NextIndex) % IndexedColor.Num();
+	++NextIndex;
+	int32 NewIndex = (NextIndex % IndexedColor.Num());
+	NextIndex = NewIndex;
 	return Color;
 }
