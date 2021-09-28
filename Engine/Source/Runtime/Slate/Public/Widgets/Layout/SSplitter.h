@@ -68,6 +68,7 @@ public:
 			: TSlotBase<FSlot>()
 			, SizingRule( FractionOfParent )
 			, SizeValue( 1 )
+			, MinSizeValue( 0 )
 		{
 		}
 
@@ -77,7 +78,7 @@ public:
 			/** When the RuleSize is set to FractionOfParent, the size of the slot is the Value percentage of its parent size. */
 			SLATE_ATTRIBUTE(float, Value)
 			/** Minimum slot size when resizing. */
-			SLATE_ARGUMENT(TOptional<float>, MinSize)
+			SLATE_ATTRIBUTE(float, MinSize)
 			/** Can the slot be resize by the user. */
 			SLATE_ARGUMENT(TOptional<bool>, Resizable)
 			/** Callback when the slot is resized. */
@@ -152,7 +153,7 @@ public:
 		UE_DEPRECATED(5.0, "Direct access to SizeValue is now deprecated. Use the getter.")
 		TAttribute<float> SizeValue;
 		UE_DEPRECATED(5.0, "Direct access to MinSizeValue is now deprecated. Use the getter.")
-		TOptional<float> MinSizeValue;
+		TAttribute<float> MinSizeValue;
 		UE_DEPRECATED(5.0, "Direct access to OnSlotResized_Handler is now deprecated. Use the getter.")
 		FOnSlotResized OnSlotResized_Handler;
 		UE_DEPRECATED(5.0, "Direct access to bIsResizable is now deprecated. Use the getter.")
