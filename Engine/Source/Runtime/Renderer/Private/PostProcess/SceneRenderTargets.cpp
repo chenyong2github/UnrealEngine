@@ -2434,7 +2434,6 @@ static void SetupMobileSceneTextureUniformParameters(
 	};
 
 	FRDGTextureRef BlackDefault2D = GetRDG(GSystemTextures.BlackDummy);
-	FRDGTextureRef MaxFP16Depth2D = GetRDG(GSystemTextures.MaxFP16Depth);
 	FRDGTextureRef DepthDefault = GetRDG(GSystemTextures.DepthDummy);
 
 	const bool bUseSceneTextures = EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneColor);
@@ -2456,7 +2455,8 @@ static void SetupMobileSceneTextureUniformParameters(
 		}
 	}
 
-	FRDGTextureRef CustomDepth = MaxFP16Depth2D;
+	// These are color textures on mobile, BlackDummy is equal to MaxDepth with HAS_INVERTED_Z_BUFFER
+	FRDGTextureRef CustomDepth = BlackDefault2D;
 	FRDGTextureRef CustomStencil = BlackDefault2D;
 
 	const bool bUseCustomDepth = EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::CustomDepth) && SceneContext.bCustomDepthIsValid;
@@ -2490,7 +2490,8 @@ static void SetupMobileSceneTextureUniformParameters(
 		const FSceneRenderTargetItem& GBufferBToUse = bCanReadGBufferUniforms && SceneContext.GBufferB ? SceneContext.GBufferB->GetRenderTargetItem() : GSystemTextures.BlackDummy->GetRenderTargetItem();
 		const FSceneRenderTargetItem& GBufferCToUse = bCanReadGBufferUniforms && SceneContext.GBufferC ? SceneContext.GBufferC->GetRenderTargetItem() : GSystemTextures.BlackDummy->GetRenderTargetItem();
 		const FSceneRenderTargetItem& GBufferDToUse = bCanReadGBufferUniforms && SceneContext.GBufferD ? SceneContext.GBufferD->GetRenderTargetItem() : GSystemTextures.BlackDummy->GetRenderTargetItem();
-		const FSceneRenderTargetItem& SceneDepthAuxToUse = bCanReadGBufferUniforms && SceneContext.SceneDepthAux ? SceneContext.SceneDepthAux->GetRenderTargetItem() : GSystemTextures.MaxFP16Depth->GetRenderTargetItem();
+		// SceneDepthAux is a color texture on mobile, BlackDummy is equal to MaxDepth with HAS_INVERTED_Z_BUFFER
+		const FSceneRenderTargetItem& SceneDepthAuxToUse = bCanReadGBufferUniforms && SceneContext.SceneDepthAux ? SceneContext.SceneDepthAux->GetRenderTargetItem() : GSystemTextures.BlackDummy->GetRenderTargetItem();
 
 		SceneTextureParameters.GBufferATexture = GBufferAToUse.ShaderResourceTexture;
 		SceneTextureParameters.GBufferBTexture = GBufferBToUse.ShaderResourceTexture;

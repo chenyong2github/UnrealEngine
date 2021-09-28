@@ -760,7 +760,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bShouldRenderCustomDepth)
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
-		FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, Views[0].GetFeatureLevel(), ESceneTextureSetupMode::All);
+		FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, Views[0].GetFeatureLevel(), ESceneTextureSetupMode::None);
 		RenderCustomDepthPass(GraphBuilder, SceneTextures);
 		GraphBuilder.Execute();
 	}
