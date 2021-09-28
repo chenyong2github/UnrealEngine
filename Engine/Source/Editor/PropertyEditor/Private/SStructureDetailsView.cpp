@@ -37,7 +37,7 @@ void SStructureDetailsView::Construct(const FArguments& InArgs)
 	DetailsViewArgs = InArgs._DetailsViewArgs;
 
 	ColumnSizeData.SetValueColumnWidth(DetailsViewArgs.ColumnWidth);
-	ColumnSizeData.RightColumnMinWidth = DetailsViewArgs.RightColumnMinWidth;
+	ColumnSizeData.SetRightColumnMinWidth(DetailsViewArgs.RightColumnMinWidth);
 
 	CustomName = InArgs._CustomName;
 

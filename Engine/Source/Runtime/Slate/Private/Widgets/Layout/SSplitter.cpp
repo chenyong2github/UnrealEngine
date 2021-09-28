@@ -16,10 +16,9 @@ void SSplitter::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& In
 	{
 		bIsResizable = InArgs._Resizable.GetValue();
 	}
-	if (InArgs._MinSize.IsSet())
-	{
-		MinSizeValue = InArgs._MinSize.GetValue();
-	}
+	
+	MinSizeValue = InArgs._MinSize;
+
 	if (InArgs._OnSlotResized.IsBound())
 	{
 		OnSlotResized_Handler = MoveTemp(InArgs._OnSlotResized);
@@ -137,7 +136,7 @@ TArray<FLayoutGeometry> SSplitter::ArrangeChildrenForLayout(const FGeometry& All
 		}
 		else // SizingRule == SSplitter::FractionOfParent
 		{
-			MinResizableSpace += FMath::Max(MinSplitterChildLength, CurSlot.MinSizeValue.Get(0));
+			MinResizableSpace += FMath::Max(MinSplitterChildLength, CurSlot.GetMinSize());
 			CoefficientTotal += CurSlot.SizeValue.Get();
 		}
 	}
@@ -187,7 +186,7 @@ TArray<FLayoutGeometry> SSplitter::ArrangeChildrenForLayout(const FGeometry& All
 			{
 				if (Children[PrevIndex].SizingRule.Get() == SSplitter::FractionOfParent && !IsSlotCollapsed(CurSlot))
 				{
-					const float MinChildSize = FMath::Max(MinSplitterChildLength, Children[PrevIndex].MinSizeValue.Get(0));
+					const float MinChildSize = FMath::Max(MinSplitterChildLength, Children[PrevIndex].GetMinSize());
 					const float AvailableSpace = SlotSizes[PrevIndex] - MinChildSize;
 					if (AvailableSpace > 0)
 					{
@@ -801,12 +800,7 @@ void SSplitter::HandleResizingByMousePosition(EOrientation SplitterOrientation, 
 float SSplitter::ClampChild(const FSlot& ChildSlot, float ProposedSize) const
 {
 	float ClampedSize = FMath::Max(MinSplitterChildLength, ProposedSize);
-
-	if (ChildSlot.MinSizeValue.IsSet())
-	{
-		ClampedSize = FMath::Max(ChildSlot.MinSizeValue.GetValue(), ProposedSize);
-	}
-
+	ClampedSize = FMath::Max(ChildSlot.GetMinSize(), ProposedSize);
 	return ClampedSize;
 }
 

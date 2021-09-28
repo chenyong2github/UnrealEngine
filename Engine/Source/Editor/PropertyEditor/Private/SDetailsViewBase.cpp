@@ -517,7 +517,23 @@ bool SDetailsViewBase::IsPropertyEditingEnabled() const
 
 void SDetailsViewBase::SetKeyframeHandler( TSharedPtr<class IDetailKeyframeHandler> InKeyframeHandler )
 {
+	// if we don't have a keyframe handler and a valid handler is set, add width to the right column
+	// if we do have a keyframe handler and an invalid handler is set, remove width
+	float ExtraWidth = 0;
+	if (!KeyframeHandler.IsValid() && InKeyframeHandler.IsValid())
+	{
+		ExtraWidth = 22;
+	}
+	else if (KeyframeHandler.IsValid() && !InKeyframeHandler.IsValid())
+	{
+		ExtraWidth = -22;
+	}
+	
+	const float NewWidth = ColumnSizeData.GetRightColumnMinWidth() + ExtraWidth;
+	ColumnSizeData.SetRightColumnMinWidth(NewWidth);
+
 	KeyframeHandler = InKeyframeHandler;
+	RefreshTree();
 }
 
 void SDetailsViewBase::SetExtensionHandler(TSharedPtr<class IDetailPropertyExtensionHandler> InExtensionHandler)
@@ -858,6 +874,13 @@ void SDetailsViewBase::HandlePendingCleanup()
 void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	HandlePendingCleanup();
+
+	FDetailsViewConfig& ViewConfig = GetMutableViewConfig();
+	if (ViewConfig.ValueColumnWidth != ColumnSizeData.ValueColumnWidth.Get(0))
+	{
+		ViewConfig.ValueColumnWidth = ColumnSizeData.ValueColumnWidth.Get(0);
+		SaveViewConfig();
+	}
 
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 

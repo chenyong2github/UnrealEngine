@@ -29,6 +29,7 @@ public:
 		ValueColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetValueColumnWidth);
 		PropertyColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetPropertyColumnWidth);
 		RightColumnWidth.BindRaw(this, &FDetailColumnSizeData::GetRightColumnWidth);
+		RightColumnMinWidth.BindRaw(this, &FDetailColumnSizeData::GetRightColumnMinWidth);
 		HoveredSplitterIndex.BindRaw(this, &FDetailColumnSizeData::GetHoveredSplitterIndex);
 		OnValueColumnResized.BindRaw(this, &FDetailColumnSizeData::SetValueColumnWidth);
 		OnRightColumnResized.BindRaw(this, &FDetailColumnSizeData::OnSetRightColumnWidth);
@@ -39,12 +40,12 @@ public:
 		OnNameColumnResized.BindLambda([](float) {}); 
 	}
 
-	float RightColumnMinWidth;
-
+	// don't change these attributes directly - they're here only to be forwarded to the details view
 	TAttribute<float> NameColumnWidth;
 	TAttribute<float> ValueColumnWidth;
 	TAttribute<float> PropertyColumnWidth;
 	TAttribute<float> RightColumnWidth;
+	TAttribute<float> RightColumnMinWidth;
 	TAttribute<int32> HoveredSplitterIndex;
 	SSplitter::FOnSlotResized OnNameColumnResized; 
 	SSplitter::FOnSlotResized OnValueColumnResized;
@@ -54,13 +55,20 @@ public:
 
 	void SetValueColumnWidth(float NewWidth)
 	{ 
-		ensure(NewWidth <= 1.0f); 
+		ensureAlways(NewWidth <= 1.0f);
 		ValueColumnWidthValue = NewWidth;
-	} 
+	}
+
+	float GetRightColumnMinWidth() const { return RightColumnMinWidthValue; }
+	void SetRightColumnMinWidth(float NewWidth)
+	{ 
+		RightColumnMinWidthValue = NewWidth;
+	}
 
 private:
 	float ValueColumnWidthValue;
 	float RightColumnWidthValue;
+	float RightColumnMinWidthValue;
 	int HoveredSplitterIndexValue;
 
 	float GetNameColumnWidth() const { return 1.0f - (ValueColumnWidthValue + RightColumnWidthValue); }
@@ -68,11 +76,9 @@ private:
 	float GetRightColumnWidth() const { return RightColumnWidthValue; }
 	float GetPropertyColumnWidth() const { return 1.0f - RightColumnWidthValue; }
 	int32 GetHoveredSplitterIndex() const { return HoveredSplitterIndexValue; }
-
 	
 	void OnSetRightColumnWidth(float NewWidth)
 	{
-		ensure(NewWidth <= 1.0f);
 		RightColumnWidthValue = NewWidth;
 	}
 

@@ -60,7 +60,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	}
 
 	ColumnSizeData.SetValueColumnWidth(DetailsViewArgs.ColumnWidth);
-	ColumnSizeData.RightColumnMinWidth = DetailsViewArgs.RightColumnMinWidth;
+	ColumnSizeData.SetRightColumnMinWidth(DetailsViewArgs.RightColumnMinWidth);
 
 	SetObjectFilter(InDetailsViewArgs.ObjectFilter);
 	SetClassViewerFilters(InDetailsViewArgs.ClassViewerFilters);
