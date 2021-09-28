@@ -34,7 +34,19 @@ public:
 	float MaxScaleFactor = 1.5;
 
 	UPROPERTY(EditAnywhere, Category = Distribution, meta = (EditCondition = "NumberToScatter > 0"))
-	bool RandomizeOrientation = true;
+	bool bRandomOrientation = true;
+
+	/** Roll will be chosen between -Range to +Range */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Roll Range", EditCondition = "NumberToScatter > 0 && bRandomOrientation", ClampMin = "0", ClampMax = "180"))
+	float RollRange = 180;
+
+	/** Pitch will be chosen between -Range to +Range */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Pitch Range", EditCondition = "NumberToScatter > 0 && bRandomOrientation", ClampMin = "0", ClampMax = "180"))
+	float PitchRange = 180;
+
+	/** Yaw will be chosen between -Range to +Range */
+	UPROPERTY(EditAnywhere, Category = Distribution, meta = (DisplayName = "+/- Yaw Range", EditCondition = "NumberToScatter > 0 && bRandomOrientation", ClampMin = "0", ClampMax = "180"))
+	float YawRange = 180;
 };
 
 
