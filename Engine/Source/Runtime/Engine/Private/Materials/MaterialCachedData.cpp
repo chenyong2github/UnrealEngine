@@ -700,6 +700,8 @@ void FMaterialCachedParameters::Reset()
 	}
 #endif
 
+	ScalarPrimitiveDataIndexValues.Reset();
+	VectorPrimitiveDataIndexValues.Reset();
 	ScalarValues.Reset();
 	VectorValues.Reset();
 	TextureValues.Reset();
