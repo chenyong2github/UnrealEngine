@@ -44,6 +44,7 @@ namespace UE
 	{
 		namespace Private
 		{
+#if USE_USD_SDK
 			// Custom spawn register so that when DestroySpawnedObject is called while bDestroyingJustHides is true we
 			// actually just hide the objects, so that we can keep a live reference to components within the bakers.
 			// We're going to convert the spawnable tracks into visibility tracks when exporting to USD, which
@@ -703,6 +704,7 @@ namespace UE
 
 				UsdStage.GetRootLayer().Save();
 			}
+#endif // USE_USD_SDK
 		}
 	}
 }

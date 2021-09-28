@@ -1056,6 +1056,7 @@ bool UnrealToUsd::CreateComponentPropertyBaker( UE::FUsdPrim& Prim, const UScene
 
 bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsdPrim& SkelAnimation, USkeletalMeshComponent& Component, FComponentBaker& OutBaker )
 {
+#if WITH_EDITOR
 	USkeletalMesh* SkeletalMesh = Component.SkeletalMesh;
 	if ( !SkeletalMesh )
 	{
@@ -1196,6 +1197,9 @@ bool UnrealToUsd::CreateSkeletalAnimationBaker( UE::FUsdPrim& SkelRoot, UE::FUsd
 		};
 
 	return true;
+#else
+	return false;
+#endif // WITH_EDITOR
 }
 
 bool UnrealToUsd::ConvertXformable( const UMovieScene3DTransformTrack& MovieSceneTrack, pxr::UsdPrim& UsdPrim, const FMovieSceneSequenceTransform& SequenceTransform )
