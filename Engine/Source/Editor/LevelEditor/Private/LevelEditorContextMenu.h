@@ -45,7 +45,7 @@ public:
 	 * @param	HitProxyActor	The hitproxy actor in the case the ContextType is Viewport
 	 * @return	Widget for this context menu
 	 */
-	static TSharedPtr< SWidget > BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>(), const FTypedElementHandle& HitProxyElement = FTypedElementHandle());
+	static TSharedRef< SWidget > BuildMenuWidget(TWeakPtr< ILevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>(), const FTypedElementHandle& HitProxyElement = FTypedElementHandle());
 
 	/**
 	 * Populates the specified menu builder for the context menu that can be inserted into a pop-up window
@@ -56,13 +56,19 @@ public:
 	 * @param	Extender		Allows extension of this menu based on context.
 	 * @param	HitProxyActor	The hitproxy actor in the case the ContextType is Viewport
 	 */
-	static UToolMenu* GenerateMenu(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>(), const FTypedElementHandle& HitProxyElement = FTypedElementHandle());
+	static UToolMenu* GenerateMenu(TWeakPtr< ILevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender = TSharedPtr<FExtender>(), const FTypedElementHandle& HitProxyElement = FTypedElementHandle());
 
 	/* Adds required information to Context for build menu based on current selection */
-	static FName InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, const FTypedElementHandle& HitProxyElement = FTypedElementHandle());
+	static FName InitMenuContext(FToolMenuContext& Context, TWeakPtr<ILevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, const FTypedElementHandle& HitProxyElement = FTypedElementHandle());
 
 	/* Returns name of menu to display based on current selection */
 	static FName GetContextMenuName(ELevelEditorMenuContext ContextType, const UTypedElementSelectionSet* InSelectionSet);
+
+	/* Returns a user-readable title for the menu to display; the title can be displayed in UI like the menu bar */
+	static FText GetContextMenuTitle(ELevelEditorMenuContext ContextType, const UTypedElementSelectionSet* InSelectionSet);
+
+	/* Returns a user-readable tooltip describing the menu to display */
+	static FText GetContextMenuToolTip(ELevelEditorMenuContext ContextType, const UTypedElementSelectionSet* InSelectionSet);
 
 private:
 
@@ -70,6 +76,7 @@ private:
 	static void RegisterActorContextMenu();
 	static void RegisterElementContextMenu();
 	static void RegisterSceneOutlinerContextMenu();
+	static void RegisterMenuBarEmptyContextMenu();
 	static void RegisterEmptySelectionContextMenu();
 
 	static void AddPlayFromHereSubMenu(FToolMenuSection& Section);

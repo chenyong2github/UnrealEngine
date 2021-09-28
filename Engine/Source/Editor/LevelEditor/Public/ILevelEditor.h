@@ -47,6 +47,9 @@ public:
 		SummonLevelViewportContextMenu(HitProxyElement);
 	}
 
+	/** Gets the title for the context menu for this level editor */
+	virtual FText GetLevelViewportContextMenuTitle() const = 0;
+
 	/** Summons a context menu for view options */
 	virtual void SummonLevelViewportViewOptionMenu(ELevelViewportType ViewOption) = 0;
 

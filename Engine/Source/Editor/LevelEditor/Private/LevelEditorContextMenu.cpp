@@ -244,7 +244,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			return;
 		}
 
-		TWeakPtr<SLevelEditor> LevelEditor = LevelEditorContext->LevelEditor;
+		TWeakPtr<ILevelEditor> LevelEditor = LevelEditorContext->LevelEditor;
 
 		// Generate information about our selection
 		TArray<AActor*> SelectedActors;
@@ -315,7 +315,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			{
 				const FLevelViewportCommands& Actions = FLevelViewportCommands::Get();
 
-				auto Viewport = LevelEditor.Pin()->GetActiveViewport();
+				auto Viewport = LevelEditor.Pin()->GetActiveViewportInterface();
 				if (Viewport.IsValid())
 				{
 					auto& ViewportClient = Viewport->GetLevelViewportClient();
@@ -521,6 +521,41 @@ void FLevelEditorContextMenu::RegisterSceneOutlinerContextMenu()
 	}));
 }
 
+void FLevelEditorContextMenu::RegisterMenuBarEmptyContextMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (ToolMenus->IsMenuRegistered("LevelEditor.MenuBarEmptyContextMenu"))
+	{
+		return;
+	}
+
+	UToolMenu* Menu = ToolMenus->RegisterMenu("LevelEditor.MenuBarEmptyContextMenu");
+	FToolMenuSection& Section = Menu->AddSection("MenuBarEmpty");
+
+	const FText EmptySelectionInformationalMessage = LOCTEXT("EmptySelectionInformationalMessage", "Select an object to view actions.");
+
+#if PLATFORM_MAC
+	// Can't include arbitrary widgets in a main menu on Mac, so display the informational message using a disabled entry.
+	Section.AddMenuEntry(
+		NAME_None,
+		EmptySelectionInformationalMessage,
+		TAttribute<FText>(),
+		TAttribute<FSlateIcon>(),
+		FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([]() { return false; })));
+#else
+	Section.AddEntry(FToolMenuEntry::InitWidget(
+		NAME_None,
+		SNew(SBox)
+		.Padding(FMargin(80.f, 8.f))
+		[
+			SNew(STextBlock)
+			.Text(EmptySelectionInformationalMessage)
+			.TextStyle(FAppStyle::Get(), "HintText")
+		],
+		FText::GetEmpty(), /*bNoIndent*/ true, /*bSearchable*/ false));
+#endif
+}
+
 void FLevelEditorContextMenu::RegisterEmptySelectionContextMenu()
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -572,18 +607,86 @@ FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext Contex
 		return "LevelEditor.SceneOutlinerContextMenu";
 	}
 
+	if (ContextType == ELevelEditorMenuContext::MainMenu)
+	{
+		return "LevelEditor.MenuBarEmptyContextMenu";
+	}
+
 	return "LevelEditor.EmptySelectionContextMenu";
 }
 
-FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, const FTypedElementHandle& HitProxyElement)
+FText FLevelEditorContextMenu::GetContextMenuTitle(ELevelEditorMenuContext ContextType, const UTypedElementSelectionSet* InSelectionSet)
+{
+	if (InSelectionSet)
+	{
+		if (InSelectionSet->HasSelectedObjects<UActorComponent>())
+		{
+			return LOCTEXT("ComponentContextMenuTitle", "Component");
+		}
+
+		if (InSelectionSet->HasSelectedObjects<AActor>())
+		{
+			return LOCTEXT("ActorContextMenuTitle", "Actor");
+		}
+
+		if (InSelectionSet->GetNumSelectedElements())
+		{
+			return LOCTEXT("ElementContextMenuTitle", "Element");
+		}
+	}
+
+	// Show "Actor" label by default as title when nothing selected since most selections (currently) will be actors anyways
+	return LOCTEXT("ActorContextMenuTitle", "Actor");
+}
+
+FText FLevelEditorContextMenu::GetContextMenuToolTip(ELevelEditorMenuContext ContextType, const UTypedElementSelectionSet* InSelectionSet)
+{
+	if (InSelectionSet)
+	{
+		const int32 ComponentCount = InSelectionSet->CountSelectedObjects<UActorComponent>();
+		if (ComponentCount == 1)
+		{
+			UActorComponent* Component = InSelectionSet->GetTopSelectedObject<UActorComponent>();
+			check(Component);
+			return FText::Format(LOCTEXT("ComponentContextMenuToolTipSingle", "Show actions for component \"{0}\""), FText::FromString(Component->GetName()));
+		}
+		else if (ComponentCount > 1)
+		{
+			return FText::Format(LOCTEXT("ComponentContextMenuToolTipOther", "Show actions for {0} components"), FText::AsNumber(ComponentCount));
+		}
+
+		const int32 ActorCount = InSelectionSet->CountSelectedObjects<AActor>();
+		if (ActorCount == 1)
+		{
+			AActor* Actor = InSelectionSet->GetTopSelectedObject<AActor>();
+			check(Actor);
+			return FText::Format(LOCTEXT("ActorContextMenuToolTipSingle", "Show actions for actor \"{0}\""), FText::FromString(Actor->GetActorLabel()));
+		}
+		else if (ActorCount > 1)
+		{
+			return FText::Format(LOCTEXT("ActorContextMenuToolTipOther", "Show actions for {0} actors"), FText::AsNumber(ActorCount));
+		}
+
+		const int32 ElementCount = InSelectionSet->GetNumSelectedElements();
+		if (ElementCount)
+		{
+			return FText::Format(LOCTEXT("ElementContextMenuToolTip", "Show actions for {0} {0}|plural(one=element,other=elements)"), FText::AsNumber(ElementCount));
+		}
+	}
+
+	return LOCTEXT("NothingSelectedToolTip", "Select an object to show actions");
+}
+
+FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<ILevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, const FTypedElementHandle& HitProxyElement)
 {
 	RegisterComponentContextMenu();
 	RegisterActorContextMenu();
 	RegisterElementContextMenu();
 	RegisterSceneOutlinerContextMenu();
+	RegisterMenuBarEmptyContextMenu();
 	RegisterEmptySelectionContextMenu();
 
-	TSharedPtr<SLevelEditor> LevelEditorPtr = LevelEditor.Pin();
+	TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditor.Pin();
 	check(LevelEditorPtr);
 
 	TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditorPtr->GetLevelEditorActions();
@@ -654,7 +757,7 @@ FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakP
 	return GetContextMenuName(ContextType, ContextObject->CurrentSelection);
 }
 
-UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, const FTypedElementHandle& HitProxyElement)
+UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<ILevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, const FTypedElementHandle& HitProxyElement)
 {
 	FToolMenuContext Context;
 	if (Extender.IsValid())
@@ -668,7 +771,7 @@ UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEdi
 
 // NOTE: We intentionally receive a WEAK pointer here because we want to be callable by a delegate whose
 //       payload contains a weak reference to a level editor instance
-TSharedPtr< SWidget > FLevelEditorContextMenu::BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, const FTypedElementHandle& HitProxyElement)
+TSharedRef< SWidget > FLevelEditorContextMenu::BuildMenuWidget(TWeakPtr< ILevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, const FTypedElementHandle& HitProxyElement)
 {
 	UToolMenu* Menu = GenerateMenu(LevelEditor, ContextType, Extender, HitProxyElement);
 	return UToolMenus::Get()->GenerateWidget(Menu);

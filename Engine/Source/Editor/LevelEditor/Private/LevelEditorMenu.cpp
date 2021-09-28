@@ -11,6 +11,7 @@
 #include "EditorStyleSet.h"
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
+#include "LevelEditorContextMenu.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "MRUFavoritesList.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -252,6 +253,34 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 				);
 
 			SelectEntry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
+
+			const FName LevelEditorName("LevelEditor");
+			FToolMenuEntry& ActionsEntry =
+				Section.AddSubMenu(
+					"Actions",
+					TAttribute<FText>::CreateLambda([LevelEditorName]()
+					{
+						FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorName);
+						return LevelEditorModule.GetLevelEditorInstance().Pin()->GetLevelViewportContextMenuTitle();
+					}),
+					TAttribute<FText>::CreateLambda([LevelEditorName]()
+					{
+						FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorName);
+						return FLevelEditorContextMenu::GetContextMenuToolTip(
+							ELevelEditorMenuContext::MainMenu, LevelEditorModule.GetLevelEditorInstance().Pin()->GetElementSelectionSet());
+					}),
+					FOnGetContent::CreateLambda([LevelEditorName]()
+					{
+						// Generate the context menu completely separate from the main menu hierarchy for consistency with the right-click context menu.
+						// This means that extenders/UToolMenu extensions registered for the viewport context menu apply here (since they'll take effect when generating the menu widget below),
+						// and NOT any extenders registered for the main menu bar.
+						// I have verified that this works properly with the global Mac menu bar.
+						FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorName);
+						return FLevelEditorContextMenu::BuildMenuWidget(
+							LevelEditorModule.GetLevelEditorInstance(), ELevelEditorMenuContext::MainMenu, nullptr, FTypedElementHandle());
+					}));
+			
+			ActionsEntry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
 		}
 
 

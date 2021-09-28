@@ -384,8 +384,17 @@ public:
 	 * @param	InToolTip			The tooltip that should be shown when the menu is hovered over
 	 * @param	InPullDownMenu		Pull down menu object for the menu to add.
 	 */
-	void AddPullDownMenu( const FText& InMenuLabel, const FText& InToolTip, const FNewMenuDelegate& InPullDownMenu, FName InExtensionHook = NAME_None, FName InTutorialHighlightName = NAME_None);
-	
+	void AddPullDownMenu( const TAttribute<FText>& InMenuLabel, const TAttribute<FText>& InToolTip, const FNewMenuDelegate& InPullDownMenu, FName InExtensionHook = NAME_None, FName InTutorialHighlightName = NAME_None);
+
+	/**
+	 * Adds a pull down menu
+	 *
+	 * @param	InMenuLabel				The text that should be shown for the menu
+	 * @param	InToolTip				The tooltip that should be shown when the menu is hovered over
+	 * @param	InMenuContentGenerator	Delegate that generates a widget for this pulldown menu's content.  Called when the menu is summoned.
+	 */
+	void AddPullDownMenu(const TAttribute<FText>& InMenuLabel, const TAttribute<FText>& InToolTip, const FOnGetContent& InMenuContentGenerator, FName InExtensionHook = NAME_None, FName InTutorialHighlightName = NAME_None);
+
 protected:
 	/** FMultiBoxBuilder interface */
 	virtual void ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition) override;

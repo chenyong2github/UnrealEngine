@@ -1608,6 +1608,11 @@ void SLevelEditor::SummonLevelViewportContextMenu(const FTypedElementHandle& Hit
 	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), ELevelEditorMenuContext::Viewport, HitProxyElement);
 }
 
+FText SLevelEditor::GetLevelViewportContextMenuTitle() const
+{
+	return CachedViewportContextMenuTitle;
+}
+
 void SLevelEditor::SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption)
 {
 	FLevelEditorContextMenu::SummonViewOptionMenu( SharedThis( this ), ViewOption);
@@ -1720,6 +1725,16 @@ void SLevelEditor::OnElementSelectionChanged(const UTypedElementSelectionSet* Se
 			ActorDetails->RefreshSelection(bForceRefresh || bNeedsRefresh);
 		}
 	}
+
+	CachedViewportContextMenuTitle = FLevelEditorContextMenu::GetContextMenuTitle(ELevelEditorMenuContext::MainMenu, SelectionSet);
+
+#if PLATFORM_MAC
+	// The titles of the level editor's main menus can change when the selection changes (e.g. Action menu).
+	// Since Mac uses a global menu bar, we need to force it to sync with the main menu.
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
+	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+	LevelEditorTabManager->UpdateMainMenu(nullptr, true);
+#endif
 
 	bNeedsRefresh = false;
 }

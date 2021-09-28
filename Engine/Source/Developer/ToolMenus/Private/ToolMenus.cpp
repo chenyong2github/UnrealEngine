@@ -1392,23 +1392,33 @@ void UToolMenus::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilder, UToolMe
 		const FToolMenuSection& Section = MenuData->Sections[i];
 		for (const FToolMenuEntry& Block : Section.Blocks)
 		{
-			FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
-			FNewMenuDelegate NewMenuDelegate;
-			if (Block.SubMenuData.ConstructMenu.NewMenuLegacy.IsBound())
+			if (Block.SubMenuData.ConstructMenu.OnGetContent.IsBound())
 			{
-				NewMenuDelegate = Block.SubMenuData.ConstructMenu.NewMenuLegacy;
+				MenuBarBuilder.AddPullDownMenu(
+					Block.Label,
+					Block.ToolTip,
+					Block.SubMenuData.ConstructMenu.OnGetContent,
+					Block.Name
+				);
+			}
+			else if (Block.SubMenuData.ConstructMenu.NewMenuLegacy.IsBound())
+			{
+				MenuBarBuilder.AddPullDownMenu(
+					Block.Label,
+					Block.ToolTip,
+					Block.SubMenuData.ConstructMenu.NewMenuLegacy,
+					Block.Name
+				);
 			}
 			else
 			{
-				NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UToolMenus::PopulateSubMenu, TWeakObjectPtr<UToolMenu>(MenuData), Block.Name);
+				MenuBarBuilder.AddPullDownMenu(
+					Block.Label,
+					Block.ToolTip,
+					FNewMenuDelegate::CreateUObject(this, &UToolMenus::PopulateSubMenu, TWeakObjectPtr<UToolMenu>(MenuData), Block.Name),
+					Block.Name
+				);
 			}
-
-			MenuBarBuilder.AddPullDownMenu(
-				Block.Label.Get(),
-				Block.ToolTip.Get(),
-				NewMenuDelegate,
-				Block.Name
-			);
 		}
 	}
 
