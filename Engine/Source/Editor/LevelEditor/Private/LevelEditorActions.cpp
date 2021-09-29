@@ -210,14 +210,17 @@ void FLevelEditorActionCallbacks::NewLevel()
 	IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>("MainFrame");
 
 	FString TemplateMapPackageName;
+	bool bOutIsPartitionedWorld = false;
+	const bool bShowPartitionedTemplates = true;
+
 	FNewLevelDialogModule& NewLevelDialogModule = FModuleManager::LoadModuleChecked<FNewLevelDialogModule>("NewLevelDialog");
 	
-	if (NewLevelDialogModule.CreateAndShowNewLevelDialog(MainFrameModule.GetParentWindow(), TemplateMapPackageName))
+	if (NewLevelDialogModule.CreateAndShowNewLevelDialog(MainFrameModule.GetParentWindow(), TemplateMapPackageName, bShowPartitionedTemplates, bOutIsPartitionedWorld))
 	{
 		// The new map screen will return a blank TemplateName if the user has selected to begin a new blank map
 		if (TemplateMapPackageName.IsEmpty())
 		{
-			GEditor->CreateNewMapForEditing();
+			GEditor->CreateNewMapForEditing(/*bPromptUserToSave=*/true, bOutIsPartitionedWorld);
 		}
 		else
 		{

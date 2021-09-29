@@ -28,11 +28,6 @@ public:
 	/**
 	 *
 	 */
-	virtual bool IsWorldPartitionEnabled() const override;
-
-	/**
-	 *
-	 */
 	virtual bool IsConversionPromptEnabled() const override;
 
 	/**
