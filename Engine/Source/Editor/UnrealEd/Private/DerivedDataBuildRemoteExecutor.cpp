@@ -1146,6 +1146,13 @@ void FRemoteBuildExecutionRequest::OnExecutionCompleted(UE::RemoteExecution::ESt
 
 	if (!IsStatusOk(Status, TEXT("OnExecutionCompleted")))
 	{
+		if (!Result.Updates.IsEmpty())
+		{
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Task %s Outcome %s: %s"),
+				*FString::FromHexBlob(Result.Updates[0].TaskHash.GetBytes(), sizeof(FIoHash::ByteArray)),
+				*UE::RemoteExecution::ComputeTaskOutcomeString(Result.Updates[0].Outcome),
+				*Result.Updates[0].Detail);
+		}
 		return;
 	}
 
@@ -1162,7 +1169,8 @@ void FRemoteBuildExecutionRequest::OnExecutionCompleted(UE::RemoteExecution::ESt
 
 	if (Result.Updates[0].Outcome != UE::RemoteExecution::EComputeTaskOutcome::Success)
 	{
-		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Outcome %s: %s"),
+		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Task %s Outcome %s: %s"),
+			*FString::FromHexBlob(Result.Updates[0].TaskHash.GetBytes(), sizeof(FIoHash::ByteArray)),
 			*UE::RemoteExecution::ComputeTaskOutcomeString(Result.Updates[0].Outcome),
 			*Result.Updates[0].Detail);
 		State.Owner.End(this, [this]

@@ -135,6 +135,17 @@ namespace UE::RemoteExecution
 
 			if (WaitTask->Complete.Num() == WaitTask->TaskHashes.Num() || Response.Key != EStatusCode::Ok)
 			{
+				for (const FIoHash& TaskHash : WaitTask->TaskHashes)
+				{
+					if (!WaitTask->Complete.Contains(TaskHash))
+					{
+						FGetTaskUpdateResponse Update;
+						Update.TaskHash = TaskHash;
+						Update.Outcome = EComputeTaskOutcome::NoResult;
+						WaitTask->Complete.Add(TaskHash, MoveTemp(Update));
+					}
+				}
+
 				FGetTaskUpdatesResponse Result;
 				WaitTask->Complete.GenerateValueArray(Result.Updates);
 				WaitTask->Promise.EmplaceValue(TPair<EStatusCode, FGetTaskUpdatesResponse>(MoveTemp(Response.Key), MoveTemp(Result)));
