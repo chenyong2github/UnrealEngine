@@ -98,7 +98,7 @@ namespace Gauntlet
 
 			if (string.IsNullOrEmpty(ContextOptions.Build))
 			{
-				throw new AutomationException("No builds specified. Use -builds=p:\\path\\to\\build");
+				throw new AutomationException("No build specified. Use -build=p:\\path\\to\\build");
 			}
 
 			if (typeof(UnrealBuildSource).IsAssignableFrom(ContextOptions.BuildSourceType) == false)
