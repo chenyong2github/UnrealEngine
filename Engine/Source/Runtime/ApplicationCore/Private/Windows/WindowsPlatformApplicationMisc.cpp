@@ -142,20 +142,6 @@ void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 	bool bHasFocus = FApp::HasFocus();
 	static bool bHadFocus = false;
 
-#if WITH_EDITOR
-	// If editor thread doesn't have the focus, don't suck up too much CPU time.
-	if( GIsEditor )
-	{
-		if( !bHasFocus )
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(EditorIsInBackgroundSleep);
-			// Sleep for a bit to not eat up all CPU time.
-			FPlatformProcess::Sleep(0.005f);
-		}
-		bHadFocus = bHasFocus;
-	}
-#endif
-
 #if !UE_SERVER
 	// For non-editor clients, record if the active window is in focus
 	if( bHadFocus != bHasFocus )
