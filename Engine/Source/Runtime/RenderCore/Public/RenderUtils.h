@@ -675,10 +675,7 @@ inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFe
 	const bool bPlatformSupportsNanite = DoesPlatformSupportNanite(ShaderPlatform);
 	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
 
-	// TODO: VSMs not currently working on Vulkan
-	const bool bVulkanSM5 = ShaderPlatform == SP_VULKAN_SM5;
-
-	return bVirtualShadowMapsEnabled && bPlatformSupportsNanite && bUseGPUScene && !bForwardShadingEnabled && !bVulkanSM5;
+	return bVirtualShadowMapsEnabled && bPlatformSupportsNanite && bUseGPUScene && !bForwardShadingEnabled;
 }
 
 /**
