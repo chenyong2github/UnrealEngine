@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "Misc/OutputDeviceRedirector.h"
+#include "CoreMinimal.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/Class.h"
+#include "UObject/GarbageCollection.h"
 #include "HAL/ThreadHeartBeat.h"
 
 /** Search mode flags */
@@ -168,7 +171,12 @@ public:
 		{
 			return Nodes.Num();
 		}
-
+		/** Returns a duplicate of this chain */
+		FReferenceChain* Split()
+		{
+			FReferenceChain* NewChain = new FReferenceChain(*this);
+			return NewChain;
+		}
 		/** Checks if this chain contains the specified node */
 		bool Contains(const FGraphNode* InNode) const
 		{
@@ -184,7 +192,7 @@ public:
 	};
 
 	/** Constructs a new search engine and finds references to the specified object */
-	COREUOBJECT_API FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults, FOutputDevice& InOutputDevice = *GLog);
+	COREUOBJECT_API FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
 
 	/** Destructor */
 	COREUOBJECT_API ~FReferenceChainSearch();
@@ -213,9 +221,6 @@ private:
 	/** All nodes created during the search */
 	TMap<UObject*, FGraphNode*> AllNodes;
 
-	/** Output device to log to */
-	FOutputDevice& OutputDevice;
-
 	/** Performs the search */
 	void PerformSearch(EReferenceChainSearchMode SearchMode);
 
@@ -241,7 +246,7 @@ private:
 	/** Returns a string with all flags (we care about) set on an object */
 	static FString GetObjectFlags(UObject* InObject);
 	/** Dumps a reference chain to log */
-	static void DumpChain(const FReferenceChain* Chain, FOutputDevice& OutputDevice);
+	static void DumpChain(FReferenceChain* Chain);
 	/** Writes a reference chain to a string */
-	static void WriteChain(const FReferenceChain* Chain, FString& OutString);
+	static void WriteChain(FReferenceChain* Chain, FString& OutString);
 };
