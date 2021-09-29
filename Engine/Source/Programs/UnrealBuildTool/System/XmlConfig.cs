@@ -788,37 +788,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Gets the XML comment for a particular field
-		/// </summary>
-		/// <param name="Documentation">The XML documentation</param>
-		/// <param name="Field">The field to search for</param>
-		/// <param name="Lines">Receives the description for the requested field</param>
-		/// <returns>True if a comment was found for the field</returns>
-		private static bool TryGetXmlComment(XmlDocument Documentation, FieldInfo Field, [NotNullWhen(true)] out List<string>? Lines)
-		{
-			XmlNode Node = Documentation.SelectSingleNode(String.Format("//member[@name='F:{0}.{1}']/summary", Field.DeclaringType!.FullName, Field.Name));
-			if (Node == null)
-			{
-				Lines = null;
-				return false;
-			}
-			else
-			{
-				// Reflow the comments into paragraphs, assuming that each paragraph will be separated by a blank line
-				Lines = new List<string>(Node.InnerText.Trim().Split('\n').Select(x => x.Trim()));
-				for (int Idx = Lines.Count - 1; Idx > 0; Idx--)
-				{
-					if (Lines[Idx - 1].Length > 0 && !Lines[Idx].StartsWith("*") && !Lines[Idx].StartsWith("-"))
-					{
-						Lines[Idx - 1] += " " + Lines[Idx];
-						Lines.RemoveAt(Idx);
-					}
-				}
-				return true;
-			}
-		}
-
-		/// <summary>
 		/// Writes out documentation in UDN format
 		/// </summary>
 		/// <param name="OutputFile">The output file</param>
@@ -846,7 +815,7 @@ namespace UnrealBuildTool
 					{
 						// Get the XML comment for this field
 						List<string>? Lines;
-						if(!TryGetXmlComment(InputDocumentation, FieldPair.Value, out Lines) || Lines.Count == 0)
+						if(!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value, out Lines) || Lines.Count == 0)
 						{
 							Log.TraceWarning("Missing XML comment for {0}", FieldPair.Value.Name);
 							continue;
@@ -895,9 +864,8 @@ namespace UnrealBuildTool
 					{
 						// Get the XML comment for this field
 						List<string>? Lines;
-						if (!TryGetXmlComment(InputDocumentation, FieldPair.Value, out Lines) || Lines.Count == 0)
+						if (!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value, out Lines) || Lines.Count == 0)
 						{
-							Log.TraceWarning("Missing XML comment for {0}", FieldPair.Value.Name);
 							continue;
 						}
 
