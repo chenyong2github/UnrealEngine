@@ -1762,7 +1762,7 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 		return false;
 	}
 
-	if(InElement->GetName() == InName)
+	if (InElement->GetName().IsEqual(InName, ENameCase::CaseSensitive))
 	{
 		return false;
 	}
@@ -1775,8 +1775,16 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	{
 		DeselectElement(OldKey);
 	}
+
+	{
+		// create a temp copy of the map and remove the current item's key
+		TMap<FRigElementKey, int32> TemporaryMap = Hierarchy->IndexLookup;
+		TemporaryMap.Remove(OldKey);
+   
+		TGuardValue<TMap<FRigElementKey, int32>> MapGuard(Hierarchy->IndexLookup, TemporaryMap);
+		InElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), InElement->GetType());
+	}
 	
-	InElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), InElement->GetType());
 	const FRigElementKey NewKey = InElement->GetKey();
 
 	Hierarchy->IndexLookup.Remove(OldKey);

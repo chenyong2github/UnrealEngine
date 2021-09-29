@@ -851,7 +851,7 @@ bool FRigBaseElementDetails::OnVerifyNameChanged(const FText& InText, FText& Out
 		return false;
 	}
 
-	if (*GetElementKey().Name.ToString() == InText.ToString())
+	if (GetElementKey().Name.ToString() == InText.ToString())
 	{
 		return true;
 	}
