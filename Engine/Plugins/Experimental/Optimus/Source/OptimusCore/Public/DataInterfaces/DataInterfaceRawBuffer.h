@@ -56,6 +56,8 @@ public:
 	UPROPERTY()
 	FShaderValueTypeHandle ValueType;
 
+	UPROPERTY()
+	FName Context;
 private:
 	bool SupportsAtomics() const;
 };

@@ -4,6 +4,7 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
+#include "OptimusContextNames.h"
 #include "OptimusDeveloperModule.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
@@ -491,9 +492,25 @@ bool UOptimusNode::SetPinDataType
 		return false;
 	}
 
-	// FIXME: Preserve links.
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
+	Action->SetTitlef(TEXT("Set Pin Type"));
+
+	// Disconnect all the links because they _will_ become incompatible.
+	for (UOptimusNodePin* ConnectedPin: InPin->GetConnectedPins())
+	{
+		if (InPin->GetDirection() == EOptimusNodePinDirection::Input)
+		{
+			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(ConnectedPin, InPin);
+		}
+		else
+		{
+			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(InPin, ConnectedPin);
+		}
+	}
 	
-	return GetActionStack()->RunAction<FOptimusNodeAction_SetPinType>(InPin, InDataType);
+	Action->AddSubAction<FOptimusNodeAction_SetPinType>(InPin, InDataType);
+	
+	return GetActionStack()->RunAction(Action);
 }
 
 
@@ -588,12 +605,44 @@ bool UOptimusNode::SetPinNameDirect(
 }
 
 
-bool UOptimusNode::SetPinContextAndDimensionality(
+bool UOptimusNode::SetPinResourceContexts(
 	UOptimusNodePin* InPin,
-	int32 InResourceDimensionality
+	const TArray<FName>& InResourceContexts
 	)
 {
-	InPin->ResourceDimensionality = InResourceDimensionality;
+	if (!InPin || InPin->GetResourceContexts() == InResourceContexts)
+	{
+		return false;
+	}
+
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
+	Action->SetTitlef(TEXT("Set Resource Contexts"));
+
+	// Disconnect all the links because they _will_ become incompatible.
+	for (UOptimusNodePin* ConnectedPin: InPin->GetConnectedPins())
+	{
+		if (InPin->GetDirection() == EOptimusNodePinDirection::Input)
+		{
+			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(ConnectedPin, InPin);
+		}
+		else
+		{
+			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(InPin, ConnectedPin);
+		}
+	}
+	
+	Action->AddSubAction<FOptimusNodeAction_SetPinResourceContexts>(InPin, InResourceContexts);
+	
+	return GetActionStack()->RunAction(Action);
+}
+
+
+bool UOptimusNode::SetPinResourceContextsDirect(
+	UOptimusNodePin* InPin,
+	const TArray<FName>& InResourceContexts
+	)
+{
+	InPin->ResourceContexts = InResourceContexts;
 	return true;
 }
 
@@ -692,7 +741,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 			return nullptr;
 		}
 
-		StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
+		StorageConfig = FOptimusNodePinStorageConfig({Optimus::ContextName::Vertex});
 	}
 
 

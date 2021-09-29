@@ -43,6 +43,55 @@ private:
 };
 
 
+class FOptimusResourceContextCustomization :
+	public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	FOptimusResourceContextCustomization();
+
+	// IPropertyTypeCustomization overrides
+	void CustomizeHeader(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		FDetailWidgetRow& InHeaderRow,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
+
+	void CustomizeChildren(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		IDetailChildrenBuilder& InChildBuilder,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override
+	{ }
+
+private:
+	TArray<FName> ContextNames;
+};
+
+
+class FOptimusNestedResourceContextCustomization :
+	public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	FOptimusNestedResourceContextCustomization();
+
+	// IPropertyTypeCustomization overrides
+	void CustomizeHeader(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		FDetailWidgetRow& InHeaderRow,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
+
+	void CustomizeChildren(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		IDetailChildrenBuilder& InChildBuilder,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override
+	{ }
+
+private:
+	TArray<TSharedRef<TArray<FName>>> NestedContextNames;
+};
+
 
 class FOptimusType_ShaderTextCustomization : 
 	public IPropertyTypeCustomization

@@ -6,6 +6,7 @@
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "GPUSkinCache.h"
+#include "OptimusContextNames.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "ShaderParameterMetadataBuilder.h"
@@ -20,19 +21,21 @@ TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitio
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
 
-	Defs.Add({ "NumVertices", "ReadNumVertices", "Global" });
-	Defs.Add({ "NumTriangles", "ReadNumTriangles", "Global" });
+	using namespace Optimus::ContextName;
 
-	Defs.Add({"Position", "ReadPosition", "ReadNumVertices", "Vertex"});
-	Defs.Add({"TangentX", "ReadTangentX", "ReadNumVertices", "Vertex"});
-	Defs.Add({"TangentZ", "ReadTangentZ", "ReadNumVertices", "Vertex" });
-	Defs.Add({"UV0", "ReadUV0", "ReadNumVertices", "Vertex" });
-	Defs.Add({"BindMatrix", "ReadBlendMatrix", "ReadNumVertices", "Vertex"});
+	Defs.Add({"NumVertices", "ReadNumVertices"});
+	Defs.Add({"NumTriangles", "ReadNumTriangles"});
 
-	Defs.Add({"BoneMatrix", "ReadBoneMatrix", {"ReadNumVertices", "ReadNumVertexBones"}, "Vertex"});
-	Defs.Add({"BoneWeight", "ReadBoneWeight", {"ReadNumVertices", "ReadNumVertexBones"}, "Vertex"});
+	Defs.Add({"Position", "ReadPosition", Vertex, "ReadNumVertices"});
+	Defs.Add({"TangentX", "ReadTangentX", Vertex, "ReadNumVertices"});
+	Defs.Add({"TangentZ", "ReadTangentZ", Vertex, "ReadNumVertices"});
+	Defs.Add({"UV0", "ReadUV0", Vertex, "ReadNumVertices"});
+	Defs.Add({"BindMatrix", "ReadBlendMatrix", Vertex, "ReadNumVertices"});
 	
-	Defs.Add({ "IndexBuffer", "ReadIndexBuffer", "ReadNumTriangles", "Triangle" });
+	Defs.Add({"BoneMatrix", "ReadBoneMatrix", {{Vertex, "ReadNumVertices"}, {Bone, "ReadNumVertexBones"}}});
+	Defs.Add({"BoneWeight", "ReadBoneWeight", {{Vertex, "ReadNumVertices"}, {Bone, "ReadNumVertexBones"}}});
+	
+	Defs.Add({"IndexBuffer", "ReadIndexBuffer", Triangle, "ReadNumTriangles"});
 
 	return Defs;
 }

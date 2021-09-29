@@ -242,7 +242,6 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			    if (ensure(GraphNode))
 			    {
 					GraphNode->ModelPinAdded(ModelPin);
-				    // RefreshVisualNode(GraphNode);
 			    }
 			}
 			break;
@@ -298,9 +297,8 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 
 		case EOptimusGraphNotifyType::PinTypeChanged: 
 		{
-		    // The pin's value was changed on the model pin itself. The model pin has already
-		    // updated the stored node value. We just need to ensure that the graph node shows
-		    // the same value (which may now include clamping and sanitizing).
+			// The pin type has changed. We may need to reconstruct the pin, especially if it
+			// had sub-pins before but doesn't now, or the other way around. 
 		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 		    if (ensure(ModelPin))
 		    {

@@ -535,3 +535,13 @@ FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
 {
 	SetTitlef(TEXT("Remove Link"));
 }
+
+
+FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
+	UOptimusNodePin* InNodeOutputPin,
+	UOptimusNodePin* InNodeInputPin
+	) :
+	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPin, InNodeInputPin)
+{
+	SetTitlef(TEXT("Remove Link"));
+}

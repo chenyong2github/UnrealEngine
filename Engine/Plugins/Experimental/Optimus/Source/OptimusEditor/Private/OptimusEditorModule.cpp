@@ -19,6 +19,7 @@
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
+#include "OptimusResourceDescription.h"
 #include "PropertyEditorModule.h"
 #include "ComputeFramework/ComputeGraphComponent.h"
 
@@ -112,6 +113,8 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	};
 
 	RegisterPropertyCustomization(FOptimusDataTypeRef::StaticStruct()->GetFName(), &FOptimusDataTypeRefCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusResourceContext::StaticStruct()->GetFName(), &FOptimusResourceContextCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusNestedResourceContext::StaticStruct()->GetFName(), &FOptimusNestedResourceContextCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusType_ShaderText::StaticStruct()->GetFName(), &FOptimusType_ShaderTextCustomization::MakeInstance);
 }
 

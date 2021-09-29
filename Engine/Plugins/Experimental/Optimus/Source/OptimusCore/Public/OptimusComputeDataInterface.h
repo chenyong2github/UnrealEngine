@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "ComputeFramework/ComputeDataInterface.h"
 
 #include "OptimusComputeDataInterface.generated.h"
@@ -11,40 +9,42 @@
 
 struct FOptimusCDIPinDefinition
 {
-	// Singleton value read/write
+	struct FContextInfo;
+	
+	// Singleton value read/write. The context name is implied as Optimus::ContextName::Singleton.
 	FOptimusCDIPinDefinition(
-		FName InPinName,
-		FString InDataFunctionName,
-		FName InContextName
+		const FName InPinName,
+		const FString InDataFunctionName
+		) :
+		PinName(InPinName),
+		DataFunctionName(InDataFunctionName)
+	{ }
+
+	// A single level context lookup.
+	FOptimusCDIPinDefinition(
+		const FName InPinName,
+		const FString InDataFunctionName,
+		const FName InContextName,
+		const FString InCountFunctionName
 		) :
 		PinName(InPinName),
 		DataFunctionName(InDataFunctionName),
-		ContextName(InContextName)
+		Contexts{{InContextName, InCountFunctionName}}
 	{ }
 
 	FOptimusCDIPinDefinition(
-		FName InPinName,
-		FString InDataFunctionName,
-		FString InCountFunctionName,
-		FName InContextName
+		const FName InPinName,
+		const FString InDataFunctionName,
+		const std::initializer_list<FContextInfo> InContexts
 		) :
 		PinName(InPinName),
-		DataFunctionName(InDataFunctionName),
-		CountFunctionNames{{InCountFunctionName}},
-		ContextName(InContextName)
-	{ }
-
-	FOptimusCDIPinDefinition(
-		FName InPinName,
-		FString InDataFunctionName,
-		TArray<FString> InCountFunctionNames,
-		FName InContextName
-		) :
-		PinName(InPinName),
-		DataFunctionName(InDataFunctionName),
-		CountFunctionNames(InCountFunctionNames),
-		ContextName(InContextName)
-	{ }
+		DataFunctionName(InDataFunctionName)
+	{
+		for (FContextInfo ContextInfo: InContexts)
+		{
+			Contexts.Add(ContextInfo);
+		}
+	}
 
 	
 	// The name of the pin as seen by the user.
@@ -55,22 +55,40 @@ struct FOptimusCDIPinDefinition
 	// The read functions take zero to N uint indices, determined by the number of count 
 	// functions below, and return a value. The write functions take zero to N uint indices,
 	// followed by the value, with no return value.
+	// For example, for a pin that has two context levels, Vertex and Bone, the lookup function
+	// would look something like this:
+	//    float GetBoneWeight(uint VertexIndex, uint BoneIndex);
+	//    
+	// And the matching element count functions for this data function would look like:
+	//    uint GetVertexCount();
+	//    uint GetVertexBoneCount(uint VertexIndex);
+	//
+	// Using these examples, the indexes to teh GetBoneWeight function would be limited in range
+	// like thus:
+	//    0 <= VertexIndex < GetVertexCount()   and
+	//    0 <= BoneIndex < GetVertexBoneCount(VertexIndex);
 	FString DataFunctionName;
 
-	// The function to calls to get the item count for the data. If there is no count function
-	// name then the data is assumed to be a singleton and will be shown as a value pin rather
-	// than a resource pin. Otherwise, the number of count functions defines the dimensionality
-	// of the lookup. The first count function returns the count required for the context and
-	// should accept no arguments. The second count function takes as index any number between
-	// zero and the result of the first count function. E.g:
-	// uint GetFirstDimCount();
-	// uint GetSecondDimCount(uint Index);
-	// These two results then bound the indices used to call the data function.
-	TArray<FString> CountFunctionNames;
+	struct FContextInfo
+	{
+		// The data context for a given context level. For pins to be connectable they need to
+		// have identical set of contexts, in order.
+		FName ContextName;
+		
+		// The function to calls to get the item count for the data. If there is no count function
+		// name then the data is assumed to be a singleton and will be shown as a value pin rather
+		// than a resource pin. Otherwise, the number of count functions defines the dimensionality
+		// of the lookup. The first count function returns the count required for the context and
+		// should accept no arguments. The second count function takes as index any number between
+		// zero and the result of the first count function. For example:
+		//   uint GetFirstDimCount();
+		//   uint GetSecondDimCount(uint FirstDimIndex);
+		// These two results then bound the indices used to call the data function.
+		FString CountFunctionName;
+	};
 
-	// The data context for the primary dimension. Connections of different contexts cannot be
-	// made, nor connections of the 
-	FName ContextName;
+	// List of nested data contexts.
+	TArray<FContextInfo> Contexts;
 };
 
 
@@ -80,19 +98,30 @@ class OPTIMUSCORE_API UOptimusComputeDataInterface : public UComputeDataInterfac
 	GENERATED_BODY()
 	
 public:
-	static TArray<UClass*> GetAllComputeDataInterfaceClasses();
-	
 	/// Returns the name to show on the node that will proxy this interface in the graph view.
 	virtual FString GetDisplayName() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetDisplayName, return {};)
 	
 	/// Returns the list of pins that will map to the shader functions provided by this data interface.
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetDisplayName, return {};)
+
+	/// Returns the list of top-level contexts from this data interface. These can be used to
+	/// define driver contexts and resource contexts on a kernel. Each nested context will be
+	/// non-empty.
+	TSet<TArray<FName>> GetUniqueNestedContexts() const;
 	
 	virtual bool IsVisible() const
 	{
 		return true;
 	}
 
-private:
-	static TArray<UClass*> CachedClasses;
+	/// Returns all known UOptimusComputeDataInterface-derived classes.
+	static TArray<TSubclassOf<UOptimusComputeDataInterface>> GetAllComputeDataInterfaceClasses();
+
+	/// Returns the list of all top-level contexts from all known data interfaces. These can be 
+	/// used to define driver contexts and resource contexts on a kernel.
+	static TSet<FName> GetUniqueAllTopLevelContexts();
+
+	/// Returns the list of all nested contexts from all known data interfaces. These can be 
+	/// used to define input/output pin contexts on a kernel.
+	static TSet<TArray<FName>> GetUniqueAllNestedContexts();
 };

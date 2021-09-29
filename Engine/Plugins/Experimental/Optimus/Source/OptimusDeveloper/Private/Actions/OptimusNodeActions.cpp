@@ -199,11 +199,53 @@ bool FOptimusNodeAction_SetPinType::SetPinType(
 	{
 		return false;
 	}
-	
+
 	FOptimusDataTypeRef DataType;
 	DataType.TypeName = InDataType;
 
 	return Pin->GetNode()->SetPinDataTypeDirect(Pin, DataType);
+}
+
+
+FOptimusNodeAction_SetPinResourceContexts::FOptimusNodeAction_SetPinResourceContexts(
+	UOptimusNodePin* InPin,
+	const TArray<FName>& InContextNames
+	)
+{
+	if (ensure(InPin) && ensure(!InContextNames.IsEmpty()) && ensure(InPin->GetStorageType() == EOptimusNodePinStorageType::Resource))
+	{
+		PinPath = InPin->GetPinPath();
+		NewContextNames = InContextNames;
+		OldContextNames = InPin->GetResourceContexts();
+	}
+}
+
+
+bool FOptimusNodeAction_SetPinResourceContexts::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	return SetPinResourceContext(InRoot, NewContextNames);
+}
+
+
+bool FOptimusNodeAction_SetPinResourceContexts::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	return SetPinResourceContext(InRoot, OldContextNames);
+}
+
+
+bool FOptimusNodeAction_SetPinResourceContexts::SetPinResourceContext(
+	IOptimusNodeGraphCollectionOwner* InRoot,
+	const TArray<FName>& InContextNames
+	) const
+{
+	UOptimusNodePin *Pin = InRoot->ResolvePinPath(PinPath);
+
+	if (!Pin)
+	{
+		return false;
+	}
+
+	return Pin->GetNode()->SetPinResourceContextsDirect(Pin, InContextNames);
 }
 
 
@@ -247,7 +289,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(UOptimusNodePin
 		Direction = InPin->GetDirection();
 		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
 		{
-			StorageConfig = FOptimusNodePinStorageConfig(InPin->GetResourceDimensionality(), InPin->GetResourceContext());
+			StorageConfig = FOptimusNodePinStorageConfig(InPin->GetResourceContexts());
 		}
 		else
 		{

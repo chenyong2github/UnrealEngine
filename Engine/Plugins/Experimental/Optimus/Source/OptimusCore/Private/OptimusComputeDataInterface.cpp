@@ -2,38 +2,82 @@
 
 #include "OptimusComputeDataInterface.h"
 
+#include "OptimusTemplates.h"
+
 #include "UObject/UObjectIterator.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "ComputeFramework/ComputeGraph.h"
-#include "ComputeFramework/ComputeGraphComponent.h"
-#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
-#include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
-#include "DataInterfaces/DataInterfaceScene.h"
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
-#include "SkeletalRenderPublic.h"
+#include "Templates/SubclassOf.h"
 
 
-// Cached list of data interfaces.
-TArray<UClass*> UOptimusComputeDataInterface::CachedClasses;
 
-
-TArray<UClass*> UOptimusComputeDataInterface::GetAllComputeDataInterfaceClasses()
+TSet<TArray<FName>> UOptimusComputeDataInterface::GetUniqueNestedContexts() const
 {
-	if (CachedClasses.IsEmpty())
+	TSet<TArray<FName>> UniqueContextNames;
+	for (const FOptimusCDIPinDefinition& PinDef: GetPinDefinitions())
 	{
-		for (TObjectIterator<UClass> It; It; ++It)
+		if (!PinDef.Contexts.IsEmpty())
 		{
-			UClass* Class = *It;
-			if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NotPlaceable) &&
-				Class->IsChildOf(StaticClass()))
+			TArray<FName> ContextNames;
+			for (const FOptimusCDIPinDefinition::FContextInfo& ContextInfo: PinDef.Contexts)
 			{
-				UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(Class->GetDefaultObject());
-				if (DataInterface && DataInterface->IsVisible())
-				{
-					CachedClasses.Add(Class);
-				}
+				ContextNames.Add(ContextInfo.ContextName);
+			}
+			UniqueContextNames.Add(ContextNames);
+		}
+	}
+
+	return UniqueContextNames;
+}
+
+
+TArray<TSubclassOf<UOptimusComputeDataInterface>> UOptimusComputeDataInterface::GetAllComputeDataInterfaceClasses()
+{
+	TArray<TSubclassOf<UOptimusComputeDataInterface>> DataInterfaceClasses;
+
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		UClass* Class = *It;
+		if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NotPlaceable) &&
+			Class->IsChildOf(StaticClass()))
+		{
+			UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(Class->GetDefaultObject());
+			if (DataInterface && DataInterface->IsVisible())
+			{
+				DataInterfaceClasses.Add(TSubclassOf<UOptimusComputeDataInterface>(Class));
 			}
 		}
 	}
-	return CachedClasses;
+	return DataInterfaceClasses;
+}
+
+
+TSet<FName> UOptimusComputeDataInterface::GetUniqueAllTopLevelContexts()
+{
+	TSet<FName> UniqueTopLevelContextNames;
+	for (const TSubclassOf<UOptimusComputeDataInterface> DataInterfaceClass: GetAllComputeDataInterfaceClasses())
+	{
+		UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
+		if (DataInterface)
+		{
+			for (const TArray<FName>& NestedContext: DataInterface->GetUniqueNestedContexts())
+			{
+				UniqueTopLevelContextNames.Add(NestedContext[0]);
+			}
+		}
+	}
+	return UniqueTopLevelContextNames;
+}
+
+TSet<TArray<FName>> UOptimusComputeDataInterface::GetUniqueAllNestedContexts()
+{
+	TSet<TArray<FName>> UniqueNestedContextNames;
+	for (const TSubclassOf<UOptimusComputeDataInterface> DataInterfaceClass: GetAllComputeDataInterfaceClasses())
+	{
+		UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
+		if (DataInterface)
+		{
+			UniqueNestedContextNames.Append(DataInterface->GetUniqueNestedContexts());
+		}
+	}
+	return UniqueNestedContextNames;
 }

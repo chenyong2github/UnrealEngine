@@ -55,5 +55,6 @@ public:
 
 private:
 	float GameTime;
+	float GameTimeDelta;
 	uint32 FrameNumber;
 };

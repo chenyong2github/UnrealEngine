@@ -4,14 +4,29 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
-#include "OptimusDeveloperModule.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
+
+#include "Containers/Queue.h"
 #include "Misc/DefaultValueHelper.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
+
+static FString FormatResourceContexts(
+	const TArray<FName>& InContextNames
+	)
+{
+	TArray<FString> Names;
+	for (FName ContextName: InContextNames)
+	{
+		Names.Add(ContextName.ToString());
+	}
+	return FString::Join(Names, *FString(UTF8TEXT(" › ")));
+}
+
+
 
 UOptimusNodePin* UOptimusNodePin::GetParentPin()
 {
@@ -106,9 +121,9 @@ FText UOptimusNodePin::GetTooltipText() const
 	}
 	else
 	{
-		return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Resource", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tResource\nContext:\t{3}\nDimensions:\t{4}"),
+		return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Resource", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tResource\nContext:\t{3}"),
 			FText::FromString(GetName()), DataType->DisplayName, FText::FromString(DataType->ShaderValueType->ToString()),
-			FText::FromName(ResourceContext), FText::AsNumber(ResourceDimensionality));
+			FText::FromString(FormatResourceContexts(ResourceContexts)));
 	}
 }
 
@@ -340,6 +355,14 @@ TArray<UOptimusNodePin*> UOptimusNodePin::GetSubPinsRecursively() const
 }
 
 
+TArray<UOptimusNodePin*> UOptimusNodePin::GetConnectedPins() const
+{
+	const UOptimusNodeGraph* Graph = GetNode()->GetOwningGraph();
+
+	return Graph->GetConnectedPins(this);
+}
+
+
 bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* OutReason) const
 {
 	if (!ensure(InOtherPin))
@@ -420,20 +443,12 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	if (OutputPin->StorageType == EOptimusNodePinStorageType::Resource &&
 		InputPin->StorageType == EOptimusNodePinStorageType::Resource)
 	{
-		if (OutputPin->ResourceDimensionality != InputPin->ResourceDimensionality)
-		{
-			if (OutReason)
-			{
-				*OutReason = FString::Printf(TEXT("Can't connect resources with different dimensionality (%d vs %d)."),
-					OutputPin->ResourceDimensionality, InputPin->ResourceDimensionality);
-			}			
-		}
-		if (OutputPin->ResourceContext != InputPin->ResourceContext)
+		if (OutputPin->ResourceContexts != InputPin->ResourceContexts)
 		{
 			if (OutReason)
 			{
 				*OutReason = FString::Printf(TEXT("Can't connect resources with different context types (%s vs %s)."),
-					*OutputPin->ResourceContext.ToString(), *InputPin->ResourceContext.ToString());
+					*FormatResourceContexts(OutputPin->ResourceContexts), *FormatResourceContexts(InputPin->ResourceContexts));
 			}			
 		}
 	}
@@ -456,6 +471,18 @@ bool UOptimusNodePin::GetIsExpanded() const
 }
 
 
+void UOptimusNodePin::PostLoad()
+{
+	Super::PostLoad();
+
+	if (ResourceContexts.IsEmpty() && !ResourceContext_DEPRECATED.IsNone())
+	{
+		ResourceContexts.Add(ResourceContext_DEPRECATED);
+		ResourceContext_DEPRECATED = NAME_None;
+	}
+}
+
+
 void UOptimusNodePin::Initialize(
     EOptimusNodePinDirection InDirection,
     FOptimusNodePinStorageConfig InStorageConfig,
@@ -466,8 +493,7 @@ void UOptimusNodePin::Initialize(
 	StorageType = InStorageConfig.Type;
 	if (StorageType == EOptimusNodePinStorageType::Resource)
 	{
-		ResourceDimensionality = InStorageConfig.ResourceDimensionality;
-		ResourceContext = InStorageConfig.ResourceContext;
+		ResourceContexts = InStorageConfig.ResourceContexts;
 	}
 	DataType = InDataTypeRef;
 }

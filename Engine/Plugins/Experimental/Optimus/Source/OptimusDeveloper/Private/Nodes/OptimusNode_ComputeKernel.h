@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "OptimusContextNames.h"
 #include "OptimusNode.h"
 #include "OptimusDataType.h"
 #include "OptimusResourceDescription.h"
@@ -112,13 +113,8 @@ struct FOptimus_ShaderContextBinding :
 {
 	GENERATED_BODY()
 
-	FOptimus_ShaderContextBinding()
-	{
-		Contexts.Add(EOptimusResourceContext::Vertex);
-	}
-	
 	UPROPERTY(EditAnywhere, Category = Binding)
-	TArray<EOptimusResourceContext> Contexts;
+	FOptimusNestedResourceContext Context;
 };
 
 
@@ -155,7 +151,7 @@ public:
 
 	// HACK: Replace with contexts gathered from supported DataInterfaces.
 	UPROPERTY(EditAnywhere, Category = KernelConfiguration)
-	EOptimusResourceContext DriverContext = EOptimusResourceContext::Vertex;
+	FOptimusResourceContext DriverContext;
 
 	UPROPERTY(EditAnywhere, Category=Bindings)
 	TArray<FOptimus_ShaderBinding> Parameters;
@@ -177,6 +173,28 @@ protected:
 	void ConstructNode() override;;
 
 private:
+	void ProcessInputPinForComputeKernel(
+		const UOptimusNodePin* InInputPin,
+		const UOptimusNodePin* InOutputPin,
+		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
+		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
+		const TSet<const UOptimusNode *>& InValueNodeSet,
+		UOptimusKernelSource* InKernelSource,
+		TArray<FString>& OutGeneratedFunctions,
+		FOptimus_KernelParameterBindingList& OutParameterBindings,
+		FOptimus_InterfaceBindingMap& OutInputDataBindings
+		) const;
+
+	void ProcessOutputPinForComputeKernel(
+		const UOptimusNodePin* InOutputPin,
+		const TArray<UOptimusNodePin *>& InInputPins,
+		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
+		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
+		UOptimusKernelSource* InKernelSource,
+		TArray<FString>& OutGeneratedFunctions,
+		FOptimus_InterfaceBindingMap& OutOutputDataBindings
+		) const;
+	
 	void UpdatePinTypes(
 		EOptimusNodePinDirection InPinDirection
 		);
@@ -184,7 +202,7 @@ private:
 	void UpdatePinNames(
 	    EOptimusNodePinDirection InPinDirection);
 
-	void UpdatePinContextAndDimensionality(
+	void UpdatePinResourceContexts(
 		EOptimusNodePinDirection InPinDirection
 		);
 	

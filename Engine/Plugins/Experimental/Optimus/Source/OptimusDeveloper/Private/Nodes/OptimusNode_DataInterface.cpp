@@ -87,7 +87,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 	// If there's no count function, then we have a value pin. The data function should
 	// have a return parameter but no input parameters. The value function only exists in 
 	// the read function map and so can only be an output pin.
-	if (InDefinition.CountFunctionNames.IsEmpty())
+	if (InDefinition.Contexts.IsEmpty())
 	{
 		if (!InReadFunctionMap.Contains(InDefinition.DataFunctionName))
 		{
@@ -119,12 +119,12 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 	else if (!InDefinition.DataFunctionName.IsEmpty())
 	{
 		// The count function is always in the read function list.
-		for (const FString& CountFunctionName: InDefinition.CountFunctionNames)
+		for (const FOptimusCDIPinDefinition::FContextInfo& ContextInfo: InDefinition.Contexts)
 		{
-			if (!InReadFunctionMap.Contains(CountFunctionName))
+			if (!InReadFunctionMap.Contains(ContextInfo.CountFunctionName))
 			{
 				UE_LOG(LogOptimusDeveloper, Error, TEXT("Count function %s given for pin %s in %s does not exist"),
-					*CountFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
+					*ContextInfo.CountFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
 				return;
 			}
 		}
@@ -138,7 +138,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			const FShaderFunctionDefinition* FuncDef = InReadFunctionMap[InDefinition.DataFunctionName];
 
 			// FIXME: Ensure it takes a scalar uint/int as input index.
-			if (!FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != (1 + InDefinition.CountFunctionNames.Num()))
+			if (!FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != (1 + InDefinition.Contexts.Num()))
 			{
 				UE_LOG(LogOptimusDeveloper, Error, TEXT("Data read function %s given for pin %s in %s is not properly declared."),
 					*InDefinition.DataFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
@@ -155,7 +155,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			const FShaderFunctionDefinition* FuncDef = InWriteFunctionMap[InDefinition.DataFunctionName];
 
 			// FIXME: Ensure it takes a scalar uint/int as input index.
-			if (FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != (1 + InDefinition.CountFunctionNames.Num()))
+			if (FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != (1 + InDefinition.Contexts.Num()))
 			{
 				UE_LOG(LogOptimusDeveloper, Error, TEXT("Data write function %s given for pin %s in %s is not properly declared."),
 					*InDefinition.DataFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
@@ -181,7 +181,13 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			return;
 		}
 
-		const FOptimusNodePinStorageConfig StorageConfig(InDefinition.CountFunctionNames.Num(), InDefinition.ContextName);
+		TArray<FName> ContextNames;
+		for (const FOptimusCDIPinDefinition::FContextInfo& ContextInfo: InDefinition.Contexts)
+		{
+			ContextNames.Add(ContextInfo.ContextName);
+		}
+
+		const FOptimusNodePinStorageConfig StorageConfig(ContextNames);
 		AddPinDirect(InDefinition.PinName, PinDirection, StorageConfig, PinDataType);
 	}
 	else

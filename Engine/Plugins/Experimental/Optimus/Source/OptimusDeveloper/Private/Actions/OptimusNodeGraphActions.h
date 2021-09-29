@@ -317,6 +317,11 @@ struct FOptimusNodeGraphAction_RemoveLink :
 		const UOptimusNodeLink *InLink
 	);
 
+	FOptimusNodeGraphAction_RemoveLink(
+		UOptimusNodePin* InNodeOutputPin,
+		UOptimusNodePin* InNodeInputPin
+	);
+
 protected:
 	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemoveLink(InRoot); }
 	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddLink(InRoot); }
