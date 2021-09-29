@@ -4,7 +4,7 @@
 #include "AITestsCommon.h"
 
 #include "Engine/World.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassEntityTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"

@@ -13,7 +13,7 @@
 class UPipeProcessingPhaseManager;
 class UPipeProcessor;
 class UPipeCompositeProcessor;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 struct FLWCCommandBuffer;
 
 USTRUCT()
@@ -80,7 +80,7 @@ class MASSENTITY_API UPipeProcessingPhaseManager : public UObject
 {
 	GENERATED_BODY()
 public:
-	UPipeEntitySubsystem& GetEntitySubsystemRef() { check(EntitySubsystem); return *EntitySubsystem; }
+	UMassEntitySubsystem& GetEntitySubsystemRef() { check(EntitySubsystem); return *EntitySubsystem; }
 
 	/** Retrieves OnPhaseStart multicast delegate's reference for a given Phase */
 	FPipeProcessingPhase::FOnPhaseEvent& GetOnPhaseStart(const EPipeProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseStart; }
@@ -98,7 +98,7 @@ public:
 	 *  at hand it's suggested to use that Start version, otherwise call the World-using one. 
 	 */
 	void Start(UWorld& World);
-	void Start(UPipeEntitySubsystem& InEntitySubsystem);
+	void Start(UMassEntitySubsystem& InEntitySubsystem);
 	void Stop();
 	bool IsRunning() const { return EntitySubsystem != nullptr; }
 
@@ -141,7 +141,7 @@ protected:
 	FPipeProcessingPhase ProcessingPhases[(uint8)EPipeProcessingPhase::MAX];
 
 	UPROPERTY()
-	UPipeEntitySubsystem* EntitySubsystem;
+	UMassEntitySubsystem* EntitySubsystem;
 
 	EPipeProcessingPhase CurrentPhase = EPipeProcessingPhase::MAX;
 

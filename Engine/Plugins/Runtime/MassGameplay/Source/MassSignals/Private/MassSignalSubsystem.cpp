@@ -77,7 +77,7 @@ void UMassSignalSubsystem::SignalEntityDeferred(FLWComponentSystemExecutionConte
 void UMassSignalSubsystem::SignalEntitiesDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, TConstArrayView<FLWEntity> Entities)
 {
 	checkf(Entities.Num() > 0, TEXT("Expecting entities to signal"));
-	Context.Defer().EmplaceCommand<FDeferredCommand>([SignalName, Entities](const UEntitySubsystem& System)
+	Context.Defer().EmplaceCommand<FDeferredCommand>([SignalName, Entities](const UMassEntitySubsystem& System)
 	{
 		UMassSignalSubsystem* SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(System.GetWorld());
 		SignalSubsystem->SignalEntities(SignalName, Entities);
@@ -96,7 +96,7 @@ void UMassSignalSubsystem::DelaySignalEntityDeferred(FLWComponentSystemExecution
 void UMassSignalSubsystem::DelaySignalEntitiesDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, TConstArrayView<FLWEntity> Entities, const float DelayInSeconds)
 {
 	checkf(Entities.Num() > 0, TEXT("Expecting entities to signal"));
-	Context.Defer().EmplaceCommand<FDeferredCommand>([SignalName, Entities, DelayInSeconds](const UEntitySubsystem& System)
+	Context.Defer().EmplaceCommand<FDeferredCommand>([SignalName, Entities, DelayInSeconds](const UMassEntitySubsystem& System)
 	{
 		UMassSignalSubsystem* SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(System.GetWorld());
 		SignalSubsystem->DelaySignalEntities(SignalName, Entities, DelayInSeconds);

@@ -48,7 +48,7 @@ void UMassCrowdReplicationProcessor::Initialize(UObject& Owner)
 	BubbleInfoClassHandle = ReplicationManager->GetBubbleInfoClassHandle(AMassCrowdClientBubbleInfo::StaticClass());
 }
 
-void UMassCrowdReplicationProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	Super::Execute(EntitySubsystem, Context);
 
@@ -68,7 +68,7 @@ void UMassCrowdReplicationProcessor::Execute(UEntitySubsystem& EntitySubsystem, 
 #endif // WITH_MASS_DEBUG
 }
 
-void UMassCrowdReplicationProcessor::ProcessClientReplication(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdReplicationProcessor::ProcessClientReplication(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 

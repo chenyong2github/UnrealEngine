@@ -4,13 +4,13 @@
 
 #include "MassProcessor.h"
 #include "LWComponentTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "AITestsCommon.h"
 #include "MassEntityTestTypes.generated.h"
 
 
 class UWorld;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 
 USTRUCT()
 struct FTestFragment_Float : public FLWComponentData
@@ -72,7 +72,7 @@ class UPipeTestProcessorBase : public UPipeProcessor
 public:
 	UPipeTestProcessorBase();
 	FPipeProcessorExecutionOrder& GetMutableExecutionOrder() { return ExecutionOrder; }
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override 
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override 
 	{
 		ExecutionFunction(EntitySubsystem, Context);
 	}
@@ -81,7 +81,7 @@ public:
 		RequirementsFunction(EntityQuery);
 	}
 
-	TFunction<void(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)> ExecutionFunction;
+	TFunction<void(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)> ExecutionFunction;
 	TFunction<void(FLWComponentQuery& Query)> RequirementsFunction;
 
 	FLWComponentQuery& TestGetQuery() { return EntityQuery; }
@@ -156,7 +156,7 @@ public:
 
 struct FExecutionTestBase : FAITestBase
 {
-	UPipeEntitySubsystem* EntitySubsystem = nullptr;
+	UMassEntitySubsystem* EntitySubsystem = nullptr;
 	UWorld* World = nullptr;
 
 	virtual bool SetUp() override;

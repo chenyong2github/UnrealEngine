@@ -20,7 +20,7 @@ void UAssignDebugVisProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FSimDebugVisComponent>(ELWComponentAccess::ReadWrite);
 }
 
-void UAssignDebugVisProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	UMassDebugVisualizationComponent* Visualizer = WeakVisualizer.Get();
 	if (!ensure(Visualizer))

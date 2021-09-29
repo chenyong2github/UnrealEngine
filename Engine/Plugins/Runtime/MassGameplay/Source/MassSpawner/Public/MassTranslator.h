@@ -8,7 +8,7 @@
 #include "MassTranslator.generated.h"
 
 
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 
 UENUM()
 enum class EMassTranslationDirection : uint8

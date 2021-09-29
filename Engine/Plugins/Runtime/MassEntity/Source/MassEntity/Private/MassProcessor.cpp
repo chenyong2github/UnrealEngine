@@ -49,7 +49,7 @@ namespace FPipeTweakables
 class FPipeProcessorTask
 {
 public:
-	FPipeProcessorTask(UEntitySubsystem& InEntitySubsystem, const FLWComponentSystemExecutionContext& InExecutionContext, UPipeProcessor& InProc, bool bInManageCommandBuffer = true)
+	FPipeProcessorTask(UMassEntitySubsystem& InEntitySubsystem, const FLWComponentSystemExecutionContext& InExecutionContext, UPipeProcessor& InProc, bool bInManageCommandBuffer = true)
 		: EntitySubsystem(&InEntitySubsystem)
 		, ExecutionContext(InExecutionContext)
 		, Processor(&InProc)
@@ -75,7 +75,7 @@ public:
 
 		PROCESSOR_LOG(TEXT("+--+ Task %s started on %u"), *Processor->GetProcessorName(), FPlatformTLS::GetCurrentThreadId());
 
-		UEntitySubsystem::FScopedProcessing ProcessingScope = EntitySubsystem->NewProcessingScope();
+		UMassEntitySubsystem::FScopedProcessing ProcessingScope = EntitySubsystem->NewProcessingScope();
 
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Pipe Processor Task");
 		
@@ -94,7 +94,7 @@ public:
 	}
 
 private:
-	UEntitySubsystem* EntitySubsystem = nullptr;
+	UMassEntitySubsystem* EntitySubsystem = nullptr;
 	FLWComponentSystemExecutionContext ExecutionContext;
 	UPipeProcessor* Processor = nullptr;
 	/** 
@@ -107,7 +107,7 @@ private:
 class FPipeProcessorsTask_GameThread : public FPipeProcessorTask
 {
 public:
-	FPipeProcessorsTask_GameThread(UEntitySubsystem& InEntitySubsystem, const FLWComponentSystemExecutionContext& InExecutionContext, UPipeProcessor& InProc)
+	FPipeProcessorsTask_GameThread(UMassEntitySubsystem& InEntitySubsystem, const FLWComponentSystemExecutionContext& InExecutionContext, UPipeProcessor& InProc)
 		: FPipeProcessorTask(InEntitySubsystem, InExecutionContext, InProc)
 	{}
 
@@ -148,7 +148,7 @@ void UPipeProcessor::PostInitProperties()
 #endif
 }
 
-void UPipeProcessor::CallExecute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UPipeProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*StatId);
 #if WITH_PIPE_DEBUG
@@ -157,7 +157,7 @@ void UPipeProcessor::CallExecute(UEntitySubsystem& EntitySubsystem, FLWComponent
 	Execute(EntitySubsystem, Context);
 }
 
-FGraphEventRef UPipeProcessor::DispatchProcessorTasks(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites)
+FGraphEventRef UPipeProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites)
 {
 	FGraphEventRef ReturnVal;
 	if (bRequiresGameThreadExecution)
@@ -216,7 +216,7 @@ void UPipeCompositeProcessor::ConfigureQueries()
 	// via their individual PostInitProperties call
 }
 
-FGraphEventRef UPipeCompositeProcessor::DispatchProcessorTasks(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& InPrerequisites)
+FGraphEventRef UPipeCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& InPrerequisites)
 {
 	FGraphEventArray Events;
 	Events.Reserve(ProcessingFlatGraph.Num());
@@ -273,7 +273,7 @@ FGraphEventRef UPipeCompositeProcessor::DispatchProcessorTasks(UEntitySubsystem&
 	return CompletionEvent;
 }
 
-void UPipeCompositeProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UPipeCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 #if PARALLELIZED_TRAFFIC_HACK
 	if (FPipeTweakables::bParallelGroups == false

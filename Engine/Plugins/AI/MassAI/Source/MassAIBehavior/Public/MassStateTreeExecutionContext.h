@@ -7,7 +7,7 @@
 #include "MassStateTreeExecutionContext.generated.h"
 
 struct FLWComponentSystemExecutionContext;
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 class UMassSignalSubsystem;
 
 /**
@@ -20,9 +20,9 @@ struct MASSAIBEHAVIOR_API FMassStateTreeExecutionContext : public FStateTreeExec
 public:
 	/** Should never be used but has to be public for 'void UScriptStruct::TCppStructOps<FMassStateTreeExecutionContext>::ConstructForTests(void *)' */
 	FMassStateTreeExecutionContext() = default;
-	FMassStateTreeExecutionContext(UEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& InContext);
+	FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& InContext);
 
-	UEntitySubsystem& GetEntitySubsystem() const { return *EntitySubsystem; }
+	UMassEntitySubsystem& GetEntitySubsystem() const { return *EntitySubsystem; }
 	FLWComponentSystemExecutionContext& GetEntitySubsystemExecutionContext() const { return *EntitySubsystemExecutionContext; }
 
 	FLWEntity GetEntity() const { return Entity; }
@@ -38,7 +38,7 @@ protected:
 
 	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) override;
 
-	UEntitySubsystem* EntitySubsystem = nullptr;
+	UMassEntitySubsystem* EntitySubsystem = nullptr;
 	UMassSignalSubsystem* SignalSubsystem = nullptr;
 	FLWComponentSystemExecutionContext* EntitySubsystemExecutionContext = nullptr;
 	FLWEntity Entity;

@@ -16,7 +16,7 @@ UMassCrowdServerRepresentationProcessor::UMassCrowdServerRepresentationProcessor
 	LODRepresentation[EMassLOD::Off] = ERepresentationType::None;
 }
 
-void UMassCrowdServerRepresentationProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdServerRepresentationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 	{

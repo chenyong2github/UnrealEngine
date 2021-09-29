@@ -10,7 +10,7 @@
 #include "MassActorSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "MassAgentComponent.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassAIMovementFragments.h"
 #include "MassLookAtFragments.h"
 #include "MassStateTreeFragments.h"
@@ -165,7 +165,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		}
 	}
 
-	UPipeEntitySubsystem* EntitySystem = UPipeEntitySubsystem::GetCurrent(World);
+	UMassEntitySubsystem* EntitySystem = UMassEntitySubsystem::GetCurrent(World);
 	if (EntitySystem)
 	{
 		AddTextLine(FString::Printf(TEXT("{Green}Entities count active{grey}/all: {white}%d{grey}/%d"), EntitySystem->DebugGetEntityCount(), EntitySystem->DebugGetEntityCount()));

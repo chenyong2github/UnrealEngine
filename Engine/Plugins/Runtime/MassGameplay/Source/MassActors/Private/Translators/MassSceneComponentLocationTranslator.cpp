@@ -3,7 +3,7 @@
 #include "Translators/MassSceneComponentLocationTranslator.h"
 #include "MassMovementTypes.h"
 #include "Components/SceneComponent.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 
 //----------------------------------------------------------------------//
 //  UMassSceneComponentLocationToMassTranslator
@@ -22,7 +22,7 @@ void UMassSceneComponentLocationToMassTranslator::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
 }
 
-void UMassSceneComponentLocationToMassTranslator::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassSceneComponentLocationToMassTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 	{
@@ -58,7 +58,7 @@ void UMassSceneComponentLocationToActorTranslator::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
 }
 
-void UMassSceneComponentLocationToActorTranslator::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassSceneComponentLocationToActorTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 		{

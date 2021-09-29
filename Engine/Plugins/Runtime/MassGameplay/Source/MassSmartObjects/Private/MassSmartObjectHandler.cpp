@@ -12,7 +12,7 @@ namespace UE::Mass::SmartObject
 struct FPayload
 {
 	FLWEntity Entity;
-	TWeakObjectPtr<UEntitySubsystem> EntitySubsystem;
+	TWeakObjectPtr<UMassEntitySubsystem> EntitySubsystem;
 	TWeakObjectPtr<USmartObjectSubsystem> SmartObjectSubsystem;
 };
 

@@ -20,7 +20,7 @@ void UComponentUpdateSystem::PostInitProperties()
 //////////////////////////////////////////////////////////////////////////
 // UFarmHarvestTimerSetIcon
 
-void UFarmHarvestTimerSetIcon::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UFarmHarvestTimerSetIcon::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SET_ICON_SET_ICON_SET_ICON);
 
@@ -64,7 +64,7 @@ ALWComponentTestFarmPlot::ALWComponentTestFarmPlot()
 	HarvestIconISMC->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 }
 
-void ALWComponentTestFarmPlot::AddItemToGrid(UEntitySubsystem* EntitySystem, int32 X, int32 Y, FArchetypeHandle Archetype, int32 VisualIndex)
+void ALWComponentTestFarmPlot::AddItemToGrid(UMassEntitySubsystem* EntitySystem, int32 X, int32 Y, FArchetypeHandle Archetype, int32 VisualIndex)
 {
 	FLWEntity NewItem = EntitySystem->CreateEntity(Archetype);
 	PlantedSquares[X + Y * GridWidth] = NewItem;
@@ -91,7 +91,7 @@ void ALWComponentTestFarmPlot::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UEntitySubsystem>(GetWorld());
+	UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 
 	FArchetypeHandle CropArchetype = EntitySystem->CreateArchetype(TArray<const UScriptStruct*>{ FFarmWaterComponent::StaticStruct(), FFarmCropComponent::StaticStruct(), FHarvestTimerComponent::StaticStruct(), FFarmVisualComponent::StaticStruct(), FFarmGridCellData::StaticStruct() });
 	FArchetypeHandle FlowerArchetype = EntitySystem->CreateArchetype(TArray<const UScriptStruct*>{ FFarmWaterComponent::StaticStruct(), FFarmFlowerComponent::StaticStruct(), FHarvestTimerComponent::StaticStruct(), FFarmVisualComponent::StaticStruct(), FFarmGridCellData::StaticStruct() });
@@ -150,7 +150,7 @@ void ALWComponentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTy
 
 	QUICK_SCOPE_CYCLE_COUNTER(HeyaTick);
 
-	UEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UEntitySubsystem>(GetWorld());
+	UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 
 	// Run every frame systems
 	{

@@ -4,7 +4,7 @@
 #include "AITestsCommon.h"
 
 #include "Engine/World.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassEntityTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
@@ -48,7 +48,7 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 			for (int i = 0; i < 3; ++i)
 			{
 				UPipeTestProcessorBase* Processor = NewObject<UPipeTestProcessorBase>(EntitySubsystem);
-				Processor->ExecutionFunction = [Processor, &Result, i](UEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
+				Processor->ExecutionFunction = [Processor, &Result, i](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
 						check(Processor);
 						Result += FMath::Pow(10.f, float(i));
 					};

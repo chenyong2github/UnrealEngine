@@ -12,7 +12,7 @@
 
 struct FMassHandle;
 class AActor;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 
 /**
  * Light weight component data to save the actor pointer of a light weight entity if it exist
@@ -108,5 +108,5 @@ protected:
 	UE_MT_DECLARE_RW_ACCESS_DETECTOR(ActorHandleMapDetector);
 	
 	UPROPERTY()
-	UPipeEntitySubsystem* EntitySystem;
+	UMassEntitySubsystem* EntitySystem;
 };

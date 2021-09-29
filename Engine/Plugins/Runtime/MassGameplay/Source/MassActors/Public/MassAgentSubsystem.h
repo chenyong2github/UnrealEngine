@@ -10,7 +10,7 @@
 
 struct FMassHandle;
 class AActor;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 class UMassSpawnerSubsystem;
 class UMassAgentComponent;
 class UMassSimulationSubsystem;
@@ -123,7 +123,7 @@ protected:
 
 protected:
 	UPROPERTY()
-	UPipeEntitySubsystem* EntitySystem;
+	UMassEntitySubsystem* EntitySystem;
 
 	UPROPERTY()
 	UMassSpawnerSubsystem* SpawnerSystem;

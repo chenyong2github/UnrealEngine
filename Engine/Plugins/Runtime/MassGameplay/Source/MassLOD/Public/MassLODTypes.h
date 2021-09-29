@@ -4,7 +4,7 @@
 
 #include "LWComponentTypes.h"
 #include "Containers/StaticArray.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 
 #include "MassLODTypes.generated.h"
 

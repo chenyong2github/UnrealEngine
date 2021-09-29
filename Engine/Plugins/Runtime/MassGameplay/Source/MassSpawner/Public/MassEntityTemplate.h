@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MassEntityTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
 #include "MassTranslator.h"
 #include "MassEntityTemplate.generated.h"
@@ -142,8 +142,8 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		return ChunkFragments[Index].template GetMutable<T>();
 	}
 
-	FString DebugGetDescription(UEntitySubsystem* EntitySubsystem = nullptr) const;
-	FString DebugGetArchetypeDescription(UEntitySubsystem& EntitySubsystem) const;
+	FString DebugGetDescription(UMassEntitySubsystem* EntitySubsystem = nullptr) const;
+	FString DebugGetArchetypeDescription(UMassEntitySubsystem& EntitySubsystem) const;
 
 private:
 	FArchetypeHandle Archetype;

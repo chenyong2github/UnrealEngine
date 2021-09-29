@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassSignalTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 
 uint64 FMassSignalNameLookup::GetOrAddSignalName(const FName SignalName)
 {

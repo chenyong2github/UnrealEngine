@@ -29,7 +29,7 @@ void FMassEntityTemplate::SetUpProcessors(const FMassObjectHandlers& ObjectHandl
 	DeinitializationPipeline.InitializeFromArray(ObjectHandlers.Deinitializers, PipelineOwner);
 }
 
-FString FMassEntityTemplate::DebugGetDescription(UEntitySubsystem* EntitySubsystem) const
+FString FMassEntityTemplate::DebugGetDescription(UMassEntitySubsystem* EntitySubsystem) const
 { 
 	FStringOutputDevice Ar;
 #if WITH_MASS_DEBUG
@@ -50,7 +50,7 @@ FString FMassEntityTemplate::DebugGetDescription(UEntitySubsystem* EntitySubsyst
 	return MoveTemp(Ar);
 }
 
-FString FMassEntityTemplate::DebugGetArchetypeDescription(UEntitySubsystem& EntitySubsystem) const
+FString FMassEntityTemplate::DebugGetArchetypeDescription(UMassEntitySubsystem& EntitySubsystem) const
 {
 	FStringOutputDevice OutDescription;
 #if WITH_MASS_DEBUG

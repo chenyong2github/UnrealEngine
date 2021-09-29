@@ -5,7 +5,7 @@
 #include "MassSmartObjectRequest.h"
 #include "MassSmartObjectTypes.h"
 
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 class USmartObjectSubsystem;
 struct FLWComponentSystemExecutionContext;
 struct FLWEntity;
@@ -28,7 +28,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	 * @param InExecutionContext is the current execution context of the entity subsystem
 	 * @param InSmartObjectSubsystem is the smart object subsystem
 	 */
-	FMassSmartObjectHandler(UEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& InExecutionContext, USmartObjectSubsystem& InSmartObjectSubsystem)
+	FMassSmartObjectHandler(UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& InExecutionContext, USmartObjectSubsystem& InSmartObjectSubsystem)
 		: EntitySubsystem(InEntitySubsystem)
 		, ExecutionContext(InExecutionContext)
 		, SmartObjectSubsystem(InSmartObjectSubsystem)
@@ -118,7 +118,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	void ReleaseSmartObject(const FLWEntity Entity, FDataFragment_SmartObjectUser& User, const EMassSmartObjectInteractionStatus Status = EMassSmartObjectInteractionStatus::Unset) const;
 
 private:
-	UEntitySubsystem& EntitySubsystem;
+	UMassEntitySubsystem& EntitySubsystem;
 	FLWComponentSystemExecutionContext& ExecutionContext;
 	USmartObjectSubsystem& SmartObjectSubsystem;
 };

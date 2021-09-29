@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassCommonTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "Math/ColorList.h"
 
 #if WITH_MASS_DEBUG
@@ -103,7 +103,7 @@ FColor GetEntityDebugColor(FLWEntity Entity)
 }} // namespace UE::MassDebug
 #endif // WITH_MASS_DEBUG
 
-const FMassHandle FMassHandle::InvalidHandle(UEntitySubsystem::InvalidEntity);
+const FMassHandle FMassHandle::InvalidHandle(UMassEntitySubsystem::InvalidEntity);
 
 //----------------------------------------------------------------------//
 // FMassUniqueFragmentCollection 

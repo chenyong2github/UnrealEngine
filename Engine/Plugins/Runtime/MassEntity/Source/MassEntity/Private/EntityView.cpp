@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntityView.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "ArchetypeData.h"
 
 
@@ -15,7 +15,7 @@ FEntityView::FEntityView(const FArchetypeHandle& ArchetypeHandle, FLWEntity InEn
 	EntityHandle = Archetype->MakeEntityHandle(Entity);
 }
 
-FEntityView::FEntityView(const UEntitySubsystem& EntitySubsystem, FLWEntity InEntity)
+FEntityView::FEntityView(const UMassEntitySubsystem& EntitySubsystem, FLWEntity InEntity)
 {
 	Entity = InEntity;
 	const FArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);

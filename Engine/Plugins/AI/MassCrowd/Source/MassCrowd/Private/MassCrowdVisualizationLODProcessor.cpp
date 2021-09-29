@@ -68,7 +68,7 @@ void UMassCrowdVisualizationLODProcessor::ConfigureQueries()
 	FarEntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassCrowdVisualizationLODProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	ForceOffLOD((bool)UE::MassCrowd::GCrowdTurnOffVisualization);
 

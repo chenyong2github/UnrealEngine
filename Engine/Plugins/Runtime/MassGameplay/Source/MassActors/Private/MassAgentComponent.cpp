@@ -3,7 +3,7 @@
 #include "MassAgentComponent.h"
 #include "EngineUtils.h"
 #include "EntityView.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
 #include "MassAgentSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
@@ -162,7 +162,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 
 #if	UE_REPLICATION_COMPILE_SERVER_CODE
 	// Fetch NetID if it exist
-	if (const UPipeEntitySubsystem* EntitySubsystem = UPipeEntitySubsystem::GetCurrent(GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
 	{
 		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetComponentDataPtr<FMassNetworkIDFragment>(AgentHandle.GetLWEntity()))
 		{
@@ -188,7 +188,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 	}
 
 	// Sync up with mass
-	if (const UPipeEntitySubsystem* EntitySubsystem = UPipeEntitySubsystem::GetCurrent(GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
 	{
 		if (IsNetSimulating())
 		{
@@ -277,7 +277,7 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 	}
 
 	// Sync up with mass
-	if (const UPipeEntitySubsystem* EntitySubsystem = UPipeEntitySubsystem::GetCurrent(GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
 	{
 		if (IsNetSimulating())
 		{
@@ -291,7 +291,7 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 	}
 
 #if WITH_EDITORONLY_DATA
-	DebugEntity = UEntitySubsystem::InvalidEntity;
+	DebugEntity = UMassEntitySubsystem::InvalidEntity;
 #endif // WITH_EDITORONLY_DATA
 	AgentHandle = FMassHandle::InvalidHandle;
 }
@@ -352,7 +352,7 @@ void UMassAgentComponent::DebugCheckStateConsistency()
 			MASSAGENT_CHECK(bValidAgentHandle, TEXT("Expecting a valid mass agent handle in state %s"), *UEnum::GetValueAsString(State));
 			if (bValidAgentHandle)
 			{
-				if (UPipeEntitySubsystem* EntitySubsystem = UPipeEntitySubsystem::GetCurrent(GetWorld()))
+				if (UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
 				{
 					const bool bIsValidEntity = EntitySubsystem->IsEntityValid(AgentHandle.GetLWEntity());
 					MASSAGENT_CHECK(bIsValidEntity, TEXT("Exepecting a valid entity in state"), *UEnum::GetValueAsString(State))
@@ -418,7 +418,7 @@ void UMassAgentComponent::KillEntity(const bool bDestroyActor)
 
 	AActor* Owner = GetOwner();
 	UWorld* World = GetWorld();
-	UPipeEntitySubsystem* EntitySubsystem = UPipeEntitySubsystem::GetCurrent(World);
+	UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(World);
 	if (Owner == nullptr || EntitySubsystem == nullptr)
 	{
 		return;

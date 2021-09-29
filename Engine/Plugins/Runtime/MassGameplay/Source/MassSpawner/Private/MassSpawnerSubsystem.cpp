@@ -3,7 +3,7 @@
 #include "MassSpawnerSubsystem.h"
 #include "MassSpawnerTypes.h"
 #include "MassEntityTemplate.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassEntityTemplateRegistry.h"
 #include "Engine/World.h"
 #include "MassExecutor.h"
@@ -19,7 +19,7 @@
 namespace UE::Mass::SpawnerSubsystem 
 {
 
-	bool RunFragmentDestructors(const FArchetypeChunkCollection& Chunks, UMassSpawnerSubsystem& SpawnerSubSystem, UPipeEntitySubsystem& EntitySystem)
+	bool RunFragmentDestructors(const FArchetypeChunkCollection& Chunks, UMassSpawnerSubsystem& SpawnerSubSystem, UMassEntitySubsystem& EntitySystem)
 	{
 		const FArchetypeHandle ArchetypeHandle = Chunks.GetArchetype();
 		// @todo this is a temporary measure to skip entities we've destroyed without the
@@ -56,7 +56,7 @@ namespace UE::Mass::SpawnerSubsystem
 		return Destructors.Num() > 0;
 	}
 	
-	void CreateSparseChunks(const UPipeEntitySubsystem& EntitySystem, const TConstArrayView<FLWEntity> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections)
+	void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FLWEntity> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("SpawnerSubsystem_CreateSparseChunks");
 
@@ -93,7 +93,7 @@ void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 
 	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(GetWorld());
-	EntitySystem = UPipeEntitySubsystem::GetCurrent(GetWorld());
+	EntitySystem = UMassEntitySubsystem::GetCurrent(GetWorld());
 	check(EntitySystem);
 }
 

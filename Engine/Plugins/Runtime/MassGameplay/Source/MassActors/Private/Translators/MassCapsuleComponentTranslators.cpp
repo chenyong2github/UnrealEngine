@@ -2,7 +2,7 @@
 
 #include "Translators/MassCapsuleComponentTranslators.h"
 #include "MassCommonTypes.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "Components/CapsuleComponent.h"
 #include "MassMovementTypes.h"
 
@@ -24,7 +24,7 @@ void UMassCapsuleTransformToMassTranslator::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
 }
 
-void UMassCapsuleTransformToMassTranslator::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCapsuleTransformToMassTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 		{
@@ -58,7 +58,7 @@ void UMassTransformToActorCapsuleTranslator::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassTransformToActorCapsuleTranslator::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassTransformToActorCapsuleTranslator::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 		{

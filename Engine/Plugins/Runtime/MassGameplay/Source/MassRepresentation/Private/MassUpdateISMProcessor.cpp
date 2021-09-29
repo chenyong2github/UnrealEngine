@@ -3,7 +3,7 @@
 #include "MassUpdateISMProcessor.h"
 #include "MassVisualizationComponent.h"
 #include "MassRepresentationSubsystem.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassRepresentationFragments.h"
 #include "MassCommonFragments.h"
 #include "MassLODTypes.h"
@@ -40,7 +40,7 @@ void UMassUpdateISMProcessor::ConfigureQueries()
 	}
 }
 
-void UMassUpdateISMProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassUpdateISMProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	check(RepresentationSubsystem);
 	FMassInstancedStaticMeshInfoArrayView ISMInfo = RepresentationSubsystem->GetMutableInstancedStaticMeshInfos();

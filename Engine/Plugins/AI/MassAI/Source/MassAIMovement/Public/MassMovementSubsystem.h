@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "HierarchicalHashGrid2D.h"
 #include "MassMovementTypes.h"
 #include "Subsystems/WorldSubsystem.h"
@@ -26,7 +26,7 @@ public:
 protected:
 
 	UPROPERTY(Transient)
-	UPipeEntitySubsystem* EntitySubsystem;
+	UMassEntitySubsystem* EntitySubsystem;
 
 	UPROPERTY(Transient)
 	UZoneGraphSubsystem* ZoneGraphSubsystem;

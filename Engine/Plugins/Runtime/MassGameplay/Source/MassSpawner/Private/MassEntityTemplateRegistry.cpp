@@ -2,7 +2,7 @@
 
 #include "MassEntityTemplateRegistry.h"
 #include "MassSpawnerTypes.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 #include "HAL/IConsoleManager.h"
@@ -138,7 +138,7 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 		InitializeEntityTemplate(OutTemplate);
 
 		UE_VLOG(this, LogMassSpawner, Log, TEXT("Created entity template for %s:\n%s"), *GetNameSafe(StructInstance.GetScriptStruct())
-			, *OutTemplate.DebugGetDescription(UPipeEntitySubsystem::GetCurrent(World)));
+			, *OutTemplate.DebugGetDescription(UMassEntitySubsystem::GetCurrent(World)));
 
 		return true;
 	}
@@ -252,7 +252,7 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 
 	UWorld* World = GetWorld();
 	// find or create template
-	UPipeEntitySubsystem* EntitySys = UPipeEntitySubsystem::GetCurrent(World);
+	UMassEntitySubsystem* EntitySys = UMassEntitySubsystem::GetCurrent(World);
 	check(EntitySys);
 
 	FTemplateRegistryHelpers::FragmentInstancesToTypes(OutTemplate.GetFragments(), OutTemplate.GetMutableFragmentTypes());

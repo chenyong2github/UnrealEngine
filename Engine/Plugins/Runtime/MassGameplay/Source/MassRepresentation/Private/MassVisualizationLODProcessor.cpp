@@ -61,7 +61,7 @@ void UMassVisualizationLODProcessor::PrepareExecution()
 	LODCalculator.PrepareExecution(Viewers);
 }
 
-void UMassVisualizationLODProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassVisualizationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	ExecuteInternal(EntitySubsystem, Context);
 }

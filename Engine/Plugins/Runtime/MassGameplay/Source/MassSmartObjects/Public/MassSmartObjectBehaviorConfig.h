@@ -5,7 +5,7 @@
 #include "SmartObjectConfig.h"
 #include "MassSmartObjectBehaviorConfig.generated.h"
 
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 class USmartObjectSubsystem;
 struct FLWEntity;
 struct FLWComponentSystemExecutionContext;
@@ -43,7 +43,7 @@ public:
 	 * This virtual method allows subclasses to configure the LW Entity based on their
 	 * parameters (e.g. Add new fragments)
 	 */
-	virtual void Activate(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, const FMassBehaviorEntityContext& EntityContext) const;
+	virtual void Activate(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, const FMassBehaviorEntityContext& EntityContext) const;
 
 	/**
 	 * Indicates the amount of time the LW entity

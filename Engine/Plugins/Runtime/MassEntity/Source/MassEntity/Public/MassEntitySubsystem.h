@@ -6,11 +6,11 @@
 #include "LWComponentTypes.h"
 #include "InstancedStruct.h"
 #include "EntityQuery.h"
-#include "EntitySubsystem.generated.h"
+#include "MassEntitySubsystem.generated.h"
 
 MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogAggregateTicking, Warning, All);
 
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 struct FLWComponentQuery;
 struct FLWComponentSystemExecutionContext;
 struct FArchetypeData;
@@ -26,7 +26,7 @@ FString DebugGetComponentAccessString(ELWComponentAccess Access);
 
 //@TODO: Comment this guy
 UCLASS()
-class MASSENTITY_API UEntitySubsystem : public UWorldSubsystem
+class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -69,7 +69,7 @@ public:
 
 	const static FLWEntity InvalidEntity;
 
-	UEntitySubsystem();
+	UMassEntitySubsystem();
 
 	//~UObject interface
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
@@ -80,6 +80,11 @@ public:
 	virtual void Deinitialize() override;
 	//~End of USubsystem interface
 
+	static FORCEINLINE UMassEntitySubsystem* GetCurrent(UWorld* World)
+	{
+		return World ? World->GetSubsystem<UMassEntitySubsystem>() : nullptr;
+	}
+	
 	/** 
 	 * A special, relaxed but slower version of CreateArchetype functions that allows ComponentAngTagsList to contain 
 	 * both components and tags. 
@@ -296,7 +301,7 @@ private:
 	//@TODO: Not optimized or a great API, super WIP
 	struct MASSENTITY_API FChunkIteratorByComponent
 	{
-		FChunkIteratorByComponent(UEntitySubsystem* InSystem, const UScriptStruct* InComponentType);
+		FChunkIteratorByComponent(UMassEntitySubsystem* InSystem, const UScriptStruct* InComponentType);
 
 		void GetCurrentChunkBase(void*& OutChunkBasePtr, int32& OutChunkEntityCount) const;
 
@@ -304,7 +309,7 @@ private:
 		bool IsDone() const;
 		FArchetypeData* GetCurrentArchetype() const;
 
-		UEntitySubsystem* System;
+		UMassEntitySubsystem* System;
 		const UScriptStruct* ComponentType;
 
 		TArray<TSharedPtr<FArchetypeData>>* pPendingArchetypes;
@@ -500,7 +505,7 @@ public:
 	const FInstancedStruct& GetAuxData() const { return AuxData; }
 	FInstancedStruct& GetMutableAuxData() { return AuxData; }
 
-	void FlushDeferred(UEntitySubsystem& EntitySystem) const;
+	void FlushDeferred(UMassEntitySubsystem& EntitySystem) const;
 
 	void ClearExecutionData();
 	void SetCurrentArchetypeData(FArchetypeData& ArchetypeData);

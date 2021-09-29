@@ -6,7 +6,7 @@
 #include "MassActorSubsystem.h"
 #include "MassCommonFragments.h"
 #include "LWCCommandBuffer.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "EntityView.h"
 #include "Engine/World.h"
 
@@ -39,7 +39,7 @@ void UMassRepresentationProcessor::Initialize(UObject& Owner)
 	Super::Initialize(Owner);
 
 	World = Owner.GetWorld();
-	PipeEntitySubsystem = UPipeEntitySubsystem::GetCurrent(World);
+	PipeEntitySubsystem = UMassEntitySubsystem::GetCurrent(World);
 	RepresentationSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(World);
 
 	// Calculate the default representation when actor isn't spawned yet.
@@ -207,7 +207,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FLWComponentSystemExecut
 	}
 }
 
-void UMassRepresentationProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	check(RepresentationSubsystem);
 
@@ -247,7 +247,7 @@ bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(const FMassHandl
 			TObjectKey<const AActor> ActorKey(Actor); 
 			if (UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World))
 			{
-				Context.Defer().EmplaceCommand<FDeferredCommand>([MassActorSubsystem, ActorKey](UEntitySubsystem&)
+				Context.Defer().EmplaceCommand<FDeferredCommand>([MassActorSubsystem, ActorKey](UMassEntitySubsystem&)
 				{
 					MassActorSubsystem->RemoveHandleForActor(ActorKey);
 				});
@@ -268,7 +268,7 @@ void UMassRepresentationProcessor::SetActorEnabled(const EActorEnabledType Enabl
 	if (Actor.GetActorEnableCollision() != bEnabled)
 	{
 		// Deferring this as there is a callback internally that could end up doing things outside of the game thread and will fire checks(Chaos mostly)
-		Context.Defer().EmplaceCommand<FDeferredCommand>( [&Actor,bEnabled](UEntitySubsystem&)
+		Context.Defer().EmplaceCommand<FDeferredCommand>( [&Actor,bEnabled](UMassEntitySubsystem&)
 		{
 			Actor.SetActorEnableCollision(bEnabled);
 		});
@@ -279,7 +279,7 @@ void UMassRepresentationProcessor::TeleportActor(const FTransform& Transform, AA
 {
 	if (!Actor.GetTransform().Equals(Transform))
 	{
-		Context.Defer().EmplaceCommand<FDeferredCommand>([&Actor, Transform](UEntitySubsystem&)
+		Context.Defer().EmplaceCommand<FDeferredCommand>([&Actor, Transform](UMassEntitySubsystem&)
 		{
 			Actor.SetActorTransform(Transform, /*bSweep*/false, /*OutSweepHitResult*/nullptr, ETeleportType::TeleportPhysics);
 		});
@@ -288,7 +288,7 @@ void UMassRepresentationProcessor::TeleportActor(const FTransform& Transform, AA
 
 void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassHandle MassAgent)
 {
-	if (const UPipeEntitySubsystem* EntitySubsystem = UPipeEntitySubsystem::GetCurrent(RepresentationSubsystem.GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(RepresentationSubsystem.GetWorld()))
 	{
 		if (FDataFragment_Actor* ActorInfo = EntitySubsystem->GetComponentDataPtr<FDataFragment_Actor>(MassAgent.GetLWEntity()))
 		{
@@ -469,7 +469,7 @@ void UMassRepresentationFragmentDestructor::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_Actor>(ELWComponentAccess::ReadWrite);
 }
 
-void UMassRepresentationFragmentDestructor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	check(RepresentationSubsystem);
 

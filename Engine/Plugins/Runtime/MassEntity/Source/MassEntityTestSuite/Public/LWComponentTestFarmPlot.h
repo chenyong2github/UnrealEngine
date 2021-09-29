@@ -7,7 +7,7 @@
 #include "Engine/DataTable.h"
 
 #include "LWComponentTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "LWCCommandBuffer.h"
 
 #include "LWComponentTestFarmPlot.generated.h"
@@ -101,7 +101,7 @@ class UComponentUpdateSystem : public UObject
 	GENERATED_BODY()
 public:
 	virtual void PostInitProperties() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) {}
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) {}
 protected:
 	virtual void ConfigureQueries() {}
 protected:
@@ -120,7 +120,7 @@ public:
 		EntityQuery.AddRequirement<FFarmWaterComponent>(ELWComponentAccess::ReadWrite);
 	}
 
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmWaterUpdateSystem_Run);
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context) {
@@ -149,7 +149,7 @@ public:
 		EntityQuery.AddRequirement<FFarmFlowerComponent>(ELWComponentAccess::ReadWrite);
 	}
 
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmHarvestTimerSystem_Flowers_Run);
 		
@@ -192,7 +192,7 @@ public:
 		EntityQuery.AddRequirement<FFarmCropComponent>(ELWComponentAccess::ReadOnly);
 	}
 
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmHarvestTimerSystem_Crops_Run);
 		
@@ -227,7 +227,7 @@ public:
 		EntityQuery.AddTagRequirement<FFarmReadyToHarvest>(ELWComponentPresence::None);
 	}
 
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmHarvestTimerExpired_Run);
 		
@@ -269,7 +269,7 @@ public:
 		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvest>(ELWComponentPresence::All);
 	}
 
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -337,7 +337,7 @@ private:
 	TArray<int32> FreeHarvestIconIndicies;
 
 private:
-	void AddItemToGrid(UEntitySubsystem* EntitySystem, int32 X, int32 Y, FArchetypeHandle Archetype, int32 VisualIndex);
+	void AddItemToGrid(UMassEntitySubsystem* EntitySystem, int32 X, int32 Y, FArchetypeHandle Archetype, int32 VisualIndex);
 
 public:
 	ALWComponentTestFarmPlot();

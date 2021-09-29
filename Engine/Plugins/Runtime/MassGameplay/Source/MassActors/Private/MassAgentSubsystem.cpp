@@ -3,7 +3,7 @@
 #include "MassAgentSubsystem.h"
 #include "LWCCommandBuffer.h"
 #include "Engine/World.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
 #include "MassSimulationSubsystem.h"
 #include "MassSpawnerSubsystem.h"
@@ -46,7 +46,7 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 	
 	UWorld* World = GetWorld();
-	EntitySystem = UPipeEntitySubsystem::GetCurrent(World);
+	EntitySystem = UMassEntitySubsystem::GetCurrent(World);
 	SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
 
 	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(World);

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "ArchetypeTypes.h"
 
 struct FLWComponentQuery;

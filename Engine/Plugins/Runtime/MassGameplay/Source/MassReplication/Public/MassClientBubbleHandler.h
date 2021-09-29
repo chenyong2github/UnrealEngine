@@ -4,7 +4,7 @@
 
 #include "MassCommonTypes.h"
 #include "MassReplicationTypes.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "Containers/ArrayView.h"
 #include "MassClientBubbleSerializerBase.h"
 #include "MassSpawnerSubsystem.h"
@@ -17,7 +17,7 @@
 #include "MassClientBubbleHandler.generated.h"
 
 class UWorld;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 
 namespace UE::Mass::Replication
 {
@@ -427,7 +427,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 {
 	TArray<FLWEntity> EntitiesDestroy;
 
-	UPipeEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
+	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
 	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
@@ -506,7 +506,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 {
 	check(Serializer);
 
-	UPipeEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
+	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
 	UMassSpawnerSubsystem* SpawnerSubsystem = Serializer->GetSpawnerSubsystem();
@@ -584,7 +584,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedChangeHelper(const TArrayView<int32> ChangedIndices, FSetModifiedEntityDataFunction SetModifiedEntityData)
 {
-	UPipeEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
+	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
 	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
@@ -652,7 +652,7 @@ template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnClient()
 {
 #if UE_ALLOW_DEBUG_REPLICATION
-	UPipeEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
+	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
 	UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();
@@ -715,7 +715,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::DebugValidateBubbleOnServer()
 #if UE_ALLOW_DEBUG_REPLICATION
 	using namespace UE::Mass::Replication;
 
-	UPipeEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
+	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
 
 	for (int32 OuterIdx = 0; OuterIdx < (*Agents).Num(); ++OuterIdx)

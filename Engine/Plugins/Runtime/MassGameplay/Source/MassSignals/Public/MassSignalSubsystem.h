@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "MassSignalSubsystem.generated.h"
 

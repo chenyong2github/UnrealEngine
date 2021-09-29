@@ -3,7 +3,7 @@
 #pragma once
 
 #include "LWComponentTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "InstancedStructStream.h"
 #include "Misc/MTAccessDetector.h"
 
@@ -27,7 +27,7 @@ struct MASSENTITY_API FCommandBufferEntryBase
 		: TargetEntity(InEntity)
 	{}
 
-	virtual void Execute(UEntitySubsystem& System) const PURE_VIRTUAL(FCommandBufferEntryBase::Execute, );
+	virtual void Execute(UMassEntitySubsystem& System) const PURE_VIRTUAL(FCommandBufferEntryBase::Execute, );
 };
 template<> struct TStructOpsTypeTraits<FCommandBufferEntryBase> : public TStructOpsTypeTraitsBase2<FCommandBufferEntryBase> { enum { WithPureVirtual = true, }; };
 
@@ -41,17 +41,17 @@ struct MASSENTITY_API FDeferredCommand : public FCommandBufferEntryBase
 
 	FDeferredCommand() = default;
 
-	FDeferredCommand(const TFunction<void(UEntitySubsystem& System)>& InDeferredFunction)
+	FDeferredCommand(const TFunction<void(UMassEntitySubsystem& System)>& InDeferredFunction)
 		: DeferredFunction(InDeferredFunction)
 	{}
 
-	virtual void Execute(UEntitySubsystem& System) const override
+	virtual void Execute(UMassEntitySubsystem& System) const override
 	{
 		DeferredFunction(System);
 	}
 
 protected:
-	TFunction<void(UEntitySubsystem& System)> DeferredFunction;
+	TFunction<void(UMassEntitySubsystem& System)> DeferredFunction;
 };
 
 /**
@@ -69,7 +69,7 @@ struct MASSENTITY_API FBuildEntityFromComponentInstance : public FCommandBufferE
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	FInstancedStruct Struct;
 };
@@ -89,7 +89,7 @@ struct MASSENTITY_API FBuildEntityFromComponentInstances : public FCommandBuffer
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	TArray<FInstancedStruct> Instances;
 };
@@ -109,7 +109,7 @@ struct MASSENTITY_API FCommandAddComponent : public FCommandBufferEntryBase
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	UScriptStruct* StructParam = nullptr;
 };
@@ -129,7 +129,7 @@ struct MASSENTITY_API FCommandAddComponentInstance : public FCommandBufferEntryB
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	FInstancedStruct Struct;
 };
@@ -149,7 +149,7 @@ struct MASSENTITY_API FCommandRemoveComponent : public FCommandBufferEntryBase
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	UScriptStruct* StructParam = nullptr;
 };
@@ -169,7 +169,7 @@ struct MASSENTITY_API FCommandAddComponentList : public FCommandBufferEntryBase
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	TArray<const UScriptStruct*> ComponentList;
 };
@@ -189,7 +189,7 @@ struct MASSENTITY_API FCommandRemoveComponentList : public FCommandBufferEntryBa
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	TArray<const UScriptStruct*> ComponentList;
 };
@@ -209,7 +209,7 @@ struct MASSENTITY_API FCommandAddTag: public FCommandBufferEntryBase
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	UScriptStruct* StructParam = nullptr;
 };
@@ -229,7 +229,7 @@ struct MASSENTITY_API FCommandRemoveTag : public FCommandBufferEntryBase
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	UScriptStruct* StructParam = nullptr;
 };
@@ -255,7 +255,7 @@ struct MASSENTITY_API FCommandSwapTags : public FCommandBufferEntryBase
 	}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	const UScriptStruct* OldTagType = nullptr;
 	const UScriptStruct* NewTagType = nullptr;
@@ -276,7 +276,7 @@ struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
 	{}
 
 protected:
-	virtual void Execute(UEntitySubsystem& System) const override;
+	virtual void Execute(UMassEntitySubsystem& System) const override;
 
 	FLWCompositionDescriptor Descriptor;
 };
@@ -346,7 +346,7 @@ public:
 		EntitiesToDestroy.Append(InEntitiesToDestroy);
 	}
 
-	void ReplayBufferAgainstSystem(UEntitySubsystem* System);
+	void ReplayBufferAgainstSystem(UMassEntitySubsystem* System);
 
 	SIZE_T GetAllocatedSize() const { return PendingCommands.GetAllocatedSize(); }
 

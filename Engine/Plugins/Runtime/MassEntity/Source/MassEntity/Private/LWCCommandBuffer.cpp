@@ -66,7 +66,7 @@ void GetCommandStatNames(FStructView Entry, FString& OutName, ANSIName*& OutANSI
 #endif
 } // UE::FLWCCommand
 
-void FLWCCommandBuffer::ReplayBufferAgainstSystem(UEntitySubsystem* System)
+void FLWCCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* System)
 {
 	check(System);
 
@@ -119,12 +119,12 @@ void FLWCCommandBuffer::MoveAppend(FLWCCommandBuffer& Other)
 //////////////////////////////////////////////////////////////////////
 // Command implementations
 
-void FCommandAddComponentInstance::Execute(UEntitySubsystem& System) const
+void FCommandAddComponentInstance::Execute(UMassEntitySubsystem& System) const
 {
 	System.AddComponentInstanceListToEntity(TargetEntity, MakeArrayView(&Struct, 1));
 }
 
-void FCommandSwapTags::Execute(UEntitySubsystem& System) const
+void FCommandSwapTags::Execute(UMassEntitySubsystem& System) const
 {
 	if (System.IsEntityValid(TargetEntity) == false)
 	{
@@ -145,37 +145,37 @@ void FCommandSwapTags::Execute(UEntitySubsystem& System) const
 	}
 }
 
-void FBuildEntityFromComponentInstance::Execute(UEntitySubsystem& System) const
+void FBuildEntityFromComponentInstance::Execute(UMassEntitySubsystem& System) const
 {
 	System.BuildEntity(TargetEntity, MakeArrayView(&Struct, 1));
 }
 
-void FBuildEntityFromComponentInstances::Execute(UEntitySubsystem& System) const
+void FBuildEntityFromComponentInstances::Execute(UMassEntitySubsystem& System) const
 {
 	System.BuildEntity(TargetEntity, Instances);
 }
 
-void FCommandAddComponent::Execute(UEntitySubsystem& System) const
+void FCommandAddComponent::Execute(UMassEntitySubsystem& System) const
 {
 	System.AddComponentToEntity(TargetEntity, StructParam);
 }
 
-void FCommandRemoveComponent::Execute(UEntitySubsystem& System) const
+void FCommandRemoveComponent::Execute(UMassEntitySubsystem& System) const
 {
 	System.RemoveComponentFromEntity(TargetEntity, StructParam);
 }
 
-void FCommandAddComponentList::Execute(UEntitySubsystem& System) const
+void FCommandAddComponentList::Execute(UMassEntitySubsystem& System) const
 {
 	System.AddComponentListToEntity(TargetEntity, ComponentList);
 }
 
-void FCommandRemoveComponentList::Execute(UEntitySubsystem& System) const
+void FCommandRemoveComponentList::Execute(UMassEntitySubsystem& System) const
 {
 	System.RemoveComponentListFromEntity(TargetEntity, ComponentList);
 }
 
-void FCommandAddTag::Execute(UEntitySubsystem & System) const 
+void FCommandAddTag::Execute(UMassEntitySubsystem & System) const 
 {
 	if (System.IsEntityValid(TargetEntity) == false)
 {
@@ -185,12 +185,12 @@ void FCommandAddTag::Execute(UEntitySubsystem & System) const
 	System.AddTagToEntity(TargetEntity, StructParam);
 }
 
-void FCommandRemoveTag::Execute(UEntitySubsystem& System) const
+void FCommandRemoveTag::Execute(UMassEntitySubsystem& System) const
 {
 	System.RemoveTagFromEntity(TargetEntity, StructParam);
 }
 
-void FCommandRemoveComposition::Execute(UEntitySubsystem& System) const
+void FCommandRemoveComposition::Execute(UMassEntitySubsystem& System) const
 {
 	System.RemoveCompositionFromEntity(TargetEntity, Descriptor);
 }

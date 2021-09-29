@@ -2,11 +2,11 @@
 
 #include "MassStateTreeExecutionContext.h"
 #include "MassStateTreeTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassSignalSubsystem.h"
 #include "Engine/World.h"
 
-FMassStateTreeExecutionContext::FMassStateTreeExecutionContext(UEntitySubsystem& InEntitySubsystem,
+FMassStateTreeExecutionContext::FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem,
                                                                FLWComponentSystemExecutionContext& InContext):
 	EntitySubsystem(&InEntitySubsystem), EntitySubsystemExecutionContext(&InContext)
 {

@@ -11,7 +11,7 @@
 #include "MassSimulationSettings.h"
 #include "MassAgentComponent.h"
 #include "MassAgentSubsystem.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassRepresentationFragments.h"
 #include "MassRepresentationProcessor.h"
 #include "EntityView.h"
@@ -302,7 +302,7 @@ void UMassRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 
 	if (UWorld* World = GetWorld())
 	{
-		EntitySubsystem = UPipeEntitySubsystem::GetCurrent(World);
+		EntitySubsystem = UMassEntitySubsystem::GetCurrent(World);
 		ActorSpawnerSubsystem = World->GetSubsystem<UMassActorSpawnerSubsystem>();
 		WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 

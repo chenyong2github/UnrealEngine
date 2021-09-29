@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntityTestTypes.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassExecutor.h"
 #include "Engine/World.h"
 
@@ -11,7 +11,7 @@
 bool FExecutionTestBase::SetUp()
 {
 	World = FAITestHelpers::GetWorld();
-	EntitySubsystem = NewObject<UPipeEntitySubsystem>(World);
+	EntitySubsystem = NewObject<UMassEntitySubsystem>(World);
 	check(EntitySubsystem);
 	struct FSubsystemCollection_TestInit : FSubsystemCollectionBase
 	{
@@ -54,7 +54,7 @@ UPipeTestProcessorBase::UPipeTestProcessorBase()
 	bAutoRegisterWithProcessingPhases = false;
 	ExecutionFlags = int32(EProcessorExecutionFlags::All);
 
-	ExecutionFunction = [](UEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {};
+	ExecutionFunction = [](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {};
 	RequirementsFunction = [](FLWComponentQuery& Query){};
 }
 

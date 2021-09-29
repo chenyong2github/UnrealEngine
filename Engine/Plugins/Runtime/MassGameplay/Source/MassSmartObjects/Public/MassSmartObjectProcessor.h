@@ -77,7 +77,7 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 	/** Extents used to perform the spatial query in the octree for world location queries. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, config)
@@ -112,7 +112,7 @@ public:
 	UMassProcessor_SmartObjectTimedBehavior();
 
 protected:
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 	virtual void ConfigureQueries() override;
 
 	FLWComponentQuery EntityQuery;

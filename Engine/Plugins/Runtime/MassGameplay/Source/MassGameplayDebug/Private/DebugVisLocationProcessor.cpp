@@ -5,7 +5,7 @@
 #include "MassDebugVisualizationComponent.h"
 #include "MassCommonFragments.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassMovementFragments.h"
 
 //----------------------------------------------------------------------//
@@ -23,7 +23,7 @@ void UDebugVisLocationProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadOnly);
 }
 
-void UDebugVisLocationProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UDebugVisLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 #if WITH_EDITORONLY_DATA
 	UMassDebugVisualizationComponent* Visualizer = WeakVisualizer.Get();
@@ -92,7 +92,7 @@ void UMassProcessor_UpdateDebugVis::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(ELWComponentAccess::ReadWrite);
 }
 
-void UMassProcessor_UpdateDebugVis::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassProcessor_UpdateDebugVis::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	UMassDebuggerSubsystem* Debugger = UWorld::GetSubsystem<UMassDebuggerSubsystem>(GetWorld());
 	if (Debugger == nullptr)

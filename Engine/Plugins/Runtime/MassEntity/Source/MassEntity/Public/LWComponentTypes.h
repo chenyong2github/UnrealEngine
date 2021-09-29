@@ -35,7 +35,7 @@ struct FLWChunkComponent
 	FLWChunkComponent() {}
 };
 
-// A handle to a lightweight entity.  An entity is used in conjunction with the UEntitySubsystem
+// A handle to a lightweight entity.  An entity is used in conjunction with the UMassEntitySubsystem
 // for the current world and can contain lightweight components.
 USTRUCT()
 struct FLWEntity

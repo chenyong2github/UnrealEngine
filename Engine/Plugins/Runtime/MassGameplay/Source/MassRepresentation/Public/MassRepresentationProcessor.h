@@ -42,7 +42,7 @@ protected:
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 	/** 
 	 * Returns an actor of the template type and setup fragments values from it
@@ -183,7 +183,7 @@ protected:
 	UWorld* World;
 
 	UPROPERTY(Transient)
-	UPipeEntitySubsystem* PipeEntitySubsystem;
+	UMassEntitySubsystem* PipeEntitySubsystem;
 
 	/** A cache pointer to the representation subsystem */
 	UPROPERTY(Transient)
@@ -210,7 +210,7 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 	/** A cache pointer to the representation subsystem */
 	UPROPERTY(Transient)
