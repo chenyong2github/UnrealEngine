@@ -253,7 +253,7 @@ static void DumpFourCCParts(dxc::DxcDllSupport& DxcDllHelper, TRefCountPtr<IDxcB
 #endif
 }
 
-static bool RemoveContainerReflection(dxc::DxcDllSupport& DxcDllHelper, TRefCountPtr<IDxcBlob>& Dxil)
+static bool RemoveContainerReflection(dxc::DxcDllSupport& DxcDllHelper, TRefCountPtr<IDxcBlob>& Dxil, bool bRemovePDB)
 {
 	TRefCountPtr<IDxcOperationResult> Result;
 	TRefCountPtr<IDxcContainerBuilder> Builder;
@@ -263,7 +263,7 @@ static bool RemoveContainerReflection(dxc::DxcDllSupport& DxcDllHelper, TRefCoun
 	VERIFYHRESULT(Builder->Load(Dxil));
 	
 	// Try and remove both the PDB & Reflection Data
-	bool bPDBRemoved = SUCCEEDED(Builder->RemovePart(DXC_PART_PDB));
+	bool bPDBRemoved = bRemovePDB && SUCCEEDED(Builder->RemovePart(DXC_PART_PDB));
 	bool bReflectionDataRemoved = SUCCEEDED(Builder->RemovePart(DXC_PART_REFLECTION_DATA));
 	if (bPDBRemoved || bReflectionDataRemoved)
 	{
@@ -344,7 +344,7 @@ static HRESULT D3DCompileToDxil(const char* SourceText, FDxcArguments& Arguments
 		}
 
 		DumpFourCCParts(DxcDllHelper, OutDxilBlob);
-		if (RemoveContainerReflection(DxcDllHelper, OutDxilBlob))
+		if (RemoveContainerReflection(DxcDllHelper, OutDxilBlob, !Arguments.ShouldKeepEmbeddedPDB()))
 		{
 			DumpFourCCParts(DxcDllHelper, OutDxilBlob);
 		}

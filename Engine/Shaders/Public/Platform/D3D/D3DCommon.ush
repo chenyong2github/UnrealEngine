@@ -87,3 +87,29 @@ void UEReportAssertWithPayload(uint AssertID, uint4 Payload)
 
 	#define MESH_SHADER_WRITE_PRIMITIVE(InPrimitiveIndex, Value) OutPrimitives[InPrimitiveIndex] = Value;
 #endif
+
+#if __SHADER_TARGET_MAJOR == 6 && __SHADER_TARGET_MINOR >= 6
+	#define COMPILER_SUPPORTS_ULONG_TYPES 1
+	#define COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS (1 && COMPILER_SUPPORTS_ULONG_TYPES)
+
+	#if COMPILER_SUPPORTS_ULONG_TYPES
+		#define UlongType uint64_t
+
+		UlongType PackUlongType(uint2 Value)
+		{
+			return ((UlongType)Value.y << 32) | Value.x;
+		}
+
+		uint2 UnpackUlongType(UlongType Value)
+		{
+			return uint2(uint(Value), uint(Value >> 32));
+		}
+	#endif
+
+	#if COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
+		void ImageInterlockedMaxUInt64(RWTexture2D<UlongType> Dest, uint2 Coord, UlongType Value)
+		{
+			InterlockedMax(Dest[Coord], Value);
+		}
+	#endif
+#endif
