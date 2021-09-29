@@ -1996,7 +1996,7 @@ FName SRigHierarchy::HandleRenameElement(const FRigElementKey& OldKey, const FSt
 {
 	ClearDetailPanel();
 
-	if (OldKey.Name.ToString() == NewName)
+	if (OldKey.Name.ToString().Equals(NewName, ESearchCase::CaseSensitive))	
 	{
 		return NAME_None;
 	}
