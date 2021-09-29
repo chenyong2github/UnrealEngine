@@ -184,6 +184,8 @@ public:
 	FNiagaraDataBuffer* DataBuffers_RT[2] = { nullptr, nullptr };
 	uint32 BufferSwapsThisFrame_RT = 0;
 	uint32 CountOffset_RT = INDEX_NONE;
+	uint32 FinalDispatchGroup_RT = INDEX_NONE;
+	uint32 FinalDispatchGroupInstance_RT = INDEX_NONE;
 
 	// Used only when we multi-tick and need to keep track of pointing back to the correct FNiagaraDataBuffer
 	FNiagaraDataBuffer* DataSetOriginalBuffer_RT = nullptr;
