@@ -62,6 +62,7 @@ struct FNetworkPhysicsState
 
 	// Networked ID
 	int32 NetworkHandle = INDEX_NONE;
+	bool bParticleIDSet = false;
 
 	// The actual physics properties
 	FBasePhysicsState Physics;
