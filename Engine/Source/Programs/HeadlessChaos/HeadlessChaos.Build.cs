@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
+[SupportedPlatforms("Win64")]
 public class HeadlessChaos : ModuleRules
 {
 	public HeadlessChaos(ReadOnlyTargetRules Target) : base(Target)
@@ -48,5 +50,12 @@ public class HeadlessChaos : ModuleRules
 		}
 
 		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
+		
+		LowLevelTests.UpdateGeneratedPropertiesScriptFile(
+			typeof(HeadlessChaos),
+			"HeadlessChaos",
+			"Headless Chaos",
+			Target.LaunchModuleName,
+			Path.Combine("Engine", "Binaries", Target.Platform.ToString(), "NotForLicensees"));
 	}
 }

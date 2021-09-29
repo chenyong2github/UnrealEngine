@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class Catch2 : ModuleRules
 {
@@ -8,7 +9,6 @@ public class Catch2 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string Catch2IncludePath = Target.UEThirdPartySourceDirectory + "Catch2/";
-		PublicIncludePaths.Add(Catch2IncludePath);
+		PublicIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "Catch2"));
 	}
 }

@@ -60,13 +60,13 @@ namespace Gauntlet
 	/// <summary>
 	/// Device target constraint, can be expanded for specifying installed RAM, OS version, etc
 	/// </summary>
-	public class UnrealTargetConstraint : IEquatable<UnrealTargetConstraint>
+	public class UnrealDeviceTargetConstraint : IEquatable<UnrealDeviceTargetConstraint>
 	{
 		public readonly UnrealTargetPlatform? Platform;
 		public readonly EPerfSpec PerfSpec;
 		public readonly string Model;
 
-		public UnrealTargetConstraint(UnrealTargetPlatform? Platform, EPerfSpec PerfSpec = EPerfSpec.Unspecified, string Model = null)
+		public UnrealDeviceTargetConstraint(UnrealTargetPlatform? Platform, EPerfSpec PerfSpec = EPerfSpec.Unspecified, string Model = null)
 		{
 			this.Platform = Platform;			
 			this.PerfSpec = PerfSpec;
@@ -107,7 +107,7 @@ namespace Gauntlet
 			return ModelMatch && PerfMatch;
 		}
 
-		public bool Equals(UnrealTargetConstraint Other)
+		public bool Equals(UnrealDeviceTargetConstraint Other)
 		{
 			if (ReferenceEquals(Other, null))
 			{
@@ -127,11 +127,11 @@ namespace Gauntlet
 			}
 
 			if (ReferenceEquals(this, Obj)) return true;
-			if (Obj.GetType() != typeof(UnrealTargetConstraint)) return false;
-			return Equals((UnrealTargetConstraint)Obj);
+			if (Obj.GetType() != typeof(UnrealDeviceTargetConstraint)) return false;
+			return Equals((UnrealDeviceTargetConstraint)Obj);
 		}
 
-		public static bool operator ==(UnrealTargetConstraint C1, UnrealTargetConstraint C2)
+		public static bool operator ==(UnrealDeviceTargetConstraint C1, UnrealDeviceTargetConstraint C2)
 		{
 			if (ReferenceEquals(C1, null) || ReferenceEquals(C2, null))
 			{
@@ -141,7 +141,7 @@ namespace Gauntlet
 			return C1.Equals(C2);
 		}
 
-		public static bool operator !=(UnrealTargetConstraint C1, UnrealTargetConstraint C2)
+		public static bool operator !=(UnrealDeviceTargetConstraint C1, UnrealDeviceTargetConstraint C2)
 		{
 			return !(C1 == C2);
 		}
@@ -165,7 +165,7 @@ namespace Gauntlet
 	/// <summary>
 	/// Device marked as having a problem
 	/// </summary>
-	internal struct ProblemDevice
+	public struct ProblemDevice
 	{
 		public ProblemDevice(string Name, UnrealTargetPlatform Platform)
 		{
@@ -239,7 +239,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Device constraints for performance profiles, etc
 		/// </summary>
-		Dictionary<ITargetDevice, UnrealTargetConstraint> Constraints = new Dictionary<ITargetDevice, UnrealTargetConstraint>();
+		Dictionary<ITargetDevice, UnrealDeviceTargetConstraint> Constraints = new Dictionary<ITargetDevice, UnrealDeviceTargetConstraint>();
 
 		/// <summary>
 		/// Local tempdir...
@@ -543,7 +543,7 @@ namespace Gauntlet
 
 			UnrealTargetPlatform LocalPlat = UnrealTargetPlatform.Win64;
 
-			int NumDevices = GetAvailableDeviceCount(new UnrealTargetConstraint(LocalPlat));
+			int NumDevices = GetAvailableDeviceCount(new UnrealDeviceTargetConstraint(LocalPlat));
 
 			// add local PCs (todo - some max number?)
 			for (int i = NumDevices; i < Count + NumDevices; i++)
@@ -558,7 +558,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Reserve devices from service
 		/// </summary>
-		public bool ReserveDevicesFromService(string DeviceURL, Dictionary<UnrealTargetConstraint, int> DeviceTypes)
+		public bool ReserveDevicesFromService(string DeviceURL, Dictionary<UnrealDeviceTargetConstraint, int> DeviceTypes)
 		{
 			if (String.IsNullOrEmpty(DeviceURL))
 			{
@@ -582,7 +582,7 @@ namespace Gauntlet
 			List<string> Devices = new List<string>();
 
 			// convert devices to request list
-			foreach (KeyValuePair<UnrealTargetConstraint, int> Entry in DeviceTypes)
+			foreach (KeyValuePair<UnrealDeviceTargetConstraint, int> Entry in DeviceTypes)
 			{
 				if (Entry.Key.Platform == null)
 				{
@@ -864,7 +864,7 @@ namespace Gauntlet
 		/// Registers the provided device for availability
 		/// </summary>
 		/// <param name="Device"></param>
-		public void RegisterDevice(ITargetDevice Device, UnrealTargetConstraint Constraint = null)
+		public void RegisterDevice(ITargetDevice Device, UnrealDeviceTargetConstraint Constraint = null)
 		{
 			lock (LockObject)
 			{
@@ -874,7 +874,7 @@ namespace Gauntlet
 				}
 
 				InitialConnectState[Device] = Device.IsConnected;
-				Constraints[Device] = Constraint ?? new UnrealTargetConstraint(Device.Platform.Value);
+				Constraints[Device] = Constraint ?? new UnrealDeviceTargetConstraint(Device.Platform.Value);
 
 				AvailableDevices.Add(Device);
 
@@ -934,7 +934,7 @@ namespace Gauntlet
 				{
 					if (NewDevice != null)
 					{
-						RegisterDevice(NewDevice, new UnrealTargetConstraint(NewDevice.Platform, Def.PerfSpec, Def.Model));
+						RegisterDevice(NewDevice, new UnrealDeviceTargetConstraint(NewDevice.Platform, Def.PerfSpec, Def.Model));
 					}
 				}
 			}
@@ -946,7 +946,7 @@ namespace Gauntlet
 			return NewDevice;
 		}
 
-		public UnrealTargetConstraint GetConstraint(ITargetDevice Device)
+		public UnrealDeviceTargetConstraint GetConstraint(ITargetDevice Device)
 		{
 
 			if (!Constraints.ContainsKey(Device))
@@ -961,7 +961,7 @@ namespace Gauntlet
 		/// Returns the number of available devices of the provided type. This includes unprovisioned devices but not reserved ones.
 		/// Note: unprovisioned devices are currently only returned when device is not constrained
 		/// </summary>
-		public int GetAvailableDeviceCount(UnrealTargetConstraint Constraint, Func<ITargetDevice, bool> Validate = null)
+		public int GetAvailableDeviceCount(UnrealDeviceTargetConstraint Constraint, Func<ITargetDevice, bool> Validate = null)
 		{
 			lock (LockObject)
 			{
@@ -974,7 +974,7 @@ namespace Gauntlet
 		/// Returns the number of available devices of the provided type. This includes unprovisioned devices but not reserved ones
 		/// Note: unprovisioned devices are currently only returned when device is not constrained
 		/// </summary>
-		public int GetTotalDeviceCount(UnrealTargetConstraint Constraint, Func<ITargetDevice, bool> Validate = null)
+		public int GetTotalDeviceCount(UnrealDeviceTargetConstraint Constraint, Func<ITargetDevice, bool> Validate = null)
 		{
 			lock (LockObject)
 			{
@@ -986,10 +986,10 @@ namespace Gauntlet
 		/// <summary>
 		///	Checks whether device pool can accommodate requirements, optionally add service devices to meet demand
 		/// </summary>
-		internal bool CheckAvailableDevices(Dictionary<UnrealTargetConstraint, int> RequiredDevices, List<ProblemDevice> ProblemDevices = null, bool UseServiceDevices = true)
+		public bool CheckAvailableDevices(Dictionary<UnrealDeviceTargetConstraint, int> RequiredDevices, IReadOnlyCollection<ProblemDevice> ProblemDevices = null, bool UseServiceDevices = true)
 		{
-			Dictionary<UnrealTargetConstraint, int> AvailableDeviceTypes = new Dictionary<UnrealTargetConstraint, int>();
-			Dictionary<UnrealTargetConstraint, int> TotalDeviceTypes = new Dictionary<UnrealTargetConstraint, int>();
+			Dictionary<UnrealDeviceTargetConstraint, int> AvailableDeviceTypes = new Dictionary<UnrealDeviceTargetConstraint, int>();
+			Dictionary<UnrealDeviceTargetConstraint, int> TotalDeviceTypes = new Dictionary<UnrealDeviceTargetConstraint, int>();
 
 			// Do these "how many available" checks every time because the DevicePool provisions on demand so while it may think it has N machines, 
 			// some of them may fail to be provisioned and we could end up with none!
@@ -998,7 +998,7 @@ namespace Gauntlet
 
 			foreach (var PlatformRequirement in RequiredDevices)
 			{
-				UnrealTargetConstraint Constraint = PlatformRequirement.Key;
+				UnrealDeviceTargetConstraint Constraint = PlatformRequirement.Key;
 
 				Func<ITargetDevice, bool> Validate = (ITargetDevice Device) =>
 				{
@@ -1049,7 +1049,7 @@ namespace Gauntlet
 			if (UseServiceDevices && !String.IsNullOrEmpty(DeviceURL) && UnsupportedPlatforms.Count() == 0 && (TooFewTotalDevices.Count() > 0 || TooFewCurrentDevices.Count() > 0))
 			{				
 
-				Dictionary<UnrealTargetConstraint, int> DeviceCounts = new Dictionary<UnrealTargetConstraint, int>();
+				Dictionary<UnrealDeviceTargetConstraint, int> DeviceCounts = new Dictionary<UnrealDeviceTargetConstraint, int>();
 
 				Devices.ToList().ForEach(Platform => DeviceCounts[Platform] = RequiredDevices[Platform]);
 
@@ -1089,10 +1089,10 @@ namespace Gauntlet
 		/// </summary>		
 		public void EnumerateDevices(UnrealTargetPlatform Platform, Func<ITargetDevice, bool> Predicate)
 		{
-			EnumerateDevices(new UnrealTargetConstraint(Platform), Predicate);
+			EnumerateDevices(new UnrealDeviceTargetConstraint(Platform), Predicate);
 		}
 
-		public void EnumerateDevices(UnrealTargetConstraint Constraint, Func<ITargetDevice, bool> Predicate)
+		public void EnumerateDevices(UnrealDeviceTargetConstraint Constraint, Func<ITargetDevice, bool> Predicate)
 		{
 			lock (LockObject)
 			{

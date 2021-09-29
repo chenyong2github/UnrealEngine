@@ -573,7 +573,7 @@ namespace Gauntlet
 					SessionRole.InstallOnly = TestRole.InstallOnly;
 					SessionRole.CommandLineParams = TestRole.CommandLineParams;
  					SessionRole.RoleModifier = TestRole.RoleType;
-					SessionRole.Constraint = UseContextConstraint ? Context.Constraint : new UnrealTargetConstraint(SessionPlatform);
+					SessionRole.Constraint = UseContextConstraint ? Context.Constraint : new UnrealDeviceTargetConstraint(SessionPlatform);
 					Log.Verbose("Created SessionRole {0} from RoleContext {1} (RoleType={2})", SessionRole, RoleContext, TypesToRoles.Key);
 
 					// TODO - this can all / mostly go into UnrealTestConfiguration.ApplyToConfig
@@ -966,7 +966,7 @@ namespace Gauntlet
 			try
 			{
 				// Artifacts have been saved, release devices back to pool for other tests to use
-				UnrealApp.ReleaseDevices();
+				UnrealDeviceReservation.ReleaseDevices();
 			}
 			catch (Exception Ex)
 			{

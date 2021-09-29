@@ -80,6 +80,9 @@
 #elif defined(linux) || defined(__linux) || defined(__linux__)
 #  define CATCH_PLATFORM_LINUX
 
+#elif defined(CATCH_PLATFORM_XBOX) || defined(CATCH_PLATFORM_SONY) || defined(CATCH_PLATFORM_NINTENDO)
+// NOOP - this was defined in a .build.cs
+
 #elif defined(WIN32) || defined(__WIN32__) || defined(_WIN32) || defined(_MSC_VER) || defined(__MINGW32__)
 #  define CATCH_PLATFORM_WINDOWS
 #endif
@@ -185,7 +188,7 @@ namespace Catch {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Assume that non-Windows platforms support posix signals by default
-#if !defined(CATCH_PLATFORM_WINDOWS)
+#if !defined(CATCH_PLATFORM_WINDOWS) && !defined(CATCH_PLATFORM_SONY) && !defined(CATCH_PLATFORM_NINTENDO) && !defined(CATCH_PLATFORM_XBOX)
     #define CATCH_INTERNAL_CONFIG_POSIX_SIGNALS
 #endif
 
@@ -214,9 +217,16 @@ namespace Catch {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// PS4
-#if defined(__ORBIS__)
+// Sony or Switch
+#if defined(CATCH_PLATFORM_SONY) || defined(CATCH_PLATFORM_NINTENDO)
 #    define CATCH_INTERNAL_CONFIG_NO_NEW_CAPTURE
+#    define CATCH_CONFIG_COLOUR_NONE
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+// XBox platforms
+#if defined(CATCH_PLATFORM_XBOX)
+#    define CATCH_CONFIG_COLOUR_NONE
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -247,7 +257,7 @@ namespace Catch {
 // Or console colours (or console at all...)
 #  if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
 #    define CATCH_CONFIG_COLOUR_NONE
-#  else
+#  elif !defined(CATCH_PLATFORM_XBOX)
 #    define CATCH_INTERNAL_CONFIG_WINDOWS_SEH
 #  endif
 
@@ -10052,7 +10062,7 @@ namespace Catch {
 #ifdef __AFXDLL
 #include <AfxWin.h>
 #else
-#include <windows.h>
+#include "catch_windows.h"
 #endif
 
 #ifdef CATCH_DEFINED_NOMINMAX
@@ -10364,7 +10374,9 @@ namespace Catch {
         }
     }
 
-#elif defined(CATCH_PLATFORM_WINDOWS)
+#elif defined(CATCH_PLATFORM_WINDOWS) || defined(CATCH_PLATFORM_XBOX)
+
+#include "catch_debugapi.h"
 
     namespace Catch {
         void writeToDebugConsole( std::string const& text ) {
@@ -13497,15 +13509,19 @@ namespace Catch {
         m_config.reset();
     }
 
+#if !defined(PLATFORM_SWITCH) || !PLATFORM_SWITCH
+	using std::getchar;
+#endif
+
     int Session::run() {
         if( ( m_configData.waitForKeypress & WaitForKeypress::BeforeStart ) != 0 ) {
             Catch::cout() << "...waiting for enter/ return before starting" << std::endl;
-            static_cast<void>(std::getchar());
+            static_cast<void>(getchar());
         }
         int exitCode = runInternal();
         if( ( m_configData.waitForKeypress & WaitForKeypress::BeforeExit ) != 0 ) {
             Catch::cout() << "...waiting for enter/ return before exiting, with code: " << exitCode << std::endl;
-            static_cast<void>(std::getchar());
+            static_cast<void>(getchar());
         }
         return exitCode;
     }
@@ -13728,7 +13744,11 @@ namespace Catch {
 
     auto makeStream( StringRef const &filename ) -> IStream const* {
         if( filename.empty() )
+#if defined(CATCH_PLATFORM_XBOX)
+			return new Detail::DebugOutStream();
+#else
             return new Detail::CoutStream();
+#endif
         else if( filename[0] == '%' ) {
             if( filename == "%debug" )
                 return new Detail::DebugOutStream();
