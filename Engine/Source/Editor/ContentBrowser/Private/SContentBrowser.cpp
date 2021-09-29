@@ -72,7 +72,7 @@
 #include "Brushes/SlateColorBrush.h"
 #include "ToolMenu.h"
 #include "Widgets/Input/SExpandableButton.h"
-#include "SExpandableSearchArea.h"
+#include "SSearchToggleButton.h"
 #include "SEditorHeaderButton.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
@@ -144,6 +144,10 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	TextFilter = MakeShareable( new FFrontendFilter_Text() );
 
 	PluginPathFilters = MakeShareable(new FPluginFilterCollectionType());
+
+	FavoritesSearch = MakeShared<FSourcesSearch>();
+	FavoritesSearch->Initialize();
+	FavoritesSearch->SetHintText(LOCTEXT("SearchFavoritesHint", "Search Favorites"));
 
 	SourcesSearch = MakeShared<FSourcesSearch>();
 	SourcesSearch->Initialize();
@@ -759,28 +763,57 @@ TSharedRef<SWidget> SContentBrowser::CreateFavoritesView(const FContentBrowserCo
 		SAssignNew(FavoritesArea, SExpandableArea)
 		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
 		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-		.HeaderPadding(FMargin(5.0f, 7.0f))
-		.Visibility(this, &SContentBrowser::GetFavoriteFolderVisibility)
+		.HeaderPadding(FMargin(4.0f, 2.0f))
+		.Padding(0)
 		.AllowAnimatedTransition(false)
+		.OnAreaExpansionChanged_Lambda([this](bool bIsExpanded) { if (!bIsExpanded) FavoritesSearchToggleButton->SetExpanded(false); })
 		.HeaderContent()
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("Favorites", "Favorites"))
-			.TextStyle(FAppStyle::Get(), "ButtonText")
-			.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
-			.TransformPolicy(ETextTransformPolicy::ToUpper)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("Favorites", "Favorites"))
+				.TextStyle(FAppStyle::Get(), "ButtonText")
+				.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+			]
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			.Padding(4.0f, 0.0f)
+			[
+				SAssignNew(FavoritesSearchToggleButton, SSearchToggleButton, FavoritesSearch->GetWidget())
+				.OnSearchBoxShown_Lambda([this]() { FavoritesArea->SetExpanded(true); })
+			]
 		]
 		.BodyContent()
 		[
-			SAssignNew(FavoritePathViewPtr, SFavoritePathView)
-			.OnItemSelectionChanged(this, &SContentBrowser::OnItemSelectionChanged, EContentBrowserViewContext::FavoriteView)
-			.OnGetItemContextMenu(this, &SContentBrowser::GetItemContextMenu, EContentBrowserViewContext::FavoriteView)
-			.FocusSearchBoxWhenOpened(false)
-			.ShowTreeTitle(false)
-			.ShowSeparator(false)
-			.AllowClassesFolder(true)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFavorites")))
-			.ExternalSearch(SourcesSearch)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				// Should blend in visually with the header but technically acts like part of the body
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+				.Padding(FMargin(4.0f, 2.0f))
+				[
+					FavoritesSearch->GetWidget()
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SAssignNew(FavoritePathViewPtr, SFavoritePathView)
+				.OnItemSelectionChanged(this, &SContentBrowser::OnItemSelectionChanged, EContentBrowserViewContext::FavoriteView)
+				.OnGetItemContextMenu(this, &SContentBrowser::GetItemContextMenu, EContentBrowserViewContext::FavoriteView)
+				.FocusSearchBoxWhenOpened(false)
+				.ShowTreeTitle(false)
+				.ShowSeparator(false)
+				.AllowClassesFolder(true)
+				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFavorites")))
+				.ExternalSearch(FavoritesSearch)
+			]
 		];
 }
 
@@ -790,41 +823,62 @@ TSharedRef<SWidget> SContentBrowser::CreatePathView(const FContentBrowserConfig*
 		SAssignNew(PathArea, SExpandableArea)
 		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
 		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-		.HeaderPadding(FMargin(5.0f, 3.0f))
+		.HeaderPadding(FMargin(4.0f, 2.0f))
+		.Padding(0)
 		.AllowAnimatedTransition(false)
+		.OnAreaExpansionChanged_Lambda([this](bool bIsExpanded) { if (!bIsExpanded) PathSearchToggleButton->SetExpanded(false); })
 		.HeaderContent()
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.AutoWidth()
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(FApp::GetProjectName()))
 				.TextStyle(FAppStyle::Get(), "ButtonText")
 				.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
-				.TransformPolicy(ETextTransformPolicy::ToUpper)
 			]
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
-			.Padding(5.0f, 0.0f)
+			.AutoWidth()
+			.Padding(4.0f, 0.0f)
 			[
-				SAssignNew(PathSearchArea, SExpandableSearchArea, SourcesSearch->GetWidget())
+				SAssignNew(PathSearchToggleButton, SSearchToggleButton, SourcesSearch->GetWidget())
+				.OnSearchBoxShown_Lambda([this]() { PathArea->SetExpanded(true); })
 			]
 		]
 		.BodyContent()
 		[
-			SAssignNew(PathViewPtr, SPathView)
-			.OnItemSelectionChanged(this, &SContentBrowser::OnItemSelectionChanged, EContentBrowserViewContext::PathView)
-			.OnGetItemContextMenu(this, &SContentBrowser::GetItemContextMenu, EContentBrowserViewContext::PathView)
-			.FocusSearchBoxWhenOpened(false)
-			.ShowTreeTitle(false)
-			.ShowSeparator(false)
-			.AllowClassesFolder(true)
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserSources")))
-			.ExternalSearch(SourcesSearch)
-			.PluginPathFilters(PluginPathFilters)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				// Should blend in visually with the header but technically acts like part of the body
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+				.Padding(FMargin(4.0f, 2.0f))
+				[
+					SourcesSearch->GetWidget()
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+				[
+					SAssignNew(PathViewPtr, SPathView)
+					.OnItemSelectionChanged(this, &SContentBrowser::OnItemSelectionChanged, EContentBrowserViewContext::PathView)
+					.OnGetItemContextMenu(this, &SContentBrowser::GetItemContextMenu, EContentBrowserViewContext::PathView)
+					.FocusSearchBoxWhenOpened(false)
+					.ShowTreeTitle(false)
+					.ShowSeparator(false)
+					.AllowClassesFolder(true)
+					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserSources")))
+					.ExternalSearch(SourcesSearch)
+					.PluginPathFilters(PluginPathFilters)
+				]
+			]
 		];
 }
 
@@ -834,27 +888,27 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 		SAssignNew(CollectionArea, SExpandableArea)
 		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
 		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-		.HeaderPadding(FMargin(5.0f, 3.0f))
+		.HeaderPadding(FMargin(4.0f, 2.0f))
+		.Padding(0)
 		.Visibility(this, &SContentBrowser::GetDockedCollectionsVisibility)
 		.AllowAnimatedTransition(false)
+		.OnAreaExpansionChanged_Lambda([this](bool bIsExpanded) { if (!bIsExpanded) CollectionSearchToggleButton->SetExpanded(false); })
 		.HeaderContent()
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.AutoWidth()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CollectionsTitle", "Collections"))
 				.TextStyle(FAppStyle::Get(), "ButtonText")
 				.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
-				.TransformPolicy(ETextTransformPolicy::ToUpper)
 			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			.AutoWidth()
-			.Padding(5.0f, 0.0f)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
 				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
@@ -870,14 +924,35 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
-			.Padding(5.0f, 0.0f)
+			.AutoWidth()
+			.Padding(4.0f, 0.0f)
 			[
-				SAssignNew(CollectionSearchArea, SExpandableSearchArea, CollectionSearch->GetWidget())
+				SAssignNew(CollectionSearchToggleButton, SSearchToggleButton, CollectionSearch->GetWidget())
+				.OnSearchBoxShown_Lambda([this]() { CollectionArea->SetExpanded(true); })
 			]
 		]
 		.BodyContent()
 		[
-			CollectionViewPtr.ToSharedRef()
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				// Should blend in visually with the header but technically acts like part of the body
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+				.Padding(FMargin(4.0f, 2.0f))
+				[
+					CollectionSearch->GetWidget()
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+				[
+					CollectionViewPtr.ToSharedRef()
+				]
+			]
 		];
 }
 
@@ -1350,8 +1425,9 @@ void SContentBrowser::SaveSettings() const
 	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".PathAreaExpanded")), PathArea->IsExpanded(), GEditorPerProjectIni);
 	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionAreaExpanded")), CollectionArea->IsExpanded(), GEditorPerProjectIni);
 
-	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".PathSearchAreaExpanded")), PathSearchArea->IsExpanded(), GEditorPerProjectIni);
-	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionSearchAreaExpanded")), CollectionSearchArea->IsExpanded(), GEditorPerProjectIni);
+	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".FavoritesSearchAreaExpanded")), FavoritesSearchToggleButton->IsExpanded(), GEditorPerProjectIni);
+	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".PathSearchAreaExpanded")), PathSearchToggleButton->IsExpanded(), GEditorPerProjectIni);
+	GConfig->SetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionSearchAreaExpanded")), CollectionSearchToggleButton->IsExpanded(), GEditorPerProjectIni);
 
 	for(int32 SlotIndex = 0; SlotIndex < PathAssetSplitterPtr->GetChildren()->Num(); SlotIndex++)
 	{
@@ -1491,13 +1567,17 @@ void SContentBrowser::LoadSettings(const FName& InInstanceName)
 	GConfig->GetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionAreaExpanded")), bCollectionAreaExpanded, GEditorPerProjectIni);
 	CollectionArea->SetExpanded(bCollectionAreaExpanded);
 
+	bool bFavoritesSearchAreaExpanded = false;
+	GConfig->GetBool(*SettingsIniSection, *(SettingsString + TEXT(".FavoritesSearchAreaExpanded")), bFavoritesSearchAreaExpanded, GEditorPerProjectIni);
+	FavoritesSearchToggleButton->SetExpanded(bFavoritesSearchAreaExpanded);
+
 	bool bPathSearchAreaExpanded = false;
 	GConfig->GetBool(*SettingsIniSection, *(SettingsString + TEXT(".PathSearchAreaExpanded")), bPathSearchAreaExpanded, GEditorPerProjectIni);
-	PathSearchArea->SetExpanded(bPathSearchAreaExpanded);
+	PathSearchToggleButton->SetExpanded(bPathSearchAreaExpanded);
 
 	bool bCollectionSearchAreaExpanded = false;
 	GConfig->GetBool(*SettingsIniSection, *(SettingsString + TEXT(".CollectionSearchAreaExpanded")), bCollectionSearchAreaExpanded, GEditorPerProjectIni);
-	CollectionSearchArea->SetExpanded(bCollectionSearchAreaExpanded);
+	CollectionSearchToggleButton->SetExpanded(bCollectionSearchAreaExpanded);
 
 	for(int32 SlotIndex = 0; SlotIndex < PathAssetSplitterPtr->GetChildren()->Num(); SlotIndex++)
 	{

@@ -32,7 +32,7 @@ class SPathView;
 class SSplitter;
 class UFactory;
 class UToolMenu;
-class SExpandableSearchArea;
+class SSearchToggleButton;
 class UContentBrowserToolbarMenuContext;
 
 struct FToolMenuContext;
@@ -556,6 +556,9 @@ private:
 	/** The context menu manager for the path view */
 	TSharedPtr<class FPathContextMenu> PathContextMenu;
 
+	/** The sources search for favorites */
+	TSharedPtr<FSourcesSearch> FavoritesSearch;
+
 	/** The sources search for paths */
 	TSharedPtr<FSourcesSearch> SourcesSearch;
 
@@ -589,17 +592,20 @@ private:
 	/** Favorites area widget */
 	TSharedPtr<SExpandableArea> FavoritesArea;
 
+	/** Toggle button for showing/hiding favorites search area */
+	TSharedPtr<SSearchToggleButton> FavoritesSearchToggleButton;
+
 	/** Path area widget */
 	TSharedPtr<SExpandableArea> PathArea;
 
-	/** Search area for paths */
-	TSharedPtr<SExpandableSearchArea> PathSearchArea;
+	/** Toggle button for showing/hiding path search area */
+	TSharedPtr<SSearchToggleButton> PathSearchToggleButton;
 
 	/** Collection area widget */
 	TSharedPtr<SExpandableArea> CollectionArea;
 
-	/** Search area for collections */
-	TSharedPtr<SExpandableSearchArea> CollectionSearchArea;
+	/** Toggle button for showing/hiding collection search area */
+	TSharedPtr<SSearchToggleButton> CollectionSearchToggleButton;
 
 	/** Index of the active sources widget */
 	int32 ActiveSourcesWidgetIndex = 0;
