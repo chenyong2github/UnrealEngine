@@ -54,13 +54,13 @@ FORCEINLINE FVector4 BarycentricInterpolate(float BaryX, float BaryY, float Bary
 }
 
 template<typename T>
-FORCEINLINE T BarycentricInterpolate(FVector BaryCoord, T V0, T V1, T V2)
+FORCEINLINE T BarycentricInterpolate(FVector3f BaryCoord, T V0, T V1, T V2)
 {
 	return V0 * BaryCoord.X + V1 * BaryCoord.Y + V2 * BaryCoord.Z;
 }
 
 // Overload for FVector4 to work around C2719: (formal parameter with requested alignment of 16 won't be aligned)
-FORCEINLINE FVector4 BarycentricInterpolate(FVector BaryCoord, const FVector4& V0, const FVector4& V1, const FVector4& V2)
+FORCEINLINE FVector4 BarycentricInterpolate(FVector3f BaryCoord, const FVector4& V0, const FVector4& V1, const FVector4& V2)
 {
 	return V0 * BaryCoord.X + V1 * BaryCoord.Y + V2 * BaryCoord.Z;
 }

@@ -893,6 +893,8 @@ public:
 	template<typename FilterMode, typename AreaWeightingMode>
 	void IsValidTriCoord(FVectorVMExternalFunctionContext& Context);
 
+	void GetTriangleData(FVectorVMExternalFunctionContext& Context);
+
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType, typename bInterpolated>
 	void GetTriCoordSkinnedData(FVectorVMExternalFunctionContext& Context);
 
@@ -950,6 +952,9 @@ public:
 	void GetFilteredVertexCount(FVectorVMExternalFunctionContext& Context);
 	template<typename FilterMode>
 	void GetFilteredVertexAt(FVectorVMExternalFunctionContext& Context);
+
+	template<typename VertexAccessorType>
+	void GetVertexData(FVectorVMExternalFunctionContext& Context);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
 	void GetVertexSkinnedData(FVectorVMExternalFunctionContext& Context);
@@ -1019,6 +1024,7 @@ public:
 	// Triangle Sampling
 	static const FName RandomTriCoordName;
 	static const FName IsValidTriCoordName;
+	static const FName GetTriangleDataName;
 	static const FName GetSkinnedTriangleDataName;
 	static const FName GetSkinnedTriangleDataWSName;
 	static const FName GetSkinnedTriangleDataInterpName;
@@ -1059,6 +1065,7 @@ public:
 	static const FName GetFilteredSocketOrBoneAtName;
 
 	// Vertex Sampling
+	static const FName GetVertexDataName;
 	static const FName GetSkinnedVertexDataName;
 	static const FName GetSkinnedVertexDataWSName;
 	static const FName GetVertexColorName;
