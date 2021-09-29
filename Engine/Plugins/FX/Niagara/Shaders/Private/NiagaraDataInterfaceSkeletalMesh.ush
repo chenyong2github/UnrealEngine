@@ -144,6 +144,37 @@ float4 DISkelMesh_UnpackWeights4(uint Packed)
 	return float4(Packed & 0xff, Packed >> 8 & 0xff, Packed >> 16 & 0xff, Packed >> 24 & 0xff) / 255.0f;
 }
 
+void DISkelMesh_GetVertex(in FDISkelMeshContext DIContext, uint VertexIndex, out float3 OutPosition, out float3 OutTangentX, out float3 OutTangentY, out float3 OutTangentZ)
+{
+	//-TODO: Use a R32G32B32 format
+	float3 Position = float3(DIContext.MeshVertexBuffer[VertexIndex * 3], DIContext.MeshVertexBuffer[VertexIndex * 3 + 1], DIContext.MeshVertexBuffer[VertexIndex * 3 + 2]);
+	float3 TangentX = TangentBias(DIContext.MeshTangentBuffer[VertexIndex * 2    ].xyz);
+	float4 TangentZ = TangentBias(DIContext.MeshTangentBuffer[VertexIndex * 2 + 1].xyzw);	
+	float3 TangentY = cross(TangentZ.xyz, TangentX.xyz) * TangentZ.w;
+
+	OutPosition = Position;
+	OutTangentX = cross(TangentY, TangentZ.xyz) * TangentZ.w;
+	OutTangentY = TangentY;
+	OutTangentZ = TangentZ.xyz;
+}
+
+void DISkelMesh_GetPointOnTriangle(in FDISkelMeshContext DIContext, uint TriangleIndex, float3 BaryCoord, out float3 OutPosition, out float3 OutTangentX, out float3 OutTangentY, out float3 OutTangentZ)
+{
+	uint IndexBufferOffset = TriangleIndex * 3;
+	uint VertexIndex0 = DIContext.MeshIndexBuffer[IndexBufferOffset];
+	uint VertexIndex1 = DIContext.MeshIndexBuffer[IndexBufferOffset + 1];
+	uint VertexIndex2 = DIContext.MeshIndexBuffer[IndexBufferOffset + 2];
+
+	float3 Positions[3], TangentsX[3], TangentsY[3], TangentsZ[3];
+	DISkelMesh_GetVertex(DIContext, VertexIndex0, Positions[0], TangentsX[0], TangentsY[0], TangentsZ[0]);
+	DISkelMesh_GetVertex(DIContext, VertexIndex1, Positions[1], TangentsX[1], TangentsY[1], TangentsZ[1]);
+	DISkelMesh_GetVertex(DIContext, VertexIndex2, Positions[2], TangentsX[2], TangentsY[2], TangentsZ[2]);
+	OutPosition = Positions[0] * BaryCoord.x + Positions[1] * BaryCoord.y  + Positions[2] * BaryCoord.z;
+	OutTangentX = TangentsX[0] * BaryCoord.x + TangentsX[1] * BaryCoord.y  + TangentsX[2] * BaryCoord.z;
+	OutTangentY = TangentsY[0] * BaryCoord.x + TangentsY[1] * BaryCoord.y  + TangentsY[2] * BaryCoord.z;
+	OutTangentZ = TangentsZ[0] * BaryCoord.x + TangentsZ[1] * BaryCoord.y  + TangentsZ[2] * BaryCoord.z;
+}
+
 FDISkelMeshSkinnedVertex DISkelMesh_GetSkinnedVertex(in FDISkelMeshContext DIContext, uint VertexIndex)
 {
 	//-TODO: Use a R32G32B32 format

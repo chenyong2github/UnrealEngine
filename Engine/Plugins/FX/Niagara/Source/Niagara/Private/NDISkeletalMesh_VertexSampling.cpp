@@ -14,6 +14,7 @@
 DECLARE_CYCLE_STAT(TEXT("Skel Mesh Vertex Sampling"), STAT_NiagaraSkel_Vertex_Sample, STATGROUP_Niagara);
 
 //Final binders for all static mesh interface functions.
+DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexData);
 DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexSkinnedData);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexColor);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexColorFallback);
@@ -24,6 +25,7 @@ DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, RandomFilteredVertex);
 DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetFilteredVertexCount);
 DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetFilteredVertexAt);
 
+const FName FSkeletalMeshInterfaceHelper::GetVertexDataName("GetVertexData");
 const FName FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataName("GetSkinnedVertexData");
 const FName FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataWSName("GetSkinnedVertexDataWS");
 const FName FSkeletalMeshInterfaceHelper::GetVertexColorName("GetVertexColor");
@@ -40,6 +42,22 @@ const FName FSkeletalMeshInterfaceHelper::GetFilteredVertexAtName("GetFilteredVe
 
 void UNiagaraDataInterfaceSkeletalMesh::GetVertexSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = FSkeletalMeshInterfaceHelper::GetVertexDataName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Vertex")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Normal")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Binormal")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Tangent")));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+#if WITH_EDITORONLY_DATA
+		Sig.Description = LOCTEXT("GetVertexDataDesc", "Returns bind pose for the vertex");
+#endif
+		OutFunctions.Add(Sig);
+	}
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataName;
@@ -174,7 +192,12 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSamplingFunctions(TArray<FNiaga
 void UNiagaraDataInterfaceSkeletalMesh::BindVertexSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstanceData, FVMExternalFunction &OutFunc)
 {
 	//////////////////////////////////////////////////////////////////////////
-	if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataName)
+	if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetVertexDataName)
+	{
+		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 12);
+		TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexData)>::Bind(this, BindingInfo, InstanceData, OutFunc);
+	}
+	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataName)
 	{
 		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 15);
 		TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TVertexAccessorBinder<NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetVertexSkinnedData)>>>::BindCheckCPUAccess(this, BindingInfo, InstanceData, OutFunc);
@@ -676,6 +699,58 @@ struct FGetVertexSkinnedDataOutputHandler
 	const bool bNeedsTangentY;
 	const bool bNeedsTangentZ;
 };
+
+template<typename VertexAccessorType>
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexData(FVectorVMExternalFunctionContext& Context)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
+	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	FNDIInputParam<int32> VertParam(Context);
+
+	FNDIOutputParam<FVector3f> OutPositionParam(Context);
+	FNDIOutputParam<FVector3f> OutTangentZParam(Context);
+	FNDIOutputParam<FVector3f> OutTangentYParam(Context);
+	FNDIOutputParam<FVector3f> OutTangentXParam(Context);
+
+	FSkeletalMeshAccessorHelper Accessor;
+	Accessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
+	if (Accessor.IsLODAccessible())
+	{
+		FSkinnedPositionAccessorHelper<TNDISkelMesh_SkinningModeNone> SkinningHandler;
+
+		const int32 VertMax = Accessor.LODData->GetNumVertices() - 1;
+		if (VertMax >= 0)
+		{
+			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+			{
+				const int32 Vertex = FMath::Clamp(VertParam.GetAndAdvance(), 0, VertMax);
+
+				FVector3f Position = SkinningHandler.GetSkinnedVertexPosition(Accessor, Vertex);
+				FVector3f TangentX = FVector3f::ZeroVector;
+				FVector3f TangentY = FVector3f::ZeroVector;
+				FVector3f TangentZ = FVector3f::ZeroVector;
+				SkinningHandler.GetSkinnedTangentBasis(Accessor, Vertex, TangentX, TangentY, TangentZ);
+
+				OutPositionParam.SetAndAdvance(Position);
+				OutTangentXParam.SetAndAdvance(TangentX);
+				OutTangentYParam.SetAndAdvance(TangentY);
+				OutTangentZParam.SetAndAdvance(TangentZ);
+			}
+
+			// We are done
+			return;
+		}
+	}
+
+	// Fall though for bad data
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+	{
+		OutPositionParam.SetAndAdvance(FVector3f::ZeroVector);
+		OutTangentXParam.SetAndAdvance(FVector3f::ZeroVector);
+		OutTangentYParam.SetAndAdvance(FVector3f::ZeroVector);
+		OutTangentZParam.SetAndAdvance(FVector3f::ZeroVector);
+	}
+}
 
 template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
 void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMExternalFunctionContext& Context)
