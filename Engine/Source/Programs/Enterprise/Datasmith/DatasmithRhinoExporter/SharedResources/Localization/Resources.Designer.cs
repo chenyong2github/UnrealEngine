@@ -97,6 +97,24 @@ namespace DatasmithRhino.Properties.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to disabled.
+        /// </summary>
+        internal static string DatasmithAutoSyncStatusDisabled {
+            get {
+                return ResourceManager.GetString("DatasmithAutoSyncStatusDisabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to enabled.
+        /// </summary>
+        internal static string DatasmithAutoSyncStatusEnabled {
+            get {
+                return ResourceManager.GetString("DatasmithAutoSyncStatusEnabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to DatasmithDirectLinkConnections.
         /// </summary>
         internal static string DatasmithDirectLinkConnectionsCommand {
@@ -192,6 +210,24 @@ namespace DatasmithRhino.Properties.Localization {
         internal static string DatasmithMessagesTitle {
             get {
                 return ResourceManager.GetString("DatasmithMessagesTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DatasmithToggleAutoSync.
+        /// </summary>
+        internal static string DatasmithToggleAutoSyncCommand {
+            get {
+                return ResourceManager.GetString("DatasmithToggleAutoSyncCommand", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Direct Link Auto Sync {0}..
+        /// </summary>
+        internal static string DatasmithToggleAutoSyncMessageStatus {
+            get {
+                return ResourceManager.GetString("DatasmithToggleAutoSyncMessageStatus", resourceCulture);
             }
         }
         

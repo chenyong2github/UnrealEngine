@@ -1255,7 +1255,7 @@ static void ForceKillPackageAndLinker(FLinkerLoad* Linker)
 	if (Package)
 	{
 		Package->ClearPackageFlags(PKG_ContainsMapData | PKG_ContainsMap);
-		Package->SetInternalFlags(EInternalObjectFlags::PendingKill);
+		Package->MarkPendingKill();
 	}
 }
 

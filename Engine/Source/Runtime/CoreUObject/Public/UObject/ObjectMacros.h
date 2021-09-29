@@ -525,10 +525,15 @@ enum EObjectFlags
 	RF_Dynamic					=0x04000000,	///< Field Only. Dynamic field - doesn't get constructed during static initialization, can be constructed multiple times
 	RF_WillBeLoaded				=0x08000000,	///< This object was constructed during load and will be loaded shortly
 	RF_HasExternalPackage		=0x10000000,	///< This object has an external package assigned and should look it up when getting the outermost package
+
+	// RF_PendingKill is mirrored in EInternalObjectFlags because checking the internal flags is much faster for the Garbage Collector
+	// while checking the object flags is much faster outside of it where the Object pointer is already available and most likely cached.
+	
+	RF_PendingKill UE_DEPRECATED(5.0, "RF_PendingKill should no longer be used. Make sure references to objects are released using one of the existing engine callbacks or use weak object pointers.")  =0x20000000,	///< Objects that are pending destruction (invalid for gameplay but valid objects). This flag is mirrored in EInternalObjectFlags as PendingKill for performance
 };
 
 /** Mask for all object flags */
-#define RF_AllFlags				(EObjectFlags)0x1fffffff	///< All flags, used mainly for error checking
+#define RF_AllFlags				(EObjectFlags)0x3fffffff	///< All flags, used mainly for error checking
 
 /** Flags to load from unreal asset files */
 #define RF_Load						((EObjectFlags)(RF_Public | RF_Standalone | RF_Transactional | RF_ClassDefaultObject | RF_ArchetypeObject | RF_DefaultSubObject | RF_TextExportTransient | RF_InheritableComponentTemplate | RF_DuplicateTransient | RF_NonPIEDuplicateTransient)) 
@@ -550,7 +555,7 @@ enum class EInternalObjectFlags : int32
 	Async = 1 << 26, ///< Object exists only on a different thread than the game thread.
 	AsyncLoading = 1 << 27, ///< Object is being asynchronously loaded.
 	Unreachable = 1 << 28, ///< Object is not reachable on the object graph.
-	PendingKill = 1 << 29, ///< Objects that are pending destruction (invalid for gameplay but valid objects)
+	PendingKill = 1 << 29, ///< Objects that are pending destruction (invalid for gameplay but valid objects). This flag is mirrored in EObjectFlags as RF_PendingKill for performance
 	RootSet = 1 << 30, ///< Object will not be garbage collected, even if unreferenced.
 	PendingConstruction = 1 << 31, ///< Object didn't have its class constructor called yet (only the UObjectBase one to initialize its most basic members)
 

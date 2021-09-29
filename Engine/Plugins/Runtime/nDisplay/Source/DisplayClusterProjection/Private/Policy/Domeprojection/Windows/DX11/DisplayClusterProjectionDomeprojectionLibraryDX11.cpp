@@ -63,12 +63,15 @@ bool DisplayClusterProjectionDomeprojectionLibraryDX11::Initialize()
 
 		if (!DllHandle)
 		{
-			const FString LibName   = TEXT("dpLib.dll");
 			const FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("nDisplay"))->GetBaseDir();
-			const FString DllPath   = FPaths::Combine(PluginDir, TEXT("ThirdParty/Domeprojection/DLL"), LibName);
+			const FString DllPath = FPaths::Combine(PluginDir, TEXT("ThirdParty/Domeprojection/DLL"));
+
+			const FString LibName   = TEXT("dpLib.dll");
 			
 			// Try to load DLL
-			DllHandle = FPlatformProcess::GetDllHandle(*DllPath);
+			FPlatformProcess::PushDllDirectory(*DllPath);
+			DllHandle = FPlatformProcess::GetDllHandle(*LibName);
+			FPlatformProcess::PopDllDirectory(*DllPath);
 
 			if (DllHandle)
 			{
@@ -137,7 +140,7 @@ bool DisplayClusterProjectionDomeprojectionLibraryDX11::Initialize()
 			}
 			else
 			{
-				UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't initialize Domeprojection API. No <%s> library found."), *DllPath);
+				UE_LOG(LogDisplayClusterProjectionDomeprojection, Error, TEXT("Couldn't initialize Domeprojection API. No <%s> library found."), *LibName);
 				return false;
 			}
 		}

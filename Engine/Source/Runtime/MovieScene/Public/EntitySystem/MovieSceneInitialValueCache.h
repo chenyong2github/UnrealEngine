@@ -136,7 +136,10 @@ struct TPropertyValueStorage : IPropertyValueStorage
 	{
 		for (FInitialValueIndex Index : Indices)
 		{
-			PropertyValues.RemoveAt(Index.Index);
+			if (PropertyValues.IsValidIndex(Index.Index))
+			{
+				PropertyValues.RemoveAt(Index.Index);
+			}
 		}
 		bLUTContainsInvalidEntries = true;
 	}

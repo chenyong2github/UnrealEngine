@@ -18,8 +18,10 @@ public class AESGCMHandlerComponent : ModuleRules
 			new string[]
 			{
 				"Core",
+				"CoreUObject",
 				"PacketHandler",
 				"PlatformCrypto",
+				"NetCore"
 			}
 			);
 

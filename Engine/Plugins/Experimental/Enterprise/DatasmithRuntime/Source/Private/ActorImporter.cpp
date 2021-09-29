@@ -22,6 +22,8 @@ namespace DatasmithRuntime
 	// Used during reset process
 	const FName RuntimeTag("Datasmith.Runtime.Tag");
 
+	void RenameObject(UObject* Object, const TCHAR* DesiredName);
+
 	void DeleteSceneComponent(USceneComponent* SceneComponent);
 
 	// Recursively destroy actor from world. Children are deleted first.
@@ -215,7 +217,7 @@ namespace DatasmithRuntime
 					UWorld* World = RootComponent->GetOwner()->GetWorld();
 
 					ACineCameraActor* CameraActor = Cast< ACineCameraActor >( World->SpawnActor( ACineCameraActor::StaticClass(), nullptr, nullptr ) );
-					CameraActor->Rename(CameraElement->GetName(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+					RenameObject(CameraActor, CameraElement->GetName());
 #if WITH_EDITOR
 					CameraActor->SetActorLabel(CameraElement->GetLabel());
 #endif
@@ -376,7 +378,7 @@ namespace DatasmithRuntime
 			if (SceneComponent == nullptr)
 			{
 				AActor* Actor = RootComponent->GetOwner()->GetWorld()->SpawnActor(AActor::StaticClass(), nullptr, nullptr);
-				Actor->Rename(ActorElement->GetName(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+				RenameObject(Actor, ActorElement->GetName());
 #if WITH_EDITOR
 				Actor->SetActorLabel( ActorElement->GetLabel() );
 #endif
@@ -400,6 +402,10 @@ namespace DatasmithRuntime
 				}
 
 				ActorData.Object = TWeakObjectPtr<UObject>(SceneComponent);
+			}
+			else if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && SceneComponent->GetOwner()->GetRootComponent() == SceneComponent)
+			{
+				RenameObject(SceneComponent->GetOwner(), ActorElement->GetName());
 			}
 
 			FinalizeComponent(ActorData);
@@ -557,5 +563,17 @@ namespace DatasmithRuntime
 		SceneComponent->SetFlags(RF_Transient);
 		SceneComponent->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 		SceneComponent->MarkPendingKill();
+	}
+
+	void RenameObject(UObject* Object, const TCHAR* DesiredName)
+	{
+		FString ObjectName(DesiredName);
+
+		if (!Object->Rename(DesiredName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors | REN_Test))
+		{
+			ObjectName = MakeUniqueObjectName(Object->GetOuter(), Object->GetClass(), DesiredName).ToString();
+		}
+
+		Object->Rename(*ObjectName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
 	}
 } // End of namespace DatasmithRuntime

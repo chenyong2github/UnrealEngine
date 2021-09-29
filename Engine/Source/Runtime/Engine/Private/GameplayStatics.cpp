@@ -317,7 +317,7 @@ class APlayerController* UGameplayStatics::GetPlayerController(const UObject* Wo
 		for (APlayerState* PlayerState : GameState->PlayerArray)
 		{
 			// Only count valid player controllers that we skipped over in the last list
-			APlayerController* PC = PlayerState->GetPlayerController();
+			APlayerController* PC = PlayerState ? PlayerState->GetPlayerController() : nullptr;
 			if (PC && !PC->GetLocalPlayer())
 			{
 				if (Index == PlayerIndex)

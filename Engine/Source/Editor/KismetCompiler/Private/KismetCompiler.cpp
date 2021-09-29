@@ -4732,8 +4732,8 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 
 void FKismetCompilerContext::PostCDOCompiled()
 {
-	// Vanilla blueprints don't store off any CDO information at this time,
-	// but if need arises heres our entry point.
+	// Notify the CDO that it has finished compiling
+	NewClass->ClassDefaultObject->PostCDOCompiled();
 
 	// Allow children to customize PostCDOCompile:
 	OnPostCDOCompiled();

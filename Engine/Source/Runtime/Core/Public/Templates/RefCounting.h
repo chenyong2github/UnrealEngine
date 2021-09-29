@@ -197,16 +197,19 @@ public:
 
 	TRefCountPtr& operator=(ReferencedType* InReference)
 	{
-		// Call AddRef before Release, in case the new reference is the same as the old reference.
-		ReferencedType* OldReference = Reference;
-		Reference = InReference;
-		if(Reference)
+		if (Reference != InReference)
 		{
-			Reference->AddRef();
-		}
-		if(OldReference)
-		{
-			OldReference->Release();
+			// Call AddRef before Release, in case the new reference is the same as the old reference.
+			ReferencedType* OldReference = Reference;
+			Reference = InReference;
+			if (Reference)
+			{
+				Reference->AddRef();
+			}
+			if (OldReference)
+			{
+				OldReference->Release();
+			}
 		}
 		return *this;
 	}

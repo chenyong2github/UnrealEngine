@@ -91,9 +91,11 @@ FActiveStateMachineScope::~FActiveStateMachineScope()
 
 int32 FActiveStateMachineScope::GetStateMachineIndex(FAnimNode_StateMachine* StateMachine, const FAnimationBaseContext& Context)
 {
-	if (Context.AnimInstanceProxy)
+	if (Context.AnimInstanceProxy && Context.AnimInstanceProxy->GetAnimClassInterface())
 	{
-		return Context.AnimInstanceProxy->GetStateMachineIndex(StateMachine);
+		const int32 NumProperties = Context.AnimInstanceProxy->GetAnimClassInterface()->GetAnimNodeProperties().Num();
+		const int32 StateMachineIndex = NumProperties - 1 - StateMachine->GetNodeIndex();
+		return StateMachineIndex;
 	}
 	return INDEX_NONE;
 }

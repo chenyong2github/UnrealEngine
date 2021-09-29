@@ -206,6 +206,11 @@ GfnRuntimeError GeForceNOWWrapper::RegisterSessionInitCallback(SessionInitCallba
 	return GfnRegisterSessionInitCallback(SessionInitCallback, Context);
 }
 
+GfnRuntimeError GeForceNOWWrapper::RegisterClientInfoCallback(ClientInfoCallbackSig ClientInfoCallback, void* Context) const
+{
+	return GfnRegisterClientInfoCallback(ClientInfoCallback, Context);
+}
+
 GfnRuntimeError GeForceNOWWrapper::GetClientIpV4(FString& OutIpv4) const
 {
 	const char* Ip = nullptr;
@@ -228,6 +233,11 @@ GfnRuntimeError GeForceNOWWrapper::GetClientCountryCode(FString& OutCountryCode)
 	char CountryCode[3] = { 0 };
 	GfnRuntimeError ErrorCode = GfnGetClientCountryCode(CountryCode, 3);
 	return ErrorCode;
+}
+
+GfnRuntimeError GeForceNOWWrapper::GetClientInfo(GfnClientInfo& OutClientInfo) const
+{
+	return GfnGetClientInfo(&OutClientInfo);
 }
 
 GfnRuntimeError GeForceNOWWrapper::GetCustomData(FString& OutCustomData) const

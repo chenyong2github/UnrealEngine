@@ -2,6 +2,7 @@
 
 #include "OnlineIdentityNull.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/Guid.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "OnlineSubsystemNull.h"

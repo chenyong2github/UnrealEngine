@@ -1,21 +1,21 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from switchboard.config import CONFIG, Setting
+import datetime
+from functools import wraps
+
+from switchboard.config import StringSetting
 from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.switchboard_logging import LOGGER
 import switchboard.switchboard_utils as utils
 
-from PySide2 import QtWidgets
 from .thirdparty.vicon_core_api import vicon_core_api
 from .thirdparty.shogun_live_api import shogun_live_api
-
-import datetime
-from functools import wraps
 
 
 def unresponsive_shogun(f):
     """
-    Decorator to gracefully disconnect if a Shogun command comes back with vicon_core_api.client.RPCError
+    Decorator to gracefully disconnect if a Shogun command comes back with
+    vicon_core_api.client.RPCError.
     """
     @wraps(f)
     def wrapped(self, *args, **kwargs):
@@ -25,7 +25,9 @@ def unresponsive_shogun(f):
             self.device_qt_handler.signal_device_connect_failed.emit(self)
             return None
         except ModuleNotFoundError:
-            LOGGER.error('Could not connect to Shogun because the module was not installed')
+            LOGGER.error(
+                'Could not connect to Shogun because the module was not '
+                'installed')
             return None
 
     return wrapped
@@ -33,7 +35,7 @@ def unresponsive_shogun(f):
 
 class DeviceShogun(Device):
     def __init__(self, name, ip_address, **kwargs):
-        self.setting_save_path = Setting("save_path", "Save Path", "")
+        self.setting_save_path = StringSetting("save_path", "Save Path", "")
         super().__init__(name, ip_address, **kwargs)
 
         self.trigger_start = True
@@ -74,16 +76,17 @@ class DeviceShogun(Device):
         else:
             self.device_qt_handler.signal_device_connect_failed.emit(self)
 
-
     @unresponsive_shogun
     def set_slate(self, value):
         self._slate = value
-        self.capture_service.set_capture_name(utils.capture_name(self._slate, self._take))
+        self.capture_service.set_capture_name(
+            utils.capture_name(self._slate, self._take))
 
     @unresponsive_shogun
     def set_take(self, value):
         self._take = value
-        self.capture_service.set_capture_name(utils.capture_name(self._slate, self._take))
+        self.capture_service.set_capture_name(
+            utils.capture_name(self._slate, self._take))
 
     @unresponsive_shogun
     def set_capture_folder(self):
@@ -92,12 +95,14 @@ class DeviceShogun(Device):
         save_path = d.strftime(self.save_path)
 
         # HOW TO MAKE DIR ON OTHER MACHINE
-        #os.makedirs(save_path, exist_ok=True)
+        # os.makedirs(save_path, exist_ok=True)
 
         result = self.capture_service.set_capture_folder(save_path)
 
         if result != vicon_core_api.result.Result.Ok:
-            LOGGER.error(f'{self.name}: "{save_path}" is an invalid path. Capture Folder not set')
+            LOGGER.error(
+                f'{self.name}: "{save_path}" is an invalid path. '
+                'Capture Folder not set')
 
     @unresponsive_shogun
     def record_start(self, slate, take, description):
@@ -126,7 +131,7 @@ class DeviceShogun(Device):
             # TODO: THIS BLOCKS THE MAIN THREAD ON STOP. FIX THIS
             result, _, _ = self.capture_service.latest_capture_file_paths()
             # START HERE: GET PATHS OF FILES WRITTEN
-            #LOGGER.debug(f'{result} {paths}')
+            # LOGGER.debug(f'{result} {paths}')
             self.record_stop_confirm(self.timecode(), paths=None)
 
     def timecode(self):
@@ -139,31 +144,34 @@ class DeviceWidgetShogun(DeviceWidget):
 
     def _add_control_buttons(self):
         super()._add_control_buttons()
-        self.trigger_start_button = self.add_control_button(':/icons/images/icon_trigger_start_disabled.png',
-                                           icon_hover=':/icons/images/icon_trigger_start_hover.png',
-                                        icon_disabled=':/icons/images/icon_trigger_start_disabled.png',
-                                              icon_on=':/icons/images/icon_trigger_start.png',
-                                        icon_hover_on=':/icons/images/icon_trigger_start_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_trigger_start_disabled.png',
-                                             tool_tip='Trigger when recording starts',
-                                             checkable=True, checked=True)
+        self.trigger_start_button = self.add_control_button(
+            ':/icons/images/icon_trigger_start_disabled.png',
+            icon_hover=':/icons/images/icon_trigger_start_hover.png',
+            icon_disabled=':/icons/images/icon_trigger_start_disabled.png',
+            icon_on=':/icons/images/icon_trigger_start.png',
+            icon_hover_on=':/icons/images/icon_trigger_start_hover.png',
+            icon_disabled_on=':/icons/images/icon_trigger_start_disabled.png',
+            tool_tip='Trigger when recording starts',
+            checkable=True, checked=True)
 
-        self.trigger_stop_button = self.add_control_button(':/icons/images/icon_trigger_stop_disabled.png',
-                                           icon_hover=':/icons/images/icon_trigger_stop_hover.png',
-                                        icon_disabled=':/icons/images/icon_trigger_stop_disabled.png',
-                                              icon_on=':/icons/images/icon_trigger_stop.png',
-                                        icon_hover_on=':/icons/images/icon_trigger_stop_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_trigger_stop_disabled.png',
-                                             tool_tip='Trigger when recording stops',
-                                             checkable=True, checked=True)
+        self.trigger_stop_button = self.add_control_button(
+            ':/icons/images/icon_trigger_stop_disabled.png',
+            icon_hover=':/icons/images/icon_trigger_stop_hover.png',
+            icon_disabled=':/icons/images/icon_trigger_stop_disabled.png',
+            icon_on=':/icons/images/icon_trigger_stop.png',
+            icon_hover_on=':/icons/images/icon_trigger_stop_hover.png',
+            icon_disabled_on=':/icons/images/icon_trigger_stop_disabled.png',
+            tool_tip='Trigger when recording stops',
+            checkable=True, checked=True)
 
-        self.connect_button = self.add_control_button(':/icons/images/icon_connect.png',
-                                           icon_hover=':/icons/images/icon_connect_hover.png',
-                                        icon_disabled=':/icons/images/icon_connect_disabled.png',
-                                              icon_on=':/icons/images/icon_connected.png',
-                                        icon_hover_on=':/icons/images/icon_connected_hover.png',
-                                     icon_disabled_on=':/icons/images/icon_connected_disabled.png',
-                                             tool_tip='Connect/Disconnect from listener')
+        self.connect_button = self.add_control_button(
+            ':/icons/images/icon_connect.png',
+            icon_hover=':/icons/images/icon_connect_hover.png',
+            icon_disabled=':/icons/images/icon_connect_disabled.png',
+            icon_on=':/icons/images/icon_connected.png',
+            icon_hover_on=':/icons/images/icon_connected_hover.png',
+            icon_disabled_on=':/icons/images/icon_connected_disabled.png',
+            tool_tip='Connect/Disconnect from listener')
 
         self.trigger_start_button.clicked.connect(self.trigger_start_clicked)
         self.trigger_stop_button.clicked.connect(self.trigger_stop_clicked)

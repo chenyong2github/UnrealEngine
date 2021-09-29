@@ -806,6 +806,9 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 void FRawSkeletalMeshBulkData::SaveRawMesh(FSkeletalMeshImportData& InMesh)
 {
+	// An exclusive lock is required so we can safely load the raw data from multiple threads
+	FWriteScopeLock ScopeLock(BulkDataLock.Get());
+	
 	//Saving the bulk data mean we do not need anymore the SerializeLoadingCustomVersionContainer of the parent bulk data
 	SerializeLoadingCustomVersionContainer.Empty();
 

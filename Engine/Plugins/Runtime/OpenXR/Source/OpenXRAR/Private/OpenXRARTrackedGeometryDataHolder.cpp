@@ -3,6 +3,7 @@
 #include "IOpenXRARTrackedGeometryHolder.h"
 #include "MRMeshBufferDefines.h"
 #include "MRMeshComponent.h"
+#include "IXRTrackingSystem.h"
 
 UARTrackedGeometry* FOpenXRQRCodeData::ConstructNewTrackedGeometry(TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> ARSupportInterface)
 {
@@ -53,8 +54,11 @@ void FOpenXRMeshUpdate::UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeometr
 		// Update MRMesh if it's available
 		if (auto MRMesh = UpdatedGeometry->GetUnderlyingMesh())
 		{
+			IXRTrackingSystem* XRTrackingSystem = GEngine->XRSystem.Get();
+			FTransform MeshTransform = LocalToTrackingTransform * XRTrackingSystem->GetTrackingToWorldTransform();
+
 			// MRMesh takes ownership of the data in the arrays at this point
-			MRMesh->UpdateMesh(LocalToTrackingTransform.GetLocation(), LocalToTrackingTransform.GetRotation(), LocalToTrackingTransform.GetScale3D(), Vertices, Indices);
+			MRMesh->UpdateMesh(MeshTransform.GetLocation(), MeshTransform.GetRotation(), MeshTransform.GetScale3D(), Vertices, Indices);
 		}
 	}
 
@@ -104,8 +108,11 @@ void FOpenXRPlaneUpdate::UpdateTrackedGeometry(UARTrackedGeometry* TrackedGeomet
 			Indices.Add(3);
 			Indices.Add(0);
 
+			IXRTrackingSystem* XRTrackingSystem = GEngine->XRSystem.Get();
+			FTransform MeshTransform = LocalToTrackingTransform * XRTrackingSystem->GetTrackingToWorldTransform();
+
 			// MRMesh takes ownership of the data in the arrays at this point
-			MRMesh->UpdateMesh(LocalToTrackingTransform.GetLocation(), LocalToTrackingTransform.GetRotation(), LocalToTrackingTransform.GetScale3D(), Vertices, Indices);
+			MRMesh->UpdateMesh(MeshTransform.GetLocation(), MeshTransform.GetRotation(), MeshTransform.GetScale3D(), Vertices, Indices);
 		}
 	}
 

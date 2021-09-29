@@ -816,7 +816,7 @@ public:
 	}
 
 	/** Set shader bindings on the commandlist, filtered by state cache. */
-	RENDERER_API void SetOnCommandList(FRHICommandList& RHICmdList, FBoundShaderStateInput Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
+	RENDERER_API void SetOnCommandList(FRHICommandList& RHICmdList, const FBoundShaderStateInput& Shaders, class FShaderBindingState* StateCacheShaderBindings) const;
 	RENDERER_API void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 
 #if RHI_RAYTRACING
@@ -1891,6 +1891,9 @@ public:
 		uint32 ShadingPathIdx = (uint32)ShadingPath;
 		return Flags[ShadingPathIdx][PassType];
 	}
+
+	/** Only call on the game thread. Heavy weight. Flush rendering commands and recreate all component render states. */
+	static void SetPassFlags(EShadingPath ShadingPath, EMeshPass::Type PassType, EMeshPassFlags NewFlags);
 
 private:
 	RENDERER_API static PassProcessorCreateFunction JumpTable[(uint32)EShadingPath::Num][EMeshPass::Num];

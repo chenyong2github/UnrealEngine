@@ -25,7 +25,7 @@ namespace Audio
 		// called by owning FQuartzClock
 		void SetTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft = 0);
 
-		FQuartzClockTickRate GetTickRate() { return CurrentTickRate; }
+		FQuartzClockTickRate GetTickRate() const { return CurrentTickRate; }
 
 		void SetSampleRate(float InNewSampleRate);
 
@@ -34,7 +34,7 @@ namespace Audio
 
 		int32 GetFramesUntilBoundary(FQuartzQuantizationBoundary InQuantizationBoundary) const;
 
-		FQuartzTimeSignature GetTimeSignature() const { return CurrentTimeSignature; }
+		const FQuartzTimeSignature & GetTimeSignature() const { return CurrentTimeSignature; }
 
 		FQuartzTransportTimeStamp GetTimeStamp() const { return CurrentTimeStamp; }
 

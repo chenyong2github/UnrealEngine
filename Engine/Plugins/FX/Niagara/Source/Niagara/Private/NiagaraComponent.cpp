@@ -150,6 +150,18 @@ FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
 	)
 );
 
+static int GNiagaraCanPreventScalabilityCullingOnPlayerFX = 1;
+static FAutoConsoleVariableRef CVarNiagaraCanPreventScalabilityCullingOnPlayerFX(
+	TEXT("fx.Niagara.Scalability.CanPreventCullingOnPlayerFX"),
+	GNiagaraCanPreventScalabilityCullingOnPlayerFX,
+	TEXT("When enabled Niagara can optionally prevent scalability culling on FX linked to the player."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* CVar)
+	{
+		FNiagaraWorldManager::OnRefreshOwnerAllowsScalability();
+	}),
+	ECVF_Default
+);
+
 FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
 {
@@ -681,16 +693,26 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 						if (bLockDesiredAgeDeltaTimeToSeekDelta || AgeDiff > SeekDelta)
 						{
 							// If we're locking the delta time to the seek delta, or we need to seek more than a frame, tick the simulation by the seek delta.
-							double StartTime = FPlatformTime::Seconds();
-							double CurrentTime = StartTime;
+							const bool bUseMaxSimTime = MaxSimTime > 0.0f;
+							const double EndMaxSimTime = bUseMaxSimTime ? FPlatformTime::Seconds() + MaxSimTime : 0.0f;
 
 							TicksToProcess = FMath::FloorToInt(AgeDiff / SeekDelta);
-							for (; TicksToProcess > 0 && CurrentTime - StartTime < MaxSimTime; --TicksToProcess)
+							while ( TicksToProcess > 0 )
 							{
-								//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
-								//If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
+								// Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
+								// If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
 								SystemInstanceController->ManualTick(SeekDelta, nullptr);
-								CurrentTime = FPlatformTime::Seconds();
+								--TicksToProcess;
+
+								// This limits the amount of time we will consume seeking forward
+								if ( bUseMaxSimTime )
+								{
+									const double CurrentTime = FPlatformTime::Seconds();
+									if ( CurrentTime >= EndMaxSimTime )
+									{
+										break;
+									}
+								}
 							}
 						}
 						else
@@ -996,6 +1018,9 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	bIsCulledByScalability = false;
 	
+	//Update our owner scalability state but don't register with the manager.
+	ResolveOwnerAllowsScalability(false);
+	
 	//We reset last render time to the current time so that any visibility culling on a delay will function correctly.
 	//Leaving as the default of -1000 causes the visibility code to always assume this should be culled until it's first rendered and initialized by the RT.
 	//Set the component last render time *before* preculling otherwise there are cases where we can pre cull incorrectly.
@@ -1218,7 +1243,7 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 
 bool UNiagaraComponent::ShouldPreCull()
 {
-	if (bAllowScalability)
+	if (bAllowScalability && bOwnerAllowsScalabiltiy)
 	{
 		if (UNiagaraSystem* System = GetAsset())
 		{
@@ -1241,7 +1266,7 @@ bool UNiagaraComponent::ShouldPreCull()
 
 void UNiagaraComponent::RegisterWithScalabilityManager()
 {
-	if (ScalabilityManagerHandle == INDEX_NONE && bAllowScalability)
+	if (ScalabilityManagerHandle == INDEX_NONE && bAllowScalability && bOwnerAllowsScalabiltiy)
 	{
 		if (UNiagaraSystem* System = GetAsset())
 		{
@@ -1440,9 +1465,9 @@ void UNiagaraComponent::DestroyInstance()
 
 		if (SystemInstanceController)
 		{
-		SystemInstanceController->Release();
-		SystemInstanceController = nullptr;
-	}
+			SystemInstanceController->Release();
+			SystemInstanceController = nullptr;
+		}
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -1758,10 +1783,10 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				FNiagaraSystemInstanceControllerPtr CullProxyController = CullProxy->GetSystemInstanceController();
 				if ( ensureMsgf(CullProxyController.IsValid(), TEXT("CullProxy is missing the system instance controller for System '%s' Component '%s'"), *GetNameSafe(Asset), *GetFullNameSafe(this)) )
 				{
-				CullProxyController->GetSystemInstance_Unsafe()->SetWorldTransform(SystemInstanceController->GetSystemInstance_Unsafe()->GetWorldTransform());
-				CullProxyController->GenerateSetDynamicDataCommands(SetDataCommands, *RenderData, *NiagaraProxy);
-				CullProxyController->GetSystemInstance_Unsafe()->SetWorldTransform(FTransform::Identity);
-			}
+					CullProxyController->GetSystemInstance_Unsafe()->SetWorldTransform(SystemInstanceController->GetSystemInstance_Unsafe()->GetWorldTransform());
+					CullProxyController->GenerateSetDynamicDataCommands(SetDataCommands, *RenderData, *NiagaraProxy);
+					CullProxyController->GetSystemInstance_Unsafe()->SetWorldTransform(FTransform::Identity);
+				}
 			}
 			else
 			{
@@ -1848,6 +1873,30 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 	}
 }
 
+bool UNiagaraComponent::ResolveOwnerAllowsScalability(bool bRegister)
+{
+	bOwnerAllowsScalabiltiy = true;
+	
+	if(GNiagaraCanPreventScalabilityCullingOnPlayerFX && Asset && Asset->AllowScalabilityForLocalPlayerFX() == false)
+	{
+		bOwnerAllowsScalabiltiy = IsLocalPlayerEffect() == false;
+	}	
+
+	//Update manager registration if needed.
+	if (bRegister)
+	{
+		if (IsActive() && bOwnerAllowsScalabiltiy)
+		{
+			RegisterWithScalabilityManager();
+		}
+		else if (!bOwnerAllowsScalabiltiy)
+		{
+			UnregisterWithScalabilityManager();
+		}
+	}
+	return bOwnerAllowsScalabiltiy;
+}
+
 void UNiagaraComponent::OnAttachmentChanged()
 {
 	// Uncertain about this. 
@@ -1856,8 +1905,8 @@ void UNiagaraComponent::OnAttachmentChanged()
 	// 		ResetSystem();
 	// 	}
 
+	ResolveOwnerAllowsScalability();
 	Super::OnAttachmentChanged();
-
 }
 
 void UNiagaraComponent::OnChildAttached(USceneComponent* ChildComponent)
@@ -2565,6 +2614,11 @@ void UNiagaraComponent::SetUserParametersToDefaultValues()
 	OverrideParameters.Rebind();
 }
 
+bool UNiagaraComponent::IsLocalPlayerEffect()const
+{
+	return FNiagaraWorldManager::IsComponentLocalPlayerLinked(this);
+}
+
 #if WITH_EDITOR
 
 void UNiagaraComponent::UpgradeDeprecatedParameterOverrides()
@@ -3135,6 +3189,11 @@ void UNiagaraComponent::SetAllowScalability(bool bAllow)
 	}
 }
 
+bool UNiagaraComponent::GetAllowScalability()const
+{
+	return bAllowScalability;
+}
+
 #if WITH_EDITOR
 
 void UNiagaraComponent::PostLoadNormalizeOverrideNames()
@@ -3216,12 +3275,12 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOve
 		// Activate
 		if ( IsRegistered() )
 		{
-		if (bAutoActivate || bWasActive)
-		{
-			Activate();
+			if (bAutoActivate || bWasActive)
+			{
+				Activate();
+			}
 		}
 	}
-}
 }
 
 void UNiagaraComponent::SetForceSolo(bool bInForceSolo) 

@@ -88,8 +88,8 @@ TSharedRef<SWidget> FGameplayTagContainerCustomization::ActiveTags()
 {	
 	RefreshTagList();
 	
-	SAssignNew( TagListView, SListView<TSharedPtr<FString>> )
-	.ListItemsSource(&TagNames)
+	SAssignNew( TagListView, SListView<TSharedPtr<FGameplayTag>> )
+	.ListItemsSource(&TagList)
 	.SelectionMode(ESelectionMode::None)
 	.OnGenerateRow(this, &FGameplayTagContainerCustomization::MakeListViewWidget);
 
@@ -101,21 +101,29 @@ void FGameplayTagContainerCustomization::RefreshTagList()
 	// Rebuild Editable Containers as container references can become unsafe
 	BuildEditableContainerList();
 
-	// Clear the list
-	TagNames.Empty();
-
-	// Add tags to list
+	// Build the set of tags on any instance, collapsing common tags together
+	TSet<FGameplayTag> CurrentTagSet;
 	for (int32 ContainerIdx = 0; ContainerIdx < EditableContainers.Num(); ++ContainerIdx)
 	{
-		FGameplayTagContainer* Container = EditableContainers[ContainerIdx].TagContainer;
-		if (Container)
+		if (const FGameplayTagContainer* Container = EditableContainers[ContainerIdx].TagContainer)
 		{
 			for (auto It = Container->CreateConstIterator(); It; ++It)
 			{
-				TagNames.Add(MakeShareable(new FString(It->ToString())));
+				CurrentTagSet.Add(*It);
 			}
 		}
 	}
+
+	// Convert the set into pointers for the combo
+	TagList.Empty(CurrentTagSet.Num());
+	for (const FGameplayTag& CurrentTag : CurrentTagSet)
+	{
+		TagList.Add(MakeShared<FGameplayTag>(CurrentTag));
+	}
+	TagList.StableSort([](const TSharedPtr<FGameplayTag>& One, const TSharedPtr<FGameplayTag>& Two)
+	{
+		return *One < *Two;
+	});
 
 	// Refresh the slate list
 	if( TagListView.IsValid() )
@@ -124,25 +132,27 @@ void FGameplayTagContainerCustomization::RefreshTagList()
 	}
 }
 
-TSharedRef<ITableRow> FGameplayTagContainerCustomization::MakeListViewWidget(TSharedPtr<FString> Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> FGameplayTagContainerCustomization::MakeListViewWidget(TSharedPtr<FGameplayTag> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	TSharedPtr<SWidget> TagItem;
 
-	if (UGameplayTagsManager::Get().ShowGameplayTagAsHyperLinkEditor(*Item.Get()))
+	const FString TagName = Item->ToString();
+	if (UGameplayTagsManager::Get().ShowGameplayTagAsHyperLinkEditor(TagName))
 	{
 		TagItem = SNew(SHyperlink)
-			.Text(FText::FromString(*Item.Get()))
+			.Text(FText::FromString(TagName))
 			.OnNavigate(this, &FGameplayTagContainerCustomization::OnTagDoubleClicked, *Item.Get());
 	}
 	else
 	{
-		TagItem = SNew(STextBlock).Text(FText::FromString(*Item.Get()));
+		TagItem = SNew(STextBlock)
+			.Text(FText::FromString(TagName));
 	}
 
 	return SNew( STableRow< TSharedPtr<FString> >, OwnerTable )
 	[
 		SNew(SBorder)
-		.OnMouseButtonDown(this, &FGameplayTagContainerCustomization::OnSingleTagMouseButtonPressed, *Item.Get())
+		.OnMouseButtonDown(this, &FGameplayTagContainerCustomization::OnSingleTagMouseButtonPressed, TagName)
 		.Padding(0.0f)
 		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 		[
@@ -217,13 +227,12 @@ void FGameplayTagContainerCustomization::OnWholeContainerSearchForReferences()
 	if (FEditorDelegates::OnOpenReferenceViewer.IsBound())
 	{
 		TArray<FAssetIdentifier> AssetIdentifiers;
-		AssetIdentifiers.Reserve(TagNames.Num());
-		for (TSharedPtr<FString>& TagNamePtr : TagNames)
+		AssetIdentifiers.Reserve(TagList.Num());
+		for (const TSharedPtr<FGameplayTag>& TagPtr : TagList)
 		{
-			FName TagFName(**TagNamePtr.Get(), FNAME_Find);
-			if (!TagFName.IsNone())
+			if (TagPtr->IsValid())
 			{
-				AssetIdentifiers.Emplace(FGameplayTag::StaticStruct(), TagFName);
+				AssetIdentifiers.Emplace(FGameplayTag::StaticStruct(), TagPtr->GetTagName());
 			}
 		}
 
@@ -231,38 +240,29 @@ void FGameplayTagContainerCustomization::OnWholeContainerSearchForReferences()
 	}
 }
 
-void FGameplayTagContainerCustomization::OnTagDoubleClicked(FString TagName)
+void FGameplayTagContainerCustomization::OnTagDoubleClicked(FGameplayTag Tag)
 {
-	UGameplayTagsManager::Get().NotifyGameplayTagDoubleClickedEditor(TagName);
+	UGameplayTagsManager::Get().NotifyGameplayTagDoubleClickedEditor(Tag.ToString());
 }
 
-FReply FGameplayTagContainerCustomization::OnRemoveTagClicked(FString TagName)
+FReply FGameplayTagContainerCustomization::OnRemoveTagClicked(FGameplayTag Tag)
 {
 	TArray<FString> NewValues;
-
-	StructPropertyHandle->EnumerateRawData([TagName, &NewValues](void* RawTagContainer, const int32 /*DataIndex*/, const int32 /*NumDatas*/) -> bool {
-		
-		FGameplayTagContainer TagContainerCopy = *static_cast<FGameplayTagContainer*>(RawTagContainer);
-		for (int32 TagIndex = 0; TagIndex < TagContainerCopy.Num(); TagIndex++)
+	for (int32 ContainerIdx = 0; ContainerIdx < EditableContainers.Num(); ++ContainerIdx)
+	{
+		FGameplayTagContainer TagContainerCopy;
+		if (const FGameplayTagContainer* Container = EditableContainers[ContainerIdx].TagContainer)
 		{
-			FGameplayTag Tag = TagContainerCopy.GetByIndex(TagIndex);
-			if (Tag.GetTagName().ToString() == TagName)
-			{
-				TagContainerCopy.RemoveTag(Tag);
-			}
+			TagContainerCopy = *Container;
 		}
-		
-		NewValues.Add(TagContainerCopy.ToString());
+		TagContainerCopy.RemoveTag(Tag);
 
-		return true;
-	});
+		NewValues.Add(TagContainerCopy.ToString());
+	}
 
 	{
 		FScopedTransaction Transaction(LOCTEXT("RemoveGameplayTagFromContainer", "Remove Gameplay Tag"));
-		for (int i = 0; i < NewValues.Num(); i++)
-		{
-			StructPropertyHandle->SetPerObjectValue(i, NewValues[i]);
-		}
+		StructPropertyHandle->SetPerObjectValues(NewValues);
 	}
 
 	RefreshTagList();
@@ -278,9 +278,6 @@ TSharedRef<SWidget> FGameplayTagContainerCustomization::GetListContent()
 	}
 
 	FString Categories = UGameplayTagsManager::Get().GetCategoriesMetaFromPropertyHandle(StructPropertyHandle);
-
-	TArray<UObject*> OuterObjects;
-	StructPropertyHandle->GetOuterObjects(OuterObjects);
 
 	bool bReadOnly = StructPropertyHandle->IsEditConst();
 
@@ -316,30 +313,24 @@ void FGameplayTagContainerCustomization::OnGameplayTagListMenuOpenStateChanged(b
 
 FReply FGameplayTagContainerCustomization::OnClearAllButtonClicked()
 {
-	FScopedTransaction Transaction(LOCTEXT("GameplayTagContainerCustomization_RemoveAllTags", "Remove All Gameplay Tags"));
-
-	for (int32 ContainerIdx = 0; ContainerIdx < EditableContainers.Num(); ++ContainerIdx)
 	{
-		FGameplayTagContainer* Container = EditableContainers[ContainerIdx].TagContainer;
-
-		if (Container)
-		{
-			FGameplayTagContainer EmptyContainer;
-			StructPropertyHandle->SetValueFromFormattedString(EmptyContainer.ToString());
-			RefreshTagList();
-		}
+		FScopedTransaction Transaction(LOCTEXT("GameplayTagContainerCustomization_RemoveAllTags", "Remove All Gameplay Tags"));
+		StructPropertyHandle->SetValueFromFormattedString(FGameplayTagContainer().ToString());
 	}
+
+	RefreshTagList();
+
 	return FReply::Handled();
 }
 
 EVisibility FGameplayTagContainerCustomization::GetClearAllVisibility() const
 {
-	return TagNames.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+	return TagList.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility FGameplayTagContainerCustomization::GetTagsListVisibility() const
 {
-	return TagNames.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+	return TagList.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void FGameplayTagContainerCustomization::PostUndo( bool bSuccess )

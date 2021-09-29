@@ -1074,14 +1074,18 @@ void FCanvas::Clear(const FLinearColor& ClearColor)
 		});
 }
 
-void FCanvas::DrawTile( float X, float Y, float SizeX,	float SizeY, float U, float V, float SizeU, float SizeV, const FLinearColor& Color,	const FTexture* Texture, bool AlphaBlend )
+void FCanvas::DrawTile(float X, float Y, float SizeX, float SizeY, float U, float V, float SizeU, float SizeV, const FLinearColor& Color,	const FTexture* Texture, bool AlphaBlend)
+{
+	ESimpleElementBlendMode BlendMode = AlphaBlend ? (bUseInternalTexture ? SE_BLEND_TranslucentAlphaOnlyWriteAlpha : SE_BLEND_Translucent) : SE_BLEND_Opaque;
+	DrawTile(X, Y, SizeX, SizeY, U, V, SizeU, SizeV, Color, Texture, BlendMode);
+}
+
+void FCanvas::DrawTile(float X, float Y, float SizeX, float SizeY, float U, float V, float SizeU, float SizeV, const FLinearColor& Color, const FTexture* Texture, ESimpleElementBlendMode BlendMode)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Canvas_DrawTextureTileTime);
 
-	FCanvasTileItem TileItem(FVector2D(X,Y), Texture ? Texture : GWhiteTexture, FVector2D(SizeX,SizeY), FVector2D(U,V), FVector2D(SizeU,SizeV), Color);
-	TileItem.BlendMode = AlphaBlend ? 
-		(bUseInternalTexture ? SE_BLEND_TranslucentAlphaOnlyWriteAlpha : SE_BLEND_Translucent) :
-		SE_BLEND_Opaque;
+	FCanvasTileItem TileItem(FVector2D(X, Y), Texture ? Texture : GWhiteTexture, FVector2D(SizeX, SizeY), FVector2D(U, V), FVector2D(SizeU, SizeV), Color);
+	TileItem.BlendMode = BlendMode;
 	DrawItem(TileItem);
 }
 

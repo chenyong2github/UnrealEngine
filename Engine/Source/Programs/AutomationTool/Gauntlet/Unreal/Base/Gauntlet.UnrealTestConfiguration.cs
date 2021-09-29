@@ -645,6 +645,12 @@ namespace Gauntlet
 		public Dictionary<UnrealTargetRole, List<UnrealTestRole>> RequiredRoles { get; private set; }
 
 		/// <summary>
+		/// Log channels that should be treated as events for this test. Warnings & Errors in these
+		/// channels will be promoted to test warnings and errors. For LogFoo return "Foo".
+		/// </summary>
+		public List<string> LogCategoriesForEvents { get; protected set; } = new List<string>();
+
+		/// <summary>
 		/// Base constructor
 		/// </summary>
 		public UnrealTestConfiguration()

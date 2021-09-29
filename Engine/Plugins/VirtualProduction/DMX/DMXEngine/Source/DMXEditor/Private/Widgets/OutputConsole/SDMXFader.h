@@ -147,6 +147,9 @@ private:
 	/** Handles when the user changes the Fader value */
 	void HandleValueChanged(uint8 NewValue);
 
+	/** Called when the FaderName border was Clicked */
+	FReply OnFaderNameBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+
 	/** Called when the fader name changes */
 	void OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Type InCommit);
 

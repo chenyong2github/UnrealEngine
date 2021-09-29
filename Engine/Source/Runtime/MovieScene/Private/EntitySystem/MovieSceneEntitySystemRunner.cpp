@@ -41,9 +41,9 @@ void FMovieSceneEntitySystemRunner::AttachToLinker(UMovieSceneEntitySystemLinker
 	if (!ensureMsgf(WeakLinker.IsExplicitlyNull(), TEXT("This runner is already attached to a linker")))
 	{
 		if (ensureMsgf(WeakLinker.IsValid(), TEXT("Our previous linker isn't valid anymore! We will permit attaching to a new one.")))
-	{
-		return;
-	}
+		{
+			return;
+		}
 	}
 
 	WeakLinker = InLinker;
@@ -68,8 +68,8 @@ void FMovieSceneEntitySystemRunner::DetachFromLinker()
 		else
 		{
 			WeakLinker.Reset();
+		}
 	}
-}
 }
 
 UMovieSceneEntitySystemLinker* FMovieSceneEntitySystemRunner::GetLinker() const
@@ -78,7 +78,7 @@ UMovieSceneEntitySystemLinker* FMovieSceneEntitySystemRunner::GetLinker() const
 }
 
 UE::MovieScene::FEntityManager* FMovieSceneEntitySystemRunner::GetEntityManager() const
-	{
+{
 	if (UMovieSceneEntitySystemLinker* Linker = GetLinker())
 	{
 		return &Linker->EntityManager;
@@ -99,10 +99,11 @@ bool FMovieSceneEntitySystemRunner::HasQueuedUpdates() const
 {
 	if (UpdateQueue.Num() != 0 || DissectedUpdates.Num() != 0)
 	{
-		if (UMovieSceneEntitySystemLinker* Linker = GetLinker())
-		{
-			return Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
-		}
+		return true;
+	}
+	if (UMovieSceneEntitySystemLinker* Linker = GetLinker())
+	{
+		return Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
 	}
 	return false;
 }
@@ -279,6 +280,16 @@ void FMovieSceneEntitySystemRunner::GameThread_ProcessQueue()
 			}
 
 			MarkForUpdate(Request.InstanceHandle);
+		}
+	}
+	else
+	{
+		// Look for the next batch of updates, and mark the respective sequence instances as currently updating.
+		const int32 PredicateOrder = DissectedUpdates[0].Order;
+		for (int32 Index = 0; Index < DissectedUpdates.Num() && DissectedUpdates[Index].Order == PredicateOrder; ++Index)
+		{
+			const FDissectedUpdate& Update = DissectedUpdates[Index];
+			MarkForUpdate(Update.InstanceHandle);
 		}
 	}
 

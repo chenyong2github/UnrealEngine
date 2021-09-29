@@ -55,6 +55,10 @@ void FPersonaAssetFamily::GetAssetTypes(TArray<UClass*>& OutAssetTypes) const
 template<typename AssetType>
 static void FindAssets(const USkeleton* InSkeleton, TArray<FAssetData>& OutAssetData, FName SkeletonTag)
 {
+	if (!InSkeleton)
+	{
+		return;
+	}
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	FARFilter Filter;
 	Filter.bRecursiveClasses = true;

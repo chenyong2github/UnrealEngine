@@ -259,11 +259,6 @@ uint32 FUdpMessageProcessor::Run()
 		} while ((!InboundSegments.IsEmpty() || MoreToSend()) && !bStopping);
 	}
 
-	while (MoreToSend())
-	{
-		UpdateKnownNodes();
-	}
-
 	delete Beacon;
 	Beacon = nullptr;
 

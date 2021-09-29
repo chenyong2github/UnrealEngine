@@ -459,11 +459,7 @@ int32 AndroidMain(struct android_app* state)
 	// We need to do this really early for Android so that files in the
 	// OBBs and APK are found.
 	// Have to use a special initialize if using the PersistentStorageManager
-#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
-	IAndroidPlatformFile::GetPlatformPhysical().EarlyInitializeForStorageWrapper(FCommandLine::Get());
-#else
 	IPlatformFile::GetPlatformPhysical().Initialize(nullptr, FCommandLine::Get());
-#endif //PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
 
 	{
 		SCOPED_BOOT_TIMING("Wait for GAndroidWindowLock.Lock()");

@@ -5,6 +5,9 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Settings/ContentBrowserSettings.h"
+
+#define LOCTEXT_NAMESPACE "ContentBrowserAssetDataUtils"
 
 int32 ContentBrowserDataUtils::CalculateFolderDepthOfPath(const FStringView InPath)
 {
@@ -26,6 +29,28 @@ int32 ContentBrowserDataUtils::CalculateFolderDepthOfPath(const FStringView InPa
 	}
 
 	return Depth;
+}
+
+bool ContentBrowserDataUtils::IsTopLevelFolder(const FStringView InFolderPath)
+{
+	int32 SlashCount = 0;
+	for (const TCHAR PathChar : InFolderPath)
+	{
+		if (PathChar == TEXT('/'))
+		{
+			if (++SlashCount > 1)
+			{
+				break;
+			}
+		}
+	}
+
+	return SlashCount == 1;
+}
+
+bool ContentBrowserDataUtils::IsTopLevelFolder(const FName InFolderPath)
+{
+	return IsTopLevelFolder(FNameBuilder(InFolderPath));
 }
 
 bool ContentBrowserDataUtils::PathPassesAttributeFilter(const FStringView InPath, const int32 InAlreadyCheckedDepth, const EContentBrowserItemAttributeFilter InAttributeFilter)
@@ -148,3 +173,84 @@ bool ContentBrowserDataUtils::PathPassesAttributeFilter(const FStringView InPath
 
 	return true;
 }
+
+FText ContentBrowserDataUtils::GetFolderItemDisplayNameOverride(const FName InFolderPath, const FString& InFolderItemName, const bool bIsClassesFolder)
+{
+	FText FolderDisplayNameOverride;
+
+	if (!bIsClassesFolder)
+	{
+		static const FName GameRootPath = "/Game";
+		static const FName EngineRootPath = "/Engine";
+
+		if (InFolderPath == GameRootPath)
+		{
+			FolderDisplayNameOverride = LOCTEXT("GameFolderDisplayName", "Content");
+		}
+		else if (InFolderPath == EngineRootPath)
+		{
+			if (GetDefault<UContentBrowserSettings>()->bOrganizeFolders)
+			{
+				FolderDisplayNameOverride = LOCTEXT("EngineOrganizedFolderDisplayName", "Content");
+			}
+			else
+			{
+				FolderDisplayNameOverride = LOCTEXT("EngineFolderDisplayName", "Engine Content");
+			}
+		}
+	}
+
+	if (FolderDisplayNameOverride.IsEmpty())
+	{
+		if (IsTopLevelFolder(FStringView(FNameBuilder(InFolderPath))))
+		{
+			FStringView TopLevelFolderName(InFolderItemName);
+
+			if (bIsClassesFolder)
+			{
+				static const FString ClassesPrefix = TEXT("Classes_");
+				if (TopLevelFolderName.StartsWith(ClassesPrefix))
+				{
+					TopLevelFolderName.RightChopInline(ClassesPrefix.Len());
+				}
+			}
+
+			FString OverrideName;
+			if (GetDefault<UContentBrowserSettings>()->bDisplayFriendlyNameForPluginFolders)
+			{
+				if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TopLevelFolderName))
+				{
+					if (Plugin->GetFriendlyName().Len() > 0)
+					{
+						OverrideName = Plugin->GetFriendlyName();
+					}
+				}
+			}
+
+			if (OverrideName.IsEmpty())
+			{
+				OverrideName = TopLevelFolderName;
+			}
+
+			if (bIsClassesFolder)
+			{
+				FolderDisplayNameOverride = FText::Format(LOCTEXT("ClassFolderDisplayNameFmt", "{0} C++ Classes"), FText::AsCultureInvariant(OverrideName));
+			}
+			else
+			{
+				if (GetDefault<UContentBrowserSettings>()->bDisplayContentFolderSuffix)
+				{
+					FolderDisplayNameOverride = FText::Format(LOCTEXT("ContentFolderDisplayNameFmt", "{0} Content"), FText::AsCultureInvariant(OverrideName));
+				}
+				else
+				{
+					FolderDisplayNameOverride = FText::AsCultureInvariant(OverrideName);
+				}
+			}
+		}
+	}
+
+	return FolderDisplayNameOverride;
+}
+
+#undef LOCTEXT_NAMESPACE

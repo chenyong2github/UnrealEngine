@@ -114,6 +114,9 @@ namespace Audio
 			{
 				Command.Command->Cancel();
 			}
+
+			PendingCommands.Reset();
+			ClockAlteringPendingCommands.Reset();
 		}
 	}
 
@@ -161,11 +164,14 @@ namespace Audio
 
 	void FQuartzClock::LowResolutionTick(float InDeltaTimeSeconds)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::Tick_LowRes);
 		Tick(static_cast<int32>(InDeltaTimeSeconds * Metronome.GetTickRate().GetSampleRate()));
 	}
 
 	void FQuartzClock::Tick(int32 InNumFramesUntilNextTick)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::Tick);
+
 		if (!bIsRunning)
 		{
 			return;
@@ -286,6 +292,26 @@ namespace Audio
 			return;
 		}
 
+		if (!bIsRunning && InQuantizationBondary.bCancelCommandIfClockIsNotRunning)
+		{
+			InNewEvent->Cancel();
+			return;
+		}
+
+		if (InQuantizationBondary.bResetClockOnQueued)
+		{
+			Stop(/* clear pending events = */true);
+			Restart(!bIsRunning);
+		}
+
+		if (!bIsRunning && InQuantizationBondary.bResumeClockOnQueued)
+		{
+			Resume();
+		}
+
+
+		int32 FramesUntilExec = 0;
+
 		// if this is unquantized, execute immediately (even if the clock is paused)
 		if (InQuantizationBondary.Quantization == EQuartzCommandQuantization::None)
 		{
@@ -295,7 +321,13 @@ namespace Audio
 		}
 
 		// get number of frames until event (assuming we are at frame 0)
-		int32 FramesUntilExec = Metronome.GetFramesUntilBoundary(InQuantizationBondary);
+		FramesUntilExec = FMath::Max(0, InNewEvent->OverrideFramesUntilExec(Metronome.GetFramesUntilBoundary(InQuantizationBondary)));
+
+		// if this is going to execute on the next tick, warn Game Thread Subscribers as soon as possible
+		if (FramesUntilExec == 0)
+		{
+			InNewEvent->AboutToStart();
+		}
 
 		// add to pending commands list, execute OnQueued()
 		if (InNewEvent->IsClockAltering())
@@ -318,10 +350,15 @@ namespace Audio
 		return CancelQuantizedCommandInternal(InCommandPtr, PendingCommands);
 	}
 
-	bool FQuartzClock::HasPendingEvents()
+	bool FQuartzClock::HasPendingEvents() const
 	{
 		// if container has any events in it.
-		return ((PendingCommands.Num() + ClockAlteringPendingCommands.Num() ) > 0);
+		return (NumPendingEvents() > 0);
+	}
+
+	int32 FQuartzClock::NumPendingEvents() const
+	{
+		return PendingCommands.Num() + ClockAlteringPendingCommands.Num();
 	}
 
 	bool FQuartzClock::IsRunning()
@@ -387,7 +424,7 @@ namespace Audio
 		{
 			return MixerDevice->GetSourceManager();
 		}
-		
+
 		return nullptr;
 	}
 

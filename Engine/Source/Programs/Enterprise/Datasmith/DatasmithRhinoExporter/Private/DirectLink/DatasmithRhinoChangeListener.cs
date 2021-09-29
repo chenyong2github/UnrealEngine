@@ -58,6 +58,7 @@ namespace DatasmithRhino.DirectLink
 					RhinoDoc.GroupTableEvent += OnGroupTableEvent;
 					RhinoDoc.MaterialTableEvent += OnMaterialTableEvent;
 					RhinoDoc.RenderMaterialsTableEvent += OnRenderMaterialsTableEvent;
+					RhinoDoc.TextureMappingEvent += OnTextureMappingEvent;
 					RhinoDoc.DocumentPropertiesChanged += OnDocumentPropertiesChanged;
 
 					//#ueent-todo Listen to the following events to update their associated DatasmithElement
@@ -86,6 +87,7 @@ namespace DatasmithRhino.DirectLink
 			RhinoDoc.GroupTableEvent -= OnGroupTableEvent;
 			RhinoDoc.MaterialTableEvent -= OnMaterialTableEvent;
 			RhinoDoc.RenderMaterialsTableEvent -= OnRenderMaterialsTableEvent;
+			RhinoDoc.TextureMappingEvent -= OnTextureMappingEvent;
 			RhinoDoc.DocumentPropertiesChanged -= OnDocumentPropertiesChanged;
 		}
 
@@ -230,6 +232,48 @@ namespace DatasmithRhino.DirectLink
 				case RhinoDoc.RenderContentTableEventType.Clearing:
 				default:
 					break;
+			}
+		}
+
+		private void OnTextureMappingEvent(object Sender, RhinoDoc.TextureMappingEventArgs RhinoEventArgs)
+		{
+			// The TextureMappingEvent is really unpractical in Rhino, the only piece of information we get to determine
+			// which object changed, is the ID of the TextureMapping. We can cache known ID to object mapping and use that cache
+			// when an existing TextureMapping is modified. But when the user creates a new TextureMapping, we can't
+			// know for sure which object is affected.
+
+			if (RhinoEventArgs.EventType != RhinoDoc.TextureMappingEventType.Modified)
+			{
+				// The OnModifyObjectAttributes() is already fired for every event type except for TextureMappingEventType.Modified,
+				// so we really just need to handle that specific case. This is also preferable, since we can't know for sure which
+				// object is affected during the Added, Deleted and Undeleted event types.
+				return;
+			}
+
+			const bool bReparent = false;
+			RhinoObject ChangedObject;
+			if(ExportContext.TextureMappindIdToRhinoObject.TryGetValue(RhinoEventArgs.NewMapping.Id, out ChangedObject))
+			{
+				TryCatchExecute(() => ExportContext.ModifyActor(ChangedObject, bReparent));
+			}
+			else
+			{
+				// If for some reason the mapped object is not in the cache, manually search for it in the document. 
+				foreach (RhinoObject CurrentObject in RhinoEventArgs.Document.Objects)
+				{
+					foreach (int ChannelId in CurrentObject.GetTextureChannels())
+					{
+						Rhino.Render.TextureMapping Mapping = CurrentObject.GetTextureMapping(ChannelId);
+						if (Mapping.Id == RhinoEventArgs.NewMapping.Id)
+						{
+							TryCatchExecute(() => ExportContext.ModifyActor(ChangedObject, bReparent));
+
+							// Testing showed that it's not possible to bulk change multiple TextureMapping at the same time.
+							// It should be safe to return after the first object match.
+							return;
+						}
+					}
+				}
 			}
 		}
 

@@ -27,11 +27,15 @@ public class SessionFrontend : ModuleRules
 				"AutomationWindow",
 				"ScreenShotComparison",
 				"ScreenShotComparisonTools",
-				"Profiler",
 				"TargetPlatform",
                 "WorkspaceMenuStructure",
 			}
 		);
+
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			PrivateDependencyModuleNames.Add("Profiler");
+		}
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

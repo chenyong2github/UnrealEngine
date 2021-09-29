@@ -36,6 +36,10 @@ public:
 protected:
 	// ~Begin FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SDMXPatchTool");
+	}
 	// ~End FGCObject interface
 
 	/** Updates the selected library. Useful on initialization or when assets changed */

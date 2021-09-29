@@ -113,6 +113,7 @@ namespace ChaosTest {
 
 		// Throw out the proxy
 		Solver->UnregisterObject(Proxy);
+		Solver->UnregisterObject(Proxy2);
 
 		Module->DestroySolver(Solver);
 	}

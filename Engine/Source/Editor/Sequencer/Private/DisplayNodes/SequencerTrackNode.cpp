@@ -727,6 +727,11 @@ FText FSequencerTrackNode::GetDisplayName() const
 	return AssociatedTrack.IsValid() ? AssociatedTrack->GetDisplayName() : FText::GetEmpty();
 }
 
+FText FSequencerTrackNode::GetDisplayNameToolTipText() const
+{
+	return AssociatedTrack.IsValid() ? AssociatedTrack->GetDisplayNameToolTipText() : FText::GetEmpty();
+}
+
 FSlateColor FSequencerTrackNode::GetDisplayNameColor() const
 {
 	UMovieSceneTrack* Track = GetTrack();
@@ -975,29 +980,19 @@ void FSequencerTrackNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& Out
 
 FSlateFontInfo FSequencerTrackNode::GetDisplayNameFont() const
 {
-	bool bAllAnimated = false;
 	TSharedPtr<FSequencerSectionKeyAreaNode> TopLevelKeyArea = GetTopLevelKeyNode();
 	if (TopLevelKeyArea.IsValid())
 	{
 		for (const TSharedRef<IKeyArea>& KeyArea : TopLevelKeyArea->GetAllKeyAreas())
 		{
 			FMovieSceneChannel* Channel = KeyArea->ResolveChannel();
-			if (!Channel || Channel->GetNumKeys() == 0)
+			if (Channel && Channel->GetNumKeys() > 0)
 			{
-				return FSequencerDisplayNode::GetDisplayNameFont();
+				return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
 			}
-			else
-			{
-				bAllAnimated = true;
-			}
-		}
-		if (bAllAnimated == true)
-		{
-			return FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.ItalicFont");
 		}
 	}
 	return FSequencerDisplayNode::GetDisplayNameFont();
 }
-
 
 #undef LOCTEXT_NAMESPACE

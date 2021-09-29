@@ -1361,11 +1361,14 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 
 	struct FItemSortInfo
 	{
+		// Name to display
 		FString FolderName;
 		float Priority;
 		int32 SpecialDefaultFolderPriority;
 		bool bIsClassesFolder;
 		TSharedPtr<FTreeItem> TreeItem;
+		// Name to use when comparing "MyPlugin" vs "Classes_MyPlugin", looking up a plugin by name and other situations
+		FName ItemNameWithoutClassesPrefix;
 	};
 
 	TArray<FItemSortInfo> SortInfoArray;
@@ -1402,6 +1405,7 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 			if (ItemNameView.StartsWith(ClassesPrefix))
 			{
 				SortInfo.bIsClassesFolder = true;
+				SortInfo.ItemNameWithoutClassesPrefix = FName(ItemNameView.RightChop(ClassesPrefix.Len()));
 			}
 
 			if (SortInfo.FolderName.StartsWith(ClassesPrefix))
@@ -1409,6 +1413,11 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 				SortInfo.bIsClassesFolder = true;
 				SortInfo.FolderName.RightChopInline(ClassesPrefix.Len(), false);
 			}
+		}
+
+		if (SortInfo.ItemNameWithoutClassesPrefix.IsNone())
+		{
+			SortInfo.ItemNameWithoutClassesPrefix = It->GetItem().GetItemName();
 		}
 
 		if (SortInfo.bIsClassesFolder)
@@ -1438,8 +1447,7 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 		{
 			if (SortInfo.SpecialDefaultFolderPriority == INDEX_NONE)
 			{
-				const FName NameWithoutClassesPrefix = SortInfo.bIsClassesFolder ? FName(SortInfo.FolderName) : It->GetItem().GetItemName();
-				SortInfo.Priority = FContentBrowserSingleton::Get().GetPluginSettings(NameWithoutClassesPrefix).RootFolderSortPriority;
+				SortInfo.Priority = FContentBrowserSingleton::Get().GetPluginSettings(SortInfo.ItemNameWithoutClassesPrefix).RootFolderSortPriority;
 			}
 			else
 			{
@@ -1474,6 +1482,12 @@ void SPathView::DefaultSort(const FTreeItem* InTreeItem, TArray<TSharedPtr<FTree
 		}
 		else
 		{
+			// If either is a class folder and names without classes prefix are same
+			if ((SortInfoA.bIsClassesFolder != SortInfoB.bIsClassesFolder) && (SortInfoA.ItemNameWithoutClassesPrefix == SortInfoB.ItemNameWithoutClassesPrefix))
+			{
+				return !SortInfoA.bIsClassesFolder;
+			}
+
 			// Two non special folders of the same priority, sort alphabetically
 			const int32 CompareResult = FAssetViewSortManager::CompareWithNumericSuffix(SortInfoA.FolderName, SortInfoB.FolderName);
 			if (CompareResult != 0)

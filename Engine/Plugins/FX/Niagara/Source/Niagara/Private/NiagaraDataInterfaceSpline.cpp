@@ -15,30 +15,30 @@ namespace NDISplineLocal
 {
 	static const TCHAR*		TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSplineTemplate.ush");
 
-static const FName SampleSplinePositionByUnitDistanceName("SampleSplinePositionByUnitDistance");
-static const FName SampleSplinePositionByUnitDistanceWSName("SampleSplinePositionByUnitDistanceWS");
+	static const FName SampleSplinePositionByUnitDistanceName("SampleSplinePositionByUnitDistance");
+	static const FName SampleSplinePositionByUnitDistanceWSName("SampleSplinePositionByUnitDistanceWS");
 
-static const FName SampleSplineRotationByUnitDistanceName("SampleSplineRotationByUnitDistance");
-static const FName SampleSplineRotationByUnitDistanceWSName("SampleSplineRotationByUnitDistanceWS");
+	static const FName SampleSplineRotationByUnitDistanceName("SampleSplineRotationByUnitDistance");
+	static const FName SampleSplineRotationByUnitDistanceWSName("SampleSplineRotationByUnitDistanceWS");
 
-static const FName SampleSplineUpVectorByUnitDistanceName("SampleSplineUpVectorByUnitDistance");
-static const FName SampleSplineUpVectorByUnitDistanceWSName("SampleSplineUpVectorByUnitDistanceWS");
+	static const FName SampleSplineUpVectorByUnitDistanceName("SampleSplineUpVectorByUnitDistance");
+	static const FName SampleSplineUpVectorByUnitDistanceWSName("SampleSplineUpVectorByUnitDistanceWS");
 
-static const FName SampleSplineDirectionByUnitDistanceName("SampleSplineDirectionByUnitDistance");
-static const FName SampleSplineDirectionByUnitDistanceWSName("SampleSplineDirectionByUnitDistanceWS");
+	static const FName SampleSplineDirectionByUnitDistanceName("SampleSplineDirectionByUnitDistance");
+	static const FName SampleSplineDirectionByUnitDistanceWSName("SampleSplineDirectionByUnitDistanceWS");
 
-static const FName SampleSplineRightVectorByUnitDistanceName("SampleSplineRightVectorByUnitDistance");
-static const FName SampleSplineRightVectorByUnitDistanceWSName("SampleSplineRightVectorByUnitDistanceWS");
+	static const FName SampleSplineRightVectorByUnitDistanceName("SampleSplineRightVectorByUnitDistance");
+	static const FName SampleSplineRightVectorByUnitDistanceWSName("SampleSplineRightVectorByUnitDistanceWS");
 
-static const FName SampleSplineTangentByUnitDistanceName("SampleSplineTangentByUnitDistance");
-static const FName SampleSplineTangentByUnitDistanceWSName("SampleSplineTangentByUnitDistanceWS");
+	static const FName SampleSplineTangentByUnitDistanceName("SampleSplineTangentByUnitDistance");
+	static const FName SampleSplineTangentByUnitDistanceWSName("SampleSplineTangentByUnitDistanceWS");
 
 
-static const FName FindClosestUnitDistanceFromPositionWSName("FindClosestUnitDistanceFromPositionWS");
+	static const FName FindClosestUnitDistanceFromPositionWSName("FindClosestUnitDistanceFromPositionWS");
 
-/** Temporary solution for exposing the transform of a mesh. Ideally this would be done by allowing interfaces to add to the uniform set for a simulation. */
-static const FName GetSplineLocalToWorldName("GetSplineLocalToWorld");
-static const FName GetSplineLocalToWorldInverseTransposedName("GetSplineLocalToWorldInverseTransposed");
+	/** Temporary solution for exposing the transform of a mesh. Ideally this would be done by allowing interfaces to add to the uniform set for a simulation. */
+	static const FName GetSplineLocalToWorldName("GetSplineLocalToWorld");
+	static const FName GetSplineLocalToWorldInverseTransposedName("GetSplineLocalToWorldInverseTransposed");
 
 
 	static bool GbNiagaraDISplineDisableLUTs = false;
@@ -513,7 +513,7 @@ void UNiagaraDataInterfaceSpline::DestroyPerInstanceData(void* PerInstanceData, 
 			}
 #endif
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
-}
+		}
 	);
 }
 
@@ -603,9 +603,9 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 
 			bShouldBuildLUT = bUseLUT || IsUsedWithGPUEmitter();
 		}
-
+		
 		bool bShouldSyncToGPU = IsUsedWithGPUEmitter() && !InstData->bSyncedGPUCopy && InstData->SplineLUT.MaxIndex != INDEX_NONE;
-	
+		
 		// We must build the LUT if this is for GPU regardless of settings
 		if (bShouldBuildLUT)
 		{
@@ -733,7 +733,7 @@ struct FNiagaraDataInterfaceParametersCS_Spline : public FNiagaraDataInterfacePa
 			SetShaderValue(RHICmdList, ComputeShaderRHI, SplineDistanceStep, Instance_RT_Proxy->SplineDistanceStep);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, InvSplineDistanceStep, Instance_RT_Proxy->InvSplineDistanceStep);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxIndex, Instance_RT_Proxy->MaxIndex);
-
+	
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, SplinePositionsLUT, Instance_RT_Proxy->SplinePositionsLUT.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, SplineScalesLUT, Instance_RT_Proxy->SplineScalesLUT.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, SplineRotationsLUT, Instance_RT_Proxy->SplineRotationsLUT.SRV);

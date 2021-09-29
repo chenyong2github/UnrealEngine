@@ -1649,7 +1649,7 @@ void AddPass_Rasterize(
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 			GraphicsPSOInit.PrimitiveType = PT_PointList;
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = nullptr;// GEmptyVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.MeshShaderRHI = MeshShader.GetMeshShader();
+			GraphicsPSOInit.BoundShaderState.SetMeshShader(MeshShader.GetMeshShader());
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);

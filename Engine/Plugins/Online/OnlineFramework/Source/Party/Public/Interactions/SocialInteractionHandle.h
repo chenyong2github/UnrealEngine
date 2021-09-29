@@ -26,6 +26,7 @@ public:
 
 	bool IsAvailable(const USocialUser& User) const;
 	void ExecuteInteraction(USocialUser& User) const;
+	void ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext) const;
 
 private:
 	template <typename> friend class TSocialInteractionWrapper;

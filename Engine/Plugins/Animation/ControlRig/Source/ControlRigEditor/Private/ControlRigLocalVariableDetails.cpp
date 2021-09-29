@@ -8,6 +8,7 @@
 #include "SPinTypeSelector.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "ControlRigBlueprint.h"

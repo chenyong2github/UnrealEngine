@@ -170,6 +170,8 @@ public:
 	float GetAspectRatio(int32 iOutputTextureIndex) const;
 	FVector2D GetOrthoSize(int32 iOutputTextureIndex) const;
 	FVector GetCameraLocation() const;
+	FRotator GetCameraRotation() const;
+	FMatrix GetViewportMatrix() const;
 	FMatrix GetViewMatrix() const;
 	FMatrix GetProjectionMatrixForTexture(int32 iOutputTextureIndex) const;
 

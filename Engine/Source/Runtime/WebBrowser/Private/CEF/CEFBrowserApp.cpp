@@ -1,8 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CEF/CEFBrowserApp.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_CEF3
+
+DEFINE_LOG_CATEGORY(LogCEFBrowser);
+
+static bool bCEFGPUAcceleration = true;
+static FAutoConsoleVariableRef CVarCEFGPUAcceleration(
+	TEXT("r.CEFGPUAcceleration"),
+	bCEFGPUAcceleration,
+	TEXT("Enables GPU acceleration in CEF\n"),
+	ECVF_Default);
 
 FCEFBrowserApp::FCEFBrowserApp()
 	: MessagePumpCountdown(0)
@@ -15,8 +25,18 @@ void FCEFBrowserApp::OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine> Comman
 
 void FCEFBrowserApp::OnBeforeCommandLineProcessing(const CefString& ProcessType, CefRefPtr< CefCommandLine > CommandLine)
 {
-	CommandLine->AppendSwitch("enable-gpu");
-	CommandLine->AppendSwitch("enable-gpu-compositing");
+	if (bCEFGPUAcceleration)
+	{
+		UE_LOG(LogCEFBrowser, Log, TEXT("CEF GPU acceleration enabled"));
+		CommandLine->AppendSwitch("enable-gpu");
+		CommandLine->AppendSwitch("enable-gpu-compositing");
+	}
+	else
+	{
+		UE_LOG(LogCEFBrowser, Log, TEXT("CEF GPU acceleration disabled"));
+		CommandLine->AppendSwitch("disable-gpu");
+		CommandLine->AppendSwitch("disable-gpu-compositing");
+	}
 	CommandLine->AppendSwitch("enable-begin-frame-scheduling");
 	CommandLine->AppendSwitch("disable-pinch"); // the web pages we have don't expect zoom to work right now so disable touchpad pinch zoom
 	CommandLine->AppendSwitch("disable-gpu-shader-disk-cache"); // Don't create a "GPUCache" directory when cache-path is unspecified.

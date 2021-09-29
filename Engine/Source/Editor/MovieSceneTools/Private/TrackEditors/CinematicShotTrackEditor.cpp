@@ -109,6 +109,7 @@ TSharedPtr<SWidget> FCinematicShotTrackEditor::BuildOutlinerEditWidget(const FGu
 		SNew(SCheckBox)
         .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
 		.Type(ESlateCheckBoxType::CheckBox)
+		.Padding(FMargin(0.f))
 		.IsFocusable(false)
 		.IsChecked(this, &FCinematicShotTrackEditor::AreShotsLocked)
 		.OnCheckStateChanged(this, &FCinematicShotTrackEditor::OnLockShotsClicked)

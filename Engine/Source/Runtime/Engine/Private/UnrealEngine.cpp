@@ -2056,12 +2056,10 @@ void UEngine::ShutdownHMD()
 	auto SavedStereo = StereoRenderingDevice;
 	auto SavedHMD = XRSystem;
 	auto SavedViewExtentions = ViewExtensions;
-	{
-		FSuspendRenderingThread Suspend(false);
-		StereoRenderingDevice.Reset();
-		XRSystem.Reset();
-	}
-	// shutdown will occur here.
+
+	FlushRenderingCommands();
+	StereoRenderingDevice.Reset();
+	XRSystem.Reset();
 }
 
 void UEngine::TickDeferredCommands()
@@ -3825,11 +3823,12 @@ struct FSortedStaticMesh
 	int32			InstanceUsageCount;
 	int32			CPUAccessOverheadKB;
 	bool			bUnknownRef;
+	bool			bIsStreaming;
 	UStaticMesh*	Mesh;
 	FString			Name;
 
 	/** Constructor, initializing every member variable with passed in values. */
-	FSortedStaticMesh(UStaticMesh* InMesh, int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InResKBResident, int32 InDistanceFieldKB, int32 InLodCount, int32 InResidentLodCount, int32 InMobileMinLOD, int32 InVertexCountLod0, int32 InVertexCountLod1, int32 InVertexCountLod2, int32 InVertexCountTotal, int32 InVertexCountTotalMobile, int32 InVertexCountCollision, int32 InShapeCountCollision, int32 InComponentUsageCount, int32 InInstanceUsageCount, int32 InCPUAccessOverheadKB, bool bInUnknownRef, FString InName)
+	FSortedStaticMesh(UStaticMesh* InMesh, int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InResKBResident, int32 InDistanceFieldKB, int32 InLodCount, int32 InResidentLodCount, int32 InMobileMinLOD, int32 InVertexCountLod0, int32 InVertexCountLod1, int32 InVertexCountLod2, int32 InVertexCountTotal, int32 InVertexCountTotalMobile, int32 InVertexCountCollision, int32 InShapeCountCollision, int32 InComponentUsageCount, int32 InInstanceUsageCount, int32 InCPUAccessOverheadKB, bool bInUnknownRef, bool bInIsStreaming, FString InName)
 		: NumKB(InNumKB)
 		, MaxKB(InMaxKB)
 		, ResKBExc(InResKBExc)
@@ -3851,6 +3850,7 @@ struct FSortedStaticMesh
 		, InstanceUsageCount(InInstanceUsageCount)
 		, CPUAccessOverheadKB(InCPUAccessOverheadKB)
 		, bUnknownRef(bInUnknownRef)
+		, bIsStreaming(bInIsStreaming)
 		, Mesh(InMesh)		
 		, Name(InName)
 	{}
@@ -3885,12 +3885,12 @@ struct FCompareFSortedStaticMesh
 		default:
 			{
 				if ((B.NumKB + B.ResKBExc) == (A.NumKB + A.ResKBExc))
-				{
+		{
 					return A.Name < B.Name; // default to alpha
-				}
+		}
 
-				return (B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc);
-			}
+		return (B.NumKB + B.ResKBExc) < (A.NumKB + A.ResKBExc);
+	}
 		}
 	}
 };
@@ -3921,13 +3921,14 @@ struct FSortedSkeletalMesh
 	int32		ResidentResKBExc;
 	int32		CPUAccessOverheadKB;
 	bool		bUnknownRef;
+	bool		bIsStreaming;
 	FString		Name;
 
 	/** Constructor, initializing every member variable with passed in values. */
 	FSortedSkeletalMesh(int32 InNumKB, int32 InMaxKB, int32 InResKBExc, int32 InResKBInc, int32 InResKBIncMobile, int32 InLodCount, int32 InMobileMinLOD,
 		int32 InMeshDisablesMinLODStripping, int32 bInSupportLODStreaming, int32 InMaxNumStreamedLODs, int32 InMaxNumOptionalLODs, int32 InVertexCountLod0,
 		int32 InVertexCountLod1, int32 InVertexCountLod2, int32 InVertexCountTotal, int32 InVertexCountTotalMobile, int32 InVertexCountCollision,
-		int32 InResidentLodCount, int32 InResidentResKBExc, int32 InCPUAccessOverheadKB, bool bInUnknownRef, FString InName)
+		int32 InResidentLodCount, int32 InResidentResKBExc, int32 InCPUAccessOverheadKB, bool bInUnknownRef, bool bInIsStreaming, FString InName)
 		: NumKB(InNumKB)
 		, MaxKB(InMaxKB)
 		, ResKBExc(InResKBExc)
@@ -3949,6 +3950,7 @@ struct FSortedSkeletalMesh
 		, ResidentResKBExc(InResidentResKBExc)
 		, CPUAccessOverheadKB(InCPUAccessOverheadKB)
 		, bUnknownRef(bInUnknownRef)
+		, bIsStreaming(bInIsStreaming)
 		, Name(InName)
 	{}
 };
@@ -5820,6 +5822,8 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		UStaticMesh*		Mesh = *It;
 
 		bool bUnknownRef = false;
+		bool bIsStreaming = (Mesh != nullptr ? Mesh->GetStreamingIndex() != INDEX_NONE : false);
+		
 		if (Streamer)
 		{
 			FStreamingRenderAsset* Asset = Streamer->GetStreamingRenderAsset(Mesh);
@@ -5952,6 +5956,7 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			InstanceUsageCount,
 			CPUAccessOverheadKB,
 			bUnknownRef,
+			bIsStreaming,
 			Name);
 	}
 
@@ -5972,7 +5977,7 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	int64 TotalComponents = 0;
 	int64 TotalInstances = 0;
 
-	FString HeaderString(TEXT(",       NumKB,       MaxKB,    ResKBExc,    ResKBInc,   ResKBResi, DistFieldKB,    LODCount,ResiLODCount,   VertsLOD0,   VertsLOD1,   VertsLOD2, Verts Total,  Verts Coll, Coll Shapes,    NumComps,     NumInst,      Nanite, CPUAccessOverheadKB,  UnknownRef"));
+	FString HeaderString(TEXT(",       NumKB,       MaxKB,    ResKBExc,    ResKBInc,   ResKBResi, DistFieldKB,    LODCount,ResiLODCount,   VertsLOD0,   VertsLOD1,   VertsLOD2, Verts Total,  Verts Coll, Coll Shapes,    NumComps,     NumInst,      Nanite, CPUAccessOverheadKB,  UnknownRef, Streaming"));
 	FString MobileHeaderString = bHasMobileColumns ? FString(TEXT(", ResKBIncMob,Verts Mobile,MobileMinLOD")) : FString();
 	
 	Ar.Logf(TEXT("%s%s, Name"), *HeaderString, *MobileHeaderString);	
@@ -5983,7 +5988,7 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 
 		if (bHasMobileColumns)
 		{
-			Ar.Logf(TEXT(", %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %s, %19i, %s, %11i, %11i, %11i, %s"),
+			Ar.Logf(TEXT(", %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %s, %19i, %s, %s, %11i, %11i, %11i, %s"),
 				SortedMesh.NumKB,
 				SortedMesh.MaxKB,
 				SortedMesh.ResKBExc,
@@ -6003,6 +6008,7 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 				SortedMesh.Mesh->HasValidNaniteData() ? TEXT("        Yes") : TEXT("         No"),
 				SortedMesh.CPUAccessOverheadKB,
 				SortedMesh.bUnknownRef ? TEXT("        Yes") : TEXT("         No"),
+				SortedMesh.bIsStreaming ? TEXT("        Yes") : TEXT("         No"),
 				SortedMesh.ResKBIncMobile,
 				SortedMesh.VertexCountTotalMobile,
 				SortedMesh.MobileMinLOD,
@@ -6010,7 +6016,7 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		}
 		else
 		{
-			Ar.Logf(TEXT(", %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %s, %19i, %s, %s"),
+			Ar.Logf(TEXT(", %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %11i, %s, %19i, %s, %s, %s"),
 				SortedMesh.NumKB,
 				SortedMesh.MaxKB,
 				SortedMesh.ResKBExc,
@@ -6030,6 +6036,7 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 				SortedMesh.Mesh->HasValidNaniteData() ? TEXT("        Yes") : TEXT("         No"),
 				SortedMesh.CPUAccessOverheadKB,
 				SortedMesh.bUnknownRef ? TEXT("        Yes") : TEXT("         No"),
+				SortedMesh.bIsStreaming ? TEXT("        Yes") : TEXT("         No"),
 				*SortedMesh.Name);
 		}
 		
@@ -6097,6 +6104,8 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		USkeletalMesh* Mesh = *It;
 
 		bool bUnknownRef = false;
+		bool bIsStreaming = (Mesh != nullptr ? Mesh->GetStreamingIndex() != INDEX_NONE : false);
+		
 		if (Streamer)
 		{
 			FStreamingRenderAsset* Asset = Streamer->GetStreamingRenderAsset(Mesh);
@@ -6239,6 +6248,7 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 			ResidentResKBExc,
 			CPUAccessOverheadKB,
 			bUnknownRef,
+			bIsStreaming,
 			Name);
 	}
 
@@ -6258,11 +6268,11 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 	if (bCSV)
 	{
-		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, ResKBResident, LOD Count, Resident LOD Count, MobileMinLOD, DisableMinLODStripping, bSupportLODStreaming, MaxNumStreamedLODs, MaxNumOptionalLODs, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, CPUAccessOverheadKB, UnknownRef, Name"));
+		Ar.Logf(TEXT(",NumKB, MaxKB, ResKBExc, ResKBInc, ResKBIncMobile, ResKBResident, LOD Count, Resident LOD Count, MobileMinLOD, DisableMinLODStripping, bSupportLODStreaming, MaxNumStreamedLODs, MaxNumOptionalLODs, Verts LOD0, Verts LOD1, Verts LOD2, Verts Total, Verts Total Mobile, Verts Collision, CPUAccessOverheadKB, UnknownRef, Streaming, Name"));
 	}
 	else
 	{
-		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile  ResKBResident  NumLODs  NumResidentLODs  MobileMinLOD  DisableMinLODStripping  bSupportLODStreaming  MaxNumStreamedLODs  MaxNumOptionalLODs  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  CPUAccessOverheadKB  UnknownRef  Name"));
+		Ar.Logf(TEXT("       NumKB       MaxKB    ResKBExc    ResKBInc  ResKBIncMobile  ResKBResident  NumLODs  NumResidentLODs  MobileMinLOD  DisableMinLODStripping  bSupportLODStreaming  MaxNumStreamedLODs  MaxNumOptionalLODs  VertsLOD0   VertsLOD1   VertsLOD2   VertsTotal  VertsTotalMobile  VertsColl  CPUAccessOverheadKB  UnknownRef  Streaming Name"));
 	}
 
 	for (int32 MeshIndex = 0; MeshIndex<SortedMeshes.Num(); MeshIndex++)
@@ -6271,20 +6281,20 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 
 		if (bCSV)
 		{
-			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s, %s"),
+			Ar.Logf(TEXT(",%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %s, %s, %s"),
 				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.ResidentResKBExc, SortedMesh.LodCount, SortedMesh.ResidentLodCount, SortedMesh.MobileMinLOD,
 				SortedMesh.MeshDisablesMinLODStripping, SortedMesh.bSupportLODStreaming, SortedMesh.MaxNumStreamedLODs, SortedMesh.MaxNumOptionalLODs,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
-				SortedMesh.CPUAccessOverheadKB, SortedMesh.bUnknownRef ? TEXT("Yes") : TEXT("No"),
+				SortedMesh.CPUAccessOverheadKB, SortedMesh.bUnknownRef ? TEXT("Yes") : TEXT("No"), SortedMesh.bIsStreaming ? TEXT("Yes") : TEXT("No"),
 				*SortedMesh.Name);
 		}
 		else
 		{
-			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i KB %10i %10i %14i %23i %21i %19i %19i %10i %11i %11i %12i %17i %10i %8i KB  %s  %s"),
+			Ar.Logf(TEXT("%9i KB %8i KB %8i KB %8i KB  %11i KB %10i KB %10i %10i %14i %23i %21i %19i %19i %10i %11i %11i %12i %17i %10i %8i KB  %s %s %s"),
 				SortedMesh.NumKB, SortedMesh.MaxKB, SortedMesh.ResKBExc, SortedMesh.ResKBInc, SortedMesh.ResKBIncMobile, SortedMesh.ResidentResKBExc, SortedMesh.LodCount, SortedMesh.ResidentLodCount, SortedMesh.MobileMinLOD,
 				SortedMesh.MeshDisablesMinLODStripping, SortedMesh.bSupportLODStreaming, SortedMesh.MaxNumStreamedLODs, SortedMesh.MaxNumOptionalLODs,
 				SortedMesh.VertexCountLod0, SortedMesh.VertexCountLod1, SortedMesh.VertexCountLod2, SortedMesh.VertexCountTotal, SortedMesh.VertexCountTotalMobile, SortedMesh.VertexCountCollision,
-				SortedMesh.CPUAccessOverheadKB, SortedMesh.bUnknownRef ? TEXT("Yes") : TEXT("No"),
+				SortedMesh.CPUAccessOverheadKB, SortedMesh.bUnknownRef ? TEXT("Yes") : TEXT("No"), SortedMesh.bIsStreaming ? TEXT("Yes") : TEXT("No"),
 				*SortedMesh.Name);
 		}
 
@@ -6774,7 +6784,7 @@ bool UEngine::HandleMemReportDeferredCommand( const TCHAR* Cmd, FOutputDevice& A
 		ReportAr->Logf(TEXT("Device Profile: %s"), *DeviceProfile);
 
 		ReportAr->Logf(TEXT("CommandLine Options: %s"), FCommandLine::Get());
-		ReportAr->Logf(TEXT("Time Since Boot: %.02f Seconds") LINE_TERMINATOR, FPlatformTime::Seconds() - GStartTime);
+	ReportAr->Logf(TEXT("Time Since Boot: %.02f Seconds") LINE_TERMINATOR, FPlatformTime::Seconds() - GStartTime);
 	}
 
 
@@ -9120,10 +9130,10 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 			static void Ensure(FRHICommandList&)
 			{
 				UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
-				if (!ensure(0))
-				{
-					UE_LOG(LogEngine, Warning, TEXT("Ensure condition failed (this is the expected behavior)."));
-				}
+			if (!ensure(0))
+			{
+				UE_LOG(LogEngine, Warning, TEXT("Ensure condition failed (this is the expected behavior)."));
+			}
 				DebugDummyWorkAfterFailure();
 			}
 		};
@@ -9213,17 +9223,17 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		struct FThreaded
 		{
 			static void Checks()
-			{
-				FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+				{
+					FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
 
-				// We now test if assert behavior is deterministic when called from different threads or
-				// if one thread could end up with a different behavior due to a race condition.
-				// We expect that the result will always be the assert being reported and not end-up
-				// with an Int 3 being handled by the exception handler.
-				const bool CrashingTheWorkerThreadAtYourRequest = false;
-				check(CrashingTheWorkerThreadAtYourRequest);
+					// We now test if assert behavior is deterministic when called from different threads or
+					// if one thread could end up with a different behavior due to a race condition.
+					// We expect that the result will always be the assert being reported and not end-up
+					// with an Int 3 being handled by the exception handler.
+					const bool CrashingTheWorkerThreadAtYourRequest = false;
+					check(CrashingTheWorkerThreadAtYourRequest);
 				DebugDummyWorkAfterFailure();
-			}
+				}
 		};
 
 		UE_LOG(LogEngine, Warning, TEXT("Queuing several multi-thread checks."));
@@ -9597,8 +9607,8 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		struct FAudio
 		{
 			static void GPF()
-			{
-				*(int32 *)3 = 123;
+		{
+			*(int32 *)3 = 123;
 			}
 		};
 		FAudioThread::RunCommandOnAudioThread(&FAudio::GPF, TStatId());
@@ -9609,8 +9619,8 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		struct FAudio
 		{
 			static void Check()
-			{
-				check(!"Crashing the audio thread via check(0) at your request");
+		{
+			check(!"Crashing the audio thread via check(0) at your request");
 				DebugDummyWorkAfterFailure();
 			}
 		};
@@ -10876,11 +10886,11 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 		{
 			// Always show asset plural form when displaying preparation status
 			FText AssetTypePlural = FText::Format(AssetCompilingManager->GetAssetNameFormat(), FText::AsNumber(100));
-			SmallTextItem.SetColor(FLinearColor::White);
+		SmallTextItem.SetColor(FLinearColor::White);
 			SmallTextItem.Text = FText::Format(LOCTEXT("AssetCompilingFmt", "Preparing {0} ({1})"), AssetTypePlural, AssetCompilingManager->GetNumRemainingAssets());
-			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-			MessageY += FontSizeY;
-		}
+		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+		MessageY += FontSizeY;
+	}
 	}
 
 	if (World->bIsLevelStreamingFrozen)
@@ -12403,11 +12413,11 @@ void DestroyNamedNetDriver_Local(FWorldContext &Context, FName NetDriverName)
 			
 			ensureMsgf(!NetDriver->IsInTick(), TEXT("Attempting to destroy NetDriver %s [%s] while it is ticking."), *NetDriver->GetName(), *NetDriverName.ToString());
 
+			Context.ActiveNetDrivers.RemoveAtSwap(Index);
 			NetDriver->SetWorld(NULL);
 			NetDriver->Shutdown();
 			NetDriver->LowLevelDestroy();
-			Context.ActiveNetDrivers.RemoveAtSwap(Index);
-			
+
 			Context.World()->ClearNetDriver(NetDriver);
 
 			break;
@@ -14561,13 +14571,80 @@ void UEngine::VerifyLoadMapWorldCleanup()
 				UE_LOG(LogLoad, Error, TEXT("Previously active world %s not cleaned up by garbage collection!"), *World->GetPathName());
 				UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. World referenced by:"));
 
-				FReferenceChainSearch RefChainSearch(World, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
-				UE_LOG(LogLoad, Fatal, TEXT("Previously active world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *World->GetPathName(), *RefChainSearch.GetRootPath());
+				FindAndPrintStaleReferencesToObject(World, ELogVerbosity::Fatal);
 			}
 		}
 	}
 }
 
+void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity)
+{
+	check(ObjectToFindReferencesTo);
+
+	UObject* OutGarbageObject = nullptr;
+	UObject* OutReferencingObject = nullptr;
+	FReferenceChainSearch RefChainSearch(ObjectToFindReferencesTo, EReferenceChainSearchMode::Default);
+	RefChainSearch.PrintResults([&OutGarbageObject, &OutReferencingObject](FReferenceChainSearch::FCallbackParams& Params)
+	{
+		check(Params.Object);
+		if (!IsValid(Params.Object))
+		{
+			// We may find many chains that lead to the leak but for brevity we only report the first one in the fatal error below
+			if (!OutGarbageObject)
+			{
+				OutGarbageObject = Params.Object;
+				OutReferencingObject = Params.Referencer;
+			}
+			// We only really care about a reference to the first garbage / pending kill object in the chain
+			// as the reference that holds it is the one that prevents the world from being GC'd
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}, false);
+	bool bFirstGarbageObjectFound = false;
+	FString PathToCulprit = RefChainSearch.GetRootPath([&bFirstGarbageObjectFound, ObjectToFindReferencesTo](FReferenceChainSearch::FCallbackParams& Params)
+	{
+		check(Params.Object);
+		if (!IsValid(Params.Object) && !bFirstGarbageObjectFound)
+		{
+			bFirstGarbageObjectFound = true;
+			check(Params.Out);
+			Params.Out->Logf(ELogVerbosity::Log, TEXT("%s    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"), FCString::Spc(Params.Indent));
+			Params.Out->Logf(ELogVerbosity::Log, TEXT("%s    ^ This reference is preventing the old %s from being GC'd ^"), FCString::Spc(Params.Indent), *ObjectToFindReferencesTo->GetClass()->GetName());
+		}
+		return true;
+	});
+	FString GarbageErrorMessage;
+	if (OutGarbageObject && OutReferencingObject)
+	{
+		GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is %s being referenced by %s"), *OutGarbageObject->GetFullName(), *OutReferencingObject->GetFullName());
+	}
+	else if (OutGarbageObject)
+	{
+		GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is not referenced so it may have a flag set that's preventing it from being destroyed (see log for details)"), *OutGarbageObject->GetFullName());
+	}
+	else
+	{
+		GarbageErrorMessage = TEXT("However it's not referenced by any garbage object. It may have a flag set that's preventing it from being destroyed (see log for details)");
+	}
+	if (Verbosity == ELogVerbosity::Fatal)
+	{
+		UE_LOG(LogLoad, Fatal, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
+			*ObjectToFindReferencesTo->GetFullName(), 
+			*GarbageErrorMessage,
+			*PathToCulprit);
+	}
+	else
+	{
+		GLog->CategorizedLogf(TEXT("LogLoad"), Verbosity, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
+			*ObjectToFindReferencesTo->GetFullName(), 
+			*GarbageErrorMessage,
+			*PathToCulprit);
+	}
+}
 
 /*-----------------------------------------------------------------------------
 Async persistent level map change.
@@ -16127,30 +16204,30 @@ int32 UEngine::RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* 
 		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
 			TotalCount[GPUIndex] += FDrawCallCategoryName::DisplayCounts[Index][GPUIndex];
-			FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
+		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
 			Canvas->DrawShadowedString(X - 100,
-				Y,
+			Y,
 				*FString::Printf(
 					TEXT("%s%s: %i"),
 					*CategoryName->Name.ToString(),
 					GNumExplicitGPUsForRendering > 1 ? *FString::Printf(TEXT(" (GPU%u)"), GPUIndex) : TEXT(""),
 					FDrawCallCategoryName::DisplayCounts[Index][GPUIndex]),
-				GetSmallFont(),
-				FColor::Green);
-			Y += 12;
-		}
+			GetSmallFont(),
+			FColor::Green);
+		Y += 12;
+	}
 	}
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
 		Canvas->DrawShadowedString(X - 100,
-			Y,
+		Y,
 			*FString::Printf(
 				TEXT("Total%s: %i"),
 				GNumExplicitGPUsForRendering > 1 ? *FString::Printf(TEXT(" (GPU%u)"), GPUIndex) : TEXT(""),
 				TotalCount[GPUIndex]),
-			GetSmallFont(),
-			FColor::Green);
-		Y += 12;
+		GetSmallFont(),
+		FColor::Green);
+	Y += 12;
 	}
 #else
 	Canvas->DrawShadowedString(X - 200,
@@ -16433,9 +16510,9 @@ EThreadPriority StringToThreadPriority(FString InString)
 		return EThreadPriority::TPri_Lowest;
 	}
 	if (InString == TEXT("TPri_SlightlyBelowNormal"))
-	{
+		{
 		return EThreadPriority::TPri_SlightlyBelowNormal;
-	}
+		}
 	if (InString == TEXT("TPri_TimeCritical"))
 	{
 		return EThreadPriority::TPri_TimeCritical;
@@ -16495,7 +16572,7 @@ void SetPriorityAndAffinityOnRenderThread()
 void SetPriorityAndAffinityOnRHIThread()
 {
 	if (RHIThreadConfig.Priority != EThreadPriority::TPri_Num)
-	{
+		{
 		FPlatformProcess::SetThreadPriority(RHIThreadConfig.Priority);
 		UE_LOG(LogConsoleResponse, Display, TEXT("RHI Priority %s"), *ThreadPriorityToString(RHIThreadConfig.Priority));
 	}
@@ -16511,7 +16588,7 @@ static void SetupThreadConfig(const TArray<FString>& Args)
 	{
 		UE_LOG(LogConsoleResponse, Warning, TEXT("SetupThreadConfig called, but this requires the new task backend. Ignoring"));
 		return;
-	}
+		}
 
 	UE_LOG(LogConsoleResponse, Display, TEXT("Setting thread configurations"));
 
@@ -16519,10 +16596,10 @@ static void SetupThreadConfig(const TArray<FString>& Args)
 	static bool bLoadedDefaults = false;
 	bool bResetToDefaults = (Args.Num() && Args[0] == TEXT("default"));
 	if (!bLoadedDefaults || bResetToDefaults)
-	{
+		{
 		GetDefaultThreadConfigs();
 		bLoadedDefaults = true;
-	}
+		}
 
 	if (!bResetToDefaults)
 	{
@@ -16531,41 +16608,41 @@ static void SetupThreadConfig(const TArray<FString>& Args)
 			TArray<FString> ThreadConfigEntries;
 			ThreadConfigStr.ParseIntoArray(ThreadConfigEntries, TEXT(":"), true);
 			if (ThreadConfigEntries.Num() >= 2)
-			{
+		{
 				FString ThreadName = ThreadConfigEntries[0];
 				FThreadConfig* ThreadConfigToSet = nullptr;
 				if (ThreadName == TEXT("GT"))
 				{
 					ThreadConfigToSet = &GameThreadConfig;
-				}
+		}
 				else if (ThreadName == TEXT("RT"))
-				{
+		{
 					ThreadConfigToSet = &RenderThreadConfig;
-				}
+		}
 				else if (ThreadName == TEXT("RHI"))
-				{
+		{
 					ThreadConfigToSet = &RHIThreadConfig;
-				}
+		}
 				else if (ThreadName == TEXT("Task"))
-				{
+		{
 					ThreadConfigToSet = &TaskThreadConfig;
-				}
+		}
 				else if (ThreadName == TEXT("TaskBP"))
 				{
 					ThreadConfigToSet = &TaskBPThreadConfig;
-				}
+	}
 				if (ThreadConfigToSet == nullptr)
-				{
+	{
 					UE_LOG(LogConsoleResponse, Warning, TEXT("Thread name not found: %s"), *ThreadName);
 					continue;
-				}
+	}
 				// Read the rest of the thread config args
 				for (int i = 1; i < ThreadConfigEntries.Num(); i++)
-				{
+	{
 					// if the arg is a hex number we are setting affinity
 					const FString& Value = ThreadConfigEntries[i];
 					if (Value.StartsWith(TEXT("0x")))
-					{
+		{
 						ThreadConfigToSet->Affinity = FParse::HexNumber64(*Value);
 					}
 					// if the arg starts with TPri we are setting priority
@@ -16573,8 +16650,8 @@ static void SetupThreadConfig(const TArray<FString>& Args)
 					{
 						ThreadConfigToSet->Priority = StringToThreadPriority(Value);
 					}
-				}
-			}
+		}
+	}
 		}
 	}
 

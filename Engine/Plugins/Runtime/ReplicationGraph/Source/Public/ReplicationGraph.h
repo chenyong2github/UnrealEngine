@@ -1270,6 +1270,8 @@ private:
     /** Update the location info of a specific viewer */
 	void OnUpdateViewerLocation(FLastLocationGatherInfo* LocationInfo, const FNetViewer& Viewer, const FReplicationGraphDestructionSettings& DestructionSettings);
 
+	void SetActorNotDormantOnConnection(AActor* InActor);
+
 	UPROPERTY()
 	TArray<TObjectPtr<UReplicationGraphNode>> ConnectionGraphNodes;
 

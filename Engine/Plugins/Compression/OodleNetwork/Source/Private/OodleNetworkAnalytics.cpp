@@ -281,10 +281,10 @@ void FOodleNetAnalyticsData::SendAnalytics()
 
 const TCHAR* FOodleNetAnalyticsData::GetAnalyticsEventName() const
 {
-	return TEXT("OodleNetwork.Stats");
+	return TEXT("Oodle.Stats");
 }
 
 const TCHAR* FClientOodleNetAnalyticsData::GetAnalyticsEventName() const
 {
-	return TEXT("OodleNetwork.ClientStats");
+	return TEXT("Oodle.ClientStats");
 }

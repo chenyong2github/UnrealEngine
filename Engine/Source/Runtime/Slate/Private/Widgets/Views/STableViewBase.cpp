@@ -288,10 +288,7 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 				CurrentScrollOffset = TargetScrollOffset = DesiredScrollOffset;
 			}
 			
-			// FMath::Fractional() is insufficient here as it casts to int32 (too small for the integer part of a float when the scroll offset is enormous), so we do a double/int64 version here.
-			double FirstLineScrollOffset = CurrentScrollOffset / NumItemsPerLine;
-			FirstLineScrollOffset = FirstLineScrollOffset - (int64)FirstLineScrollOffset;
-			ItemsPanel->SetFirstLineScrollOffset(FirstLineScrollOffset);
+			ItemsPanel->SetFirstLineScrollOffset(GetFirstLineScrollOffset());
 
 			if (AllowOverscroll == EAllowOverscroll::Yes)
 			{
@@ -611,7 +608,7 @@ FReply STableViewBase::OnTouchMoved( const FGeometry& MyGeometry, const FPointer
 		
 		TickScrollDelta -= ScrollByAmount;
 
-		if (FSlateApplication::Get().HasTraveledFarEnoughToTriggerDrag(InTouchEvent, PressedScreenSpacePosition))
+		if (FSlateApplication::Get().HasTraveledFarEnoughToTriggerDrag(InTouchEvent, PressedScreenSpacePosition, Orientation))
 		{
 			// Make sure the active timer is registered to update the inertial scroll
 			if ( !bIsScrollingActiveTimerRegistered )
@@ -627,13 +624,14 @@ FReply STableViewBase::OnTouchMoved( const FGeometry& MyGeometry, const FPointer
 			// The user has moved the list some amount; they are probably
 			// trying to scroll. From now on, the list assumes the user is scrolling
 			// until they lift their finger.
-			return FReply::Handled().CaptureMouse( AsShared() );
+			return HasMouseCapture() ? FReply::Handled() : FReply::Handled().CaptureMouse(AsShared());
 		}
-		return FReply::Handled();
+
+		return FReply::Unhandled();
 	}
 	else
 	{
-		return FReply::Handled();
+		return FReply::Unhandled();
 	}
 }
 
@@ -650,7 +648,7 @@ FReply STableViewBase::OnTouchEnded( const FGeometry& MyGeometry, const FPointer
 	}
 	else
 	{
-		return FReply::Handled();
+		return FReply::Unhandled();
 	}
 }
 
@@ -937,6 +935,14 @@ float STableViewBase::GetNumLiveWidgets() const
 int32 STableViewBase::GetNumItemsPerLine() const
 {
 	return 1;
+}
+
+float STableViewBase::GetFirstLineScrollOffset() const
+{
+	// FMath::Fractional() is insufficient here as it casts to int32 (too small for the integer part of a float when
+	// the scroll offset is enormous), so we do a double/int64 version here.
+	const double FirstLineScrollOffset = CurrentScrollOffset / GetNumItemsPerLine();
+	return FirstLineScrollOffset - (int64)FirstLineScrollOffset;
 }
 
 void STableViewBase::NavigateToWidget(const uint32 UserIndex, const TSharedPtr<SWidget>& NavigationDestination, ENavigationSource NavigationSource) const

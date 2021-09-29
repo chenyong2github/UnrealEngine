@@ -21,6 +21,7 @@
 
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
+#include "Net/Core/Connection/NetCloseResult.h"
 
 DEFINE_LOG_CATEGORY(OodleNetworkHandlerComponentLog);
 
@@ -519,6 +520,11 @@ void OodleNetworkHandlerComponent::Initialize()
 	Initialized();
 }
 
+void OodleNetworkHandlerComponent::InitFaultRecovery(UE::Net::FNetConnectionFaultRecoveryBase* InFaultRecovery)
+{
+	OodleNetworkFaultHandler.InitFaultRecovery(InFaultRecovery);
+}
+
 void OodleNetworkHandlerComponent::InitializeDictionaries()
 {
 	FString ServerDictionaryPath;
@@ -945,8 +951,13 @@ bool OodleNetworkHandlerComponent::IsValid() const
 	return true;
 }
 
-void OodleNetworkHandlerComponent::Incoming(FBitReader& Packet)
+void OodleNetworkHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 {
+	using namespace UE::Net;
+
+	FBitReader& Packet = PacketRef.Packet;
+	FInPacketTraits& Traits = PacketRef.Traits;
+
 #if !UE_BUILD_SHIPPING
 	// Oodle must be the first HandlerComponent to process incoming packets, so does not support bit-shifted reads
 	check(Packet.GetPosBits() == 0);
@@ -1025,6 +1036,8 @@ void OodleNetworkHandlerComponent::Incoming(FBitReader& Packet)
 							// Packets which fail to compress are detected before send, and bCompressedPacket is disabled;
 							// failed Oodle decodes are not used to detect this anymore, so this now represents an error.
 							Packet.SetError();
+
+							AddToChainResultPtr(Traits.ExtendedError, EOodleNetResult::OodleDecodeFailed);
 						}
 					}
 					else
@@ -1034,6 +1047,7 @@ void OodleNetworkHandlerComponent::Incoming(FBitReader& Packet)
 #endif
 
 						Packet.SetError();
+						AddToChainResultPtr(Traits.ExtendedError, EOodleNetResult::OodleSerializePayloadFail);
 					}
 
 					if (bSuccess)
@@ -1075,6 +1089,7 @@ void OodleNetworkHandlerComponent::Incoming(FBitReader& Packet)
 #endif
 
 					Packet.SetError();
+					AddToChainResultPtr(Traits.ExtendedError, EOodleNetResult::OodleBadDecompressedLength);
 				}
 			}
 			else
@@ -1082,6 +1097,8 @@ void OodleNetworkHandlerComponent::Incoming(FBitReader& Packet)
 				LowLevelFatalError(TEXT("Received compressed packet, but no dictionary is present for decompression."));
 
 				Packet.SetError();
+				AddToChainResultPtr(Traits.ExtendedError, EOodleNetResult::OodleNoDictionary);
+				AddToChainResultPtr(Traits.ExtendedError, ENetCloseResult::NotRecoverable);
 			}
 		}
 		else
@@ -1378,11 +1395,11 @@ void OodleNetworkHandlerComponent::NotifyAnalyticsProvider()
 
 			if (bIsServer)
 			{
-				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("OodleNetwork.Stats"));
+				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FOodleNetAnalyticsData, TEXT("Oodle.Stats"));
 			}
 			else
 			{
-				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FClientOodleNetAnalyticsData, TEXT("OodleNetwork.ClientStats"));
+				NetAnalyticsData = REGISTER_NET_ANALYTICS(Aggregator, FClientOodleNetAnalyticsData, TEXT("Oodle.ClientStats"));
 			}
 		}
 

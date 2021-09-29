@@ -883,7 +883,7 @@ void MainPS(
 	
 	const float Alpha = saturate(PixelMaterialInputs.Opacity);
 
-	OutColor = float4(PixelMaterialInputs.EmissiveColor, Alpha);
+	OutColor = float4(max(PixelMaterialInputs.EmissiveColor, 0.), Alpha);
 	OutColor.xyz *= View.PreExposure;
 } 
 #endif 

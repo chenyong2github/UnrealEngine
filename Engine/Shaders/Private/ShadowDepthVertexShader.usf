@@ -94,8 +94,12 @@ void SetShadowDepthOutputs(
 	#else
 		// Output linear, normalized depth
 		const float InvMaxSubjectDepth = PassStruct.ShadowParams.w;
-		ShadowDepth = ( 1 - OutPosition.z * InvMaxSubjectDepth ) + DepthBias;
-		OutPosition.z = ShadowDepth;
+		#if PLATFORM_NEEDS_PRECISE_SHADOW_DEPTH
+			precise 
+		#endif
+		float AdjustedDepth = ( 1 - OutPosition.z * InvMaxSubjectDepth ) + DepthBias;
+		ShadowDepth = AdjustedDepth;
+		OutPosition.z = AdjustedDepth;
 	#endif
 }
 

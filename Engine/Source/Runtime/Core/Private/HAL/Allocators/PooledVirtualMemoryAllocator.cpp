@@ -100,7 +100,7 @@ void* FPooledVirtualMemoryAllocator::Allocate(SIZE_T Size, uint32 /*AllocationHi
 	}
 };
 
-void FPooledVirtualMemoryAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSection* /*Mutex = nullptr*/)
+void FPooledVirtualMemoryAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSection* /*Mutex = nullptr*/, bool /*ThreadIsTimeCritical = false*/)
 {
 	if (Size > Limits::MaxAllocationSizeToPool)
 	{

@@ -88,6 +88,7 @@ void SDMXFader::Construct(const FArguments& InArgs)
 					[
 						SNew(SBorder)
 						.BorderBackgroundColor(FLinearColor::Black)
+						.OnMouseButtonDown(this, &SDMXFader::OnFaderNameBorderClicked)
 						[
 							SAssignNew(FaderNameTextBox, SInlineEditableTextBlock)
 							.MultiLine(false)
@@ -403,13 +404,25 @@ void SDMXFader::HandleValueChanged(uint8 NewValue)
 	Value = NewValue;
 }
 
+FReply SDMXFader::OnFaderNameBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		FaderNameTextBox->EnterEditingMode();
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
 void SDMXFader::OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Type InCommit)
 {
 	check(FaderNameTextBox.IsValid());
 
-	FaderNameTextBox->SetText(FaderName);
-
 	FaderName = NewFaderName.ToString();
+
+	FaderNameTextBox->SetText(FaderName);
 }
 
 FReply SDMXFader::OnMaxValueBorderClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)

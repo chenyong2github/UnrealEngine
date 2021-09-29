@@ -319,7 +319,7 @@ protected:
 						SetObjectStateHelper(*GetProxy(), *Dyn, EObjectStateType::Dynamic, true);
 					}
 				}
-
+				
 				Kinematic->SetW(InW, bInvalidate);
 			}
 		});

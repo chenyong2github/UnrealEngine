@@ -421,7 +421,14 @@ FMaterialOccurrence& FMaterial::RegisterInstance(FNodeOccurence* NodeOccurrence)
 	{
 		MaterialInheritedByNodes = MakeShared<FMaterialOccurrence>();
 	}
+	NodeOccurrence->MaterialOverride = this;
 	return *MaterialInheritedByNodes;
+}
+
+void FMaterial::UnregisterInstance(FNodeOccurence* NodeOccurrence)
+{
+	NodesMaterialInheritedBy.Remove(NodeOccurrence);
+	NodeOccurrence->MaterialOverride = nullptr;
 }
 
 const TCHAR* FMaterialOccurrence::GetName()

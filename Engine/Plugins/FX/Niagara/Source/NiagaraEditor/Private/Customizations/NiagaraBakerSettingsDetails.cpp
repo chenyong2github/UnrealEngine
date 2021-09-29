@@ -89,7 +89,10 @@ void FNiagaraBakerTextureSourceDetails::CollectAllActions(FGraphActionListBuilde
 
 				switch ( RendererType )
 				{
-					case FNiagaraBakerRenderer::ERenderType::View:
+					case FNiagaraBakerRenderer::ERenderType::SceneCapture:
+						CategoryText = LOCTEXT("BufferVis", "Scene Capture");
+						break;
+					case FNiagaraBakerRenderer::ERenderType::BufferVisualization:
 						CategoryText = LOCTEXT("BufferVis", "Buffer Visualization");
 						break;
 					case FNiagaraBakerRenderer::ERenderType::DataInterface:

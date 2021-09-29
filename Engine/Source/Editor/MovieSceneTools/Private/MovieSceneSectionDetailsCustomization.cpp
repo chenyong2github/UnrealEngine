@@ -64,6 +64,7 @@ void FMovieSceneSectionDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 		[
 			SNew(SEditableTextBox)
 			.Text(this, &FMovieSceneSectionDetailsCustomization::OnGetRangeStartText)
+			.ToolTipText(this, &FMovieSceneSectionDetailsCustomization::OnGetRangeStartToolTipText)
 			.OnTextCommitted(this, &FMovieSceneSectionDetailsCustomization::OnRangeStartTextCommitted)
 			.IsEnabled(this, &FMovieSceneSectionDetailsCustomization::IsRangeStartTextboxEnabled)
 			.SelectAllTextWhenFocused(true)
@@ -109,6 +110,7 @@ void FMovieSceneSectionDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 		[
 			SNew(SEditableTextBox)
 			.Text(this, &FMovieSceneSectionDetailsCustomization::OnGetRangeEndText)
+			.ToolTipText(this, &FMovieSceneSectionDetailsCustomization::OnGetRangeEndToolTipText)
 			.OnTextCommitted(this, &FMovieSceneSectionDetailsCustomization::OnRangeEndTextCommitted)
 			.IsEnabled(this, &FMovieSceneSectionDetailsCustomization::IsRangeEndTextboxEnabled)
 			.SelectAllTextWhenFocused(true)
@@ -138,14 +140,12 @@ void FMovieSceneSectionDetailsCustomization::CustomizeDetails(IDetailLayoutBuild
 	];
 }
 
-
-/** Convert the range start into an FText for display */
-FText FMovieSceneSectionDetailsCustomization::OnGetRangeStartText() const
+/** Get the range start value, or return false if multiple values differ */
+FMovieSceneSectionDetailsCustomization::ERangeBoundValueType FMovieSceneSectionDetailsCustomization::GetRangeStartValue(FFrameNumber& OutValue) const
 {
 	TArray<void*> RawData;
 	MovieSceneSectionPropertyHandle->AccessRawData(RawData);
 
-	double FrameValue = 0.0;
 	for (int32 i = 0; i < RawData.Num(); i++)
 	{
 		FMovieSceneFrameRange* CurrentMovieSceneRange = (FMovieSceneFrameRange*)RawData[i];
@@ -156,26 +156,59 @@ FText FMovieSceneSectionDetailsCustomization::OnGetRangeStartText() const
 			// Unbounded ranges have no value.
 			if (CurrentFrameRange.GetLowerBound().IsOpen())
 			{
-				return FText();
+				return ERangeBoundValueType::Infinite;
 			}
 
 			if (i > 0)
 			{
-				if (CurrentFrameRange.GetLowerBoundValue().Value != FrameValue)
+				if (CurrentFrameRange.GetLowerBoundValue().Value != OutValue)
 				{
 					// No need to check the rest of the selected items once we've determined one of them is different.
-					return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
+					return ERangeBoundValueType::MultipleValues;
 				}
 			}
 			else
 			{
 				// If this is the first one we're looking at we just assign this as our value.
-				FrameValue = CurrentFrameRange.GetLowerBoundValue().Value;
+				OutValue = CurrentFrameRange.GetLowerBoundValue().Value;
 			}
 		}
 	}
 
-	return FText::FromString(NumericTypeInterface->ToString(FrameValue));
+	return ERangeBoundValueType::Finite;
+}
+
+/** Convert the range start into an FText for display */
+FText FMovieSceneSectionDetailsCustomization::OnGetRangeStartText() const
+{
+	FFrameNumber FrameValue;
+	ERangeBoundValueType ValueType = GetRangeStartValue(FrameValue);
+	switch (ValueType)
+	{
+		case ERangeBoundValueType::Infinite:
+			return FText::GetEmpty();
+		case ERangeBoundValueType::MultipleValues:
+			return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
+		case ERangeBoundValueType::Finite:
+		default:
+			return FText::FromString(NumericTypeInterface->ToString((double)FrameValue.Value));
+	}
+}
+
+FText FMovieSceneSectionDetailsCustomization::OnGetRangeStartToolTipText() const
+{
+	FFrameNumber FrameValue;
+	ERangeBoundValueType ValueType = GetRangeStartValue(FrameValue);
+	switch (ValueType)
+	{
+		case ERangeBoundValueType::Infinite:
+			return LOCTEXT("InfiniteBound", "Infinite");
+		case ERangeBoundValueType::MultipleValues:
+			return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
+		case ERangeBoundValueType::Finite:
+		default:
+			return FText::Format(LOCTEXT("FrameTicks", "{0} ticks"), FrameValue.Value);
+	}
 }
 
 /** Convert the text into a new range start */
@@ -339,13 +372,12 @@ void FMovieSceneSectionDetailsCustomization::SetRangeStartBounded(bool InbIsBoun
 	}
 }
 
-/** Convert the range end into an FText for display */
-FText FMovieSceneSectionDetailsCustomization::OnGetRangeEndText() const
+/** Get the range start value, or return false if multiple values differ */
+FMovieSceneSectionDetailsCustomization::ERangeBoundValueType FMovieSceneSectionDetailsCustomization::GetRangeEndValue(FFrameNumber& OutValue) const
 {
 	TArray<void*> RawData;
 	MovieSceneSectionPropertyHandle->AccessRawData(RawData);
 
-	double FrameValue = 0.0;
 	for (int32 i = 0; i < RawData.Num(); i++)
 	{
 		FMovieSceneFrameRange* CurrentMovieSceneRange = (FMovieSceneFrameRange*)RawData[i];
@@ -356,32 +388,65 @@ FText FMovieSceneSectionDetailsCustomization::OnGetRangeEndText() const
 			// Unbounded ranges have no value.
 			if (CurrentFrameRange.GetUpperBound().IsOpen())
 			{
-				return FText();
+				return ERangeBoundValueType::Infinite;
 			}
 
 			if (i > 0)
 			{
-				if (CurrentFrameRange.GetUpperBoundValue().Value != FrameValue)
+				if (CurrentFrameRange.GetUpperBoundValue().Value != OutValue)
 				{
 					// No need to check the rest of the selected items once we've determined one of them is different.
-					return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
+					return ERangeBoundValueType::MultipleValues;
 				}
 			}
 			else
 			{
 				// If this is the first one we're looking at we just assign this as our value.
-				FrameValue = CurrentFrameRange.GetUpperBoundValue().Value;
+				OutValue = CurrentFrameRange.GetUpperBoundValue().Value;
 			}
 		}
 	}
 
-	return FText::FromString(NumericTypeInterface->ToString(FrameValue));
+	return ERangeBoundValueType::Finite;
+}
+
+/** Convert the range end into an FText for display */
+FText FMovieSceneSectionDetailsCustomization::OnGetRangeEndText() const
+{
+	FFrameNumber FrameValue;
+	ERangeBoundValueType ValueType = GetRangeEndValue(FrameValue);
+	switch (ValueType)
+	{
+		case ERangeBoundValueType::Infinite:
+			return FText::GetEmpty();
+		case ERangeBoundValueType::MultipleValues:
+			return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
+		case ERangeBoundValueType::Finite:
+		default:
+			return FText::FromString(NumericTypeInterface->ToString((double)FrameValue.Value));
+	}
+}
+
+FText FMovieSceneSectionDetailsCustomization::OnGetRangeEndToolTipText() const
+{
+	FFrameNumber FrameValue;
+	ERangeBoundValueType ValueType = GetRangeEndValue(FrameValue);
+	switch (ValueType)
+	{
+		case ERangeBoundValueType::Infinite:
+			return LOCTEXT("InfiniteBound", "Infinite");
+		case ERangeBoundValueType::MultipleValues:
+			return NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values");
+		case ERangeBoundValueType::Finite:
+		default:
+			return FText::Format(LOCTEXT("FrameTicks", "{0} ticks"), FrameValue.Value);
+	}
 }
 
 /** Convert the text into a new range end */
 void FMovieSceneSectionDetailsCustomization::OnRangeEndTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)
 {
-	// Find the new value for the start range.
+	// Find the new value for the end range.
 	TOptional<double> NewEnd = NumericTypeInterface->FromString(InText.ToString(), 0.0);
 
 	// Early out if we couldn't parse it, no need to reset them all to zero.

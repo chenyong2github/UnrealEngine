@@ -57,7 +57,7 @@ public:
 
 	//This setting is designed for requirements that only matter when option is generated
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	bool bIgnoreRequrementsWhileAdvancingCoversations = false;
+	bool bIgnoreRequirementsWhileAdvancingConversations = false;
 
 public:
 	UFUNCTION(BlueprintNativeEvent)

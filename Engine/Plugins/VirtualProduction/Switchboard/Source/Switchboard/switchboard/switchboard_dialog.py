@@ -33,13 +33,37 @@ EMPTY_SYNC_ENTRY = "-- None --"
 
 
 class SwitchboardDialog(QtCore.QObject):
+    STYLESHEET_PATH = os.path.join(RELATIVE_PATH, 'ui/switchboard.qss')
+
+    _stylesheet_watcher: Optional[QtCore.QFileSystemWatcher] = None
+
+    @classmethod
+    def init_stylesheet_watcher(cls):
+        ''' Load Qt stylesheet, and reload it whenever the file is changed. '''
+        if not cls._stylesheet_watcher:
+            cls._stylesheet_watcher = QtCore.QFileSystemWatcher()
+            cls._stylesheet_watcher.addPath(cls.STYLESHEET_PATH)
+            cls._stylesheet_watcher.fileChanged.connect(
+                lambda: cls.reload_stylesheet())
+
+            cls.reload_stylesheet()
+
+    @classmethod
+    def reload_stylesheet(cls):
+        with open(cls.STYLESHEET_PATH, "r") as styling:
+            stylesheet = styling.read()
+            QtWidgets.QApplication.instance().setStyleSheet(stylesheet)
+
     def __init__(self):
         super().__init__()
 
-        fontDB = QtGui.QFontDatabase()
-        fontDB.addApplicationFont(os.path.join(ENGINE_PATH, 'Content/Slate/Fonts/Roboto-Bold.ttf'))
-        fontDB.addApplicationFont(os.path.join(ENGINE_PATH, 'Content/Slate/Fonts/Roboto-Regular.ttf'))
-        fontDB.addApplicationFont(os.path.join(ENGINE_PATH, 'Content/Slate/Fonts/DroidSansMono.ttf'))
+        font_dir = os.path.join(ENGINE_PATH, 'Content/Slate/Fonts')
+        font_files = ['Roboto-Regular.ttf', 'Roboto-Bold.ttf',
+                      'DroidSansMono.ttf']
+
+        for font_file in font_files:
+            font_path = os.path.join(font_dir, font_file)
+            QtGui.QFontDatabase.addApplicationFont(font_path)
 
         self.logger_autoscroll = True
         ConsoleStream.stderr().message_written.connect(self._console_pipe)
@@ -51,15 +75,14 @@ class SwitchboardDialog(QtCore.QObject):
         loader.registerCustomWidget(DeviceListWidget)
         loader.registerCustomWidget(sb_widgets.ControlQPushButton)
 
-        self.window = loader.load(os.path.join(RELATIVE_PATH, "ui/switchboard.ui"))
-        self.window.installEventFilter(self) # used to shut down services cleanly on exit
+        self.window = loader.load(
+            os.path.join(RELATIVE_PATH, "ui/switchboard.ui"))
 
-        # Load qss file for dark styling
-        qss_file = os.path.join(RELATIVE_PATH, "ui/switchboard.qss")
-        self.stylesheet = None
-        with open(qss_file, "r") as styling:
-            self.stylesheet = styling.read()
-            self.window.setStyleSheet(self.stylesheet)
+        # used to shut down services cleanly on exit
+        self.window.installEventFilter(self)
+        self.close_event_counter = 0
+
+        self.init_stylesheet_watcher()
 
         self._shoot = None
         self._sequence = None
@@ -91,7 +114,7 @@ class SwitchboardDialog(QtCore.QObject):
         self.take = SETTINGS.CURRENT_TAKE
 
         # Device List Widget
-        self.device_list_widget = self.window.device_list_widget
+        self.device_list_widget: DeviceListWidget = self.window.device_list_widget
         # When new widgets are added, register the signal/slots
         self.device_list_widget.signal_register_device_widget.connect(self.register_device_widget)
         self.device_list_widget.signal_connect_all_plugin_devices_toggled.connect(self.on_all_plugin_devices_connect_toggled)
@@ -112,7 +135,6 @@ class SwitchboardDialog(QtCore.QObject):
 
         # add menu for adding new devices
         self.device_add_menu = QtWidgets.QMenu()
-        self.device_add_menu.setStyleSheet(self.stylesheet)
         self.device_add_menu.aboutToShow.connect(lambda: self.show_device_add_menu())
         self.window.device_add_tool_button.setMenu(self.device_add_menu)
         self.window.device_add_tool_button.clicked.connect(lambda: self.show_device_add_menu())
@@ -160,6 +182,20 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.connect_all_button.clicked.connect(self.connect_all_button_clicked)
         self.window.launch_all_button.clicked.connect(self.launch_all_button_clicked)
 
+        # Stylesheet-related: Object names used for selectors, no focus forcing
+        def configure_ctrl_btn(btn: sb_widgets.ControlQPushButton, name: str):
+            btn.setObjectName(name)
+            btn.hover_focus = False
+
+        configure_ctrl_btn(self.window.refresh_levels_button, 'refresh')
+        configure_ctrl_btn(self.window.sync_all_button, 'sync')
+        configure_ctrl_btn(self.window.build_all_button, 'build')
+        configure_ctrl_btn(self.window.sync_and_build_all_button, 'sync_and_build')
+        configure_ctrl_btn(self.window.refresh_project_cl_button, 'refresh')
+        configure_ctrl_btn(self.window.refresh_engine_cl_button, 'refresh')
+        configure_ctrl_btn(self.window.launch_all_button, 'open')
+        configure_ctrl_btn(self.window.connect_all_button, 'connect')
+
         # TransportQueue Menu
         #self.window.transport_queue_push_button.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         #self.transport_queue_menu = QtWidgets.QMenu(self.window.transport_queue_push_button)
@@ -178,6 +214,10 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.menu_delete_config.triggered.connect(self.menu_delete_config)
         self.window.update_settings.triggered.connect(self.menu_update_settings)
 
+        # The "Load Config" menu is populated lazily.
+        self.window.menu_load_config.aboutToShow.connect(
+            self._on_menu_load_config_about_to_show)
+
         # Plugin UI
         self.device_manager.plug_into_ui(self.window.menu_bar, self.window.tabs_main)
 
@@ -187,7 +227,6 @@ class SwitchboardDialog(QtCore.QObject):
         else:
             self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
             self.refresh_levels()
-            self.update_configs_menu()
 
         self.set_config_hooks()
 
@@ -231,10 +270,20 @@ class SwitchboardDialog(QtCore.QObject):
         self.device_list_widget.on_device_removed(device_hash, device_type, device_name, update_config)
         CONFIG.on_device_removed(device_hash, device_type, device_name, update_config)
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj, event: QtCore.QEvent):
         if obj == self.window and event.type() == QtCore.QEvent.Close:
-            self.on_exit()
+            self.close_event_counter += 1
+            if not self.should_allow_exit(self.close_event_counter):
+                event.ignore()
+                return True
+            else:
+                self.on_exit()
+
         return self.window.eventFilter(obj, event)
+
+    def should_allow_exit(self, close_req_id: int) -> bool:
+        return all(device.should_allow_exit(close_req_id)
+                   for device in self.device_manager.devices())
 
     def on_exit(self):
         self.osc_server.close()
@@ -254,7 +303,7 @@ class SwitchboardDialog(QtCore.QObject):
             action.setDefaultWidget(TransportQueueActionWidget(job_name))
             self.transport_queue_menu.addAction(action)
 
-    def update_configs_menu(self):
+    def _on_menu_load_config_about_to_show(self):
         from functools import partial
 
         self.window.menu_load_config.clear()
@@ -336,16 +385,14 @@ class SwitchboardDialog(QtCore.QObject):
         self.p4_refresh_project_cl()
         self.p4_refresh_engine_cl()
         self.refresh_levels()
-        self.update_configs_menu()
 
     def menu_new_config(self):
-
         uproject_search_path = os.path.dirname(CONFIG.UPROJECT_PATH.get_value().replace('"',''))
 
         if not os.path.exists(uproject_search_path):
             uproject_search_path = SETTINGS.LAST_BROWSED_PATH
 
-        dialog = AddConfigDialog(self.stylesheet,
+        dialog = AddConfigDialog(
             uproject_search_path=uproject_search_path,
             previous_engine_dir=CONFIG.ENGINE_DIR.get_value(),
             parent=self.window)
@@ -376,7 +423,6 @@ class SwitchboardDialog(QtCore.QObject):
             # Update the UI
             self.toggle_p4_controls(CONFIG.P4_ENABLED.get_value())
             self.refresh_levels()
-            self.update_configs_menu()
 
     def menu_delete_config(self):
         """
@@ -408,9 +454,6 @@ class SwitchboardDialog(QtCore.QObject):
                 # Create a blank config
                 self.menu_new_config()
 
-            # Update the config menu
-            self.update_configs_menu()
-
     def menu_update_settings(self):
         """
         Settings window
@@ -435,12 +478,14 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_osc_server_port(CONFIG.OSC_SERVER_PORT.get_value())
         settings_dialog.set_osc_client_port(CONFIG.OSC_CLIENT_PORT.get_value())
         settings_dialog.set_mu_server_name(CONFIG.MUSERVER_SERVER_NAME)
+        settings_dialog.set_mu_server_endpoint(CONFIG.MUSERVER_ENDPOINT)
         settings_dialog.set_mu_cmd_line_args(CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS)
         settings_dialog.set_mu_clean_history(CONFIG.MUSERVER_CLEAN_HISTORY)
         settings_dialog.set_mu_auto_launch(CONFIG.MUSERVER_AUTO_LAUNCH)
         settings_dialog.set_mu_auto_join(CONFIG.MUSERVER_AUTO_JOIN)
         settings_dialog.set_mu_server_exe(CONFIG.MULTIUSER_SERVER_EXE)
         settings_dialog.set_mu_server_auto_build(CONFIG.MUSERVER_AUTO_BUILD)
+        settings_dialog.set_mu_server_auto_endpoint(CONFIG.MUSERVER_AUTO_ENDPOINT)
 
         for plugin_name in sorted(self.device_manager.available_device_plugins(), key=str.lower):
             device_instances = self.device_manager.devices_of_type(plugin_name)
@@ -462,8 +507,6 @@ class SwitchboardDialog(QtCore.QObject):
 
             SETTINGS.CONFIG = new_config_path
             SETTINGS.save()
-
-            self.update_configs_menu()
 
         ip_address = settings_dialog.ip_address()
         if ip_address != SETTINGS.IP_ADDRESS:
@@ -495,6 +538,10 @@ class SwitchboardDialog(QtCore.QObject):
         if mu_server_name != CONFIG.MUSERVER_SERVER_NAME:
             CONFIG.MUSERVER_SERVER_NAME = mu_server_name
 
+        mu_server_endpoint = settings_dialog.mu_server_endpoint()
+        if mu_server_endpoint != CONFIG.MUSERVER_ENDPOINT:
+            CONFIG.MUSERVER_ENDPOINT = mu_server_endpoint
+
         mu_cmd_line_args = settings_dialog.mu_cmd_line_args()
         if mu_cmd_line_args != CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS:
             CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS = mu_cmd_line_args
@@ -518,6 +565,10 @@ class SwitchboardDialog(QtCore.QObject):
         mu_auto_build = settings_dialog.mu_server_auto_build()
         if mu_auto_build != CONFIG.MUSERVER_AUTO_BUILD:
             CONFIG.MUSERVER_AUTO_BUILD = mu_auto_build
+
+        mu_auto_endpoint = settings_dialog.mu_server_auto_endpoint()
+        if mu_auto_endpoint != CONFIG.MUSERVER_AUTO_ENDPOINT:
+            CONFIG.MUSERVER_AUTO_ENDPOINT = mu_auto_endpoint
 
         CONFIG.P4_ENABLED.update_value(settings_dialog.p4_enabled())
 
@@ -566,11 +617,13 @@ class SwitchboardDialog(QtCore.QObject):
     def set_device_launch_state(self, devices, launch_state):
         for device in devices:
             try:
-                if launch_state and device.widget.open_button.isEnabled():
-                    device.widget._open()
-                elif not launch_state and device.widget.open_button.isChecked():
-                    device.widget._close()
-            except:
+                open_button = device.widget.open_button
+                if open_button.isEnabled():
+                    if launch_state:
+                        device.widget._open()
+                    elif open_button.isChecked():
+                        device.widget._close()
+            except Exception:
                 pass
 
     def set_device_connection_state(self, devices, connection_state):
@@ -580,7 +633,7 @@ class SwitchboardDialog(QtCore.QObject):
                     device.widget._connect()
                 else:
                     device.widget._disconnect()
-            except:
+            except Exception:
                 pass
 
     @QtCore.Slot(object)
@@ -638,7 +691,7 @@ class SwitchboardDialog(QtCore.QObject):
         When the TransportQueue is ready to transport a new job
         Grab the device and send it back to the transport queue
         """
-        LOGGER.debug(f'transport_queue_job_started')
+        LOGGER.debug('transport_queue_job_started')
 
     @QtCore.Slot(object)
     def device_added(self, device):
@@ -1033,7 +1086,6 @@ class SwitchboardDialog(QtCore.QObject):
 
     @QtCore.Slot(object)
     def device_status_changed(self, device, previous_status):
-
         # Update the device widget
         device.widget.update_status(device.status, previous_status)
 
@@ -1056,26 +1108,28 @@ class SwitchboardDialog(QtCore.QObject):
 
     def update_connect_and_open_button_states(self):
         """ Refresh states of connect-all and start-all buttons. """
-        devices = self.device_manager.devices()
-        any_connected = any(not device.is_disconnected for device in devices)
-        any_started = any(device.status > DeviceStatus.CLOSED for device in devices)
+        connect_checked, connect_enabled, open_checked, open_enabled = \
+            self.device_list_widget.get_connect_and_open_all_button_states()
 
-        self.update_connect_all_button_state(any_connected)
-        self.update_start_all_button_state(any_connected, any_started)
+        self.update_connect_all_button_state(checked=connect_checked,
+                                            enabled=connect_enabled)
+        self.update_start_all_button_state(checked=open_checked,
+                                        enabled=open_enabled)
 
-    def update_connect_all_button_state(self, any_devices_connected):
+    def update_connect_all_button_state(self, checked, enabled):
         """ Refresh state of connect-all button. """
-        self.window.connect_all_button.setChecked(any_devices_connected)
-        if any_devices_connected:
+        self.window.connect_all_button.setChecked(checked)
+        self.window.connect_all_button.setEnabled(enabled)
+        if checked:
             self.window.connect_all_button.setToolTip("Disconnect all connected devices")
         else:
             self.window.connect_all_button.setToolTip("Connect all devices")
 
-    def update_start_all_button_state(self, any_devices_connected, any_devices_started):
+    def update_start_all_button_state(self, checked, enabled):
         """ Refresh state of start-all button. """
-        self.window.launch_all_button.setEnabled(any_devices_connected)
-        self.window.launch_all_button.setChecked(any_devices_started)
-        if any_devices_started:
+        self.window.launch_all_button.setChecked(checked)
+        self.window.launch_all_button.setEnabled(enabled)
+        if checked:
             self.window.launch_all_button.setToolTip("Stop all running devices")
         else:
             self.window.launch_all_button.setToolTip("Start all connected devices")
@@ -1143,15 +1197,17 @@ class SwitchboardDialog(QtCore.QObject):
         Scrolls on each emit signal.
         :param msg: This is a built in event, QT Related, not given.
         """
-        self.window.base_console.appendHtml(msg)
+        if self.window:
+            self.window.base_console.appendHtml(msg)
 
         if self.logger_autoscroll:
             self.logger_scroll_to_end()
 
     def logger_scroll_to_end(self):
         # This combination keeps the cursor at the bottom left corner in all cases.
-        self.window.base_console.moveCursor(QtGui.QTextCursor.End)
-        self.window.base_console.moveCursor(QtGui.QTextCursor.StartOfLine)
+        if self.window:
+            self.window.base_console.moveCursor(QtGui.QTextCursor.End)
+            self.window.base_console.moveCursor(QtGui.QTextCursor.StartOfLine)
 
     # Allow user to change logging level
     def logger_level_comboBox_currentTextChanged(self):
@@ -1550,8 +1606,7 @@ class TransportQueueHeaderActionWidget(QtWidgets.QWidget):
         def __label(label_text):
             label = QtWidgets.QLabel()
             label.setText(label_text)
-            label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setStyleSheet("font-weight: bold")
+            label.setObjectName('widget_header')
             return label
 
         self.name_label = __label('Transport Queue')
@@ -1583,8 +1638,7 @@ class TransportQueueActionWidget(QtWidgets.QWidget):
 
         # Remove button
         button = sb_widgets.ControlQPushButton()
-        button.setProperty("no_background", True)
-        button.setStyle(button.style())
+        sb_widgets.set_qt_property(button, 'no_background', True)
 
         icon = QtGui.QIcon()
         pixmap = QtGui.QPixmap(f":/icons/images/icon_close_disabled.png")

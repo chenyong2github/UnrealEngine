@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RewindDebuggerVLogModule.h"
+#include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "RewindDebuggerVLogModule"

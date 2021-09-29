@@ -17,9 +17,9 @@ void UGameFeatureAction_AddCheats::OnGameFeatureDeactivating(FGameFeatureDeactiv
 {
 	UCheatManager::UnregisterFromOnCheatManagerCreated(CheatManagerRegistrationHandle);
 
-	for (UCheatManagerExtension* Extension : SpawnedCheatManagers)
+	for (TWeakObjectPtr<UCheatManagerExtension> ExtensionPtr : SpawnedCheatManagers)
 	{
-		if (Extension != nullptr)
+		if (UCheatManagerExtension* Extension = ExtensionPtr.Get())
 		{
 			UCheatManager* CheatManager = CastChecked<UCheatManager>(Extension->GetOuter());
 			CheatManager->RemoveCheatManagerExtension(Extension);
@@ -50,6 +50,15 @@ EDataValidationResult UGameFeatureAction_AddCheats::IsDataValid(TArray<FText>& V
 
 void UGameFeatureAction_AddCheats::OnCheatManagerCreated(UCheatManager* CheatManager)
 {
+	// First clean out any stale pointers
+	for (int32 ManagerIdx = SpawnedCheatManagers.Num() - 1; ManagerIdx >= 0; --ManagerIdx)
+	{
+		if (!SpawnedCheatManagers[ManagerIdx].IsValid())
+		{
+			SpawnedCheatManagers.RemoveAtSwap(ManagerIdx);
+		}
+	}
+
 	for (TSubclassOf<UCheatManagerExtension> CheatManagerClass : CheatManagers)
 	{
 		if (CheatManagerClass != nullptr)

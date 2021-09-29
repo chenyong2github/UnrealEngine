@@ -466,6 +466,9 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLightShaftOcclusion(
 						if (!Output.IsValid())
 						{
 							Output = CreateLightShaftTexture(GraphBuilder, OutputViewport, TEXT("LightShaftOcclusion"));
+							// If there are multiple views, we want to clear the texture in case some of them are not going to render any occlusion this frame 
+							// See ShouldRenderLightShaftsForLight for the skipping logic.
+							Output.LoadAction = Views.Num() > 1 ? ERenderTargetLoadAction::EClear : Output.LoadAction;
 						}
 						else
 						{

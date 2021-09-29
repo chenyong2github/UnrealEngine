@@ -1038,7 +1038,7 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 	}
 }
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 FText FText::ChangeKey( const FTextKey& Namespace, const FTextKey& Key, const FText& Text )
 {
 	return FText(FString(*Text.TextData->GetTextHistory().GetSourceString()), Namespace, Key, 0);

@@ -28,6 +28,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectThreadContext.h"
 #include "ShaderCompiler.h"
+#include "NiagaraSimulationStageBase.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystem"
 
@@ -1252,6 +1253,11 @@ const TArray<FNiagaraEmitterHandle>& UNiagaraSystem::GetEmitterHandles()const
 	return EmitterHandles;
 }
 
+bool UNiagaraSystem::AllowScalabilityForLocalPlayerFX()const
+{
+	return bAllowCullingForLocalPlayers;
+}
+
 bool UNiagaraSystem::IsReadyToRunInternal() const
 {
 	//TODO: Ideally we'd never even load Niagara assets on the server but this is a larger issue. Tracked in FORT-342580
@@ -2466,7 +2472,6 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 	};
 
 	TArray<FScriptCompileResultValidationInfo> ScriptCompilesToValidate;
-	int32 ParentIdx = INDEX_NONE; 
 
 	// Add a compiled script pair to be evaluated for external dependencies to ScriptCompilesToValidate and clear all of its compile events that are from script dependencies.
 	auto AddCompiledScriptForValidation = [&ScriptCompilesToValidate](UNiagaraScript* InScript, int32 ParentIdx, UNiagaraEmitter* InEmitter = nullptr)->int32
@@ -2489,34 +2494,54 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 		return ScriptCompilesToValidate.Add(ValidationInfo);
 	};
 
+	// Gather system scripts to evaluate dependencies.
+	int32 SystemSpawnScriptIdx = AddCompiledScriptForValidation(SystemSpawnScript, INDEX_NONE);
+	int32 SystemUpdateScriptIdx = AddCompiledScriptForValidation(SystemUpdateScript, SystemSpawnScriptIdx);
+
 	// Gather per-emitter scripts to evaluate dependencies.
-	for (int32 i = 0; i < EmitterHandles.Num(); i++)
+	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
-		FNiagaraEmitterHandle Handle = EmitterHandles[i];
 		if (Handle.GetInstance() && Handle.GetIsEnabled())
 		{
-			TArray<UNiagaraScript*> EmitterScripts;
-			bool bOnlyGetCompilableScripts = true;
-			bool bOnlyGetEnabledScripts = true;
-			Handle.GetInstance()->GetScripts(EmitterScripts, bOnlyGetCompilableScripts, bOnlyGetEnabledScripts);
-			check(EmitterScripts.Num() > 0);
-			for (UNiagaraScript* EmitterScript : EmitterScripts)
+			UNiagaraEmitter* Emitter = Handle.GetInstance();
+
+			const int32 EmitterSpawnScriptIdx = AddCompiledScriptForValidation(Emitter->EmitterSpawnScriptProps.Script, SystemSpawnScriptIdx, Emitter);
+			const int32 EmitterUpdateScriptIdx = AddCompiledScriptForValidation(Emitter->EmitterUpdateScriptProps.Script, SystemUpdateScriptIdx, Emitter);
+			const int32 ParentIdxForParticleSpawnScript = Emitter->bInterpolatedSpawning ? EmitterUpdateScriptIdx : EmitterSpawnScriptIdx;
+			const int32 ParticleSpawnScriptIdx = AddCompiledScriptForValidation(Emitter->SpawnScriptProps.Script, ParentIdxForParticleSpawnScript, Emitter);
+			const int32 ParticleUpdateScriptIdx = AddCompiledScriptForValidation(Emitter->UpdateScriptProps.Script, EmitterUpdateScriptIdx, Emitter);
+
+			int32 TempIdx = ParticleUpdateScriptIdx;
+			const TArray<FNiagaraEventScriptProperties>& EventHandlerScriptProps = Emitter->GetEventHandlers();
+			for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
 			{
-				ParentIdx = AddCompiledScriptForValidation(EmitterScript, ParentIdx, Handle.GetInstance());
+				if (EventHandlerScriptProps[i].Script)
+				{
+					TempIdx = AddCompiledScriptForValidation(EventHandlerScriptProps[i].Script, TempIdx, Emitter);
+				}
 			}
-		}
-	}
 
-	// Gather system scripts to evaluate dependencies.
-	ParentIdx = AddCompiledScriptForValidation(SystemSpawnScript, INDEX_NONE);
-	AddCompiledScriptForValidation(SystemUpdateScript, ParentIdx);
+			if (Emitter->bSimulationStagesEnabled)
+			{
+				const TArray<UNiagaraSimulationStageBase*>& SimulationStages = Emitter->GetSimulationStages();
+				for (int32 i = 0; i < SimulationStages.Num(); i++)
+				{
+					if (SimulationStages[i] && SimulationStages[i]->Script)
+					{
+						if (SimulationStages[i]->bEnabled == false)
+						{
+							continue;
+						}
 
-	// Fixup the ParentIndex for emitter scripts that can have dependencies resolved by system scripts.
-	for (FScriptCompileResultValidationInfo& ValidationInfo : ScriptCompilesToValidate)
-	{
-		if (ValidationInfo.Emitter != nullptr && ValidationInfo.ParentIndex == INDEX_NONE)
-		{
-			ValidationInfo.ParentIndex = ParentIdx;
+						TempIdx = AddCompiledScriptForValidation(SimulationStages[i]->Script, TempIdx, Emitter);
+					}
+				}
+			}
+
+			if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+			{
+				AddCompiledScriptForValidation(Emitter->GetGPUComputeScript(), TempIdx, Emitter);
+			}
 		}
 	}
 
@@ -3395,6 +3420,7 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 	if (UNiagaraEffectType* ActualEffectType = GetEffectType())
 	{
 		CurrentScalabilitySettings = ActualEffectType->GetActiveSystemScalabilitySettings();
+		bAllowCullingForLocalPlayers = ActualEffectType->bAllowCullingForLocalPlayers;
 	}
 
 	if (bOverrideScalabilitySettings)
@@ -3440,6 +3466,11 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 
 				break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 			}
+		}
+
+		if (bOverrideAllowCullingForLocalPlayers)
+		{
+			bAllowCullingForLocalPlayers = bAllowCullingForLocalPlayersOverride;
 		}
 	}
 

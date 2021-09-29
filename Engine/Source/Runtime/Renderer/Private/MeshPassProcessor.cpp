@@ -16,6 +16,7 @@
 #include "PipelineStateCache.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "Hash/CityHash.h"
+#include "ComponentRecreateRenderStateContext.h"
 
 FRWLock FGraphicsMinimalPipelineStateId::PersistentIdTableLock;
 FGraphicsMinimalPipelineStateId::PersistentTableType FGraphicsMinimalPipelineStateId::PersistentIdTable;
@@ -797,7 +798,7 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	Finalize(PipelineId, ShadersForDebugging);
 }
 
-void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, FBoundShaderStateInput Shaders, FShaderBindingState* StateCacheShaderBindings) const
+void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, const FBoundShaderStateInput& Shaders, FShaderBindingState* StateCacheShaderBindings) const
 {
 	const uint8* ShaderBindingDataPtr = GetData();
 	uint32 ShaderFrequencyBitIndex = ~0;
@@ -828,7 +829,7 @@ void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, FBou
 		}
 		else if (Frequency == SF_Geometry)
 		{
-			SetShaderBindings(RHICmdList, Shaders.GeometryShaderRHI, SingleShaderBindings, ShaderBindingState);
+			SetShaderBindings(RHICmdList, Shaders.GetGeometryShader(), SingleShaderBindings, ShaderBindingState);
 		}
 		else
 		{
@@ -1026,7 +1027,7 @@ void FMeshDrawCommand::SubmitDrawBegin(
 	// GPUCULL_TODO: Can't do this check as the VFs are created with GMaxRHIFeatureLevel (so may support PrimitiveIdStreamIndex even for preview platforms)
 	// Want to be sure that we supply GPU-scene instance data if required.
 	// checkSlow(MeshDrawCommand.PrimitiveIdStreamIndex == -1 || ScenePrimitiveIdsBuffer != nullptr);
-
+	
 	const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = MeshDrawCommand.CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
 
 	if (MeshDrawCommand.CachedPipelineId.GetId() != StateCache.PipelineId)
@@ -1235,7 +1236,7 @@ uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList)
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
+		FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::CheckApply);
 		if (PipelineState)
 		{
 			const uint64 StateSortKey = PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(PipelineState);
@@ -1581,6 +1582,16 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 
 PassProcessorCreateFunction FPassProcessorManager::JumpTable[(int32)EShadingPath::Num][EMeshPass::Num] = {};
 EMeshPassFlags FPassProcessorManager::Flags[(int32)EShadingPath::Num][EMeshPass::Num] = {};
+
+void FPassProcessorManager::SetPassFlags(EShadingPath ShadingPath, EMeshPass::Type PassType, EMeshPassFlags NewFlags)
+{
+	check(IsInGameThread());
+	FGlobalComponentRecreateRenderStateContext Context;
+	if (JumpTable[(uint32)ShadingPath][PassType])
+	{
+		Flags[(uint32)ShadingPath][PassType] = NewFlags;
+	}
+}
 
 
 

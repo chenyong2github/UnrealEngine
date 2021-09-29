@@ -1561,7 +1561,9 @@ public:
 	 */
 	static bool IsPGOEnabled();
 
-	/**
+	static void ShowConsoleWindow();
+
+	/*
 	 * For mobile devices, this function will return true if we wish to propagate the alpha to the backbuffer
 	 */
 	static int GetMobilePropagateAlphaSetting();

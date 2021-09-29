@@ -194,7 +194,7 @@ void FD3D11DynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* Gr
 	if (bApplyAdditionalState)
 	{
 		ApplyStaticUniformBuffers(static_cast<FD3D11VertexShader*>(PsoInit.BoundShaderState.VertexShaderRHI));
-		ApplyStaticUniformBuffers(static_cast<FD3D11GeometryShader*>(PsoInit.BoundShaderState.GeometryShaderRHI));
+		ApplyStaticUniformBuffers(static_cast<FD3D11GeometryShader*>(PsoInit.BoundShaderState.GetGeometryShader()));
 		ApplyStaticUniformBuffers(static_cast<FD3D11PixelShader*>(PsoInit.BoundShaderState.PixelShaderRHI));
 	}
 

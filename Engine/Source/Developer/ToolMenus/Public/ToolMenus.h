@@ -402,6 +402,7 @@ private:
 	bool bCleanupStaleWidgetsNextTick;
 	bool bCleanupStaleWidgetsNextTickGC;
 	bool bEditMenusMode;
+	bool bSuppressRefreshWidgetsRequests = false;
 
 	static UToolMenus* Singleton;
 	static bool bHasShutDown;

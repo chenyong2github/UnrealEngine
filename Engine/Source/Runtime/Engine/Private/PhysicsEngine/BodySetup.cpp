@@ -1704,6 +1704,34 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 #endif // WITH_PHYSX
 
+#if WITH_CHAOS
+	// Cooked mesh data is flushed after mesh creation if not sharing and not in editor, account through rough serilization estimates.
+	if (!GIsEditor && !bSharedCookedData)
+	{
+		if (GetCollisionTraceFlag() != CTF_UseComplexAsSimple)
+		{
+			for (int32 ElementIndex = 0; ElementIndex < AggGeom.ConvexElems.Num(); ElementIndex++)
+			{
+				FKConvexElem& ConvexElem = AggGeom.ConvexElems[ElementIndex];
+				TArray<uint8> Data;
+				FMemoryWriter MemAr(Data);
+				Chaos::FChaosArchive ChaosAr(MemAr);
+				ConvexElem.GetChaosConvexMesh()->Serialize(ChaosAr);
+				CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Data.Num());
+			}
+		}
+
+		for (auto& TriMesh : ChaosTriMeshes)
+		{
+			TArray<uint8> Data;
+			FMemoryWriter MemAr(Data);
+			Chaos::FChaosArchive ChaosAr(MemAr);
+			TriMesh.Get()->Serialize(ChaosAr);
+			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Data.Num());
+		}
+	}
+#endif
+
 	if (CookedFormatData.Contains(FPlatformProperties::GetPhysicsFormat()))
 	{
 		const FByteBulkData& FmtData = CookedFormatData.GetFormat(FPlatformProperties::GetPhysicsFormat());

@@ -83,7 +83,11 @@ private:
 		MessageEndpoint = FMessageEndpoint::Builder("FPortalRpcLocator")
 			.Handling<FPortalRpcServer>(this, &FPortalRpcLocatorImpl::HandleMessage);
 
-		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPortalRpcLocatorImpl::HandleTicker), PORTAL_RPC_LOCATE_INTERVAL);
+		// this can return null in shipping builds, when MessageBus is disabled
+		if (MessageEndpoint)
+		{
+			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FPortalRpcLocatorImpl::HandleTicker), PORTAL_RPC_LOCATE_INTERVAL);
+		}
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

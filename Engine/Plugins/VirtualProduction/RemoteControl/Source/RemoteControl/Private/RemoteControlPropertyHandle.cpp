@@ -1344,7 +1344,7 @@ bool FRemoteControlPropertyHandleVector::SetValue(FVector4 InValue)
 	bool ResX = VectorComponents[0].Pin()->SetValue(InValue.X);
 	bool ResY = VectorComponents[1].Pin()->SetValue(InValue.Y);
 	bool ResZ = VectorComponents[2].Pin()->SetValue(InValue.Z);
-	bool ResW = VectorComponents[3].Pin()->SetValue(InValue.Y);
+	bool ResW = VectorComponents[3].Pin()->SetValue(InValue.W);
 
 	if (ResX == false || ResY == false || ResZ == false || ResW == false)
 	{

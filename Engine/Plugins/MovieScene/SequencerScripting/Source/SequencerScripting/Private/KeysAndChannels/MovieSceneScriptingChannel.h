@@ -48,7 +48,7 @@ public:
 	*/
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const PURE_VIRTUAL(UMovieSceneScriptingChannel::GetKeys, return TArray<UMovieSceneScriptingKey*>(););
 
-	UPROPERTY(BlueprintReadOnly, Category="Editor Scripting | Sequencer Tools | Keys")
+	UPROPERTY(BlueprintReadOnly, Category="Sequencer|Keys")
 	FName ChannelName;
 };
 

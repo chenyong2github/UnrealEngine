@@ -378,18 +378,9 @@ struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState
 
 	FORCEINLINE class FD3D12VertexShader*   GetVertexShader() const { return (FD3D12VertexShader*)PipelineStateInitializer.BoundShaderState.VertexShaderRHI; }
 	FORCEINLINE class FD3D12PixelShader*    GetPixelShader() const { return (FD3D12PixelShader*)PipelineStateInitializer.BoundShaderState.PixelShaderRHI; }
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	FORCEINLINE class FD3D12MeshShader*				GetMeshShader() const { return (FD3D12MeshShader*)PipelineStateInitializer.BoundShaderState.MeshShaderRHI; }
-	FORCEINLINE class FD3D12AmplificationShader*	GetAmplificationShader() const { return (FD3D12AmplificationShader*)PipelineStateInitializer.BoundShaderState.AmplificationShaderRHI; }
-#else
-	FORCEINLINE class FD3D12MeshShader*				GetMeshShader() const { return nullptr; }
-	FORCEINLINE class FD3D12AmplificationShader*	GetAmplificationShader() const { return nullptr; }
-#endif
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-	FORCEINLINE class FD3D12GeometryShader* GetGeometryShader() const { return (FD3D12GeometryShader*)PipelineStateInitializer.BoundShaderState.GeometryShaderRHI; }
-#else
-	FORCEINLINE class FD3D12GeometryShader* GetGeometryShader() const { return nullptr; }
-#endif
+	FORCEINLINE class FD3D12MeshShader*				GetMeshShader() const { return (FD3D12MeshShader*)PipelineStateInitializer.BoundShaderState.GetMeshShader(); }
+	FORCEINLINE class FD3D12AmplificationShader*	GetAmplificationShader() const { return (FD3D12AmplificationShader*)PipelineStateInitializer.BoundShaderState.GetAmplificationShader(); }
+	FORCEINLINE class FD3D12GeometryShader* GetGeometryShader() const { return (FD3D12GeometryShader*)PipelineStateInitializer.BoundShaderState.GetGeometryShader(); }
 };
 
 struct FD3D12ComputePipelineState : public FRHIComputePipelineState

@@ -74,7 +74,7 @@ public class EOSSDK : ModuleRules
             {
 				return "EOSSDK";
             }
-
+			
 			return String.Format("EOSSDK-{0}-Shipping", Target.Platform.ToString());
 		}
 	}
@@ -133,7 +133,7 @@ public class EOSSDK : ModuleRules
 	{
 		get
 		{
-			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows);
+			return Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Mac;
 			// Other platforms may override this property.
 		}
 	}
@@ -170,6 +170,12 @@ public class EOSSDK : ModuleRules
 				PublicAdditionalFrameworks.Add(new Framework("EOSSDK", SDKBinariesDir, "", true));
 			}
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			string DylibPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "EOSSDK", "Mac", RuntimeLibraryFileName);
+			PublicDelayLoadDLLs.Add(DylibPath);
+			RuntimeDependencies.Add(DylibPath);
+		}
 		else
 		{
 			// Allow projects to provide their own EOSSDK binaries. We will still compile against our own headers, because EOSSDK makes guarantees about forward compat. Note this global definition is only valid for monolithic targets.
@@ -180,7 +186,7 @@ public class EOSSDK : ModuleRules
 
 				// needed for linux to find the .so
 				PublicRuntimeLibraryPaths.Add(EngineBinariesDir);
-			
+				
 				if (bRequiresRuntimeLoad)
 				{
 					PublicDelayLoadDLLs.Add(RuntimeLibraryFileName);

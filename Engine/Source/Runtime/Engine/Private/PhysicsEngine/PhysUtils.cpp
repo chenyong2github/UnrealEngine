@@ -284,6 +284,64 @@ FCollisionResponseContainer::FCollisionResponseContainer(ECollisionResponse Defa
 	SetAllChannels(DefaultResponse);
 }
 
+FCollisionEnabledMask::FCollisionEnabledMask(int8 InBits)
+	: Bits(InBits)
+{ }
+
+FCollisionEnabledMask::FCollisionEnabledMask(ECollisionEnabled::Type CollisionEnabled)
+	: Bits(1 << CollisionEnabled)
+{ }
+
+FCollisionEnabledMask::operator int8() const
+{
+	return Bits;
+}
+
+FCollisionEnabledMask::operator bool() const
+{
+	return Bits != 0;
+}
+
+FCollisionEnabledMask FCollisionEnabledMask::operator&(const FCollisionEnabledMask Other) const
+{
+	return Bits & Other.Bits;
+}
+
+FCollisionEnabledMask FCollisionEnabledMask::operator&(const ECollisionEnabled::Type Other) const
+{
+	return Bits & FCollisionEnabledMask(Other).Bits;
+}
+
+FCollisionEnabledMask FCollisionEnabledMask::operator|(const FCollisionEnabledMask Other) const
+{
+	return Bits | Other.Bits;
+}
+
+FCollisionEnabledMask FCollisionEnabledMask::operator|(const ECollisionEnabled::Type Other) const
+{
+	return Bits | FCollisionEnabledMask(Other).Bits;
+}
+
+FCollisionEnabledMask operator&(const ECollisionEnabled::Type A, const ECollisionEnabled::Type B)
+{
+	return FCollisionEnabledMask(A) & FCollisionEnabledMask(B);
+}
+
+FCollisionEnabledMask operator&(const ECollisionEnabled::Type A, const FCollisionEnabledMask B)
+{
+	return FCollisionEnabledMask(A) & B;
+}
+
+FCollisionEnabledMask operator|(const ECollisionEnabled::Type A, const ECollisionEnabled::Type B)
+{
+	return FCollisionEnabledMask(A) | FCollisionEnabledMask(B);
+}
+
+FCollisionEnabledMask operator|(const ECollisionEnabled::Type A, const FCollisionEnabledMask B)
+{
+	return FCollisionEnabledMask(A) | B;
+}
+
 #if WITH_CHAOS
 bool FPhysScene::ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar)
 {

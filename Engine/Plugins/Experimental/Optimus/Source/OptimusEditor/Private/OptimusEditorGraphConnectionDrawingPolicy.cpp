@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OptimusEditorGraphConnectionDrawingPolicy.h"
-
+#include "EdGraph/EdGraph.h"
 
 FOptimusEditorGraphConnectionDrawingPolicy::FOptimusEditorGraphConnectionDrawingPolicy(
 	int32 InBackLayerID,

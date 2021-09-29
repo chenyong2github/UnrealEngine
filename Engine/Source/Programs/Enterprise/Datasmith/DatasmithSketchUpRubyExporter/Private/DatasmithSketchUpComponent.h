@@ -97,6 +97,8 @@ namespace DatasmithSketchUp
 		TSharedPtr<IDatasmithMetaDataElement> DatasmithMetadataElement;
 		TArray<TSharedPtr<IDatasmithMeshActorElement>> MeshActors; // Mesh actors for Loose geometry
 
+		FMaterial* MaterialOverride = nullptr; // Material used by this node
+
 		// Flags indicating which Datasmith elements need to be updated from SketchUp
 		// todo: do we really need so many flags for node? Just one flag to rebuild whole hierarchy of Datasmith actors?
 		// Note - this doesn't mean that all needs to be recreated, literally, reuse if possible. 

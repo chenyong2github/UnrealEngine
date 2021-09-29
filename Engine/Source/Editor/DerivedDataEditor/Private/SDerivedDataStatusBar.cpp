@@ -89,7 +89,7 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("StatusBar.ToolBar.DDC", NAME_None, EMultiBoxType::Menu, false);
 
-	{
+	/*{
 		FToolMenuSection& Section = Menu->AddSection("DDCMenuSettingsSection", LOCTEXT("DDCMenuSettingsSection", "Settings"));
 
 		Section.AddMenuEntry(
@@ -98,7 +98,7 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Settings")
 		);
-	}
+	}*/
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("DDCMenuStatisticsSection", LOCTEXT("DDCMenuStatisticsSection", "Statistics"));

@@ -40,7 +40,7 @@ class CONTENTBROWSERDATA_API UContentBrowserDataMenuContext_FolderMenu : public 
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category=ContentBrowser)
 	TArray<FContentBrowserItem> SelectedItems;
 
 	UPROPERTY()

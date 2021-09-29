@@ -32,18 +32,9 @@ public:
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
 		Ar << *SessionInfo.HostAddr;
-		Ar << *SessionInfo.SessionId;
+		Ar << SessionInfo.SessionId->UniqueNetId;
 		return Ar;
  	}
-
-	/**
-	 * Adds Steam Unique Id to the buffer
-	 */
-	friend inline FNboSerializeToBufferSteam& operator<<(FNboSerializeToBufferSteam& Ar, const FUniqueNetIdSteam& UniqueId)
-	{
-		Ar << UniqueId.UniqueNetId;
-		return Ar;
-	}
 };
 
 /**
@@ -70,19 +61,10 @@ public:
 		// Skip SessionType (assigned at creation)
 		Ar >> *SessionInfo.HostAddr;
 
-		// Create a new SessionId to avoid overwriting it for other referencees
-		SessionInfo.SessionId = FUniqueNetIdSteam::Create();
-		Ar >> *ConstCastSharedRef<FUniqueNetIdSteam>(SessionInfo.SessionId);
+		uint64 SessionId;
+		Ar >> SessionId;
+		SessionInfo.SessionId = FUniqueNetIdSteam::Create(SessionId);
 
 		return Ar;
  	}
-
-	/**
-	 * Reads Steam Unique Id from the buffer
-	 */
-	friend inline FNboSerializeFromBufferSteam& operator>>(FNboSerializeFromBufferSteam& Ar, FUniqueNetIdSteam& UniqueId)
-	{
-		Ar >> UniqueId.UniqueNetId;
-		return Ar;
-	}
 };

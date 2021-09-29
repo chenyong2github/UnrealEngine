@@ -36,6 +36,7 @@
 #define DEFAULT_GMallocBinned2BundleCount 64
 #define DEFAULT_GMallocBinned2AllocExtra 32
 #define BINNED2_MAX_GMallocBinned2MaxBundlesBeforeRecycle 8
+#define DEFAULT_GMallocBinned2MoveOSFreesOffTimeCriticalThreads 1
 
 #if !defined(AGGRESSIVE_MEMORY_SAVING)
 	#error "AGGRESSIVE_MEMORY_SAVING must be defined"
@@ -46,6 +47,10 @@
 	#define DEFAULT_GMallocBinned2BundleSize BINNED2_LARGE_ALLOC
 #endif
 
+#ifndef BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
+#define BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK 0
+#endif
+
 
 #define BINNED2_ALLOW_RUNTIME_TWEAKING 0
 #if BINNED2_ALLOW_RUNTIME_TWEAKING
@@ -54,12 +59,15 @@
 	extern CORE_API int32 GMallocBinned2BundleCount = DEFAULT_GMallocBinned2BundleCount;
 	extern CORE_API int32 GMallocBinned2MaxBundlesBeforeRecycle = BINNED2_MAX_GMallocBinned2MaxBundlesBeforeRecycle;
 	extern CORE_API int32 GMallocBinned2AllocExtra = DEFAULT_GMallocBinned2AllocExtra;
+	extern CORE_API int32 GMallocBinned2MoveOSFreesOffTimeCriticalThreads = DEFAULT_GMallocBinned2MoveOSFreesOffTimeCriticalThreads;
+
 #else
 	#define GMallocBinned2PerThreadCaches DEFAULT_GMallocBinned2PerThreadCaches
 	#define GMallocBinned2BundleSize DEFAULT_GMallocBinned2BundleSize
 	#define GMallocBinned2BundleCount DEFAULT_GMallocBinned2BundleCount
 	#define GMallocBinned2MaxBundlesBeforeRecycle BINNED2_MAX_GMallocBinned2MaxBundlesBeforeRecycle
 	#define GMallocBinned2AllocExtra DEFAULT_GMallocBinned2AllocExtra
+	#define GMallocBinned2MoveOSFreesOffTimeCriticalThreads DEFAULT_GMallocBinned2MoveOSFreesOffTimeCriticalThreads
 #endif
 
 
@@ -117,11 +125,11 @@ class CORE_API FMallocBinned2 : public FMalloc
 		{
 			check(InPoolIndex < MAX_uint8 && InBlockSize <= MAX_uint16);
 			NumFreeBlocks = InPageSize / InBlockSize;
-			if (NumFreeBlocks * InBlockSize + BINNED2_MINIMUM_ALIGNMENT > InPageSize)
+			if (NumFreeBlocks * InBlockSize + sizeof(FFreeBlock) > InPageSize)
 			{
 				NumFreeBlocks--;
 			}
-			check(NumFreeBlocks * InBlockSize + BINNED2_MINIMUM_ALIGNMENT <= InPageSize);
+			check(NumFreeBlocks * InBlockSize + sizeof(FFreeBlock) <= InPageSize);
 		}
 
 		FORCEINLINE uint32 GetNumFreeRegularBlocks() const
@@ -146,10 +154,20 @@ class CORE_API FMallocBinned2 : public FMalloc
 		FORCEINLINE void* AllocateRegularBlock()
 		{
 			--NumFreeBlocks;
+#if !UE_USE_VERYLARGEPAGEALLOCATOR || !BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
 			if (IsAligned(this, BINNED2_LARGE_ALLOC))
 			{
 				return (uint8*)this + BINNED2_LARGE_ALLOC - (NumFreeBlocks + 1) * BlockSize;
 			}
+#else
+			if (IsAligned(((uintptr_t)this)+sizeof(FFreeBlock), BINNED2_LARGE_ALLOC))
+			{
+				// The book keeping FreeBlock is at the end of the "page" so we align down to get to the beginning of the page
+				uintptr_t ptr = AlignDown((uintptr_t)this, BINNED2_LARGE_ALLOC);
+				// And we offset the returned pointer based on how many free blocks are left.
+				return (uint8*) ptr + (NumFreeBlocks * BlockSize);
+			}
+#endif
 			return (uint8*)this + (NumFreeBlocks)* BlockSize;
 		}
 
@@ -418,7 +436,11 @@ class CORE_API FMallocBinned2 : public FMalloc
 
 	static FORCEINLINE FFreeBlock* GetPoolHeaderFromPointer(void* Ptr)
 	{
+#if !UE_USE_VERYLARGEPAGEALLOCATOR || !BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
 		return (FFreeBlock*)AlignDown(Ptr, BINNED2_LARGE_ALLOC);
+#else
+		return (FFreeBlock*) (AlignDown((uintptr_t) Ptr, BINNED2_LARGE_ALLOC) + BINNED2_LARGE_ALLOC - sizeof(FFreeBlock));
+#endif
 	}
 
 public:
@@ -458,11 +480,22 @@ public:
 	}
 	FORCEINLINE void* MallocInline(SIZE_T Size, uint32 Alignment )
 	{
+
+#if UE_USE_VERYLARGEPAGEALLOCATOR && BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
+
+		if (Alignment > BINNED2_MINIMUM_ALIGNMENT && (Size <= BINNED2_MAX_SMALL_POOL_SIZE))
+		{
+			Size = Align(Size, Alignment);
+		}
+#endif
 		void* Result = nullptr;
-	
 		// Only allocate from the small pools if the size is small enough and the alignment isn't crazy large.
 		// With large alignments, we'll waste a lot of memory allocating an entire page, but such alignments are highly unlikely in practice.
+#if UE_USE_VERYLARGEPAGEALLOCATOR && BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
+		if ((Size <= BINNED2_MAX_SMALL_POOL_SIZE)) // one branch, not two
+#else
 		if ((Size <= BINNED2_MAX_SMALL_POOL_SIZE) & (Alignment <= BINNED2_MINIMUM_ALIGNMENT)) // one branch, not two
+#endif
 		{
 			FPerThreadFreeBlockLists* Lists = GMallocBinned2PerThreadCaches ? FPerThreadFreeBlockLists::Get() : nullptr;
 			if (Lists)
@@ -487,7 +520,15 @@ public:
 	}
 	FORCEINLINE static bool UseSmallAlloc(SIZE_T Size, uint32 Alignment)
 	{
+#if UE_USE_VERYLARGEPAGEALLOCATOR && BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
+		if (Alignment > BINNED2_MINIMUM_ALIGNMENT)
+		{
+			Size = Align(Size, Alignment);
+		}
+		bool bResult = (Size <= BINNED2_MAX_SMALL_POOL_SIZE);
+#else
 		bool bResult = ((Size <= BINNED2_MAX_SMALL_POOL_SIZE) & (Alignment <= BINNED2_MINIMUM_ALIGNMENT)); // one branch, not two
+#endif
 		return bResult;
 	}
 	FORCEINLINE void* MallocSelect(SIZE_T Size, uint32 Alignment)
@@ -543,7 +584,15 @@ public:
 	}
 	FORCEINLINE void* ReallocInline(void* Ptr, SIZE_T NewSize, uint32 Alignment) 
 	{
-		if (NewSize <= BINNED2_MAX_SMALL_POOL_SIZE && Alignment <= BINNED2_MINIMUM_ALIGNMENT) // one branch, not two
+#if UE_USE_VERYLARGEPAGEALLOCATOR && BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
+		if (Alignment > BINNED2_MINIMUM_ALIGNMENT && (NewSize <= BINNED2_MAX_SMALL_POOL_SIZE))
+		{
+			NewSize = Align(NewSize, Alignment);
+		}
+		if (NewSize <= BINNED2_MAX_SMALL_POOL_SIZE)
+#else
+if (NewSize <= BINNED2_MAX_SMALL_POOL_SIZE && Alignment <= BINNED2_MINIMUM_ALIGNMENT) // one branch, not two
+#endif
 		{
 			FPerThreadFreeBlockLists* Lists = GMallocBinned2PerThreadCaches ? FPerThreadFreeBlockLists::Get() : nullptr;
 			if (Lists && (!Ptr || !IsOSAllocation(Ptr)))

@@ -97,22 +97,29 @@ FVector UNiagaraBakerSettings::GetCameraLocation() const
 	}
 }
 
-FMatrix UNiagaraBakerSettings::GetViewMatrix() const
+FRotator UNiagaraBakerSettings::GetCameraRotation() const
 {
-	FMatrix ViewportMatrix;
+	return CameraViewportRotation[(int)CameraViewportMode];
+}
+
+FMatrix UNiagaraBakerSettings::GetViewportMatrix() const
+{
 	switch (CameraViewportMode)
 	{
-		case ENiagaraBakerViewMode::OrthoFront:	ViewportMatrix = FMatrix(-FVector::ZAxisVector, -FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraBakerViewMode::OrthoBack:	ViewportMatrix = FMatrix( FVector::ZAxisVector,  FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraBakerViewMode::OrthoLeft:	ViewportMatrix = FMatrix(-FVector::XAxisVector,  FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraBakerViewMode::OrthoRight:	ViewportMatrix = FMatrix( FVector::XAxisVector, -FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector); break;
-		case ENiagaraBakerViewMode::OrthoTop:	ViewportMatrix = FMatrix( FVector::XAxisVector, -FVector::YAxisVector, -FVector::ZAxisVector, FVector::ZeroVector); break;
-		case ENiagaraBakerViewMode::OrthoBottom:	ViewportMatrix = FMatrix(-FVector::XAxisVector, -FVector::YAxisVector,  FVector::ZAxisVector, FVector::ZeroVector); break;
+		case ENiagaraBakerViewMode::OrthoFront:		return FMatrix(-FVector::ZAxisVector, -FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector);
+		case ENiagaraBakerViewMode::OrthoBack:		return FMatrix( FVector::ZAxisVector,  FVector::XAxisVector,  FVector::YAxisVector, FVector::ZeroVector);
+		case ENiagaraBakerViewMode::OrthoLeft:		return FMatrix(-FVector::XAxisVector,  FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector);
+		case ENiagaraBakerViewMode::OrthoRight:		return FMatrix( FVector::XAxisVector, -FVector::ZAxisVector,  FVector::YAxisVector, FVector::ZeroVector);
+		case ENiagaraBakerViewMode::OrthoTop:		return FMatrix( FVector::XAxisVector, -FVector::YAxisVector, -FVector::ZAxisVector, FVector::ZeroVector);
+		case ENiagaraBakerViewMode::OrthoBottom:	return FMatrix(-FVector::XAxisVector, -FVector::YAxisVector,  FVector::ZAxisVector, FVector::ZeroVector);
 
-		default: ViewportMatrix = FMatrix::Identity; break;
+		default: return FMatrix::Identity;
 	}
+}
 
-	return FInverseRotationMatrix(CameraViewportRotation[(int)CameraViewportMode]) * ViewportMatrix;
+FMatrix UNiagaraBakerSettings::GetViewMatrix() const
+{
+	return FInverseRotationMatrix(GetCameraRotation()) * GetViewportMatrix();
 }
 
 FMatrix UNiagaraBakerSettings::GetProjectionMatrixForTexture(int32 iOutputTextureIndex) const

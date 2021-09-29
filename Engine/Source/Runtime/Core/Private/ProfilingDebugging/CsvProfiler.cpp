@@ -2035,8 +2035,7 @@ private:
 		{
 			Series = StatSeriesArray[StatIndex];
 #if DO_CHECK
-			FString StatName = StatRegister.GetStatName(StatIndex);
-			checkf(SeriesType == Series->SeriesType, TEXT("Stat named %s was used in multiple stat types. Can't use same identifier for different stat types. Stat types are: Custom(Int), Custom(Float) and Timing"), *StatName);
+			checkf(SeriesType == Series->SeriesType, TEXT("Stat named %s was used in multiple stat types. Can't use same identifier for different stat types. Stat types are: Custom(Int), Custom(Float) and Timing"), *StatRegister.GetStatName(StatIndex));
 #endif
 		}
 		return Series;
@@ -2301,6 +2300,8 @@ public:
 		GCsvProcessingThreadId = FPlatformTLS::GetCurrentThreadId();
 		GGameThreadIsCsvProcessingThread = false;
 
+		FMemory::SetupTLSCachesOnCurrentThread();
+
 		LLM_SCOPE(ELLMTag::CsvProfiler);
 
 		while (StopCounter.GetValue() == 0)
@@ -2316,6 +2317,8 @@ public:
 			float SleepTimeSeconds = FMath::Max(TimeBetweenUpdatesMS - ElapsedMS, 0.0f) / 1000.0f;
 			FPlatformProcess::Sleep(SleepTimeSeconds);
 		}
+
+		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
 
 		return 0;
 	}

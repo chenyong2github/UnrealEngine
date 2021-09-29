@@ -570,9 +570,12 @@ void FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(UObject* OldObject, UObject* 
 	{
 		const int32 CachedLinkerIndex = OldObject->GetLinkerIndex();
 		FObjectExport& ObjExport = OldObjectLinker->ExportMap[CachedLinkerIndex];
-
+		
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// Since we don't copy the internal flags, the mirrored flag needs to be cleared as well
+		const EObjectFlags OldObjectFlags = OldObject->GetFlags() & ~RF_PendingKill;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Detach the old object to make room for the new
-		const EObjectFlags OldObjectFlags = OldObject->GetFlags();
 		OldObject->ClearFlags(RF_NeedLoad|RF_NeedPostLoad|RF_NeedPostLoadSubobjects);
 		OldObject->SetLinker(nullptr, INDEX_NONE, true);
 
@@ -1317,7 +1320,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 			*GetArchiveName())
 	}
 
-#if PLATFORM_WINDOWS && DO_GUARD_SLOW
+#if PLATFORM_WINDOWS
 	if (!FPlatformProperties::RequiresCookedData() &&
 		// We can't check the post tag if the file is an EDL cooked package
 		!((Summary.GetPackageFlags() & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
@@ -4616,7 +4619,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 
 			FString OuterName = Export.OuterIndex.IsNull() ? LinkerRoot->GetFullName() : GetFullImpExpName(Export.OuterIndex);
 			FString ClassName = GetClassName(Export.ThisIndex).ToString();
-			UE_LOG(LogLinker, Warning, TEXT("Unable to load %s with outer %s because its class (%s) does not exist"), *Export.ObjectName.ToString(), *OuterName, *ClassName);
+			UE_CLOG(Export.ObjectFlags & EObjectFlags::RF_Public, LogLinker, Warning, TEXT("Unable to load %s with outer %s because its class (%s) does not exist"), *Export.ObjectName.ToString(), *OuterName, *ClassName);
 			return nullptr;
 		}
 

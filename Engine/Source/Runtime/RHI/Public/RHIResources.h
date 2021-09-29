@@ -2328,29 +2328,27 @@ struct FBoundShaderStateInput
 		FRHIMeshShader* InMeshShaderRHI,
 		FRHIAmplificationShader* InAmplificationShader,
 		FRHIPixelShader* InPixelShaderRHI)
-		: MeshShaderRHI(InMeshShaderRHI)
+		: PixelShaderRHI(InPixelShaderRHI)
+		, MeshShaderRHI(InMeshShaderRHI)
 		, AmplificationShaderRHI(InAmplificationShader)
-		, PixelShaderRHI(InPixelShaderRHI)
 	{
 	}
 #endif
 
 	void AddRefResources()
 	{
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-		if (MeshShaderRHI)
+		if (GetMeshShader())
 		{
 			check(VertexDeclarationRHI == nullptr);
 			check(VertexShaderRHI == nullptr);
-			MeshShaderRHI->AddRef();
+			GetMeshShader()->AddRef();
 
-			if (AmplificationShaderRHI)
+			if (GetAmplificationShader())
 			{
-				AmplificationShaderRHI->AddRef();
+				GetAmplificationShader()->AddRef();
 			}
 		}
 		else
-#endif
 		{
 			check(VertexDeclarationRHI);
 			VertexDeclarationRHI->AddRef();
@@ -2364,28 +2362,26 @@ struct FBoundShaderStateInput
 			PixelShaderRHI->AddRef();
 		}
 
-		if (GeometryShaderRHI)
+		if (GetGeometryShader())
 		{
-			GeometryShaderRHI->AddRef();
+			GetGeometryShader()->AddRef();
 		}
 	}
 
 	void ReleaseResources()
 	{
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-		if (MeshShaderRHI)
+		if (GetMeshShader())
 		{
 			check(VertexDeclarationRHI == nullptr);
 			check(VertexShaderRHI == nullptr);
-			MeshShaderRHI->Release();
+			GetMeshShader()->Release();
 
-			if (AmplificationShaderRHI)
+			if (GetAmplificationShader())
 			{
-				AmplificationShaderRHI->Release();
+				GetAmplificationShader()->Release();
 			}
 		}
 		else
-#endif
 		{
 			check(VertexDeclarationRHI);
 			VertexDeclarationRHI->Release();
@@ -2399,18 +2395,46 @@ struct FBoundShaderStateInput
 			PixelShaderRHI->Release();
 		}
 
-		if (GeometryShaderRHI)
+		if (GetGeometryShader())
 		{
-			GeometryShaderRHI->Release();
+			GetGeometryShader()->Release();
 		}
 	}
 
+	FRHIVertexShader* GetVertexShader() const { return VertexShaderRHI; }
+	FRHIPixelShader* GetPixelShader() const { return PixelShaderRHI; }
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	FRHIMeshShader* GetMeshShader() const { return MeshShaderRHI; }
+	void SetMeshShader(FRHIMeshShader* InMeshShader) { MeshShaderRHI = InMeshShader; }
+	FRHIAmplificationShader* GetAmplificationShader() const { return AmplificationShaderRHI; }
+	void SetAmplificationShader(FRHIAmplificationShader* InAmplificationShader) { AmplificationShaderRHI = InAmplificationShader; }
+#else
+	constexpr FRHIMeshShader* GetMeshShader() const { return nullptr; }
+	void SetMeshShader(FRHIMeshShader*) {}
+	constexpr FRHIAmplificationShader* GetAmplificationShader() const { return nullptr; }
+	void SetAmplificationShader(FRHIAmplificationShader*) {}
+#endif
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	FRHIGeometryShader* GetGeometryShader() const { return GeometryShaderRHI; }
+	void SetGeometryShader(FRHIGeometryShader* InGeometryShader) { GeometryShaderRHI = InGeometryShader; }
+#else
+	constexpr FRHIGeometryShader* GetGeometryShader() const { return nullptr; }
+	void SetGeometryShader(FRHIGeometryShader*) {}
+#endif
+
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
 	FRHIVertexShader* VertexShaderRHI = nullptr;
+	FRHIPixelShader* PixelShaderRHI = nullptr;
+private:
+#if PLATFORM_SUPPORTS_MESH_SHADERS
 	FRHIMeshShader* MeshShaderRHI = nullptr;
 	FRHIAmplificationShader* AmplificationShaderRHI = nullptr;
-	FRHIPixelShader* PixelShaderRHI = nullptr;
+#endif
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FRHIGeometryShader* GeometryShaderRHI = nullptr;
+#endif
 };
 
 struct FImmutableSamplerState
@@ -2556,13 +2580,9 @@ public:
 		if (BoundShaderState.VertexDeclarationRHI != rhs.BoundShaderState.VertexDeclarationRHI ||
 			BoundShaderState.VertexShaderRHI != rhs.BoundShaderState.VertexShaderRHI ||
 			BoundShaderState.PixelShaderRHI != rhs.BoundShaderState.PixelShaderRHI ||
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-			BoundShaderState.MeshShaderRHI != rhs.BoundShaderState.MeshShaderRHI ||
-			BoundShaderState.AmplificationShaderRHI != rhs.BoundShaderState.AmplificationShaderRHI ||
-#endif
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			BoundShaderState.GeometryShaderRHI != rhs.BoundShaderState.GeometryShaderRHI ||
-#endif
+			BoundShaderState.GetMeshShader() != rhs.BoundShaderState.GetMeshShader() ||
+			BoundShaderState.GetAmplificationShader() != rhs.BoundShaderState.GetAmplificationShader() ||
+			BoundShaderState.GetGeometryShader() != rhs.BoundShaderState.GetGeometryShader() ||
 			BlendState != rhs.BlendState ||
 			RasterizerState != rhs.RasterizerState ||
 			DepthStencilState != rhs.DepthStencilState ||

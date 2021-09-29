@@ -944,7 +944,7 @@ public:
 				PsoInit.BoundShaderState.VertexDeclarationRHI,
 				PsoInit.BoundShaderState.VertexShaderRHI,
 				PsoInit.BoundShaderState.PixelShaderRHI,
-				GEOMETRY_SHADER(PsoInit.BoundShaderState.GeometryShaderRHI),
+				PsoInit.BoundShaderState.GetGeometryShader(),
 				PsoInit.bFromPSOFileCache
 			).GetReference()
 		);
@@ -960,7 +960,7 @@ public:
 		if (bApplyAdditionalState)
 		{
 			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.VertexShaderRHI, ResourceCast(PsoInit.BoundShaderState.VertexShaderRHI));
-			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.GeometryShaderRHI, ResourceCast(PsoInit.BoundShaderState.GeometryShaderRHI));
+			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.GetGeometryShader(), ResourceCast(PsoInit.BoundShaderState.GetGeometryShader()));
 			ApplyStaticUniformBuffers(PsoInit.BoundShaderState.PixelShaderRHI, ResourceCast(PsoInit.BoundShaderState.PixelShaderRHI));
 		}
 

@@ -500,7 +500,7 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (bIsSparseClassDataSerializable)
+	if (bIsSparseClassDataSerializable || GetOutermost()->bIsCookedForEditor)
 #endif
 	{
 		if(bSkipSparseClassDataSerialization)

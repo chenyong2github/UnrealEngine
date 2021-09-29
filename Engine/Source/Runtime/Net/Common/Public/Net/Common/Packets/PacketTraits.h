@@ -2,9 +2,19 @@
 
 #pragma once
 
-// includes
+// Includes
 #include "CoreMinimal.h"
+#include "Templates/PimplPtr.h"
 
+
+// Forward declarations
+namespace UE
+{
+	namespace Net
+	{
+		struct FNetResult;
+	}
+}
 
 
 /**
@@ -52,16 +62,11 @@ struct FInPacketTraits
 	/** Traits */
 
 	/** This packet is not associated with a connection */
-	bool bConnectionlessPacket;
+	bool bConnectionlessPacket = false;
 
 	/** This is a connectionless packet, from a recently disconnected connection. */
-	bool bFromRecentlyDisconnected;
+	bool bFromRecentlyDisconnected = false;
 
-
-	/** Default constructor */
-	FInPacketTraits()
-		: bConnectionlessPacket(false)
-		, bFromRecentlyDisconnected(false)
-	{
-	}
+	/** If there was an error processing the incoming packet, any additional error information is stored here */
+	TPimplPtr<UE::Net::FNetResult, EPimplPtrMode::DeepCopy> ExtendedError;
 };

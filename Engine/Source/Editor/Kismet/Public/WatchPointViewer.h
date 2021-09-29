@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 struct FAssetData;
 class UBlueprint;
+class FTabManager;
 
 #define WATCH_VIEWER_DEPRECATED
 

@@ -60,6 +60,12 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoAruco::BuildUI()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Calibrator", "Calibrator"), BuildCalibrationDevicePickerWidget())]
 
+		+ SVerticalBox::Slot() // Calibrator component picker
+		.VAlign(EVerticalAlignment::VAlign_Top)
+		.AutoHeight()
+		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("CalibratorComponents", "Calibrator Component(s)"), BuildCalibrationComponentPickerWidget())]
+
 		+ SVerticalBox::Slot() // Calibrator point names
 		.AutoHeight()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
@@ -139,24 +145,29 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 			BUILD_ARUCO_INFO(DICT_ARUCO_ORIGINAL),
 		};
 
-		TArray<UCalibrationPointComponent*, TInlineAllocator<4>> CalibrationPoints;
-		Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<4>>(CalibrationPoints);
-
-		for (const UCalibrationPointComponent* CalibrationPoint : CalibrationPoints)
+		for (const TWeakObjectPtr<const UCalibrationPointComponent>& CalibrationComponentPtr : ActiveCalibratorComponents)
 		{
-			for (FArucoDictionaryInfo& Dictionary : Dictionaries)
+			if (const UCalibrationPointComponent* const CalibrationComponent = CalibrationComponentPtr.Get())
 			{
-				if (CalibrationPoint->GetName().StartsWith(FString::Printf(TEXT("%s-"), *Dictionary.Name)))
+				for (FArucoDictionaryInfo& Dictionary : Dictionaries)
 				{
-					DictionaryInfo = Dictionary;
-					break;
-				}
-
-				for (const TPair<FString, FVector>& SubPoint: CalibrationPoint->SubPoints)
-				{
-					if (SubPoint.Key.StartsWith(FString::Printf(TEXT("%s-"), *Dictionary.Name)))
+					if (CalibrationComponent->GetName().StartsWith(FString::Printf(TEXT("%s-"), *Dictionary.Name)))
 					{
 						DictionaryInfo = Dictionary;
+						break;
+					}
+
+					for (const TPair<FString, FVector>& SubPoint : CalibrationComponent->SubPoints)
+					{
+						if (SubPoint.Key.StartsWith(FString::Printf(TEXT("%s-"), *Dictionary.Name)))
+						{
+							DictionaryInfo = Dictionary;
+							break;
+						}
+					}
+
+					if (!DictionaryInfo.Dict.empty())
+					{
 						break;
 			}
 				}
@@ -166,11 +177,6 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 				break;
 			}
 		}
-
-			if (!DictionaryInfo.Dict.empty())
-			{
-				break;
-			}
 	}
 	}
 
@@ -218,6 +224,14 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 	cv::aruco::detectMarkers(CvGray, DictionaryInfo.Dict, MarkerCorners, MarkerIds, DetectorParameters);
 
 	check((Size.X > 0) && (Size.Y > 0));
+
+	if (MarkerCorners.empty())
+	{
+		OutErrorMessage = LOCTEXT("NoMarkerCornersFound", "No Aruco markers were detected in the media image, "
+			"or they did not match the aruco dictionary of any of the selected calibrator components."
+		);
+		return false;
+	}
 
 	// Show the detection to the user
 	if (bShouldShowDetectionWindow)

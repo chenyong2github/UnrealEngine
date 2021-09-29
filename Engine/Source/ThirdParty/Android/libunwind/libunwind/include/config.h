@@ -15,7 +15,7 @@
 #define CONSERVATIVE_CHECKS 1
 
 /* Allocate large structures rather than place them on the stack. */
-#define CONSERVE_STACK /**/
+// #define CONSERVE_STACK /**/
 
 /* Define to 1 if you have the <asm/ptrace_offsets.h> header file. */
 /* #undef HAVE_ASM_PTRACE_OFFSETS_H */

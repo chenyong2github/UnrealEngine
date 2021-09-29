@@ -59,6 +59,12 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoCheckerboard::BuildUI()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Checkerboard", "Checkerboard"), BuildCheckerboardPickerWidget())]
 
+		+ SVerticalBox::Slot() // Calibrator component picker
+		.VAlign(EVerticalAlignment::VAlign_Top)
+		.AutoHeight()
+		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("CalibratorComponents", "Calibrator Component(s)"), BuildCalibrationComponentPickerWidget())]
+
 		+ SVerticalBox::Slot() // Calibration Rows
 		.AutoHeight()
 		.MaxHeight(12 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)

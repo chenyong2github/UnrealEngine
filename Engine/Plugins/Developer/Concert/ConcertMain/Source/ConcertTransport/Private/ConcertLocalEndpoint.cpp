@@ -123,8 +123,11 @@ FConcertLocalEndpoint::~FConcertLocalEndpoint()
 	}
 
 	// Disable the Endpoint message handling since the message could keep it alive a bit.
-	MessageEndpoint->Disable();
-	MessageEndpoint.Reset();
+	if (MessageEndpoint)
+	{
+		MessageEndpoint->Disable();
+		MessageEndpoint.Reset();
+	}
 
 	Logger.StopLogging();
 }

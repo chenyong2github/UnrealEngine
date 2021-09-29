@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h"
 
 class IPlugin;
 struct FSlateBrush;
@@ -55,7 +57,7 @@ public:
 /**
  * Widget that represents a single category in the category tree view
  */
-class SPluginCategory : public SCompoundWidget
+class SPluginCategory : public STableRow< TSharedPtr<FPluginCategory>>
 {
 	SLATE_BEGIN_ARGS( SPluginCategory )
 	{
@@ -64,7 +66,7 @@ class SPluginCategory : public SCompoundWidget
 	SLATE_END_ARGS()
 
 	/** Widget constructor */
-	void Construct(const FArguments& Args, const TSharedRef<FPluginCategory>& Item);
+	void Construct(const FArguments& Args, const TSharedRef<STableViewBase>& InOwnerTableView, const TSharedRef<FPluginCategory>& Item);
 
 private:
 

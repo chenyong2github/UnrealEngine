@@ -2,7 +2,7 @@
 #include "CoreTechInterfaceImpl.h"
 
 #include "CADInterfacesModule.h"
-#include "CoretechFileParser.h"
+#include "CoreTechFileParser.h"
 
 #include "Misc/Paths.h"
 
@@ -411,6 +411,7 @@ namespace CADLibrary
 					ensure(CT_CURRENT_ATTRIB_IO::SetStrField(ITH_NAME_VALUE, MarkedBodies[Entry.Key]) == IO_OK);
 				}
 			}
+			CT_FILTER_IO::DeleteAllFilters();
 		}
 		// sew disconnected faces back together
 		// to be sure that there is no topology modification, this function has to be called body by body.
@@ -445,6 +446,9 @@ namespace CADLibrary
 
 	bool FCoreTechInterfaceImpl::SetCoreTechTessellationState(const FImportParameters& ImportParams)
 	{
+		bScaleUVMap = ImportParams.NeedScaleUVMap();
+		ScaleFactor = ImportParams.GetScaleFactor();
+
 		CT_DOUBLE CurrentUnit = 0.001;
 
 		// convert max edge length to model units
@@ -458,22 +462,59 @@ namespace CADLibrary
 		return ChangeTesselationParameters(ImportParams.GetChordTolerance() / ImportParams.GetScaleFactor(), ModelUnit, ImportParams.GetMaxNormalAngle());
 	}
 
-	//ECADParsingResult FCoreTechInterfaceImpl::LoadFile(const FFileDescription& InFileDescription, const FImportParameters& InImportParameters, const FString& InCachePath, FArchiveSceneGraph& OutSceneGraphArchive, TArray<FString>& OutWarningMessages, TArray<FBodyMesh>& OutBodyMeshes)
-	//{
-	//	FCoreTechFileReader::FContext Context(InImportParameters, InCachePath, OutSceneGraphArchive, OutWarningMessages, OutBodyMeshes);
+	int32 GetColorName(CT_OBJECT_ID ObjectID)
+	{
+		FColor Color;
+		if (CT_OBJECT_IO::SearchAttribute(ObjectID, CT_ATTRIB_COLORID) == IO_OK)
+		{
+			CT_UINT32 ColorId = 0;
+			if (CT_CURRENT_ATTRIB_IO::AskIntField(ITH_COLORID_VALUE, ColorId) == IO_OK && ColorId > 0)
+			{
+				CT_COLOR CtColor = { 200, 200, 200 };
+				if (ColorId > 0)
+				{
+					if (CT_MATERIAL_IO::AskIndexedColor((CT_OBJECT_ID)ColorId, CtColor) != IO_OK)
+					{
+						return false;
+					}
+					Color.R = CtColor[0];
+					Color.G = CtColor[1];
+					Color.B = CtColor[2];
+				}
 
-	//	FCoreTechFileReader FileReader(Context);
-
-	//	ECoreTechParsingResult Result = FileReader.ProcessFile(InFileDescription);
-
-	//	return Result;
-	//}
+				uint8 Alpha = 255;
+				if (CT_OBJECT_IO::SearchAttribute(ObjectID, CT_ATTRIB_TRANSPARENCY) == IO_OK)
+				{
+					CT_DOUBLE dbl_value = 0.;
+					if (CT_CURRENT_ATTRIB_IO::AskDblField(0, dbl_value) == IO_OK && dbl_value >= 0.0 && dbl_value <= 1.0)
+					{
+						Alpha = (uint8)int((1. - dbl_value) * 255.);
+					}
+				}
+				Color.A = Alpha;
+				return BuildColorName(Color);
+			}
+		}
+		return 0;
+	}
 
 	void FCoreTechInterfaceImpl::GetTessellation(uint64 ObjectId, FBodyMesh& OutBodyMesh, bool bIsBody)
 	{
+		TFunction<void(CT_OBJECT_ID, int32, FTessellationData&)> ProcessFace;
+		ProcessFace = [&](CT_OBJECT_ID FaceID, int32 Index, FTessellationData& Tessellation)
+		{
+			int32 ColorName = GetColorName(FaceID);
+			Tessellation.ColorName = ColorName;
+
+			if (bScaleUVMap && Tessellation.TexCoordArray.Num() > 0)
+			{
+				CoreTechFileParserUtils::ScaleUV(FaceID, Tessellation.TexCoordArray, (float) ScaleFactor);
+			}
+		};
+
 		if (bIsBody)
 		{
-			CoreTechFileParserUtils::GetBodyTessellation(ObjectId, OutBodyMesh);
+			CoreTechFileParserUtils::GetBodyTessellation(ObjectId, OutBodyMesh, ProcessFace);
 		}
 		else
 		{
@@ -487,7 +528,7 @@ namespace CADLibrary
 
 			while (CT_OBJECT_ID BodyId = ObjectList.IteratorIter())
 			{
-				CoreTechFileParserUtils::GetBodyTessellation(BodyId, OutBodyMesh);
+				CoreTechFileParserUtils::GetBodyTessellation(BodyId, OutBodyMesh, ProcessFace);
 			}
 		}
 	}

@@ -1142,9 +1142,9 @@ namespace Chaos
 		return false;
 	}
 
-	bool Chaos::FHeightField::GetGridIntersections(FBounds2D InFlatBounds, TArray<TVec2<int32>>& OutInterssctions) const
+	bool Chaos::FHeightField::GetGridIntersections(FBounds2D InFlatBounds, TArray<TVec2<int32>>& OutIntersections) const
 	{
-		OutInterssctions.Reset();
+		OutIntersections.Reset();
 
 		const FBounds2D FlatBounds = GetFlatBounds();
 		const FVec2 Scale2D(GeomData.Scale[0], GeomData.Scale[1]);
@@ -1160,15 +1160,16 @@ namespace Chaos
 		const int32 NumX = MaxCell[0] - MinCell[0] + 1;
 		const int32 NumY = MaxCell[1] - MinCell[1] + 1;
 
+		OutIntersections.Reserve(NumX * NumY);
 		for(int32 CurrX = 0; CurrX < NumX; ++CurrX)
 		{
 			for(int32 CurrY = 0; CurrY < NumY; ++CurrY)
 			{
-				OutInterssctions.Add(FlatGrid.ClampIndex(TVec2<int32>(MinCell[0] + CurrX, MinCell[1] + CurrY)));
+				OutIntersections.Add(FlatGrid.ClampIndex(TVec2<int32>(MinCell[0] + CurrX, MinCell[1] + CurrY)));
 			}
 		}
 
-		return OutInterssctions.Num() > 0;
+		return OutIntersections.Num() > 0;
 	}
 
 	typename Chaos::FHeightField::FBounds2D Chaos::FHeightField::GetFlatBounds() const

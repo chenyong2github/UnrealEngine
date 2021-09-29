@@ -54,25 +54,42 @@ public:
 	template <typename T>
 	struct TReferenceInfo
 	{
+		// Maximum number of stack frames to keep for AddReferencedObjects function calls
+		static constexpr uint32 MaxStackFrames = 30;
+
 		/** Object that is being referenced */
 		T* Object;
 		/** Type of reference to the object being referenced */
 		EReferenceType Type;
 		/** Name of the object or property that is referencing this object */
 		FName ReferencerName;
+		uint64 StackFrames[MaxStackFrames];
+		int32 NumStackFrames;
 
 		/** Default ctor */
 		TReferenceInfo()
 			: Object(nullptr)
 			, Type(EReferenceType::Unknown)
-		{}
+		{
+			InitStackFrames(nullptr, 0);
+		}
 
-		/** Ctor */
-		TReferenceInfo(T* InObject, EReferenceType InType = EReferenceType::Unknown, const FName& InReferencerName = NAME_None)
+		/** Simple refernce constructor. Probably will be filled with more info later */
+		TReferenceInfo(T* InObject)
+			: Object(InObject)
+			, Type(EReferenceType::Unknown)
+		{
+			InitStackFrames(nullptr, 0);
+		}
+
+		/** Full reference infor constructor */
+		TReferenceInfo(T* InObject, EReferenceType InType, const FName& InReferencerName, uint64* InStackFrames, int32 InNumStackFrames)
 			: Object(InObject)
 			, Type(InType)
 			, ReferencerName(InReferencerName)
-		{}
+		{
+			InitStackFrames(InStackFrames, InNumStackFrames);
+		}
 
 		bool operator == (const TReferenceInfo& Other) const
 		{
@@ -103,6 +120,18 @@ public:
 				}
 			}
 			return FString();
+		}
+	private:
+
+		void InitStackFrames(uint64* InStackFrames,int32 InNumStackFrames)
+		{
+			check(InNumStackFrames <= MaxStackFrames);
+			NumStackFrames = InNumStackFrames;
+			FMemory::Memset(StackFrames, 0, sizeof(StackFrames));
+			if (InStackFrames && InNumStackFrames)
+			{
+				FMemory::Memcpy(StackFrames, InStackFrames, InNumStackFrames * sizeof(uint64));
+			}
 		}
 	};
 
@@ -191,6 +220,21 @@ public:
 		bool IsExternal() const;
 	};
 
+	/** Parameters passed to callback function when printing results */
+	struct FCallbackParams
+	{
+		/** Referenced object */
+		UObject* Object = nullptr;
+		/** Object that is referencing the current object */
+		UObject* Referencer = nullptr;
+		/** Information about the type of reference (Referencer -> Object) */
+		const FNodeReferenceInfo* ReferenceInfo = nullptr;
+		/** For use when outputting custom information: current indent */
+		int32 Indent = 0;
+		/** Output device used for printing */
+		FOutputDevice* Out = nullptr;
+	};
+
 	/** Constructs a new search engine and finds references to the specified object */
 	COREUOBJECT_API FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
 
@@ -203,8 +247,21 @@ public:
 	 */
 	COREUOBJECT_API void PrintResults(bool bDumpAllChains = false) const;
 
+	/**
+	 * Dumps results to log
+	 * @param ReferenceCallback - function called when processing each reference, if true is returned the next reference will be processed otherwise printing will be aborted
+	 * @param bDumpAllChains - if set to false, the output will be trimmed to the first 100 reference chains
+	 */
+	COREUOBJECT_API void PrintResults(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, bool bDumpAllChains = false) const;
+
 	/** Returns a string with a short report explaining the root path, will contain newlines */
 	COREUOBJECT_API FString GetRootPath() const;
+
+	/** 
+	 * Returns a string with a short report explaining the root path, will contain newlines 
+	 * @param ReferenceCallback - function called when processing each reference, if true is returned the next reference will be processed otherwise printing will be aborted
+	 */
+	COREUOBJECT_API FString GetRootPath(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback) const;
 
 	/** Returns all reference chains */
 	COREUOBJECT_API const TArray<FReferenceChain*>& GetReferenceChains() const
@@ -246,7 +303,5 @@ private:
 	/** Returns a string with all flags (we care about) set on an object */
 	static FString GetObjectFlags(UObject* InObject);
 	/** Dumps a reference chain to log */
-	static void DumpChain(FReferenceChain* Chain);
-	/** Writes a reference chain to a string */
-	static void WriteChain(FReferenceChain* Chain, FString& OutString);
+	static void DumpChain(FReferenceChainSearch::FReferenceChain* Chain, TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, FOutputDevice& Out);
 };

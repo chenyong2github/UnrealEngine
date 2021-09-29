@@ -636,9 +636,7 @@ void ALandscapeGizmoActiveActor::EditorApplyRotation(const FRotator& DeltaRotati
 ALandscapeGizmoActor* ALandscapeGizmoActiveActor::SpawnGizmoActor()
 {
 	// ALandscapeGizmoActor is history for ALandscapeGizmoActiveActor
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.ObjectFlags |= RF_Transient;
-	ALandscapeGizmoActor* NewActor = GetWorld()->SpawnActor<ALandscapeGizmoActor>(SpawnParams);
+	ALandscapeGizmoActor* NewActor = GetWorld()->SpawnActor<ALandscapeGizmoActor>();
 	Duplicate(NewActor);
 	return NewActor;
 }

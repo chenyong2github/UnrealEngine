@@ -138,7 +138,7 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 				{
 					Component->AnimScriptInstance = CachedAnimInstance.Get();
 					CachedAnimInstance.Reset();
-					if (Component->AnimScriptInstance && Component->SkeletalMesh)
+					if (Component->AnimScriptInstance && Component->SkeletalMesh && Component->AnimScriptInstance->CurrentSkeleton != Component->SkeletalMesh->GetSkeleton())
 					{
 						//the skeleton may have changed so need to recalc required bones as needed.
 						Component->AnimScriptInstance->CurrentSkeleton = Component->SkeletalMesh->GetSkeleton();

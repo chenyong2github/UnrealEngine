@@ -121,6 +121,9 @@ namespace CADLibrary
 
 		bool bIsExternal = false;
 		bool bIsInitialize = false;
+
+		bool bScaleUVMap = false;
+		double ScaleFactor = 1;
 	};
 }
 

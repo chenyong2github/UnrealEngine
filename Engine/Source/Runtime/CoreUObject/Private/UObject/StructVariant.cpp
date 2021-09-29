@@ -130,6 +130,14 @@ const void* FStructVariant::GetStructInstance(const UScriptStruct* InExpectedTyp
 	return nullptr;
 }
 
+void FStructVariant::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+{
+	if (UScriptStruct* StructTypePtr = const_cast<UScriptStruct*>(GetStructType()))
+	{
+		OutDeps.Add(StructTypePtr);
+	}
+}
+
 bool FStructVariant::Serialize(FStructuredArchive::FSlot Slot)
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
@@ -145,6 +153,10 @@ bool FStructVariant::Serialize(FStructuredArchive::FSlot Slot)
 	else if (UnderlyingArchive.IsLoading())
 	{
 		Record << SA_VALUE(TEXT("StructType"), StructTypePtr);
+		if (StructTypePtr)
+		{
+			UnderlyingArchive.Preload(StructTypePtr);
+		}
 		SetStructType(StructTypePtr);
 	}
 

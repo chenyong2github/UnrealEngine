@@ -135,6 +135,10 @@ namespace UE
 		protected:
 			/* FGCObject interface */
 			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+			virtual FString GetReferencerName() const override
+			{
+				return TEXT("UE::Interchange::FImportResult");
+			}
 
 		private:
 			std::atomic< EStatus > ImportStatus;
@@ -163,6 +167,10 @@ namespace UE
 
 			/* FGCObject interface */
 			virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+			virtual FString GetReferencerName() const override
+			{
+				return TEXT("UE::Interchange::FImportAsyncHelper");
+			}
 
 			//The following Arrays are per source data
 			TArray<TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;

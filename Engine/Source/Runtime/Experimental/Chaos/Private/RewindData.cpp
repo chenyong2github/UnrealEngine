@@ -163,22 +163,22 @@ bool FRewindData::RewindToFrame(int32 Frame)
 	{
 		if (bResimAsSlave)
 		{
-			//If we're rewinding a particle that doesn't need to save head (resim as slave never checks for desync so we don't care about head)
-			if (auto Val = Property.Read(RewindFrameAndPhase, PropertiesPool))
-			{
+	//If we're rewinding a particle that doesn't need to save head (resim as slave never checks for desync so we don't care about head)
+		if (auto Val = Property.Read(RewindFrameAndPhase, PropertiesPool))
+		{
 				RewindFunc(Obj, *Val);
 			}
 		}
 		else
-		{
+	{
 			//If we're rewinding an object that needs to save head (during resim when we get back to latest frame and phase we need to check for desync)
-			if (!Property.IsClean(RewindFrameAndPhase))
-			{
+		if (!Property.IsClean(RewindFrameAndPhase))
+		{
 				CopyDataFromObject(Property.WriteAccessMonotonic(CurFrameAndPhase, PropertiesPool), *Obj);
 				RewindFunc(Obj, *Property.Read(RewindFrameAndPhase, PropertiesPool));
 
-				return true;
-			}
+			return true;
+		}
 		}
 
 		return false;
@@ -236,8 +236,6 @@ bool FRewindData::RewindToFrame(int32 Frame)
 
 		FJointStateBase& History = DirtyJointInfo.AddFrame(CurFrame);	//non-const in case we need to record what's at head for a rewind (CurFrame has already been increased to the next frame)
 
-		const bool bResimAsSlave = DirtyJointInfo.bResimAsSlave;
-		bool bAnyChange = RewindHelper(Joint, bResimAsSlave, History.JointSettings, [](auto Joint, const auto& Data) {Joint->SetSettings(Data); });
 	}
 
 	CurFrame = Frame;
@@ -268,21 +266,21 @@ void FRewindData::FinishFrame()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(RewindDataFinishFrame);
 
-	if(IsResim())
+	if (IsResim())
 	{
 		FFrameAndPhase FutureFrame{ CurFrame + 1, FFrameAndPhase::PrePushData };
 
 		auto FinishHelper = [this, FutureFrame](auto& DirtyObjs)
 		{
 			for (auto& Info : DirtyObjs)
+		{
+			if (Info.bResimAsSlave)
 			{
-				if (Info.bResimAsSlave)
-				{
-					//resim as slave means always in sync and no cleanup needed
-					continue;
-				}
+				//resim as slave means always in sync and no cleanup needed
+				continue;
+			}
 
-				auto& Handle = *Info.GetObjectPtr();
+			auto& Handle = *Info.GetObjectPtr();
 				if (Handle.ResimType() == EResimType::FullResim)
 				{
 					if (IsFinalResim())
@@ -310,7 +308,7 @@ void FRewindData::FinishFrame()
 	
 
 	++CurFrame;
-	LatestFrame = FMath::Max(LatestFrame,CurFrame);
+	LatestFrame = FMath::Max(LatestFrame, CurFrame);
 }
 
 void FRewindData::DumpHistory_Internal(const int32 FramePrintOffset, const FString& Filename)
@@ -348,30 +346,30 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 	auto AdvanceHelper = [this, EarliestFrame, FrameAndPhase](auto& DirtyObjects, const auto& DesyncFunc, const auto& AdvanceDirtyFunc)
 	{
 		for (int32 DirtyIdx = DirtyObjects.Num() - 1; DirtyIdx >= 0; --DirtyIdx)
-		{
+	{
 			auto& Info = DirtyObjects.GetDenseAt(DirtyIdx);
 
-			ensure(IsResimAndInSync(*Info.GetObjectPtr()) || Info.GetHistory().IsClean(FrameAndPhase));  //Sim hasn't run yet so PostCallbacks (sim results) should be clean
+		ensure(IsResimAndInSync(*Info.GetObjectPtr()) || Info.GetHistory().IsClean(FrameAndPhase));  //Sim hasn't run yet so PostCallbacks (sim results) should be clean
 
-			//if hasn't changed in a while stop tracking
-			if (Info.LastDirtyFrame < EarliestFrame)
-			{
+		//if hasn't changed in a while stop tracking
+		if (Info.LastDirtyFrame < EarliestFrame)
+		{
 				RemoveObject(Info.GetObjectPtr());
-			}
-			else
+		}
+		else
+		{
+
+			auto Handle = Info.GetObjectPtr();
+			Info.bResimAsSlave = Handle->ResimType() == EResimType::ResimAsSlave;
+
+			if (IsResim() && !Info.bResimAsSlave)
 			{
-
-				auto Handle = Info.GetObjectPtr();
-				Info.bResimAsSlave = Handle->ResimType() == EResimType::ResimAsSlave;
-
-				if (IsResim() && !Info.bResimAsSlave)
-				{
 					DesyncIfNecessary</*bSkipDynamics=*/false>(Info, FrameAndPhase);
-				}
+			}
 
 				if (IsResim() && Handle->SyncState() != ESyncState::InSync && !SkipDesyncTest)
-				{
-					Handle->SetEnabledDuringResim(true);	//for now just mark anything out of sync as resim enabled. TODO: use bubble
+			{
+				Handle->SetEnabledDuringResim(true);	//for now just mark anything out of sync as resim enabled. TODO: use bubble
 					DesyncFunc(Handle);
 				}
 
@@ -384,7 +382,7 @@ void FRewindData::AdvanceFrameImp(IResimCacheBase* ResimCache)
 	if (IsResim())
 	{
 		DesyncedParticles.Reserve(DirtyParticles.Num());
-	}
+			}
 
 	AdvanceHelper(DirtyParticles,
 		[&DesyncedParticles](FGeometryParticleHandle* DesyncedHandle)
@@ -583,7 +581,7 @@ void FRewindData::MarkDirtyFromPT(FGeometryParticleHandle& Handle)
 			Data->CopyFrom(Handle);
 		}
 	}
-
+	
 
 	if (auto Kinematic = Handle.CastToKinematicParticle())
 	{
@@ -630,7 +628,7 @@ void FRewindData::MarkDirtyJointFromPT(FPBDJointConstraintHandle& Handle)
 }
 
 void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Handle,const int32 SrcDataIdx)
-	{
+{
 	const bool bRecordingHistory = !IsResimAndInSync(Handle);
 
 	FDirtyParticleInfo& Info = FindOrAddDirtyObj(Handle);
@@ -643,14 +641,14 @@ void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Handle,const
 	{
 		Latest.ParticlePositionRotation.WriteAccessMonotonic(FrameAndPhase, PropertiesPool).CopyFrom(Handle);
 	}
-			
+
 	if(bRecordingHistory || Latest.Velocities.IsClean(FrameAndPhase))
 	{
 		FParticleVelocities& PreVelocities = Latest.Velocities.WriteAccessMonotonic(FrameAndPhase, PropertiesPool);
 		PreVelocities.SetV(Handle.PreV());
 		PreVelocities.SetW(Handle.PreW());
 	}
-
+	
 	if(bRecordingHistory || Latest.DynamicsMisc.IsClean(FrameAndPhase))
 	{
 		FParticleDynamicMisc& PreDynamicMisc = Latest.DynamicsMisc.WriteAccessMonotonic(FrameAndPhase, PropertiesPool);

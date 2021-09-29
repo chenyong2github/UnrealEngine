@@ -181,11 +181,19 @@ void FFontData::ConditionalUpgradeBulkDataToFontFace(UObject* InOuter, UClass* I
 
 bool FFontData::operator==(const FFontData& Other) const
 {
+	// Skip the entire comparison if we are the same object
+	// This avoids costly stricmp on FontFilename when FontFaceAsset is null.
+	if (this == &Other)
+	{
+		return true;
+	}
+
 	if (FontFaceAsset != Other.FontFaceAsset)
 	{
 		// Using different assets
 		return false;
 	}
+
 	if (FontFaceAsset && FontFaceAsset == Other.FontFaceAsset)
 	{
 		// Using the same asset

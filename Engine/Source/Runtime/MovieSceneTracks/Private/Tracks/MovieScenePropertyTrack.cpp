@@ -75,6 +75,11 @@ FText UMovieScenePropertyTrack::GetDefaultDisplayName() const
 	return FText::FromName(PropertyBinding.PropertyName);
 }
 
+FText UMovieScenePropertyTrack::GetDisplayNameToolTipText() const
+{
+	return FText::FromName(PropertyBinding.PropertyPath);
+}
+
 FName UMovieScenePropertyTrack::GetTrackName() const
 {
 	return UniqueTrackName;

@@ -421,6 +421,13 @@ public:
 	virtual FText GetDisplayName() const PURE_VIRTUAL(UMovieSceneTrack::GetDisplayName, return FText::FromString(TEXT("Unnamed Track")););
 
 	/**
+	 * Get the track's display tooltip text to be shown on the track's name.
+	 *
+	 * @return Display tooltip text.
+	 */
+	virtual FText GetDisplayNameToolTipText() const { return FText::GetEmpty(); }
+
+	/**
 	 * Get this track's color tint.
 	 *
 	 * @return Color Tint.

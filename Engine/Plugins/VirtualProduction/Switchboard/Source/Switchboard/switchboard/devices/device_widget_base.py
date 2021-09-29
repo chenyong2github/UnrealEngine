@@ -1,12 +1,12 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from switchboard.config import CONFIG
-from switchboard.switchboard_widgets import FramelessQLineEdit
-from switchboard.devices.device_base import Device, DeviceStatus
-import switchboard.switchboard_widgets as sb_widgets
+from typing import Dict, Optional
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import os
+from switchboard.switchboard_widgets import FramelessQLineEdit
+from switchboard.devices.device_base import DeviceStatus
+import switchboard.switchboard_widgets as sb_widgets
+
 
 ip_regex = QtCore.QRegExp("^\\s*((([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])\\.){3}([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5]))\\s*$")
 ip_validator = QtGui.QRegExpValidator(ip_regex)
@@ -49,7 +49,7 @@ class DeviceWidget(QtWidgets.QWidget):
         # Status Label
         self.status_icon = QtWidgets.QLabel()
         self.status_icon.setGeometry(0, 0, 11, 1)
-        pixmap = QtGui.QPixmap(f":/icons/images/status_blank_disabled.png")
+        pixmap = QtGui.QPixmap(":/icons/images/status_blank_disabled.png")
         self.status_icon.setPixmap(pixmap)
         self.status_icon.resize(pixmap.width(), pixmap.height())
 
@@ -70,13 +70,13 @@ class DeviceWidget(QtWidgets.QWidget):
         self.name_line_edit.editingFinished.connect(self.on_name_edited)
 
         self.name_line_edit.setText(name)
-        self.name_line_edit.setFont(QtGui.QFont("Roboto", 14, QtGui.QFont.Bold))
+        self.name_line_edit.setObjectName('device_name')
         self.name_line_edit.setMaximumSize(QtCore.QSize(150, 40))
         # 20 + 11 + 60 + 150
 
         # IP Address Label
         self.ip_address_line_edit = FramelessQLineEdit()
-        self.ip_address_line_edit.setFont(QtGui.QFont("Roboto", 10))
+        self.ip_address_line_edit.setObjectName('device_address')
         self.ip_address_line_edit.setValidator(ip_validator)
         self.ip_address_line_edit.editingFinished.connect(self.on_ip_address_edited)
         self.ip_address_line_edit.setText(ip_address)
@@ -110,11 +110,10 @@ class DeviceWidget(QtWidgets.QWidget):
 
         # Set style as disconnected
         for label in [self.name_line_edit, self.ip_address_line_edit]:
-            label.setProperty("disconnected", True)
-            label.setStyle(label.style())
+            sb_widgets.set_qt_property(label, 'disconnected', True)
 
-        # Store the control buttons
-        self.control_buttons = []
+        # Store the control buttons by name ("connect", "open", etc.)
+        self.control_buttons: Dict[str, sb_widgets.ControlQPushButton] = {}
 
         self._add_control_buttons()
 
@@ -187,29 +186,28 @@ class DeviceWidget(QtWidgets.QWidget):
     def update_status(self, status, previous_status):
         # Status Icon
         if status >= DeviceStatus.READY:
-            self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_green.png"))
+            self.status_icon.setPixmap(QtGui.QPixmap(":/icons/images/status_green.png"))
             self.status_icon.setToolTip("Ready to start recording")
         elif status == DeviceStatus.DISCONNECTED:
-            pixmap = QtGui.QPixmap(f":/icons/images/status_blank_disabled.png")
+            pixmap = QtGui.QPixmap(":/icons/images/status_blank_disabled.png")
             self.status_icon.setPixmap(pixmap)
             self.status_icon.setToolTip("Disconnected")
         elif status == DeviceStatus.CONNECTING:
-            pixmap = QtGui.QPixmap(f":/icons/images/status_orange.png")
+            pixmap = QtGui.QPixmap(":/icons/images/status_orange.png")
             self.status_icon.setPixmap(pixmap)
             self.status_icon.setToolTip("Connecting...")
         elif status == DeviceStatus.OPEN:
-            pixmap = QtGui.QPixmap(f":/icons/images/status_orange.png")
+            pixmap = QtGui.QPixmap(":/icons/images/status_orange.png")
             self.status_icon.setPixmap(pixmap)
             self.status_icon.setToolTip("Device has been started")
         else:
-            self.status_icon.setPixmap(QtGui.QPixmap(f":/icons/images/status_cyan.png"))
+            self.status_icon.setPixmap(QtGui.QPixmap(":/icons/images/status_cyan.png"))
             self.status_icon.setToolTip("Connected")
 
         # Device icon
         if status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}:
             for label in [self.name_line_edit, self.ip_address_line_edit]:
-                label.setProperty("disconnected", True)
-                label.setStyle(label.style())
+                sb_widgets.set_qt_property(label, 'disconnected', True)
 
             pixmap = self.icon_for_state("disabled").pixmap(QtCore.QSize(40, 40))
             self.device_icon.setPixmap(pixmap)
@@ -225,8 +223,7 @@ class DeviceWidget(QtWidgets.QWidget):
         elif ((previous_status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}) and
                 status > DeviceStatus.CONNECTING):
             for label in [self.name_line_edit, self.ip_address_line_edit]:
-                label.setProperty("disconnected", False)
-                label.setStyle(label.style())
+                sb_widgets.set_qt_property(label, 'disconnected', False)
 
             pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
             self.device_icon.setPixmap(pixmap)
@@ -251,10 +248,13 @@ class DeviceWidget(QtWidgets.QWidget):
         else:
             self.ip_address_line_edit.show()
 
-    def add_control_button(self, *args, **kwargs):
-        button = sb_widgets.ControlQPushButton.create(*args, **kwargs)
-        self.control_buttons.append(button)
+    def add_control_button(self, *args, name: Optional[str] = None, **kwargs):
+        button = sb_widgets.ControlQPushButton.create(*args, name=name,
+                                                      **kwargs)
         self.add_widget_to_layout(button)
+
+        if name:
+            self.control_buttons[name] = button
 
         return button
 
@@ -262,10 +262,6 @@ class DeviceWidget(QtWidgets.QWidget):
 class AddDeviceDialog(QtWidgets.QDialog):
     def __init__(self, device_type, existing_devices, parent=None):
         super().__init__(parent=parent, f=QtCore.Qt.WindowCloseButtonHint)
-
-        qss_file = os.path.join(CONFIG.SWITCHBOARD_DIR, "switchboard/ui/switchboard.qss")
-        with open(qss_file, "r") as styling:
-            self.setStyleSheet(styling.read())
 
         self.device_type = device_type
         self.setWindowTitle(f"Add {self.device_type} Device")
@@ -275,7 +271,7 @@ class AddDeviceDialog(QtWidgets.QDialog):
         self.ip_field = QtWidgets.QLineEdit(self)
         self.ip_field.setValidator(ip_validator)
 
-        self.form_layout =  QtWidgets.QFormLayout()
+        self.form_layout = QtWidgets.QFormLayout()
         self.form_layout.addRow("Name", self.name_field)
         self.form_layout.addRow("IP Address", self.ip_field)
 

@@ -2,6 +2,8 @@
 
 #include "AESGCMHandlerComponent.h"
 
+#include "Net/Core/Connection/NetCloseResult.h"
+
 IMPLEMENT_MODULE( FAESGCMHandlerComponentModule, AESGCMHandlerComponent )
 
 
@@ -57,14 +59,24 @@ void FAESGCMHandlerComponent::Initialize()
 	Initialized();
 }
 
+void FAESGCMHandlerComponent::InitFaultRecovery(UE::Net::FNetConnectionFaultRecoveryBase* InFaultRecovery)
+{
+	AESGCMFaultHandler.InitFaultRecovery(InFaultRecovery);
+}
+
 bool FAESGCMHandlerComponent::IsValid() const
 {
 	return true;
 }
 
-void FAESGCMHandlerComponent::Incoming(FBitReader& Packet)
+void FAESGCMHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 {
+	using namespace UE::Net;
+
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("PacketHandler AESGCM Decrypt"), STAT_PacketHandler_AESGCM_Decrypt, STATGROUP_Net);
+
+	FBitReader& Packet = PacketRef.Packet;
+	FInPacketTraits& Traits = PacketRef.Traits;
 
 	// Handle this packet
 	if (IsValid() && Packet.GetNumBytes() > 0)
@@ -89,7 +101,10 @@ void FAESGCMHandlerComponent::Incoming(FBitReader& Packet)
 			else
 			{
 				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Incoming: missing IV"));
+
 				Packet.SetError();
+				AddToChainResultPtr(Traits.ExtendedError, EAESGCMNetResult::AESMissingIV);
+
 				return;
 			}
 
@@ -102,7 +117,10 @@ void FAESGCMHandlerComponent::Incoming(FBitReader& Packet)
 			else
 			{
 				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Incoming: missing auth tag"));
+
 				Packet.SetError();
+				AddToChainResultPtr(Traits.ExtendedError, EAESGCMNetResult::AESMissingAuthTag);
+
 				return;
 			}
 
@@ -118,7 +136,10 @@ void FAESGCMHandlerComponent::Incoming(FBitReader& Packet)
 			else
 			{
 				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Incoming: missing ciphertext"));
+
 				Packet.SetError();
+				AddToChainResultPtr(Traits.ExtendedError, EAESGCMNetResult::AESMissingPayload);
+
 				return;
 			}
 
@@ -130,7 +151,10 @@ void FAESGCMHandlerComponent::Incoming(FBitReader& Packet)
 			if (DecryptResult == EPlatformCryptoResult::Failure)
 			{
 				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Incoming: failed to decrypt packet."));
+
 				Packet.SetError();
+				AddToChainResultPtr(Traits.ExtendedError, EAESGCMNetResult::AESDecryptionFailed);
+
 				return;
 			}
 
@@ -161,7 +185,9 @@ void FAESGCMHandlerComponent::Incoming(FBitReader& Packet)
 			else
 			{
 				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Incoming: malformed packet, last byte was 0."));
+
 				Packet.SetError();
+				AddToChainResultPtr(Traits.ExtendedError, EAESGCMNetResult::AESZeroLastByte);
 			}
 		}
 	}

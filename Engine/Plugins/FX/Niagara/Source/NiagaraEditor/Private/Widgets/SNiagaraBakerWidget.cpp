@@ -141,16 +141,9 @@ void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double C
 {
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		float StartSeconds = 0.0f;
 		float DurationSeconds = 0.0f;
-		if (const UNiagaraBakerSettings* GeneratedSettings = GetBakerGeneratedSettings())
+		if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
 		{
-			StartSeconds = GeneratedSettings->StartSeconds;
-			DurationSeconds = GeneratedSettings->DurationSeconds;
-		}
-		else if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
-		{
-			StartSeconds = BakerSettings->StartSeconds;
 			DurationSeconds = BakerSettings->DurationSeconds;
 		}
 
@@ -166,8 +159,7 @@ void SNiagaraBakerWidget::Tick(const FGeometry& AllottedGeometry, const double C
 				PreviewRelativeTime = FMath::Min(PreviewRelativeTime, DurationSeconds);
 			}
 
-			const float PreviewAbsoluteTime = StartSeconds + PreviewRelativeTime;
-			ViewportWidget->RefreshView(PreviewAbsoluteTime, DeltaTime);
+			ViewportWidget->RefreshView(PreviewRelativeTime, DeltaTime);
 			TimelineWidget->SetRelativeTime(PreviewRelativeTime);
 		}
 	}

@@ -4,6 +4,29 @@ Crumbs:
 Description: This is a procedurally generated markdown page.
 Version: 5.1
 
+### Read-Only Properties
+
+$ IsPlugin (Boolean): True if a Plugin contains this module
+
+$ HasPackageOverride (Boolean): Returns true if there has been an override type specified on this module
+
+$ PublicLibraryPaths (List&lt;String&gt;): List of system/library paths (directory of .lib files) - typically used for External (third party) modules
+
+$ Definitions (List&lt;String&gt;): Accessor for the PublicDefinitions list
+
+$ PlatformSpecificDynamicallyLoadedModuleNames (List&lt;String&gt;): Extra modules this module may require at run time, that are on behalf of another platform (i.e. shader formats and the like)
+
+$ AutoSdkDirectory (String): The AutoSDK directory for the active host platform
+
+$ EngineDirectory (String): The current engine directory
+
+$ PluginDirectory (String): Property for the directory containing this plugin. Useful for adding paths to third party dependencies.
+
+$ ModuleDirectory (String): Property for the directory containing this module. Useful for adding paths to third party dependencies.
+
+$ IsVcPackageSupported (Boolean): Returns if VcPkg is supported for the build configuration.
+
+
 ### Read/Write Properties
 $ Type (ModuleType): Type of module
 
@@ -122,5 +145,31 @@ $ bRequiresImplementModule (Nullable&lt;Boolean&gt;): Whether this module requir
 $ CppStandard (CppStandardVersion): Which stanard to use for compiling this module
 
 $ ModuleSymbolVisibility (SymbolVisibility): Control visibility of symbols
+
+$ Name (String): Name of this module
+
+$ OverridePackageType (PackageOverrideType): Overridden type of module that will set different package flags. Cannot be used for modules that are a part of a plugin because that is set in the `.uplugin` file already.
+
+$ OptimizeCode (CodeOptimization): When this module's code should be optimized.
+
+$ PCHUsage (PCHUsageMode): Precompiled header usage for this module
+
+$ DefaultBuildSettings (BuildSettingsVersion): Which engine version's build settings to use by default.
+
+$ bUseBackwardsCompatibleDefaults (Boolean): Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support an easier migration path).
+
+$ ShadowVariableWarningLevel (WarningLevel): How to treat shadow variable warnings
+
+$ bEnableShadowVariableWarnings (Boolean): Enable warnings for shadowed variables
+
+$ UnsafeTypeCastWarningLevel (WarningLevel): How to treat unsafe implicit type cast warnings (e.g., double->float or int64->int32)
+
+$ bFasterWithoutUnity (Boolean): If true and unity builds are enabled, this module will build without unity.
+
+$ bUseUnity (Boolean): If unity builds are enabled this can be used to override if this specific module will build using Unity. This is set using the per module configurations in BuildConfiguration.
+
+$ bOutputPubliclyDistributable (Boolean): Obsolete. Use bLegalToDistributeObjectCode instead.
+
+$ bLegacyPublicIncludePaths (Boolean): Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line.
 
 

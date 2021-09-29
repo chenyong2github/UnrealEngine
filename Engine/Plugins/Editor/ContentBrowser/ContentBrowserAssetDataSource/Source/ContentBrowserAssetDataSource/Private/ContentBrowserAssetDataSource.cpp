@@ -28,6 +28,7 @@
 #include "ContentBrowserDataUtils.h"
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
 #include "EditorDirectories.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Widgets/Input/SButton.h"
@@ -2030,60 +2031,15 @@ void UContentBrowserAssetDataSource::OnBeginCreateAsset(const FName InDefaultAss
 		return;
 	}
 
-	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	bool bPathIsWritable = AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPackagePath, /*bAllowParentPaths*/true);
-	bool bShowDialogToPickPath = !bPathIsWritable;
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	FContentBrowserItemPath AssetPathToUse = ContentBrowserModule.Get().GetInitialPathToSaveAsset(FContentBrowserItemPath(InPackagePath, EContentBrowserPathType::Internal));
 
+	const bool bShowDialogToPickPath = !AssetPathToUse.HasInternalPath() || (AssetPathToUse.GetInternalPathName() != InPackagePath);
 	if (bShowDialogToPickPath)
 	{
-		FString AssetPath;
-		if (bPathIsWritable)
-		{
-			InPackagePath.ToString(AssetPath);
-		}
-		else
-		{
-			// Determine the starting path. Try to use the most recently used directory
-			const FString DefaultFilesystemDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::NEW_ASSET);
-			if (DefaultFilesystemDirectory.IsEmpty() || !FPackageName::TryConvertFilenameToLongPackageName(DefaultFilesystemDirectory, AssetPath))
-			{
-				// Request default virtual paths, first path that converts to internal is chosen
-				FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-				TArray<FName> VirtualPaths;
-				if (ContentBrowserModule.GetDefaultSelectedPathsDelegate().ExecuteIfBound(VirtualPaths) && VirtualPaths.Num() > 0)
-				{
-					for (const FName VirtualPath : VirtualPaths)
-					{
-						if (IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(FNameBuilder(VirtualPath), AssetPath) == EContentBrowserPathType::Internal)
-						{
-							break;
-						}
-						else
-						{
-							AssetPath.Reset();
-						}
-					}
-				}
-				else
-				{
-					AssetPath.Reset();
-				}
-			}
-
-			if (AssetPath.IsEmpty())
-			{
-				// No saved path, just use the game content root
-				AssetPath = TEXT("/Game");
-			}
-		}
-
-		// Remove trailing slash
-		if (AssetPath.EndsWith(TEXT("/")) || AssetPath.EndsWith(TEXT("\\")))
-		{
-			AssetPath.LeftChopInline(1, false);
-		}
-
-		AssetToolsModule.Get().CreateAssetWithDialog(InDefaultAssetName.ToString(), AssetPath, ClassToUse, InFactory, NAME_None, /*bCallConfigureProperties*/ false);
+		FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+		const FString InitialInternalPath = AssetPathToUse.HasInternalPath() ? AssetPathToUse.GetInternalPathString() : TEXT("/Game");
+		AssetToolsModule.Get().CreateAssetWithDialog(InDefaultAssetName.ToString(), InitialInternalPath, ClassToUse, InFactory, NAME_None, /*bCallConfigureProperties*/ false);
 	}
 	else
 	{

@@ -118,6 +118,12 @@ void FNiagaraScalabilityManager::PreGarbageCollectBeginDestroy()
 	}
 }
 
+void FNiagaraScalabilityManager::OnRefreshOwnerAllowsScalability()
+{
+	//We trigger a full refresh of scalability state when the view target changes etc to ensure we're not culling something we now shouldn't.
+	bRefreshOwnerAllowsScalability = true;
+}
+
 void FNiagaraScalabilityManager::Register(UNiagaraComponent* Component)
 {
 	check(Component->ScalabilityManagerHandle == INDEX_NONE);
@@ -479,7 +485,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 	const float TimeSinceUpdate = CurrentTime - LastUpdateTime;
 	const float UpdatePeriod = GetScalabilityUpdatePeriod(EffectType->UpdateFrequency);
 
-	const bool bResetUpdate = EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::Continuous
+	const bool bResetUpdate = bRefreshOwnerAllowsScalability || EffectType->UpdateFrequency == ENiagaraScalabilityUpdateFrequency::Continuous
 		|| ((TimeSinceUpdate >= UpdatePeriod) && !DefaultContext.ComponentRequiresUpdate.Contains(true));
 
 	const int32 ComponentCount = ManagedComponents.Num();
@@ -493,7 +499,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 		DefaultContext.bRequiresGlobalSignificancePass = false;
 
 		DefaultContext.MaxUpdateCount = GetMaxUpdatesPerFrame(EffectType, ComponentCount, UpdatePeriod, DeltaSeconds);
-		DefaultContext.bProcessAllComponents = DefaultContext.MaxUpdateCount == ComponentCount;
+		DefaultContext.bProcessAllComponents = bRefreshOwnerAllowsScalability || DefaultContext.MaxUpdateCount == ComponentCount;
 
 		if (DefaultContext.bProcessAllComponents)
 		{
@@ -529,6 +535,8 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 	DefaultContext.WorstGlobalBudgetUse = WorstGlobalBudgetUse;
 
 	UpdateInternal(WorldMan, DefaultContext);
+	
+	bRefreshOwnerAllowsScalability = false;
 }
 
 FNiagaraScalabilitySystemData& FNiagaraScalabilityManager::GetSystemData(int32 ComponentIndex, bool bForceRefresh)

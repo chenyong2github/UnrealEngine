@@ -137,6 +137,10 @@ private:
 // FGCObject interface
 protected:
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FUsdLevelSequenceHelperImpl");
+	}
 
 // Sequences handling
 public:
@@ -1303,6 +1307,13 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 {
 	if ( !MainLevelSequence || !IsMonitoringChanges() || !IsValid(Object) || !UsdStage || BlockedTransactionGuids.Contains( Event.GetTransactionId() ) )
 	{
+		return;
+	}
+
+	const ULevelSequence* LevelSequence = Object->GetTypedOuter<ULevelSequence>();
+	if ( !LevelSequence || ( LevelSequence != MainLevelSequence && !SequencesID.Contains( LevelSequence ) ) )
+	{
+		// This is not one of our managed level sequences, so ignore changes
 		return;
 	}
 

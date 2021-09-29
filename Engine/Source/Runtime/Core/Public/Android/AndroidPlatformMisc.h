@@ -318,6 +318,8 @@ public:
 	static void RegisterThreadName(const char* Name, uint32 ThreadId);
 	static const char* GetThreadName(uint32 ThreadId);
 
+	static void ShowConsoleWindow();
+
 private:
 	static const ANSICHAR* CodeToString(int Signal, int si_code);
 	static EDeviceScreenOrientation DeviceOrientation;

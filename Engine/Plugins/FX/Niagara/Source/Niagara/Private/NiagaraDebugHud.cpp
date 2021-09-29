@@ -25,6 +25,8 @@ namespace NiagaraDebugLocal
 	const FLinearColor WorldTextColor = FLinearColor::White;
 	const FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 
+	FCriticalSection RTFramesGuard;
+
 	enum class EEngineVariables : uint8
 	{
 		LODDistance,
@@ -100,6 +102,7 @@ namespace NiagaraDebugLocal
 		MakeTuple(TEXT("bValidateParticleDataBuffers="), TEXT("Enable or disable validation on particle data buffers"), [](FString Arg) {Settings.bValidateParticleDataBuffers = FCString::Atoi(*Arg) != 0; }),
 
 		MakeTuple(TEXT("OverviewEnabled="), TEXT("Enable or disable the main overview display"), [](FString Arg) {Settings.bOverviewEnabled = FCString::Atoi(*Arg) != 0; }),
+		MakeTuple(TEXT("OverviewMode="), TEXT("Change the mode of the debug overivew"), [](FString Arg) {Settings.OverviewMode = (ENiagaraDebugHUDOverviewMode)FCString::Atoi(*Arg); }),
 
 		MakeTuple(TEXT("OverviewLocation="), TEXT("Set the overview location"), [](FString Arg) { Settings.OverviewLocation = StringToVector2D(Arg, Settings.OverviewLocation); }),
 		MakeTuple(TEXT("SystemFilter="), TEXT("Set the system filter"), [](FString Arg) {Settings.SystemFilter = Arg; Settings.bSystemFilterEnabled = !Arg.IsEmpty(); }),
@@ -108,6 +111,9 @@ namespace NiagaraDebugLocal
 		MakeTuple(TEXT("ComponentFilter="), TEXT("Set the component filter"), [](FString Arg) {Settings.ComponentFilter = Arg; Settings.bComponentFilterEnabled = !Arg.IsEmpty(); }),
 
 		MakeTuple(TEXT("ShowGlobalBudgetInfo="), TEXT("Shows global budget information"), [](FString Arg) {Settings.bShowGlobalBudgetInfo = FCString::Atoi(*Arg) != 0; }),
+
+		MakeTuple(TEXT("PerfGraphMode="), TEXT("Change the mode of the perf graph"), [](FString Arg) {Settings.PerfGraphMode = (ENiagaraDebugHUDPerfGraphMode)FCString::Atoi(*Arg); }),
+		MakeTuple(TEXT("PerfGraphTimeRange="), TEXT("Time range for the Y axis of the perf graph"), [](FString Arg) {Settings.PerfGraphTimeRange = FCString::Atof(*Arg); }),
 
 		// System commands
 		MakeTuple(TEXT("SystemShowBounds="), TEXT("Show system bounds"), [](FString Arg) {Settings.bSystemShowBounds = FCString::Atoi(*Arg) != 0; }),
@@ -570,7 +576,16 @@ void FNiagaraDebugHud::GatherSystemInfo()
 	GlobalTotalEmitters = 0;
 	GlobalTotalParticles = 0;
 	GlobalTotalBytes = 0;
-	PerSystemDebugInfo.Reset();
+
+	GlobalTotalCulled = 0;
+	GlobalTotalCulledByDistance = 0;
+	GlobalTotalCulledByVisibility = 0;
+	GlobalTotalCulledByInstanceCount = 0;
+	GlobalTotalCulledByBudget = 0;
+	
+	GlobalTotalPlayerSystems = 0;
+
+	//PerSystemDebugInfo.Reset();
 	InWorldComponents.Reset();
 
 	UWorld* World = WeakWorld.Get();
@@ -594,6 +609,42 @@ void FNiagaraDebugHud::GatherSystemInfo()
 		}
 	}
 
+#if WITH_PARTICLE_PERF_STATS
+	bool bUpdateStats = false;
+	if (Settings.bOverviewEnabled && (Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::Performance))
+	{
+		if (StatsListener.IsValid() == false)
+		{
+			StatsListener = MakeShared<FNiagaraDebugHUDStatsListener, ESPMode::ThreadSafe>(*this);
+			FParticlePerfStatsManager::AddListener(StatsListener);
+		}
+	}
+	else
+	{
+		if (StatsListener)
+		{
+			FParticlePerfStatsManager::RemoveListener(StatsListener);
+			StatsListener.Reset();
+		}
+	}
+#endif
+
+	//Clear transient data we're about to gather.
+	//Keeping some persistent data.
+	for (auto& Pair : PerSystemDebugInfo)
+	{
+		FSystemDebugInfo& SysInfo = Pair.Value;
+		SysInfo.Reset();
+		++SysInfo.FramesSinceVisible;
+
+		#if WITH_PARTICLE_PERF_STATS
+		if (SysInfo.PerfStats.IsUnique())
+		{
+			SysInfo.PerfStats = nullptr;
+		}
+		#endif
+	}
+
 	// Iterate all components looking for active ones in the world we are in
 	for (TObjectIterator<UNiagaraComponent> It; It; ++It)
 	{
@@ -606,29 +657,26 @@ void FNiagaraDebugHud::GatherSystemInfo()
 		{
 			continue;
 		}
-
-		FNiagaraSystemInstanceControllerPtr SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
-		FNiagaraSystemInstance* SystemInstance = SystemInstanceController.IsValid() ? SystemInstanceController->GetSystemInstance_Unsafe() : nullptr;
-		if (!SystemInstance)
+		if (NiagaraComponent->GetAsset() == nullptr)
 		{
 			continue;
 		}
+
+		FNiagaraSystemInstanceControllerPtr SystemInstanceController = NiagaraComponent->GetSystemInstanceController();
+		FNiagaraSystemInstance* SystemInstance = SystemInstanceController.IsValid() ? SystemInstanceController->GetSystemInstance_Unsafe() : nullptr;
 
 		check(NiagaraComponent->GetAsset() != nullptr);
 
 		const bool bIsActive = NiagaraComponent->IsActive();
 		const bool bHasScalability = NiagaraComponent->IsRegisteredWithScalabilityManager();
-		if (!bIsActive && !bHasScalability )
-		{
-			continue;
-		}
 
 		FSystemDebugInfo& SystemDebugInfo = PerSystemDebugInfo.FindOrAdd(NiagaraComponent->GetAsset()->GetFName());
 		if (SystemDebugInfo.SystemName.IsEmpty())
 		{
 			SystemDebugInfo.SystemName = GetNameSafe(NiagaraComponent->GetAsset());
-			SystemDebugInfo.bShowInWorld = Settings.bSystemFilterEnabled && SystemDebugInfo.SystemName.MatchesWildcard(Settings.SystemFilter);
 		}
+		SystemDebugInfo.bShowInWorld = Settings.bSystemFilterEnabled && SystemDebugInfo.SystemName.MatchesWildcard(Settings.SystemFilter);
+		SystemDebugInfo.bPassesSystemFilter = !Settings.bSystemFilterEnabled || SystemDebugInfo.SystemName.MatchesWildcard(Settings.SystemFilter);
 
 		if (SystemDebugInfo.bShowInWorld && (bIsActive || !Settings.bSystemShowActiveOnlyInWorld))
 		{
@@ -659,7 +707,46 @@ void FNiagaraDebugHud::GatherSystemInfo()
 			++SystemDebugInfo.TotalScalability;
 		}
 
+		if (NiagaraComponent->IsLocalPlayerEffect() && bIsActive)
+		{
+			++GlobalTotalPlayerSystems;
+			++SystemDebugInfo.TotalPlayerSystems;
+		}
+
+		if (NiagaraComponent->IsRegisteredWithScalabilityManager())
+		{
+#if WITH_NIAGARA_DEBUGGER
+			if (NiagaraComponent->DebugCachedScalabilityState.bCulled)
+			{
+				++GlobalTotalCulled;
+				++SystemDebugInfo.TotalCulled;
+				
+				if (NiagaraComponent->DebugCachedScalabilityState.bCulledByDistance)
+				{
+					++GlobalTotalCulledByDistance;
+					++SystemDebugInfo.TotalCulledByDistance;
+				}
+				if (NiagaraComponent->DebugCachedScalabilityState.bCulledByVisibility)
+				{
+					++GlobalTotalCulledByVisibility;
+					++SystemDebugInfo.TotalCulledByVisibility;
+				}
+				if (NiagaraComponent->DebugCachedScalabilityState.bCulledByInstanceCount)
+				{
+					++GlobalTotalCulledByInstanceCount;
+					++SystemDebugInfo.TotalCulledByInstanceCount;
+				}
+				if (NiagaraComponent->DebugCachedScalabilityState.bCulledByGlobalBudget)
+				{
+					++GlobalTotalCulledByBudget;
+					++SystemDebugInfo.TotalCulledByBudget;
+				}
+			}
+#endif//WITH_NIAGARA_DEBUGGER
+		}
+
 		// Track rough memory usage
+		if(SystemInstance)
 		{
 			for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
 			{
@@ -677,6 +764,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 
 		if (bIsActive)
 		{
+			check(SystemInstance);
 			// Accumulate totals
 			int32 ActiveEmitters = 0;
 			int32 TotalEmitters = 0;
@@ -705,6 +793,39 @@ void FNiagaraDebugHud::GatherSystemInfo()
 			++GlobalTotalSystems;
 			GlobalTotalEmitters += ActiveEmitters;
 			GlobalTotalParticles += ActiveParticles;
+
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+			if(StatsListener)
+			{
+				SystemDebugInfo.PerfStats = StatsListener->GetSystemStats(NiagaraComponent->GetAsset());
+			}
+#endif
+		}
+
+		//Generate a unique-ish random color for use in graphs and the world to help visually ID this system.
+		FRandomStream Rands(GetTypeHash(NiagaraComponent->GetAsset()->GetName()));
+		uint8 RandomHue = (uint8)Rands.RandRange(0, 255);
+		uint8 RandomValue = (uint8)Rands.RandRange(128, 255);
+		SystemDebugInfo.UniqueColor = FLinearColor::MakeFromHSV8(RandomHue, 255, RandomValue);
+
+
+		bool bWillBeVisible = false;
+		
+		if(Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::Performance)
+		{
+			bWillBeVisible = SystemDebugInfo.TotalSystems > 0;
+		}
+		else
+		{
+			bWillBeVisible = (SystemDebugInfo.TotalSystems > 0 || SystemDebugInfo.TotalScalability > 0);
+		}
+		if (bWillBeVisible)
+		{
+			SystemDebugInfo.FramesSinceVisible = 0;
+		}
+		else
+		{
+			SystemDebugInfo.FramesSinceVisible++;
 		}
 	}
 }
@@ -839,6 +960,98 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 	LastDrawTime = CurrTime;
 }
 
+template<typename T>
+struct FGraph
+{
+	FCanvas* Canvas;
+	UFont* Font;
+
+	FVector2D Location;
+	FVector2D Size;
+
+	FVector2D MaxValues;
+
+	FString XLabel;
+	FString YLabel;
+
+	float EstYAxisLabelWidth = 35.0f;
+
+	FGraph(FCanvas* InCanvas, UFont* InFont, FVector2D InLocation, FVector2D InSize, FVector2D InMaxValues, FString InXLabel, FString InYLabel)
+		: Canvas(InCanvas)
+		, Font(InFont)
+		, Location(InLocation)
+		, Size(InSize)
+		, MaxValues(InMaxValues)
+		, XLabel(InXLabel)
+		, YLabel(InYLabel)
+	{
+	}
+
+	void DrawLine(FString Name, FLinearColor Color, const TArray<T>& Samples)
+	{
+		FBatchedElements* BatchedElements = Canvas->GetBatchedElements(FCanvas::ET_Line);
+		BatchedElements->AddReserveLines(Samples.Num() - 1);
+		FHitProxyId HitProxyId = Canvas->GetHitProxyId();
+
+		float Top = Location.Y;
+		float Bottom = Top + Size.Y;
+		float Left = Location.X + EstYAxisLabelWidth;
+		float Right = Left + Size.X + EstYAxisLabelWidth;
+
+		float PerSampleWidth = Size.X / Samples.Num();
+		for (int32 i = 0; i < Samples.Num() - 1; ++i)
+		{
+			double Sample = Samples[i];
+			double NextSample = Samples[i + 1];
+
+			float StartX = Left + i * PerSampleWidth;
+			float EndX = Left + (i + 1) * PerSampleWidth;
+			float StartY = FMath::Lerp(Bottom, Top, Sample / MaxValues.Y);
+			float EndY = FMath::Lerp(Bottom, Top, NextSample / MaxValues.Y);
+			BatchedElements->AddLine(FVector(StartX, StartY, 0.0f), FVector(EndX, EndY, 0.0f), Color, HitProxyId, 1.0f);
+		}
+	}
+
+	void Draw(FLinearColor AxesColor, FLinearColor BackgroundColor)
+	{
+		const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
+
+		float Top = Location.Y;
+		float Bottom = Top + Size.Y;
+		float Left = Location.X + EstYAxisLabelWidth;
+		float Right = Left + Size.X;
+
+		//Draw BG
+		Canvas->DrawTile(Left - EstYAxisLabelWidth, Top - fAdvanceHeight, Size.X + EstYAxisLabelWidth+ EstYAxisLabelWidth, Size.Y + fAdvanceHeight + fAdvanceHeight, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+
+		int32 NumGridLines = 5;
+		FBatchedElements* BatchedElements = Canvas->GetBatchedElements(FCanvas::ET_Line);
+		BatchedElements->AddReserveLines(2 + NumGridLines);
+		FHitProxyId HitProxyId = Canvas->GetHitProxyId();
+
+		FLinearColor GraphAxesColor = AxesColor;
+
+		//Draw Axes
+		BatchedElements->AddLine(FVector(Left, Top, 0.0f), FVector(Left, Bottom, 0.0f), GraphAxesColor, HitProxyId, 3.0f);
+		BatchedElements->AddLine(FVector(Left, Bottom, 0.0f), FVector(Right, Bottom, 0.0f), GraphAxesColor, HitProxyId, 3.0f);
+
+		//Draw Gridlines
+		for (int32 i = 1; i <= NumGridLines; ++i)
+		{
+			float LineTime = (MaxValues.Y / NumGridLines) * i;
+			FString LineTimeString = LexToSanitizedString(LineTime);
+			FVector2D LabelSize = FVector2D(Font->GetStringSize(*LineTimeString), Font->GetMaxCharHeight());
+			float LineX = Left;
+			float LineY = FMath::Lerp(Bottom, Top, (float)i / NumGridLines);
+			BatchedElements->AddLine(FVector(Left, LineY, 0.0f), FVector(LineX + Size.X, LineY, 0.0f), GraphAxesColor * 0.5f, HitProxyId, 1.0f);
+
+			float LabelX = LineX - LabelSize.X - 2.0f;
+			float LabelY = LineY - (LabelSize.Y * 0.5f);
+			Canvas->DrawShadowedString(LabelX, LabelY, *LineTimeString, Font, GraphAxesColor);
+		}
+	}
+};
+
 void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FCanvas* DrawCanvas)
 {
 	using namespace NiagaraDebugLocal;
@@ -851,6 +1064,267 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	const FLinearColor DetailHighlightColor = FLinearColor::Yellow;
 
 	FVector2D TextLocation = Settings.OverviewLocation;
+
+	struct FOverviewColumn
+	{
+		float ColumnSeparator = 10.0f;
+		float GlobalDataSeparator = 5.0f;
+
+		FString GlobalHeader;
+		FString GlobalData;
+		FString SystemHeader;
+
+		float Offset;
+		float HeaderWidth;
+		float SystemWidth;
+		float MaxWidth;
+
+		typedef TFunction<void(FCanvas*, UFont*, float, float, FOverviewColumn&, const FSystemDebugInfo&)>  FSystemDrawFunc;
+		FSystemDrawFunc SystemDrawFunc;
+
+		FOverviewColumn(FString InGlobalHeader, FString InGlobalData, FString InSystemHeader, int32& InOffset, UFont* Font, FString ExampleSystemString, FSystemDrawFunc InSystemDrawFunc)
+			: GlobalHeader(InGlobalHeader)
+			, GlobalData(InGlobalData)
+			, SystemHeader(InSystemHeader)
+			, Offset(InOffset)
+			, SystemDrawFunc(InSystemDrawFunc)
+		{
+			HeaderWidth = GetStringSize(Font, *GlobalHeader).X;
+			SystemWidth = FMath::Max(GetStringSize(Font, *SystemHeader).X, GetStringSize(Font, *ExampleSystemString).X);
+			MaxWidth = FMath::Max(HeaderWidth + GlobalDataSeparator + GetStringSize(Font, *GlobalData).X, SystemWidth);
+
+			InOffset += MaxWidth + ColumnSeparator;
+		}
+
+		void DrawGlobalHeader(FCanvas* DrawCanvas, UFont* Font, float X, float Y, FLinearColor HeadingColor, FLinearColor DetailColor)
+		{
+			DrawCanvas->DrawShadowedString(X + Offset, Y, *GlobalHeader, Font, HeadingColor);
+			DrawCanvas->DrawShadowedString(X + Offset + HeaderWidth + GlobalDataSeparator, Y, *GlobalData, Font, DetailColor);
+		}
+
+		void DrawSystemHeader(FCanvas* DrawCanvas, UFont* Font, float X, float Y, FLinearColor HeadingColor)
+		{
+			DrawCanvas->DrawShadowedString(X + Offset, Y, *SystemHeader, Font, HeadingColor);
+		}
+
+		void DrawSystemData(FCanvas* DrawCanvas, UFont* Font, float X, float Y, const FSystemDebugInfo& SystemInfo)
+		{
+			SystemDrawFunc(DrawCanvas, Font, X + Offset, Y, *this, SystemInfo);
+		}
+	};
+
+	float TotalOverviewWidth = 750.0f;
+	int32 ColumnOffset = 0;
+	TArray<FOverviewColumn, TInlineAllocator<16>> OverviewColumns;
+
+	if (Settings.bOverviewEnabled)
+	{
+		OverviewColumns.Emplace(TEXT(""), TEXT(""), TEXT("System Name"), ColumnOffset, Font, TEXT("NS_SomeBigLongNiagaraSystemName"),
+			[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+			{
+				FLinearColor RowBGColor = SystemInfo.UniqueColor;
+				RowBGColor.A = 0.1f;
+				Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0,0,0,0, RowBGColor);
+				const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+				Canvas->DrawShadowedString(X, Y, *SystemInfo.SystemName, Font, RowColor);
+			});
+
+		if (Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::Overview)
+		{
+			OverviewColumns.Emplace(TEXT("TotalSystems:"), FString::FromInt(GlobalTotalSystems), TEXT("# Active"), ColumnOffset, Font, TEXT("0000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalSystems), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("TotalScalability:"), FString::FromInt(GlobalTotalScalability), TEXT("# Scalability"), ColumnOffset, Font, TEXT("0000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalScalability), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("TotalEmitters:"), FString::FromInt(GlobalTotalEmitters), TEXT("# Emitters"), ColumnOffset, Font, TEXT("0000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalEmitters), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("TotalParticles:"), FString::FromInt(GlobalTotalParticles), TEXT("# Particles"), ColumnOffset, Font, TEXT("0000000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalParticles), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("TotalMemory:"), FString::Printf(TEXT("%6.2fmb"), float(double(GlobalTotalBytes) / (1024.0 * 1024.0))), TEXT("# MBytes"), ColumnOffset, Font, TEXT("00000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("%6.2f"), double(SystemInfo.TotalBytes) / (1024.0 * 1024.0)), Font, RowColor);
+				});
+		}
+		else if (Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::Scalability)
+		{
+			OverviewColumns.Emplace(TEXT("TotalSystems:"), FString::FromInt(GlobalTotalSystems), TEXT("# Active"), ColumnOffset, Font, TEXT("0000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalSystems), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("TotalScalability:"), FString::FromInt(GlobalTotalScalability), TEXT("# Scalability"), ColumnOffset, Font, TEXT("0000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalScalability), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("TotalCulled:"), FString::FromInt(GlobalTotalCulled), TEXT("# Culled"), ColumnOffset, Font, TEXT("000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalCulled), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("Distance:"), FString::FromInt(GlobalTotalCulledByDistance), TEXT("# Distance"), ColumnOffset, Font, TEXT("000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalCulledByDistance), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("Visibility:"), FString::FromInt(GlobalTotalCulledByVisibility), TEXT("# Visibility"), ColumnOffset, Font, TEXT("000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalCulledByVisibility), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("InstanceCount:"), FString::FromInt(GlobalTotalCulledByInstanceCount), TEXT("# Inst Count"), ColumnOffset, Font, TEXT("000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalCulledByInstanceCount), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("Budget:"), FString::FromInt(GlobalTotalCulledByBudget), TEXT("# Budget"), ColumnOffset, Font, TEXT("000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalCulledByBudget), Font, RowColor);
+				});
+
+			OverviewColumns.Emplace(TEXT("Player FX:"), FString::FromInt(GlobalTotalPlayerSystems), TEXT("# Player"), ColumnOffset, Font, TEXT("000"),
+				[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+				{
+					FLinearColor RowBGColor = SystemInfo.UniqueColor;
+					RowBGColor.A = 0.1f;
+					Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+					const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+					Canvas->DrawShadowedString(X, Y, *FString::FromInt(SystemInfo.TotalPlayerSystems), Font, RowColor);
+				});
+		}
+#if WITH_PARTICLE_PERF_STATS
+		else if (Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::Performance && StatsListener)
+		{
+			FNiagaraDebugHUDPerfStats& GlobalPerfStats = StatsListener->GetGlobalStats();
+
+			if (Settings.PerfGraphMode == ENiagaraDebugHUDPerfGraphMode::None)
+			{
+				OverviewColumns.Emplace(TEXT("Game Thread Avg:"), LexToSanitizedString(GlobalPerfStats.Avg.Time_GT), TEXT("GT Avg"), ColumnOffset, Font, TEXT("000.0000"),
+					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+					{
+						FLinearColor RowBGColor = SystemInfo.UniqueColor;
+						RowBGColor.A = 0.1f;
+						Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+						const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Avg.Time_GT : 0.0), Font, RowColor);
+					});
+
+				OverviewColumns.Emplace(TEXT("Game Thread Max:"), LexToSanitizedString(GlobalPerfStats.Max.Time_GT), TEXT("GT Max"), ColumnOffset, Font, TEXT("000.0000"),
+					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+					{
+						FLinearColor RowBGColor = SystemInfo.UniqueColor;
+						RowBGColor.A = 0.1f;
+						Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+						const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Max.Time_GT : 0.0), Font, RowColor);
+					});
+
+				OverviewColumns.Emplace_GetRef(TEXT("Render Thread Avg:"), LexToSanitizedString(GlobalPerfStats.Avg.Time_RT), TEXT("RT Avg"), ColumnOffset, Font, TEXT("000.0000"),
+					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+					{
+						FLinearColor RowBGColor = SystemInfo.UniqueColor;
+						RowBGColor.A = 0.1f;
+						Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+						const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Avg.Time_RT : 0.0), Font, RowColor);
+					});
+
+				OverviewColumns.Emplace(TEXT("Render Thread Max:"), LexToSanitizedString(GlobalPerfStats.Max.Time_RT), TEXT("RT Max"), ColumnOffset, Font, TEXT("000.0000"),
+					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+					{
+						FLinearColor RowBGColor = SystemInfo.UniqueColor;
+						RowBGColor.A = 0.1f;
+						Canvas->DrawTile(X, Y, Col.MaxWidth, fAdvanceHeight, 0, 0, 0, 0, RowBGColor);
+						const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
+						Canvas->DrawShadowedString(X, Y, *LexToSanitizedString(SystemInfo.PerfStats ? SystemInfo.PerfStats->Max.Time_RT : 0.0), Font, RowColor);
+					});
+			}
+			else
+			{
+				OverviewColumns.Emplace(TEXT(""), TEXT(""), TEXT(""), ColumnOffset, Font, TEXT("------"),
+					[&DetailColor, &DetailHighlightColor, &fAdvanceHeight](FCanvas* Canvas, UFont* Font, float X, float Y, FOverviewColumn& Col, const FSystemDebugInfo& SystemInfo)
+					{
+						Canvas->DrawTile(X, Y, Col.MaxWidth - 6.0f, fAdvanceHeight - 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, SystemInfo.UniqueColor);
+						FString SysCountString = LexToSanitizedString(SystemInfo.TotalSystems);
+						float StringWidth = Font->GetStringSize(*SysCountString);
+						Canvas->DrawShadowedString((X + (Col.MaxWidth * 0.5f)) - StringWidth * 0.5f, Y, *SysCountString, Font, FLinearColor::Black);
+					});
+			}
+		}
+#endif//WITH_PARTICLE_PERF_STATS
+		TotalOverviewWidth = ColumnOffset;
+	}
 
 	// Display overview
 	{
@@ -923,12 +1397,9 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 
 		if (Settings.bOverviewEnabled || OverviewString.Len() > 0)
 		{
-			static const float ColumnOffset[] = { 0, 150, 300, 450, 600 };
-			static const float GuessWidth = 750.0f;
-
-			const int32 NumLines = 1 + (Settings.bOverviewEnabled ? 1 : 0);
+			const int32 NumLines = 2 + (Settings.bOverviewEnabled ? 1 : 0);
 			const FVector2D OverviewStringSize = GetStringSize(Font, OverviewString.ToString());
-			const FVector2D ActualSize(FMath::Max(OverviewStringSize.X, GuessWidth), (NumLines*fAdvanceHeight) + OverviewStringSize.Y);
+			const FVector2D ActualSize(FMath::Max(OverviewStringSize.X, TotalOverviewWidth), (NumLines*fAdvanceHeight) + OverviewStringSize.Y);
 
 			// Draw background
 			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, ActualSize.X + 2.0f, ActualSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
@@ -936,6 +1407,11 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			// Draw string
 			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Niagara DebugHud"), Font, HeadingColor);
 			TextLocation.Y += fAdvanceHeight;
+
+			const UEnum* EnumPtr = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ENiagaraDebugHUDOverviewMode"), true);
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *EnumPtr->GetDisplayNameTextByValue((int32)Settings.OverviewMode).ToString(), Font, HeadingColor);
+			TextLocation.Y += fAdvanceHeight;
+
 			if (OverviewString.Len() > 0)
 			{
 				DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, OverviewString.ToString(), Font, HeadingColor);
@@ -945,28 +1421,10 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			// Display global system information
 			if (Settings.bOverviewEnabled)
 			{
-				static const TCHAR* HeadingText[] = { TEXT("TotalSystems:"), TEXT("TotalScalability:"), TEXT("TotalEmitters:") , TEXT("TotalParticles:"), TEXT("TotalMemory:") };
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[0], TextLocation.Y, HeadingText[0], Font, HeadingColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[1], TextLocation.Y, HeadingText[1], Font, HeadingColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, HeadingText[2], Font, HeadingColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, HeadingText[3], Font, HeadingColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, HeadingText[4], Font, HeadingColor);
-
-				static const float DetailOffset[] =
+				for (FOverviewColumn& Column : OverviewColumns)
 				{
-					ColumnOffset[0] + Font->GetStringSize(HeadingText[0]) + 5.0f,
-					ColumnOffset[1] + Font->GetStringSize(HeadingText[1]) + 5.0f,
-					ColumnOffset[2] + Font->GetStringSize(HeadingText[2]) + 5.0f,
-					ColumnOffset[3] + Font->GetStringSize(HeadingText[3]) + 5.0f,
-					ColumnOffset[4] + Font->GetStringSize(HeadingText[4]) + 5.0f,
-				};
-
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[0], TextLocation.Y, *FString::FromInt(GlobalTotalSystems), Font, DetailColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[1], TextLocation.Y, *FString::FromInt(GlobalTotalScalability), Font, DetailColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[2], TextLocation.Y, *FString::FromInt(GlobalTotalEmitters), Font, DetailColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[3], TextLocation.Y, *FString::FromInt(GlobalTotalParticles), Font, DetailColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[4], TextLocation.Y, *FString::Printf(TEXT("%6.2fmb"), float(double(GlobalTotalBytes) / (1024.0*1024.0))), Font, DetailColor);
-
+					Column.DrawGlobalHeader(DrawCanvas, Font, TextLocation.X, TextLocation.Y, HeadingColor, DetailColor);
+				}
 				TextLocation.Y += fAdvanceHeight;
 			}
 		}
@@ -975,34 +1433,109 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	// Display active systems information
 	if (Settings.bOverviewEnabled)
 	{
+		TextLocation.Y += fAdvanceHeight;		
+		uint32 NumLines = 1;
+		for (auto& Pair : PerSystemDebugInfo)
+		{
+			const FSystemDebugInfo& SysInfo = Pair.Value;
+			if (SysInfo.FramesSinceVisible < Settings.PerfHistoryFrames)
+			{
+				++NumLines;
+			}
+		}
+		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, TotalOverviewWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+
+		float SystemDataY = TextLocation.Y;
+		for (FOverviewColumn& Column : OverviewColumns)
+		{
+			Column.DrawSystemHeader(DrawCanvas, Font, TextLocation.X, TextLocation.Y, HeadingColor);
+		}
+
 		TextLocation.Y += fAdvanceHeight;
 
-		static float ColumnOffset[] = { 0, 300, 400, 500, 600, 700 };
-		static float GuessWidth = 800.0f;
+		//TODO: Pull out to an array to allow sorting?
 
-		const uint32 NumLines = 1 + PerSystemDebugInfo.Num();
-		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
-
-		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[0], TextLocation.Y, TEXT("System Name"), Font, HeadingColor);
-		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[1], TextLocation.Y, TEXT("# Active"), Font, HeadingColor);
-		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, TEXT("# Scalability"), Font, HeadingColor);
-		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, TEXT("# Emitters"), Font, HeadingColor);
-		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, TEXT("# Particles"), Font, HeadingColor);
-		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[5], TextLocation.Y, TEXT("# MBytes"), Font, HeadingColor);
-		TextLocation.Y += fAdvanceHeight;
 		for (auto it = PerSystemDebugInfo.CreateConstIterator(); it; ++it)
 		{
 			const auto& SystemInfo = it->Value;
-			const FLinearColor RowColor = SystemInfo.bShowInWorld ? DetailHighlightColor : DetailColor;
-
-			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[0], TextLocation.Y, *SystemInfo.SystemName, Font, RowColor);
-			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[1], TextLocation.Y, *FString::FromInt(SystemInfo.TotalSystems), Font, RowColor);
-			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, *FString::FromInt(SystemInfo.TotalScalability), Font, RowColor);
-			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, *FString::FromInt(SystemInfo.TotalEmitters), Font, RowColor);
-			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, *FString::FromInt(SystemInfo.TotalParticles), Font, RowColor);
-			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[5], TextLocation.Y, *FString::Printf(TEXT("%6.2f"), double(SystemInfo.TotalBytes) / (1024.0*1024.0)), Font, RowColor);
+			if (SystemInfo.FramesSinceVisible >= Settings.PerfHistoryFrames)
+			{
+				continue;
+			}
+			for (FOverviewColumn& Column : OverviewColumns)
+			{
+				Column.DrawSystemData(DrawCanvas, Font, TextLocation.X, TextLocation.Y, SystemInfo);
+			}
 			TextLocation.Y += fAdvanceHeight;
 		}
+		
+		#if WITH_PARTICLE_PERF_STATS
+		//Draw graph
+		if (Settings.OverviewMode == ENiagaraDebugHUDOverviewMode::Performance && StatsListener)
+		{
+			//Render the graph
+			if (Settings.PerfGraphMode != ENiagaraDebugHUDPerfGraphMode::None)
+			{
+				FLinearColor GraphAxesColor = Settings.PerfGraphAxisColor;
+
+				TextLocation.Y += fAdvanceHeight;
+
+				FVector2D GraphLocation(TextLocation.X, SystemDataY + fAdvanceHeight);
+
+				if (OverviewColumns.Num())
+				{
+					GraphLocation.X += OverviewColumns.Last().Offset + OverviewColumns.Last().MaxWidth + 50.0f;
+				}
+
+				FGraph<double> Graph(DrawCanvas, Font, GraphLocation, Settings.PerfGraphSize, FVector2D(Settings.PerfHistoryFrames, Settings.PerfGraphTimeRange), TEXT("Frame"), TEXT("Time(us)"));
+
+				Graph.Draw(Settings.PerfGraphAxisColor, BackgroundColor);
+
+				//Add each line to the graph.
+				for (auto& Pair : PerSystemDebugInfo)
+				{
+					FSystemDebugInfo& SysInfo = Pair.Value;
+					if (SysInfo.PerfStats && SysInfo.bPassesSystemFilter)
+					{
+						TArray<double> Frames;
+						if (Settings.PerfGraphMode == ENiagaraDebugHUDPerfGraphMode::GameThread)
+						{
+							SysInfo.PerfStats->History.GetHistoryFrames_GT(Frames);
+						}
+						else if (Settings.PerfGraphMode == ENiagaraDebugHUDPerfGraphMode::RenderThread)
+						{
+							SysInfo.PerfStats->History.GetHistoryFrames_RT(Frames);
+						}
+
+						if (Settings.bEnableSmoothing)
+						{
+							TArray<double> Smoothed;
+							Smoothed.Reserve(Frames.Num());
+							for (int32 i = 0; i < Frames.Num(); ++i)
+							{
+								int32 SmoothSamples = 0;
+								double SmoothTotal = 0.0f;
+								for (int32 j = i - Settings.SmoothingWidth; j < i + Settings.SmoothingWidth; ++j)
+								{
+									if (j >= 0 && j < Frames.Num())
+									{
+										++SmoothSamples;
+										SmoothTotal += Frames[j];
+									}
+								}
+
+								Smoothed.Add(SmoothTotal / SmoothSamples);
+							}
+
+							Frames = MoveTemp(Smoothed);
+						}
+
+						Graph.DrawLine(SysInfo.SystemName, SysInfo.UniqueColor, Frames);
+					}
+				}
+			}
+		}
+		#endif//WITH_PARTICLE_PERF_STATS
 	}
 
 	TextLocation.Y += fAdvanceHeight;
@@ -1631,7 +2164,7 @@ void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, cl
 	using namespace NiagaraDebugLocal;
 
 	static const float MinWidth = 500.0f;
-	
+
 	UFont* Font = GetFont(Settings.OverviewFont);
 	const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
 
@@ -1681,3 +2214,265 @@ void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, cl
 		}
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+#if WITH_PARTICLE_PERF_STATS
+
+void FNiagaraDebugHudStatHistory::AddFrame_GT(double Time)
+{
+	GTFrames.SetNumZeroed(NiagaraDebugLocal::Settings.PerfHistoryFrames);
+	CurrFrame = FMath::Wrap(CurrFrame + 1, 0, GTFrames.Num() - 1);
+	GTFrames[CurrFrame] = Time;
+}
+
+void FNiagaraDebugHudStatHistory::AddFrame_RT(double Time)
+{
+	FScopeLock Lock(&NiagaraDebugLocal::RTFramesGuard);
+	RTFrames.SetNumZeroed(NiagaraDebugLocal::Settings.PerfHistoryFrames);
+	CurrFrameRT = FMath::Wrap(CurrFrameRT + 1, 0, RTFrames.Num() - 1);
+	RTFrames[CurrFrameRT] = Time;
+}
+
+void FNiagaraDebugHudStatHistory::GetHistoryFrames_GT(TArray<double>& OutHistoryGT)
+{
+	if (GTFrames.Num() == 0)
+	{
+		return;
+	}
+	OutHistoryGT.Reserve(GTFrames.Num());
+	int32 WriteFrame = CurrFrame;
+	do
+	{
+		OutHistoryGT.Add(GTFrames[WriteFrame]);
+		WriteFrame = FMath::Wrap(WriteFrame + 1, 0, GTFrames.Num() - 1);
+	} while (WriteFrame != CurrFrame);
+}
+
+void FNiagaraDebugHudStatHistory::GetHistoryFrames_RT(TArray<double>& OutHistoryRT)
+{
+	FScopeLock Lock(&NiagaraDebugLocal::RTFramesGuard);
+
+	if (RTFrames.Num() == 0)
+	{
+		return;
+	}
+
+	OutHistoryRT.Reserve(RTFrames.Num());
+	int32 WriteFrame = CurrFrameRT;
+	do 
+	{
+		OutHistoryRT.Add(RTFrames[WriteFrame]);
+		WriteFrame = FMath::Wrap(WriteFrame + 1, 0, RTFrames.Num() - 1);
+	} while (WriteFrame != CurrFrameRT);
+}
+
+TSharedPtr<FNiagaraDebugHUDPerfStats> FNiagaraDebugHUDStatsListener::GetSystemStats(UNiagaraSystem* System)
+{
+	FScopeLock Lock(&SystemStatsGuard);//Locking on every get isn't great but it's debug hud code so meh.
+	if (TSharedPtr<FNiagaraDebugHUDPerfStats>* Stats = SystemStats.Find(System))
+	{
+		return *Stats;
+	}
+	return nullptr;
+}
+
+FNiagaraDebugHUDPerfStats& FNiagaraDebugHUDStatsListener::GetGlobalStats()
+{
+	return GlobalStats;
+}
+
+void FNiagaraDebugHUDStatsListener::OnAddSystem(const TWeakObjectPtr<const UFXSystemAsset>& NewSystem)
+{
+	FParticlePerfStatsListener_GatherAll::OnAddSystem(NewSystem);
+
+	FScopeLock Lock(&AccumulatedStatsGuard);
+	FScopeLock SysInfoLock(&SystemStatsGuard);
+
+	TSharedPtr<FNiagaraDebugHUDPerfStats>& SysStats = SystemStats.Add(NewSystem);
+	SysStats = MakeShared<FNiagaraDebugHUDPerfStats>();
+}
+
+void FNiagaraDebugHUDStatsListener::OnRemoveSystem(const TWeakObjectPtr<const UFXSystemAsset>& System)
+{
+	FParticlePerfStatsListener_GatherAll::OnRemoveSystem(System);
+
+	FScopeLock Lock(&AccumulatedStatsGuard);
+	FScopeLock SysInfoLock(&SystemStatsGuard);
+
+	SystemStats.FindAndRemoveChecked(System);
+}
+
+bool FNiagaraDebugHUDStatsListener::Tick()
+{
+	using namespace NiagaraDebugLocal;
+	FParticlePerfStatsListener_GatherAll::Tick();
+
+	FScopeLock Lock(&AccumulatedStatsGuard);
+	FScopeLock SysInfoLock(&SystemStatsGuard);
+
+	bool bPushStats = false;
+	if (NumFrames++ > Settings.PerfReportFrames)
+	{
+		NumFrames = 0;
+		bPushStats = true;
+	}
+	double GlobalAvg = 0.0;
+	double GlobalMax = 0.0;
+	for (auto& WorldStatsPair : AccumulatedWorldStats)
+	{
+		if (const UWorld* World = Cast<UWorld>(WorldStatsPair.Key.Get()))
+		{
+			FAccumulatedParticlePerfStats* Stats = WorldStatsPair.Value.Get();
+			check(Stats);
+
+			GlobalAvg += Stats->GetGameThreadStats().GetPerInstanceAvg();
+			GlobalMax += Stats->GetGameThreadStats().GetPerInstanceMax();
+
+			Stats->ResetGT();
+		}
+	}
+
+	GlobalStats.History.AddFrame_GT(GlobalAvg);
+
+	if (bPushStats)
+	{
+		GlobalStats.Avg.Time_GT = GlobalAvg;
+		GlobalStats.Max.Time_GT = GlobalMax;
+	}
+
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+	TArray<TWeakObjectPtr<const UFXSystemAsset>,TInlineAllocator<8>> ToRemove;
+	for (auto& HUDStatsPair : SystemStats)
+	{
+		TWeakObjectPtr<const UFXSystemAsset> WeakSystem = HUDStatsPair.Key;
+		TSharedPtr<FNiagaraDebugHUDPerfStats>& HUDStats = HUDStatsPair.Value;
+
+		const UNiagaraSystem* System = Cast<const UNiagaraSystem>(WeakSystem.Get());
+		if(System == nullptr)
+		{
+			continue;
+		}
+
+		if (FAccumulatedParticlePerfStats* Stats = GetStats(System))
+		{
+			double SysAvg;
+			double SysMax;
+			if (Settings.PerfSampleMode == ENiagaraDebugHUDPerfSampleMode::FrameTotal)
+			{
+				SysAvg = Stats->GetGameThreadStats().GetPerFrameAvg();
+				SysMax = Stats->GetGameThreadStats().GetPerFrameAvg();
+			}
+			else
+			{
+				SysAvg = Stats->GetGameThreadStats().GetPerInstanceAvg();
+				SysMax = Stats->GetGameThreadStats().GetPerInstanceMax();
+			}
+
+			HUDStats->History.AddFrame_GT(SysAvg);
+
+			if (bPushStats)
+			{
+				HUDStats->Avg.Time_GT = SysAvg;
+				HUDStats->Max.Time_GT = SysMax;
+			}
+
+			Stats->ResetGT();
+		}
+	}
+
+	for (auto& Remove : ToRemove)
+	{
+		SystemStats.Remove(Remove);
+	}
+#endif
+
+	return true;
+}
+
+void FNiagaraDebugHUDStatsListener::TickRT()
+{
+	using namespace NiagaraDebugLocal;
+	FParticlePerfStatsListener_GatherAll::TickRT();
+
+
+	bool bPushStats = false;
+	if (NumFramesRT++ > Settings.PerfReportFrames)
+	{
+		NumFramesRT = 0;
+		bPushStats = true;
+	}
+
+	FScopeLock Lock(&AccumulatedStatsGuard);
+	FScopeLock SysInfoLock(&SystemStatsGuard);
+
+	double GlobalAvg = 0.0;
+	double GlobalMax = 0.0;
+	for (auto& WorldStatsPair : AccumulatedWorldStats)
+	{
+		if (const UWorld* World = Cast<UWorld>(WorldStatsPair.Key.Get()))
+		{
+			FAccumulatedParticlePerfStats* Stats = WorldStatsPair.Value.Get();
+			check(Stats);
+
+			GlobalAvg += Stats->GetRenderThreadStats().GetPerFrameAvg();
+			GlobalMax += Stats->GetRenderThreadStats().GetPerFrameMax();
+
+			Stats->ResetRT();
+		}
+	}
+	GlobalStats.History.AddFrame_RT(GlobalAvg);
+
+	if (bPushStats)
+	{
+		GlobalStats.Avg.Time_RT = GlobalAvg;
+		GlobalStats.Max.Time_RT = GlobalMax;
+	}
+
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+	TArray<TWeakObjectPtr<const UFXSystemAsset>, TInlineAllocator<8>> ToRemove;
+	for (auto& HUDStatsPair : SystemStats)
+	{
+		TWeakObjectPtr<const UFXSystemAsset> WeakSystem = HUDStatsPair.Key;
+		TSharedPtr<FNiagaraDebugHUDPerfStats>& HUDStats = HUDStatsPair.Value;
+
+		const UNiagaraSystem* System = Cast<const UNiagaraSystem>(WeakSystem.Get());
+		if (System == nullptr)
+		{
+			continue;
+		}
+
+		if (FAccumulatedParticlePerfStats* Stats = GetStats(System))
+		{
+			double SysAvg;
+			double SysMax;
+			if (Settings.PerfSampleMode == ENiagaraDebugHUDPerfSampleMode::FrameTotal)
+			{
+				SysAvg = Stats->GetRenderThreadStats().GetPerFrameAvg();
+				SysMax = Stats->GetRenderThreadStats().GetPerFrameAvg();
+			}
+			else
+			{
+				SysAvg = Stats->GetRenderThreadStats().GetPerInstanceAvg();
+				SysMax = Stats->GetRenderThreadStats().GetPerInstanceMax();
+			}
+
+			HUDStats->History.AddFrame_RT(SysAvg);
+
+			if (bPushStats)
+			{
+				HUDStats->Avg.Time_RT = SysAvg;
+				HUDStats->Max.Time_RT = SysMax;
+			}
+
+			Stats->ResetRT();
+		}
+	}
+
+	for (auto& Remove : ToRemove)
+	{
+		SystemStats.Remove(Remove);
+	}
+#endif
+}
+#endif//WITH_PARTICLE_PERF_STATS

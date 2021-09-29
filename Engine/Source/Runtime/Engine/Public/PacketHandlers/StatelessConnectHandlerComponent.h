@@ -258,6 +258,9 @@ private:
 	/** The time of the last secret value update */
 	double LastSecretUpdateTimestamp;
 
+	/** The time of the last post-handshake initialization */
+	double LastInitTimestamp = 0.0;
+
 	/** The last address to successfully complete the handshake challenge */
 	TSharedPtr<const FInternetAddr> LastChallengeSuccessAddress;
 

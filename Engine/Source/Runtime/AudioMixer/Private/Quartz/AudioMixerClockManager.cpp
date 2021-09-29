@@ -3,6 +3,7 @@
 #include "Quartz/AudioMixerClockManager.h"
 #include "AudioMixerDevice.h"
 #include "Misc/ScopeLock.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 namespace Audio
 {
@@ -19,6 +20,7 @@ namespace Audio
 	void FQuartzClockManager::Update(int32 NumFramesUntilNextUpdate)
 	{
 		// if this is owned by a MixerDevice, this function should only be called on the Audio Render Thread
+		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClockManager::Update)
 		if (MixerDevice)
 		{
 			check(MixerDevice->IsAudioRenderingThread());
@@ -30,6 +32,7 @@ namespace Audio
 
 	void FQuartzClockManager::LowResoultionUpdate(float DeltaTimeSeconds)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClockManager::Update_LowRes)
 		FScopeLock Lock(&ActiveClockCritSec);
 
 		for (auto& Clock : ActiveClocks)
@@ -163,7 +166,7 @@ namespace Audio
 		{
 			if (ActiveClocks[i]->GetName() == InName)
 			{
-				UE_LOG(LogAudioQuartz, Display, TEXT("Removing Clock: %s"), *InName.ToString());
+				UE_LOG(LogAudioQuartz, Verbose, TEXT("Removing Clock: %s"), *InName.ToString());
 				ActiveClocks.RemoveAtSwap(i);
 			}
 		}
@@ -465,6 +468,9 @@ namespace Audio
 
 	void FQuartzClockManager::TickClocks(int32 NumFramesToTick)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClockManager::TickClocks);
+		int32 TotalNumPendingCommands = 0;
+
 		if (MixerDevice)
 		{
 			// This function should only be called on the Audio Render Thread
@@ -474,9 +480,13 @@ namespace Audio
 		FScopeLock Lock(&ActiveClockCritSec);
 		for (auto& Clock : ActiveClocks)
 		{
+			TotalNumPendingCommands += Clock->NumPendingEvents();
 			Clock->Tick(NumFramesToTick);
 			LastClockTickedIndex.Increment();
 		}
+
+		TRACE_INT_VALUE(TEXT("QuartzClockManager::NumActiveClocks"), ActiveClocks.Num());
+		TRACE_INT_VALUE(TEXT("QuartzClockManager::NumTotalPendingCommands"), TotalNumPendingCommands);
 
 		LastClockTickedIndex.Reset();
 	}

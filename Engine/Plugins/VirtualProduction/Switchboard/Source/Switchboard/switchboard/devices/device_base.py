@@ -1,15 +1,28 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from switchboard import config_osc as osc
-from switchboard import recording
-from switchboard.config import CONFIG, Setting, SETTINGS
-from switchboard.switchboard_logging import LOGGER
-from switchboard import message_protocol
 
-from PySide2 import QtCore, QtGui
+from __future__ import annotations
+
+from enum import IntEnum, IntFlag, auto, unique
+import os
+import random
+import socket
+import threading
+from typing import Optional, Type, TYPE_CHECKING
+
+from PySide2 import QtCore
+from PySide2 import QtGui
+
 import pythonosc.udp_client
 
-from enum import IntEnum, IntFlag, unique, auto
-import os, random, socket, threading
+from switchboard import config_osc as osc
+from switchboard import recording
+from switchboard.config import CONFIG, BoolSetting, StringSetting
+from switchboard.switchboard_logging import LOGGER
+
+if TYPE_CHECKING:
+    from switchboard.devices.device_widget_base import \
+        AddDeviceDialog, DeviceWidget
+
 
 @unique
 class DeviceStatus(IntEnum):
@@ -17,11 +30,13 @@ class DeviceStatus(IntEnum):
     DISCONNECTED = auto()
     CONNECTING = auto()
     CLOSED = auto()
+    CLOSING = auto()
     SYNCING = auto()
     BUILDING = auto()
     OPEN = auto()
     READY = auto()
     RECORDING = auto()
+
 
 @unique
 class PluginHeaderWidgets(IntFlag):
@@ -38,31 +53,36 @@ class DeviceQtHandler(QtCore.QObject):
     signal_device_engine_changelist_changed = QtCore.Signal(object)
     signal_device_sync_failed = QtCore.Signal(object)
     signal_device_is_recording_device_changed = QtCore.Signal(object, int)
-    signal_device_build_update = QtCore.Signal(object, str, str) # device, step, percent
-    signal_device_sync_update = QtCore.Signal(object, str) # device, percent
+
+    # Signal parameters are device, step, percent
+    signal_device_build_update = QtCore.Signal(object, str, str)
+    # Signal parameters are device, percent
+    signal_device_sync_update = QtCore.Signal(object, str)
 
 
 class Device(QtCore.QObject):
-
-    add_device_dialog = None # falls back to the default AddDeviceDialog as specified in device_widget_base
-    device_widget = None
+    # Falls back to the default AddDeviceDialog as specified in
+    # device_widget_base.
+    add_device_dialog: Optional[Type[AddDeviceDialog]] = None
+    device_widget = None  # FIXME?: Unused?
 
     csettings = {
-        'is_recording_device': Setting(
-            attr_name="is_recording_device", 
-            nice_name='Is Recording Device', 
-            value=True, 
-            tool_tip=f'Is this device used to record',
+        'is_recording_device': BoolSetting(
+            attr_name="is_recording_device",
+            nice_name='Is Recording Device',
+            value=True,
+            tool_tip='Is this device used to record',
         )
     }
 
-    def __init__(self, name, ip_address, **kwargs):
+    def __init__(self, name: str, ip_address: str, **kwargs):
         super().__init__()
 
         self._name = name  # Assigned name
         self.device_qt_handler = DeviceQtHandler()
 
-        self.setting_ip_address = Setting("ip_address", 'IP address', ip_address)
+        self.setting_ip_address = StringSetting(
+            "ip_address", 'IP address', ip_address)
 
         # override any setting that was passed via kwargs
         for setting in self.setting_overrides():
@@ -70,31 +90,41 @@ class Device(QtCore.QObject):
                 override = kwargs[setting.attr_name]
                 setting.override_value(self.name, override)
 
-        self._project_changelist = None
-        self._engine_changelist = None
+        self._project_changelist: Optional[int] = None
+        self._engine_changelist: Optional[int] = None
 
         self._status = DeviceStatus.DISCONNECTED
 
         # If the device should autoconnect on startup
         self.auto_connect = True
 
-        self.device_hash = random.getrandbits(64) # TODO: This is not really a hash. Could be changed to real hash based on e.g. ip and name.
+        # TODO: This is not really a hash. Could be changed to real hash based
+        # on e.g. ip and name.
+        self.device_hash = random.getrandbits(64)
 
         # Lazily create the OSC client as needed
         self.osc_client = None
 
         self.device_recording = None
 
-        self.widget = None
+        self.widget: DeviceWidget = None  # Constructed during init()
 
     def init(self, widget_class, icons):
-        self.widget = widget_class(self.name, self.device_hash, self.ip_address, icons)
-        self.widget.signal_device_name_changed.connect(self.on_device_name_changed)
-        self.widget.signal_ip_address_changed.connect(self.on_ip_address_changed)
-        self.setting_ip_address.signal_setting_changed.connect(lambda _, new_ip, widget=self.widget: widget.on_ip_address_changed(new_ip))
+        self.widget = widget_class(
+            self.name, self.device_hash, self.ip_address, icons)
+        self.widget.signal_device_name_changed.connect(
+            self.on_device_name_changed)
+        self.widget.signal_ip_address_changed.connect(
+            self.on_ip_address_changed)
+        self.setting_ip_address.signal_setting_changed.connect(
+            lambda _, new_ip, widget=self.widget:
+                widget.on_ip_address_changed(new_ip))
 
-        # let the CONFIG class know what settings/properties this device has so it can save the config file on changes.
-        CONFIG.register_device_settings(self.device_type, self.name, self.device_settings(), self.setting_overrides())
+        # Let the CONFIG class know what settings/properties this device has
+        # so it can save the config file on changes.
+        CONFIG.register_device_settings(
+            self.device_type, self.name, self.device_settings(),
+            self.setting_overrides())
 
     def on_device_name_changed(self, new_name):
         if self.name != new_name:
@@ -139,15 +169,16 @@ class Device(QtCore.QObject):
         return [self.setting_ip_address]
 
     def setting_overrides(self):
-        # all settings that a device may override. these might be project or plugin settings.
+        # All settings that a device may override. these might be project or
+        # plugin settings.
         return []
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self, value: str):
         if self._name == value:
             return
         self._name = value
@@ -158,7 +189,9 @@ class Device(QtCore.QObject):
 
     @classmethod
     def plugin_header_widget_config(cls):
-        """ combination of widgets that will be visualized in the plugin header. """
+        """
+        Combination of widgets that will be visualized in the plugin header.
+        """
         return PluginHeaderWidgets.CONNECT_BUTTON
 
     @property
@@ -168,16 +201,18 @@ class Device(QtCore.QObject):
     @is_recording_device.setter
     def is_recording_device(self, value):
         Device.csettings['is_recording_device'].update_value(value)
-        self.device_qt_handler.signal_device_is_recording_device_changed.emit(self, value)
+        self.device_qt_handler.signal_device_is_recording_device_changed.emit(
+            self, value)
 
     @property
-    def ip_address(self):
+    def ip_address(self) -> str:
         return self.setting_ip_address.get_value()
 
     @ip_address.setter
-    def ip_address(self, value):
+    def ip_address(self, value: str):
         self.setting_ip_address.update_value(value)
-        # todo-dara: probably better to have the osc client connect to a change of the ip address.
+        # todo-dara: probably better to have the osc client connect to a
+        # change of the ip address.
         self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
     @property
@@ -185,32 +220,36 @@ class Device(QtCore.QObject):
         return self._status
 
     @status.setter
-    def status(self, value):
+    def status(self, value: DeviceStatus):
         previous_status = self._status
         self._status = value
-        self.device_qt_handler.signal_device_status_changed.emit(self, previous_status)
+        self.device_qt_handler.signal_device_status_changed.emit(
+            self, previous_status)
 
     @property
     def is_disconnected(self):
-        return self.status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}
+        return self.status in {
+            DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}
 
     @property
     def project_changelist(self):
         return self._project_changelist
 
     @project_changelist.setter
-    def project_changelist(self, value):
+    def project_changelist(self, value: Optional[int]):
         self._project_changelist = value
-        self.device_qt_handler.signal_device_project_changelist_changed.emit(self)
+        self.device_qt_handler.signal_device_project_changelist_changed.emit(
+            self)
 
     @property
     def engine_changelist(self):
         return self._engine_changelist
 
     @engine_changelist.setter
-    def engine_changelist(self, value):
+    def engine_changelist(self, value: Optional[int]):
         self._engine_changelist = value
-        self.device_qt_handler.signal_device_engine_changelist_changed.emit(self)
+        self.device_qt_handler.signal_device_engine_changelist_changed.emit(
+            self)
 
     def set_slate(self, value):
         pass
@@ -220,10 +259,10 @@ class Device(QtCore.QObject):
 
     @QtCore.Slot()
     def connecting_listener(self):
-
         # Ensure this code is run from the main thread
         if threading.current_thread() is not threading.main_thread():
-            QtCore.QMetaObject.invokeMethod(self, 'connecting_listener', QtCore.Qt.QueuedConnection)
+            QtCore.QMetaObject.invokeMethod(
+                self, 'connecting_listener', QtCore.Qt.QueuedConnection)
             return
 
         # If the device was disconnected, set to connecting.
@@ -233,10 +272,10 @@ class Device(QtCore.QObject):
 
     @QtCore.Slot()
     def connect_listener(self):
-
         # Ensure this code is run from the main thread
         if threading.current_thread() is not threading.main_thread():
-            QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
+            QtCore.QMetaObject.invokeMethod(
+                self, 'connect_listener', QtCore.Qt.QueuedConnection)
             return
 
         # If the device was disconnected, set to closed.
@@ -246,28 +285,33 @@ class Device(QtCore.QObject):
 
     @QtCore.Slot()
     def disconnect_listener(self):
-
         # Ensure this code is run from the main thread
         if threading.current_thread() is not threading.main_thread():
-            QtCore.QMetaObject.invokeMethod(self, 'disconnect_listener', QtCore.Qt.QueuedConnection)
+            QtCore.QMetaObject.invokeMethod(
+                self, 'disconnect_listener', QtCore.Qt.QueuedConnection)
             return
 
         self.status = DeviceStatus.DISCONNECTED
 
     def setup_osc_client(self, osc_port):
-        self.osc_client = pythonosc.udp_client.SimpleUDPClient(self.ip_address, osc_port)
+        self.osc_client = pythonosc.udp_client.SimpleUDPClient(
+            self.ip_address, osc_port)
 
     def send_osc_message(self, command, value, log=True):
         if not self.osc_client:
             self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
         if log:
-            LOGGER.osc(f'OSC Server: Sending {command} {value} to {self.name} ({self.ip_address})')
+            LOGGER.osc(
+                f'OSC Server: Sending {command} {value} '
+                f'to {self.name} ({self.ip_address})')
 
         try:
             self.osc_client.send_message(command, value)
         except socket.gaierror as e:
-            LOGGER.error(f'{self.name}: Incorrect ip address when sending OSC message. {e}')
+            LOGGER.error(
+                f'{self.name}: Incorrect ip address when sending '
+                f'OSC message. {e}')
 
     def record_start(self, slate, take, description):
         if self.is_disconnected or not self.is_recording_device:
@@ -276,13 +320,15 @@ class Device(QtCore.QObject):
         self.send_osc_message(osc.RECORD_START, [slate, take, description])
 
     def record_stop(self):
-        if self.status != DeviceStatus.RECORDING or not self.is_recording_device:
+        if (self.status != DeviceStatus.RECORDING or
+                not self.is_recording_device):
             return
 
         self.send_osc_message(osc.RECORD_STOP, 1)
 
     def record_start_confirm(self, timecode):
-        self.device_recording = self.new_device_recording(self.name, self.device_type, timecode)
+        self.device_recording = self.new_device_recording(
+            self.name, self.device_type, timecode)
         self.status = DeviceStatus.RECORDING
 
     def record_stop_confirm(self, timecode, paths=None):
@@ -299,8 +345,9 @@ class Device(QtCore.QObject):
     def transport_paths(self, device_recording):
         """
         Return the transport paths for the passed in device_recording
-        This is used to create TransportJobs. If the device does not specify which paths
-        it should transport, then no jobs will be moved to the transport path
+        This is used to create TransportJobs. If the device does not specify
+        which paths it should transport, then no jobs will be moved to the
+        transport path.
         """
         return device_recording.paths
 
@@ -314,7 +361,15 @@ class Device(QtCore.QObject):
         ''' Called when the device's widget is registered
             You could connect to its signals here.
         '''
-        self.device_widget = device_widget
+        pass
+
+    def should_allow_exit(self, close_req_id: int) -> bool:
+        '''
+        Returning `False` will interrupt an attempt to exit Switchboard.
+        Can be used as an opportunity to prompt with a message box, etc.
+        `close_req_id` is unique per exit request/attempt.
+        '''
+        return True
 
     @staticmethod
     def new_device_recording(device_name, device_type, timecode_in):
@@ -343,5 +398,11 @@ class Device(QtCore.QObject):
     @classmethod
     def removed_device(cls, device):
         ''' DeviceManager informing that this plugin device has been removed.
+        '''
+        pass
+
+    @classmethod
+    def all_devices_added(cls):
+        ''' Called after the device manager adds all the devices of this type
         '''
         pass

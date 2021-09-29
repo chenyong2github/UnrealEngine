@@ -247,6 +247,34 @@ namespace CharacterMovementCVars
 		TEXT("p.UseTargetVelocityOnImpact"),
 		UseTargetVelocityOnImpact, TEXT("When disabled, we recalculate velocity after impact by comparing our position before we moved to our position after we moved. This doesn't work correctly when colliding with physics objects, so setting this to 1 fixes this one the hit object is moving."));
 
+	static float ClientAuthorityThresholdOnBaseChange = 0.f;
+	FAutoConsoleVariableRef CVarClientAuthorityThresholdOnBaseChange(
+		TEXT("p.ClientAuthorityThresholdOnBaseChange"),
+		ClientAuthorityThresholdOnBaseChange,
+		TEXT("When a pawn moves onto or off of a moving base, this can cause an abrupt correction. In these cases, trust the client up to this distance away from the server component location."),
+		ECVF_Default);
+
+	static float MaxFallingCorrectionLeash = 0.f;
+	FAutoConsoleVariableRef CVarMaxFallingCorrectionLeash(
+		TEXT("p.MaxFallingCorrectionLeash"),
+		MaxFallingCorrectionLeash,
+		TEXT("When airborne, some distance between the server and client locations may remain to avoid sudden corrections as clients jump from moving bases. This value is the maximum allowed distance."),
+		ECVF_Default);
+
+	static float MaxFallingCorrectionLeashBuffer = 10.f;
+	FAutoConsoleVariableRef CVarMaxFallingCorrectionLeashBuffer(
+		TEXT("p.MaxFallingCorrectionLeashBuffer"),
+		MaxFallingCorrectionLeashBuffer,
+		TEXT("To avoid constant corrections, when an airborne server and client are further than p.MaxFallingCorrectionLeash cm apart, they'll be pulled in to that distance minus this value."),
+		ECVF_Default);
+
+	static bool bAddFormerBaseVelocityToRootMotionOverrideWhenFalling = true;
+	FAutoConsoleVariableRef CVarAddFormerBaseVelocityToRootMotionOverrideWhenFalling(
+		TEXT("p.AddFormerBaseVelocityToRootMotionOverrideWhenFalling"),
+		bAddFormerBaseVelocityToRootMotionOverrideWhenFalling,
+		TEXT("To avoid sudden velocity changes when a root motion source moves the pawn from a moving base to free fall, this CVar will enable the FormerBaseVelocityDecayHalfLife property on CharacterMovementComponent."),
+		ECVF_Default);
+
 #if !UE_BUILD_SHIPPING
 
 	int32 NetShowCorrections = 0;
@@ -1220,7 +1248,17 @@ void UCharacterMovementComponent::OnMovementModeChanged(EMovementMode PreviousMo
 
 		if (MovementMode == MOVE_Falling)
 		{
-			Velocity += GetImpartedMovementBaseVelocity();
+			DecayingFormerBaseVelocity = GetImpartedMovementBaseVelocity();
+			Velocity += DecayingFormerBaseVelocity;
+			if (bMovementInProgress && CurrentRootMotion.HasAdditiveVelocity())
+			{
+				// If we leave a base during movement and we have additive root motion, we need to add the imparted velocity so that it retains it next tick
+				CurrentRootMotion.LastPreAdditiveVelocity += DecayingFormerBaseVelocity;
+			}
+			if (!CharacterMovementCVars::bAddFormerBaseVelocityToRootMotionOverrideWhenFalling || FormerBaseVelocityDecayHalfLife == 0.f)
+			{
+				DecayingFormerBaseVelocity = FVector::ZeroVector;
+			}
 			CharacterOwner->Falling();
 		}
 
@@ -2277,6 +2315,8 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 	{
 		return;
 	}
+
+	bTeleportedSinceLastUpdate = UpdatedComponent->GetComponentLocation() != LastUpdateLocation;
 	
 	// no movement if we can't move, or if currently doing physical simulation on UpdatedComponent
 	if (MovementMode == MOVE_None || UpdatedComponent->Mobility != EComponentMobility::Movable || UpdatedComponent->IsSimulatingPhysics())
@@ -2300,7 +2340,7 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 	}
 
 	// Force floor update if we've moved outside of CharacterMovement since last update.
-	bForceNextFloorCheck |= (IsMovingOnGround() && UpdatedComponent->GetComponentLocation() != LastUpdateLocation);
+	bForceNextFloorCheck |= (IsMovingOnGround() && bTeleportedSinceLastUpdate);
 
 	// Update saved LastPreAdditiveVelocity with any external changes to character Velocity that happened since last update.
 	if( CurrentRootMotion.HasAdditiveVelocity() )
@@ -2458,6 +2498,10 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 				{
 					AnimRootMotionVelocity = CalcAnimRootMotionVelocity(RootMotionParams.GetRootMotionTransform().GetTranslation(), DeltaSeconds, Velocity);
 					Velocity = ConstrainAnimRootMotionVelocity(AnimRootMotionVelocity, Velocity);
+					if (IsFalling())
+					{
+						Velocity += FVector(DecayingFormerBaseVelocity.X, DecayingFormerBaseVelocity.Y, 0.f);
+					}
 				}
 				
 				UE_LOG(LogRootMotion, Log,  TEXT("PerformMovement WorldSpaceRootMotion Translation: %s, Rotation: %s, Actor Facing: %s, Velocity: %s")
@@ -2477,6 +2521,10 @@ void UCharacterMovementComponent::PerformMovement(float DeltaSeconds)
 					const FVector VelocityBeforeOverride = Velocity;
 					FVector NewVelocity = Velocity;
 					CurrentRootMotion.AccumulateOverrideRootMotionVelocity(DeltaSeconds, *CharacterOwner, *this, NewVelocity);
+					if (IsFalling())
+					{
+						NewVelocity += CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(DecayingFormerBaseVelocity.X, DecayingFormerBaseVelocity.Y, 0.f) : DecayingFormerBaseVelocity;
+					}
 					Velocity = NewVelocity;
 
 #if ROOT_MOTION_DEBUG
@@ -3961,6 +4009,10 @@ void UCharacterMovementComponent::ApplyRootMotionToVelocity(float deltaTime)
 	if( HasAnimRootMotion() && deltaTime > 0.f )
 	{
 		Velocity = ConstrainAnimRootMotionVelocity(AnimRootMotionVelocity, Velocity);
+		if (IsFalling())
+		{
+			Velocity += FVector(DecayingFormerBaseVelocity.X, DecayingFormerBaseVelocity.Y, 0.f);
+		}
 		return;
 	}
 
@@ -3972,6 +4024,10 @@ void UCharacterMovementComponent::ApplyRootMotionToVelocity(float deltaTime)
 	if( CurrentRootMotion.HasOverrideVelocity() )
 	{
 		CurrentRootMotion.AccumulateOverrideRootMotionVelocity(deltaTime, *CharacterOwner, *this, Velocity);
+		if (IsFalling())
+		{
+			Velocity += CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(DecayingFormerBaseVelocity.X, DecayingFormerBaseVelocity.Y, 0.f) : DecayingFormerBaseVelocity;
+		}
 		bAppliedRootMotion = true;
 
 #if ROOT_MOTION_DEBUG
@@ -4022,6 +4078,18 @@ void UCharacterMovementComponent::ApplyRootMotionToVelocity(float deltaTime)
 		{
 			SetMovementMode(MOVE_Falling);
 		}
+	}
+}
+
+void UCharacterMovementComponent::DecayFormerBaseVelocity(float deltaTime)
+{
+	if (!CharacterMovementCVars::bAddFormerBaseVelocityToRootMotionOverrideWhenFalling || FormerBaseVelocityDecayHalfLife == 0.f)
+	{
+		DecayingFormerBaseVelocity = FVector::ZeroVector;
+	}
+	else if (FormerBaseVelocityDecayHalfLife > 0.f)
+	{
+		DecayingFormerBaseVelocity *= FMath::Exp2(-deltaTime * 1.f / FormerBaseVelocityDecayHalfLife);
 	}
 }
 
@@ -4361,6 +4429,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 
 		//UE_LOG(LogCharacterMovement, Log, TEXT("dt=(%.6f) OldLocation=(%s) OldVelocity=(%s) OldVelocityWithRootMotion=(%s) NewVelocity=(%s)"), timeTick, *(UpdatedComponent->GetComponentLocation()).ToString(), *OldVelocity.ToString(), *OldVelocityWithRootMotion.ToString(), *Velocity.ToString());
 		ApplyRootMotionToVelocity(timeTick);
+		DecayFormerBaseVelocity(timeTick);
 
 		// See if we need to sub-step to exactly reach the apex. This is important for avoiding "cutting off the top" of the trajectory as framerate varies.
 		if (CharacterMovementCVars::ForceJumpPeakSubstep && OldVelocityWithRootMotion.Z > 0.f && Velocity.Z <= 0.f && NumJumpApexAttempts < MaxJumpApexAttemptsPerSimulation)
@@ -9390,6 +9459,8 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 		ClientLoc = FRepMovement::RebaseOntoLocalOrigin(ClientLoc, this);
 	}
 
+	FVector ServerLoc = UpdatedComponent->GetComponentLocation();
+
 	// Client may send a null movement base when walking on bases with no relative location (to save bandwidth).
 	// In this case don't check movement base in error conditions, use the server one (which avoids an error based on differing bases). Position will still be validated.
 	if (ClientMovementBase == nullptr)
@@ -9405,23 +9476,183 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 		}
 	}
 
+	// If base location is out of sync on server and client, changing base can result in a jarring correction.
+	// So in the case that the base has just changed on server or client, server trusts the client (within a threshold)
+	UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
+	FName MovementBaseBoneName = CharacterOwner->GetBasedMovement().BoneName;
+	const bool bServerIsFalling = IsFalling();
+	const bool bClientIsFalling = ClientMovementMode == MOVE_Falling;
+	const bool bServerJustLanded = bLastServerIsFalling && !bServerIsFalling;
+	const bool bClientJustLanded = bLastClientIsFalling && !bClientIsFalling;
+
+	FVector RelativeLocation = ServerLoc;
+	FVector RelativeVelocity = Velocity;
+	bool bUseLastBase = false;
+	bool bFallingWithinAcceptableError = false;
+
+	// Potentially trust the client a little when landing
+	const float ClientAuthorityThreshold = CharacterMovementCVars::ClientAuthorityThresholdOnBaseChange;
+	const float MaxFallingCorrectionLeash = CharacterMovementCVars::MaxFallingCorrectionLeash;
+	const bool bDeferServerCorrectionsWhenFalling = ClientAuthorityThreshold > 0.f || MaxFallingCorrectionLeash > 0.f;
+	if (bDeferServerCorrectionsWhenFalling)
+	{
+		// Teleports and other movement modes mean we should just trust the server like we normally would
+		if (bTeleportedSinceLastUpdate || (MovementMode != MOVE_Walking && MovementMode != MOVE_Falling))
+		{
+			MaxServerClientErrorWhileFalling = 0.f;
+			bCanTrustClientOnLanding = false;
+		}
+
+		// MaxFallingCorrectionLeash indicates we'll use a variable correction size based on the error on take-off and the direction of movement.
+		// ClientAuthorityThreshold is an static client-trusting correction upon landing.
+		// If both are set, use the smaller of the two. If only one is set, use that. If neither are set, we wouldn't even be inside this block.
+		float MaxLandingCorrection = 0.f;
+		if (ClientAuthorityThreshold > 0.f && MaxFallingCorrectionLeash > 0.f)
+		{
+			MaxLandingCorrection = FMath::Min(ClientAuthorityThreshold, MaxServerClientErrorWhileFalling);
+		}
+		else
+		{
+			MaxLandingCorrection = FMath::Max(ClientAuthorityThreshold, MaxServerClientErrorWhileFalling);
+		}
+
+		if (bCanTrustClientOnLanding && MaxLandingCorrection > 0.f && (bClientJustLanded || bServerJustLanded))
+		{
+			// no longer falling; server should trust client up to a point to finish the landing as the client sees it
+			const FVector LocDiff = ServerLoc - ClientLoc;
+
+			if (!LocDiff.IsNearlyZero(KINDA_SMALL_NUMBER))
+			{
+				if (LocDiff.SizeSquared() < FMath::Square(MaxLandingCorrection))
+				{
+					ServerLoc = ClientLoc;
+					UpdatedComponent->MoveComponent(ServerLoc - UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+					bJustTeleported = true;
+				}
+				else
+				{
+					const FVector ClampedDiff = LocDiff.GetSafeNormal() * MaxLandingCorrection;
+					ServerLoc -= ClampedDiff;
+					UpdatedComponent->MoveComponent(ServerLoc - UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+					bJustTeleported = true;
+				}
+			}
+
+			MaxServerClientErrorWhileFalling = 0.f;
+			bCanTrustClientOnLanding = false;
+		}
+
+		if (bServerIsFalling && bLastServerIsWalking && !bTeleportedSinceLastUpdate)
+		{
+			float ClientForwardFactor = 1.f;
+			if (IsValid(LastServerMovementBase) && MovementBaseUtility::IsDynamicBase(LastServerMovementBase) && MaxWalkSpeed > KINDA_SMALL_NUMBER)
+			{
+				const FVector LastBaseVelocity = MovementBaseUtility::GetMovementBaseVelocity(LastServerMovementBase, LastServerMovementBaseBoneName);
+				RelativeVelocity = Velocity - LastBaseVelocity;
+				const FVector BaseDirection = LastBaseVelocity.GetSafeNormal2D();
+				const FVector RelativeDirection = RelativeVelocity * (1.f / MaxWalkSpeed);
+
+				ClientForwardFactor = FMath::Clamp(FVector::DotProduct(BaseDirection, RelativeDirection), 0.f, 1.f);
+
+				// To improve position syncing, use old base for take-off
+				if (MovementBaseUtility::UseRelativeLocation(LastServerMovementBase))
+				{
+					FVector BaseLocation;
+					FQuat BaseQuat;
+					MovementBaseUtility::GetMovementBaseTransform(LastServerMovementBase, LastServerMovementBaseBoneName, BaseLocation, BaseQuat);
+
+					// Relative Location
+					RelativeLocation = UpdatedComponent->GetComponentLocation() - BaseLocation;
+					bUseLastBase = true;
+				}
+			}
+
+			if (ClientAuthorityThreshold > 0.f && ClientForwardFactor < 1.f)
+			{
+				const float AdjustedClientAuthorityThreshold = ClientAuthorityThreshold * (1.f - ClientForwardFactor);
+				const FVector LocDiff = ServerLoc - ClientLoc;
+
+				// Potentially trust the client a little when taking off in the opposite direction to the base (to help not get corrected back onto the base)
+				if (!LocDiff.IsNearlyZero(KINDA_SMALL_NUMBER))
+				{
+					if (LocDiff.SizeSquared() < FMath::Square(AdjustedClientAuthorityThreshold))
+					{
+						ServerLoc = ClientLoc;
+						UpdatedComponent->MoveComponent(ServerLoc - UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+						bJustTeleported = true;
+					}
+					else
+					{
+						const FVector ClampedDiff = LocDiff.GetSafeNormal() * AdjustedClientAuthorityThreshold;
+						ServerLoc -= ClampedDiff;
+						UpdatedComponent->MoveComponent(ServerLoc - UpdatedComponent->GetComponentLocation(), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+						bJustTeleported = true;
+					}
+				}
+			}
+
+			if (ClientForwardFactor < 1.f)
+			{
+				MaxServerClientErrorWhileFalling = FMath::Min((ServerLoc - ClientLoc).Size() * (1.f - ClientForwardFactor), MaxFallingCorrectionLeash);
+				bCanTrustClientOnLanding = true;
+			}
+			else
+			{
+				MaxServerClientErrorWhileFalling = 0.f;
+				bCanTrustClientOnLanding = false;
+			}
+		}
+		else if (!bServerIsFalling && bCanTrustClientOnLanding)
+		{
+			MaxServerClientErrorWhileFalling = 0.f;
+			bCanTrustClientOnLanding = false;
+		}
+
+		if (MaxServerClientErrorWhileFalling > 0.f && (bServerIsFalling || bClientIsFalling))
+		{
+			const FVector LocDiff = ServerLoc - ClientLoc;
+			if (LocDiff.SizeSquared() <= FMath::Square(MaxServerClientErrorWhileFalling))
+			{
+				ServerLoc = ClientLoc;
+				// Still want a velocity update when we first take off
+				bFallingWithinAcceptableError = true;
+			}
+			else
+			{
+				// Change ServerLoc to be on the edge of the acceptable error rather than doing a full correction.
+				// This is not actually changing the server position, but changing it as far as corrections are concerned.
+				// This means we're just holding the client on a longer leash while we're falling.
+				ServerLoc = ServerLoc - LocDiff.GetSafeNormal() * FMath::Clamp(MaxServerClientErrorWhileFalling - CharacterMovementCVars::MaxFallingCorrectionLeashBuffer, 0.f, MaxServerClientErrorWhileFalling);
+			}
+		}
+	}
+
 	// Compute the client error from the server's position
 	// If client has accumulated a noticeable positional error, correct them.
 	bNetworkLargeClientCorrection = ServerData->bForceClientUpdate;
-	if (ServerData->bForceClientUpdate || ServerCheckClientError(ClientTimeStamp, DeltaTime, Accel, ClientLoc, RelativeClientLoc, ClientMovementBase, ClientBaseBoneName, ClientMovementMode))
+	if (ServerData->bForceClientUpdate || (!bFallingWithinAcceptableError && ServerCheckClientError(ClientTimeStamp, DeltaTime, Accel, ClientLoc, RelativeClientLoc, ClientMovementBase, ClientBaseBoneName, ClientMovementMode)))
 	{
-		UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
 		ServerData->PendingAdjustment.NewVel = Velocity;
 		ServerData->PendingAdjustment.NewBase = MovementBase;
-		ServerData->PendingAdjustment.NewBaseBoneName = CharacterOwner->GetBasedMovement().BoneName;
-		ServerData->PendingAdjustment.NewLoc = FRepMovement::RebaseOntoZeroOrigin(UpdatedComponent->GetComponentLocation(), this);
+		ServerData->PendingAdjustment.NewBaseBoneName = MovementBaseBoneName;
+		ServerData->PendingAdjustment.NewLoc = FRepMovement::RebaseOntoZeroOrigin(ServerLoc, this);
 		ServerData->PendingAdjustment.NewRot = UpdatedComponent->GetComponentRotation();
 
-		ServerData->PendingAdjustment.bBaseRelativePosition = MovementBaseUtility::UseRelativeLocation(MovementBase);
+		ServerData->PendingAdjustment.bBaseRelativePosition = (bDeferServerCorrectionsWhenFalling && bUseLastBase) || MovementBaseUtility::UseRelativeLocation(MovementBase);
 		if (ServerData->PendingAdjustment.bBaseRelativePosition)
 		{
 			// Relative location
-			ServerData->PendingAdjustment.NewLoc = CharacterOwner->GetBasedMovement().Location;
+			if (bDeferServerCorrectionsWhenFalling && bUseLastBase)
+			{
+				ServerData->PendingAdjustment.NewVel = RelativeVelocity;
+				ServerData->PendingAdjustment.NewBase = LastServerMovementBase;
+				ServerData->PendingAdjustment.NewBaseBoneName = LastServerMovementBaseBoneName;
+				ServerData->PendingAdjustment.NewLoc = RelativeLocation;
+			}
+			else
+			{
+				ServerData->PendingAdjustment.NewLoc = CharacterOwner->GetBasedMovement().Location;
+			}
 			
 			// TODO: this could be a relative rotation, but all client corrections ignore rotation right now except the root motion one, which would need to be updated.
 			//ServerData->PendingAdjustment.NewRot = CharacterOwner->GetBasedMovement().Rotation;
@@ -9487,6 +9718,12 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 #endif
 
 	ServerData->bForceClientUpdate = false;
+
+	LastServerMovementBase = MovementBase;
+	LastServerMovementBaseBoneName = MovementBaseBoneName;
+	bLastClientIsFalling = bClientIsFalling;
+	bLastServerIsFalling = bServerIsFalling;
+	bLastServerIsWalking = MovementMode == MOVE_Walking;
 }
 
 bool UCharacterMovementComponent::ServerCheckClientError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode)

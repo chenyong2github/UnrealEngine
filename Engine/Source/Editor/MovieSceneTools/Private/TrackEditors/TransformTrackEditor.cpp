@@ -424,6 +424,7 @@ void F3DTransformTrackEditor::BuildObjectBindingEditButtons(TSharedPtr<SHorizont
 			SNew(SCheckBox)		
 				.Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
 				.Type(ESlateCheckBoxType::CheckBox)
+				.Padding(FMargin(0.f))
 				.IsFocusable(false)
 				.Visibility(this, &F3DTransformTrackEditor::IsCameraVisible, ObjectGuid)
 				.IsChecked(this, &F3DTransformTrackEditor::IsCameraLocked, ObjectGuid)

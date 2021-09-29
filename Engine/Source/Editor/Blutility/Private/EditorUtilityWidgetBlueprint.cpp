@@ -77,7 +77,7 @@ TSharedRef<SWidget> UEditorUtilityWidgetBlueprint::CreateUtilityWidget()
 		{
 			CreatedUMGWidget->Rename(nullptr, GetTransientPackage(), REN_DoNotDirty);
 		}
-		CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(GetTransientPackage(), WidgetClass);
+		CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(World, WidgetClass);		
 	}
 
 	if (CreatedUMGWidget)

@@ -65,9 +65,7 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 	// things (e.g. start/stop, loop, etc.), but in 95% of cases, they will just queue up a normal evaluation
 	// request...
 	//
-	bool bHasTasks = Runner.HasQueuedUpdates();
 	UWorld* World = GetTypedOuter<UWorld>();
-
 	check(World != nullptr);
 	ensure(LatentActionManager.IsEmpty());
 	
@@ -83,13 +81,12 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 				check(Pointers.SequenceActorInterface);
 				check(Pointers.SequenceActor->GetWorld() == World);
 				Pointers.SequenceActorInterface->TickFromSequenceTickManager(DeltaSeconds);
-				bHasTasks = true;
 			}
 		}
 	}
 
 	// If we have nothing to do, we can early-out.
-	if (!bHasTasks)
+	if (!Runner.HasQueuedUpdates())
 	{
 		return;
 	}

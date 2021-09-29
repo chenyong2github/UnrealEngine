@@ -156,6 +156,8 @@ void UMediaProfile::Apply()
 			UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("The Custom Time Step '%s' could not be initialized."), *CustomTimeStep->GetName());
 		}
 	}
+
+	SendAnalytics();
 }
 
 

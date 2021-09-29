@@ -17,5 +17,7 @@ public:
 	virtual void BlockingTick() = 0;
 	/** Called once the blocking operation is done to shut down the movie player.*/
 	virtual void BlockingFinished() = 0;
+	/** Call this to prevent the movie player from using the Slate thread. */
+	virtual void SetIsSlateThreadAllowed(bool bInIsSlateThreadAllowed) = 0;
 };
 

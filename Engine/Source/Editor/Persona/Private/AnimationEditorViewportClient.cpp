@@ -164,7 +164,17 @@ FAnimationViewportClient::~FAnimationViewportClient()
 		ScenePtr->UnregisterOnCameraOverrideChanged(this);
 		ScenePtr->UnregisterOnPreTick(this);
 		ScenePtr->UnregisterOnPostTick(this);
+
+		if (OnPhysicsCreatedDelegateHandle.IsValid())
+		{
+			UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
+			if (PreviewMeshComponent)
+			{
+				PreviewMeshComponent->UnregisterOnPhysicsCreatedDelegate(OnPhysicsCreatedDelegateHandle);
+			}
+		}
 	}
+	OnPhysicsCreatedDelegateHandle.Reset();
 
 	UAssetViewerSettings::Get()->OnAssetViewerSettingsChanged().RemoveAll(this);
 }
@@ -377,9 +387,14 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 	{
 		PhysAsset->InvalidateAllPhysicsMeshes();
 
+		if (OnPhysicsCreatedDelegateHandle.IsValid())
+		{
+			PreviewMeshComponent->UnregisterOnPhysicsCreatedDelegate(OnPhysicsCreatedDelegateHandle);
+			OnPhysicsCreatedDelegateHandle.Reset();
+		}
 		// we need to make sure we monitor any change to the PhysicsState being recreated, as this can happen from path that is external to this class
 		// (example: setting a property on a body that is type "simulated" will recreate the state from USkeletalBodySetup::PostEditChangeProperty and let the body simulating (UE-107308)
-		PreviewMeshComponent->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateLambda([this]()
+		OnPhysicsCreatedDelegateHandle = PreviewMeshComponent->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateLambda([this]()
 			{
 				UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
 				// let's make sure nothing is simulating and that all necessary state are in proper order

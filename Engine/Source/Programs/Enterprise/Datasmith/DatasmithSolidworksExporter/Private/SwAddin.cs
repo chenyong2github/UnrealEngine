@@ -532,7 +532,7 @@ namespace SolidworksDatasmith
 			if (SwSingleton.CurrentScene == null)
 			{
 				return 0;
-		}
+			}
 
 			return SwSingleton.CurrentScene.bDirectLinkAutoSync ? 1 : 3;
 		}

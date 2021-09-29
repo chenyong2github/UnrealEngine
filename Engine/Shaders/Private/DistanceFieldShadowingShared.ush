@@ -91,7 +91,8 @@ float ShadowRayTraceThroughCulledObjects(
 			float VolumeRayLength = length(VolumeRayDirection);
 			VolumeRayDirection /= VolumeRayLength;
 
-			float WorldToVolumeScale = 1.0f / DFObjectData.VolumeScale;
+			// Use max volume scale instead of DFObjectData.VolumeScale which is the min version to avoid over dilating penumbra and flickering during movement
+			float WorldToVolumeScale = 1.0f / max3(DFObjectData.VolumeToWorldScale.x, DFObjectData.VolumeToWorldScale.y, DFObjectData.VolumeToWorldScale.z);
 			float VolumeMinSphereRadius = MinSphereRadius * WorldToVolumeScale;
 			float VolumeMaxSphereRadius = MaxSphereRadius * WorldToVolumeScale;
 			float VolumeTwoSidedMeshDistanceBias = TwoSidedMeshDistanceBias * WorldToVolumeScale;

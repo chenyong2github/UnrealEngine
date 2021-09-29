@@ -383,6 +383,7 @@ void FShaderMapResource::ReleaseShaders()
 			if (FRHIShader* Shader = RHIShaders[Idx].load(std::memory_order_acquire))
 			{
 				Shader->Release();
+				DEC_DWORD_STAT(STAT_Shaders_NumShadersUsedForRendering);
 			}
 		}
 		RHIShaders = nullptr;
@@ -441,6 +442,17 @@ FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
 TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 ShaderIndex)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapResource_InlineCode::CreateRHIShader);
+#if STATS
+	double TimeFunctionEntered = FPlatformTime::Seconds();
+	ON_SCOPE_EXIT
+	{
+		if (IsInRenderingThread())
+		{
+			double ShaderCreationTime = FPlatformTime::Seconds() - TimeFunctionEntered;
+			INC_FLOAT_STAT_BY(STAT_Shaders_TotalRTShaderInitForRenderingTime, ShaderCreationTime);
+		}
+	};
+#endif
 
 	// we can't have this called on the wrong platform's shaders
 	if (!ArePlatformsCompatible(GMaxRHIShaderPlatform, GetPlatform()))
@@ -494,6 +506,7 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 
 	if (RHIShader)
 	{
+		INC_DWORD_STAT(STAT_Shaders_NumShadersUsedForRendering);
 		RHIShader->SetHash(ShaderHash);
 	}
 	return RHIShader;

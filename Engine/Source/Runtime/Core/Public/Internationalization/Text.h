@@ -703,7 +703,7 @@ public:
 
 	bool ShouldGatherForLocalization() const;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	/**
 	 * Constructs a new FText with the SourceString of the specified text but with the specified namespace and key
 	 */

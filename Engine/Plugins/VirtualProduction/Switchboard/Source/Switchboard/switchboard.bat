@@ -6,6 +6,8 @@ pushd "%~dp0..\..\..\..\.."
 set _engineDir=%CD%
 set _enginePythonPlatformDir=%_engineDir%\Binaries\ThirdParty\Python3\Win64
 set _pyVenvDir=%_engineDir%\Extras\ThirdPartyNotUE\SwitchboardThirdParty\Python
+set _cwrsyncDir=%_engineDir%\Extras\ThirdPartyNotUE\cwrsync
+set _sbCwrsyncDir=%_engineDir%\Extras\ThirdPartyNotUE\SwitchboardThirdParty\cwrsync
 popd
 
 call:main
@@ -26,6 +28,11 @@ if exist "%_pyVenvDir%" (
 
 if not exist "%_pyVenvDir%" (
     call:setup_python_venv
+)
+
+REM We make our own working copy of cwrsync to scope our modifications to etc/fstab.
+if not exist "%_sbCwrsyncDir%\bin\rsync.exe" (
+    robocopy /NP /S "%_cwrsyncDir%" "%_sbCwrsyncDir%" 1>"%_sbCwrsyncDir%\provision.log" 2>&1
 )
 
 call:start_sb
@@ -86,4 +93,4 @@ goto:eof
 :start_sb
 
 call "%_pyVenvDir%\Scripts\activate"
-start "Switchboard" pythonw.exe -m switchboard
+start "Switchboard" /D "%~dp0" pythonw.exe -m switchboard

@@ -34,7 +34,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapperOutputDeviceParameters, )
 	SHADER_PARAMETER(uint32, OutputGamut)
 END_SHADER_PARAMETER_STRUCT()
 
-FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSceneViewFamily& Family);
+RENDERER_API FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSceneViewFamily& Family);
 
 static void GrainRandomFromFrame(FVector3f* RESTRICT const Constant, uint32 FrameNumber)
 {

@@ -379,6 +379,30 @@ struct NIAGARA_API FNiagaraDebugHUDVariable
 	static void InitFromString(const FString& VariablesString, TArray<FNiagaraDebugHUDVariable>& OutVariables);
 };
 
+UENUM()
+enum class ENiagaraDebugHUDOverviewMode
+{
+	Overview,
+	Scalability,	
+	Performance,
+}; 
+
+UENUM()
+enum class ENiagaraDebugHUDPerfGraphMode
+{
+	None,
+	GameThread,
+	RenderThread,
+	//GPU,
+}; 
+
+UENUM()
+enum class ENiagaraDebugHUDPerfSampleMode
+{
+	FrameTotal,
+	PerInstanceAverage,	
+};
+
 /** Settings for Niagara debug HUD. Contained in it's own struct so that we can pass it whole in a message to the debugger client. */
 USTRUCT()
 struct NIAGARA_API FNiagaraDebugHUDSettingsData
@@ -410,6 +434,9 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	/** When enabled the overview display will be enabled. */
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Enabled"))
 	bool bOverviewEnabled = false;
+
+	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Mode"))
+	ENiagaraDebugHUDOverviewMode OverviewMode = ENiagaraDebugHUDOverviewMode::Overview;
 
 	/** Overview display font to use. */
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Font", EditCondition = "bOverviewEnabled"))
@@ -529,6 +556,40 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	*/
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bUseMaxParticlesToDisplay && bShowParticleVariables", UIMin="1", ClampMin="1"))
 	int32 MaxParticlesToDisplay = 32;
+
+	/** How many frames to capture in between updates to the max and average perf report values. */
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview")
+	int32 PerfReportFrames = 60;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview")
+	ENiagaraDebugHUDPerfSampleMode PerfSampleMode = ENiagaraDebugHUDPerfSampleMode::FrameTotal;
+
+	/** Time range of the Y Axis of the perf graph */
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview")
+	ENiagaraDebugHUDPerfGraphMode PerfGraphMode = ENiagaraDebugHUDPerfGraphMode::GameThread;
+
+	/** How many frames of history to display in the perf graphs. */
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview")
+	int32 PerfHistoryFrames = 600;
+
+	/** Time range of the Y Axis of the perf graph */
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview")
+	float PerfGraphTimeRange = 500.0f;
+
+	/** Pixel size of the perf graph. */
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview")
+	FVector2D PerfGraphSize = FVector2D(500,500);
+
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview")
+	FLinearColor PerfGraphAxisColor = FLinearColor::White;
+
+	// True if perf graphs should be smoothed.
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview", meta = (InlineEditConditionToggle))
+	bool bEnableSmoothing = true;
+
+	//Number of samples to use either size of a value when smoothing perf graphs.
+	UPROPERTY(Config, EditAnywhere, Category = "Perf Overview", meta = (EditCondition = "bEnableSmoothing"))
+	int32 SmoothingWidth = 4;
 
 	UPROPERTY()
 	ENiagaraDebugPlaybackMode PlaybackMode = ENiagaraDebugPlaybackMode::Play;

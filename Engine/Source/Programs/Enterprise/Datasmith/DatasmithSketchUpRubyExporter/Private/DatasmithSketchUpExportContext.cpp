@@ -496,6 +496,11 @@ void FMaterialCollection::PopulateFromModel(SUModelRef InModelRef)
 
 FMaterialOccurrence* FMaterialCollection::RegisterInstance(FMaterialIDType MaterialID, FNodeOccurence* NodeOccurrence)
 {
+	if (NodeOccurrence->MaterialOverride)
+	{
+		NodeOccurrence->MaterialOverride->UnregisterInstance(NodeOccurrence);
+	}
+
 	if (const TSharedPtr<DatasmithSketchUp::FMaterial>* Ptr = Find(MaterialID))
 	{
 		const TSharedPtr<DatasmithSketchUp::FMaterial>& Material = *Ptr;

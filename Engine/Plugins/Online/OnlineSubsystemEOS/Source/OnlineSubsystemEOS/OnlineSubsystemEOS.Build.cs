@@ -27,7 +27,8 @@ public class OnlineSubsystemEOS : ModuleRules
 				"Json",
 				"OnlineSubsystem",
 				"Sockets",
-				"VoiceChat"
+				"VoiceChat",
+				"NetCore"
 			}
 		);
 

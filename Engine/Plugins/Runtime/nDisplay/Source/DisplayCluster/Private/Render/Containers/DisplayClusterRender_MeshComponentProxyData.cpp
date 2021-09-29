@@ -111,6 +111,14 @@ void FDisplayClusterRender_MeshComponentProxyData::UpdateData(const FDisplayClus
 	}
 }
 
+enum class EGeometryPlane2DAxis : uint8
+{
+	XY,
+	XZ,
+	YZ,
+	Undefined
+};
+
 void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 {
 	FBox AABBox(FVector(FLT_MAX, FLT_MAX, FLT_MAX), FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX));
@@ -136,7 +144,29 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 	);
 
 	// Detect axis aligned plane
-	const bool bHelperSwapYZ = fabs(Size.Y) > fabs(Size.Z);
+	EGeometryPlane2DAxis GeometryPlane2DAxis = EGeometryPlane2DAxis::Undefined;
+	if (Size.X != 0)
+	{
+		if (fabs(Size.Y) > fabs(Size.Z))
+		{
+			GeometryPlane2DAxis = EGeometryPlane2DAxis::XY;
+		}
+		else
+		{
+			GeometryPlane2DAxis = EGeometryPlane2DAxis::XZ;
+		}
+	}
+	else
+	if (Size.Y != 0 && Size.Z != 0)
+	{
+		GeometryPlane2DAxis = EGeometryPlane2DAxis::YZ;
+	}
+
+	if (GeometryPlane2DAxis == EGeometryPlane2DAxis::Undefined)
+	{
+		UE_LOG(LogDisplayClusterRender, Error, TEXT("MeshComponentProxyData::NormalizeToScreenSpace() has empty geometry"));
+		return;
+	}
 
 	Size.X = (Size.X == 0 ? 1 : Size.X);
 	Size.Y = (Size.Y == 0 ? 1 : Size.Y);
@@ -152,7 +182,20 @@ void FDisplayClusterRender_MeshComponentProxyData::NormalizeToScreenSpace()
 		const float Y = (Vertex.Y - AABBox.Min.Y) * Scale.Y;
 		const float Z = (Vertex.Z - AABBox.Min.Z) * Scale.Z;
 
-		Vertex = (bHelperSwapYZ ? FVector4(Y, X, Z, 1) : FVector4(Z, X, Y, 1));
+		switch (GeometryPlane2DAxis)
+		{
+		case EGeometryPlane2DAxis::XY:
+			Vertex = FVector4(Y, X, 0, 1);
+			break;
+		case EGeometryPlane2DAxis::XZ:
+			Vertex = FVector4(Z, X, 0, 1);
+			break;
+		case EGeometryPlane2DAxis::YZ:
+			Vertex = FVector4(Y, Z, 0, 1);
+			break;
+		default:
+			break;
+		}
 	}
 }
 

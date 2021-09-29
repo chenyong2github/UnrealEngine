@@ -73,9 +73,6 @@ FToolMenuEntry& FToolMenuSection::AddEntryObject(UToolMenuEntryScript* InObject)
 		DestObject = DuplicateObject<UToolMenuEntryScript>(InObject, UToolMenus::Get());
 	}
 
-	// Refresh widgets next tick so that toolbars and menu bars are updated
-	UToolMenus::Get()->RefreshAllWidgets();
-
 	FToolMenuEntry Args;
 	DestObject->ToMenuEntry(Args);
 	return AddEntry(Args);

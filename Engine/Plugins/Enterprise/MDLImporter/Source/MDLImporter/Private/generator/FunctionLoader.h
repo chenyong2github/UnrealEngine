@@ -47,7 +47,10 @@ namespace Generator
 
 		// FGCObject interface
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
+		virtual FString GetReferencerName() const override
+		{
+			return TEXT("Generator::FFunctionLoader");
+		}
 	private:
 		int32              GetVersion(const FString& AssetName) const;
 		UMaterialFunction* Generate(const FString& AssetPath, const FString& AssetName, int32 ArraySize);

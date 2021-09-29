@@ -12,8 +12,6 @@ class UContentBrowserDataSource;
 namespace ContentBrowserClassData
 {
 
-	CONTENTBROWSERCLASSDATASOURCE_API bool IsTopLevelFolder(const FName InFolderPath);
-
 	CONTENTBROWSERCLASSDATASOURCE_API bool IsEngineClass(const FName InPath);
 
 	CONTENTBROWSERCLASSDATASOURCE_API bool IsProjectClass(const FName InPath);

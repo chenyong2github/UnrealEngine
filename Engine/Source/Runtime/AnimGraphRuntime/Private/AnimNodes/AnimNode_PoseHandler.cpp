@@ -15,11 +15,8 @@ void FAnimNode_PoseHandler::Initialize_AnyThread(const FAnimationInitializeConte
 	UpdatePoseAssetProperty(Context.AnimInstanceProxy);
 }
 
-void FAnimNode_PoseHandler::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+void FAnimNode_PoseHandler::CacheBoneBlendWeights(FAnimInstanceProxy* InstanceProxy)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
-	FAnimNode_AssetPlayerBase::CacheBones_AnyThread(Context);
-
 	BoneBlendWeights.Reset();
 
 	// this has to update bone blending weight
@@ -27,7 +24,7 @@ void FAnimNode_PoseHandler::CacheBones_AnyThread(const FAnimationCacheBonesConte
 	{
 		const UPoseAsset* CurrentAsset = CurrentPoseAsset.Get();
 		const TArray<FName>& TrackNames = CurrentAsset->GetTrackNames();
-		const FBoneContainer& BoneContainer = Context.AnimInstanceProxy->GetRequiredBones();
+		const FBoneContainer& BoneContainer = InstanceProxy->GetRequiredBones();
 		const TArray<FBoneIndexType>& RequiredBoneIndices = BoneContainer.GetBoneIndicesArray();
 		BoneBlendWeights.AddZeroed(RequiredBoneIndices.Num());
 
@@ -47,6 +44,14 @@ void FAnimNode_PoseHandler::CacheBones_AnyThread(const FAnimationCacheBonesConte
 	{
 		PoseExtractContext.PoseCurves.Reset();
 	}
+}
+
+void FAnimNode_PoseHandler::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
+	FAnimNode_AssetPlayerBase::CacheBones_AnyThread(Context);
+
+	CacheBoneBlendWeights(Context.AnimInstanceProxy);
 }
 
 void FAnimNode_PoseHandler::RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset)
@@ -102,6 +107,6 @@ void FAnimNode_PoseHandler::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_PoseHandler::UpdatePoseAssetProperty(struct FAnimInstanceProxy* InstanceProxy)
 {
 	CurrentPoseAsset = PoseAsset;
-	CacheBones_AnyThread(FAnimationCacheBonesContext(InstanceProxy));
+	CacheBoneBlendWeights(InstanceProxy);
 }
 

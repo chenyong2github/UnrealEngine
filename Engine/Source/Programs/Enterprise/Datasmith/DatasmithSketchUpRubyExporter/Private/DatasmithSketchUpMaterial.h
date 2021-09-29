@@ -54,6 +54,8 @@ namespace DatasmithSketchUp
 		// Indicate that this material is used as directly applied on an instance occurrence
 		// Note - this is not per 'instance' as every instance can be in separate place in scene multiple times possibly resulting in different inherited materials
 		FMaterialOccurrence& RegisterInstance(FNodeOccurence*);
+		void UnregisterInstance(FNodeOccurence* NodeOccurrence);
+
 
 		void Invalidate(FExportContext& Context);
 		void UpdateTexturesUsage(FExportContext& Context);

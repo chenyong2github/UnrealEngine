@@ -232,7 +232,7 @@ void UConversationInstance::ServerAdvanceConversation(const FAdvanceConversation
 			{
 				if (const UConversationTaskNode* TaskNode = BranchPoint.ClientChoice.TryToResolveChoiceNode<UConversationTaskNode>(Context))
 				{
-					EConversationRequirementResult Result = TaskNode->bIgnoreRequrementsWhileAdvancingCoversations ? EConversationRequirementResult::Passed : TaskNode->CheckRequirements(Context);
+					EConversationRequirementResult Result = TaskNode->bIgnoreRequirementsWhileAdvancingConversations ? EConversationRequirementResult::Passed : TaskNode->CheckRequirements(Context);
 					if (Result == EConversationRequirementResult::Passed)
 					{
 						ValidDestinations.Add(BranchPoint);

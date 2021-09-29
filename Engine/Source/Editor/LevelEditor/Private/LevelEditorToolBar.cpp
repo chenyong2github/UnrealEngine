@@ -1526,7 +1526,7 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 			SNew(SImage)
 			.Image(&FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar").BackgroundBrush)
 		]
-		+ SOverlay::Slot()
+			+ SOverlay::Slot()
 		[
 			SNew(SHorizontalBox)
 			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
@@ -1559,10 +1559,6 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 			]
 		];
 }
-
-
-
-
 
 static void MakeMaterialQualityLevelMenu( UToolMenu* InMenu )
 {

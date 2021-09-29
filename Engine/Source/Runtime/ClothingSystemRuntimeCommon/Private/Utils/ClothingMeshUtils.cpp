@@ -514,7 +514,6 @@ namespace ClothingMeshUtils
 		else
 		{
 			OutSkinningData.Reserve(NumMesh0Verts);
-
 			// For all mesh0 verts
 			for (int32 VertIdx0 = 0; VertIdx0 < NumMesh0Verts; ++VertIdx0)
 			{

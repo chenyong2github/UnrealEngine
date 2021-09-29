@@ -292,12 +292,16 @@ MaterialFloat4 TextureExternalSampleLevel(TextureExternal Tex, SamplerState Samp
 // to workaround we always sample top mip level
 MaterialFloat4 Texture1DSample_Decal(Texture1D Tex, SamplerState Sampler, float UV)
 {
+#if METAL_PROFILE || COMPILER_GLSL_ES3_1	
+	return Texture1DSampleLevel(Tex, Sampler, UV, 0);
+#else
 	return Texture1DSample(Tex, Sampler, UV);
+#endif
 }
 MaterialFloat4 Texture2DSample_Decal(Texture2D Tex, SamplerState Sampler, float2 UV)
 {
 #if METAL_PROFILE || COMPILER_GLSL_ES3_1
-	return Texture2DSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+	return Texture2DSampleLevel(Tex, Sampler, UV, 0);
 #else
 	return Texture2DSample(Tex, Sampler, UV);
 #endif
@@ -305,7 +309,7 @@ MaterialFloat4 Texture2DSample_Decal(Texture2D Tex, SamplerState Sampler, float2
 MaterialFloat4 Texture3DSample_Decal(Texture3D Tex, SamplerState Sampler, float3 UV)
 {
 #if METAL_PROFILE || COMPILER_GLSL_ES3_1
-	return Texture3DSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+	return Texture3DSampleLevel(Tex, Sampler, UV, 0);
 #else
 	return Texture3DSample(Tex, Sampler, UV);
 #endif
@@ -313,7 +317,7 @@ MaterialFloat4 Texture3DSample_Decal(Texture3D Tex, SamplerState Sampler, float3
 MaterialFloat4 TextureCubeSample_Decal(TextureCube Tex, SamplerState Sampler, float3 UV)
 {
 #if METAL_PROFILE || COMPILER_GLSL_ES3_1
-	return TextureCubeSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+	return TextureCubeSampleLevel(Tex, Sampler, UV, 0);
 #else
 	return TextureCubeSample(Tex, Sampler, UV);
 #endif
@@ -321,7 +325,7 @@ MaterialFloat4 TextureCubeSample_Decal(TextureCube Tex, SamplerState Sampler, fl
 MaterialFloat4 TextureExternalSample_Decal(TextureExternal Tex, SamplerState Sampler, float2 UV)
 {
 #if METAL_PROFILE || COMPILER_GLSL_ES3_1
-	return TextureExternalSampleGrad(Tex, Sampler, UV, 0.f, 0.f);
+	return TextureExternalSampleLevel(Tex, Sampler, UV, 0);
 #else
 	return TextureExternalSample(Tex, Sampler, UV);
 #endif

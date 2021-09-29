@@ -8,13 +8,14 @@
 #include "AssetData.h"
 #include "AssetRenameManager.h"
 #include "Misc/BlacklistNames.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Factories/Factory.h"
 #include "AssetTools.generated.h"
 
 class FAssetFixUpRedirectors;
 class UToolMenu;
 class IClassTypeActions;
 class UAutomatedAssetImportData;
-class UFactory;
 class UAssetImportTask;
 struct ReportPackageData;
 
@@ -31,7 +32,7 @@ struct FAssetImportParams
 	{}
 
 	/** Factory to use for importing files */
-	UFactory* SpecifiedFactory;
+	TStrongObjectPtr<UFactory> SpecifiedFactory;
 	/** Data used to determine rules for importing assets through the automated command line interface */
 	const UAutomatedAssetImportData* ImportData;
 	/** Script exposed rules and state for importing assets */

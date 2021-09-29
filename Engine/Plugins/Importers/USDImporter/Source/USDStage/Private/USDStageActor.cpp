@@ -2199,14 +2199,26 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				{
 					UnrealToUsd::ConvertMeshComponent( UsdStage, MeshComponent, UsdPrim );
 				}
-				// Rely on the fact that FUsdGeomCameraTranslator::CreateComponents always forces bNeedsActor = true,
-				// meaning all cameras that we spawned are actually ACineCameraActors. If so, PrimSceneComponent is actually
-				// just the root scene component of one of them, so we need to dig down to the camera component
-				else if ( ACineCameraActor* CameraActor = Cast<ACineCameraActor>( PrimSceneComponent->GetOwner() ) )
+				else if ( UsdPrim && UsdPrim.IsA( TEXT( "Camera" ) ) )
 				{
-					if ( UCineCameraComponent* CameraComponent = CameraActor->GetCineCameraComponent() )
+					// Our component may be pointing directly at a camera component in case we recreated an exported
+					// ACineCameraActor (see UE-120826)
+					if ( UCineCameraComponent* RecreatedCameraComponent = Cast<UCineCameraComponent>( PrimSceneComponent ) )
 					{
-						UnrealToUsd::ConvertCameraComponent( UsdStage, CameraComponent, UsdPrim );
+						UnrealToUsd::ConvertCameraComponent( UsdStage, RecreatedCameraComponent, UsdPrim );
+					}
+					// Or it could have been just a generic Camera prim, at which case we'll have spawned an entire new
+					// ACineCameraActor for it. In this scenario our prim twin is pointing at the root component, so we need
+					// to dig to the actual UCineCameraComponent to write out the camera data.
+					// We should only do this when the Prim actually corresponds to the Camera though, or else we'll also catch
+					// the prim/component pair that corresponds to the root scene component in case we recreated an exported
+					// ACineCameraActor.
+					else if ( ACineCameraActor* CameraActor = Cast<ACineCameraActor>( PrimSceneComponent->GetOwner() ) )
+					{
+						if ( UCineCameraComponent* CameraComponent = CameraActor->GetCineCameraComponent() )
+						{
+							UnrealToUsd::ConvertCameraComponent( UsdStage, CameraComponent, UsdPrim );
+						}
 					}
 				}
 				else if ( ALight* LightActor = Cast<ALight>( PrimSceneComponent->GetOwner() ) )

@@ -99,6 +99,10 @@ public:
 	{
 		Collector.AddReferencedObjects(*this);
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FOpenXRAssetRepo");
+	}
 };
 
 void FOpenXRAssetDirectory::LoadForCook()

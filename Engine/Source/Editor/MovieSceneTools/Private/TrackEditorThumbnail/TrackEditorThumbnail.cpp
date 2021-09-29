@@ -145,13 +145,32 @@ void FTrackEditorThumbnail::ResizeRenderTarget(const FIntPoint& InSize)
 		return;
 	}
 
-	DestroyTexture();
+	FSlateTexture2DRHIRef*               InThumbnailTexture      = ThumbnailTexture;
+	FSlateTextureRenderTarget2DResource* InThumbnailRenderTarget = ThumbnailRenderTarget;
+	
+	// Note this used to call DestroyTexture() but now that is a latent destroy, this can no longer call DestroyTexture() since the reallocation would happen first and then the latent destroy 
+	ENQUEUE_RENDER_COMMAND(DestroyTexture)(
+		[InThumbnailRenderTarget, InThumbnailTexture](FRHICommandList& RHICmdList)
+		{
+			if (InThumbnailTexture)
+			{
+				InThumbnailTexture->ReleaseResource();
+				delete InThumbnailTexture;
+			}
+
+			if (InThumbnailRenderTarget)
+			{
+				InThumbnailRenderTarget->ReleaseResource();
+				delete InThumbnailRenderTarget;
+			}
+		}
+	);
 
 	ThumbnailTexture      = new FSlateTexture2DRHIRef(InSize.X, InSize.Y, PF_B8G8R8A8, NULL, TexCreate_Dynamic);
 	ThumbnailRenderTarget = new FSlateTextureRenderTarget2DResource(FLinearColor::Black, InSize.X, InSize.Y, PF_B8G8R8A8, SF_Point, TA_Wrap, TA_Wrap, 0.0f);
 
-	FSlateTexture2DRHIRef*               InThumbnailTexture      = ThumbnailTexture;
-	FSlateTextureRenderTarget2DResource* InThumbnailRenderTarget = ThumbnailRenderTarget;
+	InThumbnailTexture      = ThumbnailTexture;
+	InThumbnailRenderTarget = ThumbnailRenderTarget;
 
 	ENQUEUE_RENDER_COMMAND(AssignRenderTarget)(
 		[InThumbnailRenderTarget, InThumbnailTexture](FRHICommandList& RHICmdList)

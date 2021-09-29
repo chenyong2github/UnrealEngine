@@ -89,7 +89,7 @@ namespace Audio
 			{
 				// if we don't UnPause first, this function will be called by FMixerSourceManager::StopInternal()
 				SourceManager->UnPauseSoundForQuantizationCommand(SourceID); // (avoid infinite recursion)
-				SourceManager->Stop(SourceID);
+				SourceManager->CancelQuantizedSound(SourceID);
 			}
 		}
 	}
@@ -100,6 +100,52 @@ namespace Audio
 		return PlayCommandName;
 	}
 
+	void FQuantizedQueueCommand::SetQueueCommand(const FAudioComponentCommandInfo& InAudioComponentData)
+	{
+		AudioComponentData = InAudioComponentData;
+	}
+
+	TSharedPtr<IQuartzQuantizedCommand> FQuantizedQueueCommand::GetDeepCopyOfDerivedObject() const
+	{
+		return MakeShared<FQuantizedQueueCommand>(*this);
+	}
+
+	void FQuantizedQueueCommand::OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo)
+	{
+		OwningClockPtr = InCommandInitInfo.OwningClockPointer;
+	}
+
+	int32 FQuantizedQueueCommand::OverrideFramesUntilExec(int32 NumFramesUntilExec)
+	{
+		// Calculate the amount of time before taking up a voice slot
+		int32 NumFramesBeforeVoiceSlot = NumFramesUntilExec - OwningClockPtr->GetTickRate().GetFramesPerDuration(AudioComponentData.AnticapatoryBoundary.Quantization);
+
+		//If NumFramesBeforeVoiceSlot is less than 0, change the boundary back to the original, and mark this command as having 0 frames till exec
+		if (NumFramesBeforeVoiceSlot < 0)
+		{
+			return 0;
+		}
+	
+		return NumFramesBeforeVoiceSlot;
+	}
+
+	void FQuantizedQueueCommand::OnFinalCallbackCustom(int32 InNumFramesLeft)
+	{
+		if (OwningClockPtr && AudioComponentData.ComponentCommandPtr.IsValid())
+		{
+			FName ClockName = OwningClockPtr->GetName();
+			Audio::FQuartzQueueCommandData CommandData(AudioComponentData, ClockName);
+
+			AudioComponentData.ComponentCommandPtr->PushEvent(CommandData);
+		}
+	}
+
+	static const FName QueueCommandName("Queue Command");
+	FName FQuantizedQueueCommand::GetCommandName() const
+	{
+		return QueueCommandName;
+	}
+	
 	TSharedPtr<IQuartzQuantizedCommand> FQuantizedTickRateChange::GetDeepCopyOfDerivedObject() const
 	{
 		TSharedPtr<FQuantizedTickRateChange> NewCopy = MakeShared<FQuantizedTickRateChange>();

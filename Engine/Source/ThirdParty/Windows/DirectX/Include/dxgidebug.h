@@ -74,7 +74,9 @@ extern "C"{
 
 #include <winapifamily.h>
 #pragma region Application Family
+// UE CHANGE START - Removing newer WINAPI usage.
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+// UE CHANGE END
 #define	DXGI_DEBUG_BINARY_VERSION	( 1 )
 
 typedef 

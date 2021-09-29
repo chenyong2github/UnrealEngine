@@ -236,7 +236,7 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 	GetDerivedDataCacheRef().GatherResourceStats(DDCResourceStats);
 
 	// Sort results on asscending Load size
-	DDCResourceStats.Sort([](const FDerivedDataCacheResourceStat& LHS, const FDerivedDataCacheResourceStat& RHS) { return LHS.LoadSizeMB > RHS.LoadSizeMB; });
+	DDCResourceStats.Sort([](const FDerivedDataCacheResourceStat& LHS, const FDerivedDataCacheResourceStat& RHS) { return LHS.BuildSizeMB > RHS.BuildSizeMB; });
 
 	FDerivedDataCacheResourceStat DDCResourceStatsTotal(TEXT("Total"));
 

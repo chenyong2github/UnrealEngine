@@ -318,7 +318,8 @@ namespace MeshPaintRendering
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::ForceApply);
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Set vertex shader parameters
 		VertexShader->SetParameters(RHICmdList, InTransform );
@@ -342,7 +343,8 @@ namespace MeshPaintRendering
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::ForceApply);
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Set vertex shader parameters
 		VertexShader->SetParameters(RHICmdList, InTransform );

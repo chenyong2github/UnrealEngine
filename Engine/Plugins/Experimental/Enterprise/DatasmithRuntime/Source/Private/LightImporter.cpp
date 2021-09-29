@@ -38,6 +38,8 @@ namespace DatasmithRuntime
 	extern const FString MaterialPrefix;
 	extern const FString MeshPrefix;
 
+	extern void RenameObject(UObject* Object, const TCHAR* DesiredName);
+
 	/** Helper method to set up the properties common to all types of light components */
 	void SetupLightComponent(FActorData& ActorData, IDatasmithLightActorElement* LightElement);
 
@@ -349,7 +351,7 @@ namespace DatasmithRuntime
 
 			if ( LightShapeActor )
 			{
-				LightShapeActor->Rename(AreaLightElement->GetName(), nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+				RenameObject(LightShapeActor, AreaLightElement->GetName());
 #if WITH_EDITOR
 				LightShapeActor->SetActorLabel( AreaLightElement->GetLabel() );
 #endif

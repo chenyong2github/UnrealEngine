@@ -25,7 +25,6 @@
 			"Name": "OpenXR",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
-				"Win32",
 				"Win64",
 				"Linux",
 				"Android",
@@ -45,7 +44,6 @@
 			"Name": "OculusOpenXR",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
-				"Win32",
 				"Win64",
 				"Android"
 			]

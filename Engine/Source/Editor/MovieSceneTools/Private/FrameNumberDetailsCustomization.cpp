@@ -57,7 +57,7 @@ void FFrameNumberDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 		[
 			SNew(SEditableTextBox)
 			.Text(this, &FFrameNumberDetailsCustomization::OnGetTimeText)
-			.ToolTipText(LOCTEXT("TimeLabelTooltip", "Time field which takes timecode, frames and seconds formats."))
+			.ToolTipText(this, &FFrameNumberDetailsCustomization::OnGetTimeToolTipText)
 			.OnTextCommitted(this, &FFrameNumberDetailsCustomization::OnTimeTextCommitted)
 			.SelectAllTextWhenFocused(true)
 			.ClearKeyboardFocusOnCommit(false)
@@ -76,6 +76,24 @@ FText FFrameNumberDetailsCustomization::OnGetTimeText() const
 		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
 	return FText::FromString(NumericTypeInterface->ToString(CurrentValue));
+}
+
+FText FFrameNumberDetailsCustomization::OnGetTimeToolTipText() const
+{
+	const FText ToolTipText = LOCTEXT("TimeLabelWithDetailsTooltip", "Time field which takes timecode, frames and seconds formats (current: {0}).");
+
+	int32 CurrentValue = 0;
+	FPropertyAccess::Result Result = FrameNumberProperty->GetValue(CurrentValue);
+	if (Result == FPropertyAccess::MultipleValues)
+	{
+		return FText::Format(ToolTipText, LOCTEXT("MultipleValues", "Multiple Values"));
+	}
+
+	// Since CurrentValue is an integer, we know that we won't have any subframe. So we only have to
+	// display the tick number itself.
+	FFrameTime DisplayTime = FFrameTime::FromDecimal(CurrentValue);
+	FString DisplayTimeString = FString::Printf(TEXT("%d ticks"), DisplayTime.GetFrame().Value);
+	return FText::Format(ToolTipText, FText::FromString(DisplayTimeString));
 }
 
 void FFrameNumberDetailsCustomization::OnTimeTextCommitted(const FText& InText, ETextCommit::Type CommitInfo)

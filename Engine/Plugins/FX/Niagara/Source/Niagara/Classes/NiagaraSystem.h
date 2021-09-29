@@ -410,6 +410,8 @@ public:
 	template<typename TAction>
 	void ForEachScript(TAction Func) const;
 
+	bool AllowScalabilityForLocalPlayerFX()const;
+
 private:
 	bool IsReadyToRunInternal() const;
 
@@ -762,6 +764,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	bool bOverrideScalabilitySettings;
 
+	/** Controls whether we should override the Effect Type value for bAllowCullingForLocalPlayers. */
+	UPROPERTY(EditAnywhere, Category = "Override", meta = (InlineEditConditionToggle, EditCondition = bOverrideScalabilitySettings))
+	uint32 bOverrideAllowCullingForLocalPlayers : 1;
+	
+	/** The override value for bAllowCullingForLocalPlayers from the Effect Type. */
+	UPROPERTY(EditAnywhere, Category = "Override", meta = (EditCondition = bOverrideAllowCullingForLocalPlayers))
+	uint32 bAllowCullingForLocalPlayersOverride : 1;
+
 	UPROPERTY()
 	TArray<FNiagaraSystemScalabilityOverride> ScalabilityOverrides_DEPRECATED;
 
@@ -913,6 +923,8 @@ public:
 		return nullptr;
 	}
 
+	bool AllowCullingForLocalPlayers()const{ return bAllowCullingForLocalPlayers; }
+
 protected:
 
 	void GenerateStatID()const;
@@ -927,7 +939,9 @@ protected:
 	FNiagaraStatDatabase StatDatabase;
 #endif
 
+	//Scalability settings
 	FNiagaraSystemScalabilitySettings CurrentScalabilitySettings;
+	bool bAllowCullingForLocalPlayers = false;
 
 	mutable FString CrashReporterTag;
 

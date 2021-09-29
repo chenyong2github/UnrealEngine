@@ -163,7 +163,7 @@ void FD3D12CommandContext::ResolveTextureUsingShader(
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::DoNothing);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 	RHICmdList.SetBlendFactor(FLinearColor::White);
 
 	ResolveVertexShader->SetParameters(RHICmdList, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);

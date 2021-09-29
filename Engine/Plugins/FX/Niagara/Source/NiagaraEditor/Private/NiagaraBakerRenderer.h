@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/GCObject.h"
 
 class UNiagaraComponent;
 class UNiagaraBakerSettings;
@@ -10,32 +11,36 @@ class UNiagaraSystem;
 class UTextureRenderTarget2D;
 class FCanvas;
 
-struct FNiagaraBakerRenderer
+struct FNiagaraBakerRenderer : FGCObject
 {
 public:
 	enum class ERenderType
 	{
 		None,
-		View,
+		SceneCapture,
+		BufferVisualization,
 		DataInterface,
 		Particle
 	};
 
 public:
-	FNiagaraBakerRenderer(UNiagaraComponent* PreviewComponent, float WorldTime);
-	FNiagaraBakerRenderer(UNiagaraComponent* PreviewComponent, UNiagaraBakerSettings* BakerSettings, float WorldTime);
+	FNiagaraBakerRenderer();
+	virtual ~FNiagaraBakerRenderer();
+	bool RenderView(UNiagaraComponent* PreviewComponent, const UNiagaraBakerSettings* BakerSettings, float WorldTime, UTextureRenderTarget2D* RenderTarget, int32 iOutputTextureIndex) const;
+	bool RenderView(UNiagaraComponent* PreviewComponent, const UNiagaraBakerSettings* BakerSettings, float WorldTime, UTextureRenderTarget2D* RenderTarget, FCanvas* Canvas, int32 iOutputTextureIndex, FIntRect ViewRect) const;
 
-	bool IsValid() const;
-
-	bool RenderView(UTextureRenderTarget2D* RenderTarget, int32 iOutputTextureIndex) const;
-	bool RenderView(UTextureRenderTarget2D* RenderTarget, FCanvas* Canvas, int32 iOutputTextureIndex, FIntRect ViewRect) const;
+	// FGCObject Impl
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FNiagaraBakerRenderer");
+	}
+	// FGCObject Impl
 
 	static ERenderType GetRenderType(FName SourceName, FName& OutName);
 
 	static TArray<FName> GatherAllRenderOptions(UNiagaraSystem* NiagaraSystem);
 
 private:
-	UNiagaraComponent* PreviewComponent = nullptr;
-	UNiagaraBakerSettings* BakerSettings = nullptr;
-	float WorldTime = 0.0f;
+	class USceneCaptureComponent2D* SceneCaptureComponent = nullptr;
 };

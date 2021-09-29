@@ -296,7 +296,7 @@ void FPageAllocator::UpdateStats()
 /*-----------------------------------------------------------------------------
 	FMemStack implementation.
 -----------------------------------------------------------------------------*/
-
+ 
 FMemStackBase::FMemStackBase()
 : Top(nullptr)
 , End(nullptr)

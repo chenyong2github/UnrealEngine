@@ -8606,7 +8606,8 @@ int32 FHLSLMaterialTranslator::AtmosphericLightColor()
 int32 FHLSLMaterialTranslator::SkyAtmosphereLightIlluminance(int32 WorldPosition, int32 LightIndex)
 {
 	bUsesSkyAtmosphere = true;
-	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereLightIlluminance(Parameters, %s, %d)"), *GetParameterCode(WorldPosition), LightIndex);
+	FString WorldPosCode = WorldPosition == INDEX_NONE ? FString(TEXT("Parameters.AbsoluteWorldPosition")) : GetParameterCode(WorldPosition);
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereLightIlluminance(Parameters, %s, %d)"), *WorldPosCode, LightIndex);
 }
 
 int32 FHLSLMaterialTranslator::SkyAtmosphereLightDirection(int32 LightIndex)
@@ -8630,7 +8631,8 @@ int32 FHLSLMaterialTranslator::SkyAtmosphereViewLuminance()
 int32 FHLSLMaterialTranslator::SkyAtmosphereAerialPerspective(int32 WorldPosition)
 {
 	bUsesSkyAtmosphere = true;
-	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionSkyAtmosphereAerialPerspective(Parameters, %s)"), *GetParameterCode(WorldPosition));
+	FString WorldPosCode = WorldPosition == INDEX_NONE ? FString(TEXT("Parameters.AbsoluteWorldPosition")) : GetParameterCode(WorldPosition);
+	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionSkyAtmosphereAerialPerspective(Parameters, %s)"), *WorldPosCode);
 }
 
 int32 FHLSLMaterialTranslator::SkyAtmosphereDistantLightScatteredLuminance()

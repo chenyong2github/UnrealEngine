@@ -573,6 +573,9 @@ public:
 	{
 		RHISetGraphicsPipelineState(GraphicsState, 0, bApplyAdditionalState);
 	}
+#if PLATFORM_USE_FALLBACK_PSO
+	virtual void RHISetGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState) = 0;
+#endif
 
 	/** Set the shader resource view of a surface. */
 	virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) = 0;
@@ -870,23 +873,34 @@ public:
 	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState) override
 	{
 		FRHIGraphicsPipelineStateFallBack* FallbackGraphicsState = static_cast<FRHIGraphicsPipelineStateFallBack*>(GraphicsState);
-		FGraphicsPipelineStateInitializer& PsoInit = FallbackGraphicsState->Initializer;
+		SetGraphicsPipelineStateFromInitializer(FallbackGraphicsState->Initializer, StencilRef, bApplyAdditionalState);
+	}
 
+#if PLATFORM_USE_FALLBACK_PSO
+	virtual void RHISetGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState) override
+	{
+		SetGraphicsPipelineStateFromInitializer(PsoInit, StencilRef, bApplyAdditionalState);
+	}
+#endif
+
+private:
+	void SetGraphicsPipelineStateFromInitializer(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState)
+	{
 		RHISetBoundShaderState(
 			RHICreateBoundShaderState(
 				PsoInit.BoundShaderState.VertexDeclarationRHI,
 				PsoInit.BoundShaderState.VertexShaderRHI,
 				PsoInit.BoundShaderState.PixelShaderRHI,
-				PsoInit.BoundShaderState.GeometryShaderRHI
+				PsoInit.BoundShaderState.GetGeometryShader()
 			).GetReference()
 		);
 
-		RHISetDepthStencilState(FallbackGraphicsState->Initializer.DepthStencilState, StencilRef);
-		RHISetRasterizerState(FallbackGraphicsState->Initializer.RasterizerState);
-		RHISetBlendState(FallbackGraphicsState->Initializer.BlendState, FLinearColor(1.0f, 1.0f, 1.0f));
+		RHISetDepthStencilState(PsoInit.DepthStencilState, StencilRef);
+		RHISetRasterizerState(PsoInit.RasterizerState);
+		RHISetBlendState(PsoInit.BlendState, FLinearColor(1.0f, 1.0f, 1.0f));
 		if (GSupportsDepthBoundsTest)
 		{
-			RHIEnableDepthBoundsTest(FallbackGraphicsState->Initializer.bDepthBounds);
+			RHIEnableDepthBoundsTest(PsoInit.bDepthBounds);
 		}
 	}
 };

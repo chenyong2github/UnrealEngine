@@ -9,7 +9,6 @@
 #include "DerivedDataCacheInterface.h"
 
 #include "Containers/StringConv.h"
-#include "Containers/Ticker.h"
 #include "Misc/Paths.h"
 #include "HAL/RunnableThread.h"
 #include "StudioAnalytics.h"

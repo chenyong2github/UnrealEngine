@@ -109,6 +109,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		{
 			UpdateEntityDetailsView(EntityList->GetSelection());
 			UpdateRebindButtonVisibility();
+			CachedExposedProperties.Reset();
 		})
 		.EditMode_Lambda([this](){ return bIsInEditMode; });
 	
@@ -343,11 +344,11 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		constexpr int32 NumEditModeWidgets = 2;
 		const int32 ExtensionsPosition = ExtensionWidgets.Num() - NumEditModeWidgets;
 		TopExtensions->InsertSlot(ExtensionsPosition)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			Widget
-		];
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				Widget
+			];
 	}
 
 	RegisterEvents();

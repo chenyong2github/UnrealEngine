@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
 #include "Breakpoint.generated.h"
 
-class UEdGraphNode;
 
 USTRUCT()
 struct UNREALED_API FBlueprintBreakpoint
@@ -19,7 +19,7 @@ private:
 
 	// Node that the breakpoint is placed on
 	UPROPERTY()
-	TSoftObjectPtr<class UEdGraphNode> Node = nullptr;
+	TSoftObjectPtr<UEdGraphNode> Node = nullptr;
 
 	// Is this breakpoint auto-generated, and should be removed when next hit?
 	UPROPERTY()

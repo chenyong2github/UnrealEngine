@@ -8,6 +8,7 @@
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlinePartyInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
+#include "Containers/Ticker.h"
 
 #include "PartyPackage.h"
 #include "SocialToolkit.generated.h"

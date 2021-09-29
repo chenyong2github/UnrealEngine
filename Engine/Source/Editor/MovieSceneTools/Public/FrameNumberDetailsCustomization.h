@@ -30,6 +30,7 @@ public:
 
 private:
 	FText OnGetTimeText() const;
+	FText OnGetTimeToolTipText() const;
 	void OnTimeTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
 
 	/** The Numeric Type interface used to convert between display formats and internal tick resolution. */

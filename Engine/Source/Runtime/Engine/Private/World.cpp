@@ -5564,7 +5564,7 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 				{
 					UE_LOG(LogNet, Log, TEXT("%s received NMT_DebugText Text=[%s] Desc=%s DescRemote=%s"),
 							*Connection->Driver->GetDescription(), *Text, *Connection->LowLevelDescribe(),
-							*Connection->LowLevelGetRemoteAddress());
+							ToCStr(Connection->LowLevelGetRemoteAddress(true)));
 				}
 
 				break;
@@ -5593,7 +5593,8 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 		if ( !Connection->IsClientMsgTypeValid( MessageType ) )
 		{
 			// If we get here, either code is mismatched on the client side, or someone could be spoofing the client address
-			UE_LOG( LogNet, Error, TEXT( "IsClientMsgTypeValid FAILED (%i): Remote Address = %s" ), (int)MessageType, *Connection->LowLevelGetRemoteAddress() );
+			UE_LOG(LogNet, Error, TEXT( "IsClientMsgTypeValid FAILED (%i): Remote Address = %s" ), (int)MessageType,
+					ToCStr(Connection->LowLevelGetRemoteAddress(true)));
 			Bunch.SetError();
 			return;
 		}
@@ -5962,7 +5963,19 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 				{
 					UE_LOG(LogNet, Log, TEXT("%s received NMT_DebugText Text=[%s] Desc=%s DescRemote=%s"),
 							*Connection->Driver->GetDescription(), *Text, *Connection->LowLevelDescribe(),
-							*Connection->LowLevelGetRemoteAddress());
+							ToCStr(Connection->LowLevelGetRemoteAddress(true)));
+				}
+
+				break;
+			}
+
+			case NMT_CloseReason:
+			{
+				FString CloseReasonList;
+
+				if (FNetControlMessage<NMT_CloseReason>::Receive(Bunch, CloseReasonList) && !CloseReasonList.IsEmpty())
+				{
+					Connection->HandleReceiveCloseReason(CloseReasonList);
 				}
 
 				break;

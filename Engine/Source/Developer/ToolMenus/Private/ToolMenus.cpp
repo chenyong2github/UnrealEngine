@@ -1014,6 +1014,8 @@ void UToolMenus::ApplyCustomization(UToolMenu* GeneratedMenu)
 
 void UToolMenus::AssembleMenuHierarchy(UToolMenu* GeneratedMenu, const TArray<UToolMenu*>& Hierarchy)
 {
+	TGuardValue<bool> SuppressRefreshWidgetsRequestsGuard(bSuppressRefreshWidgetsRequests, true);
+
 	for (const UToolMenu* FoundParent : Hierarchy)
 	{
 		AssembleMenu(GeneratedMenu, FoundParent);
@@ -1037,6 +1039,7 @@ UToolMenu* UToolMenus::GenerateSubMenu(const UToolMenu* InGeneratedParent, const
 		return nullptr;
 	}
 
+	TGuardValue<bool> SuppressRefreshWidgetsRequestsGuard(bSuppressRefreshWidgetsRequests, true);
 
 	// Submenus that are constructed by delegates can also be overridden by menus in the database
 	TArray<UToolMenu*> Hierarchy;
@@ -2029,8 +2032,11 @@ void UToolMenus::CleanupStaleWidgetsNextTick(bool bGarbageCollect)
 
 void UToolMenus::RefreshAllWidgets()
 {
-	bRefreshWidgetsNextTick = true;
-	SetNextTickTimer();
+	if (!bSuppressRefreshWidgetsRequests)
+	{
+		bRefreshWidgetsNextTick = true;
+		SetNextTickTimer();
+	}
 }
 
 void UToolMenus::HandleNextTick()
@@ -2043,6 +2049,8 @@ void UToolMenus::HandleNextTick()
 
 		if (bRefreshWidgetsNextTick)
 		{
+			TGuardValue<bool> SuppressRefreshWidgetsRequestsGuard(bSuppressRefreshWidgetsRequests, true);
+
 			for (auto WidgetsForMenuNameIt = GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
 			{
 				FGeneratedToolMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;

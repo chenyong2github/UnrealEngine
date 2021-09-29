@@ -53,155 +53,124 @@ void FPluginStyle::Initialize()
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	// Plugins Manager
-	{
-		const FTextBlockStyle NormalText = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FTextBlockStyle NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	const FTextBlockStyle ButtonText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("PrimaryButtonText");
+	FTextBlockStyle LargeText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Text.Large");
 
-		StyleSet->Set( "Plugins.TabIcon", new IMAGE_BRUSH_SVG( "Plugins", Icon16x16 ) );
-		StyleSet->Set( "Plugins.BreadcrumbArrow", new IMAGE_BRUSH( "SmallArrowRight", Icon10x10 ) );
-		StyleSet->Set( "Plugins.Warning", new IMAGE_BRUSH( "alert", Icon20x20) );
+	StyleSet->Set( "Plugins.TabIcon", new IMAGE_BRUSH_SVG( "Plugins", Icon16x16 ) );
+	StyleSet->Set( "Plugins.BreadcrumbArrow", new IMAGE_BRUSH( "SmallArrowRight", Icon10x10 ) );
+	StyleSet->Set( "Plugins.Documentation", new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
+	StyleSet->Set( "Plugins.ListBorder", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
+	StyleSet->Set( "Plugins.RestartWarningBorder", new FSlateRoundedBoxBrush(FStyleColors::Panel , 5.0f, FStyleColors::Warning, 1.0f));
 
-		//Category Tree Item
-		{
-			const float IconSize = 16.0f;
-			const float PaddingAmount = 2.0f;
+	FTextBlockStyle WarningText = FTextBlockStyle(NormalText)
+		.SetColorAndOpacity(FStyleColors::White);
 
-			StyleSet->Set( "CategoryTreeItem.IconSize", IconSize );
-			StyleSet->Set( "CategoryTreeItem.PaddingAmount", PaddingAmount );
+	StyleSet->Set("Plugins.WarningText", WarningText);
 
-			StyleSet->Set( "CategoryTreeItem.BuiltIn", new IMAGE_BRUSH( "icon_plugins_builtin_20x", Icon20x20 ) );
-			StyleSet->Set( "CategoryTreeItem.Installed", new IMAGE_BRUSH( "icon_plugins_installed_20x", Icon20x20 ) );
-			StyleSet->Set( "CategoryTreeItem.LeafItemWithPlugin", new IMAGE_BRUSH( "hiererchy_16x", Icon12x12 ) );
-			StyleSet->Set( "CategoryTreeItem.ExpandedCategory", new IMAGE_BRUSH( "FolderOpen", FVector2D(18, 16) ) );
-			StyleSet->Set( "CategoryTreeItem.Category", new IMAGE_BRUSH( "FolderClosed", FVector2D(18, 16) ) );
+	//Category Tree Item
+	const float IconSize = 16.0f;
+	const float PaddingAmount = 2.0f;
 
-			//Root Category Tree Item
-			{
-				const float ExtraVerticalPadding = 3.0f;
-				const int32 FontSize = 14;
+	StyleSet->Set( "CategoryTreeItem.IconSize", IconSize );
+	StyleSet->Set( "CategoryTreeItem.PaddingAmount", PaddingAmount );
+			
+	StyleSet->Set( "CategoryTreeItem.BuiltIn", new IMAGE_BRUSH( "icon_plugins_builtin_20x", Icon20x20 ) );
+	StyleSet->Set( "CategoryTreeItem.Installed", new IMAGE_BRUSH( "icon_plugins_installed_20x", Icon20x20 ) );
+	StyleSet->Set( "CategoryTreeItem.LeafItemWithPlugin", new IMAGE_BRUSH( "hiererchy_16x", Icon12x12 ) );
+	StyleSet->Set( "CategoryTreeItem.ExpandedCategory", new IMAGE_BRUSH( "FolderOpen", FVector2D(18, 16) ) );
+	StyleSet->Set( "CategoryTreeItem.Category", new IMAGE_BRUSH( "FolderClosed", FVector2D(18, 16) ) );
 
-				{
-					StyleSet->Set( "CategoryTreeItem.Root.BackgroundBrush", new FSlateNoResource );
-					StyleSet->Set( "CategoryTreeItem.Root.BackgroundPadding", FMargin( PaddingAmount, PaddingAmount + ExtraVerticalPadding, PaddingAmount, PaddingAmount + ExtraVerticalPadding ) );
-				}
+	//Root Category Tree Item
+	const float ExtraTopPadding = 12.f;
+	const float ExtraBottomPadding = 8.f;
+	const float AllPluginsExtraTopPadding = 9.f;
+	const float AllPluginsExtraBottomPadding = 7.f;
 
-				FTextBlockStyle Text = FTextBlockStyle( NormalText );
-				{
-					Text.Font.Size = FontSize;
-					StyleSet->Set( "CategoryTreeItem.Root.Text", Text );
-				}
+	StyleSet->Set( "CategoryTreeItem.Root.BackgroundBrush", new FSlateNoResource );
+	StyleSet->Set( "CategoryTreeItem.Root.BackgroundPadding", FMargin( PaddingAmount, PaddingAmount + ExtraTopPadding, PaddingAmount, PaddingAmount + ExtraBottomPadding) );
+	StyleSet->Set("CategoryTreeItem.Root.AllPluginsBackgroundPadding", FMargin(PaddingAmount, PaddingAmount + AllPluginsExtraTopPadding, PaddingAmount, PaddingAmount + AllPluginsExtraBottomPadding));
 
-				FTextBlockStyle PluginCountText = FTextBlockStyle( NormalText )
-					.SetColorAndOpacity( FSlateColor::UseSubduedForeground() );
-				{
-					PluginCountText.Font.Size = FontSize - 3;
-					StyleSet->Set( "CategoryTreeItem.Root.PluginCountText", PluginCountText );
-				}
+	FTextBlockStyle Text = FTextBlockStyle(ButtonText);
+	Text.ColorAndOpacity = FStyleColors::Foreground;
+	Text.TransformPolicy = ETextTransformPolicy::ToUpper;
+	StyleSet->Set( "CategoryTreeItem.Root.Text", Text );
 
-			}
 
-			//Subcategory Tree Item
-			{
-				const int32 FontSize = 11;
+	FTextBlockStyle RootPluginCountText = FTextBlockStyle( NormalText );
+	StyleSet->Set( "CategoryTreeItem.Root.PluginCountText", RootPluginCountText);
 
-				{
-					StyleSet->Set( "CategoryTreeItem.BackgroundBrush", new FSlateNoResource );
-					StyleSet->Set( "CategoryTreeItem.BackgroundPadding", FMargin( PaddingAmount ) );
-				}
+	//Subcategory Tree Item
+	StyleSet->Set( "CategoryTreeItem.BackgroundBrush", new FSlateNoResource );
+	StyleSet->Set( "CategoryTreeItem.BackgroundPadding", FMargin( PaddingAmount ) );
 
-				FTextBlockStyle Text = FTextBlockStyle( NormalText );
-				{
-					Text.Font.Size = FontSize;
-					StyleSet->Set( "CategoryTreeItem.Text", Text );
-				}
 
-				FTextBlockStyle PluginCountText = FTextBlockStyle( NormalText )
-					.SetColorAndOpacity( FSlateColor::UseSubduedForeground() );
-				{
-					PluginCountText.Font.Size = FontSize - 3;
-					StyleSet->Set( "CategoryTreeItem.PluginCountText", PluginCountText );
-				}
+	FTextBlockStyle CategoryText = FTextBlockStyle( NormalText );
+	CategoryText.ColorAndOpacity = FStyleColors::Foreground;
+	StyleSet->Set( "CategoryTreeItem.Text", CategoryText);
 
-			}
-		}
+	FTextBlockStyle PluginCountText = FTextBlockStyle( NormalText );
+	StyleSet->Set( "CategoryTreeItem.PluginCountText", PluginCountText );
+	
 
-		//Plugin Tile
-		{
-			const float PaddingAmount = 2.0f;
-			StyleSet->Set( "PluginTile.Padding", PaddingAmount );
+	//Plugin Tile
+	StyleSet->Set("PluginTile.RestrictedBorderImage", new FSlateRoundedBoxBrush(FStyleColors::AccentRed, 8.f));
+	StyleSet->Set("PluginTile.BetaBorderImage", new FSlateRoundedBoxBrush(FStyleColors::AccentOrange.GetSpecifiedColor().CopyWithNewOpacity(0.8), 8.f));
+	StyleSet->Set("PluginTile.ExperimentalBorderImage", new FSlateRoundedBoxBrush(FStyleColors::AccentPurple, 8.f));
+	StyleSet->Set("PluginTile.NewLabelBorderImage", new FSlateRoundedBoxBrush(FStyleColors::AccentGreen.GetSpecifiedColor().CopyWithNewOpacity(0.8), 8.f));
+	StyleSet->Set("PluginTile.BorderImage", new FSlateRoundedBoxBrush(FStyleColors::Header, 4.0));
+	StyleSet->Set("PluginTile.ThumbnailBorderImage", new FSlateRoundedBoxBrush(FStyleColors::Panel, 4.0));
 
-			const float ThumbnailImageSize = 128.0f;
-			StyleSet->Set( "PluginTile.ThumbnailImageSize", ThumbnailImageSize );
+	StyleSet->Set( "PluginTile.Padding", PaddingAmount );
 
-			{
-				StyleSet->Set( "PluginTile.BackgroundBrush", new FSlateNoResource );
-				StyleSet->Set( "PluginTile.BackgroundPadding", FMargin( PaddingAmount ) );
-			}
+	const float HorizontalTilePadding = 8.0f;
+	StyleSet->Set("PluginTile.HorizontalTilePadding", HorizontalTilePadding);
 
-			FTextBlockStyle NameText = FTextBlockStyle( NormalText )
-				.SetColorAndOpacity( FLinearColor( 0.9f, 0.9f, 0.9f ) );
-			{
-				NameText.Font.Size = 14;
-				StyleSet->Set( "PluginTile.NameText", NameText );
-			}
+	const float VerticalTilePadding = 4.0f;
+	StyleSet->Set("PluginTile.VerticalTilePadding", VerticalTilePadding);
 
-			FTextBlockStyle DescriptionText = FTextBlockStyle(NormalText)
-				.SetColorAndOpacity(FLinearColor(0.8f, 0.8f, 0.8f));
-			{
-				DescriptionText.Font.Size = 10;
-				StyleSet->Set("PluginTile.DescriptionText", DescriptionText);
-			}
+	const float ThumbnailImageSize = 69.0f;
+	StyleSet->Set( "PluginTile.ThumbnailImageSize", ThumbnailImageSize );
 
-			FTextBlockStyle BetaText = FTextBlockStyle( NormalText )
-				.SetFont(DEFAULT_FONT("Bold", 14))
-				.SetColorAndOpacity( FLinearColor( 0.9f, 0.9f, 0.9f ) );
-			{
-				BetaText.Font.Size = 10;
-				StyleSet->Set( "PluginTile.BetaText", BetaText );
-			}
+	StyleSet->Set( "PluginTile.BackgroundBrush", new FSlateNoResource );
+	StyleSet->Set( "PluginTile.BackgroundPadding", FMargin( PaddingAmount ) );
 
-			FTextBlockStyle VersionNumberText = FTextBlockStyle( NormalText )
-				.SetColorAndOpacity( FLinearColor( 0.9f, 0.9f, 0.9f ) );
-			{
-				VersionNumberText.Font.Size = 12;
-				StyleSet->Set( "PluginTile.VersionNumberText", VersionNumberText );
-			}
+	FTextBlockStyle NameText = FTextBlockStyle( LargeText )
+		.SetColorAndOpacity( FStyleColors::White );
+	StyleSet->Set( "PluginTile.NameText", NameText );
 
-			FTextBlockStyle NewLabelText = FTextBlockStyle( NormalText )
-				.SetColorAndOpacity( FLinearColor( 0.05f, 0.05f, 0.05f ) );
-			{
-				NewLabelText.Font.Size = 8;
-				StyleSet->Set( "PluginTile.NewLabelText", NewLabelText );
-			}
-			StyleSet->Set( "PluginTile.NewLabelFont", DEFAULT_FONT("Bold", 10) );
-			StyleSet->Set( "PluginTile.NewLabelBackground", new FSlateColorBrush(FLinearColor(0.90f, 0.65f, 0.05f)));//::Yellow) );
+	FTextBlockStyle DescriptionText = FTextBlockStyle(NormalText)
+		.SetColorAndOpacity( FStyleColors::Foreground );
+	StyleSet->Set("PluginTile.DescriptionText", DescriptionText);
 
-			FTextBlockStyle CreatedByText = FTextBlockStyle( NormalText )
-				.SetColorAndOpacity( FLinearColor( 0.45f, 0.45f, 0.45f ) );
-			{
-				CreatedByText.Font.Size = 8;
-				StyleSet->Set( "PluginTile.CreatedByText", CreatedByText );
-			}
 
-			StyleSet->Set( "PluginTile.BetaWarning", new IMAGE_BRUSH( "icon_plugins_betawarn_14px", FVector2D(14, 14) ) );
-		}
+	FTextBlockStyle BetaText = FTextBlockStyle( NormalText )
+		.SetColorAndOpacity( FStyleColors::White );
+	StyleSet->Set( "PluginTile.BetaText", BetaText );
 
-		// Metadata editor
-		{
-			StyleSet->Set("PluginMetadataNameFont", DEFAULT_FONT("Bold", 18));
-		}
-	}
+
+	FTextBlockStyle VersionNumberText = FTextBlockStyle(LargeText)
+		.SetColorAndOpacity(FStyleColors::Foreground);
+	StyleSet->Set( "PluginTile.VersionNumberText", VersionNumberText );
+
+	FTextBlockStyle NewLabelText = FTextBlockStyle( NormalText )
+		.SetColorAndOpacity( FLinearColor( 0.05f, 0.05f, 0.05f ) );
+	StyleSet->Set( "PluginTile.NewLabelText", NewLabelText );
+
+	StyleSet->Set( "PluginTile.BetaWarning", new IMAGE_BRUSH( "icon_plugins_betawarn_14px", FVector2D(14, 14) ) );
+
+	// Metadata editor
+	StyleSet->Set("PluginMetadataNameFont", DEFAULT_FONT("Bold", 18));
 
 	// Plugin Creator
-	{
-		const FButtonStyle& BaseButtonStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("Button");
-		StyleSet->Set("PluginPath.BrowseButton",
-			FButtonStyle(BaseButtonStyle)
-			.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::Secondary, 2.0f))
-			.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Hover, 2.0f))
-			.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Header, 2.0f))
-			.SetNormalPadding(FMargin(2, 2, 2, 2))
-			.SetPressedPadding(FMargin(2, 3, 2, 1)));
-	}
+	const FButtonStyle& BaseButtonStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FButtonStyle>("Button");
+	StyleSet->Set("PluginPath.BrowseButton",
+		FButtonStyle(BaseButtonStyle)
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::Secondary, 2.0f))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Hover, 2.0f))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Header, 2.0f))
+		.SetNormalPadding(FMargin(2, 2, 2, 2))
+		.SetPressedPadding(FMargin(2, 3, 2, 1)));
 
 	FSlateStyleRegistry::RegisterSlateStyle( *StyleSet.Get() );
 };

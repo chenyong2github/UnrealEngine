@@ -104,6 +104,8 @@ struct SLATECORE_API FStyleFonts
 	const FSlateFontInfo NormalBold;
 	const FSlateFontInfo Small;
 	const FSlateFontInfo SmallBold;
+	const FSlateFontInfo Large;
+	const FSlateFontInfo LargeBold;
 
 	const FSlateFontInfo HeadingMedium;
 	const FSlateFontInfo HeadingSmall;

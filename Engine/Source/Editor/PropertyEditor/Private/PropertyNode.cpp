@@ -1024,18 +1024,11 @@ void FPropertyNode::ToggleEditConditionState()
 	FPropertyNode* MyParentNode = ParentNodeWeakPtr.Pin().Get();
 	check(MyParentNode != nullptr);
 
-	bool OldValue = true; 
-	bool IsSparseClassData = HasNodeFlags(EPropertyNodeFlags::IsSparseClassData);
+	bool OldValue = true;
 
 	FComplexPropertyNode* ComplexParentNode = FindComplexParent();
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
-		// ComplexParentNode points to the top-level object 
-		// ParentNode can point to a struct inside that object (which is stored as an FItemPropertyNode)
-		// We need all three pointers to get the value pointer
-		uint8* BaseAddress = ComplexParentNode->GetMemoryOfInstance(Index);
-		uint8* ParentOffset = MyParentNode->GetValueAddress(BaseAddress, IsSparseClassData);
-
 		uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, EditConditionProperty, MyParentNode);
 
 		OldValue &= EditConditionProperty->GetPropertyValue(ValuePtr);
@@ -1056,9 +1049,8 @@ void FPropertyNode::ToggleEditConditionState()
 				Object->GetArchetypeInstances(ArchetypeInstances);
 				for (int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
 				{
-					uint8* ArchetypeBaseOffset = ComplexParentNode->GetValueAddressFromObject(ArchetypeInstances[InstanceIndex]);
-					uint8* ArchetypeParentOffset = MyParentNode->GetValueAddress(ArchetypeBaseOffset, IsSparseClassData);
-					uint8* ArchetypeValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ArchetypeParentOffset);
+					uint8* ArchetypeBaseOffset = MyParentNode->GetValueAddressFromObject(ArchetypeInstances[InstanceIndex]);
+					uint8* ArchetypeValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ArchetypeBaseOffset);
 
 					// Only propagate if the current value on the instance matches the previous value on the template.
 					const bool CurValue = EditConditionProperty->GetPropertyValue(ArchetypeValueAddr);

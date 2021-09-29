@@ -3168,12 +3168,14 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 
 			Actor->bNetStartup = true;
 
-			UGameplayStatics::FinishSpawningActor(Actor, SpawnTransform);
-
 			if (Actor->GetLocalRole() == ROLE_Authority)
 			{
 				Actor->SwapRoles();
 			}
+
+			UGameplayStatics::FinishSpawningActor(Actor, SpawnTransform);
+
+			Actor->PostNetInit();
 
 			if (RepLayout.IsValid() && ReceivingRepState)
 			{

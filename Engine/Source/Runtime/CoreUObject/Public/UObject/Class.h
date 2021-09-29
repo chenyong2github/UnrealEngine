@@ -731,6 +731,7 @@ struct TStructOpsTypeTraitsBase2
 		WithStructuredSerializeFromMismatchedTag = false,               // struct has an FStructuredArchive-based SerializeFromMismatchedTag function for converting from other property tags.
 		WithPostScriptConstruct        = false,                         // struct has a PostScriptConstruct function which is called after it is constructed in blueprints
 		WithNetSharedSerialization     = false,                         // struct has a NetSerialize function that does not require the package map to serialize its state.
+		WithGetPreloadDependencies     = false,                         // struct has a GetPreloadDependencies function to return all objects that will be Preload()ed when the struct is serialized at load time.
 		WithPureVirtual                = false,                         // struct has PURE_VIRTUAL functions and cannot be constructed when CHECK_PUREVIRTUALS is true
 	};
 };
@@ -876,6 +877,21 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithPostScriptConstruct>::Type PostScriptConstructOrNot(CPPSTRUCT *Data)
 	{
 		Data->PostScriptConstruct();
+	}
+
+
+	/**
+	 * Selection of GetPreloadDependencies call.
+	 */
+	template<class CPPSTRUCT>
+	FORCEINLINE typename TEnableIf<!TStructOpsTypeTraits<CPPSTRUCT>::WithGetPreloadDependencies>::Type GetPreloadDependenciesOrNot(CPPSTRUCT* Data, TArray<UObject*>& OutDeps)
+	{
+	}
+
+	template<class CPPSTRUCT>
+	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithGetPreloadDependencies>::Type GetPreloadDependenciesOrNot(CPPSTRUCT* Data, TArray<UObject*>& OutDeps)
+	{
+		Data->GetPreloadDependencies(OutDeps);
 	}
 
 
@@ -1121,6 +1137,9 @@ public:
 		virtual bool HasPostScriptConstruct() = 0;
 		/** Call PostScriptConstruct on this structure */
 		virtual void PostScriptConstruct(void *Data) = 0;
+
+		/** Call PreloadDependencies on this structure */
+		virtual void GetPreloadDependencies(void* Data, TArray<UObject*>& OutDeps) = 0;
 
 		/** return true if this struct should be memcopied **/
 		virtual bool IsPlainOldData() = 0;
@@ -1385,6 +1404,17 @@ public:
 			}
 #else
 			PostScriptConstructOrNot((CPPSTRUCT*)Data);
+#endif
+		}
+		virtual void GetPreloadDependencies(void* Data, TArray<UObject*>& OutDeps) override
+		{
+#if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
+			if constexpr (TStructOpsTypeTraits<CPPSTRUCT>::WithGetPreloadDependencies)
+			{
+				((CPPSTRUCT*)Data)->GetPreloadDependencies(OutDeps);
+			}
+#else
+			GetPreloadDependenciesOrNot((CPPSTRUCT*)Data, OutDeps);
 #endif
 		}
 		virtual bool IsPlainOldData() override

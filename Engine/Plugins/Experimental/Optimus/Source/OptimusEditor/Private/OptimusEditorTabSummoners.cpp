@@ -4,6 +4,7 @@
 
 #include "GraphEditor.h"
 #include "MessageLogModule.h"
+#include "Modules/ModuleManager.h"
 #include "OptimusEditor.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "SOptimusNodePalette.h"

@@ -608,6 +608,7 @@ protected:
 			[this, &OwnerTable] (UUserWidget* WidgetObject, TSharedRef<SWidget> Content)
 			{
 				return SNew(ObjectTableRowT, OwnerTable, *WidgetObject, this)
+					.bAllowDragging(bAllowDragging)
 					.OnHovered_UObject(this, &UListViewBase::HandleListEntryHovered)
 					.OnUnhovered_UObject(this, &UListViewBase::HandleListEntryUnhovered)
 					[
@@ -700,6 +701,10 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, Category = Scrolling, meta = (EditCondition = bEnableFixedLineOffset, ClampMin = 0.0f, ClampMax = 0.5f))
 	float FixedLineScrollOffset = 0.f;
+
+	/** True to allow dragging of row widgets in the list */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	bool bAllowDragging = true;
 
 private:
 	void FinishGeneratingEntry(UUserWidget& GeneratedEntry);

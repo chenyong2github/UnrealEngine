@@ -56,7 +56,9 @@ void CreateClearReplacementShaders()
 {
 	// if RHI supports MT shader creation, then we don't care to init here
 	ensureMsgf(!GRHISupportsMultithreadedShaderCreation, TEXT("InitClearReplacementShaders() is called while GRHISupportsMultithreadedShaderCreation is true. This is an unnecessary call."));
+#if !WITH_EDITOR	// in editor, this ensure (and the function overall) has a lesser sence due to the ability to switch the preview modes on the fly
 	ensureMsgf(IsInRenderingThread() || GRHISupportsMultithreadedShaderCreation, TEXT("InitClearReplacementShaders() is expected to be called from the render thread if GRHISupportsMultithreadedShaderCreation is false."));
+#endif
 
 #define UE_CREATE_SHADER(TShaderType) \
 	{ \

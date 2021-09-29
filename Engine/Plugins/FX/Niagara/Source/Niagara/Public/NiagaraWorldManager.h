@@ -110,6 +110,7 @@ public:
 	void PostReachabilityAnalysis();
 	void PostGarbageCollect();
 	void PreGarbageCollectBeginDestroy();
+	void RefreshOwnerAllowsScalability();
 	
 	template<typename T>
 	const T& ReadGeneratedData()
@@ -183,6 +184,11 @@ public:
 
 	class FNiagaraDeferredMethodQueue& GetDeferredMethodQueue() { return DeferredMethods; }
 
+	/** Is this component in anyway linked to the local player. */
+	static bool IsComponentLocalPlayerLinked(const USceneComponent* Component);
+
+	static void OnRefreshOwnerAllowsScalability();
+
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
 	static void OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
@@ -239,6 +245,7 @@ private:
 	static FDelegateHandle PostReachabilityAnalysisHandle;
 	static FDelegateHandle PostGCHandle;
 	static FDelegateHandle PreGCBeginDestroyHandle;
+	static FDelegateHandle ViewTargetChangedHandle;
 
 	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 

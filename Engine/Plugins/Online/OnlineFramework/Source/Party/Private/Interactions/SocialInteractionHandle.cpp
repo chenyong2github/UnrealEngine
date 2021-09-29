@@ -44,3 +44,11 @@ void FSocialInteractionHandle::ExecuteInteraction(USocialUser& User) const
 		InteractionWrapper->ExecuteInteraction(User);
 	}
 }
+
+void FSocialInteractionHandle::ExecuteInteractionWithContext(USocialUser& User, const FString& AnalyticsContext) const
+{
+	if (InteractionWrapper)
+	{
+		InteractionWrapper->ExecuteInteractionWithContext(User, AnalyticsContext);
+	}
+}

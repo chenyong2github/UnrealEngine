@@ -25,6 +25,10 @@ public:
 
 	/* FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FInterchangePipelineStacksTreeNodeItem");
+	}
 
 	//This name is use only when this item represent a stack name
 	FName StackName;

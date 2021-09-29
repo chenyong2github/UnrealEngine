@@ -21,8 +21,13 @@ void FWindowsDeviceProfileSelectorModule::ShutdownModule()
 
 const FString FWindowsDeviceProfileSelectorModule::GetRuntimeDeviceProfileName()
 {
+	// some heuristics to determine a cooked editor
+#if UE_IS_COOKED_EDITOR
+	FString ProfileName = TEXT("WindowsCookedEditor");
+#else
 	// Windows, WindowsEditor, WindowsClient, or WindowsServer
 	FString ProfileName = FPlatformProperties::PlatformName();
+#endif
 
 	if (FApp::CanEverRender())
 	{

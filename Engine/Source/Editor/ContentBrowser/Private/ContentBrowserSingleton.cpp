@@ -30,6 +30,9 @@
 #include "CollectionAssetRegistryBridge.h"
 #include "ContentBrowserCommands.h"
 #include "CoreGlobals.h"
+#include "AssetToolsModule.h"
+#include "EditorDirectories.h"
+#include "Misc/BlacklistNames.h"
 #include "StatusBarSubsystem.h"
 #include "ToolMenus.h"
 
@@ -484,6 +487,16 @@ FString FContentBrowserSingleton::GetCurrentPath(const EContentBrowserPathType P
 		return PrimaryContentBrowser.Pin()->GetCurrentPath(PathType);
 	}
 	return FString();
+}
+
+FContentBrowserItemPath FContentBrowserSingleton::GetCurrentPath()
+{
+	if (PrimaryContentBrowser.IsValid())
+	{
+		return FContentBrowserItemPath(PrimaryContentBrowser.Pin()->GetCurrentPath(EContentBrowserPathType::Virtual), EContentBrowserPathType::Virtual);
+	}
+
+	return FContentBrowserItemPath();
 }
 
 void FContentBrowserSingleton::CaptureThumbnailFromViewport(FViewport* InViewport, TArray<FAssetData>& SelectedAssets)
@@ -1005,6 +1018,77 @@ void FContentBrowserSingleton::GetContentBrowserSubMenu(UToolMenu* Menu, TShared
 		AddSpawnerEntryToMenuSection(Section, ContentBrowserTabs[BrowserIdx], TabID);
 	}
 
+}
+
+FContentBrowserItemPath FContentBrowserSingleton::GetInitialPathToSaveAsset(const FContentBrowserItemPath& InPath)
+{
+	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+
+	bool bPathIsWritable = true;
+	if (InPath.GetVirtualPathName().IsNone() || !InPath.HasInternalPath())
+	{
+		bPathIsWritable = false;
+	}
+	else
+	{
+		bPathIsWritable = AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(InPath.GetInternalPathName(), /*bAllowParentPaths*/true);
+	}
+
+	FString AssetPath;
+	if (bPathIsWritable)
+	{
+		AssetPath = InPath.GetInternalPathString();
+	}
+	else
+	{
+		// Try last path
+		const FString DefaultFilesystemDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::NEW_ASSET);
+		if (!DefaultFilesystemDirectory.IsEmpty() && FPackageName::TryConvertFilenameToLongPackageName(DefaultFilesystemDirectory, AssetPath))
+		{
+			if (AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(AssetPath, /*bAllowParentPaths*/true))
+			{
+				bPathIsWritable = true;
+			}
+		}
+
+		if (!bPathIsWritable)
+		{
+			AssetPath.Reset();
+
+			// Request default virtual paths, use first path that passes
+			FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+			TArray<FName> VirtualPaths;
+			if (ContentBrowserModule.GetDefaultSelectedPathsDelegate().ExecuteIfBound(VirtualPaths) && VirtualPaths.Num() > 0)
+			{
+				for (const FName VirtualPath : VirtualPaths)
+				{
+					if (IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(FNameBuilder(VirtualPath), AssetPath) == EContentBrowserPathType::Internal)
+					{
+						if (AssetToolsModule.Get().GetWritableFolderBlacklist()->PassesStartsWithFilter(AssetPath, /*bAllowParentPaths*/true))
+						{
+							break;
+						}
+					}
+				
+					AssetPath.Reset();
+				}
+			}
+		}
+
+		if (AssetPath.IsEmpty())
+		{
+			// No saved path, just use the game content root
+			AssetPath = TEXT("/Game");
+		}
+	}
+
+	// Remove trailing slash
+	if (AssetPath.EndsWith(TEXT("/")) || AssetPath.EndsWith(TEXT("\\")))
+	{
+		AssetPath.LeftChopInline(1, false);
+	}
+
+	return FContentBrowserItemPath(AssetPath, EContentBrowserPathType::Internal);
 }
 
 #undef LOCTEXT_NAMESPACE

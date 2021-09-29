@@ -24,6 +24,7 @@
 #include "Particles/FXBudget.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraCullProxyComponent.h"
+#include "GameDelegates.h"
 
 #if WITH_EDITORONLY_DATA
 #include "EditorViewportClient.h"
@@ -33,7 +34,8 @@
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Update Scalability Managers [GT]"), STAT_UpdateScalabilityManagers, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
-DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait Pre Garbage Collect [GT]"), STAT_NiagaraWorldManWaitPreGC, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait Pre Garbage Collect [GT]"), STAT_NiagaraWorldManWaitPreGC, STATGROUP_Niagara); 
+DECLARE_CYCLE_STAT(TEXT("Niagara Manager Refresh Owner Allows Scalability"), STAT_NiagaraWorldManRefreshOwnerAllowsScalability, STATGROUP_Niagara);
 
 static int GNiagaraAllowAsyncWorkToEndOfFrame = 1;
 static FAutoConsoleVariableRef CVarNiagaraAllowAsyncWorkToEndOfFrame(
@@ -203,7 +205,8 @@ FDelegateHandle FNiagaraWorldManager::OnWorldPreSendAllEndOfFrameUpdatesHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCHandle;
 FDelegateHandle FNiagaraWorldManager::PostReachabilityAnalysisHandle;
 FDelegateHandle FNiagaraWorldManager::PostGCHandle;
-FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle; 
+FDelegateHandle FNiagaraWorldManager::PreGCBeginDestroyHandle;
+FDelegateHandle FNiagaraWorldManager::ViewTargetChangedHandle;
 TMap<class UWorld*, class FNiagaraWorldManager*> FNiagaraWorldManager::WorldManagers;
 
 namespace FNiagaraUtilities
@@ -312,6 +315,13 @@ void FNiagaraWorldManager::OnStartup()
 	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddStatic(&FNiagaraWorldManager::OnPostReachabilityAnalysis);
 	PostGCHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddStatic(&FNiagaraWorldManager::OnPostGarbageCollect);
 	PreGCBeginDestroyHandle = FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddStatic(&FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy);
+
+	ViewTargetChangedHandle = FGameDelegates::Get().GetViewTargetChangedDelegate().AddLambda(
+		[](APlayerController* PC, AActor* OldTarget, AActor* NewTarget)
+		{
+			OnRefreshOwnerAllowsScalability();
+		}
+	);
 }
 
 void FNiagaraWorldManager::OnShutdown()
@@ -328,7 +338,8 @@ void FNiagaraWorldManager::OnShutdown()
 	FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
 	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGCHandle);
 	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.Remove(PreGCBeginDestroyHandle);
-
+	
+	FGameDelegates::Get().GetViewTargetChangedDelegate().Remove(ViewTargetChangedHandle);
 
 	//Should have cleared up all world managers by now.
 	check(WorldManagers.Num() == 0);
@@ -597,6 +608,25 @@ void FNiagaraWorldManager::PreGarbageCollectBeginDestroy()
 	}
 }
 
+void FNiagaraWorldManager::RefreshOwnerAllowsScalability()
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManRefreshOwnerAllowsScalability);
+
+	//Refresh all component's owner allows scalability flags and register/unreister with the manager accordingly.
+	for (TObjectIterator<UNiagaraComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	{
+		ComponentIt->ResolveOwnerAllowsScalability();
+	}
+
+	//Force a full refresh of scalability state next tick.
+	for (auto& Pair : ScalabilityManagers)
+	{
+		UNiagaraEffectType* EffectType = Pair.Key;
+		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
+		ScalabilityMan.OnRefreshOwnerAllowsScalability();
+	}
+}
+
 void FNiagaraWorldManager::OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS)
 {
 	check(WorldManagers.Find(World) == nullptr);
@@ -700,6 +730,14 @@ void FNiagaraWorldManager::OnPreGarbageCollectBeginDestroy()
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
 	{
 		Pair.Value->PreGarbageCollectBeginDestroy();
+	}
+}
+
+void FNiagaraWorldManager::OnRefreshOwnerAllowsScalability()
+{
+	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
+	{
+		Pair.Value->RefreshOwnerAllowsScalability();
 	}
 }
 
@@ -1518,6 +1556,38 @@ void FNiagaraWorldManager::PrimePool(UNiagaraSystem* System)
 	}
 }
 
+bool FNiagaraWorldManager::IsComponentLocalPlayerLinked(const USceneComponent* InComponent)
+{
+	check(InComponent);
+
+	//Is our owner or instigator a locally viewed pawn?
+	if (const AActor* Owner = InComponent->GetOwner())
+	{
+		if (const APawn* OwnerPawn = Cast<const APawn>(InComponent))
+		{
+			if (OwnerPawn->IsLocallyViewed())
+			{
+				return true;
+			}
+		}
+
+		if (const APawn* Instigator = Owner->GetInstigator())
+		{
+			if (Instigator->IsLocallyViewed())
+			{
+				return true;
+			}
+		}
+	}
+
+	//Walk the attachment hierarchy to check for locally viewed pawns.
+	if (InComponent->GetAttachParent() && IsComponentLocalPlayerLinked(InComponent->GetAttachParent()))
+	{
+		return true;
+	}
+
+	return false;
+}
 
 #if DEBUG_SCALABILITY_STATE
 

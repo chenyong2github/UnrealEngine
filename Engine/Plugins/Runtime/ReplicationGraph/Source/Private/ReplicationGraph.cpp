@@ -380,6 +380,8 @@ void UReplicationGraph::RemoveConnectionGraphNode(UReplicationGraphNode* GraphNo
 
 UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UNetConnection* NetConnection)
 {
+	check(NetConnection);
+
 	// Children do not have a connection manager, this is handled by their parent.
 	// We do not want to create connection managers for children, so redirect them.
 	if (NetConnection->GetUChildConnection() != nullptr)
@@ -388,6 +390,8 @@ UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UN
 		UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
 		check(NetConnection != nullptr);
 	}
+
+	check(NetConnection->GetDriver() == NetDriver);
 
 	// Could use an acceleration map if necessary
 	RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraph_FindConnectionManager)
@@ -734,21 +738,13 @@ void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 		AddNetworkActor(Actor);
 	}
 
-		GlobalInfo.Events.DormancyFlush.Broadcast(Actor, GlobalInfo);
+	GlobalInfo.Events.DormancyFlush.Broadcast(Actor, GlobalInfo);
 
-		// Stinks to have to iterate through like this, especially when net driver is doing a similar thing.
-		// Dormancy should probably be rewritten.
-		for (UNetReplicationGraphConnection* ConnectionManager: Connections)
-		{
-			if (FConnectionReplicationActorInfo* Info = ConnectionManager->ActorInfoMap.Find(Actor))
-			{
-				Info->bDormantOnConnection = false;
-			}
-		// Actor is no longer going to be dormant so we're going to remove it from the prev dormant actor list
-		if (!GlobalInfo.bWantsToBeDormant)
-		{
-			ConnectionManager->PrevDormantActorList.RemoveFast(Actor);
-		}
+	// Stinks to have to iterate through like this, especially when net driver is doing a similar thing.
+	// Dormancy should probably be rewritten.
+	for (UNetReplicationGraphConnection* ConnectionManager: Connections)
+	{
+		ConnectionManager->SetActorNotDormantOnConnection(Actor);
 	}
 }
 
@@ -833,10 +829,7 @@ void UReplicationGraph::NotifyActorDormancyChange(AActor* Actor, ENetDormancy Ol
 		// So we need to clear the per-connection dormancy bool here, since the one in FlushNetDormancy won't do it.
 		for (UNetReplicationGraphConnection* ConnectionManager: Connections)
 		{
-			if (FConnectionReplicationActorInfo* Info = ConnectionManager->ActorInfoMap.Find(Actor))
-			{
-				Info->bDormantOnConnection = false;
-			}
+			ConnectionManager->SetActorNotDormantOnConnection(Actor);
 		}
 	}
 }
@@ -2575,7 +2568,7 @@ void UNetReplicationGraphConnection::NotifyAddDormantDestructionInfo(AActor* Act
 			StreamingLevelName = Level->GetOutermost()->GetFName();
 
 			if (NetConnection->ClientVisibleLevelNames.Contains(StreamingLevelName) == false)
-	{
+			{
 				UE_LOG(LogReplicationGraph, Verbose, TEXT("NotifyAddDormantDestructionInfo skipping actor [%s] because streaming level is no longer visible."), *GetNameSafe(Actor));
 				return;
 			}
@@ -2677,10 +2670,7 @@ void UNetReplicationGraphConnection::NotifyClientVisibleLevelNamesAdd(FName Leve
 		{
 			if (Actor && (Actor->NetDormancy == DORM_DormantAll || (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() == false)))
 			{
-				if (FConnectionReplicationActorInfo* ActorInfo = ActorInfoMap.Find(Actor))
-				{
-					ActorInfo->bDormantOnConnection = false;
-				}
+				SetActorNotDormantOnConnection(Actor);
 			}
 		}
 	}
@@ -2823,6 +2813,16 @@ void UNetReplicationGraphConnection::OnUpdateViewerLocation(FLastLocationGatherI
 	}
 
 	LocationInfo->LastLocation = Viewer.ViewLocation;
+}
+
+void UNetReplicationGraphConnection::SetActorNotDormantOnConnection(AActor* InActor)
+{
+	if (FConnectionReplicationActorInfo* Info = ActorInfoMap.Find(InActor))
+	{
+		Info->bDormantOnConnection = false;
+		Info->bGridSpatilization_AlreadyDormant = false;
+		PrevDormantActorList.RemoveFast(InActor);
+	}
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -5510,7 +5510,7 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 		{
 			int32 NumActorsToRemove = CVar_RepGraph_ReplicatedDormantDestructionInfosPerFrame;
 			
-			UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Removing %d Actors (List size: %d)"), Params.ConnectionManager.PrevDormantActorList.Num(), NumActorsToRemove);
+			UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Removing %d Actors (List size: %d)"), FMath::Min(NumActorsToRemove, Params.ConnectionManager.PrevDormantActorList.Num()), Params.ConnectionManager.PrevDormantActorList.Num());
 
 			// any previous dormant actors not in the current node dormant list
 			for (int32 i = 0; i < Params.ConnectionManager.PrevDormantActorList.Num() && NumActorsToRemove > 0; i++, NumActorsToRemove--)
@@ -5522,27 +5522,27 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 				{
 					if (ensureMsgf(ActorInfo->bDormantOnConnection, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Doing dormant actor operations on non-dormant actor (%s) in PrevDormantActorList iteration"), *Actor->GetName()))
 					{
-					ActorInfo->bDormantOnConnection = false;
-					// Ideally, no actor info outside this list should be set to true, so we don't have to worry about resetting them.
-					// However we could consider iterating through the actor map to reset all of them.
-					ActorInfo->bGridSpatilization_AlreadyDormant = false;
+						ActorInfo->bDormantOnConnection = false;
+						// Ideally, no actor info outside this list should be set to true, so we don't have to worry about resetting them.
+						// However we could consider iterating through the actor map to reset all of them.
+						ActorInfo->bGridSpatilization_AlreadyDormant = false;
 
-					// add back to connection specific dormancy nodes
-					const FActorCellInfo CellInfo = GetCellInfoForActor(Actor, Actor->GetActorLocation(), ActorInfo->GetCullDistance());
-					GetGridNodesForActor(Actor, CellInfo, GatheredNodes);
+						// add back to connection specific dormancy nodes
+						const FActorCellInfo CellInfo = GetCellInfoForActor(Actor, Actor->GetActorLocation(), ActorInfo->GetCullDistance());
+						GetGridNodesForActor(Actor, CellInfo, GatheredNodes);
 
-					for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
-					{
-						if (UReplicationGraphNode_DormancyNode* DormancyNode = Node->GetDormancyNode())
+						for (UReplicationGraphNode_GridCell* Node : GatheredNodes)
 						{
-							// Only notify the connection node if this client was previously inside the cell.
-							if (UReplicationGraphNode_ConnectionDormancyNode* ConnectionDormancyNode = DormancyNode->GetExistingConnectionNode(Params))
+							if (UReplicationGraphNode_DormancyNode* DormancyNode = Node->GetDormancyNode())
 							{
-								ConnectionDormancyNode->NotifyActorDormancyFlush(Actor);
+								// Only notify the connection node if this client was previously inside the cell.
+								if (UReplicationGraphNode_ConnectionDormancyNode* ConnectionDormancyNode = DormancyNode->GetExistingConnectionNode(Params))
+								{
+									ConnectionDormancyNode->NotifyActorDormancyFlush(Actor);
+								}
 							}
 						}
 					}
-				}
 				}
 
 				Params.ConnectionManager.PrevDormantActorList.RemoveAtSwap(i);

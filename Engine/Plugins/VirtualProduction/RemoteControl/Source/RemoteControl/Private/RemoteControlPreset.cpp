@@ -922,6 +922,7 @@ URemoteControlBinding* URemoteControlPreset::FindOrAddBinding(const TSoftObjectP
 void URemoteControlPreset::OnEntityModified(const FGuid& EntityId)
 {
 	PerFrameUpdatedEntities.Add(EntityId);
+	PerFrameModifiedProperties.Add(EntityId);
 }
 
 void URemoteControlPreset::InitializeEntitiesMetadata()
@@ -1844,7 +1845,7 @@ void URemoteControlPreset::UnregisterDelegates()
 
 	if (GEngine)
 	{
-	GEngine->OnLevelActorDeleted().RemoveAll(this);
+		GEngine->OnLevelActorDeleted().RemoveAll(this);
 	}
 
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.RemoveAll(this);
@@ -1906,7 +1907,7 @@ void URemoteControlPreset::OnPieEvent(bool)
 			{
 				PresetPtr->PerFrameUpdatedEntities.Add(Entity->GetId());
 			}	
-		}	
+		}
 	}));
 }
 

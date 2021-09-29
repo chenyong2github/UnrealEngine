@@ -31,7 +31,9 @@ public class WindowsTargetPlatform : ModuleRules
 		if (Target.bCompileAgainstEngine)
 		{
 			PrivateDependencyModuleNames.AddRange( new string[] {
-				"Engine", "RHI"
+				"Engine", 
+				"RHI",
+				"CookedEditor",
 				}
 			);
             PrivateIncludePathModuleNames.Add("TextureCompressor");

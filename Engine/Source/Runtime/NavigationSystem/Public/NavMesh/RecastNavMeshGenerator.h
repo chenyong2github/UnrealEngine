@@ -334,7 +334,7 @@ protected:
 	void Setup(const FRecastNavMeshGenerator& ParentGenerator, const TArray<FBox>& DirtyAreas);
 	
 	/** Gather geometry */
-	void GatherGeometry(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
+	virtual void GatherGeometry(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
 	/** Gather geometry sources to be processed later by the GatherGeometryFromSources */
 	void PrepareGeometrySources(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
 	/** Gather geometry from the prefetched sources */
@@ -772,6 +772,14 @@ protected:
 	void DiscardCurrentBuildingTasks();
 
 	virtual TSharedRef<FRecastTileGenerator> CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas);
+
+	template <typename T>
+	TSharedRef<T> ConstuctTileGeneratorImpl(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas)
+	{
+		TSharedRef<T> TileGenerator = MakeShareable(new T(*this, Coord));
+		TileGenerator->Setup(*this, DirtyAreas);
+		return TileGenerator;
+	}
 
 	void SetBBoxGrowth(const FVector& InBBox) { BBoxGrowth = InBBox; }
 

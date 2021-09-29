@@ -1142,11 +1142,9 @@ void UMovieSceneSequencePlayer::PreEvaluation(const FMovieSceneContext& Context)
 
 void UMovieSceneSequencePlayer::PostEvaluation(const FMovieSceneContext& Context)
 {
-#if WITH_EDITOR
 	FFrameTime CurrentTime  = ConvertFrameTime(Context.GetTime(),         Context.GetFrameRate(), PlayPosition.GetInputRate());
 	FFrameTime PreviousTime = ConvertFrameTime(Context.GetPreviousTime(), Context.GetFrameRate(), PlayPosition.GetInputRate());
 	OnMovieSceneSequencePlayerUpdate.Broadcast(*this, CurrentTime, PreviousTime);
-#endif
 
 	RunPostEvaluationCallbacks();
 

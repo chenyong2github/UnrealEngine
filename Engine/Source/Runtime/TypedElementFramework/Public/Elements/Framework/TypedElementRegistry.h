@@ -141,8 +141,8 @@ public:
 	/**
 	 * Get the element interface supported by the given handle, or null if there is no support for this interface.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry", meta = (DeterminesOutputType = "InBaseInterfaceType"))
-	FORCEINLINE UObject* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
+	FORCEINLINE UObject* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface> InBaseInterfaceType) const
 	{
 		return GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), InBaseInterfaceType);
 	}

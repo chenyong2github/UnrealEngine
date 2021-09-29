@@ -135,9 +135,44 @@ namespace Chaos
 			const FReal R2 = R * R;
 			OutFaceIndex = INDEX_NONE;
 
+			// Raycast against capsule bounds.
+			// We will use the intersection point as our ray start, this prevents precision issues if start is far away.
+			// All calculations below should use LocalStart/LocalLength, and convert output time using input length if intersecting.
+			FAABB3 CapsuleBounds;
+			{
+				CapsuleBounds.GrowToInclude(X1);
+				CapsuleBounds.GrowToInclude(X2);
+				CapsuleBounds.Thicken(R);
+			}
+
+			FReal InvLength = 1.0f / Length;
+			FVec3 InvDir;
+			bool bParallel[3];
+			for (int32 Axis = 0; Axis < 3; ++Axis)
+			{
+				bParallel[Axis] = Dir[Axis] == 0;
+				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
+			}
+
+			FVec3 LocalStart = StartPoint;
+			FReal LocalLength = Length;
+			FReal RemovedLength = 0;
+			{
+				FReal OutBoundsTime;
+				bool bStartHit = CapsuleBounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvLength, OutBoundsTime, OutPosition);
+				if (bStartHit == false)
+				{
+					return false;
+				}
+
+				LocalStart = StartPoint + OutBoundsTime * Dir;
+				RemovedLength = OutBoundsTime;
+				LocalLength = Length - OutBoundsTime; // Note: This could be 0.
+			}
+
 			//First check if we are initially overlapping
 			//Find closest point to cylinder core and check if it's inside the inflated capsule
-			const FVec3 X1ToStart = StartPoint - X1;
+			const FVec3 X1ToStart = LocalStart - X1;
 			const FReal MVectorDotX1ToStart = FVec3::DotProduct(X1ToStart, MVector);
 			if (MVectorDotX1ToStart >= -R && MVectorDotX1ToStart <= MHeight + R)
 			{
@@ -147,9 +182,33 @@ namespace Chaos
 				const FReal Dist2 = (X1ToStart - ClampedProjectionPosition).SizeSquared();
 				if (Dist2 <= R2)
 				{
-					OutTime = 0;
+					// In this case, clamped project position is either inside capsule or on the surface.
+
+					OutTime = RemovedLength; // We may have shortened our ray, not actually 0 time.
+
+					// We clipped ray against bounds, not a true initial overlap, compute normal/position
+					if (RemovedLength > 0.0f)
+					{	
+						// Ray must have started outside capsule bounds, intersected bounds where it is touched capsule surface.
+						OutNormal = (X1ToStart - ClampedProjectionPosition) / R;
+						OutPosition = LocalStart - OutNormal * Thickness;
+					}
+					else
+					{
+						// Input ray started inside capsule, out time is 0, we are just filling out outputs so they aren't uninitialized.
+						OutPosition = LocalStart;
+						OutNormal = -Dir;
+					}
+
 					return true;
 				}
+			}
+
+			if(FMath::IsNearlyEqual(LocalLength, 0, KINDA_SMALL_NUMBER))
+			{
+				// If LocalLength is 0, this means the ray's endpoint is on the bounding AABB of thickened capsule.
+				// At this point we have determined this point is not on surface of capsule, so the ray has missed.
+				return false;
 			}
 
 			// Raycast against cylinder first
@@ -177,7 +236,8 @@ namespace Chaos
 
 			if (C <= 0.f)
 			{
-				// Inside cylinder so check caps
+				// We already tested initial overlap of start point, so start must be in cylinder
+				// but above/below segment end points.
 				bCheckCaps = true;
 			}
 			else
@@ -207,12 +267,12 @@ namespace Chaos
 						}
 					}
 
-					const FVec3 SpherePosition = StartPoint + Time * Dir;
+					const FVec3 SpherePosition = LocalStart + Time * Dir;
 					const FVec3 CylinderToSpherePosition = SpherePosition - X1;
 					const FReal PositionLengthOnCoreCylinder = FVec3::DotProduct(CylinderToSpherePosition, MVector);
 					if (PositionLengthOnCoreCylinder >= 0 && PositionLengthOnCoreCylinder < MHeight)
 					{
-						OutTime = Time;
+						OutTime = Time + RemovedLength; // Account for ray clipped against bounds
 						OutNormal = (CylinderToSpherePosition - MVector * PositionLengthOnCoreCylinder) / R;
 						OutPosition = SpherePosition - OutNormal * Thickness;
 						return true;
@@ -234,21 +294,21 @@ namespace Chaos
 
 				FReal Time1, Time2;
 				FVec3 Position1, Position2;
-				FVec3 Normal1, Normal2;
-				bool bHitX1 = X1Sphere.Raycast(StartPoint, Dir, Length, Thickness, Time1, Position1, Normal1, OutFaceIndex);
-				bool bHitX2 = X2Sphere.Raycast(StartPoint, Dir, Length, Thickness, Time2, Position2, Normal2, OutFaceIndex);
+				FVec3 Normal1, Normal2;	
+				bool bHitX1 = X1Sphere.Raycast(LocalStart, Dir, LocalLength, Thickness, Time1, Position1, Normal1, OutFaceIndex);
+				bool bHitX2 = X2Sphere.Raycast(LocalStart, Dir, LocalLength, Thickness, Time2, Position2, Normal2, OutFaceIndex);
 
 				if (bHitX1 && bHitX2)
 				{
 					if (Time1 <= Time2)
 					{
-						OutTime = Time1;
+						OutTime = Time1 + RemovedLength;  // Account for ray clipped against bounds
 						OutPosition = Position1;
 						OutNormal = Normal1;
 					}
 					else
 					{
-						OutTime = Time2;
+						OutTime = Time2 + RemovedLength;  // Account for ray clipped against bounds
 						OutPosition = Position2;
 						OutNormal = Normal2;
 					}
@@ -257,14 +317,14 @@ namespace Chaos
 				}
 				else if (bHitX1)
 				{
-					OutTime = Time1;
+					OutTime = Time1 + RemovedLength;  // Account for ray clipped against bounds
 					OutPosition = Position1;
 					OutNormal = Normal1;
 					return true;
 				}
 				else if (bHitX2)
 				{
-					OutTime = Time2;
+					OutTime = Time2 + RemovedLength;  // Account for ray clipped against bounds
 					OutPosition = Position2;
 					OutNormal = Normal2;
 					return true;

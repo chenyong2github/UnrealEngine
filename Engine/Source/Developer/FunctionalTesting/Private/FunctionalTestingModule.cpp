@@ -12,6 +12,7 @@
 #include "ARFilter.h"
 #include "AssetRegistryModule.h"
 #include "Misc/CommandLine.h"
+#include "IAutomationControllerModule.h"
 
 #define LOCTEXT_NAMESPACE "FunctionalTesting"
 
@@ -122,9 +123,15 @@ void FFunctionalTestingModule::GetMapTests(bool bEditorOnlyTests, TArray<FString
 		Filter.bIncludeOnlyOnDiskAssets = true;
 		if (AssetRegistry.GetAssets(Filter, /*out*/ MapList))
 		{
+			IAutomationControllerModule& AutomationControllerModule = FModuleManager::LoadModuleChecked<IAutomationControllerModule>(TEXT("AutomationController"));
+			IAutomationControllerManagerPtr AutomationController = AutomationControllerModule.GetAutomationController();
+			bool IsDeveloperDirectoryIncluded = AutomationController->IsDeveloperDirectoryIncluded();
+
 			for (const FAssetData& MapAsset : MapList)
 			{
 				FString MapAssetPath = MapAsset.ObjectPath.ToString();
+				FString MapPackageName = MapAsset.PackageName.ToString();
+				if (!IsDeveloperDirectoryIncluded && MapPackageName.Find(TEXT("/Game/Developers")) == 0) continue;
 
 				FAssetDataTagMapSharedView::FFindTagResult Tests = MapAsset.TagsAndValues.FindTag(TEXT("Tests"));
 				FAssetDataTagMapSharedView::FFindTagResult TestNames = MapAsset.TagsAndValues.FindTag(bEditorOnlyTests ? TEXT("TestNamesEditor") : TEXT("TestNames"));
@@ -141,7 +148,6 @@ void FFunctionalTestingModule::GetMapTests(bool bEditorOnlyTests, TArray<FString
 						{
 							FString BeautifulTestName;
 							FString RealTestName;
-							FString MapPackageName = MapAsset.PackageName.ToString();
 
 							if (MapTest.Split(TEXT("|"), &BeautifulTestName, &RealTestName))
 							{

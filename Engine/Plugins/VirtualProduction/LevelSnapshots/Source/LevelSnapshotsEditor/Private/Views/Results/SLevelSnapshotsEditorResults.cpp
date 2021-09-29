@@ -2331,6 +2331,11 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 				{
 					UncheckedChildPropertyNodes.Add(ChildRow);
 				}
+				else if (ChildRowType == FLevelSnapshotsEditorResultsRow::StructGroup && !ChildRow->GetIsNodeChecked())
+				{
+					UncheckedChildPropertyNodes.Add(ChildRow);
+					ChildRow->GetAllUncheckedChildProperties(UncheckedChildPropertyNodes); 
+				}
 				else if (ChildRowType == FLevelSnapshotsEditorResultsRow::StructGroup || 
 					ChildRowType == FLevelSnapshotsEditorResultsRow::StructInSetOrArray || 
 					ChildRowType == FLevelSnapshotsEditorResultsRow::StructInMap)

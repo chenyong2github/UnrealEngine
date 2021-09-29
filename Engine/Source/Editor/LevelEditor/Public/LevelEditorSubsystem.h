@@ -7,8 +7,9 @@
 
 #include "LevelEditorSubsystem.generated.h"
 
-
+class UTypedElementSelectionSet;
 struct FToolMenuContext;
+
 /**
 * ULevelEditorSubsystem
 * Subsystem for exposing Level Editor related functionality to scripts
@@ -118,4 +119,10 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	ULevel* GetCurrentLevel();
+
+	/**
+	 * Get the level Editor typed element selection set for the current world
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	UTypedElementSelectionSet* GetSelectionSet();
 };

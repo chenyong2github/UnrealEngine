@@ -55,7 +55,7 @@ void SGameplayTagQueryGraphPin::ParseDefaultValueData()
 TSharedRef<SWidget> SGameplayTagQueryGraphPin::GetListContent()
 {
 	EditableQueries.Empty();
-	EditableQueries.Add(SGameplayTagQueryWidget::FEditableGameplayTagQueryDatum(GraphPinObj->GetOwningNode(), TagQuery.Get(), nullptr, &TagQueryExportText));
+	EditableQueries.Add(SGameplayTagQueryWidget::FEditableGameplayTagQueryDatum(GraphPinObj->GetOwningNode(), TagQuery.Get(), &TagQueryExportText));
 
 	return SNew( SVerticalBox )
 		+SVerticalBox::Slot()
@@ -69,7 +69,7 @@ TSharedRef<SWidget> SGameplayTagQueryGraphPin::GetListContent()
 			.Stretch(EStretch::ScaleToFit)
 			.Content()
 			[
-				SNew(SGameplayTagQueryWidget, EditableQueries)
+				SNew(SGameplayTagQueryWidget, EditableQueries, nullptr)
 				.OnQueryChanged(this, &SGameplayTagQueryGraphPin::OnQueryChanged)
 				.Visibility( this, &SGraphPin::GetDefaultValueVisibility )
 				.AutoSave(true)

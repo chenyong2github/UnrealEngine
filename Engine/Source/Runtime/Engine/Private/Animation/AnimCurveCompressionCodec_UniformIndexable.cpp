@@ -31,6 +31,11 @@ FAnimCurveBufferAccess::FAnimCurveBufferAccess(const UAnimSequenceBase* InSequen
 		if (!CompressedBuffer)
 		{
 			RawCurve = (const FFloatCurve*)InSequenceBase->GetCurveData().GetCurveData(InUID);
+
+			if (RawCurve)
+			{
+				NumSamples = RawCurve->FloatCurve.GetNumKeys();
+			}
 		}
 	}
 }

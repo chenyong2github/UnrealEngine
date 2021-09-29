@@ -65,8 +65,8 @@ export void ApplyLegacySphericalBackstopConstraints(uniform FVector P[],
 			continue;
 		}
 
-		const FVector AnimationPosition = VectorLoad(&AnimationPositions[extract(Index, 0)]);
-		const FVector AnimationNormal = VectorLoad(&AnimationNormals[extract(Index, 0)]);
+		const FVector AnimationPosition = VectorLoad(&AnimationPositions[extract(ParticleIndex, 0)]);
+		const FVector AnimationNormal = VectorLoad(&AnimationNormals[extract(ParticleIndex, 0)]);
 
 		const float SphereOffsetDistance = SphereOffsetDistances[Index];
 		const float Radius = SphereRadii[Index] * SphereRadiiMultiplier;
@@ -110,8 +110,8 @@ export void ApplySphericalBackstopConstraints(uniform FVector P[],
 			continue;
 		}
 
-		const FVector AnimationPosition = VectorLoad(&AnimationPositions[extract(Index, 0)]);
-		const FVector AnimationNormal = VectorLoad(&AnimationNormals[extract(Index, 0)]);
+		const FVector AnimationPosition = VectorLoad(&AnimationPositions[extract(ParticleIndex, 0)]);
+		const FVector AnimationNormal = VectorLoad(&AnimationNormals[extract(ParticleIndex, 0)]);
 
 		const float SphereOffsetDistance = SphereOffsetDistances[Index];
 		const float Radius = SphereRadii[Index] * SphereRadiiMultiplier;

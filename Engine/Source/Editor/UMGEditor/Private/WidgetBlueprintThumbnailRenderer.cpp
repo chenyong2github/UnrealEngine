@@ -180,7 +180,8 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 			WidgetInstance = ThumbnailInstance.Widget.Get();
 			if (!WidgetInstance)
 			{
-				ThumbnailInstance.Widget = NewObject<UUserWidget>(GetTransientPackage(), ClassToGenerate);
+				UWorld* World = GEditor->GetEditorWorldContext().World();
+				ThumbnailInstance.Widget = NewObject<UUserWidget>(World, ClassToGenerate, NAME_None, RF_Transient);
 				ThumbnailInstance.Widget->Initialize();
 				ThumbnailInstance.Widget->SetDesignerFlags(EWidgetDesignFlags::Designing | EWidgetDesignFlags::ExecutePreConstruct);
 

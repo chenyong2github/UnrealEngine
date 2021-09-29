@@ -24,6 +24,8 @@
 #include "GameProjectGenerationModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SPrimaryButton.h"
+#include "Styling/StyleColors.h"
+#include "SWarningOrErrorBox.h"
 
 #define LOCTEXT_NAMESPACE "PluginsEditor"
 
@@ -138,125 +140,158 @@ void SPluginBrowser::Construct( const FArguments& Args )
 		EUserInterfaceActionType::ToggleButton
 	);
 
-	TSharedRef<SVerticalBox> MainContent = SNew( SVerticalBox )
-	+SVerticalBox::Slot()
+	TSharedRef<SBorder> MainContent = SNew( SBorder )
+	.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+	.Padding(0.f)
 	[
-		SNew( SSplitter )
-		+SSplitter::Slot()
-		.Value(.3f)
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SBorder)
-			.Padding(8.0f)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			[
-				PluginCategories.ToSharedRef()
-			]
-		]
-		+SSplitter::Slot()
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.Padding(FMargin(0.0f, 0.0f, 0.0f, PaddingAmount))
-			.AutoHeight()
-			[
-				SNew( SHorizontalBox )
+			// Add Plugin button
+			SNew(SHorizontalBox)
 
-				+SHorizontalBox::Slot()
-				.Padding( PaddingAmount )
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			.Padding(FMargin(12, 7, 18, 7))
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ToolTip(SNew(SToolTip).Text(LOCTEXT("NewPluginEnabled", "Click here to open the Plugin Creator dialog.")))
+				.OnClicked(this, &SPluginBrowser::HandleNewPluginButtonClicked)
+				.ContentPadding(FMargin(0, 5.f, 0, 4.f))
+				.Content()
 				[
-					SAssignNew( BreadcrumbTrail, SBreadcrumbTrail<TSharedPtr<FPluginCategory>> )
-					.DelimiterImage( FPluginStyle::Get()->GetBrush( "Plugins.BreadcrumbArrow" ) ) 
-					.ShowLeadingDelimiter( true )
-					.OnCrumbClicked( this, &SPluginBrowser::BreadcrumbTrail_OnCrumbClicked )
-				]
-	
-				+SHorizontalBox::Slot()
-				.Padding( PaddingAmount )
-				[
-					SAssignNew( SearchBoxPtr, SSearchBox )
-					.OnTextChanged( this, &SPluginBrowser::SearchBox_OnPluginSearchTextChanged )
-				]
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SComboButton)
-					.ContentPadding(0)
-					.ForegroundColor(FSlateColor::UseForeground())
-					.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
-					.MenuContent()
-					[
-						DetailViewOptions.MakeWidget()
-					]
-					.ButtonContent()
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("GenericViewButton"))
+						.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
+						.ColorAndOpacity(FStyleColors::AccentGreen)
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(3, 0, 0, 0))
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.TextStyle(FAppStyle::Get(), "SmallButtonText")
+						.Text(LOCTEXT("NewPluginLabel", "Add"))
 					]
 				]
 			]
 
-			+SVerticalBox::Slot()
+			// Search Box
+			+ SHorizontalBox::Slot()
+			.Padding(0, 7, 0, 7)
 			[
-				SAssignNew( PluginList, SPluginTileList, SharedThis( this ) )
+				SAssignNew(SearchBoxPtr, SSearchBox)
+				.OnTextChanged(this, &SPluginBrowser::SearchBox_OnPluginSearchTextChanged)
 			]
 
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(FMargin(PaddingAmount, PaddingAmount, PaddingAmount, 0.0f))
+			// Settings button
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(FMargin(14.f, 0.f, 14.f, 0.f))
+			[
+				SNew(SComboButton)
+				.ContentPadding(0)
+				.HasDownArrow(false)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
+				.MenuContent()
+				[
+					DetailViewOptions.MakeWidget()
+
+				]
+				.ButtonContent()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Toolbar.Settings"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(FMargin(5, 0, 0, 0))
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.TextStyle(FAppStyle::Get(), "NormalText")
+						.Text(LOCTEXT("SettingsLabel", "Settings"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				]
+			]
+		]
+		+SVerticalBox::Slot()
+		[
+			SNew( SSplitter )
+			.Style(FAppStyle::Get(), "SplitterPanel")
+			+SSplitter::Slot()
+			.Value(.35f)
 			[
 				SNew(SBorder)
-				.BorderBackgroundColor(FLinearColor::Yellow)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Padding(8.0f)
-				.Visibility(this, &SPluginBrowser::HandleRestartEditorNoticeVisibility)
+				.BorderImage(FPluginStyle::Get()->GetBrush("Plugins.ListBorder"))
+				[
+					PluginCategories.ToSharedRef()
+				]
+			]
+			+SSplitter::Slot()
+			[
+				SNew( SVerticalBox )
+
+				+SVerticalBox::Slot()
+				.Padding(FMargin(0.0f, 0.0f, 0.0f, PaddingAmount))
+				.AutoHeight()
 				[
 					SNew( SHorizontalBox )
 
 					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(0.0f, 0.0f, 8.0f, 0.0f))
+					.Padding( PaddingAmount )
 					[
-						SNew(SImage)
-						.Image(FPluginStyle::Get()->GetBrush("Plugins.Warning"))
+						SAssignNew( BreadcrumbTrail, SBreadcrumbTrail<TSharedPtr<FPluginCategory>> )
+						.DelimiterImage( FAppStyle::Get().GetBrush( "Icons.ChevronRight" ) ) 
+						.ShowLeadingDelimiter( false )
+						.OnCrumbClicked( this, &SPluginBrowser::BreadcrumbTrail_OnCrumbClicked )
 					]
+				]
 
-					+SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("PluginSettingsRestartNotice", "Unreal Editor must be restarted for the plugin changes to take effect."))
-					]
+				+SVerticalBox::Slot()
+				[
+					SAssignNew(PluginList, SPluginTileList, SharedThis(this))
+				]
 
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Right)
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(FMargin(18.0f, 20.0f, 18.0f, 16.0f))
+				[
+					SNew(SWarningOrErrorBox)
+					.Visibility(this, &SPluginBrowser::HandleRestartEditorNoticeVisibility)
+					.MessageStyle(EMessageStyle::Warning)
+					.Message(LOCTEXT("PluginSettingsRestartNotice", "You must restart Unreal Editor for your changes to take effect."))
 					[
 						SNew(SButton)
-						.Text(LOCTEXT("PluginSettingsRestartEditor", "Restart Now"))
 						.OnClicked(this, &SPluginBrowser::HandleRestartEditorButtonClicked)
-						.TextStyle(FEditorStyle::Get(), "LargeText")
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
+						.TextStyle(FAppStyle::Get(), "NormalText")
+						.Text(LOCTEXT("PluginSettingsRestartEditor", "Restart Now"))
 					]
 				]
 			]
-
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(FMargin(2.0f, 10.0f, 10.0f, 10.0f))
-			.HAlign(HAlign_Right)
-			[
-				SNew(SPrimaryButton)
-				.ToolTip(SNew(SToolTip).Text(LOCTEXT("NewPluginEnabled", "Click here to open the Plugin Creator dialog.")))
-				.Text(LOCTEXT("NewPluginLabel", "New Plugin"))
-				.OnClicked(this, &SPluginBrowser::HandleNewPluginButtonClicked)
-			]
 		]
 	];
+	
 
 	ChildSlot
 	[

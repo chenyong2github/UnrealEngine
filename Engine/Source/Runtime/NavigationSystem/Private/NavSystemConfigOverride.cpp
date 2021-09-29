@@ -150,7 +150,7 @@ void ANavSystemConfigOverride::PostRegisterAllComponents()
 
 	// ApplyConfig in PostRegisterAllComponents only for Editor worlds; applied in BeginPlay for Game worlds.
 	UWorld* World = GetWorld();
-	if (World == nullptr || World->IsGameWorld())
+	if (World == nullptr || World->IsGameWorld() || World->WorldType == EWorldType::Inactive)
 	{
 		return;
 	}
@@ -182,7 +182,7 @@ void ANavSystemConfigOverride::PostUnregisterAllComponents()
 
 	// ApplyConfig was performed in PostRegisterAllComponents for Editor worlds so nothing to unregister for Game worlds.
 	UWorld* World = GetWorld();
-	if (World == nullptr || World->IsGameWorld())
+	if (World == nullptr || World->IsGameWorld() || World->WorldType == EWorldType::Inactive)
 	{
 		return;
 	}

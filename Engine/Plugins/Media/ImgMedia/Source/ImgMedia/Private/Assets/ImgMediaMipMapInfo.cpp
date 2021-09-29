@@ -7,6 +7,7 @@
 #include "ImgMediaPrivate.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 

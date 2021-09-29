@@ -13,6 +13,10 @@
 class CONTENTBROWSERDATA_API FContentBrowserItemPath
 {
 public:
+	FContentBrowserItemPath();
+	FContentBrowserItemPath(const FStringView InPath, const EContentBrowserPathType InPathType);
+	FContentBrowserItemPath(const TCHAR* InPath, const EContentBrowserPathType InPathType);
+	FContentBrowserItemPath(const FName InPath, const EContentBrowserPathType InPathType);
 
 	/**
 	 * Set the path being stored

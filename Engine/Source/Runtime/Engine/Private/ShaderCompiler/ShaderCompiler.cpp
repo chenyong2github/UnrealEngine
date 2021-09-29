@@ -5189,7 +5189,9 @@ void GlobalBeginCompileShader(
 	EShaderPlatform ShaderPlatform = EShaderPlatform(Target.Platform);
 	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
 
+#if WITH_EDITOR
 	FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
+#endif
 
 	Input.Target = Target;
 	Input.ShaderFormat = ShaderFormatName;
@@ -5787,7 +5789,9 @@ void GlobalBeginCompileShader(
 
 	// Allow the GBuffer and other shader defines to cause dependend environment changes, but minimizing the #ifdef magic in the shaders, which
 	// is nearly impossible to debug when it goes wrong.
+#if WITH_EDITOR
 	FShaderCompileUtilities::ApplyDerivedDefines(Input.Environment, Input.SharedEnvironment, (EShaderPlatform)Target.Platform);
+#endif
 }
 
 

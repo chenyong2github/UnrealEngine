@@ -751,7 +751,7 @@ namespace UnrealBuildTool
 		/// Whether to include PerfCounters support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bWithPerfCounters
+        public bool bWithPerfCounters
 		{
 			get { return bWithPerfCountersOverride ?? (Type == TargetType.Editor || Type == TargetType.Server); }
 			set { bWithPerfCountersOverride = value; }
@@ -1776,6 +1776,46 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Override settings that all cooked editor targets will want
+		/// </summary>
+		protected void SetDefaultsForCookedEditor(bool bIsCookedCooker, bool bIsForExternalUse)
+		{
+			LinkType = TargetLinkType.Monolithic;
+
+			bBuildAdditionalConsoleApp = false;
+			bUseLoggingInShipping = true;
+
+			GlobalDefinitions.Add("UE_IS_COOKED_EDITOR=1");
+			GlobalDefinitions.Add("ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR=1");
+
+			// remove some insecure things external users may not want
+			if (bIsForExternalUse)
+			{
+				bWithServerCode = false;
+				bBuildTargetDeveloperTools = false;
+				GlobalDefinitions.Add("AUTOSDKS_ENABLED=0");
+			}
+
+			// this will allow shader compiling to work based on whether or not the shaders directory is present
+			// to determine if we should allow shader compilation
+			GlobalDefinitions.Add("UE_ALLOW_SHADER_COMPILING_BASED_ON_SHADER_DIRECTORY_EXISTENCE=1");
+			// this setting can be used to compile out the shader compiler if that is important
+			//GlobalDefinitions.Add("UE_ALLOW_SHADER_COMPILING=0");
+
+			ConfigHierarchy ProjectGameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, ProjectFile?.Directory, Platform);
+			List<string>? DisabledPlugins;
+			// disable them, and remove them from Enabled in case they were there
+			if (ProjectGameIni.GetArray("CookedEditorSettings", "DisabledPlugins", out DisabledPlugins))
+			{
+				foreach (string PluginName in DisabledPlugins)
+				{
+					DisablePlugins.Add(PluginName);
+					EnablePlugins.Remove(PluginName);
+				}
+			}
+		}
+
+		/// <summary>
 		/// Gets a list of platforms that this target supports
 		/// </summary>
 		/// <returns>Array of platforms that the target supports</returns>
@@ -2177,7 +2217,7 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bCompileISPC && GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }	// LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
 		}
-		
+
 		public bool bLWCDisabled 
 		{
 			get { return GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }	

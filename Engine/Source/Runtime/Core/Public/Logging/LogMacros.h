@@ -401,7 +401,7 @@ private:
 	FString SecurityPrint = FString::Printf(Format, ##__VA_ARGS__); \
 	UE_SECURITY_LOG(NetConnection, SecurityEventType, Format, ##__VA_ARGS__); \
 	UE_SECURITY_LOG(NetConnection, ESecurityEvent::Closed, TEXT("Connection closed")); \
-	NetConnection->Close(); \
+	NetConnection->Close({FromSecurityEvent(SecurityEventType), SecurityPrint}); \
 }
 #if USE_SERVER_PERF_COUNTERS
 #define CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION(NetConnection, SecurityEventType, Format, ...) \

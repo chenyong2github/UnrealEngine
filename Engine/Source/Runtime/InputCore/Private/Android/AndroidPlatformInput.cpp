@@ -252,7 +252,7 @@ uint32 FAndroidPlatformInput::GetKeyMap( uint32* KeyCodes, FString* KeyNames, ui
 		//ADDKEYMAP( VK_SCROLL, TEXT("ScrollLock") );
 
 		ADDKEYMAP( AKEYCODE_SHIFT_LEFT, TEXT("LeftShift") );
-		ADDKEYMAP( AKEYCODE_SHIFT_LEFT, TEXT("RightShift") );
+		ADDKEYMAP( AKEYCODE_SHIFT_RIGHT, TEXT("RightShift") );
 		//ADDKEYMAP( VK_LCONTROL, TEXT("LeftControl") );
 		//ADDKEYMAP( VK_RCONTROL, TEXT("RightControl") );
 		ADDKEYMAP( AKEYCODE_ALT_LEFT, TEXT("LeftAlt") );

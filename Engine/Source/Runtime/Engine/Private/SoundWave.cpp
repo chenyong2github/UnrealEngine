@@ -1020,7 +1020,7 @@ void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStre
 
 
 	// If this sound wave is retained, release and re-retain the new chunk.
-	if (FirstChunk.IsValid())
+	if (FirstChunkPtr.IsValid() && FirstChunkPtr->IsValid())
 	{
 		ReleaseCompressedAudio();
 		RetainCompressedAudio(true);
@@ -1180,11 +1180,7 @@ void USoundWave::PostLoad()
 
 	// cache current state as a proxy
 	InternalProxy = CreateSoundWaveProxy();
-	if (InternalProxy.IsValid())
-	{
-		// release dupe handle already held by 'this'
-		InternalProxy->ReleaseCompressedAudio();
-	}
+	check(InternalProxy.IsValid());
 }
 
 void USoundWave::EnsureZerothChunkIsLoaded()
@@ -2522,6 +2518,8 @@ FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 	EnsureZerothChunkIsLoaded();
 #endif // #if WITH_EDITORONLY_DATA
 
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
+
 	*bUseBinkAudioProxyFlag = bUseBinkAudio;
 	*bIsSeekableStreamingProxyFlag = bSeekableStreaming;
 	*bIsStreamingProxyFlag = IsStreaming(nullptr);
@@ -2535,6 +2533,8 @@ TUniquePtr<Audio::IProxyData> USoundWave::CreateNewProxyData(const Audio::FProxy
 #if WITH_EDITORONLY_DATA
 	EnsureZerothChunkIsLoaded();
 #endif // #if WITH_EDITORONLY_DATA
+
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 
 	*bUseBinkAudioProxyFlag = bUseBinkAudio;
 	*bIsSeekableStreamingProxyFlag = bSeekableStreaming;
@@ -3000,7 +3000,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 
 	// If the first chunk is already loaded and being retained,
 	// don't kick off another load.
-	if (FirstChunk.IsValid())
+	if (FirstChunkPtr.IsValid() && FirstChunkPtr->IsValid())
 	{
 		return;
 	}
@@ -3011,8 +3011,8 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 			InternalProxy = CreateSoundWaveProxy();
 		}
 
-		FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(InternalProxy, 1, true);
-		UE_CLOG(!FirstChunk.IsValid(), LogAudio, Display, TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio(). This was likely because the cache was blown. Sound: %s"), *GetFullName());
+		*FirstChunkPtr = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(InternalProxy, 1, true);
+		UE_CLOG(!(FirstChunkPtr.IsValid() && FirstChunkPtr->IsValid()), LogAudio, Display, TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio(). This was likely because the cache was blown. Sound: %s"), *GetFullName());
 	}
 	else
 	{
@@ -3026,7 +3026,7 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 
 					if (WeakThis.IsValid())
 					{
-						WeakThis->FirstChunk = MoveTemp(MovedHandle);
+						*(WeakThis->FirstChunkPtr) = MoveTemp(MovedHandle);
 					}
 				});
 				
@@ -3038,12 +3038,12 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 void USoundWave::ReleaseCompressedAudio()
 {
 	// Here we release the USoundWave's handle to the compressed asset by resetting it.
-	FirstChunk = FAudioChunkHandle();
+	*FirstChunkPtr = FAudioChunkHandle();
 }
 
 bool USoundWave::IsRetainingAudio()
 {
-	return FirstChunk.IsValid();
+	return FirstChunkPtr.IsValid() && FirstChunkPtr->IsValid();
 }
 
 void USoundWave::OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBehavior)
@@ -3204,7 +3204,7 @@ FSoundWaveProxy::FSoundWaveProxy(USoundWave* InWave)
 	, NumChunks(0)
 	, Duration(InWave->Duration)
 	, NumFrames((int32)(Duration * (float)InWave->SampleRate))
-	, FirstChunk(InWave->FirstChunk)
+	, FirstChunkPtr(InWave->FirstChunkPtr)
 	, LoadingBehavior(InWave->CachedSoundWaveLoadingBehavior)
 	, bLoadingBehaviorOverriddenPtr(InWave->bLoadingBehaviorOverriddenPtr)
 	, bIsStreamingPtr(InWave->bIsStreamingProxyFlag)
@@ -3215,6 +3215,12 @@ FSoundWaveProxy::FSoundWaveProxy(USoundWave* InWave)
 	, CurrentChunkRevision(InWave->CurrentChunkRevision)
 #endif // #if WITH_EDITOR
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
+
+	// this should have been allocated by the USoundWave and should always be valid
+	check(FirstChunkPtr.IsValid());
+
+
 	// cache the runtime format for this wave
 	if (GEngine)
 	{
@@ -3240,7 +3246,9 @@ FSoundWaveProxy::FSoundWaveProxy(USoundWave* InWave)
 
 void FSoundWaveProxy::ReleaseCompressedAudio()
 {
-	FirstChunk = FAudioChunkHandle();
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
+	*FirstChunkPtr = FAudioChunkHandle();
+
 }
 
 uint32 FSoundWaveProxy::GetSizeOfChunk(uint32 ChunkIndex) const
@@ -3251,6 +3259,7 @@ uint32 FSoundWaveProxy::GetSizeOfChunk(uint32 ChunkIndex) const
 
 TArrayView<const uint8> FSoundWaveProxy::GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback)
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 	if (ensure(SoundWaveProxy.IsValid()) && SoundWaveProxy->IsZerothChunkDataLoaded())
 	{
 		if (*SoundWaveProxy->bShouldUseStreamCachingPtr)
@@ -3275,6 +3284,7 @@ TArrayView<const uint8> FSoundWaveProxy::GetZerothChunk(const FSoundWaveProxyPtr
 
 bool FSoundWaveProxy::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 	if (GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
 	{
 #if WITH_EDITORONLY_DATA
@@ -3314,6 +3324,8 @@ const TArrayView<uint8> FSoundWaveProxy::GetZerothChunkDataView() const
 
 void FSoundWaveProxy::EnsureZerothChunkIsLoaded()
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
+
 	// If the zeroth chunk is already loaded, early exit.
 	if (ZerothChunkData->GetView().Num() > 0 || !*bShouldUseStreamCachingPtr)
 	{
@@ -3381,6 +3393,7 @@ const FStreamedAudioChunk& FSoundWaveProxy::GetChunk(uint32 ChunkIndex) const
 
 int32 FSoundWaveProxy::GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
 {
+	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 	// This function shouldn't be called on audio marked "ForceInline."
 	ensureMsgf(RunningPlatformData.IsValid(), TEXT("Calling GetNumChunks on a FSoundWaveProxy without RunnigPlatformData is not allowed! SoundWave: %s - %s")
 		, *GetFName().ToString(), EnumToString(LoadingBehavior));

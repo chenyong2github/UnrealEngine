@@ -742,6 +742,8 @@ void StatelessConnectHandlerComponent::InitFromConnectionless(StatelessConnectHa
 	LastChallengeSuccessAddress = InConnectionlessHandler->LastChallengeSuccessAddress;
 
 	FMemory::Memcpy(AuthorisedCookie, InConnectionlessHandler->AuthorisedCookie, UE_ARRAY_COUNT(AuthorisedCookie));
+
+	LastInitTimestamp = (Driver != nullptr ? Driver->GetElapsedTime() : 0.0);
 }
 
 void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
@@ -954,10 +956,19 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 		UE_LOG(LogHandshake, Log, TEXT("Incoming: Error reading handshake bit from packet."));
 	}
 #endif
-	// Servers should wipe LastChallengeSuccessAddress when the first non-handshake packet is received by the client, in order to disable challenge ack resending
-	else if (LastChallengeSuccessAddress.IsValid() && Handler->Mode == Handler::Mode::Server)
+	// Servers should wipe LastChallengeSuccessAddress shortly after the first non-handshake packet is received by the client,
+	// in order to disable challenge ack resending
+	else if (LastInitTimestamp != 0.0 && LastChallengeSuccessAddress.IsValid() && Handler->Mode == Handler::Mode::Server)
 	{
-		LastChallengeSuccessAddress.Reset();
+		// Restart handshakes require extra time before disabling challenge ack resends, as NetConnection packets will already be in flight
+		const double RestartHandshakeAckResendWindow = 10.0;
+		double CurTime = Driver != nullptr ? Driver->GetElapsedTime() : 0.0;
+
+		if (LastInitTimestamp - CurTime >= RestartHandshakeAckResendWindow)
+		{
+			LastChallengeSuccessAddress.Reset();
+			LastInitTimestamp = 0.0;
+		}
 	}
 }
 

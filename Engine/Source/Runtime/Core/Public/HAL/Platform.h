@@ -625,6 +625,10 @@
 	#define PLATFORM_USE_REPORT_ENSURE PLATFORM_DESKTOP
 #endif
 
+#ifndef PLATFORM_USE_FALLBACK_PSO
+	#define PLATFORM_USE_FALLBACK_PSO 0
+#endif
+
 // deprecated, do not use
 #define PLATFORM_HAS_THREADSAFE_RHIGetRenderQueryResult	#
 #define PLATFORM_SUPPORTS_RHI_THREAD #

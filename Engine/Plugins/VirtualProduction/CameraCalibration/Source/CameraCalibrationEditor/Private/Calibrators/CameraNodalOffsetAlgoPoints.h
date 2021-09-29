@@ -109,6 +109,9 @@ protected:
 		// Calibrator ParentPose
 		FTransform CalibratorParentPose;
 
+		// Calibrator ComponentPose
+		TMap<uint32, FTransform> CalibratorComponentPoses;
+
 		// Calibrator unique id
 		uint32 CalibratorUniqueId;
 
@@ -137,6 +140,9 @@ protected:
 	/** The currently selected calibrator object. It is expected to contain one or more UCalibrationPointComponent in it */
 	TWeakObjectPtr<AActor> Calibrator;
 
+	/** Container for the set of calibrator components selected in the component combobox */
+	TArray<TWeakObjectPtr<const UCalibrationPointComponent>> ActiveCalibratorComponents;
+
 	/** Options source for the CalibratorPointsComboBox. Lists the calibrator points found in the selected calibrator object */
 	TArray<TSharedPtr<FCalibratorPointData>> CurrentCalibratorPoints;
 
@@ -155,10 +161,16 @@ protected:
 	/** Caches the last camera data.  Will hold last value before the nodal offset tool is paused */
 	FCameraDataCache LastCameraData;
 
+	/** Instructs the inline allocation policy how many elements to allocate in a single allocation */
+	static constexpr uint32 NumInlineAllocations = 32;
+
 protected:
 
 	/** Builds the UI of the calibration device picker */
 	TSharedRef<SWidget> BuildCalibrationDevicePickerWidget();
+
+	/** Builds the UI of the calibration component picker */
+	TSharedRef<SWidget> BuildCalibrationComponentPickerWidget();
 
 	/** Builds the UI of the calibration points table */
 	TSharedRef<SWidget> BuildCalibrationPointsTable();
@@ -168,6 +180,9 @@ protected:
 
 	/** Builds the UI for the action buttons (RemoveLast, ClearAll) */
 	TSharedRef<SWidget> BuildCalibrationActionButtons();
+
+	/** Builds the UI of the calibration component picker */
+	TSharedRef<SWidget> BuildCalibrationComponentMenu();
 
 protected:
 
@@ -199,6 +214,15 @@ protected:
 	/** Selects the next available UCalibrationPointComponent of the currently selected calibrator object. Returns true when it wraps around */
 	bool AdvanceCalibratorPoint();
 
+	/** Add or remove the selected component from the set of active components and refresh the calibrator point combobox */
+	void OnCalibrationComponentSelected(const UCalibrationPointComponent* const SelectedComponent);
+
+	/** Returns true if the input component is in the set of active calibration components */
+	bool IsCalibrationComponentSelected(const UCalibrationPointComponent* const SelectedComponent) const;
+
+	/** Update any calibration components in the set of active components if they were replaced by an in-editor event */
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
 	virtual bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
 
@@ -210,6 +234,9 @@ protected:
 
 	/** Applies the nodal offset to the parent of the calibrator */
 	bool ApplyNodalOffsetToCalibratorParent();
+
+	/** Applies the nodal offset to the parent of the calibrator */
+	bool ApplyNodalOffsetToCalibratorComponents();
 
 	/** Does basic checks on the data before performing the actual calibration */
 	bool BasicCalibrationChecksPass(const TArray<TSharedPtr<FCalibrationRowData>>& Rows, FText& OutErrorMessage) const;

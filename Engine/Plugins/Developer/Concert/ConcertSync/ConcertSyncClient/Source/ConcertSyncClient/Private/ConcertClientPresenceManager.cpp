@@ -807,10 +807,15 @@ void FConcertClientPresenceManager::OnJumpToPresence(FGuid InEndpointId, FTransf
 		else
 		{
 			FLevelEditorViewportClient* PerspectiveViewport = GetPerspectiveViewport();
-			check(PerspectiveViewport);
-
-			PerspectiveViewport->SetViewLocation(JumpPosition);
-			PerspectiveViewport->SetViewRotation(OtherClientRotation);
+			if (PerspectiveViewport)
+			{
+				PerspectiveViewport->SetViewLocation(JumpPosition);
+				PerspectiveViewport->SetViewRotation(OtherClientRotation);
+			}
+			else
+			{
+				UE_LOG(LogConcert, Log, TEXT("Unable to find a perspective viewport to jump presence."));
+			}
 		}
 	}
 }

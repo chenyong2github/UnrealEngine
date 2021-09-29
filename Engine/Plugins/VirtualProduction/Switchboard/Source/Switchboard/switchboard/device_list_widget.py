@@ -1,9 +1,13 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-from switchboard.devices.device_base import DeviceStatus, PluginHeaderWidgets
-import switchboard.switchboard_widgets as sb_widgets
+from typing import Dict, List
 
 from PySide2 import QtCore, QtGui, QtWidgets
+
+from switchboard.devices.device_base import Device, DeviceStatus, \
+    PluginHeaderWidgets
+from switchboard.devices.device_widget_base import DeviceWidget
+import switchboard.switchboard_widgets as sb_widgets
 
 
 class DeviceListWidget(QtWidgets.QListWidget):
@@ -20,7 +24,7 @@ class DeviceListWidget(QtWidgets.QListWidget):
         #self.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
         self.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
 
-        self._device_widgets = {}
+        self._device_widgets: Dict[int, DeviceWidget] = {}  # key = device_hash
         self._header_by_category_name = {}
         self.setMinimumSize(self.minimumSize().width(), 5)
 
@@ -98,7 +102,7 @@ class DeviceListWidget(QtWidgets.QListWidget):
 
         return device_item
 
-    def add_device_widget(self, device):
+    def add_device_widget(self, device: Device):
         category = device.category_name
         if category not in self._header_by_category_name.keys():
             header_widget_config = device.plugin_header_widget_config()
@@ -130,7 +134,7 @@ class DeviceListWidget(QtWidgets.QListWidget):
         self._device_widgets = {}
         self._header_by_category_name = {}
 
-    def widget_item_by_device(self, device):
+    def widget_item_by_device(self, device: Device):
         for i in range(self.count()):
             item = self.item(i)
             widget = self.itemWidget(item)
@@ -142,7 +146,7 @@ class DeviceListWidget(QtWidgets.QListWidget):
                 return item
         return None
 
-    def device_widget_by_hash(self, device_hash):
+    def device_widget_by_hash(self, device_hash: int):
         if device_hash not in self._device_widgets:
             return None
 
@@ -151,22 +155,86 @@ class DeviceListWidget(QtWidgets.QListWidget):
     def device_widgets(self):
         return self._device_widgets.values()
 
-    def update_category_status(self, category_name, devices):
+    def update_category_status(
+            self,
+            category_name: str,
+            devices: List[Device]):
         header_item = self._header_by_category_name.get(category_name)
         if not header_item:
             # The last device in the category may have just been deleted, in
             # which case there'll be no header item to update.
             return
 
-        any_connected = False
-        any_opened = False
-        for device in devices:
-            any_connected |= (not device.is_disconnected)
-            any_opened |= (device.status > DeviceStatus.CLOSED)
-
         header_widget = self.itemWidget(header_item)
-        header_widget.update_connection_state(any_connected)
-        header_widget.update_opened_state(any_connected, any_opened)
+        assert isinstance(header_widget, DeviceWidgetHeader)
+
+        def device_control_buttons(button_name):
+            for device in devices:
+                widget = self.device_widget_by_hash(device.device_hash)
+                if widget:
+                    yield widget.control_buttons[button_name]
+
+        try:
+            # New logic: base directly on devices' button states.
+            connect_checked = any(
+                b.isChecked()
+                for b in device_control_buttons('connect'))
+            connect_enabled = any(
+                b.isEnabled() and (b.isChecked() == connect_checked)
+                for b in device_control_buttons('connect'))
+
+            open_checked = any(
+                b.isChecked()
+                for b in device_control_buttons('open'))
+            open_enabled = any(
+                b.isEnabled() and (b.isChecked() == open_checked)
+                for b in device_control_buttons('open'))
+
+            header_widget.update_connect_state(checked=connect_checked,
+                                               enabled=connect_enabled)
+            header_widget.update_open_state(checked=open_checked,
+                                            enabled=open_enabled)
+        except KeyError:
+            # Couldn't index expected control_buttons; use old logic.
+            any_connected = False
+            any_opened = False
+            for device in devices:
+                any_connected |= (not device.is_disconnected)
+                any_opened |= (device.status > DeviceStatus.CLOSED)
+
+            header_widget.update_connect_state(checked=any_connected,
+                                               enabled=True)
+            header_widget.update_open_state(checked=any_opened,
+                                            enabled=any_connected)
+
+    def get_connect_and_open_all_button_states(self):
+        # FIXME? Basically the same logic as update_category_status above.
+        def category_header_widgets():
+            for category, header_item in self._header_by_category_name.items():
+                if not header_item:
+                    continue
+
+                header_widget = self.itemWidget(header_item)
+                assert isinstance(header_widget, DeviceWidgetHeader)
+                yield header_widget
+
+        connect_checked = any(
+            (w.connect_button and w.connect_button.isChecked())
+            for w in category_header_widgets())
+        connect_enabled = any(
+            (w.connect_button and w.connect_button.isEnabled()
+             and (w.connect_button.isChecked() == connect_checked))
+            for w in category_header_widgets())
+
+        open_checked = any(
+            (w.open_button and w.open_button.isChecked())
+            for w in category_header_widgets())
+        open_enabled = any(
+            (w.open_button and w.open_button.isEnabled()
+             and (w.open_button.isChecked() == open_checked))
+            for w in category_header_widgets())
+
+        return connect_checked, connect_enabled, open_checked, open_enabled
 
 
 class DeviceWidgetHeader(QtWidgets.QWidget):
@@ -188,8 +256,7 @@ class DeviceWidgetHeader(QtWidgets.QWidget):
         def __label(label_text):
             label = QtWidgets.QLabel()
             label.setText(label_text)
-            label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setStyleSheet("font-weight: bold")
+            label.setObjectName('widget_header')
             return label
 
         self.name_label = __label(self.name + " Devices")
@@ -208,13 +275,12 @@ class DeviceWidgetHeader(QtWidgets.QWidget):
 
         self.open_button = None
         if show_open_button:
-            self.open_button = sb_widgets.ControlQPushButton.create(':/icons/images/icon_open.png',
-                                                        icon_hover=':/icons/images/icon_open_hover.png',
-                                                        icon_disabled=':/icons/images/icon_open_disabled.png',
-                                                        icon_on=':/icons/images/icon_close.png',
-                                                        icon_hover_on=':/icons/images/icon_close_hover.png',
-                                                        icon_disabled_on=':/icons/images/icon_close_disabled.png',
-                                                        tool_tip=f'Start all connected {self.name} devices')
+            self.open_button = sb_widgets.ControlQPushButton.create(
+                icon_size=QtCore.QSize(21, 21),
+                tool_tip=f'Start all connected {self.name} devices',
+                hover_focus=False,
+                name='open')
+
             self.layout.setAlignment(self.open_button, QtCore.Qt.AlignVCenter)
             self.open_button.clicked.connect(self.on_open_button_clicked)
             self.open_button.setEnabled(False)
@@ -222,13 +288,12 @@ class DeviceWidgetHeader(QtWidgets.QWidget):
 
         self.connect_button = None
         if show_connect_button:
-            self.connect_button = sb_widgets.ControlQPushButton.create(':/icons/images/icon_connect.png',
-                                                            icon_hover=':/icons/images/icon_connect_hover.png',
-                                                            icon_disabled=':/icons/images/icon_connect_disabled.png',
-                                                            icon_on=':/icons/images/icon_connected.png',
-                                                            icon_hover_on=':/icons/images/icon_connected_hover.png',
-                                                            icon_disabled_on=':/icons/images/icon_connected_disabled.png',
-                                                            tool_tip=f'Connect all {self.name} devices')
+            self.connect_button = sb_widgets.ControlQPushButton.create(
+                icon_size=QtCore.QSize(21, 21),
+                tool_tip=f'Connect all {self.name} devices',
+                hover_focus=False,
+                name='connect')
+
             self.layout.setAlignment(self.connect_button, QtCore.Qt.AlignVCenter)
             self.connect_button.clicked.connect(self.on_connect_button_clicked)
             self.layout.addWidget(self.connect_button)
@@ -277,21 +342,22 @@ class DeviceWidgetHeader(QtWidgets.QWidget):
         plugin_name = self.name
         self.signal_connect_all_toggled.emit(plugin_name, button_state)
 
-    def update_connection_state(self, any_devices_connected):
+    def update_connect_state(self, checked, enabled):
         if self.connect_button is None:
             return
-        self.connect_button.setChecked(any_devices_connected)
-        if any_devices_connected:
+        self.connect_button.setEnabled(enabled)
+        self.connect_button.setChecked(checked)
+        if checked:
             self.connect_button.setToolTip(f"Disconnect all connected {self.name} devices")
         else:
             self.connect_button.setToolTip(f"Connect all {self.name} devices")
 
-    def update_opened_state(self, any_devices_connected, any_devices_opened):
+    def update_open_state(self, checked, enabled):
         if self.open_button is None:
             return
-        self.open_button.setEnabled(any_devices_connected)
-        self.open_button.setChecked(any_devices_opened)
-        if any_devices_opened:
+        self.open_button.setEnabled(enabled)
+        self.open_button.setChecked(checked)
+        if checked:
             self.open_button.setToolTip(f"Stop all running {self.name} devices")
         else:
             self.open_button.setToolTip(f"Start all connected {self.name} devices")

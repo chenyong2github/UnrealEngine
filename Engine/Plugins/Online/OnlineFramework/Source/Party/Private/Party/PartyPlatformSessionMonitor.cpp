@@ -7,6 +7,7 @@
 #include "SocialToolkit.h"
 #include "SocialManager.h"
 #include "SocialSettings.h"
+#include "Containers/Ticker.h"
 #include "User/SocialUser.h"
 
 #include "HAL/IConsoleManager.h"

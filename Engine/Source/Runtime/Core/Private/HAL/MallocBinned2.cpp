@@ -55,7 +55,15 @@ static FAutoConsoleVariableRef GMallocBinned2AllocExtraCVar(
 	TEXT("When we do acquire the lock, how many blocks cached in TLS caches. In no case will we grab more than a page.")
 	);
 
+int32 GMallocBinned2MoveOSFreesOffTimeCriticalThreads = 1;
+static FAutoConsoleVariableRef GGMallocBinned2MoveOSFreesOffTimeCriticalThreadsCVar(
+	TEXT("MallocBinned2.MoveOSFreesOffTimeCriticalThreads"),
+	GMallocBinned2MoveOSFreesOffTimeCriticalThreads,
+	TEXT("When the OS needs to free memory hint to the underlying cache that we are on a time critical thread, it may decide to delay the free for a non time critical thread")
+);
 #endif
+
+
 
 float GMallocBinned2FlushThreadCacheMaxWaitTime = 0.02f;
 static FAutoConsoleVariableRef GMallocBinned2FlushThreadCacheMaxWaitTimeCVar(
@@ -628,7 +636,12 @@ FMallocBinned2::FPoolInfo& FMallocBinned2::FPoolList::PushNewPoolToFront(FMalloc
 	{
 		Private::OutOfMemory(LocalPageSize);
 	}
+#if !UE_USE_VERYLARGEPAGEALLOCATOR || !BINNED2_BOOKKEEPING_AT_THE_END_OF_LARGEBLOCK
 	FFreeBlock* Free = new (FreePtr) FFreeBlock(LocalPageSize, InBlockSize, InPoolIndex);
+#else
+	FFreeBlock* FreeBlockPtr = GetPoolHeaderFromPointer(FreePtr);
+	FFreeBlock* Free = new (FreeBlockPtr) FFreeBlock(LocalPageSize, InBlockSize, InPoolIndex);
+#endif
 #if BINNED2_ALLOCATOR_STATS
 	AllocatedOSSmallPoolMemory += (int64)LocalPageSize;
 #endif
@@ -979,7 +992,7 @@ void FMallocBinned2::FreeExternal(void* Ptr)
 		checkf(PoolOSRequestedBytes <= PoolOsBytes, TEXT("FMallocBinned2::FreeExternal %d %d"), int32(PoolOSRequestedBytes), int32(PoolOsBytes));
 		Pool->SetCanary(FPoolInfo::ECanary::Unassigned, true, false);
 		// Free an OS allocation.
-		CachedOSPageAllocator.Free(Ptr, PoolOsBytes, &Mutex);
+		CachedOSPageAllocator.Free(Ptr, PoolOsBytes, &Mutex, FPerThreadFreeBlockLists::Get() != nullptr && GMallocBinned2MoveOSFreesOffTimeCriticalThreads != 0);
 	}
 }
 
@@ -1122,7 +1135,10 @@ void FMallocBinned2::Trim(bool bTrimThreadCaches)
 	{
 		//double StartTime = FPlatformTime::Seconds();
 		FScopeLock Lock(&Mutex);
+#if !UE_USE_VERYLARGEPAGEALLOCATOR
+		// this cache is recycled anyway, if you need to trim it based on being OOM, it's already too late.
 		CachedOSPageAllocator.FreeAll(&Mutex);
+#endif
 		//UE_LOG(LogTemp, Display, TEXT("Trim CachedOSPageAllocator = %6.2fms"), 1000.0f * float(FPlatformTime::Seconds() - StartTime));
 	}
 }

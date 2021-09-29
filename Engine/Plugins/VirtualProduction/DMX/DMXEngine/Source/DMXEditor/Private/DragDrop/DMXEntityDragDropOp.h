@@ -33,6 +33,10 @@ protected:
 
 	//~ Begin FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FDMXEntityDragDropOperation");
+	}
 	//~ End FGCObject interface
 
 public:

@@ -59,7 +59,7 @@ FGraphicsPipelineStateRHIRef FAGXDynamicRHI::RHICreateGraphicsPipelineState(cons
 		State->VertexShader = ResourceCast(Initializer.BoundShaderState.VertexShaderRHI);
 		State->PixelShader = ResourceCast(Initializer.BoundShaderState.PixelShaderRHI);
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		State->GeometryShader = ResourceCast(Initializer.BoundShaderState.GeometryShaderRHI);
+		State->GeometryShader = ResourceCast(Initializer.BoundShaderState.GetGeometryShader());
 #endif // PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 
 		State->DepthStencilState = ResourceCast(Initializer.DepthStencilState);

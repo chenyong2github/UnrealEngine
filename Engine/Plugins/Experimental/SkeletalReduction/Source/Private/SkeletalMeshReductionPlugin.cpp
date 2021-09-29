@@ -2061,7 +2061,6 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	FSkeletalMeshLODModel* NewModel = new FSkeletalMeshLODModel();
 
 	// Swap out the old model.  
-	FSkeletalMeshImportData RawMesh;
 	bool bPutBackRawMesh = false;
 	ESkeletalMeshGeoImportVersions GeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
 	ESkeletalMeshSkinningImportVersions SkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
@@ -2076,7 +2075,6 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 			//We need to backup the original RawSkeletalMeshBulkData in case it was an imported LOD
 			if (!bLODModelAdded && !bIsOldRawSkelMeshEmpty)
 			{
-				SkeletalMesh.LoadLODImportedData(LODIndex, RawMesh);
 				SkeletalMesh.GetLODImportedDataVersions(LODIndex, GeoImportVersion, SkinningImportVersion);
 				bPutBackRawMesh = true;
 			}
@@ -2101,7 +2099,6 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		}
 		else if(bReducingSourceModel)
 		{
-			SkeletalMesh.LoadLODImportedData(BaseLOD, RawMesh);
 			SkeletalMesh.GetLODImportedDataVersions(BaseLOD, GeoImportVersion, SkinningImportVersion);
 			bPutBackRawMesh = true;
 		}
@@ -2196,7 +2193,6 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 		check((bReducingSourceModel || !bLODModelAdded));
 		//Put back the original import data, we need it to allow inline reduction and skeletal mesh split workflow
 		//It also warranty that we do not change the ddc key
-		SkeletalMesh.SaveLODImportedData(LODIndex, RawMesh);
 		SkeletalMesh.SetLODImportedDataVersions(LODIndex, GeoImportVersion, SkinningImportVersion);
 		if (!bLODModelAdded)
 		{

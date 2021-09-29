@@ -91,16 +91,16 @@ bool FDisplayClusterRender_MeshGeometry::LoadFromFile(const FString& FullPathFil
 void FDisplayClusterRender_MeshGeometry::CreatePassthrough()
 {
 	Vertices.Empty();
-	Vertices.Add(FVector(2.6f, 1, 0));
-	Vertices.Add(FVector(2.6f, 2, 0));
-	Vertices.Add(FVector(5.5f, 2, 0));
-	Vertices.Add(FVector(5.5f, 1, 0));
+	Vertices.Add(FVector(0, 2.6f, 1));
+	Vertices.Add(FVector(0, 2.6f, 2));
+	Vertices.Add(FVector(0, 5.5f, 2));
+	Vertices.Add(FVector(0, 5.5f, 1));
 
 	UV.Empty();
-	UV.Add(FVector2D(0, 0));
 	UV.Add(FVector2D(0, 1));
-	UV.Add(FVector2D(1, 1));
+	UV.Add(FVector2D(0, 0));
 	UV.Add(FVector2D(1, 0));
+	UV.Add(FVector2D(1, 1));
 
 	Triangles.Empty();
 	Triangles.Add(0);
@@ -201,7 +201,7 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::ExtractUV(const FString& Line)
 		const float V = FCString::Atof(*Data[2]);
 		const float W = (Count > 3)?FCString::Atof(*Data[3]) : 0;
 
-		InUV.Add(FVector(U, V, W));
+		InUV.Add(FVector(U, 1-V, W));
 
 		return true;
 	}

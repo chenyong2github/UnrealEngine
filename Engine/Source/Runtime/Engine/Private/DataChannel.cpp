@@ -200,6 +200,8 @@ void UChannel::ConditionalCleanUp( const bool bForDestroy, EChannelCloseReason C
 
 bool UChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason)
 {
+	using namespace UE::Net;
+
 	checkSlow(Connection != NULL);
 	checkSlow(Connection->Channels[ChIndex] == this);
 
@@ -207,7 +209,7 @@ bool UChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason)
 	if (ChIndex == 0 && !Closing)
 	{
 		UE_LOG(LogNet, Log, TEXT("UChannel::CleanUp: ChIndex == 0. Closing connection. %s"), *Describe());
-		Connection->Close();
+		Connection->Close(ENetCloseResult::ControlChannelClose);
 	}
 
 	// remember sequence number of first non-acked outgoing reliable bunch for this slot
@@ -437,6 +439,8 @@ bool UChannel::ReceivedSequencedBunch( FInBunch& Bunch )
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 {
+	using namespace UE::Net;
+
 	SCOPE_CYCLE_COUNTER(Stat_ChannelReceivedRawBunch);
 
 	SCOPED_NAMED_EVENT(UChannel_ReceivedRawBunch, FColor::Green);
@@ -449,7 +453,10 @@ void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 
 		if ( Bunch.IsError() )
 		{
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ReceivedNetGUIDBunchFail);
+
 			UE_LOG( LogNetTraffic, Error, TEXT( "UChannel::ReceivedRawBunch: Bunch.IsError() after ReceiveNetGUIDBunch. ChIndex: %i" ), ChIndex );
+
 			return;
 		}
 	}
@@ -504,7 +511,10 @@ void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 		if ( NumInRec >= RELIABLE_BUFFER )
 		{
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::MaxReliableExceeded);
+
 			UE_LOG( LogNetTraffic, Error, TEXT( "UChannel::ReceivedRawBunch: Too many reliable messages queued up" ) );
+
 			return;
 		}
 
@@ -518,6 +528,9 @@ void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 		if ( Bunch.IsError() )
 		{
 			UE_LOG( LogNetTraffic, Error, TEXT( "UChannel::ReceivedRawBunch: Bunch.IsError() after ReceivedNextBunch 1" ) );
+
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ReceivedNextBunchFail);
+
 			return;
 		}
 
@@ -553,6 +566,9 @@ void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 			if ( Bunch.IsError() )
 			{
 				UE_LOG( LogNetTraffic, Error, TEXT( "UChannel::ReceivedRawBunch: Bunch.IsError() after ReceivedNextBunch 2" ) );
+
+				AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ReceivedNextBunchQueueFail);
+
 				return;
 			}
 
@@ -578,6 +594,8 @@ static void LogPartialBunch(const FString& Label, const FInBunch& UberBunch, con
 
 bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 {
+	using namespace UE::Net;
+
 	// We received the next bunch. Basically at this point:
 	//	-We know this is in order if reliable
 	//	-We dont know if this is partial or not
@@ -609,7 +627,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 						if ( Bunch.bReliable )
 						{
 							UE_LOG(LogNetPartialBunch, Warning, TEXT("Reliable partial trying to destroy reliable partial 1. %s"), *Describe());
+
 							Bunch.SetError();
+							AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::PartialInitialReliableDestroy);
+
 							return false;
 						}
 						UE_LOG(LogNetPartialBunch, Log, TEXT( "Unreliable partial trying to destroy reliable partial 1") );
@@ -634,7 +655,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 					if ( Bunch.GetBitsLeft() % 8 != 0 )
 					{
 						UE_LOG(LogNetPartialBunch, Warning, TEXT("Corrupt partial bunch. Initial partial bunches are expected to be byte-aligned. BitsLeft = %u. %s"), Bunch.GetBitsLeft(), *Describe());
+
 						Bunch.SetError();
+						AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::PartialInitialNonByteAligned);
+
 						return false;
 					}
 
@@ -684,7 +708,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 				{
 					UE_LOG(LogNetPartialBunch, Warning, TEXT("Corrupt partial bunch. Non-final partial bunches are expected to be byte-aligned. bHasPackageMapExports = %d, bPartialFinal = %d, BitsLeft = %u. %s"),
 						Bunch.bHasPackageMapExports ? 1 : 0, Bunch.bPartialFinal ? 1 : 0, Bunch.GetBitsLeft(), *Describe());
+
 					Bunch.SetError();
+					AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::PartialNonByteAligned);
+
 					return false;
 				}
 
@@ -699,7 +726,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 					{
 						// Shouldn't have these, they only go in initial partial export bunches
 						UE_LOG(LogNetPartialBunch, Warning, TEXT("Corrupt partial bunch. Final partial bunch has package map exports. %s"), *Describe());
+
 						Bunch.SetError();
+						AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::PartialFinalPackageMapExports);
+
 						return false;
 					}
 
@@ -730,7 +760,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 					if ( Bunch.bReliable )
 					{
 						UE_LOG(LogNetPartialBunch, Warning, TEXT("Reliable partial trying to destroy reliable partial 2. %s"), *Describe());
+
 						Bunch.SetError();
+						AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::PartialMergeReliableDestroy);
+
 						return false;
 					}
 
@@ -763,7 +796,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 		if (InPartialBunch && IsBunchTooLarge(Connection, InPartialBunch))
 		{
 			UE_LOG(LogNetPartialBunch, Error, TEXT("Received a partial bunch exceeding max allowed size. BunchSize=%d, MaximumSize=%d"), InPartialBunch->GetNumBytes(), NetMaxConstructedPartialBunchSizeBytes);
+
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::PartialTooLarge);
+
 			return false;
 		}
 	}
@@ -782,7 +818,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 				if (!ensure( OpenPacketId.First == INDEX_NONE && OpenPacketId.Last == INDEX_NONE ))
 				{
 					UE_LOG( LogNetTraffic, Error, TEXT("Received channel open command for channel that was already opened locally. %s"), *Describe() );
+
 					Bunch.SetError();
+					AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::AlreadyOpen);
+
 					return false;
 				}
 			}
@@ -806,7 +845,10 @@ bool UChannel::ReceivedNextBunch( FInBunch & Bunch, bool & bOutSkipAck )
 				if ( HandleBunch->bReliable )
 				{
 					UE_LOG( LogNetTraffic, Error, TEXT( "ReceivedNextBunch: Reliable bunch before channel was fully open. ChSequence: %i, OpenPacketId.First: %i, OpenPacketId.Last: %i, bPartial: %i, %s" ), Bunch.ChSequence, OpenPacketId.First, OpenPacketId.Last, ( int32 )HandleBunch->bPartial, *Describe() );
+
 					Bunch.SetError();
+					AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ReliableBeforeOpen);
+
 					return false;
 				}
 
@@ -957,6 +999,8 @@ void UActorChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 
 FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 {
+	using namespace UE::Net;
+
 	if (!ensure(ChIndex != -1))
 	{
 		// Client "closing" but still processing bunches. Client->Server RPCs should avoid calling this, but perhaps more code needs to check this condition.
@@ -1146,7 +1190,7 @@ FPacketIdRange UChannel::SendBunch( FOutBunch* Bunch, bool Merge )
 		FString ErrorMsg = NSLOCTEXT("NetworkErrors", "ClientReliableBufferOverflow", "Outgoing reliable buffer overflow").ToString();
 		FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
 		Connection->FlushNet(true);
-		Connection->Close();
+		Connection->Close(ENetCloseResult::ReliableBufferOverflow);
 	
 		return PacketIdRange;
 	}
@@ -1483,6 +1527,8 @@ bool UControlChannel::CheckEndianess(FInBunch& Bunch)
 
 void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 {
+	using namespace UE::Net;
+
 	check(!Closing);
 
 	// If this is a new client connection inspect the raw packet for endianess
@@ -1494,7 +1540,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 			Connection->PlayerController ? *Connection->PlayerController->GetName() : TEXT("NoPC"),
 			Connection->OwningActor ? *Connection->OwningActor->GetName() : TEXT("No Owner"));
 
-		Connection->Close();
+		Connection->Close(ENetCloseResult::ControlChannelEndianCheck);
 		return;
 	}
 
@@ -1539,7 +1585,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 									Connection->PlayerController ? *Connection->PlayerController->GetName() : TEXT("NoPC"),
 									Connection->OwningActor ? *Connection->OwningActor->GetName() : TEXT("No Owner"));
 
-								Connection->Close();
+								Connection->Close(ENetCloseResult::ControlChannelPlayerChannelFail);
 							}
 							// The client has a PlayerController connection, report the actor failure to PlayerController
 							else if (Connection->PlayerController != nullptr)
@@ -1657,6 +1703,9 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 				case NMT_EncryptionAck:
 					//FNetControlMessage<NMT_EncryptionAck>::Discard(Bunch);
 					break;
+				case NMT_CloseReason:
+					FNetControlMessage<NMT_CloseReason>::Discard(Bunch);
+					break;
 				case NMT_BeaconWelcome:
 					//FNetControlMessage<NMT_BeaconWelcome>::Discard(Bunch);
 					break;
@@ -1676,13 +1725,16 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 					check(!FNetControlMessageInfo::IsRegistered(MessageType));
 
 					UE_LOG(LogNet, Log, TEXT("Received unknown control channel message %i. Closing connection."), int32(MessageType));
-					Connection->Close();
+					Connection->Close(ENetCloseResult::ControlChannelMessageUnknown);
 					return;
 			}
 		}
 		if ( Bunch.IsError() )
 		{
 			UE_LOG( LogNet, Error, TEXT( "Failed to read control channel message '%s'" ), FNetControlMessageInfo::GetName( MessageType ) );
+
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ControlChannelMessagePayloadFail);
+
 			break;
 		}
 	}
@@ -1691,9 +1743,9 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 	{
 		UE_LOG( LogNet, Error, TEXT( "UControlChannel::ReceivedBunch: Failed to read control channel message" ) );
 
-		if (Connection != NULL)
+		if (Connection != nullptr)
 		{
-			Connection->Close();
+			Connection->Close(AddToAndConsumeChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ControlChannelMessageFail));
 		}
 	}
 }
@@ -1721,6 +1773,8 @@ void UControlChannel::QueueMessage(const FOutBunch* Bunch)
 
 FPacketIdRange UControlChannel::SendBunch(FOutBunch* Bunch, bool Merge)
 {
+	using namespace UE::Net;
+
 	// if we already have queued messages, we need to queue subsequent ones to guarantee proper ordering
 	if (QueuedMessages.Num() > 0 || NumOutRec >= RELIABLE_BUFFER - 1 + Bunch->bClose)
 	{
@@ -1739,7 +1793,7 @@ FPacketIdRange UControlChannel::SendBunch(FOutBunch* Bunch, bool Merge)
 			// so there is no point in queueing it as it will just fail again
 			UE_LOG(LogNet, Error, TEXT("Control channel bunch overflowed"));
 			ensureMsgf(false, TEXT("Control channel bunch overflowed"));
-			Connection->Close();
+			Connection->Close(ENetCloseResult::ControlChannelBunchOverflowed);
 			return FPacketIdRange(INDEX_NONE);
 		}
 	}
@@ -1747,6 +1801,8 @@ FPacketIdRange UControlChannel::SendBunch(FOutBunch* Bunch, bool Merge)
 
 void UControlChannel::Tick()
 {
+	using namespace UE::Net;
+
 	Super::Tick();
 
 	if( !OpenAcked )
@@ -1805,9 +1861,9 @@ void UControlChannel::Tick()
 				{
 					// an error here most likely indicates an unfixable error, such as the text using more than the maximum packet size
 					// so there is no point in queueing it as it will just fail again
-					ensureMsgf(false, TEXT("Control channel bunch overflowed"));
-					UE_LOG(LogNet, Error, TEXT("Control channel bunch overflowed"));
-					Connection->Close();
+					ensureMsgf(false, TEXT("Control channel queued bunch overflowed"));
+					UE_LOG(LogNet, Error, TEXT("Control channel queued bunch overflowed"));
+					Connection->Close(ENetCloseResult::ControlChannelQueueBunchOverflowed);
 					break;
 				}
 			}
@@ -2355,7 +2411,7 @@ void UActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch)
 		for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
 		{
 			if (Driver.NetDriver != nullptr)
-	{
+			{
 				Driver.NetDriver->NotifyActorChannelOpen(this, InActor);
 			}
 		}
@@ -2379,11 +2435,11 @@ void UActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch)
 					if (Driver.NetDriver != nullptr && Driver.NetDriver != NetDriver && Driver.NetDriver->ShouldReplicateActor(InActor))
 					{
 						Driver.NetDriver->NotifyActorClientDormancyChanged(InActor, OldDormancy);
+					}
 				}
 			}
 		}
 	}
-}
 }
 
 int64 UActorChannel::SetChannelActorForDestroy( FActorDestructionInfo *DestructInfo )
@@ -2557,6 +2613,8 @@ bool UActorChannel::ProcessQueuedBunches()
 
 void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 {
+	using namespace UE::Net;
+
 	check(!Closing);
 
 	if (Broken || bTornOff)
@@ -2571,7 +2629,10 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 		if (Bunch.bHasMustBeMappedGUIDs)
 		{
 			UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReceivedBunch: Client attempted to set bHasMustBeMappedGUIDs. Actor: %s"), *GetNameSafe(Actor));
+
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ClientHasMustBeMappedGUIDs);
+
 			return;
 		}
 	}
@@ -2631,7 +2692,10 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 				{
 					// This GUID better have been exported before we get here, which means it must be registered by now
 					UE_LOG(LogNet, Warning, TEXT("UActorChannel::ReceivedBunch: Received a MustBeMappedGUID that is not registered. ChIndex: %i NetGUID: %s Channel: %s Bunch: %s"), ChIndex, *NetGUID.ToString(), *Describe(), *Bunch.ToString());
+
 					Bunch.SetError();
+					AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::UnregisteredMustBeMappedGUID);
+
 					return;
 				}
 			}
@@ -2706,6 +2770,8 @@ void UActorChannel::ReceivedBunch( FInBunch & Bunch )
 
 void UActorChannel::ProcessBunch( FInBunch & Bunch )
 {
+	using namespace UE::Net;
+
 	if ( Broken )
 	{
 		return;
@@ -2826,7 +2892,9 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 			}
 
 			UE_LOG( LogNet, Error, TEXT( "UActorChannel::ReceivedBunch: ReadContentBlockPayload FAILED. Bunch.IsError() == TRUE. Closing connection. RepObj: %s, Channel: %i" ), RepObj ? *RepObj->GetFullName() : TEXT( "NULL" ), ChIndex );
-			Connection->Close();
+
+			Connection->Close(AddToAndConsumeChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockFail));
+
 			return;
 		}
 
@@ -2870,7 +2938,7 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 
 			// For now, with regular connections, consider this catastrophic, but someday we could consider supporting backwards compatibility here too
 			UE_LOG( LogNet, Error, TEXT( "UActorChannel::ProcessBunch: Replicator.ReceivedBunch failed.  Closing connection. RepObj: %s, Channel: %i" ), RepObj ? *RepObj->GetFullName() : TEXT( "NULL" ), ChIndex );
-			Connection->Close();
+			Connection->Close(ENetCloseResult::ObjectReplicatorReceivedBunchFail);
 			return;
 		}
 
@@ -3564,8 +3632,10 @@ int32 UActorChannel::WriteContentBlockPayload( UObject* Obj, FNetBitWriter &Bunc
 	return HeaderNumBits;
 }
 
-UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectDeleted, bool& bOutHasRepLayout )
+UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDeleted, bool& bOutHasRepLayout)
 {
+	using namespace UE::Net;
+
 	CA_ASSUME(Connection != nullptr);
 
 	const bool IsServer = Connection->Driver->IsServer();
@@ -3573,21 +3643,27 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 
 	bOutHasRepLayout = Bunch.ReadBit() != 0 ? true : false;
 
-	if ( Bunch.IsError() )
+	if (Bunch.IsError())
 	{
-		UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after bOutHasRepLayout. Actor: %s" ), *Actor->GetName() );
+		UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after bOutHasRepLayout. Actor: %s"), *Actor->GetName());
+
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderRepLayoutFail);
+
 		return NULL;
 	}
 
 	const bool bIsActor = Bunch.ReadBit() != 0 ? true : false;
 
-	if ( Bunch.IsError() )
+	if (Bunch.IsError())
 	{
-		UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after reading actor bit. Actor: %s" ), *Actor->GetName() );
+		UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after reading actor bit. Actor: %s"), *Actor->GetName());
+
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderIsActorFail);
+
 		return NULL;
 	}
 
-	if ( bIsActor )
+	if (bIsActor)
 	{
 		// If this is for the actor on the channel, we don't need to read anything else
 		return Actor;
@@ -3602,32 +3678,41 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 	UObject* SubObj = NULL;
 
 	// Manually serialize the object so that we can get the NetGUID (in order to assign it if we spawn the object here)
-	Connection->PackageMap->SerializeObject( Bunch, UObject::StaticClass(), SubObj, &NetGUID );
+	Connection->PackageMap->SerializeObject(Bunch, UObject::StaticClass(), SubObj, &NetGUID);
 
-	NET_CHECKSUM_OR_END( Bunch );
+	NET_CHECKSUM_OR_END(Bunch);
 
-	if ( Bunch.IsError() )
+	if (Bunch.IsError())
 	{
-		UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after SerializeObject. SubObj: %s, Actor: %s" ), SubObj ? *SubObj->GetName() : TEXT("Null"), *Actor->GetName() );
+		UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after SerializeObject. SubObj: %s, Actor: %s"), SubObj ? *SubObj->GetName() : TEXT("Null"), *Actor->GetName());
+
 		Bunch.SetError();
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderObjFail);
+
 		return NULL;
 	}
 
-	if ( Bunch.AtEnd() )
+	if (Bunch.AtEnd())
 	{
-		UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Bunch.AtEnd() == true after SerializeObject. SubObj: %s, Actor: %s" ), SubObj ? *SubObj->GetName() : TEXT("Null"), *Actor->GetName() );
+		UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.AtEnd() == true after SerializeObject. SubObj: %s, Actor: %s"), SubObj ? *SubObj->GetName() : TEXT("Null"), *Actor->GetName());
+
 		Bunch.SetError();
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderPrematureEnd);
+
 		return NULL;
 	}
 
 	// Validate existing sub-object
-	if ( SubObj != NULL )
+	if (SubObj != NULL)
 	{
 		// Sub-objects can't be actors (should just use an actor channel in this case)
-		if ( Cast< AActor >( SubObj ) != NULL )
+		if (Cast< AActor >(SubObj) != NULL)
 		{
-			UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Sub-object not allowed to be actor type. SubObj: %s, Actor: %s" ), *SubObj->GetName(), *Actor->GetName() );
+			UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Sub-object not allowed to be actor type. SubObj: %s, Actor: %s"), *SubObj->GetName(), *Actor->GetName());
+
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderSubObjectActor);
+
 			return NULL;
 		}
 
@@ -3635,23 +3720,28 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 		UActorComponent* Component = Cast<UActorComponent>(SubObj);
 		if (Component && !SubObj->IsIn(Actor))
 		{
-			UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Actor component not in parent actor. SubObj: %s, Actor: %s" ), *SubObj->GetFullName(), *Actor->GetFullName() );
+			UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Actor component not in parent actor. SubObj: %s, Actor: %s"), *SubObj->GetFullName(), *Actor->GetFullName());
 
-			if ( IsServer )
+			if (IsServer)
 			{
 				Bunch.SetError();
+				AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderBadParent);
+
 				return NULL;
 			}
 		}
 	}
 
-	if ( IsServer )
+	if (IsServer)
 	{
 		// The server should never need to create sub objects
-		if ( SubObj == NULL )
+		if (SubObj == NULL)
 		{
-			UE_LOG( LogNetTraffic, Error, TEXT( "ReadContentBlockHeader: Client attempted to create sub-object. Actor: %s" ), *Actor->GetName() );
+			UE_LOG(LogNetTraffic, Error, TEXT("ReadContentBlockHeader: Client attempted to create sub-object. Actor: %s"), *Actor->GetName());
+
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderInvalidCreate);
+
 			return NULL;
 		}
 
@@ -3660,21 +3750,24 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 
 	const bool bStablyNamed = Bunch.ReadBit() != 0 ? true : false;
 
-	if ( Bunch.IsError() )
+	if (Bunch.IsError())
 	{
-		UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after reading stably named bit. Actor: %s" ), *Actor->GetName() );
+		UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after reading stably named bit. Actor: %s"), *Actor->GetName());
+
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderStablyNamedFail);
+
 		return NULL;
 	}
 
-	if ( bStablyNamed )
+	if (bStablyNamed)
 	{
 		// If this is a stably named sub-object, we shouldn't need to create it. Don't raise a bunch error though because this may happen while a level is streaming out.
-		if ( SubObj == NULL )
+		if (SubObj == NULL)
 		{
 			// (ignore though if this is for replays)
-			if ( !Connection->IsInternalAck() )
+			if (!Connection->IsInternalAck())
 			{
-				UE_LOG( LogNetTraffic, Log, TEXT( "ReadContentBlockHeader: Stably named sub-object not found. Its level may have streamed out. Component: %s, Actor: %s" ), *Connection->Driver->GuidCache->FullNetGUIDPath( NetGUID ), *Actor->GetName() );
+				UE_LOG(LogNetTraffic, Log, TEXT("ReadContentBlockHeader: Stably named sub-object not found. Its level may have streamed out. Component: %s, Actor: %s"), *Connection->Driver->GuidCache->FullNetGUIDPath(NetGUID), *Actor->GetName());
 			}
 
 			return NULL;
@@ -3687,25 +3780,25 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 	// Manually serialize the object so that we can get the NetGUID (in order to assign it if we spawn the object here)
 	FNetworkGUID ClassNetGUID;
 	UObject* SubObjClassObj = NULL;
-	Connection->PackageMap->SerializeObject( Bunch, UObject::StaticClass(), SubObjClassObj, &ClassNetGUID );
+	Connection->PackageMap->SerializeObject(Bunch, UObject::StaticClass(), SubObjClassObj, &ClassNetGUID);
 
 	// Delete sub-object
-	if ( !ClassNetGUID.IsValid() )
+	if (!ClassNetGUID.IsValid())
 	{
-		if ( SubObj )
+		if (SubObj)
 		{
 			// Unmap this object so we can remap it if it becomes relevant again in the future
-			MoveMappedObjectToUnmapped( SubObj );
+			MoveMappedObjectToUnmapped(SubObj);
 
 			// Stop tracking this sub-object
-			CreateSubObjects.Remove( SubObj );
+			CreateSubObjects.Remove(SubObj);
 
-			if ( Connection != nullptr && Connection->Driver != nullptr )
+			if (Connection != nullptr && Connection->Driver != nullptr)
 			{
-				Connection->Driver->RepChangedPropertyTrackerMap.Remove( SubObj );
+				Connection->Driver->RepChangedPropertyTrackerMap.Remove(SubObj);
 			}
 
-			Actor->OnSubobjectDestroyFromReplication( SubObj );
+			Actor->OnSubobjectDestroyFromReplication(SubObj);
 
 			SubObj->PreDestroyFromReplication();
 			SubObj->MarkPendingKill();
@@ -3714,47 +3807,54 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 		return NULL;
 	}
 
-	UClass * SubObjClass = Cast< UClass >( SubObjClassObj );
+	UClass* SubObjClass = Cast< UClass >(SubObjClassObj);
 
-	if ( SubObjClass == NULL )
+	if (SubObjClass == NULL)
 	{
-		UE_LOG( LogNetTraffic, Warning, TEXT( "UActorChannel::ReadContentBlockHeader: Unable to read sub-object class. Actor: %s" ), *Actor->GetName() );
+		UE_LOG(LogNetTraffic, Warning, TEXT("UActorChannel::ReadContentBlockHeader: Unable to read sub-object class. Actor: %s"), *Actor->GetName());
 
 		// Valid NetGUID but no class was resolved - this is an error
-		if ( SubObj == NULL )
+		if (SubObj == NULL)
 		{
 			// (unless we're using replays, which could be backwards compatibility kicking in)
-			if ( !Connection->IsInternalAck() )
+			if (!Connection->IsInternalAck())
 			{
-				UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Unable to read sub-object class (SubObj == NULL). Actor: %s" ), *Actor->GetName() );
-				Bunch.SetError();
-			}
+				UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Unable to read sub-object class (SubObj == NULL). Actor: %s"), *Actor->GetName());
 
-			return NULL;
+				Bunch.SetError();
+				AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderNoSubObjectClass);
+				return NULL;
+			}
 		}
 	}
 	else
 	{
-		if ( SubObjClass == UObject::StaticClass() )
+		if (SubObjClass == UObject::StaticClass())
 		{
-			UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: SubObjClass == UObject::StaticClass(). Actor: %s" ), *Actor->GetName() );
+			UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: SubObjClass == UObject::StaticClass(). Actor: %s"), *Actor->GetName());
+
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderUObjectSubObject);
+
 			return NULL;
 		}
 
-		if ( SubObjClass->IsChildOf( AActor::StaticClass() ) )
+		if (SubObjClass->IsChildOf(AActor::StaticClass()))
 		{
-			UE_LOG( LogNetTraffic, Error, TEXT( "UActorChannel::ReadContentBlockHeader: Sub-object cannot be actor class. Actor: %s" ), *Actor->GetName() );
+			UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Sub-object cannot be actor class. Actor: %s"), *Actor->GetName());
+
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderAActorSubObject);
+
 			return NULL;
 		}
 	}
 
 	UObject* ObjOuter = Actor;
 	if (Connection->EngineNetworkProtocolVersion >= HISTORY_SUBOBJECT_OUTER_CHAIN)
-	{ 
+	{
 		const bool bActorIsOuter = Bunch.ReadBit() != 0;
-	
+
 		if (Bunch.IsError())
 		{
 			UE_LOG(LogNetTraffic, Error, TEXT("UActorChannel::ReadContentBlockHeader: Bunch.IsError() == true after reading actor is outer bit. Actor: %s"), *Actor->GetName());
@@ -3779,17 +3879,23 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 		}
 	}
 
+	// in this case we may still have needed to serialize the outer above, so check again now
+	if ((SubObjClass == nullptr) && (SubObj == nullptr) && Connection->IsInternalAck())
+	{
+		return nullptr;
+	}
+
 	if ( SubObj == NULL )
 	{
 		check( !IsServer );
 
 		// Construct the sub-object
-		UE_LOG( LogNetTraffic, Log, TEXT( "UActorChannel::ReadContentBlockHeader: Instantiating sub-object. Class: %s, Actor: %s, Outer: %s" ), *SubObjClass->GetName(), *Actor->GetName(), *ObjOuter->GetName() );
+		UE_LOG( LogNetTraffic, Log, TEXT( "UActorChannel::ReadContentBlockHeader: Instantiating sub-object. Class: %s, Actor: %s, Outer: %s" ), *GetNameSafe(SubObjClass), *Actor->GetName(), *ObjOuter->GetName() );
 		
 		SubObj = NewObject< UObject >(ObjOuter, SubObjClass);
 
 		// Sanity check some things
-		checkf(SubObj != NULL, TEXT("UActorChannel::ReadContentBlockHeader: Subobject is NULL after instantiating. Class: %s, Actor %s"), *SubObjClass->GetName(), *Actor->GetName());
+		checkf(SubObj != NULL, TEXT("UActorChannel::ReadContentBlockHeader: Subobject is NULL after instantiating. Class: %s, Actor %s"), *GetNameSafe(SubObjClass), *Actor->GetName());
 		checkf(SubObj->IsIn(ObjOuter), TEXT("UActorChannel::ReadContentBlockHeader: Subobject is not in Outer. SubObject: %s, Actor: %s, Outer: %s"), *SubObj->GetName(), *Actor->GetName(), *ObjOuter->GetName());
 		checkf(Cast< AActor >(SubObj) == NULL, TEXT("UActorChannel::ReadContentBlockHeader: Subobject is an Actor. SubObject: %s, Actor: %s"), *SubObj->GetName(), *Actor->GetName());
 
@@ -3814,6 +3920,8 @@ UObject* UActorChannel::ReadContentBlockHeader( FInBunch & Bunch, bool& bObjectD
 
 UObject* UActorChannel::ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader& OutPayload, bool& bOutHasRepLayout )
 {
+	using namespace UE::Net;
+
 	const int32 StartHeaderBits = Bunch.GetPosBits();
 	bool bObjectDeleted = false;
 	UObject* RepObj = ReadContentBlockHeader( Bunch, bObjectDeleted, bOutHasRepLayout );
@@ -3821,6 +3929,9 @@ UObject* UActorChannel::ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader&
 	if ( Bunch.IsError() )
 	{
 		UE_LOG( LogNet, Error, TEXT( "UActorChannel::ReadContentBlockPayload: ReadContentBlockHeader FAILED. Bunch.IsError() == TRUE. Closing connection. RepObj: %s, Channel: %i" ), RepObj ? *RepObj->GetFullName() : TEXT( "NULL" ), ChIndex );
+
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockHeaderFail);
+
 		return nullptr;
 	}
 
@@ -3840,6 +3951,9 @@ UObject* UActorChannel::ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader&
 	if ( Bunch.IsError() )
 	{
 		UE_LOG( LogNet, Error, TEXT( "UActorChannel::ReceivedBunch: Read NumPayloadBits FAILED. Bunch.IsError() == TRUE. Closing connection. RepObj: %s, Channel: %i" ), RepObj ? *RepObj->GetFullName() : TEXT( "NULL" ), ChIndex );
+
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::ContentBlockPayloadBitsFail);
+
 		return nullptr;
 	}
 
@@ -3895,6 +4009,8 @@ int32 UActorChannel::WriteFieldHeaderAndPayload( FNetBitWriter& Bunch, const FCl
 
 bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetCache* ClassCache, FNetFieldExportGroup* NetFieldExportGroup, FNetBitReader& Bunch, const FFieldNetCache** OutField, FNetBitReader& OutPayload ) const
 {
+	using namespace UE::Net;
+
 	*OutField = nullptr;
 
 	if ( Bunch.GetBitsLeft() == 0 )
@@ -3957,13 +4073,19 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 		if ( Bunch.IsError() )
 		{
 			UE_LOG( LogRep, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading RepIndex. Object: %s" ), *Object->GetFullName() );
+
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::FieldHeaderRepIndex);
+
 			return false;
 		}
 
 		if ( RepIndex > ClassCache->GetMaxIndex() )
 		{
 			UE_LOG( LogRep, Error, TEXT( "ReadFieldHeaderAndPayload: RepIndex too large. Object: %s" ), *Object->GetFullName() );
+
 			Bunch.SetError();
+			AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::FieldHeaderBadRepIndex);
+
 			return false;
 		}
 
@@ -3983,6 +4105,9 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 	if ( Bunch.IsError() )
 	{
 		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading numbits. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field.GetName() : TEXT( "NULL" ) );
+
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::FieldHeaderPayloadBitsFail);
+
 		return false;
 	}
 
@@ -3991,6 +4116,9 @@ bool UActorChannel::ReadFieldHeaderAndPayload( UObject* Object, const FClassNetC
 	if ( Bunch.IsError() )
 	{
 		UE_LOG( LogNet, Error, TEXT( "ReadFieldHeaderAndPayload: Error reading payload. Object: %s, OutField: %s" ), *Object->GetFullName(), ( *OutField && (*OutField)->Field ) ? *(*OutField)->Field.GetName() : TEXT( "NULL" ) );
+
+		AddToChainResultPtr(Bunch.ExtendedError, ENetCloseResult::FieldPayloadFail);
+
 		return false;
 	}
 

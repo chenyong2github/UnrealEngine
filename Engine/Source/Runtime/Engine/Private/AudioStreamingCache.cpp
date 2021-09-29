@@ -898,15 +898,19 @@ TArrayView<uint8> FAudioChunkCache::GetChunk(const FChunkKey& InKey, bool bBlock
 #endif
 			MemoryCounterBytes -= FoundElement->ChunkDataSize;
 
-			// Reallocate our chunk data This allows us to shrink if possible.
-			FoundElement->ChunkData = (uint8*)FMemory::Realloc(FoundElement->ChunkData, ChunkAudioDataSize);
-			void* DataDestPtr = FoundElement->ChunkData;
-			const bool Result = Chunk.GetCopy(&DataDestPtr);
-
-			if (!Result)
 			{
-				UE_LOG(LogAudioStreamCaching, Warning, TEXT("Failed to retrieve chunk data from Bulk Data for soundwave: %s"), *InKey.SoundWaveName.ToString());
-				return TArrayView<uint8>();
+				LLM_SCOPE(ELLMTag::AudioStreamCacheCompressedData);
+
+				// Reallocate our chunk data This allows us to shrink if possible.
+				FoundElement->ChunkData = (uint8*)FMemory::Realloc(FoundElement->ChunkData, ChunkAudioDataSize);
+				void* DataDestPtr = FoundElement->ChunkData;
+				const bool Result = Chunk.GetCopy(&DataDestPtr);
+
+				if (!Result)
+				{
+					UE_LOG(LogAudioStreamCaching, Warning, TEXT("Failed to retrieve chunk data from Bulk Data for soundwave: %s"), *InKey.SoundWaveName.ToString());
+					return TArrayView<uint8>();
+				}
 			}
 
 			MemoryCounterBytes += ChunkAudioDataSize;

@@ -5,30 +5,12 @@
 #include "Misc/PackageName.h"
 #include "AssetViewUtils.h"
 #include "IAssetTypeActions.h"
+#include "ContentBrowserDataUtils.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
 
 namespace ContentBrowserClassData
 {
-
-bool IsTopLevelFolder(const FName InFolderPath)
-{
-	FNameBuilder FolderPathStr(InFolderPath);
-
-	int32 SlashCount = 0;
-	for (const TCHAR PathChar : FStringView(FolderPathStr))
-	{
-		if (PathChar == TEXT('/'))
-		{
-			if (++SlashCount > 1)
-			{
-				break;
-			}
-		}
-	}
-
-	return SlashCount == 1;
-}
 
 bool GetUnrealContentRootFromInternalClassPath(const FName InPath, FString& OutUnrealContentRoot)
 {
@@ -131,9 +113,9 @@ FContentBrowserItemData CreateClassFolderItem(UContentBrowserDataSource* InOwner
 	{
 		FolderDisplayNameOverride = LOCTEXT("EngineFolderDisplayName", "Engine C++ Classes");
 	}
-	else if (IsTopLevelFolder(InFolderPath))
+	else
 	{
-		FolderDisplayNameOverride = FText::Format(LOCTEXT("ClassFolderDisplayNameFmt", "{0} C++ Classes"), FText::AsCultureInvariant(FolderItemName.Replace(TEXT("Classes_"), TEXT(""))));
+		FolderDisplayNameOverride = ContentBrowserDataUtils::GetFolderItemDisplayNameOverride(InFolderPath, FolderItemName, /*bIsClassesFolder*/ true);
 	}
 
 	return FContentBrowserItemData(InOwnerDataSource, EContentBrowserItemFlags::Type_Folder | EContentBrowserItemFlags::Category_Class, InVirtualPath, *FolderItemName, MoveTemp(FolderDisplayNameOverride), MakeShared<FContentBrowserClassFolderItemDataPayload>(InFolderPath));

@@ -7,6 +7,7 @@
 #include "AssetSearchDatabase.h"
 #include "FileInfoDatabase.h"
 #include "Containers/Queue.h"
+#include "Containers/Ticker.h"
 #include "HAL/Runnable.h"
 
 class FObjectPostSaveContext;

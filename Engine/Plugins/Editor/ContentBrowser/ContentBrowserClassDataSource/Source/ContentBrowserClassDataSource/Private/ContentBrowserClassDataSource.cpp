@@ -15,6 +15,7 @@
 #include "GameProjectGenerationModule.h"
 #include "Framework/Docking/TabManager.h"
 #include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserDataUtils.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserClassDataSource"
 
@@ -395,7 +396,7 @@ bool UContentBrowserClassDataSource::IsFolderVisibleIfHidingEmpty(const FName In
 
 	ConditionalCreateNativeClassHierarchy();
 
-	return ContentBrowserClassData::IsTopLevelFolder(ConvertedPath) 
+	return ContentBrowserDataUtils::IsTopLevelFolder(ConvertedPath) 
 		|| NativeClassHierarchy->HasClasses(ConvertedPath, /*bRecursive*/true);
 }
 

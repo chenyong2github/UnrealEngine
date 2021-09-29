@@ -4211,9 +4211,27 @@ void UClass::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetPreloadDependencies(OutDeps);
 
-	if(SparseClassDataStruct)
+	if (SparseClassDataStruct)
 	{
 		OutDeps.Add(SparseClassDataStruct);
+
+		// make sure we always have a sparse class data struct to get the dependencies from
+		GetOrCreateSparseClassData();
+
+		if (UScriptStruct::ICppStructOps* CppStructOps = SparseClassDataStruct->GetCppStructOps())
+		{
+			CppStructOps->GetPreloadDependencies(SparseClassData, OutDeps);
+		}
+		// The iterator will recursively loop through all structs in structs/containers too.
+		for (TPropertyValueIterator<FStructProperty> It(SparseClassDataStruct, SparseClassData); It; ++It)
+		{
+			const UScriptStruct* StructType = It.Key()->Struct;
+			if (UScriptStruct::ICppStructOps* CppStructOps = StructType->GetCppStructOps())
+			{
+				void* StructDataPtr = const_cast<void*>(It.Value());
+				CppStructOps->GetPreloadDependencies(StructDataPtr, OutDeps);
+			}
+		}
 	}
 }
 

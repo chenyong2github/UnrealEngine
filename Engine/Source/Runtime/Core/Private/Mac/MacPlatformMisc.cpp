@@ -11,7 +11,6 @@
 #include "VarargsHelper.h"
 #include "Mac/CocoaThread.h"
 #include "Misc/EngineVersion.h"
-#include "Misc/EngineBuildSettings.h"
 #include "Mac/MacMallocZone.h"
 #include "Apple/ApplePlatformSymbolication.h"
 #include "Mac/MacPlatformCrashContext.h"
@@ -2296,7 +2295,9 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
 	}
 
-	if (!UE_EDITOR && !FEngineBuildSettings::IsInternalBuild())
+	// NOTE: A blueprint-only game packaged from a vanilla engine downloaded from Epic Game Store isn't considered a 'Licensee' version because the engine was built by Epic.
+	//       There is no way at the moment do distinguish this case properly.
+	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
@@ -2409,7 +2410,9 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
 	}
 
-	if (!UE_EDITOR && !FEngineBuildSettings::IsInternalBuild())
+	// NOTE: A blueprint-only game packaged from a vanilla engine downloaded from Epic Game Store isn't considered a 'Licensee' version because the engine was built by Epic.
+	//       There is no way at the moment do distinguish this case properly.
+	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;

@@ -1471,11 +1471,10 @@ public:
 
 IPlatformFile& IPlatformFile::GetPlatformPhysical()
 {
-	static FWindowsPlatformFile Singleton;
 #if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
-	static FManagedStoragePlatformFile ManagedStoragePlatformFileSingleton(&Singleton);
-	return ManagedStoragePlatformFileSingleton;
+	static TManagedStoragePlatformFile<FWindowsPlatformFile> Singleton;
 #else
-	return Singleton;
+	static FWindowsPlatformFile Singleton;	
 #endif
+	return Singleton;
 }

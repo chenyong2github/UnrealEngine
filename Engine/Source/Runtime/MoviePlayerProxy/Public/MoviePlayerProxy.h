@@ -25,6 +25,8 @@ public:
 	static void BlockingFinished();
 	/** Call this to make sure the movie player is no longer running. */
 	static void BlockingForceFinished();
+	/** Call this to prevent the movie player from using the Slate thread. */
+	static void SetIsSlateThreadAllowed(bool bInIsSlateThreadAllowed);
 	/** Call this to hook up a server. */
 	static void RegisterServer(IMoviePlayerProxyServer* InServer);
 	/** Call this to unregister the current server. */

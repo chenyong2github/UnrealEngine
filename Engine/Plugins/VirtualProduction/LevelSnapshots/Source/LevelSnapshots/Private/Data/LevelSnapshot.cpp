@@ -124,6 +124,17 @@ int32 ULevelSnapshot::GetNumSavedActors() const
 	return SerializedData.GetNumSavedActors();
 }
 
+namespace
+{
+	FSoftObjectPath ExtractPathWithoutSubobjects(UObject* Object)
+	{
+		int32 ColonIndex;
+		const FString Path = Object->GetPathName();
+		Path.FindChar(':', ColonIndex);
+		return Path.Left(ColonIndex);
+	}
+}
+
 void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld);
@@ -141,6 +152,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 
 	// Find actors that are not present in the snapshot
 	TSet<AActor*> AllActors;
+	TSet<FSoftObjectPath> LoadedLevels;
 	{
 		SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld_FindAllActors);
 
@@ -148,6 +160,8 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 		AllActors.Reserve(NumActorsInWorld);
 		for (ULevel* Level : World->GetLevels())
 		{
+			LoadedLevels.Add(ExtractPathWithoutSubobjects(Level));
+			
 			for (AActor* ActorInLevel : Level->Actors)
 			{
 				AllActors.Add(ActorInLevel);
@@ -166,9 +180,16 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	// Try to find world actors and call appropriate callback
 	{
 		SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld_IteratorAllActors);
-		SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor, &HandleAddedActor, &AllActors](const FSoftObjectPath& OriginalActorPath, const FActorSnapshotData& SavedData)
+		SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor, &HandleAddedActor, &AllActors, &LoadedLevels](const FSoftObjectPath& OriginalActorPath, const FActorSnapshotData& SavedData)
 		{
 			// TODO: we need to check whether the actor's class was blacklisted in the project settings
+			const FSoftObjectPath LevelPath = OriginalActorPath.GetAssetPathString();
+			if (!LoadedLevels.Contains(LevelPath))
+			{
+				UE_LOG(LogLevelSnapshots, Warning, TEXT("Skipping actor %s because level %s is not loaded or does not exist (see Levels window)."), *OriginalActorPath.ToString(), *LevelPath.ToString());
+				return;
+			}
+			
 			UObject* ResolvedActor = OriginalActorPath.ResolveObject();
 			// OriginalActorPath may still resolve to a live actor if it was just removed. We need to check the ULevel::Actors to see whether it was removed.
 			const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));

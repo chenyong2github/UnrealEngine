@@ -178,6 +178,16 @@ namespace PerfSummaries
 
 	class ColourThresholdList
 	{
+		public ColourThresholdList()
+		{ }
+
+		public ColourThresholdList(double redValue, double orangeValue, double yellowValue, double greenValue)
+		{
+			Add(new ThresholdInfo(greenValue, null));
+			Add(new ThresholdInfo(yellowValue, null));
+			Add(new ThresholdInfo(orangeValue, null));
+			Add(new ThresholdInfo(redValue, null));
+		}
 		public static string GetThresholdColour(double value, double redValue, double orangeValue, double yellowValue, double greenValue,
 			Colour redOverride = null, Colour orangeOverride = null, Colour yellowOverride = null, Colour greenOverride = null)
 		{

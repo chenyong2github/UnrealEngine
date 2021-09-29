@@ -1971,11 +1971,6 @@ UUserWidget* UUserWidget::CreateWidgetInstance(UWorld& World, TSubclassOf<UUserW
 	return CreateInstanceInternal(&World, UserWidgetClass, WidgetName, &World, World.GetFirstLocalPlayerFromController());
 }
 
-UUserWidget* UUserWidget::CreateWidgetInstance(UPackage& Package, TSubclassOf<UUserWidget> UserWidgetClass, FName WidgetName)
-{
-	return CreateInstanceInternal(&Package, UserWidgetClass, WidgetName, nullptr, nullptr);
-}
-
 UUserWidget* UUserWidget::CreateInstanceInternal(UObject* Outer, TSubclassOf<UUserWidget> UserWidgetClass, FName InstanceName, UWorld* World, ULocalPlayer* LocalPlayer)
 {
 	//CSV_SCOPED_TIMING_STAT(Slate, CreateWidget);

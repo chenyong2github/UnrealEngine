@@ -15,6 +15,7 @@ This plugin supports:
 	- EOS Leaderboards
 	- EOS p2p Sockets
 	- EOS Metrics (session based analytics)
+	- EOS Voice
 
 To configure your settings:
 	1. Go to Project Settings

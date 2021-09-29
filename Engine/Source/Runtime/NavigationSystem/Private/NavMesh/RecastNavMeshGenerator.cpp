@@ -5743,9 +5743,7 @@ TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGenerator(co
 {
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_CreateTileGenerator);
 
-	TSharedRef<FRecastTileGenerator> TileGenerator = MakeShareable(new FRecastTileGenerator(*this, Coord));
-	TileGenerator->Setup(*this, DirtyAreas);
-	return TileGenerator;
+	return ConstuctTileGeneratorImpl<FRecastTileGenerator>(Coord, DirtyAreas);
 }
 
 void FRecastNavMeshGenerator::RemoveLayers(const FIntPoint& Tile, TArray<uint32>& UpdatedTiles)

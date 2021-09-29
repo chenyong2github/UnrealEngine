@@ -29,7 +29,8 @@ namespace UnrealBuildTool.Rules
 					"PacketHandler",
 					"RenderCore",
 					"Slate",
-					"SlateCore"
+					"SlateCore",
+					"NetCore"
 				}
 			);
 

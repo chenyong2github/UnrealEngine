@@ -63,6 +63,9 @@ protected:
 	/* Rebuild pose list */
 	virtual void RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset);
 
+	/** Cache bone blend weights - called when pose asset changes */
+	void CacheBoneBlendWeights(FAnimInstanceProxy* InstanceProxy);
+	
 private:
 	void UpdatePoseAssetProperty(struct FAnimInstanceProxy* InstanceProxy);
 };

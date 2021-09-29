@@ -31,6 +31,7 @@ public class Blutility : ModuleRules
 				"AssetTools",
 				"WorkspaceMenuStructure",
 				"ContentBrowser",
+				"ContentBrowserData",
 				"ClassViewer",
 				"CollectionManager",
                 "PropertyEditor",

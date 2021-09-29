@@ -14,6 +14,11 @@ GLint GMaxOpenGLTextureFilterAnisotropic = 1;
 // Hash of sampler states, used for caching sampler states and texture objects
 static TMap<FSamplerStateInitializerRHI, FOpenGLSamplerState*> GSamplerStateCache;
 
+namespace OpenGLConsoleVariables
+{
+	extern int32 GOpenGLForceBilinear;
+};
+
 void EmptyGLSamplerStateCache()
 {
 	for (auto Iter = GSamplerStateCache.CreateIterator(); Iter; ++Iter )
@@ -285,6 +290,11 @@ FSamplerStateRHIRef FOpenGLDynamicRHI::RHICreateSamplerState(const FSamplerState
 	else
 	{
 		SamplerState->Data.CompareMode = GL_NONE;
+	}
+
+	if (OpenGLConsoleVariables::GOpenGLForceBilinear && (SamplerState->Data.MinFilter == GL_LINEAR_MIPMAP_LINEAR))
+	{
+		SamplerState->Data.MinFilter = GL_LINEAR_MIPMAP_NEAREST;
 	}
 
 	SamplerState->CreationFence.Reset();

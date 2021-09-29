@@ -5,6 +5,7 @@
 #include "Algo/AnyOf.h"
 #include "ContextObjectStore.h"
 #include "Drawing/MeshElementsVisualizer.h"
+#include "Editor.h"
 #include "EdModeInteractiveToolsContext.h" //ToolsContext
 #include "Framework/Commands/UICommandList.h"
 #include "InteractiveTool.h"

@@ -25,3 +25,21 @@ private:
 	FIntVector4 AttributeSlices;
 	FGetTextureAndSamplerDelegate GetTextureAndSampler;
 };
+
+/**
+ * Batched element parameters for gathering attributes from different slices into a single color
+ */
+class NIAGARASHADER_API FBatchedElementNiagaraInvertColorChannel : public FBatchedElementParameters
+{
+public:
+	FBatchedElementNiagaraInvertColorChannel(uint32 InChannelMask)
+		: ChannelMask(InChannelMask)
+	{
+	}
+
+	/** Binds vertex and pixel shaders for this element */
+	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
+
+private:
+	uint32	ChannelMask;
+};

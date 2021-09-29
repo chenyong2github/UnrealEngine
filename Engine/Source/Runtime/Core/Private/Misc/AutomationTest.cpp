@@ -616,8 +616,9 @@ bool FAutomationTestFramework::ShouldTestContent(const FString& Path) const
 		return true;
 	}
 
-	FString DevelopersPath = FPaths::GameDevelopersDir().LeftChop(1);
-	return bDeveloperDirectoryIncluded || !Path.StartsWith(DevelopersPath);
+	const FString RelativePath = FPaths::ConvertRelativePathToFull(Path);
+	const FString DevelopersPath = FPaths::ConvertRelativePathToFull(FPaths::GameDevelopersDir());
+	return bDeveloperDirectoryIncluded || !RelativePath.StartsWith(DevelopersPath);
 }
 
 void FAutomationTestFramework::SetDeveloperDirectoryIncluded(const bool bInDeveloperDirectoryIncluded)
@@ -927,8 +928,8 @@ void FAutomationTestExecutionInfo::AddEvent(const FAutomationEvent& Event, int S
 		SAFE_GETSTACK(Stack, StackOffset + 1, 1);
 		if (Stack.Num())
 		{
-		EntryIndex = Entries.Add(FAutomationExecutionEntry(Event, Stack[0].Filename, Stack[0].LineNumber));
-	}
+			EntryIndex = Entries.Add(FAutomationExecutionEntry(Event, Stack[0].Filename, Stack[0].LineNumber));
+		}
 	}
 	if (EntryIndex == -1)
 	{

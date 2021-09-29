@@ -101,6 +101,16 @@ namespace OpenGLConsoleVariables
 		0,
 		TEXT("If set to 1, use OpenGL's separate shader objects to eliminate expensive program linking"),
 		ECVF_ReadOnly|ECVF_RenderThreadSafe);
+
+	int32 GOpenGLForceBilinear = 0;
+	static FAutoConsoleVariableRef CVarOpenGLForceBilinearSampling(
+		TEXT("r.OpenGL.ForceBilinear"),
+		GOpenGLForceBilinear,
+		TEXT("Force GL to override all trilinear or aniso texture filtering states to bilinear.\n")
+		TEXT("0: disabled. (default)\n")
+		TEXT("1: enabled."),
+		ECVF_ReadOnly | ECVF_RenderThreadSafe
+	);
 };
 
 #if PLATFORM_64BITS
@@ -555,7 +565,13 @@ inline void FOpenGLDynamicRHI::ApplyTextureStage(FOpenGLContextState& ContextSta
 			FOpenGL::TexParameter(Target, GL_TEXTURE_LOD_BIAS, SamplerState->Data.LODBias);
 		}
 		// Make sure we don't set mip filtering on if the texture has no mip levels, as that will cause a crash/black render on ES.
-		FOpenGL::TexParameter(Target, GL_TEXTURE_MIN_FILTER, ModifyFilterByMips(SamplerState->Data.MinFilter, TextureStage.bHasMips));
+		GLint MinFilter = ModifyFilterByMips(SamplerState->Data.MinFilter, TextureStage.bHasMips);
+		if (OpenGLConsoleVariables::GOpenGLForceBilinear && MinFilter == GL_LINEAR_MIPMAP_LINEAR)
+		{
+			MinFilter = GL_LINEAR_MIPMAP_NEAREST;
+		}
+
+		FOpenGL::TexParameter(Target, GL_TEXTURE_MIN_FILTER, MinFilter);
 		FOpenGL::TexParameter(Target, GL_TEXTURE_MAG_FILTER, SamplerState->Data.MagFilter);
 		if( FOpenGL::SupportsTextureFilterAnisotropic() )
 		{

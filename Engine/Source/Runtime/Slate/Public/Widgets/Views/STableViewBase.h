@@ -272,6 +272,11 @@ protected:
 	 */
 	virtual int32 GetNumItemsPerLine() const;
 
+	/**
+	 * Get the offset of the first list item.
+	 */
+	virtual float GetFirstLineScrollOffset() const;
+
 	/*
 	 * Right click down
 	 */

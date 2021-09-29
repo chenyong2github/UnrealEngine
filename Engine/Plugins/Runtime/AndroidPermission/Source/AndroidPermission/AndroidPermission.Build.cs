@@ -26,6 +26,7 @@ public class AndroidPermission : ModuleRules
 			new string[]
 			{
 				"Core",
+				"Engine",
 			}
 			);
 			
@@ -34,7 +35,6 @@ public class AndroidPermission : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine",
 				"Slate",
 				"SlateCore",
 			}

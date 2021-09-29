@@ -555,21 +555,7 @@ public:
 		State.bGfxPSOSet = true;
 		State.bComputeShaderSet = false;
 
-		FRHIRenderPassInfo::FDepthStencilEntry& DSV = State.RenderPassInfo.DepthStencilRenderTarget;
-
-		// assert depth is in the correct mode
-		if (GraphicsState->DSMode.IsUsingDepth())
-		{
-			checkf(DSV.ExclusiveDepthStencil.IsUsingDepth(), TEXT("Graphics PSO is using depth but it's not enabled on the RenderPass."));
-			checkf(GraphicsState->DSMode.IsDepthRead() || DSV.ExclusiveDepthStencil.IsDepthWrite(), TEXT("Graphics PSO is writing to depth but RenderPass depth is ReadOnly."));
-		}
-
-		// assert stencil is in the correct mode
-		if (GraphicsState->DSMode.IsUsingStencil())
-		{
-			checkf(DSV.ExclusiveDepthStencil.IsUsingStencil(), TEXT("Graphics PSO is using stencil but it's not enabled on the RenderPass."));
-			checkf(GraphicsState->DSMode.IsStencilRead() || DSV.ExclusiveDepthStencil.IsStencilWrite(), TEXT("Graphics PSO is writing to stencil but RenderPass stencil is ReadOnly."));
-		}
+		ValidateDepthStencilForSetGraphicsPipelineState(GraphicsState->DSMode);
 
 		// Setting a new PSO unbinds all previous bound resources
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Graphics);
@@ -578,6 +564,24 @@ public:
 		RHIContext->RHISetGraphicsPipelineState(GraphicsState, StencilRef, bApplyAdditionalState);
 		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
 	}
+
+#if PLATFORM_USE_FALLBACK_PSO
+	virtual void RHISetGraphicsPipelineState(const FGraphicsPipelineStateInitializer& PsoInit, uint32 StencilRef, bool bApplyAdditionalState) override final
+	{
+		checkf(State.bInsideBeginRenderPass, TEXT("Graphics PSOs can only be set inside a RenderPass!"));
+		State.bGfxPSOSet = true;
+		State.bComputeShaderSet = false;
+
+		ValidateDepthStencilForSetGraphicsPipelineState(PsoInit.DepthStencilState->ActualDSMode);
+
+		// Setting a new PSO unbinds all previous bound resources
+		Tracker->ResetUAVState(RHIValidation::EUAVMode::Graphics);
+
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
+		RHIContext->RHISetGraphicsPipelineState(PsoInit, StencilRef, bApplyAdditionalState);
+		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
+	}
+#endif
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) override final
@@ -1114,6 +1118,26 @@ protected:
 
 	friend class FValidationRHICommandContextContainer;
 	friend class FValidationRHI;
+
+private:
+	void ValidateDepthStencilForSetGraphicsPipelineState(const FExclusiveDepthStencil& DSMode)
+	{
+		FRHIRenderPassInfo::FDepthStencilEntry& DSV = State.RenderPassInfo.DepthStencilRenderTarget;
+
+		// assert depth is in the correct mode
+		if (DSMode.IsUsingDepth())
+		{
+			checkf(DSV.ExclusiveDepthStencil.IsUsingDepth(), TEXT("Graphics PSO is using depth but it's not enabled on the RenderPass."));
+			checkf(DSMode.IsDepthRead() || DSV.ExclusiveDepthStencil.IsDepthWrite(), TEXT("Graphics PSO is writing to depth but RenderPass depth is ReadOnly."));
+		}
+
+		// assert stencil is in the correct mode
+		if (DSMode.IsUsingStencil())
+		{
+			checkf(DSV.ExclusiveDepthStencil.IsUsingStencil(), TEXT("Graphics PSO is using stencil but it's not enabled on the RenderPass."));
+			checkf(DSMode.IsStencilRead() || DSV.ExclusiveDepthStencil.IsStencilWrite(), TEXT("Graphics PSO is writing to stencil but RenderPass stencil is ReadOnly."));
+		}
+	}
 };
 
 class FValidationRHICommandContextContainer final : public IRHICommandContextContainer

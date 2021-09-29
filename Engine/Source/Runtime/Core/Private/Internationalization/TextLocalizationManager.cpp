@@ -1216,9 +1216,14 @@ void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& Text
 			if (LiveEntry)
 			{
 				// Update existing entry
-				if (LiveEntry->SourceStringHash == NewEntry.SourceStringHash)
+				// If the existing entry is empty, we just overwrite it 
+				if ((LiveEntry->SourceStringHash == NewEntry.SourceStringHash) || LiveEntry->IsEmpty())
 				{
 					LiveEntry->bIsLocalized = true;
+					// this is to account for the case where the LiveString is empty and we are overwriting the value 
+					// we could do an if check, but copying an int is cheaper 
+					LiveEntry->SourceStringHash = NewEntry.SourceStringHash;
+					// There is no good way to copy over the NativeBackupString. We disregard it as it is only for testing 
 					*LiveEntry->DisplayString = MoveTemp(NewEntry.LocalizedString);
 #if WITH_EDITORONLY_DATA
 					LiveEntry->LocResID = NewEntry.LocResID;
@@ -1261,9 +1266,13 @@ void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& Text
 				if (!LiveNamespace.Equals(DisplayNamespace, ESearchCase::CaseSensitive))
 				{
 					const FDisplayStringEntry* DisplayStringEntry = DisplayStringLookupTable.Find(FTextId(DisplayNamespace, DisplayStringPair.Key.GetKey()));
-					if (DisplayStringEntry && LiveEntry.SourceStringHash == DisplayStringEntry->SourceStringHash)
+					if (DisplayStringEntry && ((LiveEntry.SourceStringHash == DisplayStringEntry->SourceStringHash) || LiveEntry.IsEmpty()))
 					{
 						LiveEntry.bIsLocalized = true;
+						// this is to account for the case where the LiveString is empty and we are overwriting the value 
+					// we could do an if check, but copying an int is cheaper 
+						LiveEntry.SourceStringHash = DisplayStringEntry->SourceStringHash;
+						// There is no good way to copy over the NativeBackupString. We disregard it as it is only for testing 
 						*LiveEntry.DisplayString = *DisplayStringEntry->DisplayString;
 #if WITH_EDITORONLY_DATA
 						LiveEntry.LocResID = DisplayStringEntry->LocResID;
@@ -1321,9 +1330,14 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 				// Update existing entry
 				// If the source string hashes are are the same, we can replace the display string.
 				// Otherwise, it would suggest the source string has changed and the new localization may be based off of an old source string.
-				if (LiveEntry->SourceStringHash == NewEntry.SourceStringHash)
+				// Alternatively, if the display string is empty, we can just overwrite the data.
+				if ((LiveEntry->SourceStringHash == NewEntry.SourceStringHash) || LiveEntry->IsEmpty())
 				{
 					LiveEntry->bIsLocalized = true;
+					// this is to account for the case where the LiveString is empty and we are overwriting the value 
+					// we could do an if check, but copying an int is cheaper 
+					LiveEntry->SourceStringHash = NewEntry.SourceStringHash;
+					// @TODO: Currently no way to copy over the NativeBackupString
 					*LiveEntry->DisplayString = MoveTemp(NewEntry.LocalizedString);
 #if WITH_EDITORONLY_DATA
 					LiveEntry->LocResID = NewEntry.LocResID;
@@ -1375,9 +1389,13 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 
 					// If the source string hashes are are the same, we can replace the display string.
 					// Otherwise, it would suggest the source string has changed and the new localization may be based off of an old source string.
-					if (DisplayStringEntry && LiveEntry.SourceStringHash == DisplayStringEntry->SourceStringHash)
+					if (DisplayStringEntry && ((LiveEntry.SourceStringHash == DisplayStringEntry->SourceStringHash) || LiveEntry.IsEmpty()))
 					{
 						LiveEntry.bIsLocalized = true;
+						// this is to account for the case where the LiveString is empty and we are overwriting the value 
+				// we could do an if check, but copying an int is cheaper 
+						LiveEntry.SourceStringHash = DisplayStringEntry->SourceStringHash;
+						// There is no good way to copy over the NativeBackupString. We disregard it as it is only for testing 
 						*LiveEntry.DisplayString = *DisplayStringEntry->DisplayString;
 #if WITH_EDITORONLY_DATA
 						LiveEntry.LocResID = DisplayStringEntry->LocResID;

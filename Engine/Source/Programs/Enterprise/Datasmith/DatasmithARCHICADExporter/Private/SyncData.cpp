@@ -1525,9 +1525,12 @@ void FSyncData::FHotLinkNode::Process(FProcessInfo* IOProcessInfo)
 
 			ReplaceMetaData(IOProcessInfo->SyncContext.GetScene(), MyMetaData.GetMetaData());
 
+#if AC_VERSION < 25
+			// No need to free API_HotlinkNode allocated members starting with ArchiCAD 25
 			delete hotlinkNode.sourceLocation;
 			delete hotlinkNode.serverSourceLocation;
 			BMKillPtr(&hotlinkNode.userData.data);
+#endif
 		}
 		else
 		{

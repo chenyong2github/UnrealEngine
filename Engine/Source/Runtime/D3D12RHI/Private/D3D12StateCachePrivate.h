@@ -439,7 +439,7 @@ protected:
 	{ \
 		static const EShaderFrequency Frequency = SF_##Name; \
 		static FD3D12##Name##Shader* GetShader(FD3D12BoundShaderState* BSS) { return BSS ? BSS->Get##Name##Shader() : nullptr; } \
-		static FD3D12##Name##Shader* GetShader(FD3D12GraphicsPipelineState* PSO) { return PSO ? (FD3D12##Name##Shader*)PSO->PipelineStateInitializer.BoundShaderState.##Name##ShaderRHI : nullptr; } \
+		static FD3D12##Name##Shader* GetShader(FD3D12GraphicsPipelineState* PSO) { return PSO ? (FD3D12##Name##Shader*)PSO->PipelineStateInitializer.BoundShaderState.Get##Name##Shader() : nullptr; } \
 	}
 	DECLARE_SHADER_TRAITS(Vertex);
 #if PLATFORM_SUPPORTS_MESH_SHADERS

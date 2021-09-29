@@ -6,6 +6,11 @@
 #include "RHIDefinitions.h"
 #if RHI_RAYTRACING
 
+#include "PrimitiveSceneInfo.h"
+#include "RHI.h"
+#include "RHIUtilities.h"
+
+class FScene;
 class FViewInfo;
 class FRayTracingPipelineState;
 class FRHICommandList;

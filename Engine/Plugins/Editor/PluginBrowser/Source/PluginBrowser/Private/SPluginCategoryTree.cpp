@@ -16,7 +16,7 @@ void SPluginCategoryTree::Construct( const FArguments& Args, const TSharedRef< S
 	FilterType = EFilterType::None;
 
 	// Create the root categories
-	AllCategory = MakeShareable(new FPluginCategory(NULL, TEXT("All"), LOCTEXT("AllCategoryName", "All")));
+	AllCategory = MakeShareable(new FPluginCategory(NULL, TEXT("All"), LOCTEXT("AllCategoryName", "All Plugins")));
 	BuiltInCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Built-In"), LOCTEXT("BuiltInCategoryName", "Built-In")));
 	InstalledCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Installed"), LOCTEXT("InstalledCategoryName", "Installed")));
 	ProjectCategory = MakeShareable(new FPluginCategory(NULL, TEXT("Project"), LOCTEXT("ProjectCategoryName", "Project")));
@@ -25,15 +25,13 @@ void SPluginCategoryTree::Construct( const FArguments& Args, const TSharedRef< S
 	// Create the tree view control
 	TreeView =
 		SNew( STreeView<TSharedPtr<FPluginCategory>> )
-
 		// For now we only support selecting a single folder in the tree
 		.SelectionMode( ESelectionMode::Single )
 		.ClearSelectionOnClick( false )		// Don't allow user to select nothing.  We always expect a category to be selected!
-
 		.TreeItemsSource( &RootCategories )
 		.OnGenerateRow( this, &SPluginCategoryTree::PluginCategoryTreeView_OnGenerateRow ) 
 		.OnGetChildren( this, &SPluginCategoryTree::PluginCategoryTreeView_OnGetChildren )
-
+		.TreeViewStyle(&FAppStyle::Get().GetWidgetStyle<FTableViewStyle>("SimpleListView"))
 		.OnSelectionChanged( this, &SPluginCategoryTree::PluginCategoryTreeView_OnSelectionChanged )
 		;
 
@@ -257,11 +255,7 @@ void SPluginCategoryTree::RebuildAndFilterCategoryTree()
 
 TSharedRef<ITableRow> SPluginCategoryTree::PluginCategoryTreeView_OnGenerateRow( TSharedPtr<FPluginCategory> Item, const TSharedRef<STableViewBase>& OwnerTable )
 {
-	return
-		SNew( STableRow<TSharedPtr<FPluginCategory>>, OwnerTable )
-		[
-			SNew( SPluginCategory, Item.ToSharedRef() )
-		];
+	return SNew(SPluginCategory, OwnerTable, Item.ToSharedRef());
 }
 
 

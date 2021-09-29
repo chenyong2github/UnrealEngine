@@ -938,3 +938,7 @@ uint WaveGetActiveLaneIndexLast()
 #ifndef RWTextureCube
 #define RWTextureCube RWTexture2DArray
 #endif
+
+#ifndef PLATFORM_NEEDS_PRECISE_SHADOW_DEPTH
+#define PLATFORM_NEEDS_PRECISE_SHADOW_DEPTH 0
+#endif
