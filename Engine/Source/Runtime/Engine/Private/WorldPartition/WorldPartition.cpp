@@ -401,7 +401,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
 		const FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName();
 
-		bool bIsInstanced = (bEditorOnly && !IsRunningCommandlet()) ? OuterWorld->PersistentLevel->IsInstancedLevel() : bPIEWorldTravel;
+		// Currently known Instancing use cases:
+		// - World Partition map template (New Level)
+		// - PIE World Travel
+		bool bIsInstanced = LevelPackage->GetFName() != PackageName;
 
 		FString ReplaceFrom;
 		FString ReplaceTo;
@@ -409,14 +412,18 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		if (bIsInstanced)
 		{
 			InstancingContext.AddMapping(PackageName, LevelPackage->GetFName());
+			
+			const FString SourcePackageName = LevelPackage->GetLoadedPath().GetPackageName();
+			const FString SourceWorldName = FPaths::GetBaseFilename(SourcePackageName);
+			const FString DestPackageName = LevelPackage->GetName();
+			const FString DestWorldName = FPaths::GetBaseFilename(DestPackageName);
 
-			const FString SourceWorldName = FPaths::GetBaseFilename(LevelPackage->GetLoadedPath().GetPackageName());
-			const FString DestWorldName = FPaths::GetBaseFilename(LevelPackage->GetFName().ToString());
-
-			ReplaceFrom = SourceWorldName + TEXT(".") + SourceWorldName;
+			ReplaceFrom = SourcePackageName + TEXT(".") + SourceWorldName;
 
 			// In PIE UWorld::PostLoad will not rename the world to match its package name so use SourceWorldName instead
-			ReplaceTo = DestWorldName + TEXT(".") + (bPIEWorldTravel ? SourceWorldName : DestWorldName);
+			ReplaceTo = DestPackageName + TEXT(".") + (bPIEWorldTravel ? SourceWorldName : DestWorldName);
+
+			InstancingSoftObjectPathFixupArchive.Reset(new FSoftObjectPathFixupArchive(ReplaceFrom, ReplaceTo));
 		}
 
 		{

@@ -222,6 +222,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;
+	TUniquePtr<FSoftObjectPathFixupArchive> InstancingSoftObjectPathFixupArchive;
 #endif
 
 	bool IsMainWorldPartition() const;

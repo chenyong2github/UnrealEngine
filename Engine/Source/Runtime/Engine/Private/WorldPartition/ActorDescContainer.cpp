@@ -135,6 +135,10 @@ void UActorDescContainer::Uninitialize()
 
 	for (TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
 	{
+		if (FWorldPartitionActorDesc* ActorDesc = ActorDescPtr.Get())
+		{
+			ActorDesc->OnUnregister();
+		}
 		ActorDescPtr.Reset();
 	}
 #endif

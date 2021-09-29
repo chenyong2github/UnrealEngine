@@ -61,6 +61,7 @@
 #include "ObjectTools.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "GameFramework/WorldSettings.h"
 #include "AutoSaveUtils.h"
@@ -72,6 +73,8 @@
 #include "HierarchicalLOD.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "PackageSourceControlHelper.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
@@ -281,6 +284,77 @@ static bool ConfirmPackageBranchCheckOutStatus(const TArray<UPackage*>& Packages
 		}
 	}
 
+	return true;
+}
+
+static bool SaveExternalPackages(UPackage* Package, bool bCheckDirty)
+{
+	TArray<UPackage*> PackagesToSave;
+	for (UPackage* ExternalPackage : Package->GetExternalPackages())
+	{
+		if (!FPackageName::IsTempPackage(ExternalPackage->GetName()))
+		{
+			PackagesToSave.Add(ExternalPackage);
+		}
+	}
+
+	if (PackagesToSave.Num() > 0)
+	{
+		if (!UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, bCheckDirty))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_FailedToSaveExternalActorPackages", "Failed to save external packages"));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool DeleteExistingMapPackages(const FString& ExistingPackageName)
+{
+	// Search for external actor files
+	TArray<FString> ToDeletePackageFilenames;
+	const FString ExternalPackagesPath = ULevel::GetExternalActorsPath(ExistingPackageName);
+	FString ExternalPackagesFilePath = FPackageName::LongPackageNameToFilename(ExternalPackagesPath);
+	if (IFileManager::Get().DirectoryExists(*ExternalPackagesFilePath))
+	{
+		const bool bSuccess = IFileManager::Get().IterateDirectoryRecursively(*ExternalPackagesFilePath, [&ToDeletePackageFilenames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+			{
+				if (!bIsDirectory)
+				{
+					FString Filename(FilenameOrDirectory);
+					if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+					{
+						ToDeletePackageFilenames.Add(Filename);
+					}
+				}
+				// Continue Directory Iteration
+				return true;
+			});
+
+		if (!bSuccess)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(NSLOCTEXT("UnrealEd", "Error_IteratingExistingExternalActorsFolder", "Failed iterating existing actor package folder {0}."), FText::FromString(ExternalPackagesFilePath)));
+			return false;
+		}
+	}
+	
+			
+	if (ToDeletePackageFilenames.Num() > 0)
+	{	
+		FPackageSourceControlHelper PackageHelper;
+		if (!PackageHelper.Delete(ToDeletePackageFilenames))
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_DeleteExistingActorPackage", "Unable to delete existing actor packages."));
+			return false;
+		}
+
+		// Make sure assets are removed
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+		AssetRegistry.ScanModifiedAssetFiles(ToDeletePackageFilenames);
+	}
+	
 	return true;
 }
 
@@ -643,6 +717,7 @@ static bool SaveWorld(UWorld* World,
 	}
 	else
 	{
+		bSuccess = true;
 		// Save the world package after doing optional garbage collection.
 		const FScopedBusyCursor BusyCursor;
 
@@ -659,11 +734,42 @@ static bool SaveWorld(UWorld* World,
 
 		// Rename the package and the object, as necessary
 		UWorld* DuplicatedWorld = nullptr;
+		bool bRenamedWorldPartition = false;
+
 		if ( bRenamePackageToFile )
 		{
 			if (bPackageNeedsRename)
 			{
-				// If we are doing a SaveAs on a world that already exists, we need to duplicate it.
+				// Delete files at destination
+				if (!DeleteExistingMapPackages(NewPackageName))
+				{
+					return false;
+				}
+
+				// Load all unloaded actors before rename. If this is causing issues (oom or other) map will need to be renamed through a provided builder commandlet
+				if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+				{
+					bRenamedWorldPartition = true;
+					if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+					{
+						WorldDataLayers->ForEachDataLayer([](UDataLayer* DataLayer)
+							{
+								if (!DataLayer->IsDynamicallyLoadedInEditor())
+								{
+									DataLayer->SetIsDynamicallyLoadedInEditor(true, false);
+								}
+								return true;
+							});
+					}
+					// Make sure AlwaysLoaded DL cells get loaded
+					WorldPartition->RefreshLoadedEditorCells(false);
+					// Load all the rest
+					const FBox All(FVector(-WORLD_MAX), FVector(WORLD_MAX));
+					WorldPartition->LoadEditorCells(All, false);
+				}
+
+				// If we are doing a SaveAs on a world that already exists on disk, we need to duplicate it:
+				// This fixes a problem where level assets had the same guids for objects saved in them, which causes LazyObjectPtr issues when they are both in memory at the same time since they can not be uniquely identified.
 				if (bPackageExists)
 				{
 					ObjectTools::FPackageGroupName NewPGN;
@@ -713,12 +819,6 @@ static bool SaveWorld(UWorld* World,
 						World->Rename(*NewWorldAssetName, NULL, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 					}
 
-					// SaveAs on package that didn't exist (!DuplicatedWorld). Needs to be rebased because Package was renamed.		
-					if (UWorldPartition* WorldPartition = World->GetWorldPartition())
-					{
-						WorldPartition->SetContainerPackage(Package->GetFName());
-					}
-
 					// We're changing the world path, add a path redirector so that soft object paths get fixed on save
 					FSoftObjectPath NewPath( World );
 					GRedirectCollector.AddAssetPathRedirection( *OldPath.GetAssetPathString(), *NewPath.GetAssetPathString() );
@@ -729,47 +829,70 @@ static bool SaveWorld(UWorld* World,
 
 		// Mark package as fully loaded, this is usually set implicitly by calling IsFullyLoaded before saving, but that path can get skipped for levels
 		Package->MarkAsFullyLoaded();
+				
+		SlowTask.EnterProgressFrame(25);
+				
+		UWorld* SaveWorld = DuplicatedWorld ? DuplicatedWorld : World;
+				
+		if(!bAutosaving)
+		{
+			// This will save external actors
+			if (bSuccess)
+			{
+				bSuccess = SaveExternalPackages(Package, /*bCheckDirty*/true);
+			}
+			// If we are dealing with a renamed partitioned world we need to uninit the existing partition as it is pointing to the wrong path and also make sure 
+			// we create a duplicate so that any code pointing to the old partition doesn't get broken until we send out a OnWorldPartitionCreated later in this method.
+			if (bSuccess && bRenamedWorldPartition && !DuplicatedWorld)
+			{
+				UWorldPartition* WorldPartition = SaveWorld->GetWorldPartition();
+				check(WorldPartition);
+				// If we don't have a DuplicatedWorld, create a new world partition object to invalidate any existing pointers to the previous object.
+				WorldPartition->Uninitialize();
+				UWorldPartition* DuplicatedPartition = DuplicateObject<UWorldPartition>(WorldPartition, WorldPartition->GetOuter());
+				WorldPartition->MarkPendingKill();
 
+				SaveWorld->GetWorldSettings()->SetWorldPartition(DuplicatedPartition);
+			}
+		}
+				
 		SlowTask.EnterProgressFrame(50);
 
-		// Save package.
+		// Save actual map
+		if (bSuccess)
 		{
 			const FString AutoSavingString = (bAutosaving || bPIESaving) ? TEXT("true") : TEXT("false");
 			const FString KeepDirtyString = bPIESaving ? TEXT("true") : TEXT("false");
 			FSaveErrorOutputDevice SaveErrors;
 
-			bSuccess = GEditor->Exec( NULL, *FString::Printf( TEXT("OBJ SAVEPACKAGE PACKAGE=\"%s\" FILE=\"%s\" SILENT=true AUTOSAVING=%s KEEPDIRTY=%s"), *Package->GetName(), *FinalFilename, *AutoSavingString, *KeepDirtyString ), SaveErrors );
+			bSuccess = GEditor->Exec(NULL, *FString::Printf(TEXT("OBJ SAVEPACKAGE PACKAGE=\"%s\" FILE=\"%s\" SILENT=true AUTOSAVING=%s KEEPDIRTY=%s"), *Package->GetName(), *FinalFilename, *AutoSavingString, *KeepDirtyString), SaveErrors);
 			SaveErrors.Flush();
 		}
-
-		UWorld* SaveWorld = DuplicatedWorld ? DuplicatedWorld : World;
-
-		// Delete External Actors if we are saving over an existing map
-		if (bSuccess && bPackageNeedsRename)
+				
+		if (bSuccess)
 		{
-			FPackageSourceControlHelper PackageHelper;
-			const FString ExternalActorsPath = ULevel::GetExternalActorsPath(NewPackageName);
-			FString ExternalActorsFilePath = FPackageName::LongPackageNameToFilename(ExternalActorsPath);
-			if (IFileManager::Get().DirectoryExists(*ExternalActorsFilePath))
-			{
-				bSuccess = IFileManager::Get().IterateDirectoryRecursively(*ExternalActorsFilePath, [&PackageHelper](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-					{
-						if (!bIsDirectory)
-						{
-							FString Filename(FilenameOrDirectory);
-							if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
-							{
-								// If Delete fails it will return false and Directory Iteration will be stopped
-								return PackageHelper.Delete(Filename);
-							}
-						}
-						// Continue Directory Iteration
-						return true;
-					});
+			// Force update before initializing World Partition
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+			
+			// Make sure when we exit SaveWorld AssetRegistry is up to date with saved map
+			AssetRegistry.ScanModifiedAssetFiles({ FinalFilename });
 
-				if (!bSuccess)
+			if (bRenamedWorldPartition)
+			{
+				// Force rescan to make sure assets are found on map open or world partition initialize
+				AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(NewPackageName) }, true);
+
+				// No need to initialize if we have a DuplicatedWorld since the map will get loaded by a subsequent LoadMap call
+				if (!DuplicatedWorld)
 				{
-					FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "FailedToDeleteExistingExternalActors", "Failed to delete existing map external actors."));
+					UWorldPartition* WorldPartition = SaveWorld->GetWorldPartition();
+					check(WorldPartition);
+					WorldPartition->Initialize(SaveWorld, FTransform::Identity);
+					check(WorldPartition->GetContainerPackage() == FName(*NewPackageName));
+
+					IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+					WorldPartitionEditorModule.OnWorldPartitionCreated().Broadcast(SaveWorld);
 				}
 			}
 		}
@@ -777,16 +900,18 @@ static bool SaveWorld(UWorld* World,
 		// @todo Autosaving should save build data as well
 		if (bSuccess && !bAutosaving)
 		{
-			// Also save MapBuildData packages when saving the current level and save external packages if the world was duplicated
-			const bool bSaveExternal = DuplicatedWorld != nullptr || bPackageNeedsRename;
-			if (!FEditorFileUtils::SaveMapDataPackages(SaveWorld, /*bCheckDirty*/true, bSaveExternal))
+			if (!FEditorFileUtils::SaveMapDataPackages(SaveWorld, /*bCheckDirty*/true))
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_FailedToSaveExternalActorPackages", "Failed to save map data packages"));
+				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_FailedToSaveMapDataPackages", "Failed to save map data packages"));
 				bSuccess = false;
 			}
 		}
 
-		SlowTask.EnterProgressFrame(25);
+		// Make sure all deferred adds are processed
+		if (GEditor)
+		{
+			GEditor->RunDeferredMarkForAddFiles();
+		}
 
 		// If the package save was not successful. Trash the duplicated world or rename back if the duplicate failed.
 		if( bRenamePackageToFile && !bSuccess )
@@ -1771,8 +1896,6 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_CheckoutPackages);
 
-	const bool bErrorIfFileMissing = false;
-
 	ECommandResult::Type CheckOutResult = ECommandResult::Succeeded;
 	FString PkgsWhichFailedCheckout;
 
@@ -1788,7 +1911,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 		CheckOutResult = SourceControlProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PkgsToCheckOut);
 	}
 	
-	if(CheckOutResult != ECommandResult::Cancelled)
+	if (CheckOutResult != ECommandResult::Cancelled)
 	{
 		// If any packages are checked out or modified in another branch, prompt for confirmation
 		if (bConfirmPackageBranchCheckOutStatus && !ConfirmPackageBranchCheckOutStatus(PkgsToCheckOut))
@@ -1796,64 +1919,102 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 			return ECommandResult::Cancelled;
 		}
 
-		// Assemble a final list of packages to check out
-		for( auto PkgsToCheckOutIter = PkgsToCheckOut.CreateConstIterator(); PkgsToCheckOutIter; ++PkgsToCheckOutIter )
+		// Print out all the packages and set the check out result
+		auto FailedIntermediateOperations = [&CheckOutResult, &PkgsWhichFailedCheckout, &PkgsToCheckOut]()
 		{
-			UPackage* PackageToCheckOut = *PkgsToCheckOutIter;
-			FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(PackageToCheckOut, EStateCacheUsage::Use);
-
-			// If the file was marked for delete, revert it now so it can be checked out below
-			if ( SourceControlState.IsValid() && SourceControlState->IsDeleted() )
+			for (auto PkgsToCheckOutIter = PkgsToCheckOut.CreateConstIterator(); PkgsToCheckOutIter; ++PkgsToCheckOutIter)
 			{
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), PackageToCheckOut);
-				SourceControlState = SourceControlProvider.GetState(PackageToCheckOut, EStateCacheUsage::ForceUpdate);
-			}
-
-			// Mark the package for check out if possible
-			bool bShowCheckoutError = true;
-			if( SourceControlState.IsValid() )
-			{
-				if( SourceControlState->CanCheckout() )
-				{
-					bShowCheckoutError = false;
-					FinalPackageCheckoutList.Add(PackageToCheckOut);
-				}
-				else if (SourceControlState->CanAdd())
-				{
-					// Cannot add unsaved packages to source control
-					FString Filename;
-					if (FPackageName::DoesPackageExist(PackageToCheckOut->GetName(), nullptr, &Filename))
-					{
-						bShowCheckoutError = false;
-						FinalPackageMarkForAddList.Add(PackageToCheckOut);
-					}
-					else if (!bErrorIfFileMissing)
-					{
-						// Silently skip package that has not been saved yet
-						// Expected when called by InternalCheckoutAndSavePackages before packages saved
-						bShowCheckoutError = false;
-					}
-				}
-				else if (SourceControlState->IsAdded())
-				{
-					if (!bErrorIfAlreadyCheckedOut)
-					{
-						bShowCheckoutError = false;
-					}
-				}
-				else if( !bErrorIfAlreadyCheckedOut && SourceControlState->IsCheckedOut() && !SourceControlState->IsCheckedOutOther() )
-				{
-					bShowCheckoutError = false;
-				}
-			}
-
-			// If the package couldn't be checked out, log it so the list of failures can be displayed afterwards
-			if(bShowCheckoutError)
-			{
+				UPackage* PackageToCheckOut = *PkgsToCheckOutIter;
 				const FString PackageToCheckOutName = PackageToCheckOut->GetName();
-				PkgsWhichFailedCheckout += FString::Printf( TEXT("\n%s"), *PackageToCheckOutName );
-				CheckOutResult = ECommandResult::Failed;
+				PkgsWhichFailedCheckout += FString::Printf(TEXT("\n%s"), *PackageToCheckOutName);
 			}
+			CheckOutResult = ECommandResult::Failed;
+		};
+
+		// Get States as a single operation
+		TArray<FSourceControlStateRef> SourceControlStates;
+		ECommandResult::Type IntermediateResult = SourceControlProvider.GetState(PkgsToCheckOut, SourceControlStates, EStateCacheUsage::Use);
+		if (IntermediateResult == ECommandResult::Succeeded)
+		{
+			TArray<UPackage*> PkgsToRevert;
+			PkgsToRevert.Reserve(PkgsToCheckOut.Num());
+			for (int Index = 0; Index < SourceControlStates.Num(); ++Index)
+			{
+				const FSourceControlStateRef& SourceControlState = SourceControlStates[Index];
+				if (SourceControlState->IsDeleted())
+				{
+					PkgsToRevert.Add(PkgsToCheckOut[Index]);
+				}
+			}
+
+			if (PkgsToRevert.Num() > 0)
+			{
+				IntermediateResult = SourceControlProvider.Execute(ISourceControlOperation::Create<FRevert>(), PkgsToRevert);
+				if (IntermediateResult == ECommandResult::Succeeded)
+				{
+					// Force update all states to checkout
+					IntermediateResult = SourceControlProvider.GetState(PkgsToCheckOut, SourceControlStates, EStateCacheUsage::ForceUpdate);
+				}
+			}
+
+			// In case we called GetState after a revert 
+			if (IntermediateResult == ECommandResult::Succeeded)
+			{
+				// Assemble a final list of packages to check out
+				for (int32 Index = 0; Index < PkgsToCheckOut.Num(); ++Index)
+				{
+					UPackage* PackageToCheckOut = PkgsToCheckOut[Index];
+					const FSourceControlStateRef& SourceControlState = SourceControlStates[Index];
+
+					// Mark the package for check out if possible
+					bool bShowCheckoutError = true;
+					if (SourceControlState->CanCheckout())
+					{
+						bShowCheckoutError = false;
+						FinalPackageCheckoutList.Add(PackageToCheckOut);
+					}
+					else if (SourceControlState->CanAdd())
+					{
+						// Cannot add unsaved packages to source control
+						FString Filename;
+						if (FPackageName::DoesPackageExist(PackageToCheckOut->GetName(), nullptr, &Filename))
+						{
+							bShowCheckoutError = false;
+							FinalPackageMarkForAddList.Add(PackageToCheckOut);
+						}
+						else
+						{
+							// Silently skip package that has not been saved yet
+							// Expected when called by InternalCheckoutAndSavePackages before packages saved
+							bShowCheckoutError = false;
+						}
+					}
+					else if (SourceControlState->IsAdded())
+					{
+						if (!bErrorIfAlreadyCheckedOut)
+						{
+							bShowCheckoutError = false;
+						}
+					}
+					else if (!bErrorIfAlreadyCheckedOut && SourceControlState->IsCheckedOut() && !SourceControlState->IsCheckedOutOther())
+					{
+						bShowCheckoutError = false;
+					}
+
+					// If the package couldn't be checked out, log it so the list of failures can be displayed afterwards
+					if (bShowCheckoutError)
+					{
+						const FString PackageToCheckOutName = PackageToCheckOut->GetName();
+						PkgsWhichFailedCheckout += FString::Printf(TEXT("\n%s"), *PackageToCheckOutName);
+						CheckOutResult = ECommandResult::Failed;
+					}
+				}
+			}
+		}
+
+		if (IntermediateResult != ECommandResult::Succeeded)
+		{
+			FailedIntermediateOperations();
 		}
 	}
 
@@ -2664,54 +2825,7 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 	{
 		NotifyBSPNeedsRebuild(LongMapPackageName);
 	}
-
-	// When loading world as template make sure it creates a world partition if needed
-	if (LoadAsTemplate)
-	{
-		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-		bool bInitializeWorldPartition = WorldPartitionEditorModule.IsWorldPartitionEnabled();
-		if (bInitializeWorldPartition)
-		{
-			if (World->GetStreamingLevels().Num())
-			{
-				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' contains streaming levels so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
-				bInitializeWorldPartition = false;
-			}
-			else if (World->WorldComposition)
-			{
-				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' is using world composition so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
-				bInitializeWorldPartition = false;
-			}
-			else if (World->PersistentLevel->bUseExternalActors)
-			{
-				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' contains external actors so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
-				bInitializeWorldPartition = false;
-			}
-			else if (World->PersistentLevel->bIsPartitioned)
-			{
-				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' is already partitioned so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
-				bInitializeWorldPartition = false;
-			}
-
-			if (bInitializeWorldPartition)
-			{
-				World->PersistentLevel->ConvertAllActorsToPackaging(true);
-				World->PersistentLevel->bUseExternalActors = true;
-
-				check(World->PersistentLevel->bUseExternalActors);
-				check(!World->GetStreamingLevels().Num());
-
-				AWorldSettings* WorldSettings = World->GetWorldSettings();
-				check(WorldSettings);
-
-				UWorldPartition::CreateWorldPartition(WorldSettings);
-				World->ReinitializeSubSystems();
-
-				WorldPartitionEditorModule.OnWorldPartitionCreated().Broadcast(World);
-			}
-		}
-	}
-
+		
 	// Fire delegate when a new map is opened, with name of map
 	FEditorDelegates::OnMapOpened.Broadcast(InFilename, LoadAsTemplate);
 
@@ -3487,7 +3601,7 @@ static bool InternalSavePackages(const TArray<UPackage*>& PackagesToSave, bool b
 	return bReturnCode;
 }
 
-bool FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty, bool bSaveExternal)
+bool FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_SaveMapDataPackages);
 
@@ -3504,25 +3618,9 @@ bool FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty
 
 			if (BuiltDataPackage != WorldPackage)
 			{
-				PackagesToSave.Add(BuiltDataPackage);
+				return UEditorLoadingAndSavingUtils::SavePackages({ BuiltDataPackage }, bCheckDirty);
 			}
 		}
-
-		if (bSaveExternal)
-		{
-			for (UPackage* ExternalPackage : WorldPackage->GetExternalPackages())
-			{
-				if (!FPackageName::IsTempPackage(ExternalPackage->GetName()))
-				{
-					PackagesToSave.Add(ExternalPackage);
-				}
-			}
-		}
-	}
-			
-	if (PackagesToSave.Num() > 0)
-	{
-		return UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, bCheckDirty);
 	}
 
 	return true;

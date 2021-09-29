@@ -217,7 +217,7 @@ UWorldPartition* AWorldSettings::GetWorldPartition() const
 
 void AWorldSettings::SetWorldPartition(UWorldPartition* InWorldPartition)
 {
-	check(!WorldPartition);
+	check(!IsValid(WorldPartition));
 	check(InWorldPartition);
 	WorldPartition = InWorldPartition;
 	bEnableWorldComposition = false;
