@@ -193,11 +193,6 @@ FFractureEditorModeToolkit::~FFractureEditorModeToolkit()
 	}
 }
 
-void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
-{
-	Init(InitToolkitHost, TWeakObjectPtr<UEdMode>());
-}
-
 void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
 {
 	FFractureEditorModule& FractureModule = FModuleManager::GetModuleChecked<FFractureEditorModule>("FractureEditor");
@@ -712,7 +707,7 @@ void FFractureEditorModeToolkit::HandleMapChanged(class UWorld* NewWorld, EMapCh
 {
 	if ((MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap || MapChangeType == EMapChangeType::TearDownWorld))
 	{
-		if (auto* EditorMode = GetEditorMode())
+		if (UEdMode* EditorMode = OwningEditorMode.Get())
 		{ 
 			EditorMode->Exit();
 		}
