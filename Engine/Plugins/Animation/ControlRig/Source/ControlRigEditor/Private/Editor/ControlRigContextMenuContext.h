@@ -15,6 +15,7 @@ class URigVMGraph;
 class URigVMNode;
 class URigVMPin;
 class UEdGraph;
+class SRigHierarchy;
 
 USTRUCT(BlueprintType)
 struct FControlRigRigHierarchyDragAndDropContext
@@ -93,6 +94,8 @@ struct FControlRigRigHierarchyToGraphDragAndDropContext
 
 struct FControlRigMenuSpecificContext
 {
+	TWeakPtr<SRigHierarchy> RigHierarchyPanel;
+	
 	FControlRigRigHierarchyDragAndDropContext RigHierarchyDragAndDropContext;
 	
 	FControlRigGraphNodeContextMenuContext GraphNodeContextMenuContext;
@@ -108,10 +111,10 @@ class UControlRigContextMenuContext : public UObject
 public:
 	/**
 	 *	Initialize the Context
-	 * @param InControlRigBlueprint 	The Control Rig Bluerpint currently opened in the Editor
+	 * @param InControlRigEditor 	    The Control Rig Editor hosting the menus
 	 * @param InMenuSpecificContext 	Additional context for specific menus
 	*/
-	void Init(TWeakObjectPtr<UControlRigBlueprint> InControlRigBlueprint, const FControlRigMenuSpecificContext& InMenuSpecificContext = FControlRigMenuSpecificContext());
+	void Init(TWeakPtr<FControlRigEditor> InControlRigEditor, const FControlRigMenuSpecificContext& InMenuSpecificContext = FControlRigMenuSpecificContext());
 
 	/** Get the control rig blueprint that we are editing */
 	UFUNCTION(BlueprintCallable, Category = ControlRigEditorExtensions)
@@ -137,8 +140,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ControlRigEditorExtensions)
     FControlRigRigHierarchyToGraphDragAndDropContext GetRigHierarchyToGraphDragAndDropContext();
 
+	SRigHierarchy* GetRigHierarchyPanel() const;
+	
+	FControlRigEditor* GetControlRigEditor() const;
+
 private:
-	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;
+	TWeakPtr<FControlRigEditor> WeakControlRigEditor;
 
 	FControlRigMenuSpecificContext MenuSpecificContext;
 };

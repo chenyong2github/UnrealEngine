@@ -16,15 +16,20 @@ FString FControlRigRigHierarchyToGraphDragAndDropContext::GetSectionTitle() cons
 	return FString::Join(ElementNameStrings, TEXT(","));
 }
 
-void UControlRigContextMenuContext::Init(TWeakObjectPtr<UControlRigBlueprint> InControlRigBlueprint, const FControlRigMenuSpecificContext& InMenuSpecificContext)
+void UControlRigContextMenuContext::Init(TWeakPtr<FControlRigEditor> InControlRigEditor, const FControlRigMenuSpecificContext& InMenuSpecificContext)
 {
-	ControlRigBlueprint = InControlRigBlueprint;
+	WeakControlRigEditor = InControlRigEditor;
 	MenuSpecificContext = InMenuSpecificContext;
 }
 
 UControlRigBlueprint* UControlRigContextMenuContext::GetControlRigBlueprint() const
 {
-	return ControlRigBlueprint.Get();
+	if (const TSharedPtr<FControlRigEditor> Editor = WeakControlRigEditor.Pin())
+	{
+		return Editor->GetControlRigBlueprint();
+	}
+	
+	return nullptr;
 }
 
 UControlRig* UControlRigContextMenuContext::GetControlRig() const
@@ -57,4 +62,22 @@ FControlRigGraphNodeContextMenuContext UControlRigContextMenuContext::GetGraphNo
 FControlRigRigHierarchyToGraphDragAndDropContext UControlRigContextMenuContext::GetRigHierarchyToGraphDragAndDropContext()
 {
 	return MenuSpecificContext.RigHierarchyToGraphDragAndDropContext;
+}
+
+SRigHierarchy* UControlRigContextMenuContext::GetRigHierarchyPanel() const
+{
+	if (const TSharedPtr<SRigHierarchy> RigHierarchyPanel = MenuSpecificContext.RigHierarchyPanel.Pin())
+	{
+		return RigHierarchyPanel.Get();
+	}
+	return nullptr;
+}
+
+FControlRigEditor* UControlRigContextMenuContext::GetControlRigEditor() const
+{
+	if (const TSharedPtr<FControlRigEditor> Editor = WeakControlRigEditor.Pin())
+	{
+		return Editor.Get();
+	}
+	return nullptr;
 }
