@@ -24,7 +24,7 @@ void UMassReplicationManager::Initialize(FSubsystemCollectionBase& Collection)
 
 	check(MassLODManager);
 
-	EntitySystem = UMassEntitySubsystem::GetCurrent(GetWorld());
+	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 }
 
 void UMassReplicationManager::Deinitialize()

@@ -93,7 +93,7 @@ void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 
 	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(GetWorld());
-	EntitySystem = UMassEntitySubsystem::GetCurrent(GetWorld());
+	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 	check(EntitySystem);
 }
 

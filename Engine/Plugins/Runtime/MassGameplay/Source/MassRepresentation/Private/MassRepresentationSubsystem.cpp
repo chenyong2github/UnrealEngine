@@ -302,7 +302,7 @@ void UMassRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 
 	if (UWorld* World = GetWorld())
 	{
-		EntitySubsystem = UMassEntitySubsystem::GetCurrent(World);
+		EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 		ActorSpawnerSubsystem = World->GetSubsystem<UMassActorSpawnerSubsystem>();
 		WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 

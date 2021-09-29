@@ -3,7 +3,8 @@
 #include "MassEntityDebug.h"
 #include "Misc/OutputDevice.h"
 #include "MassProcessor.h"
-
+#include "Engine/World.h"
+#include "Engine/Engine.h"
 
 DEFINE_ENUM_TO_STRING(EPipeProcessingPhase);
 
@@ -38,7 +39,8 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice PrintEntityFragmentsCmd(
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda(
 		[](const TArray<FString>& Params, UWorld* World, FOutputDevice& Ar)
 		{
-			if (UMassEntitySubsystem* EntitySystem = UMassEntitySubsystem::GetCurrent(World))
+			check(World);
+			if (UMassEntitySubsystem* EntitySystem = World->GetSubsystem<UMassEntitySubsystem>())
 			{
 				int32 Index = INDEX_NONE;
 				if (LexTryParseString<int32>(Index, *Params[0]))
@@ -76,7 +78,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogArchetypesCmd(
 				LexToString(World->WorldType),
 				*ToString(World->GetNetMode()));
 
-			if (UMassEntitySubsystem* EntitySystem = UMassEntitySubsystem::GetCurrent(World))
+			if (UMassEntitySubsystem* EntitySystem = World->GetSubsystem<UMassEntitySubsystem>())
 			{
 				bool bIncludeEmpty = true;
 				if (Params.Num())
@@ -103,7 +105,8 @@ FAutoConsoleCommandWithWorld RecacheQueries(
 	TEXT("Forces EntityQueries to recache their valid archetypes"),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* InWorld)
 		{
-			if (UMassEntitySubsystem* System = UMassEntitySubsystem::GetCurrent(InWorld))
+			check(InWorld);
+			if (UMassEntitySubsystem* System = InWorld->GetSubsystem<UMassEntitySubsystem>())
 			{
 				System->DebugForceArchetypeDataVersionBump();
 			}
