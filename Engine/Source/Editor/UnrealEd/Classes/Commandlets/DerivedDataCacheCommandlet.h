@@ -37,8 +37,8 @@ class UDerivedDataCacheCommandlet : public UCommandlet
 
 	void MaybeMarkPackageAsAlreadyLoaded(UPackage *Package);
 
-	void CacheLoadedPackages(UPackage* CurrentPackage, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms);
-	void CacheWorldPackages(UWorld* World, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms);
+	void CacheLoadedPackages(UPackage* CurrentPackage, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms, TSet<FName>& OutNewProcessedPackages);
+	void CacheWorldPackages(UWorld* World, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms, TSet<FName>& OutNewProcessedPackages);
 	bool ProcessCachingObjects(const TArray<ITargetPlatform*>& Platforms);
 	void FinishCachingObjects(const TArray<ITargetPlatform*>& Platforms);
 };
