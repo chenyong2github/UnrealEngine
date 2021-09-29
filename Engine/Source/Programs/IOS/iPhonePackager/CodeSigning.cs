@@ -889,6 +889,7 @@ namespace iPhonePackager
 				string TeamIdentifier = Provision.ApplicationIdentifierPrefix;
 				string EntitlementsText = BuildEntitlementString(CFBundleIdentifier, out TeamIdentifier);
 				EntitlementsBlob FinalEntitlementsBlob = EntitlementsBlob.Create(EntitlementsText);
+				EntitlementsDerBlob FinalEntitlementsDerBlob = EntitlementsDerBlob.Create(EntitlementsText);
 
 				// Create the code directory blob
 				CodeDirectoryBlob FinalCodeDirectoryBlob = CodeDirectoryBlob.Create(CFBundleIdentifier, TeamIdentifier, SignedFileLength, ExecSegBase, ExecSegLimit);
@@ -922,6 +923,7 @@ namespace iPhonePackager
 				CodeSignPayload.Add(0x00000, FinalCodeDirectoryBlob);
 				CodeSignPayload.Add(0x00002, FinalRequirementsBlob);
 				CodeSignPayload.Add(0x00005, FinalEntitlementsBlob);
+				CodeSignPayload.Add(0x00007, FinalEntitlementsDerBlob);
 				CodeSignPayload.Add(0x10000, CodeSignatureBlob);
 
 
@@ -963,6 +965,8 @@ namespace iPhonePackager
 				FinalCodeDirectoryBlob.GenerateSpecialSlotHash(CodeDirectoryBlob.cdResourceDirSlot, ResourceDirBytes);
 				FinalCodeDirectoryBlob.GenerateSpecialSlotHash(CodeDirectoryBlob.cdApplicationSlot);
 				FinalCodeDirectoryBlob.GenerateSpecialSlotHash(CodeDirectoryBlob.cdEntitlementSlot, FinalEntitlementsBlob.GetBlobBytes());
+				FinalCodeDirectoryBlob.GenerateSpecialSlotHash(CodeDirectoryBlob.cdUnknown6Slot);
+				FinalCodeDirectoryBlob.GenerateSpecialSlotHash(CodeDirectoryBlob.cdDerEntitlementSlot, FinalEntitlementsDerBlob.GetBlobBytes());
 
 				// Fill out the regular hashes
 				FinalCodeDirectoryBlob.ComputeImageHashes(OutputExeStream.ToArray());

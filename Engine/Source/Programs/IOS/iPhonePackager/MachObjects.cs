@@ -12,6 +12,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 
+using SysadminsLV.Asn1Parser;
+using System.Xml;
+
 /// <summary>
 /// Minimal implementation of the Mach object file format
 /// See: http://developer.apple.com/library/mac/#documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html for format details
@@ -1313,6 +1316,107 @@ namespace MachObjectHandling
 	}
 
 	/// <summary>
+	/// Blob for magic CSMAGIC_ENTITLEMENTS_DER
+	/// </summary>
+	public class EntitlementsDerBlob : OpaqueBlob
+	{
+		public EntitlementsDerBlob()
+		{
+			MyMagic = CSMAGIC_ENTITLEMENTS_DER;
+		}
+
+		public override string ToString()
+		{
+			return "EntitlementsDER '" + AsnFormatter.BinaryToString(MyData) + "'";
+		}
+
+		public static EntitlementsDerBlob Create(string EntitlementsXmlText)
+		{
+			EntitlementsDerBlob Result = new EntitlementsDerBlob();
+
+			XmlDocument doc = new XmlDocument();
+			doc.LoadXml(EntitlementsXmlText);
+
+			XmlNode xmlNode = doc.FirstChild;
+
+			// eat tokens until we see a start 'plist' element.
+			while (xmlNode != null && (xmlNode.NodeType != XmlNodeType.Element || xmlNode.Name != "plist"))
+			{
+				xmlNode = xmlNode.NextSibling;
+			}
+
+			Asn1Builder SetBuilder = new Asn1Builder();
+
+			if (xmlNode != null)
+			{
+				// dict node
+				xmlNode = xmlNode.FirstChild;
+				if (xmlNode != null && xmlNode.NodeType == XmlNodeType.Element && xmlNode.Name == "dict")
+				{
+					for (int i = 0; i < xmlNode.ChildNodes.Count; i++)
+					{
+						if (xmlNode.ChildNodes[i].Name == "key")
+						{
+							Asn1Builder KeyValueBuilder = new Asn1Builder();
+							KeyValueBuilder.AddUTF8String(xmlNode.ChildNodes[i].InnerText);
+
+							i++;
+							if (i >= xmlNode.ChildNodes.Count)
+							{
+								break;
+							}
+							if (xmlNode.ChildNodes[i].Name == "string")
+							{
+								KeyValueBuilder.AddUTF8String(xmlNode.ChildNodes[i].InnerText);
+							}
+							else if (xmlNode.ChildNodes[i].Name == "true")
+							{
+								KeyValueBuilder.AddBoolean(true);
+							}
+							else if (xmlNode.ChildNodes[i].Name == "false")
+							{
+								KeyValueBuilder.AddBoolean(false);
+							}
+							else if (xmlNode.ChildNodes[i].Name == "array")
+							{
+								Asn1Builder ArrayBuilder = new Asn1Builder();
+								foreach (XmlNode child in xmlNode.ChildNodes[i].ChildNodes)
+								{
+									if (child.Name == "string")
+									{
+										ArrayBuilder.AddUTF8String(child.InnerText);
+									}
+									else if (child.Name == "true")
+									{
+										ArrayBuilder.AddBoolean(true);
+									}
+									else if (child.Name == "false")
+									{
+										ArrayBuilder.AddBoolean(false);
+									}
+								}
+
+								KeyValueBuilder.AddDerData(ArrayBuilder.GetEncoded());
+							}
+
+							SetBuilder.AddDerData(KeyValueBuilder.GetEncoded());
+						}
+					}
+				}
+			}
+
+			if (Config.bCodeSignVerbose)
+			{
+				Console.WriteLine("Generated Entitlements DER as {0}", AsnFormatter.BinaryToString(SetBuilder.GetEncoded(0x31)));
+			}
+
+			Result.MyData = SetBuilder.GetEncoded(0x31);
+
+			return Result;
+		}
+	}
+
+	/// <summary>
 	/// Blob for magic CSMAGIC_REQUIREMENTS_TABLE
 	/// http://www.opensource.apple.com/source/libsecurity_codesigning/libsecurity_codesigning-36885/lib/requirement.h
 	/// 
@@ -1762,6 +1866,9 @@ namespace MachObjectHandling
 		// Entitlements
 		public const UInt32 CSMAGIC_ENTITLEMENTS = 0xFADE7171;
 
+		// Entitlements DER
+		public const UInt32 CSMAGIC_ENTITLEMENTS_DER = 0xFADE7172;
+
 		// Actual signature blob
 		public const UInt32 CSMAGIC_CODEDIR_SIGNATURE = 0xFADE0B01;
 
@@ -1789,6 +1896,9 @@ namespace MachObjectHandling
 					break;
 				case CSMAGIC_ENTITLEMENTS:
 					Result = new EntitlementsBlob();
+					break;
+				case CSMAGIC_ENTITLEMENTS_DER:
+					Result = new EntitlementsDerBlob();
 					break;
 				case CSMAGIC_REQUIREMENTS_TABLE:
 					Result = new RequirementsBlob();
@@ -2142,8 +2252,14 @@ namespace MachObjectHandling
 		// Special slot index for embedded entitlements
 		public const int cdEntitlementSlot = 5;
 
+		// Special slot index 6, unknown - all 0's in practice
+		public const int cdUnknown6Slot = 6;
+
+		// Special slot index for embedded der entitlements
+		public const int cdDerEntitlementSlot = 7;
+
 		// Number of special slot indexes
-		public const int cdSlotMax = cdEntitlementSlot;
+		public const int cdSlotMax = cdDerEntitlementSlot;
 
 		/// <summary>
 		/// Hash provider (SHA1)
@@ -2154,7 +2270,9 @@ namespace MachObjectHandling
 		{
 			long StartOfBlob = SR.Position - sizeof(UInt32) * 2;
 
-			// Reference: https://llvm.org/doxygen/BinaryFormat_2MachO_8h_source.html
+			// References:
+			//  https://llvm.org/doxygen/BinaryFormat_2MachO_8h_source.html
+			//  https://github.com/apple/darwin-xnu/blob/main/osfmk/kern/cs_blobs.h
 			Version = SR.ReadUInt32();
 			Flags = SR.ReadUInt32();
 			UInt32 HashOffset = SR.ReadUInt32();
