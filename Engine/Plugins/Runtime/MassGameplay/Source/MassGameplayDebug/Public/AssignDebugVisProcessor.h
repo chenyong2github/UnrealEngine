@@ -1,0 +1,26 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassTranslator.h"
+#include "AssignDebugVisProcessor.generated.h"
+
+
+class UMassDebugVisualizationComponent;
+struct FSimDebugVisComponent;
+
+UCLASS()
+class MASSGAMEPLAYDEBUG_API UAssignDebugVisProcessor : public UMassFragmentInitializer
+{
+	GENERATED_BODY()
+public:
+	UAssignDebugVisProcessor();
+	virtual void ConfigureQueries() override;
+	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Initialize(UObject& InOwner) override;
+
+protected:
+	TWeakObjectPtr<UMassDebugVisualizationComponent> WeakVisualizer;
+
+	FLWComponentQuery EntityQuery;
+};

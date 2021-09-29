@@ -1,0 +1,65 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+// Required first for WITH_MASS_DEBUG
+#include "MassCommonTypes.h"
+
+#if WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG
+
+#include "GameplayDebuggerCategory.h"
+
+class UMassDebuggerSubsystem;
+class APlayerController;
+class AActor;
+
+class FGameplayDebuggerCategory_Mass : public FGameplayDebuggerCategory
+{
+public:
+	FGameplayDebuggerCategory_Mass();
+
+	static TSharedRef<FGameplayDebuggerCategory> MakeInstance();
+
+protected:
+	virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
+	virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
+	
+	void SetCachedEntity(FLWEntity BestEntity, UMassDebuggerSubsystem& Debugger);
+
+	void OnToggleArchetypes() { bShowArchetypes = !bShowArchetypes; }
+	void OnToggleShapes() { bShowShapes = !bShowShapes; }
+	void OnToggleAgentFragments() { bShowAgentFragments = !bShowAgentFragments; }
+	void OnPickEntity() { bPickEntity = true; }
+	void OnToggleEntityDetails() { bShowEntityDetails = !bShowEntityDetails; }
+	void OnToggleNearEntityOverview() { bShowNearEntityOverview = !bShowNearEntityOverview; }
+	void OnToggleNearEntityAvoidance() { bShowNearEntityAvoidance = !bShowNearEntityAvoidance; }
+	void OnToggleNearEntityPath() { bShowNearEntityPath = !bShowNearEntityPath; }
+	
+	void PickEntity(const APlayerController& OwnerPC, UWorld& World, UMassDebuggerSubsystem& Debugger);
+
+protected:
+	AActor* CachedDebugActor;
+	FLWEntity CachedEntity;
+	bool bShowArchetypes;
+	bool bShowShapes;
+	bool bShowAgentFragments;
+	bool bPickEntity;
+	bool bShowEntityDetails;
+	bool bShowNearEntityOverview;
+	bool bShowNearEntityAvoidance;
+	bool bShowNearEntityPath;
+
+	struct FEntityDescription
+	{
+		FEntityDescription() = default;
+		FEntityDescription(const float InScore, const FVector& InLocation, const FString& InDescription) : Score(InScore), Location(InLocation), Description(InDescription) {}
+
+		float Score = 0.0f;
+		FVector Location = FVector::ZeroVector;
+		FString Description;
+	};
+	TArray<FEntityDescription> NearEntityDescriptions;
+
+};
+
+#endif // WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG

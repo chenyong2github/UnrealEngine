@@ -1,0 +1,47 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma  once
+
+#include "CoreMinimal.h"
+#include "Modules/ModuleManager.h"
+#include "AssetTypeCategories.h"
+#include "Toolkits/IToolkitHost.h"
+#include "Toolkits/AssetEditorToolkit.h"
+
+
+class IPipeEditor;
+class FAssetTypeActions_Base;
+struct FGraphPanelNodeFactory;
+class UPipeSchematic;
+
+/**
+* The public interface to this module
+*/
+class MASSENTITYEDITOR_API FPipeEditorModule : public IModuleInterface, public IHasMenuExtensibility, public IHasToolBarExtensibility
+{
+public:
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetPropertiesChanged, class UPipeSchematic* /*PipeSchematic*/, const FPropertyChangedEvent& /*PropertyChangedEvent*/);
+
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+
+	/** Creates an instance of Pipe editor. Only virtual so that it can be called across the DLL boundary. */
+	virtual TSharedRef<IPipeEditor> CreatePipeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UPipeSchematic* PipeSchematic);
+
+	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
+	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
+
+	TSharedPtr<struct FGraphNodeClassHelper> GetProcassorClassCache() { return ProcessorClassCache; }
+	
+	FOnAssetPropertiesChanged& GetOnAssetPropertiesChanged() { return OnAssetPropertiesChanged; }
+
+protected:
+	TSharedPtr<struct FGraphNodeClassHelper> ProcessorClassCache;
+
+	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
+	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
+
+	TArray<TSharedPtr<FAssetTypeActions_Base>> ItemDataAssetTypeActions;
+
+	FOnAssetPropertiesChanged OnAssetPropertiesChanged;
+};

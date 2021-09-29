@@ -1,0 +1,424 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "LWComponentTypes.h"
+#include "InstancedStruct.h"
+#include "SequentialID.h"
+#include "MassCommonTypes.generated.h"
+
+#define WITH_MASS_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_AGGREGATETICKING_DEBUG && 1)
+
+class UStaticMesh;
+class UMaterialInterface;
+
+MASSCOMMON_API DECLARE_LOG_CATEGORY_EXTERN(LogMass, Warning, All);
+
+#if WITH_MASS_DEBUG
+namespace UE::MassDebug
+{
+	MASSCOMMON_API extern bool HasDebugEntities();
+	MASSCOMMON_API extern bool IsDebuggingEntity(FLWEntity Entity, FColor* OutEntityColor = nullptr);
+	MASSCOMMON_API extern FColor GetEntityDebugColor(FLWEntity Entity);
+} // namespace UE::MassDebug
+#endif // WITH_MASS_DEBUG
+
+namespace UE::Mass::ProcessorGroupNames
+{
+	const FName UpdateWorldFromMass = FName(TEXT("UpdateWorldFromMass"));
+	const FName SyncWorldToMass = FName(TEXT("SyncWorldToMass"));
+	const FName Behavior = FName(TEXT("Behavior"));
+	const FName Tasks = FName(TEXT("Tasks"));
+}
+
+/**
+ * Generic handle on mass agent which is associated to the specific Mass EntitySubsystem 
+ */
+struct MASSCOMMON_API FMassHandle
+{
+public:
+	FMassHandle() = default;
+
+	explicit FMassHandle(FLWEntity InLWEntity)
+		: LWEntity{ InLWEntity }
+	{}
+
+	FLWEntity GetLWEntity() const
+	{
+		return LWEntity;
+	}
+
+	bool IsValid() const
+	{
+		return LWEntity.IsSet();
+	}
+
+	FString DebugGetDescription() const 
+	{
+#if WITH_MASS_DEBUG
+		return LWEntity.DebugGetDescription();
+#else
+		return FString();
+#endif // WITH_MASS_DEBUG
+	}
+
+	const static FMassHandle InvalidHandle;
+
+	bool operator==(const FMassHandle& Other) const
+	{
+		return LWEntity == Other.LWEntity;
+	}
+
+	bool operator!=(const FMassHandle& Other) const
+	{
+		return !operator==(Other);
+	}
+
+	friend uint32 GetTypeHash(const FMassHandle& Handle)
+	{
+		return GetTypeHash(Handle.GetLWEntity());
+	}
+
+private:
+	FLWEntity LWEntity;
+};
+
+USTRUCT()
+struct FMassNetworkID : public FSequentialIDBase
+{
+	GENERATED_BODY()
+
+	FMassNetworkID() = default;
+	FMassNetworkID(const FMassNetworkID& Other) = default;
+	explicit FMassNetworkID(uint32 InID) : FSequentialIDBase(InID) {}
+};
+
+/**
+ *  No Remove* functions on purpose. Collections are to be built once and stored, never manipulated
+ */
+USTRUCT()
+struct MASSCOMMON_API FMassUniqueFragmentCollection
+{
+	GENERATED_BODY()
+
+	struct FSameTypeScriptStructPredicate
+	{
+		const UScriptStruct* TypePtr;
+		explicit FSameTypeScriptStructPredicate(const FInstancedStruct& InRef) : TypePtr(InRef.GetScriptStruct()) {}
+		explicit FSameTypeScriptStructPredicate(const UScriptStruct* InTypePtr) : TypePtr(InTypePtr) {}
+		bool operator()(const FInstancedStruct& Other) const { return Other.GetScriptStruct() == TypePtr; }
+	};
+
+	FMassUniqueFragmentCollection() = default;
+
+	/** Adds a unique fragment instance. If a fragment of this type has already been added then its values won't be 
+	 *  overridden and this call will have no effect */
+	void Add(const FInstancedStruct& InFragment);
+
+	/** Adds a unique fragment type. If a fragment of this type has already been added then no action is performed */
+	void Add(const UScriptStruct* InFragmentType);
+
+	template<typename T>
+	FORCEINLINE void Add()
+	{
+		Add(T::StaticStruct());
+	}
+
+	/** Fetches a fragment instance of a given type. If it hasn't been added before it will be created first. */
+	template<typename T>
+	T& Add_GetRef()
+	{
+		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct is not of a fragment type. If you use this FMassUniqueFragmentCollection with the EntitySubsystem you'll hit some checks");
+		if (const FInstancedStruct* ElementPtr = FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
+		{
+			return ElementPtr->GetMutable<T>();
+		}
+
+		FragmentBitSet.Add<T>();
+		return FragmentInstances.Add_GetRef(FInstancedStruct(T::StaticStruct())).GetMutable<T>();
+	}
+
+	void Append(const FMassUniqueFragmentCollection& Other);
+
+	template<typename T>
+	T& GetRefChecked()
+	{
+		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct is not of a fragment type. Make sure your struct extends FLWComponentData or its derivatives");
+		FInstancedStruct* ElementPtr = FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct()));
+		check(ElementPtr);
+		return ElementPtr->GetMutable<T>();
+	}
+
+	int32 GetFragmentsNum() const { return FragmentInstances.Num(); }
+	TArrayView<const FInstancedStruct> GetFragments() const { return MakeArrayView(FragmentInstances); }
+	const FLWComponentBitSet& GetFragmentBitSet() const { return FragmentBitSet; }
+
+	bool IsEmpty() const { return FragmentInstances.IsEmpty(); }
+
+	void DebugOutputDescription(FOutputDevice& Ar) const;
+
+private:
+	UPROPERTY()
+	TArray<FInstancedStruct> FragmentInstances;
+
+	FLWComponentBitSet FragmentBitSet;
+};
+
+/** Float encoded in int16, 1cm accuracy. */
+USTRUCT()
+struct MASSCOMMON_API FMassInt16Real
+{
+	GENERATED_BODY()
+
+	FMassInt16Real() = default;
+	
+	explicit FMassInt16Real(const float InValue)
+	{
+		Set(InValue);
+	}
+	
+	void Set(const float InValue)
+	{
+		Value = (int16)FMath::Clamp(FMath::RoundToInt(InValue), -(int32)MAX_int16, (int32)MAX_int16);
+	}
+
+	float Get() const
+	{
+		return (float)Value;
+	}
+
+	bool operator<(const FMassInt16Real RHS) const { return Value < RHS.Value; }
+	bool operator<=(const FMassInt16Real RHS) const { return Value <= RHS.Value; }
+	bool operator>(const FMassInt16Real RHS) const { return Value > RHS.Value; }
+	bool operator>=(const FMassInt16Real RHS) const { return Value >= RHS.Value; }
+	bool operator==(const FMassInt16Real RHS) const { return Value == RHS.Value; }
+	bool operator!=(const FMassInt16Real RHS) const { return Value != RHS.Value; }
+	
+protected:
+	UPROPERTY(Transient)
+	int16 Value = 0;
+};
+
+/** Float encoded in int16, 10cm accuracy. */
+USTRUCT()
+struct MASSCOMMON_API FMassInt16Real10
+{
+	GENERATED_BODY()
+
+	static constexpr float Scale = 0.1f;
+	
+	FMassInt16Real10() = default;
+	
+	explicit FMassInt16Real10(const float InValue)
+	{
+		Set(InValue);
+	}
+	
+	void Set(const float InValue)
+	{
+		Value = (int16)FMath::Clamp(FMath::RoundToInt(InValue * Scale), -(int32)MAX_int16, (int32)MAX_int16);
+	}
+
+	float Get() const
+	{
+		return (float)Value / Scale;
+	}
+
+	bool operator<(const FMassInt16Real10 RHS) const { return Value < RHS.Value; }
+	bool operator<=(const FMassInt16Real10 RHS) const { return Value <= RHS.Value; }
+	bool operator>(const FMassInt16Real10 RHS) const { return Value > RHS.Value; }
+	bool operator>=(const FMassInt16Real10 RHS) const { return Value >= RHS.Value; }
+	bool operator==(const FMassInt16Real10 RHS) const { return Value == RHS.Value; }
+	bool operator!=(const FMassInt16Real10 RHS) const { return Value != RHS.Value; }
+
+protected:
+	UPROPERTY(Transient)
+	int16 Value = 0;
+};
+
+/** Vector which components are in range [-1..1], encoded in signed bytes. */
+USTRUCT()
+struct MASSCOMMON_API FMassSnorm8Vector
+{
+	GENERATED_BODY()
+
+	static constexpr float Scale = (float)MAX_int8;   
+
+	FMassSnorm8Vector() = default;
+	
+	explicit FMassSnorm8Vector(const FVector& InVector)
+	{
+		Set(InVector);
+	}
+	
+	void Set(const FVector& InVector)
+	{
+		X = (int8)FMath::Clamp(FMath::RoundToInt(InVector.X * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		Y = (int8)FMath::Clamp(FMath::RoundToInt(InVector.Y * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		Z = (int8)FMath::Clamp(FMath::RoundToInt(InVector.Z * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+	}
+
+	FVector Get() const
+	{
+		return FVector(X / Scale, Y / Scale, Z / Scale);
+	}
+
+protected:
+	UPROPERTY(Transient)
+	int8 X = 0;
+
+	UPROPERTY(Transient)
+	int8 Y = 0;
+
+	UPROPERTY(Transient)
+	int8 Z = 0;
+};
+
+/** Vector2D which components are in range [-1..1], encoded in signed bytes. */
+USTRUCT()
+struct MASSCOMMON_API FMassSnorm8Vector2D
+{
+	GENERATED_BODY()
+
+	static constexpr float Scale = (float)MAX_int8;
+
+	FMassSnorm8Vector2D() = default;
+
+	explicit FMassSnorm8Vector2D(const FVector2D& InVector)
+	{
+		Set(InVector);
+	}
+	
+	explicit FMassSnorm8Vector2D(const FVector& InVector)
+	{
+		Set(FVector2D(InVector));
+	}
+
+	void Set(const FVector2D& InVector)
+	{
+		X = (int8)FMath::Clamp(FMath::RoundToInt(InVector.X * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		Y = (int8)FMath::Clamp(FMath::RoundToInt(InVector.Y * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+	}
+
+	FVector2D Get() const
+	{
+		return FVector2D(X / Scale, Y / Scale);
+	}
+
+	FVector GetVector(const float InZ = 0.0f) const
+	{
+		return FVector(X / Scale, Y / Scale, InZ);
+	}
+	
+protected:
+	UPROPERTY(Transient)
+	int8 X = 0;
+
+	UPROPERTY(Transient)
+	int8 Y = 0;
+};
+
+/** Real in range [0..1], encoded in signed bytes. */
+USTRUCT()
+struct MASSCOMMON_API FMassUnorm8Real
+{
+	GENERATED_BODY()
+
+	static constexpr float Scale = MAX_uint8;
+
+	FMassUnorm8Real() = default;
+
+	explicit FMassUnorm8Real(const float InValue)
+	{
+		Set(InValue);
+	}
+
+	void Set(const float InValue)
+	{
+		Value = (int8)FMath::Clamp(FMath::RoundToInt(InValue * Scale), 0, (int32)MAX_uint8);
+	}
+
+	float Get() const
+	{
+		return (Value / Scale);
+	}
+
+protected:
+	UPROPERTY(Transient)
+	uint8 Value = 0;
+};
+
+/** Vector encoded in int16, 1cm accuracy. */
+USTRUCT()
+struct MASSCOMMON_API FMassInt16Vector
+{
+	GENERATED_BODY()
+
+	FMassInt16Vector() = default;
+	FMassInt16Vector(const FVector& InVector)
+	{
+		Set(InVector);
+	}
+	
+	void Set(const FVector& InVector)
+	{
+		X = (int16)FMath::Clamp(FMath::RoundToInt(InVector.X), -(int32)MAX_int16, (int32)MAX_int16);
+		Y = (int16)FMath::Clamp(FMath::RoundToInt(InVector.Y), -(int32)MAX_int16, (int32)MAX_int16);
+		Z = (int16)FMath::Clamp(FMath::RoundToInt(InVector.Z), -(int32)MAX_int16, (int32)MAX_int16);
+	}
+
+	FVector Get() const
+	{
+		return FVector(X, Y, Z);
+	}
+
+protected:
+	UPROPERTY(Transient)
+	int16 X = 0;
+
+	UPROPERTY(Transient)
+	int16 Y = 0;
+
+	UPROPERTY(Transient)
+	int16 Z = 0;
+};
+
+/** Vector2D encoded in int16, 1cm accuracy. */
+USTRUCT()
+struct MASSCOMMON_API FMassInt16Vector2D
+{
+	GENERATED_BODY()
+
+	FMassInt16Vector2D() = default;
+	FMassInt16Vector2D(const FVector2D& InVector)
+	{
+		Set(InVector);
+	}
+	FMassInt16Vector2D(const FVector& InVector)
+	{
+		Set(FVector2D(InVector));
+	}
+	
+	void Set(const FVector2D& InVector)
+	{
+		X = (int16)FMath::Clamp(FMath::RoundToInt(InVector.X), -(int32)MAX_int16, (int32)MAX_int16);
+		Y = (int16)FMath::Clamp(FMath::RoundToInt(InVector.Y), -(int32)MAX_int16, (int32)MAX_int16);
+	}
+
+	FVector2D Get() const
+	{
+		return FVector2D(X, Y);
+	}
+
+	FVector GetVector(const float InZ = 0.0f) const
+	{
+		return FVector(X, Y, InZ);
+	}
+
+protected:
+	UPROPERTY(Transient)
+	int16 X = 0;
+
+	UPROPERTY(Transient)
+	int16 Y = 0;
+};

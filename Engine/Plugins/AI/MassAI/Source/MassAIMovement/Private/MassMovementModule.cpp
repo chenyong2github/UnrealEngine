@@ -1,0 +1,42 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CoreMinimal.h"
+#include "IMassMovementModule.h"
+#include "UObject/CoreRedirects.h"
+
+
+class FMassMovementModule : public IMassMovementModule
+{
+	/** IModuleInterface implementation */
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+};
+
+IMPLEMENT_MODULE(FMassMovementModule, MassMovement)
+
+
+
+void FMassMovementModule::StartupModule()
+{
+	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
+
+	TArray<FCoreRedirect> Redirects;
+	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("VelocityComponent"), TEXT("MassVelocityFragment"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("AvoidanceComponent"), TEXT("MassAvoidanceFragment"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("DataFragment_GridCellLocation"), TEXT("MassGridCellLocationFragment"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("DataFragment_PathFollow"), TEXT("MassPathFollowFragment"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("DataFragment_Wander"), TEXT("MassWanderFragment"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("DataFragment_MoveTo"), TEXT("MassMoveToFragment"));
+	
+	FCoreRedirects::AddRedirectList(Redirects, TEXT("MassMovement"));
+}
+
+
+void FMassMovementModule::ShutdownModule()
+{
+	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
+	// we call this function before unloading the module.
+}
+
+
+

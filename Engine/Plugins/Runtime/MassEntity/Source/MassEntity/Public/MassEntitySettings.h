@@ -1,0 +1,101 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Engine/DeveloperSettings.h"
+#include "MassProcessingPhase.h"
+#include "MassProcessor.h"
+#include "InstancedStruct.h"
+#include "MassEntitySettings.generated.h"
+
+#define GET_PIPE_CONFIG_VALUE(a) (GetMutableDefault<UPipeSettings>()->a)
+
+class UPipeProcessingPhaseManager;
+struct FPipeProcessingPhaseConfig;
+struct FPropertyChangedEvent;
+
+
+USTRUCT()
+struct FPipeProcessingPhaseConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Pipe, config)
+	FName PhaseName;
+
+	UPROPERTY(EditAnywhere, Category = Pipe, config, NoClear)
+	TSubclassOf<UPipeCompositeProcessor> PhaseGroupClass = UPipeCompositeProcessor::StaticClass();
+
+	UPROPERTY(EditAnywhere, Category = Pipe, config, NoClear)
+	TArray<FName> OffGameThreadGroupNames;
+
+	UPROPERTY(Transient)
+	TArray<UPipeProcessor*> ProcessorCDOs;
+
+#if WITH_EDITORONLY_DATA
+	// this processor is available only in editor since it's used to present the user the order in which processors
+	// will be executed when given processing phase gets triggered
+	UPROPERTY(Transient)
+	UPipeCompositeProcessor* PhaseProcessor = nullptr;
+
+	UPROPERTY(VisibleAnywhere, Category = Pipe, Transient)
+	FString Description;
+#endif //WITH_EDITORONLY_DATA
+};
+
+/**
+ * Implements the settings for MassSimulation
+ */
+UCLASS(config = Game, defaultconfig, DisplayName = "Pipe")
+class MASSENTITY_API UPipeSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+public:
+#if WITH_EDITORONLY_DATA
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSettingsChange, const FPropertyChangedEvent& /*PropertyChangedEvent*/);
+#endif // WITH_EDITORONLY_DATA
+
+	UPipeSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	void BuildProcessorListAndPhases();
+	void AddToActiveProcessorsList(TSubclassOf<UPipeProcessor> ProcessorClass);
+
+	const FPipeProcessingPhaseConfig* GetProcessingPhasesConfig();
+	const FPipeProcessingPhaseConfig& GetProcessingPhaseConfig(const EPipeProcessingPhase ProcessingPhase) const { check(ProcessingPhase != EPipeProcessingPhase::MAX); return ProcessingPhasesConfig[int(ProcessingPhase)]; }
+
+#if WITH_EDITOR
+	FOnSettingsChange& GetOnSettingsChange() { return OnSettingsChange; }	
+
+protected:
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+
+	virtual void BeginDestroy() override;
+
+	void BuildPhases();
+	void BuildProcessorList();
+
+public:
+	/** 
+	 * The name of the file to dump the processor dependency graph. T
+	 * The dot file will be put in the project log folder.
+	 * To generate a svg out of that file, simply run dot executable with following parameters: -Tsvg -O filename.dot 
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = Pipe, Transient)
+	FString DumpDependencyGraphFileName;
+
+	/** Lets users configure processing phases including the composite processor class to be used as a container for the phases' processors. */
+	UPROPERTY(EditDefaultsOnly, Category = Pipe, config)
+	FPipeProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EPipeProcessingPhase::MAX];
+
+	/** This list contains all the processors available in the given binary (including plugins). The contents are sorted by display name.*/
+	UPROPERTY(VisibleAnywhere, Category = Pipe, Transient, Instanced)
+	TArray<UPipeProcessor*> ProcessorCDOs;
+
+#if WITH_EDITORONLY_DATA
+protected:
+	FOnSettingsChange OnSettingsChange;
+#endif // WITH_EDITORONLY_DATA
+	bool bInitialized = false;
+};
