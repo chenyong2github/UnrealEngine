@@ -6,6 +6,7 @@
 #include "Logging/MessageLog.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "Pipe"
 

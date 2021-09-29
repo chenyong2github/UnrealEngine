@@ -20,7 +20,7 @@
 			"Name": "MassCrowd",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
-		},
+		}
 	],
 	"Plugins": [
 		{

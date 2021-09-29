@@ -5,6 +5,7 @@
 #include "MassReplicationTransformHandlers.h"
 #include "MassReplicationTypes.h"
 #include "MassClientBubbleHandler.h"
+#include "MassReplicationPathHandlers.h"
 
 #include "MassCrowdReplicatedAgent.generated.h"
 
