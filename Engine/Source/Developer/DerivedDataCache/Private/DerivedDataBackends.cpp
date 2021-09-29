@@ -22,7 +22,6 @@
 #include "DerivedDataBackendCorruptionWrapper.h"
 #include "DerivedDataBackendThrottleWrapper.h"
 #include "DerivedDataBackendVerifyWrapper.h"
-#include "DerivedDataUtilsInterface.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
@@ -578,22 +577,10 @@ public:
 			}
 		}
 
-		// Check if the Path is a real path or a special keyword
-		if (FEngineBuildSettings::IsInternalBuild())
+		// Paths starting with a '?' are looked up from config
+		if (Path.StartsWith(TEXT("?")) && !GConfig->GetString(TEXT("DerivedDataCacheSettings"), *Path + 1, Path, GEngineIni))
 		{
-			auto DDCUtils = FModuleManager::LoadModulePtr< IDDCUtilsModuleInterface >("DDCUtils");
-			if (DDCUtils)
-			{
-				FString PathFromName = DDCUtils->GetSharedCachePath(Path);
-				if (!PathFromName.IsEmpty())
-				{
-					Path = PathFromName;
-				}
-			}
-		}
-		else if (Path.StartsWith(TEXT("?")))
-		{
-			Path = TEXT("");
+			Path.Empty();
 		}
 
 		// Allow the user to override it from the editor
