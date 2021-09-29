@@ -102,6 +102,7 @@ template<typename ValueType>
 void SetRapidIterationParameter(FString UniqueEmitterName, UNiagaraScript& TargetScript, UNiagaraNodeFunctionCall& TargetFunctionCallNode,
 	FName InputName, FNiagaraTypeDefinition InputType, ValueType Value)
 {
+	static_assert(!TIsUECoreVariant<ValueType, double>::Value, "Double core variant. Must be float type!");
 	FNiagaraParameterHandle InputHandle = FNiagaraParameterHandle::CreateModuleParameterHandle(InputName);
 	FNiagaraParameterHandle AliasedInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(InputHandle, &TargetFunctionCallNode);
 	FNiagaraVariable RapidIterationParameter = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, TargetScript.GetUsage(),
@@ -181,7 +182,7 @@ UObject* UNiagaraEmitterFactoryNew::FactoryCreateNew(UClass* Class, UObject* InP
 			if (AddVelocityNode != nullptr)
 			{
 				SetRapidIterationParameter(NewEmitter->GetUniqueEmitterName(), *NewEmitter->SpawnScriptProps.Script, *AddVelocityNode,
-					"Velocity", FNiagaraTypeDefinition::GetVec3Def(), FVector(0.0f, 0.0f, 100.0f));
+					"Velocity", FNiagaraTypeDefinition::GetVec3Def(), FVector3f(0.0f, 0.0f, 100.0f));
 			}
 
 			TArray<FNiagaraVariable> Vars =
