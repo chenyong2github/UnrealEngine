@@ -1975,8 +1975,20 @@ uint bMetalMSAAHDRDecode;
 
 MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameters, int SceneTextureId, float2 UV)
 {
-#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
-
+#if SCENE_TEXTURES_DISABLED
+	// When scene textures are disabled, the output is matched to the dummy scene texture defaults.
+	switch(SceneTextureId)
+	{
+	case PPI_SceneDepth:
+	case PPI_CustomDepth:
+		return ConvertFromDeviceZ(0.0f);
+	case PPI_MaterialAO:
+	case PPI_CustomStencil:
+		return 1.0f;
+	default:
+		return 0.0f;
+	}
+#else
 	if (SceneTextureId == PPI_SceneDepth)
 	{
 		#if MOBILE_DEFERRED_SHADING
@@ -2016,7 +2028,7 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 		Stencil = floor(Stencil + 0.5);
 		return MaterialFloat4(Stencil.rrr, 0.f);
 	}
-#endif// FEATURE_LEVEL
+#endif// SCENE_TEXTURES_DISABLED
 
 	return MaterialFloat4(0.0f, 0.0f, 0.0f, 0.0f);
 }
