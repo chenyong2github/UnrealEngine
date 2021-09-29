@@ -122,16 +122,16 @@ void UBinkMediaTexture::InitializeTrack()
 		}	
 	}
 
-	if (MediaPlayer) 
+	if (MediaPlayer)
 	{
 		CachedDimensions = MediaPlayer->GetDimensions();
 		if (CachedDimensions.X != 0 || CachedDimensions.Y != 0)
 		{
 			UpdateResource();
-	}
+		}
 	}
 	else if (CachedDimensions.X != 0 || CachedDimensions.Y != 0)
-	{
+	{ 
 		CachedDimensions = FIntPoint(ForceInit);
 		UpdateResource();
 	}
