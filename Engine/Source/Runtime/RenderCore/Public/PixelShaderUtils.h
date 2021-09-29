@@ -125,7 +125,8 @@ struct RENDERCORE_API FPixelShaderUtils
 		uint32 StencilRef = 0,
 		FIntPoint TextureSize = FIntPoint(1, 1),
 		FRDGBufferSRVRef RectUVBufferSRV = nullptr,
-		uint32 DownsampleFactor = 1)
+		uint32 DownsampleFactor = 1,
+		const bool bSkipRenderPass = false)
 	{
 		FRasterizeToRectsVS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FRasterizeToRectsVS::FRectUV>(RectUVBufferSRV != nullptr);
@@ -143,9 +144,19 @@ struct RENDERCORE_API FPixelShaderUtils
 		GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
-			ERDGPassFlags::Raster,
-			[Parameters, GlobalShaderMap, VertexShader, PixelShader, ViewportSize, BlendState, RasterizerState, DepthStencilState, StencilRef](FRHICommandList& RHICmdList)
+			bSkipRenderPass ? (ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass) : ERDGPassFlags::Raster,
+			[Parameters, GlobalShaderMap, VertexShader, PixelShader, ViewportSize, BlendState, RasterizerState, DepthStencilState, StencilRef, bSkipRenderPass](FRHICommandList& RHICmdList)
 		{
+			if (bSkipRenderPass)
+			{
+				FRHIRenderPassInfo RPInfo;
+				RPInfo.ResolveParameters.DestRect.X1 = 0;
+				RPInfo.ResolveParameters.DestRect.Y1 = 0;
+				RPInfo.ResolveParameters.DestRect.X2 = ViewportSize.X;
+				RPInfo.ResolveParameters.DestRect.Y2 = ViewportSize.Y;
+				RHICmdList.BeginRenderPass(RPInfo, TEXT("RasterizeToRects"));
+			}
+
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
@@ -169,6 +180,11 @@ struct RENDERCORE_API FPixelShaderUtils
 			const uint32 NumPrimitives = GRHISupportsRectTopology ? 1 : 2;
 			const uint32 NumInstances = Parameters->VS.NumRects;
 			RHICmdList.DrawPrimitive(0, NumPrimitives, NumInstances);
+
+			if (bSkipRenderPass)
+			{
+				RHICmdList.EndRenderPass();
+			}
 		});
 	}
 };

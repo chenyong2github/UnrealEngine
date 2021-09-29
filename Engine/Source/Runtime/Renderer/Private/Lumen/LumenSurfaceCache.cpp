@@ -273,7 +273,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 					/*StencilRef*/ 0,
 					/*TextureSize*/ CompressedCardCaptureAtlasSize,
 					/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
-					/*DownsampleFactor*/ 4);
+					/*DownsampleFactor*/ 4,
+					/*SkipRenderPass*/ (PassParameters->RenderTargets.GetActiveCount()==0));
 			}
 		}
 		else if (PhysicalAtlasCompression == ESurfaceCacheCompression::CopyTextureRegion && LayerConfig.CompressedFormat != PF_Unknown)
@@ -319,7 +320,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 					/*StencilRef*/ 0,
 					/*TextureSize*/ TempAtlasSize,
 					/*RectUVBufferSRV*/ nullptr,
-					/*DownsampleFactor*/ 4);
+					/*DownsampleFactor*/ 4,
+					/*SkipRenderPass*/ (PassParameters->RenderTargets.GetActiveCount() == 0));
 			}
 
 			// Copy from temporary atlas to surface cache
