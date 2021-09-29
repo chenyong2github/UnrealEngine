@@ -28,13 +28,13 @@
 #endif //WITH_EDITOR
 
 /** When enabled we will fatal log if we detect corrupted data rather than logging an error and returning a null FCompressedBuffer/FSharedBuffer. */
-#define VBD_CORRUPTED_PAYLOAD_IS_FATAL 1
+#define VBD_CORRUPTED_PAYLOAD_IS_FATAL 0
 
 
 #if VBD_CORRUPTED_PAYLOAD_IS_FATAL
 	#define VBD_CORRUPTED_DATA_SEVERITY Fatal
 #else
-	#define VBD_CORRUPTED_DATA_SEVERITY Error
+	#define VBD_CORRUPTED_DATA_SEVERITY Warning
 #endif // VBD_CORRUPTED_PAYLOAD_IS_FATAL
 
 namespace UE::Virtualization
@@ -1103,23 +1103,27 @@ void FVirtualizedUntypedBulkData::UnloadData()
 
 void FVirtualizedUntypedBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::DetachFromDisk);
+
 	check(Ar);
 	check(Ar == AttachedAr || AttachedAr == nullptr || AttachedAr->IsProxyOf(Ar));
 
-	if (bEnsurePayloadIsLoaded && !IsDataVirtualized() && !PackagePath.IsEmpty())
+	if (!IsDataVirtualized() && !PackagePath.IsEmpty())
 	{
-		if (Payload.IsNull())
+		if (Payload.IsNull() && bEnsurePayloadIsLoaded)
 		{
 			FCompressedBuffer CompressedPayload = GetDataInternal();
 
 			UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
 
-			FSharedBuffer DecompressedPayload = CompressedPayload.Decompress();
-
-			AttachedAr = nullptr; // Prevent UpdatePayloadImpl from sending more detach notifications to AttachedAr
-
-			UpdatePayloadImpl(MoveTemp(DecompressedPayload), MoveTemp(PayloadContentId));
+			Payload = CompressedPayload.Decompress();
 		}
+
+		PackagePath.Empty();
+		PackageSegment = EPackageSegment::Header;
+		OffsetInFile = INDEX_NONE;
+
+		EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::LegacyFileIsCompressed);
 	}
 
 	AttachedAr = nullptr;	
