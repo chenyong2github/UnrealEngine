@@ -4080,7 +4080,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					}
 				}
 				
-				FReferenceChainSearch RefChainSearch(Object, SearchModeFlags);
+				FReferenceChainSearch RefChainSearch(Object, SearchModeFlags, Ar);
 			}
 			else
 			{
