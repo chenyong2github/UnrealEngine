@@ -190,7 +190,7 @@ namespace UnrealBuildTool
 			for (; ; )
 			{
 				Node = Documentation.SelectSingleNode($"//member[@name='{MemberName}']/summary");
-				if (Node == null)
+				if (Node != null)
 				{
 					break;
 				}
