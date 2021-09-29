@@ -88,17 +88,17 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 	else if (SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType == UNiagaraComponentRendererProperties::GetFVectorDef())
 	{
 		FVector3f Data = SourceVariable.GetValue<FVector3f>();
-		TargetVariable.SetValue<FVector>(FVector(Data));
+		TargetVariable.SetDoubleValue<FVector>(FVector(Data));
 	}
 	else if (SourceType == FNiagaraTypeDefinition::GetVec4Def() && TargetType == UNiagaraComponentRendererProperties::GetFVector4Def())
 	{
 		FVector4f Data = SourceVariable.GetValue<FVector4f>();
-		TargetVariable.SetValue<FVector>(FVector4(Data));
+		TargetVariable.SetDoubleValue<FVector4>(FVector4(Data));
 	}
 	else if (SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType == UNiagaraComponentRendererProperties::GetFQuatDef())
 	{
 		FQuat4f Data = SourceVariable.GetValue<FQuat4f>();
-		TargetVariable.SetValue<FQuat>(FQuat(Data));
+		TargetVariable.SetDoubleValue<FQuat>(FQuat(Data));
 	}
 	else if (SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType == UNiagaraComponentRendererProperties::GetFRotatorDef())
 	{
