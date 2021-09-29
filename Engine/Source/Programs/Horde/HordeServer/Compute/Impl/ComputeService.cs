@@ -206,7 +206,7 @@ namespace HordeServer.Compute.Impl
 			{
 				ComputeTaskInfo TaskInfo = new ComputeTaskInfo(TaskHash, ChannelId);
 				Logger.LogDebug("Adding task {TaskHash} to queue {RequirementsHash}", TaskInfo.TaskHash.Hash, RequirementsHash);
-				Tasks.Add(TaskScheduler.EnqueueAsync(RequirementsHash, TaskInfo));
+				Tasks.Add(TaskScheduler.EnqueueAsync(RequirementsHash, TaskInfo, false));
 			}
 			await Task.WhenAll(Tasks);
 		}
@@ -253,7 +253,7 @@ namespace HordeServer.Compute.Impl
 		{
 			ComputeTaskMessage Message = Payload.Unpack<ComputeTaskMessage>();
 			ComputeTaskInfo TaskInfo = new ComputeTaskInfo(Message.Task, new ChannelId(Message.ChannelId));
-			return TaskScheduler.EnqueueAsync(Message.Requirements.Hash, TaskInfo);
+			return TaskScheduler.EnqueueAsync(Message.Requirements.Hash, TaskInfo, true);
 		}
 
 		/// <inheritdoc/>
