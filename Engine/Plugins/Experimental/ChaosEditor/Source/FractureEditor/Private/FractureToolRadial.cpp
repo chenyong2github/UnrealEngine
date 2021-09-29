@@ -19,12 +19,14 @@ UFractureToolRadial::UFractureToolRadial(const FObjectInitializer& ObjInit)
 
 void UFractureToolRadial::Setup()
 {
+	Super::Setup();
 	GizmoSettings->Setup(this);
 }
 
 
 void UFractureToolRadial::Shutdown()
 {
+	Super::Shutdown();
 	GizmoSettings->Shutdown();
 }
 

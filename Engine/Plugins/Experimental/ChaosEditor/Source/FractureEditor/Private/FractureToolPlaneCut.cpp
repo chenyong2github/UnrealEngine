@@ -24,6 +24,7 @@ UFractureToolPlaneCut::UFractureToolPlaneCut(const FObjectInitializer& ObjInit)
 
 void UFractureToolPlaneCut::Setup()
 {
+	Super::Setup();
 	GizmoSettings->Setup(this);
 	PlaneCutSettings->bCanCutWithMultiplePlanes = !GizmoSettings->bUseGizmo;
 	NotifyOfPropertyChangeByTool(PlaneCutSettings);
@@ -32,6 +33,7 @@ void UFractureToolPlaneCut::Setup()
 
 void UFractureToolPlaneCut::Shutdown()
 {
+	Super::Shutdown();
 	GizmoSettings->Shutdown();
 }
 

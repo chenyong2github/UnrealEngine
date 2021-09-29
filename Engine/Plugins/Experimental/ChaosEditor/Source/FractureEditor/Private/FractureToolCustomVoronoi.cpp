@@ -61,6 +61,7 @@ UFractureToolCustomVoronoi::UFractureToolCustomVoronoi(const FObjectInitializer&
 
 void UFractureToolCustomVoronoi::Setup()
 {
+	Super::Setup();
 	GizmoSettings->Setup(this, ETransformGizmoSubElements::FullTranslateRotateScale);
 	// Stop scaling at 0 rather than going negative
 	GizmoSettings->TransformGizmo->SetDisallowNegativeScaling(true);
@@ -75,6 +76,7 @@ void UFractureToolCustomVoronoi::Setup()
 
 void UFractureToolCustomVoronoi::Shutdown()
 {
+	Super::Shutdown();
 	GizmoSettings->Shutdown();
 }
 
