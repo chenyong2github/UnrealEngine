@@ -1,0 +1,559 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+int3			NumTriangles_{ParameterName};		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
+int				NumVertices_{ParameterName};
+int				NumUVs_{ParameterName};
+uint			HasColors_{ParameterName};
+Buffer<uint>	IndexBuffer_{ParameterName};
+Buffer<float>	PositionBuffer_{ParameterName};
+Buffer<float4>	TangentBuffer_{ParameterName};
+Buffer<float2>	UVBuffer_{ParameterName};
+Buffer<float4>	ColorBuffer_{ParameterName};
+
+uint			HasUniformSampling_{ParameterName};
+Buffer<uint2>	UniformSamplingTriangles_{ParameterName};
+
+int3			SectionCounts_{ParameterName};		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
+Buffer<uint4>	SectionInfos_{ParameterName};		// FirstTriangle, NumTriangles, Prob, Alias
+Buffer<uint>	FilteredAndUnfilteredSections_{ParameterName};
+
+int3			SocketCounts_{ParameterName};		// x = Num Sockets, y = Num Filtered, z = Num Unfiltered
+Buffer<float4>	SocketTransforms_{ParameterName};
+Buffer<uint>	FilteredAndUnfilteredSockets_{ParameterName};
+
+float			InvDeltaSeconds_{ParameterName};
+float4x4		InstanceTransform_{ParameterName};
+float4x4		InstanceTransformInverseTransposed_{ParameterName};
+float4			InstanceRotation_{ParameterName};
+float4x4		InstancePreviousTransform_{ParameterName};
+float4x4		InstancePreviousTransformInverseTransposed_{ParameterName};
+float4			InstancePreviousRotation_{ParameterName};
+float3			InstanceWorldVelocity_{ParameterName};
+
+//////////////////////////////////////////////////////////////////////////
+// Fwd declarations
+void RandomSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section);
+void RandomFilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section);
+void RandomUnfilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section);
+void RandomSectionTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Section, out int Triangle, out float3 BaryCoord);
+
+//////////////////////////////////////////////////////////////////////////
+int UniformTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Triangle, int SectionOffset)
+{
+	uint2 ProbAlias = UniformSamplingTriangles_{ParameterName}[Triangle];
+	float Prob = asfloat(ProbAlias.x);
+	int Alias = ProbAlias.y;
+	return NiagaraRandomFloat(RandInfo) < Prob ? Triangle : Alias + SectionOffset;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Vertex Sampling
+void IsValidVertex_{ParameterName}(out bool IsValid)
+{
+	IsValid = NumVertices_{ParameterName} > 0;
+}
+
+void RandomVertex_{ParameterName}(NiagaraRandInfo RandInfo, out int Vertex)
+{
+	Vertex = NiagaraRandomInt(RandInfo, NumVertices_{ParameterName});
+}
+
+void GetVertexCount_{ParameterName}(out int Count)
+{
+	Count = NumVertices_{ParameterName};
+}
+
+void GetVertex_{ParameterName}(int Vertex, out float3 Position, out float3 Velocity, out float3 Normal, out float3 Bitangent, out float3 Tangent)
+{
+	[branch]
+	if ( NumVertices_{ParameterName} > 0 )
+	{
+		Vertex = clamp(Vertex, 0, NumVertices_{ParameterName} - 1);
+
+		Position.x = PositionBuffer_{ParameterName}[Vertex * 3 + 0];
+		Position.y = PositionBuffer_{ParameterName}[Vertex * 3 + 1];
+		Position.z = PositionBuffer_{ParameterName}[Vertex * 3 + 2];
+
+		float4 TangentX = TangentBias(TangentBuffer_{ParameterName}[Vertex * 2 + 0]);
+		float4 TangentZ = TangentBias(TangentBuffer_{ParameterName}[Vertex * 2 + 1]);
+		float3 TangentY = cross(TangentZ.xyz, TangentX.xyz) * TangentZ.w;
+
+		Normal		= TangentZ.xyz;
+		Bitangent	= TangentY;
+		Tangent		= TangentX.xyz;
+	}
+	else
+	{
+		Position	= float3(0, 0, 0);
+		Velocity	= float3(0, 0, 0);
+		Normal		= float3(0, 0, 1);
+		Bitangent	= float3(0, 1, 0);
+		Tangent		= float3(1, 0, 0);
+	}
+}
+
+void GetVertexWS_{ParameterName}(int Vertex, out float3 Position, out float3 Velocity, out float3 Normal, out float3 Bitangent, out float3 Tangent)
+{
+	float3 LocalPosition;
+	GetVertex_{ParameterName}(Vertex, LocalPosition, Velocity, Normal, Bitangent, Tangent);
+	
+	Position				= mul(float4(LocalPosition, 1), InstanceTransform_{ParameterName}).xyz;
+	float3 PreviousPosition	= mul(float4(LocalPosition, 1), InstancePreviousTransform_{ParameterName}).xyz;
+	Velocity				= (Position - PreviousPosition) * InvDeltaSeconds_{ParameterName};
+	Normal					= normalize(mul(float4(Normal, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+	Bitangent				= normalize(mul(float4(Bitangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+	Tangent					= normalize(mul(float4(Tangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+}
+
+void GetVertexColor_{ParameterName}(int Vertex, out float4 Color)
+{
+	Vertex = clamp(Vertex, 0, NumVertices_{ParameterName} - 1);
+	Color = HasColors_{ParameterName} ? ColorBuffer_{ParameterName}[Vertex] : float4(1, 1, 1, 1);
+}
+
+void GetVertexUV_{ParameterName}(int Vertex, int UVSet, out float2 UV)
+{
+	Vertex = clamp(Vertex, 0, NumVertices_{ParameterName} - 1);
+	UVSet = clamp(UVSet, 0, NumUVs_{ParameterName} - 1);
+	UV = UVSet >= 0 && UVSet < NumUVs_{ParameterName} ? UVBuffer_{ParameterName}[Vertex * NumUVs_{ParameterName} + UVSet] : float2(0, 0);
+}
+
+//////////////////////////////////////////////////////////////////////////
+// VM Triangle Sampling
+void IsValidTriangle_{ParameterName}(int Triangle, out bool IsValid)
+{
+	IsValid = Triangle >= 0 && Triangle < NumTriangles_{ParameterName}.x;
+}
+
+void RandomTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Triangle, out float3 BaryCoord)
+{
+	int Section;
+	RandomSection_{ParameterName}(RandInfo, Section);
+	RandomSectionTriangle_{ParameterName}(RandInfo, Section, Triangle, BaryCoord);
+}
+
+void GetTriangleCount_{ParameterName}(out int Count)
+{
+	Count = NumTriangles_{ParameterName}.x;
+}
+
+void IsValidFilteredTriangle_{ParameterName}(int Triangle, out bool IsValid)
+{
+	IsValid = Triangle >= 0 && Triangle < NumTriangles_{ParameterName}.y;
+}
+
+void RandomFilteredTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Triangle, out float3 BaryCoord)
+{
+	if ( NumTriangles_{ParameterName}.y > 0 )
+	{
+		int Section;
+		RandomFilteredSection_{ParameterName}(RandInfo, Section);
+		RandomSectionTriangle_{ParameterName}(RandInfo, Section, Triangle, BaryCoord);
+	}
+	else
+	{
+		Triangle = 0;
+		BaryCoord = NiagaraRandomBaryCoord(RandInfo);
+	}
+}
+
+void GetFilteredTriangleCount_{ParameterName}(out int Count)
+{
+	Count = NumTriangles_{ParameterName}.y;
+}
+
+void GetFilteredTriangleAt_{ParameterName}(int TriangleIndex, out int Triangle)
+{
+	Triangle = 0;
+
+	int SectionInfoOffset = SectionCounts_{ParameterName}.x;
+	int SectionFirstTriangle = 0;
+	for ( int i=0; i < SectionCounts_{ParameterName}.y; ++i )
+	{
+		int SectionLastTriangle = SectionFirstTriangle + SectionInfos_{ParameterName}[SectionInfoOffset + i].y;
+		if ( TriangleIndex >= SectionFirstTriangle && TriangleIndex < SectionLastTriangle )
+		{
+			Triangle = (TriangleIndex - SectionFirstTriangle) + SectionInfos_{ParameterName}[SectionInfoOffset + i].x;
+			return;
+		}
+		SectionFirstTriangle = SectionLastTriangle;
+	}
+}
+
+void IsValidUnfilteredTriangle_{ParameterName}(int Triangle, out bool IsValid)
+{
+	IsValid = Triangle >= 0 && Triangle < NumTriangles_{ParameterName}.z;
+}
+
+void RandomUnfilteredTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Triangle, out float3 BaryCoord)
+{
+	if ( NumTriangles_{ParameterName}.z > 0 )
+	{
+		int Section;
+		RandomUnfilteredSection_{ParameterName}(RandInfo, Section);
+		RandomSectionTriangle_{ParameterName}(RandInfo, Section, Triangle, BaryCoord);
+	}
+	else
+	{
+		Triangle = 0;
+		BaryCoord = NiagaraRandomBaryCoord(RandInfo);
+	}
+}
+
+void GetUnfilteredTriangleCount_{ParameterName}(out int Count)
+{
+	Count = NumTriangles_{ParameterName}.z;
+}
+
+void GetUnfilteredTriangleAt_{ParameterName}(int TriangleIndex, out int Triangle)
+{
+	Triangle = 0;
+
+	int SectionInfoOffset = SectionCounts_{ParameterName}.x + SectionCounts_{ParameterName}.y;
+	int SectionFirstTriangle = 0;
+	for ( int i=0; i < SectionCounts_{ParameterName}.z; ++i )
+	{
+		int SectionLastTriangle = SectionFirstTriangle + SectionInfos_{ParameterName}[SectionInfoOffset + i].y;
+		if ( TriangleIndex >= SectionFirstTriangle && TriangleIndex < SectionLastTriangle )
+		{
+			Triangle = (TriangleIndex - SectionFirstTriangle) + SectionInfos_{ParameterName}[SectionInfoOffset + i].x;
+			return;
+		}
+		SectionFirstTriangle = SectionLastTriangle;
+	}
+}
+
+void GetTriangleIndices_{ParameterName}(int Triangle, out int Index0, out int Index1, out int Index2)
+{
+	[branch]
+	if ( NumTriangles_{ParameterName}.x > 0 )
+	{
+		Triangle = clamp(Triangle, 0, NumTriangles_{ParameterName}.x - 1);
+		Index0 = IndexBuffer_{ParameterName}[Triangle * 3 + 0];
+		Index1 = IndexBuffer_{ParameterName}[Triangle * 3 + 1];
+		Index2 = IndexBuffer_{ParameterName}[Triangle * 3 + 2];
+	}
+	else
+	{
+		Index0 = 0;
+		Index1 = 0;
+		Index2 = 0;
+	}
+}
+
+void GetTriangle_{ParameterName}(int Triangle, float3 BaryCoord, out float3 Position, out float3 Velocity, out float3 Normal, out float3 Bitangent, out float3 Tangent)
+{
+	int Index[3];
+	GetTriangleIndices_{ParameterName}(Triangle, Index[0], Index[1], Index[2]);
+
+	float3 Positions[3], Velocities[3], Normals[3], Bitangents[3], Tangents[3];
+	GetVertex_{ParameterName}(Index[0], Positions[0], Velocities[0], Normals[0], Bitangents[0], Tangents[0]);
+	GetVertex_{ParameterName}(Index[1], Positions[1], Velocities[1], Normals[1], Bitangents[1], Tangents[1]);
+	GetVertex_{ParameterName}(Index[2], Positions[2], Velocities[2], Normals[2], Bitangents[2], Tangents[2]);
+
+	Position	= Positions[0] * BaryCoord.x + Positions[1] * BaryCoord.y + Positions[2] * BaryCoord.z;
+	Velocity	= float3(0, 0, 0);
+	Normal		= Normals[0] * BaryCoord.x + Normals[1] * BaryCoord.y + Normals[2] * BaryCoord.x;
+	Bitangent	= Bitangents[0] * BaryCoord.x + Bitangents[1] * BaryCoord.y + Bitangents[2] * BaryCoord.x;
+	Tangent		= Tangents[0] * BaryCoord.x + Tangents[1] * BaryCoord.y + Tangents[2] * BaryCoord.x;
+}
+
+void GetTriangleWS_{ParameterName}(int Triangle, float3 BaryCoord, out float3 Position, out float3 Velocity, out float3 Normal, out float3 Bitangent, out float3 Tangent)
+{
+	float3 LocalPosition;
+	GetTriangle_{ParameterName}(Triangle, BaryCoord, LocalPosition, Velocity, Normal, Bitangent, Tangent);
+
+	Position				= mul(float4(LocalPosition, 1), InstanceTransform_{ParameterName}).xyz;
+	float3 PreviousPosition	= mul(float4(LocalPosition, 1), InstancePreviousTransform_{ParameterName}).xyz;
+	Velocity				= (Position - PreviousPosition) * InvDeltaSeconds_{ParameterName};
+	Normal					= normalize(mul(float4(Normal, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+	Bitangent				= normalize(mul(float4(Bitangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+	Tangent					= normalize(mul(float4(Tangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+}
+
+void GetTriangleColor_{ParameterName}(int Triangle, float3 BaryCoord, out float4 Color)
+{
+	int Index[3];
+	GetTriangleIndices_{ParameterName}(Triangle, Index[0], Index[1], Index[2]);
+
+	float4 Colors[3];
+	GetVertexColor_{ParameterName}(Index[0], Colors[0]);
+	GetVertexColor_{ParameterName}(Index[1], Colors[1]);
+	GetVertexColor_{ParameterName}(Index[2], Colors[2]);
+
+	Color = Colors[0] * BaryCoord.x + Colors[1] * BaryCoord.y + Colors[2] * BaryCoord.z;
+}
+
+void GetTriangleUV_{ParameterName}(int Triangle, float3 BaryCoord, int UVSet, out float2 UV)
+{
+	int Index[3];
+	GetTriangleIndices_{ParameterName}(Triangle, Index[0], Index[1], Index[2]);
+
+	float2 UVs[3];
+	GetVertexUV_{ParameterName}(Index[0], UVSet, UVs[0]);
+	GetVertexUV_{ParameterName}(Index[1], UVSet, UVs[1]);
+	GetVertexUV_{ParameterName}(Index[2], UVSet, UVs[2]);
+
+	UV = UVs[0] * BaryCoord.x + UVs[1] * BaryCoord.y + UVs[2] * BaryCoord.z;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Socket Functions
+void GetSocketCount_{ParameterName}(out int Count)
+{
+	Count = SocketCounts_{ParameterName}.x;
+}
+
+void GetFilteredSocketCount_{ParameterName}(out int Count)
+{
+	Count = SocketCounts_{ParameterName}.y;
+}
+void GetUnfilteredSocketCount_{ParameterName}(out int Count)
+{
+	Count = SocketCounts_{ParameterName}.z;
+}
+
+void GetSocketTransform_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale)
+{
+	[branch]
+	if ( SocketCounts_{ParameterName}.x > 0 )
+	{
+		Socket = clamp(Socket, 0, SocketCounts_{ParameterName}.x - 1);
+		Position = SocketTransforms_{ParameterName}[Socket * 3 + 0].xyz;
+		Rotation = SocketTransforms_{ParameterName}[Socket * 3 + 1];
+		Scale    = SocketTransforms_{ParameterName}[Socket * 3 + 2].xyz;
+	}
+	else
+	{
+		Position = float3(0, 0, 0);
+		Rotation = float4(0, 0, 0, 1);
+		Scale = float3(1, 1, 1);
+	}
+}
+
+void GetSocketTransformWS_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale)
+{
+	GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
+	Position = mul(float4(Position, 1.0), InstanceTransform_{ParameterName}).xyz;
+	Rotation = NiagaraGPU_QuatMul(InstanceRotation_{ParameterName}, Rotation);
+	Scale = mul(float4(Scale, 0.0), InstanceTransform_{ParameterName}).xyz;
+}
+
+void GetFilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+{
+	[branch]
+	if ( SocketCounts_{ParameterName}.y > 0 )
+	{
+		SocketIndex = clamp(SocketIndex, 0, SocketCounts_{ParameterName}.y - 1);
+		int Socket = FilteredAndUnfilteredSockets_{ParameterName}[SocketIndex];
+		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
+	}
+	else
+	{
+		Position = float3(0, 0, 0);
+		Rotation = float4(0, 0, 0, 1);
+		Scale = float3(1, 1, 1);
+	}
+}
+
+void GetFilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+{
+	GetFilteredSocketTransform_{ParameterName}(SocketIndex, Position, Rotation, Scale);
+	Position = mul(float4(Position, 1.0), InstanceTransform_{ParameterName}).xyz;
+	Rotation = NiagaraGPU_QuatMul(InstanceRotation_{ParameterName}, Rotation);
+	Scale = mul(float4(Scale, 0.0), InstanceTransform_{ParameterName}).xyz;
+}
+
+void GetUnfilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+{
+	[branch]
+	if ( SocketCounts_{ParameterName}.z > 0 )
+	{
+		SocketIndex = SocketCounts_{ParameterName}.y + clamp(SocketIndex, 0, SocketCounts_{ParameterName}.z - 1);
+		int Socket = FilteredAndUnfilteredSockets_{ParameterName}[SocketIndex];
+		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
+	}
+	else
+	{
+		Position = float3(0, 0, 0);
+		Rotation = float4(0, 0, 0, 1);
+		Scale = float3(1, 1, 1);
+	}
+}
+
+void GetUnfilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
+{
+	GetUnfilteredSocketTransform_{ParameterName}(SocketIndex, Position, Rotation, Scale);
+	Position = mul(float4(Position, 1.0), InstanceTransform_{ParameterName}).xyz;
+	Rotation = NiagaraGPU_QuatMul(InstanceRotation_{ParameterName}, Rotation);
+	Scale = mul(float4(Scale, 0.0), InstanceTransform_{ParameterName}).xyz;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Section functions
+void IsValidSection_{ParameterName}(int Section, out bool IsValid)
+{
+	IsValid = Section >= 0 && Section < SectionCounts_{ParameterName}.x;
+}
+
+void GetSectionTriangleCount_{ParameterName}(int Section, out int Count)
+{
+	Count = Section >= 0 && Section < SectionCounts_{ParameterName}.x ? SectionInfos_{ParameterName}[Section].y : 0;
+}
+
+void RandomSectionTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Section, out int Triangle, out float3 BaryCoord)
+{
+	int SectionTriangleCount;
+	GetSectionTriangleCount_{ParameterName}(Section, SectionTriangleCount);
+
+	if (SectionTriangleCount > 0)
+	{
+		int SectionTriangleOffset = SectionInfos_{ParameterName}[Section].x;
+		Triangle = NiagaraRandomInt(RandInfo, SectionTriangleCount) + SectionTriangleOffset;
+
+		[branch]
+		if ( HasUniformSampling_{ParameterName} )
+		{
+			Triangle = UniformTriangle_{ParameterName}(RandInfo, Triangle, SectionTriangleOffset);
+		}
+	}
+	BaryCoord = NiagaraRandomBaryCoord(RandInfo);
+}
+
+void GetSectionTriangleAt_{ParameterName}(int Section, int SectionTriangleIndex, out int Triangle)
+{
+	int SectionTriangleCount;
+	GetSectionTriangleCount_{ParameterName}(Section, SectionTriangleCount);
+
+	if ( SectionTriangleCount > 0 )
+	{
+		int SectionTriangleMax = SectionInfos_{ParameterName}[Section].y - 1;
+		int SectionTriangleOffset = SectionInfos_{ParameterName}[Section].x;
+		Triangle = clamp(SectionTriangleIndex, 0, SectionTriangleMax) + SectionTriangleOffset;
+	}
+	else
+	{
+		Triangle = 0;
+	}
+}
+
+void GetFilteredSectionAt_{ParameterName}(int SectionIndex, out int Section)
+{
+	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
+	if ( FilteredSectionCount > 0 )
+	{
+		SectionIndex = clamp(SectionIndex, 0, FilteredSectionCount - 1);
+		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex];
+	}
+	else
+	{
+		Section = 0;
+	}
+}
+
+void GetUnfilteredSectionAt_{ParameterName}(int SectionIndex, out int Section)
+{
+	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
+	int UnfilteredSectionCount = SectionCounts_{ParameterName}.z;
+	if ( UnfilteredSectionCount > 0 )
+	{
+		SectionIndex = clamp(SectionIndex, 0, UnfilteredSectionCount - 1);
+		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex + FilteredSectionCount];
+	}
+	else
+	{
+		Section = 0;
+	}
+}
+
+void GetSectionCount_{ParameterName}(out int Count)
+{
+	Count = SectionCounts_{ParameterName}.x;
+}
+
+void GetFilteredSectionCount_{ParameterName}(out int Count)
+{
+	Count = SectionCounts_{ParameterName}.y;
+}
+
+void GetUnfilteredSectionCount_{ParameterName}(out int Count)
+{
+	Count = SectionCounts_{ParameterName}.z;
+}
+
+void RandomSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section)
+{
+	int SectionCount = SectionCounts_{ParameterName}.x;
+	if (SectionCount > 0)
+	{
+		Section = NiagaraRandomInt(RandInfo, SectionCount);
+		float Prob = asfloat(SectionInfos_{ParameterName}[Section].z);
+		int Alias = SectionInfos_{ParameterName}[Section].w;
+		Section = NiagaraRandomFloat(RandInfo) < Prob ? Section : Alias;
+	}
+	else
+	{
+		Section = 0;
+	}
+}
+
+void RandomFilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section)
+{
+	int SectionCount = SectionCounts_{ParameterName}.x;
+	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
+	if (FilteredSectionCount > 0)
+	{
+		int SectionIndex = NiagaraRandomInt(RandInfo, FilteredSectionCount);
+		int SectionInfoIndex = SectionIndex + SectionCount;
+		float Prob = asfloat(SectionInfos_{ParameterName}[SectionInfoIndex].z);
+		int Alias = SectionInfos_{ParameterName}[SectionInfoIndex].w;
+		SectionIndex = NiagaraRandomFloat(RandInfo) < Prob ? SectionIndex : Alias;
+		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex];
+	}
+	else
+	{
+		Section = 0;
+	}
+}
+
+void RandomUnfilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section)
+{
+	int SectionCount = SectionCounts_{ParameterName}.x;
+	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
+	int UnfilteredSectionCount = SectionCounts_{ParameterName}.z;
+	if (UnfilteredSectionCount > 0)
+	{
+		int SectionIndex = NiagaraRandomInt(RandInfo, UnfilteredSectionCount);
+		int SectionInfoIndex = SectionIndex + SectionCount + FilteredSectionCount;
+		float Prob = asfloat(SectionInfos_{ParameterName}[SectionInfoIndex].z);
+		int Alias = SectionInfos_{ParameterName}[SectionInfoIndex].w;
+		SectionIndex = NiagaraRandomFloat(RandInfo) < Prob ? SectionIndex : Alias;
+		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex + FilteredSectionCount];
+	}
+	else
+	{
+		Section = 0;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+// VM Misc Functions
+void IsValid_{ParameterName}(out bool IsValid)
+{
+	IsValid = NumVertices_{ParameterName} > 0;
+}
+
+void GetLocalToWorld_{ParameterName}(out float4x4 Matrix)
+{
+	Matrix = InstanceTransform_{ParameterName};
+}
+
+void GetLocalToWorldInverseTransposed_{ParameterName}(out float4x4 Matrix)
+{
+	Matrix = InstanceTransformInverseTransposed_{ParameterName};
+}
+
+void GetWorldVelocity_{ParameterName}(out float3 Velocity)
+{
+	Velocity = InstanceWorldVelocity_{ParameterName};
+}

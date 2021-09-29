@@ -21,7 +21,7 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
-#include "NiagaraDataInterfaceStaticMesh.h"
+#include "DataInterface/NiagaraDataInterfaceStaticMesh.h"
 #if WITH_EDITOR
 	#include "DerivedDataCacheInterface.h"
 	#include "Interfaces/ITargetPlatform.h"

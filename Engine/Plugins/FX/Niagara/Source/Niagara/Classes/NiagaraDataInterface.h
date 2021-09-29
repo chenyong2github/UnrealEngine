@@ -568,27 +568,33 @@ struct FNDIParameter<FNiagaraRandInfo>
 	}
 };
 
-struct FNDIRandomHelper
+// Completely random policy which will pull from the contexts random stream
+struct FNDIRandomStreamPolicy
 {
-	FNDIRandomHelper(FVectorVMExternalFunctionContext& InContext)
+	FNDIRandomStreamPolicy(FVectorVMExternalFunctionContext& InContext) : Context(InContext) {}
+
+	FORCEINLINE void GetAndAdvance() {}
+	FORCEINLINE bool IsDeterministic() const { return false; }
+	FORCEINLINE_DEBUGGABLE FVector4 Rand4(int32 InstanceIndex) const { return FVector4(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction()); }
+	FORCEINLINE_DEBUGGABLE FVector Rand3(int32 InstanceIndex) const { return FVector(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction()); }
+	FORCEINLINE_DEBUGGABLE FVector2D Rand2(int32 InstanceIndex) const { return FVector2D(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction()); }
+	FORCEINLINE_DEBUGGABLE float Rand(int32 InstanceIndex) const { return Context.GetRandStream().GetFraction(); }
+
+	FVectorVMExternalFunctionContext& Context;
+};
+
+// Random policy which can be optionally deterministic depending on the info
+struct FNDIRandomInfoPolicy
+{
+	FNDIRandomInfoPolicy(FVectorVMExternalFunctionContext& InContext)
 		: Context(InContext)
-		, RandParam(Context)
-	{
+		, RandParam(InContext)
+	{}
 
-	}
-
-	FORCEINLINE void GetAndAdvance()
-	{
-		RandParam.GetAndAdvance(RandInfo);
-	}
-
-	FORCEINLINE bool IsDeterministic() const
-	{
-		return RandInfo.Seed3 != INDEX_NONE;
-	}
+	FORCEINLINE void GetAndAdvance() { RandParam.GetAndAdvance(RandInfo); }
+	FORCEINLINE bool IsDeterministic() const { return RandInfo.Seed3 != INDEX_NONE; }
 
 	//////////////////////////////////////////////////////////////////////////
-	
 	FORCEINLINE_DEBUGGABLE FVector4 Rand4(int32 InstanceIndex) const
 	{
 		if (IsDeterministic())
@@ -597,14 +603,14 @@ struct FNDIRandomHelper
 
 			FIntVector4 v = FIntVector4(RandomCounter, RandInfo.Seed1, RandInfo.Seed2, RandInfo.Seed3) * 1664525 + FIntVector4(1013904223);
 
-			v.X += v.Y*v.W;
-			v.Y += v.Z*v.X;
-			v.Z += v.X*v.Y;
-			v.W += v.Y*v.Z;
-			v.X += v.Y*v.W;
-			v.Y += v.Z*v.X;
-			v.Z += v.X*v.Y;
-			v.W += v.Y*v.Z;
+			v.X += v.Y * v.W;
+			v.Y += v.Z * v.X;
+			v.Z += v.X * v.Y;
+			v.W += v.Y * v.Z;
+			v.X += v.Y * v.W;
+			v.Y += v.Z * v.X;
+			v.Z += v.X * v.Y;
+			v.W += v.Y * v.Z;
 
 			// NOTE(mv): We can use 24 bits of randomness, as all integers in [0, 2^24] 
 			//           are exactly representable in single precision floats.
@@ -628,12 +634,12 @@ struct FNDIRandomHelper
 
 			FIntVector v = FIntVector(RandInfo.Seed1, RandInfo.Seed2, RandomCounter | (RandInfo.Seed3 << 16)) * 1664525 + FIntVector(1013904223);
 
-			v.X += v.Y*v.Z;
-			v.Y += v.Z*v.X;
-			v.Z += v.X*v.Y;
-			v.X += v.Y*v.Z;
-			v.Y += v.Z*v.X;
-			v.Z += v.X*v.Y;
+			v.X += v.Y * v.Z;
+			v.Y += v.Z * v.X;
+			v.Z += v.X * v.Y;
+			v.X += v.Y * v.Z;
+			v.Y += v.Z * v.X;
+			v.Z += v.X * v.Y;
 
 			return FVector((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
 		}
@@ -668,28 +674,41 @@ struct FNDIRandomHelper
 		}
 	}
 
+	FVectorVMExternalFunctionContext& Context;
+	FNDIParameter<FNiagaraRandInfo> RandParam;
+	FNiagaraRandInfo RandInfo;
+};
+
+template<typename TRandomPolicy>
+struct TNDIRandomHelper : public TRandomPolicy
+{
+	TNDIRandomHelper(FVectorVMExternalFunctionContext& InContext)
+		: TRandomPolicy(InContext)
+	{
+	}
+
 	FORCEINLINE_DEBUGGABLE FVector4 RandRange(int32 InstanceIndex, FVector4 Min, FVector4 Max) const
 	{
 		FVector4 Range = Max - Min;
-		return Min + (Rand(InstanceIndex) * Range);
+		return Min + (TRandomPolicy::Rand(InstanceIndex) * Range);
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector RandRange(int32 InstanceIndex, FVector Min, FVector Max) const
 	{
 		FVector Range = Max - Min;
-		return Min + (Rand(InstanceIndex) * Range);
+		return Min + (TRandomPolicy::Rand(InstanceIndex) * Range);
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector2D RandRange(int32 InstanceIndex, FVector2D Min, FVector2D Max) const
 	{
 		FVector2D Range = Max - Min;
-		return Min + (Rand(InstanceIndex) * Range);
+		return Min + (TRandomPolicy::Rand(InstanceIndex) * Range);
 	}
 
 	FORCEINLINE_DEBUGGABLE float RandRange(int32 InstanceIndex, float Min, float Max) const
 	{
 		float Range = Max - Min;
-		return Min + (Rand(InstanceIndex) * Range);
+		return Min + (TRandomPolicy::Rand(InstanceIndex) * Range);
 	}
 
 	FORCEINLINE_DEBUGGABLE int32 RandRange(int32 InstanceIndex, int32 Min, int32 Max) const
@@ -698,24 +717,22 @@ struct FNDIRandomHelper
 		//       numbers than using %.
 		// NOTE: Inclusive! So [0, x] instead of [0, x)
 		int32 Range = Max - Min;
-		return Min + (int(Rand(InstanceIndex) * (Range + 1)));
+		return Min + (int(TRandomPolicy::Rand(InstanceIndex) * (Range + 1)));
 	}
 
 	FORCEINLINE_DEBUGGABLE FVector RandomBarycentricCoord(int32 InstanceIndex) const
 	{
 		//TODO: This is gonna be slooooow. Move to an LUT possibly or find faster method.
 		//Can probably handle lower quality randoms / uniformity for a decent speed win.
-		FVector2D r = Rand2(InstanceIndex);
+		FVector2D r = TRandomPolicy::Rand2(InstanceIndex);
 		float sqrt0 = FMath::Sqrt(r.X);
 		float sqrt1 = FMath::Sqrt(r.Y);
 		return FVector(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
 	}
-
-	FVectorVMExternalFunctionContext& Context;
-	FNDIParameter<FNiagaraRandInfo> RandParam;
-
-	FNiagaraRandInfo RandInfo;
 };
+
+using FNDIRandomHelper = TNDIRandomHelper<FNDIRandomInfoPolicy>;
+using FNDIRandomHelperFromStream = TNDIRandomHelper<FNDIRandomStreamPolicy>;
 
 //Helper to deal with types with potentially several input registers.
 template<typename T>

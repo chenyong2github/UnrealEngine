@@ -3,7 +3,7 @@
 #include "NiagaraDataInterfaceStaticMeshDetails.h"
 #include "NiagaraDetailSourcedArrayBuilder.h"
 #include "NiagaraDataInterfaceDetails.h"
-#include "NiagaraDataInterfaceStaticMesh.h" 
+#include "Niagara/Private/DataInterface/NiagaraDataInterfaceStaticMesh.h" 
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailGroup.h"
@@ -41,7 +41,7 @@ void FNiagaraDataInterfaceStaticMeshDetails::CustomizeDetails(IDetailLayoutBuild
 	 MeshInterface->OnChanged().RemoveAll(this);
 	 MeshInterface->OnChanged().AddSP(this, &FNiagaraDataInterfaceStaticMeshDetails::OnInterfaceChanged);
 
-	 TWeakObjectPtr<USceneComponent> SceneComponent;
+	 USceneComponent* SceneComponent = nullptr;
 	 if (UNiagaraDataInterfaceStaticMesh* Interface = MeshInterface.Get())
 	 {
 		 MeshObject = Interface->GetStaticMesh(SceneComponent);
@@ -91,7 +91,7 @@ void FNiagaraDataInterfaceStaticMeshDetails::CustomizeDetails(IDetailLayoutBuild
 		 MeshObject = nullptr;
 	 }
 
-	 TWeakObjectPtr<USceneComponent> SceneComponent;
+	 USceneComponent* SceneComponent = nullptr;
 	 if (UNiagaraDataInterfaceStaticMesh* Interface = MeshInterface.Get())
 	 {
 		 MeshObject = Interface->GetStaticMesh(SceneComponent);
