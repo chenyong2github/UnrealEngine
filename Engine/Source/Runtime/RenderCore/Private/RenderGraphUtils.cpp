@@ -523,7 +523,16 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 		PassParameters,
 		TextureSize,
 		RectCoordBufferSRV,
-		NumRects);
+		NumRects,
+		/*BlendState*/ nullptr,
+		/*RasterizerState*/ nullptr,
+		/*DepthStencilState*/ nullptr,
+		/*StencilRef*/ 0,
+		/*TextureSize*/ TextureSize,
+		/*RectUVBufferSRV*/ nullptr,
+		/*DownsampleFactor*/ 1,
+		/*bSkipRenderPass*/ (PassParameters->RenderTargets.GetActiveCount()==0)
+		);
 }
 
 void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture)
