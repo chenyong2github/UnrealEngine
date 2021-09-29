@@ -10,14 +10,19 @@
 
 class SSearchBox;
 
-class SExpandableSearchArea : public SCompoundWidget
+DECLARE_DELEGATE(FOnSearchBoxShown)
+
+class SSearchToggleButton : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SExpandableSearchArea)
+	SLATE_BEGIN_ARGS(SSearchToggleButton)
 		: _Style(&FAppStyle::Get().GetWidgetStyle<FSearchBoxStyle>("SearchBox"))
 	{}
-		/** Style used to draw this search box */
+		/** Search box style (used to match the glass icon) */
 		SLATE_STYLE_ARGUMENT(FSearchBoxStyle, Style)
+
+		/** Event fired when the associated search box is made visible */
+		SLATE_EVENT(FOnSearchBoxShown, OnSearchBoxShown)
 
 	SLATE_END_ARGS()
 
@@ -30,12 +35,12 @@ public:
 	void SetExpanded(bool bInExpanded);
 private:
 
-	FReply OnExpandSearchClicked();
+	ECheckBoxState GetToggleButtonState() const;
+	void OnToggleButtonStateChanged(ECheckBoxState CheckBoxState);
 	EVisibility GetSearchBoxVisibility() const;
-	EVisibility GetSearchGlassVisibility() const;
-	const FSlateBrush* GetExpandSearchImage() const;
 private:
 	const FSearchBoxStyle* SearchStyle;
 	bool bIsExpanded;
+	FOnSearchBoxShown OnSearchBoxShown;
 	TWeakPtr<SSearchBox> SearchBoxPtr;
 };
