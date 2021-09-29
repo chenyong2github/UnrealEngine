@@ -13,6 +13,7 @@ protected:
 	FString BatchBaseFilename;
 	FString DumpDebugInfoPath;
 	bool bEnable16BitTypes = false;
+	bool bKeepEmbeddedPDB = false;
 	bool bDump = false;
 
 	TArray<FString> ExtraArguments;
@@ -157,6 +158,8 @@ public:
 
 			ExtraArguments.Add(L"/Fd");
 			ExtraArguments.Add(L".\\");
+
+			bKeepEmbeddedPDB = true;
 		}
 
 		// Reflection will be removed later, otherwise the disassembly won't contain variables
@@ -166,6 +169,11 @@ public:
 	inline FString GetDumpDebugInfoPath() const
 	{
 		return DumpDebugInfoPath;
+	}
+
+	inline bool ShouldKeepEmbeddedPDB() const
+	{
+		return bKeepEmbeddedPDB;
 	}
 
 	inline bool ShouldDump() const
