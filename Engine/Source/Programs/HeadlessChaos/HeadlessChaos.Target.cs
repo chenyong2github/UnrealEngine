@@ -3,7 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-[SupportedPlatforms(UnrealPlatformClass.Desktop)]
+[SupportedPlatforms("Win64")]
 public class HeadlessChaosTarget : TargetRules
 {
 	public HeadlessChaosTarget(TargetInfo Target) : base(Target)
@@ -11,7 +11,7 @@ public class HeadlessChaosTarget : TargetRules
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 
-        ExeBinariesSubFolder = "NotForLicensees";
+		ExeBinariesSubFolder = "NotForLicensees";
 		LaunchModuleName = "HeadlessChaos";
 
 		bBuildDeveloperTools = false;

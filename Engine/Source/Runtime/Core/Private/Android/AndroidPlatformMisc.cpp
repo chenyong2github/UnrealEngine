@@ -787,7 +787,11 @@ bool FAndroidMisc::UseRenderThread()
 
 int32 FAndroidMisc::NumberOfCores()
 {
+#if USE_ANDROID_JNI
 	int32 NumberOfCores = android_getCpuCount();
+#else
+	int32 NumberOfCores = 0;
+#endif
 
 	static int CalculatedNumberOfCores = 0;
 	if (CalculatedNumberOfCores == 0)

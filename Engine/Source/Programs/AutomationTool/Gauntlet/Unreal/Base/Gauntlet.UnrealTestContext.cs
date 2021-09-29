@@ -415,7 +415,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Target constraint that this test is run under
 		/// </summary>
-		public UnrealTargetConstraint Constraint;
+		public UnrealDeviceTargetConstraint Constraint;
 
 		public UnrealTestContext(UnrealBuildSource InBuildInfo, Dictionary<UnrealTargetRole, UnrealTestRoleContext> InRoleContexts, UnrealTestOptions InOptions)
 		{

@@ -68,7 +68,7 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="Context"></param>
 		/// <returns></returns>
-		public ExitCode RunTests(UnrealTestOptions ContextOptions)
+		public virtual ExitCode RunTests(UnrealTestOptions ContextOptions)
 		{
 			if (ContextOptions.Verbose)
 			{
@@ -129,7 +129,7 @@ namespace Gauntlet
 
 			DirectoryReference UnrealPath = new DirectoryReference(Environment.CurrentDirectory);
 					
-			// todo, pass this in as a BuildSource and remove the COntextOption params specific to finding builds
+			// todo, pass this in as a BuildSource and remove the ContextOption params specific to finding builds
 			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.ProjectPath, UnrealPath, ContextOptions.UsesSharedBuildType, ContextOptions.Build, ContextOptions.SearchPaths });
 
 			// Setup accounts
@@ -389,7 +389,7 @@ namespace Gauntlet
 				List<string> ModelArgs = CombinedParams.ParseValues("PerfModel", false);
 				string Model = ModelArgs.Count > 0 ? ModelArgs.Last() : string.Empty;
 
-				TestContext.Constraint = new UnrealTargetConstraint(UnrealPlatform, PerfSpec, Model);
+				TestContext.Constraint = new UnrealDeviceTargetConstraint(UnrealPlatform, PerfSpec, Model);
 
 				// parse worker job id
 				List<string> WorkerJobIDArgs = CombinedParams.ParseValues("WorkerJobID", false);

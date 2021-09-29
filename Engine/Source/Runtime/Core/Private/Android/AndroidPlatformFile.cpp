@@ -986,7 +986,9 @@ public:
 	FAndroidPlatformFile()
 		: AssetMgr(nullptr)
 	{
+#if USE_ANDROID_JNI
 		AssetMgr = AndroidThunkCpp_GetAssetManager();
+#endif
 	}
 
 	//~ For visibility of overloads we don't override
@@ -1953,10 +1955,12 @@ public:
 		return false;
 	}
 
+#if USE_ANDROID_JNI
 	virtual jobject GetAssetManager() override
 	{
 		return AndroidJNI_GetJavaAssetManager();
 	}
+#endif
 
 	virtual bool IsAsset(const TCHAR* Filename) override
 	{
