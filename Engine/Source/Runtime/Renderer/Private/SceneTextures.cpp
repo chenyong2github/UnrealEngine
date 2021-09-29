@@ -1104,20 +1104,22 @@ void SetupMobileSceneTextureUniformParameters(
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	SceneTextureParameters.SceneColorTexture = SystemTextures.Black;
-	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SceneTextureParameters.SceneColorTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneDepthTexture = SystemTextures.DepthDummy;
-	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	SceneTextureParameters.CustomDepthTexture = SystemTextures.MaxFP16Depth;
+	SceneTextureParameters.SceneDepthTextureSampler = TStaticSamplerState<>::GetRHI();
+	// CustomDepthTexture is a color texture on mobile, with DeviceZ values
+	SceneTextureParameters.CustomDepthTexture = SystemTextures.Black;
 	SceneTextureParameters.CustomDepthTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.MobileCustomStencilTexture = SystemTextures.Black;
-	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneVelocityTexture = SystemTextures.Black;
-	SceneTextureParameters.SceneVelocityTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SceneTextureParameters.SceneVelocityTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferATexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferBTexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferCTexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferDTexture = SystemTextures.Black;
-	SceneTextureParameters.SceneDepthAuxTexture = SystemTextures.MaxFP16Depth;
+	// SceneDepthAuxTexture is a color texture on mobile, with DeviceZ values
+	SceneTextureParameters.SceneDepthAuxTexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferATextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferBTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.GBufferCTextureSampler = TStaticSamplerState<>::GetRHI();
