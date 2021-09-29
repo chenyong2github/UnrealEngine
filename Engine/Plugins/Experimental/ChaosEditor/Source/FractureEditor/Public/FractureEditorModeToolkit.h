@@ -82,7 +82,6 @@ public:
 	~FFractureEditorModeToolkit();
 	
 	/** FModeToolkit interface */
-	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
