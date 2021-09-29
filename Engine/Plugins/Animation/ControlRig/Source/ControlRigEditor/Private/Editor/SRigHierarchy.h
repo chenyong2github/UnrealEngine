@@ -148,13 +148,13 @@ private:
 	FReply OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
 
 	const FName ContextMenuName = TEXT("ControlRigEditor.RigHierarchy.ContextMenu");
-	void CreateContextMenu();
-	UToolMenu* GetContextMenu() const;
+	void CreateContextMenu() const;
+	UToolMenu* GetContextMenu();
 	TSharedPtr<FUICommandList> GetContextMenuCommands() const;
 	
 	const FName DragDropMenuName = TEXT("ControlRigEditor.RigHierarchy.DragDropMenu");
-	void CreateDragDropMenu();
-	UToolMenu* GetDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey) const;
+	void CreateDragDropMenu() const;
+	UToolMenu* GetDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey);
 
 	/** Our owning control rig editor */
 	TWeakPtr<FControlRigEditor> ControlRigEditor;

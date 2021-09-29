@@ -925,7 +925,7 @@ void SRigHierarchy::OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, 
 	TreeView->SetExpansionRecursive(InItem, false, bShouldBeExpanded);
 }
 
-void SRigHierarchy::CreateDragDropMenu()
+void SRigHierarchy::CreateDragDropMenu() const
 {
 	const FName MenuName = DragDropMenuName;
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -935,60 +935,62 @@ void SRigHierarchy::CreateDragDropMenu()
 		return;
 	}
 
-	UToolMenu* Menu	 = nullptr;
 	if (!ToolMenus->IsMenuRegistered(MenuName))
 	{
-		Menu = ToolMenus->RegisterMenu(MenuName);
-	}
-	else
-	{
-		Menu = ToolMenus->FindMenu(MenuName);
-	}
+		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
 
-	if (ensure(Menu))
-	{
-		FToolMenuEntry ParentEntry = FToolMenuEntry::InitMenuEntry(
-			TEXT("Parent"),
-			LOCTEXT("DragDropMenu_Parent", "Parent"),
-			LOCTEXT("DragDropMenu_Parent_ToolTip", "Parent Selected Items to the Target Item"),
-			FSlateIcon(),
-			FToolMenuExecuteAction::CreateSP(this, &SRigHierarchy::HandleParent)
-		);
-
-		ParentEntry.InsertPosition.Position = EToolMenuInsertType::First;
-		Menu->AddMenuEntry(NAME_None, ParentEntry);
-
-		UToolMenu* AlignMenu = Menu->AddSubMenu(
-			ToolMenus->CurrentOwner(),
-			NAME_None,
-			TEXT("Align"),
-			LOCTEXT("DragDropMenu_Align", "Align"),
-			LOCTEXT("DragDropMenu_Align_ToolTip", "Align Selected Items' Transforms to Target Item's Transform")
-		);
-
-		if (FToolMenuSection* DefaultSection = Menu->FindSection(NAME_None))
-		{
-			if (FToolMenuEntry* AlignMenuEntry = DefaultSection->FindEntry(TEXT("Align")))
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
-				AlignMenuEntry->InsertPosition.Name = ParentEntry.Name;
-				AlignMenuEntry->InsertPosition.Position = EToolMenuInsertType::After;
-			}
-		}
-
-		FToolMenuEntry AlignAllEntry = FToolMenuEntry::InitMenuEntry(
-			TEXT("All"),
-			LOCTEXT("DragDropMenu_Align_All", "All"),
-			LOCTEXT("DragDropMenu_Align_All_ToolTip", "Align Selected Items' Transforms to Target Item's Transform"),
-			FSlateIcon(),
-			FToolMenuExecuteAction::CreateSP(this, &SRigHierarchy::HandleAlign)
+				UToolMenus* ToolMenus = UToolMenus::Get();
+				UControlRigContextMenuContext* MainContext = InMenu->FindContext<UControlRigContextMenuContext>();
+				
+				if (SRigHierarchy* RigHierarchyPanel = MainContext->GetRigHierarchyPanel())
+				{
+					FToolMenuEntry ParentEntry = FToolMenuEntry::InitMenuEntry(
+                        TEXT("Parent"),
+                        LOCTEXT("DragDropMenu_Parent", "Parent"),
+                        LOCTEXT("DragDropMenu_Parent_ToolTip", "Parent Selected Items to the Target Item"),
+                        FSlateIcon(),
+                        FToolMenuExecuteAction::CreateSP(RigHierarchyPanel, &SRigHierarchy::HandleParent)
+                    );
+		
+                    ParentEntry.InsertPosition.Position = EToolMenuInsertType::First;
+                    InMenu->AddMenuEntry(NAME_None, ParentEntry);
+		
+                    UToolMenu* AlignMenu = InMenu->AddSubMenu(
+                        ToolMenus->CurrentOwner(),
+                        NAME_None,
+                        TEXT("Align"),
+                        LOCTEXT("DragDropMenu_Align", "Align"),
+                        LOCTEXT("DragDropMenu_Align_ToolTip", "Align Selected Items' Transforms to Target Item's Transform")
+                    );
+		
+                    if (FToolMenuSection* DefaultSection = InMenu->FindSection(NAME_None))
+                    {
+                        if (FToolMenuEntry* AlignMenuEntry = DefaultSection->FindEntry(TEXT("Align")))
+                        {
+                            AlignMenuEntry->InsertPosition.Name = ParentEntry.Name;
+                            AlignMenuEntry->InsertPosition.Position = EToolMenuInsertType::After;
+                        }
+                    }
+		
+                    FToolMenuEntry AlignAllEntry = FToolMenuEntry::InitMenuEntry(
+                        TEXT("All"),
+                        LOCTEXT("DragDropMenu_Align_All", "All"),
+                        LOCTEXT("DragDropMenu_Align_All_ToolTip", "Align Selected Items' Transforms to Target Item's Transform"),
+                        FSlateIcon(),
+                        FToolMenuExecuteAction::CreateSP(RigHierarchyPanel, &SRigHierarchy::HandleAlign)
+                    );
+                    AlignAllEntry.InsertPosition.Position = EToolMenuInsertType::First;
+		
+                    AlignMenu->AddMenuEntry(NAME_None, AlignAllEntry);	
+				}
+			})
 		);
-		AlignAllEntry.InsertPosition.Position = EToolMenuInsertType::First;
-
-		AlignMenu->AddMenuEntry(NAME_None, AlignAllEntry);
 	}
 }
 
-UToolMenu* SRigHierarchy::GetDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey) const
+UToolMenu* SRigHierarchy::GetDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey)
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	if (!ensure(ToolMenus))
@@ -1000,17 +1002,17 @@ UToolMenu* SRigHierarchy::GetDragDropMenu(const TArray<FRigElementKey>& DraggedK
 	UControlRigContextMenuContext* MenuContext = NewObject<UControlRigContextMenuContext>();
 	FControlRigMenuSpecificContext MenuSpecificContext;
 	MenuSpecificContext.RigHierarchyDragAndDropContext = FControlRigRigHierarchyDragAndDropContext(DraggedKeys, TargetKey);
-	MenuContext->Init(ControlRigBlueprint, MenuSpecificContext);
+	MenuSpecificContext.RigHierarchyPanel = SharedThis(this);
+	MenuContext->Init(ControlRigEditor, MenuSpecificContext);
 	
 	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, FToolMenuContext(MenuContext));
 
 	return Menu;
 }
 
-void SRigHierarchy::CreateContextMenu()
+void SRigHierarchy::CreateContextMenu() const
 {
 	const FName MenuName = ContextMenuName;
-	const FName InteractionSectionName = TEXT("Interaction");
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	
@@ -1019,60 +1021,47 @@ void SRigHierarchy::CreateContextMenu()
 		return;
 	}
 	
-	const FControlRigHierarchyCommands& Commands = FControlRigHierarchyCommands::Get();
-	
-	UToolMenu* Menu = nullptr;
-	
 	if (!ToolMenus->IsMenuRegistered(MenuName))
 	{
-		Menu = ToolMenus->RegisterMenu(MenuName);
-	}
-	else
-	{
-		Menu = ToolMenus->FindMenu(MenuName);
-	}
-
-	if (ensure(Menu))
-	{
-		struct FLocalMenuBuilder
-		{
-			static void FillNewMenu(FMenuBuilder& InSubMenuBuilder, TSharedPtr<SRigHierarchyTreeView> InTreeView)
+		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
+		
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
-				const FControlRigHierarchyCommands& Actions = FControlRigHierarchyCommands::Get();
-
-				FRigElementKey SelectedKey;
-				TArray<TSharedPtr<FRigTreeElement>> SelectedItems = InTreeView->GetSelectedItems();
-				if (SelectedItems.Num() > 0)
+				UControlRigContextMenuContext* MainContext = InMenu->FindContext<UControlRigContextMenuContext>();
+				
+				if (SRigHierarchy* RigHierarchyPanel = MainContext->GetRigHierarchyPanel())
 				{
-					SelectedKey = SelectedItems[0]->Key;
-				}
+					const FControlRigHierarchyCommands& Commands = FControlRigHierarchyCommands::Get(); 
+				
+					FToolMenuSection& ElementsSection = InMenu->AddSection(TEXT("Elements"), LOCTEXT("ElementsHeader", "Elements"));
+					ElementsSection.AddSubMenu(TEXT("New"), LOCTEXT("New", "New"), LOCTEXT("New_ToolTip", "Create New Elements"),
+						FNewToolMenuDelegate::CreateLambda([Commands, RigHierarchyPanel](UToolMenu* InSubMenu)
+						{
+							FToolMenuSection& DefaultSection = InSubMenu->AddSection(NAME_None);
+							FRigElementKey SelectedKey;
+							TArray<TSharedPtr<FRigTreeElement>> SelectedItems = RigHierarchyPanel->TreeView->GetSelectedItems();
+							if (SelectedItems.Num() > 0)
+							{
+								SelectedKey = SelectedItems[0]->Key;
+							}
+							
+							if (!SelectedKey || SelectedKey.Type == ERigElementType::Bone)
+							{
+								DefaultSection.AddMenuEntry(Commands.AddBoneItem);
+							}
+							DefaultSection.AddMenuEntry(Commands.AddControlItem);
+							DefaultSection.AddMenuEntry(Commands.AddNullItem);
+						})
+					);
+					
+					ElementsSection.AddMenuEntry(Commands.DeleteItem);
+					ElementsSection.AddMenuEntry(Commands.DuplicateItem);
+					ElementsSection.AddMenuEntry(Commands.RenameItem);
+					ElementsSection.AddMenuEntry(Commands.MirrorItem);
 
-				if (!SelectedKey || SelectedKey.Type == ERigElementType::Bone)
-				{
-					InSubMenuBuilder.AddMenuEntry(Actions.AddBoneItem);
-				}
-				InSubMenuBuilder.AddMenuEntry(Actions.AddControlItem);
-				InSubMenuBuilder.AddMenuEntry(Actions.AddNullItem);
-			}
-		};
-
-		FToolMenuSection& ElementsSection = Menu->AddSection(TEXT("Elements"), LOCTEXT("ElementsHeader", "Elements"));
-		ElementsSection.AddSubMenu(TEXT("New"), LOCTEXT("New", "New"), LOCTEXT("New_ToolTip", "Create New Elements"),
-								   FNewMenuDelegate::CreateStatic(&FLocalMenuBuilder::FillNewMenu, TreeView));
-		ElementsSection.AddMenuEntry(Commands.DeleteItem);
-		ElementsSection.AddMenuEntry(Commands.DuplicateItem);
-		ElementsSection.AddMenuEntry(Commands.RenameItem);
-		ElementsSection.AddMenuEntry(Commands.MirrorItem);
-
-		// dynamic section is used here so that the whole section can hide when a condition is not met
-		Menu->AddDynamicSection(InteractionSectionName,
-			FNewToolMenuDelegate::CreateLambda([InteractionSectionName, Commands, WeakThis = TWeakPtr<SRigHierarchy>(SharedThis(this)) ](UToolMenu* InMenu)
-			{
-				if (const TSharedPtr<SRigHierarchy> RigHierarchyPanel = WeakThis.Pin())
-				{
 					if (RigHierarchyPanel->IsSingleBoneSelected() || RigHierarchyPanel->IsControlSelected())
 					{
-						FToolMenuSection& InteractionSection = InMenu->AddSection(InteractionSectionName, LOCTEXT("InteractionHeader", "Interaction"));
+						FToolMenuSection& InteractionSection = InMenu->AddSection(TEXT("Interaction"), LOCTEXT("InteractionHeader", "Interaction"));
 						if(RigHierarchyPanel->IsSingleBoneSelected())
 						{
 							InteractionSection.AddMenuEntry(Commands.ControlBoneTransform);
@@ -1082,39 +1071,38 @@ void SRigHierarchy::CreateContextMenu()
 							InteractionSection.AddMenuEntry(Commands.TestSpaceSwitching);
 						}
 					}
-				}
-			}),
-			FToolMenuInsert(TEXT("Elements"), EToolMenuInsertType::After)
-		);
-		
-		FToolMenuSection& CopyPasteSection = Menu->AddSection(TEXT("Copy&Paste"), LOCTEXT("Copy&PasteHeader", "Copy & Paste"));
-		CopyPasteSection.AddMenuEntry(Commands.CopyItems);
-		CopyPasteSection.AddMenuEntry(Commands.PasteItems);
-		CopyPasteSection.AddMenuEntry(Commands.PasteLocalTransforms);
-		CopyPasteSection.AddMenuEntry(Commands.PasteGlobalTransforms);
-		
-		FToolMenuSection& TransformsSection = Menu->AddSection(TEXT("Transforms"), LOCTEXT("TransformsHeader", "Transforms"));
-		TransformsSection.AddMenuEntry(Commands.ResetTransform);
-		TransformsSection.AddMenuEntry(Commands.ResetAllTransforms);
-		TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromCurrentTransform);
-		TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromClosestBone);
-		TransformsSection.AddMenuEntry(Commands.SetGizmoTransformFromCurrent);
-		TransformsSection.AddMenuEntry(Commands.Unparent);
+					
+					FToolMenuSection& CopyPasteSection = InMenu->AddSection(TEXT("Copy&Paste"), LOCTEXT("Copy&PasteHeader", "Copy & Paste"));
+					CopyPasteSection.AddMenuEntry(Commands.CopyItems);
+					CopyPasteSection.AddMenuEntry(Commands.PasteItems);
+					CopyPasteSection.AddMenuEntry(Commands.PasteLocalTransforms);
+					CopyPasteSection.AddMenuEntry(Commands.PasteGlobalTransforms);
+					
+					FToolMenuSection& TransformsSection = InMenu->AddSection(TEXT("Transforms"), LOCTEXT("TransformsHeader", "Transforms"));
+					TransformsSection.AddMenuEntry(Commands.ResetTransform);
+					TransformsSection.AddMenuEntry(Commands.ResetAllTransforms);
+					TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromCurrentTransform);
+					TransformsSection.AddMenuEntry(Commands.SetInitialTransformFromClosestBone);
+					TransformsSection.AddMenuEntry(Commands.SetGizmoTransformFromCurrent);
+					TransformsSection.AddMenuEntry(Commands.Unparent);
 
-		FToolMenuSection& AssetsSection = Menu->AddSection(TEXT("Assets"), LOCTEXT("AssetsHeader", "Assets"));
-		AssetsSection.AddSubMenu(TEXT("Import"), LOCTEXT("ImportSubMenu", "Import"),
-			LOCTEXT("ImportSubMenu_ToolTip", "Import hierarchy to the current rig. This only imports non-existing node. For example, if there is hand_r, it won't import hand_r. If you want to reimport whole new hiearchy, delete all nodes, and use import hierarchy."),
-			FNewMenuDelegate::CreateSP(this, &SRigHierarchy::CreateImportMenu)
-		);
-		
-		AssetsSection.AddSubMenu(TEXT("Refresh"), LOCTEXT("RefreshSubMenu", "Refresh"),
-			LOCTEXT("RefreshSubMenu_ToolTip", "Refresh the existing initial transform from the selected mesh. This only updates if the node is found."),
-			FNewMenuDelegate::CreateSP(this, &SRigHierarchy::CreateRefreshMenu)
+					FToolMenuSection& AssetsSection = InMenu->AddSection(TEXT("Assets"), LOCTEXT("AssetsHeader", "Assets"));
+					AssetsSection.AddSubMenu(TEXT("Import"), LOCTEXT("ImportSubMenu", "Import"),
+						LOCTEXT("ImportSubMenu_ToolTip", "Import hierarchy to the current rig. This only imports non-existing node. For example, if there is hand_r, it won't import hand_r. If you want to reimport whole new hiearchy, delete all nodes, and use import hierarchy."),
+						FNewMenuDelegate::CreateSP(RigHierarchyPanel, &SRigHierarchy::CreateImportMenu)
+					);
+					
+					AssetsSection.AddSubMenu(TEXT("Refresh"), LOCTEXT("RefreshSubMenu", "Refresh"),
+						LOCTEXT("RefreshSubMenu_ToolTip", "Refresh the existing initial transform from the selected mesh. This only updates if the node is found."),
+						FNewMenuDelegate::CreateSP(RigHierarchyPanel, &SRigHierarchy::CreateRefreshMenu)
+					);	
+				}
+			})
 		);
 	}
 }
 
-UToolMenu* SRigHierarchy::GetContextMenu() const
+UToolMenu* SRigHierarchy::GetContextMenu()
 {
 	const FName MenuName = ContextMenuName;
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -1126,7 +1114,9 @@ UToolMenu* SRigHierarchy::GetContextMenu() const
 
 	// individual entries in this menu can access members of this context, particularly useful for editor scripting
 	UControlRigContextMenuContext* ContextMenuContext = NewObject<UControlRigContextMenuContext>();
-	ContextMenuContext->Init(ControlRigBlueprint);
+	FControlRigMenuSpecificContext MenuSpecificContext;
+	MenuSpecificContext.RigHierarchyPanel = SharedThis(this);
+	ContextMenuContext->Init(ControlRigEditor, MenuSpecificContext);
 
 	FToolMenuContext MenuContext(CommandList);
 	MenuContext.AddObject(ContextMenuContext);

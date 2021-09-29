@@ -529,6 +529,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}, TStatId(), NULL, ENamedThreads::GameThread);
 
 	UpdateCapsules();
+	
+	CreateRigHierarchyToGraphDragAndDropMenu();
 }
 
 void FControlRigEditor::BindCommands()
@@ -2034,12 +2036,12 @@ void FControlRigEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 			}
 		}
 		
-		UControlRigContextMenuContext* ControlRigContext = NewObject<UControlRigContextMenuContext>();
+		UControlRigContextMenuContext* ControlRigMenuContext = NewObject<UControlRigContextMenuContext>();
 		FControlRigMenuSpecificContext MenuSpecificContext;	
 		MenuSpecificContext.GraphNodeContextMenuContext = FControlRigGraphNodeContextMenuContext(Model, Node, Pin);
-		ControlRigContext->Init(RigBlueprint, MenuSpecificContext);
+		ControlRigMenuContext->Init(SharedThis(this), MenuSpecificContext);
 
-		MenuContext.AddObject(ControlRigContext);
+		MenuContext.AddObject(ControlRigMenuContext);
 	}
 }
 
@@ -5166,6 +5168,272 @@ void FControlRigEditor::OnCurveContainerChanged()
 	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 }
 
+void FControlRigEditor::CreateRigHierarchyToGraphDragAndDropMenu() const
+{
+	const FName MenuName = RigHierarchyToGraphDragAndDropMenuName;
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	
+	if(!ensure(ToolMenus))
+	{
+		return;
+	}
+
+	if (!ToolMenus->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
+
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+			{
+				UControlRigContextMenuContext* MainContext = InMenu->FindContext<UControlRigContextMenuContext>();
+				
+				if (FControlRigEditor* ControlRigEditor = MainContext->GetControlRigEditor())
+				{
+					const FControlRigRigHierarchyToGraphDragAndDropContext& DragDropContext = MainContext->GetRigHierarchyToGraphDragAndDropContext();
+
+					UControlRigBlueprint* Blueprint = MainContext->GetControlRigBlueprint();
+					const TArray<FRigElementKey>& DraggedKeys = DragDropContext.DraggedElementKeys;
+					UEdGraph* Graph = DragDropContext.Graph.Get();
+					const FVector2D& NodePosition = DragDropContext.NodePosition;
+					
+					// if multiple types are selected, we show Get Elements/Set Elements
+					bool bMultipleTypeSelected = false;
+
+					ERigElementType LastType = ERigElementType::None;
+			
+					if (DraggedKeys.Num() > 0)
+					{
+						LastType = DraggedKeys[0].Type;
+					}
+			
+					uint8 DraggedTypes = 0;
+					for (const FRigElementKey& DraggedKey : DragDropContext.DraggedElementKeys)
+					{
+						if (DraggedKey.Type != LastType)
+						{
+							bMultipleTypeSelected = true;
+						}
+				
+						DraggedTypes = DraggedTypes | (uint8)DraggedKey.Type;
+					}
+					
+					const FText SectionText = FText::FromString(DragDropContext.GetSectionTitle());
+					FToolMenuSection& Section = InMenu->AddSection(NAME_None, SectionText);
+
+					FText GetterLabel = LOCTEXT("GetElement","Get Element");
+					FText GetterTooltip = LOCTEXT("GetElement_ToolTip", "Getter For Element");
+					FText SetterLabel = LOCTEXT("SetElement","Set Element");
+					FText SetterTooltip = LOCTEXT("SetElement_ToolTip", "Setter For Element");
+					// if multiple types are selected, we show Get Elements/Set Elements
+					if (bMultipleTypeSelected)
+					{
+						GetterLabel = LOCTEXT("GetElements","Get Elements");
+						GetterTooltip = LOCTEXT("GetElements_ToolTip", "Getter For Elements");
+						SetterLabel = LOCTEXT("SetElements","Set Elements");
+						SetterTooltip = LOCTEXT("SetElements_ToolTip", "Setter For Elements");
+					}
+					else
+					{
+						// otherwise, we show "Get Bone/NUll/Control"
+						if ((DraggedTypes & (uint8)ERigElementType::Bone) != 0)
+						{
+							GetterLabel = LOCTEXT("GetBone","Get Bone");
+							GetterTooltip = LOCTEXT("GetBone_ToolTip", "Getter For Bone");
+							SetterLabel = LOCTEXT("SetBone","Set Bone");
+							SetterTooltip = LOCTEXT("SetBone_ToolTip", "Setter For Bone");
+						}
+						else if ((DraggedTypes & (uint8)ERigElementType::Null) != 0)
+						{
+							GetterLabel = LOCTEXT("GetNull","Get Null");
+							GetterTooltip = LOCTEXT("GetNull_ToolTip", "Getter For Null");
+							SetterLabel = LOCTEXT("SetNull","Set Null");
+							SetterTooltip = LOCTEXT("SetNull_eoolTip", "Setter For Null");
+						}
+						else if ((DraggedTypes & (uint8)ERigElementType::Control) != 0)
+						{
+							GetterLabel = LOCTEXT("GetControl","Get Control");
+							GetterTooltip = LOCTEXT("GetControl_ToolTip", "Getter For Control");
+							SetterLabel = LOCTEXT("SetControl","Set Control");
+							SetterTooltip = LOCTEXT("SetControl_ToolTip", "Setter For Control");
+						}
+					}
+
+					FToolMenuEntry GetElementsEntry = FToolMenuEntry::InitMenuEntry(
+						TEXT("GetElements"),
+						GetterLabel,
+						GetterTooltip,
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(ControlRigEditor, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Transform, true, DraggedKeys, Graph, NodePosition),
+							FCanExecuteAction()
+						)
+					);
+					GetElementsEntry.InsertPosition.Name = NAME_None;
+					GetElementsEntry.InsertPosition.Position = EToolMenuInsertType::First;
+					
+
+					Section.AddEntry(GetElementsEntry);
+
+					FToolMenuEntry SetElementsEntry = FToolMenuEntry::InitMenuEntry(
+						TEXT("SetElements"),
+						SetterLabel,
+						SetterTooltip,
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(ControlRigEditor, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Transform, false, DraggedKeys, Graph, NodePosition),
+							FCanExecuteAction()
+						)
+					);
+					SetElementsEntry.InsertPosition.Name = GetElementsEntry.Name;
+					SetElementsEntry.InsertPosition.Position = EToolMenuInsertType::After;	
+
+					Section.AddEntry(SetElementsEntry);
+
+					if (((DraggedTypes & (uint8)ERigElementType::Bone) != 0) ||
+						((DraggedTypes & (uint8)ERigElementType::Control) != 0) ||
+						((DraggedTypes & (uint8)ERigElementType::Null) != 0))
+					{
+						FToolMenuEntry& RotationTranslationSeparator = Section.AddSeparator(TEXT("RotationTranslationSeparator"));
+						RotationTranslationSeparator.InsertPosition.Name = SetElementsEntry.Name;
+						RotationTranslationSeparator.InsertPosition.Position = EToolMenuInsertType::After;
+
+						FToolMenuEntry SetRotationEntry = FToolMenuEntry::InitMenuEntry(
+							TEXT("SetRotation"),
+							LOCTEXT("SetRotation","Set Rotation"),
+							LOCTEXT("SetRotation_ToolTip","Setter for Rotation"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(ControlRigEditor, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Rotation, false, DraggedKeys, Graph, NodePosition),
+								FCanExecuteAction()
+							)
+						);
+						
+						SetRotationEntry.InsertPosition.Name = RotationTranslationSeparator.Name;
+						SetRotationEntry.InsertPosition.Position = EToolMenuInsertType::After;		
+						Section.AddEntry(SetRotationEntry);
+
+						FToolMenuEntry SetTranslationEntry = FToolMenuEntry::InitMenuEntry(
+							TEXT("SetTranslation"),
+							LOCTEXT("SetTranslation","Set Translation"),
+							LOCTEXT("SetTranslation_ToolTip","Setter for Translation"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(ControlRigEditor, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Translation, false, DraggedKeys, Graph, NodePosition),
+								FCanExecuteAction()
+							)
+						);
+
+						SetTranslationEntry.InsertPosition.Name = SetRotationEntry.Name;
+						SetTranslationEntry.InsertPosition.Position = EToolMenuInsertType::After;		
+						Section.AddEntry(SetTranslationEntry);
+
+						FToolMenuEntry AddOffsetEntry = FToolMenuEntry::InitMenuEntry(
+							TEXT("AddOffset"),
+							LOCTEXT("AddOffset","Add Offset"),
+							LOCTEXT("AddOffset_ToolTip","Setter for Offset"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(ControlRigEditor, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Offset, false, DraggedKeys, Graph, NodePosition),
+								FCanExecuteAction()
+							)
+						);
+						
+						AddOffsetEntry.InsertPosition.Name = SetTranslationEntry.Name;
+						AddOffsetEntry.InsertPosition.Position = EToolMenuInsertType::After;						
+						Section.AddEntry(AddOffsetEntry);
+
+						FToolMenuEntry& RelativeTransformSeparator = Section.AddSeparator(TEXT("RelativeTransformSeparator"));
+						RelativeTransformSeparator.InsertPosition.Name = AddOffsetEntry.Name;
+						RelativeTransformSeparator.InsertPosition.Position = EToolMenuInsertType::After;
+						
+						FToolMenuEntry GetRelativeTransformEntry = FToolMenuEntry::InitMenuEntry(
+							TEXT("GetRelativeTransformEntry"),
+							LOCTEXT("GetRelativeTransform", "Get Relative Transform"),
+							LOCTEXT("GetRelativeTransform_ToolTip", "Getter for Relative Transform"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(ControlRigEditor, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, true, DraggedKeys, Graph, NodePosition),
+								FCanExecuteAction()
+							)
+						);
+						
+						GetRelativeTransformEntry.InsertPosition.Name = RelativeTransformSeparator.Name;
+						GetRelativeTransformEntry.InsertPosition.Position = EToolMenuInsertType::After;	
+						Section.AddEntry(GetRelativeTransformEntry);
+						
+						FToolMenuEntry SetRelativeTransformEntry = FToolMenuEntry::InitMenuEntry(
+							TEXT("SetRelativeTransformEntry"),
+							LOCTEXT("SetRelativeTransform", "Set Relative Transform"),
+							LOCTEXT("SetRelativeTransform_ToolTip", "Setter for Relative Transform"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateSP(ControlRigEditor, &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, false, DraggedKeys, Graph, NodePosition),
+								FCanExecuteAction()
+							)
+						);
+						SetRelativeTransformEntry.InsertPosition.Name = GetRelativeTransformEntry.Name;
+						SetRelativeTransformEntry.InsertPosition.Position = EToolMenuInsertType::After;		
+						Section.AddEntry(SetRelativeTransformEntry);
+					}
+
+					if (DraggedKeys.Num() > 0 && Blueprint != nullptr)
+					{
+						FToolMenuEntry& ItemArraySeparator = Section.AddSeparator(TEXT("ItemArraySeparator"));
+						ItemArraySeparator.InsertPosition.Name = TEXT("SetRelativeTransformEntry"),
+						ItemArraySeparator.InsertPosition.Position = EToolMenuInsertType::After;
+						
+						FToolMenuEntry CreateItemArrayEntry = FToolMenuEntry::InitMenuEntry(
+							TEXT("CreateItemArray"),
+							LOCTEXT("CreateItemArray", "Create Item Array"),
+							LOCTEXT("CreateItemArray_ToolTip", "Creates an item array from the selected elements in the hierarchy"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateLambda([ControlRigEditor, Blueprint, DraggedKeys, NodePosition]()
+									{
+										if (URigVMController* Controller = ControlRigEditor->GetFocusedController())
+										{
+											Controller->OpenUndoBracket(TEXT("Create Item Array From Selection"));
+
+											static const FString ItemArrayCPPType = FString::Printf(TEXT("TArray<%s>"), *FRigElementKey::StaticStruct()->GetStructCPPName());
+											static const FString ItemArrayObjectPath = FRigElementKey::StaticStruct()->GetPathName();
+							
+											if (URigVMNode* ItemsNode = Controller->AddFreeRerouteNode(true, ItemArrayCPPType, *ItemArrayObjectPath, false, NAME_None, FString(), NodePosition))
+											{
+												if (URigVMPin* ItemsPin = ItemsNode->FindPin(TEXT("Value")))
+												{
+													Controller->SetArrayPinSize(ItemsPin->GetPinPath(), DraggedKeys.Num());
+
+													TArray<URigVMPin*> ItemPins = ItemsPin->GetSubPins();
+													ensure(ItemPins.Num() == DraggedKeys.Num());
+
+													for (int32 ItemIndex = 0; ItemIndex < DraggedKeys.Num(); ItemIndex++)
+													{
+														FString DefaultValue;
+														FRigElementKey::StaticStruct()->ExportText(DefaultValue, &DraggedKeys[ItemIndex], nullptr, nullptr, PPF_None, nullptr);
+														Controller->SetPinDefaultValue(ItemPins[ItemIndex]->GetPinPath(), DefaultValue, true, true, false, true);
+														Controller->SetPinExpansion(ItemPins[ItemIndex]->GetPinPath(), true, true, true);
+													}
+
+													Controller->SetPinExpansion(ItemsPin->GetPinPath(), true, true, true);
+												}
+											}
+
+											Controller->CloseUndoBracket();
+										}
+									}
+								)
+							)
+						);
+						
+						CreateItemArrayEntry.InsertPosition.Name = ItemArraySeparator.Name,
+						CreateItemArrayEntry.InsertPosition.Position = EToolMenuInsertType::After;
+						Section.AddEntry(CreateItemArrayEntry);
+					}
+				}
+			})
+		);
+	}
+}
+
 void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> InDragDropOp, UEdGraph* InGraph, const FVector2D& InNodePosition, const FVector2D& InScreenPosition)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -5176,269 +5444,8 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 
 		if (RigHierarchyOp->GetElements().Num() > 0 && FocusedGraphEdPtr.IsValid())
 		{
-			const FName MenuName = TEXT("ControlRigEditor.RigHierarchyToGraphDragAndDropMenu");
-			UToolMenus* ToolMenus = UToolMenus::Get();
+			const FName MenuName = RigHierarchyToGraphDragAndDropMenuName;
 			
-			if (!ToolMenus->IsMenuRegistered(MenuName))
-			{
-				UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
-				
-				const FName SectionName = TEXT("RigHierarchyToGraphDragAndDropSection");
-				const FName DynamicSectionName = *(SectionName.ToString() + TEXT("Dynamic"));
-				
-				Menu->AddDynamicSection( DynamicSectionName,
-                    FNewToolMenuDelegate::CreateLambda([
-                    	SectionName,
-                    	WeakThis = TWeakPtr<FControlRigEditor>(SharedThis(this))](UToolMenu* InMenu)
-                    {
-                        if (const TSharedPtr<FControlRigEditor> ControlRigEditor = WeakThis.Pin())
-                        {
-							UControlRigContextMenuContext* MainContext = InMenu->FindContext<UControlRigContextMenuContext>();
-							const FControlRigRigHierarchyToGraphDragAndDropContext& DragDropContext = MainContext->GetRigHierarchyToGraphDragAndDropContext();
-
-                        	UControlRigBlueprint* Blueprint = MainContext->GetControlRigBlueprint();
-							const TArray<FRigElementKey>& DraggedKeys = DragDropContext.DraggedElementKeys;
-                        	UEdGraph* Graph = DragDropContext.Graph.Get();
-                        	const FVector2D& NodePosition = DragDropContext.NodePosition;
-                        	
-                        	// if multiple types are selected, we show Get Elements/Set Elements
-							bool bMultipleTypeSelected = false;
-
-							ERigElementType LastType = ERigElementType::None;
-					
-							if (DraggedKeys.Num() > 0)
-							{
-								LastType = DraggedKeys[0].Type;
-							}
-					
-							uint8 DraggedTypes = 0;
-							for (const FRigElementKey& DraggedKey : DragDropContext.DraggedElementKeys)
-							{
-								if (DraggedKey.Type != LastType)
-								{
-									bMultipleTypeSelected = true;
-								}
-						
-								DraggedTypes = DraggedTypes | (uint8)DraggedKey.Type;
-							}
-                        	
-							const FText SectionText = FText::FromString(DragDropContext.GetSectionTitle());
-							FToolMenuSection& Section = InMenu->AddSection(SectionName, SectionText);
-
-                        	FText GetterLabel = LOCTEXT("GetElement","Get Element");
-                        	FText GetterTooltip = LOCTEXT("GetElement_ToolTip", "Getter For Element");
-                        	FText SetterLabel = LOCTEXT("SetElement","Set Element");
-                        	FText SetterTooltip = LOCTEXT("SetElement_ToolTip", "Setter For Element");
-							// if multiple types are selected, we show Get Elements/Set Elements
-                        	if (bMultipleTypeSelected)
-                        	{
-                        		GetterLabel = LOCTEXT("GetElements","Get Elements");
-                        		GetterTooltip = LOCTEXT("GetElements_ToolTip", "Getter For Elements");
-                        		SetterLabel = LOCTEXT("SetElements","Set Elements");
-                        		SetterTooltip = LOCTEXT("SetElements_ToolTip", "Setter For Elements");
-                        	}
-                        	else
-                        	{
-								// otherwise, we show "Get Bone/NUll/Control"
-                        		if ((DraggedTypes & (uint8)ERigElementType::Bone) != 0)
-                        		{
-                        			GetterLabel = LOCTEXT("GetBone","Get Bone");
-                        			GetterTooltip = LOCTEXT("GetBone_ToolTip", "Getter For Bone");
-                        			SetterLabel = LOCTEXT("SetBone","Set Bone");
-                        			SetterTooltip = LOCTEXT("SetBone_ToolTip", "Setter For Bone");
-                        		}
-                        		else if ((DraggedTypes & (uint8)ERigElementType::Null) != 0)
-                        		{
-                        			GetterLabel = LOCTEXT("GetNull","Get Null");
-                        			GetterTooltip = LOCTEXT("GetNull_ToolTip", "Getter For Null");
-                        			SetterLabel = LOCTEXT("SetNull","Set Null");
-                        			SetterTooltip = LOCTEXT("SetNull_eoolTip", "Setter For Null");
-                        		}
-                        		else if ((DraggedTypes & (uint8)ERigElementType::Control) != 0)
-                        		{
-                        			GetterLabel = LOCTEXT("GetControl","Get Control");
-                        			GetterTooltip = LOCTEXT("GetControl_ToolTip", "Getter For Control");
-                        			SetterLabel = LOCTEXT("SetControl","Set Control");
-                        			SetterTooltip = LOCTEXT("SetControl_ToolTip", "Setter For Control");
-                        		}
-                        	}
-
-                        	FToolMenuEntry GetElementsEntry = FToolMenuEntry::InitMenuEntry(
-								TEXT("GetElements"),
-								GetterLabel,
-								GetterTooltip,
-								FSlateIcon(),
-								FUIAction(
-									FExecuteAction::CreateSP(ControlRigEditor.Get(), &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Transform, true, DraggedKeys, Graph, NodePosition),
-									FCanExecuteAction()
-								)
-                            );
-                        	GetElementsEntry.InsertPosition.Name = NAME_None;
-                        	GetElementsEntry.InsertPosition.Position = EToolMenuInsertType::First;
-                        	
-
-                        	Section.AddEntry(GetElementsEntry);
-
-                        	FToolMenuEntry SetElementsEntry = FToolMenuEntry::InitMenuEntry(
-								TEXT("SetElements"),
-								SetterLabel,
-								SetterTooltip,
-								FSlateIcon(),
-								FUIAction(
-									FExecuteAction::CreateSP(ControlRigEditor.Get(), &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Transform, false, DraggedKeys, Graph, NodePosition),
-									FCanExecuteAction()
-								)
-                            );
-                        	SetElementsEntry.InsertPosition.Name = GetElementsEntry.Name;
-							SetElementsEntry.InsertPosition.Position = EToolMenuInsertType::After;	
-
-                        	Section.AddEntry(SetElementsEntry);
-
-                        	if (((DraggedTypes & (uint8)ERigElementType::Bone) != 0) ||
-								((DraggedTypes & (uint8)ERigElementType::Control) != 0) ||
-								((DraggedTypes & (uint8)ERigElementType::Null) != 0))
-                        	{
-                        		FToolMenuEntry& RotationTranslationSeparator = Section.AddSeparator(TEXT("RotationTranslationSeparator"));
-                        		RotationTranslationSeparator.InsertPosition.Name = SetElementsEntry.Name;
-                        		RotationTranslationSeparator.InsertPosition.Position = EToolMenuInsertType::After;
-
-								FToolMenuEntry SetRotationEntry = FToolMenuEntry::InitMenuEntry(
-									TEXT("SetRotation"),
-									LOCTEXT("SetRotation","Set Rotation"),
-									LOCTEXT("SetRotation_ToolTip","Setter for Rotation"),
-									FSlateIcon(),
-									FUIAction(
-										FExecuteAction::CreateSP(ControlRigEditor.Get(), &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Rotation, false, DraggedKeys, Graph, NodePosition),
-										FCanExecuteAction()
-									)
-								);
-                        		
-                        		SetRotationEntry.InsertPosition.Name = RotationTranslationSeparator.Name;
-								SetRotationEntry.InsertPosition.Position = EToolMenuInsertType::After;		
-								Section.AddEntry(SetRotationEntry);
-
-                        		FToolMenuEntry SetTranslationEntry = FToolMenuEntry::InitMenuEntry(
-									TEXT("SetTranslation"),
-									LOCTEXT("SetTranslation","Set Translation"),
-									LOCTEXT("SetTranslation_ToolTip","Setter for Translation"),
-									FSlateIcon(),
-									FUIAction(
-										FExecuteAction::CreateSP(ControlRigEditor.Get(), &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Translation, false, DraggedKeys, Graph, NodePosition),
-										FCanExecuteAction()
-									)
-								);
-
-                        		SetTranslationEntry.InsertPosition.Name = SetRotationEntry.Name;
-								SetTranslationEntry.InsertPosition.Position = EToolMenuInsertType::After;		
-								Section.AddEntry(SetTranslationEntry);
-
-                        		FToolMenuEntry AddOffsetEntry = FToolMenuEntry::InitMenuEntry(
-									TEXT("AddOffset"),
-									LOCTEXT("AddOffset","Add Offset"),
-									LOCTEXT("AddOffset_ToolTip","Setter for Offset"),
-									FSlateIcon(),
-									FUIAction(
-										FExecuteAction::CreateSP(ControlRigEditor.Get(), &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Offset, false, DraggedKeys, Graph, NodePosition),
-										FCanExecuteAction()
-									)
-								);
-                        		
-								AddOffsetEntry.InsertPosition.Name = SetTranslationEntry.Name;
-                                AddOffsetEntry.InsertPosition.Position = EToolMenuInsertType::After;						
-								Section.AddEntry(AddOffsetEntry);
-
-                        		FToolMenuEntry& RelativeTransformSeparator = Section.AddSeparator(TEXT("RelativeTransformSeparator"));
-                        		RelativeTransformSeparator.InsertPosition.Name = AddOffsetEntry.Name;
-                        		RelativeTransformSeparator.InsertPosition.Position = EToolMenuInsertType::After;
-                        		
-                        		FToolMenuEntry GetRelativeTransformEntry = FToolMenuEntry::InitMenuEntry(
-									TEXT("GetRelativeTransformEntry"),
-									LOCTEXT("GetRelativeTransform", "Get Relative Transform"),
-									LOCTEXT("GetRelativeTransform_ToolTip", "Getter for Relative Transform"),
-									FSlateIcon(),
-									FUIAction(
-										FExecuteAction::CreateSP(ControlRigEditor.Get(), &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, true, DraggedKeys, Graph, NodePosition),
-										FCanExecuteAction()
-									)
-								);
-                        		
-								GetRelativeTransformEntry.InsertPosition.Name = RelativeTransformSeparator.Name;
-                                GetRelativeTransformEntry.InsertPosition.Position = EToolMenuInsertType::After;	
-								Section.AddEntry(GetRelativeTransformEntry);
-                        		
-                        	    FToolMenuEntry SetRelativeTransformEntry = FToolMenuEntry::InitMenuEntry(
-									TEXT("SetRelativeTransformEntry"),
-									LOCTEXT("SetRelativeTransform", "Set Relative Transform"),
-									LOCTEXT("SetRelativeTransform_ToolTip", "Setter for Relative Transform"),
-									FSlateIcon(),
-									FUIAction(
-										FExecuteAction::CreateSP(ControlRigEditor.Get(), &FControlRigEditor::HandleMakeElementGetterSetter, ERigElementGetterSetterType_Relative, false, DraggedKeys, Graph, NodePosition),
-										FCanExecuteAction()
-									)
-								);
-                        		SetRelativeTransformEntry.InsertPosition.Name = GetRelativeTransformEntry.Name;
-								SetRelativeTransformEntry.InsertPosition.Position = EToolMenuInsertType::After;		
-                        		Section.AddEntry(SetRelativeTransformEntry);
-                        	}
-
-                        	if (DraggedKeys.Num() > 0 && Blueprint != nullptr)
-                        	{
-                                FToolMenuEntry& ItemArraySeparator = Section.AddSeparator(TEXT("ItemArraySeparator"));
-                        		ItemArraySeparator.InsertPosition.Name = TEXT("SetRelativeTransformEntry"),
-								ItemArraySeparator.InsertPosition.Position = EToolMenuInsertType::After;
-                        		
-                        		FToolMenuEntry CreateItemArrayEntry = FToolMenuEntry::InitMenuEntry(
-                                    TEXT("CreateItemArray"),
-                                    LOCTEXT("CreateItemArray", "Create Item Array"),
-                                    LOCTEXT("CreateItemArray_ToolTip", "Creates an item array from the selected elements in the hierarchy"),
-                                    FSlateIcon(),
-                                    FUIAction(
-                                        FExecuteAction::CreateLambda([ControlRigEditor, Blueprint, DraggedKeys, NodePosition]()
-                                            {
-                                                if (URigVMController* Controller = ControlRigEditor->GetFocusedController())
-                                                {
-                                                    Controller->OpenUndoBracket(TEXT("Create Item Array From Selection"));
-
-                                                    static const FString ItemArrayCPPType = FString::Printf(TEXT("TArray<%s>"), *FRigElementKey::StaticStruct()->GetStructCPPName());
-                                                    static const FString ItemArrayObjectPath = FRigElementKey::StaticStruct()->GetPathName();
-									
-                                                    if (URigVMNode* ItemsNode = Controller->AddFreeRerouteNode(true, ItemArrayCPPType, *ItemArrayObjectPath, false, NAME_None, FString(), NodePosition))
-                                                    {
-                                                        if (URigVMPin* ItemsPin = ItemsNode->FindPin(TEXT("Value")))
-                                                        {
-                                                            Controller->SetArrayPinSize(ItemsPin->GetPinPath(), DraggedKeys.Num());
-
-                                                            TArray<URigVMPin*> ItemPins = ItemsPin->GetSubPins();
-                                                            ensure(ItemPins.Num() == DraggedKeys.Num());
-
-                                                            for (int32 ItemIndex = 0; ItemIndex < DraggedKeys.Num(); ItemIndex++)
-                                                            {
-                                                                FString DefaultValue;
-                                                                FRigElementKey::StaticStruct()->ExportText(DefaultValue, &DraggedKeys[ItemIndex], nullptr, nullptr, PPF_None, nullptr);
-                                                                Controller->SetPinDefaultValue(ItemPins[ItemIndex]->GetPinPath(), DefaultValue, true, true, false, true);
-                                                                Controller->SetPinExpansion(ItemPins[ItemIndex]->GetPinPath(), true, true, true);
-                                                            }
-
-                                                            Controller->SetPinExpansion(ItemsPin->GetPinPath(), true, true, true);
-                                                        }
-                                                    }
-
-                                                    Controller->CloseUndoBracket();
-                                                }
-                                            }
-                                        )
-                                    )
-                        		);
-                        		
-                        		CreateItemArrayEntry.InsertPosition.Name = ItemArraySeparator.Name,
-								CreateItemArrayEntry.InsertPosition.Position = EToolMenuInsertType::After;
-                        		Section.AddEntry(CreateItemArrayEntry);
-                            }
-                        }
-                    })
-                );
-			}
-
 			UControlRigContextMenuContext* MenuContext = NewObject<UControlRigContextMenuContext>();
 			FControlRigMenuSpecificContext MenuSpecificContext;
 			MenuSpecificContext.RigHierarchyToGraphDragAndDropContext =
@@ -5447,7 +5454,9 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 					InGraph,
 					InNodePosition
 				);
-			MenuContext->Init(Cast<UControlRigBlueprint>(GetBlueprintObj()), MenuSpecificContext);
+			MenuContext->Init(SharedThis(this), MenuSpecificContext);
+			
+			UToolMenus* ToolMenus = UToolMenus::Get();
 			TSharedRef<SWidget>	MenuWidget = ToolMenus->GenerateWidget(MenuName, FToolMenuContext(MenuContext));
 			
 			TSharedRef<SWidget> GraphEditorPanel = FocusedGraphEdPtr.Pin().ToSharedRef();
