@@ -169,6 +169,42 @@ private:
 
 
 USTRUCT()
+struct FOptimusNodeAction_SetPinResourceContexts :
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusNodeAction_SetPinResourceContexts() = default;
+
+	FOptimusNodeAction_SetPinResourceContexts(
+		UOptimusNodePin *InPin,
+		const TArray<FName>& InContextNames
+		);
+
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	
+private:
+	bool SetPinResourceContext(
+		IOptimusNodeGraphCollectionOwner* InRoot,
+		const TArray<FName>& InContextNames
+		) const;
+	
+	// The path of the pin to set the value on
+	FString PinPath;
+
+	// The resource contexts to set
+	TArray<FName> NewContextNames;
+
+	// The old resource contexts
+	TArray<FName> OldContextNames;
+};
+
+
+
+USTRUCT()
 struct FOptimusNodeAction_AddRemovePin :
 	public FOptimusAction
 {

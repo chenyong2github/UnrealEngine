@@ -10,7 +10,6 @@
 #include "UObject/Package.h"
 #include "UObject/Class.h"
 
-
 namespace Optimus
 {
 	/// Attempts to find an object, first within a specific package, if the dot prefix 

@@ -4,6 +4,7 @@
 
 #include "OptimusCoreNotify.h"
 #include "OptimusDiagnostic.h"
+#include "OptimusTemplates.h"
 
 #include "UObject/Object.h"
 #include "CoreMinimal.h"
@@ -17,19 +18,6 @@ class UOptimusActionStack;
 class UOptimusNodeGraph;
 class UOptimusNodePin;
 struct FOptimusDataTypeRef;
-
-// FIXME: This should really be a part of Array.h
-template<typename T, typename Allocator>
-static inline uint32 GetTypeHash(const TArray<T, Allocator>& A)
-{
-	uint32 Hash = GetTypeHash(A.Num());
-	for (const auto& V : A)
-	{
-		Hash = HashCombine(Hash, GetTypeHash(V));
-	}
-	return Hash;
-}
-
 
 UCLASS(Abstract)
 class OPTIMUSDEVELOPER_API UOptimusNode : public UObject
@@ -152,6 +140,7 @@ protected:
 	friend struct FOptimusNodeAction_AddRemovePin;
 	friend struct FOptimusNodeAction_SetPinType;
 	friend struct FOptimusNodeAction_SetPinName;
+	friend struct FOptimusNodeAction_SetPinResourceContexts;
 
 	// Return the action stack for this node.
 	UOptimusActionStack* GetActionStack() const;
@@ -205,6 +194,8 @@ protected:
 		FOptimusDataTypeRef InDataType
 		);
 
+	/** Set the pin name. */
+	// FIXME: Hoist to public
 	bool SetPinName(
 		UOptimusNodePin* InPin,
 		FName InNewName
@@ -215,9 +206,15 @@ protected:
 	    FName InNewName
 		);
 
-	bool SetPinContextAndDimensionality(
+	/** Set the pin's resource context names. */
+	bool SetPinResourceContexts(
 		UOptimusNodePin* InPin,
-		int32 InResourceDimensionality
+		const TArray<FName>& InResourceContexts
+		);
+
+	bool SetPinResourceContextsDirect(
+		UOptimusNodePin* InPin,
+		const TArray<FName>& InResourceContexts
 		);
 	
 	void SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded);

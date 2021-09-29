@@ -11,13 +11,17 @@
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "DetailWidgetRow.h"
+#include "EditorFontGlyphs.h"
 #include "IPropertyTypeCustomization.h"
 #include "IDetailChildrenBuilder.h"
+#include "OptimusComputeDataInterface.h"
+#include "OptimusResourceDescription.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -101,6 +105,7 @@ FOptimusDataTypeHandle FOptimusDataTypeRefCustomization::GetCurrentDataType() co
 
 void FOptimusDataTypeRefCustomization::OnDataTypeChanged(FOptimusDataTypeHandle InDataType)
 {
+	FScopedTransaction Transaction(LOCTEXT("SetDataType", "Set Data Type"));
 	CurrentDataType = InDataType;
 	TypeNameProperty->SetValue(InDataType.IsValid() ? InDataType->TypeName : NAME_None);
 }
@@ -128,6 +133,188 @@ FText FOptimusDataTypeRefCustomization::GetDeclarationText() const
 		return FText::GetEmpty();
 	}
 }
+
+// =============================================================================================
+
+TSharedRef<IPropertyTypeCustomization> FOptimusResourceContextCustomization::MakeInstance()
+{
+	return MakeShared<FOptimusResourceContextCustomization>();
+}
+
+
+FOptimusResourceContextCustomization::FOptimusResourceContextCustomization()
+{
+	for (FName Name: UOptimusComputeDataInterface::GetUniqueAllTopLevelContexts())
+	{
+		ContextNames.Add(Name);
+	}
+	ContextNames.Sort(FNameLexicalLess());
+}
+
+
+void FOptimusResourceContextCustomization::CustomizeHeader(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	FDetailWidgetRow& InHeaderRow,
+	IPropertyTypeCustomizationUtils& InCustomizationUtils
+	)
+{
+	TSharedPtr<IPropertyHandle> ContextNameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusResourceContext, ContextName));
+	
+	InHeaderRow.NameContent()
+	[
+		InPropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		SNew(SComboBox<FName>)
+			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select a resource context from the list of available contexts."))
+			.OptionsSource(&ContextNames)
+			.OnGenerateWidget_Lambda([](FName InName)
+			{
+				return SNew(STextBlock)
+					.Text(FText::FromName(InName))
+					.Font(IPropertyTypeCustomizationUtils::GetRegularFont());
+			})
+			.OnSelectionChanged_Lambda([ContextNameProperty](FName InName, ESelectInfo::Type)
+			{
+				ContextNameProperty->SetValue(InName);
+			})
+			[
+				SNew(STextBlock)
+				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+				.Text_Lambda([ContextNameProperty]()
+				{
+					FName Value;
+					ContextNameProperty->GetValue(Value);
+					return FText::FromName(Value);
+				})
+			]
+	];
+}
+
+
+TSharedRef<IPropertyTypeCustomization> FOptimusNestedResourceContextCustomization::MakeInstance()
+{
+	return MakeShared<FOptimusNestedResourceContextCustomization>();
+}
+
+
+FOptimusNestedResourceContextCustomization::FOptimusNestedResourceContextCustomization()
+{
+	for (TArray<FName> Names: UOptimusComputeDataInterface::GetUniqueAllNestedContexts())
+	{
+		NestedContextNames.Add(MakeShared<TArray<FName>>(Names));
+	}
+	NestedContextNames.Sort([](const TSharedRef<TArray<FName>>& A, const TSharedRef<TArray<FName>> &B)
+	{
+		// Compare up to the point that we have same number of members to compare.
+		for (int32 Index = 0; Index < FMath::Min(A->Num(), B->Num()); Index++)
+		{
+			if ((*A)[Index] != (*B)[Index])
+			{
+				return FNameLexicalLess()((*A)[Index], (*B)[Index]);
+			}
+		}
+		// Otherwise the entry with fewer members goes first.
+		return A->Num() < B->Num();
+	});
+}
+
+
+void FOptimusNestedResourceContextCustomization::CustomizeHeader(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	FDetailWidgetRow& InHeaderRow,
+	IPropertyTypeCustomizationUtils& InCustomizationUtils
+	)
+{
+	TSharedPtr<IPropertyHandle> ContextNamesProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusNestedResourceContext, ContextNames));
+
+	auto FormatNames = [](const TArray<FName>& InNames) -> FText
+	{
+		TArray<FText> NameParts;
+		for (FName Name: InNames)
+		{
+			NameParts.Add(FText::FromName(Name));
+		}
+		return FText::Join(FText::FromString(UTF8TEXT(" › ")), NameParts);
+	};
+	
+	InHeaderRow.NameContent()
+	[
+		InPropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		SNew(SComboBox<TSharedRef<TArray<FName>>>)
+			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select a nested resource context from the list of available contexts."))
+			.OptionsSource(&NestedContextNames)
+			.OnGenerateWidget_Lambda([FormatNames](TSharedRef<TArray<FName>> InNames)
+			{
+				return SNew(STextBlock)
+					.Text(FormatNames(*InNames))
+					.Font(IPropertyTypeCustomizationUtils::GetRegularFont());
+			})
+			.OnSelectionChanged_Lambda([ContextNamesProperty](TSharedPtr<TArray<FName>> InNames, ESelectInfo::Type)
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetResourceContexts", "Set Resource Contexts"));
+				// Ideally we'd like to match up the raw data with the outers, but I'm not
+				// convinced that there's always 1-to-1 relation.
+				TArray<UObject *> OuterObjects;
+				ContextNamesProperty->GetOuterObjects(OuterObjects);
+				for (UObject *OuterObject: OuterObjects)
+				{
+					// Notify the object that is has been modified so that undo/redo works.
+					OuterObject->Modify();
+				}
+				
+				ContextNamesProperty->NotifyPreChange();
+				TArray<void*> RawDataPtrs;
+				ContextNamesProperty->AccessRawData(RawDataPtrs);
+
+				for (void* RawPtr: RawDataPtrs)
+				{
+					*static_cast<TArray<FName>*>(RawPtr) = *InNames; 
+				}
+
+				ContextNamesProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+			})
+			[
+				SNew(STextBlock)
+				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+				.Text_Lambda([ContextNamesProperty, FormatNames]()
+				{
+					TArray<const void *> RawDataPtrs;
+					ContextNamesProperty->AccessRawData(RawDataPtrs);
+
+					bool bItemsDiffer = false;
+					TArray<FName> Names;
+					for (const void* RawPtr: RawDataPtrs)
+					{
+						const TArray<FName>* SrcNames = static_cast<const TArray<FName>*>(RawPtr);
+						if (Names.IsEmpty())
+						{
+							Names = *SrcNames;
+						}
+						else if (Names != *SrcNames)
+						{
+							bItemsDiffer = true;
+							break;
+						}
+					}
+
+					if (bItemsDiffer)
+					{
+						return FText::FromString(TEXT("---"));
+					}
+					else
+					{
+						return FormatNames(Names);
+					}
+				})
+			]
+	];
+}
+
 
 // =============================================================================================
 

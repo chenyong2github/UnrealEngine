@@ -97,6 +97,320 @@ static FString GetShaderParamPinValueString(
 	return FString::Printf(TEXT("%s(%s)"), *ValueType.ToString(), *InPin->GetValueAsString());
 }
 
+// FIXME: This should be a a direct request from the pin 
+static TArray<FName> GetContextsFomPin(
+	const UOptimusNodePin* Pin,
+	const TArray<FOptimus_ShaderContextBinding>& InBindings
+	)
+{
+	for (const FOptimus_ShaderContextBinding& Binding: InBindings)
+	{
+		if (Binding.Name == Pin->GetFName())
+		{
+			return Binding.Context.ContextNames;
+		}
+	}
+	check(false);
+	return TArray<FName>{};
+}
+
+static TArray<FString> GetIndexNamesFromContextNames(
+	const TArray<FName> &InContextNames
+	)
+{
+	TArray<FString> IndexNames;
+
+	for (FName ContextName: InContextNames)
+	{
+		IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName.ToString()));
+	}
+	return IndexNames;
+}
+
+// TODO: This belongs on the interface node. 
+static int32 GetPinIndex(const UOptimusNodePin* InPin)
+{
+	return InPin->GetNode()->GetPins().IndexOfByKey(InPin);
+}
+
+
+void UOptimusNode_ComputeKernel::ProcessInputPinForComputeKernel(
+	const UOptimusNodePin* InInputPin,
+	const UOptimusNodePin* InOutputPin,
+	const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
+	const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
+	const TSet<const UOptimusNode*>& InValueNodeSet,
+	UOptimusKernelSource* InKernelSource,
+	TArray<FString>& OutGeneratedFunctions,
+	FOptimus_KernelParameterBindingList& OutParameterBindings,
+	FOptimus_InterfaceBindingMap& OutInputDataBindings
+	) const
+{
+	FShaderParamTypeDefinition IndexParamDef;
+	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
+
+	const FShaderValueTypeHandle ValueType = InInputPin->GetDataType()->ShaderValueType;
+	const UOptimusNode *OutputNode = InOutputPin ? InOutputPin->GetNode() : nullptr;
+
+	// For inputs, we only have to deal with a single read, because only one
+	// link can connect into it. 
+	if (InOutputPin)
+	{
+		UOptimusComputeDataInterface* DataInterface = nullptr;
+		int32 DataInterfaceFuncIndex = INDEX_NONE;
+		FString DataFunctionName;
+		
+		// Are we being connected from a scene data interface or a transient buffer?
+		if (InLinkDataInterfaceMap.Contains(InOutputPin))
+		{
+			// For transient buffers we need the function index as given by the
+			// ReadValue function. 
+			DataInterface = InLinkDataInterfaceMap[InOutputPin];
+			DataInterfaceFuncIndex = UTransientBufferDataInterface::ReadValueInputIndex;
+
+			TArray<FShaderFunctionDefinition> ReadFunctions;
+			DataInterface->GetSupportedInputs(ReadFunctions);
+
+			DataFunctionName = ReadFunctions[DataInterfaceFuncIndex].Name;
+		}
+		else if(InNodeDataInterfaceMap.Contains(OutputNode))
+		{
+			// FIXME: Sub-pin read support.
+			DataInterface = InNodeDataInterfaceMap[OutputNode];
+
+			TArray<FOptimusCDIPinDefinition> PinDefs = DataInterface->GetPinDefinitions();
+
+			int32 DataInterfaceDefPinIndex = GetPinIndex(InOutputPin); 
+			DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
+
+			TArray<FShaderFunctionDefinition> ReadFunctions;
+			DataInterface->GetSupportedInputs(ReadFunctions);
+			DataInterfaceFuncIndex = ReadFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
+		}
+		else if (ensure(InValueNodeSet.Contains(OutputNode)))
+		{
+			FString ParameterName = TEXT("__") + InInputPin->GetName(); 
+			
+			FOptimus_KernelParameterBinding Binding;
+			Binding.ValueNode = OutputNode;
+			Binding.ParameterName = ParameterName;
+			Binding.ValueType = InInputPin->GetDataType()->ShaderValueType;
+
+			OutParameterBindings.Add(Binding);
+
+			FShaderParamTypeDefinition ParameterDefinition;
+			ParameterDefinition.Name = Binding.ParameterName;
+			ParameterDefinition.ValueType = Binding.ValueType;
+			ParameterDefinition.ResetTypeDeclaration();
+
+			InKernelSource->InputParams.Add(ParameterDefinition);
+
+			OutGeneratedFunctions.Add(
+				FString::Printf(TEXT("%s Read%s() { return %s; }"),
+					*Binding.ValueType->ToString(), *InInputPin->GetName(), *Binding.ParameterName));
+		}
+
+		// If we are connected from a data interface, set the input binding up now.
+		if (DataInterface)
+		{
+			// The shader function definition that exposes the function that we use to
+			// read values to input into the kernel.
+			FShaderFunctionDefinition FuncDef;
+			FuncDef.Name = DataFunctionName;
+			FuncDef.bHasReturnType = true;
+			
+			FShaderParamTypeDefinition ParamDef;
+			CopyValueType(ValueType, ParamDef);
+			FuncDef.ParamTypes.Emplace(ParamDef);
+
+			// For resources we need the index parameter.
+			if (InInputPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+			{
+				TArray<FName> Contexts = GetContextsFomPin(InInputPin, InputBindings);
+
+				for (int32 Count = 0; Count < Contexts.Num(); Count++)
+				{
+					FuncDef.ParamTypes.Add(IndexParamDef);
+				}
+			}
+
+			FString WrapFunctionName = FString::Printf(TEXT("Read%s"), *InInputPin->GetName());
+			OutInputDataBindings.Add(InKernelSource->ExternalInputs.Num(), {DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
+			
+			InKernelSource->ExternalInputs.Emplace(FuncDef);
+		}
+	}
+	else
+	{
+		// Nothing connected. Get the default value (for now).
+		FString ValueStr;
+		FString OptionalParamStr;
+		if (InInputPin->GetStorageType() == EOptimusNodePinStorageType::Value)
+		{
+			ValueStr = GetShaderParamPinValueString(InInputPin);
+		}
+		else
+		{
+			TArray<FName> Contexts = GetContextsFomPin(InInputPin, InputBindings);
+			
+			ValueStr = GetShaderParamDefaultValueString(InInputPin->GetDataType());
+
+			// No output connections, leave a stub function. The compiler will be in charge
+			// of optimizing out anything that causes us to ends up here.
+			TArray<FString> StubIndexes;
+			
+			for (const FString &IndexName: GetIndexNamesFromContextNames(Contexts))
+			{
+				StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
+			}
+		
+			OptionalParamStr = *FString::Join(StubIndexes, TEXT(", "));
+		}
+
+		OutGeneratedFunctions.Add(
+			FString::Printf(TEXT("%s Read%s(%s) { return %s; }"),
+				*ValueType->ToString(), *InInputPin->GetName(), *OptionalParamStr, *ValueStr));
+	}
+}
+
+
+void UOptimusNode_ComputeKernel::ProcessOutputPinForComputeKernel(
+	const UOptimusNodePin* InOutputPin,
+	const TArray<UOptimusNodePin *>& InInputPins,
+	const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
+	const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
+	UOptimusKernelSource* InKernelSource,
+	TArray<FString>& OutGeneratedFunctions,
+	FOptimus_InterfaceBindingMap& OutOutputDataBindings
+	) const
+{
+	FShaderParamTypeDefinition IndexParamDef;
+	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
+
+	TArray<FName> Contexts = GetContextsFomPin(InOutputPin, OutputBindings);
+	TArray<FString> IndexNames = GetIndexNamesFromContextNames(Contexts);
+	const FShaderValueTypeHandle ValueType = InOutputPin->GetDataType()->ShaderValueType;
+
+	if (!InInputPins.IsEmpty())
+	{
+		// If we have an output connection going to multiple data interfaces, then we
+		// have to wrap them all up in a single proxy function to make it still transparent
+		// to the kernel writer.
+		struct FWriteConnectionDef
+		{
+			UOptimusComputeDataInterface* DataInterface = nullptr;
+			FString DataFunctionName;
+			FString WriteToName;
+		};
+		TArray<FWriteConnectionDef> WriteConnectionDefs;
+
+		// If we're scheduled to write to a transient data interface, do that now.
+		// There is only ever a single transient data interface per output pin.
+		if (InLinkDataInterfaceMap.Contains(InOutputPin))
+		{
+			UOptimusComputeDataInterface* DataInterface = InLinkDataInterfaceMap[InOutputPin]; 
+
+			TArray<FShaderFunctionDefinition> WriteFunctions;
+			DataInterface->GetSupportedOutputs(WriteFunctions);
+
+			// This is a horrible hack for detecting interlocked writes
+			// TODO: Either express this via the kernel metadata or add full support for buffer data interface in graph editor.
+			int32 WriteValueOutputIndex = UTransientBufferDataInterface::WriteValueOutputIndex;
+			if (InOutputPin->GetName().Contains(TEXT("Interlocked")) && WriteFunctions.Num() > WriteValueOutputIndex + 1)
+			{
+				++WriteValueOutputIndex;
+			}
+
+			WriteConnectionDefs.Add({DataInterface, WriteFunctions[WriteValueOutputIndex].Name, TEXT("Transient")});
+		}
+		
+		for (const UOptimusNodePin* ConnectedPin: InInputPins)
+		{
+			const UOptimusNode *ConnectedNode = ConnectedPin->GetNode();
+
+			// Connected to a data interface node?
+			if(!InNodeDataInterfaceMap.Contains(ConnectedNode))
+			{
+				continue;
+			}
+			
+			// FIXME: Sub-pin write support.
+			UOptimusComputeDataInterface* DataInterface = InNodeDataInterfaceMap[ConnectedNode];
+			int32 DataInterfaceDefPinIndex = GetPinIndex(ConnectedPin);
+			TArray<FOptimusCDIPinDefinition> PinDefs = DataInterface->GetPinDefinitions();
+
+			FString DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
+			
+			WriteConnectionDefs.Add({DataInterface, DataFunctionName, ConnectedPin->GetName()});
+		}
+
+		TArray<FString> WrapFunctionNameCalls;
+
+		for (const FWriteConnectionDef& WriteConnectionDef: WriteConnectionDefs)
+		{
+			const FString DataFunctionName = WriteConnectionDef.DataFunctionName;
+			FShaderFunctionDefinition FuncDef;
+			FuncDef.Name = DataFunctionName;
+			FuncDef.bHasReturnType = false;
+		
+			FShaderParamTypeDefinition ParamDef;
+			CopyValueType(ValueType, ParamDef);
+			for (int32 Count = 0; Count < Contexts.Num(); Count++)
+			{
+				FuncDef.ParamTypes.Add(IndexParamDef);
+			}
+			FuncDef.ParamTypes.Emplace(ParamDef);
+
+			TArray<FShaderFunctionDefinition> WriteFunctions;
+			WriteConnectionDef.DataInterface->GetSupportedOutputs(WriteFunctions);
+			int32 DataInterfaceFuncIndex = WriteFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
+		
+			FString WrapFunctionName;
+			if (WriteConnectionDefs.Num() > 1)
+			{
+				WrapFunctionName = FString::Printf(TEXT("Write%sTo%s"), *InOutputPin->GetName(), *WriteConnectionDef.WriteToName);
+				WrapFunctionNameCalls.Add(FString::Printf(TEXT("    %s(%s, Value)"), *WrapFunctionName, *FString::Join(IndexNames, TEXT(", "))));
+			}
+			else
+			{
+				WrapFunctionName = FString::Printf(TEXT("Write%s"), *InOutputPin->GetName());
+			}
+			OutOutputDataBindings.Add(InKernelSource->ExternalOutputs.Num(), {WriteConnectionDef.DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
+			InKernelSource->ExternalOutputs.Emplace(FuncDef);
+		}
+
+		if (!WrapFunctionNameCalls.IsEmpty())
+		{
+			TArray<FString> IndexParamNames;
+			for (const FString& IndexName: IndexNames)
+			{
+				IndexParamNames.Add(FString::Printf(TEXT("uint %s"), *IndexName));
+			}
+			
+			// Add a wrapper function that calls all the write functions in one shot.
+			OutGeneratedFunctions.Add(
+				FString::Printf(TEXT("void Write%s(%s, %s Value)\n{\n%s;\n}"),
+					*InOutputPin->GetName(), *FString::Join(IndexParamNames, TEXT(", ")), *ValueType->ToString(), *FString::Join(WrapFunctionNameCalls, TEXT(";\n"))));
+		}
+	}
+	else
+	{
+		// No output connections, leave a stub function. The compiler will be in charge
+		// of optimizing out anything that causes us to ends up here.
+		TArray<FString> StubIndexes;
+
+		for (const FString &IndexName: IndexNames)
+		{
+			StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
+		}
+		
+		OutGeneratedFunctions.Add(
+			FString::Printf(TEXT("void Write%s(%s, %s) { }"),
+				*InOutputPin->GetName(), *FString::Join(StubIndexes, TEXT(", ")), *ValueType->ToString()));
+	}
+}
+
+
 
 UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 	UObject *InKernelSourceOuter,
@@ -108,52 +422,13 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 	FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const
 {
-	// TODO: This function is too big. Split up.
-	
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter);
-
-	FShaderParamTypeDefinition IndexParamDef;
-	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
 	
 	// Figure out bindings for the pins.
-	UOptimusNodeGraph *Graph = GetOwningGraph();
+	const UOptimusNodeGraph *Graph = GetOwningGraph();
 
-	TMap<EOptimusResourceContext, bool> SeenContexts;
+	TMap<FName, bool> SeenContexts;
 
-	auto GetContextsForBinding = [](const UOptimusNodePin* Pin, const TArray<FOptimus_ShaderContextBinding>& Bindings)
-	{
-		for (const FOptimus_ShaderContextBinding& Binding: Bindings)
-		{
-			if (Binding.Name == Pin->GetFName())
-			{
-				return Binding.Contexts;
-			}
-		}
-		check(false);
-		return TArray<EOptimusResourceContext>{};
-	};
-
-	auto GetPinIndex = [](const UOptimusNodePin* InPin)
-	{
-		// FIXME: We're not handling sub-pins right now. 
-		return InPin->GetNode()->GetPins().IndexOfByKey(InPin);
-	};
-
-	auto GetIndexNames = [](const TArray<EOptimusResourceContext> &Contexts)
-	{
-		TArray<FString> IndexNames;
-
-		for (EOptimusResourceContext Context: Contexts)
-		{
-			if (Context != EOptimusResourceContext::Global)
-			{
-				FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-				IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
-			}
-		}
-		return IndexNames;
-	};
-	
 	// Wrap functions for unconnected resource pins (or value pins) that return default values
 	// (for reads) or do nothing (for writes).
 	TArray<FString> GeneratedFunctions;
@@ -166,267 +441,26 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 			continue;
 		}
 		
-		const FShaderValueTypeHandle ValueType = Pin->GetDataType()->ShaderValueType;
-
 		if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
 		{
-			const UOptimusNodePin *ConnectedPin = ConnectedPins.IsEmpty() ? nullptr : ConnectedPins[0];
-			const UOptimusNode *ConnectedNode = ConnectedPin ? ConnectedPin->GetNode() : nullptr;
-
-			// For inputs, we only have to deal with a single read, because only one
-			// link can connect into it. 
-			if (ConnectedPin)
-			{
-				UOptimusComputeDataInterface* DataInterface = nullptr;
-				int32 DataInterfaceFuncIndex = INDEX_NONE;
-				FString DataFunctionName;
-				
-				// Are we being connected from a scene data interface or a transient buffer?
-				if (InLinkDataInterfaceMap.Contains(ConnectedPin))
-				{
-					// For transient buffers we need the function index as given by the
-					// ReadValue function. 
-					DataInterface = InLinkDataInterfaceMap[ConnectedPin];
-					DataInterfaceFuncIndex = UTransientBufferDataInterface::ReadValueInputIndex;
-
-					TArray<FShaderFunctionDefinition> ReadFunctions;
-					DataInterface->GetSupportedInputs(ReadFunctions);
-
-					DataFunctionName = ReadFunctions[DataInterfaceFuncIndex].Name;
-				}
-				else if(InNodeDataInterfaceMap.Contains(ConnectedNode))
-				{
-					// FIXME: Sub-pin read support.
-					DataInterface = InNodeDataInterfaceMap[ConnectedNode];
-
-					TArray<FOptimusCDIPinDefinition> PinDefs = DataInterface->GetPinDefinitions();
-
-					int32 DataInterfaceDefPinIndex = GetPinIndex(ConnectedPin); 
-					DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
-
-					TArray<FShaderFunctionDefinition> ReadFunctions;
-					DataInterface->GetSupportedInputs(ReadFunctions);
-					DataInterfaceFuncIndex = ReadFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
-				}
-				else if (ensure(InValueNodeSet.Contains(ConnectedNode)))
-				{
-					FString ParameterName = TEXT("__") + Pin->GetName(); 
-					
-					FOptimus_KernelParameterBinding Binding;
-					Binding.ValueNode = ConnectedNode;
-					Binding.ParameterName = ParameterName;
-					Binding.ValueType = Pin->GetDataType()->ShaderValueType;
-
-					OutParameterBindings.Add(Binding);
-
-					FShaderParamTypeDefinition ParameterDefinition;
-					ParameterDefinition.Name = Binding.ParameterName;
-					ParameterDefinition.ValueType = Binding.ValueType;
-					ParameterDefinition.ResetTypeDeclaration();
-
-					KernelSource->InputParams.Add(ParameterDefinition);
-
-					GeneratedFunctions.Add(
-						FString::Printf(TEXT("%s Read%s() { return %s; }"),
-							*Binding.ValueType->ToString(), *Pin->GetName(), *Binding.ParameterName));
-				}
-
-				// If we are connected from a data interface, set the input binding up now.
-				if (DataInterface)
-				{
-					// The shader function definition that exposes the function that we use to
-					// read values to input into the kernel.
-					FShaderFunctionDefinition FuncDef;
-					FuncDef.Name = DataFunctionName;
-					FuncDef.bHasReturnType = true;
-					
-					FShaderParamTypeDefinition ParamDef;
-					CopyValueType(ValueType, ParamDef);
-					FuncDef.ParamTypes.Emplace(ParamDef);
-
-					// For resources we need the index parameter.
-					if (Pin->GetStorageType() == EOptimusNodePinStorageType::Resource)
-					{
-						TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, InputBindings);
-
-						for (int32 Count = 0; Count < Contexts.Num(); Count++)
-						{
-							if (Contexts[Count] != EOptimusResourceContext::Global)
-							{
-								FuncDef.ParamTypes.Add(IndexParamDef);
-							}
-						}
-					}
-
-					FString WrapFunctionName = FString::Printf(TEXT("Read%s"), *Pin->GetName());
-					OutInputDataBindings.Add(KernelSource->ExternalInputs.Num(), {DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
-					
-					KernelSource->ExternalInputs.Emplace(FuncDef);
-				}
-			}
-			else
-			{
-				// Nothing connected. Get the default value (for now).
-				FString ValueStr;
-				FString OptionalParamStr;
-				if (Pin->GetStorageType() == EOptimusNodePinStorageType::Value)
-				{
-					ValueStr = GetShaderParamPinValueString(Pin);
-				}
-				else
-				{
-					TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, InputBindings);
-					
-					ValueStr = GetShaderParamDefaultValueString(Pin->GetDataType());
-
-					// No output connections, leave a stub function. The compiler will be in charge
-					// of optimizing out anything that causes us to ends up here.
-					TArray<FString> StubIndexes;
-					
-					for (const FString &IndexName: GetIndexNames(Contexts))
-					{
-						StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
-					}
-				
-					OptionalParamStr = *FString::Join(StubIndexes, TEXT(", "));
-				}
-
-				GeneratedFunctions.Add(
-					FString::Printf(TEXT("%s Read%s(%s) { return %s; }"),
-						*ValueType->ToString(), *Pin->GetName(), *OptionalParamStr, *ValueStr));
-			}
+			ProcessInputPinForComputeKernel(
+				Pin, (ConnectedPins.IsEmpty() ? nullptr : ConnectedPins[0]),
+				InNodeDataInterfaceMap, InLinkDataInterfaceMap, InValueNodeSet,
+				KernelSource, GeneratedFunctions, OutParameterBindings, OutInputDataBindings
+				);
 		}
 		else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 		{
-			TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, OutputBindings);
-			
-			TArray<FString> IndexNames = GetIndexNames(Contexts);
-
-			if (!ConnectedPins.IsEmpty())
-			{
-				// If we have an output connection going to multiple data interfaces, then we
-				// have to wrap them all up in a single proxy function to make it still transparent
-				// to the kernel writer.
-				struct FWriteConnectionDef
-				{
-					UOptimusComputeDataInterface* DataInterface = nullptr;
-					FString DataFunctionName;
-					FString WriteToName;
-				};
-				TArray<FWriteConnectionDef> WriteConnectionDefs;
-
-				// If we're scheduled to write to a transient data interface, do that now.
-				// There is only ever a single transient data interface per output pin.
-				if (InLinkDataInterfaceMap.Contains(Pin))
-				{
-					UOptimusComputeDataInterface* DataInterface = InLinkDataInterfaceMap[Pin]; 
-
-					TArray<FShaderFunctionDefinition> WriteFunctions;
-					DataInterface->GetSupportedOutputs(WriteFunctions);
-
-					// This is a horrible hack for detecting interlocked writes
-					// TODO: Either express this via the kernel metadata or add full support for buffer data interface in graph editor.
-					int32 WriteValueOutputIndex = UTransientBufferDataInterface::WriteValueOutputIndex;
-					if (Pin->GetName().Contains(TEXT("Interlocked")) && WriteFunctions.Num() > WriteValueOutputIndex + 1)
-					{
-						++WriteValueOutputIndex;
-					}
-
-					WriteConnectionDefs.Add({DataInterface, WriteFunctions[WriteValueOutputIndex].Name, TEXT("Transient")});
-				}
-				
-				for (const UOptimusNodePin* ConnectedPin: ConnectedPins)
-				{
-					const UOptimusNode *ConnectedNode = ConnectedPin->GetNode();
-
-					// Conneted to a data interface node?
-					if(!InNodeDataInterfaceMap.Contains(ConnectedNode))
-					{
-						continue;
-					}
-					
-					// FIXME: Sub-pin write support.
-					UOptimusComputeDataInterface* DataInterface = InNodeDataInterfaceMap[ConnectedNode];
-					int32 DataInterfaceDefPinIndex = GetPinIndex(ConnectedPin);
-					TArray<FOptimusCDIPinDefinition> PinDefs = DataInterface->GetPinDefinitions();
-
-					FString DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
-					
-					WriteConnectionDefs.Add({DataInterface, DataFunctionName, ConnectedPin->GetName()});
-				}
-
-				TArray<FString> WrapFunctionNameCalls;
-
-				for (const FWriteConnectionDef& WriteConnectionDef: WriteConnectionDefs)
-				{
-					const FString DataFunctionName = WriteConnectionDef.DataFunctionName;
-					FShaderFunctionDefinition FuncDef;
-					FuncDef.Name = DataFunctionName;
-					FuncDef.bHasReturnType = false;
-				
-					FShaderParamTypeDefinition ParamDef;
-					CopyValueType(ValueType, ParamDef);
-					for (int32 Count = 0; Count < Contexts.Num(); Count++)
-					{
-						FuncDef.ParamTypes.Add(IndexParamDef);
-					}
-					FuncDef.ParamTypes.Emplace(ParamDef);
-
-					TArray<FShaderFunctionDefinition> WriteFunctions;
-					WriteConnectionDef.DataInterface->GetSupportedOutputs(WriteFunctions);
-					int32 DataInterfaceFuncIndex = WriteFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
-				
-					FString WrapFunctionName;
-					if (WriteConnectionDefs.Num() > 1)
-					{
-						WrapFunctionName = FString::Printf(TEXT("Write%sTo%s"), *Pin->GetName(), *WriteConnectionDef.WriteToName);
-						WrapFunctionNameCalls.Add(FString::Printf(TEXT("    %s(%s, Value)"), *WrapFunctionName, *FString::Join(IndexNames, TEXT(", "))));
-					}
-					else
-					{
-						WrapFunctionName = FString::Printf(TEXT("Write%s"), *Pin->GetName());
-					}
-					OutOutputDataBindings.Add(KernelSource->ExternalOutputs.Num(), {WriteConnectionDef.DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
-					KernelSource->ExternalOutputs.Emplace(FuncDef);
-				}
-
-				if (!WrapFunctionNameCalls.IsEmpty())
-				{
-					TArray<FString> IndexParamNames;
-					for (const FString& IndexName: IndexNames)
-					{
-						IndexParamNames.Add(FString::Printf(TEXT("uint %s"), *IndexName));
-					}
-					
-					// Add a wrapper function that calls all the write functions in one shot.
-					GeneratedFunctions.Add(
-						FString::Printf(TEXT("void Write%s(%s, %s Value)\n{\n%s;\n}"),
-							*Pin->GetName(), *FString::Join(IndexParamNames, TEXT(", ")), *ValueType->ToString(), *FString::Join(WrapFunctionNameCalls, TEXT(";\n"))));
-				}
-			}
-			else
-			{
-				// No output connections, leave a stub function. The compiler will be in charge
-				// of optimizing out anything that causes us to ends up here.
-				TArray<FString> StubIndexes;
-
-				for (const FString &IndexName: IndexNames)
-				{
-					StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
-				}
-				
-				GeneratedFunctions.Add(
-					FString::Printf(TEXT("void Write%s(%s, %s) { }"),
-						*Pin->GetName(), *FString::Join(StubIndexes, TEXT(", ")), *ValueType->ToString()));
-			}
+			ProcessOutputPinForComputeKernel(
+				Pin, ConnectedPins,
+				InNodeDataInterfaceMap, InLinkDataInterfaceMap,
+				KernelSource, GeneratedFunctions, OutOutputDataBindings);
 		}
 	}
 
 	FString WrappedSource = GetWrappedShaderSource();
 
-	FString CookedSource;
-
-	CookedSource =
+	FString CookedSource =
 		"#include \"/Engine/Private/Common.ush\"\n"
 		"#include \"/Engine/Private/ComputeKernelCommon.ush\"\n\n";
 	CookedSource += FString::Join(GeneratedFunctions, TEXT("\n"));
@@ -489,120 +523,116 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 			}
 			UpdatePreamble();
 		}
-	}
-	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayAdd)
-	{
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimus_ShaderContextBinding, Contexts))
+		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusNestedResourceContext, ContextNames))
 		{
-			UpdatePinContextAndDimensionality(EOptimusNodePinDirection::Input);
-			UpdatePreamble();
-		}
-		else
-		{
-			EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
-			FOptimus_ShaderBinding *Binding = nullptr;
-			FName Name;
-			UOptimusNodePin *BeforePin = nullptr;
-			FOptimusNodePinStorageConfig StorageConfig;
-
-			if (BasePropertyName == ParametersName)
+			if (BasePropertyName == ParametersName || BasePropertyName == InputBindingsName)
 			{
-				Direction = EOptimusNodePinDirection::Input;
-				Binding = &Parameters.Last();
-				Name = FName("Param");
-				StorageConfig = {};
-
-				if (!InputBindings.IsEmpty())
-				{
-					BeforePin = GetPins()[Parameters.Num() - 1];
-				}
-			}
-			else if (BasePropertyName == InputBindingsName)
-			{
-				Direction = EOptimusNodePinDirection::Input;
-				Binding = &InputBindings.Last();
-				Name = FName("Input");
-
-				// FIXME: Dimensionlity and context.
-				StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
+				UpdatePinResourceContexts(EOptimusNodePinDirection::Input);
 			}
 			else if (BasePropertyName == OutputBindingsName)
 			{
-				Direction = EOptimusNodePinDirection::Output;
-				Binding = &OutputBindings.Last();
-				Name = FName("Output");
-
-				StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
+				UpdatePinResourceContexts(EOptimusNodePinDirection::Output);
 			}
+			UpdatePreamble();
+		}
+	}
+	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayAdd)
+	{
+		EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
+		FOptimus_ShaderBinding *Binding = nullptr;
+		FName Name;
+		UOptimusNodePin *BeforePin = nullptr;
+		FOptimusNodePinStorageConfig StorageConfig;
 
-			if (ensure(Binding))
+		if (BasePropertyName == ParametersName)
+		{
+			Direction = EOptimusNodePinDirection::Input;
+			Binding = &Parameters.Last();
+			Name = FName("Param");
+			StorageConfig = {};
+
+			if (!InputBindings.IsEmpty())
 			{
-				Binding->Name = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Name);
-				Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
-
-				AddPin(Binding->Name, Direction, StorageConfig, Binding->DataType, BeforePin);
-
-				UpdatePreamble();
+				BeforePin = GetPins()[Parameters.Num() - 1];
 			}
+		}
+		else if (BasePropertyName == InputBindingsName)
+		{
+			Direction = EOptimusNodePinDirection::Input;
+			Binding = &InputBindings.Last();
+			Name = FName("Input");
+
+			// FIXME: Dimensionlity and context.
+			StorageConfig = FOptimusNodePinStorageConfig({Optimus::ContextName::Vertex});
+		}
+		else if (BasePropertyName == OutputBindingsName)
+		{
+			Direction = EOptimusNodePinDirection::Output;
+			Binding = &OutputBindings.Last();
+			Name = FName("Output");
+
+			StorageConfig = FOptimusNodePinStorageConfig({Optimus::ContextName::Vertex});
+		}
+
+		if (ensure(Binding))
+		{
+			Binding->Name = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Name);
+			Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
+
+			AddPin(Binding->Name, Direction, StorageConfig, Binding->DataType, BeforePin);
+
+			UpdatePreamble();
 		}
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayRemove)
 	{
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimus_ShaderContextBinding, Contexts))
+		auto GetFilteredPins = [this](EOptimusNodePinDirection InDirection, EOptimusNodePinStorageType InStorageType)
 		{
-			UpdatePinContextAndDimensionality(EOptimusNodePinDirection::Input);
-			UpdatePreamble();
+			TMap<FName, UOptimusNodePin *> FilteredPins;
+			for (UOptimusNodePin *Pin: GetPins())
+			{
+				if (Pin->GetDirection() == InDirection && Pin->GetStorageType() == InStorageType)
+				{
+					FilteredPins.Add(Pin->GetFName(), Pin);
+				}
+			}
+			return FilteredPins;
+		};
+
+		TMap<FName, UOptimusNodePin *> RemovedPins;
+		if (BasePropertyName == ParametersName)
+		{
+			RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Input, EOptimusNodePinStorageType::Value);
+			
+			for (const FOptimus_ShaderBinding& Binding: Parameters)
+			{
+				RemovedPins.Remove(Binding.Name);
+			}
 		}
-		else
+		else if (BasePropertyName == InputBindingsName)
 		{
-			auto GetFilteredPins = [this](EOptimusNodePinDirection InDirection, EOptimusNodePinStorageType InStorageType)
+			RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Input, EOptimusNodePinStorageType::Resource);
+			
+			for (const FOptimus_ShaderBinding& Binding: InputBindings)
 			{
-				TMap<FName, UOptimusNodePin *> FilteredPins;
-				for (UOptimusNodePin *Pin: GetPins())
-				{
-					if (Pin->GetDirection() == InDirection && Pin->GetStorageType() == InStorageType)
-					{
-						FilteredPins.Add(Pin->GetFName(), Pin);
-					}
-				}
-				return FilteredPins;
-			};
+				RemovedPins.Remove(Binding.Name);
+			}
+		}
+		else if (BasePropertyName == OutputBindingsName)
+		{
+			RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Output, EOptimusNodePinStorageType::Resource);
+			
+			for (const FOptimus_ShaderBinding& Binding: OutputBindings)
+			{
+				RemovedPins.Remove(Binding.Name);
+			}
+		}
 
-			TMap<FName, UOptimusNodePin *> RemovedPins;
-			if (BasePropertyName == ParametersName)
-			{
-				RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Input, EOptimusNodePinStorageType::Value);
-				
-				for (const FOptimus_ShaderBinding& Binding: Parameters)
-				{
-					RemovedPins.Remove(Binding.Name);
-				}
-			}
-			else if (BasePropertyName == InputBindingsName)
-			{
-				RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Input, EOptimusNodePinStorageType::Resource);
-				
-				for (const FOptimus_ShaderBinding& Binding: InputBindings)
-				{
-					RemovedPins.Remove(Binding.Name);
-				}
-			}
-			else if (BasePropertyName == OutputBindingsName)
-			{
-				RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Output, EOptimusNodePinStorageType::Resource);
-				
-				for (const FOptimus_ShaderBinding& Binding: OutputBindings)
-				{
-					RemovedPins.Remove(Binding.Name);
-				}
-			}
+		if (ensure(RemovedPins.Num() == 1))
+		{
+			RemovePin(RemovedPins.CreateIterator().Value());
 
-			if (ensure(RemovedPins.Num() == 1))
-			{
-				RemovePin(RemovedPins.CreateIterator().Value());
-
-				UpdatePreamble();
-			}
+			UpdatePreamble();
 		}
 	}
 }
@@ -618,12 +648,12 @@ void UOptimusNode_ComputeKernel::ConstructNode()
 	}
 	for (const FOptimus_ShaderContextBinding& Binding: InputBindings)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig{Binding.Contexts.Num(), TEXT("Vertex")};
+		const FOptimusNodePinStorageConfig StorageConfig(Binding.Context.ContextNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
 	}
 	for (const FOptimus_ShaderContextBinding& Binding: OutputBindings)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig{Binding.Contexts.Num(), TEXT("Vertex")};
+		const FOptimusNodePinStorageConfig StorageConfig(Binding.Context.ContextNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
 	}
 }
@@ -743,40 +773,37 @@ void UOptimusNode_ComputeKernel::UpdatePinNames(
 	}
 }
 
-void UOptimusNode_ComputeKernel::UpdatePinContextAndDimensionality(EOptimusNodePinDirection InPinDirection)
+void UOptimusNode_ComputeKernel::UpdatePinResourceContexts(EOptimusNodePinDirection InPinDirection)
 {
-	TArray<int32> Dimensionalities;
+	TArray<TArray<FName>> PinResourceContexts;
 
 	if (InPinDirection == EOptimusNodePinDirection::Input)
 	{
 		for (const FOptimus_ShaderBinding& Binding: Parameters)
 		{
-			Dimensionalities.Add(0);
+			PinResourceContexts.Add({});
 		}
 		for (const FOptimus_ShaderContextBinding& Binding: InputBindings)
 		{
-			Dimensionalities.Add(Binding.Contexts.Num());
+			PinResourceContexts.Add(Binding.Context.ContextNames);
 		}
 	}
 	else if (InPinDirection == EOptimusNodePinDirection::Output)
 	{
 		for (const FOptimus_ShaderContextBinding& Binding: OutputBindings)
 		{
-			Dimensionalities.Add(Binding.Contexts.Num());
+			PinResourceContexts.Add(Binding.Context.ContextNames);
 		}
 	}	
 	
 	// Let's try and figure out which pin got changed.
 	const TArray<UOptimusNodePin *> KernelPins = GetKernelPins(InPinDirection);
 
-	if (ensure(Dimensionalities.Num() == KernelPins.Num()))
+	if (ensure(PinResourceContexts.Num() == KernelPins.Num()))
 	{
 		for (int32 Index = 0; Index < KernelPins.Num(); Index++)
 		{
-			if (KernelPins[Index]->GetResourceDimensionality() != Dimensionalities[Index])
-			{
-				SetPinContextAndDimensionality(KernelPins[Index], Dimensionalities[Index]);
-			}
+			SetPinResourceContexts(KernelPins[Index], PinResourceContexts[Index]);
 		}
 	}
 }
@@ -821,28 +848,45 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 	}
 
 	// FIXME: Lump input/output functions together into single context.
-	TSet<EOptimusResourceContext> SeenContexts;
+	auto ContextsPredicate = [](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B)
+	{
+		for (int32 Index = 0; Index < FMath::Min(A.Context.ContextNames.Num(), B.Context.ContextNames.Num()); Index++)
+		{
+			if (A.Context.ContextNames[Index] != B.Context.ContextNames[Index])
+			{
+				return FNameLexicalLess()(A.Context.ContextNames[Index], B.Context.ContextNames[Index]);
+			}
+		}
+		return false;
+	};
+	
+	TSet<TArray<FName>> SeenContexts;
 	TArray<FOptimus_ShaderContextBinding> Bindings = InputBindings;
-	Bindings.Sort([](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B) { return A.Contexts[0] < B.Contexts[0]; });
+	Bindings.Sort(ContextsPredicate);
+
+	auto AddCountFunctionIfNeeded = [&Declarations, &SeenContexts](const TArray<FName>& InContextNames)
+	{
+		if (!SeenContexts.Contains(InContextNames))
+		{
+			FString CountNameInfix;
+
+			for (FName ContextName: InContextNames)
+			{
+				CountNameInfix.Append(ContextName.ToString());
+			}
+			Declarations.Add(FString::Printf(TEXT("uint Get%sCount();"), *CountNameInfix));
+			SeenContexts.Add(InContextNames);
+		}
+	};
+	
 	for (const FOptimus_ShaderContextBinding& Binding: Bindings)
 	{
-		if (SeenContexts.Contains(Binding.Contexts[0]))
-		{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Binding.Contexts[0]));
-
-			Declarations.Add(FString::Printf(TEXT("// Context %s"), *ContextName));
-			Declarations.Add(FString::Printf(TEXT("uint Get%sCount();"), *ContextName));
-			SeenContexts.Add(Binding.Contexts[0]);
-		}
-
+		AddCountFunctionIfNeeded(Binding.Context.ContextNames);
+		
 		TArray<FString> Indexes;
-		for (const auto& Context: Binding.Contexts)
+		for (FString IndexName: GetIndexNamesFromContextNames(Binding.Context.ContextNames))
 		{
-			if (Context != EOptimusResourceContext::Global)
-			{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-			Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
-		}
+			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}
 		
 		Declarations.Add(FString::Printf(TEXT("%s Read%s(%s);"),
@@ -850,23 +894,15 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 	}
 
 	Bindings = OutputBindings;
-	Bindings.Sort([](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B) { return A.Contexts[0] < B.Contexts[0]; });
+	Bindings.Sort(ContextsPredicate);
 	for (const FOptimus_ShaderContextBinding& Binding: Bindings)
 	{
-		if (SeenContexts.Contains(Binding.Contexts[0]))
-		{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Binding.Contexts[0]));
-
-			Declarations.Add(FString::Printf(TEXT("// Context %s"), *ContextName));
-			Declarations.Add(FString::Printf(TEXT("uint Get%sCount();"), *ContextName));
-			SeenContexts.Add(Binding.Contexts[0]);
-		}
-
+		AddCountFunctionIfNeeded(Binding.Context.ContextNames);
+		
 		TArray<FString> Indexes;
-		for (const auto& Context: Binding.Contexts)
+		for (FString IndexName: GetIndexNamesFromContextNames(Binding.Context.ContextNames))
 		{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-			Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
+			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}
 		
 		Declarations.Add(FString::Printf(TEXT("void Write%s(%s, %s Value);"),

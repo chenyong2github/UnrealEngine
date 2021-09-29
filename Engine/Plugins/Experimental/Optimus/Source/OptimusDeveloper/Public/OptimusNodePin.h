@@ -39,20 +39,18 @@ struct FOptimusNodePinStorageConfig
 	FOptimusNodePinStorageConfig() = default;
 	
 	// Create a storage config for a resource pin.
-	FOptimusNodePinStorageConfig(int32 InDimensionality, FName InContext) :
+	FOptimusNodePinStorageConfig(const TArray<FName>& InContexts) :
 		Type(EOptimusNodePinStorageType::Resource),
-		ResourceDimensionality(InDimensionality),
-		ResourceContext(InContext)
+		ResourceContexts(InContexts)
 	{ }
 	
 	UPROPERTY()
 	EOptimusNodePinStorageType Type = EOptimusNodePinStorageType::Value;
 
+	// The context set for this pin. Can be one or more, for a given resource. Each context
+	// adds another lookup dimension to the resource.
 	UPROPERTY()
-	int32 ResourceDimensionality = 0;
-
-	UPROPERTY()
-	FName ResourceContext;
+	TArray<FName> ResourceContexts;
 };
 
 
@@ -106,16 +104,11 @@ public:
 	/** Returns the storage type for this pin, either a value or a bound resource */
 	EOptimusNodePinStorageType GetStorageType() const { return StorageType; }
 
-	/** Returns the expected dimensionality of the resource */
-	int32 GetResourceDimensionality() const
+	/** Returns the nested resource context names for this pin, if a resource pin, otherwise
+	 *  returns an empty array */
+	TArray<FName> GetResourceContexts() const
 	{
-		return StorageType == EOptimusNodePinStorageType::Resource ? ResourceDimensionality : 0;
-	}
-
-	/** Returns the resource context for this pin, if a resource pin, otherwise returns NAME_None */
-	FName GetResourceContext() const
-	{
-		return StorageType == EOptimusNodePinStorageType::Resource ? ResourceContext : NAME_None;
+		return StorageType == EOptimusNodePinStorageType::Resource ? ResourceContexts : TArray<FName>();
 	}
 
 	/** Returns the FProperty object for this pin. This can be used to directly address the
@@ -142,6 +135,10 @@ public:
 	/// are listed before their child pins.
 	TArray<UOptimusNodePin *> GetSubPinsRecursively() const;
 
+	/// Returns all pins that have a connection to this pin. If nothing is connected to this
+	/// pin, it returns an empty array.
+	TArray<UOptimusNodePin *> GetConnectedPins() const;
+
 	/// Ask this pin if it allows a connection from the other pin. 
 	/// @param InOtherPin The other pin to connect to/from
 	/// @param OutReason An optional string that will contain the reason why the connection
@@ -156,6 +153,9 @@ public:
 	/** Returns the stored expansion state */
 	bool GetIsExpanded() const;
 
+	// UObject overloads
+	void PostLoad() override;
+	
 protected:
 	friend class UOptimusNode;
 
@@ -194,12 +194,13 @@ private:
 	UPROPERTY()
 	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;
 
+	// TODO: Delete once all known graphs are updated.
 	UPROPERTY()
-	int32 ResourceDimensionality = 0;
+	FName ResourceContext_DEPRECATED;
 
 	UPROPERTY()
-	FName ResourceContext;
-
+	TArray<FName> ResourceContexts;
+	
 	UPROPERTY()
 	FOptimusDataTypeRef DataType;
 

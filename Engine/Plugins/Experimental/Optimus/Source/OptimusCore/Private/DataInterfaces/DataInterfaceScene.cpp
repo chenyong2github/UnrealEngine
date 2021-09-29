@@ -17,8 +17,9 @@ FString USceneDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"GameTime", "ReadGameTime", "Global"});
-	Defs.Add({"FrameNumber", "ReadFrameNumber", "Global"});
+	Defs.Add({"GameTime", "ReadGameTime"});
+	Defs.Add({"GameTimeDelta", "ReadGameTimeDelta"});
+	Defs.Add({"FrameNumber", "ReadFrameNumber"});
 	return Defs;
 }
 
@@ -30,6 +31,15 @@ void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& 
 	{
 		FShaderFunctionDefinition Fn;
 		Fn.Name = TEXT("ReadGameTime");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
+		Fn.ParamTypes.Add(ReturnParam);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadGameTimeDelta");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
@@ -50,6 +60,7 @@ void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSceneDataInterfaceParameters, )
 	SHADER_PARAMETER(float, GameTime)
+	SHADER_PARAMETER(float, GameTimeDelta)
 	SHADER_PARAMETER(uint32, FrameNumber)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -90,6 +101,7 @@ FComputeDataProviderRenderProxy* USceneDataProvider::GetRenderProxy()
 FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent)
 {
 	GameTime = SceneComponent != nullptr ? SceneComponent->GetWorld()->TimeSeconds : 0;
+	GameTimeDelta = SceneComponent != nullptr ? SceneComponent->GetWorld()->DeltaTimeSeconds : 0;
 	FrameNumber = SceneComponent != nullptr ? SceneComponent->GetScene()->GetFrameNumber() : 0;
 }
 
@@ -98,6 +110,7 @@ void FSceneDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UI
 	FSceneDataInterfaceParameters Parameters;
 	FMemory::Memset(&Parameters, 0, sizeof(Parameters));
 	Parameters.GameTime = GameTime;
+	Parameters.GameTimeDelta = GameTimeDelta;
 	Parameters.FrameNumber = FrameNumber;
 
 	TArray<uint8> ParamData;
