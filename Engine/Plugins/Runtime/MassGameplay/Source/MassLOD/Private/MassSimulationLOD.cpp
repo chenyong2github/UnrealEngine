@@ -28,7 +28,7 @@ void UMassProcessor_MassSimulationLODViewersInfo::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_MassSimulationLODInfo>(ELWComponentAccess::ReadWrite);
 }
 
-void UMassProcessor_MassSimulationLODViewersInfo::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassProcessor_MassSimulationLODViewersInfo::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	check(LODManager);
 	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
@@ -106,7 +106,7 @@ void UMassSimulationLODProcessor::Initialize(UObject& InOwner)
 	Super::Initialize(InOwner);
 }
 
-void UMassSimulationLODProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassSimulationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("SimulationLOD"))
 
@@ -116,7 +116,7 @@ void UMassSimulationLODProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLW
 	}
 }
 
-void UMassSimulationLODProcessor::CalculateLODForConfig(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSimulationLODConfig& LODConfig)
+void UMassSimulationLODProcessor::CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSimulationLODConfig& LODConfig)
 {
 	check(LODManager);
 	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();

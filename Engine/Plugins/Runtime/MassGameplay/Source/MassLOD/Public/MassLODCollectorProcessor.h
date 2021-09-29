@@ -53,7 +53,7 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
 	TArray<FMassCollectorLODConfig> LODConfigs;

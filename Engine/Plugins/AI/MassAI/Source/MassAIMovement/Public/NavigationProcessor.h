@@ -24,7 +24,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 private:
 	FLWComponentQuery HighResEntityQuery;
@@ -50,7 +50,7 @@ public:
 	
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 	virtual void OnStop(FMassDynamicObstacleFragment& OutObstacle, const float BlockingRadius) {}
 	virtual void OnMove(FMassDynamicObstacleFragment& OutObstacle) {}
 

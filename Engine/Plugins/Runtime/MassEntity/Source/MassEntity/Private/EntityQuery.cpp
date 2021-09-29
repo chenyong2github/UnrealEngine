@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntityQuery.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "ArchetypeData.h"
 #include "LWCCommandBuffer.h"
 #include "VisualLogger/VisualLogger.h"
@@ -53,7 +53,7 @@ void FLWComponentQuery::SortRequirements()
 	ChunkRequirements.Sort(FLWComponentSorterOperator<FLWComponentRequirement>());
 }
 
-void FLWComponentQuery::CacheArchetypes(UEntitySubsystem& InEntitySubsystem)
+void FLWComponentQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 {
 	const uint32 InEntitySubsystemHash = PointerHash(&InEntitySubsystem);
 	if (EntitySubsystemHash != InEntitySubsystemHash || InEntitySubsystem.GetArchetypeDataVersion() != ArchetypeDataVersion)
@@ -117,7 +117,7 @@ bool FLWComponentQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& A
 	return true;
 }
 
-void FLWComponentQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
+void FLWComponentQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
 {
 	// mz@todo I don't like that we're copying data here.
 	ExecutionContext.SetChunkCollection(Chunks);
@@ -125,7 +125,7 @@ void FLWComponentQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chun
 	ExecutionContext.ClearChunkCollection();
 }
 
-void FLWComponentQuery::ForEachEntityChunk(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
+void FLWComponentQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
 {
 #if WITH_AGGREGATETICKING_DEBUG
 	int32 NumEntitiesToProcess = 0;
@@ -175,7 +175,7 @@ void FLWComponentQuery::ForEachEntityChunk(UEntitySubsystem& EntitySubsystem, FL
 	ExecutionContext.FlushDeferred(EntitySubsystem);
 }
 
-void FLWComponentQuery::ParallelForEachEntityChunk(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
+void FLWComponentQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
 {
 	if (bAllowParallelExecution == false)
 	{
@@ -241,7 +241,7 @@ void FLWComponentQuery::ParallelForEachEntityChunk(UEntitySubsystem& EntitySubsy
 	ExecutionContext.FlushDeferred(EntitySubsystem);
 }
 
-int32 FLWComponentQuery::GetMatchingEntitiesNum(UEntitySubsystem& InEntitySubsystem)
+int32 FLWComponentQuery::GetMatchingEntitiesNum(UMassEntitySubsystem& InEntitySubsystem)
 {
 	CacheArchetypes(InEntitySubsystem);
 	int32 TotalEntities = 0;
@@ -255,7 +255,7 @@ int32 FLWComponentQuery::GetMatchingEntitiesNum(UEntitySubsystem& InEntitySubsys
 	return TotalEntities;
 }
 
-bool FLWComponentQuery::HasMatchingEntities(UEntitySubsystem& InEntitySubsystem)
+bool FLWComponentQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
 {
 	CacheArchetypes(InEntitySubsystem);
 

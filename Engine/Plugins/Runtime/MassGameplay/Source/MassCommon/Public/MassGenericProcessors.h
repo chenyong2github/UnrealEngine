@@ -35,7 +35,7 @@ public:
 		}
 	}
 
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Mass", meta = (ClampMin = 1, UIMin = 1))
 	float MinMagnitude = 1.f;

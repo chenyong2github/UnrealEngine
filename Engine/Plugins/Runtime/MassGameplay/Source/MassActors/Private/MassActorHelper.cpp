@@ -3,7 +3,7 @@
 #include "MassActorHelper.h"
 #include "MassActorTypes.h"
 #include "MassActorSubsystem.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "Engine/World.h"
 
 namespace UE::MassActor
@@ -11,7 +11,7 @@ namespace UE::MassActor
 	bool AddEntityTagToActor(const AActor& Actor, const UScriptStruct& TagType)
 	{
 		UWorld* World = Actor.GetWorld();
-		UPipeEntitySubsystem* EntitySystem = UPipeEntitySubsystem::GetCurrent(World);
+		UMassEntitySubsystem* EntitySystem = UMassEntitySubsystem::GetCurrent(World);
 		UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World);
 		if (EntitySystem && MassActorSubsystem)
 		{
@@ -36,7 +36,7 @@ namespace UE::MassActor
 	bool RemoveEntityTagFromActor(const AActor& Actor, const UScriptStruct& TagType)
 	{
 		UWorld* World = Actor.GetWorld();
-		UPipeEntitySubsystem* EntitySystem = UPipeEntitySubsystem::GetCurrent(World);
+		UMassEntitySubsystem* EntitySystem = UMassEntitySubsystem::GetCurrent(World);
 		UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World);
 		if (EntitySystem && MassActorSubsystem)
 		{

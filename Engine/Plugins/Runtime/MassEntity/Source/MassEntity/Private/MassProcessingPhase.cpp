@@ -6,7 +6,7 @@
 #include "MassEntitySettings.h"
 #include "MassProcessor.h"
 #include "MassExecutor.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Engine/World.h"
 #include "LWCCommandBuffer.h"
@@ -172,7 +172,7 @@ void UPipeProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 
 void UPipeProcessingPhaseManager::Start(UWorld& World)
 {
-	EntitySubsystem = UPipeEntitySubsystem::GetCurrent(&World);
+	EntitySubsystem = UMassEntitySubsystem::GetCurrent(&World);
 
 	if (ensure(EntitySubsystem))
 	{
@@ -184,7 +184,7 @@ void UPipeProcessingPhaseManager::Start(UWorld& World)
 	}
 }
 
-void UPipeProcessingPhaseManager::Start(UPipeEntitySubsystem& InEntitySubsystem)
+void UPipeProcessingPhaseManager::Start(UMassEntitySubsystem& InEntitySubsystem)
 {
 	UWorld* World = InEntitySubsystem.GetWorld();
 	check(World);

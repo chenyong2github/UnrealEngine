@@ -31,7 +31,7 @@ void UMassSignalProcessorBase::SubscribeToSignal(const FName SignalName)
 	SignalSubsystem->GetSignalDelegateByName(SignalName).AddUObject(this, &UMassSignalProcessorBase::OnSignalReceived);
 }
 
-void UMassSignalProcessorBase::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SignalEntities);
 

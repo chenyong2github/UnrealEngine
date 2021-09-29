@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Subsystems/WorldSubsystem.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "Async/TaskGraphInterfaces.h"
 
 

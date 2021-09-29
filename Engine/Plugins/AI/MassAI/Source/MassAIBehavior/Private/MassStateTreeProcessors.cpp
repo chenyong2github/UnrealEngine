@@ -18,7 +18,7 @@ CSV_DEFINE_CATEGORY(StateTreeProcessor, true);
 namespace UE::MassBehavior
 {
 
-bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const UEntitySubsystem& EntitySubsystem)
+bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const UMassEntitySubsystem& EntitySubsystem)
 {
 	bool bFoundAllFragments = true;
 	const FEntityView EntityView(EntitySubsystem, Context.GetEntity());
@@ -152,7 +152,7 @@ void UMassStateTreeFragmentInitializer::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassStateTreeFragment>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassStateTreeFragmentInitializer::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
 	// The initializer provides that by sending a signal to all new entities that use StateTree.
@@ -202,7 +202,7 @@ void UMassStateTreeFragmentDestructor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassStateTreeFragment>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassStateTreeFragmentDestructor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
 	UMassStateTreeSubsystem* MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(EntitySubsystem.GetWorld());
@@ -273,7 +273,7 @@ void UMassStateTreeProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassStateTreeFragment>(ELWComponentAccess::ReadWrite);
 }
 
-void UMassStateTreeProcessor::SignalEntities(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
+void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
 	if (!MassStateTreeSubsystem)
 	{

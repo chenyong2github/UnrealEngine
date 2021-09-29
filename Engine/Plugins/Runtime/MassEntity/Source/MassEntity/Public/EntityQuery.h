@@ -10,7 +10,7 @@
 #include "EntityQuery.generated.h"
 
 
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 struct FArchetypeData;
 struct FLWComponentSystemExecutionContext;
 struct FLWComponentData;
@@ -103,20 +103,20 @@ public:
 	FLWComponentQuery(TConstArrayView<const UScriptStruct*> InitList);
 
 	/** Runs ExecuteFunction on all entities matching Requirements */
-	void ForEachEntityChunk(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
+	void ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
 	
 	/** Will first verify that the archetype given with Chunks matches the query's requirements, and if so will run the other, more generic ForEachEntityChunk implementation */
-	void ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
+	void ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
 
 	/**
 	 * Attempts to process every chunk of every affected archetype in parallel.
 	 */
-	void ParallelForEachEntityChunk(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
+	void ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
 
 	/** Will gather all archetypes from InEntitySubsystem matching this->Requirements.
 	 *  Note that no work will be done if the cached data is up to date (as tracked by EntitySubsystemHash and 
 	 *	ArchetypeDataVersion properties). */
-	void CacheArchetypes(UEntitySubsystem& InEntitySubsystem);
+	void CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem);
 
 	FLWComponentQuery& AddRequirement(const UScriptStruct* ComponentType, const ELWComponentAccess AccessMode, const ELWComponentPresence Presence = ELWComponentPresence::All)
 	{
@@ -293,14 +293,14 @@ public:
 	 * Note that the function is not const because calling it can result in re-caching of ValidArchetypes 
 	 * @return the number of entities this given query would process if called "now"
 	 */
-	int32 GetMatchingEntitiesNum(UEntitySubsystem& InEntitySubsystem);
+	int32 GetMatchingEntitiesNum(UMassEntitySubsystem& InEntitySubsystem);
 
 	/**
 	 * Checks if any of ValidArchetypes has any entities.
 	 * Note that the function is not const because calling it can result in re-caching of ValidArchetypes
 	 * @return "true" if any of the ValidArchetypes has any entities, "false" otherwise
 	 */
-	bool HasMatchingEntities(UEntitySubsystem& InEntitySubsystem);
+	bool HasMatchingEntities(UMassEntitySubsystem& InEntitySubsystem);
 
 	/** 
 	 * Sets a chunk filter condition that will applied to each chunk of all valid archetypes. Note 

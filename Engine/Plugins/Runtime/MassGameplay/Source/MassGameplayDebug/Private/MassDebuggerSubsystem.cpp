@@ -5,7 +5,7 @@
 #include "MassCommonTypes.h"
 #include "MassSimulationSubsystem.h"
 #include "MassDebugVisualizationComponent.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassDebugVisualizer.h"
 
 

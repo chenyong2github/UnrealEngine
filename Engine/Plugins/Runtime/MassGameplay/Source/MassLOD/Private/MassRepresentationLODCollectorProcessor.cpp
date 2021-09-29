@@ -42,7 +42,7 @@ void UMassRepresentationLODCollectorProcessor::ConfigureQueries()
 }
 
 template <typename TCollector>
-void CollectLODInfo(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, const TArray<FViewerInfo>& Viewers, TCollector& Collector, FLWComponentQuery& HighFrequencyTickingEntityQuery, FLWComponentQuery& LowFrequencyTickingEntityQuery)
+void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, const TArray<FViewerInfo>& Viewers, TCollector& Collector, FLWComponentQuery& HighFrequencyTickingEntityQuery, FLWComponentQuery& LowFrequencyTickingEntityQuery)
 {
 	Collector.PrepareExecution(Viewers);
 
@@ -64,7 +64,7 @@ void CollectLODInfo(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecuti
 	}
 }
 
-void UMassRepresentationLODCollectorProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	check(LODManager);
 	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();

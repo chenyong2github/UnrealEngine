@@ -4,7 +4,7 @@
 #include "AITestsCommon.h"
 
 #include "Engine/World.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassEntityTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
@@ -17,11 +17,11 @@ namespace FPipeProcessorTest
 {
 
 template<typename TProcessor>
-int32 SimpleProcessorRun(UPipeEntitySubsystem& EntitySubsystem)
+int32 SimpleProcessorRun(UMassEntitySubsystem& EntitySubsystem)
 {
 	int32 EntityProcessedCount = 0;
 	TProcessor* Processor = NewObject<TProcessor>(&EntitySubsystem);
-	Processor->ExecutionFunction = [Processor, &EntityProcessedCount](UEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
+	Processor->ExecutionFunction = [Processor, &EntityProcessedCount](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
 		check(Processor);
 		Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [Processor, &EntityProcessedCount](FLWComponentSystemExecutionContext& Context)
 			{

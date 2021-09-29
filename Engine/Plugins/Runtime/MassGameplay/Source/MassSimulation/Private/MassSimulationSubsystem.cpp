@@ -2,7 +2,7 @@
 
 #include "MassSimulationSubsystem.h"
 #include "MassSimulationLocalCoordinator.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassExecutor.h"
 #include "MassSimulationSettings.h"
 #include "VisualLogger/VisualLogger.h"
@@ -11,15 +11,6 @@
 #endif // WITH_EDITOR
 
 DEFINE_LOG_CATEGORY(LogMassSim);
-
-namespace FMassSimulationSubsystemHelper
-{
-	UPipeEntitySubsystem* GetEntitySubsystem(const UWorld* World)
-	{
-		UMassSimulationSubsystem* Instance = UWorld::GetSubsystem<UMassSimulationSubsystem>(World);
-		return Instance ? Instance->GetEntitySubsystem() : nullptr;
-	}
-}
 
 namespace UE::MassSimulation
 {
@@ -42,16 +33,8 @@ void UMassSimulationSubsystem::PostInitProperties()
 
 	Super::PostInitProperties();
 
-	if (HasAnyFlags(RF_ClassDefaultObject))
+	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
-		UPipeEntitySubsystem::SetGetter_Internal([](const UWorld* World)
-		{
-			return FMassSimulationSubsystemHelper::GetEntitySubsystem(World);
-		});
-	}
-	else
-	{
-		CreateEntitySubsystem();
 #if WITH_EDITOR
 		GET_MASS_CONFIG_VALUE(GetOnTickSchematicChanged()).AddUObject(this, &UMassSimulationSubsystem::RebuildTickPipeline);
 #endif // WITH_EDITOR
@@ -85,23 +68,13 @@ FPipeProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPh
 	return PhaseManager->GetOnPhaseEnd(Phase);
 }
 
-void UMassSimulationSubsystem::CreateEntitySubsystem()
-{
-	check(HasAnyFlags(RF_ClassDefaultObject) == false);
-	if (ensureMsgf(EntitySubsystem == nullptr, TEXT("Trying to create a second instance of EntitySubsystem. The call will be ignored.")))
-	{
-		UWorld* World = GetWorld();
-		check(World);
-		EntitySubsystem = NewObject<UPipeEntitySubsystem>(World);
-	}
-}
-
 void UMassSimulationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	check(EntitySubsystem);
-	EntitySubsystem->Initialize(Collection);
+	CachedEntitySubsystem = Collection.InitializeDependency<UMassEntitySubsystem>();
+	check(CachedEntitySubsystem);
+	
 	GetOnProcessingPhaseStarted(EPipeProcessingPhase::PrePhysics).AddUObject(this, &UMassSimulationSubsystem::OnProcessingPhaseStarted, EPipeProcessingPhase::PrePhysics);
 }
 
@@ -175,10 +148,10 @@ void UMassSimulationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds
 		case EPipeProcessingPhase::PrePhysics:
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(DoEntityCompation);
-				check(EntitySubsystem);
+				check(CachedEntitySubsystem);
 				if (UE::MassSimulation::bDoEntityCompaction)
 				{
-					EntitySubsystem->DoEntityCompaction(GET_MASS_CONFIG_VALUE(DesiredEntityCompactionTimeSlicePerTick));
+					CachedEntitySubsystem->DoEntityCompaction(GET_MASS_CONFIG_VALUE(DesiredEntityCompactionTimeSlicePerTick));
 				}
 			}
 			break;

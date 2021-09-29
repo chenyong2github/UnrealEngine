@@ -117,7 +117,7 @@ void UMassLookAtProcessor::ConfigureQueries()
 	EntityQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
 }
 
-void UMassLookAtProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(LookAtProcessor_Run);
 
@@ -233,7 +233,7 @@ void UMassLookAtProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWCompone
 		});
 }
 
-void UMassLookAtProcessor::FindNewGazeTarget(const UEntitySubsystem& EntitySubsystem, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const
+void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntitySubsystem, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const
 {
 	const FLWEntity LastTrackedEntity = LookAt.GazeTrackedEntity;
 	
@@ -349,7 +349,7 @@ void UMassLookAtProcessor::UpdateLookAtTrajectory(const FTransform& Transform, c
 	}
 }
 
-void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UEntitySubsystem& EntitySubsystem, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
+void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UMassEntitySubsystem& EntitySubsystem, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
 {
 	// Update direction toward target
 	if (EntitySubsystem.IsEntityValid(LookAt.TrackedEntity))
@@ -371,7 +371,7 @@ void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UEntitySubsystem& Ent
 	}
 }
 
-bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UEntitySubsystem& EntitySubsystem, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
+bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& EntitySubsystem, const FTransform& Transform, const bool bDisplayDebug, FMassLookAtFragment& LookAt) const
 {
 	bool bHasTarget = false;
 	

@@ -23,7 +23,7 @@ void USnapToNavigationProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_NavLocation>(ELWComponentAccess::ReadWrite);
 }
 
-void USnapToNavigationProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void USnapToNavigationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	ANavigationData* NavData = WeakNavData.Get();
 	if (NavData == nullptr)

@@ -97,7 +97,7 @@ void RunProcessorsView(TArrayView<UPipeProcessor*> Processors, FPipeContext& Pip
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Execute Processors")
 		
-		UEntitySubsystem::FScopedProcessing ProcessingScope = PipeContext.EntitySubsystem->NewProcessingScope();
+		UMassEntitySubsystem::FScopedProcessing ProcessingScope = PipeContext.EntitySubsystem->NewProcessingScope();
 
 		for (UPipeProcessor* Proc : Processors)
 		{
@@ -117,7 +117,7 @@ void RunProcessorsView(TArrayView<UPipeProcessor*> Processors, FPipeContext& Pip
 
 struct FPipeExecutorDoneTask
 {
-	FPipeExecutorDoneTask(const FLWComponentSystemExecutionContext& InExecutionContext, UEntitySubsystem& InEntitySubsystem, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
+	FPipeExecutorDoneTask(const FLWComponentSystemExecutionContext& InExecutionContext, UMassEntitySubsystem& InEntitySubsystem, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
 		: ExecutionContext(InExecutionContext)
 		, EntitySubsystem(InEntitySubsystem)
 		, OnDoneNotification(InOnDoneNotification)
@@ -148,7 +148,7 @@ struct FPipeExecutorDoneTask
 	}
 private:
 	FLWComponentSystemExecutionContext ExecutionContext;
-	UEntitySubsystem& EntitySubsystem;
+	UMassEntitySubsystem& EntitySubsystem;
 	TFunction<void()> OnDoneNotification;
 	FString DebugName;
 };
@@ -165,7 +165,7 @@ FGraphEventRef TriggerParallelTasks(UPipeProcessor& Processor, FPipeContext& Pip
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunParallel")
 
-	// not going through UEntitySubsystem::CreateExecutionContext on purpose - we do need a separate command buffer
+	// not going through UMassEntitySubsystem::CreateExecutionContext on purpose - we do need a separate command buffer
 	FLWComponentSystemExecutionContext ExecutionContext(PipeContext.DeltaSeconds);
 	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FLWCCommandBuffer()));
 	ExecutionContext.SetFlushDeferredCommands(false);

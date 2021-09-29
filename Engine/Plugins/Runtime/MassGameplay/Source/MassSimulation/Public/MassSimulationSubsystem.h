@@ -10,7 +10,7 @@
 
 
 class AMassSimulationLocalCoordinator;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 class UPipeProcessingPhaseManager;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMassSim, Log, All);
@@ -25,7 +25,7 @@ public:
 	
 	UMassSimulationSubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UPipeEntitySubsystem* GetEntitySubsystem() const { return EntitySubsystem; }
+	UMassEntitySubsystem* GetEntitySubsystem() const { return CachedEntitySubsystem; }
 	const UPipeProcessingPhaseManager& GetPhaseManager() const { check(PhaseManager); return *PhaseManager; }
 
 	FPipeProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseStarted(const EPipeProcessingPhase Phase) const;
@@ -43,11 +43,6 @@ protected:
 	virtual void Deinitialize() override;
 	virtual void BeginDestroy() override;
 
-	/** Creates an instance of UPipeEntitySubsystem and assigns it to EntitySubsystem property. This is the entity 
-	 *  subsystem that Mass is going to be using. If you want to instantiate a different entity system class or point 
-	 *  at a preexisting instance just override this function. */
-	virtual void CreateEntitySubsystem();
-
 	void RebuildTickPipeline();
 
 	void StartSimulation(UWorld& InWorld);
@@ -63,7 +58,7 @@ protected:
 protected:
 
 	UPROPERTY()
-	UPipeEntitySubsystem* EntitySubsystem;
+	UMassEntitySubsystem* CachedEntitySubsystem;
 
 	UPROPERTY()
 	UPipeProcessingPhaseManager* PhaseManager;

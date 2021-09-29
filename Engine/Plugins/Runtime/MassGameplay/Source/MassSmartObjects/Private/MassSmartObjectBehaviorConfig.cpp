@@ -3,7 +3,7 @@
 #include "MassSmartObjectBehaviorConfig.h"
 #include "MassSmartObjectProcessor.h"
 
-void USmartObjectMassBehaviorConfig::Activate(UEntitySubsystem& EntitySubsystem,
+void USmartObjectMassBehaviorConfig::Activate(UMassEntitySubsystem& EntitySubsystem,
                                               FLWComponentSystemExecutionContext& Context,
                                               const FMassBehaviorEntityContext& EntityContext) const
 {

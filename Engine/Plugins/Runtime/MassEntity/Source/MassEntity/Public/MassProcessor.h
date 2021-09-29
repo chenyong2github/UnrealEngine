@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassEntityTypes.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "LWCCommandBuffer.h"
@@ -46,13 +46,13 @@ public:
 	UPipeProcessor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Initialize(UObject& Owner) {}
-	virtual FGraphEventRef DispatchProcessorTasks(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray());
+	virtual FGraphEventRef DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray());
 
 	EProcessorExecutionFlags GetExecutionFlags() const { return (EProcessorExecutionFlags)ExecutionFlags; }
 
 	/** Whether this processor should execute according the CurrentExecutionFlags parameters */
 	bool ShouldExecute(const EProcessorExecutionFlags CurrentExecutionFlags) const { return (GetExecutionFlags() & CurrentExecutionFlags) != EProcessorExecutionFlags::None; }
-	void CallExecute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
+	void CallExecute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
 	
 	bool AllowDuplicates() const { return bAllowDuplicates; }
 
@@ -88,7 +88,7 @@ public:
 protected:
 	virtual void ConfigureQueries() PURE_VIRTUAL(UPipeProcessor::ConfigureQueries);
 	virtual void PostInitProperties() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) PURE_VIRTUAL(UPipeProcessor::Execute);
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) PURE_VIRTUAL(UPipeProcessor::Execute);
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -161,7 +161,7 @@ public:
 	 *  and if it's missing it will be created and AddGroupedProcessor will be called recursively */
 	void AddGroupedProcessor(FName RequestedGroupName, UPipeProcessor& SubProcessor);
 
-	virtual FGraphEventRef DispatchProcessorTasks(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray()) override;
+	virtual FGraphEventRef DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray()) override;
 
 	bool IsEmpty() const { return ChildPipeline.IsEmpty(); }
 
@@ -169,7 +169,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 	/**
 	 *  Called recursively to add processors and composite processors to ChildPipeline based on ProcessorsAndGroups

@@ -416,7 +416,7 @@ void UMassAvoidanceProcessor::Initialize(UObject& Owner)
 	WeakMovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
 }
 
-void UMassAvoidanceProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UMassAvoidanceProcessor);
 
@@ -1164,7 +1164,7 @@ void UMassStandingAvoidanceProcessor::Initialize(UObject& Owner)
 	WeakMovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
 }
 
-void UMassStandingAvoidanceProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UMassStandingAvoidanceProcessor);
 
@@ -1423,7 +1423,7 @@ void UMassAvoidanceObstacleProcessor::Initialize(UObject& Owner)
 	WeakMovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
 }
 
-void UMassAvoidanceObstacleProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 
@@ -1552,7 +1552,7 @@ void UMassNavigationBoundaryProcessor::Initialize(UObject& Owner)
 	WeakNavData = NavData;
 }
 
-void UMassNavigationBoundaryProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassNavigationBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 
@@ -1627,7 +1627,7 @@ void UMassLaneBoundaryProcessor::Initialize(UObject& Owner)
 	WeakZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(Owner.GetWorld());
 }
 
-void UMassLaneBoundaryProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 
@@ -1904,7 +1904,7 @@ void UMassLaneCacheBoundaryProcessor::Initialize(UObject& Owner)
 	WeakWorld = Owner.GetWorld();
 }
 
-void UMassLaneCacheBoundaryProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 

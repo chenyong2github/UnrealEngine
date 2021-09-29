@@ -23,7 +23,7 @@ void UMassDebugStateTreeProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassDebugStateTreeProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 #if WITH_MASS_DEBUG
 	UWorld* World = GetWorld();

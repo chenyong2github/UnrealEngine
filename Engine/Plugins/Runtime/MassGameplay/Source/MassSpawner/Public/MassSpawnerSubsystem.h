@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "MassSpawnerSubsystem.generated.h"
 
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 struct FMassSpawnConfigBase;
 struct FMassEntityTemplate;
 class UMassEntityTemplateRegistry;
@@ -56,7 +56,7 @@ protected:
 	void DoSpawning(const FMassEntityTemplate& EntityTemplate, const FMassSpawnConfigBase& Data, const FStructView& AuxData, TArray<FLWEntity>& OutEntities) const;
 
 	UPROPERTY()
-	UPipeEntitySubsystem* EntitySystem;
+	UMassEntitySubsystem* EntitySystem;
 
 	UPROPERTY()
 	UMassEntityTemplateRegistry* TemplateRegistryInstance;

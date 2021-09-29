@@ -10,7 +10,7 @@
 
 MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogPipe, Warning, All);
 
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 class UPipeProcessor;
 class UPipeSchematic;
 class UPipeCompositeProcessor;
@@ -38,7 +38,7 @@ struct MASSENTITY_API FPipeContext
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UEntitySubsystem* EntitySubsystem = nullptr;
+	UMassEntitySubsystem* EntitySubsystem = nullptr;
 	
 	UPROPERTY()
 	float DeltaSeconds = 0.f;
@@ -47,7 +47,7 @@ struct MASSENTITY_API FPipeContext
 	FInstancedStruct AuxData;
 
 	FPipeContext() = default;
-	FPipeContext(UEntitySubsystem& InEntities, const float InDeltaSeconds);
+	FPipeContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds);
 };
 
 /** 

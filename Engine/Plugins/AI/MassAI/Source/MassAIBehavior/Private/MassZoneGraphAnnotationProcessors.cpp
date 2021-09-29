@@ -31,7 +31,7 @@ void UMassZoneGraphAnnotationTagsInitializer::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassZoneGraphAnnotationTagsInitializer::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphAnnotationTagsInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 	{
@@ -83,7 +83,7 @@ void UMassZoneGraphAnnotationTagUpdateProcessor::ConfigureQueries()
 	EntityQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassZoneGraphAnnotationTagUpdateProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphAnnotationTagUpdateProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	TransientEntitiesToSignal.Reset();
 
@@ -136,7 +136,7 @@ void UMassZoneGraphAnnotationTagUpdateProcessor::UpdateAnnotationTags(FMassZoneG
 	}
 }
 
-void UMassZoneGraphAnnotationTagUpdateProcessor::SignalEntities(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
+void UMassZoneGraphAnnotationTagUpdateProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
 	if (!ZoneGraphAnnotationSubsystem)
 	{

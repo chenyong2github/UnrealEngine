@@ -98,7 +98,7 @@ void UMassApplyVelocityMoveTargetProcessor::ConfigureQueries()
 	LowResEntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
 }
 
-void UMassApplyVelocityMoveTargetProcessor::Execute(UEntitySubsystem& EntitySubsystem,
+void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 													FLWComponentSystemExecutionContext& Context)
 {
 	// Clamp max delta time to avoid force explosion on large time steps (i.e. during initialization).
@@ -241,7 +241,7 @@ void UMassDynamicObstacleProcessor::ConfigureQueries()
 	EntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
 }
 
-void UMassDynamicObstacleProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassDynamicObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 		{

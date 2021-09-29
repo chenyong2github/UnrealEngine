@@ -3,7 +3,7 @@
 #pragma once
 
 #include "LWComponentTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
 #include "MassLODTypes.h"
 #include "Logging/LogMacros.h"

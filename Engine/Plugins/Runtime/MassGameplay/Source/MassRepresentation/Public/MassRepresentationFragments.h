@@ -4,7 +4,7 @@
 
 #include "MassLODTypes.h"
 #include "LWComponentTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassActorSpawnerSubsystem.h"
 #include "MassRepresentationTypes.h"
 

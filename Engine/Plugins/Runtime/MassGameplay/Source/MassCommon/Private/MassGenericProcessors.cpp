@@ -12,7 +12,7 @@ URandomizeVectorProcessor::URandomizeVectorProcessor()
 	bAutoRegisterWithProcessingPhases = false;
 }
 
-void URandomizeVectorProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void URandomizeVectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(RandomizeVectorProcessor_Run);
 	

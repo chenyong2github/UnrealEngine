@@ -12,7 +12,7 @@
 
 
 class UWorld;
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 class UMassTranslator;
 
 enum class EFragmentInitialization : uint8

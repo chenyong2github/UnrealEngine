@@ -21,7 +21,7 @@ void UAssignRandomNavLocationProcessor::ConfigureQueries()
 	EntityQuery.AddRequirement<FDataFragment_NavLocation>(ELWComponentAccess::ReadWrite);
 }
 
-void UAssignRandomNavLocationProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UAssignRandomNavLocationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	if (!ensure(NavigationSystem))
 	{

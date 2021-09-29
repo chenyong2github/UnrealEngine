@@ -7,7 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "LWComponentTypes.h"
 
-class UEntitySubsystem;
+class UMassEntitySubsystem;
 struct FArchetypeData;
 struct FLWComponentSystemExecutionContext;
 struct FLWComponentData;
@@ -40,7 +40,7 @@ private:
 	{}
 	TSharedPtr<FArchetypeData> DataPtr;
 
-	friend UEntitySubsystem;
+	friend UMassEntitySubsystem;
 	friend FArchetypeChunkCollection;
 	friend FLWComponentQuery;
 	friend FEntityView;

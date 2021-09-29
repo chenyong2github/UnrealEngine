@@ -32,12 +32,12 @@ protected:
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
-	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
 
 	void PrepareExecution();
 
 	template <typename TMassViewerLODInfoFragment = FMassLODInfoFragment>
-	void ExecuteInternal(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
+	void ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
 
 	
 	/**
@@ -73,7 +73,7 @@ namespace UE::MassRepresentation
 } // UE::MassRepresentation
 
 template <typename TMassViewerLODInfoFragment>
-void UMassVisualizationLODProcessor::ExecuteInternal(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	if (bForceOFFLOD)
 	{

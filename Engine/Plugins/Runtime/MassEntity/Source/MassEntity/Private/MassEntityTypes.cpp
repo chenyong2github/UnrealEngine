@@ -14,7 +14,7 @@ DEFINE_LOG_CATEGORY(LogPipe);
 //----------------------------------------------------------------------//
 //  FPipeContext
 //----------------------------------------------------------------------//
-FPipeContext::FPipeContext(UEntitySubsystem& InEntities, const float InDeltaSeconds)
+FPipeContext::FPipeContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds)
 	: EntitySubsystem(&InEntities), DeltaSeconds(InDeltaSeconds)
 {
 

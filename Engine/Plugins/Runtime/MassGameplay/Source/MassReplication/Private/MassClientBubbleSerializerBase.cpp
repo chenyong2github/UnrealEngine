@@ -12,7 +12,7 @@ void FMassClientBubbleSerializerBase::InitializeForWorld(UWorld& InWorld)
 
 	ReplicationManager = InWorld.GetSubsystem<UMassReplicationManager>();
 
-	EntitySystem = UPipeEntitySubsystem::GetCurrent(World);
+	EntitySystem = UMassEntitySubsystem::GetCurrent(World);
 	check(EntitySystem);
 
 	checkf(ClientHandler, TEXT("ClientHandler must be setup! See SetClientHandler()"));

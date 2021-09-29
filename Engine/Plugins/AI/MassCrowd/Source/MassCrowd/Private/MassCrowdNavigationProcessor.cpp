@@ -38,7 +38,7 @@ void UMassCrowdLaneTrackingSignalProcessor::Initialize(UObject& Owner)
 	SubscribeToSignal(UE::Mass::Signals::CurrentLaneChanged);
 }
 
-void UMassCrowdLaneTrackingSignalProcessor::SignalEntities(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
+void UMassCrowdLaneTrackingSignalProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
 	if (!MassCrowdSubsystem)
 	{
@@ -86,7 +86,7 @@ void UMassCrowdLaneTrackingDestructor::ConfigureQueries()
 	EntityQuery.AddRequirement<FMassCrowdLaneTrackingFragment>(ELWComponentAccess::ReadOnly);
 }
 
-void UMassCrowdLaneTrackingDestructor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdLaneTrackingDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](const FLWComponentSystemExecutionContext& Context)
 	{

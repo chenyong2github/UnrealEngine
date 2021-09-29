@@ -35,7 +35,7 @@ void UMassCrowdVisualizationProcessor::ConfigureQueries()
 	Super::ConfigureQueries();
 }
 
-void UMassCrowdVisualizationProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdVisualizationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
 	{

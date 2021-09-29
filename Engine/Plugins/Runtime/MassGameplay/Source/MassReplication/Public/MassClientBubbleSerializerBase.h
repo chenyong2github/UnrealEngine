@@ -10,7 +10,7 @@
 
 class UWorld;
 class UMassSpawnerSubsystem;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 class IClientBubbleHandlerInterface;
 
 /**
@@ -35,7 +35,7 @@ public:
 	UWorld* GetWorld() const { return World; }
 	UMassSpawnerSubsystem* GetSpawnerSubsystem() const { return SpawnerSubsystem; }
 	UMassReplicationManager* GetReplicationManager() const { return ReplicationManager; }
-	UPipeEntitySubsystem* GetEntitySystem() const { return EntitySystem; }
+	UMassEntitySubsystem* GetEntitySystem() const { return EntitySystem; }
 
 	void SetClientHandler(IClientBubbleHandlerInterface& InClientHandler) { ClientHandler = &InClientHandler; }
 	IClientBubbleHandlerInterface* GetClientHandler() const { return ClientHandler; }
@@ -48,7 +48,7 @@ private:
 	UMassSpawnerSubsystem* SpawnerSubsystem = nullptr;
 
 	UPROPERTY(Transient)
-	UPipeEntitySubsystem* EntitySystem = nullptr;
+	UMassEntitySubsystem* EntitySystem = nullptr;
 
 	UPROPERTY(Transient)
 	UMassReplicationManager* ReplicationManager = nullptr;

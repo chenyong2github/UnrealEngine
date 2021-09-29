@@ -9,7 +9,7 @@
 
 #include "MassReplicationManager.generated.h"
 
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 class AMassCrowdClientBubbleInfo;
 class UMassLODManager;
 class AMassClientBubbleInfoBase;
@@ -245,7 +245,7 @@ protected:
 	static uint32 CurrentNetMassCounter;
 
 	UPROPERTY()
-	UPipeEntitySubsystem* EntitySystem;
+	UMassEntitySubsystem* EntitySystem;
 
 	/** Clients free list FMassClientHandle manager, handles will to the indices of FMassClientReplicationData::ClientBubbles */
 	FMassClientHandleManager ClientHandleManager;

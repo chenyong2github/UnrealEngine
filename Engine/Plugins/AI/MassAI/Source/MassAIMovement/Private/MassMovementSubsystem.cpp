@@ -19,6 +19,6 @@ void UMassMovementSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 	ZoneGraphSubsystem = Collection.InitializeDependency<UZoneGraphSubsystem>();
 
-	EntitySubsystem = UPipeEntitySubsystem::GetCurrent(GetWorld());
+	EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld());
 }
 

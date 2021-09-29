@@ -90,7 +90,7 @@ void UMassZoneGraphLocationInitializer::Initialize(UObject& Owner)
 	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
 }
 
-void UMassZoneGraphLocationInitializer::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	if (!ZoneGraphSubsystem || !Settings || !SignalSubsystem)
@@ -195,7 +195,7 @@ void UMassZoneGraphPathFollowProcessor::ConfigureQueries()
 	EntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
 }
 
-void UMassZoneGraphPathFollowProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	if (!SignalSubsystem || !ZoneGraphSubsystem)
 	{
@@ -485,7 +485,7 @@ void UMassZoneGraphSteeringProcessor::ConfigureQueries()
 	EntityQuery.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::None);
 }
 
-void UMassZoneGraphSteeringProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	check(Settings);

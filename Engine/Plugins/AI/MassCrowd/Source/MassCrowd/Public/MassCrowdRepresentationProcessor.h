@@ -65,7 +65,7 @@ protected:
 	 * @param EntitySubsystem The subsystem in which all entities must be initialized
 	 * @param Context of the execution from the entity sub system
 	 */
-	void InitializeVelocity(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
+	void InitializeVelocity(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
 
 	/** 
 	 * A dedicated query for processing entities owning a FDataFragment_CharacterMovementComponentWrapper

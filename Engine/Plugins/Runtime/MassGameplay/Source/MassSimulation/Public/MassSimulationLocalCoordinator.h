@@ -16,7 +16,7 @@
 
 
 class UPipeSchematic;
-class UPipeEntitySubsystem;
+class UMassEntitySubsystem;
 class UHierarchicalInstancedStaticMeshComponent;
 class UMassSpawningManager;
 class UMassDebugVisualizationComponent;

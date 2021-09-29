@@ -5,7 +5,7 @@
 #include "Engine/ChildConnection.h"
 #include "GameFramework/GameModeBase.h"
 #include "MassCommonTypes.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassClientBubbleHandler.h"
 #include "MassClientBubbleInfoBase.h"
 
@@ -24,7 +24,7 @@ void UMassReplicationManager::Initialize(FSubsystemCollectionBase& Collection)
 
 	check(MassLODManager);
 
-	EntitySystem = UPipeEntitySubsystem::GetCurrent(GetWorld());
+	EntitySystem = UMassEntitySubsystem::GetCurrent(GetWorld());
 }
 
 void UMassReplicationManager::Deinitialize()

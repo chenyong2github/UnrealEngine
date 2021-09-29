@@ -3,7 +3,7 @@
 #pragma once
 
 #include "LWComponentTypes.h"
-#include "EntitySubsystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
 #include "MassRepresentationTypes.h"
 

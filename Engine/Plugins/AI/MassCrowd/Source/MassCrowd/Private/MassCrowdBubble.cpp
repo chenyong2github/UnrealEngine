@@ -17,7 +17,7 @@ namespace UE::Mass::Crowd
 	// @todo provide a better way of selecting agents to debug
 	constexpr int32 MaxAgentsDraw = 300;
 
-	void DebugDrawReplicatedAgent(FLWEntity Entity, const UPipeEntitySubsystem& EntitySystem)
+	void DebugDrawReplicatedAgent(FLWEntity Entity, const UMassEntitySubsystem& EntitySystem)
 	{
 		static const FVector DebugCylinderHeight = FVector(0.f, 0.f, 200.f);
 		static constexpr float DebugCylinderRadius = 50.f;
@@ -70,7 +70,7 @@ void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnServer()
 
 	if (UE::Mass::Crowd::bDebugReplicationPositions)
 	{
-		UPipeEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
+		UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 		check(EntitySystem);
 
 		// @todo cap at MaxAgentsDraw for now
@@ -97,7 +97,7 @@ void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnClient()
 
 	if (UE::Mass::Crowd::bDebugReplicationPositions)
 	{
-		UPipeEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
+		UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 		check(EntitySystem);
 
 		UMassReplicationManager* ReplicationManager = Serializer->GetReplicationManager();

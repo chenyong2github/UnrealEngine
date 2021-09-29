@@ -4,7 +4,7 @@
 #include "AITestsCommon.h"
 
 #include "Engine/World.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassEntityTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
@@ -76,7 +76,7 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 		AITEST_TRUE("Initial value of the component should match expectations", TestedFragment.Value == 0.f);
 
 		UPipeTestProcessor_Floats* Processor = NewObject<UPipeTestProcessor_Floats>(EntitySubsystem);
-		Processor->ExecutionFunction = [Processor](UEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
+		Processor->ExecutionFunction = [Processor](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
 			check(Processor);
 			//FLWComponentQuery Query(*Processor);
 

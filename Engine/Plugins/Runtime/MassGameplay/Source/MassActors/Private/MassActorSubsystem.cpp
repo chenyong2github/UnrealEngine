@@ -3,7 +3,7 @@
 #include "MassActorSubsystem.h"
 #include "MassCommonTypes.h"
 #include "Engine/World.h"
-#include "MassEntitySystem.h"
+#include "MassEntitySubsystem.h"
 #include "MassSimulationSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 
@@ -62,7 +62,7 @@ void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// making sure UMassSimulationSubsystem gets created before the MassActorManager
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 	
-	EntitySystem = UPipeEntitySubsystem::GetCurrent(GetWorld());
+	EntitySystem = UMassEntitySubsystem::GetCurrent(GetWorld());
 }
 
 FMassHandle UMassActorSubsystem::GetHandleFromActor(const TObjectKey<const AActor> Actor)
