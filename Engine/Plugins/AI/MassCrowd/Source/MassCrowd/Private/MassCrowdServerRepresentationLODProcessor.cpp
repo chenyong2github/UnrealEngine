@@ -1,0 +1,91 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdServerRepresentationLODProcessor.h"
+#include "MassCommonFragments.h"
+#include "MassRepresentationFragments.h"
+
+namespace UE::MassCrowd
+{
+	int32 bDebugCrowdServerRepresentationLOD = 0;
+	FAutoConsoleVariableRef CVarDebugServerRepresentationLODTest(TEXT("ai.debug.CrowdServerRepresentationLOD"), bDebugCrowdServerRepresentationLOD, TEXT("Debug Crowd ServerRepresentation LOD"), ECVF_Cheat);
+} // UE::MassCrowd
+
+UMassCrowdServerRepresentationLODProcessor::UMassCrowdServerRepresentationLODProcessor()
+{
+	ExecutionFlags = (int32)EProcessorExecutionFlags::Server;
+
+	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LOD;
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LODCollector);
+
+	LODDistance[EMassLOD::High] = 0.0f;
+	LODDistance[EMassLOD::Medium] = 5000.0f;
+	LODDistance[EMassLOD::Low] = 5000.0f;
+	LODDistance[EMassLOD::Off] = 5000.0f;
+	
+	LODMaxCount[EMassLOD::High] = 50;
+	LODMaxCount[EMassLOD::Medium] = 0;
+	LODMaxCount[EMassLOD::Low] = 0;
+	LODMaxCount[EMassLOD::Off] = INT_MAX;
+}
+
+void UMassCrowdServerRepresentationLODProcessor::ConfigureQueries()
+{
+	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(ELWComponentPresence::All);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassLODInfoFragment>(ELWComponentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassRepresentationLODFragment>(ELWComponentAccess::ReadWrite);
+}
+
+void UMassCrowdServerRepresentationLODProcessor::Initialize(UObject& InOwner)
+{
+	LODCalculator.Initialize(LODDistance, BufferHysteresisOnDistancePercentage / 100.0f, LODMaxCount);
+
+	Super::Initialize(InOwner);
+}
+
+void UMassCrowdServerRepresentationLODProcessor::Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("CrowdServerRepresentationLOD"))
+
+	check(LODManager);
+	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
+	LODCalculator.PrepareExecution(Viewers);
+	
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("CalculateLOD"))
+		
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+		{
+			const TConstArrayView<FMassLODInfoFragment> ViewersInfoList = Context.GetComponentView<FMassLODInfoFragment>();
+			const TArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetMutableComponentView<FMassRepresentationLODFragment>();
+			LODCalculator.CalculateLOD(Context, RepresentationLODFragments, ViewersInfoList);
+		});
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("AdjustDistancesAndLODFromCount"))
+		
+		if (LODCalculator.AdjustDistancesFromCount())
+		{
+			EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+			{
+				const TConstArrayView<FMassLODInfoFragment> ViewersInfoList = Context.GetComponentView<FMassLODInfoFragment>();
+				const TArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetMutableComponentView<FMassRepresentationLODFragment>();
+				LODCalculator.AdjustLODFromCount(Context, RepresentationLODFragments, ViewersInfoList);
+			});
+		}
+	}
+
+	// Optional debug display
+	if (UE::MassCrowd::bDebugCrowdServerRepresentationLOD)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("DebugDisplayLOD"))
+		
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+		{
+			const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
+			const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetComponentView<FMassRepresentationLODFragment>();
+			LODCalculator.DebugDisplayLOD(Context, RepresentationLODFragments, LocationList, World);
+		});
+	}
+}

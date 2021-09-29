@@ -1,0 +1,26 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassEntityTraitBase.h"
+#include "MassStateTreeTrait.generated.h"
+
+class UStateTree;
+
+/**
+ * Feature that adds StateTree execution functionality to a mass agent.
+ */
+UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="StateTree"))
+class MASSAIBEHAVIOR_API UMassStateTreeTrait : public UMassEntityTraitBase
+{
+	GENERATED_BODY()
+
+protected:
+
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+
+	virtual void ValidateTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+
+	UPROPERTY(Category="StateTree", EditAnywhere, meta=(RequiredAssetDataTags="Schema=MassStateTreeSchema"))
+	UStateTree* StateTree;
+};

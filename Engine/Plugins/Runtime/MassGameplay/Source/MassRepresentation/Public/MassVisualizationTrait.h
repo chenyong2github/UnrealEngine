@@ -1,0 +1,42 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once 
+
+#include "MassEntityTraitBase.h"
+#include "MassRepresentationTypes.h"
+#include "GameFramework/Actor.h"
+#include "MassVisualizationTrait.generated.h"
+
+class UMassRepresentationSubsystem;
+class UPipeProcessor;
+
+UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Visualization"))
+class MASSREPRESENTATION_API UMassVisualizationTrait : public UMassEntityTraitBase
+{
+	GENERATED_BODY()
+public:
+	UMassVisualizationTrait();
+
+protected:
+
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
+
+	/** Instanced static mesh information for this agent */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	FStaticMeshInstanceVisualizationDesc StaticMeshInstanceDesc;
+
+	/** Actor class of this agent when spawned in high resolution*/
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	TSubclassOf<AActor> HighResTemplateActor;
+
+	/** Actor class of this agent when spawned in low resolution*/
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	TSubclassOf<AActor> LowResTemplateActor;
+
+	/** Allow subclasses to override the representation subsystem to use */
+	TSubclassOf<UMassRepresentationSubsystem> RepresentationSubsystemClass;
+
+	/** Allow subclasses to override the representation fragment deinitializer */
+	TSubclassOf<UPipeProcessor> RepresentationFragmentDeinitializerClass;
+
+};

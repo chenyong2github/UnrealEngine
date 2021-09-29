@@ -1,0 +1,67 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassProcessor.h"
+#include "MassTranslator.h"
+#include "MassMovementSubsystem.h"
+#include "MovementProcessor.generated.h"
+
+/** Move and orient */ 
+UCLASS()
+class MASSAIMOVEMENT_API UMassProcessor_Movement : public UPipeProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassProcessor_Movement();
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+
+	FLWComponentQuery EntityQuery;
+};
+
+/** Base movement processor for 'grid localized circular agent' */
+UCLASS()
+class MASSAIMOVEMENT_API UMassProcessor_AgentMovement : public UMassProcessor_Movement
+{
+	GENERATED_BODY()
+public:
+	UMassProcessor_AgentMovement();
+
+protected:
+	virtual void ConfigureQueries() override;
+};
+
+/** Destructor processor to remove avoidance obstacles from the avoidance obstacle grid */
+UCLASS()
+class MASSAIMOVEMENT_API UMassAvoidanceObstacleRemoverFragmentDestructor : public UMassFragmentDestructor
+{
+	GENERATED_BODY()
+
+	UMassAvoidanceObstacleRemoverFragmentDestructor();
+	TWeakObjectPtr<UMassMovementSubsystem> WeakMovementSubsystem;
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Initialize(UObject& Owner) override;
+	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+
+	FLWComponentQuery EntityQuery;
+};
+
+UCLASS()
+class MASSAIMOVEMENT_API UVelocityFragmentInitializer : public UMassFragmentInitializer
+{
+	GENERATED_BODY()
+public:
+	UVelocityFragmentInitializer();
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Execute(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+
+	FLWComponentQuery EntityQuery;
+};

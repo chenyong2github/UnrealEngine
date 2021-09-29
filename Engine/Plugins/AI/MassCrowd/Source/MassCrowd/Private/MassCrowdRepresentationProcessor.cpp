@@ -1,0 +1,152 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdRepresentationProcessor.h"
+#include "MassCrowdFragments.h"
+#include "MassAIMovementFragments.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Character.h"
+#include "Translators/MassCharacterMovementTranslators.h"
+#include "MassAgentComponent.h"
+#include "MassCrowdRepresentationSubsystem.h"
+
+UMassCrowdRepresentationProcessor::UMassCrowdRepresentationProcessor()
+{
+	bAutoRegisterWithProcessingPhases = true;
+
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::SyncWorldToMass);
+}
+
+void UMassCrowdRepresentationProcessor::Initialize(UObject& Owner)
+{
+	Super::Initialize(Owner);
+
+	// Override default representation subsystem by the crowd one to support parallelization
+	RepresentationSubsystem = UWorld::GetSubsystem<UMassCrowdRepresentationSubsystem>(Owner.GetWorld());
+}
+
+
+void UMassCrowdRepresentationProcessor::ConfigureQueries()
+{
+	Super::ConfigureQueries();
+	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(ELWComponentPresence::All);
+
+	CharacterMovementEntitiesQuery_Conditional = EntityQuery;
+	CharacterMovementEntitiesQuery_Conditional.AddRequirement<FDataFragment_CharacterMovementComponentWrapper>(ELWComponentAccess::ReadWrite);
+	CharacterMovementEntitiesQuery_Conditional.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadOnly);
+	CharacterMovementEntitiesQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
+}
+
+void UMassCrowdRepresentationProcessor::InitializeVelocity(UEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+{
+	CharacterMovementEntitiesQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+		{
+			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetComponentView<FMassRepresentationFragment>();
+			const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetComponentView<FMassVelocityFragment>();
+			const TArrayView<FDataFragment_CharacterMovementComponentWrapper> CharMoveWrapperList = Context.GetMutableComponentView<FDataFragment_CharacterMovementComponentWrapper>();
+
+			const int32 NumEntities = Context.GetEntitiesNum();
+			for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
+			{
+				const FMassRepresentationFragment& Visualization = VisualizationList[EntityIdx];
+
+				// @todo: Add syncing skeletal mesh <-> static mesh here.
+				if (Visualization.PrevRepresentation != Visualization.CurrentRepresentation)
+				{
+					const FMassVelocityFragment& Velocity = VelocityList[EntityIdx];
+					FDataFragment_CharacterMovementComponentWrapper& CharMoveWrapper = CharMoveWrapperList[EntityIdx];
+					UCharacterMovementComponent* MovementComp = CharMoveWrapper.Component.Get();
+
+					const bool bWasUsingMovementComponent = (Visualization.PrevRepresentation == ERepresentationType::LowResSpawnedActor || Visualization.PrevRepresentation == ERepresentationType::HighResSpawnedActor);
+					const bool bIsUsingMovementComponent = (Visualization.CurrentRepresentation == ERepresentationType::LowResSpawnedActor || Visualization.CurrentRepresentation == ERepresentationType::HighResSpawnedActor);
+					if (MovementComp && !bWasUsingMovementComponent && bIsUsingMovementComponent)
+					{
+						MovementComp->Velocity = Velocity.Value;
+					}
+				}
+			}
+		});
+}
+
+void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FLWComponentSystemExecutionContext& Context)
+{
+	Super::SetActorEnabled(EnabledType, Actor, EntityIdx, Context);
+
+	const bool bEnabled = EnabledType != EActorEnabledType::Disabled;
+
+	USkeletalMeshComponent* SkeletalMeshComponent = Actor.FindComponentByClass<USkeletalMeshComponent>();
+	if (SkeletalMeshComponent)
+	{
+		// Enable/disable the ticking and visibility of SkeletalMesh and its children
+		SkeletalMeshComponent->SetVisibility(bEnabled);
+		SkeletalMeshComponent->SetComponentTickEnabled(bEnabled);
+		const TArray<USceneComponent*>& AttachedChildren = SkeletalMeshComponent->GetAttachChildren();
+		if (AttachedChildren.Num() > 0)
+		{
+			TInlineComponentArray<USceneComponent*, NumInlinedActorComponents> ComponentStack;
+
+			ComponentStack.Append(AttachedChildren);
+			while (ComponentStack.Num() > 0)
+			{
+				USceneComponent* const CurrentComp = ComponentStack.Pop(/*bAllowShrinking=*/false);
+				if (CurrentComp)
+				{
+					ComponentStack.Append(CurrentComp->GetAttachChildren());
+					CurrentComp->SetVisibility(bEnabled);
+					if (bEnabled)
+					{
+						// Re-enable only if it was enabled at startup
+						CurrentComp->SetComponentTickEnabled(CurrentComp->PrimaryComponentTick.bStartWithTickEnabled);
+					}
+					else
+					{
+						CurrentComp->SetComponentTickEnabled(false);
+					}
+				}
+			}
+		}
+	}
+
+	// Enable/disable the ticking of CharacterMovementComponent as well
+	ACharacter* Character = Cast<ACharacter>(&Actor);
+	UCharacterMovementComponent* MovementComp = Character != nullptr ? Character->GetCharacterMovement() : nullptr;
+	if (MovementComp != nullptr)
+	{
+		MovementComp->SetComponentTickEnabled(bEnabled);
+	}
+
+	// when we "suspend" the puppet actor we need to let the agent subsystem know by unregistering the agent component
+	// associated with the actor. This will result in removing all the puppet-actor-specific fragments which in turn
+	// will exclude the owner entity from being processed by puppet-specific processors (usually translators).
+	if (UMassAgentComponent* AgentComp = Actor.FindComponentByClass<UMassAgentComponent>())
+	{
+		AgentComp->PausePuppet(!bEnabled);
+	}
+}
+
+AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, const float Priority)
+{
+	FTransform RootTransform = Transform;
+	
+	if (const AActor* DefaultActor = RepresentationSubsystem->GetTemplateActorClass(TemplateActorIndex).GetDefaultObject())
+	{
+		if (const UCapsuleComponent* CapsuleComp = DefaultActor->FindComponentByClass<UCapsuleComponent>())
+		{
+			RootTransform.AddToTranslation(FVector(0.0f, 0.0f, CapsuleComp->GetScaledCapsuleHalfHeight()));
+		}
+	}
+
+	return Super::GetOrSpawnActor(MassAgent, ActorInfo, RootTransform, TemplateActorIndex, SpawnRequestHandle, Priority);
+}
+
+void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FLWComponentSystemExecutionContext& Context)
+{
+	FTransform RootTransform = Transform;
+
+	if (const UCapsuleComponent* CapsuleComp = Actor.FindComponentByClass<UCapsuleComponent>())
+	{
+		RootTransform.AddToTranslation(FVector(0.0f, 0.0f, CapsuleComp->GetScaledCapsuleHalfHeight()));
+	}
+	Super::TeleportActor(RootTransform, Actor, Context);
+}

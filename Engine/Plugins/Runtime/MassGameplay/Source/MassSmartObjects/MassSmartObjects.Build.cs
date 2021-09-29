@@ -1,0 +1,44 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+namespace UnrealBuildTool.Rules
+{
+	public class MassSmartObjects : ModuleRules
+	{
+		public MassSmartObjects(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+
+			PublicIncludePaths.AddRange(
+				new string[] {
+				"Runtime/AIModule/Public",
+				ModuleDirectory + "/Public",
+				}
+			);
+
+			PrivateIncludePaths.AddRange(
+				new string[] {
+				}
+			);
+
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"MassEntity",
+					"Core",
+					"CoreUObject",
+					"DeveloperSettings",
+					"Engine",
+					"GameplayTags",
+					"MassCommon",
+					"MassLOD",
+					"MassMovement",
+					"MassSignals",
+					"MassSimulation",
+					"SmartObjectsModule",
+					"StructUtils",
+					"ZoneGraph",
+					"ZoneGraphAnnotations"
+				}
+			);
+		}
+	}
+}
