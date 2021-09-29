@@ -38,7 +38,10 @@ private:
 		uint8 IndexOffset;
 	};
 
+	bool bIgnoreUpdate = false;
+
 	TSharedPtr<IPropertyUtilities> PropertyUtils;
+	TSharedPtr<IPropertyHandle> DataHandle;
 	TSharedPtr<IPropertyHandleArray> DataArrayHandle;
 
 	TMap<TWeakObjectPtr<UObject>, TSet<TSoftObjectPtr<UMaterial>>> ComponentsToWatch;
@@ -73,6 +76,7 @@ private:
 	void PopulateParameterData(UPrimitiveComponent* PrimitiveComponent, int32& MaxPrimitiveDataIndex);
 
 	void OnUpdated();
+	void OnElementsModified(const enum FPropertyAccess::Result OldAccessResult, const uint32 OldNumElements);
 	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnMaterialCompiled(UMaterialInterface* Material);
 
@@ -105,5 +109,8 @@ private:
 
 	/** Default widget that's used when a component is missing declared parameters for the specified primitive index */
 	TSharedRef<SWidget> GetUndeclaredParameterWidget(int32 PrimIdx, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
+
+	/** Get the number of elements and the access result of our primitive data array */
+	enum FPropertyAccess::Result GetNumElements(uint32& NumElements) const;
 };
 
