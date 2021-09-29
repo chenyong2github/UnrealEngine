@@ -2230,7 +2230,7 @@ bool UEditorEngine::ShouldAbortBecauseOfUnsavedWorld()
 /**
  * Prompts the user to save the current map if necessary, then creates a new (blank) map.
  */
-void UEditorEngine::CreateNewMapForEditing(bool bPromptUserToSave)
+void UEditorEngine::CreateNewMapForEditing(bool bPromptUserToSave, bool bIsPartitionedWorld)
 {
 	// If a PIE world exists, warn the user that the PIE session will be terminated.
 	// Abort if the user refuses to terminate the PIE session.
@@ -2274,14 +2274,14 @@ void UEditorEngine::CreateNewMapForEditing(bool bPromptUserToSave)
 		GLevelEditorModeTools().DeactivateMode( FBuiltinEditorModes::EM_MeshPaint );
 	}
 
-	NewMap();
+	NewMap(bIsPartitionedWorld);
 
 	FEditorFileUtils::ResetLevelFilenames();
 }
 
 #define LOCTEXT_NAMESPACE "EditorEngine"
 
-UWorld* UEditorEngine::NewMap()
+UWorld* UEditorEngine::NewMap(bool bIsPartitionedWorld)
 {
 	// If we have a PIE session kill it before creating a new map
 	if (PlayWorld)
@@ -2306,6 +2306,7 @@ UWorld* UEditorEngine::NewMap()
 	// Create a new world
 	UWorldFactory* Factory = NewObject<UWorldFactory>();
 	Factory->WorldType = EWorldType::Editor;
+	Factory->bCreateWorldPartition = bIsPartitionedWorld;
 	Factory->bInformEngineOfWorld = true;
 	Factory->FeatureLevel = DefaultWorldFeatureLevel;
 	UPackage* Pkg = CreatePackage(nullptr);

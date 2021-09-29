@@ -1926,9 +1926,11 @@ public:
 	/**
 	 * Clears out the current map, if any, and creates a new blank map.
 	 *
+	 * @param   bIsPartitionedWorld	If true, new map is partitioned.
+	 * 
 	 * @return	Pointer to the map that was created.
 	 */
-	UWorld* NewMap();
+	UWorld* NewMap(bool bIsPartitionedWorld = false);
 
 	/**
 	 * Exports the current map to the specified filename.
@@ -2497,7 +2499,7 @@ public:
 	/**
 	 * Prompts the user to save the current map if necessary, then creates a new (blank) map.
 	 */
-	void CreateNewMapForEditing(bool bPromptUserToSave = true);
+	void CreateNewMapForEditing(bool bPromptUserToSave = true, bool bIsPartitionedWorld = false);
 
 	/**
 	 * If a PIE world exists, give the user the option to terminate it.

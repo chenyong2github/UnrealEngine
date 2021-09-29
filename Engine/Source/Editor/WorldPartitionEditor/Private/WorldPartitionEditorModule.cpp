@@ -131,14 +131,9 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
 	return SNew(SWorldPartitionEditor).InWorld(EditorWorld);
 }
 
-bool FWorldPartitionEditorModule::IsWorldPartitionEnabled() const
-{
-	return GetDefault<UWorldPartitionEditorSettings>()->bEnableWorldPartition;
-}
-
 bool FWorldPartitionEditorModule::IsConversionPromptEnabled() const
 {
-	return IsWorldPartitionEnabled() && GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt;
+	return GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt;
 }
 
 void FWorldPartitionEditorModule::SetConversionPromptEnabled(bool bEnabled)

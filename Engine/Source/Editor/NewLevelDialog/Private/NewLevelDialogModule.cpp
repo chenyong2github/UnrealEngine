@@ -22,10 +22,10 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Texture2D.h"
 #include "UnrealEdGlobals.h"
-#include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "Internationalization/BreakIterator.h"
 #include "Brushes/SlateImageBrush.h"
 #include "SPrimaryButton.h"
+#include "Engine/Level.h"
 
 #define LOCTEXT_NAMESPACE "NewLevelDialog"
 
@@ -44,9 +44,15 @@ namespace NewLevelDialogDefs
 struct FNewLevelTemplateItem
 {
 	FTemplateMapInfo TemplateMapInfo;
-	bool bIsNewLevelItem;
 	FText Name;
 	TUniquePtr<FSlateBrush> ThumbnailBrush;
+
+	enum NewLevelType
+	{
+		Empty,
+		EmptyWorldPartition,
+		Template
+	} Type;
 };
 
 /**
@@ -176,6 +182,7 @@ public:
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
 
 		SLATE_ATTRIBUTE(TArray<FTemplateMapInfo>, Templates)
+		SLATE_ATTRIBUTE(bool, bShowPartitionedTemplates)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs)
@@ -183,10 +190,11 @@ public:
 		ParentWindowPtr = InArgs._ParentWindow.Get();
 
 		OutTemplateMapPackageName = TEXT("");
+		bIsPartitionedWorld = false;
 		bUserClickedOkay = false;
 
-		TemplateItemsList = MakeTemplateItems(InArgs._Templates.Get());
-
+		TemplateItemsList = MakeTemplateItems(InArgs._bShowPartitionedTemplates.Get(), InArgs._Templates.Get());
+		
 		TemplateListView = SNew(STileView<TSharedPtr<FNewLevelTemplateItem>>)
 			.ListItemsSource(&TemplateItemsList)
 			.SelectionMode(ESelectionMode::Single)
@@ -267,19 +275,25 @@ public:
 	}
 
 	FString GetChosenTemplate() const { return OutTemplateMapPackageName; }
+	bool IsPartitionedWorld() const { return bIsPartitionedWorld; }
 	bool IsTemplateChosen() const { return bUserClickedOkay; }
 
 private:
-	static TArray<TSharedPtr<FNewLevelTemplateItem>> MakeTemplateItems(const TArray<FTemplateMapInfo>& TemplateMapInfos)
+	static TArray<TSharedPtr<FNewLevelTemplateItem>> MakeTemplateItems(bool bShowPartitionedTemplates, const TArray<FTemplateMapInfo>& TemplateMapInfos)
 	{
 		TArray<TSharedPtr<FNewLevelTemplateItem>> TemplateItems;
 
 		// Build a list of items - one for each template
 		for (const FTemplateMapInfo& TemplateMapInfo : TemplateMapInfos)
 		{
+			if (!bShowPartitionedTemplates && ULevel::GetIsLevelPartitionedFromPackage(FName(*TemplateMapInfo.Map)))
+			{
+				continue;
+			}
+
 			TSharedPtr<FNewLevelTemplateItem> Item = MakeShareable(new FNewLevelTemplateItem());
 			Item->TemplateMapInfo = TemplateMapInfo;
-			Item->bIsNewLevelItem = false;
+			Item->Type = FNewLevelTemplateItem::NewLevelType::Template;
 
 			if (const TObjectPtr<UTexture2D>& ThumbnailTexture = TemplateMapInfo.ThumbnailTexture)
 			{
@@ -309,13 +323,26 @@ private:
 
 		// Add an extra item for creating a new, blank level
 		TSharedPtr<FNewLevelTemplateItem> NewItem = MakeShareable(new FNewLevelTemplateItem());
-		NewItem->bIsNewLevelItem = true;
+		NewItem->Type = FNewLevelTemplateItem::NewLevelType::Empty;
 		NewItem->Name = LOCTEXT("NewLevelItemLabel", "Empty Level");
 		NewItem->ThumbnailBrush = MakeUnique<FSlateBrush>(*FEditorStyle::GetBrush("NewLevelDialog.Blank"));
 		NewItem->ThumbnailBrush->OutlineSettings.CornerRadii = FVector4(4, 4, 0, 0);
 		NewItem->ThumbnailBrush->OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
 		NewItem->ThumbnailBrush->DrawAs = ESlateBrushDrawType::RoundedBox;
 		TemplateItems.Add(NewItem);
+
+		if (bShowPartitionedTemplates)
+		{
+			// Add an extra item for creating a new, blank level
+			TSharedPtr<FNewLevelTemplateItem> NewItemWP = MakeShareable(new FNewLevelTemplateItem());
+			NewItemWP->Type = FNewLevelTemplateItem::NewLevelType::EmptyWorldPartition;
+			NewItemWP->Name = LOCTEXT("NewWPLevelItemLabel", "Empty Open World");
+			NewItemWP->ThumbnailBrush = MakeUnique<FSlateBrush>(*FEditorStyle::GetBrush("NewLevelDialog.BlankWP"));
+			NewItemWP->ThumbnailBrush->OutlineSettings.CornerRadii = FVector4(4, 4, 0, 0);
+			NewItemWP->ThumbnailBrush->OutlineSettings.RoundingType = ESlateBrushRoundingType::FixedRadius;
+			NewItemWP->ThumbnailBrush->DrawAs = ESlateBrushDrawType::RoundedBox;
+			TemplateItems.Add(NewItemWP);
+		}
 
 		return TemplateItems;
 	}
@@ -344,15 +371,15 @@ private:
 		}
 
 		const TSharedPtr<FNewLevelTemplateItem> Template = Items[0];
-		if (!Template->bIsNewLevelItem)
+		if (Template->Type == FNewLevelTemplateItem::NewLevelType::Template)
 		{
 			OutTemplateMapPackageName = Template->TemplateMapInfo.Map;
 		}
+		else if (Template->Type == FNewLevelTemplateItem::NewLevelType::EmptyWorldPartition)
+		{
+			bIsPartitionedWorld = true;
+		}
 		bUserClickedOkay = true;
-
-		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-		bPartitionedWorld = WorldPartitionEditorModule.IsWorldPartitionEnabled();
-		bExternalActors |= bPartitionedWorld;
 
 		ParentWindowPtr.Pin()->RequestDestroyWindow();
 		return FReply::Handled();
@@ -391,8 +418,7 @@ private:
 	TSharedPtr < STileView<TSharedPtr<FNewLevelTemplateItem>> > TemplateListView;
 	FString OutTemplateMapPackageName;
 	bool bUserClickedOkay;
-	bool bExternalActors;
-	bool bPartitionedWorld;
+	bool bIsPartitionedWorld;
 };
 
 IMPLEMENT_MODULE( FNewLevelDialogModule, NewLevelDialog );
@@ -407,13 +433,13 @@ void FNewLevelDialogModule::ShutdownModule()
 {
 }
 
-bool FNewLevelDialogModule::CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName )
+bool FNewLevelDialogModule::CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName, bool bShowPartitionedTemplates, bool& bOutIsPartitionedWorld)
 {
 	TArray<FTemplateMapInfo> EmptyTemplates;
-	return CreateAndShowTemplateDialog(ParentWidget, LOCTEXT("WindowHeader", "New Level"), GUnrealEd ? GUnrealEd->GetTemplateMapInfos() : EmptyTemplates, OutTemplateMapPackageName);
+	return CreateAndShowTemplateDialog(ParentWidget, LOCTEXT("WindowHeader", "New Level"), GUnrealEd ? GUnrealEd->GetTemplateMapInfos() : EmptyTemplates, OutTemplateMapPackageName, bShowPartitionedTemplates, bOutIsPartitionedWorld);
 }
 
-bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName )
+bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName, bool bShowPartitionedTemplates, bool& bOutIsPartitionedWorld)
 {
 	// Open larger window if there are enough templates
 	FVector2D WindowClientSize(NewLevelDialogDefs::DefaultWindowWidth, NewLevelDialogDefs::DefaultWindowHeight);
@@ -435,13 +461,15 @@ bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const 
 	TSharedRef<SNewLevelDialog> NewLevelDialog =
 		SNew(SNewLevelDialog)
 		.ParentWindow(NewLevelWindow)
-		.Templates(Templates);
+		.Templates(Templates)
+		.bShowPartitionedTemplates(bShowPartitionedTemplates);
 
 	NewLevelWindow->SetContent(NewLevelDialog);
 
 	FSlateApplication::Get().AddModalWindow(NewLevelWindow.ToSharedRef(), ParentWidget);
 
 	OutTemplateMapPackageName = NewLevelDialog->GetChosenTemplate();
+	bOutIsPartitionedWorld = NewLevelDialog->IsPartitionedWorld();
 	
 	return NewLevelDialog->IsTemplateChosen();
 }

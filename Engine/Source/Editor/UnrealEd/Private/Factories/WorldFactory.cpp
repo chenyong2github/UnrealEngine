@@ -7,7 +7,6 @@
 #include "ThumbnailRendering/WorldThumbnailInfo.h"
 #include "EditorClassUtils.h"
 #include "Modules/ModuleManager.h"
-#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "WorldFactory"
 
@@ -18,7 +17,7 @@ UWorldFactory::UWorldFactory(const FObjectInitializer& ObjectInitializer)
 	SupportedClass = UWorld::StaticClass();
 	WorldType = EWorldType::Inactive;
 	bInformEngineOfWorld = false;
-	bCreateWorldPartition = true;
+	bCreateWorldPartition = false;
 	FeatureLevel = ERHIFeatureLevel::Num;
 }
 
@@ -32,16 +31,13 @@ UObject* UWorldFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName
 	// Create a new world.
 	const bool bAddToRoot = false;
 
-	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-	const bool bCreateWorldPartitionSetting = WorldPartitionEditorModule.IsWorldPartitionEnabled();
-		
 	// Those are the init values taken from the default in UWorld::CreateWorld + CreateWorldPartition.
 	UWorld::InitializationValues InitValues = UWorld::InitializationValues()
 		.ShouldSimulatePhysics(false)
 		.EnableTraceCollision(true)
 		.CreateNavigation(WorldType == EWorldType::Editor)
 		.CreateAISystem(WorldType == EWorldType::Editor)
-		.CreateWorldPartition(bCreateWorldPartitionSetting && bCreateWorldPartition);
+		.CreateWorldPartition(bCreateWorldPartition);
 
 	UWorld* NewWorld = UWorld::CreateWorld(WorldType, bInformEngineOfWorld, Name, Cast<UPackage>(InParent), bAddToRoot, FeatureLevel, &InitValues);
 	GEditor->InitBuilderBrush(NewWorld);
