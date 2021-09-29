@@ -39,7 +39,7 @@ void UMassRepresentationProcessor::Initialize(UObject& Owner)
 	Super::Initialize(Owner);
 
 	World = Owner.GetWorld();
-	PipeEntitySubsystem = UMassEntitySubsystem::GetCurrent(World);
+	PipeEntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	RepresentationSubsystem = UWorld::GetSubsystem<UMassRepresentationSubsystem>(World);
 
 	// Calculate the default representation when actor isn't spawned yet.
@@ -288,7 +288,7 @@ void UMassRepresentationProcessor::TeleportActor(const FTransform& Transform, AA
 
 void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepresentationSubsystem& RepresentationSubsystem, const FMassHandle MassAgent)
 {
-	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(RepresentationSubsystem.GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(RepresentationSubsystem.GetWorld()))
 	{
 		if (FDataFragment_Actor* ActorInfo = EntitySubsystem->GetComponentDataPtr<FDataFragment_Actor>(MassAgent.GetLWEntity()))
 		{

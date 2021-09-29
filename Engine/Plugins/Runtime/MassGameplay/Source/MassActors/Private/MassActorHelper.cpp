@@ -11,7 +11,7 @@ namespace UE::MassActor
 	bool AddEntityTagToActor(const AActor& Actor, const UScriptStruct& TagType)
 	{
 		UWorld* World = Actor.GetWorld();
-		UMassEntitySubsystem* EntitySystem = UMassEntitySubsystem::GetCurrent(World);
+		UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 		UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World);
 		if (EntitySystem && MassActorSubsystem)
 		{
@@ -36,7 +36,7 @@ namespace UE::MassActor
 	bool RemoveEntityTagFromActor(const AActor& Actor, const UScriptStruct& TagType)
 	{
 		UWorld* World = Actor.GetWorld();
-		UMassEntitySubsystem* EntitySystem = UMassEntitySubsystem::GetCurrent(World);
+		UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 		UMassActorSubsystem* MassActorSubsystem = UWorld::GetSubsystem<UMassActorSubsystem>(World);
 		if (EntitySystem && MassActorSubsystem)
 		{

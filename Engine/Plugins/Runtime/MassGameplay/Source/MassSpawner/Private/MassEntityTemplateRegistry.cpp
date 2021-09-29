@@ -138,7 +138,7 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 		InitializeEntityTemplate(OutTemplate);
 
 		UE_VLOG(this, LogMassSpawner, Log, TEXT("Created entity template for %s:\n%s"), *GetNameSafe(StructInstance.GetScriptStruct())
-			, *OutTemplate.DebugGetDescription(UMassEntitySubsystem::GetCurrent(World)));
+			, *OutTemplate.DebugGetDescription(UWorld::GetSubsystem<UMassEntitySubsystem>(World)));
 
 		return true;
 	}
@@ -252,7 +252,7 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 
 	UWorld* World = GetWorld();
 	// find or create template
-	UMassEntitySubsystem* EntitySys = UMassEntitySubsystem::GetCurrent(World);
+	UMassEntitySubsystem* EntitySys = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	check(EntitySys);
 
 	FTemplateRegistryHelpers::FragmentInstancesToTypes(OutTemplate.GetFragments(), OutTemplate.GetMutableFragmentTypes());

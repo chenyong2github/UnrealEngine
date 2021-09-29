@@ -79,11 +79,6 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	//~End of USubsystem interface
-
-	static FORCEINLINE UMassEntitySubsystem* GetCurrent(UWorld* World)
-	{
-		return World ? World->GetSubsystem<UMassEntitySubsystem>() : nullptr;
-	}
 	
 	/** 
 	 * A special, relaxed but slower version of CreateArchetype functions that allows ComponentAngTagsList to contain 

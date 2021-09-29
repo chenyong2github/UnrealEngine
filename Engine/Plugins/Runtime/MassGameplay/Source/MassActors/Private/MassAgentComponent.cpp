@@ -162,7 +162,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 
 #if	UE_REPLICATION_COMPILE_SERVER_CODE
 	// Fetch NetID if it exist
-	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 	{
 		if (const FMassNetworkIDFragment* NetIDFragment = EntitySubsystem->GetComponentDataPtr<FMassNetworkIDFragment>(AgentHandle.GetLWEntity()))
 		{
@@ -188,7 +188,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 	}
 
 	// Sync up with mass
-	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 	{
 		if (IsNetSimulating())
 		{
@@ -277,7 +277,7 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 	}
 
 	// Sync up with mass
-	if (const UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
+	if (const UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 	{
 		if (IsNetSimulating())
 		{
@@ -352,7 +352,7 @@ void UMassAgentComponent::DebugCheckStateConsistency()
 			MASSAGENT_CHECK(bValidAgentHandle, TEXT("Expecting a valid mass agent handle in state %s"), *UEnum::GetValueAsString(State));
 			if (bValidAgentHandle)
 			{
-				if (UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(GetWorld()))
+				if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 				{
 					const bool bIsValidEntity = EntitySubsystem->IsEntityValid(AgentHandle.GetLWEntity());
 					MASSAGENT_CHECK(bIsValidEntity, TEXT("Exepecting a valid entity in state"), *UEnum::GetValueAsString(State))
@@ -418,7 +418,7 @@ void UMassAgentComponent::KillEntity(const bool bDestroyActor)
 
 	AActor* Owner = GetOwner();
 	UWorld* World = GetWorld();
-	UMassEntitySubsystem* EntitySubsystem = UMassEntitySubsystem::GetCurrent(World);
+	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
 	if (Owner == nullptr || EntitySubsystem == nullptr)
 	{
 		return;

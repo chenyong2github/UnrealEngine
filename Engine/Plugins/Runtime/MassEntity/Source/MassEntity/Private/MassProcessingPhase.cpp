@@ -172,7 +172,7 @@ void UPipeProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 
 void UPipeProcessingPhaseManager::Start(UWorld& World)
 {
-	EntitySubsystem = UMassEntitySubsystem::GetCurrent(&World);
+	EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 
 	if (ensure(EntitySubsystem))
 	{

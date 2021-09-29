@@ -62,7 +62,7 @@ void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// making sure UMassSimulationSubsystem gets created before the MassActorManager
 	Collection.InitializeDependency<UMassSimulationSubsystem>();
 	
-	EntitySystem = UMassEntitySubsystem::GetCurrent(GetWorld());
+	EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld());
 }
 
 FMassHandle UMassActorSubsystem::GetHandleFromActor(const TObjectKey<const AActor> Actor)

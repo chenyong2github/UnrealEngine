@@ -25,7 +25,7 @@ public:
 	
 	UMassSimulationSubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	UMassEntitySubsystem* GetEntitySubsystem() const { return CachedEntitySubsystem; }
+	//UMassEntitySubsystem* GetEntitySubsystem() const { return CachedEntitySubsystem; }
 	const UPipeProcessingPhaseManager& GetPhaseManager() const { check(PhaseManager); return *PhaseManager; }
 
 	FPipeProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseStarted(const EPipeProcessingPhase Phase) const;
@@ -58,7 +58,7 @@ protected:
 protected:
 
 	UPROPERTY()
-	UMassEntitySubsystem* CachedEntitySubsystem;
+	UMassEntitySubsystem* EntitySubsystem;
 
 	UPROPERTY()
 	UPipeProcessingPhaseManager* PhaseManager;
