@@ -5,6 +5,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "HAL/IConsoleManager.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Misc/FileHelper.h"
 
 namespace Chaos
 {
@@ -310,6 +311,28 @@ void FRewindData::FinishFrame()
 
 	++CurFrame;
 	LatestFrame = FMath::Max(LatestFrame,CurFrame);
+}
+
+void FRewindData::DumpHistory_Internal(const int32 FramePrintOffset, const FString& Filename)
+{
+	FStringOutputDevice Out;
+	const int32 EarliestFrame = GetEarliestFrame_Internal();
+	for(int32 Frame = EarliestFrame; Frame < CurFrame; ++Frame)
+	{
+		for (int32 Phase = 0; Phase < FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++Phase)
+		{
+			for(const FDirtyParticleInfo& Info : DirtyParticles)
+			{
+				Out.Logf(TEXT("Frame:%d Phase:%d\n"), Frame + FramePrintOffset, Phase);
+				FGeometryParticleState State = GetPastStateAtFrame(*Info.GetObjectPtr(), Frame, (FFrameAndPhase::EParticleHistoryPhase)Phase);
+				Out.Logf(TEXT("%s\n"), *State.ToString());
+			}
+		}
+	}
+
+	FString Path = FPaths::ProfilingDir() + FString::Printf(TEXT("/RewindData/%s_%d_%d.txt"), *Filename, EarliestFrame + FramePrintOffset, CurFrame - 1 + FramePrintOffset);
+	FFileHelper::SaveStringToFile(Out, *Path);
+	UE_LOG(LogChaos, Warning, TEXT("Saved:%s"), *Path);
 }
 
 CHAOS_API int32 SkipDesyncTest = 0;

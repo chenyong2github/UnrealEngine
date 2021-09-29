@@ -168,6 +168,9 @@ namespace UE_NETWORK_PHYSICS
 	}
 }
 
+int32 DumpOnRewind = 0;
+FAutoConsoleVariableRef CVarDumpOnRewind(TEXT("np2.DumpOnRewind"), DumpOnRewind, TEXT("If enabled, automatically dumps full rewind data history before rewinding on both client and server"));
+
 struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 {
 	bool CompareVec(const FVector& A, const FVector& B, const float D, const TCHAR* Str)
@@ -380,6 +383,11 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 		//UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections && RewindToFrame != INDEX_NONE, LogNetworkPhysics, Log, TEXT("Rewinding to Frame %d"), RewindToFrame);
 		
+		if(!!DumpOnRewind && RewindToFrame != INDEX_NONE)
+		{
+			RewindData->DumpHistory_Internal(-LastLocalOffset, FString(TEXT("Client")));
+		}
+
 		return RewindToFrame;
 	}
 	
@@ -1297,6 +1305,7 @@ void UNetworkPhysicsManager::TickDrawDebug()
 		// Draw corrections
 		P.Lifetime = 5.f;
 
+		bool bSendToServer = true;
 		while(RewindCallback->StatsForGT.IsEmpty() == false)
 		{
 			FNetworkPhysicsRewindCallback::FStats& Stats = RewindCallback->RecordedStatsGT[RewindCallback->LastRecordedStat++ % RewindCallback->RecordedStatsGT.Num()];
@@ -1304,6 +1313,26 @@ void UNetworkPhysicsManager::TickDrawDebug()
 
 			for (auto& Correction : Stats.Corrections)
 			{
+				//HACK
+				if(bSendToServer && !!DumpOnRewind)
+				{
+					if (GetWorld()->GetNetMode() == NM_Client)
+					{
+						if (APlayerController* PC = GEngine->GetFirstLocalPlayerController(GetWorld()))
+						{
+							UE_LOG(LogChaos, Warning, TEXT("REQUEST SERVER DUMP"));
+							PC->ServerExec(TEXT("np2.RewindDump"));
+						}
+					}
+
+					bSendToServer = false;
+				}
+				else if(DumpOnRewind)
+				{
+					UE_LOG(LogChaos, Warning, TEXT("SKIP SERVER DUMP"));
+				}
+				
+
 				if (UE_NETWORK_PHYSICS::DebugTolerance > 0)
 				{
 					if (FVector::Distance(Correction.LocalState.Location, Correction.AuthorityState.Location) < UE_NETWORK_PHYSICS::DebugDrawTolerance_X)
@@ -1489,6 +1518,16 @@ void UNetworkPhysicsManager::TickDrawDebug()
 	}
 }
 
+void UNetworkPhysicsManager::DumpRewindHistory()
+{
+	using namespace Chaos;
+	FRewindData* RewindData = GetWorld()->GetPhysicsScene()->GetSolver()->GetRewindData();
+	GetWorld()->GetPhysicsScene()->GetSolver()->EnqueueCommandImmediate([RewindData, CapturedOffset = LocalOffset, CapturedIsServer = GetWorld()->GetNetMode() != NM_Client]()
+	{
+		RewindData->DumpHistory_Internal(-CapturedOffset, CapturedIsServer ? FString(TEXT("Server")) : FString(TEXT("Client")) );
+	});
+}
+
 void UNetworkPhysicsManager::DumpDebugHistory()
 {
 	FStringOutputDevice Out;
@@ -1548,6 +1587,23 @@ FAutoConsoleCommandWithWorldAndArgs NpDumpCmd(TEXT("np2.Dump"), TEXT(""),
 		}
 	}
 }));
+
+FAutoConsoleCommandWithWorldAndArgs NpRewindDumpCmd(TEXT("np2.RewindDump"), TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld)
+		{
+			if (UNetworkPhysicsManager* Manager = InWorld->GetSubsystem<UNetworkPhysicsManager>())
+			{
+				Manager->DumpRewindHistory();
+			}
+
+			if (InWorld->GetNetMode() == NM_Client)
+			{
+				if (APlayerController* PC = GEngine->GetFirstLocalPlayerController(InWorld))
+				{
+					PC->ServerExec(TEXT("np2.RewindDump"));
+				}
+			}
+		}));
 
 FAutoConsoleCommandWithWorldAndArgs NpFloatTestCmd(TEXT("np2.FloatTest"), TEXT(""),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* InWorld) 

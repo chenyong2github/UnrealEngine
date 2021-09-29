@@ -190,6 +190,7 @@ public:
 	void RegisterPhysicsProxyDebugDraw(FNetworkPhysicsState* State, TUniqueFunction<void(const FDrawDebugParams&)>&& Func);
 
 	void DumpDebugHistory();
+	void DumpRewindHistory();
 
 private:
 

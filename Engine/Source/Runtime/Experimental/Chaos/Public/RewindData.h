@@ -420,6 +420,33 @@ struct FShapesArrayStateBase
 	}
 };
 
+template <typename T>
+FString ToStringHelper(const T& Val)
+{
+	return Val.ToString();
+}
+
+inline FString ToStringHelper(const FReal Val)
+{
+	return FString::Printf(TEXT("%f"), Val);
+}
+
+inline FString ToStringHelper(const EObjectStateType Val)
+{
+	return FString::Printf(TEXT("%d"), Val);
+}
+
+inline FString ToStringHelper(const bool Val)
+{
+	return FString::Printf(TEXT("%d"), Val);
+}
+
+inline FString ToStringHelper(const int32 Val)
+{
+	return FString::Printf(TEXT("%d"), Val);
+}
+
+
 template <typename TParticle>
 class TShapesArrayState
 {
@@ -635,6 +662,51 @@ public:
 	void SetState(const FGeometryParticleStateBase* InState)
 	{
 		State = InState;
+	}
+
+	FString ToString() const
+	{
+#undef REWIND_PARTICLE_TO_STR
+#define REWIND_PARTICLE_TO_STR(PropName) Out += FString::Printf(TEXT(#PropName":%s\n"), *ToStringHelper(PropName()));
+		//TODO: use macro to define api and the to string
+		FString Out = FString::Printf(TEXT("ParticleID:[%d%d]\n"), Particle.ParticleID().GlobalID, Particle.ParticleID().LocalID);
+
+		REWIND_PARTICLE_TO_STR(X)
+		REWIND_PARTICLE_TO_STR(R)
+		//REWIND_PARTICLE_TO_STR(Geometry)
+		//REWIND_PARTICLE_TO_STR(UniqueIdx)
+		//REWIND_PARTICLE_TO_STR(SpatialIdx)
+
+		if(Particle.CastToKinematicParticle())
+		{
+			REWIND_PARTICLE_TO_STR(V)
+			REWIND_PARTICLE_TO_STR(W)
+		}
+
+		if(Particle.CastToRigidParticle())
+		{
+			REWIND_PARTICLE_TO_STR(LinearEtherDrag)
+			REWIND_PARTICLE_TO_STR(AngularEtherDrag)
+			REWIND_PARTICLE_TO_STR(MaxLinearSpeedSq)
+			REWIND_PARTICLE_TO_STR(MaxAngularSpeedSq)
+			REWIND_PARTICLE_TO_STR(ObjectState)
+			REWIND_PARTICLE_TO_STR(GravityEnabled)
+			REWIND_PARTICLE_TO_STR(CCDEnabled)
+			REWIND_PARTICLE_TO_STR(CollisionGroup)
+
+			REWIND_PARTICLE_TO_STR(CenterOfMass)
+			REWIND_PARTICLE_TO_STR(RotationOfMass)
+			REWIND_PARTICLE_TO_STR(I)
+			REWIND_PARTICLE_TO_STR(M)
+			REWIND_PARTICLE_TO_STR(InvM)
+
+			REWIND_PARTICLE_TO_STR(F)
+			REWIND_PARTICLE_TO_STR(Torque)
+			REWIND_PARTICLE_TO_STR(LinearImpulse)
+			REWIND_PARTICLE_TO_STR(AngularImpulse)
+		}
+
+		return Out;
 	}
 
 private:
@@ -865,6 +937,8 @@ public:
 	{
 		return !!EnableResimCache && bResimOptimization ? Managers[CurFrame].ExternalResimCache.Get() : nullptr;
 	}
+
+	void CHAOS_API DumpHistory_Internal(const int32 FramePrintOffset, const FString& Filename = FString(TEXT("Dump")));
 
 	template <typename CreateCache>
 	void AdvanceFrame(FReal DeltaTime, const CreateCache& CreateCacheFunc)
