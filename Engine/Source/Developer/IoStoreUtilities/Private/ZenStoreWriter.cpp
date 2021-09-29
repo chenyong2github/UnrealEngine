@@ -277,11 +277,7 @@ FZenStoreWriter::FZenStoreWriter(
 	FString AbsEngineDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*EngineDir);
 	FString AbsProjectDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*ProjectDir);
 
-	HttpClient->Initialize(	ProjectId, 
-							OplogId, 
-							AbsServerRoot, 
-							AbsEngineDir, 
-							AbsProjectDir);
+	HttpClient->TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir);
 
 	PackageStoreOptimizer->Initialize(InTargetPlatform);
 
@@ -444,11 +440,10 @@ void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 
 	if (!bInitialized)
 	{
-		UE_CLOG(!HttpClient->IsConnected(), LogZenStoreWriter, Fatal, TEXT("Failed to connect to ZenServer"));
-
 		FString ProjectId = FApp::GetProjectName();
 		FString OplogId = TargetPlatform.PlatformName();
-		HttpClient->EstablishWritableOpLog(ProjectId, OplogId, Info.bFullBuild);
+		bool bOplogEstablished = HttpClient->TryCreateOplog(ProjectId, OplogId, Info.bFullBuild);
+		UE_CLOG(!bOplogEstablished, LogZenStoreWriter, Fatal, TEXT("Failed to establish oplog on the ZenServer"));
 
 		if (!Info.bFullBuild)
 		{
