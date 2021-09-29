@@ -11,7 +11,7 @@
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
  * within this plugin.
  */
-class IMassMovementModule : public IModuleInterface
+class IMassAIMovementModule : public IModuleInterface
 {
 
 public:
@@ -22,9 +22,9 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static inline IMassMovementModule& Get()
+	static inline IMassAIMovementModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IMassMovementModule>( "MassMovement" );
+		return FModuleManager::LoadModuleChecked<IMassAIMovementModule>( "MassAIMovement" );
 	}
 
 	/**
@@ -34,7 +34,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "MassMovement" );
+		return FModuleManager::Get().IsModuleLoaded( "MassAIMovement" );
 	}
 };
 

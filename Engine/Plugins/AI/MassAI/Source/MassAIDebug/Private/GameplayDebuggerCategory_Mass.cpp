@@ -19,6 +19,7 @@
 #include "Util/ColorConstants.h"
 #include "MassSimulationLOD.h"
 #include "CanvasItem.h"
+#include "Engine/World.h"
 
 //----------------------------------------------------------------------//
 //  FGameplayDebuggerCategory_Mass

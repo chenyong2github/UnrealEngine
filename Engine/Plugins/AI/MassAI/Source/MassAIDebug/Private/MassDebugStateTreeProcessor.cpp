@@ -6,6 +6,7 @@
 #include "MassStateTreeFragments.h"
 #include "MassCommonFragments.h"
 #include "VisualLogger/VisualLogger.h"
+#include "Engine/World.h"
 
 //----------------------------------------------------------------------//
 // UMassDebugStateTreeProcessor
