@@ -444,3 +444,33 @@ struct FDirectoryPath
 	 */
 	FString Path;
 };
+
+// Fixup archive
+struct FSoftObjectPathFixupArchive : public FArchiveUObject
+{
+	FSoftObjectPathFixupArchive(TFunction<void(FSoftObjectPath&)> InFixupFunction)
+		: FixupFunction(InFixupFunction)
+	{
+		this->SetIsSaving(true);
+		this->ArShouldSkipBulkData = true;
+	}
+
+	FSoftObjectPathFixupArchive(const FString& InOldAssetPathString, const FString& InNewAssetPathString)
+		: FSoftObjectPathFixupArchive([OldAssetPathString = InOldAssetPathString, NewAssetPathString = InNewAssetPathString](FSoftObjectPath& Value)
+			{
+				if (!Value.IsNull() && Value.GetAssetPathString() == OldAssetPathString)
+				{
+					Value = FSoftObjectPath(NewAssetPathString + TEXT(":") + Value.GetSubPathString());
+				}
+			})
+	{
+	}
+
+	FArchive& operator<<(FSoftObjectPath& Value)
+	{
+		FixupFunction(Value);
+		return *this;
+	}
+
+	TFunction<void(FSoftObjectPath&)> FixupFunction;
+};

@@ -289,9 +289,11 @@ AActor* FWorldPartitionActorDesc::Load() const
 		check(WorldPartition || GIsAutomationTesting);
 
 		const FLinkerInstancingContext* InstancingContext = nullptr;
+		FSoftObjectPathFixupArchive* SoftObjectPathFixupArchive = nullptr;
 		if (WorldPartition && WorldPartition->InstancingContext.IsInstanced())
 		{
 			InstancingContext = &WorldPartition->InstancingContext;
+			SoftObjectPathFixupArchive = WorldPartition->InstancingSoftObjectPathFixupArchive.Get();
 		}
 
 		UPackage* Package = nullptr;
@@ -310,7 +312,17 @@ AActor* FWorldPartitionActorDesc::Load() const
 		if (Package)
 		{
 			ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
-			UE_CLOG(!ActorPtr.IsValid(), LogWorldPartition, Warning, TEXT("Can't load actor %s"), *GetActorName().ToString());
+			if (AActor* Actor = ActorPtr.Get())
+			{
+				if (SoftObjectPathFixupArchive)
+				{
+					Actor->Serialize(*SoftObjectPathFixupArchive);
+				}
+			}
+			else
+			{
+				UE_LOG(LogWorldPartition, Warning, TEXT("Can't load actor %s"), *GetActorName().ToString());
+			}
 		}
 	}
 
