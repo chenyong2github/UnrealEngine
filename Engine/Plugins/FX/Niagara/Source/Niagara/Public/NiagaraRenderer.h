@@ -123,6 +123,7 @@ public:
 	static FRHIShaderResourceView* GetDummyWhiteColorBuffer();
 	static FRHIShaderResourceView* GetDummyIntBuffer();
 	static FRHIShaderResourceView* GetDummyUIntBuffer();
+	static FRHIShaderResourceView* GetDummyUInt2Buffer();
 	static FRHIShaderResourceView* GetDummyUInt4Buffer();
 	static FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
 	static FRHIShaderResourceView* GetDummyTextureReadBuffer2DArray();

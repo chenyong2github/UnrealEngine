@@ -11,7 +11,7 @@
 #include "Internationalization/Internationalization.h"
 
 #include "NiagaraWorldManager.h"
-#include "NiagaraDataInterfaceStaticMesh.h"
+#include "DataInterface/NiagaraDataInterfaceStaticMesh.h"
 #include "NiagaraStats.h"
 #include "NiagaraDataInterfaceTexture.h"
 #include "NiagaraDataInterface2DArrayTexture.h"

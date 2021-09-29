@@ -785,6 +785,17 @@ struct NiagaraRandInfo
 };
 
 #if GPU_SIMULATION
+NiagaraRandInfo MakeRandInfo()
+{
+	GRandomSeedOffset += 1664525u;
+
+	NiagaraRandInfo RandInfo;
+	RandInfo.Seed1 = GLinearThreadId;
+	RandInfo.Seed2 = GRandomSeedOffset;
+	RandInfo.Seed3 = GEmitterTickCounter;
+	return RandInfo;
+}
+
 float NiagaraRandomFloat(NiagaraRandInfo RandInfo)
 {
 	return uint(RandInfo.Seed3) == 0xffffffff ? NiagaraInternalNoise(uint(RandInfo.Seed1), uint(RandInfo.Seed2), uint(RandInfo.Seed3)) : rand(1.0f, uint(RandInfo.Seed1), uint(RandInfo.Seed2), uint(RandInfo.Seed3));

@@ -187,6 +187,13 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyUIntBuffer()
 	return DummyUIntBuffer.SRV;
 }
 
+FRHIShaderResourceView* FNiagaraRenderer::GetDummyUInt2Buffer()
+{
+	check(IsInRenderingThread());
+	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyUInt2Buffer(PF_R32G32_UINT, TEXT("NiagaraRenderer::DummyUInt2"));
+	return DummyUInt2Buffer.SRV;
+}
+
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyUInt4Buffer()
 {
 	check(IsInRenderingThread());

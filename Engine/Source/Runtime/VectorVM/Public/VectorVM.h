@@ -576,6 +576,10 @@ namespace VectorVM
 		FORCEINLINE T* Get() { return Ptr; }
 		FORCEINLINE T* operator->() { return Ptr; }
 		FORCEINLINE operator T*() { return Ptr; }
+
+		FORCEINLINE const T* Get() const { return Ptr; }
+		FORCEINLINE const T* operator->() const { return Ptr; }
+		FORCEINLINE operator const T* () const { return Ptr; }
 	};
 
 	// A flexible handler that can deal with either constant or register inputs.
