@@ -232,7 +232,17 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 				Ret = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, Property);
 			}
 			break;
-
+		case MP_ShadingModel:
+			if (AllowPerPixelShadingModels(Compiler->GetShaderPlatform()))
+			{
+				Ret = MaterialInterface->CompileProperty(Compiler, Property);
+			}
+			else
+			{
+				FMaterialShadingModelField ShadingModels = Compiler->GetMaterialShadingModels();
+				Ret = Compiler->ShadingModel(ShadingModels.GetFirstShadingModel());
+			}
+			break;
 		case MP_MaterialAttributes:
 			Ret = MaterialInterface->CompileProperty(Compiler, Property);
 			break;

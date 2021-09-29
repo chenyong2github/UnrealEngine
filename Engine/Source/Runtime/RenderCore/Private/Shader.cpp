@@ -1477,6 +1477,11 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	{
 		KeyString += TEXT("_NoPDO");
 	}
+
+	if (!AllowPerPixelShadingModels(Platform))
+	{
+		KeyString += TEXT("_NoPPSM");
+	}
 	
 	if (IsD3DPlatform(Platform) && IsPCPlatform(Platform))
 	{
