@@ -1222,14 +1222,6 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 		uint64 MaxBufferElements = (GDebugForcedMaxGPUBufferElements > 0) ? (uint64)GDebugForcedMaxGPUBufferElements : GetMaxBufferDimension();
 		// Don't just cast the result of the division to 32-bit, since that will produce garbage if MaxNumInstances is larger than UINT_MAX. Saturate instead.
 		MaxInstanceCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
-
-		if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
-		{
-			// On GPU, the size of the allocated buffers must be a multiple of NiagaraComputeMaxThreadGroupSize, so round down.
-			MaxInstanceCount = FMath::DivideAndRoundDown(MaxInstanceCount, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
-			// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
-			MaxInstanceCount -= 1;
-		}
 	}
 	else
 	{
@@ -2163,7 +2155,8 @@ int32 UNiagaraEmitter::AddRuntimeAllocation(uint64 ReporterHandle, int32 Allocat
 
 int32 UNiagaraEmitter::GetMaxParticleCountEstimate()
 {
-	if (AllocationMode == EParticleAllocationMode::ManualEstimate)
+	if ((AllocationMode == EParticleAllocationMode::ManualEstimate)
+		|| (AllocationMode == EParticleAllocationMode::FixedCount))
 	{
 		return PreAllocationCount;
 	}
@@ -2191,6 +2184,26 @@ int32 UNiagaraEmitter::GetMaxParticleCountEstimate()
 		}
 	}
 	return RuntimeEstimation.AllocationEstimate;
+}
+
+uint32 UNiagaraEmitter::GetMaxInstanceCount() const
+{
+	uint32 Result = MaxInstanceCount;
+
+	if (AllocationMode == EParticleAllocationMode::FixedCount)
+	{
+		Result = FMath::Min<uint32>(Result, PreAllocationCount);
+	}
+
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	{
+		// On GPU, the size of the allocated buffers must be a multiple of NiagaraComputeMaxThreadGroupSize, so round down.
+		Result = FMath::DivideAndRoundDown(Result, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
+		// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
+		Result -= 1;
+	}
+
+	return Result;
 }
 
 void UNiagaraEmitter::GenerateStatID()const

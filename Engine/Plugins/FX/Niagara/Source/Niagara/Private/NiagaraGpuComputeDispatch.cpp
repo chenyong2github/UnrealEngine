@@ -881,6 +881,8 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 		ComputeContext->CurrentMaxInstances_RT = 0;
 		ComputeContext->CurrentMaxAllocateInstances_RT = 0;
 		ComputeContext->BufferSwapsThisFrame_RT = 0;
+		ComputeContext->FinalDispatchGroup_RT = INDEX_NONE;
+		ComputeContext->FinalDispatchGroupInstance_RT = INDEX_NONE;
 	}
 
 	if (ComputeProxy->PendingTicks.Num() == 0)
@@ -1052,10 +1054,12 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 				}
 			}
 
-			// The final instance in the last group we modified is the final stage for this tick
+			// Set this as the last stage and store the final dispatch group / instance
 			FNiagaraGpuDispatchGroup& FinalDispatchGroup = GpuDispatchList.DispatchGroups[iInstanceCurrDispatchGroup - 1];
 			FinalDispatchGroup.DispatchInstances.Last().SimStageData.bLastStage = true;
-			FinalDispatchGroup.DispatchInstances.Last().SimStageData.bSetDataToRender = Tick.bIsFinalTick;
+
+			ComputeContext->FinalDispatchGroup_RT = iInstanceCurrDispatchGroup - 1;
+			ComputeContext->FinalDispatchGroupInstance_RT = FinalDispatchGroup.DispatchInstances.Num() - 1;
 
 			// Keep track of where the next set of dispatch should occur
 			iTickStartDispatchGroup = FMath::Max(iTickStartDispatchGroup, iInstanceCurrDispatchGroup);
@@ -1093,6 +1097,11 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 		{
 			continue;
 		}
+
+		// Ensure we set the data to render as the context may have been dropped during a multi-tick
+		check(ComputeContext->FinalDispatchGroup_RT != INDEX_NONE);
+		FNiagaraGpuDispatchGroup& FinalDispatchGroup = GpuDispatchList.DispatchGroups[ComputeContext->FinalDispatchGroup_RT];
+		FinalDispatchGroup.DispatchInstances[ComputeContext->FinalDispatchGroupInstance_RT].SimStageData.bSetDataToRender = true;
 
 		// We need to store the current data from the main data set as we will be temporarily stomping it during multi-ticking
 		ComputeContext->DataSetOriginalBuffer_RT = ComputeContext->MainDataSet->GetCurrentData();

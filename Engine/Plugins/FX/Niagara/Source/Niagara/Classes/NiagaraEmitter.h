@@ -108,7 +108,9 @@ enum class EParticleAllocationMode : uint8
 	/** This mode tries to estimate the max particle count at runtime by using previous simulations as reference.*/
 	AutomaticEstimate = 0,
 	/** This mode is useful if the particle count can vary wildly at runtime (e.g. due to user parameters) and a lot of reallocations happen.*/
-	ManualEstimate
+	ManualEstimate,
+	/** This mode defines an upper limit on the number of particles that will be simulated.  Useful for rejection sampling where we expect many spawned particles to get killed. */
+	FixedCount
 };
 
 USTRUCT()
@@ -303,7 +305,7 @@ public:
 	The emitter will allocate at least this many particles on it's first tick.
 	This can aid performance by avoiding many allocations as an emitter ramps up to it's max size.
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "AllocationMode == EParticleAllocationMode::ManualEstimate"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "AllocationMode == EParticleAllocationMode::ManualEstimate || AllocationMode == EParticleAllocationMode::FixedCount"))
 	int32 PreAllocationCount;
 
 	UPROPERTY()
@@ -563,6 +565,7 @@ public:
 
 	/* Returns the number of max expected particles for memory allocations. */
 	NIAGARA_API int32 GetMaxParticleCountEstimate();
+	NIAGARA_API uint32 GetMaxInstanceCount() const;
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
@@ -588,8 +591,6 @@ public:
 #endif
 
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
-
-	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
 
 	TConstArrayView<TUniquePtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
 
