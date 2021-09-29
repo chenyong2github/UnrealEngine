@@ -1047,13 +1047,13 @@ void Main(
 	#else
 		OutColor.rgb = Color * VertexFog.a + VertexFog.rgb;
 
-		#if !MATERIAL_USE_ALPHA_TO_COVERAGE
-			// Scene color alpha is not used yet so we set it to 1
-			OutColor.a = 1.0;
-			
 		#if USE_SCENE_DEPTH_AUX
 			OutSceneDepthAux = SvPosition.z;
 		#endif
+
+		#if !MATERIAL_USE_ALPHA_TO_COVERAGE
+			// Planar reflections and scene captures use scene color alpha to keep track of where content has been rendered, for compositing into a different scene later
+			OutColor.a = 0.0;
 		#else
 			half MaterialOpacityMask = GetMaterialMaskInputRaw(PixelMaterialInputs);
 			OutColor.a = GetMaterialMask(PixelMaterialInputs) / max(abs(ddx(MaterialOpacityMask)) + abs(ddy(MaterialOpacityMask)), 0.0001f) + 0.5f;
