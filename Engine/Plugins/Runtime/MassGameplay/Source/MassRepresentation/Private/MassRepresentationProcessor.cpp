@@ -5,9 +5,9 @@
 #include "MassRepresentationUtils.h"
 #include "MassActorSubsystem.h"
 #include "MassCommonFragments.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 #include "MassEntitySubsystem.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "Engine/World.h"
 
 //----------------------------------------------------------------------//

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassSmartObjectProcessor.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 #include "MassCommonTypes.h"
 #include "MassSignalSubsystem.h"
 #include "MassSmartObjectBehaviorConfig.h"

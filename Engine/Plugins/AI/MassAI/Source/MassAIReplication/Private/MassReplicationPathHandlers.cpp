@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassReplicationPathHandlers.h"
-#include "EntityQuery.h"
+#include "MassEntityQuery.h"
 #include "MassCommonFragments.h"
 #include "MassMovementTypes.h"
 #include "MassSimulationSubsystem.h"

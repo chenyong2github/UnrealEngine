@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ArchetypeData.h"
+#include "MassArchetypeData.h"
+#include "MassEntityTypes.h"
 #include "Misc/StringBuilder.h"
-#include "VisualLogger/VisualLogger.h"
-#include "Async/ParallelFor.h"
+
 
 //////////////////////////////////////////////////////////////////////
 // FMassArchetypeData
@@ -420,7 +420,7 @@ void FMassArchetypeData::SetComponentData(const FArchetypeChunkCollection& Chunk
 	const uint8* ComponentSourceMemory = ComponentSource.GetMemory();
 	check(ComponentSourceMemory);
 	
-	for (FArchetypeChunkIterator ChunkIterator(ChunkCollection); ChunkIterator; ++ChunkIterator)
+	for (FMassArchetypeChunkIterator ChunkIterator(ChunkCollection); ChunkIterator; ++ChunkIterator)
 	{
 		uint8* ComponentMemory = (uint8*)ComponentConfigs[ComponentIndex].GetComponentData(Chunks[ChunkIterator->ChunkIndex].GetRawMemory(), ChunkIterator->SubchunkStart);
 		for (int i = ChunkIterator->Length; i; --i, ComponentMemory += ComponentTypeSize)
@@ -497,7 +497,7 @@ void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, cons
 
 	// mz@todo to be removed
 	RunContext.SetCurrentArchetypeData(*this);
-	for (FArchetypeChunkIterator ChunkIterator(ChunkCollection); ChunkIterator; ++ChunkIterator)
+	for (FMassArchetypeChunkIterator ChunkIterator(ChunkCollection); ChunkIterator; ++ChunkIterator)
 	{
 		FMassArchetypeChunk& Chunk = Chunks[ChunkIterator->ChunkIndex];
 		

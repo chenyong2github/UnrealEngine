@@ -7,7 +7,7 @@
 #include "MassCrowdReplicatedAgent.h"
 #include "MassClientBubbleHandler.h"
 #include "MassClientBubbleInfoBase.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 
 #include "MassCrowdBubble.generated.h"
 

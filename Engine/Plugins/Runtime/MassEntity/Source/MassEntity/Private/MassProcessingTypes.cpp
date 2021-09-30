@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassProcessor.h"
 #include "MassSchematic.h"
 #include "Misc/OutputDevice.h"
 #include "MassEntityUtils.h"
-#include "Engine/EngineBaseTypes.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassEntityDebug.h"
 

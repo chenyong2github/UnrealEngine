@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 
 namespace UE { namespace Pipe { namespace Utils
 {

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassLODTypes.h"
 #include "MassLODManager.h"
 #include "MassLODCollector.h"

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntitySubsystem.h"
-#include "ArchetypeData.h"
-#include "LWCCommandBuffer.h"
+#include "MassArchetypeData.h"
+#include "MassCommandBuffer.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "UObject/UObjectIterator.h"

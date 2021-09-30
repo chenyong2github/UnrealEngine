@@ -3,7 +3,7 @@
 #include "GameplayDebuggerCategory_Mass.h"
 
 #if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "GameplayDebuggerCategoryReplicator.h"
 #include "GameplayDebuggerPlayerManager.h"
 #include "MassDebuggerSubsystem.h"

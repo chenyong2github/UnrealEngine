@@ -10,7 +10,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Engine/DataTable.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassCommonTypes.h"
 #include "MassSimulationLocalCoordinator.generated.h"
 

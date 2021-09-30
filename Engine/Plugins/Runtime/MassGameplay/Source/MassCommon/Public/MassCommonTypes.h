@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
 #include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "InstancedStruct.h"
 #include "SequentialID.h"
 #include "MassCommonTypes.generated.h"

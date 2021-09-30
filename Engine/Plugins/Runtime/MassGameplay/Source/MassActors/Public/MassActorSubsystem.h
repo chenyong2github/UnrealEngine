@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassCommonFragments.h"
 #include "MassEntityTemplate.h"
 #include "Misc/MTAccessDetector.h"

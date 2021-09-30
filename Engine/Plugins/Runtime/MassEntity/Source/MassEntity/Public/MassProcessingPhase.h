@@ -6,7 +6,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "Engine/EngineBaseTypes.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassProcessingPhase.generated.h"
 
 

@@ -6,9 +6,9 @@
 #include "GameFramework/Actor.h"
 #include "Engine/DataTable.h"
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassEntitySubsystem.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 
 #include "LWComponentTestFarmPlot.generated.h"
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Delegates/IDelegateInstance.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassProcessingPhase.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "MassSimulationSubsystem.generated.h"

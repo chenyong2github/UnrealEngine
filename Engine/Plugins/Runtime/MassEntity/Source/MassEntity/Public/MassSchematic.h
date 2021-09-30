@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassSchematic.generated.h"
 
 

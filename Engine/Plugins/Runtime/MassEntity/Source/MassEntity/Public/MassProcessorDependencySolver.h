@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 
 
 class UMassProcessor;

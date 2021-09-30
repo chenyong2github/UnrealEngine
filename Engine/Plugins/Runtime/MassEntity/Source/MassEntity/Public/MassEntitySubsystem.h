@@ -3,10 +3,10 @@
 #pragma once
 
 #include "Subsystems/WorldSubsystem.h"
-#include "LWComponentTypes.h"
 #include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "InstancedStruct.h"
-#include "EntityQuery.h"
+#include "MassEntityQuery.h"
 #include "MassEntitySubsystem.generated.h"
 
 MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogAggregateTicking, Warning, All);

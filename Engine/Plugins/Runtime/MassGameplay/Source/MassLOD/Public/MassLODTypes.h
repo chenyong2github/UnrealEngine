@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "Containers/StaticArray.h"
 #include "MassEntitySubsystem.h"
 

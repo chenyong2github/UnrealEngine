@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
 #include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassEntityTemplate.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "MassAgentSubsystem.generated.h"

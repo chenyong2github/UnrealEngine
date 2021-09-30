@@ -3,7 +3,7 @@
 #include "MassStateTreeProcessors.h"
 #include "StateTree.h"
 #include "MassStateTreeExecutionContext.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "MassAIMovementTypes.h"
 #include "MassComponentHitTypes.h"
 #include "MassSmartObjectTypes.h"

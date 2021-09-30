@@ -4,7 +4,7 @@
 
 #include "MassMovementTypes.h"
 #include "MassReplicationTypes.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "MassClientBubbleHandler.h"
 #include "MassCommonFragments.h"
 #include "AIHelpers.h"

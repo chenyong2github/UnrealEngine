@@ -5,7 +5,7 @@
 #include "MassProcessorDependencySolver.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Engine/World.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 
 DECLARE_CYCLE_STAT(TEXT("MassProcessor Group Completed"), Pipe_GroupCompletedTask, STATGROUP_TaskGraphTasks);
 

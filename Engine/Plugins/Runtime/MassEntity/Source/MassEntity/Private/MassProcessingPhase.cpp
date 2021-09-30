@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassProcessingPhase.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassEntityDebug.h"
 #include "MassEntitySettings.h"
 #include "MassProcessor.h"
@@ -9,7 +9,7 @@
 #include "MassEntitySubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Engine/World.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 
 #define LOCTEXT_NAMESPACE "Mass"
 

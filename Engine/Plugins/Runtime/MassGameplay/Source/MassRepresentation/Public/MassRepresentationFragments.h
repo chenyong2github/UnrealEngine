@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassLODTypes.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassEntitySubsystem.h"
 #include "MassActorSpawnerSubsystem.h"
 #include "MassRepresentationTypes.h"

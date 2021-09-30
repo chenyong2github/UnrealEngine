@@ -4,7 +4,7 @@
 
 #include "MassProcessor.h"
 #include "MassCommonTypes.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassTranslator.generated.h"
 
 

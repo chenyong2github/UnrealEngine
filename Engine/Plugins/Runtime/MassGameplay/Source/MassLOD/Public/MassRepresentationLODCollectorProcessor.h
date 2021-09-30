@@ -5,7 +5,7 @@
 #include "MassLODManager.h"
 #include "MassLODCollector.h"
 #include "MassLODCalculator.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 
 #include "MassRepresentationLODCollectorProcessor.generated.h"
 

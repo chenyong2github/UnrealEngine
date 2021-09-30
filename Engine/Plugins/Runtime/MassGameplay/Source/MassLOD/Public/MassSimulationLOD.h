@@ -7,7 +7,7 @@
 #include "MassLODCalculator.h"
 #include "MassLODTickRateController.h"
 #include "MassLODLogic.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 
 #include "MassSimulationLOD.generated.h"
 

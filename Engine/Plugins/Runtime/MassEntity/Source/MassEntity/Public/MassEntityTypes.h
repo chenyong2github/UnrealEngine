@@ -2,116 +2,144 @@
 
 #pragma once
 
-#include "StructUtilsTypes.h"
-#include "InstancedStruct.h"
+#include "ScriptStructTypeBitSet.h"
 #include "MassEntityTypes.generated.h"
 
-#define WITH_MASSENTITY_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_STRUCTUTILS_DEBUG && 1)
-
-MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogPipe, Warning, All);
-
-class UMassEntitySubsystem;
-class UMassProcessor;
-class UMassSchematic;
-class UMassCompositeProcessor;
-
-UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
-enum class EProcessorExecutionFlags : uint8
+// This is the base class for all lightweight components
+USTRUCT()
+struct FMassFragment
 {
-	None = 0 UMETA(Hidden),
-	Standalone = 1 << 0,
-	Server = 1 << 1,
-	Client = 1 << 2,
-	All = Standalone | Server | Client UMETA(Hidden)
+	GENERATED_BODY()
+
+	FMassFragment() {}
 };
-ENUM_CLASS_FLAGS(EProcessorExecutionFlags);
+
+// This is the base class for types that will only be tested for presence/absence, i.e. Tags.
+// Subclasses should never contain any member properties.
+USTRUCT()
+struct FMassTag
+{
+	GENERATED_BODY()
+
+	FMassTag() {}
+};
 
 USTRUCT()
-struct FProcessorAuxDataBase
-{
-	GENERATED_BODY()
-};
-
-USTRUCT(BlueprintType)
-struct MASSENTITY_API FMassProcessingContext
+struct FMassChunkFragment
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	UMassEntitySubsystem* EntitySubsystem = nullptr;
-	
-	UPROPERTY()
-	float DeltaSeconds = 0.f;
-
-	UPROPERTY()
-	FInstancedStruct AuxData;
-
-	FMassProcessingContext() = default;
-	FMassProcessingContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds);
+	FMassChunkFragment() {}
 };
 
-/** 
- *  A helper type that converts a set of UMassSchematics into a runtime-usable array of MassProcessor copies
- */
+// A handle to a lightweight entity.  An entity is used in conjunction with the UMassEntitySubsystem
+// for the current world and can contain lightweight components.
 USTRUCT()
-struct MASSENTITY_API FMassRuntimePipeline
+struct FMassEntityHandle
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	TArray<UMassProcessor*> Processors;
-
-	void Reset();
-	void Initialize(UObject& Owner);
+	FMassEntityHandle() {}
 	
-	/** Creates runtime copies of the given UMassProcessors collection. */
-	void SetProcessors(TArray<UMassProcessor*>&& InProcessors);
-
-	/** Creates runtime copies of UMassProcessors declared in Schematics using InOwner as new UMassProcessors' outer. */
-	void InitializeFromSchematics(TConstArrayView<TSoftObjectPtr<UMassSchematic>> Schematics, UObject& InOwner);
-
-	/** Creates runtime copies of UMassProcessors given in InProcessors input parameter, using InOwner as new UMassProcessors' outer. */
-	void CreateFromArray(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner);
-
-	/** Calls CreateFromArray and calls Initialize on all processors afterwards. */
-	void InitializeFromArray(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner);
+	UPROPERTY(VisibleAnywhere, Category = "AggregateTicking|Debug", Transient)
+	int32 Index = 0;
 	
-	/** Creates runtime instances of UMassProcessors for each processor class given via InProcessorClasses. 
-	 *  The instances will be created with InOwner as outer. */
-	void InitializeFromClassArray(TConstArrayView<TSubclassOf<UMassProcessor>> InProcessorClasses, UObject& InOwner);
+	UPROPERTY(VisibleAnywhere, Category = "AggregateTicking|Debug", Transient)
+	int32 SerialNumber = 0;
 
-	/** Creates a runtime instance of every processors in the given InProcessors array. If a processor of that class
-	 *  already exists in Processors array it gets overridden. Otherwise it gets added to the end of the collection.*/
-	void AppendOrOverrideRuntimeProcessorCopies(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner);
+	bool operator==(const FMassEntityHandle& Other) const
+	{
+		return Index == Other.Index && SerialNumber == Other.SerialNumber;
+	}
 
-	/** Creates a runtime instance of every processors in the given array if there's no processor of that class in Processors already.
-	 *  Call this function when adding processors to an already configured FMassRuntimePipeline instance. If you're creating 
-	 *  one from scratch calling any of the InitializeFrom* methods will be more efficient (and will produce same results)
-	 *  or call AppendOrOverrideRuntimeProcessorCopies.*/
-	void AppendUniqueRuntimeProcessorCopies(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner);
+	bool operator!=(const FMassEntityHandle& Other) const
+	{
+		return !operator==(Other);
+	}
 
-	/** Adds InProcessor to Processors without any additional checks */
-	void AppendProcessor(UMassProcessor& Processor);
+	/** Note that this function is merely checking if Index and SerialNumber are set. There's no way to validate if 
+	 *  these indicate a valid entity in an EntitySubsystem without asking the system. */
+	bool IsSet() const
+	{
+		return Index != 0 && SerialNumber != 0;
+	}
 
-	/** goes through Processor looking for a UMassCompositeProcessor instance which GroupName matches the one given as the parameter */
-	UMassCompositeProcessor* FindTopLevelGroupByName(const FName GroupName);
+	void Reset()
+	{
+		Index = SerialNumber = 0;
+	}
 
-	void DebugOutputDescription(FOutputDevice& Ar) const;
+	friend uint32 GetTypeHash(const FMassEntityHandle& Entity)
+	{
+		return HashCombine(Entity.Index, Entity.SerialNumber);
+	}
 
-	bool HasProcessorOfExactClass(TSubclassOf<UMassProcessor> InClass) const;
-	bool IsEmpty() const { return Processors.IsEmpty();}
-
-	MASSENTITY_API friend uint32 GetTypeHash(const FMassRuntimePipeline& Instance);
+	FString DebugGetDescription() const
+	{
+		return FString::Printf(TEXT("i: %d sn: %d"), Index, SerialNumber);
+	}
 };
 
-UENUM()
-enum class EMassProcessingPhase : uint8
+template struct MASSENTITY_API TScriptStructTypeBitSet<FMassFragment>;
+using FMassFragmentBitSet = TScriptStructTypeBitSet<FMassFragment>;
+template struct MASSENTITY_API TScriptStructTypeBitSet<FMassTag>;
+using FMassTagBitSet = TScriptStructTypeBitSet<FMassTag>;
+template struct MASSENTITY_API TScriptStructTypeBitSet<FMassChunkFragment>;
+using FMassChunkFragmentBitSet = TScriptStructTypeBitSet<FMassChunkFragment>;
+
+/** The type summarily describing a composition of an entity or an archetype. It contains information on both the
+ *  components as well as tags */
+struct FMassCompositionDescriptor
 {
-	PrePhysics,
-	StartPhysics,
-	DuringPhysics,
-	EndPhysics,
-	PostPhysics,
-	FrameEnd,
-	MAX,
+	FMassCompositionDescriptor() = default;
+	FMassCompositionDescriptor(const FMassFragmentBitSet& InComponents, const FMassTagBitSet& InTags, const FMassChunkFragmentBitSet& InChunkComponents)
+		: Components(InComponents), Tags(InTags), ChunkComponents(InChunkComponents)
+	{}
+
+	FMassCompositionDescriptor(TConstArrayView<const UScriptStruct*> InComponents, const FMassTagBitSet& InTags, const FMassChunkFragmentBitSet& InChunkComponents)
+		: FMassCompositionDescriptor(FMassFragmentBitSet(InComponents), InTags, InChunkComponents)
+	{}
+
+	FMassCompositionDescriptor(TConstArrayView<FInstancedStruct> InComponentInstances, const FMassTagBitSet& InTags, const FMassChunkFragmentBitSet& InChunkComponents)
+		: FMassCompositionDescriptor(FMassFragmentBitSet(InComponentInstances), InTags, InChunkComponents)
+	{}
+
+	FMassCompositionDescriptor(FMassFragmentBitSet&& InComponents, FMassTagBitSet&& InTags, FMassChunkFragmentBitSet&& InChunkComponents)
+		: Components(MoveTemp(InComponents)), Tags(MoveTemp(InTags)), ChunkComponents(MoveTemp(InChunkComponents))
+	{}
+
+	void Reset()
+	{
+		Components.Reset();
+		Tags.Reset();
+	}
+
+	bool IsEquivalent(const FMassFragmentBitSet& InComponentBitSet, const FMassTagBitSet& InTagBitSet, const FMassChunkFragmentBitSet& InChunkComponentsBitSet) const
+	{
+		return Components.IsEquivalent(InComponentBitSet) && Tags.IsEquivalent(InTagBitSet) && ChunkComponents.IsEquivalent(InChunkComponentsBitSet);
+	}
+
+	bool IsEquivalent(const FMassCompositionDescriptor& OtherDescriptor) const
+	{
+		return IsEquivalent(OtherDescriptor.Components, OtherDescriptor.Tags, OtherDescriptor.ChunkComponents);
+	}
+
+	bool IsEmpty() const { return Components.IsEmpty() && Tags.IsEmpty() && ChunkComponents.IsEmpty(); }
+
+	static uint32 CalculateHash(const FMassFragmentBitSet& InComponents, const FMassTagBitSet& InTags, const FMassChunkFragmentBitSet& InChunkComponents)
+	{
+		const uint32 ComponentsHash = GetTypeHash(InComponents);
+		const uint32 TagsHash = GetTypeHash(InTags);
+		const uint32 ChunkComponentsHash = GetTypeHash(InChunkComponents);
+		return HashCombine(HashCombine(ComponentsHash, TagsHash), ChunkComponentsHash);
+	}	
+
+	uint32 CalculateHash() const 
+	{
+		return CalculateHash(Components, Tags, ChunkComponents);
+	}
+
+	FMassFragmentBitSet Components;
+	FMassTagBitSet Tags;
+	FMassChunkFragmentBitSet ChunkComponents;
 };

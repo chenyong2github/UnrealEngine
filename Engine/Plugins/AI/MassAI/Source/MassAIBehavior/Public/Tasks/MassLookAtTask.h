@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassStateTreeTypes.h"
 #include "MassLookAtFragments.h"
 #include "MassLookAtTask.generated.h"

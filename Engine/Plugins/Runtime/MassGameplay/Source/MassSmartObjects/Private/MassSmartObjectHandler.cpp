@@ -5,7 +5,7 @@
 #include "MassSmartObjectBehaviorConfig.h"
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 
 namespace UE::Mass::SmartObject
 {
