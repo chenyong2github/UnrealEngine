@@ -657,7 +657,11 @@ enum class EIoChunkType : uint8
 	PackageStoreEntry = 10,
 	DerivedData = 11,
 	EditorDerivedData = 12,
+	
+	MAX
 };
+
+CORE_API FString LexToString(const EIoChunkType Type);
 
 /**
  * Identifier to a chunk of data.
