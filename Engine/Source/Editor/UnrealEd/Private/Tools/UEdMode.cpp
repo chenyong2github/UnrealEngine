@@ -141,6 +141,14 @@ void UEdMode::Exit()
 		SettingsObject->SaveConfig();
 	}
 
+	// Shutdown the Mode-scope ToolsContext, and notify the EditorToolsContext so it can release the reference it holds.
+	// Do this before shutting down the Toolkit as if a Mode-scope Tool is still active it will need to clean up
+	if (UObjectInitialized() && ModeToolsContext != nullptr)
+	{
+		ModeToolsContext->ShutdownContext();
+		EditorToolsContext->OnChildEdModeToolsContextShutdown(ModeToolsContext);
+	}
+
 	if (Toolkit.IsValid())
 	{
 		const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
@@ -153,13 +161,6 @@ void UEdMode::Exit()
 		Toolkit.Reset();
 	}
 	RegisteredEditorTools.SetNum(0);
-
-	// shutdown the Mode-scope ToolsContext, and notify the EditorToolsContext so it can release the reference it holds
-	if (UObjectInitialized() && ModeToolsContext != nullptr)
-	{
-		ModeToolsContext->ShutdownContext();
-		EditorToolsContext->OnChildEdModeToolsContextShutdown(ModeToolsContext);
-	}
 
 	// disconnect from the Mode Manager's shared ToolsContext
 	EditorToolsContext->ToolManager->OnToolStarted.RemoveAll(this);
