@@ -18,7 +18,7 @@ struct FMeshDescription;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCombineMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UCombineMeshesToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
@@ -48,7 +48,7 @@ enum class ECombineTargetType
  * Standard properties
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCombineMeshesToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UCombineMeshesToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -77,7 +77,7 @@ public:
  * Simple tool to combine multiple meshes into a single mesh asset
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCombineMeshesTool : public UMultiSelectionTool
+class MESHMODELINGTOOLS_API UCombineMeshesTool : public UMultiSelectionTool
 {
 	GENERATED_BODY()
 

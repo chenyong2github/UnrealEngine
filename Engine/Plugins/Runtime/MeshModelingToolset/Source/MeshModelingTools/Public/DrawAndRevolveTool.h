@@ -21,7 +21,7 @@ class UConstructionPlaneMechanic;
 class UCurveControlPointsMechanic;
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDrawAndRevolveToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UDrawAndRevolveToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URevolveToolProperties : public URevolveProperties
+class MESHMODELINGTOOLS_API URevolveToolProperties : public URevolveProperties
 {
 	GENERATED_BODY()
 
@@ -63,7 +63,7 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URevolveOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API URevolveOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
@@ -78,7 +78,7 @@ public:
 
 /** Draws a profile curve and revolves it around an axis. */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDrawAndRevolveTool : public UInteractiveTool
+class MESHMODELINGTOOLS_API UDrawAndRevolveTool : public UInteractiveTool
 {
 	GENERATED_BODY()
 
