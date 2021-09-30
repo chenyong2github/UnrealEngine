@@ -33,6 +33,35 @@ constexpr char FIoStoreTocHeader::TocMagicImg[];
 
 TRACE_DECLARE_INT_COUNTER(IoStoreAvailableCompressionBuffers, TEXT("IoStore/AvailableCompressionBuffers"));
 
+FString LexToString(const EIoChunkType Type)
+{
+	const TCHAR* Strings[] = {
+		TEXT("Invalid"),
+		TEXT("ExportBundleData"),
+		TEXT("BulkData"),
+		TEXT("OptionalBulkData"),
+		TEXT("MemoryMappedBulkData"),
+		TEXT("ScriptObjects"),
+		TEXT("ContainerHeader"),
+		TEXT("ExternalFile"),
+		TEXT("ShaderCodeLibrary"),
+		TEXT("ShaderCode"),
+		TEXT("PackageStoreEntry"),
+		TEXT("DerivedData"),
+		TEXT("EditorDerivedData"),
+	};
+	static_assert(UE_ARRAY_COUNT(Strings) == (SIZE_T)EIoChunkType::MAX);
+	uint8 Index = (uint8)Type;
+	if (Index < UE_ARRAY_COUNT(Strings))
+	{
+		return Strings[Index];
+	}
+	else
+	{
+		return Strings[0]; // return Invalid
+	}
+}
+
 template<typename ArrayType>
 bool WriteArray(IFileHandle* FileHandle, const ArrayType& Array)
 {
