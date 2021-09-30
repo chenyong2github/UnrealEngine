@@ -118,7 +118,7 @@ void FMessageLogListingModel::NewPage( const FText& InTitle, uint32 InMaxPages )
 	}
 }
 
-bool FMessageLogListingModel::SwitchToPage(const FText& InTitle, uint32 InMaxPages )
+bool FMessageLogListingModel::SetCurrentPage(const FText& InTitle, uint32 InMaxPages )
 {
 	if (CurrentPage().Title.CompareTo(InTitle) == 0)
 	{
@@ -143,6 +143,22 @@ bool FMessageLogListingModel::SwitchToPage(const FText& InTitle, uint32 InMaxPag
 	NewPage(InTitle, InMaxPages);
 
 	return true;
+}
+
+bool FMessageLogListingModel::SetCurrentPage( const uint32 InOldPageIndex  )
+{
+	if (InOldPageIndex == 0)
+	{
+		return false;
+	}
+
+	if (InOldPageIndex >= NumPages())
+	{
+		return false;
+	}
+
+	FPage* PageToSwitch = PageAtIndex(InOldPageIndex);
+	return SetCurrentPage(PageToSwitch->Title, MaxPages);
 }
 
 uint32 FMessageLogListingModel::NumPages() const
