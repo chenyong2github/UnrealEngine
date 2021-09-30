@@ -19,8 +19,8 @@ MASSCOMMON_API DECLARE_LOG_CATEGORY_EXTERN(LogMass, Warning, All);
 namespace UE::MassDebug
 {
 	MASSCOMMON_API extern bool HasDebugEntities();
-	MASSCOMMON_API extern bool IsDebuggingEntity(FLWEntity Entity, FColor* OutEntityColor = nullptr);
-	MASSCOMMON_API extern FColor GetEntityDebugColor(FLWEntity Entity);
+	MASSCOMMON_API extern bool IsDebuggingEntity(FMassEntityHandle Entity, FColor* OutEntityColor = nullptr);
+	MASSCOMMON_API extern FColor GetEntityDebugColor(FMassEntityHandle Entity);
 } // namespace UE::MassDebug
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
@@ -40,11 +40,11 @@ struct MASSCOMMON_API FMassHandle
 public:
 	FMassHandle() = default;
 
-	explicit FMassHandle(FLWEntity InLWEntity)
+	explicit FMassHandle(FMassEntityHandle InLWEntity)
 		: LWEntity{ InLWEntity }
 	{}
 
-	FLWEntity GetLWEntity() const
+	FMassEntityHandle GetLWEntity() const
 	{
 		return LWEntity;
 	}
@@ -81,7 +81,7 @@ public:
 	}
 
 private:
-	FLWEntity LWEntity;
+	FMassEntityHandle LWEntity;
 };
 
 USTRUCT()
@@ -129,7 +129,7 @@ struct MASSCOMMON_API FMassUniqueFragmentCollection
 	template<typename T>
 	T& Add_GetRef()
 	{
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct is not of a fragment type. If you use this FMassUniqueFragmentCollection with the EntitySubsystem you'll hit some checks");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct is not of a fragment type. If you use this FMassUniqueFragmentCollection with the EntitySubsystem you'll hit some checks");
 		if (const FInstancedStruct* ElementPtr = FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
 		{
 			return ElementPtr->GetMutable<T>();
@@ -144,7 +144,7 @@ struct MASSCOMMON_API FMassUniqueFragmentCollection
 	template<typename T>
 	T& GetRefChecked()
 	{
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct is not of a fragment type. Make sure your struct extends FLWComponentData or its derivatives");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct is not of a fragment type. Make sure your struct extends FMassFragment or its derivatives");
 		FInstancedStruct* ElementPtr = FragmentInstances.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct()));
 		check(ElementPtr);
 		return ElementPtr->GetMutable<T>();
@@ -152,7 +152,7 @@ struct MASSCOMMON_API FMassUniqueFragmentCollection
 
 	int32 GetFragmentsNum() const { return FragmentInstances.Num(); }
 	TArrayView<const FInstancedStruct> GetFragments() const { return MakeArrayView(FragmentInstances); }
-	const FLWComponentBitSet& GetFragmentBitSet() const { return FragmentBitSet; }
+	const FMassFragmentBitSet& GetFragmentBitSet() const { return FragmentBitSet; }
 
 	bool IsEmpty() const { return FragmentInstances.IsEmpty(); }
 
@@ -162,7 +162,7 @@ private:
 	UPROPERTY()
 	TArray<FInstancedStruct> FragmentInstances;
 
-	FLWComponentBitSet FragmentBitSet;
+	FMassFragmentBitSet FragmentBitSet;
 };
 
 /** Float encoded in int16, 1cm accuracy. */

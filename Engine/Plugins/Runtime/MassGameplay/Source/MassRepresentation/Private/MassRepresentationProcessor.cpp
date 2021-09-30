@@ -27,11 +27,11 @@ UMassRepresentationProcessor::UMassRepresentationProcessor()
 
 void UMassRepresentationProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassRepresentationFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassRepresentationLODFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Actor>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassRepresentationProcessor::Initialize(UObject& Owner)
@@ -57,7 +57,7 @@ void UMassRepresentationProcessor::Initialize(UObject& Owner)
 	}
 }
 
-void UMassRepresentationProcessor::UpdateRepresentation(FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& Context)
 {
 	check(RepresentationSubsystem);
 
@@ -69,7 +69,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FLWComponentSystemExecut
 	const int32 NumEntities = Context.GetEntitiesNum();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
-		const FLWEntity Entity = Context.GetEntity(EntityIdx);
+		const FMassEntityHandle Entity = Context.GetEntity(EntityIdx);
 		const FMassHandle MassAgent(Entity);
 		const FDataFragment_Transform& TransformFragment = TransformList[EntityIdx];
 		const FMassRepresentationLODFragment& RepresentationLOD = RepresentationLODList[EntityIdx];
@@ -207,12 +207,12 @@ void UMassRepresentationProcessor::UpdateRepresentation(FLWComponentSystemExecut
 	}
 }
 
-void UMassRepresentationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	check(RepresentationSubsystem);
 
 	// Visualize entities
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
 		UpdateRepresentation(Context);
 	});
@@ -227,7 +227,7 @@ AActor* UMassRepresentationProcessor::GetOrSpawnActor(const FMassHandle MassAgen
 		FMassActorPostSpawnDelegate::CreateUObject(this, &UMassRepresentationProcessor::OnActorPostSpawn));
 }
 
-bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, FLWComponentSystemExecutionContext& Context, bool bCancelSpawningOnly /*= false*/)
+bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, FMassExecutionContext& Context, bool bCancelSpawningOnly /*= false*/)
 {
 	check(RepresentationSubsystem);
 	check(!ActorInfo.IsValid() || ActorInfo.IsOwnedByMass());
@@ -258,7 +258,7 @@ bool UMassRepresentationProcessor::ReleaseActorOrCancelSpawning(const FMassHandl
 	return false;
 }
 
-void UMassRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context)
 {
 	const bool bEnabled = EnabledType != EActorEnabledType::Disabled;
 	if (Actor.IsActorTickEnabled() != bEnabled)
@@ -275,7 +275,7 @@ void UMassRepresentationProcessor::SetActorEnabled(const EActorEnabledType Enabl
 	}
 }
 
-void UMassRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context)
 {
 	if (!Actor.GetTransform().Equals(Transform))
 	{
@@ -319,7 +319,7 @@ void UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(UMassRepre
 	}
 }
 
-void UMassRepresentationProcessor::UpdateVisualization(FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationProcessor::UpdateVisualization(FMassExecutionContext& Context)
 {
 	FMassVisualizationChunkFragment& ChunkData = UpdateChunkVisibility(Context);
 	if (!ChunkData.ShouldUpdateVisualization())
@@ -336,14 +336,14 @@ void UMassRepresentationProcessor::UpdateVisualization(FLWComponentSystemExecuti
 	const int32 NumEntities = Context.GetEntitiesNum();
 	for (int32 EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
-		const FLWEntity Entity = Context.GetEntity(EntityIdx);
+		const FMassEntityHandle Entity = Context.GetEntity(EntityIdx);
 		FMassRepresentationFragment& Representation = RepresentationList[EntityIdx];
 		const FMassRepresentationLODFragment& RepresentationLOD = RepresentationLODList[EntityIdx];
 		UpdateEntityVisibility(Entity, Representation, RepresentationLOD, ChunkData, Context);
 	}
 }
 
-FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibility(FLWComponentSystemExecutionContext& Context) const
+FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibility(FMassExecutionContext& Context) const
 {
 	// Setup chunk component data about visibility
 	FMassVisualizationChunkFragment& ChunkData = Context.GetMutableChunkComponent<FMassVisualizationChunkFragment>();
@@ -374,7 +374,7 @@ FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibi
 	return ChunkData;
 }
 
-void UMassRepresentationProcessor::UpdateEntityVisibility(const FLWEntity Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationProcessor::UpdateEntityVisibility(const FMassEntityHandle Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FMassExecutionContext& Context)
 {
 	// Move the visible entities together into same chunks so we can skip entire chunk when not visible as an optimization
 	const EMassVisibility Visibility = Representation.CurrentRepresentation != ERepresentationType::None ? EMassVisibility::CanBeSeen : 
@@ -393,7 +393,7 @@ void UMassRepresentationProcessor::OnActorPreSpawn(const FMassHandle_ActorSpawnR
 	check(RepresentationSubsystem);
 
 	const FMassActorSpawnRequest& MassActorSpawnRequest = SpawnRequest.Get<FMassActorSpawnRequest>();
-	const FEntityView View(*PipeEntitySubsystem, MassActorSpawnRequest.MassAgent.GetLWEntity());
+	const FMassEntityView View(*PipeEntitySubsystem, MassActorSpawnRequest.MassAgent.GetLWEntity());
 
 	if (FDataFragment_Actor* ActorInfo = View.GetComponentDataPtr<FDataFragment_Actor>())
 	{
@@ -465,15 +465,15 @@ void UMassRepresentationFragmentDestructor::Initialize(UObject& Owner)
 
 void UMassRepresentationFragmentDestructor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassRepresentationFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Actor>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_Actor>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	check(RepresentationSubsystem);
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 	{
 		const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();
 		const TArrayView<FDataFragment_Actor> ActorList = Context.GetMutableComponentView<FDataFragment_Actor>();
@@ -484,7 +484,7 @@ void UMassRepresentationFragmentDestructor::Execute(UMassEntitySubsystem& Entity
 			FMassRepresentationFragment& Representation = RepresentationList[i];
 			FDataFragment_Actor& ActorInfo = ActorList[i];
 
-			const FLWEntity Entity = Context.GetEntity(i);
+			const FMassEntityHandle Entity = Context.GetEntity(i);
 			const FMassHandle MassAgent(Entity);
 
 			UMassRepresentationProcessor::ReleaseAnyActorOrCancelAnySpawning(*RepresentationSubsystem, MassAgent, ActorInfo, Representation);

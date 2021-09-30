@@ -491,7 +491,7 @@ void AMassSpawner::DoDespawning()
 	AllSpawnedEntities.Reset();
 }
 
-bool AMassSpawner::DespawnEntity(const FLWEntity Entity)
+bool AMassSpawner::DespawnEntity(const FMassEntityHandle Entity)
 {
 	UMassSpawnerSubsystem* SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(GetWorld());
 	if (SpawnerSystem == nullptr)
@@ -535,7 +535,7 @@ void AMassSpawner::UnloadConfig()
 	}
 }
 
-void AMassSpawner::OnAdjustTickSchematics(UWorld* World,TArray<TSoftObjectPtr<UPipeSchematic>>& InOutTickSchematics)
+void AMassSpawner::OnAdjustTickSchematics(UWorld* World,TArray<TSoftObjectPtr<UMassSchematic>>& InOutTickSchematics)
 {
 	// this function gets called from a static multicast delegate, so we need to differentiate based on the World it's being called for.
 	if (World != GetWorld())

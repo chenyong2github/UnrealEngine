@@ -113,13 +113,13 @@ protected:
 	void HandlePendingInitialization();
 
 	/** Bound to UMassSimulationSubsystem.OnProcessingPhaseStartedDelegate and called before every processing phase start */
-	void OnProcessingPhaseStarted(const float DeltaSeconds, const EPipeProcessingPhase Phase);
+	void OnProcessingPhaseStarted(const float DeltaSeconds, const EMassProcessingPhase Phase);
 
 	/** Callback registered to the replication manager when a mass agent is added to the replication (client only) */
-	void OnMassAgentAddedToReplication(FMassNetworkID NetID, FLWEntity Entity);
+	void OnMassAgentAddedToReplication(FMassNetworkID NetID, FMassEntityHandle Entity);
 
 	/** Callback registered to the replication manager when a mass agent is removed from the replication (client only) */
-	void OnMassAgentRemovedFromReplication(FMassNetworkID NetID, FLWEntity Entity);
+	void OnMassAgentRemovedFromReplication(FMassNetworkID NetID, FMassEntityHandle Entity);
 
 protected:
 	UPROPERTY()

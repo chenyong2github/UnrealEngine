@@ -18,7 +18,7 @@ MASSAIMOVEMENT_API DECLARE_LOG_CATEGORY_EXTERN(LogAvoidanceAgents, Warning, All)
 MASSAIMOVEMENT_API DECLARE_LOG_CATEGORY_EXTERN(LogAvoidanceObstacles, Warning, All);
 
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassEdgeDetectionParamsFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassEdgeDetectionParamsFragment : public FMassFragment
 {
 	GENERATED_BODY()
 	float EdgeDetectionRange = 500.f;
@@ -39,7 +39,7 @@ struct FNavigationAvoidanceEdge
 };
 
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassNavigationEdgesFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassNavigationEdgesFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -49,14 +49,14 @@ struct MASSAIMOVEMENT_API FMassNavigationEdgesFragment : public FLWComponentData
 
 /** Component tag to tell the avoidance to extend the size of this obstacle when too close to edges. */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassAvoidanceExtendToEdgeObstacleTag : public FComponentTag
+struct MASSAIMOVEMENT_API FMassAvoidanceExtendToEdgeObstacleTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 /** Experimental: move using cumulative forces to avoid close agents */
 UCLASS()
-class MASSAIMOVEMENT_API UMassAvoidanceProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassAvoidanceProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -66,17 +66,17 @@ public:
 protected:
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
 	TWeakObjectPtr<UWorld> WeakWorld;
 	TWeakObjectPtr<UMassMovementSubsystem> WeakMovementSubsystem;
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 /** Avoidance while standing. */
 UCLASS()
-class MASSAIMOVEMENT_API UMassStandingAvoidanceProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassStandingAvoidanceProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -86,24 +86,24 @@ public:
 protected:
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
 	TWeakObjectPtr<UWorld> WeakWorld;
 	TWeakObjectPtr<UMassMovementSubsystem> WeakMovementSubsystem;
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 /** Component Tag to tell if the entity is in the avoidance obstacle grid */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassInAvoidanceObstacleGridTag : public FComponentTag
+struct MASSAIMOVEMENT_API FMassInAvoidanceObstacleGridTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 /** Processor to update avoidance obstacle data */
 UCLASS()
-class MASSAIMOVEMENT_API UMassAvoidanceObstacleProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassAvoidanceObstacleProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -113,18 +113,18 @@ public:
 protected:
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
 	TWeakObjectPtr<UMassMovementSubsystem> WeakMovementSubsystem;
-	FLWComponentQuery AddToGridEntityQuery;
-	FLWComponentQuery UpdateGridEntityQuery;
-	FLWComponentQuery RemoveFromGridEntityQuery;
+	FMassEntityQuery AddToGridEntityQuery;
+	FMassEntityQuery UpdateGridEntityQuery;
+	FMassEntityQuery RemoveFromGridEntityQuery;
 };
 
 /** Experimental: navmesh edges gathering */
 UCLASS()
-class MASSAIMOVEMENT_API UMassNavigationBoundaryProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassNavigationBoundaryProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -134,24 +134,24 @@ public:
 protected:
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
 	TWeakObjectPtr<UWorld> WeakWorld;
 	TWeakObjectPtr<UMassMovementSubsystem> WeakMovementSubsystem;
 	TWeakObjectPtr<ANavigationData> WeakNavData;
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassLastUpdatePositionFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassLastUpdatePositionFragment : public FMassFragment
 {
 	GENERATED_BODY()
 	FVector Value;
 };
 
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassAvoidanceBoundaryLastLaneHandleFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassAvoidanceBoundaryLastLaneHandleFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -161,7 +161,7 @@ struct MASSAIMOVEMENT_API FMassAvoidanceBoundaryLastLaneHandleFragment : public 
 
 /** Experimental: lane borders gathering */
 UCLASS()
-class MASSAIMOVEMENT_API UMassLaneBoundaryProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassLaneBoundaryProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -171,16 +171,16 @@ public:
 protected:
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
 	TWeakObjectPtr<UWorld> WeakWorld;
 	TWeakObjectPtr<UZoneGraphSubsystem> WeakZoneGraph;
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassLaneCacheBoundaryFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassLaneCacheBoundaryFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -194,7 +194,7 @@ struct MASSAIMOVEMENT_API FMassLaneCacheBoundaryFragment : public FLWComponentDa
 /** ZoneGraph lane cache boundary processor */
 // @todo MassMovement: Make this signal based.
 UCLASS()
-class MASSAIMOVEMENT_API UMassLaneCacheBoundaryProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassLaneCacheBoundaryProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -204,9 +204,9 @@ public:
 protected:
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
 	TWeakObjectPtr<UWorld> WeakWorld;
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

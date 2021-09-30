@@ -12,11 +12,11 @@ URandomizeVectorProcessor::URandomizeVectorProcessor()
 	bAutoRegisterWithProcessingPhases = false;
 }
 
-void URandomizeVectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void URandomizeVectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(RandomizeVectorProcessor_Run);
 	
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
 			for (FVector& Vector : ComponentList)
 			{
@@ -40,7 +40,7 @@ void URandomizeVectorProcessor::PostEditChangeProperty(FPropertyChangedEvent& Pr
 		if (PropName == ComponentTypeName)
 		{
 			if (ComponentType == nullptr
-				|| ComponentType->IsChildOf(FLWComponentData::StaticStruct()) == false
+				|| ComponentType->IsChildOf(FMassFragment::StaticStruct()) == false
 				|| ComponentType->GetStructureSize() != SupportedSize)
 			{
 				ComponentType = FVectorComponent::StaticStruct();

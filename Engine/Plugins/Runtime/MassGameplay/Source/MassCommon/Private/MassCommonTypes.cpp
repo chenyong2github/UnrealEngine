@@ -81,7 +81,7 @@ bool HasDebugEntities()
 	return DebugEntityBegin != INDEX_NONE && DebugEntityEnd != INDEX_NONE;
 }
 	
-bool IsDebuggingEntity(FLWEntity Entity, FColor* OutEntityColor)
+bool IsDebuggingEntity(FMassEntityHandle Entity, FColor* OutEntityColor)
 {
 	const int32 EntityIdx = Entity.Index;
 	const bool bIsDebuggingEntity = (DebugEntityBegin != INDEX_NONE && DebugEntityEnd != INDEX_NONE && DebugEntityBegin <= EntityIdx && EntityIdx <= DebugEntityEnd);
@@ -94,7 +94,7 @@ bool IsDebuggingEntity(FLWEntity Entity, FColor* OutEntityColor)
 	return bIsDebuggingEntity;
 }
 
-FColor GetEntityDebugColor(FLWEntity Entity)
+FColor GetEntityDebugColor(FMassEntityHandle Entity)
 {
 	const int32 EntityIdx = Entity.Index;
 	return EntityIdx != INDEX_NONE ? GColorList.GetFColorByIndex(EntityIdx % GColorList.GetColorsNum()) : FColor::Black;

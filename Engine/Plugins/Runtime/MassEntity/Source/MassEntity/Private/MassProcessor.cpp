@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 #include "LWCCommandBuffer.h"
 
-DECLARE_CYCLE_STAT(TEXT("PipeProcessor Group Completed"), Pipe_GroupCompletedTask, STATGROUP_TaskGraphTasks);
+DECLARE_CYCLE_STAT(TEXT("MassProcessor Group Completed"), Pipe_GroupCompletedTask, STATGROUP_TaskGraphTasks);
 
 #define PARALLELIZED_TRAFFIC_HACK 1
 
@@ -40,16 +40,16 @@ namespace FPipeTweakables
 	bool bParallelGroups = false;
 	float PostponedTaskWaitTimeWarningLevel = 0.002f;
 
-	FAutoConsoleVariableRef CVarsPipeProcessor[] = {
+	FAutoConsoleVariableRef CVarsMassProcessor[] = {
 		{TEXT("pipe.ParallelGroups"), bParallelGroups, TEXT("Enables pipe processing groups distribution to all available threads (via the task graph)")},
 		{TEXT("pipe.PostponedTaskWaitTimeWarningLevel"), PostponedTaskWaitTimeWarningLevel, TEXT("if waiting for postponed task\'s dependencies exceeds this number an error will be logged")},
 	};
 }
 
-class FPipeProcessorTask
+class FMassProcessorTask
 {
 public:
-	FPipeProcessorTask(UMassEntitySubsystem& InEntitySubsystem, const FLWComponentSystemExecutionContext& InExecutionContext, UPipeProcessor& InProc, bool bInManageCommandBuffer = true)
+	FMassProcessorTask(UMassEntitySubsystem& InEntitySubsystem, const FMassExecutionContext& InExecutionContext, UMassProcessor& InProc, bool bInManageCommandBuffer = true)
 		: EntitySubsystem(&InEntitySubsystem)
 		, ExecutionContext(InExecutionContext)
 		, Processor(&InProc)
@@ -58,7 +58,7 @@ public:
 
 	static TStatId GetStatId()
 	{
-		RETURN_QUICK_DECLARE_CYCLE_STAT(FPipeProcessorTask, STATGROUP_TaskGraphTasks);
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FMassProcessorTask, STATGROUP_TaskGraphTasks);
 	}
 
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
@@ -81,8 +81,8 @@ public:
 		
 		if (bManageCommandBuffer)
 		{
-			TSharedPtr<FLWCCommandBuffer> MainSharedPtr = ExecutionContext.GetSharedDeferredCommandBuffer();
-			ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FLWCCommandBuffer()));
+			TSharedPtr<FMassCommandBuffer> MainSharedPtr = ExecutionContext.GetSharedDeferredCommandBuffer();
+			ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
 			Processor->CallExecute(*EntitySubsystem, ExecutionContext);
 			MainSharedPtr->MoveAppend(ExecutionContext.Defer());
 		}
@@ -95,8 +95,8 @@ public:
 
 private:
 	UMassEntitySubsystem* EntitySubsystem = nullptr;
-	FLWComponentSystemExecutionContext ExecutionContext;
-	UPipeProcessor* Processor = nullptr;
+	FMassExecutionContext ExecutionContext;
+	UMassProcessor* Processor = nullptr;
 	/** 
 	 * indicates whether this task is responsible for creation of a dedicated command buffer and transferring over the 
 	 * commands after processor's execution;
@@ -104,11 +104,11 @@ private:
 	bool bManageCommandBuffer = true;
 };
 
-class FPipeProcessorsTask_GameThread : public FPipeProcessorTask
+class FMassProcessorsTask_GameThread : public FMassProcessorTask
 {
 public:
-	FPipeProcessorsTask_GameThread(UMassEntitySubsystem& InEntitySubsystem, const FLWComponentSystemExecutionContext& InExecutionContext, UPipeProcessor& InProc)
-		: FPipeProcessorTask(InEntitySubsystem, InExecutionContext, InProc)
+	FMassProcessorsTask_GameThread(UMassEntitySubsystem& InEntitySubsystem, const FMassExecutionContext& InExecutionContext, UMassProcessor& InProc)
+		: FMassProcessorTask(InEntitySubsystem, InExecutionContext, InProc)
 	{}
 
 	static ENamedThreads::Type GetDesiredThread()
@@ -118,14 +118,14 @@ public:
 };
 
 //----------------------------------------------------------------------//
-// UPipeProcessor 
+// UMassProcessor 
 //----------------------------------------------------------------------//
-UPipeProcessor::UPipeProcessor(const FObjectInitializer& ObjectInitializer)
+UMassProcessor::UMassProcessor(const FObjectInitializer& ObjectInitializer)
 	: ExecutionFlags((int32)(EProcessorExecutionFlags::Server | EProcessorExecutionFlags::Standalone))
 {
 }
 
-void UPipeProcessor::SetShouldAutoRegisterWithGlobalList(const bool bAutoRegister)
+void UMassProcessor::SetShouldAutoRegisterWithGlobalList(const bool bAutoRegister)
 {	
 	if (ensureMsgf(HasAnyFlags(RF_ClassDefaultObject), TEXT("Setting bAutoRegisterWithProcessingPhases for non-CDOs has no effect")))
 	{
@@ -136,7 +136,7 @@ void UPipeProcessor::SetShouldAutoRegisterWithGlobalList(const bool bAutoRegiste
 	}
 }
 
-void UPipeProcessor::PostInitProperties()
+void UMassProcessor::PostInitProperties()
 {
 	Super::PostInitProperties();
 	if (HasAnyFlags(RF_ClassDefaultObject) == false) 
@@ -148,7 +148,7 @@ void UPipeProcessor::PostInitProperties()
 #endif
 }
 
-void UPipeProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*StatId);
 #if WITH_MASSENTITY_DEBUG
@@ -157,21 +157,21 @@ void UPipeProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FLWCompo
 	Execute(EntitySubsystem, Context);
 }
 
-FGraphEventRef UPipeProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites)
+FGraphEventRef UMassProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites)
 {
 	FGraphEventRef ReturnVal;
 	if (bRequiresGameThreadExecution)
 	{
-		ReturnVal = TGraphTask<FPipeProcessorsTask_GameThread>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, ExecutionContext, *this);
+		ReturnVal = TGraphTask<FMassProcessorsTask_GameThread>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, ExecutionContext, *this);
 	}
 	else
 	{
-		ReturnVal = TGraphTask<FPipeProcessorTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, ExecutionContext, *this);
+		ReturnVal = TGraphTask<FMassProcessorTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, ExecutionContext, *this);
 	}	
 	return ReturnVal;
 }
 
-void UPipeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
+void UMassProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
 {
 #if WITH_MASSENTITY_DEBUG
 	Ar.Logf(TEXT("%*s%s"), Indent, TEXT(""), *GetProcessorName());
@@ -179,7 +179,7 @@ void UPipeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) con
 }
 
 #if WITH_EDITOR
-void UPipeProcessor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UMassProcessor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -192,9 +192,9 @@ void UPipeProcessor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 #endif // WITH_EDITOR
 
 //----------------------------------------------------------------------//
-//  UPipeCompositeProcessor
+//  UMassCompositeProcessor
 //----------------------------------------------------------------------//
-UPipeCompositeProcessor::UPipeCompositeProcessor()
+UMassCompositeProcessor::UMassCompositeProcessor()
 	: GroupName(TEXT("None"))
 	, bRunInSeparateThread(false)
 	, bHasOffThreadSubGroups(false)
@@ -205,18 +205,18 @@ UPipeCompositeProcessor::UPipeCompositeProcessor()
 	bAutoRegisterWithProcessingPhases = false;
 }
 
-void UPipeCompositeProcessor::SetChildProcessors(TArray<UPipeProcessor*>&& InProcessors)
+void UMassCompositeProcessor::SetChildProcessors(TArray<UMassProcessor*>&& InProcessors)
 {
 	ChildPipeline.SetProcessors(MoveTemp(InProcessors));
 }
 
-void UPipeCompositeProcessor::ConfigureQueries()
+void UMassCompositeProcessor::ConfigureQueries()
 {
 	// nothing to do here since ConfigureQueries will get automatically called for all the processors in ChildPipeline
 	// via their individual PostInitProperties call
 }
 
-FGraphEventRef UPipeCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& InPrerequisites)
+FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& InPrerequisites)
 {
 	FGraphEventArray Events;
 	Events.Reserve(ProcessingFlatGraph.Num());
@@ -273,29 +273,29 @@ FGraphEventRef UPipeCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 	return CompletionEvent;
 }
 
-void UPipeCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 #if PARALLELIZED_TRAFFIC_HACK
 	if (FPipeTweakables::bParallelGroups == false
-		&& UE::MassTraffic::bParallelizeTraffic && GetProcessingPhase() == EPipeProcessingPhase::PrePhysics)
+		&& UE::MassTraffic::bParallelizeTraffic && GetProcessingPhase() == EMassProcessingPhase::PrePhysics)
 	{
 		static FName TrafficGroup(TEXT("Traffic"));
-		FLWComponentSystemExecutionContext TrafficExecutionContext;
+		FMassExecutionContext TrafficExecutionContext;
 		FGraphEventRef TrafficCompletionEvent;
 
-		for (UPipeProcessor* Proc : ChildPipeline.Processors)
+		for (UMassProcessor* Proc : ChildPipeline.Processors)
 		{
 			check(Proc);
-				if (GetProcessingPhase() == EPipeProcessingPhase::PrePhysics)
+				if (GetProcessingPhase() == EMassProcessingPhase::PrePhysics)
 			{
-				if (const UPipeCompositeProcessor* CompProcessor = Cast<UPipeCompositeProcessor>(Proc))
+				if (const UMassCompositeProcessor* CompProcessor = Cast<UMassCompositeProcessor>(Proc))
 				{
 					if (CompProcessor->GetGroupName() == TrafficGroup)
 					{
 						TrafficExecutionContext = Context;
 						// Needs its own command buffer as it will be in it own thread, will be merged after this loop
-						TrafficExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FLWCCommandBuffer()));
-						TrafficCompletionEvent = TGraphTask<FPipeProcessorTask>::CreateTask().ConstructAndDispatchWhenReady(EntitySubsystem, TrafficExecutionContext, *Proc, /*bManageCommandBuffer=*/false);
+						TrafficExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
+						TrafficCompletionEvent = TGraphTask<FMassProcessorTask>::CreateTask().ConstructAndDispatchWhenReady(EntitySubsystem, TrafficExecutionContext, *Proc, /*bManageCommandBuffer=*/false);
 						continue;
 					}
 				}
@@ -320,14 +320,14 @@ void UPipeCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 		CompletionStatus.AddDefaulted(ChildPipeline.Processors.Num());
 		TArray<int32> PostponedProcessors;
 
-		FLWComponentSystemExecutionContext SingleThreadContext = Context;
-		SingleThreadContext.SetDeferredCommandBuffer(MakeShareable(new FLWCCommandBuffer()));
+		FMassExecutionContext SingleThreadContext = Context;
+		SingleThreadContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
 
 		for (int32 NodeIndex = 0; NodeIndex < ChildPipeline.Processors.Num(); ++NodeIndex)
 		{
-			UPipeProcessor* Proc = ChildPipeline.Processors[NodeIndex];
+			UMassProcessor* Proc = ChildPipeline.Processors[NodeIndex];
 			check(Proc);
-			UPipeCompositeProcessor* CompositeProc = Cast<UPipeCompositeProcessor>(Proc);
+			UMassCompositeProcessor* CompositeProc = Cast<UMassCompositeProcessor>(Proc);
 			if (CompositeProc == nullptr || CompositeProc->bRunInSeparateThread == false)
 			{
 				// check if all dependencies have been processed already
@@ -382,18 +382,18 @@ void UPipeCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 					, DependenciesDesc.Len() > 0 ? TEXT(" Dependencies: ") : TEXT(""), *DependenciesDesc);
 
 				// send off to another thread
-				CompletionStatus[NodeIndex].CompletionEvent = TGraphTask<FPipeProcessorTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, Context, *Proc);
+				CompletionStatus[NodeIndex].CompletionEvent = TGraphTask<FMassProcessorTask>::CreateTask(&Prerequisites).ConstructAndDispatchWhenReady(EntitySubsystem, Context, *Proc);
 				CompletionStatus[NodeIndex].Status = EProcessorCompletionStatus::Threaded;
 			}
 		}
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT("Postponed PipeProcessors");
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT("Postponed MassProcessors");
 
 			for (int32 i = 0; i < PostponedProcessors.Num(); ++i)
 			{
 				const int32 PostponedIndex = PostponedProcessors[i];
-				UPipeProcessor* Proc = ChildPipeline.Processors[PostponedIndex];
+				UMassProcessor* Proc = ChildPipeline.Processors[PostponedIndex];
 				check(Proc);
 				for (int32 j = Proc->TransientDependencyIndices.Num() - 1; j >= 0; --j)
 				{
@@ -428,7 +428,7 @@ void UPipeCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 	}
 	else
 	{
-		for (UPipeProcessor* Proc : ChildPipeline.Processors)
+		for (UMassProcessor* Proc : ChildPipeline.Processors)
 		{
 			check(Proc);
 			Proc->CallExecute(EntitySubsystem, Context);
@@ -436,25 +436,25 @@ void UPipeCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 	}
 }
 
-void UPipeCompositeProcessor::Initialize(UObject& Owner)
+void UMassCompositeProcessor::Initialize(UObject& Owner)
 {
 	// remove all nulls
-	ChildPipeline.Processors.RemoveAll([](const UPipeProcessor* Proc) { return Proc == nullptr; });
+	ChildPipeline.Processors.RemoveAll([](const UMassProcessor* Proc) { return Proc == nullptr; });
 
 	// from this point on we don't expect to have nulls in ChildPipeline.Processors
-	for (UPipeProcessor* Proc : ChildPipeline.Processors)
+	for (UMassProcessor* Proc : ChildPipeline.Processors)
 	{
 		REDIRECT_OBJECT_TO_VLOG(Proc, this);
 		Proc->Initialize(Owner);
 	}
 }
 
-void UPipeCompositeProcessor::CopyAndSort(const FPipeProcessingPhaseConfig& PhaseConfig, const FString& DependencyGraphFileName)
+void UMassCompositeProcessor::CopyAndSort(const FMassProcessingPhaseConfig& PhaseConfig, const FString& DependencyGraphFileName)
 {
 	check(GetOuter());
 	
 	// create processors via a temporary pipeline. This ensures consistency with other places we use FRuntimePipelines
-	FRuntimePipeline TmpPipeline;
+	FMassRuntimePipeline TmpPipeline;
 	TmpPipeline.CreateFromArray(PhaseConfig.ProcessorCDOs, *GetOuter());
 
 	// figure out dependencies
@@ -481,7 +481,7 @@ void UPipeCompositeProcessor::CopyAndSort(const FPipeProcessingPhaseConfig& Phas
 	}
 }
 
-int32 UPipeCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrderInfo>& ProcessorsAndGroups, const int32 StartIndex)
+int32 UMassCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrderInfo>& ProcessorsAndGroups, const int32 StartIndex)
 {
 	ChildPipeline.Processors.Reset();
 
@@ -492,7 +492,7 @@ int32 UPipeCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrde
 	int32 Index = StartIndex;
 	TMap<FName, int32> NameToIndexMap;
 	bool bOffThreadGroupsFound = false;
-	const FPipeProcessingPhaseConfig& PhaseConfig = GET_PIPE_CONFIG_VALUE(GetProcessingPhaseConfig(ProcessingPhase));
+	const FMassProcessingPhaseConfig& PhaseConfig = GET_PIPE_CONFIG_VALUE(GetProcessingPhaseConfig(ProcessingPhase));
 
 	while (ProcessorsAndGroups.IsValidIndex(Index))
 	{
@@ -516,7 +516,7 @@ int32 UPipeCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrde
 		}
 		else if (Element.NodeType == EDependencyNodeType::GroupStart)
 		{
-			UPipeCompositeProcessor* GroupProcessor = NewObject<UPipeCompositeProcessor>(GetOuter());
+			UMassCompositeProcessor* GroupProcessor = NewObject<UMassCompositeProcessor>(GetOuter());
 			GroupProcessor->SetGroupName(Element.Name);
 			GroupProcessor->SetProcessingPhase(ProcessingPhase);
 			if (PhaseConfig.OffGameThreadGroupNames.Find(Element.Name) != INDEX_NONE)
@@ -551,7 +551,7 @@ int32 UPipeCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrde
 	return Index;
 }
 
-void UPipeCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
+void UMassCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
 {
 #if WITH_MASSENTITY_DEBUG
 	if (ChildPipeline.Processors.Num() == 0)
@@ -561,7 +561,7 @@ void UPipeCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 In
 	else
 	{
 		Ar.Logf(TEXT("%*sGroup %s:"), Indent, TEXT(""), *GroupName.ToString());
-		for (UPipeProcessor* Proc : ChildPipeline.Processors)
+		for (UMassProcessor* Proc : ChildPipeline.Processors)
 		{
 			check(Proc);
 			Ar.Logf(TEXT("\n"));
@@ -571,16 +571,16 @@ void UPipeCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 In
 #endif // WITH_MASSENTITY_DEBUG
 }
 
-void UPipeCompositeProcessor::SetProcessingPhase(EPipeProcessingPhase Phase)
+void UMassCompositeProcessor::SetProcessingPhase(EMassProcessingPhase Phase)
 {
 	Super::SetProcessingPhase(Phase);
-	for (UPipeProcessor* Proc : ChildPipeline.Processors)
+	for (UMassProcessor* Proc : ChildPipeline.Processors)
 	{
 		Proc->SetProcessingPhase(Phase);
 	}
 }
 
-void UPipeCompositeProcessor::SetGroupName(FName NewName)
+void UMassCompositeProcessor::SetGroupName(FName NewName)
 {
 	GroupName = NewName;
 #if CPUPROFILERTRACE_ENABLED
@@ -588,7 +588,7 @@ void UPipeCompositeProcessor::SetGroupName(FName NewName)
 #endif
 }
 
-void UPipeCompositeProcessor::AddGroupedProcessor(FName RequestedGroupName, UPipeProcessor& Processor)
+void UMassCompositeProcessor::AddGroupedProcessor(FName RequestedGroupName, UMassProcessor& Processor)
 {
 	if (RequestedGroupName.IsNone() || RequestedGroupName == GroupName)
 	{
@@ -597,15 +597,15 @@ void UPipeCompositeProcessor::AddGroupedProcessor(FName RequestedGroupName, UPip
 	else
 	{
 		FString RemainingGroupName;
-		UPipeCompositeProcessor* GroupProcessor = FindOrAddGroupProcessor(RequestedGroupName, &RemainingGroupName);
+		UMassCompositeProcessor* GroupProcessor = FindOrAddGroupProcessor(RequestedGroupName, &RemainingGroupName);
 		check(GroupProcessor);
 		GroupProcessor->AddGroupedProcessor(FName(*RemainingGroupName), Processor);
 	}
 }
 
-UPipeCompositeProcessor* UPipeCompositeProcessor::FindOrAddGroupProcessor(FName RequestedGroupName, FString* OutRemainingGroupName)
+UMassCompositeProcessor* UMassCompositeProcessor::FindOrAddGroupProcessor(FName RequestedGroupName, FString* OutRemainingGroupName)
 {
-	UPipeCompositeProcessor* GroupProcessor = nullptr;
+	UMassCompositeProcessor* GroupProcessor = nullptr;
 	const FString NameAsString = RequestedGroupName.ToString();
 	FString TopGroupName;
 	if (NameAsString.Split(TEXT("."), &TopGroupName, OutRemainingGroupName))
@@ -617,7 +617,7 @@ UPipeCompositeProcessor* UPipeCompositeProcessor::FindOrAddGroupProcessor(FName 
 	if (GroupProcessor == nullptr)
 	{
 		check(GetOuter());
-		GroupProcessor = NewObject<UPipeCompositeProcessor>(GetOuter());
+		GroupProcessor = NewObject<UMassCompositeProcessor>(GetOuter());
 		GroupProcessor->SetGroupName(RequestedGroupName);
 		ChildPipeline.AppendProcessor(*GroupProcessor);
 	}

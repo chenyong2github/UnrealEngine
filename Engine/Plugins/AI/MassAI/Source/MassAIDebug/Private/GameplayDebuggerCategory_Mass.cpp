@@ -49,7 +49,7 @@ FGameplayDebuggerCategory_Mass::FGameplayDebuggerCategory_Mass()
 	BindKeyPress(EKeys::C.GetFName(), FGameplayDebuggerInputModifier::Shift, this, &FGameplayDebuggerCategory_Mass::OnToggleNearEntityPath, EGameplayDebuggerInputMode::Replicated);
 }
 
-void FGameplayDebuggerCategory_Mass::SetCachedEntity(FLWEntity Entity, UMassDebuggerSubsystem& Debugger)
+void FGameplayDebuggerCategory_Mass::SetCachedEntity(FMassEntityHandle Entity, UMassDebuggerSubsystem& Debugger)
 {
 	CachedEntity = Entity;
 	Debugger.SetSelectedEntity(Entity);
@@ -66,10 +66,10 @@ void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC
 	const float MinViewDirDot = 0.707f; // 45 degrees
 	
 	float BestScore = MinViewDirDot;
-	FLWEntity BestEntity;
+	FMassEntityHandle BestEntity;
 	FVector BestLocation = FVector::ZeroVector;
 
-	TConstArrayView<FLWEntity> Entities = Debugger.GetEntities();
+	TConstArrayView<FMassEntityHandle> Entities = Debugger.GetEntities();
 	TConstArrayView<FVector> Locations = Debugger.GetLocations();
 	checkf(Entities.Num() == Locations.Num(), TEXT("Both Entities and Locations lists are expected to be of the same size: %d vs %d"), Entities.Num(), Locations.Num());
 
@@ -135,7 +135,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 	auto GetEntityFromActorFunc = [](const AActor& Actor, const UMassAgentComponent** OutMassAgentComponent = nullptr)
 	{
-		FLWEntity LWEntity;
+		FMassEntityHandle LWEntity;
 		UMassAgentComponent* AgentComp = Actor.FindComponentByClass<UMassAgentComponent>();
 		if (AgentComp)
 		{
@@ -296,27 +296,27 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		FVector ViewDirection = FVector::ForwardVector;
 		AGameplayDebuggerPlayerManager::GetViewPoint(*OwnerPC, ViewLocation, ViewDirection);
 
-		FLWComponentQuery EntityQuery;
-		EntityQuery.AddRequirement<FMassStateTreeFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FDataFragment_AgentRadius>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassSteeringFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassSteeringGhostFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassLookAtFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassLookAtTrajectoryFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassSimulationLODFragment>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassZoneGraphShortPathFragment>(ELWComponentAccess::ReadOnly);
+		FMassEntityQuery EntityQuery;
+		EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassSteeringGhostFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassLookAtFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassLookAtTrajectoryFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassZoneGraphShortPathFragment>(EMassFragmentAccess::ReadOnly);
 
 		const float CurrentTime = World->GetTimeSeconds();
 		
 		UMassStateTreeSubsystem* MassStateTreeSubsystem = World->GetSubsystem<UMassStateTreeSubsystem>();
 		if (MassStateTreeSubsystem && EntitySystem)
 		{
-			FLWComponentSystemExecutionContext Context(0.0f);
+			FMassExecutionContext Context(0.0f);
 		
-			EntityQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, MassStateTreeSubsystem, EntitySystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FLWComponentSystemExecutionContext& Context)
+			EntityQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, MassStateTreeSubsystem, EntitySystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetEntitiesNum();
 				const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetComponentView<FMassStateTreeFragment>();
@@ -460,7 +460,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						FString Status;
 
 						// Entity name
-						FLWEntity Entity = Context.GetEntity(EntityIndex);
+						FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 						Status += TEXT("{orange}");
 						Status += Entity.DebugGetDescription();
 						Status += TEXT(" {white}LOD ");
@@ -521,11 +521,11 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 		if (bShowNearEntityAvoidance && EntitySystem)
 		{
-			FLWComponentQuery EntityColliderQuery;
-			EntityColliderQuery.AddRequirement<FMassAvoidanceColliderFragment>(ELWComponentAccess::ReadOnly);
-			EntityColliderQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-			FLWComponentSystemExecutionContext Context(0.f);
-			EntityColliderQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, EntitySystem, OwnerPC, ViewLocation, ViewDirection](FLWComponentSystemExecutionContext& Context)
+			FMassEntityQuery EntityColliderQuery;
+			EntityColliderQuery.AddRequirement<FMassAvoidanceColliderFragment>(EMassFragmentAccess::ReadOnly);
+			EntityColliderQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+			FMassExecutionContext Context(0.f);
+			EntityColliderQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, EntitySystem, OwnerPC, ViewLocation, ViewDirection](FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetEntitiesNum();
 				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();

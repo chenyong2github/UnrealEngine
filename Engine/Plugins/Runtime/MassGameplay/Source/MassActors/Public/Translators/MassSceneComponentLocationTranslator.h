@@ -15,7 +15,7 @@ struct FMassSceneComponentWrapperFragment : public FDataFragment_ObjectWrapper
 };
 
 USTRUCT()
-struct FMassSceneComponentLocationCopyToMassTag : public FComponentTag
+struct FMassSceneComponentLocationCopyToMassTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -30,14 +30,14 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 
 USTRUCT()
-struct FMassSceneComponentLocationCopyToActorTag : public FComponentTag
+struct FMassSceneComponentLocationCopyToActorTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -52,7 +52,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

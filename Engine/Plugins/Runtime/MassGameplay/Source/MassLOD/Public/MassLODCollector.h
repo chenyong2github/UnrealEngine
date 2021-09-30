@@ -45,7 +45,7 @@ struct TMassLODCollector : public FMassLODBaseLogic
 	 * @Param ViewersInfoList is the fragment where to store source information for LOD calculation
 	 */
 	template< typename FMassTransform, typename FMassLODSourceInfo >
-	void CollectLODInfo(FLWComponentSystemExecutionContext& Context, TConstArrayView<FMassTransform> LocationList, TArrayView<FMassLODSourceInfo> ViewersInfoList);
+	void CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<FMassTransform> LocationList, TArrayView<FMassLODSourceInfo> ViewersInfoList);
 
 protected:
 
@@ -71,7 +71,7 @@ void TMassLODCollector<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo>
 
 template <typename FLODLogic>
 template< typename FMassTransform, typename FMassLODSourceInfo >
-void TMassLODCollector<FLODLogic>::CollectLODInfo(FLWComponentSystemExecutionContext& Context, TConstArrayView<FMassTransform> LocationList, TArrayView<FMassLODSourceInfo> ViewersInfoList)
+void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<FMassTransform> LocationList, TArrayView<FMassLODSourceInfo> ViewersInfoList)
 {
 	const int32 NumEntities = Context.GetEntitiesNum();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)

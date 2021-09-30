@@ -8,20 +8,20 @@
 
 
 class UMassEntitySubsystem;
-struct FArchetypeData;
+struct FMassArchetypeData;
 struct FArchetypeHandle;
-struct FArchetypeComponentConfig;
+struct FMassArchetypeFragmentConfig;
 
 /** 
  * The type representing a single entity in a single archetype. It's of a very transient nature so we guarantee it's 
  * validity only within the scope it has been created in. Don't store it. 
  */
 USTRUCT()
-struct MASSENTITY_API FEntityView
+struct MASSENTITY_API FMassEntityView
 {
 	GENERATED_BODY()
 
-	FEntityView() = default;
+	FMassEntityView() = default;
 
 	/** 
 	 *  Resolves Entity against ArchetypeHandle. Note that this approach requires the caller to ensure that Entity
@@ -29,24 +29,24 @@ struct MASSENTITY_API FEntityView
 	 *  UMassEntitySubsystem-flavored constructor is recommended since it will first find the appropriate archetype for
 	 *  Entity. 
 	 */
-	FEntityView(const FArchetypeHandle& ArchetypeHandle, FLWEntity Entity);
+	FMassEntityView(const FArchetypeHandle& ArchetypeHandle, FMassEntityHandle Entity);
 
 	/** 
 	 *  Finds the archetype Entity belongs to and then resolves against it. The caller is responsible for ensuring
 	 *  that the given Entity is in fact a valid ID tied to any of the archetypes 
 	 */
-	FEntityView(const UMassEntitySubsystem& EntitySubsystem, FLWEntity Entity);
+	FMassEntityView(const UMassEntitySubsystem& EntitySubsystem, FMassEntityHandle Entity);
 
-	FLWEntity GetEntity() const	{ return Entity; }
+	FMassEntityHandle GetEntity() const	{ return Entity; }
 
 	/** will fail a check if the viewed entity doesn't have the given component */	
 	template<typename T>
 	T& GetComponentData() const
 	{
-		static_assert(!TIsDerivedFrom<T, FComponentTag>::IsDerived,
+		static_assert(!TIsDerivedFrom<T, FMassTag>::IsDerived,
 			"Given struct doesn't represent a valid fragment type but a tag. Use HasTag instead.");
-		static_assert(TIsDerivedFrom<T, FComponentTag>::IsDerived || TIsDerivedFrom<T, FLWComponentData>::IsDerived,
-			"Given struct doesn't represent a valid fragment type. Make sure to inherit from FLWComponentData or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived || TIsDerivedFrom<T, FMassFragment>::IsDerived,
+			"Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 
 		return *((T*)GetComponentPtrChecked(*T::StaticStruct()));
 	}
@@ -55,10 +55,10 @@ struct MASSENTITY_API FEntityView
 	template<typename T>
 	T* GetComponentDataPtr() const
 	{
-		static_assert(!TIsDerivedFrom<T, FComponentTag>::IsDerived,
+		static_assert(!TIsDerivedFrom<T, FMassTag>::IsDerived,
 			"Given struct doesn't represent a valid fragment type but a tag. Use HasTag instead.");
-		static_assert(TIsDerivedFrom<T, FComponentTag>::IsDerived || TIsDerivedFrom<T, FLWComponentData>::IsDerived,
-			"Given struct doesn't represent a valid fragment type. Make sure to inherit from FLWComponentData or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived || TIsDerivedFrom<T, FMassFragment>::IsDerived,
+			"Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 
 		return (T*)GetComponentPtr(*T::StaticStruct());
 	}
@@ -72,12 +72,12 @@ struct MASSENTITY_API FEntityView
 	template<typename T>
 	bool HasTag() const
 	{
-		static_assert(TIsDerivedFrom<T, FComponentTag>::IsDerived, "Given struct doesn't represent a valid tag type. Make sure to inherit from FComponentTag or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct doesn't represent a valid tag type. Make sure to inherit from FMassTag or one of its child-types.");
 		return HasTag(*T::StaticStruct());
 	}
 
 	bool IsSet() const { return Archetype != nullptr && EntityHandle.IsValid(); }
-	bool operator==(const FEntityView& Other) const { return Archetype == Other.Archetype && EntityHandle == Other.EntityHandle; }
+	bool operator==(const FMassEntityView& Other) const { return Archetype == Other.Archetype && EntityHandle == Other.EntityHandle; }
 
 protected:
 	void* GetComponentPtr(const UScriptStruct& ComponentType) const;
@@ -85,7 +85,7 @@ protected:
 	bool HasTag(const UScriptStruct& TagType) const;
 
 private:
-	FLWEntity Entity;
+	FMassEntityHandle Entity;
 	FInternalEntityHandle EntityHandle;
-	FArchetypeData* Archetype = nullptr;
+	FMassArchetypeData* Archetype = nullptr;
 };

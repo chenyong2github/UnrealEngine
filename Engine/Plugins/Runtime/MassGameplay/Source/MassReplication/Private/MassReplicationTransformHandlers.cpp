@@ -5,12 +5,12 @@
 #include "MassCommonFragments.h"
 #include "AIHelpers.h"
 
-void FMassReplicationProcessorTransformHandlerBase::AddRequirements(FLWComponentQuery& InQuery)
+void FMassReplicationProcessorTransformHandlerBase::AddRequirements(FMassEntityQuery& InQuery)
 {
-	InQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
+	InQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
 }
 
-void FMassReplicationProcessorTransformHandlerBase::CacheComponentViews(FLWComponentSystemExecutionContext& ExecContext)
+void FMassReplicationProcessorTransformHandlerBase::CacheComponentViews(FMassExecutionContext& ExecContext)
 {
 	TransformList = ExecContext.GetMutableComponentView<FDataFragment_Transform>();
 }

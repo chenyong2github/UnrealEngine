@@ -30,17 +30,17 @@ void UMassCrowdRepresentationProcessor::Initialize(UObject& Owner)
 void UMassCrowdRepresentationProcessor::ConfigureQueries()
 {
 	Super::ConfigureQueries();
-	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(ELWComponentPresence::All);
+	EntityQuery.AddTagRequirement<FTagFragment_MassCrowd>(EMassFragmentPresence::All);
 
 	CharacterMovementEntitiesQuery_Conditional = EntityQuery;
-	CharacterMovementEntitiesQuery_Conditional.AddRequirement<FDataFragment_CharacterMovementComponentWrapper>(ELWComponentAccess::ReadWrite);
-	CharacterMovementEntitiesQuery_Conditional.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadOnly);
+	CharacterMovementEntitiesQuery_Conditional.AddRequirement<FDataFragment_CharacterMovementComponentWrapper>(EMassFragmentAccess::ReadWrite);
+	CharacterMovementEntitiesQuery_Conditional.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
 	CharacterMovementEntitiesQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
 }
 
-void UMassCrowdRepresentationProcessor::InitializeVelocity(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdRepresentationProcessor::InitializeVelocity(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	CharacterMovementEntitiesQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+	CharacterMovementEntitiesQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
 			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetComponentView<FMassRepresentationFragment>();
 			const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetComponentView<FMassVelocityFragment>();
@@ -69,7 +69,7 @@ void UMassCrowdRepresentationProcessor::InitializeVelocity(UMassEntitySubsystem&
 		});
 }
 
-void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdRepresentationProcessor::SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context)
 {
 	Super::SetActorEnabled(EnabledType, Actor, EntityIdx, Context);
 
@@ -140,7 +140,7 @@ AActor* UMassCrowdRepresentationProcessor::GetOrSpawnActor(const FMassHandle Mas
 	return Super::GetOrSpawnActor(MassAgent, ActorInfo, RootTransform, TemplateActorIndex, SpawnRequestHandle, Priority);
 }
 
-void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FLWComponentSystemExecutionContext& Context)
+void UMassCrowdRepresentationProcessor::TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context)
 {
 	FTransform RootTransform = Transform;
 

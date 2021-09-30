@@ -192,7 +192,7 @@ void UMassAgentComponent::SetEntityHandleInternal(FMassHandle NewHandle)
 	{
 		if (IsNetSimulating())
 		{
-			const FEntityView EntityView(*EntitySubsystem, AgentHandle.GetLWEntity());
+			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle.GetLWEntity());
 
 			// @todo Find a way to add these initialization into either translator initializer or adding new fragments
 			// Make sure to fetch the fragment after any release, as that action can move the entity around into new archetype and 
@@ -281,7 +281,7 @@ void UMassAgentComponent::ClearEntityHandleInternal()
 	{
 		if (IsNetSimulating())
 		{
-			const FEntityView EntityView(*EntitySubsystem, AgentHandle.GetLWEntity());
+			const FMassEntityView EntityView(*EntitySubsystem, AgentHandle.GetLWEntity());
 			if (FDataFragment_Actor* ActorInfo = EntityView.GetComponentDataPtr<FDataFragment_Actor>())
 			{
 				checkf(!ActorInfo->IsValid() || ActorInfo->Get() == GetOwner(), TEXT("Expecting actor pointer to be the component owner"));

@@ -10,7 +10,7 @@ class UMassSignalSubsystem;
 class UZoneGraphAnnotationSubsystem;
 struct FMassZoneGraphAnnotationTagsFragment;
 struct FMassZoneGraphLaneLocationFragment;
-struct FLWEntity;
+struct FMassEntityHandle;
 
 /** 
  * Processor for initializing ZoneGraph annotation tags.
@@ -26,9 +26,9 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 
 	UPROPERTY(Transient)
 	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem = nullptr;
@@ -48,15 +48,15 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	void UpdateAnnotationTags(FMassZoneGraphAnnotationTagsFragment& AnnotationTags, const FMassZoneGraphLaneLocationFragment& LaneLocation, FLWEntity Entity);
+	void UpdateAnnotationTags(FMassZoneGraphAnnotationTagsFragment& AnnotationTags, const FMassZoneGraphLaneLocationFragment& LaneLocation, FMassEntityHandle Entity);
 
-	virtual void SignalEntities(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals) override;
+	virtual void SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals) override;
 
 	UPROPERTY(Transient)
 	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem = nullptr;
 
 	// Frame buffer, it gets reset every frame.
-	TArray<FLWEntity> TransientEntitiesToSignal;
+	TArray<FMassEntityHandle> TransientEntitiesToSignal;
 };

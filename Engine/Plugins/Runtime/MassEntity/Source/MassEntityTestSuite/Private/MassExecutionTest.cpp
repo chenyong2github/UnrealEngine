@@ -36,9 +36,9 @@ struct FExecution_EmptyArray : FExecutionTestBase
 	{
 		CA_ASSUME(EntitySubsystem); // if EntitySubsystem null InstantTest won't be called at all
 		const float DeltaSeconds = 0.f;
-		FPipeContext PipeContext(*EntitySubsystem, DeltaSeconds);
+		FMassProcessingContext PipeContext(*EntitySubsystem, DeltaSeconds);
 		// no test performed, let's just see if it results in errors/warnings
-		UE::Pipe::Executor::RunProcessorsView(TArrayView<UPipeProcessor*>(), PipeContext);
+		UE::Pipe::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), PipeContext);
 		return true;
 	}
 };
@@ -51,8 +51,8 @@ struct FExecution_EmptyPipeline : FExecutionTestBase
 	{
 		CA_ASSUME(EntitySubsystem); // if EntitySubsystem null InstantTest won't be called at all
 		const float DeltaSeconds = 0.f;
-		FPipeContext PipeContext(*EntitySubsystem, DeltaSeconds);
-		FRuntimePipeline Pipeline;
+		FMassProcessingContext PipeContext(*EntitySubsystem, DeltaSeconds);
+		FMassRuntimePipeline Pipeline;
 		// no test performed, let's just see if it results in errors/warnings
 		UE::Pipe::Executor::Run(Pipeline, PipeContext);
 		return true;
@@ -67,14 +67,14 @@ struct FExecution_InvalidPipeContext : FExecutionTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const float DeltaSeconds = 0.f;
-		FPipeContext PipeContext;
+		FMassProcessingContext PipeContext;
 		// test assumption
-		AITEST_NULL("FPipeContext\'s default constructor is expected to set FPipeContext.EntitySubsystem to null", PipeContext.EntitySubsystem);
+		AITEST_NULL("FMassProcessingContext\'s default constructor is expected to set FMassProcessingContext.EntitySubsystem to null", PipeContext.EntitySubsystem);
 		
 		GetTestRunner().AddExpectedError(TEXT("PipeContext.EntitySubsystem is null"), EAutomationExpectedErrorFlags::Contains, 1);		
 		// note that using RunProcessorsView is to bypass reasonable tests UE::Pipe::Executor::Run(Pipeline,...) does that are 
 		// reported via ensures which are not handled by the automation framework
-		UE::Pipe::Executor::RunProcessorsView(TArrayView<UPipeProcessor*>(), PipeContext);
+		UE::Pipe::Executor::RunProcessorsView(TArrayView<UMassProcessor*>(), PipeContext);
 		return true;
 	}
 };
@@ -88,8 +88,8 @@ struct FExecution_SingleNullProcessor : FExecutionTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const float DeltaSeconds = 0.f;
-		FPipeContext PipeContext(*EntitySubsystem, DeltaSeconds);
-		TArray<UPipeProcessor*> Processors;
+		FMassProcessingContext PipeContext(*EntitySubsystem, DeltaSeconds);
+		TArray<UMassProcessor*> Processors;
 		Processors.Add(nullptr);
 		
 
@@ -109,11 +109,11 @@ struct FExecution_SingleValidProcessor : FExecutionTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const float DeltaSeconds = 0.f;
-		FPipeContext PipeContext(*EntitySubsystem, DeltaSeconds);
+		FMassProcessingContext PipeContext(*EntitySubsystem, DeltaSeconds);
 		UPipeTestProcessorBase* Processor = NewObject<UPipeTestProcessorBase>(EntitySubsystem);
 		check(Processor);
 
-		// nothing should break. The actual result of processing is getting tested in PipeProcessorTests.cpp
+		// nothing should break. The actual result of processing is getting tested in MassProcessorTests.cpp
 		UE::Pipe::Executor::Run(*Processor, PipeContext);
 		return true;
 	}
@@ -127,8 +127,8 @@ struct FExecution_MultipleNullProcessors : FExecutionTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const float DeltaSeconds = 0.f;
-		FPipeContext PipeContext(*EntitySubsystem, DeltaSeconds);
-		TArray<UPipeProcessor*> Processors;
+		FMassProcessingContext PipeContext(*EntitySubsystem, DeltaSeconds);
+		TArray<UMassProcessor*> Processors;
 		Processors.Add(nullptr);
 		Processors.Add(nullptr);
 		Processors.Add(nullptr);
@@ -150,19 +150,19 @@ struct FExecution_Sparse : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const float DeltaSeconds = 0.f;
-		FPipeContext PipeContext(*EntitySubsystem, DeltaSeconds);
+		FMassProcessingContext PipeContext(*EntitySubsystem, DeltaSeconds);
 		UPipeTestProcessorBase* Processor = NewObject<UPipeTestProcessorBase>(EntitySubsystem);
 		check(Processor);
 
-		FRuntimePipeline Pipeline;
+		FMassRuntimePipeline Pipeline;
 		{
-			TArray<UPipeProcessor*> Processors;
+			TArray<UMassProcessor*> Processors;
 			Processors.Add(Processor);
 			Pipeline.SetProcessors(MoveTemp(Processors));
 		}
 
 		FArchetypeChunkCollection ChunkCollection(FloatsArchetype);
-		// nothing should break. The actual result of processing is getting tested in PipeProcessorTests.cpp
+		// nothing should break. The actual result of processing is getting tested in MassProcessorTests.cpp
 		
 		UE::Pipe::Executor::RunSparse(Pipeline, PipeContext, ChunkCollection);
 

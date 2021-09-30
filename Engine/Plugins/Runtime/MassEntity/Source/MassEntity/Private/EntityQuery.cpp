@@ -8,33 +8,33 @@
 #include "Async/ParallelFor.h"
 
 //////////////////////////////////////////////////////////////////////
-// FLWComponentQuery
+// FMassEntityQuery
 
 
-FLWComponentQuery::FLWComponentQuery()
+FMassEntityQuery::FMassEntityQuery()
 {
 	ReadCommandlineParams();
 }
 
-FLWComponentQuery::FLWComponentQuery(std::initializer_list<UScriptStruct*> InitList)
-	: FLWComponentQuery()
+FMassEntityQuery::FMassEntityQuery(std::initializer_list<UScriptStruct*> InitList)
+	: FMassEntityQuery()
 {
 	for (const UScriptStruct* ComponentType : InitList)
 	{
-		AddRequirement(ComponentType, ELWComponentAccess::ReadWrite, ELWComponentPresence::All);
+		AddRequirement(ComponentType, EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
 	}
 }
 
-FLWComponentQuery::FLWComponentQuery(TConstArrayView<const UScriptStruct*> InitList)
-	: FLWComponentQuery()
+FMassEntityQuery::FMassEntityQuery(TConstArrayView<const UScriptStruct*> InitList)
+	: FMassEntityQuery()
 {
 	for (const UScriptStruct* ComponentType : InitList)
 	{
-		AddRequirement(ComponentType, ELWComponentAccess::ReadWrite, ELWComponentPresence::All);
+		AddRequirement(ComponentType, EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
 	}
 }
 
-void FLWComponentQuery::ReadCommandlineParams()
+void FMassEntityQuery::ReadCommandlineParams()
 {
 	int AllowParallelQueries = -1;
 	if (FParse::Value(FCommandLine::Get(), TEXT("ParallelMassQueries="), AllowParallelQueries))
@@ -43,17 +43,17 @@ void FLWComponentQuery::ReadCommandlineParams()
 	}
 }
 
-void FLWComponentQuery::SortRequirements()
+void FMassEntityQuery::SortRequirements()
 {
-	// we're sorting the Requirements the same way ArchetypeData's ComponentConfig is sorted (see FArchetypeData::Initialize)
-	// so that when we access ArchetypeData.ComponentConfigs in FArchetypeData::BindRequirementsWithMapping
+	// we're sorting the Requirements the same way ArchetypeData's ComponentConfig is sorted (see FMassArchetypeData::Initialize)
+	// so that when we access ArchetypeData.ComponentConfigs in FMassArchetypeData::BindRequirementsWithMapping
 	// (via GetComponentData call) the access is sequential (i.e. not random) and there's a higher chance the memory
 	// ComponentConfigs we want to access have already been fetched and are available in processor cache.
-	Requirements.Sort(FLWComponentSorterOperator<FLWComponentRequirement>());
-	ChunkRequirements.Sort(FLWComponentSorterOperator<FLWComponentRequirement>());
+	Requirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
+	ChunkRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
 }
 
-void FLWComponentQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
+void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 {
 	const uint32 InEntitySubsystemHash = PointerHash(&InEntitySubsystem);
 	if (EntitySubsystemHash != InEntitySubsystemHash || InEntitySubsystem.GetArchetypeDataVersion() != ArchetypeDataVersion)
@@ -68,7 +68,7 @@ void FLWComponentQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 			ArchetypeDataVersion = InEntitySubsystem.GetArchetypeDataVersion();
 
 			TRACE_CPUPROFILER_EVENT_SCOPE_STR("Pipe RequirementsBinding")
-			const TConstArrayView<FLWComponentRequirement> LocalRequirements = GetRequirements();
+			const TConstArrayView<FMassFragmentRequirement> LocalRequirements = GetRequirements();
 			ArchetypeComponentMapping.Reset(ValidArchetypes.Num());
 			ArchetypeComponentMapping.AddDefaulted(ValidArchetypes.Num());
 			for (int i = 0; i < ValidArchetypes.Num(); ++i)
@@ -82,23 +82,23 @@ void FLWComponentQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 		}
 		else
 		{
-			UE_VLOG_UELOG(&InEntitySubsystem, LogAggregateTicking, Error, TEXT("FLWComponentQuery::CacheArchetypes: requirements not valid: %s"), *DebugGetDescription());
+			UE_VLOG_UELOG(&InEntitySubsystem, LogAggregateTicking, Error, TEXT("FMassEntityQuery::CacheArchetypes: requirements not valid: %s"), *DebugGetDescription());
 		}
 	}
 }
 
-bool FLWComponentQuery::CheckValidity() const
+bool FMassEntityQuery::CheckValidity() const
 {
 	return RequiredAllComponents.IsEmpty() == false || RequiredAnyComponents.IsEmpty() == false || RequiredOptionalComponents.IsEmpty() == false;
 }
 
-bool FLWComponentQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& ArchetypeHandle) const
+bool FMassEntityQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& ArchetypeHandle) const
 {
 	check(ArchetypeHandle.IsValid());
-	const FArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
+	const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
 	CA_ASSUME(Archetype);
 
-	for (const FLWComponentRequirement& Requirement : GetRequirements())
+	for (const FMassFragmentRequirement& Requirement : GetRequirements())
 	{
 		check(Requirement.StructType);
 		if (Requirement.IsOptional())
@@ -107,7 +107,7 @@ bool FLWComponentQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& A
 			continue;
 		}
 
-		const bool bNeedsComponent = (Requirement.Presence == ELWComponentPresence::All);
+		const bool bNeedsComponent = (Requirement.Presence == EMassFragmentPresence::All);
 		const bool bHasComponent = Archetype->HasComponentType(Requirement.StructType);
 		if (bNeedsComponent != bHasComponent)
 		{
@@ -117,7 +117,7 @@ bool FLWComponentQuery::DoesArchetypeMatchRequirements(const FArchetypeHandle& A
 	return true;
 }
 
-void FLWComponentQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
+void FMassEntityQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
 {
 	// mz@todo I don't like that we're copying data here.
 	ExecutionContext.SetChunkCollection(Chunks);
@@ -125,7 +125,7 @@ void FLWComponentQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chun
 	ExecutionContext.ClearChunkCollection();
 }
 
-void FLWComponentQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
+void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
 {
 #if WITH_MASSENTITY_DEBUG
 	int32 NumEntitiesToProcess = 0;
@@ -138,7 +138,7 @@ void FLWComponentQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem
 		if (DoesArchetypeMatchRequirements(ExecutionContext.GetChunkCollection().GetArchetype()) == false)
 		{
 			// mz@todo add a unit test for this message
-			UE_VLOG_UELOG(&EntitySubsystem, LogAggregateTicking, Error, TEXT("Attempted to execute FLWComponentQuery with an incompatible Archetype"));
+			UE_VLOG_UELOG(&EntitySubsystem, LogAggregateTicking, Error, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype"));
 			return;
 		}
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
@@ -175,7 +175,7 @@ void FLWComponentQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem
 	ExecutionContext.FlushDeferred(EntitySubsystem);
 }
 
-void FLWComponentQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
+void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction)
 {
 	if (bAllowParallelExecution == false)
 	{
@@ -185,7 +185,7 @@ void FLWComponentQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntityS
 
 	struct FChunkJob
 	{
-		FArchetypeData& Archetype;
+		FMassArchetypeData& Archetype;
 		const int32 ArchetypeIndex;
 		const FArchetypeChunkCollection::FChunkInfo ChunkInfo;
 	};
@@ -199,13 +199,13 @@ void FLWComponentQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntityS
 		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
 			// mz@todo add a unit test for this message
-			UE_VLOG_UELOG(&EntitySubsystem, LogAggregateTicking, Error, TEXT("Attempted to execute FLWComponentQuery with an incompatible Archetype"));
+			UE_VLOG_UELOG(&EntitySubsystem, LogAggregateTicking, Error, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype"));
 			return;
 		}
 
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
 		check(ArchetypeHandle.IsValid());
-		FArchetypeData& ArchetypeRef = *ArchetypeHandle.DataPtr.Get();
+		FMassArchetypeData& ArchetypeRef = *ArchetypeHandle.DataPtr.Get();
 		const FArchetypeChunkCollection AsChunkCollection(ArchetypeHandle.DataPtr);
 		for (const FArchetypeChunkCollection::FChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
 		{
@@ -220,7 +220,7 @@ void FLWComponentQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntityS
 		{
 			FArchetypeHandle& Archetype = ValidArchetypes[ArchetypeIndex];
 			check(Archetype.IsValid());
-			FArchetypeData& ArchetypeRef = *Archetype.DataPtr.Get();
+			FMassArchetypeData& ArchetypeRef = *Archetype.DataPtr.Get();
 			const FArchetypeChunkCollection AsChunkCollection(Archetype.DataPtr);
 			for (const FArchetypeChunkCollection::FChunkInfo& ChunkInfo : AsChunkCollection.GetChunks())
 			{
@@ -232,7 +232,7 @@ void FLWComponentQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntityS
 	ParallelFor(Jobs.Num(), [this, ExecutionContext, &ExecuteFunction, Jobs](const int32 JobIndex)
 	{
 		Jobs[JobIndex].Archetype.ExecutionFunctionForChunk(ExecutionContext, ExecuteFunction
-			, Jobs[JobIndex].ArchetypeIndex != INDEX_NONE ? ArchetypeComponentMapping[Jobs[JobIndex].ArchetypeIndex] : FLWRequirementIndicesMapping()
+			, Jobs[JobIndex].ArchetypeIndex != INDEX_NONE ? ArchetypeComponentMapping[Jobs[JobIndex].ArchetypeIndex] : FMassQueryRequirementIndicesMapping()
 			, Jobs[JobIndex].ChunkInfo
 			, ChunkCondition);
 	});
@@ -241,13 +241,13 @@ void FLWComponentQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntityS
 	ExecutionContext.FlushDeferred(EntitySubsystem);
 }
 
-int32 FLWComponentQuery::GetMatchingEntitiesNum(UMassEntitySubsystem& InEntitySubsystem)
+int32 FMassEntityQuery::GetMatchingEntitiesNum(UMassEntitySubsystem& InEntitySubsystem)
 {
 	CacheArchetypes(InEntitySubsystem);
 	int32 TotalEntities = 0;
 	for (FArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{
-		if (const FArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get())
+		if (const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get())
 		{
 			TotalEntities += Archetype->GetNumEntities();
 		}
@@ -255,13 +255,13 @@ int32 FLWComponentQuery::GetMatchingEntitiesNum(UMassEntitySubsystem& InEntitySu
 	return TotalEntities;
 }
 
-bool FLWComponentQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
+bool FMassEntityQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsystem)
 {
 	CacheArchetypes(InEntitySubsystem);
 
 	for (FArchetypeHandle& ArchetypeHandle : ValidArchetypes)
 	{
-		const FArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
+		const FMassArchetypeData* Archetype = ArchetypeHandle.DataPtr.Get();
 		if (Archetype && Archetype->GetNumEntities() > 0)
 		{
 			return true;
@@ -270,14 +270,14 @@ bool FLWComponentQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsys
 	return false;
 }
 
-FString FLWComponentQuery::DebugGetDescription() const
+FString FMassEntityQuery::DebugGetDescription() const
 {
 #if WITH_MASSENTITY_DEBUG
 	TStringBuilder<256> StringBuilder;
 	StringBuilder.Append(TEXT("<"));
 
 	bool bNeedsComma = false;
-	for (const FLWComponentRequirement& Requirement : Requirements)
+	for (const FMassFragmentRequirement& Requirement : Requirements)
 	{
 		if (bNeedsComma)
 		{
@@ -295,12 +295,12 @@ FString FLWComponentQuery::DebugGetDescription() const
 }
 
 //////////////////////////////////////////////////////////////////////
-// FLWComponentRequirement
+// FMassFragmentRequirement
 
-FString FLWComponentRequirement::DebugGetDescription() const
+FString FMassFragmentRequirement::DebugGetDescription() const
 {
 #if WITH_MASSENTITY_DEBUG
-	return FString::Printf(TEXT("%s%s[%s]"), IsOptional() ? TEXT("?") : (Presence == ELWComponentPresence::None ? TEXT("-") : TEXT("+"))
+	return FString::Printf(TEXT("%s%s[%s]"), IsOptional() ? TEXT("?") : (Presence == EMassFragmentPresence::None ? TEXT("-") : TEXT("+"))
 		, *GetNameSafe(StructType), *UE::AggregateTicking::DebugGetComponentAccessString(AccessMode));
 #else
 	return {};

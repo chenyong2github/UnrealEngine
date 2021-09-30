@@ -30,12 +30,12 @@ public:
 	void AddShape(EMassEntityDebugShape Shape, FVector Location, float Size) { Shapes[uint8(Shape)].Add(FShapeDesc(Location, Size)); }
 	const TArray<FShapeDesc>* GetShapes() const { return Shapes; }
 
-	void AddEntityLocation(FLWEntity Entity, const FVector& Location);
-	TConstArrayView<FLWEntity> GetEntities() const { return Entities; }
+	void AddEntityLocation(FMassEntityHandle Entity, const FVector& Location);
+	TConstArrayView<FMassEntityHandle> GetEntities() const { return Entities; }
 	TConstArrayView<FVector> GetLocations() const { return Locations; }
 
-	FLWEntity GetSelectedEntity() const { return SelectedEntity; }
-	void SetSelectedEntity(const FLWEntity& InSelectedEntity);
+	FMassEntityHandle GetSelectedEntity() const { return SelectedEntity; }
+	void SetSelectedEntity(const FMassEntityHandle& InSelectedEntity);
 
 	void AppendSelectedEntityInfo(const FString& Info);
 	const FString& GetSelectedEntityInfo() const { return SelectedEntityDetails; }
@@ -59,9 +59,9 @@ protected:
 	bool bCollectingData = false;
 
 	TArray<FShapeDesc> Shapes[uint8(EMassEntityDebugShape::MAX)];
-	TArray<FLWEntity> Entities;
+	TArray<FMassEntityHandle> Entities;
 	TArray<FVector> Locations;
-	FLWEntity SelectedEntity;
+	FMassEntityHandle SelectedEntity;
 	FString SelectedEntityDetails;
 
 	UPROPERTY(Transient)

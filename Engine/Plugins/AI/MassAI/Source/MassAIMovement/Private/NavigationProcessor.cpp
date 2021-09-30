@@ -85,21 +85,21 @@ UMassApplyVelocityMoveTargetProcessor::UMassApplyVelocityMoveTargetProcessor()
 
 void UMassApplyVelocityMoveTargetProcessor::ConfigureQueries()
 {
-	HighResEntityQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-	HighResEntityQuery.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadWrite);
-	HighResEntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
-	HighResEntityQuery.AddRequirement<FMassSteeringFragment>(ELWComponentAccess::ReadWrite);
-	HighResEntityQuery.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::None);
+	HighResEntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	HighResEntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadWrite);
+	HighResEntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	HighResEntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadWrite);
+	HighResEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
 
-	LowResEntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
-	LowResEntityQuery_Conditional.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-	LowResEntityQuery_Conditional.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::All);
-	LowResEntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(ELWComponentAccess::ReadOnly);
+	LowResEntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	LowResEntityQuery_Conditional.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	LowResEntityQuery_Conditional.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
+	LowResEntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly);
 	LowResEntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
 }
 
 void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
-													FLWComponentSystemExecutionContext& Context)
+													FMassExecutionContext& Context)
 {
 	// Clamp max delta time to avoid force explosion on large time steps (i.e. during initialization).
 	const float TimeDelta = FMath::Min(0.1f, Context.GetDeltaTimeSeconds());
@@ -110,7 +110,7 @@ void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& Entity
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(HighRes);
 
-		HighResEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings, TimeDelta](FLWComponentSystemExecutionContext& Context)
+		HighResEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings, TimeDelta](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 			constexpr float ZDamperHalfLife = 0.2f;
@@ -203,7 +203,7 @@ void UMassApplyVelocityMoveTargetProcessor::Execute(UMassEntitySubsystem& Entity
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(LowRes);
 
-		LowResEntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+		LowResEntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetEntitiesNum();
 
@@ -234,16 +234,16 @@ UMassDynamicObstacleProcessor::UMassDynamicObstacleProcessor()
 
 void UMassDynamicObstacleProcessor::ConfigureQueries()
 {
-	EntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	EntityQuery_Conditional.AddRequirement<FDataFragment_AgentRadius>(ELWComponentAccess::ReadOnly);
-	EntityQuery_Conditional.AddRequirement<FMassDynamicObstacleFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(ELWComponentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FMassDynamicObstacleFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
 }
 
-void UMassDynamicObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassDynamicObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 

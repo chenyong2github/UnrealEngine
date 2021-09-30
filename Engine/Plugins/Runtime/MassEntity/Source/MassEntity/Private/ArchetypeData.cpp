@@ -6,26 +6,26 @@
 #include "Async/ParallelFor.h"
 
 //////////////////////////////////////////////////////////////////////
-// FArchetypeData
+// FMassArchetypeData
 namespace UE { namespace AggregateTicking 
 {
 	constexpr static bool bBitwiseRelocateComponents = true;
 }} // UE::AggregateTicking
 
-void FArchetypeData::ForEachComponentType(TFunction< void(const UScriptStruct* /*Component*/)> Function) const
+void FMassArchetypeData::ForEachComponentType(TFunction< void(const UScriptStruct* /*Component*/)> Function) const
 {
-	for (const FArchetypeComponentConfig& ComponentData : ComponentConfigs)
+	for (const FMassArchetypeFragmentConfig& ComponentData : ComponentConfigs)
 	{
 		Function(ComponentData.ComponentType);
 	}
 }
 
-bool FArchetypeData::HasComponentType(const UScriptStruct* ComponentType) const
+bool FMassArchetypeData::HasComponentType(const UScriptStruct* ComponentType) const
 {
 	return (ComponentType && CompositionDescriptor.Components.Contains(*ComponentType));
 }
 
-bool FArchetypeData::IsEquivalent(TConstArrayView<const UScriptStruct*> OtherList) const
+bool FMassArchetypeData::IsEquivalent(TConstArrayView<const UScriptStruct*> OtherList) const
 {
 	if (OtherList.Num() != ComponentConfigs.Num())
 	{
@@ -43,12 +43,12 @@ bool FArchetypeData::IsEquivalent(TConstArrayView<const UScriptStruct*> OtherLis
 	return true;
 }
 
-void FArchetypeData::Initialize(const FLWComponentBitSet& Components, const FLWTagBitSet& Tags, const FLWChunkComponentBitSet& ChunkComponents)
+void FMassArchetypeData::Initialize(const FMassFragmentBitSet& Components, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkComponents)
 {
 	TArray<const UScriptStruct*, TInlineAllocator<16>> SortedComponentList;
 	Components.ExportTypes(SortedComponentList);
 
-	SortedComponentList.Sort(FLWComponentSorterOperator<UScriptStruct>());
+	SortedComponentList.Sort(FMassSorterOperator<UScriptStruct>());
 
 	// Figure out how many bytes all of the individual components (and metadata) will cost per entity
 	int32 ComponentSizeTallyBytes = 0;
@@ -57,7 +57,7 @@ void FArchetypeData::Initialize(const FLWComponentBitSet& Components, const FLWT
 	int32 AlignmentPadding = 0;
 	{
 		// Save room for the 'metadata' (entity array)
-		ComponentSizeTallyBytes += sizeof(FLWEntity);
+		ComponentSizeTallyBytes += sizeof(FMassEntityHandle);
 
 		// Tally up the component sizes and place them in the index map
 		ComponentConfigs.AddDefaulted(SortedComponentList.Num());
@@ -83,7 +83,7 @@ void FArchetypeData::Initialize(const FLWComponentBitSet& Components, const FLWT
 	// create the chunk component instances
 	TArray<const UScriptStruct*, TInlineAllocator<16>> ChunkComponentList;
 	ChunkComponents.ExportTypes(ChunkComponentList);
-	ChunkComponentList.Sort(FLWComponentSorterOperator<UScriptStruct>());
+	ChunkComponentList.Sort(FMassSorterOperator<UScriptStruct>());
 	for (const UScriptStruct* ChunkComponentType : ChunkComponentList)
 	{
 		check(ChunkComponentType);
@@ -98,8 +98,8 @@ void FArchetypeData::Initialize(const FLWComponentBitSet& Components, const FLWT
 
 	// Set up the offsets for each component into the chunk data
 	EntityListOffsetWithinChunk = 0;
-	int32 CurrentOffset = NumEntitiesPerChunk * sizeof(FLWEntity);
-	for (FArchetypeComponentConfig& ComponentData : ComponentConfigs)
+	int32 CurrentOffset = NumEntitiesPerChunk * sizeof(FMassEntityHandle);
+	for (FMassArchetypeFragmentConfig& ComponentData : ComponentConfigs)
 	{
 		CurrentOffset = Align(CurrentOffset, ComponentData.ComponentType->GetMinAlignment());
 		ComponentData.ArrayOffsetWithinChunk = CurrentOffset;
@@ -108,7 +108,7 @@ void FArchetypeData::Initialize(const FLWComponentBitSet& Components, const FLWT
 	}
 }
 
-void FArchetypeData::InitializeWithSibling(const FArchetypeData& SiblingArchetype, const FLWTagBitSet& OverrideTags)
+void FMassArchetypeData::InitializeWithSibling(const FMassArchetypeData& SiblingArchetype, const FMassTagBitSet& OverrideTags)
 {
 	checkf(IsInitialized() == false, TEXT("Trying to %s but this archetype has already been initialized"));
 
@@ -126,12 +126,12 @@ void FArchetypeData::InitializeWithSibling(const FArchetypeData& SiblingArchetyp
 	EntityListOffsetWithinChunk = 0;
 }
 
-void FArchetypeData::AddEntity(FLWEntity Entity)
+void FMassArchetypeData::AddEntity(FMassEntityHandle Entity)
 {
 	AddEntityInternal(Entity, true/*bInitializeComponents*/);
 }
 
-int32 FArchetypeData::AddEntityInternal(FLWEntity Entity, const bool bInitializeComponents)
+int32 FMassArchetypeData::AddEntityInternal(FMassEntityHandle Entity, const bool bInitializeComponents)
 {
 	int32 IndexWithinChunk = 0;
 	int32 AbsoluteIndex = 0;
@@ -139,10 +139,10 @@ int32 FArchetypeData::AddEntityInternal(FLWEntity Entity, const bool bInitialize
 	int32 EmptyChunkIndex = INDEX_NONE;
 	int32 EmptyAbsoluteIndex = INDEX_NONE;
 
-	FArchetypeChunk* DestinationChunk = nullptr;
+	FMassArchetypeChunk* DestinationChunk = nullptr;
 	// Check chunks for a free spot (trying to reuse the earlier ones first so later ones might get freed up) 
 	//@TODO: This could be accelerated to include a cached index to the first chunk with free spots or similar
-	for (FArchetypeChunk& Chunk : Chunks)
+	for (FMassArchetypeChunk& Chunk : Chunks)
 	{
 		if (Chunk.GetNumInstances() == 0)
 		{
@@ -188,7 +188,7 @@ int32 FArchetypeData::AddEntityInternal(FLWEntity Entity, const bool bInitialize
 	// Initialize the component memory
 	if (bInitializeComponents)
 	{
-		for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+		for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 		{
 			void* ComponentPtr = ComponentConfig.GetComponentData(DestinationChunk->GetRawMemory(), IndexWithinChunk);
 			ComponentConfig.ComponentType->InitializeStruct(ComponentPtr);
@@ -202,18 +202,18 @@ int32 FArchetypeData::AddEntityInternal(FLWEntity Entity, const bool bInitialize
 	return AbsoluteIndex;
 }
 
-void FArchetypeData::RemoveEntity(FLWEntity Entity)
+void FMassArchetypeData::RemoveEntity(FMassEntityHandle Entity)
 {
 	const int32 AbsoluteIndex = EntityMap.FindAndRemoveChecked(Entity.Index);
 	RemoveEntityInternal(AbsoluteIndex, true/*bDestroyComponents*/);
 }
 
-void FArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const bool bDestroyComponents)
+void FMassArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const bool bDestroyComponents)
 {
 	const int32 ChunkIndex = AbsoluteIndex / NumEntitiesPerChunk;
 	const int32 IndexWithinChunk = AbsoluteIndex % NumEntitiesPerChunk;
 
-	FArchetypeChunk& Chunk = Chunks[ChunkIndex];
+	FMassArchetypeChunk& Chunk = Chunks[ChunkIndex];
 
 	Chunk.RemoveInstance();
 	const int32 IndexToSwapFrom = Chunk.GetNumInstances();
@@ -223,7 +223,7 @@ void FArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const bool 
 	// Remove and swap the last entry in the chunk to the location of the removed item (if it's not the same as the dying entry)
 	if (IndexToSwapFrom != IndexWithinChunk)
 	{
-		for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+		for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 		{
 			void* DyingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), IndexWithinChunk);
 			void* MovingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), IndexToSwapFrom);
@@ -253,13 +253,13 @@ void FArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const bool 
 		}
 
 		// Update the entity table and map
-		const FLWEntity EntityBeingSwapped = Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, IndexToSwapFrom);
+		const FMassEntityHandle EntityBeingSwapped = Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, IndexToSwapFrom);
 		Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, IndexWithinChunk) = EntityBeingSwapped;
 		EntityMap.FindChecked(EntityBeingSwapped.Index) = AbsoluteIndex;
 	}
 	else if (!UE::AggregateTicking::bBitwiseRelocateComponents || bDestroyComponents)
 	{
-		for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+		for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 		{
 			// Destroy the component data
 			void* DyingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), IndexWithinChunk);
@@ -275,7 +275,7 @@ void FArchetypeData::RemoveEntityInternal(const int32 AbsoluteIndex, const bool 
 	}
 }
 
-void FArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollection& ChunkCollection, TArray<FLWEntity>& OutEntitiesRemoved)
+void FMassArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollection& ChunkCollection, TArray<FMassEntityHandle>& OutEntitiesRemoved)
 {
 	const int32 InitialOutEntitiesCount = OutEntitiesRemoved.Num();
 
@@ -289,10 +289,10 @@ void FArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollection& C
 
 	for (const FArchetypeChunkCollection::FChunkInfo SubchunkInfo : Subchunks)
 	{ 
-		FArchetypeChunk& Chunk = Chunks[SubchunkInfo.ChunkIndex];
+		FMassArchetypeChunk& Chunk = Chunks[SubchunkInfo.ChunkIndex];
 
 		// gather entities we're about to remove
-		FLWEntity* DyingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SubchunkInfo.SubchunkStart);
+		FMassEntityHandle* DyingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SubchunkInfo.SubchunkStart);
 		OutEntitiesRemoved.Append(DyingEntityPtr, SubchunkInfo.Length);
 
 		const int32 NumberToMove = FMath::Min(Chunk.GetNumInstances() - (SubchunkInfo.SubchunkStart + SubchunkInfo.Length), SubchunkInfo.Length);
@@ -304,7 +304,7 @@ void FArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollection& C
 			const int32 SwapStartIndex = Chunk.GetNumInstances() - NumberToMove;
 			checkf((SubchunkInfo.SubchunkStart + NumberToMove - 1) < SwapStartIndex, TEXT("Remove and Move ranges overlap"));
 
-			for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+			for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 			{
 				void* DyingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), SubchunkInfo.SubchunkStart);
 				void* MovingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), SwapStartIndex);
@@ -331,7 +331,7 @@ void FArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollection& C
 			}
 
 			// Update the entity table and map
-			const FLWEntity* MovingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SwapStartIndex);
+			const FMassEntityHandle* MovingEntityPtr = &Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SwapStartIndex);
 			int32 AbsoluteIndex = SubchunkInfo.ChunkIndex * NumEntitiesPerChunk + SubchunkInfo.SubchunkStart;
 
 			for (int i = 0; i < NumberToMove; ++i)
@@ -346,7 +346,7 @@ void FArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollection& C
 			// just clean up the rest. Note that we explicitly do not clean the spots vacated by entities moved from 
 			// the back of the chunk - if we did the risk calling DestroyStruct on them multiple times
 			const int32 CutStartIndex = SubchunkInfo.SubchunkStart + NumberToMove;
-			for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+			for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 			{
 				// Destroy the component data
 				void* DyingComponentPtr = ComponentConfig.GetComponentData(Chunk.GetRawMemory(), CutStartIndex);
@@ -370,12 +370,12 @@ void FArchetypeData::BatchDestroyEntityChunks(const FArchetypeChunkCollection& C
 	}
 }
 
-bool FArchetypeData::HasComponentDataForEntity(const UScriptStruct* ComponentType, int32 EntityIndex) const
+bool FMassArchetypeData::HasComponentDataForEntity(const UScriptStruct* ComponentType, int32 EntityIndex) const
 {
 	return (ComponentType && CompositionDescriptor.Components.Contains(*ComponentType));
 }
 
-void* FArchetypeData::GetComponentDataForEntityChecked(const UScriptStruct* ComponentType, int32 EntityIndex) const
+void* FMassArchetypeData::GetComponentDataForEntityChecked(const UScriptStruct* ComponentType, int32 EntityIndex) const
 {
 	const FInternalEntityHandle InternalIndex = MakeEntityHandle(EntityIndex);
 	
@@ -384,7 +384,7 @@ void* FArchetypeData::GetComponentDataForEntityChecked(const UScriptStruct* Comp
 	return GetComponentData(ComponentIndex, InternalIndex);
 }
 
-void* FArchetypeData::GetComponentDataForEntity(const UScriptStruct* ComponentType, int32 EntityIndex) const
+void* FMassArchetypeData::GetComponentDataForEntity(const UScriptStruct* ComponentType, int32 EntityIndex) const
 {
 	if (const int32* ComponentIndex = ComponentIndexMap.Find(ComponentType))
 	{
@@ -395,7 +395,7 @@ void* FArchetypeData::GetComponentDataForEntity(const UScriptStruct* ComponentTy
 	return nullptr;
 }
 
-void FArchetypeData::SetComponentsData(const FLWEntity Entity, TArrayView<const FInstancedStruct> ComponentInstances)
+void FMassArchetypeData::SetComponentsData(const FMassEntityHandle Entity, TArrayView<const FInstancedStruct> ComponentInstances)
 {
 	FInternalEntityHandle InternalIndex = MakeEntityHandle(Entity);
 
@@ -410,7 +410,7 @@ void FArchetypeData::SetComponentsData(const FLWEntity Entity, TArrayView<const 
 	}
 }
 
-void FArchetypeData::SetComponentData(const FArchetypeChunkCollection& ChunkCollection, const FInstancedStruct& ComponentSource)
+void FMassArchetypeData::SetComponentData(const FArchetypeChunkCollection& ChunkCollection, const FInstancedStruct& ComponentSource)
 {
 	check(ComponentSource.IsValid());
 	const UScriptStruct* ComponentType = ComponentSource.GetScriptStruct();
@@ -431,7 +431,7 @@ void FArchetypeData::SetComponentData(const FArchetypeChunkCollection& ChunkColl
 	}
 }
 
-void FArchetypeData::SetDefaultChunkComponentValue(FConstStructView InstancedStruct)
+void FMassArchetypeData::SetDefaultChunkComponentValue(FConstStructView InstancedStruct)
 {
 	if (ensure(InstancedStruct.GetScriptStruct()) && CompositionDescriptor.ChunkComponents.Contains(*InstancedStruct.GetScriptStruct()))
 	{
@@ -442,25 +442,25 @@ void FArchetypeData::SetDefaultChunkComponentValue(FConstStructView InstancedStr
 	}
 }
 
-void FArchetypeData::MoveEntityToAnotherArchetype(const FLWEntity Entity, FArchetypeData& NewArchetype)
+void FMassArchetypeData::MoveEntityToAnotherArchetype(const FMassEntityHandle Entity, FMassArchetypeData& NewArchetype)
 {
 	check(&NewArchetype != this);
 
 	const int32 AbsoluteIndex = EntityMap.FindAndRemoveChecked(Entity.Index);
 	const int32 ChunkIndex = AbsoluteIndex / NumEntitiesPerChunk;
 	const int32 IndexWithinChunk = AbsoluteIndex % NumEntitiesPerChunk;
-	FArchetypeChunk& Chunk = Chunks[ChunkIndex];
+	FMassArchetypeChunk& Chunk = Chunks[ChunkIndex];
 
 	constexpr bool bInitializeComponentsDuringCreation = !UE::AggregateTicking::bBitwiseRelocateComponents;
 	const int32 NewAbsoluteIndex = NewArchetype.AddEntityInternal(Entity, bInitializeComponentsDuringCreation);
 	const int32 NewChunkIndex = NewAbsoluteIndex / NewArchetype.NumEntitiesPerChunk;
 	const int32 NewIndexWithinChunk = NewAbsoluteIndex % NewArchetype.NumEntitiesPerChunk;
-	FArchetypeChunk& NewChunk = NewArchetype.Chunks[NewChunkIndex];
+	FMassArchetypeChunk& NewChunk = NewArchetype.Chunks[NewChunkIndex];
 
 	// for every NewArchetype's component see if it was in the old component as well and if so copy it's value. 
 	// If not then initialize the component (unless it has already been initialized based on bInitializeComponentsDuringCreation
 	// value
-	for (const FArchetypeComponentConfig& NewComponentConfig : NewArchetype.ComponentConfigs)
+	for (const FMassArchetypeFragmentConfig& NewComponentConfig : NewArchetype.ComponentConfigs)
 	{
 		const int32* OldComponentIndex = ComponentIndexMap.Find(NewComponentConfig.ComponentType);
 		void* Dst = NewComponentConfig.GetComponentData(NewChunk.GetRawMemory(), NewIndexWithinChunk);
@@ -491,7 +491,7 @@ void FArchetypeData::MoveEntityToAnotherArchetype(const FLWEntity Entity, FArche
 	RemoveEntityInternal(AbsoluteIndex, bDestroyComponents);
 }
 
-void FArchetypeData::ExecuteFunction(FLWComponentSystemExecutionContext& RunContext, const FLWComponentSystemExecuteFunction& Function, const FLWRequirementIndicesMapping& RequirementMapping, const FArchetypeChunkCollection& ChunkCollection)
+void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FArchetypeChunkCollection& ChunkCollection)
 {
 	check(ChunkCollection.GetArchetype() == this);
 
@@ -499,7 +499,7 @@ void FArchetypeData::ExecuteFunction(FLWComponentSystemExecutionContext& RunCont
 	RunContext.SetCurrentArchetypeData(*this);
 	for (FArchetypeChunkIterator ChunkIterator(ChunkCollection); ChunkIterator; ++ChunkIterator)
 	{
-		FArchetypeChunk& Chunk = Chunks[ChunkIterator->ChunkIndex];
+		FMassArchetypeChunk& Chunk = Chunks[ChunkIterator->ChunkIndex];
 		
 		const int32 ChunkLength = ChunkIterator->Length > 0 ? ChunkIterator->Length : (Chunk.GetNumInstances() - ChunkIterator->SubchunkStart);
 		if (ChunkLength)
@@ -515,11 +515,11 @@ void FArchetypeData::ExecuteFunction(FLWComponentSystemExecutionContext& RunCont
 	}
 }
 
-void FArchetypeData::ExecuteFunction(FLWComponentSystemExecutionContext& RunContext, const FLWComponentSystemExecuteFunction& Function, const FLWRequirementIndicesMapping& RequirementMapping, const FLWComponentSystemChunkConditionFunction& ChunkCondition)
+void FMassArchetypeData::ExecuteFunction(FMassExecutionContext& RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FMassChunkConditionFunction& ChunkCondition)
 {
 	// mz@todo to be removed
 	RunContext.SetCurrentArchetypeData(*this);
-	for (FArchetypeChunk& Chunk : Chunks)
+	for (FMassArchetypeChunk& Chunk : Chunks)
 	{
 		if (Chunk.GetNumInstances())
 		{
@@ -535,9 +535,9 @@ void FArchetypeData::ExecuteFunction(FLWComponentSystemExecutionContext& RunCont
 	}
 }
 
-void FArchetypeData::ExecutionFunctionForChunk(FLWComponentSystemExecutionContext RunContext, const FLWComponentSystemExecuteFunction& Function, const FLWRequirementIndicesMapping& RequirementMapping, const FArchetypeChunkCollection::FChunkInfo& ChunkInfo, const FLWComponentSystemChunkConditionFunction& ChunkCondition)
+void FMassArchetypeData::ExecutionFunctionForChunk(FMassExecutionContext RunContext, const FMassExecuteFunction& Function, const FMassQueryRequirementIndicesMapping& RequirementMapping, const FArchetypeChunkCollection::FChunkInfo& ChunkInfo, const FMassChunkConditionFunction& ChunkCondition)
 {
-	FArchetypeChunk& Chunk = Chunks[ChunkInfo.ChunkIndex];
+	FMassArchetypeChunk& Chunk = Chunks[ChunkInfo.ChunkIndex];
 	const int32 ChunkLength = ChunkInfo.Length > 0 ? ChunkInfo.Length : (Chunk.GetNumInstances() - ChunkInfo.SubchunkStart);
 
 	if (ChunkLength)
@@ -554,12 +554,12 @@ void FArchetypeData::ExecutionFunctionForChunk(FLWComponentSystemExecutionContex
 	}
 }
 
-void FArchetypeData::CompactEntities(const double TimeAllowed)
+void FMassArchetypeData::CompactEntities(const double TimeAllowed)
 {
 	const double TimeAllowedEnd = FPlatformTime::Seconds() + TimeAllowed;
 
-	TArray<FArchetypeChunk*> SortedChunks;
-	for (FArchetypeChunk& Chunk : Chunks)
+	TArray<FMassArchetypeChunk*> SortedChunks;
+	for (FMassArchetypeChunk& Chunk : Chunks)
 	{
 		// Skip already full chunks
 		const int32 NumInstances = Chunk.GetNumInstances();
@@ -575,7 +575,7 @@ void FArchetypeData::CompactEntities(const double TimeAllowed)
 		return;
 	}
 
-	SortedChunks.Sort([](const FArchetypeChunk& LHS, const FArchetypeChunk& RHS)
+	SortedChunks.Sort([](const FMassArchetypeChunk& LHS, const FMassArchetypeChunk& RHS)
 	{
 		return LHS.GetNumInstances() < RHS.GetNumInstances();
 	});
@@ -597,14 +597,14 @@ void FArchetypeData::CompactEntities(const double TimeAllowed)
 			break;
 		}
 
-		FArchetypeChunk* ChunkToFill = SortedChunks[ChunkToFillSortedIdx];
-		FArchetypeChunk* ChunkToEmpty = SortedChunks[ChunkToEmptySortedIdx];
+		FMassArchetypeChunk* ChunkToFill = SortedChunks[ChunkToFillSortedIdx];
+		FMassArchetypeChunk* ChunkToEmpty = SortedChunks[ChunkToEmptySortedIdx];
 		const int32 NumberOfEntitiesToMove =  FMath::Min(NumEntitiesPerChunk-ChunkToFill->GetNumInstances(), ChunkToEmpty->GetNumInstances());
 		const int32 FromIndex = ChunkToEmpty->GetNumInstances() - NumberOfEntitiesToMove;
 		const int32 ToIndex = ChunkToFill->GetNumInstances();
 		check(NumberOfEntitiesToMove > 0);
 
-		for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+		for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 		{
 			void* FromComponentPtr = ComponentConfig.GetComponentData(ChunkToEmpty->GetRawMemory(), FromIndex);
 			void* ToComponentPtr = ComponentConfig.GetComponentData(ChunkToFill->GetRawMemory(), ToIndex);
@@ -627,9 +627,9 @@ void FArchetypeData::CompactEntities(const double TimeAllowed)
 			}
 		}
 
-		FLWEntity* FromEntity = &ChunkToEmpty->GetEntityArrayElementRef(EntityListOffsetWithinChunk, FromIndex);
-		FLWEntity* ToEntity = &ChunkToFill->GetEntityArrayElementRef(EntityListOffsetWithinChunk, ToIndex);
-		FMemory::Memcpy(ToEntity, FromEntity, NumberOfEntitiesToMove * sizeof(FLWEntity));
+		FMassEntityHandle* FromEntity = &ChunkToEmpty->GetEntityArrayElementRef(EntityListOffsetWithinChunk, FromIndex);
+		FMassEntityHandle* ToEntity = &ChunkToFill->GetEntityArrayElementRef(EntityListOffsetWithinChunk, ToIndex);
+		FMemory::Memcpy(ToEntity, FromEntity, NumberOfEntitiesToMove * sizeof(FMassEntityHandle));
 		ChunkToFill->AddMultipleInstances(NumberOfEntitiesToMove);
 		ChunkToEmpty->RemoveMultipleInstances(NumberOfEntitiesToMove);
 
@@ -644,10 +644,10 @@ void FArchetypeData::CompactEntities(const double TimeAllowed)
 	}
 }
 
-void FArchetypeData::GetRequirementsComponentMapping(TConstArrayView<FLWComponentRequirement> Requirements, FLWComponentIndicesMapping& OutComponentIndices)
+void FMassArchetypeData::GetRequirementsComponentMapping(TConstArrayView<FMassFragmentRequirement> Requirements, FMassFragmentIndicesMapping& OutComponentIndices)
 {
 	OutComponentIndices.Reset(Requirements.Num());
-	for (const FLWComponentRequirement& Requirement : Requirements)
+	for (const FMassFragmentRequirement& Requirement : Requirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -658,11 +658,11 @@ void FArchetypeData::GetRequirementsComponentMapping(TConstArrayView<FLWComponen
 	}
 }
 
-void FArchetypeData::GetRequirementsChunkComponentMapping(TConstArrayView<FLWComponentRequirement> ChunkRequirements, FLWComponentIndicesMapping& OutComponentIndices)
+void FMassArchetypeData::GetRequirementsChunkComponentMapping(TConstArrayView<FMassFragmentRequirement> ChunkRequirements, FMassFragmentIndicesMapping& OutComponentIndices)
 {
 	int32 LastFoundComponentIndex = -1;
 	OutComponentIndices.Reset(ChunkRequirements.Num());
-	for (const FLWComponentRequirement& Requirement : ChunkRequirements)
+	for (const FMassFragmentRequirement& Requirement : ChunkRequirements)
 	{
 		if (Requirement.RequiresBinding())
 		{
@@ -683,7 +683,7 @@ void FArchetypeData::GetRequirementsChunkComponentMapping(TConstArrayView<FLWCom
 	}
 }
 
-void FArchetypeData::BindEntityRequirements(FLWComponentSystemExecutionContext& RunContext, const FLWComponentIndicesMapping& EntityComponentsMapping, FArchetypeChunk& Chunk, const int32 SubchunkStart, const int32 SubchunkLength)
+void FMassArchetypeData::BindEntityRequirements(FMassExecutionContext& RunContext, const FMassFragmentIndicesMapping& EntityComponentsMapping, FMassArchetypeChunk& Chunk, const int32 SubchunkStart, const int32 SubchunkLength)
 {
 	// auto-correcting number of entities to process in case SubchunkStart +  SubchunkLength > Chunk.GetNumInstances()
 	const int32 NumEntities = SubchunkLength >= 0 ? FMath::Min(SubchunkLength, Chunk.GetNumInstances() - SubchunkStart) : Chunk.GetNumInstances();
@@ -695,43 +695,43 @@ void FArchetypeData::BindEntityRequirements(FLWComponentSystemExecutionContext& 
 
 		for (int i = 0; i < EntityComponentsMapping.Num(); ++i)
 		{
-			FLWComponentSystemExecutionContext::FComponentView& Requirement = RunContext.ComponentViews[i];
+			FMassExecutionContext::FFragmentView& Requirement = RunContext.ComponentViews[i];
 			const int32 ComponentIndex = EntityComponentsMapping[i];
 
 			check(ComponentIndex != INDEX_NONE || Requirement.Requirement.IsOptional());
 			if (ComponentIndex != INDEX_NONE)
 			{
-				Requirement.ComponentView = TArrayView<FLWComponentData>((FLWComponentData*)GetComponentData(ComponentIndex, Chunk.GetRawMemory(), SubchunkStart), NumEntities);
+				Requirement.ComponentView = TArrayView<FMassFragment>((FMassFragment*)GetComponentData(ComponentIndex, Chunk.GetRawMemory(), SubchunkStart), NumEntities);
 			}
 			else
 			{
 				// @todo this might not be needed
-				Requirement.ComponentView = TArrayView<FLWComponentData>();
+				Requirement.ComponentView = TArrayView<FMassFragment>();
 			}
 		}
 	}
 	else
 	{
 		// Map in the required data arrays from the current chunk to the array views
-		for (FLWComponentSystemExecutionContext::FComponentView& Requirement : RunContext.GetMutableRequirements())
+		for (FMassExecutionContext::FFragmentView& Requirement : RunContext.GetMutableRequirements())
 		{
 			const int32* ComponentIndex = ComponentIndexMap.Find(Requirement.Requirement.StructType);
 			check(ComponentIndex != nullptr || Requirement.Requirement.IsOptional());
 			if (ComponentIndex)
 			{
-				Requirement.ComponentView = TArrayView<FLWComponentData>((FLWComponentData*)GetComponentData(*ComponentIndex, Chunk.GetRawMemory(), SubchunkStart), NumEntities);
+				Requirement.ComponentView = TArrayView<FMassFragment>((FMassFragment*)GetComponentData(*ComponentIndex, Chunk.GetRawMemory(), SubchunkStart), NumEntities);
 			}
 			else
 			{
-				Requirement.ComponentView = TArrayView<FLWComponentData>();
+				Requirement.ComponentView = TArrayView<FMassFragment>();
 			}
 		}
 	}
 
-	RunContext.EntityListView = TArrayView<FLWEntity>(&Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SubchunkStart), NumEntities);
+	RunContext.EntityListView = TArrayView<FMassEntityHandle>(&Chunk.GetEntityArrayElementRef(EntityListOffsetWithinChunk, SubchunkStart), NumEntities);
 }
 
-void FArchetypeData::BindChunkComponentRequirements(FLWComponentSystemExecutionContext& RunContext, const FLWComponentIndicesMapping& ChunkComponentsMapping, FArchetypeChunk& Chunk)
+void FMassArchetypeData::BindChunkComponentRequirements(FMassExecutionContext& RunContext, const FMassFragmentIndicesMapping& ChunkComponentsMapping, FMassArchetypeChunk& Chunk)
 {
 	if (ChunkComponentsMapping.Num() > 0)
 	{
@@ -739,7 +739,7 @@ void FArchetypeData::BindChunkComponentRequirements(FLWComponentSystemExecutionC
 
 		for (int i = 0; i < ChunkComponentsMapping.Num(); ++i)
 		{
-			FLWComponentSystemExecutionContext::FChunkComponentView& ChunkRequirement = RunContext.ChunkComponents[i];
+			FMassExecutionContext::FChunkFragmentView& ChunkRequirement = RunContext.ChunkComponents[i];
 			const int32 ChunkComponentIndex = ChunkComponentsMapping[i];
 
 			check(ChunkComponentIndex != INDEX_NONE);
@@ -748,7 +748,7 @@ void FArchetypeData::BindChunkComponentRequirements(FLWComponentSystemExecutionC
 	}
 	else
 	{
-		for (FLWComponentSystemExecutionContext::FChunkComponentView& ChunkRequirement : RunContext.GetMutableChunkRequirements())
+		for (FMassExecutionContext::FChunkFragmentView& ChunkRequirement : RunContext.GetMutableChunkRequirements())
 		{
 			FInstancedStruct* ChunkComponentInstance = Chunk.FindMutableChunkComponent(ChunkRequirement.Requirement.StructType);
 			check(ChunkComponentInstance != nullptr);
@@ -757,9 +757,9 @@ void FArchetypeData::BindChunkComponentRequirements(FLWComponentSystemExecutionC
 	}
 }
 
-SIZE_T FArchetypeData::GetAllocatedSize() const
+SIZE_T FMassArchetypeData::GetAllocatedSize() const
 {
-	return sizeof(FArchetypeData) +
+	return sizeof(FMassArchetypeData) +
 		ComponentConfigs.GetAllocatedSize() +
 		Chunks.GetAllocatedSize() +
 		(Chunks.Num() * GetChunkAllocSize()) +
@@ -767,7 +767,7 @@ SIZE_T FArchetypeData::GetAllocatedSize() const
 		ComponentIndexMap.GetAllocatedSize();
 }
 
-FString FArchetypeData::DebugGetDescription() const
+FString FMassArchetypeData::DebugGetDescription() const
 {
 #if WITH_MASSENTITY_DEBUG
 	TStringBuilder<256> ArchetypeDebugName;
@@ -775,7 +775,7 @@ FString FArchetypeData::DebugGetDescription() const
 	ArchetypeDebugName.Append(TEXT("<"));
 
 	bool bNeedsComma = false;
-	for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+	for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 	{
 		if (bNeedsComma)
 		{
@@ -793,7 +793,7 @@ FString FArchetypeData::DebugGetDescription() const
 }
 
 #if WITH_MASSENTITY_DEBUG
-void FArchetypeData::DebugPrintArchetype(FOutputDevice& Ar)
+void FMassArchetypeData::DebugPrintArchetype(FOutputDevice& Ar)
 {
 	FStringOutputDevice TagsDecription;
 	CompositionDescriptor.Tags.DebugGetStringDesc(TagsDecription);
@@ -802,7 +802,7 @@ void FArchetypeData::DebugPrintArchetype(FOutputDevice& Ar)
 	Ar.Logf(ELogVerbosity::Log, TEXT("\tChunks: %d x %d KB = %d KB total"), Chunks.Num(), GetChunkAllocSize() / 1024, (GetChunkAllocSize()*Chunks.Num()) / 1024);
 	
 	int ChunkWithComponentsCount = 0;
-	for (FArchetypeChunk& Chunk : Chunks)
+	for (FMassArchetypeChunk& Chunk : Chunks)
 	{
 		ChunkWithComponentsCount += Chunk.DebugGetChunkComponentCount() > 0 ? 1 : 0;
 	}
@@ -835,9 +835,9 @@ void FArchetypeData::DebugPrintArchetype(FOutputDevice& Ar)
 	Ar.Logf(ELogVerbosity::Log, TEXT("\tBytes / Entity  : %d"), TotalBytesPerEntity);
 	Ar.Logf(ELogVerbosity::Log, TEXT("\tEntities / Chunk: %d"), NumEntitiesPerChunk);
 
-	Ar.Logf(ELogVerbosity::Log, TEXT("\tOffset 0x%04X: Entity[] (%d bytes each)"), EntityListOffsetWithinChunk, sizeof(FLWEntity));
-	int32 TotalBytesOfValidData = sizeof(FLWEntity) * NumEntitiesPerChunk;
-	for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+	Ar.Logf(ELogVerbosity::Log, TEXT("\tOffset 0x%04X: Entity[] (%d bytes each)"), EntityListOffsetWithinChunk, sizeof(FMassEntityHandle));
+	int32 TotalBytesOfValidData = sizeof(FMassEntityHandle) * NumEntitiesPerChunk;
+	for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 	{
 		TotalBytesOfValidData += ComponentConfig.ComponentType->GetStructureSize() * NumEntitiesPerChunk;
 		Ar.Logf(ELogVerbosity::Log, TEXT("\tOffset 0x%04X: %s[] (%d bytes each)"), ComponentConfig.ArrayOffsetWithinChunk, *ComponentConfig.ComponentType->GetName(), ComponentConfig.ComponentType->GetStructureSize());
@@ -858,9 +858,9 @@ void FArchetypeData::DebugPrintArchetype(FOutputDevice& Ar)
 	}
 }
 
-void FArchetypeData::DebugPrintEntity(FLWEntity Entity, FOutputDevice& Ar, const TCHAR* InPrefix) const
+void FMassArchetypeData::DebugPrintEntity(FMassEntityHandle Entity, FOutputDevice& Ar, const TCHAR* InPrefix) const
 {
-	for (const FArchetypeComponentConfig& ComponentConfig : ComponentConfigs)
+	for (const FMassArchetypeFragmentConfig& ComponentConfig : ComponentConfigs)
 	{
 		void* Data = GetComponentDataForEntityChecked(ComponentConfig.ComponentType, Entity.Index);
 		
@@ -876,9 +876,9 @@ void FArchetypeData::DebugPrintEntity(FLWEntity Entity, FOutputDevice& Ar, const
 
 #endif // WITH_MASSENTITY_DEBUG
 
-void FArchetypeData::REMOVEME_GetArrayViewForComponentInChunk(int32 ChunkIndex, const UScriptStruct* ComponentType, void*& OutChunkBase, int32& OutNumEntities)
+void FMassArchetypeData::REMOVEME_GetArrayViewForComponentInChunk(int32 ChunkIndex, const UScriptStruct* ComponentType, void*& OutChunkBase, int32& OutNumEntities)
 {
-	const FArchetypeChunk& Chunk = Chunks[ChunkIndex];
+	const FMassArchetypeChunk& Chunk = Chunks[ChunkIndex];
 	const int32 ComponentIndex = ComponentIndexMap.FindChecked(ComponentType);
 
 	OutChunkBase = ComponentConfigs[ComponentIndex].GetComponentData(Chunk.GetRawMemory(), 0);

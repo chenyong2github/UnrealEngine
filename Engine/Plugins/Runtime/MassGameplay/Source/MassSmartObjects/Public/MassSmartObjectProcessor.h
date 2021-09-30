@@ -15,7 +15,7 @@ class UZoneGraphSubsystem;
 class UZoneGraphAnnotationSubsystem;
 
 USTRUCT()
-struct MASSSMARTOBJECTS_API FDataFragment_SmartObjectUser : public FLWComponentData
+struct MASSSMARTOBJECTS_API FDataFragment_SmartObjectUser : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -51,7 +51,7 @@ private:
  * Base class for smart object processors that takes care of caching the smart object manager.
  */
 UCLASS(Abstract)
-class MASSSMARTOBJECTS_API UMassProcessor_SmartObjectBase : public UPipeProcessor
+class MASSSMARTOBJECTS_API UMassProcessor_SmartObjectBase : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -77,7 +77,7 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/** Extents used to perform the spatial query in the octree for world location queries. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, config)
@@ -90,14 +90,14 @@ protected:
 	UZoneGraphAnnotationSubsystem* AnnotationSubsystem;
 
 	/** Query to fetch and process requests to find smart objects using spacial query around a given world location. */
-	FLWComponentQuery WorldRequestQuery;
+	FMassEntityQuery WorldRequestQuery;
 
 	/** Query to fetch and process requests to find smart objects on zone graph lanes. */
-	FLWComponentQuery LaneRequestQuery;
+	FMassEntityQuery LaneRequestQuery;
 };
 
 USTRUCT()
-struct MASSSMARTOBJECTS_API FMassSmartObjectTimedBehaviorTag : public FComponentTag
+struct MASSSMARTOBJECTS_API FMassSmartObjectTimedBehaviorTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -112,8 +112,8 @@ public:
 	UMassProcessor_SmartObjectTimedBehavior();
 
 protected:
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 	virtual void ConfigureQueries() override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

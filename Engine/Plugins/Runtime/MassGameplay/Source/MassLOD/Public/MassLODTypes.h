@@ -49,25 +49,25 @@ namespace EMassLOD
 }
 
 USTRUCT()
-struct MASSLOD_API FMassHighLODTag : public FComponentTag
+struct MASSLOD_API FMassHighLODTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct MASSLOD_API FMassMediumLODTag : public FComponentTag
+struct MASSLOD_API FMassMediumLODTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct MASSLOD_API FMassLowLODTag : public FComponentTag
+struct MASSLOD_API FMassLowLODTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct MASSLOD_API FMassOffLODTag : public FComponentTag
+struct MASSLOD_API FMassOffLODTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -76,7 +76,7 @@ struct MASSLOD_API FMassOffLODTag : public FComponentTag
  * Data fragment to store the calculated distances to viewers
  */
 USTRUCT()
-struct MASSLOD_API FMassLODInfoFragment : public FLWComponentData
+struct MASSLOD_API FMassLODInfoFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -88,7 +88,7 @@ struct MASSLOD_API FMassLODInfoFragment : public FLWComponentData
 };
 
 USTRUCT()
-struct MASSLOD_API FMassVariableTickChunkFragment : public FLWChunkComponent
+struct MASSLOD_API FMassVariableTickChunkFragment : public FMassChunkFragment
 {
 	GENERATED_BODY();
 
@@ -141,25 +141,25 @@ enum class EMassVisibility : uint8
 };
 
 USTRUCT()
-struct MASSLOD_API FMassVisibilityCanBeSeenTag : public FComponentTag
+struct MASSLOD_API FMassVisibilityCanBeSeenTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct MASSLOD_API FMassVisibilityCulledByFrustumTag : public FComponentTag
+struct MASSLOD_API FMassVisibilityCulledByFrustumTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct MASSLOD_API FMassVisibilityCulledByDistanceTag : public FComponentTag
+struct MASSLOD_API FMassVisibilityCulledByDistanceTag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct MASSLOD_API FMassVisualizationChunkFragment : public FLWChunkComponent
+struct MASSLOD_API FMassVisualizationChunkFragment : public FMassChunkFragment
 {
 	GENERATED_BODY();
 
@@ -170,7 +170,7 @@ struct MASSLOD_API FMassVisualizationChunkFragment : public FLWChunkComponent
 	 * @param Context of the execution from the entity sub system
 	 * @return true if there is a possibility that the chunk contains a visible entity
 	 */
-	static bool AreAnyEntitiesVisibleInChunk(const FLWComponentSystemExecutionContext& Context)
+	static bool AreAnyEntitiesVisibleInChunk(const FMassExecutionContext& Context)
 	{
 		return Context.GetChunkComponent<FMassVisualizationChunkFragment>().AreAnyEntitiesVisible();
 	}
@@ -191,7 +191,7 @@ struct MASSLOD_API FMassVisualizationChunkFragment : public FLWChunkComponent
 	* @param Context of the execution from the entity sub system
 	 * @return bool true if we should update the representation type for this chunk
 	 */
-	static bool ShouldUpdateVisualizationForChunk(const FLWComponentSystemExecutionContext& Context)
+	static bool ShouldUpdateVisualizationForChunk(const FMassExecutionContext& Context)
 	{
 		return Context.GetChunkComponent<FMassVisualizationChunkFragment>().ShouldUpdateVisualization();
 	}

@@ -12,25 +12,25 @@
 DEFINE_LOG_CATEGORY(LogPipe);
 
 //----------------------------------------------------------------------//
-//  FPipeContext
+//  FMassProcessingContext
 //----------------------------------------------------------------------//
-FPipeContext::FPipeContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds)
+FMassProcessingContext::FMassProcessingContext(UMassEntitySubsystem& InEntities, const float InDeltaSeconds)
 	: EntitySubsystem(&InEntities), DeltaSeconds(InDeltaSeconds)
 {
 
 }
 
 //----------------------------------------------------------------------//
-//  FRuntimePipeline
+//  FMassRuntimePipeline
 //----------------------------------------------------------------------//
-void FRuntimePipeline::Reset()
+void FMassRuntimePipeline::Reset()
 {
 	Processors.Reset();
 }
 
-void FRuntimePipeline::Initialize(UObject& Owner)
+void FMassRuntimePipeline::Initialize(UObject& Owner)
 {
-	for (UPipeProcessor* Proc : Processors)
+	for (UMassProcessor* Proc : Processors)
 	{
 		if (Proc)
 		{
@@ -40,59 +40,59 @@ void FRuntimePipeline::Initialize(UObject& Owner)
 	}
 }
 
-void FRuntimePipeline::SetProcessors(TArray<UPipeProcessor*>&& InProcessors)
+void FMassRuntimePipeline::SetProcessors(TArray<UMassProcessor*>&& InProcessors)
 {
 	Processors = InProcessors;
 }
 
-void FRuntimePipeline::InitializeFromSchematics(TConstArrayView<TSoftObjectPtr<UPipeSchematic>> Schematics, UObject& InOwner)
+void FMassRuntimePipeline::InitializeFromSchematics(TConstArrayView<TSoftObjectPtr<UMassSchematic>> Schematics, UObject& InOwner)
 {
 	Reset();
 	
-	// @todo we'll sometimes end up with duplicated PipeProcessors in the resulting array. We need to come up with a consistent policy for handling that 
-	for (const TSoftObjectPtr<UPipeSchematic>& Schematic : Schematics)
+	// @todo we'll sometimes end up with duplicated MassProcessors in the resulting array. We need to come up with a consistent policy for handling that 
+	for (const TSoftObjectPtr<UMassSchematic>& Schematic : Schematics)
 	{
-		UPipeSchematic* Pipe = Schematic.LoadSynchronous();
+		UMassSchematic* Pipe = Schematic.LoadSynchronous();
 		if (Pipe)
 		{
 			AppendOrOverrideRuntimeProcessorCopies(Pipe->GetProcessors(), InOwner);
 		}
 		else
 		{
-			UE_LOG(LogPipe, Error, TEXT("Unable to resolve PipeSchematic %s while creating FRuntimePipeline"), *Schematic.GetLongPackageName());
+			UE_LOG(LogPipe, Error, TEXT("Unable to resolve MassSchematic %s while creating FMassRuntimePipeline"), *Schematic.GetLongPackageName());
 		}
 	}
 
 	Initialize(InOwner);
 }
 
-void FRuntimePipeline::CreateFromArray(TConstArrayView<const UPipeProcessor*> InProcessors, UObject& InOwner)
+void FMassRuntimePipeline::CreateFromArray(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner)
 {
 	Reset();
 	AppendOrOverrideRuntimeProcessorCopies(InProcessors, InOwner);
 }
 
-void FRuntimePipeline::InitializeFromArray(TConstArrayView<const UPipeProcessor*> InProcessors, UObject& InOwner)
+void FMassRuntimePipeline::InitializeFromArray(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner)
 {
 	CreateFromArray(InProcessors, InOwner);
 	Initialize(InOwner);
 }
 
-void FRuntimePipeline::InitializeFromClassArray(TConstArrayView<TSubclassOf<UPipeProcessor>> InProcessorClasses, UObject& InOwner)
+void FMassRuntimePipeline::InitializeFromClassArray(TConstArrayView<TSubclassOf<UMassProcessor>> InProcessorClasses, UObject& InOwner)
 {
 	Reset();
 
 	const UWorld* World = InOwner.GetWorld();
 	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Pipe::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
 
-	for (const TSubclassOf<UPipeProcessor>& ProcessorClass : InProcessorClasses)
+	for (const TSubclassOf<UMassProcessor>& ProcessorClass : InProcessorClasses)
 	{
 		if (ProcessorClass)
 		{
-			UPipeProcessor* CDO = ProcessorClass.GetDefaultObject();
+			UMassProcessor* CDO = ProcessorClass.GetDefaultObject();
 			if (CDO && CDO->ShouldExecute(WorldExecutionFlags))
 			{
-				UPipeProcessor* ProcInstance = NewObject<UPipeProcessor>(&InOwner, ProcessorClass);
+				UMassProcessor* ProcInstance = NewObject<UMassProcessor>(&InOwner, ProcessorClass);
 				Processors.Add(ProcInstance);
 			}
 			else
@@ -105,25 +105,25 @@ void FRuntimePipeline::InitializeFromClassArray(TConstArrayView<TSubclassOf<UPip
 	Initialize(InOwner);
 }
 
-bool FRuntimePipeline::HasProcessorOfExactClass(TSubclassOf<UPipeProcessor> InClass) const
+bool FMassRuntimePipeline::HasProcessorOfExactClass(TSubclassOf<UMassProcessor> InClass) const
 {
 	UClass* TestClass = InClass.Get();
-	return Processors.FindByPredicate([TestClass](const UPipeProcessor* Proc){ return Proc != nullptr && Proc->GetClass() == TestClass; }) != nullptr;
+	return Processors.FindByPredicate([TestClass](const UMassProcessor* Proc){ return Proc != nullptr && Proc->GetClass() == TestClass; }) != nullptr;
 }
 
-void FRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<const UPipeProcessor*> InProcessors, UObject& InOwner)
+void FMassRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner)
 {
 	const UWorld* World = InOwner.GetWorld();
 	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Pipe::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
 	const int32 StartingCount = Processors.Num();
 		
-	for (const UPipeProcessor* Proc : InProcessors)
+	for (const UMassProcessor* Proc : InProcessors)
 	{
 		if (Proc && Proc->ShouldExecute(WorldExecutionFlags)
 			&& (Proc->AllowDuplicates() || (HasProcessorOfExactClass(Proc->GetClass()) == false)))
 		{
 			// unfortunately the const cast is required since NewObject doesn't support const Template object
-			UPipeProcessor* ProcCopy = NewObject<UPipeProcessor>(&InOwner, Proc->GetClass(), FName(), RF_NoFlags, const_cast<UPipeProcessor*>(Proc));
+			UMassProcessor* ProcCopy = NewObject<UMassProcessor>(&InOwner, Proc->GetClass(), FName(), RF_NoFlags, const_cast<UMassProcessor*>(Proc));
 			Processors.Add(ProcCopy);
 		}
 #if WITH_MASSENTITY_DEBUG
@@ -143,24 +143,24 @@ void FRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<const 
 
 	for (int32 NewProcIndex = StartingCount; NewProcIndex < Processors.Num(); ++NewProcIndex)
 	{
-		UPipeProcessor* Proc = Processors[NewProcIndex];
+		UMassProcessor* Proc = Processors[NewProcIndex];
 		check(Proc);
 		REDIRECT_OBJECT_TO_VLOG(Proc, &InOwner);
 		Proc->Initialize(InOwner);
 	}
 }
 
-void FRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayView<const UPipeProcessor*> InProcessors, UObject& InOwner)
+void FMassRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayView<const UMassProcessor*> InProcessors, UObject& InOwner)
 {
 	const UWorld* World = InOwner.GetWorld();
 	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Pipe::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
 	
-	for (const UPipeProcessor* Proc : InProcessors)
+	for (const UMassProcessor* Proc : InProcessors)
 	{
 		if (Proc && Proc->ShouldExecute(WorldExecutionFlags))
 		{
 			// unfortunately the const cast is required since NewObject doesn't support const Template object
-			UPipeProcessor* ProcCopy = NewObject<UPipeProcessor>(&InOwner, Proc->GetClass(), FName(), RF_NoFlags, const_cast<UPipeProcessor*>(Proc));
+			UMassProcessor* ProcCopy = NewObject<UMassProcessor>(&InOwner, Proc->GetClass(), FName(), RF_NoFlags, const_cast<UMassProcessor*>(Proc));
 			check(ProcCopy);
 
 			if (ProcCopy->AllowDuplicates())
@@ -171,7 +171,7 @@ void FRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayView<co
 			else 
 			{
 				const UClass* TestClass = Proc->GetClass();
-				UPipeProcessor** PrevProcessor = Processors.FindByPredicate([TestClass, ProcCopy](const UPipeProcessor* Proc) {
+				UMassProcessor** PrevProcessor = Processors.FindByPredicate([TestClass, ProcCopy](const UMassProcessor* Proc) {
 					return Proc != nullptr && Proc->GetClass() == TestClass;
 				});
 
@@ -192,16 +192,16 @@ void FRuntimePipeline::AppendOrOverrideRuntimeProcessorCopies(TConstArrayView<co
 	}
 }
 
-void FRuntimePipeline::AppendProcessor(UPipeProcessor& Processor)
+void FMassRuntimePipeline::AppendProcessor(UMassProcessor& Processor)
 {
 	Processors.Add(&Processor);
 }
 
-UPipeCompositeProcessor* FRuntimePipeline::FindTopLevelGroupByName(FName GroupName)
+UMassCompositeProcessor* FMassRuntimePipeline::FindTopLevelGroupByName(FName GroupName)
 {
-	for (UPipeProcessor* Processor : Processors)
+	for (UMassProcessor* Processor : Processors)
 	{
-		UPipeCompositeProcessor* CompositeProcessor = Cast<UPipeCompositeProcessor>(Processor);
+		UMassCompositeProcessor* CompositeProcessor = Cast<UMassCompositeProcessor>(Processor);
 		if (CompositeProcessor && CompositeProcessor->GetGroupName() == GroupName)
 		{
 			return CompositeProcessor;
@@ -210,15 +210,15 @@ UPipeCompositeProcessor* FRuntimePipeline::FindTopLevelGroupByName(FName GroupNa
 	return nullptr;
 }
 
-void FRuntimePipeline::DebugOutputDescription(FOutputDevice& Ar) const
+void FMassRuntimePipeline::DebugOutputDescription(FOutputDevice& Ar) const
 {
 	UE::Pipe::Debug::DebugOutputDescription(Processors, Ar);
 }
 
-uint32 GetTypeHash(const FRuntimePipeline& Instance)
+uint32 GetTypeHash(const FMassRuntimePipeline& Instance)
 { 
 	uint32 Hash = 0;
-	for (const UPipeProcessor* Proc : Instance.Processors)
+	for (const UMassProcessor* Proc : Instance.Processors)
 	{
 		Hash = HashCombine(Hash, PointerHash(Proc));
 	}

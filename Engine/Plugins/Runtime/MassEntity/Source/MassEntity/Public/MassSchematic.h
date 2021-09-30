@@ -8,20 +8,20 @@
 #include "MassSchematic.generated.h"
 
 
-class UPipeProcessor;
+class UMassProcessor;
 
 /**
  * Pipe Schematic asset.
  */
 UCLASS(BlueprintType)
-class MASSENTITY_API UPipeSchematic : public UDataAsset
+class MASSENTITY_API UMassSchematic : public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	TConstArrayView<const UPipeProcessor*> GetProcessors() const { return MakeArrayView(Processors);  }
+	TConstArrayView<const UMassProcessor*> GetProcessors() const { return MakeArrayView(Processors);  }
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Pipe, Instanced)
-	TArray<UPipeProcessor*> Processors;
+	TArray<UMassProcessor*> Processors;
 };

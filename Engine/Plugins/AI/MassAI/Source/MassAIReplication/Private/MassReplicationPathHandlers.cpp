@@ -11,14 +11,14 @@
 #include "GameFramework/GameStateBase.h"
 #include "VisualLogger/VisualLogger.h"
 
-void FMassReplicationProcessorPathHandler::AddRequirements(FLWComponentQuery& InQuery)
+void FMassReplicationProcessorPathHandler::AddRequirements(FMassEntityQuery& InQuery)
 {
-	InQuery.AddRequirement<FMassZoneGraphPathRequestFragment>(ELWComponentAccess::ReadOnly);
-	InQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-	InQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadOnly);
+	InQuery.AddRequirement<FMassZoneGraphPathRequestFragment>(EMassFragmentAccess::ReadOnly);
+	InQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	InQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
 }
 
-void FMassReplicationProcessorPathHandler::CacheComponentViews(FLWComponentSystemExecutionContext& ExecContext)
+void FMassReplicationProcessorPathHandler::CacheComponentViews(FMassExecutionContext& ExecContext)
 {
 	PathRequestList = ExecContext.GetMutableComponentView<FMassZoneGraphPathRequestFragment>();
 	MoveTargetList = ExecContext.GetMutableComponentView<FMassMoveTargetFragment>();
@@ -54,12 +54,12 @@ FReplicatedAgentPathData::FReplicatedAgentPathData(const FMassZoneGraphPathReque
 }
 
 void FReplicatedAgentPathData::InitEntity(const UWorld& InWorld,
-										  const FEntityView& InEntityView,
+										  const FMassEntityView& InEntityView,
 										  FMassZoneGraphLaneLocationFragment& OutLaneLocation,
 										  FMassMoveTargetFragment& OutMoveTarget,
 										  FMassZoneGraphPathRequestFragment& OutActionRequest) const
 {
-	const FLWEntity Entity = InEntityView.GetEntity();
+	const FMassEntityHandle Entity = InEntityView.GetEntity();
 
 	const UZoneGraphSubsystem* ZoneGraphSubsystem = InWorld.GetSubsystem<UZoneGraphSubsystem>();
 	const UMassSimulationSubsystem* SimulationSubsystem = InWorld.GetSubsystem<UMassSimulationSubsystem>();
@@ -94,9 +94,9 @@ void FReplicatedAgentPathData::InitEntity(const UWorld& InWorld,
 	ApplyToEntity(InWorld, InEntityView);
 }
 
-void FReplicatedAgentPathData::ApplyToEntity(const UWorld& InWorld, const FEntityView& InEntityView) const
+void FReplicatedAgentPathData::ApplyToEntity(const UWorld& InWorld, const FMassEntityView& InEntityView) const
 {
-	const FLWEntity Entity = InEntityView.GetEntity();
+	const FMassEntityHandle Entity = InEntityView.GetEntity();
 	FMassMoveTargetFragment& MoveTarget = InEntityView.GetComponentData<FMassMoveTargetFragment>();
 	if (MoveTarget.GetCurrentActionID() == ActionID)
 	{

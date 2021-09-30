@@ -11,5 +11,5 @@ UMassTranslator_BehaviorTree::UMassTranslator_BehaviorTree()
 
 void UMassTranslator_BehaviorTree::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_BehaviorTreeComponentWrapper>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_BehaviorTreeComponentWrapper>(EMassFragmentAccess::ReadWrite);
 }

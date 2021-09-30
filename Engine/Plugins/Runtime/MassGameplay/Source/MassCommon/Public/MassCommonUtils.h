@@ -12,5 +12,5 @@ namespace UE::Mass::Utils
 	 * Creates a TArray of entities based on the given EntitiesQueue. Note that it's the caller's responsibility to 
 	 * ensure EntitiesCount > 0, otherwise the function will fail a check (with explosive results).
 	 */
-	MASSCOMMON_API TArray<FLWEntity> EntityQueueToArray(TQueue<FLWEntity, EQueueMode::Mpsc>& EntitiesQueue, const int32 EntitiesCount);
+	MASSCOMMON_API TArray<FMassEntityHandle> EntityQueueToArray(TQueue<FMassEntityHandle, EQueueMode::Mpsc>& EntitiesQueue, const int32 EntitiesCount);
 } // namespace UE::Mass::Utils

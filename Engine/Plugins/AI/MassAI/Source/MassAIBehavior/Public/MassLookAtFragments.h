@@ -36,7 +36,7 @@ enum class EMassLookAtGazeMode : uint8
  * Struct that holds all parameters of the current entity look at 
  */
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassLookAtFragment : public FLWComponentData
+struct MASSAIBEHAVIOR_API FMassLookAtFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -71,11 +71,11 @@ struct MASSAIBEHAVIOR_API FMassLookAtFragment : public FLWComponentData
 
 	/** Specific entity that is being tracked as primary look at. */
 	UPROPERTY(Transient)
-	FLWEntity TrackedEntity;
+	FMassEntityHandle TrackedEntity;
 
 	/** Entity that is tracked as part of gazing. */
 	UPROPERTY(Transient)
-	FLWEntity GazeTrackedEntity;
+	FMassEntityHandle GazeTrackedEntity;
 
 	/** Start time of the current gaze. */
 	UPROPERTY(Transient)
@@ -114,7 +114,7 @@ struct MASSAIBEHAVIOR_API FMassLookAtFragment : public FLWComponentData
  * Special tag to mark an entity that could be tracked by the LookAt
  */
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassLookAtTargetTag : public FComponentTag
+struct MASSAIBEHAVIOR_API FMassLookAtTargetTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -143,7 +143,7 @@ struct MASSAIBEHAVIOR_API FMassLookAtTrajectoryPoint
 };
 
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassLookAtTrajectoryFragment : public FLWComponentData
+struct MASSAIBEHAVIOR_API FMassLookAtTrajectoryFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

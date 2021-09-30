@@ -106,24 +106,24 @@ void UMassLookAtProcessor::Initialize(UObject& Owner)
 
 void UMassLookAtProcessor::ConfigureQueries()
 {
-	EntityQuery_Conditional.AddRequirement<FMassLookAtFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	EntityQuery_Conditional.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery_Conditional.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadOnly, ELWComponentPresence::Optional);
-	EntityQuery_Conditional.AddRequirement<FMassLookAtTrajectoryFragment>(ELWComponentAccess::ReadWrite, ELWComponentPresence::Optional);
-	EntityQuery_Conditional.AddRequirement<FMassZoneGraphShortPathFragment>(ELWComponentAccess::ReadOnly, ELWComponentPresence::Optional);
-	EntityQuery_Conditional.AddTagRequirement<FMassHighLODTag>(ELWComponentPresence::All);
-	EntityQuery_Conditional.AddChunkRequirement<FMassVisualizationChunkFragment>(ELWComponentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FMassLookAtFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery_Conditional.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
+	EntityQuery_Conditional.AddRequirement<FMassLookAtTrajectoryFragment>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Optional);
+	EntityQuery_Conditional.AddRequirement<FMassZoneGraphShortPathFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
+	EntityQuery_Conditional.AddTagRequirement<FMassHighLODTag>(EMassFragmentPresence::All);
+	EntityQuery_Conditional.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
 }
 
-void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(LookAtProcessor_Run);
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
 
-	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem, CurrentTime](FLWComponentSystemExecutionContext& Context)
+	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem, CurrentTime](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 			const TArrayView<FMassLookAtFragment> LookAtList = Context.GetMutableComponentView<FMassLookAtFragment>();
@@ -142,7 +142,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWCom
 				const bool bHasLookAtTrajectory = ZoneGraphLocationList.Num() > 0 && LookAtTrajectoryList.Num() > 0 && ShortPathList.Num() > 0;
 
 				bool bDisplayDebug = false;
-				const FLWEntity Entity = Context.GetEntity(i);
+				const FMassEntityHandle Entity = Context.GetEntity(i);
 	#if WITH_MASSGAMEPLAY_DEBUG
 				FColor EntityColor = FColor::White;
 				bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &EntityColor);
@@ -235,7 +235,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWCom
 
 void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntitySubsystem, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const
 {
-	const FLWEntity LastTrackedEntity = LookAt.GazeTrackedEntity;
+	const FMassEntityHandle LastTrackedEntity = LookAt.GazeTrackedEntity;
 	
 	LookAt.GazeTrackedEntity.Reset();
 	LookAt.GazeDirection = FVector::ForwardVector;
@@ -273,7 +273,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntityS
 				continue;
 			}
 
-			FEntityView EntityView(EntitySubsystem, NearbyEntity.Entity);
+			FMassEntityView EntityView(EntitySubsystem, NearbyEntity.Entity);
 			if (!EntityView.HasTag<FMassLookAtTargetTag>())
 			{
 				continue;
@@ -400,7 +400,7 @@ bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& E
 }
 
 void UMassLookAtProcessor::BuildTrajectory(const FMassZoneGraphLaneLocationFragment& LaneLocation, const FMassZoneGraphShortPathFragment& ShortPath,
-											const FLWEntity Entity, const bool bDisplayDebug, FMassLookAtTrajectoryFragment& LookAtTrajectory)
+											const FMassEntityHandle Entity, const bool bDisplayDebug, FMassLookAtTrajectoryFragment& LookAtTrajectory)
 {
 	LookAtTrajectory.Reset();
 

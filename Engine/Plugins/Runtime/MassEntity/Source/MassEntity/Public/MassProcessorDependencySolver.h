@@ -5,7 +5,7 @@
 #include "MassEntityTypes.h"
 
 
-class UPipeProcessor;
+class UMassProcessor;
 
 enum class EDependencyNodeType : uint8
 {
@@ -20,14 +20,14 @@ struct MASSENTITY_API FProcessorDependencySolver
 private:
 	struct FNode
 	{
-		FNode(const FName InName, UPipeProcessor* InProcessor) 
+		FNode(const FName InName, UMassProcessor* InProcessor) 
 			: Name(InName), Processor(InProcessor)
 		{}
 
 		FName Name = TEXT("");
 		TArray<FNode> SubNodes;
 		TMap<FName, int32> Indices;
-		UPipeProcessor* Processor = nullptr;
+		UMassProcessor* Processor = nullptr;
 		TArray<int32> OriginalDependencies;
 		TArray<int32> TransientDependencies;
 		TArray<FName> ExecuteBefore;
@@ -42,12 +42,12 @@ public:
 	struct FOrderInfo
 	{
 		FName Name = TEXT("");
-		UPipeProcessor* Processor = nullptr;
+		UMassProcessor* Processor = nullptr;
 		EDependencyNodeType NodeType = EDependencyNodeType::Invalid;
 		TArray<FName> Dependencies;
 	};
 
-	FProcessorDependencySolver(TArrayView<UPipeProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName = FString());
+	FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName = FString());
 	void ResolveDependencies(TArray<FOrderInfo>& OutResult, TConstArrayView<const FName> PriorityNodes = TConstArrayView<const FName>());
 
 	static void CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames);
@@ -74,13 +74,13 @@ protected:
 	
 	static FString NameViewToString(TConstArrayView<FName> View);
 
-	void AddNode(FName GroupName, UPipeProcessor& Processor);
+	void AddNode(FName GroupName, UMassProcessor& Processor);
 	void BuildDependencies(FNode& RootNode);
 	void Solve(FNode& RootNode, TConstArrayView<const FName> PriorityNodes, TArray<FProcessorDependencySolver::FOrderInfo>& OutResult, int LoggingIndent = 0);
 	void LogNode(const FNode& RootNode, const FNode* ParentNode = nullptr, int Indent = 0);
 	void DumpGraph(FArchive& LogFile) const;
 	
-	TArrayView<UPipeProcessor*> Processors;
+	TArrayView<UMassProcessor*> Processors;
 	FNode GroupRootNode;
 	bool bAnyCyclesDetected = false;
 	FString DependencyGraphFileName;

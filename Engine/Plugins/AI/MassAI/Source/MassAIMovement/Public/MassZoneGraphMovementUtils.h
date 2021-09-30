@@ -18,7 +18,7 @@ namespace UE::MassMovement
 {
 	MASSAIMOVEMENT_API bool ActivateActionMove(const UWorld& World,
 											 const UObject* Requester,
-											 const FLWEntity Entity,
+											 const FMassEntityHandle Entity,
 											 const UZoneGraphSubsystem& ZoneGraphSubsystem,
 											 const FMassZoneGraphLaneLocationFragment& LaneLocation,
 											 const FZoneGraphShortPathRequest& PathRequest,
@@ -30,7 +30,7 @@ namespace UE::MassMovement
 
 	MASSAIMOVEMENT_API bool ActivateActionStand(const UWorld& World,
 											  const UObject* Requester,
-											  const FLWEntity Entity,
+											  const FMassEntityHandle Entity,
 											  const UZoneGraphSubsystem& ZoneGraphSubsystem,
 											  const FMassZoneGraphLaneLocationFragment& LaneLocation,
 											  const float DesiredSpeed,
@@ -40,6 +40,6 @@ namespace UE::MassMovement
 
 	MASSAIMOVEMENT_API bool ActivateActionAnimate(const UWorld& World,
 												const UObject* Requester,
-												const FLWEntity Entity,
+												const FMassEntityHandle Entity,
 												FMassMoveTargetFragment& MoveTarget);
 };

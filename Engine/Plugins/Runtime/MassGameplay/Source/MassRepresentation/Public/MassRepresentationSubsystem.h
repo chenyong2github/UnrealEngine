@@ -19,7 +19,7 @@ struct FMassHandle_ActorSpawnRequest;
 class UMassActorSpawnerSubsystem;
 class UMassAgentComponent;
 class UMassEntitySubsystem;
-enum class EPipeProcessingPhase : uint8;
+enum class EMassProcessingPhase : uint8;
 class UWorldPartitionSubsystem;
 
 /**
@@ -123,7 +123,7 @@ protected:
 	// USubsystem END
 
 	/** Needed for batching the update of static mesh transform */
-	void OnProcessingPhaseStarted(const float DeltaSeconds, const EPipeProcessingPhase Phase) const;
+	void OnProcessingPhaseStarted(const float DeltaSeconds, const EMassProcessingPhase Phase) const;
 
 	void OnMassAgentComponentEntityAssociated(const UMassAgentComponent& AgentComponent);
 	void OnMassAgentComponentEntityDetaching(const UMassAgentComponent& AgentComponent);

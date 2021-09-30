@@ -4,13 +4,13 @@
 
 namespace UE::Mass::Utils
 {
-	TArray<FLWEntity> EntityQueueToArray(TQueue<FLWEntity, EQueueMode::Mpsc>& EntitiesQueue, const int32 EntitiesCount)
+	TArray<FMassEntityHandle> EntityQueueToArray(TQueue<FMassEntityHandle, EQueueMode::Mpsc>& EntitiesQueue, const int32 EntitiesCount)
 	{
 		check(EntitiesCount > 0);
-		TArray<FLWEntity> EntitiesArray;
+		TArray<FMassEntityHandle> EntitiesArray;
 		EntitiesArray.AddUninitialized(EntitiesCount);
 
-		FLWEntity TempEntity;
+		FMassEntityHandle TempEntity;
 		uint32 CurrentIndex = 0;
 		while (EntitiesQueue.Dequeue(TempEntity))
 		{

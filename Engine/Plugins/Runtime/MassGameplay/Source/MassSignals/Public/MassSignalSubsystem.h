@@ -8,7 +8,7 @@
 
 namespace UE::MassSignal 
 {
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FSignalDelegate, FName /*SignalName*/, TConstArrayView<FLWEntity> /*Entities*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FSignalDelegate, FName /*SignalName*/, TConstArrayView<FMassEntityHandle> /*Entities*/);
 } // UE::MassSignal
 
 /**
@@ -35,14 +35,14 @@ public:
 	 * @param SignalName is the name of the signal raised
 	 * @param Entity entity that should be informed that signal 'SignalName' was raised
 	 */
-	void SignalEntity(FName SignalName, const FLWEntity Entity);
+	void SignalEntity(FName SignalName, const FMassEntityHandle Entity);
 
 	/**
 	 * Inform multiple entities of a signal being raised
 	 * @param SignalName is the name of the signal raised
 	 * @param Entities list of entities that should be informed that signal 'SignalName' was raised
 	 */
-	void SignalEntities(FName SignalName, TConstArrayView<FLWEntity> Entities);
+	void SignalEntities(FName SignalName, TConstArrayView<FMassEntityHandle> Entities);
 
 	/**
 	 * Inform a single entity of a signal being raised in a certain amount of seconds
@@ -50,7 +50,7 @@ public:
 	 * @param Entity entity that should be informed that signal 'SignalName' was raised
 	 * @param DelayInSeconds is the amount of time before signaling the entity
 	 */
-	void DelaySignalEntity(FName SignalName, const FLWEntity Entity, const float DelayInSeconds);
+	void DelaySignalEntity(FName SignalName, const FMassEntityHandle Entity, const float DelayInSeconds);
 
  	/**
 	 * Inform multiple entities of a signal being raised in a certain amount of seconds
@@ -58,41 +58,41 @@ public:
 	 * @param Entities being informed of the raised signal
 	 * @param DelayInSeconds is the amount of time before signaling the entities
 	 */
-	void DelaySignalEntities(FName SignalName, TConstArrayView<FLWEntity> Entities, const float DelayInSeconds);
+	void DelaySignalEntities(FName SignalName, TConstArrayView<FMassEntityHandle> Entities, const float DelayInSeconds);
 
 	/**
-	 * Inform single entity of a signal being raised asynchronously using the LWComponent Command Buffer
+	 * Inform single entity of a signal being raised asynchronously using the Mass Command Buffer
 	 * @param Context is the Entity System execution context to push the async command
 	 * @param SignalName is the name of the signal raised
 	 * @param Entity entity that should be informed that signal 'SignalName' was raised
 	 */
-	void SignalEntityDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, const FLWEntity Entity);
+	void SignalEntityDeferred(FMassExecutionContext& Context, FName SignalName, const FMassEntityHandle Entity);
 
 	/**
-	 * Inform multiple entities of a signal being raised asynchronously using the LWComponent Command Buffer
+	 * Inform multiple entities of a signal being raised asynchronously using the Mass Command Buffer
 	 * @param Context is the Entity System execution context to push the async command
 	 * @param SignalName is the name of the signal raised
 	 * @param Entities list of entities that should be informed that signal 'SignalName' was raised
 	 */
-	void SignalEntitiesDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, TConstArrayView<FLWEntity> Entities);
+	void SignalEntitiesDeferred(FMassExecutionContext& Context, FName SignalName, TConstArrayView<FMassEntityHandle> Entities);
 
  	/**
-	 * Inform single entity of a signal being raised asynchronously using the LWComponent Command Buffer
+	 * Inform single entity of a signal being raised asynchronously using the Mass Command Buffer
 	 * @param Context is the Entity System execution context to push the async command
 	 * @param SignalName is the name of the signal raised
 	 * @param Entity entity that should be informed that signal 'SignalName' was raised
 	 * @param DelayInSeconds is the amount of time before signaling the entities
 	 */
-	void DelaySignalEntityDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, const FLWEntity Entity, const float DelayInSeconds);
+	void DelaySignalEntityDeferred(FMassExecutionContext& Context, FName SignalName, const FMassEntityHandle Entity, const float DelayInSeconds);
 
  	/**
-	 * Inform multiple entities of a signal being raised asynchronously using the LWComponent Command Buffer
+	 * Inform multiple entities of a signal being raised asynchronously using the Mass Command Buffer
 	 * @param Context is the Entity System execution context to push the async command
 	 * @param SignalName is the name of the signal raised
 	 * @param Entities being informed of that signal was raised
 	 * @param DelayInSeconds is the amount of time before signaling the entities
 	 */
-	void DelaySignalEntitiesDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, TConstArrayView<FLWEntity> Entities, const float DelayInSeconds);
+	void DelaySignalEntitiesDeferred(FMassExecutionContext& Context, FName SignalName, TConstArrayView<FMassEntityHandle> Entities, const float DelayInSeconds);
 
 protected:
 	virtual void Tick(float DeltaTime) override;
@@ -103,7 +103,7 @@ protected:
 	struct FDelayedSignal
 	{
 		FName SignalName;
-		TArray<FLWEntity> Entities;
+		TArray<FMassEntityHandle> Entities;
 		float DelayInSeconds;
 	};
 

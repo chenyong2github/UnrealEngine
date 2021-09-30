@@ -203,7 +203,7 @@ const FMassEntityTemplate* UMassEntityTemplateRegistry::BuildClassTemplate(const
 	FClassToTemplateBuilderDelegate* Builder = GetBuilderForClass(Class);
 	if (Builder)
 	{
-		TArray<const UPipeProcessor*> Initializers;
+		TArray<const UMassProcessor*> Initializers;
 		
 		// TODO consider removing the need for strings here
 		// Use the class name string for the hash here, so the hash can be deterministic between client and server
@@ -256,7 +256,7 @@ void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& 
 	check(EntitySys);
 
 	FTemplateRegistryHelpers::FragmentInstancesToTypes(OutTemplate.GetFragments(), OutTemplate.GetMutableFragmentTypes());
-	const FArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetFragmentTypes(), OutTemplate.GetTags(), FLWChunkComponentBitSet(OutTemplate.GetChunkFragments()));
+	const FArchetypeHandle ArchetypeHandle = EntitySys->CreateArchetype(OutTemplate.GetFragmentTypes(), OutTemplate.GetTags(), FMassChunkFragmentBitSet(OutTemplate.GetChunkFragments()));
 	OutTemplate.SetArchetype(ArchetypeHandle);
 	for (const FInstancedStruct& InstancedStruct : OutTemplate.GetChunkFragments())
 	{

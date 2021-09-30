@@ -10,7 +10,7 @@
 #include "MassSpawner.generated.h"
 
 class UMassEntitySpawnPointsGeneratorConfigAsset;
-class UPipeSchematic;
+class UMassSchematic;
 
 /** A spawner you can put on a map and configure it to spawn different things */
 UCLASS(hidecategories = (Object, Actor, Input, Rendering, LOD, Cooking, Collision, HLOD, Partition))
@@ -71,7 +71,7 @@ public:
 	 * updated. Otherwise the call has no effect.
 	 * @return true if the entity got removed. False otherwise.
 	 */
-	bool DespawnEntity(const FLWEntity Entity);
+	bool DespawnEntity(const FMassEntityHandle Entity);
 
 	/**
 	 * Scales the spawning counts (this only works when bUseEntityConfig is set)
@@ -82,7 +82,7 @@ public:
 
 protected:
 	void OnEQSQueryFinished(TSharedPtr<FEnvQueryResult> Result);
-	void OnAdjustTickSchematics(UWorld* World, TArray<TSoftObjectPtr<UPipeSchematic>>& InOutTickSchematics);
+	void OnAdjustTickSchematics(UWorld* World, TArray<TSoftObjectPtr<UMassSchematic>>& InOutTickSchematics);
 	void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues);
 	void SpawnAtLocations(const TArray<FVector>& Locations);
 	void OnSpawnPointGenerationFinished(const TArray<FVector>& Locations, FMassSpawnPointGenerator* FinishedGenerator);
@@ -94,7 +94,7 @@ protected:
 	struct FSpawnedEntities
 	{
 		FMassEntityTemplateID TemplateID;
-		TArray<FLWEntity> Entities;
+		TArray<FMassEntityHandle> Entities;
 	};
 
 	// @TODO CONSIDER HAVING ONE PER ENTRY IN SpawnSets
@@ -129,7 +129,7 @@ protected:
 	uint32 bOverrideSchematics : 1;
 
 	UPROPERTY(Category = "Mass|Simulation", EditAnywhere)
-	TArray<TSoftObjectPtr<UPipeSchematic>> TickSchematics;
+	TArray<TSoftObjectPtr<UMassSchematic>> TickSchematics;
 
 	/** Scale of the spawning count */
 	float SpawningCountScale = 1.0f;

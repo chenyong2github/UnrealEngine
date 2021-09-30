@@ -86,7 +86,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 	if (!SearchRequestID.IsSet())
 	{
 		// Use lanes if possible for faster queries using zone graph annotations
-		const FLWEntity RequestingEntity = MassContext.GetEntity();
+		const FMassEntityHandle RequestingEntity = MassContext.GetEntity();
 		const FMassZoneGraphLaneLocationFragment* LaneLocation = Context.GetExternalItem(LocationHandle).GetPtr<FMassZoneGraphLaneLocationFragment>();
 		bUsingZoneGraphAnnotations = LaneLocation != nullptr;
 		if (bUsingZoneGraphAnnotations)
@@ -118,7 +118,7 @@ void FMassStateTreeSmartObjectEvaluator::Evaluate(FStateTreeExecutionContext& Co
 			// Update bindable flag to indicate to tasks and conditions if some candidates were found
 			bCandidatesFound = SearchRequestResult.NumCandidates > 0;
 
-			const FLWEntity RequestingEntity = MassContext.GetEntity();
+			const FMassEntityHandle RequestingEntity = MassContext.GetEntity();
 			MASSBEHAVIOR_CLOG(bCandidatesFound, Log, TEXT("Found %d smart object candidates for %s"), SearchRequestResult.NumCandidates, *RequestingEntity.DebugGetDescription());
 
 			// When using ZoneGraph annotations we don't need to schedule a new update since we only need the CurrentLaneChanged signal.

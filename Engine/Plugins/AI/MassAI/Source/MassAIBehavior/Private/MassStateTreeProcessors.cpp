@@ -21,10 +21,10 @@ namespace UE::MassBehavior
 bool SetExternalFragments(FMassStateTreeExecutionContext& Context, const UMassEntitySubsystem& EntitySubsystem)
 {
 	bool bFoundAllFragments = true;
-	const FEntityView EntityView(EntitySubsystem, Context.GetEntity());
+	const FMassEntityView EntityView(EntitySubsystem, Context.GetEntity());
 	for (const FStateTreeExternalItemDesc& ItemDesc : Context.GetExternalItems())
 	{
-		if (ItemDesc.Struct && ItemDesc.Struct->IsChildOf(FLWComponentData::StaticStruct()))
+		if (ItemDesc.Struct && ItemDesc.Struct->IsChildOf(FMassFragment::StaticStruct()))
 		{
 			const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(ItemDesc.Struct);
 			FStructView Fragment = EntityView.GetComponentDataStruct(ScriptStruct);
@@ -82,7 +82,7 @@ void ProcessChunk(
 	UMassStateTreeSubsystem& MassStateTreeSubsystem,
 	const TFunctionRef<void(FMassStateTreeExecutionContext&, FStateTreeItemView)> ForEachEntityCallback)
 {
-	const FLWComponentSystemExecutionContext& Context = StateTreeContext.GetEntitySubsystemExecutionContext();
+	const FMassExecutionContext& Context = StateTreeContext.GetEntitySubsystemExecutionContext();
 	const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetComponentView<FMassStateTreeFragment>();
 
 	// Assuming that all the entities share same StateTree, because they all should have the same storage fragment.
@@ -108,7 +108,7 @@ void ProcessChunk(
 	const UScriptStruct* StorageScriptStruct = StateTree->GetRuntimeStorageStruct();
 	for (int32 i = 0; i < NumEntities; ++i)
 	{
-		const FLWEntity Entity = Context.GetEntity(i);
+		const FMassEntityHandle Entity = Context.GetEntity(i);
 		StateTreeContext.SetEntity(Entity);
 		StateTreeContext.SetEntityIndex(i);
 
@@ -149,14 +149,14 @@ UMassStateTreeFragmentInitializer::UMassStateTreeFragmentInitializer()
 
 void UMassStateTreeFragmentInitializer::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassStateTreeFragment>(ELWComponentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
 }
 
-void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
 	// The initializer provides that by sending a signal to all new entities that use StateTree.
-	TArray<FLWEntity> EntitiesToSignal;
+	TArray<FMassEntityHandle> EntitiesToSignal;
 
 	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
 	UMassStateTreeSubsystem* MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(EntitySubsystem.GetWorld());
@@ -164,7 +164,7 @@ void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubs
 	EntityQuery.ForEachEntityChunk(
 		EntitySubsystem,
 		Context,
-		[this, &StateTreeContext, &MassStateTreeSubsystem, &EntitiesToSignal](const FLWComponentSystemExecutionContext& Context)
+		[this, &StateTreeContext, &MassStateTreeSubsystem, &EntitiesToSignal](const FMassExecutionContext& Context)
 		{
 			UE::MassBehavior::ProcessChunk(
 				StateTreeContext,
@@ -199,10 +199,10 @@ UMassStateTreeFragmentDestructor::UMassStateTreeFragmentDestructor()
 
 void UMassStateTreeFragmentDestructor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassStateTreeFragment>(ELWComponentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
 }
 
-void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
 	UMassStateTreeSubsystem* MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(EntitySubsystem.GetWorld());
@@ -210,7 +210,7 @@ void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsy
 	EntityQuery.ForEachEntityChunk(
 		EntitySubsystem,
 		Context,
-		[this, &StateTreeContext, &MassStateTreeSubsystem](FLWComponentSystemExecutionContext&)
+		[this, &StateTreeContext, &MassStateTreeSubsystem](FMassExecutionContext&)
 		{
 			UE::MassBehavior::ProcessChunk(
 				StateTreeContext,
@@ -270,10 +270,10 @@ void UMassStateTreeProcessor::Initialize(UObject& Owner)
 
 void UMassStateTreeProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassStateTreeFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
+void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
 	if (!MassStateTreeSubsystem)
 	{
@@ -286,12 +286,12 @@ void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsyst
 	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
 	const float TimeInSeconds = EntitySubsystem.GetWorld()->GetTimeSeconds();
 
-	TArray<FLWEntity> EntitiesToSignal;
+	TArray<FMassEntityHandle> EntitiesToSignal;
 
 	EntityQuery.ForEachEntityChunk(
 		EntitySubsystem,
 		Context,
-		[this, &StateTreeContext, TimeDelta, TimeInSeconds, &EntitiesToSignal](FLWComponentSystemExecutionContext& Context)
+		[this, &StateTreeContext, TimeDelta, TimeInSeconds, &EntitiesToSignal](FMassExecutionContext& Context)
 		{
 			TArrayView<FMassStateTreeFragment> StateTreeList = Context.GetMutableComponentView<FMassStateTreeFragment>();
 

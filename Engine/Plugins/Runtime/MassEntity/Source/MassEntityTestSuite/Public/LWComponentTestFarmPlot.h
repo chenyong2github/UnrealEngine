@@ -29,19 +29,19 @@ struct FFarmVisualDataRow : public FTableRowBase
 };
 
 USTRUCT()
-struct FFarmJustBecameReadyToHarvest : public FComponentTag
+struct FFarmJustBecameReadyToHarvest : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct FFarmReadyToHarvest : public FComponentTag
+struct FFarmReadyToHarvest : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct FFarmGridCellData : public FLWComponentData
+struct FFarmGridCellData : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ struct FFarmGridCellData : public FLWComponentData
 };
 
 USTRUCT()
-struct FFarmWaterComponent : public FLWComponentData
+struct FFarmWaterComponent : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -59,7 +59,7 @@ struct FFarmWaterComponent : public FLWComponentData
 };
 
 USTRUCT()
-struct FFarmFlowerComponent : public FLWComponentData
+struct FFarmFlowerComponent : public FMassFragment
 {
 	GENERATED_BODY()
 		
@@ -68,7 +68,7 @@ struct FFarmFlowerComponent : public FLWComponentData
 };
 
 USTRUCT()
-struct FFarmCropComponent : public FLWComponentData
+struct FFarmCropComponent : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -77,7 +77,7 @@ struct FFarmCropComponent : public FLWComponentData
 
 
 USTRUCT()
-struct FFarmVisualComponent : public FLWComponentData
+struct FFarmVisualComponent : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -87,7 +87,7 @@ struct FFarmVisualComponent : public FLWComponentData
 };
 
 USTRUCT()
-struct FHarvestTimerComponent : public FLWComponentData
+struct FHarvestTimerComponent : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -101,11 +101,11 @@ class UComponentUpdateSystem : public UObject
 	GENERATED_BODY()
 public:
 	virtual void PostInitProperties() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) {}
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) {}
 protected:
 	virtual void ConfigureQueries() {}
 protected:
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 
@@ -117,13 +117,13 @@ class UFarmWaterUpdateSystem : public UComponentUpdateSystem
 public:
 	virtual void ConfigureQueries() override
 	{
-		EntityQuery.AddRequirement<FFarmWaterComponent>(ELWComponentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FFarmWaterComponent>(EMassFragmentAccess::ReadWrite);
 	}
 
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmWaterUpdateSystem_Run);
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context) {
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) {
 
 			TArrayView<FFarmWaterComponent> WaterList = Context.GetMutableComponentView<FFarmWaterComponent>();
 
@@ -144,16 +144,16 @@ class UFarmHarvestTimerSystem_Flowers : public UComponentUpdateSystem
 public:
 	virtual void ConfigureQueries() override
 	{
-		EntityQuery.AddRequirement<FHarvestTimerComponent>(ELWComponentAccess::ReadWrite);
-		EntityQuery.AddRequirement<FFarmWaterComponent>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FFarmFlowerComponent>(ELWComponentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FHarvestTimerComponent>(EMassFragmentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FFarmWaterComponent>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FFarmFlowerComponent>(EMassFragmentAccess::ReadWrite);
 	}
 
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmHarvestTimerSystem_Flowers_Run);
 		
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context) {
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) {
 			const int32 NumEntities = Context.GetEntitiesNum();
 			const float WellWateredThreshold = 0.25f;
 			TArrayView<FHarvestTimerComponent> TimerList = Context.GetMutableComponentView<FHarvestTimerComponent>();
@@ -187,16 +187,16 @@ class UFarmHarvestTimerSystem_Crops : public UComponentUpdateSystem
 public:
 	virtual void ConfigureQueries() override
 	{
-		EntityQuery.AddRequirement<FHarvestTimerComponent>(ELWComponentAccess::ReadWrite);
-		EntityQuery.AddRequirement<FFarmWaterComponent>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FFarmCropComponent>(ELWComponentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FHarvestTimerComponent>(EMassFragmentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FFarmWaterComponent>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FFarmCropComponent>(EMassFragmentAccess::ReadOnly);
 	}
 
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmHarvestTimerSystem_Crops_Run);
 		
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context) {
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) {
 			
 			const int32 NumEntities = Context.GetEntitiesNum();
 			const float WellWateredThreshold = 0.25f;
@@ -222,16 +222,16 @@ class UFarmHarvestTimerExpired : public UComponentUpdateSystem
 public:
 	virtual void ConfigureQueries() override
 	{
-		EntityQuery.AddRequirement<FHarvestTimerComponent>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvest>(ELWComponentPresence::None);
-		EntityQuery.AddTagRequirement<FFarmReadyToHarvest>(ELWComponentPresence::None);
+		EntityQuery.AddRequirement<FHarvestTimerComponent>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvest>(EMassFragmentPresence::None);
+		EntityQuery.AddTagRequirement<FFarmReadyToHarvest>(EMassFragmentPresence::None);
 	}
 
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(UFarmHarvestTimerExpired_Run);
 		
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context) {
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) {
 			const int32 NumEntities = Context.GetEntitiesNum();
 			TConstArrayView<FHarvestTimerComponent> TimerList = Context.GetComponentView<FHarvestTimerComponent>();
 
@@ -264,12 +264,12 @@ public:
 public:
 	virtual void ConfigureQueries() override
 	{
-		EntityQuery.AddRequirement<FFarmGridCellData>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FFarmVisualComponent>(ELWComponentAccess::ReadWrite);
-		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvest>(ELWComponentPresence::All);
+		EntityQuery.AddRequirement<FFarmGridCellData>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FFarmVisualComponent>(EMassFragmentAccess::ReadWrite);
+		EntityQuery.AddTagRequirement<FFarmJustBecameReadyToHarvest>(EMassFragmentPresence::All);
 	}
 
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -293,7 +293,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Farm)
 	float HarvestIconScale = 0.3f;
 	
-	TArray<FLWEntity> PlantedSquares;
+	TArray<FMassEntityHandle> PlantedSquares;
 
 	
 	UPROPERTY(EditDefaultsOnly, Category=Farm)

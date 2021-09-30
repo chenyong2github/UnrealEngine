@@ -61,14 +61,14 @@ void UMassComponentHitSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UMassComponentHitSubsystem::RegisterForComponentHit(const FLWEntity Entity, UCapsuleComponent& CapsuleComponent)
+void UMassComponentHitSubsystem::RegisterForComponentHit(const FMassEntityHandle Entity, UCapsuleComponent& CapsuleComponent)
 {
 	EntityToComponentMap.Add(Entity, &CapsuleComponent);
 	ComponentToEntityMap.Add(&CapsuleComponent, Entity);
 	CapsuleComponent.OnComponentHit.AddDynamic(this, &UMassComponentHitSubsystem::OnHitCallback);
 }
 
-void UMassComponentHitSubsystem::UnregisterForComponentHit(const FLWEntity Entity, UCapsuleComponent& CapsuleComponent)
+void UMassComponentHitSubsystem::UnregisterForComponentHit(const FMassEntityHandle Entity, UCapsuleComponent& CapsuleComponent)
 {
 	EntityToComponentMap.Remove(Entity);
 	ComponentToEntityMap.Remove(&CapsuleComponent);
@@ -79,8 +79,8 @@ void UMassComponentHitSubsystem::OnHitCallback(UPrimitiveComponent* HitComp, AAc
 {
 	const UWorld* World = GetWorld();
 	check(World);
-	const FLWEntity& Entity = ComponentToEntityMap.FindChecked(HitComp);
-	FLWEntity* OtherEntity = ComponentToEntityMap.Find(OtherComp);
+	const FMassEntityHandle& Entity = ComponentToEntityMap.FindChecked(HitComp);
+	FMassEntityHandle* OtherEntity = ComponentToEntityMap.Find(OtherComp);
 
 	bool bProcessHit = (OtherEntity != nullptr && OtherEntity->IsSet());
 	if (bProcessHit && UE::MassComponentHit::bOnlyProcessHitsFromPlayers)
@@ -117,7 +117,7 @@ void UMassComponentHitSubsystem::OnHitCallback(UPrimitiveComponent* HitComp, AAc
 	}
 }
 
-const FMassHitResult* UMassComponentHitSubsystem::GetLastHit(const FLWEntity Entity) const
+const FMassHitResult* UMassComponentHitSubsystem::GetLastHit(const FMassEntityHandle Entity) const
 {
 	return HitResults.Find(Entity);
 }

@@ -41,7 +41,7 @@ bool FProcessorDependencySolver::FNode::HasDependencies() const
 //----------------------------------------------------------------------//
 //  FProcessorDependencySolver
 //----------------------------------------------------------------------//
-FProcessorDependencySolver::FProcessorDependencySolver(TArrayView<UPipeProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName /*= FString()*/)
+FProcessorDependencySolver::FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName /*= FString()*/)
 	: Processors(InProcessors)
 	, GroupRootNode({Name, nullptr})
 	, DependencyGraphFileName(InDependencyGraphFileName)
@@ -129,7 +129,7 @@ void FProcessorDependencySolver::CreateSubGroupNames(FName InGroupName, TArray<F
 	}
 }
 
-void FProcessorDependencySolver::AddNode(FName InGroupName, UPipeProcessor& Processor)
+void FProcessorDependencySolver::AddNode(FName InGroupName, UMassProcessor& Processor)
 {
 	check(Processor.GetClass());
 	const FName ProcName = Processor.GetClass()->GetFName();
@@ -672,7 +672,7 @@ struct FDumpGraphDependencyUtils
 void FProcessorDependencySolver::DumpGraph(FArchive& LogFile) const
 {
 	TSet<const FNode*> AllNodes;
-	LogFile.Logf(TEXT("digraph PipeProcessorGraph"));
+	LogFile.Logf(TEXT("digraph MassProcessorGraph"));
 	LogFile.Logf(TEXT("{"));
 	LogFile.Logf(TEXT("    compound = true;"));
 	LogFile.Logf(TEXT("    newrank = true;"));
@@ -761,7 +761,7 @@ void FProcessorDependencySolver::Solve(FNode& RootNode, TConstArrayView<const FN
 			UE_LOG(LogPipe, Error, TEXT("Detected processing dependency cycle:"));
 			for (const int32 Index : IndicesRemaining)
 			{
-				UPipeProcessor* Processor = RootNode.SubNodes[Index].Processor;
+				UMassProcessor* Processor = RootNode.SubNodes[Index].Processor;
 				if (Processor)
 				{
 					UE_LOG(LogPipe, Error, TEXT("\t%s, group: %s, before: %s, after %s")
@@ -822,7 +822,7 @@ void FProcessorDependencySolver::ResolveDependencies(TArray<FProcessorDependency
 	UE_LOG(LogPipe, Log, TEXT("Gathering dependencies data:"));
 
 	// gather the processors information first
-	for (UPipeProcessor* Processor : Processors)
+	for (UMassProcessor* Processor : Processors)
 	{
 		if (Processor == nullptr)
 		{

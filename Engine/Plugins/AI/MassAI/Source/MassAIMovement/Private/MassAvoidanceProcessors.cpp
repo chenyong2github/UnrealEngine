@@ -212,7 +212,7 @@ namespace UE::MassAvoidance
 	//----------------------------------------------------------------------//
 	struct FDebugContext
 	{
-		FDebugContext(const UObject* InLogOwner, const FLogCategoryBase& InCategory, const UWorld* InWorld, const FLWEntity InEntity)
+		FDebugContext(const UObject* InLogOwner, const FLogCategoryBase& InCategory, const UWorld* InWorld, const FMassEntityHandle InEntity)
 			: LogOwner(InLogOwner)
 			, Category(InCategory)
 			, World(InWorld)
@@ -222,10 +222,10 @@ namespace UE::MassAvoidance
 		const UObject* LogOwner;
 		const FLogCategoryBase& Category;
 		const UWorld* World;
-		const FLWEntity Entity;
+		const FMassEntityHandle Entity;
 	};
 
-	static bool DebugIsSelected(const FLWEntity& Entity)
+	static bool DebugIsSelected(const FMassEntityHandle& Entity)
 	{
 		FColor Color;
 		return UE::MassDebug::IsDebuggingEntity(Entity, &Color);
@@ -397,15 +397,15 @@ UMassAvoidanceProcessor::UMassAvoidanceProcessor()
 
 void UMassAvoidanceProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassSteeringFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassSimulationLODFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassMovementConfigFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddTagRequirement<FMassHighLODTag>(ELWComponentPresence::All);
+	EntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassMovementConfigFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddTagRequirement<FMassHighLODTag>(EMassFragmentPresence::All);
 }
 
 void UMassAvoidanceProcessor::Initialize(UObject& Owner)
@@ -416,7 +416,7 @@ void UMassAvoidanceProcessor::Initialize(UObject& Owner)
 	WeakMovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
 }
 
-void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UMassAvoidanceProcessor);
 
@@ -493,7 +493,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 	static const FVector DebugAgentHeightOffset = FVector(0.f, 0.f, 185.f);
 	static const FVector DebugLowCylinderOffset = FVector(0.f, 0.f, 20.f);
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [=, &EntitySubsystem](FLWComponentSystemExecutionContext& Ctx)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [=, &EntitySubsystem](FMassExecutionContext& Ctx)
 	{
 		const int32 NumEntities = Ctx.GetEntitiesNum();
 		const float DistanceCutOffSquare = FMath::Square(UE::MassAvoidance::Tweakables::AgentDetectionDistance);
@@ -557,7 +557,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 				continue;
 			}
 
-			FLWEntity Entity = Ctx.GetEntity(EntityIndex);
+			FMassEntityHandle Entity = Ctx.GetEntity(EntityIndex);
 			
 			const FMassMovementConfigFragment& MovementConfig = MovementConfigList[EntityIndex];
 			if (MovementConfig.ConfigHandle != CurrentConfigHandle)
@@ -881,7 +881,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 				}
 
 				FSortingAgent& OtherAgent = ClosestAgents[Index];
-				FEntityView OtherEntityView(EntitySubsystem, OtherAgent.ObstacleItem.Entity);
+				FMassEntityView OtherEntityView(EntitySubsystem, OtherAgent.ObstacleItem.Entity);
 
 				const FMassVelocityFragment* OtherVelocityFragment = OtherEntityView.GetComponentDataPtr<FMassVelocityFragment>();
 				const FVector OtherVelocity = OtherVelocityFragment != nullptr ? OtherVelocityFragment->Value : FVector::ZeroVector; // Get velocity from FAvoidanceComponent
@@ -1148,12 +1148,12 @@ UMassStandingAvoidanceProcessor::UMassStandingAvoidanceProcessor()
 
 void UMassStandingAvoidanceProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassSteeringGhostFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddTagRequirement<FMassHighLODTag>(ELWComponentPresence::All);
+	EntityQuery.AddRequirement<FMassSteeringGhostFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddTagRequirement<FMassHighLODTag>(EMassFragmentPresence::All);
 }
 
 void UMassStandingAvoidanceProcessor::Initialize(UObject& Owner)
@@ -1164,7 +1164,7 @@ void UMassStandingAvoidanceProcessor::Initialize(UObject& Owner)
 	WeakMovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
 }
 
-void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UMassStandingAvoidanceProcessor);
 
@@ -1176,7 +1176,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	}
 
 	// Avoidance while standing
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&EntitySubsystem, MovementSubsystem, World](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&EntitySubsystem, MovementSubsystem, World](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetEntitiesNum();
 		const float DeltaTime = Context.GetDeltaTimeSeconds();
@@ -1193,9 +1193,9 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 		struct FSortingAgent
 		{
 			FSortingAgent() = default;
-			FSortingAgent(const FLWEntity InEntity, const FVector InLocation, const FVector InForward, const float InDistSq) : Entity(InEntity), Location(InLocation), Forward(InForward), DistSq(InDistSq) {}
+			FSortingAgent(const FMassEntityHandle InEntity, const FVector InLocation, const FVector InForward, const float InDistSq) : Entity(InEntity), Location(InLocation), Forward(InForward), DistSq(InDistSq) {}
 			
-			FLWEntity Entity;
+			FMassEntityHandle Entity;
 			FVector Location = FVector::ZeroVector;
 			FVector Forward = FVector::ForwardVector;
 			float DistSq = 0.0f;
@@ -1221,7 +1221,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			const FDataFragment_Transform& Location = LocationList[EntityIndex];
 			const FDataFragment_AgentRadius& Radius = RadiusList[EntityIndex];
 
-			FLWEntity Entity = Context.GetEntity(EntityIndex);
+			FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 			const FVector AgentLocation = Location.GetTransform().GetTranslation();
 			const float AgentRadius = Radius.Radius;
 
@@ -1288,7 +1288,7 @@ void UMassStandingAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			for (int32 Index = 0; Index < NumCloseAgents; Index++)
 			{
 				FSortingAgent& OtherAgent = ClosestAgents[Index];
-				FEntityView OtherEntityView(EntitySubsystem, OtherAgent.Entity);
+				FMassEntityView OtherEntityView(EntitySubsystem, OtherAgent.Entity);
 
 				const FMassVelocityFragment* OtherVelocityFragment = OtherEntityView.GetComponentDataPtr<FMassVelocityFragment>();
 				const float OtherRadius = OtherEntityView.GetComponentData<FDataFragment_AgentRadius>().Radius;
@@ -1400,20 +1400,20 @@ UMassAvoidanceObstacleProcessor::UMassAvoidanceObstacleProcessor()
 
 void UMassAvoidanceObstacleProcessor::ConfigureQueries()
 {
-	AddToGridEntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	AddToGridEntityQuery.AddRequirement<FDataFragment_AgentRadius>(ELWComponentAccess::ReadOnly);
-	AddToGridEntityQuery.AddRequirement<FMassAvoidanceObstacleGridCellLocationFragment>(ELWComponentAccess::ReadWrite);
+	AddToGridEntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	AddToGridEntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
+	AddToGridEntityQuery.AddRequirement<FMassAvoidanceObstacleGridCellLocationFragment>(EMassFragmentAccess::ReadWrite);
 	UpdateGridEntityQuery = AddToGridEntityQuery;
 	RemoveFromGridEntityQuery = AddToGridEntityQuery;
 
-	AddToGridEntityQuery.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::None);
-	AddToGridEntityQuery.AddTagRequirement<FMassInAvoidanceObstacleGridTag>(ELWComponentPresence::None);
+	AddToGridEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
+	AddToGridEntityQuery.AddTagRequirement<FMassInAvoidanceObstacleGridTag>(EMassFragmentPresence::None);
 
-	UpdateGridEntityQuery.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::None);
-	UpdateGridEntityQuery.AddTagRequirement<FMassInAvoidanceObstacleGridTag>(ELWComponentPresence::All);
+	UpdateGridEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
+	UpdateGridEntityQuery.AddTagRequirement<FMassInAvoidanceObstacleGridTag>(EMassFragmentPresence::All);
 
-	RemoveFromGridEntityQuery.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::All);
-	RemoveFromGridEntityQuery.AddTagRequirement<FMassInAvoidanceObstacleGridTag>(ELWComponentPresence::All);
+	RemoveFromGridEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::All);
+	RemoveFromGridEntityQuery.AddTagRequirement<FMassInAvoidanceObstacleGridTag>(EMassFragmentPresence::All);
 }
 
 void UMassAvoidanceObstacleProcessor::Initialize(UObject& Owner)
@@ -1423,7 +1423,7 @@ void UMassAvoidanceObstacleProcessor::Initialize(UObject& Owner)
 	WeakMovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
 }
 
-void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 
@@ -1434,7 +1434,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 	}
 
 	// can't be ParallelFor due to MovementSubsystem->GetGridMutable().Move not being thread-safe
-	AddToGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem, &EntitySubsystem](FLWComponentSystemExecutionContext& Context)
+	AddToGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem, &EntitySubsystem](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 
@@ -1450,7 +1450,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 
 				FMassAvoidanceObstacleItem ObstacleItem;
 				ObstacleItem.Entity = Context.GetEntity(EntityIndex);
-				FEntityView EntityView(EntitySubsystem, ObstacleItem.Entity);
+				FMassEntityView EntityView(EntitySubsystem, ObstacleItem.Entity);
 				const FMassAvoidanceColliderFragment* Collider = EntityView.GetComponentDataPtr<FMassAvoidanceColliderFragment>();
 				if (Collider)
 				{
@@ -1464,7 +1464,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			}
 		});
 
-	UpdateGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem, &EntitySubsystem](FLWComponentSystemExecutionContext& Context)
+	UpdateGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem, &EntitySubsystem](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 
@@ -1479,7 +1479,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				const float Radius = RadiiList[EntityIndex].Radius;
 				FMassAvoidanceObstacleItem ObstacleItem;
 				ObstacleItem.Entity = Context.GetEntity(EntityIndex);
-				FEntityView EntityView(EntitySubsystem, ObstacleItem.Entity);
+				FMassEntityView EntityView(EntitySubsystem, ObstacleItem.Entity);
 				const FMassAvoidanceColliderFragment* Collider = EntityView.GetComponentDataPtr<FMassAvoidanceColliderFragment>();
 				if (Collider)
 				{
@@ -1500,7 +1500,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			}
 		});
 
-	RemoveFromGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem](FLWComponentSystemExecutionContext& Context)
+	RemoveFromGridEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetEntitiesNum();
 
@@ -1530,10 +1530,10 @@ UMassNavigationBoundaryProcessor::UMassNavigationBoundaryProcessor()
 
 void UMassNavigationBoundaryProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_NavLocation>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassEdgeDetectionParamsFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_NavLocation>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassEdgeDetectionParamsFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassNavigationBoundaryProcessor::Initialize(UObject& Owner)
@@ -1552,7 +1552,7 @@ void UMassNavigationBoundaryProcessor::Initialize(UObject& Owner)
 	WeakNavData = NavData;
 }
 
-void UMassNavigationBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassNavigationBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 
@@ -1564,7 +1564,7 @@ void UMassNavigationBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsy
 		return;
 	}
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, NavData](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, NavData](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 			TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
@@ -1610,13 +1610,13 @@ UMassLaneBoundaryProcessor::UMassLaneBoundaryProcessor()
 
 void UMassLaneBoundaryProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);							// need agent position to get closest point on lane
-	EntityQuery.AddRequirement<FMassSimulationLODFragment>(ELWComponentAccess::ReadOnly);						// LOD level
-	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(ELWComponentAccess::ReadWrite);					// output edges
-	EntityQuery.AddRequirement<FMassLastUpdatePositionFragment>(ELWComponentAccess::ReadWrite);					// to keep position when boundaries where last updated
-	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadOnly);				// current lane location
-	EntityQuery.AddRequirement<FMassAvoidanceBoundaryLastLaneHandleFragment>(ELWComponentAccess::ReadWrite);	// keep track of the last used lane
-	EntityQuery.AddTagRequirement<FMassHighLODTag>(ELWComponentPresence::All);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);							// need agent position to get closest point on lane
+	EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);						// LOD level
+	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadWrite);					// output edges
+	EntityQuery.AddRequirement<FMassLastUpdatePositionFragment>(EMassFragmentAccess::ReadWrite);					// to keep position when boundaries where last updated
+	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);				// current lane location
+	EntityQuery.AddRequirement<FMassAvoidanceBoundaryLastLaneHandleFragment>(EMassFragmentAccess::ReadWrite);	// keep track of the last used lane
+	EntityQuery.AddTagRequirement<FMassHighLODTag>(EMassFragmentPresence::All);
 }
 
 void UMassLaneBoundaryProcessor::Initialize(UObject& Owner)
@@ -1627,7 +1627,7 @@ void UMassLaneBoundaryProcessor::Initialize(UObject& Owner)
 	WeakZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(Owner.GetWorld());
 }
 
-void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 
@@ -1646,7 +1646,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 	static const FColor PaleTurquoise = FColor(175, 238, 238);
 	static const FColor LaneColor = PaleTurquoise;
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, World, ZoneGraphSubsystem](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, World, ZoneGraphSubsystem](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 
@@ -1685,7 +1685,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 				EdgesFragment.AvoidanceEdges.Reset();
 
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
-				const FLWEntity Entity = Context.GetEntity(EntityIndex);
+				const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 				const FDebugContext BaseDebugContext(this, LogAvoidance, World, Entity);
 				const FDebugContext ObstacleDebugContext(this, LogAvoidanceObstacles, World, Entity);
 
@@ -1888,13 +1888,13 @@ UMassLaneCacheBoundaryProcessor::UMassLaneCacheBoundaryProcessor()
 
 void UMassLaneCacheBoundaryProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassZoneGraphCachedLaneFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassSimulationLODFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassLaneCacheBoundaryFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(ELWComponentAccess::ReadWrite);	// output edges
-	EntityQuery.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::None);
+	EntityQuery.AddRequirement<FMassZoneGraphCachedLaneFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassLaneCacheBoundaryFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassNavigationEdgesFragment>(EMassFragmentAccess::ReadWrite);	// output edges
+	EntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
 }
 
 void UMassLaneCacheBoundaryProcessor::Initialize(UObject& Owner)
@@ -1904,7 +1904,7 @@ void UMassLaneCacheBoundaryProcessor::Initialize(UObject& Owner)
 	WeakWorld = Owner.GetWorld();
 }
 
-void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	using namespace UE::MassAvoidance;
 
@@ -1916,7 +1916,7 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 		return;
 	}
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, World](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, World](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetEntitiesNum();
 
@@ -1936,7 +1936,7 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			const FMassMoveTargetFragment& MovementTarget = MovementTargetList[EntityIndex];
 			FMassNavigationEdgesFragment& Edges = EdgesList[EntityIndex];
 			FMassLaneCacheBoundaryFragment& LaneCacheBoundary = LaneCacheBoundaryList[EntityIndex];
-			const FLWEntity Entity = Context.GetEntity(EntityIndex);
+			const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 
 			// First check if we moved enough for an update
 			const float DeltaDistSquared = FVector::DistSquared(MovementTarget.Center, LaneCacheBoundary.LastUpdatePosition);

@@ -11,9 +11,9 @@
 #include "Engine/World.h"
 #include "LWCCommandBuffer.h"
 
-#define LOCTEXT_NAMESPACE "Pipe"
+#define LOCTEXT_NAMESPACE "Mass"
 
-DECLARE_CYCLE_STAT(TEXT("Pipe Phase Done"), STAT_PipePhaseDone, STATGROUP_TaskGraphTasks);
+DECLARE_CYCLE_STAT(TEXT("Mass Phase Done"), STAT_MassPhaseDone, STATGROUP_TaskGraphTasks);
 
 namespace FPipeTweakables
 {
@@ -25,22 +25,22 @@ namespace FPipeTweakables
 }
 
 //----------------------------------------------------------------------//
-//  FPipeProcessingPhase
+//  FMassProcessingPhase
 //----------------------------------------------------------------------//
-FPipeProcessingPhase::FPipeProcessingPhase()
+FMassProcessingPhase::FMassProcessingPhase()
 {
 	bCanEverTick = true;
 	bStartWithTickEnabled = false;
 }
 
-void FPipeProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	if (TickType == LEVELTICK_ViewportsOnly || TickType == LEVELTICK_PauseTick)
 	{
 		return;
 	}
 
-	checkf(Manager, TEXT("Manager is null which is not a supported case. Either this FPipeProcessingPhase has not been initialized properly or it's been left dangling after the FPipeProcessingPhase owner got destroyed."));
+	checkf(Manager, TEXT("Manager is null which is not a supported case. Either this FMassProcessingPhase has not been initialized properly or it's been left dangling after the FMassProcessingPhase owner got destroyed."));
 
 	Manager->OnPhaseStart(*this);
 	
@@ -48,7 +48,7 @@ void FPipeProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 
 	check(PhaseProcessor);
 	
-	FPipeContext Context(Manager->GetEntitySubsystemRef(), DeltaTime);
+	FMassProcessingContext Context(Manager->GetEntitySubsystemRef(), DeltaTime);
 
 	if (bRunInParallelMode)
 	{
@@ -77,7 +77,7 @@ void FPipeProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENa
 	}
 }
 
-void FPipeProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
+void FMassProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
 {
 	bIsDuringPipeProcessing = false;
 	OnPhaseEnd.Broadcast(DeltaTime);
@@ -85,20 +85,20 @@ void FPipeProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
 	Manager->OnPhaseEnd(*this);
 }
 
-FString FPipeProcessingPhase::DiagnosticMessage()
+FString FMassProcessingPhase::DiagnosticMessage()
 {
 	return (Manager ? Manager->GetFullName() : TEXT("NULL-PipeProcessingPhaseManager")) + TEXT("[ProcessorTick]");
 }
 
-FName FPipeProcessingPhase::DiagnosticContext(bool bDetailed)
+FName FMassProcessingPhase::DiagnosticContext(bool bDetailed)
 {
 	return Manager ? Manager->GetClass()->GetFName() : TEXT("NULL-PipeProcessingPhaseManager");
 }
 
 //----------------------------------------------------------------------//
-// UPipeProcessingPhaseManager  
+// UMassProcessingPhaseManager  
 //----------------------------------------------------------------------//
-void UPipeProcessingPhaseManager::PostInitProperties()
+void UMassProcessingPhaseManager::PostInitProperties()
 {
 	Super::PostInitProperties();
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
@@ -107,47 +107,47 @@ void UPipeProcessingPhaseManager::PostInitProperties()
 		UWorld* World = GetWorld();
 		if (World && World->IsGameWorld() == false)
 		{
-			UPipeSettings* PipeSettings = GetMutableDefault<UPipeSettings>();
+			UMassSettings* PipeSettings = GetMutableDefault<UMassSettings>();
 			check(PipeSettings);
-			PipeSettingsChangeHandle = PipeSettings->GetOnSettingsChange().AddUObject(this, &UPipeProcessingPhaseManager::OnPipeSettingsChange);
+			PipeSettingsChangeHandle = PipeSettings->GetOnSettingsChange().AddUObject(this, &UMassProcessingPhaseManager::OnPipeSettingsChange);
 		}
 #endif // WITH_EDITOR
 	}
 	CreatePhases();
 }
 
-void UPipeProcessingPhaseManager::BeginDestroy()
+void UMassProcessingPhaseManager::BeginDestroy()
 {
 	Stop();
 	Super::BeginDestroy();
 
 #if WITH_EDITOR
-	if (UPipeSettings* PipeSettings = GetMutableDefault<UPipeSettings>())
+	if (UMassSettings* PipeSettings = GetMutableDefault<UMassSettings>())
 	{
 		PipeSettings->GetOnSettingsChange().Remove(PipeSettingsChangeHandle);
 	}
 #endif // WITH_EDITOR
 }
 
-void UPipeProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
+void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 {
-	const FPipeProcessingPhaseConfig* ProcessingPhasesConfig = GET_PIPE_CONFIG_VALUE(GetProcessingPhasesConfig());
+	const FMassProcessingPhaseConfig* ProcessingPhasesConfig = GET_PIPE_CONFIG_VALUE(GetProcessingPhasesConfig());
 
 	FString DependencyGraphFileName;
 
 #if WITH_EDITOR
 	const UWorld* World = InProcessorOwner.GetWorld();
-	const UPipeSettings* PipeSettings = GetMutableDefault<UPipeSettings>();
+	const UMassSettings* PipeSettings = GetMutableDefault<UMassSettings>();
 	if (World != nullptr && PipeSettings != nullptr && !PipeSettings->DumpDependencyGraphFileName.IsEmpty())
 	{
 		DependencyGraphFileName = FString::Printf(TEXT("%s_%s"), *PipeSettings->DumpDependencyGraphFileName,*ToString(World->GetNetMode()));
 	}
 #endif // WITH_EDITOR
 
-	for (int i = 0; i < int(EPipeProcessingPhase::MAX); ++i)
+	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
 	{
-		const FPipeProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
-		UPipeCompositeProcessor* PhaseProcessor = ProcessingPhases[i].PhaseProcessor;
+		const FMassProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
+		UMassCompositeProcessor* PhaseProcessor = ProcessingPhases[i].PhaseProcessor;
 		FString FileName = !DependencyGraphFileName.IsEmpty() ? FString::Printf(TEXT("%s_%s"), *DependencyGraphFileName, *PhaseConfig.PhaseName.ToString()) : FString();
 		PhaseProcessor->CopyAndSort(PhaseConfig, FileName);
 		PhaseProcessor->Initialize(InProcessorOwner);
@@ -158,7 +158,7 @@ void UPipeProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 	UE_VLOG_UELOG(this, LogPipe, Verbose, TEXT("Phases initialization done. Current composition:"));
 
 	FStringOutputDevice OutDescription;
-	for (int i = 0; i < int(EPipeProcessingPhase::MAX); ++i)
+	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
 	{
 		if (ProcessingPhases[i].PhaseProcessor)
 		{
@@ -170,7 +170,7 @@ void UPipeProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 #endif // WITH_MASSENTITY_DEBUG
 }
 
-void UPipeProcessingPhaseManager::Start(UWorld& World)
+void UMassProcessingPhaseManager::Start(UWorld& World)
 {
 	EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 
@@ -184,7 +184,7 @@ void UPipeProcessingPhaseManager::Start(UWorld& World)
 	}
 }
 
-void UPipeProcessingPhaseManager::Start(UMassEntitySubsystem& InEntitySubsystem)
+void UMassProcessingPhaseManager::Start(UMassEntitySubsystem& InEntitySubsystem)
 {
 	UWorld* World = InEntitySubsystem.GetWorld();
 	check(World);
@@ -192,10 +192,10 @@ void UPipeProcessingPhaseManager::Start(UMassEntitySubsystem& InEntitySubsystem)
 	EnableTickFunctions(*World);
 }
 
-void UPipeProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
+void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 {
 	check(EntitySubsystem);
-	for (FPipeProcessingPhase& Phase : ProcessingPhases)
+	for (FMassProcessingPhase& Phase : ProcessingPhases)
 	{
 		Phase.Manager = this;
 		Phase.RegisterTickFunction(World.PersistentLevel);
@@ -205,11 +205,11 @@ void UPipeProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 		, *GetNameSafe(GetOuter()), *GetName());
 }
 
-void UPipeProcessingPhaseManager::Stop()
+void UMassProcessingPhaseManager::Stop()
 {
 	EntitySubsystem = nullptr;
 	
-	for (FPipeProcessingPhase& Phase : ProcessingPhases)
+	for (FMassProcessingPhase& Phase : ProcessingPhases)
 	{
 		Phase.SetTickFunctionEnable(false);
 	}
@@ -218,41 +218,41 @@ void UPipeProcessingPhaseManager::Stop()
 		, *GetNameSafe(GetOuter()), *GetName());
 }
 
-void UPipeProcessingPhaseManager::CreatePhases() 
+void UMassProcessingPhaseManager::CreatePhases() 
 {
-	static ETickingGroup PhaseToTickingGroup[int(EPipeProcessingPhase::MAX)]
+	static ETickingGroup PhaseToTickingGroup[int(EMassProcessingPhase::MAX)]
 	{
-		ETickingGroup::TG_PrePhysics, // EPipeProcessingPhase::PrePhysics
-		ETickingGroup::TG_StartPhysics, // EPipeProcessingPhase::StartPhysics
-		ETickingGroup::TG_DuringPhysics, // EPipeProcessingPhase::DuringPhysics
-		ETickingGroup::TG_EndPhysics,	// EPipeProcessingPhase::EndPhysics
-		ETickingGroup::TG_PostPhysics,	// EPipeProcessingPhase::PostPhysics
-		ETickingGroup::TG_LastDemotable, // EPipeProcessingPhase::FrameEnd
+		ETickingGroup::TG_PrePhysics, // EMassProcessingPhase::PrePhysics
+		ETickingGroup::TG_StartPhysics, // EMassProcessingPhase::StartPhysics
+		ETickingGroup::TG_DuringPhysics, // EMassProcessingPhase::DuringPhysics
+		ETickingGroup::TG_EndPhysics,	// EMassProcessingPhase::EndPhysics
+		ETickingGroup::TG_PostPhysics,	// EMassProcessingPhase::PostPhysics
+		ETickingGroup::TG_LastDemotable, // EMassProcessingPhase::FrameEnd
 	};
 
 	// @todo copy from settings instead of blindly creating from scratch
-	for (int i = 0; i < int(EPipeProcessingPhase::MAX); ++i)
+	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
 	{
-		ProcessingPhases[i].Phase = EPipeProcessingPhase(i);
+		ProcessingPhases[i].Phase = EMassProcessingPhase(i);
 		ProcessingPhases[i].TickGroup = PhaseToTickingGroup[i];
-		ProcessingPhases[i].PhaseProcessor = NewObject<UPipeCompositeProcessor>(this, UPipeCompositeProcessor::StaticClass()
-			, *FString::Printf(TEXT("ProcessingPhase_%s"), *EnumToString(EPipeProcessingPhase(i))));
+		ProcessingPhases[i].PhaseProcessor = NewObject<UMassCompositeProcessor>(this, UMassCompositeProcessor::StaticClass()
+			, *FString::Printf(TEXT("ProcessingPhase_%s"), *EnumToString(EMassProcessingPhase(i))));
 		REDIRECT_OBJECT_TO_VLOG(ProcessingPhases[i].PhaseProcessor, this);
-		ProcessingPhases[i].PhaseProcessor->SetGroupName(*EnumToString(EPipeProcessingPhase(i)));
-		ProcessingPhases[i].PhaseProcessor->SetProcessingPhase(EPipeProcessingPhase(i));
+		ProcessingPhases[i].PhaseProcessor->SetGroupName(*EnumToString(EMassProcessingPhase(i)));
+		ProcessingPhases[i].PhaseProcessor->SetProcessingPhase(EMassProcessingPhase(i));
 	}
 }
 
-void UPipeProcessingPhaseManager::OnPhaseStart(const FPipeProcessingPhase& Phase)
+void UMassProcessingPhaseManager::OnPhaseStart(const FMassProcessingPhase& Phase)
 {
-	ensure(CurrentPhase == EPipeProcessingPhase::MAX);
+	ensure(CurrentPhase == EMassProcessingPhase::MAX);
 	CurrentPhase = Phase.Phase;
 }
 
-void UPipeProcessingPhaseManager::OnPhaseEnd(FPipeProcessingPhase& Phase)
+void UMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 {
 	ensure(CurrentPhase == Phase.Phase);
-	CurrentPhase = EPipeProcessingPhase::MAX;
+	CurrentPhase = EMassProcessingPhase::MAX;
 
 	// switch between parallel and single-thread versions only after a given batch of processing has been wrapped up	
 	if (Phase.IsConfiguredForParallelMode() != FPipeTweakables::bFullyParallel)
@@ -269,7 +269,7 @@ void UPipeProcessingPhaseManager::OnPhaseEnd(FPipeProcessingPhase& Phase)
 }
 
 #if WITH_EDITOR
-void UPipeProcessingPhaseManager::OnPipeSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent)
+void UMassProcessingPhaseManager::OnPipeSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	check(GetOuter());
 	InitializePhases(*GetOuter());

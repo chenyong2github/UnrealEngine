@@ -19,8 +19,8 @@ mz@todo:
 	- test Present/Absent modes for tags
 	- test Present/Absent modes for non-tag fragments
 	- read/write tag fragments 
-	- constructs like Query.AddRequirement<FTestFragment_Tag>(ELWComponentAccess::ReadWrite);
-	- constructs like Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadWrite, Absent);
+	- constructs like Query.AddRequirement<FTestFragment_Tag>(EMassFragmentAccess::ReadWrite);
+	- constructs like Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite, Absent);
 */
 
 
@@ -34,7 +34,7 @@ struct FQueryTest_ProcessorRequirements : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		UPipeTestProcessor_Floats* Processor = NewObject<UPipeTestProcessor_Floats>(EntitySubsystem);
-		TConstArrayView<FLWComponentRequirement> Requirements = Processor->TestGetQuery().GetRequirements();
+		TConstArrayView<FMassFragmentRequirement> Requirements = Processor->TestGetQuery().GetRequirements();
 		
 		AITEST_TRUE("Query should have extracted some requirements from the given Processor", Requirements.Num() > 0);
 		AITEST_TRUE("There should be exactly one requirement", Requirements.Num() == 1);
@@ -52,8 +52,8 @@ struct FQueryTest_ExplicitRequirements : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 				
-		FLWComponentQuery Query({ FTestFragment_Float::StaticStruct()});
-		TConstArrayView<FLWComponentRequirement> Requirements = Query.GetRequirements();
+		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct()});
+		TConstArrayView<FMassFragmentRequirement> Requirements = Query.GetRequirements();
 
 		AITEST_TRUE("Query should have extracted some requirements from the given Processor", Requirements.Num() > 0);
 		AITEST_TRUE("There should be exactly one requirement", Requirements.Num() == 1);
@@ -71,16 +71,16 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
+		FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
 		FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
 		AITEST_TRUE("Initial value of the component should match expectations", TestedFragment.Value == 0.f);
 
 		UPipeTestProcessor_Floats* Processor = NewObject<UPipeTestProcessor_Floats>(EntitySubsystem);
-		Processor->ExecutionFunction = [Processor](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
+		Processor->ExecutionFunction = [Processor](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
 			check(Processor);
-			//FLWComponentQuery Query(*Processor);
+			//FMassEntityQuery Query(*Processor);
 
-			Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [](FLWComponentSystemExecutionContext& Context)
+			Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [](FMassExecutionContext& Context)
 				{
 					TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
 
@@ -91,7 +91,7 @@ struct FQueryTest_FragmentViewBinding : FEntityTestBase
 				});
 		};
 
-		FPipeContext PipeContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
+		FMassProcessingContext PipeContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
 		UE::Pipe::Executor::Run(*Processor, PipeContext);
 
 		AITEST_EQUAL("Fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
@@ -108,14 +108,14 @@ struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		const int32 NumToCreate = 10;
-		TArray<FLWEntity> EntitiesCreated;
+		TArray<FMassEntityHandle> EntitiesCreated;
 		EntitySubsystem->BatchCreateEntities(FloatsArchetype, NumToCreate, EntitiesCreated);
 		
 		int TotalProcessed = 0;
 
-		FLWComponentSystemExecutionContext ExecContext;
-		FLWComponentQuery Query({ FTestFragment_Float::StaticStruct() });
-		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FLWComponentSystemExecutionContext& Context)
+		FMassExecutionContext ExecContext;
+		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct() });
+		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetEntitiesNum();
 				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
@@ -128,7 +128,7 @@ struct FQueryTest_ExecuteSingleArchetype : FEntityTestBase
 
 		AITEST_TRUE("The number of entities processed needs to match expectations", TotalProcessed == NumToCreate);
 
-		for (FLWEntity& Entity : EntitiesCreated)
+		for (FMassEntityHandle& Entity : EntitiesCreated)
 		{
 			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Every fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
@@ -149,7 +149,7 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 		const int32 FloatsArchetypeCreated = 7;
 		const int32 IntsArchetypeCreated = 11;
 		const int32 FloatsIntsArchetypeCreated = 13;
-		TArray<FLWEntity> EntitiesCreated;
+		TArray<FMassEntityHandle> EntitiesCreated;
 		EntitySubsystem->BatchCreateEntities(IntsArchetype, IntsArchetypeCreated, EntitiesCreated);
 		// clear to store only the float-related entities
 		EntitiesCreated.Reset();
@@ -157,9 +157,9 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 		EntitySubsystem->BatchCreateEntities(FloatsIntsArchetype, FloatsIntsArchetypeCreated, EntitiesCreated);
 
 		int TotalProcessed = 0;
-		FLWComponentSystemExecutionContext ExecContext;
-		FLWComponentQuery Query({ FTestFragment_Float::StaticStruct() });
-		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FLWComponentSystemExecutionContext& Context)
+		FMassExecutionContext ExecContext;
+		FMassEntityQuery Query({ FTestFragment_Float::StaticStruct() });
+		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetEntitiesNum();
 				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
@@ -172,7 +172,7 @@ struct FQueryTest_ExecuteMultipleArchetypes : FEntityTestBase
 
 		AITEST_TRUE("The number of entities processed needs to match expectations", TotalProcessed == FloatsIntsArchetypeCreated + FloatsArchetypeCreated);
 
-		for (FLWEntity& Entity : EntitiesCreated)
+		for (FMassEntityHandle& Entity : EntitiesCreated)
 		{
 			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Every fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
@@ -192,12 +192,12 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		const int32 NumToCreate = 10;
-		TArray<FLWEntity> AllEntitiesCreated;
+		TArray<FMassEntityHandle> AllEntitiesCreated;
 		EntitySubsystem->BatchCreateEntities(FloatsArchetype, NumToCreate, AllEntitiesCreated);
 		
 		TArray<int32> IndicesToProcess = { 1, 2, 3, 6, 7};
-		TArray<FLWEntity> EntitiesToProcess;
-		TArray<FLWEntity> EntitiesToIgnore;
+		TArray<FMassEntityHandle> EntitiesToProcess;
+		TArray<FMassEntityHandle> EntitiesToIgnore;
 		for (int32 i = 0; i < AllEntitiesCreated.Num(); ++i)
 		{
 			if (IndicesToProcess.Find(i) != INDEX_NONE)
@@ -213,9 +213,9 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 
 		int TotalProcessed = 0;
 
-		FLWComponentSystemExecutionContext ExecContext;
-		FLWComponentQuery().AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadWrite)
-			.ForEachEntityChunk(FArchetypeChunkCollection(FloatsArchetype, EntitiesToProcess), *EntitySubsystem, ExecContext, [&TotalProcessed](FLWComponentSystemExecutionContext& Context)
+		FMassExecutionContext ExecContext;
+		FMassEntityQuery().AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite)
+			.ForEachEntityChunk(FArchetypeChunkCollection(FloatsArchetype, EntitiesToProcess), *EntitySubsystem, ExecContext, [&TotalProcessed](FMassExecutionContext& Context)
 			{
 				TotalProcessed += Context.GetEntitiesNum();
 				TArrayView<FTestFragment_Float> Floats = Context.GetMutableComponentView<FTestFragment_Float>();
@@ -228,13 +228,13 @@ struct FQueryTest_ExecuteSparse : FEntityTestBase
 
 		AITEST_TRUE("The number of entities processed needs to match expectations", TotalProcessed == IndicesToProcess.Num());
 
-		for (FLWEntity& Entity : EntitiesToProcess)
+		for (FMassEntityHandle& Entity : EntitiesToProcess)
 		{
 			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Every fragment value should have changed to the expected value", TestedFragment.Value, 13.f);
 		}
 		
-		for (FLWEntity& Entity : EntitiesToIgnore)
+		for (FMassEntityHandle& Entity : EntitiesToIgnore)
 		{
 			const FTestFragment_Float& TestedFragment = EntitySubsystem->GetComponentDataChecked<FTestFragment_Float>(Entity);
 			AITEST_EQUAL("Untouched entites should retain default fragment value ", TestedFragment.Value, 0.f);
@@ -255,9 +255,9 @@ struct FQueryTest_TagPresent : FEntityTestBase
 		TArray<const UScriptStruct*> Fragments = {FTestFragment_Float::StaticStruct(), FTestFragment_Tag::StaticStruct()};
 		const FArchetypeHandle FloatsTagArchetype = EntitySubsystem->CreateArchetype(Fragments);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadWrite);
-		Query.AddTagRequirement<FTestFragment_Tag>(ELWComponentPresence::All);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
+		Query.AddTagRequirement<FTestFragment_Tag>(EMassFragmentPresence::All);
 		Query.CacheArchetypes(*EntitySubsystem);
 
 		AITEST_EQUAL("There's a single archetype matching the requirements", Query.GetArchetypes().Num(), 1);
@@ -278,9 +278,9 @@ struct FQueryTest_TagAbsent : FEntityTestBase
 		TArray<const UScriptStruct*> Fragments = { FTestFragment_Float::StaticStruct(), FTestFragment_Tag::StaticStruct() };
 		const FArchetypeHandle FloatsTagArchetype = EntitySubsystem->CreateArchetype(Fragments);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadWrite);
-		Query.AddTagRequirement<FTestFragment_Tag>(ELWComponentPresence::None);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
+		Query.AddTagRequirement<FTestFragment_Tag>(EMassFragmentPresence::None);
 		Query.CacheArchetypes(*EntitySubsystem);
 
 		AITEST_EQUAL("There are exactly two archetypes matching the requirements", Query.GetArchetypes().Num(), 2);
@@ -300,8 +300,8 @@ struct FQueryTest_FragmentPresent : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadOnly);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly);
 		Query.CacheArchetypes(*EntitySubsystem);
 
 		AITEST_EQUAL("There are exactly two archetypes matching the requirements", Query.GetArchetypes().Num(), 2);
@@ -320,8 +320,8 @@ struct FQueryTest_OnlySingleAbsentFragment : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadOnly, ELWComponentPresence::None);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::None);
 		
 		AITEST_FALSE("The query is not valid", Query.CheckValidity());
 
@@ -343,9 +343,9 @@ struct FQueryTest_OnlyMultipleAbsentFragments : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadOnly, ELWComponentPresence::None);
-		Query.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadOnly, ELWComponentPresence::None);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::None);
+		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::None);
 
 		AITEST_FALSE("The query is not valid", Query.CheckValidity());
 
@@ -367,9 +367,9 @@ struct FQueryTest_AbsentAndPresentFragments : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::None, ELWComponentPresence::None);
-		Query.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadOnly, ELWComponentPresence::All);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::None, EMassFragmentPresence::None);
+		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::All);
 
 		AITEST_TRUE("The query is valid", Query.CheckValidity());
 		Query.CacheArchetypes(*EntitySubsystem);
@@ -388,8 +388,8 @@ struct FQueryTest_SingleOptionalFragment : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadWrite, ELWComponentPresence::Optional);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Optional);
 		Query.CacheArchetypes(*EntitySubsystem);
 
 		AITEST_EQUAL("There are exactly two archetypes matching the requirements", Query.GetArchetypes().Num(), 2);
@@ -408,9 +408,9 @@ struct FQueryTest_MultipleOptionalFragment : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadWrite, ELWComponentPresence::Optional);
-		Query.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadWrite, ELWComponentPresence::Optional);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Optional);
+		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Optional);
 		Query.CacheArchetypes(*EntitySubsystem);
 
 		AITEST_EQUAL("All three archetype meet requirements", Query.GetArchetypes().Num(), 3);
@@ -429,18 +429,18 @@ struct FQueryTest_UsingOptionalFragment : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		EntitySubsystem->CreateEntity(FloatsArchetype);
-		const FLWEntity EntityWithFloatsInts = EntitySubsystem->CreateEntity(FloatsIntsArchetype);
+		const FMassEntityHandle EntityWithFloatsInts = EntitySubsystem->CreateEntity(FloatsIntsArchetype);
 		EntitySubsystem->CreateEntity(IntsArchetype);
 
 		const int32 IntValueSet = 123;
 		int TotalProcessed = 0;
 		int EmptyIntsViewCount = 0;
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadWrite, ELWComponentPresence::Optional);
-		Query.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadWrite, ELWComponentPresence::All);
-		FLWComponentSystemExecutionContext ExecContext;
-		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed, &EmptyIntsViewCount, IntValueSet](FLWComponentSystemExecutionContext& Context) {
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Optional);
+		Query.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::All);
+		FMassExecutionContext ExecContext;
+		Query.ForEachEntityChunk(*EntitySubsystem, ExecContext, [&TotalProcessed, &EmptyIntsViewCount, IntValueSet](FMassExecutionContext& Context) {
 			++TotalProcessed;
 			TArrayView<FTestFragment_Int> Ints = Context.GetMutableComponentView<FTestFragment_Int>();
 			if (Ints.Num() == 0)
@@ -481,9 +481,9 @@ struct FQueryTest_AnyFragment : FEntityTestBase
 		const FArchetypeHandle BoolArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Bool::StaticStruct() });
 		const FArchetypeHandle BoolFloatArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Bool::StaticStruct(), FTestFragment_Float::StaticStruct() });
 
-		FLWComponentQuery Query;
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadWrite, ELWComponentPresence::Any);
-		Query.AddRequirement<FTestFragment_Bool>(ELWComponentAccess::ReadWrite, ELWComponentPresence::Any);
+		FMassEntityQuery Query;
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Any);
+		Query.AddRequirement<FTestFragment_Bool>(EMassFragmentAccess::ReadWrite, EMassFragmentPresence::Any);
 		// this query should match: 
 		// IntsArchetype, FloatsIntsArchetype, BoolArchetype, BoolFloatArchetype
 		Query.CacheArchetypes(*EntitySubsystem);
@@ -496,8 +496,8 @@ struct FQueryTest_AnyFragment : FEntityTestBase
 			EntitySubsystem->CreateEntity(ArchetypeHandle);
 		}
 
-		FLWComponentSystemExecutionContext TestContext;
-		Query.ForEachEntityChunk(*EntitySubsystem, TestContext, [this](FLWComponentSystemExecutionContext& Context)
+		FMassExecutionContext TestContext;
+		Query.ForEachEntityChunk(*EntitySubsystem, TestContext, [this](FMassExecutionContext& Context)
 			{
 				TArrayView<FTestFragment_Bool> BoolView = Context.GetMutableComponentView<FTestFragment_Bool>();
 				TArrayView<FTestFragment_Int> IntView = Context.GetMutableComponentView<FTestFragment_Int>();
@@ -523,11 +523,11 @@ struct FQueryTest_AnyTag : FEntityTestBase
 		const FArchetypeHandle BDArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Int::StaticStruct(), FTestTag_B::StaticStruct(), FTestTag_D::StaticStruct() });
 		const FArchetypeHandle FloatACArchetype = EntitySubsystem->CreateArchetype({ FTestFragment_Float::StaticStruct(), FTestTag_A::StaticStruct(), FTestTag_C::StaticStruct() });
 
-		FLWComponentQuery Query;
+		FMassEntityQuery Query;
 		// at least one fragment requirement needs to be present for the query to be valid
-		Query.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadOnly); 
-		Query.AddTagRequirement<FTestTag_A>(ELWComponentPresence::Any);
-		Query.AddTagRequirement<FTestTag_C>(ELWComponentPresence::Any);
+		Query.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadOnly); 
+		Query.AddTagRequirement<FTestTag_A>(EMassFragmentPresence::Any);
+		Query.AddTagRequirement<FTestTag_C>(EMassFragmentPresence::Any);
 		// this query should match: 
 		// ABArchetype, ACArchetype and ABCrchetype but not BDArchetype nor FEntityTestBase.IntsArchetype
 		Query.CacheArchetypes(*EntitySubsystem);

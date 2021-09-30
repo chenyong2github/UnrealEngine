@@ -100,8 +100,8 @@ public:
 	const FMassEntityConfig& GetEntityConfig() const { return EntityConfig; }
 	void SetEntityConfig(const FMassEntityConfig& InEntityConfig);
 
-	const FLWCompositionDescriptor& GetPuppetSpecificAddition() const { return PuppetSpecificAddition; }
-	FLWCompositionDescriptor& GetMutablePuppetSpecificAddition() { return PuppetSpecificAddition; }
+	const FMassCompositionDescriptor& GetPuppetSpecificAddition() const { return PuppetSpecificAddition; }
+	FMassCompositionDescriptor& GetMutablePuppetSpecificAddition() { return PuppetSpecificAddition; }
 
 	/** Registers the component with the owner effectively turning it on. Calling it multiple times won't break anything  */
 	UFUNCTION(BlueprintCallable, Category = Mass)
@@ -137,7 +137,7 @@ protected:
 	 *  Contains all the fragments added to the entity during puppet's initialization. Required for clean up when
 	 *  despawning puppet while the entity remains alive.
 	 */
-	FLWCompositionDescriptor PuppetSpecificAddition;
+	FMassCompositionDescriptor PuppetSpecificAddition;
 
 	UPROPERTY(EditAnywhere, Category = "Mass")
 	FMassEntityConfig EntityConfig;
@@ -145,7 +145,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** for debugging purposes only. The Entity used at runtime is stored in AgentHandle */
 	UPROPERTY(VisibleAnywhere, Category = "Mass")
-	FLWEntity DebugEntity;
+	FMassEntityHandle DebugEntity;
 #endif // WITH_EDITORONLY_DATA
 
 	FMassHandle AgentHandle;

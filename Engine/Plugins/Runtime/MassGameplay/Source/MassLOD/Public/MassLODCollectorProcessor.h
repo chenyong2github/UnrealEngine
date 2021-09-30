@@ -26,17 +26,17 @@ struct FMassCollectorLODConfig
 
 	/** Runtime data for matching the LOD config */
 	TMassLODCollector<FMassRepresentationLODLogic> RepresentationLODCollector;
-	FLWComponentQuery CloseEntityQuery;
-	FLWComponentQuery FarEntityQuery_Conditional;
+	FMassEntityQuery CloseEntityQuery;
+	FMassEntityQuery FarEntityQuery_Conditional;
 	TMassLODCollector<FMassSimulationLODLogic> SimulationLODCollector;
-	FLWComponentQuery OnLODEntityQuery;
-	FLWComponentQuery OffLODEntityQuery_Conditional;
+	FMassEntityQuery OnLODEntityQuery;
+	FMassEntityQuery OffLODEntityQuery_Conditional;
 	TMassLODCollector<FMassCombinedLODLogic> CombinedLODCollector;
 	// Keep these in this order as we are creating ArrayView from the first 3 queries.
-	FLWComponentQuery CloseAndOnLODEntityQuery;
-	FLWComponentQuery CloseAndOffLODEntityQuery;
-	FLWComponentQuery FarAndOnLODEntityQuery;
-	FLWComponentQuery FarAndOffLODEntityQuery_Conditional;
+	FMassEntityQuery CloseAndOnLODEntityQuery;
+	FMassEntityQuery CloseAndOffLODEntityQuery;
+	FMassEntityQuery FarAndOnLODEntityQuery;
+	FMassEntityQuery FarAndOffLODEntityQuery_Conditional;
 };
 
 /*
@@ -53,7 +53,7 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
 	TArray<FMassCollectorLODConfig> LODConfigs;

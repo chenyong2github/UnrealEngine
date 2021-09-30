@@ -48,7 +48,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectRequestResult
  * Fragment that holds the result of a request to find candidates.
  */
 USTRUCT()
-struct MASSSMARTOBJECTS_API FMassSmartObjectRequestResultFragment : public FLWComponentData
+struct MASSSMARTOBJECTS_API FMassSmartObjectRequestResultFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -62,7 +62,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectRequestResultFragment : public FLWCo
  * fragment that could then be processed by the reservation processor
  */
 USTRUCT()
-struct MASSSMARTOBJECTS_API FMassSmartObjectWorldLocationRequestFragment : public FLWComponentData
+struct MASSSMARTOBJECTS_API FMassSmartObjectWorldLocationRequestFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -70,7 +70,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectWorldLocationRequestFragment : publi
 	FVector SearchOrigin = FVector::ZeroVector;
 
 	UPROPERTY(Transient)
-	FLWEntity RequestingEntity;
+	FMassEntityHandle RequestingEntity;
 };
 
 /**
@@ -79,21 +79,21 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectWorldLocationRequestFragment : publi
  * fragment that could then be processed by the reservation processor
  */
 USTRUCT()
-struct MASSSMARTOBJECTS_API FMassSmartObjectLaneLocationRequestFragment : public FLWComponentData
+struct MASSSMARTOBJECTS_API FMassSmartObjectLaneLocationRequestFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
 	FZoneGraphCompactLaneLocation CompactLaneLocation;
 
 	UPROPERTY(Transient)
-	FLWEntity RequestingEntity;
+	FMassEntityHandle RequestingEntity;
 };
 
 /**
  * Special tag to mark processed requests
  */
 USTRUCT()
-struct MASSSMARTOBJECTS_API FMassSmartObjectCompletedRequestTag : public FComponentTag
+struct MASSSMARTOBJECTS_API FMassSmartObjectCompletedRequestTag : public FMassTag
 {
 	GENERATED_BODY()
 };

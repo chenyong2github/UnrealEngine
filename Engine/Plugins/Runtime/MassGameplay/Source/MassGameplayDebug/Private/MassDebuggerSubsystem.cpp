@@ -16,7 +16,7 @@ void UMassDebuggerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	UMassSimulationSubsystem* SimSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(GetWorld());
 	check(SimSystem);
-	SimSystem->GetOnProcessingPhaseStarted(EPipeProcessingPhase::PrePhysics).AddUObject(this, &UMassDebuggerSubsystem::OnProcessingPhaseStarted);
+	SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassDebuggerSubsystem::OnProcessingPhaseStarted);
 }
 
 void UMassDebuggerSubsystem::PreTickProcessors()
@@ -32,7 +32,7 @@ void UMassDebuggerSubsystem::PreTickProcessors()
 	SelectedEntityDetails.Empty();
 }
 
-void UMassDebuggerSubsystem::AddEntityLocation(FLWEntity Entity, const FVector& Location)
+void UMassDebuggerSubsystem::AddEntityLocation(FMassEntityHandle Entity, const FVector& Location)
 {
 	Entities.Add(Entity);
 	Locations.Add(Location);
@@ -43,7 +43,7 @@ void UMassDebuggerSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds)
 	PreTickProcessors();
 }
 
-void UMassDebuggerSubsystem::SetSelectedEntity(const FLWEntity& InSelectedEntity)
+void UMassDebuggerSubsystem::SetSelectedEntity(const FMassEntityHandle& InSelectedEntity)
 {
 	SelectedEntity = InSelectedEntity;
 	SelectedEntityDetails.Empty();

@@ -8,7 +8,7 @@
 
 
 USTRUCT()
-struct MASSCOMMON_API FDataFragment_Transform : public FLWComponentData
+struct MASSCOMMON_API FDataFragment_Transform : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -22,7 +22,7 @@ protected:
 };
 
 USTRUCT()
-struct MASSCOMMON_API FDataFragment_NavLocation : public FLWComponentData
+struct MASSCOMMON_API FDataFragment_NavLocation : public FMassFragment
 {
 	GENERATED_BODY()
 	NavNodeRef NodeRef = INVALID_NAVNODEREF;
@@ -32,7 +32,7 @@ struct MASSCOMMON_API FDataFragment_NavLocation : public FLWComponentData
  *  use URandomizeVectorProcessor to initialize it to random variables at spawn time.
  */
 USTRUCT()
-struct MASSCOMMON_API FVectorComponent : public FLWComponentData
+struct MASSCOMMON_API FVectorComponent : public FMassFragment
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, Category = "")
@@ -40,7 +40,7 @@ struct MASSCOMMON_API FVectorComponent : public FLWComponentData
 };
 
 USTRUCT()
-struct MASSCOMMON_API FDataFragment_AgentRadius : public FLWComponentData
+struct MASSCOMMON_API FDataFragment_AgentRadius : public FMassFragment
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, Category = "")
@@ -51,7 +51,7 @@ struct MASSCOMMON_API FDataFragment_AgentRadius : public FLWComponentData
  *	Mass simulation..
  */
 USTRUCT()
-struct FDataFragment_ObjectWrapper : public FLWComponentData
+struct FDataFragment_ObjectWrapper : public FMassFragment
 {
 	GENERATED_BODY()
 };

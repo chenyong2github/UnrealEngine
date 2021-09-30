@@ -31,7 +31,7 @@ namespace UE::Mass::SpawnerSubsystem
 
 		// @Todo: should queue up the entity destruction and apply in batch
 		const UMassTranslatorRegistry& Registry = UMassTranslatorRegistry::Get();
-		TArray<const UPipeProcessor*> Destructors;
+		TArray<const UMassProcessor*> Destructors;
 
 		EntitySystem.ForEachArchetypeComponentType(ArchetypeHandle, [&Registry, &Destructors](const UScriptStruct* FragmentType)
 		{
@@ -45,10 +45,10 @@ namespace UE::Mass::SpawnerSubsystem
 
 		if (Destructors.Num())
 		{
-			FRuntimePipeline DestructionPipeline;
+			FMassRuntimePipeline DestructionPipeline;
 			DestructionPipeline.InitializeFromArray(Destructors, SpawnerSubSystem);
 
-			FPipeContext PipeContext(EntitySystem, /*TimeDelta=*/0.0f);
+			FMassProcessingContext PipeContext(EntitySystem, /*TimeDelta=*/0.0f);
 
 			UE::Pipe::Executor::RunSparse(DestructionPipeline, PipeContext, Chunks);
 		}
@@ -56,16 +56,16 @@ namespace UE::Mass::SpawnerSubsystem
 		return Destructors.Num() > 0;
 	}
 	
-	void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FLWEntity> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections)
+	void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("SpawnerSubsystem_CreateSparseChunks");
 
-		TMap<const FArchetypeHandle, TArray<FLWEntity>> ArchetypeToEntities;
+		TMap<const FArchetypeHandle, TArray<FMassEntityHandle>> ArchetypeToEntities;
 
-		for (const FLWEntity& Entity : Entities)
+		for (const FMassEntityHandle& Entity : Entities)
 		{
 			FArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntity(Entity);
-			TArray<FLWEntity>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
+			TArray<FMassEntityHandle>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
 			PerArchetypeEntities.Add(Entity);
 		}
 
@@ -102,7 +102,7 @@ void UMassSpawnerSubsystem::PostInitialize()
 	TemplateRegistryInstance = NewObject<UMassEntityTemplateRegistry>(this);
 }
 
-bool UMassSpawnerSubsystem::SpawnEntities(const AActor& ActorInstance, const uint32 NumberToSpawn, TArray<FLWEntity>& OutEntities) const
+bool UMassSpawnerSubsystem::SpawnEntities(const AActor& ActorInstance, const uint32 NumberToSpawn, TArray<FMassEntityHandle>& OutEntities) const
 {
 	if (NumberToSpawn == 0)
 	{
@@ -118,7 +118,7 @@ bool UMassSpawnerSubsystem::SpawnEntities(const AActor& ActorInstance, const uin
 	return false;
 }
 
-bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTemplate, const uint32 NumberToSpawn, TArray<FLWEntity>& OutEntities) const
+bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTemplate, const uint32 NumberToSpawn, TArray<FMassEntityHandle>& OutEntities) const
 {
 	check(EntitySystem);
 	check(EntityTemplate.IsValid());
@@ -144,7 +144,7 @@ bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTempl
 		{
 			FMassEntityTemplate& MutableEntityTemplate = const_cast<FMassEntityTemplate&>(EntityTemplate);
 
-			FPipeContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
+			FMassProcessingContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
 			UE::Pipe::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), PipeContext, ChunkCollection);
 		}
 		return true;
@@ -152,7 +152,7 @@ bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTempl
 	return false;
 }
 
-void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, const FMassSpawnConfigBase& SpawnConfig, const FStructView& AuxData, TArray<FLWEntity>& OutEntities)
+void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, const FMassSpawnConfigBase& SpawnConfig, const FStructView& AuxData, TArray<FMassEntityHandle>& OutEntities)
 {
 	check(TemplateID.IsValid());
 
@@ -185,7 +185,7 @@ void UMassSpawnerSubsystem::SpawnCollection(TArrayView<FInstancedStruct> Collect
 			const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindOrBuildStructTemplate(Entry);
 			if (EntityTemplate && EntityTemplate->IsValid())
 			{
-				TArray<FLWEntity> Entities;
+				TArray<FMassEntityHandle> Entities;
 
 				DoSpawning(*EntityTemplate, Entry.GetMutable<FMassSpawnConfigBase>(), AuxData, Entities);
 			}
@@ -209,7 +209,7 @@ void UMassSpawnerSubsystem::RegisterCollection(TArrayView<FInstancedStruct> Coll
 	}
 }
 
-void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID TemplateID, TConstArrayView<FLWEntity> Entities)
+void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID TemplateID, TConstArrayView<FMassEntityHandle> Entities)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassSpawnerSubsystem_DestroyEntities")
 
@@ -235,7 +235,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 		TArray<FArchetypeChunkCollection> ChunkCollections;
 		UE::Mass::SpawnerSubsystem::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
 
-		FPipeContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
+		FMassProcessingContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
 
 		// Run destructors
 		bool bDestructorsRun = false;
@@ -284,7 +284,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 	}
 }
 
-void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate, const FMassSpawnConfigBase& Data, const FStructView& AuxData, TArray<FLWEntity>& OutEntities) const
+void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate, const FMassSpawnConfigBase& Data, const FStructView& AuxData, TArray<FMassEntityHandle>& OutEntities) const
 {
 	check(EntitySystem);
 	check(EntityTemplate.GetArchetype().IsValid());
@@ -298,7 +298,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	//		b. @todo could be done via an always-first translator in EntityTemplate.Translators
 	// 3. Run all EntityTemplate.Translators to configure remaining values (i.e. not set via FMassEntityTemplate.Fragments).
 
-	TArray<FLWEntity> SpawnedEntities;
+	TArray<FMassEntityHandle> SpawnedEntities;
 	EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), Data.MaxNumber, SpawnedEntities);
 
 	const TArrayView<const FInstancedStruct> FragmentInstances = EntityTemplate.GetFragments();
@@ -309,7 +309,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	{
 		FMassEntityTemplate& MutableEntityTemplate = const_cast<FMassEntityTemplate&>(EntityTemplate);
 
-		FPipeContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
+		FMassProcessingContext PipeContext(*EntitySystem, /*TimeDelta=*/0.0f);
 		PipeContext.AuxData = AuxData;
 		UE::Pipe::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), PipeContext, ChunkCollection);
 	}

@@ -9,7 +9,7 @@
 #include "IMassEntityEditor.h"
 
 class IDetailsView;
-class UPipeSchematic;
+class UMassSchematic;
 
 class FPipeEditor : public IPipeEditor, public FGCObject//, public FSelfRegisteringEditorUndoClient
 {
@@ -17,7 +17,7 @@ public:
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 
-	void InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UPipeSchematic& InPipeSchematic);
+	void InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic& InMassSchematic);
 
 	//~ Begin IToolkit Interface
 	virtual FName GetToolkitFName() const override;
@@ -47,7 +47,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 
 	/** Pipe Schematic being edited */
-	UPipeSchematic* PipeSchematic;
+	UMassSchematic* MassSchematic;
 
 	/** Asset Property View */
 	TSharedPtr<class IDetailsView> AssetDetailsView;

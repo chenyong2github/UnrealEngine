@@ -6,10 +6,10 @@
 #include "ZoneGraphTypes.h"
 #include "MassZoneGraphAnnotationFragments.generated.h"
 
-struct FLWComponentSystemExecutionContext;
+struct FMassExecutionContext;
 
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationTagsFragment : public FLWComponentData
+struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationTagsFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -19,12 +19,12 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphAnnotationTagsFragment : public FLWCompo
 };
 
 USTRUCT()
-struct FMassZoneGraphAnnotationVariableTickChunkFragment : public FLWChunkComponent
+struct FMassZoneGraphAnnotationVariableTickChunkFragment : public FMassChunkFragment
 {
 	GENERATED_BODY();
 
 	/** Update the ticking frequency of the chunk and return if this chunk should be process this frame */
-	static bool UpdateChunk(FLWComponentSystemExecutionContext& Context);
+	static bool UpdateChunk(FMassExecutionContext& Context);
 
 	float TimeUntilNextTick = 0.0f;
 };

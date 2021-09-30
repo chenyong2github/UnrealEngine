@@ -8,7 +8,7 @@
 
 //////////////////////////////////////////////////////////////////////
 // FArchetypeHandle
-bool FArchetypeHandle::operator==(const FArchetypeData* Other) const
+bool FArchetypeHandle::operator==(const FMassArchetypeData* Other) const
 {
 	return DataPtr.Get() == Other;
 }
@@ -21,18 +21,18 @@ uint32 GetTypeHash(const FArchetypeHandle& Instance)
 //////////////////////////////////////////////////////////////////////
 // FArchetypeChunkCollection
 
-FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FLWEntity> InEntities)
+FArchetypeChunkCollection::FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities)
 	: Archetype(InArchetype)
 {
 	check(InArchetype.IsValid());
-	const FArchetypeData& ArchetypeData = *InArchetype.DataPtr.Get();
+	const FMassArchetypeData& ArchetypeData = *InArchetype.DataPtr.Get();
 	const int32 NumEntitiesPerChunk = ArchetypeData.GetNumEntitiesPerChunk();
 
 	// InEntities has a real chance of not being sorted by AbsoluteIndex. We gotta fix that to optimize how we process the data 
 	TArray<int32> TrueIndices;
 	TrueIndices.AddUninitialized(InEntities.Num());
 	int32 i = 0;
-	for (const FLWEntity& Entity : InEntities)
+	for (const FMassEntityHandle& Entity : InEntities)
 	{
 		TrueIndices[i] = ArchetypeData.GetInternalIndexForEntity(Entity.Index);
 		++i;
@@ -73,12 +73,12 @@ FArchetypeChunkCollection::FArchetypeChunkCollection(FArchetypeHandle& InArchety
 	GatherChunksFromArchetype(InArchetypeHandle.DataPtr);
 }
 
-FArchetypeChunkCollection::FArchetypeChunkCollection(TSharedPtr<FArchetypeData>& InArchetype)
+FArchetypeChunkCollection::FArchetypeChunkCollection(TSharedPtr<FMassArchetypeData>& InArchetype)
 {
 	GatherChunksFromArchetype(InArchetype);
 }
 
-void FArchetypeChunkCollection::GatherChunksFromArchetype(TSharedPtr<FArchetypeData>& InArchetype)
+void FArchetypeChunkCollection::GatherChunksFromArchetype(TSharedPtr<FMassArchetypeData>& InArchetype)
 {
 	check(InArchetype.IsValid());
 	Archetype.DataPtr = InArchetype;

@@ -319,8 +319,8 @@ void UMassRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 
 		UMassSimulationSubsystem* SimSystem = World->GetSubsystem<UMassSimulationSubsystem>();
 		check(SimSystem);
-		SimSystem->GetOnProcessingPhaseStarted(EPipeProcessingPhase::PrePhysics).AddUObject(this, &UMassRepresentationSubsystem::OnProcessingPhaseStarted, EPipeProcessingPhase::PrePhysics);
-		SimSystem->GetOnProcessingPhaseFinished(EPipeProcessingPhase::PostPhysics).AddUObject(this, &UMassRepresentationSubsystem::OnProcessingPhaseStarted, EPipeProcessingPhase::PostPhysics);
+		SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassRepresentationSubsystem::OnProcessingPhaseStarted, EMassProcessingPhase::PrePhysics);
+		SimSystem->GetOnProcessingPhaseFinished(EMassProcessingPhase::PostPhysics).AddUObject(this, &UMassRepresentationSubsystem::OnProcessingPhaseStarted, EMassProcessingPhase::PostPhysics);
 
 		UMassAgentSubsystem* AgentSystem = World->GetSubsystem<UMassAgentSubsystem>();
 		check(AgentSystem);
@@ -338,8 +338,8 @@ void UMassRepresentationSubsystem::Deinitialize()
 	{
 		if (const UMassSimulationSubsystem* SimSystem = World->GetSubsystem<UMassSimulationSubsystem>())
 		{
-			SimSystem->GetOnProcessingPhaseStarted(EPipeProcessingPhase::PrePhysics).RemoveAll(this);
-			SimSystem->GetOnProcessingPhaseFinished(EPipeProcessingPhase::PostPhysics).RemoveAll(this);
+			SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).RemoveAll(this);
+			SimSystem->GetOnProcessingPhaseFinished(EMassProcessingPhase::PostPhysics).RemoveAll(this);
 		}
 
 		if (UMassAgentSubsystem* AgentSystem = World->GetSubsystem<UMassAgentSubsystem>())
@@ -351,15 +351,15 @@ void UMassRepresentationSubsystem::Deinitialize()
 
 }
 
-void UMassRepresentationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, const EPipeProcessingPhase Phase) const
+void UMassRepresentationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, const EMassProcessingPhase Phase) const
 {
 	check(VisualizationComponent);
 	switch (Phase)
 	{
-		case EPipeProcessingPhase::PrePhysics:
+		case EMassProcessingPhase::PrePhysics:
 			VisualizationComponent->BeginVisualChanges();
 			break;
-		case EPipeProcessingPhase::PostPhysics:/* Currently this is the end of phases signal */
+		case EMassProcessingPhase::PostPhysics:/* Currently this is the end of phases signal */
 			VisualizationComponent->EndVisualChanges();
 			break;
 		default:
@@ -395,7 +395,7 @@ void UMassRepresentationSubsystem::OnMassAgentComponentEntityDetaching(const UMa
 	checkf(EntitySubsystem->IsEntityValid(MassAgent.GetLWEntity()), TEXT("Expecting a valid mass entity"));
 	if (EntitySubsystem->IsEntityValid(MassAgent.GetLWEntity()) && AgentComponent.IsNetSimulating())
 	{
-		const FEntityView EntityView(*EntitySubsystem, MassAgent.GetLWEntity());
+		const FMassEntityView EntityView(*EntitySubsystem, MassAgent.GetLWEntity());
 		if (FMassRepresentationFragment* Representation = EntityView.GetComponentDataPtr<FMassRepresentationFragment>())
 		{
 			// Force a reevaluate of the current representation

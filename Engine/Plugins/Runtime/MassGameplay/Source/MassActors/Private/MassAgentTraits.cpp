@@ -49,7 +49,7 @@ void UMassAgentCapsuleCollisionSyncTrait::BuildTemplate(FMassEntityTemplateBuild
 		BuildContext.AddFragment<FDataFragment_Transform>();
 	}
 	
-	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
+	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FMassEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
 		{
 			if (UCapsuleComponent* CapsuleComponent = FMassAgentTraitsHelper::AsComponent<UCapsuleComponent>(Owner))
 			{
@@ -89,7 +89,7 @@ void UMassAgentMovementSyncTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 	BuildContext.AddFragment<FDataFragment_CharacterMovementComponentWrapper>();
 	BuildContext.AddFragment<FMassVelocityFragment>();
 	
-	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
+	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FMassEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
 		{
 			if (UCharacterMovementComponent* MovementComp = FMassAgentTraitsHelper::AsComponent<UCharacterMovementComponent>(Owner))
 			{
@@ -151,7 +151,7 @@ void UMassAgentFeetLocationSyncTrait::BuildTemplate(FMassEntityTemplateBuildCont
 	BuildContext.AddFragment<FMassSceneComponentWrapperFragment>();
 	BuildContext.AddFragment<FDataFragment_Transform>();
 
-	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
+	BuildContext.GetMutableObjectFragmentInitializers().Add([=](UObject& Owner, FMassEntityView& EntityView, const EMassTranslationDirection CurrentDirection)
 		{
 			AActor* AsActor = Cast<AActor>(&Owner);
 			if (AsActor && AsActor->GetRootComponent())

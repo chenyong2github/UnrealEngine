@@ -10,7 +10,7 @@
 
 /** Stores path request associated to a new movement action. This is used to replicate actions. */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassZoneGraphPathRequestFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassZoneGraphPathRequestFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -21,7 +21,7 @@ struct MASSAIMOVEMENT_API FMassZoneGraphPathRequestFragment : public FLWComponen
 
 /** Describes current location on ZoneGraph */ 
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassZoneGraphLaneLocationFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassZoneGraphLaneLocationFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -37,7 +37,7 @@ struct MASSAIMOVEMENT_API FMassZoneGraphLaneLocationFragment : public FLWCompone
 
 /** Describes part of a ZoneGraph lane. */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassZoneGraphCachedLaneFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassZoneGraphCachedLaneFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -168,7 +168,7 @@ struct MASSAIMOVEMENT_API FMassZoneGraphCachedLaneFragment : public FLWComponent
 // - remove debug lane handle, and replace other with index
 // - see if we can remove move tangent?
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassZoneGraphShortPathFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassZoneGraphShortPathFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

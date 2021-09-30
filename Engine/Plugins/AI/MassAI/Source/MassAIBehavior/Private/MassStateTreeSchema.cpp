@@ -7,8 +7,8 @@
 
 UScriptStruct* UMassStateTreeSchema::GetStorageSuperStruct() const
 {
-	// The runtime state must be derived from FLWComponentData since it's stored in the entity subsystem.
-	return FLWComponentData::StaticStruct();
+	// The runtime state must be derived from FMassFragment since it's stored in the entity subsystem.
+	return FMassFragment::StaticStruct();
 }
 
 bool UMassStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
@@ -20,5 +20,5 @@ bool UMassStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) 
 bool UMassStateTreeSchema::IsExternalItemAllowed(const UStruct& InStruct) const
 {
 	// Allow only WorldSubsystems and fragments as external data.
-	return InStruct.IsChildOf(UWorldSubsystem::StaticClass()) || InStruct.IsChildOf(FLWComponentData::StaticStruct());
+	return InStruct.IsChildOf(UWorldSubsystem::StaticClass()) || InStruct.IsChildOf(FMassFragment::StaticStruct());
 }

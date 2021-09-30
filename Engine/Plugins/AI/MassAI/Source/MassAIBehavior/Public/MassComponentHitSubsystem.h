@@ -22,7 +22,7 @@ class MASSAIBEHAVIOR_API UMassComponentHitSubsystem : public UTickableWorldSubsy
 	GENERATED_BODY()
 
 public:
-	const FMassHitResult* GetLastHit(const FLWEntity Entity) const;
+	const FMassHitResult* GetLastHit(const FMassEntityHandle Entity) const;
 
 protected:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -30,8 +30,8 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 	
-	void RegisterForComponentHit(const FLWEntity Entity, UCapsuleComponent& CapsuleComponent);
-	void UnregisterForComponentHit(FLWEntity Entity, UCapsuleComponent& CapsuleComponent);
+	void RegisterForComponentHit(const FMassEntityHandle Entity, UCapsuleComponent& CapsuleComponent);
+	void UnregisterForComponentHit(FMassEntityHandle Entity, UCapsuleComponent& CapsuleComponent);
 
 	UFUNCTION()
 	void OnHitCallback(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
@@ -43,11 +43,11 @@ protected:
     UMassAgentSubsystem* AgentSubsystem;
 
 	UPROPERTY()
-	TMap<FLWEntity, FMassHitResult> HitResults;
+	TMap<FMassEntityHandle, FMassHitResult> HitResults;
 
 	UPROPERTY()
-	TMap<UActorComponent*, FLWEntity> ComponentToEntityMap;
+	TMap<UActorComponent*, FMassEntityHandle> ComponentToEntityMap;
 
 	UPROPERTY()
-	TMap<FLWEntity, UActorComponent*> EntityToComponentMap;
+	TMap<FMassEntityHandle, UActorComponent*> EntityToComponentMap;
 };

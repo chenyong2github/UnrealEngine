@@ -10,20 +10,20 @@
 #include "MassProcessingPhase.generated.h"
 
 
-class UPipeProcessingPhaseManager;
-class UPipeProcessor;
-class UPipeCompositeProcessor;
+class UMassProcessingPhaseManager;
+class UMassProcessor;
+class UMassCompositeProcessor;
 class UMassEntitySubsystem;
-struct FLWCCommandBuffer;
+struct FMassCommandBuffer;
 
 USTRUCT()
-struct FPipeProcessingPhase : public FTickFunction
+struct FMassProcessingPhase : public FTickFunction
 {
 	GENERATED_BODY()
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhaseEvent, const float /*DeltaSeconds*/);
 
-	FPipeProcessingPhase();
+	FMassProcessingPhase();
 
 protected:
 	// FTickFunction interface
@@ -42,15 +42,15 @@ public:
 	bool IsDuringPipeProcessing() const { return bIsDuringPipeProcessing; }
 
 protected:
-	friend UPipeProcessingPhaseManager;
+	friend UMassProcessingPhaseManager;
 
 	UPROPERTY(EditAnywhere, Category=Pipe)
-	UPipeCompositeProcessor* PhaseProcessor = nullptr;
+	UMassCompositeProcessor* PhaseProcessor = nullptr;
 
 	UPROPERTY()
-	UPipeProcessingPhaseManager* Manager = nullptr;
+	UMassProcessingPhaseManager* Manager = nullptr;
 
-	EPipeProcessingPhase Phase = EPipeProcessingPhase::MAX;
+	EMassProcessingPhase Phase = EMassProcessingPhase::MAX;
 	FOnPhaseEvent OnPhaseStart;
 	FOnPhaseEvent OnPhaseEnd;
 
@@ -61,7 +61,7 @@ private:
 
 // It is unsafe to copy FTickFunctions and any subclasses of FTickFunction should specify the type trait WithCopy = false
 template<>
-struct TStructOpsTypeTraits<FPipeProcessingPhase> : public TStructOpsTypeTraitsBase2<FPipeProcessingPhase>
+struct TStructOpsTypeTraits<FMassProcessingPhase> : public TStructOpsTypeTraitsBase2<FMassProcessingPhase>
 {
 	enum
 	{
@@ -69,26 +69,26 @@ struct TStructOpsTypeTraits<FPipeProcessingPhase> : public TStructOpsTypeTraitsB
 	};
 };
 
-/** PipeProcessingPhaseManager owns separate FPipeProcessingPhase instances for every ETickingGroup. When activated
- *  via Start function it registers and enables the FPipeProcessingPhase instances which themselves are tick functions 
- *  that host FRuntimePipeline which they trigger as part of their Tick function. 
- *  PipeProcessingPhaseManager serves as an interface to said FPipeProcessingPhase instances and allows initialization
- *  with PipeSchematics (via InitializePhases function) as well as registering arbitrary functions to be called 
+/** PipeProcessingPhaseManager owns separate FMassProcessingPhase instances for every ETickingGroup. When activated
+ *  via Start function it registers and enables the FMassProcessingPhase instances which themselves are tick functions 
+ *  that host FMassRuntimePipeline which they trigger as part of their Tick function. 
+ *  PipeProcessingPhaseManager serves as an interface to said FMassProcessingPhase instances and allows initialization
+ *  with MassSchematics (via InitializePhases function) as well as registering arbitrary functions to be called 
  *  when a particular phase starts of ends (via GetOnPhaseStart and GetOnPhaseEnd functions). */
 UCLASS(Transient, HideCategories = (Tick))
-class MASSENTITY_API UPipeProcessingPhaseManager : public UObject
+class MASSENTITY_API UMassProcessingPhaseManager : public UObject
 {
 	GENERATED_BODY()
 public:
 	UMassEntitySubsystem& GetEntitySubsystemRef() { check(EntitySubsystem); return *EntitySubsystem; }
 
 	/** Retrieves OnPhaseStart multicast delegate's reference for a given Phase */
-	FPipeProcessingPhase::FOnPhaseEvent& GetOnPhaseStart(const EPipeProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseStart; }
+	FMassProcessingPhase::FOnPhaseEvent& GetOnPhaseStart(const EMassProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseStart; }
 	/** Retrieves OnPhaseEnd multicast delegate's reference for a given Phase */
-	FPipeProcessingPhase::FOnPhaseEvent& GetOnPhaseEnd(const EPipeProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseEnd; }
+	FMassProcessingPhase::FOnPhaseEvent& GetOnPhaseEnd(const EMassProcessingPhase Phase) { return ProcessingPhases[uint8(Phase)].OnPhaseEnd; }
 
 	/** 
-	 *  Populates hosted FPipeProcessingPhase instances with Processors read from PipeSettings configuration.
+	 *  Populates hosted FMassProcessingPhase instances with Processors read from PipeSettings configuration.
 	 *  Calling this function overrides previous configuration of Phases.
 	 */
 	void InitializePhases(UObject& InProcessorOwner);
@@ -108,7 +108,7 @@ public:
 	 *  Note that the function will return false while the OnPhaseStart or OnPhaseEnd are being broadcast,
 	 *  the value returned will be `true` only when the entity subsystem is actively engaged 
 	 */
-	bool IsDuringPipeProcessing() const { return CurrentPhase != EPipeProcessingPhase::MAX && ProcessingPhases[int(CurrentPhase)].IsDuringPipeProcessing(); }
+	bool IsDuringPipeProcessing() const { return CurrentPhase != EMassProcessingPhase::MAX && ProcessingPhases[int(CurrentPhase)].IsDuringPipeProcessing(); }
 
 protected:
 	virtual void PostInitProperties() override;
@@ -122,28 +122,28 @@ protected:
 	virtual void OnPipeSettingsChange(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif // WITH_EDITOR
 
-	friend FPipeProcessingPhase;
+	friend FMassProcessingPhase;
 
 	/** 
-	 *  Called by the given Phase at the very start of its execution function (the FPipeProcessingPhase::ExecuteTick),
-	 *  even before the FPipeProcessingPhase.OnPhaseStart broadcast delegate
+	 *  Called by the given Phase at the very start of its execution function (the FMassProcessingPhase::ExecuteTick),
+	 *  even before the FMassProcessingPhase.OnPhaseStart broadcast delegate
 	 */
-	void OnPhaseStart(const FPipeProcessingPhase& Phase);
+	void OnPhaseStart(const FMassProcessingPhase& Phase);
 
 	/**
-	 *  Called by the given Phase at the very end of its execution function (the FPipeProcessingPhase::ExecuteTick),
-	 *  after the FPipeProcessingPhase.OnPhaseEnd broadcast delegate
+	 *  Called by the given Phase at the very end of its execution function (the FMassProcessingPhase::ExecuteTick),
+	 *  after the FMassProcessingPhase.OnPhaseEnd broadcast delegate
 	 */
-	void OnPhaseEnd(FPipeProcessingPhase& Phase);
+	void OnPhaseEnd(FMassProcessingPhase& Phase);
 
 protected:	
 	UPROPERTY(VisibleAnywhere, Category=Pipe)
-	FPipeProcessingPhase ProcessingPhases[(uint8)EPipeProcessingPhase::MAX];
+	FMassProcessingPhase ProcessingPhases[(uint8)EMassProcessingPhase::MAX];
 
 	UPROPERTY()
 	UMassEntitySubsystem* EntitySubsystem;
 
-	EPipeProcessingPhase CurrentPhase = EPipeProcessingPhase::MAX;
+	EMassProcessingPhase CurrentPhase = EMassProcessingPhase::MAX;
 
 #if WITH_EDITOR
 	FDelegateHandle PipeSettingsChangeHandle;

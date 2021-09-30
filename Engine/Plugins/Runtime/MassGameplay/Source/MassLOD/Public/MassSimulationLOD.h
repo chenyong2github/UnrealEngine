@@ -16,7 +16,7 @@
  * @todo To be removed and convert to new Simulation LOD stuff
  */
 USTRUCT()
-struct MASSLOD_API FDataFragment_MassSimulationLODInfo : public FLWComponentData
+struct MASSLOD_API FDataFragment_MassSimulationLODInfo : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -43,14 +43,14 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	TMassLODCollector<FSimulationLODLogic> LODCollector;
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 USTRUCT()
-struct MASSLOD_API FMassSimulationLODFragment : public FLWComponentData
+struct MASSLOD_API FMassSimulationLODFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -73,13 +73,13 @@ struct FMassSimulationVariableTickChunkFragment : public FMassVariableTickChunkF
 {
 	GENERATED_BODY();
 
-	static bool ShouldTickChunkThisFrame(const FLWComponentSystemExecutionContext& Context)
+	static bool ShouldTickChunkThisFrame(const FMassExecutionContext& Context)
 	{
 		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkComponent<FMassSimulationVariableTickChunkFragment>();
 		return ChunkFragment.ShouldTickThisFrame();
 	}
 
-	static EMassLOD::Type GetChunkLOD(const FLWComponentSystemExecutionContext& Context)
+	static EMassLOD::Type GetChunkLOD(const FMassExecutionContext& Context)
 	{
 		const FMassSimulationVariableTickChunkFragment& ChunkFragment = Context.GetChunkComponent<FMassSimulationVariableTickChunkFragment>();
 		return ChunkFragment.GetLOD();
@@ -115,7 +115,7 @@ struct FMassSimulationLODConfig
 	float TickRates[EMassLOD::Max];
 
 	/** Runtime data for matching the LOD config */
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 	TMassLODCalculator<FMassSimulationLODLogic> LODCalculator;
 	TMassLODTickRateController<FMassSimulationVariableTickChunkFragment, FMassSimulationLODLogic> LODTickRateController;
 };
@@ -132,9 +132,9 @@ protected:
 
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& InOwner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	void CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSimulationLODConfig& LODConfig);
+	void CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSimulationLODConfig& LODConfig);
 
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
 	TArray<FMassSimulationLODConfig> LODConfigs;

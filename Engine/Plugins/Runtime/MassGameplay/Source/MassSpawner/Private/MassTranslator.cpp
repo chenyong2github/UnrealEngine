@@ -13,9 +13,9 @@ UMassTranslator::UMassTranslator()
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 }
 
-void UMassTranslator::AddRequiredTagsToQuery(FLWComponentQuery& EntityQuery)
+void UMassTranslator::AddRequiredTagsToQuery(FMassEntityQuery& EntityQuery)
 {
-	EntityQuery.AddTagRequirements<ELWComponentPresence::All>(RequiredTags);
+	EntityQuery.AddTagRequirements<EMassFragmentPresence::All>(RequiredTags);
 }
 
 //----------------------------------------------------------------------//

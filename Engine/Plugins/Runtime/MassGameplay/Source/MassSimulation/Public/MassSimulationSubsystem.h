@@ -11,7 +11,7 @@
 
 class AMassSimulationLocalCoordinator;
 class UMassEntitySubsystem;
-class UPipeProcessingPhaseManager;
+class UMassProcessingPhaseManager;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMassSim, Log, All);
 
@@ -20,16 +20,16 @@ class MASSSIMULATION_API UMassSimulationSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAdjustTickSchematics, UWorld* /*World*/, TArray<TSoftObjectPtr<UPipeSchematic>>& /*InOutTickSchematics*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAdjustTickSchematics, UWorld* /*World*/, TArray<TSoftObjectPtr<UMassSchematic>>& /*InOutTickSchematics*/);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSimulationStarted, UWorld* /*World*/);
 	
 	UMassSimulationSubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//UMassEntitySubsystem* GetEntitySubsystem() const { return CachedEntitySubsystem; }
-	const UPipeProcessingPhaseManager& GetPhaseManager() const { check(PhaseManager); return *PhaseManager; }
+	const UMassProcessingPhaseManager& GetPhaseManager() const { check(PhaseManager); return *PhaseManager; }
 
-	FPipeProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseStarted(const EPipeProcessingPhase Phase) const;
-	FPipeProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseFinished(const EPipeProcessingPhase Phase) const;
+	FMassProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseStarted(const EMassProcessingPhase Phase) const;
+	FMassProcessingPhase::FOnPhaseEvent& GetOnProcessingPhaseFinished(const EMassProcessingPhase Phase) const;
 	static FOnAdjustTickSchematics& GetOnAdjustTickSchematics() { return OnAdjustTickSchematics; }
 	static FOnSimulationStarted& GetOnSimulationStarted() { return OnSimulationStarted; }
 
@@ -48,7 +48,7 @@ protected:
 	void StartSimulation(UWorld& InWorld);
 	void StopSimulation();
 
-	void OnProcessingPhaseStarted(const float DeltaSeconds, const EPipeProcessingPhase Phase) const;
+	void OnProcessingPhaseStarted(const float DeltaSeconds, const EMassProcessingPhase Phase) const;
 
 #if WITH_EDITOR
 	void OnPieBegin(const bool bIsSimulation);
@@ -61,13 +61,13 @@ protected:
 	UMassEntitySubsystem* EntitySubsystem;
 
 	UPROPERTY()
-	UPipeProcessingPhaseManager* PhaseManager;
+	UMassProcessingPhaseManager* PhaseManager;
 
 	inline static FOnAdjustTickSchematics OnAdjustTickSchematics={};
 	inline static FOnSimulationStarted OnSimulationStarted={};
 
 	UPROPERTY()
-	FRuntimePipeline RuntimePipeline;
+	FMassRuntimePipeline RuntimePipeline;
 
 	float CurrentDeltaSeconds = 0.f;
 	bool bTickInProgress = false;

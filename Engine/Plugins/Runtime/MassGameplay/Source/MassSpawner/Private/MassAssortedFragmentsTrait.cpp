@@ -12,11 +12,11 @@ void UMassAssortedFragmentsTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 		{
 			const UScriptStruct* Type = Fragment.GetScriptStruct();
 			CA_ASSUME(Type);
-			if (Type->IsChildOf(FLWComponentData::StaticStruct()))
+			if (Type->IsChildOf(FMassFragment::StaticStruct()))
 			{
 				BuildContext.AddFragmentWithDefaultInitializer(Fragment);
 			}
-			else if (Type->IsChildOf(FComponentTag::StaticStruct()))
+			else if (Type->IsChildOf(FMassTag::StaticStruct()))
 			{
 				BuildContext.AddTag(*Type);
 			}

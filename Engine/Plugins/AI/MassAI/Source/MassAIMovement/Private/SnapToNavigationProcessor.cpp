@@ -19,11 +19,11 @@ USnapToNavigationProcessor::USnapToNavigationProcessor()
 
 void USnapToNavigationProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FDataFragment_NavLocation>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_NavLocation>(EMassFragmentAccess::ReadWrite);
 }
 
-void USnapToNavigationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void USnapToNavigationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	ANavigationData* NavData = WeakNavData.Get();
 	if (NavData == nullptr)
@@ -33,7 +33,7 @@ void USnapToNavigationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 
 	QUICK_SCOPE_CYCLE_COUNTER(UMovementProcessor_Run);
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, NavData](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, NavData](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();

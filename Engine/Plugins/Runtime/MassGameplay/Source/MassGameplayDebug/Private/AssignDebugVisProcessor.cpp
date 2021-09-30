@@ -17,10 +17,10 @@ UAssignDebugVisProcessor::UAssignDebugVisProcessor()
 
 void UAssignDebugVisProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FSimDebugVisComponent>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FSimDebugVisComponent>(EMassFragmentAccess::ReadWrite);
 }
 
-void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	UMassDebugVisualizationComponent* Visualizer = WeakVisualizer.Get();
 	if (!ensure(Visualizer))
@@ -34,7 +34,7 @@ void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FL
 	// note that this function will create the "visual components" only it they're missing or out of sync. 
 	Visualizer->ConditionallyConstructVisualComponent();
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Visualizer](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Visualizer](FMassExecutionContext& Context)
 	{
 		const TArrayView<FSimDebugVisComponent> DebugVisList = Context.GetMutableComponentView<FSimDebugVisComponent>();
 		for (FSimDebugVisComponent& VisualComp : DebugVisList)

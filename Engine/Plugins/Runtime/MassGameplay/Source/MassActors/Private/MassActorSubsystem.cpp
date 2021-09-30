@@ -68,7 +68,7 @@ void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 FMassHandle UMassActorSubsystem::GetHandleFromActor(const TObjectKey<const AActor> Actor)
 {
 	UE_MT_SCOPED_READ_ACCESS(ActorHandleMapDetector);
-	FLWEntity* LWEntity = ActorHandleMap.Find(Actor);
+	FMassEntityHandle* LWEntity = ActorHandleMap.Find(Actor);
 	if (!LWEntity)
 	{
 		return FMassHandle::InvalidHandle;
@@ -104,7 +104,7 @@ void UMassActorSubsystem::DisconnectActor(const TObjectKey<const AActor> Actor, 
 		return;
 	}
 
-	FLWEntity LWEntity;
+	FMassEntityHandle LWEntity;
 	{
 		UE_MT_SCOPED_WRITE_ACCESS(ActorHandleMapDetector);
 		// We're assuming the Handle does match Actor, so we're RemoveAndCopyValue. If if doesn't we'll add it back.

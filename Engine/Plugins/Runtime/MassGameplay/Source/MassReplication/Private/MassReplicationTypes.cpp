@@ -18,7 +18,7 @@ UMassNetworkIDFragmentInitializer::UMassNetworkIDFragmentInitializer()
 
 void UMassNetworkIDFragmentInitializer::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassNetworkIDFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassNetworkIDFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassNetworkIDFragmentInitializer::Initialize(UObject& Owner)
@@ -29,7 +29,7 @@ void UMassNetworkIDFragmentInitializer::Initialize(UObject& Owner)
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
-void UMassNetworkIDFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassNetworkIDFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(MassProcessor_InitNetworkID_Run);
 
@@ -41,7 +41,7 @@ void UMassNetworkIDFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubs
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 		check(ReplicationManager);
 
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
 				const TArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetMutableComponentView<FMassNetworkIDFragment>();
 				const int32 NumEntities = Context.GetEntitiesNum();

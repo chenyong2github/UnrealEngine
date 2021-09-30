@@ -8,13 +8,13 @@
 
 
 /** 
- *  An experimental processor that can be configured to work on any LWComponent type as long as it's size matches
+ *  An experimental processor that can be configured to work on any Fragment type as long as it's size matches
  *  FVectorComponent (effectively the size of FVector). Meant mostly for prototyping.
  *  @todo currently the processor is randomizing it as if it was a fixed-max-length 2d velocity vector. If we keep this
  *  idea around we can add more properties to the processor that would configure the behavior.
  */
 UCLASS()
-class MASSCOMMON_API URandomizeVectorProcessor : public UPipeProcessor
+class MASSCOMMON_API URandomizeVectorProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -31,11 +31,11 @@ public:
 	{
 		if (ComponentType)
 		{
-			EntityQuery.AddRequirement(ComponentType, ELWComponentAccess::ReadWrite);
+			EntityQuery.AddRequirement(ComponentType, EMassFragmentAccess::ReadWrite);
 		}
 	}
 
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Mass", meta = (ClampMin = 1, UIMin = 1))
 	float MinMagnitude = 1.f;
@@ -48,5 +48,5 @@ public:
 #endif // WITH_EDITOR
 
 protected:
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

@@ -58,7 +58,7 @@ struct FMassClientBubbleInfoData
 
 namespace UE::MassReplication
 {
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FMassAgentDelegate, FMassNetworkID, FLWEntity);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FMassAgentDelegate, FMassNetworkID, FMassEntityHandle);
 
 } // UE::MassReplication
 
@@ -169,14 +169,14 @@ public:
 	/** 
 	 * Must be called immediately after an Entity is added to the simulation and after FindAndUpdateOrAddMassEntityInfo has been called
 	 */
-	void SetEntity(const FMassNetworkID NetworkID, const FLWEntity Entity);
+	void SetEntity(const FMassNetworkID NetworkID, const FMassEntityHandle Entity);
 
 	/** 
-	 * Resets the item with NetworkID in the  EntityInfoMap if its currently Set / Valid and its the most recent ReplicationID. In this case the FLWEntity that was reset is returned.
-	 * Otherwise FLWEntity::IsSet() will be false on the returned FLWEntity
-	 * Must be called after SetEntity and just before the Entity is removed on the client. This sets the Entity member of the AddToEntityInfoMap item to FLWEntity so it will be not IsSet() 
+	 * Resets the item with NetworkID in the  EntityInfoMap if its currently Set / Valid and its the most recent ReplicationID. In this case the FMassEntityHandle that was reset is returned.
+	 * Otherwise FMassEntityHandle::IsSet() will be false on the returned FMassEntityHandle
+	 * Must be called after SetEntity and just before the Entity is removed on the client. This sets the Entity member of the AddToEntityInfoMap item to FMassEntityHandle so it will be not IsSet() 
 	 */
-	FLWEntity ResetEntityIfValid(const FMassNetworkID NetworkID, int32 ReplicationID);
+	FMassEntityHandle ResetEntityIfValid(const FMassNetworkID NetworkID, int32 ReplicationID);
 
 	void RemoveFromEntityInfoMap(const FMassNetworkID NetworkID);
 
@@ -197,7 +197,7 @@ public:
 	 */
 	const FMassReplicationEntityInfo* FindMassEntityInfo(const FMassNetworkID NetworkID) const;
 
-	FLWEntity FindEntity(const FMassNetworkID NetworkID) const;
+	FMassEntityHandle FindEntity(const FMassNetworkID NetworkID) const;
 
 	const TMap<FMassNetworkID, FMassReplicationEntityInfo>& GetEntityInfoMap() const { return EntityInfoMap; }
 

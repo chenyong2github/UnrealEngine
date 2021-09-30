@@ -33,9 +33,9 @@ void UMassSimulationSettings::PostEditChangeProperty(struct FPropertyChangedEven
 	}
 }
 
-void UMassSimulationSettings::OnAssetPropertiesChanged(UPipeSchematic* PipeSchematic, const FPropertyChangedEvent& PropertyChangedEvent)
+void UMassSimulationSettings::OnAssetPropertiesChanged(UMassSchematic* MassSchematic, const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (TickSchematics.Find(PipeSchematic) != INDEX_NONE)
+	if (TickSchematics.Find(MassSchematic) != INDEX_NONE)
 	{
 		OnTickSchematicChanged.Broadcast();
 	}

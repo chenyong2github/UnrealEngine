@@ -26,7 +26,7 @@ void FPipeEditorModule::StartupModule()
 	// Register asset types
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-	TSharedPtr<FAssetTypeActions_PipeSchematic> PipeAssetTypeAction = MakeShareable(new FAssetTypeActions_PipeSchematic);
+	TSharedPtr<FAssetTypeActions_MassSchematic> PipeAssetTypeAction = MakeShareable(new FAssetTypeActions_MassSchematic);
 	ItemDataAssetTypeActions.Add(PipeAssetTypeAction);
 	AssetTools.RegisterAssetTypeActions(PipeAssetTypeAction.ToSharedRef());
 
@@ -67,18 +67,18 @@ void FPipeEditorModule::ShutdownModule()
 	}
 }
 
-TSharedRef<IPipeEditor> FPipeEditorModule::CreatePipeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UPipeSchematic* PipeSchematic)
+TSharedRef<IPipeEditor> FPipeEditorModule::CreatePipeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic* MassSchematic)
 {
 	if (!ProcessorClassCache.IsValid())
 	{
-		ProcessorClassCache = MakeShareable(new FGraphNodeClassHelper(UPipeProcessor::StaticClass()));
+		ProcessorClassCache = MakeShareable(new FGraphNodeClassHelper(UMassProcessor::StaticClass()));
 		ProcessorClassCache->UpdateAvailableBlueprintClasses();
 	}
 
 	TSharedRef<FPipeEditor> NewEditor(new FPipeEditor());
-	if (ensure(PipeSchematic))
+	if (ensure(MassSchematic))
 	{
-		NewEditor->InitEditor(Mode, InitToolkitHost, *PipeSchematic);
+		NewEditor->InitEditor(Mode, InitToolkitHost, *MassSchematic);
 	}
 	return NewEditor;
 }

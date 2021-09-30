@@ -12,17 +12,17 @@
 MASSENTITY_API DECLARE_LOG_CATEGORY_EXTERN(LogAggregateTicking, Warning, All);
 
 class UMassEntitySubsystem;
-struct FLWComponentQuery;
-struct FLWComponentSystemExecutionContext;
-struct FArchetypeData;
-struct FLWCCommandBuffer;
+struct FMassEntityQuery;
+struct FMassExecutionContext;
+struct FMassArchetypeData;
+struct FMassCommandBuffer;
 struct FArchetypeChunkCollection;
-struct FArchetypeChunk;
+struct FMassArchetypeChunk;
 class FOutputDevice;
-enum class ELWComponentAccess : uint8;
+enum class EMassFragmentAccess : uint8;
 
 namespace UE { namespace AggregateTicking {
-FString DebugGetComponentAccessString(ELWComponentAccess Access);
+FString DebugGetComponentAccessString(EMassFragmentAccess Access);
 }}
 
 //@TODO: Comment this guy
@@ -31,14 +31,14 @@ class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
-	friend struct FLWComponentQuery;
+	friend struct FMassEntityQuery;
 private:
 	// Index 0 is reserved so we can treat that index as an invalid entity handle
 	constexpr static int32 NumReservedEntities = 1;
 
 	struct FEntityData
 	{
-		TSharedPtr<FArchetypeData> CurrentArchetype;
+		TSharedPtr<FMassArchetypeData> CurrentArchetype;
 		int32 SerialNumber = 0;
 
 		void Reset()
@@ -68,7 +68,7 @@ public:
 		std::atomic<int32>& ScopedProcessingCount;
 	};
 
-	const static FLWEntity InvalidEntity;
+	const static FMassEntityHandle InvalidEntity;
 
 	UMassEntitySubsystem();
 
@@ -87,7 +87,7 @@ public:
 	 */
 	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> ComponentsAngTagsList);
 
-	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> ComponentList, const FLWTagBitSet& Tags, const FLWChunkComponentBitSet& ChunkComponents);
+	FArchetypeHandle CreateArchetype(TConstArrayView<const UScriptStruct*> ComponentList, const FMassTagBitSet& Tags, const FMassChunkFragmentBitSet& ChunkComponents);
 
 	/** 
 	 *  Creates an archetype like SourceArchetype + NewComponentList. 
@@ -99,12 +99,12 @@ public:
 	 *   types that SourceArchetype doesn't already have. If the caller cannot guarantee it use of AddComponent functions
 	 *   family is recommended.
 	 */
-	FArchetypeHandle CreateArchetype(const TSharedPtr<FArchetypeData>& SourceArchetype, const FLWComponentBitSet& NewComponentList);
+	FArchetypeHandle CreateArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassFragmentBitSet& NewComponentList);
 
-	FArchetypeHandle CreateArchetype(const FLWCompositionDescriptor& Descriptor);
+	FArchetypeHandle CreateArchetype(const FMassCompositionDescriptor& Descriptor);
 
 
-	FArchetypeHandle GetArchetypeForEntity(FLWEntity Entity) const;
+	FArchetypeHandle GetArchetypeForEntity(FMassEntityHandle Entity) const;
 	/** Method to iterate on all the component types of an archetype */
 	static void ForEachArchetypeComponentType(const FArchetypeHandle Archetype, TFunction< void(const UScriptStruct* /*ComponentType*/)> Function);
 
@@ -120,71 +120,71 @@ public:
 	 * Creates fully built entity ready to be used by the subsystem
 	 * @param Archetype you want this entity to be
 	 * @return FLWEntity id of the newly created entity */
-	FLWEntity CreateEntity(const FArchetypeHandle Archetype);
+	FMassEntityHandle CreateEntity(const FArchetypeHandle Archetype);
 
 	/**
 	 * Creates fully built entity ready to be used by the subsystem
 	 * @param ComponentInstanceList is the components to create the entity from and initialize values
 	 * @return FLWEntity id of the newly created entity */
-	FLWEntity CreateEntity(TConstArrayView<FInstancedStruct> ComponentInstanceList);
+	FMassEntityHandle CreateEntity(TConstArrayView<FInstancedStruct> ComponentInstanceList);
 
 	/** A version of CreateEntity that's creating a number of entities (Count) at one go
 	 *  @param Archetype you want this entity to be
 	 *  @param Count number of entities to create
 	 *  @param OutEntities the newly created entities are appended to given array, i.e. the pre-existing content of OutEntities won't be affected by the call
 	 *  @return number of entities created */
-	int32 BatchCreateEntities(const FArchetypeHandle Archetype, const int32 Count, TArray<FLWEntity>& OutEntities);
+	int32 BatchCreateEntities(const FArchetypeHandle Archetype, const int32 Count, TArray<FMassEntityHandle>& OutEntities);
 
 	/**
 	 * Destroys a fully built entity, use ReleaseReservedEntity if entity was not yet built.
 	 * @param Entity to destroy */
-	void DestroyEntity(FLWEntity Entity);
+	void DestroyEntity(FMassEntityHandle Entity);
 
 	/**
 	 * Reserves an entity in the subsystem, the entity is still not ready to be used by the subsystem, need to call BuildEntity()
 	 * @return FLWEntity id of the reserved entity */
-	FLWEntity ReserveEntity();
+	FMassEntityHandle ReserveEntity();
 
 	/**
 	 * Builds an entity for it to be ready to be used by the subsystem
 	 * @param Entity to build which was retrieved with ReserveEntity() method
 	 * @param Archetype you want this entity to be*/
-	void BuildEntity(FLWEntity Entity, const FArchetypeHandle Archetype);
+	void BuildEntity(FMassEntityHandle Entity, const FArchetypeHandle Archetype);
 
 	/**
 	 * Builds an entity for it to be ready to be used by the subsystem
 	 * @param Entity to build which was retrieved with ReserveEntity() method
 	 * @param ComponentInstanceList is the components to create the entity from and initialize values*/
-	void BuildEntity(FLWEntity Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList);
+	void BuildEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList);
 
 	/*
 	 * Releases a previously reserved entity that was not yet built, otherwise call DestroyEntity
 	 * @param Entity to release */
-	void ReleaseReservedEntity(FLWEntity Entity);
+	void ReleaseReservedEntity(FMassEntityHandle Entity);
 
 	/**
 	 * Destroys all the entity in the provided array of entities
 	 * @param InEntities to destroy
 	 */
-	void BatchDestroyEntities(TConstArrayView<FLWEntity> InEntities);
+	void BatchDestroyEntities(TConstArrayView<FMassEntityHandle> InEntities);
 
 	void BatchDestroyEntityChunks(const FArchetypeChunkCollection& Chunks);
 
-	void AddComponentToEntity(FLWEntity Entity, const UScriptStruct* ComponentType);
+	void AddComponentToEntity(FMassEntityHandle Entity, const UScriptStruct* ComponentType);
 
 	/** 
 	 *  Ensures that only unique components are added. 
 	 *  @note It's caller's responsibility to ensure Entity's and ComponentList's validity. 
 	 */
-	void AddComponentListToEntity(FLWEntity Entity, TConstArrayView<const UScriptStruct*> ComponentList);
+	void AddComponentListToEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> ComponentList);
 
-	void AddComponentInstanceListToEntity(FLWEntity Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList);
-	void RemoveComponentFromEntity(FLWEntity Entity, const UScriptStruct* ComponentType);
-	void RemoveComponentListFromEntity(FLWEntity Entity, TConstArrayView<const UScriptStruct*> ComponentList);
+	void AddComponentInstanceListToEntity(FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> ComponentInstanceList);
+	void RemoveComponentFromEntity(FMassEntityHandle Entity, const UScriptStruct* ComponentType);
+	void RemoveComponentListFromEntity(FMassEntityHandle Entity, TConstArrayView<const UScriptStruct*> ComponentList);
 
-	void AddTagToEntity(FLWEntity Entity, const UScriptStruct* TagType);
-	void RemoveTagFromEntity(FLWEntity Entity, const UScriptStruct* TagType);
-	void SwapTagsForEntity(FLWEntity Entity, const UScriptStruct* FromComponentType, const UScriptStruct* ToComponentType);
+	void AddTagToEntity(FMassEntityHandle Entity, const UScriptStruct* TagType);
+	void RemoveTagFromEntity(FMassEntityHandle Entity, const UScriptStruct* TagType);
+	void SwapTagsForEntity(FMassEntityHandle Entity, const UScriptStruct* FromComponentType, const UScriptStruct* ToComponentType);
 
 
 	/**
@@ -192,19 +192,19 @@ public:
 	 * in InOutDescriptor are missing from the current composition of the given entity and then returns the resulting 
 	 * delta via InOutDescriptor.
 	 */
-	void AddCompositionToEntity_GetDelta(FLWEntity Entity, FLWCompositionDescriptor& InOutDescriptor);
-	void RemoveCompositionFromEntity(FLWEntity Entity, const FLWCompositionDescriptor& InDescriptor);
+	void AddCompositionToEntity_GetDelta(FMassEntityHandle Entity, FMassCompositionDescriptor& InOutDescriptor);
+	void RemoveCompositionFromEntity(FMassEntityHandle Entity, const FMassCompositionDescriptor& InDescriptor);
 
 	/** 
 	 * Moves an entity over to a new archetype by copying over components common to both archetypes
 	 * @param Entity is the entity to move 
 	 * @param NewArchetypeHandle the handle to the new archetype
 	 */
-	void MoveEntityToAnotherArchetype(FLWEntity Entity, FArchetypeHandle NewArchetypeHandle);
+	void MoveEntityToAnotherArchetype(FMassEntityHandle Entity, FArchetypeHandle NewArchetypeHandle);
 
 	/** Copies values from ComponentInstanceList over to Entity's component. Caller is responsible for ensuring that 
 	 *  the given entity does have given components. Failing this assumption will cause a check-fail.*/
-	void SetEntityComponentsValues(FLWEntity Entity, TArrayView<const FInstancedStruct> ComponentInstanceList);
+	void SetEntityComponentsValues(FMassEntityHandle Entity, TArrayView<const FInstancedStruct> ComponentInstanceList);
 
 	/** Copies values from ComponentInstanceList over to components of given entities collection. The caller is responsible 
 	 *  for ensuring that the given entity archetype (FArchetypeChunkCollection.Archetype) does have given components. 
@@ -212,36 +212,36 @@ public:
 	static void BatchSetEntityComponentsValues(const FArchetypeChunkCollection& SparseEntities, TArrayView<const FInstancedStruct> ComponentInstanceList);
 
 	// Return true if it is an valid built entity
-	bool IsEntityActive(FLWEntity Entity) const 
+	bool IsEntityActive(FMassEntityHandle Entity) const 
 	{
 		return IsEntityValid(Entity) && IsEntityBuilt(Entity);
 	}
 
 	// Returns true if Entity is valid
-	bool IsEntityValid(FLWEntity Entity) const;
+	bool IsEntityValid(FMassEntityHandle Entity) const;
 
 	// Returns true if Entity is has been fully built (expecting a valid Entity)
-	bool IsEntityBuilt(FLWEntity Entity) const;
+	bool IsEntityBuilt(FMassEntityHandle Entity) const;
 
 	// Asserts that IsEntityValid
-	void CheckIfEntityIsValid(FLWEntity Entity) const;
+	void CheckIfEntityIsValid(FMassEntityHandle Entity) const;
 
 	// Asserts that IsEntityBuilt
-	void CheckIfEntityIsActive(FLWEntity Entity) const;
+	void CheckIfEntityIsActive(FMassEntityHandle Entity) const;
 
 	template <typename ComponentType>
-	ComponentType& GetComponentDataChecked(FLWEntity Entity) const
+	ComponentType& GetComponentDataChecked(FMassEntityHandle Entity) const
 	{
 		return *((ComponentType*)InternalGetComponentDataChecked(Entity, ComponentType::StaticStruct()));
 	}
 
 	template <typename ComponentType>
-	ComponentType* GetComponentDataPtr(FLWEntity Entity) const
+	ComponentType* GetComponentDataPtr(FMassEntityHandle Entity) const
 	{
 		return (ComponentType*)InternalGetComponentDataPtr(Entity, ComponentType::StaticStruct());
 	}
 
-	FStructView GetComponentDataStruct(FLWEntity Entity, const UScriptStruct* ComponentType) const
+	FStructView GetComponentDataStruct(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const
 	{
 		return FStructView(ComponentType, static_cast<uint8*>(InternalGetComponentDataPtr(Entity, ComponentType)));
 	}
@@ -249,17 +249,17 @@ public:
 	uint32 GetArchetypeDataVersion() const { return ArchetypeDataVersion; }
 
 	/**
-	 * Creates and initializes a FLWComponentSystemExecutionContext instance.
+	 * Creates and initializes a FMassExecutionContext instance.
 	 */
-	FLWComponentSystemExecutionContext CreateExecutionContext(const float DeltaSeconds) const;
+	FMassExecutionContext CreateExecutionContext(const float DeltaSeconds) const;
 
 	FScopedProcessing NewProcessingScope() { return FScopedProcessing(ProcessingScopeCount); }
 	bool IsProcessing() const { return ProcessingScopeCount > 0; }
-	FLWCCommandBuffer& Defer() { return *DeferredCommandBuffer.Get(); }
+	FMassCommandBuffer& Defer() { return *DeferredCommandBuffer.Get(); }
 
 #if WITH_MASSENTITY_DEBUG
 	void DebugPrintEntity(int32 Index, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
-	void DebugPrintEntity(FLWEntity Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
+	void DebugPrintEntity(FMassEntityHandle Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
 	void DebugPrintArchetypes(FOutputDevice& Ar) const;
 	static void DebugGetStringDesc(const FArchetypeHandle& Archetype, FOutputDevice& Ar);
 	void DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty = true);
@@ -273,53 +273,32 @@ public:
 #endif // WITH_MASSENTITY_DEBUG
 
 protected:
-	void GetValidArchetypes(const FLWComponentQuery& Query, TArray<FArchetypeHandle>& OutValidArchetypes);
+	void GetValidArchetypes(const FMassEntityQuery& Query, TArray<FArchetypeHandle>& OutValidArchetypes);
 	
-	FArchetypeHandle InternalCreateSiblingArchetype(const TSharedPtr<FArchetypeData>& SourceArchetype, const FLWTagBitSet& OverrideTags);
+	FArchetypeHandle InternalCreateSiblingArchetype(const TSharedPtr<FMassArchetypeData>& SourceArchetype, const FMassTagBitSet& OverrideTags);
 
 private:
-	void InternalBuildEntity(FLWEntity Entity, const FArchetypeHandle Archetype);
-	void InternalReleaseEntity(FLWEntity Entity);
+	void InternalBuildEntity(FMassEntityHandle Entity, const FArchetypeHandle Archetype);
+	void InternalReleaseEntity(FMassEntityHandle Entity);
 
 	/** 
 	 *  Adds components in ComponentList to Entity. Only the unique components will be added.
 	 */
-	void InternalAddComponentListToEntityChecked(FLWEntity Entity, const FLWComponentBitSet& InComponents);
+	void InternalAddComponentListToEntityChecked(FMassEntityHandle Entity, const FMassFragmentBitSet& InComponents);
 
 	/** 
 	 *  Similar to InternalAddComponentListToEntity but expects NewComponentList not overlapping with current entity's
 	 *  component list. It's callers responsibility to ensure that's true. Failing this will cause a `check` fail.
 	 */
-	void InternalAddComponentListToEntity(FLWEntity Entity, const FLWComponentBitSet& NewComponents);
-	void* InternalGetComponentDataChecked(FLWEntity Entity, const UScriptStruct* ComponentType) const;
-	void* InternalGetComponentDataPtr(FLWEntity Entity, const UScriptStruct* ComponentType) const;
-
-	//@TODO: Not optimized or a great API, super WIP
-	struct MASSENTITY_API FChunkIteratorByComponent
-	{
-		FChunkIteratorByComponent(UMassEntitySubsystem* InSystem, const UScriptStruct* InComponentType);
-
-		void GetCurrentChunkBase(void*& OutChunkBasePtr, int32& OutChunkEntityCount) const;
-
-		void Advance();
-		bool IsDone() const;
-		FArchetypeData* GetCurrentArchetype() const;
-
-		UMassEntitySubsystem* System;
-		const UScriptStruct* ComponentType;
-
-		TArray<TSharedPtr<FArchetypeData>>* pPendingArchetypes;
-		int32 ArchetypeIndex = 0;
-		int32 ChunkIndex = 0;
-	};
-
-	friend FChunkIteratorByComponent;
+	void InternalAddComponentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& NewComponents);
+	void* InternalGetComponentDataChecked(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const;
+	void* InternalGetComponentDataPtr(FMassEntityHandle Entity, const UScriptStruct* ComponentType) const;
 
 private:
 	TChunkedArray<FEntityData> Entities;
 	TArray<int32> EntityFreeIndexList;
 
-	TSharedPtr<FLWCCommandBuffer> DeferredCommandBuffer;
+	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
 	std::atomic<int32> SerialNumberGenerator;
 	std::atomic<int32> ProcessingScopeCount;
 
@@ -327,46 +306,46 @@ private:
 	uint32 ArchetypeDataVersion = 0;
 
 	// Map of hash of sorted component list to archetypes with that hash
-	TMap<uint32, TArray<TSharedPtr<FArchetypeData>>> ComponentHashToArchetypeMap;
+	TMap<uint32, TArray<TSharedPtr<FMassArchetypeData>>> ComponentHashToArchetypeMap;
 
 	// Map to list of archetypes that contain the specified component type
-	TMap<const UScriptStruct*, TArray<TSharedPtr<FArchetypeData>>> ComponentTypeToArchetypeMap;
+	TMap<const UScriptStruct*, TArray<TSharedPtr<FMassArchetypeData>>> ComponentTypeToArchetypeMap;
 };
 
 
 //////////////////////////////////////////////////////////////////////
 //
 
-struct MASSENTITY_API FLWComponentSystemExecutionContext
+struct MASSENTITY_API FMassExecutionContext
 {
 private:
-	struct FComponentView 
+	struct FFragmentView 
 	{
-		FLWComponentRequirement Requirement;
-		TArrayView<FLWComponentData> ComponentView;
+		FMassFragmentRequirement Requirement;
+		TArrayView<FMassFragment> ComponentView;
 
-		FComponentView() {}
-		explicit FComponentView(const FLWComponentRequirement& InRequirement) : Requirement(InRequirement) {}
+		FFragmentView() {}
+		explicit FFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement) {}
 
 		bool operator==(const UScriptStruct* ComponentType) const { return Requirement.StructType == ComponentType; }
 	};
-	TArray<FComponentView, TInlineAllocator<8>> ComponentViews;
+	TArray<FFragmentView, TInlineAllocator<8>> ComponentViews;
 
-	struct FChunkComponentView
+	struct FChunkFragmentView
 	{
-		FLWComponentRequirement Requirement;
+		FMassFragmentRequirement Requirement;
 		FStructView ChunkComponentView;
 
-		FChunkComponentView() {}
-		explicit FChunkComponentView(const FLWComponentRequirement& InRequirement) : Requirement(InRequirement)	{}
+		FChunkFragmentView() {}
+		explicit FChunkFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement)	{}
 
 		bool operator==(const UScriptStruct* ComponentType) const { return Requirement.StructType == ComponentType; }
 	};
-	TArray<FChunkComponentView, TInlineAllocator<4>> ChunkComponents;
+	TArray<FChunkFragmentView, TInlineAllocator<4>> ChunkComponents;
 
 	// mz@todo make this shared ptr thread-safe and never auto-flush in MT environment. 
-	TSharedPtr<FLWCCommandBuffer> DeferredCommandBuffer;
-	TArrayView<FLWEntity> EntityListView;
+	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
+	TArrayView<FMassEntityHandle> EntityListView;
 	
 	/** If set this indicates the exact archetype and its chunks to be processed. 
 	 *  @todo this data should live somewhere else, preferably be just a parameter to Query.ForEachEntityChunk function */
@@ -375,7 +354,7 @@ private:
 	FInstancedStruct AuxData;
 	float DeltaTimeSeconds = 0.0f;
 	int32 ChunkSerialModificationNumber = -1;
-	FLWTagBitSet CurrentArchetypesTagBitSet;
+	FMassTagBitSet CurrentArchetypesTagBitSet;
 
 #if WITH_MASSENTITY_DEBUG
 	FString DebugExecutionDescription;
@@ -386,15 +365,15 @@ private:
 	 *  calling FLWCCommandBuffer.ReplayBufferAgainstSystem() */
 	bool bFlushDeferredCommands = true;
 
-	TArrayView<FComponentView> GetMutableRequirements() { return ComponentViews; }
-	TArrayView<FChunkComponentView> GetMutableChunkRequirements() { return ChunkComponents; }
+	TArrayView<FFragmentView> GetMutableRequirements() { return ComponentViews; }
+	TArrayView<FChunkFragmentView> GetMutableChunkRequirements() { return ChunkComponents; }
 	
-	friend FArchetypeData;
-	friend FLWComponentQuery;
+	friend FMassArchetypeData;
+	friend FMassEntityQuery;
 
 public:
-	FLWComponentSystemExecutionContext() = default;
-	explicit FLWComponentSystemExecutionContext(const float InDeltaTimeSeconds, const bool bInFlushDeferredCommands = true)
+	FMassExecutionContext() = default;
+	explicit FMassExecutionContext(const float InDeltaTimeSeconds, const bool bInFlushDeferredCommands = true)
 		: DeltaTimeSeconds(InDeltaTimeSeconds)
 		, bFlushDeferredCommands(bInFlushDeferredCommands)
 	{}
@@ -407,7 +386,7 @@ public:
 	/** Sets bFlushDeferredCommands. Note that setting to True while the system is being executed doesn't result in
 	 *  immediate commands flushing */
 	void SetFlushDeferredCommands(const bool bNewFlushDeferredCommands) { bFlushDeferredCommands = bNewFlushDeferredCommands; } 
-	void SetDeferredCommandBuffer(const TSharedPtr<FLWCCommandBuffer>& InDeferredCommandBuffer) { DeferredCommandBuffer = InDeferredCommandBuffer; }
+	void SetDeferredCommandBuffer(const TSharedPtr<FMassCommandBuffer>& InDeferredCommandBuffer) { DeferredCommandBuffer = InDeferredCommandBuffer; }
 	void SetChunkCollection(const FArchetypeChunkCollection& InChunkCollection);
 	void SetChunkCollection(FArchetypeChunkCollection&& InChunkCollection);
 	void ClearChunkCollection() { ChunkCollection.Reset(); }
@@ -418,13 +397,13 @@ public:
 		return DeltaTimeSeconds;
 	}
 
-	TSharedPtr<FLWCCommandBuffer> GetSharedDeferredCommandBuffer() const { return DeferredCommandBuffer; }
-	FLWCCommandBuffer& Defer() { checkSlow(DeferredCommandBuffer.IsValid()); return *DeferredCommandBuffer.Get(); }
+	TSharedPtr<FMassCommandBuffer> GetSharedDeferredCommandBuffer() const { return DeferredCommandBuffer; }
+	FMassCommandBuffer& Defer() { checkSlow(DeferredCommandBuffer.IsValid()); return *DeferredCommandBuffer.Get(); }
 
-	TConstArrayView<FLWEntity> GetEntities() const { return EntityListView; }
+	TConstArrayView<FMassEntityHandle> GetEntities() const { return EntityListView; }
 	int32 GetEntitiesNum() const { return EntityListView.Num(); }
 
-	FLWEntity GetEntity(const int32 Index) const
+	FMassEntityHandle GetEntity(const int32 Index) const
 	{
 		return EntityListView[Index];
 	}
@@ -432,7 +411,7 @@ public:
 	template<typename T>
 	bool DoesArchetypeHaveTag() const
 	{
-		static_assert(TIsDerivedFrom<T, FComponentTag>::IsDerived, "Given struct is not of a valid fragment type.");
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct is not of a valid fragment type.");
 		return CurrentArchetypesTagBitSet.Contains<T>();
 	}
 
@@ -443,10 +422,10 @@ public:
 	template<typename T>
 	T& GetMutableChunkComponent()
 	{
-		static_assert(TIsDerivedFrom<T, FLWChunkComponent>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComponent or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
 		const UScriptStruct* Type = T::StaticStruct();
-		const FChunkComponentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkComponentView& Element) { return Element.Requirement.StructType == Type; });
+		const FChunkFragmentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; });
 		checkf(FoundChunkComponentData, TEXT("Chunk Component requirement not found: %s"), *T::StaticStruct()->GetName());
 		return FoundChunkComponentData->ChunkComponentView.template GetMutable<T>();
 	}
@@ -454,43 +433,43 @@ public:
 	template<typename T>
 	const T& GetChunkComponent() const
 	{
-		static_assert(TIsDerivedFrom<T, FLWChunkComponent>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComponent or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
 		const UScriptStruct* Type = T::StaticStruct();
-		const FChunkComponentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkComponentView& Element) { return Element.Requirement.StructType == Type; } );
+		const FChunkFragmentView* FoundChunkComponentData = ChunkComponents.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
 		checkf(FoundChunkComponentData, TEXT("Chunk Component requirement not found: %s"), *T::StaticStruct()->GetName());
 		return FoundChunkComponentData->ChunkComponentView.template Get<T>();
 	}
 
-	template<typename TLWComponent>
-	TArrayView<TLWComponent> GetMutableComponentView()
+	template<typename TFragment>
+	TArrayView<TFragment> GetMutableComponentView()
 	{
-		const UScriptStruct* ComponentType = TLWComponent::StaticStruct();
-		const FComponentView* View = ComponentViews.FindByPredicate([ComponentType](const FComponentView& Element) { return Element.Requirement.StructType == ComponentType; });
+		const UScriptStruct* ComponentType = TFragment::StaticStruct();
+		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
 		//checkfSlow(View != nullptr, TEXT("Requested component type not bound"));
-		//checkfSlow(View->Requirement.AccessMode == ELWComponentAccess::ReadWrite, TEXT("Requested component has not been bound for writing"));
-		return MakeArrayView<TLWComponent>((TLWComponent*)View->ComponentView.GetData(), View->ComponentView.Num());
+		//checkfSlow(View->Requirement.AccessMode == EMassFragmentAccess::ReadWrite, TEXT("Requested component has not been bound for writing"));
+		return MakeArrayView<TFragment>((TFragment*)View->ComponentView.GetData(), View->ComponentView.Num());
 	}
 
-	template<typename TLWComponent>
-	TConstArrayView<TLWComponent> GetComponentView() const
+	template<typename TFragment>
+	TConstArrayView<TFragment> GetComponentView() const
 	{
-		const UScriptStruct* ComponentType = TLWComponent::StaticStruct();
-		const FComponentView* View = ComponentViews.FindByPredicate([ComponentType](const FComponentView& Element) { return Element.Requirement.StructType == ComponentType; });
+		const UScriptStruct* ComponentType = TFragment::StaticStruct();
+		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
 		//checkfSlow(View != nullptr, TEXT("Requested component type not bound"));
-		return TConstArrayView<TLWComponent>((const TLWComponent*)View->ComponentView.GetData(), View->ComponentView.Num());
+		return TConstArrayView<TFragment>((const TFragment*)View->ComponentView.GetData(), View->ComponentView.Num());
 	}
 
-	TConstArrayView<FLWComponentData> GetComponentComponentView(const UScriptStruct* ComponentType) const
+	TConstArrayView<FMassFragment> GetComponentComponentView(const UScriptStruct* ComponentType) const
 	{
-		const FComponentView* View = ComponentViews.FindByPredicate([ComponentType](const FComponentView& Element) { return Element.Requirement.StructType == ComponentType; });
+		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
 		checkSlow(View);
-		return TConstArrayView<FLWComponentData>((const FLWComponentData*)View->ComponentView.GetData(), View->ComponentView.Num());;
+		return TConstArrayView<FMassFragment>((const FMassFragment*)View->ComponentView.GetData(), View->ComponentView.Num());;
 	}
 
-	TArrayView<FLWComponentData> GetMutableComponentView(const UScriptStruct* ComponentType) 
+	TArrayView<FMassFragment> GetMutableComponentView(const UScriptStruct* ComponentType) 
 	{
-		const FComponentView* View = ComponentViews.FindByPredicate([ComponentType](const FComponentView& Element) { return Element.Requirement.StructType == ComponentType; });
+		const FFragmentView* View = ComponentViews.FindByPredicate([ComponentType](const FFragmentView& Element) { return Element.Requirement.StructType == ComponentType; });
 		checkSlow(View);
 		return View->ComponentView;
 	}
@@ -504,17 +483,17 @@ public:
 	void FlushDeferred(UMassEntitySubsystem& EntitySystem) const;
 
 	void ClearExecutionData();
-	void SetCurrentArchetypeData(FArchetypeData& ArchetypeData);
+	void SetCurrentArchetypeData(FMassArchetypeData& ArchetypeData);
 
 protected:
-	void SetRequirements(TConstArrayView<FLWComponentRequirement> InRequirements, TConstArrayView<FLWComponentRequirement> InChunkRequirements);
+	void SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, TConstArrayView<FMassFragmentRequirement> InChunkRequirements);
 	void ClearComponentViews()
 	{
-		for (FComponentView& View : ComponentViews)
+		for (FFragmentView& View : ComponentViews)
 		{
-			View.ComponentView = TArrayView<FLWComponentData>();
+			View.ComponentView = TArrayView<FMassFragment>();
 		}
-		for (FChunkComponentView& View : ChunkComponents)
+		for (FChunkFragmentView& View : ChunkComponents)
 		{
 			View.ChunkComponentView.Reset();
 		}

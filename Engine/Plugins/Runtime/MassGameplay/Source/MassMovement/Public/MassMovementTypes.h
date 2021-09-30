@@ -25,7 +25,7 @@ struct FMassAvoidanceObstacleItem
 		return Entity == Other.Entity;
 	}
 
-	FLWEntity Entity;
+	FMassEntityHandle Entity;
 	EMassAvoidanceObstacleItemFlags ItemFlags = EMassAvoidanceObstacleItemFlags::None;
 };
 

@@ -96,7 +96,7 @@ struct FEntityTest_EntityBatchCreation : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		const int32 Count = 123;
-		TArray<FLWEntity> Entities;
+		TArray<FMassEntityHandle> Entities;
 		EntitySubsystem->BatchCreateEntities(FloatsIntsArchetype, Count, Entities);
 		AITEST_EQUAL("Batch creation should create the expected number of entities", Entities.Num(), Count);
 		AITEST_EQUAL("The total number of entities present must match the number requested", EntitySubsystem->DebugGetEntityCount(), Count);
@@ -111,7 +111,7 @@ struct FEntityTest_BatchCreatingSingleEntity : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		TArray<FLWEntity> Entities;
+		TArray<FMassEntityHandle> Entities;
 		EntitySubsystem->BatchCreateEntities(FloatsIntsArchetype, /*Count=*/1, Entities);
 		AITEST_EQUAL("Batch creation should have created a single entity", Entities.Num(), 1);
 		AITEST_EQUAL("The total number of entities present must match the number created by batch creation", EntitySubsystem->DebugGetEntityCount(), 1);
@@ -127,7 +127,7 @@ struct FEntityTest_EntityCreation : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);		
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("Entity\'s archetype should be the Float one", EntitySubsystem->GetArchetypeForEntity(Entity), FloatsArchetype);
 		AITEST_EQUAL("The created entity should have been added to the Floats archetype", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 1);
@@ -144,7 +144,7 @@ struct FEntityTest_EntityCreationFromInstances : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(MakeArrayView(&InstanceInt, 1));
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(MakeArrayView(&InstanceInt, 1));
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("Entity\'s archetype should be the Ints one", EntitySubsystem->GetArchetypeForEntity(Entity), IntsArchetype);
 		AITEST_EQUAL("The created entity should have been added to the Ints archetype", EntitySubsystem->DebugGetArchetypeEntitiesCount(IntsArchetype), 1);
@@ -177,7 +177,7 @@ struct FEntityTest_AddingFragmentType : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
 		EntitySubsystem->AddComponentToEntity(Entity, FTestFragment_Int::StaticStruct());
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 0);
@@ -196,7 +196,7 @@ struct FEntityTest_AddingFragmentInstance : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
 		EntitySubsystem->AddComponentInstanceListToEntity(Entity, MakeArrayView(&InstanceInt, 1));
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 0);
@@ -217,7 +217,7 @@ struct FEntityTest_RemovingFragment : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsIntsArchetype);
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsIntsArchetype);
 		EntitySubsystem->RemoveComponentFromEntity(Entity, FTestFragment_Float::StaticStruct());
 		AITEST_EQUAL("There should be just one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsIntsArchetype), 0);
@@ -236,7 +236,7 @@ struct FEntityTest_RemovingLastFragment : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
 		EntitySubsystem->RemoveComponentFromEntity(Entity, FTestFragment_Float::StaticStruct());
 		AITEST_EQUAL("There should be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
 		AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(FloatsArchetype), 0);
@@ -253,7 +253,7 @@ struct FEntityTest_DestroyEntity : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
+		const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(FloatsArchetype);
 		AITEST_EQUAL("The entity should get associated to the right archetype", EntitySubsystem->GetArchetypeForEntity(Entity), FloatsArchetype);
 		EntitySubsystem->DestroyEntity(Entity);
 		AITEST_EQUAL("There should not be any entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 0);
@@ -268,7 +268,7 @@ struct FEntityTest_EntityReservationAndBuilding : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity ReservedEntity = EntitySubsystem->ReserveEntity();
+		const FMassEntityHandle ReservedEntity = EntitySubsystem->ReserveEntity();
 		AITEST_TRUE("The reserved entity should be a valid entity", EntitySubsystem->IsEntityValid(ReservedEntity));
 		AITEST_FALSE("The reserved entity should not be a valid entity", EntitySubsystem->IsEntityBuilt(ReservedEntity));
 		EntitySubsystem->BuildEntity(ReservedEntity, FloatsArchetype);
@@ -291,7 +291,7 @@ struct FEntityTest_EntityReservationAndBuildingFromInstances : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity ReservedEntity = EntitySubsystem->ReserveEntity();
+		const FMassEntityHandle ReservedEntity = EntitySubsystem->ReserveEntity();
 		AITEST_TRUE("The reserved entity should be a valid entity", EntitySubsystem->IsEntityValid(ReservedEntity));
 		AITEST_FALSE("The reserved entity should not be a valid entity", EntitySubsystem->IsEntityBuilt(ReservedEntity));
 		EntitySubsystem->BuildEntity(ReservedEntity, MakeArrayView(&InstanceInt, 1));
@@ -314,7 +314,7 @@ struct FEntityTest_ReleaseEntity : FEntityTestBase
 	virtual bool InstantTest() override
 	{
 		CA_ASSUME(EntitySubsystem);
-		const FLWEntity ReservedEntity = EntitySubsystem->ReserveEntity();
+		const FMassEntityHandle ReservedEntity = EntitySubsystem->ReserveEntity();
 		AITEST_TRUE("The reserved entity should be a valid entity", EntitySubsystem->IsEntityValid(ReservedEntity));
 		AITEST_FALSE("The reserved entity should not be a valid entity", EntitySubsystem->IsEntityBuilt(ReservedEntity));
 		AITEST_EQUAL("There should only be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);
@@ -332,14 +332,14 @@ struct FEntityTest_ReserveAPreviouslyBuiltEntity : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 		{
-			const FLWEntity Entity = EntitySubsystem->CreateEntity(IntsArchetype);
+			const FMassEntityHandle Entity = EntitySubsystem->CreateEntity(IntsArchetype);
 			AITEST_EQUAL("The entity should get associated to the right archetype", EntitySubsystem->GetArchetypeForEntity(Entity), IntsArchetype);
 			EntitySubsystem->DestroyEntity(Entity);
 			AITEST_EQUAL("There should not be any entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 0);
 			AITEST_EQUAL("The original archetype should now have no entities", EntitySubsystem->DebugGetArchetypeEntitiesCount(IntsArchetype), 0);
 		}
 		
-		const FLWEntity ReservedEntity = EntitySubsystem->ReserveEntity();
+		const FMassEntityHandle ReservedEntity = EntitySubsystem->ReserveEntity();
 		AITEST_TRUE("The reserved entity should be a valid entity", EntitySubsystem->IsEntityValid(ReservedEntity));
 		AITEST_FALSE("The reserved entity should not be a valid entity", EntitySubsystem->IsEntityBuilt(ReservedEntity));
 		AITEST_EQUAL("There should only be one entity across the whole system", EntitySubsystem->DebugGetEntityCount(), 1);

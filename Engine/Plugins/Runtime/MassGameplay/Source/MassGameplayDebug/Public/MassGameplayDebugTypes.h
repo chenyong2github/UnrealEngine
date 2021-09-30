@@ -38,7 +38,7 @@ struct FSimDebugDataRow : public FTableRowBase
 };
 
 USTRUCT()
-struct FSimDebugVisComponent : public FLWComponentData
+struct FSimDebugVisComponent : public FMassFragment
 {
 	GENERATED_BODY()
 	int32 InstanceIndex = INDEX_NONE;
@@ -56,7 +56,7 @@ enum class EMassEntityDebugShape : uint8
 };
 
 USTRUCT()
-struct FDataFragment_DebugVis : public FLWComponentData
+struct FDataFragment_DebugVis : public FMassFragment
 {
 	GENERATED_BODY()
 	UPROPERTY(EditAnywhere, Category = Debug)

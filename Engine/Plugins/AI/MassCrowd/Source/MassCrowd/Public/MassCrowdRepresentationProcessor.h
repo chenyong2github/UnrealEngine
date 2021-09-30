@@ -26,7 +26,7 @@ protected:
 	 */
 	virtual void Initialize(UObject& Owner) override;
 
-	/** Configure the owned FLWComponentQuery instances to express processor's requirements */
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
 	virtual void ConfigureQueries() override;
 
 	/**
@@ -36,7 +36,7 @@ protected:
 	 * @param EntityIdx is the entity index currently processing
 	 * @param Context is the current light weight component execution context
 	 */
-	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FLWComponentSystemExecutionContext& Context) override;
+	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context) override;
 
 	/** 
 	 * Returns an actor of the template type and setup fragments values from it
@@ -58,17 +58,17 @@ protected:
 	 * @param Actor is the actual actor to teleport
 	 * @param Context is the current light weight component execution context
 	 */
-	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FLWComponentSystemExecutionContext& Context) override;
+	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context) override;
 
 	/**
 	 * Initializes velocity for each entity when just switch to use movement component, must be called within a ForEachEntityChunk
 	 * @param EntitySubsystem The subsystem in which all entities must be initialized
 	 * @param Context of the execution from the entity sub system
 	 */
-	void InitializeVelocity(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
+	void InitializeVelocity(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
 
 	/** 
 	 * A dedicated query for processing entities owning a FDataFragment_CharacterMovementComponentWrapper
 	 */
-	FLWComponentQuery CharacterMovementEntitiesQuery_Conditional;
+	FMassEntityQuery CharacterMovementEntitiesQuery_Conditional;
 };

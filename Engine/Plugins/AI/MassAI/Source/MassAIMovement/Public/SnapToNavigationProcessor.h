@@ -8,7 +8,7 @@
 class ANavigationData;
 
 UCLASS()
-class MASSAIMOVEMENT_API USnapToNavigationProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API USnapToNavigationProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 public:
@@ -16,10 +16,10 @@ public:
 
 protected:	
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 	virtual void Initialize(UObject& InOwner) override;
 
 	TWeakObjectPtr<ANavigationData> WeakNavData;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

@@ -5,13 +5,13 @@
 #include "MassEntityTypes.h"
 
 class FOutputDevice;
-class UPipeProcessor;
+class UMassProcessor;
 
-MASSENTITY_API DECLARE_ENUM_TO_STRING(EPipeProcessingPhase);
+MASSENTITY_API DECLARE_ENUM_TO_STRING(EMassProcessingPhase);
 
 namespace UE { namespace Pipe { namespace Debug {
 
-MASSENTITY_API extern void DebugOutputDescription(TConstArrayView<UPipeProcessor*> Processors, FOutputDevice& Ar);
+MASSENTITY_API extern void DebugOutputDescription(TConstArrayView<UMassProcessor*> Processors, FOutputDevice& Ar);
 
 }}} // namespace UE::Pipe::Debug
 

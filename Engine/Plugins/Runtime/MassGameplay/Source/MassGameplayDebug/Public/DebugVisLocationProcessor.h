@@ -9,7 +9,7 @@ class UMassDebugVisualizationComponent;
 struct FSimDebugVisComponent;
 
 UCLASS()
-class MASSGAMEPLAYDEBUG_API UDebugVisLocationProcessor : public UPipeProcessor
+class MASSGAMEPLAYDEBUG_API UDebugVisLocationProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -18,11 +18,11 @@ public:
 	
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 	virtual void Initialize(UObject& InOwner) override;
 
 	TWeakObjectPtr<UMassDebugVisualizationComponent> WeakVisualizer;
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 //----------------------------------------------------------------------//
@@ -31,15 +31,15 @@ protected:
 //class UMassDebugger;
 
 UCLASS()
-class MASSGAMEPLAYDEBUG_API UMassProcessor_UpdateDebugVis : public UPipeProcessor
+class MASSGAMEPLAYDEBUG_API UMassProcessor_UpdateDebugVis : public UMassProcessor
 {
 	GENERATED_BODY()
 public:
 	UMassProcessor_UpdateDebugVis();
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 protected:
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 

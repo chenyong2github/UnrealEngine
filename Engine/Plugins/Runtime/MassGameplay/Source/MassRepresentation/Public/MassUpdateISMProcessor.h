@@ -11,7 +11,7 @@ class UMassRepresentationSubsystem;
 struct FMassInstancedStaticMeshInfo;
 
 UCLASS()
-class MASSREPRESENTATION_API UMassUpdateISMProcessor : public UPipeProcessor
+class MASSREPRESENTATION_API UMassUpdateISMProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -26,14 +26,14 @@ protected:
 	 * @param Owner of the Processor */
 	virtual void Initialize(UObject& Owner) override;
 
-	/** Configure the owned FLWComponentQuery instances to express processor's requirements */
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
 	virtual void ConfigureQueries() override;
 
 	/**
 	 * Execution method for this processor
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas */
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/** Component Tag that will be used to filter out entities to update ISM */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "ComponentTag"))
@@ -43,5 +43,5 @@ protected:
 	UPROPERTY(Transient)
 	UMassRepresentationSubsystem* RepresentationSubsystem;
 
-	TArray<FLWComponentQuery> EntityQueries;
+	TArray<FMassEntityQuery> EntityQueries;
 };

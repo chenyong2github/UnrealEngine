@@ -4,7 +4,7 @@
 #include "MassSmartObjectProcessor.h"
 
 void USmartObjectMassBehaviorConfig::Activate(UMassEntitySubsystem& EntitySubsystem,
-                                              FLWComponentSystemExecutionContext& Context,
+                                              FMassExecutionContext& Context,
                                               const FMassBehaviorEntityContext& EntityContext) const
 {
 	EntityContext.SOUser.SetUseTime(UseTime);

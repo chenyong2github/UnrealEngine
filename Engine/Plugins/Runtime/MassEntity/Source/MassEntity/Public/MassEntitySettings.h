@@ -8,15 +8,15 @@
 #include "InstancedStruct.h"
 #include "MassEntitySettings.generated.h"
 
-#define GET_PIPE_CONFIG_VALUE(a) (GetMutableDefault<UPipeSettings>()->a)
+#define GET_PIPE_CONFIG_VALUE(a) (GetMutableDefault<UMassSettings>()->a)
 
-class UPipeProcessingPhaseManager;
-struct FPipeProcessingPhaseConfig;
+class UMassProcessingPhaseManager;
+struct FMassProcessingPhaseConfig;
 struct FPropertyChangedEvent;
 
 
 USTRUCT()
-struct FPipeProcessingPhaseConfig
+struct FMassProcessingPhaseConfig
 {
 	GENERATED_BODY()
 
@@ -24,19 +24,19 @@ struct FPipeProcessingPhaseConfig
 	FName PhaseName;
 
 	UPROPERTY(EditAnywhere, Category = Pipe, config, NoClear)
-	TSubclassOf<UPipeCompositeProcessor> PhaseGroupClass = UPipeCompositeProcessor::StaticClass();
+	TSubclassOf<UMassCompositeProcessor> PhaseGroupClass = UMassCompositeProcessor::StaticClass();
 
 	UPROPERTY(EditAnywhere, Category = Pipe, config, NoClear)
 	TArray<FName> OffGameThreadGroupNames;
 
 	UPROPERTY(Transient)
-	TArray<UPipeProcessor*> ProcessorCDOs;
+	TArray<UMassProcessor*> ProcessorCDOs;
 
 #if WITH_EDITORONLY_DATA
 	// this processor is available only in editor since it's used to present the user the order in which processors
 	// will be executed when given processing phase gets triggered
 	UPROPERTY(Transient)
-	UPipeCompositeProcessor* PhaseProcessor = nullptr;
+	UMassCompositeProcessor* PhaseProcessor = nullptr;
 
 	UPROPERTY(VisibleAnywhere, Category = Pipe, Transient)
 	FString Description;
@@ -47,7 +47,7 @@ struct FPipeProcessingPhaseConfig
  * Implements the settings for MassSimulation
  */
 UCLASS(config = Game, defaultconfig, DisplayName = "Pipe")
-class MASSENTITY_API UPipeSettings : public UDeveloperSettings
+class MASSENTITY_API UMassSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 public:
@@ -55,13 +55,13 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSettingsChange, const FPropertyChangedEvent& /*PropertyChangedEvent*/);
 #endif // WITH_EDITORONLY_DATA
 
-	UPipeSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UMassSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	void BuildProcessorListAndPhases();
-	void AddToActiveProcessorsList(TSubclassOf<UPipeProcessor> ProcessorClass);
+	void AddToActiveProcessorsList(TSubclassOf<UMassProcessor> ProcessorClass);
 
-	const FPipeProcessingPhaseConfig* GetProcessingPhasesConfig();
-	const FPipeProcessingPhaseConfig& GetProcessingPhaseConfig(const EPipeProcessingPhase ProcessingPhase) const { check(ProcessingPhase != EPipeProcessingPhase::MAX); return ProcessingPhasesConfig[int(ProcessingPhase)]; }
+	const FMassProcessingPhaseConfig* GetProcessingPhasesConfig();
+	const FMassProcessingPhaseConfig& GetProcessingPhaseConfig(const EMassProcessingPhase ProcessingPhase) const { check(ProcessingPhase != EMassProcessingPhase::MAX); return ProcessingPhasesConfig[int(ProcessingPhase)]; }
 
 #if WITH_EDITOR
 	FOnSettingsChange& GetOnSettingsChange() { return OnSettingsChange; }	
@@ -87,11 +87,11 @@ public:
 
 	/** Lets users configure processing phases including the composite processor class to be used as a container for the phases' processors. */
 	UPROPERTY(EditDefaultsOnly, Category = Pipe, config)
-	FPipeProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EPipeProcessingPhase::MAX];
+	FMassProcessingPhaseConfig ProcessingPhasesConfig[(uint8)EMassProcessingPhase::MAX];
 
 	/** This list contains all the processors available in the given binary (including plugins). The contents are sorted by display name.*/
 	UPROPERTY(VisibleAnywhere, Category = Pipe, Transient, Instanced)
-	TArray<UPipeProcessor*> ProcessorCDOs;
+	TArray<UMassProcessor*> ProcessorCDOs;
 
 #if WITH_EDITORONLY_DATA
 protected:

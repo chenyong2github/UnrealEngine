@@ -10,7 +10,7 @@
 #include "MassEntityTemplate.generated.h"
 
 
-struct FEntityView;
+struct FMassEntityView;
 
 
 UENUM()
@@ -27,9 +27,9 @@ struct MASSSPAWNER_API FMassObjectHandlers
 {
 	GENERATED_BODY()
 	UPROPERTY()
-	TArray<const UPipeProcessor*> Initializers;
+	TArray<const UMassProcessor*> Initializers;
 	UPROPERTY()
-	TArray<const UPipeProcessor*> Deinitializers;
+	TArray<const UMassProcessor*> Deinitializers;
 };
 
 //ID of the template an entity is using
@@ -79,7 +79,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 {
 	GENERATED_BODY()
 
-	typedef TFunction<void(UObject& /*Owner*/, FEntityView& /*EntityView*/, const EMassTranslationDirection /*CurrentDirection*/)> FObjectFragmentInitializerFunction;
+	typedef TFunction<void(UObject& /*Owner*/, FMassEntityView& /*EntityView*/, const EMassTranslationDirection /*CurrentDirection*/)> FObjectFragmentInitializerFunction;
 
 	FMassEntityTemplate() = default;
 	/** InArchetype is expected to be valid. The function will crash-check it. */
@@ -88,11 +88,11 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	/** Configures initialization and deinitialization pipeline from ObjectHandlers */
 	void SetUpProcessors(const FMassObjectHandlers& ObjectHandlers, UObject& PipelineOwner);
 	
-	const FRuntimePipeline& GetInitializationPipeline() const { return InitializationPipeline; }
-	FRuntimePipeline& GetMutableInitializationPipeline() { return InitializationPipeline; }
+	const FMassRuntimePipeline& GetInitializationPipeline() const { return InitializationPipeline; }
+	FMassRuntimePipeline& GetMutableInitializationPipeline() { return InitializationPipeline; }
 
-	const FRuntimePipeline& GetDeinitializationPipeline() const { return DeinitializationPipeline; }
-	FRuntimePipeline& GetMutableDeinitializationPipeline() { return DeinitializationPipeline; }
+	const FMassRuntimePipeline& GetDeinitializationPipeline() const { return DeinitializationPipeline; }
+	FMassRuntimePipeline& GetMutableDeinitializationPipeline() { return DeinitializationPipeline; }
 
 	TConstArrayView<FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return ObjectInitializers; }
 	TArray<FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return ObjectInitializers; }
@@ -109,7 +109,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	FMassUniqueFragmentCollection& GetMutableFragmentCollection() { return FragmentCollection; }
 	TConstArrayView<FInstancedStruct> GetChunkFragments() const { return ChunkFragments; }
 
-	FLWCompositionDescriptor GetCompositionDescriptor() const { return FLWCompositionDescriptor(FragmentCollection.GetFragmentBitSet(), TagBitSet, ChunkFragmentBitSet); }
+	FMassCompositionDescriptor GetCompositionDescriptor() const { return FMassCompositionDescriptor(FragmentCollection.GetFragmentBitSet(), TagBitSet, ChunkFragmentBitSet); }
 
 	template<typename T>
 	void AddTag()
@@ -122,13 +122,13 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		TagBitSet.Add(TagType);
 	}
 
-	const FLWTagBitSet& GetTags() const { return TagBitSet; }	
-	FLWTagBitSet& GetMutableTags() { return TagBitSet; }
+	const FMassTagBitSet& GetTags() const { return TagBitSet; }	
+	FMassTagBitSet& GetMutableTags() { return TagBitSet; }
 
 	template<typename T>
 	void AddChunkFragment()
 	{
-		static_assert(TIsDerivedFrom<T, FLWChunkComponent>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComonent or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComonent or one of its child-types.");
 		ChunkFragments.AddUnique(FInstancedStruct(T::StaticStruct()));
 		ChunkFragmentBitSet.Add<T>();
 	}
@@ -136,7 +136,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	template<typename T>
 	T& AddChunkFragment_GetRef()
 	{
-		static_assert(TIsDerivedFrom<T, FLWChunkComponent>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComonent or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComonent or one of its child-types.");
 		ChunkFragmentBitSet.Add<T>();
 		const int32 Index = ChunkFragments.AddUnique(FInstancedStruct(T::StaticStruct()));
 		return ChunkFragments[Index].template GetMutable<T>();
@@ -149,14 +149,14 @@ private:
 	FArchetypeHandle Archetype;
 
 	FMassUniqueFragmentCollection FragmentCollection;
-	FLWTagBitSet TagBitSet;
-	FLWChunkComponentBitSet ChunkFragmentBitSet;
+	FMassTagBitSet TagBitSet;
+	FMassChunkFragmentBitSet ChunkFragmentBitSet;
 	
 	UPROPERTY()
-	FRuntimePipeline InitializationPipeline;
+	FMassRuntimePipeline InitializationPipeline;
 	
 	UPROPERTY()
-	FRuntimePipeline DeinitializationPipeline;
+	FMassRuntimePipeline DeinitializationPipeline;
 
 	/** An mirror of FMassUniqueFragmentCollection.Fragments' types, used for adding fragment types instead of fragment instances */
 	UPROPERTY()

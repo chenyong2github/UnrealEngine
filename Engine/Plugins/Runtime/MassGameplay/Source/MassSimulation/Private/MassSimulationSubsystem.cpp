@@ -24,7 +24,7 @@ namespace UE::MassSimulation
 UMassSimulationSubsystem::UMassSimulationSubsystem(const FObjectInitializer& ObjectInitializer)
 	: Super()
 {
-	PhaseManager = CreateDefaultSubobject<UPipeProcessingPhaseManager>(TEXT("PhaseManager"));
+	PhaseManager = CreateDefaultSubobject<UMassProcessingPhaseManager>(TEXT("PhaseManager"));
 }
 
 void UMassSimulationSubsystem::PostInitProperties()
@@ -56,13 +56,13 @@ void UMassSimulationSubsystem::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-FPipeProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPhaseStarted(const EPipeProcessingPhase Phase) const
+FMassProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPhaseStarted(const EMassProcessingPhase Phase) const
 {
 	check(PhaseManager);
 	return PhaseManager->GetOnPhaseStart(Phase);
 }
 
-FPipeProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPhaseFinished(const EPipeProcessingPhase Phase) const
+FMassProcessingPhase::FOnPhaseEvent& UMassSimulationSubsystem::GetOnProcessingPhaseFinished(const EMassProcessingPhase Phase) const
 {
 	check(PhaseManager);
 	return PhaseManager->GetOnPhaseEnd(Phase);
@@ -75,7 +75,7 @@ void UMassSimulationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	EntitySubsystem = Collection.InitializeDependency<UMassEntitySubsystem>();
 	check(EntitySubsystem);
 	
-	GetOnProcessingPhaseStarted(EPipeProcessingPhase::PrePhysics).AddUObject(this, &UMassSimulationSubsystem::OnProcessingPhaseStarted, EPipeProcessingPhase::PrePhysics);
+	GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassSimulationSubsystem::OnProcessingPhaseStarted, EMassProcessingPhase::PrePhysics);
 }
 
 void UMassSimulationSubsystem::Deinitialize()
@@ -83,7 +83,7 @@ void UMassSimulationSubsystem::Deinitialize()
 #if WITH_EDITOR
 	GET_MASS_CONFIG_VALUE(GetOnTickSchematicChanged()).RemoveAll(this);
 #endif // WITH_EDITOR
-	GetOnProcessingPhaseStarted(EPipeProcessingPhase::PrePhysics).RemoveAll(this);
+	GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).RemoveAll(this);
 	StopSimulation();
 
 	Super::Deinitialize();
@@ -141,11 +141,11 @@ void UMassSimulationSubsystem::StopSimulation()
 	bSimulationStarted = false;
 }
 
-void UMassSimulationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, const EPipeProcessingPhase Phase) const
+void UMassSimulationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, const EMassProcessingPhase Phase) const
 {
 	switch (Phase)
 	{
-		case EPipeProcessingPhase::PrePhysics:
+		case EMassProcessingPhase::PrePhysics:
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(DoEntityCompation);
 				check(EntitySubsystem);
