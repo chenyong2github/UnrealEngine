@@ -41,13 +41,10 @@ struct TMatrix
 public:
 	using FReal = T;
 
-	union
-	{
-		MS_ALIGN(16) T M[4][4] GCC_ALIGN(16);
-	};
+	alignas(16) T M[4][4];
 
-	//Identity matrix
-	MS_ALIGN(16) static const TMatrix<T> Identity GCC_ALIGN(16);
+
+	CORE_API static const TMatrix Identity;
 
 
 #if ENABLE_NAN_DIAGNOSTIC
@@ -449,7 +446,10 @@ private:
 	}
 };
 
-template<typename T> const TMatrix<T> TMatrix<T>::Identity(TPlane<T>(1, 0, 0, 0), TPlane<T>(0, 1, 0, 0), TPlane<T>(0, 0, 1, 0), TPlane<T>(0, 0, 0, 1));
+#ifndef _MSC_VER // MSVC can't forward declare explicit specializations
+template<> const FMatrix44f FMatrix44f::Identity;
+template<> const FMatrix44d FMatrix44d::Identity;
+#endif
 
 
 /**

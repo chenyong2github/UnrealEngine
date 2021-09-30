@@ -48,6 +48,10 @@ struct alignas(16) VectorRegister4Double
 		V[3] = InZW.V[1];
 	}
 
+	FORCEINLINE constexpr VectorRegister4Double(VectorRegister2Double InXY, VectorRegister2Double InZW, VectorRegisterConstInit)
+	: XY(InXY), ZW(InZW)
+	{}
+
 	// Construct from a vector of 4 floats
 	FORCEINLINE VectorRegister4Double(const VectorRegister4Float& FloatVector)
 	{
@@ -279,6 +283,11 @@ FORCEINLINE VectorRegister4Int MakeVectorRegisterInt(int32 X, int32 Y, int32 Z, 
 	((int32&)Vec.V[2]) = Z;
 	((int32&)Vec.V[3]) = W;
 	return Vec;
+}
+
+FORCEINLINE constexpr VectorRegister4Int MakeVectorRegisterIntConstant(int32 X, int32 Y, int32 Z, int32 W)
+{
+    return VectorRegister4Int {X, Y, Z, W};
 }
 
 /*=============================================================================

@@ -339,8 +339,8 @@ FORCEINLINE static void OctahedronEncodePreciseSIMD( FVector3f N, int32& X, int3
 
 	VectorRegister T = VectorMin( Nz, VectorZero() );	// T = min(Nz, 0.0f)
 	
-	VectorRegister NxSign = VectorBitwiseAnd( Nx, GlobalVectorConstants::SignBit );
-	VectorRegister NySign = VectorBitwiseAnd( Ny, GlobalVectorConstants::SignBit );
+	VectorRegister NxSign = VectorBitwiseAnd( Nx, GlobalVectorConstants::SignBit() );
+	VectorRegister NySign = VectorBitwiseAnd( Ny, GlobalVectorConstants::SignBit() );
 
 	Nx = VectorAdd(Nx, VectorBitwiseXor( T, NxSign ) );	// Nx += T ^ NxSign
 	Ny = VectorAdd(Ny, VectorBitwiseXor( T, NySign ) );	// Ny += T ^ NySign

@@ -8,18 +8,53 @@
 #include "Stats/Stats.h"
 #include "Math/RandomStream.h"
 #include "UObject/PropertyPortFlags.h"
+#include "Math/Matrix.h"
+#include "Math/Quat.h"
+#include "Math/Vector.h"
 #include "Math/Vector4.h"
+
 DEFINE_LOG_CATEGORY(LogUnrealMath);
 
 /*-----------------------------------------------------------------------------
 	Globals
 -----------------------------------------------------------------------------*/
 
-CORE_API const FVector2D FVector2D::ZeroVector(0.0f, 0.0f);
-CORE_API const FVector2D FVector2D::UnitVector(1.0f, 1.0f);
-CORE_API const FVector2D FVector2D::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
+template<> const FMatrix44f FMatrix44f::Identity(FPlane4f(1, 0, 0, 0), FPlane4f(0, 1, 0, 0), FPlane4f(0, 0, 1, 0), FPlane4f(0, 0, 0, 1));
+template<> const FMatrix44d FMatrix44d::Identity(FPlane4d(1, 0, 0, 0), FPlane4d(0, 1, 0, 0), FPlane4d(0, 0, 1, 0), FPlane4d(0, 0, 0, 1));
 
-CORE_API const uint32 FMath::BitFlag[32] =
+template<> const FQuat4f FQuat4f::Identity(0.f, 0.f, 0.f, 1.f);
+template<> const FQuat4d FQuat4d::Identity(0.0, 0.0, 0.0, 1.0);
+
+const FRotator FRotator::ZeroRotator(0.f, 0.f, 0.f);
+
+template<> const FVector3f FVector3f::ZeroVector(0, 0, 0);
+template<> const FVector3f FVector3f::OneVector(1, 1, 1);
+template<> const FVector3f FVector3f::UpVector(0, 0, 1);
+template<> const FVector3f FVector3f::DownVector(0, 0, -1);
+template<> const FVector3f FVector3f::ForwardVector(1, 0, 0);
+template<> const FVector3f FVector3f::BackwardVector(-1, 0, 0);
+template<> const FVector3f FVector3f::RightVector(0, 1, 0);
+template<> const FVector3f FVector3f::LeftVector(0, -1, 0);
+template<> const FVector3f FVector3f::XAxisVector(1, 0, 0);
+template<> const FVector3f FVector3f::YAxisVector(0, 1, 0);
+template<> const FVector3f FVector3f::ZAxisVector(0, 0, 1);
+template<> const FVector3d FVector3d::ZeroVector(0, 0, 0);
+template<> const FVector3d FVector3d::OneVector(1, 1, 1);
+template<> const FVector3d FVector3d::UpVector(0, 0, 1);
+template<> const FVector3d FVector3d::DownVector(0, 0, -1);
+template<> const FVector3d FVector3d::ForwardVector(1, 0, 0);
+template<> const FVector3d FVector3d::BackwardVector(-1, 0, 0);
+template<> const FVector3d FVector3d::RightVector(0, 1, 0);
+template<> const FVector3d FVector3d::LeftVector(0, -1, 0);
+template<> const FVector3d FVector3d::XAxisVector(1, 0, 0);
+template<> const FVector3d FVector3d::YAxisVector(0, 1, 0);
+template<> const FVector3d FVector3d::ZAxisVector(0, 0, 1);
+
+const FVector2D FVector2D::ZeroVector(0.0f, 0.0f);
+const FVector2D FVector2D::UnitVector(1.0f, 1.0f);
+const FVector2D FVector2D::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
+
+const uint32 FMath::BitFlag[32] =
 {
 	(1U << 0),	(1U << 1),	(1U << 2),	(1U << 3),
 	(1U << 4),	(1U << 5),	(1U << 6),	(1U << 7),
@@ -31,10 +66,10 @@ CORE_API const uint32 FMath::BitFlag[32] =
 	(1U << 28),	(1U << 29),	(1U << 30),	(1U << 31),
 };
 
-CORE_API const FIntPoint FIntPoint::ZeroValue(0,0);
-CORE_API const FIntPoint FIntPoint::NoneValue(INDEX_NONE,INDEX_NONE);
-CORE_API const FIntVector FIntVector::ZeroValue(0,0,0);
-CORE_API const FIntVector FIntVector::NoneValue(INDEX_NONE,INDEX_NONE,INDEX_NONE);
+const FIntPoint FIntPoint::ZeroValue(0,0);
+const FIntPoint FIntPoint::NoneValue(INDEX_NONE,INDEX_NONE);
+const FIntVector FIntVector::ZeroValue(0,0,0);
+const FIntVector FIntVector::NoneValue(INDEX_NONE,INDEX_NONE,INDEX_NONE);
 
 bool FVector2D::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {

@@ -13,15 +13,15 @@ class CORE_API FSobol
 {
 public:
 	// number of Sobol dimensions in DirectionNumbers and GrayNumbers tables (full Joe and Kuo table is 21201)
-	static const int32 MaxDimension = 15;
+	static constexpr int32 MaxDimension = 15;
 
 	// maximum number of bits in a 2D cell coordinate
 	// allows cell grids from 1x1 to 2^MaxCell2DBits x 2^MaxCell2DBits
-	static const int32 MaxCell2DBits = 15;
+	static constexpr int32 MaxCell2DBits = 15;
 
 	// maximum number of bits in a 3D cell coordinate
 	// allows cell grids from 1x1x1 to 2^MaxCell3DBits x 2^MaxCell3DBits x 2^MaxCell3DBits
-	static const int32 MaxCell3DBits = 10;
+	static constexpr int32 MaxCell3DBits = 10;
 
 private:
 	// 24-bit Sobol direction numbers for 32-bit index

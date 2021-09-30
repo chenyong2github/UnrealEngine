@@ -23,6 +23,9 @@ namespace UE
 namespace Math
 {
 
+template<> const FTransform3f FTransform3f::Identity(FQuat4f(0.f, 0.f, 0.f, 1.f), FVector3f(0.f), FVector3f(1.f));
+template<> const FTransform3d FTransform3d::Identity(FQuat4d(0.0, 0.0, 0.0, 1.0), FVector3d(0.0), FVector3d(1.0));
+
 // Replacement of Inverse of TMatrix<T>
 
 /**
