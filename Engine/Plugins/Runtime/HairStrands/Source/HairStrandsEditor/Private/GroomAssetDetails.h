@@ -18,6 +18,7 @@ class IGroomCustomAssetEditorToolkit;
 class IDetailLayoutBuilder;
 class IDetailCategoryBuilder;
 class FDetailWidgetRow;
+class IDetailPropertyRow;
 
 enum class EMaterialPanelType
 {
@@ -82,10 +83,11 @@ private:
 	FReply OnAddGroup(FProperty* Property);
 	FReply OnRefreshCards(int32 GroupIndex, FProperty* Property);
 	FReply OnSaveCards(int32 GroupIndex, FProperty* Property);
+	FReply OnGenerateCardDataUsingPlugin(int32 GroupIndex);
 
 	void ExpandStruct(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset);
 	void ExpandStruct(TSharedRef<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset);
-	void AddPropertyWithCustomReset(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& Builder, int32 GroupIndex, int32 LODIndex);
+	IDetailPropertyRow& AddPropertyWithCustomReset(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& Builder, int32 GroupIndex, int32 LODIndex);
 
 	bool CommonResetToDefault(TSharedPtr<IPropertyHandle> ChildHandle, int32 GroupIndex, int32 LODIndex, bool bSetValue);
 	bool ShouldResetToDefault(TSharedPtr<IPropertyHandle> ChildHandle, int32 GroupIndex, int32 LODInex);
