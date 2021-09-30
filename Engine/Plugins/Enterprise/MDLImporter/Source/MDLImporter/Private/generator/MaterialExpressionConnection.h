@@ -151,7 +151,8 @@ namespace Generator
 			return ExpressionData.bIsDefault;
 		}
 
-		void SetExpressionDefault() 		{
+		void SetExpressionDefault()
+		{
 			ExpressionData.bIsDefault = true;
 		}
 
@@ -218,7 +219,8 @@ namespace Generator
 
 		FData     ExpressionData;
 		FData     TextureSelectionData[3];
-		union {
+		union
+		{
 			bool      bValue;
 			float     Values[4];
 			UTexture* Texture;

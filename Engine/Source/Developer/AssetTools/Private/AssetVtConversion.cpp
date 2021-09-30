@@ -552,7 +552,7 @@ void FVTConversionWorker::DoConvert()
 		for (UTexture2D *Tex : Textures)
 		{
 			UTexture2D* TextureToUpdate = Tex;
-			if (TextureToUpdate->GetPathName().StartsWith(TEXT("/Engine/")))
+			if (TextureToUpdate->GetPathName().StartsWith(TEXT("/Engine/")) && TextureToUpdate->GetPackage() != GetTransientPackage())
 			{
 				// rather than modify engine content, create a copy and update that
 				// any materials that we modify will be updated to point to the copy
