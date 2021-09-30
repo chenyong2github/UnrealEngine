@@ -2112,30 +2112,34 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 
 	if (bPrintPythonCommands)
 	{
-		FString MethodName;
-		switch (InTransformType)
+		UBlueprint* Blueprint = GetTypedOuter<UBlueprint>();
+		if (Blueprint)
 		{
-			case ERigTransformType::InitialLocal: 
-			case ERigTransformType::CurrentLocal:
+			FString MethodName;
+			switch (InTransformType)
 			{
-				MethodName = TEXT("set_local_transform");
-				break;
+				case ERigTransformType::InitialLocal: 
+				case ERigTransformType::CurrentLocal:
+				{
+					MethodName = TEXT("set_local_transform");
+					break;
+				}
+				case ERigTransformType::InitialGlobal: 
+				case ERigTransformType::CurrentGlobal:
+				{
+					MethodName = TEXT("set_global_transform");
+					break;
+				}
 			}
-			case ERigTransformType::InitialGlobal: 
-			case ERigTransformType::CurrentGlobal:
-			{
-				MethodName = TEXT("set_global_transform");
-				break;
-			}
-		}
 
-		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
-			FString::Printf(TEXT("hierarchy.%s(%s, %s, %s, %s)"),
-			*MethodName,
-			*InTransformElement->GetKey().ToPythonString(),
-			*RigVMPythonUtils::TransformToPythonString(InTransform),
-			(InTransformType == ERigTransformType::InitialGlobal || InTransformType == ERigTransformType::InitialLocal) ? TEXT("True") : TEXT("False"),
-			(bAffectChildren) ? TEXT("True") : TEXT("False")));
+			RigVMPythonUtils::Print(Blueprint->GetFName().ToString(),
+				FString::Printf(TEXT("hierarchy.%s(%s, %s, %s, %s)"),
+				*MethodName,
+				*InTransformElement->GetKey().ToPythonString(),
+				*RigVMPythonUtils::TransformToPythonString(InTransform),
+				(InTransformType == ERigTransformType::InitialGlobal || InTransformType == ERigTransformType::InitialLocal) ? TEXT("True") : TEXT("False"),
+				(bAffectChildren) ? TEXT("True") : TEXT("False")));
+		}
 	}
 #endif
 }
@@ -2243,13 +2247,16 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 
 	if (bPrintPythonCommands)
 	{
-		//FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bAffectChildren = true, bool bSetupUndo = false, bool bPrintPythonCommands = false)
-		RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
-			FString::Printf(TEXT("hierarchy.set_control_offset_transform(%s, %s, %s, %s)"),
-			*InControlElement->GetKey().ToPythonString(),
-			*RigVMPythonUtils::TransformToPythonString(InTransform),
-			(ERigTransformType::IsInitial(InTransformType)) ? TEXT("True") : TEXT("False"),
-			(bAffectChildren) ? TEXT("True") : TEXT("False")));
+		UBlueprint* Blueprint = GetTypedOuter<UBlueprint>();
+		if (Blueprint)
+		{
+			RigVMPythonUtils::Print(Blueprint->GetFName().ToString(),
+				FString::Printf(TEXT("hierarchy.set_control_offset_transform(%s, %s, %s, %s)"),
+				*InControlElement->GetKey().ToPythonString(),
+				*RigVMPythonUtils::TransformToPythonString(InTransform),
+				(ERigTransformType::IsInitial(InTransformType)) ? TEXT("True") : TEXT("False"),
+				(bAffectChildren) ? TEXT("True") : TEXT("False")));
+		}
 	}
 #endif
 }
