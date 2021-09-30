@@ -3,7 +3,7 @@
 #include "PointLightGizmoFactory.h"
 #include "EditorModeManager.h"
 #include "Engine/Selection.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "SubTransformProxy.h"
 #include "Math/Rotator.h"
 #include "UnrealWidgetFwd.h"

@@ -5,7 +5,7 @@
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 #include "BaseGizmos/IntervalGizmo.h"
 #include "BaseGizmos/RepositionableTransformGizmo.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "InputCoreTypes.h" //EKeys
 #include "Operations/GroupTopologyDeformer.h"

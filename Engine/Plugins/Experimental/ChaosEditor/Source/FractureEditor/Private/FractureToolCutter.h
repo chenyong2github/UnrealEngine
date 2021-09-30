@@ -4,7 +4,7 @@
 
 #include "FractureTool.h"
 
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "Drawing/LineSetComponent.h"
 

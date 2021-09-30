@@ -17,7 +17,7 @@
 #include "InteractiveGizmoManager.h"
 
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 
 #include "Drawing/MeshDebugDrawing.h"
 #include "ModelingObjectsCreationAPI.h"

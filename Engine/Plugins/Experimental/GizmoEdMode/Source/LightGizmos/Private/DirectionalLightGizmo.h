@@ -10,7 +10,7 @@
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
 #include "Engine/DirectionalLight.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "SubTransformProxy.h"
 #include "BaseGizmos/GizmoBaseComponent.h"
 

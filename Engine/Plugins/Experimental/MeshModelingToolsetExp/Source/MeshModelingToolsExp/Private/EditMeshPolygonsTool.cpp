@@ -4,7 +4,7 @@
 
 #include "Algo/ForEach.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "CompGeom/PolygonTriangulation.h"

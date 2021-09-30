@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "Changes/DynamicMeshChangeTarget.h"
 #include "InteractiveToolBuilder.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"

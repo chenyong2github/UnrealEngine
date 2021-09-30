@@ -10,7 +10,7 @@
 #include "BaseGizmos/GizmoActor.h"
 #include "BaseGizmos/TransformProxy.h"
 
-#include "TransformGizmo.generated.h"
+#include "CombinedTransformGizmo.generated.h"
 
 class UInteractiveGizmoManager;
 class IGizmoAxisSource;

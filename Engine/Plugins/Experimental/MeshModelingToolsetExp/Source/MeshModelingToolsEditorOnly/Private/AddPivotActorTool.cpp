@@ -3,7 +3,7 @@
 #include "AddPivotActorTool.h"
 
 #include "ActorFactories/ActorFactoryEmptyActor.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "Components/BillboardComponent.h"

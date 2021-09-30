@@ -15,7 +15,7 @@
 #include "MovieSceneSequence.h"
 
 #include "BaseGizmos/GizmoComponents.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 
 #include "ViewportWorldInteraction.h"
 #include "GameFramework/Actor.h"
