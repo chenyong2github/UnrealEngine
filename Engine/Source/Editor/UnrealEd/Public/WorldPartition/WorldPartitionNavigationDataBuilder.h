@@ -13,9 +13,9 @@ class UWorldPartitionNavigationDataBuilder : public UWorldPartitionBuilder
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return false; }
-	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::EntireWorld; }
+	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::IterativeCells; }
 
 protected:
-	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
+	virtual bool RunInternal(UWorld* World, const FBox& LoadedBounds, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 };

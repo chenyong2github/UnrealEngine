@@ -309,6 +309,9 @@ protected:
 	FNavAgentSelector SupportedAgentsMask;
 
 public:
+	/** Bounds of tiles to be built */
+	UPROPERTY(Transient)
+	FBox BuildBounds;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ANavigationData>> NavDataSet;
@@ -344,6 +347,8 @@ private:
 
 	float NextInvokersUpdateTime;
 	void UpdateInvokers();
+
+	void DirtyTilesInBuildBounds();
 
 public:
 	//----------------------------------------------------------------------//
@@ -591,7 +596,13 @@ public:
 	virtual INavigationDataInterface* GetMainNavData() const override { return Cast<INavigationDataInterface>(GetDefaultNavDataInstance()); }
 	ANavigationData& GetMainNavDataChecked() const { check(MainNavData); return *MainNavData; }
 
+	/** Set limiting bounds to be used when building navigation data. */
+	virtual void SetBuildBounds(const FBox& Bounds) override;
+
+	virtual FBox GetNavigableWorldBounds() const override;
+
 	virtual bool ContainsNavData(const FBox& Bounds) const override;
+	virtual FBox ComputeNavDataBounds() const override;
 	virtual void AddNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) override;
 	virtual void RemoveNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) override;
 	virtual void FillNavigationDataChunkActor(const FBox& QueryBounds, class ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) override;

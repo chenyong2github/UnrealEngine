@@ -375,6 +375,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	, bSkipAgentHeightCheckWhenPickingNavData(false)
 	, DirtyAreaWarningSizeThreshold(-1.0f)
 	, GatheringNavModifiersWarningLimitTime(-1.0f)
+	, BuildBounds(EForceInit::ForceInit)
 	, OperationMode(FNavigationSystemRunMode::InvalidMode)
 	, bAbortAsyncQueriesRequested(false)
 	, NavBuildingLockFlags(0)
@@ -1831,6 +1832,16 @@ ANavigationData* UNavigationSystemV1::GetNavDataForAgentName(const FName AgentNa
 	return Result;
 }
 
+FBox UNavigationSystemV1::GetNavigableWorldBounds() const
+{
+	return GetWorldBounds();
+}
+
+void UNavigationSystemV1::SetBuildBounds(const FBox& Bounds)
+{
+	BuildBounds = Bounds;
+}
+
 bool UNavigationSystemV1::ContainsNavData(const FBox& Bounds) const
 {
 	for (const ANavigationData* NavData : NavDataSet)
@@ -1841,6 +1852,21 @@ bool UNavigationSystemV1::ContainsNavData(const FBox& Bounds) const
 		}
 	}
 	return false;
+}
+
+FBox UNavigationSystemV1::ComputeNavDataBounds() const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNavigationSystemV1::ComputeNavDataBounds);
+	
+	FBox Bounds(ForceInit);
+	for (const ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData)
+		{
+			Bounds += NavData->GetBounds();
+		}
+	}
+	return Bounds;
 }
 
 void UNavigationSystemV1::AddNavigationDataChunk(ANavigationDataChunkActor& DataChunkActor)
@@ -3316,6 +3342,8 @@ void UNavigationSystemV1::GatherNavigationBounds()
 
 void UNavigationSystemV1::Build()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNavigationSystemV1::Build);
+	
 	UE_LOG(LogNavigationDataBuild, Display, TEXT("UNavigationSystemV1::Build started..."));
 #if PHYSICS_INTERFACE_PHYSX
 	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using PHYSICS_INTERFACE_PHYSX."));
@@ -3362,6 +3390,12 @@ void UNavigationSystemV1::Build()
 	if (bGenerateNavigationOnlyAroundNavigationInvokers)
 	{
 		UpdateInvokers();
+	}
+
+	if (BuildBounds.IsValid)
+	{
+		// Prepare to build tiles overlapping the bounds
+		DirtyTilesInBuildBounds();
 	}
 
 	// and now iterate through all registered and just start building them
@@ -3692,9 +3726,11 @@ void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 	{
 		ANavigationData* NavData = NavDataSet[NavDataIndex];
 				
-		if (NavData && (!bIsLoadTime || NavData->NeedsRebuildOnLoad()) && (!bIsInGame || NavData->SupportsRuntimeGeneration()))
+		if (NavData && (!bIsLoadTime || NavData->NeedsRebuildOnLoad()) && (!bIsInGame || NavData->SupportsRuntimeGeneration()) && (BuildBounds.IsValid == 0))
 		{
-			UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building NavData:  %s."), *NavData->GetConfig().GetDescription());
+			UE_LOG(LogNavigationDataBuild, Display, TEXT("   RebuildAll building NavData:  %s."), *NavData->GetConfig().GetDescription());
+			UE_LOG(LogNavigationDataBuild, Verbose, TEXT("   RebuildAll bIsLoadTime=%s, NavData->NeedsRebuildOnLoad()=%s, bIsInGame=%s, NavData->SupportsRuntimeGeneration()=%s, BuildBounds.IsValid=%s"),
+				*LexToString(bIsLoadTime), *LexToString(NavData->NeedsRebuildOnLoad()), *LexToString(bIsInGame), *LexToString(NavData->SupportsRuntimeGeneration()), *LexToString(BuildBounds.IsValid));
 
 #if	WITH_EDITOR
 			NavData->SetIsBuildingOnLoad(bIsLoadTime);
@@ -4539,6 +4575,17 @@ void UNavigationSystemV1::UpdateInvokers()
 		// once per second
 		NextInvokersUpdateTime = CurrentTime + ActiveTilesUpdateInterval;
 	}
+}
+
+void UNavigationSystemV1::DirtyTilesInBuildBounds()
+{
+#if WITH_RECAST
+	UE_VLOG(this, LogNavigation, Log, TEXT("SetupTilesFromBuildBounds"));
+	for (TActorIterator<ARecastNavMesh> It(GetWorld()); It; ++It)
+	{
+		It->DirtyTilesInBounds(BuildBounds);
+	}
+#endif // WITH_RECAST
 }
 
 void UNavigationSystemV1::RegisterNavigationInvoker(AActor* Invoker, float TileGenerationRadius, float TileRemovalRadius)

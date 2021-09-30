@@ -139,7 +139,7 @@ public:
 	FBox GetWorldBounds() const;
 	FBox GetEditorWorldBounds() const;
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly);
-	void GenerateNavigationData();
+	void GenerateNavigationData(const FBox& LoadedBounds);
 
 	const UActorDescContainer* RegisterActorDescContainer(FName PackageName);
 
