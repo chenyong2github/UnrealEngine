@@ -92,6 +92,16 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Generated Assets")
 	bool bAppendRandomStringToName = true;
 
+
+	//
+	// Selection
+	//
+
+
+	/** If true, selections will be tracked between tools, and visualized with outlines. This feature is Experimental, disabled by default. */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection")
+	bool bEnablePersistentSelections = false;
+
 public:
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(UModelingToolsEditorModeSettingsModified, UObject*, FProperty*);
