@@ -159,6 +159,7 @@ public:
 	{
 		GEngine->OnComponentTransformChanged().RemoveAll(this);
 		ClearVisualizations();
+		RestoreEditorViewFlags();
 	}
 
 	// Called when a selected geometry collection component is moved in the scene
@@ -197,6 +198,11 @@ protected:
 	void EnumerateVisualizationMapping(const FVisualizationMappings& Mappings, int32 ArrayNum, TFunctionRef<void(int32 Idx, FVector ExplodedVector)> Func) const;
 	
 	void OnComponentTransformChangedInternal(USceneComponent* InRootComponent, ETeleportType Teleport);
+
+	// Call to override editor view flags to disable temporal AA and motion blur, which make the lines look bad
+	void OverrideEditorViewFlagsForLineRendering();
+	// Restore editor view flags
+	void RestoreEditorViewFlags();
 
 };
 

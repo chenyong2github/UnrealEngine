@@ -6,6 +6,8 @@
 #include "FractureToolContext.h"
 #include "InteractiveToolsContext.h"
 #include "EditorModeManager.h"
+#include "ToolSetupUtil.h"
+#include "BaseGizmos/GizmoBaseComponent.h"
 
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -82,6 +84,17 @@ void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter, ETr
 		UInteractiveGizmoManager* GizmoManager = Context->GizmoManager;
 		TransformProxy = NewObject<UTransformProxy>(this);
 		TransformGizmo = GizmoManager->CreateCustomTransformGizmo(GizmoElements, this);
+		// TODO: Stop setting bUseEditorCompositing on gizmo components like this, once gizmo rendering is improved
+		// This is a hack to make gizmos more visible when the translucent fracture bone selection material is on screen
+		// This hack unfortunately makes the gizmos dithered when they're behind objects, but at least they're relatively visible
+		for (UActorComponent* Component : TransformGizmo->GetGizmoActor()->GetComponents())
+		{
+			UGizmoBaseComponent* GizmoComponent = Cast<UGizmoBaseComponent>(Component);
+			if (GizmoComponent)
+			{
+				GizmoComponent->bUseEditorCompositing = true;
+			}
+		}
 		TransformGizmo->SetActiveTarget(TransformProxy);
 		TransformProxy->OnTransformChanged.AddUObject(this, &UFractureTransformGizmoSettings::TransformChanged);
 		ResetGizmo();
@@ -222,7 +235,10 @@ UFractureToolVoronoiCutterBase::UFractureToolVoronoiCutterBase(const FObjectInit
 {
 	for (int32 ii = 0; ii < 100; ++ii)
 	{
-		Colors.Emplace(FMath::FRand(), FMath::FRand(), FMath::FRand());;
+		// This is adapted from FColor::MakeRandomColor() but desaturated a bit
+		const uint8 Hue = (uint8)(FMath::FRand() * 255.f);
+		FColor DesatRandomColor = FLinearColor::MakeFromHSV8(Hue, 190, 255).ToFColor(true);
+		Colors.Add(DesatRandomColor);
 	}
 }
 
@@ -232,19 +248,21 @@ void UFractureToolVoronoiCutterBase::Render(const FSceneView* View, FViewport* V
 	{
 		EnumerateVisualizationMapping(SitesMappings, VoronoiSites.Num(), [&](int32 Idx, FVector ExplodedVector)
 		{
-			PDI->DrawPoint(VoronoiSites[Idx] + ExplodedVector, FLinearColor::Green, 4.f, SDPG_Foreground);
+			PDI->DrawPoint(VoronoiSites[Idx] + ExplodedVector, FLinearColor(.62, .94, .84), 4.f, SDPG_Foreground);
 		});
 	}
 
-	if (CutterSettings->bDrawDiagram)
+	UpdateLineSetExplodedVectors();
+}
+
+void UFractureToolVoronoiCutterBase::UpdateLineSetExplodedVectors()
+{
+	EnumerateVisualizationMapping(EdgesMappings, VoronoiLineSets.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
-		PDI->AddReserveLines(SDPG_Foreground, VoronoiEdges.Num(), false, false);
-		EnumerateVisualizationMapping(EdgesMappings, VoronoiEdges.Num(), [&](int32 Idx, FVector ExplodedVector)
-		{
-			PDI->DrawLine(VoronoiEdges[Idx].Get<0>() + ExplodedVector,
-				VoronoiEdges[Idx].Get<1>() + ExplodedVector, Colors[CellMember[Idx] % 100], SDPG_Foreground);
-		});
-	}
+		// TODO: If we add diagrams even when visibility is toggled off, we also need to update visibility here, e.g.: VoronoiLineSets[Idx]->SetVisibility(CutterSettings->bDrawDiagram);
+		AActor* Actor = VoronoiLineSets[Idx]->GetOwner();
+		VoronoiLineSets[Idx]->SetRelativeLocation(Actor->GetTransform().InverseTransformVector(ExplodedVector));
+	});
 }
 
 void UFractureToolVoronoiCutterBase::UpdateVisualizations(TArray<FFractureToolContext>& FractureContexts)
@@ -264,7 +282,7 @@ void UFractureToolVoronoiCutterBase::UpdateVisualizations(TArray<FFractureToolCo
 		int32 CollectionIdx = VisualizedCollections.Emplace(FractureContext.GetGeometryCollectionComponent());
 		int32 BoneIdx = FractureContext.GetSelection().Num() == 1 ? FractureContext.GetSelection()[0] : INDEX_NONE;
 		SitesMappings.AddMapping(CollectionIdx, BoneIdx, VoronoiSites.Num());
-		EdgesMappings.AddMapping(CollectionIdx, BoneIdx, VoronoiEdges.Num());
+		EdgesMappings.AddMapping(CollectionIdx, BoneIdx, VoronoiLineSets.Num());
 
 		// Generate voronoi diagrams and cache visualization info
 		TArray<FVector> LocalVoronoiSites;
@@ -280,19 +298,38 @@ void UFractureToolVoronoiCutterBase::UpdateVisualizations(TArray<FFractureToolCo
 		if (bEstAboveMaxSites || LocalVoronoiSites.Num() * FractureContexts.Num() > MaxSitesToShowEdges || VoronoiSites.Num() > MaxSitesToShowEdges)
 		{
 			UE_LOG(LogFractureTool, Warning, TEXT("Voronoi diagram(s) number of sites too large; will not display Voronoi diagram edges"));
-			VoronoiEdges.Empty();
-			CellMember.Empty();
-			EdgesMappings.Empty();
+			ClearEdges();
 			bEstAboveMaxSites = true;
 		}
-		else
+		else if (CutterSettings->bDrawDiagram)
 		{
 			FBox VoronoiBounds = GetVoronoiBounds(FractureContext, LocalVoronoiSites);
-			if (CutterSettings->bDrawDiagram)
+			ULineSetComponent* VoronoiLineSet = NewObject<ULineSetComponent>(FractureContext.GetGeometryCollectionComponent());
+			VoronoiLineSet->SetupAttachment(FractureContext.GetGeometryCollectionComponent());
+			VoronoiLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(nullptr, false));
+			// TODO: If we switch to adding diagrams even when visibility is toggled off, we also need to update visibility here, e.g.: VoronoiLineSets[Idx]->SetVisibility(CutterSettings->bDrawDiagram);
+			VoronoiLineSet->RegisterComponent();
+			TArray<TTuple<FVector, FVector>> VoronoiEdges;
+			GetVoronoiEdges(LocalVoronoiSites, VoronoiBounds, VoronoiEdges, CellMember);
+			FTransform ToWorld = FractureContext.GetTransform();
+			VoronoiLineSet->ReserveLines(VoronoiEdges.Num());
+			for (int32 Idx = 0; Idx < VoronoiEdges.Num(); ++Idx)
 			{
-				GetVoronoiEdges(LocalVoronoiSites, VoronoiBounds, VoronoiEdges, CellMember);
+				const TTuple<FVector, FVector>& Line = VoronoiEdges[Idx];
+				VoronoiLineSet->AddLine(ToWorld.InverseTransformPosition(VoronoiEdges[Idx].Key), ToWorld.InverseTransformPosition(VoronoiEdges[Idx].Value), Colors[CellMember[Idx] % 100], 1.3, .1);
 			}
+			VoronoiLineSets.Add(VoronoiLineSet);
 		}
+	}
+
+	if (VoronoiLineSets.Num() > 0)
+	{
+		OverrideEditorViewFlagsForLineRendering();
+		UpdateLineSetExplodedVectors();
+	}
+	else
+	{
+		RestoreEditorViewFlags();
 	}
 }
 
