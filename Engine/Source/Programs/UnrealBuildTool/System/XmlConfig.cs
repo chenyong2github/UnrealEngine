@@ -128,7 +128,8 @@ namespace UnrealBuildTool
 					}
 
 					// Read all the XML files and validate them against the schema
-					Dictionary<Type, Dictionary<FieldInfo, object>> TypeToValues = new Dictionary<Type, Dictionary<FieldInfo, object>>();
+					Dictionary<Type, Dictionary<FieldInfo, XmlConfigData.ValueInfo>> TypeToValues =
+						new Dictionary<Type, Dictionary<FieldInfo, XmlConfigData.ValueInfo>>();
 					foreach(FileReference InputFile in InputFiles)
 					{
 						if(!TryReadFile(InputFile, CategoryToFields, TypeToValues, Schema))
@@ -141,20 +142,22 @@ namespace UnrealBuildTool
 					DirectoryReference.CreateDirectory(CacheFile.Directory);
 
 					// Create the new cache
-					Values = new XmlConfigData(InputFiles, TypeToValues.ToDictionary(x => x.Key, x => x.Value.ToArray()));
+					Values = new XmlConfigData(InputFiles, TypeToValues.ToDictionary(
+							x => x.Key, 
+							x => x.Value.Select(x => x.Value).ToArray()));
 					Values.Write(CacheFile);
 				}
 			}
 
 			// Apply all the static field values
-			foreach(KeyValuePair<Type, KeyValuePair<FieldInfo, object>[]> TypeValuesPair in Values.TypeToValues)
+			foreach(KeyValuePair<Type, XmlConfigData.ValueInfo[]> TypeValuesPair in Values.TypeToValues)
 			{
-				foreach(KeyValuePair<FieldInfo, object> FieldValuePair in TypeValuesPair.Value)
+				foreach(XmlConfigData.ValueInfo FieldValue in TypeValuesPair.Value)
 				{
-					if(FieldValuePair.Key.IsStatic)
+					if(FieldValue.FieldInfo.IsStatic)
 					{
-						object Value = InstanceValue(FieldValuePair.Value, FieldValuePair.Key.FieldType);
-						FieldValuePair.Key.SetValue(null, Value);
+						object Value = InstanceValue(FieldValue.Value, FieldValue.FieldInfo.FieldType);
+						FieldValue.FieldInfo.SetValue(null, Value);
 					}
 				}
 			}
@@ -305,16 +308,38 @@ namespace UnrealBuildTool
 		public static void ApplyTo(object TargetObject)
 		{
 			for(Type? TargetType = TargetObject.GetType(); TargetType != null; TargetType = TargetType.BaseType)
-			{
-				KeyValuePair<FieldInfo, object>[]? FieldValues;
+			{ 
+				XmlConfigData.ValueInfo[]? FieldValues;
 				if(Values!.TypeToValues.TryGetValue(TargetType, out FieldValues))
 				{
-					foreach(KeyValuePair<FieldInfo, object> FieldValuePair in FieldValues)
+					foreach(XmlConfigData.ValueInfo FieldValue in FieldValues)
 					{
-						if(!FieldValuePair.Key.IsStatic)
+						if (!FieldValue.FieldInfo.IsStatic)
 						{
-							object ValueInstance = InstanceValue(FieldValuePair.Value, FieldValuePair.Key.FieldType);
-							FieldValuePair.Key.SetValue(TargetObject, ValueInstance);
+							FieldInfo FieldInfoToWrite = FieldValue.FieldInfo;
+							
+							// Check if setting has been deprecated
+							if (FieldValue.XmlConfigAttribute.Deprecated)
+							{
+								Log.TraceWarning($"Deprecated setting found in \"{FieldValue.SourceFile}\":");
+								Log.TraceWarning(
+									$"The setting \"{FieldValue.FieldInfo.Name}\" is deprecated. Support for this setting will be removed in a future version of Unreal Engine.");
+
+								if (FieldValue.XmlConfigAttribute.NewAttributeName != null)
+								{
+									Log.TraceWarning(
+										$"Use \"{FieldValue.XmlConfigAttribute.NewAttributeName}\" in place of \"{FieldValue.FieldInfo.Name}\"");
+									Log.TraceInformation(
+										$"The value provided for deprecated setting \"{FieldValue.FieldInfo.Name}\" will be applied to \"{FieldValue.XmlConfigAttribute.NewAttributeName}\"");
+
+									// Find the new field to which the setting should be actually applied
+									FieldInfoToWrite = TargetType.GetRuntimeFields()
+										.First(x => x.Name == FieldValue.XmlConfigAttribute.NewAttributeName);
+								}
+							}
+
+							object ValueInstance = InstanceValue(FieldValue.Value, FieldValue.FieldInfo.FieldType);
+							FieldInfoToWrite.SetValue(TargetObject, ValueInstance);
 						}
 					}
 				}
@@ -349,7 +374,7 @@ namespace UnrealBuildTool
 		public static bool TryGetValue(Type TargetType, string Name, [NotNullWhen(true)] out object? Value)
 		{
 			// Find all the config values for this type
-			KeyValuePair<FieldInfo, object>[]? FieldValues;
+			XmlConfigData.ValueInfo[]? FieldValues;
 			if(!Values!.TypeToValues.TryGetValue(TargetType, out FieldValues))
 			{
 				Value = null;
@@ -357,11 +382,11 @@ namespace UnrealBuildTool
 			}
 
 			// Find the value with the matching name
-			foreach(KeyValuePair<FieldInfo, object> FieldPair in FieldValues)
+			foreach(XmlConfigData.ValueInfo FieldValue in FieldValues)
 			{
-				if(FieldPair.Key.Name == Name)
+				if(FieldValue.FieldInfo.Name == Name)
 				{
-					Value = FieldPair.Value;
+					Value = FieldValue.Value;
 					return true;
 				}
 			}
@@ -592,7 +617,8 @@ namespace UnrealBuildTool
 		/// <param name="TypeToValues">Map of types to fields and their associated values</param>
 		/// <param name="Schema">Schema to validate against</param>
 		/// <returns>True if the file was read successfully</returns>
-		static bool TryReadFile(FileReference Location, Dictionary<string, Dictionary<string, FieldInfo>> CategoryToFields, Dictionary<Type, Dictionary<FieldInfo, object>> TypeToValues, XmlSchema Schema)
+		static bool TryReadFile(FileReference Location, Dictionary<string, Dictionary<string, FieldInfo>> CategoryToFields,
+			Dictionary<Type, Dictionary<FieldInfo, XmlConfigData.ValueInfo>> TypeToValues, XmlSchema Schema)
 		{
 			// Read the XML file, and validate it against the schema
 			XmlConfigFile? ConfigFile;
@@ -610,10 +636,9 @@ namespace UnrealBuildTool
 					foreach(XmlElement KeyElement in CategoryElement.ChildNodes.OfType<XmlElement>())
 					{
 						FieldInfo? Field;
+						object Value;
 						if(NameToField.TryGetValue(KeyElement.Name, out Field))
 						{
-							// Parse the corresponding value
-							object Value;
 							if (Field.FieldType == typeof(string[]))
 							{
 								Value = KeyElement.ChildNodes.OfType<XmlElement>().Where(x => x.Name == "Item").Select(x => x.InnerText).ToArray();
@@ -628,13 +653,18 @@ namespace UnrealBuildTool
 							}
 
 							// Add it to the set of values for the type containing this field
-							Dictionary<FieldInfo, object>? FieldToValue;
+							Dictionary<FieldInfo, XmlConfigData.ValueInfo>? FieldToValue;
 							if(!TypeToValues.TryGetValue(Field.DeclaringType!, out FieldToValue))
 							{
-								FieldToValue = new Dictionary<FieldInfo, object>();
+								FieldToValue = new Dictionary<FieldInfo, XmlConfigData.ValueInfo>();
 								TypeToValues.Add(Field.DeclaringType!, FieldToValue);
 							}
-							FieldToValue[Field] = Value;
+							
+							// Parse the corresponding value
+							XmlConfigData.ValueInfo FieldValue = new XmlConfigData.ValueInfo(Field, Value, Location,
+								Field.GetCustomAttribute<XmlConfigFileAttribute>()!);
+							
+							FieldToValue[Field] = FieldValue;
 						}
 					}
 				}
