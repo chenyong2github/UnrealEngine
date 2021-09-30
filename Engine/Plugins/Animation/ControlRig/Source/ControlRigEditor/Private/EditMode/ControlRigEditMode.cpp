@@ -2668,7 +2668,13 @@ void FControlRigEditMode::MoveGizmo(AControlRigGizmoActor* GizmoActor, const boo
 				{
 					InOutLocal = InteractionControlRig->GetControlLocalTransform(GizmoActor->ControlName);
 				}
-				InteractionControlRig->SetControlGlobalTransform(GizmoActor->ControlName, NewTransform, true, Context, true, true);			// assumes it's attached to actor
+
+				bool bPrintPythonCommands = false;
+				if (UWorld* World = InteractionControlRig->GetWorld())
+				{
+					bPrintPythonCommands = World->IsPreviewWorld();
+				}
+				InteractionControlRig->SetControlGlobalTransform(GizmoActor->ControlName, NewTransform, true, Context, true, bPrintPythonCommands);			// assumes it's attached to actor
 				GizmoActor->SetGlobalTransform(CurrentTransform);
 				if (bCalcLocal)
 				{
