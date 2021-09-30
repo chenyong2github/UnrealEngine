@@ -42,6 +42,7 @@
 #include "ContentBrowserModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Logging/LogMacros.h"
+#include "IHairCardGenerator.h"
 
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
@@ -65,6 +66,8 @@ static FLinearColor HairGroupColor(1.0f, 0.5f, 0.0f);
 static FLinearColor HairLODColor(1.0f, 0.5f, 0.0f);
 
 #define LOCTEXT_NAMESPACE "GroomRenderingDetails"
+
+DEFINE_LOG_CATEGORY_STATIC(LogGroomAssetDetails, Log, All);
 
 static int32 GHairCardsProcerudalResolution = 4096;
 static int32 GHairCardsProcerudalResolution_LOD0 = -1;
@@ -924,12 +927,12 @@ void FGroomRenderingDetails::ResetToDefault(TSharedPtr<IPropertyHandle> ChildHan
 	CommonResetToDefault(ChildHandle, GroupIndex, LODIndex, true);
 }
 
-void FGroomRenderingDetails::AddPropertyWithCustomReset(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& Builder, int32 GroupIndex, int32 LODIndex)
+IDetailPropertyRow& FGroomRenderingDetails::AddPropertyWithCustomReset(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& Builder, int32 GroupIndex, int32 LODIndex)
 {	
 	FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FGroomRenderingDetails::ShouldResetToDefault, GroupIndex, LODIndex);
 	FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FGroomRenderingDetails::ResetToDefault, GroupIndex, LODIndex);
 	FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
-	Builder.AddProperty(PropertyHandle.ToSharedRef()).OverrideResetToDefault(ResetOverride);
+	return Builder.AddProperty(PropertyHandle.ToSharedRef()).OverrideResetToDefault(ResetOverride);
 }
 
 void FGroomRenderingDetails::ExpandStruct(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset)
@@ -1037,6 +1040,20 @@ FReply FGroomRenderingDetails::OnSaveCards(int32 DescIndex, FProperty* Property)
 	if (DescIndex < GroomAsset->HairGroupsCards.Num())
 	{
 		GroomAsset->SaveProceduralCards(DescIndex);
+	}
+	return FReply::Handled();
+}
+
+FReply FGroomRenderingDetails::OnGenerateCardDataUsingPlugin(int32 GroupIndex)
+{
+	if (GroomAsset->HairGroupsCards.IsValidIndex(GroupIndex))
+	{
+		TArray<IHairCardGenerator*> HairCardGeneratorPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IHairCardGenerator>(IHairCardGenerator::ModularFeatureName);
+		if (HairCardGeneratorPlugins.Num() > 0)
+		{
+			UE_CLOG(HairCardGeneratorPlugins.Num() > 1, LogGroomAssetDetails, Warning, TEXT("There are more than one available hair-card generator options. Defaulting to the first one found."));
+			HairCardGeneratorPlugins[0]->GenerateHairCardsForLOD(GroomAsset, GroomAsset->HairGroupsCards[GroupIndex]);
+		}
 	}
 	return FReply::Handled();
 }
@@ -1326,59 +1343,155 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 		break;
 		case EMaterialPanelType::Cards:
 		{
-			if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, SourceType))
-			{
-				// Add the Source type selection and just below add a save button
-				AddPropertyWithCustomReset(ChildHandle, ChildrenBuilder, GroupIndex, -1);
-				if (GroomAsset != nullptr && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsCards.Num() && (PanelType == EMaterialPanelType::Cards))
-				{
-					FText ToolTipTextForGeneration(FText::FromString(TEXT("Generate procedural cards data (meshes and textures) based on current procedural settings. Cards generation needs to run prior to the (re)loading of the cards data.")));
-					FText ToolTipTextForReloading(FText::FromString(TEXT("(Re)Load generated cards data (meshes and textures) into the groom asset. The data need to be generated with the save/generated button prior to reloading.")));
-
-					ChildrenBuilder.AddCustomRow(LOCTEXT("HairCardsButtons", "HairCardsButtons"))
-					.ValueContent()
-					.HAlign(HAlign_Fill)
-					[
-
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(SButton)
-							.VAlign(VAlign_Center)
-							.HAlign(HAlign_Center)
-							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-							.ToolTipText(ToolTipTextForGeneration)
-							.OnClicked(this, &FGroomRenderingDetails::OnSaveCards, GroupIndex, Property)
-							[
-								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("AssetEditor.SaveAsset"))
-							]
-						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(SButton)
-							.VAlign(VAlign_Center)
-							.HAlign(HAlign_Center)
-							.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-							.ToolTipText(ToolTipTextForReloading)
-							.OnClicked(this, &FGroomRenderingDetails::OnRefreshCards, GroupIndex, Property)
-							[
-								SNew(SImage)
-								.Image(FEditorStyle::GetBrush("Icons.Refresh"))
-							]
-						]
-					];
-				}
-			}
-			else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, CardsInfo))
+			if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, CardsInfo))
 			{
 				// Not node display
 			}
 			else
 			{
-				AddPropertyWithCustomReset(ChildHandle, ChildrenBuilder, GroupIndex, -1);
+				IDetailPropertyRow& PropertyRow = AddPropertyWithCustomReset(ChildHandle, ChildrenBuilder, GroupIndex, -1);
+
+				auto CustomizeMeshPropertyRow = [](IDetailPropertyRow& PropertyRow, bool bEnable)->FDetailWidgetRow&
+				{
+					TSharedPtr<SWidget> NameWidget;
+					TSharedPtr<SWidget> ValueWidget;
+					FDetailWidgetRow Row;
+					PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+
+					ValueWidget->SetEnabled(bEnable);
+
+					return PropertyRow.CustomWidget()
+						.NameContent()
+						[
+							PropertyRow.GetPropertyHandle()->CreatePropertyNameWidget(
+								LOCTEXT("HairCardsMeshProperty", "Mesh"),
+								LOCTEXT("HairCardsMeshTooltop",  "")
+							)
+						]
+						.ValueContent()
+						[
+							ValueWidget.ToSharedRef()
+						];
+				};
+
+				TWeakObjectPtr<UGroomAsset> GroomAssetPtr = GroomAsset;
+				auto ShouldShowProceduralProperties = [GroomAssetPtr, GroupIndex]()
+				{
+					return GroomAssetPtr.IsValid() && GroomAssetPtr->HairGroupsCards.IsValidIndex(GroupIndex) &&
+						GroomAssetPtr->HairGroupsCards[GroupIndex].SourceType == EHairCardsSourceType::Procedural;
+				};
+				TAttribute<EVisibility> ProceduralPropertyVisibility = TAttribute<EVisibility>::CreateLambda([ShouldShowProceduralProperties]()
+					{
+						return ShouldShowProceduralProperties() ? EVisibility::Visible : EVisibility::Collapsed;
+					}
+				);
+				
+				if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, ProceduralMesh))
+				{
+					PropertyRow.Visibility(ProceduralPropertyVisibility);
+					CustomizeMeshPropertyRow(PropertyRow, /*bEnable =*/false);
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, ProceduralSettings))
+				{
+					PropertyRow.Visibility(ProceduralPropertyVisibility);
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, ImportedMesh))
+				{
+					TAttribute<EVisibility> NonProceduralPropertyVisibility = TAttribute<EVisibility>::CreateLambda([ShouldShowProceduralProperties]()
+						{
+							return ShouldShowProceduralProperties() ? EVisibility::Collapsed : EVisibility::Visible;
+						}
+					);
+					PropertyRow.Visibility(NonProceduralPropertyVisibility);
+
+					CustomizeMeshPropertyRow(PropertyRow, /*bEnable =*/true);
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, SourceType))
+				{
+					TSharedPtr<SWidget> NameWidget;
+					TSharedPtr<SWidget> ValueWidget;
+					FDetailWidgetRow Row;
+					PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+
+					TSharedRef<SHorizontalBox> ProceduralGenButtons = SNew(SHorizontalBox).Visibility(ProceduralPropertyVisibility);
+					TArray<IHairCardGenerator*> HairCardGeneratorPlugins = IModularFeatures::Get().GetModularFeatureImplementations<IHairCardGenerator>(IHairCardGenerator::ModularFeatureName);
+					if (HairCardGeneratorPlugins.Num() > 0)
+					{
+						FText RegenToolTipText = LOCTEXT("GenerateNewCardsTooltip", "Generate new card assets (meshes and textures) using the current procedural settings. NOTE: This will overwrite preexisting card assets for this LOD.");
+						ProceduralGenButtons->AddSlot()
+							.AutoWidth()
+							[
+								SNew(SButton)
+									.VAlign(VAlign_Center)
+									.HAlign(HAlign_Center)
+									.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+									.ToolTipText(RegenToolTipText)
+									.OnClicked(this, &FGroomRenderingDetails::OnGenerateCardDataUsingPlugin, GroupIndex)
+									[
+										SNew(SImage)
+											// @TODO: Need a specialized icon for this?
+											.Image(FEditorStyle::GetBrush("ContentBrowser.AssetActions.ReimportAsset"))
+											.RenderTransform(FSlateRenderTransform(FQuat2D(FMath::DegreesToRadians(90.0f))))
+											.RenderTransformPivot(FVector2D(0.5f, 0.5f))
+									]
+							];
+					}
+					else
+					{
+						FText ToolTipTextForGeneration(FText::FromString(TEXT("Generate procedural cards data (meshes and textures) based on current procedural settings. Cards generation needs to run prior to the (re)loading of the cards data.")));
+						FText ToolTipTextForReloading(FText::FromString(TEXT("(Re)Load generated cards data (meshes and textures) into the groom asset. The data need to be generated with the save/generated button prior to reloading.")));
+
+						ProceduralGenButtons->AddSlot()
+							.AutoWidth()
+							[
+								SNew(SButton)
+								.VAlign(VAlign_Center)
+								.HAlign(HAlign_Center)
+								.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+								.ToolTipText(ToolTipTextForGeneration)
+								.OnClicked(this, &FGroomRenderingDetails::OnSaveCards, GroupIndex, Property)
+								[
+									SNew(SImage)
+									.Image(FEditorStyle::GetBrush("AssetEditor.SaveAsset"))
+								]
+							];
+
+						ProceduralGenButtons->AddSlot()
+							.AutoWidth()
+							[
+								SNew(SButton)
+								.VAlign(VAlign_Center)
+								.HAlign(HAlign_Center)
+								.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+								.ToolTipText(ToolTipTextForReloading)
+								.OnClicked(this, &FGroomRenderingDetails::OnRefreshCards, GroupIndex, Property)
+								[
+									SNew(SImage)
+									.Image(FEditorStyle::GetBrush("Icons.Refresh"))
+								]
+							];
+					}
+
+					PropertyRow.CustomWidget()
+						.NameContent()
+						[
+							NameWidget.ToSharedRef()
+						]
+						.ValueContent()
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								ValueWidget.ToSharedRef()
+							]
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								ProceduralGenButtons
+							]
+						];
+				}
 			}
 		}
 		break;

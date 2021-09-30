@@ -36,7 +36,8 @@ namespace UnrealBuildTool.Rules
 					"LevelSequence",
 					"MovieScene",
 					"MovieSceneTools",
-					"Sequencer"
+					"Sequencer",
+					"HairCardGeneratorFramework"
 				});
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 			 "FBX"
