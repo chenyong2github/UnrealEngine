@@ -75,13 +75,6 @@ private:
 
 	bool IsSetCameraSafeAreaCaptureRegionEnabled() const;
 
-	void OnResolutionMultiplierChanged( float NewValue, ETextCommit::Type CommitInfo )
-	{
-		NewValue = FMath::Clamp(NewValue, FHighResScreenshotConfig::MinResolutionMultipler, FHighResScreenshotConfig::MaxResolutionMultipler);
-		Config.ResolutionMultiplier = NewValue;
-		Config.ResolutionMultiplierScale = (NewValue - FHighResScreenshotConfig::MinResolutionMultipler) / (FHighResScreenshotConfig::MaxResolutionMultipler - FHighResScreenshotConfig::MinResolutionMultipler);
-	}
-
 	void OnResolutionMultiplierSliderChanged( float NewValue )
 	{
 		Config.ResolutionMultiplierScale = NewValue;
@@ -135,22 +128,17 @@ private:
 
 	EVisibility GetSpecifyCaptureRegionVisibility() const
 	{
-		return bCaptureRegionControlsVisible ? EVisibility::Hidden : EVisibility::Visible;
+		return bCaptureRegionControlsVisible ? EVisibility::Collapsed: EVisibility::Visible;
 	}
 
 	EVisibility GetCaptureRegionControlsVisibility() const
 	{
-		return bCaptureRegionControlsVisible ? EVisibility::Visible : EVisibility::Hidden;
+		return bCaptureRegionControlsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 	void SetCaptureRegionControlsVisibility(bool bVisible)
 	{
 		bCaptureRegionControlsVisible = bVisible;
-	}
-
-	TOptional<float> GetResolutionMultiplier() const
-	{
-		return TOptional<float>(Config.ResolutionMultiplier);
 	}
 
 	float GetResolutionMultiplierSlider() const
