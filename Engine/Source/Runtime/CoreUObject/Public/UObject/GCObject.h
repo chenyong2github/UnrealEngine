@@ -154,6 +154,9 @@ public:
 		}
 	}
 
+	FGCObject& operator=(const FGCObject&) {return *this;}
+	FGCObject& operator=(FGCObject&&) {return *this;}
+
 	/**
 	 * Pure virtual that must be overloaded by the inheriting class. Use this
 	 * method to serialize any UObjects contained that you wish to keep around.
