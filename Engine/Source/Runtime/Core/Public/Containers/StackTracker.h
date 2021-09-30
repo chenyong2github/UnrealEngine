@@ -16,7 +16,7 @@ struct FStackTracker
 {
 public:
 	/** Maximum number of backtrace depth. */
-	static const int32 MAX_BACKTRACE_DEPTH = 50;
+	static constexpr int32 MAX_BACKTRACE_DEPTH = 50;
 	/** Helper structure to capture callstack addresses and stack count. */
 	struct FCallStack
 	{

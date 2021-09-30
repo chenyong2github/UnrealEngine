@@ -927,7 +927,7 @@ struct FGenericPlatformMath
 	// A call is considered ambiguous if it passes no float types, any long double, or multiple mismatched float/double types.
 
 	template<typename T1, typename T2>
-	struct TIsSameOrNotFP { static const bool Value = TIsSame<T1, T2>::Value || !TIsFloatingPoint<T2>::Value; };
+	struct TIsSameOrNotFP { static constexpr bool Value = TIsSame<T1, T2>::Value || !TIsFloatingPoint<T2>::Value; };
 	template<typename... Ts>
 	static constexpr bool TIsAmbiguous =	!TOr<TIsFloatingPoint<typename TDecay<Ts>::Type>...>::Value ||
 											TOr<TIsSame<long double, typename TDecay<Ts>::Type>...>::Value ||

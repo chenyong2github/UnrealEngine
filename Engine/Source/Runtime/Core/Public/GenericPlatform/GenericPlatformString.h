@@ -192,7 +192,7 @@ struct FGenericPlatformString : public FGenericPlatformStricmp
 	/**
 	 * True if the encoding type of the string is some form of unicode
 	 */
-	static const bool IsUnicodeEncoded = true;
+	static constexpr bool IsUnicodeEncoded = true;
 
 
 	/**

@@ -163,7 +163,7 @@ namespace TextFilterExpressionParser
 	{																	\
 		struct TYPE														\
 		{																\
-			static const int32 MonikerCount = MONIKER_COUNT;			\
+			static constexpr int32 MonikerCount = MONIKER_COUNT;			\
 			static const TCHAR* Monikers[MonikerCount];					\
 		};																\
 	}																	\

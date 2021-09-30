@@ -101,8 +101,8 @@ namespace Windows
 	};
 
 	// Constants
-	static const BOOL TRUE = 1;
-	static const BOOL FALSE = 0;
+	static constexpr BOOL TRUE = 1;
+	static constexpr BOOL FALSE = 0;
 
 	// Modules
 	MINIMAL_WINDOWS_API HMODULE WINAPI LoadLibraryW(LPCTSTR lpFileName);

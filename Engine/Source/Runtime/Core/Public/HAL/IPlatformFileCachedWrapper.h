@@ -195,9 +195,9 @@ public:
 
 private:
 
-	static const uint32 BufferCacheSize = 64 * 1024; // Seems to be the magic number for best perf
-	static const uint64 BufferSizeMask  = ~((uint64)BufferCacheSize-1);
-	static const uint32	CacheCount		= 2;
+	static constexpr uint32 BufferCacheSize = 64 * 1024; // Seems to be the magic number for best perf
+	static constexpr uint64 BufferSizeMask  = ~((uint64)BufferCacheSize-1);
+	static constexpr uint32	CacheCount		= 2;
 
 	bool InnerSeek(uint64 Pos)
 	{

@@ -10,14 +10,14 @@
 
 struct CORE_API FAES
 {
-	static const uint32 AESBlockSize = 16;
+	static constexpr uint32 AESBlockSize = 16;
 
 	/** 
 	 * Class representing a 256 bit AES key
 	 */
 	struct FAESKey
 	{
-		static const int32 KeySize = 32;
+		static constexpr int32 KeySize = 32;
 
 		uint8 Key[KeySize];
 

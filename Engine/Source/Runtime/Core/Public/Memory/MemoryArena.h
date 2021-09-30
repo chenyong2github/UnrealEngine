@@ -61,9 +61,9 @@ public:
 #else
 
 private:
-	static const int	ArenaShift	= 48;
-	static const uint64 ArenaMask	= 0xffff000000000000;
-	static const uint64 PointerMask = 0x0000ffffFFFFffff;
+	static constexpr int	ArenaShift	= 48;
+	static constexpr uint64 ArenaMask	= 0xffff000000000000;
+	static constexpr uint64 PointerMask = 0x0000ffffFFFFffff;
 
 	void*	TaggedPointer = nullptr;
 

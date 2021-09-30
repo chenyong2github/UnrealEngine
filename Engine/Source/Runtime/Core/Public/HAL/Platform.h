@@ -1021,13 +1021,13 @@ namespace TypeTests
 	template <typename A, typename B>
 	struct TAreTypesEqual
 	{
-		static const bool Value = false;
+		static constexpr bool Value = false;
 	};
 
 	template <typename T>
 	struct TAreTypesEqual<T, T>
 	{
-		static const bool Value = true;
+		static constexpr bool Value = true;
 	};
 
 	static_assert(!PLATFORM_TCHAR_IS_4_BYTES || sizeof(TCHAR) == 4, "TCHAR size must be 4 bytes.");

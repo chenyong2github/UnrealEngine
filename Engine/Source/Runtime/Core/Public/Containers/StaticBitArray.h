@@ -280,8 +280,6 @@ public:
 	 */
 	int32 FindFirstClearBit() const
 	{
-		static const int32 NumBitsPerWordLog2 = FMath::FloorLog2(NumBitsPerWord);
-
 		const int32 LocalNumBits = NumBits;
 
 		int32 WordIndex = 0;
@@ -313,8 +311,6 @@ public:
 	 */
 	int32 FindFirstSetBit() const
 	{
-		static const int32 NumBitsPerWordLog2 = FMath::FloorLog2(NumBitsPerWord);
-
 		const int32 LocalNumBits = NumBits;
 
 		int32 WordIndex = 0;
@@ -373,13 +369,13 @@ public:
 		return Str;
 	}
 
-	static const uint32 NumOfBits = NumBits;
+	static constexpr uint32 NumOfBits = NumBits;
 
 private:
-
-//	static_assert(NumBits > 0, "Must have at least 1 bit.");
-	static const uint32 NumBitsPerWord = sizeof(WordType) * 8;
-	static const uint32 NumWords = ((NumBits + NumBitsPerWord - 1) & ~(NumBitsPerWord - 1)) / NumBitsPerWord;
+	static constexpr uint32 NumBitsPerWord = sizeof(WordType) * 8;
+	static constexpr uint32 NumBitsPerWordLog2 = 6;
+	static_assert(NumBitsPerWord == (1u << NumBitsPerWordLog2), "Update NumBitsPerWordLog2 to reflect WordType");
+	static constexpr uint32 NumWords = ((NumBits + NumBitsPerWord - 1) & ~(NumBitsPerWord - 1)) / NumBitsPerWord;
 	WordType Words[NumWords];
 
 	// Helper class for bool conversion

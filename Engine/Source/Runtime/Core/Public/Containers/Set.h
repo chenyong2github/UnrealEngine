@@ -286,7 +286,7 @@ template<
 class TSet
 {
 public:
-	static const bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
+	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
 
 	typedef InElementType ElementType;
 	typedef KeyFuncs    KeyFuncsType;

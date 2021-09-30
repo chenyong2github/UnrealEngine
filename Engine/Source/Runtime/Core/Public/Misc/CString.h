@@ -419,10 +419,10 @@ template <typename CharType = TCHAR>
 struct TCStringSpcHelper
 {
 	/** Number of characters to be stored in string. */
-	static const int32 MAX_SPACES = 255;
+	static constexpr int32 MAX_SPACES = 255;
 
 	/** Number of tabs to be stored in string. */
-	static const int32 MAX_TABS = 255;
+	static constexpr int32 MAX_TABS = 255;
 
 	static CORE_API const CharType SpcArray[MAX_SPACES + 1];
 	static CORE_API const CharType TabArray[MAX_TABS + 1];

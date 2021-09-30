@@ -35,10 +35,10 @@ private:
 
 #if PLATFORM_64BITS
 	/** Expected value to be found in the sentinel. */
-	static const SIZE_T SentinelExpectedValue = 0xdeadbeefdeadbeef;
+	static constexpr SIZE_T SentinelExpectedValue = 0xdeadbeefdeadbeef;
 #else
 	/** Expected value to be found in the sentinel. */
-	static const SIZE_T SentinelExpectedValue = 0xdeadbeef;
+	static constexpr SIZE_T SentinelExpectedValue = 0xdeadbeef;
 #endif
 
 	const SIZE_T PageSize;
@@ -68,7 +68,7 @@ public:
 
 	struct FAddressSpaceStompDataBlock
 	{
-		static const SIZE_T VirtualAddressSpaceToReserve = 1024LL * 1024LL * 1024LL * 64LL; // 64 GB blocks, we try to reserve that much, but will half it and retry
+		static constexpr SIZE_T VirtualAddressSpaceToReserve = 1024LL * 1024LL * 1024LL * 64LL; // 64 GB blocks, we try to reserve that much, but will half it and retry
 		std::atomic<UPTRINT>	CurrentAddress;
 		UPTRINT	StartAddress;
 		UPTRINT	EndAddress;
@@ -121,10 +121,10 @@ public:
 
 
 private:
-	static const SIZE_T TargetAddressSpaceToReserve = 1024LL * 1024LL * 1024LL * 1024LL * 32LL; // how much address space we will try and reserve, 32 TB
+	static constexpr SIZE_T TargetAddressSpaceToReserve = 1024LL * 1024LL * 1024LL * 1024LL * 32LL; // how much address space we will try and reserve, 32 TB
 
 
-	static const SIZE_T MaxAddressSpaceStompDataBlocks = 4096; // this * VirtualAddressSpaceToReserve is how much address space we will try and allocate
+	static constexpr SIZE_T MaxAddressSpaceStompDataBlocks = 4096; // this * VirtualAddressSpaceToReserve is how much address space we will try and allocate
 
 	std::atomic<int64> CurrentAddressSpaceStompDataBlockIndex;
 	FAddressSpaceStompDataBlock		AddressSpaceStompDataBlocks[MaxAddressSpaceStompDataBlocks];

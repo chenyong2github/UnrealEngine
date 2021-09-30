@@ -79,7 +79,7 @@
 template<typename T>
 class FAAArrayQueue 
 {
-    static const long BUFFER_SIZE = 1024;  // 1024
+    static constexpr long BUFFER_SIZE = 1024;  // 1024
 
 private:
     struct Node 

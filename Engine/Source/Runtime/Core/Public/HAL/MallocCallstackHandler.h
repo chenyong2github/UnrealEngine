@@ -130,8 +130,8 @@ public:
 		return UsedMalloc->GetDescriptiveName();
 	}
 
-	static const SIZE_T MaxCallStackDepth = 64;
-	static const SIZE_T CallStackEntriesToSkipCount = 2;
+	static constexpr SIZE_T MaxCallStackDepth = 64;
+	static constexpr SIZE_T CallStackEntriesToSkipCount = 2;
 
 	struct FCallStackInfo
 	{

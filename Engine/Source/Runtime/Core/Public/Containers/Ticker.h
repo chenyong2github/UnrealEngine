@@ -95,8 +95,8 @@ private:
 		/** Delegate to fire **/
 		FTickerDelegate Delegate;
 
-		static const uint64 DefaultState = 0;
-		static const uint64 RemovedState = 1;
+		static constexpr uint64 DefaultState = 0;
+		static constexpr uint64 RemovedState = 1;
 		// The element can be in 4 states: "idle", "executing", "idle and removed" and "executing and removed"
 		// Often right after `RemoveTicket()` call resources that are used by the delegate are destroyed. We must ensure that 
 		// these resources are not accessed by the delegate after `RemoveTicket()` returns.

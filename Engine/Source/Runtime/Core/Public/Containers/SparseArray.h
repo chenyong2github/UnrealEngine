@@ -78,7 +78,7 @@ class TSparseArray
 	friend class TScriptSparseArray;
 
 public:
-	static const bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
+	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
 
 	/** Destructor. */
 	~TSparseArray()
