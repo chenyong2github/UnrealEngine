@@ -78,7 +78,7 @@ void RigVMPythonUtils::Print(const FString& BlueprintTitle, const FString& InMes
 		MessageLogModule.RegisterLogListing("ControlRigPythonLog", LOCTEXT("ControlRigPythonLog", "Control Rig Python Log"), InitOptions);
 	}
 	TSharedRef<IMessageLogListing> PythonLog = MessageLogModule.GetLogListing( TEXT("ControlRigPythonLog") );
-	PythonLog->SwitchToPage(FText::FromString(BlueprintTitle));
+	PythonLog->SetCurrentPage(FText::FromString(BlueprintTitle));
 
 	TSharedRef<FTokenizedMessage> Token = FTokenizedMessage::Create(EMessageSeverity::Info, FText::FromString(InMessage));
 	PythonLog->AddMessage(Token, false);

@@ -160,6 +160,7 @@ void FMessageLogListingViewModel::AddMessages( const TArray< TSharedRef< class F
 
 void FMessageLogListingViewModel::ClearMessages()
 {
+	SetCurrentPage(CurrentPageIndex);
 	MessageLogListingModel->ClearMessages();
 }
 
@@ -278,13 +279,25 @@ void FMessageLogListingViewModel::NewPage( const FText& Title )
 	RefreshFilteredMessages();
 }
 
-void FMessageLogListingViewModel::SwitchToPage(const FText& Title)
+void FMessageLogListingViewModel::SetCurrentPage(const FText& Title)
 {
 	// we should take this as a suggestion we want to show pages!
 	bShowPages = true;
 
 	// switch page & refresh
-	MessageLogListingModel->SwitchToPage( Title, MaxPageCount );
+	MessageLogListingModel->SetCurrentPage( Title, MaxPageCount );
+	
+	// reset so we always display the current page when we switch
+	SetCurrentPageIndex(0);
+}
+
+void FMessageLogListingViewModel::SetCurrentPage(const uint32 InOldPageIndex)
+{
+	// we should take this as a suggestion we want to show pages!
+	bShowPages = true;
+
+	// switch page & refresh
+	MessageLogListingModel->SetCurrentPage( InOldPageIndex );
 	
 	// reset so we always display the current page when we switch
 	SetCurrentPageIndex(0);
