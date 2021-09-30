@@ -27,12 +27,6 @@ FDatasmithPostProcessSettingsTemplate FDatasmithPostProcessImporter::CopyDatasmi
 		PostProcessSettingsTemplate.VignetteIntensity = Src->GetVignette();
 	}
 
-	if (Src->GetColorFilter() != FLinearColor::Black && Src->GetColorFilter() != FLinearColor::White )
-	{
-		PostProcessSettingsTemplate.bOverride_FilmWhitePoint = true;
-		PostProcessSettingsTemplate.FilmWhitePoint = Src->GetColorFilter();
-	}
-
 	if ( !FMath::IsNearlyEqual( Src->GetSaturation(), 1.f ) )
 	{
 		PostProcessSettingsTemplate.bOverride_ColorSaturation = true;

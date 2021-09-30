@@ -339,19 +339,6 @@ static void DoPostProcessSettingsSanityCheck()
 
 	{
 		TMap<FString, FString> RenameMap;
-		// Old tonemapper parameters are ignored.
-		RenameMap.Add(TEXT("FilmWhitePoint"), TEXT(""));
-		RenameMap.Add(TEXT("FilmSaturation"), TEXT(""));
-		RenameMap.Add(TEXT("FilmChannelMixerRed"), TEXT(""));
-		RenameMap.Add(TEXT("FilmChannelMixerGreen"), TEXT(""));
-		RenameMap.Add(TEXT("FilmChannelMixerBlue"), TEXT(""));
-		RenameMap.Add(TEXT("FilmContrast"), TEXT(""));
-		RenameMap.Add(TEXT("FilmDynamicRange"), TEXT(""));
-		RenameMap.Add(TEXT("FilmHealAmount"), TEXT(""));
-		RenameMap.Add(TEXT("FilmToeAmount"), TEXT(""));
-		RenameMap.Add(TEXT("FilmShadowTint"), TEXT(""));
-		RenameMap.Add(TEXT("FilmShadowTintBlend"), TEXT(""));
-		RenameMap.Add(TEXT("FilmShadowTintAmount"), TEXT(""));
 		// Film Grain are ignored
 		RenameMap.Add(TEXT("FilmGrainIntensity"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainIntensityShadows"), TEXT(""));
@@ -411,18 +398,6 @@ FPostProcessSettings::FPostProcessSettings()
 	ToneCurveAmount = 1.0;
 
 	// default values:
-	FilmWhitePoint = FLinearColor(1.0f, 1.0f, 1.0f);
-	FilmSaturation = 1.0f;
-	FilmChannelMixerRed = FLinearColor(1.0f, 0.0f, 0.0f);
-	FilmChannelMixerGreen = FLinearColor(0.0f, 1.0f, 0.0f);
-	FilmChannelMixerBlue = FLinearColor(0.0f, 0.0f, 1.0f);
-	FilmContrast = 0.03f;
-	FilmDynamicRange = 4.0f;
-	FilmHealAmount = 1.0f;
-	FilmToeAmount = 1.0f;
-	FilmShadowTint = FLinearColor(1.0f, 1.0f, 1.0f);
-	FilmShadowTintBlend = 0.5;
-	FilmShadowTintAmount = 0.0;
 
 	// ACES settings
 	FilmSlope = 0.88f;
@@ -653,18 +628,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_BlueCorrection(Settings.bOverride_BlueCorrection)
 	, bOverride_ExpandGamut(Settings.bOverride_ExpandGamut)
 	, bOverride_ToneCurveAmount(Settings.bOverride_ToneCurveAmount)
-	, bOverride_FilmWhitePoint(Settings.bOverride_FilmWhitePoint)
-	, bOverride_FilmSaturation(Settings.bOverride_FilmSaturation)
-	, bOverride_FilmChannelMixerRed(Settings.bOverride_FilmChannelMixerRed)
-	, bOverride_FilmChannelMixerGreen(Settings.bOverride_FilmChannelMixerGreen)
-	, bOverride_FilmChannelMixerBlue(Settings.bOverride_FilmChannelMixerBlue)
-	, bOverride_FilmContrast(Settings.bOverride_FilmContrast)
-	, bOverride_FilmDynamicRange(Settings.bOverride_FilmDynamicRange)
-	, bOverride_FilmHealAmount(Settings.bOverride_FilmHealAmount)
-	, bOverride_FilmToeAmount(Settings.bOverride_FilmToeAmount)
-	, bOverride_FilmShadowTint(Settings.bOverride_FilmShadowTint)
-	, bOverride_FilmShadowTintBlend(Settings.bOverride_FilmShadowTintBlend)
-	, bOverride_FilmShadowTintAmount(Settings.bOverride_FilmShadowTintAmount)
 	, bOverride_FilmSlope(Settings.bOverride_FilmSlope)
 	, bOverride_FilmToe(Settings.bOverride_FilmToe)
 	, bOverride_FilmShoulder(Settings.bOverride_FilmShoulder)
@@ -849,18 +812,6 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, FilmShoulder(Settings.FilmShoulder)
 	, FilmBlackClip(Settings.FilmBlackClip)
 	, FilmWhiteClip(Settings.FilmWhiteClip)
-	, FilmWhitePoint(Settings.FilmWhitePoint)
-	, FilmShadowTint(Settings.FilmShadowTint)
-	, FilmShadowTintBlend(Settings.FilmShadowTintBlend)
-	, FilmShadowTintAmount(Settings.FilmShadowTintAmount)
-	, FilmSaturation(Settings.FilmSaturation)
-	, FilmChannelMixerRed(Settings.FilmChannelMixerRed)
-	, FilmChannelMixerGreen(Settings.FilmChannelMixerGreen)
-	, FilmChannelMixerBlue(Settings.FilmChannelMixerBlue)
-	, FilmContrast(Settings.FilmContrast)
-	, FilmToeAmount(Settings.FilmToeAmount)
-	, FilmHealAmount(Settings.FilmHealAmount)
-	, FilmDynamicRange(Settings.FilmDynamicRange)
 	, SceneColorTint(Settings.SceneColorTint)
 	, SceneFringeIntensity(Settings.SceneFringeIntensity)
 	, ChromaticAberrationStartOffset(Settings.ChromaticAberrationStartOffset)
