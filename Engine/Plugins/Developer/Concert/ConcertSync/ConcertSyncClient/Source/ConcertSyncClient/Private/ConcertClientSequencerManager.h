@@ -17,6 +17,7 @@ class ALevelSequenceActor;
 #if WITH_EDITOR
 
 class ISequencer;
+class FConcertClientWorkspace;
 struct FSequencerInitParams;
 
 /**
@@ -87,6 +88,9 @@ public:
 	 * @param bEnable The value to set for the remote open option
 	 */
 	virtual void SetSequencerRemoteOpen(bool bEnable) override;
+
+	/** Assign the current active workspace to this sequencer. */
+	void SetActiveWorkspace(TSharedPtr<FConcertClientWorkspace> Workspace);
 
 private:
 	/** Enum signifying how a sequencer UI is currently playing. Necessary to prevent transport event contention. */
@@ -183,6 +187,13 @@ private:
 	void ApplyTransportOpenEvent(const FString& SequenceObjectPath);
 
 	/**
+	 * Create a new sequence player to be used in -game instances.
+	 *
+	 * @param SequenceObjectPath	The sequence to open
+	 */
+	void CreateNewSequencePlayerIfNotExists(const FString& SequenceObjectPath);
+
+	/**
 	 * Apply a Sequencer event 
 	 *
 	 * @param PendingState	The pending state to apply
@@ -209,6 +220,13 @@ private:
 	 * @param PendingState	The pending state to apply
 	 */
 	void ApplyCloseToPlayers(const FConcertSequencerCloseEvent& InEvent);
+
+
+	/** Apply CloseEvent to Open sequencers and players.
+	 *
+	 * @param PendingClose  The close event state.
+	 */
+	void ApplyTransportCloseEvent(const FConcertSequencerCloseEvent& PendingClose);
 
 	/**
 	 * Gather all the currently open sequencer UIs that have the specified path as their root sequence
@@ -237,6 +255,9 @@ private:
 	TArray<FConcertSequencerState> PendingSequencerEvents;
 
 	/** List of pending sequencer open events to apply at end of frame. */
+	TArray<FConcertSequencerCloseEvent> PendingSequenceCloseEvents;
+
+	/** List of pending sequencer open events to apply at end of frame. */
 	TArray<FString> PendingSequenceOpenEvents;
 
 	/** Map of all currently opened Root Sequence State in a session, locally opened or not. */
@@ -262,6 +283,9 @@ private:
 
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;
+
+	/** Weak pointer to the active workspace. */
+	TWeakPtr<FConcertClientWorkspace> Workspace;
 };
 
 #endif // WITH_EDITOR

@@ -59,12 +59,13 @@ public:
 	virtual void AddWorkspaceCanProcessPackagesDelegate(FName InDelegateName, FCanProcessPendingPackages Delegate) override;
 	virtual void RemoveWorkspaceCanProcessPackagesDelegate(FName InDelegateName) override;
 
-private:
 	/** Indicates if we can process any pending package updates. */
 	bool CanProcessPendingPackages() const;
 
 	/** Indicates if we can finalize activity sync. */
 	bool CanFinalize() const;
+
+private:
 
 	/** Bind the workspace to this session. */
 	void BindSession(TSharedPtr<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge);
