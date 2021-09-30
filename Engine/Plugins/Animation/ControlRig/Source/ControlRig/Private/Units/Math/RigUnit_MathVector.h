@@ -836,7 +836,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorOrthogonal : public FRigUnit_MathVector
 /**
  * Returns the 4 point bezier interpolation
  */
-USTRUCT(meta=(DisplayName="Bezier Four Point"))
+USTRUCT(meta=(DisplayName="Bezier Four Point", Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
@@ -867,7 +867,7 @@ struct CONTROLRIG_API FRigUnit_MathVectorBezierFourPoint : public FRigUnit_MathV
 /**
  * Creates a bezier four point
  */
-USTRUCT(meta = (DisplayName = "Make Bezier Four Point", Constant))
+USTRUCT(meta = (DisplayName = "Make Bezier Four Point", Constant, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_MathVectorMakeBezierFourPoint : public FRigUnit_MathVectorBase
 {
 	GENERATED_BODY()
