@@ -1421,9 +1421,9 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 	INTERNAL_SHADER_PARAMETER_EXPLICIT(TShaderParameterTypeInfo<MemberType>::BaseType, TShaderParameterTypeInfo<MemberType>, MemberType,MemberName,,,Precision,TEXT(""),false)
 
 /** Adds a constant-buffer stored array of values.
+ *  MemberType size must be a multiple of 16byte (see SHADER_PARAMETER_SCALAR_ARRAY for scalar arrays).
  *
  * Example:
- *	SHADER_PARAMETER_ARRAY(float, MyScalarArray, [8])
  *	SHADER_PARAMETER_ARRAY(FMatrix44f, MyMatrixArray, [2])
  */
 #define SHADER_PARAMETER_ARRAY(MemberType,MemberName,ArrayDecl) \
@@ -1704,3 +1704,48 @@ const TCHAR* GetShaderParameterMacroName(EUniformBufferBaseType ShaderParameterB
 
 #define SHADER_PARAMETER_RDG_BUFFER_ARRAY(ShaderType,MemberName, ArrayDecl) \
 	DEPRECATED_MACRO(5.0, "SHADER_PARAMETER_RDG_BUFFER_ARRAY has been deprecated. Use RDG_BUFFER_ACCESS_ARRAY instead.")
+
+
+
+
+/** Upgrade the scalar type to a vector for storage. */
+
+template<typename TypeParameter>
+struct TShaderParameterScalarArrayTypeInfo
+{
+	static_assert(sizeof(TypeParameter) == 0, "This type is not supported for automatic packing.");
+	using PackedArrayType = void;
+};
+
+template<>
+struct TShaderParameterScalarArrayTypeInfo<uint32>
+{
+	using PackedArrayType = FUintVector4;
+};
+
+template<>
+struct TShaderParameterScalarArrayTypeInfo<int32>
+{
+	using PackedArrayType = FIntVector4;
+};
+
+template<>
+struct TShaderParameterScalarArrayTypeInfo<float>
+{
+	using PackedArrayType = FVector4f;
+};
+
+constexpr uint32 CalcPackedArraySize(uint32 NumElements)		{ return (NumElements + 3) / 4; }
+constexpr uint32 CalcPackedArrayIndex(uint32 ElementIndex)		{ return (ElementIndex >> 2);	}
+constexpr uint32 CalcPackedComponentIndex(uint32 ElementIndex)	{ return (ElementIndex & 3);	}
+
+/** Adds a packed constant-buffer stored array of values.
+ *
+ * Example:
+ *	SHADER_PARAMETER_SCALAR_ARRAY(float, MyScalarArray, 8)
+ */
+#define SHADER_PARAMETER_SCALAR_ARRAY(MemberType,MemberName,NumElements) \
+	SHADER_PARAMETER_ARRAY(TShaderParameterScalarArrayTypeInfo<MemberType>::PackedArrayType, MemberName, [CalcPackedArraySize(NumElements)])
+
+#define GET_SCALAR_ARRAY_ELEMENT(PackedArray, ElementIndex) \
+	PackedArray[CalcPackedArrayIndex(ElementIndex)][CalcPackedComponentIndex(ElementIndex)]
