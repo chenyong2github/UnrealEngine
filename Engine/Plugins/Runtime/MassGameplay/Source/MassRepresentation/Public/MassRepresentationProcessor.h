@@ -19,7 +19,7 @@ enum EActorEnabledType
 };
 
 UCLASS()
-class MASSREPRESENTATION_API UMassRepresentationProcessor : public UPipeProcessor
+class MASSREPRESENTATION_API UMassRepresentationProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ public:
 
 protected:
 
-	/** Configure the owned FLWComponentQuery instances to express processor's requirements */
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
 	virtual void ConfigureQueries() override;
 
 	/**
@@ -42,7 +42,7 @@ protected:
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/** 
 	 * Returns an actor of the template type and setup fragments values from it
@@ -66,7 +66,7 @@ protected:
 	 * @param bCancelSpawningOnly tell to only cancel the existing spawning request and to not release the associated actor it any.
 	 * @return if the actor was release or the spawning was canceled.
 	 */
-	virtual bool ReleaseActorOrCancelSpawning(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, FLWComponentSystemExecutionContext& Context, const bool bCancelSpawningOnly = false);
+	virtual bool ReleaseActorOrCancelSpawning(const FMassHandle MassAgent, FDataFragment_Actor& ActorInfo, const int16 TemplateActorIndex, FMassHandle_ActorSpawnRequest& SpawnRequestHandle, FMassExecutionContext& Context, const bool bCancelSpawningOnly = false);
 
 	/** 
 	 * Enable/disable a spawned actor
@@ -75,7 +75,7 @@ protected:
 	 * @param EntityIdx is the entity index currently processing
 	 * @param Context is the current light weight component execution context 
 	 */
-	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FLWComponentSystemExecutionContext& Context);
+	virtual void SetActorEnabled(const EActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassExecutionContext& Context);
 
 	/**
 	 * Teleports the actor at the specified transform by preserving its velocity and without collision.
@@ -84,7 +84,7 @@ protected:
 	 * @param Actor is the actual actor to teleport
 	 * @param Context is the current light weight component execution context
 	 */
-	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FLWComponentSystemExecutionContext& Context);
+	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassExecutionContext& Context);
 
 	/**
 	 * Method that will be bound to a delegate called before the spawning of an actor to let the requester prepare it
@@ -113,7 +113,7 @@ protected:
 	 * @param Context of the execution from the entity sub system
 	 * @return The visualization chunk fragment
 	 */
-	FMassVisualizationChunkFragment& UpdateChunkVisibility(FLWComponentSystemExecutionContext& Context) const;
+	FMassVisualizationChunkFragment& UpdateChunkVisibility(FMassExecutionContext& Context) const;
 
 	/**
 	 * Updates entity visibility tag for later chunk logic optimization
@@ -123,7 +123,7 @@ protected:
 	 * @param ChunkData is the visualization chunk fragment
      * @param Context of the execution from the entity sub system
 	 */
-	static void UpdateEntityVisibility(const FLWEntity Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FLWComponentSystemExecutionContext& Context);
+	static void UpdateEntityVisibility(const FMassEntityHandle Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FMassExecutionContext& Context);
 
 public:
 	/**
@@ -158,13 +158,13 @@ protected:
 	 * Update representation type for each entity, must be called within a ForEachEntityChunk
 	 * @param Context of the execution from the entity sub system
 	 */
-	void UpdateRepresentation(FLWComponentSystemExecutionContext& Context);
+	void UpdateRepresentation(FMassExecutionContext& Context);
 
 	/** 
 	 * Update representation and visibility for each entity, must be called within a ForEachEntityChunk
 	 * @param Context of the execution from the entity sub system
 	 */
-	void UpdateVisualization(FLWComponentSystemExecutionContext& Context);
+	void UpdateVisualization(FMassExecutionContext& Context);
 
 	/** What should be the representation of this entity for each specificLOD */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
@@ -192,7 +192,7 @@ protected:
 	/** Default representation when unable to spawn an actor */
 	ERepresentationType DefaultRepresentationType = ERepresentationType::None;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 
 	/** At what rate should the not visible entity be updated in seconds */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visualization", config)
@@ -210,11 +210,11 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/** A cache pointer to the representation subsystem */
 	UPROPERTY(Transient)
 	UMassRepresentationSubsystem* RepresentationSubsystem;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

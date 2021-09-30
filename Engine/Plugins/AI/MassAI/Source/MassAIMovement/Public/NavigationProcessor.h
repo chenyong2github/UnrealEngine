@@ -15,7 +15,7 @@ class UMassMovementSubsystem;
  * @todo: separate apply velocity and height adjustment
  */
 UCLASS()
-class MASSAIMOVEMENT_API UMassApplyVelocityMoveTargetProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassApplyVelocityMoveTargetProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -24,16 +24,16 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
-	FLWComponentQuery HighResEntityQuery;
-	FLWComponentQuery LowResEntityQuery_Conditional;
+	FMassEntityQuery HighResEntityQuery;
+	FMassEntityQuery LowResEntityQuery_Conditional;
 };
 
 /** Handle dynamic obstacles. */
 UCLASS()
-class MASSAIMOVEMENT_API UMassDynamicObstacleProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassDynamicObstacleProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -50,10 +50,10 @@ public:
 	
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 	virtual void OnStop(FMassDynamicObstacleFragment& OutObstacle, const float BlockingRadius) {}
 	virtual void OnMove(FMassDynamicObstacleFragment& OutObstacle) {}
 
 private:
-	FLWComponentQuery EntityQuery_Conditional;
+	FMassEntityQuery EntityQuery_Conditional;
 };

@@ -10,7 +10,7 @@
 class UNavigationSystemV1;
 
 UCLASS()
-class MASSAIMOVEMENT_API UAssignRandomNavLocationProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UAssignRandomNavLocationProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -19,7 +19,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 	virtual void Initialize(UObject& InOwner) override;
 
 	UPROPERTY()
@@ -30,5 +30,5 @@ protected:
 
 	FVector Origin = FNavigationSystem::InvalidLocation;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

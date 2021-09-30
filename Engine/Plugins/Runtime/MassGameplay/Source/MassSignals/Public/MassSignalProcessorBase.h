@@ -15,7 +15,7 @@ class UMassSignalSubsystem;
  * The derived classes only need to implement the method SignalEntities to actually received the raised signals for the entities they subscribed to 
  */
 UCLASS(abstract)
-class MASSSIGNALS_API UMassSignalProcessorBase : public UPipeProcessor
+class MASSSIGNALS_API UMassSignalProcessorBase : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ protected:
 
 	virtual void BeginDestroy() override;
 
-	/** Configure the owned FLWComponentQuery instances to express processor queries requirements */
+	/** Configure the owned FMassEntityQuery instances to express processor queries requirements */
 	virtual void ConfigureQueries() override {}
 
 	/**
@@ -37,21 +37,21 @@ protected:
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 * @param EntitySignals Look up to retrieve for each entities their raised signal via GetSignalsForEntity
 	 */
-	 virtual void SignalEntities(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, FMassSignalNameLookup& EntitySignals) PURE_VIRTUAL(UMassSignalProcessorBase::SignalEntities, );
+	 virtual void SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals) PURE_VIRTUAL(UMassSignalProcessorBase::SignalEntities, );
 
 	/**
 	 * Callback that is being called when new signal is raised
 	 * @param SignalName is the name of the signal being raised
 	 * @param Entities are the targeted entities for this signal
 	 */
-	 virtual void OnSignalReceived(FName SignalName, TConstArrayView<FLWEntity> Entities);
+	 virtual void OnSignalReceived(FName SignalName, TConstArrayView<FMassEntityHandle> Entities);
 
 	/**
 	 * Execution method for this processor
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/**
 	 * To receive notification about a particular signal, you need to subscribe to it.
@@ -63,7 +63,7 @@ protected:
 	UPROPERTY(Transient)
 	UMassSignalSubsystem* SignalSubsystem = nullptr;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 
 private:
 
@@ -82,7 +82,7 @@ private:
 		TArray<FEntitySignalRange> ReceivedSignalRanges;
 
 		/** the list of all signaled entities, can contain duplicates */
-		TArray<FLWEntity> SignaledEntities;
+		TArray<FMassEntityHandle> SignaledEntities;
 	};
 
 	/** Double buffer frame received signal as we can receive new signals as we are processing them */

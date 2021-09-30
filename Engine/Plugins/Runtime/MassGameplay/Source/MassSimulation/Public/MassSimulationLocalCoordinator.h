@@ -15,7 +15,7 @@
 #include "MassSimulationLocalCoordinator.generated.h"
 
 
-class UPipeSchematic;
+class UMassSchematic;
 class UMassEntitySubsystem;
 class UHierarchicalInstancedStaticMeshComponent;
 class UMassSpawningManager;
@@ -45,11 +45,11 @@ public:
 protected:
 	// all spawned entities will go through these pipelines
 	UPROPERTY(EditAnywhere, Category = "Mass|Spawning")
-	TArray<TSoftObjectPtr<UPipeSchematic>> PostSpawnSchematics;
+	TArray<TSoftObjectPtr<UMassSchematic>> PostSpawnSchematics;
 
 	// Every tick these pipelines will be spawned 
 	UPROPERTY(EditAnywhere, Category = "Mass|Simulation")
-	TArray<TSoftObjectPtr<UPipeSchematic>> TickSchematics;
+	TArray<TSoftObjectPtr<UMassSchematic>> TickSchematics;
 
 	UPROPERTY(EditAnywhere, Category = "Mass|Spawning", meta=(DisplayName="LEGACY_LocallyAppliedSpawnComponents"))
 	TArray<const UScriptStruct*> LocallyAppliedSpawnComponents;

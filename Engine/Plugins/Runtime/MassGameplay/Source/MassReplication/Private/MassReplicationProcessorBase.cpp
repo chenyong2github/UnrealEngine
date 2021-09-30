@@ -30,16 +30,16 @@ UMassReplicationProcessorBase::UMassReplicationProcessorBase()
 	UpdateInterval[EMassLOD::Off] = 0.5f;
 
 	ExecutionFlags = int32(EProcessorExecutionFlags::None);
-	ProcessingPhase = EPipeProcessingPhase::PostPhysics;
+	ProcessingPhase = EMassProcessingPhase::PostPhysics;
 }
 
 void UMassReplicationProcessorBase::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_MassSimulationLODInfo>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassNetworkIDFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_ReplicationTemplateID>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassReplicationViewerLODFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassReplicatedAgentFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_MassSimulationLODInfo>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassNetworkIDFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_ReplicationTemplateID>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassReplicationViewerLODFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassReplicatedAgentFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassReplicationProcessorBase::Initialize(UObject& Owner)
@@ -129,14 +129,14 @@ void UMassReplicationProcessorBase::PrepareExecution()
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 }
 
-void UMassReplicationProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassReplicationProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 	check(World);
 
 	PrepareExecution();
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
 			const TConstArrayView<FDataFragment_MassSimulationLODInfo> ViewersInfoList = Context.GetComponentView<FDataFragment_MassSimulationLODInfo>();
 			const TArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetMutableComponentView<FMassReplicationViewerLODFragment>();
@@ -145,7 +145,7 @@ void UMassReplicationProcessorBase::Execute(UMassEntitySubsystem& EntitySubsyste
 
 	if (LODCalculator.AdjustDistancesFromCount())
 	{
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
 				const TConstArrayView<FDataFragment_MassSimulationLODInfo> ViewersInfoList = Context.GetComponentView<FDataFragment_MassSimulationLODInfo>();
 				const TArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetMutableComponentView<FMassReplicationViewerLODFragment>();

@@ -23,9 +23,9 @@ public:
 protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 
 	UPROPERTY(Transient)
 	UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
@@ -38,7 +38,7 @@ protected:
  * Processor for updating move target on ZoneGraph path.
  */
 UCLASS()
-class MASSAIMOVEMENT_API UMassZoneGraphPathFollowProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassZoneGraphPathFollowProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -47,9 +47,9 @@ protected:
 	
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery_Conditional;
+	FMassEntityQuery EntityQuery_Conditional;
 
 	UPROPERTY(Transient)
 	UZoneGraphSubsystem* ZoneGraphSubsystem = nullptr;
@@ -62,7 +62,7 @@ protected:
  * Processor for updating steering towards MoveTarget.
  */
 UCLASS()
-class MASSAIMOVEMENT_API UMassZoneGraphSteeringProcessor : public UPipeProcessor
+class MASSAIMOVEMENT_API UMassZoneGraphSteeringProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -71,9 +71,9 @@ protected:
 	
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 
 	UPROPERTY(Transient)
 	UMassSignalSubsystem* SignalSubsystem = nullptr;

@@ -8,16 +8,16 @@
 #include "LWComponentTypes.h"
 
 class UMassEntitySubsystem;
-struct FArchetypeData;
-struct FLWComponentSystemExecutionContext;
-struct FLWComponentData;
+struct FMassArchetypeData;
+struct FMassExecutionContext;
+struct FMassFragment;
 struct FArchetypeChunkIterator;
-struct FLWComponentQuery;
+struct FMassEntityQuery;
 struct FArchetypeChunkCollection;
-struct FEntityView;
+struct FMassEntityView;
 
-typedef TFunction< void(FLWComponentSystemExecutionContext& /*ExecutionContext*/) > FLWComponentSystemExecuteFunction;
-typedef TFunction< bool(const FLWComponentSystemExecutionContext& /*ExecutionContext*/) > FLWComponentSystemChunkConditionFunction;
+typedef TFunction< void(FMassExecutionContext& /*ExecutionContext*/) > FMassExecuteFunction;
+typedef TFunction< bool(const FMassExecutionContext& /*ExecutionContext*/) > FMassChunkConditionFunction;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -29,21 +29,21 @@ struct FArchetypeHandle final
 	FArchetypeHandle() = default;
 	bool IsValid() const { return DataPtr.IsValid(); }
 
-	MASSENTITY_API bool operator==(const FArchetypeData* Other) const;
+	MASSENTITY_API bool operator==(const FMassArchetypeData* Other) const;
 	bool operator==(const FArchetypeHandle& Other) const { return DataPtr == Other.DataPtr; }
 	bool operator!=(const FArchetypeHandle& Other) const { return DataPtr != Other.DataPtr; }
 
 	MASSENTITY_API friend uint32 GetTypeHash(const FArchetypeHandle& Instance);
 private:
-	FArchetypeHandle(const TSharedPtr<FArchetypeData>& InDataPtr)
+	FArchetypeHandle(const TSharedPtr<FMassArchetypeData>& InDataPtr)
 	: DataPtr(InDataPtr)
 	{}
-	TSharedPtr<FArchetypeData> DataPtr;
+	TSharedPtr<FMassArchetypeData> DataPtr;
 
 	friend UMassEntitySubsystem;
 	friend FArchetypeChunkCollection;
-	friend FLWComponentQuery;
-	friend FEntityView;
+	friend FMassEntityQuery;
+	friend FMassEntityView;
 };
 
 
@@ -76,9 +76,9 @@ private:
 
 public:
 	FArchetypeChunkCollection() = default;
-	FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FLWEntity> InEntities);
+	FArchetypeChunkCollection(const FArchetypeHandle& InArchetype, TConstArrayView<FMassEntityHandle> InEntities);
 	explicit FArchetypeChunkCollection(FArchetypeHandle& InArchetypeHandle);
-	explicit FArchetypeChunkCollection(TSharedPtr<FArchetypeData>& InArchetype);
+	explicit FArchetypeChunkCollection(TSharedPtr<FMassArchetypeData>& InArchetype);
 
 	TArrayView<const FChunkInfo> GetChunks() const { return Chunks; }
 	const FArchetypeHandle& GetArchetype() const { return Archetype; }
@@ -91,7 +91,7 @@ public:
 	}
 
 private:
-	void GatherChunksFromArchetype(TSharedPtr<FArchetypeData>& InArchetype);
+	void GatherChunksFromArchetype(TSharedPtr<FMassArchetypeData>& InArchetype);
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -132,14 +132,14 @@ struct FInternalEntityHandle
 	int32 IndexWithinChunk = INDEX_NONE;
 };
 
-typedef TArray<int32, TInlineAllocator<16>> FLWComponentIndicesMapping;
-typedef TConstArrayView<int32> FLWComponentIndicesMappingView;
-struct FLWRequirementIndicesMapping
+typedef TArray<int32, TInlineAllocator<16>> FMassFragmentIndicesMapping;
+typedef TConstArrayView<int32> FMassFragmentIndicesMappingView;
+struct FMassQueryRequirementIndicesMapping
 {
-	FLWRequirementIndicesMapping() = default;
+	FMassQueryRequirementIndicesMapping() = default;
 
-	FLWComponentIndicesMapping EntityComponents;
-	FLWComponentIndicesMapping ChunkComponents;
+	FMassFragmentIndicesMapping EntityComponents;
+	FMassFragmentIndicesMapping ChunkComponents;
 	FORCEINLINE bool IsEmpty() const
 	{
 		return EntityComponents.Num() == 0 || ChunkComponents.Num() == 0;
@@ -147,7 +147,7 @@ struct FLWRequirementIndicesMapping
 };
 
 template<typename T>
-struct FLWComponentSorterOperator
+struct FMassSorterOperator
 {
 	bool operator()(const T& A, const T& B) const
 	{

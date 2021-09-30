@@ -39,7 +39,7 @@ protected:
 	virtual void PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize) override;
 	virtual void PostReplicatedChange(const TArrayView<int32> ChangedIndices, int32 FinalSize) override;
 
-	void PostReplicatedChangeEntity(const FEntityView& EntityView, const FReplicatedCrowdAgent& Item) const;
+	void PostReplicatedChangeEntity(const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item) const;
 #endif //UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR

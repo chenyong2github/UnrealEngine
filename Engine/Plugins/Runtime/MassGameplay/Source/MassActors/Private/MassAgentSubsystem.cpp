@@ -19,7 +19,7 @@
 namespace FMassAgentSubsystemHelper
 {
 
-inline void InitializeAgentComponentFragments(const UMassAgentComponent& AgentComp, FEntityView& EntityView, const EMassTranslationDirection Direction, TConstArrayView<FMassEntityTemplate::FObjectFragmentInitializerFunction> ObjectFragmentInitializers)
+inline void InitializeAgentComponentFragments(const UMassAgentComponent& AgentComp, FMassEntityView& EntityView, const EMassTranslationDirection Direction, TConstArrayView<FMassEntityTemplate::FObjectFragmentInitializerFunction> ObjectFragmentInitializers)
 {
 	AActor* Owner = AgentComp.GetOwner();
 	check(Owner);
@@ -50,7 +50,7 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	SpawnerSystem = UWorld::GetSubsystem<UMassSpawnerSubsystem>(World);
 
 	SimulationSystem = UWorld::GetSubsystem<UMassSimulationSubsystem>(World);
-	SimulationSystem->GetOnProcessingPhaseStarted(EPipeProcessingPhase::PrePhysics).AddUObject(this, &UMassAgentSubsystem::OnProcessingPhaseStarted, EPipeProcessingPhase::PrePhysics);
+	SimulationSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassAgentSubsystem::OnProcessingPhaseStarted, EMassProcessingPhase::PrePhysics);
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 	ReplicationManager = UWorld::GetSubsystem<UMassReplicationManager>(World);
@@ -136,7 +136,7 @@ void UMassAgentSubsystem::UpdateAgentComponent(const UMassAgentComponent& AgentC
 		return;
 	}
 
-	const FLWEntity Entity = AgentComp.GetEntityHandle().GetLWEntity();
+	const FMassEntityHandle Entity = AgentComp.GetEntityHandle().GetLWEntity();
 	const FArchetypeHandle CurrentArchetypeHandle = EntitySystem->GetArchetypeForEntity(Entity);
 	if (CurrentArchetypeHandle == EntityTemplate->GetArchetype())
 	{
@@ -178,7 +178,7 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 		{
 			if (AgentComp.GetPuppetSpecificAddition().IsEmpty() == false)
 			{
-				const FLWEntity Entity = AgentComp.GetEntityHandle().GetLWEntity();
+				const FMassEntityHandle Entity = AgentComp.GetEntityHandle().GetLWEntity();
 
 			    // remove fragments that have been added for the puppet agent
 			    if (EntitySystem->IsProcessing())
@@ -207,14 +207,14 @@ void UMassAgentSubsystem::UnregisterAgentComponent(UMassAgentComponent& AgentCom
 				EntityTemplate = &EntityConfig.GetEntityTemplateChecked(*AgentActor, AgentComp);
 			}
 
-			FLWEntity Entity = AgentComp.GetEntityHandle().GetLWEntity();
+			FMassEntityHandle Entity = AgentComp.GetEntityHandle().GetLWEntity();
 			// Clearing the entity before it become invalid as the clear contains notifications
 			AgentComp.ClearEntityHandle();
 
 			// Destroy the entity
 			if (ensure(EntityTemplate))
 			{
-				SpawnerSystem->DestroyEntities(EntityTemplate->GetTemplateID(), TArrayView<FLWEntity>(&Entity, 1));
+				SpawnerSystem->DestroyEntities(EntityTemplate->GetTemplateID(), TArrayView<FMassEntityHandle>(&Entity, 1));
 			}
 		}
 		else if (AgentComp.IsEntityPendingCreation())
@@ -264,11 +264,11 @@ void UMassAgentSubsystem::MakePuppet(UMassAgentComponent& AgentComp)
 	AgentComp.PuppetInitializationPending();
 }
 
-void UMassAgentSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, const EPipeProcessingPhase Phase)
+void UMassAgentSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, const EMassProcessingPhase Phase)
 {
 	switch (Phase)
 	{
-	case EPipeProcessingPhase::PrePhysics:
+	case EMassProcessingPhase::PrePhysics:
 		// initialize what needs initialization
 		if (PendingAgentEntities.Num() > 0 || PendingPuppets.Num() > 0)
 		{
@@ -303,7 +303,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 			continue;
 		}
 		
-		TArray<FLWEntity> Entities;
+		TArray<FMassEntityHandle> Entities;
 		SpawnerSystem->SpawnEntities(*EntityTemplate, NewEntityCount, Entities);
 		check(Entities.Num() == NewEntityCount);
 
@@ -313,7 +313,7 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 
 			for (int AgentIndex = 0; AgentIndex < Entities.Num(); ++AgentIndex)
 			{
-				FEntityView EntityView(EntityTemplate->GetArchetype(), Entities[AgentIndex]);
+				FMassEntityView EntityView(EntityTemplate->GetArchetype(), Entities[AgentIndex]);
 				FMassAgentSubsystemHelper::InitializeAgentComponentFragments(*AgentComponents[AgentIndex], EntityView, EMassTranslationDirection::ActorToMass, ObjectFragmentInitializers);
 			}
 		}
@@ -336,26 +336,26 @@ void UMassAgentSubsystem::HandlePendingInitialization()
 			continue;
 		}
 
-		const FLWCompositionDescriptor TemplateDescriptor = EntityTemplate->GetCompositionDescriptor();
+		const FMassCompositionDescriptor TemplateDescriptor = EntityTemplate->GetCompositionDescriptor();
 
 		TArray<UMassAgentComponent*>& AgentComponents = Data.Get<1>().AgentComponents;
 
 		for (UMassAgentComponent* AgentComp : AgentComponents)
 		{
-			const FLWEntity PuppetEntity = AgentComp->GetEntityHandle().GetLWEntity();
+			const FMassEntityHandle PuppetEntity = AgentComp->GetEntityHandle().GetLWEntity();
 			if (!ensureMsgf(PuppetEntity.IsSet(), TEXT("Trying to initialize puppet's fragments while the pupped doesn't have a corresponding Entity identifier set. This should not happen.")))
 			{
 				continue;
 			}
 
-			FLWCompositionDescriptor& PuppetDescriptor = AgentComp->GetMutablePuppetSpecificAddition();
+			FMassCompositionDescriptor& PuppetDescriptor = AgentComp->GetMutablePuppetSpecificAddition();
 			PuppetDescriptor = TemplateDescriptor;
 			EntitySystem->AddCompositionToEntity_GetDelta(PuppetEntity, PuppetDescriptor);
 			
 			if (EntityTemplate->GetObjectFragmentInitializers().Num())
 			{
 				const FArchetypeHandle ArchetypeHandle = EntitySystem->GetArchetypeForEntity(PuppetEntity);
-				FEntityView EntityView(ArchetypeHandle, PuppetEntity);
+				FMassEntityView EntityView(ArchetypeHandle, PuppetEntity);
 				FMassAgentSubsystemHelper::InitializeAgentComponentFragments(*AgentComp, EntityView, EMassTranslationDirection::MassToActor, EntityTemplate->GetObjectFragmentInitializers());
 			}
 
@@ -376,7 +376,7 @@ void UMassAgentSubsystem::NotifyMassAgentComponentReplicated(UMassAgentComponent
 		check(AgentComp.GetNetID().IsValid());
 		check(!ReplicatedAgentComponents.Find(AgentComp.GetNetID()));
 		ReplicatedAgentComponents.Add(AgentComp.GetNetID(), &AgentComp);
-		const FLWEntity Entity = ReplicationManager->FindEntity(AgentComp.GetNetID());
+		const FMassEntityHandle Entity = ReplicationManager->FindEntity(AgentComp.GetNetID());
 
 		// If not found, the NotifyMassAgentAddedToReplication will link it later once replicated.
 		if (Entity.IsSet())
@@ -402,7 +402,7 @@ void UMassAgentSubsystem::NotifyMassAgentComponentEntityDetaching(const UMassAge
 	OnMassAgentComponentEntityDetaching.Broadcast(AgentComp);
 }
 
-void UMassAgentSubsystem::OnMassAgentAddedToReplication(FMassNetworkID NetID, FLWEntity Entity)
+void UMassAgentSubsystem::OnMassAgentAddedToReplication(FMassNetworkID NetID, FMassEntityHandle Entity)
 {
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 	UWorld* World = GetWorld();
@@ -417,7 +417,7 @@ void UMassAgentSubsystem::OnMassAgentAddedToReplication(FMassNetworkID NetID, FL
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 }
 
-void UMassAgentSubsystem::OnMassAgentRemovedFromReplication(FMassNetworkID NetID, FLWEntity Entity)
+void UMassAgentSubsystem::OnMassAgentRemovedFromReplication(FMassNetworkID NetID, FMassEntityHandle Entity)
 {
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 	UWorld* World = GetWorld();

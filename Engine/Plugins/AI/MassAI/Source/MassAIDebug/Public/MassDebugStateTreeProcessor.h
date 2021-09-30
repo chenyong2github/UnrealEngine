@@ -7,11 +7,11 @@
 
 class UMassEntitySubsystem;
 struct FMassStateTreeFragment;
-struct FLWComponentQuery;
-struct FLWComponentSystemExecutionContext;
+struct FMassEntityQuery;
+struct FMassExecutionContext;
 
 UCLASS()
-class MASSAIDEBUG_API UMassDebugStateTreeProcessor : public UPipeProcessor
+class MASSAIDEBUG_API UMassDebugStateTreeProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -19,7 +19,7 @@ protected:
 	UMassDebugStateTreeProcessor();
 
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

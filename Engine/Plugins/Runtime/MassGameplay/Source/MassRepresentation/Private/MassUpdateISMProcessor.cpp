@@ -27,27 +27,27 @@ void UMassUpdateISMProcessor::ConfigureQueries()
 {
 	for (const FInstancedStruct& TagFilter : TagFilters)
 	{
-		FLWComponentQuery& EntityQuery = EntityQueries.AddDefaulted_GetRef();
+		FMassEntityQuery& EntityQuery = EntityQueries.AddDefaulted_GetRef();
 		if (TagFilter.GetScriptStruct())
 		{
-			EntityQuery.AddTagRequirement(*TagFilter.GetScriptStruct(), ELWComponentPresence::All);
+			EntityQuery.AddTagRequirement(*TagFilter.GetScriptStruct(), EMassFragmentPresence::All);
 		}
-		EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-		EntityQuery.AddRequirement<FMassRepresentationFragment>(ELWComponentAccess::ReadWrite);
-		EntityQuery.AddRequirement<FMassRepresentationLODFragment>(ELWComponentAccess::ReadWrite);
-		EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(ELWComponentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
+		EntityQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadWrite);
 		EntityQuery.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
 	}
 }
 
-void UMassUpdateISMProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassUpdateISMProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	check(RepresentationSubsystem);
 	FMassInstancedStaticMeshInfoArrayView ISMInfo = RepresentationSubsystem->GetMutableInstancedStaticMeshInfos();
 
-	for (FLWComponentQuery& EntityQuery : EntityQueries)
+	for (FMassEntityQuery& EntityQuery : EntityQueries)
 	{
-		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&ISMInfo](FLWComponentSystemExecutionContext& Context)
+		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&ISMInfo](FMassExecutionContext& Context)
 		{
 			const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();
 			const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableComponentView<FMassRepresentationFragment>();

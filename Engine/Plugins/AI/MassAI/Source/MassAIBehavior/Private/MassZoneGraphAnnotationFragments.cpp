@@ -20,7 +20,7 @@ static const float OffLODMaxUpdateInterval = 2.10f;
 //  FMassZoneGraphAnnotationVariableTickChunkFragment
 //----------------------------------------------------------------------//
 
-bool FMassZoneGraphAnnotationVariableTickChunkFragment::UpdateChunk(FLWComponentSystemExecutionContext& Context)
+bool FMassZoneGraphAnnotationVariableTickChunkFragment::UpdateChunk(FMassExecutionContext& Context)
 {
 	FMassZoneGraphAnnotationVariableTickChunkFragment& ChunkFrag = Context.GetMutableChunkComponent<FMassZoneGraphAnnotationVariableTickChunkFragment>();
 	ChunkFrag.TimeUntilNextTick -= Context.GetDeltaTimeSeconds();

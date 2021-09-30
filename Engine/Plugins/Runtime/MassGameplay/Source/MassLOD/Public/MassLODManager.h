@@ -16,7 +16,7 @@ class UMassLODManager;
  * Base mass LOD processor to store common information for all LOD processors
  */
 UCLASS(abstract)
-class MASSLOD_API UMassProcessor_LODBase : public UPipeProcessor
+class MASSLOD_API UMassProcessor_LODBase : public UMassProcessor
 {
 	GENERATED_BODY()
 

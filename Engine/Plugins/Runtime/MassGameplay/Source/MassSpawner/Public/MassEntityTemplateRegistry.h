@@ -44,7 +44,7 @@ struct FMassEntityTemplateBuildContext
 	}
 
 	template<typename T>
-	T& AddFragmentWithInitializer_GetRef(const UPipeProcessor& Initializer)
+	T& AddFragmentWithInitializer_GetRef(const UMassProcessor& Initializer)
 	{
 		AddInitializer(Initializer);
 		return AddFragment_GetRef<T>();
@@ -53,22 +53,22 @@ struct FMassEntityTemplateBuildContext
 	template<typename T>
 	void AddFragment()
 	{
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FLWComponentData or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 		Template.GetMutableFragmentCollection().Add(T::StaticStruct());
 	}
 
 	template<typename T>
 	void AddFragmentWithDefaultInitializer()
 	{
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FLWComponentData or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 		AddFragment<T>();
 		AddDefaultInitializer<T>();
 	}
 
 	template<typename T>
-	void AddFragmentWithInitializer(const UPipeProcessor& Initializer)
+	void AddFragmentWithInitializer(const UMassProcessor& Initializer)
 	{
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FLWComponentData or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 		AddFragment<T>();
 		AddInitializer(Initializer);
 	}
@@ -87,7 +87,7 @@ struct FMassEntityTemplateBuildContext
 		}
 	}
 
-	void AddFragmentWithInitializer(FStructView InFragment, const UPipeProcessor& Initializer)
+	void AddFragmentWithInitializer(FStructView InFragment, const UMassProcessor& Initializer)
 	{
 		AddFragment(InFragment);
 		AddInitializer(Initializer);
@@ -119,7 +119,7 @@ struct FMassEntityTemplateBuildContext
 	//----------------------------------------------------------------------//
 	// Initializers
 	//----------------------------------------------------------------------//
-	void AddInitializer(const UPipeProcessor& Initializer) { Handlers.Initializers.AddUnique(&Initializer); }
+	void AddInitializer(const UMassProcessor& Initializer) { Handlers.Initializers.AddUnique(&Initializer); }
 	
 	void AddDefaultInitializer(const UScriptStruct& FragmentType)
 	{
@@ -143,7 +143,7 @@ struct FMassEntityTemplateBuildContext
 	//----------------------------------------------------------------------//
 	// Deinitializers
 	//----------------------------------------------------------------------//
-	void AddDeinitializer(const UPipeProcessor& Deinitializer) { Handlers.Deinitializers.AddUnique(&Deinitializer); }
+	void AddDeinitializer(const UMassProcessor& Deinitializer) { Handlers.Deinitializers.AddUnique(&Deinitializer); }
 
 	void AddDefaultDeinitializer(const UScriptStruct& FragmentType)
 	{

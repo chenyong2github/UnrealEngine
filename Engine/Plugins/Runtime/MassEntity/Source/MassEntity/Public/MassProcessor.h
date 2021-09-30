@@ -11,7 +11,7 @@
 #include "MassProcessor.generated.h"
 
 
-struct FPipeProcessingPhaseConfig;
+struct FMassProcessingPhaseConfig;
 
 enum class EProcessorCompletionStatus : uint8
 {
@@ -22,7 +22,7 @@ enum class EProcessorCompletionStatus : uint8
 };
 
 USTRUCT()
-struct FPipeProcessorExecutionOrder
+struct FMassProcessorExecutionOrder
 {
 	GENERATED_BODY()
 
@@ -39,20 +39,20 @@ struct FPipeProcessorExecutionOrder
 
 
 UCLASS(abstract, EditInlineNew, CollapseCategories, config = Game, defaultconfig)
-class MASSENTITY_API UPipeProcessor : public UObject
+class MASSENTITY_API UMassProcessor : public UObject
 {
 	GENERATED_BODY()
 public:
-	UPipeProcessor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UMassProcessor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void Initialize(UObject& Owner) {}
-	virtual FGraphEventRef DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray());
+	virtual FGraphEventRef DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray());
 
 	EProcessorExecutionFlags GetExecutionFlags() const { return (EProcessorExecutionFlags)ExecutionFlags; }
 
 	/** Whether this processor should execute according the CurrentExecutionFlags parameters */
 	bool ShouldExecute(const EProcessorExecutionFlags CurrentExecutionFlags) const { return (GetExecutionFlags() & CurrentExecutionFlags) != EProcessorExecutionFlags::None; }
-	void CallExecute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
+	void CallExecute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
 	
 	bool AllowDuplicates() const { return bAllowDuplicates; }
 
@@ -62,11 +62,11 @@ public:
 	//----------------------------------------------------------------------//
 	// Ordering functions 
 	//----------------------------------------------------------------------//
-	virtual EPipeProcessingPhase GetProcessingPhase() const { return ProcessingPhase; }
-	virtual void SetProcessingPhase(EPipeProcessingPhase Phase) { ProcessingPhase = Phase; }
+	virtual EMassProcessingPhase GetProcessingPhase() const { return ProcessingPhase; }
+	virtual void SetProcessingPhase(EMassProcessingPhase Phase) { ProcessingPhase = Phase; }
 	bool DoesRequireGameThreadExecution() const { return bRequiresGameThreadExecution; }
 	
-	const FPipeProcessorExecutionOrder& GetExecutionOrder() const { return ExecutionOrder; }
+	const FMassProcessorExecutionOrder& GetExecutionOrder() const { return ExecutionOrder; }
 
 	TConstArrayView<const int32> GetPrerequisiteIndices() const { return DependencyIndices; }
 
@@ -86,9 +86,9 @@ public:
 #endif
 	
 protected:
-	virtual void ConfigureQueries() PURE_VIRTUAL(UPipeProcessor::ConfigureQueries);
+	virtual void ConfigureQueries() PURE_VIRTUAL(UMassProcessor::ConfigureQueries);
 	virtual void PostInitProperties() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) PURE_VIRTUAL(UPipeProcessor::Execute);
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) PURE_VIRTUAL(UMassProcessor::Execute);
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -100,18 +100,18 @@ protected:
 
 	/** Processing phase this processor will be automatically run as part of. */
 	UPROPERTY(EditDefaultsOnly, Category = Processor, config)
-	EPipeProcessingPhase ProcessingPhase = EPipeProcessingPhase::PrePhysics;
+	EMassProcessingPhase ProcessingPhase = EMassProcessingPhase::PrePhysics;
 
 	/** Configures when this given processor can be executed in relation to other processors and processing groups, within its processing phase. */
 	UPROPERTY(EditDefaultsOnly, Category = Processor, config)
-	FPipeProcessorExecutionOrder ExecutionOrder;
+	FMassProcessorExecutionOrder ExecutionOrder;
 
 	/** Configures whether this processor should be automatically included in the global list of processors executed every tick (see ProcessingPhase and ExecutionOrder). */
 	UPROPERTY(EditDefaultsOnly, Category = Processor, config)
 	bool bAutoRegisterWithProcessingPhases = true;
 
 	/** meant as a class property, make sure to set it in subclass' constructor. Controls whether there can be multiple 
-	 *  instances of a given class in a single FRuntimePipeline */
+	 *  instances of a given class in a single FMassRuntimePipeline */
 	bool bAllowDuplicates = false;
 
 	UPROPERTY(EditDefaultsOnly, Category = Processor, config)
@@ -124,44 +124,44 @@ protected:
 	bool bCanShowUpInSettings = true;
 #endif // WITH_EDITORONLY_DATA
 
-	friend class UPipeCompositeProcessor;
+	friend class UMassCompositeProcessor;
 	TArray<int32> DependencyIndices;
 	TArray<int32> TransientDependencyIndices;
 };
 
 
 UCLASS()
-class MASSENTITY_API UPipeCompositeProcessor : public UPipeProcessor
+class MASSENTITY_API UMassCompositeProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
 	struct FDependencyNode
 	{
 		FName Name;
-		UPipeProcessor* Processor = nullptr;
+		UMassProcessor* Processor = nullptr;
 		TArray<int32> Dependencies;
 	};
 
 public:
-	UPipeCompositeProcessor();
+	UMassCompositeProcessor();
 
-	void SetChildProcessors(TArray<UPipeProcessor*>&& InProcessors);
+	void SetChildProcessors(TArray<UMassProcessor*>&& InProcessors);
 
 	virtual void Initialize(UObject& Owner) override;
 	virtual void DebugOutputDescription(FOutputDevice& Ar, int32 Indent = 0) const override;
-	virtual void SetProcessingPhase(EPipeProcessingPhase Phase) override;
+	virtual void SetProcessingPhase(EMassProcessingPhase Phase) override;
 
 	void SetGroupName(FName NewName);
 	FName GetGroupName() const { return GroupName; }
 
-	virtual void CopyAndSort(const FPipeProcessingPhaseConfig& PhaseConfig, const FString& DependencyGraphFileName = FString());
+	virtual void CopyAndSort(const FMassProcessingPhaseConfig& PhaseConfig, const FString& DependencyGraphFileName = FString());
 
 	/** adds SubProcessor to an appropriately named group. If RequestedGroupName == None then SubProcessor
 	 *  will be added directly to ChildPipeline. If not then the indicated group will be searched for in ChildPipeline 
 	 *  and if it's missing it will be created and AddGroupedProcessor will be called recursively */
-	void AddGroupedProcessor(FName RequestedGroupName, UPipeProcessor& SubProcessor);
+	void AddGroupedProcessor(FName RequestedGroupName, UMassProcessor& SubProcessor);
 
-	virtual FGraphEventRef DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray()) override;
+	virtual FGraphEventRef DispatchProcessorTasks(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FGraphEventArray& Prerequisites = FGraphEventArray()) override;
 
 	bool IsEmpty() const { return ChildPipeline.IsEmpty(); }
 
@@ -169,7 +169,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/**
 	 *  Called recursively to add processors and composite processors to ChildPipeline based on ProcessorsAndGroups
@@ -182,11 +182,11 @@ protected:
 	 *  @param RequestedGroupName name of the group for which we want to find or create the processor.
 	 *  @param OutRemainingGroupName contains the group name after cutting the high-level group. In the used example it
 	 *    will contain "B.C". This value is then used to recursively create subgroups */
-	UPipeCompositeProcessor* FindOrAddGroupProcessor(FName RequestedGroupName, FString* OutRemainingGroupName = nullptr);
+	UMassCompositeProcessor* FindOrAddGroupProcessor(FName RequestedGroupName, FString* OutRemainingGroupName = nullptr);
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category=Pipe)
-	FRuntimePipeline ChildPipeline;
+	FMassRuntimePipeline ChildPipeline;
 
 	/** Group name that will be used when resolving processor dependencies and grouping */
 	UPROPERTY()

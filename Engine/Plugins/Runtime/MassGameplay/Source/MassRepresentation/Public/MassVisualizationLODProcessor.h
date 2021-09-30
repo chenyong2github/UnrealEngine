@@ -18,7 +18,7 @@ public:
 
 protected:
 
-	/** Configure the owned FLWComponentQuery instances to express processor's requirements */
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
 	virtual void ConfigureQueries() override;
 
 	/**
@@ -32,12 +32,12 @@ protected:
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
 	 * @param Context is the execution context to be passed when executing the lambdas
 	 */
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	void PrepareExecution();
 
 	template <typename TMassViewerLODInfoFragment = FMassLODInfoFragment>
-	void ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context);
+	void ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
 
 	
 	/**
@@ -61,8 +61,8 @@ protected:
 
 	TMassLODCalculator<FMassRepresentationLODLogic> LODCalculator;
 
-	FLWComponentQuery CloseEntityQuery;
-	FLWComponentQuery FarEntityQuery;
+	FMassEntityQuery CloseEntityQuery;
+	FMassEntityQuery FarEntityQuery;
 
 	bool bForceOFFLOD = false;
 };
@@ -73,11 +73,11 @@ namespace UE::MassRepresentation
 } // UE::MassRepresentation
 
 template <typename TMassViewerLODInfoFragment>
-void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	if (bForceOFFLOD)
 	{
-		CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+		CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
 			TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableComponentView<FMassRepresentationLODFragment>();
 			LODCalculator.ForceOffLOD(Context, RepresentationLODList);
@@ -96,7 +96,7 @@ void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& Entit
 
 		// @todo this is the only block in this processor actually using FMassRepresentationFragment. Consider refactoring it into a separate Processor
 		// the "debug" section below is non-production, should be separated as well
-		auto CalculateLOD = [this](FLWComponentSystemExecutionContext& Context)
+		auto CalculateLOD = [this](FMassExecutionContext& Context)
 		{
 			TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableComponentView<FMassRepresentationLODFragment>();
 			TConstArrayView<TMassViewerLODInfoFragment> ViewerInfoList = Context.GetComponentView<TMassViewerLODInfoFragment>();
@@ -107,7 +107,7 @@ void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& Entit
 		// @todo this is the only block in this processor actually using FMassRepresentationFragment. Consider refactoring it into a separate Processor
 		// the "debug" section below is non-production, should be separated as well
 		FarEntityQuery.SetChunkFilter(&FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk);
-		FarEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &CalculateLOD](FLWComponentSystemExecutionContext& Context)
+		FarEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &CalculateLOD](FMassExecutionContext& Context)
 			{
 				CalculateLOD(Context);
 			});
@@ -118,7 +118,7 @@ void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& Entit
 		TRACE_CPUPROFILER_EVENT_SCOPE(AdjustDistanceAndLODFromCount)
 		if (LODCalculator.AdjustDistancesFromCount())
 		{
-			CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+			CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
 				TConstArrayView<TMassViewerLODInfoFragment> ViewerInfoList = Context.GetComponentView<TMassViewerLODInfoFragment>();
 				TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableComponentView<FMassRepresentationLODFragment>();
@@ -133,7 +133,7 @@ void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& Entit
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DebugDisplayLOD)
 
-		auto DebugDisplayLOD = [this](FLWComponentSystemExecutionContext& Context)
+		auto DebugDisplayLOD = [this](FMassExecutionContext& Context)
 		{
 			TConstArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetComponentView<FMassRepresentationLODFragment>();
 			TConstArrayView<FDataFragment_Transform> TransformList = Context.GetComponentView<FDataFragment_Transform>();

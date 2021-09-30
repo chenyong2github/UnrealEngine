@@ -19,7 +19,7 @@ struct FMassMoveTargetFragment;
  * Processor to choose and assign LookAt configurations  
  */
 UCLASS()
-class MASSAIBEHAVIOR_API UMassLookAtProcessor : public UPipeProcessor
+class MASSAIBEHAVIOR_API UMassLookAtProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
@@ -29,7 +29,7 @@ protected:
 
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/** Selects a nearby target if possible or use a random fixed direction */
 	void FindNewGazeTarget(const UMassEntitySubsystem& EntitySubsystem, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const;
@@ -46,7 +46,7 @@ protected:
 
 	/** Builds look at trajectory along the current path. */
 	void BuildTrajectory(const FMassZoneGraphLaneLocationFragment& LaneLocation, const FMassZoneGraphShortPathFragment& ShortPath,
-							const FLWEntity Entity, const bool bDisplayDebug, FMassLookAtTrajectoryFragment& LookAtTrajectory);
+							const FMassEntityHandle Entity, const bool bDisplayDebug, FMassLookAtTrajectoryFragment& LookAtTrajectory);
 
 	/** Size of the query to find potential targets */
 	UPROPERTY(EditDefaultsOnly, Category = LookAt, config, meta = (UIMin = 0.0, ClampMin = 0.0))
@@ -68,7 +68,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = LookAt, config, meta = (UIMin = 0.0, ClampMin = 0.0, UIMax = 180.0, ClampMax = 180.0, DisplayName="Angle Threshold (degrees)"))
 	float AngleThresholdInDegrees = 0.f;
 
-	FLWComponentQuery EntityQuery_Conditional;
+	FMassEntityQuery EntityQuery_Conditional;
 
 	UPROPERTY(Transient)
 	UMassMovementSubsystem* MovementSubsystem;

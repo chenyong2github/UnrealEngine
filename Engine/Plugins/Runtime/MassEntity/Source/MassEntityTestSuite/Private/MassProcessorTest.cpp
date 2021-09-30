@@ -13,7 +13,7 @@
 
 PRAGMA_DISABLE_OPTIMIZATION
 
-namespace FPipeProcessorTest
+namespace FMassProcessorTest
 {
 
 template<typename TProcessor>
@@ -21,15 +21,15 @@ int32 SimpleProcessorRun(UMassEntitySubsystem& EntitySubsystem)
 {
 	int32 EntityProcessedCount = 0;
 	TProcessor* Processor = NewObject<TProcessor>(&EntitySubsystem);
-	Processor->ExecutionFunction = [Processor, &EntityProcessedCount](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
+	Processor->ExecutionFunction = [Processor, &EntityProcessedCount](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
 		check(Processor);
-		Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [Processor, &EntityProcessedCount](FLWComponentSystemExecutionContext& Context)
+		Processor->TestGetQuery().ForEachEntityChunk(InEntitySubsystem, Context, [Processor, &EntityProcessedCount](FMassExecutionContext& Context)
 			{
 				EntityProcessedCount += Context.GetEntitiesNum();
 			});
 	};
 
-	FPipeContext PipeContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
+	FMassProcessingContext PipeContext(EntitySubsystem, /*DeltaSeconds=*/0.f);
 	UE::Pipe::Executor::Run(*Processor, PipeContext);
 
 	return EntityProcessedCount;
@@ -56,7 +56,7 @@ struct FProcessorTest_NoMatchingEntities : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		TArray<FLWEntity> EntitiesCreated;
+		TArray<FMassEntityHandle> EntitiesCreated;
 		EntitySubsystem->BatchCreateEntities(IntsArchetype, 100, EntitiesCreated);
 		int32 EntityProcessedCount = SimpleProcessorRun<UPipeTestProcessor_Floats>(*EntitySubsystem);
 		AITEST_EQUAL("No matching entities have been created yet so the processor shouldn't do any work.", EntityProcessedCount, 0);
@@ -73,7 +73,7 @@ struct FProcessorTest_OneMatchingArchetype : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		const int32 EntitiesToCreate = 100;
-		TArray<FLWEntity> EntitiesCreated;
+		TArray<FMassEntityHandle> EntitiesCreated;
 		EntitySubsystem->BatchCreateEntities(FloatsArchetype, EntitiesToCreate, EntitiesCreated);
 		int32 EntityProcessedCount = SimpleProcessorRun<UPipeTestProcessor_Floats>(*EntitySubsystem);
 		AITEST_EQUAL("No matching entities have been created yet so the processor shouldn't do any work.", EntityProcessedCount, EntitiesToCreate);
@@ -91,7 +91,7 @@ struct FProcessorTest_MultipleMatchingArchetype : FEntityTestBase
 		CA_ASSUME(EntitySubsystem);
 
 		const int32 EntitiesToCreate = 100;
-		TArray<FLWEntity> EntitiesCreated;
+		TArray<FMassEntityHandle> EntitiesCreated;
 		EntitySubsystem->BatchCreateEntities(FloatsArchetype, EntitiesToCreate, EntitiesCreated);
 		EntitySubsystem->BatchCreateEntities(FloatsIntsArchetype, EntitiesToCreate, EntitiesCreated);
 		EntitySubsystem->BatchCreateEntities(IntsArchetype, EntitiesToCreate, EntitiesCreated);
@@ -117,7 +117,7 @@ struct FProcessorTest_Requirements : FEntityTestBase
 IMPLEMENT_AI_INSTANT_TEST(FProcessorTest_Requirements, "System.Pipe.Processor.Requirements");
 
 
-} // FPipeProcessorTestTest
+} // FMassProcessorTestTest
 
 PRAGMA_ENABLE_OPTIMIZATION
 

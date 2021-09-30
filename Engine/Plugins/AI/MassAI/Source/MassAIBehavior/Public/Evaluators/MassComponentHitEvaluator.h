@@ -24,5 +24,5 @@ protected:
 	bool bGotHit = false;
 
 	UPROPERTY(VisibleAnywhere, Category = Output)
-	FLWEntity LastHitEntity;
+	FMassEntityHandle LastHitEntity;
 };

@@ -19,6 +19,6 @@ protected:
 
 	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const override;
 
-	UPROPERTY(Category="Fragments", EditAnywhere, meta = (BaseStruct = "LWComponentData", ExcludeBaseStruct))
+	UPROPERTY(Category="Fragments", EditAnywhere, meta = (BaseStruct = "MassFragment", ExcludeBaseStruct))
 	TArray<FInstancedStruct> Fragments;
 };

@@ -10,7 +10,7 @@
 
 #include "MassReplicationPathHandlers.generated.h"
 
-struct FLWComponentQuery;
+struct FMassEntityQuery;
 
 //////////////////////////////////////////////////////////////////////////// FReplicatedAgentPathData ////////////////////////////////////////////////////////////////////////////
 /**
@@ -30,12 +30,12 @@ struct MASSAIREPLICATION_API FReplicatedAgentPathData
 		const FMassZoneGraphLaneLocationFragment& LaneLocationFragment);
 
 	void InitEntity(const UWorld& InWorld,
-					const FEntityView& InEntityView,
+					const FMassEntityView& InEntityView,
 					FMassZoneGraphLaneLocationFragment& OutLaneLocation,
 					FMassMoveTargetFragment& OutMoveTarget,
 					FMassZoneGraphPathRequestFragment& OutActionRequest) const;
 
-	void ApplyToEntity(const UWorld& InWorld, const FEntityView& InEntityView) const;
+	void ApplyToEntity(const UWorld& InWorld, const FMassEntityView& InEntityView) const;
 
 	UPROPERTY(Transient)
 	mutable FZoneGraphShortPathRequest PathRequest;
@@ -94,14 +94,14 @@ public:
 	 * When entities are spawned in Mass by the replication system on the client, a spawn query is used to set the data on the spawned entities.
 	 * The following functions are used to configure the query and then set that data for path following.
 	 */
-	static void AddRequirementsForSpawnQuery(FLWComponentQuery& InQuery);
-	void CacheComponentViewsForSpawnQuery(FLWComponentSystemExecutionContext& InExecContext);
+	static void AddRequirementsForSpawnQuery(FMassEntityQuery& InQuery);
+	void CacheComponentViewsForSpawnQuery(FMassExecutionContext& InExecContext);
 	void ClearComponentViewsForSpawnQuery();
 
-	void SetSpawnedEntityData(const FEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData, const int32 EntityIdx) const;
+	void SetSpawnedEntityData(const FMassEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData, const int32 EntityIdx) const;
 
 	/** Call this when an Entity that has already been spawned is modified on the client */
-	void SetModifiedEntityData(const FEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData) const;
+	void SetModifiedEntityData(const FMassEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData) const;
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 protected:
@@ -140,17 +140,17 @@ void TMassClientBubblePathHandler<AgentArrayItem>::SetBubblePathData(const FMass
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubblePathHandler<AgentArrayItem>::AddRequirementsForSpawnQuery(FLWComponentQuery& InQuery)
+void TMassClientBubblePathHandler<AgentArrayItem>::AddRequirementsForSpawnQuery(FMassEntityQuery& InQuery)
 {
-	InQuery.AddRequirement<FMassZoneGraphPathRequestFragment>(ELWComponentAccess::ReadWrite);
-	InQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadWrite);
-	InQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadWrite);
+	InQuery.AddRequirement<FMassZoneGraphPathRequestFragment>(EMassFragmentAccess::ReadWrite);
+	InQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadWrite);
+	InQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadWrite);
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubblePathHandler<AgentArrayItem>::CacheComponentViewsForSpawnQuery(FLWComponentSystemExecutionContext& InExecContext)
+void TMassClientBubblePathHandler<AgentArrayItem>::CacheComponentViewsForSpawnQuery(FMassExecutionContext& InExecContext)
 {
 	PathRequestList = InExecContext.GetMutableComponentView<FMassZoneGraphPathRequestFragment>();
 	MoveTargetList = InExecContext.GetMutableComponentView<FMassMoveTargetFragment>();
@@ -170,7 +170,7 @@ void TMassClientBubblePathHandler<AgentArrayItem>::ClearComponentViewsForSpawnQu
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubblePathHandler<AgentArrayItem>::SetSpawnedEntityData(const FEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData, const int32 EntityIdx) const
+void TMassClientBubblePathHandler<AgentArrayItem>::SetSpawnedEntityData(const FMassEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData, const int32 EntityIdx) const
 {
 	UWorld* World = OwnerHandler.Serializer->GetWorld();
 	check(World);
@@ -180,7 +180,7 @@ void TMassClientBubblePathHandler<AgentArrayItem>::SetSpawnedEntityData(const FE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 template<typename AgentArrayItem>
-void TMassClientBubblePathHandler<AgentArrayItem>::SetModifiedEntityData(const FEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData) const
+void TMassClientBubblePathHandler<AgentArrayItem>::SetModifiedEntityData(const FMassEntityView& EntityView, const FReplicatedAgentPathData& ReplicatedPathData) const
 {
 	UWorld* World = OwnerHandler.Serializer->GetWorld();
 	check(World);
@@ -197,10 +197,10 @@ class MASSAIREPLICATION_API FMassReplicationProcessorPathHandler
 {
 public:
 	/** Adds the requirements for the path following to the query. */
-	static void AddRequirements(FLWComponentQuery& InQuery);
+	static void AddRequirements(FMassEntityQuery& InQuery);
 
 	/** Cache any component views you want to, this will get called before we iterate through entities. */
-	void CacheComponentViews(FLWComponentSystemExecutionContext& ExecContext);
+	void CacheComponentViews(FMassExecutionContext& ExecContext);
 
 	/**
 	 * Set the replicated path data when we are adding an entity to the client bubble.

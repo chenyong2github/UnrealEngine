@@ -12,7 +12,7 @@
 class IPipeEditor;
 class FAssetTypeActions_Base;
 struct FGraphPanelNodeFactory;
-class UPipeSchematic;
+class UMassSchematic;
 
 /**
 * The public interface to this module
@@ -20,13 +20,13 @@ class UPipeSchematic;
 class MASSENTITYEDITOR_API FPipeEditorModule : public IModuleInterface, public IHasMenuExtensibility, public IHasToolBarExtensibility
 {
 public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetPropertiesChanged, class UPipeSchematic* /*PipeSchematic*/, const FPropertyChangedEvent& /*PropertyChangedEvent*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetPropertiesChanged, class UMassSchematic* /*MassSchematic*/, const FPropertyChangedEvent& /*PropertyChangedEvent*/);
 
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
 	/** Creates an instance of Pipe editor. Only virtual so that it can be called across the DLL boundary. */
-	virtual TSharedRef<IPipeEditor> CreatePipeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UPipeSchematic* PipeSchematic);
+	virtual TSharedRef<IPipeEditor> CreatePipeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic* MassSchematic);
 
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }

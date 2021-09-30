@@ -5,7 +5,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 //////////////////////////////////////////////////////////////////////
-// FLWCCommandBuffer
+// FMassCommandBuffer
 
 CSV_DEFINE_CATEGORY(MassEntities, true);
 CSV_DEFINE_CATEGORY(MassEntitiesCounters, true);
@@ -66,7 +66,7 @@ void GetCommandStatNames(FStructView Entry, FString& OutName, ANSIName*& OutANSI
 #endif
 } // UE::FLWCCommand
 
-void FLWCCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* System)
+void FMassCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* System)
 {
 	check(System);
 
@@ -103,7 +103,7 @@ void FLWCCommandBuffer::ReplayBufferAgainstSystem(UMassEntitySubsystem* System)
 	}
 }
 
-void FLWCCommandBuffer::MoveAppend(FLWCCommandBuffer& Other)
+void FMassCommandBuffer::MoveAppend(FMassCommandBuffer& Other)
 {
 	// @todo optimize, there surely a way to do faster then this.
 	UE_MT_SCOPED_READ_ACCESS(Other.PendingCommandsDetector);

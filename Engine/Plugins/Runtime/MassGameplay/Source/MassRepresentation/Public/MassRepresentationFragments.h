@@ -11,7 +11,7 @@
 #include "MassRepresentationFragments.generated.h"
 
 USTRUCT()
-struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FLWComponentData
+struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -33,7 +33,7 @@ struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FLWCompone
 };
 
 USTRUCT()
-struct MASSREPRESENTATION_API FMassRepresentationFragment : public FLWComponentData
+struct MASSREPRESENTATION_API FMassRepresentationFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

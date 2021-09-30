@@ -26,7 +26,7 @@ struct FDataFragment_CapsuleComponentWrapper : public FDataFragment_ObjectWrappe
  * iterating over fragments just to check that specific value.
  */
 USTRUCT()
-struct FMassCapsuleTransformCopyToMassTag : public FComponentTag
+struct FMassCapsuleTransformCopyToMassTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -40,13 +40,13 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;	
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;	
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 USTRUCT()
-struct FMassCapsuleTransformCopyToActorTag : public FComponentTag
+struct FMassCapsuleTransformCopyToActorTag : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -60,7 +60,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

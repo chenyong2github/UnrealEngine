@@ -121,7 +121,7 @@ struct MASSREPLICATION_API FMassBubbleInfoClassHandle : public FSimpleIndexedHan
  *  Light weight component data for the mass network id of a light weight entity
  */
 USTRUCT()
-struct MASSREPLICATION_API FMassNetworkIDFragment : public FLWComponentData
+struct MASSREPLICATION_API FMassNetworkIDFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -151,7 +151,7 @@ struct FMassReplicatedAgentArrayData
  * Agent handle per client, these will be at TArray indices of the Client handles indicies (used as a free list array)
  */
 USTRUCT()
-struct MASSREPLICATION_API FMassReplicatedAgentFragment : public FLWComponentData
+struct MASSREPLICATION_API FMassReplicatedAgentFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -195,7 +195,7 @@ struct FReplicationLODLogic : public FLODDefaultLogic
 };
 
 USTRUCT()
-struct MASSREPLICATION_API FMassReplicationViewerLODFragment : public FLWComponentData
+struct MASSREPLICATION_API FMassReplicationViewerLODFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -221,12 +221,12 @@ public:
 protected:
 	virtual void ConfigureQueries() override;
 	virtual void Initialize(UObject& Owner) override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	UPROPERTY()
 	UMassReplicationManager* ReplicationManager = nullptr;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
@@ -234,13 +234,13 @@ protected:
 struct FMassReplicationEntityInfo
 {
 	FMassReplicationEntityInfo() = default;
-	FMassReplicationEntityInfo(FLWEntity InEntity, int32 InReplicationID)
+	FMassReplicationEntityInfo(FMassEntityHandle InEntity, int32 InReplicationID)
 		: Entity(InEntity)
 		, ReplicationID(InReplicationID)
 	{}
 
 	/** If this is not IsSet() then the entity has been removed from the client simulation */
-	FLWEntity Entity; 
+	FMassEntityHandle Entity; 
 
 	/** This is stored between removes and adds, however this item in the UMassReplicationManager::EntityInfoMap will eventually get cleaned up if Entity.IsSet() == false for a fairly substantial length of time. */
 	int32 ReplicationID = INDEX_NONE;

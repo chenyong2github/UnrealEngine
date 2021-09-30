@@ -16,11 +16,11 @@ class MASSGAMEPLAYDEBUG_API UAssignDebugVisProcessor : public UMassFragmentIniti
 public:
 	UAssignDebugVisProcessor();
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 	virtual void Initialize(UObject& InOwner) override;
 
 protected:
 	TWeakObjectPtr<UMassDebugVisualizationComponent> WeakVisualizer;
 
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };

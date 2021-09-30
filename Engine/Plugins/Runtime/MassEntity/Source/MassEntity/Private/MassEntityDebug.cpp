@@ -6,17 +6,17 @@
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 
-DEFINE_ENUM_TO_STRING(EPipeProcessingPhase);
+DEFINE_ENUM_TO_STRING(EMassProcessingPhase);
 
 namespace UE::Pipe::Debug
 {
 
-void DebugOutputDescription(TConstArrayView<UPipeProcessor*> Processors, FOutputDevice& Ar)
+void DebugOutputDescription(TConstArrayView<UMassProcessor*> Processors, FOutputDevice& Ar)
 {
 #if WITH_MASSENTITY_DEBUG
 	const bool bAutoLineEnd = Ar.GetAutoEmitLineTerminator();
 	Ar.SetAutoEmitLineTerminator(false);
-	for (const UPipeProcessor* Proc : Processors)
+	for (const UMassProcessor* Proc : Processors)
 	{
 		if (Proc)
 		{
@@ -118,7 +118,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogFragmentSizes(
 	TEXT("Logs all the fragment types being used along with their sizes."),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Params, UWorld* World, FOutputDevice& Ar)
 		{
-			for (const TWeakObjectPtr<const UScriptStruct>& WeakStruct : FLWComponentBitSet::DebugGetAllStructTypes())
+			for (const TWeakObjectPtr<const UScriptStruct>& WeakStruct : FMassFragmentBitSet::DebugGetAllStructTypes())
 			{
 				if (const UScriptStruct* StructType = WeakStruct.Get())
 				{

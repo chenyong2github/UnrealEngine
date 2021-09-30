@@ -6,8 +6,8 @@
 
 
 //////////////////////////////////////////////////////////////////////
-// FEntityView
-FEntityView::FEntityView(const FArchetypeHandle& ArchetypeHandle, FLWEntity InEntity)
+// FMassEntityView
+FMassEntityView::FMassEntityView(const FArchetypeHandle& ArchetypeHandle, FMassEntityHandle InEntity)
 {
 	Entity = InEntity;
 	check(ArchetypeHandle.IsValid());
@@ -15,7 +15,7 @@ FEntityView::FEntityView(const FArchetypeHandle& ArchetypeHandle, FLWEntity InEn
 	EntityHandle = Archetype->MakeEntityHandle(Entity);
 }
 
-FEntityView::FEntityView(const UMassEntitySubsystem& EntitySubsystem, FLWEntity InEntity)
+FMassEntityView::FMassEntityView(const UMassEntitySubsystem& EntitySubsystem, FMassEntityHandle InEntity)
 {
 	Entity = InEntity;
 	const FArchetypeHandle ArchetypeHandle = EntitySubsystem.GetArchetypeForEntity(Entity);
@@ -24,7 +24,7 @@ FEntityView::FEntityView(const UMassEntitySubsystem& EntitySubsystem, FLWEntity 
 	EntityHandle = Archetype->MakeEntityHandle(Entity);
 }
 
-void* FEntityView::GetComponentPtr(const UScriptStruct& ComponentType) const
+void* FMassEntityView::GetComponentPtr(const UScriptStruct& ComponentType) const
 {
 	checkSlow(Archetype && EntityHandle.IsValid());
 	if (const int32* ComponentIndex = Archetype->GetComponentIndex(&ComponentType))
@@ -35,14 +35,14 @@ void* FEntityView::GetComponentPtr(const UScriptStruct& ComponentType) const
 	return nullptr;
 }
 
-void* FEntityView::GetComponentPtrChecked(const UScriptStruct& ComponentType) const
+void* FMassEntityView::GetComponentPtrChecked(const UScriptStruct& ComponentType) const
 {
 	checkSlow(Archetype && EntityHandle.IsValid());
 	const int32 ComponentIndex = Archetype->GetComponentIndexChecked(&ComponentType);
 	return Archetype->GetComponentData(ComponentIndex, EntityHandle);
 }
 
-bool FEntityView::HasTag(const UScriptStruct& TagType) const
+bool FMassEntityView::HasTag(const UScriptStruct& TagType) const
 {
 	checkSlow(Archetype && EntityHandle.IsValid());
 	return Archetype->HasTagType(&TagType);

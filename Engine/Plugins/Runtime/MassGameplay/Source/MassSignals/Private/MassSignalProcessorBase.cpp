@@ -31,7 +31,7 @@ void UMassSignalProcessorBase::SubscribeToSignal(const FName SignalName)
 	SignalSubsystem->GetSignalDelegateByName(SignalName).AddUObject(this, &UMassSignalProcessorBase::OnSignalReceived);
 }
 
-void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SignalEntities);
 
@@ -40,7 +40,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FL
 	CurrentFrameBufferIndex = (CurrentFrameBufferIndex + 1) % 2;
 	FFrameReceivedSignals& ProcessingFrameBuffer = FrameReceivedSignals[ProcessingFrameBufferIndex];
 	TArray<FEntitySignalRange>& ReceivedSignalRanges = ProcessingFrameBuffer.ReceivedSignalRanges;
-	TArray<FLWEntity>& SignaledEntities = ProcessingFrameBuffer.SignaledEntities;
+	TArray<FMassEntityHandle>& SignaledEntities = ProcessingFrameBuffer.SignaledEntities;
 
 	if (ReceivedSignalRanges.IsEmpty())
 	{
@@ -61,8 +61,8 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FL
 			}
 
 			FArchetypeHandle Archetype;
-			TArray<FLWEntity> Entities;
-			TSet<FLWEntity> AddedEntities;
+			TArray<FMassEntityHandle> Entities;
+			TSet<FMassEntityHandle> AddedEntities;
 		};
 		TArray<FEntitySet> EntitySets;
 
@@ -94,9 +94,9 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FL
 				}
 
 				// Entities for this signal
-				TArrayView<FLWEntity> Entities(&SignaledEntities[Range.Begin], Range.End - Range.Begin);
+				TArrayView<FMassEntityHandle> Entities(&SignaledEntities[Range.Begin], Range.End - Range.Begin);
 				FEntitySet* PrevSet = &EntitySets[0];
-				for (const FLWEntity Entity : Entities)
+				for (const FMassEntityHandle Entity : Entities)
 				{
 					// Add to set of supported archetypes. Dont process if we don't care about the type.
 					FArchetypeHandle Archetype = EntitySubsystem.GetArchetypeForEntity(Entity);
@@ -136,7 +136,7 @@ void UMassSignalProcessorBase::Execute(UMassEntitySubsystem& EntitySubsystem, FL
 	SignaledEntities.Reset();
 }
 
-void UMassSignalProcessorBase::OnSignalReceived(FName SignalName, TConstArrayView<FLWEntity> Entities)
+void UMassSignalProcessorBase::OnSignalReceived(FName SignalName, TConstArrayView<FMassEntityHandle> Entities)
 {
 	FFrameReceivedSignals& CurrentFrameBuffer = FrameReceivedSignals[CurrentFrameBufferIndex];
 

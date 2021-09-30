@@ -7,7 +7,7 @@
 #include "Engine/World.h"
 
 FMassStateTreeExecutionContext::FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem,
-                                                               FLWComponentSystemExecutionContext& InContext):
+                                                               FMassExecutionContext& InContext):
 	EntitySubsystem(&InEntitySubsystem), EntitySubsystemExecutionContext(&InContext)
 {
 	World = InEntitySubsystem.GetWorld();

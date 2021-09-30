@@ -31,13 +31,13 @@ struct MASSSIGNALS_API FMassSignalNameLookup
 	 * @param Entity is the entity where the signal has been raised
 	 * @param SignalFlag is the actual bitflag describing the signal
 	 */
-	void AddSignalToEntity(const FLWEntity Entity, const uint64 SignalFlag);
+	void AddSignalToEntity(const FMassEntityHandle Entity, const uint64 SignalFlag);
 
 	/** 
 	 * Retrieve for a specific entity the raised signal this frame
 	 * @return Array of signal names raised for this entity 
 	 */
-	void GetSignalsForEntity(const FLWEntity Entity, TArray<FName>& OutSignals) const;
+	void GetSignalsForEntity(const FMassEntityHandle Entity, TArray<FName>& OutSignals) const;
 
 	/** Empties the name lookup and entity signals */
 	void Reset();
@@ -47,5 +47,5 @@ protected:
 	TArray<FName> SignalNames;
 
 	/** Map from entity id to name bitmask */
-	TMap<FLWEntity, uint64> EntitySignals;
+	TMap<FMassEntityHandle, uint64> EntitySignals;
 };

@@ -8,7 +8,7 @@
 #include "MassVisualizationTrait.generated.h"
 
 class UMassRepresentationSubsystem;
-class UPipeProcessor;
+class UMassProcessor;
 
 UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Visualization"))
 class MASSREPRESENTATION_API UMassVisualizationTrait : public UMassEntityTraitBase
@@ -37,6 +37,6 @@ protected:
 	TSubclassOf<UMassRepresentationSubsystem> RepresentationSubsystemClass;
 
 	/** Allow subclasses to override the representation fragment deinitializer */
-	TSubclassOf<UPipeProcessor> RepresentationFragmentDeinitializerClass;
+	TSubclassOf<UMassProcessor> RepresentationFragmentDeinitializerClass;
 
 };

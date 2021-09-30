@@ -8,13 +8,13 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-void FAssetTypeActions_PipeSchematic::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
+void FAssetTypeActions_MassSchematic::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
 {
 	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
-		if (UPipeSchematic* Pipe = Cast<UPipeSchematic>(*ObjIt))
+		if (UMassSchematic* Pipe = Cast<UMassSchematic>(*ObjIt))
 		{
 			FPipeEditorModule& EditorModule = FModuleManager::LoadModuleChecked<FPipeEditorModule>("PipeEditor");
 			TSharedRef<IPipeEditor> NewEditor = EditorModule.CreatePipeEditor(Mode, EditWithinLevelEditor, Pipe);
@@ -22,12 +22,12 @@ void FAssetTypeActions_PipeSchematic::OpenAssetEditor(const TArray<UObject*>& In
 	}
 }
 
-UClass* FAssetTypeActions_PipeSchematic::GetSupportedClass() const
+UClass* FAssetTypeActions_MassSchematic::GetSupportedClass() const
 {
-	return UPipeSchematic::StaticClass();
+	return UMassSchematic::StaticClass();
 }
 
-uint32 FAssetTypeActions_PipeSchematic::GetCategories()
+uint32 FAssetTypeActions_MassSchematic::GetCategories()
 { 
 	// @todo will probably need to use a different category, like "gameplay"
 	IAIModule& AIModule = FModuleManager::GetModuleChecked<IAIModule>("AIModule").Get();

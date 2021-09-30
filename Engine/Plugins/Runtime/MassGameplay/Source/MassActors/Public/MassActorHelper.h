@@ -22,7 +22,7 @@ namespace UE::MassActor
 	template<typename TagType>
 	bool AddEntityTagToActor(const AActor& Actor)
 	{
-		static_assert(TIsDerivedFrom<TagType, FComponentTag>::IsDerived, "Given struct doesn't represent a valid tag type.");
+		static_assert(TIsDerivedFrom<TagType, FMassTag>::IsDerived, "Given struct doesn't represent a valid tag type.");
 		return AddEntityTagToActor(Actor, *TagType::StaticStruct());
 	}
 
@@ -39,7 +39,7 @@ namespace UE::MassActor
 	template<typename TagType>
 	bool RemoveEntityTagFromActor(const AActor& Actor)
 	{
-		static_assert(TIsDerivedFrom<TagType, FComponentTag>::IsDerived, "Given struct doesn't represent a valid tag type.");
+		static_assert(TIsDerivedFrom<TagType, FMassTag>::IsDerived, "Given struct doesn't represent a valid tag type.");
 		return RemoveEntityTagFromActor(Actor, *TagType::StaticStruct());
 	}
 } // namespace UE::MassActor

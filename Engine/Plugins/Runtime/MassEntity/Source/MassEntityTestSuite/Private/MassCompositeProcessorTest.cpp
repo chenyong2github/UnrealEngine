@@ -22,15 +22,15 @@ struct FCompositeProcessorTest_Empty : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		UPipeCompositeProcessor* CompositeProcessor = NewObject<UPipeCompositeProcessor>(EntitySubsystem);
+		UMassCompositeProcessor* CompositeProcessor = NewObject<UMassCompositeProcessor>(EntitySubsystem);
 		check(CompositeProcessor);
-		FPipeContext PipeContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
+		FMassProcessingContext ProcessingContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
 		// it should just run, no warnings
-		UE::Pipe::Executor::Run(*CompositeProcessor, PipeContext);
+		UE::Pipe::Executor::Run(*CompositeProcessor, ProcessingContext);
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FCompositeProcessorTest_Empty, "System.Pipe.Processor.Composite.Empty");
+IMPLEMENT_AI_INSTANT_TEST(FCompositeProcessorTest_Empty, "System.Mass.Processor.Composite.Empty");
 
 
 struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
@@ -39,16 +39,16 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 	{
 		CA_ASSUME(EntitySubsystem);
 
-		UPipeCompositeProcessor* CompositeProcessor = NewObject<UPipeCompositeProcessor>(EntitySubsystem);
+		UMassCompositeProcessor* CompositeProcessor = NewObject<UMassCompositeProcessor>(EntitySubsystem);
 		check(CompositeProcessor);
 
 		int Result = 0;
 		{
-			TArray<UPipeProcessor*> Processors;
+			TArray<UMassProcessor*> Processors;
 			for (int i = 0; i < 3; ++i)
 			{
 				UPipeTestProcessorBase* Processor = NewObject<UPipeTestProcessorBase>(EntitySubsystem);
-				Processor->ExecutionFunction = [Processor, &Result, i](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {
+				Processor->ExecutionFunction = [Processor, &Result, i](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {
 						check(Processor);
 						Result += FMath::Pow(10.f, float(i));
 					};
@@ -58,13 +58,13 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 			CompositeProcessor->SetChildProcessors(MoveTemp(Processors));
 		}
 
-		FPipeContext PipeContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
-		UE::Pipe::Executor::Run(*CompositeProcessor, PipeContext);
+		FMassProcessingContext ProcessingContext(*EntitySubsystem, /*DeltaSeconds=*/0.f);
+		UE::Pipe::Executor::Run(*CompositeProcessor, ProcessingContext);
 		AITEST_EQUAL("All of the child processors should get run", Result, 111);
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FCompositeProcessorTest_MultipleSubProcessors, "System.Pipe.Processor.Composite.MultipleSubProcessors");
+IMPLEMENT_AI_INSTANT_TEST(FCompositeProcessorTest_MultipleSubProcessors, "System.Mass.Processor.Composite.MultipleSubProcessors");
 
 } // FPipeCompositeProcessorTest
 

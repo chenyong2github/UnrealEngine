@@ -11,7 +11,7 @@
 class UScriptStruct;
 class AActor;
 class UActorComponent;
-class UPipeProcessor;
+class UMassProcessor;
 class UMassTranslator;
 class UMassObjectFragmentCreator;
 class UMassFragmentInitializer;
@@ -32,7 +32,7 @@ public:
 	static const UMassTranslatorRegistry& Get() { return *GetDefault<UMassTranslatorRegistry>(); }
 
 	/** UMassFragmentInitializer - given a UScriptStruct sets its initial values to some defaults or randomized 
-	 *  values(implementation - specific). It's a kind of a PipeProcessor */
+	 *  values(implementation - specific). It's a kind of a MassProcessor */
 	void RegisterFragmentInitializer(const UScriptStruct& FragmentType, TSubclassOf<UMassFragmentInitializer> FragmentInitializerClass);
 	const UMassFragmentInitializer* GetFragmentInitializer(const UScriptStruct& FragmentType) const;
 

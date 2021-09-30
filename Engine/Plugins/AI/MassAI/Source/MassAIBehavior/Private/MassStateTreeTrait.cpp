@@ -65,7 +65,7 @@ void UMassStateTreeTrait::ValidateTemplate(FMassEntityTemplateBuildContext& Buil
 				USubsystem* Subsystem = World.GetSubsystemBase(SubClass);
 				UE_CVLOG(!Subsystem, MassStateTreeSubsystem, LogMassBehavior, Error, TEXT("StateTree %s: Could not find required subsystem %s"), *GetNameSafe(StateTree), *GetNameSafe(ItemDesc.Struct));
 			}
-			else if (ItemDesc.Struct->IsChildOf(FLWComponentData::StaticStruct()))
+			else if (ItemDesc.Struct->IsChildOf(FMassFragment::StaticStruct()))
 			{
 				const bool bContainsFragment = BuildContext.GetMutableFragments().GetFragments().ContainsByPredicate([&ItemDesc](const FInstancedStruct& Item) { return Item.GetScriptStruct() == ItemDesc.Struct; });
 				UE_CVLOG(!bContainsFragment, MassStateTreeSubsystem, LogMassBehavior, Error, TEXT("StateTree %s: Could not find required fragment %s"), *GetNameSafe(StateTree), *GetNameSafe(ItemDesc.Struct));

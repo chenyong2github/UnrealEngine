@@ -22,9 +22,9 @@ const FName FPipeEditor::AssetDetailsTabId(TEXT("PipeEditor_AssetDetails"));
 
 void FPipeEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (PipeSchematic != nullptr)
+	if (MassSchematic != nullptr)
 	{
-		Collector.AddReferencedObject(PipeSchematic);
+		Collector.AddReferencedObject(MassSchematic);
 	}
 }
 
@@ -47,9 +47,9 @@ void FPipeEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InT
 	InTabManager->UnregisterTabSpawner(AssetDetailsTabId);
 }
 
-void FPipeEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UPipeSchematic& InPipeSchematic)
+void FPipeEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UMassSchematic& InMassSchematic)
 {
-	PipeSchematic = &InPipeSchematic;
+	MassSchematic = &InMassSchematic;
 
 	// use the commented block while iterating on the layout since the named layout gets saved
 	//FGuid Result;
@@ -70,7 +70,7 @@ void FPipeEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr< cl
 
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
-	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, PipeEditorAppName, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, PipeSchematic);
+	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, PipeEditorAppName, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, MassSchematic);
 }
 
 FName FPipeEditor::GetToolkitFName() const
@@ -102,7 +102,7 @@ TSharedRef<SDockTab> FPipeEditor::SpawnTab_AssetDetails(const FSpawnTabArgs& Arg
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
 	AssetDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-	AssetDetailsView->SetObject(PipeSchematic);
+	AssetDetailsView->SetObject(MassSchematic);
 	AssetDetailsView->OnFinishedChangingProperties().AddSP(this, &FPipeEditor::OnAssetFinishedChangingProperties);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
@@ -125,7 +125,7 @@ void FPipeEditor::SaveAsset_Execute()
 void FPipeEditor::OnAssetFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FPipeEditorModule& PipeEditorModule = FModuleManager::GetModuleChecked<FPipeEditorModule>("PipeEditor");
-	PipeEditorModule.GetOnAssetPropertiesChanged().Broadcast(PipeSchematic, PropertyChangedEvent);
+	PipeEditorModule.GetOnAssetPropertiesChanged().Broadcast(MassSchematic, PropertyChangedEvent);
 }
 
 

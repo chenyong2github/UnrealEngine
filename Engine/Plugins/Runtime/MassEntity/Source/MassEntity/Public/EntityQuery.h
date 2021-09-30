@@ -11,67 +11,67 @@
 
 
 class UMassEntitySubsystem;
-struct FArchetypeData;
-struct FLWComponentSystemExecutionContext;
-struct FLWComponentData;
+struct FMassArchetypeData;
+struct FMassExecutionContext;
+struct FMassFragment;
 struct FArchetypeHandle;
 
-enum class ELWComponentAccess : uint8
+enum class EMassFragmentAccess : uint8
 {
 	// no binding required
 	None, 
 
-	// We want to read the data for the component
+	// We want to read the data for the fragment
 	ReadOnly,
 
-	// We want to read and write the data for the component
+	// We want to read and write the data for the fragment
 	ReadWrite,
 
 	MAX
 };
 
-enum class ELWComponentPresence : uint8
+enum class EMassFragmentPresence : uint8
 {
-	// All of the required components must be present
+	// All of the required fragments must be present
 	All,
 
-	// One of the required components must be present
+	// One of the required fragments must be present
 	Any,
 
-	// None of the required components can be present
+	// None of the required fragments can be present
 	None,
 
-	// If component is present we'll use it, but it missing stop processing of a given archetype
+	// If fragment is present we'll use it, but it missing stop processing of a given archetype
 	Optional,
 
 	MAX
 };
 
 
-struct MASSENTITY_API FLWComponentRequirement
+struct MASSENTITY_API FMassFragmentRequirement
 {
 	const UScriptStruct* StructType = nullptr;
-	ELWComponentAccess AccessMode = ELWComponentAccess::None;
-	ELWComponentPresence Presence = ELWComponentPresence::Optional;
+	EMassFragmentAccess AccessMode = EMassFragmentAccess::None;
+	EMassFragmentPresence Presence = EMassFragmentPresence::Optional;
 
 public:
-	FLWComponentRequirement(){}
-	FLWComponentRequirement(const UScriptStruct* InStruct, const ELWComponentAccess InAccessMode, const ELWComponentPresence InPresence)
+	FMassFragmentRequirement(){}
+	FMassFragmentRequirement(const UScriptStruct* InStruct, const EMassFragmentAccess InAccessMode, const EMassFragmentPresence InPresence)
 		: StructType(InStruct)
 		, AccessMode(InAccessMode)
 		, Presence(InPresence)
 	{
 		check(InStruct);
-		checkf((Presence != ELWComponentPresence::Any && Presence != ELWComponentPresence::Optional)
-			|| AccessMode == ELWComponentAccess::ReadOnly || AccessMode == ELWComponentAccess::ReadWrite, TEXT("Only ReadOnly and ReadWrite modes are suppored for optional requirements"));
+		checkf((Presence != EMassFragmentPresence::Any && Presence != EMassFragmentPresence::Optional)
+			|| AccessMode == EMassFragmentAccess::ReadOnly || AccessMode == EMassFragmentAccess::ReadWrite, TEXT("Only ReadOnly and ReadWrite modes are suppored for optional requirements"));
 	}
 
-	bool RequiresBinding() const { return (AccessMode != ELWComponentAccess::None); }
-	bool IsOptional() const { return (Presence == ELWComponentPresence::Optional || Presence == ELWComponentPresence::Any); }
+	bool RequiresBinding() const { return (AccessMode != EMassFragmentAccess::None); }
+	bool IsOptional() const { return (Presence == EMassFragmentPresence::Optional || Presence == EMassFragmentPresence::Any); }
 
 	FString DebugGetDescription() const;
 
-	// these functions are used for sorting. See FLWComponentSorterOperator
+	// these functions are used for sorting. See FMassSorterOperator
 	int32 GetStructureSize() const
 	{
 		return StructType->GetStructureSize();
@@ -85,61 +85,61 @@ public:
 
 
 /** 
- *  FLWComponentQuery is a structure that serves two main purposes:
+ *  FMassEntityQuery is a structure that serves two main purposes:
  *  1. Describe properties required of an archetype that's a subject of calculations
  *  2. Trigger calculations on cached set of valid archetypes as described by Requirements
  * 
- *  A query to be considered valid needs declared at least one ELWComponentPresence::All, ELWComponentPresence::Any 
- *  ELWComponentPresence::Optional component requirement.
+ *  A query to be considered valid needs declared at least one EMassFragmentPresence::All, EMassFragmentPresence::Any 
+ *  EMassFragmentPresence::Optional fragment requirement.
  */
 USTRUCT()
-struct MASSENTITY_API FLWComponentQuery
+struct MASSENTITY_API FMassEntityQuery
 {
 	GENERATED_BODY()
 
 public:
-	FLWComponentQuery();
-	FLWComponentQuery(std::initializer_list<UScriptStruct*> InitList);
-	FLWComponentQuery(TConstArrayView<const UScriptStruct*> InitList);
+	FMassEntityQuery();
+	FMassEntityQuery(std::initializer_list<UScriptStruct*> InitList);
+	FMassEntityQuery(TConstArrayView<const UScriptStruct*> InitList);
 
 	/** Runs ExecuteFunction on all entities matching Requirements */
-	void ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
+	void ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 	
 	/** Will first verify that the archetype given with Chunks matches the query's requirements, and if so will run the other, more generic ForEachEntityChunk implementation */
-	void ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
+	void ForEachEntityChunk(const FArchetypeChunkCollection& Chunks, UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 
 	/**
 	 * Attempts to process every chunk of every affected archetype in parallel.
 	 */
-	void ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction);
+	void ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& ExecutionContext, const FMassExecuteFunction& ExecuteFunction);
 
 	/** Will gather all archetypes from InEntitySubsystem matching this->Requirements.
 	 *  Note that no work will be done if the cached data is up to date (as tracked by EntitySubsystemHash and 
 	 *	ArchetypeDataVersion properties). */
 	void CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem);
 
-	FLWComponentQuery& AddRequirement(const UScriptStruct* ComponentType, const ELWComponentAccess AccessMode, const ELWComponentPresence Presence = ELWComponentPresence::All)
+	FMassEntityQuery& AddRequirement(const UScriptStruct* ComponentType, const EMassFragmentAccess AccessMode, const EMassFragmentPresence Presence = EMassFragmentPresence::All)
 	{
-		checkf(Requirements.FindByPredicate([ComponentType](const FLWComponentRequirement& Item){ return Item.StructType == ComponentType; }) == nullptr
+		checkf(Requirements.FindByPredicate([ComponentType](const FMassFragmentRequirement& Item){ return Item.StructType == ComponentType; }) == nullptr
 			, TEXT("Duplicated requirements are not supported. %s already present"), *GetNameSafe(ComponentType));
 		
-		if (Presence != ELWComponentPresence::None)
+		if (Presence != EMassFragmentPresence::None)
 		{
 			Requirements.Emplace(ComponentType, AccessMode, Presence);
 		}
 
 		switch (Presence)
 		{
-		case ELWComponentPresence::All:
+		case EMassFragmentPresence::All:
 			RequiredAllComponents.Add(*ComponentType);
 			break;
-		case ELWComponentPresence::Any:
+		case EMassFragmentPresence::Any:
 			RequiredAnyComponents.Add(*ComponentType);
 			break;
-		case ELWComponentPresence::Optional:
+		case EMassFragmentPresence::Optional:
 			RequiredOptionalComponents.Add(*ComponentType);
 			break;
-		case ELWComponentPresence::None:
+		case EMassFragmentPresence::None:
 			RequiredNoneComponents.Add(*ComponentType);
 			break;
 		}
@@ -148,32 +148,32 @@ public:
 		return *this;
 	}
 
-	/** FLWComponentQuery ref returned for chaining */
+	/** FMassEntityQuery ref returned for chaining */
 	template<typename T>
-	FLWComponentQuery& AddRequirement(const ELWComponentAccess AccessMode, const ELWComponentPresence Presence = ELWComponentPresence::All)
+	FMassEntityQuery& AddRequirement(const EMassFragmentAccess AccessMode, const EMassFragmentPresence Presence = EMassFragmentPresence::All)
 	{
-		checkf(Requirements.FindByPredicate([](const FLWComponentRequirement& Item) { return Item.StructType == T::StaticStruct(); }) == nullptr
+		checkf(Requirements.FindByPredicate([](const FMassFragmentRequirement& Item) { return Item.StructType == T::StaticStruct(); }) == nullptr
 			, TEXT("Duplicated requirements are not supported. %s already present"), *T::StaticStruct()->GetName());
 
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FLWComponentData or one of its child-types.");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
 		
-		if (Presence != ELWComponentPresence::None)
+		if (Presence != EMassFragmentPresence::None)
 		{
 			Requirements.Emplace(T::StaticStruct(), AccessMode, Presence);
 		}
 		
 		switch (Presence)
 		{
-		case ELWComponentPresence::All:
+		case EMassFragmentPresence::All:
 			RequiredAllComponents.Add<T>();
 			break;
-		case ELWComponentPresence::Any:
+		case EMassFragmentPresence::Any:
 			RequiredAnyComponents.Add<T>();
 			break;
-		case ELWComponentPresence::Optional:
+		case EMassFragmentPresence::Optional:
 			RequiredOptionalComponents.Add<T>();
 			break;
-		case ELWComponentPresence::None:
+		case EMassFragmentPresence::None:
 			RequiredNoneComponents.Add<T>();
 			break;
 		}
@@ -182,37 +182,37 @@ public:
 		return *this;
 	}
 
-	void AddTagRequirement(const UScriptStruct& ComponentType, const ELWComponentPresence Presence)
+	void AddTagRequirement(const UScriptStruct& TagType, const EMassFragmentPresence Presence)
 	{
-		checkfSlow(int(Presence) < int(ELWComponentPresence::Optional), TEXT("Optional and MAX presence are not valid calues for AddTagRequirement"));
+		checkfSlow(int(Presence) < int(EMassFragmentPresence::Optional), TEXT("Optional and MAX presence are not valid calues for AddTagRequirement"));
 		switch (Presence)
 		{
-		case ELWComponentPresence::All:
-			RequiredAllTags.Add(ComponentType);
+		case EMassFragmentPresence::All:
+			RequiredAllTags.Add(TagType);
 			break;
-		case ELWComponentPresence::Any:
-			RequiredAnyTags.Add(ComponentType);
+		case EMassFragmentPresence::Any:
+			RequiredAnyTags.Add(TagType);
 			break;
-		case ELWComponentPresence::None:
-			RequiredNoneTags.Add(ComponentType);
+		case EMassFragmentPresence::None:
+			RequiredNoneTags.Add(TagType);
 			break;
 		}
 	}
 
 	template<typename T>
-	FLWComponentQuery& AddTagRequirement(const ELWComponentPresence Presence)
+	FMassEntityQuery& AddTagRequirement(const EMassFragmentPresence Presence)
 	{
-		checkfSlow(int(Presence) < int(ELWComponentPresence::Optional), TEXT("Optional and MAX presence are not valid calues for AddTagRequirement"));
-		static_assert(TIsDerivedFrom<T, FComponentTag>::IsDerived, "Given struct doesn't represent a valid tag type. Make sure to inherit from FLWComponentData or one of its child-types.");
+		checkfSlow(int(Presence) < int(EMassFragmentPresence::Optional), TEXT("Optional and MAX presence are not valid calues for AddTagRequirement"));
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct doesn't represent a valid tag type. Make sure to inherit from FMassFragment or one of its child-types.");
 		switch (Presence)
 		{
-			case ELWComponentPresence::All:
+			case EMassFragmentPresence::All:
 				RequiredAllTags.Add<T>();
 				break;
-			case ELWComponentPresence::Any:
+			case EMassFragmentPresence::Any:
 				RequiredAnyTags.Add<T>();
 				break;
-			case ELWComponentPresence::None:
+			case EMassFragmentPresence::None:
 				RequiredNoneTags.Add<T>();
 				break;
 		}
@@ -221,24 +221,24 @@ public:
 	}
 
 	// actual implementation in specializations
-	template<ELWComponentPresence Presence> 
-	FLWComponentQuery& AddTagRequirements(const FLWTagBitSet& TagBitSet)
+	template<EMassFragmentPresence Presence> 
+	FMassEntityQuery& AddTagRequirements(const FMassTagBitSet& TagBitSet)
 	{
-		static_assert(Presence == ELWComponentPresence::None || Presence == ELWComponentPresence::All || Presence == ELWComponentPresence::Any
+		static_assert(Presence == EMassFragmentPresence::None || Presence == EMassFragmentPresence::All || Presence == EMassFragmentPresence::Any
 			, "The only valid values for AddTagRequirements are All, Any and None");
 		return *this;
 	}
 
 	template<typename T>
-	FLWComponentQuery& AddChunkRequirement(const ELWComponentAccess AccessMode, const ELWComponentPresence Presence = ELWComponentPresence::All)
+	FMassEntityQuery& AddChunkRequirement(const EMassFragmentAccess AccessMode, const EMassFragmentPresence Presence = EMassFragmentPresence::All)
 	{
-		static_assert(TIsDerivedFrom<T, FLWChunkComponent>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FLWChunkComponent or one of its child-types.");
-		checkf(ChunkRequirements.FindByPredicate([](const FLWComponentRequirement& Item) { return Item.StructType == T::StaticStruct(); }) == nullptr
+		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
+		checkf(ChunkRequirements.FindByPredicate([](const FMassFragmentRequirement& Item) { return Item.StructType == T::StaticStruct(); }) == nullptr
 			, TEXT("Duplicated requirements are not supported. %s already present"), *T::StaticStruct()->GetName());
-		checkfSlow(Presence == ELWComponentPresence::None || Presence == ELWComponentPresence::All
+		checkfSlow(Presence == EMassFragmentPresence::None || Presence == EMassFragmentPresence::All
 			, TEXT("The only valid Presence values for AddChunkRequirement are All and None"));
 		
-		if (Presence == ELWComponentPresence::All)
+		if (Presence == EMassFragmentPresence::All)
 		{
 			RequiredAllChunkComponents.Add<T>();
 			ChunkRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
@@ -265,23 +265,23 @@ public:
 	
 	bool DoesArchetypeMatchRequirements(const FArchetypeHandle& ArchetypeHandle) const;
 
-	/** The function validates requirements we make for queries. See the FLWComponentQuery struct description for details.
+	/** The function validates requirements we make for queries. See the FMassEntityQuery struct description for details.
 	 *  Note that this function is non-trivial and end users are not expected to need to use it. 
 	 *  @return whether this query's requirements follow the rules. */
 	bool CheckValidity() const;
 
 	FString DebugGetDescription() const;
 
-	TConstArrayView<FLWComponentRequirement> GetRequirements() const { return Requirements; }
-	const FLWComponentBitSet& GetRequiredAllComponents() const { return RequiredAllComponents; }
-	const FLWComponentBitSet& GetRequiredAnyComponents() const { return RequiredAnyComponents; }
-	const FLWComponentBitSet& GetRequiredOptionalComponents() const { return RequiredOptionalComponents; }
-	const FLWComponentBitSet& GetRequiredNoneComponents() const { return RequiredNoneComponents; }
-	const FLWTagBitSet& GetRequiredAllTags() const { return RequiredAllTags; }
-	const FLWTagBitSet& GetRequiredAnyTags() const { return RequiredAnyTags; }
-	const FLWTagBitSet& GetRequiredNoneTags() const { return RequiredNoneTags; }
-	const FLWChunkComponentBitSet& GetRequiredAllChunkComponents() const { return RequiredAllChunkComponents; }
-	const FLWChunkComponentBitSet& GetRequiredNoneChunkComponents() const { return RequiredNoneChunkComponents; }
+	TConstArrayView<FMassFragmentRequirement> GetRequirements() const { return Requirements; }
+	const FMassFragmentBitSet& GetRequiredAllComponents() const { return RequiredAllComponents; }
+	const FMassFragmentBitSet& GetRequiredAnyComponents() const { return RequiredAnyComponents; }
+	const FMassFragmentBitSet& GetRequiredOptionalComponents() const { return RequiredOptionalComponents; }
+	const FMassFragmentBitSet& GetRequiredNoneComponents() const { return RequiredNoneComponents; }
+	const FMassTagBitSet& GetRequiredAllTags() const { return RequiredAllTags; }
+	const FMassTagBitSet& GetRequiredAnyTags() const { return RequiredAnyTags; }
+	const FMassTagBitSet& GetRequiredNoneTags() const { return RequiredNoneTags; }
+	const FMassChunkFragmentBitSet& GetRequiredAllChunkComponents() const { return RequiredAllChunkComponents; }
+	const FMassChunkFragmentBitSet& GetRequiredNoneChunkComponents() const { return RequiredNoneChunkComponents; }
 
 	const TArray<FArchetypeHandle>& GetArchetypes() const
 	{ 
@@ -307,7 +307,7 @@ public:
 	 * that this condition won't be applied when a specific collection of chunks is used (via FArchetypeChunkCollection)
 	 * The value returned by InFunction controls whether to allow execution (true) or block it (false).
 	 */
-	void SetChunkFilter(const FLWComponentSystemChunkConditionFunction& InFunction) { ChunkCondition = InFunction; }
+	void SetChunkFilter(const FMassChunkConditionFunction& InFunction) { ChunkCondition = InFunction; }
 
 	void ClearChunkFilter() { ChunkCondition.Reset(); }
 
@@ -318,37 +318,37 @@ protected:
 	void ReadCommandlineParams();
 
 protected:
-	TArray<FLWComponentRequirement> Requirements;
-	TArray<FLWComponentRequirement> ChunkRequirements;
-	FLWTagBitSet RequiredAllTags;
-	FLWTagBitSet RequiredAnyTags;
-	FLWTagBitSet RequiredNoneTags;
-	FLWComponentBitSet RequiredAllComponents;
-	FLWComponentBitSet RequiredAnyComponents;
-	FLWComponentBitSet RequiredOptionalComponents;
-	FLWComponentBitSet RequiredNoneComponents;
-	FLWChunkComponentBitSet RequiredAllChunkComponents;
-	FLWChunkComponentBitSet RequiredNoneChunkComponents;
+	TArray<FMassFragmentRequirement> Requirements;
+	TArray<FMassFragmentRequirement> ChunkRequirements;
+	FMassTagBitSet RequiredAllTags;
+	FMassTagBitSet RequiredAnyTags;
+	FMassTagBitSet RequiredNoneTags;
+	FMassFragmentBitSet RequiredAllComponents;
+	FMassFragmentBitSet RequiredAnyComponents;
+	FMassFragmentBitSet RequiredOptionalComponents;
+	FMassFragmentBitSet RequiredNoneComponents;
+	FMassChunkFragmentBitSet RequiredAllChunkComponents;
+	FMassChunkFragmentBitSet RequiredNoneChunkComponents;
 
 private:
 	/** 
 	 * This function represents a condition that will be called for every chunk to be processed before the actual 
-	 * execution function is called. The chunk component requirements are already bound and ready to be used by the time 
+	 * execution function is called. The chunk fragment requirements are already bound and ready to be used by the time 
 	 * ChunkCondition is executed.
 	 */
-	FLWComponentSystemChunkConditionFunction ChunkCondition;
+	FMassChunkConditionFunction ChunkCondition;
 
 	uint32 EntitySubsystemHash = 0;
 	uint32 ArchetypeDataVersion = 0;
 
 	TArray<FArchetypeHandle> ValidArchetypes;
-	TArray<FLWRequirementIndicesMapping> ArchetypeComponentMapping;
+	TArray<FMassQueryRequirementIndicesMapping> ArchetypeComponentMapping;
 
 	bool bAllowParallelExecution = false;
 };
 
 template<>
-FORCEINLINE FLWComponentQuery& FLWComponentQuery::AddTagRequirements<ELWComponentPresence::All>(const FLWTagBitSet& TagBitSet)
+FORCEINLINE FMassEntityQuery& FMassEntityQuery::AddTagRequirements<EMassFragmentPresence::All>(const FMassTagBitSet& TagBitSet)
 {
 	RequiredAllTags += TagBitSet;
 	// force recaching the next time this query is used or the following CacheArchetypes call.
@@ -357,7 +357,7 @@ FORCEINLINE FLWComponentQuery& FLWComponentQuery::AddTagRequirements<ELWComponen
 }
 
 template<>
-FORCEINLINE FLWComponentQuery& FLWComponentQuery::AddTagRequirements<ELWComponentPresence::Any>(const FLWTagBitSet& TagBitSet)
+FORCEINLINE FMassEntityQuery& FMassEntityQuery::AddTagRequirements<EMassFragmentPresence::Any>(const FMassTagBitSet& TagBitSet)
 {
 	RequiredAnyTags += TagBitSet;
 	// force recaching the next time this query is used or the following CacheArchetypes call.
@@ -366,7 +366,7 @@ FORCEINLINE FLWComponentQuery& FLWComponentQuery::AddTagRequirements<ELWComponen
 }
 
 template<>
-FORCEINLINE FLWComponentQuery& FLWComponentQuery::AddTagRequirements<ELWComponentPresence::None>(const FLWTagBitSet& TagBitSet)
+FORCEINLINE FMassEntityQuery& FMassEntityQuery::AddTagRequirements<EMassFragmentPresence::None>(const FMassTagBitSet& TagBitSet)
 {
 	RequiredNoneTags += TagBitSet;
 	// force recaching the next time this query is used or the following CacheArchetypes call.

@@ -27,8 +27,8 @@ struct FMassRepresentationLODCollectorConfig
 
 	/** Runtime data for matching the LOD config */
 	TMassLODCollector<FMassRepresentationLODLogic> RepresentationLODCollector;
-	FLWComponentQuery CloseEntityQuery;
-	FLWComponentQuery FarEntityQuery_Conditional;
+	FMassEntityQuery CloseEntityQuery;
+	FMassEntityQuery FarEntityQuery_Conditional;
 };
 
 /*
@@ -45,7 +45,7 @@ class MASSLOD_API UMassRepresentationLODCollectorProcessor : public UMassProcess
 	protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override;
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
 	TArray<FMassRepresentationLODCollectorConfig> LODConfigs;

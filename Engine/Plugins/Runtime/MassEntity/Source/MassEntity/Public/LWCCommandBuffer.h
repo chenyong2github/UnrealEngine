@@ -18,12 +18,12 @@ struct MASSENTITY_API FCommandBufferEntryBase
 {
 	GENERATED_BODY()
 
-	FLWEntity TargetEntity;
+	FMassEntityHandle TargetEntity;
 
 	FCommandBufferEntryBase() = default;
 	virtual ~FCommandBufferEntryBase() = default;
 
-	FCommandBufferEntryBase(FLWEntity InEntity)
+	FCommandBufferEntryBase(FMassEntityHandle InEntity)
 		: TargetEntity(InEntity)
 	{}
 
@@ -63,7 +63,7 @@ struct MASSENTITY_API FBuildEntityFromComponentInstance : public FCommandBufferE
 	GENERATED_BODY()
 
 	FBuildEntityFromComponentInstance() = default;
-	FBuildEntityFromComponentInstance(const FLWEntity Entity, FStructView InStruct)
+	FBuildEntityFromComponentInstance(const FMassEntityHandle Entity, FStructView InStruct)
 		: FCommandBufferEntryBase(Entity)
 		, Struct(InStruct)
 	{}
@@ -83,7 +83,7 @@ struct MASSENTITY_API FBuildEntityFromComponentInstances : public FCommandBuffer
 	GENERATED_BODY()
 
 	FBuildEntityFromComponentInstances() = default;
-	FBuildEntityFromComponentInstances(const FLWEntity Entity, TConstArrayView<FInstancedStruct> InInstances)
+	FBuildEntityFromComponentInstances(const FMassEntityHandle Entity, TConstArrayView<FInstancedStruct> InInstances)
 		: FCommandBufferEntryBase(Entity)
 		, Instances(InInstances)
 	{}
@@ -103,7 +103,7 @@ struct MASSENTITY_API FCommandAddComponent : public FCommandBufferEntryBase
 	GENERATED_BODY()
 
 	FCommandAddComponent() = default;
-	FCommandAddComponent(FLWEntity InEntity, UScriptStruct* InStruct)
+	FCommandAddComponent(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
@@ -123,7 +123,7 @@ struct MASSENTITY_API FCommandAddComponentInstance : public FCommandBufferEntryB
 	GENERATED_BODY()
 
 	FCommandAddComponentInstance() = default;
-	FCommandAddComponentInstance(const FLWEntity InEntity, FStructView InStruct)
+	FCommandAddComponentInstance(const FMassEntityHandle InEntity, FStructView InStruct)
         : FCommandBufferEntryBase(InEntity)
         , Struct(InStruct)
 	{}
@@ -143,7 +143,7 @@ struct MASSENTITY_API FCommandRemoveComponent : public FCommandBufferEntryBase
 	GENERATED_BODY()
 
 	FCommandRemoveComponent() = default;
-	FCommandRemoveComponent(FLWEntity InEntity, UScriptStruct* InStruct)
+	FCommandRemoveComponent(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
@@ -163,7 +163,7 @@ struct MASSENTITY_API FCommandAddComponentList : public FCommandBufferEntryBase
 	GENERATED_BODY()
 
 	FCommandAddComponentList() = default;
-	FCommandAddComponentList(FLWEntity InEntity, TConstArrayView<const UScriptStruct*> InComponentList)
+	FCommandAddComponentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InComponentList)
 		: FCommandBufferEntryBase(InEntity)
 		, ComponentList(InComponentList)
 	{}
@@ -183,7 +183,7 @@ struct MASSENTITY_API FCommandRemoveComponentList : public FCommandBufferEntryBa
 	GENERATED_BODY()
 
 	FCommandRemoveComponentList() = default;
-	FCommandRemoveComponentList(FLWEntity InEntity, TConstArrayView<const UScriptStruct*> InComponentList)
+	FCommandRemoveComponentList(FMassEntityHandle InEntity, TConstArrayView<const UScriptStruct*> InComponentList)
 		: FCommandBufferEntryBase(InEntity)
 		, ComponentList(InComponentList)
 	{}
@@ -203,7 +203,7 @@ struct MASSENTITY_API FCommandAddTag: public FCommandBufferEntryBase
 	GENERATED_BODY()
 
 	FCommandAddTag() = default;
-	FCommandAddTag(FLWEntity InEntity, UScriptStruct* InStruct)
+	FCommandAddTag(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
@@ -223,7 +223,7 @@ struct MASSENTITY_API FCommandRemoveTag : public FCommandBufferEntryBase
 	GENERATED_BODY()
 
 	FCommandRemoveTag() = default;
-	FCommandRemoveTag(FLWEntity InEntity, UScriptStruct* InStruct)
+	FCommandRemoveTag(FMassEntityHandle InEntity, UScriptStruct* InStruct)
 		: FCommandBufferEntryBase(InEntity)
 		, StructParam(InStruct)
 	{}
@@ -245,13 +245,13 @@ struct MASSENTITY_API FCommandSwapTags : public FCommandBufferEntryBase
 
 	FCommandSwapTags() = default;
 
-	FCommandSwapTags(const FLWEntity InEntity, const UScriptStruct* InOldTagType, const UScriptStruct* InNewTagType)
+	FCommandSwapTags(const FMassEntityHandle InEntity, const UScriptStruct* InOldTagType, const UScriptStruct* InNewTagType)
 		: FCommandBufferEntryBase(InEntity)
 		, OldTagType(InOldTagType)
 		, NewTagType(InNewTagType)
 	{
-		checkf((InOldTagType == nullptr) || InOldTagType->IsChildOf(FComponentTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InOldTagType));
-		checkf((InNewTagType == nullptr) || InNewTagType->IsChildOf(FComponentTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InNewTagType));
+		checkf((InOldTagType == nullptr) || InOldTagType->IsChildOf(FMassTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InOldTagType));
+		checkf((InNewTagType == nullptr) || InNewTagType->IsChildOf(FMassTag::StaticStruct()), TEXT("FCommandSwapTags works only with tags while '%s' is not one."), *GetPathNameSafe(InNewTagType));
 	}
 
 protected:
@@ -270,7 +270,7 @@ struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
 	GENERATED_BODY()
 
 	FCommandRemoveComposition() = default;
-	FCommandRemoveComposition(FLWEntity InEntity, const FLWCompositionDescriptor& InDescriptor)
+	FCommandRemoveComposition(FMassEntityHandle InEntity, const FMassCompositionDescriptor& InDescriptor)
 		: FCommandBufferEntryBase(InEntity)
 		, Descriptor(InDescriptor)
 	{}
@@ -278,10 +278,10 @@ struct MASSENTITY_API FCommandRemoveComposition : public FCommandBufferEntryBase
 protected:
 	virtual void Execute(UMassEntitySubsystem& System) const override;
 
-	FLWCompositionDescriptor Descriptor;
+	FMassCompositionDescriptor Descriptor;
 };
 
-struct MASSENTITY_API FLWCCommandBuffer
+struct MASSENTITY_API FMassCommandBuffer
 {
 public:
 
@@ -309,39 +309,39 @@ public:
 	}
 
 	template<typename T>
-	void AddComponent(FLWEntity Entity)
+	void AddComponent(FMassEntityHandle Entity)
 	{
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct type is not a valid component type.");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid component type.");
 		EmplaceCommand<FCommandAddComponent>(Entity, T::StaticStruct());
 	}
 
 	template<typename T>
-	void RemoveComponent(FLWEntity Entity)
+	void RemoveComponent(FMassEntityHandle Entity)
 	{
-		static_assert(TIsDerivedFrom<T, FLWComponentData>::IsDerived, "Given struct type is not a valid component type.");
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct type is not a valid component type.");
 		EmplaceCommand<FCommandRemoveComponent>(Entity, T::StaticStruct());
 	}
 
 	template<typename T>
-	void AddTag(FLWEntity Entity)
+	void AddTag(FMassEntityHandle Entity)
 	{
-		static_assert(TIsDerivedFrom<T, FComponentTag>::IsDerived, "Given struct type is not a valid tag type.");
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct type is not a valid tag type.");
 		EmplaceCommand<FCommandAddTag>(Entity, T::StaticStruct());
 	}
 
 	template<typename T>
-	void RemoveTag(FLWEntity Entity)
+	void RemoveTag(FMassEntityHandle Entity)
 	{
-		static_assert(TIsDerivedFrom<T, FComponentTag>::IsDerived, "Given struct type is not a valid tag type.");
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct type is not a valid tag type.");
 		EmplaceCommand<FCommandRemoveTag>(Entity, T::StaticStruct());
 	}
 
-	void DestroyEntity(FLWEntity Entity)
+	void DestroyEntity(FMassEntityHandle Entity)
 	{
 		EntitiesToDestroy.Add(Entity);
 	}
 
-	void BatchDestroyEntities(const TArray<FLWEntity>& InEntitiesToDestroy)
+	void BatchDestroyEntities(const TArray<FMassEntityHandle>& InEntitiesToDestroy)
 	{
 		EntitiesToDestroy.Append(InEntitiesToDestroy);
 	}
@@ -355,7 +355,7 @@ public:
 	 * @param InOutOther the source buffer to copy the commands from. Note that after the call the InOutOther will be 
 	 *	emptied due to the function using Move semantics
 	 */
-	void MoveAppend(FLWCCommandBuffer& InOutOther);
+	void MoveAppend(FMassCommandBuffer& InOutOther);
 
 	int32 GetPendingCommandsCount() const { return PendingCommands.Num(); }
 
@@ -364,5 +364,5 @@ private:
 	UE_MT_DECLARE_RW_ACCESS_DETECTOR(PendingCommandsDetector);
 	FCriticalSection AppendingCommandsCS;
 
-	TArray<FLWEntity> EntitiesToDestroy;
+	TArray<FMassEntityHandle> EntitiesToDestroy;
 };

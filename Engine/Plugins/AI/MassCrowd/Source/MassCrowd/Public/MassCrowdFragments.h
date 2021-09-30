@@ -14,7 +14,7 @@
  * Should not contain any data, this is purely a tag
  */
 USTRUCT()
-struct MASSCROWD_API FTagFragment_MassCrowd : public FComponentTag
+struct MASSCROWD_API FTagFragment_MassCrowd : public FMassTag
 {
 	GENERATED_BODY()
 };
@@ -23,7 +23,7 @@ struct MASSCROWD_API FTagFragment_MassCrowd : public FComponentTag
  * Data fragment to store the last lane the agent was tracked on.
  */
 USTRUCT()
-struct MASSCROWD_API FMassCrowdLaneTrackingFragment : public FLWComponentData
+struct MASSCROWD_API FMassCrowdLaneTrackingFragment : public FMassFragment
 {
 	GENERATED_BODY()
 	FZoneGraphLaneHandle TrackedLaneHandle;

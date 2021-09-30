@@ -10,7 +10,7 @@
 namespace UE::MassRepresentation
 {
 
-inline EMassVisibility GetVisibilityFromArchetype(const FLWComponentSystemExecutionContext& Context)
+inline EMassVisibility GetVisibilityFromArchetype(const FMassExecutionContext& Context)
 {
 	if (Context.DoesArchetypeHaveTag<FMassVisibilityCanBeSeenTag>())
 	{
@@ -44,7 +44,7 @@ inline const UScriptStruct* GetTagFromVisibility(EMassVisibility Visibility)
 	}
 }
 
-inline bool IsVisibilityTagSet(const FLWComponentSystemExecutionContext& Context, EMassVisibility Visibility)
+inline bool IsVisibilityTagSet(const FMassExecutionContext& Context, EMassVisibility Visibility)
 {
 	switch (Visibility)
 	{

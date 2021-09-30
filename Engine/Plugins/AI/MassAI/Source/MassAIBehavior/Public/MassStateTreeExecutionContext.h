@@ -6,7 +6,7 @@
 #include "StateTreeExecutionContext.h"
 #include "MassStateTreeExecutionContext.generated.h"
 
-struct FLWComponentSystemExecutionContext;
+struct FMassExecutionContext;
 class UMassEntitySubsystem;
 class UMassSignalSubsystem;
 
@@ -20,13 +20,13 @@ struct MASSAIBEHAVIOR_API FMassStateTreeExecutionContext : public FStateTreeExec
 public:
 	/** Should never be used but has to be public for 'void UScriptStruct::TCppStructOps<FMassStateTreeExecutionContext>::ConstructForTests(void *)' */
 	FMassStateTreeExecutionContext() = default;
-	FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& InContext);
+	FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& InContext);
 
 	UMassEntitySubsystem& GetEntitySubsystem() const { return *EntitySubsystem; }
-	FLWComponentSystemExecutionContext& GetEntitySubsystemExecutionContext() const { return *EntitySubsystemExecutionContext; }
+	FMassExecutionContext& GetEntitySubsystemExecutionContext() const { return *EntitySubsystemExecutionContext; }
 
-	FLWEntity GetEntity() const { return Entity; }
-	void SetEntity(const FLWEntity& InEntity) { Entity = InEntity; }
+	FMassEntityHandle GetEntity() const { return Entity; }
+	void SetEntity(const FMassEntityHandle& InEntity) { Entity = InEntity; }
 
 	int32 GetEntityIndex() const { return EntityIndex; }
 	void SetEntityIndex(const int32 InIndex) { EntityIndex = InIndex; }
@@ -40,7 +40,7 @@ protected:
 
 	UMassEntitySubsystem* EntitySubsystem = nullptr;
 	UMassSignalSubsystem* SignalSubsystem = nullptr;
-	FLWComponentSystemExecutionContext* EntitySubsystemExecutionContext = nullptr;
-	FLWEntity Entity;
+	FMassExecutionContext* EntitySubsystemExecutionContext = nullptr;
+	FMassEntityHandle Entity;
 	int32 EntityIndex = INDEX_NONE;
 };

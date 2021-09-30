@@ -13,7 +13,7 @@ MASSLOD_API DECLARE_LOG_CATEGORY_EXTERN(LogMassLOD, Log, All);
 namespace UE::MassLOD 
 {
 
-inline EMassLOD::Type GetLODFromArchetype(const FLWComponentSystemExecutionContext& Context)
+inline EMassLOD::Type GetLODFromArchetype(const FMassExecutionContext& Context)
 {
 	if (Context.DoesArchetypeHaveTag<FMassOffLODTag>())
 	{
@@ -53,7 +53,7 @@ inline const UScriptStruct* GetLODTagFromLOD(EMassLOD::Type LOD)
 	}
 }
 
-inline bool IsLODTagSet(const FLWComponentSystemExecutionContext& Context, EMassLOD::Type LOD)
+inline bool IsLODTagSet(const FMassExecutionContext& Context, EMassLOD::Type LOD)
 {
 	switch (LOD)
 	{

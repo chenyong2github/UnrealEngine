@@ -17,7 +17,7 @@ EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionC
 	WaitSlotLocation = nullptr;
 
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	const FLWEntity Entity = MassContext.GetEntity();
+	const FMassEntityHandle Entity = MassContext.GetEntity();
 	
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalItem(LocationHandle).Get<FMassZoneGraphLaneLocationFragment>();
 	const FMassMoveTargetFragment& MoveTarget = Context.GetExternalItem(MoveTargetHandle).Get<FMassMoveTargetFragment>();
@@ -61,7 +61,7 @@ void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context,
 	}
 
 	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
-	const FLWEntity Entity = MassContext.GetEntity();
+	const FMassEntityHandle Entity = MassContext.GetEntity();
 	
 	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalItem(CrowdSubsystemHandle).GetMutable<UMassCrowdSubsystem>();
 

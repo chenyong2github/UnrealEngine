@@ -77,10 +77,10 @@ UMassZoneGraphLocationInitializer::UMassZoneGraphLocationInitializer()
 
 void UMassZoneGraphLocationInitializer::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassMovementConfigFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadWrite); // Make optional?
+	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassMovementConfigFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadWrite); // Make optional?
 }
 
 void UMassZoneGraphLocationInitializer::Initialize(UObject& Owner)
@@ -90,7 +90,7 @@ void UMassZoneGraphLocationInitializer::Initialize(UObject& Owner)
 	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
 }
 
-void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	if (!ZoneGraphSubsystem || !Settings || !SignalSubsystem)
@@ -98,7 +98,7 @@ void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubs
 		return;
 	}
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetEntitiesNum();
 		const TArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetMutableComponentView<FMassZoneGraphLaneLocationFragment>();
@@ -126,7 +126,7 @@ void UMassZoneGraphLocationInitializer::Execute(UMassEntitySubsystem& EntitySubs
 			if (!CurrentMovementConfig)
 			{
 #if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
-				const FLWEntity Entity = Context.GetEntity(EntityIndex);
+				const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 				UE_VLOG(this, LogMassNavigation, Log, TEXT("Entity [%s] Invalid movement config."), *Entity.DebugGetDescription());
 #endif
 				continue;
@@ -187,25 +187,25 @@ void UMassZoneGraphPathFollowProcessor::Initialize(UObject& Owner)
 
 void UMassZoneGraphPathFollowProcessor::ConfigureQueries()
 {
-	EntityQuery_Conditional.AddRequirement<FMassZoneGraphShortPathFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery_Conditional.AddRequirement<FMassZoneGraphLaneLocationFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery_Conditional.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery_Conditional.AddRequirement<FMassSimulationLODFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(ELWComponentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FMassZoneGraphShortPathFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery_Conditional.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery_Conditional.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery_Conditional.AddRequirement<FMassSimulationLODFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
 }
 
-void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	if (!SignalSubsystem || !ZoneGraphSubsystem)
 	{
 		return;
 	}
 	
-	TArray<FLWEntity> EntitiesToSignalPathDone;
-	TArray<FLWEntity> EntitiesToSignalLaneChanged;
+	TArray<FMassEntityHandle> EntitiesToSignalPathDone;
+	TArray<FMassEntityHandle> EntitiesToSignalLaneChanged;
 
-	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitiesToSignalPathDone, &EntitiesToSignalLaneChanged](FLWComponentSystemExecutionContext& Context)
+	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitiesToSignalPathDone, &EntitiesToSignalLaneChanged](FMassExecutionContext& Context)
 		{
 		const int32 NumEntities = Context.GetEntitiesNum();
 		const TArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetMutableComponentView<FMassZoneGraphShortPathFragment>();
@@ -219,7 +219,7 @@ void UMassZoneGraphPathFollowProcessor::Execute(UMassEntitySubsystem& EntitySubs
 			FMassZoneGraphLaneLocationFragment& LaneLocation = LaneLocationList[EntityIndex];
 			FMassMoveTargetFragment& MoveTarget = MoveTargetList[EntityIndex];
 			const FMassSimulationLODFragment& SimLOD = SimLODList[EntityIndex];
-			const FLWEntity Entity = Context.GetEntity(EntityIndex);
+			const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 			const float DeltaTime = SimLOD.DeltaTime;
 
 			bool bDisplayDebug = false;
@@ -474,18 +474,18 @@ void UMassZoneGraphSteeringProcessor::Initialize(UObject& Owner)
 
 void UMassZoneGraphSteeringProcessor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassMoveTargetFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassMovementConfigFragment>(ELWComponentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassSteeringFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassSteeringGhostFragment>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassMoveTargetFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassMovementConfigFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassSteeringFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassSteeringGhostFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly);
 
 	// No need for Off LOD to do steering, applying move target directly
-	EntityQuery.AddTagRequirement<FMassOffLODTag>(ELWComponentPresence::None);
+	EntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
 }
 
-void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	const UMassMovementSettings* Settings = GetDefault<UMassMovementSettings>();
 	check(Settings);
@@ -495,7 +495,7 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 		return;
 	}
 	
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Settings](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetEntitiesNum();
 		const TArrayView<FMassMoveTargetFragment> MoveTargetList = Context.GetMutableComponentView<FMassMoveTargetFragment>();
@@ -523,7 +523,7 @@ void UMassZoneGraphSteeringProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			FMassMoveTargetFragment& MoveTarget = MoveTargetList[EntityIndex];
 			const FMassMovementConfigFragment& MovementConfig = MovementConfigList[EntityIndex];
 			const FMassVelocityFragment& Velocity = VelocityList[EntityIndex];
-			const FLWEntity Entity = Context.GetEntity(EntityIndex);
+			const FMassEntityHandle Entity = Context.GetEntity(EntityIndex);
 
 			if (MovementConfig.ConfigHandle != CurrentConfigHandle)
 			{

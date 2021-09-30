@@ -17,12 +17,12 @@ namespace UE::Mass::Crowd
 	// @todo provide a better way of selecting agents to debug
 	constexpr int32 MaxAgentsDraw = 300;
 
-	void DebugDrawReplicatedAgent(FLWEntity Entity, const UMassEntitySubsystem& EntitySystem)
+	void DebugDrawReplicatedAgent(FMassEntityHandle Entity, const UMassEntitySubsystem& EntitySystem)
 	{
 		static const FVector DebugCylinderHeight = FVector(0.f, 0.f, 200.f);
 		static constexpr float DebugCylinderRadius = 50.f;
 
-		const FEntityView EntityView(EntitySystem, Entity);
+		const FMassEntityView EntityView(EntitySystem, Entity);
 
 		const FDataFragment_Transform& TransformFragment = EntityView.GetComponentData<FDataFragment_Transform>();
 		const FMassNetworkIDFragment& NetworkIDFragment = EntityView.GetComponentData<FMassNetworkIDFragment>();
@@ -123,25 +123,25 @@ void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnClient()
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 void FMassCrowdClientBubbleHandler::PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize)
 {
-	auto AddRequirementsForSpawnQuery = [this](FLWComponentQuery& InQuery)
+	auto AddRequirementsForSpawnQuery = [this](FMassEntityQuery& InQuery)
 	{
 		PathHandler.AddRequirementsForSpawnQuery(InQuery);
 		TransformHandler.AddRequirementsForSpawnQuery(InQuery);
 	};
 
-	auto CacheComponentViewsForSpawnQuery = [this](FLWComponentSystemExecutionContext& InExecContext)
+	auto CacheComponentViewsForSpawnQuery = [this](FMassExecutionContext& InExecContext)
 	{
 		PathHandler.CacheComponentViewsForSpawnQuery(InExecContext);
 		TransformHandler.CacheComponentViewsForSpawnQuery(InExecContext);
 	};
 
-	auto SetSpawnedEntityData = [this](const FEntityView& EntityView, const FReplicatedCrowdAgent& ReplicatedEntity, const int32 EntityIdx)
+	auto SetSpawnedEntityData = [this](const FMassEntityView& EntityView, const FReplicatedCrowdAgent& ReplicatedEntity, const int32 EntityIdx)
 	{
 		PathHandler.SetSpawnedEntityData(EntityView, ReplicatedEntity.GetReplicatedPathData(), EntityIdx);
 		TransformHandler.SetSpawnedEntityData(EntityIdx, ReplicatedEntity.GetReplicatedPositionYawData());
 	};
 
-	auto SetModifiedEntityData = [this](const FEntityView& EntityView, const FReplicatedCrowdAgent& Item)
+	auto SetModifiedEntityData = [this](const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item)
 	{
 		PostReplicatedChangeEntity(EntityView, Item);
 	};
@@ -156,7 +156,7 @@ void FMassCrowdClientBubbleHandler::PostReplicatedAdd(const TArrayView<int32> Ad
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
 void FMassCrowdClientBubbleHandler::FMassCrowdClientBubbleHandler::PostReplicatedChange(const TArrayView<int32> ChangedIndices, int32 FinalSize)
 {
-	auto SetModifiedEntityData = [this](const FEntityView& EntityView, const FReplicatedCrowdAgent& Item)
+	auto SetModifiedEntityData = [this](const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item)
 	{
 		PostReplicatedChangeEntity(EntityView, Item);
 	};
@@ -166,7 +166,7 @@ void FMassCrowdClientBubbleHandler::FMassCrowdClientBubbleHandler::PostReplicate
 #endif //UE_REPLICATION_COMPILE_SERVER_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-void FMassCrowdClientBubbleHandler::PostReplicatedChangeEntity(const FEntityView& EntityView, const FReplicatedCrowdAgent& Item) const
+void FMassCrowdClientBubbleHandler::PostReplicatedChangeEntity(const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item) const
 {
 	PathHandler.SetModifiedEntityData(EntityView, Item.GetReplicatedPathData());
 

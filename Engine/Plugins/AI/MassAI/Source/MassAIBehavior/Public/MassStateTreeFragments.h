@@ -8,7 +8,7 @@
 
 
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassStateTreeFragment : public FLWComponentData
+struct MASSAIBEHAVIOR_API FMassStateTreeFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

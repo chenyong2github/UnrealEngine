@@ -36,7 +36,7 @@ protected:
 
 	/** Entity to set as the target for the LookAt behavior. */
 	UPROPERTY(VisibleAnywhere, Category = Params, meta = (Bindable))
-	FLWEntity TargetEntity;
+	FMassEntityHandle TargetEntity;
 
 	/** Random gaze Mode */
 	UPROPERTY(EditAnywhere, Category = Params, meta = (Bindable))

@@ -22,16 +22,16 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectRequestID
 	GENERATED_BODY()
 
 	FMassSmartObjectRequestID() = default;
-	FMassSmartObjectRequestID(const FLWEntity& InEntity) : Entity(InEntity) {}
+	FMassSmartObjectRequestID(const FMassEntityHandle& InEntity) : Entity(InEntity) {}
 	
 	bool IsSet() const { return Entity.IsSet(); }
 	void Reset() { Entity.Reset(); }
 	
-	explicit operator FLWEntity() const { return Entity; }
+	explicit operator FMassEntityHandle() const { return Entity; }
 
 private:
 	UPROPERTY(Transient)
-	FLWEntity Entity;
+	FMassEntityHandle Entity;
 };
 
 UENUM()

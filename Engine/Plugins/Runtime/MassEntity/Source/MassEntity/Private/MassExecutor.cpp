@@ -8,7 +8,7 @@
 
 namespace UE::Pipe::Executor
 {
-void Run(FRuntimePipeline& RuntimePipeline, FPipeContext& PipeContext)
+void Run(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext)
 {
 	if (!ensure(PipeContext.EntitySubsystem) || 
 		!ensure(PipeContext.DeltaSeconds >= 0.f) ||
@@ -21,7 +21,7 @@ void Run(FRuntimePipeline& RuntimePipeline, FPipeContext& PipeContext)
 	RunProcessorsView(RuntimePipeline.Processors, PipeContext);
 }
 
-void RunSparse(FRuntimePipeline& RuntimePipeline, FPipeContext& PipeContext, FArchetypeHandle Archetype, TConstArrayView<FLWEntity> Entities)
+void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext, FArchetypeHandle Archetype, TConstArrayView<FMassEntityHandle> Entities)
 {
 	if (!ensure(PipeContext.EntitySubsystem) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
@@ -37,7 +37,7 @@ void RunSparse(FRuntimePipeline& RuntimePipeline, FPipeContext& PipeContext, FAr
 	RunProcessorsView(RuntimePipeline.Processors, PipeContext, &ChunkCollection);
 }
 
-void RunSparse(FRuntimePipeline& RuntimePipeline, FPipeContext& PipeContext, const FArchetypeChunkCollection& ChunkCollection)
+void RunSparse(FMassRuntimePipeline& RuntimePipeline, FMassProcessingContext& PipeContext, const FArchetypeChunkCollection& ChunkCollection)
 {
 	if (!ensure(PipeContext.EntitySubsystem) ||
 		!ensure(RuntimePipeline.Processors.Find(nullptr) == INDEX_NONE) ||
@@ -52,7 +52,7 @@ void RunSparse(FRuntimePipeline& RuntimePipeline, FPipeContext& PipeContext, con
 	RunProcessorsView(RuntimePipeline.Processors, PipeContext, &ChunkCollection);
 }
 
-void Run(UPipeProcessor& Processor, FPipeContext& PipeContext)
+void Run(UMassProcessor& Processor, FMassProcessingContext& PipeContext)
 {
 	if (!ensure(PipeContext.EntitySubsystem) || !ensure(PipeContext.DeltaSeconds >= 0.f))
 	{
@@ -61,11 +61,11 @@ void Run(UPipeProcessor& Processor, FPipeContext& PipeContext)
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor Run")
 
-	UPipeProcessor* ProcPtr = &Processor;
+	UMassProcessor* ProcPtr = &Processor;
 	RunProcessorsView(MakeArrayView(&ProcPtr, 1), PipeContext);
 }
 
-void RunProcessorsView(TArrayView<UPipeProcessor*> Processors, FPipeContext& PipeContext, const FArchetypeChunkCollection* ChunkCollection)
+void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingContext& PipeContext, const FArchetypeChunkCollection* ChunkCollection)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
 
@@ -84,13 +84,13 @@ void RunProcessorsView(TArrayView<UPipeProcessor*> Processors, FPipeContext& Pip
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunProcessorsView")
 
-	FLWComponentSystemExecutionContext ExecutionContext(PipeContext.DeltaSeconds);
+	FMassExecutionContext ExecutionContext(PipeContext.DeltaSeconds);
 	if (ChunkCollection)
 	{
 		ExecutionContext.SetChunkCollection(*ChunkCollection);
 	}
 	// manually creating a new command buffer to let the default one still be used by code unaware of pipe processing
-	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FLWCCommandBuffer()));
+	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
 	ExecutionContext.SetFlushDeferredCommands(false);
 	ExecutionContext.SetAuxData(PipeContext.AuxData);
 
@@ -99,7 +99,7 @@ void RunProcessorsView(TArrayView<UPipeProcessor*> Processors, FPipeContext& Pip
 		
 		UMassEntitySubsystem::FScopedProcessing ProcessingScope = PipeContext.EntitySubsystem->NewProcessingScope();
 
-		for (UPipeProcessor* Proc : Processors)
+		for (UMassProcessor* Proc : Processors)
 		{
 			Proc->CallExecute(*PipeContext.EntitySubsystem, ExecutionContext);
 		}
@@ -117,7 +117,7 @@ void RunProcessorsView(TArrayView<UPipeProcessor*> Processors, FPipeContext& Pip
 
 struct FPipeExecutorDoneTask
 {
-	FPipeExecutorDoneTask(const FLWComponentSystemExecutionContext& InExecutionContext, UMassEntitySubsystem& InEntitySubsystem, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
+	FPipeExecutorDoneTask(const FMassExecutionContext& InExecutionContext, UMassEntitySubsystem& InEntitySubsystem, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
 		: ExecutionContext(InExecutionContext)
 		, EntitySubsystem(InEntitySubsystem)
 		, OnDoneNotification(InOnDoneNotification)
@@ -147,13 +147,13 @@ struct FPipeExecutorDoneTask
 		OnDoneNotification();
 	}
 private:
-	FLWComponentSystemExecutionContext ExecutionContext;
+	FMassExecutionContext ExecutionContext;
 	UMassEntitySubsystem& EntitySubsystem;
 	TFunction<void()> OnDoneNotification;
 	FString DebugName;
 };
 
-FGraphEventRef TriggerParallelTasks(UPipeProcessor& Processor, FPipeContext& PipeContext, TFunction<void()> OnDoneNotification)
+FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingContext& PipeContext, TFunction<void()> OnDoneNotification)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RunProcessorsView);
 
@@ -166,8 +166,8 @@ FGraphEventRef TriggerParallelTasks(UPipeProcessor& Processor, FPipeContext& Pip
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("PipeExecutor RunParallel")
 
 	// not going through UMassEntitySubsystem::CreateExecutionContext on purpose - we do need a separate command buffer
-	FLWComponentSystemExecutionContext ExecutionContext(PipeContext.DeltaSeconds);
-	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FLWCCommandBuffer()));
+	FMassExecutionContext ExecutionContext(PipeContext.DeltaSeconds);
+	ExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
 	ExecutionContext.SetFlushDeferredCommands(false);
 	ExecutionContext.SetAuxData(PipeContext.AuxData);
 

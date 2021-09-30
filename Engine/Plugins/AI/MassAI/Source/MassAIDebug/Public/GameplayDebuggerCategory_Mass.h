@@ -24,7 +24,7 @@ protected:
 	virtual void CollectData(APlayerController* OwnerPC, AActor* DebugActor) override;
 	virtual void DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext) override;
 	
-	void SetCachedEntity(FLWEntity BestEntity, UMassDebuggerSubsystem& Debugger);
+	void SetCachedEntity(FMassEntityHandle BestEntity, UMassDebuggerSubsystem& Debugger);
 
 	void OnToggleArchetypes() { bShowArchetypes = !bShowArchetypes; }
 	void OnToggleShapes() { bShowShapes = !bShowShapes; }
@@ -39,7 +39,7 @@ protected:
 
 protected:
 	AActor* CachedDebugActor;
-	FLWEntity CachedEntity;
+	FMassEntityHandle CachedEntity;
 	bool bShowArchetypes;
 	bool bShowShapes;
 	bool bShowAgentFragments;

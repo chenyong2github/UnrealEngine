@@ -54,31 +54,31 @@ UPipeTestProcessorBase::UPipeTestProcessorBase()
 	bAutoRegisterWithProcessingPhases = false;
 	ExecutionFlags = int32(EProcessorExecutionFlags::All);
 
-	ExecutionFunction = [](UMassEntitySubsystem& InEntitySubsystem, FLWComponentSystemExecutionContext& Context) {};
-	RequirementsFunction = [](FLWComponentQuery& Query){};
+	ExecutionFunction = [](UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& Context) {};
+	RequirementsFunction = [](FMassEntityQuery& Query){};
 }
 
 UPipeTestProcessor_Floats::UPipeTestProcessor_Floats()
 {
-	RequirementsFunction = [this](FLWComponentQuery& Query)
+	RequirementsFunction = [this](FMassEntityQuery& Query)
 	{
-		EntityQuery.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
 	};
 }
 
 UPipeTestProcessor_Ints::UPipeTestProcessor_Ints()
 {
-	RequirementsFunction = [this](FLWComponentQuery& Query)
+	RequirementsFunction = [this](FMassEntityQuery& Query)
 	{
-		EntityQuery.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
 	};
 }
 
 UPipeTestProcessor_FloatsInts::UPipeTestProcessor_FloatsInts()
 {
-	RequirementsFunction = [this](FLWComponentQuery& Query)
+	RequirementsFunction = [this](FMassEntityQuery& Query)
 	{
-		EntityQuery.AddRequirement<FTestFragment_Float>(ELWComponentAccess::ReadWrite);
-		EntityQuery.AddRequirement<FTestFragment_Int>(ELWComponentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadWrite);
+		EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
 	};
 }

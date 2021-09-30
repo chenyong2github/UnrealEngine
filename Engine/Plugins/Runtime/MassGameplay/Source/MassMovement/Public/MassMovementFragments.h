@@ -8,7 +8,7 @@
 #include "MassMovementFragments.generated.h"
 
 USTRUCT()
-struct MASSMOVEMENT_API FMassVelocityFragment : public FLWComponentData
+struct MASSMOVEMENT_API FMassVelocityFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

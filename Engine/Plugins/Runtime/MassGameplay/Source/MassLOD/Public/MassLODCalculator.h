@@ -43,7 +43,7 @@ public:
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
 	 */
 	template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-	void CalculateLOD(FLWComponentSystemExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList);
+	void CalculateLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList);
 
 	/**
 	 * Adjust LOD distances by clamping them to respect the maximum LOD count
@@ -58,7 +58,7 @@ public:
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
 	 */
 	template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-	void AdjustLODFromCount(FLWComponentSystemExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList);
+	void AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList);
 
 	/**
 	 * Turn Off all LOD, called for each entity chunks
@@ -66,7 +66,7 @@ public:
 	 * @Param LODList is the fragment where calculation are stored
 	 */
 	template <typename FMassLODResultInfo>
-	void ForceOffLOD(FLWComponentSystemExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList);
+	void ForceOffLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList);
 
 	/**
 	 * Debug draw the current state of each agent as a color coded square
@@ -76,7 +76,7 @@ public:
 	 * @Param World where the debug display should be drawn
 	 */
 	template< typename FMassLODResultInfo, typename TFragmentLocation >
-	void DebugDisplayLOD(FLWComponentSystemExecutionContext& Context, TConstArrayView<FMassLODResultInfo> LODList, TConstArrayView<TFragmentLocation> LocationList, UWorld* World);
+	void DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<FMassLODResultInfo> LODList, TConstArrayView<TFragmentLocation> LocationList, UWorld* World);
 
 protected:
 
@@ -261,7 +261,7 @@ float TMassLODCalculator<FLODLogic>::AccumulateCountInRuntimeData(const EMassLOD
 
 template <typename FLODLogic>
 template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-void TMassLODCalculator<FLODLogic>::CalculateLOD(FLWComponentSystemExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
+void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	if (UE::MassLOD::Debug::bLODCalculationsPaused)
@@ -445,7 +445,7 @@ bool TMassLODCalculator<FLODLogic>::AdjustDistancesFromCount()
 
 template <typename FLODLogic>
 template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FLWComponentSystemExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
+void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
 {
 	const int32 NumEntities = Context.GetEntitiesNum();
 	// Adjust LOD for each viewer and remember the new highest
@@ -516,7 +516,7 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FLWComponentSystemExecuti
 
 template <typename FLODLogic>
 template <typename FMassLODResultInfo>
-void TMassLODCalculator<FLODLogic>::ForceOffLOD(FLWComponentSystemExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList)
+void TMassLODCalculator<FLODLogic>::ForceOffLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList)
 {
 	const int32 NumEntities = Context.GetEntitiesNum();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
@@ -537,7 +537,7 @@ void TMassLODCalculator<FLODLogic>::ForceOffLOD(FLWComponentSystemExecutionConte
 
 template <typename FLODLogic>
 template< typename FMassLODResultInfo, typename TFragmentLocation >
-void TMassLODCalculator<FLODLogic>::DebugDisplayLOD(FLWComponentSystemExecutionContext& Context, TConstArrayView<FMassLODResultInfo> LODList, TConstArrayView<TFragmentLocation> LocationList, UWorld* World)
+void TMassLODCalculator<FLODLogic>::DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<FMassLODResultInfo> LODList, TConstArrayView<TFragmentLocation> LocationList, UWorld* World)
 {
 	const int32 NumEntities = Context.GetEntitiesNum();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)

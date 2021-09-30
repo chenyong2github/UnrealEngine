@@ -17,13 +17,13 @@ uint64 FMassSignalNameLookup::GetOrAddSignalName(const FName SignalName)
 	return 1ULL << Index;
 }
 
-void FMassSignalNameLookup::AddSignalToEntity(const FLWEntity Entity, const uint64 SignalFlag)
+void FMassSignalNameLookup::AddSignalToEntity(const FMassEntityHandle Entity, const uint64 SignalFlag)
 {
 	uint64& Signals = EntitySignals.FindOrAdd(Entity, 0);
 	Signals |= SignalFlag;
 }
 
-void FMassSignalNameLookup::GetSignalsForEntity(const FLWEntity Entity, TArray<FName>& OutSignals) const
+void FMassSignalNameLookup::GetSignalsForEntity(const FMassEntityHandle Entity, TArray<FName>& OutSignals) const
 {
 	OutSignals.Reset();
 	if (const uint64* Signals = EntitySignals.Find(Entity))

@@ -423,7 +423,7 @@ FMassBubbleInfoClassHandle UMassReplicationManager::GetBubbleInfoClassHandle(con
 }
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-void UMassReplicationManager::SetEntity(const FMassNetworkID NetworkID, const FLWEntity Entity)
+void UMassReplicationManager::SetEntity(const FMassNetworkID NetworkID, const FMassEntityHandle Entity)
 {
 	FMassReplicationEntityInfo* EntityInfo = FindMassEntityInfoMutable(NetworkID);
 	check(EntityInfo && !EntityInfo->Entity.IsSet());
@@ -434,9 +434,9 @@ void UMassReplicationManager::SetEntity(const FMassNetworkID NetworkID, const FL
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-FLWEntity UMassReplicationManager::ResetEntityIfValid(const FMassNetworkID NetworkID, int32 ReplicationID)
+FMassEntityHandle UMassReplicationManager::ResetEntityIfValid(const FMassNetworkID NetworkID, int32 ReplicationID)
 {
-	FLWEntity EntityReset;
+	FMassEntityHandle EntityReset;
 
 	FMassReplicationEntityInfo* EntityInfo = FindMassEntityInfoMutable(NetworkID);
 
@@ -452,7 +452,7 @@ FLWEntity UMassReplicationManager::ResetEntityIfValid(const FMassNetworkID Netwo
 		EntityReset = EntityInfo->Entity;
 
 		//Unset the Entity handle, this indicates that its currently removed from the bubble
-		EntityInfo->Entity = FLWEntity();
+		EntityInfo->Entity = FMassEntityHandle();
 	}
 
 	return EntityReset;
@@ -489,7 +489,7 @@ UMassReplicationManager::EFindOrAddMassEntityInfo UMassReplicationManager::FindA
 	}
 	else
 	{
-		MassEntityInfo = &EntityInfoMap.Add(NetworkID, FMassReplicationEntityInfo(FLWEntity(), ReplicationID));
+		MassEntityInfo = &EntityInfoMap.Add(NetworkID, FMassReplicationEntityInfo(FMassEntityHandle(), ReplicationID));
 		FindOrAddStatus = EFindOrAddMassEntityInfo::Added;
 	}
 
@@ -515,11 +515,11 @@ FMassReplicationEntityInfo* UMassReplicationManager::FindMassEntityInfoMutable(c
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 
 #if UE_REPLICATION_COMPILE_CLIENT_CODE
-FLWEntity UMassReplicationManager::FindEntity(const FMassNetworkID NetworkID) const
+FMassEntityHandle UMassReplicationManager::FindEntity(const FMassNetworkID NetworkID) const
 {
 	check(NetworkID.IsValid());
 	const FMassReplicationEntityInfo* Info = EntityInfoMap.Find(NetworkID);
-	return Info ? Info->Entity : FLWEntity();
+	return Info ? Info->Entity : FMassEntityHandle();
 }
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 

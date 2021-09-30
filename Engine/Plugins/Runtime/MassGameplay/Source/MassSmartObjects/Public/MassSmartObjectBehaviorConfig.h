@@ -7,8 +7,8 @@
 
 class UMassEntitySubsystem;
 class USmartObjectSubsystem;
-struct FLWEntity;
-struct FLWComponentSystemExecutionContext;
+struct FMassEntityHandle;
+struct FMassExecutionContext;
 struct FDataFragment_Transform;
 struct FDataFragment_SmartObjectUser;
 
@@ -19,11 +19,11 @@ struct MASSSMARTOBJECTS_API FMassBehaviorEntityContext
 {
 	FMassBehaviorEntityContext() = delete;
 
-	FMassBehaviorEntityContext(const FLWEntity& InEntity, const FDataFragment_Transform& InTransformFragment, FDataFragment_SmartObjectUser& InSOUser, USmartObjectSubsystem& InSubsystem)
+	FMassBehaviorEntityContext(const FMassEntityHandle& InEntity, const FDataFragment_Transform& InTransformFragment, FDataFragment_SmartObjectUser& InSOUser, USmartObjectSubsystem& InSubsystem)
 		: Entity(InEntity), TransformFragment(InTransformFragment), SOUser(InSOUser), Subsystem(InSubsystem)
 	{}
 
-	const FLWEntity& Entity;
+	const FMassEntityHandle& Entity;
 	const FDataFragment_Transform& TransformFragment;
 	FDataFragment_SmartObjectUser& SOUser;
 	USmartObjectSubsystem& Subsystem;
@@ -43,7 +43,7 @@ public:
 	 * This virtual method allows subclasses to configure the LW Entity based on their
 	 * parameters (e.g. Add new fragments)
 	 */
-	virtual void Activate(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, const FMassBehaviorEntityContext& EntityContext) const;
+	virtual void Activate(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, const FMassBehaviorEntityContext& EntityContext) const;
 
 	/**
 	 * Indicates the amount of time the LW entity

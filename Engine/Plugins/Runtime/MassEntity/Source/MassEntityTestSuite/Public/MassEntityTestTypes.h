@@ -13,21 +13,21 @@ class UWorld;
 class UMassEntitySubsystem;
 
 USTRUCT()
-struct FTestFragment_Float : public FLWComponentData
+struct FTestFragment_Float : public FMassFragment
 {
 	GENERATED_BODY()
 	float Value = 0;
 };
 
 USTRUCT()
-struct FTestFragment_Int : public FLWComponentData
+struct FTestFragment_Int : public FMassFragment
 {
 	GENERATED_BODY()
 	int32 Value = 0;
 };
 
 USTRUCT()
-struct FTestFragment_Bool : public FLWComponentData
+struct FTestFragment_Bool : public FMassFragment
 {
 	GENERATED_BODY()
 	bool bValue = false;
@@ -35,44 +35,44 @@ struct FTestFragment_Bool : public FLWComponentData
 
 /** @todo rename to FTestTag */
 USTRUCT()
-struct FTestFragment_Tag : public FComponentTag
+struct FTestFragment_Tag : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct FTestTag_A : public FComponentTag
+struct FTestTag_A : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct FTestTag_B : public FComponentTag
+struct FTestTag_B : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct FTestTag_C : public FComponentTag
+struct FTestTag_C : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 USTRUCT()
-struct FTestTag_D : public FComponentTag
+struct FTestTag_D : public FMassTag
 {
 	GENERATED_BODY()
 };
 
 
 UCLASS()
-class UPipeTestProcessorBase : public UPipeProcessor
+class UPipeTestProcessorBase : public UMassProcessor
 {
 	GENERATED_BODY()
 public:
 	UPipeTestProcessorBase();
-	FPipeProcessorExecutionOrder& GetMutableExecutionOrder() { return ExecutionOrder; }
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context) override 
+	FMassProcessorExecutionOrder& GetMutableExecutionOrder() { return ExecutionOrder; }
+	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override 
 	{
 		ExecutionFunction(EntitySubsystem, Context);
 	}
@@ -81,13 +81,13 @@ public:
 		RequirementsFunction(EntityQuery);
 	}
 
-	TFunction<void(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)> ExecutionFunction;
-	TFunction<void(FLWComponentQuery& Query)> RequirementsFunction;
+	TFunction<void(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)> ExecutionFunction;
+	TFunction<void(FMassEntityQuery& Query)> RequirementsFunction;
 
-	FLWComponentQuery& TestGetQuery() { return EntityQuery; }
+	FMassEntityQuery& TestGetQuery() { return EntityQuery; }
 
 protected:
-	FLWComponentQuery EntityQuery;
+	FMassEntityQuery EntityQuery;
 };
 
 UCLASS()

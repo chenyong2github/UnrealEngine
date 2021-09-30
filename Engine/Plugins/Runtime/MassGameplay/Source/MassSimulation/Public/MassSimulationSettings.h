@@ -7,7 +7,7 @@
 
 #define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassSimulationSettings>()->a)
 
-class UPipeSchematic;
+class UMassSchematic;
 
 /**
  * Implements the settings for MassSimulation
@@ -26,12 +26,12 @@ public:
 protected:
 	virtual void PostInitProperties() override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OnAssetPropertiesChanged(UPipeSchematic* PipeSchematic, const FPropertyChangedEvent& PropertyChangedEvent);	
+	void OnAssetPropertiesChanged(UMassSchematic* MassSchematic, const FPropertyChangedEvent& PropertyChangedEvent);	
 #endif // WITH_EDITOR
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = "Runtime", config, meta=(DisplayName="DEPRECATED_TickSchematics"))
-	TArray<TSoftObjectPtr<UPipeSchematic>> TickSchematics;
+	TArray<TSoftObjectPtr<UMassSchematic>> TickSchematics;
 
 	/** The desired budget in seconds allowed to do actor spawning per frame */
 	UPROPERTY(EditDefaultsOnly, Category = "Runtime", config)

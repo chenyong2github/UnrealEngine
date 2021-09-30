@@ -33,7 +33,7 @@ struct FDependencySolverBase : FAITestBase
 	void Solve()
 	{
 		Result.Reset();
-		FProcessorDependencySolver Solver(MakeArrayView((UPipeProcessor**)Processors.GetData(), Processors.Num()), TEXT("Test") );
+		FProcessorDependencySolver Solver(MakeArrayView((UMassProcessor**)Processors.GetData(), Processors.Num()), TEXT("Test") );
 		Solver.ResolveDependencies(Result);
 	}
 };	

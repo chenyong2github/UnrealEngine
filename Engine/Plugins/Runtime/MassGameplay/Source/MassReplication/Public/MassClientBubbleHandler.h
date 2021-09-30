@@ -49,7 +49,7 @@ protected:
 /** Data that can be accessed from a FMassReplicatedAgentHandle on a server */
 struct FMassAgentLookupData
 {
-	FMassAgentLookupData(FLWEntity InEntity, FMassNetworkID InNetID, int32 InAgentsIdx)
+	FMassAgentLookupData(FMassEntityHandle InEntity, FMassNetworkID InNetID, int32 InAgentsIdx)
 		: Entity(InEntity)
 		, NetID(InNetID)
 		, AgentsIdx(InAgentsIdx)
@@ -57,7 +57,7 @@ struct FMassAgentLookupData
 
 	void Invalidate()
 	{
-		Entity = FLWEntity();
+		Entity = FMassEntityHandle();
 		NetID.Invalidate();
 		AgentsIdx = INDEX_NONE;
 	}
@@ -67,7 +67,7 @@ struct FMassAgentLookupData
 		return Entity.IsSet() && NetID.IsValid() && (AgentsIdx >= 0);
 	}
 
-	FLWEntity Entity;
+	FMassEntityHandle Entity;
 	FMassNetworkID NetID;
 	int32 AgentsIdx  = INDEX_NONE;
 };
@@ -131,10 +131,10 @@ public:
 	template<typename T>
 	friend class TMassClientBubbleTransformHandler;
 
-	typedef TFunctionRef<void(FLWComponentQuery&)> FAddRequirementsForSpawnQueryFunction;
-	typedef TFunctionRef<void(FLWComponentSystemExecutionContext&)> FCacheComponentViewsForSpawnQueryFunction;
-	typedef TFunctionRef<void(const FEntityView&, const typename AgentArrayItem::FReplicatedAgentType&, const int32)> FSetSpawnedEntityDataFunction;
-	typedef TFunctionRef<void(const FEntityView&, const typename AgentArrayItem::FReplicatedAgentType&)> FSetModifiedEntityDataFunction;
+	typedef TFunctionRef<void(FMassEntityQuery&)> FAddRequirementsForSpawnQueryFunction;
+	typedef TFunctionRef<void(FMassExecutionContext&)> FCacheComponentViewsForSpawnQueryFunction;
+	typedef TFunctionRef<void(const FMassEntityView&, const typename AgentArrayItem::FReplicatedAgentType&, const int32)> FSetSpawnedEntityDataFunction;
+	typedef TFunctionRef<void(const FMassEntityView&, const typename AgentArrayItem::FReplicatedAgentType&)> FSetModifiedEntityDataFunction;
 
 	/** This must be called from outside before InitializeForWorld() is called. Its called from agent specific bubble implementations */
 	virtual void Initialize(TArray<AgentArrayItem>& InAgents, FMassClientBubbleSerializerBase& InSerializer);
@@ -142,7 +142,7 @@ public:
 	virtual void InitializeForWorld(UWorld& InWorld) override;
 
 #if UE_REPLICATION_COMPILE_SERVER_CODE
-	FMassReplicatedAgentHandle AddAgent(FLWEntity Entity, typename AgentArrayItem::FReplicatedAgentType& Agent);
+	FMassReplicatedAgentHandle AddAgent(FMassEntityHandle Entity, typename AgentArrayItem::FReplicatedAgentType& Agent);
 
 	bool RemoveAgent(FMassNetworkID NetID);
 	bool RemoveAgent(FMassReplicatedAgentHandle AgentHandle);
@@ -236,7 +236,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::InitializeForWorld(UWorld& InWorl
 
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 template<typename AgentArrayItem>
-FMassReplicatedAgentHandle TClientBubbleHandlerBase<AgentArrayItem>::AddAgent(FLWEntity Entity, typename AgentArrayItem::FReplicatedAgentType& Agent)
+FMassReplicatedAgentHandle TClientBubbleHandlerBase<AgentArrayItem>::AddAgent(FMassEntityHandle Entity, typename AgentArrayItem::FReplicatedAgentType& Agent)
 {
 	checkf(Agent.GetNetID().IsValid(), TEXT("Agent.NetID must be valid!"));
 	checkf(NetworkIDToAgentHandleMap.Find(Agent.GetNetID()) == nullptr, TEXT("Only add agents once"));
@@ -381,7 +381,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::UpdateAgentsToRemove()
 template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize)
 {
-	TMap<FMassEntityTemplateID, TArray<FLWEntity>> EntitiesToDestroy;
+	TMap<FMassEntityTemplateID, TArray<FMassEntityHandle>> EntitiesToDestroy;
 
 	UWorld* World = Serializer->GetWorld();
 	check(World);
@@ -396,13 +396,13 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PreReplicatedRemove(const TArrayV
 	{
 		const AgentArrayItem& RemovedItem = (*Agents)[Idx];
 
-		FLWEntity Entity = ReplicationManager->ResetEntityIfValid(RemovedItem.Agent.GetNetID(), RemovedItem.ReplicationID);
+		FMassEntityHandle Entity = ReplicationManager->ResetEntityIfValid(RemovedItem.Agent.GetNetID(), RemovedItem.ReplicationID);
 
 		// Only remove the item if its currently Set / Valid and its the most recent ReplicationID. Stale removes after more recent adds are ignored
 		// We do need to check the ReplicationID in this case
 		if (Entity.IsSet())
 		{
-			TArray<FLWEntity>& EntityArray = EntitiesToDestroy.FindOrAdd(RemovedItem.Agent.GetTemplateID());
+			TArray<FMassEntityHandle>& EntityArray = EntitiesToDestroy.FindOrAdd(RemovedItem.Agent.GetTemplateID());
 			EntityArray.Push(Entity);
 
 			check(AgentsRemoveDataMap.Find(RemovedItem.Agent.GetNetID()) == nullptr);
@@ -411,10 +411,10 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PreReplicatedRemove(const TArrayV
 	}
 
 	// Batch destroy agents per template
-	for (const TPair<FMassEntityTemplateID, TArray<FLWEntity>>& Item : EntitiesToDestroy)
+	for (const TPair<FMassEntityTemplateID, TArray<FMassEntityHandle>>& Item : EntitiesToDestroy)
 	{
 		const FMassEntityTemplateID& TemplateID = Item.Key;
-		const TArray<FLWEntity>& EntityArray = Item.Value;
+		const TArray<FMassEntityHandle>& EntityArray = Item.Value;
 		SpawnerSubsystem->DestroyEntities(TemplateID, EntityArray);
 	}
 }
@@ -425,7 +425,7 @@ template<typename AgentArrayItem>
 void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TArrayView<int32> AddedIndices, FAddRequirementsForSpawnQueryFunction AddRequirementsForSpawnQuery
 	, FCacheComponentViewsForSpawnQueryFunction CacheComponentViewsForSpawnQuery, FSetSpawnedEntityDataFunction SetSpawnedEntityData, FSetModifiedEntityDataFunction SetModifiedEntityData)
 {
-	TArray<FLWEntity> EntitiesDestroy;
+	TArray<FMassEntityHandle> EntitiesDestroy;
 
 	UMassEntitySubsystem* EntitySystem = Serializer->GetEntitySystem();
 	check(EntitySystem);
@@ -454,7 +454,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddHelper(const TAr
 			// If EntityData IsSet() it means we have had multiple Adds without a remove and we treat this add as modifying an existing agent.
 			if (EntityInfo->Entity.IsSet())
 			{
-				FEntityView EntityView(*EntitySystem, EntityInfo->Entity);
+				FMassEntityView EntityView(*EntitySystem, EntityInfo->Entity);
 
 				SetModifiedEntityData(EntityView, AddedItem.Agent);
 			}
@@ -536,7 +536,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 		Config.MinNumber = AgentsSpawn.Num();
 		Config.MaxNumber = AgentsSpawn.Num();
 
-		TArray<FLWEntity> Entities;
+		TArray<FMassEntityHandle> Entities;
 
 		SpawnerSubsystem->SpawnEntities(TemplateID, Config, FStructView(), Entities);
 
@@ -545,16 +545,16 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 		const FArchetypeHandle& ArchetypeHandle = MassEntityTemplate->GetArchetype();
 
 
-		FLWComponentSystemExecutionContext ExecContext;
-		FLWComponentQuery Query;
+		FMassExecutionContext ExecContext;
+		FMassEntityQuery Query;
 
 		AddRequirementsForSpawnQuery(Query);
 
-		Query.AddRequirement<FMassNetworkIDFragment>(ELWComponentAccess::ReadWrite);
+		Query.AddRequirement<FMassNetworkIDFragment>(EMassFragmentAccess::ReadWrite);
 
 		int32 AgentsSpawnIdx = 0;
 
-		Query.ForEachEntityChunk(FArchetypeChunkCollection(ArchetypeHandle, Entities), *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationManager, &ExecContext, &CacheComponentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FLWComponentSystemExecutionContext& Context)
+		Query.ForEachEntityChunk(FArchetypeChunkCollection(ArchetypeHandle, Entities), *EntitySystem, ExecContext, [&AgentsSpawn, &AgentsSpawnIdx, this, ReplicationManager, &ExecContext, &CacheComponentViewsForSpawnQuery, &SetSpawnedEntityData, &EntitySystem](FMassExecutionContext& Context)
 			{
 				CacheComponentViewsForSpawnQuery(ExecContext);
 
@@ -563,14 +563,14 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 				for (int32 i = 0; i < Context.GetEntitiesNum(); ++i)
 				{
 					const typename AgentArrayItem::FReplicatedAgentType& AgentSpawn = *AgentsSpawn[AgentsSpawnIdx];
-					const FLWEntity Entity = Context.GetEntity(i);
+					const FMassEntityHandle Entity = Context.GetEntity(i);
 
 					FMassNetworkIDFragment& NetIDFragment = NetworkIDList[i];
 
 					NetIDFragment.NetID = AgentSpawn.GetNetID();
 					ReplicationManager->SetEntity(NetIDFragment.NetID, Entity);
 
-					FEntityView EntityView(*EntitySystem, Entity);
+					FMassEntityView EntityView(*EntitySystem, Entity);
 					SetSpawnedEntityData(EntityView, AgentSpawn, i);
 
 					++AgentsSpawnIdx;
@@ -603,7 +603,7 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedChangeHelper(const 
 		// Currently we don't think this should be needed, but are leaving it in for bomb proofing.
 		if (ensure(EntityInfo->ReplicationID == ChangedItem.ReplicationID))
 		{
-			FEntityView EntityView(*EntitySystem, EntityInfo->Entity);
+			FMassEntityView EntityView(*EntitySystem, EntityInfo->Entity);
 			SetModifiedEntityData(EntityView, ChangedItem.Agent);
 		}
 	}

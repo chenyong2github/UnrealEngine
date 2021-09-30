@@ -58,7 +58,7 @@ namespace UE::MassMovement
 		FAutoConsoleVariableRef(TEXT("ai.mass.AvoidDistance"), Tweakables::AvoidDistanceCutOff, TEXT(""), ECVF_Default), FAutoConsoleVariableRef(TEXT("ai.mass.AvoidRadius"), Tweakables::AvoidAgentRadius, TEXT(""), ECVF_Default), FAutoConsoleVariableRef(TEXT("ai.mass.AvoidMaxForce"), Tweakables::AvoidMaxForce, TEXT(""), ECVF_Default), FAutoConsoleVariableRef(TEXT("ai.mass.AvoidTimeHorizon"), Tweakables::AvoidTimeHorizon, TEXT(""), ECVF_Default)
 	};
 
- 	static bool DebugIsSelected(const FLWEntity& Entity)
+ 	static bool DebugIsSelected(const FMassEntityHandle& Entity)
  	{
  #if WITH_MASSGAMEPLAY_DEBUG
  		return UE::MassDebug::IsDebuggingEntity(Entity);
@@ -114,17 +114,17 @@ UMassProcessor_Movement::UMassProcessor_Movement()
 //----------------------------------------------------------------------//
 void UMassProcessor_Movement::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadWrite);
-	EntityQuery.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassProcessor_Movement::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassProcessor_Movement::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(MovementProcessor_Run);
 
 	const float TimeDelta = Context.GetDeltaTimeSeconds();
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, TimeDelta](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, TimeDelta](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 			const TArrayView<FDataFragment_Transform> LocationList = Context.GetMutableComponentView<FDataFragment_Transform>();
@@ -153,7 +153,7 @@ UMassProcessor_AgentMovement::UMassProcessor_AgentMovement()
 void UMassProcessor_AgentMovement::ConfigureQueries()
 {
 	Super::ConfigureQueries();
-	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(ELWComponentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FDataFragment_AgentRadius>(EMassFragmentAccess::ReadOnly);
 }
 
 //----------------------------------------------------------------------//
@@ -167,7 +167,7 @@ UMassAvoidanceObstacleRemoverFragmentDestructor::UMassAvoidanceObstacleRemoverFr
 
 void UMassAvoidanceObstacleRemoverFragmentDestructor::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassAvoidanceObstacleGridCellLocationFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassAvoidanceObstacleGridCellLocationFragment>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassAvoidanceObstacleRemoverFragmentDestructor::Initialize(UObject& Owner)
@@ -176,7 +176,7 @@ void UMassAvoidanceObstacleRemoverFragmentDestructor::Initialize(UObject& Owner)
 	WeakMovementSubsystem = UWorld::GetSubsystem<UMassMovementSubsystem>(Owner.GetWorld());
 }
 
-void UMassAvoidanceObstacleRemoverFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassAvoidanceObstacleRemoverFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	UMassMovementSubsystem* MovementSubsystem = WeakMovementSubsystem.Get();
 	if (!MovementSubsystem)
@@ -184,7 +184,7 @@ void UMassAvoidanceObstacleRemoverFragmentDestructor::Execute(UMassEntitySubsyst
 		return;
 	}
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, MovementSubsystem](FMassExecutionContext& Context)
 		{
 			const int32 NumEntities = Context.GetEntitiesNum();
 			const TArrayView<FMassAvoidanceObstacleGridCellLocationFragment> AvoidanceObstacleCellLocationList = Context.GetMutableComponentView<FMassAvoidanceObstacleGridCellLocationFragment>();
@@ -209,12 +209,12 @@ UVelocityFragmentInitializer::UVelocityFragmentInitializer()
 
 void UVelocityFragmentInitializer::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FMassVelocityFragment>(ELWComponentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadWrite);
 }
 
-void UVelocityFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UVelocityFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
 			const TArrayView<FMassVelocityFragment> VelocitiesList = Context.GetMutableComponentView<FMassVelocityFragment>();
 			for (FMassVelocityFragment& VelocityFragment : VelocitiesList)

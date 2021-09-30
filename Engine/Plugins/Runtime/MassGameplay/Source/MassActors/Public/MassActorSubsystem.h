@@ -104,7 +104,7 @@ protected:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	// USubsystem END
 	
-	TMap<TObjectKey<const AActor>, FLWEntity> ActorHandleMap;
+	TMap<TObjectKey<const AActor>, FMassEntityHandle> ActorHandleMap;
 	UE_MT_DECLARE_RW_ACCESS_DETECTOR(ActorHandleMapDetector);
 	
 	UPROPERTY()

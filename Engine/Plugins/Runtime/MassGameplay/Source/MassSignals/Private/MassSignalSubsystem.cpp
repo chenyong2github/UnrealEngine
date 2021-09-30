@@ -32,13 +32,13 @@ TStatId UMassSignalSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UMassSignalSubsystem, STATGROUP_Tickables);
 }
 
-void UMassSignalSubsystem::SignalEntity(FName SignalName, const FLWEntity Entity)
+void UMassSignalSubsystem::SignalEntity(FName SignalName, const FMassEntityHandle Entity)
 {
 	checkf(Entity.IsSet(), TEXT("Expecting a valid entity to signal"));
 	SignalEntities(SignalName, MakeArrayView(&Entity, 1));
 }
 
-void UMassSignalSubsystem::SignalEntities(FName SignalName, TConstArrayView<FLWEntity> Entities)
+void UMassSignalSubsystem::SignalEntities(FName SignalName, TConstArrayView<FMassEntityHandle> Entities)
 {
 	checkf(Entities.Num() > 0, TEXT("Expecting entities to signal"));
 	const UE::MassSignal::FSignalDelegate& SignalDelegate = GetSignalDelegateByName(SignalName);
@@ -52,13 +52,13 @@ void UMassSignalSubsystem::SignalEntities(FName SignalName, TConstArrayView<FLWE
 	UE_CVLOG(Entities.Num() > 1, this, LogMassSignals, Log, TEXT("Raising signal [%s] to %d entities"), *SignalName.ToString(), Entities.Num());
 }
 
-void UMassSignalSubsystem::DelaySignalEntity(FName SignalName, const FLWEntity Entity, const float DelayInSeconds)
+void UMassSignalSubsystem::DelaySignalEntity(FName SignalName, const FMassEntityHandle Entity, const float DelayInSeconds)
 {
 	checkf(Entity.IsSet(), TEXT("Expecting a valid entity to signal"));
 	DelaySignalEntities(SignalName, MakeArrayView(&Entity, 1), DelayInSeconds);
 }
 
-void UMassSignalSubsystem::DelaySignalEntities(FName SignalName, TConstArrayView<FLWEntity> Entities, const float DelayInSeconds)
+void UMassSignalSubsystem::DelaySignalEntities(FName SignalName, TConstArrayView<FMassEntityHandle> Entities, const float DelayInSeconds)
 {
 	FDelayedSignal& DelayedSignal = DelayedSignals.Emplace_GetRef();
 	DelayedSignal.SignalName = SignalName;
@@ -68,13 +68,13 @@ void UMassSignalSubsystem::DelaySignalEntities(FName SignalName, TConstArrayView
 	UE_CVLOG(Entities.Num() > 1,this, LogMassSignals, Log, TEXT("Delay signal [%s] to %d entities in %.2f"), *SignalName.ToString(), Entities.Num(), DelayInSeconds);
 }
 
-void UMassSignalSubsystem::SignalEntityDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, const FLWEntity Entity)
+void UMassSignalSubsystem::SignalEntityDeferred(FMassExecutionContext& Context, FName SignalName, const FMassEntityHandle Entity)
 {
 	checkf(Entity.IsSet(), TEXT("Expecting a valid entity to signal"));
 	SignalEntitiesDeferred(Context, SignalName, MakeArrayView(&Entity, 1));
 }
 
-void UMassSignalSubsystem::SignalEntitiesDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, TConstArrayView<FLWEntity> Entities)
+void UMassSignalSubsystem::SignalEntitiesDeferred(FMassExecutionContext& Context, FName SignalName, TConstArrayView<FMassEntityHandle> Entities)
 {
 	checkf(Entities.Num() > 0, TEXT("Expecting entities to signal"));
 	Context.Defer().EmplaceCommand<FDeferredCommand>([SignalName, Entities](const UMassEntitySubsystem& System)
@@ -87,13 +87,13 @@ void UMassSignalSubsystem::SignalEntitiesDeferred(FLWComponentSystemExecutionCon
 	UE_CVLOG(Entities.Num() > 1, this, LogMassSignals, Log, TEXT("Raising deferred signal [%s] to %d entities"), *SignalName.ToString(), Entities.Num());
 }
 
-void UMassSignalSubsystem::DelaySignalEntityDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, const FLWEntity Entity, const float DelayInSeconds)
+void UMassSignalSubsystem::DelaySignalEntityDeferred(FMassExecutionContext& Context, FName SignalName, const FMassEntityHandle Entity, const float DelayInSeconds)
 {
 	checkf(Entity.IsSet(), TEXT("Expecting a valid entity to signal"));
 	DelaySignalEntitiesDeferred(Context, SignalName, MakeArrayView(&Entity, 1), DelayInSeconds);
 }
 
-void UMassSignalSubsystem::DelaySignalEntitiesDeferred(FLWComponentSystemExecutionContext& Context, FName SignalName, TConstArrayView<FLWEntity> Entities, const float DelayInSeconds)
+void UMassSignalSubsystem::DelaySignalEntitiesDeferred(FMassExecutionContext& Context, FName SignalName, TConstArrayView<FMassEntityHandle> Entities, const float DelayInSeconds)
 {
 	checkf(Entities.Num() > 0, TEXT("Expecting entities to signal"));
 	Context.Defer().EmplaceCommand<FDeferredCommand>([SignalName, Entities, DelayInSeconds](const UMassEntitySubsystem& System)

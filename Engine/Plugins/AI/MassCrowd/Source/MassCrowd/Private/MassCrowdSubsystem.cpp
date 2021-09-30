@@ -364,7 +364,7 @@ const FRegisteredCrowdLaneData* UMassCrowdSubsystem::GetCrowdData(const FZoneGra
 	return &LanesData;
 }
 
-void UMassCrowdSubsystem::OnEntityLaneChanged(const FLWEntity& Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle)
+void UMassCrowdSubsystem::OnEntityLaneChanged(const FMassEntityHandle& Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle)
 {
 	const bool bPreviousLocationValid = PreviousLaneHandle.IsValid();
 	const bool bCurrentLocationValid = CurrentLaneHandle.IsValid();
@@ -544,14 +544,14 @@ void UMassCrowdSubsystem::UpdateDensityMask()
 	}
 }
 
-void UMassCrowdSubsystem::OnEnterTrackedLane(const FLWEntity& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
+void UMassCrowdSubsystem::OnEnterTrackedLane(const FMassEntityHandle& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
 {
 	++TrackingData.NumEntitiesOnLane;
 
 	UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("[%s] enters lane %d. Num entities on lane: %d"), *Entity.DebugGetDescription(), LaneIndex, TrackingData.NumEntitiesOnLane);
 }
 
-void UMassCrowdSubsystem::OnExitTrackedLane(const FLWEntity& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
+void UMassCrowdSubsystem::OnExitTrackedLane(const FMassEntityHandle& Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
 {
 	ensureMsgf(TrackingData.NumEntitiesOnLane >= 1, TEXT("OnExitTrackedLane should not be called more often than OnEnterTrackedLane"));
 	--TrackingData.NumEntitiesOnLane;
@@ -559,7 +559,7 @@ void UMassCrowdSubsystem::OnExitTrackedLane(const FLWEntity& Entity, const int32
 	UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("[%s] exits lane %d. Num entities on lane: %d"), *Entity.DebugGetDescription(), LaneIndex, TrackingData.NumEntitiesOnLane);
 }
 
-int32 UMassCrowdSubsystem::AcquireWaitingSlot(const FLWEntity Entity, const FVector& EntityPosition, const FZoneGraphLaneHandle LaneHandle,
+int32 UMassCrowdSubsystem::AcquireWaitingSlot(const FMassEntityHandle Entity, const FVector& EntityPosition, const FZoneGraphLaneHandle LaneHandle,
 											  FVector& OutSlotPosition, FVector& OutSlotDirection)
 {
 	if (!LaneHandle.IsValid())
@@ -635,7 +635,7 @@ int32 UMassCrowdSubsystem::AcquireWaitingSlot(const FLWEntity Entity, const FVec
 	return BestSlotIndex;
 }
 
-void UMassCrowdSubsystem::ReleaseWaitingSlot(const FLWEntity Entity, const FZoneGraphLaneHandle LaneHandle, const int32 SlotIndex)
+void UMassCrowdSubsystem::ReleaseWaitingSlot(const FMassEntityHandle Entity, const FZoneGraphLaneHandle LaneHandle, const int32 SlotIndex)
 {
 	if (!LaneHandle.IsValid())
 	{

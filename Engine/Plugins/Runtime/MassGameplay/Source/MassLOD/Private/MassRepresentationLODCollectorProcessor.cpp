@@ -24,29 +24,29 @@ void UMassRepresentationLODCollectorProcessor::ConfigureQueries()
 {
 	for (FMassRepresentationLODCollectorConfig& LODConfig : LODConfigs)
 	{
-		FLWComponentQuery BaseQuery;
+		FMassEntityQuery BaseQuery;
 		if (LODConfig.TagFilter.GetScriptStruct())
 		{
-			BaseQuery.AddTagRequirement(*LODConfig.TagFilter.GetScriptStruct(), ELWComponentPresence::All);
+			BaseQuery.AddTagRequirement(*LODConfig.TagFilter.GetScriptStruct(), EMassFragmentPresence::All);
 		}
-		BaseQuery.AddRequirement<FDataFragment_Transform>(ELWComponentAccess::ReadOnly);
-		BaseQuery.AddRequirement<FMassLODInfoFragment>(ELWComponentAccess::ReadWrite);
-		BaseQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(ELWComponentAccess::ReadOnly);
+		BaseQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
+		BaseQuery.AddRequirement<FMassLODInfoFragment>(EMassFragmentAccess::ReadWrite);
+		BaseQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 
 		LODConfig.CloseEntityQuery = BaseQuery;
-		LODConfig.CloseEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(ELWComponentPresence::None);
+		LODConfig.CloseEntityQuery.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::None);
 		LODConfig.FarEntityQuery_Conditional = BaseQuery;
-		LODConfig.FarEntityQuery_Conditional.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(ELWComponentPresence::All);
+		LODConfig.FarEntityQuery_Conditional.AddTagRequirement<FMassVisibilityCulledByDistanceTag>(EMassFragmentPresence::All);
 		LODConfig.FarEntityQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::ShouldUpdateVisualizationForChunk);
 	}
 }
 
 template <typename TCollector>
-void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context, const TArray<FViewerInfo>& Viewers, TCollector& Collector, FLWComponentQuery& HighFrequencyTickingEntityQuery, FLWComponentQuery& LowFrequencyTickingEntityQuery)
+void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, const TArray<FViewerInfo>& Viewers, TCollector& Collector, FMassEntityQuery& HighFrequencyTickingEntityQuery, FMassEntityQuery& LowFrequencyTickingEntityQuery)
 {
 	Collector.PrepareExecution(Viewers);
 
-	auto InternalCollectLODInfo = [&Collector](FLWComponentSystemExecutionContext& Context)
+	auto InternalCollectLODInfo = [&Collector](FMassExecutionContext& Context)
 	{
 		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetComponentView<FDataFragment_Transform>();
 		TArrayView<FMassLODInfoFragment> ViewerInfoList = Context.GetMutableComponentView<FMassLODInfoFragment>();
@@ -64,7 +64,7 @@ void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExe
 	}
 }
 
-void UMassRepresentationLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UMassRepresentationLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	check(LODManager);
 	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();

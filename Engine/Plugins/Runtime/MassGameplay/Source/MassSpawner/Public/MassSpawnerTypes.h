@@ -31,7 +31,7 @@ struct FMassSpawnConfigBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (BaseStruct = "LWComponentData"))
+	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (BaseStruct = "MassFragment"))
 	TArray<FInstancedStruct> AdditionalDataFragments;
 
 	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (ClampMin = 0, UIMin = 0))
@@ -97,7 +97,7 @@ struct FMassSpawnPointGenerator
 };
 
 USTRUCT()
-struct MASSSPAWNER_API FDataFragment_ReplicationTemplateID : public FLWComponentData
+struct MASSSPAWNER_API FDataFragment_ReplicationTemplateID : public FMassFragment
 {
 	GENERATED_BODY()
 

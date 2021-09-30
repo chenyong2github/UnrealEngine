@@ -20,11 +20,11 @@ void UComponentUpdateSystem::PostInitProperties()
 //////////////////////////////////////////////////////////////////////////
 // UFarmHarvestTimerSetIcon
 
-void UFarmHarvestTimerSetIcon::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
+void UFarmHarvestTimerSetIcon::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(SET_ICON_SET_ICON_SET_ICON);
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FLWComponentSystemExecutionContext& Context) {
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context) {
 
 		const int32 NumEntities = Context.GetEntitiesNum();
 		TConstArrayView<FFarmGridCellData> GridCoordList = Context.GetComponentView<FFarmGridCellData>();
@@ -39,7 +39,7 @@ void UFarmHarvestTimerSetIcon::Execute(UMassEntitySubsystem& EntitySubsystem, FL
 
 			VisualList[i].HarvestIconIndex = HarvestIconISMC->AddInstance(IconTransform);
 
-			FLWEntity ThisEntity = Context.GetEntity(i);
+			FMassEntityHandle ThisEntity = Context.GetEntity(i);
 			Context.Defer().RemoveTag<FFarmJustBecameReadyToHarvest>(ThisEntity);
 			Context.Defer().AddTag<FFarmReadyToHarvest>(ThisEntity);
 		}
@@ -66,7 +66,7 @@ ALWComponentTestFarmPlot::ALWComponentTestFarmPlot()
 
 void ALWComponentTestFarmPlot::AddItemToGrid(UMassEntitySubsystem* EntitySystem, int32 X, int32 Y, FArchetypeHandle Archetype, int32 VisualIndex)
 {
-	FLWEntity NewItem = EntitySystem->CreateEntity(Archetype);
+	FMassEntityHandle NewItem = EntitySystem->CreateEntity(Archetype);
 	PlantedSquares[X + Y * GridWidth] = NewItem;
 
 	EntitySystem->GetComponentDataChecked<FFarmWaterComponent>(NewItem).DeltaWaterPerSecond = FMath::FRandRange(-0.01f, -0.001f);
@@ -154,8 +154,8 @@ void ALWComponentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTy
 
 	// Run every frame systems
 	{
-		FLWComponentSystemExecutionContext ExecContext(DeltaTime);
-		TSharedPtr<FLWCCommandBuffer> DeferredCommandBuffer = MakeShareable(new FLWCCommandBuffer());
+		FMassExecutionContext ExecContext(DeltaTime);
+		TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer = MakeShareable(new FMassCommandBuffer());
 		ExecContext.SetDeferredCommandBuffer(DeferredCommandBuffer);
 
 		for (UComponentUpdateSystem* System : PerFrameSystems)
@@ -169,8 +169,8 @@ void ALWComponentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTy
 	NextSecondTimer -= DeltaTime;
 	while (NextSecondTimer < 0.0f)
 	{
-		FLWComponentSystemExecutionContext ExecContext(1.f);
-		TSharedPtr<FLWCCommandBuffer> DeferredCommandBuffer = MakeShareable(new FLWCCommandBuffer());
+		FMassExecutionContext ExecContext(1.f);
+		TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer = MakeShareable(new FMassCommandBuffer());
 		ExecContext.SetDeferredCommandBuffer(DeferredCommandBuffer);
 
 		NextSecondTimer += 1.0f;
@@ -190,7 +190,7 @@ void ALWComponentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTy
 		{
 			for (int32 X = 0; X < GridWidth; ++X)
 			{
-				FLWEntity GridEntity = PlantedSquares[X + Y * GridWidth];
+				FMassEntityHandle GridEntity = PlantedSquares[X + Y * GridWidth];
 				if (EntitySystem->IsValidEntity(GridEntity))
 				{
 					FFarmVisualComponent& VisualComp = EntitySystem->GetComponentDataChecked<FFarmVisualComponent>(GridEntity);
@@ -242,7 +242,7 @@ void ALWComponentTestFarmPlot::TickActor(float DeltaTime, enum ELevelTick TickTy
 		{
 			for (int32 X = 0; X < GridWidth; ++X)
 			{
-				FLWEntity GridEntity = PlantedSquares[X + Y * GridWidth];
+				FMassEntityHandle GridEntity = PlantedSquares[X + Y * GridWidth];
 				if (EntitySystem->IsValidEntity(GridEntity))
 				{
 					FHarvestTimerComponent& HarvestTimerData = EntitySystem->GetComponentDataChecked<FHarvestTimerComponent>(GridEntity);

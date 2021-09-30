@@ -11,26 +11,26 @@
 #endif // WITH_EDITOR
 
 //----------------------------------------------------------------------//
-//  UPipeSettings
+//  UMassSettings
 //----------------------------------------------------------------------//
-UPipeSettings::UPipeSettings(const FObjectInitializer& ObjectInitializer)
+UMassSettings::UMassSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	for (int i = 0; i < (int)EPipeProcessingPhase::MAX; ++i)
+	for (int i = 0; i < (int)EMassProcessingPhase::MAX; ++i)
 	{
-		ProcessingPhasesConfig[i].PhaseName = *EnumToString(EPipeProcessingPhase(i));
+		ProcessingPhasesConfig[i].PhaseName = *EnumToString(EMassProcessingPhase(i));
 	}
 
-	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UPipeSettings::BuildProcessorListAndPhases);
+	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMassSettings::BuildProcessorListAndPhases);
 }
 
-void UPipeSettings::BeginDestroy()
+void UMassSettings::BeginDestroy()
 {
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	Super::BeginDestroy();
 }
 
-void UPipeSettings::BuildProcessorListAndPhases()
+void UMassSettings::BuildProcessorListAndPhases()
 {
 	if (bInitialized)
 	{
@@ -42,16 +42,16 @@ void UPipeSettings::BuildProcessorListAndPhases()
 	bInitialized = true;
 }
 
-void UPipeSettings::BuildPhases()
+void UMassSettings::BuildPhases()
 {
 #if WITH_EDITOR
-	for (int i = 0; i < int(EPipeProcessingPhase::MAX); ++i)
+	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
 	{
-		FPipeProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
-		PhaseConfig.PhaseProcessor = NewObject<UPipeCompositeProcessor>(this, PhaseConfig.PhaseGroupClass
+		FMassProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
+		PhaseConfig.PhaseProcessor = NewObject<UMassCompositeProcessor>(this, PhaseConfig.PhaseGroupClass
 			, *FString::Printf(TEXT("ProcessingPhase_%s"), *PhaseConfig.PhaseName.ToString()));
 		PhaseConfig.PhaseProcessor->SetGroupName(PhaseConfig.PhaseName);
-		PhaseConfig.PhaseProcessor->SetProcessingPhase(EPipeProcessingPhase(i));
+		PhaseConfig.PhaseProcessor->SetProcessingPhase(EMassProcessingPhase(i));
 		const FString PhaseDumpDependencyGraphFileName = !DumpDependencyGraphFileName.IsEmpty() ? DumpDependencyGraphFileName + TEXT("_") + PhaseConfig.PhaseName.ToString() : FString();
 		PhaseConfig.PhaseProcessor->CopyAndSort(PhaseConfig, PhaseDumpDependencyGraphFileName);
 		
@@ -62,16 +62,16 @@ void UPipeSettings::BuildPhases()
 #endif // WITH_EDITOR
 }
 
-void UPipeSettings::BuildProcessorList()
+void UMassSettings::BuildProcessorList()
 {
 	ProcessorCDOs.Reset();
-	for (FPipeProcessingPhaseConfig& PhaseConfig : ProcessingPhasesConfig)
+	for (FMassProcessingPhaseConfig& PhaseConfig : ProcessingPhasesConfig)
 	{
 		PhaseConfig.ProcessorCDOs.Reset();
 	}
 
 	TArray<UClass*> SubClassess;
-	GetDerivedClasses(UPipeProcessor::StaticClass(), SubClassess);
+	GetDerivedClasses(UMassProcessor::StaticClass(), SubClassess);
 
 	for (int i = SubClassess.Num() - 1; i; --i)
 	{
@@ -80,9 +80,9 @@ void UPipeSettings::BuildProcessorList()
 			continue;
 		}
 
-		UPipeProcessor* ProcessorCDO = GetMutableDefault<UPipeProcessor>(SubClassess[i]);
-		// we explicitly restrict adding UPipeCompositeProcessor. If needed by specific project a derived class can be added
-		if (ProcessorCDO && SubClassess[i] != UPipeCompositeProcessor::StaticClass()
+		UMassProcessor* ProcessorCDO = GetMutableDefault<UMassProcessor>(SubClassess[i]);
+		// we explicitly restrict adding UMassCompositeProcessor. If needed by specific project a derived class can be added
+		if (ProcessorCDO && SubClassess[i] != UMassCompositeProcessor::StaticClass()
 #if WITH_EDITOR
 			&& ProcessorCDO->ShouldShowUpInSettings()
 #endif // WITH_EDITOR
@@ -96,16 +96,16 @@ void UPipeSettings::BuildProcessorList()
 		}
 	}
 
-	ProcessorCDOs.Sort([](UPipeProcessor& LHS, UPipeProcessor& RHS) {
+	ProcessorCDOs.Sort([](UMassProcessor& LHS, UMassProcessor& RHS) {
 		return LHS.GetName().Compare(RHS.GetName()) < 0;
 	});
 }
 
-void UPipeSettings::AddToActiveProcessorsList(TSubclassOf<UPipeProcessor> ProcessorClass)
+void UMassSettings::AddToActiveProcessorsList(TSubclassOf<UMassProcessor> ProcessorClass)
 {
-	if (UPipeProcessor* ProcessorCDO = GetMutableDefault<UPipeProcessor>(ProcessorClass))
+	if (UMassProcessor* ProcessorCDO = GetMutableDefault<UMassProcessor>(ProcessorClass))
 	{
-		if (ProcessorClass == UPipeCompositeProcessor::StaticClass())
+		if (ProcessorClass == UMassCompositeProcessor::StaticClass())
 		{
 			UE_VLOG_UELOG(this, LogPipe, Log, TEXT("%s adding PipeCompositeProcessor to the global processor list is unsupported"), ANSI_TO_TCHAR(__FUNCTION__));
 		}
@@ -126,19 +126,19 @@ void UPipeSettings::AddToActiveProcessorsList(TSubclassOf<UPipeProcessor> Proces
 	}
 }
 
-const FPipeProcessingPhaseConfig* UPipeSettings::GetProcessingPhasesConfig()
+const FMassProcessingPhaseConfig* UMassSettings::GetProcessingPhasesConfig()
 {
 	BuildProcessorListAndPhases();
 	return ProcessingPhasesConfig;
 }
 
 #if WITH_EDITOR
-void UPipeSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UMassSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// @todo replacing a valid entry in the array is not handled right now. 
 
 	static const FName PipeName = TEXT("Pipe");
-	static const FName ProcessorCDOsName = GET_MEMBER_NAME_CHECKED(UPipeSettings, ProcessorCDOs);
+	static const FName ProcessorCDOsName = GET_MEMBER_NAME_CHECKED(UMassSettings, ProcessorCDOs);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -161,7 +161,7 @@ void UPipeSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	}
 }
 
-void UPipeSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+void UMassSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	static const FName AutoRegisterName = TEXT("bAutoRegisterWithProcessingPhases");
 

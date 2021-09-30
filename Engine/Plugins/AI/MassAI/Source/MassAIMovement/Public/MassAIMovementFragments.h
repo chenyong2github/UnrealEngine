@@ -41,7 +41,7 @@ struct FMassPillCollider
 
 /** Fragment holding data for avoidance coliders */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassAvoidanceColliderFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassAvoidanceColliderFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -84,7 +84,7 @@ struct MASSAIMOVEMENT_API FMassAvoidanceColliderFragment : public FLWComponentDa
 
 /** Cell location for dynamic obstacles */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassAvoidanceObstacleGridCellLocationFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassAvoidanceObstacleGridCellLocationFragment : public FMassFragment
 {
 	GENERATED_BODY()
 	FAvoidanceObstacleHashGrid2D::FCellLocation CellLoc;
@@ -92,7 +92,7 @@ struct MASSAIMOVEMENT_API FMassAvoidanceObstacleGridCellLocationFragment : publi
 
 /** Move target. */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassMoveTargetFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassMoveTargetFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -164,7 +164,7 @@ public:
 
 /** Steering fragment. */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassSteeringFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassSteeringFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -183,7 +183,7 @@ struct MASSAIMOVEMENT_API FMassSteeringFragment : public FLWComponentData
 
 /** Steering ghost fragment. */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassSteeringGhostFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassSteeringGhostFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -218,7 +218,7 @@ struct MASSAIMOVEMENT_API FMassSteeringGhostFragment : public FLWComponentData
 };
 
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassDynamicObstacleFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassDynamicObstacleFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -238,7 +238,7 @@ struct MASSAIMOVEMENT_API FMassDynamicObstacleFragment : public FLWComponentData
 
 /** Stores handle to rich movement config */
 USTRUCT()
-struct MASSAIMOVEMENT_API FMassMovementConfigFragment : public FLWComponentData
+struct MASSAIMOVEMENT_API FMassMovementConfigFragment : public FMassFragment
 {
 	GENERATED_BODY()
 

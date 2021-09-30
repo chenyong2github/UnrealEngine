@@ -3,25 +3,25 @@
 #include "MassSchematicFactory.h"
 #include "MassSchematic.h"
 
-#define LOCTEXT_NAMESPACE "PipeSchematicFactory"
+#define LOCTEXT_NAMESPACE "MassSchematicFactory"
 
-UPipeSchematicFactory::UPipeSchematicFactory(const FObjectInitializer& ObjectInitializer)
+UMassSchematicFactory::UMassSchematicFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = UPipeSchematic::StaticClass();
+	SupportedClass = UMassSchematic::StaticClass();
 	bCreateNew = true;
 	bEditAfterNew = true;
 }
 
-bool UPipeSchematicFactory::CanCreateNew() const
+bool UMassSchematicFactory::CanCreateNew() const
 {
 	return true;
 }
 
-UObject* UPipeSchematicFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
+UObject* UMassSchematicFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
 {
-	check(Class->IsChildOf(UPipeSchematic::StaticClass()));
-	return NewObject<UPipeSchematic>(InParent, Class, Name, Flags);
+	check(Class->IsChildOf(UMassSchematic::StaticClass()));
+	return NewObject<UMassSchematic>(InParent, Class, Name, Flags);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -8,7 +8,7 @@
 #include "MassSchematicFactory.generated.h"
 
 UCLASS()
-class UPipeSchematicFactory : public UFactory
+class UMassSchematicFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
