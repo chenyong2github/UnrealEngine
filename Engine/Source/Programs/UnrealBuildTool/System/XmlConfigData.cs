@@ -21,24 +21,40 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The current cache serialization version
 		/// </summary>
-		const int SerializationVersion = 1;
+		const int SerializationVersion = 2;
 
 		/// <summary>
 		/// List of input files. Stored to allow checking cache validity.
 		/// </summary>
 		public FileReference[] InputFiles;
 
+		public class ValueInfo
+		{
+			public FieldInfo FieldInfo;
+			public object Value;
+			public FileReference SourceFile;
+			public XmlConfigFileAttribute XmlConfigAttribute;
+
+			public ValueInfo(FieldInfo FieldInfo, object Value, FileReference SourceFile, XmlConfigFileAttribute XmlConfigAttribute)
+			{
+				this.FieldInfo = FieldInfo;
+				this.Value = Value;
+				this.SourceFile = SourceFile;
+				this.XmlConfigAttribute = XmlConfigAttribute;
+			}
+		}
+		
 		/// <summary>
 		/// Stores a mapping from type -> field -> value, with all the config values for configurable fields.
 		/// </summary>
-		public Dictionary<Type, KeyValuePair<FieldInfo, object>[]> TypeToValues;
+		public Dictionary<Type, ValueInfo[]> TypeToValues;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="InputFiles"></param>
 		/// <param name="TypeToValues"></param>
-		public XmlConfigData(FileReference[] InputFiles, Dictionary<Type, KeyValuePair<FieldInfo, object>[]> TypeToValues)
+		public XmlConfigData(FileReference[] InputFiles, Dictionary<Type, ValueInfo[]> TypeToValues)
 		{
 			this.InputFiles = InputFiles;
 			this.TypeToValues = TypeToValues;
@@ -75,7 +91,7 @@ namespace UnrealBuildTool
 
 				// Read the types
 				int NumTypes = Reader.ReadInt32();
-				Dictionary<Type, KeyValuePair<FieldInfo, object>[]> TypeToValues = new Dictionary<Type, KeyValuePair<FieldInfo, object>[]>(NumTypes);
+				Dictionary<Type, ValueInfo[]> TypeToValues = new Dictionary<Type, ValueInfo[]>(NumTypes);
 				for(int TypeIdx = 0; TypeIdx < NumTypes; TypeIdx++)
 				{
 					// Read the type name
@@ -90,14 +106,15 @@ namespace UnrealBuildTool
 					}
 
 					// Read all the values
-					KeyValuePair<FieldInfo, object>[] Values = new KeyValuePair<FieldInfo, object>[Reader.ReadInt32()];
+					ValueInfo[] Values = new ValueInfo[Reader.ReadInt32()];
 					for(int ValueIdx = 0; ValueIdx < Values.Length; ValueIdx++)
 					{
 						string FieldName = Reader.ReadString();
 
 						// Find the matching field on the output type
 						FieldInfo? Field = Type.GetField(FieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-						if(Field == null || Field.GetCustomAttribute<XmlConfigFileAttribute>() == null)
+						XmlConfigFileAttribute? XmlConfigAttribute = Field?.GetCustomAttribute<XmlConfigFileAttribute>();
+						if(Field == null || XmlConfigAttribute == null)
 						{
 							Data = null;
 							return false;
@@ -105,7 +122,11 @@ namespace UnrealBuildTool
 
 						// Try to parse the value and add it to the output array
 						object Value = Reader.ReadObject(Field.FieldType)!;
-						Values[ValueIdx] = new KeyValuePair<FieldInfo, object>(Field, Value);
+						
+						// Read the path of the config file that provided this setting
+						FileReference SourceFile = Reader.ReadFileReference();
+
+						Values[ValueIdx] = new ValueInfo(Field, Value, SourceFile, XmlConfigAttribute);
 					}
 
 					// Add it to the type map
@@ -134,14 +155,15 @@ namespace UnrealBuildTool
 
 				// Write all the categories
 				Writer.Write(TypeToValues.Count);
-				foreach(KeyValuePair<Type, KeyValuePair<FieldInfo, object>[]> TypePair in TypeToValues)
+				foreach(KeyValuePair<Type, ValueInfo[]> TypePair in TypeToValues)
 				{
 					Writer.Write(TypePair.Key.Name);
 					Writer.Write(TypePair.Value.Length);
-					foreach(KeyValuePair<FieldInfo, object> FieldPair in TypePair.Value)
+					foreach(ValueInfo FieldPair in TypePair.Value)
 					{
-						Writer.Write(FieldPair.Key.Name);
-						Writer.Write(FieldPair.Key.FieldType, FieldPair.Value);
+						Writer.Write(FieldPair.FieldInfo.Name);
+						Writer.Write(FieldPair.FieldInfo.FieldType, FieldPair.Value);
+						Writer.Write(FieldPair.SourceFile);
 					}
 				}
 			}
