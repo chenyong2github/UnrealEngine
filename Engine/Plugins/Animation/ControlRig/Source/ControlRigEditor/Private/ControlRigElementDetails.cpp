@@ -1476,7 +1476,7 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailGroup& InGroup, IDe
 		if(HierarchyPtr.IsValid())
 		{
             const FRigControlValue ControlValue = FRigControlElementDetails_PackageValue(*(T*)StructToDisplay->GetStructMemory());
-			HierarchyPtr->SetControlValue(Key, ControlValue, InValueType, true);
+			HierarchyPtr->SetControlValue(Key, ControlValue, InValueType, true, true);
 			if(InValueType == ERigControlValueType::Initial)
 			{
                 if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
@@ -2052,7 +2052,7 @@ void FRigControlElementDetails::SetDisplayName(const FText& InNewText, ETextComm
 
 			if(GetHierarchy())
 			{
-				GetHierarchy()->SetControlSettings(ControlElement->GetKey(), Settings);
+				GetHierarchy()->SetControlSettings(ControlElement->GetKey(), Settings, false, false, true);
 			}
 		}
 	}

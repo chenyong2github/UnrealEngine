@@ -2048,7 +2048,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 		{
 			FTransform LocalTransform = ComputeLocalControlValue(ControlElement, InTransform, InTransformType);
 			ControlElement->Settings.ApplyLimits(LocalTransform);
-			SetTransform(ControlElement, LocalTransform, MakeLocal(InTransformType), bAffectChildren);
+			SetTransform(ControlElement, LocalTransform, MakeLocal(InTransformType), bAffectChildren, false, false, bPrintPythonCommands);
 			return;
 		}
 	}
@@ -2289,7 +2289,7 @@ FTransform URigHierarchy::GetControlGizmoTransform(FRigControlElement* InControl
 }
 
 void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElement, const FTransform& InTransform,
-	const ERigTransformType::Type InTransformType, bool bSetupUndo, bool bForce)
+	const ERigTransformType::Type InTransformType, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
 	if(InControlElement == nullptr)
 	{
@@ -2355,10 +2355,21 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 			}
 		}
 	}
+
+	if (bPrintPythonCommands)
+	{
+		FString BlueprintName = GetOuter()->GetFName().ToString();
+		RigVMPythonUtils::Print(BlueprintName,
+			FString::Printf(TEXT("hierarchy.set_control_gizmo_transform(%s, %s, %s)"),
+			*InControlElement->GetKey().ToPythonString(),
+			*RigVMPythonUtils::TransformToPythonString(InTransform),
+			ERigTransformType::IsInitial(InTransformType) ? TEXT("True") : TEXT("False")));
+	
+	}
 #endif
 }
 
-void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRigControlSettings InSettings, bool bSetupUndo, bool bForce)
+void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRigControlSettings InSettings, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
 	if(InControlElement == nullptr)
 	{
@@ -2391,6 +2402,25 @@ void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRi
 				}
 			}
 		}
+	}
+
+	if (bPrintPythonCommands)
+	{
+		FString ControlNamePythonized = RigVMPythonUtils::NameToPep8(InControlElement->GetName().ToString());
+		FString SettingsName = FString::Printf(TEXT("control_settings_%s"),
+			*ControlNamePythonized);
+		TArray<FString> Commands = ControlSettingsToPythonCommands(InControlElement->Settings, SettingsName);
+
+		FString BlueprintName = GetOuter()->GetFName().ToString();
+		for (const FString& Command : Commands)
+		{
+			RigVMPythonUtils::Print(BlueprintName, Command);
+		}
+		
+		RigVMPythonUtils::Print(BlueprintName,
+			FString::Printf(TEXT("hierarchy.set_control_settings(%s, %s)"),
+			*InControlElement->GetKey().ToPythonString(),
+			*SettingsName));
 	}
 #endif
 }
@@ -2542,6 +2572,22 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 							}
 						}
 					}
+				}
+
+				if (bPrintPythonCommands)
+				{
+					FString TypeStr;
+					switch (InValueType)
+					{
+						case ERigControlValueType::Minimum: TypeStr = TEXT("MINIMUM"); break;
+						case ERigControlValueType::Maximum: TypeStr = TEXT("MAXIMUM"); break;
+						default: ensure(false);
+					}
+					RigVMPythonUtils::Print(GetOuter()->GetFName().ToString(),
+						FString::Printf(TEXT("hierarchy.set_control_value(%s, %s, unreal.RigControlValueType.%s)"),
+						*InControlElement->GetKey().ToPythonString(),
+						*InValue.ToPythonString(InControlElement->Settings.ControlType),
+						*TypeStr));
 				}
 #endif
 				break;
@@ -4141,3 +4187,68 @@ void URigHierarchy::IntegrateParentConstraintQuat(
 	OutNumMixedRotations++;
 }
 
+#if WITH_EDITOR
+TArray<FString> URigHierarchy::ControlSettingsToPythonCommands(const FRigControlSettings& Settings, const FString& NameSettings)
+{
+	TArray<FString> Commands;
+	Commands.Add(FString::Printf(TEXT("%s = unreal.RigControlSettings()"),
+			*NameSettings));
+	FString TypeStr;
+	switch (Settings.ControlType)
+	{
+		case ERigControlType::Bool: TypeStr = TEXT("BOOL"); break;							
+		case ERigControlType::Float: TypeStr = TEXT("FLOAT"); break;
+		case ERigControlType::Integer: TypeStr = TEXT("INTEGER"); break;
+		case ERigControlType::Position: TypeStr = TEXT("POSITION"); break;
+		case ERigControlType::Rotator: TypeStr = TEXT("POSITION"); break;
+		case ERigControlType::Scale: TypeStr = TEXT("SCALE"); break;
+		case ERigControlType::Transform: TypeStr = TEXT("EULER_TRANSFORM"); break;
+		case ERigControlType::EulerTransform: TypeStr = TEXT("EULER_TRANSFORM"); break;
+		case ERigControlType::Vector2D: TypeStr = TEXT("VECTOR2D"); break;
+		case ERigControlType::TransformNoScale: TypeStr = TEXT("EULER_TRANSFORM"); break;
+		default: ensure(false);
+	}
+	Commands.Add(FString::Printf(TEXT("%s.control_type = unreal.RigControlType.%s"),
+									*NameSettings,
+									*TypeStr));
+	Commands.Add(FString::Printf(TEXT("%s.animatable = %s"),
+		*NameSettings,
+		Settings.bAnimatable ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.display_name = '%s'"),
+		*NameSettings,
+		*Settings.DisplayName.ToString()));
+	Commands.Add(FString::Printf(TEXT("%s.draw_limits = %s"),
+		*NameSettings,
+		Settings.bDrawLimits ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.gizmo_color = %s"),
+		*NameSettings,
+		*RigVMPythonUtils::LinearColorToPythonString(Settings.GizmoColor)));
+	Commands.Add(FString::Printf(TEXT("%s.gizmo_enabled = %s"),
+		*NameSettings,
+		Settings.bGizmoEnabled ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.gizmo_name = '%s'"),
+		*NameSettings,
+		*Settings.GizmoName.ToString()));
+	Commands.Add(FString::Printf(TEXT("%s.gizmo_visible = %s"),
+		*NameSettings,
+		Settings.bGizmoVisible ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.is_transient_control = %s"),
+		*NameSettings,
+		Settings.bIsTransientControl ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.limit_rotation = %s"),
+		*NameSettings,
+		Settings.bLimitRotation ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.limit_translation = %s"),
+		*NameSettings,
+		Settings.bLimitTranslation ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.limit_scale = %s"),
+		*NameSettings,
+		Settings.bLimitScale ? TEXT("True") : TEXT("False")));
+	Commands.Add(FString::Printf(TEXT("%s.primary_axis = unreal.RigControlAxis.%s"),
+		*NameSettings,
+		Settings.PrimaryAxis == ERigControlAxis::X ? TEXT("X") : Settings.PrimaryAxis == ERigControlAxis::Y ? TEXT("Y") : TEXT("Z")));
+
+	return Commands;
+}
+
+#endif
