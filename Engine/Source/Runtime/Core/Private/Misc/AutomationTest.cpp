@@ -413,8 +413,16 @@ bool FAutomationTestFramework::ExecuteLatentCommands()
 		bool bComplete = NextCommand->InternalUpdate();
 		if (bComplete)
 		{
-			//all done.  remove from the queue
-			LatentCommands.Dequeue(NextCommand);
+			TSharedPtr<IAutomationLatentCommand>* TailCommand = LatentCommands.Peek();
+			if (TailCommand != nullptr && NextCommand == *TailCommand)
+			{
+				//all done. remove the tail
+				LatentCommands.Pop();
+			}
+			else
+			{
+				UE_LOG(LogAutomationTest, Verbose, TEXT("Tail of latent command queue is not removed, because last completed automation latent command is not corresponding."));
+			}
 		}
 		else
 		{
