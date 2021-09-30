@@ -17,13 +17,20 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "Engine/Level.h"
+
 #include "Misc/MessageDialog.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/ScopedSlowTask.h"
+
 #include "Interfaces/IMainFrameModule.h"
 #include "Widgets/SWindow.h"
 #include "Commandlets/WorldPartitionConvertCommandlet.h"
 #include "FileHelpers.h"
+#include "ToolMenus.h"
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "EditorDirectories.h"
+#include "AssetRegistryModule.h"
 
 IMPLEMENT_MODULE( FWorldPartitionEditorModule, WorldPartitionEditor );
 
@@ -91,6 +98,17 @@ void FWorldPartitionEditorModule::StartupModule()
 
 		MenuExtenderDelegates.Add(FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateStatic(&OnExtendLevelEditorMenu));
 		LevelEditorExtenderDelegateHandle = MenuExtenderDelegates.Last().GetHandle();
+
+		FToolMenuOwnerScoped OwnerScoped(this);
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Tools");
+		FToolMenuSection& Section = Menu->AddSection("WorldPartition", LOCTEXT("WorldPartition", "World Partition"));
+		Section.AddEntry(FToolMenuEntry::InitMenuEntry(
+			"WorldPartition",
+			LOCTEXT("WorldPartitionConvertTitle", "Convert Level..."),
+			LOCTEXT("WorldPartitionConvertTooltip", "Converts a Level to World Partition."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DeveloperTools.MenuIcon"),
+			FUIAction(FExecuteAction::CreateRaw(this, &FWorldPartitionEditorModule::OnConvertMap))
+		));
 	}
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -106,6 +124,8 @@ void FWorldPartitionEditorModule::ShutdownModule()
 		{
 			LevelEditorModule->GetAllLevelViewportContextMenuExtenders().RemoveAll([=](const FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors& In) { return In.GetHandle() == LevelEditorExtenderDelegateHandle; });
 		}
+
+		UToolMenus::UnregisterOwner(this);
 	}
 
 	IAssetTools* AssetToolsModule = nullptr;
@@ -131,37 +151,37 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
 	return SNew(SWorldPartitionEditor).InWorld(EditorWorld);
 }
 
-bool FWorldPartitionEditorModule::IsConversionPromptEnabled() const
-{
-	return GetDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt;
-}
-
-void FWorldPartitionEditorModule::SetConversionPromptEnabled(bool bEnabled)
-{
-	GetMutableDefault<UWorldPartitionEditorSettings>()->bEnableConversionPrompt = bEnabled;
-}
-
 float FWorldPartitionEditorModule::GetAutoCellLoadingMaxWorldSize() const
 {
 	return GetDefault<UWorldPartitionEditorSettings>()->AutoCellLoadingMaxWorldSize;
 }
 
+void FWorldPartitionEditorModule::OnConvertMap()
+{
+	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+	
+	FOpenAssetDialogConfig Config;
+	Config.bAllowMultipleSelection = false;
+	FString OutPathName;
+	if (FPackageName::TryConvertFilenameToLongPackageName(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::LEVEL), OutPathName))
+	{
+		Config.DefaultPath = OutPathName;
+	}	
+	Config.AssetClassNames.Add(UWorld::StaticClass()->GetFName());
+
+	TArray<FAssetData> Assets = ContentBrowserSingleton.CreateModalOpenAssetDialog(Config);
+	if (Assets.Num() == 1)
+	{
+		ConvertMap(Assets[0].PackageName.ToString());
+	}
+}
+
 bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 {
-	if (!IsConversionPromptEnabled() || ULevel::GetIsLevelPartitionedFromPackage(FName(*InLongPackageName)))
+	if (ULevel::GetIsLevelPartitionedFromPackage(FName(*InLongPackageName)))
 	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertMapMsg", "Map is already using World Partition"));
 		return true;
-	}
-
-	FText Title = LOCTEXT("ConvertMapMsgTitle", "Opening non World Partition map");
-	EAppReturnType::Type Ret = FMessageDialog::Open(EAppMsgType::YesNoCancel, LOCTEXT("ConvertMapMsg", "Do you want to convert this map? (Process will restart editor)"), &Title);
-	if (Ret == EAppReturnType::No)
-	{
-		return true;
-	}
-	else if (Ret == EAppReturnType::Cancel)
-	{
-		return false;
 	}
 
 	UWorldPartitionConvertOptions* DefaultConvertOptions = GetMutableDefault<UWorldPartitionConvertOptions>();
@@ -191,7 +211,13 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 
 	if (ConvertDialog->ClickedOk())
 	{
-		// User will already have been prompted to save on file open
+		// Conversion will try to load the converted map so ask user to save dirty packages
+		if (!FEditorFileUtils::SaveDirtyPackages(/*bPromptUserToSave=*/true, /*bSaveMapPackages=*/true, /*bSaveContentPackages=*/false))
+		{
+			return false;
+		}
+
+		// Unload any loaded map
 		if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
 		{
 			return false;
@@ -233,7 +259,7 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 		{	
 			if (Result == 0)
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertMapCompleted", "Conversion succeeded. Editor will now restart."));
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertMapCompleted", "Conversion succeeded."));
 
 #if	PLATFORM_DESKTOP
 				if (DefaultConvertOptions->bGenerateIni)
@@ -243,7 +269,22 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 					FPlatformProcess::ExploreFolder(*PackageDirectory);
 				}
 #endif
-				FUnrealEdMisc::Get().RestartEditor(false);
+				
+				
+				// Force update before loading converted map
+				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+				IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+												
+				FString MapToLoad = InLongPackageName;
+				if (!DefaultConvertOptions->bInPlace)
+				{
+					MapToLoad += UWorldPartitionConvertCommandlet::StaticClass()->GetDefaultObject<UWorldPartitionConvertCommandlet>()->GetConversionSuffix();
+				}
+				
+				AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
+				AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(MapToLoad) }, true);
+				
+				FEditorFileUtils::LoadMap(MapToLoad);
 			}
 		}
 		else if (bCancelled)
@@ -262,7 +303,6 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 
 UWorldPartitionEditorSettings::UWorldPartitionEditorSettings()
 {
-	bEnableConversionPrompt = false;
 	CommandletClass = UWorldPartitionConvertCommandlet::StaticClass();
 }
 

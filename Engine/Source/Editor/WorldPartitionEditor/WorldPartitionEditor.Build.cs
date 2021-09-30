@@ -29,7 +29,8 @@ public class WorldPartitionEditor : ModuleRules
 				"WorldBrowser",
 				"MainFrame",
 				"PropertyEditor",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"ToolMenus"
             }
 		);
 

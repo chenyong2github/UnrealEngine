@@ -273,12 +273,6 @@ namespace
 		{
 			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
 				TEXT("/Script/WorldPartitionEditor.WorldPartitionEditorSettings"),
-				TEXT("bEnableConversionPrompt"),
-				TEXT("False"),
-				true /* ShouldReplaceExistingValue */);
-
-			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
-				TEXT("/Script/WorldPartitionEditor.WorldPartitionEditorSettings"),
 				TEXT("CommandletClass"),
 				TEXT("Class'/Script/UnrealEd.WorldPartitionConvertCommandlet'"),
 				true /* ShouldReplaceExistingValue */);
