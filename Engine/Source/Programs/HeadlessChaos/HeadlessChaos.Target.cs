@@ -11,8 +11,7 @@ public class HeadlessChaosTarget : TargetRules
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 
-		ExeBinariesSubFolder = "NotForLicensees";
-		LaunchModuleName = "HeadlessChaos";
+		ExeBinariesSubFolder = LaunchModuleName = "HeadlessChaos";
 
 		bBuildDeveloperTools = false;
 

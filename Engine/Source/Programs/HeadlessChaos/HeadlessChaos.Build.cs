@@ -56,6 +56,6 @@ public class HeadlessChaos : ModuleRules
 			"HeadlessChaos",
 			"Headless Chaos",
 			Target.LaunchModuleName,
-			Path.Combine("Engine", "Binaries", Target.Platform.ToString(), "NotForLicensees"));
+			Path.Combine("Engine", "Binaries"));
 	}
 }
