@@ -127,9 +127,9 @@ FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromCookedHeader(cons
 	FCookedHeaderData CookedHeaderData = LoadCookedHeader(CookedHeaderBuffer);
 	Package->PackageFlags = CookedHeaderData.Summary.GetPackageFlags();
 	Package->CookedHeaderSize = CookedHeaderData.Summary.TotalHeaderSize;
-	for (const FName& SummaryName : CookedHeaderData.SummaryNames)
+	for (int32 I = 0; I < CookedHeaderData.Summary.NamesReferencedFromExportDataCount; ++I)
 	{
-		Package->NameMapBuilder.AddName(SummaryName);
+		Package->NameMapBuilder.AddName(CookedHeaderData.SummaryNames[I]);
 	}
 	ProcessImports(CookedHeaderData, Package);
 	ProcessExports(CookedHeaderData, Package);
@@ -1363,6 +1363,7 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		FExportMapEntry ExportMapEntry;
 		ExportMapEntry.CookedSerialOffset = Export.CookedSerialOffset;
 		ExportMapEntry.CookedSerialSize = Export.SerialSize;
+		Package->NameMapBuilder.MarkNameAsReferenced(Export.ObjectName);
 		ExportMapEntry.ObjectName = Package->NameMapBuilder.MapName(Export.ObjectName);
 		ExportMapEntry.ExportHash = Export.ExportHash;
 		ExportMapEntry.OuterIndex = Export.OuterIndex;

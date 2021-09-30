@@ -45,6 +45,9 @@ enum class EUnrealEngineObjectUE5Version : uint32
 	// The original UE5 version, at the time this was added the UE4 version was 522, so UE5 will start from 1000 to show a clear difference
 	INITIAL_VERSION = 1000,
 
+	// Support stripping names that are not referenced from export data
+	NAMES_REFERENCED_FROM_EXPORT_DATA,
+
 	// -----<new versions can be added before this line>-------------------------------------------------
 	// - this needs to be the last line (see note below)
 	AUTOMATIC_VERSION_PLUS_ONE,

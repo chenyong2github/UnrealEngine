@@ -278,7 +278,7 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	SCOPED_SAVETIMER(UPackage_Save_HarvestPackage);
 
 	FPackageHarvester Harvester(SaveContext);
-	//Harvester.SetUseUnversionedPropertySerialization(SaveContext.IsSaveUnversionedProperties());
+	Harvester.SetUseUnversionedPropertySerialization(SaveContext.IsSaveUnversionedProperties());
 	EObjectFlags TopLevelFlags = SaveContext.GetTopLevelFlags();
 	UObject* Asset = SaveContext.GetAsset();
 
@@ -327,7 +327,7 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	// Harvest the PrestreamPackage class name if needed
 	if (PrestreamPackages.Num() > 0)
 	{
-		Harvester.HarvestName(SavePackageUtilities::NAME_PrestreamPackage);		
+		Harvester.HarvestPackageHeaderName(SavePackageUtilities::NAME_PrestreamPackage);		
 	}
 
 	// if we have a WorldTileInfo, we need to harvest its dependencies as well, i.e. Custom Version
@@ -827,10 +827,28 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 	// Build Name Map
 	{
 		SCOPED_SAVETIMER(UPackage_Save_BuildNameMap);
+		const TSet<FNameEntryId>& NamesReferencedFromExportData = SaveContext.GetNamesReferencedFromExportData();
+		const TSet<FNameEntryId>& NamesReferencedFromPackageHeader = SaveContext.GetNamesReferencedFromPackageHeader();
+		Linker->NameMap.Reserve(NamesReferencedFromExportData.Num() + NamesReferencedFromPackageHeader.Num());
+		for (FNameEntryId NameEntryId : NamesReferencedFromExportData)
+		{
+			Linker->NameMap.Add(NameEntryId);
+		}
+		for (FNameEntryId NameEntryId : NamesReferencedFromPackageHeader)
+		{
+			if (!NamesReferencedFromExportData.Contains(NameEntryId))
+			{
+				Linker->NameMap.Add(NameEntryId);
+			}
+		}
 		Linker->Summary.NameOffset = 0;
-		Linker->Summary.NameCount = 0;
-		Linker->NameMap.Append(SaveContext.GetReferencedNames().Array());
-		Sort(&Linker->NameMap[0], Linker->NameMap.Num(), FNameEntryIdSortHelper());
+		Linker->Summary.NameCount = Linker->NameMap.Num();
+		Linker->Summary.NamesReferencedFromExportDataCount = NamesReferencedFromExportData.Num();
+
+		Sort(Linker->NameMap.GetData(), Linker->Summary.NamesReferencedFromExportDataCount, FNameEntryIdSortHelper());
+		Sort(Linker->NameMap.GetData() + Linker->Summary.NamesReferencedFromExportDataCount,
+			 Linker->Summary.NameCount - Linker->Summary.NamesReferencedFromExportDataCount,
+			 FNameEntryIdSortHelper());
 
 		if (!SaveContext.IsTextFormat())
 		{
@@ -1397,7 +1415,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	Linker->Summary.NameOffset = SaveContext.OffsetAfterPackageFileSummary;
 	{
 		SCOPED_SAVETIMER(UPackage_Save_BuildNameMap);
-		Linker->Summary.NameCount = Linker->NameMap.Num();
+		checkf(Linker->Summary.NameCount == Linker->NameMap.Num(), TEXT("Summary NameCount didn't match linker name map count when saving package header for '%s'"), *Linker->LinkerRoot->GetName());
 		for (const FNameEntryId NameEntryId : Linker->NameMap)
 		{
 			FName::GetEntry(NameEntryId)->Write(*Linker);

@@ -450,9 +450,14 @@ public:
 		return SearchableNamesObjectMap;
 	}
 
-	const TSet<FNameEntryId>& GetReferencedNames() const
+	const TSet<FNameEntryId>& GetNamesReferencedFromExportData() const
 	{
-		return ReferencedNames;
+		return NamesReferencedFromExportData;
+	}
+
+	const TSet<FNameEntryId>& GetNamesReferencedFromPackageHeader() const
+	{
+		return NamesReferencedFromPackageHeader;
 	}
 
 	const FCustomVersionContainer& GetCustomVersions() const
@@ -492,7 +497,14 @@ public:
 
 	bool NameExists(FNameEntryId ComparisonId) const
 	{
-		for (FNameEntryId DisplayId : ReferencedNames)
+		for (FNameEntryId DisplayId : NamesReferencedFromExportData)
+		{
+			if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
+			{
+				return true;
+			}
+		}
+		for (FNameEntryId DisplayId : NamesReferencedFromPackageHeader)
 		{
 			if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
 			{
@@ -617,8 +629,10 @@ private:
 	TSet<UObject*> Imports;
 	// Subset of this->Imports which are referenced from not-editoronly properties
 	TSet<UObject*> ImportsUsedInGame;
-	// Set of names referenced
-	TSet<FNameEntryId> ReferencedNames;
+	// Set of names referenced from export serialization
+	TSet<FNameEntryId> NamesReferencedFromExportData;
+	// Set of names referenced from the package header (import and export table object names etc)
+	TSet<FNameEntryId> NamesReferencedFromPackageHeader;
 	// List of soft package reference found
 	TArray<FName> SoftPackageReferenceList;
 	// Subset of this->SoftPackageReferenceList which are referenced from not-editoronly properties

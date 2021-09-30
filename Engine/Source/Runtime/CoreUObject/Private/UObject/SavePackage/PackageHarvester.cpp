@@ -282,7 +282,7 @@ void FPackageHarvester::TryHarvestExport(UObject* InObject)
 			SaveContext.AddExport(InObject, !DoesObjectNeedLoadForEditorGame(InObject));
 
 			// Harvest the export name
-			HarvestName(InObject->GetFName());
+			HarvestPackageHeaderName(InObject->GetFName());
 
 			ExportsToProcess.Enqueue(InObject);
 		}
@@ -350,7 +350,7 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 		}
 
 		// Harvest the import name
-		HarvestName(ObjName);
+		HarvestPackageHeaderName(ObjName);
 
 		// Recurse into outer, package override and non native class
 		if (ObjOuter)
@@ -370,8 +370,8 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 		}	
 		else
 		{
-			HarvestName(ObjClass->GetFName());
-			HarvestName(ObjClass->GetOuter()->GetFName());
+			HarvestPackageHeaderName(ObjClass->GetFName());
+			HarvestPackageHeaderName(ObjClass->GetOuter()->GetFName());
 		}
 	}
 }
@@ -406,7 +406,7 @@ FArchive& FPackageHarvester::operator<<(UObject*& Obj)
 	// if the package we are saving is referenced, just harvest its name
 	if (Obj == SaveContext.GetPackage())
 	{
-		HarvestName(Obj->GetFName());
+		HarvestPackageHeaderName(Obj->GetFName());
 		return *this;
 	}
 
@@ -466,10 +466,10 @@ FArchive& FPackageHarvester::operator<<(FLazyObjectPtr& LazyObjectPtr)
 
 FArchive& FPackageHarvester::operator<<(FSoftObjectPath& Value)
 {
+	// We need to harvest NAME_None even if the path isn't valid
+	Value.SerializePath(*this);
 	if (Value.IsValid())
 	{
-		Value.SerializePath(*this);
-
 		FSoftObjectPathThreadContext& ThreadContext = FSoftObjectPathThreadContext::Get();
 		FName ReferencingPackageName, ReferencingPropertyName;
 		ESoftObjectPathCollectType CollectType = ESoftObjectPathCollectType::AlwaysCollect;
@@ -482,7 +482,7 @@ FArchive& FPackageHarvester::operator<<(FSoftObjectPath& Value)
 			// Don't track if this is a never collect path
 			FString Path = Value.ToString();
 			FName PackageName = FName(*FPackageName::ObjectPathToPackageName(Path));
-			HarvestName(PackageName);
+			HarvestPackageHeaderName(PackageName);
 			SaveContext.SoftPackageReferenceList.AddUnique(PackageName);
 #if WITH_EDITORONLY_DATA
 			if (CollectType != ESoftObjectPathCollectType::EditorOnlyCollect && !bIsEditorOnlyExportOnStack)
@@ -497,7 +497,7 @@ FArchive& FPackageHarvester::operator<<(FSoftObjectPath& Value)
 
 FArchive& FPackageHarvester::operator<<(FName& Name)
 {
-	HarvestName(Name);
+	HarvestExportDataName(Name);
 	return *this;
 }
 
@@ -526,9 +526,14 @@ bool FPackageHarvester::CurrentExportHasDependency(UObject* InObj) const
 	return SaveContext.ExportObjectDependencies.Contains(InObj) || SaveContext.ExportNativeObjectDependencies.Contains(InObj);
 }
 
-void FPackageHarvester::HarvestName(FName Name)
+void FPackageHarvester::HarvestExportDataName(FName Name)
 {
-	SaveContext.ReferencedNames.Add(Name.GetDisplayIndex());
+	SaveContext.NamesReferencedFromExportData.Add(Name.GetDisplayIndex());
+}
+
+void FPackageHarvester::HarvestPackageHeaderName(FName Name)
+{
+	SaveContext.NamesReferencedFromPackageHeader.Add(Name.GetDisplayIndex());
 }
 
 void FPackageHarvester::HarvestSearchableName(UObject* TypeObject, FName Name)
@@ -539,7 +544,7 @@ void FPackageHarvester::HarvestSearchableName(UObject* TypeObject, FName Name)
 		(*this) << TypeObject;
 	}
 
-	HarvestName(Name);
+	HarvestPackageHeaderName(Name);
 	SaveContext.SearchableNamesObjectMap.FindOrAdd(TypeObject).AddUnique(Name);
 }
 

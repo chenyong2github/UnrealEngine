@@ -68,7 +68,8 @@ public:
 	void TryHarvestExport(UObject* InObject);
 	void TryHarvestImport(UObject* InObject);
 
-	void HarvestName(FName Name);
+	void HarvestExportDataName(FName Name);
+	void HarvestPackageHeaderName(FName Name);
 	void HarvestSearchableName(UObject* TypeObject, FName Name);
 	void HarvestDependency(UObject* InObj, bool bIsNative);
 
