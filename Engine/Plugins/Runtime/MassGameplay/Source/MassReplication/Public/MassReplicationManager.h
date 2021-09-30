@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassCommonTypes.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassReplicationTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 

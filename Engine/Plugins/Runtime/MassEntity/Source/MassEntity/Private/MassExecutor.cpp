@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassExecutor.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassProcessor.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
 namespace UE::Pipe::Executor

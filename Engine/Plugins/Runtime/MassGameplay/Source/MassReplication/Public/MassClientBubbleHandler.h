@@ -12,7 +12,7 @@
 #include "MassReplicationManager.h"
 #include "Engine/World.h"
 #include "MassEntityTemplate.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 
 #include "MassClientBubbleHandler.generated.h"
 

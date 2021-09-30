@@ -4,7 +4,7 @@
 
 #include "MassLODLogic.h"
 #include "MassLODUtils.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 
 /**
  * Helper struct to control LOD tick rate for each agent, 

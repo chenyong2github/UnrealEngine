@@ -5,13 +5,13 @@
 #include "UObject/Class.h"
 #include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 
 class UMassEntitySubsystem;
 struct FMassArchetypeData;
 struct FMassExecutionContext;
 struct FMassFragment;
-struct FArchetypeChunkIterator;
+struct FMassArchetypeChunkIterator;
 struct FMassEntityQuery;
 struct FArchetypeChunkCollection;
 struct FMassEntityView;
@@ -52,7 +52,7 @@ private:
 
 /** A struct that converts an arbitrary array of entities of given Archetype into a sequence of continuous
  *  entity chunks. The goal is to have the user create an instance of this struct once and run through a bunch of
- *  systems. The runtime code usually uses FArchetypeChunkIterator to iterate on the chunk collection
+ *  systems. The runtime code usually uses FMassArchetypeChunkIterator to iterate on the chunk collection
  */
 struct MASSENTITY_API FArchetypeChunkCollection
 {
@@ -101,17 +101,17 @@ private:
  *  The type used to iterate over given archetype's chunks, be it full, continuous chunks or sparse subchunks. It hides
  *  this details from the rest of the system.
  */
-struct MASSENTITY_API FArchetypeChunkIterator
+struct MASSENTITY_API FMassArchetypeChunkIterator
 {
 private:
 	const FArchetypeChunkCollection& ChunkData;
 	int32 CurrentChunkIndex = 0;
 
 public:
-	explicit FArchetypeChunkIterator(const FArchetypeChunkCollection& InChunkData) : ChunkData(InChunkData), CurrentChunkIndex(0) {}
+	explicit FMassArchetypeChunkIterator(const FArchetypeChunkCollection& InChunkData) : ChunkData(InChunkData), CurrentChunkIndex(0) {}
 
 	operator bool() const { return ChunkData.GetChunks().IsValidIndex(CurrentChunkIndex) && ChunkData.GetChunks()[CurrentChunkIndex].IsSet(); }
-	FArchetypeChunkIterator& operator++() { ++CurrentChunkIndex; return *this; }
+	FMassArchetypeChunkIterator& operator++() { ++CurrentChunkIndex; return *this; }
 
 	const FArchetypeChunkCollection::FChunkInfo* operator->() const { check(bool(*this)); return &ChunkData.GetChunks()[CurrentChunkIndex]; }
 	const FArchetypeChunkCollection::FChunkInfo& operator*() const { check(bool(*this)); return ChunkData.GetChunks()[CurrentChunkIndex]; }

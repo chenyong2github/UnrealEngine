@@ -3,7 +3,7 @@
 #pragma once
 
 #include "SmartObjectTypes.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "ZoneGraphTypes.h"
 #include "Containers/StaticArray.h"
 #include "MassSmartObjectRequest.generated.h"

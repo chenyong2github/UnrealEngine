@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "HierarchicalHashGrid2D.h"
 
 namespace UE::Mass::ProcessorGroupNames

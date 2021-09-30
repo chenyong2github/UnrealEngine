@@ -3,7 +3,7 @@
 #include "MassAvoidanceProcessors.h"
 #include "NavigationSystem.h"
 #include "DrawDebugHelpers.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "MassAIMovementFragments.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Math/Vector2D.h"

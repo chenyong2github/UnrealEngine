@@ -3,7 +3,7 @@
 #include "NavigationProcessor.h"
 
 #include "MassCommonUtils.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 #include "MassCommonFragments.h"
 #include "MassAIMovementFragments.h"
 #include "MassMovementTypes.h"

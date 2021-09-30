@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "ArchetypeTypes.h"
+#include "MassArchetypeTypes.h"
 #include "InstancedStruct.h"
-#include "EntityView.generated.h"
+#include "MassEntityView.generated.h"
 
 
 class UMassEntitySubsystem;

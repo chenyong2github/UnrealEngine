@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassProcessorDependencySolver.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassProcessor.h"
 #include "Logging/MessageLog.h"
 #include "HAL/FileManager.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassLookAtProcessors.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "MassAIBehaviorTypes.h"
 #include "MassCommonFragments.h"
 #include "MassLookAtFragments.h"

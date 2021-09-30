@@ -13,7 +13,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "VisualLogger/VisualLogger.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 
 namespace FMassAgentTraitsHelper 
 {

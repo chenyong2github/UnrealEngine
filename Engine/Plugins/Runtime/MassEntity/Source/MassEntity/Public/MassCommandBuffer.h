@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassEntitySubsystem.h"
 #include "InstancedStructStream.h"
 #include "Misc/MTAccessDetector.h"
 
-#include "LWCCommandBuffer.generated.h"
+#include "MassCommandBuffer.generated.h"
 
 //@TODO: Consider debug information in case there is an assert when replaying the command buffer
 // (e.g., which system added the command, or even file/line number in development builds for the specific call via a macro)

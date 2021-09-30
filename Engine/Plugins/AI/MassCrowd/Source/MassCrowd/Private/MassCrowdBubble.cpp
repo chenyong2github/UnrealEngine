@@ -4,7 +4,7 @@
 #include "Net/UnrealNetwork.h"
 #include "DrawDebugHelpers.h"
 #include "MassSpawnerTypes.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "MassCommonFragments.h"
 #include "MassMovementFragments.h"
 

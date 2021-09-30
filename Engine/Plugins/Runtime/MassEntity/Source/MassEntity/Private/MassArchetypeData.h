@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassEntitySubsystem.h"
-#include "ArchetypeTypes.h"
+#include "MassArchetypeTypes.h"
 
 struct FMassEntityQuery;
 struct FMassExecutionContext;

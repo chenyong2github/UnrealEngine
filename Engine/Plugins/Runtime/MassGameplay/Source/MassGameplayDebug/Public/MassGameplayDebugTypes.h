@@ -8,7 +8,7 @@
 #include "Logging/LogMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/DataTable.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassSpawnerTypes.h"
 #include "MassGameplayDebugTypes.generated.h"
 

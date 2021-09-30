@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassAgentSubsystem.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 #include "Engine/World.h"
 #include "MassEntitySubsystem.h"
 #include "MassCommonTypes.h"
@@ -11,7 +11,7 @@
 #include "MassAgentComponent.h"
 #include "MassEntityTemplateRegistry.h"
 #include "VisualLogger/VisualLogger.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "MassReplicationManager.h"
 #include "Engine/NetDriver.h"
 

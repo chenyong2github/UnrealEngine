@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassReplicationTypes.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "MassClientBubbleHandler.h"
 #include "MassAIMovementFragments.h"
 #include "MassZoneGraphMovementFragments.h"

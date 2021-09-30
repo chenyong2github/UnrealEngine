@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassProcessor.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassEntitySubsystem.h"
 #include "AITestsCommon.h"
 #include "MassEntityTestTypes.generated.h"

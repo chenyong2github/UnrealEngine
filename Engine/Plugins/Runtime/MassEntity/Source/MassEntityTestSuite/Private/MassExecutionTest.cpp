@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/World.h"
 #include "MassEntitySubsystem.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "MassEntityTestTypes.h"
 #include "MassExecutor.h"
 

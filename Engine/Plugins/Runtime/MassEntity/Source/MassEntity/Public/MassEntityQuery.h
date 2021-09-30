@@ -5,9 +5,9 @@
 #include "UObject/Class.h"
 #include "Containers/ArrayView.h"
 #include "Containers/UnrealString.h"
-#include "LWComponentTypes.h"
-#include "ArchetypeTypes.h"
-#include "EntityQuery.generated.h"
+#include "MassEntityTypes.h"
+#include "MassArchetypeTypes.h"
+#include "MassEntityQuery.generated.h"
 
 
 class UMassEntitySubsystem;

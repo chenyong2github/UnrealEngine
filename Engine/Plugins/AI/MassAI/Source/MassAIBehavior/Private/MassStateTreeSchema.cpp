@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassStateTreeSchema.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "MassStateTreeTypes.h"
 #include "Subsystems/WorldSubsystem.h"
 

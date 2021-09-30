@@ -14,7 +14,7 @@
 #include "MassEntitySubsystem.h"
 #include "MassRepresentationFragments.h"
 #include "MassRepresentationProcessor.h"
-#include "EntityView.h"
+#include "MassEntityView.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 

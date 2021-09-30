@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Engine/EngineTypes.h"
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "StateTreeTypes.h"
 
 #include "MassComponentHitTypes.generated.h"

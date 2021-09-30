@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "AI/Navigation/NavigationTypes.h"
 #include "MassCommonFragments.generated.h"
 

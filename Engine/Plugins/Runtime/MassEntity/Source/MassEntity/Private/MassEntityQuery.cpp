@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EntityQuery.h"
+#include "MassEntityQuery.h"
 #include "MassEntitySubsystem.h"
-#include "ArchetypeData.h"
-#include "LWCCommandBuffer.h"
+#include "MassArchetypeData.h"
+#include "MassCommandBuffer.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Async/ParallelFor.h"
 

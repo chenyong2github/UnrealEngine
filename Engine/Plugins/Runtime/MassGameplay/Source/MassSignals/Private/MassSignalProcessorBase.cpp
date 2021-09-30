@@ -2,7 +2,7 @@
 
 #include "MassSignalProcessorBase.h"
 #include "MassSignalSubsystem.h"
-#include "ArchetypeTypes.h"
+#include "MassArchetypeTypes.h"
 #include "Engine/World.h"
 
 void UMassSignalProcessorBase::Initialize(UObject& Owner)

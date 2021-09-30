@@ -2,7 +2,7 @@
 
 #pragma once
 #include "VisualLogger/VisualLoggerTypes.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 
 class FOutputDevice;
 class UMassProcessor;

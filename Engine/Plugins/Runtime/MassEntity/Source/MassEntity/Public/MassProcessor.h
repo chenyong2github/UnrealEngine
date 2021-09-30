@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "MassEntitySubsystem.h"
-#include "MassEntityTypes.h"
+#include "MassProcessingTypes.h"
 #include "Async/TaskGraphInterfaces.h"
-#include "LWCCommandBuffer.h"
+#include "MassCommandBuffer.h"
 #include "MassProcessorDependencySolver.h"
 #include "MassProcessor.generated.h"
 
