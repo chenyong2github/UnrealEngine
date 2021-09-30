@@ -40,8 +40,6 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"ModelingOperators",
 				"ModelingOperatorsEditorOnly",
 				// ... add other public dependencies that you statically link with here ...
-
-				"HairStrandsCore"		// required for Hair toolset
 			}
             );
 			
