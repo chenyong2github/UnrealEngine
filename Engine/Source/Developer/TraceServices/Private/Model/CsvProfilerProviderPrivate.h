@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TraceServices/Model/CsvProfiler.h"
+#include "TraceServices/Model/CsvProfilerProvider.h"
 #include "TraceServices/Containers/Tables.h"
 #include "Containers/Map.h"
 
