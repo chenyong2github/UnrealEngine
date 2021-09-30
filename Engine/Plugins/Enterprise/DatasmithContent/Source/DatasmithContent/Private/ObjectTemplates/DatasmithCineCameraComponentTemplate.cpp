@@ -35,9 +35,6 @@ void FDatasmithPostProcessSettingsTemplate::Apply( FPostProcessSettings* Destina
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bOverride_VignetteIntensity, Destination, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( VignetteIntensity, Destination, PreviousTemplate );
 
-	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bOverride_FilmWhitePoint, Destination, PreviousTemplate );
-	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( FilmWhitePoint, Destination, PreviousTemplate );
-
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bOverride_ColorSaturation, Destination, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( ColorSaturation, Destination, PreviousTemplate );
 
@@ -62,9 +59,6 @@ void FDatasmithPostProcessSettingsTemplate::Load( const FPostProcessSettings& So
 	bOverride_VignetteIntensity = Source.bOverride_VignetteIntensity;
 	VignetteIntensity = Source.VignetteIntensity;
 
-	bOverride_FilmWhitePoint = Source.bOverride_FilmWhitePoint;
-	FilmWhitePoint = Source.FilmWhitePoint;
-
 	bOverride_ColorSaturation = Source.bOverride_ColorSaturation;
 	ColorSaturation = Source.ColorSaturation;
 
@@ -88,9 +82,6 @@ bool FDatasmithPostProcessSettingsTemplate::Equals( const FDatasmithPostProcessS
 
 	bEquals = bEquals && bOverride_VignetteIntensity == Other.bOverride_VignetteIntensity;
 	bEquals = bEquals && FMath::IsNearlyEqual( VignetteIntensity, Other.VignetteIntensity );
-
-	bEquals = bEquals && bOverride_FilmWhitePoint == Other.bOverride_FilmWhitePoint;
-	bEquals = bEquals && FilmWhitePoint.Equals( Other.FilmWhitePoint );
 
 	bEquals = bEquals && bOverride_ColorSaturation == Other.bOverride_ColorSaturation;
 	bEquals = bEquals && ColorSaturation.Equals( Other.ColorSaturation );

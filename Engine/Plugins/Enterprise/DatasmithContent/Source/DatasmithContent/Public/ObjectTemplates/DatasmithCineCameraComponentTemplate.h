@@ -73,9 +73,6 @@ public:
 	uint32 bOverride_VignetteIntensity:1;
 
 	UPROPERTY()
-	uint32 bOverride_FilmWhitePoint:1;
-
-	UPROPERTY()
 	uint32 bOverride_AutoExposureMethod:1;
 
 	UPROPERTY()
@@ -92,9 +89,6 @@ public:
 
 	UPROPERTY()
 	float VignetteIntensity = 0.0f;
-
-	UPROPERTY()
-	FLinearColor FilmWhitePoint;
 
 	UPROPERTY()
 	FVector4 ColorSaturation;

@@ -263,12 +263,6 @@ namespace DatasmithRuntime
 					PostProcessSettings.VignetteIntensity = PostProcess->GetVignette();
 				}
 
-				if (PostProcess->GetColorFilter() != FLinearColor::Black && PostProcess->GetColorFilter() != FLinearColor::White )
-				{
-					PostProcessSettings.bOverride_FilmWhitePoint = true;
-					PostProcessSettings.FilmWhitePoint = PostProcess->GetColorFilter();
-				}
-
 				if ( !FMath::IsNearlyEqual( PostProcess->GetSaturation(), 1.f ) )
 				{
 					PostProcessSettings.bOverride_ColorSaturation = true;

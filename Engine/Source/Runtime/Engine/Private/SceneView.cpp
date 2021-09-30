@@ -268,9 +268,7 @@ static TAutoConsoleVariable<int32> CVarTonemapperQuality(
 	TEXT("Defines the Tonemapper Quality in the range 0..5\n")
 	TEXT("Depending on the used settings we might pick a faster shader permutation\n")
 	TEXT(" 0: basic tonemapper only, lowest quality\n")
-	TEXT(" 1: + FilmContrast\n")
 	TEXT(" 2: + Vignette\n")
-	TEXT(" 3: + FilmShadowTintAmount\n")
 	TEXT(" 4: + Grain\n")
 	TEXT(" 5: + GrainJitter = full quality (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
@@ -1378,19 +1376,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(ExpandGamut);
 		LERP_PP(ToneCurveAmount);
 
-		LERP_PP(FilmWhitePoint);
-		LERP_PP(FilmSaturation);
-		LERP_PP(FilmChannelMixerRed);
-		LERP_PP(FilmChannelMixerGreen);
-		LERP_PP(FilmChannelMixerBlue);
-		LERP_PP(FilmContrast);
-		LERP_PP(FilmDynamicRange);
-		LERP_PP(FilmHealAmount);
-		LERP_PP(FilmToeAmount);
-		LERP_PP(FilmShadowTint);
-		LERP_PP(FilmShadowTintBlend);
-		LERP_PP(FilmShadowTintAmount);
-
 		LERP_PP(FilmSlope);
 		LERP_PP(FilmToe);
 		LERP_PP(FilmShoulder);
@@ -1908,19 +1893,9 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	{
 		int32 Quality = CVarTonemapperQuality.GetValueOnGameThread();
 
-		if(Quality < 1)
-		{
-			FinalPostProcessSettings.FilmContrast = 0;
-		}
-
 		if(Quality < 2)
 		{
 			FinalPostProcessSettings.VignetteIntensity = 0;
-		}
-
-		if(Quality < 3)
-		{
-			FinalPostProcessSettings.FilmShadowTintAmount = 0;
 		}
 
 		if(Quality < 4)
