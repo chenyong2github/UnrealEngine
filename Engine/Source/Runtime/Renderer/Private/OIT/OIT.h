@@ -7,6 +7,7 @@
 #include "RenderGraphResources.h"
 #include "RenderResource.h"
 
+class FViewInfo;
 class FSortedIndexBuffer;
 struct FMeshBatchElementDynamicIndexBuffer;
 

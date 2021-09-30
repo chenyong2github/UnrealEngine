@@ -19,6 +19,7 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "SEditorHeaderButton.h"
 #include "Styling/ToolBarStyle.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/SToolTip.h"
