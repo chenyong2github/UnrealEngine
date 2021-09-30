@@ -6,6 +6,7 @@
 
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/TransformProxy.h"
+#include "Drawing/LineSetComponent.h"
 
 #include "FractureToolCutter.generated.h"
 
@@ -187,22 +188,36 @@ protected:
 	virtual void ClearVisualizations()
 	{
 		Super::ClearVisualizations();
-		CellMember.Empty();
-		VoronoiEdges.Empty();
 		VoronoiSites.Empty();
 		SitesMappings.Empty();
+		ClearEdges();
+	}
+
+	void ClearEdges()
+	{
+		CellMember.Empty();
 		EdgesMappings.Empty();
+		for (ULineSetComponent* Lines : VoronoiLineSets)
+		{
+			Lines->DestroyComponent();
+		}
+		VoronoiLineSets.Empty();
 	}
 
 	virtual void UpdateVisualizations(TArray<FFractureToolContext>& FractureContexts);
 
 private:
+	UPROPERTY()
+	TArray<TObjectPtr<ULineSetComponent>> VoronoiLineSets;
+
 	TArray<int32> CellMember;
-	TArray<TTuple<FVector, FVector>> VoronoiEdges;
 	TArray<FVector> VoronoiSites;
-	TArray<FLinearColor> Colors;
+
+	TArray<FColor> Colors;
 
 	FVisualizationMappings SitesMappings, EdgesMappings;
+
+	void UpdateLineSetExplodedVectors();
 };
 
 
