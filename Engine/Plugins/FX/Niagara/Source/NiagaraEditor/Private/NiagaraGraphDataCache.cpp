@@ -16,6 +16,8 @@ void FNiagaraGraphDataCache::GetStackFunctionInputPins(UNiagaraNodeFunctionCall&
 		return;
 	}
 
+	OutInputPins.Empty();
+	OutHiddenPins.Empty();
 	FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(FunctionCallNode, OutInputPins, OutHiddenPins, ConstantResolver, Options, bIgnoreDisabled);
 
 	CachedResult.SourceGraphWeak = FunctionCallNode.GetNiagaraGraph();
