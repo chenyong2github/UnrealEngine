@@ -14,6 +14,7 @@
 #include "Logging/LogMacros.h"
 #include "MaterialEditingLibrary.h"
 #include "MaterialEditorUtilities.h"
+#include "ObjectTools.h"
 #include "PackageTools.h"
 #include "UObject/Package.h"
 
@@ -180,9 +181,6 @@ bool FMDLMaterialFactory::CreateMaterials(const FString& Filename, UObject* Pare
 {
 	CleanUp();
 
-	FString  MaterialPackageName = UPackageTools::SanitizePackageName(*(ParentPackage->GetName() / Materials.Name));
-	UObject* MaterialPackage     = CreatePackage(*MaterialPackageName);
-
 	for (const Mdl::FMaterial& MdlMaterial : Materials)
 	{
 		if (MdlMaterial.IsDisabled())
@@ -190,7 +188,23 @@ bool FMDLMaterialFactory::CreateMaterials(const FString& Filename, UObject* Pare
 			continue;
 		}
 
-		UMaterial* NewMaterial = NewObject<UMaterial>(MaterialPackage, UMaterial::StaticClass(), FName(*MdlMaterial.Name), Flags);
+		FString  MaterialPackageName = UPackageTools::SanitizePackageName(*(ParentPackage->GetName() / MdlMaterial.Name));
+		UObject* MaterialPackage = ParentPackage == GetTransientPackage() ? ParentPackage : CreatePackage(*MaterialPackageName);
+
+		FString MaterialName;
+
+		if ( MaterialPackage == GetTransientPackage() )
+		{
+			// Avoid conflicts in the transient package by adding the module name to the material name since it's not part of the package path
+			MaterialName = Materials.Name + TEXT("_") + MdlMaterial.Name;
+		}
+		else
+		{
+			MaterialName = MdlMaterial.Name;
+		}
+		MaterialName = ObjectTools::SanitizeObjectName( MaterialName );
+
+		UMaterial* NewMaterial = NewObject<UMaterial>(MaterialPackage, UMaterial::StaticClass(), FName(*MaterialName), Flags);
 		check(NewMaterial != nullptr);
 		NewMaterial->AssetImportData = NewObject<UAssetImportData>(NewMaterial, TEXT("AssetImportData"));
 		NewMaterial->AssetImportData->Update(Filename);

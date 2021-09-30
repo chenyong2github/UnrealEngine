@@ -2525,10 +2525,10 @@ namespace Generator
 				    ArraySize * 2.0f / PI);  // multiply with the number of curveValues, to get an index
 
 				TArray<FMaterialExpressionConnection> ColorConnections;
-				ColorConnections.SetNum(Colors.Num());
+				ColorConnections.Reserve(Colors.Num());
 				for (int32 i = 0; i < Colors.Num(); i++)
 				{
-					ColorConnections[i] = {Colors[i]};
+					ColorConnections.Emplace(Colors[i]);
 				}
 
 				Color = NewMaterialExpressionLinearInterpolate(Function, ColorConnections, Z);
