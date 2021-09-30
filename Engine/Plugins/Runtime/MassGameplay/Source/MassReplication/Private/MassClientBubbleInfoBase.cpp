@@ -73,15 +73,15 @@ void AMassClientBubbleInfoBase::BeginPlay()
 	UWorld* World = GetWorld();
 	check(World);
 
-	// Allow tick function WITH_MASS_DEBUG as we have debug functionality there, otherwise only on the clients.
-#if WITH_MASS_DEBUG
+	// Allow tick function WITH_MASSGAMEPLAY_DEBUG as we have debug functionality there, otherwise only on the clients.
+#if WITH_MASSGAMEPLAY_DEBUG
 	PrimaryActorTick.SetTickFunctionEnable(true);
 #else
 	if (World && World->GetNetMode() == NM_Client)
 	{
 		PrimaryActorTick.SetTickFunctionEnable(true);
 	}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 }
 
 void AMassClientBubbleInfoBase::EndPlay(const EEndPlayReason::Type EndPlayReason)

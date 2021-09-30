@@ -126,7 +126,7 @@ void FRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<const 
 			UPipeProcessor* ProcCopy = NewObject<UPipeProcessor>(&InOwner, Proc->GetClass(), FName(), RF_NoFlags, const_cast<UPipeProcessor*>(Proc));
 			Processors.Add(ProcCopy);
 		}
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 		else if (Proc)
 		{
 			if (Proc->ShouldExecute(WorldExecutionFlags) == false)
@@ -138,7 +138,7 @@ void FRuntimePipeline::AppendUniqueRuntimeProcessorCopies(TConstArrayView<const 
 				UE_VLOG(&InOwner, LogPipe, Log, TEXT("Skipping %s due to it being a duplicate"), *Proc->GetName());
 			}
 		}
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 	}
 
 	for (int32 NewProcIndex = StartingCount; NewProcIndex < Processors.Num(); ++NewProcIndex)

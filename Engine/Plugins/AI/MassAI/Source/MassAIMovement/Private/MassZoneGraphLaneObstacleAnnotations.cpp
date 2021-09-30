@@ -87,7 +87,7 @@ void UZoneGraphLaneObstacleAnnotations::TickAnnotation(const float DeltaTime, FZ
 	}
 	LaneObstacleChangeEvents.Reset();
 
-#if WITH_MASS_DEBUG && 0
+#if WITH_MASSGAMEPLAY_DEBUG && 0
 	for (const FMassRegisteredMovementLaneData& LaneData : RegisteredLaneData)
 	{
 		const FMassLaneObstacleContainer& LaneObstaclesContainer = LaneData.LaneObstacles;
@@ -107,7 +107,7 @@ void UZoneGraphLaneObstacleAnnotations::TickAnnotation(const float DeltaTime, FZ
 			}
 		}
 	}
-#endif // WITH_MASS_DEBUG 
+#endif // WITH_MASSGAMEPLAY_DEBUG 
 }
 
 void UZoneGraphLaneObstacleAnnotations::PostZoneGraphDataAdded(const AZoneGraphData& ZoneGraphData)

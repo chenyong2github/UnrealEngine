@@ -169,7 +169,7 @@ bool FMassZoneGraphShortPathFragment::RequestPath(const FMassZoneGraphCachedLane
 	check(CurrentDistanceAlongLane >= -Epsilon && CurrentDistanceAlongLane <= (CachedLane.LaneLength + Epsilon));
 	
 	// Set common lane parameters
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	DebugLaneHandle = CachedLane.LaneHandle;
 #endif
 
@@ -443,7 +443,7 @@ bool FMassZoneGraphShortPathFragment::RequestStand(const FMassZoneGraphCachedLan
 	CachedLane.GetPointAndTangentAtDistance(CurrentDistanceAlongLane, CurrentLanePosition, CurrentLaneTangent);
 	
 	// Set common lane parameters
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	DebugLaneHandle = CachedLane.LaneHandle;
 #endif
 	bMoveReverse = false;

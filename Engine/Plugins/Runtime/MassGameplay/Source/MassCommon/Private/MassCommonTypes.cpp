@@ -4,7 +4,7 @@
 #include "MassEntitySubsystem.h"
 #include "Math/ColorList.h"
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 namespace UE { namespace MassDebug {
 
 // First Id of a range of lightweight entity for which we want to activate debug information
@@ -101,7 +101,7 @@ FColor GetEntityDebugColor(FLWEntity Entity)
 }
 
 }} // namespace UE::MassDebug
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 const FMassHandle FMassHandle::InvalidHandle(UMassEntitySubsystem::InvalidEntity);
 
@@ -137,7 +137,7 @@ void FMassUniqueFragmentCollection::Append(const FMassUniqueFragmentCollection& 
 
 void FMassUniqueFragmentCollection::DebugOutputDescription(FOutputDevice& Ar) const
 {
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	const bool bAutoLineEnd = Ar.GetAutoEmitLineTerminator();
 	Ar.SetAutoEmitLineTerminator(false);
 
@@ -147,5 +147,5 @@ void FMassUniqueFragmentCollection::DebugOutputDescription(FOutputDevice& Ar) co
 		Ar.Logf(TEXT("%s, "), *GetNameSafe(StructType));
 	}
 	Ar.SetAutoEmitLineTerminator(bAutoLineEnd);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 }

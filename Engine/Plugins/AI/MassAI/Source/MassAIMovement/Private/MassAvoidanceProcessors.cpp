@@ -204,7 +204,7 @@ namespace UE::MassAvoidance
 		return Tweakables::bUseDrawDebugHelpers;
 	}
 
-#if WITH_MASS_DEBUG	
+#if WITH_MASSGAMEPLAY_DEBUG	
 	
 	//----------------------------------------------------------------------//
 	// Begin MassDebugUtils
@@ -379,7 +379,7 @@ namespace UE::MassAvoidance
 		}
 	}
 
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 } // namespace UE::MassAvoidance
 
@@ -567,7 +567,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 			}
 			if (!CurrentMovementConfig)
 			{
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				UE_VLOG(this, LogMassNavigation, Log, TEXT("%s Invalid movement config."), *Entity.DebugGetDescription());
 #endif
 				continue;
@@ -595,7 +595,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 			const float NearEndFade = bFadeAvoidingAtDestination ? FMath::Clamp(MoveTargetList[EntityIndex].DistanceToGoal / NearTargetLocDist, 0.f, 1.f) : 1.0f;
 			const bool bAgentIsMoving = MoveTarget.GetCurrentAction() == EMassMovementAction::Move;
 			
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 			const UE::MassAvoidance::FDebugContext BaseDebugContext(this, LogAvoidance, World, Entity);
 			const UE::MassAvoidance::FDebugContext VelocitiesDebugContext(this, LogAvoidanceVelocities, World, Entity);
 			const UE::MassAvoidance::FDebugContext ObstacleDebugContext(this, LogAvoidanceObstacles, World, Entity);
@@ -622,7 +622,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 				// Draw center
 				DebugDrawSphere(BaseDebugContext, AgentLocation, /*Radius*/2.f, CurrentAgentColor);
 			}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 			FVector OldSteeringForce = FVector::ZeroVector;
 			
@@ -631,10 +631,10 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 				const FVector DesiredAcceleration = UE::MassAvoidance::Clamp(SteeringForce, MaxSteerAccel);
 				const FVector DesiredVelocity = UE::MassAvoidance::Clamp(AgentVelocity + DesiredAcceleration * TimeDelta, MaximumSpeed);
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				// Draw desired velocity (yellow)
 				UE::MassAvoidance::DebugDrawVelocity(VelocitiesDebugContext, AgentLocation + DebugAgentHeightOffset, AgentLocation + DebugAgentHeightOffset + DesiredVelocity, DesiredVelocityColor);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 				OldSteeringForce = SteeringForce;
 				Contacts.Reset();
@@ -755,7 +755,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 
 						SteeringForce += AvoidForce;
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 						// Draw contact normal
 						UE::MassAvoidance::DebugDrawArrow(ObstacleDebugContext, ConPos, ConPos + 50.f * ConNorm, ObstacleContactNormalColor, /*HeadSize=*/ 5.f);
 						UE::MassAvoidance::DebugDrawSphere(ObstacleDebugContext, ConPos, 2.5f, ObstacleContactNormalColor);
@@ -766,18 +766,18 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 
 						// Draw avoid obstacle force
 						UE::MassAvoidance::DebugDrawForce(ObstacleDebugContext, HitObPos, HitObPos + AvoidForce, ObstacleAvoidForceColor);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 					}
 				} // edge loop
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				// Draw total steering force to avoid obstacles
 				const FVector EnvironmentAvoidSteeringForce = SteeringForce - OldSteeringForce;
 				UE::MassAvoidance::DebugDrawSummedForce(ObstacleDebugContext,
 					AgentLocation + DebugAgentHeightOffset,
 					AgentLocation + DebugAgentHeightOffset + EnvironmentAvoidSteeringForce,
 					ObstacleAvoidForceColor);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 				// Process contacts to add edge separation force
 				const FVector SteeringForceBeforeSeparation = SteeringForce;
@@ -793,13 +793,13 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 
 					SteeringForce += SeparationForce;
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 					// Draw individual contact forces
 					DebugDrawForce(ObstacleDebugContext, Contacts[ContactIndex].Position + DebugAgentHeightOffset, Contacts[ContactIndex].Position + SeparationForce + DebugAgentHeightOffset, ObstacleSeparationForceColor);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 				}
 				
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				// Draw total steering force to separate from close edges
 				const FVector TotalSeparationForce = SteeringForce - SteeringForceBeforeSeparation;
 				DebugDrawSummedForce(ObstacleDebugContext,
@@ -817,7 +817,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 						DebugDrawArrow(ObstacleDebugContext, Middle, Middle + 10.f * FVector::CrossProduct((Edge.End - Edge.Start), FVector::UpVector).GetSafeNormal(), ObstacleColor, /*HeadSize=*/2.f);
 					}
 				}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 			}
 
 			//////////////////////////////////////////////////////////////////////////
@@ -1056,7 +1056,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 
 				SteeringForce += AvoidForce;
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				// Display close agent
 				UE::MassAvoidance::DebugDrawCylinder(AgentDebugContext, Collider.Location, Collider.Location + DebugLowCylinderOffset, Collider.Radius, AgentsColor);
 
@@ -1095,7 +1095,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 						OtherHitPosition + DebugAgentHeightOffset + AvoidForce,
 						AgentAvoidForceColor);
 				}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 			} // close entities loop
 
 			if (MoveTarget.GetPreviousAction() != EMassMovementAction::Move)
@@ -1110,7 +1110,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 			
 			Steering.SteeringForce = UE::MassAvoidance::Clamp(SteeringForce, MaxSteerAccel); // Assume unit mass
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 			const FVector AgentAvoidSteeringForce = SteeringForce - OldSteeringForce;
 
 			// Draw total steering force to separate agents
@@ -1130,7 +1130,7 @@ void UMassAvoidanceProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLW
 				AgentLocation + AgentVelocity + DebugAgentHeightOffset,
 				AgentLocation + AgentVelocity + DebugAgentHeightOffset + SteeringList[EntityIndex].SteeringForce,
 				FinalSteeringForceColor, BigArrowHeadSize, BigArrowThickness);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 		}
 	});
 }
@@ -1488,7 +1488,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 				const FBox NewBounds(NewPos - FVector(Radius, Radius, 0.f), NewPos + FVector(Radius, Radius, 0.f));
 				AvoidanceObstacleCellLocationList[EntityIndex].CellLoc = MovementSubsystem->GetGridMutable().Move(ObstacleItem, AvoidanceObstacleCellLocationList[EntityIndex].CellLoc, NewBounds);
 
-#if WITH_MASS_DEBUG && 0
+#if WITH_MASSGAMEPLAY_DEBUG && 0
 				const FDebugContext BaseDebugContext(this, LogAvoidance, nullptr, ObstacleItem.Entity);
 				if (DebugIsSelected(ObstacleItem.Entity))
 				{
@@ -1496,7 +1496,7 @@ void UMassAvoidanceObstacleProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 					Box.Max.Z += 200.f;					
 					DebugDrawBox(BaseDebugContext, Box, FColor::Yellow);
 				}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 			}
 		});
 
@@ -1684,7 +1684,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 				FMassNavigationEdgesFragment& EdgesFragment = EdgesList[EntityIndex];
 				EdgesFragment.AvoidanceEdges.Reset();
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				const FLWEntity Entity = Context.GetEntity(EntityIndex);
 				const FDebugContext BaseDebugContext(this, LogAvoidance, World, Entity);
 				const FDebugContext ObstacleDebugContext(this, LogAvoidanceObstacles, World, Entity);
@@ -1696,7 +1696,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 						DebugDrawSphere(ObstacleDebugContext, Location, /*Radius=*/100.f, FColor(128,128,128));
 					}
 				}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 				// @todo: Fix transition between lanes is not smooth. WanderFragment.CurrentLaneLocation is in front of the actual
 				//		  position so when there is a lane switch picking the closest position on the lane jumps forward.
@@ -1719,7 +1719,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 
 					if (LaneLocation.IsValid())
 					{
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 						if (DebugIsSelected(Entity))
 						{
 							// Draw the location found and the lane from that position to the end.
@@ -1735,7 +1735,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 								LaneSegment++;
 							}
 						}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 						// Get width of adjacent lanes.
 						float AdjacentLeftWidth = 0.f;
@@ -1819,7 +1819,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 						int32 NumRightPositions = NumPoints;
 
 
-#if 0 && WITH_MASS_DEBUG // Detailed debug disabled
+#if 0 && WITH_MASSGAMEPLAY_DEBUG // Detailed debug disabled
 						if (DebugIsSelected(Entity))
 						{
 							float Radius = 2.f;
@@ -1835,7 +1835,7 @@ void UMassLaneBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 								Radius += 4.f;
 							}
 						}
-#endif //WITH_MASS_DEBUG
+#endif //WITH_MASSGAMEPLAY_DEBUG
 
 						// Remove edges crossing when there are 3 eges.
 						if (NumPoints == 4)
@@ -1942,7 +1942,7 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			const float DeltaDistSquared = FVector::DistSquared(MovementTarget.Center, LaneCacheBoundary.LastUpdatePosition);
 			const float UpdateDistanceThresholdSquared = FMath::Square(50.f);
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 			const FDebugContext ObstacleDebugContext(this, LogAvoidanceObstacles, World, Entity);
 			if (DebugIsSelected(Entity))
 			{
@@ -1969,12 +1969,12 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			}
 			
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 			if (DebugIsSelected(Entity))
 			{
 				DebugDrawSphere(ObstacleDebugContext, MovementTarget.Center, /*Radius=*/100.f, FColor(128,128,128));
 			}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 			const float HalfWidth = 0.5 * CachedLane.LaneWidth.Get();
 
@@ -2033,7 +2033,7 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 			int32 NumRightPositions = NumPoints;
 
 
-#if 0 && WITH_MASS_DEBUG // Detailed debug disabled
+#if 0 && WITH_MASSGAMEPLAY_DEBUG // Detailed debug disabled
 			if (DebugIsSelected(Entity))
 			{
 				float Radius = 2.f;
@@ -2049,7 +2049,7 @@ void UMassLaneCacheBoundaryProcessor::Execute(UMassEntitySubsystem& EntitySubsys
 					Radius += 4.f;
 				}
 			}
-#endif //WITH_MASS_DEBUG
+#endif //WITH_MASSGAMEPLAY_DEBUG
 
 			// Remove edges crossing when there are 3 edges.
 			if (NumPoints == 4)

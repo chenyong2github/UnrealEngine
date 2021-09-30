@@ -60,47 +60,47 @@ namespace UE::MassMovement
 
  	static bool DebugIsSelected(const FLWEntity& Entity)
  	{
- #if WITH_MASS_DEBUG
+ #if WITH_MASSGAMEPLAY_DEBUG
  		return UE::MassDebug::IsDebuggingEntity(Entity);
  #else
  	return false;
- #endif // WITH_MASS_DEBUG
+ #endif // WITH_MASSGAMEPLAY_DEBUG
  	}
 
  	static void DebugDrawLine(const UObject* LogOwner, const UWorld* World, const FVector& Start, const FVector& End, const FColor& Color, const bool bPersistent = false)
  	{
- #if WITH_MASS_DEBUG
+ #if WITH_MASSGAMEPLAY_DEBUG
  		UE_VLOG_SEGMENT(LogOwner, LogNavigation, Log, Start, End, Color, TEXT(""));
 
  		if (World)
  		{
  			DrawDebugLine(World, Start, End, Color, bPersistent);
  		}
- #endif // WITH_MASS_DEBUG
+ #endif // WITH_MASSGAMEPLAY_DEBUG
  	}
 
  	static void DebugDrawArrow(const UObject* LogOwner, const UWorld* World, const FVector& Start, const FVector& End, const FColor& Color)
  	{
- #if WITH_MASS_DEBUG
+ #if WITH_MASSGAMEPLAY_DEBUG
  		UE_VLOG_ARROW(LogOwner, LogNavigation, Log, Start, End, Color, TEXT(""));
 
  		if (World)
  		{
  			DrawDebugDirectionalArrow(World, Start, End, /*arrow size = */20.f, Color);
  		}
- #endif // WITH_MASS_DEBUG
+ #endif // WITH_MASSGAMEPLAY_DEBUG
  	}
 
  	static void DebugDrawCylinder(const UObject* LogOwner, const UWorld* World, const FVector& Start, const FVector& End, const float Radius, const FColor& Color)
  	{
- #if WITH_MASS_DEBUG
+ #if WITH_MASSGAMEPLAY_DEBUG
  		UE_VLOG_CYLINDER(LogOwner, LogNavigation, Log, Start, End, Radius, Color, TEXT(""));
 
  		if (World)
  		{
  			DrawDebugCylinder(World, Start, End, Radius, /*segments = */16, Color);
  		}
- #endif // WITH_MASS_DEBUG
+ #endif // WITH_MASSGAMEPLAY_DEBUG
 	}
 } // namespace UE::Movement
 

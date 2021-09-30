@@ -33,9 +33,9 @@ bool FMassZoneGraphPathFollowTask::RequestPath(FMassStateTreeExecutionContext& C
 	}
 
 	bool bDisplayDebug = false;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Context.GetEntity());
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 	if (RequestedTargetLocation.LaneHandle != LaneLocation.LaneHandle)
 	{
@@ -87,9 +87,9 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecution
 	FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 
 	bool bDisplayDebug = false;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(MassContext.GetEntity());
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 	if (bDisplayDebug)
 	{
 		MASSBEHAVIOR_LOG(Verbose, TEXT("enterstate."));
@@ -129,9 +129,9 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::Tick(FStateTreeExecutionContex
 	FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
 
 	bool bDisplayDebug = false;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	bDisplayDebug = UE::MassDebug::IsDebuggingEntity(MassContext.GetEntity());
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 	if (bDisplayDebug)
 	{
 		MASSBEHAVIOR_LOG(Verbose, TEXT("tick"));

@@ -19,21 +19,21 @@ namespace UE::MassTraffic
 }
 #endif // PARALLELIZED_TRAFFIC_HACK
 
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 namespace UE::Mass::Debug
 {
 	bool bLogProcessingGraph = false;
 	FAutoConsoleVariableRef CVarLogProcessingGraph(TEXT("pipe.LogProcessingGraph"), bLogProcessingGraph
 		, TEXT("When enabled will log task graph tasks created while dispatching processors to other threads, along with their dependencies"), ECVF_Cheat);
 }
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 // change to && 1 to enable more detailed processing tasks logging
-#if WITH_PIPE_DEBUG && 0
+#if WITH_MASSENTITY_DEBUG && 0
 #define PROCESSOR_LOG(Fmt, ...) UE_LOG(LogPipe, Log, Fmt, ##__VA_ARGS__)
-#else // WITH_PIPE_DEBUG
+#else // WITH_MASSENTITY_DEBUG
 #define PROCESSOR_LOG(...) 
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 namespace FPipeTweakables
 {
@@ -151,7 +151,7 @@ void UPipeProcessor::PostInitProperties()
 void UPipeProcessor::CallExecute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*StatId);
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	Context.DebugSetExecutionDesc(FString::Printf(TEXT("%s (%s)"), *GetProcessorName(), *ToString(EntitySubsystem.GetWorld()->GetNetMode())));
 #endif
 	Execute(EntitySubsystem, Context);
@@ -173,9 +173,9 @@ FGraphEventRef UPipeProcessor::DispatchProcessorTasks(UMassEntitySubsystem& Enti
 
 void UPipeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
 {
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	Ar.Logf(TEXT("%*s%s"), Indent, TEXT(""), *GetProcessorName());
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 #if WITH_EDITOR
@@ -241,7 +241,7 @@ FGraphEventRef UPipeCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 	}
 
 
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	if (UE::Mass::Debug::bLogProcessingGraph)
 	{
 		for (int i = 0; i < ProcessingFlatGraph.Num(); ++i)
@@ -265,7 +265,7 @@ FGraphEventRef UPipeCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 			}
 		}
 	}
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 	FGraphEventRef CompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([this](){}
 		, GET_STATID(Pipe_GroupCompletedTask), &Events, ENamedThreads::AnyHiPriThreadHiPriTask);
@@ -553,7 +553,7 @@ int32 UPipeCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrde
 
 void UPipeCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
 {
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	if (ChildPipeline.Processors.Num() == 0)
 	{
 		Ar.Logf(TEXT("%*sGroup %s: []"), Indent, TEXT(""), *GroupName.ToString());
@@ -568,7 +568,7 @@ void UPipeCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 In
 			Proc->DebugOutputDescription(Ar, Indent + 3);
 		}
 	}
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 void UPipeCompositeProcessor::SetProcessingPhase(EPipeProcessingPhase Phase)

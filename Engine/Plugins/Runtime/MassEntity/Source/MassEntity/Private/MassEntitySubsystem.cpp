@@ -15,7 +15,7 @@ namespace UE { namespace AggregateTicking {
 
 FString DebugGetComponentAccessString(ELWComponentAccess Access)
 {
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	switch (Access)
 	{
 	case ELWComponentAccess::None:	return TEXT("--");
@@ -25,7 +25,7 @@ FString DebugGetComponentAccessString(ELWComponentAccess Access)
 		ensureMsgf(false, TEXT("Missing string conversion for ELWComponentAccess=%d"), Access);
 		break;
 	}
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 	return TEXT("Missing string conversion");
 }
 
@@ -774,102 +774,102 @@ void UMassEntitySubsystem::GetValidArchetypes(const FLWComponentQuery& Query, TA
 		if (Archetype.GetTagBitSet().HasAll(Query.GetRequiredAllTags()) == false)
 		{
 			// missing some required tags, skip.
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			const FLWTagBitSet UnsatisfiedTags = Query.GetRequiredAllTags() - Archetype.GetTagBitSet();
 			FStringOutputDevice Description;
 			UnsatisfiedTags.DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing tags: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
 		if (Archetype.GetTagBitSet().HasNone(Query.GetRequiredNoneTags()) == false)
 		{
 			// has some tags required to be absent
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			const FLWTagBitSet UnwantedTags = Query.GetRequiredAllTags().GetOverlap(Archetype.GetTagBitSet());
 			FStringOutputDevice Description;
 			UnwantedTags.DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype has tags required absent: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
 		if (Query.GetRequiredAnyTags().IsEmpty() == false 
 			&& Archetype.GetTagBitSet().HasAny(Query.GetRequiredAnyTags()) == false)
 		{
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			FStringOutputDevice Description;
 			Query.GetRequiredAnyTags().DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' tags: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 		
 		if (Archetype.GetComponentBitSet().HasAll(Query.GetRequiredAllComponents()) == false)
 		{
 			// missing some required components, skip.
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			const FLWComponentBitSet UnsatisfiedComponents = Query.GetRequiredAllComponents() - Archetype.GetComponentBitSet();
 			FStringOutputDevice Description;
 			UnsatisfiedComponents.DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing Components: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
 		if (Archetype.GetComponentBitSet().HasNone(Query.GetRequiredNoneComponents()) == false)
 		{
 			// has some Components required to be absent
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			const FLWComponentBitSet UnwantedComponents = Query.GetRequiredAllComponents().GetOverlap(Archetype.GetComponentBitSet());
 			FStringOutputDevice Description;
 			UnwantedComponents.DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype has Components required absent: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
 		if (Query.GetRequiredAnyComponents().IsEmpty() == false 
 			&& Archetype.GetComponentBitSet().HasAny(Query.GetRequiredAnyComponents()) == false)
 		{
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			FStringOutputDevice Description;
 			Query.GetRequiredAnyComponents().DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing \'any\' components: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
 		if (Archetype.GetChunkComponentBitSet().HasAll(Query.GetRequiredAllChunkComponents()) == false)
 		{
 			// missing some required components, skip.
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			const FLWChunkComponentBitSet UnsatisfiedComponents = Query.GetRequiredAllChunkComponents() - Archetype.GetChunkComponentBitSet();
 			FStringOutputDevice Description;
 			UnsatisfiedComponents.DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype did not match due to missing Chunk Components: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
 		if (Archetype.GetChunkComponentBitSet().HasNone(Query.GetRequiredNoneChunkComponents()) == false)
 		{
 			// has some Components required to be absent
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			const FLWChunkComponentBitSet UnwantedComponents = Query.GetRequiredNoneChunkComponents().GetOverlap(Archetype.GetChunkComponentBitSet());
 			FStringOutputDevice Description;
 			UnwantedComponents.DebugGetStringDesc(Description);
 			UE_LOG(LogAggregateTicking, VeryVerbose, TEXT("Archetype has Chunk Components required absent: %s")
 				, *Description);
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 			continue;
 		}
 
@@ -884,7 +884,7 @@ FLWComponentSystemExecutionContext UMassEntitySubsystem::CreateExecutionContext(
 	return MoveTemp(ExecutionContext);
 }
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 void UMassEntitySubsystem::DebugPrintArchetypes(FOutputDevice& Ar) const
 {
 	Ar.Logf(ELogVerbosity::Log, TEXT("Listing archetypes contained in %s"), *GetPathNameSafe(this));
@@ -957,7 +957,7 @@ void UMassEntitySubsystem::DebugGetStringDesc(const FArchetypeHandle& Archetype,
 
 void UMassEntitySubsystem::DebugGetArchetypesStringDetails(FOutputDevice& Ar, const bool bIncludeEmpty)
 {
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	Ar.SetAutoEmitLineTerminator(true);
 	for (auto Pair : ComponentHashToArchetypeMap)
 	{
@@ -971,7 +971,7 @@ void UMassEntitySubsystem::DebugGetArchetypesStringDetails(FOutputDevice& Ar, co
 			}
 		}
 	}
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 }
 
 void UMassEntitySubsystem::DebugGetArchetypeComponentTypes(const FArchetypeHandle& Archetype, TArray<const UScriptStruct*>& InOutComponentList) const
@@ -1045,7 +1045,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice GPrintArchetypesCmd(
 		Ar.Logf(ELogVerbosity::Error, TEXT("Failed to find Entity Subsystem for world %s"), *GetPathNameSafe(World));
 	}
 }));
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 //////////////////////////////////////////////////////////////////////
 // FLWComponentSystemExecutionContext

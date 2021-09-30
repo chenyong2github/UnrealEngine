@@ -2,10 +2,10 @@
 
 #pragma once
 
-// Required first for WITH_MASS_DEBUG
+// Required first for WITH_MASSGAMEPLAY_DEBUG
 #include "MassCommonTypes.h"
 
-#if WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG
+#if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 
 #include "GameplayDebuggerCategory.h"
 
@@ -62,4 +62,4 @@ protected:
 
 };
 
-#endif // WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG
+#endif // WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG

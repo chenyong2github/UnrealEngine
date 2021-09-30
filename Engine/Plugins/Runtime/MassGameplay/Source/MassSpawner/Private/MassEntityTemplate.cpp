@@ -32,7 +32,7 @@ void FMassEntityTemplate::SetUpProcessors(const FMassObjectHandlers& ObjectHandl
 FString FMassEntityTemplate::DebugGetDescription(UMassEntitySubsystem* EntitySubsystem) const
 { 
 	FStringOutputDevice Ar;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	Ar.SetAutoEmitLineTerminator(true);
 
 	Ar += TEXT("Fragments:\n");
@@ -46,15 +46,15 @@ FString FMassEntityTemplate::DebugGetDescription(UMassEntitySubsystem* EntitySub
 		Ar += TEXT("Archetype detais:\n");
 		Ar += DebugGetArchetypeDescription(*EntitySubsystem);
 	}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 	return MoveTemp(Ar);
 }
 
 FString FMassEntityTemplate::DebugGetArchetypeDescription(UMassEntitySubsystem& EntitySubsystem) const
 {
 	FStringOutputDevice OutDescription;
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	EntitySubsystem.DebugGetStringDesc(Archetype, OutDescription);
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 	return MoveTemp(OutDescription);
 }

@@ -263,12 +263,12 @@ template <typename FLODLogic>
 template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
 void TMassLODCalculator<FLODLogic>::CalculateLOD(FLWComponentSystemExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
 {
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	if (UE::MassLOD::Debug::bLODCalculationsPaused)
 	{
 		return;
 	}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 	const int32 NumEntities = Context.GetEntitiesNum();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)

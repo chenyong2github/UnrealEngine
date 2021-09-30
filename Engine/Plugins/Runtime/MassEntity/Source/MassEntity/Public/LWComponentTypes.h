@@ -5,9 +5,6 @@
 #include "ScriptStructTypeBitSet.h"
 #include "LWComponentTypes.generated.h"
 
-// the name is temporary. To be changed when we arrive at the final name for the plugin
-#define WITH_AGGREGATETICKING_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_STRUCTUTILS_DEBUG && 1)
-
 // This is the base class for all lightweight components
 USTRUCT()
 struct FLWComponentData

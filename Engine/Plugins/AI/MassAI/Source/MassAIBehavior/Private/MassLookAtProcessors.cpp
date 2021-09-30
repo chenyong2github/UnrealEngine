@@ -143,10 +143,10 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWCom
 
 				bool bDisplayDebug = false;
 				const FLWEntity Entity = Context.GetEntity(i);
-	#if WITH_MASS_DEBUG
+	#if WITH_MASSGAMEPLAY_DEBUG
 				FColor EntityColor = FColor::White;
 				bDisplayDebug = UE::MassDebug::IsDebuggingEntity(Entity, &EntityColor);
-	#endif // WITH_MASS_DEBUG
+	#endif // WITH_MASSGAMEPLAY_DEBUG
 
 				// Update gaze target when current cycle is finished.
 				if (LookAt.RandomGazeMode != EMassLookAtGazeMode::None)
@@ -221,14 +221,14 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWCom
 				// Clamp
 				LookAt.Direction = UE::MassBehavior::ClampDirectionToXAxisCone(LookAt.Direction, FMath::DegreesToRadians(AngleThresholdInDegrees));
 
-	#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+	#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 				if (bDisplayDebug)
 				{
 					const FVector Origin = TransformFragment.GetTransform().GetLocation() + FVector(0.f,0.f,DebugZOffset);
 					const FVector Dest = Origin + 100.f*TransformFragment.GetTransform().TransformVector(LookAt.Direction);
 					UE_VLOG_ARROW(this, LogMassBehavior, Display, Origin, Dest, EntityColor, TEXT(""));
 				}
-	#endif // WITH_MASS_DEBUG
+	#endif // WITH_MASSGAMEPLAY_DEBUG
 			}
 		});
 }
@@ -339,7 +339,7 @@ void UMassLookAtProcessor::UpdateLookAtTrajectory(const FTransform& Transform, c
 		LookAt.Direction = Transform.InverseTransformVector(NewGlobalDirection);
 		LookAt.Direction.Z = 0.0f;
 						
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 		if (bDisplayDebug)
 		{
 			const FVector ZOffset(0.f,0.f,DebugZOffset);
@@ -360,7 +360,7 @@ void UMassLookAtProcessor::UpdateLookAtTrackedEntity(const UMassEntitySubsystem&
 			const FVector NewGlobalDirection = (TargetTransform->GetTransform().GetLocation() - AgentPosition).GetSafeNormal();
 			LookAt.Direction = Transform.InverseTransformVector(NewGlobalDirection);
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 			if (bDisplayDebug)
 			{
 				const FVector ZOffset(0.f,0.f,DebugZOffset);
@@ -386,7 +386,7 @@ bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& E
 
 			bHasTarget = true;
 			
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 			if (bDisplayDebug)
 			{
 				const FVector ZOffset(0.f,0.f,DebugZOffset);
@@ -476,7 +476,7 @@ void UMassLookAtProcessor::BuildTrajectory(const FMassZoneGraphLaneLocationFragm
 		}
 	}
 
-#if WITH_MASS_DEBUG && UNSAFE_FOR_MT
+#if WITH_MASSGAMEPLAY_DEBUG && UNSAFE_FOR_MT
 	if (bDisplayDebug)
 	{
 		const FVector ZOffset(0,0,35);
@@ -517,7 +517,7 @@ void UMassLookAtProcessor::BuildTrajectory(const FMassZoneGraphLaneLocationFragm
 				TEXT("D:%.1f"), CurrPoint.DistanceAlongLane.Get());
 		}
 	}
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 }
 
 #undef UNSAFE_FOR_MT

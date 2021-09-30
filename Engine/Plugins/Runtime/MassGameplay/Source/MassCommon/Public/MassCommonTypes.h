@@ -3,25 +3,26 @@
 #pragma once
 
 #include "LWComponentTypes.h"
+#include "MassEntityTypes.h"
 #include "InstancedStruct.h"
 #include "SequentialID.h"
 #include "MassCommonTypes.generated.h"
 
-#define WITH_MASS_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_AGGREGATETICKING_DEBUG && 1)
+#define WITH_MASSGAMEPLAY_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && WITH_MASSENTITY_DEBUG && 1)
 
 class UStaticMesh;
 class UMaterialInterface;
 
 MASSCOMMON_API DECLARE_LOG_CATEGORY_EXTERN(LogMass, Warning, All);
 
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 namespace UE::MassDebug
 {
 	MASSCOMMON_API extern bool HasDebugEntities();
 	MASSCOMMON_API extern bool IsDebuggingEntity(FLWEntity Entity, FColor* OutEntityColor = nullptr);
 	MASSCOMMON_API extern FColor GetEntityDebugColor(FLWEntity Entity);
 } // namespace UE::MassDebug
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 
 namespace UE::Mass::ProcessorGroupNames
 {
@@ -55,11 +56,11 @@ public:
 
 	FString DebugGetDescription() const 
 	{
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 		return LWEntity.DebugGetDescription();
 #else
 		return FString();
-#endif // WITH_MASS_DEBUG
+#endif // WITH_MASSGAMEPLAY_DEBUG
 	}
 
 	const static FMassHandle InvalidHandle;

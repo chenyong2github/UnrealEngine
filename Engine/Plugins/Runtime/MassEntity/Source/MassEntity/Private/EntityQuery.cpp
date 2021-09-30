@@ -127,7 +127,7 @@ void FLWComponentQuery::ForEachEntityChunk(const FArchetypeChunkCollection& Chun
 
 void FLWComponentQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& ExecutionContext, const FLWComponentSystemExecuteFunction& ExecuteFunction)
 {
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	int32 NumEntitiesToProcess = 0;
 #endif
 
@@ -143,7 +143,7 @@ void FLWComponentQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem
 		}
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
 		ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetChunkCollection());
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 		NumEntitiesToProcess = ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->GetNumEntities();
 #endif
 	}
@@ -159,13 +159,13 @@ void FLWComponentQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem
 			check(Archetype.IsValid());
 			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeComponentMapping[i], ChunkCondition);
 			ExecutionContext.ClearComponentViews();
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 			NumEntitiesToProcess += Archetype.DataPtr->GetNumEntities();
 #endif
 		}
 	}
 
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	// Not using VLOG to be thread safe
 	UE_CLOG(!ExecutionContext.DebugGetExecutionDesc().IsEmpty(), LogAggregateTicking, VeryVerbose,
 		TEXT("%s: %d entities sent for processing"), *ExecutionContext.DebugGetExecutionDesc(), NumEntitiesToProcess);
@@ -272,7 +272,7 @@ bool FLWComponentQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsys
 
 FString FLWComponentQuery::DebugGetDescription() const
 {
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	TStringBuilder<256> StringBuilder;
 	StringBuilder.Append(TEXT("<"));
 
@@ -299,7 +299,7 @@ FString FLWComponentQuery::DebugGetDescription() const
 
 FString FLWComponentRequirement::DebugGetDescription() const
 {
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	return FString::Printf(TEXT("%s%s[%s]"), IsOptional() ? TEXT("?") : (Presence == ELWComponentPresence::None ? TEXT("-") : TEXT("+"))
 		, *GetNameSafe(StructType), *UE::AggregateTicking::DebugGetComponentAccessString(AccessMode));
 #else

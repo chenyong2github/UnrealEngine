@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassZoneGraphMovementUtils.h"
-
+#include "MassCommonTypes.h"
 #include "MassAIMovementFragments.h"
 #include "MassZoneGraphMovementFragments.h"
 #include "ZoneGraphSubsystem.h"
@@ -50,7 +50,7 @@ namespace UE::MassMovement
 		{
 			MoveTarget.IntentAtGoal = ShortPath.EndOfPathIntent;
 			MoveTarget.DistanceToGoal = (ShortPath.NumPoints > 0) ? ShortPath.Points[ShortPath.NumPoints - 1].DistanceAlongLane.Get() : 0.0f;
-
+#if WITH_MASSGAMEPLAY_DEBUG
 			UE_CVLOG(UE::MassDebug::IsDebuggingEntity(Entity),
 				Requester,
 				LogMassNavigation,
@@ -61,6 +61,7 @@ namespace UE::MassMovement
 				LaneLocation.DistanceAlongLane,
 				PathRequest.TargetDistance,
 				*PathRequest.NextLaneHandle.ToString());
+#endif // WITH_MASSGAMEPLAY_DEBUG
 		}
 		else
 		{

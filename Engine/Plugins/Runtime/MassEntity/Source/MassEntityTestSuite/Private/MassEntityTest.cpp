@@ -15,7 +15,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 namespace FPipeEntityTest
 {
-#if WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG
 struct FEntityTest_ArchetypeCreation : FEntityTestBase
 {
 	virtual bool InstantTest() override
@@ -355,7 +355,7 @@ struct FEntityTest_ReserveAPreviouslyBuiltEntity : FEntityTestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ReserveAPreviouslyBuiltEntity, "System.Pipe.Entity.ReserveAPreviouslyBuiltEntity");
 
-#endif // WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 
 } // FPipeEntityTestTest
 

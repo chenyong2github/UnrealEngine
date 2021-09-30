@@ -13,7 +13,7 @@ namespace UE::Pipe::Debug
 
 void DebugOutputDescription(TConstArrayView<UPipeProcessor*> Processors, FOutputDevice& Ar)
 {
-#if WITH_PIPE_DEBUG
+#if WITH_MASSENTITY_DEBUG
 	const bool bAutoLineEnd = Ar.GetAutoEmitLineTerminator();
 	Ar.SetAutoEmitLineTerminator(false);
 	for (const UPipeProcessor* Proc : Processors)
@@ -29,10 +29,10 @@ void DebugOutputDescription(TConstArrayView<UPipeProcessor*> Processors, FOutput
 		}
 	}
 	Ar.SetAutoEmitLineTerminator(bAutoLineEnd);
-#endif // WITH_PIPE_DEBUG
+#endif // WITH_MASSENTITY_DEBUG
 }
 
-#if WITH_PIPE_DEBUG && WITH_AGGREGATETICKING_DEBUG
+#if WITH_MASSENTITY_DEBUG && WITH_MASSENTITY_DEBUG
 FAutoConsoleCommandWithWorldArgsAndOutputDevice PrintEntityFragmentsCmd(
 	TEXT("pipe.PrintEntityFragments"),
 	TEXT("Prints all fragment types and values (uproperties) for the specified Entity index"),
@@ -127,7 +127,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogFragmentSizes(
 			}
 		})
 	);
-#endif // WITH_PIPE_DEBUG && WITH_AGGREGATETICKING_DEBUG
+#endif // WITH_MASSENTITY_DEBUG && WITH_MASSENTITY_DEBUG
 
 } // namespace UE::Pipe::Debug
 

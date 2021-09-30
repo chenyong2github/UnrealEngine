@@ -2,7 +2,7 @@
 
 #include "GameplayDebuggerCategory_Mass.h"
 
-#if WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG
+#if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 #include "EntityView.h"
 #include "GameplayDebuggerCategoryReplicator.h"
 #include "GameplayDebuggerPlayerManager.h"
@@ -312,7 +312,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		const float CurrentTime = World->GetTimeSeconds();
 		
 		UMassStateTreeSubsystem* MassStateTreeSubsystem = World->GetSubsystem<UMassStateTreeSubsystem>();
-		if (MassStateTreeSubsystem != nullptr)
+		if (MassStateTreeSubsystem && EntitySystem)
 		{
 			FLWComponentSystemExecutionContext Context(0.0f);
 		
@@ -519,7 +519,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			});
 		}
 
-		if (bShowNearEntityAvoidance)
+		if (bShowNearEntityAvoidance && EntitySystem)
 		{
 			FLWComponentQuery EntityColliderQuery;
 			EntityColliderQuery.AddRequirement<FMassAvoidanceColliderFragment>(ELWComponentAccess::ReadOnly);
@@ -667,5 +667,5 @@ void FGameplayDebuggerCategory_Mass::DrawData(APlayerController* OwnerPC, FGamep
 
 	FGameplayDebuggerCategory::DrawData(OwnerPC, CanvasContext);
 }
-#endif // WITH_GAMEPLAY_DEBUGGER && WITH_MASS_DEBUG
+#endif // WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 

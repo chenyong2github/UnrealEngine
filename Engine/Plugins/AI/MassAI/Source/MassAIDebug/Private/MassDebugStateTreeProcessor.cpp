@@ -25,7 +25,7 @@ void UMassDebugStateTreeProcessor::ConfigureQueries()
 
 void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FLWComponentSystemExecutionContext& Context)
 {
-#if WITH_MASS_DEBUG
+#if WITH_MASSGAMEPLAY_DEBUG
 	UWorld* World = GetWorld();
 	if (World == nullptr)
 	{
@@ -100,5 +100,5 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 				}
 			}
 		});
-	#endif // WITH_MASS_DEBUG
+	#endif // WITH_MASSGAMEPLAY_DEBUG
 }
