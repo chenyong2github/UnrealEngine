@@ -21,7 +21,7 @@ class FToolCommandChange;
 class ULineSetComponent;
 class UMeshSelectionMechanic;
 class UToolTargetManager;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 class UUVEditorMode;
 class UUVSelectToolChangeRouter;
@@ -177,7 +177,7 @@ protected:
 	TObjectPtr<UMeshSelectionMechanic> SelectionMechanic = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> AABBTrees;
 

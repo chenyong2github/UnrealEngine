@@ -14,7 +14,7 @@ class IToolContextTransactionProvider;
 class UTransformProxy;
 
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API URepositionableTransformGizmoBuilder : public UTransformGizmoBuilder
+class INTERACTIVETOOLSFRAMEWORK_API URepositionableTransformGizmoBuilder : public UCombinedTransformGizmoBuilder
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ public:
  * A transform gizmo that also allows the user to reposition it by middle-clicking rotation/translation components.
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API URepositionableTransformGizmo : public UTransformGizmo
+class INTERACTIVETOOLSFRAMEWORK_API URepositionableTransformGizmo : public UCombinedTransformGizmo
 {
 	GENERATED_BODY()
 

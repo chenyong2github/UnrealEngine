@@ -70,7 +70,7 @@ void UDragAlignmentMechanic::Shutdown()
 {
 }
 
-void UDragAlignmentMechanic::AddToGizmo(UTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment, 
+void UDragAlignmentMechanic::AddToGizmo(UCombinedTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment, 
 	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToIncludeInAlignment)
 {
 	// If we have components to ignore/include, we need a copy of the array so that the alignment

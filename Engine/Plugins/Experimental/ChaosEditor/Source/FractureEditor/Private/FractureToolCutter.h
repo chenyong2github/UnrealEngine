@@ -248,7 +248,7 @@ public:
 	bool bShowUseGizmoOption = true;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;

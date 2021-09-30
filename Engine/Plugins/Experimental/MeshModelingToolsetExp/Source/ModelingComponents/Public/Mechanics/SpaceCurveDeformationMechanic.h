@@ -21,7 +21,7 @@ class ULineSetComponent;
 class UMouseHoverBehavior;
 class UPointSetComponent;
 class USingleClickInputBehavior;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 
 
@@ -191,7 +191,7 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> PointTransformProxy;
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> PointTransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> PointTransformGizmo;
 
 	// Used to make it easy to tell whether the gizmo was moved by the user or by undo/redo or
 	// some other change that we shoulnd't respond to. Basing our movement undo/redo on the

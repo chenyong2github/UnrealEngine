@@ -21,7 +21,6 @@
 // predeclarations
 struct FMeshDescription;
 class UDynamicMeshComponent;
-class UTransformGizmo;
 class UTransformProxy;
 class ULineSetComponent;
 

@@ -10,7 +10,7 @@
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "BaseCreateFromSelectedTool.generated.h"
 
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 
 /**
@@ -201,7 +201,7 @@ protected:
 	TArray<TObjectPtr<UTransformProxy>> TransformProxies;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UTransformGizmo>> TransformGizmos;
+	TArray<TObjectPtr<UCombinedTransformGizmo>> TransformGizmos;
 
 	UWorld* TargetWorld = nullptr;
 };

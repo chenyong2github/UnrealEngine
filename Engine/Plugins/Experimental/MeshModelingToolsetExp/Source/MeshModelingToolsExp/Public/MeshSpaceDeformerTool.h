@@ -21,7 +21,7 @@ class UMeshSpaceDeformerTool;
 
 class UDragAlignmentMechanic;
 class UPreviewMesh;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 class UIntervalGizmo;
 class UMeshOpPreviewWithBackgroundCompute;
@@ -251,7 +251,7 @@ protected:
 	TObjectPtr<UIntervalGizmo> IntervalGizmo;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy;

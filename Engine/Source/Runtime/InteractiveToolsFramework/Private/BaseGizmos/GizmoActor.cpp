@@ -12,7 +12,7 @@
 #include "Engine/World.h"
 
 
-#define LOCTEXT_NAMESPACE "UTransformGizmo"
+#define LOCTEXT_NAMESPACE "AGizmoActor"
 
 
 AGizmoActor::AGizmoActor()

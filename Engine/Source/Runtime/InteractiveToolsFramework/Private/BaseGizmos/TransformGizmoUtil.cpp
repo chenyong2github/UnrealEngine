@@ -14,15 +14,15 @@
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/RepositionableTransformGizmo.h"
 
-const FString UTransformGizmoContextObject::DefaultAxisPositionBuilderIdentifier = TEXT("Util_StandardXFormAxisTranslationGizmo");
-const FString UTransformGizmoContextObject::DefaultPlanePositionBuilderIdentifier = TEXT("Util_StandardXFormPlaneTranslationGizmo");
-const FString UTransformGizmoContextObject::DefaultAxisAngleBuilderIdentifier = TEXT("Util_StandardXFormAxisRotationGizmo");
-const FString UTransformGizmoContextObject::DefaultThreeAxisTransformBuilderIdentifier = TEXT("Util_DefaultThreeAxisTransformBuilderIdentifier");
-const FString UTransformGizmoContextObject::CustomThreeAxisTransformBuilderIdentifier = TEXT("Util_CustomThreeAxisTransformBuilderIdentifier");
-const FString UTransformGizmoContextObject::CustomRepositionableThreeAxisTransformBuilderIdentifier = TEXT("Util_CustomRepositionableThreeAxisTransformBuilderIdentifier");
+const FString UCombinedTransformGizmoContextObject::DefaultAxisPositionBuilderIdentifier = TEXT("Util_StandardXFormAxisTranslationGizmo");
+const FString UCombinedTransformGizmoContextObject::DefaultPlanePositionBuilderIdentifier = TEXT("Util_StandardXFormPlaneTranslationGizmo");
+const FString UCombinedTransformGizmoContextObject::DefaultAxisAngleBuilderIdentifier = TEXT("Util_StandardXFormAxisRotationGizmo");
+const FString UCombinedTransformGizmoContextObject::DefaultThreeAxisTransformBuilderIdentifier = TEXT("Util_DefaultThreeAxisTransformBuilderIdentifier");
+const FString UCombinedTransformGizmoContextObject::CustomThreeAxisTransformBuilderIdentifier = TEXT("Util_CustomThreeAxisTransformBuilderIdentifier");
+const FString UCombinedTransformGizmoContextObject::CustomRepositionableThreeAxisTransformBuilderIdentifier = TEXT("Util_CustomRepositionableThreeAxisTransformBuilderIdentifier");
 
 
-void UTransformGizmoContextObject::RegisterGizmosWithManager(UInteractiveToolManager* ToolManager)
+void UCombinedTransformGizmoContextObject::RegisterGizmosWithManager(UInteractiveToolManager* ToolManager)
 {
 	if (ensure(!bDefaultGizmosRegistered) == false)
 	{
@@ -41,7 +41,7 @@ void UTransformGizmoContextObject::RegisterGizmosWithManager(UInteractiveToolMan
 	UAxisAngleGizmoBuilder* AxisRotationBuilder = NewObject<UAxisAngleGizmoBuilder>();
 	GizmoManager->RegisterGizmoType(DefaultAxisAngleBuilderIdentifier, AxisRotationBuilder);
 
-	UTransformGizmoBuilder* TransformBuilder = NewObject<UTransformGizmoBuilder>();
+	UCombinedTransformGizmoBuilder* TransformBuilder = NewObject<UCombinedTransformGizmoBuilder>();
 	TransformBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;
 	TransformBuilder->PlanePositionBuilderIdentifier = DefaultPlanePositionBuilderIdentifier;
 	TransformBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
@@ -54,9 +54,9 @@ void UTransformGizmoContextObject::RegisterGizmosWithManager(UInteractiveToolMan
 		ToolManager->GetContextObjectStore()->AddContextObject(GizmoViewContext);
 	}
 
-	GizmoActorBuilder = MakeShared<FTransformGizmoActorFactory>(GizmoViewContext);
+	GizmoActorBuilder = MakeShared<FCombinedTransformGizmoActorFactory>(GizmoViewContext);
 
-	UTransformGizmoBuilder* CustomThreeAxisBuilder = NewObject<UTransformGizmoBuilder>();
+	UCombinedTransformGizmoBuilder* CustomThreeAxisBuilder = NewObject<UCombinedTransformGizmoBuilder>();
 	CustomThreeAxisBuilder->AxisPositionBuilderIdentifier = DefaultAxisPositionBuilderIdentifier;
 	CustomThreeAxisBuilder->PlanePositionBuilderIdentifier = DefaultPlanePositionBuilderIdentifier;
 	CustomThreeAxisBuilder->AxisAngleBuilderIdentifier = DefaultAxisAngleBuilderIdentifier;
@@ -75,7 +75,7 @@ void UTransformGizmoContextObject::RegisterGizmosWithManager(UInteractiveToolMan
 
 }
 
-void UTransformGizmoContextObject::DeregisterGizmosWithManager(UInteractiveToolManager* ToolManager)
+void UCombinedTransformGizmoContextObject::DeregisterGizmosWithManager(UInteractiveToolManager* ToolManager)
 {
 	UInteractiveGizmoManager* GizmoManager = ToolManager->GetPairedGizmoManager();
 	ToolManager->GetContextObjectStore()->RemoveContextObject(this);
@@ -97,10 +97,10 @@ bool UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(UInteractiveToo
 {
 	if (ensure(ToolsContext))
 	{
-		UTransformGizmoContextObject* Found = ToolsContext->ContextObjectStore->FindContext<UTransformGizmoContextObject>();
+		UCombinedTransformGizmoContextObject* Found = ToolsContext->ContextObjectStore->FindContext<UCombinedTransformGizmoContextObject>();
 		if (Found == nullptr)
 		{
-			UTransformGizmoContextObject* GizmoHelper = NewObject<UTransformGizmoContextObject>(ToolsContext->ToolManager);
+			UCombinedTransformGizmoContextObject* GizmoHelper = NewObject<UCombinedTransformGizmoContextObject>(ToolsContext->ToolManager);
 			if (ensure(GizmoHelper))
 			{
 				GizmoHelper->RegisterGizmosWithManager(ToolsContext->ToolManager);
@@ -121,7 +121,7 @@ bool UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(UInteractiveT
 {
 	if (ensure(ToolsContext))
 	{
-		UTransformGizmoContextObject* Found = ToolsContext->ContextObjectStore->FindContext<UTransformGizmoContextObject>();
+		UCombinedTransformGizmoContextObject* Found = ToolsContext->ContextObjectStore->FindContext<UCombinedTransformGizmoContextObject>();
 		if (Found != nullptr)
 		{
 			Found->DeregisterGizmosWithManager(ToolsContext->ToolManager);
@@ -134,21 +134,21 @@ bool UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(UInteractiveT
 
 
 
-UTransformGizmo* UTransformGizmoContextObject::Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UCombinedTransformGizmoContextObject::Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(bDefaultGizmosRegistered))
 	{
 		UInteractiveGizmo* NewGizmo = GizmoManager->CreateGizmo(DefaultThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 		ensure(NewGizmo);
-		return Cast<UTransformGizmo>(NewGizmo);
+		return Cast<UCombinedTransformGizmo>(NewGizmo);
 	}
 	return nullptr;
 }
-UTransformGizmo* UE::TransformGizmoUtil::Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UE::TransformGizmoUtil::Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(GizmoManager))
 	{
-		UTransformGizmoContextObject* UseThis = GizmoManager->GetContextObjectStore()->FindContext<UTransformGizmoContextObject>();
+		UCombinedTransformGizmoContextObject* UseThis = GizmoManager->GetContextObjectStore()->FindContext<UCombinedTransformGizmoContextObject>();
 		if (ensure(UseThis))
 		{
 			return UseThis->Create3AxisTransformGizmo(GizmoManager, Owner, InstanceIdentifier);
@@ -156,7 +156,7 @@ UTransformGizmo* UE::TransformGizmoUtil::Create3AxisTransformGizmo(UInteractiveG
 	}
 	return nullptr;
 }
-UTransformGizmo* UE::TransformGizmoUtil::Create3AxisTransformGizmo(UInteractiveToolManager* ToolManager, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UE::TransformGizmoUtil::Create3AxisTransformGizmo(UInteractiveToolManager* ToolManager, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(ToolManager))
 	{
@@ -165,22 +165,22 @@ UTransformGizmo* UE::TransformGizmoUtil::Create3AxisTransformGizmo(UInteractiveT
 	return nullptr;
 }
 
-UTransformGizmo* UTransformGizmoContextObject::CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UCombinedTransformGizmoContextObject::CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(bDefaultGizmosRegistered))
 	{
 		GizmoActorBuilder->EnableElements = Elements;
 		UInteractiveGizmo* NewGizmo = GizmoManager->CreateGizmo(CustomThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 		ensure(NewGizmo);
-		return Cast<UTransformGizmo>(NewGizmo);
+		return Cast<UCombinedTransformGizmo>(NewGizmo);
 	}
 	return nullptr;
 }
-UTransformGizmo* UE::TransformGizmoUtil::CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UE::TransformGizmoUtil::CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(GizmoManager))
 	{
-		UTransformGizmoContextObject* UseThis = GizmoManager->GetContextObjectStore()->FindContext<UTransformGizmoContextObject>();
+		UCombinedTransformGizmoContextObject* UseThis = GizmoManager->GetContextObjectStore()->FindContext<UCombinedTransformGizmoContextObject>();
 		if (ensure(UseThis))
 		{
 			return UseThis->CreateCustomTransformGizmo(GizmoManager, Elements, Owner, InstanceIdentifier);
@@ -188,7 +188,7 @@ UTransformGizmo* UE::TransformGizmoUtil::CreateCustomTransformGizmo(UInteractive
 	}
 	return nullptr;
 }
-UTransformGizmo* UE::TransformGizmoUtil::CreateCustomTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UE::TransformGizmoUtil::CreateCustomTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(ToolManager))
 	{
@@ -198,22 +198,22 @@ UTransformGizmo* UE::TransformGizmoUtil::CreateCustomTransformGizmo(UInteractive
 }
 
 
-UTransformGizmo* UTransformGizmoContextObject::CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UCombinedTransformGizmoContextObject::CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(bDefaultGizmosRegistered))
 	{
 		GizmoActorBuilder->EnableElements = Elements;
 		UInteractiveGizmo* NewGizmo = GizmoManager->CreateGizmo(CustomRepositionableThreeAxisTransformBuilderIdentifier, InstanceIdentifier, Owner);
 		ensure(NewGizmo);
-		return Cast<UTransformGizmo>(NewGizmo);
+		return Cast<UCombinedTransformGizmo>(NewGizmo);
 	}
 	return nullptr;
 }
-UTransformGizmo* UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(GizmoManager))
 	{
-		UTransformGizmoContextObject* UseThis = GizmoManager->GetContextObjectStore()->FindContext<UTransformGizmoContextObject>();
+		UCombinedTransformGizmoContextObject* UseThis = GizmoManager->GetContextObjectStore()->FindContext<UCombinedTransformGizmoContextObject>();
 		if (ensure(UseThis))
 		{
 			return UseThis->CreateCustomRepositionableTransformGizmo(GizmoManager, Elements, Owner, InstanceIdentifier);
@@ -221,7 +221,7 @@ UTransformGizmo* UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizm
 	}
 	return nullptr;
 }
-UTransformGizmo* UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
+UCombinedTransformGizmo* UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(UInteractiveToolManager* ToolManager, ETransformGizmoSubElements Elements, void* Owner, const FString& InstanceIdentifier)
 {
 	if (ensure(ToolManager))
 	{

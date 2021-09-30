@@ -14,11 +14,6 @@
 #include "PlaneCutTool.generated.h"
 
 
-// predeclarations
-class UTransformGizmo;
-class UTransformProxy;
-
-
 /**
  *
  */

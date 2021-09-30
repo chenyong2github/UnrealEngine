@@ -17,7 +17,7 @@
 
 class USingleClickInputBehavior;
 class UClickDragInputBehavior;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class ULevelSequence;
 class UControlRig;
 struct FRigControlElement;
@@ -150,7 +150,7 @@ protected:
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 
 protected:
 	bool bShiftPressedWhenStarted = false;

@@ -167,7 +167,7 @@ void UBaseCreateFromSelectedTool::UpdateGizmoVisibility()
 {
 	for (int32 GizmoIndex = 0; GizmoIndex < TransformGizmos.Num(); GizmoIndex++)
 	{
-		UTransformGizmo* Gizmo = TransformGizmos[GizmoIndex];
+		UCombinedTransformGizmo* Gizmo = TransformGizmos[GizmoIndex];
 		Gizmo->SetVisibility(TransformProperties->bShowTransformUI && GizmoIndex != GetHiddenGizmoIndex());
 	}
 }
@@ -181,7 +181,7 @@ void UBaseCreateFromSelectedTool::SetTransformGizmos()
 	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		UTransformProxy* Proxy = TransformProxies.Add_GetRef(NewObject<UTransformProxy>(this));
-		UTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(UE::TransformGizmoUtil::Create3AxisTransformGizmo(GizmoManager, this));
+		UCombinedTransformGizmo* Gizmo = TransformGizmos.Add_GetRef(UE::TransformGizmoUtil::Create3AxisTransformGizmo(GizmoManager, this));
 		Proxy->SetTransform(TargetComponentInterface(ComponentIdx)->GetWorldTransform());
 		Gizmo->SetActiveTarget(Proxy, GetToolManager());
 		Proxy->OnTransformChanged.AddUObject(this, &UBaseCreateFromSelectedTool::TransformChanged);

@@ -90,7 +90,7 @@ protected:
 
 /**
  * ETransformGizmoSubElements identifies the sub-elements of a standard 3-axis transformation Gizmo.
- * Used by GizmoManager to customize UTransformGizmo instances.
+ * Used by GizmoManager to customize UCombinedTransformGizmo instances.
  */
 UENUM()
 enum class ETransformGizmoSubElements

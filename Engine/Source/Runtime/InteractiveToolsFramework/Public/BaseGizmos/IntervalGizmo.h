@@ -83,7 +83,7 @@ public:
 
 	/**
 	 * @param World the UWorld to create the new Actor in
-	 * @return new ATransformGizmoActor instance with members initialized with Components suitable for a transformation Gizmo
+	 * @return new AIntervalGizmoActor instance with members initialized with Components suitable for a transformation Gizmo
 	 */
 	virtual AIntervalGizmoActor* CreateNewGizmoActor(UWorld* World) const
 	{

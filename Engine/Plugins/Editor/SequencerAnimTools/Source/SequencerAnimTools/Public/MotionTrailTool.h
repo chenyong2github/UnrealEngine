@@ -21,7 +21,7 @@
 
 class USingleClickInputBehavior;
 class UClickDragInputBehavior;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class FEditorModeTools;
 class USingleKeyCaptureBehavior;
 
@@ -159,7 +159,7 @@ public:
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy;
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo;
 
 	FTransform StartDragTransform;
 	bool bGizmoBeingDragged = false;

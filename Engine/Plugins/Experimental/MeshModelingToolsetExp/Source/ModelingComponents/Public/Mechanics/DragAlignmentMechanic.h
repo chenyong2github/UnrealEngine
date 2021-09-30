@@ -17,10 +17,10 @@
 PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopologyDeformer);
 class UPrimitiveComponent;
 class UIntervalGizmo;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 
 /**
- * Mechanic that can be added to (potentially multiple) UTransformGizmo object to allow them to snap to
+ * Mechanic that can be added to (potentially multiple) UCombinedTransformGizmo object to allow them to snap to
  * scene geometry in rotation and translation when the Ctrl key is pressed.
  */
 UCLASS()
@@ -31,13 +31,13 @@ class MODELINGCOMPONENTS_API UDragAlignmentMechanic : public UInteractionMechani
 public:
 
 	/**
-	 * Adds this mechanic to the given gizmo. Can be called on multiple gizmos, and works both for UTransformGizmo
+	 * Adds this mechanic to the given gizmo. Can be called on multiple gizmos, and works both for UCombinedTransformGizmo
 	 * and URepositionableTransformGizmo.
 	 * For repositioning, the gizmo will not ignore anything in its alignment (so that the gizmo can be aligned to the
 	 * target object(s)). For movement, the gizmo will ignore ComponentsToIgnore, as well as modified triangles if used
 	 * for deformation.
 	 */
-	void AddToGizmo(UTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr,
+	void AddToGizmo(UCombinedTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr,
 		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
 
 	/**

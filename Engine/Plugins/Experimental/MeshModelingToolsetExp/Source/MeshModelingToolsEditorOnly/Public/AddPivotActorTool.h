@@ -11,7 +11,7 @@
 #include "AddPivotActorTool.generated.h"
 
 class UDragAlignmentMechanic;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 
 
@@ -56,7 +56,7 @@ protected:
 	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;

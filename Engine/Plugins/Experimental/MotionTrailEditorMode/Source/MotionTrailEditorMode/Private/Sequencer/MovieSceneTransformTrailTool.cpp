@@ -124,10 +124,10 @@ void FDefaultMovieSceneTransformTrailTool::OnClicked(const FInputDeviceRay& Clic
 
 	if (CachedSelected)
 	{
-		ActiveTransformGizmo = Cast<UTransformGizmo>(TrailToolManager->GetGizmoManager()->FindGizmoByInstanceIdentifier(UTrailToolManager::TrailKeyTransformGizmoInstanceIdentifier));
+		ActiveTransformGizmo = Cast<UCombinedTransformGizmo>(TrailToolManager->GetGizmoManager()->FindGizmoByInstanceIdentifier(UTrailToolManager::TrailKeyTransformGizmoInstanceIdentifier));
 
 		UMSTrailTransformProxy* MSTrailTransformProxy;
-		if (ActiveTransformGizmo.IsValid() && Cast<UMSTrailTransformProxy>(Cast<UTransformGizmo>(ActiveTransformGizmo)->ActiveTarget))
+		if (ActiveTransformGizmo.IsValid() && Cast<UMSTrailTransformProxy>(Cast<UCombinedTransformGizmo>(ActiveTransformGizmo)->ActiveTarget))
 		{
 			MSTrailTransformProxy = Cast<UMSTrailTransformProxy>(ActiveTransformGizmo->ActiveTarget);
 
@@ -431,7 +431,7 @@ void FDefaultMovieSceneTransformTrailTool::FKeyInfo::UpdateKeyTransform(EKeyUpda
 	}
 }
 
-void FDefaultMovieSceneTransformTrailTool::UpdateGizmoActorComponents(FKeyInfo* KeyInfo, UTransformGizmo* TransformGizmo)
+void FDefaultMovieSceneTransformTrailTool::UpdateGizmoActorComponents(FKeyInfo* KeyInfo, UCombinedTransformGizmo* TransformGizmo)
 {
 	if (!KeyInfo->IdxMap.Contains(EMSTrailTransformChannel::TranslateX))
 	{

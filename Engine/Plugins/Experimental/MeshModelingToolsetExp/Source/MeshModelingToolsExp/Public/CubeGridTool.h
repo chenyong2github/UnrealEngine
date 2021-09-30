@@ -36,7 +36,7 @@ class UMeshOpPreviewWithBackgroundCompute;
 class UMouseHoverBehavior;
 class UNewMeshMaterialProperties;
 class UPreviewGeometry;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 class UToolTarget;
 
@@ -352,7 +352,7 @@ public:
 protected:
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> GridGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> GridGizmo = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UDragAlignmentMechanic> GridGizmoAlignmentMechanic = nullptr;

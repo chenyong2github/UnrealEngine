@@ -76,7 +76,7 @@ TArray<UInteractiveGizmo*> UPointLightGizmoFactory::BuildGizmoForSelection(FEdit
 		break;
 	}
 
-	UTransformGizmo* TransformGizmo = GizmoManager->CreateCustomTransformGizmo(Elements);
+	UCombinedTransformGizmo* TransformGizmo = GizmoManager->CreateCustomTransformGizmo(Elements);
 	TransformGizmo->bUseContextCoordinateSystem = bUseContextCoordinateSystem;
 	
 	USubTransformProxy* TransformProxy = NewObject<USubTransformProxy>();
@@ -105,7 +105,7 @@ void UPointLightGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, bool bRot
 {
 	for (UInteractiveGizmo *Gizmo : Gizmos)
 	{
-		UTransformGizmo* TransformGizmo = Cast<UTransformGizmo>(Gizmo);
+		UCombinedTransformGizmo* TransformGizmo = Cast<UCombinedTransformGizmo>(Gizmo);
 
 		if (TransformGizmo)
 		{

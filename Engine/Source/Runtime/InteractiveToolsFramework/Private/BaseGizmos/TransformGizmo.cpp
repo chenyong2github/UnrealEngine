@@ -24,10 +24,10 @@
 #include "Engine/CollisionProfile.h"
 
 
-#define LOCTEXT_NAMESPACE "UTransformGizmo"
+#define LOCTEXT_NAMESPACE "UCombinedTransformGizmo"
 
 
-ATransformGizmoActor::ATransformGizmoActor()
+ACombinedTransformGizmoActor::ACombinedTransformGizmoActor()
 {
 	// root component is a hidden sphere
 	USphereComponent* SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("GizmoCenter"));
@@ -39,7 +39,7 @@ ATransformGizmoActor::ATransformGizmoActor()
 
 
 
-ATransformGizmoActor* ATransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* World, UGizmoViewContext* GizmoViewContext)
+ACombinedTransformGizmoActor* ACombinedTransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* World, UGizmoViewContext* GizmoViewContext)
 {
 	return ConstructCustom3AxisGizmo(World, GizmoViewContext,
 		ETransformGizmoSubElements::TranslateAllAxes |
@@ -52,12 +52,12 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructDefault3AxisGizmo(UWorld* W
 }
 
 
-ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
+ACombinedTransformGizmoActor* ACombinedTransformGizmoActor::ConstructCustom3AxisGizmo(
 	UWorld* World, UGizmoViewContext* GizmoViewContext,
 	ETransformGizmoSubElements Elements)
 {
 	FActorSpawnParameters SpawnInfo;
-	ATransformGizmoActor* NewActor = World->SpawnActor<ATransformGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
+	ACombinedTransformGizmoActor* NewActor = World->SpawnActor<ACombinedTransformGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
 
 	float GizmoLineThickness = 3.0f;
 
@@ -213,23 +213,23 @@ ATransformGizmoActor* ATransformGizmoActor::ConstructCustom3AxisGizmo(
 
 
 
-ATransformGizmoActor* FTransformGizmoActorFactory::CreateNewGizmoActor(UWorld* World) const
+ACombinedTransformGizmoActor* FCombinedTransformGizmoActorFactory::CreateNewGizmoActor(UWorld* World) const
 {
-	return ATransformGizmoActor::ConstructCustom3AxisGizmo(World, GizmoViewContext, EnableElements);
+	return ACombinedTransformGizmoActor::ConstructCustom3AxisGizmo(World, GizmoViewContext, EnableElements);
 }
 
 
 
-UInteractiveGizmo* UTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
+UInteractiveGizmo* UCombinedTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
-	UTransformGizmo* NewGizmo = NewObject<UTransformGizmo>(SceneState.GizmoManager);
+	UCombinedTransformGizmo* NewGizmo = NewObject<UCombinedTransformGizmo>(SceneState.GizmoManager);
 	NewGizmo->SetWorld(SceneState.World);
 
 	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
 	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
 
 	// use default gizmo actor if client has not given us a new builder
-	NewGizmo->SetGizmoActorBuilder(GizmoActorBuilder ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>(GizmoViewContext));
+	NewGizmo->SetGizmoActorBuilder(GizmoActorBuilder ? GizmoActorBuilder : MakeShared<FCombinedTransformGizmoActorFactory>(GizmoViewContext));
 
 	NewGizmo->SetSubGizmoBuilderIdentifiers(AxisPositionBuilderIdentifier, PlanePositionBuilderIdentifier, AxisAngleBuilderIdentifier);
 
@@ -249,34 +249,34 @@ UInteractiveGizmo* UTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& S
 
 
 
-void UTransformGizmo::SetWorld(UWorld* WorldIn)
+void UCombinedTransformGizmo::SetWorld(UWorld* WorldIn)
 {
 	this->World = WorldIn;
 }
 
-void UTransformGizmo::SetGizmoActorBuilder(TSharedPtr<FTransformGizmoActorFactory> Builder)
+void UCombinedTransformGizmo::SetGizmoActorBuilder(TSharedPtr<FCombinedTransformGizmoActorFactory> Builder)
 {
 	GizmoActorBuilder = Builder;
 }
 
-void UTransformGizmo::SetSubGizmoBuilderIdentifiers(FString AxisPositionBuilderIdentifierIn, FString PlanePositionBuilderIdentifierIn, FString AxisAngleBuilderIdentifierIn)
+void UCombinedTransformGizmo::SetSubGizmoBuilderIdentifiers(FString AxisPositionBuilderIdentifierIn, FString PlanePositionBuilderIdentifierIn, FString AxisAngleBuilderIdentifierIn)
 {
 	AxisPositionBuilderIdentifier = AxisPositionBuilderIdentifierIn;
 	PlanePositionBuilderIdentifier = PlanePositionBuilderIdentifierIn;
 	AxisAngleBuilderIdentifier = AxisAngleBuilderIdentifierIn;
 }
 
-void UTransformGizmo::SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction)
+void UCombinedTransformGizmo::SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction)
 {
 	UpdateHoverFunction = HoverFunction;
 }
 
-void UTransformGizmo::SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction)
+void UCombinedTransformGizmo::SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction)
 {
 	UpdateCoordSystemFunction = CoordSysFunction;
 }
 
-void UTransformGizmo::SetWorldAlignmentFunctions(
+void UCombinedTransformGizmo::SetWorldAlignmentFunctions(
 	TUniqueFunction<bool()>&& ShouldAlignTranslationIn,
 	TUniqueFunction<bool(const FRay&, FVector&)>&& TranslationAlignmentRayCasterIn)
 {
@@ -333,7 +333,7 @@ void UTransformGizmo::SetWorldAlignmentFunctions(
 	}
 }
 
-void UTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
+void UCombinedTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
 {
 	if (bDisallowNegativeScaling != bDisallow)
 	{
@@ -358,13 +358,13 @@ void UTransformGizmo::SetDisallowNegativeScaling(bool bDisallow)
 	}
 }
 
-void UTransformGizmo::SetIsNonUniformScaleAllowedFunction(TUniqueFunction<bool()>&& IsNonUniformScaleAllowedIn)
+void UCombinedTransformGizmo::SetIsNonUniformScaleAllowedFunction(TUniqueFunction<bool()>&& IsNonUniformScaleAllowedIn)
 {
 	IsNonUniformScaleAllowed = MoveTemp(IsNonUniformScaleAllowedIn);
 }
 
 
-void UTransformGizmo::Setup()
+void UCombinedTransformGizmo::Setup()
 {
 	UInteractiveGizmo::Setup();
 
@@ -389,7 +389,7 @@ void UTransformGizmo::Setup()
 
 
 
-void UTransformGizmo::Shutdown()
+void UCombinedTransformGizmo::Shutdown()
 {
 	ClearActiveTarget();
 
@@ -402,7 +402,7 @@ void UTransformGizmo::Shutdown()
 
 
 
-void UTransformGizmo::UpdateCameraAxisSource()
+void UCombinedTransformGizmo::UpdateCameraAxisSource()
 {
 	FViewCameraState CameraState;
 	GetGizmoManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
@@ -416,7 +416,7 @@ void UTransformGizmo::UpdateCameraAxisSource()
 }
 
 
-void UTransformGizmo::Tick(float DeltaTime)
+void UCombinedTransformGizmo::Tick(float DeltaTime)
 {	
 	if (bUseContextCoordinateSystem)
 	{
@@ -451,7 +451,7 @@ void UTransformGizmo::Tick(float DeltaTime)
 
 
 
-void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider)
+void UCombinedTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider)
 {
 	if (ActiveTarget != nullptr)
 	{
@@ -479,7 +479,7 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 		TransactionProvider = GetGizmoManager();
 	}
 	StateTarget = UGizmoTransformChangeStateTarget::Construct(GizmoComponent,
-		LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);
+		LOCTEXT("UCombinedTransformGizmoTransaction", "Transform"), TransactionProvider, this);
 	StateTarget->DependentChangeSources.Add(MakeUnique<FTransformProxyChangeSource>(Target));
 
 	CameraAxisSource = NewObject<UGizmoConstantFrameAxisSource>(this);
@@ -592,13 +592,13 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 	}
 }
 
-FTransform UTransformGizmo::GetGizmoTransform() const
+FTransform UCombinedTransformGizmo::GetGizmoTransform() const
 {
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 	return GizmoComponent->GetComponentTransform();
 }
 
-void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
+void UCombinedTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
 {
 	// To update the gizmo location without triggering any callbacks, we temporarily
 	// store a copy of the callback list, detach them, reposition, and then reattach
@@ -621,7 +621,7 @@ void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform,
 	ActiveTarget->bSetPivotMode = bSavedSetPivotMode;
 }
 
-void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
+void UCombinedTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled)
 {
 	check(ActiveTarget != nullptr);
 
@@ -640,7 +640,7 @@ void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform, bool 
 }
 
 
-void UTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
+void UCombinedTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 {
 	FTransform NewTransform = ActiveTarget->GetTransform();
 	NewTransform.SetScale3D(NewChildScale);
@@ -652,7 +652,7 @@ void UTransformGizmo::SetNewChildScale(const FVector& NewChildScale)
 }
 
 
-void UTransformGizmo::SetVisibility(bool bVisible)
+void UCombinedTransformGizmo::SetVisibility(bool bVisible)
 {
 	GizmoActor->SetActorHiddenInGame(bVisible == false);
 #if WITH_EDITOR
@@ -661,7 +661,7 @@ void UTransformGizmo::SetVisibility(bool bVisible)
 }
 
 
-UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
+UInteractiveGizmo* UCombinedTransformGizmo::AddAxisTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
@@ -701,7 +701,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisTranslationGizmo(
 
 
 
-UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
+UInteractiveGizmo* UCombinedTransformGizmo::AddPlaneTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
@@ -743,7 +743,7 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneTranslationGizmo(
 
 
 
-UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
+UInteractiveGizmo* UCombinedTransformGizmo::AddAxisRotationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
@@ -784,7 +784,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisRotationGizmo(
 
 
 
-UInteractiveGizmo* UTransformGizmo::AddAxisScaleGizmo(
+UInteractiveGizmo* UCombinedTransformGizmo::AddAxisScaleGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* GizmoAxisSource, IGizmoAxisSource* ParameterAxisSource,
 	IGizmoTransformSource* TransformSource,
@@ -819,7 +819,7 @@ UInteractiveGizmo* UTransformGizmo::AddAxisScaleGizmo(
 
 
 
-UInteractiveGizmo* UTransformGizmo::AddPlaneScaleGizmo(
+UInteractiveGizmo* UCombinedTransformGizmo::AddPlaneScaleGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* GizmoAxisSource, IGizmoAxisSource* ParameterAxisSource,
 	IGizmoTransformSource* TransformSource,
@@ -857,7 +857,7 @@ UInteractiveGizmo* UTransformGizmo::AddPlaneScaleGizmo(
 
 
 
-UInteractiveGizmo* UTransformGizmo::AddUniformScaleGizmo(
+UInteractiveGizmo* UCombinedTransformGizmo::AddUniformScaleGizmo(
 	UPrimitiveComponent* ScaleComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* GizmoAxisSource, IGizmoAxisSource* ParameterAxisSource,
 	IGizmoTransformSource* TransformSource,
@@ -891,7 +891,7 @@ UInteractiveGizmo* UTransformGizmo::AddUniformScaleGizmo(
 
 
 
-void UTransformGizmo::ClearActiveTarget()
+void UCombinedTransformGizmo::ClearActiveTarget()
 {
 	for (UInteractiveGizmo* Gizmo : ActiveGizmos)
 	{
@@ -916,7 +916,7 @@ void UTransformGizmo::ClearActiveTarget()
 
 
 
-bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const
+bool UCombinedTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const
 {
 	SnappedPositionOut = WorldPosition;
 
@@ -951,7 +951,7 @@ bool UTransformGizmo::PositionSnapFunction(const FVector& WorldPosition, FVector
 	return false;
 }
 
-FQuat UTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
+FQuat UCombinedTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 {
 	FQuat SnappedDeltaRotation = DeltaRotation;
 

@@ -13,7 +13,7 @@
 class UBaseAxisTranslationGizmo;
 class UAxisAngleGizmo;
 class UDragAlignmentMechanic;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 
 
@@ -141,7 +141,7 @@ struct FTransformMeshesTarget
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
+	TObjectPtr<UCombinedTransformGizmo> TransformGizmo = nullptr;
 };
 
 

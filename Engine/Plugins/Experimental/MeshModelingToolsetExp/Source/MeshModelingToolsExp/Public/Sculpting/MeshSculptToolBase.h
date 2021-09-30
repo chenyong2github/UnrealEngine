@@ -14,7 +14,7 @@
 
 
 class UMaterialInstanceDynamic;
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 class UPreviewMesh;
 
@@ -471,7 +471,7 @@ protected:
 public:
 	// plane gizmo
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> PlaneTransformGizmo;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> PlaneTransformProxy;

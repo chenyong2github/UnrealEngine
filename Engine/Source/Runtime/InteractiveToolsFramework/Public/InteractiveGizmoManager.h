@@ -11,9 +11,9 @@
 #include "ToolContextInterfaces.h"
 #include "InteractiveGizmoManager.generated.h"
 
-class FTransformGizmoActorFactory;
-class UTransformGizmo;
-class UTransformGizmoBuilder;
+class FCombinedTransformGizmoActorFactory;
+class UCombinedTransformGizmo;
+class UCombinedTransformGizmoBuilder;
 class UContextObjectStore;
 
 USTRUCT()
@@ -206,7 +206,7 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UTransformGizmo* Create3AxisTransformGizmo(void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	virtual UCombinedTransformGizmo* Create3AxisTransformGizmo(void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 	/**
 	 * Activate a new customized instance of the default 3-axis transformation Gizmo, with only certain elements included. RegisterDefaultGizmos() must have been called first.
@@ -215,9 +215,9 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UTransformGizmo* CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	virtual UCombinedTransformGizmo* CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
-	virtual UTransformGizmo* CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	virtual UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 public:
 	// builder identifiers for default gizmo types. Perhaps should have an API for this...
@@ -249,5 +249,5 @@ protected:
 	TMap<FString, TObjectPtr<UInteractiveGizmoBuilder>> GizmoBuilders;
 
 	bool bDefaultGizmosRegistered = false;
-	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
+	TSharedPtr<FCombinedTransformGizmoActorFactory> GizmoActorBuilder;
 };

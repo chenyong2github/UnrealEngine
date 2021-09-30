@@ -23,10 +23,10 @@ class UGizmoViewContext;
 class FTransformGizmoTransformChange;
 
 /**
- * ATransformGizmoActor is an Actor type intended to be used with UTransformGizmo,
+ * ACombinedTransformGizmoActor is an Actor type intended to be used with UCombinedTransformGizmo,
  * as the in-scene visual representation of the Gizmo.
  * 
- * FTransformGizmoActorFactory returns an instance of this Actor type (or a subclass), and based on
+ * FCombinedTransformGizmoActorFactory returns an instance of this Actor type (or a subclass), and based on
  * which Translate and Rotate UProperties are initialized, will associate those Components
  * with UInteractiveGizmo's that implement Axis Translation, Plane Translation, and Axis Rotation.
  * 
@@ -36,12 +36,12 @@ class FTransformGizmoTransformChange;
  * Actor suitable for use in a standard 3-axis Transformation Gizmo.
  */
 UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API ATransformGizmoActor : public AGizmoActor
+class INTERACTIVETOOLSFRAMEWORK_API ACombinedTransformGizmoActor : public AGizmoActor
 {
 	GENERATED_BODY()
 public:
 
-	ATransformGizmoActor();
+	ACombinedTransformGizmoActor();
 
 public:
 	//
@@ -127,18 +127,18 @@ public:
 
 public:
 	/**
-	 * Create a new instance of ATransformGizmoActor and populate the various
+	 * Create a new instance of ACombinedTransformGizmoActor and populate the various
 	 * sub-components with standard GizmoXComponent instances suitable for a 3-axis transformer Gizmo
 	 */
-	static ATransformGizmoActor* ConstructDefault3AxisGizmo(
+	static ACombinedTransformGizmoActor* ConstructDefault3AxisGizmo(
 		UWorld* World, UGizmoViewContext* GizmoViewContext
 	);
 
 	/**
-	 * Create a new instance of ATransformGizmoActor. Populate the sub-components 
+	 * Create a new instance of ACombinedTransformGizmoActor. Populate the sub-components 
 	 * specified by Elements with standard GizmoXComponent instances suitable for a 3-axis transformer Gizmo
 	 */
-	static ATransformGizmoActor* ConstructCustom3AxisGizmo(
+	static ACombinedTransformGizmoActor* ConstructCustom3AxisGizmo(
 		UWorld* World, UGizmoViewContext* GizmoViewContext,
 		ETransformGizmoSubElements Elements
 	);
@@ -149,25 +149,25 @@ public:
 
 
 /**
- * FTransformGizmoActorFactory creates new instances of ATransformGizmoActor which
- * are used by UTransformGizmo to implement 3D transformation Gizmos. 
- * An instance of FTransformGizmoActorFactory is passed to UTransformGizmo
- * (by way of UTransformGizmoBuilder), which then calls CreateNewGizmoActor()
+ * FCombinedTransformGizmoActorFactory creates new instances of ACombinedTransformGizmoActor which
+ * are used by UCombinedTransformGizmo to implement 3D transformation Gizmos. 
+ * An instance of FCombinedTransformGizmoActorFactory is passed to UCombinedTransformGizmo
+ * (by way of UCombinedTransformGizmoBuilder), which then calls CreateNewGizmoActor()
  * to spawn new Gizmo Actors.
  * 
  * By default CreateNewGizmoActor() returns a default Gizmo Actor suitable for
  * a three-axis transformation Gizmo, override this function to customize
  * the Actor sub-elements.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FTransformGizmoActorFactory
+class INTERACTIVETOOLSFRAMEWORK_API FCombinedTransformGizmoActorFactory
 {
 public:
-	FTransformGizmoActorFactory(UGizmoViewContext* GizmoViewContextIn)
+	FCombinedTransformGizmoActorFactory(UGizmoViewContext* GizmoViewContextIn)
 		: GizmoViewContext(GizmoViewContextIn)
 	{
 	}
 
-	/** Only these members of the ATransformGizmoActor gizmo will be initialized */
+	/** Only these members of the ACombinedTransformGizmoActor gizmo will be initialized */
 	ETransformGizmoSubElements EnableElements =
 		ETransformGizmoSubElements::TranslateAllAxes |
 		ETransformGizmoSubElements::TranslateAllPlanes |
@@ -178,9 +178,9 @@ public:
 
 	/**
 	 * @param World the UWorld to create the new Actor in
-	 * @return new ATransformGizmoActor instance with members initialized with Components suitable for a transformation Gizmo
+	 * @return new ACombinedTransformGizmoActor instance with members initialized with Components suitable for a transformation Gizmo
 	 */
-	virtual ATransformGizmoActor* CreateNewGizmoActor(UWorld* World) const;
+	virtual ACombinedTransformGizmoActor* CreateNewGizmoActor(UWorld* World) const;
 
 protected:
 	/**
@@ -197,7 +197,7 @@ protected:
 
 
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UTransformGizmoBuilder : public UInteractiveGizmoBuilder
+class INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmoBuilder : public UInteractiveGizmoBuilder
 {
 	GENERATED_BODY()
 
@@ -212,15 +212,15 @@ public:
 	FString AxisAngleBuilderIdentifier;
 
 	/**
-	 * If set, this Actor Builder will be passed to UTransformGizmo instances.
-	 * Otherwise new instances of the base FTransformGizmoActorFactory are created internally.
+	 * If set, this Actor Builder will be passed to UCombinedTransformGizmo instances.
+	 * Otherwise new instances of the base FCombinedTransformGizmoActorFactory are created internally.
 	 */
-	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
+	TSharedPtr<FCombinedTransformGizmoActorFactory> GizmoActorBuilder;
 
 	/**
-	 * If set, this hover function will be passed to UTransformGizmo instances to use instead of the default.
-	 * Hover is complicated for UTransformGizmo because all it knows about the different gizmo scene elements
-	 * is that they are UPrimitiveComponent (coming from the ATransformGizmoActor). The default hover
+	 * If set, this hover function will be passed to UCombinedTransformGizmo instances to use instead of the default.
+	 * Hover is complicated for UCombinedTransformGizmo because all it knows about the different gizmo scene elements
+	 * is that they are UPrimitiveComponent (coming from the ACombinedTransformGizmoActor). The default hover
 	 * function implementation is to try casting to UGizmoBaseComponent and calling ::UpdateHoverState().
 	 * If you are using different Components that do not subclass UGizmoBaseComponent, and you want hover to 
 	 * work, you will need to provide a different hover update function.
@@ -228,8 +228,8 @@ public:
 	TFunction<void(UPrimitiveComponent*, bool)> UpdateHoverFunction;
 
 	/**
-	 * If set, this coord-system function will be passed to UTransformGizmo instances to use instead
-	 * of the default UpdateCoordSystemFunction. By default the UTransformGizmo will query the external Context
+	 * If set, this coord-system function will be passed to UCombinedTransformGizmo instances to use instead
+	 * of the default UpdateCoordSystemFunction. By default the UCombinedTransformGizmo will query the external Context
 	 * to ask whether it should be using world or local coordinate system. Then the default UpdateCoordSystemFunction
 	 * will try casting to UGizmoBaseCmponent and passing that info on via UpdateWorldLocalState();
 	 * If you are using different Components that do not subclass UGizmoBaseComponent, and you want the coord system
@@ -243,29 +243,29 @@ public:
 
 
 /**
- * UTransformGizmo provides standard Transformation Gizmo interactions,
+ * UCombinedTransformGizmo provides standard Transformation Gizmo interactions,
  * applied to a UTransformProxy target object. By default the Gizmo will be
  * a standard XYZ translate/rotate Gizmo (axis and plane translation).
  * 
- * The in-scene representation of the Gizmo is a ATransformGizmoActor (or subclass).
+ * The in-scene representation of the Gizmo is a ACombinedTransformGizmoActor (or subclass).
  * This Actor has FProperty members for the various sub-widgets, each as a separate Component.
  * Any particular sub-widget of the Gizmo can be disabled by setting the respective
  * Actor Component to null. 
  * 
  * So, to create non-standard variants of the Transform Gizmo, set a new GizmoActorBuilder 
- * in the UTransformGizmoBuilder registered with the GizmoManager. Return
+ * in the UCombinedTransformGizmoBuilder registered with the GizmoManager. Return
  * a suitably-configured GizmoActor and everything else will be handled automatically.
  * 
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UTransformGizmo : public UInteractiveGizmo
+class INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo : public UInteractiveGizmo
 {
 	GENERATED_BODY()
 
 public:
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetGizmoActorBuilder(TSharedPtr<FTransformGizmoActorFactory> Builder);
+	virtual void SetGizmoActorBuilder(TSharedPtr<FCombinedTransformGizmoActorFactory> Builder);
 	virtual void SetSubGizmoBuilderIdentifiers(FString AxisPositionBuilderIdentifier, FString PlanePositionBuilderIdentifier, FString AxisAngleBuilderIdentifier);
 	virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
 	virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
@@ -326,7 +326,7 @@ public:
 	/**
 	 * @return the internal GizmoActor used by the Gizmo
 	 */
-	ATransformGizmoActor* GetGizmoActor() const { return GizmoActor; }
+	ACombinedTransformGizmoActor* GetGizmoActor() const { return GizmoActor; }
 
 	/**
 	 * @return current transform of Gizmo
@@ -410,7 +410,7 @@ public:
 
 
 protected:
-	TSharedPtr<FTransformGizmoActorFactory> GizmoActorBuilder;
+	TSharedPtr<FCombinedTransformGizmoActorFactory> GizmoActorBuilder;
 
 	FString AxisPositionBuilderIdentifier;
 	FString PlanePositionBuilderIdentifier;
@@ -446,7 +446,7 @@ protected:
 	UWorld* World;
 
 	/** Current active GizmoActor that was spawned by this Gizmo. Will be destroyed when Gizmo is. */
-	ATransformGizmoActor* GizmoActor;
+	ACombinedTransformGizmoActor* GizmoActor;
 
 	//
 	// Axis Sources
@@ -498,7 +498,7 @@ protected:
 
 	/** 
 	 * State target is shared across gizmos, and created internally during SetActiveTarget(). 
-	 * Several FChange providers are registered with this StateTarget, including the UTransformGizmo
+	 * Several FChange providers are registered with this StateTarget, including the UCombinedTransformGizmo
 	 * itself (IToolCommandChangeSource implementation above is called)
 	 */
 	UPROPERTY()

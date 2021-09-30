@@ -19,14 +19,14 @@
 
 UInteractiveGizmo* URepositionableTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
-	UTransformGizmo* NewGizmo = NewObject<URepositionableTransformGizmo>(SceneState.GizmoManager);
+	UCombinedTransformGizmo* NewGizmo = NewObject<URepositionableTransformGizmo>(SceneState.GizmoManager);
 	NewGizmo->SetWorld(SceneState.World);
 
 	UGizmoViewContext* GizmoViewContext = SceneState.ToolManager->GetContextObjectStore()->FindContext<UGizmoViewContext>();
 	check(GizmoViewContext && GizmoViewContext->IsValidLowLevel());
 
 	// use default gizmo actor if client has not given us a new builder
-	NewGizmo->SetGizmoActorBuilder(GizmoActorBuilder ? GizmoActorBuilder : MakeShared<FTransformGizmoActorFactory>(GizmoViewContext));
+	NewGizmo->SetGizmoActorBuilder(GizmoActorBuilder ? GizmoActorBuilder : MakeShared<FCombinedTransformGizmoActorFactory>(GizmoViewContext));
 
 	NewGizmo->SetSubGizmoBuilderIdentifiers(AxisPositionBuilderIdentifier, PlanePositionBuilderIdentifier, AxisAngleBuilderIdentifier);
 
@@ -51,7 +51,7 @@ void URepositionableTransformGizmo::SetActiveTarget(UTransformProxy* Target, ITo
 	// We're going to add on to the original transform gizmo, adding extra gizmos centered around
 	// existing gizmo components. These will respond to middle clicks and take "set pivot" code
 	// paths in their transform source and state target.
-	UTransformGizmo::SetActiveTarget(Target, TransactionProvider);
+	UCombinedTransformGizmo::SetActiveTarget(Target, TransactionProvider);
 
 	// Create the alternate transform source.
 	UGizmoTransformProxyTransformSource* ProxyTransformSource = UGizmoTransformProxyTransformSource::Construct(ActiveTarget, this);
@@ -206,7 +206,7 @@ void URepositionableTransformGizmo::SetWorldAlignmentFunctions(
 	TUniqueFunction<bool(const FRay&, FVector&)>&& TranslationAlignmentRayCasterIn)
 {
 	// The base class function will do most of what we want.
-	UTransformGizmo::SetWorldAlignmentFunctions(MoveTemp(ShouldAlignTranslationIn), MoveTemp(TranslationAlignmentRayCasterIn));
+	UCombinedTransformGizmo::SetWorldAlignmentFunctions(MoveTemp(ShouldAlignTranslationIn), MoveTemp(TranslationAlignmentRayCasterIn));
 
 	// However, we need to adjust our saved pivot alignment functions so changes of the gizmo target keep the settings.
 	// Since the functions are TUniqueFunction, we can't actually copy them here, we need to create new functors that

@@ -11,7 +11,7 @@
 
 #include "ConstructionPlaneMechanic.generated.h"
 
-class UTransformGizmo;
+class UCombinedTransformGizmo;
 class UTransformProxy;
 class IClickBehaviorTarget;
 class USingleClickInputBehavior;
@@ -60,7 +60,7 @@ public:
 
 public:
 	UPROPERTY()
-	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
+	TObjectPtr<UCombinedTransformGizmo> PlaneTransformGizmo;
 	
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> PlaneTransformProxy;

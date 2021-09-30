@@ -86,7 +86,7 @@ TArray<UInteractiveGizmo*> USpotLightGizmoFactory::BuildGizmoForSelection(FEdito
 		Elements = ETransformGizmoSubElements::FullTranslateRotateScale;
 		break;
 	}
-	UTransformGizmo* TransformGizmo = GizmoManager->CreateCustomTransformGizmo(Elements);
+	UCombinedTransformGizmo* TransformGizmo = GizmoManager->CreateCustomTransformGizmo(Elements);
 	TransformGizmo->bUseContextCoordinateSystem = bUseContextCoordinateSystem;
 
 	USubTransformProxy* TransformProxy = NewObject<USubTransformProxy>();
@@ -115,7 +115,7 @@ void USpotLightGizmoFactory::ConfigureGridSnapping(bool bGridEnabled, bool bRotG
 {
 	for (UInteractiveGizmo* Gizmo : Gizmos)
 	{
-		UTransformGizmo* TransformGizmo = Cast<UTransformGizmo>(Gizmo);
+		UCombinedTransformGizmo* TransformGizmo = Cast<UCombinedTransformGizmo>(Gizmo);
 
 		if (TransformGizmo)
 		{
