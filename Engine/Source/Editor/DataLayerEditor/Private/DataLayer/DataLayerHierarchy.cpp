@@ -9,9 +9,11 @@
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "Modules/ModuleManager.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 

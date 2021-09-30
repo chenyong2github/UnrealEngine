@@ -3,6 +3,7 @@
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Algo/AllOf.h"
 #include "DrawDebugHelpers.h"
+#include "Animation/AnimTypes.h"
 
 #if ENABLE_ANIM_DEBUG
 constexpr int32 DebugTrajectorySampleDisable = 0;

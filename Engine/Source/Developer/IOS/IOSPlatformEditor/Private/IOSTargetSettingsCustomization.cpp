@@ -36,6 +36,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformModule.h"
 #include "IOSPlatformEditorModule.h"
+#include "HAL/PlatformFileManager.h"
 #include "UEFreeImage.h"
 
 #define LOCTEXT_NAMESPACE "IOSTargetSettings"
