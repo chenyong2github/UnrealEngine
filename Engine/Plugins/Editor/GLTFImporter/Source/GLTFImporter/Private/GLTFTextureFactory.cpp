@@ -133,9 +133,7 @@ GLTF::ITextureElement* FGLTFTextureFactory::CreateTexture(const GLTF::FTexture& 
 	{
 		TextureMipGenSettings MipGenSettings = TMGS_FromTextureGroup;
 
-		const int Width  = Texture->GetSurfaceWidth() > 0 ? (int)Texture->GetSurfaceWidth() : Texture->Source.GetSizeX();
-		const int Height = Texture->GetSurfaceHeight() > 0 ? (int)Texture->GetSurfaceHeight() : Texture->Source.GetSizeY();
-		if (!FMath::IsPowerOfTwo(Width) || !FMath::IsPowerOfTwo(Height))
+		if (!Texture->Source.IsPowerOfTwo())
 		{
 			MipGenSettings = TMGS_NoMipmaps;
 
