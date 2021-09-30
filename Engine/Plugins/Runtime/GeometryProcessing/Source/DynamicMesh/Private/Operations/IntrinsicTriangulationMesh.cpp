@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Spatial/IntrinsicTriangulationMesh.h"
-#include "Spatial/MeshGeodesicSurfaceTracer.h"
+#include "Operations/IntrinsicTriangulationMesh.h"
+#include "Operations/MeshGeodesicSurfaceTracer.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Util/IndexUtil.h"
 #include "Algo/Reverse.h"

@@ -9,7 +9,7 @@
 #include "Solvers/MeshLinearization.h"
 #include "Solvers/MeshLaplacian.h"
 #include "Solvers/PrecomputedMeshWeightData.h"
-#include "Spatial/IntrinsicTriangulationMesh.h"
+#include "Operations/IntrinsicTriangulationMesh.h"
 
 
 namespace UE
