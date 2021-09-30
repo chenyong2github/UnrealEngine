@@ -28,16 +28,6 @@ public:
 	/**
 	 *
 	 */
-	virtual bool IsConversionPromptEnabled() const override;
-
-	/**
-	 *
-	 */
-	virtual void SetConversionPromptEnabled(bool bEnabled) override;
-
-	/**
-	 *
-	 */
 	virtual float GetAutoCellLoadingMaxWorldSize() const override;
 
 	/**
@@ -51,6 +41,8 @@ public:
 	virtual FWorldPartitionCreated& OnWorldPartitionCreated() override { return WorldPartitionCreatedEvent; }
 
 private:
+	void OnConvertMap();
+
 	FDelegateHandle LevelEditorExtenderDelegateHandle;
 
 	TSharedPtr<class FHLODLayerAssetTypeActions> HLODLayerAssetTypeActions;

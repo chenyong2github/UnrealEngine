@@ -2735,15 +2735,6 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 		return false;
 	}
 
-	if (!LoadAsTemplate)
-	{
-		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-		if (!WorldPartitionEditorModule.ConvertMap(LongMapPackageName))
-		{
-			return false;
-		}
-	}
-
 	// Save last opened level name.
 	GConfig->SetString(TEXT("EditorStartup"), TEXT("LastLevel"), *LongMapPackageName, GEditorPerProjectIni);
 
@@ -4307,14 +4298,6 @@ void FEditorFileUtils::LoadDefaultMapAtStartup()
 	const bool bIncludeReadOnlyRoots = true;
 	if ( FPackageName::IsValidLongPackageName(EditorStartupMap, bIncludeReadOnlyRoots) )
 	{
-		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-		bool bPreviousConversionPromptEnabled = WorldPartitionEditorModule.IsConversionPromptEnabled();
-		WorldPartitionEditorModule.SetConversionPromptEnabled(false);
-		ON_SCOPE_EXIT
-		{
-			WorldPartitionEditorModule.SetConversionPromptEnabled(bPreviousConversionPromptEnabled);
-		};
-		
 		FString MapFilenameToLoad = FPackageName::LongPackageNameToFilename( EditorStartupMap );
 
 		bIsLoadingDefaultStartupMap = true;
