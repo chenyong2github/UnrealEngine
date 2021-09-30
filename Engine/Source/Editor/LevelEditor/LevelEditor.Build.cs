@@ -85,6 +85,7 @@ public class LevelEditor : ModuleRules
 				"SubobjectEditor",
 				"SubobjectDataInterface",
 				"DerivedDataEditor",
+				"EditorWidgets",
 			}
 		);
 
@@ -99,7 +100,6 @@ public class LevelEditor : ModuleRules
 				"Layers",
 				"WorldBrowser",
 				"WorldPartitionEditor",
-				"EditorWidgets",
 				"AssetTools",
 				"WorkspaceMenuStructure",
 				"NewLevelDialog",

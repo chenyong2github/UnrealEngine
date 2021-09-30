@@ -415,14 +415,17 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Common icons
 	{
-		Set( "Icons.Contact", new IMAGE_BRUSH( "Icons/icon_mail_16x", Icon16x16 ) );
+		Set("Icons.Contact", new IMAGE_BRUSH( "Icons/icon_mail_16x", Icon16x16 ) );
+		Set("Icons.Crop", new IMAGE_BRUSH_SVG("Starship/Common/Crop", Icon16x16));
+		Set("Icons.Fullscreen", new IMAGE_BRUSH_SVG("Starship/Common/EnableFullscreen", Icon16x16));
+		Set("Icons.Save", new IMAGE_BRUSH_SVG( "Starship/Common/SaveCurrent", Icon16x16 ) );
 
-		Set( "Icons.DirtyBadge", new IMAGE_BRUSH_SVG("Starship/Common/DirtyBadge", Icon12x12));
-		Set( "Icons.MakeStaticMesh", new IMAGE_BRUSH_SVG("Starship/Common/MakeStaticMesh", Icon16x16));
-		Set( "Icons.Documentation", new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
-		Set( "Icons.Support", new IMAGE_BRUSH_SVG("Starship/Common/Support", Icon16x16));
-		Set( "Icons.Package", new IMAGE_BRUSH_SVG("Starship/Common/ProjectPackage", Icon16x16));
-		Set( "Icons.Comment", new IMAGE_BRUSH_SVG("Starship/Common/Comment", Icon16x16));
+		Set("Icons.DirtyBadge", new IMAGE_BRUSH_SVG("Starship/Common/DirtyBadge", Icon12x12));
+		Set("Icons.MakeStaticMesh", new IMAGE_BRUSH_SVG("Starship/Common/MakeStaticMesh", Icon16x16));
+		Set("Icons.Documentation", new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
+		Set("Icons.Support", new IMAGE_BRUSH_SVG("Starship/Common/Support", Icon16x16));
+		Set("Icons.Package", new IMAGE_BRUSH_SVG("Starship/Common/ProjectPackage", Icon16x16));
+		Set("Icons.Comment", new IMAGE_BRUSH_SVG("Starship/Common/Comment", Icon16x16));
 
 	}
 
@@ -1288,8 +1291,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Main frame
 	{
-		Set( "MainFrame.AutoSaveImage", new IMAGE_BRUSH( "Icons/icon_Autosave", Icon24x24 ) );
-
+		Set( "MainFrame.AutoSaveImage", 	   new IMAGE_BRUSH_SVG( "Starship/Common/SaveCurrent", Icon16x16 ) );
 		Set( "MainFrame.SaveAll",              new IMAGE_BRUSH_SVG( "Starship/Common/SaveAll", Icon16x16 ) );
 		Set( "MainFrame.ChoosePackagesToSave", new IMAGE_BRUSH_SVG( "Starship/Common/icon_file_choosepackages_16px", Icon16x16 ) );
 		Set( "MainFrame.NewProject",           new IMAGE_BRUSH_SVG( "Starship/Common/ProjectNew", Icon16x16 ) );
@@ -1731,17 +1733,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 	}
 
 	
-	// Highres Screenshot
-	{
-		Set("HighresScreenshot.WarningStrip", new IMAGE_BRUSH( "Common/WarningStripe", FVector2D(20,6), FLinearColor::White, ESlateBrushTileType::Horizontal ) );
-		Set("HighresScreenshot.SpecifyCaptureRectangle", new IMAGE_BRUSH( "Icons/icon_CaptureRegion_24x", Icon24x24 ) );
-		Set("HighresScreenshot.FullViewportCaptureRegion", new IMAGE_BRUSH( "Icons/icon_CaptureRegion_FullViewport_24x", Icon24x24 ) );
-		Set("HighresScreenshot.CameraSafeAreaCaptureRegion", new IMAGE_BRUSH("Icons/icon_CaptureRegion_Camera_Safe_24x", Icon24x24));
-		Set("HighresScreenshot.Capture", new IMAGE_BRUSH( "Icons/icon_HighResScreenshotCapture_24px", Icon24x24 ) );
-		Set("HighresScreenshot.AcceptCaptureRegion", new IMAGE_BRUSH( "Icons/icon_CaptureRegionAccept_24x", Icon24x24 ) );
-		Set("HighresScreenshot.DiscardCaptureRegion", new IMAGE_BRUSH( "Icons/icon_CaptureRegionDiscard_24x", Icon24x24 ) );
-	}
-
 	// Scalability 
 	{
 		const float Tint = 0.65f;
