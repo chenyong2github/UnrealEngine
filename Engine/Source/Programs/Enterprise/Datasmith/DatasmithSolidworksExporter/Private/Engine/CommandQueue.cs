@@ -69,6 +69,7 @@ namespace SolidworksDatasmith.Engine
     [ComVisible(false)]
     public class ComponentCommand : Command
     {
+		public string Label { get; set; } = "";
         public string Name { get; set; } = "";
         public string PartName { get; set; } = "";
         public string PartPath { get; set; } = "";
@@ -95,6 +96,7 @@ namespace SolidworksDatasmith.Engine
     [ComVisible(false)]
     public class LightweightComponentCommand : Command
     {
+		public string Label { get; set; } = "";
         public string Name { get; set; } = "";
         public string ParentName { get; set; } = "";
         public float[] Transform { get; set; } = null;

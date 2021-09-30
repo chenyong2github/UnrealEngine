@@ -375,7 +375,8 @@ namespace SolidworksDatasmith.SwObjects
 			string[] NameComponents = componentName.Split('/');
 			Debug.Assert(NameComponents.Length > 0);
 
-			cmd.Name = NameComponents.Last();
+			cmd.Label = NameComponents.Last();
+			cmd.Name = componentName;
 			cmd.ParentName = parentComponentName;
 			if (componentTransform != null)
 				cmd.Transform = MathUtil.ConvertFromSolidworksTransform(componentTransform);
@@ -423,8 +424,8 @@ namespace SolidworksDatasmith.SwObjects
 				string[] NameComponents = componentName.Split('/');
 				Debug.Assert(NameComponents.Length > 0);
 
-				cmd.Name = NameComponents.Last();
-
+				cmd.Label = NameComponents.Last();
+				cmd.Name = componentName;
 				cmd.ParentName = parentComponentName;
 
 				if (componentTransform != null)

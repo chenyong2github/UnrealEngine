@@ -297,7 +297,7 @@ namespace SolidworksDatasmith.Engine
                                         }
                                     }
 
-                                    data.Actor = processor.CreateInstance(cmd.Name, facadeMesh, facadeMeshElement, data.ParentActor);
+                                    data.Actor = processor.CreateInstance(cmd.Name, cmd.Label, facadeMesh, facadeMeshElement, data.ParentActor);
 
                                     if (cmd.Visible == false)
                                     {
@@ -427,7 +427,7 @@ namespace SolidworksDatasmith.Engine
                                         }
                                     }
 
-                                    data.Actor = processor.CreateInstance(cmd.Name, facadeMesh, facadeMeshElement, data.ParentActor);
+                                    data.Actor = processor.CreateInstance(cmd.Name, cmd.Label, facadeMesh, facadeMeshElement, data.ParentActor);
 
                                     if (cmd.Visible == false)
                                     {
@@ -714,7 +714,7 @@ namespace SolidworksDatasmith.Engine
             return mat;
         }
         
-        private FDatasmithFacadeActor CreateInstance(string name, FDatasmithFacadeMesh mesh, FDatasmithFacadeMeshElement meshElement, FDatasmithFacadeActor parent = null)
+        private FDatasmithFacadeActor CreateInstance(string name, string label, FDatasmithFacadeMesh mesh, FDatasmithFacadeMeshElement meshElement, FDatasmithFacadeActor parent = null)
         {
             FDatasmithFacadeActor FacadeActor = null;
             if (mesh != null && mesh.GetVerticesCount() > 0 && mesh.GetFacesCount() > 0)
@@ -732,6 +732,7 @@ namespace SolidworksDatasmith.Engine
 
 			// ImportBinding uses Tag[0] ('original name') to group parts used in variants
 			FacadeActor.AddTag(name);
+			FacadeActor.SetLabel(label);
 
             if (parent == null)
                 DatasmithScene.AddActor(FacadeActor);
