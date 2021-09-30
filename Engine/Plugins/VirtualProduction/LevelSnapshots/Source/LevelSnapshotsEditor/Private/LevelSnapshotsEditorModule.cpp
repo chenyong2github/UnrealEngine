@@ -124,7 +124,8 @@ void FLevelSnapshotsEditorModule::PostEngineInit()
 
 	if (RegisterProjectSettings() && ProjectSettingsObjectPtr->bEnableLevelSnapshotsToolbarButton)
 	{
-		RegisterEditorToolbar();
+		// todo: Skip toolbar for UE5 for now; we will reimplement toolbar at a later date
+		//RegisterEditorToolbar();
 	}
 }
 
