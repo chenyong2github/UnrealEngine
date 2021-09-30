@@ -4,6 +4,7 @@
 
 #include "DMXEditor.h"
 #include "DMXEditorUtils.h"
+#include "DMXFixtureTypeSharedData.h"
 #include "SDMXFixtureTypeTreeCategoryRow.h"
 #include "SDMXFixtureTypeTreeFixtureTypeRow.h"
 #include "Commands/DMXEditorCommands.h"
@@ -24,12 +25,12 @@
 
 #define LOCTEXT_NAMESPACE "SDMXFixtureTypeTree"
 
-void SDMXFixtureTypeTree::Construct(const FArguments& InArgs, const TSubclassOf<UDMXEntity> InListType)
+void SDMXFixtureTypeTree::Construct(const FArguments& InArgs)
 {
 	SDMXEntityTreeViewBase::FArguments BaseArguments =
 		SDMXEntityTreeViewBase::FArguments()
 		.DMXEditor(InArgs._DMXEditor)
-		.OnSelectionChanged(InArgs._OnSelectionChanged)
+		.OnSelectionChanged(this, &SDMXFixtureTypeTree::OnEntitySelected)
 		.OnEntitiesAdded(InArgs._OnEntitiesAdded)
 		.OnEntityOrderChanged(InArgs._OnEntityOrderChanged)
 		.OnEntitiesRemoved(InArgs._OnEntitiesRemoved);
@@ -359,13 +360,55 @@ TSharedPtr<SDMXFixtureTypeTreeFixtureTypeRow> SDMXFixtureTypeTree::FindEntityRow
 	return nullptr;
 }
 
+void SDMXFixtureTypeTree::OnEntitySelected(const TArray<UDMXEntity*>& NewSelection)
+{
+	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+	{
+		if (TSharedPtr<FDMXFixtureTypeSharedData> SharedData = PinnedEditor->GetFixtureTypeSharedData())
+		{
+			// Never clear the selection
+			if (GetSelectedEntities().Num() == 0)
+			{
+				TArray<TWeakObjectPtr<UDMXEntityFixtureType>> OldSelection = SharedData->GetSelectedFixtureTypes();
+				TArray<UDMXEntity*> OldSelectionAsEntities;
+				for (TWeakObjectPtr<UDMXEntityFixtureType> SelectedFixtureType : OldSelection)
+				{
+					if (UDMXEntityFixtureType* SelectedEntity = SelectedFixtureType.Get())
+					{
+						OldSelectionAsEntities.Add(SelectedEntity);
+					}
+				}
+
+				SelectItemsByEntities(OldSelectionAsEntities);
+			}
+			else
+			{
+				// Select selected Fixture Types in Fixture Type Shared Data
+				TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes;
+
+				for (UDMXEntity* Entity : NewSelection)
+				{
+					if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
+					{
+						SelectedFixtureTypes.Add(FixtureType);
+					}
+				}
+
+				SharedData->SelectFixtureTypes(SelectedFixtureTypes);
+			}
+		}
+	}
+}
+
 FReply SDMXFixtureTypeTree::OnAddNewFixtureTypeClicked()
 {
-	check(DMXEditor.IsValid());
-	TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin();
+	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+	{		
+		PinnedEditor->GetToolkitCommands()->ExecuteAction(FDMXEditorCommands::Get().AddNewEntityFixtureType.ToSharedRef());
+		return FReply::Handled();
+	}
 
-	PinnedEditor->GetToolkitCommands()->ExecuteAction(FDMXEditorCommands::Get().AddNewEntityFixtureType.ToSharedRef());
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

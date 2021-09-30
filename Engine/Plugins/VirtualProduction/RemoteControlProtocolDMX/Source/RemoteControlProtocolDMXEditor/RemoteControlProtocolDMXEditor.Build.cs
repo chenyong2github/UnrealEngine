@@ -14,7 +14,7 @@ public class RemoteControlProtocolDMXEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"DMXRuntime",
+				"DMXProtocol",
 				"InputCore",
 				"PropertyEditor",
 				"RemoteControl",

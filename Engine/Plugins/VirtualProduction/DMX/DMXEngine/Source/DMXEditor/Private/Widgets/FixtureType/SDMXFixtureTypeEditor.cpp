@@ -1,53 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
+#include "SDMXFixtureTypeEditor.h"
 
 #include "DMXEditor.h"
 #include "DMXEditorUtils.h"
 #include "DMXFixtureTypeSharedData.h"
+#include "SDMXFixtureFunctionEditor.h"
+#include "SDMXFixtureModeEditor.h"
+#include "SDMXFixtureTypeFunctionsEditor.h"
+#include "SDMXFixtureTypeModesEditor.h"
 #include "SDMXFixtureTypeTree.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXImport.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "Widgets/SDMXEntityInspector.h"
 
 #include "Widgets/Layout/SSplitter.h"
 
 
-void SDMXFixtureTypeEditor::Construct(const FArguments& InArgs)
+void SDMXFixtureTypeEditor::Construct(const FArguments& InArgs, const TSharedRef<FDMXEditor>& InDMXEditor)
 {
 	SDMXEntityEditor::Construct(SDMXEntityEditor::FArguments());
 
-	DMXEditor = InArgs._DMXEditor;
+	WeakDMXEditor = InDMXEditor;
+	FixtureTypeSharedData = InDMXEditor->GetFixtureTypeSharedData();
 
 	SetCanTick(false);
 	bCanSupportFocus = false;
 
-	FixtureSettingsInspector =
-		SNew(SDMXEntityInspectorFixtureTypes, EDMXFixtureTypeLayout::FixtureSettings)		
-		.DMXEditor(DMXEditor)														
-		.OnFinishedChangingProperties(this, &SDMXFixtureTypeEditor::OnFinishedChangingProperties);
-
-	ModesInspector =
-		SNew(SDMXEntityInspectorFixtureTypes, EDMXFixtureTypeLayout::Modes)
-		.DMXEditor(DMXEditor)
-		.OnFinishedChangingProperties(this, &SDMXFixtureTypeEditor::OnFinishedChangingProperties);
-
-	ModePropertiesInspector =
-		SNew(SDMXEntityInspectorFixtureTypes, EDMXFixtureTypeLayout::ModeProperties)
-		.DMXEditor(DMXEditor)
-		.OnFinishedChangingProperties(this, &SDMXFixtureTypeEditor::OnFinishedChangingProperties);
-
-	FunctionsInspector =
-		SNew(SDMXEntityInspectorFixtureTypes, EDMXFixtureTypeLayout::Functions)
-		.DMXEditor(DMXEditor)
-		.OnFinishedChangingProperties(this, &SDMXFixtureTypeEditor::OnFinishedChangingProperties);
-
-	FunctionPropertiesInspector =
-		SNew(SDMXEntityInspectorFixtureTypes, EDMXFixtureTypeLayout::FunctionProperties)
-		.DMXEditor(DMXEditor)
-		.OnFinishedChangingProperties(this, &SDMXFixtureTypeEditor::OnFinishedChangingProperties);
+	FixtureTypeDetailsView = GenerateFixtureTypeDetailsView();
 
 	ChildSlot
 	.VAlign(VAlign_Fill)
@@ -67,15 +48,14 @@ void SDMXFixtureTypeEditor::Construct(const FArguments& InArgs)
 			// Top Row
 			+ SSplitter::Slot()
 			[
-				SAssignNew(FixtureTypeTree, SDMXFixtureTypeTree, UDMXEntityFixtureType::StaticClass())
-				.DMXEditor(InArgs._DMXEditor)
-				.OnSelectionChanged(this, &SDMXFixtureTypeEditor::OnSelectionChanged)
+				SAssignNew(FixtureTypeTree, SDMXFixtureTypeTree)
+				.DMXEditor(InDMXEditor)
 			]
 
 			// Bottom Row
 			+ SSplitter::Slot()
 			[
-				FixtureSettingsInspector.ToSharedRef()
+				FixtureTypeDetailsView.ToSharedRef()
 			]
 		]
 			
@@ -89,13 +69,13 @@ void SDMXFixtureTypeEditor::Construct(const FArguments& InArgs)
 			// Top Row
 			+ SSplitter::Slot()			
 			[
-				ModesInspector.ToSharedRef()
+				SNew(SDMXFixtureTypeModesEditor, InDMXEditor)
 			]
 
 			// Bottom Row
 			+ SSplitter::Slot()
 			[
-				ModePropertiesInspector.ToSharedRef()
+				SNew(SDMXFixtureModeEditor, InDMXEditor)
 			]
 		]
 
@@ -109,16 +89,27 @@ void SDMXFixtureTypeEditor::Construct(const FArguments& InArgs)
 			// Top Row
 			+ SSplitter::Slot()
 			[
-				FunctionsInspector.ToSharedRef()
+				SNew(SDMXFixtureTypeFunctionsEditor, InDMXEditor)
 			]
 
 			// Bottom Row
 			+ SSplitter::Slot()
 			[
-				FunctionPropertiesInspector.ToSharedRef()
+				SNew(SDMXFixtureFunctionEditor, InDMXEditor)
 			]
 		]
 	];	
+
+	// Set the initially selected fixture type
+	TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes = FixtureTypeSharedData->GetSelectedFixtureTypes();
+	if (SelectedFixtureTypes.Num() == 1 && SelectedFixtureTypes[0].IsValid())
+	{
+		FixtureTypeDetailsView->SetObjects(TArray<UObject*>({ SelectedFixtureTypes[0].Get() }));
+	}
+
+	// Initially set keyboard focus to the Fixture Type Tree
+	FSlateApplication::Get().SetKeyboardFocus(FixtureTypeTree.ToSharedRef());
+
 }
 
 void SDMXFixtureTypeEditor::RequestRenameOnNewEntity(const UDMXEntity* InEntity, ESelectInfo::Type SelectionType)
@@ -150,80 +141,28 @@ TArray<UDMXEntity*> SDMXFixtureTypeEditor::GetSelectedEntities() const
 	return FixtureTypeTree->GetSelectedEntities();
 }
 
-void SDMXFixtureTypeEditor::OnSelectionChanged(const TArray<UDMXEntity*>& InSelectedEntities)
+void SDMXFixtureTypeEditor::OnFixtureTypesSelected()
 {
-	if (TSharedPtr<FDMXEditor> DMXEditorPtr = DMXEditor.Pin())
+	TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes = FixtureTypeSharedData->GetSelectedFixtureTypes();
+	TArray<UObject*> SelectedObjects;
+	for (TWeakObjectPtr<UDMXEntityFixtureType> WeakSelectedFixtureType : SelectedFixtureTypes)
 	{
-		// Set selected fixture types in shared data
-		if (TSharedPtr<FDMXFixtureTypeSharedData> SharedData = DMXEditorPtr->GetFixtureTypeSharedData())
+		if (UDMXEntity* SelectedObject = WeakSelectedFixtureType.Get())
 		{
-			TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes;
-			for (UDMXEntity* Entity : InSelectedEntities)
-			{
-				if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
-				{
-					SelectedFixtureTypes.Add(FixtureType);
-				}
-			}
-			SharedData->SetFixtureTypesBeingEdited(SelectedFixtureTypes);
+			SelectedObjects.Add(SelectedObject);
 		}
-
-		check(FixtureSettingsInspector.IsValid());
-		check(ModesInspector.IsValid());
-		check(ModePropertiesInspector.IsValid());
-		check(FunctionsInspector.IsValid());
-		check(FunctionPropertiesInspector.IsValid());
-
-		FixtureSettingsInspector->ShowDetailsForEntities(InSelectedEntities);
-		ModesInspector->ShowDetailsForEntities(InSelectedEntities);
-		ModePropertiesInspector->ShowDetailsForEntities(InSelectedEntities);
-		FunctionsInspector->ShowDetailsForEntities(InSelectedEntities);
-		FunctionPropertiesInspector->ShowDetailsForEntities(InSelectedEntities);
 	}
+	FixtureTypeDetailsView->SetObjects(SelectedObjects);
 }
 
-void SDMXFixtureTypeEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
+TSharedRef<IDetailsView> SDMXFixtureTypeEditor::GenerateFixtureTypeDetailsView() const
 {
-	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
-	{
-		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes)
-			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions))
-		{
-			// When the user adds a Mode or Function, their names can't be empty
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-			const TArray<UDMXEntity*>&& SelectedEntities = FixtureTypeTree->GetSelectedEntities();
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.bAllowSearch = true;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
 
-			for (UDMXEntity* Entity : SelectedEntities)
-			{
-				if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
-				{
-					FDMXEditorUtils::SetNewFixtureFunctionsNames(FixtureType);
-				}
-			}
-		}
-	}
-	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-	{
-		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, DMXImport))
-		{
-			const TArray<UDMXEntity*>&& SelectedEntities = FixtureTypeTree->GetSelectedEntities();
-
-			for (UDMXEntity* Entity : SelectedEntities)
-			{
-				if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
-				{
-					if (FixtureType->DMXImport != nullptr && FixtureType->DMXImport->IsValidLowLevelFast())
-					{
-						FixtureType->Modify();
-						FixtureType->SetModesFromDMXImport(FixtureType->DMXImport);
-					}
-				}
-			}
-		}
-	}
-
-	if (FixtureTypeTree.IsValid())
-	{
-		FixtureTypeTree->UpdateTree();
-	}
+	return PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 }

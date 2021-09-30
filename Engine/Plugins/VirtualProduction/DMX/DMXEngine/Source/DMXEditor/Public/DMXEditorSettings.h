@@ -8,6 +8,22 @@
 
 #include "DMXEditorSettings.generated.h"
 
+
+/** Settings for the Fixture Type Functions Editor */
+USTRUCT()
+struct FDMXFixtureTypeFunctionsEditorSettings
+{
+	GENERATED_BODY()
+
+	/** Width of the function name column */
+	UPROPERTY()
+	float NameColumnWidth = 0.f;
+
+	/** With of the attribute column */
+	UPROPERTY()
+	float AttributeColumnWidth = 0.f;
+};
+
 /** Struct to describe a single fader, so it can be stored in the config */
 USTRUCT()
 struct FDMXOutputConsoleFaderDescriptor
@@ -82,11 +98,20 @@ class UDMXEditorSettings : public UObject
 {
 	GENERATED_BODY()
 
+	// Fixture Type Functions Editor
+public:
+	UPROPERTY(Config)
+	FDMXFixtureTypeFunctionsEditorSettings FixtureTypeFunctionsEditorSettings;
+
+
+	// Output Console
 public:
 	/** Stores the faders specified in Output Console */
 	UPROPERTY(Config)
 	TArray<FDMXOutputConsoleFaderDescriptor> OutputConsoleFaders;
 	
+
+	// Channels Monitor
 public:
 	/** The Universe ID to be monitored in the Channels Monitor  */
 	UPROPERTY(Config)
@@ -96,6 +121,8 @@ public:
 	UPROPERTY(Config)
 	FDMXMonitorSourceDescriptor ChannelsMonitorSource;
 
+
+	// Activity Monitor
 public:
 	/** Source for the DMX Activity Monitor */
 	UPROPERTY(Config)

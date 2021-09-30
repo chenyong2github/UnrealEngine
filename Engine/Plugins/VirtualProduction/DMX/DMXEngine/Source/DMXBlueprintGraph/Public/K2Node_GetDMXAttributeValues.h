@@ -55,12 +55,15 @@ public:
 	void RemoveOutputPin(UEdGraphPin* Pin);
 
 	/**
-	 * Called when DataType is chnaged in any existing UDMXEntityFixtureType UObject
+	 * Called when the Fixture Type changed 
 	 *
-	 * @param	InFixtureType		Fixture type UObject
-	 * @param	InDMXFixtureModes	Changed Mode
+	 * @param	InFixtureType		The changed Fixture Type
 	 *
 	 */
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* InFixtureType);
+
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Replaced in favor of the more generic OnFixtureTypeChanged.")
 	void OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode);
 
 public:

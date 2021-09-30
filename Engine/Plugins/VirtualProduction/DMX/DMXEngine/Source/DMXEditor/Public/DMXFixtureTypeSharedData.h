@@ -10,262 +10,133 @@
 
 #include "JsonObjectConverter.h"
 
+enum class EDMXFixtureSignalFormat : uint8;
 class FDMXEditor;
 class FDMXFixtureTypeSharedData;
 class UDMXEntityFixtureType;
-class IPropertyHandleArray;
-class IPropertyHandle;
+
 class FScopedTransaction;
 
 
-/**
- * Item to identify and access a DMXFixtureMode.
- *
- * Note, this will no longer point to the live property when:
- * - The fixture types being edited change
- * - The details view is destroyed (be it via refresh or otherwise)
- * - The arrays that contain the property change num elements.
- */
-class FDMXFixtureModeItem
-	: public IDMXNamedType
-{
-public:
-	/** Constructor */
-	FDMXFixtureModeItem(const TWeakPtr<FDMXFixtureTypeSharedData>& InSharedDataPtr, const TSharedPtr<IPropertyHandle>& InModeNameHandle);
-	
-	/** Destructor */
-	virtual ~FDMXFixtureModeItem();
-
-public:
-	/** Returns true if the mode names equal */
-	bool EqualsMode(const TSharedPtr<FDMXFixtureModeItem>& Other) const;
-
-	/** Gets the name of the mode */
-	FString GetModeName() const;
-
-	/** Returns the current mode name */
-	void SetModeName(const FString& InDesiredName, FString& OutNewName);
-
-	/** True if the mode is being edited by shared data */
-	bool IsModeBeingEdited() const;
-
-	/** True if the mode is selected by shared data */
-	bool IsModeSelected() const;
-
-	/** Selects the mode in shared data */
-	void SelectMode(bool bSelected);
-
-	/** Returns the outer fixture types of the mode name handle */
-	void GetOuterFixtureTypes(TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& OuterFixtureTypes) const;
-
-protected:
-	// IDMXNamedType Interface
-	virtual void GetName(FString& OutUniqueName) const;
-	virtual bool IsNameUnique(const FString& TestedName) const;
-	virtual void SetName(const FString& InDesiredName, FString& OutUniqueName);
-	// ~IDMXNamedType Interface
-
-	/** Shared data that owns this */
-	TWeakPtr<FDMXFixtureTypeSharedData> SharedDataPtr;
-
-private:
-	/** The mode name handle */
-	TSharedPtr<IPropertyHandle> ModeNameHandle;
-};
-
-
-/**
- * Item to identify and access a DMXFixtureFunction.
- *
- * Note, this will no longer point to the live property when:
- * - The fixture types being edited change
- * - The details view is destroyed (be it via refresh or otherwise)
- * - The arrays that contain the property change num elements.
- */
-class FDMXFixtureFunctionItem
-	: public FDMXFixtureModeItem
-{
-public:
-	FDMXFixtureFunctionItem(TWeakPtr<FDMXFixtureTypeSharedData> InOwnerPtr, const TSharedPtr<IPropertyHandle> InModeNameHandle, const TSharedPtr<IPropertyHandle> InFunctionHandle);
-
-	virtual ~FDMXFixtureFunctionItem();
-
-	/** Returns true if the function names equal */
-	bool EqualsFunction(const TSharedPtr<FDMXFixtureFunctionItem>& Other) const;
-
-	/** Returns the current function name */
-	FString GetFunctionName() const;
-
-	/** Returns the current function channel */
-	int32 GetFunctionChannel() const;
-
-	/** Sets the function name */
-	void SetFunctionName(const FString& InDesiredName, FString& OutNewName);
-
-	/** True if the function is edited in shared data */
-	bool IsFunctionEdited() const;
-
-	/** True if the function is selected in shared data */
-	bool IsFunctionSelected() const;
-
-	/** Get property handle for the function */
-	const TSharedPtr<IPropertyHandle>& GetFunctionHandle() { return FunctionHandle; }
-
-	/** Get property handle for the function name */
-	const TSharedPtr<IPropertyHandle>& GetFunctionNameHandle() { return FunctionNameHandle; }
-protected:
-	// IDMXNamedType Interface
-	virtual void GetName(FString& OutUniqueName) const override;
-	virtual bool IsNameUnique(const FString& TestedName) const override;
-	virtual void SetName(const FString& InDesiredName, FString& OutUniqueName) override;
-	// ~IDMXNamedType Interface
-
-private:
-	/** Property handle for the function name */
-	TSharedPtr<IPropertyHandle> FunctionNameHandle;
-
-	/** Property handle for the function channel */
-	TSharedPtr<IPropertyHandle> FunctionChannelHandle;
-
-	/** Property handle for the function */
-	TSharedPtr<IPropertyHandle> FunctionHandle;
-};
-
-
-/** Shared data for fixture type editors. */
+/** Shared data and utilities for objects in a DMX Editor */
 class FDMXFixtureTypeSharedData
 	: public TSharedFromThis<FDMXFixtureTypeSharedData>
 {
-	friend class FDMXFixtureModeItem;
-	friend class FDMXFixtureFunctionItem;
-
 public:
 	FDMXFixtureTypeSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr)
 		: DMXEditorPtr(InDMXEditorPtr)
 	{}	
 
 public:
-	/** Sets which fixture types are being edited in shared data */
-	void SetFixtureTypesBeingEdited(const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& InFixtureTypesBeingEdited);
+	/** Selects specified Fixture Types */
+	void SelectFixtureTypes(const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& InFixtureTypes);
 
-	/** Sets which modes are being edited */
-	void SetModesBeingEdited(const TArray<TSharedPtr<FDMXFixtureModeItem>>& InModesBeingEdited) { ModesBeingEdited = InModesBeingEdited; }
+	/** Selects specified Modes */
+	void SelectModes(const TArray<int32>& InModeIndices);
 
-	/** Sets which functions are being edited */
-	void SetFunctionsBeingEdited(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& InFunctionsBeingEdited) { FunctionsBeingEdited = InFunctionsBeingEdited; }
+	/** Selects specified Functions */
+	void SetFunctionAndMatrixSelection(const TArray<int32>& InFunctionIndices, bool bMatrixSelected);
 
-	/** Selects specified modes */
-	void SelectModes(const TArray<TSharedPtr<FDMXFixtureModeItem>>& InModeItems);
+	/** Selects specified Functions */
+	UE_DEPRECATED(5.0, "Deprecated in favor of SetFunctionAndMatrixSelection to avoid the unclear state where both need change, but one contains the old state while the other changed.")
+	void SelectFunctions(const TArray<int32>& InFunctionIndices);
 
-	/** Selects specified functions */
-	void SelectFunctions(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& InFunctions);
+	const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& GetSelectedFixtureTypes() const { return SelectedFixtureTypes; }
+	const TArray<int32>& GetSelectedModeIndices() const { return SelectedModeIndices; }
+	const TArray<int32>& GetSelectedFunctionIndices() const { return SelectedFunctionIndices; }
+	bool IsFixtureMatrixSelected() const { return bFixtureMatrixSelected; }
 
-	/** Returns the number of modes being edited */
-	int32 GetNumSelectedModes() const;
+	/** Returns true if selected Modes can be copied */
+	bool CanCopyModesToClipboard() const;
 
-	/** Returns the number of modes being edited */
-	int32 GetNumSelectedFunctions() const;
+	/** Copies selected Modes. Only should be called when CanCopyModesToClipboard */
+	void CopyModesToClipboard();
 
-	/** Broadcasts when selected modes changed */
-	FSimpleMulticastDelegate OnModesSelected;
+	/** Returns true if Modes can be pasted */
+	bool CanPasteModesFromClipboard() const;
 
-	/** Broadcasts when selected functions changed */
-	FSimpleMulticastDelegate OnFunctionsSelected;
+	/** Pastes the Modes clipboard to selected Modes, returns the newly added Mode indices. Only should be called when CanPasteModesFromClipboard */
+	void PasteModesFromClipboard(TArray<int32>& OutNewlyAddedModeIndices);
 
-public:	
-	/** True when a mode can be added (true, if one fixture type is edited) */
+	/** Returns true if selected Functions can be copied */
+	bool CanCopyFunctionsToClipboard() const;
+
+	/** Copies selected Functions. Only should be called when CanCopyFunctionsToClipboard */
+	void CopyFunctionsToClipboard();
+
+	/** Returns true if Functions can be pasted */
+	bool CanPasteFunctionsFromClipboard() const;
+
+	/** Pastes the Modes clipboard to selected Functions, returns the newly added Function indices. Only should be called when CanPasteFunctionsFromClipboard */
+	void PasteFunctionsFromClipboard(TArray<int32>& OutNewlyAddedFunctionIndices);
+
+	UE_DEPRECATED(5.0, "Removed for a cleaner API. Please make up logic in place where this was used (e.g. instead use GetSelectedModes().Num() == 1 from this class).")
 	bool CanAddMode() const;
 
-	/** Adds a mode to edited fixture type */
-	void AddMode(const FScopedTransaction& TransactionScope);
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::AddMode.")
+	void AddMode();
 
-	/** Duplicates specified modes in the modes arrays they reside in */
-	void DuplicateModes(const TArray<TSharedPtr<FDMXFixtureModeItem>>& ModesToDuplicate);
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::DuplicateModes.")
+	void DuplicateModes(const TArray<int32>& ModeIndicesToDuplicate);
 
-	/** Deletes specified modes from the modes arrays they reside in */
-	void DeleteModes(const TArray<TSharedPtr<FDMXFixtureModeItem>>& ModesToDelete);
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::DeleteModes.")
+	void DeleteModes(const TArray<int32>& ModeIndicesToDelete);
 
-	/** Copies functions to clipboard */
-	void CopyModesToClipboard(const TArray<TSharedPtr<FDMXFixtureModeItem>>& ModeItems);
+	UE_DEPRECATED(5.0, "Replaced with FDMXFixtureTypeSharedData::PasteModesFromClipboard.")
+	void PasteClipboardToModes(const TArray<int32>& ModeIndices);
 
-	/** Pastes clipboard to specified functions*/
-	void PasteClipboardToModes(const TArray<TSharedPtr<FDMXFixtureModeItem>>& ModeItems);
-
-public:
-	/** True when a function can be added (true, if one mode is selected) */
+	UE_DEPRECATED(5.0, "Removed for a cleaner API. Please make up logic in place where this was used (e.g. instead use GetSelectedFunctions().Num() == 1 from this class).")
 	bool CanAddFunction() const;
 
-	/** Duplicates specified modes in the modes arrays they reside in */
-	void DuplicateFunctions(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& FunctionsToDuplicate);
-
-	/** Deletes specified modes from the modes arrays they reside in */
-	void DeleteFunctions(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& FunctionsToDelete);
-
-	/** Adds a function to selected mode, only if CanAddFunction */
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::AddFunction.")
 	void AddFunctionToSelectedMode();
 
-	/** Copies functions to clipboard */
-	void CopyFunctionsToClipboard(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& FunctionItems);
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::DuplicateFunctions.")
+	void DuplicateFunctions(const TArray<int32>& FunctionIndicesToDuplicate);
 
-	/** Pastes clipboard to specified functions*/
-	void PasteClipboardToFunctions(const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& FunctionItems);
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::DeleteFunctions.")
+	void DeleteFunctions(const TArray<int32>& FunctionIndicesToDelete);
 
-protected:
-	// Protected to prevent from copying name properties across detail customizations
-	const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& GetFixtureTypesBeingEdited() const { return FixtureTypesBeingEdited; }
-	const TArray<TSharedPtr<FDMXFixtureModeItem>>& GetModesBeingEdited() const { return ModesBeingEdited; }
-	const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& GetFunctionsBeingEdited() const { return FunctionsBeingEdited; }
-	const TArray<TSharedPtr<FDMXFixtureModeItem>>& GetSelectedModes() const { return SelectedModes; }
-	const TArray<TSharedPtr<FDMXFixtureFunctionItem>>& GetSelectedFunctions() const { return SelectedFunctions; }
+	UE_DEPRECATED(5.0, "Replaced with FDMXFixtureTypeSharedData::PasteFunctionsFromClipboard.")
+	void PasteClipboardToFunctions(const TArray<int32>& FunctionIndices);
 
-private:
-	/** Internal cache for multi mode copy/paste*/
-	TArray<FString> ModesClipboard;
+	UE_DEPRECATED(5.0, "Removed for a cleaner API. Please make up logic in place where this was used (e.g. instead use IsMatrixSelected() from this class).")
+	bool CanAddCellAttribute() const;
 
-	/** Internal cache for multi function copy/paste*/
-	TArray<FString> FunctionsClipboard;
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::AddCellAttribute.")
+	void AddCellAttributeToSelectedMode();
+
+	/** Broadcasts when selected Fixture Types changed */
+	FSimpleMulticastDelegate OnFixtureTypesSelected;
+
+	/** Broadcasts when selected Modes changed */
+	FSimpleMulticastDelegate OnModesSelected;
+
+	/** Broadcasts when selected Functions changed */
+	FSimpleMulticastDelegate OnFunctionsSelected;
+
+	/** Broadcasts when the Matrix was selected or unselected */
+	FSimpleMulticastDelegate OnMatrixSelectionChanged;
 
 private:
 	/** The Fixture types being edited */
-	TArray<TWeakObjectPtr<UDMXEntityFixtureType>> FixtureTypesBeingEdited;
+	TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes;
 
-	/** Modes being edited */
-	TArray<TSharedPtr<FDMXFixtureModeItem>> ModesBeingEdited;
+	/** The Mode indices in the Selected Fixture Types currently being selected */
+	TArray<int32> SelectedModeIndices;
 
-	/** Gunctions being edited */
-	TArray<TSharedPtr<FDMXFixtureFunctionItem>> FunctionsBeingEdited;
+	/** The Function indices in the Selected Fixture Types currently being selected  */
+	TArray<int32> SelectedFunctionIndices;
 
-	/** Selected modes in fixture types */
-	TArray<TSharedPtr<FDMXFixtureModeItem>> SelectedModes;
+	/** If true the Fixture Matrices in the currently seleccted Modes are selected */
+	bool bFixtureMatrixSelected = false;
 
-	/** Selected functions in modes */
-	TArray<TSharedPtr<FDMXFixtureFunctionItem>> SelectedFunctions;
+	/** Cache for multi mode copy/paste*/
+	TArray<FString> ModesClipboard;
+
+	/** Cache for multi function copy/paste*/
+	TArray<FString> FunctionsClipboard;
 
 	/** Weak reference to the DMX editor */
 	TWeakPtr<FDMXEditor> DMXEditorPtr;	
-
-protected:
-	/** Serializes a struct */
-	template <typename StructType>
-	bool SerializeStruct(const StructType& Struct, FString& OutCopyStr) const
-	{
-		TSharedRef<FJsonObject> RootJsonObject = MakeShareable(new FJsonObject());
-
-		FJsonObjectConverter::UStructToJsonObject(StructType::StaticStruct(), &Struct, RootJsonObject, 0, 0);
-
-		typedef TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriter;
-		typedef TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> FStringWriterFactory;
-
-		FString CopyStr;
-		TSharedRef<FStringWriter> Writer = FStringWriterFactory::Create(&CopyStr);
-		FJsonSerializer::Serialize(RootJsonObject, Writer);
-
-		if (!CopyStr.IsEmpty())
-		{
-			OutCopyStr = CopyStr;
-			return true;
-		}
-
-		return false;
-	}
 };

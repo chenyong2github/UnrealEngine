@@ -19,7 +19,6 @@
 #include "Widgets/Docking/SDockTab.h"
 
 #include "Widgets/SDMXEntityEditor.h"
-#include "Widgets/SDMXEntityInspector.h"
 #include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
 #include "Widgets/OutputConsole/SDMXOutputConsole.h"
@@ -307,8 +306,7 @@ TSharedRef<SDMXLibraryEditorTab> FDMXEditor::CreateDMXLibraryEditorTab()
 
 TSharedRef<SDMXFixtureTypeEditor> FDMXEditor::CreateFixtureTypeEditor()
 {
-	return SNew(SDMXFixtureTypeEditor)
-		.DMXEditor(SharedThis(this));
+	return SNew(SDMXFixtureTypeEditor, SharedThis(this));
 }
 
 TSharedRef<SDMXFixturePatchEditor> FDMXEditor::CreateFixturePatchEditor()

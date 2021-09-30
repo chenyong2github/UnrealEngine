@@ -96,7 +96,6 @@ void SDMXEntityTreeViewBase::Construct(const FArguments& InArgs)
 		.OnExpansionChanged(this, &SDMXEntityTreeViewBase::OnExpansionChanged)
 		.OnSelectionChanged(this, &SDMXEntityTreeViewBase::OnSelectionChanged)
 		.OnContextMenuOpening(this, &SDMXEntityTreeViewBase::OnContextMenuOpen)
-		// .OnItemScrolledIntoView(this, &SDMXEntityTreeViewBase::OnItemScrolledIntoView)
 		.HighlightParentNodesForSelection(false);
 
 	ChildSlot

@@ -8,7 +8,6 @@
 #include "DMXPixelMappingRuntimeUtils.h"
 #include "DMXPixelMappingTypes.h"
 #include "DMXSubsystem.h"
-#include "DMXUtils.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
@@ -47,6 +46,9 @@ UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 	AttributeBExpose = true;
 
 	bMonochromeExpose = true;
+
+	// Listen to Fixture Type changes
+	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddUObject(this, &UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged);
 }
 
 void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
@@ -139,21 +141,14 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeProperty(FPropertyChangedEve
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchRef) ||
 		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CoordinateGrid))
 	{
-		if (UDMXPixelMapping* PixelMapping = GetPixelMapping())
-		{
-			HandleMatrixChanged();
-		}
+		HandleMatrixChanged();
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXEntityReference, DMXLibrary))
 	{
-		if (UDMXPixelMapping* PixelMapping = GetPixelMapping())
-		{
-			HandleMatrixChanged();
-		}
+		HandleMatrixChanged();
 	}
 }
 #endif // WITH_EDITOR
-
 
 #if WITH_EDITOR
 void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
@@ -333,62 +328,6 @@ FString UDMXPixelMappingMatrixComponent::GetUserFriendlyName() const
 	return FString(TEXT("Fixture Matrix: No Fixture Patch"));
 }
 
-void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
-{
-#if WITH_EDITOR
-	// Test for property changes each tick
-	if (UDMXPixelMapping * PixelMapping = GetPixelMapping())
-	{
-			bool bShouldRebuildChildren = false;
-
-			UDMXLibrary* DMXLibrary = FixturePatchRef.DMXLibrary;
-			UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
-
-			if (DMXLibrary && FixturePatch)
-			{
-				if (UDMXEntityFixtureType * ParentFixtureType = FixturePatch->GetFixtureType())
-				{
-					if (!FixturePatch->GetActiveMode() && GetChildrenCount() > 0)
-					{
-						bShouldRebuildChildren = true;
-					}
-					else if (!ParentFixtureType->bFixtureMatrixEnabled && GetChildrenCount() > 0)
-					{
-						bShouldRebuildChildren = true;
-					}
-					else
-					{
-						const FDMXFixtureMode* FixtureMode = FixturePatch->GetActiveMode();
-
-						if (FixtureMode)
-						{
-							const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode->FixtureMatrixConfig;
-						const FIntPoint NewCoordinateGrid(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
-
-						if (CoordinateGrid != NewCoordinateGrid)
-							{
-								bShouldRebuildChildren = true;
-							}
-							else if (FixtureMatrixConfig.PixelMappingDistribution != Distribution)
-							{
-								bShouldRebuildChildren = true;
-								Distribution = FixtureMatrixConfig.PixelMappingDistribution;
-							}
-						}
-					}
-				}
-			}
-
-			if (bShouldRebuildChildren)
-			{
-			HandleMatrixChanged();
-
-				LogInvalidProperties();
-		}
-	}
-#endif // WITH_EDITOR
-}
-
 void UDMXPixelMappingMatrixComponent::SetPosition(const FVector2D& NewPosition)
 {
 	Modify();
@@ -474,43 +413,51 @@ void UDMXPixelMappingMatrixComponent::HandleMatrixChanged()
 
 	// Remove all existing children and rebuild them anew
 	for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(Children))
-{
+	{
 		RemoveChild(Child);
 	}
 
-	if (UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch())
+
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+	UDMXEntityFixtureType* FixtureType = FixturePatch ? FixturePatch->GetFixtureType() : nullptr;
+	const FDMXFixtureMode* ModePtr = FixturePatch ? FixturePatch->GetActiveMode() : nullptr;
+	if (FixturePatch && FixtureType && ModePtr && ModePtr->bFixtureMatrixEnabled)
 	{
-		if (UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType())
+		TArray<FDMXCell> MatrixCells;
+		if (FixturePatch->GetAllMatrixCells(MatrixCells))
 		{
-			if (FixtureType->bFixtureMatrixEnabled)
+			Distribution = ModePtr->FixtureMatrixConfig.PixelMappingDistribution;
+			CoordinateGrid = FIntPoint(ModePtr->FixtureMatrixConfig.XCells, ModePtr->FixtureMatrixConfig.YCells);
+
+			for (const FDMXCell& Cell : MatrixCells)
 			{
-				if (const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode())
-				{
-					TArray<FDMXCell> MatrixCells;
-					if (FixturePatch->GetAllMatrixCells(MatrixCells))
-					{
-						Distribution = ModePtr->FixtureMatrixConfig.PixelMappingDistribution;
-						CoordinateGrid = FIntPoint(ModePtr->FixtureMatrixConfig.XCells, ModePtr->FixtureMatrixConfig.YCells);
+				TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixCellComponent::StaticClass());
+				UDMXPixelMappingMatrixCellComponent* Component = ComponentTemplate->CreateComponent<UDMXPixelMappingMatrixCellComponent>(GetPixelMapping()->GetRootComponent());
 
-						for (const FDMXCell& Cell : MatrixCells)
-						{
-							TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixCellComponent::StaticClass());
-							UDMXPixelMappingMatrixCellComponent* Component = ComponentTemplate->CreateComponent<UDMXPixelMappingMatrixCellComponent>(GetPixelMapping()->GetRootComponent());
+				Component->CellID = Cell.CellID;
+				Component->SetCellCoordinate(Cell.Coordinate);
 
-							Component->CellID = Cell.CellID;
-							Component->SetCellCoordinate(Cell.Coordinate);
-
-							AddChild(Component);
-				}
+				AddChild(Component);
 			}
-		}
-	}
 		}
 	}
 
 	HandleSizeChanged();
 
 	GetOnMatrixChanged().Broadcast(GetPixelMapping(), this);
+}
+
+void UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
+{
+	if (UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch())
+	{
+		if (FixturePatch->GetFixtureType() == FixtureType)
+		{
+			HandleMatrixChanged();
+
+			LogInvalidProperties();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

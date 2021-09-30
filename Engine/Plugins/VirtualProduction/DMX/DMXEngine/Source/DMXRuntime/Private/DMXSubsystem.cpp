@@ -3,6 +3,7 @@
 #include "DMXSubsystem.h"
 
 #include "DMXAttribute.h"
+#include "DMXConversions.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
 #include "DMXRuntimeUtils.h"
@@ -400,7 +401,7 @@ void UDMXSubsystem::GetFixtureAttributes(const UDMXEntityFixturePatch* InFixture
 			{
 				for (const FDMXFixtureFunction& Function : ActiveModePtr->Functions)
 				{
-					if (!UDMXEntityFixtureType::IsFunctionInModeRange(Function, *ActiveModePtr, StartingAddress))
+					if (Function.GetLastChannel() <= InFixturePatch->GetChannelSpan())
 					{
 						// This function and the following ones are outside the Universe's range.
 						break;
@@ -464,7 +465,7 @@ bool UDMXSubsystem::GetFunctionsMap(UDMXEntityFixturePatch* InFixturePatch, TMap
 		for (const FDMXFixtureFunction& Function : ModePtr->Functions)
 		{
 			const int32 FunctionStartIndex = Function.Channel - 1 + PatchStartingIndex;
-			const int32 FunctionLastIndex = FunctionStartIndex + UDMXEntityFixtureType::NumChannelsToOccupy(Function.DataType) - 1;
+			const int32 FunctionLastIndex = FunctionStartIndex + FDMXConversions::GetSizeOfSignalFormat(Function.DataType) - 1;
 			if (FunctionLastIndex >= ChannelData.Num())
 			{
 				break;
@@ -705,7 +706,7 @@ float UDMXSubsystem::BytesToNormalizedValue(const TArray<uint8>& Bytes, bool bUs
 
 void UDMXSubsystem::NormalizedValueToBytes(float InValue, EDMXFixtureSignalFormat InSignalFormat, TArray<uint8>& Bytes, bool bUseLSB /*= false*/) const
 {
-	const uint8 NumBytes = UDMXEntityFixtureType::NumChannelsToOccupy(InSignalFormat);
+	const uint8 NumBytes = FDMXConversions::GetSizeOfSignalFormat(InSignalFormat);
 	// Make sure the array will fit the correct number of bytes
 	Bytes.Reset(NumBytes);
 	Bytes.AddZeroed(NumBytes);
@@ -715,7 +716,7 @@ void UDMXSubsystem::NormalizedValueToBytes(float InValue, EDMXFixtureSignalForma
 
 void UDMXSubsystem::IntValueToBytes(int32 InValue, EDMXFixtureSignalFormat InSignalFormat, TArray<uint8>& Bytes, bool bUseLSB /*= false*/)
 {
-	const uint8 NumBytes = UDMXEntityFixtureType::NumChannelsToOccupy(InSignalFormat);
+	const uint8 NumBytes = FDMXConversions::GetSizeOfSignalFormat(InSignalFormat);
 	// Make sure the array will fit the correct number of bytes
 	Bytes.Reset(NumBytes);
 	Bytes.AddZeroed(NumBytes);
@@ -725,7 +726,7 @@ void UDMXSubsystem::IntValueToBytes(int32 InValue, EDMXFixtureSignalFormat InSig
 
 float UDMXSubsystem::IntToNormalizedValue(int32 InValue, EDMXFixtureSignalFormat InSignalFormat) const
 {
-	return (float)(uint32)(InValue) / UDMXEntityFixtureType::GetDataTypeMaxValue(InSignalFormat);
+	return (float)(uint32)(InValue) / FDMXConversions::GetSignalFormatMaxValue(InSignalFormat);
 }
 
 float UDMXSubsystem::GetNormalizedAttributeValue(UDMXEntityFixturePatch* InFixturePatch, FDMXAttributeName InFunctionAttribute, int32 InValue) const

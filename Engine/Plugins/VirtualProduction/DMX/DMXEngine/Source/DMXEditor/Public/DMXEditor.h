@@ -25,6 +25,9 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGetBaseNameForNewEntity, TSubclassOf<UDM
 // Used to enable Entity creator code to set values in a newly created entity
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSetupNewEntity, UDMXEntity*);
 
+/** 
+ * *** The DMX Library Editor, displayed when opening a DMX Library Asset ***
+ */
 class DMXEDITOR_API FDMXEditor
 	: public FWorkflowCentricApplication	// Allow Add ApplicationModes
 	, public FNotifyHook

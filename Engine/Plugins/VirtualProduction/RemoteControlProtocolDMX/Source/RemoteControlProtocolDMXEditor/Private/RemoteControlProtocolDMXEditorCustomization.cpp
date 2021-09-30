@@ -2,6 +2,7 @@
 
 #include "RemoteControlProtocolDMXEditorCustomization.h"
 
+#include "DMXConversions.h"
 #include "DetailWidgetRow.h"
 #include "DMXProtocolTypes.h"
 #include "IDetailChildrenBuilder.h"
@@ -73,7 +74,7 @@ void FRemoteControlProtocolDMXEditorTypeCustomization::CheckAndApplyStartingChan
 		return;
 	}
 	const EDMXFixtureSignalFormat DataType = static_cast<EDMXFixtureSignalFormat>(DataTypeByte);
-	const uint8 NumChannelsToOccupy = UDMXEntityFixtureType::NumChannelsToOccupy(DataType);
+	const uint8 NumChannelsToOccupy = FDMXConversions::GetSizeOfSignalFormat(DataType);
 
 	// Get starting channel value
 	int32 StartingChannel = 0;

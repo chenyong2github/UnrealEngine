@@ -3,6 +3,7 @@
 #include "Library/DMXEntityFixturePatchCache.h"
 #include "Modulators/DMXModulator.h"
 
+#include "DMXConversions.h"
 #include "DMXRuntimeUtils.h"
 
 
@@ -144,7 +145,7 @@ bool FDMXEntityFixturePatchCache::InputDMXSignal(const FDMXSignalSharedPtr& DMXS
 				const uint32 IntValue = UDMXEntityFixtureType::BytesToFunctionValue(Function, CachedDMXValues.GetData() + FunctionStartIndex);
 				CachedRawValuesPerAttribute.Add(Function.Attribute, IntValue);
 
-				const float NormalizedValue = (float)IntValue / (float)UDMXEntityFixtureType::GetDataTypeMaxValue(Function.DataType);
+				const float NormalizedValue = (float)IntValue / (float)FDMXConversions::GetSignalFormatMaxValue(Function.DataType);
 				CachedNormalizedValuesPerAttribute.Map.Add(Function.Attribute, NormalizedValue);
 			}
 
@@ -175,7 +176,7 @@ bool FDMXEntityFixturePatchCache::InputDMXSignal(const FDMXSignalSharedPtr& DMXS
 						const uint32 IntValue = UDMXEntityFixtureType::BytesToInt(CellAttribute.DataType, CellAttribute.bUseLSBMode, CachedDMXValues.GetData() + FirstAttributeDataIndex);
 						CellAttributeToRawValueMap.Add(CellAttribute.Attribute.GetName(), IntValue);
 
-						const float NormalizedValue = (float)IntValue / (float)UDMXEntityFixtureType::GetDataTypeMaxValue(CellAttribute.DataType);
+						const float NormalizedValue = (float)IntValue / (float)FDMXConversions::GetSignalFormatMaxValue(CellAttribute.DataType);
 						CellAttributeTNormalizedValueMap.Map.Add(CellAttribute.Attribute.GetName(), NormalizedValue);
 
 						// Increment attribute offset for the next attribute

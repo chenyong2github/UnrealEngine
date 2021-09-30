@@ -87,6 +87,9 @@ protected:
 	/** Registers asset types actions */
 	void RegisterAssetTypeActions();
 
+	/** Registers global class customizations */
+	void RegisterClassCustomizations();
+
 	/** Registers global property type customizations */
 	void RegisterPropertyTypeCustomizations();
 

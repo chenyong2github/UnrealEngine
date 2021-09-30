@@ -3,33 +3,31 @@
 #include "DMXConversions.h"
 
 
-TArray<uint8> FDMXConversions::UnsignedInt32ToByteArray(uint32 Value, EDMXFixtureSignalFormat SignalFormat, bool bLSBOrder)
+uint8 FDMXConversions::GetSizeOfSignalFormat(EDMXFixtureSignalFormat SignalFormat)
 {
-	const int32 NumBytes = static_cast<uint8>(SignalFormat) + 1;
-
-	// To avoid branching in the loop, we'll decide before it on which byte to start
-	// and which direction to go, depending on the Function's endianness.
-	const int8 ByteIndexStep = bLSBOrder ? 1 : -1;
-	int8 OutByteIndex = bLSBOrder ? 0 : NumBytes - 1;
-
-	TArray<uint8> Bytes;
-	Bytes.AddUninitialized(NumBytes);
-	for (uint8 ValueByte = 0; ValueByte < NumBytes; ++ValueByte)
-	{
-		Bytes[OutByteIndex] = (Value >> 8 * ValueByte) & 0xFF;
-		OutByteIndex += ByteIndexStep;
-	}
-
-	return Bytes;
+	return static_cast<uint8>(SignalFormat) + 1;
 }
 
-TArray<uint8> FDMXConversions::NormalizedDMXValueToByteArray(float NormalizedValue, EDMXFixtureSignalFormat SignalFormat, bool bLSBOrder)
+uint32 FDMXConversions::GetSignalFormatMaxValue(EDMXFixtureSignalFormat SignalFormat)
 {
-	NormalizedValue = FMath::Clamp(NormalizedValue, 0.f, 1.f);
-	uint32 Value = FMath::Floor<uint32>(TNumericLimits<uint32>::Max() * static_cast<double>(NormalizedValue));
-		
-	// Shift the value into signal format range
-	Value = Value >> ((3 - static_cast<uint8>(SignalFormat)) * 8);
+	switch (SignalFormat)
+	{
+	case EDMXFixtureSignalFormat::E8Bit:
+		return 0x000000FF;
+	case EDMXFixtureSignalFormat::E16Bit:
+		return 0x0000FFFF;
+	case EDMXFixtureSignalFormat::E24Bit:
+		return 0x00FFFFFF;
+	case EDMXFixtureSignalFormat::E32Bit:
+		return 0xFFFFFFFF;
+	default:
+		checkNoEntry(); // Unhandled enum value
+	}
 
-	return UnsignedInt32ToByteArray(Value, SignalFormat, bLSBOrder);
+	return 0;
+}
+
+uint32 FDMXConversions::ClampValueBySignalFormat(uint32 Value, EDMXFixtureSignalFormat SignalFormat)
+{
+	return FMath::Min(Value, GetSignalFormatMaxValue(SignalFormat));
 }

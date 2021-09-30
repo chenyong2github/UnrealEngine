@@ -15,6 +15,8 @@ public class DMXRuntime : ModuleRules
                 "CoreUObject",
                 "Engine",
 				"DMXProtocol",
+				"JsonUtilities",
+
 			}
 		);
 

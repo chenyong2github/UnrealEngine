@@ -46,23 +46,18 @@ private:
 
 
 	/**
-	 * FDataTypeChangeDelegate delegate call function
+	 * Called when a fixture type changed
 	 *
 	 * @param	InFixtureType	Fixture type UObject
 	 * @param	InMode			Changed mode
 	 *
 	 */
-	void OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode);
-
-private:
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* InFixtureType);
 
 	/** FDMXProtocolName and Custom nodes Graph Pin customizations */
 	TSharedPtr<FDMXGraphPanelPinFactory> DMXGraphPanelPinFactory;
 
 	/** List of registered class that we must unregister when the module shuts down */
 	TSet< FName > RegisteredClassNames;
-
-	/** UDMXEntityFixtureType.GetDataTypeChangeDelegate() delegate handle */
-	FDelegateHandle DataTypeChangeDelegate;
 };
 
