@@ -3,7 +3,7 @@
 #include "MotionTrailEditorToolset.h"
 #include "MotionTrailEditorMode.h"
 
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "InteractiveGizmoManager.h"
 
 #include "BaseBehaviors/SingleClickBehavior.h"

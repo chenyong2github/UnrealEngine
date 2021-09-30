@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "InteractiveGizmoManager.h"
 #include "BaseGizmos/AxisPositionGizmo.h"
 #include "BaseGizmos/PlanePositionGizmo.h"

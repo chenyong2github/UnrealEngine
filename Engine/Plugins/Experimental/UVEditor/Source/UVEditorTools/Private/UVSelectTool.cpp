@@ -3,7 +3,7 @@
 #include "UVSelectTool.h"
 
 #include "Algo/Unique.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "ContextObjectStore.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "Drawing/LineSetComponent.h"

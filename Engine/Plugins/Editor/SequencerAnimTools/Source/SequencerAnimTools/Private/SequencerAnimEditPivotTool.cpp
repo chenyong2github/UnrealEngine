@@ -5,7 +5,7 @@
 #include "ISequencer.h"
 #include "Sequencer/SequencerTrailHierarchy.h"
 #include "Sequencer/MovieSceneTransformTrail.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 #include "InteractiveGizmoManager.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/SingleKeyCaptureBehavior.h"

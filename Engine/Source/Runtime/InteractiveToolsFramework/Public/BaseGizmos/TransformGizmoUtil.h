@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveGizmo.h"
-#include "BaseGizmos/TransformGizmo.h"
+#include "BaseGizmos/CombinedTransformGizmo.h"
 
 #include "TransformGizmoUtil.generated.h"
 
