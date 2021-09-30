@@ -227,7 +227,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 					const FVector Min(x * IterativeCellSize, y * IterativeCellSize, z * IterativeCellSize);
 					const FVector Max = Min + FVector(IterativeCellSize);
 					FBox BoundsToLoad(Min, Max);
-					BoundsToLoad.ExpandBy(IterativeCellOverlapSize);
+					BoundsToLoad = BoundsToLoad.ExpandBy(IterativeCellOverlapSize);
 
 					UE_LOG(LogWorldPartitionBuilder, Verbose, TEXT("Loading Bounds: Min %s, Max %s"), *BoundsToLoad.Min.ToString(), *BoundsToLoad.Max.ToString());
 					WorldPartition->LoadEditorCells(BoundsToLoad, false);

@@ -5166,7 +5166,7 @@ TArray<uint32> FRecastNavMeshGenerator::RemoveTileLayers(const int32 TileX, cons
 				dtPolyRef TileRef = DetourMesh->getTileRef(Tiles[i]);
 
 				NumActiveTiles--;
-				UE_LOG(LogNavigation, Log, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%X (active:%d)"),
+				UE_LOG(LogNavigation, Verbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%X (active:%d)"),
 					*DestNavMesh->GetName(), TileX, TileY, LayerIndex, TileRef, NumActiveTiles);
 
 				DetourMesh->removeTile(TileRef, nullptr, nullptr);
@@ -5235,7 +5235,7 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 		if (OldTileRef)
 		{
 			NumActiveTiles--;
-			UE_LOG(LogNavigation, Log, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%X (active:%d)"),
+			UE_LOG(LogNavigation, Verbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%X (active:%d)"),
 				*DestNavMesh->GetName(), TileX, TileY, LayerIndex, OldTileRef, NumActiveTiles);
 
 			DetourMesh->removeTile(OldTileRef, nullptr, nullptr);
@@ -5280,7 +5280,7 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 				OutResultTileIndices.AddUnique(DetourMesh->decodePolyIdTile(ResultTileRef));
 				NumActiveTiles++;
 
-				UE_LOG(LogNavigation, Log, TEXT("%s> Tile (%d,%d:%d), added TileRef: 0x%X (active:%d)"),
+				UE_LOG(LogNavigation, Verbose, TEXT("%s> Tile (%d,%d:%d), added TileRef: 0x%X (active:%d)"),
 					*DestNavMesh->GetName(), TileX, TileY, LayerIndex, ResultTileRef, NumActiveTiles);
 
 				{
@@ -5815,7 +5815,11 @@ TArray<uint32> FRecastNavMeshGenerator::ProcessTileTasksAsync(const int32 NumTas
 				{
 					RunningElement.AsyncTask->StartSynchronousTask();
 				}
-			
+
+				static int32 Count = 1;
+				UE_LOG(LogNavigationDataBuild, VeryVerbose, TEXT("   Tile generation task #%i)"), Count);
+				Count++;
+				
 				RunningDirtyTiles.Add(RunningElement);
 			}
 			else if (!bGameStaticNavMesh)

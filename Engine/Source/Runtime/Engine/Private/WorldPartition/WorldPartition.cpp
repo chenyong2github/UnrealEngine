@@ -1318,9 +1318,9 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 	RuntimeHash->GenerateHLOD(SourceControlHelper, bCreateActorsOnly);
 }
 
-void UWorldPartition::GenerateNavigationData()
+void UWorldPartition::GenerateNavigationData(const FBox& LoadedBounds)
 {
-	RuntimeHash->GenerateNavigationData();
+	RuntimeHash->GenerateNavigationData(LoadedBounds);
 }
 
 const UActorDescContainer* UWorldPartition::RegisterActorDescContainer(FName PackageName)

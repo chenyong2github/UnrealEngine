@@ -39,7 +39,7 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages) { return false; }
 	virtual void FlushStreaming() {}
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly) { return false; }
-	virtual bool GenerateNavigationData() { return false; }
+	virtual bool GenerateNavigationData(const FBox& LoadedBounds) { return false; }
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const { return NAME_None; }
 	virtual void DrawPreview() const {}
 

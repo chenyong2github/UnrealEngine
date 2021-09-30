@@ -13,47 +13,70 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeSpatialHashNav, Log, All);
 
-bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
+bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData(const FBox& LoadedBounds)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateNavigationData);
 
-	UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Log, TEXT("%s"), ANSI_TO_TCHAR(__FUNCTION__));
+	static int32 CallCount = 0;
+	CallCount++;
+	UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Log, TEXT("%i. GenerateNavigationData for LoadedBounds %s"), CallCount, *LoadedBounds.ToString());
 
-	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+	const UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 	UWorld* World = WorldPartition->World;
 
 	// Generate navmesh
 	// Make sure navigation is added and initialized in EditorMode
 	FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
 
-	// Invoke navigation data generator
-	FNavigationSystem::Build(*World);
-
-	// For each cell, gather navmesh and generate a datachunk actor
-	const FBox WorldBounds = WorldPartition->GetWorldBounds();
-
-	const int32 GridIndex = 0; //Todo At: only work with grid 0 for now.
-	const uint32 GridLevel = 3; //Todo AT, only generate for level 3 for now
-	UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Verbose, TEXT("Generate NavDataChunk actor for GridIndex %i."), GridIndex);
-
-	const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
-	const FSquare2DGridHelper GridHelper = GetGridHelper(WorldBounds, RuntimeGrid.CellSize);
-	int32 ActorCount = 0;
-
-	const UNavigationSystemBase* NavSystem = World->GetNavigationSystem();
+	UNavigationSystemBase* NavSystem = World->GetNavigationSystem();
 	if (NavSystem == nullptr)
 	{
 		UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Verbose, TEXT("No navigation system to generate navigation data."));
 		return false;
 	}
 
+	// First check if there is any intersection with the nav bounds.
+	const FBox NavBounds = NavSystem->GetNavigableWorldBounds();
+	if (!LoadedBounds.Intersect(NavBounds))
+	{
+		// No intersections, early out
+		UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Log, TEXT("GenerateNavigationData finished (no intersection with nav bounds)."));
+		return true;
+	}
+
+	// Invoke navigation data generator
+	NavSystem->SetBuildBounds(LoadedBounds);
+	FNavigationSystem::Build(*World);
+
+	// Compute navdata bounds from tiles
+	const FBox NavDataBounds = NavSystem->ComputeNavDataBounds();
+	if (!LoadedBounds.Intersect(NavDataBounds))
+	{
+		// No intersections, early out
+		UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Log, TEXT("GenerateNavigationData finished (no intersection with generated navigation data)."));
+		return true;
+	}
+
+	// For each cell, gather navmesh and generate a datachunk actor
+	const FBox WorldBounds = WorldPartition->GetWorldBounds();
+
+	constexpr int32 GridIndex = 0; //Todo At: only work with grid 0 for now.
+	constexpr uint32 GridLevel = 3; //Todo AT, only generate for level 3 for now
+	UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Verbose, TEXT("Generate NavDataChunk actors for GridIndex %i, GridLevel %i."), GridIndex, GridLevel);
+
+	const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
+	const FSquare2DGridHelper GridHelper = GetGridHelper(WorldBounds, RuntimeGrid.CellSize);
+	int32 ActorCount = 0;
+
 	// Keep track of all valid navigation data chunk actors
 	TSet<ANavigationDataChunkActor*> ValidNavigationDataChunkActors;
 
 	const FSquare2DGridHelper::FGridLevel& GridLevelHelper = GridHelper.Levels[GridLevel];
 
-	GridLevelHelper.ForEachCells([GridLevel, &GridHelper, &GridLevelHelper, RuntimeGrid, WorldPartition, &ActorCount, World, NavSystem, &ValidNavigationDataChunkActors, this](const FIntVector2& CellCoord)
+	GridLevelHelper.ForEachIntersectingCells(LoadedBounds, [GridLevel, &GridHelper, &GridLevelHelper, RuntimeGrid, &ActorCount, World, &ValidNavigationDataChunkActors, &NavDataBounds, this](const FIntVector2& CellCoord)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(MakeNavigationDataChunkActorForGridCell);
+		
 			FBox2D CellBounds;
 			GridLevelHelper.GetCellBounds(CellCoord, CellBounds);
 			if (CellBounds.GetExtent().X < 1.f || CellBounds.GetExtent().Y < 1.f)
@@ -63,16 +86,16 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 				return;
 			}
 
-			const float HalfHeight = HALF_WORLD_MAX;
+			constexpr float HalfHeight = HALF_WORLD_MAX;
 			const FBox QueryBounds(FVector(CellBounds.Min.X, CellBounds.Min.Y, -HalfHeight), FVector(CellBounds.Max.X, CellBounds.Max.Y, HalfHeight));
 
-			if (NavSystem->ContainsNavData(QueryBounds) == false)
+			if (!NavDataBounds.IsValid || !NavDataBounds.Intersect(QueryBounds))
 			{
 				// Skip if there is no navdata for this cell
 				return;
 			}
 
-			 //@todo_ow: Properly handle data layers
+			//@todo_ow: Properly handle data layers
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.bDeferConstruction = true;
 			SpawnParams.bCreateActorPackage = true;
@@ -102,15 +125,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData()
 			UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Verbose, TEXT("%i) %s added."), ActorCount, *DataChunkActor->GetName());
 		});
 
-	// Destroy all invalid navigation data chunk actors
-	for (TActorIterator<ANavigationDataChunkActor> It(GetWorld()); It; ++It)
-	{
-		if (!ValidNavigationDataChunkActors.Contains(*It))
-		{
-			GetWorld()->DestroyActor(*It);
-		}
-	}
-
+	UE_LOG(LogWorldPartitionRuntimeSpatialHashNav, Log, TEXT("GenerateNavigationData finished (%i actors added)."), ActorCount);
 	return true;
 }
 

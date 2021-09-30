@@ -2911,6 +2911,61 @@ void ARecastNavMesh::RebuildTile(const TArray<FIntPoint>& Tiles)
 	}
 }
 
+void ARecastNavMesh::DirtyTilesInBounds(const FBox& Bounds)
+{
+	if (HasValidNavmesh() == false)
+	{
+		return;
+	}
+	
+	FRecastNavMeshGenerator* MyGenerator = static_cast<FRecastNavMeshGenerator*>(GetGenerator());
+	if (MyGenerator)
+	{
+		MyGenerator->DiscardCurrentBuildingTasks();
+	}
+	
+	const dtNavMesh* DetourNavMesh = RecastNavMeshImpl->GetRecastMesh();
+
+	// Remove all tiles
+	const int32 TileCount = GetNavMeshTilesCount();
+	TArray<FIntPoint> TilesToRemove;
+	TilesToRemove.Reserve(TileCount);
+	for (int32 TileIndex = 0; TileIndex < TileCount; ++TileIndex)
+	{
+		const dtMeshTile* Tile = DetourNavMesh->getTile(TileIndex);
+		dtMeshHeader* Header = Tile != nullptr ? Tile->header : nullptr;
+		if (Header)
+		{
+			TilesToRemove.Add(FIntPoint(Header->x, Header->y));
+		}
+	}
+	RemoveTiles(TilesToRemove);
+
+	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+	const FBox OverlappingBounds = Bounds.Overlap(NavSys->GetWorldBounds());
+
+	if (OverlappingBounds.IsValid)
+	{
+		// Add tiles within the overlapping bounds
+		TArray<FIntPoint> Points;
+		const FVector RcNavMeshOrigin = Unreal2RecastPoint(NavMeshOriginOffset);
+		const float RcTileSize = FMath::TruncToInt(TileSizeUU / CellSize);
+		const float TileSizeInWorldUnits = RcTileSize * CellSize;
+		const FRcTileBox TileBox(OverlappingBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
+
+		UE_LOG(LogNavigation, VeryVerbose, TEXT("RebuildTilesFromBounds %i tiles: (%i,%i) to (%i,%i)"), (TileBox.XMax-TileBox.XMin)*(TileBox.YMax-TileBox.YMin), TileBox.XMin, TileBox.YMin, TileBox.XMax, TileBox.YMax);
+
+		for (int32 TileY = TileBox.YMin; TileY <= TileBox.YMax; ++TileY)
+		{
+			for (int32 TileX = TileBox.XMin; TileX <= TileBox.XMax; ++TileX)
+			{
+				Points.Add(FIntPoint(TileX, TileY));
+			}
+		}
+		RebuildTile(Points);
+	}
+}
+
 #if RECAST_INTERNAL_DEBUG_DATA
 const TMap<FIntPoint, struct FRecastInternalDebugData>* ARecastNavMesh::GetDebugDataMap() const
 {

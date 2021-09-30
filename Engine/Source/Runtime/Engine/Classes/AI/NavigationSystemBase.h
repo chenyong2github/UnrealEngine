@@ -240,7 +240,13 @@ public:
 	UE_DEPRECATED(4.20, "GetMainNavData is deprecated. Use FNavigationSystem::GetCurrent<UNavigationSystemV1>()->GetDefaultNavDataInstance instead")
 	INavigationDataInterface* GetMainNavData(int) { return nullptr; }
 
-	virtual bool ContainsNavData(const FBox& Bounds) const { return false; }
+	virtual void SetBuildBounds(const FBox& Bounds) PURE_VIRTUAL(UNavigationSystemBase::SetBuildBounds, );
+
+	virtual FBox GetNavigableWorldBounds() const PURE_VIRTUAL(UNavigationSystemBase::GetNavigableWorldBounds, return FBox(ForceInit););
+	
+	virtual bool ContainsNavData(const FBox& Bounds) const PURE_VIRTUAL(UNavigationSystemBase::ContainsNavData, return false;);
+	virtual FBox ComputeNavDataBounds() const PURE_VIRTUAL(UNavigationSystemBase::GetNavigableWorldBounds, return FBox(ForceInit););
+	
 	virtual void AddNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
 	virtual void RemoveNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
 	virtual void FillNavigationDataChunkActor(const FBox& QueryBounds, class ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) {}
